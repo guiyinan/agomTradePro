@@ -549,6 +549,104 @@ def test_research_signals_screen_patch_removed_after_ia_cutover() -> None:
     assert runtime_screen["summary"] == research_signals["summary"]
 
 
+def test_research_alpha_triggers_alias_uses_canonical_ia_without_screen_patch() -> None:
+    """The alpha-triggers alias resolves to the canonical research screen."""
+
+    from apps.terminal.infrastructure.tui_information_architecture import screen_aliases
+    from apps.terminal.infrastructure.tui_metadata_repository import (
+        RUNTIME_SCREEN_PATCHES,
+        PublishedTuiMetadataRepository,
+    )
+
+    registry = load_json_payload(IA_PATH)
+    aliases = screen_aliases(registry)
+    runtime = PublishedTuiMetadataRepository(published_path=PUBLISHED_PATH)._load_published_file()
+    runtime_screen_keys = {str(screen["key"]) for screen in runtime["screens"]}
+    ia_screens = {
+        str(screen["key"]): screen
+        for screen in [*registry["published_screens"], *registry["runtime_screens"]]
+    }
+    runtime_screens = {str(screen["key"]): screen for screen in runtime["screens"]}
+
+    assert aliases["research.alpha-triggers"] == "research.signals"
+    assert "research.alpha-triggers" not in RUNTIME_SCREEN_PATCHES
+    assert "research.alpha-triggers" not in runtime_screen_keys
+    assert [panel["key"] for panel in runtime_screens["research.signals"]["dashboard_panels"]] == [
+        panel["key"] for panel in ia_screens["research.signals"]["dashboard_panels"]
+    ]
+    assert [
+        panel.get("action_key")
+        for panel in runtime_screens["research.signals"]["dashboard_panels"]
+        if panel.get("action_key")
+    ] == [
+        panel.get("action_key")
+        for panel in ia_screens["research.signals"]["dashboard_panels"]
+        if panel.get("action_key")
+    ]
+
+
+def _legacy_alpha_triggers_payload() -> dict[str, Any]:
+    """Return a minimal legacy alpha-triggers payload for compatibility checks."""
+
+    return {
+        "version": "legacy-alpha-triggers",
+        "default_screen": "research.alpha-triggers",
+        "groups": [{"key": "research", "label": "Research"}],
+        "modules": [
+            {
+                "key": "research-tools",
+                "label": "Research Tools",
+                "group": "research",
+                "summary": "Legacy research tools.",
+            }
+        ],
+        "screens": [
+            {
+                "key": "research.alpha-triggers",
+                "label": "Legacy Alpha Triggers",
+                "module_key": "research-tools",
+                "group": "research",
+                "summary": "Legacy alpha trigger summary.",
+                "view_type": "datagrid",
+                "default_action_key": "legacy.alpha-triggers.list",
+                "dashboard_panels": [],
+            }
+        ],
+        "actions": [
+            {
+                "key": "legacy.alpha-triggers.list",
+                "label": "Legacy alpha trigger list",
+                "endpoint": "/api/legacy/alpha-triggers/",
+                "intent": "legacy_alpha_triggers",
+                "screen_key": "research.alpha-triggers",
+                "module_key": "research-tools",
+                "view_type": "datagrid",
+            }
+        ],
+    }
+
+
+def test_legacy_alpha_triggers_payload_remains_loadable_without_screen_patch() -> None:
+    """Legacy alpha-triggers payloads keep their own contract after patch removal."""
+
+    from apps.terminal.application.tui_metadata import validate_tui_metadata
+    from apps.terminal.infrastructure.tui_metadata_repository import (
+        PublishedTuiMetadataRepository,
+    )
+
+    normalized = PublishedTuiMetadataRepository().validate_and_normalize_runtime_payload(
+        _legacy_alpha_triggers_payload()
+    )
+    screen = next(
+        screen for screen in normalized["screens"] if screen["key"] == "research.alpha-triggers"
+    )
+    assert screen["label"] == "Legacy Alpha Triggers"
+    assert screen["dashboard_panels"] == []
+    assert not normalized.get("coverage_summary", {}).get("runtime_patched_screens")
+    assert "legacy.alpha-triggers.list" in {action["key"] for action in normalized["actions"]}
+    validate_tui_metadata(normalized)
+
+
 def test_research_asset_lab_screen_patch_removed_after_ia_cutover() -> None:
     """The canonical asset research screen owns its panels after cutover."""
 
