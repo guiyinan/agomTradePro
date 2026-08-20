@@ -86,6 +86,106 @@ def test_retired_alias_screen_patch_is_not_registered_after_ia_cutover() -> None
     assert "command-center.auto-advisor" not in runtime_screen_keys
 
 
+def test_command_center_overview_uses_canonical_ia_without_screen_patch() -> None:
+    """The canonical home screen owns its copy and dashboard panels in IA."""
+
+    from apps.terminal.infrastructure.tui_information_architecture import screen_aliases
+    from apps.terminal.infrastructure.tui_metadata_repository import (
+        RUNTIME_SCREEN_PATCHES,
+        PublishedTuiMetadataRepository,
+    )
+
+    registry = load_json_payload(IA_PATH)
+    aliases = screen_aliases(registry)
+    ia_screen = next(
+        screen
+        for screen in registry["published_screens"]
+        if screen["key"] == "command-center.overview"
+    )
+    runtime = PublishedTuiMetadataRepository(published_path=PUBLISHED_PATH)._load_published_file()
+    runtime_screen = next(
+        screen for screen in runtime["screens"] if screen["key"] == "command-center.overview"
+    )
+
+    assert aliases["command-center.dashboard"] == "command-center.overview"
+    assert "command-center.overview" not in RUNTIME_SCREEN_PATCHES
+    for key in ("label", "summary", "view_type", "default_action_key", "user_experience"):
+        assert runtime_screen[key] == ia_screen[key]
+    assert [panel["key"] for panel in runtime_screen["dashboard_panels"]] == [
+        panel["key"] for panel in ia_screen["dashboard_panels"]
+    ]
+    assert [
+        panel.get("action_key")
+        for panel in runtime_screen["dashboard_panels"]
+        if panel.get("action_key")
+    ] == [
+        panel.get("action_key")
+        for panel in ia_screen["dashboard_panels"]
+        if panel.get("action_key")
+    ]
+
+
+def _legacy_command_center_payload() -> dict[str, Any]:
+    """Return a minimal non-IA home payload for compatibility checks."""
+
+    return {
+        "version": "legacy-command-center",
+        "default_screen": "command-center.overview",
+        "groups": [{"key": "daily", "label": "Daily"}],
+        "modules": [
+            {
+                "key": "daily-decisions",
+                "label": "Daily Decisions",
+                "group": "daily",
+                "summary": "Legacy daily decisions.",
+            }
+        ],
+        "screens": [
+            {
+                "key": "command-center.overview",
+                "label": "Legacy Command Center",
+                "module_key": "daily-decisions",
+                "group": "daily",
+                "summary": "Legacy command center.",
+                "view_type": "status",
+                "default_action_key": "legacy.command-center.summary",
+            }
+        ],
+        "actions": [
+            {
+                "key": "legacy.command-center.summary",
+                "label": "Legacy command center summary",
+                "endpoint": "/api/legacy/command-center/",
+                "intent": "legacy_command_center_summary",
+                "screen_key": "command-center.overview",
+                "module_key": "daily-decisions",
+                "view_type": "status",
+            }
+        ],
+    }
+
+
+def test_legacy_command_center_payload_remains_loadable_without_screen_patch() -> None:
+    """Legacy payloads keep their own screen contract after canonical cleanup."""
+
+    from apps.terminal.application.tui_metadata import validate_tui_metadata
+    from apps.terminal.infrastructure.tui_metadata_repository import (
+        PublishedTuiMetadataRepository,
+    )
+
+    normalized = PublishedTuiMetadataRepository().validate_and_normalize_runtime_payload(
+        _legacy_command_center_payload()
+    )
+    screen = next(
+        screen for screen in normalized["screens"] if screen["key"] == "command-center.overview"
+    )
+    assert screen["label"] == "Legacy Command Center"
+    assert screen["dashboard_panels"] == []
+    assert not normalized.get("coverage_summary", {}).get("runtime_patched_screens")
+    assert "legacy.command-center.summary" in {action["key"] for action in normalized["actions"]}
+    validate_tui_metadata(normalized)
+
+
 def test_execution_audit_screen_patch_is_not_registered_after_ia_cutover() -> None:
     """The canonical audit screen owns its panels in the reviewed IA graph."""
 
