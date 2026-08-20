@@ -768,3 +768,35 @@ records, `on_commit` dispatch, Worker/SSE, idempotency/cancel, provider/MCP, cha
 telemetry, restore/rollback, role-browser UAT, or owner/reviewer evidence. TAR-01 remains
 active and TAR-02/TAR-03 remain waiting; queued intake/worker and the inline single-slot gate
 are unchanged.
+
+### TAR-01 current HEAD VPS deployment and authenticated acceptance (2026-08-21, current HEAD)
+
+After the four GitHub CI checks were green, current
+`dev/next-development@4c49dd8a247bf83984346984c1663842e670a2fe` was deployed code-only as
+release `20260821024537`. The deployment verifier passed immutable source/image binding,
+PostgreSQL/Redis migrations and schema checks, Django checks, TUI registry, Qlib
+(`pyqlib=0.9.7`, wrong distribution absent), backup, Caddy/TLS, resources, containers,
+Celery worker/beat and ping. The runtime image is
+`agomtradepro-web:20260821024537` with image
+`sha256:e286ac83cf170f08325b48f05ee492aa530c6745ee24b067b767a60e828d93ed`.
+
+Using an authenticated account session with CSRF referer/token headers, the reserved
+`POST /api/terminal/runs/` route was exercised at concurrency `1/5/10/20` for exactly
+`1/5/10/20` requests. All `36/36` responses were HTTP `503` with
+`code=DISPATCH_UNAVAILABLE`, `reason_code=queued_runtime_not_wired`, and `Retry-After=60`;
+per-level p95 latency was `1272.986/1720.818/2103.543/2939.656 ms`. Health before and after
+was HTTP `200`, readiness was HTTP `200` with one Celery worker, and audit health/metrics
+were HTTP `200`. Audit operation logs remained `541`, failures `0`, and pending/due/claimed/
+expired/failed/delivered backlog counters remained `0`; no run, queue, provider, or MCP side
+effect was observed. The TUI catalog was readable as `tui-workbench.v2` with `885` normalized,
+`889` published, and `23` approved-operation actions. Readiness carried a decision-data
+freshness warning; this is recorded as a warning and does not authorize decision use.
+Structured evidence is
+[`tar01-current-production-acceptance-2026-08-21-head-4c49dd8a.json`](../deployment/tar01-current-production-acceptance-2026-08-21-head-4c49dd8a.json),
+validated by the offline reserved-route validator.
+
+This is direct evidence that the current HEAD is deployed and its reserved route remains
+authenticated and fail-closed. It is not queued admission, Worker, SSE, idempotency/cancel,
+provider/MCP, chaos, capacity, 14-day telemetry, restore/rollback, role-browser UAT, or
+owner/reviewer evidence. TAR-01 remains active and TAR-02/TAR-03 remain waiting; queued
+intake/worker and the inline single-slot gate are unchanged.
