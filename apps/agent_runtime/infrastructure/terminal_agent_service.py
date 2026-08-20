@@ -427,12 +427,18 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
     ) -> Any:
         """Construct the stdio MCP server wrapper."""
 
-        env = os.environ.copy()
         repo_root = Path(__file__).resolve().parents[3]
         sdk_root = str((repo_root / "sdk").resolve())
-        existing = env.get("PYTHONPATH", "")
-        env["PYTHONPATH"] = sdk_root if not existing else f"{sdk_root}{os.pathsep}{existing}"
-        env.setdefault("AGOMTRADEPRO_BASE_URL", "http://127.0.0.1:8000")
+        # The MCP child receives a deliberate runtime contract rather than a
+        # copy of the web process environment.  In particular, prompts and
+        # provider credentials must never become ambient child-process state.
+        env: dict[str, str] = {"PYTHONPATH": sdk_root}
+        django_settings_module = os.getenv("DJANGO_SETTINGS_MODULE", "").strip()
+        if django_settings_module:
+            env["DJANGO_SETTINGS_MODULE"] = django_settings_module
+        env["AGOMTRADEPRO_BASE_URL"] = (
+            os.getenv("AGOMTRADEPRO_BASE_URL", "").strip() or "http://127.0.0.1:8000"
+        )
         env["AGOMTRADEPRO_TIMEOUT"] = str(
             _configured_float(
                 "TERMINAL_AGENT_INTERNAL_API_TIMEOUT_SECONDS",
@@ -459,14 +465,18 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
             )
         )
         env["AGOMTRADEPRO_AUDIT_RETRY_BACKOFF_SECONDS"] = "0"
-        env["AGOMTRADEPRO_INTERNAL_AUTH_SECRET"] = getattr(
-            settings,
-            "AGOMTRADEPRO_INTERNAL_AUTH_SECRET",
-            "",
-        )
+        internal_auth_secret = str(
+            getattr(settings, "AGOMTRADEPRO_INTERNAL_AUTH_SECRET", "") or ""
+        ).strip()
+        if internal_auth_secret:
+            env["AGOMTRADEPRO_INTERNAL_AUTH_SECRET"] = internal_auth_secret
+        audit_secret = str(getattr(settings, "AUDIT_INTERNAL_SECRET_KEY", "") or "").strip()
+        if audit_secret:
+            env["AGOMTRADEPRO_AUDIT_SECRET_KEY"] = audit_secret
         env["AGOMTRADEPRO_INTERNAL_USER_ID"] = str(request.user_id or "")
         env["AGOMTRADEPRO_INTERNAL_USERNAME"] = request.username
         env["AGOMTRADEPRO_INTERNAL_SOURCE"] = "terminal_mcp"
+        env["AGOMTRADEPRO_MCP_ENFORCE_RBAC"] = "true"
         env["AGOMTRADEPRO_MCP_ENABLE_CORE_TOOLS"] = "true"
         env["AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS"] = "false"
         env["AGOMTRADEPRO_MCP_ROLE"] = (

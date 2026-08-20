@@ -120,7 +120,7 @@ _SCENARIOS: Final[tuple[TerminalRuntimeTestScenario, ...]] = (
         "local-cli-mcp",
         "tests/unit/agent_runtime/test_terminal_agent_local_cli.py",
         ("secret-prompt-transport", "fallback-bypass"),
-        "planned",
+        "implemented",
     ),
     TerminalRuntimeTestScenario(
         "load-1-5-10-20",

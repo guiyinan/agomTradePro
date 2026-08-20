@@ -358,7 +358,7 @@
     "samples_must_share_exact_candidate_identity": true,
     "capacity_ready_requires_complete_observed_metrics": true,
     "capacity_ready_requires_all_hard_slos": true,
-    "canonical_test_matrix_digest": "9490e06211b1e02a5fd664bb72f8f4bf6de29e355b0ca49fb1e23fb263699842",
+    "canonical_test_matrix_digest": "8866e24df834b25da8a553675011e431d309a99595b0ea64e0e4dc91a4777888",
     "offline_snapshot_format": "terminal-runtime-baseline-snapshot.v1",
     "offline_evidence_format": "terminal-runtime-baseline-evidence.v1",
     "runtime_enablement": "not_authorized",
@@ -442,7 +442,7 @@
       "chaos"
     ],
     "digest_algorithm": "SHA-256 over canonical ordered JSON",
-    "canonical_digest": "9490e06211b1e02a5fd664bb72f8f4bf6de29e355b0ca49fb1e23fb263699842",
+    "canonical_digest": "8866e24df834b25da8a553675011e431d309a99595b0ea64e0e4dc91a4777888",
     "scenarios": [
       {"scenario_id": "domain-state-machine", "layer": "domain", "required_test_path": "tests/unit/agent_runtime/test_terminal_agent_run_contract.py", "threat_ids": ["stale-worker-aba", "late-terminal-overwrite"], "implementation_status": "implemented"},
       {"scenario_id": "application-owner-idempotency-quota", "layer": "application", "required_test_path": "tests/unit/agent_runtime/test_terminal_agent_run_boundary.py", "threat_ids": ["idor", "replay-idempotency", "queue-flood"], "implementation_status": "implemented"},
@@ -452,7 +452,7 @@
       {"scenario_id": "events-reconnect-and-owner-scope", "layer": "events", "required_test_path": "tests/component/agent_runtime/test_terminal_agent_run_events.py", "threat_ids": ["sse-leak-replay", "sse-resource-exhaustion", "idor"], "implementation_status": "planned"},
       {"scenario_id": "tui-run-lifecycle", "layer": "tui", "required_test_path": "tests/unit/test_tui_workbench.py", "threat_ids": ["fallback-bypass"], "implementation_status": "implemented"},
       {"scenario_id": "sdk-reconnect-and-versioning", "layer": "sdk", "required_test_path": "sdk/tests/test_sdk/test_client.py", "threat_ids": ["sse-leak-replay", "fallback-bypass"], "implementation_status": "implemented"},
-      {"scenario_id": "local-cli-mcp-secret-boundary", "layer": "local-cli-mcp", "required_test_path": "tests/unit/agent_runtime/test_terminal_agent_local_cli.py", "threat_ids": ["secret-prompt-transport", "fallback-bypass"], "implementation_status": "planned"},
+      {"scenario_id": "local-cli-mcp-secret-boundary", "layer": "local-cli-mcp", "required_test_path": "tests/unit/agent_runtime/test_terminal_agent_local_cli.py", "threat_ids": ["secret-prompt-transport", "fallback-bypass"], "implementation_status": "implemented"},
       {"scenario_id": "load-1-5-10-20", "layer": "load", "required_test_path": "tests/load/agent_runtime/test_terminal_agent_capacity.py", "threat_ids": ["queue-flood", "request-size", "sse-resource-exhaustion"], "implementation_status": "planned"},
       {"scenario_id": "chaos-worker-stream-recovery", "layer": "chaos", "required_test_path": "tests/chaos/agent_runtime/test_terminal_agent_recovery.py", "threat_ids": ["stale-worker-aba", "sse-leak-replay"], "implementation_status": "planned"}
     ],
