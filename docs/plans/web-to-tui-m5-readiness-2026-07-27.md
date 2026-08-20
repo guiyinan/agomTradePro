@@ -672,3 +672,26 @@ This evidence is intentionally independent of the formal M5 candidate binding, w
 does not cover 14-day telemetry, write-receipt/refresh audit, registry backup/restore, live
 rollback, capacity/chaos, external AgomTUI portability or owner/reviewer sign-off. M5-A and
 TUI-01/TUI-02 remain `DENY`/`awaiting` as recorded by the registry.
+
+### 2026-08-20 post-fix role/browser acceptance on `28e0c2608`
+
+The active HTTPS deployment was advanced to `dev/next-development@28e0c2608eea1c0a4aed51c3a54eed80220db503`,
+release `20260820114848`, using code-only `-Upgrade` with PostgreSQL/Redis volumes preserved and
+Celery enabled. The built-in and independent expected-commit verifiers exited `0`; Caddy/TLS,
+health, containers, Django/migrations/schema, TUI registry, Qlib, backup, worker/beat and Celery
+ping were green. The deployment report is
+`dist/remote-build-reports/remote-build-report-20260820114848.json`.
+
+The browser acceptance also verified the bounded deep-link form fix: after layout, a create/update
+form is scrolled into the action panel viewport and focused rather than remaining below the
+scroll container. With dedicated operator/regular users and a unique run suffix, the final HTTPS
+Playwright selection passed `3/3`: queue role boundary, strategy create/detail/update/readback,
+and user-owned AI-provider create/detail/update/readback. Controlled rows were removed by exact
+owner/name selectors and the post-cleanup query returned zero matches. A prior reused fixture
+suffix was rejected as duplicate test data and is not counted as final acceptance.
+
+This evidence is tied to the active release only; it does not rebind the formal M5 candidate,
+which remains `f3881a04...` / `20260820043710`. The M5-A/TUI-01 gate still requires write
+receipt/refresh evidence, 14-day telemetry, registry backup/restore, live rollback,
+owner/reviewer approval and the remaining external/capacity dependencies. Those requirements
+remain `DENY`/`awaiting` rather than being inferred from this short browser window.

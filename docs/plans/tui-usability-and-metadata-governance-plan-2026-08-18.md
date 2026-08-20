@@ -167,6 +167,27 @@
   portability and owner/reviewer approval are still outstanding. `TUX-02`/`TUX-04` remain
   `active` and M5 remains fail-closed.
 
+## 6.2.3 2026-08-20 deep-link form viewport fix and current-release acceptance
+
+- The production browser pass exposed a concrete interaction defect: a deep-linked create/update
+  form could be attached but remain thousands of pixels below the scrollable action panel after
+  layout. `frontend/tui-workbench/src/30-actions.js` now performs a post-layout scroll/focus
+  (`requestAnimationFrame` plus a follow-up frame), and the browser regression asserts that the
+  requested field is inside the viewport. `npm run check:tui`, TUI JS `34 passed`, focused Python
+  metadata/actionability/IA `44 passed`, source guard (`12/24`, `430/889`, `0 violations`),
+  mypy debt ceiling and all four push CI workflows passed.
+- Commit `28e0c2608eea1c0a4aed51c3a54eed80220db503` was deployed as release `20260820114848`
+  with data volumes preserved; built-in and independent VPS verifiers passed. Final HTTPS
+  Playwright acceptance with the dedicated operator/regular actors and unique suffix `R0820A01`
+  passed queue role filtering, strategy create/detail/update/readback and personal AI-provider
+  create/detail/update/readback (`3 passed`). Exact controlled rows were removed and verified
+  absent; the sensitive API key was only entered in the browser prompt.
+- This is an active-release interaction and role/write/readback result, not external AgomTUI
+  portability or formal M5 candidate acceptance. The registry candidate remains
+  `f3881a04...`/`20260820043710`; receipt/refresh audit, 14-day telemetry, backup/restore,
+  rollback, capacity/chaos and owner/reviewer sign-off remain outside this slice, so `TUX-02`,
+  `TUX-04` and M5 remain active/fail-closed.
+
 ## 6. 风险与回滚
 
 - **文案批量重写风险**：430 个 action 的 label/description 重写可能误伤已被人工序列化的文案；分流时以 `source` 字段与人工策划 key 前缀白名单为界，重写前后做全量 diff 评审。

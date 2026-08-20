@@ -1440,3 +1440,44 @@ formal M5 candidate gate: the registry/readiness binding still names the separat
 `f3881a04...` / release `20260820043710`. No 14-day telemetry, write-receipt/refresh audit,
 registry backup/restore, live rollback, capacity/chaos run, or owner/reviewer sign-off was
 performed. M5/TUI, TAR, AUD and EVID production gates therefore remain fail-closed.
+
+## 2026-08-20 `28e0c2608` deep-link form fix deployment and final role/browser acceptance
+
+The pushed `dev/next-development@28e0c2608eea1c0a4aed51c3a54eed80220db503` was deployed
+code-only with `-Upgrade`; PostgreSQL/Redis volumes were preserved and Celery remained enabled.
+The release was `20260820114848` at `/opt/agomtradepro/releases/source-20260820114848`, with
+image `sha256:2eaeffd5a1653c3133b09c8d02880f39128ee9ae50acd658819078fed775208d`. The local
+deployment report is
+`dist/remote-build-reports/remote-build-report-20260820114848.json`.
+
+The deploy script and an independent `scripts/deploy_vps_verify.py --expected-commit
+28e0c2608eea1c0a4aed51c3a54eed80220db503 --expect-celery` both exited `0`: Caddy/domain TLS,
+HTTPS health, containers, Django check, migrations/canonical schema, published TUI registry,
+Qlib (`pyqlib=0.9.7`, wrong `qlib` distribution absent), release/image identity, PostgreSQL
+backup, resources, healthcheck, Celery worker/beat and `1 node online` ping all passed. Local
+TUI preflight passed `npm run check:tui`, 34 JavaScript tests, 44 focused Python metadata/
+actionability/IA tests and the source guard (`12/24` screens, `430/889` actions, `0` violations).
+All four push workflows for this commit (Fast Feedback, Consistency, Architecture and Security)
+completed successfully.
+
+The production browser regression found and then verified the real defect fixed by this commit:
+deep-linked action forms could be rendered below the scrollable action panel after layout, so a
+create/update row could appear present but could not be reached by a normal click. The workbench
+now performs a post-layout form scroll/focus and the browser regression asserts viewport
+visibility. With a unique run suffix, HTTPS Playwright completed all three final checks (`3
+passed`): operator queue visibility versus regular-user denial, strategy create/detail/update/
+readback, and user-owned AI-provider create/detail/update/readback. The provider API key was
+entered only in the explicit browser `补填参数` dialog and never URL-prefilled.
+
+The first short attempt used a reused date-only fixture suffix and exposed duplicate test data;
+diagnostics showed the operator grid and provider detail eventually returned HTTP `200`. The
+rerun used the unique suffix `R0820A01`, then exact owner/name cleanup removed the controlled
+strategy/provider rows (including rows left by the failed/retry attempts); the post-cleanup query
+returned zero matching rows for user id `6`. No password or secret is recorded here.
+
+This is current-release HTTPS role/write/readback evidence, not a formal M5 candidate rebind: the
+registry/readiness binding still names `f3881a04...` / release `20260820043710`. It does not prove
+write-receipt/refresh audit, 14-day telemetry, registry backup/restore, live rollback,
+capacity/chaos, external AgomTUI portability or owner/reviewer sign-off. TUX-02/TUX-04 and the
+M5/TAR/AUD/EVID production gates remain fail-closed where those independent requirements are
+still outstanding.
