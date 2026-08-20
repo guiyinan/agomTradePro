@@ -1308,3 +1308,32 @@ browser UAT, business write/receipt-refresh proof, 1/5/10/20 capacity or chaos r
 worker/SSE/idempotency/cancel/provider-MCP metrics, 14-day telemetry, restore/rollback drill,
 backfill/reconciliation, or owner/reviewer sign-off was performed; TAR-01/TAR-02/TAR-05 and
 the M5 production gates remain fail-closed.
+## 2026-08-20 00:05 UTC `39992992c` policy-PENDING fix deployment and authenticated read-only acceptance
+
+The pushed `dev/next-development@39992992cadc1c261f5dd8ffb06b64708a19397f` was deployed in
+code-only `-Upgrade` mode. PostgreSQL/Redis volumes were preserved, the standard pre-deploy
+backup and rollback guard remained enabled, and old Docker images were pruned only within the
+`agomtradepro-web` image family after the first deployment attempt exhausted the VPS root disk.
+Database volumes were not removed.
+
+| Item | Evidence |
+|---|---|
+| release | `20260820075124` at `/opt/agomtradepro/releases/source-20260820075124` |
+| source/image | `39992992cadc1c261f5dd8ffb06b64708a19397f`; `agomtradepro-web:20260820075124`; `sha256:0d08887db56e2367264950efe00fca71b8c34e97d2643e425decabb2ef190ad4` |
+| report | `dist/remote-build-reports/remote-build-report-20260820075124.json` |
+| verifier | exit `0`; Caddy/TLS, HTTPS health, containers, Django check, migrations/schema, TUI registry, Qlib (`pyqlib=0.9.7`, wrong distribution absent), backup, resources, Celery worker/beat/ping all passed |
+| TUI preflight | `npm run check:tui` plus 34 JavaScript tests passed |
+
+Authenticated read-only HTTPS acceptance used the supplied login account and did not invoke any
+business write endpoint. Login succeeded; `/api/tui/operator/home/` returned `200` (the prior
+PENDING-policy traceback no longer occurs), `/api/policy/status/` returned `200` with level `PX`,
+`level_name=待分类`, `requires_manual_approval=true`, and safe normal-operation semantics. The
+TUI catalog/bootstrap/registry/provider screen, signal, data-center, health and readiness probes
+returned `200`. `/api/regime/current/` remained the expected fail-closed `503`.
+
+Remote web logs after the probes showed `GET /api/tui/operator/home/ - 200` and no
+`Unknown policy`, traceback, or home-endpoint `500`. This is immutable deployment identity plus
+short-window authenticated read-only evidence only: no business writes, role-matrix browser UAT,
+write receipts/refresh, 14-day telemetry, restore/rollback drill, capacity/chaos run, or
+owner/reviewer sign-off was performed. TAR-01/TAR-02/TAR-05, TUI/M5, AUD and EVID production
+gates remain fail-closed where previously recorded.

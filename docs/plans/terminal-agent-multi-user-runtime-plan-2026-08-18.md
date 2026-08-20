@@ -552,3 +552,14 @@ python scripts/check_mypy_debt_ceiling.py
 | TAR-01 当前 M5 候选持续只读观测 | observed / capacity denied | 针对 manifest-bound `f3881a04cf0b5d5bff5d2b7e5a6bf25d523667e2` / release `20260820043710` 的公网 HTTPS 复核（2026-08-19 22:07 UTC）：`/api/health/` `5/5=200`（约 `1.20–2.18s`）、`/api/ready/` `3/3=200`（约 `4.92–5.17s`）、`/api/` `3/3=200`（约 `1.11–1.61s`）；未认证 `/api/terminal/runs/` 为 `403`（`身份认证信息未提供`），`/api/regime/current/` 为 `503 decision_runtime_blocked` 且 `must_not_use_for_decision=true` | 只证明当前候选的短窗口基础健康、认证边界与决策 fail-closed；没有认证后 reserved-route `503`、真实 1/5/10/20 admission/queue/Worker/SSE/idempotency/cancel/provider-MCP/chaos、业务写入或 owner/reviewer 证据，capacity-ready 报告不可生成，TAR-01/TAR-02/TAR-05 继续 fail-closed |
 | TAR-01 当前 HEAD code-only upgrade 与部署后只读观测 | observed / capacity denied | `80ea441e2fc83059415c46124b0676fd1705b3d0` 以 code-only `-Upgrade` 发布为 release `20260820062052`；PostgreSQL/Redis 数据卷保留、Celery 启用；部署报告 `dist/remote-build-reports/remote-build-report-20260820062052.json`，镜像 `sha256:7c6c96a7e771641a011b6521d0c2901131e0dbc2c478cbeaa27cb716e8107720`。内置 verifier 退出 `0`：release/image identity、迁移/schema、Django check、TUI registry、Qlib `pyqlib=0.9.7`/错误发行版缺失、容器/TLS、备份、资源、Celery worker/beat/ping 均通过；部署后独立 HTTPS：`/api/health/` `5/5=200`（约 `1.26–2.42s`）、`/api/ready/` `3/3=200`（约 `4.91–10.16s`）、`/api/` `3/3=200`（约 `1.08–1.11s`）；`/api/tui/`、`/api/terminal/runs/`、`/api/policy/status/`、`/api/signal/active/`、`/api/data-center/` 均为未认证 `403`，`/api/regime/current/` 为 `503 decision_runtime_blocked` 且 `must_not_use_for_decision=true` | 这是当前 HEAD 的部署身份、短窗口只读健康、认证边界和决策 fail-closed 观测；没有认证角色浏览器 UAT、业务写后 receipt/refresh、真实 1/5/10/20 admission/queue/Worker/SSE/idempotency/cancel/provider-MCP/chaos、14 日 telemetry、restore/rollback 或 owner/reviewer 签字，TAR-01/TAR-02/TAR-05 与 M5 生产 gate 继续 fail-closed |
 | 下一动作 | priority_next | PostgreSQL 双连接 first-winner/rollback 证据已完成；下一步才可在 TAR-01 退出条件获批后实现 admission/queue policy、`on_commit` dispatch、专用 Worker 与事件恢复；在 TAR-01/TAR-05 生产门和真实容量证据通过前，继续保持 inline 单槽、queued intake/worker 关闭 |
+
+### TAR-01 latest VPS acceptance (2026-08-20)
+
+The policy-PENDING compatibility fix was deployed and observed on
+`dev/next-development@39992992cadc1c261f5dd8ffb06b64708a19397f` as release
+`20260820075124`. The built-in verifier exited 0; the new web/worker/beat image is healthy,
+the TUI preflight passed 34 JavaScript tests, and authenticated read-only probes confirmed
+`/api/tui/operator/home/` and `/api/policy/status/` return 200. Remote logs showed no
+policy traceback or home-endpoint 500. This closes the previously observed deployment defect,
+not the TAR-01 production gate: no business writes, role browser UAT, receipts/refresh,
+capacity/chaos, telemetry, restore/rollback, or owner/reviewer sign-off was performed.
