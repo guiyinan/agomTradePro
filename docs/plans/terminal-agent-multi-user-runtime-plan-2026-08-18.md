@@ -830,3 +830,27 @@ credentials; the previously recorded deployment evidence remains the authoritati
 observation for release `20260821024537` / source `4c49dd8a`. TAR-01 remains active and
 TAR-02/TAR-03 remain waiting; queued intake/worker and the inline single-slot gate are
 unchanged.
+
+### TAR-01 current HEAD deployment and authenticated write/readback acceptance (2026-08-21)
+
+After the four GitHub CI checks were green, `dev/next-development@d10c8d9f65f2bd84a77b94532b91445c4216f9db`
+was deployed code-only with `-Upgrade` as release `20260821051240`; data volumes were preserved
+and Celery stayed enabled. The deploy verifier passed source/image identity, migrations/schema,
+Django/TUI/Qlib/Caddy/TLS/container/backup checks, Celery worker/beat and ping. The current
+artifact is [`tar01-current-production-acceptance-2026-08-21-head-d10c8d9f.json`](../deployment/tar01-current-production-acceptance-2026-08-21-head-d10c8d9f.json)
+with content hash `bfd48f057e13aca3c5e86b99f7fb0f796353575b53867511c41be6838354627d`.
+
+Public health, readiness, API root, audit health and metrics probes passed. Readiness returned
+HTTP `200/ok` while explicitly marking decision-data freshness `warning/blocked`; stale quotes
+remained `must_not_use_for_decision`. Authenticated TUI root returned `200`, and the reserved
+terminal route remained `503 DISPATCH_UNAVAILABLE / queued_runtime_not_wired / Retry-After=60`.
+Three controlled HTTPS Playwright checks passed: operator/regular queue visibility, strategy
+create-detail-update-readback, and user-owned provider create-detail-update-readback. Exact
+test rows were removed and post-cleanup selectors returned zero.
+
+This is current-candidate deployment and role/write/readback evidence, not a TAR-01 capacity
+acceptance. Durable queued admission, PostgreSQL/on-commit run persistence, Worker/SSE,
+idempotency/cancel, provider/MCP, 1/5/10/20 load/chaos, 14-day telemetry, restore/rollback and
+owner/reviewer sign-off remain absent. `scripts/check_tar01_exit_gate.py` therefore remains
+`decision=BLOCKED`, `safety_ready=true`, `capacity_ready=false`; TAR-02/TAR-03 stay waiting and
+queued intake/worker plus the inline single-slot gate remain closed.

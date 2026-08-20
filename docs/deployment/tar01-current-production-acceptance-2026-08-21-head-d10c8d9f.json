@@ -1,0 +1,122 @@
+{
+  "schema": "tar01-current-production-acceptance.v1",
+  "artifact_type": "terminal_runtime_current_candidate_acceptance",
+  "environment": "production-vps",
+  "base_url": "https://demo.agomtrade.pro",
+  "collected_at": "2026-08-20T21:45:01Z",
+  "candidate": {
+    "source_commit": "d10c8d9f65f2bd84a77b94532b91445c4216f9db",
+    "short_commit": "d10c8d9f65f2",
+    "release_tag": "20260821051240",
+    "image_tag": "agomtradepro-web:20260821051240",
+    "image_id": "sha256:b58f3d24feab3293e7c0c06c70fe987d47454df1ad54bd860870c51ee2ec27c3",
+    "source_mode": "git-clone",
+    "runtime_match": true,
+    "deployment_report": "dist/remote-build-reports/remote-build-report-20260821051240.json"
+  },
+  "deployment": {
+    "mode": "code-only-upgrade",
+    "data_volumes_preserved": true,
+    "sqlite_restore": false,
+    "celery": "enabled",
+    "verifier": "passed",
+    "https_tls": "passed",
+    "containers": "healthy",
+    "migrations": "no migrations to apply",
+    "django_check": "passed",
+    "tui_registry": "matched",
+    "qlib": {
+      "pyqlib": "0.9.7",
+      "wrong_qlib_distribution": "absent",
+      "module": "/usr/local/lib/python3.11/site-packages/qlib/__init__.py"
+    },
+    "celery_worker": "running",
+    "celery_beat": "running",
+    "celery_ping": "1 node online"
+  },
+  "public_read_only_probes": {
+    "health": 200,
+    "readiness": {
+      "http_status": 200,
+      "payload_status": "ok",
+      "database": "ok",
+      "redis": "ok",
+      "celery": "ok",
+      "celery_workers": 1,
+      "decision_data": "warning",
+      "readiness_status": "blocked",
+      "blocked_reason": "configured quote snapshots are stale and marked must_not_use_for_decision"
+    },
+    "api_root": 200,
+    "audit_health": {
+      "http_status": 200,
+      "overall_status": "OK",
+      "total_failures": 0
+    },
+    "metrics": 200,
+    "unauthenticated_tui": 403,
+    "unauthenticated_terminal_runs": 403,
+    "unauthenticated_regime_current": 503,
+    "unauthenticated_policy_status": 403
+  },
+  "authenticated_probes": {
+    "method": "controlled_browser_session",
+    "credentials_recorded": false,
+    "tui_root": {
+      "http_status": 200,
+      "contract": "tui-workbench.v2"
+    },
+    "reserved_terminal_route": {
+      "method": "POST",
+      "http_status": 503,
+      "code": "DISPATCH_UNAVAILABLE",
+      "reason_code": "queued_runtime_not_wired",
+      "retry_after_seconds": 60,
+      "side_effect_expected": false
+    }
+  },
+  "authenticated_browser_uat": {
+    "suite": "tests/playwright/tests/uat/test_web_to_tui_m5.py",
+    "tests_passed": [
+      "test_operator_group_can_open_queue_but_regular_user_cannot",
+      "test_strategy_create_detail_update_lifecycle_completes",
+      "test_personal_ai_provider_detail_update_lifecycle_completes"
+    ],
+    "result": "3 passed",
+    "scope": "operator/regular visibility plus strategy and user-owned provider create-detail-update-readback",
+    "cleanup": {
+      "strategy_selector": "id=5,name=M5 UAT 策略 d10c8d9f,created_by_id=225",
+      "provider_selector": "id=13,name=M5 UAT 服务商 d10c8d9f,owner_user_id=6",
+      "strategy_rows_deleted": 1,
+      "provider_rows_deleted": 1,
+      "post_cleanup_strategy_rows": 0,
+      "post_cleanup_provider_rows": 0
+    }
+  },
+  "local_preflight": {
+    "tui_runtime_check": "passed",
+    "tui_javascript_tests": 34,
+    "ci": {
+      "security_scan": "success",
+      "consistency_check": "success",
+      "architecture_layer_guard": "success",
+      "ci_fast_feedback": "success"
+    }
+  },
+  "acceptance": {
+    "candidate_deployed": true,
+    "health_stable": true,
+    "authenticated_role_and_write_readback": true,
+    "reserved_route_fail_closed": true,
+    "production_claim": false,
+    "capacity_ready": false,
+    "runtime_enablement": "not_authorized",
+    "decision": "observed_not_gate_complete"
+  },
+  "limitations": [
+    "This confirms deployment, authenticated TUI role/write/readback behavior, and the dormant reserved-route boundary on one candidate; it is not queued admission, durable PostgreSQL run persistence, Worker, SSE, idempotency/cancel, provider/MCP or chaos evidence.",
+    "No 1/5/10/20 capacity-ready report, 14-day telemetry, production restore/rollback drill, or owner/reviewer sign-off was collected in this slice.",
+    "Readiness returned HTTP 200/ok while decision-data freshness remained blocked; stale quotes remain must_not_use_for_decision and do not authorize decision use.",
+    "The controlled browser rows were deleted by exact selectors and post-cleanup queries returned zero; credentials and secret values were not recorded."
+  ]
+}

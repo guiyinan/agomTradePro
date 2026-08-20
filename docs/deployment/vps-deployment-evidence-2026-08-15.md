@@ -1502,3 +1502,39 @@ read-only boundary observation for the local MCP environment hardening; it is no
 capacity, local CLI UAT, external MCP portability, business write receipt/refresh, 14-day
 telemetry, restore/rollback, chaos or owner/reviewer production sign-off. TAR-01/TAR-04/TAR-05
 and related production gates remain fail-closed.
+
+## 2026-08-21 05:12–05:45 UTC `d10c8d9f6` current-candidate deployment and authenticated acceptance
+
+The pushed `dev/next-development@d10c8d9f65f2bd84a77b94532b91445c4216f9db` was deployed
+code-only in `-Upgrade` mode as release `20260821051240`; PostgreSQL/Redis volumes were
+preserved, SQLite was not restored, and Celery remained enabled. The deployment report is
+`dist/remote-build-reports/remote-build-report-20260821051240.json`; the runtime image is
+`sha256:b58f3d24feab3293e7c0c06c70fe987d47454df1ad54bd860870c51ee2ec27c3`, and the
+release identity matched the source commit. The deploy verifier passed migrations/schema,
+Django checks, TUI registry, Qlib (`pyqlib=0.9.7`, wrong `qlib` distribution absent),
+PostgreSQL backup, Caddy/TLS, containers, healthcheck, Celery worker/beat and ping.
+
+Independent HTTPS probes returned `/api/health/` `200`, `/api/ready/` `200`, `/api/` `200`,
+`/api/audit/health/` `200` with `overall_status=OK` and zero failures, and `/api/metrics/`
+`200`. Readiness correctly exposed `decision_data=warning` and `readiness_status=blocked`
+because the configured quote snapshots were stale and marked `must_not_use_for_decision`;
+this was not treated as decision readiness. Unauthenticated `/api/tui/` and
+`/api/terminal/runs/` returned `403`, while unauthenticated `/api/regime/current/` remained
+the expected `503` fail-closed boundary.
+
+With a controlled authenticated browser session, `/api/tui/` returned `200` and the reserved
+`POST /api/terminal/runs/` route returned exactly `503 DISPATCH_UNAVAILABLE`,
+`reason_code=queued_runtime_not_wired`, `Retry-After=60`. The three focused production UAT
+checks passed: operator-versus-regular queue visibility, strategy create/detail/update/readback,
+and user-owned AI-provider create/detail/update/readback. The strategy and provider rows used
+the unique `d10c8d9f` suffix and were deleted by exact selectors; post-cleanup queries returned
+zero rows. Credentials and provider secrets were not recorded.
+
+Structured evidence is
+[`tar01-current-production-acceptance-2026-08-21-head-d10c8d9f.json`](tar01-current-production-acceptance-2026-08-21-head-d10c8d9f.json)
+with SHA-256 `bfd48f057e13aca3c5e86b99f7fb0f796353575b53867511c41be6838354627d`.
+This is direct current-candidate deployment, authenticated role/write/readback and
+fail-closed-route evidence. It is not queued admission, durable PostgreSQL run persistence,
+Worker/SSE, idempotency/cancel, provider/MCP, chaos, 1/5/10/20 capacity, 14-day telemetry,
+restore/rollback, or owner/reviewer sign-off; TAR-01 remains active and TAR-02/TAR-03 remain
+waiting.
