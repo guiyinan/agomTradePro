@@ -109,6 +109,7 @@ CLEANUP_ROLLBACK_FIELDS = frozenset(
 REQUIRED_PRE_APPROVAL_GATES = frozenset(
     {
         "source_consistency",
+        "execution_dependency",
         "stable_version_window",
         "route_task_uat",
         "route_cleanup_readiness",

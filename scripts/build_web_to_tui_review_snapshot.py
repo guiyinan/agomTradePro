@@ -24,6 +24,7 @@ SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 REQUIRED_PRE_APPROVAL_GATES = frozenset(
     {
         "source_consistency",
+        "execution_dependency",
         "stable_version_window",
         "route_task_uat",
         "route_cleanup_readiness",

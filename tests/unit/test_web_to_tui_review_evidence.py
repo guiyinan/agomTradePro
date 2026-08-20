@@ -56,7 +56,7 @@ def _readiness(*, failed_gate: str | None = None) -> SimpleNamespace:
     )
 
 
-def test_review_snapshot_requires_all_eight_preapproval_gates() -> None:
+def test_review_snapshot_requires_all_nine_preapproval_gates() -> None:
     """The review snapshot captures the exact passing non-approval gate set."""
 
     snapshot = review_snapshot.build_review_snapshot(
@@ -68,7 +68,7 @@ def test_review_snapshot_requires_all_eight_preapproval_gates() -> None:
     assert snapshot["version"] == review_snapshot.SNAPSHOT_VERSION
     assert snapshot["required_route_pages"] == 108
     assert snapshot["required_tasks"] == 101
-    assert len(snapshot["gates"]) == 8
+    assert len(snapshot["gates"]) == 9
     assert all(gate["passed"] is True for gate in snapshot["gates"])
 
 

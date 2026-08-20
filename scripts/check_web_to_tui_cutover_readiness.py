@@ -10,24 +10,22 @@ import importlib
 import json
 import re
 import subprocess
+import sys
 from dataclasses import asdict, dataclass
 from datetime import date
 from pathlib import Path
 from typing import Any, TypedDict, cast
 from urllib.parse import urlparse
 
-if __package__:
-    from scripts.web_to_tui_candidate_binding import (
-        CandidateBinding,
-        binding_matches,
-        build_candidate_binding,
-    )
-else:
-    from web_to_tui_candidate_binding import (  # type: ignore[no-redef]
-        CandidateBinding,
-        binding_matches,
-        build_candidate_binding,
-    )
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.web_to_tui_candidate_binding import (  # noqa: E402
+    CandidateBinding,
+    binding_matches,
+    build_candidate_binding,
+)
 
 module_prefix = "scripts." if __package__ else ""
 defect_evidence_builder: Any = importlib.import_module(
@@ -37,12 +35,12 @@ production_telemetry_builder: Any = importlib.import_module(
     f"{module_prefix}build_web_to_tui_production_telemetry"
 )
 
-ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MATRIX = ROOT / "docs/plans/web-to-tui-migration-matrix-2026-07-25.csv"
 DEFAULT_CATALOG = ROOT / "config/tui/migration/web_to_tui_telemetry.v1.json"
 DEFAULT_EVIDENCE = ROOT / "config/tui/migration/web_to_tui_cutover_evidence.v1.json"
 DEFAULT_GRAPH = ROOT / "config/tui/published/tui_operation_graph.published.json"
 DEFAULT_RUNTIME_MANIFEST = ROOT / "config/tui/agomtui-runtime.manifest.json"
+DEFAULT_PLAN_REGISTRY = ROOT / "governance/active_plan_registry.json"
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
 BACKUP_LOCATION_SCHEMES = frozenset({"artifact", "s3", "sftp", "https"})
@@ -67,6 +65,7 @@ APPROVAL_ATTESTATION_VERSION = "web-to-tui-cutover-approval-attestation.v1"
 REQUIRED_PRE_APPROVAL_GATES = frozenset(
     {
         "source_consistency",
+        "execution_dependency",
         "stable_version_window",
         "route_task_uat",
         "route_cleanup_readiness",
@@ -239,6 +238,48 @@ def _valid_backup_location(value: object) -> bool:
         return False
     parsed = urlparse(value.strip())
     return parsed.scheme in BACKUP_LOCATION_SCHEMES and bool(parsed.netloc or parsed.path)
+
+
+def _execution_dependency_gate(plan_registry_path: Path) -> GateResult:
+    """Require TUI-01 and all of its canonical dependencies to be released."""
+
+    try:
+        registry = _load_object(plan_registry_path)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        return GateResult(
+            "execution_dependency",
+            False,
+            f"registry=unavailable; error={type(exc).__name__}",
+        )
+    closure_backlog = _mapping(registry.get("closure_backlog"))
+    units_value = closure_backlog.get("units")
+    units = units_value if isinstance(units_value, list) else []
+    unit_by_id = {
+        str(unit.get("id")): _mapping(unit)
+        for unit in units
+        if isinstance(unit, dict) and isinstance(unit.get("id"), str)
+    }
+    tui_unit = unit_by_id.get("TUI-01", {})
+    tui_status = str(tui_unit.get("status") or "missing")
+    dependencies = sorted(_string_set(tui_unit.get("depends_on")))
+    dependency_statuses = {
+        dependency: str(unit_by_id.get(dependency, {}).get("status") or "missing")
+        for dependency in dependencies
+    }
+    released_statuses = {"active", "awaiting_production", "completed"}
+    passed = bool(
+        tui_status in released_statuses
+        and all(status == "completed" for status in dependency_statuses.values())
+    )
+    dependency_detail = (
+        ",".join(f"{dependency}:{status}" for dependency, status in dependency_statuses.items())
+        or "none"
+    )
+    return GateResult(
+        "execution_dependency",
+        passed,
+        f"TUI-01={tui_status}; dependencies={dependency_detail}",
+    )
 
 
 def _verified_repo_evidence(
@@ -745,6 +786,7 @@ def evaluate_readiness(
     as_of: date,
     graph_path: Path = DEFAULT_GRAPH,
     runtime_manifest_path: Path = DEFAULT_RUNTIME_MANIFEST,
+    plan_registry_path: Path = DEFAULT_PLAN_REGISTRY,
     evidence_root: Path = ROOT,
 ) -> ReadinessResult:
     """Evaluate every M5 cutover requirement against current evidence."""
@@ -767,6 +809,7 @@ def evaluate_readiness(
             f"matrix={matrix_sha256}; catalog={catalog['source_sha256']}; evidence={evidence_sha}",
         )
     )
+    gates.append(_execution_dependency_gate(plan_registry_path))
 
     candidate = _mapping(evidence.get("candidate"))
     stable_version = str(candidate.get("stable_version") or "").strip()
@@ -1094,6 +1137,7 @@ def main() -> None:
     parser.add_argument("--evidence", type=Path, default=DEFAULT_EVIDENCE)
     parser.add_argument("--graph", type=Path, default=DEFAULT_GRAPH)
     parser.add_argument("--runtime-manifest", type=Path, default=DEFAULT_RUNTIME_MANIFEST)
+    parser.add_argument("--plan-registry", type=Path, default=DEFAULT_PLAN_REGISTRY)
     parser.add_argument("--as-of", type=date.fromisoformat, default=date.today())
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--require-allow", action="store_true")
@@ -1106,6 +1150,7 @@ def main() -> None:
         as_of=args.as_of,
         graph_path=args.graph.resolve(),
         runtime_manifest_path=args.runtime_manifest.resolve(),
+        plan_registry_path=args.plan_registry.resolve(),
     )
     if args.json:
         print(json.dumps(asdict(result), ensure_ascii=False, indent=2))

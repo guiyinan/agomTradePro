@@ -4,6 +4,13 @@
 
 **M5 清理判定：DENY。**
 
+> 2026-08-21 执行依赖纠偏：`TUI-01` 现在显式依赖 `TAR-03`。Terminal Agent 的
+> Worker、事件恢复与 TUI/SDK 状态闭环会改变最终 release surface，因此
+> `2f4554b5192191970a3ccbc98420388881725079` / `20260820211526` 上已经启动的观察只作为
+> 非关闭性 production soak 保留，不得用于解除 M5。只有 `TAR-03` 退出、最终候选冻结并
+> 重新绑定 canonical cutover evidence 后，才启动具备关闭资格的 14 日窗口、角色 UAT、
+> telemetry、rollback、registry restore 与双签。
+
 > 2026-08-13 代码复核修正：此前仓内 108/108 UAT、108/108 cleanup 与本地 rollback
 > 仅绑定旧 Markdown 摘要，未绑定最终 candidate commit、当前 matrix、published graph、
 > schema、runtime version/build 和 runtime manifest，不能再记为通过。readiness 已改为对三类

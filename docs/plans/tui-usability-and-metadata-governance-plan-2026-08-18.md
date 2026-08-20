@@ -90,7 +90,7 @@
 | `TUX-04` | W5 | repository | — | IA 整理：重排"研究与工具"杂物筐分组；易混入口改名消歧；统一术语表（Regime/象限、提示词/Prompt、观测日期口径）；12 个 runtime screen 补齐 `summary`/`user_experience`/`default_action_key`；修复 admin audience panel 对普通用户的碰壁跳转；`execution.audit` summary 与实际 panel 对齐 | IA 注册表契约测试通过；全部 screen（含 runtime）满足 metadata schema 必填项；普通角色浏览器走查确认无无权访问跳转 |
 | `TUX-05` | W5 | repository | TUX-03、TUX-04 | 界面细节收口：表格列宽/断行/行操作溢出修复；创建类 panel 重复提示去重；底部状态栏接线或移除；字段名翻译层（MustNotUseFor、QuotaCharged 等）；"broker order catalog display only" 占位符替换；顶栏内部 key 移除或折叠进调试语义；定性并修复 freshness 观感矛盾 | 8 个代表性 screen 的浏览器截图证据；字段名/内部 key 机检为零；freshness 判定结论记录在案（数据问题则修数据，判定缺陷则修判定） |
 
-执行纪律：本线为仓库内小收口线，不与 `evidence-hard-gate` 大主线同时扩边；`TUX-01` 先行因为它是唯一阻断级缺陷。每个 unit 的测试、治理清单更新与走查证据是一个验收包，不拆算。
+执行纪律：`TUX-01` 阻断级回退已完成；`TUX-02` 与 `TUX-04` 在 `TAR-01 → TAR-02 → TAR-03` execution focus 期间保持 planned，不再作为“小收口”并行扩展 repository。TAR-03 退出后才恢复本线，每个 unit 的测试、治理清单更新与走查证据仍作为一个验收包，不拆算，也不得扰动已经冻结的正式 M5 候选。
 
 ## 5. 验证与回归范围
 

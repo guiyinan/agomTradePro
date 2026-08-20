@@ -104,6 +104,35 @@ def _write_fixture(root: Path, name: str, payload: object) -> tuple[str, str]:
     return name, _file_digest(path)
 
 
+def _write_plan_registry(
+    root: Path,
+    *,
+    tui_status: str = "awaiting_production",
+    tar_status: str = "completed",
+) -> Path:
+    """Write the canonical dependency slice needed by the M5 gate."""
+
+    path = root / "active-plan-registry.json"
+    path.write_text(
+        json.dumps(
+            {
+                "closure_backlog": {
+                    "units": [
+                        {"id": "TAR-03", "status": tar_status, "depends_on": []},
+                        {
+                            "id": "TUI-01",
+                            "status": tui_status,
+                            "depends_on": ["TAR-03"],
+                        },
+                    ]
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
 def _sync_telemetry_snapshot(evidence_root: Path, payload: dict[str, Any]) -> None:
     """Synchronize mutated task records back into their structured snapshot."""
 
@@ -325,6 +354,7 @@ def _complete_evidence(evidence_root: Path) -> dict[str, Any]:
         catalog_path=CATALOG_PATH,
         evidence_path=pre_review_path,
         as_of=date(2026, 8, 9),
+        plan_registry_path=_write_plan_registry(evidence_root),
         evidence_root=evidence_root,
     )
     review_snapshot = build_review_snapshot(
@@ -369,7 +399,12 @@ def _complete_evidence(evidence_root: Path) -> dict[str, Any]:
     return payload
 
 
-def _evaluate(tmp_path: Path, payload: dict[str, Any]):
+def _evaluate(
+    tmp_path: Path,
+    payload: dict[str, Any],
+    *,
+    plan_registry_path: Path | None = None,
+):
     """Evaluate one temporary evidence payload at the earliest valid date."""
 
     from datetime import date
@@ -381,6 +416,7 @@ def _evaluate(tmp_path: Path, payload: dict[str, Any]):
         catalog_path=CATALOG_PATH,
         evidence_path=path,
         as_of=date(2026, 8, 9),
+        plan_registry_path=plan_registry_path or _write_plan_registry(tmp_path),
         evidence_root=tmp_path,
     )
 
@@ -410,6 +446,26 @@ def test_checked_in_evidence_is_explicitly_denied() -> None:
     assert "candidate_binding=false" in gates["route_cleanup_readiness"].detail
     assert gates["rollback_drill"].passed is False
     assert "binding=false" in gates["rollback_drill"].detail
+
+
+def test_cutover_waits_for_terminal_runtime_dependency(tmp_path: Path) -> None:
+    payload = _complete_evidence(tmp_path)
+    plan_registry_path = _write_plan_registry(
+        tmp_path,
+        tui_status="waiting_dependency",
+        tar_status="active",
+    )
+
+    result = _evaluate(
+        tmp_path,
+        payload,
+        plan_registry_path=plan_registry_path,
+    )
+
+    gate = next(gate for gate in result.gates if gate.key == "execution_dependency")
+    assert gate.passed is False
+    assert "TUI-01=waiting_dependency" in gate.detail
+    assert "TAR-03:active" in gate.detail
 
 
 def test_text_evidence_digest_normalizes_windows_line_endings(tmp_path: Path) -> None:
