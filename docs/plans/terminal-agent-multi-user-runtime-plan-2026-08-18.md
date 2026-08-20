@@ -719,3 +719,30 @@ This refresh confirms the production authentication and fail-closed boundary onl
 provide queued admission, Worker, SSE, idempotency/cancel, provider/MCP, chaos, capacity,
 14-day telemetry, restore/rollback, or owner/reviewer evidence. TAR-01 remains active and
 TAR-02/TAR-03 remain waiting; queued intake/worker and the inline single-slot gate are unchanged.
+
+### TAR-01 current HEAD VPS deployment and authenticated acceptance (2026-08-21)
+
+The current `dev/next-development@78966107d197003bb591662a3f6967a8fba83589` was deployed
+code-only from the pushed branch as release `20260821012122`. The deployment verifier passed
+source/image binding, PostgreSQL/Redis migrations and schema checks, Django system checks,
+TUI registry, Qlib (`pyqlib=0.9.7`, wrong distribution absent), backup, Caddy/TLS, resources,
+containers, Celery worker/beat and ping. The runtime image is
+`agomtradepro-web:20260821012122` with image
+`sha256:5e0d24e1ea88476ccc8ecb0deadafa8e94a9b75c53b1547b16dcd8cd5a311fe6`.
+
+With the authenticated account session and CSRF headers, `POST /api/terminal/runs/` was
+exercised at concurrency `1/5/10/20` for exactly `1/5/10/20` requests. All `36/36` responses
+were HTTP `503` with `code=DISPATCH_UNAVAILABLE`, `reason_code=queued_runtime_not_wired`,
+and `Retry-After=60`; per-level p95 latency was `404.634/1540.762/1843.881/2191.815 ms`.
+Health probes before and after were `6/6` HTTP `200`, `/api/ready/` was `200` with one healthy
+Celery worker, and `/api/audit/health/` plus `/api/audit/metrics/` were `200`. Audit operation
+logs stayed at `541`, failures at `0`, and every pending/claimed/failed backlog counter stayed
+at `0`; no run, queue, provider, or MCP side effect was observed. The TUI catalog remained
+readable (`tui-workbench.v2`, `885` normalized / `889` published actions). Structured evidence
+is [`tar01-current-production-acceptance-2026-08-21-head-78966107d.json`](../deployment/tar01-current-production-acceptance-2026-08-21-head-78966107d.json).
+
+This is direct evidence that the current HEAD is deployed and its reserved route remains
+authenticated and fail-closed. It is not queued admission, Worker, SSE, idempotency/cancel,
+provider/MCP, chaos, capacity, 14-day telemetry, restore/rollback, role-browser UAT, or
+owner/reviewer evidence. TAR-01 remains active and TAR-02/TAR-03 remain waiting; queued
+intake/worker and the inline single-slot gate are unchanged.
