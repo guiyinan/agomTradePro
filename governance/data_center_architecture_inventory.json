@@ -36,7 +36,7 @@
   "counts": {
     "approved_non_data_http_imports": 4,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 4290,
+    "current_surface_references": 4289,
     "data_write_task_decorators": 59,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -20931,11 +20931,6 @@
       "line": 120,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_command_center.py",
       "text": "\"key\": \"ai-config-summary\","
-    },
-    {
-      "line": 10,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_execution.py",
-      "text": "\"summary\": \"集中查看账户、持仓、实盘连接、订单和执行就绪状态。\","
     },
     {
       "line": 38,
