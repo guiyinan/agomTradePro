@@ -2885,3 +2885,29 @@ unit 合同与 head-audit 回归为 `29 passed`，dry-run 与 append-only 写入
 ledger，`head_audit` 与 `human_approval` 均保持 `not_collected`。因此 `EVID-02` 仍为
 `awaiting_production`，真实 VPS PostgreSQL race/rollback、current-head snapshot、Risk
 Center approval、owner/reviewer 签字和 Evidence hard gate 继续 fail-closed。
+
+## 2026-08-21：EVID-02/STRAT-01 VPS 只读账本盘点
+
+在当前 VPS 实际运行的 `dev/next-development` commit
+`4c49dd8a247bf83984346984c1663842e670a2fe` / release `20260821024537` 的 web 容器内，
+以 Django PostgreSQL connection 的只读 `SELECT COUNT(*)` 复核 EVID-02 approval/activation
+相关表。`risk_center_evidence_operator_spec_subject`、
+`risk_center_evidence_operator_spec_approval`、`research_evidence_operator_spec_approval`、
+`research_activated_evidence_operator_spec`、`research_r6_activation_authorization`、
+`research_evidence_operator_spec`、`research_evidence_track_record` 与
+`research_evidence_envelope` 均为 `0` 行；同一运行态 `/api/health/` 与 `/api/ready/` 均为
+`200`。空 rows 按既有 `evid-02-head-audit-snapshot.v1` 合同解析为 approval/activation
+`empty`、无 current head，`human_approval_status=not_collected`。
+
+同一只读盘点还检查了 STRAT-01 的 canonical ledger families：`research_r1_` 至
+`research_r8_` 共 `65` 张表、`portfolio_r4_`/`portfolio_r5_`/`portfolio_r8_` 共 `7` 张表，
+以及四张 `equity_forecast_baseline_*` 表，全部为零行；R1–R8 依赖的 Data Center actual/PIT、
+macro-factor 与 market-structure calendar/series 表也全部为零。结构化盘点工件为
+[`evid-02-strat-01-vps-readonly-inventory-2026-08-21.json`](../deployment/evid-02-strat-01-vps-readonly-inventory-2026-08-21.json)，
+SHA-256 为 `09d628c3070068e621bc3550bd0d20a70669274c29977c3ddfbc5006fafbf0e5`。
+
+这次验收只证明当前候选健康、schema 可读和 canonical owner/evidence 账本为空；没有创建、
+更新、删除、回填、人工审批或 rollback，也没有把现有 Data Center facts 现场提升为 owner/
+definition/policy 证据。因此 `EVID-02` 继续 `awaiting_production`，`STRAT-01` 继续等待
+真实 owner/definition/policy/calendar/scope/qualification 登记；生产 first-winner、successor、
+current-head、rollback、人工 reviewer 与 Evidence hard gate 仍保持 fail-closed。

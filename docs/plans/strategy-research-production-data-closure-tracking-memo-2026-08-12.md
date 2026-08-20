@@ -172,3 +172,20 @@
 - 该 slice 只证明本地自动盘点和 fail-closed 聚合边界，不读取或写入生产数据库，也不创建 owner、definition、policy、calendar、scope、PIT/OOS、canonical receipt、Promotion 或 consumer UAT 记录。
 - `STRAT-01` 仍等待真实 R1–R8 owner/definition/policy/calendar/scope 登记；`STRAT-02` 继续等待 `STRAT-01`/`DATA-02`，`STRAT-03` 继续等待真实 receipts、Promotion 和 consumer UAT。
 
+## 14. 2026-08-21：STRAT-01 VPS canonical inventory 只读验收
+
+在当前 VPS web 容器的 PostgreSQL `default` alias 内执行只读 `SELECT COUNT(*)`，不触发任何
+业务写入。`research_r1_` 至 `research_r8_` 共 `65` 张 canonical 表、`portfolio_r4_`/
+`portfolio_r5_`/`portfolio_r8_` 共 `7` 张表、四张 `equity_forecast_baseline_*` 表均为零行；
+R1–R8 所需的 Data Center evaluation-actual、PIT manifest/fact-version、macro-factor
+source/calendar/member-rule 与 market-structure evidence/calendar/series 表也均为零行。
+原始只读盘点及运行态绑定见
+[`evid-02-strat-01-vps-readonly-inventory-2026-08-21.json`](../deployment/evid-02-strat-01-vps-readonly-inventory-2026-08-21.json)，
+其 SHA-256 为 `09d628c3070068e621bc3550bd0d20a70669274c29977c3ddfbc5006fafbf0e5`。
+
+结果是明确的生产 blocker，不是缺少查询器：当前没有可供 R1–R8 使用的 canonical
+owner/definition/policy/calendar/scope/qualification rows。现有 Data Center facts 不被现场
+hash 或下游 readiness 反充为 owner evidence；不执行 synthetic seed、回填或 promotion。
+因此 `STRAT-01` 仍为 `awaiting_production`，`STRAT-02`/`STRAT-03` 依赖不变，PIT/OOS、
+receipts/lineage/reconciliation、Promotion、consumer UAT 与 rollback 继续 `BLOCKED`。
+
