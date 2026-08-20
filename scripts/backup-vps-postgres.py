@@ -5,14 +5,17 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import os
 import shlex
 import sys
 from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
 
 MARKER_PREFIX = "AGOM_BACKUP_"
+BACKUP_EVIDENCE_SCHEMA = "data-backup-evidence.v1"
 
 
 def _info(message: str) -> None:
@@ -83,6 +86,108 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _utc_iso(epoch_seconds: int) -> str:
+    """Render a Unix timestamp as canonical UTC JSON time."""
+    return datetime.fromtimestamp(epoch_seconds, tz=UTC).isoformat().replace("+00:00", "Z")
+
+
+def _validated_marker_int(markers: dict[str, str], key: str) -> int:
+    """Parse a required non-negative integer marker."""
+    value = markers.get(key)
+    if value is None or not value.isdigit():
+        raise RuntimeError(f"Remote backup returned an invalid {key} marker")
+    parsed = int(value)
+    if parsed < 0:
+        raise RuntimeError(f"Remote backup returned an invalid {key} marker")
+    return parsed
+
+
+def _validated_marker_hash(markers: dict[str, str], key: str) -> str:
+    """Parse a required lowercase hexadecimal SHA-256 marker."""
+    value = markers.get(key, "").lower()
+    if len(value) != 64 or any(char not in "0123456789abcdef" for char in value):
+        raise RuntimeError(f"Remote backup returned an invalid {key} marker")
+    return value
+
+
+def _write_backup_evidence(
+    output_path: Path,
+    *,
+    host: str,
+    remote_path: str,
+    remote_sha256: str,
+    remote_size_bytes: int,
+    remote_mtime_epoch: int,
+    remote_collected_epoch: int,
+    remote_manifest_sha256: str,
+    remote_manifest_entries: int,
+    local_path: Path,
+) -> Path:
+    """Write one immutable, content-addressed evidence envelope."""
+    if remote_collected_epoch < remote_mtime_epoch:
+        raise RuntimeError("Remote backup age is negative")
+    partial_path = local_path.with_name(f".{local_path.name}.partial")
+    if partial_path.exists():
+        raise RuntimeError("A partial archive cannot produce backup evidence")
+    local_size_bytes = local_path.stat().st_size
+    local_sha256 = _sha256_file(local_path)
+    if local_size_bytes != remote_size_bytes or local_sha256 != remote_sha256:
+        raise RuntimeError("Local archive does not match the verified remote archive")
+
+    payload: dict[str, object] = {
+        "artifact_type": "data_backup_evidence",
+        "schema": BACKUP_EVIDENCE_SCHEMA,
+        "source": {
+            "host": host,
+            "remote_path": remote_path,
+            "remote_collected_at": _utc_iso(remote_collected_epoch),
+            "remote_mtime": _utc_iso(remote_mtime_epoch),
+            "age_seconds": remote_collected_epoch - remote_mtime_epoch,
+        },
+        "archive": {
+            "remote_sha256": remote_sha256,
+            "remote_size_bytes": remote_size_bytes,
+            "remote_manifest_sha256": remote_manifest_sha256,
+            "remote_manifest_entries": remote_manifest_entries,
+            "local_path": str(local_path),
+            "local_sha256": local_sha256,
+            "local_size_bytes": local_size_bytes,
+            "partial_rejected": True,
+        },
+        "verification": {
+            "remote_local_sha256_match": True,
+            "remote_local_size_match": True,
+            "pg_restore_manifest_verified": True,
+        },
+    }
+    canonical = json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    envelope = dict(payload)
+    envelope["content_hash"] = hashlib.sha256(canonical).hexdigest()
+    serialized = json.dumps(envelope, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+
+    output_path = output_path.expanduser().resolve()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    if output_path.exists():
+        try:
+            existing = json.loads(output_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise RuntimeError("Existing backup evidence is not valid JSON") from exc
+        if not isinstance(existing, dict) or existing != envelope:
+            raise RuntimeError("Refusing to overwrite non-identical backup evidence")
+        return output_path
+
+    temporary = output_path.with_name(f".{output_path.name}.partial")
+    try:
+        temporary.write_text(serialized, encoding="utf-8", newline="\n")
+        temporary.replace(output_path)
+    except OSError:
+        temporary.unlink(missing_ok=True)
+        raise
+    return output_path
+
+
 def _validated_archive_name(remote_path: str) -> str:
     """Return a safe archive basename or reject unexpected remote output."""
     name = PurePosixPath(remote_path).name
@@ -129,7 +234,7 @@ if [ "$mode" = "create" ]; then
   trap - EXIT
 else
   archive=$(find "$database_dir" -maxdepth 1 -type f -name 'postgres-*.dump' \
-    -printf '%T@ %p\n' | sort -rn | head -n 1 | cut -d ' ' -f 2-)
+    -printf '%T@ %p\\n' | sort -rn | head -n 1 | cut -d ' ' -f 2-)
   [ -n "$archive" ] || {{ echo 'No PostgreSQL backup was found' >&2; exit 33; }}
   docker exec -i "$postgres_cid" sh -lc 'exec pg_restore --list' \
     < "$archive" > /dev/null
@@ -142,9 +247,18 @@ fi
 
 checksum=$(sha256sum "$archive" | awk '{{print $1}}')
 size=$(stat -c '%s' "$archive")
-printf 'AGOM_BACKUP_PATH=%s\n' "$archive"
-printf 'AGOM_BACKUP_SHA256=%s\n' "$checksum"
-printf 'AGOM_BACKUP_SIZE=%s\n' "$size"
+mtime_epoch=$(stat -c '%Y' "$archive")
+collected_epoch=$(date -u +%s)
+manifest=$(docker exec -i "$postgres_cid" sh -lc 'exec pg_restore --list' < "$archive")
+manifest_sha256=$(printf '%s\\n' "$manifest" | sha256sum | awk '{{print $1}}')
+manifest_entries=$(printf '%s\\n' "$manifest" | sed '/^[[:space:]]*$/d' | wc -l | tr -d ' ')
+printf 'AGOM_BACKUP_PATH=%s\\n' "$archive"
+printf 'AGOM_BACKUP_SHA256=%s\\n' "$checksum"
+printf 'AGOM_BACKUP_SIZE=%s\\n' "$size"
+printf 'AGOM_BACKUP_MTIME_EPOCH=%s\\n' "$mtime_epoch"
+printf 'AGOM_BACKUP_COLLECTED_EPOCH=%s\\n' "$collected_epoch"
+printf 'AGOM_BACKUP_MANIFEST_SHA256=%s\\n' "$manifest_sha256"
+printf 'AGOM_BACKUP_MANIFEST_ENTRIES=%s\\n' "$manifest_entries"
 """
 
 
@@ -269,6 +383,10 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--timeout", type=int, default=900)
     parser.add_argument("--download-latest", action="store_true")
     parser.add_argument("--prune-remote-older-than-days", type=int, default=0)
+    parser.add_argument(
+        "--evidence-output",
+        help="Write an immutable JSON evidence envelope after a verified download",
+    )
     return parser
 
 
@@ -315,20 +433,32 @@ def main() -> int:
             raise RuntimeError(f"Remote backup failed: {detail}")
 
         markers = _parse_markers(output)
-        required = {"PATH", "SHA256", "SIZE"}
+        required = {
+            "PATH",
+            "SHA256",
+            "SIZE",
+            "MTIME_EPOCH",
+            "COLLECTED_EPOCH",
+            "MANIFEST_SHA256",
+            "MANIFEST_ENTRIES",
+        }
         missing = sorted(required.difference(markers))
         if missing:
             raise RuntimeError(f"Remote backup omitted markers: {', '.join(missing)}")
 
         remote_path = markers["PATH"]
-        expected_hash = markers["SHA256"].lower()
-        if len(expected_hash) != 64 or any(
-            char not in "0123456789abcdef" for char in expected_hash
-        ):
-            raise RuntimeError("Remote backup returned an invalid SHA-256")
-        expected_size = int(markers["SIZE"])
+        expected_hash = _validated_marker_hash(markers, "SHA256")
+        expected_size = _validated_marker_int(markers, "SIZE")
         if expected_size <= 0:
             raise RuntimeError("Remote backup returned an invalid size")
+        remote_mtime_epoch = _validated_marker_int(markers, "MTIME_EPOCH")
+        remote_collected_epoch = _validated_marker_int(markers, "COLLECTED_EPOCH")
+        remote_manifest_sha256 = _validated_marker_hash(markers, "MANIFEST_SHA256")
+        remote_manifest_entries = _validated_marker_int(markers, "MANIFEST_ENTRIES")
+        if remote_manifest_entries <= 0:
+            raise RuntimeError("Remote backup returned an invalid manifest entry count")
+        if remote_collected_epoch < remote_mtime_epoch:
+            raise RuntimeError("Remote backup returned a negative archive age")
 
         _info(f"Remote archive validated: {remote_path} ({expected_size} bytes)")
 
@@ -355,6 +485,20 @@ def main() -> int:
         )
         _info(f"Local archive: {destination}")
         _info(f"SHA-256: {expected_hash}")
+        if args.evidence_output:
+            evidence_path = _write_backup_evidence(
+                Path(args.evidence_output),
+                host=host,
+                remote_path=remote_path,
+                remote_sha256=expected_hash,
+                remote_size_bytes=expected_size,
+                remote_mtime_epoch=remote_mtime_epoch,
+                remote_collected_epoch=remote_collected_epoch,
+                remote_manifest_sha256=remote_manifest_sha256,
+                remote_manifest_entries=remote_manifest_entries,
+                local_path=destination,
+            )
+            _info(f"Evidence artifact: {evidence_path}")
         _info("Backup and download completed successfully")
         return 0
     except (OSError, RuntimeError, ValueError) as exc:

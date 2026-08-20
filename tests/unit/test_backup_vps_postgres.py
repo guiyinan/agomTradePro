@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
@@ -27,7 +28,7 @@ class _FakeRemoteFile:
         self._failed = False
         self._offset = 0
 
-    def __enter__(self) -> "_FakeRemoteFile":
+    def __enter__(self) -> _FakeRemoteFile:
         return self
 
     def __exit__(self, *_args: object) -> None:
@@ -126,6 +127,9 @@ def test_remote_script_uses_custom_dump_and_restore_validation() -> None:
     assert "pg_dump" in script
     assert "--format=custom" in script
     assert "pg_restore --list" in script
+    assert "AGOM_BACKUP_MTIME_EPOCH" in script
+    assert "AGOM_BACKUP_MANIFEST_SHA256" in script
+    assert "AGOM_BACKUP_MANIFEST_ENTRIES" in script
     assert "docker volume prune" not in script
 
 
@@ -170,3 +174,87 @@ def test_download_verified_cleans_partial_after_retry_exhaustion(tmp_path: Path)
     destination = tmp_path / "postgres-fail.dump"
     assert not destination.exists()
     assert not destination.with_name(f".{destination.name}.partial").exists()
+
+
+def test_write_backup_evidence_is_content_addressed_and_idempotent(tmp_path: Path) -> None:
+    """Write exact archive/age/manifest evidence without overwriting another record."""
+    archive = tmp_path / "postgres-20260820T000000Z.dump"
+    archive.write_bytes(b"verified archive")
+    evidence = tmp_path / "evidence.json"
+    digest = _sha256_bytes(archive.read_bytes())
+
+    written = MODULE._write_backup_evidence(
+        evidence,
+        host="demo.example",
+        remote_path="/opt/agomtradepro/backups/database/postgres-20260820T000000Z.dump",
+        remote_sha256=digest,
+        remote_size_bytes=archive.stat().st_size,
+        remote_mtime_epoch=1_000,
+        remote_collected_epoch=1_360,
+        remote_manifest_sha256="b" * 64,
+        remote_manifest_entries=7_167,
+        local_path=archive,
+    )
+
+    payload = json.loads(written.read_text(encoding="utf-8"))
+    assert payload["schema"] == "data-backup-evidence.v1"
+    assert payload["source"]["age_seconds"] == 360
+    assert payload["archive"]["remote_manifest_entries"] == 7_167
+    assert len(payload["content_hash"]) == 64
+    assert (
+        MODULE._write_backup_evidence(
+            evidence,
+            host="demo.example",
+            remote_path="/opt/agomtradepro/backups/database/postgres-20260820T000000Z.dump",
+            remote_sha256=digest,
+            remote_size_bytes=archive.stat().st_size,
+            remote_mtime_epoch=1_000,
+            remote_collected_epoch=1_360,
+            remote_manifest_sha256="b" * 64,
+            remote_manifest_entries=7_167,
+            local_path=archive,
+        )
+        == evidence.resolve()
+    )
+
+    with pytest.raises(RuntimeError, match="Refusing to overwrite"):
+        MODULE._write_backup_evidence(
+            evidence,
+            host="demo.example",
+            remote_path="/opt/agomtradepro/backups/database/postgres-20260820T000000Z.dump",
+            remote_sha256=digest,
+            remote_size_bytes=archive.stat().st_size,
+            remote_mtime_epoch=1_001,
+            remote_collected_epoch=1_360,
+            remote_manifest_sha256="b" * 64,
+            remote_manifest_entries=7_167,
+            local_path=archive,
+        )
+
+
+def test_write_backup_evidence_rejects_partial_or_negative_age(tmp_path: Path) -> None:
+    """A partial archive or impossible clock cannot become a success artifact."""
+    archive = tmp_path / "postgres-20260820T000000Z.dump"
+    archive.write_bytes(b"verified archive")
+    partial = archive.with_name(f".{archive.name}.partial")
+    partial.write_bytes(b"partial")
+    digest = _sha256_bytes(archive.read_bytes())
+
+    kwargs = {
+        "host": "demo.example",
+        "remote_path": "/opt/agomtradepro/backups/database/postgres-20260820T000000Z.dump",
+        "remote_sha256": digest,
+        "remote_size_bytes": archive.stat().st_size,
+        "remote_mtime_epoch": 1_000,
+        "remote_collected_epoch": 1_360,
+        "remote_manifest_sha256": "b" * 64,
+        "remote_manifest_entries": 1,
+        "local_path": archive,
+    }
+    with pytest.raises(RuntimeError, match="partial archive"):
+        MODULE._write_backup_evidence(tmp_path / "partial.json", **kwargs)
+
+    partial.unlink()
+    kwargs["remote_collected_epoch"] = 999
+    with pytest.raises(RuntimeError, match="negative"):
+        MODULE._write_backup_evidence(tmp_path / "negative.json", **kwargs)

@@ -634,3 +634,23 @@ Celery worker/beat、Caddy 与 RSSHub 均运行，Web 容器 healthy，Celery pi
 这条记录刷新了 DATA-01 的可复核恢复点，但不等于生产规模 restore、RTO/RPO、维护态
 rollback、回填或 reconciliation。既有 2026-08-19 隔离 restore 证据仍绑定另一份
 2026-08-16 归档；`DATA-01` 继续 `awaiting_production`，`DATA-02/03` 不解锁。
+
+## 实施记录（2026-08-20，DATA-01 备份证据采集器合同）
+
+本地新增 `scripts/backup-vps-postgres.py --evidence-output` 可选证据输出：在完整下载、
+远端/本地 SHA-256 与尺寸复核之后，记录 custom-format 归档的远端采集时间、归档年龄、
+`pg_restore --list` manifest SHA/条数、本地路径和 partial 拒绝标记。证据 JSON 使用
+`data-backup-evidence.v1`、规范化 payload SHA-256、原子临时文件替换和同内容幂等重放；
+已有不同内容的证据文件不会被覆盖，partial 归档、负年龄、尺寸/hash/manifest 无效均 fail closed。
+
+- `tests/unit/test_backup_vps_postgres.py` focused `10 passed`；Ruff、Black、isort、增量
+  mypy、`git diff --check` 均通过。
+- VPS 只读交叉验收确认当前归档的远端 `pg_restore --list` exit `0`；但 SFTP 首个
+  `1 MiB` 读取耗时约 `59.64s`，完整 `142 MiB` 下载未在本轮完成，故没有生成或宣称
+  production `data-backup-evidence.v1`，并清理了本轮产生的临时 partial。
+- 本 slice 没有创建、清理或恢复 VPS 备份，也没有写入生产数据库；现有归档与
+  `backups/vps-postgres-data01/.postgres-20260819-164435.dump.partial` 均保留原状。
+
+这只是 DATA-01 的本地证据格式与校验合同，不是生产备份新鲜度、restore/rebuild、RTO/RPO、
+维护态 rollback、回填或 reconciliation 验收；`DATA-01` 继续 `awaiting_production`，
+`DATA-02/03` 不解锁。
