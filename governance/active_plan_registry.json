@@ -1,6 +1,15 @@
 {
-  "version": "2026-08-19.v1",
-  "updated_at": "2026-08-19",
+  "version": "2026-08-21.v1",
+  "updated_at": "2026-08-21",
+  "execution_focus": {
+    "unit_id": "TAR-01",
+    "allowed_parallel_execution_modes": [
+      "production",
+      "external",
+      "governance"
+    ],
+    "policy": "Only the focused repository unit may be active. Other workstreams may collect read-only production or external evidence without expanding repository scope."
+  },
   "workstreams": [
     {
       "id": "evidence-hard-gate",
@@ -9,7 +18,7 @@
       "priority": "P0",
       "owner": "research+risk_center+portfolio+broker_execution+account",
       "status": "active",
-      "next_gate": "Complete production adapters, owner-scoped approval, PostgreSQL concurrency evidence and exact execution authorization without relaxing the global execution deny.",
+      "next_gate": "Repository expansion is paused behind the TAR-01 execution focus; preserve the global execution deny and collect only already-authorized read-only production evidence until the focus advances.",
       "documents": [
         {
           "path": "docs/plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md",
@@ -122,7 +131,7 @@
       "priority": "P0/P1",
       "owner": "audit+data_center+task_monitor",
       "status": "active",
-      "next_gate": "Complete production PostgreSQL migration/rollback, outbox backlog/recovery observability, and publisher/runtime wiring before starting Data Center event dual-write or any M2 user surface.",
+      "next_gate": "Repository expansion is paused behind the TAR-01 execution focus; preserve the current fail-closed publisher and authority boundaries while collecting only read-only backlog and health evidence.",
       "documents": [
         {
           "path": "docs/plans/system-audit-log-consolidation-plan-2026-08-13.md",
@@ -137,7 +146,7 @@
       "priority": "P0",
       "owner": "terminal+operational_readiness",
       "status": "production_validation",
-      "next_gate": "Against candidate f3881a04cf0b5d5bff5d2b7e5a6bf25d523667e2 / release 20260820043710, complete role-based browser UAT and the 14-day observation window, then execute signed cleanup waves with rollback evidence.",
+      "next_gate": "After TAR-03 exits and the release surface is frozen, bind one manifest-backed candidate from the canonical cutover evidence, run role-based browser UAT, and start the closing 14-day observation window; any earlier candidate window is non-closing soak evidence.",
       "documents": [
         {
           "path": "docs/plans/web-to-tui-migration-plan-2026-07-25.md",
@@ -253,7 +262,7 @@
       "priority": "P1",
       "owner": "terminal",
       "status": "active",
-      "next_gate": "TUX-01 metadata-load fallback is complete; consolidate the triple copy sources and rewrite auto-promoted action copy back within action-density budgets.",
+      "next_gate": "TUX-01 metadata-load fallback is complete; repository expansion is paused behind TAR-01 through TAR-03, after which triple-copy and action-density remediation may resume without disturbing the frozen M5 candidate.",
       "documents": [
         {
           "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
@@ -388,7 +397,7 @@
         "wave": 1,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "planned",
         "title": "Close owner-scoped Evidence authority and production composition",
         "depends_on": [],
         "exit_gate": "Exact user, tenant and owner authority is mandatory and fail-closed at every production Evidence read and approval composition boundary."
@@ -436,7 +445,7 @@
         "wave": 1,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "planned",
         "title": "Assemble the canonical audit publisher, runtime and authority source",
         "depends_on": [],
         "exit_gate": "The fail-closed dispatcher uses one production publisher and authenticated scoped authority composition with no memory or generic-event fallback."
@@ -683,9 +692,11 @@
         "wave": 3,
         "priority": "P0",
         "execution_mode": "production",
-        "status": "awaiting_production",
+        "status": "waiting_dependency",
         "title": "Deploy one manifest-bound candidate and run role UAT",
-        "depends_on": [],
+        "depends_on": [
+          "TAR-03"
+        ],
         "exit_gate": "One immutable commit, version, OCI revision and matrix SHA is deployed and completes role-based browser UAT with write receipts.",
         "evidence_collection": {
           "auto_collect": [
@@ -838,7 +849,7 @@
         "wave": 5,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "planned",
         "title": "Consolidate the triple copy sources into the published flow",
         "depends_on": [],
         "exit_gate": "Dead Python screen patches are removed, the eight drifted dual-writes are reconciled, runtime screen copy moves under publish/review, and a machine check proves published JSON, IA registry and runtime loading agree."
@@ -862,7 +873,7 @@
         "wave": 5,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "planned",
         "title": "Restructure IA groups, disambiguate entries and complete runtime screen contracts",
         "depends_on": [],
         "exit_gate": "The research-tools catch-all group is reorganized, confusing entry pairs are renamed, terminology is unified, all 12 runtime screens carry full metadata contracts, and ordinary-role walkthrough hits no admin-only target."

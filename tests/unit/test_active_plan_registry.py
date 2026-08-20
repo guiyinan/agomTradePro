@@ -42,6 +42,15 @@ def _write_fixture_repository(root: Path) -> tuple[Path, Path]:
             {
                 "version": "test.v1",
                 "updated_at": "2026-08-14",
+                "execution_focus": {
+                    "unit_id": "EXAMPLE-01",
+                    "allowed_parallel_execution_modes": [
+                        "production",
+                        "external",
+                        "governance",
+                    ],
+                    "policy": "Only the focused repository unit may be active.",
+                },
                 "workstreams": [
                     {
                         "id": "example",
@@ -84,16 +93,11 @@ def _write_fixture_repository(root: Path) -> tuple[Path, Path]:
                             "workstream_id": "example",
                             "wave": 1,
                             "priority": "P0",
-                            "execution_mode": "production",
+                            "execution_mode": "repository",
                             "status": "active",
                             "title": "Deliver example",
                             "depends_on": [],
                             "exit_gate": "Example is complete.",
-                            "evidence_collection": {
-                                "auto_collect": ["Collect the read-only report."],
-                                "authorization_required": ["Change production state."],
-                                "human_or_external_required": ["Approve the outcome."],
-                            },
                         },
                     ],
                 },
@@ -184,7 +188,7 @@ def test_registry_requires_automatic_evidence_plan_for_production_unit(tmp_path:
     module = _load_module()
     registry_path, index_path = _write_fixture_repository(tmp_path)
     payload = json.loads(registry_path.read_text(encoding="utf-8"))
-    del payload["closure_backlog"]["units"][1]["evidence_collection"]
+    payload["closure_backlog"]["units"][1]["execution_mode"] = "production"
     registry_path.write_text(json.dumps(payload), encoding="utf-8")
 
     report = module.evaluate_registry(tmp_path, registry_path, index_path)
@@ -192,3 +196,29 @@ def test_registry_requires_automatic_evidence_plan_for_production_unit(tmp_path:
     codes = {violation.code for violation in report.violations}
     assert "closure_unit_keys" in codes
     assert "closure_unit_evidence_collection" in codes
+
+
+def test_registry_rejects_multiple_active_repository_units(tmp_path: Path):
+    module = _load_module()
+    registry_path, index_path = _write_fixture_repository(tmp_path)
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    payload["closure_backlog"]["units"].append(
+        {
+            "id": "EXAMPLE-02",
+            "workstream_id": "example",
+            "wave": 1,
+            "priority": "P1",
+            "execution_mode": "repository",
+            "status": "active",
+            "title": "Expand another repository boundary",
+            "depends_on": [],
+            "exit_gate": "The second boundary is complete.",
+        }
+    )
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = module.evaluate_registry(tmp_path, registry_path, index_path)
+
+    assert any(
+        violation.code == "execution_focus_repository_lock" for violation in report.violations
+    )

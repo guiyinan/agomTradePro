@@ -5,7 +5,7 @@
 > Owner：`agent_runtime + terminal + task_monitor + operational_readiness + sdk + mcp`
 > 机器进度真源：`governance/active_plan_registry.json`
 > Canonical closure units：`TAR-01` 至 `TAR-05`
-> 执行优先级：完成当前正在落盘的原子工作包后，本线作为下一条 P0 repository 主线优先实施；在 `TAR-05` 生产验收前不得直接放大全局 inline 并发。
+> 执行优先级：`TAR-01` 是机器注册表当前唯一 repository execution focus；严格按 `TAR-01 → TAR-02 → TAR-03` 推进。`TUI-01` 等待 `TAR-03` 后再冻结最终候选并启动正式 M5 关闭窗口；在 `TAR-05` 生产验收前不得直接放大全局 inline 并发。
 
 本文只维护问题、目标架构、分期交付、验收门和回滚边界。`active / waiting_dependency / production_validation` 等执行状态只在机器注册表维护，不在本文形成第二套进度。
 
@@ -695,3 +695,27 @@ Worker, SSE, idempotency/cancel, provider/MCP, chaos, or capacity acceptance;
 the formal M5 candidate remains unchanged. TAR-01 remains active, TAR-02/TAR-03
 remain waiting, and inline single-slot plus queued feature gates remain
 unchanged.
+
+### TAR-01 production reserved-route acceptance refresh (2026-08-21)
+
+A fresh authenticated production probe was run against the release-identity endpoint and the
+reserved route. The deployed identity was source `2f4554b5192191970a3ccbc98420388881725079`,
+release `20260820211526`, image
+`sha256:74d094b6e606ee79a6e73ffd49364a3787c611511432d5194dc9902b2ec17696`, with
+`runtime_match=true`. This is the deployed code candidate; the current branch has subsequent
+documentation-only commits and was not misrepresented as deployed.
+
+Using the controlled account session, `POST /api/terminal/runs/` was exercised at concurrency
+`1/5/10/20` for exactly `1/5/10/20` requests. All `36/36` responses were HTTP `503` with
+`code=DISPATCH_UNAVAILABLE`, `reason_code=queued_runtime_not_wired`, and `Retry-After=60`.
+Per-level p95 latency was `2096.762/1922.884/2715.366/3912.115 ms`. Five health probes before
+and five after were all `200`; `/api/ready/`, `/api/audit/health/`, and `/api/audit/metrics/`
+were also `200`. Audit health reported `overall_status=OK`, zero failures, and an empty outbox
+backlog (`pending=0`, `due_pending=0`, `claimed=0`, `expired_claimed=0`, `failed=0`). No run,
+queue, provider, or MCP side effect was observed. Structured evidence is
+[`tar01-current-production-acceptance-2026-08-21.json`](../deployment/tar01-current-production-acceptance-2026-08-21.json).
+
+This refresh confirms the production authentication and fail-closed boundary only. It does not
+provide queued admission, Worker, SSE, idempotency/cancel, provider/MCP, chaos, capacity,
+14-day telemetry, restore/rollback, or owner/reviewer evidence. TAR-01 remains active and
+TAR-02/TAR-03 remain waiting; queued intake/worker and the inline single-slot gate are unchanged.

@@ -1,0 +1,783 @@
+{
+  "schema": "terminal-runtime-reserved-route-observation.v2",
+  "artifact_type": "terminal_runtime_reserved_route_observation",
+  "environment": "production-vps",
+  "base_url": "https://demo.agomtrade.pro",
+  "collected_at": "2026-08-20T16:11:32.219519Z",
+  "method": "POST",
+  "route": "/api/terminal/runs/",
+  "authentication": {
+    "method": "account_session",
+    "credentials_recorded": false
+  },
+  "candidate": {
+    "success": true,
+    "data": {
+      "status": "verified",
+      "status_label": "已核验",
+      "app_version": "0.8.0",
+      "release_tag": "20260820211526",
+      "source_commit": "2f4554b5192191970a3ccbc98420388881725079",
+      "short_commit": "2f4554b51921",
+      "image_tag": "agomtradepro-web:20260820211526",
+      "image_id": "sha256:74d094b6e606ee79a6e73ffd49364a3787c611511432d5194dc9902b2ec17696",
+      "build_started_at": "2026-08-20T13:15:31Z",
+      "build_finished_at": "2026-08-20T13:16:02Z",
+      "source_mode": "git-clone",
+      "runtime_match": true,
+      "must_not_trust_for_release": false,
+      "blocked_reason": null
+    }
+  },
+  "health_before": [
+    {
+      "status": 200,
+      "elapsed_ms": 373.868,
+      "payload": {
+        "status": "ok",
+        "timestamp": "2026-08-20T16:11:35.340258+00:00"
+      },
+      "headers": {
+        "retry_after": null
+      }
+    },
+    {
+      "status": 200,
+      "elapsed_ms": 2752.466,
+      "payload": {
+        "status": "ok",
+        "timestamp": "2026-08-20T16:11:35.715164+00:00"
+      },
+      "headers": {
+        "retry_after": null
+      }
+    },
+    {
+      "status": 200,
+      "elapsed_ms": 2961.262,
+      "payload": {
+        "status": "ok",
+        "timestamp": "2026-08-20T16:11:38.473022+00:00"
+      },
+      "headers": {
+        "retry_after": null
+      }
+    },
+    {
+      "status": 200,
+      "elapsed_ms": 2123.999,
+      "payload": {
+        "status": "ok",
+        "timestamp": "2026-08-20T16:11:41.428379+00:00"
+      },
+      "headers": {
+        "retry_after": null
+      }
+    },
+    {
+      "status": 200,
+      "elapsed_ms": 452.695,
+      "payload": {
+        "status": "ok",
+        "timestamp": "2026-08-20T16:11:43.552653+00:00"
+      },
+      "headers": {
+        "retry_after": null
+      }
+    }
+  ],
+  "health_after": [
+    {
+      "status": 200,
+      "elapsed_ms": 606.959,
+      "payload": {
+        "status": "ok",
+        "timestamp": "2026-08-20T16:12:03.815138+00:00"
+      },
+      "headers": {
+        "retry_after": null
+      }
+    },
+    {
+      "status": 200,
+      "elapsed_ms": 511.073,
+      "payload": {
+        "status": "ok",
+        "timestamp": "2026-08-20T16:12:04.395824+00:00"
+      },
+      "headers": {
+        "retry_after": null
+      }
+    },
+    {
+      "status": 200,
+      "elapsed_ms": 364.627,
+      "payload": {
+        "status": "ok",
+        "timestamp": "2026-08-20T16:12:04.892690+00:00"
+      },
+      "headers": {
+        "retry_after": null
+      }
+    },
+    {
+      "status": 200,
+      "elapsed_ms": 370.912,
+      "payload": {
+        "status": "ok",
+        "timestamp": "2026-08-20T16:12:05.264006+00:00"
+      },
+      "headers": {
+        "retry_after": null
+      }
+    },
+    {
+      "status": 200,
+      "elapsed_ms": 359.757,
+      "payload": {
+        "status": "ok",
+        "timestamp": "2026-08-20T16:12:05.629144+00:00"
+      },
+      "headers": {
+        "retry_after": null
+      }
+    }
+  ],
+  "readiness": {
+    "status": 200,
+    "elapsed_ms": 7196.562,
+    "payload": {
+      "status": "ok",
+      "timestamp": "2026-08-20T16:11:47.712228+00:00",
+      "checks": {
+        "database": {
+          "status": "ok"
+        },
+        "redis": {
+          "status": "ok",
+          "source": "cache"
+        },
+        "celery": {
+          "status": "ok",
+          "workers": 1
+        },
+        "critical_data": {
+          "status": "ok",
+          "detail": {
+            "macro_indicator": true,
+            "regime_state": true
+          }
+        },
+        "decision_data": {
+          "status": "warning",
+          "asset_codes": [
+            "510300.SH",
+            "000300.SH"
+          ],
+          "quote_max_age_hours": 4.0,
+          "quotes": {
+            "510300.SH": {
+              "asset_code": "510300.SH",
+              "snapshot_at": "2026-08-20T01:45:01+00:00",
+              "observed_at": "2026-08-20T01:45:01+00:00",
+              "fetched_at": "2026-08-20T01:45:02.618763+00:00",
+              "current_price": 4.684,
+              "open": 4.67,
+              "high": 4.687,
+              "low": 4.662,
+              "prev_close": 4.654,
+              "volume": 1882483.0,
+              "source": "akshare",
+              "age_minutes": 866,
+              "is_stale": true,
+              "freshness_status": "stale",
+              "must_not_use_for_decision": true,
+              "blocked_reason": "最新行情快照已超过 freshness 阈值，当前结果仅可用于诊断，不得直接用于决策。",
+              "max_age_hours": 4.0,
+              "contract": {
+                "snapshot_at": "2026-08-20T01:45:01+00:00",
+                "observed_at": "2026-08-20T01:45:01+00:00",
+                "fetched_at": "2026-08-20T01:45:02.618763+00:00",
+                "age_minutes": 866,
+                "is_stale": true,
+                "freshness_status": "stale",
+                "must_not_use_for_decision": true,
+                "blocked_reason": "最新行情快照已超过 freshness 阈值，当前结果仅可用于诊断，不得直接用于决策。",
+                "max_age_hours": 4.0
+              },
+              "status": "blocked"
+            },
+            "000300.SH": {
+              "asset_code": "000300.SH",
+              "snapshot_at": "2026-08-20T01:45:03+00:00",
+              "observed_at": "2026-08-20T01:45:03+00:00",
+              "fetched_at": "2026-08-20T01:45:03.517183+00:00",
+              "current_price": 4627.54,
+              "open": 4613.3,
+              "high": 4629.14,
+              "low": 4605.72,
+              "prev_close": 4588.7,
+              "volume": 46987767.0,
+              "source": "akshare",
+              "age_minutes": 866,
+              "is_stale": true,
+              "freshness_status": "stale",
+              "must_not_use_for_decision": true,
+              "blocked_reason": "最新行情快照已超过 freshness 阈值，当前结果仅可用于诊断，不得直接用于决策。",
+              "max_age_hours": 4.0,
+              "contract": {
+                "snapshot_at": "2026-08-20T01:45:03+00:00",
+                "observed_at": "2026-08-20T01:45:03+00:00",
+                "fetched_at": "2026-08-20T01:45:03.517183+00:00",
+                "age_minutes": 866,
+                "is_stale": true,
+                "freshness_status": "stale",
+                "must_not_use_for_decision": true,
+                "blocked_reason": "最新行情快照已超过 freshness 阈值，当前结果仅可用于诊断，不得直接用于决策。",
+                "max_age_hours": 4.0
+              },
+              "status": "blocked"
+            }
+          },
+          "market_thermometer": {
+            "observed_at": "2026-08-19",
+            "score": 45.17,
+            "band": "warm",
+            "change_5d": -8.6,
+            "change_20d": 6.77,
+            "components": [
+              {
+                "component_key": "new_investor_accounts",
+                "label": "新增开户",
+                "indicator_code": "CN_A_NEW_INVESTOR_ACCOUNTS",
+                "score": 46.48,
+                "weight": 0.15,
+                "current_value": 2854800.0,
+                "unit": "户",
+                "growth_score": 36.881595507793584,
+                "percentile_score": 60.86956521739131,
+                "sentiment_score": null,
+                "positive_ratio_score": null,
+                "is_stale": false,
+                "is_missing": false,
+                "age_days": 19,
+                "reason": "新增开户: 增速分 36.9 / 分位分 60.9"
+              },
+              {
+                "component_key": "turnover",
+                "label": "全市场成交额",
+                "indicator_code": "CN_A_TOTAL_TURNOVER",
+                "score": 44.4,
+                "weight": 0.25,
+                "current_value": 2402511678610.232,
+                "unit": "元",
+                "growth_score": 55.21904045681186,
+                "percentile_score": 28.18181818181818,
+                "sentiment_score": null,
+                "positive_ratio_score": null,
+                "is_stale": false,
+                "is_missing": false,
+                "age_days": 2,
+                "reason": "全市场成交额: 增速分 55.2 / 分位分 28.2"
+              },
+              {
+                "component_key": "margin_balance",
+                "label": "融资余额",
+                "indicator_code": "CN_A_MARGIN_BALANCE",
+                "score": 49.49,
+                "weight": 0.2,
+                "current_value": 2662515847021.0,
+                "unit": "元",
+                "growth_score": 51.19938218093242,
+                "percentile_score": 46.92307692307692,
+                "sentiment_score": null,
+                "positive_ratio_score": null,
+                "is_stale": false,
+                "is_missing": false,
+                "age_days": 1,
+                "reason": "融资余额: 增速分 51.2 / 分位分 46.9"
+              },
+              {
+                "component_key": "etf_net_flow",
+                "label": "ETF 资金净流入",
+                "indicator_code": "CN_A_ETF_NET_FLOW",
+                "score": 38.42,
+                "weight": 0.15,
+                "current_value": -269266481667.00424,
+                "unit": "元",
+                "growth_score": 50.0,
+                "percentile_score": 21.052631578947366,
+                "sentiment_score": null,
+                "positive_ratio_score": null,
+                "is_stale": true,
+                "is_missing": false,
+                "age_days": 14,
+                "reason": "ETF 资金净流入: 增速分 50.0 / 分位分 21.1"
+              },
+              {
+                "component_key": "market_news_count",
+                "label": "市场新闻热度",
+                "indicator_code": "CN_A_MARKET_NEWS_COUNT",
+                "score": 32.71,
+                "weight": 0.15,
+                "current_value": 7.0,
+                "unit": "篇",
+                "growth_score": 31.48148148148148,
+                "percentile_score": 34.54545454545455,
+                "sentiment_score": null,
+                "positive_ratio_score": null,
+                "is_stale": false,
+                "is_missing": false,
+                "age_days": 3,
+                "reason": "市场新闻热度: 增速分 31.5 / 分位分 34.5"
+              },
+              {
+                "component_key": "market_news_sentiment",
+                "label": "市场新闻情绪",
+                "indicator_code": "CN_A_MARKET_NEWS_SENTIMENT",
+                "score": 55.18,
+                "weight": 0.1,
+                "current_value": 0.0,
+                "unit": "score",
+                "growth_score": null,
+                "percentile_score": 67.27272727272727,
+                "sentiment_score": 50.0,
+                "positive_ratio_score": 50.0,
+                "is_stale": false,
+                "is_missing": false,
+                "age_days": 3,
+                "reason": "市场新闻情绪: 分位分 67.3 / 情绪分 50.0"
+              }
+            ],
+            "trigger_reasons": [
+              "全市场成交额: 增速分 55.2 / 分位分 28.2",
+              "融资余额: 增速分 51.2 / 分位分 46.9",
+              "新增开户: 增速分 36.9 / 分位分 60.9",
+              "市场新闻情绪: 分位分 67.3 / 情绪分 50.0",
+              "市场新闻热度: 增速分 31.5 / 分位分 34.5"
+            ],
+            "stale_components": [
+              "etf_net_flow"
+            ],
+            "missing_components": [],
+            "valid_component_count": 5,
+            "data_source": "degraded",
+            "must_not_use_for_decision": false,
+            "blocked_reason": "",
+            "calculated_at": "2026-08-19T23:06:51.075665+00:00",
+            "threshold_source": "system",
+            "thresholds": {
+              "warm_threshold": 35.0,
+              "hot_threshold": 60.0,
+              "overheat_threshold": 75.0,
+              "extreme_threshold": 85.0
+            },
+            "score_available": true,
+            "fallback_used": false,
+            "latest_snapshot_observed_at": "2026-08-19",
+            "effective_band": "warm",
+            "overheating_risk": false,
+            "avoid_chasing": false,
+            "component_data_provenance": [
+              {
+                "component_key": "new_investor_accounts",
+                "indicator_code": "CN_A_NEW_INVESTOR_ACCOUNTS",
+                "reporting_period": "2026-07-31",
+                "source": "akshare",
+                "proxy": "sse_monthly_all_account_openings",
+                "verification_status": "proxy_source",
+                "source_url": "https://www.sse.com.cn/aboutus/publication/monthly/investor/"
+              },
+              {
+                "component_key": "turnover",
+                "indicator_code": "CN_A_TOTAL_TURNOVER",
+                "reporting_period": "2026-08-17",
+                "source": "tushare",
+                "proxy": null,
+                "verification_status": null,
+                "source_url": null
+              },
+              {
+                "component_key": "margin_balance",
+                "indicator_code": "CN_A_MARGIN_BALANCE",
+                "reporting_period": "2026-08-18",
+                "source": "akshare",
+                "proxy": "sh_margin_plus_sz_margin",
+                "verification_status": "proxy_source",
+                "source_url": null
+              },
+              {
+                "component_key": "etf_net_flow",
+                "indicator_code": "CN_A_ETF_NET_FLOW",
+                "reporting_period": "2026-07-30",
+                "source": "data_center_consensus",
+                "proxy": "tushare_etf_share_size_delta",
+                "verification_status": "fallback_proxy",
+                "source_url": null
+              },
+              {
+                "component_key": "market_news_count",
+                "indicator_code": "CN_A_MARKET_NEWS_COUNT",
+                "reporting_period": "2026-08-14",
+                "source": "akshare",
+                "proxy": null,
+                "verification_status": null,
+                "source_url": null
+              },
+              {
+                "component_key": "market_news_sentiment",
+                "indicator_code": "CN_A_MARKET_NEWS_SENTIMENT",
+                "reporting_period": "2026-08-14",
+                "source": "akshare",
+                "proxy": null,
+                "verification_status": null,
+                "source_url": null
+              }
+            ],
+            "proxy_components": [
+              {
+                "component_key": "new_investor_accounts",
+                "indicator_code": "CN_A_NEW_INVESTOR_ACCOUNTS",
+                "reporting_period": "2026-07-31",
+                "source": "akshare",
+                "proxy": "sse_monthly_all_account_openings",
+                "verification_status": "proxy_source",
+                "source_url": "https://www.sse.com.cn/aboutus/publication/monthly/investor/"
+              },
+              {
+                "component_key": "margin_balance",
+                "indicator_code": "CN_A_MARGIN_BALANCE",
+                "reporting_period": "2026-08-18",
+                "source": "akshare",
+                "proxy": "sh_margin_plus_sz_margin",
+                "verification_status": "proxy_source",
+                "source_url": null
+              },
+              {
+                "component_key": "etf_net_flow",
+                "indicator_code": "CN_A_ETF_NET_FLOW",
+                "reporting_period": "2026-07-30",
+                "source": "data_center_consensus",
+                "proxy": "tushare_etf_share_size_delta",
+                "verification_status": "fallback_proxy",
+                "source_url": null
+              }
+            ],
+            "status": "ok"
+          },
+          "must_not_use_for_decision": true,
+          "blocked_reasons": [
+            "510300.SH: 最新行情快照已超过 freshness 阈值，当前结果仅可用于诊断，不得直接用于决策。",
+            "000300.SH: 最新行情快照已超过 freshness 阈值，当前结果仅可用于诊断，不得直接用于决策。"
+          ],
+          "readiness_status": "blocked"
+        },
+        "alpha_workspace_consistency": {
+          "status": "ok",
+          "checked_account_id": "default",
+          "alpha": {
+            "latest_trade_date": "2026-08-19",
+            "latest_updated_at": "2026-08-19T11:54:34.588634+00:00",
+            "top_codes": [
+              "301308.SZ",
+              "688521.SH",
+              "000596.SZ",
+              "002558.SZ",
+              "000988.SZ",
+              "002422.SZ",
+              "002463.SZ",
+              "603986.SH",
+              "000338.SZ",
+              "002916.SZ",
+              "600176.SH",
+              "000651.SZ",
+              "600183.SH",
+              "002837.SZ",
+              "000408.SZ",
+              "300274.SZ",
+              "300308.SZ",
+              "600160.SH",
+              "002625.SZ",
+              "002493.SZ",
+              "002179.SZ",
+              "601288.SH",
+              "002384.SZ",
+              "600588.SH",
+              "600570.SH",
+              "002920.SZ",
+              "300014.SZ",
+              "688047.SH",
+              "300866.SZ",
+              "601689.SH"
+            ],
+            "provider_source": "qlib",
+            "status": "available",
+            "runtime_provider_status": {
+              "qlib": {
+                "priority": 1,
+                "status": "available",
+                "max_staleness_days": 2
+              },
+              "cache": {
+                "priority": 10,
+                "status": "available",
+                "max_staleness_days": 5
+              },
+              "simple": {
+                "priority": 100,
+                "status": "available",
+                "max_staleness_days": 7
+              },
+              "etf": {
+                "priority": 1000,
+                "status": "unavailable",
+                "max_staleness_days": 30
+              }
+            }
+          },
+          "workspace": {
+            "account_id": "default",
+            "latest_updated_at": "2026-08-19T11:54:47.097465+00:00",
+            "recommendation_codes": [
+              "688521.SH",
+              "600176.SH",
+              "300866.SZ",
+              "002422.SZ",
+              "000338.SZ",
+              "300308.SZ",
+              "002179.SZ",
+              "002463.SZ",
+              "600160.SH",
+              "002837.SZ",
+              "600183.SH",
+              "000988.SZ",
+              "601288.SH",
+              "600588.SH",
+              "002493.SZ",
+              "688047.SH",
+              "002916.SZ",
+              "601689.SH",
+              "002558.SZ",
+              "002920.SZ",
+              "301308.SZ",
+              "000651.SZ",
+              "000408.SZ",
+              "002384.SZ",
+              "603986.SH",
+              "300014.SZ",
+              "600570.SH",
+              "000596.SZ",
+              "002625.SZ",
+              "300274.SZ"
+            ],
+            "source_candidate_ids": [
+              "alpha_rank:688521.SH:2026-08-19",
+              "alpha_rank:600176.SH:2026-08-19",
+              "alpha_rank:300866.SZ:2026-08-19",
+              "alpha_rank:002422.SZ:2026-08-19",
+              "alpha_rank:000338.SZ:2026-08-19",
+              "alpha_rank:300308.SZ:2026-08-19",
+              "alpha_rank:002179.SZ:2026-08-19",
+              "alpha_rank:002463.SZ:2026-08-19",
+              "alpha_rank:600160.SH:2026-08-19",
+              "alpha_rank:002837.SZ:2026-08-19",
+              "alpha_rank:600183.SH:2026-08-19",
+              "alpha_rank:000988.SZ:2026-08-19",
+              "alpha_rank:601288.SH:2026-08-19",
+              "alpha_rank:600588.SH:2026-08-19",
+              "alpha_rank:002493.SZ:2026-08-19",
+              "alpha_rank:688047.SH:2026-08-19",
+              "alpha_rank:002916.SZ:2026-08-19",
+              "alpha_rank:601689.SH:2026-08-19",
+              "alpha_rank:002558.SZ:2026-08-19",
+              "alpha_rank:002920.SZ:2026-08-19",
+              "alpha_rank:301308.SZ:2026-08-19",
+              "alpha_rank:000651.SZ:2026-08-19",
+              "alpha_rank:000408.SZ:2026-08-19",
+              "alpha_rank:002384.SZ:2026-08-19",
+              "alpha_rank:603986.SH:2026-08-19",
+              "alpha_rank:300014.SZ:2026-08-19",
+              "alpha_rank:600570.SH:2026-08-19",
+              "alpha_rank:000596.SZ:2026-08-19",
+              "alpha_rank:002625.SZ:2026-08-19",
+              "alpha_rank:300274.SZ:2026-08-19"
+            ],
+            "total_count": 1081
+          },
+          "issues": []
+        }
+      }
+    },
+    "headers": {
+      "retry_after": null
+    }
+  },
+  "audit_health": {
+    "status": 200,
+    "elapsed_ms": 514.359,
+    "payload": {
+      "overall_status": "OK",
+      "checks": [
+        {
+          "component": "audit_failure_counter",
+          "status": "OK",
+          "message": "No audit failures recorded",
+          "details": {
+            "total_failures": 0,
+            "by_component": {},
+            "warning_threshold": 10,
+            "error_threshold": 50
+          },
+          "checked_at": "2026-08-20T16:11:51.268122+00:00"
+        },
+        {
+          "component": "audit_database_connection",
+          "status": "OK",
+          "message": "Database connection is healthy",
+          "details": {
+            "probe": "passed"
+          },
+          "checked_at": "2026-08-20T16:11:51.269206+00:00"
+        },
+        {
+          "component": "audit_tables_accessible",
+          "status": "OK",
+          "message": "Audit tables are accessible",
+          "details": {
+            "probe": "passed"
+          },
+          "checked_at": "2026-08-20T16:11:51.281772+00:00"
+        },
+        {
+          "component": "audit_outbox_backlog",
+          "status": "OK",
+          "message": "Audit outbox backlog is healthy",
+          "details": {
+            "as_of": "2026-08-20T16:11:51.281869+00:00",
+            "pending_count": 0,
+            "due_pending_count": 0,
+            "claimed_count": 0,
+            "expired_claimed_count": 0,
+            "failed_count": 0,
+            "delivered_count": 0,
+            "oldest_backlog_age_seconds": null,
+            "oldest_claimed_age_seconds": null
+          },
+          "checked_at": "2026-08-20T16:11:51.281869+00:00"
+        }
+      ],
+      "metrics": {
+        "available": true,
+        "total_operation_logs": 541,
+        "total_failures": 0,
+        "failure_rate": 0.0,
+        "failures_by_component": {}
+      },
+      "generated_at": "2026-08-20T16:11:51.303400+00:00"
+    },
+    "headers": {
+      "retry_after": null
+    }
+  },
+  "audit_metrics": {
+    "status": 200,
+    "elapsed_ms": 431.827,
+    "payload": {
+      "_text_prefix": "# HELP audit_write_success_total Total number of successful audit write operations\n# TYPE audit_write_success_total counter\n# HELP audit_write_failure_total Total number of failed audit write operations\n# TYPE audit_write_failure_total coun"
+    },
+    "headers": {
+      "retry_after": null
+    }
+  },
+  "levels": [
+    {
+      "concurrency": 1,
+      "requests": 1,
+      "status_counts": {
+        "503": 1
+      },
+      "reason_counts": {
+        "queued_runtime_not_wired": 1
+      },
+      "retry_after_counts": {
+        "60": 1
+      },
+      "latency_ms": {
+        "p50": 2096.762,
+        "p95": 2096.762,
+        "p99": 2096.762,
+        "max": 2096.762
+      },
+      "all_expected": true
+    },
+    {
+      "concurrency": 5,
+      "requests": 5,
+      "status_counts": {
+        "503": 5
+      },
+      "reason_counts": {
+        "queued_runtime_not_wired": 5
+      },
+      "retry_after_counts": {
+        "60": 5
+      },
+      "latency_ms": {
+        "p50": 1883.839,
+        "p95": 1922.884,
+        "p99": 1922.884,
+        "max": 1922.884
+      },
+      "all_expected": true
+    },
+    {
+      "concurrency": 10,
+      "requests": 10,
+      "status_counts": {
+        "503": 10
+      },
+      "reason_counts": {
+        "queued_runtime_not_wired": 10
+      },
+      "retry_after_counts": {
+        "60": 10
+      },
+      "latency_ms": {
+        "p50": 2463.004,
+        "p95": 2715.366,
+        "p99": 2715.366,
+        "max": 2715.366
+      },
+      "all_expected": true
+    },
+    {
+      "concurrency": 20,
+      "requests": 20,
+      "status_counts": {
+        "503": 20
+      },
+      "reason_counts": {
+        "queued_runtime_not_wired": 20
+      },
+      "retry_after_counts": {
+        "60": 20
+      },
+      "latency_ms": {
+        "p50": 3073.276,
+        "p95": 3912.115,
+        "p99": 4123.337,
+        "max": 4123.337
+      },
+      "all_expected": true
+    }
+  ],
+  "acceptance": {
+    "health_stable": true,
+    "reserved_route_fail_closed": true,
+    "side_effects_observed": false,
+    "queued_runtime_enabled": false,
+    "capacity_ready": false,
+    "outcome": "capacity_denied",
+    "reason": "queued_runtime_not_wired"
+  }
+}

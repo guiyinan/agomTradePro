@@ -132,6 +132,7 @@ def evaluate_registry(
     expected_root_keys = {
         "version",
         "updated_at",
+        "execution_focus",
         "workstreams",
         "review_queue",
         "closure_backlog",
@@ -168,6 +169,72 @@ def evaluate_registry(
             )
         )
         updated_at = date.min
+
+    execution_focus_value = registry.get("execution_focus")
+    execution_focus = (
+        cast(dict[str, object], execution_focus_value)
+        if isinstance(execution_focus_value, dict)
+        else {}
+    )
+    expected_execution_focus_keys = {
+        "unit_id",
+        "allowed_parallel_execution_modes",
+        "policy",
+    }
+    if not isinstance(execution_focus_value, dict):
+        violations.append(
+            Violation(
+                "execution_focus_type",
+                "execution_focus",
+                "execution_focus must be an object",
+            )
+        )
+    elif set(execution_focus) != expected_execution_focus_keys:
+        violations.append(
+            Violation(
+                "execution_focus_keys",
+                "execution_focus",
+                f"expected exact keys {sorted(expected_execution_focus_keys)}",
+            )
+        )
+    execution_focus_unit = execution_focus.get("unit_id")
+    if not isinstance(execution_focus_unit, str) or not execution_focus_unit:
+        violations.append(
+            Violation(
+                "execution_focus_unit",
+                "execution_focus.unit_id",
+                "unit_id must be a non-empty canonical unit ID",
+            )
+        )
+    allowed_parallel_modes_value = execution_focus.get("allowed_parallel_execution_modes")
+    allowed_parallel_modes: list[object] = (
+        allowed_parallel_modes_value if isinstance(allowed_parallel_modes_value, list) else []
+    )
+    string_parallel_modes = [mode for mode in allowed_parallel_modes if isinstance(mode, str)]
+    if (
+        not isinstance(allowed_parallel_modes_value, list)
+        or len(string_parallel_modes) != len(allowed_parallel_modes)
+        or len(string_parallel_modes) != len(set(string_parallel_modes))
+        or any(
+            mode not in ALLOWED_EXECUTION_MODES or mode == "repository"
+            for mode in string_parallel_modes
+        )
+    ):
+        violations.append(
+            Violation(
+                "execution_focus_parallel_modes",
+                "execution_focus.allowed_parallel_execution_modes",
+                "parallel modes must be unique non-repository execution modes",
+            )
+        )
+    if not isinstance(execution_focus.get("policy"), str) or not execution_focus.get("policy"):
+        violations.append(
+            Violation(
+                "execution_focus_policy",
+                "execution_focus.policy",
+                "policy must be a non-empty string",
+            )
+        )
 
     workstreams_value = registry.get("workstreams")
     review_queue_value = registry.get("review_queue")
@@ -525,6 +592,8 @@ def evaluate_registry(
     unit_workstream_by_id: dict[str, str] = {}
     unit_waves: dict[str, int] = {}
     unit_dependencies: dict[str, tuple[str, ...]] = {}
+    unit_execution_modes: dict[str, str] = {}
+    unit_statuses: dict[str, str] = {}
     allowed_unit_workstreams = set(workstream_ids) | {"review-queue"}
     for position, raw_unit in enumerate(units):
         location = f"closure_backlog.units[{position}]"
@@ -551,6 +620,8 @@ def evaluate_registry(
             )
             continue
         unit_ids.append(unit_id)
+        if isinstance(execution_mode, str):
+            unit_execution_modes[unit_id] = execution_mode
         workstream_id = unit.get("workstream_id")
         if workstream_id not in allowed_unit_workstreams:
             violations.append(
@@ -632,6 +703,8 @@ def evaluate_registry(
                     )
                 )
         status = unit.get("status")
+        if isinstance(status, str):
+            unit_statuses[unit_id] = status
         if status not in ALLOWED_UNIT_STATUSES:
             violations.append(
                 Violation("closure_unit_status", unit_id, "status is outside the contract")
@@ -699,6 +772,47 @@ def evaluate_registry(
             )
         )
     known_unit_ids = set(unit_ids)
+    if isinstance(execution_focus_unit, str):
+        if execution_focus_unit not in known_unit_ids:
+            violations.append(
+                Violation(
+                    "execution_focus_unknown_unit",
+                    "execution_focus.unit_id",
+                    f"focus unit {execution_focus_unit!r} is not registered",
+                )
+            )
+        else:
+            if unit_execution_modes.get(execution_focus_unit) != "repository":
+                violations.append(
+                    Violation(
+                        "execution_focus_not_repository",
+                        execution_focus_unit,
+                        "execution focus must reference a repository unit",
+                    )
+                )
+            if unit_statuses.get(execution_focus_unit) != "active":
+                violations.append(
+                    Violation(
+                        "execution_focus_not_active",
+                        execution_focus_unit,
+                        "execution focus must reference an active unit",
+                    )
+                )
+        active_repository_units = sorted(
+            unit_id
+            for unit_id in known_unit_ids
+            if unit_execution_modes.get(unit_id) == "repository"
+            and unit_statuses.get(unit_id) == "active"
+        )
+        if active_repository_units != [execution_focus_unit]:
+            violations.append(
+                Violation(
+                    "execution_focus_repository_lock",
+                    "closure_backlog.units",
+                    "the focus unit must be the only active repository unit; "
+                    f"found {active_repository_units}",
+                )
+            )
     legacy_sources_value = closure_backlog.get("legacy_sources")
     legacy_sources = legacy_sources_value if isinstance(legacy_sources_value, list) else []
     if not isinstance(legacy_sources_value, list):
