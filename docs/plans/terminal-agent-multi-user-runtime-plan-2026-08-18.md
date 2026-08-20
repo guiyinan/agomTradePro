@@ -758,6 +758,9 @@ staircase and `503 / queued_runtime_not_wired / Retry-After=60` response counts,
 health and audit before/after stability, and rejects any self-reported capacity enablement.
 The artifact validates with four levels, stable health, no observed side effects, and
 `runtime_enablement=not_authorized` / `capacity_ready=false`.
+The baseline snapshot recorder also supports direct offline invocation without importing
+Django-backed runtime use cases; its default remains dry-run and `--write` remains the only
+append-only artifact operation.
 
 This is an evidence-integrity improvement only. It does not convert reserved-route rejection
 into a TAR-01 capacity baseline and does not provide queued admission, PostgreSQL run

@@ -4,7 +4,19 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
+from types import ModuleType
+
+# The application package has a legacy eager ``__init__`` that imports
+# Django-backed use cases.  Keep this recorder offline when invoked directly.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+if __package__ in (None, "") and "apps.agent_runtime.application" not in sys.modules:
+    application_package = ModuleType("apps.agent_runtime.application")
+    application_package.__path__ = [str(REPO_ROOT / "apps" / "agent_runtime" / "application")]
+    sys.modules["apps.agent_runtime.application"] = application_package
 
 from apps.agent_runtime.application.terminal_runtime_baseline_collector import (
     TerminalRuntimeBaselineCollectionRequest,
