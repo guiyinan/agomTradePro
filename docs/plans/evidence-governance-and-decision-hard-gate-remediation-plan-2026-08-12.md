@@ -2859,3 +2859,29 @@ binding；`tests/unit/test_evid_01_authority_inventory_evidence.py` 仍诚实地
 image/matrix 证据前，`EVID-01`、M5、AUD-01、写入与 execution 继续 fail-closed；本轮未做
 业务写入、authority 回填、生产 restore/rollback、角色化 UAT、容量/chaos 或 owner/reviewer
 签字。
+
+## 2026-08-21：EVID-02 disposable PostgreSQL concurrency harness acceptance
+
+在本机一次性 `postgres:16-alpine` 容器的空数据库
+`evidence_scope_test_20260821` 中，使用隔离设置
+`tests.settings_evidence_scope_source_v1_postgres`、显式测试开关和
+`--confcutdir=tests/component/research` 运行固定并发套件：
+`tests/component/research/test_evidence_scope_source_v1_postgres_concurrency.py`，结果为
+`3 passed`（本次带 `--durations=0` 的 pytest 输出为 `15.48s`，进程墙钟
+`2026-08-20T20:10:42.331802Z`–`2026-08-20T20:11:00.639474Z`）。空根 first-winner、同
+predecessor successor first-winner 与 outer-transaction rollback 三项事实分别为
+`(winner,conflict,rows)=(1,1,1)`、`(1,1,2)`、`(0,0,0)`；测试数据库已在取证后删除。
+
+原始输入为
+[`evid-02-postgres-concurrency-run-2026-08-21.json`](../deployment/evid-02-postgres-concurrency-run-2026-08-21.json)，
+通过离线 recorder 生成的 canonical 内容寻址工件为
+[`a27e193f53910cdb4395cc88d4d96fb04fcda71f2f191dbda7df2626299e6df8.json`](../deployment/evid-02-postgres/a2/a27e193f53910cdb4395cc88d4d96fb04fcda71f2f191dbda7df2626299e6df8.json)，
+SHA-256 为 `a27e193f53910cdb4395cc88d4d96fb04fcda71f2f191dbda7df2626299e6df8`；
+unit 合同与 head-audit 回归为 `29 passed`，dry-run 与 append-only 写入均成功。
+
+该工件固定 `evidence_scope=offline_disposable_postgresql_software`、
+`production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`；
+它只证明本地 PostgreSQL 软件层的双连接 first-winner/rollback 合同，不读取既有 production
+ledger，`head_audit` 与 `human_approval` 均保持 `not_collected`。因此 `EVID-02` 仍为
+`awaiting_production`，真实 VPS PostgreSQL race/rollback、current-head snapshot、Risk
+Center approval、owner/reviewer 签字和 Evidence hard gate 继续 fail-closed。
