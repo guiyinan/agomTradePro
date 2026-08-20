@@ -597,3 +597,21 @@ audit/metrics healthy, while decision runtime and queued terminal runtime remain
 blocked (`decision_runtime_blocked` / `queued_runtime_not_wired`). This is short-window read-only
 evidence only; it does not satisfy role browser UAT, business write receipts/refresh, capacity,
 restore/rollback, telemetry or owner/reviewer gates.
+
+### TAR-01 local CLI/MCP secret boundary (2026-08-20)
+
+The local MCP stdio child now receives an explicit, typed environment allowlist instead of
+`os.environ.copy()`. The boundary preserves only the SDK import path, Django/base URL and
+request-scoped internal identity/role plus bounded timeout/audit configuration; internal and
+audit secrets are passed only when present in server settings. API tokens, passwords, database
+URLs, provider/cloud keys, credential-bearing URLs and the user prompt are not inherited by the
+child process. `AGOMTRADEPRO_MCP_ENFORCE_RBAC=true` is forced for the child. The focused contract
+suite (`tests/unit/agent_runtime/test_terminal_agent_local_cli.py` plus the existing service,
+matrix and manifest tests) passed `29` tests; Ruff, Black, isort, incremental mypy, governance
+consistency and architecture/audit checks passed. The canonical TAR matrix digest is
+`8866e24df834b25da8a553675011e431d309a99595b0ea64e0e4dc91a4777888`, and the
+`local-cli-mcp-secret-boundary` scenario is now marked `implemented`.
+
+This is a local process-boundary contract only. It does not connect a queued route, worker,
+production CLI, external MCP portability path, capacity/chaos observer or production UAT, and
+does not unlock TAR-01/TAR-04/TAR-05 gates.
