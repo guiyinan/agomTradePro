@@ -974,3 +974,18 @@ claim/delivery 或 Data Center 同 UOW 双写。因此 `AUD-01` 继续 `active`�
 也没有把 `publisher_not_wired`、空 outbox/backlog 或 metrics `200` 解释为 durable publisher、
 真实 claim/delivery、authenticated scoped authority、Data Center 同 UOW 双写、PostgreSQL
 并发/回滚或生产 owner/reviewer 签字。因此 `AUD-01` 仍保持 `active`，`AUD-02/03` 继续等待依赖。
+
+## 实施记录（2026-08-21，AUD-01 current HEAD read-only acceptance）
+
+当前已部署代码候选 `a428edaad5cf70e0c47a5649c5f867ae6aeabdd5` / release
+`20260821060037` 的 authenticated read-only acceptance 同时复核了 `/api/audit/health/`
+与 `/api/audit/metrics/`：两次快照均 HTTP `200`、`overall_status=OK`、累计 operation logs
+`541`、failure count `0`、failure rate `0`，`pending/due/claimed/expired/failed` backlog
+计数全部为 `0`。原始快照与候选、镜像、健康探针绑定在
+[`tar01-current-production-acceptance-2026-08-21-head-a428edaad.json`](../deployment/tar01-current-production-acceptance-2026-08-21-head-a428edaad.json)，
+其 SHA-256 为 `9360fa15e8c41348d436a50d4e475c869615e8f5873caf3385e09e965d2f2c16`。
+
+该证据只确认当前候选的只读审计投影健康、空 backlog 和认证边界稳定；它不证明 durable
+publisher/receipt sink、authenticated scoped authority、真实 outbox claim/delivery、beat/retry、
+Data Center 同 UOW 双写、PostgreSQL 并发/回滚或人工 owner/reviewer 签字。`AUD-01` 继续
+保持 `active`，`AUD-02/03` 继续等待依赖，生产 publisher/runtime 仍 fail-closed。
