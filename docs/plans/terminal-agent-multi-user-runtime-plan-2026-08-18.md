@@ -628,3 +628,24 @@ runs `403`, and the existing decision runtime `503` fail-closed. This provides d
 identity and runtime-boundary evidence only; it does not unlock queued admission, worker/CLI
 UAT, external MCP portability, business write receipt/refresh, capacity/chaos, 14-day
 telemetry, restore/rollback or owner/reviewer gates.
+
+### TAR-01 current VPS authenticated staircase acceptance (2026-08-20)
+
+The current runtime identity was read from the authenticated release-identity endpoint:
+source `7cf7e984373af71b6f96b234cefb78b5b319d770`, release `20260820145119`, image
+`sha256:6af515cee168cb4a406c158078f73eeab7e7931f331fbbff98b892f9ff701dca`,
+`runtime_match=true`. Using an existing controlled test account, the reserved
+`POST /api/terminal/runs/` route was exercised at concurrency `1/5/10/20` for exactly
+`1/5/10/20` requests. All `36/36` responses were the expected HTTP `503`,
+`code=DISPATCH_UNAVAILABLE`, `reason_code=queued_runtime_not_wired`, and `Retry-After=60`.
+Per-level p95 latency was `1326.055/1966.525/2729.894/4419.591 ms`.
+
+Five health probes before and five after the staircase were all HTTP `200`. No run was
+admitted and no queue, provider, or MCP side effect was created. The raw structured artifact is
+[`tar01-current-candidate-capacity-denied-2026-08-20.json`](../deployment/tar01-current-candidate-capacity-denied-2026-08-20.json).
+
+This is direct evidence that the current actual version remains authenticated and fail-closed
+while queued runtime is disabled. It is not queued admission, Worker, SSE, idempotency/cancel,
+provider/MCP, chaos, or capacity acceptance, and it does not rebind the formal
+`f3881a04…/20260820043710` candidate. TAR-01 remains active, TAR-02/TAR-03 remain waiting, and
+the inline single-slot and queued feature gates remain unchanged.
