@@ -1353,3 +1353,26 @@ These are read-only health/backlog observations, not proof of a durable publishe
 delivery, authenticated audit authority, queued admission, worker, SSE, idempotency/cancel
 behavior, or production PostgreSQL race evidence. TAR-01, AUD-01/AUD-03, and their dependent
 production gates remain fail-closed.
+
+## 2026-08-20 00:44–00:47 UTC post-deploy verifier rerun and authenticated read-only acceptance
+
+The active runtime remained the immutable `39992992cadc1c261f5dd8ffb06b64708a19397f` candidate
+(`agomtradepro-web:20260820075124`, image
+`sha256:0d08887db56e2367264950efe00fca71b8c34e97d2643e425decabb2ef190ad4`). A full independent
+`scripts/deploy_vps_verify.py --expected-commit ... --expect-celery` rerun exited `0`: Caddy/TLS,
+health, containers, Django deploy check, migrations, canonical schema, TUI registry, Qlib,
+release/image identity, backup, resources, healthcheck, worker/beat and Celery ping all passed.
+The first verifier invocation had a transient Celery inspect timeout; a direct 20-second ping
+returned `1 node online`, and the complete verifier rerun then passed. No restart, image or
+volume change was made during this observation.
+
+Using the supplied authenticated account, read-only HTTPS probes returned `200` for health,
+readiness, TUI root/catalog/bootstrap/operator home/governance queue/registry/provider screen,
+policy status, signal, data-center, audit, audit metrics and Prometheus metrics. Policy status
+continued to expose the safe PENDING contract (`PX`/`待分类`, manual approval required, normal
+operation, zero cash adjustment). `/api/regime/current/` remained `503 decision_runtime_blocked`
+with `must_not_use_for_decision=true`; authenticated `/api/terminal/runs/` remained the explicit
+`503 queued_runtime_not_wired` boundary. Audit health remained `OK` with no recorded failures and
+an empty outbox snapshot. No business write, role-matrix browser UAT, receipt/refresh proof,
+capacity/chaos, restore/rollback, 14-day telemetry or owner/reviewer sign-off was performed.
+The related TAR/AUD/TUI/M5 production gates therefore remain fail-closed.

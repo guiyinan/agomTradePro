@@ -572,3 +572,17 @@ with zero failures and zero pending/claimed/failed/delivered outbox rows. Metric
 returned 200. This confirms the intended fail-closed boundary and an empty backlog snapshot;
 it does not unlock queued admission/worker/SSE/cancel, durable publisher delivery, authority
 composition, PostgreSQL race evidence, or production sign-off.
+
+### TAR-01/AUD-01 verifier rerun and authenticated acceptance (2026-08-20 00:44–00:47 UTC)
+
+The same immutable `39992992cadc1c261f5dd8ffb06b64708a19397f` / release `20260820075124`
+was independently verified again. The first Celery inspect ping was transiently slow; a direct
+20-second ping returned `1 node online`, and the complete verifier rerun exited `0` with Caddy,
+TLS, health, containers, Django/migrations/schema, TUI registry, Qlib, backup, resources,
+healthcheck and Celery worker/beat/ping all passing. Authenticated GET probes continued to
+return `200` for the TUI/operator, policy, audit and metrics surfaces; `/api/regime/current/`
+remained `503 decision_runtime_blocked` and `/api/terminal/runs/` remained the explicit
+`503 queued_runtime_not_wired` boundary. This is direct short-window read-only evidence only;
+no business write, role browser UAT, receipt/refresh, capacity/chaos, restore/rollback,
+14-day telemetry or owner/reviewer sign-off was collected, so TAR-01/AUD-01 and dependents
+remain fail-closed.
