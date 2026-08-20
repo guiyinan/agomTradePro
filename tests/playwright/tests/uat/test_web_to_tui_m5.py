@@ -275,7 +275,7 @@ def test_account_read_missing_fields_and_confirmation_cancel(
     page = authenticated_page
     account_name = "M5 浏览器演练账户"
     page.goto(
-        f"{base_url}/tui/?screen=execution.accounts" "&action=simulated-trading.accounts",
+        f"{base_url}/tui/?screen=execution.accounts&action=simulated-trading.accounts",
         wait_until="domcontentloaded",
     )
 
@@ -319,7 +319,7 @@ def test_account_read_missing_fields_and_confirmation_cancel(
     expect(page.get_by_text("已取消", exact=True)).to_be_visible()
 
     page.goto(
-        f"{base_url}/tui/?screen=execution.accounts" "&action=simulated-trading.accounts",
+        f"{base_url}/tui/?screen=execution.accounts&action=simulated-trading.accounts",
         wait_until="domcontentloaded",
     )
     restored_summary = page.get_by_text(summary_text or "", exact=True)
@@ -357,7 +357,7 @@ def test_operator_group_can_open_queue_but_regular_user_cannot(
 ) -> None:
     """TUI visibility and the owner API preserve the operator role boundary."""
 
-    target = "/tui/%3Fscreen%3Dai-ops.terminal" "%26action%3Dagent-runtime.operator-task-list"
+    target = "/tui/%3Fscreen%3Dai-ops.terminal%26action%3Dagent-runtime.operator-task-list"
 
     _login(page, base_url, username="m5_uat_operator", target=target)
     expect(page.get_by_role("grid", name="智能任务队列")).to_be_visible()
@@ -382,7 +382,7 @@ def test_tui_core_layout_has_no_horizontal_overflow(
     page = authenticated_page
     page.set_viewport_size({"width": width, "height": height})
     page.goto(
-        f"{base_url}/tui/?screen=execution.accounts" "&action=simulated-trading.accounts",
+        f"{base_url}/tui/?screen=execution.accounts&action=simulated-trading.accounts",
         wait_until="domcontentloaded",
     )
     expect(page.get_by_role("grid", name="查看我的投资账户")).to_be_visible()
@@ -624,7 +624,7 @@ def _run_confirmed_action(
     *,
     screen_key: str,
     action_key: str,
-    params: dict[str, str | int | bool],
+    params: dict[str, str | int | float | bool],
     form_selector: str,
     result_timeout_ms: int = 5_000,
 ) -> Locator:
@@ -652,7 +652,7 @@ def _run_read_deep_link(
     *,
     screen_key: str,
     action_key: str,
-    params: dict[str, str | int | bool] | None = None,
+    params: dict[str, str | int | float | bool] | None = None,
 ) -> Locator:
     """Execute one parameter-complete read deep link and return its rendered result."""
 
@@ -942,6 +942,7 @@ def test_personal_ai_provider_detail_update_lifecycle_completes(
             password=PASSWORD,
         )
         provider_name = f"M5 UAT 服务商 {_m5_uat_suffix()}"
+        provider_api_key = f"m5-uat-placeholder-{_m5_uat_suffix()}"
         create_query = urlencode(
             {
                 "screen": "ai-ops.providers",
@@ -958,6 +959,12 @@ def test_personal_ai_provider_detail_update_lifecycle_completes(
             "form:has(#tui-ai-ops\\.create-my-provider-name)",
         )
         create_form.locator("button[type='submit']").click()
+        missing_dialog = page.get_by_role("dialog", name="补填参数", exact=True)
+        # Credential fields are deliberately excluded from URL prefill.  Wait
+        # for the browser prompt, then use an inert run-scoped placeholder.
+        expect(missing_dialog).to_be_visible(timeout=10_000)
+        missing_dialog.locator("input[type='password']").fill(provider_api_key)
+        missing_dialog.get_by_role("button", name="继续", exact=True).click()
         confirmation = page.get_by_role("dialog", name="确认操作", exact=True)
         expect(confirmation).to_be_visible()
         confirmation.get_by_role("button", name="确认执行", exact=True).click()

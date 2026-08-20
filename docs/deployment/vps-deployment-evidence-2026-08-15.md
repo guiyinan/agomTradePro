@@ -1398,3 +1398,45 @@ adjustment); `/api/regime/current/` remained `503 decision_runtime_blocked` with
 Audit health was `OK` with zero recorded failures. No business write, role browser UAT,
 receipt/refresh, capacity/chaos, restore/rollback, 14-day telemetry or owner/reviewer sign-off
 was performed; production gates remain fail-closed.
+
+## 2026-08-20 production role/browser UAT on the active `05970a925` release
+
+The active VPS remained `dev/next-development@05970a925f0b348574a1805c243d7d9140d3e243`,
+release `20260820091752`, with the code-only upgrade and preserved PostgreSQL/Redis volumes
+described above. HTTPS Playwright UAT used two dedicated production users provisioned for this
+controlled run: `m5_uat_operator` (user id `5`, operator group) and `m5_uat_regular` (user id
+`6`, no operator group). Credentials were supplied only through the local test environment and
+are not recorded here.
+
+Isolated production runs passed:
+
+- `test_operator_group_can_open_queue_but_regular_user_cannot` (`1 passed`): operator queue
+  visibility was allowed and the regular user was denied.
+- `test_strategy_create_detail_update_lifecycle_completes` (`1 passed`): a strategy was created,
+  read back, updated, and read back again.
+- `test_personal_ai_provider_detail_update_lifecycle_completes` (`1 passed`): the provider was
+  created and updated under the user-owned screen. The sensitive API-key field was deliberately
+  not URL-prefilled; the browser filled an inert run-scoped placeholder in the explicit
+  `补填参数` dialog before confirmation, and the detail/update readback completed.
+- `test_account_read_missing_fields_and_confirmation_cancel`,
+  `test_parameterized_read_primary_tasks_complete`, and
+  `test_role_appropriate_direct_read_primary_tasks_complete` (`3 passed`): confirmation/cancel,
+  parameterized primary reads, and the least-privileged direct-read matrix completed.
+
+The two controlled business rows created by the write checks were verified before deletion and
+then removed by exact owner/name selectors: strategy id `2` (`M5 UAT 策略 20260820`) and provider
+id `9` (`M5 UAT 服务商 20260820`, owner user id `6`). The post-cleanup query returned zero rows for
+both selectors. The dedicated UAT users remain provisioned for any separately authorized
+observation window; no password or secret is persisted in the repository.
+
+After cleanup, `scripts/deploy_vps_verify.py --expected-commit
+05970a925f0b348574a1805c243d7d9140d3e243 --expect-celery` was rerun at approximately
+`2026-08-20T02:46Z` and exited `0`: HTTPS health, Caddy/TLS, containers, Django/migrations,
+canonical schema, TUI registry, release/image identity, backup, healthcheck and Celery ping
+remained green.
+
+This is real HTTPS role/write/readback evidence against the active VPS release, but it is not the
+formal M5 candidate gate: the registry/readiness binding still names the separately bound
+`f3881a04...` / release `20260820043710`. No 14-day telemetry, write-receipt/refresh audit,
+registry backup/restore, live rollback, capacity/chaos run, or owner/reviewer sign-off was
+performed. M5/TUI, TAR, AUD and EVID production gates therefore remain fail-closed.

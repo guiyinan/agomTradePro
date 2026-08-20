@@ -654,3 +654,21 @@ runtime `0.2.0`、build `agomtui-runtime-0.2.0+b00df1fa9186`、manifest
 本次只完成候选身份、部署、短窗口只读健康与认证边界复核；没有登录、角色化浏览器 UAT、
 业务写后 receipt/refresh、14 日 telemetry、registry backup/restore、rollback 或
 owner/reviewer 双签，M5-A/TUI-01 继续 `DENY`。
+
+### 2026-08-20 independent role/browser UAT on the newer TUI cleanup release
+
+Against the active HTTPS deployment `dev/next-development@05970a925f0b348574a1805c243d7d9140d3e243`
+(`/opt/agomtradepro/releases/source-20260820091752`), dedicated operator and regular users
+completed isolated browser acceptance: operator queue visibility versus regular denial, strategy
+create/detail/update/readback, personal AI provider create/detail/update/readback (including the
+explicit sensitive API-key prompt), confirmation cancel, parameterized primary reads, and the
+least-privileged direct-read matrix all passed. The two controlled strategy/provider rows were
+deleted by exact selectors after the run and verified absent. The test-only UAT change keeps
+credentials out of URL prefill and uses an inert run-scoped placeholder only in the browser
+prompt.
+
+This evidence is intentionally independent of the formal M5 candidate binding, which still names
+`f3881a04...` / release `20260820043710`; it does not rebind the registry or readiness gate. It
+does not cover 14-day telemetry, write-receipt/refresh audit, registry backup/restore, live
+rollback, capacity/chaos, external AgomTUI portability or owner/reviewer sign-off. M5-A and
+TUI-01/TUI-02 remain `DENY`/`awaiting` as recorded by the registry.

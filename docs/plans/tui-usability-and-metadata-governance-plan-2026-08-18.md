@@ -152,6 +152,21 @@
   portability, telemetry, restore/rollback or owner/reviewer sign-off; `TUX-02`/`TUX-04` remain
   active.
 
+## 6.2.2 2026-08-20 production role/browser acceptance
+
+- On the active `05970a925` VPS release, dedicated operator/regular HTTPS Playwright runs passed
+  the queue role boundary, strategy create/detail/update/readback, user-owned AI-provider
+  create/detail/update/readback, confirmation cancel, parameterized primary reads and the
+  least-privileged direct-read matrix. The provider test explicitly fills its sensitive API key
+  only in the browser's `补填参数` prompt; it never puts the credential in the URL.
+- Exact controlled fixtures (strategy id `2`, provider id `9`) were deleted after the run and
+  verified absent. Dedicated UAT actors remain provisioned without credentials in source control.
+- This is short-window production role/write/readback evidence, not an M5 candidate rebind or
+  production sign-off. The formal candidate remains `f3881a04...`/`20260820043710`; 14-day
+  telemetry, receipt/refresh audit, backup/restore, live rollback, capacity/chaos, external
+  portability and owner/reviewer approval are still outstanding. `TUX-02`/`TUX-04` remain
+  `active` and M5 remains fail-closed.
+
 ## 6. 风险与回滚
 
 - **文案批量重写风险**：430 个 action 的 label/description 重写可能误伤已被人工序列化的文案；分流时以 `source` 字段与人工策划 key 前缀白名单为界，重写前后做全量 diff 评审。
