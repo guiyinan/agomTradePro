@@ -854,3 +854,38 @@ idempotency/cancel, provider/MCP, 1/5/10/20 load/chaos, 14-day telemetry, restor
 owner/reviewer sign-off remain absent. `scripts/check_tar01_exit_gate.py` therefore remains
 `decision=BLOCKED`, `safety_ready=true`, `capacity_ready=false`; TAR-02/TAR-03 stay waiting and
 queued intake/worker plus the inline single-slot gate remain closed.
+
+### TAR-01 current HEAD VPS deployment and authenticated acceptance (2026-08-21, `a428edaad`)
+
+The current pushed `dev/next-development@a428edaad5cf70e0c47a5649c5f867ae6aeabdd5` was
+deployed code-only with preserved PostgreSQL/Redis volumes as release `20260821060037`.
+The remote verifier passed immutable source/image binding, migrations/schema, Django checks,
+TUI registry, Qlib (`pyqlib=0.9.7`, wrong distribution absent), backup, Caddy/TLS, resources,
+containers, Celery worker/beat and ping. The image is
+`agomtradepro-web:20260821060037` with
+`sha256:0b83684e05c77a0371e223f2b3250246307f17f3da7cc626608c29839cf01d7f`; the downloaded
+deployment report is [`remote-build-report-20260821060037.json`](../../dist/remote-build-reports/remote-build-report-20260821060037.json).
+
+The authenticated account session repeated the reserved `POST /api/terminal/runs/` staircase
+at concurrency `1/5/10/20` for exactly `1/5/10/20` requests. All `36/36` responses were the
+expected HTTP `503`, `DISPATCH_UNAVAILABLE`, `queued_runtime_not_wired`, and
+`Retry-After=60`. Per-level p95 latency was `1265.782/1678.981/2400.476/2837.777 ms`.
+Health before and after was `5/5=200`; readiness was `200/ok` with one worker; audit health
+before and after was `OK`, with `541` operation logs, `0` failures and zero pending/claimed/
+failed backlog counters. The authenticated TUI root was `200` and the role/write/readback
+Playwright subset passed `3 tests` (operator/regular visibility, strategy create-detail-update,
+and user-owned provider create-detail-update). The exact controlled rows were deleted and
+post-cleanup selectors returned zero. The structured reserved-route artifact is
+[`tar01-current-production-acceptance-2026-08-21-head-a428edaad.json`](../deployment/tar01-current-production-acceptance-2026-08-21-head-a428edaad.json),
+SHA-256 `ad24c3c53ecb5b237448c928cd2b05f00112fdfbf7ced42ed8b209dccffe9ba5`, and its offline
+validator passes.
+
+This is direct evidence that the latest branch HEAD is deployed, role-scoped business writes
+read back, and the dormant queued boundary remains fail-closed. It is not queued admission,
+durable PostgreSQL/on-commit persistence, Worker/SSE, idempotency/cancel, provider/MCP,
+capacity, chaos, 14-day telemetry, restore/rollback, or owner/reviewer evidence. One initial
+strategy browser attempt timed out waiting for the confirmation dialog; after removing its
+controlled residue, the same candidate rerun passed and cleanup returned zero rows. The
+decision-data freshness warning remains `must_not_use_for_decision`. TAR-01 remains active,
+`check_tar01_exit_gate.py` remains `decision=BLOCKED`, `safety_ready=true`,
+`capacity_ready=false`, and TAR-02/TAR-03 plus queued/worker enablement remain closed.

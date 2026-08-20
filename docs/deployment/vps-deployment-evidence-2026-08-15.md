@@ -1538,3 +1538,37 @@ fail-closed-route evidence. It is not queued admission, durable PostgreSQL run p
 Worker/SSE, idempotency/cancel, provider/MCP, chaos, 1/5/10/20 capacity, 14-day telemetry,
 restore/rollback, or owner/reviewer sign-off; TAR-01 remains active and TAR-02/TAR-03 remain
 waiting.
+
+## 2026-08-21 06:00–06:36 UTC `a428edaad` current-HEAD deployment and acceptance
+
+The current pushed `dev/next-development@a428edaad5cf70e0c47a5649c5f867ae6aeabdd5` was
+deployed code-only as release `20260821060037`; PostgreSQL/Redis volumes were preserved,
+SQLite was not restored, and Celery remained enabled. The deployment report is
+`dist/remote-build-reports/remote-build-report-20260821060037.json`; the runtime image is
+`sha256:0b83684e05c77a0371e223f2b3250246307f17f3da7cc626608c29839cf01d7f`. The verifier
+passed source/image identity, migrations/schema, Django checks, TUI registry, Qlib
+(`pyqlib=0.9.7`, wrong `qlib` distribution absent), backup, Caddy/TLS, resources, containers,
+healthcheck, Celery worker/beat and ping.
+
+Using an authenticated account session with CSRF referer/token headers, the reserved
+`POST /api/terminal/runs/` route was exercised at concurrency `1/5/10/20` for exactly
+`1/5/10/20` requests. All `36/36` responses were HTTP `503` with
+`code=DISPATCH_UNAVAILABLE`, `reason_code=queued_runtime_not_wired`, and `Retry-After=60`;
+per-level p95 latency was `1265.782/1678.981/2400.476/2837.777 ms`. Health before and after
+was `5/5=200`, readiness was `200/ok` with one Celery worker, and audit health stayed `OK`
+with `541` operation logs, `0` failures and zero pending/claimed/failed backlog counters.
+The authenticated TUI root was `200`. The focused HTTPS browser subset passed `3 tests`
+(operator/regular queue visibility, strategy create-detail-update-readback, and user-owned
+provider create-detail-update-readback); exact controlled rows were deleted and post-cleanup
+selectors returned zero. One initial strategy confirmation wait timed out; its residue was
+removed and the same candidate rerun passed.
+
+Structured evidence is
+[`tar01-current-production-acceptance-2026-08-21-head-a428edaad.json`](tar01-current-production-acceptance-2026-08-21-head-a428edaad.json)
+with SHA-256 `ad24c3c53ecb5b237448c928cd2b05f00112fdfbf7ced42ed8b209dccffe9ba5`; the offline
+reserved-route validator passes. This is direct latest-HEAD deployment, authenticated
+role/write/readback and fail-closed-route evidence. It is not queued admission, durable
+PostgreSQL run persistence, Worker/SSE, idempotency/cancel, provider/MCP, chaos, capacity,
+14-day telemetry, restore/rollback or owner/reviewer sign-off. Readiness still reports stale
+decision data as `warning/blocked` and `must_not_use_for_decision`; TAR-01 remains active and
+TAR-02/TAR-03 plus queued/worker enablement remain closed.

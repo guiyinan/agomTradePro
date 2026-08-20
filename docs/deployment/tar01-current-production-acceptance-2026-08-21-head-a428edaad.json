@@ -1,0 +1,142 @@
+{
+  "schema": "terminal-runtime-reserved-route-observation.v2",
+  "artifact_type": "terminal_runtime_reserved_route_observation",
+  "environment": "production-vps",
+  "base_url": "https://demo.agomtrade.pro",
+  "collected_at": "2026-08-20T22:35:30Z",
+  "method": "POST",
+  "route": "/api/terminal/runs/",
+  "authentication": {
+    "method": "account_session",
+    "csrf_referer_and_token_supplied": true,
+    "credentials_recorded": false
+  },
+  "candidate": {
+    "status": "verified",
+    "app_version": "0.8.0",
+    "release_tag": "20260821060037",
+    "source_commit": "a428edaad5cf70e0c47a5649c5f867ae6aeabdd5",
+    "short_commit": "a428edaad5cf",
+    "image_tag": "agomtradepro-web:20260821060037",
+    "image_id": "sha256:0b83684e05c77a0371e223f2b3250246307f17f3da7cc626608c29839cf01d7f",
+    "source_mode": "git-clone",
+    "runtime_match": true,
+    "must_not_trust_for_release": false,
+    "deployment_report": "dist/remote-build-reports/remote-build-report-20260821060037.json"
+  },
+  "deployment_verifier": {
+    "status": "passed",
+    "https_health": 200,
+    "containers_healthy": true,
+    "database_and_redis": "ok",
+    "celery_worker_and_beat": "running",
+    "celery_ping": "1 node online",
+    "migrations": "no migrations to apply",
+    "tui_registry": "matched"
+  },
+  "health_before": {
+    "statuses": [200, 200, 200, 200, 200],
+    "readiness": {
+      "status": 200,
+      "payload_status": "ok",
+      "celery_workers": 1
+    }
+  },
+  "health_after": {
+    "statuses": [200, 200, 200, 200, 200],
+    "readiness": {
+      "status": 200,
+      "payload_status": "ok",
+      "celery_workers": 1
+    }
+  },
+  "audit_before": {
+    "status": 200,
+    "overall_status": "OK",
+    "total_operation_logs": 541,
+    "total_failures": 0,
+    "failure_rate": 0.0,
+    "backlog_counts": {
+      "pending": 0,
+      "due_pending": 0,
+      "claimed": 0,
+      "expired_claimed": 0,
+      "failed": 0
+    }
+  },
+  "audit_after": {
+    "status": 200,
+    "overall_status": "OK",
+    "total_operation_logs": 541,
+    "total_failures": 0,
+    "failure_rate": 0.0,
+    "backlog_counts": {
+      "pending": 0,
+      "due_pending": 0,
+      "claimed": 0,
+      "expired_claimed": 0,
+      "failed": 0
+    }
+  },
+  "tui_catalog_observation": {
+    "http_status": 200,
+    "contract": "tui-workbench.v2",
+    "normalized_screens": 24,
+    "normalized_actions": 887,
+    "published_actions": 889
+  },
+  "levels": [
+    {
+      "concurrency": 1,
+      "requests": 1,
+      "status_counts": {"503": 1},
+      "reason_counts": {"queued_runtime_not_wired": 1},
+      "retry_after_counts": {"60": 1},
+      "latency_ms": {"p50": 1265.782, "p95": 1265.782, "p99": 1265.782, "max": 1265.782},
+      "all_expected": true
+    },
+    {
+      "concurrency": 5,
+      "requests": 5,
+      "status_counts": {"503": 5},
+      "reason_counts": {"queued_runtime_not_wired": 5},
+      "retry_after_counts": {"60": 5},
+      "latency_ms": {"p50": 1634.914, "p95": 1678.981, "p99": 1678.981, "max": 1679.125},
+      "all_expected": true
+    },
+    {
+      "concurrency": 10,
+      "requests": 10,
+      "status_counts": {"503": 10},
+      "reason_counts": {"queued_runtime_not_wired": 10},
+      "retry_after_counts": {"60": 10},
+      "latency_ms": {"p50": 2177.852, "p95": 2400.476, "p99": 2400.476, "max": 2412.928},
+      "all_expected": true
+    },
+    {
+      "concurrency": 20,
+      "requests": 20,
+      "status_counts": {"503": 20},
+      "reason_counts": {"queued_runtime_not_wired": 20},
+      "retry_after_counts": {"60": 20},
+      "latency_ms": {"p50": 2300.8, "p95": 2837.777, "p99": 2837.777, "max": 2887.171},
+      "all_expected": true
+    }
+  ],
+  "acceptance": {
+    "health_stable": true,
+    "reserved_route_fail_closed": true,
+    "side_effects_observed": false,
+    "side_effect_basis": "audit counters and PostgreSQL run selectors unchanged; no queue/provider/MCP side effect observed",
+    "queued_runtime_enabled": false,
+    "capacity_ready": false,
+    "outcome": "capacity_denied",
+    "reason": "queued_runtime_not_wired"
+  },
+  "limitations": [
+    "This is authenticated fail-closed boundary evidence for the deployed candidate, not queued admission or a capacity baseline.",
+    "Durable PostgreSQL admission, on-commit dispatch, Worker, SSE, idempotency/cancel, provider/MCP and chaos evidence remain unavailable.",
+    "Readiness remained HTTP 200/ok while decision-data freshness was warning/blocked; stale quotes remain must_not_use_for_decision.",
+    "The controlled browser strategy and provider rows were deleted by exact selectors after the passing rerun; post-cleanup counts were zero and credentials were not recorded."
+  ]
+}
