@@ -253,7 +253,7 @@
       "priority": "P1",
       "owner": "terminal",
       "status": "active",
-      "next_gate": "Ship metadata-load fallback for invalid published payloads, then consolidate the triple copy sources and rewrite auto-promoted action copy back within action-density budgets.",
+      "next_gate": "TUX-01 metadata-load fallback is complete; consolidate the triple copy sources and rewrite auto-promoted action copy back within action-density budgets.",
       "documents": [
         {
           "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
