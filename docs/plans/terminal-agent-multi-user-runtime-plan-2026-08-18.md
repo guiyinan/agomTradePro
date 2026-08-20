@@ -563,3 +563,12 @@ the TUI preflight passed 34 JavaScript tests, and authenticated read-only probes
 policy traceback or home-endpoint 500. This closes the previously observed deployment defect,
 not the TAR-01 production gate: no business writes, role browser UAT, receipts/refresh,
 capacity/chaos, telemetry, restore/rollback, or owner/reviewer sign-off was performed.
+
+### TAR-01/AUD-01 authenticated boundary observation (2026-08-20)
+
+On the same immutable release, an authenticated read-only probe returned
+`/api/terminal/runs/` HTTP 503 with `queued_runtime_not_wired`, while Audit health was OK
+with zero failures and zero pending/claimed/failed/delivered outbox rows. Metrics endpoints
+returned 200. This confirms the intended fail-closed boundary and an empty backlog snapshot;
+it does not unlock queued admission/worker/SSE/cancel, durable publisher delivery, authority
+composition, PostgreSQL race evidence, or production sign-off.

@@ -1337,3 +1337,19 @@ short-window authenticated read-only evidence only: no business writes, role-mat
 write receipts/refresh, 14-day telemetry, restore/rollback drill, capacity/chaos run, or
 owner/reviewer sign-off was performed. TAR-01/TAR-02/TAR-05, TUI/M5, AUD and EVID production
 gates remain fail-closed where previously recorded.
+
+### Authenticated TAR/AUD boundary and backlog observation (2026-08-20 00:19 UTC)
+
+On the same release, the supplied login account was used only for GET probes. The authenticated
+`/api/terminal/runs/` boundary returned HTTP `503` with
+`reason_code=queued_runtime_not_wired`, confirming that the dormant queued runtime remains
+explicitly unavailable. `/api/audit/health/` returned `overall_status=OK`: database and audit
+tables were accessible, total audit failures were `0), and the outbox snapshot reported
+`pending=0`, `due_pending=0`, `claimed=0`, `expired_claimed=0`, `failed=0), and
+`delivered=0). `/api/audit/metrics/`, `/api/metrics/`, and `/metrics/` all returned
+HTTP `200`.
+
+These are read-only health/backlog observations, not proof of a durable publisher, dispatcher
+delivery, authenticated audit authority, queued admission, worker, SSE, idempotency/cancel
+behavior, or production PostgreSQL race evidence. TAR-01, AUD-01/AUD-03, and their dependent
+production gates remain fail-closed.
