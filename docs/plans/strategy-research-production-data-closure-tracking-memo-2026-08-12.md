@@ -189,3 +189,18 @@ hash 或下游 readiness 反充为 owner evidence；不执行 synthetic seed、�
 因此 `STRAT-01` 仍为 `awaiting_production`，`STRAT-02`/`STRAT-03` 依赖不变，PIT/OOS、
 receipts/lineage/reconciliation、Promotion、consumer UAT 与 rollback 继续 `BLOCKED`。
 
+## 15. 2026-08-21：STRAT-01 current HEAD 只读 inventory 重绑
+
+为消除旧候选绑定，针对当前运行 `a428edaad5cf70e0c47a5649c5f867ae6aeabdd5` /
+`20260821060037` 的 PostgreSQL `default` alias 重新执行只读盘点。Research R1–R8 共 `65`
+张 canonical 表、Portfolio R4/R5/R8 共 `7` 张表、四张 Equity baseline 表及全部 Data Center
+actual/PIT/macro-factor/market-structure 依赖表均为零行。工件
+[`evid-02-strat-01-vps-readonly-inventory-2026-08-21-head-a428edaad.json`](../deployment/evid-02-strat-01-vps-readonly-inventory-2026-08-21-head-a428edaad.json)
+绑定相同 commit/release/image，SHA-256 为
+`e93fdcef3591aece3d9d9412a9e58b288e9514a759e3a2fe048d2d85bf56f95b`。
+
+这仍是明确的生产 blocker：没有 owner/definition/policy/calendar/scope/qualification rows，
+不执行 synthetic seed、回填或 promotion，也不把当前 Data Center facts 现场 hash 成 owner evidence。
+因此 `STRAT-01` 继续 `awaiting_production`，`STRAT-02/03` 依赖不变；本次只更新候选绑定，不改变
+生产状态或任何 execution gate。
+

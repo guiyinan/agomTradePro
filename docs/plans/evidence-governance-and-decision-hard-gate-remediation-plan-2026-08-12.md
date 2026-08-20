@@ -2911,3 +2911,21 @@ SHA-256 为 `09d628c3070068e621bc3550bd0d20a70669274c29977c3ddfbc5006fafbf0e5`�
 definition/policy 证据。因此 `EVID-02` 继续 `awaiting_production`，`STRAT-01` 继续等待
 真实 owner/definition/policy/calendar/scope/qualification 登记；生产 first-winner、successor、
 current-head、rollback、人工 reviewer 与 Evidence hard gate 仍保持 fail-closed。
+
+## 2026-08-21：EVID-02/STRAT-01 current HEAD 只读盘点重绑
+
+为避免把旧 release 的空账本结果误当成当前候选证据，在
+`a428edaad5cf70e0c47a5649c5f867ae6aeabdd5` / `20260821060037` / image
+`sha256:0b83684e05c77a0371e223f2b3250246307f17f3da7cc626608c29839cf01d7f` 上重新执行了
+Django PostgreSQL `default` alias 的纯 `SELECT` 盘点。EVID-02 approval、activation 与
+supporting tables 仍全部为 `0` 行，head audit 为 `empty/no-head`，人工审批为
+`not_collected`；STRAT-01 的 Research R1–R8 `65` 张表、Portfolio R4/R5/R8 `7` 张表、
+四张 Equity baseline 表及 Data Center actual/PIT/macro-factor/market-structure 依赖表也全部为
+`0` 行。结构化工件为
+[`evid-02-strat-01-vps-readonly-inventory-2026-08-21-head-a428edaad.json`](../deployment/evid-02-strat-01-vps-readonly-inventory-2026-08-21-head-a428edaad.json)，
+SHA-256 为 `e93fdcef3591aece3d9d9412a9e58b288e9514a759e3a2fe048d2d85bf56f95b`。
+
+本次没有创建、更新、删除、回填、审批或 rollback；结果只证明当前候选 schema 可读且真实 owner/
+approval ledger 为空，不把 Data Center facts 现场提升为 owner evidence。`EVID-02` 继续
+`awaiting_production`，`STRAT-01` 继续 `awaiting_production`，`EVID-03`、`STRAT-02/03` 与
+Evidence hard gate 继续 fail-closed。

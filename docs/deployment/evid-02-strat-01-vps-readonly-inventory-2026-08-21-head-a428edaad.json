@@ -1,0 +1,97 @@
+{
+  "format": "evid-02-strat-01-vps-readonly-inventory.v1",
+  "captured_at": "2026-08-20T23:11:23.495782Z",
+  "source": {
+    "kind": "vps_django_postgresql_read_only",
+    "host": "62.171.144.39",
+    "database_alias": "default",
+    "mutation_performed": false,
+    "query_mode": "SELECT_only"
+  },
+  "runtime": {
+    "commit": "a428edaad5cf70e0c47a5649c5f867ae6aeabdd5",
+    "release": "20260821060037",
+    "image_id": "sha256:0b83684e05c77a0371e223f2b3250246307f17f3da7cc626608c29839cf01d7f",
+    "health_status": 200,
+    "ready_status": 200
+  },
+  "evid_02": {
+    "approval_tables": {
+      "risk_center_evidence_operator_spec_subject": 0,
+      "risk_center_evidence_operator_spec_approval": 0,
+      "research_evidence_operator_spec_approval": 0
+    },
+    "activation_tables": {
+      "research_activated_evidence_operator_spec": 0,
+      "research_r6_activation_authorization": 0
+    },
+    "supporting_evidence_tables": {
+      "research_evidence_operator_spec": 0,
+      "research_evidence_track_record": 0,
+      "research_evidence_envelope": 0
+    },
+    "head_audit": {
+      "approval": "empty",
+      "activation": "empty",
+      "current_head": "none",
+      "human_approval_status": "not_collected"
+    },
+    "production_claim": false,
+    "production_ready": false,
+    "blocker": "production_approval_and_activation_ledgers_are_empty"
+  },
+  "strat_01": {
+    "research_r1_r8_prefix": {
+      "table_prefixes": [
+        "research_r1_",
+        "research_r2_",
+        "research_r3_",
+        "research_r4_",
+        "research_r5_",
+        "research_r6_",
+        "research_r7_",
+        "research_r8_"
+      ],
+      "matched_table_count": 65,
+      "nonzero_table_count": 0,
+      "total_rows": 0
+    },
+    "portfolio_r4_r5_r8_prefix": {
+      "table_prefixes": [
+        "portfolio_r4_",
+        "portfolio_r5_",
+        "portfolio_r8_"
+      ],
+      "matched_table_count": 7,
+      "nonzero_table_count": 0,
+      "total_rows": 0
+    },
+    "equity_forecast_baseline_tables": {
+      "equity_forecast_baseline_approval_evidence": 0,
+      "equity_forecast_baseline_artifact": 0,
+      "equity_forecast_baseline_spec": 0,
+      "equity_forecast_baseline_trial_result": 0
+    },
+    "required_data_center_dependency_tables": {
+      "data_center_evaluation_actual_manifest": 0,
+      "data_center_evaluation_actual_source": 0,
+      "data_center_pit_dataset_manifest": 0,
+      "data_center_pit_fact_version": 0,
+      "data_center_macro_factor_calendar_period": 0,
+      "data_center_macro_factor_member_rule": 0,
+      "data_center_macro_factor_source": 0,
+      "data_center_market_structure_evidence": 0,
+      "data_center_market_structure_period_calendar": 0,
+      "data_center_market_structure_series": 0
+    },
+    "production_claim": false,
+    "status": "blocked_zero_owner_definition_policy_inventory",
+    "blocker": "no_canonical_r1_r8_owner_definition_policy_calendar_scope_or_qualification_rows"
+  },
+  "overall": {
+    "production_claim": false,
+    "production_ready": false,
+    "runtime_enablement": "not_authorized",
+    "next_action": "obtain_named_owner_and_authorized_definition_policy_calendar_scope_records; do_not_seed_from_current_facts"
+  }
+}
