@@ -141,6 +141,17 @@
 - `execution.audit` 的 summary、business context 与 checkpoints 已按实际 dashboard panels 对齐为审计健康、事件指标、实盘对账和操作审计；IA 与 published graph 保持同一份用户可见语义，新增对齐回归后该 focused 套件为 `10 passed`。
 - 本阶段只完成 metadata contract migration；“研究与工具”分组重排、易混入口消歧、术语统一、普通角色浏览器走查，以及外部 AgomTUI portability/M5 生产证据仍未完成，因此 `TUX-04` 保持 `active`。
 
+## 6.2.1 2026-08-20 TUX-02 candidate deployment observation
+
+- `05970a925f0b348574a1805c243d7d9140d3e243` was deployed code-only as release
+  `20260820091752` with data volumes preserved. TUI preflight (34 JavaScript tests), built-in
+  and expected-commit verifiers, source/image identity, migrations/schema, Caddy/TLS, Qlib,
+  backup and Celery worker/beat/ping all passed. Authenticated read-only TUI/operator/policy/
+  audit/metrics probes remained healthy; decision and queued runtime boundaries stayed
+  fail-closed. This does not constitute role browser UAT, write receipts/refresh, external
+  portability, telemetry, restore/rollback or owner/reviewer sign-off; `TUX-02`/`TUX-04` remain
+  active.
+
 ## 6. 风险与回滚
 
 - **文案批量重写风险**：430 个 action 的 label/description 重写可能误伤已被人工序列化的文案；分流时以 `source` 字段与人工策划 key 前缀白名单为界，重写前后做全量 diff 评审。

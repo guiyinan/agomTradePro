@@ -586,3 +586,14 @@ remained `503 decision_runtime_blocked` and `/api/terminal/runs/` remained the e
 no business write, role browser UAT, receipt/refresh, capacity/chaos, restore/rollback,
 14-day telemetry or owner/reviewer sign-off was collected, so TAR-01/AUD-01 and dependents
 remain fail-closed.
+
+### Current TUI candidate deployment follow-up (2026-08-20 01:33–01:37 UTC)
+
+The TUI source-boundary cleanup candidate `05970a925f0b348574a1805c243d7d9140d3e243` was
+deployed code-only as release `20260820091752` with preserved data volumes. Both the built-in
+and expected-commit verifier passed, including TUI registry, migrations/schema, Caddy/TLS,
+backup, Qlib and Celery worker/beat/ping. Authenticated GET probes kept TUI/operator/policy/
+audit/metrics healthy, while decision runtime and queued terminal runtime remained explicitly
+blocked (`decision_runtime_blocked` / `queued_runtime_not_wired`). This is short-window read-only
+evidence only; it does not satisfy role browser UAT, business write receipts/refresh, capacity,
+restore/rollback, telemetry or owner/reviewer gates.

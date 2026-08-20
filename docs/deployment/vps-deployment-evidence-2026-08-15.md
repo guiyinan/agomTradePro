@@ -1376,3 +1376,25 @@ with `must_not_use_for_decision=true`; authenticated `/api/terminal/runs/` remai
 an empty outbox snapshot. No business write, role-matrix browser UAT, receipt/refresh proof,
 capacity/chaos, restore/rollback, 14-day telemetry or owner/reviewer sign-off was performed.
 The related TAR/AUD/TUI/M5 production gates therefore remain fail-closed.
+
+## 2026-08-20 01:33–01:37 UTC `05970a925` TUI patch cleanup deployment and acceptance
+
+The pushed `dev/next-development@05970a925f0b348574a1805c243d7d9140d3e243` was deployed in
+code-only `-Upgrade` mode as release `20260820091752`; PostgreSQL/Redis data volumes were
+preserved and Celery remained enabled. The deployment report is
+`dist/remote-build-reports/remote-build-report-20260820091752.json`; the running image is
+`sha256:33007a77bda880e302c75d3cf09f4b338adcd15e4711c9dde4d33eb30462b217`. Local TUI
+preflight passed `npm run check:tui` and 34 JavaScript tests.
+
+The built-in verifier and an independent expected-commit verifier both passed: Caddy/TLS,
+HTTPS health, containers, Django deploy check, migrations, canonical schema, published TUI
+registry, Qlib (`pyqlib=0.9.7`, wrong `qlib` distribution absent), release/image identity,
+backup, resources, healthcheck, Celery worker/beat and `1 node online` ping. Authenticated
+read-only HTTPS probes then returned `200` for readiness, TUI catalog/bootstrap/operator and
+governance surfaces, provider screen, policy status, audit and metrics. Policy remained the
+safe PENDING contract (`PX`/`待分类`, manual approval required, normal operation, zero cash
+adjustment); `/api/regime/current/` remained `503 decision_runtime_blocked` with
+`must_not_use_for_decision=true`; `/api/terminal/runs/` remained `503 queued_runtime_not_wired`.
+Audit health was `OK` with zero recorded failures. No business write, role browser UAT,
+receipt/refresh, capacity/chaos, restore/rollback, 14-day telemetry or owner/reviewer sign-off
+was performed; production gates remain fail-closed.
