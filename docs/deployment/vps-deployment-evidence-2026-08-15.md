@@ -1565,7 +1565,7 @@ removed and the same candidate rerun passed.
 
 Structured evidence is
 [`tar01-current-production-acceptance-2026-08-21-head-a428edaad.json`](tar01-current-production-acceptance-2026-08-21-head-a428edaad.json)
-with SHA-256 `ad24c3c53ecb5b237448c928cd2b05f00112fdfbf7ced42ed8b209dccffe9ba5`; the offline
+with SHA-256 `9360fa15e8c41348d436a50d4e475c869615e8f5873caf3385e09e965d2f2c16`; the offline
 reserved-route validator passes. This is direct latest-HEAD deployment, authenticated
 role/write/readback and fail-closed-route evidence. It is not queued admission, durable
 PostgreSQL run persistence, Worker/SSE, idempotency/cancel, provider/MCP, chaos, capacity,

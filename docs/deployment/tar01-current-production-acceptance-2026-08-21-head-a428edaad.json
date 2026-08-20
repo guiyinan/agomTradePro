@@ -79,10 +79,10 @@
     }
   },
   "tui_catalog_observation": {
-    "http_status": 200,
+    "root_http_status": 200,
+    "catalog_http_status": 200,
     "contract": "tui-workbench.v2",
-    "normalized_screens": 24,
-    "normalized_actions": 887,
+    "role_visible_actions": 699,
     "published_actions": 889
   },
   "levels": [

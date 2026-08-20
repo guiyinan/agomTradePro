@@ -877,7 +877,7 @@ Playwright subset passed `3 tests` (operator/regular visibility, strategy create
 and user-owned provider create-detail-update). The exact controlled rows were deleted and
 post-cleanup selectors returned zero. The structured reserved-route artifact is
 [`tar01-current-production-acceptance-2026-08-21-head-a428edaad.json`](../deployment/tar01-current-production-acceptance-2026-08-21-head-a428edaad.json),
-SHA-256 `ad24c3c53ecb5b237448c928cd2b05f00112fdfbf7ced42ed8b209dccffe9ba5`, and its offline
+SHA-256 `9360fa15e8c41348d436a50d4e475c869615e8f5873caf3385e09e965d2f2c16`, and its offline
 validator passes.
 
 This is direct evidence that the latest branch HEAD is deployed, role-scoped business writes
