@@ -696,6 +696,20 @@ the formal M5 candidate remains unchanged. TAR-01 remains active, TAR-02/TAR-03
 remain waiting, and inline single-slot plus queued feature gates remain
 unchanged.
 
+### TAR-01 total exit-gate preflight (2026-08-21)
+
+Added the read-only `scripts/check_tar01_exit_gate.py` preflight and three focused tests.
+The check confirms that TAR-01 remains the focused unit, TAR-02/TAR-03 remain
+`waiting_dependency`, the contract is still `repository_contract_only`, queued intake and
+Worker flags are disabled, legacy inline remains one slot with a 60-second limit, the
+`1/5/10/20` candidate-bound baseline contract is intact, and the repository/Celery/events/
+load/chaos scenarios remain planned. The current result is intentionally
+`decision=BLOCKED`, `safety_ready=true`, `capacity_ready=false`; `--require-capacity` exits
+non-zero until a real candidate-bound observer supplies complete metrics and hard-SLO
+evidence. This is a guard against premature TAR-02/TAR-03 enablement, not a capacity claim
+or a substitute for controlled external load, Worker/SSE, PostgreSQL, chaos, telemetry,
+restore/rollback, role-UAT, or owner/reviewer evidence.
+
 ### TAR-01 production reserved-route acceptance refresh (2026-08-21)
 
 A fresh authenticated production probe was run against the release-identity endpoint and the
