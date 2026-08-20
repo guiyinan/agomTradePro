@@ -800,3 +800,19 @@ authenticated and fail-closed. It is not queued admission, Worker, SSE, idempote
 provider/MCP, chaos, capacity, 14-day telemetry, restore/rollback, role-browser UAT, or
 owner/reviewer evidence. TAR-01 remains active and TAR-02/TAR-03 remain waiting; queued
 intake/worker and the inline single-slot gate are unchanged.
+
+### TAR-01 full local regression and gate recheck (2026-08-21)
+
+The complete `tests/unit/agent_runtime` TAR-01 regression was rerun on the pushed
+`dev/next-development@043c782ee76d8e363f1fc2c508b56a7ef104cff9` and passed `173 tests`.
+The reserved-route evidence validator still reports `capacity_ready=false`,
+`runtime_enablement=not_authorized`, stable health, and no observed side effects. The
+active-plan registry check reports `0 violations`, the governance consistency check reports
+`0 violations`, and the mypy debt ceiling remains clear. This recheck changes no runtime
+flags and does not treat a reserved-route `503` as a capacity baseline.
+
+The production verifier itself was not re-run in this slice because it requires remote
+credentials; the previously recorded deployment evidence remains the authoritative VPS
+observation for release `20260821024537` / source `4c49dd8a`. TAR-01 remains active and
+TAR-02/TAR-03 remain waiting; queued intake/worker and the inline single-slot gate are
+unchanged.
