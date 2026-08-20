@@ -960,3 +960,17 @@ thermometer degraded，不把部署成功误写成决策数据新鲜。
 authenticated authority provider、durable publisher/receipt sink、beat/retry/requeue、真实 outbox
 claim/delivery 或 Data Center 同 UOW 双写。因此 `AUD-01` 继续 `active`，`AUD-02/03`
 继续等待依赖。
+
+## 实施记录（2026-08-20，AUD-01 当前候选只读边界复核）
+
+当前候选 `93b12f3b8c6cc2ce59c7493ae573afa7ace796eb` 发布为 release `20260820130631` 后，
+独立公网只读探针记录 `/api/health/` `200`、`/api/ready/` `200`、`/api/` `200`，
+`/api/audit/health/` `200`（`overall_status=OK`、failure counter 为 `0`），以及
+`/api/audit/metrics/` `200`。未认证 `/api/terminal/runs/` 为 `403`；
+`/api/regime/current/` 仍为 `503`，并明确 `must_not_use_for_decision=true` 与
+`decision_runtime_blocked`。
+
+这次只读复核证明当前候选的审计健康投影、认证边界和决策 fail-closed 语义，没有改变生产状态，
+也没有把 `publisher_not_wired`、空 outbox/backlog 或 metrics `200` 解释为 durable publisher、
+真实 claim/delivery、authenticated scoped authority、Data Center 同 UOW 双写、PostgreSQL
+并发/回滚或生产 owner/reviewer 签字。因此 `AUD-01` 仍保持 `active`，`AUD-02/03` 继续等待依赖。
