@@ -1481,3 +1481,24 @@ write-receipt/refresh audit, 14-day telemetry, registry backup/restore, live rol
 capacity/chaos, external AgomTUI portability or owner/reviewer sign-off. TUX-02/TUX-04 and the
 M5/TAR/AUD/EVID production gates remain fail-closed where those independent requirements are
 still outstanding.
+
+## TAR-01 local CLI/MCP secret-boundary candidate (2026-08-20 05:20–05:22 UTC)
+
+Commit `93b12f3b8c6cc2ce59c7493ae573afa7ace796eb` was deployed from
+`dev/next-development` in code-only upgrade mode as release `20260820130631`.
+The remote build report is `dist/remote-build-reports/remote-build-report-20260820130631.json`:
+the image is `sha256:03604c69135fa115b4aee797b9c7ffc24e36a2643227c3d61c4ad7dd8a7ad77a`,
+the OCI revision and runtime release identity match the source commit, and the deployment
+verifier exited `0`. Migrations/schema, Django deploy check, TUI registry, Qlib
+(`pyqlib=0.9.7`, wrong `qlib` distribution absent), backup, resources, web health, Celery
+worker/beat and Celery ping all passed. Existing data volumes were preserved; no SQLite restore
+or destructive volume operation was used.
+
+Independent HTTPS read-only probes against `https://demo.agomtrade.pro` then recorded:
+`/api/health/` `8/8=200` (about `1.19–1.44s`), `/api/ready/` `3/3=200` (about `4.79–10.10s`),
+`/api/` `3/3=200`, unauthenticated `/api/terminal/runs/` `3/3=403`, and the existing decision
+runtime `/api/regime/current/` `3/3=503` fail-closed. This is a short-window deployment and
+read-only boundary observation for the local MCP environment hardening; it is not queued/worker
+capacity, local CLI UAT, external MCP portability, business write receipt/refresh, 14-day
+telemetry, restore/rollback, chaos or owner/reviewer production sign-off. TAR-01/TAR-04/TAR-05
+and related production gates remain fail-closed.

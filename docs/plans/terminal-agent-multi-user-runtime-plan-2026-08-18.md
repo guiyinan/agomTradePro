@@ -615,3 +615,16 @@ consistency and architecture/audit checks passed. The canonical TAR matrix diges
 This is a local process-boundary contract only. It does not connect a queued route, worker,
 production CLI, external MCP portability path, capacity/chaos observer or production UAT, and
 does not unlock TAR-01/TAR-04/TAR-05 gates.
+
+### TAR-01 local CLI/MCP secret-boundary VPS observation (2026-08-20)
+
+The boundary candidate at source commit `93b12f3b8c6cc2ce59c7493ae573afa7ace796eb` was deployed
+code-only as release `20260820130631` with image
+`sha256:03604c69135fa115b4aee797b9c7ffc24e36a2643227c3d61c4ad7dd8a7ad77a`. The remote build
+report and independent verifier agreed on source/image identity and passed migrations/schema,
+Django, TUI registry, Qlib, backup, resources, healthcheck, Celery worker/beat and ping checks.
+Short-window HTTPS read-only probes returned health/ready/API `200`, unauthenticated terminal
+runs `403`, and the existing decision runtime `503` fail-closed. This provides deployment
+identity and runtime-boundary evidence only; it does not unlock queued admission, worker/CLI
+UAT, external MCP portability, business write receipt/refresh, capacity/chaos, 14-day
+telemetry, restore/rollback or owner/reviewer gates.
