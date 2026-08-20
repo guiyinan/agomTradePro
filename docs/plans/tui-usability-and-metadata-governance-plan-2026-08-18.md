@@ -209,6 +209,24 @@
   rollback, capacity/chaos, external portability or owner/reviewer sign-off; `TUX-02`/`TUX-04`
   and the related production gates remain active/fail-closed.
 
+## 6.2.5 2026-08-20 execution screen patch cleanup
+
+- Removed the `execution.accounts` legacy screen patch from
+  `apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_execution.py`. The
+  canonical IA/runtime payload already owns this screen, so the patch was ignored on the
+  full-IA path. The redundant action-key map remains unchanged because it still serves the
+  action deduplication boundary.
+- Added source-boundary assertions that the patch is no longer registered, the
+  `execution.account-settings` alias still resolves to `execution.accounts`, canonical screen
+  semantics/panels/action keys remain unchanged, and a synthetic legacy payload remains
+  loadable without receiving the removed patch. Source guard remains `outcome=ok` with
+  `12/24` screens, `430/889` actions, `0` violations and configured patches reduced `5→4`.
+- Focused metadata/actionability/IA tests passed (`46` combined in the scoped TAR/TUI
+  regression set); Ruff, Black, isort, incremental mypy and diff-check passed. This is a
+  repository-only dead-patch cleanup; it does not claim external AgomTUI portability,
+  production role UAT, write receipt/refresh, telemetry or M5 sign-off. `TUX-02`/`TUX-04`
+  remain active/fail-closed.
+
 ## 6. 风险与回滚
 
 - **文案批量重写风险**：430 个 action 的 label/description 重写可能误伤已被人工序列化的文案；分流时以 `source` 字段与人工策划 key 前缀白名单为界，重写前后做全量 diff 评审。

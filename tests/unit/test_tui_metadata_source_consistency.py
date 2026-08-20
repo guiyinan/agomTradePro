@@ -140,8 +140,11 @@ def test_execution_account_settings_alias_uses_canonical_ia_without_screen_patch
     )
 
     assert aliases["execution.account-settings"] == "execution.accounts"
+    assert "execution.accounts" not in RUNTIME_SCREEN_PATCHES
     assert "execution.account-settings" not in RUNTIME_SCREEN_PATCHES
     assert "execution.account-settings" not in runtime_screen_keys
+    for key in ("label", "summary", "view_type", "default_action_key", "user_experience"):
+        assert runtime_screen[key] == ia_screen[key]
     assert [panel["key"] for panel in runtime_screen["dashboard_panels"]] == [
         panel["key"] for panel in ia_screen["dashboard_panels"]
     ]
