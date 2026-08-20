@@ -677,3 +677,32 @@ prune、没有进入维护态，也没有连接生产数据库执行 DDL、恢�
 校验以 VPS 容器内 exit `0` 为准。它不等于生产规模 restore/rebuild、RTO/RPO、维护态 rollback、
 controlled backfill 或 reconciliation；`DATA-01` 继续 `awaiting_production`，`DATA-02/03`
 不解锁。
+
+## 实施记录（2026-08-20，DATA-01 最新归档隔离 restore 验收）
+
+本批在本机新建唯一命名的 `postgres:16-alpine` disposable 容器，先用同一归档预置隔离
+source database，再运行 `scripts/verify_postgres_backup_restore.py` 做第二次受控 restore；
+没有连接生产数据库、没有触碰 VPS 数据卷，恢复库与容器在证据写入后均已删除。
+
+- 最新归档仍绑定 `/opt/agomtradepro/backups/database/postgres-20260820-110946.dump`，大小
+  `142313231` bytes、SHA-256
+  `b3f5893f45b0f8aa316307e709450cace3b5c7798bdbe3976b1920f2670c6773`；远端 manifest 为
+  `7182` entries，manifest SHA-256 为
+  `170ca2cd663bd2f1e0f035807c03282e3f4b6e55a2d92dce93978e93973bc394`。
+- 第一次脚本尝试因隔离 source 预置尚未完成而先拍到空 source 快照，结果被明确丢弃；确认
+  source 已含 `537` 张表、`data_center_price_bar=2784310` 行后重跑，避免把 harness race
+  误记为归档差异。
+- 第二次验证 `outcome=success`：`restore_entries=7167`，source/restore 均为 `537` 张
+  public 表、`72` 项 Data Center migrations（最新 `0072_note_non_st_price_limit_scope`）、
+  `458` 条 sequence；schema SHA 均为
+  `f984042ea25fbc7686e2be98df619372133aef7b34d9f78b516a39caf53c6049`，table/migration/
+  sequence/schema 差异全部为 `0/false`。隔离 `pg_restore` elapsed `2061.820s`，全表
+  verification `1017.837s`，总耗时 `4866.916s`。
+- 精简证据见 [`data01-local-isolated-restore-2026-08-20.json`](../deployment/data01-local-isolated-restore-2026-08-20.json)，
+  完整 verifier report SHA-256 为
+  `bf0bf9abd047054147f56be4c4233ec921c0abfc9f5ddf585c5dc79668530300`。
+
+该条补齐的是“最新恢复点的本机隔离 restore/rebuild 自洽证据”，`2061.820s` 与
+`4866.916s` 不能冒充生产 RTO/RPO；仍未执行 VPS maintenance、生产 restore/DDL、live
+rollback、controlled backfill 或 reconciliation。`DATA-01` 保持 `awaiting_production`，
+不解锁 `DATA-02/03` 或任何破坏性操作。

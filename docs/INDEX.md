@@ -1096,6 +1096,9 @@
   - `scripts/verify_postgres_backup_restore.py` 现在在格式校验前、恢复前后固定 dump SHA-256，并对归档替换稳定 fail-closed；unit `14 passed`、增量 mypy 0
   - 当前 VPS custom-format backup 已完整下载并校验：`postgres-20260816-100924.dump`，`140804438` bytes，SHA-256 `06e52b33c637c17cae4c9f0223246e0e09af84254717196d904f67044e7b2cba`
   - 仍不等于 restore/rebuild、维护态回滚、RTO/RPO、回填或 reconciliation；DATA-01 继续 awaiting，不解锁 DATA-02/03
+- ✅ **DATA-01 最新归档本机隔离 restore 验收（2026-08-20）**
+  - 最新 `postgres-20260820-110946.dump` 在唯一命名 disposable `postgres:16-alpine` 中 source↔restore 自洽通过：537/537 public 表、72/72 Data Center migrations、458/458 sequences、schema/table/migration/content hash 全匹配；restore `2061.820s`、verification `1017.837s`、total `4866.916s`。证据：[`data01-local-isolated-restore-2026-08-20.json`](deployment/data01-local-isolated-restore-2026-08-20.json)
+  - 只证明本机隔离恢复自洽，不是生产 RTO/RPO、维护态 rollback、生产 restore/DDL、回填或 reconciliation；`DATA-01` 继续 awaiting，不解锁 DATA-02/03
 - ✅ **DATA-02 control-plane identity reuse guard（2026-08-16）**
   - `SyncRun/SyncBatch/SyncCheckpointRepository` 对 stable key 重试逐字段核对不可变身份，拒绝 dataset/provider/run/checkpoint 替换；identity-reuse 回归通过，增量 mypy `0 regressions`、Black/isort/diff-check 通过
   - 仅本地幂等/身份合同；未连接生产数据库、未执行 restore/backfill/reconciliation，PostgreSQL 锁/并发、RTO/RPO 与 DATA-01 前置仍缺，DATA-01/02/03 状态不变
