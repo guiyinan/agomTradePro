@@ -1,0 +1,72 @@
+{
+  "schema": "vps-deployment-read-only-observation.v1",
+  "collected_at": "2026-08-20T13:30:00Z",
+  "environment": "production-vps",
+  "base_url": "https://demo.agomtrade.pro",
+  "candidate": {
+    "source_commit": "2f4554b5192191970a3ccbc98420388881725079",
+    "release_tag": "20260820211526",
+    "release_dir": "/opt/agomtradepro/releases/source-20260820211526",
+    "image_tag": "agomtradepro-web:20260820211526",
+    "image_id": "sha256:74d094b6e606ee79a6e73ffd49364a3787c611511432d5194dc9902b2ec17696",
+    "source_mode": "git-clone",
+    "runtime_match": true,
+    "deployment_report": "dist/remote-build-reports/remote-build-report-20260820211526.json"
+  },
+  "deployment": {
+    "mode": "code-only-upgrade",
+    "volumes_preserved": true,
+    "celery_enabled": true,
+    "first_attempt": {
+      "outcome": "failed_before_switch",
+      "observed_stage": "docker_image_unpack",
+      "exit_code": -1,
+      "production_data_changed": false
+    },
+    "retry": {
+      "outcome": "success",
+      "verifier_exit_code": 0,
+      "migrations": "No migrations to apply",
+      "canonical_schema": {"ok": true, "missing_migrations": [], "missing_tables": []},
+      "django_system_check": "passed",
+      "tui_registry": "published registry 28 matched active source hash",
+      "qlib": {"pyqlib": "0.9.7", "wrong_qlib_distribution": "absent"},
+      "tls": "Caddy domain demo.agomtrade.pro with valid certificate",
+      "containers": "web healthy; caddy/postgres/redis/rsshub/runtime_ns/celery worker+beat running",
+      "celery_ping": "1 node online"
+    }
+  },
+  "public_read_only_probes": {
+    "/api/health/": {"status": 200},
+    "/api/ready/": {
+      "status": 200,
+      "decision_data": "warning/stale quotes; must_not_use_for_decision=true"
+    },
+    "/api/": {"status": 200},
+    "/api/audit/health/": {
+      "status": 200,
+      "overall_status": "OK",
+      "failure_count": 0,
+      "outbox": {"pending": 0, "due_pending": 0, "claimed": 0, "failed": 0, "delivered": 0}
+    },
+    "/api/audit/metrics/": {"status": 200},
+    "/api/tui/": {"status": 403, "reason": "unauthenticated"},
+    "/api/terminal/runs/": {"status": 403, "reason": "unauthenticated"},
+    "/api/regime/current/": {
+      "status": 503,
+      "block_reason_code": "decision_runtime_blocked",
+      "must_not_use_for_decision": true
+    }
+  },
+  "scope": {
+    "tui_change": "command-center.overview dead screen patch removed; canonical IA/runtime and operator injection retained",
+    "local_ci": "four push workflows green for 2f4554b51",
+    "business_writes": "not executed",
+    "role_browser_uat": "not executed",
+    "receipt_refresh": "not proven",
+    "telemetry_restore_rollback": "not executed",
+    "external_agomtui_portability": "not proven",
+    "owner_reviewer_signoff": "not present",
+    "production_gate": "TUX-02/TUX-04 and related M5/TAR/AUD/EVID gates remain fail-closed"
+  }
+}

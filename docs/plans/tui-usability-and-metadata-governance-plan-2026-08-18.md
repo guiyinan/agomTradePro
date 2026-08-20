@@ -246,6 +246,27 @@
   AgomTUI portability, production role UAT, write receipt/refresh, telemetry, restore/rollback
   or M5 sign-off; `TUX-02`/`TUX-04` remain active/fail-closed.
 
+## 6.2.7 2026-08-20 command-center cleanup candidate deployment observation
+
+- After the four push workflows were green for `2f4554b5192191970a3ccbc98420388881725079`,
+  the same commit was deployed code-only in `-Upgrade` mode as release `20260820211526`.
+  PostgreSQL/Redis volumes were preserved and Celery remained enabled. The first remote Docker
+  attempt stopped during image unpack before switching the active service; a same-commit retry
+  succeeded, so this is recorded as a transient deployment attempt rather than hidden.
+- The built-in and independent verifier both passed: source/image identity
+  (`sha256:74d094b6e606ee79a6e73ffd49364a3787c611511432d5194dc9902b2ec17696`), migrations/schema,
+  Django checks, TUI registry, Qlib (`pyqlib=0.9.7`, wrong distribution absent), Caddy/TLS,
+  healthy web, Celery worker/beat and one-node ping. The structured observation is
+  `docs/deployment/tui-command-center-cleanup-2026-08-20-2f4554b5.json`.
+- Independent HTTPS probes returned `200` for health/readiness/API root/audit health/metrics;
+  readiness exposed stale decision quotes with `must_not_use_for_decision=true`; unauthenticated
+  TUI and terminal routes returned `403`; regime returned `503 decision_runtime_blocked` with
+  `must_not_use_for_decision=true`. No business write, role browser UAT, receipt/refresh,
+  telemetry, restore/rollback or external portability test was run.
+- This is an immutable-candidate short-window deployment observation only. It does not rebind a
+  formal M5 candidate or unlock TUX-02/TUX-04/TAR/AUD/EVID production gates; all remain
+  fail-closed where their independent evidence is still missing.
+
 ## 6. 风险与回滚
 
 - **文案批量重写风险**：430 个 action 的 label/description 重写可能误伤已被人工序列化的文案；分流时以 `source` 字段与人工策划 key 前缀白名单为界，重写前后做全量 diff 评审。
