@@ -989,3 +989,18 @@ claim/delivery 或 Data Center 同 UOW 双写。因此 `AUD-01` 继续 `active`�
 publisher/receipt sink、authenticated scoped authority、真实 outbox claim/delivery、beat/retry、
 Data Center 同 UOW 双写、PostgreSQL 并发/回滚或人工 owner/reviewer 签字。`AUD-01` 继续
 保持 `active`，`AUD-02/03` 继续等待依赖，生产 publisher/runtime 仍 fail-closed。
+
+## 实施记录（2026-08-21，AUD-01 current VPS read-only probe refresh）
+
+针对同一已部署候选 `a428edaad5cf70e0c47a5649c5f867ae6aeabdd5` / release
+`20260821060037` 的新鲜只读探针显示：公网 `/api/health/`、`/api/ready/`、数据库健康、
+`/api/audit/health/` 与 `/api/audit/metrics/` 均为 HTTP `200`；审计总体状态仍为 `OK`，
+累计 operation logs `541`、failure `0`，pending/due/claimed/expired/failed/delivered
+backlog gauges 均为 `0`。`/api/decision-ready/` 返回 `503`，明确保持 stale decision data
+的 fail-closed 语义；匿名 TUI 返回 `403`。原始结构化探针见
+[`tar01-current-vps-readonly-probe-2026-08-21-head-a428edaad.json`](../deployment/tar01-current-vps-readonly-probe-2026-08-21-head-a428edaad.json)，
+SHA-256 为 `d3a2ac6dedb47b33fe1d76196075bbe904a06e5d972ed41e56825aec5ca87f7b`。
+
+该刷新只证明健康投影、认证边界和决策数据 fail-closed 仍稳定；不证明 durable
+publisher/receipt、authenticated authority、真实 claim/delivery、Data Center 同 UOW、
+PG 并发/回滚或 owner/reviewer 签字，故 `AUD-01` 仍为 `active`。

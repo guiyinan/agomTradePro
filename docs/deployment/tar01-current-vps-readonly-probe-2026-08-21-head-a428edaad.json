@@ -1,0 +1,97 @@
+{
+  "schema": "terminal-runtime-vps-readonly-probe.v1",
+  "artifact_type": "terminal_runtime_vps_readonly_probe",
+  "environment": "production-vps",
+  "production_claim": false,
+  "production_ready": false,
+  "runtime_enablement": "not_authorized",
+  "observed_at": "2026-08-20T23:26:41.825362Z",
+  "base_url": "https://demo.agomtrade.pro",
+  "candidate": {
+    "source_commit": "a428edaad5cf70e0c47a5649c5f867ae6aeabdd5",
+    "release_tag": "20260821060037",
+    "image_tag": "agomtradepro-web:20260821060037",
+    "image_id": "sha256:0b83684e05c77a0371e223f2b3250246307f17f3da7cc626608c29839cf01d7f",
+    "source_mode": "git-clone",
+    "runtime_match": true
+  },
+  "deployment": {
+    "domain": "demo.agomtrade.pro",
+    "caddy_domain_configured": true,
+    "web_healthy": true,
+    "postgres_healthy": true,
+    "redis_healthy": true,
+    "celery_worker_running": true,
+    "celery_beat_running": true,
+    "celery_workers": 1,
+    "qlib_distribution": "pyqlib==0.9.7",
+    "qlib_distribution_absent": true,
+    "qlib_module": "/usr/local/lib/python3.11/site-packages/qlib/__init__.py"
+  },
+  "probes": {
+    "https_health": {
+      "status": 200,
+      "payload_status": "ok"
+    },
+    "https_ready": {
+      "status": 200,
+      "payload_status": "ok",
+      "database": "ok",
+      "redis": "ok",
+      "celery": "ok",
+      "decision_data": "warning/blocked",
+      "decision_data_must_not_use_for_decision": true
+    },
+    "https_decision_ready": {
+      "status": 503,
+      "fail_closed": true
+    },
+    "https_database_health": {
+      "status": 200,
+      "payload_status": "ok"
+    },
+    "https_audit_health": {
+      "status": 200,
+      "overall_status": "OK",
+      "total_operation_logs": 541,
+      "total_failures": 0,
+      "backlog": {
+        "pending": 0,
+        "due_pending": 0,
+        "claimed": 0,
+        "expired_claimed": 0,
+        "failed": 0,
+        "delivered": 0
+      }
+    },
+    "https_audit_metrics": {
+      "status": 200,
+      "outbox_gauges": {
+        "pending": 0,
+        "due_pending": 0,
+        "claimed": 0,
+        "expired_claimed": 0,
+        "failed": 0,
+        "delivered": 0
+      }
+    },
+    "anonymous_tui": {
+      "status": 403,
+      "authentication_boundary": true
+    }
+  },
+  "acceptance": {
+    "read_only_probe_passed": true,
+    "health_stable": true,
+    "decision_gate_fail_closed": true,
+    "audit_projection_healthy": true,
+    "side_effects_observed": false,
+    "queued_capacity_ready": false
+  },
+  "limitations": [
+    "This probe is read-only and does not claim production readiness.",
+    "The authenticated 1/5/10/20 reserved-route staircase and browser write/readback evidence remain in the candidate-bound acceptance artifact.",
+    "Queued PostgreSQL admission, on-commit dispatch, dedicated Worker/SSE, idempotency/cancel, provider/MCP, capacity/chaos, 14-day telemetry, restore/rollback, and owner/reviewer sign-off remain unavailable.",
+    "Decision data is explicitly blocked by stale freshness and must_not_use_for_decision; HTTP 200 readiness does not override that contract."
+  ]
+}

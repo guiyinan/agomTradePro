@@ -889,3 +889,21 @@ controlled residue, the same candidate rerun passed and cleanup returned zero ro
 decision-data freshness warning remains `must_not_use_for_decision`. TAR-01 remains active,
 `check_tar01_exit_gate.py` remains `decision=BLOCKED`, `safety_ready=true`,
 `capacity_ready=false`, and TAR-02/TAR-03 plus queued/worker enablement remain closed.
+
+### TAR-01 current VPS read-only probe refresh (2026-08-21)
+
+A fresh read-only HTTPS/SSH probe of the deployed candidate `a428edaad5cf70e0c47a5649c5f867ae6aeabdd5`
+/ release `20260821060037` confirmed the immutable runtime identity, Caddy domain,
+healthy web/PostgreSQL/Redis containers, one Celery worker plus beat, and `pyqlib==0.9.7`
+with no `qlib` distribution installed. Public `/api/health/`, `/api/ready/`, database health,
+and audit health/metrics returned `200`; `/api/decision-ready/` returned the expected `503`
+fail-closed result because decision data remains stale and `must_not_use_for_decision=true`.
+Audit health remained `OK` with `541` operation logs, `0` failures, and all outbox backlog
+counters at `0`; anonymous `/api/tui/` remained `403` at the authentication boundary.
+
+The structured probe is [`tar01-current-vps-readonly-probe-2026-08-21-head-a428edaad.json`](../deployment/tar01-current-vps-readonly-probe-2026-08-21-head-a428edaad.json),
+SHA-256 `d3a2ac6dedb47b33fe1d76196075bbe904a06e5d972ed41e56825aec5ca87f7b`.
+This is read-only health and fail-closed evidence only; it does not add queued capacity,
+Worker/SSE, idempotency/cancel, provider/MCP, chaos, 14-day telemetry, restore/rollback,
+or owner/reviewer acceptance. TAR-01 therefore remains `BLOCKED` with
+`safety_ready=true` and `capacity_ready=false`.
