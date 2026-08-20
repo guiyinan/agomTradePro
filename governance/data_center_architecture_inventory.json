@@ -36,7 +36,7 @@
   "counts": {
     "approved_non_data_http_imports": 4,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 4289,
+    "current_surface_references": 4282,
     "data_write_task_decorators": 59,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -20896,41 +20896,6 @@
       "line": 12,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_user_access.py",
       "text": "\"summary\": \"管理员筛选待处理用户，并完成批准、拒绝、状态重置和角色调整。\","
-    },
-    {
-      "line": 12,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_command_center.py",
-      "text": "\"summary\": \"同时查看今日投研判断、治理异常和最近工作区，再决定进入哪条主线。\","
-    },
-    {
-      "line": 60,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_command_center.py",
-      "text": "{\"key\": \"summary\", \"label\": \"摘要\"},"
-    },
-    {
-      "line": 66,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_command_center.py",
-      "text": "\"key\": \"account-signal-summary\","
-    },
-    {
-      "line": 79,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_command_center.py",
-      "text": "{\"key\": \"summary\", \"label\": \"摘要\"},"
-    },
-    {
-      "line": 84,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_command_center.py",
-      "text": "\"key\": \"system-exception-summary\","
-    },
-    {
-      "line": 102,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_command_center.py",
-      "text": "\"key\": \"data-task-summary\","
-    },
-    {
-      "line": 120,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_command_center.py",
-      "text": "\"key\": \"ai-config-summary\","
     },
     {
       "line": 38,
