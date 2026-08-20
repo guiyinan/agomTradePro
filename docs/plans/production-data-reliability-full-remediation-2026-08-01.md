@@ -706,3 +706,28 @@ source database，再运行 `scripts/verify_postgres_backup_restore.py` 做第�
 `4866.916s` 不能冒充生产 RTO/RPO；仍未执行 VPS maintenance、生产 restore/DDL、live
 rollback、controlled backfill 或 reconciliation。`DATA-01` 保持 `awaiting_production`，
 不解锁 `DATA-02/03` 或任何破坏性操作。
+
+## 实施记录（2026-08-21，DATA-01 最新已有归档只读取证）
+
+按 `DATA-01` 的 `auto_collect` 范围下载并复核 VPS 上已有的最新 custom-format 归档；本批
+没有创建新备份、没有 prune、没有进入维护态，也没有连接生产数据库执行 DDL、restore、
+回填或 rollback。
+
+- 远端归档：`/opt/agomtradepro/backups/database/postgres-20260820-205307.dump`；远端
+  `pg_restore --list` exit `0`，manifest `7182` entries，manifest SHA-256
+  `aed4ea9f2591bea50d627de239e0b9ab31eb68e307bcd89f0814c236a912e890`。
+- 完整 SFTP 下载到 `backups/vps-postgres/postgres-20260820-205307.dump`，远端与本地
+  大小均 `142314979` bytes；远端与本地 SHA-256 均为
+  `296311187d72cf6d327be61de55db3205fe139accdef05035c0ec2ed1b9980ac`，partial 被拒绝。
+- 结构化 envelope 为
+  [`data-backup-evidence-2026-08-21.json`](../deployment/data-backup-evidence-2026-08-21.json)，
+  `schema=data-backup-evidence.v1`，content hash
+  `3a59ff4608736a7445b9961020e78b0625c0924e7f2032d2c50a68200ac32e3a`；远端采集时间为
+  `2026-08-20T20:28:39Z`，归档 mtime 为 `2026-08-20T18:53:58Z`。
+- 下载后的归档在 disposable `postgres:16-alpine` 容器内再次执行 `pg_restore --list`，
+  exit `0`；本地非注释 manifest 行计数为 `7167`，只作为格式自洽复核，不冒充完整隔离
+  restore/RTO/RPO。
+
+这条记录刷新了一个可复核的生产恢复点和传输完整性，但不等于生产规模 restore/rebuild、
+RTO/RPO、维护态 rollback、controlled backfill 或 reconciliation；`DATA-01` 继续
+`awaiting_production`，`DATA-02/03` 不解锁。
