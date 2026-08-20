@@ -119,6 +119,104 @@ def test_execution_audit_screen_patch_is_not_registered_after_ia_cutover() -> No
     ]
 
 
+def test_execution_account_settings_alias_uses_canonical_ia_without_screen_patch() -> None:
+    """Account-settings source aliases retain the canonical accounts screen."""
+
+    from apps.terminal.infrastructure.tui_information_architecture import screen_aliases
+    from apps.terminal.infrastructure.tui_metadata_repository import (
+        RUNTIME_SCREEN_PATCHES,
+        PublishedTuiMetadataRepository,
+    )
+
+    registry = load_json_payload(IA_PATH)
+    aliases = screen_aliases(registry)
+    ia_screen = next(
+        screen for screen in registry["published_screens"] if screen["key"] == "execution.accounts"
+    )
+    runtime = PublishedTuiMetadataRepository(published_path=PUBLISHED_PATH)._load_published_file()
+    runtime_screen_keys = {str(screen["key"]) for screen in runtime["screens"]}
+    runtime_screen = next(
+        screen for screen in runtime["screens"] if screen["key"] == "execution.accounts"
+    )
+
+    assert aliases["execution.account-settings"] == "execution.accounts"
+    assert "execution.account-settings" not in RUNTIME_SCREEN_PATCHES
+    assert "execution.account-settings" not in runtime_screen_keys
+    assert [panel["key"] for panel in runtime_screen["dashboard_panels"]] == [
+        panel["key"] for panel in ia_screen["dashboard_panels"]
+    ]
+    assert [
+        panel.get("action_key")
+        for panel in runtime_screen["dashboard_panels"]
+        if panel.get("action_key")
+    ] == [
+        panel.get("action_key")
+        for panel in ia_screen["dashboard_panels"]
+        if panel.get("action_key")
+    ]
+
+
+def _legacy_execution_account_settings_payload() -> dict[str, Any]:
+    """Return a minimal legacy account-settings payload for compatibility checks."""
+
+    return {
+        "version": "legacy-execution-account-settings",
+        "default_screen": "execution.account-settings",
+        "groups": [{"key": "daily", "label": "Daily"}],
+        "modules": [
+            {
+                "key": "daily-decisions",
+                "label": "Daily Decisions",
+                "group": "daily",
+                "summary": "Legacy daily decisions.",
+            }
+        ],
+        "screens": [
+            {
+                "key": "execution.account-settings",
+                "label": "Legacy Account Settings",
+                "module_key": "daily-decisions",
+                "group": "daily",
+                "summary": "Legacy account settings.",
+                "view_type": "status",
+                "default_action_key": "legacy.account-settings.list",
+            }
+        ],
+        "actions": [
+            {
+                "key": "legacy.account-settings.list",
+                "label": "Legacy account settings list",
+                "endpoint": "/api/legacy/account-settings/",
+                "intent": "legacy_account_settings",
+                "screen_key": "execution.account-settings",
+                "module_key": "daily-decisions",
+                "view_type": "status",
+            }
+        ],
+    }
+
+
+def test_legacy_execution_account_settings_payload_remains_loadable_without_screen_patch() -> None:
+    """Legacy account-settings payloads retain their own contract after removal."""
+
+    from apps.terminal.application.tui_metadata import validate_tui_metadata
+    from apps.terminal.infrastructure.tui_metadata_repository import (
+        PublishedTuiMetadataRepository,
+    )
+
+    normalized = PublishedTuiMetadataRepository().validate_and_normalize_runtime_payload(
+        _legacy_execution_account_settings_payload()
+    )
+    screen = next(
+        screen for screen in normalized["screens"] if screen["key"] == "execution.account-settings"
+    )
+    assert screen["label"] == "Legacy Account Settings"
+    assert screen["dashboard_panels"] == []
+    assert not normalized.get("coverage_summary", {}).get("runtime_patched_screens")
+    assert "legacy.account-settings.list" in {action["key"] for action in normalized["actions"]}
+    validate_tui_metadata(normalized)
+
+
 def test_data_center_screen_patch_is_not_registered_after_ia_cutover() -> None:
     """The canonical IA screen owns data-center panels and row actions."""
 
