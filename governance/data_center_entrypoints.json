@@ -4,10 +4,10 @@
       "admin_surface": 13,
       "agent_skill": 3,
       "application_consumer": 157,
-      "beat_schedule": 57,
+      "beat_schedule": 58,
       "capability_runtime": 25,
-      "celery_dispatch_edge": 16,
-      "celery_task": 123,
+      "celery_dispatch_edge": 17,
+      "celery_task": 125,
       "compatibility_facade": 90,
       "current_data_surface": 50,
       "dynamic_import_edge": 10,
@@ -30,13 +30,13 @@
       "workflow_step": 9
     },
     "by_status": {
-      "active_public": 700,
-      "adjacent_operational": 290,
+      "active_public": 702,
+      "adjacent_operational": 292,
       "candidate-review": 2,
       "compatibility": 133,
       "retired_blocked": 0
     },
-    "total": 1125
+    "total": 1129
   },
   "entries": [
     {
@@ -2192,6 +2192,16 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
+      "id": "beat_schedule:core/settings/celery_schedule.py:reap_stale_terminal_agent_runs:terminal-agent-reaper",
+      "locator": "terminal-agent-reaper",
+      "path": "core/settings/celery_schedule.py",
+      "status": "active_public",
+      "symbol": "reap_stale_terminal_agent_runs",
+      "target": "apps.agent_runtime.application.tasks.reap_stale_terminal_agent_runs"
+    },
+    {
+      "category": "beat_schedule",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/celery_schedule.py:recalculate_regime_with_daily_signal:high-frequency-recalculate-regime",
       "locator": "high-frequency-recalculate-regime",
       "path": "core/settings/celery_schedule.py",
@@ -2750,6 +2760,16 @@
       "target": "apps.macro.application.tasks.sync_macro_data"
     },
     {
+      "category": "celery_dispatch_edge",
+      "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
+      "id": "celery_dispatch_edge:apps/terminal/interface/queued_runtime_views.py:apply_async:line:60",
+      "locator": "line:60",
+      "path": "apps/terminal/interface/queued_runtime_views.py",
+      "status": "active_public",
+      "symbol": "apply_async",
+      "target": "apps.agent_runtime.application.tasks.execute_terminal_agent_run"
+    },
+    {
       "category": "celery_task",
       "evidence": "governance/celery_task_contracts.json",
       "id": "celery_task:apps/account/application/tasks.py:check_stop_loss_and_take_profit_task:apps.account.application.tasks.check_stop_loss_and_take_profit_task",
@@ -2798,6 +2818,26 @@
       "status": "adjacent_operational",
       "symbol": "send_database_backup_email_task",
       "target": "apps.account.application.tasks.send_database_backup_email_task"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "governance/celery_task_contracts.json",
+      "id": "celery_task:apps/agent_runtime/application/tasks.py:execute_terminal_agent_run:apps.agent_runtime.application.tasks.execute_terminal_agent_run",
+      "locator": "apps.agent_runtime.application.tasks.execute_terminal_agent_run",
+      "path": "apps/agent_runtime/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "execute_terminal_agent_run",
+      "target": "apps.agent_runtime.application.tasks.execute_terminal_agent_run"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "governance/celery_task_contracts.json",
+      "id": "celery_task:apps/agent_runtime/application/tasks.py:reap_stale_terminal_agent_runs:apps.agent_runtime.application.tasks.reap_stale_terminal_agent_runs",
+      "locator": "apps.agent_runtime.application.tasks.reap_stale_terminal_agent_runs",
+      "path": "apps/agent_runtime/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "reap_stale_terminal_agent_runs",
+      "target": "apps.agent_runtime.application.tasks.reap_stale_terminal_agent_runs"
     },
     {
       "category": "celery_task",
@@ -11300,7 +11340,7 @@
     "retired_blocked": "known unsafe or obsolete operational path retained only as blocked evidence"
   },
   "source_contract_counts": {
-    "celery_tasks": 88,
+    "celery_tasks": 90,
     "current_data_contracts": 50,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 18,
