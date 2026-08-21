@@ -3288,52 +3288,52 @@
       "text": "transition_terminal_run(current, status)"
     },
     {
-      "line": 543,
+      "line": 540,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "f\"Current user: {request.username} ({request.user_role}).\\n\""
     },
     {
-      "line": 556,
+      "line": 553,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "\"value current or today's. If must_not_use_for_decision=true, say so first and do \""
     },
     {
-      "line": 603,
+      "line": 600,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "summary=str(capability.get(\"summary\") or \"\"),"
     },
     {
-      "line": 623,
+      "line": 620,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "\"summary\": capability.get(\"summary\"),"
     },
     {
-      "line": 695,
+      "line": 692,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "\"\"\"Resolve the current user's MCP tool visibility and risk gating.\"\"\""
     },
     {
-      "line": 745,
+      "line": 742,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "\"summary\": str(capability.get(\"summary\") or \"\"),"
     },
     {
-      "line": 1137,
+      "line": 1134,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "current = obj"
     },
     {
-      "line": 1139,
+      "line": 1136,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "current = getattr(current, attr, None)"
     },
     {
-      "line": 1140,
+      "line": 1137,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "if current is None:"
     },
     {
-      "line": 1142,
+      "line": 1139,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "return current"
     },
