@@ -976,7 +976,17 @@ and TAR-01 remains `BLOCKED`.
 
 The same slice hardens the VPS upgrade script: when queued runtime is disabled it removes
 any stale `terminal_agent_worker`; when enabled it starts that service and requires its
-image to equal the immutable release image. This closes a candidate-mixing gap observed
+image to equal the immutable release image. This closed the candidate-mixing gap observed
 after release `20260821203820` (web/beat on the new image while an old idle terminal
-worker remained); the guard must pass CI and a subsequent deployment before being called
-production evidence.
+worker remained). After CI (`f0f9b9c67` and inventory refresh `e24f743c6`) the current
+candidate `e24f743c6a2c887c6fcb7fcac4f8b22f453e59f6` was deployed as release
+`20260821213436`, image `sha256:650e905ebb43db55cca1048db9ffd594f61173c10e0f68bb42a718856314b73b`.
+The verifier passed and confirmed web/beat/general Celery all use that image, while the
+disabled queued flags leave no `terminal_agent_worker` running; HTTPS health remained
+`200`, audit health/metrics `200`, and anonymous terminal/TUI remained `403`.
+
+Decision readiness was not overridden: `/api/decision-ready/` and `/api/regime/current/`
+still return `503` with `must_not_use_for_decision=true` because the persisted runtime
+decision state reports `decision_runtime_blocked`. No authenticated actor credentials
+were available for a new production queued-capacity/chaos run, so those evidence gates
+remain open.
