@@ -2762,8 +2762,8 @@
     {
       "category": "celery_dispatch_edge",
       "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
-      "id": "celery_dispatch_edge:apps/terminal/interface/queued_runtime_views.py:apply_async:line:60",
-      "locator": "line:60",
+      "id": "celery_dispatch_edge:apps/terminal/interface/queued_runtime_views.py:apply_async:line:80",
+      "locator": "line:80",
       "path": "apps/terminal/interface/queued_runtime_views.py",
       "status": "active_public",
       "symbol": "apply_async",
