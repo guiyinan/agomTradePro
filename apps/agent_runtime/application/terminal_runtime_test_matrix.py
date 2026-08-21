@@ -99,7 +99,7 @@ _SCENARIOS: Final[tuple[TerminalRuntimeTestScenario, ...]] = (
         "events",
         "tests/component/agent_runtime/test_terminal_agent_run_events.py",
         ("sse-leak-replay", "sse-resource-exhaustion", "idor"),
-        "planned",
+        "implemented",
     ),
     TerminalRuntimeTestScenario(
         "tui-run-lifecycle",

@@ -990,3 +990,29 @@ still return `503` with `must_not_use_for_decision=true` because the persisted r
 decision state reports `decision_runtime_blocked`. No authenticated actor credentials
 were available for a new production queued-capacity/chaos run, so those evidence gates
 remain open.
+
+### TAR-01 event scenario matrix reconciliation (2026-08-21)
+
+The owner-scoped event replay component is now represented consistently in both the
+pure matrix and the machine contract: `events-reconnect-and-owner-scope` is marked
+`implemented`, and the canonical matrix digest is
+`6272ea6606ebbf3c0791e48d807b733cbc6d9a4ce7d945d95c5e3a16c22aea64`. The focused
+matrix/manifest/gate/controlled-observer suites plus the Django event component suite
+passed (`37 passed`, including `4` event component tests). The TAR-01 preflight still
+reports `BLOCKED`, `safety_ready=true`, `capacity_ready=false`; `load-1-5-10-20` and
+`chaos-worker-stream-recovery` remain planned because no production load or fault
+injection evidence was created. This is a consistency correction, not a capacity or
+production-exit claim.
+
+### TAR-01 dormant load/chaos contract paths (2026-08-21)
+
+The deterministic matrix now has explicit dormant test paths for the remaining
+load and chaos layers: `tests/load/agent_runtime/test_terminal_agent_capacity.py`
+and `tests/chaos/agent_runtime/test_terminal_agent_recovery.py`. They exercise the
+existing injected 1/5/10/20 observer boundary, unavailable-metric fail-closed
+behavior, orphan recovery edges, terminal-state protection, and ID-only broker
+payloads. The new tests plus matrix regression pass (`7 passed`). They are registered
+as dormant contract paths, not as `implemented` runtime scenarios; no HTTP load,
+Redis/broker fault, Worker signal, production data, or capacity conclusion was
+created. `load-1-5-10-20` and `chaos-worker-stream-recovery` therefore remain planned
+and TAR-01 stays `BLOCKED/safety_ready=true/capacity_ready=false`.

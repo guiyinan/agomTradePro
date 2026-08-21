@@ -199,7 +199,7 @@ def _check_contract(contract: Mapping[str, object]) -> tuple[GateCheck, ...]:
         "repository-postgres-first-winner": "implemented",
         "celery-delivery-outcomes": "implemented",
         "api-wire-and-request-bounds": "implemented",
-        "events-reconnect-and-owner-scope": "planned",
+        "events-reconnect-and-owner-scope": "implemented",
         "load-1-5-10-20": "planned",
         "chaos-worker-stream-recovery": "planned",
     }
@@ -212,7 +212,7 @@ def _check_contract(contract: Mapping[str, object]) -> tuple[GateCheck, ...]:
             "runtime_scenarios_bounded",
             planned_ok,
             (
-                "repository/Celery/API are observed; reconnect/load/chaos remain planned"
+                "repository/Celery/API/events are observed; load/chaos remain planned"
                 if planned_ok
                 else "runtime scenario status does not match observed versus pending evidence"
             ),
