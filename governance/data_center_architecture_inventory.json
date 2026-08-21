@@ -36,13 +36,13 @@
   "counts": {
     "approved_non_data_http_imports": 4,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 4283,
-    "data_write_task_decorators": 59,
+    "current_surface_references": 4304,
+    "data_write_task_decorators": 61,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
     "legacy_fact_references": 0,
     "provider_imports_outside_data_center": 0,
-    "runtime_parameter_references": 54
+    "runtime_parameter_references": 55
   },
   "cross_app_orm_imports": [
     {
@@ -2783,9 +2783,29 @@
       "text": "raise InvalidProposalTransitionError(current, target, allowed)"
     },
     {
+      "line": 111,
+      "path": "apps/agent_runtime/application/tasks.py",
+      "text": "current = repository.get_for_owner(run_id=run_id, actor_user_id=actor_user_id)"
+    },
+    {
+      "line": 113,
+      "path": "apps/agent_runtime/application/tasks.py",
+      "text": "current is not None"
+    },
+    {
+      "line": 114,
+      "path": "apps/agent_runtime/application/tasks.py",
+      "text": "and current.dispatch_status is TerminalRunStatus.CANCEL_REQUESTED"
+    },
+    {
       "line": 121,
       "path": "apps/agent_runtime/application/terminal_agent.py",
       "text": "summary: str,"
+    },
+    {
+      "line": 41,
+      "path": "apps/agent_runtime/application/terminal_agent_run_ports.py",
+      "text": "The summary is a read snapshot, not an admission reservation.  A future"
     },
     {
       "line": 34,
@@ -3223,12 +3243,12 @@
       "text": "max_length=100, null=True, blank=True, help_text=\"Current step key\""
     },
     {
-      "line": 313,
+      "line": 376,
       "path": "apps/agent_runtime/infrastructure/models.py",
       "text": "help_text=\"Current approval status\","
     },
     {
-      "line": 573,
+      "line": 636,
       "path": "apps/agent_runtime/infrastructure/models.py",
       "text": "message = models.TextField(help_text=\"Human-readable summary\")"
     },
@@ -3238,52 +3258,82 @@
       "text": "\"\"\"Return the latest context snapshot for a task.\"\"\""
     },
     {
-      "line": 540,
+      "line": 241,
+      "path": "apps/agent_runtime/infrastructure/terminal_agent_run_repository.py",
+      "text": "current = TerminalRunStatus(model.dispatch_status)"
+    },
+    {
+      "line": 244,
+      "path": "apps/agent_runtime/infrastructure/terminal_agent_run_repository.py",
+      "text": "if current is target:"
+    },
+    {
+      "line": 247,
+      "path": "apps/agent_runtime/infrastructure/terminal_agent_run_repository.py",
+      "text": "transition_terminal_run(current, target)"
+    },
+    {
+      "line": 527,
+      "path": "apps/agent_runtime/infrastructure/terminal_agent_run_repository.py",
+      "text": "\"\"\"Persist a terminal outcome only for the current worker lease.\"\"\""
+    },
+    {
+      "line": 553,
+      "path": "apps/agent_runtime/infrastructure/terminal_agent_run_repository.py",
+      "text": "current = TerminalRunStatus(run.dispatch_status)"
+    },
+    {
+      "line": 554,
+      "path": "apps/agent_runtime/infrastructure/terminal_agent_run_repository.py",
+      "text": "transition_terminal_run(current, status)"
+    },
+    {
+      "line": 543,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "f\"Current user: {request.username} ({request.user_role}).\\n\""
     },
     {
-      "line": 553,
+      "line": 556,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "\"value current or today's. If must_not_use_for_decision=true, say so first and do \""
     },
     {
-      "line": 600,
+      "line": 603,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "summary=str(capability.get(\"summary\") or \"\"),"
     },
     {
-      "line": 620,
+      "line": 623,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "\"summary\": capability.get(\"summary\"),"
     },
     {
-      "line": 692,
+      "line": 695,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "\"\"\"Resolve the current user's MCP tool visibility and risk gating.\"\"\""
     },
     {
-      "line": 742,
+      "line": 745,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "\"summary\": str(capability.get(\"summary\") or \"\"),"
     },
     {
-      "line": 1134,
+      "line": 1137,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "current = obj"
     },
     {
-      "line": 1136,
+      "line": 1139,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "current = getattr(current, attr, None)"
     },
     {
-      "line": 1137,
+      "line": 1140,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "if current is None:"
     },
     {
-      "line": 1139,
+      "line": 1142,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_service.py",
       "text": "return current"
     },
@@ -20928,6 +20978,61 @@
       "text": "\"\"\"Run a published safe action for the current user.\"\"\""
     },
     {
+      "line": 169,
+      "path": "apps/terminal/interface/queued_runtime_views.py",
+      "text": "summary = repository.queue_summary(actor_user_id=actor_user_id)"
+    },
+    {
+      "line": 170,
+      "path": "apps/terminal/interface/queued_runtime_views.py",
+      "text": "if summary.user_active >= int(getattr(settings, \"TERMINAL_PER_USER_ACTIVE_LIMIT\", 1)):"
+    },
+    {
+      "line": 172,
+      "path": "apps/terminal/interface/queued_runtime_views.py",
+      "text": "if summary.user_queued >= int(getattr(settings, \"TERMINAL_PER_USER_QUEUED_LIMIT\", 4)):"
+    },
+    {
+      "line": 174,
+      "path": "apps/terminal/interface/queued_runtime_views.py",
+      "text": "if summary.global_active >= int(getattr(settings, \"TERMINAL_GLOBAL_ACTIVE_LIMIT\", 4)):"
+    },
+    {
+      "line": 176,
+      "path": "apps/terminal/interface/queued_runtime_views.py",
+      "text": "if summary.global_queued >= int(getattr(settings, \"TERMINAL_GLOBAL_QUEUED_LIMIT\", 40)):"
+    },
+    {
+      "line": 228,
+      "path": "apps/terminal/interface/queued_runtime_views.py",
+      "text": "\"\"\"Return queue summary or one owner-scoped durable status snapshot.\"\"\""
+    },
+    {
+      "line": 235,
+      "path": "apps/terminal/interface/queued_runtime_views.py",
+      "text": "summary = repository.queue_summary(actor_user_id=actor_user_id)"
+    },
+    {
+      "line": 238,
+      "path": "apps/terminal/interface/queued_runtime_views.py",
+      "text": "\"user_active\": summary.user_active,"
+    },
+    {
+      "line": 239,
+      "path": "apps/terminal/interface/queued_runtime_views.py",
+      "text": "\"user_queued\": summary.user_queued,"
+    },
+    {
+      "line": 240,
+      "path": "apps/terminal/interface/queued_runtime_views.py",
+      "text": "\"global_active\": summary.global_active,"
+    },
+    {
+      "line": 241,
+      "path": "apps/terminal/interface/queued_runtime_views.py",
+      "text": "\"global_queued\": summary.global_queued,"
+    },
+    {
       "line": 213,
       "path": "apps/terminal/management/commands/build_tui_registry_backup_evidence.py",
       "text": "raise CommandError(\"Current active registry does not match the production backup\")"
@@ -21488,27 +21593,27 @@
       "text": "\"/api/pulse/current/\","
     },
     {
-      "line": 222,
+      "line": 228,
       "path": "core/settings/base.py",
       "text": "\"apps.realtime\",  # 新增：实时价格监控模块"
     },
     {
-      "line": 57,
+      "line": 62,
       "path": "core/settings/celery_schedule.py",
       "text": "\"daily-signal-summary\": {"
     },
     {
-      "line": 132,
+      "line": 137,
       "path": "core/settings/celery_schedule.py",
       "text": "\"simulated-daily-summary\": {"
     },
     {
-      "line": 179,
+      "line": 184,
       "path": "core/settings/celery_schedule.py",
       "text": "\"realtime-update-prices-after-close\": {"
     },
     {
-      "line": 415,
+      "line": 420,
       "path": "core/settings/celery_schedule.py",
       "text": "\"sentiment-refresh-current-index\": {"
     },
@@ -21727,6 +21832,16 @@
     {
       "line": 529,
       "path": "apps/account/application/tasks.py",
+      "text": "@shared_task(  # type: ignore[misc]"
+    },
+    {
+      "line": 48,
+      "path": "apps/agent_runtime/application/tasks.py",
+      "text": "@shared_task(  # type: ignore[misc]"
+    },
+    {
+      "line": 172,
+      "path": "apps/agent_runtime/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
@@ -22031,6 +22146,7 @@
     "SECURE_REFERRER_POLICY = env(\"SECURE_REFERRER_POLICY\", default=\"strict-origin-when-cross-origin\")",
     "SIZING_DEFAULT_METHOD = env(\"SIZING_DEFAULT_METHOD\", default=\"fixed_fraction\")",
     "STREAMLIT_DASHBOARD_URL = env(",
+    "TERMINAL_RUNTIME_ROLE = env(\"TERMINAL_RUNTIME_ROLE\", default=\"legacy_inline\")",
     "USE_JSON_LOGGING = os.getenv(\"USE_JSON_LOGGING\", \"false\").lower() == \"true\"",
     "configured = int(os.getenv(\"ADMIN_LOG_BUFFER_SIZE\", \"5000\"))",
     "current_test = os.getenv(\"PYTEST_CURRENT_TEST\")",
