@@ -1706,6 +1706,19 @@ compose() {
   $COMPOSE -p agomtradepro -f docker/docker-compose.vps.yml --env-file deploy/.env "$@"
 }
 
+env_value() {
+  key="$1"
+  line="$(grep -E "^${key}=" deploy/.env | tail -n 1 || true)"
+  printf '%s' "${line#*=}"
+}
+
+is_truthy() {
+  case "${1:-}" in
+    1|true|TRUE|yes|YES|on|ON) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 grep '^SECRET_KEY=' deploy/.env >/dev/null 2>&1 || {
   echo "[ERROR] SECRET_KEY was not persisted to deploy/.env" >&2
   exit 1
@@ -1812,7 +1825,39 @@ if [ "$ENABLE_CELERY" = "1" ]; then
   SERVICES="$SERVICES celery_worker celery_beat"
 fi
 
+TERMINAL_WORKER_ENABLED=0
+if [ "$ENABLE_CELERY" = "1" ] \
+  && is_truthy "$(env_value TERMINAL_RUNTIME_AUTHORIZED)" \
+  && is_truthy "$(env_value TERMINAL_QUEUED_INTAKE_ENABLED)" \
+  && is_truthy "$(env_value TERMINAL_QUEUED_WORKER_ENABLED)"; then
+  TERMINAL_WORKER_ENABLED=1
+  SERVICES="$SERVICES terminal_agent_worker"
+else
+  # Upgrade deployments must not leave a stale queued worker from a previous
+  # authorized release running after the current release closes the queue.
+  compose rm -sf terminal_agent_worker >/dev/null 2>&1 || true
+fi
+
 compose up -d $SERVICES
+
+EXPECTED_RUNTIME_IMAGE="agomtradepro-web:$RELEASE_TAG"
+TERMINAL_WORKER_CID="$(compose ps -q terminal_agent_worker || true)"
+if [ "$TERMINAL_WORKER_ENABLED" = "1" ]; then
+  [ -n "$TERMINAL_WORKER_CID" ] || {
+    echo "[ERROR] queued runtime is enabled but terminal_agent_worker is not running" >&2
+    exit 1
+  }
+  TERMINAL_WORKER_IMAGE="$(docker inspect -f '{{.Config.Image}}' "$TERMINAL_WORKER_CID")"
+  [ "$TERMINAL_WORKER_IMAGE" = "$EXPECTED_RUNTIME_IMAGE" ] || {
+    echo "[ERROR] terminal_agent_worker image does not match release: $TERMINAL_WORKER_IMAGE != $EXPECTED_RUNTIME_IMAGE" >&2
+    exit 1
+  }
+else
+  [ -z "$TERMINAL_WORKER_CID" ] || {
+    echo "[ERROR] queued runtime is disabled but terminal_agent_worker is still running" >&2
+    exit 1
+  }
+fi
 
 # A failed/terminated deploy may leave the exact staging path behind.
 rm -rf "$TARGET_DIR/.current-next"

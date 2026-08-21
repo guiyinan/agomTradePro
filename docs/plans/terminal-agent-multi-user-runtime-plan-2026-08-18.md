@@ -963,3 +963,20 @@ serializer, runtime flags or VPS candidate. The runtime `events-reconnect-and-ow
 scenario remains planned until a concrete owner-scoped route/component observer proves
 Last-Event-ID replay, cross-user isolation, cursor recovery and chaos/reconnect behavior.
 TAR-01 remains `BLOCKED` with `safety_ready=true` and `capacity_ready=false`.
+
+### TAR-01 owner-scoped event replay component evidence and worker identity guard (2026-08-21)
+
+The concrete component suite `tests/component/agent_runtime/test_terminal_agent_run_events.py`
+now exercises the repository and HTTP events route with ordered/bounded replay,
+`Last-Event-ID` reconnect, terminal-event retention, owner-scope denial, SSE frame shape,
+and sensitive-payload rejection. The isolated Django component run passed `4` tests in
+`196.52s`; Black/isort/Ruff and `git diff --check` also pass. This is component evidence,
+not production chaos or a 14-day observation, so the machine scenario remains `planned`
+and TAR-01 remains `BLOCKED`.
+
+The same slice hardens the VPS upgrade script: when queued runtime is disabled it removes
+any stale `terminal_agent_worker`; when enabled it starts that service and requires its
+image to equal the immutable release image. This closes a candidate-mixing gap observed
+after release `20260821203820` (web/beat on the new image while an old idle terminal
+worker remained); the guard must pass CI and a subsequent deployment before being called
+production evidence.

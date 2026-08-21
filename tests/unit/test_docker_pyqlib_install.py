@@ -171,6 +171,11 @@ def test_vps_remote_deploy_defaults_and_celery_runtime_checks() -> None:
     assert 'SERVICES="runtime_ns redis postgres web caddy"' in script
     assert 'if [ "$ENABLE_CELERY" = "1" ]; then' in script
     assert "celery_worker celery_beat" in script
+    assert "env_value()" in script
+    assert "TERMINAL_WORKER_ENABLED=0" in script
+    assert "compose rm -sf terminal_agent_worker" in script
+    assert 'EXPECTED_RUNTIME_IMAGE="agomtradepro-web:$RELEASE_TAG"' in script
+    assert "terminal_agent_worker image does not match release" in script
     assert "celery -A core inspect ping --timeout=8" in script
     assert "for attempt in $(seq 1 12)" in script
     assert "Celery worker did not respond to inspect ping after retries" in script
