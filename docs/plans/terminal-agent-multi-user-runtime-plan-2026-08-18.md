@@ -1099,3 +1099,22 @@ change the production default, cancel already-running work, or turn the provider
 VPS canary into a capacity result. TAR-01 remains `BLOCKED/safety_ready=true/
 capacity_ready=false` pending the separately authorized capacity/chaos/provider/
 telemetry/restore and human sign-off evidence.
+
+### TAR-01 current HEAD deployment and observation (2026-08-22)
+
+After the four GitHub checks turned green, `71e62773e` was deployed with the standard
+code-only/fresh path as release `20260822012308`. PostgreSQL/Redis data volumes were
+preserved; the deploy backup, migration/schema verification, Django check, Caddy/TLS,
+web/worker/beat, Celery ping, TUI registry, and Qlib identity checks all passed. Public
+`/api/health/` and `/api/ready/` returned `200`; ready reported critical data `ok` and
+decision data `warning`. `/api/decision-ready/` returned `503` with
+`must_not_use_for_decision=true` and `decision_runtime_blocked`, which remains the
+correct fail-closed state. No terminal-agent business canary was submitted during this
+deployment observation.
+
+The structured evidence is
+[`tar01-current-vps-observation-2026-08-22-71e62773.json`](../deployment/tar01-current-vps-observation-2026-08-22-71e62773.json).
+This confirms deployment identity and a healthy short-window control plane only; it
+does not prove provider/MCP success, production capacity, chaos/recovery, 14-day
+telemetry, restore/rollback, or owner/reviewer sign-off. TAR-01 remains
+`BLOCKED/safety_ready=true/capacity_ready=false`.

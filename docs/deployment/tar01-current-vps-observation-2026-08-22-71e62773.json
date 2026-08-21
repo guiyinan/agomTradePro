@@ -1,0 +1,79 @@
+{
+  "schema": "tar01-current-vps-observation.v1",
+  "observed_at": "2026-08-21T17:42:18Z",
+  "candidate": {
+    "branch": "dev/next-development",
+    "source_commit": "71e62773ebc3032996f5f14801ac6a2a3ad28b65",
+    "release_tag": "20260822012308",
+    "image_id": "sha256:8f3715e90bc8967e7c5a09ec9ade690787161a9fa6d8709eb28e7fd32c790916",
+    "runtime_match": true,
+    "deployment_report": "dist/remote-build-reports/remote-build-report-20260822012308.json"
+  },
+  "deployment": {
+    "mode": "code-only",
+    "action": "fresh",
+    "data_volumes_preserved": true,
+    "celery_enabled": true,
+    "release_dir": "/opt/agomtradepro/releases/source-20260822012308",
+    "migration_status": "No migrations to apply",
+    "canonical_schema": {"missing_migrations": [], "missing_tables": [], "ok": true},
+    "django_check": "passed",
+    "caddy_domain_tls": "passed",
+    "qlib": {
+      "pyqlib": "0.9.7",
+      "wrong_qlib_distribution": "absent",
+      "module": "/usr/local/lib/python3.11/site-packages/qlib/__init__.py"
+    },
+    "containers": {
+      "web": "healthy",
+      "celery_worker": "running",
+      "celery_beat": "running",
+      "celery_ping": "1 node online"
+    },
+    "maintenance_writes": [
+      "deployment migration/catalog/bootstrap maintenance only",
+      "no terminal-agent business run/task canary was submitted"
+    ],
+    "pre_deploy_backup": "/opt/agomtradepro/backups/database/postgres-20260821-192948.dump"
+  },
+  "public_probes": {
+    "health": {
+      "url": "https://demo.agomtrade.pro/api/health/",
+      "status_code": 200,
+      "observed_status": "ok"
+    },
+    "ready": {
+      "url": "https://demo.agomtrade.pro/api/ready/",
+      "status_code": 200,
+      "observed_status": "ok",
+      "critical_data": "ok",
+      "decision_data": "warning",
+      "celery_workers": 1
+    },
+    "decision_ready": {
+      "url": "https://demo.agomtrade.pro/api/decision-ready/",
+      "status_code": 503,
+      "observed_status": "blocked",
+      "must_not_use_for_decision": true,
+      "block_reason_code": "decision_runtime_blocked"
+    }
+  },
+  "tar01_gate": {
+    "decision": "BLOCKED",
+    "safety_ready": true,
+    "capacity_ready": false,
+    "command": "python scripts/check_tar01_exit_gate.py --format json"
+  },
+  "scope": {
+    "business_data_written": false,
+    "decision_state_overridden": false,
+    "not_proven": [
+      "provider/MCP success",
+      "multi-user production capacity",
+      "Worker/SSE chaos and recovery",
+      "14-day telemetry",
+      "restore/rollback",
+      "owner/reviewer sign-off"
+    ]
+  }
+}
