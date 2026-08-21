@@ -1037,3 +1037,28 @@ state was overridden. The TAR-01 preflight remains `BLOCKED` with
 `safety_ready=true` and `capacity_ready=false`; production capacity/chaos,
 14-day telemetry, restore/rollback, provider/MCP success, and owner/reviewer
 sign-off remain unproven.
+
+### TAR-01 authorized production canary capacity and worker recovery on `ec864da4b6` (2026-08-21)
+
+With explicit owner authorization, the already verified release was temporarily run with
+`TERMINAL_RUNTIME_AUTHORIZED=true`, queued intake/worker enabled, and the dedicated worker
+image bound to `agomtradepro-web:20260821230203`. The authenticated `terminal_canary`
+task was submitted while the worker was stopped to make queue admission observable:
+level `1` returned `202×1`; level `5` returned `202×1+429×4`; level `10` returned
+`429×10`; level `20` returned `202×2+429×18`. All `32` rejections carried
+`per_user_queued_limit`, the queue reached exactly `4` rows, and replaying the first
+request returned `202` with the same run identity and no second durable row.
+
+The worker was started and explicitly restarted. The canary finished with the expected
+recorded `terminal_agent_execution_failed` provider outcome, the queue drained to
+`user_queued=0/global_queued=0`, and the authenticated events endpoint negotiated
+`200 text/event-stream`. The structured artifact is
+[`tar01-current-production-capacity-2026-08-21-ec864da4.json`](../deployment/tar01-current-production-capacity-2026-08-21-ec864da4.json).
+This is the first real candidate-bound capacity/write observation, not a provider-success
+claim. Decision state stayed fail-closed and no decision data was overridden.
+
+The observation still does not prove multi-user/global capacity, sustained chaos and
+reconnect recovery, 14-day telemetry, restore/rollback, provider/MCP success, or
+owner/reviewer exit sign-off. `check_tar01_exit_gate.py` therefore remains
+`BLOCKED/safety_ready=true/capacity_ready=false`; the authorized canary is recorded as
+evidence and does not itself close TAR-01.

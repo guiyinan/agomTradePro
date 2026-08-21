@@ -54,20 +54,20 @@
   },
   "runtime_observation": {
     "status": "short_window_observed",
-    "candidate_commit": "fec65c8022d4dbcda3c774b9d51db30ac83d2863",
-    "release": "20260821181242",
-    "image": "agomtradepro-web:20260821181242",
+    "candidate_commit": "ec864da4b6f1f96da65ea5e6aa61ccc76c811ddc",
+    "release": "20260821230203",
+    "image": "agomtradepro-web:20260821230203",
     "queued_intake_enabled": true,
     "queued_worker_enabled": true,
     "legacy_inline_enabled": true,
     "capacity_ready": false,
     "provider_execution": "failed_not_claimed",
-    "evidence": "docs/deployment/tar01-current-production-queued-runtime-acceptance-2026-08-21-fec65c80.json",
+    "evidence": "docs/deployment/tar01-current-production-capacity-2026-08-21-ec864da4.json",
     "observed": [
-      "owner-scoped bounded admission and stable per-user rejection",
+      "candidate-bound 1/5/10/20 submission with stable per-user rejection",
       "same-key idempotent replay without a second durable row",
-      "worker restart/drain and two-node Celery ping",
-      "authenticated text/event-stream negotiation and terminal error event"
+      "worker start and explicit restart with queue drain to zero",
+      "authenticated text/event-stream negotiation and terminal execution error"
     ],
     "remaining": [
       "multi-user/global capacity and complete 1/5/10/20 hard-SLO evidence",

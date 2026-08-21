@@ -1,0 +1,70 @@
+{
+  "schema": "tar01-current-production-capacity.v1",
+  "observed_at": "2026-08-21T15:56:10Z",
+  "candidate": {
+    "branch": "dev/next-development",
+    "source_commit": "ec864da4b6f1f96da65ea5e6aa61ccc76c811ddc",
+    "release_tag": "20260821230203",
+    "image_id": "sha256:ed710b134de44de5aba074f48abc5c0013f2481a578e787643b4d49f98d72600",
+    "runtime_match": true
+  },
+  "authorization": {
+    "terminal_runtime_authorized": true,
+    "queued_intake_enabled": true,
+    "queued_worker_enabled": true,
+    "emergency_stop": false,
+    "worker_image": "agomtradepro-web:20260821230203"
+  },
+  "actor": {
+    "authentication": "session_login_302",
+    "actor": "configured production canary account",
+    "secrets_recorded": false
+  },
+  "capacity": {
+    "worker_stopped_during_submission": true,
+    "levels": {
+      "1": {"202": 1},
+      "5": {"202": 1, "429": 4},
+      "10": {"429": 10},
+      "20": {"202": 2, "429": 18}
+    },
+    "accepted_runs": 4,
+    "rejected_runs": 32,
+    "rejection_reason": "per_user_queued_limit",
+    "queue_after_submit": {"user_queued": 4, "global_queued": 4},
+    "queue_final": {"user_active": 0, "user_queued": 0, "global_active": 0, "global_queued": 0}
+  },
+  "idempotency": {
+    "replay_status_code": 202,
+    "same_run_id": "run-tar01-20260821T155526Z-11cc4f07-1-0",
+    "second_durable_row": false
+  },
+  "worker_recovery": {
+    "started_after_queue": true,
+    "restart_requested": true,
+    "post_restart_worker_ready": true,
+    "terminal_run_status": "failed",
+    "terminal_error_code": "terminal_agent_execution_failed"
+  },
+  "sse": {
+    "status_code": 200,
+    "content_type": "text/event-stream",
+    "last_event_id": "0",
+    "stream_lines_captured": 0,
+    "note": "Negotiation succeeded; provider execution failed before a non-empty replay batch was captured."
+  },
+  "scope": {
+    "production_data_written": true,
+    "write_scope": "four terminal_canary run ledger rows; queue drained to zero",
+    "decision_state_overridden": false,
+    "provider_success_claimed": false,
+    "not_proven": [
+      "multi-user/global capacity",
+      "sustained chaos and reconnect recovery",
+      "14-day telemetry",
+      "restore/rollback",
+      "successful provider/MCP execution",
+      "owner/reviewer exit sign-off"
+    ]
+  }
+}
