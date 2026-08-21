@@ -78,14 +78,14 @@ _SCENARIOS: Final[tuple[TerminalRuntimeTestScenario, ...]] = (
         "repository",
         "tests/component/agent_runtime/test_terminal_agent_run_repository.py",
         ("replay-idempotency", "stale-worker-aba"),
-        "planned",
+        "implemented",
     ),
     TerminalRuntimeTestScenario(
         "celery-delivery-outcomes",
         "celery",
         "tests/unit/agent_runtime/test_terminal_agent_run_tasks.py",
         ("replay-idempotency", "fallback-bypass"),
-        "planned",
+        "implemented",
     ),
     TerminalRuntimeTestScenario(
         "api-wire-and-request-bounds",

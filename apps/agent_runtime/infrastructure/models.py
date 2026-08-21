@@ -155,6 +155,8 @@ class TerminalAgentRunModel(models.Model):
     deadline_at = models.DateTimeField()
     claimed_by = models.CharField(max_length=128, null=True, blank=True)
     claimed_at = models.DateTimeField(null=True, blank=True)
+    heartbeat_at = models.DateTimeField(null=True, blank=True)
+    cancel_requested_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -174,6 +176,10 @@ class TerminalAgentRunModel(models.Model):
             models.Index(
                 fields=["dispatch_status", "created_at"],
                 name="agent_term_status_created_idx",
+            ),
+            models.Index(
+                fields=["dispatch_status", "heartbeat_at"],
+                name="agent_term_status_hb_idx",
             ),
             models.Index(fields=["deadline_at"], name="agent_term_deadline_idx"),
         ]
@@ -199,7 +205,64 @@ class TerminalAgentRunModel(models.Model):
             submission=submission,
             dispatch_status=TerminalRunStatus(self.dispatch_status),
             claimed_by=self.claimed_by,
+            claimed_at=self.claimed_at,
+            heartbeat_at=self.heartbeat_at,
+            cancel_requested_at=self.cancel_requested_at,
         )
+
+
+class TerminalAgentRunExecutionModel(models.Model):
+    """Durable execution result metadata for one queued run."""
+
+    run = models.OneToOneField(
+        TerminalAgentRunModel,
+        on_delete=models.PROTECT,
+        related_name="execution_checkpoint",
+    )
+    started_at = models.DateTimeField(null=True, blank=True)
+    heartbeat_at = models.DateTimeField(null=True, blank=True)
+    cancel_requested_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    error_code = models.CharField(max_length=128, null=True, blank=True)
+    result_ref = models.CharField(max_length=128, null=True, blank=True)
+    result_payload = models.JSONField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "agent_terminal_run_execution"
+        indexes = [
+            models.Index(fields=["heartbeat_at"], name="agent_term_exec_heartbeat_idx"),
+            models.Index(fields=["finished_at"], name="agent_term_exec_finished_idx"),
+        ]
+
+
+class TerminalAgentRunEventModel(models.Model):
+    """Short replayable event stream for one queued run."""
+
+    run = models.ForeignKey(
+        TerminalAgentRunModel,
+        on_delete=models.PROTECT,
+        related_name="execution_events",
+    )
+    event_id = models.CharField(max_length=128, unique=True)
+    sequence = models.PositiveIntegerField()
+    event_type = models.CharField(max_length=64)
+    occurred_at = models.DateTimeField()
+    data = models.JSONField(default=dict)
+
+    class Meta:
+        db_table = "agent_terminal_run_event"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["run", "sequence"],
+                name="agent_term_event_run_sequence_uniq",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["run", "sequence"], name="agent_term_event_run_seq_idx"),
+            models.Index(fields=["run", "occurred_at"], name="agent_term_event_run_time_idx"),
+        ]
 
 
 class AgentTaskStepModel(models.Model):

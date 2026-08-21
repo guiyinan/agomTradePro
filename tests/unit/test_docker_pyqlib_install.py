@@ -76,12 +76,13 @@ def test_vps_compose_worker_consumes_qlib_queues() -> None:
 
 
 def test_vps_compose_freezes_terminal_queue_migration_flags() -> None:
-    """Queue flags are explicit and remain dormant until TAR-02 is real."""
+    """Queue flags require an explicit reviewed runtime authorization."""
 
     compose = (REPO_ROOT / "docker" / "docker-compose.vps.yml").read_text(encoding="utf-8")
     expected = {
         "TERMINAL_QUEUED_INTAKE_ENABLED: ${TERMINAL_QUEUED_INTAKE_ENABLED:-false}",
         "TERMINAL_QUEUED_WORKER_ENABLED: ${TERMINAL_QUEUED_WORKER_ENABLED:-false}",
+        "TERMINAL_RUNTIME_AUTHORIZED: ${TERMINAL_RUNTIME_AUTHORIZED:-false}",
         "TERMINAL_LEGACY_INLINE_ENABLED: ${TERMINAL_LEGACY_INLINE_ENABLED:-true}",
         "TERMINAL_EMERGENCY_STOP: ${TERMINAL_EMERGENCY_STOP:-false}",
         "TERMINAL_PER_USER_QUEUED_LIMIT: ${TERMINAL_PER_USER_QUEUED_LIMIT:-4}",
@@ -94,15 +95,33 @@ def test_vps_compose_freezes_terminal_queue_migration_flags() -> None:
     assert all(item in compose for item in expected)
 
 
-def test_production_settings_keep_terminal_queue_dormant() -> None:
-    """Production cannot enable queued execution before TAR-02 exists."""
+def test_production_settings_require_explicit_terminal_runtime_authorization() -> None:
+    """Production queue flags are jointly gated by the runtime authorization switch."""
 
     production = (REPO_ROOT / "core" / "settings" / "production.py").read_text(encoding="utf-8")
-    assert "TERMINAL_QUEUED_INTAKE_ENABLED = False" in production
-    assert "TERMINAL_QUEUED_WORKER_ENABLED = False" in production
+    assert (
+        '_TERMINAL_RUNTIME_AUTHORIZED = env.bool("TERMINAL_RUNTIME_AUTHORIZED", default=False)'
+        in production
+    )
+    assert (
+        "TERMINAL_QUEUED_INTAKE_ENABLED = _TERMINAL_RUNTIME_AUTHORIZED and env.bool(" in production
+    )
+    assert (
+        "TERMINAL_QUEUED_WORKER_ENABLED = _TERMINAL_RUNTIME_AUTHORIZED and env.bool(" in production
+    )
     assert "TERMINAL_LEGACY_INLINE_ENABLED = True" in production
     assert "TERMINAL_LEGACY_INLINE_CONCURRENCY = 1" in production
     assert "TERMINAL_LEGACY_INLINE_TIMEOUT_SECONDS = 60" in production
+
+
+def test_vps_compose_declares_dedicated_terminal_agent_worker() -> None:
+    """The queued route has a separate queue and bounded worker process."""
+
+    compose = (REPO_ROOT / "docker" / "docker-compose.vps.yml").read_text(encoding="utf-8")
+    assert "terminal_agent_worker:" in compose
+    assert "- terminal_agent" in compose
+    assert "TERMINAL_RUNTIME_ROLE: queued_worker" in compose
+    assert "--prefetch-multiplier" in compose
 
 
 def test_vps_compose_uses_neutral_pid_namespace_service() -> None:

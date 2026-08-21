@@ -36,6 +36,7 @@ from apps.agent_runtime.infrastructure.models import (
 from apps.agent_runtime.infrastructure.terminal_agent_run_repository import (
     TerminalAgentRunRepository,
     TerminalRunIdempotencyConflict,
+    TerminalRunRepositoryError,
 )
 
 pytestmark = pytest.mark.django_db(transaction=True)
@@ -189,7 +190,161 @@ def test_claim_is_first_winner_and_replay_is_noop(repository, owner, task):
     assert first is not None
     assert first.dispatch_status is TerminalRunStatus.CLAIMED
     assert first.claimed_by == "worker-a"
+    assert first.heartbeat_at == _NOW
     assert second is None
+
+
+def test_transition_is_owner_scoped_and_requires_worker_for_claim(repository, owner, task):
+    """Lifecycle transitions use the domain graph and never cross owners."""
+
+    request = _request(owner_id=owner.id, task_id=task.id)
+    repository.submit(request)
+
+    with pytest.raises(TerminalRunRepositoryError) as missing_worker:
+        repository.transition(
+            run_id=request.submission.selector.run_id,
+            actor_user_id=owner.id,
+            target=TerminalRunStatus.CLAIMED,
+            changed_at=_NOW,
+        )
+    assert missing_worker.value.reason_code == "WORKER_ID_REQUIRED"
+
+    other_user = get_user_model().objects.create_user(username=f"tar-transition-{uuid4().hex[:8]}")
+    assert (
+        repository.transition(
+            run_id=request.submission.selector.run_id,
+            actor_user_id=other_user.id,
+            target=TerminalRunStatus.CANCEL_REQUESTED,
+            changed_at=_NOW,
+        )
+        is None
+    )
+
+    claimed = repository.transition(
+        run_id=request.submission.selector.run_id,
+        actor_user_id=owner.id,
+        target=TerminalRunStatus.CLAIMED,
+        worker_id="worker-transition",
+        changed_at=_NOW,
+    )
+    assert claimed is not None
+    assert claimed.dispatch_status is TerminalRunStatus.CLAIMED
+    assert claimed.claimed_by == "worker-transition"
+    running = repository.transition(
+        run_id=request.submission.selector.run_id,
+        actor_user_id=owner.id,
+        target=TerminalRunStatus.RUNNING,
+        changed_at=_NOW,
+    )
+    assert running is not None
+    assert running.dispatch_status is TerminalRunStatus.RUNNING
+
+    with pytest.raises(TerminalRunRepositoryError) as invalid:
+        repository.transition(
+            run_id=request.submission.selector.run_id,
+            actor_user_id=owner.id,
+            target=TerminalRunStatus.QUEUED,
+            changed_at=_NOW,
+        )
+    assert invalid.value.reason_code == "INVALID_RUN_TRANSITION"
+
+
+def test_cancel_is_owner_scoped_and_idempotent(repository, owner, task):
+    """Cancellation stores one timestamp and repeated requests are no-ops."""
+
+    request = _request(owner_id=owner.id, task_id=task.id)
+    repository.submit(request)
+    requested_at = _NOW + timedelta(seconds=3)
+
+    cancelled = repository.cancel(
+        run_id=request.submission.selector.run_id,
+        actor_user_id=owner.id,
+        requested_at=requested_at,
+    )
+    assert cancelled is not None
+    assert cancelled.dispatch_status is TerminalRunStatus.CANCEL_REQUESTED
+    assert cancelled.cancel_requested_at == requested_at
+
+    replay = repository.cancel(
+        run_id=request.submission.selector.run_id,
+        actor_user_id=owner.id,
+        requested_at=requested_at + timedelta(seconds=10),
+    )
+    assert replay == cancelled
+    row = TerminalAgentRunModel.objects.get(run_id=request.submission.selector.run_id)
+    assert row.cancel_requested_at == requested_at
+
+
+def test_heartbeat_rejects_wrong_worker_and_time_rewind(repository, owner, task):
+    """Only the current worker can advance a non-terminal lease heartbeat."""
+
+    request = _request(owner_id=owner.id, task_id=task.id)
+    repository.submit(request)
+    repository.claim(
+        run_id=request.submission.selector.run_id,
+        worker_id="worker-heartbeat",
+        claimed_at=_NOW,
+    )
+
+    assert (
+        repository.heartbeat(
+            run_id=request.submission.selector.run_id,
+            worker_id="other-worker",
+            heartbeat_at=_NOW + timedelta(seconds=1),
+        )
+        is None
+    )
+    refreshed = repository.heartbeat(
+        run_id=request.submission.selector.run_id,
+        worker_id="worker-heartbeat",
+        heartbeat_at=_NOW + timedelta(seconds=5),
+    )
+    assert refreshed is not None
+    assert refreshed.heartbeat_at == _NOW + timedelta(seconds=5)
+
+    with pytest.raises(TerminalRunRepositoryError) as rewind:
+        repository.heartbeat(
+            run_id=request.submission.selector.run_id,
+            worker_id="worker-heartbeat",
+            heartbeat_at=_NOW + timedelta(seconds=4),
+        )
+    assert rewind.value.reason_code == "HEARTBEAT_REWIND"
+
+
+def test_queue_summary_separates_owner_and_global_counts(repository, owner, task):
+    """Queue observations expose owner counts without leaking run identities."""
+
+    other_user = get_user_model().objects.create_user(username=f"tar-summary-{uuid4().hex[:8]}")
+    other_task = AgentTaskModel.objects.create(
+        request_id=f"tar-task-{uuid4().hex[:20]}",
+        task_domain=TaskDomain.RESEARCH.value,
+        task_type="terminal_summary_test",
+        status=TaskStatus.DRAFT.value,
+        input_payload={"summary": "test"},
+        created_by=other_user,
+    )
+    owner_request = _request(owner_id=owner.id, task_id=task.id, suffix="summary-owner")
+    other_request = _request(owner_id=other_user.id, task_id=other_task.id, suffix="summary-other")
+    repository.submit(owner_request)
+    repository.submit(other_request)
+    repository.claim(
+        run_id=owner_request.submission.selector.run_id,
+        worker_id="worker-summary",
+        claimed_at=_NOW,
+    )
+
+    owner_summary = repository.queue_summary(actor_user_id=owner.id)
+    assert owner_summary.user_active == 1
+    assert owner_summary.user_queued == 0
+    assert owner_summary.global_active == 1
+    assert owner_summary.global_queued == 1
+    assert owner_summary.worker_ready is False
+
+    other_summary = repository.queue_summary(actor_user_id=other_user.id)
+    assert other_summary.user_active == 0
+    assert other_summary.user_queued == 1
+    assert other_summary.global_active == 1
+    assert other_summary.global_queued == 1
 
 
 def test_repository_source_has_no_runtime_dispatch_dependency():

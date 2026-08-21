@@ -55,6 +55,8 @@ ALPHA_SIMPLE_MAX_POOL_SIZE = env.int("ALPHA_SIMPLE_MAX_POOL_SIZE", default=120)
 # supplies durable admission/dispatch; keeping the defaults explicit prevents a
 # deployment environment from accidentally treating the contract as a runtime
 # implementation.  The legacy path remains bounded by the service's hard cap.
+TERMINAL_RUNTIME_AUTHORIZED = env.bool("TERMINAL_RUNTIME_AUTHORIZED", default=False)
+TERMINAL_RUNTIME_ROLE = env("TERMINAL_RUNTIME_ROLE", default="legacy_inline")
 TERMINAL_QUEUED_INTAKE_ENABLED = env.bool("TERMINAL_QUEUED_INTAKE_ENABLED", default=False)
 TERMINAL_QUEUED_WORKER_ENABLED = env.bool("TERMINAL_QUEUED_WORKER_ENABLED", default=False)
 TERMINAL_LEGACY_INLINE_ENABLED = env.bool("TERMINAL_LEGACY_INLINE_ENABLED", default=True)
@@ -67,6 +69,10 @@ TERMINAL_LEGACY_INLINE_CONCURRENCY = env.int("TERMINAL_LEGACY_INLINE_CONCURRENCY
 TERMINAL_LEGACY_INLINE_TIMEOUT_SECONDS = env.int(
     "TERMINAL_LEGACY_INLINE_TIMEOUT_SECONDS",
     default=60,
+)
+TERMINAL_AGENT_ORPHAN_AFTER_SECONDS = env.int(
+    "TERMINAL_AGENT_ORPHAN_AFTER_SECONDS",
+    default=90,
 )
 
 # Immutable deployment identity artifacts. Production mounts the release

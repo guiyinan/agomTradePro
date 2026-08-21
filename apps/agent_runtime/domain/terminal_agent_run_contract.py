@@ -334,6 +334,19 @@ class TerminalAgentRunContract:
     submission: TerminalRunSubmission
     dispatch_status: TerminalRunStatus = TerminalRunStatus.ACCEPTED
     claimed_by: str | None = None
+    claimed_at: datetime | None = None
+    heartbeat_at: datetime | None = None
+    cancel_requested_at: datetime | None = None
+
+    def __post_init__(self) -> None:
+        """Validate lifecycle timestamps returned by a durable adapter."""
+
+        if not isinstance(self.dispatch_status, TerminalRunStatus):
+            raise TerminalRunContractError("dispatch_status must be TerminalRunStatus")
+        for field_name in ("claimed_at", "heartbeat_at", "cancel_requested_at"):
+            value = getattr(self, field_name)
+            if value is not None:
+                _require_aware(value, field_name)
 
     def is_owned_by(self, actor_user_id: int) -> bool:
         """Return whether the supplied actor owns this run."""

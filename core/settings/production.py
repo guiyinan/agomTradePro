@@ -78,10 +78,16 @@ if not env("REDIS_URL", default=""):
 DEBUG = False
 # Never execute Qlib inference in the Daphne request process in production.
 ALPHA_ALLOW_INLINE_INFERENCE = False
-# TAR-02 has not supplied durable admission/dispatch yet.  Production must
-# remain fail-closed even if a stale environment file contains queue flags.
-TERMINAL_QUEUED_INTAKE_ENABLED = False
-TERMINAL_QUEUED_WORKER_ENABLED = False
+# Queue admission is explicit and requires a separate deployment authorization
+# switch.  A stale environment cannot enable one half of the path, while a
+# reviewed canary can enable both flags without changing application code.
+_TERMINAL_RUNTIME_AUTHORIZED = env.bool("TERMINAL_RUNTIME_AUTHORIZED", default=False)
+TERMINAL_QUEUED_INTAKE_ENABLED = _TERMINAL_RUNTIME_AUTHORIZED and env.bool(
+    "TERMINAL_QUEUED_INTAKE_ENABLED", default=False
+)
+TERMINAL_QUEUED_WORKER_ENABLED = _TERMINAL_RUNTIME_AUTHORIZED and env.bool(
+    "TERMINAL_QUEUED_WORKER_ENABLED", default=False
+)
 TERMINAL_LEGACY_INLINE_ENABLED = True
 TERMINAL_LEGACY_INLINE_CONCURRENCY = 1
 TERMINAL_LEGACY_INLINE_TIMEOUT_SECONDS = 60

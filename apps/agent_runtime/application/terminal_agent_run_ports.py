@@ -8,11 +8,13 @@ composes the legacy inline Agents SDK service.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol
 
 from apps.agent_runtime.domain.terminal_agent_run_contract import (
     TerminalAgentRunContract,
     TerminalRunContractError,
+    TerminalRunStatus,
     TerminalRunSubmission,
     TerminalRuntimeMode,
 )
@@ -30,6 +32,82 @@ class TerminalQueuedSubmissionRequest:
 
         if not isinstance(self.message, str) or not self.message.strip():
             raise TerminalRunContractError("message must be a non-empty string")
+
+
+@dataclass(frozen=True, slots=True)
+class TerminalRunQueueSummary:
+    """Advisory owner and global queue counters for bounded admission.
+
+    The summary is a read snapshot, not an admission reservation.  A future
+    TAR-02 composition root must evaluate these counters together with a
+    database-serialized admission transaction.
+    """
+
+    actor_user_id: int
+    user_active: int
+    user_queued: int
+    global_active: int
+    global_queued: int
+    worker_ready: bool = False
+
+    def __post_init__(self) -> None:
+        """Reject impossible counters before they cross an application port."""
+
+        if type(self.actor_user_id) is not int or self.actor_user_id <= 0:
+            raise TerminalRunContractError("actor_user_id must be a positive integer")
+        for field_name in ("user_active", "user_queued", "global_active", "global_queued"):
+            value = getattr(self, field_name)
+            if type(value) is not int or value < 0:
+                raise TerminalRunContractError(f"{field_name} must be a non-negative integer")
+        if self.user_active > self.global_active:
+            raise TerminalRunContractError("user_active cannot exceed global_active")
+        if self.user_queued > self.global_queued:
+            raise TerminalRunContractError("user_queued cannot exceed global_queued")
+        if type(self.worker_ready) is not bool:
+            raise TerminalRunContractError("worker_ready must be a boolean")
+
+
+class TerminalQueuedRunStatePort(Protocol):
+    """Port for durable owner-scoped lifecycle and queue observations."""
+
+    def get_for_owner(
+        self,
+        *,
+        run_id: str,
+        actor_user_id: int,
+    ) -> TerminalAgentRunContract | None:
+        """Return one run only when the actor owns it."""
+
+        ...
+
+    def transition(
+        self,
+        *,
+        run_id: str,
+        actor_user_id: int,
+        target: TerminalRunStatus,
+        worker_id: str | None = None,
+        changed_at: datetime | None = None,
+    ) -> TerminalAgentRunContract | None:
+        """Apply one validated lifecycle transition under a row lock."""
+
+        ...
+
+    def cancel(
+        self,
+        *,
+        run_id: str,
+        actor_user_id: int,
+        requested_at: datetime | None = None,
+    ) -> TerminalAgentRunContract | None:
+        """Request cancellation with owner-scoped idempotency."""
+
+        ...
+
+    def queue_summary(self, *, actor_user_id: int) -> TerminalRunQueueSummary:
+        """Return advisory owner/global queue counters."""
+
+        ...
 
 
 class TerminalQueuedSubmissionPort(Protocol):

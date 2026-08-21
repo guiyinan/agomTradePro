@@ -146,19 +146,22 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
             TERMINAL_AGENT_MCP_CLIENT_TIMEOUT_SECONDS,
         )
         configured_concurrency = _configured_int("TERMINAL_AGENT_MAX_CONCURRENCY", 1)
-        legacy_concurrency = min(
-            configured_concurrency,
-            TERMINAL_AGENT_LEGACY_MAX_CONCURRENCY,
+        runtime_role = str(getattr(settings, "TERMINAL_RUNTIME_ROLE", "legacy_inline"))
+        is_queued_worker = runtime_role == "queued_worker"
+        effective_concurrency = (
+            configured_concurrency
+            if is_queued_worker
+            else min(configured_concurrency, TERMINAL_AGENT_LEGACY_MAX_CONCURRENCY)
         )
-        if configured_concurrency > legacy_concurrency:
+        if not is_queued_worker and configured_concurrency > effective_concurrency:
             logger.warning(
                 "Ignoring TERMINAL_AGENT_MAX_CONCURRENCY=%s while legacy inline "
                 "execution is active; keeping concurrency=%s",
                 configured_concurrency,
-                legacy_concurrency,
+                effective_concurrency,
             )
         self._execution_guard = execution_guard or CacheTerminalAgentExecutionGuard(
-            max_concurrency=legacy_concurrency,
+            max_concurrency=effective_concurrency,
             lease_timeout_seconds=int(self._execution_timeout_seconds)
             + _configured_int("TERMINAL_AGENT_LEASE_GRACE_SECONDS", 30),
         )

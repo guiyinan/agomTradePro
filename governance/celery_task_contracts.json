@@ -19,12 +19,47 @@
     "apps/backtest/application/tasks.py",
     "apps/broker_execution/application/tasks.py",
     "apps/audit/application/tasks.py",
+    "apps/agent_runtime/application/tasks.py",
     "apps/operational_readiness/application/tasks.py",
     "apps/pulse/application/tasks.py",
     "apps/signal/application/tasks.py",
     "apps/task_monitor/application/tasks.py"
   ],
   "tasks": [
+    {
+      "task_path": "apps.agent_runtime.application.tasks.execute_terminal_agent_run",
+      "source_file": "apps/agent_runtime/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "blocked": {
+          "test_file": "tests/unit/agent_runtime/test_terminal_agent_run_tasks.py",
+          "test_function": "test_execute_terminal_agent_run_blocks_before_claim_when_worker_disabled"
+        },
+        "all_success": {
+          "test_file": "tests/unit/agent_runtime/test_terminal_agent_run_tasks.py",
+          "test_function": "test_execute_terminal_agent_run_marks_success_without_broker_payload"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/agent_runtime/test_terminal_agent_run_tasks.py",
+          "test_function": "test_execute_terminal_agent_run_marks_input_failure"
+        }
+      }
+    },
+    {
+      "task_path": "apps.agent_runtime.application.tasks.reap_stale_terminal_agent_runs",
+      "source_file": "apps/agent_runtime/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "blocked": {
+          "test_file": "tests/unit/agent_runtime/test_terminal_agent_run_tasks.py",
+          "test_function": "test_reap_stale_terminal_agent_runs_blocks_when_worker_disabled"
+        },
+        "all_success": {
+          "test_file": "tests/unit/agent_runtime/test_terminal_agent_run_tasks.py",
+          "test_function": "test_reap_stale_terminal_agent_runs_returns_reaped_count"
+        }
+      }
+    },
     {
       "task_path": "apps.audit.application.tasks.dispatch_system_audit_outbox_task",
       "source_file": "apps/audit/application/tasks.py",

@@ -4,6 +4,11 @@ from celery.schedules import crontab
 
 # Celery Beat 定时任务配置
 CELERY_BEAT_SCHEDULE = {
+    "terminal-agent-reaper": {
+        "task": "apps.agent_runtime.application.tasks.reap_stale_terminal_agent_runs",
+        "schedule": crontab(minute="*"),
+        "options": {"expire_seconds": 50, "queue": "celery"},
+    },
     "broker-execution-maintenance": {
         "task": "broker_execution.run_maintenance",
         "schedule": crontab(minute="*"),

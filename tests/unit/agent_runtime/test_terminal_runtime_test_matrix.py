@@ -12,9 +12,7 @@ from apps.agent_runtime.application.terminal_runtime_test_matrix import (
     canonical_terminal_runtime_threat_ids,
 )
 
-_DORMANT_CONTRACT_PATHS = frozenset(
-    {"tests/component/agent_runtime/test_terminal_agent_run_repository.py"}
-)
+_DORMANT_CONTRACT_PATHS = frozenset()
 
 
 def test_matrix_is_deterministic_and_covers_required_layers_and_threats() -> None:

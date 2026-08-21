@@ -413,6 +413,17 @@ def test_legacy_inline_execution_caps_environment_concurrency_override(settings,
     assert "legacy inline execution is active" in caplog.text
 
 
+def test_queued_worker_role_allows_configured_worker_concurrency(settings):
+    """The dedicated worker may widen only under its explicit runtime role."""
+
+    settings.TERMINAL_RUNTIME_ROLE = "queued_worker"
+    settings.TERMINAL_AGENT_MAX_CONCURRENCY = "4"
+
+    service = OpenAIAgentsTerminalService()
+
+    assert service._execution_guard._max_concurrency == 4
+
+
 def test_duplicate_request_is_rejected_before_capability_or_provider_work():
     cache = LocMemCache("terminal-agent-fast-reject-test", {})
     request = _request(user_id=71)

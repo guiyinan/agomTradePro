@@ -14,7 +14,11 @@ from apps.agent_runtime.application.terminal_agent_run_route_guard import (
     TerminalQueuedRuntimeUnavailable,
     reject_terminal_queued_route,
 )
-from apps.terminal.interface.queued_runtime_views import TerminalQueuedRunUnavailableView
+from apps.terminal.interface.queued_runtime_views import (
+    TerminalQueuedRunCancelView,
+    TerminalQueuedRunEventsView,
+    TerminalQueuedRunView,
+)
 
 RESERVED_ROUTES = (
     "/api/terminal/runs/",
@@ -38,12 +42,16 @@ def test_application_guard_is_stable_and_fail_closed() -> None:
 
 
 def test_reserved_routes_resolve_to_dormant_boundary() -> None:
-    """Every frozen queued path is registered before durable admission exists."""
+    """Every frozen queued path resolves to the flag-gated durable boundary."""
 
-    assert all(
-        resolve(path).func.view_class is TerminalQueuedRunUnavailableView
-        for path in RESERVED_ROUTES
-    )
+    expected = {
+        RESERVED_ROUTES[0]: TerminalQueuedRunView,
+        RESERVED_ROUTES[1]: TerminalQueuedRunView,
+        RESERVED_ROUTES[2]: TerminalQueuedRunView,
+        RESERVED_ROUTES[3]: TerminalQueuedRunEventsView,
+        RESERVED_ROUTES[4]: TerminalQueuedRunCancelView,
+    }
+    assert {path: resolve(path).func.view_class for path in RESERVED_ROUTES} == expected
 
 
 @pytest.mark.parametrize("path", RESERVED_ROUTES)
@@ -55,7 +63,7 @@ def test_reserved_routes_return_redacted_503_without_agent_composition(path: str
     request = getattr(factory, method)(path, data={}) if method == "post" else factory.get(path)
     force_authenticate(request, user=SimpleNamespace(is_authenticated=True, pk=41))
 
-    response = TerminalQueuedRunUnavailableView.as_view()(request)
+    response = TerminalQueuedRunView.as_view()(request)
 
     assert response.status_code == 503
     assert response.data == {
