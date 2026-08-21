@@ -1,0 +1,123 @@
+{
+  "schema": "tar01-current-production-capacity.v1",
+  "observed_at": "2026-08-21T18:38:43Z",
+  "candidate": {
+    "branch": "dev/next-development",
+    "source_commit": "71e62773ebc3032996f5f14801ac6a2a3ad28b65",
+    "release_tag": "20260822012308",
+    "image_id": "sha256:8f3715e90bc8967e7c5a09ec9ade690787161a9fa6d8709eb28e7fd32c790916",
+    "runtime_match": true
+  },
+  "authorization": {
+    "terminal_runtime_authorized": true,
+    "queued_intake_enabled": true,
+    "queued_worker_enabled": true,
+    "emergency_stop": false,
+    "worker_image": "agomtradepro-web:20260822012308",
+    "window": "controlled_observation_only",
+    "restored_after_observation": true
+  },
+  "actor": {
+    "authentication": "temporary_token_for_existing_controlled_user_id_1",
+    "actor": "existing terminal_canary task owner",
+    "secrets_recorded": false,
+    "temporary_token_deleted": true
+  },
+  "capacity": {
+    "worker_stopped_during_submission": true,
+    "levels": {
+      "1": {"202": 1},
+      "5": {"202": 3, "429": 2},
+      "10": {"429": 10},
+      "20": {"429": 20}
+    },
+    "accepted_runs": 4,
+    "rejected_runs": 32,
+    "rejection_reason": "per_user_queued_limit",
+    "queue_after_submit": {
+      "user_active": 0,
+      "user_queued": 4,
+      "global_active": 0,
+      "global_queued": 4
+    },
+    "queue_final": {
+      "user_active": 0,
+      "user_queued": 0,
+      "global_active": 0,
+      "global_queued": 0
+    }
+  },
+  "idempotency": {
+    "replay_status_code": 202,
+    "same_run_id": "run-tar01-20260822-0a7a388122-l1-0",
+    "second_durable_row": false
+  },
+  "worker_recovery": {
+    "started_after_queue": true,
+    "restart_requested": true,
+    "post_restart_worker_ready": true,
+    "chaos_runs": [
+      "run-tar01-chaos-20260822-e4847394-0",
+      "run-tar01-chaos-20260822-e4847394-1"
+    ],
+    "chaos_runs_terminal_status": "failed",
+    "chaos_runs_error_code": "terminal_agent_execution_failed",
+    "queue_drained_after_restart": true
+  },
+  "sse": {
+    "status_code": 200,
+    "content_type": "text/event-stream",
+    "stream_lines_captured": 4,
+    "first_chaos_event_type": "error",
+    "note": "SSE negotiation and durable error replay succeeded; provider execution did not succeed."
+  },
+  "cleanup": {
+    "runtime_flags_after_observation": {
+      "TERMINAL_RUNTIME_AUTHORIZED": false,
+      "TERMINAL_QUEUED_INTAKE_ENABLED": false,
+      "TERMINAL_QUEUED_WORKER_ENABLED": false,
+      "TERMINAL_EMERGENCY_STOP": false
+    },
+    "dedicated_terminal_worker_after_observation": "absent",
+    "web_container": "running",
+    "temporary_token_revoked": true,
+    "business_run_rows_retained": true
+  },
+  "public_probes": {
+    "health": {"status_code": 200, "observed_status": "ok"},
+    "ready": {
+      "status_code": 200,
+      "observed_status": "ok",
+      "critical_data": "ok",
+      "decision_data": "warning"
+    },
+    "decision_ready": {
+      "status_code": 503,
+      "observed_status": "blocked",
+      "must_not_use_for_decision": true,
+      "block_reason_code": "decision_runtime_blocked"
+    },
+    "agent_runtime_health": {"status_code": 200, "observed_status": "healthy"}
+  },
+  "tar01_gate": {
+    "decision": "BLOCKED",
+    "safety_ready": true,
+    "capacity_ready": false,
+    "command": "python scripts/check_tar01_exit_gate.py --format json"
+  },
+  "scope": {
+    "production_data_written": true,
+    "write_scope": "six terminal_canary run ledger rows (four capacity and two worker-restart observations); no business decision data changed",
+    "decision_state_overridden": false,
+    "provider_success_claimed": false,
+    "authorized_by_user": true,
+    "not_proven": [
+      "multi-user/global capacity and hard SLO",
+      "sustained chaos and reconnect recovery",
+      "14-day telemetry",
+      "restore/rollback",
+      "successful provider/MCP execution",
+      "owner/reviewer cryptographic exit sign-off"
+    ]
+  }
+}

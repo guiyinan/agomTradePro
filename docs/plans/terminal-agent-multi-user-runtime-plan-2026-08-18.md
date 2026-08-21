@@ -1118,3 +1118,31 @@ This confirms deployment identity and a healthy short-window control plane only;
 does not prove provider/MCP success, production capacity, chaos/recovery, 14-day
 telemetry, restore/rollback, or owner/reviewer sign-off. TAR-01 remains
 `BLOCKED/safety_ready=true/capacity_ready=false`.
+
+### TAR-01 authorized current-candidate capacity and worker-restart observation (2026-08-22)
+
+With explicit user authorization, the deployed code candidate was observed in a
+controlled window with the queued runtime flags temporarily enabled. A temporary token
+for the existing controlled user was used without recording its secret, and was deleted
+afterward. While the dedicated terminal worker was stopped, the authenticated levels
+returned `1: 202×1`, `5: 202×3+429×2`, `10: 429×10`, and `20: 429×20`; all rejections
+were `per_user_queued_limit`. Four durable rows were admitted, the first request replayed
+to the same run without a second row, and the queue reached four then drained to zero.
+
+Two additional rows submitted during a short worker stop/start/restart observation also
+reached terminal `failed` state after restart. The events endpoint negotiated
+`200 text/event-stream` and returned durable error events. This is a real candidate-bound
+write/queue/recovery observation, but provider/MCP execution failed with the existing
+`terminal_agent_execution_failed` outcome; it is not a provider-success claim.
+
+The structured evidence is
+[`tar01-current-production-capacity-2026-08-22-71e62773.json`](../deployment/tar01-current-production-capacity-2026-08-22-71e62773.json).
+After the window, all four runtime flags were restored to `false`, the dedicated worker
+was absent, the temporary token was deleted, and public health/ready remained `200`.
+`/api/decision-ready/` remained `503` with `must_not_use_for_decision=true`; no decision
+state was overridden. TAR-01 therefore remains
+`BLOCKED/safety_ready=true/capacity_ready=false`.
+
+The observation does not prove multi-user/global capacity or hard SLOs, sustained chaos
+and reconnect recovery, 14-day telemetry, restore/rollback, provider/MCP success, or
+owner/reviewer exit sign-off.
