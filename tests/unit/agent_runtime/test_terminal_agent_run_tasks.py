@@ -50,16 +50,27 @@ class _FakeRepository:
     def __init__(self, claimed: TerminalAgentRunContract | None) -> None:
         self.claimed = claimed
         self.finished: list[dict[str, object]] = []
+        self.started = claimed
+        self.heartbeat_result = claimed
+        self.append_result: object | None = object()
+        self.finished_result = claimed
+        self.worker_ids: list[str] = []
 
-    def claim(self, **_kwargs: object) -> TerminalAgentRunContract | None:
+    def claim(self, **kwargs: object) -> TerminalAgentRunContract | None:
         """Return the configured first-winner claim."""
 
+        worker_id = kwargs.get("worker_id")
+        if isinstance(worker_id, str):
+            self.worker_ids.append(worker_id)
         return self.claimed
 
-    def mark_started(self, **_kwargs: object) -> TerminalAgentRunContract | None:
+    def mark_started(self, **kwargs: object) -> TerminalAgentRunContract | None:
         """Record a started transition without touching a database."""
 
-        return self.claimed
+        worker_id = kwargs.get("worker_id")
+        if isinstance(worker_id, str):
+            self.worker_ids.append(worker_id)
+        return self.started
 
     def get_worker_input(self, **_kwargs: object) -> TerminalAgentWorkerInput | None:
         """Return one safe task payload for the worker."""
@@ -79,15 +90,21 @@ class _FakeRepository:
             context={},
         )
 
-    def heartbeat(self, **_kwargs: object) -> TerminalAgentRunContract | None:
+    def heartbeat(self, **kwargs: object) -> TerminalAgentRunContract | None:
         """Keep the fake lease alive."""
 
-        return self.claimed
+        worker_id = kwargs.get("worker_id")
+        if isinstance(worker_id, str):
+            self.worker_ids.append(worker_id)
+        return self.heartbeat_result
 
-    def append_event(self, **_kwargs: object) -> object:
+    def append_event(self, **kwargs: object) -> object | None:
         """Accept one normalized event."""
 
-        return object()
+        worker_id = kwargs.get("worker_id")
+        if isinstance(worker_id, str):
+            self.worker_ids.append(worker_id)
+        return self.append_result
 
     def get_for_owner(self, **_kwargs: object) -> TerminalAgentRunContract | None:
         """Return the current fake run state."""
@@ -103,7 +120,10 @@ class _FakeRepository:
         """Record terminal outcome for assertions."""
 
         self.finished.append(kwargs)
-        return self.claimed
+        worker_id = kwargs.get("worker_id")
+        if isinstance(worker_id, str):
+            self.worker_ids.append(worker_id)
+        return self.finished_result
 
     def reap_stale(self, **_kwargs: object) -> int:
         """Return one explicit orphan transition for reaper tests."""
@@ -181,6 +201,81 @@ def test_execute_terminal_agent_run_marks_success_without_broker_payload(monkeyp
     }
     assert repository.finished[0]["status"] is TerminalRunStatus.COMPLETED
     assert repository.finished[0]["result_ref"] == "run:run-task-contract-0001:result"
+    assert len(set(repository.worker_ids)) == 1
+
+
+def test_execute_terminal_agent_run_uses_a_new_worker_identity_per_delivery() -> None:
+    """Delivery identities are not shared by prefork task invocations."""
+
+    assert tasks._new_worker_id() != tasks._new_worker_id()
+
+
+def test_execute_terminal_agent_run_stops_when_start_lease_is_lost(monkeypatch, settings):
+    """A lost claim checkpoint cannot start the Agent service or write failure output."""
+
+    settings.TERMINAL_QUEUED_WORKER_ENABLED = True
+    repository = _FakeRepository(_claimed())
+    repository.started = None
+    monkeypatch.setattr(tasks, "_repo", lambda: repository)
+    monkeypatch.setattr(
+        tasks,
+        "get_terminal_agent_service",
+        lambda: pytest.fail("lease loss must stop before composing the service"),
+    )
+
+    result = tasks.execute_terminal_agent_run.run("run-task-contract-0001", 17)
+
+    assert result == {
+        "outcome": "blocked",
+        "reason_code": "worker_lease_lost",
+        "run_id": "run-task-contract-0001",
+    }
+    assert repository.finished == []
+
+
+def test_execute_terminal_agent_run_stops_when_heartbeat_lease_is_lost(monkeypatch, settings):
+    """A heartbeat miss prevents the current stream event and terminal result."""
+
+    settings.TERMINAL_QUEUED_WORKER_ENABLED = True
+    repository = _FakeRepository(_claimed())
+    repository.heartbeat_result = None
+    monkeypatch.setattr(tasks, "_repo", lambda: repository)
+    monkeypatch.setattr(tasks, "get_terminal_agent_service", lambda: _FakeService())
+
+    result = tasks.execute_terminal_agent_run.run("run-task-contract-0001", 17)
+
+    assert result["reason_code"] == "worker_lease_lost"
+    assert repository.finished == []
+
+
+def test_execute_terminal_agent_run_stops_when_event_lease_is_lost(monkeypatch, settings):
+    """A failed event checkpoint cannot be followed by a terminal result."""
+
+    settings.TERMINAL_QUEUED_WORKER_ENABLED = True
+    repository = _FakeRepository(_claimed())
+    repository.append_result = None
+    monkeypatch.setattr(tasks, "_repo", lambda: repository)
+    monkeypatch.setattr(tasks, "get_terminal_agent_service", lambda: _FakeService())
+
+    result = tasks.execute_terminal_agent_run.run("run-task-contract-0001", 17)
+
+    assert result["reason_code"] == "worker_lease_lost"
+    assert repository.finished == []
+
+
+def test_execute_terminal_agent_run_reports_lost_finish_lease(monkeypatch, settings):
+    """A final checkpoint miss is blocked instead of claiming durable success."""
+
+    settings.TERMINAL_QUEUED_WORKER_ENABLED = True
+    repository = _FakeRepository(_claimed())
+    repository.finished_result = None
+    monkeypatch.setattr(tasks, "_repo", lambda: repository)
+    monkeypatch.setattr(tasks, "get_terminal_agent_service", lambda: _FakeService())
+
+    result = tasks.execute_terminal_agent_run.run("run-task-contract-0001", 17)
+
+    assert result["reason_code"] == "worker_lease_lost"
+    assert len(repository.finished) == 1
 
 
 def test_execute_terminal_agent_run_marks_input_failure(monkeypatch, settings):

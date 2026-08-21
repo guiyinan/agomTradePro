@@ -19,6 +19,7 @@ from django.contrib.auth import get_user_model
 from django.db import close_old_connections, connection, connections, transaction
 from django.test import override_settings
 
+from apps.account.infrastructure.models import AccountProfileModel
 from apps.agent_runtime.application.terminal_agent_run_ports import (
     TerminalQueuedSubmissionRequest,
 )
@@ -72,6 +73,36 @@ def repository() -> TerminalAgentRunRepository:
     """Build the infrastructure adapter under test."""
 
     return TerminalAgentRunRepository()
+
+
+def _configure_terminal_payload(task, **fields: object) -> None:
+    """Attach one worker-input payload to the canonical task fixture."""
+
+    payload: dict[str, object] = {
+        "message": "health check",
+        "session_id": "session-repository-contract",
+    }
+    payload.update(fields)
+    task.input_payload = {"terminal_agent": payload}
+    task.save(update_fields=["input_payload", "updated_at"])
+
+
+def _configure_owner_profile(owner, *, mcp_enabled: bool = True):
+    """Create the authoritative account projection used by worker input tests."""
+
+    profile, _ = AccountProfileModel.objects.get_or_create(
+        user=owner,
+        defaults={
+            "display_name": owner.username,
+            "rbac_role": "owner",
+            "mcp_enabled": mcp_enabled,
+            "approval_status": "approved",
+        },
+    )
+    if profile.mcp_enabled != mcp_enabled:
+        profile.mcp_enabled = mcp_enabled
+        profile.save(update_fields=["mcp_enabled", "updated_at"])
+    return profile
 
 
 def _request(
@@ -332,6 +363,103 @@ def test_heartbeat_rejects_wrong_worker_and_time_rewind(repository, owner, task)
             heartbeat_at=_NOW + timedelta(seconds=4),
         )
     assert rewind.value.reason_code == "HEARTBEAT_REWIND"
+
+
+def test_append_event_rejects_a_worker_after_reaper_invalidates_its_lease(
+    repository,
+    owner,
+    task,
+):
+    """An orphaned delivery cannot append replay data after lease loss."""
+
+    request = _request(owner_id=owner.id, task_id=task.id, suffix="stale-event")
+    repository.submit(request)
+    worker_id = "worker-stale-event"
+    repository.claim(
+        run_id=request.submission.selector.run_id, worker_id=worker_id, claimed_at=_NOW
+    )
+
+    assert (
+        repository.reap_stale(
+            stale_before=_NOW + timedelta(seconds=1),
+            reaped_at=_NOW + timedelta(seconds=2),
+        )
+        == 1
+    )
+    assert (
+        repository.append_event(
+            run_id=request.submission.selector.run_id,
+            worker_id=worker_id,
+            event_type="run.progress",
+            data={"stage": "must-not-append"},
+            occurred_at=_NOW + timedelta(seconds=3),
+        )
+        is None
+    )
+
+
+def test_get_worker_input_rebuilds_authority_from_owner_projection(repository, owner, task):
+    """Worker authorization comes from the current User/Profile projection."""
+
+    _configure_owner_profile(owner, mcp_enabled=True)
+    _configure_terminal_payload(task, provider_ref="system-default", model="test-model")
+    request = _request(owner_id=owner.id, task_id=task.id, suffix="authority-valid")
+    repository.submit(request)
+
+    worker_input = repository.get_worker_input(
+        run_id=request.submission.selector.run_id,
+        task_id=task.id,
+    )
+
+    assert worker_input is not None
+    assert worker_input.actor_user_id == owner.id
+    assert worker_input.username == owner.username
+    assert worker_input.user_role == "owner"
+    assert worker_input.user_is_admin is False
+    assert worker_input.mcp_enabled is True
+    assert worker_input.provider_ref == "system-default"
+
+
+@pytest.mark.parametrize(
+    ("field_name", "forged_value"),
+    [
+        ("user_role", "admin"),
+        ("user_is_admin", True),
+        ("mcp_enabled", False),
+    ],
+)
+def test_get_worker_input_rejects_forged_authority_fields(
+    repository,
+    owner,
+    task,
+    field_name,
+    forged_value,
+):
+    """Serialized identity facts cannot elevate or disable the owner."""
+
+    _configure_owner_profile(owner, mcp_enabled=True)
+    _configure_terminal_payload(task, **{field_name: forged_value})
+    request = _request(owner_id=owner.id, task_id=task.id, suffix=f"authority-{field_name}")
+    repository.submit(request)
+
+    with pytest.raises(TerminalRunRepositoryError) as error:
+        repository.get_worker_input(run_id=request.submission.selector.run_id, task_id=task.id)
+
+    assert error.value.reason_code == "TERMINAL_TASK_AUTHORITY_MISMATCH"
+
+
+def test_get_worker_input_fails_closed_without_authority_profile(repository, owner, task):
+    """A missing account projection is not silently downgraded to read-only."""
+
+    AccountProfileModel.objects.filter(user=owner).delete()
+    _configure_terminal_payload(task)
+    request = _request(owner_id=owner.id, task_id=task.id, suffix="authority-missing")
+    repository.submit(request)
+
+    with pytest.raises(TerminalRunRepositoryError) as error:
+        repository.get_worker_input(run_id=request.submission.selector.run_id, task_id=task.id)
+
+    assert error.value.reason_code == "TERMINAL_TASK_AUTHORITY_UNAVAILABLE"
 
 
 def test_queue_summary_separates_owner_and_global_counts(repository, owner, task):

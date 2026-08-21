@@ -13,9 +13,11 @@ from typing import ClassVar, cast
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from apps.account.application.rbac import get_user_role
 from apps.agent_runtime.application.terminal_agent_run_api_contract import JsonValue
 from apps.agent_runtime.application.terminal_agent_run_ports import (
     TerminalQueuedSubmissionPort,
@@ -283,11 +285,16 @@ class TerminalAgentRunRepository(TerminalQueuedSubmissionPort):
         worker = _require_worker_id(worker_id) if worker_id is not None else None
 
         with transaction.atomic():
-            model = (
-                TerminalAgentRunModel._default_manager.select_for_update()
-                .filter(run_id=run_id, actor_user_id=actor)
-                .first()
+            run_query = TerminalAgentRunModel._default_manager.select_for_update().filter(
+                run_id=run_id,
+                actor_user_id=actor,
             )
+            # A worker-scoped transition must still own the current lease.  A
+            # worker id is deliberately optional for owner/API transitions,
+            # but once supplied it is a capability bound to this run row.
+            if worker is not None and target is not TerminalRunStatus.CLAIMED:
+                run_query = run_query.filter(claimed_by=worker)
+            model = run_query.first()
             if model is None:
                 return None
 
@@ -506,14 +513,14 @@ class TerminalAgentRunRepository(TerminalQueuedSubmissionPort):
         with transaction.atomic():
             run = (
                 TerminalAgentRunModel._default_manager.select_for_update()
-                .filter(run_id=run_id, claimed_by=worker)
+                .filter(
+                    run_id=run_id,
+                    claimed_by=worker,
+                    dispatch_status__in=self._ACTIVE_STATUSES,
+                )
                 .first()
             )
             if run is None:
-                return None
-            if run.dispatch_status not in set(self._ACTIVE_STATUSES) | {
-                TerminalRunStatus.CANCEL_REQUESTED.value
-            }:
                 return None
             sequence = (
                 TerminalAgentRunEventModel._default_manager.filter(run=run)
@@ -549,23 +556,29 @@ class TerminalAgentRunRepository(TerminalQueuedSubmissionPort):
     ) -> TerminalAgentRunContract | None:
         """Move a claimed run to running and persist its first checkpoint."""
 
+        validate_terminal_run_id(run_id)
         worker = _require_worker_id(worker_id)
-        result = self.transition(
-            run_id=run_id,
-            actor_user_id=self._actor_for_worker(run_id, worker),
-            target=TerminalRunStatus.RUNNING,
-            worker_id=worker,
-            changed_at=started_at,
-        )
-        if result is None:
-            return None
+        _require_aware(started_at, field_name="started_at")
         with transaction.atomic():
-            run = TerminalAgentRunModel._default_manager.select_for_update().get(run_id=run_id)
+            run = (
+                TerminalAgentRunModel._default_manager.select_for_update()
+                .filter(
+                    run_id=run_id,
+                    claimed_by=worker,
+                    dispatch_status=TerminalRunStatus.CLAIMED.value,
+                )
+                .first()
+            )
+            if run is None:
+                return None
+            run.dispatch_status = TerminalRunStatus.RUNNING.value
+            run.heartbeat_at = started_at
+            run.save(update_fields=["dispatch_status", "heartbeat_at", "updated_at"])
             TerminalAgentRunExecutionModel._default_manager.update_or_create(
                 run=run,
                 defaults={"started_at": started_at, "heartbeat_at": started_at},
             )
-        return result
+            return run.to_domain_contract()
 
     def mark_finished(
         self,
@@ -605,6 +618,14 @@ class TerminalAgentRunRepository(TerminalQueuedSubmissionPort):
                 return None
             try:
                 current = TerminalRunStatus(run.dispatch_status)
+                if current not in {
+                    TerminalRunStatus.CLAIMED,
+                    TerminalRunStatus.RUNNING,
+                }:
+                    # The reaper or a different lifecycle owner has already
+                    # invalidated this worker lease.  Do not let an old
+                    # worker manufacture a terminal result after orphaning.
+                    return None
                 transition_terminal_run(current, status)
             except (ValueError, InvalidTerminalRunTransition) as exc:
                 raise TerminalRunRepositoryError("INVALID_RUN_TRANSITION") from exc
@@ -634,7 +655,11 @@ class TerminalAgentRunRepository(TerminalQueuedSubmissionPort):
         validate_terminal_run_id(run_id)
         actor_task = _require_positive_int(task_id, field_name="task_id")
         run = (
-            TerminalAgentRunModel._default_manager.select_related("task", "actor_user")
+            TerminalAgentRunModel._default_manager.select_related(
+                "task",
+                "actor_user",
+                "actor_user__account_profile",
+            )
             .filter(run_id=run_id, task_id=actor_task)
             .first()
         )
@@ -648,24 +673,41 @@ class TerminalAgentRunRepository(TerminalQueuedSubmissionPort):
             raise TerminalRunRepositoryError("TERMINAL_TASK_INPUT_MISSING")
         message = raw_input.get("message")
         session_id = raw_input.get("session_id")
-        user_role = raw_input.get("user_role", "read_only")
-        user_is_admin = raw_input.get("user_is_admin", False)
-        mcp_enabled = raw_input.get("mcp_enabled", True)
+        actor_user = run.actor_user
+        if not bool(getattr(actor_user, "is_active", False)):
+            raise TerminalRunRepositoryError("TERMINAL_TASK_AUTHORITY_UNAVAILABLE")
+        try:
+            profile = actor_user.account_profile
+        except ObjectDoesNotExist as exc:
+            raise TerminalRunRepositoryError("TERMINAL_TASK_AUTHORITY_UNAVAILABLE") from exc
+        if profile is None or type(getattr(profile, "mcp_enabled", None)) is not bool:
+            raise TerminalRunRepositoryError("TERMINAL_TASK_AUTHORITY_UNAVAILABLE")
+        user_role = get_user_role(actor_user)
+        user_is_admin = bool(
+            getattr(actor_user, "is_staff", False) or getattr(actor_user, "is_superuser", False)
+        )
+        mcp_enabled = bool(profile.mcp_enabled)
         if (
             not isinstance(message, str)
             or not message.strip()
             or not isinstance(session_id, str)
             or not session_id.strip()
-            or not isinstance(user_role, str)
-            or not user_role.strip()
-            or type(user_is_admin) is not bool
-            or type(mcp_enabled) is not bool
         ):
             raise TerminalRunRepositoryError("TERMINAL_TASK_INPUT_INVALID")
-        if "user_id" in raw_input and raw_input["user_id"] != run.actor_user_id:
-            raise TerminalRunRepositoryError("TERMINAL_TASK_OWNER_MISMATCH")
-        username = str(getattr(run.actor_user, "username", "") or "")
+        _assert_authority_projection_matches_payload(
+            raw_input=raw_input,
+            actor_user_id=run.actor_user_id,
+            username=str(getattr(actor_user, "username", "") or ""),
+            user_role=user_role,
+            user_is_admin=user_is_admin,
+            mcp_enabled=mcp_enabled,
+        )
+        username = str(getattr(actor_user, "username", "") or "")
         provider_ref = raw_input.get("provider_ref")
+        if provider_ref is not None and (
+            type(provider_ref) is bool or not isinstance(provider_ref, (int, str))
+        ):
+            raise TerminalRunRepositoryError("TERMINAL_TASK_PROVIDER_REF_INVALID")
         model = raw_input.get("model")
         if model is not None and not isinstance(model, str):
             raise TerminalRunRepositoryError("TERMINAL_TASK_MODEL_INVALID")
@@ -727,22 +769,6 @@ class TerminalAgentRunRepository(TerminalQueuedSubmissionPort):
         return reaped
 
     @staticmethod
-    def _actor_for_worker(run_id: str, worker_id: str) -> int:
-        """Resolve the owner for a worker transition without exposing prompts."""
-
-        model = (
-            TerminalAgentRunModel._default_manager.filter(
-                run_id=run_id,
-                claimed_by=worker_id,
-            )
-            .only("actor_user_id")
-            .first()
-        )
-        if model is None:
-            raise TerminalRunRepositoryError("RUN_NOT_CLAIMED")
-        return int(model.actor_user_id)
-
-    @staticmethod
     def _replay_existing(
         model: TerminalAgentRunModel,
         submission: TerminalRunSubmission,
@@ -766,6 +792,51 @@ def _require_positive_int(value: object, *, field_name: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise TerminalRunContractError(f"{field_name}_invalid")
     return value
+
+
+def _assert_authority_projection_matches_payload(
+    *,
+    raw_input: Mapping[str, object],
+    actor_user_id: int,
+    username: str,
+    user_role: str,
+    user_is_admin: bool,
+    mcp_enabled: bool,
+) -> None:
+    """Reject task payloads that try to override the durable user authority.
+
+    The task row may contain a serialized request assembled before the worker
+    runs, but role, admin status, and MCP access are mutable account facts.  A
+    worker must rebuild those facts from the run owner instead of treating the
+    task JSON as an authorization token.  Legacy payloads may omit the fields;
+    when present, they must exactly match the current projection.
+    """
+
+    if "user_id" in raw_input:
+        payload_user_id = raw_input["user_id"]
+        if (
+            isinstance(payload_user_id, bool)
+            or not isinstance(payload_user_id, int)
+            or payload_user_id != actor_user_id
+        ):
+            raise TerminalRunRepositoryError("TERMINAL_TASK_OWNER_MISMATCH")
+
+    expected_values: tuple[tuple[str, object], ...] = (
+        ("username", username),
+        ("user_role", user_role),
+        ("user_is_admin", user_is_admin),
+        ("mcp_enabled", mcp_enabled),
+    )
+    for field_name, expected in expected_values:
+        if field_name not in raw_input:
+            continue
+        actual = raw_input[field_name]
+        if field_name in {"user_is_admin", "mcp_enabled"} and type(actual) is not bool:
+            raise TerminalRunRepositoryError("TERMINAL_TASK_AUTHORITY_MISMATCH")
+        if field_name in {"username", "user_role"} and not isinstance(actual, str):
+            raise TerminalRunRepositoryError("TERMINAL_TASK_AUTHORITY_MISMATCH")
+        if actual != expected:
+            raise TerminalRunRepositoryError("TERMINAL_TASK_AUTHORITY_MISMATCH")
 
 
 def _require_worker_id(value: object) -> str:
