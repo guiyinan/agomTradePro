@@ -1170,3 +1170,35 @@ now runs this integrity check but deliberately continues to return
 `BLOCKED/safety_ready=true/capacity_ready=false`; no runtime flags or production data
 are changed by the validator. Focused validator/gate/manifest tests passed `22`, Ruff,
 Black, isort, incremental mypy and the full debt ceiling all passed.
+
+### TAR-01 worker lease and authority hardening (2026-08-22)
+
+Queued task deliveries now use a fresh delivery-scoped worker identity instead of
+the module-level hostname/PID value. `mark_started`, heartbeat, event append,
+cancel/transition, and terminal finish all fail closed when the durable lease is
+lost; an orphaned run cannot receive late events or a fabricated terminal result.
+Worker input rebuilds role/admin/MCP authority from the current User/Profile
+projection and rejects forged serialized authority fields or a missing projection.
+The Agent Runtime unit suite passed `217`, and the repository component coverage
+includes stale-event, authority-rebuild, forged-field, and missing-profile cases.
+This is local safety hardening only; it does not close production capacity, provider,
+chaos, telemetry, restore/rollback, or human sign-off gates.
+
+### TAR-01 dormant chaos evidence contract (2026-08-22)
+
+Added a pure Application contract and injected controlled observer for candidate-bound
+chaos evidence. It preserves commit/release/OCI/matrix identity, UTC monotonic event
+timelines, worker/run/stream/recovery states, reconnect/terminal-overwrite/
+duplicate-side-effect/cross-user counters, and explicit `observed`/`unavailable`/
+`failed` outcomes without performing Redis/Celery/Docker/HTTP I/O. Focused tests
+passed `14`; the real `load-1-5-10-20` and `chaos-worker-stream-recovery` scenarios
+remain `planned`, and TAR-01 remains `BLOCKED/safety_ready=true/capacity_ready=false`.
+
+### TAR-01 VPS worker memory containment slice (2026-08-22)
+
+The approved VPS candidate was observed with repeated QLib Celery cgroup OOM kills
+at the configured `1500m` worker limit while the host still had free memory. The VPS
+compose contract now defaults the general Celery worker to `2g` and recycles each
+worker child after one task (`CELERY_WORKER_MAX_TASKS_PER_CHILD=1`); the deployment
+must be re-created and observed before treating this as a stability result. This
+configuration change does not alter decision-data gating or enable queued runtime.

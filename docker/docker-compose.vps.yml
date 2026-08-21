@@ -180,7 +180,7 @@ services:
     image: ${WEB_IMAGE:?WEB_IMAGE is required}
     restart: unless-stopped
     pid: "service:runtime_ns"
-    command: ["celery", "-A", "core", "worker", "-l", "info", "-Q", "${CELERY_WORKER_QUEUES:-celery,qlib_infer,qlib_train}", "--concurrency", "${CELERY_WORKER_CONCURRENCY:-1}"]
+    command: ["celery", "-A", "core", "worker", "-l", "info", "-Q", "${CELERY_WORKER_QUEUES:-celery,qlib_infer,qlib_train}", "--concurrency", "${CELERY_WORKER_CONCURRENCY:-1}", "--max-tasks-per-child", "${CELERY_WORKER_MAX_TASKS_PER_CHILD:-1}"]
     environment:
       DJANGO_SETTINGS_MODULE: core.settings.production
       POSTGRES_HOST: postgres
@@ -238,7 +238,7 @@ services:
         condition: service_healthy
     healthcheck:
       disable: true
-    mem_limit: ${CELERY_WORKER_MEMORY_LIMIT:-1500m}
+    mem_limit: ${CELERY_WORKER_MEMORY_LIMIT:-2g}
     cpus: 1.0
     logging:
       driver: "json-file"
