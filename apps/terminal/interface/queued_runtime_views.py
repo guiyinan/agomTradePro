@@ -15,6 +15,7 @@ from django.db import transaction
 from django.http import StreamingHttpResponse
 from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.renderers import BaseRenderer, JSONRenderer
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -46,6 +47,25 @@ from apps.agent_runtime.domain.terminal_agent_run_contract import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class TerminalEventStreamRenderer(BaseRenderer):
+    """Allow DRF content negotiation for the streaming event media type."""
+
+    media_type = "text/event-stream"
+    format = "event-stream"
+    charset = None
+    render_style = "binary"
+
+    def render(
+        self,
+        data: object,
+        accepted_media_type: str | None = None,
+        renderer_context: Mapping[str, object] | None = None,
+    ) -> bytes:
+        """Return an empty body because event responses stream directly."""
+
+        return b""
 
 
 def _dispatch_queued_run(run_id: str, task_id: int) -> None:
@@ -166,15 +186,6 @@ class TerminalQueuedRunView(APIView):
             )
             deadline_at = accepted_at + timedelta(seconds=timeout_seconds)
             repository = get_terminal_agent_run_repository()
-            summary = repository.queue_summary(actor_user_id=actor_user_id)
-            if summary.user_active >= int(getattr(settings, "TERMINAL_PER_USER_ACTIVE_LIMIT", 1)):
-                return _capacity_response("per_user_active_limit", 429)
-            if summary.user_queued >= int(getattr(settings, "TERMINAL_PER_USER_QUEUED_LIMIT", 4)):
-                return _capacity_response("per_user_queued_limit", 429)
-            if summary.global_active >= int(getattr(settings, "TERMINAL_GLOBAL_ACTIVE_LIMIT", 4)):
-                return _capacity_response("global_active_limit", 429)
-            if summary.global_queued >= int(getattr(settings, "TERMINAL_GLOBAL_QUEUED_LIMIT", 40)):
-                return _capacity_response("global_queued_limit", 429)
             submission = TerminalRunSubmission(
                 selector=TerminalRunSelector(
                     run_id=run_id,
@@ -216,7 +227,29 @@ class TerminalQueuedRunView(APIView):
                 ),
             )
             return Response(response.to_payload(), status=202)
-        except (KeyError, TypeError, ValueError, TerminalRunContractError):
+        except (KeyError, TypeError, ValueError):
+            return Response(
+                {"error": "Invalid queued run request.", "code": "RUN_REQUEST_INVALID"},
+                status=400,
+            )
+        except TerminalRunContractError as exc:
+            reason_code = str(getattr(exc, "reason_code", "RUN_REQUEST_INVALID"))
+            if reason_code in {
+                "per_user_active_limit",
+                "per_user_queued_limit",
+                "global_active_limit",
+                "global_queued_limit",
+            }:
+                return _capacity_response(reason_code, 429)
+            if reason_code in {"IDEMPOTENCY_KEY_CONFLICT", "RUN_ID_CONFLICT"}:
+                return Response(
+                    {
+                        "error": "Queued run identity conflicts with an existing run.",
+                        "code": reason_code,
+                        "reason_code": reason_code,
+                    },
+                    status=409,
+                )
             return Response(
                 {"error": "Invalid queued run request.", "code": "RUN_REQUEST_INVALID"},
                 status=400,
@@ -274,11 +307,28 @@ class TerminalQueuedRunView(APIView):
             return self._unavailable_response()
         actor_user_id = _actor_user_id(request)
         repository = get_terminal_agent_run_repository()
-        snapshot = repository.cancel(
-            run_id=run_id,
-            actor_user_id=actor_user_id,
-            requested_at=timezone.now(),
-        )
+        try:
+            snapshot = repository.cancel(
+                run_id=run_id,
+                actor_user_id=actor_user_id,
+                requested_at=timezone.now(),
+            )
+        except TerminalRunContractError as exc:
+            reason_code = str(getattr(exc, "reason_code", "RUN_CANCEL_FAILED"))
+            if reason_code == "RUN_NOT_CANCELLABLE":
+                return Response(
+                    {
+                        "error": "Run is not cancellable.",
+                        "code": reason_code,
+                        "reason_code": reason_code,
+                        "retryable": False,
+                    },
+                    status=409,
+                )
+            return Response(
+                {"error": "Unable to cancel run.", "code": reason_code},
+                status=400,
+            )
         if snapshot is None:
             return Response({"error": "Run not found."}, status=404)
         response = TerminalRunCancelResponse(
@@ -401,6 +451,8 @@ def _capacity_response(reason_code: str, status_code: int) -> Response:
 
 class TerminalQueuedRunEventsView(TerminalQueuedRunView):
     """Route adapter for the replayable events endpoint."""
+
+    renderer_classes = [JSONRenderer, TerminalEventStreamRenderer]
 
     def get(
         self, request: Request, run_id: str | None = None, *args: Any, **kwargs: Any

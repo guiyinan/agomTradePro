@@ -11,6 +11,8 @@ from collections.abc import Mapping, Sequence
 from datetime import datetime
 from typing import ClassVar, cast
 
+from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
@@ -99,6 +101,7 @@ class TerminalAgentRunRepository(TerminalQueuedSubmissionPort):
         )
 
         with transaction.atomic():
+            self._lock_admission_anchors(actor_user_id=actor_user_id)
             existing = (
                 TerminalAgentRunModel._default_manager.select_for_update()
                 .filter(
@@ -123,6 +126,8 @@ class TerminalAgentRunRepository(TerminalQueuedSubmissionPort):
                 run_id=submission.selector.run_id
             ).exists():
                 raise TerminalRunRepositoryError("RUN_ID_CONFLICT")
+
+            self._assert_admission_capacity(actor_user_id=actor_user_id)
 
             try:
                 with transaction.atomic():
@@ -151,6 +156,55 @@ class TerminalAgentRunRepository(TerminalQueuedSubmissionPort):
                 return self._replay_existing(winner, submission)
 
         return model.to_domain_contract()
+
+    def _lock_admission_anchors(self, *, actor_user_id: int) -> None:
+        """Serialize all queue admissions before checking capacity counters.
+
+        Queue limits are process-wide and owner-scoped.  A snapshot from
+        ``queue_summary`` cannot reserve a slot, so every writer takes the
+        same deterministic database lock before re-reading idempotency and
+        counting rows.  The authenticated owner row also makes a missing or
+        deleted actor fail closed instead of creating an unowned run.
+        """
+
+        user_model = get_user_model()
+        global_anchor = user_model._default_manager.select_for_update().order_by("pk").first()
+        if global_anchor is None:
+            raise TerminalRunRepositoryError("RUN_ADMISSION_ANCHOR_UNAVAILABLE")
+        actor = user_model._default_manager.select_for_update().filter(pk=actor_user_id).first()
+        if actor is None:
+            raise TerminalRunRepositoryError("RUN_OWNER_NOT_FOUND")
+
+    def _assert_admission_capacity(self, *, actor_user_id: int) -> None:
+        """Reject a new unique run while any configured queue cap is full."""
+
+        rows = TerminalAgentRunModel._default_manager
+        user_rows = rows.filter(actor_user_id=actor_user_id)
+        limits = (
+            (
+                "per_user_active_limit",
+                user_rows.filter(dispatch_status__in=self._ACTIVE_STATUSES).count(),
+                int(getattr(settings, "TERMINAL_PER_USER_ACTIVE_LIMIT", 1)),
+            ),
+            (
+                "per_user_queued_limit",
+                user_rows.filter(dispatch_status__in=self._QUEUED_STATUSES).count(),
+                int(getattr(settings, "TERMINAL_PER_USER_QUEUED_LIMIT", 4)),
+            ),
+            (
+                "global_active_limit",
+                rows.filter(dispatch_status__in=self._ACTIVE_STATUSES).count(),
+                int(getattr(settings, "TERMINAL_GLOBAL_ACTIVE_LIMIT", 4)),
+            ),
+            (
+                "global_queued_limit",
+                rows.filter(dispatch_status__in=self._QUEUED_STATUSES).count(),
+                int(getattr(settings, "TERMINAL_GLOBAL_QUEUED_LIMIT", 40)),
+            ),
+        )
+        for reason_code, current, limit in limits:
+            if current >= limit:
+                raise TerminalRunRepositoryError(reason_code)
 
     def get_for_owner(
         self,

@@ -11,9 +11,16 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 from apps.agent_runtime.application.terminal_agent_run_ports import TerminalRunQueueSummary
 from apps.agent_runtime.domain.terminal_agent_run_contract import (
     TerminalAgentRunContract,
+    TerminalRunContractError,
     TerminalRunStatus,
 )
 from apps.terminal.interface import queued_runtime_views
+
+
+class _NotCancellableError(TerminalRunContractError):
+    """Fake repository error with the stable production reason code."""
+
+    reason_code = "RUN_NOT_CANCELLABLE"
 
 
 class _FakeRepository:
@@ -21,6 +28,7 @@ class _FakeRepository:
 
     def __init__(self) -> None:
         self.submitted: TerminalAgentRunContract | None = None
+        self.cancel_error: TerminalRunContractError | None = None
 
     def queue_summary(self, *, actor_user_id: int) -> TerminalRunQueueSummary:
         """Return an empty bounded queue snapshot."""
@@ -43,6 +51,31 @@ class _FakeRepository:
             dispatch_status=TerminalRunStatus.QUEUED,
         )
         return self.submitted
+
+    def list_events(
+        self,
+        *,
+        run_id: str,
+        actor_user_id: int,
+        after_sequence: int,
+        limit: int,
+    ) -> tuple[object, ...]:
+        """Return an empty replay batch for renderer negotiation tests."""
+
+        return ()
+
+    def cancel(
+        self,
+        *,
+        run_id: str,
+        actor_user_id: int,
+        requested_at: object,
+    ) -> TerminalAgentRunContract | None:
+        """Expose a deterministic cancellation error for API mapping tests."""
+
+        if self.cancel_error is not None:
+            raise self.cancel_error
+        return None
 
 
 def test_enabled_create_admits_and_dispatches_only_identifiers(monkeypatch):
@@ -128,3 +161,66 @@ def test_committed_admission_survives_transient_broker_dispatch_failure(monkeypa
     )
 
     queued_runtime_views._dispatch_queued_run("run-dispatch-failure", 17)
+
+
+def test_events_accept_text_event_stream_without_content_negotiation_406(monkeypatch):
+    """The SSE media type is negotiated before the streaming response is built."""
+
+    repository = _FakeRepository()
+    monkeypatch.setattr(
+        queued_runtime_views, "get_terminal_agent_run_repository", lambda: repository
+    )
+    request = APIRequestFactory().get(
+        "/api/terminal/runs/run-view-contract-events/events/",
+        HTTP_ACCEPT="text/event-stream",
+    )
+    force_authenticate(request, user=SimpleNamespace(pk=7, is_authenticated=True))
+
+    with override_settings(
+        TERMINAL_QUEUED_INTAKE_ENABLED=True,
+        TERMINAL_QUEUED_WORKER_ENABLED=True,
+        TERMINAL_RUNTIME_AUTHORIZED=True,
+        TERMINAL_EMERGENCY_STOP=False,
+    ):
+        response = queued_runtime_views.TerminalQueuedRunEventsView.as_view()(
+            request,
+            run_id="run-view-contract-events",
+        )
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/event-stream")
+
+
+def test_cancel_terminal_run_returns_stable_conflict(monkeypatch):
+    """A terminal run maps the repository reason to a non-500 API response."""
+
+    repository = _FakeRepository()
+    repository.cancel_error = _NotCancellableError("RUN_NOT_CANCELLABLE")
+    monkeypatch.setattr(
+        queued_runtime_views, "get_terminal_agent_run_repository", lambda: repository
+    )
+    request = APIRequestFactory().post(
+        "/api/terminal/runs/run-view-contract-terminal/cancel/",
+        {},
+        format="json",
+    )
+    force_authenticate(request, user=SimpleNamespace(pk=7, is_authenticated=True))
+
+    with override_settings(
+        TERMINAL_QUEUED_INTAKE_ENABLED=True,
+        TERMINAL_QUEUED_WORKER_ENABLED=True,
+        TERMINAL_RUNTIME_AUTHORIZED=True,
+        TERMINAL_EMERGENCY_STOP=False,
+    ):
+        response = queued_runtime_views.TerminalQueuedRunCancelView.as_view()(
+            request,
+            run_id="run-view-contract-terminal",
+        )
+
+    assert response.status_code == 409
+    assert response.data == {
+        "error": "Run is not cancellable.",
+        "code": "RUN_NOT_CANCELLABLE",
+        "reason_code": "RUN_NOT_CANCELLABLE",
+        "retryable": False,
+    }

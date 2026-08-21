@@ -17,6 +17,7 @@ from uuid import uuid4
 import pytest
 from django.contrib.auth import get_user_model
 from django.db import close_old_connections, connection, connections, transaction
+from django.test import override_settings
 
 from apps.agent_runtime.application.terminal_agent_run_ports import (
     TerminalQueuedSubmissionRequest,
@@ -134,6 +135,28 @@ def test_same_actor_client_key_with_different_digest_fails_closed(repository, ow
         repository.submit(conflicting)
 
     assert error.value.reason_code == "IDEMPOTENCY_KEY_CONFLICT"
+    assert TerminalAgentRunModel.objects.count() == 1
+
+
+def test_admission_capacity_is_atomic_and_idempotent_replay_bypasses_limit(repository, owner, task):
+    """One queued slot is enforced while an exact replay remains available."""
+
+    first_request = _request(owner_id=owner.id, task_id=task.id, suffix="capacity-first")
+    second_request = _request(owner_id=owner.id, task_id=task.id, suffix="capacity-second")
+
+    with override_settings(
+        TERMINAL_PER_USER_ACTIVE_LIMIT=1,
+        TERMINAL_PER_USER_QUEUED_LIMIT=1,
+        TERMINAL_GLOBAL_ACTIVE_LIMIT=10,
+        TERMINAL_GLOBAL_QUEUED_LIMIT=10,
+    ):
+        first = repository.submit(first_request)
+        with pytest.raises(TerminalRunRepositoryError) as rejected:
+            repository.submit(second_request)
+        replay = repository.submit(replace(first_request, message="replayed"))
+
+    assert rejected.value.reason_code == "per_user_queued_limit"
+    assert replay == first
     assert TerminalAgentRunModel.objects.count() == 1
 
 
