@@ -1,0 +1,71 @@
+{
+  "schema": "tar01-current-production-provider-block.v1",
+  "observed_at": "2026-08-21T16:28:30Z",
+  "candidate": {
+    "branch": "dev/next-development",
+    "source_commit": "ec864da4b6f1f96da65ea5e6aa61ccc76c811ddc",
+    "release_tag": "20260821230203",
+    "image_id": "sha256:ed710b134de44de5aba074f48abc5c0013f2481a578e787643b4d49f98d72600",
+    "runtime_match": true
+  },
+  "authorization": {
+    "terminal_runtime_authorized": true,
+    "queued_intake_enabled": true,
+    "queued_worker_enabled": true,
+    "emergency_stop": false,
+    "production_write_scope": "one authenticated terminal_canary task/run/event ledger path"
+  },
+  "public_health": {
+    "https_url": "https://demo.agomtrade.pro",
+    "health_status": 200,
+    "readiness_status": 200,
+    "decision_ready_status": 503,
+    "decision_must_not_use_for_decision": true,
+    "decision_state_overridden": false
+  },
+  "valid_runtime_path": {
+    "task_create_status": 201,
+    "run_create_status": 202,
+    "run_id": "run-tar01-valid-20260821T162125Z",
+    "final_status": "failed",
+    "error_code": "terminal_agent_execution_failed",
+    "events_status": 200,
+    "events_content_type": "text/event-stream",
+    "event_types": ["error"]
+  },
+  "diagnostic": {
+    "sdk": {
+      "agents_version": "0.18.2",
+      "openai_version": "2.45.0",
+      "mcp_server_entered": true,
+      "runner_stream_created": true
+    },
+    "provider": {
+      "name": "ds",
+      "provider_type": "deepseek",
+      "model": "deepseek-chat",
+      "base_url": "https://api.deepseek.com",
+      "active_system_provider_count": 1,
+      "api_key_recorded": false
+    },
+    "failure_stage": "Agents SDK chat completion request",
+    "upstream_status": 402,
+    "upstream_reason_code": "invalid_request_error",
+    "upstream_reason": "Insufficient Balance",
+    "application_behavior": "redacted terminal_agent_execution_failed error event; no raw provider body exposed"
+  },
+  "scope": {
+    "production_data_written": true,
+    "write_scope": "one AgentTask row, one TerminalRun row, and its persisted error event",
+    "provider_success_claimed": false,
+    "capacity_ready": false,
+    "not_proven": [
+      "successful provider/MCP execution",
+      "multi-user/global capacity and hard-SLO acceptance",
+      "sustained chaos and reconnect recovery",
+      "14-day telemetry",
+      "restore/rollback",
+      "owner/reviewer exit sign-off"
+    ]
+  }
+}

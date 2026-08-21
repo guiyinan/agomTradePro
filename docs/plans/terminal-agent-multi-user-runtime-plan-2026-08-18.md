@@ -1062,3 +1062,24 @@ reconnect recovery, 14-day telemetry, restore/rollback, provider/MCP success, or
 owner/reviewer exit sign-off. `check_tar01_exit_gate.py` therefore remains
 `BLOCKED/safety_ready=true/capacity_ready=false`; the authorized canary is recorded as
 evidence and does not itself close TAR-01.
+
+### TAR-01 valid queued canary provider diagnosis on `ec864da4b6` (2026-08-21)
+
+To distinguish an unavailable VPS from a provider failure, an authenticated canary with
+the complete `terminal_agent` task payload was submitted against the same authorized
+candidate. Task creation returned `201`, run creation returned `202`, and the events
+endpoint returned `200 text/event-stream`. The worker successfully entered the Agents
+SDK/MCP path (`agents 0.18.2`, `openai 2.45.0`), but the only active system provider
+(`ds` / DeepSeek `deepseek-chat`) returned upstream HTTP `402` with reason
+`Insufficient Balance`. The application redacted this into the existing
+`terminal_agent_execution_failed` error event; no fallback provider was configured and
+no raw provider response or credential was persisted.
+
+The structured diagnosis is
+[`tar01-current-production-provider-block-2026-08-21-ec864da4.json`](../deployment/tar01-current-production-provider-block-2026-08-21-ec864da4.json).
+This confirms that HTTPS, readiness, queue admission, worker execution, MCP startup,
+SSE negotiation, and durable error recording are reachable; it does not prove provider
+success or capacity acceptance. `/api/decision-ready/` remained `503` with
+`must_not_use_for_decision=true`, without override. TAR-01 therefore remains
+`BLOCKED/safety_ready=true/capacity_ready=false` until a funded/healthy provider and
+the remaining capacity, chaos, telemetry, restore/rollback, and sign-off evidence exist.
