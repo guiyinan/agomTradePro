@@ -1146,3 +1146,27 @@ state was overridden. TAR-01 therefore remains
 The observation does not prove multi-user/global capacity or hard SLOs, sustained chaos
 and reconnect recovery, 14-day telemetry, restore/rollback, provider/MCP success, or
 owner/reviewer exit sign-off.
+
+### TAR-01 contract candidate rebinding and event-evidence index (2026-08-22)
+
+The machine TAR-01 contract was reconciled to the latest observed candidate
+`71e62773ebc3032996f5f14801ac6a2a3ad28b65` / release `20260822012308` / image
+`sha256:8f3715e90bc8967e7c5a09ec9ade690787161a9fa6d8709eb28e7fd32c790916`.
+Its evidence index now names the owner-scoped event component test and the current
+capacity artifact directly. The event scenario is implemented at the component layer;
+sustained chaos, complete multi-user/global hard-SLO capacity, provider success,
+restore/rollback, telemetry and human sign-off remain outside this repository gate.
+The focused manifest regression passed `6` tests, while the TAR-01 safety preflight
+continues to report `BLOCKED/safety_ready=true/capacity_ready=false`.
+
+### TAR-01 candidate capacity-evidence validator (2026-08-22)
+
+The bounded production artifact now has an offline Application validator and CLI. The
+validator binds source commit, release and OCI image to the TAR-01 contract, enforces
+the exact `1/5/10/20` response-count conservation, queue drain, idempotent replay,
+worker-restart/error replay, SSE, cleanup and fail-closed decision fields. Any altered
+candidate, count, queue, cleanup, provider or gate field is rejected. The exit preflight
+now runs this integrity check but deliberately continues to return
+`BLOCKED/safety_ready=true/capacity_ready=false`; no runtime flags or production data
+are changed by the validator. Focused validator/gate/manifest tests passed `22`, Ruff,
+Black, isort, incremental mypy and the full debt ceiling all passed.

@@ -61,3 +61,25 @@ def test_tar01_preflight_rejects_dependency_status_drift(tmp_path: Path) -> None
 
     assert report.decision == "INVALID"
     assert "tar_dependency_status" in report.reasons
+
+
+def test_tar01_preflight_rejects_capacity_evidence_mutation(tmp_path: Path) -> None:
+    """A candidate-bound artifact mutation invalidates the safety preflight."""
+
+    evidence_path = (
+        ROOT / "docs/deployment/tar01-current-production-capacity-2026-08-22-71e62773.json"
+    )
+    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+    evidence["cleanup"]["runtime_flags_after_observation"]["TERMINAL_RUNTIME_AUTHORIZED"] = True
+    altered = tmp_path / "capacity.json"
+    altered.write_text(json.dumps(evidence), encoding="utf-8")
+
+    report = evaluate_tar01_exit_gate(
+        registry_path=ROOT / "governance/active_plan_registry.json",
+        contract_path=ROOT / "governance/terminal_agent_runtime_contracts.json",
+        capacity_evidence_path=altered,
+    )
+
+    assert report.decision == "INVALID"
+    assert report.safety_ready is False
+    assert "capacity_evidence_integrity" in report.reasons

@@ -5,14 +5,25 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from types import ModuleType
 from typing import cast
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REGISTRY = REPO_ROOT / "governance" / "active_plan_registry.json"
 DEFAULT_CONTRACT = REPO_ROOT / "governance" / "terminal_agent_runtime_contracts.json"
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+# Keep direct script execution offline: the application package has a legacy
+# eager Django-backed ``__init__`` while the evidence validator is pure.
+if __package__ in (None, "") and "apps.agent_runtime.application" not in sys.modules:
+    application_package = ModuleType("apps.agent_runtime.application")
+    application_package.__path__ = [str(REPO_ROOT / "apps" / "agent_runtime" / "application")]
+    sys.modules["apps.agent_runtime.application"] = application_package
 
 
 @dataclass(frozen=True)
@@ -111,7 +122,88 @@ def _check_registry(registry: Mapping[str, object]) -> tuple[GateCheck, ...]:
     return tuple(checks)
 
 
-def _check_contract(contract: Mapping[str, object]) -> tuple[GateCheck, ...]:
+def _check_capacity_evidence(
+    contract: Mapping[str, object],
+    *,
+    evidence_path: Path | None = None,
+) -> GateCheck:
+    """Validate the artifact named by the bounded runtime observation."""
+
+    from apps.agent_runtime.application.terminal_runtime_capacity_evidence import (
+        TerminalRuntimeCapacityEvidenceBinding,
+        TerminalRuntimeCapacityEvidenceError,
+        validate_terminal_runtime_capacity_evidence,
+    )
+
+    observation = _mapping(contract.get("runtime_observation"))
+    if observation is None:
+        return GateCheck(
+            "capacity_evidence_integrity",
+            False,
+            "runtime_observation must be an object before evidence can be bound",
+        )
+    evidence_reference = observation.get("evidence")
+    if type(evidence_reference) is not str or not evidence_reference:
+        return GateCheck(
+            "capacity_evidence_integrity",
+            False,
+            "runtime_observation.evidence must be a repository-relative path",
+        )
+    reference_path = Path(evidence_reference)
+    if reference_path.is_absolute() or ".." in reference_path.parts:
+        return GateCheck(
+            "capacity_evidence_integrity",
+            False,
+            "runtime_observation.evidence must stay inside the repository",
+        )
+    identity = {
+        "candidate_commit": observation.get("candidate_commit"),
+        "release": observation.get("release"),
+        "image": observation.get("image"),
+    }
+    if any(type(value) is not str for value in identity.values()):
+        return GateCheck(
+            "capacity_evidence_integrity",
+            False,
+            "runtime observation candidate identity is incomplete",
+        )
+    artifact_path = (
+        evidence_path.resolve() if evidence_path is not None else REPO_ROOT / reference_path
+    )
+    payload = _read_json(artifact_path)
+    if payload is None:
+        return GateCheck(
+            "capacity_evidence_integrity",
+            False,
+            f"capacity evidence is unreadable: {artifact_path}",
+        )
+    try:
+        report = validate_terminal_runtime_capacity_evidence(
+            payload,
+            expected_candidate=TerminalRuntimeCapacityEvidenceBinding(
+                candidate_commit=cast(str, identity["candidate_commit"]),
+                release=cast(str, identity["release"]),
+                image=cast(str, identity["image"]),
+            ),
+        )
+    except TerminalRuntimeCapacityEvidenceError as exc:
+        return GateCheck("capacity_evidence_integrity", False, str(exc))
+    return GateCheck(
+        "capacity_evidence_integrity",
+        True,
+        (
+            "candidate-bound capacity evidence is internally consistent; "
+            f"accepted={report.accepted_runs}, rejected={report.rejected_runs}, "
+            "TAR-01 remains capacity-blocked"
+        ),
+    )
+
+
+def _check_contract(
+    contract: Mapping[str, object],
+    *,
+    capacity_evidence_path: Path | None = None,
+) -> tuple[GateCheck, ...]:
     """Check that any runtime observation remains explicitly bounded."""
 
     checks: list[GateCheck] = []
@@ -148,6 +240,7 @@ def _check_contract(contract: Mapping[str, object]) -> tuple[GateCheck, ...]:
             ),
         )
     )
+    checks.append(_check_capacity_evidence(contract, evidence_path=capacity_evidence_path))
     baseline = _mapping(contract.get("baseline_evidence"))
     required_levels = baseline.get("required_concurrency_levels") if baseline else None
     baseline_shape_ok = bool(
@@ -225,6 +318,7 @@ def evaluate_tar01_exit_gate(
     *,
     registry_path: Path = DEFAULT_REGISTRY,
     contract_path: Path = DEFAULT_CONTRACT,
+    capacity_evidence_path: Path | None = None,
 ) -> Tar01ExitGateReport:
     """Evaluate TAR-01 without turning a short observation into an exit decision."""
 
@@ -237,7 +331,10 @@ def evaluate_tar01_exit_gate(
             ),
         )
     else:
-        checks = _check_registry(registry) + _check_contract(contract)
+        checks = _check_registry(registry) + _check_contract(
+            contract,
+            capacity_evidence_path=capacity_evidence_path,
+        )
     safety_ready = all(check.passed for check in checks)
     capacity_ready = False
     reasons = () if safety_ready else tuple(check.key for check in checks if not check.passed)
@@ -249,6 +346,11 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--registry", type=Path, default=DEFAULT_REGISTRY)
     parser.add_argument("--contract", type=Path, default=DEFAULT_CONTRACT)
+    parser.add_argument(
+        "--capacity-evidence",
+        type=Path,
+        help="override the artifact path while preserving contract candidate binding",
+    )
     parser.add_argument("--format", choices=("text", "json"), default="text")
     parser.add_argument(
         "--require-capacity",
@@ -265,6 +367,9 @@ def main() -> int:
     result = evaluate_tar01_exit_gate(
         registry_path=args.registry.resolve(),
         contract_path=args.contract.resolve(),
+        capacity_evidence_path=(
+            args.capacity_evidence.resolve() if args.capacity_evidence is not None else None
+        ),
     )
     if args.format == "json":
         print(json.dumps(asdict(result), ensure_ascii=False, indent=2, sort_keys=True))

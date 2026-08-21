@@ -114,8 +114,12 @@ def test_manifest_freezes_migration_flags_and_sensitive_transport_boundary() -> 
     assert set(manifest["implementation_boundary"]["not_implemented"]) >= {
         "SDK/MCP/TUI queued client implementation",
         "complete multi-user/global 1/5/10/20 capacity and hard-SLO evidence",
-        "events reconnect/owner-scope, sustained chaos, and 14-day telemetry",
+        "sustained chaos and 14-day telemetry",
     }
+    assert (
+        "tests/component/agent_runtime/test_terminal_agent_run_events.py"
+        in manifest["acceptance_and_next_gate"]["current_evidence"]
+    )
 
 
 def test_manifest_existing_error_codes_are_not_fabricated() -> None:

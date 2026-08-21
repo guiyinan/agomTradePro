@@ -46,7 +46,7 @@
     "not_implemented": [
       "SDK/MCP/TUI queued client implementation",
       "complete multi-user/global 1/5/10/20 capacity and hard-SLO evidence",
-      "events reconnect/owner-scope, sustained chaos, and 14-day telemetry",
+      "sustained chaos and 14-day telemetry",
       "successful provider/MCP execution, restore/rollback, and role-based production UAT",
       "owner/reviewer sign-off"
     ],
@@ -54,24 +54,25 @@
   },
   "runtime_observation": {
     "status": "short_window_observed",
-    "candidate_commit": "ec864da4b6f1f96da65ea5e6aa61ccc76c811ddc",
-    "release": "20260821230203",
-    "image": "agomtradepro-web:20260821230203",
+    "candidate_commit": "71e62773ebc3032996f5f14801ac6a2a3ad28b65",
+    "release": "20260822012308",
+    "image": "sha256:8f3715e90bc8967e7c5a09ec9ade690787161a9fa6d8709eb28e7fd32c790916",
     "queued_intake_enabled": true,
     "queued_worker_enabled": true,
     "legacy_inline_enabled": true,
     "capacity_ready": false,
     "provider_execution": "failed_not_claimed",
-    "evidence": "docs/deployment/tar01-current-production-capacity-2026-08-21-ec864da4.json",
+    "evidence": "docs/deployment/tar01-current-production-capacity-2026-08-22-71e62773.json",
     "observed": [
       "candidate-bound 1/5/10/20 submission with stable per-user rejection",
       "same-key idempotent replay without a second durable row",
       "worker start and explicit restart with queue drain to zero",
-      "authenticated text/event-stream negotiation and terminal execution error"
+      "authenticated text/event-stream negotiation and terminal execution error",
+      "owner-scoped ordered event replay and Last-Event-ID component evidence"
     ],
     "remaining": [
       "multi-user/global capacity and complete 1/5/10/20 hard-SLO evidence",
-      "candidate-level reconnect/chaos, 14-day telemetry, restore/rollback",
+      "sustained candidate-level chaos/reconnect, 14-day telemetry, restore/rollback",
       "successful provider/MCP execution and owner/reviewer sign-off"
     ]
   },
@@ -360,11 +361,13 @@
       "tests/unit/agent_runtime/test_terminal_runtime_baseline_snapshot_observer.py",
       "tests/unit/agent_runtime/test_terminal_runtime_slo.py",
       "tests/unit/agent_runtime/test_terminal_runtime_test_matrix.py",
-      "tests/unit/agent_runtime/test_terminal_runtime_contract_manifest.py"
+      "tests/unit/agent_runtime/test_terminal_runtime_contract_manifest.py",
+      "tests/component/agent_runtime/test_terminal_agent_run_events.py",
+      "docs/deployment/tar01-current-production-capacity-2026-08-22-71e62773.json"
     ],
     "next_gate": "Complete multi-user/global 1/5/10/20 capacity, reconnect/chaos, provider, restore/rollback, telemetry, and human sign-off on the same immutable candidate; the short observation does not authorize TAR-01 exit.",
     "production_evidence_missing": [
-      "controlled 1/5/10/20 user baseline and capacity result",
+      "multi-user/global 1/5/10/20 hard-SLO capacity result",
       "durable PostgreSQL first-winner/idempotency/rollback evidence",
       "dedicated Worker and stream recovery evidence",
       "role-based UAT, write receipts, 14-day telemetry, and owner/reviewer sign-off"
