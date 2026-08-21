@@ -907,3 +907,34 @@ This is read-only health and fail-closed evidence only; it does not add queued c
 Worker/SSE, idempotency/cancel, provider/MCP, chaos, 14-day telemetry, restore/rollback,
 or owner/reviewer acceptance. TAR-01 therefore remains `BLOCKED` with
 `safety_ready=true` and `capacity_ready=false`.
+### TAR-01 queued runtime VPS observation on `fec65c802` (2026-08-21)
+
+The pushed `dev/next-development@fec65c8022d4dbcda3c774b9d51db30ac83d2863` was running
+code-only as release `20260821181242` with image
+`sha256:b8b0995688c57346aedf2efceab8b03a3c4af0cc89aa18b7a4633df654569b96`. The independent
+deployment verifier passed HTTPS health, containers, Django/migrations, PostgreSQL/Redis,
+TUI registry, Qlib (`pyqlib=0.9.7`, wrong distribution absent), backup, Celery worker/beat,
+and release/image binding. The structured observation is
+[`tar01-current-production-queued-runtime-acceptance-2026-08-21-fec65c80.json`](../deployment/tar01-current-production-queued-runtime-acceptance-2026-08-21-fec65c80.json).
+
+With an authenticated owner session and the dedicated Worker stopped for a controlled
+capacity probe, the queue accepted `1/5/10/20` requests as `202x1`, `202x3+429x2`,
+`429x10`, and `429x20`; all rejections carried `per_user_queued_limit`, and the durable
+queue held exactly four rows. Repeating the first request returned the same `202` winner
+without a second row. The Worker was restarted, Celery ping returned two online nodes,
+and the queue drained to zero. A canary then returned `200 text/event-stream` with a
+persisted terminal error event; its terminal cancellation correctly returned `409
+RUN_NOT_CANCELLABLE`.
+
+This proves the enabled candidate's bounded admission, per-owner capacity rejection,
+idempotent replay, Worker restart/drain, and SSE negotiation. The canary provider itself
+failed with `terminal_agent_execution_failed`, so successful model/provider execution is
+not claimed. `/api/decision-ready/` was observed as `503 blocked` with
+`must_not_use_for_decision=true` (`decision_runtime_blocked` and
+`core_data_coverage_incomplete`); no flag or data state was changed to override that
+fail-closed result.
+
+TAR-02 runtime observation is now evidenced, but TAR-01 still requires multi-user/global
+capacity, sustained chaos and telemetry, restore/rollback, provider/MCP success, and
+owner/reviewer evidence before an exit decision. AUD-01/EVID/STRAT/DATA gates remain
+separate and are not signed by this short window.

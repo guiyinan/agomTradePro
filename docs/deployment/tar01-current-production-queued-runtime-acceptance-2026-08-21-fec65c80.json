@@ -1,0 +1,131 @@
+{
+  "schema": "terminal-runtime-queued-runtime-observation.v1",
+  "artifact_type": "terminal_runtime_queued_runtime_observation",
+  "environment": "production-vps",
+  "base_url": "https://demo.agomtrade.pro",
+  "collected_at": "2026-08-21T10:46:51Z",
+  "candidate": {
+    "release_tag": "20260821181242",
+    "source_commit": "fec65c8022d4dbcda3c774b9d51db30ac83d2863",
+    "short_commit": "fec65c8022d4",
+    "image_tag": "agomtradepro-web:20260821181242",
+    "image_id": "sha256:b8b0995688c57346aedf2efceab8b03a3c4af0cc89aa18b7a4633df654569b96",
+    "source_mode": "git-clone",
+    "runtime_match": true
+  },
+  "deployment_verifier": {
+    "status": "passed",
+    "https_health": 200,
+    "containers_healthy": true,
+    "database_and_redis": "ok",
+    "migrations": "ok",
+    "tui_registry": "matched",
+    "qlib": "pyqlib=0.9.7; wrong_qlib_distribution=absent",
+    "celery": "worker_and_beat_running; ping=2 nodes online"
+  },
+  "queue_runtime": {
+    "flags": {
+      "TERMINAL_RUNTIME_AUTHORIZED": true,
+      "TERMINAL_QUEUED_INTAKE_ENABLED": true,
+      "TERMINAL_QUEUED_WORKER_ENABLED": true,
+      "TERMINAL_WORKER_CONCURRENCY": 4,
+      "TERMINAL_AGENT_ORPHAN_AFTER_SECONDS": 90
+    },
+    "capacity_probe": {
+      "task_id": 5,
+      "worker_stopped_for_controlled_probe": true,
+      "before": {
+        "user_active": 0,
+        "user_queued": 0,
+        "global_active": 0,
+        "global_queued": 0
+      },
+      "levels": [
+        {
+          "concurrency": 1,
+          "requests": 1,
+          "status_counts": {"202": 1},
+          "reason_counts": {}
+        },
+        {
+          "concurrency": 5,
+          "requests": 5,
+          "status_counts": {"202": 3, "429": 2},
+          "reason_counts": {"per_user_queued_limit": 2}
+        },
+        {
+          "concurrency": 10,
+          "requests": 10,
+          "status_counts": {"429": 10},
+          "reason_counts": {"per_user_queued_limit": 10}
+        },
+        {
+          "concurrency": 20,
+          "requests": 20,
+          "status_counts": {"429": 20},
+          "reason_counts": {"per_user_queued_limit": 20}
+        }
+      ],
+      "duplicate_first_request": {
+        "status": 202,
+        "run_id": "run-vps-cap-1787309011-l1-0",
+        "same_winner_replayed": true
+      },
+      "after": {
+        "user_active": 0,
+        "user_queued": 4,
+        "global_active": 0,
+        "global_queued": 4
+      },
+      "worker_restarted": true,
+      "queue_drained_after_restart": true
+    },
+    "sse_and_cancel_probe": {
+      "run_id": "run-vps-sse-1787309182",
+      "submit_status": 202,
+      "sse_status": 200,
+      "sse_content_type": "text/event-stream",
+      "sse_first_event": "terminal_agent_execution_failed",
+      "terminal_status": "failed",
+      "cancel_status": 409,
+      "cancel_reason_code": "RUN_NOT_CANCELLABLE"
+    },
+    "provider_observation": {
+      "status": "failed",
+      "reason_code": "terminal_agent_execution_failed",
+      "interpretation": "queue admission, worker claim, event persistence and SSE worked; external provider execution was unavailable for this canary"
+    }
+  },
+  "decision_ready": {
+    "status_code": 503,
+    "status": "blocked",
+    "must_not_use_for_decision": true,
+    "runtime_block_reason_code": "decision_runtime_blocked",
+    "runtime_reason": "MCP audit evidence write failed during final acceptance",
+    "core_block_reason_code": "core_data_coverage_incomplete",
+    "published_domains": {
+      "price": "blocked",
+      "valuation": "blocked",
+      "financial": "blocked"
+    },
+    "interpretation": "The current fail-closed response was observed; no code or data flag was changed to override it."
+  },
+  "acceptance": {
+    "health_stable": true,
+    "queued_admission_observed": true,
+    "capacity_rejection_observed": true,
+    "idempotency_replay_observed": true,
+    "sse_negotiation_observed": true,
+    "worker_restart_and_drain_observed": true,
+    "decision_data_usable": false,
+    "production_gate_signoff": false,
+    "outcome": "queued_runtime_observed_with_external_provider_blocker"
+  },
+  "limitations": [
+    "This is a short controlled VPS observation, not a 14-day telemetry window.",
+    "The 1/5/10/20 probe used one authenticated owner and the per-user queued cap; it is not a multi-user global capacity or chaos certification.",
+    "The canary provider execution failed, so successful model/provider execution is not claimed.",
+    "Decision-ready remains fail-closed because audit evidence and published data coverage are incomplete.",
+    "AUD-01, EVID, STRAT, DATA restore/rollback, owner/reviewer signatures and sustained production UAT remain separately gated."
+  ]
+}
