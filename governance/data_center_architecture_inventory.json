@@ -2783,17 +2783,17 @@
       "text": "raise InvalidProposalTransitionError(current, target, allowed)"
     },
     {
-      "line": 111,
+      "line": 113,
       "path": "apps/agent_runtime/application/tasks.py",
       "text": "current = repository.get_for_owner(run_id=run_id, actor_user_id=actor_user_id)"
     },
     {
-      "line": 113,
+      "line": 115,
       "path": "apps/agent_runtime/application/tasks.py",
       "text": "current is not None"
     },
     {
-      "line": 114,
+      "line": 116,
       "path": "apps/agent_runtime/application/tasks.py",
       "text": "and current.dispatch_status is TerminalRunStatus.CANCEL_REQUESTED"
     },
@@ -21825,7 +21825,7 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 172,
+      "line": 174,
       "path": "apps/agent_runtime/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
