@@ -1,0 +1,87 @@
+{
+  "schema_version": "1.0",
+  "artifact": "tar01-current-vps-observation",
+  "observed_at": "2026-08-22T07:13:26+08:00",
+  "candidate": {
+    "branch": "dev/next-development",
+    "commit": "5108689606fd73026d977fae90c34868066ed5a5",
+    "release_tag": "20260822065344",
+    "image_tag": "agomtradepro-web:20260822065344",
+    "image_id": "sha256:f7124069a72a6557a30245232338bf1e276ac9b400705d74a733ad90a5559898",
+    "source_mode": "git-clone"
+  },
+  "deployment": {
+    "mode": "code-only",
+    "action": "upgrade",
+    "data_volumes_preserved": true,
+    "predeploy_backup": "/opt/agomtradepro/backups/database/postgres-20260822-010031.dump",
+    "migration_status": "no migrations to apply",
+    "schema_check": "ok",
+    "django_system_check": "ok",
+    "public_url": "https://demo.agomtrade.pro",
+    "health_status": 200,
+    "ready_status": 200,
+    "caddy_tls": "verified"
+  },
+  "runtime": {
+    "containers": {
+      "web": "healthy",
+      "celery_worker": "running",
+      "celery_beat": "running",
+      "postgres": "healthy",
+      "redis": "healthy",
+      "rsshub": "healthy",
+      "caddy": "running",
+      "runtime_ns": "running"
+    },
+    "celery_ping": "pong",
+    "celery_worker_memory_limit_bytes": 2147483648,
+    "celery_worker_max_tasks_per_child": 1,
+    "celery_worker_observation": {
+      "sample_mem_usage": "1.076GiB / 2GiB",
+      "sample_mem_percent": 53.81,
+      "log_window": "15m",
+      "worker_lost_error_count": 0,
+      "sigkill_count": 0,
+      "oom_count": 0,
+      "traceback_count": 0
+    },
+    "qlib": {
+      "pyqlib_version": "0.9.7",
+      "wrong_qlib_distribution": "absent",
+      "module": "/usr/local/lib/python3.11/site-packages/qlib/__init__.py"
+    }
+  },
+  "api_observation": {
+    "decision_ready_status": 503,
+    "decision_ready_must_not_use_for_decision": true,
+    "decision_ready_block_reasons": [
+      "decision_runtime_blocked",
+      "core_data_coverage_incomplete",
+      "decision_provider_capabilities_unhealthy",
+      "decision_thermometer_degraded"
+    ],
+    "runtime_flags_changed": false,
+    "business_canary_submitted": false
+  },
+  "ci": {
+    "head": "5108689606fd73026d977fae90c34868066ed5a5",
+    "security_scan": "https://github.com/guiyinan/agomTradePro/actions/runs/32534230933",
+    "architecture_layer_guard": "https://github.com/guiyinan/agomTradePro/actions/runs/32534230991",
+    "consistency_check": "https://github.com/guiyinan/agomTradePro/actions/runs/32534230928",
+    "ci_fast_feedback": "https://github.com/guiyinan/agomTradePro/actions/runs/32534230935"
+  },
+  "gate": {
+    "tar01_exit_decision": "BLOCKED",
+    "safety_ready": true,
+    "capacity_ready": false,
+    "remaining_production_evidence": [
+      "multi-user/global hard-SLO capacity",
+      "sustained chaos and reconnect recovery",
+      "provider/MCP success",
+      "14-day telemetry",
+      "production restore/rollback and RTO/RPO",
+      "owner/reviewer sign-off"
+    ]
+  }
+}

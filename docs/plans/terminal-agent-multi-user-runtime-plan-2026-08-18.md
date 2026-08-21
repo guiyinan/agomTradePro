@@ -1202,3 +1202,28 @@ compose contract now defaults the general Celery worker to `2g` and recycles eac
 worker child after one task (`CELERY_WORKER_MAX_TASKS_PER_CHILD=1`); the deployment
 must be re-created and observed before treating this as a stability result. This
 configuration change does not alter decision-data gating or enable queued runtime.
+
+### TAR-01 VPS worker memory containment deployment and observation (2026-08-22)
+
+CI for candidate `5108689606fd73026d977fae90c34868066ed5a5` is green across Security,
+Architecture, Consistency and Fast Feedback. The candidate was deployed code-only with
+`upgrade` semantics as release `20260822065344`, image
+`sha256:f7124069a72a6557a30245232338bf1e276ac9b400705d74a733ad90a5559898`; PostgreSQL
+and Redis volumes were preserved and a pre-deploy PostgreSQL backup was created. The
+deployment verifier passed migrations/schema, Django checks, Caddy/TLS, container
+health, Celery ping, TUI registry and Qlib identity (`pyqlib==0.9.7`, wrong `qlib`
+distribution absent). Public HTTPS health and readiness returned `200`.
+
+The general Celery worker is running with a `2GiB` cgroup limit and
+`--max-tasks-per-child=1`; its first 15-minute post-deploy log window had zero
+`WorkerLostError`, `SIGKILL`, OOM or traceback matches, with a sample of
+`1.076GiB/2GiB` (`53.81%`). This is a short stability observation, not sustained
+capacity or chaos evidence. `/api/decision-ready/` remains `503` with
+`must_not_use_for_decision=true` because runtime audit, publication coverage and
+provider freshness gates remain blocked; no decision state or runtime flags were
+overridden, and no business canary was submitted in this deployment.
+
+Structured evidence: [`tar01-current-vps-observation-2026-08-22-510868960.json`](../deployment/tar01-current-vps-observation-2026-08-22-510868960.json).
+TAR-01 remains `BLOCKED/safety_ready=true/capacity_ready=false`; multi-user/global
+capacity, sustained chaos/reconnect, provider success, 14-day telemetry,
+restore/rollback and human sign-off remain outstanding.
