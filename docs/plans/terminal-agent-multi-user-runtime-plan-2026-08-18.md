@@ -1016,3 +1016,24 @@ as dormant contract paths, not as `implemented` runtime scenarios; no HTTP load,
 Redis/broker fault, Worker signal, production data, or capacity conclusion was
 created. `load-1-5-10-20` and `chaos-worker-stream-recovery` therefore remain planned
 and TAR-01 stays `BLOCKED/safety_ready=true/capacity_ready=false`.
+
+### TAR-01 candidate `ec864da4b6` VPS deployment and public observation (2026-08-21)
+
+The CI-green candidate `dev/next-development@ec864da4b6f1f96da65ea5e6aa61ccc76c811ddc`
+was deployed code-only as release `20260821230203` with image
+`sha256:ed710b134de44de5aba074f48abc5c0013f2481a578e787643b4d49f98d72600`.
+The deployment verifier reported `runtime_match=true`, migrations/schema and Django
+checks passed, and the web/beat/Celery services use the release image. Public probes
+then returned health `200`, readiness `200` (database/Redis/Celery/critical data OK,
+decision data warning), audit health/metrics `200`, and anonymous terminal/TUI `403`.
+The decision endpoints remained correctly fail-closed: `/api/decision-ready/` and
+`/api/regime/current/` returned `503` with `must_not_use_for_decision=true` and
+`decision_runtime_blocked`.
+
+The structured observation is
+[`tar01-current-vps-observation-2026-08-21-ec864da4.json`](../deployment/tar01-current-vps-observation-2026-08-21-ec864da4.json).
+This was a read-only public probe; no production data was written and no decision
+state was overridden. The TAR-01 preflight remains `BLOCKED` with
+`safety_ready=true` and `capacity_ready=false`; production capacity/chaos,
+14-day telemetry, restore/rollback, provider/MCP success, and owner/reviewer
+sign-off remain unproven.

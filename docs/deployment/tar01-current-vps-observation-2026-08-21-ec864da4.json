@@ -1,0 +1,24 @@
+{
+  "schema": "tar01-current-vps-observation.v1",
+  "observed_at": "2026-08-21T15:22:38Z",
+  "candidate": {
+    "branch": "dev/next-development",
+    "source_commit": "ec864da4b6f1f96da65ea5e6aa61ccc76c811ddc",
+    "release_tag": "20260821230203",
+    "image_id": "sha256:ed710b134de44de5aba074f48abc5c0013f2481a578e787643b4d49f98d72600",
+    "runtime_match": true,
+    "deployment_report": "dist/remote-build-reports/remote-build-report-20260821230203.json"
+  },
+  "public_probes": {
+    "health": {"url": "https://demo.agomtrade.pro/api/health/", "status_code": 200, "observed_status": "ok", "observed_at": "2026-08-21T15:22:22Z"},
+    "ready": {"url": "https://demo.agomtrade.pro/api/ready/", "status_code": 200, "observed_status": "ok", "database": "ok", "redis": "ok", "celery_workers": 1, "critical_data": "ok", "decision_data": "warning", "observed_at": "2026-08-21T15:22:28Z"},
+    "audit_health": {"url": "https://demo.agomtrade.pro/api/audit/health/", "status_code": 200, "overall_status": "OK", "observed_at": "2026-08-21T15:22:31Z"},
+    "audit_metrics": {"url": "https://demo.agomtrade.pro/api/audit/metrics/", "status_code": 200, "content_type": "text/plain", "observed_at": "2026-08-21T15:22:31Z"},
+    "decision_ready": {"url": "https://demo.agomtrade.pro/api/decision-ready/", "status_code": 503, "observed_status": "blocked", "must_not_use_for_decision": true, "block_reason_code": "decision_runtime_blocked", "observed_at": "2026-08-21T15:22:38Z"},
+    "regime_current": {"url": "https://demo.agomtrade.pro/api/regime/current/", "status_code": 503, "observed_status": "blocked", "must_not_use_for_decision": true, "block_reason_code": "decision_runtime_blocked", "observed_at": "2026-08-21T15:22:38Z"},
+    "terminal_runs_anonymous": {"url": "https://demo.agomtrade.pro/api/terminal/runs/", "status_code": 403, "error_code": "API_ERROR", "authentication": "required", "observed_at": "2026-08-21T15:22:38Z"},
+    "tui_anonymous": {"url": "https://demo.agomtrade.pro/api/tui/", "status_code": 403, "error_code": "API_ERROR", "authentication": "required", "observed_at": "2026-08-21T15:22:38Z"}
+  },
+  "tar01_gate": {"decision": "BLOCKED", "safety_ready": true, "capacity_ready": false, "load_and_chaos_scenarios": "planned", "command": "python scripts/check_tar01_exit_gate.py --format json"},
+  "scope": {"read_only": true, "production_data_written": false, "decision_state_overridden": false, "not_proven": ["multi-user production capacity", "Worker/SSE chaos and recovery", "14-day telemetry", "restore/rollback", "provider/MCP success", "owner/reviewer sign-off"]}
+}
