@@ -57,6 +57,22 @@ def _require_non_empty(value: str, field_name: str) -> str:
     return value
 
 
+def _require_non_negative_int(value: object, field_name: str) -> int:
+    """Require a non-negative integer while rejecting bool-as-int values."""
+
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise TerminalRunApiContractError(f"{field_name} must be a non-negative integer")
+    return value
+
+
+def _require_positive_int(value: object, field_name: str) -> int:
+    """Require a positive integer while rejecting bool-as-int values."""
+
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise TerminalRunApiContractError(f"{field_name} must be a positive integer")
+    return value
+
+
 def _require_status(
     value: TerminalRunStatus,
     allowed: frozenset[TerminalRunStatus],
@@ -281,3 +297,103 @@ class TerminalRunEvent:
             "occurred_at": self.occurred_at.isoformat(),
             "data": dict(self.data),
         }
+
+
+@dataclass(frozen=True, slots=True)
+class TerminalRunEventReplayQuery:
+    """Owner-scoped, bounded cursor used to request an event replay."""
+
+    run_id: str
+    actor_user_id: int
+    after_sequence: int = 0
+    limit: int = 100
+
+    def __post_init__(self) -> None:
+        """Validate the identity and bounded replay controls."""
+
+        try:
+            validate_terminal_run_id(self.run_id)
+        except TerminalRunContractError as exc:
+            raise TerminalRunApiContractError(str(exc)) from exc
+        _require_positive_int(self.actor_user_id, "actor_user_id")
+        _require_non_negative_int(self.after_sequence, "after_sequence")
+        if isinstance(self.limit, bool) or not isinstance(self.limit, int):
+            raise TerminalRunApiContractError("limit must be a positive integer")
+        if self.limit <= 0 or self.limit > 100:
+            raise TerminalRunApiContractError("limit must be between 1 and 100")
+
+
+@dataclass(frozen=True, slots=True)
+class TerminalRunEventReplay:
+    """One sequenced event that is safe to replay after a cursor."""
+
+    event_id: str
+    event_type: str
+    run_id: str
+    occurred_at: datetime
+    sequence: int
+    data: Mapping[str, JsonValue]
+
+    def __post_init__(self) -> None:
+        """Validate event identity, sequence, clock and redacted data."""
+
+        _require_non_empty(self.event_id, "event_id")
+        _require_non_empty(self.event_type, "event_type")
+        try:
+            validate_terminal_run_id(self.run_id)
+        except TerminalRunContractError as exc:
+            raise TerminalRunApiContractError(str(exc)) from exc
+        _require_aware(self.occurred_at, "occurred_at")
+        _require_positive_int(self.sequence, "sequence")
+        _validate_json_value(self.data, "data")
+        try:
+            assert_no_sensitive_runtime_data(self.data)
+        except TerminalRunContractError as exc:
+            raise TerminalRunApiContractError(str(exc)) from exc
+
+    def to_payload(self) -> dict[str, object]:
+        """Return the complete public replay envelope."""
+
+        return {
+            "event_id": self.event_id,
+            "event_type": self.event_type,
+            "run_id": self.run_id,
+            "occurred_at": self.occurred_at.isoformat(),
+            "sequence": self.sequence,
+            "data": dict(self.data),
+        }
+
+
+def validate_terminal_run_event_replay(
+    query: TerminalRunEventReplayQuery,
+    events: Sequence[TerminalRunEventReplay],
+) -> tuple[TerminalRunEventReplay, ...]:
+    """Validate one bounded, owner-scoped, strictly ordered replay batch.
+
+    The validator deliberately does not discard events after a terminal status:
+    a reconnecting owner must be able to recover the complete durable history.
+    Repository implementations still have to enforce ``query.actor_user_id``
+    against the run owner before constructing this batch.
+    """
+
+    if not isinstance(query, TerminalRunEventReplayQuery):
+        raise TerminalRunApiContractError("query must be TerminalRunEventReplayQuery")
+    if len(events) > query.limit:
+        raise TerminalRunApiContractError("event replay exceeds the requested limit")
+
+    previous_sequence = query.after_sequence
+    seen_event_ids: set[str] = set()
+    validated: list[TerminalRunEventReplay] = []
+    for event in events:
+        if not isinstance(event, TerminalRunEventReplay):
+            raise TerminalRunApiContractError("event replay contains an invalid event")
+        if event.run_id != query.run_id:
+            raise TerminalRunApiContractError("event replay run_id does not match query")
+        if event.sequence <= previous_sequence:
+            raise TerminalRunApiContractError("event replay sequence is not strictly increasing")
+        if event.event_id in seen_event_ids:
+            raise TerminalRunApiContractError("event replay contains a duplicate event_id")
+        seen_event_ids.add(event.event_id)
+        previous_sequence = event.sequence
+        validated.append(event)
+    return tuple(validated)

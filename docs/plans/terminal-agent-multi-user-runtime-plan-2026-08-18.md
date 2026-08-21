@@ -946,3 +946,20 @@ approval. `scripts/check_tar01_exit_gate.py` therefore reports
 `decision=BLOCKED`, `safety_ready=true`, and `capacity_ready=false` with all checks passing;
 the offline baseline manifest remains `runtime_enablement=not_authorized` so it cannot be
 mistaken for the production observation.
+
+### TAR-01 event cursor and replay contract guard (2026-08-21)
+
+The pure Application API contract now defines an owner-scoped
+`TerminalRunEventReplayQuery`, a bounded `TerminalRunEventReplay` envelope, and
+`validate_terminal_run_event_replay()`. The contract rejects boolean/negative cursors,
+unbounded batches, run identity substitution, duplicate or non-monotonic sequences, and
+sensitive event data. It deliberately preserves terminal events so a reconnecting owner can
+replay durable history rather than silently losing the final outcome. The focused API
+contract suite passes `16` tests and the complete `tests/unit/agent_runtime` suite passes
+`185` tests; Black/isort/Ruff, incremental mypy and `git diff --check` pass.
+
+This is a repository-only contract and does not alter the route, ORM, Celery worker, SSE
+serializer, runtime flags or VPS candidate. The runtime `events-reconnect-and-owner-scope`
+scenario remains planned until a concrete owner-scoped route/component observer proves
+Last-Event-ID replay, cross-user isolation, cursor recovery and chaos/reconnect behavior.
+TAR-01 remains `BLOCKED` with `safety_ready=true` and `capacity_ready=false`.

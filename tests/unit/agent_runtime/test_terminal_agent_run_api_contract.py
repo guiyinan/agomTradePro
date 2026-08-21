@@ -14,8 +14,11 @@ from apps.agent_runtime.application.terminal_agent_run_api_contract import (
     TerminalRunApiRoute,
     TerminalRunCancelResponse,
     TerminalRunEvent,
+    TerminalRunEventReplay,
+    TerminalRunEventReplayQuery,
     TerminalRunStatusResponse,
     terminal_run_route,
+    validate_terminal_run_event_replay,
 )
 from apps.agent_runtime.domain.terminal_agent_run_contract import TerminalRunStatus
 
@@ -185,6 +188,107 @@ def test_event_rejects_sensitive_data_and_preserves_replay_envelope() -> None:
             run_id=RUN_ID,
             occurred_at=NOW,
             data={"prompt": "do not persist this"},
+        )
+
+
+def test_event_replay_enforces_owner_scope_cursor_order_and_bound() -> None:
+    """Replay batches bind one owner/run and cannot skip, duplicate or overrun a cursor."""
+
+    query = TerminalRunEventReplayQuery(
+        run_id=RUN_ID,
+        actor_user_id=7,
+        after_sequence=2,
+        limit=2,
+    )
+    events = (
+        TerminalRunEventReplay(
+            event_id="event-0003",
+            event_type="status",
+            run_id=RUN_ID,
+            occurred_at=NOW,
+            sequence=3,
+            data={"status": "running"},
+        ),
+        TerminalRunEventReplay(
+            event_id="event-0004",
+            event_type="completed",
+            run_id=RUN_ID,
+            occurred_at=NOW,
+            sequence=4,
+            data={"status": "completed"},
+        ),
+    )
+
+    assert validate_terminal_run_event_replay(query, events) == events
+    assert events[-1].to_payload()["sequence"] == 4
+
+    with pytest.raises(TerminalRunApiContractError, match="run_id"):
+        validate_terminal_run_event_replay(
+            query,
+            (
+                TerminalRunEventReplay(
+                    event_id="event-other-run",
+                    event_type="status",
+                    run_id="run-20260818-0002",
+                    occurred_at=NOW,
+                    sequence=3,
+                    data={},
+                ),
+            ),
+        )
+    with pytest.raises(TerminalRunApiContractError, match="strictly increasing"):
+        validate_terminal_run_event_replay(query, (events[0], events[0]))
+    with pytest.raises(TerminalRunApiContractError, match="limit"):
+        validate_terminal_run_event_replay(query, events + (events[1],))
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"actor_user_id": True},
+        {"after_sequence": -1},
+        {"limit": 0},
+        {"limit": 101},
+    ],
+)
+def test_event_replay_query_rejects_ambiguous_cursor_controls(kwargs: dict[str, object]) -> None:
+    """Cursor controls never coerce bools, negatives or unbounded batches."""
+
+    with pytest.raises(TerminalRunApiContractError):
+        query_kwargs: dict[str, object] = {"actor_user_id": 7}
+        query_kwargs.update(kwargs)
+        TerminalRunEventReplayQuery(run_id=RUN_ID, **query_kwargs)  # type: ignore[arg-type]
+
+
+def test_event_replay_rejects_sequence_and_sensitive_payload_substitution() -> None:
+    """Replay envelopes reject zero/boolean sequences and secret-bearing data."""
+
+    with pytest.raises(TerminalRunApiContractError):
+        TerminalRunEventReplay(
+            event_id="event-zero",
+            event_type="status",
+            run_id=RUN_ID,
+            occurred_at=NOW,
+            sequence=0,
+            data={},
+        )
+    with pytest.raises(TerminalRunApiContractError):
+        TerminalRunEventReplay(
+            event_id="event-bool",
+            event_type="status",
+            run_id=RUN_ID,
+            occurred_at=NOW,
+            sequence=True,  # type: ignore[arg-type]
+            data={},
+        )
+    with pytest.raises(TerminalRunApiContractError):
+        TerminalRunEventReplay(
+            event_id="event-secret",
+            event_type="status",
+            run_id=RUN_ID,
+            occurred_at=NOW,
+            sequence=1,
+            data={"authorization": "redacted"},
         )
 
 

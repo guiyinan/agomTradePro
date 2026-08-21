@@ -61,7 +61,7 @@
 | [adr-0001-shared-infrastructure-boundaries.md](architecture/adr-0001-shared-infrastructure-boundaries.md) | **ADR：shared.infrastructure 边界判定** | ✅ 2026-05-02 新增 |
 | [adr-0006-tui-primary-interface.md](architecture/adr-0006-tui-primary-interface.md) | **ADR：TUI 作为日常任务主界面与 Web 保留清单边界** | ✅ 2026-07-26 已接受 |
 | [adr-0007-evidence-envelope-and-decision-gates.md](architecture/adr-0007-evidence-envelope-and-decision-gates.md) | **ADR：Evidence Envelope、Track Record 与决策硬闸所有权** | 2026-08-12 分阶段实施 |
-| [adr-0008-terminal-agent-runtime-boundary.md](architecture/adr-0008-terminal-agent-runtime-boundary.md) | **ADR：Terminal Agent 多用户运行时边界与 queued composition contract** | 2026-08-18 TAR-01 契约冻结；TAR-02/03 未启动 |
+| [adr-0008-terminal-agent-runtime-boundary.md](architecture/adr-0008-terminal-agent-runtime-boundary.md) | **ADR：Terminal Agent 多用户运行时边界与 queued composition contract** | 2026-08-18 TAR-01 契约冻结；TAR-02 已有候选级 bounded runtime observation，TAR-03 仍未启动 |
 | [shared-cleanup-program-2026-05-02.md](architecture/shared-cleanup-program-2026-05-02.md) | **shared 残留清理专项** | ✅ 2026-05-02 新增 |
 | [module-cycle-regression-remediation-2026-05-02.md](architecture/module-cycle-regression-remediation-2026-05-02.md) | **模块依赖回归整改说明（cycle 回归复盘与修复）** | ✅ 2026-05-02 新增 |
 | [mcp-hosted-transport-and-identity-memo-2026-05-10.md](architecture/mcp-hosted-transport-and-identity-memo-2026-05-10.md) | **MCP 服务化演进备忘录（stdio vs HTTP/SSE、Token vs per-user OAuth）** | ✅ 2026-05-10 新增 |
