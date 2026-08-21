@@ -59,6 +59,8 @@ def execute_terminal_agent_run(run_id: str, task_id: int) -> dict[str, object]:
 
     if not bool(getattr(settings, "TERMINAL_QUEUED_WORKER_ENABLED", False)):
         return {"outcome": "blocked", "reason_code": "queued_worker_disabled"}
+    if bool(getattr(settings, "TERMINAL_EMERGENCY_STOP", False)):
+        return {"outcome": "blocked", "reason_code": "submissions_paused"}
 
     repository = _repo()
     claimed = repository.claim(

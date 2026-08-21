@@ -1083,3 +1083,19 @@ success or capacity acceptance. `/api/decision-ready/` remained `503` with
 `must_not_use_for_decision=true`, without override. TAR-01 therefore remains
 `BLOCKED/safety_ready=true/capacity_ready=false` until a funded/healthy provider and
 the remaining capacity, chaos, telemetry, restore/rollback, and sign-off evidence exist.
+
+### TAR-01 worker-side emergency-stop claim guard (2026-08-22)
+
+The queued HTTP admission path already rejects new submissions while
+`TERMINAL_EMERGENCY_STOP=true`, but a broker delivery can outlive that setting change.
+The Celery execution task now checks the same flag before opening the repository or
+claiming a run, returning the stable `submissions_paused` outcome and leaving the
+queued row available for later recovery. A unit regression proves the repository is not
+called while the stop is active; the Agent Runtime unit suite passed `186` tests,
+incremental mypy reported `0` regressions, and Ruff/Black/isort/diff-check passed.
+
+This is a repository safety hardening slice only. It does not enable queued intake,
+change the production default, cancel already-running work, or turn the provider-blocked
+VPS canary into a capacity result. TAR-01 remains `BLOCKED/safety_ready=true/
+capacity_ready=false` pending the separately authorized capacity/chaos/provider/
+telemetry/restore and human sign-off evidence.

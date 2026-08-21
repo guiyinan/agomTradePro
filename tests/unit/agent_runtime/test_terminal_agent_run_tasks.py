@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from apps.agent_runtime.application import tasks
 from apps.agent_runtime.application.terminal_agent import TerminalAgentEventDTO
 from apps.agent_runtime.application.terminal_agent_run_runtime import TerminalAgentWorkerInput
@@ -129,6 +131,24 @@ def test_execute_terminal_agent_run_blocks_before_claim_when_worker_disabled(set
     result = tasks.execute_terminal_agent_run.run("run-task-contract-0001", 17)
 
     assert result == {"outcome": "blocked", "reason_code": "queued_worker_disabled"}
+
+
+def test_execute_terminal_agent_run_blocks_before_claim_when_emergency_stop_is_on(
+    monkeypatch, settings
+):
+    """Emergency stop prevents a dispatched task from claiming new work."""
+
+    settings.TERMINAL_QUEUED_WORKER_ENABLED = True
+    settings.TERMINAL_EMERGENCY_STOP = True
+    monkeypatch.setattr(
+        tasks,
+        "_repo",
+        lambda: pytest.fail("emergency stop must block before repository claim"),
+    )
+
+    result = tasks.execute_terminal_agent_run.run("run-task-contract-0001", 17)
+
+    assert result == {"outcome": "blocked", "reason_code": "submissions_paused"}
 
 
 def test_execute_terminal_agent_run_returns_noop_for_lost_first_winner(monkeypatch, settings):
