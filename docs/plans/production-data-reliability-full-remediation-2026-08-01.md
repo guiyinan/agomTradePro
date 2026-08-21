@@ -754,3 +754,27 @@ rollback。
 这条记录完成 DATA-01 的“新建并验证下载”子步骤，但不等于生产规模 restore/rebuild、RTO/RPO、
 维护态 rollback、controlled backfill 或 reconciliation。`DATA-01` 继续 `awaiting_production`，
 `DATA-02/03` 不解锁；下一步仍需在明确维护窗口内完成受控恢复/回滚演练及 owner 验收。
+
+## 实施记录（2026-08-22，DATA-01 最新归档本机隔离 restore 验收）
+
+本批没有连接生产数据库。为验证新恢复点可被完整恢复，在本机创建唯一命名的 disposable
+`postgres:16-alpine` source 容器，将同一 custom-format 归档预置为 source，再由
+`scripts/verify_postgres_backup_restore.py` 创建受控 restore 数据库执行第二次 `pg_restore`、
+Repeatable Read 全表快照和 schema/迁移/sequence/逐表内容比较；restore 数据库和 source 容器
+均在报告生成后清理。
+
+- 归档绑定 `/opt/agomtradepro/backups/database/postgres-20260821T195155Z.dump` /
+  `backups/vps-postgres/postgres-20260821T195155Z.dump`，大小 `142507268` bytes，SHA-256
+  `8aadc5e9aff1f50c142b03dd219153c01b25d5110533195ec3670de36e44157e`；pg_restore client 为
+  `postgres:16-alpine`，restore entries `7189`。
+- `outcome=success`：source/restore 均为 `539` 张 public 表、`72` 项 Data Center migrations、
+  `460` 条 sequence；schema SHA、逐表 row/content hash、migration 与 sequence 差异全部为 `0`
+  （`missing/extra/changed=false/0`）。restore `1144.211s`、verification `945.14s`、total
+  `3358.717s`。
+- 完整报告见
+  [`data01-local-isolated-restore-2026-08-22.json`](../deployment/data01-local-isolated-restore-2026-08-22.json)，
+  报告 SHA-256 为 `33b7217d839b3036934ef0d3d2fbb45b61fd412af44ec354680e9a260b9c50a0`。
+
+该条只补齐新恢复点的本机隔离 restore/rebuild 自洽证据；elapsed 不能冒充生产 RTO/RPO，仍未
+执行 VPS maintenance、生产 restore/DDL、live rollback、controlled backfill 或 reconciliation。
+`DATA-01` 继续 `awaiting_production`，`DATA-02/03` 不解锁。
