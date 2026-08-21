@@ -29,6 +29,7 @@ class _FakeRepository:
     def __init__(self) -> None:
         self.submitted: TerminalAgentRunContract | None = None
         self.cancel_error: TerminalRunContractError | None = None
+        self.submit_error: TerminalRunContractError | None = None
 
     def queue_summary(self, *, actor_user_id: int) -> TerminalRunQueueSummary:
         """Return an empty bounded queue snapshot."""
@@ -45,6 +46,8 @@ class _FakeRepository:
     def submit(self, request: object) -> TerminalAgentRunContract:
         """Preserve the durable submission identity."""
 
+        if self.submit_error is not None:
+            raise self.submit_error
         submission = request.submission
         self.submitted = TerminalAgentRunContract(
             submission=submission,
@@ -149,6 +152,42 @@ def test_enabled_create_stays_fail_closed_when_emergency_stop_is_on(monkeypatch)
 
     assert response.status_code == 503
     assert response.data["reason_code"] == "queued_runtime_not_wired"
+
+
+def test_capacity_repository_error_maps_to_retryable_429(monkeypatch):
+    """Capacity errors remain distinguishable from malformed request input."""
+
+    repository = _FakeRepository()
+    repository.submit_error = _NotCancellableError("per_user_queued_limit")
+    repository.submit_error.reason_code = "per_user_queued_limit"
+    monkeypatch.setattr(queued_runtime_views.transaction, "atomic", nullcontext)
+    monkeypatch.setattr(queued_runtime_views.transaction, "on_commit", lambda callback: None)
+    monkeypatch.setattr(
+        queued_runtime_views, "get_terminal_agent_run_repository", lambda: repository
+    )
+    request = APIRequestFactory().post(
+        "/api/terminal/runs/",
+        {
+            "task_id": 17,
+            "client_request_id": "request-view-capacity-0001",
+            "message": "x",
+            "run_id": "run-view-capacity-0001",
+        },
+        format="json",
+    )
+    force_authenticate(request, user=SimpleNamespace(pk=7, is_authenticated=True))
+
+    with override_settings(
+        TERMINAL_QUEUED_INTAKE_ENABLED=True,
+        TERMINAL_QUEUED_WORKER_ENABLED=True,
+        TERMINAL_RUNTIME_AUTHORIZED=True,
+        TERMINAL_EMERGENCY_STOP=False,
+    ):
+        response = queued_runtime_views.TerminalQueuedRunView.as_view()(request)
+
+    assert response.status_code == 429
+    assert response.data["code"] == "QUEUE_CAPACITY_REJECTED"
+    assert response.data["reason_code"] == "per_user_queued_limit"
 
 
 def test_committed_admission_survives_transient_broker_dispatch_failure(monkeypatch):

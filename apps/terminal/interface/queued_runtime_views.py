@@ -227,11 +227,6 @@ class TerminalQueuedRunView(APIView):
                 ),
             )
             return Response(response.to_payload(), status=202)
-        except (KeyError, TypeError, ValueError):
-            return Response(
-                {"error": "Invalid queued run request.", "code": "RUN_REQUEST_INVALID"},
-                status=400,
-            )
         except TerminalRunContractError as exc:
             reason_code = str(getattr(exc, "reason_code", "RUN_REQUEST_INVALID"))
             if reason_code in {
@@ -250,6 +245,11 @@ class TerminalQueuedRunView(APIView):
                     },
                     status=409,
                 )
+            return Response(
+                {"error": "Invalid queued run request.", "code": "RUN_REQUEST_INVALID"},
+                status=400,
+            )
+        except (KeyError, TypeError, ValueError):
             return Response(
                 {"error": "Invalid queued run request.", "code": "RUN_REQUEST_INVALID"},
                 status=400,
