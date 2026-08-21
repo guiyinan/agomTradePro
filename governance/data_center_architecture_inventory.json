@@ -36,7 +36,7 @@
   "counts": {
     "approved_non_data_http_imports": 4,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 4304,
+    "current_surface_references": 4301,
     "data_write_task_decorators": 61,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -3258,32 +3258,42 @@
       "text": "\"\"\"Return the latest context snapshot for a task.\"\"\""
     },
     {
-      "line": 241,
+      "line": 205,
+      "path": "apps/agent_runtime/infrastructure/terminal_agent_run_repository.py",
+      "text": "for reason_code, current, limit in limits:"
+    },
+    {
+      "line": 206,
+      "path": "apps/agent_runtime/infrastructure/terminal_agent_run_repository.py",
+      "text": "if current >= limit:"
+    },
+    {
+      "line": 295,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_run_repository.py",
       "text": "current = TerminalRunStatus(model.dispatch_status)"
     },
     {
-      "line": 244,
+      "line": 298,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_run_repository.py",
       "text": "if current is target:"
     },
     {
-      "line": 247,
+      "line": 301,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_run_repository.py",
       "text": "transition_terminal_run(current, target)"
     },
     {
-      "line": 527,
+      "line": 581,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_run_repository.py",
       "text": "\"\"\"Persist a terminal outcome only for the current worker lease.\"\"\""
     },
     {
-      "line": 553,
+      "line": 607,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_run_repository.py",
       "text": "current = TerminalRunStatus(run.dispatch_status)"
     },
     {
-      "line": 554,
+      "line": 608,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_run_repository.py",
       "text": "transition_terminal_run(current, status)"
     },
@@ -20978,57 +20988,32 @@
       "text": "\"\"\"Run a published safe action for the current user.\"\"\""
     },
     {
-      "line": 169,
-      "path": "apps/terminal/interface/queued_runtime_views.py",
-      "text": "summary = repository.queue_summary(actor_user_id=actor_user_id)"
-    },
-    {
-      "line": 170,
-      "path": "apps/terminal/interface/queued_runtime_views.py",
-      "text": "if summary.user_active >= int(getattr(settings, \"TERMINAL_PER_USER_ACTIVE_LIMIT\", 1)):"
-    },
-    {
-      "line": 172,
-      "path": "apps/terminal/interface/queued_runtime_views.py",
-      "text": "if summary.user_queued >= int(getattr(settings, \"TERMINAL_PER_USER_QUEUED_LIMIT\", 4)):"
-    },
-    {
-      "line": 174,
-      "path": "apps/terminal/interface/queued_runtime_views.py",
-      "text": "if summary.global_active >= int(getattr(settings, \"TERMINAL_GLOBAL_ACTIVE_LIMIT\", 4)):"
-    },
-    {
-      "line": 176,
-      "path": "apps/terminal/interface/queued_runtime_views.py",
-      "text": "if summary.global_queued >= int(getattr(settings, \"TERMINAL_GLOBAL_QUEUED_LIMIT\", 40)):"
-    },
-    {
-      "line": 228,
+      "line": 261,
       "path": "apps/terminal/interface/queued_runtime_views.py",
       "text": "\"\"\"Return queue summary or one owner-scoped durable status snapshot.\"\"\""
     },
     {
-      "line": 235,
+      "line": 268,
       "path": "apps/terminal/interface/queued_runtime_views.py",
       "text": "summary = repository.queue_summary(actor_user_id=actor_user_id)"
     },
     {
-      "line": 238,
+      "line": 271,
       "path": "apps/terminal/interface/queued_runtime_views.py",
       "text": "\"user_active\": summary.user_active,"
     },
     {
-      "line": 239,
+      "line": 272,
       "path": "apps/terminal/interface/queued_runtime_views.py",
       "text": "\"user_queued\": summary.user_queued,"
     },
     {
-      "line": 240,
+      "line": 273,
       "path": "apps/terminal/interface/queued_runtime_views.py",
       "text": "\"global_active\": summary.global_active,"
     },
     {
-      "line": 241,
+      "line": 274,
       "path": "apps/terminal/interface/queued_runtime_views.py",
       "text": "\"global_queued\": summary.global_queued,"
     },
