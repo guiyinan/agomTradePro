@@ -238,7 +238,10 @@ services:
         condition: service_healthy
     healthcheck:
       disable: true
-    mem_limit: ${CELERY_WORKER_MEMORY_LIMIT:-2g}
+    # QLib inference can legitimately exceed 2 GiB RSS for a full portfolio
+    # universe.  Keep concurrency at one and recycle the child after each task,
+    # but leave enough cgroup headroom to prevent SIGKILL/OOM during inference.
+    mem_limit: ${CELERY_WORKER_MEMORY_LIMIT:-4g}
     cpus: 1.0
     logging:
       driver: "json-file"
