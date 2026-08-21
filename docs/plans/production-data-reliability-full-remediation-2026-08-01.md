@@ -731,3 +731,26 @@ rollback、controlled backfill 或 reconciliation。`DATA-01` 保持 `awaiting_p
 这条记录刷新了一个可复核的生产恢复点和传输完整性，但不等于生产规模 restore/rebuild、
 RTO/RPO、维护态 rollback、controlled backfill 或 reconciliation；`DATA-01` 继续
 `awaiting_production`，`DATA-02/03` 不解锁。
+
+## 实施记录（2026-08-22，DATA-01 VPS 新建备份与结构化证据）
+
+本批按已授权的生产备份范围运行仓库备份流程，创建一个新的 PostgreSQL custom-format
+恢复点并下载到本地；未 prune 远端旧归档，未进入维护态，也未执行生产 restore、DDL、回填或
+rollback。
+
+- 远端归档：`/opt/agomtradepro/backups/database/postgres-20260821T195155Z.dump`；远端
+  `pg_restore --list` exit `0`，manifest `7204` entries，manifest SHA-256
+  `e761f7d394605238509885d28e8536c6115d1528c5b8a1c261dd929d753886b4`。
+- 完整下载到
+  `backups/vps-postgres/postgres-20260821T195155Z.dump`；远端与本地大小均
+  `142507268` bytes，远端与本地 SHA-256 均为
+  `8aadc5e9aff1f50c142b03dd219153c01b25d5110533195ec3670de36e44157e`，partial 归档被拒绝。
+- 结构化 envelope 为
+  [`data-backup-evidence-2026-08-22.json`](../deployment/data-backup-evidence-2026-08-22.json)，
+  `schema=data-backup-evidence.v1`，content hash
+  `4942f47d84dd52a18b5b7f7aabf1ab589f52150f51f1bfe0ac6ee0b689c05d5a`；采集时间、归档 mtime、
+  远端/本地 hash、尺寸与 manifest 均封存于 envelope。
+
+这条记录完成 DATA-01 的“新建并验证下载”子步骤，但不等于生产规模 restore/rebuild、RTO/RPO、
+维护态 rollback、controlled backfill 或 reconciliation。`DATA-01` 继续 `awaiting_production`，
+`DATA-02/03` 不解锁；下一步仍需在明确维护窗口内完成受控恢复/回滚演练及 owner 验收。
