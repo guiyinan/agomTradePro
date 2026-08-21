@@ -197,7 +197,7 @@
       "priority": "P0",
       "owner": "agent_runtime+terminal+task_monitor+operational_readiness+sdk+mcp",
       "status": "active",
-      "next_gate": "With the TAR-01 contracts, ADR and failing-first API boundary frozen, obtain controlled 1/5/10/20-user baseline and capacity evidence for one immutable candidate; keep Web/TUI Agent execution behind the existing inline cap and queued intake/worker disabled until TAR-02/TAR-03 production evidence is complete.",
+      "next_gate": "With the TAR-01 contracts and failing-first API boundary frozen, continue the explicitly authorized bounded observation on one immutable candidate; keep the TAR-01 exit gate closed until multi-user/global 1/5/10/20 capacity, reconnect/chaos, provider, restore/rollback, telemetry and owner/reviewer evidence are complete.",
       "documents": [
         {
           "path": "docs/plans/terminal-agent-multi-user-runtime-plan-2026-08-18.md",

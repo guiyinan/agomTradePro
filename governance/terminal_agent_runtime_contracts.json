@@ -3,8 +3,8 @@
   "schema_version": "1.0",
   "contract_id": "TAR-01",
   "title": "Terminal Agent run dispatch and hybrid runtime contract",
-  "decision_status": "repository_contract_only",
-  "decision_scope": "This manifest freezes names, ownership, wire semantics, and safety relationships for TAR-01. It is not a runtime configuration, persistence schema, broker declaration, or production readiness attestation.",
+  "decision_status": "runtime_observed_not_exit_ready",
+  "decision_scope": "This manifest freezes names, ownership, wire semantics, safety relationships, and a bounded candidate observation for TAR-01. It is not a runtime configuration, persistence schema, broker declaration, capacity acceptance, or production readiness attestation.",
   "authority": {
     "primary_plan": "docs/plans/terminal-agent-multi-user-runtime-plan-2026-08-18.md",
     "machine_registry": "governance/active_plan_registry.json",
@@ -36,19 +36,43 @@
       "ID-only broker envelope validation",
       "pure asynchronous API/SSE response shapes",
       "pure queue/deadline/flag relationships",
-      "dormant application composition boundary",
-      "reserved queued route names with an explicit fail-closed 503 boundary",
-      "strict offline snapshot parsing and content-addressed baseline evidence serialization"
+      "durable PostgreSQL run admission with owner-scoped first-winner idempotency",
+      "bounded queued intake with stable capacity rejection semantics",
+      "dedicated Celery delivery and persisted terminal event/SSE negotiation",
+      "strict offline snapshot parsing and content-addressed baseline evidence serialization",
+      "candidate-bound short-window VPS observation recorded separately from exit readiness"
     ],
     "not_implemented": [
-      "Web/TUI queued intake/admission route",
-      "durable PostgreSQL run or dispatch record",
-      "Celery task, broker publisher, or dispatcher",
-      "dedicated Agent Worker or event stream",
       "SDK/MCP/TUI queued client implementation",
-      "capacity, chaos, staging, or production UAT evidence"
+      "complete multi-user/global 1/5/10/20 capacity and hard-SLO evidence",
+      "events reconnect/owner-scope, sustained chaos, and 14-day telemetry",
+      "successful provider/MCP execution, restore/rollback, and role-based production UAT",
+      "owner/reviewer sign-off"
     ],
-    "fail_closed_rule": "No future adapter may infer that this manifest enables queued execution; TAR-02/TAR-03 must supply the missing ports and evidence before any queued flag is enabled."
+    "fail_closed_rule": "The observed candidate is explicitly authorized for bounded observation only; no generic adapter, fallback, or client may infer TAR-01 exit readiness. Capacity, chaos, recovery, telemetry, provider, restore/rollback, and human sign-off remain required."
+  },
+  "runtime_observation": {
+    "status": "short_window_observed",
+    "candidate_commit": "fec65c8022d4dbcda3c774b9d51db30ac83d2863",
+    "release": "20260821181242",
+    "image": "agomtradepro-web:20260821181242",
+    "queued_intake_enabled": true,
+    "queued_worker_enabled": true,
+    "legacy_inline_enabled": true,
+    "capacity_ready": false,
+    "provider_execution": "failed_not_claimed",
+    "evidence": "docs/deployment/tar01-current-production-queued-runtime-acceptance-2026-08-21-fec65c80.json",
+    "observed": [
+      "owner-scoped bounded admission and stable per-user rejection",
+      "same-key idempotent replay without a second durable row",
+      "worker restart/drain and two-node Celery ping",
+      "authenticated text/event-stream negotiation and terminal error event"
+    ],
+    "remaining": [
+      "multi-user/global capacity and complete 1/5/10/20 hard-SLO evidence",
+      "reconnect/owner-scope, chaos, 14-day telemetry, restore/rollback",
+      "successful provider/MCP execution and owner/reviewer sign-off"
+    ]
   },
   "responsibility_split": {
     "agent_task": {
@@ -249,7 +273,7 @@
       "dispatch_boundary": "MCP payloads never cross the Agent broker envelope; tool side effects require their existing idempotency and approval contracts."
     },
     "tui": {
-      "current_state": "No queued client is enabled by TAR-01; current synchronous TUI behavior remains protected by the existing inline guard.",
+      "current_state": "The server-side queued runtime has a bounded candidate observation; no queued client is enabled by TAR-01 and current synchronous TUI behavior remains protected by the existing inline guard.",
       "future_user_states": ["accepted", "queued", "running", "waiting_approval", "completed", "failed", "timed_out", "cancelled", "orphaned"],
       "copy_rule": "Expose task progress and next action in user language; do not expose Celery, Redis, broker, route placeholders, worker names, or raw exception text.",
       "future_recovery": ["refresh", "reconnect_events", "poll_fallback", "cancel", "resume_after_approval"]
@@ -317,8 +341,8 @@
       "TERMINAL_LEGACY_INLINE_CONCURRENCY": 1,
       "TERMINAL_LEGACY_INLINE_TIMEOUT_SECONDS": 60
     },
-    "migration_defaults": "queued intake/worker disabled; legacy inline remains enabled only at one slot and <=60 seconds; unavailable queued mode pauses rather than implicitly opening inline.",
-    "production_rule": "Production settings force queued intake and worker disabled until TAR-02/TAR-03/TAR-05 evidence gates are satisfied.",
+    "migration_defaults": "queued intake/worker disabled by repository defaults; legacy inline remains enabled only at one slot and <=60 seconds; unavailable queued mode pauses rather than implicitly opening inline.",
+    "production_rule": "A candidate-specific owner authorization may enable queued intake/worker for bounded observation, but this manifest still withholds TAR-01 exit readiness until the remaining evidence gates are complete.",
     "no_implicit_fallback": true
   },
   "acceptance_and_next_gate": {
@@ -337,7 +361,7 @@
       "tests/unit/agent_runtime/test_terminal_runtime_test_matrix.py",
       "tests/unit/agent_runtime/test_terminal_runtime_contract_manifest.py"
     ],
-    "next_gate": "Complete the real inline baseline and capacity evidence on one immutable candidate; this manifest does not authorize TAR-02 or production traffic.",
+    "next_gate": "Complete multi-user/global 1/5/10/20 capacity, reconnect/chaos, provider, restore/rollback, telemetry, and human sign-off on the same immutable candidate; the short observation does not authorize TAR-01 exit.",
     "production_evidence_missing": [
       "controlled 1/5/10/20 user baseline and capacity result",
       "durable PostgreSQL first-winner/idempotency/rollback evidence",

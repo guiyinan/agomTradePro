@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_tar01_preflight_stays_blocked_without_runtime_capacity() -> None:
-    """The current contract is safe but must not claim capacity readiness."""
+    """A bounded runtime observation remains blocked at the capacity exit gate."""
 
     report = evaluate_tar01_exit_gate(
         registry_path=ROOT / "governance/active_plan_registry.json",
@@ -25,11 +25,11 @@ def test_tar01_preflight_stays_blocked_without_runtime_capacity() -> None:
 
 
 def test_tar01_preflight_rejects_queued_flag_drift(tmp_path: Path) -> None:
-    """A queue flag change is an invalid safety state, not a capacity result."""
+    """A malformed runtime observation is an invalid safety state."""
 
     contract_path = ROOT / "governance/terminal_agent_runtime_contracts.json"
     contract = json.loads(contract_path.read_text(encoding="utf-8"))
-    contract["feature_flags"]["fields"]["TERMINAL_QUEUED_WORKER_ENABLED"] = True
+    contract["runtime_observation"]["queued_worker_enabled"] = False
     altered = tmp_path / "contract.json"
     altered.write_text(json.dumps(contract), encoding="utf-8")
 
@@ -40,7 +40,7 @@ def test_tar01_preflight_rejects_queued_flag_drift(tmp_path: Path) -> None:
 
     assert report.decision == "INVALID"
     assert report.safety_ready is False
-    assert "runtime_flags_closed" in report.reasons
+    assert "runtime_observation_bounded" in report.reasons
 
 
 def test_tar01_preflight_rejects_dependency_status_drift(tmp_path: Path) -> None:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Check TAR-01's local safety gate without claiming runtime capacity."""
+"""Check TAR-01's local safety gate and bounded runtime observation state."""
 
 from __future__ import annotations
 
@@ -112,40 +112,39 @@ def _check_registry(registry: Mapping[str, object]) -> tuple[GateCheck, ...]:
 
 
 def _check_contract(contract: Mapping[str, object]) -> tuple[GateCheck, ...]:
-    """Check that the runtime remains a closed, contract-only implementation."""
+    """Check that any runtime observation remains explicitly bounded."""
 
     checks: list[GateCheck] = []
     checks.append(
         GateCheck(
             "contract_decision_scope",
-            contract.get("decision_status") == "repository_contract_only",
+            contract.get("decision_status") == "runtime_observed_not_exit_ready",
             (
-                "contract remains repository_contract_only"
-                if contract.get("decision_status") == "repository_contract_only"
-                else "decision_status must remain repository_contract_only"
+                "runtime observation is recorded without exit readiness"
+                if contract.get("decision_status") == "runtime_observed_not_exit_ready"
+                else "decision_status must remain runtime_observed_not_exit_ready"
             ),
         )
     )
-    feature_flags = _mapping(contract.get("feature_flags"))
-    flags = _mapping(feature_flags.get("fields")) if feature_flags is not None else None
-    expected_flags = {
-        "TERMINAL_QUEUED_INTAKE_ENABLED": False,
-        "TERMINAL_QUEUED_WORKER_ENABLED": False,
-        "TERMINAL_LEGACY_INLINE_ENABLED": True,
-        "TERMINAL_LEGACY_INLINE_CONCURRENCY": 1,
-        "TERMINAL_LEGACY_INLINE_TIMEOUT_SECONDS": 60,
-    }
-    flags_ok = flags is not None and all(
-        flags.get(key) == value for key, value in expected_flags.items()
+    observation = _mapping(contract.get("runtime_observation"))
+    observation_ok = bool(
+        observation
+        and observation.get("status") == "short_window_observed"
+        and isinstance(observation.get("candidate_commit"), str)
+        and len(cast(str, observation.get("candidate_commit"))) == 40
+        and observation.get("queued_intake_enabled") is True
+        and observation.get("queued_worker_enabled") is True
+        and observation.get("capacity_ready") is False
+        and observation.get("provider_execution") == "failed_not_claimed"
     )
     checks.append(
         GateCheck(
-            "runtime_flags_closed",
-            flags_ok,
+            "runtime_observation_bounded",
+            observation_ok,
             (
-                "queued intake/worker disabled and inline remains one-slot <=60s"
-                if flags_ok
-                else "queued flags or inline guard differ from the fail-closed contract"
+                "queued/worker observation is candidate-bound and capacity remains incomplete"
+                if observation_ok
+                else "runtime observation must be candidate-bound, bounded, and not exit-ready"
             ),
         )
     )
@@ -173,15 +172,17 @@ def _check_contract(contract: Mapping[str, object]) -> tuple[GateCheck, ...]:
         baseline
         and baseline.get("runtime_enablement") == "not_authorized"
         and baseline.get("production_evidence_status") == "not_runtime"
+        and observation is not None
+        and observation.get("capacity_ready") is False
     )
     checks.append(
         GateCheck(
-            "capacity_gate_closed",
+            "capacity_gate_not_exit_ready",
             closed,
             (
-                "runtime enablement remains not_authorized/not_runtime"
+                "offline baseline remains separate; observed runtime is not exit-ready"
                 if closed
-                else "runtime enablement must remain not_authorized with no runtime evidence"
+                else "offline baseline or bounded runtime observation is inconsistent"
             ),
         )
     )
@@ -194,25 +195,26 @@ def _check_contract(contract: Mapping[str, object]) -> tuple[GateCheck, ...]:
             scenario_id = scenario.get("scenario_id") if scenario else None
             if scenario is not None and isinstance(scenario_id, str):
                 scenarios[scenario_id] = scenario
-    planned = {
-        "repository-postgres-first-winner",
-        "celery-delivery-outcomes",
-        "events-reconnect-and-owner-scope",
-        "load-1-5-10-20",
-        "chaos-worker-stream-recovery",
+    expected_statuses = {
+        "repository-postgres-first-winner": "implemented",
+        "celery-delivery-outcomes": "implemented",
+        "api-wire-and-request-bounds": "implemented",
+        "events-reconnect-and-owner-scope": "planned",
+        "load-1-5-10-20": "planned",
+        "chaos-worker-stream-recovery": "planned",
     }
     planned_ok = bool(scenarios) and all(
-        scenarios.get(scenario_id, {}).get("implementation_status") == "planned"
-        for scenario_id in planned
+        scenarios.get(scenario_id, {}).get("implementation_status") == status
+        for scenario_id, status in expected_statuses.items()
     )
     checks.append(
         GateCheck(
-            "future_runtime_scenarios_waiting",
+            "runtime_scenarios_bounded",
             planned_ok,
             (
-                "repository/Celery/events/load/chaos scenarios remain planned"
+                "repository/Celery/API are observed; reconnect/load/chaos remain planned"
                 if planned_ok
-                else "a future runtime scenario was marked implemented before its gate"
+                else "runtime scenario status does not match observed versus pending evidence"
             ),
         )
     )
@@ -224,7 +226,7 @@ def evaluate_tar01_exit_gate(
     registry_path: Path = DEFAULT_REGISTRY,
     contract_path: Path = DEFAULT_CONTRACT,
 ) -> Tar01ExitGateReport:
-    """Evaluate the local TAR-01 safety boundary without enabling runtime."""
+    """Evaluate TAR-01 without turning a short observation into an exit decision."""
 
     registry = _read_json(registry_path)
     contract = _read_json(contract_path)

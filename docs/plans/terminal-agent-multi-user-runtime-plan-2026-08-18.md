@@ -938,3 +938,11 @@ TAR-02 runtime observation is now evidenced, but TAR-01 still requires multi-use
 capacity, sustained chaos and telemetry, restore/rollback, provider/MCP success, and
 owner/reviewer evidence before an exit decision. AUD-01/EVID/STRAT/DATA gates remain
 separate and are not signed by this short window.
+
+The machine contract now records this distinction explicitly as
+`decision_status=runtime_observed_not_exit_ready`: the candidate-specific queued/worker
+authorization is an observation profile, not a repository default and not TAR-01 exit
+approval. `scripts/check_tar01_exit_gate.py` therefore reports
+`decision=BLOCKED`, `safety_ready=true`, and `capacity_ready=false` with all checks passing;
+the offline baseline manifest remains `runtime_enablement=not_authorized` so it cannot be
+mistaken for the production observation.

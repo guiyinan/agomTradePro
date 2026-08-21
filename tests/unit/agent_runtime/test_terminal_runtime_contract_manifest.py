@@ -80,10 +80,10 @@ def test_manifest_reuses_the_pure_runtime_names_and_routes() -> None:
         "actor_user_id",
         "client_request_id",
     }
-    assert set(manifest["implementation_boundary"]["not_implemented"]) >= {
-        "durable PostgreSQL run or dispatch record",
-        "Celery task, broker publisher, or dispatcher",
-        "dedicated Agent Worker or event stream",
+    assert set(manifest["implementation_boundary"]["implemented"]) >= {
+        "durable PostgreSQL run admission with owner-scoped first-winner idempotency",
+        "bounded queued intake with stable capacity rejection semantics",
+        "dedicated Celery delivery and persisted terminal event/SSE negotiation",
     }
     assert modes["canonical_type"].endswith("TerminalAgentRunContract")
 
@@ -113,7 +113,8 @@ def test_manifest_freezes_migration_flags_and_sensitive_transport_boundary() -> 
     assert manifest["prompt_and_sensitive_data"]["raw_prompt"]["run_dispatch_record"] == "forbidden"
     assert set(manifest["implementation_boundary"]["not_implemented"]) >= {
         "SDK/MCP/TUI queued client implementation",
-        "capacity, chaos, staging, or production UAT evidence",
+        "complete multi-user/global 1/5/10/20 capacity and hard-SLO evidence",
+        "events reconnect/owner-scope, sustained chaos, and 14-day telemetry",
     }
 
 
@@ -195,6 +196,10 @@ def test_manifest_freezes_complete_baseline_candidate_identity() -> None:
         canonical_terminal_runtime_test_matrix_digest()
     )
     assert baseline["production_evidence_status"] == "not_runtime"
+    observation = manifest["runtime_observation"]
+    assert observation["status"] == "short_window_observed"
+    assert observation["capacity_ready"] is False
+    assert observation["provider_execution"] == "failed_not_claimed"
 
 
 def test_manifest_binds_hard_slos_threats_and_deterministic_matrix() -> None:
