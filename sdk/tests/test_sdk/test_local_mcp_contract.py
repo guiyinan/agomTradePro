@@ -11,6 +11,9 @@ import pytest
 from agomtradepro.local_mcp import (
     LocalMcpError,
     RemoteMcpCapabilityClient,
+    RemoteMcpConnection,
+    RemoteMcpReconnectPolicy,
+    RemoteMcpSessionHandle,
 )
 
 
@@ -80,6 +83,21 @@ class _Session:
                 isError=False,
             )
         raise AssertionError(name)
+
+
+@dataclass
+class _Config:
+    mcp_url: str | None = "https://mcp.example.test/mcp"
+    remote_api_token: str | None = "config-token"
+    mcp_timeout_seconds: float = 5.0
+
+
+@dataclass
+class _TokenProvider:
+    value: str | None
+
+    def get_remote_api_token(self) -> str | None:
+        return self.value
 
 
 def test_local_client_reuses_mcp_tool_listing_and_core_registry() -> None:
@@ -159,3 +177,62 @@ def test_result_repr_does_not_render_payload() -> None:
     session = _Session()
     result = asyncio.run(RemoteMcpCapabilityClient(session).call_capability("x"))
     assert "server-issued-token" not in repr(result)
+
+
+def test_connection_reconnect_rotates_token_without_retrying_capability_calls() -> None:
+    provider = _TokenProvider("first-token")
+    opened: list[tuple[str, _Session]] = []
+    closed: list[str] = []
+
+    async def open_session(token: str) -> RemoteMcpSessionHandle:
+        session = _Session()
+        opened.append((token, session))
+
+        async def close() -> None:
+            closed.append(token)
+
+        return RemoteMcpSessionHandle(session=session, close=close)
+
+    async def scenario() -> None:
+        connection = RemoteMcpConnection(
+            _Config(),
+            token_provider=provider,
+            reconnect_policy=RemoteMcpReconnectPolicy(max_attempts=1),
+            session_opener=open_session,
+        )
+        async with connection as client:
+            assert client.connection_generation == 0
+            await client.bootstrap()
+            provider.value = "rotated-token"
+            assert await client.reconnect() == 1
+            await client.bootstrap()
+            assert client.connection_generation == 1
+
+    asyncio.run(scenario())
+    assert [token for token, _session in opened] == ["first-token", "rotated-token"]
+    assert closed == ["first-token", "rotated-token"]
+
+
+def test_reconnect_policy_is_bounded_and_client_without_connection_fails_closed() -> None:
+    with pytest.raises(LocalMcpError):
+        RemoteMcpReconnectPolicy(max_attempts=0)
+    with pytest.raises(LocalMcpError):
+        asyncio.run(RemoteMcpCapabilityClient(_Session()).reconnect())
+
+    attempts: list[str] = []
+
+    async def failing_opener(token: str) -> RemoteMcpSessionHandle:
+        attempts.append(token)
+        raise RuntimeError("transport secret must be redacted")
+
+    async def scenario() -> None:
+        connection = RemoteMcpConnection(
+            _Config(),
+            reconnect_policy=RemoteMcpReconnectPolicy(max_attempts=3),
+            session_opener=failing_opener,
+        )
+        with pytest.raises(LocalMcpError, match="bounded attempts"):
+            await connection.__aenter__()
+
+    asyncio.run(scenario())
+    assert attempts == ["config-token", "config-token", "config-token"]

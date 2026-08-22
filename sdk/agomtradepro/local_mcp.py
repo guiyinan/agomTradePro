@@ -8,9 +8,10 @@ business-action registry or manufactures confirmation tokens.
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import json
-from collections.abc import AsyncIterator, Mapping, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol, cast
 
@@ -43,6 +44,50 @@ class McpSessionPort(Protocol):
 
     async def call_tool(self, name: str, arguments: dict[str, object] | None = None) -> object:
         """Call one MCP tool and return its protocol result."""
+
+
+class RemoteMcpTokenProvider(Protocol):
+    """Read a fresh scoped remote token for an explicit reconnect."""
+
+    def get_remote_api_token(self) -> str | None:
+        """Return the current user-owned remote token, if available."""
+
+
+class RemoteMcpSessionOpener(Protocol):
+    """Open one authenticated session and return its closeable handle."""
+
+    async def __call__(self, token: str) -> RemoteMcpSessionHandle:
+        """Open a session using exactly one scoped token."""
+
+
+@dataclass(frozen=True, slots=True)
+class RemoteMcpReconnectPolicy:
+    """Bounded explicit reconnect policy; never retries a capability call."""
+
+    max_attempts: int = 2
+    retry_delay_seconds: float = 0.0
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.max_attempts, int)
+            or isinstance(self.max_attempts, bool)
+            or not 1 <= self.max_attempts <= 3
+        ):
+            raise LocalMcpError("max_attempts must be an integer from 1 to 3")
+        if not isinstance(self.retry_delay_seconds, (int, float)) or isinstance(
+            self.retry_delay_seconds, bool
+        ):
+            raise LocalMcpError("retry_delay_seconds must be numeric")
+        if not 0 <= float(self.retry_delay_seconds) <= 30:
+            raise LocalMcpError("retry_delay_seconds must be between 0 and 30 seconds")
+
+
+@dataclass(frozen=True, slots=True)
+class RemoteMcpSessionHandle:
+    """A session plus its transport cleanup callback."""
+
+    session: McpSessionPort
+    close: Callable[[], Awaitable[None]]
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,8 +139,35 @@ class RemoteMcpCallResult:
 class RemoteMcpCapabilityClient:
     """Call the canonical MCP registry through an already-open session."""
 
-    def __init__(self, session: McpSessionPort) -> None:
+    def __init__(
+        self,
+        session: McpSessionPort,
+        *,
+        reconnect_callback: Callable[[], Awaitable[McpSessionPort]] | None = None,
+    ) -> None:
         self._session = session
+        self._reconnect_callback = reconnect_callback
+        self._connection_generation = 0
+
+    @property
+    def connection_generation(self) -> int:
+        """Return a non-secret counter incremented after explicit reconnect."""
+
+        return self._connection_generation
+
+    async def reconnect(self) -> int:
+        """Reconnect explicitly and return the new connection generation.
+
+        No capability call is retried automatically. Callers must decide
+        whether a failed read is safe to repeat; mutation calls remain exactly
+        once unless their server contract supplies idempotency.
+        """
+
+        if self._reconnect_callback is None:
+            raise LocalMcpError("remote MCP reconnect is not configured")
+        self._session = await self._reconnect_callback()
+        self._connection_generation += 1
+        return self._connection_generation
 
     async def list_protocol_tools(self) -> tuple[RemoteMcpTool, ...]:
         """List MCP protocol tools without inferring business permissions."""
@@ -230,37 +302,130 @@ class RemoteMcpCapabilityClient:
 @contextlib.asynccontextmanager
 async def open_remote_mcp_capability_client(
     config: RemoteMcpConfiguration,
+    *,
+    token_provider: RemoteMcpTokenProvider | None = None,
+    reconnect_policy: RemoteMcpReconnectPolicy | None = None,
 ) -> AsyncIterator[RemoteMcpCapabilityClient]:
     """Open an authenticated streamable-HTTP MCP session for local commands."""
 
-    if config.mcp_url is None or config.remote_api_token is None:
+    if config.mcp_url is None:
         raise LocalMcpError("remote MCP configuration is incomplete")
-    try:
-        import httpx
-        from mcp import ClientSession
-        from mcp.client.streamable_http import streamable_http_client
-    except ImportError as exc:
-        raise LocalMcpError(
-            "install the SDK MCP dependencies before using remote capabilities"
-        ) from exc
+    if config.remote_api_token is None and (
+        token_provider is None or token_provider.get_remote_api_token() is None
+    ):
+        raise LocalMcpError("remote MCP configuration is incomplete")
+    connection = RemoteMcpConnection(
+        config,
+        token_provider=token_provider,
+        reconnect_policy=reconnect_policy,
+    )
+    async with connection as client:
+        yield client
 
-    # Imported lazily to keep local_mcp importable without importing the CLI module.
-    from .local_cli import authorization_header
 
-    headers = {
-        "Authorization": authorization_header(config.remote_api_token),
-        "Accept": "application/json, text/event-stream",
-    }
-    async with httpx.AsyncClient(
-        headers=headers,
-        timeout=float(config.mcp_timeout_seconds),
-    ) as http_client:
-        async with streamable_http_client(config.mcp_url, http_client=http_client) as streams:
+class RemoteMcpConnection:
+    """Own one MCP transport and rotate its token during explicit reconnect."""
+
+    def __init__(
+        self,
+        config: RemoteMcpConfiguration,
+        *,
+        token_provider: RemoteMcpTokenProvider | None = None,
+        reconnect_policy: RemoteMcpReconnectPolicy | None = None,
+        session_opener: RemoteMcpSessionOpener | None = None,
+    ) -> None:
+        self._config = config
+        self._token_provider = token_provider
+        self._reconnect_policy = reconnect_policy or RemoteMcpReconnectPolicy()
+        self._session_opener = session_opener or self._open_http_session
+        self._handle: RemoteMcpSessionHandle | None = None
+
+    async def __aenter__(self) -> RemoteMcpCapabilityClient:
+        """Open the first session and return its governed capability client."""
+
+        session = await self._open_session()
+        return RemoteMcpCapabilityClient(session, reconnect_callback=self._reconnect_session)
+
+    async def __aexit__(self, *_args: object) -> None:
+        """Close the active transport without suppressing cleanup errors."""
+
+        await self._close_session()
+
+    async def _reconnect_session(self) -> McpSessionPort:
+        await self._close_session()
+        return await self._open_session()
+
+    async def _open_session(self) -> McpSessionPort:
+        token = self._current_token()
+        last_error: BaseException | None = None
+        for attempt in range(self._reconnect_policy.max_attempts):
+            try:
+                self._handle = await self._session_opener(token)
+                return self._handle.session
+            except Exception as exc:  # noqa: BLE001 - transport boundary is redacted below.
+                last_error = exc
+                if attempt + 1 < self._reconnect_policy.max_attempts:
+                    delay = float(self._reconnect_policy.retry_delay_seconds)
+                    if delay:
+                        await asyncio.sleep(delay)
+        raise LocalMcpError("remote MCP connection failed after bounded attempts") from last_error
+
+    async def _close_session(self) -> None:
+        handle = self._handle
+        self._handle = None
+        if handle is not None:
+            await handle.close()
+
+    def _current_token(self) -> str:
+        token = self._token_provider.get_remote_api_token() if self._token_provider else None
+        value = token or self._config.remote_api_token
+        if value is None or not value.strip():
+            raise LocalMcpError("remote MCP configuration is incomplete")
+        return value
+
+    async def _open_http_session(self, token: str) -> RemoteMcpSessionHandle:
+        """Open a standard streamable-HTTP session with one scoped token."""
+
+        try:
+            import httpx
+            from mcp import ClientSession
+            from mcp.client.streamable_http import streamable_http_client
+        except ImportError as exc:
+            raise LocalMcpError(
+                "install the SDK MCP dependencies before using remote capabilities"
+            ) from exc
+
+        if self._config.mcp_url is None:
+            raise LocalMcpError("remote MCP configuration is incomplete")
+        from .local_cli import authorization_header
+
+        headers = {
+            "Authorization": authorization_header(token),
+            "Accept": "application/json, text/event-stream",
+        }
+        stack = contextlib.AsyncExitStack()
+        await stack.__aenter__()
+        try:
+            http_client = await stack.enter_async_context(
+                httpx.AsyncClient(
+                    headers=headers,
+                    timeout=float(self._config.mcp_timeout_seconds),
+                )
+            )
+            streams = await stack.enter_async_context(
+                streamable_http_client(self._config.mcp_url, http_client=http_client)
+            )
             read_stream, write_stream, _session_id = streams
             session_type = cast(Any, ClientSession)
-            async with session_type(read_stream, write_stream) as session:
-                await session.initialize()
-                yield RemoteMcpCapabilityClient(cast(McpSessionPort, session))
+            session = await stack.enter_async_context(session_type(read_stream, write_stream))
+            await session.initialize()
+            return RemoteMcpSessionHandle(
+                session=cast(McpSessionPort, session),
+                close=stack.aclose,
+            )
+        except BaseException:
+            await stack.aclose()
+            raise
 
 
 def _extract_payload(result: object) -> dict[str, object]:
@@ -327,6 +492,10 @@ __all__ = [
     "RemoteMcpCallResult",
     "RemoteMcpCapabilityClient",
     "RemoteMcpConfiguration",
+    "RemoteMcpConnection",
+    "RemoteMcpReconnectPolicy",
+    "RemoteMcpSessionHandle",
+    "RemoteMcpTokenProvider",
     "RemoteMcpTool",
     "open_remote_mcp_capability_client",
 ]

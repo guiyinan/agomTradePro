@@ -53,7 +53,7 @@
     ],
     "not_implemented": [
       "MCP/TUI queued client implementation and SDK event-stream/wait helpers",
-      "MCP reconnect/token rotation and cross-platform packaging",
+      "MCP cross-platform packaging",
       "complete multi-user/global 1/5/10/20 capacity and hard-SLO evidence",
       "sustained chaos and 14-day telemetry",
       "successful provider/MCP execution, restore/rollback, and role-based production UAT",
@@ -61,7 +61,7 @@
     ],
     "remaining_work_assignment": {
       "MCP/TUI queued client implementation and SDK event-stream/wait helpers": "TAR-04",
-      "MCP reconnect/token rotation and cross-platform packaging": "TAR-04",
+      "MCP cross-platform packaging": "TAR-04",
       "complete multi-user/global 1/5/10/20 capacity and hard-SLO evidence": "TAR-05",
       "sustained chaos and 14-day telemetry": "TAR-05",
       "successful provider/MCP execution, restore/rollback, and role-based production UAT": "TAR-05",
@@ -294,7 +294,8 @@
         "run",
         "environment/keyring credential lookup",
         "remote streamable MCP Authorization header composition",
-        "capability discovery/schema/call/confirmation resume through canonical core tools"
+        "capability discovery/schema/call/confirmation resume through canonical core tools",
+        "bounded explicit reconnect with fresh token-provider reads and no mutation auto-retry"
       ],
       "credential_boundary": "User-owned model keys stay in the local CLI/OS credential store; VPS receives only formal short-lived API/MCP credentials.",
       "authorization": "Remote capability discovery and calls remain the canonical MCP registry plus server-side ownership, RBAC, proposal, approval, and audit boundaries.",
@@ -394,7 +395,7 @@
       "sdk/tests/test_sdk/test_local_mcp_contract.py",
       "docs/deployment/tar01-current-production-capacity-2026-08-22-71e62773.json"
     ],
-    "next_gate": "Complete TAR-04 reconnect/token rotation and cross-platform packaging. Keep multi-user/global capacity, reconnect/chaos, provider, restore/rollback, telemetry and human sign-off bound to TAR-05 on one immutable candidate.",
+    "next_gate": "Complete TAR-04 cross-platform packaging. Keep multi-user/global capacity, reconnect/chaos, provider, restore/rollback, telemetry and human sign-off bound to TAR-05 on one immutable candidate.",
     "production_evidence_missing": [
       "multi-user/global 1/5/10/20 hard-SLO capacity result",
       "durable PostgreSQL first-winner/idempotency/rollback evidence",

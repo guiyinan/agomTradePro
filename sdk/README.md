@@ -61,9 +61,12 @@ agomtradepro-agent resume <server-issued-confirmation-token>
 flags and redacted URLs. Medium/high-risk mutations remain subject to the
 server capability, permission, confirmation, and audit contracts. Discovery,
 schema, call, and confirmation resume go through the server's canonical MCP
-core tools; the CLI never invents a capability or confirmation token. Reconnect/
-token rotation and Windows/WSL/Linux packaging are still TAR-04 follow-up gates;
-none of these commands claim production or VPS UAT is complete.
+core tools; the CLI never invents a capability or confirmation token.
+`RemoteMcpConnection` supports an explicit, bounded reconnect that re-reads a
+user-owned token provider. Capability calls are never retried automatically, so
+mutation semantics remain exactly-once unless the server supplies idempotency.
+Windows/WSL/Linux packaging remains the final TAR-04 follow-up; none of these
+commands claim production or VPS UAT is complete.
 
 ## Authentication
 

@@ -554,6 +554,7 @@ python scripts/check_mypy_debt_ceiling.py
 | Local CLI | active (foundation + registry facade delivered) | 已补本地入口、环境/OS keyring 凭据读取、redacted `doctor`、远端 Token 组合，以及复用 canonical MCP core tools 的 capability discovery/schema/call/confirmation resume；断线重连/Token 轮换和 Windows/WSL/Linux 打包仍在 TAR-04 |
 | TAR-04 local CLI/MCP foundation | completed (bounded repository slice) | 新增 `sdk/agomtradepro/local_cli.py`、`agomtradepro-agent` optional entrypoint 和 `sdk/tests/test_sdk/test_local_cli_contract.py`；`7` 个 CLI/MCP/secret-boundary tests、增量 mypy `0 regressions`、full debt ceiling `0 errors`、Ruff/Black/isort 通过。没有部署 VPS；没有把 provider key 放进远端 MCP header。 |
 | TAR-04 capability discovery/schema/call/confirmation resume | completed (bounded local SDK slice) | 新增 `sdk/agomtradepro/local_mcp.py` 与 `sdk/tests/test_sdk/test_local_mcp_contract.py`；本地客户端复用服务器 canonical `agom_capability_search`/`schema`/`call`/`confirmation_resume` 工具，支持 MCP tool listing、server-issued confirmation token、JSON envelope 严格校验；新增 `4` 个测试，与 CLI 合计 `11 passed`，Ruff/Black/isort 通过。没有新增业务旁路、没有伪造确认 token、没有部署 VPS。 |
+| TAR-04 bounded explicit reconnect/token rotation | completed (bounded local SDK slice) | `RemoteMcpConnection` 提供显式、有界重连；每次重连重新读取用户令牌 provider，传输失败仅按 `1..3` 次连接尝试退避；能力调用不自动重试，避免 mutation 重复执行。新增 reconnect/rotation 与 fail-closed 测试后 CLI/MCP 合计 `13 passed`，Ruff/Black/isort、strict mypy、增量回归和 debt ceiling 通过。没有部署 VPS；跨平台打包、真实 provider/MCP UAT 与 TAR-05 生产门禁仍未完成。 |
 | 生产容量证据 | not_started | 尚未执行 5/10/20 用户 staging soak/chaos，不允许据此扩大 inline 并发 |
 | TAR-02 PostgreSQL 双连接 first-winner/rollback 证据 | completed (disposable PostgreSQL evidence) | 新增显式隔离 settings `tests/settings_terminal_agent_run_postgres.py`，只接受本机/测试数据库 URL；`tests/component/agent_runtime/test_terminal_agent_run_repository.py` 增加第二连接不可见与回滚后不可见断言；使用本机 disposable PostgreSQL 18.4 双连接真实运行 `9 passed in 86.11s`，覆盖 claim first-winner、outer rollback visibility、幂等与 owner scope | 仅证明 repository 的 PostgreSQL 行锁与事务可见性合同；未接 queued admission、`on_commit` dispatch、Celery/Redis/broker/Worker、SSE/events/cancel、容量/chaos 或生产写入，`TAR-02` 仍 waiting，生产与 queued runtime 继续 fail-closed |
 | TAR-01 当前候选只读健康与认证边界复核 | observed / capacity denied | 针对既有 TAR-02 schema/repository 候选（release `20260819223747`，source `2fa7c4c8a4e09ea26e1e50e3e510c20c2bd26cab`）独立复核公网 HTTPS：`/api/health/` 连续 `8/8` 为 `200`（约 `1.09–12.66s`），未认证 `/api/terminal/runs/` 连续 `4/4` 为 `403`；未改生产状态 | 仅证明基础运行健康与认证边界；未取得认证后 reserved-route `503`、真实 1/5/10/20 admission/queue/Worker/SSE/idempotency/cancel/provider-MCP/chaos 指标，不能生成 capacity-ready 报告；TAR-01/TAR-02 与生产 gate 继续 fail-closed |
@@ -1435,3 +1436,21 @@ change the VPS candidate: production provider success, multi-user/global hard
 SLO capacity, sustained chaos/reconnect, Redis outage, restore/rollback,
 14-day telemetry, and owner/reviewer sign-off remain TAR-05 production work.
 No VPS deployment was performed for the SDK slice.
+
+### TAR-04 bounded explicit reconnect and token rotation (2026-08-22)
+
+The local MCP facade now has an explicit `RemoteMcpConnection` boundary. A
+reconnect reads the current user-owned token provider again, replaces the
+streamable-HTTP session, and increments a non-secret connection generation.
+Connection establishment is bounded to one through three attempts with an
+optional short delay; transport errors are redacted to a stable local error.
+Capability calls are deliberately not retried automatically, so a mutation is
+not repeated merely because the transport was reconnected. The direct SDK
+contract suite now passes `13` CLI/MCP tests, and Ruff, Black, isort, strict
+mypy, incremental regression and the debt-ceiling check pass.
+
+This is still a local SDK contract only. It does not rotate a production token,
+enable queued runtime, deploy the VPS, prove provider/MCP success, or provide
+cross-platform packaging. TAR-04's remaining repository gate is packaging;
+capacity, chaos/reconnect observation, provider, restore/rollback, telemetry and
+human sign-off remain TAR-05 production work.
