@@ -174,6 +174,10 @@ def test_authorized_composition_keeps_scope_and_evidence_on_one_alias(monkeypatc
         source_id=source.source_id,
         source_version=source.source_version,
         expected_content_hash=source.content_hash,
+        owner_id=source.owner_id,
+        tenant_id=source.tenant_id,
+        account_id=source.account_id,
+        actor_id=source.actor_id,
     )
     provider = _SelectorProvider(selector, selector_artifact)
 

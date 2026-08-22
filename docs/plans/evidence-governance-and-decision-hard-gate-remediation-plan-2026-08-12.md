@@ -3022,3 +3022,17 @@ issuer、不实现同 alias Repeatable Read bundle，也不连接 VPS 或生产 
 gate、decision/execution 总闸保持 fail-closed；production PostgreSQL race/rollback、authority
 lifecycle、provider/UAT、人工 sign-off 仍未完成。CLI/SDK 仍是服务器 API 的薄传输客户端，AI、
 provider、MCP/tool execution 均在服务器端，用户不需要安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-23：EVID-01 scope selector authority identity binding
+
+`EvidenceScopeSourceV1Selector` 现在必须携带 server-issued 的
+`owner_id/tenant_id/account_id/actor_id`，`EvidenceScopeSourceV1Provider` 在授予 scope 前会将
+这组 authority identity 与 exact scope source 逐字段比较；任一替换均稳定返回
+`scope source authority selector substitution`，不会进入 Evidence repository。该切片只收紧
+后续 authenticated issuer 的 typed contract，不从 User/Profile/session、mutable tenant rows 或
+数据库 alias 推导身份，也不创建或回填 authority ledger。
+
+新增 selector authority-substitution 回归；已有 scope/provider/composition focused tests 继续
+覆盖 exact source/hash/artifact/PIT 语义。EVID-01、Evidence hard gate、同 alias atomic bundle、
+真实 owner/user/tenant lifecycle、production provider、PostgreSQL race/rollback、UAT 与人工签署
+仍未完成，默认 composition 和所有无 authority 路径继续 fail-closed。

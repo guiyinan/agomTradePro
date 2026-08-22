@@ -74,6 +74,10 @@ def _selector(source: EvidenceScopeSourceV1) -> EvidenceScopeSourceV1Selector:
         source_id=source.source_id,
         source_version=source.source_version,
         expected_content_hash=source.content_hash,
+        owner_id=source.owner_id,
+        tenant_id=source.tenant_id,
+        account_id=source.account_id,
+        actor_id=source.actor_id,
     )
 
 
@@ -197,6 +201,20 @@ def test_reader_substitution_is_scope_corruption(
         ).get_current_scope(artifact=expected.artifact, as_of=AS_OF)
 
 
+def test_selector_authority_identity_substitution_is_scope_corruption() -> None:
+    """A selector cannot silently widen or change owner/tenant authority."""
+
+    source = _source()
+    selector = _selector(source)
+    object.__setattr__(selector, "tenant_id", "different-tenant")
+
+    with pytest.raises(EvidenceScopeCorruption, match="authority selector"):
+        EvidenceScopeSourceV1Provider(
+            reader=_Reader(source),
+            selectors=_Selectors(selector),
+        ).get_current_scope(artifact=source.artifact, as_of=AS_OF)
+
+
 def test_selector_provider_invalid_data_is_scope_corruption() -> None:
     class _BadSelectors:
         def get_selector(
@@ -311,6 +329,10 @@ def test_selector_rejects_overlong_identity_tokens(field: str) -> None:
         "source_id": "scope-source-1",
         "source_version": "v1",
         "expected_content_hash": "a" * 64,
+        "owner_id": "owner-1",
+        "tenant_id": "tenant-1",
+        "account_id": "account-1",
+        "actor_id": "actor-1",
     }
     values[field] = "x" * 193
 
