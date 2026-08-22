@@ -1385,6 +1385,23 @@ owner/reviewer sign-off evidence; TAR-01 remains
 
 Structured evidence: [`tar01-current-vps-observation-2026-08-22-4cef9040.json`](../deployment/tar01-current-vps-observation-2026-08-22-4cef9040.json).
 
+### TAR-01 current VPS read-only recheck (2026-08-22)
+
+The existing `4cef9040cccc2127c3f8128c8d858bc7958df2a4` / `20260822134658`
+candidate was rechecked over read-only HTTP and SSH without redeployment or
+configuration changes. Web, Celery worker/beat, PostgreSQL, and Redis remained
+healthy; health and readiness returned `200`, with one ready worker and critical
+data `ok`. Queued intake/worker, runtime authorization, and emergency-stop
+flags remained disabled. The decision endpoint remained `503 blocked` with
+`must_not_use_for_decision=true`; unauthenticated Agent Runtime and TUI probes
+returned `403 authentication_required`.
+
+This is a current-state observation only. It does not provide role-based
+browser/TUI UAT, provider/MCP execution, capacity/chaos, recovery,
+restore/rollback, 14-day telemetry, or owner/reviewer sign-off evidence. No
+additional VPS deployment is planned for this recheck. Structured evidence:
+[`tar01-current-vps-readonly-recheck-2026-08-22-4cef9040.json`](../deployment/tar01-current-vps-readonly-recheck-2026-08-22-4cef9040.json).
+
 ### TAR-02 repository exit-gate evidence (2026-08-22)
 
 The durable asynchronous admission and dispatch repository line now satisfies

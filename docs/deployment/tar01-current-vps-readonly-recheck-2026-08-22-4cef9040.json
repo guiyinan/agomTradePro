@@ -1,0 +1,67 @@
+{
+  "schema": "tar01-current-vps-readonly-recheck.v1",
+  "observed_at": "2026-08-22T15:37:08.472052Z",
+  "observation_kind": "read_only_recheck",
+  "candidate": {
+    "branch": "dev/next-development",
+    "source_commit": "4cef9040cccc2127c3f8128c8d858bc7958df2a4",
+    "release_tag": "20260822134658",
+    "image_tag": "agomtradepro-web:20260822134658"
+  },
+  "runtime": {
+    "web_image": "agomtradepro-web:20260822134658",
+    "web_revision": "4cef9040cccc2127c3f8128c8d858bc7958df2a4",
+    "web_health": "healthy",
+    "celery_worker": "running",
+    "celery_beat": "running",
+    "postgres": "healthy",
+    "redis": "healthy",
+    "terminal_emergency_stop": false,
+    "terminal_queued_intake_enabled": false,
+    "terminal_queued_worker_enabled": false,
+    "terminal_runtime_authorized": false,
+    "terminal_runtime_role": "legacy_inline"
+  },
+  "http": {
+    "health": {
+      "status": 200,
+      "body_status": "ok"
+    },
+    "readiness": {
+      "status": 200,
+      "body_status": "ok",
+      "database": "ok",
+      "redis": "ok",
+      "celery": "ok",
+      "workers": 1,
+      "critical_data": "ok",
+      "decision_data": "warning"
+    },
+    "decision_ready": {
+      "status": 503,
+      "body_status": "blocked",
+      "must_not_use_for_decision": true,
+      "block_reason_code": "decision_runtime_blocked"
+    },
+    "authenticated_agent_runtime": {
+      "status": 403,
+      "result": "authentication_required"
+    },
+    "authenticated_tui": {
+      "status": 403,
+      "result": "authentication_required"
+    }
+  },
+  "gate": {
+    "tar01": "BLOCKED",
+    "safety_ready": true,
+    "capacity_ready": false,
+    "decision_data_usable": false,
+    "production_write_performed": false
+  },
+  "limitations": [
+    "This is a read-only recheck; no deployment, feature-flag change, or production data write was performed.",
+    "No role-based authenticated browser/TUI UAT was possible without an authorized test token.",
+    "No provider/MCP execution, multi-user capacity, chaos, recovery, restore/rollback, 14-day telemetry, or owner/reviewer sign-off is claimed."
+  ]
+}
