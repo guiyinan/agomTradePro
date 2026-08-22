@@ -4,10 +4,10 @@
       "admin_surface": 13,
       "agent_skill": 3,
       "application_consumer": 157,
-      "beat_schedule": 58,
+      "beat_schedule": 59,
       "capability_runtime": 25,
-      "celery_dispatch_edge": 17,
-      "celery_task": 125,
+      "celery_dispatch_edge": 18,
+      "celery_task": 126,
       "compatibility_facade": 90,
       "current_data_surface": 50,
       "dynamic_import_edge": 10,
@@ -30,13 +30,13 @@
       "workflow_step": 9
     },
     "by_status": {
-      "active_public": 702,
-      "adjacent_operational": 292,
+      "active_public": 704,
+      "adjacent_operational": 293,
       "candidate-review": 2,
       "compatibility": 133,
       "retired_blocked": 0
     },
-    "total": 1129
+    "total": 1132
   },
   "entries": [
     {
@@ -2211,6 +2211,16 @@
     },
     {
       "category": "beat_schedule",
+      "evidence": "governance/celery_task_contracts.json",
+      "id": "beat_schedule:core/settings/celery_schedule.py:reconcile_queued_terminal_agent_dispatch:terminal-agent-dispatch-reconciliation",
+      "locator": "terminal-agent-dispatch-reconciliation",
+      "path": "core/settings/celery_schedule.py",
+      "status": "active_public",
+      "symbol": "reconcile_queued_terminal_agent_dispatch",
+      "target": "apps.agent_runtime.application.tasks.reconcile_queued_terminal_agent_dispatch"
+    },
+    {
+      "category": "beat_schedule",
       "evidence": "adjacent app-owned operational schedule",
       "id": "beat_schedule:core/settings/celery_schedule.py:refresh_current_sentiment_index:sentiment-refresh-current-index",
       "locator": "sentiment-refresh-current-index",
@@ -2602,6 +2612,16 @@
     {
       "category": "celery_dispatch_edge",
       "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
+      "id": "celery_dispatch_edge:apps/agent_runtime/application/tasks.py:apply_async:line:86",
+      "locator": "line:86",
+      "path": "apps/agent_runtime/application/tasks.py",
+      "status": "active_public",
+      "symbol": "apply_async",
+      "target": "apps.agent_runtime.application.tasks.execute_terminal_agent_run"
+    },
+    {
+      "category": "celery_dispatch_edge",
+      "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
       "id": "celery_dispatch_edge:apps/alpha/application/ops_use_cases.py:delay:line:122",
       "locator": "line:122",
       "path": "apps/alpha/application/ops_use_cases.py",
@@ -2838,6 +2858,16 @@
       "status": "adjacent_operational",
       "symbol": "reap_stale_terminal_agent_runs",
       "target": "apps.agent_runtime.application.tasks.reap_stale_terminal_agent_runs"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "governance/celery_task_contracts.json",
+      "id": "celery_task:apps/agent_runtime/application/tasks.py:reconcile_queued_terminal_agent_dispatch:apps.agent_runtime.application.tasks.reconcile_queued_terminal_agent_dispatch",
+      "locator": "apps.agent_runtime.application.tasks.reconcile_queued_terminal_agent_dispatch",
+      "path": "apps/agent_runtime/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "reconcile_queued_terminal_agent_dispatch",
+      "target": "apps.agent_runtime.application.tasks.reconcile_queued_terminal_agent_dispatch"
     },
     {
       "category": "celery_task",
@@ -11340,7 +11370,7 @@
     "retired_blocked": "known unsafe or obsolete operational path retained only as blocked evidence"
   },
   "source_contract_counts": {
-    "celery_tasks": 90,
+    "celery_tasks": 91,
     "current_data_contracts": 50,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 18,
