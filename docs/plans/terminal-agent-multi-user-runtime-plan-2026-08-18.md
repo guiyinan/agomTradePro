@@ -5,7 +5,7 @@
 > Owner：`agent_runtime + terminal + task_monitor + operational_readiness + sdk + mcp`
 > 机器进度真源：`governance/active_plan_registry.json`
 > Canonical closure units：`TAR-01` 至 `TAR-05`
-> 执行优先级：`TAR-01` 合同冻结已完成，`TAR-02` 是机器注册表当前唯一 repository execution focus；随后推进 `TAR-03`。`TUI-01` 等待 `TAR-03` 后再冻结最终候选并启动正式 M5 关闭窗口；在 `TAR-05` 生产验收前不得直接放大全局 inline 并发。
+> 执行优先级：`TAR-01` 合同冻结与 `TAR-02` durable admission/dispatch 已完成，`TAR-03` 是机器注册表当前唯一 repository execution focus。`TUI-01` 等待 `TAR-03` 后再冻结最终候选并启动正式 M5 关闭窗口；在 `TAR-05` 生产验收前不得直接放大全局 inline 并发。
 
 本文只维护问题、目标架构、分期交付、验收门和回滚边界。`active / waiting_dependency / production_validation` 等执行状态只在机器注册表维护，不在本文形成第二套进度。
 
@@ -1380,3 +1380,28 @@ owner/reviewer sign-off evidence; TAR-01 remains
 `BLOCKED/safety_ready=true/capacity_ready=false`.
 
 Structured evidence: [`tar01-current-vps-observation-2026-08-22-4cef9040.json`](../deployment/tar01-current-vps-observation-2026-08-22-4cef9040.json).
+
+### TAR-02 repository exit-gate evidence (2026-08-22)
+
+The durable asynchronous admission and dispatch repository line now satisfies
+its repository exit contract. The enabled-path API and route/task regression
+suite passed `251` Agent Runtime/terminal unit tests. The SQLite database
+component suite passed `21` tests (with the two explicit PostgreSQL-only cases
+skipped), while the isolated PostgreSQL component suite passed `18` tests and
+the dedicated concurrent-admission limit case passed separately; five Account
+authority projection tests are intentionally skipped by the minimal
+agent-runtime-only PostgreSQL settings. The PostgreSQL cases cover first-winner
+claiming, outer-transaction rollback visibility, and concurrent admission
+respecting the per-user queue limit.
+
+The implementation now has durable owner/task identity, idempotent replay,
+serialized per-user/global admission counters, post-commit ID-only broker
+dispatch, bounded reconciliation, and stable queue/cancel/status/event
+semantics without invoking Agent work in the Web process. This closes TAR-02's
+repository gate and advances the repository execution focus to TAR-03. It does
+not enable VPS queued flags or claim production Worker/provider/capacity,
+chaos, recovery, telemetry, or human-sign-off evidence; those remain in the
+declared production units.
+
+The disposable PostgreSQL evidence was run against a local `postgres:16`
+container only; no VPS deployment or production data was changed.

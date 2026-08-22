@@ -15,11 +15,11 @@ from threading import Barrier, Event
 from uuid import uuid4
 
 import pytest
+from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.db import close_old_connections, connection, connections, transaction
 from django.test import override_settings
 
-from apps.account.infrastructure.models import AccountProfileModel
 from apps.agent_runtime.application.terminal_agent_run_ports import (
     TerminalQueuedSubmissionRequest,
 )
@@ -44,6 +44,7 @@ from apps.agent_runtime.infrastructure.terminal_agent_run_repository import (
 pytestmark = pytest.mark.django_db(transaction=True)
 
 _NOW = datetime(2026, 8, 19, 12, 0, tzinfo=UTC)
+_ACCOUNT_APP_AVAILABLE = apps.is_installed("apps.account")
 
 
 @pytest.fixture
@@ -89,6 +90,8 @@ def _configure_terminal_payload(task, **fields: object) -> None:
 
 def _configure_owner_profile(owner, *, mcp_enabled: bool = True):
     """Create the authoritative account projection used by worker input tests."""
+
+    from apps.account.infrastructure.models import AccountProfileModel
 
     profile, _ = AccountProfileModel.objects.get_or_create(
         user=owner,
@@ -439,6 +442,10 @@ def test_stale_worker_cannot_heartbeat_or_finish_after_reaper_invalidates_lease(
     )
 
 
+@pytest.mark.skipif(
+    not _ACCOUNT_APP_AVAILABLE,
+    reason="Worker authority projection tests require the full account application",
+)
 def test_get_worker_input_rebuilds_authority_from_owner_projection(repository, owner, task):
     """Worker authorization comes from the current User/Profile projection."""
 
@@ -469,6 +476,10 @@ def test_get_worker_input_rebuilds_authority_from_owner_projection(repository, o
         ("mcp_enabled", False),
     ],
 )
+@pytest.mark.skipif(
+    not _ACCOUNT_APP_AVAILABLE,
+    reason="Worker authority projection tests require the full account application",
+)
 def test_get_worker_input_rejects_forged_authority_fields(
     repository,
     owner,
@@ -489,8 +500,14 @@ def test_get_worker_input_rejects_forged_authority_fields(
     assert error.value.reason_code == "TERMINAL_TASK_AUTHORITY_MISMATCH"
 
 
+@pytest.mark.skipif(
+    not _ACCOUNT_APP_AVAILABLE,
+    reason="Worker authority projection tests require the full account application",
+)
 def test_get_worker_input_fails_closed_without_authority_profile(repository, owner, task):
     """A missing account projection is not silently downgraded to read-only."""
+
+    from apps.account.infrastructure.models import AccountProfileModel
 
     AccountProfileModel.objects.filter(user=owner).delete()
     _configure_terminal_payload(task)
@@ -637,6 +654,50 @@ def test_postgresql_concurrent_claim_has_one_winner(repository, owner, task):
         )
 
     assert sorted(value is not None for value in results) == [False, True]
+
+
+@pytest.mark.skipif(
+    connection.vendor != "postgresql",
+    reason="PostgreSQL admission evidence requires explicit disposable test settings",
+)
+def test_postgresql_concurrent_admission_respects_per_user_limit(repository, owner, task):
+    """Concurrent PostgreSQL submissions cannot consume one queued slot twice."""
+
+    first = _request(owner_id=owner.id, task_id=task.id, suffix="admission-pg-a")
+    second = _request(owner_id=owner.id, task_id=task.id, suffix="admission-pg-b")
+    barrier = Barrier(2)
+
+    def _submit_in_worker(request: TerminalQueuedSubmissionRequest) -> str:
+        """Submit from an independent connection and return its stable outcome."""
+
+        close_old_connections()
+        try:
+            barrier.wait(timeout=10)
+            try:
+                TerminalAgentRunRepository().submit(request)
+            except TerminalRunRepositoryError as error:
+                return error.reason_code
+            return "accepted"
+        finally:
+            connections["default"].close()
+
+    with override_settings(
+        TERMINAL_PER_USER_ACTIVE_LIMIT=1,
+        TERMINAL_PER_USER_QUEUED_LIMIT=1,
+        TERMINAL_GLOBAL_ACTIVE_LIMIT=4,
+        TERMINAL_GLOBAL_QUEUED_LIMIT=40,
+    ):
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = tuple(
+                future.result(timeout=20)
+                for future in (
+                    executor.submit(_submit_in_worker, first),
+                    executor.submit(_submit_in_worker, second),
+                )
+            )
+
+    assert sorted(results) == ["accepted", "per_user_queued_limit"]
+    assert TerminalAgentRunModel.objects.filter(actor_user_id=owner.id).count() == 1
 
 
 @pytest.mark.skipif(
