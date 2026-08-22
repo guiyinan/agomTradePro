@@ -398,6 +398,47 @@ def test_append_event_rejects_a_worker_after_reaper_invalidates_its_lease(
     )
 
 
+def test_stale_worker_cannot_heartbeat_or_finish_after_reaper_invalidates_lease(
+    repository,
+    owner,
+    task,
+):
+    """An orphaned delivery cannot refresh or finalize its invalidated lease."""
+
+    request = _request(owner_id=owner.id, task_id=task.id, suffix="stale-lease")
+    repository.submit(request)
+    worker_id = "worker-stale-lease"
+    repository.claim(
+        run_id=request.submission.selector.run_id, worker_id=worker_id, claimed_at=_NOW
+    )
+
+    assert (
+        repository.reap_stale(
+            stale_before=_NOW + timedelta(seconds=1),
+            reaped_at=_NOW + timedelta(seconds=2),
+        )
+        == 1
+    )
+    assert (
+        repository.heartbeat(
+            run_id=request.submission.selector.run_id,
+            worker_id=worker_id,
+            heartbeat_at=_NOW + timedelta(seconds=3),
+        )
+        is None
+    )
+    assert (
+        repository.mark_finished(
+            run_id=request.submission.selector.run_id,
+            worker_id=worker_id,
+            status=TerminalRunStatus.FAILED,
+            finished_at=_NOW + timedelta(seconds=4),
+            error_code="terminal_agent_execution_failed",
+        )
+        is None
+    )
+
+
 def test_get_worker_input_rebuilds_authority_from_owner_projection(repository, owner, task):
     """Worker authorization comes from the current User/Profile projection."""
 

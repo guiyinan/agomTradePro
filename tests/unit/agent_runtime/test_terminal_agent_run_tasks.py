@@ -205,9 +205,14 @@ def test_execute_terminal_agent_run_marks_success_without_broker_payload(monkeyp
 
 
 def test_execute_terminal_agent_run_uses_a_new_worker_identity_per_delivery() -> None:
-    """Delivery identities are not shared by prefork task invocations."""
+    """Delivery identities are bounded and not shared by prefork invocations."""
 
-    assert tasks._new_worker_id() != tasks._new_worker_id()
+    first = tasks._new_worker_id()
+    second = tasks._new_worker_id()
+
+    assert first != second
+    assert len(first) <= 128
+    assert len(second) <= 128
 
 
 def test_execute_terminal_agent_run_stops_when_start_lease_is_lost(monkeypatch, settings):

@@ -1285,3 +1285,30 @@ telemetry, restore/rollback, or human-sign-off evidence. TAR-01 remains
 `BLOCKED/safety_ready=true/capacity_ready=false`.
 
 Structured evidence: [`tar01-qlib-batch-memory-remediation-2026-08-22.json`](../deployment/tar01-qlib-batch-memory-remediation-2026-08-22.json).
+
+### TAR-01 QLib worker-memory evidence validator (2026-08-22)
+
+The existing QLib observation now has a pure Application, candidate-bound
+validator at
+`apps/agent_runtime/application/terminal_runtime_worker_memory_evidence.py`.
+It accepts the committed artifact
+`docs/deployment/tar01-qlib-batch-memory-remediation-2026-08-22.json` only when
+the expected commit `c7ea5a9fc914e0a464e7286388477cb167079927`, release
+`20260822091112`, and OCI digest
+`sha256:b6b5db3326f4fa6cb03a015f036d90b9a1591ac6cf1ee951de7b819ce7ed24a0`
+remain exact. The contract also fixes the UTC observation window, 4 GiB worker
+limit, concurrency `1`, `max-tasks-per-child=1`, batch size `500`, all `12/12`
+QLib shards, bounded memory, zero restart/OOM/worker-error counters, successful
+outcome with `stored=1`, and the health/ready/CI/gate identity fields.
+
+The validator is offline and Application-only: it performs no VPS, HTTP,
+Redis, Celery, Docker, database, or runtime-flag operation. It rejects
+candidate substitution, unknown/secret fields, non-monotonic UTC windows,
+resource/error drift, and any attempt to turn the observation into capacity or
+decision readiness. Focused unit coverage passed `16`; Ruff, Black, isort, and
+incremental mypy passed (`0` regressions). The full debt-ceiling check is run
+separately in the shared workspace. TAR-01 remains
+`BLOCKED/safety_ready=true/capacity_ready=false`; this slice does not change
+the registry or production runtime and does not supply the outstanding
+multi-user/global capacity, sustained chaos/reconnect, provider/MCP,
+14-day-telemetry, restore/rollback, or owner/reviewer evidence.
