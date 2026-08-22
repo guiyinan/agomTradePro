@@ -231,22 +231,73 @@ class _DjangoEvidenceScopeSourceV1Store(DjangoEvidenceScopeSourceV1Repository):
         with transaction.atomic(using=self._using), _activate_evidence_uow(self._token):
             yield
 
+    def now(self) -> datetime:
+        """Return the validated server clock for the lifecycle write port."""
+
+        return self._server_now()
+
     def append(
         self,
         source: EvidenceScopeSourceV1,
         *,
         predecessor: EvidenceScopeSourceV1 | None = None,
+        expected_predecessor_hash: str | None = None,
+        recorded_at: datetime | None = None,
     ) -> EvidenceScopeSourceV1:
-        """Append one exact root/successor or replay its immutable winner."""
+        """Append one exact root/successor or replay its immutable winner.
+
+        ``expected_predecessor_hash`` and ``recorded_at`` are the lifecycle
+        Application port.  The older ``predecessor`` keyword remains as a
+        private-store compatibility shim for the explicit root/successor test
+        builders; both forms resolve to the same persisted predecessor and
+        server-clock checks.
+        """
 
         if _ACTIVE_EVIDENCE_UOW.get() is not self._token:
             raise EvidenceScopeSourceV1Conflict(
                 "scope-source append requires its private atomic unit"
             )
         exact = _canonical_source(source)
-        self._validate_recorded_at(exact.recorded_at)
+        if recorded_at is None:
+            effective_recorded_at = exact.recorded_at
+        else:
+            _require_aware(recorded_at, "recorded_at")
+            if recorded_at != exact.recorded_at:
+                raise EvidenceScopeSourceV1Conflict(
+                    "scope-source recorded_at must match the canonical source"
+                )
+            effective_recorded_at = recorded_at
+        if expected_predecessor_hash is not None:
+            _require_digest(expected_predecessor_hash, "expected_predecessor_hash")
         if predecessor is not None:
-            previous = _canonical_source(predecessor)
+            previous_from_argument = _canonical_source(predecessor)
+            if (
+                expected_predecessor_hash is not None
+                and expected_predecessor_hash != previous_from_argument.content_hash
+            ):
+                raise EvidenceScopeSourceV1Conflict(
+                    "scope-source predecessor selector differs from predecessor"
+                )
+            expected_predecessor_hash = previous_from_argument.content_hash
+        elif expected_predecessor_hash is not None:
+            previous_from_argument = None
+        else:
+            previous_from_argument = None
+        self._validate_recorded_at(effective_recorded_at)
+        if expected_predecessor_hash is not None:
+            records = self._restore_full_world()
+            predecessors = tuple(
+                record for record in records if record.content_hash == expected_predecessor_hash
+            )
+            if len(predecessors) != 1:
+                raise EvidenceScopeSourceV1Conflict(
+                    "scope-source successor predecessor selector is not unique"
+                )
+            previous = predecessors[0]
+            if previous_from_argument is not None and previous != previous_from_argument:
+                raise EvidenceScopeSourceV1Conflict(
+                    "scope-source successor predecessor content fork"
+                )
             validate_evidence_scope_source_v1_successor(previous, exact)
         else:
             previous = None

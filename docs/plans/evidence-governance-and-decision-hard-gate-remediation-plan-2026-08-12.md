@@ -3112,3 +3112,20 @@ row、损坏或断链仍在 selector 前 fail-closed。
 回归 `10 passed`。该修复只完善 dormant read/append contract，未接 owner/tenant lifecycle issuer、
 mutable User/Profile/session、Evidence/HTTP/CLI/Agent route 或 production writer；EVID-01 继续
 active/fail-closed，CLI/API 仍只向服务器传输请求，AI/provider/MCP/tool execution 在服务器端。
+
+## 2026-08-23：EVID-01 scope-source lifecycle Django append seam
+
+将私有 Django scope-source store 对齐 dormant Application lifecycle 的 typed append 端口：支持
+`expected_predecessor_hash` 与 `recorded_at`，在同一 repository-owned UOW 内解析并校验完整 ledger
+中的 predecessor，要求记录时钟与 canonical source 一致且不晚于 server clock；旧的显式
+`append_root/append_successor` 测试/组合入口继续保留为兼容 shim。store 同时提供 lifecycle 所需的
+validated `now()`，因此 `IssueEvidenceScopeSourceV1` 可以在隔离 Django store 上真实走 root、successor、
+CAS 与 winner-first replay，而不是落到 fake repository。
+
+隔离 component 回归 `12 passed`；Research lifecycle/application/provider/composition 与 repository
+组合回归 `70 passed`；Ruff、Black、isort、增量 mypy、full debt ceiling、governance consistency、
+architecture delta 与 diff-check 均通过。该 slice 仍是 dormant/local SQLite contract：没有 owner/tenant
+authority source、production selector issuer、HTTP/CLI/Agent route、mutable User/Profile/session 读取、
+生产 writer、VPS 部署、PostgreSQL production race/rollback 或人工签署；EVID-01 与 Evidence hard gate
+继续 active/fail-closed。CLI/API 仍只向服务器传输请求，AI、provider、MCP/tool execution 在服务器端，
+用户不安装本地 Agent、模型或 provider 软件。

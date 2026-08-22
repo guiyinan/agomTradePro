@@ -20,6 +20,12 @@ from apps.research.application.evidence_scope_source_v1 import (
     GetCurrentEvidenceScopeSourceV1,
     GetCurrentEvidenceScopeSourceV1Command,
 )
+from apps.research.application.evidence_scope_source_v1_lifecycle import (
+    EvidenceScopeSourceV1Observation,
+    IssueEvidenceScopeSourceV1,
+    IssueEvidenceScopeSourceV1Command,
+    evidence_scope_source_v1_observation_hash,
+)
 from apps.research.domain.evidence_contracts import ArtifactRef
 from apps.research.domain.evidence_scope_source_v1 import (
     EvidenceScopeSourceV1,
@@ -56,6 +62,32 @@ class _FailingClock:
         raise RuntimeError("clock unavailable")
 
 
+class _ObservationProvider:
+    def __init__(self, observation: EvidenceScopeSourceV1Observation) -> None:
+        self.observation = observation
+        self.calls = 0
+
+    def get_exact_current(
+        self,
+        *,
+        observation_id: str,
+        observation_version: str,
+        expected_content_hash: str,
+        as_of: datetime,
+    ) -> EvidenceScopeSourceV1Observation:
+        self.calls += 1
+        assert observation_id == self.observation.observation_id
+        assert observation_version == self.observation.observation_version
+        assert expected_content_hash == self.observation.content_hash
+        assert as_of.tzinfo is not None
+        return self.observation
+
+
+class _NoObservationProvider:
+    def get_exact_current(self, **_: object) -> None:
+        raise AssertionError("historical winner replay must not read the observation")
+
+
 @pytest.fixture(autouse=True)
 def _schema(django_db_blocker: object) -> Iterator[None]:
     """Create only the target table, avoiding the full project migration graph."""
@@ -75,6 +107,23 @@ def _artifact(identifier: str = "operator-1") -> ArtifactRef:
     )
 
 
+def _observation() -> EvidenceScopeSourceV1Observation:
+    candidate = EvidenceScopeSourceV1Observation(
+        observation_id="observation-1",
+        observation_version="v1",
+        owner_id="owner-1",
+        tenant_id="tenant-1",
+        account_id="account-1",
+        actor_id="actor-1",
+        artifact=_artifact(),
+        status="active",
+        recorded_at=NOW,
+        valid_until=NOW + timedelta(hours=1),
+    )
+    assert candidate.content_hash == evidence_scope_source_v1_observation_hash(candidate)
+    return candidate
+
+
 def _source(
     *,
     version: str = "v1",
@@ -84,11 +133,12 @@ def _source(
     artifact: ArtifactRef | None = None,
 ) -> EvidenceScopeSourceV1:
     exact_artifact = artifact or _artifact()
-    exact_recorded_at = (
-        recorded_at
-        if recorded_at is not None
-        else NOW if previous is None else previous.recorded_at + timedelta(minutes=1)
-    )
+    if recorded_at is not None:
+        exact_recorded_at = recorded_at
+    elif previous is None:
+        exact_recorded_at = NOW
+    else:
+        exact_recorded_at = previous.recorded_at + timedelta(minutes=1)
     root_claim_hash = None
     supersedes_content_hash = None
     if previous is None:
@@ -143,6 +193,74 @@ def test_private_store_round_trips_root_successor_and_exact_replay() -> None:
     assert (
         reader.get_current_head(source_id=root.source_id, as_of=successor.recorded_at) == successor
     )
+
+
+def test_lifecycle_uses_store_append_contract_and_replays_winner_without_observation() -> None:
+    observation = _observation()
+    provider = _ObservationProvider(observation)
+    clock = _Clock(NOW)
+    store = _build_evidence_scope_source_v1_store(clock=clock)
+    command = IssueEvidenceScopeSourceV1Command(
+        source_id="scope-source-1",
+        source_version="v1",
+        observation_id=observation.observation_id,
+        observation_version=observation.observation_version,
+        expected_observation_content_hash=observation.content_hash,
+    )
+    lifecycle = IssueEvidenceScopeSourceV1(
+        observation_provider=provider,
+        repository=store,
+        validity_period=timedelta(hours=1),
+    )
+
+    first = lifecycle.execute(command)
+    assert first.recorded_at == NOW
+    assert provider.calls == 2
+    assert EvidenceScopeSourceV1Model._default_manager.count() == 1
+
+    clock.value = NOW + timedelta(hours=2)
+    replay = IssueEvidenceScopeSourceV1(
+        observation_provider=_NoObservationProvider(),
+        repository=store,
+        validity_period=timedelta(hours=1),
+    ).execute(command)
+    assert replay == first
+    assert EvidenceScopeSourceV1Model._default_manager.count() == 1
+
+
+def test_lifecycle_successor_uses_expected_predecessor_hash_and_recorded_at() -> None:
+    observation = _observation()
+    provider = _ObservationProvider(observation)
+    clock = _Clock(NOW)
+    store = _build_evidence_scope_source_v1_store(clock=clock)
+    lifecycle = IssueEvidenceScopeSourceV1(
+        observation_provider=provider,
+        repository=store,
+        validity_period=timedelta(hours=1),
+    )
+    root = lifecycle.execute(
+        IssueEvidenceScopeSourceV1Command(
+            source_id="scope-source-1",
+            source_version="v1",
+            observation_id=observation.observation_id,
+            observation_version=observation.observation_version,
+            expected_observation_content_hash=observation.content_hash,
+        )
+    )
+
+    clock.value = NOW + timedelta(minutes=1)
+    successor = lifecycle.execute(
+        IssueEvidenceScopeSourceV1Command(
+            source_id="scope-source-1",
+            source_version="v2",
+            observation_id=observation.observation_id,
+            observation_version=observation.observation_version,
+            expected_observation_content_hash=observation.content_hash,
+        )
+    )
+    assert successor.supersedes_content_hash == root.content_hash
+    assert successor.recorded_at == clock.value
+    assert EvidenceScopeSourceV1Model._default_manager.count() == 2
 
 
 def test_winner_reader_replays_expired_first_winner_without_head_fallback() -> None:
