@@ -2946,3 +2946,24 @@ SHA-256 为 `7f4e859915e7e0a8399ee75558a12e660b34ef04000f29988291f59d47eaaa55`�
 `awaiting_production`，`EVID-03`、`STRAT-02/03` 与 Evidence hard gate 继续 fail-closed；
 真实 owner/definition/policy/calendar/scope、PIT/OOS、canonical receipts、Promotion 与
 consumer UAT 仍未具备生产证据。
+
+## 2026-08-23：EVID-01 Research Evidence composition fail-closed 收口
+
+复核发现 Research Evidence API 的默认 composition 只注入 `EvidenceReadFacade`，
+staff-only permission 并不等于 artifact 的 owner/tenant scope。现已将
+`apps/research/evidence_composition.py` 改为始终构造 `ScopedEvidenceReadFacade`，并注入
+一个明确返回 `None` 的 `_UnwiredEvidenceScopeProvider`。在可信、不可变的
+authenticated owner/tenant authority provider 接入前，未知 scope 不会触碰 Evidence
+repository；API 继续返回稳定的 unavailable/not-found 语义，不会把 staff 身份升级为
+owner grant，也不会新增写入或执行能力。
+
+新增 `tests/unit/research/test_evidence_composition.py`，用不接 Django ORM 的 sentinel
+repository 验证默认 composition 的 exact selector 在 scope 缺失时 fail-closed，repository
+调用次数保持为零；Evidence scope/read/API 相关 focused 回归合计 `58 passed`。生产文件的
+增量 mypy regression、debt ceiling、Ruff、Black、isort 与 diff-check 均通过。
+
+这只是本地 composition 安全边界，不能宣称 EVID-01 完成：authenticated user/tenant/owner
+authority source、同 alias bundle、人工授权、production provider/rollback 与 PostgreSQL
+race 仍缺；VPS 不做重部署，Evidence hard gate 与 decision/execution 总闸保持
+fail-closed。CLI/SDK 仍是服务器 API 的传输客户端，AI/provider/tool execution 必须在
+服务器端完成，不能要求用户安装本地模型、provider runtime 或凭据。
