@@ -267,6 +267,25 @@
   formal M5 candidate or unlock TUX-02/TUX-04/TAR/AUD/EVID production gates; all remain
   fail-closed where their independent evidence is still missing.
 
+## 6.2.8 2026-08-22 operations deep-link screen patch cleanup
+
+- Removed the three remaining non-IA operations screen patch dictionaries,
+  `ai-ops.agent-runtime`, `api-library.runtime` and `api-library.config-center`, from
+  `apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_ops.py`. The redundant
+  action-key map remains unchanged. These deep links continue to resolve through the IA
+  aliases to `ai-ops.terminal` or `api-library.data-center`; the canonical runtime screen,
+  panel and action data remain IA/runtime-owned.
+- Added alias/source-boundary regression coverage for all three aliases. The focused metadata,
+  actionability and IA suite passed (`52 passed`), the complete Workbench suite passed
+  (`257 passed`), and the source guard remained `outcome=ok` (`12/24` screens, `430/890`
+  actions, `0` violations, configured screen patches `3→0`). Ruff, Black, isort and
+  `git diff --check` passed; no production VPS deployment was performed.
+- This is a local canonicalization cleanup only. It does not claim external AgomTUI portability,
+  role-browser production UAT, write receipts/refresh, 14-day telemetry, restore/rollback,
+  capacity/chaos or owner/reviewer sign-off. The B/S CLI boundary remains server-side AI:
+  users submit through the thin client and do not install or run a provider-backed Agent
+  locally. `TUX-02`/`TUX-04` remain active/fail-closed.
+
 ## 6. 风险与回滚
 
 - **文案批量重写风险**：430 个 action 的 label/description 重写可能误伤已被人工序列化的文案；分流时以 `source` 字段与人工策划 key 前缀白名单为界，重写前后做全量 diff 评审。

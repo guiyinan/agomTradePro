@@ -364,6 +364,51 @@ def test_data_center_screen_patch_is_not_registered_after_ia_cutover() -> None:
     assert "data-center-provider-receipt" in runtime_panels
 
 
+@pytest.mark.parametrize(
+    ("alias", "canonical"),
+    (
+        ("ai-ops.agent-runtime", "ai-ops.terminal"),
+        ("api-library.runtime", "api-library.data-center"),
+        ("api-library.config-center", "api-library.data-center"),
+    ),
+)
+def test_ops_aliases_use_canonical_ia_without_screen_patches(alias: str, canonical: str) -> None:
+    """Operator deep links resolve to IA-owned screens without legacy patches."""
+
+    from apps.terminal.infrastructure.tui_information_architecture import screen_aliases
+    from apps.terminal.infrastructure.tui_metadata_repository import (
+        RUNTIME_SCREEN_PATCHES,
+        PublishedTuiMetadataRepository,
+    )
+
+    registry = load_json_payload(IA_PATH)
+    aliases = screen_aliases(registry)
+    runtime = PublishedTuiMetadataRepository(published_path=PUBLISHED_PATH)._load_published_file()
+    runtime_screens = {str(screen["key"]): screen for screen in runtime["screens"]}
+    ia_screens = {
+        str(screen["key"]): screen
+        for screen in [*registry["published_screens"], *registry["runtime_screens"]]
+    }
+
+    assert aliases[alias] == canonical
+    assert alias not in RUNTIME_SCREEN_PATCHES
+    assert canonical not in RUNTIME_SCREEN_PATCHES
+    assert alias not in runtime_screens
+    runtime_screen = runtime_screens[canonical]
+    ia_screen = ia_screens[canonical]
+    for key in ("label", "summary", "view_type", "default_action_key", "user_experience"):
+        assert runtime_screen[key] == ia_screen[key]
+    assert {
+        str(panel["key"])
+        for panel in ia_screen.get("dashboard_panels", [])
+        if isinstance(panel, dict) and panel.get("key")
+    } <= {
+        str(panel["key"])
+        for panel in runtime_screen.get("dashboard_panels", [])
+        if isinstance(panel, dict) and panel.get("key")
+    }
+
+
 def _legacy_data_center_payload() -> dict[str, Any]:
     """Return a minimal legacy payload for screen-patch compatibility checks."""
 
