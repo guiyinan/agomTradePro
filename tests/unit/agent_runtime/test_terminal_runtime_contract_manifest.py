@@ -112,12 +112,12 @@ def test_manifest_freezes_migration_flags_and_sensitive_transport_boundary() -> 
     assert "prompt" in manifest["prompt_and_sensitive_data"]["forbidden_field_fragments"]
     assert manifest["prompt_and_sensitive_data"]["raw_prompt"]["run_dispatch_record"] == "forbidden"
     assert set(manifest["implementation_boundary"]["not_implemented"]) >= {
-        "SDK/MCP/TUI queued client implementation",
+        "MCP/TUI queued client implementation and SDK event-stream/wait helpers",
         "complete multi-user/global 1/5/10/20 capacity and hard-SLO evidence",
         "sustained chaos and 14-day telemetry",
     }
     assert manifest["implementation_boundary"]["remaining_work_assignment"] == {
-        "SDK/MCP/TUI queued client implementation": "TAR-03/TAR-04",
+        "MCP/TUI queued client implementation and SDK event-stream/wait helpers": "TAR-04",
         "complete multi-user/global 1/5/10/20 capacity and hard-SLO evidence": "TAR-05",
         "sustained chaos and 14-day telemetry": "TAR-05",
         "successful provider/MCP execution, restore/rollback, and role-based production UAT": (

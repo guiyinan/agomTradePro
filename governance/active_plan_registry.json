@@ -2,13 +2,13 @@
   "version": "2026-08-22.v1",
   "updated_at": "2026-08-22",
   "execution_focus": {
-    "unit_id": "TAR-03",
+    "unit_id": "TAR-04",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Only TAR-03 may expand repository scope. In parallel, declared production/external/governance units must complete safe auto_collect work; production writes, paid calls and human decisions still require their recorded authorization boundary."
+    "policy": "Only TAR-04 may expand repository scope. In parallel, declared production/external/governance units may complete safe auto_collect work; production writes, paid calls and human decisions still require their recorded authorization boundary."
   },
   "workstreams": [
     {
@@ -197,7 +197,7 @@
       "priority": "P0",
       "owner": "agent_runtime+terminal+task_monitor+operational_readiness+sdk+mcp",
       "status": "active",
-      "next_gate": "TAR-01 contract freeze and TAR-02 durable admission/dispatch are complete. Execute TAR-03 worker/events next; capacity, chaos, provider, restore/rollback, telemetry and owner/reviewer acceptance remain TAR-05 production work and do not block TAR-03 repository progress.",
+      "next_gate": "TAR-01 through TAR-03 repository contracts are complete. TAR-04 local CLI/MCP is the next repository line; capacity, chaos, provider, restore/rollback, telemetry and owner/reviewer acceptance remain TAR-05 production work.",
       "documents": [
         {
           "path": "docs/plans/terminal-agent-multi-user-runtime-plan-2026-08-18.md",
@@ -518,7 +518,7 @@
         "wave": 1,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Isolate Agent execution and deliver recoverable user events",
         "depends_on": [
           "TAR-02"
@@ -679,7 +679,7 @@
         "wave": 2,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "waiting_dependency",
+        "status": "active",
         "title": "Deliver the user-owned-key local CLI and governed remote MCP path",
         "depends_on": [
           "TAR-03"

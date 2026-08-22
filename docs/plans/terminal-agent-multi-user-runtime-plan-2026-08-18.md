@@ -5,7 +5,7 @@
 > Owner：`agent_runtime + terminal + task_monitor + operational_readiness + sdk + mcp`
 > 机器进度真源：`governance/active_plan_registry.json`
 > Canonical closure units：`TAR-01` 至 `TAR-05`
-> 执行优先级：`TAR-01` 合同冻结与 `TAR-02` durable admission/dispatch 已完成，`TAR-03` 是机器注册表当前唯一 repository execution focus。`TUI-01` 等待 `TAR-03` 后再冻结最终候选并启动正式 M5 关闭窗口；在 `TAR-05` 生产验收前不得直接放大全局 inline 并发。
+> 执行优先级：`TAR-01` 至 `TAR-03` repository 合同已完成，`TAR-04` 本地 CLI/MCP 是机器注册表当前唯一 repository execution focus。`TUI-01` 可在候选冻结和授权后进入生产验证；在 `TAR-05` 生产验收前不得直接放大全局 inline 并发。
 
 本文只维护问题、目标架构、分期交付、验收门和回滚边界。`active / waiting_dependency / production_validation` 等执行状态只在机器注册表维护，不在本文形成第二套进度。
 
@@ -1405,3 +1405,31 @@ declared production units.
 
 The disposable PostgreSQL evidence was run against a local `postgres:16`
 container only; no VPS deployment or production data was changed.
+
+### TAR-03 worker, event replay, and SDK exit-gate evidence (2026-08-22)
+
+The dedicated `terminal_agent_worker` path now has a concrete repository and
+runtime boundary: delivery uses the `terminal_agent` queue, a per-delivery
+worker identity, database first-winner claim, lease heartbeat, cooperative
+cancellation, stale-lease reaping, bounded post-commit dispatch reconciliation,
+and terminal-state protection. The VPS compose contract keeps this service
+separate from the generic `celery,qlib_infer,qlib_train` worker queues with its
+own concurrency, prefetch, CPU and memory limits; the deploy script removes a
+stale dedicated worker whenever queued runtime is disabled and verifies an
+enabled worker has the exact release image.
+
+Local evidence for this repository gate is now complete: the Agent Runtime and
+terminal unit slice passed `251` tests, the ordered event/SSE component suite
+passed `4` tests, and the isolated PostgreSQL repository suite passed `18` with
+`5` Account-authority cases intentionally skipped by its minimal settings. The
+dedicated PostgreSQL concurrent-admission case passed separately, and the SDK
+queued-run facade (`create_run`, `get_run`, `get_events`, `cancel_run`, with
+compatibility aliases) passed `2` SDK contract tests. These tests cover owner
+scope, ordered cursor replay, terminal-event retention, stale-worker rejection,
+cancel semantics, and SDK route identity without putting Agent work in Web.
+
+This closes the TAR-03 repository exit gate. It does not enable queued flags or
+change the VPS candidate: production provider success, multi-user/global hard
+SLO capacity, sustained chaos/reconnect, Redis outage, restore/rollback,
+14-day telemetry, and owner/reviewer sign-off remain TAR-05 production work.
+No VPS deployment was performed for the SDK slice.
