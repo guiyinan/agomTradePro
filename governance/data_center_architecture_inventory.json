@@ -36,7 +36,7 @@
   "counts": {
     "approved_non_data_http_imports": 4,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 4307,
+    "current_surface_references": 4312,
     "data_write_task_decorators": 62,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -15596,6 +15596,31 @@
       "line": 185,
       "path": "apps/research/application/evidence_scope_source_v1.py",
       "text": "raise EvidenceScopeSourceV1Corruption(\"current head scope identity substitution\")"
+    },
+    {
+      "line": 80,
+      "path": "apps/research/application/evidence_scope_source_v1_lifecycle.py",
+      "text": "\"\"\"One immutable current owner/tenant observation supplied by the server."
+    },
+    {
+      "line": 198,
+      "path": "apps/research/application/evidence_scope_source_v1_lifecycle.py",
+      "text": "\"\"\"Return the exact current observation, or ``None`` when unavailable.\"\"\""
+    },
+    {
+      "line": 423,
+      "path": "apps/research/application/evidence_scope_source_v1_lifecycle.py",
+      "text": "\"scope-source current head is unavailable\""
+    },
+    {
+      "line": 538,
+      "path": "apps/research/application/evidence_scope_source_v1_lifecycle.py",
+      "text": "\"scope-source current-head identity substitution\""
+    },
+    {
+      "line": 543,
+      "path": "apps/research/application/evidence_scope_source_v1_lifecycle.py",
+      "text": "\"scope-source current head is terminal or expired\""
     },
     {
       "line": 70,
