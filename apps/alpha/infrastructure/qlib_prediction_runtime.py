@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import gc
 import logging
+import os
 import pickle
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from datetime import date
 from math import isfinite
 from typing import Any, TypedDict, cast
@@ -203,6 +205,52 @@ def _find_broader_qlib_cache_for_scope(
     return None
 
 
+_DEFAULT_PREDICTION_BATCH_SIZE = 500
+
+
+def _resolve_prediction_batch_size() -> int:
+    """Return the bounded Qlib instrument batch size for one inference task."""
+    raw_value = os.getenv(
+        "QLIB_PREDICTION_BATCH_SIZE",
+        str(_DEFAULT_PREDICTION_BATCH_SIZE),
+    )
+    try:
+        batch_size = int(raw_value)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError("QLIB_PREDICTION_BATCH_SIZE must be an integer") from exc
+    if not 1 <= batch_size <= 5000:
+        raise RuntimeError("QLIB_PREDICTION_BATCH_SIZE must be between 1 and 5000")
+    return batch_size
+
+
+def _iter_prediction_batches(
+    stock_list: list[str],
+    batch_size: int,
+) -> Iterator[list[str]]:
+    """Yield independent instrument batches without retaining prior batches."""
+    for offset in range(0, len(stock_list), batch_size):
+        yield stock_list[offset : offset + batch_size]
+
+
+def _extract_prediction_series(prediction: Any, pandas_module: Any) -> Any:
+    """Extract the latest score series from a supported Qlib prediction value."""
+    if isinstance(prediction, pandas_module.DataFrame):
+        if prediction.empty:
+            raise RuntimeError("预测结果为空")
+        if isinstance(prediction.index, pandas_module.MultiIndex):
+            latest_date = prediction.index.get_level_values(0).max()
+            latest_prediction = prediction.xs(latest_date, level=0)
+            if isinstance(latest_prediction, pandas_module.DataFrame):
+                return latest_prediction.iloc[:, 0]
+            return latest_prediction
+        return prediction.iloc[:, 0] if prediction.shape[1] else prediction.iloc[-1]
+    if isinstance(prediction, pandas_module.Series):
+        return prediction
+    if isinstance(prediction, dict):
+        return pandas_module.Series(prediction)
+    raise RuntimeError(f"不支持的预测结果类型: {type(prediction)}")
+
+
 def _execute_qlib_prediction(
     active_model: Any,
     universe_id: str,
@@ -282,70 +330,66 @@ def _execute_qlib_prediction(
 
         handler_cls = _resolve_qlib_handler_class(getattr(active_model, "feature_set_id", None))
 
-        # 准备预测数据
-        handler_config = {
-            "start_time": f"{trade_date.year - 1}-01-01",  # 使用过去一年的数据
-            "end_time": trade_date.isoformat(),
-            "fit_start_time": f"{trade_date.year - 1}-01-01",
-            "fit_end_time": trade_date.isoformat(),
-            "instruments": stock_list,
-        }
-
         try:
-            # 当前 qlib 版本要求通过 DatasetH 进行预测，而不是直接将 handler 传给模型。
-            handler = handler_cls(**handler_config)
-            dataset = DatasetH(
-                handler=handler,
-                segments={"test": (pd.Timestamp(trade_date), pd.Timestamp(trade_date))},
-            )
-            prediction = model.predict(dataset)
-
-            # 处理预测结果
-            if isinstance(prediction, pd.DataFrame):
-                if prediction.empty:
-                    logger.warning(f"预测结果为空: {universe_id}@{trade_date}")
-                    raise RuntimeError(f"预测结果为空: {universe_id}@{trade_date}")
-                if isinstance(prediction.index, pd.MultiIndex):
-                    latest_date = prediction.index.get_level_values(0).max()
-                    latest_prediction = prediction.xs(latest_date, level=0)
-                    if isinstance(latest_prediction, pd.DataFrame):
-                        scores_series = latest_prediction.iloc[:, 0]
-                    else:
-                        scores_series = latest_prediction
-                else:
-                    scores_series = (
-                        prediction.iloc[:, 0] if prediction.shape[1] else prediction.iloc[-1]
-                    )
-            elif isinstance(prediction, pd.Series):
-                scores_series = prediction
-            elif isinstance(prediction, dict):
-                scores_series = pd.Series(prediction)
-            else:
-                logger.warning(f"不支持的预测结果类型: {type(prediction)}")
-                raise RuntimeError(f"不支持的预测结果类型: {type(prediction)}")
-
-            # 转换为评分格式
             score_by_code: dict[str, QlibScorePayload] = {}
-            for stock, pred_score in scores_series.items():
-                if pd.notna(pred_score):
-                    normalized_code = normalize_stock_code(stock) or str(stock)
-                    numeric_score = float(pred_score)
-                    if not isfinite(numeric_score):
-                        continue
-                    candidate = QlibScorePayload(
-                        code=normalized_code,
-                        score=numeric_score,
-                        rank=0,
-                        factors={},
-                        source="qlib",
-                        confidence=0.8,
-                        asof_date=trade_date.isoformat(),
-                        intended_trade_date=trade_date.isoformat(),
-                        universe_id=universe_id,
+            batch_size = _resolve_prediction_batch_size()
+            total_batches = (len(stock_list) + batch_size - 1) // batch_size
+            for batch_number, instrument_batch in enumerate(
+                _iter_prediction_batches(stock_list, batch_size),
+                1,
+            ):
+                logger.info(
+                    "Qlib 预测分片: universe=%s, batch=%s/%s, instruments=%s",
+                    universe_id,
+                    batch_number,
+                    total_batches,
+                    len(instrument_batch),
+                )
+                handler: Any | None = None
+                dataset: Any | None = None
+                prediction: Any | None = None
+                scores_series: Any | None = None
+                try:
+                    # 当前 qlib 版本要求通过 DatasetH 进行预测，而不是直接将 handler 传给模型。
+                    handler = handler_cls(
+                        start_time=f"{trade_date.year - 1}-01-01",
+                        end_time=trade_date.isoformat(),
+                        fit_start_time=f"{trade_date.year - 1}-01-01",
+                        fit_end_time=trade_date.isoformat(),
+                        instruments=instrument_batch,
                     )
-                    existing = score_by_code.get(normalized_code)
-                    if existing is None or numeric_score > existing["score"]:
-                        score_by_code[normalized_code] = candidate
+                    dataset = DatasetH(
+                        handler=handler,
+                        segments={"test": (pd.Timestamp(trade_date), pd.Timestamp(trade_date))},
+                    )
+                    prediction = model.predict(dataset)
+                    scores_series = _extract_prediction_series(prediction, pd)
+
+                    for stock, pred_score in scores_series.items():
+                        if pd.notna(pred_score):
+                            normalized_code = normalize_stock_code(stock) or str(stock)
+                            numeric_score = float(pred_score)
+                            if not isfinite(numeric_score):
+                                continue
+                            candidate = QlibScorePayload(
+                                code=normalized_code,
+                                score=numeric_score,
+                                rank=0,
+                                factors={},
+                                source="qlib",
+                                confidence=0.8,
+                                asof_date=trade_date.isoformat(),
+                                intended_trade_date=trade_date.isoformat(),
+                                universe_id=universe_id,
+                            )
+                            existing = score_by_code.get(normalized_code)
+                            if existing is None or numeric_score > existing["score"]:
+                                score_by_code[normalized_code] = candidate
+                finally:
+                    # DatasetH/handler retain large pandas frames until released;
+                    # explicitly collect before constructing the next batch.
+                    del scores_series, prediction, dataset, handler
+                    gc.collect()
 
             scores_data = list(score_by_code.values())
             if not scores_data:

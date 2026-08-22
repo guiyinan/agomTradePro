@@ -403,6 +403,81 @@ def test_qlib_prediction_drops_nonfinite_scores_and_deduplicates_codes(
     ]
 
 
+def test_qlib_prediction_batches_large_scopes(monkeypatch, tmp_path) -> None:
+    """Large scopes are predicted in bounded batches instead of one huge DatasetH."""
+    _install_fake_qlib(monkeypatch)
+    model_path = tmp_path / "model.pkl"
+    model_path.write_bytes(b"placeholder")
+    calls: list[tuple[str, ...]] = []
+
+    class _BatchModel:
+        def predict(self, dataset: object) -> pd.Series:
+            instruments = tuple(dataset.handler.kwargs["instruments"])
+            calls.append(instruments)
+            return pd.Series(
+                [float(index) for index, _ in enumerate(instruments)],
+                index=list(instruments),
+            )
+
+    model = _BatchModel()
+    monkeypatch.setenv("QLIB_PREDICTION_BATCH_SIZE", "2")
+    monkeypatch.setattr(
+        prediction_runtime,
+        "_get_runtime_qlib_config",
+        lambda: {"enabled": True, "provider_uri": ".", "region": "CN"},
+    )
+    monkeypatch.setattr(prediction_runtime, "_install_qlib_pandas_compat", lambda: None)
+    monkeypatch.setattr(
+        prediction_runtime,
+        "_resolve_qlib_model_path",
+        lambda active_model, qlib_config: model_path,
+    )
+    monkeypatch.setattr(
+        prediction_runtime,
+        "_resolve_qlib_stock_list",
+        lambda data_api, universe_id, start_time, end_time: [
+            "SZ000001",
+            "SZ000002",
+            "SZ000003",
+            "SZ000004",
+            "SZ000005",
+        ],
+    )
+    monkeypatch.setattr(prediction_runtime.pickle, "load", lambda file_handle: model)
+    if hasattr(prediction_runtime._execute_qlib_prediction, "_qlib_initialized"):
+        delattr(prediction_runtime._execute_qlib_prediction, "_qlib_initialized")
+
+    try:
+        scores = prediction_runtime._execute_qlib_prediction(
+            active_model=SimpleNamespace(feature_set_id="alpha158"),
+            universe_id="large-scope",
+            trade_date=date(2026, 7, 24),
+            top_n=5,
+            outdated_reason_builder=lambda _: None,
+        )
+    finally:
+        if hasattr(prediction_runtime._execute_qlib_prediction, "_qlib_initialized"):
+            delattr(prediction_runtime._execute_qlib_prediction, "_qlib_initialized")
+
+    assert calls == [
+        ("SZ000001", "SZ000002"),
+        ("SZ000003", "SZ000004"),
+        ("SZ000005",),
+    ]
+    assert len(scores) == 5
+
+
+@pytest.mark.parametrize("raw_value", ["0", "5001", "not-an-int"])
+def test_qlib_prediction_batch_size_rejects_invalid_configuration(
+    monkeypatch,
+    raw_value: str,
+) -> None:
+    """An invalid operational batch size fails closed before Qlib allocation."""
+    monkeypatch.setenv("QLIB_PREDICTION_BATCH_SIZE", raw_value)
+    with pytest.raises(RuntimeError, match="QLIB_PREDICTION_BATCH_SIZE"):
+        prediction_runtime._resolve_prediction_batch_size()
+
+
 def test_qlib_pandas_compatibility_wrappers_preserve_selection_semantics(monkeypatch) -> None:
     """Compatibility shims fall back only for the known pandas index failures."""
     data = ModuleType("qlib.data")
