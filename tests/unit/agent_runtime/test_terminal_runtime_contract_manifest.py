@@ -118,8 +118,6 @@ def test_manifest_freezes_migration_flags_and_sensitive_transport_boundary() -> 
     }
     assert manifest["implementation_boundary"]["remaining_work_assignment"] == {
         "MCP/TUI queued client implementation and SDK event-stream/wait helpers": "TAR-04",
-        "server-side CLI/API submission and streamed-result client": "TAR-04",
-        "user-side local Agent packaging (not applicable; server-side execution is required)": "TAR-04",
         "complete multi-user/global 1/5/10/20 capacity and hard-SLO evidence": "TAR-05",
         "sustained chaos and 14-day telemetry": "TAR-05",
         "successful provider/MCP execution, restore/rollback, and role-based production UAT": (
@@ -129,6 +127,10 @@ def test_manifest_freezes_migration_flags_and_sensitive_transport_boundary() -> 
     }
     assert (
         "tests/component/agent_runtime/test_terminal_agent_run_events.py"
+        in manifest["acceptance_and_next_gate"]["current_evidence"]
+    )
+    assert (
+        "sdk/tests/test_sdk/test_server_agent_contract.py"
         in manifest["acceptance_and_next_gate"]["current_evidence"]
     )
 

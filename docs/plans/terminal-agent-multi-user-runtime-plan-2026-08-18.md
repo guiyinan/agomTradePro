@@ -1473,3 +1473,18 @@ This is a local contract/documentation correction, not VPS evidence or a
 production runtime enablement. The queued route, Worker, provider success,
 capacity/chaos, restore/rollback, telemetry and owner/reviewer gates remain
 fail-closed.
+
+### TAR-04 server-side API submission contract (2026-08-22)
+
+The typed SDK now has explicit contract evidence for submitting a user request
+to `/api/prompt/agent/execute` and for the durable queued-run JSON facade. The
+payload carries only server-side provider/model references and user task data;
+it rejects provider API keys, generic secrets, and client-side model setup.
+`sdk/tests/test_sdk/test_server_agent_contract.py` covers this boundary, while
+`TerminalAgentRunsModule` covers create/status/events/cancel routes.
+
+This closes the API-submission contract only. `iter_events`/
+`wait_for_run`, browser/TUI queued UX, candidate-bound runtime enablement,
+provider success, capacity/chaos, recovery, telemetry and human sign-off
+remain separate gates. No user-side Agent package or local provider install is
+part of TAR-04.
