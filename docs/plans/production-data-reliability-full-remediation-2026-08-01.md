@@ -793,3 +793,25 @@ SHA-256 为 `7f4e859915e7e0a8399ee75558a12e660b34ef04000f29988291f59d47eaaa55`�
 切换；Data Center facts/publications 也没有被提升为决策证据。`DATA-01` 仍为
 `awaiting_production`，`DATA-02/03` 继续 `waiting_dependency`；`/api/decision-ready/` 仍为
 `503` 且 `must_not_use_for_decision=true`。
+
+## 实施记录（2026-08-23，DATA-01 已有归档只读完整性复核）
+
+本批没有创建新备份、没有重新部署 VPS、没有 prune、没有进入维护态，也没有执行生产
+restore/DDL、回填、reconciliation 或 rollback。仅复核 VPS 上已存在的最新 custom-format
+归档并保留本地忽略副本：
+
+- 远端归档为 `/opt/agomtradepro/backups/database/postgres-20260822-075316.dump`，完整下载到
+  `backups/vps-postgres/postgres-20260822-075316.dump`；两端大小均为 `142825371` bytes，
+  两端 SHA-256 均为
+  `f028ec2fe986be3c0f56f529e3fc44332ece472000c6e43f917d42b9ac2ffc55`。
+- 远端 `pg_restore --list` exit `0`；本机没有 `pg_restore` 客户端，因此未把本地格式检查
+  冒充通过。一个忽略的 `.partial` 临时文件仍在本地，但未被当作归档使用。
+- 结构化工件为
+  [`tar01-readonly-backup-observation-2026-08-23.json`](../deployment/tar01-readonly-backup-observation-2026-08-23.json)，
+  `schema=tar01-readonly-backup-observation.v1`，content hash
+  `715191dde263ebe59dc9c10f381f0926c94366b64daf5af55b48296a2e22fe77`；该观察绑定候选
+  `4cef9040cccc2127c3f8128c8d858bc7958df2a4` / release `20260822134658`。
+
+这条记录只证明现有恢复点的远端格式与传输完整性，不证明生产 restore/rebuild、RTO/RPO、
+维护态 rollback、controlled backfill、reconciliation 或 owner/reviewer 验收。`DATA-01`
+继续 `awaiting_production`，`DATA-02/03` 不解锁。

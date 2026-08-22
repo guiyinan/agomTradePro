@@ -1,0 +1,43 @@
+{
+  "artifact_type": "tar01_readonly_backup_observation",
+  "schema": "tar01-readonly-backup-observation.v1",
+  "observed_at": "2026-08-22T16:19:55.572016Z",
+  "candidate": {
+    "source_commit": "4cef9040cccc2127c3f8128c8d858bc7958df2a4",
+    "release": "20260822134658",
+    "image": "agomtradepro-web:20260822134658",
+    "observation_mode": "read_only_existing_archive"
+  },
+  "archive": {
+    "remote_path": "/opt/agomtradepro/backups/database/postgres-20260822-075316.dump",
+    "local_path": "backups/vps-postgres/postgres-20260822-075316.dump",
+    "size_bytes": 142825371,
+    "remote_sha256": "f028ec2fe986be3c0f56f529e3fc44332ece472000c6e43f917d42b9ac2ffc55",
+    "local_sha256": "f028ec2fe986be3c0f56f529e3fc44332ece472000c6e43f917d42b9ac2ffc55",
+    "remote_local_sha256_match": true,
+    "remote_local_size_match": true,
+    "partial_temp_present": true,
+    "partial_temp_used": false
+  },
+  "verification": {
+    "remote_pg_restore_list_exit_code": 0,
+    "remote_format_verified": true,
+    "local_pg_restore_available": false,
+    "local_format_verified": false
+  },
+  "scope": {
+    "created_new_remote_backup": false,
+    "pruned_remote_archives": false,
+    "production_restore": false,
+    "production_ddl_or_backfill": false,
+    "production_rollback_or_rto_rpo": false,
+    "decision_ready_unlocked": false
+  },
+  "limitations": [
+    "This is a read-only observation of an existing remote archive.",
+    "The local host has no pg_restore client; remote format validation is the authoritative format check.",
+    "The ignored partial temporary download remains on disk and was not treated as the archive.",
+    "No production restore, rollback, RTO/RPO, backfill, reconciliation, or owner sign-off is claimed."
+  ],
+  "content_hash": "715191dde263ebe59dc9c10f381f0926c94366b64daf5af55b48296a2e22fe77"
+}
