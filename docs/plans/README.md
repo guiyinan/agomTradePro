@@ -1,6 +1,6 @@
 # 活跃计划索引
 
-> 更新日期：2026-08-21
+> 更新日期：2026-08-22
 > 本目录只保留仍需开发、真实数据、生产验收或外部依赖闭环的计划。已完成的实施计划、阶段记录、复盘和历史证据统一放在 [`../archive/plans/`](../archive/plans/)；归档记录见 [`../archive/ARCHIVE_INDEX.md`](../archive/ARCHIVE_INDEX.md)。
 
 ## 维护规则
@@ -50,7 +50,7 @@
 | 支撑文档、证据与矩阵 | 22 |
 | 限期审查项 | 0 |
 | 注册表覆盖的活跃文件 | 40 |
-| 历史未勾选细项 | 139（非执行口径） |
+| 历史未勾选细项 | 136（非执行口径） |
 | 去重后 canonical closure units | 28 |
 
 “主计划”是需求和证据入口，不等于独立工程量；同一工作流下的路线图、readiness 和生产跟踪不会再重复计算成多条主线。完整文件归属、owner、状态、依赖和唯一退出门见机器注册表的 `closure_backlog`。
@@ -64,15 +64,16 @@
 | `data-production-reliability` | P0 | production_validation | Data Center / Operational Readiness / Task Monitor | [Canonical architecture](data-center-canonical-architecture-refactor-2026-08-02.md)、[生产可靠性](production-data-reliability-full-remediation-2026-08-01.md)、[关键测试](critical-reliability-test-closure-2026-07-22.md)、[UAT 整改](uat-remediation-2026-07-20.md) | 生产备份、回填、reconciliation、M9/M10 和观察证据 |
 | `system-audit-consolidation` | P0/P1 | active | Audit / Data Center / Task Monitor | [统一审计日志](system-audit-log-consolidation-plan-2026-08-13.md) | repository 扩展暂停；保持 publisher/authority fail-closed，仅继续只读 backlog 与健康证据 |
 | `web-to-tui-m5` | P0 | production_validation | Terminal / Operational Readiness | [迁移总计划](web-to-tui-migration-plan-2026-07-25.md)、[M5 readiness](web-to-tui-m5-readiness-2026-07-27.md) | TAR-03 退出并冻结 release surface 后，绑定最终候选、角色 UAT、14 日关闭窗口和签字 cleanup |
-| `terminal-agent-multi-user-runtime` | P0 | active | Agent Runtime / Terminal / Task Monitor / Operational Readiness / SDK / MCP | [多用户队列与本地 CLI 混合运行](terminal-agent-multi-user-runtime-plan-2026-08-18.md) | TAR-01 契约/ADR/API boundary 已冻结；当前候选仅在授权 observation profile 下验证 bounded queued/worker/SSE，TAR-01 退出门仍要求 global capacity、reconnect/chaos、provider、restore/rollback、telemetry 与双签；repository 默认仍 fail-closed |
+| `terminal-agent-multi-user-runtime` | P0 | active | Agent Runtime / Terminal / Task Monitor / Operational Readiness / SDK / MCP | [多用户队列与本地 CLI 混合运行](terminal-agent-multi-user-runtime-plan-2026-08-18.md) | TAR-01 契约冻结已完成；当前唯一 repository 主线为 TAR-02 durable admission/dispatch，随后推进 TAR-03 worker/events；global capacity、chaos、provider、恢复、telemetry 与双签留在 TAR-05，repository 默认仍 fail-closed |
 | `ai-native-release` | P1 | external_validation | Agent Runtime / Terminal | [AI-Native delivery pack](ai-native/README.md) | 同候选 staging/production UAT 与 owner/reviewer 双签 |
 | `qmt-live-bridge` | P2 | blocked_external | Broker Execution / 外部券商 Owner | [QMT 实盘桥](qmt-live-trading-bridge-plan.md) | Windows XtQuant Phase 0、连续仿真和受控小额实盘 |
 | `tui-usability-governance` | P1 | active | Terminal | [TUI 可用性与 metadata 治理](tui-usability-and-metadata-governance-plan-2026-08-18.md) | repository 扩展暂停；TAR-03 后再恢复三真源与 action-density 收口 |
 
 ## 当前执行焦点
 
-- 唯一 repository 主线：`TAR-01`。完成真实 inline 基线与退出批准后，严格顺序推进 `TAR-02 → TAR-03`。
+- 唯一 repository 主线：`TAR-02`。TAR-01 合同冻结已完成；完成 durable admission/dispatch 后推进 `TAR-03` worker/events。
 - `EVID-01`、`AUD-01`、`TUX-02`、`TUX-04` 暂停 repository 扩展；现有 fail-closed 门禁保持不变。
+- `EVID-02`、`DATA-01`、`STRAT-01` 按各自 `auto_collect` 清单并行取证；仅具体生产写入、付费调用和人工决定进入集中授权批次，不再因“需要生产证据”整体停工。
 - `TUI-01` 等待 `TAR-03`。当前 `fec65c8022d4` / `20260821181242` 观察窗口仅作非关闭性 bounded runtime evidence；TAR-03 后重新绑定最终候选并启动正式 14 日关闭窗口。
 - 生产、外部和治理工作只允许在注册表声明的并行 mode 内进行；任何部署、生产写入或授权动作仍遵循专项计划的权限边界。
 
@@ -98,7 +99,7 @@
 
 ## 去重后的收口 Backlog
 
-139 个历史未勾选细项按共同产物、共同依赖和共同验收证据折叠为以下 **28 个唯一工作包**。状态只在机器注册表更新；本表不形成第二套待办。
+136 个历史未勾选细项按共同产物、共同依赖和共同验收证据折叠为以下 **28 个唯一工作包**。状态只在机器注册表更新；本表不形成第二套待办。
 
 | 波次 | Canonical unit | 类型 | 状态 | 依赖 | 唯一交付 |
 |------|----------------|------|------|------|----------|
@@ -108,8 +109,8 @@
 | W1 | `EVID-03` | repository | waiting | EVID-01/02 | Research/Portfolio/Broker adapters 与执行前 exact-current 重验 |
 | W1 | `AUD-01` | repository | planned | — | canonical publisher/runtime/authority composition |
 | W1 | `AUD-02` | repository | waiting | AUD-01 | Data Center fetch event 与 event/outbox 同 UOW 双写和重放 |
-| W1 | `TAR-01` | repository | active | — | 冻结多用户 runtime、队列、本地客户端、安全、SLO 与测试合同 |
-| W1 | `TAR-02` | repository | waiting | TAR-01 | PostgreSQL 持久接单、幂等、有界准入和 commit 后派发；当前仅有候选 bounded observation，exit gate 未解除 |
+| W1 | `TAR-01` | repository | completed | — | 多用户 runtime、队列、本地客户端、安全、SLO 与 deterministic test matrix 合同已冻结；不代表生产容量验收 |
+| W1 | `TAR-02` | repository | active | TAR-01 | PostgreSQL 持久接单、幂等、有界准入和 commit 后派发 |
 | W1 | `TAR-03` | repository | waiting | TAR-02 | 专用 Agent Worker、租约/取消/崩溃恢复和可续传事件流 |
 | W2 | `AUD-03` | production | waiting | AUD-02 | migration/rollback、backlog 观察、告警、TUI、archive/restore 与签字 |
 | W2 | `DATA-01` | production | awaiting | — | 校验备份、维护态与回滚预演 |
@@ -131,7 +132,7 @@
 | W5 | `TUX-04` | repository | planned | — | 分组重排、入口消歧、12 个 runtime screen 补齐契约 |
 | W5 | `TUX-05` | repository | waiting | TUX-03/TUX-04 | 布局/字段名翻译/状态栏/freshness 观感收口与截图证据 |
 
-执行纪律：机器注册表 `execution_focus` 当前锁定 `TAR-01`，不再允许“一条大主线加一个小收口”的双 repository 扩边。严格按 `TAR-01 → TAR-02 → TAR-03` 推进；期间 Evidence、Audit 与 TUX 只保留现有 fail-closed 门和允许的只读取证。`TUI-01` 依赖 `TAR-03`，因此现有 M5 窗口不具备关闭资格；TAR-03 后冻结最终 release surface、重新绑定候选并启动正式 14 日窗口。`TAR-04` 在 `TAR-03` 后作为 P1 本地客户端线，`TAR-05` 绑定不可变候选做生产验收；在 TAR-05 通过前不得放大 inline 并发。W2 的破坏性生产动作仍必须从 `DATA-01` 开始；W4 在券商解除阻断前不占用仓库开发排期；W5 保持 planned，不触碰 M5 候选证据链。
+执行纪律：机器注册表 `execution_focus` 当前锁定 `TAR-02`，不允许“一条大主线加一个小收口”的双 repository 扩边。严格按 `TAR-02 → TAR-03` 推进；期间 Evidence、Audit 与 TUX 不扩仓库边界，但 EVID-02、DATA-01、STRAT-01 的安全自动取证继续并行。`TUI-01` 依赖 `TAR-03`，因此现有 M5 窗口不具备关闭资格；TAR-03 后冻结最终 release surface、重新绑定候选并启动正式 14 日窗口。`TAR-04` 在 `TAR-03` 后作为 P1 本地客户端线，`TAR-05` 绑定不可变候选做生产容量、chaos、恢复、telemetry 和签字验收；在 TAR-05 通过前不得放大 inline 并发。W2 的破坏性生产动作仍必须从 `DATA-01` 开始；W4 在券商解除阻断前不占用仓库开发排期；W5 保持 planned，不触碰 M5 候选证据链。
 
 ## 分阶段执行记录
 

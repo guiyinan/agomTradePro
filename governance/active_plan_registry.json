@@ -1,14 +1,14 @@
 {
-  "version": "2026-08-21.v1",
-  "updated_at": "2026-08-21",
+  "version": "2026-08-22.v1",
+  "updated_at": "2026-08-22",
   "execution_focus": {
-    "unit_id": "TAR-01",
+    "unit_id": "TAR-02",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Only the focused repository unit may be active. Other workstreams may collect read-only production or external evidence without expanding repository scope."
+    "policy": "Only TAR-02 may expand repository scope. In parallel, declared production/external/governance units must complete safe auto_collect work; production writes, paid calls and human decisions still require their recorded authorization boundary."
   },
   "workstreams": [
     {
@@ -18,7 +18,7 @@
       "priority": "P0",
       "owner": "research+risk_center+portfolio+broker_execution+account",
       "status": "active",
-      "next_gate": "Repository expansion is paused behind the TAR-01 execution focus; preserve the global execution deny and collect only already-authorized read-only production evidence until the focus advances.",
+      "next_gate": "Repository expansion is paused behind the TAR-02 execution focus; preserve the global execution deny while EVID-02 continues its declared safe auto_collect evidence lane.",
       "documents": [
         {
           "path": "docs/plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md",
@@ -131,7 +131,7 @@
       "priority": "P0/P1",
       "owner": "audit+data_center+task_monitor",
       "status": "active",
-      "next_gate": "Repository expansion is paused behind the TAR-01 execution focus; preserve the current fail-closed publisher and authority boundaries while collecting only read-only backlog and health evidence.",
+      "next_gate": "Repository expansion is paused behind the TAR-02 execution focus; preserve the current fail-closed publisher and authority boundaries while collecting only read-only backlog and health evidence.",
       "documents": [
         {
           "path": "docs/plans/system-audit-log-consolidation-plan-2026-08-13.md",
@@ -197,7 +197,7 @@
       "priority": "P0",
       "owner": "agent_runtime+terminal+task_monitor+operational_readiness+sdk+mcp",
       "status": "active",
-      "next_gate": "With the TAR-01 contracts and failing-first API boundary frozen, continue the explicitly authorized bounded observation on one immutable candidate; keep the TAR-01 exit gate closed until multi-user/global 1/5/10/20 capacity, reconnect/chaos, provider, restore/rollback, telemetry and owner/reviewer evidence are complete.",
+      "next_gate": "TAR-01 contract freeze is complete. Execute TAR-02 durable asynchronous admission and dispatch next, then TAR-03 worker/events; capacity, chaos, provider, restore/rollback, telemetry and owner/reviewer acceptance remain TAR-05 production work and do not block TAR-02 repository progress.",
       "documents": [
         {
           "path": "docs/plans/terminal-agent-multi-user-runtime-plan-2026-08-18.md",
@@ -262,7 +262,7 @@
       "priority": "P1",
       "owner": "terminal",
       "status": "active",
-      "next_gate": "TUX-01 metadata-load fallback is complete; repository expansion is paused behind TAR-01 through TAR-03, after which triple-copy and action-density remediation may resume without disturbing the frozen M5 candidate.",
+      "next_gate": "TUX-01 metadata-load fallback is complete; repository expansion is paused behind TAR-02 through TAR-03, after which triple-copy and action-density remediation may resume without disturbing the frozen M5 candidate.",
       "documents": [
         {
           "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
@@ -273,7 +273,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-08-19.v1",
+    "version": "2026-08-22.v1",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -356,7 +356,7 @@
       {
         "id": 1,
         "title": "Decision safety, audit and urgent runtime isolation",
-        "rule": "Run one major repository line at a time; after the currently in-flight atomic unit, TAR-01 through TAR-03 are the next bounded P0 repository priority without weakening Evidence or Audit gates."
+        "rule": "Run one major repository line at a time; TAR-02 then TAR-03 are the bounded P0 repository priority. Declared production auto-collection continues in parallel without weakening Evidence or Audit gates."
       },
       {
         "id": 2,
@@ -494,7 +494,7 @@
         "wave": 1,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Freeze the multi-user runtime, queue and local-client contracts",
         "depends_on": [],
         "exit_gate": "The current inline baseline, ownership boundaries, state machine, API/SSE contracts, capacity limits, threat model, SLOs and deterministic test matrix are approved and protected by failing-first contract tests."
@@ -505,7 +505,7 @@
         "wave": 1,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "waiting_dependency",
+        "status": "active",
         "title": "Build durable asynchronous admission and dispatch",
         "depends_on": [
           "TAR-01"

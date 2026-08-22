@@ -5,7 +5,7 @@
 > Owner：`agent_runtime + terminal + task_monitor + operational_readiness + sdk + mcp`
 > 机器进度真源：`governance/active_plan_registry.json`
 > Canonical closure units：`TAR-01` 至 `TAR-05`
-> 执行优先级：`TAR-01` 是机器注册表当前唯一 repository execution focus；严格按 `TAR-01 → TAR-02 → TAR-03` 推进。`TUI-01` 等待 `TAR-03` 后再冻结最终候选并启动正式 M5 关闭窗口；在 `TAR-05` 生产验收前不得直接放大全局 inline 并发。
+> 执行优先级：`TAR-01` 合同冻结已完成，`TAR-02` 是机器注册表当前唯一 repository execution focus；随后推进 `TAR-03`。`TUI-01` 等待 `TAR-03` 后再冻结最终候选并启动正式 M5 关闭窗口；在 `TAR-05` 生产验收前不得直接放大全局 inline 并发。
 
 本文只维护问题、目标架构、分期交付、验收门和回滚边界。`active / waiting_dependency / production_validation` 等执行状态只在机器注册表维护，不在本文形成第二套进度。
 
@@ -22,6 +22,12 @@
 7. Agent Worker 必须使用独立队列、独立进程池和独立健康/容量指标，不能与 Web、Qlib 训练/推理或数据新鲜度任务争抢同一执行池。
 8. 超额请求进入有上限的公平队列；只有队列达到硬上限、依赖不可用或用户额度耗尽时才拒绝，禁止无限排队。
 9. 现有 inline 路径在迁移期继续保持并发 1、60 秒超时和 fail-closed；新路径生产验收后再受控退役，回滚不得重新开放无界 inline 执行。
+
+### 1.1 排班边界校正（2026-08-22）
+
+`TAR-01` 的唯一退出门是冻结 runtime/queue/API/SSE/安全/SLO/test-matrix 合同并由 failing-first tests 保护，该门已满足。此前把 multi-user/global capacity、chaos、provider、restore/rollback、14 日 telemetry 和双签继续计入 `TAR-01`，与本计划 `TAR-05` 的生产验收职责重复，造成 `TAR-02/TAR-03` 虚假串行阻塞。
+
+校正后只保留一条 repository 主线：`TAR-02 → TAR-03`。容量、chaos、恢复、telemetry 和人工验收继续 fail-closed，并在 `TAR-05` 绑定同一不可变候选收口；`TAR-01` 完成不授权生产启用、扩大并发或跳过任何生产证据。
 
 ## 2. 背景、现状证据与根因
 

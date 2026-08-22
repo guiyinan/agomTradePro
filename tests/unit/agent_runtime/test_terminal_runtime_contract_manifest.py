@@ -116,6 +116,15 @@ def test_manifest_freezes_migration_flags_and_sensitive_transport_boundary() -> 
         "complete multi-user/global 1/5/10/20 capacity and hard-SLO evidence",
         "sustained chaos and 14-day telemetry",
     }
+    assert manifest["implementation_boundary"]["remaining_work_assignment"] == {
+        "SDK/MCP/TUI queued client implementation": "TAR-03/TAR-04",
+        "complete multi-user/global 1/5/10/20 capacity and hard-SLO evidence": "TAR-05",
+        "sustained chaos and 14-day telemetry": "TAR-05",
+        "successful provider/MCP execution, restore/rollback, and role-based production UAT": (
+            "TAR-05"
+        ),
+        "owner/reviewer sign-off": "TAR-05",
+    }
     assert (
         "tests/component/agent_runtime/test_terminal_agent_run_events.py"
         in manifest["acceptance_and_next_gate"]["current_evidence"]

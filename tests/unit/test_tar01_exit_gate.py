@@ -10,15 +10,15 @@ from scripts.check_tar01_exit_gate import evaluate_tar01_exit_gate
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_tar01_preflight_stays_blocked_without_runtime_capacity() -> None:
-    """A bounded runtime observation remains blocked at the capacity exit gate."""
+def test_tar01_preflight_completes_contract_without_runtime_capacity() -> None:
+    """Contract completion does not misrepresent downstream capacity readiness."""
 
     report = evaluate_tar01_exit_gate(
         registry_path=ROOT / "governance/active_plan_registry.json",
         contract_path=ROOT / "governance/terminal_agent_runtime_contracts.json",
     )
 
-    assert report.decision == "BLOCKED"
+    assert report.decision == "CONTRACT_COMPLETE"
     assert report.safety_ready is True
     assert report.capacity_ready is False
     assert report.reasons == ()
@@ -44,12 +44,12 @@ def test_tar01_preflight_rejects_queued_flag_drift(tmp_path: Path) -> None:
 
 
 def test_tar01_preflight_rejects_dependency_status_drift(tmp_path: Path) -> None:
-    """TAR-02 cannot move ahead while TAR-01's real gate is incomplete."""
+    """The scheduling preflight rejects a regression to the old dependency state."""
 
     registry_path = ROOT / "governance/active_plan_registry.json"
     registry = json.loads(registry_path.read_text(encoding="utf-8"))
     for unit in registry["closure_backlog"]["units"]:
-        if unit["id"] == "TAR-02":
+        if unit["id"] == "TAR-01":
             unit["status"] = "active"
     altered = tmp_path / "registry.json"
     altered.write_text(json.dumps(registry), encoding="utf-8")

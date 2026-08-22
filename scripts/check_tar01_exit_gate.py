@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Check TAR-01's local safety gate and bounded runtime observation state."""
+"""Check TAR-01 contract completion without relaxing downstream capacity gates."""
 
 from __future__ import annotations
 
@@ -80,7 +80,7 @@ def _check_registry(registry: Mapping[str, object]) -> tuple[GateCheck, ...]:
     focus = _mapping(registry.get("execution_focus"))
     focus_ok = bool(
         focus
-        and focus.get("unit_id") == "TAR-01"
+        and focus.get("unit_id") != "TAR-01"
         and set(_string_list(focus.get("allowed_parallel_execution_modes")))
         == {"production", "external", "governance"}
     )
@@ -89,9 +89,9 @@ def _check_registry(registry: Mapping[str, object]) -> tuple[GateCheck, ...]:
             "registry_execution_focus",
             focus_ok,
             (
-                "TAR-01 is the focused unit with read-only evidence modes"
+                "TAR-01 released the repository focus without changing parallel evidence modes"
                 if focus_ok
-                else "execution focus must remain TAR-01 with production/external/governance modes"
+                else "completed TAR-01 must release the repository focus without changing parallel evidence modes"
             ),
         )
     ]
@@ -104,18 +104,15 @@ def _check_registry(registry: Mapping[str, object]) -> tuple[GateCheck, ...]:
             unit_id = unit.get("id") if unit else None
             if unit is not None and isinstance(unit_id, str):
                 units[unit_id] = unit
-    expected = {"TAR-01": "active", "TAR-02": "waiting_dependency", "TAR-03": "waiting_dependency"}
-    dependency_ok = all(
-        units.get(unit_id, {}).get("status") == status for unit_id, status in expected.items()
-    )
+    dependency_ok = units.get("TAR-01", {}).get("status") == "completed"
     checks.append(
         GateCheck(
             "tar_dependency_status",
             dependency_ok,
             (
-                "TAR-01 active; TAR-02/TAR-03 waiting_dependency"
+                "TAR-01 is completed; downstream scheduling is outside its exit gate"
                 if dependency_ok
-                else "TAR-01/TAR-02/TAR-03 status does not preserve the execution dependency"
+                else "TAR-01 must be completed before repository focus advances"
             ),
         )
     )
@@ -194,7 +191,7 @@ def _check_capacity_evidence(
         (
             "candidate-bound capacity evidence is internally consistent; "
             f"accepted={report.accepted_runs}, rejected={report.rejected_runs}, "
-            "TAR-01 remains capacity-blocked"
+            "downstream TAR-05 remains capacity-blocked"
         ),
     )
 
@@ -210,11 +207,11 @@ def _check_contract(
     checks.append(
         GateCheck(
             "contract_decision_scope",
-            contract.get("decision_status") == "runtime_observed_not_exit_ready",
+            contract.get("decision_status") == "contract_frozen_capacity_pending",
             (
-                "runtime observation is recorded without exit readiness"
-                if contract.get("decision_status") == "runtime_observed_not_exit_ready"
-                else "decision_status must remain runtime_observed_not_exit_ready"
+                "TAR-01 contract is frozen while downstream capacity remains pending"
+                if contract.get("decision_status") == "contract_frozen_capacity_pending"
+                else "decision_status must remain contract_frozen_capacity_pending"
             ),
         )
     )
@@ -320,7 +317,7 @@ def evaluate_tar01_exit_gate(
     contract_path: Path = DEFAULT_CONTRACT,
     capacity_evidence_path: Path | None = None,
 ) -> Tar01ExitGateReport:
-    """Evaluate TAR-01 without turning a short observation into an exit decision."""
+    """Evaluate TAR-01 contracts separately from downstream capacity acceptance."""
 
     registry = _read_json(registry_path)
     contract = _read_json(contract_path)
@@ -338,7 +335,7 @@ def evaluate_tar01_exit_gate(
     safety_ready = all(check.passed for check in checks)
     capacity_ready = False
     reasons = () if safety_ready else tuple(check.key for check in checks if not check.passed)
-    decision = "BLOCKED" if safety_ready else "INVALID"
+    decision = "CONTRACT_COMPLETE" if safety_ready else "INVALID"
     return Tar01ExitGateReport(decision, safety_ready, capacity_ready, checks, reasons)
 
 

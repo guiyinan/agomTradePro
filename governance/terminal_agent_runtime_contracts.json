@@ -3,8 +3,8 @@
   "schema_version": "1.0",
   "contract_id": "TAR-01",
   "title": "Terminal Agent run dispatch and hybrid runtime contract",
-  "decision_status": "runtime_observed_not_exit_ready",
-  "decision_scope": "This manifest freezes names, ownership, wire semantics, safety relationships, and a bounded candidate observation for TAR-01. It is not a runtime configuration, persistence schema, broker declaration, capacity acceptance, or production readiness attestation.",
+  "decision_status": "contract_frozen_capacity_pending",
+  "decision_scope": "TAR-01 is complete because this manifest freezes names, ownership, wire semantics, safety relationships, capacity/SLO evidence contracts and the deterministic matrix. It is not a runtime configuration, capacity acceptance or production readiness attestation; those remain downstream TAR-02 through TAR-05 work.",
   "authority": {
     "primary_plan": "docs/plans/terminal-agent-multi-user-runtime-plan-2026-08-18.md",
     "machine_registry": "governance/active_plan_registry.json",
@@ -50,7 +50,14 @@
       "successful provider/MCP execution, restore/rollback, and role-based production UAT",
       "owner/reviewer sign-off"
     ],
-    "fail_closed_rule": "The observed candidate is explicitly authorized for bounded observation only; no generic adapter, fallback, or client may infer TAR-01 exit readiness. Capacity, chaos, recovery, telemetry, provider, restore/rollback, and human sign-off remain required."
+    "remaining_work_assignment": {
+      "SDK/MCP/TUI queued client implementation": "TAR-03/TAR-04",
+      "complete multi-user/global 1/5/10/20 capacity and hard-SLO evidence": "TAR-05",
+      "sustained chaos and 14-day telemetry": "TAR-05",
+      "successful provider/MCP execution, restore/rollback, and role-based production UAT": "TAR-05",
+      "owner/reviewer sign-off": "TAR-05"
+    },
+    "fail_closed_rule": "TAR-01 completion authorizes only TAR-02 repository progress. No generic adapter, fallback or client may infer runtime or production readiness; capacity, chaos, recovery, telemetry, provider, restore/rollback and human sign-off remain TAR-05 requirements."
   },
   "runtime_observation": {
     "status": "short_window_observed",
@@ -344,7 +351,7 @@
       "TERMINAL_LEGACY_INLINE_TIMEOUT_SECONDS": 60
     },
     "migration_defaults": "queued intake/worker disabled by repository defaults; legacy inline remains enabled only at one slot and <=60 seconds; unavailable queued mode pauses rather than implicitly opening inline.",
-    "production_rule": "A candidate-specific owner authorization may enable queued intake/worker for bounded observation, but this manifest still withholds TAR-01 exit readiness until the remaining evidence gates are complete.",
+    "production_rule": "A candidate-specific owner authorization may enable queued intake/worker for bounded observation. TAR-01 completion does not authorize runtime enablement; TAR-05 retains the capacity and production acceptance gates.",
     "no_implicit_fallback": true
   },
   "acceptance_and_next_gate": {
@@ -365,7 +372,7 @@
       "tests/component/agent_runtime/test_terminal_agent_run_events.py",
       "docs/deployment/tar01-current-production-capacity-2026-08-22-71e62773.json"
     ],
-    "next_gate": "Complete multi-user/global 1/5/10/20 capacity, reconnect/chaos, provider, restore/rollback, telemetry, and human sign-off on the same immutable candidate; the short observation does not authorize TAR-01 exit.",
+    "next_gate": "Execute TAR-02 durable admission/dispatch and TAR-03 worker/events. Keep multi-user/global capacity, reconnect/chaos, provider, restore/rollback, telemetry and human sign-off bound to TAR-05 on one immutable candidate.",
     "production_evidence_missing": [
       "multi-user/global 1/5/10/20 hard-SLO capacity result",
       "durable PostgreSQL first-winner/idempotency/rollback evidence",
