@@ -1536,3 +1536,15 @@ the disabled queue response. This closes the repository TUI queued-client
 contract only. It is not VPS deployment, provider success, capacity/chaos,
 14-day telemetry, restore/rollback, or owner/reviewer production acceptance;
 users still do not install a provider-backed Agent locally.
+
+### TAR-04 client-package boundary guard (2026-08-22)
+
+The SDK package contract now has a regression guard in
+`tests/unit/agent_runtime/test_terminal_runtime_contract_manifest.py`: the
+user-facing `sdk/pyproject.toml` may not publish an `agomtradepro-agent`
+executable, an `[agent]` installation extra, the `openai-agents` package, or a
+provider-key setup path. The server application may still depend on its Agent
+Runtime packages; that server dependency is not part of the client package.
+This guard only protects packaging metadata and does not claim VPS/provider
+execution or production UAT. Users may use the B/S UI directly; any optional
+SDK/MCP transport remains a thin remote client and never runs the Agent locally.
