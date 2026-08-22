@@ -204,3 +204,16 @@ actual/PIT/macro-factor/market-structure 依赖表均为零行。工件
 因此 `STRAT-01` 继续 `awaiting_production`，`STRAT-02/03` 依赖不变；本次只更新候选绑定，不改变
 生产状态或任何 execution gate。
 
+## 16. 2026-08-23：STRAT-01 current candidate owner-ledger recheck
+
+在 `4cef9040cccc2127c3f8128c8d858bc7958df2a4` / release `20260822134658` 上，以同一
+PostgreSQL alias 重新执行只读盘点：Research R1–R8 的 `65` 张 canonical 表与
+Portfolio R4/R5/R8 的 `8` 张表仍全部为零行，明确的 owner/operator/policy registry 也仍为零；
+`data_center` 有实际事实/publication rows，但不能替代 owner-scoped strategy ledger。结构化
+工件为 [`tar01-p0-readonly-ledger-inventory-2026-08-23-4cef9040.json`](../deployment/tar01-p0-readonly-ledger-inventory-2026-08-23-4cef9040.json)。
+SHA-256 为 `7f4e859915e7e0a8399ee75558a12e660b34ef04000f29988291f59d47eaaa55`。
+
+本轮没有创建、更新、删除、回填、promotion 或审批，也没有把现场 Data Center facts hash 成
+definition/policy/scope/qualification evidence。`STRAT-01` 继续 `awaiting_production`；
+`STRAT-02/03`、PIT/OOS、canonical receipts、Promotion、consumer UAT 与 rollback 依赖不变。
+

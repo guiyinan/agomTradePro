@@ -2929,3 +2929,20 @@ SHA-256 为 `e93fdcef3591aece3d9d9412a9e58b288e9514a759e3a2fe048d2d85bf56f95b`�
 approval ledger 为空，不把 Data Center facts 现场提升为 owner evidence。`EVID-02` 继续
 `awaiting_production`，`STRAT-01` 继续 `awaiting_production`，`EVID-03`、`STRAT-02/03` 与
 Evidence hard gate 继续 fail-closed。
+
+## 2026-08-23：EVID-02/STRAT-01 current candidate read-only inventory refresh
+
+针对当前运行的 `4cef9040cccc2127c3f8128c8d858bc7958df2a4` / release
+`20260822134658`，在同一 PostgreSQL alias 内重新执行只读盘点。Account owner-assignment
+target tables `9` 张全部为 `0` 行；Research R1–R8 `65` 张表、Portfolio R4/R5/R8
+`8` 张表也全部为 `0` 行；明确的 operator/approval/promotion policy tables 仍为空，
+`human_approval_status=not_collected`。运行态 health/readiness 均为 `200`，audit health
+为 `200/OK`。结构化工件为
+[`tar01-p0-readonly-ledger-inventory-2026-08-23-4cef9040.json`](../deployment/tar01-p0-readonly-ledger-inventory-2026-08-23-4cef9040.json)。
+SHA-256 为 `7f4e859915e7e0a8399ee75558a12e660b34ef04000f29988291f59d47eaaa55`。
+
+本轮只读盘点没有创建、更新、删除、回填、审批或 rollback；现有 Data Center facts/publications
+没有被现场提升为 owner evidence。故 `EVID-02` 与 `STRAT-01` 仍分别为
+`awaiting_production`，`EVID-03`、`STRAT-02/03` 与 Evidence hard gate 继续 fail-closed；
+真实 owner/definition/policy/calendar/scope、PIT/OOS、canonical receipts、Promotion 与
+consumer UAT 仍未具备生产证据。

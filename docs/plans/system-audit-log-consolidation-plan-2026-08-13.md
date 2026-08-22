@@ -1004,3 +1004,20 @@ SHA-256 为 `d3a2ac6dedb47b33fe1d76196075bbe904a06e5d972ed41e56825aec5ca87f7b`�
 该刷新只证明健康投影、认证边界和决策数据 fail-closed 仍稳定；不证明 durable
 publisher/receipt、authenticated authority、真实 claim/delivery、Data Center 同 UOW、
 PG 并发/回滚或 owner/reviewer 签字，故 `AUD-01` 仍为 `active`。
+
+## 实施记录（2026-08-23，AUD-01 current candidate database read-only inventory）
+
+在同一 `4cef9040cccc2127c3f8128c8d858bc7958df2a4` / release `20260822134658` 候选上，
+以 PostgreSQL 只读 `SELECT` 复核 audit `0012_systemauditevent_scope` 已应用，
+`audit_system_event=0`、`audit_system_outbox=0`、outbox 各状态均为 `0`；operation log
+为 `555` 条、terminal audit log 为 `134` 条。公网 `/api/audit/health/` 为 `200`，
+`overall_status=OK`、failure/pending/due/claimed/expired/failed/delivered 均为 `0`。
+同一工件还绑定了 health/readiness `200` 与 decision-ready `503` 的 fail-closed 响应：
+[`tar01-p0-readonly-ledger-inventory-2026-08-23-4cef9040.json`](../deployment/tar01-p0-readonly-ledger-inventory-2026-08-23-4cef9040.json)。
+SHA-256 为 `7f4e859915e7e0a8399ee75558a12e660b34ef04000f29988291f59d47eaaa55`。
+
+这些是健康投影与空 outbox 的只读事实，不是 durable publisher、receipt sink、authenticated
+scoped authority、claim/delivery、beat/retry 或 Data Center 同 UOW 双写证明；没有执行任何
+生产写入、publisher 操作、迁移、fault injection、rollback 或 owner/reviewer 签字。因此
+`AUD-01` 继续 `active`，`AUD-02/03` 继续等待依赖，production publisher/runtime 仍保持
+fail-closed。

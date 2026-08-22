@@ -778,3 +778,18 @@ Repeatable Read 全表快照和 schema/迁移/sequence/逐表内容比较；rest
 该条只补齐新恢复点的本机隔离 restore/rebuild 自洽证据；elapsed 不能冒充生产 RTO/RPO，仍未
 执行 VPS maintenance、生产 restore/DDL、live rollback、controlled backfill 或 reconciliation。
 `DATA-01` 继续 `awaiting_production`，`DATA-02/03` 不解锁。
+
+## 实施记录（2026-08-23，DATA-01/02/03 current candidate read-only readiness recheck）
+
+针对 `4cef9040cccc2127c3f8128c8d858bc7958df2a4` / release `20260822134658` 的 PostgreSQL
+只读盘点显示：`data_center` 共 `59` 张 public 表、`3,653,282` 行，其中 `29` 张非空；
+canonical publication 状态为 `47 published`、`2051 superseded`。但最新 `equity.core.backfill`
+sync run 为 `blocked`（requested `2`、fetched/validated/stored/published 均为 `0`），最新
+`fund.nav` reconciliation row 虽为 `is_clean=true`，也不足以代表全量 reconciliation。结构化
+工件为 [`tar01-p0-readonly-ledger-inventory-2026-08-23-4cef9040.json`](../deployment/tar01-p0-readonly-ledger-inventory-2026-08-23-4cef9040.json)。
+SHA-256 为 `7f4e859915e7e0a8399ee75558a12e660b34ef04000f29988291f59d47eaaa55`。
+
+本轮没有创建新备份、进入维护态、执行生产 restore/DDL、backfill、reconciliation、rollback 或
+切换；Data Center facts/publications 也没有被提升为决策证据。`DATA-01` 仍为
+`awaiting_production`，`DATA-02/03` 继续 `waiting_dependency`；`/api/decision-ready/` 仍为
+`503` 且 `must_not_use_for_decision=true`。

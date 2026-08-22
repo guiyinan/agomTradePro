@@ -1,0 +1,115 @@
+{
+  "schema": "tar01-p0-readonly-ledger-inventory.v1",
+  "observed_at": "2026-08-22T16:06:03.588722Z",
+  "observation_kind": "candidate_bound_read_only_inventory",
+  "candidate": {
+    "branch": "dev/next-development",
+    "source_commit": "4cef9040cccc2127c3f8128c8d858bc7958df2a4",
+    "release_tag": "20260822134658",
+    "image_tag": "agomtradepro-web:20260822134658",
+    "runtime_revision_match": true
+  },
+  "runtime": {
+    "health_http_status": 200,
+    "readiness_http_status": 200,
+    "ready_database": "ok",
+    "ready_redis": "ok",
+    "ready_celery": "ok",
+    "ready_workers": 1,
+    "ready_critical_data": "ok",
+    "audit_health_http_status": 200,
+    "audit_overall_status": "OK",
+    "terminal_queued_intake_enabled": false,
+    "terminal_queued_worker_enabled": false,
+    "terminal_runtime_authorized": false,
+    "terminal_emergency_stop": false
+  },
+  "migrations": {
+    "audit": "0012_systemauditevent_scope",
+    "account": "0054_normalize_physical_v2_fixed_constraint",
+    "agent_runtime": "0006_terminal_agent_run_execution",
+    "migration_state": "applied"
+  },
+  "audit": {
+    "system_event_rows": 0,
+    "system_outbox_rows": 0,
+    "system_outbox_status_counts": {},
+    "operation_log_rows": 555,
+    "operation_log_time_range": {
+      "min": "2026-03-14T14:03:05+00:00",
+      "max": "2026-08-22T03:33:26+00:00"
+    },
+    "terminal_audit_log_rows": 134,
+    "health_failure_count": 0,
+    "health_pending_count": 0,
+    "health_due_pending_count": 0,
+    "health_claimed_count": 0,
+    "health_expired_claimed_count": 0,
+    "health_failed_count": 0,
+    "health_delivered_count": 0
+  },
+  "evidence_and_strategy": {
+    "account_owner_assignment_target_tables": 9,
+    "account_owner_assignment_target_rows": 0,
+    "research_r1_to_r8_tables": 65,
+    "research_r1_to_r8_rows": 0,
+    "portfolio_r4_r5_r8_tables": 8,
+    "portfolio_r4_r5_r8_rows": 0,
+    "explicit_owner_policy_and_operator_tables": {
+      "research_evidence_operator_spec": 0,
+      "research_evidence_operator_spec_approval": 0,
+      "research_activated_evidence_operator_spec": 0,
+      "research_r1_promotion_policy": 0,
+      "research_r4_monitoring_policy": 0,
+      "research_r5_monitoring_policy_registry": 0,
+      "research_r6_scope_qualification_registry": 0,
+      "research_r8_monitoring_policy_registry": 0,
+      "portfolio_strategy_assignment": 0
+    },
+    "human_approval_status": "not_collected"
+  },
+  "data_center": {
+    "public_table_count": 59,
+    "public_table_total_rows": 3653282,
+    "nonzero_public_table_count": 29,
+    "canonical_publication_state_counts": {
+      "published": 47,
+      "superseded": 2051
+    },
+    "latest_sync": {
+      "dataset_key": "equity.core.backfill",
+      "status": "blocked",
+      "outcome": "blocked",
+      "requested": 2,
+      "fetched": 0,
+      "validated": 0,
+      "stored": 0,
+      "published": 0
+    },
+    "latest_reconciliation": {
+      "dataset_key": "fund.nav",
+      "is_clean": true,
+      "observed_at": "2026-08-09T08:39:37+00:00"
+    },
+    "active_owner_registrations": 10
+  },
+  "decision": {
+    "decision_ready_http_status": 503,
+    "must_not_use_for_decision": true,
+    "blocked_reason": "decision_runtime_blocked"
+  },
+  "gates": {
+    "AUD-01": "active",
+    "EVID-02": "awaiting_production",
+    "STRAT-01": "awaiting_production",
+    "DATA-01": "awaiting_production",
+    "DATA-02": "waiting_dependency",
+    "DATA-03": "waiting_dependency"
+  },
+  "limitations": [
+    "All database access in this observation was read-only SELECT through the deployed PostgreSQL container; no production row was created, updated, deleted, backfilled, approved, or rolled back.",
+    "Zero target owner/approval/research rows are an observed production blocker, not evidence that the corresponding capabilities are complete.",
+    "Existing Data Center facts and publications were not promoted or hashed into owner evidence; one blocked sync and one clean reconciliation row do not establish full DATA-02/03 readiness.",
+    "No production publisher delivery, authenticated scoped authority, PostgreSQL race/rollback, role-based browser/TUI UAT, provider/MCP execution, capacity/chaos, restore/rollback, telemetry window, or owner/reviewer sign-off is claimed."
+  ]
+}
