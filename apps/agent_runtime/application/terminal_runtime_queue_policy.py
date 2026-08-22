@@ -40,7 +40,7 @@ class TerminalFallbackMode(StrEnum):
 class TerminalAdmissionReason(StrEnum):
     """Stable reasons returned by the pure mode-selection contract."""
 
-    ACCEPTED_LOCAL_CLI = "accepted_local_cli"
+    LOCAL_CLI_DISABLED = "local_cli_disabled"
     ACCEPTED_QUEUED = "accepted_queued"
     ACCEPTED_RESTRICTED_INLINE = "accepted_restricted_inline"
     LEGACY_INLINE_DISABLED = "legacy_inline_disabled"
@@ -291,7 +291,12 @@ class TerminalRuntimeFeatureFlags:
         _require_bool(worker_ready, "worker_ready")
 
         if requested_mode is TerminalRuntimeMode.LOCAL_CLI:
-            return requested_mode, TerminalAdmissionReason.ACCEPTED_LOCAL_CLI
+            # ``local_cli`` is retained in the frozen database enum for
+            # backwards-compatible historical rows, but it is not an
+            # execution mode for new requests. A CLI is a thin client and
+            # must submit a server-owned ``web_queued`` run instead of
+            # executing a provider-backed Agent on the caller's machine.
+            return None, TerminalAdmissionReason.LOCAL_CLI_DISABLED
         if self.emergency_stop:
             return None, TerminalAdmissionReason.SUBMISSIONS_PAUSED
         if requested_mode is TerminalRuntimeMode.LEGACY_INLINE:

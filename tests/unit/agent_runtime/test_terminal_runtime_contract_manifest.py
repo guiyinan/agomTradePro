@@ -170,6 +170,15 @@ def test_manifest_mentions_all_runtime_modes_without_enabling_a_new_one() -> Non
     assert manifest["wire_compatibility"]["mcp"]["local_cli_mode"] in mode_values
     assert manifest["wire_compatibility"]["mcp"]["local_cli_mode"] == "server_side_only"
     assert manifest["wire_compatibility"]["mcp"]["local_cli_entrypoint"] is None
+    assert manifest["wire_compatibility"]["mcp"]["local_cli_runtime_mode"] == "local_cli_disabled"
+    assert (
+        manifest["wire_compatibility"]["mcp"]["local_cli_execution"]
+        == "thin_server_api_client_only"
+    )
+    assert (
+        "server-owned prompt API submission with scoped token only"
+        in manifest["wire_compatibility"]["mcp"]["local_cli_implemented"]
+    )
     assert "legacy service" in manifest["wire_compatibility"]["legacy_http"]["policy"]
     assert modes["future_durable_type"] == "TerminalAgentRun"
 

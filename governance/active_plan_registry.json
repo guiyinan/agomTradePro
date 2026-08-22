@@ -197,7 +197,7 @@
       "priority": "P0",
       "owner": "agent_runtime+terminal+task_monitor+operational_readiness+sdk+mcp",
       "status": "active",
-      "next_gate": "TAR-01 through TAR-03 repository contracts are complete and TAR-04 capability discovery/schema/call/confirmation resume, bounded reconnect/token rotation, server-side API submission, and bounded SDK result helpers are recorded. Complete MCP/TUI queued client integration and browser/TUI streamed-result UX next; do not create a user-side provider-backed Agent package. Capacity, chaos, provider, restore/rollback, telemetry and owner/reviewer acceptance remain TAR-05 production work.",
+      "next_gate": "TAR-01 through TAR-03 repository contracts are complete and TAR-04 capability discovery/schema/call/confirmation resume, bounded reconnect/token rotation, server-side API submission, bounded SDK result helpers, and server-side-only CLI enforcement are recorded. Complete MCP/TUI queued client integration and browser/TUI streamed-result UX next; do not create a user-side provider-backed Agent package. Capacity, chaos, provider, restore/rollback, telemetry and owner/reviewer acceptance remain TAR-05 production work.",
       "documents": [
         {
           "path": "docs/plans/terminal-agent-multi-user-runtime-plan-2026-08-18.md",

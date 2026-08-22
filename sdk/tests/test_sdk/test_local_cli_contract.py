@@ -1,82 +1,75 @@
-"""Contract tests for the local Agent CLI and remote MCP boundary."""
+"""Contract tests for the server-side CLI compatibility facade."""
 
 from __future__ import annotations
 
-import asyncio
 import json
-import os
 from dataclasses import dataclass
+from pathlib import Path
 
 import pytest
 
 from agomtradepro.local_cli import (
     LocalAgentConfig,
     LocalCliConfigurationError,
+    RemoteTokenStore,
     authorization_header,
-    build_remote_mcp_server,
     main,
     run_local_agent,
-    temporary_provider_environment,
+    run_server_agent,
 )
 
 
 @dataclass(frozen=True)
-class _Credentials:
-    provider: str | None
-    remote: str | None
-
-    def get_provider_api_key(self) -> str | None:
-        return self.provider
+class _Credentials(RemoteTokenStore):
+    token: str | None
 
     def get_remote_api_token(self) -> str | None:
-        return self.remote
+        return self.token
 
 
 @dataclass
-class _FakeServer:
-    params: dict[str, object]
-    entered: bool = False
-    exited: bool = False
+class _ServerPrompt:
+    calls: list[dict[str, str]]
+    result: dict[str, object]
 
-    async def __aenter__(self) -> _FakeServer:
-        self.entered = True
-        return self
-
-    async def __aexit__(self, *_args: object) -> None:
-        self.exited = True
+    def agent_execute(self, *, task_type: str, user_input: str) -> dict[str, object]:
+        self.calls.append({"task_type": task_type, "user_input": user_input})
+        return self.result
 
 
-class _Result:
-    final_output = "local result"
+@dataclass
+class _ServerClient:
+    prompt: _ServerPrompt
 
 
 def _config() -> LocalAgentConfig:
     return LocalAgentConfig(
         base_url="https://api.example.test",
-        mcp_url="https://mcp.example.test/mcp",
-        model="test-model",
-        provider_api_key="provider-secret",
         remote_api_token="remote-secret",
+        mcp_url="https://mcp.example.test/mcp",
     )
 
 
-def test_local_config_reads_local_credentials_and_redacts_diagnostics() -> None:
+def test_config_reads_only_scoped_server_token_and_redacts_diagnostics() -> None:
     config = LocalAgentConfig.from_environment(
-        store=_Credentials("provider-secret", "remote-secret"),
+        store=_Credentials("remote-secret"),
         environ={
             "AGOMTRADEPRO_BASE_URL": "https://api.example.test/",
             "AGOMTRADEPRO_MCP_URL": "https://mcp.example.test/mcp?ignored=yes",
-            "AGOMTRADEPRO_LOCAL_MODEL": "test-model",
+            "AGOMTRADEPRO_PROVIDER_API_KEY": "must-not-be-read",
+            "OPENAI_API_KEY": "must-not-be-read",
         },
     )
 
     diagnostics = config.diagnostics()
+    assert diagnostics["execution_location"] == "server"
     assert diagnostics["run_ready"] is True
+    assert diagnostics["provider_key_configured"] is False
     rendered = json.dumps(diagnostics)
-    assert "provider-secret" not in rendered
     assert "remote-secret" not in rendered
-    assert diagnostics["mcp_url"] == "https://mcp.example.test/mcp"
-    assert "provider-secret" not in repr(config)
+    assert "must-not-be-read" not in rendered
+    assert config.mcp_url == "https://mcp.example.test/mcp"
+    assert "remote-secret" not in repr(config)
 
 
 def test_authorization_header_preserves_scheme_and_rejects_control_chars() -> None:
@@ -87,104 +80,49 @@ def test_authorization_header_preserves_scheme_and_rejects_control_chars() -> No
         authorization_header("raw\n-token")
 
 
-def test_remote_mcp_factory_receives_only_scoped_remote_token() -> None:
-    config = _config()
-    captured: list[dict[str, object]] = []
+def test_run_uses_server_prompt_api_and_never_accepts_provider_fields() -> None:
+    calls: list[dict[str, str]] = []
+    prompt = _ServerPrompt(calls, {"final_answer": "server result"})
 
-    def factory(params: dict[str, object]) -> _FakeServer:
-        captured.append(params)
-        return _FakeServer(params)
+    def factory(*, base_url: str, api_token: str) -> _ServerClient:
+        assert base_url == "https://api.example.test"
+        assert api_token == "remote-secret"
+        return _ServerClient(prompt)
 
-    server = build_remote_mcp_server(config, server_factory=factory)
-
-    assert isinstance(server, _FakeServer)
-    assert captured[0]["url"] == "https://mcp.example.test/mcp"
-    headers = captured[0]["headers"]
-    assert isinstance(headers, dict)
-    assert headers["Authorization"] == "Token remote-secret"
-    assert "provider-secret" not in repr(captured[0])
+    assert run_server_agent("show my tasks", _config(), client_factory=factory) == "server result"
+    assert calls == [{"task_type": "chat", "user_input": "show my tasks"}]
+    assert run_local_agent("show my tasks", _config(), client_factory=factory) == "server result"
+    assert len(calls) == 2
 
 
-def test_provider_environment_is_local_and_restored(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("OPENAI_API_KEY", "old-provider")
-    monkeypatch.delenv("AGOMTRADEPRO_PROVIDER_API_KEY", raising=False)
-
-    with temporary_provider_environment(_config()):
-        assert os.environ["OPENAI_API_KEY"] == "provider-secret"
-        assert os.environ["AGOMTRADEPRO_PROVIDER_API_KEY"] == "provider-secret"
-
-    assert os.environ["OPENAI_API_KEY"] == "old-provider"
-    assert "AGOMTRADEPRO_PROVIDER_API_KEY" not in os.environ
+def test_local_name_is_only_a_compatibility_alias() -> None:
+    source = Path("sdk/agomtradepro/local_cli.py").read_text(encoding="utf-8")
+    assert "from agents" not in source
+    assert "provider_api_key" not in source
+    assert "temporary_provider_environment" not in source
+    assert "run_server_agent" in source
 
 
-def test_run_local_agent_keeps_provider_key_out_of_remote_mcp() -> None:
-    config = _config()
-    server = _FakeServer({})
-    seen: dict[str, object] = {}
-
-    def factory(params: dict[str, object]) -> _FakeServer:
-        server.params = params
-        return server
-
-    def agent_factory(*, instructions: str, model: str | None, mcp_servers: list[object]) -> object:
-        seen["instructions"] = instructions
-        seen["model"] = model
-        seen["servers"] = mcp_servers
-        return object()
-
-    async def runner(agent: object, prompt: str) -> _Result:
-        assert prompt == "show my tasks"
-        assert agent is not None
-        assert os.environ["OPENAI_API_KEY"] == "provider-secret"
-        return _Result()
-
-    result = asyncio.run(
-        run_local_agent(
-            "show my tasks",
-            config,
-            server_factory=factory,
-            agent_factory=agent_factory,
-            runner=runner,
-        )
-    )
-
-    assert result == "local result"
-    assert server.entered is True
-    assert server.exited is True
-    assert "provider-secret" not in repr(server.params)
-    assert "confirmation" in str(seen["instructions"])
-
-
-def test_doctor_is_safe_when_run_configuration_is_missing(
+def test_doctor_is_safe_when_server_token_is_missing(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    for name in (
-        "AGOMTRADEPRO_PROVIDER_API_KEY",
-        "OPENAI_API_KEY",
-        "AGOMTRADEPRO_API_TOKEN",
-        "AGOMTRADEPRO_MCP_URL",
-    ):
-        monkeypatch.delenv(name, raising=False)
+    monkeypatch.delenv("AGOMTRADEPRO_API_TOKEN", raising=False)
+    monkeypatch.delenv("AGOMTRADEPRO_MCP_URL", raising=False)
 
     assert main(["doctor"]) == 0
     output = json.loads(capsys.readouterr().out)
     assert output["run_ready"] is False
+    assert output["execution_location"] == "server"
     assert output["provider_key_configured"] is False
-    assert output["remote_token_configured"] is False
 
 
-def test_run_fails_closed_before_optional_agent_import(
+def test_run_fails_closed_before_any_server_call_without_token(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    for name in (
-        "AGOMTRADEPRO_PROVIDER_API_KEY",
-        "OPENAI_API_KEY",
-        "AGOMTRADEPRO_API_TOKEN",
-        "AGOMTRADEPRO_MCP_URL",
-    ):
-        monkeypatch.delenv(name, raising=False)
+    monkeypatch.delenv("AGOMTRADEPRO_API_TOKEN", raising=False)
+    monkeypatch.delenv("AGOMTRADEPRO_MCP_URL", raising=False)
 
     assert main(["run", "hello"]) == 2
     assert "configuration_error:" in capsys.readouterr().err

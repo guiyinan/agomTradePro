@@ -50,6 +50,7 @@
       "server-side Agent API submission and queued-run result facade with provider-secret-free client payloads",
       "bounded SDK event replay and terminal status wait helpers with explicit timeout semantics",
       "server-side Agent Runtime and typed MCP client boundary; no user-side provider-backed Agent installation",
+      "server-side-only CLI compatibility facade; no local provider key, Agents SDK turn loop, or local Agent execution",
       "local MCP capability discovery/schema/call/confirmation-resume facade backed by the canonical core tools",
       "strict offline snapshot parsing and content-addressed baseline evidence serialization",
       "candidate-bound short-window VPS observation recorded separately from exit readiness"
@@ -298,10 +299,14 @@
     "mcp": {
       "local_cli_mode": "server_side_only",
       "local_cli_entrypoint": null,
+      "local_cli_runtime_mode": "local_cli_disabled",
+      "local_cli_execution": "thin_server_api_client_only",
       "local_cli_implemented": [
+        "server-owned prompt API submission with scoped token only",
         "server-owned capability discovery/schema/call/confirmation-resume contract",
         "scoped API/MCP authorization header composition for a thin client",
-        "bounded reconnect semantics without mutation auto-retry"
+        "bounded reconnect semantics without mutation auto-retry",
+        "stable local_cli_disabled mode guard for new runtime submissions"
       ],
       "credential_boundary": "Provider credentials stay in the server-side Agent Runtime; a client may carry only a scoped API/MCP token and must not accept or forward a provider key.",
       "authorization": "Remote capability discovery and calls remain the canonical MCP registry plus server-side ownership, RBAC, proposal, approval, and audit boundaries.",

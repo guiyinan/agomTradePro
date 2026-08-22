@@ -219,7 +219,7 @@ def test_mode_resolution_never_implicitly_falls_back_to_inline() -> None:
     ) == (None, TerminalAdmissionReason.SUBMISSIONS_PAUSED)
 
 
-def test_local_cli_is_not_rewritten_as_server_inline_or_queued() -> None:
+def test_local_cli_is_disabled_and_must_use_server_owned_queued_mode() -> None:
     flags = _flags(
         queued_intake_enabled=False,
         queued_worker_enabled=False,
@@ -228,10 +228,7 @@ def test_local_cli_is_not_rewritten_as_server_inline_or_queued() -> None:
     assert flags.resolve_mode(
         TerminalRuntimeMode.LOCAL_CLI,
         worker_ready=False,
-    ) == (
-        TerminalRuntimeMode.LOCAL_CLI,
-        TerminalAdmissionReason.ACCEPTED_LOCAL_CLI,
-    )
+    ) == (None, TerminalAdmissionReason.LOCAL_CLI_DISABLED)
 
 
 def test_policy_module_is_pure_and_has_no_runtime_adapter_dependency() -> None:

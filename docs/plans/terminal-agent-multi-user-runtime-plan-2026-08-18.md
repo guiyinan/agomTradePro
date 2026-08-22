@@ -81,7 +81,7 @@ POST /api/terminal/chat/ 或 /api/terminal/chat/stream/
 - Worker 崩溃、Redis 短暂不可用、模型超时或客户端断线后，任务状态可解释、可重试或可终止，不拖垮网站。
 - TUI 能展示排队、执行、等待审批、完成、失败、超时、取消状态，并支持恢复连接和取消。
 - SDK 提供类型化的创建、查询、事件消费和取消接口。
-- 本地 CLI 支持用户自有模型密钥在本机运行 Agent，只通过正式 Token 调用远程 MCP/API。
+- CLI/API 只作为薄客户端向服务器端 Agent Runtime 提交请求；用户侧不安装或运行 provider-backed Agent，也不持有 provider key。
 - 建立多用户容量、队列老化、Worker 心跳、失败率、模型/MCP 延迟和 Web SLO 监控。
 - 通过 1/5/10/20 用户并发、重复提交、Worker crash、Redis 故障、模型超时和部署回滚验证。
 
@@ -93,7 +93,7 @@ POST /api/terminal/chat/ 或 /api/terminal/chat/stream/
 - 不把 Celery result backend 当作任务真源，不把完整 Prompt、模型密钥或解密后的 Token放进 broker payload。
 - 不为追求“实时”而允许 SSE 事件绕过任务 ownership 校验。
 - 不直接扩大现有 Daphne inline 并发来替代架构整改。
-- 不把 Local CLI 误解为浏览器 JavaScript 直连模型；本地模式只适用于受控安装的 CLI/桌面 Agent。
+- 不把 CLI 误解为本地模型运行器；所有模型、Agent、MCP、确认和审计均由服务器端执行。
 
 ## 4. 目标架构
 
@@ -116,26 +116,27 @@ flowchart LR
 
 请求创建成功后返回 `202 Accepted` 和 `run_id/task_id`。Django Web 不等待模型完成。Worker 并发和 Web 并发相互独立；Worker 停止只使 AI 能力降级，不影响普通页面和健康检查。
 
-### 4.2 本地 CLI 混合模式
+### 4.2 服务器端 CLI 薄客户端
 
 ```mermaid
 flowchart LR
-    C["本地 CLI / Desktop Agent"] --> L["本地 Agents SDK"]
-    L --> K["用户自有模型密钥 / 本地凭据库"]
-    L --> P["外部 AI 服务商"]
-    L --> G["HTTPS + 正式短期 Token"]
-    G --> M["VPS MCP Gateway"]
-    M --> B["Application UseCase / 权限 / 审批 / 审计"]
+    C["CLI / SDK 薄客户端"] --> G["HTTPS + 受控 API Token"]
+    G --> A["服务器端 Agent API"]
+    A --> Q["PostgreSQL Run / 有界队列"]
+    Q --> W["专用 Agent Worker"]
+    W --> P["外部 AI 服务商"]
+    W --> M["受控 MCP / Application Facade"]
+    W --> B["权限 / 审批 / 审计"]
 ```
 
-本地模式把模型调用、turn 循环和大部分上下文编排放到用户机器；VPS 仍负责业务数据、工具授权、额度、审批、审计和所有高风险写操作。该模式与现有“三机架构：C 端 Agent 经 VPS/FRP 调后端”的边界一致。
+CLI 只提交用户输入并读取服务器返回的状态、事件和最终结果。客户端不得读取、保存或转发 provider key，也不执行模型 turn、MCP 编排或高风险写操作。
 
 ### 4.3 三个运行模式
 
 | 模式 | 适用入口 | 模型/Agent 编排位置 | VPS 责任 | 生命周期 |
 |------|----------|--------------------|----------|----------|
-| `web_queued` | 浏览器、TUI、服务端 SDK | 专用 Agent Worker | 接单、队列、工具、权限、审计、事件 | 目标默认 |
-| `local_cli` | 安装式 CLI/桌面 Agent | 用户本机 | 远程 MCP、权限、审批、审计 | 目标可选 |
+| `web_queued` | 浏览器、TUI、CLI、服务端 SDK | 专用 Agent Worker | 接单、队列、工具、权限、审计、事件 | 目标默认 |
+| `local_cli` | 历史兼容标记（新请求禁用） | 无本地执行 | fail-closed，不作为用户运行路径 | 退役 |
 | `legacy_inline` | 旧 `/chat/`、旧 SSE | Daphne 请求链 | 全部 | 迁移期受限，最终退役 |
 
 ## 5. 领域、持久化与状态契约
@@ -153,7 +154,7 @@ flowchart LR
 | `actor_user_id` | ownership 与配额真源；查询和事件订阅必须按 actor 过滤 |
 | `session_id` | 会话关联，不代替用户身份 |
 | `client_request_id` | 用户范围幂等键；重复请求返回原 run，不再入队 |
-| `runtime_mode` | `web_queued / local_cli / legacy_inline` |
+| `runtime_mode` | 新请求仅 `web_queued / legacy_inline`；`local_cli` 仅保留历史数据兼容 |
 | `dispatch_status` | 调度状态机；与冻结的 `TaskStatus` 有明确映射 |
 | `provider_ref` | 只保存服务商引用，不保存解密后的密钥 |
 | `deadline_at` | 服务器计算的绝对截止时间，timezone-aware |
@@ -277,20 +278,19 @@ claimed/running -> orphaned -> queued（仅满足安全重放条件）或 failed
 
 无论选哪种，Redis 故障不得拖垮普通网站；AI 接单可以进入明确 degraded/dispatch_pending，或在无法保证恢复时返回 bounded `503`。
 
-## 8. Local CLI 目标契约
+## 8. 服务器端 CLI/API 目标契约
 
-本地 CLI 是独立交付面，不等于把 Web JavaScript 改成直连模型。
+CLI 是服务器端 Agent Runtime 的薄客户端，不是本地模型运行器，也不是
+provider-backed Agent 的安装包。
 
 最低能力：
 
-- 提供 `agomtradepro agent` 或等价 SDK CLI 入口，Agents SDK 作为可选依赖组安装。
-- 服务商密钥从本地环境或 OS 凭据库读取，不上传到 VPS，不写仓库配置。
-- 使用正式 AgomTradePro API Token/短期 access package 连接远程 MCP；不得复用浏览器 session cookie。
-- 远程 MCP 能力发现、schema、调用、确认恢复遵循现有 canonical registry，不在 CLI 复制业务逻辑。
-- 本地 Agent 的 tool allowlist 由服务器能力目录和用户权限交集决定；Prompt 不能扩大权限。
-- 所有中高风险写操作仍由服务器生成 proposal/confirmation，CLI 只展示并提交明确确认。
-- CLI 对网络中断、Token 过期、MCP 429/503、审批等待和重连给出稳定错误与恢复提示。
-- SDK、MCP、CLI 版本兼容矩阵和最小支持版本进入发布清单。
+- 使用正式 AgomTradePro API Token/短期 access package 调用服务器端 API；不读取、保存或转发 provider key。
+- 通过服务器端 Agent API 提交请求，并读取 queued/running/approval/completed/failed 等状态、事件和最终结果。
+- 远程 MCP 能力发现、schema、调用、确认恢复遵循服务器 canonical registry；客户端不复制业务权限或工具逻辑。
+- 所有模型调用、MCP 编排、额度、权限、审批、审计和高风险写操作均在服务器端完成。
+- CLI 对网络中断、Token 过期、MCP 429/503、审批等待和重连给出稳定错误与恢复提示，但不自动重复 mutation。
+- SDK、MCP、CLI 版本兼容矩阵和最小支持版本进入发布清单；不提供用户侧 provider-backed Agent 安装/升级包。
 
 ## 9. 分期、工期与交付包
 
@@ -302,7 +302,7 @@ claimed/running -> orphaned -> queued（仅满足安全重放条件）或 failed
 | M1 持久任务与接单 | `TAR-02` | 3–4 人日 | Agent Runtime / Terminal | `AgentTask` 复用、Run Dispatch、Repository、202 API、ownership、幂等、有界 admission、on-commit dispatch/reconciler | 创建接口不调用 Agent/provider/MCP；重复请求只产生一个 run；broker 失败可恢复或明确失败 |
 | M2 Worker 与事件隔离 | `TAR-03` | 5–7 人日 | Agent Runtime / DevOps / Task Monitor | 专用 queue/worker、原子 claim、timeout/cancel/orphan、Redis Stream + durable checkpoint、指标与健康 | 杀死 Worker 不影响 Web；重复 delivery 不重复执行；断线恢复事件；数据/QLib Worker 不被 Agent 饥饿 |
 | M3 TUI/SDK 用户闭环 | `TAR-03` | 3–4 人日 | Terminal / SDK / QA | 排队/执行/审批/完成/失败/取消 UI，SSE reconnect + polling fallback，SDK 类型化接口，旧接口迁移 | 普通用户可完成提交、等待、恢复、取消；无内部路由/异常泄露；API/SDK/TUI 契约一致 |
-| M4 本地 CLI 混合模式 | `TAR-04` | 3–5 人日 | SDK / MCP / Security | 本地 Agent、用户自有 provider key、远程 MCP Token、确认恢复、安装/升级/卸载文档 | 模型密钥不离开本机；远程工具继续按用户授权与审批；断网/过期 Token 有可恢复行为 |
+| M4 服务器端 CLI/MCP 薄客户端 | `TAR-04` | 3–5 人日 | SDK / MCP / Security | API/queued 提交、状态/事件/确认恢复、远程能力目录、Token 轮换；不提供本地 Agent 安装包 | 模型/MCP/审批均在服务器端；客户端不接收 provider key；断网/过期 Token 有可恢复行为 |
 | M5 容量与生产验收 | `TAR-05` | 3–4 人日 + 观察期 | Operational Readiness / QA / Owners | 1/5/10/20 用户压测、故障注入、资源预算、canary、候选绑定、回滚演练、旧 inline 退役决策 | 达成第 11 节 SLO；生产 Web 无重启/拥塞；同候选 UAT 和观察通过后才解除全局并发 1 |
 
 ### 9.1 `TAR-01`：契约冻结与基线
@@ -367,8 +367,8 @@ TAR-05 的证据采集默认自动化：在已经批准的 staging/候选环境�
 |------------|--------|----------|----------|
 | Agent Runtime | 状态机、Run Dispatch、Worker execution、claim/cancel/recovery | Domain 单测、PostgreSQL 并发、Worker crash/replay | 不把 ORM 放进 Application，不复制 Terminal UI 逻辑 |
 | Terminal/TUI | 接单 API、owner-scoped 查询、SSE/polling、用户状态与恢复动作 | API 契约、TUI metadata、浏览器主任务证据 | 不在 Interface 直接查询 ORM，不向用户泄露实现细节 |
-| SDK | run client、事件迭代、取消、兼容 helper、Local CLI 外壳 | SDK contract、断线/重连、版本矩阵 | 不复制服务端权限和业务规则 |
-| MCP | 远程工具认证、能力目录、确认恢复、Local CLI 接入 | registry/handler/permission tests、审计 trace | 不单独实现另一套 Agent Runtime |
+| SDK | run client、事件迭代、取消、兼容 helper、server-side CLI 薄客户端 | SDK contract、断线/重连、版本矩阵 | 不复制服务端权限和业务规则 |
+| MCP | 远程工具认证、能力目录、确认恢复、server-side CLI 接入 | registry/handler/permission tests、审计 trace | 不单独实现另一套 Agent Runtime |
 | Task Monitor / Audit | 队列、Worker、延迟、失败、orphan、费用与 timeline 观测 | metrics contract、告警、dashboard/TUI evidence | 不把 Celery `SUCCESS` 当业务成功 |
 | Operational Readiness | Compose、Redis/broker、资源限制、canary、drain、回滚 | staging/prod manifest、容量报告、故障演练 | 不在未压测前放大并发，不破坏 DB volume |
 | QA / Security | 多用户、隔离、幂等、secret、负载和攻击面验证 | 测试矩阵、跨用户泄漏=0、secret scan、UAT | 不用 mock/fixture 代替生产容量与权限证据 |
@@ -406,7 +406,7 @@ TAR-05 的证据采集默认自动化：在已经批准的 staging/候选环境�
 | Events | 单调 event ID、Last-Event-ID、stream trim、断线恢复、final checkpoint、跨用户隔离 |
 | TUI | 排队、执行、审批、完成、失败、取消、重试、刷新/返回后恢复；无裸错误和路由术语 |
 | SDK | create/get/events/cancel、同步兼容 helper、本地超时、网络重连、版本不兼容 |
-| Local CLI/MCP | 本地 key 不上传、Token 过期、capability allowlist、确认恢复、write 审批 |
+| Server CLI/MCP | provider key 不下发、Token 过期、capability allowlist、确认恢复、write 审批 |
 | Load | 1/5/10/20 用户、同用户连点、单用户洪泛、慢 provider、慢 MCP、长输出、队列满 |
 | Chaos | Redis down/restart、broker 消息丢失、Worker SIGTERM/SIGKILL、Web 重启、部署 drain |
 
@@ -466,7 +466,7 @@ python scripts/check_mypy_debt_ceiling.py
 | R1 | 启动专用 Worker，合成任务/只读任务验证 | Worker/Redis/DB readiness | 停 Worker，不影响 Web |
 | R2 | staff canary 切 queued path | API/TUI/SDK contract、费用与审计一致 | feature flag 回受限 inline 或暂停 AI |
 | R3 | 小比例普通用户 | capacity/chaos、owner UAT | 停新接单并 drain，不丢 durable run |
-| R4 | 全量 web_queued + Local CLI beta | Web/queue SLO、候选 manifest 绑定 | 保留 queued ledger，降低 Worker 并发或暂停 |
+| R4 | 全量 web_queued + server-side CLI beta | Web/queue SLO、候选 manifest 绑定 | 保留 queued ledger，降低 Worker 并发或暂停 |
 | R5 | 退役 legacy inline | 观察期、调用方清单=0、回滚演练 | 恢复兼容 adapter，不解除保护 |
 
 ### 13.2 回滚原则
@@ -487,7 +487,7 @@ python scripts/check_mypy_debt_ceiling.py
 | `tui-usability-governance` | TUI 状态、错误和恢复动作遵循用户面对标准；不在本线顺手重写无关 screen 文案，避免与 `TUX-02/04` 冲突 |
 | `system-audit-consolidation` | run/timeline 先通过 Agent Runtime canonical port 留证；统一 audit publisher 可用后接入，不在本线复制 audit ledger |
 | Celery task contract | 新 Agent task 属关键长任务，必须登记 outcome/失败矩阵并让 Task Monitor 读取业务结果而非 Celery 状态 |
-| MCP hosted transport / 三机架构 | Local CLI 复用 C 端 Agent 经 HTTPS/MCP 调 VPS 的既有边界；不让客户端直连数据库或绕过服务端权限 |
+| MCP hosted transport / 三机架构 | CLI/SDK 经 HTTPS/MCP 调服务器端 Agent Runtime；不让客户端直连数据库、provider 或绕过服务端权限 |
 | Evidence hard gate | Agent 给出的建议和工具结果不改变 Evidence/执行硬闸；模型文本永远不能直接授权交易写入 |
 
 ## 15. 风险与对策
@@ -500,7 +500,7 @@ python scripts/check_mypy_debt_ceiling.py
 | 队列无限增长 | 用户/全局硬上限、oldest-age 告警、provider 熔断、bounded 429/503 |
 | Worker 与数据任务争抢 | 独立 queue/service/resource limits，不共享通用消费列表 |
 | 取消时工具正在产生副作用 | 协作式安全点、硬 deadline、proposal/approval、已完成步骤留证，不承诺事务外部回滚 |
-| Local CLI 泄露 key/token | OS 凭据库、日志脱敏、短期 Token、权限最小化、secret scan、安装文档 |
+| CLI 泄露 token 或误接 provider key | 客户端只允许 scoped API/MCP token、日志脱敏、secret scan；不提供 provider-backed Agent 安装路径 |
 | 双路径产生行为漂移 | 同一 Application service/DTO/error code，契约测试和 canary diff；禁止复制 Agent 业务逻辑 |
 | 迁移影响 M5/AI 候选 | manifest/candidate 重绑，旧证据明确失效，不跨候选拼接 UAT |
 | 容量参数凭感觉配置 | staging 阶梯压测和 soak 结果决定，配置进入 Config Center/环境，不硬编码 |
@@ -514,7 +514,7 @@ python scripts/check_mypy_debt_ceiling.py
 3. 专用 Agent Worker 与数据/QLib/Web 进程完成队列和资源隔离。
 4. 多用户有界排队、取消、超时、orphan、事件恢复和 bounded overload 行为通过自动化与真实进程测试。
 5. TUI 与 SDK 能完成提交、排队、执行、审批、恢复、取消和结果读取主任务。
-6. Local CLI 使用用户自有模型密钥，本地编排并通过正式 Token 调远程 MCP；浏览器无平台密钥。
+6. CLI/API 只携带 scoped API/MCP token 调用服务器端 Agent Runtime；provider key 不下发，客户端不执行本地模型编排。
 7. 1/5/10/20 用户容量和 chaos 验收达到第 11 节硬 SLO，普通网站未因 AI 负载重启或失去响应。
 8. Celery、TUI metadata、API/SDK/MCP、mypy、治理和高风险回归全部通过。
 9. staging/production UAT、候选 manifest、观察、回滚和 owner/reviewer 证据绑定同一不可变版本。
@@ -551,11 +551,11 @@ python scripts/check_mypy_debt_ceiling.py
 | TAR-02 当前候选 VPS schema-only 部署与只读观测 | completed (deployment observation) | `2fa7c4c8a4e09ea26e1e50e3e510c20c2bd26cab` 以 code-only `-Upgrade` 发布 release `20260819223747`、image `sha256:10962a8177cb…`；部署前 PostgreSQL backup `postgres-20260819-164435.dump`，`agent_runtime.0004_terminal_agent_run` 应用成功，Django check、TUI registry、Qlib、Celery、容器、TLS/HTTPS health、Celery ping 与 source/image identity verifier 全通过 | 仅证明 dormant schema/repository 候选的部署身份、迁移与短窗口只读运行健康；未做真实 PostgreSQL 双连接 claim/rollback、queued admission、on-commit dispatch、Celery/Worker/SSE/events/cancel、容量/chaos、业务 UAT、14 日 telemetry、restore/rollback 或 owner/reviewer 双签，TAR-02/TAR-05 与生产 gate 保持 fail-closed |
 | TAR-01 controlled observer adapter | completed (controlled staging boundary) | 新增 `apps/agent_runtime/infrastructure/terminal_runtime_controlled_observer.py`，只组合注入的 command/load/metric ports；四档 `1/5/10/20` 与一次 hard-SLO 读取均绑定同一 environment、candidate、concurrency，并对 receipt 类型、candidate/concurrency 替换、缺失/不可用指标 fail-closed；受控 observer `15 passed`，TAR-01 组合回归 `59 passed`，增量 mypy/ruff/Black/isort 通过 | 仅完成受控 staging harness 的 typed adapter；没有 HTTP/process/Redis/PostgreSQL/Celery/Agent 依赖、真实负载或生产采集，不生成容量结论，也不启用 queued/worker；TAR-01/TAR-05 生产 gate 保持 active/fail-closed |
 | TAR-01 controlled observer candidate VPS deployment and read-only acceptance | completed (deployment observation) | `24407af74d4c4c2469f54aff442364ad2de805d5` 以 code-only `-Upgrade` 发布为 release `20260820035448`，image `sha256:5d1ebbf2ac55a8e91b3dee667eff096fbb698740964e1ce2173b0f6bbc26ed3b`；部署 verifier、迁移/schema、Django check、TUI registry、Qlib `pyqlib=0.9.7`/wrong distribution absent、Celery worker/beat/ping、容器与备份均通过，runtime source/image match；公网 HTTPS `/api/health/` 5/5、`/api/ready/` 5/5、`/api/` 5/5 均 `200`，未认证 reserved route `403`，决策接口保持 `503 decision_runtime_blocked` | 仅证明该候选的部署身份、短窗口只读健康与认证/决策 fail-closed；受控 observer 未接入生产运行时，不产生真实 1/5/10/20 容量、SLO、chaos、queued/worker、业务写后 receipt/refresh、14 日 telemetry、restore/rollback 或 owner/reviewer 证据，TAR-01/TAR-05 生产 gate 保持 active/fail-closed；报告见 `dist/remote-build-reports/remote-build-report-20260820035448.json` |
-| Local CLI | active (foundation + registry facade delivered) | 已补本地入口、环境/OS keyring 凭据读取、redacted `doctor`、远端 Token 组合，以及复用 canonical MCP core tools 的 capability discovery/schema/call/confirmation resume；断线重连/Token 轮换和 Windows/WSL/Linux 打包仍在 TAR-04 |
-| TAR-04 local CLI/MCP foundation | completed (bounded repository slice) | 新增 `sdk/agomtradepro/local_cli.py`、`agomtradepro-agent` optional entrypoint 和 `sdk/tests/test_sdk/test_local_cli_contract.py`；`7` 个 CLI/MCP/secret-boundary tests、增量 mypy `0 regressions`、full debt ceiling `0 errors`、Ruff/Black/isort 通过。没有部署 VPS；没有把 provider key 放进远端 MCP header。 |
+| Server-side CLI/MCP | active (thin-client boundary) | CLI 只读取服务器 URL 与 scoped API token；服务器持有 provider、模型、MCP、确认和审计；远程能力目录/调用/确认恢复仍通过 canonical MCP facade。没有用户侧 provider-backed Agent 安装路径。 |
+| TAR-04 server-side CLI enforcement | completed (bounded repository slice) | `sdk/agomtradepro/local_cli.py` 保留兼容模块名但只提交 `/api/prompt/agent/execute`；删除 provider key、本地 Agents SDK、本地 turn loop 和本地 Agent 凭据字段；`local_cli` runtime mode 对新请求稳定 `local_cli_disabled`，新 CLI 必须使用服务器 owned `web_queued`/API。 focused CLI/MCP + queue policy `35 passed`，未部署 VPS。 |
 | TAR-04 capability discovery/schema/call/confirmation resume | completed (bounded local SDK slice) | 新增 `sdk/agomtradepro/local_mcp.py` 与 `sdk/tests/test_sdk/test_local_mcp_contract.py`；本地客户端复用服务器 canonical `agom_capability_search`/`schema`/`call`/`confirmation_resume` 工具，支持 MCP tool listing、server-issued confirmation token、JSON envelope 严格校验；新增 `4` 个测试，与 CLI 合计 `11 passed`，Ruff/Black/isort 通过。没有新增业务旁路、没有伪造确认 token、没有部署 VPS。 |
 | TAR-04 bounded explicit reconnect/token rotation | completed (bounded local SDK slice) | `RemoteMcpConnection` 提供显式、有界重连；每次重连重新读取用户令牌 provider，传输失败仅按 `1..3` 次连接尝试退避；能力调用不自动重试，避免 mutation 重复执行。新增 reconnect/rotation 与 fail-closed 测试后 CLI/MCP 合计 `13 passed`，Ruff/Black/isort、strict mypy、增量回归和 debt ceiling 通过。没有部署 VPS；跨平台打包、真实 provider/MCP UAT 与 TAR-05 生产门禁仍未完成。 |
-| TAR-04 server-side CLI decision | completed (architecture correction) | 产品确认采用 B/S：用户侧不安装 provider-backed Agent，模型/MCP/确认/审计均在服务端；已移除 SDK 的 `agomtradepro-agent` 发布入口与 `[agent]` 安装 extra，保留现有本地实现为未宣传的 dormant 兼容代码。没有 VPS 部署；服务端 CLI/API、queued Worker、provider 成功与生产 UAT 仍需独立门禁。 |
+| TAR-04 server-side CLI decision | completed (architecture correction) | 产品确认采用 B/S：用户侧不安装 provider-backed Agent，模型/MCP/确认/审计均在服务端；已移除 SDK 的 `agomtradepro-agent` 发布入口与 `[agent]` 安装 extra，兼容模块名现仅提交服务器 API。没有 VPS 部署；服务端 CLI/API、queued Worker、provider 成功与生产 UAT 仍需独立门禁。 |
 | 生产容量证据 | not_started | 尚未执行 5/10/20 用户 staging soak/chaos，不允许据此扩大 inline 并发 |
 | TAR-02 PostgreSQL 双连接 first-winner/rollback 证据 | completed (disposable PostgreSQL evidence) | 新增显式隔离 settings `tests/settings_terminal_agent_run_postgres.py`，只接受本机/测试数据库 URL；`tests/component/agent_runtime/test_terminal_agent_run_repository.py` 增加第二连接不可见与回滚后不可见断言；使用本机 disposable PostgreSQL 18.4 双连接真实运行 `9 passed in 86.11s`，覆盖 claim first-winner、outer rollback visibility、幂等与 owner scope | 仅证明 repository 的 PostgreSQL 行锁与事务可见性合同；未接 queued admission、`on_commit` dispatch、Celery/Redis/broker/Worker、SSE/events/cancel、容量/chaos 或生产写入，`TAR-02` 仍 waiting，生产与 queued runtime 继续 fail-closed |
 | TAR-01 当前候选只读健康与认证边界复核 | observed / capacity denied | 针对既有 TAR-02 schema/repository 候选（release `20260819223747`，source `2fa7c4c8a4e09ea26e1e50e3e510c20c2bd26cab`）独立复核公网 HTTPS：`/api/health/` 连续 `8/8` 为 `200`（约 `1.09–12.66s`），未认证 `/api/terminal/runs/` 连续 `4/4` 为 `403`；未改生产状态 | 仅证明基础运行健康与认证边界；未取得认证后 reserved-route `503`、真实 1/5/10/20 admission/queue/Worker/SSE/idempotency/cancel/provider-MCP/chaos 指标，不能生成 capacity-ready 报告；TAR-01/TAR-02 与生产 gate 继续 fail-closed |
@@ -1464,10 +1464,10 @@ The product is a B/S system. A user-facing CLI/API call must submit to the
 server-side Agent Runtime; the server owns provider credentials, model calls,
 MCP orchestration, confirmation and audit. The SDK therefore remains a typed
 transport/client library and no longer publishes an `agomtradepro-agent`
-provider-backed executable or an `[agent]` installation extra. Existing local
-Agent implementation files are retained only as dormant compatibility code
-until a separately authorized removal/migration slice; they are not a user
-installation path and must not be advertised as production behavior.
+provider-backed executable or an `[agent]` installation extra. The historical
+`local_cli.py` module name is retained only as an import-compatible thin
+facade; its `run` path submits to the server API and contains no provider key,
+Agents SDK import or local turn loop.
 
 This is a local contract/documentation correction, not VPS evidence or a
 production runtime enablement. The queued route, Worker, provider success,
@@ -1499,3 +1499,17 @@ helpers do not submit again, execute a model locally, or retry mutations.
 Focused SDK regression now covers event cursors, terminal polling, timeout and
 unsafe controls. This closes the thin-client result-consumption contract;
 browser/TUI integration and candidate-bound production evidence remain open.
+
+### TAR-04 server-side-only CLI enforcement (2026-08-22)
+
+The compatibility CLI boundary is now server-only: `LocalAgentConfig` accepts
+only the server URL, scoped API token and optional remote MCP transport;
+`run_server_agent`/the legacy `run_local_agent` alias call the server prompt
+API. Provider-key environment variables, local model fields, Agents SDK
+imports and local Agent execution were removed. The frozen `local_cli` runtime
+enum remains only for historical database rows and resolves to the stable
+`local_cli_disabled` reason for new submissions; a CLI must use the server-owned
+`web_queued`/API path. Focused CLI/MCP, server API, queued result and policy
+tests pass (`35` tests). This is repository contract evidence only: no VPS
+deployment, provider success, queued-worker enablement or production UAT is
+claimed.

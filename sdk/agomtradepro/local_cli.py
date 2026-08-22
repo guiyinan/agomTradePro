@@ -1,126 +1,85 @@
-"""Local Agent CLI and remote MCP composition for AgomTradePro.
+"""Thin server-side CLI compatibility facade for AgomTradePro.
 
-The local runner owns provider credentials.  The remote server receives only
-the scoped API/MCP token and tool calls; provider credentials are never placed
-in MCP headers, request bodies, or diagnostics.
+The module name is retained for callers of the earlier SDK contract, but the
+execution boundary is deliberately server-side. A CLI invocation submits a
+request to the authenticated AgomTradePro API; the server owns provider
+credentials, model calls, MCP orchestration, confirmation and audit. This
+module never imports an Agents SDK, reads a provider key, or runs a local turn
+loop.
 
-This module intentionally keeps the optional OpenAI Agents dependency lazy so
-the core SDK and the ``doctor`` command remain usable without it installed.
+The remote-MCP helpers remain available for capability inspection and
+server-issued confirmation calls. They carry only a scoped AgomTradePro token
+and do not execute a provider-backed Agent on the client.
 """
 
 from __future__ import annotations
 
 import argparse
 import asyncio
-import contextlib
 import json
 import os
 import sys
-from collections.abc import AsyncIterator, Iterator, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Protocol, Self, cast
+from typing import Protocol, cast
 from urllib.parse import urlsplit, urlunsplit
 
-if TYPE_CHECKING:
-    from agents.mcp import MCPServerStreamableHttpParams
+from .client import AgomTradeProClient
 
 
 class LocalCliConfigurationError(RuntimeError):
-    """Raised when a local CLI run cannot be configured safely."""
+    """Raised when the thin server CLI cannot be configured safely."""
 
 
-class LocalCredentialStore(Protocol):
-    """Read credentials owned by the local user host."""
-
-    def get_provider_api_key(self) -> str | None:
-        """Return the local model-provider key, if configured."""
+class RemoteTokenStore(Protocol):
+    """Read one scoped AgomTradePro token for the server API."""
 
     def get_remote_api_token(self) -> str | None:
-        """Return the scoped AgomTradePro API token, if configured."""
-
-
-class RemoteMcpServerFactory(Protocol):
-    """Construct a remote MCP server from sanitized transport parameters."""
-
-    def __call__(self, params: dict[str, object]) -> object:
-        """Return an async-context-manager MCP server instance."""
-
-
-class LocalAgentFactory(Protocol):
-    """Construct an Agents SDK agent at the local process boundary."""
-
-    def __call__(
-        self,
-        *,
-        instructions: str,
-        model: str | None,
-        mcp_servers: list[object],
-    ) -> object:
-        """Return a configured local agent instance."""
-
-
-class LocalRunner(Protocol):
-    """Run a local agent without moving provider credentials to the server."""
-
-    async def __call__(self, agent: object, prompt: str) -> object:
-        """Run one prompt and return the provider SDK result."""
+        """Return the current scoped server token, if configured."""
 
 
 @dataclass(frozen=True, slots=True)
 class CompositeCredentialStore:
-    """Resolve environment credentials before an optional OS keyring.
-
-    The keyring import is deliberately lazy.  A missing keyring package or
-    unavailable desktop keyring is treated as an empty fallback, never as a
-    reason to copy a secret into the repository or remote MCP request.
-    """
+    """Resolve only the scoped server token from environment or keyring."""
 
     environ: Mapping[str, str] = field(default_factory=lambda: os.environ, repr=False)
-    keyring_service: str = "agomtradepro-local"
-
-    def get_provider_api_key(self) -> str | None:
-        """Return ``AGOMTRADEPRO_PROVIDER_API_KEY`` or ``OPENAI_API_KEY``."""
-
-        for name in ("AGOMTRADEPRO_PROVIDER_API_KEY", "OPENAI_API_KEY"):
-            value = _nonempty(self.environ.get(name))
-            if value is not None:
-                return value
-        return self._get_keyring("provider_api_key")
+    keyring_service: str = "agomtradepro"
 
     def get_remote_api_token(self) -> str | None:
-        """Return the scoped remote token from env or the local keyring."""
+        """Return ``AGOMTRADEPRO_API_TOKEN`` or a scoped keyring token."""
 
         value = _nonempty(self.environ.get("AGOMTRADEPRO_API_TOKEN"))
-        return value if value is not None else self._get_keyring("remote_api_token")
-
-    def _get_keyring(self, key: str) -> str | None:
+        if value is not None:
+            return value
         try:
             import keyring
 
-            return _nonempty(keyring.get_password(self.keyring_service, key))
+            return _nonempty(keyring.get_password(self.keyring_service, "api_token"))
         except (ImportError, RuntimeError, OSError):
             return None
 
 
 @dataclass(frozen=True, slots=True)
 class LocalAgentConfig:
-    """Immutable local-run configuration with secrets hidden from ``repr``."""
+    """Legacy-named configuration for the server-side thin CLI.
+
+    ``LocalAgentConfig`` is retained as a source-compatible name only. It has
+    no provider key, model, or local execution fields; ``remote_api_token`` is
+    the scoped credential used to call the server API.
+    """
 
     base_url: str = "http://127.0.0.1:8000"
-    mcp_url: str | None = None
-    provider_name: str = "openai"
-    model: str | None = None
-    provider_api_key: str | None = field(default=None, repr=False)
     remote_api_token: str | None = field(default=None, repr=False)
+    mcp_url: str | None = None
     mcp_timeout_seconds: float = 30.0
 
     @classmethod
     def from_environment(
         cls,
-        store: LocalCredentialStore | None = None,
+        store: RemoteTokenStore | None = None,
         environ: Mapping[str, str] | None = None,
-    ) -> Self:
-        """Load local configuration without accepting secrets from CLI prompts."""
+    ) -> LocalAgentConfig:
+        """Load only server URL, scoped token and optional remote MCP URL."""
 
         env = environ if environ is not None else os.environ
         credentials = store if store is not None else CompositeCredentialStore(environ=env)
@@ -147,195 +106,139 @@ class LocalAgentConfig:
                 )
         return cls(
             base_url=base_url,
-            mcp_url=mcp_url,
-            provider_name=_nonempty(env.get("AGOMTRADEPRO_LOCAL_PROVIDER")) or "openai",
-            model=_nonempty(env.get("AGOMTRADEPRO_LOCAL_MODEL")),
-            provider_api_key=credentials.get_provider_api_key(),
             remote_api_token=credentials.get_remote_api_token(),
+            mcp_url=mcp_url,
             mcp_timeout_seconds=timeout,
         )
 
     def diagnostics(self) -> dict[str, object]:
-        """Return redacted readiness data suitable for terminal output."""
+        """Return redacted server-side readiness data for ``doctor``."""
 
         return {
             "base_url": _safe_url(self.base_url),
             "mcp_url": _safe_url(self.mcp_url) if self.mcp_url else None,
-            "provider": self.provider_name,
-            "model_configured": self.model is not None,
-            "provider_key_configured": self.provider_api_key is not None,
             "remote_token_configured": self.remote_api_token is not None,
             "mcp_configured": self.mcp_url is not None,
-            "run_ready": self._is_run_ready(),
+            "execution_location": "server",
+            "provider_key_configured": False,
+            "local_agent_enabled": False,
+            "run_ready": self._is_server_ready(),
         }
 
-    def require_run_ready(self) -> None:
-        """Fail closed unless all local and remote run prerequisites exist."""
+    def require_server_ready(self) -> None:
+        """Fail closed unless the scoped server API token is available."""
 
-        missing: list[str] = []
-        if self.provider_api_key is None:
-            missing.append("provider_api_key")
-        missing.extend(self._remote_missing())
-        if missing:
-            raise LocalCliConfigurationError(
-                "missing local CLI configuration: " + ", ".join(missing)
-            )
+        if self.remote_api_token is None:
+            raise LocalCliConfigurationError("missing server API token")
 
     def require_remote_ready(self) -> None:
-        """Fail closed unless the scoped remote MCP transport is configured."""
+        """Fail closed unless the optional remote MCP transport is configured."""
 
-        missing = self._remote_missing()
-        if missing:
-            raise LocalCliConfigurationError(
-                "missing remote MCP configuration: " + ", ".join(missing)
-            )
-
-    def _remote_missing(self) -> list[str]:
         missing: list[str] = []
         if self.remote_api_token is None:
-            missing.append("remote_api_token")
+            missing.append("server_api_token")
         if self.mcp_url is None:
             missing.append("mcp_url")
-        return missing
+        if missing:
+            raise LocalCliConfigurationError(", ".join(missing) + " is required")
 
-    def _is_run_ready(self) -> bool:
-        return (
-            self.provider_api_key is not None
-            and self.remote_api_token is not None
-            and self.mcp_url is not None
-        )
+    def _is_server_ready(self) -> bool:
+        return self.remote_api_token is not None
+
+
+class ServerPromptPort(Protocol):
+    """Minimum server prompt surface consumed by the thin CLI."""
+
+    def agent_execute(
+        self,
+        *,
+        task_type: str,
+        user_input: str,
+    ) -> Mapping[str, object]:
+        """Submit one prompt to the server-owned Agent Runtime."""
+
+
+class ServerClientPort(Protocol):
+    """Minimum client surface required for a server-side prompt call."""
+
+    @property
+    def prompt(self) -> ServerPromptPort:
+        """Return the server prompt API facade."""
+
+
+class ServerClientFactory(Protocol):
+    """Construct an authenticated thin client without provider credentials."""
+
+    def __call__(self, *, base_url: str, api_token: str) -> ServerClientPort:
+        """Return a server API client."""
 
 
 def authorization_header(token: str) -> str:
-    """Return a safe DRF/MCP Authorization header for a scoped remote token."""
+    """Return a safe DRF/MCP Authorization header for a scoped server token."""
 
     value = token.strip()
     if not value or "\r" in value or "\n" in value:
-        raise LocalCliConfigurationError("remote_api_token is empty or contains invalid characters")
+        raise LocalCliConfigurationError("server API token is empty or invalid")
     if value.startswith(("Token ", "Bearer ")):
         return value
     return f"Token {value}"
 
 
-def build_remote_mcp_server(
-    config: LocalAgentConfig,
-    *,
-    server_factory: RemoteMcpServerFactory | None = None,
-) -> object:
-    """Build a streamable HTTP MCP client carrying only the remote token."""
-
-    config.require_run_ready()
-    if config.mcp_url is None or config.remote_api_token is None:
-        raise LocalCliConfigurationError("remote MCP configuration is incomplete")
-    params: dict[str, object] = {
-        "url": config.mcp_url,
-        "headers": {
-            "Authorization": authorization_header(config.remote_api_token),
-            "Accept": "application/json, text/event-stream",
-        },
-        "timeout": config.mcp_timeout_seconds,
-    }
-    if server_factory is not None:
-        return server_factory(params)
-    try:
-        from agents.mcp import MCPServerStreamableHttp
-    except ImportError as exc:
-        raise LocalCliConfigurationError(
-            "install the optional 'agent' dependency to run the local agent"
-        ) from exc
-    typed_params = cast("MCPServerStreamableHttpParams", params)
-    return MCPServerStreamableHttp(params=typed_params, name="agomtradepro-remote")
-
-
-@contextlib.contextmanager
-def temporary_provider_environment(config: LocalAgentConfig) -> Iterator[None]:
-    """Expose the provider key only to the local Agents SDK call, then restore it."""
-
-    config.require_run_ready()
-    if config.provider_api_key is None:
-        raise LocalCliConfigurationError("provider_api_key is required")
-    names = ["AGOMTRADEPRO_PROVIDER_API_KEY"]
-    if config.provider_name.lower() == "openai":
-        names.append("OPENAI_API_KEY")
-    previous = {name: os.environ.get(name) for name in names}
-    try:
-        for name in names:
-            os.environ[name] = config.provider_api_key
-        yield
-    finally:
-        for name, value in previous.items():
-            if value is None:
-                os.environ.pop(name, None)
-            else:
-                os.environ[name] = value
-
-
-async def run_local_agent(
+def run_server_agent(
     prompt: str,
     config: LocalAgentConfig,
     *,
-    server_factory: RemoteMcpServerFactory | None = None,
-    agent_factory: LocalAgentFactory | None = None,
-    runner: LocalRunner | None = None,
+    client_factory: ServerClientFactory | None = None,
 ) -> str:
-    """Run a local provider-backed agent with governed remote MCP tools.
+    """Submit one prompt to the server-side Agent Runtime and return its text."""
 
-    The remote MCP server is an async context manager.  Its headers contain
-    only the scoped API token; the provider key is temporarily available to
-    the local provider SDK and is restored before this function returns.
-    """
-
-    config.require_run_ready()
+    config.require_server_ready()
     if not prompt.strip():
         raise LocalCliConfigurationError("prompt must not be empty")
-    server = build_remote_mcp_server(config, server_factory=server_factory)
-    make_agent = agent_factory or _default_agent_factory
-    run = runner or _default_runner
-    instructions = (
-        "You are the AgomTradePro local agent. Use only the capabilities exposed by the "
-        "remote MCP server. Never request, print, or transmit provider credentials. "
-        "For medium/high-risk mutations, preserve the server confirmation and audit flow; "
-        "do not bypass approval or invent tool parameters."
-    )
-    model = config.model
-    agent = make_agent(instructions=instructions, model=model, mcp_servers=[server])
-    async with _async_context(server):
-        with temporary_provider_environment(config):
-            result = await run(agent, prompt)
-    output = getattr(result, "final_output", result)
+    if config.remote_api_token is None:
+        raise LocalCliConfigurationError("server API token is required")
+    factory = client_factory or _default_server_client
+    client = factory(base_url=config.base_url, api_token=config.remote_api_token)
+    result = client.prompt.agent_execute(task_type="chat", user_input=prompt)
+    if not isinstance(result, Mapping):
+        raise LocalCliConfigurationError("server returned an invalid Agent result")
+    output = result.get("final_answer")
+    if output is None:
+        output = result.get("output")
     if not isinstance(output, str):
-        raise LocalCliConfigurationError("local agent returned a non-text result")
+        raise LocalCliConfigurationError("server Agent result has no text output")
     return output
+
+
+def run_local_agent(
+    prompt: str,
+    config: LocalAgentConfig,
+    *,
+    client_factory: ServerClientFactory | None = None,
+) -> str:
+    """Compatibility alias that always submits to the server."""
+
+    return run_server_agent(prompt, config, client_factory=client_factory)
 
 
 def run_local_agent_sync(
     prompt: str,
     config: LocalAgentConfig,
     *,
-    server_factory: RemoteMcpServerFactory | None = None,
-    agent_factory: LocalAgentFactory | None = None,
-    runner: LocalRunner | None = None,
+    client_factory: ServerClientFactory | None = None,
 ) -> str:
-    """Synchronous wrapper for terminal entrypoints."""
+    """Compatibility wrapper for callers that use the former sync helper."""
 
-    return asyncio.run(
-        run_local_agent(
-            prompt,
-            config,
-            server_factory=server_factory,
-            agent_factory=agent_factory,
-            runner=runner,
-        )
-    )
+    return run_server_agent(prompt, config, client_factory=client_factory)
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run the local Agent, registry discovery, or governed MCP commands."""
+    """Run server-side prompt or governed remote MCP commands."""
 
-    parser = argparse.ArgumentParser(prog="agomtradepro-agent")
+    parser = argparse.ArgumentParser(prog="agomtradepro-cli")
     subparsers = parser.add_subparsers(dest="command", required=True)
-    subparsers.add_parser("doctor", help="show redacted local readiness diagnostics")
-    run_parser = subparsers.add_parser("run", help="run a local agent through remote MCP")
+    subparsers.add_parser("doctor", help="show redacted server-side readiness diagnostics")
+    run_parser = subparsers.add_parser("run", help="submit a prompt to the server Agent Runtime")
     run_parser.add_argument("prompt", help="user prompt")
     run_parser.add_argument("--json", action="store_true", help="emit a JSON result envelope")
     capabilities_parser = subparsers.add_parser(
@@ -343,9 +246,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     capabilities_parser.add_argument("query", nargs="?", default="")
     capabilities_parser.add_argument("--limit", type=int, default=20)
-    schema_parser = subparsers.add_parser("schema", help="read one capability schema")
+    schema_parser = subparsers.add_parser("schema", help="read one server capability schema")
     schema_parser.add_argument("capability_key")
-    call_parser = subparsers.add_parser("call", help="call one governed capability")
+    call_parser = subparsers.add_parser("call", help="call one governed server capability")
     call_parser.add_argument("capability_key")
     call_parser.add_argument(
         "--arguments", default="{}", help="JSON object of capability arguments"
@@ -362,7 +265,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     try:
         if args.command == "run":
-            output = run_local_agent_sync(args.prompt, config)
+            output = run_server_agent(args.prompt, config)
             payload: object = {"output": output} if args.json else output
         elif args.command == "capabilities":
             payload = asyncio.run(_run_capability_discovery(config, args.query, args.limit))
@@ -381,8 +284,8 @@ def main(argv: list[str] | None = None) -> int:
     except (ValueError, json.JSONDecodeError) as exc:
         print(f"input_error: {exc}", file=sys.stderr)
         return 2
-    except Exception as exc:  # noqa: BLE001 - CLI must not print provider/transport details.
-        print(f"local_agent_error: {type(exc).__name__}", file=sys.stderr)
+    except Exception as exc:  # noqa: BLE001 - CLI emits only a stable error class.
+        print(f"server_cli_error: {type(exc).__name__}", file=sys.stderr)
         return 1
     if args.command == "run" and not args.json:
         print(payload)
@@ -425,7 +328,7 @@ async def _run_capability_call(
     capability_key: str,
     arguments: dict[str, object],
 ) -> dict[str, object]:
-    """Call one capability while preserving the server confirmation envelope."""
+    """Call one server capability while preserving its confirmation envelope."""
 
     config.require_remote_ready()
     from .local_mcp import open_remote_mcp_capability_client
@@ -450,6 +353,12 @@ async def _run_confirmation_resume(
     return result.as_dict()
 
 
+def _default_server_client(*, base_url: str, api_token: str) -> ServerClientPort:
+    """Build the typed SDK client used for server-side prompt submission."""
+
+    return cast(ServerClientPort, AgomTradeProClient(base_url=base_url, api_token=api_token))
+
+
 def _parse_json_object(raw_value: str) -> dict[str, object]:
     """Parse a CLI JSON object without accepting scalar argument envelopes."""
 
@@ -457,56 +366,6 @@ def _parse_json_object(raw_value: str) -> dict[str, object]:
     if not isinstance(decoded, dict) or any(not isinstance(key, str) for key in decoded):
         raise ValueError("--arguments must be a JSON object with string keys")
     return cast(dict[str, object], decoded)
-
-
-def _default_agent_factory(
-    *,
-    instructions: str,
-    model: str | None,
-    mcp_servers: list[object],
-) -> object:
-    try:
-        from agents import Agent
-    except ImportError as exc:
-        raise LocalCliConfigurationError(
-            "install the optional 'agent' dependency to run the local agent"
-        ) from exc
-    kwargs: dict[str, object] = {
-        "name": "AgomTradePro Local Agent",
-        "instructions": instructions,
-        "mcp_servers": mcp_servers,
-    }
-    if model is not None:
-        kwargs["model"] = model
-    agent_constructor = cast(Any, Agent)
-    return agent_constructor(**kwargs)
-
-
-async def _default_runner(agent: object, prompt: str) -> object:
-    try:
-        from agents import Runner
-    except ImportError as exc:
-        raise LocalCliConfigurationError(
-            "install the optional 'agent' dependency to run the local agent"
-        ) from exc
-    runner_class = cast(Any, Runner)
-    return await runner_class.run(agent, prompt)
-
-
-@contextlib.asynccontextmanager
-async def _async_context(server: object) -> AsyncIterator[object]:
-    if not hasattr(server, "__aenter__") or not hasattr(server, "__aexit__"):
-        raise LocalCliConfigurationError("remote MCP server is not an async context manager")
-    async_server = server
-    entered = await async_server.__aenter__()
-    try:
-        yield entered
-    except BaseException as exc:
-        suppress = await async_server.__aexit__(type(exc), exc, exc.__traceback__)
-        if not suppress:
-            raise
-    else:
-        await async_server.__aexit__(None, None, None)
 
 
 def _nonempty(value: str | None) -> str | None:
@@ -536,13 +395,13 @@ __all__ = [
     "CompositeCredentialStore",
     "LocalAgentConfig",
     "LocalCliConfigurationError",
-    "LocalCredentialStore",
+    "RemoteTokenStore",
+    "ServerClientFactory",
     "authorization_header",
-    "build_remote_mcp_server",
     "main",
     "run_local_agent",
     "run_local_agent_sync",
-    "temporary_provider_environment",
+    "run_server_agent",
 ]
 
 
