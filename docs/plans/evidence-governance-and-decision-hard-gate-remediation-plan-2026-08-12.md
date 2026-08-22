@@ -2988,3 +2988,16 @@ lifecycle、selector issuer、atomic multi-source bundle、人工授权、produc
 PostgreSQL production race/rollback 或 Evidence hard gate 已完成；zero-seed authority 与
 全局写入/execution deny 保持不变。CLI/SDK 仍是服务器 API 的薄传输客户端，AI/provider/tool
 execution 只在服务器端运行，用户不安装本地 Agent 或模型。
+
+## 2026-08-23：EVID-01 composition candidate CI verification
+
+候选 commit `91b18e0c4fadbd31989b0afd75f1550ea32f3bae` 的 GitHub Actions
+`CI Fast Feedback` run `32591510019` 已完成：Python 3.11/3.13 targeted suite、无数据库
+TDD suite、增量 Ruff/Black/isort/mypy/debt ceiling、TUI/runtime guards 与静态检查均为
+成功；同一候选的 Architecture Layer Guard、Security Scan、Consistency Check 也均成功。
+
+这只是仓库候选的自动化证据，不是生产部署或 authority 证据。authenticated owner/tenant
+lifecycle、server-issued selector issuer、atomic multi-source bundle、人工授权、VPS
+production UAT、PostgreSQL production race/rollback 与 Evidence hard gate 仍未完成；默认
+composition 和所有无 authority 路径继续 fail-closed。CLI/SDK 仍只向服务器传输请求，AI、
+provider、tool execution 不落到用户本地。
