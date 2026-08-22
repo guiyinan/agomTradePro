@@ -37,7 +37,7 @@
     "approved_non_data_http_imports": 4,
     "cross_app_orm_imports": 48,
     "current_surface_references": 4307,
-    "data_write_task_decorators": 61,
+    "data_write_task_decorators": 62,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
     "legacy_fact_references": 0,
@@ -2783,17 +2783,17 @@
       "text": "raise InvalidProposalTransitionError(current, target, allowed)"
     },
     {
-      "line": 143,
+      "line": 170,
       "path": "apps/agent_runtime/application/tasks.py",
       "text": "current = repository.get_for_owner(run_id=run_id, actor_user_id=actor_user_id)"
     },
     {
-      "line": 144,
+      "line": 171,
       "path": "apps/agent_runtime/application/tasks.py",
       "text": "if current is None:"
     },
     {
-      "line": 146,
+      "line": 173,
       "path": "apps/agent_runtime/application/tasks.py",
       "text": "if current.dispatch_status is TerminalRunStatus.CANCEL_REQUESTED:"
     },
@@ -3273,52 +3273,52 @@
       "text": "\"\"\"Return the latest context snapshot for a task.\"\"\""
     },
     {
-      "line": 207,
+      "line": 237,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_run_repository.py",
       "text": "for reason_code, current, limit in limits:"
     },
     {
-      "line": 208,
+      "line": 238,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_run_repository.py",
       "text": "if current >= limit:"
     },
     {
-      "line": 302,
+      "line": 332,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_run_repository.py",
       "text": "current = TerminalRunStatus(model.dispatch_status)"
     },
     {
-      "line": 305,
+      "line": 335,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_run_repository.py",
       "text": "if current is target:"
     },
     {
-      "line": 308,
+      "line": 338,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_run_repository.py",
       "text": "transition_terminal_run(current, target)"
     },
     {
-      "line": 594,
+      "line": 624,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_run_repository.py",
       "text": "\"\"\"Persist a terminal outcome only for the current worker lease.\"\"\""
     },
     {
-      "line": 620,
+      "line": 650,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_run_repository.py",
       "text": "current = TerminalRunStatus(run.dispatch_status)"
     },
     {
-      "line": 621,
+      "line": 651,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_run_repository.py",
       "text": "if current not in {"
     },
     {
-      "line": 629,
+      "line": 659,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_run_repository.py",
       "text": "transition_terminal_run(current, status)"
     },
     {
-      "line": 812,
+      "line": 842,
       "path": "apps/agent_runtime/infrastructure/terminal_agent_run_repository.py",
       "text": "when present, they must exactly match the current projection."
     },
@@ -21608,27 +21608,27 @@
       "text": "\"/api/pulse/current/\","
     },
     {
-      "line": 228,
+      "line": 232,
       "path": "core/settings/base.py",
       "text": "\"apps.realtime\",  # 新增：实时价格监控模块"
     },
     {
-      "line": 62,
+      "line": 69,
       "path": "core/settings/celery_schedule.py",
       "text": "\"daily-signal-summary\": {"
     },
     {
-      "line": 137,
+      "line": 144,
       "path": "core/settings/celery_schedule.py",
       "text": "\"simulated-daily-summary\": {"
     },
     {
-      "line": 184,
+      "line": 191,
       "path": "core/settings/celery_schedule.py",
       "text": "\"realtime-update-prices-after-close\": {"
     },
     {
-      "line": 420,
+      "line": 427,
       "path": "core/settings/celery_schedule.py",
       "text": "\"sentiment-refresh-current-index\": {"
     },
@@ -21850,12 +21850,17 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 65,
+      "line": 92,
       "path": "apps/agent_runtime/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 232,
+      "line": 259,
+      "path": "apps/agent_runtime/application/tasks.py",
+      "text": "@shared_task(  # type: ignore[misc]"
+    },
+    {
+      "line": 360,
       "path": "apps/agent_runtime/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
