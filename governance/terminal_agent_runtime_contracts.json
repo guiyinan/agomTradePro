@@ -48,20 +48,21 @@
       "owner-scoped ordered event replay component evidence",
       "owner-scoped SDK queued-run JSON facade with canonical create/status/events/cancel routes",
       "server-side Agent API submission and queued-run result facade with provider-secret-free client payloads",
+      "bounded SDK event replay and terminal status wait helpers with explicit timeout semantics",
       "server-side Agent Runtime and typed MCP client boundary; no user-side provider-backed Agent installation",
       "local MCP capability discovery/schema/call/confirmation-resume facade backed by the canonical core tools",
       "strict offline snapshot parsing and content-addressed baseline evidence serialization",
       "candidate-bound short-window VPS observation recorded separately from exit readiness"
     ],
     "not_implemented": [
-      "MCP/TUI queued client implementation and SDK event-stream/wait helpers",
+      "MCP/TUI queued client integration and browser/TUI streamed-result UX",
       "complete multi-user/global 1/5/10/20 capacity and hard-SLO evidence",
       "sustained chaos and 14-day telemetry",
       "successful provider/MCP execution, restore/rollback, and role-based production UAT",
       "owner/reviewer sign-off"
     ],
     "remaining_work_assignment": {
-      "MCP/TUI queued client implementation and SDK event-stream/wait helpers": "TAR-04",
+      "MCP/TUI queued client integration and browser/TUI streamed-result UX": "TAR-04",
       "complete multi-user/global 1/5/10/20 capacity and hard-SLO evidence": "TAR-05",
       "sustained chaos and 14-day telemetry": "TAR-05",
       "successful provider/MCP execution, restore/rollback, and role-based production UAT": "TAR-05",
@@ -281,8 +282,16 @@
       "policy": "Remain backward compatible during migration, with existing inline concurrency=1 and hard timeout<=60s; no new queued route may call the legacy service."
     },
     "sdk": {
-      "implemented_methods": ["agent_execute", "create_run", "get_run", "get_events", "cancel_run"],
-      "future_methods": ["iter_events", "wait_for_run"],
+      "implemented_methods": [
+        "agent_execute",
+        "create_run",
+        "get_run",
+        "get_events",
+        "iter_events",
+        "wait_for_run",
+        "cancel_run"
+      ],
+      "future_methods": [],
       "compatibility": "The old synchronous helper may implement client-side submit-and-wait after the queued API exists; it must not make the server wait or invoke Agent work in the Web process.",
       "versioning": "Additive API/SDK contract; version and minimum-client compatibility must be bound in the TAR-05 candidate manifest."
     },
@@ -393,7 +402,7 @@
       "sdk/tests/test_sdk/test_local_mcp_contract.py",
       "docs/deployment/tar01-current-production-capacity-2026-08-22-71e62773.json"
     ],
-    "next_gate": "Complete the remaining queued streamed-result client contract (iter_events/wait_for_run), then bind server/API UAT and runtime enablement to one immutable candidate. Do not create a user-side Agent package; keep multi-user/global capacity, reconnect/chaos, provider, restore/rollback, telemetry and human sign-off bound to TAR-05.",
+    "next_gate": "Complete MCP/TUI queued client integration and browser/TUI streamed-result UX, then bind server/API UAT and runtime enablement to one immutable candidate. Do not create a user-side Agent package; keep multi-user/global capacity, reconnect/chaos, provider, restore/rollback, telemetry and human sign-off bound to TAR-05.",
     "production_evidence_missing": [
       "multi-user/global 1/5/10/20 hard-SLO capacity result",
       "durable PostgreSQL first-winner/idempotency/rollback evidence",

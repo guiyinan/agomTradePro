@@ -1484,7 +1484,18 @@ it rejects provider API keys, generic secrets, and client-side model setup.
 `TerminalAgentRunsModule` covers create/status/events/cancel routes.
 
 This closes the API-submission contract only. `iter_events`/
-`wait_for_run`, browser/TUI queued UX, candidate-bound runtime enablement,
-provider success, capacity/chaos, recovery, telemetry and human sign-off
-remain separate gates. No user-side Agent package or local provider install is
-part of TAR-04.
+`wait_for_run` are now bounded SDK helpers: event replay uses an explicit
+server cursor and status waiting has a finite timeout. Browser/TUI queued UX,
+candidate-bound runtime enablement, provider success, capacity/chaos,
+recovery, telemetry and human sign-off remain separate gates. No user-side
+Agent package or local provider install is part of TAR-04.
+
+### TAR-04 bounded SDK result helpers (2026-08-22)
+
+`TerminalAgentRunsModule.iter_events` replays one owner-scoped durable page
+using `after`/`Last-Event-ID` semantics, while `wait_for_run` polls only the
+server status endpoint and stops at a terminal state or explicit timeout. The
+helpers do not submit again, execute a model locally, or retry mutations.
+Focused SDK regression now covers event cursors, terminal polling, timeout and
+unsafe controls. This closes the thin-client result-consumption contract;
+browser/TUI integration and candidate-bound production evidence remain open.
