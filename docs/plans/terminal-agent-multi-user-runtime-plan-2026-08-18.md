@@ -1618,3 +1618,38 @@ The real owner/tenant authority provider, same-alias bundle, scoped portfolio
 UAT, provider success, queue/worker capacity, chaos/recovery, telemetry,
 restore/rollback and owner/reviewer gates remain open. No VPS deployment was
 performed for this slice.
+
+### TAR-04 strategy/internal Agent authority closure (2026-08-23)
+
+The strategy executor now performs the same authority preflight before its
+shared context builder reads portfolio data for AI-driven or AI-backed HYBRID
+strategies. The AI strategy executor also fails before context preparation and
+does not turn `agent_authority_not_wired` into a legacy Prompt/Chain fallback.
+Rule-only and script-only strategies retain their existing execution paths.
+
+This closes the internal read-before-gate and fallback escape hatches without
+inventing a caller-owned identity or querying mutable User/Profile data. The
+authority provider remains intentionally unwired, so portfolio-backed Agent
+execution stays fail-closed. Focused strategy authority tests pass (`40
+passed`); no VPS deployment or production write was performed.
+
+### TAR-04 all-runtime portfolio authority default (2026-08-23)
+
+The server `AgentRuntime` now defaults to the same fail-closed authority gate
+even when it is constructed directly, so terminal and strategy runtime
+composition helpers inherit the gate without relying on a caller to inject
+it. This closes the composition escape hatch where an internal strategy
+runtime could otherwise receive a caller-selected `portfolio_id` or portfolio
+tool without the public API gate.
+The default remains `agent_authority_not_wired` until an immutable owner/tenant
+authority provider and same-alias bundle are available; no caller-supplied
+identity is treated as authorization, and no model/provider call occurs on the
+blocked path.
+
+Focused Agent/runtime tests pass (`30 passed`); this is local fail-closed
+hardening only. The B/S product boundary remains unchanged: CLI/API callers
+submit to the server, while models, provider credentials, MCP, tools,
+confirmation and audit stay server-side. Users do not install or run a
+provider-backed Agent locally. Scoped owner UAT, provider success, queue/
+worker capacity, chaos/recovery, telemetry, restore/rollback and human gates
+remain open; no VPS deployment was performed.

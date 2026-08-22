@@ -67,3 +67,24 @@ def test_agent_runtime_blocks_before_model_for_unwired_portfolio_scope() -> None
     assert response.error_message == AGENT_AUTHORITY_NOT_WIRED
     assert response.provider_used is None
     assert factory.calls == 0
+
+
+def test_agent_runtime_defaults_to_fail_closed_authority() -> None:
+    """Direct/internal construction cannot bypass the server authority gate."""
+
+    factory = _ClientFactory()
+    runtime = AgentRuntime(ai_client_factory=factory)
+
+    response = runtime.execute(
+        AgentExecutionRequest(
+            task_type="strategy",
+            user_input="show portfolio positions",
+            context_scope=["portfolio"],
+            context_params={"portfolio_id": 99},
+            tool_names=["get_portfolio_positions"],
+        )
+    )
+
+    assert response.success is False
+    assert response.error_message == AGENT_AUTHORITY_NOT_WIRED
+    assert factory.calls == 0

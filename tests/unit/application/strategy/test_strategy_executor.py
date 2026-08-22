@@ -12,6 +12,7 @@ import pytest
 from apps.strategy.application.strategy_executor import StrategyExecutor
 from apps.strategy.domain.entities import (
     ActionType,
+    AIConfig,
     RiskControlParams,
     RuleCondition,
     RuleType,
@@ -238,6 +239,35 @@ class TestStrategyExecutor:
 
         # 验证日志已保存
         assert len(mock_providers["execution_log_repository"].saved_logs) == 1
+
+    def test_ai_strategy_blocks_before_portfolio_context_reads(self, executor, mock_providers):
+        """Unwired Agent authority must fail before portfolio provider access."""
+
+        risk_params = RiskControlParams()
+        strategy_config = StrategyConfig(
+            strategy_type=StrategyType.AI_DRIVEN,
+            risk_params=risk_params,
+        )
+        ai_strategy = Strategy(
+            strategy_id=1,
+            name="AI authority guard",
+            strategy_type=StrategyType.AI_DRIVEN,
+            version=1,
+            is_active=True,
+            created_by_id=1,
+            config=strategy_config,
+            risk_params=risk_params,
+            ai_config=AIConfig(prompt_template_id=1),
+        )
+        mock_providers["strategy_repository"]._strategy = ai_strategy
+        mock_providers["portfolio_provider"].get_positions = lambda _portfolio_id: (
+            _ for _ in ()
+        ).throw(AssertionError("portfolio must not be read before authority"))
+
+        result = executor.execute_strategy(strategy_id=1, portfolio_id=1)
+
+        assert result.is_success is False
+        assert "agent_authority_not_wired" in result.error_message
 
     def test_execute_with_disabled_rule(self, executor, mock_providers, rule_based_strategy):
         """测试禁用规则的策略执行"""

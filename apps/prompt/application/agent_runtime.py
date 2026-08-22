@@ -24,7 +24,7 @@ from ..domain.agent_entities import (
     ToolCallRecord,
 )
 from ..domain.context_entities import ContextBundle
-from .agent_authority import AgentAuthorityGate
+from .agent_authority import AgentAuthorityGate, UnwiredAgentAuthorityGate
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,11 @@ class AgentRuntime:
         self.tool_registry = tool_registry or FunctionRegistry()
         self.context_builder = context_builder
         self.execution_logger = execution_logger
-        self.authority_gate = authority_gate
+        # Every runtime, including internal strategy composition, must fail
+        # closed until a server-owned owner/tenant authority provider is
+        # explicitly wired.  A caller constructing AgentRuntime directly must
+        # not be able to bypass the public composition boundary.
+        self.authority_gate = authority_gate or UnwiredAgentAuthorityGate()
 
     def execute(self, request: AgentExecutionRequest) -> AgentExecutionResponse:
         """
