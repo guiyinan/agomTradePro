@@ -36,13 +36,13 @@
   "counts": {
     "approved_non_data_http_imports": 4,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 4305,
+    "current_surface_references": 4306,
     "data_write_task_decorators": 61,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
     "legacy_fact_references": 0,
     "provider_imports_outside_data_center": 0,
-    "runtime_parameter_references": 55
+    "runtime_parameter_references": 56
   },
   "cross_app_orm_imports": [
     {
@@ -4258,14 +4258,19 @@
       "text": "\"\"\"Fetch the latest effective constituents for one configured index.\"\"\""
     },
     {
-      "line": 100,
+      "line": 102,
       "path": "apps/alpha/infrastructure/qlib_prediction_runtime.py",
       "text": "\"\"\"Forward-fill the latest qlib cache into today's active model slot when fresh inference fails.\"\"\""
     },
     {
-      "line": 183,
+      "line": 185,
       "path": "apps/alpha/infrastructure/qlib_prediction_runtime.py",
       "text": "\"\"\"Find a broader qlib cache row and trim it to the current scoped instrument set.\"\"\""
+    },
+    {
+      "line": 236,
+      "path": "apps/alpha/infrastructure/qlib_prediction_runtime.py",
+      "text": "\"\"\"Extract the latest score series from a supported Qlib prediction value.\"\"\""
     },
     {
       "line": 239,
@@ -22173,6 +22178,7 @@
     "password=os.getenv(\"ALERT_SMTP_PASSWORD\", \"\"),",
     "raw_mode = api_mode or os.getenv(\"AGOMTRADEPRO_OPENAI_API_MODE\") or \"dual\"",
     "raw_value = getattr(settings, name, os.getenv(name, str(default)))",
+    "raw_value = os.getenv(",
     "slack_webhook = os.getenv(\"ALERT_SLACK_WEBHOOK\")",
     "smtp_host = os.getenv(\"ALERT_SMTP_HOST\")",
     "smtp_port=int(os.getenv(\"ALERT_SMTP_PORT\", \"587\")),",
