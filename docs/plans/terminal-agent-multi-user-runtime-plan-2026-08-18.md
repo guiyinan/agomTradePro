@@ -1594,3 +1594,27 @@ No deployment was performed for this check. Provider/MCP success, candidate-boun
 production role UAT, capacity/chaos, telemetry, restore/rollback and owner/
 reviewer acceptance remain separate fail-closed gates. Users still do not
 install a provider-backed Agent locally.
+
+### TAR-04 server Agent portfolio authority preflight (2026-08-23)
+
+The default server-side Agent composition now injects an explicit authority
+gate before context construction, tool selection, model/provider access, or
+portfolio reads. Until an immutable owner/tenant authority provider is wired,
+caller-supplied `portfolio_id` values and portfolio context/tools return the
+stable `agent_authority_not_wired` blocker; the API maps that boundary to
+`503` and performs no model call. The gate is a server composition boundary,
+not a client-side permission claim and not a substitute for an authenticated
+owner/tenant source.
+
+Focused Agent/Application/API tests cover the pre-model short circuit and the
+server response contract (`33 passed` in the focused run); incrementally typed
+production files have `0` mypy regressions and the debt ceiling remains clean.
+This is a local fail-closed hardening slice only. The product remains B/S:
+CLI/API callers submit requests to the server Agent Runtime, while provider
+credentials, models, MCP, tools, confirmation and audit stay server-side; no
+user installs or runs a provider-backed Agent locally.
+
+The real owner/tenant authority provider, same-alias bundle, scoped portfolio
+UAT, provider success, queue/worker capacity, chaos/recovery, telemetry,
+restore/rollback and owner/reviewer gates remain open. No VPS deployment was
+performed for this slice.

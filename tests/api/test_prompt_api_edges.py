@@ -302,10 +302,7 @@ def test_prompt_manage_page_publishes_precise_tui_compatibility_link(
     assert response.status_code == 200
     content = response.content.decode("utf-8")
     assert "当前 Classic 页面仅在兼容期内保留" in content
-    assert (
-        "/tui/?screen=prompt.workbench&amp;action=prompt-template.list"
-        in content
-    )
+    assert "/tui/?screen=prompt.workbench&amp;action=prompt-template.list" in content
 
 
 @pytest.mark.django_db
@@ -483,6 +480,45 @@ def test_prompt_agent_rejects_unbounded_execution_inputs(authenticated_client, p
 
     assert response.status_code == 400
     mock_runtime.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_prompt_agent_portfolio_scope_is_blocked_before_provider_execution(authenticated_client):
+    """User-owned portfolio context stays fail-closed until authority is wired."""
+
+    blocked_response = SimpleNamespace(
+        success=False,
+        final_answer=None,
+        structured_output=None,
+        used_context=None,
+        tool_calls=None,
+        turn_count=0,
+        provider_used=None,
+        model_used=None,
+        total_tokens=0,
+        prompt_tokens=0,
+        completion_tokens=0,
+        estimated_cost=0.0,
+        response_time_ms=0,
+        error_message="agent_authority_not_wired",
+        execution_id="agent-test-blocked",
+    )
+    runtime = SimpleNamespace(execute=lambda _request: blocked_response)
+
+    with patch("apps.prompt.interface.views.build_agent_runtime", return_value=runtime):
+        response = authenticated_client.post(
+            "/api/prompt/agent/execute",
+            {
+                "task_type": "analysis",
+                "user_input": "show my portfolio",
+                "context_scope": ["portfolio"],
+                "context_params": {"portfolio_id": 17},
+            },
+            format="json",
+        )
+
+    assert response.status_code == 503
+    assert response.json()["error_message"] == "agent_authority_not_wired"
 
 
 @pytest.mark.django_db
