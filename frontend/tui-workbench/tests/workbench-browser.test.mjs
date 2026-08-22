@@ -51,6 +51,7 @@ function action(key, options = {}) {
         task_tier: options.task_tier || "operation",
         task_group: options.task_group || "测试任务",
         confirmation_required: false,
+        result_semantics: options.result_semantics || [],
         sequence: options.sequence || 10,
     };
 }
@@ -147,6 +148,18 @@ const actions = [
             { key: "api_key", label: "API Key", input_type: "password", required: false },
             { key: "is_active", label: "启用", input_type: "select", value_type: "boolean", options: ["true", "false"], default: "true" },
             { key: "fallback_enabled", label: "允许故障切换", input_type: "select", value_type: "boolean", options: ["true", "false"], default: "false" },
+        ],
+    }),
+    action("test.queued", {
+        label: "排队执行助手任务",
+        risk: "ai",
+        method: "POST",
+        effect: "create",
+        result_semantics: ["primary_status"],
+        sequence: 16,
+        fields: [
+            { key: "task_id", label: "已有任务 ID", input_type: "number", value_type: "integer", required: true },
+            { key: "message", label: "任务说明", input_type: "textarea", value_type: "string", required: true },
         ],
     }),
 ];
@@ -561,6 +574,72 @@ async function openHarness(url = "https://app.test/", options = {}) {
             });
             return;
         }
+        if (url.pathname.includes("/actions/test.queued/run/")) {
+            await route.fulfill({
+                status: 202,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    action: actions.find((item) => item.key === "test.queued"),
+                    view_model: {
+                        kind: "detail",
+                        title: "排队执行助手任务",
+                        status: "已排队",
+                        fields: [
+                            { key: "run_id", label: "运行编号", value: "run-tui-queued-0001" },
+                            { key: "task_id", label: "任务 ID", value: "17" },
+                            { key: "run_status", label: "运行状态", value: "已排队" },
+                            { key: "event_summary", label: "服务器进度", value: "等待服务器端 Worker 返回进度" },
+                        ],
+                        business_summary: "任务已提交到服务器端队列。",
+                        queued_run: {
+                            run_id: "run-tui-queued-0001",
+                            task_id: 17,
+                            status: "queued",
+                            status_url: "/api/terminal/runs/run-tui-queued-0001/",
+                            events_url: "/api/terminal/runs/run-tui-queued-0001/events/",
+                            cancel_url: "/api/terminal/runs/run-tui-queued-0001/cancel/",
+                            event_cursor: 0,
+                            events: [],
+                        },
+                    },
+                }),
+            });
+            return;
+        }
+        if (url.pathname === "/api/terminal/runs/run-tui-queued-0001/events/") {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    run_id: "run-tui-queued-0001",
+                    events: [{
+                        event_id: "event-1",
+                        event_type: "server_progress",
+                        sequence: 1,
+                        occurred_at: "2026-08-22T00:00:01+00:00",
+                        data: { status: "running" },
+                    }],
+                }),
+            });
+            return;
+        }
+        if (url.pathname === "/api/terminal/runs/run-tui-queued-0001/") {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    run_id: "run-tui-queued-0001",
+                    status: "completed",
+                    updated_at: "2026-08-22T00:00:02+00:00",
+                    status_url: "/api/terminal/runs/run-tui-queued-0001/",
+                    events_url: "/api/terminal/runs/run-tui-queued-0001/events/",
+                    cancel_url: "/api/terminal/runs/run-tui-queued-0001/cancel/",
+                    error_code: null,
+                    result_ref: "result-1",
+                }),
+            });
+            return;
+        }
         const actionKey = decodeURIComponent(url.pathname.match(/\/actions\/([^/]+)\/run\//)?.[1] || "");
         await route.fulfill({
             status: 200,
@@ -606,6 +685,46 @@ test("action deep links reveal, focus, and prefill the requested task", async ()
             true,
         );
         assert.match(await page.locator("[data-workbench-status]").innerText(), /编辑记录/);
+    } finally {
+        await browser.close();
+    }
+});
+
+test("queued Agent action submits once and replays server status and events", async () => {
+    const { browser, page } = await openHarness(
+        "https://app.test/?screen=test.grid&action=test.queued",
+        { waitForInitialRows: false },
+    );
+    try {
+        let submitRequests = 0;
+        let eventRequests = 0;
+        let statusRequests = 0;
+        page.on("request", (request) => {
+            if (request.url().includes("/actions/test.queued/run/")) {
+                submitRequests += 1;
+            }
+            if (request.url().includes("/api/terminal/runs/run-tui-queued-0001/events/")) {
+                eventRequests += 1;
+            }
+            if (request.url().endsWith("/api/terminal/runs/run-tui-queued-0001/")) {
+                statusRequests += 1;
+            }
+        });
+        const form = page.locator('form[data-action-ui-key="test.queued"]');
+        await form.waitFor({ state: "visible" });
+        await form.locator('[name="task_id"]').fill("17");
+        await form.locator('[name="message"]').fill("检查服务器端运行状态");
+        const submit = page.waitForRequest((request) => request.url().includes("/actions/test.queued/run/"));
+        await form.locator(".tui-action-submit").click();
+        const request = await submit;
+        assert.equal(request.postDataJSON().params.task_id, 17);
+        assert.equal(request.postDataJSON().params.message, "检查服务器端运行状态");
+        await page.waitForFunction(() => document.querySelector("[data-main-panel]")?.innerText.includes("已完成"));
+        assert.equal(submitRequests, 1);
+        assert.equal(eventRequests, 1);
+        assert.equal(statusRequests, 1);
+        assert.match(await page.locator("[data-main-panel]").innerText(), /server_progress/);
+        assert.match(await page.locator("[data-workbench-status]").innerText(), /服务器端任务已完成/);
     } finally {
         await browser.close();
     }

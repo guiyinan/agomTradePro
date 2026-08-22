@@ -154,6 +154,21 @@ def test_runtime_payload_does_not_degrade_to_static_read_only_graph() -> None:
         )
 
 
+def test_cli_queued_agent_action_is_server_side_and_has_explicit_inputs() -> None:
+    """The queued CLI affordance submits to the server and never models local execution."""
+
+    action = _runtime_actions("cli.terminal")["cli.agent_queue"]
+    assert action["endpoint"] == "/api/terminal/runs/"
+    assert action["method"] == "POST"
+    assert action["effect"] == "create"
+    assert action["risk"] == "ai"
+    assert [field["key"] for field in action["fields"]] == ["task_id", "message"]
+    assert action["fields"][0]["value_type"] == "integer"
+    assert action["fields"][1]["input_type"] == "textarea"
+    assert action["fields"][1]["presentation_semantic"] == "prompt_text"
+    assert "本地" in action["description"]
+
+
 def test_ia_declares_visible_create_and_provider_row_mutations() -> None:
     """The canonical IA must expose create, edit, toggle and delete affordances."""
 

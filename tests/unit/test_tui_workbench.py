@@ -2741,6 +2741,12 @@ def test_tui_cli_screen_defaults_to_runtime_chat_entry(client, tui_user):
     assert action["risk"] == "ai"
     assert action["fields"][0]["key"] == "message"
     assert action["fields"][0]["label"] == "消息"
+    queued_action = next(
+        action for action in payload["actions"] if action["key"] == "cli.agent_queue"
+    )
+    assert queued_action["effect"] == "create"
+    assert [field["key"] for field in queued_action["fields"]] == ["task_id", "message"]
+    assert queued_action["fields"][1]["presentation_semantic"] == "prompt_text"
 
 
 def test_tui_catalog_registers_capability_router_entry(client, tui_user):
@@ -7765,6 +7771,129 @@ def test_tui_service_renders_terminal_agent_payload_as_detail(tui_user):
     assert {field["label"]: field["value"] for field in payload["view_model"]["fields"]}[
         "建议下一步"
     ]
+
+
+def test_tui_service_projects_queued_agent_admission_without_local_execution(tui_user):
+    class FakeExecutor:
+        def __init__(self):
+            self.calls = []
+
+        def execute(self, **kwargs):
+            self.calls.append(kwargs)
+            return {
+                "status_code": 202,
+                "payload": {
+                    "run_id": "run-tui-queued-0001",
+                    "task_id": 17,
+                    "status": "queued",
+                    "submitted_at": "2026-08-22T00:00:00+00:00",
+                    "status_url": "/api/terminal/runs/run-tui-queued-0001/",
+                    "events_url": "/api/terminal/runs/run-tui-queued-0001/events/",
+                    "cancel_url": "/api/terminal/runs/run-tui-queued-0001/cancel/",
+                },
+            }
+
+    executor = FakeExecutor()
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                actions=[
+                    {
+                        "key": "cli.agent_queue",
+                        "label": "排队执行助手任务",
+                        "method": "POST",
+                        "endpoint": "/api/terminal/runs/",
+                        "intent": "queue_server_side_terminal_agent_request",
+                        "screen_key": "command-center.overview",
+                        "module_key": "command-center",
+                        "view_type": "detail",
+                        "risk": "ai",
+                        "effect": "create",
+                        "fields": [
+                            {
+                                "key": "task_id",
+                                "label": "已有任务 ID",
+                                "input_type": "number",
+                                "required": True,
+                                "value_type": "integer",
+                            },
+                            {
+                                "key": "message",
+                                "label": "任务说明",
+                                "input_type": "textarea",
+                                "required": True,
+                                "value_type": "string",
+                            },
+                        ],
+                    }
+                ]
+            )
+        ),
+        action_executor=executor,
+    )
+
+    result = service.run_action(
+        action_key="cli.agent_queue",
+        params={
+            "task_id": 17,
+            "message": "检查服务器端运行状态",
+            "client_request_id": "request-tui-queued-0001",
+        },
+        user=tui_user,
+    )
+
+    queued_run = result["view_model"]["queued_run"]
+    assert queued_run["run_id"] == "run-tui-queued-0001"
+    assert queued_run["task_id"] == 17
+    assert queued_run["status"] == "queued"
+    assert result["view_model"]["status"] == "已排队"
+    assert executor.calls[0]["body"]["client_request_id"] == "request-tui-queued-0001"
+    assert "provider" not in queued_run
+    assert "message" not in queued_run
+
+
+def test_tui_service_keeps_queued_runtime_disabled_fail_closed(tui_user):
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            return {
+                "status_code": 503,
+                "payload": {
+                    "error": "Queued terminal runtime is not available.",
+                    "code": "DISPATCH_UNAVAILABLE",
+                    "reason_code": "queued_runtime_not_wired",
+                    "retryable": True,
+                },
+            }
+
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                actions=[
+                    {
+                        "key": "cli.agent_queue",
+                        "label": "排队执行助手任务",
+                        "method": "POST",
+                        "endpoint": "/api/terminal/runs/",
+                        "intent": "queue_server_side_terminal_agent_request",
+                        "screen_key": "command-center.overview",
+                        "module_key": "command-center",
+                        "view_type": "detail",
+                        "risk": "ai",
+                        "effect": "create",
+                        "fields": [],
+                    }
+                ]
+            )
+        ),
+        action_executor=FakeExecutor(),
+    )
+
+    result = service.run_action(action_key="cli.agent_queue", params={}, user=tui_user)
+
+    assert result["user_error_code"] == "QUEUED_RUNTIME_NOT_WIRED"
+    assert result["view_model"]["status"] == "队列暂不可用"
+    assert "本地 Agent" in result["view_model"]["blocking_reason"]
+    assert "queued_run" not in result["view_model"]
 
 
 def test_tui_service_renders_wrapped_audit_log_detail_as_detail(tui_user):

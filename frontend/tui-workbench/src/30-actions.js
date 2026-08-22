@@ -725,6 +725,130 @@
         }
     }
 
+    const QUEUED_TERMINAL_STATUSES = new Set([
+        "cancelled",
+        "completed",
+        "failed",
+        "timed_out",
+        "orphaned",
+    ]);
+
+    function queuedStatusLabel(status) {
+        return {
+            accepted: "已接受",
+            queued: "已排队",
+            claimed: "已接收",
+            running: "执行中",
+            waiting_approval: "等待审批",
+            cancel_requested: "正在取消",
+            cancelled: "已取消",
+            completed: "已完成",
+            failed: "执行失败",
+            timed_out: "执行超时",
+            orphaned: "执行记录待恢复",
+        }[String(status || "").trim()] || "状态待确认";
+    }
+
+    function queuedViewModelWithSnapshot(viewModel, queuedRun, status, events) {
+        const eventTypes = events
+            .map((event) => String(event?.event_type || "").trim())
+            .filter(Boolean);
+        const fields = Array.isArray(viewModel.fields)
+            ? viewModel.fields.map((field) => ({ ...field }))
+            : [];
+        const values = new Map([
+            ["run_status", queuedStatusLabel(status)],
+            [
+                "event_summary",
+                eventTypes.length
+                    ? eventTypes.slice(-8).join(" → ")
+                    : "等待服务器端 Worker 返回进度",
+            ],
+        ]);
+        values.forEach((value, key) => {
+            const field = fields.find((item) => String(item?.key || "") === key);
+            if (field) {
+                field.value = value;
+            }
+        });
+        return {
+            ...viewModel,
+            status: queuedStatusLabel(status),
+            fields,
+            queued_run: {
+                ...queuedRun,
+                status,
+                event_cursor: events.reduce(
+                    (cursor, event) => Math.max(cursor, Number(event?.sequence || 0)),
+                    Number(queuedRun.event_cursor || 0),
+                ),
+                events: events.slice(-20),
+            },
+            business_summary: `服务器端任务 ${queuedRun.run_id}：${queuedStatusLabel(status)}。`,
+        };
+    }
+
+    async function consumeQueuedRun(viewModel, requestId) {
+        const initial = viewModel?.queued_run;
+        if (!initial || !initial.status_url || !initial.events_url) {
+            return;
+        }
+        let queuedRun = { ...initial };
+        let events = Array.isArray(initial.events) ? [...initial.events] : [];
+        let status = String(initial.status || "queued");
+        const maxPolls = 20;
+        for (let poll = 0; poll < maxPolls; poll += 1) {
+            if (!isLatestRequest(requestId)) {
+                return;
+            }
+            try {
+                const cursor = Number(queuedRun.event_cursor || 0);
+                const separator = String(queuedRun.events_url).includes("?") ? "&" : "?";
+                const eventPage = await fetchJson(
+                    `${queuedRun.events_url}${separator}after=${encodeURIComponent(cursor)}`,
+                );
+                const pageEvents = Array.isArray(eventPage?.events)
+                    ? eventPage.events.filter((event) => event && typeof event === "object")
+                    : [];
+                if (pageEvents.length) {
+                    events = [...events, ...pageEvents];
+                }
+            } catch (_error) {
+                // A status snapshot remains useful when event replay is temporarily unavailable.
+            }
+            try {
+                const snapshot = await fetchJson(queuedRun.status_url);
+                if (snapshot && typeof snapshot === "object") {
+                    if (snapshot.run_id && snapshot.run_id !== queuedRun.run_id) {
+                        throw new Error("queued run identity changed");
+                    }
+                    status = String(snapshot.status || status);
+                    queuedRun = {
+                        ...queuedRun,
+                        status_url: snapshot.status_url || queuedRun.status_url,
+                        events_url: snapshot.events_url || queuedRun.events_url,
+                        cancel_url: snapshot.cancel_url || queuedRun.cancel_url,
+                    };
+                }
+            } catch (_error) {
+                setStatus("服务器端任务状态暂时不可用");
+                return;
+            }
+            const nextViewModel = queuedViewModelWithSnapshot(viewModel, queuedRun, status, events);
+            state.currentViewModel = nextViewModel;
+            renderViewModel(nextViewModel);
+            if (QUEUED_TERMINAL_STATUSES.has(status)) {
+                setStatus(`服务器端任务${queuedStatusLabel(status)}`);
+                return;
+            }
+            setStatus(`服务器端任务${queuedStatusLabel(status)}`);
+            if (poll < maxPolls - 1) {
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+            }
+        }
+        setStatus("服务器端任务仍在运行，可稍后刷新状态");
+    }
+
     async function runAction(actionKey, form, options = {}) {
         const action = currentAction(actionKey);
         if (!action) {
@@ -747,6 +871,12 @@
             const params = options.params ? { ...options.params } : (form ? await collectParams(form, action) : {});
             if (!isLatestRequest(requestId)) {
                 return;
+            }
+            if (actualActionKey === "cli.agent_queue" && !params.client_request_id) {
+                const suffix = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+                    ? crypto.randomUUID()
+                    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+                params.client_request_id = `request-tui-${suffix}`;
             }
             state.lastAction = actualActionKey;
             state.lastParams = params;
@@ -838,8 +968,14 @@
             }
             renderViewModel(result.view_model);
             renderResultInspector(result, result.view_model);
+            const hasQueuedRun = Boolean(result.view_model?.queued_run);
+            if (hasQueuedRun) {
+                await consumeQueuedRun(result.view_model, requestId);
+            }
             updateRawDrawer();
-            setStatus("读取完成");
+            if (!hasQueuedRun) {
+                setStatus("读取完成");
+            }
             refreshGovernanceBadges();
         } catch (error) {
             if (!isLatestRequest(requestId)) {

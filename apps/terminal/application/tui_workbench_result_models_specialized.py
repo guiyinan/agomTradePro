@@ -48,6 +48,8 @@ class TuiWorkbenchSpecializedResultMixin:
             "capability-router.route-message",
         } and isinstance(payload, dict):
             return self._ai_router_result_model(action, payload, status_code)
+        if action_key == "cli.agent_queue" and isinstance(payload, dict):
+            return self._queued_agent_result_model(action, payload, status_code)
         if action_key in {
             "capability-router.mcp-self-status",
             "capability-router.mcp-self-endpoints",
@@ -410,6 +412,105 @@ class TuiWorkbenchSpecializedResultMixin:
                 "suggested_command",
                 "suggested_intent",
             ],
+            "user_error_code": error_code,
+        }
+
+    def _queued_agent_result_model(
+        self,
+        action: dict[str, Any],
+        payload: dict[str, Any],
+        status_code: int,
+    ) -> dict[str, Any]:
+        """Project a durable server-side run admission into a bounded TUI detail.
+
+        The TUI receives only the public run selectors and replay URLs.  The
+        prompt, provider, broker, and worker internals remain on the server;
+        a malformed admission is rendered as a stable error instead of being
+        treated as a successful local or inline Agent execution.
+        """
+
+        run_id = payload.get("run_id")
+        task_id = payload.get("task_id")
+        run_status = payload.get("status")
+        urls = {key: payload.get(key) for key in ("status_url", "events_url", "cancel_url")}
+        valid_run = (
+            isinstance(run_id, str)
+            and bool(run_id)
+            and isinstance(task_id, int)
+            and not isinstance(task_id, bool)
+            and task_id > 0
+            and isinstance(run_status, str)
+            and run_status in {"accepted", "queued"}
+            and all(isinstance(value, str) and value.startswith("/api/") for value in urls.values())
+        )
+        if int(status_code) == 202 and valid_run:
+            queued_run: dict[str, Any] = {
+                "run_id": run_id,
+                "task_id": task_id,
+                "status": run_status,
+                "status_url": urls["status_url"],
+                "events_url": urls["events_url"],
+                "cancel_url": urls["cancel_url"],
+                "event_cursor": 0,
+                "events": [],
+            }
+            return {
+                "kind": "detail",
+                "title": self._action_title(action),
+                "status": "已排队",
+                "fields": [
+                    {"key": "run_id", "label": "运行编号", "value": run_id},
+                    {"key": "task_id", "label": "任务 ID", "value": str(task_id)},
+                    {"key": "run_status", "label": "运行状态", "value": "已排队"},
+                    {
+                        "key": "event_summary",
+                        "label": "服务器进度",
+                        "value": "等待服务器端 Worker 接收任务",
+                    },
+                ],
+                "nested": [],
+                "queued_run": queued_run,
+                "business_summary": f"任务 {run_id} 已提交到服务器端队列。",
+                "blocking_reason": "",
+                "next_steps": [],
+                "debug_hidden_fields": [
+                    "status_url",
+                    "events_url",
+                    "cancel_url",
+                    "task_id",
+                ],
+            }
+
+        reason_code = str(payload.get("reason_code") or payload.get("code") or "").strip()
+        if reason_code == "queued_runtime_not_wired":
+            status = "队列暂不可用"
+            detail = "服务器端排队运行时尚未启用；本次请求没有创建任务，也不会改用本地 Agent。"
+            next_step = "由管理员完成服务器端队列与 Worker 配置后，再回到此处重试。"
+            error_code = "QUEUED_RUNTIME_NOT_WIRED"
+        elif int(status_code) == 429:
+            status = "队列容量已满"
+            detail = "服务器端队列当前已达到容量上限，请稍后重试。"
+            next_step = "等待已有服务器端任务完成，不要重复提交相同请求。"
+            error_code = "QUEUED_RUNTIME_CAPACITY_REJECTED"
+        else:
+            status = "排队请求失败"
+            detail = self._operator_text(payload.get("error") or "服务器端没有接受排队请求。")
+            next_step = "检查已有任务 ID 和请求内容后重试。"
+            error_code = "QUEUED_RUN_REQUEST_FAILED"
+        return {
+            "kind": "detail",
+            "title": self._action_title(action),
+            "status": status,
+            "fields": [
+                {"key": "run_status", "label": "运行状态", "value": status},
+                {"key": "detail", "label": "说明", "value": detail},
+                {"key": "next_step", "label": "建议下一步", "value": next_step},
+            ],
+            "nested": [],
+            "business_summary": detail,
+            "blocking_reason": detail,
+            "next_steps": [],
+            "debug_hidden_fields": ["reason_code", "code", "retryable"],
             "user_error_code": error_code,
         }
 

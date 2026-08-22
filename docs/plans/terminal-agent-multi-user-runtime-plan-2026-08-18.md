@@ -1513,3 +1513,26 @@ enum remains only for historical database rows and resolves to the stable
 tests pass (`35` tests). This is repository contract evidence only: no VPS
 deployment, provider success, queued-worker enablement or production UAT is
 claimed.
+
+### TAR-04 TUI queued server-run result integration (2026-08-22)
+
+The CLI screen now exposes an explicit `cli.agent_queue` action backed by
+`POST /api/terminal/runs/`. It accepts only an existing owner-scoped task ID
+and task description; the browser generates a bounded idempotency key and
+submits it to the server. The result projection exposes only the durable
+`run_id`, task/status selectors and replay URLs. It never carries provider
+credentials, local model settings, or a local Agent execution path.
+
+The browser workbench consumes the accepted run through bounded JSON event
+replay and status polling (20 polls maximum), retains the event cursor, and
+renders queued/running/approval/terminal labels. Event or status failures are
+shown as bounded server-runtime availability feedback; the client does not
+retry the admission or start a local worker. The queue remains fail-closed
+when its server flags are disabled (`queued_runtime_not_wired`).
+
+Local evidence: Python projection/actionability tests and the Playwright
+workbench harness cover one submit, durable event replay, terminal status and
+the disabled queue response. This closes the repository TUI queued-client
+contract only. It is not VPS deployment, provider success, capacity/chaos,
+14-day telemetry, restore/rollback, or owner/reviewer production acceptance;
+users still do not install a provider-backed Agent locally.

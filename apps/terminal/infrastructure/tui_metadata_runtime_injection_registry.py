@@ -52,6 +52,7 @@ from .tui_metadata_runtime_injection_cli import (
     RUNTIME_CLI_CHAT_ACTION,
     RUNTIME_CLI_GROUP,
     RUNTIME_CLI_MODULE,
+    RUNTIME_CLI_QUEUED_ACTION,
     RUNTIME_CLI_SCREEN,
     RUNTIME_CLI_STREAM_ACTION,
 )
@@ -261,7 +262,11 @@ _LEGACY_RUNTIME_METADATA_INJECTIONS: tuple[RuntimeMetadataInjectionBundle, ...] 
         groups=(RUNTIME_CLI_GROUP,),
         modules=(RUNTIME_CLI_MODULE,),
         screens=(RUNTIME_CLI_SCREEN,),
-        actions=(RUNTIME_CLI_CHAT_ACTION, RUNTIME_CLI_STREAM_ACTION),
+        actions=(
+            RUNTIME_CLI_CHAT_ACTION,
+            RUNTIME_CLI_STREAM_ACTION,
+            RUNTIME_CLI_QUEUED_ACTION,
+        ),
     ),
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_capability_router_metadata",

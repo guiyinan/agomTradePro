@@ -72,3 +72,47 @@ RUNTIME_CLI_STREAM_ACTION: dict[str, Any] = {
     "description": "在支持 SSE 的前端中流式消费命令行式自然语言任务。",
     "sequence": 110,
 }
+
+RUNTIME_CLI_QUEUED_ACTION: dict[str, Any] = {
+    "key": "cli.agent_queue",
+    "label": "排队执行助手任务",
+    "method": "POST",
+    "endpoint": "/api/terminal/runs/",
+    "intent": "queue_server_side_terminal_agent_request",
+    "screen_key": "cli.terminal",
+    "module_key": "cli",
+    "view_type": "detail",
+    "risk": "ai",
+    "effect": "create",
+    "audit_required": True,
+    "fields": [
+        {
+            "key": "task_id",
+            "label": "已有任务 ID",
+            "input_type": "number",
+            "required": True,
+            "value_type": "integer",
+            "min": 1,
+            "presentation_semantic": "primary_selector",
+            "placeholder": "输入当前账号已有的 Agent 任务 ID",
+        },
+        {
+            "key": "message",
+            "label": "任务说明",
+            "input_type": "textarea",
+            "required": True,
+            "value_type": "string",
+            "presentation_semantic": "prompt_text",
+            "placeholder": "描述希望服务器端助手完成的任务",
+        },
+    ],
+    "description": (
+        "把已有任务提交到服务器端排队运行；浏览器只提交请求并读取状态/事件，"
+        "不会在本地安装或运行 Agent。"
+    ),
+    "source": "approved:runtime-cli-queued-entry",
+    "task_group": "01 助手交互",
+    "sequence": 120,
+    "task_tier": "operation",
+    "result_semantics": ["primary_status"],
+}
