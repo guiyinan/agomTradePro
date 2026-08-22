@@ -287,6 +287,20 @@
   users submit through the thin client and do not install or run a provider-backed Agent
   locally. `TUX-02`/`TUX-04` remain active/fail-closed.
 
+## 6.2.9 2026-08-22 server-side CLI metadata boundary
+
+- `RUNTIME_CLI_SCREEN` now supplies only CLI behavior context; IA remains the sole source for
+  the `cli.terminal` label, module/group/audience, summary, view type, default action and user
+  experience. This removes a second Python copy without changing the normalized runtime screen.
+- `cli.agent_chat`, `cli.agent_stream` and `cli.agent_queue` are explicitly documented and
+  tested as POST submissions to `/api/terminal/*`. They submit prompts/task selectors to the
+  server-owned Agent Runtime and consume server results/events; the client does not install,
+  load provider credentials, or run an Agent locally.
+- The focused metadata/actionability/IA regression passed (`53 passed`). This is a local
+  source-boundary and UX contract only; no VPS deployment or production provider/MCP/queue
+  enablement was performed. TAR-04/TUX-02/TUX-04 and their external UAT, capacity/chaos,
+  telemetry, restore/rollback and owner/reviewer gates remain independently fail-closed.
+
 ## 6. 风险与回滚
 
 - **文案批量重写风险**：430 个 action 的 label/description 重写可能误伤已被人工序列化的文案；分流时以 `source` 字段与人工策划 key 前缀白名单为界，重写前后做全量 diff 评审。

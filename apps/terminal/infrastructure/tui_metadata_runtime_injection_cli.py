@@ -18,12 +18,6 @@ RUNTIME_CLI_MODULE: dict[str, Any] = {
 
 RUNTIME_CLI_SCREEN: dict[str, Any] = {
     "key": "cli.terminal",
-    "label": "助手终端",
-    "module_key": "cli",
-    "group": "ops",
-    "summary": "用命令行式输入发起自然语言任务，并查看流式回复与工具进度。",
-    "view_type": "detail",
-    "default_action_key": "cli.agent_chat",
     "business_context": {
         "objective": "在 TUI 内打开命令行式 AI 助手，发起自然语言任务。",
         "decision_output": "回复正文、工具进度和需要审批的下一步动作。",
@@ -56,7 +50,9 @@ RUNTIME_CLI_CHAT_ACTION: dict[str, Any] = {
             "value_type": "string",
         }
     ],
-    "description": "在 TUI 内发起一次命令行式自然语言任务。",
+    "description": (
+        "向服务器端 Agent Runtime 提交一次命令行式自然语言任务；" "用户端不安装或运行 Agent。"
+    ),
     "source": "approved:runtime-cli-entry",
     "task_group": "01 助手交互",
     "sequence": 100,
@@ -69,7 +65,10 @@ RUNTIME_CLI_STREAM_ACTION: dict[str, Any] = {
     "label": "流式助手请求",
     "endpoint": "/api/terminal/chat/stream/",
     "intent": "stream_cli_terminal_agent_request",
-    "description": "在支持 SSE 的前端中流式消费命令行式自然语言任务。",
+    "description": (
+        "向服务器端 Agent Runtime 提交任务，并在支持 SSE 的前端中流式消费结果；"
+        "用户端不安装或运行 Agent。"
+    ),
     "sequence": 110,
 }
 

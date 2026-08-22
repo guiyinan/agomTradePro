@@ -962,6 +962,58 @@ def test_prompt_screen_injection_does_not_repeat_ia_owned_copy() -> None:
             assert normalized_panel[key] == value
 
 
+def test_cli_screen_injection_keeps_ia_copy_and_server_side_ai_boundary() -> None:
+    """CLI metadata owns behavior only; AI execution remains on the server."""
+
+    from apps.terminal.infrastructure.tui_metadata_repository import (
+        PublishedTuiMetadataRepository,
+    )
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_cli import (
+        RUNTIME_CLI_CHAT_ACTION,
+        RUNTIME_CLI_QUEUED_ACTION,
+        RUNTIME_CLI_SCREEN,
+        RUNTIME_CLI_STREAM_ACTION,
+    )
+
+    ia = load_json_payload(IA_PATH)
+    cli_ia = next(screen for screen in ia["runtime_screens"] if screen["key"] == "cli.terminal")
+    assert {
+        "label",
+        "module_key",
+        "group",
+        "audience",
+        "summary",
+        "view_type",
+        "default_action_key",
+        "user_experience",
+    }.isdisjoint(RUNTIME_CLI_SCREEN)
+
+    runtime = PublishedTuiMetadataRepository(published_path=PUBLISHED_PATH)._load_published_file()
+    cli_runtime = next(screen for screen in runtime["screens"] if screen["key"] == "cli.terminal")
+    for key in (
+        "label",
+        "module_key",
+        "group",
+        "audience",
+        "summary",
+        "view_type",
+        "default_action_key",
+        "user_experience",
+    ):
+        assert cli_runtime[key] == cli_ia[key]
+
+    for action in (
+        RUNTIME_CLI_CHAT_ACTION,
+        RUNTIME_CLI_STREAM_ACTION,
+        RUNTIME_CLI_QUEUED_ACTION,
+    ):
+        assert action["method"] == "POST"
+        assert str(action["endpoint"]).startswith("/api/terminal/")
+        assert "服务器端" in str(action["description"])
+        description = str(action["description"])
+        assert "不安装或运行 Agent" in description or "不会在本地安装或运行 Agent" in description
+
+
 def test_runtime_action_replacements_keep_published_copy() -> None:
     """Runtime action behavior may be richer, but IA-owned copy stays canonical."""
 
