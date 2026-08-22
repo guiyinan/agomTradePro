@@ -10,6 +10,7 @@ from apps.agent_runtime.application import tasks
 from apps.agent_runtime.application.terminal_agent import TerminalAgentEventDTO
 from apps.agent_runtime.application.terminal_agent_run_runtime import TerminalAgentWorkerInput
 from apps.agent_runtime.domain.terminal_agent_run_contract import (
+    TerminalAgentBrokerEnvelope,
     TerminalAgentRunContract,
     TerminalRunSelector,
     TerminalRunStatus,
@@ -55,6 +56,7 @@ class _FakeRepository:
         self.append_result: object | None = object()
         self.finished_result = claimed
         self.worker_ids: list[str] = []
+        self.dispatch_candidates: tuple[TerminalAgentBrokerEnvelope, ...] = ()
 
     def claim(self, **kwargs: object) -> TerminalAgentRunContract | None:
         """Return the configured first-winner claim."""
@@ -129,6 +131,14 @@ class _FakeRepository:
         """Return one explicit orphan transition for reaper tests."""
 
         return 1
+
+    def list_queued_for_dispatch(
+        self,
+        **_kwargs: object,
+    ) -> tuple[TerminalAgentBrokerEnvelope, ...]:
+        """Return the configured durable IDs for reconciliation tests."""
+
+        return self.dispatch_candidates
 
 
 class _FakeService:
@@ -318,3 +328,105 @@ def test_reap_stale_terminal_agent_runs_returns_reaped_count(monkeypatch, settin
     result = tasks.reap_stale_terminal_agent_runs.run()
 
     assert result == {"outcome": "success", "reaped": 1}
+
+
+def test_reconcile_queued_terminal_agent_dispatch_rejects_invalid_limit(settings):
+    """Invalid reconciliation bounds fail before repository access."""
+
+    settings.TERMINAL_QUEUED_INTAKE_ENABLED = True
+    settings.TERMINAL_QUEUED_WORKER_ENABLED = True
+
+    result = tasks.reconcile_queued_terminal_agent_dispatch.run(limit=0)
+
+    assert result == {
+        "outcome": "failed",
+        "success": False,
+        "reason_code": "DISPATCH_RECONCILIATION_LIMIT_INVALID",
+        "requested": 0,
+        "examined": 0,
+        "dispatched": 0,
+        "failed": 0,
+    }
+
+
+def test_reconcile_queued_terminal_agent_dispatch_blocks_when_worker_disabled(
+    settings, monkeypatch
+):
+    """Reconciliation stays dormant unless both queued flags are enabled."""
+
+    settings.TERMINAL_QUEUED_INTAKE_ENABLED = True
+    settings.TERMINAL_QUEUED_WORKER_ENABLED = False
+    monkeypatch.setattr(
+        tasks,
+        "_repo",
+        lambda: pytest.fail("blocked reconciliation must not query the repository"),
+    )
+
+    result = tasks.reconcile_queued_terminal_agent_dispatch.run()
+
+    assert result["outcome"] == "blocked"
+    assert result["reason_code"] == "queued_worker_disabled"
+
+
+def test_reconcile_queued_terminal_agent_dispatch_republishes_ids(monkeypatch, settings):
+    """Reconciliation publishes only the durable run/task identifiers."""
+
+    settings.TERMINAL_QUEUED_INTAKE_ENABLED = True
+    settings.TERMINAL_QUEUED_WORKER_ENABLED = True
+    repository = _FakeRepository(None)
+    repository.dispatch_candidates = (
+        TerminalAgentBrokerEnvelope("run-reconcile-contract-0001", 17),
+        TerminalAgentBrokerEnvelope("run-reconcile-contract-0002", 18),
+    )
+    dispatched: list[dict[str, object]] = []
+    monkeypatch.setattr(tasks, "_repo", lambda: repository)
+    monkeypatch.setattr(
+        tasks.execute_terminal_agent_run,
+        "apply_async",
+        lambda **kwargs: dispatched.append(kwargs),
+    )
+
+    result = tasks.reconcile_queued_terminal_agent_dispatch.run(limit=10)
+
+    assert result == {
+        "outcome": "success",
+        "success": True,
+        "reason_code": "dispatch_reconciliation_completed",
+        "requested": 10,
+        "examined": 2,
+        "dispatched": 2,
+        "failed": 0,
+    }
+    assert dispatched == [
+        {"args": ["run-reconcile-contract-0001", 17], "queue": "terminal_agent"},
+        {"args": ["run-reconcile-contract-0002", 18], "queue": "terminal_agent"},
+    ]
+
+
+def test_reconcile_queued_terminal_agent_dispatch_reports_broker_failure(monkeypatch, settings):
+    """A broker outage is reported without mutating the durable queue rows."""
+
+    settings.TERMINAL_QUEUED_INTAKE_ENABLED = True
+    settings.TERMINAL_QUEUED_WORKER_ENABLED = True
+    repository = _FakeRepository(None)
+    repository.dispatch_candidates = (
+        TerminalAgentBrokerEnvelope("run-reconcile-contract-0003", 19),
+    )
+    monkeypatch.setattr(tasks, "_repo", lambda: repository)
+    monkeypatch.setattr(
+        tasks.execute_terminal_agent_run,
+        "apply_async",
+        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("broker down")),
+    )
+
+    result = tasks.reconcile_queued_terminal_agent_dispatch.run()
+
+    assert result == {
+        "outcome": "failed",
+        "success": False,
+        "reason_code": "dispatch_reconciliation_failed",
+        "requested": 100,
+        "examined": 1,
+        "dispatched": 0,
+        "failed": 1,
+    }

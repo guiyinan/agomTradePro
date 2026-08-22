@@ -18,12 +18,18 @@ from apps.agent_runtime.application.terminal_agent_run_runtime import (
     TerminalQueuedRuntimePort,
 )
 from apps.agent_runtime.composition import get_terminal_agent_run_repository
-from apps.agent_runtime.domain.terminal_agent_run_contract import TerminalRunStatus
+from apps.agent_runtime.domain.terminal_agent_run_contract import (
+    TerminalAgentBrokerEnvelope,
+    TerminalRunStatus,
+)
 
 logger = logging.getLogger(__name__)
 TERMINAL_AGENT_TASK_NAME = "apps.agent_runtime.application.tasks.execute_terminal_agent_run"
 TERMINAL_AGENT_REAPER_TASK_NAME = (
     "apps.agent_runtime.application.tasks.reap_stale_terminal_agent_runs"
+)
+TERMINAL_AGENT_RECONCILIATION_TASK_NAME = (
+    "apps.agent_runtime.application.tasks.reconcile_queued_terminal_agent_dispatch"
 )
 
 
@@ -60,6 +66,27 @@ def _result_payload(reply: str, metadata: dict[str, Any]) -> dict[str, Any]:
     """Build the bounded result envelope persisted for status/replay."""
 
     return {"reply": reply, "metadata": metadata}
+
+
+def _queued_dispatch_block_reason() -> str | None:
+    """Return the stable reason when queued dispatch must remain dormant."""
+
+    if bool(getattr(settings, "TERMINAL_EMERGENCY_STOP", False)):
+        return "submissions_paused"
+    if not bool(getattr(settings, "TERMINAL_QUEUED_INTAKE_ENABLED", False)):
+        return "queued_intake_disabled"
+    if not bool(getattr(settings, "TERMINAL_QUEUED_WORKER_ENABLED", False)):
+        return "queued_worker_disabled"
+    return None
+
+
+def _dispatch_broker_envelope(envelope: TerminalAgentBrokerEnvelope) -> None:
+    """Publish one ID-only envelope to the dedicated terminal queue."""
+
+    execute_terminal_agent_run.apply_async(
+        args=[envelope.run_id, envelope.task_id],
+        queue="terminal_agent",
+    )
 
 
 @shared_task(  # type: ignore[misc]
@@ -227,6 +254,107 @@ def execute_terminal_agent_run(run_id: str, task_id: int) -> dict[str, object]:
             "reason_code": "terminal_agent_execution_failed",
             "run_id": run_id,
         }
+
+
+@shared_task(  # type: ignore[misc]
+    name=TERMINAL_AGENT_RECONCILIATION_TASK_NAME,
+    bind=False,
+    queue="celery",
+    acks_late=True,
+    reject_on_worker_lost=True,
+    time_limit=30,
+    soft_time_limit=20,
+)
+def reconcile_queued_terminal_agent_dispatch(
+    limit: int = 100,
+) -> dict[str, object]:
+    """Re-publish committed queued IDs after a transient broker failure.
+
+    The task is deliberately fail-closed while either queued feature flag is
+    disabled or the emergency stop is active.  It never claims, mutates, or
+    executes a run; the dedicated worker's row-locked claim handles duplicate
+    deliveries safely.
+    """
+
+    if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 1000:
+        return {
+            "outcome": "failed",
+            "success": False,
+            "reason_code": "DISPATCH_RECONCILIATION_LIMIT_INVALID",
+            "requested": 0,
+            "examined": 0,
+            "dispatched": 0,
+            "failed": 0,
+        }
+    blocked_reason = _queued_dispatch_block_reason()
+    if blocked_reason is not None:
+        return {
+            "outcome": "blocked",
+            "success": False,
+            "reason_code": blocked_reason,
+            "requested": limit,
+            "examined": 0,
+            "dispatched": 0,
+            "failed": 0,
+        }
+
+    grace_seconds = max(
+        0,
+        int(getattr(settings, "TERMINAL_AGENT_DISPATCH_RETRY_AFTER_SECONDS", 15)),
+    )
+    before = _now() - timedelta(seconds=grace_seconds)
+    try:
+        candidates = _repo().list_queued_for_dispatch(before=before, limit=limit)
+    except Exception as exc:
+        logger.warning(
+            "Queued terminal dispatch reconciliation lookup failed; error_type=%s",
+            type(exc).__name__,
+        )
+        return {
+            "outcome": "failed",
+            "success": False,
+            "reason_code": "dispatch_reconciliation_lookup_failed",
+            "requested": limit,
+            "examined": 0,
+            "dispatched": 0,
+            "failed": 0,
+        }
+
+    dispatched = 0
+    failed = 0
+    for envelope in candidates:
+        try:
+            _dispatch_broker_envelope(envelope)
+        except Exception as exc:
+            failed += 1
+            logger.warning(
+                "Queued terminal dispatch reconciliation publish failed; " "error_type=%s",
+                type(exc).__name__,
+            )
+        else:
+            dispatched += 1
+
+    if failed and dispatched:
+        outcome = "partial"
+        reason_code = "dispatch_reconciliation_partial"
+    elif failed:
+        outcome = "failed"
+        reason_code = "dispatch_reconciliation_failed"
+    elif dispatched:
+        outcome = "success"
+        reason_code = "dispatch_reconciliation_completed"
+    else:
+        outcome = "noop"
+        reason_code = "no_queued_runs"
+    return {
+        "outcome": outcome,
+        "success": outcome in {"success", "noop"},
+        "reason_code": reason_code,
+        "requested": limit,
+        "examined": len(candidates),
+        "dispatched": dispatched,
+        "failed": failed,
+    }
 
 
 @shared_task(  # type: ignore[misc]

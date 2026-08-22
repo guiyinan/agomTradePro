@@ -19,6 +19,7 @@ from apps.agent_runtime.application.terminal_agent_run_ports import (
     TerminalRunQueueSummary,
 )
 from apps.agent_runtime.domain.terminal_agent_run_contract import (
+    TerminalAgentBrokerEnvelope,
     TerminalAgentRunContract,
     TerminalRunStatus,
 )
@@ -156,6 +157,16 @@ class TerminalQueuedRuntimePort(Protocol):
 
     def queue_summary(self, *, actor_user_id: int) -> TerminalRunQueueSummary:
         """Return bounded owner/global queue counters."""
+
+        ...
+
+    def list_queued_for_dispatch(
+        self,
+        *,
+        before: datetime,
+        limit: int,
+    ) -> Sequence[TerminalAgentBrokerEnvelope]:
+        """Return committed queued IDs eligible for broker reconciliation."""
 
         ...
 

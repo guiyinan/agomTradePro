@@ -1342,3 +1342,20 @@ separately in the shared workspace. TAR-01 remains
 the registry or production runtime and does not supply the outstanding
 multi-user/global capacity, sustained chaos/reconnect, provider/MCP,
 14-day-telemetry, restore/rollback, or owner/reviewer evidence.
+### TAR-02 dispatch reconciliation contract (2026-08-22)
+
+The durable admission path now has a bounded reconciliation task for the
+post-commit dispatch gap. `reconcile_queued_terminal_agent_dispatch` scans only
+committed queued rows older than the configured grace period, caps the batch at
+`1..1000`, and republishes an ID-only `run_id/task_id` envelope to the dedicated
+`terminal_agent` queue. It is scheduled once per minute and remains blocked when
+either queued flag is disabled or the emergency stop is active. Duplicate
+delivery is still resolved by the worker's row-locked first-winner claim.
+
+The focused task suite passed `16` tests; Ruff, Black, isort, incremental mypy,
+and the Celery contract guard passed. The new repository component tests were
+not completed in the current environment because Django component setup did not
+return within the bounded test window. This is repository-contract progress, not
+production broker/Worker evidence: VPS queued flags remain disabled and TAR-02
+production enablement, capacity, chaos, recovery, telemetry and sign-off remain
+outside this slice.

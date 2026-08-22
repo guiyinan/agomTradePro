@@ -539,6 +539,57 @@ def test_queue_summary_separates_owner_and_global_counts(repository, owner, task
     assert other_summary.global_queued == 1
 
 
+def test_list_queued_for_dispatch_returns_only_old_queued_ids(repository, owner, task):
+    """Reconciliation excludes claimed rows and rows inside the grace window."""
+
+    old_request = _request(owner_id=owner.id, task_id=task.id, suffix="dispatch-old")
+    recent_request = _request(
+        owner_id=owner.id,
+        task_id=task.id,
+        suffix="dispatch-recent",
+    )
+    claimed_request = _request(
+        owner_id=owner.id,
+        task_id=task.id,
+        suffix="dispatch-claimed",
+    )
+    repository.submit(old_request)
+    repository.submit(recent_request)
+    repository.submit(claimed_request)
+    TerminalAgentRunModel.objects.filter(run_id=old_request.submission.selector.run_id).update(
+        created_at=_NOW - timedelta(minutes=1)
+    )
+    TerminalAgentRunModel.objects.filter(run_id=recent_request.submission.selector.run_id).update(
+        created_at=_NOW
+    )
+    TerminalAgentRunModel.objects.filter(run_id=claimed_request.submission.selector.run_id).update(
+        created_at=_NOW - timedelta(minutes=1)
+    )
+    repository.claim(
+        run_id=claimed_request.submission.selector.run_id,
+        worker_id="worker-dispatch",
+        claimed_at=_NOW,
+    )
+
+    candidates = repository.list_queued_for_dispatch(
+        before=_NOW - timedelta(seconds=15),
+        limit=10,
+    )
+
+    assert [(item.run_id, item.task_id) for item in candidates] == [
+        (old_request.submission.selector.run_id, task.id)
+    ]
+
+
+def test_list_queued_for_dispatch_rejects_unbounded_limit(repository):
+    """A reconciliation caller cannot turn the query into an unbounded scan."""
+
+    with pytest.raises(TerminalRunRepositoryError) as error:
+        repository.list_queued_for_dispatch(before=_NOW, limit=1001)
+
+    assert error.value.reason_code == "DISPATCH_RECONCILIATION_LIMIT_INVALID"
+
+
 def test_repository_source_has_no_runtime_dispatch_dependency():
     """The repository foundation cannot silently enable the worker runtime."""
 

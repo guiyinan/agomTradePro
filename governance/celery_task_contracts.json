@@ -61,6 +61,29 @@
       }
     },
     {
+      "task_path": "apps.agent_runtime.application.tasks.reconcile_queued_terminal_agent_dispatch",
+      "source_file": "apps/agent_runtime/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/agent_runtime/test_terminal_agent_run_tasks.py",
+          "test_function": "test_reconcile_queued_terminal_agent_dispatch_rejects_invalid_limit"
+        },
+        "blocked": {
+          "test_file": "tests/unit/agent_runtime/test_terminal_agent_run_tasks.py",
+          "test_function": "test_reconcile_queued_terminal_agent_dispatch_blocks_when_worker_disabled"
+        },
+        "all_success": {
+          "test_file": "tests/unit/agent_runtime/test_terminal_agent_run_tasks.py",
+          "test_function": "test_reconcile_queued_terminal_agent_dispatch_republishes_ids"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/agent_runtime/test_terminal_agent_run_tasks.py",
+          "test_function": "test_reconcile_queued_terminal_agent_dispatch_reports_broker_failure"
+        }
+      }
+    },
+    {
       "task_path": "apps.audit.application.tasks.dispatch_system_audit_outbox_task",
       "source_file": "apps/audit/application/tasks.py",
       "criticality": "data_mutation_critical",

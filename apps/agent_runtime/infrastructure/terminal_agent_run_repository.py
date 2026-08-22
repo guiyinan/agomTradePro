@@ -31,6 +31,7 @@ from apps.agent_runtime.application.terminal_agent_run_runtime import (
 )
 from apps.agent_runtime.domain.terminal_agent_run_contract import (
     InvalidTerminalRunTransition,
+    TerminalAgentBrokerEnvelope,
     TerminalAgentRunContract,
     TerminalOwnershipError,
     TerminalRunContractError,
@@ -158,6 +159,35 @@ class TerminalAgentRunRepository(TerminalQueuedSubmissionPort):
                 return self._replay_existing(winner, submission)
 
         return model.to_domain_contract()
+
+    def list_queued_for_dispatch(
+        self,
+        *,
+        before: datetime,
+        limit: int,
+    ) -> Sequence[TerminalAgentBrokerEnvelope]:
+        """Return bounded, committed queued IDs for broker reconciliation.
+
+        Reconciliation intentionally reads only rows that are still queued and
+        older than a short grace period.  It never changes the ledger and never
+        transports message content; duplicate broker deliveries remain safe
+        because the worker's row-locked claim is the first-winner boundary.
+        """
+
+        _require_aware(before, field_name="before")
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 1000:
+            raise TerminalRunRepositoryError("DISPATCH_RECONCILIATION_LIMIT_INVALID")
+        rows = (
+            TerminalAgentRunModel._default_manager.filter(
+                dispatch_status=TerminalRunStatus.QUEUED.value,
+                created_at__lte=before,
+            )
+            .order_by("created_at", "pk")
+            .values_list("run_id", "task_id")[:limit]
+        )
+        return tuple(
+            TerminalAgentBrokerEnvelope(run_id=run_id, task_id=task_id) for run_id, task_id in rows
+        )
 
     def _lock_admission_anchors(self, *, actor_user_id: int) -> None:
         """Serialize all queue admissions before checking capacity counters.

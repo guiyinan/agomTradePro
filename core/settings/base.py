@@ -74,6 +74,10 @@ TERMINAL_AGENT_ORPHAN_AFTER_SECONDS = env.int(
     "TERMINAL_AGENT_ORPHAN_AFTER_SECONDS",
     default=90,
 )
+TERMINAL_AGENT_DISPATCH_RETRY_AFTER_SECONDS = env.int(
+    "TERMINAL_AGENT_DISPATCH_RETRY_AFTER_SECONDS",
+    default=15,
+)
 
 # Immutable deployment identity artifacts. Production mounts the release
 # manifest read-only; the build identity is embedded in the application image.

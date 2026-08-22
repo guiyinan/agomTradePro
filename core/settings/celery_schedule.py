@@ -9,6 +9,13 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(minute="*"),
         "options": {"expire_seconds": 50, "queue": "celery"},
     },
+    "terminal-agent-dispatch-reconciliation": {
+        "task": (
+            "apps.agent_runtime.application.tasks." "reconcile_queued_terminal_agent_dispatch"
+        ),
+        "schedule": crontab(minute="*"),
+        "options": {"expire_seconds": 50, "queue": "celery"},
+    },
     "broker-execution-maintenance": {
         "task": "broker_execution.run_maintenance",
         "schedule": crontab(minute="*"),
