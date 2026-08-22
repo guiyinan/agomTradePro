@@ -1,0 +1,101 @@
+{
+  "schema_version": "1.0",
+  "artifact": "tar01-qlib-batch-memory-remediation",
+  "observed_at": "2026-08-22T03:47:46+02:00",
+  "candidate": {
+    "branch": "dev/next-development",
+    "commit": "c7ea5a9fc914e0a464e7286388477cb167079927",
+    "release_tag": "20260822091112",
+    "image_tag": "agomtradepro-web:20260822091112",
+    "image_id": "sha256:b6b5db3326f4fa6cb03a015f036d90b9a1591ac6cf1ee951de7b819ce7ed24a0",
+    "source_mode": "git-clone"
+  },
+  "trigger_and_correction": {
+    "trigger": "The predecessor 4GiB release later recorded a real cgroup OOM, invalidating its initial 15m15s no-error sample.",
+    "predecessor_commit": "274600e3c9a9f5b179641d38d712c63ef71ef9b2",
+    "predecessor_release_tag": "20260822073022",
+    "predecessor_oom_observed_at": "2026-08-22T00:02:00Z",
+    "predecessor_oom_total_vm_kib": 6651336,
+    "predecessor_oom_anon_rss_kib": 4146900,
+    "correction": "Bound each Qlib prediction task to instrument batches and explicitly release DatasetH/handler/prediction objects between batches."
+  },
+  "deployment": {
+    "mode": "code-only",
+    "action": "upgrade",
+    "data_volumes_preserved": true,
+    "predeploy_backup": "/opt/agomtradepro/backups/database/postgres-20260822-031856.dump",
+    "deployment_report": "dist/remote-build-reports/remote-build-report-20260822091112.json",
+    "migration_status": "no migrations to apply",
+    "schema_check": "ok",
+    "django_system_check": "ok",
+    "public_url": "https://demo.agomtrade.pro",
+    "health_status": 200,
+    "ready_status": 200,
+    "caddy_tls": "verified",
+    "qlib": {
+      "pyqlib_version": "0.9.7",
+      "wrong_qlib_distribution": "absent",
+      "module": "/usr/local/lib/python3.11/site-packages/qlib/__init__.py"
+    }
+  },
+  "worker_contract": {
+    "memory_limit": "4GiB",
+    "memory_limit_bytes": 4294967296,
+    "concurrency": 1,
+    "max_tasks_per_child": 1,
+    "qlib_prediction_batch_size": 500,
+    "queues": ["celery", "qlib_infer", "qlib_train"]
+  },
+  "post_deploy_observation": {
+    "window_start": "2026-08-22T01:25:12Z",
+    "window_end": "2026-08-22T01:47:46Z",
+    "window": "22m34s",
+    "worker_memory_range": "835.6MiB..1.03GiB / 4GiB",
+    "worker_restart_count": 0,
+    "worker_oom_killed": false,
+    "worker_status": "running",
+    "post_release_kernel_oom_events": 0,
+    "worker_lost_error_count": 0,
+    "sigkill_count": 0,
+    "traceback_count": 0,
+    "qlib_batches_observed": "1/12 through 12/12",
+    "successful_task": {
+      "task_id": "bb35b8d7-67d2-4fe7-adca-307987b4eec3",
+      "universe_id": "portfolio-135-bb85aaa1010ffdfe",
+      "batch_count": 12,
+      "last_batch_instruments": 33,
+      "runtime_seconds": 1256.7637261673808,
+      "outcome": "success",
+      "stored": 1,
+      "stock_count": 30
+    }
+  },
+  "api_observation": {
+    "health_status": 200,
+    "ready_status": 200,
+    "decision_ready_status": 503,
+    "decision_ready_must_not_use_for_decision": true,
+    "runtime_flags_changed": false,
+    "business_canary_submitted": false
+  },
+  "ci": {
+    "head": "c7ea5a9fc914e0a464e7286388477cb167079927",
+    "security_scan": "https://github.com/guiyinan/agomTradePro/actions/runs/32542251581",
+    "architecture_layer_guard": "https://github.com/guiyinan/agomTradePro/actions/runs/32542251580",
+    "consistency_check": "https://github.com/guiyinan/agomTradePro/actions/runs/32542251607",
+    "ci_fast_feedback": "https://github.com/guiyinan/agomTradePro/actions/runs/32542251577"
+  },
+  "gate": {
+    "tar01_exit_decision": "BLOCKED",
+    "safety_ready": true,
+    "capacity_ready": false,
+    "remaining_production_evidence": [
+      "multi-user/global hard-SLO capacity",
+      "sustained chaos and reconnect recovery",
+      "provider/MCP success",
+      "14-day telemetry",
+      "production restore/rollback and RTO/RPO",
+      "owner/reviewer sign-off"
+    ]
+  }
+}

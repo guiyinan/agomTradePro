@@ -1249,3 +1249,39 @@ This is still a short single-worker observation, not global capacity, chaos,
 provider/MCP, 14-day, restore/rollback, or human-sign-off evidence.
 
 Structured evidence: [`tar01-worker-memory-remediation-2026-08-22-274600e3c.json`](../deployment/tar01-worker-memory-remediation-2026-08-22-274600e3c.json).
+
+### TAR-01 QLib prediction batching and VPS re-observation (2026-08-22)
+
+The later kernel record invalidated the preceding `4GiB` release's initial
+`15m15s` no-error sample: the worker subsequently hit a cgroup OOM while a
+single full-universe `DatasetH` remained live. The correction is now in
+`c7ea5a9fc914e0a464e7286388477cb167079927`: QLib inference uses bounded
+`QLIB_PREDICTION_BATCH_SIZE=500` instrument batches and explicitly releases
+batch-local DatasetH/handler/prediction objects; the Compose variable is scoped
+to `celery_worker` (not `web`).
+
+CI was green across Security, Architecture, Consistency and Fast Feedback. The
+candidate was deployed code-only as release `20260822091112`, image
+`sha256:b6b5db3326f4fa6cb03a015f036d90b9a1591ac6cf1ee951de7b819ce7ed24a0`,
+with PostgreSQL/Redis volumes preserved and a verified PostgreSQL backup. The
+deployment verifier passed migrations/schema, Django checks, Caddy/TLS,
+container health, Celery ping, TUI registry and Qlib identity. The worker
+reported `4GiB`, concurrency `1`, `max-tasks-per-child=1`, and the explicit
+batch-size environment variable `500`.
+
+The first observed scoped QLib task completed all `12/12` batches (the final
+batch had `33` instruments) with outcome `success`, storing `1` result in
+`1256.763726s`. During the `22m34s` observation window, worker memory stayed
+within approximately `835.6MiB..1.03GiB/4GiB`, with restart count `0`,
+`OOMKilled=false`, no post-release kernel OOM, WorkerLostError, SIGKILL or
+traceback matches. A subsequent QLib task had already started, so this is a
+real queue observation rather than a startup-only sample.
+
+Public HTTPS health/readiness remained `200`; `/api/decision-ready/` remained
+`503` with `must_not_use_for_decision=true`, and no runtime flag or business
+canary was changed. This is a bounded single-worker QLib memory observation,
+not global capacity, sustained chaos/reconnect, provider/MCP success, 14-day
+telemetry, restore/rollback, or human-sign-off evidence. TAR-01 remains
+`BLOCKED/safety_ready=true/capacity_ready=false`.
+
+Structured evidence: [`tar01-qlib-batch-memory-remediation-2026-08-22.json`](../deployment/tar01-qlib-batch-memory-remediation-2026-08-22.json).
