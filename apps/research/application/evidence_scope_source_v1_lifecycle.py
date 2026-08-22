@@ -174,6 +174,7 @@ class IssueEvidenceScopeSourceV1Command:
     source_version: str
     observation_id: str
     observation_version: str
+    expected_observation_content_hash: str
 
     def __post_init__(self) -> None:
         for field_name in (
@@ -183,6 +184,10 @@ class IssueEvidenceScopeSourceV1Command:
             "observation_version",
         ):
             _require_token(getattr(self, field_name), field_name)
+        _require_hash(
+            self.expected_observation_content_hash,
+            "expected_observation_content_hash",
+        )
 
 
 class ExactCurrentEvidenceScopeSourceV1ObservationProvider(Protocol):
@@ -193,6 +198,7 @@ class ExactCurrentEvidenceScopeSourceV1ObservationProvider(Protocol):
         *,
         observation_id: str,
         observation_version: str,
+        expected_content_hash: str,
         as_of: datetime,
     ) -> EvidenceScopeSourceV1Observation | None:
         """Return the exact current observation, or ``None`` when unavailable."""
@@ -336,6 +342,7 @@ class IssueEvidenceScopeSourceV1:
             value = self._observation_provider.get_exact_current(
                 observation_id=command.observation_id,
                 observation_version=command.observation_version,
+                expected_content_hash=command.expected_observation_content_hash,
                 as_of=cutoff,
             )
         except (
@@ -365,6 +372,7 @@ class IssueEvidenceScopeSourceV1:
         if (
             value.observation_id != command.observation_id
             or value.observation_version != command.observation_version
+            or value.content_hash != command.expected_observation_content_hash
         ):
             raise EvidenceScopeSourceV1LifecycleCorruption(
                 "owner/tenant observation identity substitution"

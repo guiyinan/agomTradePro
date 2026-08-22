@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from apps.research.application.evidence_scope_source_v1_lifecycle import (
-    EvidenceScopeSourceV1LifecycleConflict,
+    EvidenceScopeSourceV1LifecycleCorruption,
     EvidenceScopeSourceV1Observation,
     IssueEvidenceScopeSourceV1,
     IssueEvidenceScopeSourceV1Command,
@@ -87,9 +87,10 @@ class _Provider:
         *,
         observation_id: str,
         observation_version: str,
+        expected_content_hash: str,
         as_of: datetime,
     ) -> EvidenceScopeSourceV1Observation | None:
-        del observation_id, observation_version, as_of
+        del observation_id, observation_version, expected_content_hash, as_of
         self.calls += 1
         return self.observation
 
@@ -153,6 +154,7 @@ def _command() -> IssueEvidenceScopeSourceV1Command:
         source_version="v1",
         observation_id="owner-observation-1",
         observation_version="v1",
+        expected_observation_content_hash=_observation().content_hash,
     )
 
 
@@ -205,7 +207,7 @@ def test_missing_winner_reads_observation_twice_before_append() -> None:
     assert result.recorded_at == NOW
 
 
-def test_observation_drift_aborts_without_append() -> None:
+def test_observation_identity_drift_aborts_without_append() -> None:
     first = _observation()
     second = EvidenceScopeSourceV1Observation(
         observation_id=first.observation_id,
@@ -226,16 +228,48 @@ def test_observation_drift_aborts_without_append() -> None:
             *,
             observation_id: str,
             observation_version: str,
+            expected_content_hash: str,
             as_of: datetime,
         ) -> EvidenceScopeSourceV1Observation | None:
-            del observation_id, observation_version, as_of
+            del observation_id, observation_version, expected_content_hash, as_of
             self.calls += 1
             return first if self.calls == 1 else second
 
     provider = _DriftingProvider(first)
     repository = _Repository()
 
-    with pytest.raises(EvidenceScopeSourceV1LifecycleConflict):
+    with pytest.raises(EvidenceScopeSourceV1LifecycleCorruption):
         _use_case(provider, repository).execute(_command())
+
+    assert repository.appended == []
+
+
+def test_observation_content_hash_substitution_fails_closed() -> None:
+    expected = _observation()
+    substituted = EvidenceScopeSourceV1Observation(
+        observation_id=expected.observation_id,
+        observation_version=expected.observation_version,
+        owner_id="owner-2",
+        tenant_id=expected.tenant_id,
+        account_id=expected.account_id,
+        actor_id=expected.actor_id,
+        artifact=expected.artifact,
+        status=expected.status,
+        recorded_at=expected.recorded_at,
+        valid_until=expected.valid_until,
+    )
+    provider = _Provider(substituted)
+    repository = _Repository()
+
+    with pytest.raises(EvidenceScopeSourceV1LifecycleCorruption):
+        _use_case(provider, repository).execute(
+            IssueEvidenceScopeSourceV1Command(
+                source_id="scope-source-1",
+                source_version="v1",
+                observation_id=expected.observation_id,
+                observation_version=expected.observation_version,
+                expected_observation_content_hash=expected.content_hash,
+            )
+        )
 
     assert repository.appended == []

@@ -15603,22 +15603,22 @@
       "text": "\"\"\"One immutable current owner/tenant observation supplied by the server."
     },
     {
-      "line": 198,
+      "line": 204,
       "path": "apps/research/application/evidence_scope_source_v1_lifecycle.py",
       "text": "\"\"\"Return the exact current observation, or ``None`` when unavailable.\"\"\""
     },
     {
-      "line": 423,
+      "line": 431,
       "path": "apps/research/application/evidence_scope_source_v1_lifecycle.py",
       "text": "\"scope-source current head is unavailable\""
     },
     {
-      "line": 538,
+      "line": 546,
       "path": "apps/research/application/evidence_scope_source_v1_lifecycle.py",
       "text": "\"scope-source current-head identity substitution\""
     },
     {
-      "line": 543,
+      "line": 551,
       "path": "apps/research/application/evidence_scope_source_v1_lifecycle.py",
       "text": "\"scope-source current head is terminal or expired\""
     },

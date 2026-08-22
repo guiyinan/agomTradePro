@@ -3085,3 +3085,17 @@ Evidence composition、mutable User/Profile/session 或生产 writer，也没有
 source。EVID-01、Evidence hard gate、production authority/UAT/PG race/rollback 与人工签署继续
 fail-closed。CLI/API 仍只向服务器传输请求，AI/provider/MCP/tool execution 在服务器端，用户不安装
 本地 Agent、模型或 provider 软件。
+
+## 2026-08-23：EVID-01 scope observation content-hash selector
+
+继续收紧 dormant scope-source issuance command：`IssueEvidenceScopeSourceV1Command` 现在必须携带
+server-issued `expected_observation_content_hash`，provider exact-current 读取同时接收并返回该 selector，
+Application 在任何 scope Domain 构造、predecessor 检查或 append 前逐项核对 observation ID/version/hash。
+同 ID/version 的 authority facts 替换、伪造 content hash、未来/无效 observation 均稳定
+fail-closed，不会写入 scope ledger。
+
+生命周期回归更新为 `55 passed`（含 hash substitution、winner-first 与 existing scope read/provider
+contract）；增量 Ruff/Black/isort/mypy 与 full debt ceiling 保持通过。该切片仍未创建 owner/tenant
+lifecycle issuer，不读取 mutable User/Profile/session，不接 Evidence/HTTP/CLI/Agent 或 production writer；
+EVID-01 继续 active/fail-closed。CLI/API 仍只把请求传到服务器，AI/provider/MCP/tool execution 在服务器端，
+用户不安装本地 Agent、模型或 provider 软件。
