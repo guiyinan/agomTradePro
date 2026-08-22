@@ -3055,3 +3055,18 @@ focused unit `7 passed`；Ruff、Black、isort、增量 mypy 与 architecture bo
 lifecycle issuer、生产 source seed、VPS/PG race/rollback、UAT 或人工签署；EVID-01 与
 Evidence hard gate 继续 active/fail-closed。CLI/SDK 仍只向服务器提交请求，AI/provider/
 MCP/tool execution 在服务器端，用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-23：EVID-01 owner/tenant authority composition gate audit
+
+对下一步接线进行了只读审计。actor-authority bundle 只封存 authentication-context、Account
+user 与 RBAC 三个 immutable raw source，不能投影出 Evidence scope 所需的
+`owner_id`、`tenant_id`、`account_id`。仓库当前也没有可验证的 owner/tenant lifecycle issuer、
+selector receipt 或 production write route；`PortfolioObserverGrantModel` 等 mutable grant
+不能作为历史 authority source，不能被现场 hash 成 Evidence scope。
+
+因此本阶段不新增 scope 映射胶水，也不把 bundle provider 接入 Evidence/HTTP/CLI/Agent route。
+默认 composition 继续在 repository 前 fail-closed。下一可解除门禁的证据必须来自同一服务端
+生命周期：immutable owner/tenant/scope source、同 alias PostgreSQL 写入与回滚/并发观察、
+角色化 UAT 及 owner/reviewer 签署；zero-seed、fake provider、当前 User/Profile/session 或
+本地测试不能替代。CLI/API 仍是 B/S 薄传输客户端，AI、provider、MCP 与 Agent 执行均在
+服务器端，用户不安装本地模型或 provider 软件。

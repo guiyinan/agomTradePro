@@ -18,7 +18,7 @@
       "priority": "P0",
       "owner": "research+risk_center+portfolio+broker_execution+account",
       "status": "active",
-      "next_gate": "EVID-01 is the repository execution focus: close authenticated owner/user/tenant authority and production composition while preserving the global execution deny; EVID-02 continues its declared safe auto_collect evidence lane in parallel.",
+      "next_gate": "EVID-01 is the repository execution focus: establish immutable owner/tenant/scope authority and production composition while preserving the global execution deny. The current Account actor bundle covers only authentication-context/user/RBAC and must not be mapped into Evidence scope; EVID-02 continues its declared safe auto_collect evidence lane in parallel.",
       "documents": [
         {
           "path": "docs/plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md",
