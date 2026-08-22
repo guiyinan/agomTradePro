@@ -2967,3 +2967,24 @@ authority source、同 alias bundle、人工授权、production provider/rollbac
 race 仍缺；VPS 不做重部署，Evidence hard gate 与 decision/execution 总闸保持
 fail-closed。CLI/SDK 仍是服务器 API 的传输客户端，AI/provider/tool execution 必须在
 服务器端完成，不能要求用户安装本地模型、provider runtime 或凭据。
+
+## 2026-08-23：EVID-01 同 alias scope-source authorized composition contract
+
+在既有 fail-closed composition 之上新增显式
+`make_authorized_evidence_read_facade(selector_provider, using)`。它把严格的
+`DjangoEvidenceScopeSourceV1Repository`、`GetCurrentEvidenceScopeSourceV1`、
+`EvidenceScopeSourceV1Provider` 与 `DjangoEvidenceRepository` 组装到同一个 database alias；
+selector provider 只能由外部权威组合注入 server-issued source ID/version/content hash，
+composition 本身不读取 request、session、User/Profile 或 tenant mutable rows，也不创建
+authority facts。默认 `make_evidence_read_facade()` 仍使用未接线 provider，在 scope 缺失时
+于 Evidence repository 之前稳定返回 unavailable。
+
+新增 composition 回归覆盖：默认无 provider 时 repository 调用数为零；注入 selector 后
+scope/evidence 使用同一 alias、artifact/hash/时钟精确保留并允许继续到 Evidence read；相关
+scope/source/facade/API 回归 `72 passed`，Black/isort/Ruff、增量 mypy 与 diff-check 通过。
+
+该 slice 只完成可注入的同 alias composition contract，不代表 authenticated owner/tenant
+lifecycle、selector issuer、atomic multi-source bundle、人工授权、production provider、
+PostgreSQL production race/rollback 或 Evidence hard gate 已完成；zero-seed authority 与
+全局写入/execution deny 保持不变。CLI/SDK 仍是服务器 API 的薄传输客户端，AI/provider/tool
+execution 只在服务器端运行，用户不安装本地 Agent 或模型。
