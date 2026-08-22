@@ -1,0 +1,65 @@
+{
+  "schema": "tar01-current-vps-observation.v1",
+  "observed_at": "2026-08-22T06:01:15Z",
+  "candidate": {
+    "branch": "dev/next-development",
+    "source_commit": "4cef9040cccc2127c3f8128c8d858bc7958df2a4",
+    "release_tag": "20260822134658",
+    "image_tag": "agomtradepro-web:20260822134658",
+    "image_id": "sha256:cfaf17560df2f85cd8ba2f5db8226a9dd9fe1cce081f30175c2a08737b4908d8",
+    "runtime_match": true,
+    "deployment_report": "dist/remote-build-reports/remote-build-report-20260822134658.json"
+  },
+  "deployment": {
+    "action": "upgrade",
+    "mode": "code-only",
+    "volumes_preserved": true,
+    "postgres_backup_before_deploy": true,
+    "migrations": "No migrations to apply",
+    "schema_verifier_ok": true,
+    "django_check_ok": true,
+    "tui_publish": "noop",
+    "tui_registry_id": 28,
+    "containers_healthy": true,
+    "celery_worker_and_beat_running": true
+  },
+  "public_observation": {
+    "base_url": "https://demo.agomtrade.pro",
+    "health": {
+      "http_status": 200,
+      "status": "ok"
+    },
+    "ready": {
+      "http_status": 200,
+      "status": "ok",
+      "critical_data": "ok",
+      "decision_data": "warning"
+    },
+    "decision_ready": {
+      "http_status": 503,
+      "status": "blocked",
+      "must_not_use_for_decision": true
+    }
+  },
+  "runtime_identity": {
+    "qlib_distribution": "pyqlib",
+    "qlib_version": "0.9.7",
+    "unexpected_qlib_distribution_present": false,
+    "terminal_emergency_stop": false,
+    "terminal_queued_intake_enabled": false,
+    "terminal_queued_worker_enabled": false,
+    "terminal_runtime_authorized": false
+  },
+  "gate": {
+    "tar01": "BLOCKED",
+    "safety_ready": true,
+    "capacity_ready": false,
+    "decision_data_usable": false
+  },
+  "limitations": [
+    "No new 1/5/10/20 production capacity observation was run on this candidate.",
+    "No new chaos, reconnect, recovery, restore, rollback, or 14-day telemetry evidence was collected.",
+    "Provider/MCP successful execution was not demonstrated on this candidate.",
+    "Owner/reviewer production sign-off is not represented by this machine observation."
+  ]
+}

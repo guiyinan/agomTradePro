@@ -1359,3 +1359,24 @@ return within the bounded test window. This is repository-contract progress, not
 production broker/Worker evidence: VPS queued flags remain disabled and TAR-02
 production enablement, capacity, chaos, recovery, telemetry and sign-off remain
 outside this slice.
+
+### TAR-01 current VPS deployment observation (2026-08-22)
+
+The current `dev/next-development` candidate `4cef9040cccc2127c3f8128c8d858bc7958df2a4`
+was deployed once as a code-only upgrade (`20260822134658`) with PostgreSQL and
+Redis volumes preserved. The deployment report records runtime/source identity
+match, backup-before-deploy, no pending migrations, schema/Django checks, TUI
+registry no-op publish, healthy containers, and running Celery worker/beat. The
+public domain health and readiness endpoints returned `200`; QLib inside the
+web image is `pyqlib 0.9.7` and the unexpected `qlib` distribution is absent.
+
+The decision endpoint was observed as `503 blocked` with
+`must_not_use_for_decision=true`, so decision data remains unavailable for
+decisions. Queued intake, queued worker, runtime authorization, and emergency
+stop flags remain fail-closed/disabled. No additional VPS deployment is planned
+for this observation. This record does not add production capacity, chaos,
+recovery, restore/rollback, provider/MCP success, 14-day telemetry, or
+owner/reviewer sign-off evidence; TAR-01 remains
+`BLOCKED/safety_ready=true/capacity_ready=false`.
+
+Structured evidence: [`tar01-current-vps-observation-2026-08-22-4cef9040.json`](../deployment/tar01-current-vps-observation-2026-08-22-4cef9040.json).
