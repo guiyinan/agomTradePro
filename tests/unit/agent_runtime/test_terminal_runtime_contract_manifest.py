@@ -188,6 +188,10 @@ def test_manifest_mentions_all_runtime_modes_without_enabling_a_new_one() -> Non
     assert "openai-agents" not in sdk_project
     assert "OPENAI_API_KEY" not in sdk_project
 
+    sdk_readme = Path("sdk/README.md").read_text(encoding="utf-8")
+    assert "do **not** install this package" in sdk_readme
+    assert "never install or run a provider-backed Agent locally" in sdk_readme
+
 
 def test_manifest_freezes_complete_baseline_candidate_identity() -> None:
     """Capacity samples cannot be combined across images or snapshots."""

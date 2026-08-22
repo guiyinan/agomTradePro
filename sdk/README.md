@@ -9,24 +9,26 @@ AgomTradePro SDK provides two ways to interact with the AgomTradePro system:
 1. **Python SDK** - Full-featured Python client for complete system access
 2. **MCP Server** - AI-native tools for Claude Code and other AI agents
 
-## Installation
+## Optional integration package
+
+Browser/TUI users and ordinary CLI callers do **not** install this package or
+any local Agent/model runtime. They use the AgomTradePro B/S application and
+the server-owned Agent Runtime directly. The commands below are only for a
+developer or managed integration that intentionally needs the typed remote
+SDK/MCP transport; they never install or run a provider-backed Agent locally.
 
 ```bash
 # From the AgomTradePro project
 cd D:/githv/agomTradePro/sdk
 
-# Install in development mode
+# Optional: install the thin remote API/MCP transport for an integration host
 pip install -e .
 
-# With development dependencies
+# Optional integration-test dependencies
 pip install -e ".[dev]"
 
-# With pandas support
+# Optional client-side dataframe helpers (not an Agent runtime)
 pip install -e ".[pandas]"
-
-# The SDK package is an API/MCP client library.  End users do not install a
-# provider-backed Agent on their workstation.
-pip install -e "."
 ```
 
 ## Compatibility

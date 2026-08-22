@@ -1549,6 +1549,11 @@ This guard only protects packaging metadata and does not claim VPS/provider
 execution or production UAT. Users may use the B/S UI directly; any optional
 SDK/MCP transport remains a thin remote client and never runs the Agent locally.
 
+The SDK README now labels installation as an optional integration-host concern:
+ordinary browser/TUI users and CLI callers do not install the package, a local
+model runtime, or an Agent. This is a documentation/contract guard only; it
+does not change the server-owned execution boundary or production gates.
+
 ### TAR-04 browser/TUI server-side result contract verification (2026-08-22)
 
 The maintained Workbench browser harness now passes all `23` browser-contract
