@@ -3099,3 +3099,16 @@ contract）；增量 Ruff/Black/isort/mypy 与 full debt ceiling 保持通过。
 lifecycle issuer，不读取 mutable User/Profile/session，不接 Evidence/HTTP/CLI/Agent 或 production writer；
 EVID-01 继续 active/fail-closed。CLI/API 仍只把请求传到服务器，AI/provider/MCP/tool execution 在服务器端，
 用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-23：EVID-01 scope-source repository winner read port
+
+补齐 dormant scope-source lifecycle 与 Django repository 之间的 typed seam：
+`DjangoEvidenceScopeSourceV1Repository.get_winner()` 现在先执行完整 ledger restore/chain 校验，再按
+`source_id/source_version` 和 `recorded_at <= as_of` 返回 immutable 首赢家；它不检查 validity TTL，
+也不把 successor/final head 当成 winner，不会在历史重试时回退到其他 active 行。重复 identity、未来
+row、损坏或断链仍在 selector 前 fail-closed。
+
+新增 isolated component 覆盖 root+successor、过期首赢家历史重放和 head 不回退，repository focused
+回归 `10 passed`。该修复只完善 dormant read/append contract，未接 owner/tenant lifecycle issuer、
+mutable User/Profile/session、Evidence/HTTP/CLI/Agent route 或 production writer；EVID-01 继续
+active/fail-closed，CLI/API 仍只向服务器传输请求，AI/provider/MCP/tool execution 在服务器端。

@@ -111,6 +111,33 @@ class DjangoEvidenceScopeSourceV1Repository:
             return None
         return matches[0]
 
+    def get_winner(
+        self,
+        *,
+        source_id: str,
+        source_version: str,
+        as_of: datetime,
+    ) -> EvidenceScopeSourceV1 | None:
+        """Return one immutable first winner by identity at a historical PIT."""
+
+        _require_token(source_id, "source_id")
+        _require_token(source_version, "source_version")
+        _require_aware(as_of, "as_of")
+        self._require_pit_cutoff(as_of)
+        records = self._restore_full_world()
+        matches = tuple(
+            record
+            for record in records
+            if record.source_id == source_id and record.source_version == source_version
+        )
+        if len(matches) > 1:
+            raise EvidenceScopeSourceV1Corruption(
+                "scope-source winner identity has multiple matches"
+            )
+        if not matches or matches[0].recorded_at > as_of:
+            return None
+        return matches[0]
+
     def get_current_head(
         self,
         *,

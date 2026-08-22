@@ -145,6 +145,25 @@ def test_private_store_round_trips_root_successor_and_exact_replay() -> None:
     )
 
 
+def test_winner_reader_replays_expired_first_winner_without_head_fallback() -> None:
+    root = _source()
+    successor = _source(version="v2", previous=root)
+    store = _build_evidence_scope_source_v1_store(clock=_Clock(NOW + timedelta(hours=2)))
+    with store.atomic():
+        store.append_root(root)
+        store.append_successor(root, successor)
+
+    reader = DjangoEvidenceScopeSourceV1Repository(clock=_Clock(NOW + timedelta(hours=2)))
+    assert (
+        reader.get_winner(
+            source_id=root.source_id,
+            source_version=root.source_version,
+            as_of=NOW + timedelta(hours=1),
+        )
+        == root
+    )
+
+
 def test_current_reader_does_not_fallback_from_terminal_head() -> None:
     root = _source()
     revoked = _source(version="v2", previous=root, status="revoked")
