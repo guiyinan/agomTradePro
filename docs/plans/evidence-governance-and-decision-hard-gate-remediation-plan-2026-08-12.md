@@ -3036,3 +3036,22 @@ provider、MCP/tool execution 均在服务器端，用户不需要安装本地 A
 覆盖 exact source/hash/artifact/PIT 语义。EVID-01、Evidence hard gate、同 alias atomic bundle、
 真实 owner/user/tenant lifecycle、production provider、PostgreSQL race/rollback、UAT 与人工签署
 仍未完成，默认 composition 和所有无 authority 路径继续 fail-closed。
+
+## 2026-08-23：EVID-01 PostgreSQL actor-authority bundle read contract
+
+新增 dormant Infrastructure composition
+`DjangoAccountActorAuthorityInputBundleProviderV3`。它只接受明确的 PostgreSQL
+database alias，在同一个外层 `transaction.atomic(using=...)` 中先执行
+`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY`，再复用现有 authentication-context、
+Account-user 与 RBAC 三个 immutable raw-source current reader，按 ID/version/content-hash
+selector 投影成 `ExactCurrentActorAuthorityInputBundleV3`。缺表、空 ledger、非 current、
+跨 ledger user/actor 不一致、alias/type/hash 替换均 fail-closed；嵌套 transaction、SQLite
+和其他 backend 也不被当作 authority snapshot。
+
+该切片没有读取 mutable User/Profile/session/request，没有现场 hash，没有接入 Evidence
+composition、HTTP/CLI route 或 production writer，也没有改变 zero-seed authority 状态。
+focused unit `7 passed`；Ruff、Black、isort、增量 mypy 与 architecture boundary 均通过。
+它只证明本地 PostgreSQL snapshot composition contract，不证明 authenticated owner/tenant
+lifecycle issuer、生产 source seed、VPS/PG race/rollback、UAT 或人工签署；EVID-01 与
+Evidence hard gate 继续 active/fail-closed。CLI/SDK 仍只向服务器提交请求，AI/provider/
+MCP/tool execution 在服务器端，用户不安装本地 Agent、模型或 provider 软件。
