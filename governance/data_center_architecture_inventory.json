@@ -15578,17 +15578,17 @@
       "text": "raise EvidenceScopeSourceV1Corruption(\"current head scope identity substitution\")"
     },
     {
-      "line": 56,
+      "line": 70,
       "path": "apps/research/application/evidence_scope_source_v1_provider.py",
       "text": "\"\"\"Application reader port for one exact/current source candidate.\"\"\""
     },
     {
-      "line": 61,
+      "line": 75,
       "path": "apps/research/application/evidence_scope_source_v1_provider.py",
       "text": "\"\"\"Return the final current source, or ``None`` without predecessor fallback.\"\"\""
     },
     {
-      "line": 65,
+      "line": 79,
       "path": "apps/research/application/evidence_scope_source_v1_provider.py",
       "text": "\"\"\"Map a trusted current source to the existing fail-closed scope grant.\"\"\""
     },
