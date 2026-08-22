@@ -1295,9 +1295,10 @@ was briefly recreated with the explicitly authorized queued flags for one
 contract diagnostic. A valid task-owned request using the required
 `request-*` idempotency shape returned `202 queued`; the immediate cancel
 returned `200 cancel_requested`. No dedicated Worker was started and this row
-is retained as a diagnostic record, not a capacity sample. The earlier `400`
+is retained as a cancelled diagnostic record, not a capacity sample. The earlier `400`
 was caused by the probe's invalid client-request identifier, not by VPS
-reachability or a server outage.
+reachability or a server outage. The existing owner-scoped repository then
+closed that diagnostic row as `cancelled`; no provider execution occurred.
 
 The temporary token and flags were cleaned up. The public health and readiness
 endpoints returned `200` afterward; the remote flags are all back to their

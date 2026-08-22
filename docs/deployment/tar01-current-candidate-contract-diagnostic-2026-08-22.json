@@ -25,7 +25,7 @@
     "submission_status": "queued",
     "cancel_status_code": 200,
     "cancel_status": "cancel_requested",
-    "persisted_status_after_cleanup": "cancel_requested",
+    "persisted_status_after_cleanup": "cancelled",
     "classification": "diagnostic_only"
   },
   "cleanup": {
@@ -35,7 +35,8 @@
     "emergency_stop": false,
     "health_status_code": 200,
     "ready_status_code": 200,
-    "business_run_row_retained": true
+    "business_run_row_retained": true,
+    "diagnostic_row_closed": true
   },
   "decision_and_gate": {
     "decision_ready_status_code": 503,
