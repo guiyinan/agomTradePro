@@ -3070,3 +3070,18 @@ selector receipt 或 production write route；`PortfolioObserverGrantModel` 等 
 角色化 UAT 及 owner/reviewer 签署；zero-seed、fake provider、当前 User/Profile/session 或
 本地测试不能替代。CLI/API 仍是 B/S 薄传输客户端，AI、provider、MCP 与 Agent 执行均在
 服务器端，用户不安装本地模型或 provider 软件。
+
+## 2026-08-23：EVID-01 dormant scope-source winner-first replay
+
+补齐 dormant `IssueEvidenceScopeSourceV1` 的幂等重放顺序：同一事务内先按
+`source_id/source_version` 读取并严格恢复 immutable winner；winner 存在时只校验固定身份、状态、
+记录时钟与 canonical seals，直接返回历史 winner，不再读取当前 owner/tenant observation 或要求
+它仍是 logical head/current。只有没有 winner 的首次签发才读取 owner/tenant observation 两次，检查
+漂移后进入 predecessor/CAS append。
+
+新增纯 Application 回归 `4 passed`，覆盖已过期 winner 的历史重放、winner-first 零 observation 读取、
+首次签发双读和 observation 漂移回滚。该模块仍是 dormant contract：没有接入 HTTP、CLI、Agent、
+Evidence composition、mutable User/Profile/session 或生产 writer，也没有创建 owner/tenant authority
+source。EVID-01、Evidence hard gate、production authority/UAT/PG race/rollback 与人工签署继续
+fail-closed。CLI/API 仍只向服务器传输请求，AI/provider/MCP/tool execution 在服务器端，用户不安装
+本地 Agent、模型或 provider 软件。
