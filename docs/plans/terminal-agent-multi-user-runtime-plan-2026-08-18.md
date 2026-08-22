@@ -554,7 +554,7 @@ python scripts/check_mypy_debt_ceiling.py
 | Server-side CLI/MCP | active (thin-client boundary) | CLI 只读取服务器 URL 与 scoped API token；服务器持有 provider、模型、MCP、确认和审计；远程能力目录/调用/确认恢复仍通过 canonical MCP facade。没有用户侧 provider-backed Agent 安装路径。 |
 | TAR-04 server-side CLI enforcement | completed (bounded repository slice) | `sdk/agomtradepro/local_cli.py` 保留兼容模块名但只提交 `/api/prompt/agent/execute`；删除 provider key、本地 Agents SDK、本地 turn loop 和本地 Agent 凭据字段；`local_cli` runtime mode 对新请求稳定 `local_cli_disabled`，新 CLI 必须使用服务器 owned `web_queued`/API。 focused CLI/MCP + queue policy `35 passed`，未部署 VPS。 |
 | TAR-04 capability discovery/schema/call/confirmation resume | completed (bounded local SDK slice) | 新增 `sdk/agomtradepro/local_mcp.py` 与 `sdk/tests/test_sdk/test_local_mcp_contract.py`；本地客户端复用服务器 canonical `agom_capability_search`/`schema`/`call`/`confirmation_resume` 工具，支持 MCP tool listing、server-issued confirmation token、JSON envelope 严格校验；新增 `4` 个测试，与 CLI 合计 `11 passed`，Ruff/Black/isort 通过。没有新增业务旁路、没有伪造确认 token、没有部署 VPS。 |
-| TAR-04 bounded explicit reconnect/token rotation | completed (bounded local SDK slice) | `RemoteMcpConnection` 提供显式、有界重连；每次重连重新读取用户令牌 provider，传输失败仅按 `1..3` 次连接尝试退避；能力调用不自动重试，避免 mutation 重复执行。新增 reconnect/rotation 与 fail-closed 测试后 CLI/MCP 合计 `13 passed`，Ruff/Black/isort、strict mypy、增量回归和 debt ceiling 通过。没有部署 VPS；跨平台打包、真实 provider/MCP UAT 与 TAR-05 生产门禁仍未完成。 |
+| TAR-04 bounded explicit reconnect/token rotation | completed (bounded local SDK slice) | `RemoteMcpConnection` 提供显式、有界重连；每次重连重新读取用户令牌 provider，传输失败仅按 `1..3` 次连接尝试退避；能力调用不自动重试，避免 mutation 重复执行。新增 reconnect/rotation 与 fail-closed 测试后 CLI/MCP 合计 `13 passed`，Ruff/Black/isort、strict mypy、增量回归和 debt ceiling 通过。没有部署 VPS；用户安装包不属于 B/S 产品，真实 provider/MCP UAT 与 TAR-05 生产门禁仍未完成。 |
 | TAR-04 server-side CLI decision | completed (architecture correction) | 产品确认采用 B/S：用户侧不安装 provider-backed Agent，模型/MCP/确认/审计均在服务端；已移除 SDK 的 `agomtradepro-agent` 发布入口与 `[agent]` 安装 extra，兼容模块名现仅提交服务器 API。没有 VPS 部署；服务端 CLI/API、queued Worker、provider 成功与生产 UAT 仍需独立门禁。 |
 | 生产容量证据 | not_started | 尚未执行 5/10/20 用户 staging soak/chaos，不允许据此扩大 inline 并发 |
 | TAR-02 PostgreSQL 双连接 first-winner/rollback 证据 | completed (disposable PostgreSQL evidence) | 新增显式隔离 settings `tests/settings_terminal_agent_run_postgres.py`，只接受本机/测试数据库 URL；`tests/component/agent_runtime/test_terminal_agent_run_repository.py` 增加第二连接不可见与回滚后不可见断言；使用本机 disposable PostgreSQL 18.4 双连接真实运行 `9 passed in 86.11s`，覆盖 claim first-winner、outer rollback visibility、幂等与 owner scope | 仅证明 repository 的 PostgreSQL 行锁与事务可见性合同；未接 queued admission、`on_commit` dispatch、Celery/Redis/broker/Worker、SSE/events/cancel、容量/chaos 或生产写入，`TAR-02` 仍 waiting，生产与 queued runtime 继续 fail-closed |
@@ -1553,6 +1553,12 @@ The SDK README now labels installation as an optional integration-host concern:
 ordinary browser/TUI users and CLI callers do not install the package, a local
 model runtime, or an Agent. This is a documentation/contract guard only; it
 does not change the server-owned execution boundary or production gates.
+
+The earlier “cross-platform packaging” follow-up is retired from the product
+path. A browser/TUI user-facing installable Agent package is not a TAR-04
+deliverable; only a separately managed integration host may use the optional
+thin SDK/MCP transport, which still submits to the server and never runs the
+Agent locally.
 
 ### TAR-04 browser/TUI server-side result contract verification (2026-08-22)
 
