@@ -26,6 +26,14 @@
 
 > 这个区域按天维护，优先记录最近 1-7 天内对外可见、值得关注的变化。
 
+### 2026-08-22
+
+- Terminal Agent 多用户运行时完成 `TAR-01` 至 `TAR-04` 仓库合同收口：Web只负责持久接单，PostgreSQL保存任务/幂等/事件真源，专用Worker负责Agent执行，SDK、MCP与TUI通过有界状态/事件接口消费结果
+- 产品边界统一为服务端Agent架构：provider凭据、模型调用、MCP编排、确认与审计保留在服务器；浏览器和可选CLI/SDK只是薄客户端，不安装provider-backed Agent，也不接收模型密钥
+- Qlib推理完成分批内存治理与真实任务复验；PostgreSQL备份已完成远端/本地SHA校验及隔离恢复，schema、539张表和72项Data Center迁移对账无差异
+- 代码完成不等于生产放行：queued runtime默认仍关闭，M5旧候选因graph/runtime变化失效；角色UAT、写回执、1/5/10/20容量与chaos、14日telemetry、回滚和双签必须绑定新的不可变候选重新验收
+- 当前公开服务健康与基础readiness正常，但决策readiness继续fail-closed；Evidence owner/tenant authority、canonical publication覆盖、valuation/financial新鲜度和市场温度计降级链仍是下一阶段重点
+
 ### 2026-08-12
 
 - 从 7 月 30 日到 8 月 12 日完成一轮大规模治理与能力建设：Git 记录包含 **616 个提交、2,076 个变更文件**，覆盖数据可靠性、配置与密钥、投研证据链、组合研究、运行安全、CI 和文档归档；下面按主线归纳，而不是只列最后几笔收口提交

@@ -5,7 +5,7 @@
 > Owner：`agent_runtime + terminal + task_monitor + operational_readiness + sdk + mcp`
 > 机器进度真源：`governance/active_plan_registry.json`
 > Canonical closure units：`TAR-01` 至 `TAR-05`
-> 执行优先级：`TAR-01` 至 `TAR-03` repository 合同已完成，`TAR-04` 服务端 CLI/API 与 MCP 客户端契约是机器注册表当前唯一 repository execution focus。用户侧不安装 provider-backed Agent；`TUI-01` 可在候选冻结和授权后进入生产验证；在 `TAR-05` 生产验收前不得直接放大全局 inline 并发。
+> 执行优先级：`TAR-01` 至 `TAR-04` repository 合同已完成，Terminal Runtime 转入 `TUI-01/TAR-05` 生产验证。用户侧不安装 provider-backed Agent；下一步是在同一不可变候选上完成角色UAT、写回执、provider、容量、chaos、恢复、telemetry与双签，在 `TAR-05` 通过前不得直接放大全局 inline 并发。
 
 本文只维护问题、目标架构、分期交付、验收门和回滚边界。`active / waiting_dependency / production_validation` 等执行状态只在机器注册表维护，不在本文形成第二套进度。
 
@@ -28,6 +28,8 @@
 `TAR-01` 的唯一退出门是冻结 runtime/queue/API/SSE/安全/SLO/test-matrix 合同并由 failing-first tests 保护，该门已满足。此前把 multi-user/global capacity、chaos、provider、restore/rollback、14 日 telemetry 和双签继续计入 `TAR-01`，与本计划 `TAR-05` 的生产验收职责重复，造成 `TAR-02/TAR-03` 虚假串行阻塞。
 
 校正后只保留一条 repository 主线：`TAR-02 → TAR-03`。容量、chaos、恢复、telemetry 和人工验收继续 fail-closed，并在 `TAR-05` 绑定同一不可变候选收口；`TAR-01` 完成不授权生产启用、扩大并发或跳过任何生产证据。
+
+2026-08-22 后续复核确认 `TAR-04` 的服务端API提交、SDK状态/事件消费、受控MCP能力调用与重连、客户端无provider密钥/本地Agent打包边界，以及浏览器/TUI queued结果合同均已有仓库测试证据。`TAR-04` repository gate 因而关闭；候选部署、角色UAT、provider成功、容量/chaos、恢复、telemetry和签字不再重复挂在 `TAR-04`，分别由 `TUI-01` 与 `TAR-05` 收口。
 
 ## 2. 背景、现状证据与根因
 
