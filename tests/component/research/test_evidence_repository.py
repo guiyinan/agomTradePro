@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+import os
+from collections.abc import Iterator
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+import django
 import pytest
 from django.core.exceptions import ValidationError
 from django.db import connection
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tests.settings_evidence_repository")
+django.setup()
 
 from apps.research.domain.evidence_contracts import (
     ArtifactRef,
@@ -29,10 +35,13 @@ from apps.research.infrastructure.evidence_models import (
 )
 from apps.research.infrastructure.evidence_repository import (
     DjangoEvidenceRepository,
+    EvidenceRepositoryClock,
     EvidenceRepositoryConflict,
     EvidenceRepositoryCorruption,
+    EvidenceRepositoryUnavailable,
     _build_evidence_store,
 )
+from tests.support.isolated_schema import isolated_schema
 
 NOW = datetime(2026, 8, 12, 8, tzinfo=UTC)
 LATER = NOW + timedelta(days=30)
@@ -41,6 +50,27 @@ LATER = NOW + timedelta(days=30)
 class _Clock:
     def now(self) -> datetime:
         return NOW
+
+
+class _NaiveClock:
+    def now(self) -> datetime:
+        return datetime(2026, 8, 12, 8)
+
+
+class _FailingClock:
+    def now(self) -> datetime:
+        raise RuntimeError("clock unavailable")
+
+
+@pytest.fixture(autouse=True)
+def _schema(django_db_blocker: object) -> Iterator[None]:
+    """Create only the three evidence tables used by this component module."""
+
+    with django_db_blocker.unblock():  # type: ignore[attr-defined]
+        with isolated_schema(
+            (EvidenceOperatorSpecModel, EvidenceTrackRecordModel, EvidenceEnvelopeModel)
+        ):
+            yield
 
 
 def _artifact(identifier: str, digest: str) -> ArtifactRef:
@@ -119,7 +149,6 @@ def _envelope() -> EvidenceEnvelope:
     )
 
 
-@pytest.mark.django_db(transaction=True)
 def test_private_store_round_trips_three_exact_idempotent_winners() -> None:
     """All ledger types append once, replay exactly, and support public PIT reads."""
 
@@ -169,7 +198,6 @@ def test_private_store_round_trips_three_exact_idempotent_winners() -> None:
     )
 
 
-@pytest.mark.django_db(transaction=True)
 def test_identity_forks_fail_closed_without_second_rows() -> None:
     """Same stable identity with different canonical content is a conflict."""
 
@@ -198,7 +226,6 @@ def test_identity_forks_fail_closed_without_second_rows() -> None:
     assert EvidenceEnvelopeModel._default_manager.count() == 1
 
 
-@pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize(
     "model_type",
     [EvidenceOperatorSpecModel, EvidenceTrackRecordModel, EvidenceEnvelopeModel],
@@ -230,7 +257,6 @@ def test_every_orm_mutation_and_delete_shortcut_is_rejected(model_type: type) ->
         model_type._default_manager.all()._raw_delete("default")
 
 
-@pytest.mark.django_db(transaction=True)
 def test_raw_sql_header_tamper_is_detected_by_strict_restore() -> None:
     """Database-side substitution cannot be published as valid Domain evidence."""
 
@@ -253,7 +279,6 @@ def test_raw_sql_header_tamper_is_detected_by_strict_restore() -> None:
         )
 
 
-@pytest.mark.django_db(transaction=True)
 def test_public_reader_and_unclaimed_model_are_write_inert() -> None:
     """Public construction exposes no writer and direct inserts lack the claim."""
 
@@ -274,3 +299,34 @@ def test_public_reader_rejects_future_pit_cutoff() -> None:
             expected_content_hash="a" * 64,
             as_of=NOW + timedelta(seconds=1),
         )
+
+
+def test_append_rejects_future_recorded_at_for_every_ledger_without_rows() -> None:
+    """Caller-supplied persistence clocks cannot move beyond the repository clock."""
+
+    store = _build_evidence_store(clock=_Clock())
+    spec, track, envelope = _spec(), _track(), _envelope()
+    future = NOW + timedelta(seconds=1)
+    with store.atomic():
+        with pytest.raises(EvidenceRepositoryConflict, match="recorded_at.*future"):
+            store.append_operator_spec(spec, recorded_at=future)
+        with pytest.raises(EvidenceRepositoryConflict, match="recorded_at.*future"):
+            store.append_track_record(track, recorded_at=future)
+        with pytest.raises(EvidenceRepositoryConflict, match="recorded_at.*future"):
+            store.append_envelope(envelope, recorded_at=future)
+    assert EvidenceOperatorSpecModel._default_manager.count() == 0
+    assert EvidenceTrackRecordModel._default_manager.count() == 0
+    assert EvidenceEnvelopeModel._default_manager.count() == 0
+
+
+@pytest.mark.parametrize("clock", [_NaiveClock(), _FailingClock()])
+def test_append_fails_closed_when_server_clock_is_unavailable(
+    clock: EvidenceRepositoryClock,
+) -> None:
+    """A malformed or unavailable server clock cannot authorize evidence writes."""
+
+    store = _build_evidence_store(clock=clock)
+    with store.atomic():
+        with pytest.raises(EvidenceRepositoryUnavailable, match="server clock"):
+            store.append_operator_spec(_spec(), recorded_at=NOW)
+    assert EvidenceOperatorSpecModel._default_manager.count() == 0

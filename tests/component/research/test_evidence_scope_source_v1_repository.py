@@ -16,6 +16,7 @@ django.setup()
 from django.db import connection
 
 from apps.research.application.evidence_scope_source_v1 import (
+    EvidenceScopeSourceV1Unavailable,
     GetCurrentEvidenceScopeSourceV1,
     GetCurrentEvidenceScopeSourceV1Command,
 )
@@ -27,6 +28,7 @@ from apps.research.domain.evidence_scope_source_v1 import (
 from apps.research.infrastructure.evidence_models import EvidenceScopeSourceV1Model
 from apps.research.infrastructure.evidence_scope_source_v1_repository import (
     DjangoEvidenceScopeSourceV1Repository,
+    EvidenceScopeSourceV1Clock,
     EvidenceScopeSourceV1Conflict,
     EvidenceScopeSourceV1Corruption,
     _build_evidence_scope_source_v1_store,
@@ -42,6 +44,16 @@ class _Clock:
 
     def now(self) -> datetime:
         return self.value
+
+
+class _NaiveClock:
+    def now(self) -> datetime:
+        return datetime(2026, 8, 15, 8)
+
+
+class _FailingClock:
+    def now(self) -> datetime:
+        raise RuntimeError("clock unavailable")
 
 
 @pytest.fixture(autouse=True)
@@ -206,6 +218,30 @@ def test_future_successor_is_not_visible_before_its_recorded_at() -> None:
         is None
     )
     assert reader.get_current_head(source_id=root.source_id, as_of=NOW) == root
+
+
+def test_append_rejects_future_recorded_at_without_persisting_a_row() -> None:
+    """A caller cannot backdate the ledger into a server-future PIT."""
+
+    future_root = _source(recorded_at=NOW + timedelta(hours=3))
+    store = _build_evidence_scope_source_v1_store(clock=_Clock(NOW + timedelta(hours=2)))
+    with store.atomic():
+        with pytest.raises(EvidenceScopeSourceV1Conflict, match="recorded_at.*future"):
+            store.append_root(future_root)
+    assert EvidenceScopeSourceV1Model._default_manager.count() == 0
+
+
+@pytest.mark.parametrize("clock", [_NaiveClock(), _FailingClock()])
+def test_append_fails_closed_when_server_clock_is_unavailable(
+    clock: EvidenceScopeSourceV1Clock,
+) -> None:
+    """Naive or unavailable server clocks never authorize an append."""
+
+    store = _build_evidence_scope_source_v1_store(clock=clock)
+    with store.atomic():
+        with pytest.raises(EvidenceScopeSourceV1Unavailable, match="server clock"):
+            store.append_root(_source())
+    assert EvidenceScopeSourceV1Model._default_manager.count() == 0
 
 
 def test_full_world_restore_rejects_unrelated_header_tamper() -> None:

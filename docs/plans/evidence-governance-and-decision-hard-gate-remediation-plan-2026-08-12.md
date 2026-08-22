@@ -3001,3 +3001,24 @@ lifecycle、server-issued selector issuer、atomic multi-source bundle、人工�
 production UAT、PostgreSQL production race/rollback 与 Evidence hard gate 仍未完成；默认
 composition 和所有无 authority 路径继续 fail-closed。CLI/SDK 仍只向服务器传输请求，AI、
 provider、tool execution 不落到用户本地。
+
+## 2026-08-23：EVID-01 Research Evidence append 时钟边界加固
+
+只读审计发现两个 append-only Research ledger 仍接受调用方提供的 `recorded_at`，但未用 repository-owned server clock 拒绝未来时间；这会让未来 PIT 行污染后续历史读取。现已在
+`apps/research/infrastructure/evidence_scope_source_v1_repository.py` 与
+`apps/research/infrastructure/evidence_repository.py` 的 private append store 中加入统一边界：
+先校验 repository clock 为 timezone-aware，再要求 `recorded_at <= server_now()`；未来时间抛稳定
+Conflict，naive/unavailable server clock 抛稳定 Unavailable，均在任何 ORM insert 前失败，不重写
+调用方时间或 hash。公开 PIT cutoff 也复用同一 validated clock。
+
+组件回归新增覆盖 scope-source root future timestamp、Evidence operator/track/envelope 三类
+future timestamp、naive/unavailable clock 与零落库；定向 Research component 合计 `20 passed`。
+Ruff、Black、isort、增量 strict mypy、full debt ceiling 与 diff-check 均通过。为避免测试依赖完整
+项目迁移，Evidence component 使用独立 in-memory SQLite schema fixture；这不构成 PostgreSQL
+并发或生产运行证据。
+
+该 slice 只收口 ledger 写入时钟，不新增 owner/tenant/authenticated authority、不伪造 selector
+issuer、不实现同 alias Repeatable Read bundle，也不连接 VPS 或生产 writer。EVID-01、Evidence hard
+gate、decision/execution 总闸保持 fail-closed；production PostgreSQL race/rollback、authority
+lifecycle、provider/UAT、人工 sign-off 仍未完成。CLI/SDK 仍是服务器 API 的薄传输客户端，AI、
+provider、MCP/tool execution 均在服务器端，用户不需要安装本地 Agent、模型或 provider 软件。

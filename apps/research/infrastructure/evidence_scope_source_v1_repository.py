@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Protocol
 
 from django.core.exceptions import ValidationError
@@ -145,12 +145,27 @@ class DjangoEvidenceScopeSourceV1Repository:
         return heads[0]
 
     def _require_pit_cutoff(self, as_of: datetime) -> None:
-        now = self._clock.now()
-        _require_aware(now, "server clock")
+        now = self._server_now()
         if as_of > now:
             raise EvidenceScopeSourceV1Unavailable(
                 "future Evidence scope-source as_of is not permitted"
             )
+
+    def _server_now(self) -> datetime:
+        """Return the validated repository clock or fail closed."""
+
+        try:
+            now = self._clock.now()
+            _require_aware(now, "server clock")
+        except (TypeError, ValueError) as error:
+            raise EvidenceScopeSourceV1Unavailable(
+                "Evidence scope-source server clock is unavailable"
+            ) from error
+        except Exception as error:
+            raise EvidenceScopeSourceV1Unavailable(
+                "Evidence scope-source server clock is unavailable"
+            ) from error
+        return now
 
     def _restore_full_world(self) -> tuple[EvidenceScopeSourceV1, ...]:
         """Restore and validate every row before any caller selector runs."""
@@ -202,6 +217,7 @@ class _DjangoEvidenceScopeSourceV1Store(DjangoEvidenceScopeSourceV1Repository):
                 "scope-source append requires its private atomic unit"
             )
         exact = _canonical_source(source)
+        self._validate_recorded_at(exact.recorded_at)
         if predecessor is not None:
             previous = _canonical_source(predecessor)
             validate_evidence_scope_source_v1_successor(previous, exact)
@@ -302,6 +318,13 @@ class _DjangoEvidenceScopeSourceV1Store(DjangoEvidenceScopeSourceV1Repository):
                 "scope-source append conflicted without an exact winner"
             ) from error
         return exact
+
+    def _validate_recorded_at(self, recorded_at: datetime) -> None:
+        """Reject a caller-supplied ledger timestamp beyond the server clock."""
+
+        _require_aware(recorded_at, "recorded_at")
+        if recorded_at > self._server_now():
+            raise EvidenceScopeSourceV1Conflict("scope-source recorded_at cannot be in the future")
 
     def append_root(self, source: EvidenceScopeSourceV1) -> EvidenceScopeSourceV1:
         """Append one candidate-independent root source."""

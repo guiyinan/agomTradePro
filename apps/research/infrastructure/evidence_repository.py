@@ -45,6 +45,10 @@ class EvidenceRepositoryCorruption(RuntimeError):
     """Persisted evidence headers, payload, or canonical hash disagree."""
 
 
+class EvidenceRepositoryUnavailable(RuntimeError):
+    """The evidence repository cannot establish an authoritative server clock."""
+
+
 _EvidenceT = TypeVar("_EvidenceT", EvidenceOperatorSpec, TrackRecordSnapshot, EvidenceEnvelope)
 _ModelT = TypeVar("_ModelT", bound=Model)
 
@@ -199,10 +203,25 @@ class DjangoEvidenceRepository:
         )
 
     def _require_pit_cutoff(self, as_of: datetime) -> None:
-        now = self._clock.now()
-        _aware(now)
+        now = self._server_now()
         if as_of > now:
             raise ValueError("future evidence as_of is not permitted")
+
+    def _server_now(self) -> datetime:
+        """Return the validated repository clock or fail closed."""
+
+        try:
+            now = self._clock.now()
+            _aware(now)
+        except (TypeError, ValueError) as error:
+            raise EvidenceRepositoryUnavailable(
+                "evidence repository server clock is unavailable"
+            ) from error
+        except Exception as error:
+            raise EvidenceRepositoryUnavailable(
+                "evidence repository server clock is unavailable"
+            ) from error
+        return now
 
 
 class _DjangoEvidenceStore(DjangoEvidenceRepository):
@@ -234,6 +253,7 @@ class _DjangoEvidenceStore(DjangoEvidenceRepository):
 
         if type(spec) is not EvidenceOperatorSpec:
             raise TypeError("operator spec must be the exact Domain type")
+        self._validate_recorded_at(recorded_at)
         payload = encode_evidence_operator_spec(spec)
         exact = decode_evidence_operator_spec(payload)
         values = _operator_values(exact, recorded_at)
@@ -265,6 +285,7 @@ class _DjangoEvidenceStore(DjangoEvidenceRepository):
 
         if type(snapshot) is not TrackRecordSnapshot:
             raise TypeError("Track Record must be the exact Domain type")
+        self._validate_recorded_at(recorded_at)
         exact = decode_track_record_snapshot(encode_track_record_snapshot(snapshot))
         values = _track_values(exact, recorded_at)
         collisions = tuple(
@@ -295,6 +316,7 @@ class _DjangoEvidenceStore(DjangoEvidenceRepository):
 
         if type(envelope) is not EvidenceEnvelope:
             raise TypeError("Envelope must be the exact Domain type")
+        self._validate_recorded_at(recorded_at)
         exact = decode_evidence_envelope(encode_evidence_envelope(envelope))
         values = _envelope_values(exact, recorded_at)
         collisions = self._envelope_collisions(exact)
@@ -321,6 +343,18 @@ class _DjangoEvidenceStore(DjangoEvidenceRepository):
                 | Q(content_hash=envelope.content_hash)
             )
         )
+
+    def _validate_recorded_at(self, recorded_at: datetime) -> None:
+        """Reject caller-supplied persistence times beyond the server clock."""
+
+        try:
+            _aware(recorded_at)
+        except (TypeError, ValueError) as error:
+            raise EvidenceRepositoryConflict(
+                "evidence recorded_at must be timezone-aware"
+            ) from error
+        if recorded_at > self._server_now():
+            raise EvidenceRepositoryConflict("evidence recorded_at cannot be in the future")
 
     def _insert(
         self,
@@ -356,10 +390,12 @@ def _active_token(token: object) -> bool:
     return _ACTIVE_EVIDENCE_UOW.get() is token
 
 
-def _build_evidence_store(*, using: str = "default") -> _DjangoEvidenceStore:
+def _build_evidence_store(
+    *, using: str = "default", clock: EvidenceRepositoryClock | None = None
+) -> _DjangoEvidenceStore:
     """Build a private store without exporting its unforgeable insert token."""
 
-    return _DjangoEvidenceStore(token=object(), using=using)
+    return _DjangoEvidenceStore(token=object(), using=using, clock=clock)
 
 
 def _exact_read(
@@ -558,4 +594,5 @@ __all__ = [
     "EvidenceRepositoryClock",
     "EvidenceRepositoryConflict",
     "EvidenceRepositoryCorruption",
+    "EvidenceRepositoryUnavailable",
 ]
