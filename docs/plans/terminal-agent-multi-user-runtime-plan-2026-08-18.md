@@ -1548,3 +1548,19 @@ Runtime packages; that server dependency is not part of the client package.
 This guard only protects packaging metadata and does not claim VPS/provider
 execution or production UAT. Users may use the B/S UI directly; any optional
 SDK/MCP transport remains a thin remote client and never runs the Agent locally.
+
+### TAR-04 browser/TUI server-side result contract verification (2026-08-22)
+
+The maintained Workbench browser harness now passes all `23` browser-contract
+tests. The run covers one server-side queued submission, durable event replay,
+bounded terminal polling, editable dashboard-row form gating, role/confirmation
+affordances, masked-secret handling, failure recovery, and the disabled-queue
+`queued_runtime_not_wired` response. The browser never starts a local worker or
+retries an admission mutation; it only consumes the server response, status and
+event cursor.
+
+This is repository-local browser evidence, not a VPS or production UAT result.
+No deployment was performed for this check. Provider/MCP success, candidate-bound
+production role UAT, capacity/chaos, telemetry, restore/rollback and owner/
+reviewer acceptance remain separate fail-closed gates. Users still do not
+install a provider-backed Agent locally.
