@@ -279,7 +279,8 @@
   actionability and IA suite passed (`52 passed`), the complete Workbench suite passed
   (`257 passed`), and the source guard remained `outcome=ok` (`12/24` screens, `430/890`
   actions, `0` violations, configured screen patches `3→0`). Ruff, Black, isort and
-  `git diff --check` passed; no production VPS deployment was performed.
+  `git diff --check` passed; the generated TUI runtime manifest was refreshed and
+  `npm run check:tui` passed; no production VPS deployment was performed.
 - This is a local canonicalization cleanup only. It does not claim external AgomTUI portability,
   role-browser production UAT, write receipts/refresh, 14-day telemetry, restore/rollback,
   capacity/chaos or owner/reviewer sign-off. The B/S CLI boundary remains server-side AI:
