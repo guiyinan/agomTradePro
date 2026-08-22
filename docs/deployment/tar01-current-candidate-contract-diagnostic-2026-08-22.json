@@ -1,0 +1,52 @@
+{
+  "schema": "tar01-current-candidate-contract-diagnostic.v1",
+  "observed_at": "2026-08-22T04:00:56Z",
+  "candidate": {
+    "branch": "dev/next-development",
+    "source_commit": "c7ea5a9fc914e0a464e7286388477cb167079927",
+    "release_tag": "20260822091112",
+    "image_id": "sha256:b6b5db3326f4fa6cb03a015f036d90b9a1591ac6cf1ee951de7b819ce7ed24a0",
+    "runtime_match": true,
+    "branch_head_at_observation": "af41ae7b816dda244064a5424f3305ec41f2b368",
+    "head_deployed": false
+  },
+  "authorization": {
+    "window": "single_request_contract_diagnostic",
+    "temporary_flags_enabled": true,
+    "worker_started": false,
+    "secrets_recorded": false,
+    "temporary_token_revoked": true
+  },
+  "request": {
+    "task_id": 8,
+    "run_id": "run-diagnose-20260822-401",
+    "client_request_id": "request-diagnose-20260822-401",
+    "submission_status_code": 202,
+    "submission_status": "queued",
+    "cancel_status_code": 200,
+    "cancel_status": "cancel_requested",
+    "persisted_status_after_cleanup": "cancel_requested",
+    "classification": "diagnostic_only"
+  },
+  "cleanup": {
+    "terminal_runtime_authorized": false,
+    "queued_intake_enabled": false,
+    "queued_worker_enabled": false,
+    "emergency_stop": false,
+    "health_status_code": 200,
+    "ready_status_code": 200,
+    "business_run_row_retained": true
+  },
+  "decision_and_gate": {
+    "decision_ready_status_code": 503,
+    "must_not_use_for_decision": true,
+    "tar01_decision": "BLOCKED",
+    "safety_ready": true,
+    "capacity_ready": false
+  },
+  "limitations": [
+    "This is not a 1/5/10/20 capacity result.",
+    "No Worker execution, SSE replay, chaos, provider/MCP success, or recovery claim was made.",
+    "The request originally returning HTTP 400 used a client_request_id outside the required request-* contract; that script defect was corrected for this single diagnostic only."
+  ]
+}

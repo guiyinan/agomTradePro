@@ -1286,6 +1286,29 @@ telemetry, restore/rollback, or human-sign-off evidence. TAR-01 remains
 
 Structured evidence: [`tar01-qlib-batch-memory-remediation-2026-08-22.json`](../deployment/tar01-qlib-batch-memory-remediation-2026-08-22.json).
 
+### TAR-01 current-candidate queued-request contract diagnostic (2026-08-22)
+
+The approved VPS candidate `c7ea5a9fc914e0a464e7286388477cb167079927` /
+release `20260822091112` / image
+`sha256:b6b5db3326f4fa6cb03a015f036d90b9a1591ac6cf1ee951de7b819ce7ed24a0`
+was briefly recreated with the explicitly authorized queued flags for one
+contract diagnostic. A valid task-owned request using the required
+`request-*` idempotency shape returned `202 queued`; the immediate cancel
+returned `200 cancel_requested`. No dedicated Worker was started and this row
+is retained as a diagnostic record, not a capacity sample. The earlier `400`
+was caused by the probe's invalid client-request identifier, not by VPS
+reachability or a server outage.
+
+The temporary token and flags were cleaned up. The public health and readiness
+endpoints returned `200` afterward; the remote flags are all back to their
+fail-closed values. `/api/decision-ready/` remains `503` with
+`must_not_use_for_decision=true`. The structured record is
+[`tar01-current-candidate-contract-diagnostic-2026-08-22.json`](../deployment/tar01-current-candidate-contract-diagnostic-2026-08-22.json).
+This remains diagnostic-only: it does not provide 1/5/10/20 capacity,
+Worker/SSE, chaos/recovery, provider/MCP, 14-day telemetry, restore/rollback,
+or owner/reviewer sign-off evidence. TAR-01 remains
+`BLOCKED/safety_ready=true/capacity_ready=false`.
+
 ### TAR-01 QLib worker-memory evidence validator (2026-08-22)
 
 The existing QLib observation now has a pure Application, candidate-bound
