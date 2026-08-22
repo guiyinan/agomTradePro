@@ -36,7 +36,7 @@
   "counts": {
     "approved_non_data_http_imports": 4,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 4306,
+    "current_surface_references": 4307,
     "data_write_task_decorators": 61,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -2836,6 +2836,11 @@
       "line": 5,
       "path": "apps/agent_runtime/application/terminal_runtime_test_matrix.py",
       "text": "matrix cannot satisfy the current gate."
+    },
+    {
+      "line": 62,
+      "path": "apps/agent_runtime/application/terminal_runtime_worker_memory_evidence.py",
+      "text": "\"\"\"Validated summary that remains a bounded observation, not a gate pass.\"\"\""
     },
     {
       "line": 357,
