@@ -118,7 +118,7 @@ def test_manifest_freezes_migration_flags_and_sensitive_transport_boundary() -> 
     }
     assert manifest["implementation_boundary"]["remaining_work_assignment"] == {
         "MCP/TUI queued client implementation and SDK event-stream/wait helpers": "TAR-04",
-        "capability discovery/schema/call/confirmation resume, reconnect/token rotation, and cross-platform packaging": "TAR-04",
+        "MCP reconnect/token rotation and cross-platform packaging": "TAR-04",
         "complete multi-user/global 1/5/10/20 capacity and hard-SLO evidence": "TAR-05",
         "sustained chaos and 14-day telemetry": "TAR-05",
         "successful provider/MCP execution, restore/rollback, and role-based production UAT": (

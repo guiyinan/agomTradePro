@@ -51,14 +51,19 @@ diagnostics; the remote server receives only the scoped token and tool calls.
 ```bash
 agomtradepro-agent doctor
 agomtradepro-agent run "列出我当前需要确认的任务" --json
+agomtradepro-agent capabilities "数据源" --limit 10
+agomtradepro-agent schema config_center.update.data_center_provider
+agomtradepro-agent call config_center.update.data_center_provider --arguments '{"provider_id": 1}'
+agomtradepro-agent resume <server-issued-confirmation-token>
 ```
 
 `doctor` is safe to run without credentials and reports only boolean readiness
 flags and redacted URLs. Medium/high-risk mutations remain subject to the
 server capability, permission, confirmation, and audit contracts. Discovery,
-schema/call confirmation resume, reconnect/token rotation, and Windows/WSL/
-Linux packaging are still TAR-04 follow-up gates; this CLI foundation does not
-claim those production or VPS gates are complete.
+schema, call, and confirmation resume go through the server's canonical MCP
+core tools; the CLI never invents a capability or confirmation token. Reconnect/
+token rotation and Windows/WSL/Linux packaging are still TAR-04 follow-up gates;
+none of these commands claim production or VPS UAT is complete.
 
 ## Authentication
 

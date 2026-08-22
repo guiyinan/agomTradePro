@@ -175,14 +175,28 @@ class LocalAgentConfig:
         missing: list[str] = []
         if self.provider_api_key is None:
             missing.append("provider_api_key")
-        if self.remote_api_token is None:
-            missing.append("remote_api_token")
-        if self.mcp_url is None:
-            missing.append("mcp_url")
+        missing.extend(self._remote_missing())
         if missing:
             raise LocalCliConfigurationError(
                 "missing local CLI configuration: " + ", ".join(missing)
             )
+
+    def require_remote_ready(self) -> None:
+        """Fail closed unless the scoped remote MCP transport is configured."""
+
+        missing = self._remote_missing()
+        if missing:
+            raise LocalCliConfigurationError(
+                "missing remote MCP configuration: " + ", ".join(missing)
+            )
+
+    def _remote_missing(self) -> list[str]:
+        missing: list[str] = []
+        if self.remote_api_token is None:
+            missing.append("remote_api_token")
+        if self.mcp_url is None:
+            missing.append("mcp_url")
+        return missing
 
     def _is_run_ready(self) -> bool:
         return (
@@ -316,7 +330,7 @@ def run_local_agent_sync(
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run ``agomtradepro-agent doctor`` or the local ``run`` command."""
+    """Run the local Agent, registry discovery, or governed MCP commands."""
 
     parser = argparse.ArgumentParser(prog="agomtradepro-agent")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -324,24 +338,125 @@ def main(argv: list[str] | None = None) -> int:
     run_parser = subparsers.add_parser("run", help="run a local agent through remote MCP")
     run_parser.add_argument("prompt", help="user prompt")
     run_parser.add_argument("--json", action="store_true", help="emit a JSON result envelope")
+    capabilities_parser = subparsers.add_parser(
+        "capabilities", help="discover server-owned MCP capabilities"
+    )
+    capabilities_parser.add_argument("query", nargs="?", default="")
+    capabilities_parser.add_argument("--limit", type=int, default=20)
+    schema_parser = subparsers.add_parser("schema", help="read one capability schema")
+    schema_parser.add_argument("capability_key")
+    call_parser = subparsers.add_parser("call", help="call one governed capability")
+    call_parser.add_argument("capability_key")
+    call_parser.add_argument(
+        "--arguments", default="{}", help="JSON object of capability arguments"
+    )
+    resume_parser = subparsers.add_parser(
+        "resume", help="resume or cancel a server-issued confirmation token"
+    )
+    resume_parser.add_argument("confirmation_token")
+    resume_parser.add_argument("--cancel", action="store_true")
     args = parser.parse_args(argv)
     config = LocalAgentConfig.from_environment()
     if args.command == "doctor":
         print(json.dumps(config.diagnostics(), sort_keys=True))
         return 0
     try:
-        output = run_local_agent_sync(args.prompt, config)
+        if args.command == "run":
+            output = run_local_agent_sync(args.prompt, config)
+            payload: object = {"output": output} if args.json else output
+        elif args.command == "capabilities":
+            payload = asyncio.run(_run_capability_discovery(config, args.query, args.limit))
+        elif args.command == "schema":
+            payload = asyncio.run(_run_capability_schema(config, args.capability_key))
+        elif args.command == "call":
+            arguments = _parse_json_object(args.arguments)
+            payload = asyncio.run(_run_capability_call(config, args.capability_key, arguments))
+        else:
+            payload = asyncio.run(
+                _run_confirmation_resume(config, args.confirmation_token, not args.cancel)
+            )
     except LocalCliConfigurationError as exc:
         print(f"configuration_error: {exc}", file=sys.stderr)
+        return 2
+    except (ValueError, json.JSONDecodeError) as exc:
+        print(f"input_error: {exc}", file=sys.stderr)
         return 2
     except Exception as exc:  # noqa: BLE001 - CLI must not print provider/transport details.
         print(f"local_agent_error: {type(exc).__name__}", file=sys.stderr)
         return 1
-    if args.json:
-        print(json.dumps({"output": output}, ensure_ascii=False))
+    if args.command == "run" and not args.json:
+        print(payload)
     else:
-        print(output)
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     return 0
+
+
+async def _run_capability_discovery(
+    config: LocalAgentConfig,
+    query: str,
+    limit: int,
+) -> list[dict[str, object]]:
+    """Run one bounded server-owned capability search."""
+
+    config.require_remote_ready()
+    from .local_mcp import open_remote_mcp_capability_client
+
+    async with open_remote_mcp_capability_client(config) as client:
+        matches = await client.discover_capabilities(query=query, limit=limit)
+    return [dict(match) for match in matches]
+
+
+async def _run_capability_schema(
+    config: LocalAgentConfig,
+    capability_key: str,
+) -> dict[str, object]:
+    """Read one server-owned capability schema."""
+
+    config.require_remote_ready()
+    from .local_mcp import open_remote_mcp_capability_client
+
+    async with open_remote_mcp_capability_client(config) as client:
+        schema = await client.get_capability_schema(capability_key)
+    return dict(schema)
+
+
+async def _run_capability_call(
+    config: LocalAgentConfig,
+    capability_key: str,
+    arguments: dict[str, object],
+) -> dict[str, object]:
+    """Call one capability while preserving the server confirmation envelope."""
+
+    config.require_remote_ready()
+    from .local_mcp import open_remote_mcp_capability_client
+
+    async with open_remote_mcp_capability_client(config) as client:
+        result = await client.call_capability(capability_key, arguments=arguments)
+    return result.as_dict()
+
+
+async def _run_confirmation_resume(
+    config: LocalAgentConfig,
+    confirmation_token: str,
+    approve: bool,
+) -> dict[str, object]:
+    """Resume or cancel only a server-issued confirmation token."""
+
+    config.require_remote_ready()
+    from .local_mcp import open_remote_mcp_capability_client
+
+    async with open_remote_mcp_capability_client(config) as client:
+        result = await client.resume_confirmation(confirmation_token, approve=approve)
+    return result.as_dict()
+
+
+def _parse_json_object(raw_value: str) -> dict[str, object]:
+    """Parse a CLI JSON object without accepting scalar argument envelopes."""
+
+    decoded = json.loads(raw_value)
+    if not isinstance(decoded, dict) or any(not isinstance(key, str) for key in decoded):
+        raise ValueError("--arguments must be a JSON object with string keys")
+    return cast(dict[str, object], decoded)
 
 
 def _default_agent_factory(

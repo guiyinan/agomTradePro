@@ -197,7 +197,7 @@
       "priority": "P0",
       "owner": "agent_runtime+terminal+task_monitor+operational_readiness+sdk+mcp",
       "status": "active",
-      "next_gate": "TAR-01 through TAR-03 repository contracts are complete and the TAR-04 local CLI foundation is recorded. Complete capability discovery/confirmation, reconnect/token rotation and cross-platform packaging next; capacity, chaos, provider, restore/rollback, telemetry and owner/reviewer acceptance remain TAR-05 production work.",
+      "next_gate": "TAR-01 through TAR-03 repository contracts are complete and TAR-04 local CLI plus canonical capability discovery/schema/call/confirmation resume are recorded. Complete reconnect/token rotation and cross-platform packaging next; capacity, chaos, provider, restore/rollback, telemetry and owner/reviewer acceptance remain TAR-05 production work.",
       "documents": [
         {
           "path": "docs/plans/terminal-agent-multi-user-runtime-plan-2026-08-18.md",
