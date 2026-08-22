@@ -135,6 +135,19 @@ def test_manifest_freezes_migration_flags_and_sensitive_transport_boundary() -> 
     )
 
 
+def test_manifest_next_gate_is_candidate_bound_after_local_client_evidence() -> None:
+    """Local queued UX evidence must not regress into a user-install gate."""
+
+    acceptance = _manifest()["acceptance_and_next_gate"]
+    next_gate = acceptance["next_gate"]
+    assert "candidate-specific" in next_gate
+    assert "Complete MCP/TUI queued client integration" not in next_gate
+    assert "user-side Agent package" in next_gate
+    assert (
+        "frontend/tui-workbench/tests/workbench-browser.test.mjs" in acceptance["current_evidence"]
+    )
+
+
 def test_manifest_existing_error_codes_are_not_fabricated() -> None:
     """Codes marked existing must still be present in their cited source files."""
 
