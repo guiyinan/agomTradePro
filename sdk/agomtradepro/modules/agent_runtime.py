@@ -15,6 +15,7 @@ Public methods:
 from typing import Any
 
 from .base import BaseModule
+from .terminal_agent_runs import TerminalAgentRunsModule
 
 
 class AgentRuntimeModule(BaseModule):
@@ -26,6 +27,15 @@ class AgentRuntimeModule(BaseModule):
 
     def __init__(self, client: Any) -> None:
         super().__init__(client, "/api/agent-runtime")
+        self._queued_runs: TerminalAgentRunsModule | None = None
+
+    @property
+    def queued_runs(self) -> TerminalAgentRunsModule:
+        """Return the durable queued-run facade under the Agent Runtime API."""
+
+        if self._queued_runs is None:
+            self._queued_runs = TerminalAgentRunsModule(self._client)
+        return self._queued_runs
 
     def create_task(
         self,
