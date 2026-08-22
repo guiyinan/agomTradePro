@@ -23,6 +23,9 @@ pip install -e ".[dev]"
 
 # With pandas support
 pip install -e ".[pandas]"
+
+# With the local Agent CLI (provider key stays on this host)
+pip install -e ".[agent]"
 ```
 
 ## Compatibility
@@ -35,6 +38,27 @@ Verify installed versions:
 ```bash
 python -m pip show agomtradepro-sdk mcp
 ```
+
+## Local Agent CLI
+
+The optional `agomtradepro-agent` command runs the provider-backed Agent on the
+user's machine and connects to a governed remote MCP endpoint. Configure the
+provider key locally (`AGOMTRADEPRO_PROVIDER_API_KEY` or `OPENAI_API_KEY`), a
+scoped DRF/API token (`AGOMTRADEPRO_API_TOKEN`), and an explicit streamable MCP
+URL (`AGOMTRADEPRO_MCP_URL`). The provider key is never sent in MCP headers or
+diagnostics; the remote server receives only the scoped token and tool calls.
+
+```bash
+agomtradepro-agent doctor
+agomtradepro-agent run "列出我当前需要确认的任务" --json
+```
+
+`doctor` is safe to run without credentials and reports only boolean readiness
+flags and redacted URLs. Medium/high-risk mutations remain subject to the
+server capability, permission, confirmation, and audit contracts. Discovery,
+schema/call confirmation resume, reconnect/token rotation, and Windows/WSL/
+Linux packaging are still TAR-04 follow-up gates; this CLI foundation does not
+claim those production or VPS gates are complete.
 
 ## Authentication
 
