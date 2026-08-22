@@ -46,14 +46,15 @@
       "dedicated Celery delivery and persisted terminal event/SSE negotiation",
       "owner-scoped ordered event replay component evidence",
       "owner-scoped SDK queued-run JSON facade with canonical create/status/events/cancel routes",
-      "user-owned-key local Agent CLI foundation with redacted doctor diagnostics and remote MCP composition",
+      "server-side Agent Runtime and typed MCP client boundary; no user-side provider-backed Agent installation",
       "local MCP capability discovery/schema/call/confirmation-resume facade backed by the canonical core tools",
       "strict offline snapshot parsing and content-addressed baseline evidence serialization",
       "candidate-bound short-window VPS observation recorded separately from exit readiness"
     ],
     "not_implemented": [
       "MCP/TUI queued client implementation and SDK event-stream/wait helpers",
-      "MCP cross-platform packaging",
+      "server-side CLI/API submission and streamed-result client",
+      "user-side local Agent packaging (not applicable; server-side execution is required)",
       "complete multi-user/global 1/5/10/20 capacity and hard-SLO evidence",
       "sustained chaos and 14-day telemetry",
       "successful provider/MCP execution, restore/rollback, and role-based production UAT",
@@ -61,7 +62,8 @@
     ],
     "remaining_work_assignment": {
       "MCP/TUI queued client implementation and SDK event-stream/wait helpers": "TAR-04",
-      "MCP cross-platform packaging": "TAR-04",
+      "server-side CLI/API submission and streamed-result client": "TAR-04",
+      "user-side local Agent packaging (not applicable; server-side execution is required)": "TAR-04",
       "complete multi-user/global 1/5/10/20 capacity and hard-SLO evidence": "TAR-05",
       "sustained chaos and 14-day telemetry": "TAR-05",
       "successful provider/MCP execution, restore/rollback, and role-based production UAT": "TAR-05",
@@ -287,17 +289,14 @@
       "versioning": "Additive API/SDK contract; version and minimum-client compatibility must be bound in the TAR-05 candidate manifest."
     },
     "mcp": {
-      "local_cli_mode": "local_cli",
-      "local_cli_entrypoint": "agomtradepro-agent",
+      "local_cli_mode": "server_side_only",
+      "local_cli_entrypoint": null,
       "local_cli_implemented": [
-        "doctor",
-        "run",
-        "environment/keyring credential lookup",
-        "remote streamable MCP Authorization header composition",
-        "capability discovery/schema/call/confirmation resume through canonical core tools",
-        "bounded explicit reconnect with fresh token-provider reads and no mutation auto-retry"
+        "server-owned capability discovery/schema/call/confirmation-resume contract",
+        "scoped API/MCP authorization header composition for a thin client",
+        "bounded reconnect semantics without mutation auto-retry"
       ],
-      "credential_boundary": "User-owned model keys stay in the local CLI/OS credential store; VPS receives only formal short-lived API/MCP credentials.",
+      "credential_boundary": "Provider credentials stay in the server-side Agent Runtime; a client may carry only a scoped API/MCP token and must not accept or forward a provider key.",
       "authorization": "Remote capability discovery and calls remain the canonical MCP registry plus server-side ownership, RBAC, proposal, approval, and audit boundaries.",
       "dispatch_boundary": "MCP payloads never cross the Agent broker envelope; tool side effects require their existing idempotency and approval contracts."
     },
@@ -395,7 +394,7 @@
       "sdk/tests/test_sdk/test_local_mcp_contract.py",
       "docs/deployment/tar01-current-production-capacity-2026-08-22-71e62773.json"
     ],
-    "next_gate": "Complete TAR-04 cross-platform packaging. Keep multi-user/global capacity, reconnect/chaos, provider, restore/rollback, telemetry and human sign-off bound to TAR-05 on one immutable candidate.",
+    "next_gate": "Complete the server-side CLI/API submission and streamed-result client contract. Do not create a user-side Agent package; keep multi-user/global capacity, reconnect/chaos, provider, restore/rollback, telemetry and human sign-off bound to TAR-05 on one immutable candidate.",
     "production_evidence_missing": [
       "multi-user/global 1/5/10/20 hard-SLO capacity result",
       "durable PostgreSQL first-winner/idempotency/rollback evidence",

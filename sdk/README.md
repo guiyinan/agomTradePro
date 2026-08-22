@@ -24,8 +24,9 @@ pip install -e ".[dev]"
 # With pandas support
 pip install -e ".[pandas]"
 
-# With the local Agent CLI (provider key stays on this host)
-pip install -e ".[agent]"
+# The SDK package is an API/MCP client library.  End users do not install a
+# provider-backed Agent on their workstation.
+pip install -e "."
 ```
 
 ## Compatibility
@@ -39,34 +40,20 @@ Verify installed versions:
 python -m pip show agomtradepro-sdk mcp
 ```
 
-## Local Agent CLI
+## Server-side Agent/CLI boundary
 
-The optional `agomtradepro-agent` command runs the provider-backed Agent on the
-user's machine and connects to a governed remote MCP endpoint. Configure the
-provider key locally (`AGOMTRADEPRO_PROVIDER_API_KEY` or `OPENAI_API_KEY`), a
-scoped DRF/API token (`AGOMTRADEPRO_API_TOKEN`), and an explicit streamable MCP
-URL (`AGOMTRADEPRO_MCP_URL`). The provider key is never sent in MCP headers or
-diagnostics; the remote server receives only the scoped token and tool calls.
+AgomTradePro is a B/S system. User requests must reach the server-side Agent
+runtime through the authenticated web/API/TUI boundary; the model provider,
+MCP orchestration, confirmation and audit flow stay on the server. The SDK is
+only a typed client library. It does not publish a provider-backed local
+`agomtradepro-agent` executable, a local model-key setup, or a local venv
+installer. The queued server route remains fail-closed until its runtime gate
+is explicitly enabled.
 
-```bash
-agomtradepro-agent doctor
-agomtradepro-agent run "列出我当前需要确认的任务" --json
-agomtradepro-agent capabilities "数据源" --limit 10
-agomtradepro-agent schema config_center.update.data_center_provider
-agomtradepro-agent call config_center.update.data_center_provider --arguments '{"provider_id": 1}'
-agomtradepro-agent resume <server-issued-confirmation-token>
-```
-
-`doctor` is safe to run without credentials and reports only boolean readiness
-flags and redacted URLs. Medium/high-risk mutations remain subject to the
-server capability, permission, confirmation, and audit contracts. Discovery,
-schema, call, and confirmation resume go through the server's canonical MCP
-core tools; the CLI never invents a capability or confirmation token.
-`RemoteMcpConnection` supports an explicit, bounded reconnect that re-reads a
-user-owned token provider. Capability calls are never retried automatically, so
-mutation semantics remain exactly-once unless the server supplies idempotency.
-Windows/WSL/Linux packaging remains the final TAR-04 follow-up; none of these
-commands claim production or VPS UAT is complete.
+Any future command-line wrapper must be a thin server API client: it may carry a
+scoped API token, but it must never accept, store, or forward a provider key on
+the user's workstation. This is a contract decision, not production/UAT
+evidence; no VPS deployment is required for the local SDK tests.
 
 ## Authentication
 

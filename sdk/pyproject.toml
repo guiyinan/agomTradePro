@@ -44,14 +44,8 @@ pandas = [
     "pandas>=2.0.0",
     "numpy>=1.24.0",
 ]
-agent = [
-    "openai-agents>=0.18,<0.19",
-    "keyring>=25,<26",
-]
-
 [project.scripts]
 agomtradepro-mcp = "agomtradepro_mcp.server:main"
-agomtradepro-agent = "agomtradepro.local_cli:main"
 
 [project.urls]
 Homepage = "https://github.com/agomtradepro/agomtradepro"

@@ -197,7 +197,7 @@
       "priority": "P0",
       "owner": "agent_runtime+terminal+task_monitor+operational_readiness+sdk+mcp",
       "status": "active",
-      "next_gate": "TAR-01 through TAR-03 repository contracts are complete and TAR-04 local CLI plus canonical capability discovery/schema/call/confirmation resume and bounded explicit reconnect/token rotation are recorded. Complete cross-platform packaging next; capacity, chaos, provider, restore/rollback, telemetry and owner/reviewer acceptance remain TAR-05 production work.",
+      "next_gate": "TAR-01 through TAR-03 repository contracts are complete and TAR-04 capability discovery/schema/call/confirmation resume plus bounded reconnect/token rotation are recorded. Complete the server-side CLI/API submission and streamed-result client contract next; do not create a user-side provider-backed Agent package. Capacity, chaos, provider, restore/rollback, telemetry and owner/reviewer acceptance remain TAR-05 production work.",
       "documents": [
         {
           "path": "docs/plans/terminal-agent-multi-user-runtime-plan-2026-08-18.md",
@@ -680,11 +680,11 @@
         "priority": "P1",
         "execution_mode": "repository",
         "status": "active",
-        "title": "Deliver the user-owned-key local CLI and governed remote MCP path",
+        "title": "Deliver the server-side CLI/API and governed MCP client path",
         "depends_on": [
           "TAR-03"
         ],
-        "exit_gate": "The local CLI keeps provider credentials on the user host, runs Agent orchestration locally, uses scoped remote MCP tokens, preserves approval and audit controls, and passes Windows/Linux packaging plus disconnect and secret-leakage tests."
+        "exit_gate": "The server-side Agent Runtime owns provider credentials and Agent orchestration; a B/S or thin client uses scoped API/MCP tokens, preserves approval and audit controls, and passes server/API compatibility, disconnect and secret-leakage tests. User-side provider-backed Agent packaging is not part of the product."
       },
       {
         "id": "TUI-01",

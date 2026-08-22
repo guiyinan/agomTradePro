@@ -64,14 +64,14 @@
 | `data-production-reliability` | P0 | production_validation | Data Center / Operational Readiness / Task Monitor | [Canonical architecture](data-center-canonical-architecture-refactor-2026-08-02.md)、[生产可靠性](production-data-reliability-full-remediation-2026-08-01.md)、[关键测试](critical-reliability-test-closure-2026-07-22.md)、[UAT 整改](uat-remediation-2026-07-20.md) | 生产备份、回填、reconciliation、M9/M10 和观察证据 |
 | `system-audit-consolidation` | P0/P1 | active | Audit / Data Center / Task Monitor | [统一审计日志](system-audit-log-consolidation-plan-2026-08-13.md) | repository 扩展暂停；保持 publisher/authority fail-closed，仅继续只读 backlog 与健康证据 |
 | `web-to-tui-m5` | P0 | production_validation | Terminal / Operational Readiness | [迁移总计划](web-to-tui-migration-plan-2026-07-25.md)、[M5 readiness](web-to-tui-m5-readiness-2026-07-27.md) | TAR-03 退出并冻结 release surface 后，绑定最终候选、角色 UAT、14 日关闭窗口和签字 cleanup |
-| `terminal-agent-multi-user-runtime` | P0 | active | Agent Runtime / Terminal / Task Monitor / Operational Readiness / SDK / MCP | [多用户队列与本地 CLI 混合运行](terminal-agent-multi-user-runtime-plan-2026-08-18.md) | TAR-01 至 TAR-03 repository 合同已完成；当前唯一 repository 主线为 TAR-04 本地 CLI/MCP；global capacity、chaos、provider、恢复、telemetry 与双签留在 TAR-05，queued/worker 默认仍 fail-closed |
+| `terminal-agent-multi-user-runtime` | P0 | active | Agent Runtime / Terminal / Task Monitor / Operational Readiness / SDK / MCP | [多用户队列与服务端 CLI 运行](terminal-agent-multi-user-runtime-plan-2026-08-18.md) | TAR-01 至 TAR-03 repository 合同已完成；当前唯一 repository 主线为 TAR-04 服务端 CLI/API 与 MCP 客户端契约；用户侧不安装 provider-backed Agent，global capacity、chaos、provider、恢复、telemetry 与双签留在 TAR-05，queued/worker 默认仍 fail-closed |
 | `ai-native-release` | P1 | external_validation | Agent Runtime / Terminal | [AI-Native delivery pack](ai-native/README.md) | 同候选 staging/production UAT 与 owner/reviewer 双签 |
 | `qmt-live-bridge` | P2 | blocked_external | Broker Execution / 外部券商 Owner | [QMT 实盘桥](qmt-live-trading-bridge-plan.md) | Windows XtQuant Phase 0、连续仿真和受控小额实盘 |
 | `tui-usability-governance` | P1 | active | Terminal | [TUI 可用性与 metadata 治理](tui-usability-and-metadata-governance-plan-2026-08-18.md) | repository 扩展暂停；TAR-03 后再恢复三真源与 action-density 收口 |
 
 ## 当前执行焦点
 
-- 唯一 repository 主线：`TAR-04`。TAR-01 至 TAR-03 的 runtime、durable admission/dispatch、Worker/事件恢复与 SDK queued facade 已完成；继续保持 queued/worker 默认关闭。
+- 唯一 repository 主线：`TAR-04`。TAR-01 至 TAR-03 的 runtime、durable admission/dispatch、Worker/事件恢复与 SDK queued facade 已完成；当前按 B/S 决策收口服务端 CLI/API 与 MCP 客户端契约，继续保持 queued/worker 默认关闭。
 - `EVID-01`、`AUD-01`、`TUX-02`、`TUX-04` 暂停 repository 扩展；现有 fail-closed 门禁保持不变。
 - `EVID-02`、`DATA-01`、`STRAT-01` 按各自 `auto_collect` 清单并行取证；仅具体生产写入、付费调用和人工决定进入集中授权批次，不再因“需要生产证据”整体停工。
 - `TUI-01` 的 repository 依赖已满足；当前 `fec65c8022d4` / `20260821181242` 及后续观察窗口仍仅作非关闭性 bounded runtime evidence，正式候选、角色 UAT 与 14 日关闭窗口仍需生产授权。
@@ -119,7 +119,7 @@
 | W2 | `STRAT-01` | production | awaiting | — | R1–R8 真实 owner/definition/policy/calendar/scope 登记 |
 | W2 | `STRAT-02` | production | waiting | STRAT-01/DATA-02 | PIT/OOS 历史、canonical receipts 与对账证据 |
 | W2 | `STRAT-03` | production | waiting | STRAT-02/EVID-03 | Promotion、权限、consumer 与回滚 UAT |
-| W2 | `TAR-04` | repository | active | TAR-03 | 用户自有模型密钥的本地 CLI 与受控远程 MCP 路径 |
+| W2 | `TAR-04` | repository | active | TAR-03 | 服务端 Agent Runtime 的 CLI/API 与受控 MCP 客户端路径；用户侧不安装 provider-backed Agent |
 | W3 | `TUI-01` | production | waiting | TAR-03 | manifest 绑定候选部署和角色化浏览器 UAT |
 | W3 | `TUI-02` | production | waiting | TUI-01 | 14 日 telemetry、registry backup、cleanup waves、回滚与双签 |
 | W3 | `TAR-05` | production | waiting | TAR-03 | 1/5/10/20 用户容量、故障恢复、回滚、观察与生产切换验收 |
@@ -615,3 +615,4 @@
 | 2026-08-22 | 第二期 P0 | TAR-04 local CLI/MCP foundation | 新增 `sdk/agomtradepro/local_cli.py` 与 `agomtradepro-agent` optional entrypoint：本机环境/OS keyring 凭据读取、redacted `doctor`、远端 streamable MCP Token 组合、provider key 不进入远端 header；CLI/MCP 契约 `7 passed`，queued facade/extended SDK 合计 `11 passed`，增量 mypy `0 regressions`，full debt ceiling `0 errors`，Ruff/Black/isort 通过 | 仅完成 TAR-04 的本地基础 slice；未完成 capability discovery/schema/call/confirmation resume、断线重连/Token 轮换、Windows/WSL/Linux 打包和真实 provider/MCP UAT；本轮不部署 VPS、不改变 queued/worker/decision-ready fail-closed，TAR-04 继续 active，后续仍按 TAR-05 生产门禁收口 |
 | 2026-08-22 | 第二期 P0 | TAR-04 capability discovery/schema/call/confirmation resume | 新增 `sdk/agomtradepro/local_mcp.py` 与 `sdk/tests/test_sdk/test_local_mcp_contract.py`；通过标准 MCP `ClientSession` 复用 canonical `agom_capability_search`、`agom_capability_schema`、`agom_capability_call`、`agom_confirmation_resume`，严格保留服务端 role/审批/audit 边界；新增测试 `4 passed`，CLI/MCP 合计 `11 passed`，strict mypy、增量回归、full debt ceiling、Ruff/Black/isort 与治理一致性均通过 | 仅完成本地 registry facade；断线重连/Token 轮换、跨平台打包、真实 provider/MCP UAT、queued/worker/capacity/chaos/14d telemetry、restore/rollback 和 owner/reviewer 仍未完成；不部署 VPS、不改变 decision-ready fail-closed，TAR-04 继续 active |
 | 2026-08-22 | 第二期 P0 | TAR-04 bounded explicit reconnect/token rotation | `RemoteMcpConnection` 支持显式有界重连与 fresh token-provider 读取；连接尝试限制 `1..3`，能力调用不自动重试以避免 mutation 重复；CLI/MCP 合计 `13 passed`，Ruff/Black/isort、strict mypy、增量回归与 debt ceiling 通过 | 仅完成本地 SDK 重连/轮换合同；跨平台打包、真实 provider/MCP UAT、queued/worker/capacity/chaos/14d telemetry、restore/rollback 和 owner/reviewer 仍未完成；不部署 VPS、不改变 decision-ready fail-closed，TAR-04 下一门为跨平台打包 |
+| 2026-08-22 | 第二期 P0 | TAR-04 B/S 服务端 Agent 决策修正 | 用户确认 CLI/API 调用由服务端 Agent Runtime 执行；provider/MCP/确认/审计留在服务端，用户侧不安装 provider-backed Agent。已移除 SDK `agomtradepro-agent` 发布入口与 `[agent]` 安装 extra，治理 manifest/计划/index 已改为 server-side CLI/API contract；未部署 VPS、未改变 queued/worker/decision-ready fail-closed | 这是架构与计划边界修正，不是生产运行时验收；服务端 CLI/API、queued Worker、provider 成功、capacity/chaos、14d telemetry、restore/rollback 与 owner/reviewer 仍待独立门禁 |

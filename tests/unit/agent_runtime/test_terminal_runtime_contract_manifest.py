@@ -118,7 +118,8 @@ def test_manifest_freezes_migration_flags_and_sensitive_transport_boundary() -> 
     }
     assert manifest["implementation_boundary"]["remaining_work_assignment"] == {
         "MCP/TUI queued client implementation and SDK event-stream/wait helpers": "TAR-04",
-        "MCP cross-platform packaging": "TAR-04",
+        "server-side CLI/API submission and streamed-result client": "TAR-04",
+        "user-side local Agent packaging (not applicable; server-side execution is required)": "TAR-04",
         "complete multi-user/global 1/5/10/20 capacity and hard-SLO evidence": "TAR-05",
         "sustained chaos and 14-day telemetry": "TAR-05",
         "successful provider/MCP execution, restore/rollback, and role-based production UAT": (
@@ -162,10 +163,17 @@ def test_manifest_mentions_all_runtime_modes_without_enabling_a_new_one() -> Non
         TerminalRuntimeMode.WEB_QUEUED.value,
         TerminalRuntimeMode.LOCAL_CLI.value,
         TerminalRuntimeMode.LEGACY_INLINE.value,
+        "server_side_only",
     }
     assert manifest["wire_compatibility"]["mcp"]["local_cli_mode"] in mode_values
+    assert manifest["wire_compatibility"]["mcp"]["local_cli_mode"] == "server_side_only"
+    assert manifest["wire_compatibility"]["mcp"]["local_cli_entrypoint"] is None
     assert "legacy service" in manifest["wire_compatibility"]["legacy_http"]["policy"]
     assert modes["future_durable_type"] == "TerminalAgentRun"
+
+    sdk_project = Path("sdk/pyproject.toml").read_text(encoding="utf-8")
+    assert "agomtradepro-agent =" not in sdk_project
+    assert "[agent]" not in sdk_project
 
 
 def test_manifest_freezes_complete_baseline_candidate_identity() -> None:

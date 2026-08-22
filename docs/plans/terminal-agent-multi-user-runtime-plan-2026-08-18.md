@@ -1,11 +1,11 @@
-# Terminal Agent 多用户队列、Worker 隔离与本地 CLI 混合运行整改计划
+# Terminal Agent 多用户队列、Worker 隔离与服务端 CLI 运行整改计划
 
 > 创建日期：2026-08-18
 > 工作流：`terminal-agent-multi-user-runtime`（category: `product_interface_and_runtime`，priority: P0）
 > Owner：`agent_runtime + terminal + task_monitor + operational_readiness + sdk + mcp`
 > 机器进度真源：`governance/active_plan_registry.json`
 > Canonical closure units：`TAR-01` 至 `TAR-05`
-> 执行优先级：`TAR-01` 至 `TAR-03` repository 合同已完成，`TAR-04` 本地 CLI/MCP 是机器注册表当前唯一 repository execution focus。`TUI-01` 可在候选冻结和授权后进入生产验证；在 `TAR-05` 生产验收前不得直接放大全局 inline 并发。
+> 执行优先级：`TAR-01` 至 `TAR-03` repository 合同已完成，`TAR-04` 服务端 CLI/API 与 MCP 客户端契约是机器注册表当前唯一 repository execution focus。用户侧不安装 provider-backed Agent；`TUI-01` 可在候选冻结和授权后进入生产验证；在 `TAR-05` 生产验收前不得直接放大全局 inline 并发。
 
 本文只维护问题、目标架构、分期交付、验收门和回滚边界。`active / waiting_dependency / production_validation` 等执行状态只在机器注册表维护，不在本文形成第二套进度。
 
@@ -16,7 +16,7 @@
 1. 当前 `TERMINAL_AGENT_MAX_CONCURRENCY=1` 是生产事故后的临时熔断器，只用于限制故障半径，不是多用户终态。
 2. Web/TUI 聊天不得继续在 Django/Daphne 请求进程中运行完整 Agent SDK、MCP 和模型调用；HTTP 入口必须快速接单并返回持久任务标识。
 3. Web/TUI 默认采用“PostgreSQL 任务账本 + 有界队列 + 专用 Agent Worker + 可恢复事件流”模式。
-4. 本地安装的真实 CLI 可采用“本地 Agent SDK + 用户自有模型密钥 + 远程受控 MCP”模式，把模型连接和编排负载移出 VPS。
+4. 用户调用 CLI/API 时，Agent、模型连接、MCP 编排、确认与审计均在服务端运行；用户侧只使用 B/S 或受控的薄客户端，不安装 provider-backed Agent，不保存或提交模型密钥。
 5. 浏览器不得持有平台模型密钥，也不得绕过服务器侧身份、额度、审计、MCP 权限、审批和交易风控。
 6. PostgreSQL 是任务状态、幂等和最终结果的真源；Redis/Celery 只承担调度和短期事件传输，不能成为唯一任务账本。
 7. Agent Worker 必须使用独立队列、独立进程池和独立健康/容量指标，不能与 Web、Qlib 训练/推理或数据新鲜度任务争抢同一执行池。
@@ -338,15 +338,15 @@ claimed/running -> orphaned -> queued（仅满足安全重放条件）或 failed
 6. SDK 增加 create/get/events/cancel；旧同步 helper 仅在客户端等待，服务器不恢复同步执行。
 7. Task Monitor 增加 queue depth、oldest age、running、orphan、timeout、cancel latency、provider/MCP latency 和 Worker heartbeat。
 
-### 9.4 `TAR-04`：本地 CLI
+### 9.4 `TAR-04`：服务端 CLI/API 与 MCP 客户端
 
 交付顺序：
 
-1. 建立 CLI optional dependency、配置目录、凭据读取和版本诊断。
-2. 复用 SDK/MCP registry 实现 capability discovery、schema、call、confirmation resume。
-3. 本地 Agent 直接调用用户配置的服务商；服务器只看到 MCP/API 请求和审计，不接收模型密钥。
-4. 建立本地会话、取消、重连、Token 轮换和最小日志脱敏。
-5. 完成 Windows/WSL/Linux 安装、升级、卸载、故障排查和端到端测试。
+1. 通过服务器端 Agent Runtime 提供 CLI/API 提交、状态、事件、取消和确认恢复契约。
+2. 复用服务器 canonical MCP registry 实现 capability discovery、schema、call、confirmation resume；客户端不复制业务权限或工具逻辑。
+3. 服务端统一持有 provider 配置并执行模型/MCP；客户端只携带认证后的短期 API/MCP token，不接收 provider key。
+4. 保留有界断线重连、Token 轮换和日志脱敏；任何 queued/Worker 未启用状态继续稳定 fail-closed。
+5. 不创建用户侧 Windows/WSL/Linux Agent 安装包；平台差异只覆盖服务器部署矩阵与薄客户端协议兼容性。
 
 ### 9.5 `TAR-05`：容量、发布与退役
 
@@ -555,6 +555,7 @@ python scripts/check_mypy_debt_ceiling.py
 | TAR-04 local CLI/MCP foundation | completed (bounded repository slice) | 新增 `sdk/agomtradepro/local_cli.py`、`agomtradepro-agent` optional entrypoint 和 `sdk/tests/test_sdk/test_local_cli_contract.py`；`7` 个 CLI/MCP/secret-boundary tests、增量 mypy `0 regressions`、full debt ceiling `0 errors`、Ruff/Black/isort 通过。没有部署 VPS；没有把 provider key 放进远端 MCP header。 |
 | TAR-04 capability discovery/schema/call/confirmation resume | completed (bounded local SDK slice) | 新增 `sdk/agomtradepro/local_mcp.py` 与 `sdk/tests/test_sdk/test_local_mcp_contract.py`；本地客户端复用服务器 canonical `agom_capability_search`/`schema`/`call`/`confirmation_resume` 工具，支持 MCP tool listing、server-issued confirmation token、JSON envelope 严格校验；新增 `4` 个测试，与 CLI 合计 `11 passed`，Ruff/Black/isort 通过。没有新增业务旁路、没有伪造确认 token、没有部署 VPS。 |
 | TAR-04 bounded explicit reconnect/token rotation | completed (bounded local SDK slice) | `RemoteMcpConnection` 提供显式、有界重连；每次重连重新读取用户令牌 provider，传输失败仅按 `1..3` 次连接尝试退避；能力调用不自动重试，避免 mutation 重复执行。新增 reconnect/rotation 与 fail-closed 测试后 CLI/MCP 合计 `13 passed`，Ruff/Black/isort、strict mypy、增量回归和 debt ceiling 通过。没有部署 VPS；跨平台打包、真实 provider/MCP UAT 与 TAR-05 生产门禁仍未完成。 |
+| TAR-04 server-side CLI decision | completed (architecture correction) | 产品确认采用 B/S：用户侧不安装 provider-backed Agent，模型/MCP/确认/审计均在服务端；已移除 SDK 的 `agomtradepro-agent` 发布入口与 `[agent]` 安装 extra，保留现有本地实现为未宣传的 dormant 兼容代码。没有 VPS 部署；服务端 CLI/API、queued Worker、provider 成功与生产 UAT 仍需独立门禁。 |
 | 生产容量证据 | not_started | 尚未执行 5/10/20 用户 staging soak/chaos，不允许据此扩大 inline 并发 |
 | TAR-02 PostgreSQL 双连接 first-winner/rollback 证据 | completed (disposable PostgreSQL evidence) | 新增显式隔离 settings `tests/settings_terminal_agent_run_postgres.py`，只接受本机/测试数据库 URL；`tests/component/agent_runtime/test_terminal_agent_run_repository.py` 增加第二连接不可见与回滚后不可见断言；使用本机 disposable PostgreSQL 18.4 双连接真实运行 `9 passed in 86.11s`，覆盖 claim first-winner、outer rollback visibility、幂等与 owner scope | 仅证明 repository 的 PostgreSQL 行锁与事务可见性合同；未接 queued admission、`on_commit` dispatch、Celery/Redis/broker/Worker、SSE/events/cancel、容量/chaos 或生产写入，`TAR-02` 仍 waiting，生产与 queued runtime 继续 fail-closed |
 | TAR-01 当前候选只读健康与认证边界复核 | observed / capacity denied | 针对既有 TAR-02 schema/repository 候选（release `20260819223747`，source `2fa7c4c8a4e09ea26e1e50e3e510c20c2bd26cab`）独立复核公网 HTTPS：`/api/health/` 连续 `8/8` 为 `200`（约 `1.09–12.66s`），未认证 `/api/terminal/runs/` 连续 `4/4` 为 `403`；未改生产状态 | 仅证明基础运行健康与认证边界；未取得认证后 reserved-route `503`、真实 1/5/10/20 admission/queue/Worker/SSE/idempotency/cancel/provider-MCP/chaos 指标，不能生成 capacity-ready 报告；TAR-01/TAR-02 与生产 gate 继续 fail-closed |
@@ -1449,8 +1450,26 @@ not repeated merely because the transport was reconnected. The direct SDK
 contract suite now passes `13` CLI/MCP tests, and Ruff, Black, isort, strict
 mypy, incremental regression and the debt-ceiling check pass.
 
-This is still a local SDK contract only. It does not rotate a production token,
-enable queued runtime, deploy the VPS, prove provider/MCP success, or provide
-cross-platform packaging. TAR-04's remaining repository gate is packaging;
-capacity, chaos/reconnect observation, provider, restore/rollback, telemetry and
-human sign-off remain TAR-05 production work.
+This remains a client-side contract only. It does not rotate a production token,
+enable queued runtime, deploy the VPS, or prove provider/MCP success. By the
+server-side B/S decision recorded on 2026-08-22, TAR-04 does not ship a
+user-side provider-backed Agent package: provider execution belongs to the
+server-side Agent Runtime, while any future CLI is a thin authenticated API
+client. Capacity, chaos/reconnect observation, provider, restore/rollback,
+telemetry and human sign-off remain TAR-05 production work.
+
+### TAR-04 server-side CLI decision (2026-08-22)
+
+The product is a B/S system. A user-facing CLI/API call must submit to the
+server-side Agent Runtime; the server owns provider credentials, model calls,
+MCP orchestration, confirmation and audit. The SDK therefore remains a typed
+transport/client library and no longer publishes an `agomtradepro-agent`
+provider-backed executable or an `[agent]` installation extra. Existing local
+Agent implementation files are retained only as dormant compatibility code
+until a separately authorized removal/migration slice; they are not a user
+installation path and must not be advertised as production behavior.
+
+This is a local contract/documentation correction, not VPS evidence or a
+production runtime enablement. The queued route, Worker, provider success,
+capacity/chaos, restore/rollback, telemetry and owner/reviewer gates remain
+fail-closed.
