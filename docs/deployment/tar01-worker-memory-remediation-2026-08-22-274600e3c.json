@@ -1,0 +1,82 @@
+{
+  "schema_version": "1.0",
+  "artifact": "tar01-worker-memory-remediation",
+  "observed_at": "2026-08-22T07:58:44+08:00",
+  "candidate": {
+    "branch": "dev/next-development",
+    "commit": "274600e3c9a9f5b179641d38d712c63ef71ef9b2",
+    "release_tag": "20260822073022",
+    "image_tag": "agomtradepro-web:20260822073022",
+    "image_id": "sha256:995f1e2b72ceb3814c2ed04ca0929866d00b2eb90eaa3a2dd3cf6e771067f553",
+    "source_mode": "git-clone"
+  },
+  "remediation": {
+    "trigger": "predecessor release had repeated QLib Celery cgroup OOM kills at the 2GiB limit",
+    "general_worker_memory_limit_bytes": 4294967296,
+    "general_worker_memory_limit": "4GiB",
+    "max_tasks_per_child": 1,
+    "concurrency": 1,
+    "terminal_worker_memory_limit_unchanged": "2GiB",
+    "historical_cgroup_oom_events_before_release": 30,
+    "latest_historical_oom": "2026-08-22T01:27:35+02:00"
+  },
+  "deployment": {
+    "mode": "code-only",
+    "action": "upgrade",
+    "data_volumes_preserved": true,
+    "predeploy_backup": "/opt/agomtradepro/backups/database/postgres-20260822-013652.dump",
+    "migration_status": "no migrations to apply",
+    "schema_check": "ok",
+    "django_system_check": "ok",
+    "public_url": "https://demo.agomtrade.pro",
+    "health_status": 200,
+    "ready_status": 200,
+    "caddy_tls": "verified",
+    "qlib": {
+      "pyqlib_version": "0.9.7",
+      "wrong_qlib_distribution": "absent",
+      "module": "/usr/local/lib/python3.11/site-packages/qlib/__init__.py"
+    }
+  },
+  "post_deploy_observation": {
+    "window": "15m15s",
+    "worker_memory_sample": "1.868GiB / 4GiB",
+    "worker_memory_percent": 46.7,
+    "worker_restart_count": 0,
+    "worker_oom_killed": false,
+    "worker_status": "running",
+    "worker_lost_error_count": 0,
+    "sigkill_count": 0,
+    "oom_count": 0,
+    "traceback_count": 0,
+    "qlib_log_lines": 21
+  },
+  "api_observation": {
+    "health_status": 200,
+    "ready_status": 200,
+    "decision_ready_status": 503,
+    "decision_ready_must_not_use_for_decision": true,
+    "runtime_flags_changed": false,
+    "business_canary_submitted": false
+  },
+  "ci": {
+    "head": "274600e3c9a9f5b179641d38d712c63ef71ef9b2",
+    "security_scan": "https://github.com/guiyinan/agomTradePro/actions/runs/32536997210",
+    "architecture_layer_guard": "https://github.com/guiyinan/agomTradePro/actions/runs/32536997238",
+    "consistency_check": "https://github.com/guiyinan/agomTradePro/actions/runs/32536997209",
+    "ci_fast_feedback": "https://github.com/guiyinan/agomTradePro/actions/runs/32536997214"
+  },
+  "gate": {
+    "tar01_exit_decision": "BLOCKED",
+    "safety_ready": true,
+    "capacity_ready": false,
+    "remaining_production_evidence": [
+      "multi-user/global hard-SLO capacity",
+      "sustained chaos and reconnect recovery",
+      "provider/MCP success",
+      "14-day telemetry",
+      "production restore/rollback and RTO/RPO",
+      "owner/reviewer sign-off"
+    ]
+  }
+}

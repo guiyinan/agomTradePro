@@ -1197,11 +1197,12 @@ remain `planned`, and TAR-01 remains `BLOCKED/safety_ready=true/capacity_ready=f
 ### TAR-01 VPS worker memory containment slice (2026-08-22)
 
 The approved VPS candidate was observed with repeated QLib Celery cgroup OOM kills
-at the configured `1500m` worker limit while the host still had free memory. The VPS
-compose contract now defaults the general Celery worker to `2g` and recycles each
-worker child after one task (`CELERY_WORKER_MAX_TASKS_PER_CHILD=1`); the deployment
-must be re-created and observed before treating this as a stability result. This
-configuration change does not alter decision-data gating or enable queued runtime.
+at the configured `1500m` worker limit while the host still had free memory. The
+first containment attempt defaulted the general Celery worker to `2g` and recycled
+each worker child after one task (`CELERY_WORKER_MAX_TASKS_PER_CHILD=1`), but the
+subsequent real-queue observation also exposed OOM at that limit. The correction and
+re-observation are recorded below. These configuration changes do not alter
+decision-data gating or enable queued runtime.
 
 ### TAR-01 VPS worker memory containment deployment and observation (2026-08-22)
 
@@ -1227,3 +1228,24 @@ Structured evidence: [`tar01-current-vps-observation-2026-08-22-510868960.json`]
 TAR-01 remains `BLOCKED/safety_ready=true/capacity_ready=false`; multi-user/global
 capacity, sustained chaos/reconnect, provider success, 14-day telemetry,
 restore/rollback and human sign-off remain outstanding.
+
+### TAR-01 VPS worker memory remediation and re-observation (2026-08-22)
+
+The first `2GiB` containment deployment was not stable under the real QLib queue:
+the VPS kernel recorded `30` historical cgroup OOM events before the replacement
+release, including a `WorkerLostError`/`SIGKILL` event. The worker was not treated as
+healthy on that evidence. The compose contract was corrected to give only the
+general QLib-consuming worker a `4GiB` limit while retaining concurrency `1` and
+`--max-tasks-per-child=1`; the independent terminal worker remains at `2GiB`.
+
+Commit `274600e3c9a9f5b179641d38d712c63ef71ef9b2` was deployed code-only as release
+`20260822073022`, image `sha256:995f1e2b72ceb3814c2ed04ca0929866d00b2eb90eaa3a2dd3cf6e771067f553`,
+with PostgreSQL/Redis volumes preserved and a new PostgreSQL backup. After `15m15s`,
+the worker was running at `1.868GiB/4GiB`, restart count `0`, `OOMKilled=false`, and
+the post-release log window contained zero `WorkerLostError`, `SIGKILL`, OOM, or
+traceback matches. Public health/readiness remained `200`; `/api/decision-ready/`
+remained `503` with `must_not_use_for_decision=true` and no runtime flag override.
+This is still a short single-worker observation, not global capacity, chaos,
+provider/MCP, 14-day, restore/rollback, or human-sign-off evidence.
+
+Structured evidence: [`tar01-worker-memory-remediation-2026-08-22-274600e3c.json`](../deployment/tar01-worker-memory-remediation-2026-08-22-274600e3c.json).
