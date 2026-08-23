@@ -839,3 +839,27 @@ prune、重新部署、维护态切换，也没有连接生产数据库执行 re
 这条记录补齐当前已有归档的 content-addressed 结构化证据和传输完整性；生产 restore/rebuild、
 RTO/RPO、维护态 rollback、controlled backfill、reconciliation 与 owner/reviewer 验收仍缺。
 因此 `DATA-01` 继续 `awaiting_production`，`DATA-02/03` 不解锁。
+
+## 实施记录（2026-08-23，DATA-01 最新归档本地隔离 restore 验收）
+
+为补齐上述只读格式复核与真正隔离 restore 之间的证据，本轮仅在本机
+`agomtradepro-tar02-pg` disposable PostgreSQL 16 容器中操作：先将同一归档恢复为专用
+source 基线，再由受控 verifier 恢复到第二个隔离库并逐表比较；两个临时数据库均已清理。
+VPS、生产数据库、生产卷和部署均未访问或写入。
+
+- 输入归档仍为 `/opt/agomtradepro/backups/database/postgres-20260822-075316.dump` 的本地副本
+  `backups/vps-postgres/postgres-20260822-075316.dump`，大小 `142825371` bytes，SHA-256
+  `f028ec2fe986be3c0f56f529e3fc44332ece472000c6e43f917d42b9ac2ffc55`；`pg_restore --list`
+  可恢复条目 `7189`。
+- 本地 source/restore 快照均为 `539` 张 public 表、`72` 个 Data Center migration、`460`
+  个 sequence；逐表行内容 hash、表集合、migration 集合、sequence 值及 schema hash
+  `47b7696d01371801a203560e830093712c6ace3bd94d8d6465699dab38857433` 均完全一致，
+  `snapshot_difference` 的所有集合/变更字段为空。
+- 结构化报告为 [`data01-latest-backup-restore-2026-08-23.json`](../deployment/data01-latest-backup-restore-2026-08-23.json)，
+  SHA-256 `7b8ee34b226169545945b32292d9daf9c2ec1b1c059cecfeb9e9750a5258af8e`；本地 restore
+  用时 `590.844s`、逐表验证 `536.518s`、总计 `1626.207s`，这些是本机容器耗时，不能
+  冒充生产 RTO/RPO。
+
+这一步把 `DATA-01` 的最新归档隔离恢复与精确一致性证据补齐，但没有执行生产 restore/rebuild、
+维护态 rollback、RTO/RPO、controlled backfill、reconciliation 或 owner/reviewer 签署；
+`DATA-01` 继续 `awaiting_production`，`DATA-02/03` 不解锁。
