@@ -1,0 +1,53 @@
+{
+  "format": "tar01-public-health-readonly-recheck.v1",
+  "observed_at": "2026-08-23T10:14:31.452140Z",
+  "source": {
+    "health_url": "https://demo.agomtrade.pro/api/health/",
+    "health_status": 200,
+    "health_body_status": "ok",
+    "health_timestamp": "2026-08-23T18:14:01.547907+08:00",
+    "health_response_sha256": "a9fb8aed3cb412efb2bf7157278265bd4eca57f3f8fab13b5b0a92aea57d732a",
+    "ready_url": "https://demo.agomtrade.pro/api/ready/",
+    "ready_status": 200,
+    "ready_body_status": "ok",
+    "ready_timestamp": "2026-08-23T18:14:16.858561+08:00",
+    "ready_response_sha256": "03587e1e002fc4712686da2f32ebd76d5ad750652cf8a441f7173a47f5ab50d7",
+    "decision_ready_url": "https://demo.agomtrade.pro/api/decision-ready/",
+    "decision_ready_status": 503,
+    "decision_ready_body_status": "blocked",
+    "decision_ready_timestamp": "2026-08-23T18:14:31.452140+08:00",
+    "decision_ready_response_sha256": "2f68a0ff110fdf3576a99c989178404027e72387f4b064793277d6ee63115398"
+  },
+  "checks": {
+    "database": "ok",
+    "redis": "ok",
+    "celery": "ok",
+    "critical_data": "ok",
+    "decision_data": "warning",
+    "must_not_use_for_decision": true,
+    "runtime_status": "blocked",
+    "blocked_reason": "MCP audit evidence write failed during final acceptance"
+  },
+  "candidate_binding": {
+    "commit": null,
+    "release": null,
+    "oci_revision": null,
+    "bound": false,
+    "reason": "Public health endpoints did not expose immutable candidate identity"
+  },
+  "scope": {
+    "deployment": false,
+    "production_write": false,
+    "backup_created": false,
+    "rollback_executed": false,
+    "role_uat": false,
+    "owner_reviewer_signoff": false
+  },
+  "production_claim": false,
+  "runtime_enablement": "not_authorized",
+  "notes": [
+    "Read-only HTTPS observation only; no queue, worker, provider, MCP, or decision runtime was enabled.",
+    "The service is reachable and readiness dependencies are healthy, but decision-ready remains fail-closed.",
+    "The MCP audit evidence write failure is unresolved and does not constitute AUD-01/EVID-01 publisher or authority evidence."
+  ]
+}

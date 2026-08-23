@@ -1668,3 +1668,24 @@ The public health response did not expose a commit, release or OCI identity, so
 this is deliberately an unbound short-window observation. No deployment,
 production write, backup creation, rollback, role UAT or owner/reviewer sign-off
 was performed; TAR-01/TAR-05 and the decision-ready gate remain fail-closed.
+
+### TAR-01 public health read-only recheck (2026-08-23)
+
+A second no-write HTTPS observation of the public B/S service returned `200` from
+both `/api/health/` and `/api/ready/`. The ready projection reported database,
+Redis, Celery, and critical data as `ok`; decision data remained guarded. The
+structured responses and SHA-256 digests are preserved in
+[`tar01-public-health-readonly-recheck-2026-08-23.json`](../deployment/tar01-public-health-readonly-recheck-2026-08-23.json).
+
+`/api/decision-ready/` returned `503` with `status=blocked`,
+`must_not_use_for_decision=true`, and the stable observation reason
+`MCP audit evidence write failed during final acceptance`. This is an unresolved
+AUD/EVID evidence-write blocker, not a successful publisher/authority proof or a
+decision approval. The public endpoints did not expose an immutable commit,
+release, or OCI identity, so the observation remains unbound.
+
+No deployment, production write, queue/worker enablement, backup creation,
+rollback, role UAT, or owner/reviewer sign-off was performed. TAR-01/TAR-05,
+AUD-01/EVID-01, and the decision-ready gate remain fail-closed; the CLI/TUI
+continues to submit requests to the server-side Agent Runtime and users do not
+install a local provider-backed Agent.
