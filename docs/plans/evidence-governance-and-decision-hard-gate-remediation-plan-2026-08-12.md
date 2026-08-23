@@ -3100,6 +3100,24 @@ lifecycle issuer，不读取 mutable User/Profile/session，不接 Evidence/HTTP
 EVID-01 继续 active/fail-closed。CLI/API 仍只把请求传到服务器，AI/provider/MCP/tool execution 在服务器端，
 用户不安装本地 Agent、模型或 provider 软件。
 
+## 2026-08-23：EVID-01 scope observation strict read repository/provider seam
+
+新增 `DjangoEvidenceScopeSourceV1ObservationRepository`，实现 Application 的
+`ExactCurrentEvidenceScopeSourceV1ObservationProvider` 只读端口。每次 selector 读取前，repository
+先恢复整张 observation ledger，再用 strict codec 重建 DTO，并逐列核对 observation identity、
+owner/tenant/account/actor、嵌套 ArtifactRef、status、时钟、canonical payload 与 content hash；
+任何无关行的坏数据、未来记录、重复 identity/hash 或 canonical substitution 都不能被窄 selector
+隐藏。只有 exact observation ID/version/content hash、`recorded_at <= as_of` 且 active/TTL-current
+的记录返回；missing、revoked、expired、future cutoff 或服务器时钟不可用均 fail-closed/返回 None，
+不回退旧版本或其他 successor。
+
+isolated Django component 覆盖 zero-seed、exact round-trip、selector substitution、future/expired/
+revoked、全表 tamper 与私有只读表面，共 `11 passed`；Ruff、Black、isort、增量 mypy regression
+通过。该 slice 仍只是 dormant server-side read seam：没有 capture/append、owner/tenant lifecycle
+issuer、User/Profile/session 读取、HTTP/CLI/Agent route、生产 authority 或 VPS 部署，不解除
+EVID-01/Evidence hard gate。CLI/API 仍只向服务器传输请求，AI、provider、MCP/tool execution 均在
+服务器端，用户不安装本地 Agent、模型或 provider 软件。
+
 ## 2026-08-23：EVID-01 scope observation strict codec
 
 为 `EvidenceScopeSourceV1Observation` 增加独立 strict canonical codec，固定顶层与
