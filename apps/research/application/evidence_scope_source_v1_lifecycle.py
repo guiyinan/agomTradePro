@@ -66,6 +66,30 @@ def _require_hash(value: object, field_name: str) -> None:
         raise ValueError(f"{field_name} must be a lowercase SHA-256 digest")
 
 
+class _UnitOfWorkBound(Protocol):
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the server-side transaction identity."""
+
+
+def _read_unit_of_work_key(source: _UnitOfWorkBound, field_name: str) -> str:
+    """Read one bounded server-side transaction identity from an injected port."""
+
+    try:
+        value = source.unit_of_work_key
+    except Exception as error:
+        raise ValueError(f"{field_name} must expose a unit_of_work_key") from error
+    if (
+        type(value) is not str
+        or not value
+        or value.strip() != value
+        or len(value) > 192
+        or any(character.isspace() for character in value)
+    ):
+        raise ValueError(f"{field_name} unit_of_work_key must be a bounded canonical token")
+    return value
+
+
 def _require_aware(value: object, field_name: str) -> None:
     if type(value) is not datetime or value.tzinfo is None or value.utcoffset() is None:
         raise ValueError(f"{field_name} must be timezone-aware")
@@ -248,7 +272,12 @@ class IssueEvidenceScopeSourceV1:
     inject both ports.
     """
 
-    __slots__ = ("_observation_provider", "_repository", "_validity_period")
+    __slots__ = (
+        "_observation_provider",
+        "_repository",
+        "_unit_of_work_key",
+        "_validity_period",
+    )
 
     def __init__(
         self,
@@ -259,20 +288,20 @@ class IssueEvidenceScopeSourceV1:
     ) -> None:
         if type(validity_period) is not timedelta or validity_period <= timedelta(0):
             raise ValueError("validity_period must be an exact positive timedelta")
-        try:
-            provider_unit = observation_provider.unit_of_work_key
-            repository_unit = repository.unit_of_work_key
-        except Exception as error:
-            raise ValueError(
-                "scope-source observation and repository must expose a unit_of_work_key"
-            ) from error
-        if type(provider_unit) is not str or type(repository_unit) is not str:
-            raise ValueError("scope-source unit_of_work_key must be a string")
-        if not provider_unit or not repository_unit or provider_unit != repository_unit:
+        provider_unit = _read_unit_of_work_key(
+            observation_provider,
+            "scope-source observation provider",
+        )
+        repository_unit = _read_unit_of_work_key(
+            repository,
+            "scope-source lifecycle repository",
+        )
+        if provider_unit != repository_unit:
             error_message = "scope-source observation and repository must share one unit of work"
             raise ValueError(error_message)
         self._observation_provider = observation_provider
         self._repository = repository
+        self._unit_of_work_key = provider_unit
         self._validity_period = validity_period
 
     def execute(self, command: IssueEvidenceScopeSourceV1Command) -> EvidenceScopeSourceV1:
@@ -282,18 +311,26 @@ class IssueEvidenceScopeSourceV1:
             raise TypeError("command must be exact IssueEvidenceScopeSourceV1Command")
         IssueEvidenceScopeSourceV1Command.__post_init__(command)
         try:
+            self._assert_unit_of_work_key()
             with self._repository.atomic():
+                self._assert_unit_of_work_key()
                 cutoff = self._read_cutoff()
+                self._assert_unit_of_work_key()
                 winner = self._read_winner(command, cutoff)
+                self._assert_unit_of_work_key()
                 if winner is not None:
                     # A committed immutable winner is the idempotency source.
                     # Do not require the mutable/current observation or logical
                     # head to remain live for a historical retry.
                     self._validate_winner(winner, command, cutoff)
+                    self._assert_unit_of_work_key()
                     return winner
                 first = self._read_observation(command, cutoff)
+                self._assert_unit_of_work_key()
                 head = self._read_head(command, cutoff)
+                self._assert_unit_of_work_key()
                 final = self._read_observation(command, cutoff)
+                self._assert_unit_of_work_key()
                 if final != first:
                     raise EvidenceScopeSourceV1LifecycleConflict(
                         "owner/tenant observation changed during issuance"
@@ -305,6 +342,7 @@ class IssueEvidenceScopeSourceV1:
                     cutoff,
                     predecessor=predecessor,
                 )
+                self._assert_unit_of_work_key()
                 persisted = self._append(
                     source,
                     expected_predecessor_hash=(
@@ -312,6 +350,7 @@ class IssueEvidenceScopeSourceV1:
                     ),
                     recorded_at=cutoff,
                 )
+                self._assert_unit_of_work_key()
                 if persisted != source:
                     raise EvidenceScopeSourceV1LifecycleConflict(
                         "concurrent scope-source first winner differs"
@@ -339,6 +378,25 @@ class IssueEvidenceScopeSourceV1:
             raise EvidenceScopeSourceV1LifecycleUnavailable(
                 "scope-source lifecycle is unavailable"
             ) from None
+
+    def _assert_unit_of_work_key(self) -> None:
+        """Reject transaction identity drift before returning or committing evidence."""
+
+        try:
+            provider_unit = _read_unit_of_work_key(
+                self._observation_provider,
+                "scope-source observation provider",
+            )
+            repository_unit = _read_unit_of_work_key(
+                self._repository,
+                "scope-source lifecycle repository",
+            )
+        except ValueError as error:
+            raise EvidenceScopeSourceV1LifecycleUnavailable(
+                "scope-source unit of work is unavailable"
+            ) from error
+        if provider_unit != self._unit_of_work_key or repository_unit != self._unit_of_work_key:
+            raise EvidenceScopeSourceV1LifecycleUnavailable("scope-source unit of work changed")
 
     def _read_cutoff(self) -> datetime:
         try:

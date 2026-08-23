@@ -3100,6 +3100,22 @@ lifecycle issuer，不读取 mutable User/Profile/session，不接 Evidence/HTTP
 EVID-01 继续 active/fail-closed。CLI/API 仍只把请求传到服务器，AI/provider/MCP/tool execution 在服务器端，
 用户不安装本地 Agent、模型或 provider 软件。
 
+## 2026-08-23：EVID-01 scope-source lifecycle unit liveness guard
+
+将同一 unit-of-work 约束从 constructor-time 扩展到 lifecycle 执行期间：Application 记录 provider
+与 repository 的 canonical `unit_of_work_key`，并在 execute 入口、进入 repository-owned `atomic()`
+后、server cutoff、winner/head/observation 每次关键读取之间、source append 前后逐次重验。运行期间
+出现 alias/unit 替换、空白或非规范 key、provider/repository 重新绑定，都会以稳定 unavailable 失败；
+append 后发生漂移也必须让外层事务回滚，不能留下孤儿 scope row。
+
+新增构造边界、execute 前漂移、读取间漂移和 append 期间漂移/回滚回归；Research
+lifecycle/application/provider/composition/repository focused `76 passed`，增量 mypy、Ruff、Black、
+isort、governance 与 architecture 检查保持通过。该 slice 仍只证明 dormant transaction-identity
+contract，不创建 owner/tenant authority，不读取 User/Profile/session，不接 HTTP/CLI/Agent 或生产
+writer，不替代 PostgreSQL production race/rollback。EVID-01 与 Evidence hard gate 继续
+active/fail-closed；CLI/API 仍只把请求传到服务器，AI、provider、MCP/tool execution 在服务器端，
+用户不安装本地 Agent、模型或 provider 软件。
+
 ## 2026-08-23：EVID-01 scope-source repository winner read port
 
 补齐 dormant scope-source lifecycle 与 Django repository 之间的 typed seam：

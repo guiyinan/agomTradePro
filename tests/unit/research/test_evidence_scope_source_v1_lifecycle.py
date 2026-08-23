@@ -10,6 +10,7 @@ import pytest
 
 from apps.research.application.evidence_scope_source_v1_lifecycle import (
     EvidenceScopeSourceV1LifecycleCorruption,
+    EvidenceScopeSourceV1LifecycleUnavailable,
     EvidenceScopeSourceV1Observation,
     IssueEvidenceScopeSourceV1,
     IssueEvidenceScopeSourceV1Command,
@@ -307,3 +308,90 @@ def test_observation_and_repository_must_share_one_unit_of_work() -> None:
 
     with pytest.raises(ValueError, match="share one unit of work"):
         _use_case(provider, _DifferentAliasRepository())
+
+
+def test_unit_of_work_key_must_be_a_bounded_canonical_token() -> None:
+    class _BlankKeyProvider(_Provider):
+        unit_of_work_key = " fake:default"
+
+    with pytest.raises(ValueError, match="bounded canonical token"):
+        _use_case(_BlankKeyProvider(_observation()), _Repository())
+
+
+def test_unit_of_work_key_drift_before_execute_fails_closed() -> None:
+    provider = _Provider(_observation())
+    repository = _Repository()
+    use_case = _use_case(provider, repository)
+    provider.unit_of_work_key = "fake:other"
+
+    with pytest.raises(EvidenceScopeSourceV1LifecycleUnavailable, match="unit of work"):
+        use_case.execute(_command())
+
+    assert provider.calls == 0
+    assert repository.winner_calls == 0
+    assert repository.appended == []
+
+
+def test_unit_of_work_key_drift_between_reads_rolls_back_before_append() -> None:
+    class _DriftingProvider(_Provider):
+        def get_exact_current(
+            self,
+            *,
+            observation_id: str,
+            observation_version: str,
+            expected_content_hash: str,
+            as_of: datetime,
+        ) -> EvidenceScopeSourceV1Observation | None:
+            result = super().get_exact_current(
+                observation_id=observation_id,
+                observation_version=observation_version,
+                expected_content_hash=expected_content_hash,
+                as_of=as_of,
+            )
+            self.unit_of_work_key = "fake:other"
+            return result
+
+    provider = _DriftingProvider(_observation())
+    repository = _Repository()
+
+    with pytest.raises(EvidenceScopeSourceV1LifecycleUnavailable, match="unit of work"):
+        _use_case(provider, repository).execute(_command())
+
+    assert provider.calls == 1
+    assert repository.head_calls == 0
+    assert repository.appended == []
+
+
+def test_unit_of_work_key_drift_during_append_rolls_back_transaction() -> None:
+    class _TransactionalDriftingRepository(_Repository):
+        @contextmanager
+        def atomic(self) -> Iterator[None]:
+            snapshot = list(self.appended)
+            try:
+                yield
+            except Exception:
+                self.appended = snapshot
+                raise
+
+        def append(
+            self,
+            source: EvidenceScopeSourceV1,
+            *,
+            expected_predecessor_hash: str | None,
+            recorded_at: datetime,
+        ) -> EvidenceScopeSourceV1:
+            result = super().append(
+                source,
+                expected_predecessor_hash=expected_predecessor_hash,
+                recorded_at=recorded_at,
+            )
+            self.unit_of_work_key = "fake:other"
+            return result
+
+    provider = _Provider(_observation())
+    repository = _TransactionalDriftingRepository()
+
+    with pytest.raises(EvidenceScopeSourceV1LifecycleUnavailable, match="unit of work"):
+        _use_case(provider, repository).execute(_command())
+
+    assert repository.appended == []

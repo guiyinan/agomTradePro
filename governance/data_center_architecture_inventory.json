@@ -15598,32 +15598,32 @@
       "text": "raise EvidenceScopeSourceV1Corruption(\"current head scope identity substitution\")"
     },
     {
-      "line": 80,
+      "line": 104,
       "path": "apps/research/application/evidence_scope_source_v1_lifecycle.py",
       "text": "\"\"\"One immutable current owner/tenant observation supplied by the server."
     },
     {
-      "line": 208,
+      "line": 232,
       "path": "apps/research/application/evidence_scope_source_v1_lifecycle.py",
       "text": "\"\"\"Return the exact current observation, or ``None`` when unavailable.\"\"\""
     },
     {
-      "line": 451,
+      "line": 509,
       "path": "apps/research/application/evidence_scope_source_v1_lifecycle.py",
       "text": "\"scope-source current head is unavailable\""
     },
     {
-      "line": 566,
+      "line": 624,
       "path": "apps/research/application/evidence_scope_source_v1_lifecycle.py",
       "text": "\"scope-source current-head identity substitution\""
     },
     {
-      "line": 571,
+      "line": 629,
       "path": "apps/research/application/evidence_scope_source_v1_lifecycle.py",
       "text": "\"scope-source current head is from the future\""
     },
     {
-      "line": 574,
+      "line": 632,
       "path": "apps/research/application/evidence_scope_source_v1_lifecycle.py",
       "text": "error_message = \"scope-source current head is terminal\""
     },
