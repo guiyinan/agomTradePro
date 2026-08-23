@@ -1653,3 +1653,18 @@ confirmation and audit stay server-side. Users do not install or run a
 provider-backed Agent locally. Scoped owner UAT, provider success, queue/
 worker capacity, chaos/recovery, telemetry, restore/rollback and human gates
 remain open; no VPS deployment was performed.
+
+### TAR-01 current public health read-only observation (2026-08-23)
+
+A no-write HTTPS probe of the existing public candidate returned `200` from both
+`/api/health/` and `/api/ready/`. The ready response reported database, Redis,
+Celery (one worker) and critical data as `ok`, while decision data remained
+`warning` with `must_not_use_for_decision=true`: the market thermometer had only
+three valid components and fell back to the 2026-08-19 snapshot. Response hashes
+and the exact scope are preserved in
+[`tar01-current-public-health-readonly-2026-08-23.json`](../deployment/tar01-current-public-health-readonly-2026-08-23.json).
+
+The public health response did not expose a commit, release or OCI identity, so
+this is deliberately an unbound short-window observation. No deployment,
+production write, backup creation, rollback, role UAT or owner/reviewer sign-off
+was performed; TAR-01/TAR-05 and the decision-ready gate remain fail-closed.
