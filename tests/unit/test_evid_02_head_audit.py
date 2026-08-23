@@ -4,15 +4,20 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sys
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
 from apps.research.application.evid_02_head_audit import (
     EVID_02_HEAD_AUDIT_INPUT_FORMAT,
+    EVID_02_SELECT_ONLY_SNAPSHOT_FORMAT,
     Evid02HeadAuditError,
     Evid02HeadAuditStatus,
+    build_evid_02_select_only_head_audit_report,
     evid_02_head_audit_artifact_sha256,
+    normalize_evid_02_select_only_snapshot,
     parse_evid_02_head_audit_snapshot,
     serialize_evid_02_head_audit_report,
 )
@@ -70,6 +75,28 @@ def _snapshot(
         sort_keys=True,
         separators=(",", ":"),
     ).encode()
+
+
+def _select_only_snapshot(
+    *,
+    approval_rows: list[dict[str, object]] | None = None,
+    activation_rows: list[dict[str, object]] | None = None,
+) -> bytes:
+    """Build a strict external SELECT-only envelope for normalizer tests."""
+
+    payload = json.loads(
+        _snapshot(approval_rows=approval_rows, activation_rows=activation_rows).decode("utf-8")
+    )
+    payload["capture"] = {
+        "candidate_commit": "a" * 40,
+        "candidate_release": "20260823000100",
+        "database_alias": "default",
+        "environment": "production",
+        "query_digest": _digest("evid-02-select-query-v1"),
+        "read_mode": "select_only",
+    }
+    payload["format"] = EVID_02_SELECT_ONLY_SNAPSHOT_FORMAT
+    return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
 
 
 def test_empty_ledgers_are_reported_without_production_claim() -> None:
@@ -209,3 +236,82 @@ def test_report_serialization_is_stable_and_content_addressed() -> None:
 def test_capture_time_before_as_of_is_rejected() -> None:
     with pytest.raises(Evid02HeadAuditError, match="captured_at"):
         parse_evid_02_head_audit_snapshot(_snapshot(captured_at=_T0, as_of=_AS_OF))
+
+
+def test_select_only_snapshot_normalizes_to_strict_head_audit_input() -> None:
+    payload = _select_only_snapshot()
+    normalized = normalize_evid_02_select_only_snapshot(payload)
+    report = parse_evid_02_head_audit_snapshot(normalized.canonical_payload)
+
+    assert normalized.source_payload_sha256 == hashlib.sha256(payload).hexdigest()
+    assert report.source_payload_sha256 == hashlib.sha256(normalized.canonical_payload).hexdigest()
+    assert normalized.capture.environment == "production"
+    assert normalized.capture.read_mode == "select_only"
+    assert [summary.status for summary in report.summaries] == [
+        Evid02HeadAuditStatus.EMPTY,
+        Evid02HeadAuditStatus.EMPTY,
+    ]
+    captured_report = build_evid_02_select_only_head_audit_report(normalized)
+    captured_payload = json.loads(serialize_evid_02_head_audit_report(captured_report))
+    assert captured_payload["source"]["payload_sha256"] == normalized.source_payload_sha256
+    assert captured_payload["source"]["capture"]["candidate_commit"] == "a" * 40
+
+
+@pytest.mark.parametrize("forbidden_key", ["mutation_performed", "human_approval_status"])
+def test_select_only_snapshot_rejects_claim_or_mutation_fields(forbidden_key: str) -> None:
+    payload = json.loads(_select_only_snapshot())
+    payload[forbidden_key] = False if forbidden_key == "mutation_performed" else "not_collected"
+    with pytest.raises(Evid02HeadAuditError, match="key set"):
+        normalize_evid_02_select_only_snapshot(json.dumps(payload).encode())
+
+
+def test_recorder_explicit_select_only_mode_is_dry_run_and_append_only(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    from scripts.record_evid_02_head_audit import main
+
+    input_path = tmp_path / "select-only.json"
+    input_path.write_bytes(_select_only_snapshot())
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "record_evid_02_head_audit.py",
+            "--input",
+            str(input_path),
+            "--input-format",
+            "select-only",
+        ],
+    )
+    assert main() == 0
+    dry_run = json.loads(capsys.readouterr().out)
+    assert dry_run["written"] is False
+    assert dry_run["production_claim"] is False
+    assert dry_run["capture"]["read_mode"] == "select_only"
+    assert not (tmp_path / "evid-02-head-audit").exists()
+
+    output_root = tmp_path / "evidence"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "record_evid_02_head_audit.py",
+            "--input",
+            str(input_path),
+            "--input-format",
+            "select-only",
+            "--output-root",
+            str(output_root),
+            "--write",
+        ],
+    )
+    assert main() == 0
+    written = json.loads(capsys.readouterr().out)
+    assert written["written"] is True
+    artifact_path = Path(written["path"])
+    assert artifact_path.is_file()
+    artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+    assert (
+        artifact["source"]["payload_sha256"] == hashlib.sha256(input_path.read_bytes()).hexdigest()
+    )
+    assert artifact["source"]["capture"]["read_mode"] == "select_only"

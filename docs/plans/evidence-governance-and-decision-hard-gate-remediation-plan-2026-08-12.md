@@ -3275,3 +3275,22 @@ isort、增量 mypy regression 通过。该修正只澄清历史链续接与 cur
 owner/tenant authority，不接 User/Profile/session、HTTP/CLI/Agent 或生产 writer；EVID-01 继续
 active/fail-closed，CLI/API 仍只向服务器传输请求，AI、provider、MCP/tool execution 在服务器端，
 用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-23：EVID-02 SELECT-only current-head snapshot normalizer
+
+针对现有 VPS 只读盘点只能提供表计数、不能直接进入严格 current-head 审计输入的问题，新增
+`evid-02-select-only-ledger-snapshot.v1` transport contract。纯 Application normalizer 要求
+外部采集器提供 UTC/PIT、approval/activation 完整行、候选 commit/release、database alias、
+query digest 与 `read_mode=select_only`；它拒绝未知字段、mutation/human-approval 声明、秘密字段、
+未来行、错误链与非 canonical row 顺序，并将已验证行重建为既有
+`evid-02-head-audit-snapshot.v1`。`scripts/record_evid_02_head_audit.py --input-format select-only`
+显式完成该转换后，仍只生成本地 content-addressed report，默认 dry-run，绝不连接数据库或写入
+approval/activation ledger。
+
+新增 normalizer/recorder 回归，EVID-02 head-audit focused 为 `18 passed`；Black、isort、Ruff、
+增量 mypy regression 与 full mypy debt ceiling 均通过。当前没有新的 VPS 快照在本 slice 落盘，
+因此报告继续固定 `production_claim=false`、`production_ready=false`、
+`runtime_enablement=not_authorized`、`human_approval_status=not_collected`；`EVID-02` 仍为
+`awaiting_production`，真实 PostgreSQL current-head/rollback、production approval、owner/reviewer
+签署与 Evidence hard gate 不解锁。CLI/API 仍是服务器端 AI 的薄传输客户端，不能要求用户安装本地
+Agent、模型或 provider 软件。
