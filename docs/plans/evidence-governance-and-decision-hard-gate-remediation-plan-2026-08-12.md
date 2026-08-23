@@ -3406,6 +3406,24 @@ composition、PostgreSQL race/rollback 及 owner/reviewer sign-off。故 EVID-01
 仍只把请求发往服务器，AI/provider/MCP/tool execution 在服务器端，用户不安装本地 Agent、
 模型或 provider 软件。
 
+## 2026-08-23：EVID-02 当前候选 approval/current-head 新鲜只读复核
+
+在仍运行的 `4cef9040cccc2127c3f8128c8d858bc7958df2a4` / release `20260822134658` /
+image `sha256:cfaf17560df2f85cd8ba2f5db8226a9dd9fe1cce081f30175c2a08737b4908d8` 上，使用同一
+PostgreSQL `default` alias 执行一个 `REPEATABLE READ READ ONLY` 事务。三张 EVID-02
+canonical ledger 表均为空：`research_evidence_operator_spec=0`、
+`research_evidence_operator_spec_approval=0`、
+`research_activated_evidence_operator_spec=0`；因此 current head 仍为 `empty`。
+
+结构化工件为
+[`evid-02-select-only-vps-snapshot-2026-08-23-1336.json`](../deployment/evid-02-select-only-vps-snapshot-2026-08-23-1336.json)，
+SHA-256 为 `3fea758393a9bf2ca2f449d3dabe1c0726388ee964a76a97e068139be8e028a1`，query digest 为
+`3a47396d69bb546ba6adeecab49de351eff0889caa42b236f397ca3c0a97dd3d`。本次仅刷新真实
+账本现状，没有创建 approval/activation、回滚或任何生产写入；
+`EVID-02=awaiting_production`、`production_claim=false`、`production_ready=false`、
+`human_approval_status=not_collected`、`runtime_enablement=not_authorized` 保持不变。
+该空 head 观察不能替代真实审批、生产 PostgreSQL 并发/rollback 或 owner/reviewer 签署。
+
 ## 2026-08-23：当前分支计划验收与门禁复核
 
 当前 `dev/next-development` 的 HEAD 为 `c03d3c037a25dddd36dda8d248cc3c148ff34537`，并与
