@@ -3440,3 +3440,21 @@ fixture、健康端点或只读账本替代 immutable authority、selector issue
 PG race/rollback 和 owner/reviewer sign-off。故 EVID-01 继续 `active`/fail-closed，后续实现
 必须等待独立 owner/tenant/scope 业务定义和授权输入；B/S、CLI/API 仍只向服务器提交请求，
 AI/provider/MCP/tool execution 在服务器端，用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-23：当前 HEAD 验收复核与 CI 收口
+
+在不部署 VPS、不写生产数据库的前提下，对当前 `dev/next-development` HEAD
+`07fd7c676946d1c7e5150ad57a5eee8f77cfcc8d` 做本地门禁复核。`check_active_plan_registry.py`
+与 `check_governance_consistency.py` 均为 `0` violations；Evidence output surface、MCP
+Evidence semantic surface 与 decision write surface freeze 均通过；TUI source guard 为
+`12 published/24 runtime screens`、`430/890 actions`、`0 violations`。EVID 相关定向回归
+为 `59 passed`，TUI/冻结定向回归为 `65 passed`，完整
+`tests/unit/test_tui_workbench.py` 为 `257 passed in 258.39s`；当前 HEAD 的四条 push CI
+均为成功。
+
+本次验收没有发现新的安全 EVID-01 repository slice。生产 authority/evidence/root-lock
+账本仍 zero-seed，故不能把本地合同、健康端点或只读账本升级为 immutable owner/tenant
+authority、selector issuer、production writer、PostgreSQL production race/rollback 或
+owner/reviewer sign-off。`EVID-01` 继续 `active`/fail-closed，TAR-01 仍
+`capacity_ready=false`，M5 readiness 仍 `DENY`；B/S、CLI/API 继续只向服务器提交请求，
+AI/provider/MCP/tool execution 在服务器端，用户不安装本地 Agent、模型或 provider 软件。
