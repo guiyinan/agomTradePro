@@ -702,3 +702,24 @@ which remains `f3881a04...` / `20260820043710`. The M5-A/TUI-01 gate still requi
 receipt/refresh evidence, 14-day telemetry, registry backup/restore, live rollback,
 owner/reviewer approval and the remaining external/capacity dependencies. Those requirements
 remain `DENY`/`awaiting` rather than being inferred from this short browser window.
+
+### 2026-08-20 21:15 当前候选部署复核
+
+候选 `dev/next-development@2f4554b5192191970a3ccbc98420388881725079` 的 code-only
+deployment preflight 为 `docs/deployment/web-to-tui-deployment-preflight-20260820211526.json`，
+SHA-256 `637f646d92e646fb8d27e444bda4b967c109b8350fda26be50603afaadb39223`；记录的 release 为
+`20260820211526`，OCI image 为
+`sha256:74d094b6e606ee79a6e73ffd49364a3787c611511432d5194dc9902b2ec17696`，health/readiness
+只读探测均为 `200`。该记录补齐 cutover evidence 中已有候选的 deployment 身份，不能被
+解释成新的部署或 M5 关闭授权。
+
+完整 candidate binding 为 `web-to-tui-candidate-binding.v1`：candidate version
+`20260820211526`、candidate commit `2f4554b5192191970a3ccbc98420388881725079`、matrix
+`bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`、graph
+`5a2234c84d4156001a8bde73a7fe9a5c86534b77a6e87da68764043b55d7b597`、schema
+`tui-metadata.v3`、runtime `0.2.0`、build `agomtui-runtime-0.2.0+7bc2ca13ee9d`、manifest
+`7da3c92633c8f71767687a7fe4b67fed5b8f4445a6c60106dc5a43f3c1771165`。
+
+本节只修复候选身份在 readiness 文档中的证据链，不新增角色化浏览器 UAT、写后
+receipt/refresh、14 日 telemetry、registry backup/restore、rollback 或 owner/reviewer
+双签；当前 M5 readiness 仍为 `DENY`，不得执行 cleanup 或 cutover。
