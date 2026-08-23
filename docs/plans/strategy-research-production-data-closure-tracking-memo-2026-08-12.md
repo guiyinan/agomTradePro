@@ -254,3 +254,19 @@ owner/policy/operator 数量是为新鲜复核增加的广义 selector，既有 
 `STRAT-02/03` 及 PIT/OOS、canonical receipts、Promotion、consumer UAT、rollback 与
 owner/reviewer 签署继续等待真实业务输入。
 
+## 19. 2026-08-24：STRAT-01 owner-ledger auto-collect recorder
+
+为让 `STRAT-01` 的已登记 `auto_collect` 证据可重复校验，新增纯 Application
+解析器 `apps/research/application/strat_01_owner_ledger_inventory.py` 与离线 CLI
+`scripts/record_strat_01_owner_inventory.py`。解析器严格接受现有
+`strat-01-owner-ledger-readonly-recheck.v1/v2` 快照，校验候选 commit/release/image、
+同一 `default` alias、`select_only`、固定 inventory/query scope、计数/重复项、未知字段、
+secret/token 字段和未来时间；默认 dry-run，`--write` 仅追加本地 content-addressed report，
+不连接 PostgreSQL/VPS、不创建或修改生产记录。
+
+现有 v1/v2 快照均解析为 `zero_seed`；即使未来观察到非零行，报告也只会是
+`nonzero_unverified`，并固定 `production_claim=false`、`production_ready=false`、
+`runtime_enablement=not_authorized`。新增回归 `14 passed`，并通过 Ruff、Black、isort、
+增量 mypy 与 debt ceiling；本 slice 不改变 `STRAT-01` 的 `awaiting_production` 状态，也不
+把 owner/definition/policy/calendar/scope/qualification rows 推导成 authority 或 readiness。
+

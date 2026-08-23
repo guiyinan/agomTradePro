@@ -1817,3 +1817,8 @@ not bound to local HEAD `8a755c3c2e79da067c0b9264b4e4f5bd1b8afe24`. This is a
 low-frequency read-only observation only; TAR-01/TAR-05 capacity, queue,
 provider, chaos, telemetry, restore/rollback, role UAT and owner/reviewer
 gates remain unchanged. Repeated deployment is not required.
+## 2026-08-24：当前公网只读健康复核
+
+仅对 `demo.agomtrade.pro` 执行了三条 HTTPS `GET`，没有部署、迁移、队列启用、回滚或生产写入。`/api/health/` 与 `/api/ready/` 均返回 `200`；ready 的 database、Redis、Celery、critical data 为 `ok`，decision-data 为 `warning`。`/api/decision-ready/` 返回 `503`，并明确 `must_not_use_for_decision=true`。原始响应的大小、SHA-256 与 acceptance 口径保存在 [`tar01-public-health-readonly-recheck-2026-08-24.json`](../deployment/tar01-public-health-readonly-recheck-2026-08-24.json)。
+
+这只刷新公共健康与 fail-closed 状态，不识别或重绑当前部署候选，也不产生 TAR-05 容量/chaos、queued/Worker/SSE、角色浏览器 UAT、写后 receipt/refresh、14 日 telemetry、restore/rollback 或 owner/reviewer 签署证据；TAR-01/TAR-05 与决策门禁继续保持 fail-closed。
