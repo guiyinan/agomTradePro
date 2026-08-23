@@ -1709,3 +1709,23 @@ role UAT, or owner/reviewer sign-off was performed. TAR-01/TAR-05 and
 AUD-01/EVID-01 therefore remain fail-closed; the B/S client continues to submit
 requests to the server-side Agent Runtime and users do not install a local
 provider-backed Agent.
+
+### TAR-01/AUD-03 public health and audit read-only recheck (2026-08-23 12:19Z)
+
+One fresh no-write HTTPS probe confirmed that the B/S service remains reachable:
+`/api/health/` and `/api/ready/` returned `200`; readiness reported database,
+Redis, Celery (one worker) and critical data as `ok`, while decision data stayed
+`warning`. `/api/audit/health/` returned `200/OK` with 555 operation logs and
+zero pending, claimed, expired, failed or delivered outbox rows. The structured
+responses and body hashes are preserved in
+[`tar01-public-health-readonly-recheck-2026-08-23-1219.json`](../deployment/tar01-public-health-readonly-recheck-2026-08-23-1219.json).
+
+`/api/decision-ready/` continued to return `503` with
+`must_not_use_for_decision=true` and the unchanged
+`MCP audit evidence write failed during final acceptance` blocker. Public
+responses still exposed no immutable commit/release/OCI identity, so the
+observation is unbound. No deployment, production write, queue/worker
+enablement, approval/activation, backup, rollback, role UAT or owner/reviewer
+sign-off was performed; TAR-01/TAR-05, AUD-01/EVID-01 and decision-ready remain
+fail-closed. The CLI/TUI still submits to the server-side Agent Runtime; users
+do not install a local provider-backed Agent.
