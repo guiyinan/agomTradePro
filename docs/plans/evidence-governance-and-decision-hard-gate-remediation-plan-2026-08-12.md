@@ -3405,3 +3405,20 @@ composition、PostgreSQL race/rollback 及 owner/reviewer sign-off。故 EVID-01
 `active`/fail-closed，AUD/Evidence hard gate 与全局 execution deny 不解除；B/S、CLI/API
 仍只把请求发往服务器，AI/provider/MCP/tool execution 在服务器端，用户不安装本地 Agent、
 模型或 provider 软件。
+
+## 2026-08-23：当前分支计划验收与门禁复核
+
+当前 `dev/next-development` 的 HEAD 为 `c03d3c037a25dddd36dda8d248cc3c148ff34537`，并与
+`origin/dev/next-development` 同步。只读验收重新运行了注册表检查、治理一致性、Evidence
+output-surface freeze、decision-write-surface freeze、TUI metadata source guard 和
+TAR-01/M5 preflight：注册表/治理/冻结检查均为零违规，TUI source guard 为
+`12 published/24 runtime screens`、`430/890 actions`、`0 violations`，TAR-01 为
+`CONTRACT_COMPLETE` 且 `safety_ready=true`、`capacity_ready=false`，M5 readiness 仍为
+`DENY`。本轮只回写验收记录，没有部署 VPS、生产写入或 runtime gate 变更。
+
+这次复核没有发现可安全新增的 EVID-01 repository slice。12 张 authority/evidence/root-lock
+表仍是 zero-seed；不能把 Account actor bundle 映射为 Evidence owner/tenant，也不能用本地
+fixture、健康端点或只读账本替代 immutable authority、selector issuer、production writer、
+PG race/rollback 和 owner/reviewer sign-off。故 EVID-01 继续 `active`/fail-closed，后续实现
+必须等待独立 owner/tenant/scope 业务定义和授权输入；B/S、CLI/API 仍只向服务器提交请求，
+AI/provider/MCP/tool execution 在服务器端，用户不安装本地 Agent、模型或 provider 软件。

@@ -138,6 +138,7 @@
 
 | 日期 | 期次 | 阶段 | 完成情况 | 后续 |
 |------|------|------|----------|------|
+| 2026-08-23 | 第二期 P0 | 当前分支计划验收与门禁复核 | `dev/next-development` HEAD=`c03d3c037` 且与 origin 同步；注册表、治理一致性、证据输出面冻结、决策写面冻结、TUI source guard 均通过，TAR-01=`CONTRACT_COMPLETE`/`safety_ready=true`/`capacity_ready=false`，M5 readiness=`DENY`；本轮未部署 VPS、未写生产、未改变 runtime gate | 代码/文档与自动化门禁已验收；EVID-01 仍因 zero-seed owner/tenant authority 保持 active/fail-closed，TAR-05/TUI-01 等仍等待候选、账号、容量/恢复/观察与 owner/reviewer；不把本地合同或只读健康误报为生产完成 |
 | 2026-08-18 | P0 优先线 | Terminal Agent 多用户 runtime 立项 | 已完成现状根因、目标架构、服务端队列、专用 Worker、可恢复事件流、本地 CLI、角色分工、16–24 人日工期、SLO/测试/灰度/回滚的专项计划，并登记 TAR-01 至 TAR-05 | 当前原子工作包落盘后优先执行 TAR-01；未完成 TAR-05 前保持 inline 并发 1，不以直接扩容替代隔离整改 |
 | 2026-08-18 | P0 优先线 | TAR-01 queued intake boundary | 新增 dormant `SubmitTerminalQueuedRunUseCase` 与 `TerminalQueuedSubmissionPort`；只接受 `web_queued`，校验 admission adapter 保留 run identity；纯边界回归 `31 passed`、增量 mypy/architecture 通过 | 未接入 Web/TUI 路由、durable queue、Celery/Worker 或生产运行；继续完成 TAR-01 ADR、负载基线和 failing-first/API boundary 证据 |
 | 2026-08-18 | P0 优先线 | TAR-01 API/SSE wire contract | 新增纯 Application wire contract，冻结 `/api/terminal/runs/` create/status/events/cancel/queue 路径、`202` 接单响应、owner-scoped status/cancel envelope、SSE replay envelope、aware timestamps 与敏感字段拒绝；API/ports/run contract 合计 `41 passed`，增量 mypy/architecture 通过 | 仅完成命名与响应合同；未接入 Web/TUI route、durable PostgreSQL queue、broker/Worker、真实 SSE、容量基线或生产观察，TAR-01 仍 active |
