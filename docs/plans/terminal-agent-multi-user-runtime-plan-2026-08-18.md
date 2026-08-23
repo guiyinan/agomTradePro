@@ -1729,3 +1729,22 @@ enablement, approval/activation, backup, rollback, role UAT or owner/reviewer
 sign-off was performed; TAR-01/TAR-05, AUD-01/EVID-01 and decision-ready remain
 fail-closed. The CLI/TUI still submits to the server-side Agent Runtime; users
 do not install a local provider-backed Agent.
+
+### TAR-01/AUD-03 low-frequency public health and audit recheck (2026-08-23 14:13Z)
+
+After the earlier observation window, one additional no-write HTTPS GET rechecked
+the public B/S service. `/api/health/` and `/api/ready/` remained `200`; readiness
+reported database, Redis, Celery (one worker), and critical data as `ok`, while
+decision data stayed `warning`. `/api/audit/health/` remained `200/OK` with 555
+operation logs, zero failures, and zero pending/claimed/expired/failed/delivered
+outbox rows. The compact evidence artifact and response digests are preserved in
+[`tar01-public-health-readonly-recheck-2026-08-23-1413.json`](../deployment/tar01-public-health-readonly-recheck-2026-08-23-1413.json)
+with SHA-256 `0f6473dbfa0ec11cb934a49af4097804a4f68e6198b9832ce5d20491579f3fee`.
+
+`/api/decision-ready/` remained `503` with
+`must_not_use_for_decision=true` and the unchanged
+`MCP audit evidence write failed during final acceptance` blocker. Public
+responses still expose no immutable candidate identity, so this remains an
+unbound observation. No deployment, production write, queue/worker enablement,
+backup creation, rollback, role UAT, or owner/reviewer sign-off was performed;
+TAR-01/TAR-05, AUD-01/EVID-01, and the decision-ready gate remain fail-closed.
