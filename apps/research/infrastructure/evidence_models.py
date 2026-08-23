@@ -389,6 +389,60 @@ class EvidenceScopeSourceV1Model(EvidenceAppendOnlyModel):
         ]
 
 
+class EvidenceScopeSourceV1ObservationModel(EvidenceAppendOnlyModel):
+    """Zero-seed append-only storage for one owner/tenant observation DTO.
+
+    This model is only a persistence boundary.  It has no capture, provider,
+    repository, or route and does not establish owner or tenant authority.
+    Future infrastructure code must restore the exact Application DTO and
+    revalidate its canonical payload and content hash before use.
+    """
+
+    observation_id = models.CharField(max_length=192)
+    observation_version = models.CharField(max_length=192)
+    owner_id = models.CharField(max_length=192)
+    tenant_id = models.CharField(max_length=192)
+    account_id = models.CharField(max_length=192)
+    actor_id = models.CharField(max_length=192)
+    artifact_owner = models.CharField(max_length=192)
+    artifact_type = models.CharField(max_length=192)
+    artifact_id = models.CharField(max_length=192)
+    artifact_version = models.CharField(max_length=192)
+    artifact_content_hash = models.CharField(max_length=64, db_index=True)
+    status = models.CharField(max_length=16)
+    recorded_at = models.DateTimeField(db_index=True)
+    valid_until = models.DateTimeField(db_index=True)
+    canonical_payload = models.JSONField()
+    content_hash = models.CharField(max_length=64, unique=True)
+
+    class Meta(EvidenceAppendOnlyModel.Meta):
+        db_table = "research_evidence_scope_source_v1_observation"
+        indexes = [
+            models.Index(
+                fields=("observation_id", "recorded_at"),
+                name="res_ev_scope_obs_pit_ix",
+            )
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=("observation_id", "observation_version"),
+                name="res_ev_scope_obs_identity_uq",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(status__in=("active", "revoked")),
+                name="res_ev_scope_obs_status_ck",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(artifact_owner="research"),
+                name="res_ev_scope_obs_artifact_ck",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(recorded_at__lt=models.F("valid_until")),
+                name="res_ev_scope_obs_clock_ck",
+            ),
+        ]
+
+
 def _reject_evidence_pre_delete(
     sender: type[models.Model],
     instance: models.Model,
@@ -405,6 +459,7 @@ for _model in (
     EvidenceTrackRecordModel,
     EvidenceEnvelopeModel,
     EvidenceScopeSourceV1Model,
+    EvidenceScopeSourceV1ObservationModel,
 ):
     pre_delete.connect(
         _reject_evidence_pre_delete,
@@ -418,5 +473,6 @@ __all__ = [
     "EvidenceEnvelopeModel",
     "EvidenceOperatorSpecModel",
     "EvidenceScopeSourceV1Model",
+    "EvidenceScopeSourceV1ObservationModel",
     "EvidenceTrackRecordModel",
 ]

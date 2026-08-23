@@ -3100,6 +3100,26 @@ lifecycle issuer，不读取 mutable User/Profile/session，不接 Evidence/HTTP
 EVID-01 继续 active/fail-closed。CLI/API 仍只把请求传到服务器，AI/provider/MCP/tool execution 在服务器端，
 用户不安装本地 Agent、模型或 provider 软件。
 
+## 2026-08-23：EVID-01 scope observation schema-only ledger
+
+为 dormant `EvidenceScopeSourceV1Observation` DTO 增加独立的
+`EvidenceScopeSourceV1ObservationModel` 与 `0029_evidence_scope_source_v1_observation_ledger`
+迁移。迁移严格只包含一个 `CreateModel`，无 `RunPython`、`RunSQL`、默认值、seed 或回填；
+表按 observation identity、content hash、status、artifact owner 与 `recorded_at < valid_until`
+提供数据库约束，并复用 Research evidence 的 private exact-insert 与 append-only mutation guards。
+
+isolated component 覆盖 zero-seed、字段/canonical payload round-trip、重复 identity/hash、
+clock/status/artifact constraint，以及 save/update/bulk/raw/delete 绕过，结果 `5 passed`；
+scope model/repository/lifecycle/provider/composition focused 回归 `52 passed`，
+`makemigrations --check` 无漂移，增量 mypy、Ruff、Black、isort 与 `git diff --check` 通过。
+
+该 slice 只是 schema/persistence boundary，不是 owner/tenant authority：没有 selector issuer、
+immutable lifecycle source、User/Profile/session 读取、provider/writer、HTTP/CLI/Agent route，
+不回填现有 mutable 数据、不部署或写入 VPS，也不解除 EVID-01/Evidence hard gate。CLI/API
+仍只向服务器传输请求，AI、模型、provider、MCP/tool execution 均在服务器端，用户不安装
+本地软件；后续 repository/codec 必须在任何 selector 前完整恢复 DTO、canonical payload 与
+hash，且生产 authority/PG race/rollback/UAT/人工签署仍待独立门禁。
+
 ## 2026-08-23：EVID-01 Research scope ledger disposable PostgreSQL concurrency evidence
 
 为补足 Research `EvidenceScopeSourceV1` repository 的数据库竞争证据，在现成的本地
