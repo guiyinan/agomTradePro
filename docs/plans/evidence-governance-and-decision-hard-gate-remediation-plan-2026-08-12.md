@@ -3336,3 +3336,22 @@ EVID-01。继续实现仍需独立 immutable owner/tenant/scope lifecycle、serv
 issuer、同 alias production composition、真实 PostgreSQL race/rollback 与人工授权；
 CLI/API 仍只向服务器传输请求，AI、provider、MCP/tool execution 在服务器端，用户不安装
 本地 Agent、模型或 provider 软件。
+
+## 2026-08-23：EVID-02 disposable PostgreSQL concurrency recheck
+
+按 active registry 的 safe `auto_collect` 条目，在现有本地
+`agomtradepro-tar02-pg`（`postgres:16-alpine`）容器中显式设置
+`DJANGO_SETTINGS_MODULE=tests.settings_evidence_scope_source_v1_postgres` 与
+`AGOM_EVIDENCE_SCOPE_PG_CONCURRENCY_EVIDENCE=1`，为本次运行创建空的
+`evidence_scope_test_20260823` 数据库，并执行
+`tests/component/research/test_evidence_scope_source_v1_postgres_concurrency.py`。
+结果为 `3 passed in 12.20s`：空 root 竞争只产生一个 winner、同 predecessor 竞争只产生一个
+successor、外层异常回滚不留下孤儿行。测试使用的 test database 与专用数据库均已在本地
+容器中清理；未触碰 VPS、生产 PostgreSQL、approval/activation 账本或人工决定。
+
+随后以 `scripts/record_evid_02_postgres_evidence.py` 对既有 content-addressed harness
+报告做 dry-run 校验，报告 digest 仍为
+`a27e193f53910cdb4395cc88d4d96fb04fcda71f2f191dbda7df2626299e6df8`。本次重跑只是本地
+PostgreSQL 软件合同复核，不产生新的生产 claim；`EVID-02` 仍为 `awaiting_production`，真实
+approval/current-head/rollback、owner/reviewer 签署与 Evidence hard gate 不解锁。CLI/API
+仍只向服务器传输请求，AI/provider/MCP/tool execution 在服务器端，用户不安装本地软件。
