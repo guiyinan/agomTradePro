@@ -63,6 +63,8 @@ class _FailingClock:
 
 
 class _ObservationProvider:
+    unit_of_work_key = "django:default"
+
     def __init__(self, observation: EvidenceScopeSourceV1Observation) -> None:
         self.observation = observation
         self.calls = 0
@@ -84,6 +86,8 @@ class _ObservationProvider:
 
 
 class _NoObservationProvider:
+    unit_of_work_key = "django:default"
+
     def get_exact_current(self, **_: object) -> None:
         raise AssertionError("historical winner replay must not read the observation")
 

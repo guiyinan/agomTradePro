@@ -78,6 +78,8 @@ def _source(*, version: str = "v1", recorded_at: datetime = NOW) -> EvidenceScop
 
 
 class _Provider:
+    unit_of_work_key = "fake:default"
+
     def __init__(self, observation: EvidenceScopeSourceV1Observation | None) -> None:
         self.observation = observation
         self.calls = 0
@@ -96,6 +98,8 @@ class _Provider:
 
 
 class _Repository:
+    unit_of_work_key = "fake:default"
+
     def __init__(
         self,
         *,
@@ -273,3 +277,33 @@ def test_observation_content_hash_substitution_fails_closed() -> None:
         )
 
     assert repository.appended == []
+
+
+def test_expired_active_final_head_can_receive_a_fresh_successor() -> None:
+    predecessor = _source(recorded_at=NOW - timedelta(hours=4))
+    observation = _observation()
+    provider = _Provider(observation)
+    repository = _Repository(head=predecessor)
+
+    command = IssueEvidenceScopeSourceV1Command(
+        source_id="scope-source-1",
+        source_version="v2",
+        observation_id=observation.observation_id,
+        observation_version=observation.observation_version,
+        expected_observation_content_hash=observation.content_hash,
+    )
+    result = _use_case(provider, repository).execute(command)
+
+    assert result.supersedes_content_hash == predecessor.content_hash
+    assert result.recorded_at == NOW
+    assert repository.appended == [result]
+
+
+def test_observation_and_repository_must_share_one_unit_of_work() -> None:
+    provider = _Provider(_observation())
+
+    class _DifferentAliasRepository(_Repository):
+        unit_of_work_key = "fake:other"
+
+    with pytest.raises(ValueError, match="share one unit of work"):
+        _use_case(provider, _DifferentAliasRepository())

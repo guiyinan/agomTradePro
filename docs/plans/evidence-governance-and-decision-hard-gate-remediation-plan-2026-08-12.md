@@ -3113,6 +3113,21 @@ row、损坏或断链仍在 selector 前 fail-closed。
 mutable User/Profile/session、Evidence/HTTP/CLI/Agent route 或 production writer；EVID-01 继续
 active/fail-closed，CLI/API 仍只向服务器传输请求，AI/provider/MCP/tool execution 在服务器端。
 
+## 2026-08-23：EVID-01 scope-source lifecycle same-unit guard
+
+在 dormant scope-source lifecycle 构造阶段增加同一服务端 unit-of-work 约束：观察 provider 与
+append repository 都必须暴露非空 `unit_of_work_key`，且必须精确相等；缺失、类型替换或 alias
+不一致都会在任何观察读取、head 查询或 append 前失败关闭。Django store 使用其 database alias
+作为该 key，纯 Application fake 也必须显式声明测试 unit，避免把两个独立事务误称为原子
+owner/tenant observation。
+
+新增 alias mismatch 回归；scope lifecycle/application/provider/repository focused 回归 `71 passed`，
+Ruff、Black、isort、增量 mypy 与 diff-check 通过。该 guard 只证明 dormant composition 的事务边界
+合同，不创建 owner/tenant authority，不读取 User/Profile/session，不接 HTTP/CLI/Agent 或生产 writer，
+不替代 PostgreSQL production race/rollback。EVID-01 与 Evidence hard gate 继续 active/fail-closed；
+CLI/API 仍只向服务器传输请求，AI、provider、MCP/tool execution 全部在服务器端，用户不安装本地
+Agent、模型或 provider 软件。
+
 ## 2026-08-23：EVID-01 scope-source lifecycle Django append seam
 
 将私有 Django scope-source store 对齐 dormant Application lifecycle 的 typed append 端口：支持
@@ -3128,4 +3143,17 @@ architecture delta 与 diff-check 均通过。该 slice 仍是 dormant/local SQL
 authority source、production selector issuer、HTTP/CLI/Agent route、mutable User/Profile/session 读取、
 生产 writer、VPS 部署、PostgreSQL production race/rollback 或人工签署；EVID-01 与 Evidence hard gate
 继续 active/fail-closed。CLI/API 仍只向服务器传输请求，AI、provider、MCP/tool execution 在服务器端，
+用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-23：EVID-01 expired final predecessor successor policy
+
+修正 dormant scope-source lifecycle 的 predecessor policy：最终 head 只需在当前 PIT 已知、
+且状态仍为 `active`，即可作为新 successor 的 CAS predecessor；它是否已超过自身
+`valid_until` 不再阻断新的 owner observation 写入。`revoked` 仍是 terminal，future head 仍
+fail-closed，current read 仍由 final-head 与 temporal TTL 单独决定，不会回退到旧 active row。
+
+新增 active-but-expired final-head successor 回归；lifecycle focused tests `7 passed`，Ruff、Black、
+isort、增量 mypy regression 通过。该修正只澄清历史链续接与 current-read 的分离，不创建或回填
+owner/tenant authority，不接 User/Profile/session、HTTP/CLI/Agent 或生产 writer；EVID-01 继续
+active/fail-closed，CLI/API 仍只向服务器传输请求，AI、provider、MCP/tool execution 在服务器端，
 用户不安装本地 Agent、模型或 provider 软件。

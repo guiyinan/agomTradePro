@@ -193,6 +193,10 @@ class IssueEvidenceScopeSourceV1Command:
 class ExactCurrentEvidenceScopeSourceV1ObservationProvider(Protocol):
     """Load one exact immutable owner/tenant observation at a server cutoff."""
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the server-side unit/alias bound to this observation source."""
+
     def get_exact_current(
         self,
         *,
@@ -206,6 +210,10 @@ class ExactCurrentEvidenceScopeSourceV1ObservationProvider(Protocol):
 
 class EvidenceScopeSourceV1LifecycleRepository(EvidenceScopeSourceV1Repository, Protocol):
     """Repository-owned atomic writer layered on the existing read port."""
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the server-side unit/alias bound to this repository."""
 
     def atomic(self) -> AbstractContextManager[None]:
         """Open the repository-owned issuance unit of work."""
@@ -251,6 +259,18 @@ class IssueEvidenceScopeSourceV1:
     ) -> None:
         if type(validity_period) is not timedelta or validity_period <= timedelta(0):
             raise ValueError("validity_period must be an exact positive timedelta")
+        try:
+            provider_unit = observation_provider.unit_of_work_key
+            repository_unit = repository.unit_of_work_key
+        except Exception as error:
+            raise ValueError(
+                "scope-source observation and repository must expose a unit_of_work_key"
+            ) from error
+        if type(provider_unit) is not str or type(repository_unit) is not str:
+            raise ValueError("scope-source unit_of_work_key must be a string")
+        if not provider_unit or not repository_unit or provider_unit != repository_unit:
+            error_message = "scope-source observation and repository must share one unit of work"
+            raise ValueError(error_message)
         self._observation_provider = observation_provider
         self._repository = repository
         self._validity_period = validity_period
@@ -546,10 +566,13 @@ class IssueEvidenceScopeSourceV1:
                 "scope-source current-head identity substitution"
             )
         _validate_source_observation_binding(head, observation)
-        if not head.is_temporally_current_at(cutoff):
-            raise EvidenceScopeSourceV1LifecycleUnavailable(
-                "scope-source current head is terminal or expired"
+        if not head.is_knowable_at(cutoff):
+            raise EvidenceScopeSourceV1LifecycleCorruption(
+                "scope-source current head is from the future"
             )
+        if head.status != "active":
+            error_message = "scope-source current head is terminal"
+            raise EvidenceScopeSourceV1LifecycleUnavailable(error_message)
         return head
 
 
