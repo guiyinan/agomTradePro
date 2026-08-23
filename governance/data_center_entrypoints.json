@@ -15,28 +15,28 @@
       "management_command_edge": 56,
       "mcp_tool": 40,
       "migration_evidence": 14,
-      "operational_dispatch_edge": 60,
-      "operational_script": 28,
+      "operational_dispatch_edge": 61,
+      "operational_script": 29,
       "orchestration_entry": 9,
       "public_port": 91,
       "rest_url": 66,
       "runbook": 7,
       "runtime_config_key": 45,
       "scheduler_writer": 16,
-      "script": 3,
+      "script": 4,
       "sdk": 46,
       "terminal_tui": 28,
-      "test_evidence": 38,
+      "test_evidence": 39,
       "workflow_step": 9
     },
     "by_status": {
-      "active_public": 704,
+      "active_public": 710,
       "adjacent_operational": 293,
-      "candidate-review": 2,
+      "candidate-review": 0,
       "compatibility": 133,
       "retired_blocked": 0
     },
-    "total": 1132
+    "total": 1136
   },
   "entries": [
     {
@@ -7281,6 +7281,16 @@
     },
     {
       "category": "operational_dispatch_edge",
+      "evidence": "canonical migration-graph and isolated PostgreSQL restore verification tooling",
+      "id": "operational_dispatch_edge:scripts/record_data01_restore_evidence.py:pg_restore:token:pg_restore",
+      "locator": "token:pg_restore",
+      "path": "scripts/record_data01_restore_evidence.py",
+      "status": "active_public",
+      "symbol": "pg_restore",
+      "target": "postgres:pg_restore"
+    },
+    {
+      "category": "operational_dispatch_edge",
       "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/register-macro-daily-sync-task.ps1:Register-ScheduledTask:token:Register-ScheduledTask",
       "locator": "token:Register-ScheduledTask",
@@ -7678,6 +7688,16 @@
       "status": "adjacent_operational",
       "symbol": "__main__",
       "target": "scripts/deploy-on-vps.sh,scripts/remote_build_deploy_vps.py,scripts/vps-backup.sh,scripts/vps-restore.sh"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "canonical migration-graph and isolated PostgreSQL restore verification tooling",
+      "id": "operational_script:scripts/record_data01_restore_evidence.py:__main__:",
+      "locator": "",
+      "path": "scripts/record_data01_restore_evidence.py",
+      "status": "active_public",
+      "symbol": "__main__",
+      "target": "postgres:pg_restore"
     },
     {
       "category": "operational_script",
@@ -10142,6 +10162,16 @@
     {
       "category": "script",
       "evidence": "Data Center governance/measurement tooling",
+      "id": "script:scripts/record_data01_restore_evidence.py:__main__:",
+      "locator": "",
+      "path": "scripts/record_data01_restore_evidence.py",
+      "status": "active_public",
+      "symbol": "__main__",
+      "target": ""
+    },
+    {
+      "category": "script",
+      "evidence": "Data Center governance/measurement tooling",
       "id": "script:scripts/verify_postgres_backup_restore.py:__main__:",
       "locator": "",
       "path": "scripts/verify_postgres_backup_restore.py",
@@ -11011,11 +11041,11 @@
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
       "id": "test_evidence:tests/settings_terminal_agent_run_postgres.py:settings_terminal_agent_run_postgres:",
       "locator": "",
       "path": "tests/settings_terminal_agent_run_postgres.py",
-      "status": "candidate-review",
+      "status": "active_public",
       "symbol": "settings_terminal_agent_run_postgres",
       "target": ""
     },
@@ -11097,6 +11127,16 @@
       "path": "tests/unit/data_center/test_archive_tasks.py",
       "status": "active_public",
       "symbol": "test_archive_tasks",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/data_center/test_data01_restore_evidence.py:test_data01_restore_evidence:",
+      "locator": "",
+      "path": "tests/unit/data_center/test_data01_restore_evidence.py",
+      "status": "active_public",
+      "symbol": "test_data01_restore_evidence",
       "target": ""
     },
     {
@@ -11241,11 +11281,11 @@
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
       "id": "test_evidence:tests/unit/test_evid_02_postgres_evidence.py:test_evid_02_postgres_evidence:",
       "locator": "",
       "path": "tests/unit/test_evid_02_postgres_evidence.py",
-      "status": "candidate-review",
+      "status": "active_public",
       "symbol": "test_evid_02_postgres_evidence",
       "target": ""
     },
