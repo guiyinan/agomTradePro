@@ -1822,3 +1822,21 @@ gates remain unchanged. Repeated deployment is not required.
 仅对 `demo.agomtrade.pro` 执行了三条 HTTPS `GET`，没有部署、迁移、队列启用、回滚或生产写入。`/api/health/` 与 `/api/ready/` 均返回 `200`；ready 的 database、Redis、Celery、critical data 为 `ok`，decision-data 为 `warning`。`/api/decision-ready/` 返回 `503`，并明确 `must_not_use_for_decision=true`。原始响应的大小、SHA-256 与 acceptance 口径保存在 [`tar01-public-health-readonly-recheck-2026-08-24.json`](../deployment/tar01-public-health-readonly-recheck-2026-08-24.json)。
 
 这只刷新公共健康与 fail-closed 状态，不识别或重绑当前部署候选，也不产生 TAR-05 容量/chaos、queued/Worker/SSE、角色浏览器 UAT、写后 receipt/refresh、14 日 telemetry、restore/rollback 或 owner/reviewer 签署证据；TAR-01/TAR-05 与决策门禁继续保持 fail-closed。
+
+## 20. 2026-08-24：TAR-05 offline chaos evidence recorder
+
+为让已登记的 TAR-05 `auto_collect` 证据可以离线、可重复地验收，新增
+`scripts/record_terminal_runtime_chaos_evidence.py`。它只读取外部提供的
+`terminal-runtime-chaos-observation.v1` JSON 快照，并复用
+`terminal_runtime_chaos_evidence` 的严格解析/序列化合同：候选 commit/release/OCI
+与 canonical test-matrix digest 必须一致，观察必须绑定同一 environment，timeline
+必须使用单调 UTC，worker/run/stream/recovery 状态、重连/覆盖/重复副作用/跨用户泄漏
+计数必须显式出现，`unavailable`/`failed` 不得被填成零或通过；`runtime_enablement`
+固定为 `not_authorized`。可选的独立 candidate JSON 用于在录入时再次校验候选身份。
+
+录入器默认 dry-run；`--write` 只在调用方明确指定的本地目录创建 content-addressed
+append-only JSON 与 SHA-256 sidecar。它不启动负载、不注入故障、不连接 HTTP、Redis、Celery、
+Docker、PostgreSQL 或 VPS。回归 `19 passed`，Ruff/Black/isort/增量 mypy/debt ceiling
+需在提交前复跑。该切片只补齐离线收集边界，不把快照变成真实容量/混沌验收，也不改变
+TAR-01/TAR-05 的 `capacity_ready=false`、queued/Worker 关闭、decision fail-closed、
+14 日 telemetry、restore/rollback 或 owner/reviewer 门禁。
