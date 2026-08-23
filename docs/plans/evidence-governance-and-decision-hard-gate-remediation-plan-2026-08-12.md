@@ -3479,3 +3479,21 @@ immutable owner/tenant/scope lifecycle 与 issuer，再接 authenticated route�
 同 alias composition、生产 PostgreSQL race/rollback 和 owner/reviewer 双签；B/S、CLI/API
 仍只向服务器提交请求，AI/provider/MCP/tool execution 在服务器端，用户不安装本地 Agent、
 模型或 provider 软件。
+
+## 2026-08-24：EVID-01 Evidence read composition 机器守卫
+
+为继续收紧 EVID-01 的生产 read boundary，新增只读 AST guard
+`scripts/check_evidence_scope_composition.py`，并接入 `.github/workflows/consistency-check.yml`。
+它扫描 `apps/core/shared` 的 `2919` 个生产 Python 文件，禁止在
+`apps/research/evidence_composition.py` 以外直接导入或实例化
+`DjangoEvidenceRepository`、`DjangoEvidenceScopeSourceV1Repository`、
+`EvidenceReadFacade` 或 `ScopedEvidenceReadFacade`；同时要求三个 staff-scoped Evidence
+detail views 通过 `make_evidence_read_facade()` 进入默认 fail-closed composition。
+
+本地验证：guard `Evidence scope composition guard passed`；composition/API focused regression
+`23 passed`；Ruff、Black、isort 与 `check_mypy_regression.py` 均通过。该切片只增加机器证明，
+不读取或创建 owner/tenant authority，不接 authenticated production writer/route，不执行
+migration/生产写入，也不解除 zero-seed、Evidence hard gate 或 global execution deny。
+后续仍需独立 immutable owner/tenant/scope lifecycle、server-issued selector issuer、生产
+composition、PostgreSQL race/rollback 与 owner/reviewer sign-off；B/S、CLI/API 仍只向服务器
+提交请求，用户不安装本地 Agent、模型或 provider 软件。

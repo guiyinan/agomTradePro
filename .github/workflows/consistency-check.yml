@@ -97,6 +97,9 @@ jobs:
       - name: Enforce Evidence output surface inventory
         run: python scripts/check_evidence_output_surfaces.py
 
+      - name: Enforce Evidence scope composition boundary
+        run: python scripts/check_evidence_scope_composition.py
+
       - name: Run governance consistency check
         run: |
           python scripts/check_governance_consistency.py \
