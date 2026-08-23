@@ -1748,3 +1748,22 @@ responses still expose no immutable candidate identity, so this remains an
 unbound observation. No deployment, production write, queue/worker enablement,
 backup creation, rollback, role UAT, or owner/reviewer sign-off was performed;
 TAR-01/TAR-05, AUD-01/EVID-01, and the decision-ready gate remain fail-closed.
+
+### Decision freshness semantics acceptance clarification (2026-08-23)
+
+The public response also contained a quote with a large elapsed age while
+reporting `freshness_status=latest_completed_session` and `is_stale=false`.
+This is intentional for a closed China market session, not an age-check
+regression: `QueryLatestQuoteUseCase.build_response` only clears the elapsed
+age blocker when the asset is CN-listed, the snapshot belongs to the latest
+completed China session, and the market is already closed. The focused tests
+`test_accepts_latest_completed_session_quote_on_weekend`,
+`test_blocks_quote_older_than_latest_completed_session_on_weekend`, and
+`test_keeps_intraday_stale_quote_blocked_during_live_session` cover the
+accepted weekend/session case and both stale counter-cases.
+
+This clarification does not make the service decision-ready. The public
+`/api/decision-ready/` response remains `503` with
+`must_not_use_for_decision=true` because the separate audit-evidence-write and
+market/data coverage gates are still blocked. No production code, deployment,
+or decision gate was changed by this review.
