@@ -217,3 +217,21 @@ SHA-256 为 `7f4e859915e7e0a8399ee75558a12e660b34ef04000f29988291f59d47eaaa55`�
 definition/policy/scope/qualification evidence。`STRAT-01` 继续 `awaiting_production`；
 `STRAT-02/03`、PIT/OOS、canonical receipts、Promotion、consumer UAT 与 rollback 依赖不变。
 
+## 17. 2026-08-23：STRAT-01 当前运行候选 owner-ledger 只读复核
+
+按照 active registry 的 `auto_collect` 清单，在当前 web/celery 镜像
+`agomtradepro-web:20260822134658` 上，通过同一 PostgreSQL `default` alias 执行
+SELECT-only 盘点；manifest source commit 为
+`4cef9040cccc2127c3f8128c8d858bc7958df2a4`。R1–R8 的 `65` 张 canonical 表全为零行，
+Portfolio R4/R5/R8 的 canonical 前缀精确命中 `7` 张表且全为零行，Account
+owner-assignment 的 `9` 张表与显式 owner/policy/operator registry 也全为零行。结构化
+工件为 [`strat-01-owner-ledger-readonly-recheck-2026-08-23.json`](../deployment/strat-01-owner-ledger-readonly-recheck-2026-08-23.json)。
+工件 SHA-256 为 `20e1d1c23ad00ab89879c1d2b2a4c93c051b07f9af0286c6df2c4f459c8d5ab6`。
+
+本次仅采集现状，没有创建、更新、删除、回填、promotion 或审批；Data Center 的事实与
+publication 不被现场 hash 成 owner evidence。结果仍固定
+`STRAT-01=awaiting_production`、`production_claim=false`、`production_ready=false`、
+`runtime_enablement=not_authorized`、`human_approval_status=not_collected`；`STRAT-02/03`
+及 PIT/OOS、canonical receipts、Promotion、consumer UAT、rollback 与 owner/reviewer 签署
+继续等待真实业务输入。
+

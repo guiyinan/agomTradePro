@@ -1,0 +1,57 @@
+{
+  "schema": "strat-01-owner-ledger-readonly-recheck.v1",
+  "observed_at": "2026-08-23T12:53:59.821750Z",
+  "observation_kind": "candidate_bound_read_only_inventory",
+  "candidate": {
+    "source_commit": "4cef9040cccc2127c3f8128c8d858bc7958df2a4",
+    "release_tag": "20260822134658",
+    "image_tag": "agomtradepro-web:20260822134658",
+    "runtime_revision_match": true
+  },
+  "database_alias": "default",
+  "read_mode": "select_only",
+  "inventory": {
+    "research_r1_to_r8": {
+      "table_count": 65,
+      "row_count_total": 0,
+      "nonzero_table_count": 0
+    },
+    "portfolio_r4_r5_r8": {
+      "table_count": 7,
+      "row_count_total": 0,
+      "nonzero_table_count": 0,
+      "tables": [
+        "portfolio_r4_monitoring_raw_fact_receipt",
+        "portfolio_r4_rolling_research_receipt",
+        "portfolio_r4_rolling_research_result",
+        "portfolio_r5_monitoring_raw_fact_receipt",
+        "portfolio_r5_relative_value_outcome",
+        "portfolio_r8_monitoring_calendar_registry",
+        "portfolio_r8_monitoring_feedback_receipt"
+      ]
+    },
+    "account_owner_assignment": {
+      "table_count": 9,
+      "row_count_total": 0,
+      "nonzero_table_count": 0
+    },
+    "explicit_owner_policy_operator": {
+      "table_count": 9,
+      "row_count_total": 0,
+      "nonzero_table_count": 0
+    }
+  },
+  "decision": {
+    "strat_01": "awaiting_production",
+    "production_claim": false,
+    "production_ready": false,
+    "runtime_enablement": "not_authorized",
+    "human_approval_status": "not_collected"
+  },
+  "limitations": [
+    "All database access was read-only SELECT through the deployed PostgreSQL web container; no production row was created, updated, deleted, backfilled, promoted, approved, or rolled back.",
+    "Zero owner/definition/policy/calendar/scope/qualification rows are an observed production blocker, not evidence that R1-R8 capabilities are complete.",
+    "Existing Data Center facts and publications were not hashed or promoted into owner evidence.",
+    "This observation does not prove PIT/OOS history, canonical receipts, Promotion, consumer UAT, PostgreSQL race/rollback, or owner/reviewer sign-off."
+  ]
+}
