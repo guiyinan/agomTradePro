@@ -863,3 +863,27 @@ VPS、生产数据库、生产卷和部署均未访问或写入。
 这一步把 `DATA-01` 的最新归档隔离恢复与精确一致性证据补齐，但没有执行生产 restore/rebuild、
 维护态 rollback、RTO/RPO、controlled backfill、reconciliation 或 owner/reviewer 签署；
 `DATA-01` 继续 `awaiting_production`，`DATA-02/03` 不解锁。
+
+## 实施记录（2026-08-24，DATA-01 隔离 restore 证据 recorder 合同）
+
+为让已完成的隔离恢复报告可以被重复、离线且 fail-closed 地验收，本轮新增纯
+Application parser `apps/data_center/application/data01_restore_evidence.py` 与
+`scripts/record_data01_restore_evidence.py`。recorder 只读取一份既有 JSON 快照，严格
+校验 dump SHA-256 的 before/after/final 一致、source/restore 数据库身份不同、表/序列/
+Data Center migrations/schema digest 逐项一致、差异集合为空、UTC 时间与时长合法；序列化
+结果固定为 `production_claim=false`、`production_ready=false`、
+`runtime_enablement=not_authorized`，并以 content-addressed、append-only 方式可选写入本地
+证据目录。它不连接 PostgreSQL/VPS，不运行 `pg_restore`，不创建数据库，不进入维护态，也
+不修改生产数据。
+
+- 以本仓库提交的 [`data01-latest-backup-restore-2026-08-23.json`](../deployment/data01-latest-backup-restore-2026-08-23.json)
+  dry-run 生成 artifact SHA-256 `dc705a787884f7ccfe781777654829e0243a5f4adca1d005783950ff2da4dd88`；
+  仍绑定 `539` 张表、`460` 个序列、`72` 项迁移和既有隔离 restore 比较结果。
+- `tests/unit/data_center/test_data01_restore_evidence.py` 回归 `7 passed`，并与既有
+  backup/restore 合同合计 `17 passed`；Ruff/Black/isort、增量 mypy、mypy debt ceiling
+  与治理检查均已通过。
+
+这只是 DATA-01 的离线证据合同收口，不把本机 `590.844s` restore 或 `1626.207s` 总耗时
+冒充生产 RTO/RPO；生产维护态 restore/rebuild、rollback、controlled backfill、
+reconciliation、候选绑定与 owner/reviewer 签署仍缺，`DATA-01` 继续 `awaiting_production`，
+`DATA-02/03` 不解锁。
