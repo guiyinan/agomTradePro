@@ -82,6 +82,7 @@ def _canonical_payload(observation: EvidenceScopeSourceV1Observation) -> dict[st
         "account_id": observation.account_id,
         "actor_id": observation.actor_id,
         "artifact": observation.artifact.to_payload(),
+        "content_hash": observation.content_hash,
         "observation_id": observation.observation_id,
         "observation_version": observation.observation_version,
         "owner_id": observation.owner_id,

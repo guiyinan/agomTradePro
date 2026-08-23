@@ -3100,6 +3100,23 @@ lifecycle issuer，不读取 mutable User/Profile/session，不接 Evidence/HTTP
 EVID-01 继续 active/fail-closed。CLI/API 仍只把请求传到服务器，AI/provider/MCP/tool execution 在服务器端，
 用户不安装本地 Agent、模型或 provider 软件。
 
+## 2026-08-23：EVID-01 scope observation strict codec
+
+为 `EvidenceScopeSourceV1Observation` 增加独立 strict canonical codec，固定顶层与
+`ArtifactRef` nested key 集合，拒绝未知/缺失 key、非 canonical token、伪 boolean/int、非 UTC-Z
+微秒时钟、大小写错误 digest、nested substitution 与 secret 字段。编码前重新执行 Domain
+不变量，解码后重新计算 observation content hash，并要求 encode/decode canonical round-trip。
+
+scope observation codec、model、repository、lifecycle、provider、composition 聚合回归 `61 passed`；
+增量 mypy regression `0`，Ruff、Black、isort 与 `git diff --check` 通过。此前 observation
+ledger 的 `canonical_payload` 同步包含 `content_hash`，避免后续 repository restore 时 JSON 与
+独立 row hash 脱节。
+
+该 slice 仍是 dormant serialization boundary：不创建或推导 owner/tenant authority，不读取
+User/Profile/session，不接 selector issuer、provider、writer、HTTP/CLI/Agent route，不回填或部署
+VPS。EVID-01/Evidence hard gate 继续 active/fail-closed；CLI/API 只把请求传到服务器，AI、模型、
+provider、MCP/tool execution 在服务器端，用户不安装本地软件。
+
 ## 2026-08-23：EVID-01 scope observation schema-only ledger
 
 为 dormant `EvidenceScopeSourceV1Observation` DTO 增加独立的
