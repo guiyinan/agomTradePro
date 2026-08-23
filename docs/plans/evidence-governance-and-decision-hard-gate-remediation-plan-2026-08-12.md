@@ -3355,3 +3355,13 @@ successor、外层异常回滚不留下孤儿行。测试使用的 test database
 PostgreSQL 软件合同复核，不产生新的生产 claim；`EVID-02` 仍为 `awaiting_production`，真实
 approval/current-head/rollback、owner/reviewer 签署与 Evidence hard gate 不解锁。CLI/API
 仍只向服务器传输请求，AI/provider/MCP/tool execution 在服务器端，用户不安装本地软件。
+
+## 2026-08-23：EVID-01 Research unit acceptance recheck
+
+在不改变生产代码或 authority 组合的前提下，完整运行 `tests/unit/research`，覆盖 Evidence
+composition、scope provider/lifecycle/repository、read facades、R1–R8 readiness 与既有 Research
+contracts；结果为 `860 passed in 178.19s`。这只证明当前仓库的 Research unit contracts 没有回归，
+不把 unit fixtures 当作 owner/tenant authority，也不解除 EVID-01 的 production gate。独立
+immutable owner/tenant lifecycle、server-issued selector issuer、production writer、VPS/UAT、
+PostgreSQL production rollback/race 与人工 sign-off 仍待外部事实源；B/S CLI/API 仍只向服务器
+传输请求，AI/provider/MCP/tool execution 在服务器端。
