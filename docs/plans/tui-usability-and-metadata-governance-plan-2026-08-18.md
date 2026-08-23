@@ -329,6 +329,21 @@
   `TUI-01` remains `awaiting_production`, `TUX-02`/`TUX-04` remain `planned` in the machine
   registry, and the M5/TAR production gates remain fail-closed.
 
+## 6.2.12 2026-08-23 candidate-guard and full Workbench acceptance recheck
+
+- Commit `e73930f66cc480b9bcac1fe20bb59e42845575a9` separates the EVID-01 authority-inventory
+  contract from the Web→TUI M5 candidate contract. The focused EVID-01, candidate-consistency and
+  readiness regression passed (`36 passed`); the full `tests/unit/test_tui_workbench.py` suite also
+  passed (`257 passed`).
+- The local source guard remains `outcome=ok` (`12/24` screens, `430/890` actions, no configured,
+  ignored or unregistered patches, `0` violations). Active-plan and governance consistency checks
+  both report `0` violations, and all four push CI workflows for this commit are green.
+- This is repository/test acceptance only. No VPS deployment or production write was performed;
+  the Web→TUI readiness collector remains `DENY`, EVID-01 remains zero-seed/fail-closed, and
+  role-based production UAT, write receipts/refresh, telemetry, backup/restore, rollback and
+  owner/reviewer attestations remain outstanding. The B/S boundary is unchanged: clients submit
+  to server-side AI Runtime and users do not install or run a provider-backed Agent locally.
+
 ## 6. 风险与回滚
 
 - **文案批量重写风险**：430 个 action 的 label/description 重写可能误伤已被人工序列化的文案；分流时以 `source` 字段与人工策划 key 前缀白名单为界，重写前后做全量 diff 评审。
