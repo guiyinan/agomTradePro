@@ -1021,3 +1021,28 @@ scoped authority、claim/delivery、beat/retry 或 Data Center 同 UOW 双写证
 生产写入、publisher 操作、迁移、fault injection、rollback 或 owner/reviewer 签字。因此
 `AUD-01` 继续 `active`，`AUD-02/03` 继续等待依赖，production publisher/runtime 仍保持
 fail-closed。
+
+## 实施记录（2026-08-24，AUD-03 只读运营观察 recorder 合同）
+
+为补齐 AUD-03 `auto_collect` 的机械采集边界，新增纯 Application parser
+`apps/audit/application/aud03_operational_observation_evidence.py` 与服务器侧
+`scripts/record_aud03_operational_observation_evidence.py`，输出 schema
+`aud03-operational-observation-readonly.v1`。输入必须是外部候选绑定的 `select_only`
+快照；每个样本重复封存 commit/version/OCI/matrix，并只允许 migration、outbox、bounded
+metrics、alert codes、admin TUI status、recovery timeline/counters 与 archive hashes
+白名单字段。parser 拒绝未知/敏感/raw-log 字段、候选漂移、未来或非单调时间、负数与
+不一致的 outbox/recovery/archive 数据；不可用 section 必须显式 `unavailable` 并保留
+reason，不把缺失指标转换为零。backlog、recovery duration、duplicate/loss 与 archive
+integrity 均由已保留的 hashes/counters 派生，不能接受调用方自报 `passed`。
+
+recorder 默认 dry-run；显式 `--write` 只在服务器侧指定的本地目录写
+content-addressed append-only artifact。它不连接 publisher/authority/Celery/VPS/DB，不运行
+migration、rollback、fault injection、archive/restore，不改变生产状态，报告固定
+`production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`。
+AUD focused 回归 `12 passed`，与既有 outbox observability/metrics 回归合计 `27 passed`；
+Ruff/Black/isort 与增量 mypy 通过。
+
+本切片只完成“外部运营快照 → fail-closed 观察报告”的自动采集合同，不是 AUD-03 生产
+migration/rollback、backlog recovery、metrics/alert、TUI、archive/restore 或 owner/reviewer
+签字验收；`AUD-03` 继续 `waiting_dependency`，`AUD-01` publisher/authority gate 与
+`AUD-02` 同 UOW 双写不变。
