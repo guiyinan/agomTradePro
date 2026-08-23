@@ -235,3 +235,22 @@ publication 不被现场 hash 成 owner evidence。结果仍固定
 及 PIT/OOS、canonical receipts、Promotion、consumer UAT、rollback 与 owner/reviewer 签署
 继续等待真实业务输入。
 
+## 18. 2026-08-23：STRAT-01 当前候选 owner-ledger 新鲜只读复核
+
+在仍运行的 `4cef9040cccc2127c3f8128c8d858bc7958df2a4` / release `20260822134658` /
+image `agomtradepro-web:20260822134658` 上，通过同一 PostgreSQL `default` alias 执行
+SELECT-only 盘点。Research R1–R8 前缀命中 `65` 张表、Portfolio R4/R5/R8 前缀命中 `7`
+张表、Account authority/assignment 广义匹配 `15` 张表、owner/policy/operator/assignment
+广义匹配 `34` 张表，所有表的 row count 均为 `0`。数据库为 `agomtradepro`、schema 为
+`public`，观察时间为 `2026-08-23T13:26:42.792053Z`。
+
+结构化工件为
+[`strat-01-owner-ledger-readonly-recheck-2026-08-23-1326.json`](../deployment/strat-01-owner-ledger-readonly-recheck-2026-08-23-1326.json)，
+SHA-256 为 `3ea5b041e6f59a2936d0b28aa89ea262eaf70c4f16769094d4d409a16c159849`。Account 与
+owner/policy/operator 数量是为新鲜复核增加的广义 selector，既有 canonical 精确 9/9
+口径保持不变。本次仍未创建、更新、删除、回填、promotion 或审批；
+`STRAT-01=awaiting_production`、`production_claim=false`、`production_ready=false`、
+`runtime_enablement=not_authorized`、`human_approval_status=not_collected`，
+`STRAT-02/03` 及 PIT/OOS、canonical receipts、Promotion、consumer UAT、rollback 与
+owner/reviewer 签署继续等待真实业务输入。
+
