@@ -270,3 +270,13 @@ secret/token 字段和未来时间；默认 dry-run，`--write` 仅追加本地 
 增量 mypy 与 debt ceiling；本 slice 不改变 `STRAT-01` 的 `awaiting_production` 状态，也不
 把 owner/definition/policy/calendar/scope/qualification rows 推导成 authority 或 readiness。
 
+## 20. 2026-08-24：STRAT-01 当前候选新鲜 owner-ledger 只读采集
+
+按 `STRAT-01` 的 `auto_collect` 清单，在同一运行候选
+`4cef9040cccc2127c3f8128c8d858bc7958df2a4` / release `20260822134658` /
+image `agomtradepro-web:20260822134658` 上，通过同一 `default` alias 的 Django
+PostgreSQL connection 执行 `REPEATABLE READ READ ONLY` 事务。Research R1–R8
+前缀命中 `65` 张表、Portfolio R4/R5/R8 命中 `7` 张表、Account authority/assignment+广义匹配 `15` 张表、owner/policy/operator/assignment 广义匹配 `34` 张表，所有表的+row count 均为 `0`；数据库为 `agomtradepro`、schema 为 `public`，观察时间为+`2026-08-23T23:41:27.301458Z`。+
+原始快照 [`strat-01-owner-ledger-readonly-recheck-2026-08-24-2341.json`](../deployment/strat-01-owner-ledger-readonly-recheck-2026-08-24-2341.json)+的 SHA-256 为 `4a8163e816196cc364ab315b94c269f5a3e4d47f7cc6d67c9d47cbf498ec7ec9`，+经 `record_strat_01_owner_inventory.py --write` 生成 content-addressed report+[`4427a38da21d5da577de577f6bb4072eb3361c735453e887a224bf018a2ebc20.json`](../deployment/strat-01-owner-ledger-inventory/44/4427a38da21d5da577de577f6bb4072eb3361c735453e887a224bf018a2ebc20.json)。+
+报告 outcome=`zero_seed`，固定 `production_claim=false`、`production_ready=false`、+`runtime_enablement=not_authorized`；本次没有创建、更新、删除、回填、promotion 或审批，+也没有把 Data Center facts 转换成 owner evidence。`STRAT-01` 继续 `awaiting_production`，+`STRAT-02/03`、PIT/OOS、canonical receipts、Promotion、consumer UAT、rollback 与+owner/reviewer 签署仍等待真实业务输入。
+
