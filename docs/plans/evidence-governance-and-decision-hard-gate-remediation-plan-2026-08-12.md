@@ -3100,6 +3100,22 @@ lifecycle issuer，不读取 mutable User/Profile/session，不接 Evidence/HTTP
 EVID-01 继续 active/fail-closed。CLI/API 仍只把请求传到服务器，AI/provider/MCP/tool execution 在服务器端，
 用户不安装本地 Agent、模型或 provider 软件。
 
+## 2026-08-23：EVID-01 Research scope ledger disposable PostgreSQL concurrency evidence
+
+为补足 Research `EvidenceScopeSourceV1` repository 的数据库竞争证据，在现成的本地
+`agomtradepro-tar02-pg` disposable PostgreSQL 16 测试容器中创建了专用空库
+`evidence_scope_test_disposable`，并以显式
+`AGOM_EVIDENCE_SCOPE_PG_CONCURRENCY_EVIDENCE=1` 与测试数据库 URL 运行
+`tests/component/research/test_evidence_scope_source_v1_postgres_concurrency.py`。测试结果为
+`3 passed in 66.82s`：空表两个不同 root 只允许一个提交、同一 predecessor 的两个 successor
+只允许一个提交、外层异常回滚后 ledger 不留孤儿行。测试库随后已删除，未触碰其他本地数据库。
+
+这只是隔离 PostgreSQL 的 repository/事务合同证据，不能替代 VPS/生产 PostgreSQL、真实
+owner/tenant immutable lifecycle、server-issued selector、production writer、生产回滚/RTO、
+角色化 UAT 或人工签署；没有部署、回填、审批或生产写入。EVID-01 与 Evidence hard gate
+继续 active/fail-closed。CLI/API 仍是 B/S 薄传输客户端，AI、provider、MCP/tool execution
+继续在服务器端运行，用户不安装本地 Agent、模型或 provider 软件。
+
 ## 2026-08-23：EVID-01 authorized Evidence composition same-alias guard
 
 收紧 `make_authorized_evidence_read_facade()` 的 dormant composition 边界：注入的 selector provider、
