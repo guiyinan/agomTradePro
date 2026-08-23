@@ -3365,3 +3365,18 @@ contracts；结果为 `860 passed in 178.19s`。这只证明当前仓库的 Rese
 immutable owner/tenant lifecycle、server-issued selector issuer、production writer、VPS/UAT、
 PostgreSQL production rollback/race 与人工 sign-off 仍待外部事实源；B/S CLI/API 仍只向服务器
 传输请求，AI/provider/MCP/tool execution 在服务器端。
+
+## 2026-08-23：审计健康只读复核（不解除 Evidence/AUD 门禁）
+
+对现有公网 B/S 服务执行一次无写入 HTTPS GET `/api/audit/health/`，返回 `200` 且
+`overall_status=OK`。失败计数为 `0`，数据库连接与审计表可访问，pending/due/claimed/
+expired/failed outbox backlog 均为 `0`，operation logs 为 `555`。原始结构化响应及
+body SHA-256=`db83db31700811c465d9b7ef76918aae5ef7e8f5c6a686f474e183a6c0cb8d83` 保存在
+[`tar01-public-audit-health-readonly-2026-08-23.json`](../deployment/tar01-public-audit-health-readonly-2026-08-23.json)。
+
+该事实只说明当前审计数据库/健康投影可达，不能证明 canonical durable publisher、
+authenticated owner/tenant authority、final-acceptance MCP evidence receipt 或
+decision-ready 可用；已持久化的 `MCP audit evidence write failed during final acceptance`
+阻断不会因健康端点自动清除。未部署、未写 production、未创建 approval/activation、未改变
+runtime state，`AUD-01`/`EVID-01` 与 global execution deny 继续 fail-closed；CLI/API 仍为
+服务器端 AI 的薄传输客户端，用户不安装本地 Agent、模型或 provider 软件。

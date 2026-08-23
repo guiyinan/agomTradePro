@@ -1689,3 +1689,23 @@ rollback, role UAT, or owner/reviewer sign-off was performed. TAR-01/TAR-05,
 AUD-01/EVID-01, and the decision-ready gate remain fail-closed; the CLI/TUI
 continues to submit requests to the server-side Agent Runtime and users do not
 install a local provider-backed Agent.
+
+### TAR-01 public audit health read-only observation (2026-08-23)
+
+A single no-write HTTPS GET of `/api/audit/health/` returned `200` with
+`overall_status=OK`. The audit failure counter reported zero failures, the
+database and audit tables were accessible, and pending/claimed/expired/failed
+outbox counts were all zero; the service reported 555 operation logs. The exact
+response and body SHA-256
+(`db83db31700811c465d9b7ef76918aae5ef7e8f5c6a686f474e183a6c0cb8d83`) are
+preserved in
+[`tar01-public-audit-health-readonly-2026-08-23.json`](../deployment/tar01-public-audit-health-readonly-2026-08-23.json).
+
+This is a health observation only. It does not prove that the final-acceptance
+MCP evidence write was durably received, does not bind a candidate commit or
+release, and does not clear the persisted `decision-ready` blocker. No deploy,
+production write, approval/activation, queue enablement, backup, rollback,
+role UAT, or owner/reviewer sign-off was performed. TAR-01/TAR-05 and
+AUD-01/EVID-01 therefore remain fail-closed; the B/S client continues to submit
+requests to the server-side Agent Runtime and users do not install a local
+provider-backed Agent.
