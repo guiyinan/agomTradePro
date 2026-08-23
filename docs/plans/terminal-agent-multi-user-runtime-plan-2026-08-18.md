@@ -1786,8 +1786,10 @@ with SHA-256
 The public probes in the same acceptance window returned health/ready/audit
 `200`; ready kept `decision_data=warning`, audit reported 555 operation logs
 and zero failures/backlog, and decision-ready remained `503` with
-`must_not_use_for_decision=true`. The VPS candidate is not the current local
-branch HEAD (`ca920849fa87663407e8c92e1f60427d4af79ddf`), so this evidence is
+`must_not_use_for_decision=true`. The read-only snapshot captured the local
+branch at `ca920849fa87663407e8c92e1f60427d4af79ddf`; the subsequent docs-only
+evidence commit is `17319c241bb8cd3019a509a0331ec4a3ca15f2c2`. The VPS
+candidate is not bound to either evidence commit, so this remains
 candidate-bound observation only, not acceptance of the current branch and not
 the TAR-01 capacity/provider/chaos/telemetry/restore/rollback or owner/reviewer
 exit gate. A one-time deployment of the current approved candidate remains a
