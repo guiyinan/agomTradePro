@@ -1794,3 +1794,26 @@ candidate-bound observation only, not acceptance of the current branch and not
 the TAR-01 capacity/provider/chaos/telemetry/restore/rollback or owner/reviewer
 exit gate. A one-time deployment of the current approved candidate remains a
 separate authorized step; repeated deployments are not required.
+
+### TAR-01 current VPS candidate low-frequency read-only recheck (2026-08-24)
+
+The existing VPS candidate was rechecked once with the read-only SSH verifier;
+no build, release switch, migration, rollback, queue enablement, or business
+write was performed. The verifier returned exit code `0` for Caddy/TLS,
+health, Django deploy check, migrations, canonical Data Center schema, TUI
+registry, Qlib (`pyqlib=0.9.7`, wrong `qlib` distribution absent), containers,
+resources, healthcheck, Celery worker/beat and Celery ping. The structured
+artifact is
+[`tar01-current-vps-readonly-verification-2026-08-24.json`](../deployment/tar01-current-vps-readonly-verification-2026-08-24.json)
+with SHA-256
+`7e364af02b2e72e5ffed55fb417923d8fa99a44e914ae092fd654f964c8d1eba`.
+
+Public health, readiness and audit probes returned `200`; readiness kept
+`decision_data=warning`, audit reported 555 operation logs and zero failures
+or outbox backlog, while decision-ready remained `503` with
+`must_not_use_for_decision=true`. The running candidate remains
+`4cef9040cccc2127c3f8128c8d858bc7958df2a4` / release `20260822134658`, and is
+not bound to local HEAD `8a755c3c2e79da067c0b9264b4e4f5bd1b8afe24`. This is a
+low-frequency read-only observation only; TAR-01/TAR-05 capacity, queue,
+provider, chaos, telemetry, restore/rollback, role UAT and owner/reviewer
+gates remain unchanged. Repeated deployment is not required.
