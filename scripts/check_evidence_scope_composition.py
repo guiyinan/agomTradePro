@@ -32,6 +32,20 @@ FORBIDDEN_MODULES = frozenset(
         "apps.research.infrastructure.evidence_scope_source_v1_repository",
     }
 )
+ALLOWED_IMPLEMENTATION_IMPORTS = frozenset(
+    {
+        (
+            "apps/research/infrastructure/evidence_operator_spec_definition_provider.py",
+            "apps.research.infrastructure.evidence_repository",
+            "EvidenceRepositoryCorruption",
+        ),
+        (
+            "apps/research/infrastructure/evidence_operator_spec_definition_provider.py",
+            "apps.research.infrastructure.evidence_repository",
+            "_restore_operator",
+        ),
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -64,6 +78,16 @@ def _dotted_name(node: ast.AST) -> str | None:
 def _symbol_name(node: ast.AST) -> str | None:
     dotted = _dotted_name(node)
     return None if dotted is None else dotted.rsplit(".", 1)[-1]
+
+
+def _allows_implementation_module_import(
+    relative: str,
+    module: str | None,
+    imported_name: str,
+) -> bool:
+    """Allow only the reviewed implementation helper imports."""
+
+    return (relative, module, imported_name) in ALLOWED_IMPLEMENTATION_IMPORTS
 
 
 def _production_files(root: Path) -> tuple[Path, ...]:
@@ -107,9 +131,18 @@ def _scan_production_file(root: Path, path: Path) -> tuple[CompositionGuardViola
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom):
             imported = tuple(alias.name.rsplit(".", 1)[-1] for alias in node.names)
-            for symbol in imported:
+            for alias, symbol in zip(node.names, imported, strict=True):
                 is_forbidden_symbol = symbol in FORBIDDEN_SYMBOLS
                 is_forbidden_wildcard = symbol == "*" and node.module in FORBIDDEN_MODULES
+                imported_module = (
+                    node.module
+                    if node.module in FORBIDDEN_MODULES
+                    else (
+                        f"{node.module}.{alias.name}"
+                        if node.module is not None and alias.name != "*"
+                        else None
+                    )
+                )
                 if is_forbidden_symbol or is_forbidden_wildcard:
                     dependency = "wildcard import" if is_forbidden_wildcard else symbol
                     violations.append(
@@ -117,6 +150,17 @@ def _scan_production_file(root: Path, path: Path) -> tuple[CompositionGuardViola
                             relative,
                             node.lineno,
                             f"direct Evidence composition dependency {dependency}; use the composition root",
+                        )
+                    )
+                elif (
+                    imported_module in FORBIDDEN_MODULES
+                    and not _allows_implementation_module_import(relative, node.module, alias.name)
+                ):
+                    violations.append(
+                        CompositionGuardViolation(
+                            relative,
+                            node.lineno,
+                            f"direct Evidence composition module import {imported_module}; use the composition root",
                         )
                     )
         elif isinstance(node, ast.Import):
@@ -128,6 +172,16 @@ def _scan_production_file(root: Path, path: Path) -> tuple[CompositionGuardViola
                             relative,
                             node.lineno,
                             f"direct Evidence composition dependency {imported_symbol}; use the composition root",
+                        )
+                    )
+                elif alias.name in FORBIDDEN_MODULES and not _allows_implementation_module_import(
+                    relative, alias.name, "*"
+                ):
+                    violations.append(
+                        CompositionGuardViolation(
+                            relative,
+                            node.lineno,
+                            f"direct Evidence composition module import {alias.name}; use the composition root",
                         )
                     )
         elif isinstance(node, ast.Call):

@@ -80,3 +80,50 @@ def test_guard_rejects_wildcard_imports_from_evidence_implementation_modules(
 
     assert len(violations) == 1
     assert "wildcard import" in violations[0].message
+
+
+def test_guard_rejects_module_only_imports_from_evidence_implementation_modules(
+    tmp_path: Path,
+) -> None:
+    """A module alias must not provide an unguarded repository escape hatch."""
+
+    _write(tmp_path, "apps/research/evidence_composition.py", "")
+    _write(tmp_path, "apps/research/interface/evidence_api_views.py", _valid_api_views())
+    _write(
+        tmp_path,
+        "apps/example.py",
+        "import apps.research.infrastructure.evidence_repository as evidence_module\n",
+    )
+    _write(
+        tmp_path,
+        "apps/example_two.py",
+        "from apps.research.infrastructure import evidence_repository\n",
+    )
+
+    violations = scan_evidence_scope_composition(tmp_path)
+
+    assert len(violations) == 2
+    assert all("module import" in violation.message for violation in violations)
+
+
+def test_guard_allows_only_reviewed_infrastructure_helper_imports(tmp_path: Path) -> None:
+    """Infrastructure exceptions stay narrow instead of allowing the whole package."""
+
+    _write(tmp_path, "apps/research/evidence_composition.py", "")
+    _write(tmp_path, "apps/research/interface/evidence_api_views.py", _valid_api_views())
+    _write(
+        tmp_path,
+        "apps/research/infrastructure/evidence_operator_spec_definition_provider.py",
+        "from apps.research.infrastructure.evidence_repository import "
+        "EvidenceRepositoryCorruption, _restore_operator\n",
+    )
+    _write(
+        tmp_path,
+        "apps/research/infrastructure/other_provider.py",
+        "from apps.research.infrastructure.evidence_repository import " "EvidenceReadFacade\n",
+    )
+
+    violations = scan_evidence_scope_composition(tmp_path)
+
+    assert len(violations) == 1
+    assert "EvidenceReadFacade" in violations[0].message

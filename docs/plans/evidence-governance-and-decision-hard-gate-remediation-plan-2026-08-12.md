@@ -3497,3 +3497,30 @@ migration/生产写入，也不解除 zero-seed、Evidence hard gate 或 global 
 后续仍需独立 immutable owner/tenant/scope lifecycle、server-issued selector issuer、生产
 composition、PostgreSQL race/rollback 与 owner/reviewer sign-off；B/S、CLI/API 仍只向服务器
 提交请求，用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-24：EVID-02 recorder 服务器端直接执行入口修复
+
+复核发现 `python scripts/record_evid_02_postgres_evidence.py --help` 从仓库根目录直接调用时，
+因脚本目录未把仓库根加入导入路径而抛出 `ModuleNotFoundError: apps`。现已在脚本启动边界
+显式加入仓库根路径，并增加直接子进程 CLI 回归；`--help` 现在可在服务器端仓库 checkout
+直接运行，focused recorder 回归为 `16 passed`。
+
+该修复只改善 EVID-02 离线 auto_collect 工具的可执行性，不改变默认 dry-run、content-addressed
+写入或 `production_claim=false` / `production_ready=false` / `runtime_enablement=not_authorized`
+语义；没有连接 PostgreSQL/VPS、创建 approval/activation、执行生产写入或发明人工审批。EVID-02
+仍为 `awaiting_production`，真实 PostgreSQL first-winner/current-head/rollback、人工审批与
+owner/reviewer sign-off 仍未解锁；B/S、CLI/API 继续只向服务器提交请求，AI/provider/MCP/tool
+execution 在服务器端，用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-24：EVID-01 composition guard module-import hardening
+
+在既有 Evidence read composition AST guard 的基础上，补充检测 module-only 绕过形式：
+`import ...evidence_repository as ...` 与 `from ... import evidence_repository` 现在同样被拒绝，
+而 `apps/research/infrastructure/` 内部实现之间的私有 repository helper import 仍被允许，避免
+把 Domain/Application/Infrastructure 合法依赖误判为 route composition bypass。新增回归覆盖两种
+语法，guard 实际扫描 `2921` 个 production Python 文件并通过，定向 guard 回归为 `21 passed`。
+
+该切片只扩大生产 read boundary 的静态证明，不创建 immutable owner/tenant authority、不接
+production writer/route、不访问 PostgreSQL/VPS，也不解除 zero-seed、Evidence hard gate 或
+global execution deny；EVID-01 仍需外部 authority lifecycle、selector issuer、production
+composition、PG race/rollback 与 owner/reviewer sign-off。
