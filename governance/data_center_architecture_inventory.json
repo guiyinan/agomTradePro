@@ -15403,112 +15403,112 @@
       "text": "\"\"\"Read-only EVID-02 approval/current-head audit contract."
     },
     {
-      "line": 106,
+      "line": 153,
       "path": "apps/research/application/evid_02_head_audit.py",
       "text": "raise Evid02HeadAuditError(\"summary ledger kind is not canonical\")"
     },
     {
-      "line": 108,
+      "line": 155,
       "path": "apps/research/application/evid_02_head_audit.py",
       "text": "raise Evid02HeadAuditError(\"summary status is invalid\")"
     },
     {
-      "line": 118,
+      "line": 165,
       "path": "apps/research/application/evid_02_head_audit.py",
       "text": "raise Evid02HeadAuditError(\"ok summary cannot contain issues\")"
     },
     {
-      "line": 120,
+      "line": 167,
       "path": "apps/research/application/evid_02_head_audit.py",
       "text": "raise Evid02HeadAuditError(\"empty summary must contain no rows\")"
     },
     {
-      "line": 122,
+      "line": 169,
       "path": "apps/research/application/evid_02_head_audit.py",
       "text": "raise Evid02HeadAuditError(\"corrupt summary must explain an issue\")"
     },
     {
-      "line": 148,
+      "line": 196,
       "path": "apps/research/application/evid_02_head_audit.py",
       "text": "raise Evid02HeadAuditError(\"summary order is not canonical\")"
     },
     {
-      "line": 150,
+      "line": 198,
       "path": "apps/research/application/evid_02_head_audit.py",
       "text": "raise Evid02HeadAuditError(\"summary type is invalid\")"
     },
     {
-      "line": 307,
+      "line": 470,
       "path": "apps/research/application/evid_02_head_audit.py",
       "text": "current = roots[0] if len(roots) == 1 else None"
     },
     {
-      "line": 310,
+      "line": 473,
       "path": "apps/research/application/evid_02_head_audit.py",
       "text": "while current is not None:"
     },
     {
-      "line": 311,
+      "line": 474,
       "path": "apps/research/application/evid_02_head_audit.py",
       "text": "if current.content_hash in visited:"
     },
     {
-      "line": 314,
+      "line": 477,
       "path": "apps/research/application/evid_02_head_audit.py",
       "text": "visited.add(current.content_hash)"
     },
     {
-      "line": 315,
+      "line": 478,
       "path": "apps/research/application/evid_02_head_audit.py",
       "text": "candidates = children.get(current.content_hash, [])"
     },
     {
-      "line": 320,
+      "line": 483,
       "path": "apps/research/application/evid_02_head_audit.py",
       "text": "terminal = current"
     },
     {
-      "line": 321,
+      "line": 484,
       "path": "apps/research/application/evid_02_head_audit.py",
       "text": "current = None"
     },
     {
-      "line": 323,
+      "line": 486,
       "path": "apps/research/application/evid_02_head_audit.py",
       "text": "current = candidates[0]"
     },
     {
-      "line": 385,
+      "line": 566,
       "path": "apps/research/application/evid_02_head_audit.py",
       "text": "def _summary_payload(summary: Evid02HeadAuditSummary) -> dict[str, object]:"
     },
     {
-      "line": 387,
+      "line": 568,
       "path": "apps/research/application/evid_02_head_audit.py",
       "text": "\"head_hash\": summary.head_hash,"
     },
     {
-      "line": 388,
+      "line": 569,
       "path": "apps/research/application/evid_02_head_audit.py",
       "text": "\"issues\": list(summary.issues),"
     },
     {
-      "line": 389,
+      "line": 570,
       "path": "apps/research/application/evid_02_head_audit.py",
       "text": "\"ledger_kind\": summary.ledger_kind,"
     },
     {
-      "line": 390,
+      "line": 571,
       "path": "apps/research/application/evid_02_head_audit.py",
       "text": "\"root_count\": summary.root_count,"
     },
     {
-      "line": 391,
+      "line": 572,
       "path": "apps/research/application/evid_02_head_audit.py",
       "text": "\"row_count\": summary.row_count,"
     },
     {
-      "line": 392,
+      "line": 573,
       "path": "apps/research/application/evid_02_head_audit.py",
       "text": "\"status\": summary.status.value,"
     },
