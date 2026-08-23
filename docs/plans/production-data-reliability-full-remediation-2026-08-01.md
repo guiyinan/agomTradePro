@@ -864,6 +864,22 @@ VPS、生产数据库、生产卷和部署均未访问或写入。
 维护态 rollback、RTO/RPO、controlled backfill、reconciliation 或 owner/reviewer 签署；
 `DATA-01` 继续 `awaiting_production`，`DATA-02/03` 不解锁。
 
+## 实施记录（2026-08-24，DATA-01 latest download 远端只读修复）
+
+复核 `auto_collect` 契约时发现 `scripts/backup-vps-postgres.py --download-latest` 虽然不应
+创建新归档，生成的远端脚本仍包含无条件的 `mkdir -p`/`chmod`，会在只读观察路径改变 VPS
+文件系统。现已将 latest 模式拆为独立脚本：只读取既有 `postgres-*.dump`、运行
+`pg_restore --list`、计算 hash/size/manifest 并输出 markers；默认 `prune=0` 时不含
+`mkdir`、`chmod`、`pg_dump`、`mv` 或 `-delete`。用户明确指定正数 prune 时才生成删除块，
+并保持 create 模式原有的建档/校验行为。
+
+- `tests/unit/test_backup_vps_postgres.py` 回归 `11 passed`，新增静态合同断言 latest 脚本
+  不含远端写操作；Ruff/Black/isort、增量 mypy 已通过。
+- 本轮没有调用 VPS、没有下载/创建归档、没有 prune、没有维护态切换或生产写入。
+
+这只修复 `auto_collect` 的远端只读边界，不构成生产备份、restore、RTO/RPO、rollback 或
+owner/reviewer 验收；`DATA-01` 继续 `awaiting_production`，`DATA-02/03` 不解锁。
+
 ## 实施记录（2026-08-24，DATA-01 隔离 restore 证据 recorder 合同）
 
 为让已完成的隔离恢复报告可以被重复、离线且 fail-closed 地验收，本轮新增纯
