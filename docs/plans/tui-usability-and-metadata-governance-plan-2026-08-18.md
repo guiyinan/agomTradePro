@@ -317,6 +317,18 @@
   browser/TUI/CLI clients submit to server-side AI Runtime; users do not install or run a
   provider-backed Agent locally.
 
+## 6.2.11 2026-08-23 Web-to-TUI readiness collector observation
+
+- The read-only `check_web_to_tui_cutover_readiness.py --json` collector returned `decision=DENY`
+  for `as_of=2026-08-23`. Source consistency and dependency ordering passed, while the immutable
+  candidate/version binding, `108` route-page UAT, cleanup/readiness scopes, `101` task telemetry,
+  rollback drill, production registry backup and owner/reviewer attestations were all absent.
+- This is a current machine-derived denial, not a test failure and not a request to enable the
+  gate. It confirms that the repository/runtime contracts are ahead of production evidence; no
+  deployment, production write, registry-backup creation, rollback or role UAT was performed.
+  `TUI-01` remains `awaiting_production`, `TUX-02`/`TUX-04` remain `planned` in the machine
+  registry, and the M5/TAR production gates remain fail-closed.
+
 ## 6. 风险与回滚
 
 - **文案批量重写风险**：430 个 action 的 label/description 重写可能误伤已被人工序列化的文案；分流时以 `source` 字段与人工策划 key 前缀白名单为界，重写前后做全量 diff 评审。
