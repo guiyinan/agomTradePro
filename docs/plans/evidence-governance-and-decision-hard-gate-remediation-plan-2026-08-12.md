@@ -3458,3 +3458,24 @@ authority、selector issuer、production writer、PostgreSQL production race/rol
 owner/reviewer sign-off。`EVID-01` 继续 `active`/fail-closed，TAR-01 仍
 `capacity_ready=false`，M5 readiness 仍 `DENY`；B/S、CLI/API 继续只向服务器提交请求，
 AI/provider/MCP/tool execution 在服务器端，用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-24：EVID-01 未验收 authority 草稿回滚与当前分支门禁复核
+
+当前 `dev/next-development` 已发现并回滚未获业务/生产验收的
+`bc6760465` authority 草稿提交；可追溯 revert 为 `a11ee194449ee91cfb9abaef6fc7c54b962b4b73`，
+且已推送至 `origin/dev/next-development`。该草稿缺少独立 owner/tenant/scope 业务定义、
+authority issuer、真实生产 receipt、PostgreSQL first-winner/revocation/rollback 与
+owner/reviewer sign-off，因此不作为 EVID-01 实现或生产证据。
+
+回滚后只读复核结果：`check_active_plan_registry.py` 与
+`check_governance_consistency.py` 均为 `0 violations`；TUI metadata source guard 为
+`outcome=ok`、`0 violations`；Evidence composition/scope provider 定向回归为 `24 passed`；
+针对 revert 的四条 push CI（Fast Feedback、Consistency Check、Architecture Layer Guard、
+Security Scan）均成功。工作树仅保留既有 `.gitignore` 用户改动，无 authority 草稿或生产代码
+改动。未部署 VPS、未执行 migration、未写生产、未改变 Evidence/global execution deny。
+
+该审定只证明仓库回到已验证的 fail-closed 基线，不解除 `EVID-01`。后续仍必须先取得独立
+immutable owner/tenant/scope lifecycle 与 issuer，再接 authenticated route、生产 writer、
+同 alias composition、生产 PostgreSQL race/rollback 和 owner/reviewer 双签；B/S、CLI/API
+仍只向服务器提交请求，AI/provider/MCP/tool execution 在服务器端，用户不安装本地 Agent、
+模型或 provider 软件。
