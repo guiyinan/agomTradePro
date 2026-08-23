@@ -1767,3 +1767,28 @@ This clarification does not make the service decision-ready. The public
 `must_not_use_for_decision=true` because the separate audit-evidence-write and
 market/data coverage gates are still blocked. No production code, deployment,
 or decision gate was changed by this review.
+
+### TAR-01 current VPS candidate read-only verifier (2026-08-23)
+
+A single read-only SSH verifier was run against the existing VPS candidate;
+no build, release switch, migration, rollback, queue enablement, or business
+write was performed. The immutable release manifest identifies
+`4cef9040cccc2127c3f8128c8d858bc7958df2a4` / release `20260822134658` /
+image `sha256:cfaf17560df2f85cd8ba2f5db8226a9dd9fe1cce081f30175c2a08737b4908d8`.
+Caddy/TLS, health, Django deploy check, migrations, canonical Data Center
+schema, TUI registry, Qlib (`pyqlib=0.9.7`, wrong `qlib` distribution absent),
+containers, resources, healthcheck, Celery worker/beat and Celery ping all
+returned success. The structured artifact is
+[`tar01-current-vps-readonly-verification-2026-08-23.json`](../deployment/tar01-current-vps-readonly-verification-2026-08-23.json)
+with SHA-256
+`d92285f87677571d3cc75d0ca78bd50b16933137f2df15bcd3d0eabe18cf7b51`.
+
+The public probes in the same acceptance window returned health/ready/audit
+`200`; ready kept `decision_data=warning`, audit reported 555 operation logs
+and zero failures/backlog, and decision-ready remained `503` with
+`must_not_use_for_decision=true`. The VPS candidate is not the current local
+branch HEAD (`ca920849fa87663407e8c92e1f60427d4af79ddf`), so this evidence is
+candidate-bound observation only, not acceptance of the current branch and not
+the TAR-01 capacity/provider/chaos/telemetry/restore/rollback or owner/reviewer
+exit gate. A one-time deployment of the current approved candidate remains a
+separate authorized step; repeated deployments are not required.
