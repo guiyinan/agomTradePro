@@ -3380,3 +3380,28 @@ decision-ready 可用；已持久化的 `MCP audit evidence write failed during 
 阻断不会因健康端点自动清除。未部署、未写 production、未创建 approval/activation、未改变
 runtime state，`AUD-01`/`EVID-01` 与 global execution deny 继续 fail-closed；CLI/API 仍为
 服务器端 AI 的薄传输客户端，用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-23：EVID-01 当前 HEAD bounded-slice 再审定
+
+以当前 HEAD `eb57eddf016ca65c21d8c9915ca6d2182cfed07e` 复核 EVID-01 的可继续范围；本次
+未修改生产代码、未部署 VPS、未写入生产数据库。EVID-01 相关 composition、scope
+provider/lifecycle、observation、repository 与 authority-inventory targeted regression 共
+`150 passed in 9.61s`；`check_active_plan_registry.py` 与 `check_governance_consistency.py` 均为 `0`
+violations。既有生产快照仍显示 0050–0053 已应用，但 12 张 authority/evidence/root-lock
+表全为 `0` 行，content-addressed report 固定
+`blocked_zero_seed_authority`、`authority_ready=false`、`production_claim=false`、
+`runtime_enablement=not_authorized`。
+
+边界复核确认：`apps/research/evidence_composition.py` 的默认 facade 仍在 repository
+读取前使用未接线 scope provider 并 fail-closed；authorized factory 只接受 server-issued
+selector，并要求 scope-source、Evidence repository 与 selector 共享同一
+`django:{using}`。`apps/account` 的 actor-authority bundle 只覆盖 authentication-context、
+Account user 与 RBAC raw source，不能映射为 Evidence 的 `owner_id`/`tenant_id`/
+`account_id`，也不能从 User/Profile/session/grant 现场派生 authority。当前没有新的安全
+本地 slice：继续添加 alias glue 会重复已有合同，真正下一步必须由外部业务/授权先定义独立
+immutable owner/tenant/scope lifecycle（root/successor/revocation/expiry/receipt）、
+server-issued selector issuer、生产 writer 与 authenticated route，再做同 alias production
+composition、PostgreSQL race/rollback 及 owner/reviewer sign-off。故 EVID-01 保持
+`active`/fail-closed，AUD/Evidence hard gate 与全局 execution deny 不解除；B/S、CLI/API
+仍只把请求发往服务器，AI/provider/MCP/tool execution 在服务器端，用户不安装本地 Agent、
+模型或 provider 软件。
