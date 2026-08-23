@@ -3498,6 +3498,29 @@ migration/生产写入，也不解除 zero-seed、Evidence hard gate 或 global 
 composition、PostgreSQL race/rollback 与 owner/reviewer sign-off；B/S、CLI/API 仍只向服务器
 提交请求，用户不安装本地 Agent、模型或 provider 软件。
 
+## 2026-08-24：EVID-02 当前候选新鲜 SELECT-only 只读复核
+
+在不部署、不迁移、不写库的前提下，使用只读 SSH verifier 再次确认当前 VPS
+运行候选为 `4cef9040cccc2127c3f8128c8d858bc7958df2a4` / release `20260822134658` /
+image `sha256:cfaf17560df2f85cd8ba2f5db8226a9dd9fe1cce081f30175c2a08737b4908d8`；Caddy/TLS、
+health、Django deploy check、迁移与 Data Center schema、TUI registry、QLib、容器资源、
+healthcheck、Celery worker/beat/ping 均通过。随后在同一 `default` alias 的 PostgreSQL
+`REPEATABLE READ READ ONLY` 事务中读取三张 canonical EVID-02 ledger 的安全字段；
+`research_evidence_operator_spec_approval` 与 `research_activated_evidence_operator_spec`
+均为 `0` 行（operator spec 也为空），current head 为 `empty`，没有构造或写入
+approval/activation。
+
+外部 envelope 为
+[`evid-02-select-only-vps-snapshot-2026-08-24-4cef9040.json`](../deployment/evid-02-select-only-vps-snapshot-2026-08-24-4cef9040.json)，
+input SHA-256=`962eb52c3a93fa39848777f12cf6acaad653d64c7b49a07cc5e889ffa0b2234c`，经既有
+`record_evid_02_head_audit.py --input-format select-only --write` 生成 content-addressed
+report [`894cce56837ad938da268b6b0c43f4f0dde01374d9efbba0176cfb1896d92225.json`](../deployment/evid-02-head-audit/89/894cce56837ad938da268b6b0c43f4f0dde01374d9efbba0176cfb1896d92225.json)。
+报告固定 `production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`；
+local `dev/next-development` HEAD 未部署，本次只读事实不能作为当前 HEAD production candidate，
+也不能解除 EVID-02 `awaiting_production`、真实 first-winner/current-head/rollback、human
+approval、owner/reviewer 或 Evidence hard gate。B/S、CLI/API 继续只向服务器提交请求，用户不安装本地
+Agent、模型或 provider 软件。
+
 ## 2026-08-24：EVID-02 recorder 服务器端直接执行入口修复
 
 复核发现 `python scripts/record_evid_02_postgres_evidence.py --help` 从仓库根目录直接调用时，
