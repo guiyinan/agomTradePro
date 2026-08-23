@@ -23,20 +23,20 @@
       "runbook": 7,
       "runtime_config_key": 45,
       "scheduler_writer": 16,
-      "script": 4,
+      "script": 5,
       "sdk": 46,
       "terminal_tui": 28,
       "test_evidence": 39,
       "workflow_step": 9
     },
     "by_status": {
-      "active_public": 710,
+      "active_public": 711,
       "adjacent_operational": 293,
       "candidate-review": 0,
       "compatibility": 133,
       "retired_blocked": 0
     },
-    "total": 1136
+    "total": 1137
   },
   "entries": [
     {
@@ -10165,6 +10165,16 @@
       "id": "script:scripts/record_data01_restore_evidence.py:__main__:",
       "locator": "",
       "path": "scripts/record_data01_restore_evidence.py",
+      "status": "active_public",
+      "symbol": "__main__",
+      "target": ""
+    },
+    {
+      "category": "script",
+      "evidence": "Data Center governance/measurement tooling",
+      "id": "script:scripts/record_data02_reconciliation_evidence.py:__main__:",
+      "locator": "",
+      "path": "scripts/record_data02_reconciliation_evidence.py",
       "status": "active_public",
       "symbol": "__main__",
       "target": ""

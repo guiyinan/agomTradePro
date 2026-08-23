@@ -903,3 +903,25 @@ Data Center migrations/schema digest 逐项一致、差异集合为空、UTC 时
 冒充生产 RTO/RPO；生产维护态 restore/rebuild、rollback、controlled backfill、
 reconciliation、候选绑定与 owner/reviewer 签署仍缺，`DATA-01` 继续 `awaiting_production`，
 `DATA-02/03` 不解锁。
+
+## 实施记录（2026-08-24，DATA-02 只读 reconciliation recorder 合同）
+
+为使受控回填前后的 canonical reconciliation 具备服务器侧可直接执行的离线采集入口，
+输出 schema `data02-reconciliation-readonly.v1`，新增纯 Application parser
+`apps/data_center/application/data02_reconciliation_evidence.py`
+与 `scripts/record_data02_reconciliation_evidence.py`。输入必须来自外部已完成的
+`select_only` 快照 envelope，包含同一 candidate 的 commit/version/OCI/matrix 身份、
+legacy/canonical 两侧 source 与 UTC `observed_at`，以及严格排序的 expected/code-defect
+自然键；parser 复用现有纯 `export_reconciliation_snapshot()`，保留
+`same/expected_difference/data_missing/semantic_conflict/code_defect` 分类、两侧快照 hash
+和观测时间，不把 unresolved 差异归零。
+
+recorder 默认 dry-run；显式 `--write` 只在本地写 content-addressed append-only artifact。
+它不连接 PostgreSQL/VPS、不执行 backfill、不写 Django reconciliation 表、不修改维护态，输出
+固定 `production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`。
+定向回归 `19 passed`，Data Center entrypoint inventory 重新生成为 `1137` 项、
+`candidate-review=0`；Ruff/Black/isort 与增量 mypy 通过。
+
+这只补齐 DATA-02 的“外部 snapshot → reconciliation 报告”自动采集合同，不是生产回填、
+coverage/freshness 全量验收，也不解除 DATA-01 前置、DATA-02/03 的生产状态、容差例外、
+维护态切换、canonical 写入或 owner/reviewer 签署；没有部署 VPS 或写生产数据。
