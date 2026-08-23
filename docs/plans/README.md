@@ -104,7 +104,7 @@
 | 波次 | Canonical unit | 类型 | 状态 | 依赖 | 唯一交付 |
 |------|----------------|------|------|------|----------|
 | W0 | `GOV-01` | governance | completed | — | 7 份剩余限期审查 plan 已全部归档或转入 canonical workstream；队列清空 |
-| W1 | `EVID-01` | repository | active | — | owner/user/tenant scoped Evidence authority 与生产 composition |
+| W1 | `EVID-01` | repository | active | — | authority lifecycle、authenticated selector 与 same-alias writer 已落库；待部署、真实审批、PG race/rollback 和双签 |
 | W1 | `EVID-02` | production | awaiting_production | — | approval/current-head 的 PostgreSQL first-winner、并发和回滚证据 |
 | W1 | `EVID-03` | repository | waiting | EVID-01/02 | Research/Portfolio/Broker adapters 与执行前 exact-current 重验 |
 | W1 | `AUD-01` | repository | planned | — | canonical publisher/runtime/authority composition |
@@ -138,6 +138,7 @@
 
 | 日期 | 期次 | 阶段 | 完成情况 | 后续 |
 |------|------|------|----------|------|
+| 2026-08-24 | 第一期 P0 | EVID-01 独立 owner/tenant authority 与自动 scope 采集 | 新增 Account append-only root/successor/revocation/expiry lifecycle、schema-only `0055`、独立 authenticated staff approval、principal+authority+artifact exact revalidation、Research same-alias ScopeSource writer/selector；定向单元 `44 passed`、账本组件 `4 passed`、mypy/架构/治理门禁通过 | 未部署/未写生产/未造审批；下一步受控部署 0055、真实 owner/admin approval、PG first-winner/revocation/rollback、端到端验收和双签；批准后的 scope 证据由服务器自动采集 |
 | 2026-08-23 | 第一期 P0 | EVID-02 当前候选 approval/current-head 新鲜只读复核 | 在 `4cef9040c` / release `20260822134658` 上以同一 `default` alias 执行一个 `REPEATABLE READ READ ONLY` 事务；`research_evidence_operator_spec`、`research_evidence_operator_spec_approval`、`research_activated_evidence_operator_spec` 均为 `0` 行，head=`empty`；工件 [`evid-02-select-only-vps-snapshot-2026-08-23-1336.json`](../deployment/evid-02-select-only-vps-snapshot-2026-08-23-1336.json)，SHA-256=`3fea758393a9bf2ca2f449d3dabe1c0726388ee964a76a97e068139be8e028a1` | 仅刷新真实账本现状，未创建 approval/activation、未回滚、未写生产；`EVID-02` 继续 `awaiting_production`，人工审批、PG 并发/rollback 和 owner/reviewer 签署不解锁 |
 | 2026-08-23 | 第二期 P0 | STRAT-01 当前候选 owner-ledger 新鲜只读复核 | 在仍运行的 `4cef9040c` / release `20260822134658` 上，通过同一 PostgreSQL `default` alias 做 SELECT-only 盘点：Research `65` 张、Portfolio `7` 张、Account authority/assignment 广义匹配 `15` 张、owner/policy/operator/assignment 广义匹配 `34` 张均为 `0` 行；新工件 [`strat-01-owner-ledger-readonly-recheck-2026-08-23-1326.json`](../deployment/strat-01-owner-ledger-readonly-recheck-2026-08-23-1326.json)，SHA-256=`3ea5b041e6f59a2936d0b28aa89ea262eaf70c4f16769094d4d409a16c159849` | 只读复核确认 owner/definition/policy/calendar/scope/qualification 仍 zero-seed；广义 selector 仅作新鲜 recheck，不替换既有 canonical 9/9 口径；`STRAT-01` 继续 `awaiting_production`，不创建、回填、promotion 或审批 |
 | 2026-08-23 | 第二期 P0 | 当前 HEAD 验收复核与 CI 收口 | `dev/next-development` HEAD=`07fd7c676946d1c7e5150ad57a5eee8f77cfcc8d`，与 `origin/dev/next-development` 同步；注册表与治理一致性均 `0` 违规，Evidence/MCP 与 decision write surface freeze 通过，TUI source guard 为 `12/24 screens`、`430/890 actions`、`0 violations`，EVID 定向回归 `59 passed`、TUI/冻结回归 `65 passed`、完整 `tests/unit/test_tui_workbench.py` `257 passed`；当前 HEAD 的四条 push CI 均成功 | 本轮只做本地/CI 验收回写，未部署 VPS、未写生产、未创建 approval/activation；EVID-01 仍因 zero-seed owner/tenant authority `active`/fail-closed，TAR-01 `capacity_ready=false`、M5 `DENY`，继续等待真实 authority、候选角色 UAT、容量/恢复/观察与 owner/reviewer 签署 |

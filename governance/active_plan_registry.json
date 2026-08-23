@@ -1,6 +1,6 @@
 {
-  "version": "2026-08-22.v2",
-  "updated_at": "2026-08-22",
+  "version": "2026-08-24.v1",
+  "updated_at": "2026-08-24",
   "execution_focus": {
     "unit_id": "EVID-01",
     "allowed_parallel_execution_modes": [
@@ -18,7 +18,7 @@
       "priority": "P0",
       "owner": "research+risk_center+portfolio+broker_execution+account",
       "status": "active",
-      "next_gate": "EVID-01 is the repository execution focus: establish immutable owner/tenant/scope authority and production composition while preserving the global execution deny. The current Account actor bundle covers only authentication-context/user/RBAC and must not be mapped into Evidence scope; EVID-02 continues its declared safe auto_collect evidence lane in parallel.",
+      "next_gate": "EVID-01 now has a repository-side immutable owner/tenant authority lifecycle, authenticated selector bridge and same-alias scope-source writer composition. Preserve the global execution deny; next deploy migration 0055 under authorization, collect a real independent root approval, then prove PostgreSQL first-winner/revocation/rollback and owner/reviewer sign-off. Never derive tenant/owner from mutable User/Profile/session state.",
       "documents": [
         {
           "path": "docs/plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md",
@@ -273,7 +273,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-08-22.v2",
+    "version": "2026-08-24.v1",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
