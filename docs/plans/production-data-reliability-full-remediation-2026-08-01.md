@@ -925,3 +925,30 @@ recorder 默认 dry-run；显式 `--write` 只在本地写 content-addressed app
 这只补齐 DATA-02 的“外部 snapshot → reconciliation 报告”自动采集合同，不是生产回填、
 coverage/freshness 全量验收，也不解除 DATA-01 前置、DATA-02/03 的生产状态、容差例外、
 维护态切换、canonical 写入或 owner/reviewer 签署；没有部署 VPS 或写生产数据。
+
+## 实施记录（2026-08-24，DATA-03 双 readiness 只读观察 recorder 合同）
+
+为把 M9/M10 前允许自动采集的“双 readiness + canonical smoke”边界固化为可复核输入，
+新增纯 Application parser
+`apps/data_center/application/data03_readiness_evidence.py` 与服务器侧
+`scripts/record_data03_readiness_evidence.py`，输出 schema
+`data03-readiness-readonly.v1`。输入必须是外部已捕获的 `http_get_read_only` envelope，
+每个样本重复封存 candidate 的 commit/version/OCI/matrix，并同时携带
+`/api/ready/` 与 `/api/decision-ready/` 的 endpoint、HTTP status、服务端 timestamp、
+checks 以及 decision 的 `must_not_use_for_decision`；canonical smoke checks 也要求显式
+状态和 source time。parser 拒绝未知字段、未来时间、候选漂移、非单调 observation、
+HTTP/status/gate 不一致、非有限 JSON 与未排序 smoke keys，并从原始响应只派生
+service failure、decision blocker、check defect、smoke failure、source age 和 observation
+duration，不把缺失字段补成成功。
+
+recorder 默认 dry-run；显式 `--write` 只在服务器侧调用者指定的本地目录写
+content-addressed append-only artifact。它不连接 VPS/HTTP/PostgreSQL，不执行 M9/M10
+切换、不改变维护态、不写 production/readiness 表，报告固定
+`production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`。
+`tests/unit/data_center/test_data03_readiness_evidence.py` 回归 `11 passed`，entrypoint
+inventory 已刷新为 `1138` 项且 `candidate-review=0`。
+
+本切片只完成“外部响应 → fail-closed 观察报告”的服务器端自动采集合同；没有新的外部
+readiness/coverage/freshness/canonical smoke 数据，因此不宣称 DATA-03 观察窗口、M9/M10
+切换或生产 readiness 通过。`DATA-03` 继续 `waiting_dependency`，仍需 DATA-02 受控
+reconciliation、真实候选绑定、维护窗口和生产/数据 owner 批准后才能运行正式观察。
