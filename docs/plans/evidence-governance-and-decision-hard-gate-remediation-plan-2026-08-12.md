@@ -3458,29 +3458,3 @@ authority、selector issuer、production writer、PostgreSQL production race/rol
 owner/reviewer sign-off。`EVID-01` 继续 `active`/fail-closed，TAR-01 仍
 `capacity_ready=false`，M5 readiness 仍 `DENY`；B/S、CLI/API 继续只向服务器提交请求，
 AI/provider/MCP/tool execution 在服务器端，用户不安装本地 Agent、模型或 provider 软件。
-
-## 2026-08-24：EVID-01 独立 owner/tenant authority 与自动 scope 采集
-
-用户明确授权继续实现后，新增 Account-owned `OwnerTenantAuthorityV1`。它不把现有
-authentication/user/RBAC actor bundle 误当作 tenant/owner；root 只接受 exact-current
-`AccountOwnerAssignmentEvidenceV3` 作为账户归属 seal，并要求另一名当前认证的 human staff
-admin 显式批准 `tenant_id` 与稳定 `owner_id`。owner actor 与审批 actor/user 必须不同。
-authority 账本只追加，支持 root、active successor、revocation 和 expiry；Account schema-only
-migration `0055_owner_tenant_authority_v1` 不含 seed 或生产回填。数据库约束单 root、单
-successor，current reader 总是读取最终 head，并重验上游 account assignment；撤销、过期或
-账户归属提前失效后禁止回退旧 active 行。
-
-新增 authenticated Account→Research composition：每次 Evidence read 或 ScopeSource issuance
-先重验 request principal 的 Account actor authority，再重验 exact authority id/version/hash 的
-active final head，并绑定 exact Research `ArtifactRef`。actor、artifact、hash 或
-`django:{using}` alias 任一不一致均 fail closed。真实 authority 存在后，服务器可自动投影
-content-addressed scope observation、调用现有 winner-first lifecycle 写入 scope source，再
-签发 same-alias selector；自动化负责采集真实证据，但不能替人决定 tenant/owner，也不能自动
-创建首个生产 trust root。
-
-本轮本地结果：authority/scope 定向单元回归 `44 passed`，Django 账本组件回归 `4 passed`；
-Account migration drift 为 `No changes detected`，增量 mypy `0` 回退、全量 mypy debt `0`，
-Ruff、架构、注册表与治理一致性均为 `0` 违规。未部署 VPS、未执行 migration、未写生产、
-未创建真实审批，也未解除 Evidence hard gate/global execution deny。`EVID-01` 继续 active；
-剩余为受控部署 0055、真实独立 root approval、生产 PostgreSQL first-winner/successor/
-revocation/rollback、同 alias 端到端验收和 owner/reviewer sign-off。

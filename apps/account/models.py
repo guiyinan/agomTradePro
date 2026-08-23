@@ -15,9 +15,6 @@ from apps.account.infrastructure.account_owner_assignment_actor_authority_source
     AccountOwnerAssignmentActorAuthoritySourceV3RootLockModel,
 )
 from apps.account.infrastructure.models import *  # noqa: F401,F403
-from apps.account.infrastructure.owner_tenant_authority_v1_models import (  # noqa: F401
-    OwnerTenantAuthorityV1Model,
-)
 
 if TYPE_CHECKING:
     from apps.account.infrastructure.models import *  # noqa: F401,F403
