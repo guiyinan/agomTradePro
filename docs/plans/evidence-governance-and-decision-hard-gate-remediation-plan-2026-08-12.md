@@ -3100,6 +3100,21 @@ lifecycle issuer，不读取 mutable User/Profile/session，不接 Evidence/HTTP
 EVID-01 继续 active/fail-closed。CLI/API 仍只把请求传到服务器，AI/provider/MCP/tool execution 在服务器端，
 用户不安装本地 Agent、模型或 provider 软件。
 
+## 2026-08-23：EVID-01 next-slice exit audit
+
+在 observation strict read repository/provider 完成后，对 ScopeSourceV1 的 Domain、strict codec、
+Application exact/current readers、zero-seed ledger、closed-world repository、observation read seam、
+same-alias Evidence facade 以及 Account actor-authority bundle 做了只读闭环审计。结论是：当前本地
+read contract 已覆盖 selector ID/version/content hash、PIT/TTL、完整 restore、tamper/future/revoked/
+expired fail-closed、same-alias wiring 与默认无 authority 时不触碰 Evidence repository。
+
+因此本阶段不再新增 alias glue，也不把 Account actor bundle 映射为 Evidence 的 owner/tenant authority。
+继续实现前必须先有独立 immutable owner/tenant/scope lifecycle（root/successor/revocation/expiry/receipt），
+再有 server-issued selector provider 和同 alias atomic composition，最后才能接 authenticated route。
+当前缺少这些 owner/tenant 事实源与授权，EVID-01 继续 `active/fail-closed`；这不是生产 authority、UAT
+或人工签署。CLI/API 仍只向服务器传输请求，AI、模型、provider、MCP/tool execution 在服务器端，用户
+不安装本地 Agent、模型或 provider 软件。
+
 ## 2026-08-23：EVID-01 scope observation strict read repository/provider seam
 
 新增 `DjangoEvidenceScopeSourceV1ObservationRepository`，实现 Application 的
