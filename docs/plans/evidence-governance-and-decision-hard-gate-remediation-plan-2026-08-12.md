@@ -3294,3 +3294,24 @@ approval/activation ledger。
 `awaiting_production`，真实 PostgreSQL current-head/rollback、production approval、owner/reviewer
 签署与 Evidence hard gate 不解锁。CLI/API 仍是服务器端 AI 的薄传输客户端，不能要求用户安装本地
 Agent、模型或 provider 软件。
+
+## 2026-08-23：EVID-02 VPS current-head SELECT-only observation
+
+在不部署、不迁移、不写库的前提下，对当前 VPS 运行候选
+`4cef9040cccc2127c3f8128c8d858bc7958df2a4` / release `20260822134658` 执行了一次
+同一 `default` PostgreSQL alias 的 `REPEATABLE READ READ ONLY` 查询。查询只投影
+`research_evidence_operator_spec_approval` 与 `research_activated_evidence_operator_spec`
+的 canonical 账本字段；两者均为零行，因此 head audit 为 `approval=empty`、
+`activation=empty`，没有现场构造 approval、activation 或人工决定。
+
+外部 SELECT envelope 保存在
+[`docs/deployment/evid-02-select-only-vps-snapshot-2026-08-23-4cef9040.json`](../deployment/evid-02-select-only-vps-snapshot-2026-08-23-4cef9040.json)，
+query SHA-256 为 `0735a5b16fee05f9b3fc07f564d56bea85467981b97bfc53234cf23bc9e00b6c`；
+本地 normalizer 生成的 content-addressed report 为
+[`dc03b94b2a454a3db500960d2abc19fd1f14f40affc1c045f40c77760fbd5c12`](../deployment/evid-02-head-audit/dc/dc03b94b2a454a3db500960d2abc19fd1f14f40affc1c045f40c77760fbd5c12.json)。
+报告固定 `production_claim=false`、`production_ready=false`、
+`human_approval_status=not_collected`、`runtime_enablement=not_authorized`；
+该观测只关闭“当前候选账本是否为空”的事实采集子项，不能替代真实审批记录、生产
+current-head/rollback 并发证据、owner/reviewer 签署或 Evidence hard gate，故 `EVID-02`
+仍为 `awaiting_production`。CLI/API 仍只向服务器传输请求，AI/provider/MCP/tool execution
+在服务器端，用户不安装本地 Agent、模型或 provider 软件。
