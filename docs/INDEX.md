@@ -280,6 +280,7 @@
 | [evid-01-authority-inventory-2026-08-16-2258.json](deployment/evid-01-authority-inventory-2026-08-16-2258.json) | `443658d33159` / `20260816223921` 候选只读 authority migration/zero-seed inventory；EVID-01 guard 动态核对当前 registry/preflight/runtime binding | ✅ 2026-08-17 |
 | [vps-postgres-backup-verification-2026-08-16-2348.json](deployment/vps-postgres-backup-verification-2026-08-16-2348.json) | `443658d33159` / `20260816223921` 候选 PostgreSQL custom-format 备份下载、尺寸与 SHA-256 复核（未恢复） | ✅ 2026-08-16 |
 | [evid-01-authority-inventory-2026-08-16.json](deployment/evid-01-authority-inventory-2026-08-16.json) | e167 候选只读 authority migration/zero-seed inventory | ✅ 2026-08-16 |
+| [evid-01-authority-inventory-snapshot-2026-08-23-0810.json](deployment/evid-01-authority-inventory-snapshot-2026-08-23-0810.json) | 候选 `4cef9040cccc...` 的 PostgreSQL authority 只读快照：0050–0053 已应用、12 张 authority/evidence/root-lock 表全零；经离线 normalizer 生成 content-addressed report `3900c08b9054...` | ✅ 2026-08-23 |
 | [vps-runtime-verification-2026-08-16-1811.json](deployment/vps-runtime-verification-2026-08-16-1811.json) | `5a13125bb84e` / `20260816181141` 候选只读 release/health/container/Qlib/Celery 复核 | ✅ 2026-08-16 |
 | [DOCKER_DEPLOYMENT.md](deployment/DOCKER_DEPLOYMENT.md) | Docker 部署指南 | 完整 |
 | [postgres_windows_docker.md](deployment/postgres_windows_docker.md) | Windows PostgreSQL Docker 配置 | 完整 |

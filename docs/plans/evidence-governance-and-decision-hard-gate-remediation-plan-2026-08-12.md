@@ -3315,3 +3315,24 @@ query SHA-256 为 `0735a5b16fee05f9b3fc07f564d56bea85467981b97bfc53234cf23bc9e00
 current-head/rollback 并发证据、owner/reviewer 签署或 Evidence hard gate，故 `EVID-02`
 仍为 `awaiting_production`。CLI/API 仍只向服务器传输请求，AI/provider/MCP/tool execution
 在服务器端，用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-23：EVID-01 当前 VPS authority inventory 只读复核
+
+在不部署、不迁移、不写库的前提下，对当前运行候选
+`4cef9040cccc2127c3f8128c8d858bc7958df2a4` / release `20260822134658` 读取同一
+PostgreSQL `default` alias 的 `django_migrations` 与 12 张 authority/evidence/root-lock
+表。0050–0053 已应用；authentication-context、User/RBAC raw authority、actor bundle、
+Evidence scope、subject/evidence/receipt 账本均为零行。远端镜像 OCI revision 同为
+`4cef9040cccc2127c3f8128c8d858bc7958df2a4`，没有把当前分支未部署的代码混入报告。
+
+原始只读快照保存在
+[`evid-01-authority-inventory-snapshot-2026-08-23-0810.json`](../deployment/evid-01-authority-inventory-snapshot-2026-08-23-0810.json)，
+经既有离线 normalizer 生成 content-addressed report
+[`3900c08b9054620f9b969f4bd5aab8097bb00ad1e3692e9aaeee66bda5cdf9b4`](../deployment/evid-01-authority-inventory/39/3900c08b9054620f9b969f4bd5aab8097bb00ad1e3692e9aaeee66bda5cdf9b4.json)。
+报告固定 `blocked_zero_seed_authority`、`authority_ready=false`、
+`production_claim=false`、`runtime_enablement=not_authorized`；该事实采集只确认
+schema-ready/zero-seed，不把 Account actor bundle 映射为 Evidence owner/tenant，也不解除
+EVID-01。继续实现仍需独立 immutable owner/tenant/scope lifecycle、server-issued selector
+issuer、同 alias production composition、真实 PostgreSQL race/rollback 与人工授权；
+CLI/API 仍只向服务器传输请求，AI、provider、MCP/tool execution 在服务器端，用户不安装
+本地 Agent、模型或 provider 软件。
