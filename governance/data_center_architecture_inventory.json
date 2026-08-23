@@ -15628,17 +15628,17 @@
       "text": "error_message = \"scope-source current head is terminal\""
     },
     {
-      "line": 70,
+      "line": 74,
       "path": "apps/research/application/evidence_scope_source_v1_provider.py",
       "text": "\"\"\"Application reader port for one exact/current source candidate.\"\"\""
     },
     {
-      "line": 75,
+      "line": 79,
       "path": "apps/research/application/evidence_scope_source_v1_provider.py",
       "text": "\"\"\"Return the final current source, or ``None`` without predecessor fallback.\"\"\""
     },
     {
-      "line": 79,
+      "line": 83,
       "path": "apps/research/application/evidence_scope_source_v1_provider.py",
       "text": "\"\"\"Map a trusted current source to the existing fail-closed scope grant.\"\"\""
     },

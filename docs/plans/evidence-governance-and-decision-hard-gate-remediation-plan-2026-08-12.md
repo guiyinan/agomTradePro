@@ -3100,6 +3100,22 @@ lifecycle issuer，不读取 mutable User/Profile/session，不接 Evidence/HTTP
 EVID-01 继续 active/fail-closed。CLI/API 仍只把请求传到服务器，AI/provider/MCP/tool execution 在服务器端，
 用户不安装本地 Agent、模型或 provider 软件。
 
+## 2026-08-23：EVID-01 authorized Evidence composition same-alias guard
+
+收紧 `make_authorized_evidence_read_facade()` 的 dormant composition 边界：注入的 selector provider、
+`DjangoEvidenceScopeSourceV1Repository` 与 `DjangoEvidenceRepository` 现在都必须暴露
+`unit_of_work_key`，且与显式 `using` 精确对应 `django:{using}`。using 非规范、selector provider
+缺失/替换或跨 alias 时，在创建任一 repository、读取任何 Evidence 之前 fail-closed；这避免把
+两个不同数据库事务的 selector 与 scope/evidence ledger 误称为同一原子组合。
+
+新增 selector alias mismatch 回归；composition/provider/scope/repository focused `77 passed`，
+增量 mypy、Ruff、Black、isort、governance、architecture 与 deterministic inventory 检查通过。
+该 slice 仍只证明 dormant wiring contract，不创建 authenticated owner/tenant authority、selector
+issuer、User/Profile/session 读取或 production writer，不接 HTTP/CLI/Agent，不替代 PostgreSQL
+production race/rollback、VPS/UAT 或人工签署。EVID-01 与 Evidence hard gate 继续 active/fail-closed；
+CLI/API 仍只把请求发送到服务器，AI、provider、MCP/tool execution 在服务器端，用户不安装本地
+Agent、模型或 provider 软件。
+
 ## 2026-08-23：EVID-01 scope-source lifecycle unit liveness guard
 
 将同一 unit-of-work 约束从 constructor-time 扩展到 lifecycle 执行期间：Application 记录 provider

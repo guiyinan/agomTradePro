@@ -6,6 +6,8 @@ import sys
 from datetime import UTC, datetime, timedelta
 from types import ModuleType
 
+import pytest
+
 from apps.research.application.evidence_reads import ScopedEvidenceReadFacade
 from apps.research.application.evidence_scope_source_v1_provider import (
     EvidenceScopeSourceV1Selector,
@@ -66,6 +68,8 @@ def test_default_composition_is_scoped_and_unwired(monkeypatch) -> None:
 class _AuthorizedEvidenceRepository(_Repository):
     """Evidence repository sentinel reached only after a valid scope grant."""
 
+    unit_of_work_key = "django:audit"
+
     def get_operator_spec(self, **_: object) -> None:
         self.calls += 1
         return None
@@ -84,6 +88,8 @@ class _EvidenceRepositoryFactory:
 
 
 class _SelectorProvider:
+    unit_of_work_key = "django:audit"
+
     def __init__(
         self,
         selector: EvidenceScopeSourceV1Selector | None,
@@ -107,6 +113,7 @@ class _ScopeRepository:
     aliases: list[str] = []
 
     def __init__(self, *, using: str = "default") -> None:
+        self.unit_of_work_key = f"django:{using}"
         self.aliases.append(using)
 
 
@@ -238,3 +245,27 @@ def test_authorized_composition_missing_selector_stops_before_evidence_repositor
     assert _ScopeRepository.aliases == ["audit"]
     assert evidence_factory.aliases == ["audit"]
     assert evidence_repository.calls == 0
+
+
+def test_authorized_composition_rejects_selector_alias_mismatch(monkeypatch) -> None:
+    """A selector source on another alias cannot be composed with the ledger."""
+
+    class _OtherAliasSelectorProvider(_SelectorProvider):
+        unit_of_work_key = "django:other"
+
+    evidence_repository = _AuthorizedEvidenceRepository()
+    evidence_factory = _EvidenceRepositoryFactory(evidence_repository)
+    evidence_module = ModuleType("apps.research.infrastructure.evidence_repository")
+    evidence_module.DjangoEvidenceRepository = evidence_factory
+    scope_module = ModuleType("apps.research.infrastructure.evidence_scope_source_v1_repository")
+    scope_module.DjangoEvidenceScopeSourceV1Repository = _ScopeRepository
+    monkeypatch.setitem(sys.modules, evidence_module.__name__, evidence_module)
+    monkeypatch.setitem(sys.modules, scope_module.__name__, scope_module)
+
+    with pytest.raises(ValueError, match="share unit of work"):
+        make_authorized_evidence_read_facade(
+            selector_provider=_OtherAliasSelectorProvider(None, selector_artifact),
+            using="audit",
+        )
+
+    assert evidence_factory.aliases == []

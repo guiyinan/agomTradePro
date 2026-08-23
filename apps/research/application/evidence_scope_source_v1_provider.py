@@ -60,6 +60,10 @@ class EvidenceScopeSourceV1Selector:
 class EvidenceScopeSourceV1SelectorProvider(Protocol):
     """Resolve a selector from an immutable authority source, never a request."""
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the server-side unit/alias used by the authority source."""
+
     def get_selector(
         self, *, artifact: ArtifactRef, as_of: datetime
     ) -> EvidenceScopeSourceV1Selector | None:
