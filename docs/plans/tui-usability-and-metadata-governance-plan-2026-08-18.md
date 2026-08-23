@@ -301,6 +301,22 @@
   enablement was performed. TAR-04/TUX-02/TUX-04 and their external UAT, capacity/chaos,
   telemetry, restore/rollback and owner/reviewer gates remain independently fail-closed.
 
+## 6.2.10 2026-08-23 TUX-02/TUX-04 current source-boundary audit
+
+- A fresh local `check_tui_metadata_source_consistency.py` run reports `outcome=ok` with
+  `12 published` / `24 runtime` screens, `430` published actions / `890` normalized runtime
+  actions, no configured or ignored screen patches, and `0` violations. Older `430/889`
+  figures in historical entries remain historical evidence and are not the current baseline.
+- The machine registry remains authoritative: `TUX-02` and `TUX-04` are `planned` while the
+  repository execution lock is held by `EVID-01`. This audit records current source-boundary
+  evidence only; it does not create a second active repository unit or change any gate.
+  Publish/review migration, IA group and terminology changes, external AgomTUI portability,
+  and ordinary-role browser UAT remain outstanding.
+- No VPS deployment, production write, role sign-off, receipt/refresh observation, telemetry,
+  rollback/restore or external portability evidence was created. The B/S boundary is unchanged:
+  browser/TUI/CLI clients submit to server-side AI Runtime; users do not install or run a
+  provider-backed Agent locally.
+
 ## 6. 风险与回滚
 
 - **文案批量重写风险**：430 个 action 的 label/description 重写可能误伤已被人工序列化的文案；分流时以 `source` 字段与人工策划 key 前缀白名单为界，重写前后做全量 diff 评审。
