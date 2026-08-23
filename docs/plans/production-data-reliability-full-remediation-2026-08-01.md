@@ -815,3 +815,27 @@ restore/DDL、回填、reconciliation 或 rollback。仅复核 VPS 上已存在�
 这条记录只证明现有恢复点的远端格式与传输完整性，不证明生产 restore/rebuild、RTO/RPO、
 维护态 rollback、controlled backfill、reconciliation 或 owner/reviewer 验收。`DATA-01`
 继续 `awaiting_production`，`DATA-02/03` 不解锁。
+
+## 实施记录（2026-08-23，DATA-01 最新归档 data-backup-evidence.v1 复核）
+
+本批严格按 `auto_collect` 只读取 VPS 上已有的最新 custom-format 归档；没有创建新备份、
+prune、重新部署、维护态切换，也没有连接生产数据库执行 restore/DDL、回填、reconciliation
+或 rollback。
+
+- 远端归档为 `/opt/agomtradepro/backups/database/postgres-20260822-075316.dump`，完整下载到
+  `backups/vps-postgres/postgres-20260822-075316.dump`；远端与本地大小均为 `142825371`
+  bytes，SHA-256 均为
+  `f028ec2fe986be3c0f56f529e3fc44332ece472000c6e43f917d42b9ac2ffc55`。
+- 远端 `pg_restore --list` 已通过；manifest 为 `7204` entries，manifest SHA-256 为
+  `7a75c9afffd87ed2aaa9bdade115a1898f5219075ded466f7e411ae3a18ddba7`；本地
+  `postgres:16-alpine` 只读 `pg_restore --list` 复核得到同一计数与 digest。
+- 结构化证据为 [`data-backup-evidence-2026-08-23.json`](../deployment/data-backup-evidence-2026-08-23.json)，
+  `schema=data-backup-evidence.v1`，content hash
+  `6566a9733e95ced40ae4fae0f4783d7029a881eed7bb6e0b1225b33347e17f38`；远端采集时间为
+  `2026-08-23T09:45:28Z`，归档 mtime 为 `2026-08-22T05:54:05Z`，归档年龄 `100283s`。
+- 备份脚本与 restore verifier 合计 `25 passed`；本地归档仅做格式列表验证，未把隔离
+  restore 时间冒充生产 RTO/RPO。
+
+这条记录补齐当前已有归档的 content-addressed 结构化证据和传输完整性；生产 restore/rebuild、
+RTO/RPO、维护态 rollback、controlled backfill、reconciliation 与 owner/reviewer 验收仍缺。
+因此 `DATA-01` 继续 `awaiting_production`，`DATA-02/03` 不解锁。
