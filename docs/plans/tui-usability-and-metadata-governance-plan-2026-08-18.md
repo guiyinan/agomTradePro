@@ -344,6 +344,19 @@
   owner/reviewer attestations remain outstanding. The B/S boundary is unchanged: clients submit
   to server-side AI Runtime and users do not install or run a provider-backed Agent locally.
 
+## 6.2.13 2026-08-23 focused source/actionability recheck
+
+- The current local source guard still reports `outcome=ok`: `12` published / `24` runtime
+  screens, `430` published / `890` normalized runtime actions, no configured/ignored/unregistered
+  patches and `0` violations. The TUI actionability contract regression passed `12` tests;
+  the focused Evidence composition/provider regression passed `24` tests and the candidate
+  consistency guard passed `1` test.
+- These are repository-only regression facts. No metadata publish, VPS deployment, production
+  write, role browser UAT, write receipt/refresh, portability check, telemetry, restore/rollback
+  or owner/reviewer sign-off was performed. The machine registry remains authoritative: `TUX-02`
+  and `TUX-04` stay `planned` while EVID-01 holds the repository execution focus, and M5/TAR
+  production gates remain fail-closed.
+
 ## 6. 风险与回滚
 
 - **文案批量重写风险**：430 个 action 的 label/description 重写可能误伤已被人工序列化的文案；分流时以 `source` 字段与人工策划 key 前缀白名单为界，重写前后做全量 diff 评审。
