@@ -953,7 +953,32 @@ readiness/coverage/freshness/canonical smoke 数据，因此不宣称 DATA-03 �
 切换或生产 readiness 通过。`DATA-03` 继续 `waiting_dependency`，仍需 DATA-02 受控
 reconciliation、真实候选绑定、维护窗口和生产/数据 owner 批准后才能运行正式观察。
 
-## 实施记录（2026-08-24，DATA-03 当前候选双 readiness 只读采样）
+## 实施记录（2026-08-24，DATA-03 当前部署候选双 readiness 只读复核）
+
+在不重新部署 VPS、不切换 release、不改变维护态或写入生产库的前提下，对当前受控候选
+`94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` / version `20260824133504` /
+OCI `sha256:1c560b5fed14964a008c278a88d9f3e3b144444a172ecc239d06cedbd76d6a3e` /
+matrix `6272ea6606ebbf3c0791e48d807b733cbc6d9a4ce7d945d95c5e3a16c22aea64` 执行一次低频
+HTTPS `GET`。`/api/ready/`=`200/ok`，服务端 timestamp=`2026-08-24T07:59:30.063588Z`；
+`/api/decision-ready/`=`503/blocked`，timestamp=`2026-08-24T07:59:34.242560Z`，
+`must_not_use_for_decision=true`。`/api/health/` 返回 `200`；匿名
+`/api/data-center/providers/` 返回 `403`，所以 `canonical.data-center` smoke 明确为
+`unknown`，没有把未认证请求当成 canonical smoke 通过。
+
+原始 envelope [`data03-readiness-http-get-2026-08-24-0757.json`](../deployment/data03-readiness-http-get-2026-08-24-0757.json)，
+source payload SHA-256=`57ae566d61aa95c7848e8f5b8c1bbd0ae70f10bff6d9cdf43a580780ba728707`；经
+`record_data03_readiness_evidence.py` dry-run 后显式写入，content-addressed report
+[`8144f224cce8840a8284c64517fbf49b646e56d600235f976f7e423b4b35bf5a.json`](../deployment/data03-readiness/81/8144f224cce8840a8284c64517fbf49b646e56d600235f976f7e423b4b35bf5a.json)。
+报告派生 `service_failure_count=0`、`decision_blocker_count=1`、`check_defect_count=17`、
+`smoke_failure_count=1`、`max_source_age_seconds=4.178972`，并固定
+`production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`。
+
+这次仅完成当前候选的双 readiness 只读刷新，不构成 DATA-03 observation window、全市场
+coverage/freshness、M9/M10 切换、维护态操作、认证 canonical smoke 或 owner 签署；
+`DATA-03` 继续 `waiting_dependency`，仍需 DATA-02 受控 reconciliation、认证 smoke、
+维护窗口及生产/数据 owner 批准。
+
+## 历史记录（2026-08-24，DATA-03 旧候选双 readiness 只读采样）
 
 在不重新部署 VPS、不切换 release、不写生产库的前提下，对公开候选入口执行一次低频
 HTTPS `GET` 采样，并将它绑定到此前只读 verifier 已确认的候选
