@@ -1019,3 +1019,22 @@ SHA 与大小均匹配，partial archive 被拒绝。该工件只证明一个可
 
 因此 `DATA-01` 仍为 `awaiting_production`：生产 restore/rebuild、维护态 rollback、RTO/RPO、
 controlled backfill、reconciliation 与生产/数据 owner 签署尚未完成，`DATA-02/03` 不解锁。
+
+## 实施记录（2026-08-24，DATA-01 最新归档本机隔离 restore 验收）
+
+沿用同一 `--download-latest` 归档，在本地 disposable `postgres:16-alpine` 中先装载
+source copy，再由 `scripts/verify_postgres_backup_restore.py` 创建受控命名的 restore 库，
+执行 `pg_restore`、逐表内容 hash、schema、Data Center migration 与 sequence 对比。归档
+`142813695` bytes、SHA-256=`7eb67da66bb6d3c550bc35f96abbc2c38ea403f776c56602316e83b912b4fd6d`，
+`pg_restore --list` 非注释条目 `7189`；source/restore 均为 `539` 张 public 表、`72` 条
+Data Center migration、`460` 条 sequence，schema SHA-256 均为
+`47b7696d01371801a203560e830093712c6ace3bd94d8d6465699dab38857433`，missing/extra/changed
+tables、migrations、sequences 与 schema 差异均为 `0`。restore 用时 `689.563s`，验证
+`628.355s`，总计 `2214.035s`；完整 verifier report SHA-256 为
+`0391884b5792150cdcefe74a9a41817c025a3d216e670dfbac18a47facd00f17`。
+
+精简证据为 [`data01-local-isolated-restore-2026-08-24.json`](../deployment/data01-local-isolated-restore-2026-08-24.json)。
+restore 库、source copy 与容器内临时归档均已删除。该结果只证明最新归档在本地隔离环境中
+自洽可恢复，耗时不能冒充生产 RTO/RPO；没有执行生产 restore/DDL、维护态 rollback、
+controlled backfill 或 reconciliation，`DATA-01` 继续 `awaiting_production`，`DATA-02/03`
+不解锁，生产/数据 owner 与 reviewer 签署仍缺。
