@@ -356,7 +356,7 @@
       {
         "id": 1,
         "title": "Decision safety, audit and urgent runtime isolation",
-        "rule": "Run one major repository line at a time; TAR-03 is now the bounded P0 repository priority after TAR-02 completion. Declared production auto-collection continues in parallel without weakening Evidence or Audit gates."
+        "rule": "Run one major repository line at a time; EVID-01 is the current bounded P0 repository priority. TAR-01 through TAR-04 repository contracts are complete; declared production auto-collection continues in parallel without weakening Evidence or Audit gates."
       },
       {
         "id": 2,
