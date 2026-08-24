@@ -1071,3 +1071,28 @@ source payload SHA-256=`c1df5cf05b81b26cdba86d51acb9a74c4836b986548adae1f5177d61
 本次只新增一条候选绑定的认证只读 smoke 事实，不构成 DATA-02 reconciliation、全市场
 coverage/freshness、M9/M10 切换、生产写入、维护窗口或 owner/reviewer 签署；
 `DATA-03` 继续 `waiting_dependency`，decision-ready 继续 fail-closed。
+
+## 实施记录（2026-08-24，DATA-02 当前候选 `fund.nav` SELECT-only reconciliation）
+
+在不重新部署 VPS、不进入维护态、不执行 backfill、不写入 Django reconciliation 表的前提下，
+通过 SSH 在当前候选容器内运行只读 ORM 查询，分别读取 `fund_net_value` 与
+`data_center_fund_nav_fact(source=fund_legacy_repo)`。两侧均为 `7,648` 条，最大
+`nav_date=2026-06-25`，服务端同一观测时点为 `2026-08-24T14:01:25.587369Z`；自然键和
+`nav/acc_nav/daily_return` 经过现有 migration 同样的 Decimal canonicalization 后，两侧
+snapshot hash 均为 `c733f38375b36029d9eb4920652c1fcb666966ef086463fb1eec91847ddbed92`。
+
+原始候选绑定 envelope [`data02-reconciliation-candidate-2026-08-24.json`](../deployment/data02-reconciliation-candidate-2026-08-24.json)，
+source payload SHA-256=`e0232b4587be7188103c4a1a51b3947a1da97baa7226c6a010896d10e2407b73`，绑定
+commit=`94abd76e46eeef4a8e21853799c7d69bcd9bbe3b`、version=`20260824133504`、
+OCI=`sha256:1c560b5fed14964a008c278a88d9f3e3b144444a172ecc239d06cedbd76d6a3e`、
+matrix=`6272ea6606ebbf3c0791e48d807b733cbc6d9a4ce7d945d95c5e3a16c22aea64`。经
+`record_data02_reconciliation_evidence.py` 先 dry-run、再显式 append-only 写入后，canonical
+artifact 为 [`65935870cc4002c1e96fb0ab2473ee679b6b1540318aa72f2155a95d47db43dc.json`](../deployment/data02-reconciliation/65/65935870cc4002c1e96fb0ab2473ee679b6b1540318aa72f2155a95d47db43dc.json)，
+artifact SHA-256=`65935870cc4002c1e96fb0ab2473ee679b6b1540318aa72f2155a95d47db43dc`。
+报告分类为 `same=7648`、`expected_difference=0`、`data_missing=0`、
+`semantic_conflict=0`、`code_defect=0`，`reconciliation_clean=true`。
+
+这只证明 `fund.nav` 这一已选 dataset 在当前候选、当前只读快照边界内两侧一致；报告仍固定
+`production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`。
+它不等于全 Data Center coverage/freshness、受控回填前后 reconciliation、维护窗口或
+DATA-01 生产 restore/rollback，也不解除 DATA-02/03、decision-ready 或 owner/reviewer 签署门禁。
