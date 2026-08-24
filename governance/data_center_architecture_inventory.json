@@ -36,7 +36,7 @@
   "counts": {
     "approved_non_data_http_imports": 4,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 4345,
+    "current_surface_references": 4335,
     "data_write_task_decorators": 62,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -20609,11 +20609,6 @@
     },
     {
       "line": 12,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_account_self_service.py",
-      "text": "\"summary\": \"维护个人资料、风险偏好、密码、资金流水和交易成本。\","
-    },
-    {
-      "line": 12,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_advisor.py",
       "text": "\"summary\": \"按账户读取持仓驱动的今日建议单和建议订单清单。\","
     },
@@ -20628,17 +20623,7 @@
       "text": "\"endpoint\": \"/api/agent-runtime/dashboard/summary/\","
     },
     {
-      "line": 12,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_ai_quotas.py",
-      "text": "\"summary\": \"管理员在 TUI 内查看和调整用户兜底配额。\","
-    },
-    {
-      "line": 12,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_ai_system_providers.py",
-      "text": "\"summary\": \"管理员在 TUI 内管理系统级 AI 服务商、连通性与使用统计。\","
-    },
-    {
-      "line": 46,
+      "line": 33,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_ai_system_providers.py",
       "text": "\"layout_area\": \"summary\","
     },
@@ -20693,17 +20678,12 @@
       "text": "\"summary\": \"处理委托、成交、资金和持仓差异，并核对实盘操作证据。\","
     },
     {
-      "line": 109,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_broker_execution.py",
-      "text": "\"summary\": \"完成 Windows QMT Agent 接入、账户绑定、凭证、连接验证和执行门禁设置。\","
-    },
-    {
-      "line": 179,
+      "line": 165,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_broker_execution.py",
       "text": "\"key\": \"qmt-current-settings\","
     },
     {
-      "line": 208,
+      "line": 194,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_broker_execution.py",
       "text": "\"refresh_panel_key\": \"qmt-current-settings\","
     },
@@ -20723,27 +20703,22 @@
       "text": "\"summary\": \"验证自然语言请求如何通过统一路由层选择能力，并检查目录覆盖状态。\","
     },
     {
-      "line": 55,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_capability_router.py",
-      "text": "\"summary\": \"在 TUI 内查看已同步 MCP server/tool 目录，处理同步、路由开关和终端开关。\","
-    },
-    {
-      "line": 88,
+      "line": 74,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_capability_router.py",
       "text": "\"layout_area\": \"summary\","
     },
     {
-      "line": 142,
+      "line": 128,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_capability_router.py",
       "text": "{\"key\": \"summary\", \"label\": \"说明\"},"
     },
     {
-      "line": 326,
+      "line": 312,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_capability_router.py",
       "text": "\"placeholder\": \"搜索 capability_key / name / summary\","
     },
     {
-      "line": 417,
+      "line": 403,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_capability_router.py",
       "text": "{\"key\": \"summary\", \"label\": \"说明\"},"
     },
@@ -20751,11 +20726,6 @@
       "line": 16,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_cli.py",
       "text": "\"summary\": \"从 TUI 直接进入命令行式 AI 交互、会话和授权指令入口。\","
-    },
-    {
-      "line": 12,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_config_center.py",
-      "text": "\"summary\": \"统一查看运行 profile、容量策略、Qlib 配置、模型 Universe、训练模板和训练任务。\","
     },
     {
       "line": 16,
@@ -20848,19 +20818,9 @@
       "text": "\"summary\": \"获取、复制和验证当前账号的 MCP 接入材料。\","
     },
     {
-      "line": 19,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_mcp_access.py",
-      "text": "\"summary\": \"管理自己的 MCP 接入令牌、读写级别，以及一键复制给 AI 代理的接入提示词。\","
-    },
-    {
-      "line": 67,
+      "line": 53,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_mcp_access.py",
       "text": "\"layout_area\": \"summary\","
-    },
-    {
-      "line": 130,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_mcp_access.py",
-      "text": "\"summary\": \"管理员在 TUI 内管理用户 MCP 开关、令牌发放与撤销。\","
     },
     {
       "line": 1,
@@ -21143,17 +21103,12 @@
       "text": "\"key\": \"sentiment.awareness-summary\","
     },
     {
-      "line": 12,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_system_settings.py",
-      "text": "\"summary\": \"维护用户准入、MCP 默认值、市场视觉、协议与运行时映射。\","
-    },
-    {
-      "line": 42,
+      "line": 28,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_system_settings.py",
       "text": "\"key\": \"system-settings-current\","
     },
     {
-      "line": 47,
+      "line": 33,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_system_settings.py",
       "text": "\"layout_area\": \"current\","
     },
@@ -21161,11 +21116,6 @@
       "line": 156,
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_task_monitor.py",
       "text": "\"total_path\": \"summary.total_tasks\","
-    },
-    {
-      "line": 12,
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_user_access.py",
-      "text": "\"summary\": \"管理员筛选待处理用户，并完成批准、拒绝、状态重置和角色调整。\","
     },
     {
       "line": 657,

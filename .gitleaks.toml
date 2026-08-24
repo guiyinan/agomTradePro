@@ -18,3 +18,11 @@ condition = "AND"
 regexTarget = "line"
 regexes = ['''"schema_sha256"\s*:\s*"[0-9a-f]{64}"''']
 paths = ['''^docs/deployment/data01-isolated-restore/[0-9a-f]{2}/[0-9a-f]{64}\.json$''']
+
+[[allowlists]]
+description = "Allow generated TUI runtime content hashes"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+regexes = ['''^\s*"apps/terminal/infrastructure/[^\"]+"\s*:\s*"[0-9a-f]{64}",?\s*$''']
+paths = ['''^config/tui/agomtui-runtime\.manifest\.json$''']
