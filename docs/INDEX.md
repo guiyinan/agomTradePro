@@ -1319,4 +1319,4 @@
 - DATA-02 当前候选 coverage/freshness 只读证据：[`data02-coverage-freshness-observation-2026-08-24-94abd76e.json`](deployment/data02-coverage-freshness-observation-2026-08-24-94abd76e.json)，active A-share=`5,533`，fact coverage 完整但 canonical publication 不完整，`decision-ready=503` fail-closed；不解除 DATA-02 或决策门禁。
 
 **文档维护**: AgomTradePro Team
-**最后更新**: 2026-08-14
+**最后更新**: 2026-08-24
