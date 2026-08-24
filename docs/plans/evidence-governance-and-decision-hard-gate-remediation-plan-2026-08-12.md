@@ -3670,3 +3670,27 @@ first-winner/revocation/rollback、角色化浏览器 UAT 或 owner/reviewer sig
 继续 `active`/fail-closed，TAR-01 继续 `CONTRACT_COMPLETE/safety_ready=true/capacity_ready=false`，
 全局 execution/decision gate 不变。B/S、CLI/API 仍只向服务器提交请求，AI/provider/MCP/tool
 execution 在服务器端，用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-24：EVID-02 当前 HEAD SELECT-only current-head 只读复核
+
+在上一节 post-0055 受控部署候选上，使用同一 `default` PostgreSQL alias 执行一条
+`REPEATABLE READ READ ONLY` 事务；查询只读取 EVID-02 approval/activation 账本及
+`research_r6_activation_authorization` 行数，不触碰 writer，也不构造 approval、activation
+或人工决定。候选绑定为 `94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` / release
+`20260824133504`，server `as_of=2026-08-24T06:15:50.828234Z`，capture time
+`2026-08-24T06:15:50.849865Z`，query digest
+`8553cd8217b7e1e03b3140c1cc7eed9d33f07899650b7a5f4f933bb7cff47d40`。
+
+`research_evidence_operator_spec_approval`、`research_activated_evidence_operator_spec` 与
+`research_r6_activation_authorization` 均为 `0` 行；approval/activation current head 均为
+`empty`。外部快照 [`evid-02-select-only-vps-snapshot-2026-08-24-94abd76e.json`](../deployment/evid-02-select-only-vps-snapshot-2026-08-24-94abd76e.json)
+的 input SHA 为 `69814588d331087160224ac16758840f1b833c1787863a54f4c2418763bfb64f`，经
+`record_evid_02_head_audit.py --input-format select-only --write` 生成报告
+[`3513ea4582a73d2afccd5c2967008c4a8c17aa70d3a7039473947724c289e4fd.json`](../deployment/evid-02-head-audit/35/3513ea4582a73d2afccd5c2967008c4a8c17aa70d3a7039473947724c289e4fd.json)。
+报告固定 `human_approval_status=not_collected`、`production_claim=false`、
+`production_ready=false`、`runtime_enablement=not_authorized`。
+
+本轮只是将只读 current-head 事实重新绑定到已部署候选，不解除 `EVID-02` 的
+`awaiting_production`；真实 first-winner/current-head/rollback 并发、Risk Center approval、
+owner/reviewer 签署与 Evidence hard gate 仍缺失。B/S、CLI/API 继续只向服务器提交请求，
+AI/provider/MCP/tool execution 在服务器端，用户不安装本地 Agent、模型或 provider 软件。
