@@ -102,21 +102,7 @@ RUNTIME_BROKER_EXECUTION_SCREENS: tuple[dict[str, Any], ...] = (
     },
     {
         "key": "broker-execution.qmt-setup",
-        "label": "QMT 接入与设置",
-        "module_key": "system-governance",
-        "group": "system",
-        "audience": "admin",
-        "summary": "完成 Windows QMT Agent 接入、账户绑定、凭证、连接验证和执行门禁设置。",
-        "view_type": "detail",
         "dashboard_layout": "task_flow",
-        "default_action_key": "broker-execution.qmt-onboarding-guide",
-        "user_experience": {
-            "journey": "admin",
-            "primary_task": "按安全顺序完成 QMT 本地执行端接入并核对当前门禁。",
-            "primary_outcome": "Agent、账户和一次性凭证配置清楚，连接可验证，自动执行仍受控。",
-            "empty_state_hint": "尚未接入时先阅读指引，再完成账户绑定和一次性凭证创建。",
-            "next_step_hint": "连接成功后保持自动执行关闭，继续完成只读探针和仿真验收。",
-        },
         "business_context": {
             "objective": "把 QMT 接入从隐藏管理动作收敛为可审计的管理员自助流程。",
             "decision_output": "接入状态、安装命令、连接证据、账户门禁和下一步。",

@@ -67,12 +67,12 @@
 | `terminal-agent-multi-user-runtime` | P0 | production_validation | Agent Runtime / Terminal / Task Monitor / Operational Readiness / SDK / MCP | [多用户队列与服务端 CLI 运行](terminal-agent-multi-user-runtime-plan-2026-08-18.md) | TAR-01 至 TAR-04 repository 合同已完成；下一门是同一不可变候选上的 TUI-01 角色 UAT/写回执与 TAR-05 provider、容量、chaos、恢复、telemetry、双签，queued/worker 默认仍 fail-closed |
 | `ai-native-release` | P1 | external_validation | Agent Runtime / Terminal | [AI-Native delivery pack](ai-native/README.md) | 同候选 staging/production UAT 与 owner/reviewer 双签 |
 | `qmt-live-bridge` | P2 | blocked_external | Broker Execution / 外部券商 Owner | [QMT 实盘桥](qmt-live-trading-bridge-plan.md) | Windows XtQuant Phase 0、连续仿真和受控小额实盘 |
-| `tui-usability-governance` | P1 | active | Terminal | [TUI 可用性与 metadata 治理](tui-usability-and-metadata-governance-plan-2026-08-18.md) | repository 扩展暂停在 EVID-01 之后；后续恢复三真源与 action-density 收口时不得扰动M5候选 |
+| `tui-usability-governance` | P1 | active | Terminal | [TUI 可用性与 metadata 治理](tui-usability-and-metadata-governance-plan-2026-08-18.md) | TUX-02 repository exit gate 已完成；EVID-01 仍为唯一 repository focus，后续 TUX-03/TUX-04 恢复时不得扰动 M5 候选 |
 
 ## 当前执行焦点
 
 - 唯一 repository 主线：`EVID-01`。TAR-01 至 TAR-04 的 runtime、durable admission/dispatch、Worker/事件恢复、SDK/MCP薄客户端和TUI queued结果合同均已完成，Terminal Runtime 转入生产验证。
-- `AUD-01`、`TUX-02`、`TUX-04` 暂停 repository 扩展；现有 fail-closed 门禁保持不变。
+- `AUD-01`、`TUX-04` 暂停 repository 扩展；`TUX-02` 的 repository exit gate 已完成，现有 fail-closed 门禁保持不变。
 - `EVID-02`、`DATA-01`、`STRAT-01` 按各自 `auto_collect` 清单并行取证；仅具体生产写入、付费调用和人工决定进入集中授权批次，不再因“需要生产证据”整体停工。
 - `TUI-01` 与 `TAR-05` 的 repository 依赖已满足并进入 `awaiting_production`；当前 `94abd76e` 仅是 TAR/EVID 受控候选，正式 M5 的 commit/version/OCI/matrix/graph/runtime manifest 仍未重绑，因此不得把现有部署直接当作 TUI-01 候选或重复部署；完成正式 binding 后才能执行角色 UAT、容量/恢复验收并从第0天启动正式14日窗口。
 - 生产、外部和治理工作只允许在注册表声明的并行 mode 内进行；任何部署、生产写入或授权动作仍遵循专项计划的权限边界。
@@ -127,8 +127,8 @@
 | W4 | `QMT-01` | external | blocked | — | 券商 XtQuant 权限和目标机 Phase 0 |
 | W4 | `QMT-02` | external | blocked | QMT-01 | 连续仿真和受控小额实盘验收 |
 | W5 | `TUX-01` | repository | completed | — | 非法 published payload 降级渲染 + 存量记录批量重校验 |
-| W5 | `TUX-02` | repository | planned | — | 三真源合一、死 patch 删除、8 处漂移双写对账 |
-| W5 | `TUX-03` | repository | waiting | TUX-02 | 430 个 action 文案机检通过、全屏回到密度预算 |
+| W5 | `TUX-02` | repository | completed | — | 三真源合一、死 patch 删除、8 处漂移双写对账 |
+| W5 | `TUX-03` | repository | planned | TUX-02 | 430 个 action 文案机检通过、全屏回到密度预算 |
 | W5 | `TUX-04` | repository | planned | — | 分组重排、入口消歧、12 个 runtime screen 补齐契约 |
 | W5 | `TUX-05` | repository | waiting | TUX-03/TUX-04 | 布局/字段名翻译/状态栏/freshness 观感收口与截图证据 |
 

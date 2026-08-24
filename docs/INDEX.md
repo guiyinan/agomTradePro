@@ -156,7 +156,7 @@
 | [web-to-tui-m5-route-closure-evidence-2026-07-27.md](plans/web-to-tui-m5-route-closure-evidence-2026-07-27.md) | **Web → TUI M5 逐 Route 清理证据（认证边界、兼容目标与状态/回滚范围）** | ✅ 六类 scope 均为 108/108；不替代生产门禁 |
 | [tui-regime-display-contract-postmortem-2026-07-30.md](archive/plans/tui-regime-display-contract-postmortem-2026-07-30.md) | **TUI Regime 有数据未显示复盘（契约漂移、fail-closed 与跨层回归门禁）** | ✅ 整改完成并归档，持续执行门禁 |
 | [qmt-live-trading-bridge-plan.md](plans/qmt-live-trading-bridge-plan.md) | **QMT 本地执行桥与 VPS 实盘交易接入计划（Web / TUI / MCP / 权限 / 风控 / 对账）** | 仅 QMT 外部券商桥允许本地执行；仓库 MVP 已实现，待目标券商 Phase 0 与仿真实测 |
-| [tui-usability-and-metadata-governance-plan-2026-08-18.md](plans/tui-usability-and-metadata-governance-plan-2026-08-18.md) | **TUI 可用性与 metadata 治理整改（加载回退 / 三真源合一 / auto action 文案重写 / IA 整理 / 布局收口，TUX-01~05）** | 已立项，仓库内小收口线；不触碰 M5 候选证据链 |
+| [tui-usability-and-metadata-governance-plan-2026-08-18.md](plans/tui-usability-and-metadata-governance-plan-2026-08-18.md) | **TUI 可用性与 metadata 治理整改（加载回退 / 三真源合一 / auto action 文案重写 / IA 整理 / 布局收口，TUX-01~05）** | TUX-02 仓库 exit gate 已完成；TUX-03/TUX-04 后续实施与外部/M5 生产证据仍待，不触碰候选证据链 |
 | [terminal-agent-multi-user-runtime-plan-2026-08-18.md](plans/terminal-agent-multi-user-runtime-plan-2026-08-18.md) | **Terminal Agent 多用户队列、专用 Worker、可恢复事件流与服务端 AI/Agent 薄客户端整改（TAR-01~05）** | TAR-01~04 repository 合同已完成；当前转入 TAR-05 生产 provider、容量、混沌、恢复与观测验收，TAR-05 通过前保持 inline 并发 1；普通用户不安装本地 Agent/provider |
 | [adr-0002-qmt-local-execution-bridge.md](architecture/adr-0002-qmt-local-execution-bridge.md) | QMT 本地 Agent + VPS 控制面架构决策 | 已接受 |
 | [qmt-agent-runbook.md](operations/qmt-agent-runbook.md) | Windows QMT Agent 安装、分级启用、停止与故障处理 | 可执行 |

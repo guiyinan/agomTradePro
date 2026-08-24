@@ -90,7 +90,7 @@
 | `TUX-04` | W5 | repository | — | IA 整理：重排"研究与工具"杂物筐分组；易混入口改名消歧；统一术语表（Regime/象限、提示词/Prompt、观测日期口径）；12 个 runtime screen 补齐 `summary`/`user_experience`/`default_action_key`；修复 admin audience panel 对普通用户的碰壁跳转；`execution.audit` summary 与实际 panel 对齐 | IA 注册表契约测试通过；全部 screen（含 runtime）满足 metadata schema 必填项；普通角色浏览器走查确认无无权访问跳转 |
 | `TUX-05` | W5 | repository | TUX-03、TUX-04 | 界面细节收口：表格列宽/断行/行操作溢出修复；创建类 panel 重复提示去重；底部状态栏接线或移除；字段名翻译层（MustNotUseFor、QuotaCharged 等）；"broker order catalog display only" 占位符替换；顶栏内部 key 移除或折叠进调试语义；定性并修复 freshness 观感矛盾 | 8 个代表性 screen 的浏览器截图证据；字段名/内部 key 机检为零；freshness 判定结论记录在案（数据问题则修数据，判定缺陷则修判定） |
 
-执行纪律：`TUX-01` 阻断级回退已完成；`TUX-02` 与 `TUX-04` 在 `TAR-01 → TAR-02 → TAR-03` execution focus 期间保持 planned，不再作为“小收口”并行扩展 repository。TAR-03 退出后才恢复本线，每个 unit 的测试、治理清单更新与走查证据仍作为一个验收包，不拆算，也不得扰动已经冻结的正式 M5 候选。
+执行纪律：`TUX-01` 阻断级回退已完成；`TUX-02` 的 repository exit gate 已于 2026-08-24 收口。当前 repository execution focus 仍由 `EVID-01` 持有，`TUX-03`/`TUX-04` 只保留为后续计划，不得扰动已经冻结的正式 M5 候选。每个 unit 的测试、治理清单更新与走查证据仍作为一个验收包，不拆算。
 
 ## 5. 验证与回归范围
 
@@ -356,6 +356,29 @@
   or owner/reviewer sign-off was performed. The machine registry remains authoritative: `TUX-02`
   and `TUX-04` stay `planned` while EVID-01 holds the repository execution focus, and M5/TAR
   production gates remain fail-closed.
+
+## 6.2.14 2026-08-24 TUX-02 runtime screen copy ownership closure
+
+- 对 IA registry 的全部 12 个 runtime screen 逐一核对后，移除 10 个 Python runtime injection
+  fragment 中重复的 IA-owned 顶层字段（`label`、`module_key`、`group`、`audience`、`summary`、
+  `view_type`、`default_action_key`、`user_experience`）。`cli.terminal` 与 `prompt.workbench`
+  已在此前切片中完成同一边界；本次只保留 `key`、workflow/business context、布局、dashboard
+  panels 与运行行为，未删除嵌套 workflow 文案或 action/panel 定义。
+- `tui_metadata_runtime_injection_registry.py` 的 canonical merge 仍以 IA `public_screen_spec`
+  回填语义字段、以 runtime fragment 保留行为字段。新增参数化 source-boundary 回归覆盖
+  `account.self-service`、`ai-ops.user-quotas`、`ai-ops.system-providers`、`capability-router.*`、
+  `system.*`、`identity-access.user-governance` 与 `broker-execution.qmt-setup`，确认注入不再含
+  IA-owned copy，normalized runtime 仍与 IA 语义一致且 panels/target aliases 不漂移。
+- 代码改动后重建 `config/tui/agomtui-runtime.manifest.json`；`npm run check:tui` 通过。机器 source
+  guard 为 `outcome=ok`（12 published / 24 runtime screens、430 / 890 actions、configured/ignored/
+  unregistered patches 均为 0、violations=0）。metadata/source/actionability/IA focused 回归
+  `63 passed`，完整 `tests/unit/test_tui_workbench.py` `257 passed`，TUI JS `35 passed`；Ruff、
+  Black、isort、增量 mypy regression 与 debt ceiling 均通过。
+- 因此 TUX-02 的 repository exit gate（死 patch、8 处 copy drift、runtime screen copy 迁入
+  publish/review、三源机器一致性）达到本地验收条件，注册表状态更新为 `completed`；这不是 VPS
+  部署、外部 AgomTUI portability、普通角色生产浏览器 UAT、写后 receipt/refresh、14 日 telemetry、
+  restore/rollback 或 owner/reviewer 签署证据。EVID-01 的 zero-seed/生产权限门禁、M5/TUI-01 与
+  后续 TUX-03/TUX-04 仍保持 fail-closed。
 
 ## 6. 风险与回滚
 

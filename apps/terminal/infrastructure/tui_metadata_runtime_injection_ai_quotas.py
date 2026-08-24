@@ -6,19 +6,6 @@ from typing import Any
 
 RUNTIME_AI_USER_QUOTAS_SCREEN: dict[str, Any] = {
     "key": "ai-ops.user-quotas",
-    "label": "用户 AI 配额",
-    "module_key": "ai-ops",
-    "group": "ops",
-    "summary": "管理员在 TUI 内查看和调整用户兜底配额。",
-    "view_type": "detail",
-    "default_action_key": "ai-ops.list-user-quotas",
-    "user_experience": {
-        "journey": "admin",
-        "primary_task": "先判断哪些用户配额异常，再决定是否做单用户修正或批量下发。",
-        "primary_outcome": "明确哪些用户已超预算、未配置或需要调整配额策略。",
-        "empty_state_hint": "先看用户配额列表，再决定是否继续修正单用户或批量策略。",
-        "next_step_hint": "确认异常用户后，再执行单用户修正或批量配额调整。",
-    },
     "workflow": {
         "name": "AI 管理流程",
         "step": 3,

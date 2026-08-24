@@ -6,21 +6,7 @@ from typing import Any
 
 RUNTIME_CONFIG_CENTER_SCREEN: dict[str, Any] = {
     "key": "system.qlib-center",
-    "label": "Qlib 配置与训练",
-    "module_key": "system-governance",
-    "group": "system",
-    "summary": "统一查看运行 profile、容量策略、Qlib 配置、模型 Universe、训练模板和训练任务。",
-    "view_type": "detail",
-    "audience": "admin",
     "dashboard_layout": "task_flow",
-    "default_action_key": "config_center.qlib_runtime",
-    "user_experience": {
-        "journey": "admin",
-        "primary_task": "先确认已激活运行 profile 与容量策略，再完成 Qlib 模型范围、训练模板和训练任务管理。",
-        "primary_outcome": "运行配置和容量策略有效，训练范围明确，最近训练状态可追溯。",
-        "empty_state_hint": "先初始化并激活运行 profile；首次使用时再创建模型 Universe 或训练模板。",
-        "next_step_hint": "配置完成后触发训练，并在运行记录中确认任务结果。",
-    },
     "workflow": {
         "name": "系统治理流程",
         "label": "Qlib 配置与训练",

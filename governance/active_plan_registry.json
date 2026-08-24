@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-24.v2",
+  "version": "2026-08-24.v3",
   "updated_at": "2026-08-24",
   "execution_focus": {
     "unit_id": "EVID-01",
@@ -262,7 +262,7 @@
       "priority": "P1",
       "owner": "terminal",
       "status": "active",
-      "next_gate": "TUX-01 metadata-load fallback is complete; repository expansion is paused behind EVID-01. TUX-02/TUX-04 may resume only after the current repository focus advances and without disturbing the M5 candidate evidence line.",
+      "next_gate": "TUX-01 and TUX-02 repository exit gates are complete. EVID-01 remains the sole repository execution focus; TUX-03/TUX-04 may resume only after that focus advances and without disturbing the M5 candidate evidence line.",
       "documents": [
         {
           "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
@@ -849,7 +849,7 @@
         "wave": 5,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "completed",
         "title": "Consolidate the triple copy sources into the published flow",
         "depends_on": [],
         "exit_gate": "Dead Python screen patches are removed, the eight drifted dual-writes are reconciled, runtime screen copy moves under publish/review, and a machine check proves published JSON, IA registry and runtime loading agree."
@@ -860,7 +860,7 @@
         "wave": 5,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "waiting_dependency",
+        "status": "planned",
         "title": "Split auto-promoted actions and rewrite user-facing action copy",
         "depends_on": [
           "TUX-02"

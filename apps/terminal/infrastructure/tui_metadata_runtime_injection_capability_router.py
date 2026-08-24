@@ -49,20 +49,6 @@ RUNTIME_CAPABILITY_ROUTER_SCREEN: dict[str, Any] = {
 
 RUNTIME_CAPABILITY_ROUTER_MCP_SCREEN: dict[str, Any] = {
     "key": "capability-router.mcp-center",
-    "label": "MCP 接入中心",
-    "module_key": "mcp-governance",
-    "group": "ops",
-    "summary": "在 TUI 内查看已同步 MCP server/tool 目录，处理同步、路由开关和终端开关。",
-    "view_type": "detail",
-    "audience": "admin",
-    "default_action_key": "capability-router.mcp-tools-stats",
-    "user_experience": {
-        "journey": "admin",
-        "primary_task": "先确认 MCP 目录同步和开关状态，再治理需要放行或收紧的工具。",
-        "primary_outcome": "明确每个 MCP 工具是否进入 Routing 与 Terminal，并能在同屏完成详情查看和开关调整。",
-        "empty_state_hint": "先读取 MCP 同步与治理概览；目录为空时执行同步，再返回工具列表复核。",
-        "next_step_hint": "处理待放行工具后，重新查看概览与列表，确认 Routing 和 Terminal 状态符合预期。",
-    },
     "workflow": {
         "name": "MCP 管理",
         "label": "MCP 治理",

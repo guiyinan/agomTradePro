@@ -6,21 +6,7 @@ from typing import Any
 
 RUNTIME_ACCOUNT_SELF_SERVICE_SCREEN: dict[str, Any] = {
     "key": "account.self-service",
-    "label": "我的账户设置",
-    "module_key": "research-tools",
-    "group": "research",
-    "summary": "维护个人资料、风险偏好、密码、资金流水和交易成本。",
-    "view_type": "detail",
-    "audience": "authenticated",
     "dashboard_layout": "task_flow",
-    "default_action_key": "account-settings.read-profile",
-    "user_experience": {
-        "journey": "self_service",
-        "primary_task": "维护会影响账户识别、风险提示和交易核算的个人设置。",
-        "primary_outcome": "个人资料准确、密码安全，资金流水与交易成本配置可核对。",
-        "empty_state_hint": "先读取个人资料；尚无投资组合时先完成账户初始化，再维护流水和费率。",
-        "next_step_hint": "设置完成后回到账户与持仓，复核账户健康和执行准备度。",
-    },
     "workflow": {
         "name": "账户自助",
         "label": "我的账户设置",

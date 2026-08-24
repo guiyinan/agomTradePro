@@ -8558,6 +8558,9 @@ def test_tui_mcp_self_service_status_model_prioritizes_canonical_access_package(
 
 
 def test_tui_mcp_governance_panels_publish_native_row_actions():
+    from apps.terminal.infrastructure.tui_information_architecture import (
+        load_tui_information_architecture,
+    )
     from apps.terminal.infrastructure.tui_metadata_runtime_injection_capability_router import (
         RUNTIME_CAPABILITY_ROUTER_MCP_SCREEN,
     )
@@ -8572,8 +8575,13 @@ def test_tui_mcp_governance_panels_publish_native_row_actions():
     )
     user_panel = RUNTIME_MCP_ADMIN_ACCESS_SCREEN["dashboard_panels"][0]
     user_result_panel = RUNTIME_MCP_ADMIN_ACCESS_SCREEN["dashboard_panels"][1]
+    ia_mcp_screen = next(
+        screen
+        for screen in load_tui_information_architecture()["runtime_screens"]
+        if screen["key"] == "capability-router.mcp-center"
+    )
 
-    assert RUNTIME_CAPABILITY_ROUTER_MCP_SCREEN["user_experience"]["journey"] == "admin"
+    assert ia_mcp_screen["user_experience"]["journey"] == "admin"
     assert [
         panel["user_priority"] for panel in RUNTIME_CAPABILITY_ROUTER_MCP_SCREEN["dashboard_panels"]
     ] == ["p0", "p1", "p2"]

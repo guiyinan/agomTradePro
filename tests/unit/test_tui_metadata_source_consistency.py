@@ -962,6 +962,98 @@ def test_prompt_screen_injection_does_not_repeat_ia_owned_copy() -> None:
             assert normalized_panel[key] == value
 
 
+def _ia_runtime_screen_injection_cases() -> tuple[tuple[str, dict[str, Any]], ...]:
+    """Return every IA runtime screen fragment that still contributes behavior."""
+
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_account_self_service import (
+        RUNTIME_ACCOUNT_SELF_SERVICE_SCREEN,
+    )
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_ai_quotas import (
+        RUNTIME_AI_USER_QUOTAS_SCREEN,
+    )
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_ai_system_providers import (
+        RUNTIME_AI_SYSTEM_PROVIDERS_SCREEN,
+    )
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_broker_execution import (
+        RUNTIME_BROKER_EXECUTION_SCREENS,
+    )
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_capability_router import (
+        RUNTIME_CAPABILITY_ROUTER_MCP_SCREEN,
+    )
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_config_center import (
+        RUNTIME_CONFIG_CENTER_SCREEN,
+    )
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_mcp_access import (
+        RUNTIME_MCP_ADMIN_ACCESS_SCREEN,
+        RUNTIME_MCP_SELF_SERVICE_SCREEN,
+    )
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_system_settings import (
+        RUNTIME_SYSTEM_SETTINGS_SCREEN,
+    )
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_user_access import (
+        RUNTIME_USER_ACCESS_GOVERNANCE_SCREEN,
+    )
+
+    qmt_setup = next(
+        screen
+        for screen in RUNTIME_BROKER_EXECUTION_SCREENS
+        if screen["key"] == "broker-execution.qmt-setup"
+    )
+    return (
+        ("account.self-service", RUNTIME_ACCOUNT_SELF_SERVICE_SCREEN),
+        ("ai-ops.user-quotas", RUNTIME_AI_USER_QUOTAS_SCREEN),
+        ("ai-ops.system-providers", RUNTIME_AI_SYSTEM_PROVIDERS_SCREEN),
+        ("capability-router.mcp-center", RUNTIME_CAPABILITY_ROUTER_MCP_SCREEN),
+        ("capability-router.self-service", RUNTIME_MCP_SELF_SERVICE_SCREEN),
+        ("capability-router.admin-access", RUNTIME_MCP_ADMIN_ACCESS_SCREEN),
+        ("system.qlib-center", RUNTIME_CONFIG_CENTER_SCREEN),
+        ("system.settings", RUNTIME_SYSTEM_SETTINGS_SCREEN),
+        ("identity-access.user-governance", RUNTIME_USER_ACCESS_GOVERNANCE_SCREEN),
+        ("broker-execution.qmt-setup", qmt_setup),
+    )
+
+
+@pytest.mark.parametrize("screen_key,injected_screen", _ia_runtime_screen_injection_cases())
+def test_ia_runtime_screen_injections_keep_behavior_only(
+    screen_key: str,
+    injected_screen: dict[str, Any],
+) -> None:
+    """IA owns runtime screen copy while injection retains behavior fragments."""
+
+    from apps.terminal.infrastructure.tui_information_architecture import screen_aliases
+    from apps.terminal.infrastructure.tui_metadata_repository import (
+        PublishedTuiMetadataRepository,
+    )
+
+    ia = load_json_payload(IA_PATH)
+    ia_screen = next(screen for screen in ia["runtime_screens"] if screen["key"] == screen_key)
+    aliases = screen_aliases(ia)
+    owned_keys = {
+        "label",
+        "module_key",
+        "group",
+        "audience",
+        "summary",
+        "view_type",
+        "default_action_key",
+        "user_experience",
+    }
+
+    assert owned_keys.isdisjoint(injected_screen)
+
+    runtime = PublishedTuiMetadataRepository(published_path=PUBLISHED_PATH)._load_published_file()
+    runtime_screen = next(screen for screen in runtime["screens"] if screen["key"] == screen_key)
+    for key in owned_keys:
+        assert runtime_screen[key] == ia_screen[key]
+
+    runtime_panels = {panel["key"]: panel for panel in runtime_screen["dashboard_panels"]}
+    for injected_panel in injected_screen.get("dashboard_panels", []):
+        normalized_panel = runtime_panels[injected_panel["key"]]
+        for key, value in injected_panel.items():
+            expected = aliases.get(str(value), value) if key == "target_screen" else value
+            assert normalized_panel[key] == expected
+
+
 def test_cli_screen_injection_keeps_ia_copy_and_server_side_ai_boundary() -> None:
     """CLI metadata owns behavior only; AI execution remains on the server."""
 
