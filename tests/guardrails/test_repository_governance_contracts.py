@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import re
 import tomllib
 from pathlib import Path
 
@@ -105,7 +104,8 @@ def test_fast_feedback_installs_node_playwright_browser() -> None:
         "- name:", maxsplit=1
     )[0]
 
-    install_position = verify_step.index("npx playwright install --with-deps chromium")
+    install_position = verify_step.index("npx playwright install chromium")
+    assert "npx playwright install --with-deps chromium" not in verify_step
     test_position = verify_step.index("npm run test:tui-js")
     assert install_position < test_position
 

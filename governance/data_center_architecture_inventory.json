@@ -36,7 +36,7 @@
   "counts": {
     "approved_non_data_http_imports": 4,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 4315,
+    "current_surface_references": 4345,
     "data_write_task_decorators": 62,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -1178,6 +1178,106 @@
       "text": "if self.freshness == \"realtime\" and self.observed_at is None:"
     },
     {
+      "line": 1,
+      "path": "apps/account/application/owner_tenant_authority_v1.py",
+      "text": "\"\"\"Approved lifecycle and exact-current reads for owner/tenant authority v1.\"\"\""
+    },
+    {
+      "line": 32,
+      "path": "apps/account/application/owner_tenant_authority_v1.py",
+      "text": "\"\"\"The exact current upstream authority cannot be proven.\"\"\""
+    },
+    {
+      "line": 71,
+      "path": "apps/account/application/owner_tenant_authority_v1.py",
+      "text": "\"\"\"Approve one root from an exact-current Account assignment evidence seal.\"\"\""
+    },
+    {
+      "line": 99,
+      "path": "apps/account/application/owner_tenant_authority_v1.py",
+      "text": "\"\"\"Renew or revoke one exact current authority head.\"\"\""
+    },
+    {
+      "line": 158,
+      "path": "apps/account/application/owner_tenant_authority_v1.py",
+      "text": "\"\"\"Reuse the exact-current Account admin proof under a dedicated role.\"\"\""
+    },
+    {
+      "line": 189,
+      "path": "apps/account/application/owner_tenant_authority_v1.py",
+      "text": "\"\"\"Read one exact-current Account assignment evidence root.\"\"\""
+    },
+    {
+      "line": 194,
+      "path": "apps/account/application/owner_tenant_authority_v1.py",
+      "text": "\"\"\"Return the exact current assignment or ``None``.\"\"\""
+    },
+    {
+      "line": 273,
+      "path": "apps/account/application/owner_tenant_authority_v1.py",
+      "text": "\"exact-current account owner assignment is unavailable\""
+    },
+    {
+      "line": 279,
+      "path": "apps/account/application/owner_tenant_authority_v1.py",
+      "text": "\"exact-current account owner assignment is unavailable\""
+    },
+    {
+      "line": 294,
+      "path": "apps/account/application/owner_tenant_authority_v1.py",
+      "text": "raise OwnerTenantAuthorityV1Unavailable(\"account owner assignment is not current\")"
+    },
+    {
+      "line": 298,
+      "path": "apps/account/application/owner_tenant_authority_v1.py",
+      "text": "\"current owner/tenant authority approver is unavailable\""
+    },
+    {
+      "line": 312,
+      "path": "apps/account/application/owner_tenant_authority_v1.py",
+      "text": "\"current owner/tenant authority approver is ineligible\""
+    },
+    {
+      "line": 577,
+      "path": "apps/account/application/owner_tenant_authority_v1.py",
+      "text": "\"\"\"Return current authority without predecessor fallback.\"\"\""
+    },
+    {
+      "line": 595,
+      "path": "apps/account/application/owner_tenant_authority_v1.py",
+      "text": "current = _authority(head)"
+    },
+    {
+      "line": 596,
+      "path": "apps/account/application/owner_tenant_authority_v1.py",
+      "text": "if current != exact:"
+    },
+    {
+      "line": 619,
+      "path": "apps/account/application/owner_tenant_authority_v1.py",
+      "text": "\"current account owner assignment scope substitution\""
+    },
+    {
+      "line": 650,
+      "path": "apps/account/application/owner_tenant_authority_v1.py",
+      "text": "\"current account owner assignment is corrupt\""
+    },
+    {
+      "line": 655,
+      "path": "apps/account/application/owner_tenant_authority_v1.py",
+      "text": "raise OwnerTenantAuthorityV1Corruption(\"current account owner assignment type substitution\")"
+    },
+    {
+      "line": 660,
+      "path": "apps/account/application/owner_tenant_authority_v1.py",
+      "text": "\"current account owner assignment is corrupt\""
+    },
+    {
+      "line": 672,
+      "path": "apps/account/application/owner_tenant_authority_v1.py",
+      "text": "\"current account owner assignment selector substitution\""
+    },
+    {
       "line": 56,
       "path": "apps/account/application/physical_account_row_observation.py",
       "text": "\"\"\"Required exact-current physical row evidence is unavailable.\"\"\""
@@ -1596,6 +1696,11 @@
       "line": 474,
       "path": "apps/account/domain/interfaces.py",
       "text": "Get current prices for multiple assets."
+    },
+    {
+      "line": 239,
+      "path": "apps/account/domain/owner_tenant_authority_v1.py",
+      "text": "raise ValueError(\"only a current active authority may receive a successor\")"
     },
     {
       "line": 56,
@@ -2258,6 +2363,11 @@
       "text": "trade_date.isoformat() if trade_date is not None else \"latest\","
     },
     {
+      "line": 47,
+      "path": "apps/account/infrastructure/owner_tenant_authority_v1_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
       "line": 62,
       "path": "apps/account/infrastructure/physical_account_row_observation_repository.py",
       "text": "\"\"\"Return current Django time.\"\"\""
@@ -2586,6 +2696,16 @@
       "line": 432,
       "path": "apps/account/management/commands/init_docs.py",
       "text": "\"summary\": \"系统各功能模块的使用说明\","
+    },
+    {
+      "line": 49,
+      "path": "apps/account/owner_tenant_authority_v1_composition.py",
+      "text": "\"\"\"Build the exact-current authority reader for one Django alias.\"\"\""
+    },
+    {
+      "line": 63,
+      "path": "apps/account/owner_tenant_authority_v1_composition.py",
+      "text": "\"\"\"Build controlled writers; callers must supply current authenticated approval.\"\"\""
     },
     {
       "line": 12,
@@ -21271,6 +21391,36 @@
       "line": 9,
       "path": "core/integration/data_center_readiness.py",
       "text": "\"\"\"Owner facade consumed by Config Center readiness and summary screens.\"\"\""
+    },
+    {
+      "line": 167,
+      "path": "core/integration/owner_tenant_evidence_scope_v1.py",
+      "text": "\"\"\"Project authenticated current authority into an immutable observation.\"\"\""
+    },
+    {
+      "line": 198,
+      "path": "core/integration/owner_tenant_evidence_scope_v1.py",
+      "text": "\"\"\"Return the deterministic observation for the exact current authority.\"\"\""
+    },
+    {
+      "line": 212,
+      "path": "core/integration/owner_tenant_evidence_scope_v1.py",
+      "text": "\"\"\"Build the current content-addressed observation without persisting it.\"\"\""
+    },
+    {
+      "line": 238,
+      "path": "core/integration/owner_tenant_evidence_scope_v1.py",
+      "text": "\"\"\"Automatically capture a scope source from authenticated current authority.\"\"\""
+    },
+    {
+      "line": 262,
+      "path": "core/integration/owner_tenant_evidence_scope_v1.py",
+      "text": "\"\"\"Issue one source using only server clock and current authority facts.\"\"\""
+    },
+    {
+      "line": 270,
+      "path": "core/integration/owner_tenant_evidence_scope_v1.py",
+      "text": "\"current owner/tenant observation is unavailable\""
     },
     {
       "line": 20,

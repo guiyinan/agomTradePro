@@ -37,6 +37,11 @@ from apps.research.application.evidence_scope_source_v1_provider import (
 )
 from apps.research.domain.evidence_contracts import ArtifactRef
 from apps.research.domain.evidence_scope_source_v1 import EvidenceScopeSourceV1
+from apps.research.evidence_composition import (
+    OwnerScopedEvidenceReadFacade,
+    make_authorized_evidence_read_facade,
+    make_evidence_scope_source_v1_lifecycle_repository,
+)
 
 
 def _token(value: object, name: str) -> None:
@@ -355,10 +360,62 @@ def _observation_id(authority: OwnerTenantAuthorityV1, artifact: ArtifactRef) ->
     return "owner-tenant-observation-" + hashlib.sha256(encoded).hexdigest()
 
 
+def build_authenticated_owner_scoped_evidence_read_facade(
+    *,
+    principal: AuthenticatedAccountPrincipalV3,
+    actor_authority_reader: ExactCurrentAccountActorAuthorityV3Reader,
+    owner_tenant_reader: GetCurrentOwnerTenantAuthorityV1,
+    binding: OwnerTenantEvidenceReadBindingV1,
+    using: str = "default",
+) -> OwnerScopedEvidenceReadFacade:
+    """Compose authenticated owner scope and Evidence reads at the core root."""
+
+    selector = AuthenticatedOwnerTenantEvidenceSelectorProviderV1(
+        principal=principal,
+        actor_authority_reader=actor_authority_reader,
+        owner_tenant_reader=owner_tenant_reader,
+        binding=binding,
+        using=using,
+    )
+    return make_authorized_evidence_read_facade(
+        selector_provider=selector,
+        using=using,
+    )
+
+
+def build_authenticated_owner_scoped_evidence_scope_issuer(
+    *,
+    principal: AuthenticatedAccountPrincipalV3,
+    actor_authority_reader: ExactCurrentAccountActorAuthorityV3Reader,
+    owner_tenant_reader: GetCurrentOwnerTenantAuthorityV1,
+    binding: OwnerTenantAuthorityArtifactBindingV1,
+    validity_period: timedelta,
+    using: str = "default",
+) -> AuthenticatedOwnerTenantEvidenceScopeIssuerV1:
+    """Build authenticated scope capture at the core composition boundary."""
+
+    observations = AuthenticatedOwnerTenantScopeObservationProviderV1(
+        principal=principal,
+        actor_authority_reader=actor_authority_reader,
+        owner_tenant_reader=owner_tenant_reader,
+        binding=binding,
+        using=using,
+    )
+    repository = make_evidence_scope_source_v1_lifecycle_repository(using=using)
+    return AuthenticatedOwnerTenantEvidenceScopeIssuerV1(
+        observation_provider=observations,
+        repository=repository,
+        validity_period=validity_period,
+    )
+
+
 __all__ = [
     "AuthenticatedOwnerTenantEvidenceScopeIssuerV1",
     "AuthenticatedOwnerTenantEvidenceSelectorProviderV1",
     "AuthenticatedOwnerTenantScopeObservationProviderV1",
+    "OwnerScopedEvidenceReadFacade",
     "OwnerTenantAuthorityArtifactBindingV1",
     "OwnerTenantEvidenceReadBindingV1",
+    "build_authenticated_owner_scoped_evidence_read_facade",
+    "build_authenticated_owner_scoped_evidence_scope_issuer",
 ]

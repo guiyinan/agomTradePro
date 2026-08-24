@@ -3569,8 +3569,21 @@ content-addressed scope observation、调用现有 winner-first lifecycle 写入
 Account migration drift 为 `No changes detected`，增量 mypy `0` 回退、全量 mypy debt `0`，
 Ruff、架构、注册表与治理一致性均为 `0` 违规。另修正了 Evidence composition boundary：
 private ScopeSource writer 工厂只在 `apps/research/evidence_composition.py` 内导入
-Infrastructure，Account composition 通过公开的 Research root 工厂取用；scope guard 扫描
+Infrastructure，跨 App authenticated builder 通过 `core/integration` 组合根调用公开的
+Research root 工厂；scope guard 扫描
 `2931` 个 production files、`0` violations。未部署 VPS、未执行 migration、未写生产、
 未创建真实审批，也未解除 Evidence hard gate/global execution deny。`EVID-01` 继续 active；
 剩余为受控部署 0055、真实独立 root approval、生产 PostgreSQL first-winner/successor/
 revocation/rollback、同 alias 端到端验收和 owner/reviewer sign-off。
+
+## 2026-08-24：EVID-01 composition root cycle guard 收口
+
+CI 复核发现 Account composition 直接依赖 Research composition 会重新引入
+`account/equity/research` app-level cycle。现将 authenticated owner-scoped Evidence read/scope
+issuer 的跨 App 组装移入 `core/integration/owner_tenant_evidence_scope_v1.py`；Account 仅保留
+Account-owned authority reader 的构造并将其以 typed 端口注入，Research Infrastructure 仍只由
+Research composition root 访问。module-cycle guard
+恢复为 `206` 条边、`0` cycle、预算 `0` 超限，Evidence composition guard 仍扫描 `2931` 个生产
+文件且 `0` violations；authority/core/composition focused 回归、增量 mypy 与架构审计保持通过。
+这只是仓库边界修复，不接 HTTP/CLI/Agent route，不执行 migration/生产写入，也不解除 EVID-01
+的真实 root approval、PostgreSQL race/rollback、同 alias 端到端验收或 owner/reviewer sign-off。

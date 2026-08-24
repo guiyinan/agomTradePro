@@ -21,17 +21,17 @@ from apps.account.application.owner_tenant_authority_v1 import (
 from apps.account.infrastructure.owner_tenant_authority_v1_repository import (
     DjangoOwnerTenantAuthorityV1Repository,
 )
-from apps.research.evidence_composition import (
-    OwnerScopedEvidenceReadFacade,
-    make_authorized_evidence_read_facade,
-    make_evidence_scope_source_v1_lifecycle_repository,
-)
 from core.integration.owner_tenant_evidence_scope_v1 import (
     AuthenticatedOwnerTenantEvidenceScopeIssuerV1,
-    AuthenticatedOwnerTenantEvidenceSelectorProviderV1,
-    AuthenticatedOwnerTenantScopeObservationProviderV1,
+    OwnerScopedEvidenceReadFacade,
     OwnerTenantAuthorityArtifactBindingV1,
     OwnerTenantEvidenceReadBindingV1,
+)
+from core.integration.owner_tenant_evidence_scope_v1 import (
+    build_authenticated_owner_scoped_evidence_read_facade as _build_authenticated_owner_scoped_evidence_read_facade,
+)
+from core.integration.owner_tenant_evidence_scope_v1 import (
+    build_authenticated_owner_scoped_evidence_scope_issuer as _build_authenticated_owner_scoped_evidence_scope_issuer,
 )
 
 
@@ -89,23 +89,20 @@ def build_authenticated_owner_scoped_evidence_read_facade(
     binding: OwnerTenantEvidenceReadBindingV1,
     using: str = "default",
 ) -> OwnerScopedEvidenceReadFacade:
-    """Compose principal, owner/tenant authority, scope source, and Evidence reads."""
+    """Compose the Account authority reader with the core Evidence boundary."""
 
     authority_repository = DjangoOwnerTenantAuthorityV1Repository(using=using)
-    selector = AuthenticatedOwnerTenantEvidenceSelectorProviderV1(
+    owner_tenant_reader = GetCurrentOwnerTenantAuthorityV1(
+        authority_repository,
+        assignment_reader=build_current_account_owner_assignment_evidence_v3(using=using),
+    )
+    if authority_repository.unit_of_work_key != f"django:{using}":
+        raise ValueError("owner/tenant authority and Evidence selector aliases differ")
+    return _build_authenticated_owner_scoped_evidence_read_facade(
         principal=principal,
         actor_authority_reader=actor_authority_reader,
-        owner_tenant_reader=GetCurrentOwnerTenantAuthorityV1(
-            authority_repository,
-            assignment_reader=build_current_account_owner_assignment_evidence_v3(using=using),
-        ),
+        owner_tenant_reader=owner_tenant_reader,
         binding=binding,
-        using=using,
-    )
-    if selector.unit_of_work_key != authority_repository.unit_of_work_key:
-        raise ValueError("owner/tenant authority and Evidence selector aliases differ")
-    return make_authorized_evidence_read_facade(
-        selector_provider=selector,
         using=using,
     )
 
@@ -118,24 +115,22 @@ def build_authenticated_owner_scoped_evidence_scope_issuer(
     validity_period: timedelta,
     using: str = "default",
 ) -> AuthenticatedOwnerTenantEvidenceScopeIssuerV1:
-    """Build automatic scope capture from current authenticated authority."""
+    """Compose Account authority observation with the core scope-source writer."""
 
     authority_repository = DjangoOwnerTenantAuthorityV1Repository(using=using)
-    observations = AuthenticatedOwnerTenantScopeObservationProviderV1(
+    owner_tenant_reader = GetCurrentOwnerTenantAuthorityV1(
+        authority_repository,
+        assignment_reader=build_current_account_owner_assignment_evidence_v3(using=using),
+    )
+    if authority_repository.unit_of_work_key != f"django:{using}":
+        raise ValueError("owner/tenant authority and Evidence observation aliases differ")
+    return _build_authenticated_owner_scoped_evidence_scope_issuer(
         principal=principal,
         actor_authority_reader=actor_authority_reader,
-        owner_tenant_reader=GetCurrentOwnerTenantAuthorityV1(
-            authority_repository,
-            assignment_reader=build_current_account_owner_assignment_evidence_v3(using=using),
-        ),
+        owner_tenant_reader=owner_tenant_reader,
         binding=binding,
-        using=using,
-    )
-    repository = make_evidence_scope_source_v1_lifecycle_repository(using=using)
-    return AuthenticatedOwnerTenantEvidenceScopeIssuerV1(
-        observation_provider=observations,
-        repository=repository,
         validity_period=validity_period,
+        using=using,
     )
 
 
