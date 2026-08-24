@@ -1047,7 +1047,28 @@ migration/rollback、backlog recovery、metrics/alert、TUI、archive/restore �
 签字验收；`AUD-03` 继续 `waiting_dependency`，`AUD-01` publisher/authority gate 与
 `AUD-02` 同 UOW 双写不变。
 
-## 实施记录（2026-08-24，AUD-03 当前候选 SELECT-only 运营观察）
+## 实施记录（2026-08-24，AUD-03 当前部署候选只读运营观察复核）
+
+在不重新部署、不触碰生产写入的前提下，对当前受控候选
+`94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` / version `20260824133504` /
+OCI `sha256:1c560b5fed14964a008c278a88d9f3e3b144444a172ecc239d06cedbd76d6a3e`
+执行一次低频 `select_only` 运营观察。公网 `/api/audit/health/` 于
+`2026-08-24T07:36:54.575517Z` 返回 `200/OK`，operation logs=`555`、failures=`0`、
+failure rate=`0`，outbox pending/due/claimed/expired/failed/delivered 全为 `0`；同一
+`default` PostgreSQL alias 的只读 migration 观察为 applied=`495`、pending=`0`、
+failed=`0`，migration graph SHA=`142da62cb866ee9ef2a291bd0f1f0edf527615c3d76cf15a1aae02d1cb191c2a`。
+
+原始 envelope [`aud03-operational-observation-select-only-2026-08-24-0736.json`](../deployment/aud03-operational-observation-select-only-2026-08-24-0736.json)
+经 `record_aud03_operational_observation_evidence.py --write` 生成 content-addressed report
+[`00d9f623008af7d51286e6620fad6dee6e87a741f9439156d7830ab8918cee53.json`](../deployment/aud03-operational-observation/00/00d9f623008af7d51286e6620fad6dee6e87a741f9439156d7830ab8918cee53.json)。
+`missing_section_count=4`：alerts、TUI、recovery、archive 仍明确为 `unavailable`，没有把缺失观测转换为零值。
+
+本次仍未运行 migration、claim/publish、Celery、fault injection、archive/restore 或任何生产写入；报告固定
+`production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`。这只刷新当前候选的只读运行事实，
+不证明 durable publisher、authenticated authority、同 UOW 双写、告警/TUI/recovery/archive 完整性或 owner/reviewer 签字；
+`AUD-03` 继续 `waiting_dependency`，`AUD-01/AUD-02` 门禁不变。
+
+## 历史记录（2026-08-24，AUD-03 旧候选 SELECT-only 运营观察）
 
 按 active registry 的 `auto_collect` 清单，对同一运行候选
 `4cef9040cccc2127c3f8128c8d858bc7958df2a4` / version `20260822134658` /
