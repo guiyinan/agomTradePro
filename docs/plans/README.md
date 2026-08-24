@@ -104,7 +104,7 @@
 | 波次 | Canonical unit | 类型 | 状态 | 依赖 | 唯一交付 |
 |------|----------------|------|------|------|----------|
 | W0 | `GOV-01` | governance | completed | — | 7 份剩余限期审查 plan 已全部归档或转入 canonical workstream；队列清空 |
-| W1 | `EVID-01` | repository | active | — | authority lifecycle、authenticated selector 与 same-alias writer 已落库；待部署、真实审批、PG race/rollback 和双签 |
+| W1 | `EVID-01` | repository | active | — | authority lifecycle、authenticated selector 与 same-alias writer 已落库；0055 已在当前候选应用但 13 张 authority/evidence 表仍 zero-seed，待独立 root approval、PG race/revocation/rollback 和双签 |
 | W1 | `EVID-02` | production | awaiting_production | — | approval/current-head 的 PostgreSQL first-winner、并发和回滚证据 |
 | W1 | `EVID-03` | repository | waiting | EVID-01/02 | Research/Portfolio/Broker adapters 与执行前 exact-current 重验 |
 | W1 | `AUD-01` | repository | planned | — | canonical publisher/runtime/authority composition |
