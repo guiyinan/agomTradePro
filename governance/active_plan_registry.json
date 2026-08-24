@@ -1,14 +1,14 @@
 {
-  "version": "2026-08-24.v3",
-  "updated_at": "2026-08-24",
+  "version": "2026-08-25.v1",
+  "updated_at": "2026-08-25",
   "execution_focus": {
-    "unit_id": "EVID-01",
+    "unit_id": "AUD-01",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Only EVID-01 may expand repository scope. In parallel, TUI-01, TAR-05 and other declared production/external/governance units may complete safe auto_collect work; deployments, production writes, paid calls and human decisions still require their recorded authorization boundary."
+    "policy": "Only AUD-01 may expand repository scope. EVID-01 has no remaining safe repository slice and proceeds as production acceptance alongside EVID-02. In parallel, TUI-01, TAR-05 and other declared production/external/governance units may complete safe auto_collect work; deployments, production writes, paid calls and human decisions still require their recorded authorization boundary."
   },
   "workstreams": [
     {
@@ -17,8 +17,8 @@
       "category": "strategy_research_and_evidence",
       "priority": "P0",
       "owner": "research+risk_center+portfolio+broker_execution+account",
-      "status": "active",
-      "next_gate": "EVID-01 now has a repository-side immutable owner/tenant authority lifecycle, authenticated selector bridge and same-alias scope-source writer composition. Migration 0055 and Research 0029 are applied on the controlled candidate 94abd76e46eeef4a8e21853799c7d69bcd9bbe3b / release 20260824133504, but all 13 authority/evidence ledgers remain zero-seed. Preserve the global execution deny; next collect a real independent root approval, then prove production PostgreSQL first-winner/successor/revocation/rollback, same-alias end-to-end receipts and owner/reviewer sign-off. Do not repeat deployment or derive tenant/owner from mutable User/Profile/session state.",
+      "status": "production_validation",
+      "next_gate": "EVID-01 repository contracts have no remaining safe code slice and are now in production validation. Migration 0055 and Research 0029 are applied on the controlled candidate 94abd76e46eeef4a8e21853799c7d69bcd9bbe3b / release 20260824133504, but all 13 authority/evidence ledgers remain zero-seed. Preserve the global execution deny; next collect a real independent root approval, then prove production PostgreSQL first-winner/successor/revocation/rollback, same-alias end-to-end receipts and owner/reviewer sign-off. Do not repeat deployment or derive tenant/owner from mutable User/Profile/session state.",
       "documents": [
         {
           "path": "docs/plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md",
@@ -131,7 +131,7 @@
       "priority": "P0/P1",
       "owner": "audit+data_center+task_monitor",
       "status": "active",
-      "next_gate": "Repository expansion is paused behind the EVID-01 execution focus; preserve the current fail-closed publisher and authority boundaries while collecting only read-only backlog and health evidence.",
+      "next_gate": "AUD-01 is the current bounded repository focus: assemble one canonical fail-closed audit publisher, runtime and authenticated scoped authority source, remove memory or generic-event fallback, and prove the boundary with focused contracts before advancing to AUD-02.",
       "documents": [
         {
           "path": "docs/plans/system-audit-log-consolidation-plan-2026-08-13.md",
@@ -396,11 +396,23 @@
         "workstream_id": "evidence-hard-gate",
         "wave": 1,
         "priority": "P0",
-        "execution_mode": "repository",
-        "status": "active",
+        "execution_mode": "production",
+        "status": "awaiting_production",
         "title": "Close owner-scoped Evidence authority and production composition",
         "depends_on": [],
-        "exit_gate": "Exact user, tenant and owner authority is mandatory and fail-closed at every production Evidence read and approval composition boundary."
+        "exit_gate": "Exact user, tenant and owner authority is mandatory and fail-closed at every production Evidence read and approval composition boundary.",
+        "evidence_collection": {
+          "auto_collect": [
+            "Revalidate the deployed candidate, migration state and all canonical owner, tenant, authority and Evidence ledgers using read-only candidate-bound probes.",
+            "Run deterministic exact-current composition and PostgreSQL acceptance reports after an authorized authority fixture exists, preserving source timestamps and report hashes."
+          ],
+          "authorization_required": [
+            "Create, supersede or revoke a real production owner/tenant authority root or execute any production database write used by the acceptance harness."
+          ],
+          "human_or_external_required": [
+            "An independent authorized owner or admin approves the real root, and owner/reviewer sign the production acceptance package."
+          ]
+        }
       },
       {
         "id": "EVID-02",
@@ -445,7 +457,7 @@
         "wave": 1,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "active",
         "title": "Assemble the canonical audit publisher, runtime and authority source",
         "depends_on": [],
         "exit_gate": "The fail-closed dispatcher uses one production publisher and authenticated scoped authority composition with no memory or generic-event fallback."

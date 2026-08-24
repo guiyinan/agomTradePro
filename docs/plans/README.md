@@ -1,6 +1,6 @@
 # 活跃计划索引
 
-> 更新日期：2026-08-24
+> 更新日期：2026-08-25
 > 本目录只保留仍需开发、真实数据、生产验收或外部依赖闭环的计划。已完成的实施计划、阶段记录、复盘和历史证据统一放在 [`../archive/plans/`](../archive/plans/)；归档记录见 [`../archive/ARCHIVE_INDEX.md`](../archive/ARCHIVE_INDEX.md)。
 
 ## 维护规则
@@ -59,23 +59,40 @@
 
 | ID | 优先级 | 状态 | Owner | 主计划 | 下一退出门 |
 |----|--------|------|-------|--------|------------|
-| `evidence-hard-gate` | P0 | active | Research / Risk / Portfolio / Broker / Account | [Evidence hard gate](evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md) | EVID-01 为当前 repository 主线：代码侧 owner/tenant lifecycle、authenticated selector bridge 与 same-alias composition 已落地；受控候选 `94abd76e…` / release `20260824133504` 已应用 `0055`/`0029`，但 13 张 authority/evidence 表仍 zero-seed。下一门是独立 root approval、生产 PG race/revocation/rollback、same-alias 端到端回执与双签；不重复部署。EVID-02 并行自动取证，执行 deny 保持不变 |
+| `evidence-hard-gate` | P0 | production_validation | Research / Risk / Portfolio / Broker / Account | [Evidence hard gate](evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md) | EVID-01 repository 合同已完成当前安全代码审计并转入生产验证；受控候选 `94abd76e…` / release `20260824133504` 已应用 `0055`/`0029`，但 13 张 authority/evidence 表仍 zero-seed。下一门是独立 root approval、生产 PG race/revocation/rollback、same-alias 端到端回执与双签；不重复部署。EVID-02 并行自动取证，执行 deny 保持不变 |
 | `strategy-research-production` | P0 | production_validation | Research / Data Center / Signal / Portfolio / Broker | [Completion audit](strategy-research-capability-completion-audit-2026-08-05.md)、[Roadmap](strategy-research-capability-roadmap-execution-2026-08-05.md)、[生产数据跟踪](strategy-research-production-data-closure-tracking-memo-2026-08-12.md)、[R1-R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md)、[R3-R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md)、[R5-R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) | 真实 owner/receipt/PIT-OOS 历史、Promotion 与 consumer UAT |
 | `data-production-reliability` | P0 | production_validation | Data Center / Operational Readiness / Task Monitor | [Canonical architecture](data-center-canonical-architecture-refactor-2026-08-02.md)、[生产可靠性](production-data-reliability-full-remediation-2026-08-01.md)、[关键测试](critical-reliability-test-closure-2026-07-22.md)、[UAT 整改](uat-remediation-2026-07-20.md) | 生产备份、回填、reconciliation、M9/M10 和观察证据 |
-| `system-audit-consolidation` | P0/P1 | active | Audit / Data Center / Task Monitor | [统一审计日志](system-audit-log-consolidation-plan-2026-08-13.md) | repository 扩展暂停在 EVID-01 之后；保持 publisher/authority fail-closed，仅继续只读 backlog 与健康证据 |
+| `system-audit-consolidation` | P0/P1 | active | Audit / Data Center / Task Monitor | [统一审计日志](system-audit-log-consolidation-plan-2026-08-13.md) | AUD-01 为当前 repository 主线：组装唯一 canonical fail-closed publisher、runtime 与 authenticated scoped authority source，移除 memory/generic-event fallback；通过后顺序进入 AUD-02 |
 | `web-to-tui-m5` | P0 | production_validation | Terminal / Operational Readiness | [迁移总计划](web-to-tui-migration-plan-2026-07-25.md)、[M5 readiness](web-to-tui-m5-readiness-2026-07-27.md) | TAR-03 退出并冻结 release surface 后，绑定最终候选、角色 UAT、14 日关闭窗口和签字 cleanup |
 | `terminal-agent-multi-user-runtime` | P0 | production_validation | Agent Runtime / Terminal / Task Monitor / Operational Readiness / SDK / MCP | [多用户队列与服务端 CLI 运行](terminal-agent-multi-user-runtime-plan-2026-08-18.md) | TAR-01 至 TAR-04 repository 合同已完成；下一门是同一不可变候选上的 TUI-01 角色 UAT/写回执与 TAR-05 provider、容量、chaos、恢复、telemetry、双签，queued/worker 默认仍 fail-closed |
 | `ai-native-release` | P1 | external_validation | Agent Runtime / Terminal | [AI-Native delivery pack](ai-native/README.md) | 同候选 staging/production UAT 与 owner/reviewer 双签 |
 | `qmt-live-bridge` | P2 | blocked_external | Broker Execution / 外部券商 Owner | [QMT 实盘桥](qmt-live-trading-bridge-plan.md) | Windows XtQuant Phase 0、连续仿真和受控小额实盘 |
-| `tui-usability-governance` | P1 | active | Terminal | [TUI 可用性与 metadata 治理](tui-usability-and-metadata-governance-plan-2026-08-18.md) | TUX-02 repository exit gate 已完成；EVID-01 仍为唯一 repository focus，后续 TUX-03/TUX-04 恢复时不得扰动 M5 候选 |
+| `tui-usability-governance` | P1 | active | Terminal | [TUI 可用性与 metadata 治理](tui-usability-and-metadata-governance-plan-2026-08-18.md) | TUX-02 repository exit gate 已完成；AUD-01 为唯一 repository focus，后续 TUX-03/TUX-04 恢复时不得扰动 M5 候选 |
 
 ## 当前执行焦点
 
-- 唯一 repository 主线：`EVID-01`。TAR-01 至 TAR-04 的 runtime、durable admission/dispatch、Worker/事件恢复、SDK/MCP薄客户端和TUI queued结果合同均已完成，Terminal Runtime 转入生产验证。
-- `AUD-01`、`TUX-04` 暂停 repository 扩展；`TUX-02` 的 repository exit gate 已完成，现有 fail-closed 门禁保持不变。
-- `EVID-02`、`DATA-01`、`STRAT-01` 按各自 `auto_collect` 清单并行取证；仅具体生产写入、付费调用和人工决定进入集中授权批次，不再因“需要生产证据”整体停工。
+- 唯一 repository 主线：`AUD-01`。EVID-01 已完成当前安全代码审计并转入 `awaiting_production`；不存在新代码切片时不得用重复文档维持 repository 锁。
+- `AUD-01` 完成后优先顺序进入 `AUD-02`；`EVID-03` 只有在 EVID-01/EVID-02 均完成后才能启动。若 EVID 生产依赖届时仍未满足，按排期转入 `TUX-04` 的单一有界切片，不得双线扩仓库边界。
+- `EVID-01/02`、`DATA-01`、`STRAT-01` 按各自 `auto_collect` 清单并行取证；仅具体生产写入、付费调用和人工决定进入集中授权批次，不再因“需要生产证据”整体停工。
 - `TUI-01` 与 `TAR-05` 的 repository 依赖已满足并进入 `awaiting_production`；当前 `94abd76e` 仅是 TAR/EVID 受控候选，正式 M5 的 commit/version/OCI/matrix/graph/runtime manifest 仍未重绑，因此不得把现有部署直接当作 TUI-01 候选或重复部署；完成正式 binding 后才能执行角色 UAT、容量/恢复验收并从第0天启动正式14日窗口。
 - 生产、外部和治理工作只允许在注册表声明的并行 mode 内进行；任何部署、生产写入或授权动作仍遵循专项计划的权限边界。
+
+## 滚动执行排期
+
+下表是基于 `closure_backlog` 依赖关系的目标时间箱，不复制 unit 状态；状态、焦点和依赖仍只以机器注册表为准。前置门未通过时后续日期顺延，不允许通过伪造审批、回填观察时间或放松 fail-closed 门禁赶工。
+
+| 时间箱 | 唯一 repository 主线 | 并行生产/外部工作 | 完成或切换条件 |
+|---|---|---|---|
+| 2026-08-25～08-27 | `AUD-01`：canonical publisher、runtime、scoped authority composition 与无 fallback 合同 | `EVID-01/02` 准备 root approval/PG 验收包；`DATA-01` 完成已有备份与隔离恢复证据；准备 TUI-01 正式 preflight | AUD-01 代码、focused tests、架构/mypy/治理门禁全绿；否则保持焦点并只顺延本行 |
+| 2026-08-28～08-30 | `AUD-02`：Data Center fetch/validation/failover/persistence/publication 与 event/outbox 同 UOW | 获授权后执行 EVID root approval/PG race/revocation/rollback；TUI-01 候选绑定、角色 UAT；TAR-05 预检 | AUD-02 replay/duplicate/loss 合同通过；AUD-03 才可进入生产验收 |
+| 2026-08-31～09-03 | 首选 `EVID-03`；仅当 EVID-01/02 已完成。否则切换 `TUX-04`，EVID-03 保持 waiting | `DATA-02` 在 DATA-01 完成后执行受控 reconciliation；TAR-05 容量/chaos/恢复；STRAT-01 真实 owner/policy 登记 | 只允许一个 repository unit active；依赖不满足不得抢跑 |
+| 2026-09-04～09-07 | `TUX-04`；若上一时间箱已完成则进入 `TUX-03` | DATA-03 readiness/smoke；STRAT-02 开始累计 PIT/OOS 与 receipt；候选 telemetry 持续采集 | IA/runtime screen 合同或 430 actions copy/density 门禁按所选 unit 全量通过 |
+| 2026-09-08～09-11 | `TUX-03`，完成后进入 `TUX-05` | TUI-02 继续正式 14 日窗口；AI-01 只在 TUI-01/TAR-05 后启动；QMT 不占内部排期 | TUX-03/04 均完成后才启动 TUX-05 浏览器观感收口 |
+| 2026-09-12 起 | `TUX-05` 或当时最高优先级的唯一未完成 repository unit | 继续 DATA-03、STRAT-02/03、TUI-02 的不可压缩观察与 UAT | 以 exit gate 关闭，不以日期、代码行数或提交数量宣称完成 |
+
+生产轨最早目标：若正式 M5 候选在 2026-08-28 前完成绑定和角色 UAT，则关闭性 14 日窗口从真实绑定后的第 0 天开始，最早约 2026-09-11 进入最终 readiness；候选漂移或 P0/P1 修复必须重置。未绑定前的运行时间只能作为 soak evidence。
+
+提交节奏：每个 repository 时间箱以“代码 + 测试 + 必要文档”形成一个或少数 coherent commit；同一轮生产观察的 JSON、SHA、INDEX 与 Plan 状态合并为一个 `evidence:` commit。纯日期刷新、重复 HEAD 绑定和没有新证据/状态变化的 docs-only commit 不进入主线。
 
 ## 限期审查队列
 
@@ -104,10 +121,10 @@
 | 波次 | Canonical unit | 类型 | 状态 | 依赖 | 唯一交付 |
 |------|----------------|------|------|------|----------|
 | W0 | `GOV-01` | governance | completed | — | 7 份剩余限期审查 plan 已全部归档或转入 canonical workstream；队列清空 |
-| W1 | `EVID-01` | repository | active | — | authority lifecycle、authenticated selector 与 same-alias writer 已落库；0055 已在当前候选应用但 13 张 authority/evidence 表仍 zero-seed，待独立 root approval、PG race/revocation/rollback 和双签 |
+| W1 | `EVID-01` | production | awaiting | — | repository 合同已完成当前安全代码审计；0055 已在当前候选应用但 13 张 authority/evidence 表仍 zero-seed，待独立 root approval、PG race/revocation/rollback 和双签 |
 | W1 | `EVID-02` | production | awaiting_production | — | approval/current-head 的 PostgreSQL first-winner、并发和回滚证据 |
 | W1 | `EVID-03` | repository | waiting | EVID-01/02 | Research/Portfolio/Broker adapters 与执行前 exact-current 重验 |
-| W1 | `AUD-01` | repository | planned | — | canonical publisher/runtime/authority composition |
+| W1 | `AUD-01` | repository | active | — | canonical publisher/runtime/authority composition |
 | W1 | `AUD-02` | repository | waiting | AUD-01 | Data Center fetch event 与 event/outbox 同 UOW 双写和重放 |
 | W1 | `TAR-01` | repository | completed | — | 多用户 runtime、队列、服务端 Agent 与薄客户端、安全、SLO 与 deterministic test matrix 合同已冻结；不代表生产容量验收 |
 | W1 | `TAR-02` | repository | completed | TAR-01 | PostgreSQL 持久接单、幂等、有界准入和 commit 后派发 |
@@ -132,7 +149,7 @@
 | W5 | `TUX-04` | repository | planned | — | 分组重排、入口消歧、12 个 runtime screen 补齐契约 |
 | W5 | `TUX-05` | repository | waiting | TUX-03/TUX-04 | 布局/字段名翻译/状态栏/freshness 观感收口与截图证据 |
 
-执行纪律：机器注册表 `execution_focus` 当前锁定 `EVID-01`，不允许“一条大主线加一个小收口”的双 repository 扩边。AUD 与 TUX 不扩仓库边界，EVID-02、DATA-01、STRAT-01 的安全自动取证继续并行；TUI-01 与 TAR-05 可在明确生产授权后并行部署、UAT、容量/恢复验收并重启正式14日窗口。在 TAR-05 通过前不得放大 inline 并发。W2 的破坏性生产动作仍必须从 `DATA-01` 开始；W4 在券商解除阻断前不占用仓库开发排期。
+执行纪律：机器注册表 `execution_focus` 当前锁定 `AUD-01`，不允许“一条大主线加一个小收口”的双 repository 扩边。EVID-01/02、DATA-01、STRAT-01 的安全自动取证继续并行；TUI-01 与 TAR-05 可在明确生产授权后并行执行候选绑定、UAT、容量/恢复验收并从真实第 0 天启动正式 14 日窗口。在 TAR-05 通过前不得放大 inline 并发。W2 的破坏性生产动作仍必须从 `DATA-01` 开始；W4 在券商解除阻断前不占用仓库开发排期。
 
 ## 分阶段执行记录
 
