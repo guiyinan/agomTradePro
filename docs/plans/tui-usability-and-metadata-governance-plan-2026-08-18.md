@@ -379,6 +379,12 @@
   部署、外部 AgomTUI portability、普通角色生产浏览器 UAT、写后 receipt/refresh、14 日 telemetry、
   restore/rollback 或 owner/reviewer 签署证据。EVID-01 的 zero-seed/生产权限门禁、M5/TUI-01 与
   后续 TUX-03/TUX-04 仍保持 fail-closed。
+- 首次 push 的 CI 反馈发现两项生成物维护问题：Data Center deterministic inventory 尚未反映本次
+  删除的 source lines，且 gitleaks 将 manifest 的公开 SHA-256 内容哈希误报为 generic API key。
+  已用 `data_center_architecture_inventory.py --write` 刷新 inventory（`current_surface_references`
+  `4345→4335`），并对 `config/tui/agomtui-runtime.manifest.json` 的 64 位内容哈希增加精确 allowlist。
+  修复提交 `162255e5e` 的 Architecture Layer Guard、Security Scan、Consistency Check 与 CI Fast
+  Feedback 四条 push workflow 全部成功；这只证明仓库门禁，不改变任何生产候选或部署状态。
 
 ## 6. 风险与回滚
 
