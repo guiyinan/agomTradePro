@@ -74,7 +74,7 @@
 | [ai-capability-architecture-review-2026-03-19.md](architecture/ai-capability-architecture-review-2026-03-19.md) | AI Capability Catalog 架构评估 | ✅ 2026-03-19 新增 |
 | [simulated_trading_design.md](architecture/simulated_trading_design.md) | 模拟盘交易设计 | 完整 |
 | [strategy_system_design.md](architecture/strategy_system_design.md) | 策略系统设计 | 完整 |
-| [frp-vps-local-runtime-architecture.md](architecture/frp-vps-local-runtime-architecture.md) | 三机架构方案：VPS FRP 转发 + 本地 Docker + C 端 AI Agent/MCP | ✅ 2026-03-08 新增 |
+| [frp-vps-local-runtime-architecture.md](architecture/frp-vps-local-runtime-architecture.md) | 三机架构方案：VPS FRP 转发 + 服务端 AI/Agent 与 B/S 薄客户端；仅 QMT 外部券商桥允许本地执行 | ✅ 2026-03-08 新增 |
 | [frontend_design_guide.md](architecture/frontend_design_guide.md) | 前端设计指南 | ✅ 2026-02-20 更新 |
 | [ui_ux_design_tokens_v1.md](architecture/ui_ux_design_tokens_v1.md) | UI/UX 设计 Token 规范 v1.0 | ✅ 完成验收 |
 | [routing_naming_convention.md](architecture/routing_naming_convention.md) | 路由命名规范 | ✅ 完成验收 |
@@ -480,8 +480,8 @@
 
 ## 2026-08-24 当前验收状态
 
-- 当前代码 HEAD `0d62278d2` 的 EVID-01 composition cycle 修复已通过本地与 CI：module-cycle `206 edges / 0 cycles`，Evidence composition `2931 files / 0 violations`，authority/core/composition/guard focused `24 passed`；四条 GitHub CI 均成功。
-- 代码侧已具备 `0055` schema 与 immutable owner/tenant authority composition，但当前 VPS 候选仍是旧 release；尚未部署 `0055`、未创建生产 approval/seed、未完成 PostgreSQL first-winner/revocation/rollback、owner/reviewer sign-off，因此 EVID-01 继续 `active`/fail-closed。
+- 当前代码 HEAD `c8d53865f` 的 EVID-01 composition cycle 修复与 authority inventory v2 已通过本地门禁：module-cycle `206 edges / 0 cycles`，Evidence composition `2931 files / 0 violations`，owner/tenant authority 本地 disposable PostgreSQL harness `4 passed`，inventory v1/v2 focused `18 passed`；上一候选提交的四条 GitHub CI 均成功，当前两个代码提交待本轮 CI 复核。
+- 代码侧已具备 `0055` schema、immutable owner/tenant authority composition 与 `0050–0055`/13 表只读 inventory v2，但当前 VPS 候选仍是旧 release；尚未部署 `0055`、未创建生产 approval/seed、未完成 PostgreSQL production first-winner/revocation/rollback、owner/reviewer sign-off，因此 EVID-01 继续 `active`/fail-closed。
 - `/api/decision-ready/` 继续保持 `503` 且 `must_not_use_for_decision=true`；TUI/M5、TAR-05、AUD-01、数据与策略生产门禁仍按 registry 逐项等待外部授权和证据。B/S、CLI/API 只向服务器提交请求，AI/provider/tool execution 在服务器端；本地执行仅适用于 QMT 外部券商桥。
 
 ---

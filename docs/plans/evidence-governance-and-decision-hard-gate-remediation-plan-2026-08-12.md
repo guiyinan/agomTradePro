@@ -3594,6 +3594,24 @@ Research composition root 访问。module-cycle guard
 `tests/settings_owner_tenant_authority_v1_postgres.py` 隔离配置，覆盖空 root first-winner、同
 predecessor successor first-winner、外层事务 rollback 无 orphan，以及 `0055` forward/reverse/
 re-forward zero-seed。数据库 URL 只接受显式 opt-in 的本地/测试 PostgreSQL，数据库名必须包含
-`authority` 与 `test`；缺少环境变量时测试明确 `4 skipped`，不把 SQLite 或 VPS 结果记为
-PostgreSQL/production evidence。当前仅完成 harness 合同与 skip-path 回归，未连接 VPS、未执行
-生产 migration/写入，EVID-01 仍需真实生产 PG race/revocation/rollback 与 owner/reviewer sign-off。
+`authority` 与 `test`；缺少环境变量时测试明确 `4 skipped`。本机 disposable PostgreSQL 16
+空库实际运行 `4 passed in 27.53s`，测试数据库已清理；这只是本地 PostgreSQL 软件证据，
+不把 SQLite、skip 或本机容器结果记为 VPS/production evidence。未连接 VPS、未执行生产
+migration/写入，EVID-01 仍需真实生产 PG race/revocation/rollback 与 owner/reviewer sign-off。
+
+## 2026-08-24：EVID-01 authority inventory v2 兼容性收口
+
+只读 inventory parser 原先固定在 Account `0050–0053` 与 12 张旧 authority/evidence 表；
+在 `0054_normalize_physical_v2_fixed_constraint`、`0055_owner_tenant_authority_v1` 和
+`account_owner_tenant_authority_v1` 出现后会拒绝 canonical snapshot。现已保留 v1 parser/
+report 及其历史 content hash，同时新增 v2 snapshot/report 分派，严格要求完整 `0050–0055`
+顺序和 13 张表（含新 owner/tenant ledger）。新 ledger 非零只派生
+`blocked_unverified_authority`，不会被计数提升为 authority；v1/v2 均固定
+`production_claim=false`、`production_ready=false`、`authority_ready=false`、
+`runtime_enablement=not_authorized`。
+
+纯 inventory/CLI 回归 `18 passed`；Ruff、Black、isort、增量 mypy 与 full debt ceiling 均通过。
+该切片只修复服务器端离线自动取证的 schema-version 兼容性，不读取 DB/VPS、不创建 authority、
+不接 route/writer、不改变 registry gate。`EVID-01` 仍需受控生产 migration、独立 root approval、
+same-alias authority/provider、PG revocation/rollback 与 owner/reviewer sign-off；B/S、CLI/API
+仍只向服务器提交请求，AI/provider/MCP/tool execution 在服务器端，用户不安装本地 Agent、模型或 provider 软件。
