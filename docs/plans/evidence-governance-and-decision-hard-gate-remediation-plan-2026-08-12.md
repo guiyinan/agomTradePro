@@ -3727,14 +3727,33 @@ first-winner/successor/revocation/rollback、same-alias 端到端回执与 owner
 ## 2026-08-24：EVID-01 候选与当前 HEAD 漂移审定
 
 对已部署候选 `94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` 与当前
-`dev/next-development` HEAD `5c6e4da5087c39ccdbaa612f6599a0b3b392f0a8` 做只读文件级比较：
-`git diff --name-only 94abd76e..HEAD` 共 `31` 个文件，分类为 `docs/` `29` 个、
-`governance/` `1` 个、`.gitleaks.toml` `1` 个；`apps/`、`config/`、`core/`、`scripts/`、
-`tests/` 均为 `0`。分支 HEAD 与 origin 同步，四条 push CI（Architecture Layer Guard、
-Security Scan、Consistency Check、CI Fast Feedback）均成功。
+`dev/next-development` HEAD `3900a064cf1e29406286db2450a020d346bc2afb` 做只读文件级比较：
+`git diff --name-only 94abd76e..HEAD` 共 `45` 个文件，包含 `apps/` `9` 个、`config/` `1` 个、
+`tests/` `2` 个、`docs/` `30` 个、`governance/` `2` 个和 `.gitleaks.toml` `1` 个。
+其中 `apps/terminal`、TUI manifest 与测试是 TUX-02 repository slice，尚未重新绑定到 VPS；
+分支 HEAD 与 origin 同步，最新四条 push CI（Architecture Layer Guard、Security Scan、
+Consistency Check、CI Fast Feedback）均成功。
 
-该检查证明当前 HEAD 相对 VPS 候选只有治理/证据/CI 配置漂移，没有生产或 runtime 代码漂移，
-因此不重新部署、不迁移、不写生产，也不重绑候选。它不能解除 EVID-01：post-0055 的 13 张
-authority/evidence 账本仍 zero-seed，独立 root approval、生产 PostgreSQL
-first-winner/successor/revocation/rollback、same-alias 端到端写读回执与 owner/reviewer
-签署仍缺失；`EVID-01` 继续 `active`/fail-closed，global execution/decision deny 不变。
+该检查证明本次不应把当前 HEAD 宣称为已部署候选：按“不频繁部署”要求不重新部署、不迁移、
+不写生产，也不重绑 `94abd76e`。它不能解除 EVID-01：post-0055 的 13 张 authority/evidence
+账本仍 zero-seed，独立 root approval、生产 PostgreSQL first-winner/successor/revocation/
+rollback、same-alias 端到端写读回执与 owner/reviewer 签署仍缺失；`EVID-01` 继续
+`active`/fail-closed，global execution/decision deny 不变。
+
+## 2026-08-24：EVID-01 post-0055 候选低频只读复核（13:04–13:05 UTC）
+
+在不部署、不执行 migration、不写入数据库的前提下，通过 SSH 只读复核同一受控候选
+`94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` / `agomtradepro-web:20260824133504`：Web、
+Celery worker/beat、PostgreSQL、Redis 与 Caddy 均在运行；公网 `/api/health/`、`/api/ready/`
+和 `/api/audit/health/` 均为 `200`，`/api/decision-ready/` 为 `503`，明确
+`must_not_use_for_decision=true`，原因仍为 `decision_runtime_blocked`。
+Account `0050–0055` 与 Research `0029` 均已应用；同一 `default` PostgreSQL alias 的
+13 张 authority/evidence 表逐表 `SELECT COUNT(*)` 均为 `0`。
+
+本次快照 [`evid-01-authority-inventory-snapshot-2026-08-24-recheck-2105.json`](../deployment/evid-01-authority-inventory-snapshot-2026-08-24-recheck-2105.json)
+经 `record_evid_01_authority_inventory.py --write` 生成 content-addressed 报告
+[`39760173ab5aa8e4adfab03d088c62519e22e5b6cea40d78eaf2d5d0befd6372.json`](../deployment/evid-01-authority-inventory/39/39760173ab5aa8e4adfab03d088c62519e22e5b6cea40d78eaf2d5d0befd6372.json)，
+结果固定为 `blocked_zero_seed_authority`、`authority_ready=false`、
+`production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`。
+这是新鲜只读运行事实，不是 authority seed/approval、PG race/rollback、same-alias 写读回执或
+owner/reviewer 签署；全局 execution/decision deny 继续保持。

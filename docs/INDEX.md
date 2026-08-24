@@ -29,6 +29,8 @@
 
 ## 当前收口说明
 
+- 2026-08-24 EVID-01 最新候选只读复核：候选 `94abd76e…` 的 health/ready/audit 为 `200`、decision-ready 为 `503` fail-closed，`0055`/`0029` 已应用且 13 张 authority/evidence 表全零；快照 [`evid-01-authority-inventory-snapshot-2026-08-24-recheck-2105.json`](deployment/evid-01-authority-inventory-snapshot-2026-08-24-recheck-2105.json)，report [`39760173ab5aa8e4adfab03d088c62519e22e5b6cea40d78eaf2d5d0befd6372.json`](deployment/evid-01-authority-inventory/39/39760173ab5aa8e4adfab03d088c62519e22e5b6cea40d78eaf2d5d0befd6372.json)；`authority_ready=false`、`production_claim=false`，不解除 EVID-01 或全局决策/执行总闸。
+
 - 可维护性定向重构的 R0、R1、R2 与 R3-lite 已完成并归档：历史计划与契约矩阵见 [archive/plans/maintainability-refactoring-plan-2026-07-20.md](archive/plans/maintainability-refactoring-plan-2026-07-20.md) 和 [archive/plans/maintainability-r0/r1-stage-record-2026-07-20.md](archive/plans/maintainability-r0/r1-stage-record-2026-07-20.md)。
 - 宏观运行时入口已统一收口到 `data_center`：HTTP 走 `/api/data-center/*`，MCP 走 `data_center_*` 工具族。
 - 全局运行时配置 owner 已切到 `config_center`：`SystemSettingsModel` 归属 `apps/config_center`，Qlib runtime / 在线训练中心入口见 [business/config-center-matrix.md](business/config-center-matrix.md)。
