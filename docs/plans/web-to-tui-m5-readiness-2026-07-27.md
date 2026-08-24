@@ -723,3 +723,18 @@ SHA-256 `637f646d92e646fb8d27e444bda4b967c109b8350fda26be50603afaadb39223`；记
 本节只修复候选身份在 readiness 文档中的证据链，不新增角色化浏览器 UAT、写后
 receipt/refresh、14 日 telemetry、registry backup/restore、rollback 或 owner/reviewer
 双签；当前 M5 readiness 仍为 `DENY`，不得执行 cleanup 或 cutover。
+
+### 2026-08-24 当前机器 readiness 只读快照
+
+重新运行 `python scripts/check_web_to_tui_cutover_readiness.py --json`，结果仍为
+`decision=DENY`（`as_of=2026-08-24`）。source consistency 与 execution dependency 通过；
+stable candidate/version window、`108` 路由/任务 UAT、cleanup scope、`101` 项 production
+telemetry、rollback drill、production registry backup 以及 owner/reviewer attestations
+均明确未通过。原始机器快照为
+[`web-to-tui-readiness-observation-2026-08-24.json`](../deployment/web-to-tui-readiness-observation-2026-08-24.json)，
+SHA-256=`f60e19b683f7f31d900dd1964403d8bbd162f27398991757878b8b319dd037b5`。
+
+这是只读仓库 gate 的当前事实，不是生产 UAT 或候选重绑：没有部署 VPS、没有创建备份、
+没有执行 cleanup/rollback、没有写生产或调整 M5 gate；`TUI-01` 继续 `awaiting_production`，
+`TUX-02`/`TUX-04` 继续按 registry 暂停，B/S、CLI/API 仍只向服务器提交请求，用户不安装
+本地 Agent、模型或 provider 软件。
