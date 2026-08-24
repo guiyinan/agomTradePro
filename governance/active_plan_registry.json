@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-24.v1",
+  "version": "2026-08-24.v2",
   "updated_at": "2026-08-24",
   "execution_focus": {
     "unit_id": "EVID-01",
@@ -18,7 +18,7 @@
       "priority": "P0",
       "owner": "research+risk_center+portfolio+broker_execution+account",
       "status": "active",
-      "next_gate": "EVID-01 now has a repository-side immutable owner/tenant authority lifecycle, authenticated selector bridge and same-alias scope-source writer composition. Preserve the global execution deny; next deploy migration 0055 under authorization, collect a real independent root approval, then prove PostgreSQL first-winner/revocation/rollback and owner/reviewer sign-off. Never derive tenant/owner from mutable User/Profile/session state.",
+      "next_gate": "EVID-01 now has a repository-side immutable owner/tenant authority lifecycle, authenticated selector bridge and same-alias scope-source writer composition. Migration 0055 and Research 0029 are applied on the controlled candidate 94abd76e46eeef4a8e21853799c7d69bcd9bbe3b / release 20260824133504, but all 13 authority/evidence ledgers remain zero-seed. Preserve the global execution deny; next collect a real independent root approval, then prove production PostgreSQL first-winner/successor/revocation/rollback, same-alias end-to-end receipts and owner/reviewer sign-off. Do not repeat deployment or derive tenant/owner from mutable User/Profile/session state.",
       "documents": [
         {
           "path": "docs/plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md",
@@ -273,7 +273,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-08-24.v1",
+    "version": "2026-08-24.v2",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,

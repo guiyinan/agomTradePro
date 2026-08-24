@@ -3711,3 +3711,15 @@ first-winner/successor/revocation/rollback、真实独立 root approval、same-a
 写读回执和 owner/reviewer sign-off 仍缺失；`EVID-01` 继续 `active`，global
 execution/decision deny 不变。下一步仍是一次受控外部 authority/PG/UAT 验收，不应以本地
 测试替代，也不应为此重复部署 VPS。
+
+## 2026-08-24：EVID-01 canonical plan/index/registry 状态对齐
+
+复核发现 post-0055 的详细验收记录已经存在，但 registry 总览、计划 README 与 `docs/INDEX.md`
+仍将 `0055` 写成“下一步生产迁移”。现已统一绑定受控候选
+`94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` / release `20260824133504`：Account `0055` 与
+Research `0029` 已应用，13 张 authority/evidence 表仍为 zero-seed，报告仍固定
+`blocked_zero_seed_authority`、`authority_ready=false`、`production_claim=false`、
+`runtime_enablement=not_authorized`。本次只改治理摘要和索引文字，不部署、不迁移、不写生产，
+也不改变 `EVID-01`/global execution deny；下一真实门仍是独立 root approval、生产 PostgreSQL
+first-winner/successor/revocation/rollback、same-alias 端到端回执与 owner/reviewer 双签，
+不重复部署 VPS。
