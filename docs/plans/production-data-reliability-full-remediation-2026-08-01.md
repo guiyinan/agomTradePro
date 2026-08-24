@@ -1096,3 +1096,23 @@ artifact SHA-256=`65935870cc4002c1e96fb0ab2473ee679b6b1540318aa72f2155a95d47db43
 `production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`。
 它不等于全 Data Center coverage/freshness、受控回填前后 reconciliation、维护窗口或
 DATA-01 生产 restore/rollback，也不解除 DATA-02/03、decision-ready 或 owner/reviewer 签署门禁。
+
+## 实施记录（2026-08-24，DATA-02 当前候选 coverage/freshness 只读复核）
+
+在不重新部署 VPS、不进入维护态、不回填、不改 universe/config、也不写入生产库的前提下，
+对当前受控候选 `94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` / version `20260824133504` /
+OCI `sha256:1c560b5fed14964a008c278a88d9f3e3b144444a172ecc239d06cedbd76d6a3e` /
+matrix `6272ea6606ebbf3c0791e48d807b733cbc6d9a4ce7d945d95c5e3a16c22aea64` 执行认证
+SELECT-only HTTP/ORM 观察。`active_a_share` universe 有 `5,533` 个 active stock，universe
+quality=`ok`（BSE=331、SSE=2,310、SZSE=2,892；issues=[]）。price、valuation、financial
+fact coverage 均为 `5,533/5,533`，但 canonical publication 仍阻断：price published
+`0/5,533`，valuation publication 缺失，financial published `1/5,533`；三域均
+`must_not_use_for_decision=true`。`/api/ready/`=`200` 但 decision-data=`warning`，
+`/api/decision-ready/`=`503/blocked`，因此没有把 fact coverage 冒充为可决策数据。
+
+结构化工件 [`data02-coverage-freshness-observation-2026-08-24-94abd76e.json`](../deployment/data02-coverage-freshness-observation-2026-08-24-94abd76e.json)，
+SHA-256=`bf78a00e45357b6e61f46e1f96f68ee7fed4fac9648c90dca55387fe4f9fdfeb`；响应 body
+hash、候选绑定、read-only/authentication 标记和 publication blockers 均封存。该证据只完成
+当前候选的 coverage/freshness 观测，不构成 backfill/reconciliation、M9/M10、维护态切换、
+容差例外、生产 ready、owner/reviewer 签署或 runtime enablement；`DATA-02` 继续
+`waiting_dependency`，decision-ready 保持 fail-closed。

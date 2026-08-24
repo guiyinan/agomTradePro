@@ -1,0 +1,128 @@
+{
+  "schema": "data02-coverage-freshness-observation.v1",
+  "artifact_type": "data02_coverage_freshness_observation",
+  "environment": "production-vps",
+  "base_url": "https://demo.agomtrade.pro",
+  "observed_at": "2026-08-24T14:52:16.281359Z",
+  "read_mode": "select_only",
+  "candidate": {
+    "commit": "94abd76e46eeef4a8e21853799c7d69bcd9bbe3b",
+    "version": "20260824133504",
+    "oci_revision": "sha256:1c560b5fed14964a008c278a88d9f3e3b144444a172ecc239d06cedbd76d6a3e",
+    "matrix_sha256": "6272ea6606ebbf3c0791e48d807b733cbc6d9a4ce7d945d95c5e3a16c22aea64"
+  },
+  "authentication": {
+    "method": "account_session",
+    "csrf_referer_and_token_supplied": true,
+    "credentials_recorded": false
+  },
+  "endpoints": {
+    "/api/ready/": {
+      "status": 200,
+      "body_sha256": "a1c3548003ea03a91293be1c0c79e16b2f23310d808ec026737e603a0a3ee0a1",
+      "decision_data_status": "warning",
+      "must_not_use_for_decision": true,
+      "blocked_reasons": ["市场温度计标记为 must_not_use_for_decision。"]
+    },
+    "/api/decision-ready/": {
+      "status": 503,
+      "body_sha256": "a4d254bb288fe56d591edbaf9e82b898ff7ee2c8b146d7349109416f8277877c",
+      "status_label": "blocked",
+      "must_not_use_for_decision": true
+    },
+    "/api/data-center/production-coverage/universe/": {
+      "status": 200,
+      "body_sha256": "8a90dd76771017948363b772ca116d167ccc986987ce5e03e8be81eb2ec98d96",
+      "universe_id": "active_a_share",
+      "asset_type": "stock",
+      "exchanges": ["SSE", "SZSE", "BSE"],
+      "include_inactive": false,
+      "minimum_active_asset_count": 4000,
+      "minimum_star_market_count": 200,
+      "minimum_chinext_count": 0,
+      "minimum_bse_count": 50
+    },
+    "/api/data-center/production-coverage/summary/": {
+      "status": 200,
+      "body_sha256": "e0832a530ac61f5f7ce20e25837790a26a4feacdd89ab2ae893d87ba66b7873f",
+      "status_label": "incomplete",
+      "asset_count": 5533,
+      "universe_quality": {
+        "status": "ok",
+        "exchange_counts": {"BSE": 331, "SSE": 2310, "SZSE": 2892},
+        "board_counts": {
+          "bse": 331,
+          "chinext": 1399,
+          "sh_main": 1698,
+          "star_market": 612,
+          "sz_main": 1451
+        },
+        "issues": []
+      },
+      "domains": {
+        "price": {
+          "fact_covered_count": 5533,
+          "fact_missing_count": 0,
+          "fact_latest_date": "2026-08-04",
+          "fact_status": "ok",
+          "published_covered_count": 0,
+          "published_missing_count": 5533,
+          "published_status": "blocked",
+          "dataset_key": "equity.price.bar",
+          "freshness_status": "incomplete",
+          "must_not_use_for_decision": true,
+          "blocked_reason": "canonical_publication_coverage_incomplete",
+          "publication_member_count": 20,
+          "publication_member_bound_count": 0,
+          "publication_member_missing_count": 5533
+        },
+        "valuation": {
+          "fact_covered_count": 5533,
+          "fact_missing_count": 0,
+          "fact_latest_date": "2026-08-04",
+          "fact_status": "ok",
+          "published_covered_count": 0,
+          "published_missing_count": 0,
+          "published_status": "blocked",
+          "dataset_key": "equity.valuation.fact",
+          "freshness_status": "blocked",
+          "must_not_use_for_decision": true,
+          "blocked_reason": "canonical_publication_missing",
+          "publication_member_count": 0,
+          "publication_member_bound_count": 0,
+          "publication_member_missing_count": 0
+        },
+        "financial": {
+          "fact_covered_count": 5533,
+          "fact_missing_count": 0,
+          "fact_latest_date": "2026-06-30",
+          "fact_status": "ok",
+          "published_covered_count": 1,
+          "published_missing_count": 5532,
+          "published_status": "blocked",
+          "dataset_key": "equity.financial.fact",
+          "freshness_status": "incomplete",
+          "must_not_use_for_decision": true,
+          "blocked_reason": "canonical_publication_coverage_incomplete",
+          "publication_member_count": 80,
+          "publication_member_bound_count": 1,
+          "publication_member_missing_count": 5532
+        }
+      }
+    }
+  },
+  "acceptance": {
+    "candidate_bound": true,
+    "coverage_observed": true,
+    "freshness_observed": true,
+    "production_claim": false,
+    "production_ready": false,
+    "runtime_enablement": "not_authorized",
+    "outcome": "coverage_incomplete_publication_blocked"
+  },
+  "limitations": [
+    "This is authenticated read-only coverage/freshness evidence; it does not run a backfill, alter the universe configuration, write reconciliation rows, or change maintenance state.",
+    "Fact coverage is distinct from canonical publication coverage: the raw fact domains are populated, while published member bindings remain incomplete or missing.",
+    "No tolerance exception, data-owner waiver, M9/M10 cutover, rollback, observation window, or owner/reviewer sign-off is claimed."
+  ]
+}
