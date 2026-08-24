@@ -1046,3 +1046,20 @@ Ruff/Black/isort 与增量 mypy 通过。
 migration/rollback、backlog recovery、metrics/alert、TUI、archive/restore 或 owner/reviewer
 签字验收；`AUD-03` 继续 `waiting_dependency`，`AUD-01` publisher/authority gate 与
 `AUD-02` 同 UOW 双写不变。
+
+## 实施记录（2026-08-24，AUD-03 当前候选 SELECT-only 运营观察）
+
+按 active registry 的 `auto_collect` 清单，对同一运行候选
+`4cef9040cccc2127c3f8128c8d858bc7958df2a4` / version `20260822134658` /
+OCI revision `sha256:cfaf17560df2f85cd8ba2f5db8226a9dd9fe1cce081f30175c2a08737b4908d8`
+采集一份 `select_only` envelope。VPS web 容器的同一 `default` alias
+`REPEATABLE READ READ ONLY` migration 查询得到 applied=`493`、pending=`0`、failed=`0`，
+有序 migration-row digest=`d540e6973cc9885c76d25450d7947da193bc706df6e51e70875f1d892d5e44cb`；
+公网 `/api/audit/health/` 于 `2026-08-23T23:57:29Z` 返回 `200/OK`，operation logs=`555`、
+failures=`0`、failure rate=`0`，outbox pending/due/claimed/expired/failed/delivered 全为 `0`。
+
+原始 envelope
+[`aud03-operational-observation-select-only-2026-08-24-2358.json`](../deployment/aud03-operational-observation-select-only-2026-08-24-2358.json)+经 `record_aud03_operational_observation_evidence.py --write` 生成+content-addressed report+[`56e1ef25819bc2f73df2c78975090494317f1f918bc4238a24d24ff7cec90f82.json`](../deployment/aud03-operational-observation/56/56e1ef25819bc2f73df2c78975090494317f1f918bc4238a24d24ff7cec90f82.json)。
+报告 `missing_section_count=4`：alerts、TUI、recovery、archive 未采集并保持+`unavailable`，没有把缺失转成零值；migration/outbox/metrics 是可用只读字段。
+
+本次没有运行 migration、claim/publish、Celery、fault injection、archive/restore 或任何+生产写入；报告固定 `production_claim=false`、`production_ready=false`、+`runtime_enablement=not_authorized`。这只完成一次候选绑定的运营快照派生，不能证明 durable+publisher、authenticated authority、同 UOW 双写、recovery、TUI、archive/restore 或+owner/reviewer 签字；`AUD-03` 继续 `waiting_dependency`，`AUD-01/AUD-02` 门禁不变。
