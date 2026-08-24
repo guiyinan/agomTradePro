@@ -74,7 +74,7 @@
 - 唯一 repository 主线：`EVID-01`。TAR-01 至 TAR-04 的 runtime、durable admission/dispatch、Worker/事件恢复、SDK/MCP薄客户端和TUI queued结果合同均已完成，Terminal Runtime 转入生产验证。
 - `AUD-01`、`TUX-02`、`TUX-04` 暂停 repository 扩展；现有 fail-closed 门禁保持不变。
 - `EVID-02`、`DATA-01`、`STRAT-01` 按各自 `auto_collect` 清单并行取证；仅具体生产写入、付费调用和人工决定进入集中授权批次，不再因“需要生产证据”整体停工。
-- `TUI-01` 与 `TAR-05` 的 repository 依赖已满足并进入 `awaiting_production`；旧候选 binding 已因 graph/runtime 变化失效，必须部署并重绑一个最终候选后才能执行角色 UAT、容量/恢复验收并从第0天启动正式14日窗口。
+- `TUI-01` 与 `TAR-05` 的 repository 依赖已满足并进入 `awaiting_production`；当前 `94abd76e` 仅是 TAR/EVID 受控候选，正式 M5 的 commit/version/OCI/matrix/graph/runtime manifest 仍未重绑，因此不得把现有部署直接当作 TUI-01 候选或重复部署；完成正式 binding 后才能执行角色 UAT、容量/恢复验收并从第0天启动正式14日窗口。
 - 生产、外部和治理工作只允许在注册表声明的并行 mode 内进行；任何部署、生产写入或授权动作仍遵循专项计划的权限边界。
 
 ## 限期审查队列
