@@ -3595,7 +3595,7 @@ Research composition root 访问。module-cycle guard
 predecessor successor first-winner、外层事务 rollback 无 orphan，以及 `0055` forward/reverse/
 re-forward zero-seed。数据库 URL 只接受显式 opt-in 的本地/测试 PostgreSQL，数据库名必须包含
 `authority` 与 `test`；缺少环境变量时测试明确 `4 skipped`。本机 disposable PostgreSQL 16
-空库实际运行 `4 passed in 27.53s`，测试数据库已清理；这只是本地 PostgreSQL 软件证据，
+空库实际运行 `5 passed in 25.82s`（含 revoked terminal head no-fallback），测试数据库已清理；这只是本地 PostgreSQL 软件证据，
 不把 SQLite、skip 或本机容器结果记为 VPS/production evidence。未连接 VPS、未执行生产
 migration/写入，EVID-01 仍需真实生产 PG race/revocation/rollback 与 owner/reviewer sign-off。
 

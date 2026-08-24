@@ -157,6 +157,7 @@ def _truncate_rows() -> None:
 def _authority(
     *,
     version: str = "v1",
+    status: str = "active",
     owner_id: str = "owner-1",
     recorded_at: datetime = NOW,
     valid_until: datetime = NOW + timedelta(days=2),
@@ -176,7 +177,7 @@ def _authority(
         assignment_evidence_id="assignment-evidence-1",
         assignment_evidence_version="v1",
         assignment_evidence_content_hash="a" * 64,
-        status="active",
+        status=status,
         approved_by=AccountOwnerAssignmentActor(
             actor_id="approver-1",
             user_id=202,
@@ -254,6 +255,42 @@ def test_same_predecessor_race_has_one_successor() -> None:
         results = (futures[0].result(timeout=40), futures[1].result(timeout=40))
     assert sorted(results) == ["conflict", "winner"]
     assert OwnerTenantAuthorityV1Model._default_manager.count() == 2
+
+
+def test_revoked_postgresql_head_never_falls_back_to_active_root() -> None:
+    """PostgreSQL reads preserve a revoked terminal head without fallback."""
+
+    root = _authority()
+    revoked = _authority(
+        version="v2",
+        status="revoked",
+        recorded_at=NOW + timedelta(minutes=1),
+        valid_until=NOW + timedelta(days=2, minutes=1),
+        supersedes_content_hash=root.content_hash,
+    )
+    repository = DjangoOwnerTenantAuthorityV1Repository(clock=_Clock())
+    with repository.atomic():
+        repository.append(root, expected_predecessor_hash=None, recorded_at=root.recorded_at)
+    with repository.atomic():
+        repository.append(
+            revoked,
+            expected_predecessor_hash=root.content_hash,
+            recorded_at=revoked.recorded_at,
+        )
+
+    assert (
+        repository.get_head(authority_id=root.authority_id, as_of=NOW + timedelta(minutes=2))
+        == revoked
+    )
+    assert (
+        repository.get_exact(
+            authority_id=root.authority_id,
+            authority_version=root.authority_version,
+            expected_content_hash=root.content_hash,
+            as_of=NOW + timedelta(minutes=2),
+        )
+        == root
+    )
 
 
 def test_outer_transaction_rollback_leaves_no_orphan() -> None:
