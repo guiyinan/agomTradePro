@@ -1313,5 +1313,9 @@
 
 ---
 
+### 2026-08-24
+
+- TAR-05 当前候选认证保留路由只读阶梯证据：[`tar01-current-reserved-route-observation-2026-08-24-94abd76e.json`](deployment/tar01-current-reserved-route-observation-2026-08-24-94abd76e.json)。
+
 **文档维护**: AgomTradePro Team
 **最后更新**: 2026-08-14

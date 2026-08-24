@@ -1,0 +1,152 @@
+{
+  "schema": "terminal-runtime-reserved-route-observation.v2",
+  "artifact_type": "terminal_runtime_reserved_route_observation",
+  "environment": "production-vps",
+  "base_url": "https://demo.agomtrade.pro",
+  "collected_at": "2026-08-24T14:27:44.134624Z",
+  "method": "POST",
+  "route": "/api/terminal/runs/",
+  "authentication": {
+    "method": "account_session",
+    "csrf_referer_and_token_supplied": true,
+    "credentials_recorded": false
+  },
+  "candidate": {
+    "status": "verified",
+    "app_version": "0.8.0",
+    "release_tag": "20260824133504",
+    "source_commit": "94abd76e46eeef4a8e21853799c7d69bcd9bbe3b",
+    "short_commit": "94abd76e46ee",
+    "image_tag": "agomtradepro-web:20260824133504",
+    "image_id": "sha256:1c560b5fed14964a008c278a88d9f3e3b144444a172ecc239d06cedbd76d6a3e",
+    "source_mode": "git-clone",
+    "runtime_match": true,
+    "must_not_trust_for_release": false,
+    "deployment_report": "docs/deployment/tar01-current-vps-deployment-acceptance-2026-08-24-94abd76e.json"
+  },
+  "deployment_verifier": {
+    "status": "passed",
+    "https_health": 200,
+    "containers_healthy": true,
+    "database_and_redis": "ok",
+    "celery_worker_and_beat": "running",
+    "celery_ping": "passed",
+    "migrations": "no migrations to apply",
+    "tui_registry": "matched",
+    "source_report": "dist/remote-build-reports/remote-build-report-20260824133504.json"
+  },
+  "health_before": {
+    "statuses": [200, 200, 200],
+    "readiness": {
+      "status": 200,
+      "payload_status": "ok",
+      "celery_workers": 1
+    }
+  },
+  "health_after": {
+    "statuses": [200, 200, 200],
+    "readiness": {
+      "status": 200,
+      "payload_status": "ok",
+      "celery_workers": 1
+    }
+  },
+  "audit_before": {
+    "status": 200,
+    "overall_status": "OK",
+    "total_operation_logs": 555,
+    "total_failures": 0,
+    "failure_rate": 0.0,
+    "backlog_counts": {
+      "pending": 0,
+      "due_pending": 0,
+      "claimed": 0,
+      "expired_claimed": 0,
+      "failed": 0
+    }
+  },
+  "audit_after": {
+    "status": 200,
+    "overall_status": "OK",
+    "total_operation_logs": 555,
+    "total_failures": 0,
+    "failure_rate": 0.0,
+    "backlog_counts": {
+      "pending": 0,
+      "due_pending": 0,
+      "claimed": 0,
+      "expired_claimed": 0,
+      "failed": 0
+    }
+  },
+  "tui_catalog_observation": {
+    "status": 200,
+    "version": "tui-workbench.v2",
+    "default_screen": "command-center.overview",
+    "actions": 886,
+    "published_actions": 890,
+    "approved_operation_actions": 23,
+    "body_sha256": "634180b5f603981a106f788ebbd5bbff1dbfb496f1cba366c355fae00c6e267bb",
+    "guard_preflight": {
+      "status": 503,
+      "code": "DISPATCH_UNAVAILABLE",
+      "reason_code": "queued_runtime_not_wired",
+      "retry_after": "60",
+      "body_sha256": "d73b89e61674dc6f3631e090fa9dbc76110e5632d1d38c38ac78b5ecf17aa578"
+    }
+  },
+  "levels": [
+    {
+      "concurrency": 1,
+      "requests": 1,
+      "status_counts": {"503": 1},
+      "reason_counts": {"queued_runtime_not_wired": 1},
+      "retry_after_counts": {"60": 1},
+      "latency_ms": {"p50": 2707.465, "p95": 2707.465, "p99": 2707.465, "max": 2707.465},
+      "all_expected": true
+    },
+    {
+      "concurrency": 5,
+      "requests": 5,
+      "status_counts": {"503": 5},
+      "reason_counts": {"queued_runtime_not_wired": 5},
+      "retry_after_counts": {"60": 5},
+      "latency_ms": {"p50": 2391.634, "p95": 3410.645, "p99": 3559.363, "max": 3596.543},
+      "all_expected": true
+    },
+    {
+      "concurrency": 10,
+      "requests": 10,
+      "status_counts": {"503": 10},
+      "reason_counts": {"queued_runtime_not_wired": 10},
+      "retry_after_counts": {"60": 10},
+      "latency_ms": {"p50": 2753.068, "p95": 3616.674, "p99": 3796.633, "max": 3841.623},
+      "all_expected": true
+    },
+    {
+      "concurrency": 20,
+      "requests": 20,
+      "status_counts": {"503": 20},
+      "reason_counts": {"queued_runtime_not_wired": 20},
+      "retry_after_counts": {"60": 20},
+      "latency_ms": {"p50": 3000.464, "p95": 4717.427, "p99": 7323.041, "max": 7974.444},
+      "all_expected": true
+    }
+  ],
+  "acceptance": {
+    "health_stable": true,
+    "reserved_route_fail_closed": true,
+    "side_effects_observed": false,
+    "side_effect_basis": "operation-log, failure, and all audit backlog counters were unchanged before/after",
+    "queued_runtime_enabled": false,
+    "capacity_ready": false,
+    "outcome": "capacity_denied",
+    "reason": "queued_runtime_not_wired"
+  },
+  "limitations": [
+    "This is authenticated current-candidate reserved-route evidence, not queued admission, durable PostgreSQL run persistence, Worker, SSE, or capacity evidence.",
+    "The request body used task_id=0 and the preflight guard was verified before the 1/5/10/20 staircase; no task, run, provider, or MCP data was written.",
+    "Readiness still reports decision data warning with must_not_use_for_decision=true; no decision-use authorization is claimed.",
+    "No production role-browser UAT, write receipt/refresh, chaos, 14-day telemetry, restore/rollback, or owner/reviewer sign-off is claimed."
+  ]
+}

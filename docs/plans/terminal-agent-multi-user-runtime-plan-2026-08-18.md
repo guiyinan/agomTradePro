@@ -1817,6 +1817,34 @@ not bound to local HEAD `8a755c3c2e79da067c0b9264b4e4f5bd1b8afe24`. This is a
 low-frequency read-only observation only; TAR-01/TAR-05 capacity, queue,
 provider, chaos, telemetry, restore/rollback, role UAT and owner/reviewer
 gates remain unchanged. Repeated deployment is not required.
+
+### TAR-05 current candidate authenticated reserved-route staircase (2026-08-24)
+
+Using one server-side account session with CSRF referer/token headers, the
+current controlled candidate `94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` /
+release `20260824133504` / image
+`sha256:1c560b5fed14964a008c278a88d9f3e3b144444a172ecc239d06cedbd76d6a3e`
+was observed without a deployment or runtime flag change. A task-id `0`
+preflight first returned `503 DISPATCH_UNAVAILABLE /
+queued_runtime_not_wired / Retry-After: 60`; the authenticated staircase then
+sent exactly `1/5/10/20` requests (`36` total), and every response had the same
+fail-closed contract. Health/readiness/audit were stable before and after:
+all three HTTP statuses were `200`, readiness was `200/ok` with one Celery
+worker, audit remained `OK` with `555` operation logs, `0` failures and zero
+pending/due/claimed/expired/failed backlog. The authenticated catalog was
+`tui-workbench.v2`, `886` normalized actions, `890` published actions and `23`
+approved-operation actions.
+
+The structured evidence is
+[`tar01-current-reserved-route-observation-2026-08-24-94abd76e.json`](../deployment/tar01-current-reserved-route-observation-2026-08-24-94abd76e.json)
+with SHA-256
+`23fc37fee8d54ab9f8f53252ca4d37753db83afbc52a336dfe8f68e235e6b8cd`;
+the offline validator passes with `capacity_ready=false`,
+`runtime_enablement=not_authorized` and `side_effects_observed=false`.
+This is current-candidate authenticated guard evidence, not queued admission,
+durable PostgreSQL run persistence, Worker/SSE, idempotency/cancel, provider/
+MCP, capacity, chaos, 14-day telemetry, restore/rollback or owner/reviewer
+evidence. TAR-01/TAR-05 remain fail-closed and no redeploy was performed.
 ## 2026-08-24：当前公网只读健康复核
 
 仅对 `demo.agomtrade.pro` 执行了三条 HTTPS `GET`，没有部署、迁移、队列启用、回滚或生产写入。`/api/health/` 与 `/api/ready/` 均返回 `200`；ready 的 database、Redis、Celery、critical data 为 `ok`，decision-data 为 `warning`。`/api/decision-ready/` 返回 `503`，并明确 `must_not_use_for_decision=true`。原始响应的大小、SHA-256 与 acceptance 口径保存在 [`tar01-public-health-readonly-recheck-2026-08-24.json`](../deployment/tar01-public-health-readonly-recheck-2026-08-24.json)。
