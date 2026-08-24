@@ -3694,3 +3694,20 @@ execution 在服务器端，用户不安装本地 Agent、模型或 provider 软
 `awaiting_production`；真实 first-winner/current-head/rollback 并发、Risk Center approval、
 owner/reviewer 签署与 Evidence hard gate 仍缺失。B/S、CLI/API 继续只向服务器提交请求，
 AI/provider/MCP/tool execution 在服务器端，用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-24：EVID-01 当前仓库合同复核
+
+在不修改生产代码、不部署 VPS、不执行 migration 或生产写入的前提下，复跑当前
+`dev/next-development` HEAD 的 EVID-01 定向合同：Account owner/tenant authority、core
+authenticated composition、Research scope lifecycle/provider/observation、Evidence
+composition guard 与 v2 authority inventory 共 `89 passed`；Account/Research component
+repository/model 合同再通过 `36 passed in 156.20s`。`check_evidence_scope_composition.py`
+扫描 `2931` 个生产 Python 文件并通过，active-plan registry 与 governance consistency
+均为 `0` violations，`git diff --check` 通过。
+
+本次没有发现可安全新增的本地 repository slice。证据只证明当前 fail-closed 边界与本地
+合同完整，不升级为生产 authority：VPS post-0055 账本仍 zero-seed，生产 PostgreSQL
+first-winner/successor/revocation/rollback、真实独立 root approval、same-alias 端到端
+写读回执和 owner/reviewer sign-off 仍缺失；`EVID-01` 继续 `active`，global
+execution/decision deny 不变。下一步仍是一次受控外部 authority/PG/UAT 验收，不应以本地
+测试替代，也不应为此重复部署 VPS。
