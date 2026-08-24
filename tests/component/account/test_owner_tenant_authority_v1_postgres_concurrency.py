@@ -50,6 +50,16 @@ class _Clock:
         return NOW + timedelta(days=7)
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _create_authority_database_before_registry_fixture(
+    request: pytest.FixtureRequest,
+) -> None:
+    """Create the isolated database before the shared registry reset imports models."""
+
+    if os.environ.get(_FLAG, "").strip() == "1":
+        request.getfixturevalue("django_db_setup")
+
+
 def _require_postgresql_authority() -> None:
     """Require explicit local PostgreSQL opt-in and identity checks."""
 

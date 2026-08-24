@@ -57,7 +57,13 @@ if _enabled and not _database_url:
 
 SECRET_KEY = "owner-tenant-authority-v1-postgres-concurrency"
 INSTALLED_APPS = [
+    "django.contrib.admin",
+    "django.contrib.auth",
     "django.contrib.contenttypes",
+    "django.contrib.messages",
+    "django.contrib.sessions",
+    "django.contrib.staticfiles",
+    "tests.owner_tenant_authority_v1app.DataCenterAuthorityTestConfig",
     "tests.owner_tenant_authority_v1app.OwnerTenantAuthorityV1TestConfig",
 ]
 DATABASES = (
@@ -67,14 +73,4 @@ DATABASES = (
 )
 USE_TZ = True
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-MIGRATION_MODULES = {"account": None}
-
-
-from django.apps import AppConfig
-
-
-class OwnerTenantAuthorityV1TestConfig(AppConfig):
-    """Register only the authority ledger under the Account app label."""
-
-    name = "tests.owner_tenant_authority_v1app"
-    label = "account"
+MIGRATION_MODULES = {"account": None, "data_center": None}
