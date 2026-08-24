@@ -1,8 +1,8 @@
 # AgomTradePro 文档索引
 
 > **AgomTradePro 0.8.0** - 个人投研平台
-> **最后更新**: 2026-08-18
-> **项目状态**: 生产就绪
+> **最后更新**: 2026-08-24
+> **项目状态**: 生产验证进行中；关键决策与执行门禁仍 fail-closed
 > **版本管理**: [VERSION.md](VERSION.md)
 
 ---
@@ -23,7 +23,7 @@
 | 产品/业务 | [business/AgomTradePro_V3.4.md](business/AgomTradePro_V3.4.md) | 业务逻辑、金融规则、数据源 |
 | 最终用户 | [user/topdown-bottomup-execution-playbook.md](user/topdown-bottomup-execution-playbook.md) | 环境-标的-执行-审计一体化操作手册 |
 | 运维人员 | [deployment/VPS_BUNDLE_DEPLOYMENT.md](deployment/VPS_BUNDLE_DEPLOYMENT.md) | VPS Bundle 部署指南 |
-| FRP 三机部署 | [architecture/frp-vps-local-runtime-architecture.md](architecture/frp-vps-local-runtime-architecture.md) | VPS 入口 + 本地运行 + C 端 AI Agent/MCP 架构与落地配置 |
+| FRP 三机部署 | [architecture/frp-vps-local-runtime-architecture.md](architecture/frp-vps-local-runtime-architecture.md) | VPS 入口 + 服务端 AI/Agent 薄客户端架构；QMT 外部券商桥另有本地执行例外 |
 
 ---
 
@@ -61,7 +61,7 @@
 | [adr-0001-shared-infrastructure-boundaries.md](architecture/adr-0001-shared-infrastructure-boundaries.md) | **ADR：shared.infrastructure 边界判定** | ✅ 2026-05-02 新增 |
 | [adr-0006-tui-primary-interface.md](architecture/adr-0006-tui-primary-interface.md) | **ADR：TUI 作为日常任务主界面与 Web 保留清单边界** | ✅ 2026-07-26 已接受 |
 | [adr-0007-evidence-envelope-and-decision-gates.md](architecture/adr-0007-evidence-envelope-and-decision-gates.md) | **ADR：Evidence Envelope、Track Record 与决策硬闸所有权** | 2026-08-12 分阶段实施 |
-| [adr-0008-terminal-agent-runtime-boundary.md](architecture/adr-0008-terminal-agent-runtime-boundary.md) | **ADR：Terminal Agent 多用户运行时边界与 queued composition contract** | 2026-08-18 TAR-01 契约冻结；TAR-02 已有候选级 bounded runtime observation，TAR-03 仍未启动 |
+| [adr-0008-terminal-agent-runtime-boundary.md](architecture/adr-0008-terminal-agent-runtime-boundary.md) | **ADR：Terminal Agent 多用户运行时边界与 queued composition contract** | 2026-08-18 TAR-01~04 repository 合同已完成；TAR-05 等待生产 provider、容量、混沌、恢复与观测验收 |
 | [shared-cleanup-program-2026-05-02.md](architecture/shared-cleanup-program-2026-05-02.md) | **shared 残留清理专项** | ✅ 2026-05-02 新增 |
 | [module-cycle-regression-remediation-2026-05-02.md](architecture/module-cycle-regression-remediation-2026-05-02.md) | **模块依赖回归整改说明（cycle 回归复盘与修复）** | ✅ 2026-05-02 新增 |
 | [mcp-hosted-transport-and-identity-memo-2026-05-10.md](architecture/mcp-hosted-transport-and-identity-memo-2026-05-10.md) | **MCP 服务化演进备忘录（stdio vs HTTP/SSE、Token vs per-user OAuth）** | ✅ 2026-05-10 新增 |
@@ -138,7 +138,7 @@
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
-| [active_plan_registry.json](../governance/active_plan_registry.json) | **活跃计划与 canonical closure backlog 机器真源（工作流 / owner / 状态 / 依赖 / 唯一退出门 / 文件归属 / 限期审查）** | 139 个历史未勾选细项已去重为 28 个工作包；9 条工作流、18 份主计划、39 个活跃文件；Terminal Agent 多用户整改 TAR-01 已登记为下一条 P0 repository 优先线，AI-01 等待 TAR-05 生产验收，CI 禁止待办、依赖和 plan 漂移 |
+| [active_plan_registry.json](../governance/active_plan_registry.json) | **活跃计划与 canonical closure backlog 机器真源（工作流 / owner / 状态 / 依赖 / 唯一退出门 / 文件归属 / 限期审查）** | 136 个历史未勾选细项已去重为 28 个工作包；9 条工作流、18 份主计划、40 个活跃文件；当前唯一 repository focus 为 EVID-01，TAR-01~04 已完成合同、TAR-05 等待生产验收，CI 禁止待办、依赖和 plan 漂移 |
 | [scenario-governance-and-strategy-method-quick-wins-plan-2026-08-04.md](plans/scenario-governance-and-strategy-method-quick-wins-plan-2026-08-04.md) | **情景硬编码治理、动态/参数/宏观情景、AI MCP 受控修改及策略方法 Quick Wins（M0-M6）** | 提案，待评审实施 |
 | [strategy-research-capability-completion-audit-2026-08-05.md](plans/strategy-research-capability-completion-audit-2026-08-05.md) | **策略研究 R1—R8 完成度审计、真实数据阻断与无数据开发队列** | 实施中；无 P0，剩余 P1 分批收口 |
 | [sentiment-awareness-enhancement-plan-2026-07-31.md](archive/plans/sentiment-awareness-enhancement-plan-2026-07-31.md) | **A 股情绪态势感知增强计划（S0-S4，交易行为情绪指标 / Pulse sentiment 维度 / 文本情绪打通 / TUI 情绪面板）** | ✅ 已完成并归档 |
@@ -150,14 +150,14 @@
 | [web-to-tui-m4-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m4-consolidated-evidence-2026-07-26.md) | **Web → TUI M4 合并证据（W43-W51，9 份原始 wave 记录与 SHA-256 清单）** | ✅ M4 已完成并归档 |
 | [web-to-tui-m5-readiness-2026-07-27.md](plans/web-to-tui-m5-readiness-2026-07-27.md) | **Web → TUI M5 Readiness（14 日兼容期、UAT、telemetry 与回滚演练门禁）** | ⛔ 当前 DENY；正式 cutover candidate `2f4554b5192191970a3ccbc98420388881725079` / `20260820211526` 的 preflight 身份已对齐，角色 UAT、写后回执、14 日窗口与回滚/备份证据仍待补 |
 | [web-to-tui-m5-production-preflight-2026-07-28.md](plans/web-to-tui-m5-production-preflight-2026-07-28.md) | **Web → TUI M5 生产 Preflight（只读健康、release/commit 与候选差异核查）** | 历史只读记录；不代表 2026-08-13 当前线上版本，不计入 cutover gate |
-| [web-to-tui-m5-production-preflight-2026-08-13.md](plans/web-to-tui-m5-production-preflight-2026-08-13.md) | **Web → TUI M5 当前生产 Preflight（公开探针 + release/OCI 核对）** | 当前候选 `20260816223921` / `443658d33159` 已完成标准 git-clone 构建、manifest/OCI/health/ready 复核；M5 仍 DENY，角色化 UAT、观察窗口和写后审计待补 |
+| [web-to-tui-m5-production-preflight-2026-08-13.md](plans/web-to-tui-m5-production-preflight-2026-08-13.md) | **Web → TUI M5 生产 Preflight（公开探针 + release/OCI 核对）** | 历史只读候选记录：`20260816223921` / `443658d33159`；当前运行候选以最新 deployment evidence 与 registry 绑定为准。M5 仍 DENY，角色化 UAT、观察窗口和写后审计待补 |
 | [web-to-tui-m5-rollback-drill-evidence-2026-07-27.md](plans/web-to-tui-m5-rollback-drill-evidence-2026-07-27.md) | **Web → TUI M5 回滚演练（隔离 reverse/restore、旧 graph 兼容与 registry 回滚发布）** | 历史记录不再算当前闸门；candidate-bound 本地演练已修复，最终候选/生产备份恢复待验 |
 | [web-to-tui-m5-browser-uat-evidence-2026-07-27.md](plans/web-to-tui-m5-browser-uat-evidence-2026-07-27.md) | **Web → TUI M5 浏览器 UAT（角色边界、矩阵深链、直读/参数读取与生命周期）** | 历史自动化 15/15、主任务 108/108；未绑定最终候选，当前 gate FAIL |
 | [web-to-tui-m5-route-closure-evidence-2026-07-27.md](plans/web-to-tui-m5-route-closure-evidence-2026-07-27.md) | **Web → TUI M5 逐 Route 清理证据（认证边界、兼容目标与状态/回滚范围）** | ✅ 六类 scope 均为 108/108；不替代生产门禁 |
 | [tui-regime-display-contract-postmortem-2026-07-30.md](archive/plans/tui-regime-display-contract-postmortem-2026-07-30.md) | **TUI Regime 有数据未显示复盘（契约漂移、fail-closed 与跨层回归门禁）** | ✅ 整改完成并归档，持续执行门禁 |
-| [qmt-live-trading-bridge-plan.md](plans/qmt-live-trading-bridge-plan.md) | **QMT 本地执行桥与 VPS 实盘交易接入计划（Web / TUI / MCP / 权限 / 风控 / 对账）** | 仓库 MVP 已实现；待目标券商 Phase 0 与仿真实测 |
+| [qmt-live-trading-bridge-plan.md](plans/qmt-live-trading-bridge-plan.md) | **QMT 本地执行桥与 VPS 实盘交易接入计划（Web / TUI / MCP / 权限 / 风控 / 对账）** | 仅 QMT 外部券商桥允许本地执行；仓库 MVP 已实现，待目标券商 Phase 0 与仿真实测 |
 | [tui-usability-and-metadata-governance-plan-2026-08-18.md](plans/tui-usability-and-metadata-governance-plan-2026-08-18.md) | **TUI 可用性与 metadata 治理整改（加载回退 / 三真源合一 / auto action 文案重写 / IA 整理 / 布局收口，TUX-01~05）** | 已立项，仓库内小收口线；不触碰 M5 候选证据链 |
-| [terminal-agent-multi-user-runtime-plan-2026-08-18.md](plans/terminal-agent-multi-user-runtime-plan-2026-08-18.md) | **Terminal Agent 多用户队列、专用 Worker、可恢复事件流与用户自有密钥本地 CLI 混合运行整改（TAR-01~05）** | P0 已立项；当前原子工作包后优先执行 TAR-01，TAR-05 验收前保持 inline 并发 1 |
+| [terminal-agent-multi-user-runtime-plan-2026-08-18.md](plans/terminal-agent-multi-user-runtime-plan-2026-08-18.md) | **Terminal Agent 多用户队列、专用 Worker、可恢复事件流与服务端 AI/Agent 薄客户端整改（TAR-01~05）** | TAR-01~04 repository 合同已完成；当前转入 TAR-05 生产 provider、容量、混沌、恢复与观测验收，TAR-05 通过前保持 inline 并发 1；普通用户不安装本地 Agent/provider |
 | [adr-0002-qmt-local-execution-bridge.md](architecture/adr-0002-qmt-local-execution-bridge.md) | QMT 本地 Agent + VPS 控制面架构决策 | 已接受 |
 | [qmt-agent-runbook.md](operations/qmt-agent-runbook.md) | Windows QMT Agent 安装、分级启用、停止与故障处理 | 可执行 |
 | [qmt-agent-local-install-package.md](operations/qmt-agent-local-install-package.md) | 国金普通 QMT `userdata` 本地 Agent ZIP 安装包、DPAPI Token、权限诊断与卸载 | 可执行 |
@@ -175,7 +175,7 @@
 | [production-code-remediation-plan-2026-06-26.md](archive/plans/production-code-remediation-plan-2026-06-26.md) | **投产代码整改方案（数据守门 / 初始化 / UI 闭环）** | ✅ 2026-06-26 完成并归档 |
 | [0.8.0-release-closure-plan-2026-07-05.md](archive/plans/0.8.0-release-closure-plan-2026-07-05.md) | **0.8.0 收口开发计划（发布 / 运维 / 架构减债 Top 10）** | ✅ 2026-07-05 已执行并归档 |
 | [post-0.8.0-stabilization-priority-2026-07-08.md](archive/plans/post-0.8.0-stabilization-priority-2026-07-08.md) | **0.8.0 发布后两周稳定化实施清单（优先级 / 负责人 / 命令 / 验收）** | ✅ 已归档；未完成生产门禁已转入当前 Data / Strategy / Evidence / TUI 工作流 |
-| [evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md](plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md) | **证据治理与决策硬闸改造计划** | 第一期 P0：Portfolio/Risk/Broker inactive owner contracts与ledgers、Risk policy workflow以及Broker pre-Risk ID-only scope已分阶段落盘；pre-Risk仍固定inactive，缺跨账户owner binding、Risk adapter、最终issuer/四节点重验与PG/生产证明，所有执行总闸保持关闭，MCP integrated=0 |
+| [evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md](plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md) | **证据治理与决策硬闸改造计划** | 第一期 P0：代码侧 immutable owner/tenant authority lifecycle、same-alias selector/writer composition 与 Evidence boundary 已落盘；仍缺 `0055` 生产迁移、真实独立 root approval、PG first-winner/revocation/rollback、生产 route/writer 与双签，所有执行总闸保持关闭，MCP integrated=0 |
 | [system-audit-log-consolidation-plan-2026-08-13.md](plans/system-audit-log-consolidation-plan-2026-08-13.md) | **系统级统一审计日志收口计划（统一事件账本 / 数据可靠性纵向链 / 指标告警 / TUI 观测）** | M0 registry + M1 Domain/codec/schema-only/repository/query/outbox-claim、health backlog projection、Data Center fetch-event envelope 与 AUD-01 durable-publisher preflight contract 已落地；runtime 仍 `publisher_not_wired`，无真实 publisher/业务双写，首批 Data Center fetch→publication→decision gate 仍待实施 |
 | [mcp-consolidation-remediation-plan-2026-07-09.md](archive/plans/mcp-consolidation-remediation-plan-2026-07-09.md) | **MCP 收口整改计划（统一能力注册、统一调用、legacy 退役）** | ✅ 完成并归档；持续状态由机器门禁维护 |
 | [system-ai-capability-catalog-outsourcing-task-book-2026-03-19.md](archive/plans/system-ai-capability-catalog-outsourcing-task-book-2026-03-19.md) | **系统级 AI Capability Catalog 与统一路由任务书** | ✅ 代码与自动化验收完成并归档 |
@@ -471,12 +471,18 @@
 - 本索引只维护导航、清单和阅读路径，不复制业务模块数、MCP 工具数、静态测试函数数等动态治理数字。
 - 验证命令：`python scripts/check_governance_consistency.py --baseline governance/governance_baseline.json --format text`
 
-## 2026-08-16 当前收口状态
+## 2026-08-16 历史收口快照
 
 - 计划与机器状态的唯一导航入口是 [`docs/plans/README.md`](plans/README.md) 与 [`governance/active_plan_registry.json`](../governance/active_plan_registry.json)；本索引不复制动态 closure 数字。
-- AUD-01 的 durable-publisher preflight contract 与 release identity guard 已合入并部署到当前候选 `443658d33159dd80a35b3001ae2c8505113e3fff` / `20260816223921`；远端只读运行证据见 [`vps-runtime-verification-2026-08-16-2258.json`](deployment/vps-runtime-verification-2026-08-16-2258.json)。
-- EVID-01 authority inventory candidate guard 已将当前 registry/cutover/preflight/runtime/inventory 绑定到同一 `443658d33159dd80a35b3001ae2c8505113e3fff` / `20260816223921`；12 个 authority/evidence 表仍为零，结果继续是 `blocked_zero_seed_authority`，不代表 authority lifecycle 已存在。
-- 候选部署健康、迁移、schema、TUI registry、Qlib、Celery 与 HTTPS 已复核；角色化浏览器 UAT、写后 receipt/refresh、14 日 telemetry、生产 publisher/authority、数据恢复/回滚与 QMT/AI 外部验收仍按 registry 保持阻断。
+- AUD-01 的 durable-publisher preflight contract 与 release identity guard 曾合入候选 `443658d33159dd80a35b3001ae2c8505113e3fff` / `20260816223921`；远端只读运行证据见 [`vps-runtime-verification-2026-08-16-2258.json`](deployment/vps-runtime-verification-2026-08-16-2258.json)。
+- EVID-01 当时的 authority inventory 绑定同一候选，12 个 authority/evidence 表为零；该历史快照不代表当前代码侧 authority lifecycle 或生产 seed 已完成。
+- 该候选的健康、迁移、schema、TUI registry、Qlib、Celery 与 HTTPS 复核不解除角色化浏览器 UAT、写后 receipt/refresh、14 日 telemetry、生产 publisher/authority、数据恢复/回滚与 QMT/AI 外部验收。
+
+## 2026-08-24 当前验收状态
+
+- 当前代码 HEAD `0d62278d2` 的 EVID-01 composition cycle 修复已通过本地与 CI：module-cycle `206 edges / 0 cycles`，Evidence composition `2931 files / 0 violations`，authority/core/composition/guard focused `24 passed`；四条 GitHub CI 均成功。
+- 代码侧已具备 `0055` schema 与 immutable owner/tenant authority composition，但当前 VPS 候选仍是旧 release；尚未部署 `0055`、未创建生产 approval/seed、未完成 PostgreSQL first-winner/revocation/rollback、owner/reviewer sign-off，因此 EVID-01 继续 `active`/fail-closed。
+- `/api/decision-ready/` 继续保持 `503` 且 `must_not_use_for_decision=true`；TUI/M5、TAR-05、AUD-01、数据与策略生产门禁仍按 registry 逐项等待外部授权和证据。B/S、CLI/API 只向服务器提交请求，AI/provider/tool execution 在服务器端；本地执行仅适用于 QMT 外部券商桥。
 
 ---
 

@@ -3587,3 +3587,13 @@ Research composition root 访问。module-cycle guard
 文件且 `0` violations；authority/core/composition focused 回归、增量 mypy 与架构审计保持通过。
 这只是仓库边界修复，不接 HTTP/CLI/Agent route，不执行 migration/生产写入，也不解除 EVID-01
 的真实 root approval、PostgreSQL race/rollback、同 alias 端到端验收或 owner/reviewer sign-off。
+
+## 2026-08-24：EVID-01 owner/tenant authority PostgreSQL 并发验收 harness
+
+新增 `tests/component/account/test_owner_tenant_authority_v1_postgres_concurrency.py` 及专用
+`tests/settings_owner_tenant_authority_v1_postgres.py` 隔离配置，覆盖空 root first-winner、同
+predecessor successor first-winner、外层事务 rollback 无 orphan，以及 `0055` forward/reverse/
+re-forward zero-seed。数据库 URL 只接受显式 opt-in 的本地/测试 PostgreSQL，数据库名必须包含
+`authority` 与 `test`；缺少环境变量时测试明确 `4 skipped`，不把 SQLite 或 VPS 结果记为
+PostgreSQL/production evidence。当前仅完成 harness 合同与 skip-path 回归，未连接 VPS、未执行
+生产 migration/写入，EVID-01 仍需真实生产 PG race/revocation/rollback 与 owner/reviewer sign-off。
