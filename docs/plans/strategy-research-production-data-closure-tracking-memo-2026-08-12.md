@@ -280,3 +280,23 @@ PostgreSQL connection 执行 `REPEATABLE READ READ ONLY` 事务。Research R1–
 原始快照 [`strat-01-owner-ledger-readonly-recheck-2026-08-24-2341.json`](../deployment/strat-01-owner-ledger-readonly-recheck-2026-08-24-2341.json)+的 SHA-256 为 `4a8163e816196cc364ab315b94c269f5a3e4d47f7cc6d67c9d47cbf498ec7ec9`，+经 `record_strat_01_owner_inventory.py --write` 生成 content-addressed report+[`4427a38da21d5da577de577f6bb4072eb3361c735453e887a224bf018a2ebc20.json`](../deployment/strat-01-owner-ledger-inventory/44/4427a38da21d5da577de577f6bb4072eb3361c735453e887a224bf018a2ebc20.json)。+
 报告 outcome=`zero_seed`，固定 `production_claim=false`、`production_ready=false`、+`runtime_enablement=not_authorized`；本次没有创建、更新、删除、回填、promotion 或审批，+也没有把 Data Center facts 转换成 owner evidence。`STRAT-01` 继续 `awaiting_production`，+`STRAT-02/03`、PIT/OOS、canonical receipts、Promotion、consumer UAT、rollback 与+owner/reviewer 签署仍等待真实业务输入。
 
+## 21. 2026-08-24：STRAT-01 当前部署候选新鲜 owner-ledger 只读采集
+
+在不重新部署 VPS、不写入生产库的前提下，对当前受控候选
+`94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` / release `20260824133504` /
+image `sha256:1c560b5fed14964a008c278a88d9f3e3b144444a172ecc239d06cedbd76d6a3e` 执行一次
+同一 `default` alias 的 Django PostgreSQL `REPEATABLE READ READ ONLY` 事务。观察时间为
+`2026-08-24T07:07:57.465189Z`，Research R1–R8 命中 `65` 张表、Portfolio R4/R5/R8 命中
+`7` 张表、Account authority/assignment 广义命中 `16` 张表、owner/policy/operator/assignment
+广义命中 `35` 张表；四组全部 `row_count_total=0`、`nonzero_table_count=0`。
+
+原始快照 [`strat-01-owner-ledger-readonly-recheck-2026-08-24-0707.json`](../deployment/strat-01-owner-ledger-readonly-recheck-2026-08-24-0707.json)
+的 SHA-256 为 `c1f06ea97f7991e0fbb7ce3c481fa7382b153b0ddb8809c4f1965dcd0fb45ec3`，经
+`record_strat_01_owner_inventory.py --write` 生成 content-addressed report
+[`0bed8c11f20f7b93b1b5cb424270f98419f61e6c948f61f46a9c775a9ed3c0ca.json`](../deployment/strat-01-owner-ledger-inventory/0b/0bed8c11f20f7b93b1b5cb424270f98419f61e6c948f61f46a9c775a9ed3c0ca.json)。
+
+报告 outcome=`zero_seed`，固定 `production_claim=false`、`production_ready=false`、
+`runtime_enablement=not_authorized`、`human_approval_status=not_collected`；本次只读采集，
+未创建、更新、删除、回填、promotion 或审批，也未把 Data Center facts 转换成 owner evidence。
+`STRAT-01` 继续 `awaiting_production`，`STRAT-02/03`、PIT/OOS、canonical receipts、
+Promotion、consumer UAT、rollback 与 owner/reviewer 签署仍等待真实业务输入。
