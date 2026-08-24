@@ -3757,3 +3757,17 @@ Account `0050–0055` 与 Research `0029` 均已应用；同一 `default` Postgr
 `production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`。
 这是新鲜只读运行事实，不是 authority seed/approval、PG race/rollback、same-alias 写读回执或
 owner/reviewer 签署；全局 execution/decision deny 继续保持。
+
+## 2026-08-24：EVID-01 authority/composition focused revalidation
+
+在不修改生产代码、不部署 VPS、不执行 migration 或生产写入的前提下，复跑当前
+`dev/next-development` HEAD 的 owner/tenant authority、scope selector/lifecycle/provider、
+Evidence composition 与 audit-authority focused unit contracts，共 `93 passed in 2.83s`。
+覆盖 Account authority root/successor/current-head 语义、Research scope codec/provider/lifecycle、
+same-alias owner-scoped Evidence facade，以及缺 provider/身份替换时的 fail-closed 行为。
+
+该回归只证明仓库合同仍稳定，不创建 owner/tenant seed，也不把 Account actor bundle 当作 Evidence
+authority；VPS post-0055 的 13 张 authority/evidence ledger 仍 zero-seed，生产 PostgreSQL
+first-winner/successor/revocation/rollback、独立 root approval、same-alias 端到端回执和
+owner/reviewer sign-off 仍缺失。`EVID-01` 继续 `active`/fail-closed，global execution/decision
+deny 不变，下一步仍需真实外部 authority/PG 验收而不是重复本地部署。
