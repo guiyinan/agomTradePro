@@ -1318,6 +1318,7 @@
 - TAR-05 当前候选认证保留路由只读阶梯证据：[`tar01-current-reserved-route-observation-2026-08-24-94abd76e.json`](deployment/tar01-current-reserved-route-observation-2026-08-24-94abd76e.json)。
 - DATA-02 当前候选 coverage/freshness 只读证据：[`data02-coverage-freshness-observation-2026-08-24-94abd76e.json`](deployment/data02-coverage-freshness-observation-2026-08-24-94abd76e.json)，active A-share=`5,533`，fact coverage 完整但 canonical publication 不完整，`decision-ready=503` fail-closed；不解除 DATA-02 或决策门禁。
 - EVID-01 本地 authority/composition focused revalidation：Account/Research/Core/Audit 合同 `93 passed`；仅证明 fail-closed 本地边界，VPS authority ledger 仍 zero-seed，不解除 EVID-01 或全局决策/执行门禁。
+- EVID-01 候选漂移最新复核：当前 HEAD `271513f2a` 相对 VPS 候选 `94abd76e…` 的 12 个非文档/治理差异均为 TUX-02 TUI 文件；无后端生产代码漂移，因此不重复部署。
 
 **文档维护**: AgomTradePro Team
 **最后更新**: 2026-08-24

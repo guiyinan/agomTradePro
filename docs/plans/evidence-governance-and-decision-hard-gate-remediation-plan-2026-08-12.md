@@ -3771,3 +3771,18 @@ authority；VPS post-0055 的 13 张 authority/evidence ledger 仍 zero-seed，�
 first-winner/successor/revocation/rollback、独立 root approval、same-alias 端到端回执和
 owner/reviewer sign-off 仍缺失。`EVID-01` 继续 `active`/fail-closed，global execution/decision
 deny 不变，下一步仍需真实外部 authority/PG 验收而不是重复本地部署。
+
+## 2026-08-24：EVID-01 受控候选与当前 HEAD 漂移最新复核
+
+将已部署候选 `94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` 与当前同步的
+`dev/next-development@271513f2abd6b03233a8a32b20259798603a71f0` 做文件级只读比较，共
+`59` 个差异文件：`apps/` `9`、`config/` `1`、`tests/` `2`、`docs/` `44`、`governance/`
+`2`、`.gitleaks.toml` `1`。全部非文档/治理差异均属于 TUX-02 的 TUI runtime injection、
+manifest 或对应测试；没有 Evidence、Account、Research、Data Center 或 runtime backend
+生产代码漂移。
+
+因此按“不频繁部署 VPS”约束保持候选 `94abd76e` 不变，不把当前 HEAD 冒充已部署版本，也不
+触发重复部署。该比较只证明候选绑定边界，不解除 EVID-01：13 张 authority/evidence ledger
+仍 zero-seed，独立 root approval、生产 PostgreSQL first-winner/successor/revocation/
+rollback、same-alias 端到端回执和 owner/reviewer sign-off 仍缺，global execution/decision
+deny 继续保持。
