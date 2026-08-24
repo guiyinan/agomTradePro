@@ -295,6 +295,9 @@ def _validate_provider_inputs(
         raise TypeError("actor_authority_reader is required")
     if type(authority_reader) is not GetCurrentOwnerTenantAuthorityV1:
         raise TypeError("owner_tenant_reader must be an exact GetCurrentOwnerTenantAuthorityV1")
+    expected_unit = f"django:{using}"
+    if authority_reader.unit_of_work_key != expected_unit:
+        raise ValueError("owner/tenant authority reader must share the requested unit of work")
     if type(authority_binding) is not OwnerTenantAuthorityArtifactBindingV1:
         raise TypeError("binding must be an exact OwnerTenantAuthorityArtifactBindingV1")
     authority_binding.__post_init__()

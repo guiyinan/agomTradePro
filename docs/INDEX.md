@@ -1320,5 +1320,9 @@
 - EVID-01 本地 authority/composition focused revalidation：Account/Research/Core/Audit 合同 `93 passed`；仅证明 fail-closed 本地边界，VPS authority ledger 仍 zero-seed，不解除 EVID-01 或全局决策/执行门禁。
 - EVID-01 候选漂移最新复核：当前 HEAD `271513f2a` 相对 VPS 候选 `94abd76e…` 的 12 个非文档/治理差异均为 TUX-02 TUI 文件；无后端生产代码漂移，因此不重复部署。
 
+### 2026-08-25
+
+- EVID-01 owner/tenant authority same-alias guard：`GetCurrentOwnerTenantAuthorityV1` 暴露 repository `unit_of_work_key`，authenticated Evidence bridge 拒绝跨 `django:{using}` alias 的 authority reader；新增回归后 focused contract `94 passed`，本地质量与 mypy/debt 门禁通过。未 seed/写生产/部署或批准，VPS authority ledger 仍 zero-seed，EVID-01 与 decision-ready fail-closed 不变。
+
 **文档维护**: AgomTradePro Team
-**最后更新**: 2026-08-24
+**最后更新**: 2026-08-25

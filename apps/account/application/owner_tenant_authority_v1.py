@@ -571,6 +571,12 @@ class GetCurrentOwnerTenantAuthorityV1:
         self._assignments = assignment_reader
         self._exact = GetExactOwnerTenantAuthorityV1(repository)
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Expose the authority repository's transaction identity."""
+
+        return self._repository.unit_of_work_key
+
     def execute(
         self, command: GetCurrentOwnerTenantAuthorityV1Command
     ) -> OwnerTenantAuthorityV1 | None:

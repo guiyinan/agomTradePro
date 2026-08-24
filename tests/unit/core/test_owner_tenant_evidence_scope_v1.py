@@ -4,6 +4,8 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 
+import pytest
+
 from apps.account.application.account_owner_assignment_actor_authority_v3 import (
     AuthenticatedAccountPrincipalV3,
     CurrentAccountActorAuthorityV3,
@@ -106,6 +108,12 @@ class _ScopeRepository:
         return source
 
 
+class _OtherAliasRepository(_Repository):
+    """Authority repository sentinel bound to a different Django alias."""
+
+    unit_of_work_key = "django:other"
+
+
 def _provider(
     *, actor_reader: _ActorReader | None = None
 ) -> tuple[AuthenticatedOwnerTenantEvidenceSelectorProviderV1, ArtifactRef]:
@@ -156,6 +164,22 @@ def test_authenticated_principal_and_authority_issue_exact_selector() -> None:
         selector.actor_id,
     ) == ("owner-agom-42", "tenant-cn-1", "acct-0007", "human-42")
     assert provider.unit_of_work_key == "django:default"
+
+
+def test_authority_reader_alias_mismatch_fails_closed() -> None:
+    """The Account authority reader must share the requested Evidence alias."""
+
+    provider, _ = _provider()
+    with pytest.raises(ValueError, match="share the requested unit of work"):
+        AuthenticatedOwnerTenantEvidenceSelectorProviderV1(
+            principal=provider.principal,
+            actor_authority_reader=provider.actor_authority_reader,
+            owner_tenant_reader=GetCurrentOwnerTenantAuthorityV1(
+                _OtherAliasRepository(), assignment_reader=_Assignments()
+            ),
+            binding=provider.binding,
+            using="default",
+        )
 
 
 def test_artifact_or_authenticated_actor_substitution_fails_closed() -> None:

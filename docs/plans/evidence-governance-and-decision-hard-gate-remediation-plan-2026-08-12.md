@@ -3786,3 +3786,18 @@ manifest 或对应测试；没有 Evidence、Account、Research、Data Center �
 仍 zero-seed，独立 root approval、生产 PostgreSQL first-winner/successor/revocation/
 rollback、same-alias 端到端回执和 owner/reviewer sign-off 仍缺，global execution/decision
 deny 继续保持。
+
+## 2026-08-25：EVID-01 owner/tenant authority same-alias guard
+
+补齐本地 composition contract 的一个 fail-closed 缺口：`GetCurrentOwnerTenantAuthorityV1`
+现在显式暴露其 repository 的 `unit_of_work_key`，authenticated owner/tenant → Evidence
+bridge 在组装 selector/Evidence repositories 之前要求 authority reader 与请求的
+`django:{using}` 完全一致；注入其它 alias 的 reader 立即拒绝，避免跨 alias authority
+与 Evidence 数据被拼接。新增 alias-mismatch 回归后，Account/Research/Core/Audit focused
+contract 共 `94 passed`；Black/isort/Ruff、增量 mypy regression 与债务门禁通过。
+
+该 slice 仍只证明仓库内 typed composition 边界：没有创建 owner/tenant seed、生产写入、
+VPS 部署或人工批准；post-0055 候选的 13 张 authority/evidence ledger 仍 zero-seed，
+独立 root approval、生产 PostgreSQL first-winner/successor/revocation/rollback、same-alias
+端到端写读回执和 owner/reviewer sign-off 仍缺。`EVID-01` 继续 `active`/fail-closed，
+global execution/decision deny 与 `/api/decision-ready/` 阻断不变。
