@@ -26,17 +26,17 @@
       "script": 6,
       "sdk": 46,
       "terminal_tui": 28,
-      "test_evidence": 39,
+      "test_evidence": 41,
       "workflow_step": 9
     },
     "by_status": {
       "active_public": 712,
       "adjacent_operational": 293,
-      "candidate-review": 0,
+      "candidate-review": 2,
       "compatibility": 133,
       "retired_blocked": 0
     },
-    "total": 1138
+    "total": 1140
   },
   "entries": [
     {
@@ -10951,6 +10951,16 @@
     },
     {
       "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/account/test_owner_tenant_authority_v1_postgres_concurrency.py:test_owner_tenant_authority_v1_postgres_concurrency:",
+      "locator": "",
+      "path": "tests/component/account/test_owner_tenant_authority_v1_postgres_concurrency.py",
+      "status": "candidate-review",
+      "symbol": "test_owner_tenant_authority_v1_postgres_concurrency",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
       "evidence": "reviewed PostgreSQL concurrency evidence owned by the Audit application",
       "id": "test_evidence:tests/component/audit/test_system_audit_postgres_concurrency.py:test_system_audit_postgres_concurrency:",
       "locator": "",
@@ -11057,6 +11067,16 @@
       "path": "tests/settings_evidence_scope_source_v1_postgres.py",
       "status": "adjacent_operational",
       "symbol": "settings_evidence_scope_source_v1_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/settings_owner_tenant_authority_v1_postgres.py:settings_owner_tenant_authority_v1_postgres:",
+      "locator": "",
+      "path": "tests/settings_owner_tenant_authority_v1_postgres.py",
+      "status": "candidate-review",
+      "symbol": "settings_owner_tenant_authority_v1_postgres",
       "target": ""
     },
     {
