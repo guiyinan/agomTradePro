@@ -20,6 +20,7 @@ from apps.research.domain.evidence_scope_source_v1 import (
 from apps.research.evidence_composition import (
     make_authorized_evidence_read_facade,
     make_evidence_read_facade,
+    make_evidence_scope_source_v1_lifecycle_repository,
 )
 
 
@@ -269,3 +270,26 @@ def test_authorized_composition_rejects_selector_alias_mismatch(monkeypatch) -> 
         )
 
     assert evidence_factory.aliases == []
+
+
+def test_scope_source_lifecycle_factory_keeps_writer_on_requested_alias(monkeypatch) -> None:
+    """The Research composition root owns the private scope-source writer."""
+
+    module = ModuleType("apps.research.infrastructure.evidence_scope_source_v1_repository")
+
+    class _LifecycleRepository:
+        unit_of_work_key = "django:tenant"
+
+    calls: list[str] = []
+
+    def _build(*, using: str = "default") -> _LifecycleRepository:
+        calls.append(using)
+        return _LifecycleRepository()
+
+    module._build_evidence_scope_source_v1_store = _build
+    monkeypatch.setitem(sys.modules, module.__name__, module)
+
+    repository = make_evidence_scope_source_v1_lifecycle_repository(using="tenant")
+
+    assert repository.unit_of_work_key == "django:tenant"
+    assert calls == ["tenant"]

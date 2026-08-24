@@ -21,8 +21,11 @@ from apps.account.application.owner_tenant_authority_v1 import (
 from apps.account.infrastructure.owner_tenant_authority_v1_repository import (
     DjangoOwnerTenantAuthorityV1Repository,
 )
-from apps.research.application.evidence_reads import ScopedEvidenceReadFacade
-from apps.research.evidence_composition import make_authorized_evidence_read_facade
+from apps.research.evidence_composition import (
+    OwnerScopedEvidenceReadFacade,
+    make_authorized_evidence_read_facade,
+    make_evidence_scope_source_v1_lifecycle_repository,
+)
 from core.integration.owner_tenant_evidence_scope_v1 import (
     AuthenticatedOwnerTenantEvidenceScopeIssuerV1,
     AuthenticatedOwnerTenantEvidenceSelectorProviderV1,
@@ -85,7 +88,7 @@ def build_authenticated_owner_scoped_evidence_read_facade(
     actor_authority_reader: ExactCurrentAccountActorAuthorityV3Reader,
     binding: OwnerTenantEvidenceReadBindingV1,
     using: str = "default",
-) -> ScopedEvidenceReadFacade:
+) -> OwnerScopedEvidenceReadFacade:
     """Compose principal, owner/tenant authority, scope source, and Evidence reads."""
 
     authority_repository = DjangoOwnerTenantAuthorityV1Repository(using=using)
@@ -128,11 +131,7 @@ def build_authenticated_owner_scoped_evidence_scope_issuer(
         binding=binding,
         using=using,
     )
-    from apps.research.infrastructure.evidence_scope_source_v1_repository import (
-        _build_evidence_scope_source_v1_store,
-    )
-
-    repository = _build_evidence_scope_source_v1_store(using=using)
+    repository = make_evidence_scope_source_v1_lifecycle_repository(using=using)
     return AuthenticatedOwnerTenantEvidenceScopeIssuerV1(
         observation_provider=observations,
         repository=repository,

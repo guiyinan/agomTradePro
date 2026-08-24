@@ -3565,9 +3565,12 @@ content-addressed scope observation、调用现有 winner-first lifecycle 写入
 签发 same-alias selector；自动化负责采集真实证据，但不能替人决定 tenant/owner，也不能自动
 创建首个生产 trust root。
 
-本轮本地结果：authority/scope 定向单元回归 `44 passed`，Django 账本组件回归 `4 passed`；
+本轮本地结果：authority/core/composition/guard 与 Django 账本 component 合计 `24 passed`；
 Account migration drift 为 `No changes detected`，增量 mypy `0` 回退、全量 mypy debt `0`，
-Ruff、架构、注册表与治理一致性均为 `0` 违规。未部署 VPS、未执行 migration、未写生产、
+Ruff、架构、注册表与治理一致性均为 `0` 违规。另修正了 Evidence composition boundary：
+private ScopeSource writer 工厂只在 `apps/research/evidence_composition.py` 内导入
+Infrastructure，Account composition 通过公开的 Research root 工厂取用；scope guard 扫描
+`2931` 个 production files、`0` violations。未部署 VPS、未执行 migration、未写生产、
 未创建真实审批，也未解除 Evidence hard gate/global execution deny。`EVID-01` 继续 active；
 剩余为受控部署 0055、真实独立 root approval、生产 PostgreSQL first-winner/successor/
 revocation/rollback、同 alias 端到端验收和 owner/reviewer sign-off。

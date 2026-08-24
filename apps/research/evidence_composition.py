@@ -9,7 +9,7 @@ mutable Django rows.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Protocol
+from typing import Protocol, TypeAlias
 
 from apps.research.application.evidence_reads import ScopedEvidenceReadFacade
 from apps.research.application.evidence_scope import (
@@ -19,11 +19,19 @@ from apps.research.application.evidence_scope import (
 from apps.research.application.evidence_scope_source_v1 import (
     GetCurrentEvidenceScopeSourceV1,
 )
+from apps.research.application.evidence_scope_source_v1_lifecycle import (
+    EvidenceScopeSourceV1LifecycleRepository,
+)
 from apps.research.application.evidence_scope_source_v1_provider import (
     EvidenceScopeSourceV1Provider,
     EvidenceScopeSourceV1SelectorProvider,
 )
 from apps.research.domain.evidence_contracts import ArtifactRef
+
+# Keep callers typed without exposing the infrastructure implementation name
+# outside this composition root.  The concrete facade remains mandatory and
+# fail-closed; this alias is only a boundary type for other composition roots.
+OwnerScopedEvidenceReadFacade: TypeAlias = ScopedEvidenceReadFacade
 
 
 class _UnitOfWorkBound(Protocol):
@@ -141,7 +149,33 @@ def make_authorized_evidence_read_facade(
     )
 
 
+def make_evidence_scope_source_v1_lifecycle_repository(
+    *, using: str = "default"
+) -> EvidenceScopeSourceV1LifecycleRepository:
+    """Build the private scope-source writer through the Research root.
+
+    Only an injected, server-owned observation provider may use the returned
+    repository to append a source.  Keeping the infrastructure import here
+    prevents sibling App composition roots from bypassing this boundary.
+    """
+
+    expected_unit = _django_unit_of_work_key(using)
+    from apps.research.infrastructure.evidence_scope_source_v1_repository import (
+        _build_evidence_scope_source_v1_store,
+    )
+
+    repository = _build_evidence_scope_source_v1_store(using=using)
+    _require_unit_of_work_key(
+        repository,
+        expected=expected_unit,
+        label="scope-source lifecycle repository",
+    )
+    return repository
+
+
 __all__ = [
+    "OwnerScopedEvidenceReadFacade",
     "make_authorized_evidence_read_facade",
     "make_evidence_read_facade",
+    "make_evidence_scope_source_v1_lifecycle_repository",
 ]
