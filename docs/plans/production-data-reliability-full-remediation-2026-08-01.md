@@ -1033,7 +1033,14 @@ tables、migrations、sequences 与 schema 差异均为 `0`。restore 用时 `68
 `628.355s`，总计 `2214.035s`；完整 verifier report SHA-256 为
 `0391884b5792150cdcefe74a9a41817c025a3d216e670dfbac18a47facd00f17`。
 
-精简证据为 [`data01-local-isolated-restore-2026-08-24.json`](../deployment/data01-local-isolated-restore-2026-08-24.json)。
+精简证据为 [`data01-local-isolated-restore-2026-08-24.json`](../deployment/data01-local-isolated-restore-2026-08-24.json)；
+原始 verifier 报告随后通过 `record_data01_restore_evidence.py` dry-run、显式 `--write`、
+再次幂等写入，canonical artifact 为
+[`e7af4216ed86cdd63a62d84d5a38ef5bcc28ee255e82490611f673bb945ebe9d.json`](../deployment/data01-isolated-restore/e7/e7af4216ed86cdd63a62d84d5a38ef5bcc28ee255e82490611f673bb945ebe9d.json)，
+artifact SHA-256=`e7af4216ed86cdd63a62d84d5a38ef5bcc28ee255e82490611f673bb945ebe9d`，
+source payload SHA-256=`0391884b5792150cdcefe74a9a41817c025a3d216e670dfbac18a47facd00f17`，
+`isolated_restore_verified=true`、`production_claim=false`。该 recorder 只读取已完成的
+隔离报告，不连接 PostgreSQL/VPS。
 restore 库、source copy 与容器内临时归档均已删除。该结果只证明最新归档在本地隔离环境中
 自洽可恢复，耗时不能冒充生产 RTO/RPO；没有执行生产 restore/DDL、维护态 rollback、
 controlled backfill 或 reconciliation，`DATA-01` 继续 `awaiting_production`，`DATA-02/03`
