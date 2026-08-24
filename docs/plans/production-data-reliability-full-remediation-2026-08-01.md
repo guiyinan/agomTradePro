@@ -1045,3 +1045,29 @@ restore 库、source copy 与容器内临时归档均已删除。该结果只证
 自洽可恢复，耗时不能冒充生产 RTO/RPO；没有执行生产 restore/DDL、维护态 rollback、
 controlled backfill 或 reconciliation，`DATA-01` 继续 `awaiting_production`，`DATA-02/03`
 不解锁，生产/数据 owner 与 reviewer 签署仍缺。
+
+## 2026-08-24：DATA-03 当前候选认证 canonical Data Center smoke
+
+在不重新部署、不切换 release、不改变维护态或写入生产库的前提下，使用受控服务端
+认证会话对同一候选 `94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` / version
+`20260824133504` / OCI `sha256:1c560b5fed14964a008c278a88d9f3e3b144444a172ecc239d06cedbd76d6a3e` /
+matrix `6272ea6606ebbf3c0791e48d807b733cbc6d9a4ce7d945d95c5e3a16c22aea64` 做只读 smoke。
+`/api/ready/` 为 `200/ok`（database、Redis、Celery、critical data 均为 `ok`，worker=1，
+decision data=`warning`）；`/api/decision-ready/` 为 `503/blocked`，
+`must_not_use_for_decision=true`，reason=`decision_runtime_blocked`。认证
+`GET /api/data-center/providers/` 为 `200`，返回 2 条已脱敏 provider 记录；认证
+`GET /api/data-center/providers/status/` 为 `200`，返回 15 条 capability 状态，其中 8 条
+`must_not_use_for_decision=true`，状态含 `stale`/`degraded`，因此 provider-status smoke
+按失败记录，未把接口可达误报为数据可用。
+
+原始 envelope [`data03-readiness-authenticated-smoke-2026-08-24-1335.json`](../deployment/data03-readiness-authenticated-smoke-2026-08-24-1335.json)，
+source payload SHA-256=`c1df5cf05b81b26cdba86d51acb9a74c4836b986548adae1f5177d6154f121f`；经
+`record_data03_readiness_evidence.py --write` 生成 content-addressed report
+[`55f20b1348564daf6dea93f23aecc229953954e6fcc1859f40180fbebea84d98.json`](../deployment/data03-readiness/55/55f20b1348564daf6dea93f23aecc229953954e6fcc1859f40180fbebea84d98.json)。
+报告派生 `service_failure_count=0`、`decision_blocker_count=1`、`check_defect_count=2`、
+`smoke_failure_count=1`，并固定 `production_claim=false`、`production_ready=false`、
+`runtime_enablement=not_authorized`。
+
+本次只新增一条候选绑定的认证只读 smoke 事实，不构成 DATA-02 reconciliation、全市场
+coverage/freshness、M9/M10 切换、生产写入、维护窗口或 owner/reviewer 签署；
+`DATA-03` 继续 `waiting_dependency`，decision-ready 继续 fail-closed。
