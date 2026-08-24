@@ -1238,42 +1238,42 @@
       "text": "\"current owner/tenant authority approver is ineligible\""
     },
     {
-      "line": 577,
+      "line": 583,
       "path": "apps/account/application/owner_tenant_authority_v1.py",
       "text": "\"\"\"Return current authority without predecessor fallback.\"\"\""
     },
     {
-      "line": 595,
+      "line": 601,
       "path": "apps/account/application/owner_tenant_authority_v1.py",
       "text": "current = _authority(head)"
     },
     {
-      "line": 596,
+      "line": 602,
       "path": "apps/account/application/owner_tenant_authority_v1.py",
       "text": "if current != exact:"
     },
     {
-      "line": 619,
+      "line": 625,
       "path": "apps/account/application/owner_tenant_authority_v1.py",
       "text": "\"current account owner assignment scope substitution\""
     },
     {
-      "line": 650,
+      "line": 656,
       "path": "apps/account/application/owner_tenant_authority_v1.py",
       "text": "\"current account owner assignment is corrupt\""
     },
     {
-      "line": 655,
+      "line": 661,
       "path": "apps/account/application/owner_tenant_authority_v1.py",
       "text": "raise OwnerTenantAuthorityV1Corruption(\"current account owner assignment type substitution\")"
     },
     {
-      "line": 660,
+      "line": 666,
       "path": "apps/account/application/owner_tenant_authority_v1.py",
       "text": "\"current account owner assignment is corrupt\""
     },
     {
-      "line": 672,
+      "line": 678,
       "path": "apps/account/application/owner_tenant_authority_v1.py",
       "text": "\"current account owner assignment selector substitution\""
     },
