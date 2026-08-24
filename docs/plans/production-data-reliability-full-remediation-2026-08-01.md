@@ -973,3 +973,24 @@ matrix `6272ea6606ebbf3c0791e48d807b733cbc6d9a4ce7d945d95c5e3a16c22aea64`。本�
 全市场 coverage/freshness、M9/M10 切换、生产写入或决策解锁。`DATA-03` 继续
 `waiting_dependency`；仍需 DATA-02 受控 reconciliation、认证 canonical smoke、维护窗口
 及生产/数据 owner 批准后才能进入正式观察。
+
+## 实施记录（2026-08-24，DATA-01 latest existing backup 只读刷新）
+
+按 `DATA-01` 的 `auto_collect` 合同，仅通过 `scripts/backup-vps-postgres.py --download-latest`
+发现并下载 VPS 上已经存在的最新 custom-format 归档；本次远端脚本只读取归档、运行
+`pg_restore --list`、计算校验信息并返回 markers，未创建新备份、未执行 prune、未进入维护态，
+也没有写入 PostgreSQL 或替换候选。最新归档为
+`/opt/agomtradepro/backups/database/postgres-20260824-074227.dump`，远端/本地大小
+`142813695` bytes，SHA-256=`7eb67da66bb6d3c550bc35f96abbc2c38ea403f776c56602316e83b912b4fd6d`；
+远端 `pg_restore --list` 为 `7204` entries，manifest SHA-256=
+`795d83b33400407596991f92523a5b15b2148bbf5e4e77fc52682194875f3886`，远端 mtime 为
+`2026-08-24T05:43:16Z`，采集时间为 `2026-08-24T06:36:29Z`。
+
+结构化 `data-backup-evidence.v1` 工件为
+[`data-backup-evidence-2026-08-24.json`](../deployment/data-backup-evidence-2026-08-24.json)，
+content hash=`423387ef6125233f4257694935beef0cea9c8543993803b3ef58bc896758e9f9`；远端/本地
+SHA 与大小均匹配，partial archive 被拒绝。该工件只证明一个可下载、可列举的现有恢复点，
+不把它绑定为生产 RTO/RPO 或维护窗口成功。
+
+因此 `DATA-01` 仍为 `awaiting_production`：生产 restore/rebuild、维护态 rollback、RTO/RPO、
+controlled backfill、reconciliation 与生产/数据 owner 签署尚未完成，`DATA-02/03` 不解锁。
