@@ -1,0 +1,100 @@
+{
+  "candidate": {
+    "commit": "4cef9040cccc2127c3f8128c8d858bc7958df2a4",
+    "matrix_sha256": "6272ea6606ebbf3c0791e48d807b733cbc6d9a4ce7d945d95c5e3a16c22aea64",
+    "oci_revision": "sha256:cfaf17560df2f85cd8ba2f5db8226a9dd9fe1cce081f30175c2a08737b4908d8",
+    "version": "20260822134658"
+  },
+  "observations": [
+    {
+      "captured_at": "2026-08-24T00:15:55.000000Z",
+      "candidate": {
+        "commit": "4cef9040cccc2127c3f8128c8d858bc7958df2a4",
+        "matrix_sha256": "6272ea6606ebbf3c0791e48d807b733cbc6d9a4ce7d945d95c5e3a16c22aea64",
+        "oci_revision": "sha256:cfaf17560df2f85cd8ba2f5db8226a9dd9fe1cce081f30175c2a08737b4908d8",
+        "version": "20260822134658"
+      },
+      "service": {
+        "checks": {
+          "celery": {"status": "ok", "workers": 1},
+          "critical_data": {"detail": {"macro_indicator": true, "regime_state": true}, "status": "ok"},
+          "database": {"status": "ok"},
+          "decision_data": {
+            "blocked_reason": null,
+            "must_not_use_for_decision": true,
+            "readiness_status": "blocked",
+            "source_body_bytes": 15158,
+            "source_body_sha256": "f9da6637332ab7e679addbdb6a88d223aae08a03e8871d8f5468e57c5da709a5",
+            "status": "warning"
+          },
+          "redis": {"source": "cache", "status": "ok"}
+        },
+        "endpoint": "/api/ready/",
+        "http_status": 200,
+        "status": "ok",
+        "timestamp": "2026-08-24T00:15:16.877442Z"
+      },
+      "decision": {
+        "checks": {
+          "_capture": {
+            "source_body_bytes": 18777,
+            "source_body_sha256": "fb75710cb112071419aab62ea1f9104be760f93393ec6e9fc251d4b5767bbd01"
+          },
+          "core_coverage": {
+            "asset_count": 5533,
+            "block_reason_code": "core_data_coverage_incomplete",
+            "must_not_use_for_decision": true,
+            "status": "incomplete",
+            "universe": "active_a_share"
+          },
+          "decision_data": {
+            "blocked_reasons": ["市场温度计标记为 must_not_use_for_decision。"],
+            "must_not_use_for_decision": true,
+            "readiness_status": "blocked",
+            "status": "warning"
+          },
+          "provider_capabilities": {
+            "block_reason_code": "decision_provider_capabilities_unhealthy",
+            "blocked_capabilities": ["valuation", "financial"],
+            "must_not_use_for_decision": true,
+            "status": "blocked"
+          },
+          "runtime_state": {
+            "block_reason_code": "decision_runtime_blocked",
+            "must_not_use_for_decision": true,
+            "status": "blocked"
+          }
+        },
+        "endpoint": "/api/decision-ready/",
+        "http_status": 503,
+        "must_not_use_for_decision": true,
+        "status": "blocked",
+        "timestamp": "2026-08-24T00:15:22.810927Z"
+      },
+      "smoke_checks": [
+        {
+          "detail": {
+            "body_sha256": "c65bef74297615126656a101e44c654a66e04c61d4936c40643db8ce487152bd",
+            "http_status": 403,
+            "reason": "anonymous public probe; authenticated canonical Data Center smoke was not collected"
+          },
+          "key": "canonical.data-center",
+          "observed_at": "2026-08-24T00:15:48.685263Z",
+          "status": "unknown"
+        },
+        {
+          "detail": {
+            "body_bytes": 62,
+            "body_sha256": "28abeef43c9e102de08c0c1b88878970d5c48adfbb85d33e3bbf3d176312562a",
+            "http_status": 200,
+            "status": "ok"
+          },
+          "key": "service.health",
+          "observed_at": "2026-08-24T00:15:11.934274Z",
+          "status": "ok"
+        }
+      ]
+    }
+  ],
+  "read_mode": "http_get_read_only"
+}

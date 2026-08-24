@@ -952,3 +952,24 @@ inventory 已刷新为 `1138` 项且 `candidate-review=0`。
 readiness/coverage/freshness/canonical smoke 数据，因此不宣称 DATA-03 观察窗口、M9/M10
 切换或生产 readiness 通过。`DATA-03` 继续 `waiting_dependency`，仍需 DATA-02 受控
 reconciliation、真实候选绑定、维护窗口和生产/数据 owner 批准后才能运行正式观察。
+
+## 实施记录（2026-08-24，DATA-03 当前候选双 readiness 只读采样）
+
+在不重新部署 VPS、不切换 release、不写生产库的前提下，对公开候选入口执行一次低频
+HTTPS `GET` 采样，并将它绑定到此前只读 verifier 已确认的候选
+`4cef9040cccc2127c3f8128c8d858bc7958df2a4` / version `20260822134658` /
+OCI `sha256:cfaf17560df2f85cd8ba2f5db8226a9dd9fe1cce081f30175c2a08737b4908d8` /
+matrix `6272ea6606ebbf3c0791e48d807b733cbc6d9a4ce7d945d95c5e3a16c22aea64`。本次公网响应
+本身不暴露候选身份，身份来源和“不重新部署”的约束以既有候选 verifier 为准，不把本地
+`dev/next-development` HEAD 冒充已部署版本。
+
+- 原始只读 envelope 为 [`data03-readiness-http-get-2026-08-24-0015.json`](../deployment/data03-readiness-http-get-2026-08-24-0015.json)，source payload SHA-256=`1a1211d8bbd6dd029b50d554cfb4d012f01549447a486e1077414b965229c267`；`/api/ready/`=`200`（服务端 timestamp `2026-08-24T00:15:16.877442Z`，body SHA=`f9da6637332ab7e679addbdb6a88d223aae08a03e8871d8f5468e57c5da709a5`），`/api/decision-ready/`=`503 blocked`（timestamp `2026-08-24T00:15:22.810927Z`，body SHA=`fb75710cb112071419aab62ea1f9104be760f93393ec6e9fc251d4b5767bbd01`，`must_not_use_for_decision=true`）。
+- `record_data03_readiness_evidence.py` 先 dry-run 后显式 `--write`，报告为
+  [`2e48775c3400fd35407265123f43acf4f7d3302be8b1407d0f20448b7c6e0782.json`](../deployment/data03-readiness/2e/2e48775c3400fd35407265123f43acf4f7d3302be8b1407d0f20448b7c6e0782.json)，artifact SHA-256=`2e48775c3400fd35407265123f43acf4f7d3302be8b1407d0f20448b7c6e0782`；第二次显式写入返回 `written=false`，证明 content-addressed append-only 幂等。报告派生 `service_failure_count=0`、`decision_blocker_count=1`、`check_defect_count=3`、`smoke_failure_count=1`、`max_source_age_seconds=38.122558`，并固定 `production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`。
+- `/api/health/` 只读 smoke 为 `200`；匿名 `/api/data-center/providers/` 返回 `403`，因此
+  `canonical.data-center` 明确记为 `unknown`，没有把未认证的 canonical smoke 当成通过。
+
+这一步完成了一次候选绑定的双 readiness 只读观察和可复核 artifact，不构成 observation window、
+全市场 coverage/freshness、M9/M10 切换、生产写入或决策解锁。`DATA-03` 继续
+`waiting_dependency`；仍需 DATA-02 受控 reconciliation、认证 canonical smoke、维护窗口
+及生产/数据 owner 批准后才能进入正式观察。
