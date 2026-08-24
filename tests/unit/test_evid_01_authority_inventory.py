@@ -14,8 +14,10 @@ import pytest
 from apps.research.application.evid_01_authority_inventory import (
     EVID_01_INVENTORY_MIGRATIONS,
     EVID_01_INVENTORY_MIGRATIONS_V2,
+    EVID_01_INVENTORY_MIGRATIONS_V2_PRE_0055,
     EVID_01_INVENTORY_TABLES,
     EVID_01_INVENTORY_TABLES_V2,
+    EVID_01_INVENTORY_TABLES_V2_PRE_0055,
     Evid01AuthorityInventoryError,
     Evid01AuthorityInventoryOutcome,
     build_evid_01_authority_inventory_report,
@@ -90,6 +92,37 @@ def _payload_v2(*, row_counts: dict[str, int] | None = None) -> bytes:
     return json.dumps(value, ensure_ascii=False, indent=2).encode("utf-8")
 
 
+def _payload_v2_pre_0055(*, row_counts: dict[str, int] | None = None) -> bytes:
+    """Build the explicit pre-0055 production schema snapshot contract."""
+
+    counts = row_counts or dict.fromkeys(EVID_01_INVENTORY_TABLES_V2_PRE_0055, 0)
+    value: dict[str, Any] = {
+        "version": "evid-01-authority-inventory-snapshot.v2-pre-0055",
+        "environment": "production",
+        "captured_at": "2026-08-24T04:51:20.000000Z",
+        "candidate": {
+            "stable_version": "20260822134658",
+            "source_commit": "4cef9040cccc2127c3f8128c8d858bc7958df2a4",
+            "release": "agomtradepro-web:20260822134658",
+        },
+        "read_only": True,
+        "database": {
+            "backend": "postgresql",
+            "schema": "public",
+            "migrations": [
+                {
+                    "app": "account",
+                    "name": name,
+                    "applied_at": f"2026-08-15T05:32:{index:02d}.123456Z",
+                }
+                for index, name in enumerate(EVID_01_INVENTORY_MIGRATIONS_V2_PRE_0055, start=7)
+            ],
+        },
+        "row_counts": counts,
+    }
+    return json.dumps(value, ensure_ascii=False, indent=2).encode("utf-8")
+
+
 def test_zero_seed_report_is_fixed_non_production_and_stable() -> None:
     """All-zero counts derive the blocked status and cannot claim readiness."""
 
@@ -137,6 +170,24 @@ def test_v2_inventory_includes_0054_0055_and_owner_tenant_ledger() -> None:
     )
 
 
+def test_pre_0055_inventory_is_explicitly_blocked_without_claiming_zero_seed() -> None:
+    """A live candidate missing 0055 is distinct from a post-0055 zero seed."""
+
+    snapshot = parse_evid_01_authority_inventory_snapshot(_payload_v2_pre_0055())
+    assert snapshot.format_version == "evid-01-authority-inventory-snapshot.v2-pre-0055"
+    assert tuple(item.name for item in snapshot.database.migrations) == (
+        *EVID_01_INVENTORY_MIGRATIONS_V2_PRE_0055,
+    )
+    report = build_evid_01_authority_inventory_report(snapshot)
+    assert report.outcome is Evid01AuthorityInventoryOutcome.BLOCKED_MISSING_OWNER_TENANT_MIGRATION
+    assert report.authority_ready is False
+    assert report.production_ready is False
+    assert (
+        b'"version":"evid-01-authority-inventory-report.v2-pre-0055"'
+        in serialize_evid_01_authority_inventory_report(report)
+    )
+
+
 def test_v2_cli_dispatch_remains_dry_run_by_default(tmp_path: Path) -> None:
     """The recorder dispatches v2 without writing or claiming production."""
 
@@ -151,6 +202,24 @@ def test_v2_cli_dispatch_remains_dry_run_by_default(tmp_path: Path) -> None:
     payload = json.loads(result.stdout)
     assert payload["outcome"] == "blocked_zero_seed_authority"
     assert payload["production_claim"] is False
+    assert payload["written"] is False
+
+
+def test_pre_0055_cli_dispatch_remains_fail_closed(tmp_path: Path) -> None:
+    """The recorder preserves the missing-migration block in dry-run mode."""
+
+    input_path = tmp_path / "snapshot-v2-pre-0055.json"
+    input_path.write_bytes(_payload_v2_pre_0055())
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--input", str(input_path)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    payload = json.loads(result.stdout)
+    assert payload["outcome"] == "blocked_missing_owner_tenant_migration"
+    assert payload["production_claim"] is False
+    assert payload["production_ready"] is False
     assert payload["written"] is False
 
 

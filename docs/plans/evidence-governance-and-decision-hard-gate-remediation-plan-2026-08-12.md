@@ -3615,3 +3615,28 @@ report 及其历史 content hash，同时新增 v2 snapshot/report 分派，严�
 不接 route/writer、不改变 registry gate。`EVID-01` 仍需受控生产 migration、独立 root approval、
 same-alias authority/provider、PG revocation/rollback 与 owner/reviewer sign-off；B/S、CLI/API
 仍只向服务器提交请求，AI/provider/MCP/tool execution 在服务器端，用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-24：EVID-01 当前 VPS pre-0055 只读验收与中间态合同
+
+在不部署、不执行 migration、不写生产数据库的前提下，通过只读 SSH 查询确认当前运行候选为
+`4cef9040cccc2127c3f8128c8d858bc7958df2a4` / release `20260822134658` /
+image `sha256:cfaf17560df2f85cd8ba2f5db8226a9dd9fe1cce081f30175c2a08737b4908d8`。
+同一 `default` PostgreSQL alias 的 `django_migrations` 已应用 Account `0050`–`0054`，
+`0055_owner_tenant_authority_v1` 尚不存在；12 张既有 authority/evidence/root-lock 表均为
+`0` 行，新增 owner/tenant ledger 关系也不存在。公网只读 GET 同时确认 `/api/health/`、
+`/api/ready/`、`/api/audit/health/` 为 `200`，`/api/decision-ready/` 为 `503` 且
+`must_not_use_for_decision=true`，匿名 `/api/tui/` 为 `403`。原始状态摘要与响应 hashes
+见 [`evid-01-current-vps-readonly-2026-08-24.json`](../deployment/evid-01-current-vps-readonly-2026-08-24.json)。
+
+为使这个真实的 pre-0055 中间态可被离线 recorder 严格记录，而不是错误冒充 post-0055 zero-seed，
+新增 `evid-01-authority-inventory-snapshot.v2-pre-0055` / matching report format；报告固定
+`blocked_missing_owner_tenant_migration`、`production_claim=false`、`production_ready=false`、
+`authority_ready=false`、`runtime_enablement=not_authorized`。快照与 content-addressed report
+分别见 [`evid-01-authority-inventory-snapshot-2026-08-24-pre-0055.json`](../deployment/evid-01-authority-inventory-snapshot-2026-08-24-pre-0055.json)
+与 [`0ad0a48982b8fe84788df2bbe7b0d851a2d484d773efab65637f85bbca01ce13.json`](../deployment/evid-01-authority-inventory/0a/0ad0a48982b8fe84788df2bbe7b0d851a2d484d773efab65637f85bbca01ce13.json)。
+纯 inventory/CLI 回归 `20 passed`，增量 mypy 与 debt ceiling、Ruff/Black/isort 均通过。
+这只补齐服务器端只读自动取证的版本边界，不接 production writer/route，不创建 approval/seed，
+也不解除 EVID-01、Evidence hard gate 或 global execution deny；下一真实步骤仍需受控执行
+`0055`、独立 root approval、生产 PostgreSQL first-winner/revocation/rollback、same-alias
+端到端验收与 owner/reviewer 签署。B/S、CLI/API 仍只向服务器提交请求，AI/provider/MCP/tool
+execution 在服务器端，用户不安装本地 Agent、模型或 provider 软件。

@@ -1,0 +1,84 @@
+{
+  "observed_at": "2026-08-24T05:07:52.813549Z",
+  "environment": "production",
+  "read_only": true,
+  "candidate": {
+    "source_commit": "4cef9040cccc2127c3f8128c8d858bc7958df2a4",
+    "release": "20260822134658",
+    "image": "sha256:cfaf17560df2f85cd8ba2f5db8226a9dd9fe1cce081f30175c2a08737b4908d8",
+    "source_mode": "git-clone"
+  },
+  "checks": {
+    "health": {
+      "method": "GET",
+      "url": "https://demo.agomtrade.pro/api/health/",
+      "status_code": 200,
+      "body_sha256": "86cdd2fce785c5e8d178e5864169e48ebdcda7e079ee0698aaded8c7d298ae14",
+      "body_bytes": 62,
+      "observed_at": "2026-08-24T04:51:35.6669761Z"
+    },
+    "ready": {
+      "method": "GET",
+      "url": "https://demo.agomtrade.pro/api/ready/",
+      "status_code": 200,
+      "database": "ok",
+      "redis": "ok",
+      "celery_workers": 1,
+      "decision_data": "warning",
+      "decision_data_must_not_use_for_decision": true,
+      "body_sha256": "12a3f0b7c5c5869e38bb132c2b52b9a9c562a4c3d08d87333a5e1082279f64b1",
+      "body_bytes": 15077,
+      "observed_at": "2026-08-24T04:51:37.3217287Z"
+    },
+    "decision_ready": {
+      "method": "GET",
+      "url": "https://demo.agomtrade.pro/api/decision-ready/",
+      "status_code": 503,
+      "runtime_status": "blocked",
+      "must_not_use_for_decision": true,
+      "block_reason_code": "decision_runtime_blocked",
+      "release_ref": "3e08a3b3a7b6ccd33898e5bb2c5074300b1a4928",
+      "body_sha256": "20b8bd4e590d7cd2e15ac82cc71378aaf578143e45ba0e43a9e03da6500d2d3e",
+      "body_bytes": 18697,
+      "observed_at": "2026-08-24T04:51:42.0062751Z"
+    },
+    "audit_health": {
+      "method": "GET",
+      "url": "https://demo.agomtrade.pro/api/audit/health/",
+      "status_code": 200,
+      "overall_status": "OK",
+      "outbox": {
+        "pending_count": 0,
+        "due_pending_count": 0,
+        "claimed_count": 0,
+        "expired_claimed_count": 0,
+        "failed_count": 0,
+        "delivered_count": 0
+      },
+      "operation_logs": 555,
+      "body_sha256": "9b9f59a2d7fcd6da450cd02f4c0191118ec565e07bb6794e3b5cd5bccc338483",
+      "body_bytes": 1171,
+      "observed_at": "2026-08-24T04:51:46.3136990Z"
+    },
+    "tui_anonymous": {
+      "method": "GET",
+      "url": "https://demo.agomtrade.pro/api/tui/",
+      "status_code": 403,
+      "authentication": "required",
+      "body_sha256": "c65bef74297615126656a101e44c654a66e04c61d4936c40643db8ce487152bd",
+      "body_bytes": 61,
+      "observed_at": "2026-08-24T04:51:47.5902825Z"
+    }
+  },
+  "authority_inventory": {
+    "snapshot": "evid-01-authority-inventory-snapshot-2026-08-24-pre-0055.json",
+    "report": "evid-01-authority-inventory/0a/0ad0a48982b8fe84788df2bbe7b0d851a2d484d773efab65637f85bbca01ce13.json",
+    "outcome": "blocked_missing_owner_tenant_migration",
+    "production_claim": false,
+    "production_ready": false,
+    "runtime_enablement": "not_authorized"
+  },
+  "write_performed": false,
+  "migration_performed": false,
+  "approval_created": false
+}
