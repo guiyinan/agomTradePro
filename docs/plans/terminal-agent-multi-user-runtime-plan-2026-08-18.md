@@ -1840,3 +1840,17 @@ Docker、PostgreSQL 或 VPS。回归 `19 passed`，Ruff/Black/isort/增量 mypy/
 需在提交前复跑。该切片只补齐离线收集边界，不把快照变成真实容量/混沌验收，也不改变
 TAR-01/TAR-05 的 `capacity_ready=false`、queued/Worker 关闭、decision fail-closed、
 14 日 telemetry、restore/rollback 或 owner/reviewer 门禁。
+
+## 2026-08-24：当前公网只读健康复核（09:35 UTC）
+
+按低频观察边界再次执行 public HTTPS `GET`，没有部署、迁移、队列启用、回滚或生产写入。
+`/api/health/`=`200`、`/api/ready/`=`200`（database/Redis/Celery/critical data=`ok`，
+decision-data=`warning`），`/api/audit/health/`=`200/OK`，匿名 `/api/tui/`=`403`；
+`/api/decision-ready/`=`503`、`must_not_use_for_decision=true`、
+`block_reason_code=decision_runtime_blocked`。响应大小与 SHA-256 记录在
+[`tar01-public-health-readonly-recheck-2026-08-24-0935.json`](../deployment/tar01-public-health-readonly-recheck-2026-08-24-0935.json)，
+文件 SHA-256=`41f4604302b1ab4b5a9d2425fcb9713833636fb91436453722694ecfc9aeaa4e`。
+
+这是未绑定候选的只读健康事实，不构成 TAR-01/TAR-05 capacity、queued/Worker/SSE、provider、
+chaos、角色 UAT、14 日 telemetry、restore/rollback 或 owner/reviewer 签署证据；不重复部署，
+决策与执行门禁继续 fail-closed。

@@ -1,0 +1,63 @@
+{
+  "schema": "tar01-public-health-readonly-recheck.v1",
+  "observed_at": "2026-08-24T09:35:46.4234681Z",
+  "source": "public HTTPS GET only",
+  "candidate_binding": "not_observed",
+  "production_mutation": false,
+  "deployment_performed": false,
+  "endpoints": {
+    "/api/health/": {
+      "http_status": 200,
+      "body_bytes": 62,
+      "body_sha256": "698a430be165acf0ce028e12b3b243966e1ce6b2e4e4a7bb9fff894b99c1ddd8",
+      "status": "ok"
+    },
+    "/api/ready/": {
+      "http_status": 200,
+      "body_bytes": 15148,
+      "body_sha256": "906230007ec56df13ba472fd40647e2732304126642864e3eb211d2cb6d1152d",
+      "status": "ok",
+      "checks": {
+        "database": "ok",
+        "redis": "ok",
+        "celery": "ok",
+        "critical_data": "ok",
+        "decision_data": "warning"
+      },
+      "decision_data_must_not_use_for_decision": true
+    },
+    "/api/decision-ready/": {
+      "http_status": 503,
+      "body_bytes": 18695,
+      "body_sha256": "2e53ebae05ebac46e93904c4196728e5f20559f6e6f983abf8cc50f6fd2cf3d2",
+      "status": "blocked",
+      "must_not_use_for_decision": true,
+      "block_reason_code": "decision_runtime_blocked"
+    },
+    "/api/audit/health/": {
+      "http_status": 200,
+      "body_bytes": 1171,
+      "body_sha256": "f71dc389a98c6dc4c2c83104165d30bb0612e513e0f19e29221f23f9d0608328",
+      "overall_status": "OK"
+    },
+    "/api/tui/": {
+      "http_status": 403,
+      "body_bytes": 61,
+      "body_sha256": "c65bef74297615126656a101e44c654a66e04c61d4936c40643db8ce487152bd",
+      "status": "anonymous_forbidden"
+    }
+  },
+  "acceptance": {
+    "public_health": true,
+    "public_readiness": true,
+    "audit_health": true,
+    "decision_ready": false,
+    "formal_production_uat": false,
+    "owner_reviewer_signoff": false,
+    "notes": [
+      "This is a read-only public probe and does not identify or rebind the deployed candidate.",
+      "The decision endpoint remains fail-closed and must not be used for decisions.",
+      "No deployment, migration, queue enablement, rollback, or production write was performed."
+    ]
+  }
+}
