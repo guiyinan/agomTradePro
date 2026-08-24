@@ -3723,3 +3723,18 @@ Research `0029` 已应用，13 张 authority/evidence 表仍为 zero-seed，报�
 也不改变 `EVID-01`/global execution deny；下一真实门仍是独立 root approval、生产 PostgreSQL
 first-winner/successor/revocation/rollback、same-alias 端到端回执与 owner/reviewer 双签，
 不重复部署 VPS。
+
+## 2026-08-24：EVID-01 候选与当前 HEAD 漂移审定
+
+对已部署候选 `94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` 与当前
+`dev/next-development` HEAD `5c6e4da5087c39ccdbaa612f6599a0b3b392f0a8` 做只读文件级比较：
+`git diff --name-only 94abd76e..HEAD` 共 `31` 个文件，分类为 `docs/` `29` 个、
+`governance/` `1` 个、`.gitleaks.toml` `1` 个；`apps/`、`config/`、`core/`、`scripts/`、
+`tests/` 均为 `0`。分支 HEAD 与 origin 同步，四条 push CI（Architecture Layer Guard、
+Security Scan、Consistency Check、CI Fast Feedback）均成功。
+
+该检查证明当前 HEAD 相对 VPS 候选只有治理/证据/CI 配置漂移，没有生产或 runtime 代码漂移，
+因此不重新部署、不迁移、不写生产，也不重绑候选。它不能解除 EVID-01：post-0055 的 13 张
+authority/evidence 账本仍 zero-seed，独立 root approval、生产 PostgreSQL
+first-winner/successor/revocation/rollback、same-alias 端到端写读回执与 owner/reviewer
+签署仍缺失；`EVID-01` 继续 `active`/fail-closed，global execution/decision deny 不变。
