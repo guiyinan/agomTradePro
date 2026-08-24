@@ -1,0 +1,130 @@
+{
+  "schema": "tar01-current-vps-deployment-acceptance.v1",
+  "observed_at": "2026-08-24T05:55:06.952931Z",
+  "source": "controlled code-only VPS upgrade plus read-only SSH/public HTTPS post-deploy probes",
+  "candidate": {
+    "release_tag": "20260824133504",
+    "source_commit": "94abd76e46eeef4a8e21853799c7d69bcd9bbe3b",
+    "image_id": "sha256:1c560b5fed14964a008c278a88d9f3e3b144444a172ecc239d06cedbd76d6a3e",
+    "image_tag": "agomtradepro-web:20260824133504",
+    "source_mode": "git-clone",
+    "current_release": "/opt/agomtradepro/releases/source-20260824133504",
+    "local_branch": "dev/next-development",
+    "local_head": "94abd76e46eeef4a8e21853799c7d69bcd9bbe3b",
+    "bound_to_local_head": true,
+    "runtime_identity": {
+      "status": "verified",
+      "runtime_match": true,
+      "must_not_trust_for_release": false,
+      "app_version": "0.8.0",
+      "pyqlib": "0.9.7",
+      "wrong_qlib_distribution": "absent"
+    }
+  },
+  "deployment": {
+    "mode": "code_only_upgrade",
+    "data_volumes_preserved": true,
+    "pre_deploy_backup": "/opt/agomtradepro/backups/database/postgres-20260824-074227.dump",
+    "backup_manifest": "/opt/agomtradepro/backups/meta/manifest-20260824-074227.txt",
+    "rollback_performed": false,
+    "schema_migration_performed": true,
+    "business_data_write": false,
+    "authority_seed_or_backfill": false,
+    "queued_runtime_enabled": false
+  },
+  "runtime_checks": {
+    "deploy_verifier_exit_code": 0,
+    "caddy_tls": "passed",
+    "containers": {
+      "web": "agomtradepro-web:20260824133504; healthy",
+      "celery_worker": "agomtradepro-web:20260824133504; running",
+      "celery_beat": "agomtradepro-web:20260824133504; running",
+      "postgres": "healthy",
+      "redis": "healthy"
+    },
+    "django_system_check": "passed",
+    "canonical_data_center_schema": "passed",
+    "tui_metadata_registry": "passed",
+    "celery_ping": "passed",
+    "healthcheck": "passed",
+    "migrations": [
+      "account.0055_owner_tenant_authority_v1",
+      "research.0029_evidence_scope_source_v1_observation_ledger"
+    ],
+    "authority_inventory": {
+      "outcome": "blocked_zero_seed_authority",
+      "row_counts": "all 13 canonical authority/evidence tables = 0",
+      "report": "evid-01-authority-inventory/55/55bb41f6129c30d42c8ec3041bc4e90b4ae5064e29409b83d8df6ea86bb7d680.json"
+    }
+  },
+  "public_probes": {
+    "/api/health/": {
+      "http_status": 200,
+      "body_sha256": "acd9fb2f7724402e827ff1f0424ceb72116eb98eceadb587bf27e4db7dd6c54c",
+      "status": "ok"
+    },
+    "/api/health/db/": {
+      "http_status": 200,
+      "status": "ok"
+    },
+    "/api/ready/": {
+      "http_status": 200,
+      "body_sha256": "ac6f469078c22ed9442712e7b775730e56e9f658234d53b031f1f0455769b67e",
+      "status": "ok",
+      "checks": {
+        "database": "ok",
+        "redis": "ok",
+        "celery": "ok",
+        "critical_data": "ok",
+        "alpha_workspace_consistency": "ok",
+        "decision_data": "warning"
+      },
+      "decision_data_must_not_use_for_decision": true
+    },
+    "/api/audit/health/": {
+      "http_status": 200,
+      "body_sha256": "54b129e9dfa3c7804d615568dfa1253a6902b2eadd7b76d5e54401e65346cb29",
+      "overall_status": "OK",
+      "total_operation_logs": 555,
+      "total_failures": 0,
+      "outbox_pending": 0,
+      "outbox_claimed": 0,
+      "outbox_expired": 0,
+      "outbox_failed": 0,
+      "outbox_delivered": 0
+    },
+    "/api/decision-ready/": {
+      "http_status": 503,
+      "body_sha256": "0b51eaa37ec56caabeece06541bb07db0a2a36a05d05bbd3174c90b71c043557",
+      "status": "blocked",
+      "must_not_use_for_decision": true,
+      "block_reason_code": "decision_runtime_blocked",
+      "runtime_state_reason": "MCP audit evidence write failed during final acceptance"
+    },
+    "/api/tui/": {
+      "http_status": 403,
+      "body_sha256": "c65bef74297615126656a101e44c654a66e04c61d4936c40643db8ce487152bd",
+      "status": "anonymous_access_denied"
+    }
+  },
+  "acceptance": {
+    "candidate_bound_to_current_head": true,
+    "deployment_identity_verified": true,
+    "health_ready_audit_verified": true,
+    "decision_ready": false,
+    "tar01_capacity_ready": false,
+    "formal_role_browser_uat": false,
+    "queued_worker_sse_capacity_chaos": false,
+    "fourteen_day_telemetry": false,
+    "restore_rollback_observation": false,
+    "owner_reviewer_signoff": false,
+    "production_claim": false,
+    "runtime_enablement": "not_authorized",
+    "notes": [
+      "This is one controlled deployment and a bounded post-deploy observation; no repeat deployment is required for this acceptance.",
+      "The schema migrations were applied by the normal deployment path; no owner/tenant authority or evidence rows were seeded, backfilled, approved, or promoted.",
+      "The public decision gate remains fail-closed with must_not_use_for_decision=true. This evidence does not authorize queued intake, capacity/chaos, provider/MCP success, production data writes, or decision use.",
+      "Authenticated role browser UAT and owner/reviewer attestations require the separately controlled credentials and fixtures; anonymous TUI 403 is not a substitute."
+    ]
+  }
+}

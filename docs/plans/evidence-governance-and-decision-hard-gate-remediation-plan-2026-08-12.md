@@ -3640,3 +3640,33 @@ image `sha256:cfaf17560df2f85cd8ba2f5db8226a9dd9fe1cce081f30175c2a08737b4908d8`�
 `0055`、独立 root approval、生产 PostgreSQL first-winner/revocation/rollback、same-alias
 端到端验收与 owner/reviewer 签署。B/S、CLI/API 仍只向服务器提交请求，AI/provider/MCP/tool
 execution 在服务器端，用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-24：EVID-01 post-0055 受控部署与只读验收
+
+按用户授权仅执行一次 `dev/next-development` code-only `-Upgrade`，保留 PostgreSQL/Redis
+数据卷并先生成 VPS PostgreSQL 备份；没有重复部署、没有手工写入 authority/evidence、没有
+seed/backfill/approval。候选绑定为 `94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` /
+release `20260824133504` / image
+`sha256:1c560b5fed14964a008c278a88d9f3e3b144444a172ecc239d06cedbd76d6a3e`，部署 verifier、
+迁移/schema、Django、TUI registry、Qlib=`pyqlib 0.9.7`、Caddy/TLS、Web/Worker/Beat 与
+Celery ping 均通过。正常迁移应用 `account.0055_owner_tenant_authority_v1` 与
+`research.0029_evidence_scope_source_v1_observation_ledger`；同一 `default` alias 的 13 张
+authority/evidence 表全为 `0` 行。
+
+独立公网只读探针确认 `/api/health/`、`/api/health/db/`、`/api/ready/`、
+`/api/audit/health/` 均 `200`，审计 operation logs=`555`、failures/backlog/outbox gauges
+全为 `0`；匿名 `/api/tui/`=`403`。`/api/decision-ready/` 保持 `503`，
+`must_not_use_for_decision=true`，稳定原因仍是 `decision_runtime_blocked` /
+`MCP audit evidence write failed during final acceptance`。部署与观察工件见
+[`tar01-current-vps-deployment-acceptance-2026-08-24-94abd76e.json`](../deployment/tar01-current-vps-deployment-acceptance-2026-08-24-94abd76e.json)。
+
+post-0055 inventory 使用同一只读快照生成 content-addressed 报告
+[`55bb41f6129c30d42c8ec3041bc4e90b4ae5064e29409b83d8df6ea86bb7d680.json`](../deployment/evid-01-authority-inventory/55/55bb41f6129c30d42c8ec3041bc4e90b4ae5064e29409b83d8df6ea86bb7d680.json)，
+结果固定为 `blocked_zero_seed_authority`、`authority_ready=false`、
+`production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`。
+因此本次只证明 schema 已在受控候选应用且运行健康，不把迁移、健康端点或零行账本升级为
+immutable owner/tenant authority、selector issuer、生产 writer、PostgreSQL production
+first-winner/revocation/rollback、角色化浏览器 UAT 或 owner/reviewer sign-off；EVID-01
+继续 `active`/fail-closed，TAR-01 继续 `CONTRACT_COMPLETE/safety_ready=true/capacity_ready=false`，
+全局 execution/decision gate 不变。B/S、CLI/API 仍只向服务器提交请求，AI/provider/MCP/tool
+execution 在服务器端，用户不安装本地 Agent、模型或 provider 软件。
