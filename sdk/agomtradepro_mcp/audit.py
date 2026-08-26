@@ -435,10 +435,17 @@ class AuditLogger:
         Returns:
             Optional[str]: 日志 ID，失败时返回 None
         """
+        # Both the network and embedded paths must carry the same immutable
+        # delivery identity.  The network path used to add this field only
+        # after bypassing the scoped sink, which made an embedded audit write
+        # durable without a replayable/idempotent receipt.
+        payload = dict(data)
+        payload.setdefault("delivery_id", str(uuid.uuid4()))
+
         audit_sink = get_audit_sink()
         if audit_sink is not None:
             try:
-                return audit_sink(data)
+                return audit_sink(payload)
             except Exception as exc:
                 logger.error("本地审计日志写入失败: %s", exc, exc_info=True)
                 self._failure_count += 1
@@ -447,8 +454,6 @@ class AuditLogger:
         try:
             import requests
 
-            payload = dict(data)
-            payload.setdefault("delivery_id", str(uuid.uuid4()))
             timeout = self._read_float_setting(
                 "AGOMTRADEPRO_AUDIT_TIMEOUT_SECONDS",
                 DEFAULT_AUDIT_TIMEOUT_SECONDS,
