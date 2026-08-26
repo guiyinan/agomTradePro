@@ -1945,3 +1945,24 @@ audit health 检查均为 OK；`/api/decision-ready/` 仍为 `503`，`runtime_st
 global deny/fail-closed、`safe_inline_capacity_baseline=unknown_not_zero` 和
 `capacity_ready=false`。下一步若要让修复生效，必须先得到 code-only 部署/重启的明确授权，
 再重新取得 durable receipt、authority 与有界 inline capacity evidence。
+
+## 2026-08-26：TAR-01 当前分支部署与 post-deploy 复核
+
+在明确授权后，已将已推送的 `dev/next-development@45d7616d3c38a86853104f93dbd3f13bd9a48838`
+以 `upgrade` 模式发布为 release `20260826135953`，image
+`sha256:c481bb88ac6547165bdebcd34573a6f0d69b042c93ce37136b8ea3b160a1ce66`；release identity
+验证通过，web/worker/beat 使用同一镜像，web healthy 且 restart count 为 `0`。部署前备份已完成，
+PostgreSQL migration plan 为 `No planned migration operations`，canonical schema check 通过。
+部署脚本执行了 deployment-owned data-center/MCP capability catalog 与周期任务同步；没有 authority
+seed、business backfill、decision repair、runtime-state clear 或 SQLite restore。完整部署报告保存在
+`dist/remote-build-reports/remote-build-report-20260826135953.json`，结构化证据见
+[`tar01-current-vps-deployment-acceptance-2026-08-26-45d7616d.json`](../deployment/tar01-current-vps-deployment-acceptance-2026-08-26-45d7616d.json)。
+
+post-deploy 只读 HTTPS 复核显示 `/api/health/`、`/api/ready/`、`/api/audit/health/` 均为 `200`，
+audit failure/outbox backlog 均为 `0`；inline enabled 且 concurrency=`1`，queued intake/worker 与
+`TERMINAL_RUNTIME_AUTHORIZED` 仍为 `false`。`/api/decision-ready/` 仍为 `503 blocked`，原有
+`decision_runtime_blocked`、`core_data_coverage_incomplete` 与
+`decision_provider_capabilities_unhealthy` 均保留，近 30 分钟 web/worker 日志无新的 audit failure
+匹配。该部署证明代码候选和 fail-closed 安全边界已生效，不证明 durable receipt/authority，也不
+提供真实 inline 执行延迟或容量数据；TAR-01 `capacity_ready=false`、safe baseline=
+`unknown_not_zero`，不推进 TAR-02、不提升并发、不启用队列。
