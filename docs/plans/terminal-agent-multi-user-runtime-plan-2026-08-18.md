@@ -1882,3 +1882,66 @@ decision-data=`warning`），`/api/audit/health/`=`200/OK`，匿名 `/api/tui/`=
 这是未绑定候选的只读健康事实，不构成 TAR-01/TAR-05 capacity、queued/Worker/SSE、provider、
 chaos、角色 UAT、14 日 telemetry、restore/rollback 或 owner/reviewer 签署证据；不重复部署，
 决策与执行门禁继续 fail-closed。
+
+### TAR-01 current inline runtime gate observation (2026-08-25)
+
+在获得明确授权后，针对当前不可变候选
+`94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` / release `20260824133504` /
+OCI `sha256:1c560b5fed14964a008c278a88d9f3e3b144444a172ecc239d06cedbd76d6a3e` /
+runtime manifest SHA `1988746a1b333810981705a3d34c83a64760fb87354f763125f592a7862ea08f`
+建立认证会话，并向真实 legacy `POST /api/terminal/chat/` 发送两次 bounded
+no-tool probe。生产开关再次确认 `TERMINAL_LEGACY_INLINE_CONCURRENCY=1`、inline
+enabled、queued intake/worker 与 `TERMINAL_RUNTIME_AUTHORIZED` 均为 `false`；health/ready
+为 `200`，web container restart count 为 `0`。
+
+在 15:12 UTC 的追加只读 GET 复核中，health/ready 仍为 `200`，`decision-ready` 仍为
+`503 blocked`，runtime blocker 仍为 `MCP audit evidence write failed during final acceptance`；
+同时 core coverage 仍为 `incomplete` / `core_data_coverage_incomplete`。该复核没有再次发送
+terminal POST，不产生容量信号。
+
+两次请求均在 `DecisionRuntimeGateMiddleware` 处于 view 前被 HTTP `503` 阻断，返回
+`block_reason_code=decision_runtime_blocked`、`must_not_use_for_decision=true`，原因是
+`MCP audit evidence write failed during final acceptance`。因此没有进入
+`TerminalChatView`、Agent service、provider 或 MCP；观测到的 provider/MCP 调用为零是
+“请求未越过全局门禁”的零值，不是容量指标。实际 inline 执行延迟、Daphne active
+requests、Redis/DB、model/MCP latency 和完整 hard-SLO 均 unavailable；5/10/20 阶梯及完整
+单槽 baseline 未执行，因为重复门禁拒绝不能产生容量信号，且不得绕过 global deny。
+
+完整的 observed/unavailable/zero/not-executed 分类保存在
+[`tar01-current-inline-runtime-gate-observation-2026-08-25-94abd76e.json`](../deployment/tar01-current-inline-runtime-gate-observation-2026-08-25-94abd76e.json)，
+SHA-256=`db0a6fe9db1585d2d649fafe98f827c8a7b9931040ed44fa83baa25885de5fb9`。
+该工件明确保持 `capacity_ready=false`、`safe_inline_capacity_baseline=unknown_not_zero`
+和 `runtime_enablement=not_authorized`；不把这次 503 fail-closed 观察当作容量基线，
+不修改 TAR-01/TAR-02 registry 状态或 execution focus，也不授权并发提升、队列启用或
+生产切换。后续只有在全局 decision gate 合法恢复且候选仍一致时，才可再次申请有界
+inline 观察。
+
+## 2026-08-26：TAR-01 decision-ready 恢复依赖已登记
+
+为恢复 TAR-01 的真实容量观测入口，仓库侧先修复了 SDK 嵌入式 MCP audit sink 缺少
+`delivery_id` 的问题，并以 `sdk/tests/test_mcp/test_audit.py` 的 `12 passed` 覆盖本地 sink
+投递身份。该代码修复不产生生产 receipt，不清除 runtime blocker，也不把 503 拒绝响应当成
+容量数据。
+
+TAR-01 的下一次真实容量观测仍以全局决策门恢复为前置条件：AUD/EVID 必须提供 durable
+MCP final-acceptance receipt 与 authority 证据，DATA-02/03 必须提供 canonical publication、
+freshness/reconciliation 和 readiness observation。未满足前继续保持 inline concurrency=1、
+queued intake/worker disabled、global deny/fail-closed，`capacity_ready=false`。
+
+## 2026-08-26：生产 blocker 只读复核（未部署）
+
+通过 Paramiko 只读 SSH 在候选 `94abd76e…` 的容器 `def8143b…` 上复核：
+`agomtradepro-web:20260824133504` 仍为 healthy，近 72 小时日志中没有
+`local_mcp_audit_write_failed`、`publisher_not_wired` 或新的 audit failure 匹配。
+容器内只读 GET 显示 `/api/health/`=`200`、`/api/ready/`=`200`（database、Redis、Celery、
+critical data 为 `ok`，decision data 为 warning），`/api/audit/health/`=`200/OK` 且四项
+audit health 检查均为 OK；`/api/decision-ready/` 仍为 `503`，`runtime_state` 为
+`decision_runtime_blocked`，原因仍是 `MCP audit evidence write failed during final acceptance`，
+同时 `core_coverage=incomplete`、`provider_capabilities=blocked`、`decision_data=warning`。
+
+这次复核证明 blocker 是已持久化的 readiness/证据链状态，不是当前 Web 进程崩溃；它也不证明
+本地 delivery-id 修复已在生产生效，因为没有部署或重启。没有执行 runtime state 清除、审计写入、
+配置修改、数据库修改、流量扩大或容量测试；TAR-01 继续保持 inline=1、队列/Worker 禁用、
+global deny/fail-closed、`safe_inline_capacity_baseline=unknown_not_zero` 和
+`capacity_ready=false`。下一步若要让修复生效，必须先得到 code-only 部署/重启的明确授权，
+再重新取得 durable receipt、authority 与有界 inline capacity evidence。

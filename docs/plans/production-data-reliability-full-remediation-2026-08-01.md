@@ -1116,3 +1116,14 @@ hash、候选绑定、read-only/authentication 标记和 publication blockers �
 当前候选的 coverage/freshness 观测，不构成 backfill/reconciliation、M9/M10、维护态切换、
 容差例外、生产 ready、owner/reviewer 签署或 runtime enablement；`DATA-02` 继续
 `waiting_dependency`，decision-ready 保持 fail-closed。
+
+## 实施记录（2026-08-26，decision-ready 恢复依赖）
+
+恢复路线已登记为 DATA-02/DATA-03 的生产依赖，不把它们伪装成 TAR-01 仓库完成项。当前候选
+仍需真实的全 universe canonical publication、coverage/freshness、受控回填前后 reconciliation、
+provider capability recovery 与 DATA-03 observation window；现有事实 coverage 不能替代
+publication，`/api/ready/` 200 也不能替代 `/api/decision-ready/` 200。
+
+本次只完成 SDK audit delivery identity 的本地修复，没有执行 backfill、provider refresh、
+reconciliation 写入、维护态切换或任何生产数据修改。DATA-02/03 仍保持原状态，直到数据 owner
+批准必要的生产写入并提供候选绑定的真实结果。

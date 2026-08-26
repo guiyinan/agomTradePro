@@ -1,6 +1,6 @@
 {
-  "version": "2026-08-25.v1",
-  "updated_at": "2026-08-25",
+  "version": "2026-08-26.v1",
+  "updated_at": "2026-08-26",
   "execution_focus": {
     "unit_id": "AUD-01",
     "allowed_parallel_execution_modes": [
@@ -131,7 +131,7 @@
       "priority": "P0/P1",
       "owner": "audit+data_center+task_monitor",
       "status": "active",
-      "next_gate": "AUD-01 is the current bounded repository focus: assemble one canonical fail-closed audit publisher, runtime and authenticated scoped authority source, remove memory or generic-event fallback, and prove the boundary with focused contracts before advancing to AUD-02.",
+      "next_gate": "AUD-01 is the current bounded repository focus: assemble one canonical fail-closed audit publisher, runtime and authenticated scoped authority source, remove memory or generic-event fallback, and prove the boundary with focused contracts before advancing to AUD-02. The 2026-08-26 MCP delivery-identity repair is a local prerequisite only; production durable receipt, authority and decision-ready recovery remain separately gated.",
       "documents": [
         {
           "path": "docs/plans/system-audit-log-consolidation-plan-2026-08-13.md",

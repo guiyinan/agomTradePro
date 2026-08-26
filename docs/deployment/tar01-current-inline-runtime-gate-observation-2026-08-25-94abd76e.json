@@ -1,0 +1,179 @@
+{
+  "artifact_type": "terminal_runtime_inline_gate_observation",
+  "schema_version": "terminal-runtime-inline-gate-observation.v1",
+  "evidence_scope": "authorized_production_inline_probe",
+  "observed_at": "2026-08-25T08:12:11.630387Z",
+  "observation_window": {
+    "first_request_at": "2026-08-25T08:12:11.630387Z",
+    "last_server_log_at": "2026-08-25T08:13:05.041747Z",
+    "request_count": 2,
+    "read_only_follow_up": true
+  },
+  "follow_up_read_only_recheck": {
+    "health_observed_at": "2026-08-25T15:12:21.165350Z",
+    "health_http_status": 200,
+    "health_status": "ok",
+    "ready_observed_at": "2026-08-25T15:12:50.814421Z",
+    "ready_http_status": 200,
+    "ready_status": "ok",
+    "ready_checks": {
+      "database": "ok",
+      "redis": "ok",
+      "celery": "ok",
+      "celery_workers": 1,
+      "critical_data": "ok",
+      "decision_data": "warning"
+    },
+    "decision_ready_observed_at": "2026-08-25T15:12:23.615154Z",
+    "decision_ready_http_status": 503,
+    "decision_ready_status": "blocked",
+    "decision_ready_must_not_use_for_decision": true,
+    "runtime_block_reason_code": "decision_runtime_blocked",
+    "runtime_block_reason": "MCP audit evidence write failed during final acceptance",
+    "core_coverage_status": "incomplete",
+    "core_coverage_block_reason_code": "core_data_coverage_incomplete",
+    "basis": "Additional public HTTPS GET-only recheck; no terminal POST, production write, configuration change, deployment or restart."
+  },
+  "production_claim": false,
+  "production_ready": false,
+  "capacity_ready": false,
+  "runtime_enablement": "not_authorized",
+  "candidate": {
+    "source_commit": "94abd76e46eeef4a8e21853799c7d69bcd9bbe3b",
+    "release_tag": "20260824133504",
+    "image_tag": "agomtradepro-web:20260824133504",
+    "oci_revision": "sha256:1c560b5fed14964a008c278a88d9f3e3b144444a172ecc239d06cedbd76d6a3e",
+    "runtime_manifest_digest": "1988746a1b333810981705a3d34c83a64760fb87354f763125f592a7862ea08f",
+    "test_matrix_digest": "6272ea6606ebbf3c0791e48d807b733cbc6d9a4ce7d945d95c5e3a16c22aea64",
+    "runtime_manifest_source": "read-only sha256sum of /opt/agomtradepro/releases/source-20260824133504/config/tui/agomtui-runtime.manifest.json",
+    "binding_status": "candidate_identity_verified",
+    "runtime_match": true
+  },
+  "runtime_flags_observed": {
+    "TERMINAL_RUNTIME_AUTHORIZED": false,
+    "TERMINAL_QUEUED_INTAKE_ENABLED": false,
+    "TERMINAL_QUEUED_WORKER_ENABLED": false,
+    "TERMINAL_LEGACY_INLINE_ENABLED": true,
+    "TERMINAL_LEGACY_INLINE_CONCURRENCY": 1,
+    "TERMINAL_LEGACY_INLINE_TIMEOUT_SECONDS": 60
+  },
+  "preflight": {
+    "health": {
+      "http_status": 200,
+      "status": "ok"
+    },
+    "ready": {
+      "http_status": 200,
+      "status": "ok",
+      "database": "ok",
+      "redis": "ok",
+      "celery": "ok",
+      "celery_workers": 1,
+      "critical_data": "ok",
+      "decision_data": "warning"
+    },
+    "decision_ready": {
+      "http_status": 503,
+      "status": "blocked",
+      "must_not_use_for_decision": true,
+      "block_reason_code": "decision_runtime_blocked",
+      "block_reason": "MCP audit evidence write failed during final acceptance",
+      "release_ref": "3e08a3b3a7b6ccd33898e5bb2c5074300b1a4928"
+    },
+    "web_container": {
+      "status": "running",
+      "restart_count": 0,
+      "started_at": "2026-08-24T05:47:54.896281777Z",
+      "container_id": "def8143b95707b066bba26bb670a321d00487f866225ee37b03022f1dd63c324"
+    }
+  },
+  "request_observations": {
+    "endpoint": "POST /api/terminal/chat/",
+    "authentication": "existing_authenticated_session_with_csrf",
+    "probe_prompt_policy": "reply-only; tools, data access and business writes forbidden",
+    "executed_levels": [
+      {
+        "requested_concurrency": 1,
+        "requests_sent": 2,
+        "effective_inline_execution": "not_reached",
+        "responses": {
+          "503": 2,
+          "block_reason_code": "decision_runtime_blocked",
+          "must_not_use_for_decision": true
+        },
+        "client_elapsed_ms": {
+          "observed": [446.758],
+          "unavailable_reason": "The second diagnostic invocation did not record a client-side timer."
+        },
+        "server_log_duration_ms": {
+          "observed": [44.89, 131.95],
+          "interpretation": "gate-rejection request durations only; not inline execution latency or capacity"
+        }
+      }
+    ],
+    "levels_not_executed": {
+      "5": "not_executed: the global decision gate rejected the single-request diagnostic before the view; no useful capacity signal could be obtained without bypassing fail-closed protection.",
+      "10": "not_executed: same reason",
+      "20": "not_executed: same reason"
+    }
+  },
+  "observed_zero_values": {
+    "provider_calls": {
+      "value": 0,
+      "basis": "DecisionRuntimeGateMiddleware returned before TerminalChatView and the post-probe logs contained no terminal-agent execution entries."
+    },
+    "mcp_calls": {
+      "value": 0,
+      "basis": "The request did not reach the Agent service or MCP composition path."
+    },
+    "web_container_restarts": 0,
+    "queued_intake_enabled": false,
+    "queued_worker_enabled": false
+  },
+  "unavailable_data": [
+    "real inline execution p50/p95/p99",
+    "provider/model latency and successful model execution",
+    "MCP latency and call counts during execution",
+    "Daphne active requests under inline load",
+    "Redis memory/connection behavior under inline load",
+    "database connection behavior under inline load",
+    "complete 1/5/10/20 hard-SLO measurements"
+  ],
+  "not_executed": [
+    "5/10/20 inline arrival levels",
+    "a complete single-level inline baseline",
+    "soak or sustained observation",
+    "provider/MCP success path",
+    "any queue, worker, fault injection, restart, configuration change or deployment"
+  ],
+  "side_effects": {
+    "agent_service_invoked": false,
+    "provider_or_mcp_invoked": false,
+    "queued_run_created": false,
+    "business_write_requested": false,
+    "basis": "The middleware rejected both requests before the authenticated API view; no production configuration, queue, worker, deployment or restart was changed."
+  },
+  "gate_decision": {
+    "safe_inline_capacity_baseline": "unknown_not_zero",
+    "capacity_ready": false,
+    "tar01_exit_gate": "not_satisfied_for_the_requested_real-capacity-baseline objective",
+    "concurrency_increase_allowed": false,
+    "blocking_condition": "production global decision runtime gate is fail-closed until the separate MCP audit evidence-write blocker is resolved",
+    "required_next_step": "After the global decision gate is legitimately active and the candidate remains immutable, repeat a separately authorized, bounded inline observation; do not bypass the middleware or infer capacity from 503 rejection."
+  },
+  "commands_and_checks": {
+    "executed": [
+      "authenticated POST https://demo.agomtrade.pro/api/terminal/chat/ with the bounded no-tool probe payload",
+      "GET https://demo.agomtrade.pro/api/health/",
+      "GET https://demo.agomtrade.pro/api/ready/",
+      "GET https://demo.agomtrade.pro/api/decision-ready/",
+      "GET https://demo.agomtrade.pro/api/metrics/ before and after the first request",
+      "read-only SSH docker inspect, docker stats --no-stream, filtered docker logs, restart-count and deployed runtime-manifest sha256 checks"
+    ],
+    "not_executed": [
+      "5/10/20 load staircase, because all requests would be pre-view global-gate rejections",
+      "provider/MCP and full runtime metric collection, because the inline path was not reached",
+      "any production write other than the two authorized HTTP probe attempts"
+    ]
+  }
+}

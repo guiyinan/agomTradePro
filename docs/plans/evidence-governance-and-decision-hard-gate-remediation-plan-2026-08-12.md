@@ -3801,3 +3801,15 @@ VPS 部署或人工批准；post-0055 候选的 13 张 authority/evidence ledger
 独立 root approval、生产 PostgreSQL first-winner/successor/revocation/rollback、same-alias
 端到端写读回执和 owner/reviewer sign-off 仍缺。`EVID-01` 继续 `active`/fail-closed，
 global execution/decision deny 与 `/api/decision-ready/` 阻断不变。
+
+## 2026-08-26：decision-ready 恢复依赖记录
+
+仓库侧已修复 `sdk/agomtradepro_mcp/audit.py` 的嵌入式 audit sink 投递身份边界：本地 sink
+现在与网络发送一样携带稳定的 `delivery_id`，并由 SDK contract test `12 passed` 覆盖。该修复
+只解决 operation-log 写入的幂等身份缺口，不等于 durable final-acceptance receipt，也不生成
+任何 owner/tenant authority 或 Evidence ledger 数据。
+
+当前恢复仍必须取得真实生产证据：候选绑定的 durable MCP audit write/final-acceptance receipt、
+独立 authenticated scoped authority、同 alias PostgreSQL 写读/first-winner/rollback 证据以及
+owner/reviewer sign-off。`/api/audit/health/` 的 200、空 outbox 或本地/合成测试均不能替代这些
+证据；未取得前不得清除 persisted runtime blocker、不得把 EVID-01 标为完成。

@@ -1084,3 +1084,21 @@ failures=`0`、failure rate=`0`，outbox pending/due/claimed/expired/failed/deli
 报告 `missing_section_count=4`：alerts、TUI、recovery、archive 未采集并保持+`unavailable`，没有把缺失转成零值；migration/outbox/metrics 是可用只读字段。
 
 本次没有运行 migration、claim/publish、Celery、fault injection、archive/restore 或任何+生产写入；报告固定 `production_claim=false`、`production_ready=false`、+`runtime_enablement=not_authorized`。这只完成一次候选绑定的运营快照派生，不能证明 durable+publisher、authenticated authority、同 UOW 双写、recovery、TUI、archive/restore 或+owner/reviewer 签字；`AUD-03` 继续 `waiting_dependency`，`AUD-01/AUD-02` 门禁不变。
+
+## 实施记录（2026-08-26，AUD-01 MCP delivery identity repair）
+
+将 `sdk/agomtradepro_mcp/audit.py::AuditLogger._send_audit_log()` 的投递身份生成提前到
+scoped audit sink 与网络发送的共同边界：每次审计事件先生成一个 `delivery_id`，显式传入的
+身份保持不变；本地嵌入式 MCP sink 与网络重试因此使用同一个可重放/幂等身份。此前只有网络
+分支补充 `delivery_id`，本地 sink 可能写入没有 delivery identity 的 operation log，不能形成
+完整的 final-acceptance replay 线索。
+
+新增/调整 SDK audit contract test，`pytest sdk/tests/test_mcp/test_audit.py -q` 实际结果为
+`12 passed`。该修复只补齐本地代码的 delivery identity，不创建 durable publisher、receipt
+ledger、authenticated authority 或 production acceptance receipt，也不改变 terminal inline=1、
+queued/worker disabled、global deny 或 decision-ready fail-closed 边界。
+
+恢复工作包仍按以下顺序执行：先在受控候选上取得真实 durable MCP audit receipt 与 authority
+证明，再完成 DATA-02 的 canonical coverage/publication/freshness 与 reconciliation，之后才由
+授权 operator 做 runtime state transition，并重新执行 TAR-01 的有界 inline capacity observation。
+当前 EVID-01、DATA-02/03 和 runtime state 仍不能因本地测试通过而解除。
