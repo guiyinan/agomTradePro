@@ -151,6 +151,13 @@
 - 最终门禁：TUI JS `35 passed`，IA/source/operator focused `64 passed`，完整 Workbench `258 passed`，Terminal Agent `20 passed`；`npm run check:tui`、Black/isort/Ruff、15 个生产文件增量 mypy、full debt ceiling 与 source guard 全绿。完整 Workbench 首轮发现旧测试夹具缺少 AUD-02 新增的三项 critical audit runtime value；未放宽生产 fail-closed 校验，而是显式补齐隔离测试 profile，单例与全量复跑均通过。
 - 规范化证据见 [`tux04-repository-closure-evidence-2026-08-28.json`](../testing/tux04-repository-closure-evidence-2026-08-28.json)。本次未部署、未写生产、未做外部 portability 或 M5 candidate rebind；published graph/manifest 哈希已变化，正式候选是否重绑仍归 TUI-01/TUI-02 owner 与授权流程。`TUX-04` repository exit gate 因此完成，唯一 repository focus 顺序推进到依赖已满足的 `TUX-03`；`TUX-05` 继续等待二者同时完成。
 
+## 6.3.2 TUX-03 action copy/density machine baseline（2026-08-28）
+
+- 新增只读 `scripts/check_tui_action_copy_and_density.py`，把 TUX-03 退出范围固定为 IA 的 12 个 `published_screens`；normalized runtime graph 只用于核对继承后的 action tier、同屏重复 label 与这 12 屏的真实密度，不把另外 12 个 runtime-only screen 扩进本 unit。
+- 当前真实基线为 430 published / 890 runtime actions：370 个 route-derived action 中 61 个仍处于 `primary/operation`，355 条 description 直接复用 screen summary（其中 349 条为 `（查看）`），22 个 action 命中 10 类机翻/截断规则，published/runtime 分别有 6/8 组同屏重复 label；IA 仍有 7 个 route default 和 16 个 route panel 引用。
+- 按 renderer 的同一口径计算 `primary + operation`，12 个 published screen 中 11 个超出 screen budget，另有 12 个 task group 超出组预算；唯一未超 screen budget 的是 `policy.workbench`。focused guard regression 为 `3 passed`，其中单独证明 runtime-only screen 不影响 TUX-03 exit metric。
+- 本检查器在债务清零前故意返回 `outcome=blocked`，尚未接入 push CI；下一切片先在 compiler/published/runtime 边界完成 action-specific 文案、自动 action 分层和 semantic reference，再将真实图测试翻转为全绿并接入现有 Consistency Check。当前未发布 metadata、未部署、未写生产、未重绑 M5 candidate，`TUX-03` 保持唯一 active repository unit。
+
 ## 6.2.1 2026-08-20 TUX-02 candidate deployment observation
 
 - `05970a925f0b348574a1805c243d7d9140d3e243` was deployed code-only as release
