@@ -636,7 +636,7 @@ def _data_center_governance_rows() -> list[dict[str, Any]]:
             blocking_reason=thermometer_reason,
             next_action="查看市场温度计",
             target_screen="api-library.data-center",
-            target_action_key="auto.api.get.api.data-center.providers",
+            target_action_key="data-center.provider-list",
             observed_at=timezone.now(),
         ),
     ]
@@ -700,7 +700,7 @@ def _ai_provider_governance_rows(*, user: Any) -> list[dict[str, Any]]:
             ),
             next_action="查看 AI 日志",
             target_screen="ai-ops.providers",
-            target_action_key="auto.api.get.api.ai.me.logs",
+            target_action_key="ai-ops.my-ai-logs",
             observed_at=_latest_created_at(recent_failures),
         ),
         _governance_row(
@@ -711,7 +711,7 @@ def _ai_provider_governance_rows(*, user: Any) -> list[dict[str, Any]]:
             blocking_reason=quota_reason,
             next_action="查看 AI 服务商配置",
             target_screen="ai-ops.providers",
-            target_action_key="auto.api.get.api.ai.me.providers",
+            target_action_key="ai-ops.list-my-providers",
             observed_at=timezone.now(),
         ),
         _governance_row(

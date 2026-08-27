@@ -1066,6 +1066,116 @@ def test_promoter_routes_alpha_trigger_and_agent_runtime_to_operator_screens(pro
     )
 
 
+def test_promoter_splits_route_actions_from_curated_semantic_actions(promoter_module):
+    assert (
+        promoter_module._task_tier(
+            {
+                "key": "auto.api.get.api.account.health",
+                "source": "approved:smoke-promoted",
+                "risk": "read",
+            }
+        )
+        == "support"
+    )
+    assert (
+        promoter_module._task_tier(
+            {
+                "key": "param.api.get.api.account.accounts.pk",
+                "source": "approved:parameterized-promoted",
+                "risk": "read",
+            }
+        )
+        == "advanced"
+    )
+    assert (
+        promoter_module._task_tier(
+            {
+                "key": "auto.api.post.api.account.refresh",
+                "source": "approved:smoke-promoted",
+                "risk": "write",
+            }
+        )
+        == "advanced"
+    )
+    assert (
+        promoter_module._semantic_action_key("auto.api.get.api.account.health")
+        == "account.health-summary"
+    )
+    assert (
+        promoter_module._task_tier(
+            {
+                "key": "account.health-summary",
+                "source": "approved:semantic-alias",
+                "risk": "read",
+            }
+        )
+        == "primary"
+    )
+
+
+def test_promoter_writes_action_specific_descriptions(promoter_module):
+    assert (
+        promoter_module._operator_description({"label": "账户健康", "risk": "read", "fields": []})
+        == "查看“账户健康”的当前结果。"
+    )
+    assert (
+        promoter_module._operator_description(
+            {
+                "label": "账户详情",
+                "risk": "read",
+                "fields": [{"key": "account_id", "required": True}],
+            }
+        )
+        == "按所需条件查看“账户详情”。"
+    )
+    assert (
+        promoter_module._operator_description({"label": "刷新账户", "risk": "write", "fields": []})
+        == "执行“刷新账户”操作；提交前需确认。"
+    )
+
+
+def test_promoter_localizes_machine_fragments_and_prunes_compatibility_aliases(
+    promoter_module,
+):
+    label_cases = {
+        "auto.api.get.api.system.celery.health": "任务队列健康",
+        "auto.api.get.api.signal.unified.by_asset": "按资产查看统一信号",
+        "auto.api.get.api.health.db": "数据库健康",
+        "auto.api.get.api.account.mcp.self": "我的 MCP 接入",
+        "auto.api.get.api.ai-capability.mcp-tools": "MCP 工具列表",
+        "auto.api.get.api.ai-capability.mcp-tools.stats": "MCP 工具统计",
+        "auto.api.get.api.ai-capability.mcp-access.verify": "验证我的 MCP 接入",
+        "auto.api.get.api.strategy.allocation-policies.active": "当前资产配置政策",
+        "auto.api.get.api.strategy.allocation-policies.versions": "资产配置政策版本",
+        "param.api.get.api.strategy.allocation-policies.versions.int.version": (
+            "资产配置政策版本详情"
+        ),
+    }
+    for action_key, expected_label in label_cases.items():
+        assert (
+            promoter_module._operator_label({"key": action_key, "label": "machine generated"})
+            == expected_label
+        )
+
+    payload = {
+        "actions": [
+            {"key": "auto.api.get.api.prompts.templates", "screen_key": "ai-ops.providers"},
+            {
+                "key": "auto.api.get.api.ai-capabilities.mcp-tools",
+                "screen_key": "ai-ops.providers",
+            },
+            {
+                "key": "param.api.get.api.filter.config.indicator_code",
+                "screen_key": "research.signals",
+            },
+            {"key": "audit.operation_logs", "screen_key": "execution.audit"},
+            {"key": "prompt.templates", "screen_key": "ai-ops.providers"},
+        ]
+    }
+    assert promoter_module._prune_redundant_screen_actions(payload) == 4
+    assert [action["key"] for action in payload["actions"]] == ["prompt.templates"]
+
+
 def test_promoter_overrides_list_view_types_for_row_selection_workflows(promoter_module):
     aggregated_action = {
         "key": "auto.api.get.api.decision.workspace.aggregated",
@@ -1152,11 +1262,8 @@ def test_promoter_merges_data_center_selector_reads(promoter_module):
     )
     assert actions["auto.api.get.api.data-center.indicators"]["risk"] == "read"
     assert actions["auto.api.get.api.data-center.indicators"]["task_group"] == "02 指标目录"
-    assert (
-        actions["auto.api.get.api.data-center.providers"]["endpoint"]
-        == "/api/data-center/providers/"
-    )
-    assert actions["auto.api.get.api.data-center.providers"]["task_group"] == "04 服务商"
+    assert actions["data-center.provider-list"]["endpoint"] == "/api/data-center/providers/"
+    assert actions["data-center.provider-list"]["task_group"] == "04 服务商"
     assert (
         actions["auto.api.get.api.data-center.publishers"]["endpoint"]
         == "/api/data-center/publishers/"

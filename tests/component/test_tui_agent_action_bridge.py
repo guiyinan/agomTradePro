@@ -129,6 +129,6 @@ def test_mcp_bridge_blocks_real_published_read_action_without_evidence_binding(
 
     with pytest.raises(PermissionError, match="mcp_evidence_binding_required"):
         terminal_handlers._internal_handler_terminal_run_user_read_action(
-            "auto.api.get.api.health",
+            "system.health-summary",
             {},
         )

@@ -154,8 +154,8 @@ def test_runtime_only_screens_do_not_expand_the_tux03_density_exit_scope() -> No
     assert report.over_budget_screen_count == 0
 
 
-def test_real_tui_sources_publish_the_expected_pre_remediation_inventory() -> None:
-    """The TUX-03 guard keeps the current 430-action debt explicit until remediated."""
+def test_real_tui_sources_close_copy_debt_but_keep_density_debt_explicit() -> None:
+    """Copy and reference debt stays closed while density remediation continues."""
 
     pytest.importorskip("django")
     from apps.terminal.infrastructure.tui_metadata_repository import (
@@ -173,11 +173,16 @@ def test_real_tui_sources_publish_the_expected_pre_remediation_inventory() -> No
     )
 
     assert not report.passed
-    assert report.published_action_count == 430
-    assert report.runtime_action_count >= report.published_action_count
+    assert report.published_action_count == 413
+    assert report.runtime_action_count == 871
     assert report.published_screen_count == 12
-    assert report.route_action_count == 370
-    assert report.read_boilerplate_description_count == 349
-    assert report.machine_copy_count == 22
-    assert report.machine_copy_pattern_count == 10
+    assert report.route_action_count == 338
+    assert report.exposed_route_action_count == 0
+    assert report.boilerplate_description_count == 0
+    assert report.machine_copy_count == 0
+    assert report.published_duplicate_label_group_count == 0
+    assert report.runtime_duplicate_label_group_count == 0
+    assert report.route_default_reference_count == 0
+    assert report.route_panel_reference_count == 0
     assert report.over_budget_screen_count == 11
+    assert report.over_budget_task_group_count == 11

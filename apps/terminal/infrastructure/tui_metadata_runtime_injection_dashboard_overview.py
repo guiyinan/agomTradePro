@@ -56,7 +56,7 @@ RUNTIME_DASHBOARD_OVERVIEW_ACTIONS: tuple[dict[str, Any], ...] = (
         task_tier="primary",
     ),
     _action(
-        key="auto.api.get.api.dashboard.allocation",
+        key="dashboard.asset-allocation",
         label="资产配置",
         intent="chart_owned_asset_allocation",
         view_type="chart",
@@ -73,7 +73,7 @@ RUNTIME_DASHBOARD_OVERVIEW_ACTIONS: tuple[dict[str, Any], ...] = (
         },
     ),
     _action(
-        key="auto.api.get.api.dashboard.performance",
+        key="dashboard.portfolio-performance",
         label="组合表现",
         intent="chart_owned_portfolio_performance",
         view_type="chart",

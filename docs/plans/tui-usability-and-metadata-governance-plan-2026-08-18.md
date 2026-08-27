@@ -157,6 +157,9 @@
 - 当前真实基线为 430 published / 890 runtime actions：370 个 route-derived action 中 61 个仍处于 `primary/operation`，355 条 description 直接复用 screen summary（其中 349 条为 `（查看）`），22 个 action 命中 10 类机翻/截断规则，published/runtime 分别有 6/8 组同屏重复 label；IA 仍有 7 个 route default 和 16 个 route panel 引用。
 - 按 renderer 的同一口径计算 `primary + operation`，12 个 published screen 中 11 个超出 screen budget，另有 12 个 task group 超出组预算；唯一未超 screen budget 的是 `policy.workbench`。focused guard regression 为 `3 passed`，其中单独证明 runtime-only screen 不影响 TUX-03 exit metric。
 - 本检查器在债务清零前故意返回 `outcome=blocked`，尚未接入 push CI；下一切片先在 compiler/published/runtime 边界完成 action-specific 文案、自动 action 分层和 semantic reference，再将真实图测试翻转为全绿并接入现有 Consistency Check。当前未发布 metadata、未部署、未写生产、未重绑 M5 candidate，`TUX-03` 保持唯一 active repository unit。
+- action copy/semantic reference 切片已完成：compiler 为 read/write/required-input action 生成独立操作文案，route-derived action 默认下沉到 `support/advanced`，IA 的 7 个 default 与 16 个 panel route 引用全部换为稳定的 semantic action key；17 个单复数兼容或冗余注册被确定性裁剪，published/runtime action 由基线 430/890 收敛为 413/871。
+- 同一机器检查现已得到 route key 暴露、样板 description、机翻/截断文案、published/runtime 重复 label、route default/panel 引用全部为 0；published validator、三源一致性、Web→TUI migration inventory 与 96 个 focused regression 均通过。validator 报告的 published graph canonical SHA-256 为 `c372a3fe645dfc89e5affd649d130dea1e5ff7de570acebd978dc16cb8add5bd`，compiler 二次生成前后文件哈希一致。
+- 密度仍保持 fail-closed：12 个 published screen 中 11 个 screen、11 个 task group 超预算，来源已收窄为 runtime curated injection，而非 compiler route action。下一切片在 metadata repository 归一化边界按 IA 既有预算确定性保留 default/panel 主动作并把溢出 read/write action 分别降为 `support/advanced`；在清零、全量回归和普通角色浏览器走查前不接 CI、不关闭 `TUX-03`。
 
 ## 6.2.1 2026-08-20 TUX-02 candidate deployment observation
 

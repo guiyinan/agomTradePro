@@ -437,16 +437,16 @@ RUNTIME_BROKER_EXECUTION_ACTIONS: tuple[dict[str, Any], ...] = (
         "broker-execution.approval-preview", "批准订单", "approve", preview=True, sequence=200
     ),
     _order_action(
-        "broker-execution.reject-preview", "拒绝订单", "reject", preview=True, sequence=220
+        "broker-execution.reject-preview", "预览拒单影响", "reject", preview=True, sequence=220
     ),
     _order_action(
-        "broker-execution.reject-order", "拒绝订单", "reject", preview=False, sequence=230
+        "broker-execution.reject-order", "确认拒绝订单", "reject", preview=False, sequence=230
     ),
     _order_action(
-        "broker-execution.cancel-preview", "请求撤单", "cancel", preview=True, sequence=240
+        "broker-execution.cancel-preview", "预览撤单影响", "cancel", preview=True, sequence=240
     ),
     _order_action(
-        "broker-execution.request-cancel", "请求撤单", "cancel", preview=False, sequence=250
+        "broker-execution.request-cancel", "提交撤单请求", "cancel", preview=False, sequence=250
     ),
     {
         "key": "broker-execution.reconciliation-list",

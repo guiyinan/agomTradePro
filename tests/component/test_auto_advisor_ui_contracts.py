@@ -26,7 +26,7 @@ def test_tui_metadata_injects_auto_advisor_screen_and_action(settings):
 
     assert "command-center.auto-advisor" not in screens
     assert screens["command-center.decision-flow"]["default_action_key"] == (
-        "auto.api.get.api.decision.workspace.aggregated"
+        "decision.workspace.summary"
     )
     assert "advisor.today_sheet" in actions
     assert "advisor.factor_breakdown" in actions
@@ -44,9 +44,7 @@ def test_tui_metadata_injects_risk_center_screen_and_actions(settings):
 
     assert modules["daily-decisions"]["label"] == "每日决策"
     assert "risk-center.overview" not in screens
-    assert screens["macro-regime.strategy"]["default_action_key"] == (
-        "auto.api.get.api.beta-gate.decisions"
-    )
+    assert screens["macro-regime.strategy"]["default_action_key"] == ("beta-gate.decision-list")
     assert actions["risk-center.floor"]["endpoint"] == "/api/risk-center/floor/"
     assert actions["risk-center.effective-policy"]["fields"][0]["key"] == "account_id"
     assert actions["risk-center.pre-trade-check"]["endpoint"] == "/api/risk-center/pre-trade-check/"

@@ -63,7 +63,7 @@ def test_real_tui_sources_have_consistent_published_screen_ownership() -> None:
     assert report.passed, report.as_json()
     assert report.published_screen_count == 12
     assert report.runtime_screen_count == 24
-    assert report.published_action_count == 430
+    assert report.published_action_count == 413
     assert report.runtime_action_count >= report.published_action_count
 
 
@@ -212,8 +212,8 @@ def test_execution_audit_screen_patch_is_not_registered_after_ia_cutover() -> No
     assert [
         panel["action_key"] for panel in audit["dashboard_panels"] if panel.get("action_key")
     ] == [
-        "auto.api.get.api.audit.health",
-        "auto.api.get.api.events.metrics",
+        "audit.health-summary",
+        "events.metric-summary",
         "broker-execution.reconciliation-list",
         "broker-execution.audit-list",
     ]
@@ -1116,9 +1116,9 @@ def test_runtime_action_replacements_keep_published_copy() -> None:
     published = load_json_payload(PUBLISHED_PATH)
     runtime = PublishedTuiMetadataRepository(published_path=PUBLISHED_PATH)._load_published_file()
     action_keys = {
-        "auto.api.get.api.dashboard.allocation",
-        "auto.api.get.api.dashboard.performance",
-        "auto.api.get.api.data-center.providers",
+        "dashboard.asset-allocation",
+        "dashboard.portfolio-performance",
+        "data-center.provider-list",
         "auto.api.get.api.data-center.publishers",
         "regime.current",
         "regime.navigator_history",

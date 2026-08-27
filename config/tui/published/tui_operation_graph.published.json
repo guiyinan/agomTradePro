@@ -280,7 +280,7 @@
           "key": "asset-allocation",
           "title": "资产配置",
           "kind": "chart",
-          "action_key": "auto.api.get.api.dashboard.allocation",
+          "action_key": "dashboard.asset-allocation",
           "user_priority": "p1",
           "presentation_semantic": "supporting_detail",
           "empty_message": "暂无资产配置数据。",
@@ -291,7 +291,7 @@
           "key": "portfolio-performance",
           "title": "组合表现",
           "kind": "chart",
-          "action_key": "auto.api.get.api.dashboard.performance",
+          "action_key": "dashboard.portfolio-performance",
           "user_priority": "p1",
           "presentation_semantic": "supporting_detail",
           "empty_message": "暂无组合表现数据。",
@@ -549,7 +549,7 @@
       "audience": "authenticated",
       "summary": "聚合环境、信号和约束，形成今日建议与执行计划。",
       "view_type": "detail",
-      "default_action_key": "auto.api.get.api.decision.workspace.aggregated",
+      "default_action_key": "decision.workspace.summary",
       "user_experience": {
         "journey": "workspace",
         "primary_task": "形成今日决策建议或执行计划。",
@@ -572,7 +572,7 @@
           "key": "decision-summary",
           "title": "决策摘要",
           "kind": "detail",
-          "action_key": "auto.api.get.api.decision.workspace.aggregated",
+          "action_key": "decision.workspace.summary",
           "user_priority": "p0",
           "presentation_semantic": "primary_status",
           "empty_message": "暂无聚合决策上下文。",
@@ -582,7 +582,7 @@
           "key": "action-recommendation",
           "title": "行动建议",
           "kind": "detail",
-          "action_key": "auto.api.get.api.dashboard.action-recommendation",
+          "action_key": "dashboard.action-recommendation",
           "user_priority": "p0",
           "presentation_semantic": "primary_status",
           "empty_message": "暂无行动建议。",
@@ -709,7 +709,7 @@
       "audience": "authenticated",
       "summary": "检查账户健康、持仓、组合、流水和绩效。",
       "view_type": "datagrid",
-      "default_action_key": "auto.api.get.api.account.health",
+      "default_action_key": "account.health-summary",
       "user_experience": {
         "journey": "workspace",
         "primary_task": "确认账户健康、持仓和组合状态。",
@@ -729,10 +729,19 @@
       },
       "dashboard_panels": [
         {
+          "key": "simulated-account-workspace",
+          "title": "当前账户与操作回执",
+          "kind": "detail",
+          "user_priority": "p1",
+          "presentation_semantic": "supporting_detail",
+          "empty_message": "从账户列表选择查看、巡检通知或删除操作。",
+          "row_actions": []
+        },
+        {
           "key": "account-health",
           "title": "账户健康",
           "kind": "detail",
-          "action_key": "auto.api.get.api.account.health",
+          "action_key": "account.health-summary",
           "user_priority": "p0",
           "presentation_semantic": "primary_status",
           "empty_message": "暂无账户健康结果。",
@@ -742,10 +751,19 @@
           "key": "positions",
           "title": "当前持仓",
           "kind": "datagrid",
-          "action_key": "auto.api.get.api.account.positions.read-only",
+          "action_key": "account.position-list",
           "user_priority": "p0",
           "presentation_semantic": "primary_list",
           "empty_message": "当前账户没有持仓。",
+          "row_actions": []
+        },
+        {
+          "key": "broker-execution-order-workspace",
+          "title": "当前实盘订单与操作回执",
+          "kind": "detail",
+          "user_priority": "p1",
+          "presentation_semantic": "supporting_detail",
+          "empty_message": "从实盘订单列表选择查看、预览或确认操作。",
           "row_actions": []
         }
       ],
@@ -777,7 +795,7 @@
       "audience": "authenticated",
       "summary": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。",
       "view_type": "status",
-      "default_action_key": "auto.api.get.api.beta-gate.decisions",
+      "default_action_key": "beta-gate.decision-list",
       "user_experience": {
         "journey": "workspace",
         "primary_task": "确认市场暴露是否放行以及当前主动风控约束。",
@@ -800,7 +818,7 @@
           "key": "beta-gate",
           "title": "Beta Gate",
           "kind": "detail",
-          "action_key": "auto.api.get.api.beta-gate.decisions",
+          "action_key": "beta-gate.decision-list",
           "user_priority": "p0",
           "presentation_semantic": "primary_status",
           "empty_message": "暂无 Beta Gate 决策。",
@@ -810,10 +828,36 @@
           "key": "active-hedge-alerts",
           "title": "主动风控提醒",
           "kind": "datagrid",
-          "action_key": "auto.api.get.api.hedge.alerts.active",
+          "action_key": "hedge.alert-active",
           "user_priority": "p0",
           "presentation_semantic": "primary_list",
           "empty_message": "当前没有主动风控提醒。",
+          "columns": [
+            {
+              "key": "id",
+              "label": "告警 ID"
+            },
+            {
+              "key": "pair_name",
+              "label": "对冲对"
+            },
+            {
+              "key": "alert_date",
+              "label": "日期"
+            },
+            {
+              "key": "severity",
+              "label": "严重度"
+            },
+            {
+              "key": "message",
+              "label": "告警"
+            },
+            {
+              "key": "action_required",
+              "label": "建议动作"
+            }
+          ],
           "row_actions": []
         }
       ],
@@ -845,7 +889,7 @@
       "audience": "authenticated",
       "summary": "查看审计健康、事件指标、实盘对账与操作记录。",
       "view_type": "status",
-      "default_action_key": "auto.api.get.api.audit.health",
+      "default_action_key": "audit.health-summary",
       "user_experience": {
         "journey": "workspace",
         "primary_task": "检查事件与审计结果并完成今日留痕。",
@@ -868,7 +912,7 @@
           "key": "audit-health",
           "title": "审计健康",
           "kind": "detail",
-          "action_key": "auto.api.get.api.audit.health",
+          "action_key": "audit.health-summary",
           "user_priority": "p0",
           "presentation_semantic": "primary_status",
           "empty_message": "暂无审计健康结果。",
@@ -878,10 +922,19 @@
           "key": "event-metrics",
           "title": "事件指标",
           "kind": "detail",
-          "action_key": "auto.api.get.api.events.metrics",
+          "action_key": "events.metric-summary",
           "user_priority": "p0",
           "presentation_semantic": "primary_status",
           "empty_message": "暂无事件指标。",
+          "row_actions": []
+        },
+        {
+          "key": "broker-execution-reconciliation-workspace",
+          "title": "当前对账批次与操作回执",
+          "kind": "detail",
+          "user_priority": "p1",
+          "presentation_semantic": "supporting_detail",
+          "empty_message": "从对账差异列表选择预览或确认处置。",
           "row_actions": []
         }
       ],
@@ -910,7 +963,7 @@
       "audience": "authenticated",
       "summary": "研究资产、因子、回测、基金和板块。",
       "view_type": "datagrid",
-      "default_action_key": "auto.api.get.api.asset-analysis.pool-summary",
+      "default_action_key": "asset-analysis.pool-summary",
       "user_experience": {
         "journey": "workspace",
         "primary_task": "从资产池、因子和回测证据完成资产研究。",
@@ -933,7 +986,7 @@
           "key": "asset-pool",
           "title": "资产池",
           "kind": "detail",
-          "action_key": "auto.api.get.api.asset-analysis.pool-summary",
+          "action_key": "asset-analysis.pool-summary",
           "user_priority": "p0",
           "presentation_semantic": "primary_status",
           "empty_message": "资产池暂无数据。",
@@ -990,6 +1043,41 @@
           "user_priority": "p1",
           "presentation_semantic": "primary_list",
           "empty_message": "当前没有待人工处理任务。",
+          "columns": [
+            {
+              "key": "id",
+              "label": "任务 ID"
+            },
+            {
+              "key": "request_id",
+              "label": "请求编号"
+            },
+            {
+              "key": "task_domain",
+              "label": "任务域"
+            },
+            {
+              "key": "task_type",
+              "label": "任务类型"
+            },
+            {
+              "key": "status",
+              "label": "状态"
+            },
+            {
+              "key": "current_step",
+              "label": "当前步骤"
+            }
+          ],
+          "row_actions": []
+        },
+        {
+          "key": "agent-operator-workspace",
+          "title": "当前智能任务与操作回执",
+          "kind": "detail",
+          "user_priority": "p2",
+          "presentation_semantic": "supporting_detail",
+          "empty_message": "从任务或提案列表选择查看、审批或执行操作。",
           "row_actions": []
         }
       ],
@@ -1006,7 +1094,7 @@
       "audience": "authenticated",
       "summary": "管理个人 AI 服务商并查看能力、模型、提示词和日志。",
       "view_type": "datagrid",
-      "default_action_key": "auto.api.get.api.ai.me.providers",
+      "default_action_key": "ai-ops.list-my-providers",
       "user_experience": {
         "journey": "self_service",
         "primary_task": "确认个人 AI 服务可用并完成自助配置。",
@@ -1029,7 +1117,7 @@
           "key": "my-providers",
           "title": "我的服务商",
           "kind": "datagrid",
-          "action_key": "auto.api.get.api.ai.me.providers",
+          "action_key": "ai-ops.list-my-providers",
           "user_priority": "p0",
           "presentation_semantic": "primary_list",
           "empty_message": "尚未配置个人 AI 服务商。",
@@ -1065,7 +1153,7 @@
           "key": "my-ai-logs",
           "title": "我的 AI 日志",
           "kind": "datagrid",
-          "action_key": "auto.api.get.api.ai.me.logs",
+          "action_key": "ai-ops.my-ai-logs",
           "user_priority": "p0",
           "presentation_semantic": "primary_list",
           "empty_message": "暂无个人 AI 调用日志。",
@@ -1086,7 +1174,7 @@
       "summary": "管理数据中心、服务商连接、任务、运行状态和全局配置。",
       "view_type": "status",
       "dashboard_layout": "task_flow",
-      "default_action_key": "auto.api.get.api.health",
+      "default_action_key": "system.health-summary",
       "user_experience": {
         "journey": "admin",
         "primary_task": "确认系统、服务商连接和数据链路是否满足投研运行条件。",
@@ -1111,7 +1199,7 @@
           "key": "system-health",
           "title": "系统健康",
           "kind": "detail",
-          "action_key": "auto.api.get.api.health",
+          "action_key": "system.health-summary",
           "user_priority": "p0",
           "presentation_semantic": "primary_status",
           "empty_message": "暂无系统健康结果。",
@@ -1121,7 +1209,7 @@
           "key": "data-center-status",
           "title": "数据中心状态",
           "kind": "detail",
-          "action_key": "auto.api.get.api.data-center",
+          "action_key": "data-center.status-summary",
           "user_priority": "p0",
           "presentation_semantic": "primary_status",
           "empty_message": "暂无数据中心状态。",
@@ -1131,7 +1219,7 @@
           "key": "data-center-providers",
           "title": "服务商与连接方式",
           "kind": "datagrid",
-          "action_key": "auto.api.get.api.data-center.providers",
+          "action_key": "data-center.provider-list",
           "user_priority": "p1",
           "presentation_semantic": "supporting_list",
           "empty_message": "当前还没有服务商连接，可使用“新增 Tushare 连接”开始配置。",
@@ -1187,7 +1275,7 @@
       "intent": "check_provider_health",
       "screen_key": "command-center.overview",
       "view_type": "status",
-      "description": "查看今日待办、环境、账户、信号和运行阻断。（查看）",
+      "description": "查看“Alpha 来源状态”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 决策状态",
       "sequence": 100,
@@ -1202,7 +1290,7 @@
       "intent": "hydrate_decision_context",
       "screen_key": "command-center.overview",
       "view_type": "detail",
-      "description": "查看今日待办、环境、账户、信号和运行阻断。（查看）",
+      "description": "查看“今日决策上下文”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 决策状态",
       "sequence": 100
@@ -1231,7 +1319,7 @@
         "rows_path": "items",
         "total_path": "total"
       },
-      "description": "查看今日待办、环境、账户、信号和运行阻断。（查看）",
+      "description": "查看“今日待办”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -1258,7 +1346,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "与 AI 助手交互并处理智能任务。（交互）",
+      "description": "通过“发送 AI 请求”完成 AI 交互；提交前需确认。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -1285,7 +1373,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "与 AI 助手交互并处理智能任务。（交互）",
+      "description": "通过“流式 AI 请求”完成 AI 交互；提交前需确认。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -1298,7 +1386,7 @@
       "intent": "read_macro_state",
       "screen_key": "macro-regime.overview",
       "view_type": "status",
-      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
+      "description": "查看“当前宏观象限”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 环境状态",
       "sequence": 100
@@ -1310,7 +1398,7 @@
       "intent": "read_policy_state",
       "screen_key": "macro-regime.overview",
       "view_type": "detail",
-      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
+      "description": "查看“政策状态摘要”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 政策状态",
       "sequence": 200
@@ -1322,7 +1410,7 @@
       "intent": "read_policy_queue_status",
       "screen_key": "policy.workbench",
       "view_type": "detail",
-      "description": "确认政策档位、待审事件和市场热点。（查看）",
+      "description": "查看“政策队列摘要”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 政策队列",
       "sequence": 100
@@ -1334,7 +1422,7 @@
       "intent": "read_market_temperature",
       "screen_key": "macro-regime.overview",
       "view_type": "status",
-      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
+      "description": "查看“市场温度”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 市场温度",
       "sequence": 300
@@ -1424,7 +1512,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "description": "查看“AI 能力清单”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 能力清单",
       "sequence": 100
@@ -1436,7 +1524,7 @@
       "intent": "read_dashboard_summary",
       "screen_key": "command-center.overview",
       "view_type": "detail",
-      "description": "查看今日待办、环境、账户、信号和运行阻断。（查看）",
+      "description": "查看“组合概览”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 总览",
       "sequence": 100
@@ -1448,7 +1536,7 @@
       "intent": "read_dashboard_regime_quadrant",
       "screen_key": "command-center.overview",
       "view_type": "status",
-      "description": "查看今日待办、环境、账户、信号和运行阻断。（查看）",
+      "description": "查看“市场象限分布”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 组合态势",
       "sequence": 200,
@@ -1461,7 +1549,7 @@
       "intent": "read_dashboard_equity_curve",
       "screen_key": "command-center.overview",
       "view_type": "datagrid",
-      "description": "查看今日待办、环境、账户、信号和运行阻断。（查看）",
+      "description": "查看“净值曲线”的当前结果。",
       "source": "approved:smoke-promoted",
       "view_model": {
         "rows_path": "series"
@@ -1477,7 +1565,7 @@
       "intent": "read_dashboard_signal_status",
       "screen_key": "command-center.overview",
       "view_type": "datagrid",
-      "description": "查看今日待办、环境、账户、信号和运行阻断。（查看）",
+      "description": "查看“信号状态”的当前结果。",
       "source": "approved:smoke-promoted",
       "view_model": {
         "rows_path": "signals"
@@ -1493,7 +1581,7 @@
       "intent": "read_regime_navigator",
       "screen_key": "macro-regime.overview",
       "view_type": "detail",
-      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
+      "description": "查看“环境导航仪”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 环境导航",
       "sequence": 100
@@ -1505,7 +1593,7 @@
       "intent": "read_regime_transition_history",
       "screen_key": "macro-regime.overview",
       "view_type": "datagrid",
-      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
+      "description": "查看“环境切换历史”的当前结果。",
       "source": "approved:smoke-promoted",
       "view_model": {
         "rows_path": "data.regime_transitions"
@@ -1521,7 +1609,7 @@
       "intent": "read_current_pulse",
       "screen_key": "macro-regime.overview",
       "view_type": "status",
-      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
+      "description": "查看“当前脉搏”的当前结果。",
       "source": "approved:smoke-promoted",
       "view_model": {
         "kind": "datagrid",
@@ -1559,7 +1647,7 @@
       "intent": "read_pulse_history",
       "screen_key": "macro-regime.overview",
       "view_type": "chart",
-      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
+      "description": "查看“脉搏历史”的当前结果。",
       "source": "approved:smoke-promoted",
       "view_model": {
         "rows_path": "data",
@@ -1595,7 +1683,7 @@
       "intent": "browse_policy_queue_items",
       "screen_key": "policy.workbench",
       "view_type": "datagrid",
-      "description": "确认政策档位、待审事件和市场热点。（查看）",
+      "description": "查看“待看事件”的当前结果。",
       "source": "approved:smoke-promoted",
       "fields": [
         {
@@ -1640,7 +1728,7 @@
       "intent": "browse_alpha_scores",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“Alpha 排名”的当前结果。",
       "source": "approved:smoke-promoted",
       "view_model": {
         "rows_path": "stocks"
@@ -1655,7 +1743,7 @@
       "intent": "read_alpha_provider_state",
       "screen_key": "research.signals",
       "view_type": "status",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“Alpha 来源”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 来源状态",
       "sequence": 200,
@@ -1670,7 +1758,7 @@
       "intent": "read_alpha_health",
       "screen_key": "research.signals",
       "view_type": "status",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“Alpha 健康”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 Alpha 健康",
       "sequence": 300,
@@ -1683,7 +1771,7 @@
       "intent": "browse_active_signals",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“有效信号”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 有效信号",
       "sequence": 100,
@@ -1873,7 +1961,7 @@
       "intent": "read_signal_stats",
       "screen_key": "research.signals",
       "view_type": "status",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“信号统计”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 信号统计",
       "sequence": 200,
@@ -2064,7 +2152,7 @@
       "intent": "read_unified_signal_summary",
       "screen_key": "research.signals",
       "view_type": "detail",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“统一信号摘要”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 统一信号",
       "sequence": 300
@@ -2076,7 +2164,7 @@
       "intent": "browse_factor_definitions",
       "screen_key": "research.asset-lab",
       "view_type": "datagrid",
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "查看“因子定义”的当前结果。",
       "source": "approved:smoke-promoted",
       "view_model": {
         "rows_path": "results",
@@ -2265,12 +2353,12 @@
     },
     {
       "key": "backtest.statistics",
-      "label": "回测统计",
+      "label": "回测总体统计",
       "endpoint": "/api/backtest/statistics/",
       "intent": "read_backtest_statistics",
       "screen_key": "research.asset-lab",
       "view_type": "status",
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "查看“回测总体统计”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 回测统计",
       "sequence": 100
@@ -2282,7 +2370,7 @@
       "intent": "browse_backtest_records",
       "screen_key": "research.asset-lab",
       "view_type": "datagrid",
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "查看“回测列表”的当前结果。",
       "source": "approved:smoke-promoted",
       "view_model": {
         "rows_path": "backtests",
@@ -2292,31 +2380,13 @@
       "sequence": 200
     },
     {
-      "key": "audit.operation_logs",
-      "label": "操作日志",
-      "endpoint": "/api/audit/operation-logs/",
-      "intent": "browse_audit_operation_logs",
-      "screen_key": "execution.audit",
-      "view_type": "datagrid",
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
-      "source": "approved:smoke-promoted",
-      "view_model": {
-        "rows_path": "logs",
-        "total_path": "total_count",
-        "page_path": "page",
-        "page_size_path": "page_size"
-      },
-      "task_group": "01 操作日志",
-      "sequence": 100
-    },
-    {
       "key": "audit.decision_traces",
       "label": "决策痕迹",
       "endpoint": "/api/audit/decision-traces/",
       "intent": "browse_audit_decision_traces",
       "screen_key": "execution.audit",
       "view_type": "datagrid",
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "查看“决策痕迹”的当前结果。",
       "source": "approved:smoke-promoted",
       "view_model": {
         "rows_path": "traces",
@@ -2334,7 +2404,7 @@
       "intent": "read_task_monitor_dashboard",
       "screen_key": "api-library.data-center",
       "view_type": "status",
-      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
+      "description": "查看“任务监控”的当前结果。",
       "source": "approved:smoke-promoted",
       "view_model": {
         "kind": "detail"
@@ -2349,7 +2419,7 @@
       "intent": "read_ai_capability_stats",
       "screen_key": "ai-ops.providers",
       "view_type": "status",
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "description": "查看“AI 能力统计”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 能力统计",
       "sequence": 300,
@@ -2375,7 +2445,7 @@
       "intent": "browse_agent_tasks_needing_attention",
       "screen_key": "ai-ops.terminal",
       "view_type": "datagrid",
-      "description": "与 AI 助手交互并处理智能任务。（查看）",
+      "description": "查看“需处理任务”的当前结果。",
       "source": "approved:smoke-promoted",
       "view_model": {
         "rows_path": "tasks",
@@ -2391,21 +2461,21 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "api-library.data-center",
       "view_type": "status",
-      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
+      "description": "查看“初始化密码强度”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 初始化",
       "sequence": 300,
       "task_tier": "support"
     },
     {
-      "key": "auto.api.get.api.health",
+      "key": "system.health-summary",
       "label": "系统健康",
       "endpoint": "/api/health/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "api-library.data-center",
       "view_type": "status",
-      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
-      "source": "approved:smoke-promoted",
+      "description": "查看“系统健康”的当前结果。",
+      "source": "approved:semantic-alias",
       "task_group": "01 健康检查",
       "sequence": 100
     },
@@ -2416,10 +2486,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "api-library.data-center",
       "view_type": "status",
-      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
+      "description": "查看“系统就绪检查”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 健康检查",
-      "sequence": 100
+      "sequence": 100,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.decision.context.step1",
@@ -2428,10 +2499,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "command-center.decision-flow",
       "view_type": "detail",
-      "description": "聚合环境、信号和约束，形成今日建议与执行计划。（查看）",
+      "description": "查看“第一步：环境状态”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 决策步骤",
-      "sequence": 100
+      "sequence": 100,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.decision.context.step2",
@@ -2440,10 +2512,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "command-center.decision-flow",
       "view_type": "detail",
-      "description": "聚合环境、信号和约束，形成今日建议与执行计划。（查看）",
+      "description": "查看“第二步：信号检查”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 决策步骤",
-      "sequence": 100
+      "sequence": 100,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.decision.context.step3",
@@ -2452,10 +2525,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "command-center.decision-flow",
       "view_type": "detail",
-      "description": "聚合环境、信号和约束，形成今日建议与执行计划。（查看）",
+      "description": "查看“第三步：风险约束”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 决策步骤",
-      "sequence": 100
+      "sequence": 100,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.decision.context.step4",
@@ -2464,10 +2538,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "command-center.decision-flow",
       "view_type": "detail",
-      "description": "聚合环境、信号和约束，形成今日建议与执行计划。（查看）",
+      "description": "查看“第四步：候选确认”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 决策步骤",
-      "sequence": 100
+      "sequence": 100,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.decision.context.step5",
@@ -2476,10 +2551,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "command-center.decision-flow",
       "view_type": "detail",
-      "description": "聚合环境、信号和约束，形成今日建议与执行计划。（查看）",
+      "description": "查看“第五步：执行准备”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 决策步骤",
-      "sequence": 100
+      "sequence": 100,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.decision.context.step6",
@@ -2488,10 +2564,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "command-center.decision-flow",
       "view_type": "detail",
-      "description": "聚合环境、信号和约束，形成今日建议与执行计划。（查看）",
+      "description": "查看“第六步：复盘记录”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 决策步骤",
-      "sequence": 100
+      "sequence": 100,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.decision.audit",
@@ -2500,7 +2577,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "command-center.decision-flow",
       "view_type": "detail",
-      "description": "聚合环境、信号和约束，形成今日建议与执行计划。（查看）",
+      "description": "查看“决策审计”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -2513,7 +2590,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "command-center.decision-flow",
       "view_type": "detail",
-      "description": "聚合环境、信号和约束，形成今日建议与执行计划。（查看）",
+      "description": "查看“决策”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -2526,7 +2603,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "datagrid",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“决策节奏配额”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 决策节奏",
       "sequence": 100,
@@ -2539,7 +2616,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "datagrid",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“冷却期”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 决策节奏",
       "sequence": 100,
@@ -2552,7 +2629,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "datagrid",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“节奏请求”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 决策节奏",
       "sequence": 100,
@@ -2565,7 +2642,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "status",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“节奏统计”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 决策节奏",
       "sequence": 100,
@@ -2578,7 +2655,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "status",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“决策节奏”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 决策节奏",
       "sequence": 100,
@@ -2591,7 +2668,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "status",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“决策节奏概览”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 决策节奏",
       "sequence": 100,
@@ -2604,21 +2681,21 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "status",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“节奏趋势”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 决策节奏",
       "sequence": 100,
       "task_tier": "support"
     },
     {
-      "key": "auto.api.get.api.decision.workspace.aggregated",
+      "key": "decision.workspace.summary",
       "label": "决策工作台汇总",
       "endpoint": "/api/decision/workspace/aggregated/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "command-center.decision-flow",
       "view_type": "datagrid",
-      "description": "聚合环境、信号和约束，形成今日建议与执行计划。（查看）",
-      "source": "approved:smoke-promoted",
+      "description": "查看“决策工作台汇总”的当前结果。",
+      "source": "approved:semantic-alias",
       "task_group": "02 决策工作台",
       "sequence": 200
     },
@@ -2629,7 +2706,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "command-center.decision-flow",
       "view_type": "detail",
-      "description": "聚合环境、信号和约束，形成今日建议与执行计划。（查看）",
+      "description": "查看“决策参数”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 决策工作台",
       "sequence": 200,
@@ -2655,7 +2732,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“Alpha”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 Alpha 候选",
       "sequence": 200,
@@ -2668,7 +2745,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“Alpha 标的池”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 Alpha 候选",
       "sequence": 200,
@@ -2681,7 +2758,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“Alpha 推理概览”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "05 Alpha 运维",
       "sequence": 500,
@@ -2694,7 +2771,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“Qlib 数据概览”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "05 Alpha 运维",
       "sequence": 500,
@@ -2707,20 +2784,21 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.accounts",
       "view_type": "datagrid",
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "查看“账户资料”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 账户状态",
-      "sequence": 100
+      "sequence": 100,
+      "task_tier": "support"
     },
     {
-      "key": "auto.api.get.api.account.health",
+      "key": "account.health-summary",
       "label": "账户健康",
       "endpoint": "/api/account/health/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.accounts",
       "view_type": "datagrid",
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
-      "source": "approved:smoke-promoted",
+      "description": "查看“账户健康”的当前结果。",
+      "source": "approved:semantic-alias",
       "task_group": "01 账户状态",
       "sequence": 100
     },
@@ -2731,10 +2809,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.accounts",
       "view_type": "datagrid",
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "查看“宏观仓位参数”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "05 仓位约束",
-      "sequence": 500
+      "sequence": 500,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.account.users.search",
@@ -2743,7 +2822,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.accounts",
       "view_type": "datagrid",
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "查看“用户检索”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -2756,10 +2835,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.accounts",
       "view_type": "datagrid",
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "查看“账户列表”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 账户组合",
-      "sequence": 200
+      "sequence": 200,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.account.portfolios",
@@ -2768,10 +2848,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.accounts",
       "view_type": "datagrid",
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "查看“组合列表”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 账户组合",
-      "sequence": 200
+      "sequence": 200,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.account.transactions",
@@ -2780,10 +2861,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.accounts",
       "view_type": "datagrid",
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "查看“交易流水”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 持仓交易",
-      "sequence": 300
+      "sequence": 300,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.account.capital-flows",
@@ -2792,10 +2874,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.accounts",
       "view_type": "datagrid",
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "查看“资金流水”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 持仓交易",
-      "sequence": 300
+      "sequence": 300,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.account.assets",
@@ -2804,7 +2887,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.accounts",
       "view_type": "datagrid",
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "查看“资产清单”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "04 资产参数",
       "sequence": 400,
@@ -2951,7 +3034,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.accounts",
       "view_type": "datagrid",
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "查看“观察者授权”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "05 仓位约束",
       "sequence": 500,
@@ -2964,10 +3047,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.accounts",
       "view_type": "datagrid",
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "查看“交易成本配置”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "05 仓位约束",
-      "sequence": 500
+      "sequence": 500,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.account",
@@ -2976,7 +3060,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.accounts",
       "view_type": "datagrid",
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "查看“账户”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -2989,7 +3073,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.accounts",
       "view_type": "datagrid",
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "查看“仓位测算上下文”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "05 仓位约束",
       "sequence": 500,
@@ -3002,7 +3086,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.accounts",
       "view_type": "datagrid",
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "查看“账户分类”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "04 资产参数",
       "sequence": 400,
@@ -3171,7 +3255,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.accounts",
       "view_type": "datagrid",
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "查看“根分类”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "04 资产参数",
       "sequence": 400,
@@ -3340,7 +3424,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.accounts",
       "view_type": "datagrid",
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "查看“分类树”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "04 资产参数",
       "sequence": 400,
@@ -3509,7 +3593,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.accounts",
       "view_type": "datagrid",
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "查看“币种列表”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "04 资产参数",
       "sequence": 400,
@@ -3623,7 +3707,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.accounts",
       "view_type": "datagrid",
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "查看“汇率表”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "04 资产参数",
       "sequence": 400,
@@ -3636,7 +3720,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.accounts",
       "view_type": "datagrid",
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "查看“模拟交易状态”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "06 模拟交易",
       "sequence": 600,
@@ -3649,7 +3733,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.accounts",
       "view_type": "datagrid",
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "查看“模拟账户”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "06 模拟交易",
       "sequence": 600,
@@ -3662,7 +3746,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.accounts",
       "view_type": "datagrid",
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "查看“模拟交易费用”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "06 模拟交易",
       "sequence": 600,
@@ -3675,7 +3759,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "datagrid",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“策略”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -3688,7 +3772,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "datagrid",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“策略清单”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 策略清单",
       "sequence": 100,
@@ -3825,7 +3909,8 @@
           "placeholder": "输入Updated At",
           "presentation_semantic": "identifier"
         }
-      ]
+      ],
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.strategy.strategies.my_strategies",
@@ -3834,7 +3919,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "datagrid",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“我的策略”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 策略清单",
       "sequence": 100,
@@ -3981,7 +4066,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "datagrid",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“仓位规则”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 仓位规则",
       "sequence": 200,
@@ -4184,7 +4269,8 @@
           "placeholder": "输入Updated At",
           "presentation_semantic": "identifier"
         }
-      ]
+      ],
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.strategy.rules",
@@ -4193,7 +4279,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "datagrid",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“策略规则”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 仓位规则",
       "sequence": 200,
@@ -4340,7 +4426,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "datagrid",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“策略脚本配置”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -4476,7 +4562,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "datagrid",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“策略 AI 配置”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -4612,7 +4698,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "datagrid",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“策略绑定”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 策略绑定",
       "sequence": 300,
@@ -4760,7 +4846,8 @@
           "placeholder": "输入Updated At",
           "presentation_semantic": "identifier"
         }
-      ]
+      ],
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.strategy.execution-logs",
@@ -4769,7 +4856,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "datagrid",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“策略执行记录”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "04 执行记录",
       "sequence": 400,
@@ -4782,7 +4869,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.overview",
       "view_type": "status",
-      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
+      "description": "查看“环境导航”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 环境状态",
       "sequence": 100,
@@ -4795,10 +4882,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.overview",
       "view_type": "status",
-      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
+      "description": "查看“环境引擎健康”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 环境状态",
-      "sequence": 100
+      "sequence": 100,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.pulse",
@@ -4807,7 +4895,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.overview",
       "view_type": "status",
-      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
+      "description": "查看“当前战术脉搏”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 战术脉搏",
       "sequence": 200,
@@ -4820,10 +4908,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "policy.workbench",
       "view_type": "datagrid",
-      "description": "确认政策档位、待审事件和市场热点。（查看）",
+      "description": "查看“政策状态”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 政策状态",
-      "sequence": 200
+      "sequence": 200,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.policy.audit.queue",
@@ -4832,10 +4921,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "policy.workbench",
       "view_type": "datagrid",
-      "description": "确认政策档位、待审事件和市场热点。（查看）",
+      "description": "查看“政策审核队列”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 政策审核",
-      "sequence": 300
+      "sequence": 300,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.policy.ingestion-config",
@@ -4844,7 +4934,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "policy.workbench",
       "view_type": "datagrid",
-      "description": "确认政策档位、待审事件和市场热点。（查看）",
+      "description": "查看“政策采集配置”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 政策状态",
       "sequence": 200,
@@ -4857,7 +4947,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "policy.workbench",
       "view_type": "datagrid",
-      "description": "确认政策档位、待审事件和市场热点。（查看）",
+      "description": "查看“政策情绪闸门”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 政策状态",
       "sequence": 200,
@@ -4870,7 +4960,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "policy.workbench",
       "view_type": "datagrid",
-      "description": "确认政策档位、待审事件和市场热点。（查看）",
+      "description": "查看“RSS 来源”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "04 RSS 采集",
       "sequence": 400,
@@ -5215,7 +5305,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "policy.workbench",
       "view_type": "datagrid",
-      "description": "确认政策档位、待审事件和市场热点。（查看）",
+      "description": "查看“RSS 日志”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "04 RSS 采集",
       "sequence": 400,
@@ -5340,7 +5430,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "policy.workbench",
       "view_type": "datagrid",
-      "description": "确认政策档位、待审事件和市场热点。（查看）",
+      "description": "查看“RSS 关键词”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "04 RSS 采集",
       "sequence": 400,
@@ -5454,7 +5544,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "policy.workbench",
       "view_type": "datagrid",
-      "description": "确认政策档位、待审事件和市场热点。（查看）",
+      "description": "查看“政策总览”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 政策状态",
       "sequence": 200,
@@ -5467,7 +5557,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“信号健康”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 信号检查",
       "sequence": 100,
@@ -5480,7 +5570,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“信号”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 信号检查",
       "sequence": 100,
@@ -5493,7 +5583,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“待处理统一信号”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 信号检查",
       "sequence": 100,
@@ -5506,7 +5596,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“筛选”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 筛选器",
       "sequence": 100,
@@ -5519,10 +5609,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“筛选指标”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 筛选器",
-      "sequence": 100
+      "sequence": 100,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.filter.health",
@@ -5531,10 +5622,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“筛选健康”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 筛选器",
-      "sequence": 100
+      "sequence": 100,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.backtest",
@@ -5543,7 +5635,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.asset-lab",
       "view_type": "datagrid",
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "查看“回测”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 回测记录",
       "sequence": 300,
@@ -5551,12 +5643,12 @@
     },
     {
       "key": "auto.api.get.api.backtest.backtests.statistics",
-      "label": "回测统计",
+      "label": "回测记录统计",
       "endpoint": "/api/backtest/backtests/statistics/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.asset-lab",
       "view_type": "datagrid",
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "查看“回测记录统计”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 回测记录",
       "sequence": 300,
@@ -5569,7 +5661,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.audit",
       "view_type": "datagrid",
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "查看“复盘审计总览”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 审计记录",
       "sequence": 100,
@@ -5582,21 +5674,21 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.audit",
       "view_type": "datagrid",
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "查看“执行关联”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 审计记录",
       "sequence": 100,
       "task_tier": "support"
     },
     {
-      "key": "auto.api.get.api.audit.health",
+      "key": "audit.health-summary",
       "label": "审计健康",
       "endpoint": "/api/audit/health/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.audit",
       "view_type": "datagrid",
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
-      "source": "approved:smoke-promoted",
+      "description": "查看“审计健康”的当前结果。",
+      "source": "approved:semantic-alias",
       "task_group": "01 审计记录",
       "sequence": 100
     },
@@ -5607,7 +5699,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.audit",
       "view_type": "datagrid",
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "查看“失败计数”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 审计记录",
       "sequence": 100,
@@ -5620,7 +5712,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.audit",
       "view_type": "datagrid",
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "查看“审计指标”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 审计记录",
       "sequence": 100,
@@ -5633,7 +5725,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.asset-lab",
       "view_type": "datagrid",
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "查看“股票研究入口”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 资产池",
       "sequence": 200,
@@ -5646,7 +5738,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.asset-lab",
       "view_type": "datagrid",
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "查看“基金”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 基金板块",
       "sequence": 300,
@@ -5659,7 +5751,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.asset-lab",
       "view_type": "datagrid",
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "查看“基金排行”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 基金板块",
       "sequence": 300,
@@ -5686,7 +5778,8 @@
           "placeholder": "输入Max Count",
           "presentation_semantic": "identifier"
         }
-      ]
+      ],
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.asset-analysis",
@@ -5695,7 +5788,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.asset-lab",
       "view_type": "datagrid",
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "查看“资产分析入口”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 资产池",
       "sequence": 200,
@@ -5708,7 +5801,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.asset-lab",
       "view_type": "datagrid",
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "查看“资产权重配置”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 资产池",
       "sequence": 200,
@@ -5721,21 +5814,21 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.asset-lab",
       "view_type": "datagrid",
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "查看“当前资产权重”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 资产池",
       "sequence": 200,
       "task_tier": "support"
     },
     {
-      "key": "auto.api.get.api.asset-analysis.pool-summary",
+      "key": "asset-analysis.pool-summary",
       "label": "资产池概览",
       "endpoint": "/api/asset-analysis/pool-summary/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.asset-lab",
       "view_type": "datagrid",
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
-      "source": "approved:smoke-promoted",
+      "description": "查看“资产池概览”的当前结果。",
+      "source": "approved:semantic-alias",
       "task_group": "02 资产池",
       "sequence": 200
     },
@@ -5746,10 +5839,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.asset-lab",
       "view_type": "datagrid",
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "查看“板块”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 基金板块",
-      "sequence": 300
+      "sequence": 300,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.ai",
@@ -5758,21 +5852,21 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.providers",
       "view_type": "datagrid",
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "description": "查看“AI 总览”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
       "task_tier": "support"
     },
     {
-      "key": "auto.api.get.api.ai.me.providers",
+      "key": "ai-ops.list-my-providers",
       "label": "我的 AI 服务商",
       "endpoint": "/api/ai/me/providers/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.providers",
       "view_type": "datagrid",
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
-      "source": "approved:smoke-promoted",
+      "description": "查看“我的 AI 服务商”的当前结果。",
+      "source": "approved:semantic-alias",
       "task_group": "01 服务商",
       "sequence": 100,
       "fields": [
@@ -6065,14 +6159,14 @@
       ]
     },
     {
-      "key": "auto.api.get.api.ai.me.logs",
+      "key": "ai-ops.my-ai-logs",
       "label": "我的 AI 日志",
       "endpoint": "/api/ai/me/logs/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.providers",
       "view_type": "datagrid",
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
-      "source": "approved:smoke-promoted",
+      "description": "查看“我的 AI 日志”的当前结果。",
+      "source": "approved:semantic-alias",
       "task_group": "01 服务商",
       "sequence": 100,
       "fields": [
@@ -6272,7 +6366,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.providers",
       "view_type": "datagrid",
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "description": "查看“提示词总览”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 模板",
       "sequence": 200,
@@ -6288,7 +6382,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.providers",
       "view_type": "datagrid",
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "description": "查看“提示词模板”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 模板",
       "sequence": 200,
@@ -6450,7 +6544,8 @@
           "placeholder": "输入Last Used At",
           "presentation_semantic": "identifier"
         }
-      ]
+      ],
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.prompt.templates.categories",
@@ -6459,7 +6554,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.providers",
       "view_type": "datagrid",
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "description": "查看“提示词分类”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 模板",
       "sequence": 200,
@@ -6631,7 +6726,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.providers",
       "view_type": "datagrid",
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "description": "查看“提示词链路”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 链路",
       "sequence": 300,
@@ -6759,7 +6854,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.providers",
       "view_type": "datagrid",
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "description": "查看“链路执行模式”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 链路",
       "sequence": 300,
@@ -6887,7 +6982,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.providers",
       "view_type": "datagrid",
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "description": "查看“提示词 日志”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "04 日志",
       "sequence": 400,
@@ -7136,7 +7231,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.providers",
       "view_type": "datagrid",
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "description": "查看“近期提示词日志”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "04 日志",
       "sequence": 400,
@@ -7385,13 +7480,14 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.providers",
       "view_type": "datagrid",
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "description": "查看“对话服务商”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "05 模型",
       "sequence": 500,
       "result_semantics": [
         "multiline_prompt"
-      ]
+      ],
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.prompt.chat.models",
@@ -7400,13 +7496,14 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.providers",
       "view_type": "datagrid",
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "description": "查看“对话模型”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "05 模型",
       "sequence": 500,
       "result_semantics": [
         "multiline_prompt"
-      ]
+      ],
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.realtime",
@@ -7415,10 +7512,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.audit",
       "view_type": "datagrid",
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "查看“实时状态”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 实时状态",
-      "sequence": 300
+      "sequence": 300,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.factor",
@@ -7427,7 +7525,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.asset-lab",
       "view_type": "datagrid",
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "查看“因子”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 因子库",
       "sequence": 200,
@@ -7440,7 +7538,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.asset-lab",
       "view_type": "datagrid",
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "查看“当前启用因子”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 因子库",
       "sequence": 200,
@@ -7631,7 +7729,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.asset-lab",
       "view_type": "datagrid",
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "查看“因子配置”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 因子库",
       "sequence": 200,
@@ -7855,7 +7953,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.asset-lab",
       "view_type": "datagrid",
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "查看“全部因子配置”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 因子库",
       "sequence": 200,
@@ -7868,7 +7966,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.asset-lab",
       "view_type": "datagrid",
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "查看“全部因子”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 因子库",
       "sequence": 200,
@@ -7881,7 +7979,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.asset-lab",
       "view_type": "datagrid",
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "查看“因子健康”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 因子库",
       "sequence": 200,
@@ -7894,7 +7992,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "datagrid",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“轮动”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -7907,7 +8005,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "datagrid",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“轮动资产”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 轮动资产",
       "sequence": 100,
@@ -8022,7 +8120,8 @@
           "placeholder": "输入Updated At",
           "presentation_semantic": "identifier"
         }
-      ]
+      ],
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.rotation.assets.with_prices",
@@ -8031,7 +8130,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "datagrid",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“带价格轮动资产”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 轮动资产",
       "sequence": 100,
@@ -8156,7 +8255,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "datagrid",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“轮动资产类别”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 轮动资产",
       "sequence": 100,
@@ -8281,7 +8380,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "datagrid",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“带价格资产类别”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 轮动资产",
       "sequence": 100,
@@ -8406,7 +8505,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "datagrid",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“轮动配置”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "04 配置模板",
       "sequence": 400,
@@ -8608,7 +8707,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "datagrid",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“轮动 信号”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 轮动信号",
       "sequence": 200,
@@ -8832,7 +8931,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "datagrid",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“最新轮动信号”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 轮动信号",
       "sequence": 200,
@@ -9046,7 +9145,8 @@
           "placeholder": "输入Blocked Reason",
           "presentation_semantic": "identifier"
         }
-      ]
+      ],
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.rotation.templates",
@@ -9055,7 +9155,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "datagrid",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“轮动模板”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "04 配置模板",
       "sequence": 400,
@@ -9147,7 +9247,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "datagrid",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“账户轮动配置”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "04 配置模板",
       "sequence": 400,
@@ -9283,10 +9383,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "datagrid",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“轮动配置建议”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 配置建议",
-      "sequence": 300
+      "sequence": 300,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.rotation.health",
@@ -9295,7 +9396,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "datagrid",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“轮动健康”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -9308,7 +9409,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "datagrid",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“轮动环境”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -9321,10 +9422,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "status",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“Beta Gate 状态”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 Beta Gate",
-      "sequence": 200
+      "sequence": 200,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.beta-gate.configs",
@@ -9337,14 +9439,14 @@
         "rows_path": "results",
         "total_path": "count"
       },
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“Beta Gate 配置”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 Beta Gate",
       "sequence": 200,
       "task_tier": "support"
     },
     {
-      "key": "auto.api.get.api.beta-gate.decisions",
+      "key": "beta-gate.decision-list",
       "label": "Beta Gate 决策",
       "endpoint": "/api/beta-gate/decisions/",
       "intent": "auto_safe_read_candidate",
@@ -9354,8 +9456,8 @@
         "rows_path": "results",
         "total_path": "count"
       },
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
-      "source": "approved:smoke-promoted",
+      "description": "查看“Beta Gate 决策”的当前结果。",
+      "source": "approved:semantic-alias",
       "task_group": "02 Beta Gate",
       "sequence": 200
     },
@@ -9370,7 +9472,7 @@
         "rows_path": "results",
         "total_path": "count"
       },
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“Beta Gate 标的池”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 Beta Gate",
       "sequence": 200,
@@ -9383,10 +9485,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "status",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“Beta Gate 健康”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 Beta Gate",
-      "sequence": 200
+      "sequence": 200,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.beta-gate.version.compare",
@@ -9398,7 +9501,7 @@
       "view_model": {
         "rows_path": "results"
       },
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“Beta Gate 版本对比”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 Beta Gate",
       "sequence": 200,
@@ -9411,7 +9514,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "status",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“对冲”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 对冲风控",
       "sequence": 300,
@@ -9428,7 +9531,7 @@
         "rows_path": "results",
         "total_path": "count"
       },
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“对冲组合”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 对冲风控",
       "sequence": 300,
@@ -9630,7 +9733,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "datagrid",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“对冲有效性”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 对冲风控",
       "sequence": 300,
@@ -9836,7 +9939,7 @@
         "rows_path": "results",
         "total_path": "count"
       },
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“相关性记录”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 对冲风控",
       "sequence": 300,
@@ -10020,7 +10123,7 @@
         "rows_path": "results",
         "total_path": "count"
       },
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“对冲快照”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 对冲风控",
       "sequence": 300,
@@ -10281,7 +10384,7 @@
         "rows_path": "results",
         "total_path": "count"
       },
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“最新对冲快照”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 对冲风控",
       "sequence": 300,
@@ -10528,7 +10631,8 @@
           "placeholder": "输入Created At",
           "presentation_semantic": "identifier"
         }
-      ]
+      ],
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.hedge.alerts",
@@ -10541,7 +10645,7 @@
         "rows_path": "results",
         "total_path": "count"
       },
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“对冲预警”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 对冲风控",
       "sequence": 300,
@@ -10693,7 +10797,7 @@
       ]
     },
     {
-      "key": "auto.api.get.api.hedge.alerts.active",
+      "key": "hedge.alert-active",
       "label": "当前对冲预警",
       "endpoint": "/api/hedge/alerts/active/",
       "intent": "auto_safe_read_candidate",
@@ -10703,8 +10807,8 @@
         "rows_path": "results",
         "total_path": "count"
       },
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
-      "source": "approved:smoke-promoted",
+      "description": "查看“当前对冲预警”的当前结果。",
+      "source": "approved:semantic-alias",
       "task_group": "03 对冲风控",
       "sequence": 300,
       "fields": [
@@ -10860,7 +10964,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "status",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“对冲动作”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 对冲风控",
       "sequence": 300,
@@ -10873,10 +10977,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "status",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“对冲健康”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 对冲风控",
-      "sequence": 300
+      "sequence": 300,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.events",
@@ -10885,7 +10990,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.audit",
       "view_type": "datagrid",
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "查看“事件总览”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 事件监控",
       "sequence": 200,
@@ -10898,21 +11003,21 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.audit",
       "view_type": "datagrid",
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "查看“事件查询”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 事件监控",
       "sequence": 200,
       "task_tier": "support"
     },
     {
-      "key": "auto.api.get.api.events.metrics",
+      "key": "events.metric-summary",
       "label": "事件指标",
       "endpoint": "/api/events/metrics/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.audit",
       "view_type": "datagrid",
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
-      "source": "approved:smoke-promoted",
+      "description": "查看“事件指标”的当前结果。",
+      "source": "approved:semantic-alias",
       "task_group": "02 事件监控",
       "sequence": 200
     },
@@ -10923,10 +11028,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.audit",
       "view_type": "datagrid",
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "查看“事件状态”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 事件监控",
-      "sequence": 200
+      "sequence": 200,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.sentiment",
@@ -10935,7 +11041,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“情绪”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "04 情绪",
       "sequence": 400,
@@ -10948,10 +11054,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“近期情绪指数”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "04 情绪",
-      "sequence": 400
+      "sequence": 400,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.sentiment.health",
@@ -10960,10 +11067,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“情绪健康”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "04 情绪",
-      "sequence": 400
+      "sequence": 400,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.system",
@@ -10972,7 +11080,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "api-library.data-center",
       "view_type": "status",
-      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
+      "description": "查看“系统总览”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 系统状态",
       "sequence": 200,
@@ -10985,7 +11093,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "api-library.data-center",
       "view_type": "status",
-      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
+      "description": "查看“系统任务列表”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 系统状态",
       "sequence": 200,
@@ -10993,15 +11101,16 @@
     },
     {
       "key": "auto.api.get.api.system.celery.health",
-      "label": "Celery 健康",
+      "label": "任务队列健康",
       "endpoint": "/api/system/celery/health/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "api-library.data-center",
       "view_type": "status",
-      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
+      "description": "查看“任务队列健康”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 系统状态",
-      "sequence": 200
+      "sequence": 200,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.dashboard",
@@ -11010,7 +11119,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "command-center.overview",
       "view_type": "status",
-      "description": "查看今日待办、环境、账户、信号和运行阻断。（查看）",
+      "description": "查看“今日仪表盘”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -11023,10 +11132,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "command-center.decision-flow",
       "view_type": "detail",
-      "description": "聚合环境、信号和约束，形成今日建议与执行计划。（查看）",
+      "description": "查看“重点关注事项”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 今日信号",
-      "sequence": 300
+      "sequence": 300,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.dashboard.regime-status",
@@ -11035,7 +11145,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "command-center.overview",
       "view_type": "status",
-      "description": "查看今日待办、环境、账户、信号和运行阻断。（查看）",
+      "description": "查看“市场环境卡片”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 今日信号",
       "sequence": 300,
@@ -11051,33 +11161,33 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "command-center.overview",
       "view_type": "status",
-      "description": "查看今日待办、环境、账户、信号和运行阻断。（查看）",
+      "description": "查看“脉搏卡片”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 今日信号",
       "sequence": 300,
       "task_tier": "support"
     },
     {
-      "key": "auto.api.get.api.dashboard.action-recommendation",
+      "key": "dashboard.action-recommendation",
       "label": "行动建议",
       "endpoint": "/api/dashboard/action-recommendation/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "command-center.decision-flow",
       "view_type": "detail",
-      "description": "聚合环境、信号和约束，形成今日建议与执行计划。（查看）",
-      "source": "approved:smoke-promoted",
+      "description": "查看“行动建议”的当前结果。",
+      "source": "approved:semantic-alias",
       "task_group": "03 今日信号",
       "sequence": 300
     },
     {
-      "key": "auto.api.get.api.dashboard.allocation",
+      "key": "dashboard.asset-allocation",
       "label": "资产配置",
       "endpoint": "/api/dashboard/tui/overview/",
       "intent": "chart_owned_asset_allocation",
       "screen_key": "command-center.overview",
       "view_type": "chart",
-      "description": "查看今日待办、环境、账户、信号和运行阻断。（查看）",
-      "source": "approved:smoke-promoted",
+      "description": "查看“资产配置”的当前结果。",
+      "source": "approved:semantic-alias",
       "view_model": {
         "kind": "chart",
         "chart_type": "pie",
@@ -11098,14 +11208,14 @@
       "task_tier": "support"
     },
     {
-      "key": "auto.api.get.api.dashboard.performance",
+      "key": "dashboard.portfolio-performance",
       "label": "组合表现",
       "endpoint": "/api/dashboard/tui/overview/",
       "intent": "chart_owned_portfolio_performance",
       "screen_key": "command-center.overview",
       "view_type": "chart",
-      "description": "查看今日待办、环境、账户、信号和运行阻断。（查看）",
-      "source": "approved:smoke-promoted",
+      "description": "查看“组合表现”的当前结果。",
+      "source": "approved:semantic-alias",
       "view_model": {
         "kind": "chart",
         "chart_type": "line",
@@ -11132,10 +11242,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "command-center.decision-flow",
       "view_type": "detail",
-      "description": "聚合环境、信号和约束，形成今日建议与执行计划。（查看）",
+      "description": "查看“Alpha 决策链”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 今日信号",
-      "sequence": 300
+      "sequence": 300,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.dashboard.alpha.history",
@@ -11144,7 +11255,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "command-center.overview",
       "view_type": "status",
-      "description": "查看今日待办、环境、账户、信号和运行阻断。（查看）",
+      "description": "查看“Alpha 历史”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 今日信号",
       "sequence": 300,
@@ -11157,7 +11268,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "command-center.overview",
       "view_type": "status",
-      "description": "查看今日待办、环境、账户、信号和运行阻断。（查看）",
+      "description": "查看“Alpha 覆盖”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 今日信号",
       "sequence": 300,
@@ -11170,7 +11281,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "command-center.overview",
       "view_type": "status",
-      "description": "查看今日待办、环境、账户、信号和运行阻断。（查看）",
+      "description": "查看“Alpha IC 趋势”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 今日信号",
       "sequence": 300,
@@ -11183,7 +11294,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.audit",
       "view_type": "datagrid",
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "查看“分享链接”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "04 分享观察",
       "sequence": 400,
@@ -11419,7 +11530,8 @@
           "placeholder": "输入Updated At",
           "presentation_semantic": "identifier"
         }
-      ]
+      ],
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.share",
@@ -11428,10 +11540,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.audit",
       "view_type": "datagrid",
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "查看“分享总览”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "04 分享观察",
-      "sequence": 400
+      "sequence": 400,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.ai-capability",
@@ -11440,21 +11553,21 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.providers",
       "view_type": "datagrid",
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "description": "查看“AI 能力目录”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
       "task_tier": "support"
     },
     {
-      "key": "auto.api.get.api.data-center",
+      "key": "data-center.status-summary",
       "label": "数据中心状态",
       "endpoint": "/api/data-center/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "api-library.data-center",
       "view_type": "datagrid",
-      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
-      "source": "approved:smoke-promoted",
+      "description": "查看“数据中心状态”的当前结果。",
+      "source": "approved:semantic-alias",
       "task_group": "01 数据中心",
       "sequence": 100
     },
@@ -11465,7 +11578,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "api-library.data-center",
       "view_type": "datagrid",
-      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
+      "description": "查看“新闻数据”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 新闻数据",
       "sequence": 300,
@@ -11485,14 +11598,14 @@
       "task_tier": "support"
     },
     {
-      "key": "auto.api.get.api.data-center.providers",
+      "key": "data-center.provider-list",
       "label": "服务商列表",
       "endpoint": "/api/data-center/providers/",
       "intent": "read_data_center_providers",
       "screen_key": "api-library.data-center",
       "view_type": "datagrid",
       "description": "查看数据服务商状态和编号，供同步与排障任务直接选取服务商。",
-      "source": "approved:manual-read",
+      "source": "approved:semantic-alias",
       "task_group": "04 服务商",
       "sequence": 400,
       "task_tier": "support"
@@ -11517,10 +11630,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.overview",
       "view_type": "datagrid",
-      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
+      "description": "查看“市场温度历史”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 市场温度",
-      "sequence": 200
+      "sequence": 200,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.data-center.market-thermometer.me",
@@ -11529,10 +11643,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.overview",
       "view_type": "datagrid",
-      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
+      "description": "查看“我的市场温度阈值”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 市场温度",
-      "sequence": 200
+      "sequence": 200,
+      "task_tier": "support"
     },
     {
       "key": "param.api.get.api.decision-rhythm.cooldowns.by-asset.asset_code",
@@ -11554,7 +11669,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“决策节奏 / 冷却期 / 按资产 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -11580,7 +11695,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“决策节奏 / 请求 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -11606,7 +11721,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "聚合环境、信号和约束，形成今日建议与执行计划。（查看）",
+      "description": "按所需条件查看“估值 / 快照 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -11632,7 +11747,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "聚合环境、信号和约束，形成今日建议与执行计划。（查看）",
+      "description": "按所需条件查看“决策 / 工作台 / 计划 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -11680,7 +11795,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -11717,7 +11832,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 持仓”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -11765,7 +11880,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 交易”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -11802,7 +11917,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 绩效”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -11850,7 +11965,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 绩效报告”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -11887,7 +12002,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 估值快照”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -11913,7 +12028,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 估值时间线”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -11939,7 +12054,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 基准”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -11965,7 +12080,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 净值曲线”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -11991,7 +12106,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 检查记录”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -12017,7 +12132,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 组合 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -12043,7 +12158,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 组合 / 持仓”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -12069,7 +12184,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 组合 / 统计”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -12095,7 +12210,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 持仓 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -12121,7 +12236,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 交易流水 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -12147,7 +12262,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 资金流水 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -12294,7 +12409,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 资产 / 按类别 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -12452,7 +12567,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 资产 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -12478,7 +12593,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 观察授权 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -12504,7 +12619,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 观察授权 / 持仓”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -12530,7 +12645,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 交易成本配置 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -12710,7 +12825,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 分类 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -12890,7 +13005,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 分类 / 子项”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -13015,7 +13130,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 币种 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -13052,7 +13167,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 汇率 / 最新”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -13078,7 +13193,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 汇率 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -13126,7 +13241,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 组合 / 配置”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -13174,7 +13289,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 组合 / 绩效报告”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -13211,7 +13326,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 组合 / 估值快照”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -13237,7 +13352,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 组合 / 估值时间线”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -13263,7 +13378,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“账户 / 组合 / 基准”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -13311,7 +13426,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“模拟交易 / 账户 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -13348,7 +13463,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“模拟交易 / 账户 / 持仓”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -13374,7 +13489,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“模拟交易 / 账户 / 交易”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -13400,7 +13515,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“模拟交易 / 账户 / 绩效”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -13426,7 +13541,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“模拟交易 / 账户 / 净值曲线”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -13452,7 +13567,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“模拟交易 / 账户 / 检查记录”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -13500,7 +13615,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“模拟交易 / 账户 / 绩效报告”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -13537,7 +13652,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“模拟交易 / 账户 / 估值快照”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -13563,7 +13678,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“模拟交易 / 账户 / 估值时间线”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -13589,7 +13704,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“模拟交易 / 账户 / 基准”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
@@ -13747,7 +13862,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“策略 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -13905,7 +14020,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“策略 / AI 配置”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -14063,7 +14178,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“策略 / 执行日志”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -14221,7 +14336,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“策略 / 仓位规则”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -14379,7 +14494,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“策略 / 规则”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -14537,7 +14652,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“策略 / 脚本配置”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -14761,7 +14876,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“策略 / 仓位规则 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -14919,7 +15034,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“策略 / 规则 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -15066,7 +15181,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“策略脚本配置详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -15213,7 +15328,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“策略 / AI 配置 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -15382,7 +15497,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“策略绑定详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -15408,7 +15523,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“策略 / 执行日志 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -15434,7 +15549,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认政策档位、待审事件和市场热点。（查看）",
+      "description": "按所需条件查看“政策 / 事件 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -15460,7 +15575,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "确认政策档位、待审事件和市场热点。（查看）",
+      "description": "按所需条件查看“政策 / 工作台 / 事项 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -15662,33 +15777,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
-      "source": "approved:parameterized-promoted",
-      "task_group": "05 条件查询",
-      "sequence": 500,
-      "task_tier": "advanced"
-    },
-    {
-      "key": "param.api.get.api.filter.config.indicator_code",
-      "label": "筛选 / 配置 / 详情",
-      "endpoint": "/api/filter/config/<indicator_code>/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "research.signals",
-      "view_type": "datagrid",
-      "fields": [
-        {
-          "key": "indicator_code",
-          "label": "指标代码",
-          "input_type": "text",
-          "required": true,
-          "default": "",
-          "placeholder": "输入指标代码",
-          "binding": "path",
-          "value_type": "string",
-          "presentation_semantic": "identifier"
-        }
-      ],
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "按所需条件查看“信号 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -15714,7 +15803,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "按所需条件查看“回测 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -15740,7 +15829,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "按所需条件查看“审计 / 归因图表数据 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -15766,7 +15855,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "按所需条件查看“审计 / 指标表现 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -15792,7 +15881,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "按所需条件查看“审计 / 指标表现数据 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -15818,7 +15907,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "按所需条件查看“审计 / 阈值验证数据 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -15844,7 +15933,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "按所需条件查看“审计 / 操作日志 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -15870,7 +15959,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "按所需条件查看“决策链路详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -15896,7 +15985,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "按所需条件查看“基金 / 风格 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -15922,7 +16011,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "按所需条件查看“基金 / 信息 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -15948,7 +16037,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "按所需条件查看“基金 / 净值 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -15974,7 +16063,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "按所需条件查看“基金 / 持仓 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -16286,7 +16375,7 @@
           "presentation_semantic": "api_token"
         }
       ],
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "description": "按所需条件查看“AI 服务商详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -16466,7 +16555,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "description": "按所需条件查看“提示词 / 模板 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "06 条件查询",
       "sequence": 600,
@@ -16605,7 +16694,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "description": "按所需条件查看“提示词 / 链路 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "06 条件查询",
       "sequence": 600,
@@ -16810,7 +16899,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "按所需条件查看“因子 / 定义 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -17045,7 +17134,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "按所需条件查看“因子 / 配置 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -17170,7 +17259,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“轮动 / 资产 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -17295,7 +17384,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“轮动资产详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -17303,7 +17392,7 @@
     },
     {
       "key": "param.api.get.api.rotation.asset-classes.code",
-      "label": "轮动 / 资产类别 / 详情",
+      "label": "轮动资产类别配置",
       "endpoint": "/api/rotation/asset-classes/<code>/",
       "intent": "parameterized_safe_read",
       "screen_key": "macro-regime.strategy",
@@ -17420,7 +17509,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“轮动资产类别配置”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -17633,7 +17722,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“轮动 / 配置 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -17868,7 +17957,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“轮动 / 信号 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -17971,7 +18060,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“轮动 / 模板 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -18118,7 +18207,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“轮动 / 账户 配置 / 按账户 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -18265,7 +18354,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“轮动 / 账户 配置 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -18291,7 +18380,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“Beta Gate / 配置 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -18317,7 +18406,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“Beta Gate 决策详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -18343,7 +18432,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“Beta Gate / 标的池 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -18556,7 +18645,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“对冲 / 组合 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -18747,7 +18836,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“对冲 / 相关性 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -19015,7 +19104,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“对冲 / 快照 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -19184,7 +19273,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“对冲 / 预警 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -19210,7 +19299,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "查看今日待办、环境、账户、信号和运行阻断。（查看）",
+      "description": "按所需条件查看“标的持仓详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -19467,7 +19556,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "按所需条件查看“分享 / 链接 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -19724,7 +19813,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "按所需条件查看“分享 / 链接 / 日志”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -19981,7 +20070,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "按所需条件查看“分享 / 链接 / 快照”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -20238,7 +20327,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "按所需条件查看“分享统计详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -20302,7 +20391,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "按所需条件查看“分享 / 公开分享 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -20328,7 +20417,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "按所需条件查看“分享 / 公开分享 / 快照”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -20354,7 +20443,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "description": "按所需条件查看“AI 能力详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "06 条件查询",
       "sequence": 600,
@@ -20690,7 +20779,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“触发器列表”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 触发器",
       "sequence": 300,
@@ -20703,10 +20792,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“活跃触发器”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 触发器",
-      "sequence": 300
+      "sequence": 300,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.alpha-triggers.triggers.statistics",
@@ -20715,7 +20805,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“触发器统计”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 触发器",
       "sequence": 300,
@@ -20728,7 +20818,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“候选列表”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 候选池",
       "sequence": 100,
@@ -20741,10 +20831,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“可操作候选”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 候选池",
-      "sequence": 100
+      "sequence": 100,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.alpha-triggers.candidates.statistics",
@@ -20753,7 +20844,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“候选统计”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 候选池",
       "sequence": 100,
@@ -20766,7 +20857,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“观察列表”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 观察列表",
       "sequence": 200,
@@ -20779,7 +20870,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“Alpha 触发器入口”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 Alpha 候选",
       "sequence": 200,
@@ -20792,10 +20883,11 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
       "view_type": "datagrid",
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "查看“触发器绩效”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "04 绩效",
-      "sequence": 400
+      "sequence": 400,
+      "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.agent-runtime.tasks",
@@ -20804,7 +20896,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.terminal",
       "view_type": "datagrid",
-      "description": "与 AI 助手交互并处理智能任务。（查看）",
+      "description": "查看“任务队列”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 任务队列",
       "sequence": 300,
@@ -20817,7 +20909,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.terminal",
       "view_type": "datagrid",
-      "description": "与 AI 助手交互并处理智能任务。（查看）",
+      "description": "查看“AI 任务入口”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 运行状态",
       "sequence": 100,
@@ -20843,7 +20935,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "按所需条件查看“Alpha 触发器 / 按环境 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -20869,7 +20961,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "按所需条件查看“Alpha 触发器 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -20895,7 +20987,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "按所需条件查看“Alpha 候选 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -20921,7 +21013,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "查看今日待办、环境、账户、信号和运行阻断。（查看）",
+      "description": "按所需条件查看“仪表盘 / Alpha / History / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -20947,7 +21039,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "与 AI 助手交互并处理智能任务。（查看）",
+      "description": "按所需条件查看“任务详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -20973,7 +21065,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "与 AI 助手交互并处理智能任务。（查看）",
+      "description": "按所需条件查看“任务产物”。",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -20999,7 +21091,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "与 AI 助手交互并处理智能任务。（查看）",
+      "description": "按所需条件查看“任务时间线”。",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -21025,7 +21117,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "与 AI 助手交互并处理智能任务。（查看）",
+      "description": "按所需条件查看“提案详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -21624,7 +21716,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“决策节奏 Quota By Period”。",
       "source": "approved:smoke-promoted",
       "task_group": "01 决策节奏",
       "sequence": 100,
@@ -21675,7 +21767,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“决策节奏 Cooldown Remaining Hour”。",
       "source": "approved:smoke-promoted",
       "task_group": "01 决策节奏",
       "sequence": 100,
@@ -21740,7 +21832,7 @@
         "page_path": "page",
         "page_size_path": "page_size"
       },
-      "description": "聚合环境、信号和约束，形成今日建议与执行计划。（查看）",
+      "description": "按所需条件查看“决策 工作台 建议s”。",
       "source": "approved:smoke-promoted",
       "task_group": "02 决策工作台",
       "sequence": 200,
@@ -21770,7 +21862,7 @@
         "rows_path": "conflicts",
         "total_path": "total_count"
       },
-      "description": "聚合环境、信号和约束，形成今日建议与执行计划。（查看）",
+      "description": "按所需条件查看“决策 工作台 Conflict”。",
       "source": "approved:smoke-promoted",
       "task_group": "02 决策工作台",
       "sequence": 200,
@@ -21849,7 +21941,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "聚合环境、信号和约束，形成今日建议与执行计划。（需确认）",
+      "description": "执行“采纳或忽略推荐”操作；提交前需确认。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -21888,7 +21980,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "聚合环境、信号和约束，形成今日建议与执行计划。（需确认）",
+      "description": "执行“生成账户调仓计划”操作；提交前需确认。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -21938,7 +22030,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "聚合环境、信号和约束，形成今日建议与执行计划。（需确认）",
+      "description": "执行“补齐计划风控字段”操作；提交前需确认。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -21988,7 +22080,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "聚合环境、信号和约束，形成今日建议与执行计划。（需确认）",
+      "description": "执行“创建执行审批”操作；提交前需确认。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -22027,7 +22119,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "聚合环境、信号和约束，形成今日建议与执行计划。（需确认）",
+      "description": "执行“批准执行审批”操作；提交前需确认。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -22066,7 +22158,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "聚合环境、信号和约束，形成今日建议与执行计划。（需确认）",
+      "description": "执行“拒绝执行审批”操作；提交前需确认。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -22235,7 +22327,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“策略绑定（按组合）”。",
       "source": "approved:smoke-promoted",
       "task_group": "03 策略绑定",
       "sequence": 300,
@@ -22261,7 +22353,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“策略执行记录（按组合）”。",
       "source": "approved:smoke-promoted",
       "task_group": "04 执行记录",
       "sequence": 400,
@@ -22287,7 +22379,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“策略执行记录（按策略）”。",
       "source": "approved:smoke-promoted",
       "task_group": "04 执行记录",
       "sequence": 400,
@@ -22353,7 +22445,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认政策档位、待审事件和市场热点。（查看）",
+      "description": "按所需条件查看“政策 事件”。",
       "source": "approved:smoke-promoted",
       "task_group": "02 政策状态",
       "sequence": 200,
@@ -22361,7 +22453,7 @@
     },
     {
       "key": "auto.api.get.api.signal.unified.by_asset",
-      "label": "信号 Unified By 资产",
+      "label": "按资产查看统一信号",
       "endpoint": "/api/signal/unified/by_asset/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.signals",
@@ -22401,7 +22493,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "按所需条件查看“按资产查看统一信号”。",
       "source": "approved:smoke-promoted",
       "task_group": "01 信号检查",
       "sequence": 100,
@@ -22438,7 +22530,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "按所需条件查看“情绪指数区间”。",
       "source": "approved:smoke-promoted",
       "task_group": "04 情绪",
       "sequence": 400,
@@ -22475,7 +22567,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
+      "description": "按所需条件查看“系统 统计”。",
       "source": "approved:smoke-promoted",
       "task_group": "02 系统状态",
       "sequence": 200,
@@ -22501,7 +22593,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
+      "description": "按所需条件查看“数据中心 Macro Serie”。",
       "source": "approved:smoke-promoted",
       "task_group": "01 数据中心",
       "sequence": 100,
@@ -22527,7 +22619,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
+      "description": "按所需条件查看“数据中心 Price History”。",
       "source": "approved:smoke-promoted",
       "task_group": "01 数据中心",
       "sequence": 100,
@@ -22564,7 +22656,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
+      "description": "按所需条件查看“数据中心 Price Quote”。",
       "source": "approved:smoke-promoted",
       "task_group": "01 数据中心",
       "sequence": 100,
@@ -22612,7 +22704,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
+      "description": "按所需条件查看“数据中心 基金s Nav”。",
       "source": "approved:smoke-promoted",
       "task_group": "01 数据中心",
       "sequence": 100,
@@ -22660,7 +22752,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
+      "description": "按所需条件查看“数据中心 Financial”。",
       "source": "approved:smoke-promoted",
       "task_group": "01 数据中心",
       "sequence": 100,
@@ -22708,7 +22800,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
+      "description": "按所需条件查看“数据中心 Valuation”。",
       "source": "approved:smoke-promoted",
       "task_group": "01 数据中心",
       "sequence": 100,
@@ -22745,7 +22837,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
+      "description": "按所需条件查看“数据中心 板块s Constituent”。",
       "source": "approved:smoke-promoted",
       "task_group": "01 数据中心",
       "sequence": 100,
@@ -22793,7 +22885,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
+      "description": "按所需条件查看“数据中心 Capital Flow”。",
       "source": "approved:smoke-promoted",
       "task_group": "01 数据中心",
       "sequence": 100,
@@ -22830,7 +22922,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "按所需条件查看“审计 概览”。",
       "source": "approved:smoke-promoted",
       "task_group": "01 审计记录",
       "sequence": 100,
@@ -22905,12 +22997,12 @@
     },
     {
       "key": "auto.api.get.api.health.db",
-      "label": "健康 Db",
+      "label": "数据库健康",
       "endpoint": "/api/health/db/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "api-library.data-center",
       "view_type": "status",
-      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
+      "description": "查看“数据库健康”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 健康检查",
       "sequence": 100,
@@ -22918,26 +23010,26 @@
     },
     {
       "key": "auto.api.get.api.account.mcp.self",
-      "label": "账户 Mcp Self",
+      "label": "我的 MCP 接入",
       "endpoint": "/api/account/mcp/self/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.accounts",
       "view_type": "datagrid",
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "查看“我的 MCP 接入”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
       "task_tier": "support"
     },
     {
-      "key": "auto.api.get.api.account.positions.read-only",
+      "key": "account.position-list",
       "label": "当前持仓（只读）",
       "endpoint": "/api/account/positions/read-only/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.accounts",
       "view_type": "datagrid",
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
-      "source": "approved:smoke-promoted",
+      "description": "查看“当前持仓（只读）”的当前结果。",
+      "source": "approved:semantic-alias",
       "task_group": "02 当前持仓",
       "sequence": 200
     },
@@ -22948,7 +23040,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.terminal",
       "view_type": "detail",
-      "description": "与 AI 助手交互并处理智能任务。（查看）",
+      "description": "查看“终端能力总览”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -22961,7 +23053,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.audit",
       "view_type": "status",
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "查看“实时 预警”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 实时状态",
       "sequence": 300,
@@ -22974,7 +23066,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.audit",
       "view_type": "status",
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "查看“实时 Subscription”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 实时状态",
       "sequence": 300,
@@ -22987,7 +23079,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.audit",
       "view_type": "status",
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "查看“实时 板块 Performance”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 实时状态",
       "sequence": 300,
@@ -23000,7 +23092,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.audit",
       "view_type": "status",
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "查看“实时 Top Mover”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 实时状态",
       "sequence": 300,
@@ -23013,7 +23105,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "command-center.overview",
       "view_type": "status",
-      "description": "查看今日待办、环境、账户、信号和运行阻断。（查看）",
+      "description": "查看“仪表盘 持仓 Data”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 今日信号",
       "sequence": 300,
@@ -23026,7 +23118,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "command-center.overview",
       "view_type": "status",
-      "description": "查看今日待办、环境、账户、信号和运行阻断。（查看）",
+      "description": "查看“仪表盘 Auto Advisor Weekly Report History”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 今日信号",
       "sequence": 300,
@@ -23039,7 +23131,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "command-center.overview",
       "view_type": "status",
-      "description": "查看今日待办、环境、账户、信号和运行阻断。（查看）",
+      "description": "查看“仪表盘 Auto Advisor Notification”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 今日信号",
       "sequence": 300,
@@ -23047,12 +23139,12 @@
     },
     {
       "key": "auto.api.get.api.ai-capability.mcp-tools",
-      "label": "AI 能力 Mcp Tool",
+      "label": "MCP 工具列表",
       "endpoint": "/api/ai-capability/mcp-tools/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.providers",
       "view_type": "datagrid",
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "description": "查看“MCP 工具列表”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -23060,12 +23152,12 @@
     },
     {
       "key": "auto.api.get.api.ai-capability.mcp-tools.stats",
-      "label": "AI 能力 Mcp Tool 统计",
+      "label": "MCP 工具统计",
       "endpoint": "/api/ai-capability/mcp-tools/stats/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.providers",
       "view_type": "datagrid",
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "description": "查看“MCP 工具统计”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -23073,158 +23165,12 @@
     },
     {
       "key": "auto.api.get.api.ai-capability.mcp-access.verify",
-      "label": "AI 能力 Mcp Acce Verify",
+      "label": "验证我的 MCP 接入",
       "endpoint": "/api/ai-capability/mcp-access/verify/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.providers",
       "view_type": "datagrid",
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
-      "source": "approved:smoke-promoted",
-      "task_group": "常用任务",
-      "sequence": 900,
-      "task_tier": "support"
-    },
-    {
-      "key": "auto.api.get.api.ai-capabilities",
-      "label": "AI 能力",
-      "endpoint": "/api/ai-capabilities/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "ai-ops.providers",
-      "view_type": "datagrid",
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
-      "source": "approved:smoke-promoted",
-      "task_group": "常用任务",
-      "sequence": 900,
-      "task_tier": "support"
-    },
-    {
-      "key": "auto.api.get.api.ai-capabilities.capabilities",
-      "label": "AI 能力 能力",
-      "endpoint": "/api/ai-capabilities/capabilities/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "ai-ops.providers",
-      "view_type": "datagrid",
-      "fields": [
-        {
-          "key": "capability_key",
-          "label": "Capability Key",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Capability Key",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "name",
-          "label": "Name",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Name",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "summary",
-          "label": "Summary",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Summary",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "category",
-          "label": "Category",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Category",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "risk_level",
-          "label": "Risk Level",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Risk Level",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "requires_confirmation",
-          "label": "Requires Confirmation",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Requires Confirmation",
-          "presentation_semantic": "identifier"
-        }
-      ],
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
-      "source": "approved:smoke-promoted",
-      "task_group": "常用任务",
-      "sequence": 900,
-      "task_tier": "support"
-    },
-    {
-      "key": "auto.api.get.api.ai-capabilities.stats",
-      "label": "AI 能力 统计",
-      "endpoint": "/api/ai-capabilities/stats/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "ai-ops.providers",
-      "view_type": "datagrid",
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
-      "source": "approved:smoke-promoted",
-      "task_group": "常用任务",
-      "sequence": 900,
-      "task_tier": "support"
-    },
-    {
-      "key": "auto.api.get.api.ai-capabilities.mcp-tools",
-      "label": "AI 能力 Mcp Tool",
-      "endpoint": "/api/ai-capabilities/mcp-tools/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "ai-ops.providers",
-      "view_type": "datagrid",
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
-      "source": "approved:smoke-promoted",
-      "task_group": "常用任务",
-      "sequence": 900,
-      "task_tier": "support"
-    },
-    {
-      "key": "auto.api.get.api.ai-capabilities.mcp-tools.stats",
-      "label": "AI 能力 Mcp Tool 统计",
-      "endpoint": "/api/ai-capabilities/mcp-tools/stats/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "ai-ops.providers",
-      "view_type": "datagrid",
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
-      "source": "approved:smoke-promoted",
-      "task_group": "常用任务",
-      "sequence": 900,
-      "task_tier": "support"
-    },
-    {
-      "key": "auto.api.get.api.ai-capabilities.mcp-access.verify",
-      "label": "AI 能力 Mcp Acce Verify",
-      "endpoint": "/api/ai-capabilities/mcp-access/verify/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "ai-ops.providers",
-      "view_type": "datagrid",
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "description": "查看“验证我的 MCP 接入”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -23382,7 +23328,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“策略 / 绩效”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -23540,7 +23486,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“策略 / 持仓”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -23698,7 +23644,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“策略 / 信号”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -23856,7 +23802,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“策略 / 交易”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -23882,7 +23828,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。（查看）",
+      "description": "按所需条件查看“筛选 / 配置 / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -23908,7 +23854,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "按所需条件查看“回测 / 净值曲线”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -23934,7 +23880,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "按所需条件查看“基金 / Score / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -23942,7 +23888,7 @@
     },
     {
       "key": "param.api.get.api.rotation.asset-classes.code.detail",
-      "label": "轮动 / 资产类别 / 详情",
+      "label": "轮动资产类别详情",
       "endpoint": "/api/rotation/asset-classes/<code>/detail/",
       "intent": "parameterized_safe_read",
       "screen_key": "macro-regime.strategy",
@@ -24059,7 +24005,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“轮动资产类别详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -24085,7 +24031,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "按所需条件查看“分享 / 公开分享 / 绩效”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -24115,7 +24061,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.overview",
       "view_type": "status",
-      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
+      "description": "查看“环境 Distribution”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 环境状态",
       "sequence": 100,
@@ -24128,7 +24074,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.overview",
       "view_type": "status",
-      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
+      "description": "查看“环境 History”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 环境状态",
       "sequence": 100,
@@ -24141,7 +24087,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.overview",
       "view_type": "status",
-      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
+      "description": "查看“环境 Action”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 环境状态",
       "sequence": 100,
@@ -24154,7 +24100,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "policy.workbench",
       "view_type": "datagrid",
-      "description": "确认政策档位、待审事件和市场热点。（查看）",
+      "description": "查看“政策 RSS Reader”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "04 RSS 采集",
       "sequence": 400,
@@ -24167,7 +24113,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.audit",
       "view_type": "status",
-      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "description": "查看“审计 Forecast Scoreboard”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 审计记录",
       "sequence": 100,
@@ -24180,7 +24126,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.asset-lab",
       "view_type": "datagrid",
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "查看“Equity Pool”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 资产池",
       "sequence": 200,
@@ -24193,7 +24139,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.asset-lab",
       "view_type": "datagrid",
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "查看“Equity Valuation Repair 列表”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 资产池",
       "sequence": 200,
@@ -24206,7 +24152,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.asset-lab",
       "view_type": "datagrid",
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "查看“Equity Valuation Data Freshne”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 资产池",
       "sequence": 200,
@@ -24219,7 +24165,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.asset-lab",
       "view_type": "datagrid",
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "查看“Equity Valuation Data Quality Latest”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "02 资产池",
       "sequence": 200,
@@ -24232,7 +24178,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "research.asset-lab",
       "view_type": "datagrid",
-      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "description": "查看“板块 轮动”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "03 基金板块",
       "sequence": 300,
@@ -24368,658 +24314,10 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "description": "查看“我的 Quota 当前”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 服务商",
       "sequence": 100,
-      "task_tier": "support"
-    },
-    {
-      "key": "auto.api.get.api.prompts",
-      "label": "提示词s",
-      "endpoint": "/api/prompts/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "ai-ops.providers",
-      "view_type": "datagrid",
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
-      "source": "approved:smoke-promoted",
-      "result_semantics": [
-        "multiline_prompt"
-      ],
-      "task_group": "02 模板",
-      "sequence": 200,
-      "task_tier": "support"
-    },
-    {
-      "key": "auto.api.get.api.prompts.templates",
-      "label": "提示词s 模板",
-      "endpoint": "/api/prompts/templates/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "ai-ops.providers",
-      "view_type": "datagrid",
-      "fields": [
-        {
-          "key": "id",
-          "label": "ID",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入ID",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "name",
-          "label": "Name",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Name",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "category",
-          "label": "Category",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Category",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "version",
-          "label": "Version",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Version",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "template_content",
-          "label": "Template Content",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Template Content",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "system_prompt",
-          "label": "系统提示词",
-          "required": false,
-          "default": "",
-          "input_type": "textarea",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入系统提示词",
-          "presentation_semantic": "prompt_text"
-        },
-        {
-          "key": "placeholders",
-          "label": "Placeholders",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Placeholders",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "temperature",
-          "label": "Temperature",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Temperature",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "max_tokens",
-          "label": "Max Tokens",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Max Tokens",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "description",
-          "label": "Description",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Description",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "is_active",
-          "label": "Is Active",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Is Active",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "created_at",
-          "label": "Created At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Created At",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "updated_at",
-          "label": "Updated At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Updated At",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "last_used_at",
-          "label": "Last Used At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Last Used At",
-          "presentation_semantic": "identifier"
-        }
-      ],
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
-      "source": "approved:smoke-promoted",
-      "result_semantics": [
-        "multiline_prompt"
-      ],
-      "task_group": "02 模板",
-      "sequence": 200,
-      "task_tier": "support"
-    },
-    {
-      "key": "auto.api.get.api.prompts.templates.categories",
-      "label": "提示词s 模板 Categorie",
-      "endpoint": "/api/prompts/templates/categories/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "ai-ops.providers",
-      "view_type": "datagrid",
-      "fields": [
-        {
-          "key": "id",
-          "label": "ID",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入ID",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "name",
-          "label": "Name",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Name",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "category",
-          "label": "Category",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Category",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "version",
-          "label": "Version",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Version",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "template_content",
-          "label": "Template Content",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Template Content",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "system_prompt",
-          "label": "系统提示词",
-          "required": false,
-          "default": "",
-          "input_type": "textarea",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入系统提示词",
-          "presentation_semantic": "prompt_text"
-        },
-        {
-          "key": "placeholders",
-          "label": "Placeholders",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Placeholders",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "temperature",
-          "label": "Temperature",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Temperature",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "max_tokens",
-          "label": "Max Tokens",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Max Tokens",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "description",
-          "label": "Description",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Description",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "is_active",
-          "label": "Is Active",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Is Active",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "created_at",
-          "label": "Created At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Created At",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "updated_at",
-          "label": "Updated At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Updated At",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "last_used_at",
-          "label": "Last Used At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Last Used At",
-          "presentation_semantic": "identifier"
-        }
-      ],
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
-      "source": "approved:smoke-promoted",
-      "result_semantics": [
-        "multiline_prompt"
-      ],
-      "task_group": "02 模板",
-      "sequence": 200,
-      "task_tier": "support"
-    },
-    {
-      "key": "auto.api.get.api.prompts.chains",
-      "label": "提示词s Chain",
-      "endpoint": "/api/prompts/chains/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "ai-ops.providers",
-      "view_type": "datagrid",
-      "fields": [
-        {
-          "key": "id",
-          "label": "ID",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入ID",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "name",
-          "label": "Name",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Name",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "category",
-          "label": "Category",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Category",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "description",
-          "label": "Description",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Description",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "steps",
-          "label": "Steps",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Steps",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "execution_mode",
-          "label": "Execution Mode",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Execution Mode",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "aggregate_step",
-          "label": "Aggregate Step",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Aggregate Step",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "is_active",
-          "label": "Is Active",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Is Active",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "created_at",
-          "label": "Created At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Created At",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "updated_at",
-          "label": "Updated At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Updated At",
-          "presentation_semantic": "identifier"
-        }
-      ],
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
-      "source": "approved:smoke-promoted",
-      "result_semantics": [
-        "multiline_prompt"
-      ],
-      "task_group": "02 模板",
-      "sequence": 200,
-      "task_tier": "support"
-    },
-    {
-      "key": "auto.api.get.api.prompts.chains.execution_modes",
-      "label": "提示词s Chain 执行 Mode",
-      "endpoint": "/api/prompts/chains/execution_modes/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "ai-ops.providers",
-      "view_type": "datagrid",
-      "fields": [
-        {
-          "key": "id",
-          "label": "ID",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入ID",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "name",
-          "label": "Name",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Name",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "category",
-          "label": "Category",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Category",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "description",
-          "label": "Description",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Description",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "steps",
-          "label": "Steps",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Steps",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "execution_mode",
-          "label": "Execution Mode",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Execution Mode",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "aggregate_step",
-          "label": "Aggregate Step",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Aggregate Step",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "is_active",
-          "label": "Is Active",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Is Active",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "created_at",
-          "label": "Created At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Created At",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "updated_at",
-          "label": "Updated At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Updated At",
-          "presentation_semantic": "identifier"
-        }
-      ],
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
-      "source": "approved:smoke-promoted",
-      "result_semantics": [
-        "multiline_prompt"
-      ],
-      "task_group": "02 模板",
-      "sequence": 200,
-      "task_tier": "support"
-    },
-    {
-      "key": "auto.api.get.api.prompts.chat.providers",
-      "label": "提示词s Chat 服务商",
-      "endpoint": "/api/prompts/chat/providers",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "ai-ops.providers",
-      "view_type": "datagrid",
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
-      "source": "approved:smoke-promoted",
-      "result_semantics": [
-        "multiline_prompt"
-      ],
-      "task_group": "02 模板",
-      "sequence": 200,
-      "task_tier": "support"
-    },
-    {
-      "key": "auto.api.get.api.prompts.chat.models",
-      "label": "提示词s Chat Model",
-      "endpoint": "/api/prompts/chat/models",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "ai-ops.providers",
-      "view_type": "datagrid",
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
-      "source": "approved:smoke-promoted",
-      "result_semantics": [
-        "multiline_prompt"
-      ],
-      "task_group": "02 模板",
-      "sequence": 200,
       "task_tier": "support"
     },
     {
@@ -25029,7 +24327,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.terminal",
       "view_type": "detail",
-      "description": "与 AI 助手交互并处理智能任务。（查看）",
+      "description": "查看“Agent Runtime Operator Task”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 运行状态",
       "sequence": 100,
@@ -25042,7 +24340,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.terminal",
       "view_type": "detail",
-      "description": "与 AI 助手交互并处理智能任务。（查看）",
+      "description": "查看“Agent Runtime Operator Proposal”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 运行状态",
       "sequence": 100,
@@ -25055,7 +24353,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.terminal",
       "view_type": "detail",
-      "description": "与 AI 助手交互并处理智能任务。（查看）",
+      "description": "查看“Agent Runtime Context 决策”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 运行状态",
       "sequence": 100,
@@ -25068,7 +24366,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.terminal",
       "view_type": "detail",
-      "description": "与 AI 助手交互并处理智能任务。（查看）",
+      "description": "查看“Agent Runtime Context 执行”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 运行状态",
       "sequence": 100,
@@ -25081,7 +24379,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.terminal",
       "view_type": "detail",
-      "description": "与 AI 助手交互并处理智能任务。（查看）",
+      "description": "查看“Agent Runtime Context Monitoring”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 运行状态",
       "sequence": 100,
@@ -25094,7 +24392,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.terminal",
       "view_type": "detail",
-      "description": "与 AI 助手交互并处理智能任务。（查看）",
+      "description": "查看“Agent Runtime Context Op”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 运行状态",
       "sequence": 100,
@@ -25107,7 +24405,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.terminal",
       "view_type": "detail",
-      "description": "与 AI 助手交互并处理智能任务。（查看）",
+      "description": "查看“Agent Runtime Context Research”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 运行状态",
       "sequence": 100,
@@ -25120,7 +24418,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "api-library.data-center",
       "view_type": "status",
-      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
+      "description": "查看“数据中心 Pit Manifest”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 数据中心",
       "sequence": 100,
@@ -25146,7 +24444,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“决策节奏 / Input Snapshot / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -25172,332 +24470,10 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "description": "按所需条件查看“模拟交易 / 账户 / Inspection Notification”。",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
       "sequence": 700,
-      "task_tier": "advanced"
-    },
-    {
-      "key": "param.api.get.api.prompts.templates.pk",
-      "label": "提示词s / 模板 / 详情",
-      "endpoint": "/api/prompts/templates/<pk>/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "ai-ops.providers",
-      "view_type": "datagrid",
-      "fields": [
-        {
-          "key": "pk",
-          "label": "记录 ID",
-          "input_type": "number",
-          "required": true,
-          "default": "",
-          "placeholder": "输入记录 ID",
-          "binding": "path",
-          "value_type": "integer",
-          "presentation_semantic": "primary_selector"
-        },
-        {
-          "key": "id",
-          "label": "ID",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入ID",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "name",
-          "label": "Name",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Name",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "category",
-          "label": "Category",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Category",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "version",
-          "label": "Version",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Version",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "template_content",
-          "label": "Template Content",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Template Content",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "system_prompt",
-          "label": "系统提示词",
-          "required": false,
-          "default": "",
-          "input_type": "textarea",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入系统提示词",
-          "presentation_semantic": "prompt_text"
-        },
-        {
-          "key": "placeholders",
-          "label": "Placeholders",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Placeholders",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "temperature",
-          "label": "Temperature",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Temperature",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "max_tokens",
-          "label": "Max Tokens",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Max Tokens",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "description",
-          "label": "Description",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Description",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "is_active",
-          "label": "Is Active",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Is Active",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "created_at",
-          "label": "Created At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Created At",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "updated_at",
-          "label": "Updated At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Updated At",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "last_used_at",
-          "label": "Last Used At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Last Used At",
-          "presentation_semantic": "identifier"
-        }
-      ],
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
-      "source": "approved:parameterized-promoted",
-      "task_group": "06 条件查询",
-      "sequence": 600,
-      "result_semantics": [
-        "multiline_prompt"
-      ],
-      "task_tier": "advanced"
-    },
-    {
-      "key": "param.api.get.api.prompts.chains.pk",
-      "label": "提示词s / 链路 / 详情",
-      "endpoint": "/api/prompts/chains/<pk>/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "ai-ops.providers",
-      "view_type": "datagrid",
-      "fields": [
-        {
-          "key": "pk",
-          "label": "记录 ID",
-          "input_type": "number",
-          "required": true,
-          "default": "",
-          "placeholder": "输入记录 ID",
-          "binding": "path",
-          "value_type": "integer",
-          "presentation_semantic": "primary_selector"
-        },
-        {
-          "key": "id",
-          "label": "ID",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入ID",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "name",
-          "label": "Name",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Name",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "category",
-          "label": "Category",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Category",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "description",
-          "label": "Description",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Description",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "steps",
-          "label": "Steps",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Steps",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "execution_mode",
-          "label": "Execution Mode",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Execution Mode",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "aggregate_step",
-          "label": "Aggregate Step",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Aggregate Step",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "is_active",
-          "label": "Is Active",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Is Active",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "created_at",
-          "label": "Created At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Created At",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "updated_at",
-          "label": "Updated At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Updated At",
-          "presentation_semantic": "identifier"
-        }
-      ],
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
-      "source": "approved:parameterized-promoted",
-      "task_group": "06 条件查询",
-      "sequence": 600,
-      "result_semantics": [
-        "multiline_prompt"
-      ],
       "task_tier": "advanced"
     },
     {
@@ -25520,7 +24496,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "与 AI 助手交互并处理智能任务。（查看）",
+      "description": "按所需条件查看“Agent Runtime / Operator / Proposal / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -25533,7 +24509,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "command-center.decision-flow",
       "view_type": "detail",
-      "description": "聚合环境、信号和约束，形成今日建议与执行计划。（查看）",
+      "description": "查看“决策 Ready”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -25541,12 +24517,12 @@
     },
     {
       "key": "auto.api.get.api.strategy.allocation-policies.active",
-      "label": "策略 全部ocation Policie 当前",
+      "label": "当前资产配置政策",
       "endpoint": "/api/strategy/allocation-policies/active/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "status",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“当前资产配置政策”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -25554,12 +24530,12 @@
     },
     {
       "key": "auto.api.get.api.strategy.allocation-policies.versions",
-      "label": "策略 全部ocation Policie Version",
+      "label": "资产配置政策版本",
       "endpoint": "/api/strategy/allocation-policies/versions/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.strategy",
       "view_type": "status",
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "查看“资产配置政策版本”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
@@ -25572,7 +24548,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "api-library.data-center",
       "view_type": "status",
-      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
+      "description": "查看“数据中心 服务商 状态”的当前结果。",
       "source": "approved:smoke-promoted",
       "task_group": "01 数据中心",
       "sequence": 100,
@@ -25583,7 +24559,7 @@
     },
     {
       "key": "param.api.get.api.strategy.allocation-policies.versions.int.version",
-      "label": "策略 / 全部ocation Policie / Version / 详情",
+      "label": "资产配置政策版本详情",
       "endpoint": "/api/strategy/allocation-policies/versions/<int:version>/",
       "intent": "parameterized_safe_read",
       "screen_key": "macro-regime.strategy",
@@ -25601,7 +24577,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "description": "按所需条件查看“资产配置政策版本详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "05 条件查询",
       "sequence": 500,
@@ -25627,7 +24603,7 @@
           "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
+      "description": "按所需条件查看“数据中心 / Pit Manifest / 详情”。",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -25663,12 +24639,12 @@
       "write_like_or_heavy": 11,
       "internal_debug_or_docs": 28
     },
-    "business_promoted_actions": 438,
+    "business_promoted_actions": 413,
     "approved_operation_actions": 23,
     "operator_first_default_actions": 1,
     "user_facing_design_annotations": 0,
-    "pruned_redundant_screen_actions": 8,
-    "pruned_runtime_only_dashboard_panels": 44,
+    "pruned_redundant_screen_actions": 0,
+    "pruned_runtime_only_dashboard_panels": 47,
     "pruned_empty_screens": 0
   },
   "publication_note": "Publish-ready TUI metadata generated from reviewed baseline plus direct safe-read tool candidates.",
