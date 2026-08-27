@@ -1102,3 +1102,352 @@ queued/worker disabled、global deny 或 decision-ready fail-closed 边界。
 证明，再完成 DATA-02 的 canonical coverage/publication/freshness 与 reconciliation，之后才由
 授权 operator 做 runtime state transition，并重新执行 TAR-01 的有界 inline capacity observation。
 当前 EVID-01、DATA-02/03 和 runtime state 仍不能因本地测试通过而解除。
+
+## 实施记录（2026-08-26，AUD-01 durable delivery receipt publisher checkpoint）
+
+新增 `apps/audit/infrastructure/system_audit_delivery_receipt.py` 与 schema-only migration
+`0013_systemauditdeliveryreceipt`，形成单一 `audit-system-delivery-receipt-v1` durable sink：publisher
+在写入前重验 canonical event hash/tree，以服务端 aware clock 和稳定 delivery identity 追加
+append-only receipt；event/version、idempotency 与 delivery first-winner 可 exact replay，持久化行的
+payload、hash、chain、sink、delivery 或 publication clock 被替换时 fail closed。Model 的 instance、
+`save_base`、QuerySet/manager update/bulk/delete 与绕过 insert permit 路径均被拒绝，publisher 同时
+公开只读 database alias，供后续 runtime composition 做 same-alias 绑定。Sol 审查中关闭了冲突恢复
+路径在事务外调用 `select_for_update()`、base manager 绕过和 migration encoder 漂移等缺口。
+
+聚焦 SQLite component 与 migration 验证为 `9 passed in 0.47s`；
+`makemigrations audit --check --dry-run` 返回 `No changes detected`；Black、isort、Ruff、增量 mypy
+（1 个 production file，`0 regressions`）、完整 mypy debt ceiling、audit/Celery contract、active-plan
+registry 与全仓 architecture audit（`2964 files / 0 violations`）均通过。计划中旧的
+`scripts/check_architecture.py` 已不存在，本次使用当前治理入口
+`scripts/verify_architecture.py --include-audit --fail-on-audit-violations`，未把旧命令缺失误报成通过。
+
+该 checkpoint 只关闭 durable receipt publisher 的本地仓库切片，尚未替换
+`system_audit_outbox_runtime.py` 的 `publisher_not_wired` gate，也未接 Account actor authority、
+owner/tenant scope、Config Center selector、Celery schedule/retry 或生产 PostgreSQL。PostgreSQL
+first-winner/并发、真实 outbox claim→receipt→delivered、migration/rollback 和 owner/reviewer 证据仍
+未验证；因此 `AUD-01` 保持 `active`，`AUD-02/03` 不晋级。回滚点是在 runtime 接线前移除
+`0013`、receipt model/publisher 及其注册；本切片没有部署、生产写入或运行配置变化。
+
+## 实施记录（2026-08-27，AUD-01 authority/config/runtime composition checkpoint）
+
+完成 Account→Audit 的 actor 与 owner/tenant scope typed adapters：actor 通过
+`GetCurrentAccountOwnerAssignmentActorAuthoritySourceV3` 读取 exact/current immutable source，scope
+通过 `GetCurrentOwnerTenantAuthorityV1` 读取 exact/current owner/tenant authority；两者均保留 source
+identity/version/content hash、actor/user、tenant/owner 与有效期，并在 stale、terminal、type substitution
+或 alias 漂移时 fail closed。composition root 只接这两个 adapter，不读取 `User/Profile`、session 或
+request，也不从请求本地生成 selector。
+
+Config Center 新增三项 CRITICAL/NEXT_TASK runtime definition：`audit.system_event.mode`、
+`audit.system_event.outbox_enabled`、`audit.system_event.authority_selector`，不提供 seed/default。新的
+runtime loader 只接受同一 active profile 的一份 immutable snapshot，重验 profile/version、snapshot
+SHA-256 与 exact six-field selector，生成绑定 snapshot/profile/environment 的 issuer identity；缺项、
+跨 profile、hash 漂移或 JSON substitution 都发布稳定阻断原因，禁止独立 active-value 或环境变量回退。
+
+新增唯一 production dispatcher composition root
+`apps/audit/infrastructure/system_audit_outbox_runtime.py`：在同一
+database alias 上组装 event/outbox coordinator、一个 dispatch repository、复用该 repository 的 UOW、
+`audit-system-delivery-receipt-v1` publisher 和 server-issued scoped authority bundle。结构检查先验证
+authority 与全部 alias，再做 durable publisher preflight；每次执行保持 authority preflight → publisher
+preflight → claim 顺序。`system_audit_outbox_runtime.py` 已从永久 `publisher_not_wired` gate 改为惰性调用
+该 root；Config Center 未配置、mode=`off`、outbox disabled 或 authority 不可用仍在 claim 前 blocked，
+所有未知异常与非 canonical reason 均脱敏为稳定失败，不存在 generic `apps.events` 或 memory fallback。
+
+同时补齐 publisher alias contract 与 `DjangoSystemAuditOutboxUnitOfWork`，保证 UOW 持有并顺序复用同一
+repository transaction；nested、未 enter 即 exit、`atomic()`/context enter/exit 失败、伪 context 与
+异常吞噬路径均有 fail-closed 测试。聚焦结果：authority adapters `18 passed`；Config Center runtime
+binding/definition reconcile `40 passed`；composition/UOW `31 passed`；production runtime、task、composition
+与 UOW 联合回归 `55 passed`。相关生产文件 Ruff、Black、isort 与增量 mypy 均通过，最新 runtime 集合
+为 `4 source files / 0 regressions`。
+
+本 checkpoint 尚未声称 `AUD-01` 退出：真实 SQLite outbox claim→receipt→delivered 组件链、可得的
+PostgreSQL first-winner/并发证据、全量 debt/architecture/governance gates 与 migration rollback 仍待本轮
+验收；生产 runtime profile/selector 数据、Celery schedule/retry、部署和生产写入均未创建或变更。
+因此 registry/README 暂不晋级，`AUD-01` 保持 `active`，`AUD-02/03` 继续等待。回滚点为恢复
+infrastructure runtime 的 production composition，并移除本 checkpoint 的 Account adapters、
+Config Center definitions、publisher alias/UOW 接线；durable receipt schema 的独立回滚点沿用上一记录。
+
+## 实施记录（2026-08-27，AUD-01 repository exit acceptance）
+
+AUD-01 的退出门已闭合。默认 task/provider 入口不再永久返回 `publisher_not_wired`，而是只通过
+`apps/audit/infrastructure/system_audit_outbox_runtime.py` 组装一套 production runtime：
+`DjangoSystemAuditDeliveryReceiptPublisher` 是唯一 durable publisher；publisher、event/outbox
+coordinator、dispatch repository 与复用该 exact repository instance 的 UOW 绑定同一 database alias；
+authority selector 来自同一 Config Center immutable snapshot，actor 与 owner/tenant scope 来自 Account
+自有 composition root，并在 dispatch cutoff 进行 exact-current authenticated/staff/scoped preflight。
+mode/off、outbox disabled、snapshot/hash/profile 漂移、authority stale/terminal、alias 漂移或任何未知
+composition failure 均在 claim 前 fail closed，公开结果只保留 canonical reason code。
+
+最终架构复核曾真实发现 `core/integration` 新增 6 条 App Infrastructure import，未通过
+`check_governance_consistency.py`。没有抬高 `governance_baseline.json`；修复为 Account 自有
+`apps/account/system_audit_authority_composition.py` 负责组装本 App readers，Audit 自有 Infrastructure
+负责 production dispatcher composition，`core/integration/system_audit_authority.py` 只保留 typed
+adapter。修复后 governance consistency 为 `0 violations`，全仓 architecture 为 `2968 files /
+0 boundary violations / 0 audit violations`。
+
+验收证据：
+
+- Audit/Config Center 全单元回归 `290 passed in 155.36s`；系统审计 SQLite component（含 migration、
+  ledger/outbox、真实 production factory→claim→receipt→delivered 与 authority-before-claim 负向路径）
+  `39 passed in 1.58s`。
+- 实际 durable 链得到 `claimed=1 / delivered=1 / failed=0`，receipt 的 event/version、identity/content
+  hash、stream/predecessor、idempotency 与 canonical payload 全量等于 outbox event；publisher replay
+  不增行，已 delivered outbox 不再次 claim。authority 缺失时 outbox 保持 pending/attempt=0 且
+  receipt=0。
+- Black、isort、Ruff 对 23 个改动 Python 文件通过；11 个 production Python 文件增量 mypy 为
+  `0 regressions`；full mypy debt ceiling 为 `0 errors`。
+- `makemigrations audit --check --dry-run` 返回 `No changes detected`；migration forward/backward
+  component 已覆盖；Celery contracts 为 91 tasks，audit event contracts 为 20 events；Celery guardrail
+  `13 passed`、governance guardrail `29 passed`、active-plan registry 与 governance consistency
+  均通过。
+- 源码与测试静态证明 runtime 不 import `apps.events`、不构造 memory publisher，也不读取
+  `User/Profile/session/request` 作为 authority fallback。
+
+本机没有 `AGOM_AUDIT_PG_CONCURRENCY_EVIDENCE` 或专用
+`AGOM_AUDIT_PG_TEST_DATABASE_URL`；现存 PostgreSQL 容器属于 TAR-02/home-lab，不具备 AUD 专用空库
+授权，因此未复用、未清空，也不声称 receipt first-winner PostgreSQL 并发通过。生产 profile/selector
+数据、migration/deploy、Celery schedule/retry、backlog recovery、alerts/TUI、archive/restore 与生产
+签字均未创建或变更；这些证据仍由 AUD-03 的 production exit gate 管理。
+
+机器 registry 已将 `AUD-01=completed`、`AUD-02=active` 并把唯一 repository focus 推进至 AUD-02。
+回滚点为恢复 task 的 fail-closed runtime resolution，移除 Account/Audit composition、Config Center
+definitions、receipt publisher/schema 与 UOW 接线；任何回滚都不得改接 generic event bus 或 memory
+publisher。本轮没有 commit、push、部署、生产写入、容器创建/删除或运行配置激活。
+
+## 实施记录（2026-08-27，AUD-02 Data Center 同 UOW 与精确回放 checkpoint）
+
+AUD-02 已完成 Macro、Price Bar 与 Quote Snapshot 三条 canonical sync 的同事务接线：每次执行由
+server-issued `run_id/ingested_run_id` 绑定 RawAudit、事实 `ingested_run_id`、CanonicalPublication、
+typed SystemAuditEvent 与 outbox；任一 audit/publication 写入失败会回滚整组事实、evidence、publication、
+event 和 outbox。Macro 额外通过 Config Center policy 执行独立 provider 一致性校验；failover 事件已
+纠正为注册 taxonomy `started/succeeded/rejected/exhausted`，成功切换在同一 UOW 产生
+`started -> succeeded`，超容差、无候选或证据不全保持 fail closed。普通 Interface、management command
+和 Decision Reliability Repair 均改由 system-audited composition root 注入，不再直接构造未审计 sync。
+
+本 checkpoint 又补出回放所需的精确身份面：`SyncResult` 在 audited success/noop 保留 run、ingested run
+及 exact publication id/version/hash；system audit query 新增 staff/PIT/scoped 的 run 或 publication
+单 selector 关联读取，publication 必须唯一解析一个 non-empty run，跨 scope、混 run、缺 run、未来事件或
+全局顺序异常均拒绝。repository 从完整 closed-world ledger 恢复后按
+`(recorded_at, stream_id, sequence_no)` 返回同一 run；RawAudit 与 CanonicalPublication 增加 exact-id
+读取端口。新增 canonical `data.decision_read.recovered/blocked` 构造与 first-winner/outbox writer，读取
+事件绑定 exact publication evidence，blocked 为 required/critical 且只接受稳定 reason code。
+
+已验证证据包括：Macro failover/audited sync 单元 `24 passed`，Macro SQLite 同事务回滚/提交
+`2 passed in 147.41s`；Price/Quote 聚焦联合回归此前为 `70 passed`，各自 SQLite 同事务测试均
+`2 passed`，Decision Reliability Repair component `7 passed`；本次 SyncResult 身份合同 `18 passed`，
+decision-read/correlation/system-audit query `42 passed`，system-audit repository component（含
+publication -> full run、scope/PIT）`7 passed`。新增 decision-read/query 生产文件 Ruff 与增量 mypy为
+`0 regressions`；宏观 taxonomy 修正的组件链仍保持事实、event 与 outbox 同事务。
+
+该 checkpoint 尚未满足 AUD-02 exit gate：仍需完成 `ReplayDataChainUseCase`，以 exact RawAudit hash、
+published publication hash/version/run、完整 member 集及每个事实的 `ingested_run_id` 重验持久化证据，
+并要求 publication-bound decision-read 事件存在；还需用一条真实 SQLite Macro failover 链证明从
+fetch/validation gate/failover/persist/publication/read 到 replay 的缺失或篡改均无 silent loss。完成后再
+运行全量 audit/data-center 回归、mypy debt、architecture/governance/registry gates，并同步 registry 与
+README；当前 `AUD-02` 保持 `active`，`AUD-03` 仍 `waiting_dependency`。回滚点为移除 AUD-02 三个 audited
+composition root、对应 sync identity/fact 字段、Data Reliability typed writers 与关联查询；不得回退到
+generic event、memory writer 或无审计直构路径。本 checkpoint 没有 commit、push、部署、生产写入或
+外部调用。
+
+## 实施记录（2026-08-27，AUD-02 publication-bound read 与垂直回放 checkpoint）
+
+在上一 checkpoint 的精确关联查询之上，新增 fail-closed `ReplayDataChainUseCase`：以 run 或
+publication 二选一 selector 读取完整 scoped/PIT correlation，逐条重验 SystemAuditEvent hash；再以
+exact RawAudit id/version/hash、CanonicalPublication id/version/hash/state/run、完整 member snapshot、
+重算 publication hash 及白名单事实表的 `ingested_run_id` 交叉核对专业证据。failover 允许无切换或
+`started -> succeeded`，并会逐份读取和重验主数据源及独立 verification provider 的 RawAudit；缺 fetch、
+published publication、publication-bound decision read、member、事实、identity 或任一 hash 漂移均失败
+关闭，不把数据库的全局排序误当作业务 stage 顺序。
+
+Decision Reliability Repair 已在 Macro、Quote batch 和逐资产 Price 的真实 freshness/coverage 复验后，
+通过 canonical writer 记录 `data.decision_read.recovered/blocked`。事件精确复用 SyncResult 的 run、
+ingested run、publication id/version/hash 与 provider，blocked 只写稳定治理 reason，不写同步异常或
+provider payload；writer/identity 缺失使对应 repair section fail closed。Interface 与 management command
+均从唯一 composition root 注入 recorder，未新增 memory 或 best-effort fallback。
+
+聚焦验证：decision-read recorder `16 passed`；repair use case `37 passed`，runtime/recorder 联合单元
+`35 passed`，repair command component `7 passed in 137.66s`；replay unit（含双 fetch verification）
+`26 passed`，真实 ORM fact evidence component `5 passed in 151.32s`。Macro SQLite 垂直链在一次测试中
+贯通双源 fetch、failover started/succeeded、fact/RawAudit/publication/member、decision read、6 组
+event/outbox 与 publication-selector replay，完整 transaction 文件 `2 passed in 148.72s`。本切片生产
+文件 Ruff、Black/isort 与增量 mypy 均为 `0 regressions`。
+
+AUD-02 仍保持 `active`：M2 的 Provider Health/circuit opened/recovered、repair completed parent-run
+evidence，以及 freshness/quality/conflict/rollback 等登记状态时间线尚未完成；治理 registry 也不能在
+全量 audit/data-center、mypy debt、architecture/governance gates 通过前晋级。下一切片先闭合 provider
+circuit/recovery 与 repair-run 事件/回放，再按 registry exit 区分硬阻断和后续 supporting event，禁止把
+当前 publication replay 证据扩大解释为整个 M2 完成。本 checkpoint 没有 commit、push、部署、生产写入、
+容器或网络操作。
+
+## 实施记录（2026-08-27，AUD-02 Provider Health 与 repair parent-run checkpoint）
+
+Provider Registry 的运行时状态边沿已接入 canonical ledger：只有 healthy/degraded 到 circuit-open 和
+degraded/circuit-open 到 healthy 两种已登记跃迁分别产生 `data.provider.circuit_opened` 与
+`data.provider.recovered`。事件复用触发该跃迁的 Sync `run_id/ingested_run_id`，引用经脱敏并做 SHA-256
+封存的 provider/capability/dataset health snapshot；凭据、provider 异常文本与原始 payload 均不进入
+evidence。Macro、Price 与 Quote 的 success/failure/validation/failover health 记录均在原 Sync UOW 内
+传递精确身份，writer 缺失或跃迁发生却没有 identity 时失败关闭。真实 Macro SQLite 链预置 degraded
+状态后恢复，在 fact、RawAudit、publication、failover、decision-read 同一事务中增加 provider recovered
+event/outbox；失败注入仍回滚全部参与者。
+
+Decision Reliability Repair 现先在短事务中持久化 dataset=`decision.reliability.repair`、
+provider=`data-center-repair` 的 canonical parent identity，再运行四个 section；结束时把 section
+status、`must_not_use_for_decision`、剩余 blocker 数量及所有实际 child SyncResult 的 exact publication
+id/version/hash/dataset 去重、排序，写入 REQUIRED `data.repair.completed`。报告公开 parent run、ingested
+run、identity hash 与 publication ids；SUCCESS/PARTIAL/FAILED 由四个 section 的稳定状态派生，identity
+issuer、UOW 或 audit writer 的替换/失败均不被吞掉。新增 `ReplayRepairRunUseCase` 以 repair run selector
+重验 parent event/hash/scope/PIT、持久化 SyncExecutionIdentity 与每个 publication evidence，再逐一调用
+`ReplayDataChainUseCase`；任何 child id/version/hash/dataset、RawAudit、member、fact ingestion 或
+decision-read 漂移都会关闭整次 parent replay。SUCCESS 缺 publication 被视为损坏，PARTIAL/FAILED 可在
+保留 parent outcome 的情况下重放零 child。
+
+聚焦验证：Provider Health/event/runtime 与 audited Sync 联合 `53 passed`，新增真实 Sync 边沿文件
+`10 passed`；repair parent event `15 passed`、repair 编排 `43 passed`、parent/child replay 联合
+`42 passed`、production runtime composition `19 passed`、management command component
+`7 passed in 138.19s`。更新后的 Macro SQLite 垂直链包含双源 fetch、failover、persist/publication、
+provider recovery、decision read、repair parent 与按 repair run 的 child replay，共 `8` 组 event/outbox；
+事务文件 `2 passed in 142.39s`。相关生产切片 Ruff、Black/isort 通过；repair runtime 10 个 production
+files 与 replay 2 个 production files 的增量 mypy 均为 `0 regressions`。
+
+AUD-02 仍不晋级：M2 登记表中的 freshness/quality/conflict/rollback 时间线，以及 failover exhausted 在
+所有实际耗尽分支的覆盖仍需逐项核对和闭合；之后还必须运行全量 audit/data-center、mypy debt、
+architecture、governance 与 registry gates。回滚点为 repair parent identity/event/replay composition、
+provider health writer 及 Sync UOW 注入；不得回退到 memory/best-effort writer 或无 identity 事件。本
+checkpoint 没有 commit、push、部署、生产写入、容器或网络操作。
+
+## 实施记录（2026-08-27，AUD-02 failover exhaustion 与 freshness timeline checkpoint）
+
+Macro failover 已补齐此前会静默抛错的真实耗尽分支：零 active provider、primary 与所有 fallback
+prepare 失败、以及所有 provider 返回空结果后无候选，都会在返回原有失败语义前，以独立 server-issued
+sync identity 写入一份聚合 RawAudit、`data.fetch.failed`、`data.failover.started` 与 REQUIRED/CRITICAL
+`data.failover.exhausted`。聚合 evidence 只保存 indicator/window、尝试 provider 名称与数量及稳定
+`ProviderCandidatesExhausted` 类别，不保存异常文本、凭据或 payload；四者在同一 sync UOW 中提交，required
+writer 失败触发回滚。单候选缺独立验证与双候选缺比较证据仍沿用已有 exact prepared RawAudit 路径，超
+容差仍为 rejected，不把业务冲突误报为 exhausted。批处理契约 `8 passed`，failover/audited sync/replay
+联合 `62 passed`；真实 SQLite exhaustion 链验证 1 份 identity/RawAudit 与 3 组 event/outbox 的 run、
+ingested run、evidence hash 及 predecessor 均一致，`1 passed in 139.38s`。
+
+publication-bound decision read 现同时驱动独立 `data.freshness.changed` 时间线。事件引用 exact canonical
+publication id/version/hash，首次状态以前态 `unknown` 建链；后续仅在 freshness status、
+`must_not_use_for_decision` 或稳定 blocked reason 实际变化时追加，并保留前态/当前态，未变化不重复写。
+freshness writer 失败会阻止 decision-read writer 继续执行；新事件存在时 `ReplayDataChainUseCase` 会交叉
+核对 publication evidence、freshness 状态、blocked/recovered outcome 与 decision-read，任一漂移均失败
+关闭；历史链缺该新事件仍可回放。事件/recorder/runtime/replay 聚焦回归 `86 passed` 与 replay 联合
+`45 passed`，相关 production mypy 均为 `0 regressions`；更新后的真实 Macro repair-run 纵向链包含
+freshness event/outbox，`1 passed in 142.50s`。
+
+AUD-02 继续保持 `active`：M2 明示的 conflict detected/resolved 时间线仍未闭合，quality 与 publication
+rollback 登记事件需按退出语义完成或形成明确 supporting 处置；完成后还需运行全量 audit/data-center、
+mypy debt、architecture、governance 与 registry gates。下一切片以 immutable reconciliation evidence
+作为 conflict 专业证据闭合 detected→resolved 转换及同事务失败回滚，不用 failover succeeded 伪装
+conflict resolved。本 checkpoint 没有 commit、push、部署、生产写入、容器或网络操作。
+
+## 实施记录（2026-08-27，AUD-02 reconciliation conflict lifecycle checkpoint）
+
+Reconciliation 的 `semantic_conflict` 状态已接入 canonical ledger。维护入口不再只保存一份孤立的
+`ReconciliationEvidence`：Application 先在同一个外层 Django transaction 中锁定该 dataset 的最新
+evidence，追加当前 immutable evidence，再从持久化后 domain representation 计算 canonical JSON
+SHA-256；只有 clean/unknown→semantic conflict 与 semantic conflict→clean 两种真实边沿分别产生
+`data.conflict.detected` 和 REQUIRED `data.conflict.resolved`。连续 conflict、连续 clean 与 exact retry
+不制造重复状态事件；`data_missing`、`code_defect` 和 expected difference 不被伪装为 semantic conflict。
+
+两类事件均引用当前 reconciliation evidence 的 exact id/version/content hash；存在前态时同时引用前一份
+evidence 及其 hash，并在 dataset stream 上保存 sequence/predecessor。repository、conflict writer 与 UOW
+必须使用同一 database alias；canonical writer、authority scope 或 outbox 失败都会传播并回滚 evidence，
+公开 management/application 入口只从 production composition root 取得该组合。事件 detail 只包含稳定状态、
+计数与 evidence 标识/摘要，不包含 snapshot payload、异常文本或凭据。
+
+聚焦验证：conflict event contract 与 runtime authority/alias `12 passed`；reconciliation evidence、命令入口、
+detected/resolved、重复状态抑制和 writer-failure rollback `8 passed in 138.61s`；真实 SQLite
+detected→resolved 链已验证 2 份 evidence、2 组 event/outbox、精确内容 hash、scope 与 predecessor，成功用例
+在 component run 中通过，outbox failure 回滚用例修正测试异常边界后 `1 passed in 145.53s`。8 个相关
+production Python 文件增量 mypy 为 `0 regressions`，Black/isort 已执行。
+
+AUD-02 继续保持 `active`，不会因 conflict 子链通过而提前晋级。只读盘点确认下一切片先接入唯一 owner
+`RollbackCanonicalPublicationUseCase` 的 `data.publication.rolled_back` 同事务事件与 rollback evidence，
+随后再为 `data.quality.changed` 定义不混用 freshness/reconciliation 的真实质量状态边沿；两项完成后仍需
+全量 audit/data-center、mypy debt、architecture、governance 与 registry gates。回滚点为移除 conflict
+writer/runtime factory 与 reconciliation 外层 UOW 接线，恢复原 evidence-only use case；不得保留事件而
+放弃同事务回滚。本 checkpoint 没有 commit、push、部署、生产写入、容器或网络操作。
+
+## 实施记录（2026-08-27，AUD-02 publication rollback lifecycle checkpoint）
+
+唯一 Application owner `RollbackCanonicalPublicationUseCase` 现由 production composition 注入 canonical
+rollback writer、同 alias 外层 UOW 与 server clock。repository 仍在事务内锁定 target/current、校验
+publication/member/coverage/time evidence，并执行 current→superseded、target→published/reinstated；新增
+显式 `rollback_id` 后，exact retry 只有在 request evidence 与当前结果完全一致时才可重放，身份复用或状态已
+再次变化会失败关闭。Application 随后读取持久 rollback row 与前后 publication，任一替换、缺失、无 run、
+非 SHA-256 publication hash 或 required audit/outbox 失败都会使整组状态更新和 rollback row 回滚。
+
+新增 `data.publication.rolled_back` canonical writer 使用 REQUIRED/WARNING/ROLLED_BACK taxonomy，在既有
+`data.publication:{dataset}` stream 上执行 first-winner 与 predecessor CAS。事件 correlations 绑定 target
+publication、dataset、target run 与 rollback evidence；三份 evidence refs 分别绑定被恢复 publication、
+rollback row 和被替换 publication 的 exact id/version/content hash。rollback row 的 canonical hash 覆盖
+target/previous IDs、reason、operator 与 observed time，但自由文本 reason/operator 不进入 event detail；actor
+与 owner/tenant scope 仍由 server authority 提供，未把命令参数伪装为 authenticated actor。
+
+`ReplayDataChainUseCase` 在存在 rollback event 时，会读取并重算 rollback row hash，重验目标与前序
+publication 的 id/version/hash/dataset/key/state、event resource/correlations/detail/taxonomy，并返回有序
+`rollback_ids`；缺行、hash 漂移、前序 publication 缺失或 event 引用漂移均分别以 unavailable/corruption
+失败关闭。历史无 rollback 事件的链继续兼容。
+
+聚焦验证：Application/repository rollback 成功、非法目标与 audit failure 原子回滚 `3 passed in 138.16s`；
+真实 SQLite 以 2 份 publication/member/coverage 为输入，验证 rollback row、三份 exact evidence、event/outbox、
+authority scope、exact retry 与 outbox failure 全回滚，`2 passed in 139.09s`。格式化后 rollback event/runtime
+和完整 replay 联合 `46 passed`；相关 10 个 production files 及 replay/control-plane 切片增量 mypy 均为
+`0 regressions`。
+
+AUD-02 仍为 `active`。下一切片只处理剩余 `data.quality.changed`：先从 publication member snapshot 定义
+可复现的整体质量 evidence 与状态归约，再接入现有 publication 同事务，不把 freshness、conflict 或单个
+provider 字段混成质量状态。完成 quality 后才运行全量 audit/data-center、mypy debt、architecture、
+governance 与 registry gates，并据真实结果决定 AUD-02 是否满足退出门。回滚点为恢复原 unaudited rollback
+composition、移除 rollback writer/evidence replay 与显式 retry 接线；不得保留可见状态切换而丢弃 required
+audit。本 checkpoint 没有 commit、push、部署、生产写入、容器或网络操作。
+
+## 实施记录（2026-08-27，AUD-02 repository exit acceptance）
+
+AUD-02 的 Data Reliability 纵向链已达到 repository exit gate。Macro、Price Bar 与 Quote Snapshot
+现在都由 server-issued `run_id/ingested_run_id` 贯穿 fetch、validation、failover、fact/RawAudit
+persistence、Canonical Publication/member、typed SystemAuditEvent 与 outbox，并在同一 database alias、
+同一外层 UOW 中提交；required writer、publication、quality 或 outbox 任一步失败都会回滚整组参与者。
+普通 Interface、management command 与 Decision Reliability Repair 只从 system-audited composition root
+取得这三条同步链，治理页面的纯 canonicalize 动作则惰性构造 sync runner，不再无关地要求生产审计
+runtime 配置，真实同步动作仍保持 fail closed。
+
+最后一条 `data.quality.changed` 子链从持久 Canonical Publication 的完整 member snapshot 重建并校验
+publication id/version/hash、member count、唯一 natural key/fact reference 与 provider。`valid/accepted/verified`
+显式归约为 `accepted`，`estimated/error/missing/available_at_unverified` 归约为 `degraded`；`stale` 被拒绝为
+freshness 语义，未知或空值失败关闭。初始 accepted 不制造事件，初始 degraded 产生 DETECTED，degraded 到
+accepted 产生 RECOVERED，同状态不重复写。事件与 outbox 精确引用 publication evidence；质量 writer 失败
+会回滚 fact、identity、RawAudit、publication/member/coverage 及全部事件。回放会重算同一 member/hash 投影，
+degraded snapshot 缺少质量事件视为 silent loss 并拒绝；历史 accepted 链仍可兼容回放。
+
+最终治理复核还关闭了两个真实回归：`sync_use_cases.py` 曾增至 2167 个非空行，现将 Macro/failover/batch
+机械拆到 `sync_macro_use_cases.py`，兼容 façade 保留旧导入路径，两文件分别为 1119/1107 个非空行；
+current-data manifest 从旧的直接 publisher 字符串迁到 Macro/Price/Quote audited composition、quality recorder、
+same-UOW component 证据。20 个冻结的 Data Reliability 事件均已有 canonical typed writer、运行接线与测试，
+因此一次性把 audit event registry 从 `shadow/registry_only + planned/not_wired` 晋级为
+`active/wired`；其余 6 个 inventory-only category 继续 pending，不把它们伪装为已实施。
+
+最终验收证据：
+
+- `pytest tests/unit/audit tests/unit/data_center -q`：`1449 passed in 284.22s`。
+- `pytest tests/component/audit tests/component/data_center -q`：`231 passed, 8 skipped in 273.12s`；8 个 skip
+  均为需要显式 PostgreSQL 测试环境的 opt-in 路径，本轮没有借用或清空现有数据库。
+- Black、isort、Ruff 与 `git diff --check` 通过；全部 59 个改动 production Python 文件增量 mypy 为
+  `0 regressions / 0 legacy errors`，full mypy debt ceiling 为 `0 errors`。
+- 增量与完整 architecture 均扫描 2987 个文件、`0 boundary violations`；governance consistency
+  `0 violations`；Celery contracts 为 91 tasks，current-data contracts 为 50 surfaces，audit event contracts
+  为 20 events 且 `active/wired`；对应 registry 单元 `5 passed`。
+- `makemigrations audit data_center --check --dry-run` 返回 `No changes detected`。migration graph 命令因本地
+  未设置专用 `DATABASE_URL` 明确 unavailable；未回退到生产连接，也不把该项写成通过。
+
+据此，`AUD-02=completed`；依赖解除后的 `AUD-03` 进入 `awaiting_production`，只允许继续其声明的
+candidate-bound read-only auto-collect。production migration/rollback、fault injection、archive/restore、部署、
+运行配置激活与 owner/reviewer 签字仍未执行，必须保留授权边界。按滚动排期，下一条唯一 repository focus
+转为 `TUX-04`，不与 AUD-03 形成第二条仓库主线。
+
+回滚点为撤销 Macro 模块拆分兼容 façade、quality recorder/writer、三条 audited composition/UOW 注入与
+Data Reliability typed writer/replay 接线，并把 20 项事件 registry 恢复为 shadow；任何回滚不得恢复
+memory/generic-event fallback、无 identity 事件或事实与审计分事务写入。本轮因用户已有改动与
+`docs/plans/README.md` 重叠，按 Goal 合同不自动 commit；没有 push、部署、生产/外部写入、容器操作或
+付费调用。

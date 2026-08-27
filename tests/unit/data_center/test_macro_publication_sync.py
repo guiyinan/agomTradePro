@@ -8,10 +8,24 @@ from apps.data_center.application.dtos import SyncMacroRequest
 from apps.data_center.application.macro_publication import PublishMacroBatchUseCase
 from apps.data_center.application.sync_use_cases import SyncMacroUseCase
 from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
-from apps.data_center.domain.control_plane import CanonicalPublication, PublicationFactReference
-from apps.data_center.domain.entities import MacroFact, ProviderConfig
+from apps.data_center.domain.control_plane import (
+    CanonicalPublication,
+    CoverageSnapshot,
+    PublicationFactReference,
+    PublicationState,
+)
+from apps.data_center.domain.entities import MacroFact, ProviderConfig, RawAudit
 from apps.data_center.infrastructure.macro_fact_repositories import MacroFactRepository
 from apps.data_center.infrastructure.models import MacroFactModel
+from tests.unit.data_center.audited_sync_test_support import (
+    CollectingDataFetchAuditWriter,
+    CollectingDataPublicationAuditWriter,
+    CollectingDataValidationAuditWriter,
+    FixedSyncClock,
+    FixedSyncIdentityIssuer,
+    InMemorySyncUnitOfWork,
+    bind_raw_audit,
+)
 
 PUBLISHED_AT = date(2026, 7, 31)
 PUBLISH_TIME = datetime(2026, 8, 4, 12, 0, tzinfo=UTC)
@@ -245,18 +259,66 @@ def test_sync_macro_use_case_invokes_publication_after_fact_write() -> None:
             return len(facts)
 
     class _RawAudit:
-        def log(self, _audit) -> None:
-            return None
+        def log(self, audit: RawAudit) -> RawAudit:
+            return bind_raw_audit(audit)
 
     class _Publisher:
         def __init__(self) -> None:
             self.calls: list[tuple[list[MacroFact], str, str]] = []
 
-        def execute(self, facts, *, provider_name: str, publication_key: str):
+        def execute(
+            self,
+            facts,
+            *,
+            provider_name: str,
+            publication_key: str,
+            run_id: str,
+            published_at: datetime,
+        ) -> CanonicalPublication:
             self.calls.append((list(facts), provider_name, publication_key))
-            return None
+            return CanonicalPublication(
+                publication_id="publication-test",
+                dataset_key="macro.fact",
+                publication_key=publication_key,
+                policy_version="1.0:1.0",
+                state=PublicationState.PUBLISHED,
+                selected_source=provider_name,
+                publication_hash="b" * 64,
+                coverage=CoverageSnapshot(
+                    coverage_id="coverage-test",
+                    publication_id="publication-test",
+                    requested_count=len(facts),
+                    eligible_count=len(facts),
+                    selected_count=len(facts),
+                    missing_count=0,
+                    conflict_count=0,
+                    generated_at=published_at,
+                ),
+                member_count=len(facts),
+                as_of=published_at,
+                published_at=published_at,
+                run_id=run_id,
+            )
+
+    class _PublicationQualityRecorder:
+        """Typed fake for persisted publication quality recording."""
+
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, str, str, str]] = []
+
+        def execute(
+            self,
+            *,
+            publication_id: str,
+            run_id: str,
+            ingested_run_id: str,
+            provider_key: str,
+        ) -> object:
+            self.calls.append((publication_id, run_id, ingested_run_id, provider_key))
+            return object()
 
     publisher = _Publisher()
+    quality_recorder = _PublicationQualityRecorder()
     result = SyncMacroUseCase(
         provider_repo=_ProviderRepository(),
         provider_registry=_Registry(),
@@ -265,6 +327,13 @@ def test_sync_macro_use_case_invokes_publication_after_fact_write() -> None:
         unit_rule_repo=_RuleRepository(),
         raw_audit_repo=_RawAudit(),
         publication_publisher=publisher,
+        sync_identity_issuer=FixedSyncIdentityIssuer(),
+        sync_unit_of_work=InMemorySyncUnitOfWork(),
+        data_fetch_audit_writer=CollectingDataFetchAuditWriter(),
+        data_publication_audit_writer=CollectingDataPublicationAuditWriter(),
+        publication_quality_recorder=quality_recorder,
+        data_validation_audit_writer=CollectingDataValidationAuditWriter(),
+        clock=FixedSyncClock(),
     ).execute(
         SyncMacroRequest(
             provider_id=1,
@@ -278,3 +347,11 @@ def test_sync_macro_use_case_invokes_publication_after_fact_write() -> None:
     assert len(publisher.calls) == 1
     assert publisher.calls[0][1] == "provider-main"
     assert publisher.calls[0][2] == "CN_CPI"
+    assert quality_recorder.calls == [
+        (
+            "publication-test",
+            result.run_id,
+            result.ingested_run_id,
+            "provider-main",
+        )
+    ]

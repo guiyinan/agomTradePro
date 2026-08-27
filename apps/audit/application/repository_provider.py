@@ -11,6 +11,39 @@ from django.utils import timezone
 from apps.audit.infrastructure.providers import DjangoAuditRepository as DjangoAuditRepository
 
 if TYPE_CHECKING:
+    from apps.audit.application.data_conflict_audit import (
+        AppendDataConflictAuditObservationUseCase,
+    )
+    from apps.audit.application.data_decision_read_audit import (
+        AppendDataDecisionReadAuditObservationUseCase,
+    )
+    from apps.audit.application.data_failover_audit import (
+        AppendDataFailoverAuditObservationUseCase,
+    )
+    from apps.audit.application.data_fetch_audit import (
+        AppendDataFetchAuditObservationUseCase,
+    )
+    from apps.audit.application.data_freshness_audit import (
+        AppendDataFreshnessAuditObservationUseCase,
+    )
+    from apps.audit.application.data_provider_health_audit import (
+        AppendDataProviderHealthAuditObservationUseCase,
+    )
+    from apps.audit.application.data_publication_audit import (
+        AppendDataPublicationAuditObservationUseCase,
+    )
+    from apps.audit.application.data_publication_rollback_audit import (
+        AppendDataPublicationRollbackAuditObservationUseCase,
+    )
+    from apps.audit.application.data_quality_audit import (
+        AppendDataQualityAuditObservationUseCase,
+    )
+    from apps.audit.application.data_repair_audit import (
+        AppendDataRepairAuditObservationUseCase,
+    )
+    from apps.audit.application.data_validation_audit import (
+        AppendDataValidationRejectedObservationUseCase,
+    )
     from apps.audit.application.system_audit_outbox_dispatcher import (
         DispatchSystemAuditOutboxUseCase,
     )
@@ -56,7 +89,7 @@ def get_system_audit_outbox_dispatcher() -> DispatchSystemAuditOutboxUseCase:
         dispatcher: DispatchSystemAuditOutboxUseCase = _impl()
     except SystemAuditOutboxPublisherUnavailable as exc:
         raise SystemAuditOutboxDispatchUnavailable(
-            "system audit outbox publisher is not wired",
+            "system audit outbox runtime is unavailable",
             reason_code=exc.reason_code,
         ) from None
     if not isinstance(dispatcher, DispatchSystemAuditOutboxUseCase):
@@ -65,6 +98,129 @@ def get_system_audit_outbox_dispatcher() -> DispatchSystemAuditOutboxUseCase:
             reason_code="invalid_dispatch_composition",
         )
     return dispatcher
+
+
+def get_data_fetch_audit_writer(
+    *, environment: str = "production", using: str = "default"
+) -> AppendDataFetchAuditObservationUseCase:
+    """Return the canonical scoped Data Center fetch-event writer."""
+
+    from apps.audit.infrastructure.system_audit_outbox_runtime import (
+        build_data_fetch_audit_writer,
+    )
+
+    return build_data_fetch_audit_writer(environment=environment, using=using)
+
+
+def get_data_decision_read_audit_writer(
+    *, environment: str = "production", using: str = "default"
+) -> AppendDataDecisionReadAuditObservationUseCase:
+    """Return the canonical scoped decision-read event writer."""
+
+    from apps.audit.infrastructure.system_audit_outbox_runtime import (
+        build_data_decision_read_audit_writer,
+    )
+
+    return build_data_decision_read_audit_writer(environment=environment, using=using)
+
+
+def get_data_provider_health_audit_writer(
+    *, environment: str = "production", using: str = "default"
+) -> AppendDataProviderHealthAuditObservationUseCase:
+    """Return the canonical scoped provider circuit-transition writer."""
+
+    from apps.audit.infrastructure.system_audit_outbox_runtime import (
+        build_data_provider_health_audit_writer,
+    )
+
+    return build_data_provider_health_audit_writer(environment=environment, using=using)
+
+
+def get_data_freshness_audit_writer(
+    *, environment: str = "production", using: str = "default"
+) -> AppendDataFreshnessAuditObservationUseCase:
+    """Return the canonical scoped publication-freshness transition writer."""
+
+    from apps.audit.infrastructure.system_audit_outbox_runtime import (
+        build_data_freshness_audit_writer,
+    )
+
+    return build_data_freshness_audit_writer(environment=environment, using=using)
+
+
+def get_data_quality_audit_writer(
+    *, environment: str = "production", using: str = "default"
+) -> AppendDataQualityAuditObservationUseCase:
+    """Return the canonical scoped publication-quality transition writer."""
+
+    from apps.audit.infrastructure.system_audit_outbox_runtime import (
+        build_data_quality_audit_writer,
+    )
+
+    return build_data_quality_audit_writer(environment=environment, using=using)
+
+
+def get_data_repair_audit_writer(
+    *, environment: str = "production", using: str = "default"
+) -> AppendDataRepairAuditObservationUseCase:
+    """Return the canonical scoped reliability-repair completion writer."""
+
+    from apps.audit.infrastructure.system_audit_outbox_runtime import (
+        build_data_repair_audit_writer,
+    )
+
+    return build_data_repair_audit_writer(environment=environment, using=using)
+
+
+def get_data_conflict_audit_writer(
+    *, environment: str = "production", using: str = "default"
+) -> AppendDataConflictAuditObservationUseCase:
+    """Return the canonical scoped reconciliation-conflict writer."""
+
+    from apps.audit.infrastructure.system_audit_outbox_runtime import (
+        build_data_conflict_audit_writer,
+    )
+
+    return build_data_conflict_audit_writer(environment=environment, using=using)
+
+
+def get_data_publication_rollback_audit_writer(
+    *, environment: str = "production", using: str = "default"
+) -> AppendDataPublicationRollbackAuditObservationUseCase:
+    """Return the canonical scoped publication-rollback writer."""
+
+    from apps.audit.infrastructure.system_audit_outbox_runtime import (
+        build_data_publication_rollback_audit_writer,
+    )
+
+    return build_data_publication_rollback_audit_writer(
+        environment=environment,
+        using=using,
+    )
+
+
+def get_data_reliability_audit_writers(
+    *, environment: str = "production", using: str = "default"
+) -> tuple[
+    AppendDataFetchAuditObservationUseCase,
+    AppendDataPublicationAuditObservationUseCase,
+    AppendDataValidationRejectedObservationUseCase,
+    AppendDataFailoverAuditObservationUseCase,
+    AppendDataDecisionReadAuditObservationUseCase,
+    AppendDataProviderHealthAuditObservationUseCase,
+    AppendDataFreshnessAuditObservationUseCase,
+    AppendDataQualityAuditObservationUseCase,
+]:
+    """Return Data Reliability writers bound to one authority composition."""
+
+    from apps.audit.infrastructure.system_audit_outbox_runtime import (
+        build_data_reliability_audit_writers,
+    )
+
+    return build_data_reliability_audit_writers(
+        environment=environment,
+        using=using,
+    )
 
 
 def project_audit_outbox_backlog_metrics() -> bool:

@@ -22,22 +22,19 @@ from apps.data_center.application.interface_services import (
     resolve_portfolio_alpha_scope,
     run_alpha_score_prediction_now,
 )
-from apps.data_center.application.macro_publication import PublishMacroBatchUseCase
-from apps.data_center.application.publication_sync import (
-    PublishPriceBarBatchUseCase,
-    PublishQuoteSnapshotBatchUseCase,
-)
 from apps.data_center.application.sync_use_cases import RECOVERABLE_DATA_CENTER_EXCEPTIONS
 from apps.data_center.application.use_cases import (
     DEFAULT_DECISION_ASSET_CODES,
     DEFAULT_DECISION_MACRO_INDICATORS,
     RepairDecisionDataReliabilityUseCase,
-    SyncQuoteUseCase,
 )
 from apps.data_center.composition import (
-    CanonicalPublicationRepository,
-    PublicationPolicyRepository,
     build_provider_registry_for_repo,
+    make_publication_decision_read_recorder,
+    make_repair_run_audit_dependencies,
+    make_system_audited_sync_macro_use_case,
+    make_system_audited_sync_price_use_case,
+    make_system_audited_sync_quote_use_case,
 )
 from apps.data_center.infrastructure.repositories import (
     IndicatorCatalogRepository,
@@ -46,7 +43,6 @@ from apps.data_center.infrastructure.repositories import (
     PriceBarRepository,
     ProviderConfigRepository,
     QuoteSnapshotRepository,
-    RawAuditRepository,
 )
 
 ALPHA_POOL_MODE_STRICT_VALUATION = "strict_valuation"
@@ -143,32 +139,33 @@ class Command(BaseCommand):
         macro_repository = MacroFactRepository()
         price_repository = PriceBarRepository()
         quote_repository = QuoteSnapshotRepository()
-        publication_repository = CanonicalPublicationRepository()
-        policy_repository = PublicationPolicyRepository()
+        provider_registry = build_provider_registry_for_repo(provider_repo)
+        repair_audit = make_repair_run_audit_dependencies()
         use_case = RepairDecisionDataReliabilityUseCase(
             provider_repo=provider_repo,
-            provider_registry=build_provider_registry_for_repo(provider_repo),
+            provider_registry=provider_registry,
             macro_fact_repo=macro_repository,
             indicator_catalog_repo=IndicatorCatalogRepository(),
             indicator_unit_rule_repo=IndicatorUnitRuleRepository(),
             price_bar_repo=price_repository,
             quote_snapshot_repo=quote_repository,
-            raw_audit_repo=RawAuditRepository(),
-            macro_publication_publisher=PublishMacroBatchUseCase(
-                fact_repository=macro_repository,
-                publication_repository=publication_repository,
-                policy_repository=policy_repository,
+            macro_sync_use_case=make_system_audited_sync_macro_use_case(
+                provider_repository=provider_repo,
+                provider_registry=provider_registry,
             ),
-            price_publication_publisher=PublishPriceBarBatchUseCase(
-                fact_repository=price_repository,
-                publication_repository=publication_repository,
-                policy_repository=policy_repository,
+            price_sync_use_case=make_system_audited_sync_price_use_case(
+                provider_repository=provider_repo,
+                provider_registry=provider_registry,
             ),
-            quote_publication_publisher=PublishQuoteSnapshotBatchUseCase(
-                fact_repository=quote_repository,
-                publication_repository=publication_repository,
-                policy_repository=policy_repository,
+            quote_sync_use_case=make_system_audited_sync_quote_use_case(
+                provider_repository=provider_repo,
+                provider_registry=provider_registry,
             ),
+            decision_read_recorder=make_publication_decision_read_recorder(),
+            sync_identity_issuer=repair_audit.identity_issuer,
+            repair_run_identity_unit_of_work=repair_audit.identity_unit_of_work,
+            data_repair_audit_writer=repair_audit.audit_writer,
+            clock=repair_audit.clock,
             pulse_refresher=self._build_pulse_refresher(),
             alpha_refresher=self._build_alpha_refresher(
                 user,
@@ -343,11 +340,9 @@ class Command(BaseCommand):
             return {"status": "skipped", "message": "No realtime quote provider is available."}
 
         try:
-            result = SyncQuoteUseCase(
-                provider_repo=provider_repo,
+            result = make_system_audited_sync_quote_use_case(
+                provider_repository=provider_repo,
                 provider_registry=build_provider_registry_for_repo(provider_repo),
-                fact_repo=QuoteSnapshotRepository(),
-                raw_audit_repo=RawAuditRepository(),
             ).execute(
                 SyncQuoteRequest(
                     provider_id=provider.id,
@@ -355,7 +350,7 @@ class Command(BaseCommand):
                 )
             )
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
-            return {"status": "failed", "error_message": str(exc)}
+            return {"status": "failed", "error_class": type(exc).__name__}
         return result.to_dict()
 
     @staticmethod

@@ -46,6 +46,7 @@ def retry_macro_fact_upsert(manager: Any, fact: Any) -> Any:
                 "quality": fact.quality.value,
                 "fetched_at": fact.fetched_at,
                 "extra": fact.extra,
+                "ingested_run_id": fact.ingested_run_id or None,
             },
         )
     )

@@ -1,10 +1,9 @@
-"""Closed-world repository for the schema-only system audit event ledger.
+"""Closed-world repository for the canonical system audit event ledger.
 
-This repository is deliberately dormant: no business application imports it in
-this batch.  Every read restores the complete table before applying a selector,
-so an unrelated future or tampered row cannot be hidden by a filtered query.
-PostgreSQL empty-stream concurrency still requires a deployment-specific race
-proof; SQLite component tests below are structural evidence only.
+Every read restores the complete table before applying a selector, so an
+unrelated future or tampered row cannot be hidden by a filtered query. PostgreSQL
+empty-stream concurrency still requires a deployment-specific race proof;
+SQLite component tests are structural evidence only.
 """
 
 from __future__ import annotations
@@ -181,6 +180,51 @@ class DjangoSystemAuditEventRepository:
             if event.recorded_at <= as_of
         )
         return tuple(sorted(events, key=lambda value: value.sequence_no))
+
+    def list_correlated_events(
+        self,
+        run_id: str | None,
+        publication_id: str | None,
+        as_of: datetime,
+        scope: AuditScopeRef,
+    ) -> tuple[SystemAuditEvent, ...]:
+        """Return one PIT-bounded run chain selected by run or publication."""
+
+        self._require_cutoff(as_of)
+        if (run_id is None) == (publication_id is None):
+            raise SystemAuditUnavailable("exactly one audit correlation selector is required")
+        visible = tuple(
+            event
+            for event in self._scope_visible(
+                tuple(item.event for item in self._state()),
+                scope=scope,
+            )
+            if event.recorded_at <= as_of
+        )
+        if run_id is not None:
+            selected = tuple(event for event in visible if event.correlations.run_id == run_id)
+        else:
+            anchors = tuple(event for event in visible if event.publication_id == publication_id)
+            resolved_runs = {
+                event.correlations.run_id
+                for event in anchors
+                if event.correlations.run_id is not None
+            }
+            selected = tuple(
+                event
+                for event in visible
+                if event in anchors or event.correlations.run_id in resolved_runs
+            )
+        return tuple(
+            sorted(
+                selected,
+                key=lambda event: (
+                    event.recorded_at,
+                    event.stream_id,
+                    event.sequence_no,
+                ),
+            )
+        )
 
     def append(
         self,

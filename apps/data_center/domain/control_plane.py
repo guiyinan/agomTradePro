@@ -442,11 +442,16 @@ class PublicationRollback:
     operator: str
     observed_at: datetime
     previous_publication_id: str = ""
+    rollback_id: str = ""
 
     def __post_init__(self) -> None:
         for name in ("target_publication_id", "reason", "operator"):
             if not getattr(self, name).strip():
                 raise ValueError(f"PublicationRollback.{name} cannot be empty")
+        if self.rollback_id and not self.rollback_id.strip():
+            raise ValueError("PublicationRollback.rollback_id cannot be blank")
+        if self.previous_publication_id == self.target_publication_id:
+            raise ValueError("Rollback target and previous publication must differ")
         _require_aware(self.observed_at, "PublicationRollback.observed_at")
 
 

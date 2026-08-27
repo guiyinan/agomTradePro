@@ -13,6 +13,7 @@ import math
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from typing import Any, ClassVar
+from uuid import UUID
 
 from apps.data_center.domain.enums import (
     AssetType,
@@ -369,6 +370,7 @@ class MacroFact:
     quality: DataQualityStatus = DataQualityStatus.VALID
     fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     extra: dict[str, Any] = field(default_factory=dict)
+    ingested_run_id: str = ""
 
     def __post_init__(self) -> None:
         if not self.indicator_code:
@@ -379,6 +381,13 @@ class MacroFact:
             or not math.isfinite(self.value)
         ):
             raise ValueError("MacroFact.value must be finite")
+        if self.ingested_run_id:
+            try:
+                parsed_run_id = UUID(self.ingested_run_id)
+            except (TypeError, ValueError) as error:
+                raise ValueError("MacroFact.ingested_run_id must be a canonical UUID") from error
+            if str(parsed_run_id) != self.ingested_run_id.lower():
+                raise ValueError("MacroFact.ingested_run_id must be a canonical UUID")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -392,6 +401,7 @@ class MacroFact:
             "quality": self.quality.value,
             "fetched_at": self.fetched_at.isoformat(),
             "extra": self.extra,
+            "ingested_run_id": self.ingested_run_id,
         }
 
 
@@ -411,12 +421,20 @@ class PriceBar:
     amount: float | None = None
     source: str = ""
     fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    ingested_run_id: str = ""
 
     def __post_init__(self) -> None:
         if not self.asset_code:
             raise ValueError("PriceBar.asset_code cannot be empty")
         if isinstance(self.close, bool) or not math.isfinite(self.close) or self.close <= 0:
             raise ValueError(f"PriceBar.close must be positive and finite: {self.close}")
+        if self.ingested_run_id:
+            try:
+                parsed_run_id = UUID(self.ingested_run_id)
+            except (TypeError, ValueError) as error:
+                raise ValueError("PriceBar.ingested_run_id must be a canonical UUID") from error
+            if str(parsed_run_id) != self.ingested_run_id.lower():
+                raise ValueError("PriceBar.ingested_run_id must be a canonical UUID")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -432,6 +450,7 @@ class PriceBar:
             "amount": self.amount,
             "source": self.source,
             "fetched_at": self.fetched_at.isoformat(),
+            "ingested_run_id": self.ingested_run_id,
         }
 
 
@@ -453,6 +472,7 @@ class QuoteSnapshot:
     bid: float | None = None
     ask: float | None = None
     extra: dict[str, Any] = field(default_factory=dict)
+    ingested_run_id: str = ""
 
     def __post_init__(self) -> None:
         if not self.asset_code:
@@ -472,6 +492,15 @@ class QuoteSnapshot:
                 raise ValueError("QuoteSnapshot.fetched_at must be timezone-aware")
             if self.fetched_at < self.snapshot_at:
                 raise ValueError("QuoteSnapshot.fetched_at cannot precede snapshot_at")
+        if self.ingested_run_id:
+            try:
+                parsed_run_id = UUID(self.ingested_run_id)
+            except (TypeError, ValueError) as error:
+                raise ValueError(
+                    "QuoteSnapshot.ingested_run_id must be a canonical UUID"
+                ) from error
+            if str(parsed_run_id) != self.ingested_run_id.lower():
+                raise ValueError("QuoteSnapshot.ingested_run_id must be a canonical UUID")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -489,6 +518,7 @@ class QuoteSnapshot:
             "ask": self.ask,
             "source": self.source,
             "extra": self.extra,
+            "ingested_run_id": self.ingested_run_id,
         }
 
 
@@ -976,7 +1006,7 @@ class RawAudit:
     ingested_run_id: str = ""
     content_hash: str = ""
 
-    def exact_reference(self) -> "RawAuditReference":
+    def exact_reference(self) -> RawAuditReference:
         """Return an event-safe reference, rejecting unbound legacy rows.
 
         Existing raw-audit rows may legitimately lack the newer batch

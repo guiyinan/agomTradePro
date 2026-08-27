@@ -15,6 +15,19 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.db import connection
 
+from apps.audit.application.data_decision_read_audit import (
+    DataDecisionReadAuditObservation,
+    build_data_decision_read_audit_event,
+)
+from apps.audit.application.data_fetch_audit import (
+    DataFetchAuditObservation,
+    build_data_fetch_audit_event,
+)
+from apps.audit.application.data_publication_audit import (
+    DataPublicationAuditObservation,
+    build_data_publication_audit_event,
+)
+from apps.audit.domain.system_audit_event import AuditOutcome, AuditScopeRef
 from apps.audit.domain.system_audit_event import SystemAuditEvent
 from apps.audit.infrastructure.system_audit_models import SystemAuditEventModel
 from apps.audit.infrastructure.system_audit_repository import (
@@ -28,6 +41,12 @@ from tests.unit.audit.test_system_audit_event import make_event
 
 NOW = datetime(2026, 8, 14, 12, 0, 0, 123456, tzinfo=UTC)
 LATER = NOW + timedelta(minutes=1)
+SCOPE = AuditScopeRef("tenant:research", "owner:alice")
+OTHER_SCOPE = AuditScopeRef("tenant:other", "owner:alice")
+RUN_ID = "run-1"
+INGESTED_RUN_ID = "ingested-1"
+PUBLICATION_ID = "publication-1"
+PUBLICATION_HASH = "b" * 64
 
 
 class FixedClock:
@@ -128,6 +147,79 @@ def _different_identity_payload(root: SystemAuditEvent) -> SystemAuditEvent:
         predecessor_hash=root.predecessor_hash,
         idempotency_key=root.idempotency_key,
     )
+
+
+def _correlated_events(
+    *, scope: AuditScopeRef = SCOPE
+) -> tuple[SystemAuditEvent, SystemAuditEvent, SystemAuditEvent]:
+    """Build a three-stream fetch/publication/read chain for repository tests."""
+
+    raw_hash = "a" * 64
+    fetch = build_data_fetch_audit_event(
+        DataFetchAuditObservation(
+            provider_key="provider-main",
+            capability="macro",
+            dataset_key="macro.series.cpi",
+            run_id=RUN_ID,
+            ingested_run_id=INGESTED_RUN_ID,
+            raw_audit_id="raw-1",
+            raw_audit_version="1",
+            raw_audit_content_hash=raw_hash,
+            outcome=AuditOutcome.SUCCESS,
+            row_count=1,
+            occurred_at=NOW,
+            recorded_at=NOW,
+            scope=scope,
+        ),
+        sequence_no=1,
+        predecessor_hash=None,
+    )
+    publication = build_data_publication_audit_event(
+        DataPublicationAuditObservation(
+            dataset_key="macro.series.cpi",
+            publication_key="CPI",
+            publication_id=PUBLICATION_ID,
+            publication_version="policy-v1",
+            publication_hash=PUBLICATION_HASH,
+            provider_key="provider-main",
+            run_id=RUN_ID,
+            ingested_run_id=INGESTED_RUN_ID,
+            member_count=1,
+            coverage_requested_count=1,
+            coverage_eligible_count=1,
+            coverage_selected_count=1,
+            outcome=AuditOutcome.PUBLISHED,
+            raw_audit_id="raw-1",
+            raw_audit_version="1",
+            raw_audit_content_hash=raw_hash,
+            occurred_at=NOW + timedelta(seconds=1),
+            recorded_at=NOW + timedelta(seconds=1),
+            scope=scope,
+        ),
+        sequence_no=1,
+        predecessor_hash=None,
+    )
+    decision_read = build_data_decision_read_audit_event(
+        DataDecisionReadAuditObservation(
+            dataset_key="macro.series.cpi",
+            publication_key="CPI",
+            publication_id=PUBLICATION_ID,
+            publication_version="policy-v1",
+            publication_hash=PUBLICATION_HASH,
+            provider_key="provider-main",
+            run_id=RUN_ID,
+            ingested_run_id=INGESTED_RUN_ID,
+            decision_key="portfolio-readiness",
+            freshness_status="fresh",
+            outcome=AuditOutcome.RECOVERED,
+            occurred_at=NOW + timedelta(seconds=2),
+            recorded_at=NOW + timedelta(seconds=2),
+            scope=scope,
+        ),
+        sequence_no=1,
+        predecessor_hash=None,
+    )
+    return fetch, publication, decision_read
 
 
 def test_root_append_exact_replay_and_pit_reads() -> None:
@@ -235,3 +327,43 @@ def test_future_recorded_at_append_is_rejected() -> None:
                 expected_predecessor_hash=None,
                 recorded_at=future.recorded_at,
             )
+
+
+def test_correlated_read_resolves_publication_to_the_complete_run() -> None:
+    repository = _repository()
+    events = _correlated_events()
+    with repository.atomic():
+        for event in events:
+            repository.append(
+                event,
+                expected_predecessor_hash=None,
+                recorded_at=event.recorded_at,
+            )
+
+    assert repository.list_correlated_events(None, PUBLICATION_ID, LATER, SCOPE) == events
+    assert repository.list_correlated_events(RUN_ID, None, LATER, SCOPE) == events
+
+
+def test_correlated_read_is_scope_and_pit_bounded() -> None:
+    repository = _repository()
+    scoped_events = _correlated_events()
+    with repository.atomic():
+        for event in scoped_events:
+            repository.append(
+                event,
+                expected_predecessor_hash=None,
+                recorded_at=event.recorded_at,
+            )
+
+    assert repository.list_correlated_events(
+        None,
+        PUBLICATION_ID,
+        LATER,
+        OTHER_SCOPE,
+    ) == ()
+    assert repository.list_correlated_events(
+        None,
+        PUBLICATION_ID,
+        NOW + timedelta(seconds=1),
+        SCOPE,
+    ) == scoped_events[:2]

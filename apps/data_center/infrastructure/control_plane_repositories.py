@@ -228,6 +228,12 @@ class SyncBatchRepository:
 class SyncExecutionIdentityRepository:
     """Persist complete server-issued sync execution identities."""
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the fixed transaction identity used by this repository."""
+
+        return "django:default"
+
     def persist(self, identity: SyncExecutionIdentity) -> SyncExecutionIdentity:
         """Idempotently persist an identity without generating any field."""
 
@@ -364,6 +370,12 @@ class QuarantineRepository:
 
 class CanonicalPublicationRepository:
     """Persist publication decisions and selected fact references."""
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the fixed transaction identity used by this repository."""
+
+        return "django:default"
 
     def save(self, publication: CanonicalPublication) -> CanonicalPublication:
         """Save a publication and its immutable coverage snapshot atomically.
@@ -604,6 +616,15 @@ class CanonicalPublicationRepository:
     def rollback(self, rollback: PublicationRollback) -> CanonicalPublication:
         """Restore a prior publication with explicit, durable operator evidence."""
 
+        rollback_id = _uuid(rollback.rollback_id) if rollback.rollback_id else uuid4()
+        existing_rollback = (
+            PublicationRollbackModel._default_manager.select_for_update()
+            .filter(rollback_id=rollback_id)
+            .first()
+        )
+        if existing_rollback is not None:
+            return self._replay_existing_rollback(existing_rollback, rollback)
+
         target_id = _uuid(rollback.target_publication_id)
         target = (
             CanonicalPublicationModel._default_manager.select_for_update()
@@ -661,7 +682,7 @@ class CanonicalPublicationRepository:
             reinstated_at=rollback.observed_at,
         )
         PublicationRollbackModel._default_manager.create(
-            rollback_id=uuid4(),
+            rollback_id=rollback_id,
             target_publication_id=target.publication_id,
             previous_publication_id=current.publication_id,
             dataset_key=target.dataset_key,
@@ -672,6 +693,55 @@ class CanonicalPublicationRepository:
         )
         restored = CanonicalPublicationModel._default_manager.get(publication_id=target_id)
         return restored.to_domain()
+
+    @staticmethod
+    def _replay_existing_rollback(
+        persisted: PublicationRollbackModel,
+        requested: PublicationRollback,
+    ) -> CanonicalPublication:
+        """Replay only an exact rollback whose resulting state is still current."""
+
+        if (
+            str(persisted.target_publication_id) != requested.target_publication_id
+            or persisted.reason != requested.reason
+            or persisted.operator != requested.operator
+            or persisted.observed_at != requested.observed_at
+            or (
+                requested.previous_publication_id
+                and str(persisted.previous_publication_id) != requested.previous_publication_id
+            )
+        ):
+            raise ValueError("publication rollback identity already contains different evidence")
+        target = (
+            CanonicalPublicationModel._default_manager.select_for_update()
+            .filter(publication_id=persisted.target_publication_id)
+            .first()
+        )
+        previous = (
+            CanonicalPublicationModel._default_manager.select_for_update()
+            .filter(publication_id=persisted.previous_publication_id)
+            .first()
+        )
+        if (
+            target is None
+            or previous is None
+            or target.state != PublicationState.PUBLISHED.value
+            or target.reinstated_at != persisted.observed_at
+            or previous.state != PublicationState.SUPERSEDED.value
+            or previous.superseded_at != persisted.observed_at
+        ):
+            raise ValueError("publication rollback replay no longer matches current state")
+        return target.to_domain()
+
+    def get_rollback_by_id(self, rollback_id: str) -> PublicationRollback | None:
+        """Return one exact durable rollback evidence identity."""
+
+        try:
+            identity = _uuid(rollback_id)
+        except (AttributeError, TypeError, ValueError):
+            return None
+        row = PublicationRollbackModel._default_manager.filter(rollback_id=identity).first()
+        return row.to_domain() if row is not None else None
 
     @staticmethod
     def _ensure_persisted_member_evidence(publication: CanonicalPublicationModel) -> None:
@@ -718,6 +788,18 @@ class CanonicalPublicationRepository:
             .order_by("-published_at")
             .first()
         )
+        return model.to_domain() if model is not None else None
+
+    def get_by_id(self, publication_id: str) -> CanonicalPublication | None:
+        """Return one exact canonical publication identity or ``None``."""
+
+        try:
+            publication_uuid = _uuid(publication_id)
+        except (AttributeError, TypeError, ValueError):
+            return None
+        model = CanonicalPublicationModel._default_manager.filter(
+            publication_id=publication_uuid
+        ).first()
         return model.to_domain() if model is not None else None
 
     def get_as_of(

@@ -2,10 +2,21 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import UTC, datetime
 from typing import Protocol
 from uuid import uuid4
 
+from apps.audit.application.data_publication_rollback_audit import (
+    DataPublicationRollbackAuditObservation,
+)
+from apps.audit.domain.system_audit_event import AuditOutcome
+from apps.data_center.application.sync_transaction import (
+    DataCenterSyncClock,
+    DataCenterSyncUnitOfWork,
+    DataPublicationRollbackAuditWriter,
+)
 from apps.data_center.domain.contracts import PublicationPolicy
 from apps.data_center.domain.control_plane import (
     CanonicalPublication,
@@ -48,6 +59,10 @@ class QuarantineRepositoryPort(Protocol):
 class CanonicalPublicationRepositoryPort(Protocol):
     """Persistence port for publication decisions."""
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact transaction identity used by this repository."""
+
     def save(self, publication: CanonicalPublication) -> CanonicalPublication: ...
 
     def publish(self, publication: CanonicalPublication) -> CanonicalPublication: ...
@@ -61,6 +76,9 @@ class CanonicalPublicationRepositoryPort(Protocol):
     def add_member(self, member: PublicationMember) -> PublicationMember: ...
 
     def list_members(self, publication_id: str) -> list[PublicationMember]: ...
+
+    def get_by_id(self, publication_id: str) -> CanonicalPublication | None:
+        """Return one exact publication identity or ``None``."""
 
     def get_oldest_member_observed_at(self, publication_id: str) -> datetime | None: ...
 
@@ -76,6 +94,36 @@ class CanonicalPublicationRepositoryPort(Protocol):
     ) -> CanonicalPublication | None: ...
 
     def rollback(self, rollback: PublicationRollback) -> CanonicalPublication: ...
+
+    def get_rollback_by_id(self, rollback_id: str) -> PublicationRollback | None:
+        """Return one exact durable rollback evidence row or ``None``."""
+
+
+def publication_rollback_evidence_content_hash(evidence: PublicationRollback) -> str:
+    """Hash the exact persisted rollback evidence using canonical JSON."""
+
+    if not isinstance(evidence, PublicationRollback):
+        raise TypeError("evidence must be a PublicationRollback")
+    if not evidence.rollback_id:
+        raise ValueError("persisted rollback evidence requires rollback_id")
+    if not evidence.previous_publication_id:
+        raise ValueError("persisted rollback evidence requires previous_publication_id")
+    payload: dict[str, object] = {
+        "rollback_id": evidence.rollback_id,
+        "target_publication_id": evidence.target_publication_id,
+        "previous_publication_id": evidence.previous_publication_id,
+        "reason": evidence.reason,
+        "operator": evidence.operator,
+        "observed_at": evidence.observed_at.astimezone(UTC).isoformat(timespec="microseconds"),
+    }
+    encoded = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 class StartSyncRunUseCase:
@@ -183,8 +231,32 @@ class PublishCanonicalDatasetUseCase:
 class RollbackCanonicalPublicationUseCase:
     """Restore a prior publication only with explicit operator evidence."""
 
-    def __init__(self, repository: CanonicalPublicationRepositoryPort) -> None:
+    def __init__(
+        self,
+        repository: CanonicalPublicationRepositoryPort,
+        *,
+        audit_writer: DataPublicationRollbackAuditWriter,
+        unit_of_work: DataCenterSyncUnitOfWork,
+        clock: DataCenterSyncClock,
+    ) -> None:
+        if repository.unit_of_work_key != unit_of_work.unit_of_work_key:
+            raise ValueError("publication repository and rollback unit of work differ")
         self._repository = repository
+        self._audit_writer = audit_writer
+        self._unit_of_work = unit_of_work
+        self._clock = clock
+
+    @property
+    def database_alias(self) -> str:
+        """Return the database alias used by the canonical audit writer."""
+
+        return self._audit_writer.database_alias
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact transaction identity for the rollback commit."""
+
+        return self._unit_of_work.unit_of_work_key
 
     def execute(
         self,
@@ -193,22 +265,82 @@ class RollbackCanonicalPublicationUseCase:
         reason: str,
         operator: str,
         observed_at: datetime,
+        rollback_id: str | None = None,
     ) -> CanonicalPublication:
-        """Restore one previously published snapshot through the repository port."""
+        """Restore a snapshot and append exact rollback audit in one transaction."""
 
+        recorded_at = self._clock.now()
+        if recorded_at.tzinfo is None or recorded_at.utcoffset() is None:
+            raise ValueError("publication rollback clock must be timezone-aware")
+        if observed_at.tzinfo is None or observed_at.utcoffset() is None:
+            raise ValueError("publication rollback observed_at must be timezone-aware")
+        if observed_at > recorded_at:
+            raise ValueError("publication rollback observed_at cannot be after recorded_at")
+        rollback_identity = rollback_id or str(uuid4())
         rollback = PublicationRollback(
             target_publication_id=target_publication_id,
             reason=reason,
             operator=operator,
             observed_at=observed_at,
+            rollback_id=rollback_identity,
         )
-        return self._repository.rollback(rollback)
+        with self._unit_of_work.atomic():
+            restored = self._repository.rollback(rollback)
+            evidence = self._repository.get_rollback_by_id(rollback_identity)
+            if evidence is None:
+                raise ValueError("publication rollback evidence was not persisted")
+            if (
+                evidence.rollback_id != rollback_identity
+                or evidence.target_publication_id != target_publication_id
+                or evidence.reason != reason
+                or evidence.operator != operator
+                or evidence.observed_at != observed_at
+                or not evidence.previous_publication_id
+            ):
+                raise ValueError("publication rollback evidence was substituted")
+            if (
+                restored.publication_id != target_publication_id
+                or restored.state is not PublicationState.PUBLISHED
+                or restored.reinstated_at != observed_at
+            ):
+                raise ValueError("publication rollback result was substituted")
+            previous = self._repository.get_by_id(evidence.previous_publication_id)
+            if previous is None:
+                raise ValueError("previous publication evidence is unavailable")
+            if (
+                previous.dataset_key != restored.dataset_key
+                or previous.publication_key != restored.publication_key
+                or previous.state is not PublicationState.SUPERSEDED
+                or previous.superseded_at != observed_at
+            ):
+                raise ValueError("previous publication evidence is inconsistent")
+            self._audit_writer.write(
+                DataPublicationRollbackAuditObservation(
+                    dataset_key=restored.dataset_key,
+                    publication_key=restored.publication_key,
+                    publication_id=restored.publication_id,
+                    publication_version=restored.policy_version,
+                    publication_hash=restored.publication_hash,
+                    rollback_id=evidence.rollback_id,
+                    rollback_version="1",
+                    rollback_content_hash=publication_rollback_evidence_content_hash(evidence),
+                    previous_publication_id=previous.publication_id,
+                    previous_publication_version=previous.policy_version,
+                    previous_publication_hash=previous.publication_hash,
+                    run_id=restored.run_id,
+                    occurred_at=evidence.observed_at,
+                    recorded_at=recorded_at,
+                    outcome=AuditOutcome.ROLLED_BACK,
+                )
+            )
+        return restored
 
 
 __all__ = [
     "CanonicalPublicationRepositoryPort",
     "PublishCanonicalDatasetUseCase",
     "RollbackCanonicalPublicationUseCase",
+    "publication_rollback_evidence_content_hash",
     "QuarantineRepositoryPort",
     "RecordQuarantineUseCase",
     "StartSyncRunUseCase",

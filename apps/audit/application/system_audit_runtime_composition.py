@@ -76,6 +76,14 @@ class SystemAuditDispatchUnitOfWorkWithAlias(SystemAuditOutboxDispatchUnitOfWork
         """Return the database alias used by the unit of work."""
 
 
+class SystemAuditOutboxPublisherWithAlias(SystemAuditOutboxPublisher, Protocol):
+    """Canonical publisher bound to one explicit database alias."""
+
+    @property
+    def database_alias(self) -> str:
+        """Return the publisher database alias."""
+
+
 @dataclass(frozen=True, slots=True)
 class ServerIssuedSystemAuditAuthorityBundle:
     """Bind an authority provider to one exact externally issued selector.
@@ -116,7 +124,7 @@ class SystemAuditRuntimeComposition:
     event_outbox_coordinator: SystemAuditEventOutboxCoordinator
     dispatch_repository: SystemAuditDispatchRepositoryWithAlias
     dispatch_unit_of_work: SystemAuditDispatchUnitOfWorkWithAlias
-    publisher: SystemAuditOutboxPublisher
+    publisher: SystemAuditOutboxPublisherWithAlias
     publisher_preflight: CanonicalSystemAuditPublisherPreflight
     authority_bundle: ServerIssuedSystemAuditAuthorityBundle
 
@@ -195,7 +203,7 @@ def _require_component_alias(
             cast(SystemAuditEventOutboxCoordinator, component).database_alias,
             f"{field} database alias",
         )
-    except (AttributeError, TypeError):
+    except (AttributeError, TypeError, SystemAuditCompositionUnavailable):
         raise SystemAuditCompositionUnavailable(
             f"system audit {field} database alias is unavailable",
             reason_code="composition_not_wired",
@@ -270,6 +278,21 @@ def inspect_system_audit_runtime_composition(
             reason_code="publisher_not_wired",
         )
     try:
+        publisher_alias = _require_token(
+            cast(SystemAuditOutboxPublisherWithAlias, publisher).database_alias,
+            "publisher database alias",
+        )
+    except (AttributeError, TypeError, SystemAuditCompositionUnavailable):
+        raise SystemAuditCompositionUnavailable(
+            "system audit publisher database alias is unavailable",
+            reason_code="publisher_contract_unavailable",
+        ) from None
+    if publisher_alias != expected_alias:
+        raise SystemAuditCompositionUnavailable(
+            "system audit components are bound to different database aliases",
+            reason_code="composition_alias_mismatch",
+        )
+    try:
         validated_publisher, publisher_preflight = inspect_canonical_system_audit_publisher(
             publisher
         )
@@ -286,7 +309,7 @@ def inspect_system_audit_runtime_composition(
         event_outbox_coordinator=cast(SystemAuditEventOutboxCoordinator, event_outbox_coordinator),
         dispatch_repository=cast(SystemAuditDispatchRepositoryWithAlias, dispatch_repository),
         dispatch_unit_of_work=cast(SystemAuditDispatchUnitOfWorkWithAlias, dispatch_unit_of_work),
-        publisher=validated_publisher,
+        publisher=cast(SystemAuditOutboxPublisherWithAlias, validated_publisher),
         publisher_preflight=publisher_preflight,
         authority_bundle=authority_bundle,
     )
@@ -298,6 +321,7 @@ __all__ = [
     "SystemAuditDispatchUnitOfWorkWithAlias",
     "SystemAuditEventOutboxCoordinator",
     "SystemAuditRuntimeComposition",
+    "SystemAuditOutboxPublisherWithAlias",
     "inspect_system_audit_runtime_composition",
     "preflight_system_audit_runtime_authority",
 ]

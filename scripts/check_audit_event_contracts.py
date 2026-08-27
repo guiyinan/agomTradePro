@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Validate the shadow system-audit event registry.
+"""Validate the canonical system-audit event registry.
 
-This M0 guard validates only the machine contract.  It deliberately does not
-claim that any event is emitted, persisted, or wired into production.
+The guard validates machine contract and implementation-state consistency;
+production deployment and operational evidence remain separate acceptance gates.
 """
 
 from __future__ import annotations

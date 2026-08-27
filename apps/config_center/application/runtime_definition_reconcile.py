@@ -425,6 +425,37 @@ DEFAULT_RUNTIME_DEFINITIONS: tuple[RuntimeConfigDefinition, ...] = (
         description="Asset-class to canonical proxy code mapping.",
         user_impact="Controls proxy instruments used when an asset class has no direct quote.",
     ),
+    RuntimeConfigDefinition(
+        key="audit.system_event.mode",
+        namespace="audit",
+        owner_app="audit",
+        value_type=RuntimeValueType.ENUM,
+        constraints={"choices": ["off", "shadow", "required"]},
+        criticality=RuntimeConfigCriticality.CRITICAL,
+        reload_mode=RuntimeConfigReloadMode.NEXT_TASK,
+        description="System audit event emission mode.",
+        user_impact="Controls governed audit emission.",
+    ),
+    RuntimeConfigDefinition(
+        key="audit.system_event.outbox_enabled",
+        namespace="audit",
+        owner_app="audit",
+        value_type=RuntimeValueType.BOOL,
+        criticality=RuntimeConfigCriticality.CRITICAL,
+        reload_mode=RuntimeConfigReloadMode.NEXT_TASK,
+        description="Enable system audit outbox delivery.",
+        user_impact="Controls durable audit delivery.",
+    ),
+    RuntimeConfigDefinition(
+        key="audit.system_event.authority_selector",
+        namespace="audit",
+        owner_app="audit",
+        value_type=RuntimeValueType.TYPED_JSON,
+        criticality=RuntimeConfigCriticality.CRITICAL,
+        reload_mode=RuntimeConfigReloadMode.NEXT_TASK,
+        description="Server-issued audit authority selector.",
+        user_impact="Binds audit reads to immutable authority sources.",
+    ),
 )
 
 

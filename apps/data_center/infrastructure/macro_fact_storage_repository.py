@@ -56,6 +56,12 @@ class _MacroFactModelCandidate:
 class MacroFactRepository:
     """ORM-backed repository for macro-economic fact time-series."""
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the fixed transaction identity used by this repository."""
+
+        return "django:default"
+
     REQUIRED_GOVERNANCE_FIELDS = frozenset(
         {
             "source_type",
@@ -83,6 +89,7 @@ class MacroFactRepository:
             quality=DataQualityStatus(model.quality),
             fetched_at=model.fetched_at,
             extra=dict(model.extra or {}),
+            ingested_run_id=str(model.ingested_run_id) if model.ingested_run_id else "",
         )
 
     def get_series(

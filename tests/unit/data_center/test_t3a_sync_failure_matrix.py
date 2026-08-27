@@ -27,6 +27,14 @@ from apps.data_center.application.sync_use_cases import (
     SyncValuationUseCase,
 )
 from apps.data_center.domain.entities import ProviderConfig, RawAudit
+from tests.unit.data_center.audited_sync_test_support import (
+    CollectingDataFetchAuditWriter,
+    CollectingDataPublicationAuditWriter,
+    FixedSyncClock,
+    FixedSyncIdentityIssuer,
+    InMemorySyncUnitOfWork,
+    bind_raw_audit,
+)
 
 START = date(2024, 1, 1)
 END = date(2024, 12, 31)
@@ -116,8 +124,9 @@ class _AuditRepository:
         self.items: list[RawAudit] = []
 
     def log(self, audit: RawAudit) -> RawAudit:
-        self.items.append(audit)
-        return audit
+        persisted = bind_raw_audit(audit)
+        self.items.append(persisted)
+        return persisted
 
 
 @pytest.mark.parametrize(
@@ -143,11 +152,22 @@ def test_sync_failure_is_audited_and_reraised(
     provider_repo = _ProviderRepository()
     registry = _Registry()
     audit_repo = _AuditRepository()
+    dependencies: dict[str, object] = {
+        "provider_repo": provider_repo,
+        "provider_registry": registry,
+        "fact_repo": _FactRepository(),
+        "raw_audit_repo": audit_repo,
+    }
+    if use_case_type in {SyncPriceUseCase, SyncQuoteUseCase}:
+        dependencies.update(
+            sync_identity_issuer=FixedSyncIdentityIssuer(),
+            sync_unit_of_work=InMemorySyncUnitOfWork(),
+            data_fetch_audit_writer=CollectingDataFetchAuditWriter(),
+            data_publication_audit_writer=CollectingDataPublicationAuditWriter(),
+            clock=FixedSyncClock(),
+        )
     use_case = use_case_type(
-        provider_repo=provider_repo,
-        provider_registry=registry,
-        fact_repo=_FactRepository(),
-        raw_audit_repo=audit_repo,
+        **dependencies,
     )
 
     with pytest.raises(RuntimeError, match="provider unavailable"):

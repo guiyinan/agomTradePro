@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
 
+from apps.audit.application.data_publication_rollback_audit import (
+    DataPublicationRollbackAuditObservation,
+)
 from apps.data_center.application.control_plane import (
     PublishCanonicalDatasetUseCase,
     RollbackCanonicalPublicationUseCase,
+    publication_rollback_evidence_content_hash,
 )
 from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
 from apps.data_center.domain.control_plane import (
@@ -26,6 +31,9 @@ from apps.data_center.domain.control_plane import (
     SyncItemState,
     SyncRun,
     SyncRunStatus,
+)
+from apps.data_center.infrastructure.audited_sync_runtime import (
+    DjangoDataCenterSyncUnitOfWork,
 )
 from apps.data_center.infrastructure.control_plane_repositories import (
     CanonicalPublicationRepository,
@@ -381,7 +389,7 @@ def _publication_with_members(
         policy_version="equity.daily.v1",
         state=PublicationState.PUBLISHED,
         selected_source="fixture",
-        publication_hash=f"sha256:{publication_id}",
+        publication_hash=hashlib.sha256(publication_id.encode("utf-8")).hexdigest(),
         coverage=CoverageSnapshot(
             coverage_id=str(uuid4()),
             publication_id=publication_id,
@@ -393,6 +401,7 @@ def _publication_with_members(
         member_count=member_count,
         as_of=as_of,
         published_at=as_of,
+        run_id=str(uuid4()),
     )
     members = tuple(
         PublicationMember(
@@ -409,6 +418,45 @@ def _publication_with_members(
         for index in range(member_count)
     )
     return publication, members
+
+
+class _RollbackAuditWriter:
+    """Collect exact rollback observations or fail inside the outer UOW."""
+
+    database_alias = "default"
+
+    def __init__(self, *, fail: bool = False) -> None:
+        self.fail = fail
+        self.observations: list[DataPublicationRollbackAuditObservation] = []
+
+    def write(self, observation: DataPublicationRollbackAuditObservation) -> None:
+        if self.fail:
+            raise RuntimeError("simulated rollback audit failure")
+        self.observations.append(observation)
+
+
+class _RollbackClock:
+    def now(self) -> datetime:
+        return NOW
+
+
+def _rollback_use_case(
+    repository: CanonicalPublicationRepository,
+    writer: _RollbackAuditWriter | None = None,
+) -> tuple[RollbackCanonicalPublicationUseCase, _RollbackAuditWriter]:
+    audit_writer = writer or _RollbackAuditWriter()
+    return (
+        RollbackCanonicalPublicationUseCase(
+            repository,
+            audit_writer=audit_writer,
+            unit_of_work=DjangoDataCenterSyncUnitOfWork(
+                (repository,),
+                audit_writer,
+            ),
+            clock=_RollbackClock(),
+        ),
+        audit_writer,
+    )
 
 
 def test_publish_use_case_rejects_duplicate_member_snapshot() -> None:
@@ -513,11 +561,14 @@ def test_explicit_publication_rollback_preserves_history_until_observed_boundary
     assert before_rollback.publication_id == second.publication_id
 
     rollback_at = NOW
-    restored = RollbackCanonicalPublicationUseCase(repository).execute(
+    rollback_use_case, writer = _rollback_use_case(repository)
+    rollback_id = str(uuid4())
+    restored = rollback_use_case.execute(
         target_publication_id=first.publication_id,
         reason="restore verified prior snapshot",
         operator="operator-1",
         observed_at=rollback_at,
+        rollback_id=rollback_id,
     )
     assert restored.publication_id == first.publication_id
     assert restored.reinstated_at == rollback_at
@@ -547,6 +598,15 @@ def test_explicit_publication_rollback_preserves_history_until_observed_boundary
     assert evidence.operator == "operator-1"
     assert evidence.observed_at == rollback_at
     assert str(evidence.previous_publication_id) == second.publication_id
+    assert str(evidence.rollback_id) == rollback_id
+    assert len(writer.observations) == 1
+    observation = writer.observations[0]
+    assert observation.publication_id == first.publication_id
+    assert observation.previous_publication_id == second.publication_id
+    assert observation.rollback_id == rollback_id
+    assert observation.rollback_content_hash == publication_rollback_evidence_content_hash(
+        evidence.to_domain()
+    )
 
 
 @pytest.mark.django_db
@@ -628,6 +688,47 @@ def test_publication_rollback_rejects_non_published_missing_evidence_and_bad_tim
                 observed_at=second_time,
             )
         )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_publication_rollback_audit_writer_failure_rolls_back_all_state() -> None:
+    """Rollback audit must be required and atomic with publication state changes."""
+
+    repository = CanonicalPublicationRepository()
+    first, first_members = _publication_with_members(
+        publication_id=str(uuid4()),
+        member_count=1,
+        as_of=NOW.replace(hour=1),
+    )
+    second, second_members = _publication_with_members(
+        publication_id=str(uuid4()),
+        member_count=1,
+        as_of=NOW.replace(hour=2),
+    )
+    repository.publish_with_members(first, first_members)
+    repository.publish_with_members(second, second_members)
+    writer = _RollbackAuditWriter(fail=True)
+    use_case, _writer = _rollback_use_case(repository, writer)
+
+    with pytest.raises(RuntimeError, match="simulated rollback audit failure"):
+        use_case.execute(
+            target_publication_id=first.publication_id,
+            reason="restore verified prior snapshot",
+            operator="operator-1",
+            observed_at=NOW,
+            rollback_id=str(uuid4()),
+        )
+
+    first_after = CanonicalPublicationModel._default_manager.get(
+        publication_id=first.publication_id
+    )
+    second_after = CanonicalPublicationModel._default_manager.get(
+        publication_id=second.publication_id
+    )
+    assert first_after.state == PublicationState.SUPERSEDED.value
+    assert first_after.reinstated_at is None
+    assert second_after.state == PublicationState.PUBLISHED.value
+    assert PublicationRollbackModel._default_manager.count() == 0
 
 
 @pytest.mark.django_db

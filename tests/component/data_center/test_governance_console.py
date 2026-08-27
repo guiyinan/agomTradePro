@@ -94,7 +94,18 @@ def test_governance_console_renders_audit_rows(admin_client):
 
 
 @pytest.mark.django_db
-def test_governance_console_can_canonicalize_legacy_sources(admin_client):
+def test_governance_console_can_canonicalize_legacy_sources(admin_client, monkeypatch):
+    sync_factory_calls = 0
+
+    def fail_if_sync_factory_is_called():
+        nonlocal sync_factory_calls
+        sync_factory_calls += 1
+        raise AssertionError("canonicalization must not construct the macro sync runtime")
+
+    monkeypatch.setattr(
+        "apps.data_center.application.interface_services.make_sync_macro_use_case",
+        fail_if_sync_factory_is_called,
+    )
     MacroFactModel.objects.create(
         indicator_code="CN_GDP",
         reporting_period="2026-03-31",
@@ -117,6 +128,7 @@ def test_governance_console_can_canonicalize_legacy_sources(admin_client):
     )
 
     assert response.status_code == 200
+    assert sync_factory_calls == 0
     fact = MacroFactModel.objects.get(indicator_code="CN_GDP")
     assert fact.source == "akshare"
 

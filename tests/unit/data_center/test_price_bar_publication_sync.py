@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
+from types import SimpleNamespace
 
 import pytest
 
@@ -9,10 +10,18 @@ from apps.data_center.application.publication_sync import PublishPriceBarBatchUs
 from apps.data_center.application.sync_use_cases import SyncPriceUseCase
 from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
 from apps.data_center.domain.control_plane import CanonicalPublication, PublicationFactReference
-from apps.data_center.domain.entities import PriceBar, ProviderConfig
+from apps.data_center.domain.entities import PriceBar, ProviderConfig, RawAudit
 from apps.data_center.domain.enums import PriceAdjustment
 from apps.data_center.infrastructure.market_data_repositories import PriceBarRepository
 from apps.data_center.infrastructure.models import PriceBarModel
+from tests.unit.data_center.audited_sync_test_support import (
+    CollectingDataFetchAuditWriter,
+    CollectingDataPublicationAuditWriter,
+    FixedSyncClock,
+    FixedSyncIdentityIssuer,
+    InMemorySyncUnitOfWork,
+    bind_raw_audit,
+)
 
 PUBLISHED_AT = datetime(2026, 8, 4, 12, 0, tzinfo=UTC)
 BAR_DATE = date(2026, 8, 3)
@@ -209,26 +218,72 @@ def test_sync_price_use_case_invokes_publication_after_fact_write() -> None:
             return len(bars)
 
     class _RawAudit:
-        def log(self, _audit) -> None:
-            return None
+        def log(self, audit: RawAudit) -> RawAudit:
+            return bind_raw_audit(audit)
 
     class _Publisher:
         def __init__(self) -> None:
             self.calls: list[tuple[list[PriceBar], str]] = []
 
-        def execute(self, bars, *, provider_name: str):
+        def execute(
+            self,
+            bars,
+            *,
+            provider_name: str,
+            publication_key: str,
+            run_id: str,
+            published_at: datetime,
+        ):
             self.calls.append((list(bars), provider_name))
-            return None
+            return SimpleNamespace(
+                dataset_key="equity.price.bar",
+                publication_key=publication_key,
+                publication_id="publication-1",
+                policy_version="1.0:1.0",
+                publication_hash="c" * 64,
+                member_count=len(bars),
+                coverage=SimpleNamespace(
+                    requested_count=len(bars),
+                    eligible_count=len(bars),
+                    selected_count=len(bars),
+                ),
+                published_at=published_at,
+                run_id=run_id,
+            )
+
+    class _PublicationQualityRecorder:
+        """Typed fake for persisted publication quality recording."""
+
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, str, str, str]] = []
+
+        def execute(
+            self,
+            *,
+            publication_id: str,
+            run_id: str,
+            ingested_run_id: str,
+            provider_key: str,
+        ) -> object:
+            self.calls.append((publication_id, run_id, ingested_run_id, provider_key))
+            return object()
 
     provider_repo = _ProviderRepository()
     facts = _Facts()
     publisher = _Publisher()
+    quality_recorder = _PublicationQualityRecorder()
     result = SyncPriceUseCase(
         provider_repo=provider_repo,
         provider_registry=_Registry(),
         fact_repo=facts,
         raw_audit_repo=_RawAudit(),
         publication_publisher=publisher,
+        sync_identity_issuer=FixedSyncIdentityIssuer(),
+        sync_unit_of_work=InMemorySyncUnitOfWork(),
+        data_fetch_audit_writer=CollectingDataFetchAuditWriter(),
+        data_publication_audit_writer=CollectingDataPublicationAuditWriter(),
+        publication_quality_recorder=quality_recorder,
+        clock=FixedSyncClock(PUBLISHED_AT),
     ).execute(
         SyncPriceRequest(
             provider_id=1,
@@ -241,3 +296,11 @@ def test_sync_price_use_case_invokes_publication_after_fact_write() -> None:
     assert result.status == "success"
     assert len(facts.saved) == 1
     assert publisher.calls == [(facts.saved, "provider-main")]
+    assert quality_recorder.calls == [
+        (
+            "publication-1",
+            result.run_id,
+            result.ingested_run_id,
+            "provider-main",
+        )
+    ]

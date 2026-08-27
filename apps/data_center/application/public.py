@@ -30,7 +30,6 @@ from apps.data_center.application.query_services import (
     query_published_fund_nav_series,
     query_published_macro_fact_series,
 )
-from apps.data_center.application.reconciliation import RecordReconciliationEvidenceUseCase
 from apps.data_center.application.reliability_use_cases import (
     RepairDecisionDataReliabilityUseCase,
 )
@@ -66,6 +65,7 @@ from apps.data_center.composition import (
     get_reconciliation_evidence_repository,
     get_sector_membership_repository,
     get_valuation_fact_repository,
+    make_reconciliation_evidence_recorder,
     probe_rss_feed,
 )
 from apps.data_center.domain.contracts import (
@@ -114,7 +114,7 @@ def record_reconciliation_evidence(
 ) -> ReconciliationEvidence:
     """Persist maintenance-only shadow evidence behind an Application Port."""
 
-    return RecordReconciliationEvidenceUseCase(get_reconciliation_evidence_repository()).execute(
+    return make_reconciliation_evidence_recorder().execute(
         report,
         legacy_snapshot_hash=legacy_snapshot_hash,
         canonical_snapshot_hash=canonical_snapshot_hash,

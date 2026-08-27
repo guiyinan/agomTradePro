@@ -64,6 +64,7 @@ from .business_runtime_gateway import (
 from .business_runtime_gateway import (
     run_alpha_score_prediction_now as _run_alpha_score_prediction_now,
 )
+from .dtos import SyncMacroRequest, SyncResult
 from .market_thermometer import (
     CalculateMarketThermometerUseCase,
     ImportInvestorAccountsUseCase,
@@ -380,10 +381,13 @@ def load_macro_governance_payload() -> dict[str, Any]:
 def make_run_macro_governance_action_use_case() -> RunMacroGovernanceActionUseCase:
     """Build the macro governance repair use case."""
 
+    def _run_macro_sync(request: SyncMacroRequest) -> SyncResult:
+        return make_sync_macro_use_case().execute(request)
+
     return RunMacroGovernanceActionUseCase(
         governance_repo=_make_macro_governance_repo(),
         provider_repo=_make_provider_repo(),
-        sync_macro_runner=make_sync_macro_use_case().execute,
+        sync_macro_runner=_run_macro_sync,
     )
 
 

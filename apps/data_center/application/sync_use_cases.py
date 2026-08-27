@@ -9,26 +9,28 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
+from apps.audit.application.data_fetch_audit import DataFetchAuditObservation
+from apps.audit.application.data_publication_audit import DataPublicationAuditObservation
+from apps.audit.domain.system_audit_event import AuditOutcome
 from apps.data_center.application.dtos import (
+    MacroFailoverDecision,
     SyncFinancialRequest,
     SyncFundNavRequest,
-    SyncMacroBatchRequest,
-    SyncMacroBatchResult,
-    SyncMacroRequest,
     SyncPriceRequest,
     SyncQuoteRequest,
     SyncResult,
     SyncSectorMembershipRequest,
     SyncValuationRequest,
 )
-from apps.data_center.domain.entities import MacroFact, ProviderConfig, RawAudit
-from apps.data_center.domain.enums import DataCapability
+from apps.data_center.domain.entities import (
+    PriceBar,
+    ProviderConfig,
+    QuoteSnapshot,
+    RawAudit,
+)
 from apps.data_center.domain.protocols import (
     FinancialFactRepositoryProtocol,
     FundNavRepositoryProtocol,
-    IndicatorCatalogRepositoryProtocol,
-    IndicatorUnitRuleRepositoryProtocol,
-    MacroFactRepositoryProtocol,
     PriceBarRepositoryProtocol,
     ProviderConfigRepositoryProtocol,
     ProviderRegistryProtocol,
@@ -39,8 +41,6 @@ from apps.data_center.domain.protocols import (
     ValuationFactRepositoryProtocol,
 )
 
-from .macro_fact_governance import MacroFactGovernanceNormalizer
-from .macro_publication import PublishMacroBatchUseCase
 from .provider_health_recorder import persist_provider_health_metric
 from .publication_sync import (
     PublishFinancialBatchUseCase,
@@ -50,8 +50,29 @@ from .publication_sync import (
     PublishSectorMembershipBatchUseCase,
     PublishValuationBatchUseCase,
 )
+from .sync_identity import (
+    IssueSyncExecutionIdentityCommand,
+    IssueSyncExecutionIdentityUseCase,
+    SyncExecutionIdentity,
+    SyncExecutionIdentityIssuer,
+)
+from .sync_transaction import (
+    DataCenterSyncClock,
+    DataCenterSyncUnitOfWork,
+    DataFetchAuditWriter,
+    DataProviderHealthAuditWriter,
+    DataPublicationAuditWriter,
+    DataPublicationQualityRecorder,
+)
 
 if TYPE_CHECKING:
+    from .sync_macro_use_cases import (
+        MacroFailoverPolicy,
+        MacroFailoverPolicyProvider,
+        PreparedMacroSync,
+        SyncMacroBatchUseCase,
+        SyncMacroUseCase,
+    )
     from .sync_news_capital_use_cases import SyncCapitalFlowUseCase, SyncNewsUseCase
 
 FactT = TypeVar("FactT")
@@ -76,6 +97,37 @@ def _sync_status(stored_count: int) -> tuple[str, str]:
     return "noop", "noop"
 
 
+def _publication_attempt_hash(
+    *,
+    dataset_key: str,
+    publication_key: str,
+    provider_name: str,
+    run_id: str,
+    ingested_run_id: str,
+    blocked_reason: str,
+) -> str:
+    """Hash one blocked publication attempt without exception text."""
+
+    payload = {
+        "blocked_reason": blocked_reason,
+        "dataset_key": dataset_key,
+        "ingested_run_id": ingested_run_id,
+        "provider_name": provider_name,
+        "publication_key": publication_key,
+        "run_id": run_id,
+    }
+    encoded = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(
+        b"agomtradepro:data-center:publication-attempt:v1\0" + encoded
+    ).hexdigest()
+
+
 def _build_sync_audit(
     provider_name: str,
     capability: str,
@@ -84,6 +136,10 @@ def _build_sync_audit(
     row_count: int,
     latency_ms: float,
     error_message: str = "",
+    *,
+    fetched_at: datetime | None = None,
+    run_id: str = "",
+    ingested_run_id: str = "",
 ) -> RawAudit:
     params_hash = hashlib.sha256(
         json.dumps(dict(request_params), ensure_ascii=False, sort_keys=True, default=str).encode(
@@ -98,10 +154,12 @@ def _build_sync_audit(
         row_count=row_count,
         latency_ms=latency_ms,
         error_message=error_message,
-        fetched_at=datetime.now(UTC),
+        fetched_at=fetched_at or datetime.now(UTC),
         request_params_hash=params_hash,
         redacted=True,
         payload_size_bytes=0,
+        run_id=run_id,
+        ingested_run_id=ingested_run_id,
     )
 
 
@@ -111,10 +169,13 @@ class _BaseSyncUseCase:
         provider_repo: ProviderConfigRepositoryProtocol,
         provider_registry: ProviderRegistryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
+        *,
+        data_provider_health_audit_writer: DataProviderHealthAuditWriter | None = None,
     ) -> None:
         self._provider_repo = provider_repo
         self._provider_registry = provider_registry
         self._raw_audit_repo = raw_audit_repo
+        self._data_provider_health_audit_writer = data_provider_health_audit_writer
 
     def _get_provider(self, provider_id: int) -> tuple[ProviderConfig, UnifiedDataProviderProtocol]:
         config = self._provider_repo.get_by_id(provider_id)
@@ -167,6 +228,8 @@ class _BaseSyncUseCase:
         error: str = "",
         recorded_at: datetime | None = None,
         output_count: int | None = None,
+        run_id: str | None = None,
+        ingested_run_id: str | None = None,
     ) -> None:
         persist_provider_health_metric(
             self._provider_repo,
@@ -178,6 +241,9 @@ class _BaseSyncUseCase:
             error=error,
             recorded_at=recorded_at,
             output_count=output_count,
+            audit_writer=self._data_provider_health_audit_writer,
+            run_id=run_id,
+            ingested_run_id=ingested_run_id,
         )
 
     def _record_outcome(
@@ -216,167 +282,13 @@ class _BaseSyncUseCase:
         )
 
 
-class SyncMacroUseCase(_BaseSyncUseCase):
-    def __init__(
-        self,
-        provider_repo: ProviderConfigRepositoryProtocol,
-        provider_registry: ProviderRegistryProtocol,
-        fact_repo: MacroFactRepositoryProtocol,
-        catalog_repo: IndicatorCatalogRepositoryProtocol,
-        unit_rule_repo: IndicatorUnitRuleRepositoryProtocol,
-        raw_audit_repo: RawAuditRepositoryProtocol,
-        publication_publisher: PublishMacroBatchUseCase | None = None,
-    ) -> None:
-        super().__init__(provider_repo, provider_registry, raw_audit_repo)
-        self._facts = fact_repo
-        self._normalizer = MacroFactGovernanceNormalizer(catalog_repo, unit_rule_repo)
-        self._publication_publisher = publication_publisher
-
-    def _normalize_macro_facts(
-        self,
-        *,
-        indicator_code: str,
-        source_type: str,
-        provider_name: str,
-        facts: list[MacroFact],
-    ) -> list[MacroFact]:
-        if any(fact.indicator_code != indicator_code for fact in facts):
-            raise ValueError(f"Provider returned a mismatched indicator for {indicator_code}")
-        return self._normalizer.normalize_many(
-            facts,
-            source_type=source_type,
-            provider_name=provider_name,
-        )
-
-    def execute(self, request: SyncMacroRequest) -> SyncResult:
-        config, provider = self._get_provider(request.provider_id)
-        started = datetime.now(UTC)
-        try:
-            facts = provider.fetch_macro_series(request.indicator_code, request.start, request.end)
-            normalized = self._normalize_macro_facts(
-                indicator_code=request.indicator_code,
-                source_type=config.source_type,
-                provider_name=provider.provider_name(),
-                facts=facts,
-            )
-            stored_count = self._facts.bulk_upsert(normalized)
-            if self._publication_publisher is not None and normalized:
-                self._publication_publisher.execute(
-                    normalized,
-                    provider_name=provider.provider_name(),
-                    publication_key=request.indicator_code,
-                )
-            audit_status, result_status = _sync_status(stored_count)
-            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
-            self._persist_provider_health_metric(
-                config,
-                capability="macro",
-                latency_ms=latency_ms,
-                success=stored_count > 0,
-                output_count=stored_count,
-            )
-            self._raw_audit_repo.log(
-                _build_sync_audit(
-                    provider.provider_name(),
-                    "macro",
-                    {
-                        "indicator_code": request.indicator_code,
-                        "start": request.start.isoformat(),
-                        "end": request.end.isoformat(),
-                    },
-                    audit_status,
-                    stored_count,
-                    latency_ms,
-                )
-            )
-            return SyncResult("macro", provider.provider_name(), stored_count, result_status)
-        except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
-            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
-            self._persist_provider_health_metric(
-                config,
-                capability="macro",
-                latency_ms=latency_ms,
-                success=False,
-                error=str(exc),
-            )
-            self._raw_audit_repo.log(
-                _build_sync_audit(
-                    provider.provider_name(),
-                    "macro",
-                    {
-                        "indicator_code": request.indicator_code,
-                        "start": request.start.isoformat(),
-                        "end": request.end.isoformat(),
-                    },
-                    "error",
-                    0,
-                    latency_ms,
-                    str(exc),
-                )
-            )
-            raise
-
-
-class SyncMacroBatchUseCase:
-    """Select one configured macro provider and synchronize an indicator batch."""
-
-    def __init__(
-        self,
-        provider_repo: ProviderConfigRepositoryProtocol,
-        provider_registry: ProviderRegistryProtocol,
-        sync_use_case: SyncMacroUseCase,
-    ) -> None:
-        self._provider_repo = provider_repo
-        self._provider_registry = provider_registry
-        self._sync_use_case = sync_use_case
-
-    def execute(self, request: SyncMacroBatchRequest) -> SyncMacroBatchResult:
-        config = self._select_provider(request.source)
-        if config.id is None:
-            raise ValueError(f"Provider has no persistent id: {config.name}")
-
-        stored_count = 0
-        errors: list[str] = []
-        for indicator_code in request.indicator_codes:
-            try:
-                result = self._sync_use_case.execute(
-                    SyncMacroRequest(
-                        provider_id=config.id,
-                        indicator_code=indicator_code,
-                        start=request.start,
-                        end=request.end,
-                    )
-                )
-            except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
-                errors.append(f"{indicator_code}: {exc}")
-                continue
-            stored_count += result.stored_count
-
-        return SyncMacroBatchResult(
-            provider_name=config.name,
-            stored_count=stored_count,
-            errors=errors,
-        )
-
-    def _select_provider(self, source: str | None) -> ProviderConfig:
-        requested = source.strip().lower() if source else ""
-        configs = sorted(
-            (config for config in self._provider_repo.list_all() if config.is_active),
-            key=lambda config: config.priority,
-        )
-        for config in configs:
-            if requested and requested not in {config.name.lower(), config.source_type.lower()}:
-                continue
-            if config.id is None:
-                continue
-            provider = self._provider_registry.get_by_id(config.id)
-            if provider is not None and provider.supports(DataCapability.MACRO):
-                return config
-        suffix = f" for source {source!r}" if source else ""
-        raise ValueError(f"No active macro provider configured{suffix}")
-
-
 class SyncPriceUseCase(_BaseSyncUseCase):
+    """Synchronize price bars with facts, evidence, publication, and audit atomically."""
+
+    dataset_key = "equity.price.bar"
+    capability = "historical_price"
+    publication_key = "current"
+
     def __init__(
         self,
         provider_repo: ProviderConfigRepositoryProtocol,
@@ -384,14 +296,45 @@ class SyncPriceUseCase(_BaseSyncUseCase):
         fact_repo: PriceBarRepositoryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
         publication_publisher: PublishPriceBarBatchUseCase | None = None,
+        *,
+        sync_identity_issuer: SyncExecutionIdentityIssuer,
+        sync_unit_of_work: DataCenterSyncUnitOfWork,
+        data_fetch_audit_writer: DataFetchAuditWriter,
+        data_publication_audit_writer: DataPublicationAuditWriter,
+        publication_quality_recorder: DataPublicationQualityRecorder | None = None,
+        clock: DataCenterSyncClock,
+        data_provider_health_audit_writer: DataProviderHealthAuditWriter | None = None,
     ) -> None:
-        super().__init__(provider_repo, provider_registry, raw_audit_repo)
+        super().__init__(
+            provider_repo,
+            provider_registry,
+            raw_audit_repo,
+            data_provider_health_audit_writer=data_provider_health_audit_writer,
+        )
         self._facts = fact_repo
         self._publication_publisher = publication_publisher
+        if (publication_publisher is None) != (publication_quality_recorder is None):
+            raise ValueError(
+                "publication publisher and quality recorder must be configured together"
+            )
+        self._publication_quality_recorder = publication_quality_recorder
+        self._identity_use_case = IssueSyncExecutionIdentityUseCase(sync_identity_issuer)
+        self._sync_unit_of_work = sync_unit_of_work
+        self._data_fetch_audit_writer = data_fetch_audit_writer
+        self._data_publication_audit_writer = data_publication_audit_writer
+        self._clock = clock
 
     def execute(self, request: SyncPriceRequest) -> SyncResult:
+        """Fetch and atomically persist one canonical historical-price batch."""
+
         config, provider = self._get_provider(request.provider_id)
-        started = datetime.now(UTC)
+        provider_name = provider.provider_name()
+        request_params: Mapping[str, object] = {
+            "asset_code": request.asset_code,
+            "start": request.start.isoformat(),
+            "end": request.end.isoformat(),
+        }
+        started_at = self._clock.now()
         try:
             bars = provider.fetch_price_history(request.asset_code, request.start, request.end)
             bars = [
@@ -401,66 +344,261 @@ class SyncPriceUseCase(_BaseSyncUseCase):
                 )
                 for bar in bars
             ]
-            stored_count = self._facts.bulk_upsert(bars)
-            if self._publication_publisher is not None and bars:
-                self._publication_publisher.execute(
-                    bars,
-                    provider_name=provider.provider_name(),
-                )
+        except RECOVERABLE_DATA_CENTER_EXCEPTIONS as error:
+            self._commit_price_fetch_failure(
+                config=config,
+                provider_name=provider_name,
+                request_params=request_params,
+                started_at=started_at,
+                error=error,
+            )
+            raise
+        return self._commit_price_fetch_success(
+            config=config,
+            provider_name=provider_name,
+            request_params=request_params,
+            bars=bars,
+            started_at=started_at,
+        )
+
+    def _issue_identity(self, *, provider_name: str) -> SyncExecutionIdentity:
+        """Issue one price-sync identity inside the active transaction."""
+
+        return self._identity_use_case.execute(
+            IssueSyncExecutionIdentityCommand(
+                dataset_key=self.dataset_key,
+                provider_name=provider_name,
+            )
+        )
+
+    def _commit_price_fetch_success(
+        self,
+        *,
+        config: ProviderConfig,
+        provider_name: str,
+        request_params: Mapping[str, object],
+        bars: list[PriceBar],
+        started_at: datetime,
+    ) -> SyncResult:
+        """Commit price facts, exact evidence, and canonical events in one UOW."""
+
+        publication_error: ValueError | None = None
+        publication_blocked_reason: str | None = None
+        with self._sync_unit_of_work.atomic():
+            identity = self._issue_identity(provider_name=provider_name)
+            correlated_bars = [
+                dataclasses.replace(bar, ingested_run_id=identity.ingested_run_id) for bar in bars
+            ]
+            stored_count = self._facts.bulk_upsert(correlated_bars) if correlated_bars else 0
+            publication = None
+            if self._publication_publisher is not None and correlated_bars:
+                publication_at = self._clock.now()
+                try:
+                    publication = self._publication_publisher.execute(
+                        correlated_bars,
+                        provider_name=provider_name,
+                        publication_key=self.publication_key,
+                        run_id=identity.run_id,
+                        published_at=publication_at,
+                    )
+                except ValueError as error:
+                    publication_error = error
+                    publication_blocked_reason = "publication_policy_rejected"
+                if publication is None and publication_error is None:
+                    publication_error = ValueError("price publication returned no result")
+                    publication_blocked_reason = "publication_no_result"
             audit_status, result_status = _sync_status(stored_count)
-            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
+            recorded_at = self._clock.now()
+            latency_ms = max(0.0, (recorded_at - started_at).total_seconds() * 1000)
             self._persist_provider_health_metric(
                 config,
-                capability="historical_price",
+                capability=self.capability,
                 latency_ms=latency_ms,
                 success=stored_count > 0,
                 output_count=stored_count,
+                recorded_at=recorded_at,
+                run_id=identity.run_id,
+                ingested_run_id=identity.ingested_run_id,
             )
-            self._raw_audit_repo.log(
+            persisted_audit = self._raw_audit_repo.log(
                 _build_sync_audit(
-                    provider.provider_name(),
-                    "historical_price",
-                    {
-                        "asset_code": request.asset_code,
-                        "start": request.start.isoformat(),
-                        "end": request.end.isoformat(),
-                    },
+                    provider_name,
+                    self.capability,
+                    request_params,
                     audit_status,
                     stored_count,
                     latency_ms,
+                    fetched_at=recorded_at,
+                    run_id=identity.run_id,
+                    ingested_run_id=identity.ingested_run_id,
                 )
             )
-            return SyncResult(
-                "historical_price", provider.provider_name(), stored_count, result_status
+            reference = persisted_audit.exact_reference()
+            self._data_fetch_audit_writer.write(
+                DataFetchAuditObservation(
+                    provider_key=provider_name,
+                    capability=self.capability,
+                    dataset_key=identity.dataset_key,
+                    run_id=reference.run_id,
+                    ingested_run_id=reference.ingested_run_id,
+                    raw_audit_id=reference.raw_audit_id,
+                    raw_audit_version=reference.version,
+                    raw_audit_content_hash=reference.content_hash,
+                    outcome=(AuditOutcome.SUCCESS if stored_count > 0 else AuditOutcome.NOOP),
+                    row_count=stored_count,
+                    occurred_at=recorded_at,
+                    recorded_at=recorded_at,
+                )
             )
-        except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
-            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
+            if self._publication_publisher is not None and correlated_bars:
+                if publication is not None:
+                    publication_observation = DataPublicationAuditObservation(
+                        dataset_key=publication.dataset_key,
+                        publication_key=publication.publication_key,
+                        publication_id=publication.publication_id,
+                        publication_version=publication.policy_version,
+                        publication_hash=publication.publication_hash,
+                        provider_key=provider_name,
+                        run_id=identity.run_id,
+                        ingested_run_id=identity.ingested_run_id,
+                        member_count=publication.member_count,
+                        coverage_requested_count=publication.coverage.requested_count,
+                        coverage_eligible_count=publication.coverage.eligible_count,
+                        coverage_selected_count=publication.coverage.selected_count,
+                        outcome=AuditOutcome.PUBLISHED,
+                        raw_audit_id=reference.raw_audit_id,
+                        raw_audit_version=reference.version,
+                        raw_audit_content_hash=reference.content_hash,
+                        occurred_at=publication.published_at or recorded_at,
+                        recorded_at=recorded_at,
+                    )
+                else:
+                    blocked_reason = publication_blocked_reason
+                    if blocked_reason is None or publication_error is None:
+                        raise RuntimeError("publication block evidence is incomplete")
+                    attempt_hash = _publication_attempt_hash(
+                        dataset_key=identity.dataset_key,
+                        publication_key=self.publication_key,
+                        provider_name=provider_name,
+                        run_id=identity.run_id,
+                        ingested_run_id=identity.ingested_run_id,
+                        blocked_reason=blocked_reason,
+                    )
+                    publication_observation = DataPublicationAuditObservation(
+                        dataset_key=identity.dataset_key,
+                        publication_key=self.publication_key,
+                        publication_id=f"publication-attempt-{attempt_hash[:48]}",
+                        publication_version="attempt-v1",
+                        publication_hash=attempt_hash,
+                        provider_key=provider_name,
+                        run_id=identity.run_id,
+                        ingested_run_id=identity.ingested_run_id,
+                        member_count=0,
+                        coverage_requested_count=len(correlated_bars),
+                        coverage_eligible_count=0,
+                        coverage_selected_count=0,
+                        outcome=AuditOutcome.BLOCKED,
+                        raw_audit_id=reference.raw_audit_id,
+                        raw_audit_version=reference.version,
+                        raw_audit_content_hash=reference.content_hash,
+                        occurred_at=recorded_at,
+                        recorded_at=recorded_at,
+                        blocked_reason=blocked_reason,
+                        error_class=type(publication_error).__name__,
+                    )
+                self._data_publication_audit_writer.write(publication_observation)
+                if publication is not None:
+                    quality_recorder = self._publication_quality_recorder
+                    if quality_recorder is None:
+                        raise RuntimeError("publication quality recorder is not configured")
+                    quality_recorder.execute(
+                        publication_id=publication.publication_id,
+                        run_id=identity.run_id,
+                        ingested_run_id=identity.ingested_run_id,
+                        provider_key=provider_name,
+                    )
+        if publication_error is not None:
+            raise publication_error
+        return SyncResult(
+            self.capability,
+            provider_name,
+            stored_count,
+            result_status,
+            run_id=identity.run_id,
+            ingested_run_id=identity.ingested_run_id,
+            publication_id=publication.publication_id if publication is not None else None,
+            publication_version=publication.policy_version if publication is not None else None,
+            publication_hash=publication.publication_hash if publication is not None else None,
+        )
+
+    def _commit_price_fetch_failure(
+        self,
+        *,
+        config: ProviderConfig,
+        provider_name: str,
+        request_params: Mapping[str, object],
+        started_at: datetime,
+        error: BaseException,
+    ) -> None:
+        """Persist one sanitized failed price fetch before reraising its error."""
+
+        with self._sync_unit_of_work.atomic():
+            identity = self._issue_identity(provider_name=provider_name)
+            recorded_at = self._clock.now()
+            latency_ms = max(0.0, (recorded_at - started_at).total_seconds() * 1000)
+            error_class = type(error).__name__
             self._persist_provider_health_metric(
                 config,
-                capability="historical_price",
+                capability=self.capability,
                 latency_ms=latency_ms,
                 success=False,
-                error=str(exc),
+                error=error_class,
+                recorded_at=recorded_at,
+                output_count=0,
+                run_id=identity.run_id,
+                ingested_run_id=identity.ingested_run_id,
             )
-            self._raw_audit_repo.log(
+            persisted_audit = self._raw_audit_repo.log(
                 _build_sync_audit(
-                    provider.provider_name(),
-                    "historical_price",
-                    {
-                        "asset_code": request.asset_code,
-                        "start": request.start.isoformat(),
-                        "end": request.end.isoformat(),
-                    },
+                    provider_name,
+                    self.capability,
+                    request_params,
                     "error",
                     0,
                     latency_ms,
-                    str(exc),
+                    error_class,
+                    fetched_at=recorded_at,
+                    run_id=identity.run_id,
+                    ingested_run_id=identity.ingested_run_id,
                 )
             )
-            raise
+            reference = persisted_audit.exact_reference()
+            self._data_fetch_audit_writer.write(
+                DataFetchAuditObservation(
+                    provider_key=provider_name,
+                    capability=self.capability,
+                    dataset_key=identity.dataset_key,
+                    run_id=reference.run_id,
+                    ingested_run_id=reference.ingested_run_id,
+                    raw_audit_id=reference.raw_audit_id,
+                    raw_audit_version=reference.version,
+                    raw_audit_content_hash=reference.content_hash,
+                    outcome=AuditOutcome.FAILED,
+                    row_count=0,
+                    occurred_at=recorded_at,
+                    recorded_at=recorded_at,
+                    error_class=error_class,
+                )
+            )
 
 
 class SyncQuoteUseCase(_BaseSyncUseCase):
+    """Synchronize quote snapshots with evidence and publication atomically."""
+
+    dataset_key = "equity.quote.snapshot"
+    capability = "realtime_quote"
+    publication_key = "current"
+
     def __init__(
         self,
         provider_repo: ProviderConfigRepositoryProtocol,
@@ -468,70 +606,295 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
         fact_repo: QuoteSnapshotRepositoryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
         publication_publisher: PublishQuoteSnapshotBatchUseCase | None = None,
+        *,
+        sync_identity_issuer: SyncExecutionIdentityIssuer,
+        sync_unit_of_work: DataCenterSyncUnitOfWork,
+        data_fetch_audit_writer: DataFetchAuditWriter,
+        data_publication_audit_writer: DataPublicationAuditWriter,
+        publication_quality_recorder: DataPublicationQualityRecorder | None = None,
+        clock: DataCenterSyncClock,
+        data_provider_health_audit_writer: DataProviderHealthAuditWriter | None = None,
     ) -> None:
-        super().__init__(provider_repo, provider_registry, raw_audit_repo)
+        super().__init__(
+            provider_repo,
+            provider_registry,
+            raw_audit_repo,
+            data_provider_health_audit_writer=data_provider_health_audit_writer,
+        )
         self._facts = fact_repo
         self._publication_publisher = publication_publisher
+        if (publication_publisher is None) != (publication_quality_recorder is None):
+            raise ValueError(
+                "publication publisher and quality recorder must be configured together"
+            )
+        self._publication_quality_recorder = publication_quality_recorder
+        self._identity_use_case = IssueSyncExecutionIdentityUseCase(sync_identity_issuer)
+        self._sync_unit_of_work = sync_unit_of_work
+        self._data_fetch_audit_writer = data_fetch_audit_writer
+        self._data_publication_audit_writer = data_publication_audit_writer
+        self._clock = clock
 
     def execute(self, request: SyncQuoteRequest) -> SyncResult:
+        """Fetch and atomically persist one canonical quote snapshot batch."""
+
         config, provider = self._get_provider(request.provider_id)
-        started = datetime.now(UTC)
+        provider_name = provider.provider_name()
+        request_params: Mapping[str, object] = {"asset_codes": list(request.asset_codes)}
+        started_at = self._clock.now()
         try:
             quotes = provider.fetch_quote_snapshots(request.asset_codes)
             quotes = self._normalize_fact_sources(
                 quotes,
                 source_type=config.source_type,
-                provider_name=provider.provider_name(),
+                provider_name=provider_name,
             )
-            stored_count = self._facts.bulk_upsert(quotes)
-            if self._publication_publisher is not None and quotes:
-                self._publication_publisher.execute(
-                    quotes,
-                    provider_name=provider.provider_name(),
-                )
+        except RECOVERABLE_DATA_CENTER_EXCEPTIONS as error:
+            self._commit_quote_fetch_failure(
+                config=config,
+                provider_name=provider_name,
+                request_params=request_params,
+                started_at=started_at,
+                error=error,
+            )
+            raise
+        return self._commit_quote_fetch_success(
+            config=config,
+            provider_name=provider_name,
+            request_params=request_params,
+            quotes=quotes,
+            started_at=started_at,
+        )
+
+    def _issue_identity(self, *, provider_name: str) -> SyncExecutionIdentity:
+        """Issue one quote-sync identity inside the active transaction."""
+
+        return self._identity_use_case.execute(
+            IssueSyncExecutionIdentityCommand(
+                dataset_key=self.dataset_key,
+                provider_name=provider_name,
+            )
+        )
+
+    def _commit_quote_fetch_success(
+        self,
+        *,
+        config: ProviderConfig,
+        provider_name: str,
+        request_params: Mapping[str, object],
+        quotes: list[QuoteSnapshot],
+        started_at: datetime,
+    ) -> SyncResult:
+        """Commit quote facts, exact evidence, and canonical events in one UOW."""
+
+        publication_error: ValueError | None = None
+        publication_blocked_reason: str | None = None
+        with self._sync_unit_of_work.atomic():
+            identity = self._issue_identity(provider_name=provider_name)
+            correlated_quotes = [
+                dataclasses.replace(quote, ingested_run_id=identity.ingested_run_id)
+                for quote in quotes
+            ]
+            stored_count = self._facts.bulk_upsert(correlated_quotes) if correlated_quotes else 0
+            publication = None
+            if self._publication_publisher is not None and correlated_quotes:
+                publication_at = self._clock.now()
+                try:
+                    publication = self._publication_publisher.execute(
+                        correlated_quotes,
+                        provider_name=provider_name,
+                        publication_key=self.publication_key,
+                        run_id=identity.run_id,
+                        published_at=publication_at,
+                    )
+                except ValueError as error:
+                    publication_error = error
+                    publication_blocked_reason = "publication_policy_rejected"
+                if publication is None and publication_error is None:
+                    publication_error = ValueError("quote publication returned no result")
+                    publication_blocked_reason = "publication_no_result"
             audit_status, result_status = _sync_status(stored_count)
-            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
+            recorded_at = self._clock.now()
+            latency_ms = max(0.0, (recorded_at - started_at).total_seconds() * 1000)
             self._persist_provider_health_metric(
                 config,
-                capability="realtime_quote",
+                capability=self.capability,
                 latency_ms=latency_ms,
                 success=stored_count > 0,
                 output_count=stored_count,
+                recorded_at=recorded_at,
+                run_id=identity.run_id,
+                ingested_run_id=identity.ingested_run_id,
             )
-            self._raw_audit_repo.log(
+            persisted_audit = self._raw_audit_repo.log(
                 _build_sync_audit(
-                    provider.provider_name(),
-                    "realtime_quote",
-                    {"asset_codes": request.asset_codes},
+                    provider_name,
+                    self.capability,
+                    request_params,
                     audit_status,
                     stored_count,
                     latency_ms,
+                    fetched_at=recorded_at,
+                    run_id=identity.run_id,
+                    ingested_run_id=identity.ingested_run_id,
                 )
             )
-            return SyncResult(
-                "realtime_quote", provider.provider_name(), stored_count, result_status
+            reference = persisted_audit.exact_reference()
+            self._data_fetch_audit_writer.write(
+                DataFetchAuditObservation(
+                    provider_key=provider_name,
+                    capability=self.capability,
+                    dataset_key=identity.dataset_key,
+                    run_id=reference.run_id,
+                    ingested_run_id=reference.ingested_run_id,
+                    raw_audit_id=reference.raw_audit_id,
+                    raw_audit_version=reference.version,
+                    raw_audit_content_hash=reference.content_hash,
+                    outcome=(AuditOutcome.SUCCESS if stored_count > 0 else AuditOutcome.NOOP),
+                    row_count=stored_count,
+                    occurred_at=recorded_at,
+                    recorded_at=recorded_at,
+                )
             )
-        except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
-            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
+            if self._publication_publisher is not None and correlated_quotes:
+                if publication is not None:
+                    publication_observation = DataPublicationAuditObservation(
+                        dataset_key=publication.dataset_key,
+                        publication_key=publication.publication_key,
+                        publication_id=publication.publication_id,
+                        publication_version=publication.policy_version,
+                        publication_hash=publication.publication_hash,
+                        provider_key=provider_name,
+                        run_id=identity.run_id,
+                        ingested_run_id=identity.ingested_run_id,
+                        member_count=publication.member_count,
+                        coverage_requested_count=publication.coverage.requested_count,
+                        coverage_eligible_count=publication.coverage.eligible_count,
+                        coverage_selected_count=publication.coverage.selected_count,
+                        outcome=AuditOutcome.PUBLISHED,
+                        raw_audit_id=reference.raw_audit_id,
+                        raw_audit_version=reference.version,
+                        raw_audit_content_hash=reference.content_hash,
+                        occurred_at=publication.published_at or recorded_at,
+                        recorded_at=recorded_at,
+                    )
+                else:
+                    blocked_reason = publication_blocked_reason
+                    if blocked_reason is None or publication_error is None:
+                        raise RuntimeError("publication block evidence is incomplete")
+                    attempt_hash = _publication_attempt_hash(
+                        dataset_key=identity.dataset_key,
+                        publication_key=self.publication_key,
+                        provider_name=provider_name,
+                        run_id=identity.run_id,
+                        ingested_run_id=identity.ingested_run_id,
+                        blocked_reason=blocked_reason,
+                    )
+                    publication_observation = DataPublicationAuditObservation(
+                        dataset_key=identity.dataset_key,
+                        publication_key=self.publication_key,
+                        publication_id=f"publication-attempt-{attempt_hash[:48]}",
+                        publication_version="attempt-v1",
+                        publication_hash=attempt_hash,
+                        provider_key=provider_name,
+                        run_id=identity.run_id,
+                        ingested_run_id=identity.ingested_run_id,
+                        member_count=0,
+                        coverage_requested_count=len(correlated_quotes),
+                        coverage_eligible_count=0,
+                        coverage_selected_count=0,
+                        outcome=AuditOutcome.BLOCKED,
+                        raw_audit_id=reference.raw_audit_id,
+                        raw_audit_version=reference.version,
+                        raw_audit_content_hash=reference.content_hash,
+                        occurred_at=recorded_at,
+                        recorded_at=recorded_at,
+                        blocked_reason=blocked_reason,
+                        error_class=type(publication_error).__name__,
+                    )
+                self._data_publication_audit_writer.write(publication_observation)
+                if publication is not None:
+                    quality_recorder = self._publication_quality_recorder
+                    if quality_recorder is None:
+                        raise RuntimeError("publication quality recorder is not configured")
+                    quality_recorder.execute(
+                        publication_id=publication.publication_id,
+                        run_id=identity.run_id,
+                        ingested_run_id=identity.ingested_run_id,
+                        provider_key=provider_name,
+                    )
+        if publication_error is not None:
+            raise publication_error
+        return SyncResult(
+            self.capability,
+            provider_name,
+            stored_count,
+            result_status,
+            run_id=identity.run_id,
+            ingested_run_id=identity.ingested_run_id,
+            publication_id=publication.publication_id if publication is not None else None,
+            publication_version=publication.policy_version if publication is not None else None,
+            publication_hash=publication.publication_hash if publication is not None else None,
+        )
+
+    def _commit_quote_fetch_failure(
+        self,
+        *,
+        config: ProviderConfig,
+        provider_name: str,
+        request_params: Mapping[str, object],
+        started_at: datetime,
+        error: BaseException,
+    ) -> None:
+        """Persist one sanitized failed quote fetch before reraising its error."""
+
+        with self._sync_unit_of_work.atomic():
+            identity = self._issue_identity(provider_name=provider_name)
+            recorded_at = self._clock.now()
+            latency_ms = max(0.0, (recorded_at - started_at).total_seconds() * 1000)
+            error_class = type(error).__name__
             self._persist_provider_health_metric(
                 config,
-                capability="realtime_quote",
+                capability=self.capability,
                 latency_ms=latency_ms,
                 success=False,
-                error=str(exc),
+                error=error_class,
+                recorded_at=recorded_at,
+                output_count=0,
+                run_id=identity.run_id,
+                ingested_run_id=identity.ingested_run_id,
             )
-            self._raw_audit_repo.log(
+            persisted_audit = self._raw_audit_repo.log(
                 _build_sync_audit(
-                    provider.provider_name(),
-                    "realtime_quote",
-                    {"asset_codes": request.asset_codes},
+                    provider_name,
+                    self.capability,
+                    request_params,
                     "error",
                     0,
                     latency_ms,
-                    str(exc),
+                    error_class,
+                    fetched_at=recorded_at,
+                    run_id=identity.run_id,
+                    ingested_run_id=identity.ingested_run_id,
                 )
             )
-            raise
+            reference = persisted_audit.exact_reference()
+            self._data_fetch_audit_writer.write(
+                DataFetchAuditObservation(
+                    provider_key=provider_name,
+                    capability=self.capability,
+                    dataset_key=identity.dataset_key,
+                    run_id=reference.run_id,
+                    ingested_run_id=reference.ingested_run_id,
+                    raw_audit_id=reference.raw_audit_id,
+                    raw_audit_version=reference.version,
+                    raw_audit_content_hash=reference.content_hash,
+                    outcome=AuditOutcome.FAILED,
+                    row_count=0,
+                    occurred_at=recorded_at,
+                    recorded_at=recorded_at,
+                    error_class=error_class,
+                )
+            )
 
 
 class SyncFundNavUseCase(_BaseSyncUseCase):
@@ -783,7 +1146,18 @@ class SyncSectorMembershipUseCase(_BaseSyncUseCase):
 
 
 def __getattr__(name: str) -> object:
-    """Resolve moved news/capital sync classes without a sibling import cycle."""
+    """Resolve moved sync classes without a sibling import cycle."""
+
+    if name in {
+        "MacroFailoverPolicy",
+        "MacroFailoverPolicyProvider",
+        "PreparedMacroSync",
+        "SyncMacroBatchUseCase",
+        "SyncMacroUseCase",
+    }:
+        from . import sync_macro_use_cases
+
+        return getattr(sync_macro_use_cases, name)
 
     if name in {"SyncCapitalFlowUseCase", "SyncNewsUseCase"}:
         from . import sync_news_capital_use_cases
@@ -793,11 +1167,16 @@ def __getattr__(name: str) -> object:
 
 
 __all__ = [
+    "MacroFailoverDecision",
+    "MacroFailoverPolicy",
+    "MacroFailoverPolicyProvider",
+    "PreparedMacroSync",
     "RECOVERABLE_DATA_CENTER_EXCEPTIONS",
     "SyncCapitalFlowUseCase",
     "SyncFinancialUseCase",
     "SyncFundNavUseCase",
     "SyncMacroUseCase",
+    "SyncMacroBatchUseCase",
     "SyncNewsUseCase",
     "SyncPriceUseCase",
     "SyncQuoteUseCase",

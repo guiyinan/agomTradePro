@@ -146,12 +146,58 @@ class PersistSyncExecutionIdentityUseCase:
 def sync_execution_identity_hash(identity: SyncExecutionIdentity) -> str:
     """Compute the domain-separated hash of identity fields only."""
 
+    return _sync_execution_identity_hash_values(
+        run_id=identity.run_id,
+        ingested_run_id=identity.ingested_run_id,
+        batch_id=identity.batch_id,
+        dataset_key=identity.dataset_key,
+        provider_name=identity.provider_name,
+    )
+
+
+def build_sync_execution_identity(
+    *,
+    run_id: str,
+    ingested_run_id: str,
+    batch_id: str,
+    dataset_key: str,
+    provider_name: str,
+) -> SyncExecutionIdentity:
+    """Build one complete server-issued identity with its canonical hash."""
+
+    identity_hash = _sync_execution_identity_hash_values(
+        run_id=run_id,
+        ingested_run_id=ingested_run_id,
+        batch_id=batch_id,
+        dataset_key=dataset_key,
+        provider_name=provider_name,
+    )
+    return SyncExecutionIdentity(
+        run_id=run_id,
+        ingested_run_id=ingested_run_id,
+        batch_id=batch_id,
+        dataset_key=dataset_key,
+        provider_name=provider_name,
+        identity_hash=identity_hash,
+    )
+
+
+def _sync_execution_identity_hash_values(
+    *,
+    run_id: str,
+    ingested_run_id: str,
+    batch_id: str,
+    dataset_key: str,
+    provider_name: str,
+) -> str:
+    """Hash the exact five identity fields without a partially built object."""
+
     payload = {
-        "batch_id": identity.batch_id,
-        "dataset_key": identity.dataset_key,
-        "ingested_run_id": identity.ingested_run_id,
-        "provider_name": identity.provider_name,
-        "run_id": identity.run_id,
+        "batch_id": batch_id,
+        "dataset_key": dataset_key,
+        "ingested_run_id": ingested_run_id,
+        "provider_name": provider_name,
+        "run_id": run_id,
     }
     encoded = json.dumps(
         payload,
@@ -177,6 +223,7 @@ def _require_uuid(value: str, field_name: str) -> None:
 
 
 __all__ = [
+    "build_sync_execution_identity",
     "IssueSyncExecutionIdentityCommand",
     "IssueSyncExecutionIdentityUseCase",
     "PersistSyncExecutionIdentityUseCase",

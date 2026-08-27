@@ -27,6 +27,38 @@ def test_command_builds_repair_use_case_with_unit_rule_repository(monkeypatch):
 
     monkeypatch.setattr(command_module, "RepairDecisionDataReliabilityUseCase", FakeUseCase)
     monkeypatch.setattr(
+        command_module,
+        "make_system_audited_sync_macro_use_case",
+        lambda **_kwargs: SimpleNamespace(execute=lambda _request: None),
+    )
+    monkeypatch.setattr(
+        command_module,
+        "make_system_audited_sync_price_use_case",
+        lambda **_kwargs: SimpleNamespace(execute=lambda _request: None),
+    )
+    monkeypatch.setattr(
+        command_module,
+        "make_system_audited_sync_quote_use_case",
+        lambda **_kwargs: SimpleNamespace(execute=lambda _request: None),
+    )
+    decision_read_recorder = SimpleNamespace(execute=lambda _command: None)
+    monkeypatch.setattr(
+        command_module,
+        "make_publication_decision_read_recorder",
+        lambda: decision_read_recorder,
+    )
+    repair_audit = SimpleNamespace(
+        identity_issuer=object(),
+        identity_unit_of_work=object(),
+        audit_writer=object(),
+        clock=object(),
+    )
+    monkeypatch.setattr(
+        command_module,
+        "make_repair_run_audit_dependencies",
+        lambda: repair_audit,
+    )
+    monkeypatch.setattr(
         command_module.Command,
         "_resolve_user",
         lambda self, user_id: SimpleNamespace(id=7),
@@ -51,9 +83,11 @@ def test_command_builds_repair_use_case_with_unit_rule_repository(monkeypatch):
     )
 
     assert "indicator_unit_rule_repo" in captured
-    assert "macro_publication_publisher" in captured
-    assert "price_publication_publisher" in captured
-    assert "quote_publication_publisher" in captured
+    assert "macro_sync_use_case" in captured
+    assert "price_sync_use_case" in captured
+    assert "quote_sync_use_case" in captured
+    assert captured["decision_read_recorder"] is decision_read_recorder
+    assert captured["data_repair_audit_writer"] is repair_audit.audit_writer
     assert captured["request"].macro_indicator_codes == ["CN_NEW_CREDIT"]
     assert captured["request"].portfolio_id == 135
 

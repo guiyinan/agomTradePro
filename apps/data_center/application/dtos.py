@@ -7,10 +7,14 @@ Plain dataclasses — no ORM, no Django imports.
 
 from __future__ import annotations
 
+import math
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Any
+
+from apps.audit.domain.system_audit_event import AuditOutcome
 
 
 @dataclass
@@ -573,6 +577,48 @@ class QuoteResponse:
 
 
 @dataclass
+class MacroFailoverDecision:
+    """Verified provider switch metadata carried into one macro commit."""
+
+    from_provider: str
+    to_provider: str
+    verification_provider: str
+    tolerance: float
+    observed_deviation: float
+    reason_code: str
+
+    def __post_init__(self) -> None:
+        for field_name in ("from_provider", "to_provider", "verification_provider"):
+            value = getattr(self, field_name)
+            if not isinstance(value, str) or not value.strip() or len(value) > 256:
+                raise ValueError(f"{field_name} must be a bounded non-empty string")
+        if self.from_provider == self.to_provider:
+            raise ValueError("failover providers must differ")
+        if self.verification_provider in {self.from_provider, self.to_provider}:
+            raise ValueError("verification provider must be independent")
+        if (
+            isinstance(self.tolerance, bool)
+            or not isinstance(self.tolerance, (int, float))
+            or not math.isfinite(float(self.tolerance))
+            or not 0.0 <= float(self.tolerance) <= 1.0
+        ):
+            raise ValueError("tolerance must be finite and between 0 and 1")
+        if (
+            isinstance(self.observed_deviation, bool)
+            or not isinstance(self.observed_deviation, (int, float))
+            or not math.isfinite(float(self.observed_deviation))
+            or not 0.0 <= float(self.observed_deviation) <= float(self.tolerance)
+        ):
+            raise ValueError("observed_deviation must be within the failover tolerance")
+        if (
+            not isinstance(self.reason_code, str)
+            or len(self.reason_code) > 128
+            or re.fullmatch(r"[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*", self.reason_code) is None
+        ):
+            raise ValueError("reason_code must be a stable reason code")
+
+
+@dataclass
 class SyncMacroRequest:
     provider_id: int
     indicator_code: str
@@ -660,19 +706,33 @@ class SyncCapitalFlowRequest:
 
 @dataclass
 class SyncResult:
+    """Outcome of one sync with optional exact canonical-chain identities."""
+
     domain: str
     provider_name: str
     stored_count: int
     status: str
     error_message: str = ""
+    run_id: str | None = None
+    ingested_run_id: str | None = None
+    publication_id: str | None = None
+    publication_version: str | None = None
+    publication_hash: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the public result payload without dropping replay identities."""
+
         return {
             "domain": self.domain,
             "provider_name": self.provider_name,
             "stored_count": self.stored_count,
             "status": self.status,
             "error_message": self.error_message,
+            "run_id": self.run_id,
+            "ingested_run_id": self.ingested_run_id,
+            "publication_id": self.publication_id,
+            "publication_version": self.publication_version,
+            "publication_hash": self.publication_hash,
         }
 
 
@@ -736,6 +796,11 @@ class DecisionReliabilityRepairReport:
     quote_status: DecisionReliabilitySection
     pulse_status: DecisionReliabilitySection
     alpha_status: DecisionReliabilitySection
+    run_id: str
+    ingested_run_id: str
+    identity_hash: str
+    audit_outcome: AuditOutcome
+    publication_ids: tuple[str, ...] = ()
     provider_bootstrap: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -770,6 +835,11 @@ class DecisionReliabilityRepairReport:
             "quote_status": self.quote_status.to_dict(),
             "pulse_status": self.pulse_status.to_dict(),
             "alpha_status": self.alpha_status.to_dict(),
+            "run_id": self.run_id,
+            "ingested_run_id": self.ingested_run_id,
+            "identity_hash": self.identity_hash,
+            "audit_outcome": self.audit_outcome.value,
+            "publication_ids": list(self.publication_ids),
             "must_not_use_for_decision": self.must_not_use_for_decision,
             "blocked_reasons": self.blocked_reasons,
             "provider_bootstrap": self.provider_bootstrap,

@@ -561,6 +561,10 @@ class RawAuditRepositoryProtocol(Protocol):
     """Persistence contract for raw-fetch audit log."""
 
     def log(self, audit: RawAudit) -> RawAudit: ...
+
+    def get_by_id(self, raw_audit_id: str) -> RawAudit | None:
+        """Return one exact raw-audit record by its persisted identity."""
+
     def get_recent(
         self,
         provider_name: str | None = None,

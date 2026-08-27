@@ -7,9 +7,11 @@ from datetime import UTC, datetime
 import pytest
 
 from apps.audit.application import tasks
+from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
 from apps.audit.application.system_audit_outbox_dispatcher import (
     SystemAuditOutboxDispatchUnavailable,
 )
+from apps.audit.infrastructure import system_audit_outbox_runtime as runtime_composition_root
 from apps.audit.infrastructure.system_audit_outbox_runtime import (
     SystemAuditOutboxPublisherUnavailable,
     get_system_audit_outbox_dispatcher,
@@ -137,10 +139,25 @@ def test_dispatch_task_redacts_unexpected_composition_failure(
     assert "RuntimeError" in caplog.text
 
 
-def test_runtime_composition_is_explicitly_blocked_until_canonical_sink_exists() -> None:
-    """The infrastructure gate does not import or fall back to the generic event bus."""
+def test_runtime_composition_maps_missing_snapshot_to_blocked_reason(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The infrastructure entry point preserves a safe configuration reason."""
+
+    def missing_snapshot(**kwargs: object) -> object:
+        del kwargs
+        raise SystemAuditCompositionUnavailable(
+            "system audit runtime configuration is unavailable",
+            reason_code="snapshot_unavailable",
+        )
+
+    monkeypatch.setattr(
+        runtime_composition_root,
+        "build_system_audit_outbox_dispatcher",
+        missing_snapshot,
+    )
 
     with pytest.raises(SystemAuditOutboxPublisherUnavailable) as exc_info:
         get_system_audit_outbox_dispatcher()
 
-    assert exc_info.value.reason_code == "publisher_not_wired"
+    assert exc_info.value.reason_code == "snapshot_unavailable"
