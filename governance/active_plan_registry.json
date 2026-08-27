@@ -1,14 +1,14 @@
 {
-  "version": "2026-08-27.v2",
-  "updated_at": "2026-08-27",
+  "version": "2026-08-28.v1",
+  "updated_at": "2026-08-28",
   "execution_focus": {
-    "unit_id": "TUX-04",
+    "unit_id": "TUX-03",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Only TUX-04 may expand repository scope. AUD-02 completed the canonical Data Center same-UOW event/outbox and replay-without-silent-loss gate; AUD-03 now proceeds as production acceptance and may only perform its declared safe read-only auto_collect work without new authorization. EVID-01 has no remaining safe repository slice and proceeds as production acceptance alongside EVID-02. In parallel, TUI-01, TAR-05 and other declared production/external/governance units may complete safe auto_collect work; deployments, production writes, paid calls and human decisions still require their recorded authorization boundary."
+    "policy": "Only TUX-03 may expand repository scope. TUX-04 completed the IA grouping, entry disambiguation, terminology, runtime-screen contract and ordinary-role browser gate; TUX-03 now owns the action copy and density remediation, while TUX-05 remains dependency-waiting. AUD-03 proceeds as production acceptance and may only perform its declared safe read-only auto_collect work without new authorization. EVID-01 has no remaining safe repository slice and proceeds as production acceptance alongside EVID-02. In parallel, TUI-01, TAR-05 and other declared production/external/governance units may complete safe auto_collect work; deployments, production writes, paid calls and human decisions still require their recorded authorization boundary."
   },
   "workstreams": [
     {
@@ -262,7 +262,7 @@
       "priority": "P1",
       "owner": "terminal",
       "status": "active",
-      "next_gate": "TUX-01 and TUX-02 repository exit gates are complete. TUX-04 is the sole repository execution focus: reorganize IA groups, disambiguate entries, unify terminology and close all 12 runtime screen metadata contracts without disturbing the M5 candidate evidence line. TUX-03 remains planned and must not expand repository scope in parallel.",
+      "next_gate": "TUX-01, TUX-02 and TUX-04 repository exit gates are complete. TUX-03 is the sole repository execution focus: separate auto-promoted/debug actions from curated tasks, remove route-key or boilerplate copy, and bring every screen within its action-density budget without rebinding the frozen M5 candidate. TUX-05 remains dependency-waiting until TUX-03 completes.",
       "documents": [
         {
           "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
@@ -872,7 +872,7 @@
         "wave": 5,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "active",
         "title": "Split auto-promoted actions and rewrite user-facing action copy",
         "depends_on": [
           "TUX-02"
@@ -885,7 +885,7 @@
         "wave": 5,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Restructure IA groups, disambiguate entries and complete runtime screen contracts",
         "depends_on": [],
         "exit_gate": "The research-tools catch-all group is reorganized, confusing entry pairs are renamed, terminology is unified, all 12 runtime screens carry full metadata contracts, and ordinary-role walkthrough hits no admin-only target."

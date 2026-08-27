@@ -90,7 +90,7 @@
 | `TUX-04` | W5 | repository | — | IA 整理：重排"研究与工具"杂物筐分组；易混入口改名消歧；统一术语表（Regime/象限、提示词/Prompt、观测日期口径）；12 个 runtime screen 补齐 `summary`/`user_experience`/`default_action_key`；修复 admin audience panel 对普通用户的碰壁跳转；`execution.audit` summary 与实际 panel 对齐 | IA 注册表契约测试通过；全部 screen（含 runtime）满足 metadata schema 必填项；普通角色浏览器走查确认无无权访问跳转 |
 | `TUX-05` | W5 | repository | TUX-03、TUX-04 | 界面细节收口：表格列宽/断行/行操作溢出修复；创建类 panel 重复提示去重；底部状态栏接线或移除；字段名翻译层（MustNotUseFor、QuotaCharged 等）；"broker order catalog display only" 占位符替换；顶栏内部 key 移除或折叠进调试语义；定性并修复 freshness 观感矛盾 | 8 个代表性 screen 的浏览器截图证据；字段名/内部 key 机检为零；freshness 判定结论记录在案（数据问题则修数据，判定缺陷则修判定） |
 
-执行纪律：`TUX-01` 阻断级回退已完成；`TUX-02` 的 repository exit gate 已于 2026-08-24 收口。当前 repository execution focus 仍由 `EVID-01` 持有，`TUX-03`/`TUX-04` 只保留为后续计划，不得扰动已经冻结的正式 M5 候选。每个 unit 的测试、治理清单更新与走查证据仍作为一个验收包，不拆算。
+执行纪律：`TUX-01`、`TUX-02` 与 `TUX-04` 的 repository exit gate 已完成；当前唯一 repository execution focus 为 `TUX-03`，`TUX-05` 继续等待 `TUX-03`。本线不得自动重绑或扰动已经冻结的正式 M5 候选。每个 unit 的测试、治理清单更新与走查证据仍作为一个验收包，不拆算。
 
 ## 5. 验证与回归范围
 
@@ -141,6 +141,15 @@
 - 新增 `test_runtime_screen_registry_publishes_complete_user_experience_contract`，验证 IA runtime screen 与 normalized runtime 的 summary、UX 和 default action 完全一致；`tests/unit/terminal/test_tui_information_architecture.py` focused 回归为 `9 passed`。
 - `execution.audit` 的 summary、business context 与 checkpoints 已按实际 dashboard panels 对齐为审计健康、事件指标、实盘对账和操作审计；IA 与 published graph 保持同一份用户可见语义，新增对齐回归后该 focused 套件为 `10 passed`。
 - 本阶段只完成 metadata contract migration；“研究与工具”分组重排、易混入口消歧、术语统一、普通角色浏览器走查，以及外部 AgomTUI portability/M5 生产证据仍未完成，因此 `TUX-04` 保持 `active`。
+
+## 6.3.1 TUX-04 repository closure（2026-08-28）
+
+- IA 的 `research` group 已从 `research-tools` 杂物筐拆分为 `investment-research`、`ai-workspace`、`personal-services` 与 `personal-settings`；个人/系统 AI 服务商、个人/MCP 治理入口、AI 任务助手/命令行任务台及账户设置均以用户任务消歧。IA、published graph 与 runtime normalization 保持同一标签和模块归属。
+- canonical vocabulary 固化为 `宏观象限`、`提示词`、`观测时间` 与 `数据基准日`；source guard 对 24 个 normalized runtime screen 和 890 个 runtime action 全量拒绝 `Regime`、`Prompt`、`数据日期`、`观测日期`，实际结果为 0 violations。首页动态状态同时保留原始 reason/status code，并以“未知”“当前没有可用的宏观象限数据”等用户文案呈现。
+- 12 个 runtime screen 的 `summary`、`user_experience` 与 `default_action_key` 均由 IA 契约逐屏验证；`execution.audit` 继续与审计健康、事件指标、实盘对账、操作审计四块实际 panel 对齐。
+- 普通角色隔离浏览器走查显示 15 个可见 screen、4 个研究/自助模块；`research.asset-lab`、`ai-ops.terminal`、`ai-ops.providers`、`account.self-service` 均可进入。直接访问 `capability-router.admin-access` 显示“当前账号不能打开这个工作区”并返回预期 403；全目录测试同时逐 screen 验证所有 panel target 都属于普通用户可见集合。
+- 最终门禁：TUI JS `35 passed`，IA/source/operator focused `64 passed`，完整 Workbench `258 passed`，Terminal Agent `20 passed`；`npm run check:tui`、Black/isort/Ruff、15 个生产文件增量 mypy、full debt ceiling 与 source guard 全绿。完整 Workbench 首轮发现旧测试夹具缺少 AUD-02 新增的三项 critical audit runtime value；未放宽生产 fail-closed 校验，而是显式补齐隔离测试 profile，单例与全量复跑均通过。
+- 规范化证据见 [`tux04-repository-closure-evidence-2026-08-28.json`](../testing/tux04-repository-closure-evidence-2026-08-28.json)。本次未部署、未写生产、未做外部 portability 或 M5 candidate rebind；published graph/manifest 哈希已变化，正式候选是否重绑仍归 TUI-01/TUI-02 owner 与授权流程。`TUX-04` repository exit gate 因此完成，唯一 repository focus 顺序推进到依赖已满足的 `TUX-03`；`TUX-05` 继续等待二者同时完成。
 
 ## 6.2.1 2026-08-20 TUX-02 candidate deployment observation
 
