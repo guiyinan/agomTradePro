@@ -73,14 +73,10 @@
         }
         if (normalizedActionKey) {
             const action = currentAction(normalizedActionKey);
-            if (action && String(action.effect || "read") !== "read") {
+            if (action && !dashboardActionCanAutoRun(action)) {
                 focusActions();
-                const form = actionFormElement(action);
-                form?.scrollIntoView({ block: "nearest" });
-                const primaryInput = form?.querySelector(
-                    "textarea, input:not([type='hidden']), select",
-                );
-                (primaryInput || form?.querySelector("button"))?.focus();
+                const form = revealActionFormInPanel(action);
+                focusActionFormInPanel(form);
                 setStatus(`请填写“${action.label}”后继续`);
                 return;
             }
@@ -681,7 +677,7 @@
     }
 
     function openDashboardRowActionForm(action, panel, descriptor, row, params) {
-        const form = actionFormElement(action);
+        const form = revealActionFormInPanel(action);
         if (!form) {
             setStatus(`请先打开“${action?.label || "编辑任务"}”表单`);
             return true;

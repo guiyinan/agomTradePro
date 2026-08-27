@@ -208,6 +208,8 @@ def test_runtime_ia_is_idempotent_and_has_no_dangling_screen_references() -> Non
     normalized_twice = repository._normalize_runtime_payload(validate_tui_metadata(normalized_once))
 
     assert normalized_twice == normalized_once
+    assert normalized_once["coverage_summary"]["runtime_density_demoted_actions"] == 143
+    assert normalized_twice["coverage_summary"]["runtime_density_demoted_actions"] == 143
     screen_keys = {screen["key"] for screen in normalized_once["screens"]}
     action_keys = {action["key"] for action in normalized_once["actions"]}
     assert len(screen_keys) == 24

@@ -90,7 +90,7 @@
 | `TUX-04` | W5 | repository | — | IA 整理：重排"研究与工具"杂物筐分组；易混入口改名消歧；统一术语表（Regime/象限、提示词/Prompt、观测日期口径）；12 个 runtime screen 补齐 `summary`/`user_experience`/`default_action_key`；修复 admin audience panel 对普通用户的碰壁跳转；`execution.audit` summary 与实际 panel 对齐 | IA 注册表契约测试通过；全部 screen（含 runtime）满足 metadata schema 必填项；普通角色浏览器走查确认无无权访问跳转 |
 | `TUX-05` | W5 | repository | TUX-03、TUX-04 | 界面细节收口：表格列宽/断行/行操作溢出修复；创建类 panel 重复提示去重；底部状态栏接线或移除；字段名翻译层（MustNotUseFor、QuotaCharged 等）；"broker order catalog display only" 占位符替换；顶栏内部 key 移除或折叠进调试语义；定性并修复 freshness 观感矛盾 | 8 个代表性 screen 的浏览器截图证据；字段名/内部 key 机检为零；freshness 判定结论记录在案（数据问题则修数据，判定缺陷则修判定） |
 
-执行纪律：`TUX-01`、`TUX-02` 与 `TUX-04` 的 repository exit gate 已完成；当前唯一 repository execution focus 为 `TUX-03`，`TUX-05` 继续等待 `TUX-03`。本线不得自动重绑或扰动已经冻结的正式 M5 候选。每个 unit 的测试、治理清单更新与走查证据仍作为一个验收包，不拆算。
+执行纪律：`TUX-01` 至 `TUX-04` 的 repository exit gate 已完成；当前唯一 repository execution focus 为依赖已满足的 `TUX-05`。本线不得自动重绑或扰动已经冻结的正式 M5 候选。每个 unit 的测试、治理清单更新与走查证据仍作为一个验收包，不拆算。
 
 ## 5. 验证与回归范围
 
@@ -160,6 +160,14 @@
 - action copy/semantic reference 切片已完成：compiler 为 read/write/required-input action 生成独立操作文案，route-derived action 默认下沉到 `support/advanced`，IA 的 7 个 default 与 16 个 panel route 引用全部换为稳定的 semantic action key；17 个单复数兼容或冗余注册被确定性裁剪，published/runtime action 由基线 430/890 收敛为 413/871。
 - 同一机器检查现已得到 route key 暴露、样板 description、机翻/截断文案、published/runtime 重复 label、route default/panel 引用全部为 0；published validator、三源一致性、Web→TUI migration inventory 与 96 个 focused regression 均通过。validator 报告的 published graph canonical SHA-256 为 `c372a3fe645dfc89e5affd649d130dea1e5ff7de570acebd978dc16cb8add5bd`，compiler 二次生成前后文件哈希一致。
 - 密度仍保持 fail-closed：12 个 published screen 中 11 个 screen、11 个 task group 超预算，来源已收窄为 runtime curated injection，而非 compiler route action。下一切片在 metadata repository 归一化边界按 IA 既有预算确定性保留 default/panel 主动作并把溢出 read/write action 分别降为 `support/advanced`；在清零、全量回归和普通角色浏览器走查前不接 CI、不关闭 `TUX-03`。
+
+## 6.3.3 TUX-03 repository closure（2026-08-28）
+
+- 以 430 条原始 published action 为审计基线，删除 17 条单复数兼容或冗余注册后，最终图谱为 413 published / 871 normalized runtime actions。338 条 route-derived action 继续保留必要的能力覆盖，但首层暴露 route key、样板 description、机翻/截断片段、同屏重复 label，以及 route default/panel 引用均为 0。
+- `PublishedTuiMetadataRepository` 在 full-IA runtime normalization 的 injection、patch 与 redundant prune 之后执行 action density 收敛；只处理 12 个 `published_screens`，只改 `task_tier`，按 tier/sequence/group/key 确定性保留 default/panel 引用和预算内动作，并把溢出 read/write 分别降为 `support/advanced`。真实图共降级 143 条，最终 screen/group 超预算均为 0；二次归一化幂等，runtime-only screen 不受影响。若 protected 引用自身已超过预算，引用保持可见且机器 guard 继续 fail-closed，不以破坏入口方式伪造通过。
+- 普通角色隔离浏览器显示 15 个可见 screen；账户与持仓、研究信号、事件与复盘、我的 AI 服务商、每日决策流、资产研究等代表入口首屏均能看到主任务。走查发现 `simulated-trading.account-create` 降为 advanced 后，P0 panel 可点击但表单曾被 tier filter 隐藏；runtime 现统一 reveal/focus panel/row-action 表单。新增浏览器回归同时证明 advanced write 与 required-read panel 都不会在表单填写前误发请求，真实账户创建 panel 已复验表单可见并聚焦。
+- 最终门禁：TUI JS `37 passed`，metadata/compiler/source/density/IA/operator focused `125 passed`，完整 Workbench `258 passed`，Terminal Agent `20 passed`；action copy/density guard 为 `12 screens`、`413/871 actions`、所有 copy/reference/density 指标为 0，source guard 0 violations，static contracts `407 rules / 5 sources`，Web→TUI inventory、published validator、`npm run check:tui`、Black/isort/Ruff、增量 mypy 与 full debt ceiling 全绿。Luna 两轮只读复核提出的 protected-overflow 显式失败语义与 required-read 空参数请求风险均已补测试并关闭，最终无未处理 P0/P1。
+- 规范化证据见 [`tux03-repository-closure-evidence-2026-08-28.json`](../testing/tux03-repository-closure-evidence-2026-08-28.json)。本地 SQLite 首页并发读取曾产生可追踪的 `503/database locked` 恢复态；未翻译字段与 broker-order 占位文案继续归 `TUX-05`，不在本 unit 隐藏。此次未部署、未写生产、未做外部 portability 或 M5 candidate rebind；`TUX-03` repository exit gate 完成，唯一 repository focus 推进到依赖已满足的 `TUX-05`。
 
 ## 6.2.1 2026-08-20 TUX-02 candidate deployment observation
 

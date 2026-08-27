@@ -121,12 +121,23 @@ const actions = [
         risk: "write",
         method: "PATCH",
         effect: "update",
+        task_tier: "advanced",
         screen_key: "test.edit-dashboard",
         fields: [
             { key: "user_id", label: "用户 ID", input_type: "number", required: true, binding: "path" },
             { key: "username", label: "用户名", input_type: "text", required: true, binding: "body" },
         ],
         sequence: 13,
+    }),
+    action("test.lookup-user", {
+        label: "查询用户",
+        view_type: "detail",
+        task_tier: "support",
+        screen_key: "test.edit-dashboard",
+        fields: [
+            { key: "user_id", label: "用户 ID", input_type: "number", required: true },
+        ],
+        sequence: 18,
     }),
     action("test.password", {
         label: "修改密码",
@@ -299,27 +310,47 @@ const editableDashboardScreen = {
         audience: "admin",
         entry_state: { mode: "dashboard" },
         workflow: {},
-        dashboard_panels: [{
-            key: "editable-users",
-            title: "用户列表",
-            kind: "datagrid",
-            user_priority: "p0",
-            presentation_semantic: "primary_list",
-            action_key: "test.user-list",
-            columns: [
-                { key: "user_id", label: "用户 ID" },
-                { key: "username", label: "用户名" },
-            ],
-            row_actions: [{
+        dashboard_panels: [
+            {
+                key: "editable-users",
+                title: "用户列表",
+                kind: "datagrid",
+                user_priority: "p0",
+                presentation_semantic: "primary_list",
+                action_key: "test.user-list",
+                columns: [
+                    { key: "user_id", label: "用户 ID" },
+                    { key: "username", label: "用户名" },
+                ],
+                row_actions: [{
+                    action_key: "test.edit-row",
+                    label_template: "编辑 {username}",
+                    param_map: { user_id: "user_id" },
+                    refresh_panel_key: "editable-users",
+                }],
+            },
+            {
+                key: "edit-user",
+                title: "编辑用户资料",
+                kind: "detail",
+                user_priority: "p0",
+                presentation_semantic: "primary_action",
                 action_key: "test.edit-row",
-                label_template: "编辑 {username}",
-                param_map: { user_id: "user_id" },
-                refresh_panel_key: "editable-users",
-            }],
-        }],
+                note: "填写用户 ID 和用户名后提交。",
+            },
+            {
+                key: "lookup-user",
+                title: "查询用户资料",
+                kind: "detail",
+                user_priority: "p0",
+                presentation_semantic: "supporting_detail",
+                action_key: "test.lookup-user",
+                note: "填写用户 ID 后查询。",
+            },
+        ],
         user_experience: { primary_task: "编辑用户", primary_outcome: "提交修改后的用户资料" },
     },
-    actions: actions.filter((item) => ["test.user-list", "test.edit-row"].includes(item.key)),
+    actions: actions.filter((item) => ["test.user-list", "test.edit-row", "test.lookup-user"].includes(item.key)),
 };
 
 function listResult() {
@@ -1005,6 +1036,66 @@ test("editable dashboard row action opens a form before sending the update", asy
             user_id: 42,
             username: "updated-user",
         });
+    } finally {
+        await browser.close();
+    }
+});
+
+test("advanced action referenced by a dashboard panel remains reachable", async () => {
+    const { browser, page } = await openHarness(
+        "https://app.test/?screen=test.edit-dashboard",
+        { waitForInitialRows: false },
+    );
+    try {
+        let updateRequests = 0;
+        page.on("request", (request) => {
+            if (request.url().includes("/actions/test.edit-row/run/")) {
+                updateRequests += 1;
+            }
+        });
+
+        const open = page.locator('[data-dashboard-panel="edit-user"] .tui-entry-action');
+        await open.waitFor({ state: "visible" });
+        await open.click();
+
+        const form = page.locator('form[data-action-ui-key="test.edit-row"]');
+        await form.waitFor({ state: "visible" });
+        assert.equal(updateRequests, 0);
+        assert.equal(
+            await form.locator('[name="user_id"]').evaluate((element) => element === document.activeElement),
+            true,
+        );
+        assert.match(await page.locator("[data-workbench-status]").innerText(), /编辑用户/);
+    } finally {
+        await browser.close();
+    }
+});
+
+test("required read action referenced by a dashboard panel waits for form input", async () => {
+    const { browser, page } = await openHarness(
+        "https://app.test/?screen=test.edit-dashboard",
+        { waitForInitialRows: false },
+    );
+    try {
+        let lookupRequests = 0;
+        page.on("request", (request) => {
+            if (request.url().includes("/actions/test.lookup-user/run/")) {
+                lookupRequests += 1;
+            }
+        });
+
+        const open = page.locator('[data-dashboard-panel="lookup-user"] .tui-entry-action');
+        await open.waitFor({ state: "visible" });
+        await open.click();
+
+        const form = page.locator('form[data-action-ui-key="test.lookup-user"]');
+        await form.waitFor({ state: "visible" });
+        assert.equal(lookupRequests, 0);
+        assert.equal(
+            await form.locator('[name="user_id"]').evaluate((element) => element === document.activeElement),
+            true,
+        );
+        assert.match(await page.locator("[data-workbench-status]").innerText(), /查询用户/);
     } finally {
         await browser.close();
     }

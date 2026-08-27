@@ -955,6 +955,7 @@ def test_tui_simulated_accounts_cover_legacy_hubs_and_account_lifecycle(
     assert actions["simulated-trading.accounts"]["view_type"] == "datagrid"
     assert actions["simulated-trading.equity-curve"]["view_type"] == "chart"
     assert actions["simulated-trading.account-create"]["confirmation_required"] is True
+    assert actions["simulated-trading.account-create"]["task_tier"] == "advanced"
     assert actions["simulated-trading.account-delete"]["confirmation_required"] is True
     assert actions["simulated-trading.strategy-bind"]["confirmation_required"] is True
 
@@ -978,6 +979,10 @@ def test_tui_simulated_accounts_cover_legacy_hubs_and_account_lifecycle(
     )
     assert account_panel["action_key"] == "simulated-trading.accounts"
     assert account_panel["user_priority"] == "p0"
+    create_panel = next(
+        panel for panel in payload["screen"]["dashboard_panels"] if panel["key"] == "account-create"
+    )
+    assert create_panel["action_key"] == "simulated-trading.account-create"
 
 
 def test_tui_factor_calculation_uses_stored_config_without_raw_json(client, tui_user):
@@ -1821,7 +1826,7 @@ def test_tui_actions_expose_business_task_tiers(client, tui_user):
     assert actions["account.position-list"]["task_tier"] == "primary"
     assert (
         actions["param.api.get.api.account.accounts.int.account_id.positions"]["task_tier"]
-        == "primary"
+        == "support"
     )
     assert all(action["task_group"] for action in payload["actions"])
     assert all(action["task_tier"] for action in payload["actions"])
@@ -1963,14 +1968,15 @@ def test_tui_ai_provider_mutations_confirm_and_mask_credentials(
 
     assert user_response.status_code == 200
     user_actions = {action["key"]: action for action in user_response.json()["actions"]}
-    for action_key in (
-        "ai-ops.create-my-provider",
-        "ai-ops.update-my-provider",
-        "ai-ops.toggle-my-provider",
-        "ai-ops.delete-my-provider",
-    ):
+    expected_tiers = {
+        "ai-ops.create-my-provider": "operation",
+        "ai-ops.update-my-provider": "operation",
+        "ai-ops.toggle-my-provider": "advanced",
+        "ai-ops.delete-my-provider": "advanced",
+    }
+    for action_key, expected_tier in expected_tiers.items():
         assert user_actions[action_key]["confirmation_required"] is True
-        assert user_actions[action_key]["task_tier"] == "operation"
+        assert user_actions[action_key]["task_tier"] == expected_tier
     user_create_fields = {
         field["key"]: field for field in user_actions["ai-ops.create-my-provider"]["fields"]
     }

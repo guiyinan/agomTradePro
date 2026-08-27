@@ -154,8 +154,8 @@ def test_runtime_only_screens_do_not_expand_the_tux03_density_exit_scope() -> No
     assert report.over_budget_screen_count == 0
 
 
-def test_real_tui_sources_close_copy_debt_but_keep_density_debt_explicit() -> None:
-    """Copy and reference debt stays closed while density remediation continues."""
+def test_real_tui_sources_close_copy_reference_and_density_debt() -> None:
+    """The normalized real graph satisfies every TUX-03 machine contract."""
 
     pytest.importorskip("django")
     from apps.terminal.infrastructure.tui_metadata_repository import (
@@ -172,7 +172,7 @@ def test_real_tui_sources_close_copy_debt_but_keep_density_debt_explicit() -> No
         runtime_payload=runtime,
     )
 
-    assert not report.passed
+    assert report.passed, report.as_json()
     assert report.published_action_count == 413
     assert report.runtime_action_count == 871
     assert report.published_screen_count == 12
@@ -184,5 +184,5 @@ def test_real_tui_sources_close_copy_debt_but_keep_density_debt_explicit() -> No
     assert report.runtime_duplicate_label_group_count == 0
     assert report.route_default_reference_count == 0
     assert report.route_panel_reference_count == 0
-    assert report.over_budget_screen_count == 11
-    assert report.over_budget_task_group_count == 11
+    assert report.over_budget_screen_count == 0
+    assert report.over_budget_task_group_count == 0

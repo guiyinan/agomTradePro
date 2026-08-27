@@ -1,14 +1,14 @@
 {
-  "version": "2026-08-28.v1",
+  "version": "2026-08-28.v2",
   "updated_at": "2026-08-28",
   "execution_focus": {
-    "unit_id": "TUX-03",
+    "unit_id": "TUX-05",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Only TUX-03 may expand repository scope. TUX-04 completed the IA grouping, entry disambiguation, terminology, runtime-screen contract and ordinary-role browser gate; TUX-03 now owns the action copy and density remediation, while TUX-05 remains dependency-waiting. AUD-03 proceeds as production acceptance and may only perform its declared safe read-only auto_collect work without new authorization. EVID-01 has no remaining safe repository slice and proceeds as production acceptance alongside EVID-02. In parallel, TUI-01, TAR-05 and other declared production/external/governance units may complete safe auto_collect work; deployments, production writes, paid calls and human decisions still require their recorded authorization boundary."
+    "policy": "Only TUX-05 may expand repository scope. TUX-03 completed the full action-copy, semantic-reference, deterministic density and ordinary-role browser-reachability gate; together with the completed TUX-04 IA contract this satisfies both TUX-05 dependencies. TUX-05 now owns layout, field-name translation, internal-key/status-bar cleanup and freshness-presentation resolution. AUD-03 proceeds as production acceptance and may only perform its declared safe read-only auto_collect work without new authorization. EVID-01 has no remaining safe repository slice and proceeds as production acceptance alongside EVID-02. In parallel, TUI-01, TAR-05 and other declared production/external/governance units may complete safe auto_collect work; deployments, production writes, paid calls and human decisions still require their recorded authorization boundary."
   },
   "workstreams": [
     {
@@ -262,7 +262,7 @@
       "priority": "P1",
       "owner": "terminal",
       "status": "active",
-      "next_gate": "TUX-01, TUX-02 and TUX-04 repository exit gates are complete. TUX-03 is the sole repository execution focus: separate auto-promoted/debug actions from curated tasks, remove route-key or boilerplate copy, and bring every screen within its action-density budget without rebinding the frozen M5 candidate. TUX-05 remains dependency-waiting until TUX-03 completes.",
+      "next_gate": "TUX-01 through TUX-04 repository exit gates are complete. TUX-05 is the sole repository execution focus: close table layout and overflow defects, remove duplicate creation guidance, wire or remove the status bar, translate internal field names and placeholders, hide internal screen keys, and record a fail-closed resolution of the freshness-presentation contradiction without rebinding the frozen M5 candidate.",
       "documents": [
         {
           "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
@@ -872,12 +872,12 @@
         "wave": 5,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Split auto-promoted actions and rewrite user-facing action copy",
         "depends_on": [
           "TUX-02"
         ],
-        "exit_gate": "All 430 actions pass the copy machine check with no route keys, machine-translated fragments or boilerplate descriptions, and every screen is back within its action-density budget."
+        "exit_gate": "The full 430-action baseline is accounted for (413 retained and 17 redundant registrations retired); retained actions pass the copy machine check with no exposed route keys, machine-translated fragments, boilerplate descriptions or duplicate labels, every published screen is within its action-density budget, and ordinary-role browser evidence proves referenced primary tasks remain reachable."
       },
       {
         "id": "TUX-04",
@@ -896,7 +896,7 @@
         "wave": 5,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "waiting_dependency",
+        "status": "active",
         "title": "Close layout, field-name translation and freshness-presentation defects",
         "depends_on": [
           "TUX-03",

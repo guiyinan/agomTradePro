@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 from pathlib import Path
 from typing import Any
 
@@ -65,6 +66,282 @@ def test_real_tui_sources_have_consistent_published_screen_ownership() -> None:
     assert report.runtime_screen_count == 24
     assert report.published_action_count == 413
     assert report.runtime_action_count >= report.published_action_count
+
+
+def test_runtime_density_keeps_featured_actions_and_demotes_only_published_overflow() -> None:
+    """IA budgets keep featured tasks while leaving runtime-only screens untouched."""
+
+    from apps.terminal.infrastructure.tui_metadata_repository import (
+        PublishedTuiMetadataRepository,
+    )
+
+    screens = [
+        {
+            "key": "published",
+            "default_action_key": "published.default",
+            "dashboard_panels": [{"action_key": "published.panel"}],
+            "action_density": {
+                "primary_operation_limit": 3,
+                "task_group_limit": 2,
+            },
+        },
+        {
+            "key": "runtime-only",
+            "default_action_key": "runtime.primary",
+            "dashboard_panels": [],
+            "action_density": {
+                "primary_operation_limit": 1,
+                "task_group_limit": 1,
+            },
+        },
+    ]
+    actions = [
+        {
+            "key": "published.group-overflow",
+            "screen_key": "published",
+            "task_tier": "primary",
+            "task_group": "featured",
+            "effect": "read",
+            "sequence": 1,
+        },
+        {
+            "key": "published.default",
+            "screen_key": "published",
+            "task_tier": "primary",
+            "task_group": "featured",
+            "effect": "read",
+            "sequence": 50,
+        },
+        {
+            "key": "published.panel",
+            "screen_key": "published",
+            "task_tier": "operation",
+            "task_group": "featured",
+            "effect": "execute",
+            "sequence": 60,
+        },
+        {
+            "key": "published.selected",
+            "screen_key": "published",
+            "task_tier": "primary",
+            "task_group": "secondary",
+            "effect": "read",
+            "sequence": 100,
+        },
+        {
+            "key": "published.write-overflow",
+            "screen_key": "published",
+            "task_tier": "operation",
+            "task_group": "secondary",
+            "effect": "execute",
+            "sequence": 2,
+        },
+        {
+            "key": "runtime.primary",
+            "screen_key": "runtime-only",
+            "task_tier": "primary",
+            "task_group": "runtime",
+            "effect": "read",
+            "sequence": 1,
+        },
+        {
+            "key": "runtime.operation",
+            "screen_key": "runtime-only",
+            "task_tier": "operation",
+            "task_group": "runtime",
+            "effect": "execute",
+            "sequence": 2,
+        },
+    ]
+    original_actions = copy.deepcopy(actions)
+
+    changed = PublishedTuiMetadataRepository._enforce_published_action_density(
+        screens=screens,
+        actions=actions,
+        published_screen_keys={"published"},
+    )
+
+    tiers = {str(action["key"]): str(action["task_tier"]) for action in actions}
+    assert changed == 2
+    assert tiers == {
+        "published.group-overflow": "support",
+        "published.default": "primary",
+        "published.panel": "operation",
+        "published.selected": "primary",
+        "published.write-overflow": "advanced",
+        "runtime.primary": "primary",
+        "runtime.operation": "operation",
+    }
+    for before, after in zip(original_actions, actions, strict=True):
+        assert {key: value for key, value in after.items() if key != "task_tier"} == {
+            key: value for key, value in before.items() if key != "task_tier"
+        }
+    assert (
+        PublishedTuiMetadataRepository._enforce_published_action_density(
+            screens=screens,
+            actions=actions,
+            published_screen_keys={"published"},
+        )
+        == 0
+    )
+
+
+def test_runtime_density_keeps_protected_overflow_visible_for_fail_closed_guard() -> None:
+    """Mandatory IA references remain intact when their own count exceeds a budget."""
+
+    from apps.terminal.infrastructure.tui_metadata_repository import (
+        PublishedTuiMetadataRepository,
+    )
+
+    screens = [
+        {
+            "key": "published",
+            "default_action_key": "published.default",
+            "dashboard_panels": [{"action_key": "published.panel"}],
+            "action_density": {
+                "primary_operation_limit": 1,
+                "task_group_limit": 1,
+            },
+        }
+    ]
+    actions = [
+        {
+            "key": "published.default",
+            "screen_key": "published",
+            "task_tier": "primary",
+            "task_group": "featured",
+            "effect": "read",
+        },
+        {
+            "key": "published.panel",
+            "screen_key": "published",
+            "task_tier": "operation",
+            "task_group": "featured",
+            "effect": "execute",
+        },
+        {
+            "key": "published.optional",
+            "screen_key": "published",
+            "task_tier": "primary",
+            "task_group": "other",
+            "effect": "read",
+        },
+    ]
+
+    changed = PublishedTuiMetadataRepository._enforce_published_action_density(
+        screens=screens,
+        actions=actions,
+        published_screen_keys={"published"},
+    )
+
+    assert changed == 1
+    assert [action["task_tier"] for action in actions] == ["primary", "operation", "support"]
+    from scripts.check_tui_action_copy_and_density import (
+        check_tui_action_copy_and_density,
+    )
+
+    report = check_tui_action_copy_and_density(
+        published_payload={"screens": screens, "actions": []},
+        ia_payload={
+            "published_screens": screens,
+            "action_density": {
+                "default_primary_operation_limit": 1,
+                "screen_limits": {},
+                "task_group_limit": 1,
+            },
+        },
+        runtime_payload={"screens": screens, "actions": actions},
+    )
+    assert report.passed is False
+    assert {
+        violation.rule_id
+        for violation in report.violations
+        if violation.rule_id.startswith("density:")
+    } == {"density:screen_limit", "density:task_group_limit"}
+
+
+@pytest.mark.parametrize(
+    "raw_density",
+    [
+        None,
+        {"primary_operation_limit": "invalid", "task_group_limit": 1},
+        {"primary_operation_limit": 1, "task_group_limit": 0},
+    ],
+)
+def test_runtime_density_rejects_invalid_published_screen_budget(raw_density: Any) -> None:
+    """Malformed reviewed budgets fail closed instead of bypassing enforcement."""
+
+    from apps.terminal.application.tui_metadata import TuiMetadataValidationError
+    from apps.terminal.infrastructure.tui_metadata_repository import (
+        PublishedTuiMetadataRepository,
+    )
+
+    with pytest.raises(TuiMetadataValidationError, match="Invalid TUI action density budget"):
+        PublishedTuiMetadataRepository._enforce_published_action_density(
+            screens=[{"key": "published", "action_density": raw_density}],
+            actions=[],
+            published_screen_keys={"published"},
+        )
+
+
+def test_ia_density_enforcement_is_not_bypassed_by_noop_runtime_early_return(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A full IA payload is normalized even when other runtime transforms are disabled."""
+
+    import apps.terminal.infrastructure.tui_metadata_repository as repository_module
+
+    payload = load_json_payload(PUBLISHED_PATH)
+    target_actions = [
+        action for action in payload["actions"] if action.get("screen_key") == "execution.audit"
+    ][:6]
+    assert len(target_actions) == 6
+    for action in target_actions:
+        action["task_tier"] = "primary"
+        action["task_group"] = "test-overflow"
+
+    monkeypatch.setattr(repository_module, "RUNTIME_ACTION_PATCHES", {})
+    monkeypatch.setattr(repository_module, "RUNTIME_REDUNDANT_SCREEN_ACTION_KEYS", {})
+    monkeypatch.setattr(repository_module, "RUNTIME_SCREEN_PATCHES", {})
+    original_inject = repository_module.PublishedTuiMetadataRepository._apply_runtime_injections
+
+    def inject_without_reporting_changes(
+        *,
+        groups: list[dict[str, Any]],
+        modules: list[dict[str, Any]],
+        screens: list[dict[str, Any]],
+        actions: list[dict[str, Any]],
+        ia_owned_action_copy: dict[str, dict[str, Any]] | None = None,
+    ) -> dict[str, int]:
+        original_inject(
+            groups=groups,
+            modules=modules,
+            screens=screens,
+            actions=actions,
+            ia_owned_action_copy=ia_owned_action_copy,
+        )
+        return {}
+
+    monkeypatch.setattr(
+        repository_module.PublishedTuiMetadataRepository,
+        "_apply_runtime_injections",
+        staticmethod(inject_without_reporting_changes),
+    )
+
+    normalized = repository_module.PublishedTuiMetadataRepository(
+        published_path=PUBLISHED_PATH
+    ).validate_and_normalize_runtime_payload(payload)
+    budgeted = [
+        action
+        for action in normalized["actions"]
+        if action.get("screen_key") == "execution.audit"
+        and action.get("task_tier") in {"primary", "operation"}
+    ]
+    target_group = [action for action in budgeted if action.get("task_group") == "test-overflow"]
+
+    assert len(budgeted) <= 5
+    assert len(target_group) <= 4
+    assert normalized["coverage_summary"]["runtime_density_demoted_actions"] > 0
 
 
 def test_retired_alias_screen_patch_is_not_registered_after_ia_cutover() -> None:

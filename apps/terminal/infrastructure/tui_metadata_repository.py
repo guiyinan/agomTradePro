@@ -507,7 +507,13 @@ class PublishedTuiMetadataRepository:
         if patched_screens:
             normalized["screens"] = screens
 
-        if not redundant_map and not patches and patched_screens == 0 and injected == 0:
+        if (
+            not redundant_map
+            and not patches
+            and patched_screens == 0
+            and injected == 0
+            and not is_ia_payload
+        ):
             return payload
 
         actions = list(normalized.get("actions") or [])
@@ -538,19 +544,34 @@ class PublishedTuiMetadataRepository:
                     patched += 1
                 continue
             kept.append(action)
+        normalized["actions"] = kept
+        self._repair_runtime_screen_contracts(
+            screens=list(normalized.get("screens") or []),
+            actions=kept,
+        )
+        density_demoted = (
+            self._enforce_published_action_density(
+                screens=list(normalized.get("screens") or []),
+                actions=kept,
+                published_screen_keys=published_screen_keys,
+            )
+            if is_ia_payload
+            else 0
+        )
         if removed == 0 and patched == 0:
             if injected == 0:
-                if patched_screens:
+                if patched_screens or density_demoted or is_ia_payload:
                     coverage = dict(normalized.get("coverage_summary") or {})
                     coverage["runtime_patched_screens"] = max(
                         patched_screens,
                         int(coverage.get("runtime_patched_screens", 0) or 0),
                     )
+                    if density_demoted or "runtime_density_demoted_actions" in coverage:
+                        coverage["runtime_density_demoted_actions"] = max(
+                            density_demoted,
+                            int(coverage.get("runtime_density_demoted_actions", 0) or 0),
+                        )
                     normalized["coverage_summary"] = coverage
-                    self._repair_runtime_screen_contracts(
-                        screens=list(normalized.get("screens") or []),
-                        actions=list(normalized.get("actions") or []),
-                    )
                     return validate_tui_metadata(normalized)
                 return payload
             coverage = self._merge_runtime_coverage(
@@ -562,14 +583,14 @@ class PublishedTuiMetadataRepository:
                     patched_screens,
                     int(coverage.get("runtime_patched_screens", 0) or 0),
                 )
+            if density_demoted or "runtime_density_demoted_actions" in coverage:
+                coverage["runtime_density_demoted_actions"] = max(
+                    density_demoted,
+                    int(coverage.get("runtime_density_demoted_actions", 0) or 0),
+                )
             normalized["coverage_summary"] = coverage
-            self._repair_runtime_screen_contracts(
-                screens=list(normalized.get("screens") or []),
-                actions=list(normalized.get("actions") or []),
-            )
             return validate_tui_metadata(normalized)
 
-        normalized["actions"] = kept
         coverage = dict(normalized.get("coverage_summary") or {})
         coverage["runtime_pruned_redundant_screen_actions"] = max(
             removed,
@@ -588,11 +609,12 @@ class PublishedTuiMetadataRepository:
             coverage,
             injected_counts=injected_counts,
         )
+        if density_demoted or "runtime_density_demoted_actions" in coverage:
+            coverage["runtime_density_demoted_actions"] = max(
+                density_demoted,
+                int(coverage.get("runtime_density_demoted_actions", 0) or 0),
+            )
         normalized["coverage_summary"] = coverage
-        self._repair_runtime_screen_contracts(
-            screens=list(normalized.get("screens") or []),
-            actions=kept,
-        )
         return validate_tui_metadata(normalized)
 
     @staticmethod
@@ -703,6 +725,115 @@ class PublishedTuiMetadataRepository:
             source: target for source, target in aliases.items() if source != target
         }
         return normalized
+
+    @staticmethod
+    def _enforce_published_action_density(
+        *,
+        screens: list[dict[str, Any]],
+        actions: list[dict[str, Any]],
+        published_screen_keys: set[str],
+    ) -> int:
+        """Demote non-featured overflow actions within reviewed IA budgets."""
+
+        screens_by_key = {
+            str(screen.get("key") or ""): screen
+            for screen in screens
+            if str(screen.get("key") or "") in published_screen_keys
+        }
+        actions_by_screen: dict[str, list[dict[str, Any]]] = {}
+        for action in actions:
+            screen_key = str(action.get("screen_key") or "")
+            if screen_key in screens_by_key:
+                actions_by_screen.setdefault(screen_key, []).append(action)
+
+        changed = 0
+        for screen_key in sorted(screens_by_key):
+            screen = screens_by_key[screen_key]
+            raw_density = screen.get("action_density")
+            if not isinstance(raw_density, dict):
+                raise TuiMetadataValidationError(f"Invalid TUI action density budget: {screen_key}")
+            try:
+                screen_limit = int(raw_density.get("primary_operation_limit") or 0)
+                task_group_limit = int(raw_density.get("task_group_limit") or 0)
+            except (TypeError, ValueError) as exc:
+                raise TuiMetadataValidationError(
+                    f"Invalid TUI action density budget: {screen_key}"
+                ) from exc
+            if screen_limit <= 0 or task_group_limit <= 0:
+                raise TuiMetadataValidationError(f"Invalid TUI action density budget: {screen_key}")
+
+            protected_action_keys = {str(screen.get("default_action_key") or "").strip()}
+            for panel in screen.get("dashboard_panels") or []:
+                if isinstance(panel, dict):
+                    protected_action_keys.add(str(panel.get("action_key") or "").strip())
+            protected_action_keys.discard("")
+
+            budgeted_actions = [
+                action
+                for action in actions_by_screen.get(screen_key, [])
+                if str(action.get("task_tier") or "primary").strip().lower()
+                in {"primary", "operation"}
+            ]
+
+            def action_order(action: dict[str, Any]) -> tuple[int, int, str, str]:
+                task_tier = str(action.get("task_tier") or "primary").strip().lower()
+                try:
+                    sequence = int(action.get("sequence", 999))
+                except (TypeError, ValueError):
+                    sequence = 999
+                return (
+                    0 if task_tier == "primary" else 1,
+                    sequence,
+                    str(action.get("task_group") or "未分组").strip() or "未分组",
+                    str(action.get("key") or ""),
+                )
+
+            selected_action_keys: set[str] = set()
+            group_counts: dict[str, int] = {}
+            protected_actions = sorted(
+                (
+                    action
+                    for action in budgeted_actions
+                    if str(action.get("key") or "") in protected_action_keys
+                ),
+                key=action_order,
+            )
+            for action in protected_actions:
+                action_key = str(action.get("key") or "")
+                task_group = str(action.get("task_group") or "未分组").strip() or "未分组"
+                selected_action_keys.add(action_key)
+                group_counts[task_group] = group_counts.get(task_group, 0) + 1
+
+            optional_actions = sorted(
+                (
+                    action
+                    for action in budgeted_actions
+                    if str(action.get("key") or "") not in protected_action_keys
+                ),
+                key=action_order,
+            )
+            for action in optional_actions:
+                if len(selected_action_keys) >= screen_limit:
+                    break
+                action_key = str(action.get("key") or "")
+                task_group = str(action.get("task_group") or "未分组").strip() or "未分组"
+                if group_counts.get(task_group, 0) >= task_group_limit:
+                    continue
+                selected_action_keys.add(action_key)
+                group_counts[task_group] = group_counts.get(task_group, 0) + 1
+
+            for action in budgeted_actions:
+                if str(action.get("key") or "") in selected_action_keys:
+                    continue
+                replacement_tier = (
+                    "support"
+                    if str(action.get("effect") or "").strip().lower() == "read"
+                    else "advanced"
+                )
+                if action.get("task_tier") != replacement_tier:
+                    action["task_tier"] = replacement_tier
+                    changed += 1
+        return changed
 
     @staticmethod
     def _merge_runtime_coverage(
