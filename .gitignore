@@ -142,3 +142,4 @@ docs/xiaohongshu-draft-2026-04-24.md
 /.tmp_*
 /.tmp-*
 /.pytest_*/
+/backups

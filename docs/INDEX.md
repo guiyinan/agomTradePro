@@ -104,6 +104,7 @@
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [quick-reference.md](development/quick-reference.md) | 快速参考手册 | ✅ 2026-03-31 更新 |
+| [codex-autonomous-goal-usage.md](development/codex-autonomous-goal-usage.md) | **Codex 自主 Goal 启动、Sol/Luna 调度、worktree、计划回写与恢复备忘** | ✅ 2026-08-25 新增 |
 | [runbook.md](operations/runbook.md) | **0.8.0 运维 Runbook（task_monitor / readiness / VPS 验收）** | ✅ 2026-07-05 更新 |
 | [engineering-guardrails.md](development/engineering-guardrails.md) | **工程护栏与 PR Checklist（含 API 改动同步门禁）** | ✅ 2026-03-31 更新 |
 | [../GIT_WORKFLOW.md](GIT_WORKFLOW.md) | **Git 工作流规范（`dev/*` 分支、commit、合并流程）** | ✅ 2026-03-23 新增 |

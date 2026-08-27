@@ -1,14 +1,14 @@
 {
-  "version": "2026-08-26.v1",
-  "updated_at": "2026-08-26",
+  "version": "2026-08-27.v2",
+  "updated_at": "2026-08-27",
   "execution_focus": {
-    "unit_id": "AUD-01",
+    "unit_id": "TUX-04",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Only AUD-01 may expand repository scope. EVID-01 has no remaining safe repository slice and proceeds as production acceptance alongside EVID-02. In parallel, TUI-01, TAR-05 and other declared production/external/governance units may complete safe auto_collect work; deployments, production writes, paid calls and human decisions still require their recorded authorization boundary."
+    "policy": "Only TUX-04 may expand repository scope. AUD-02 completed the canonical Data Center same-UOW event/outbox and replay-without-silent-loss gate; AUD-03 now proceeds as production acceptance and may only perform its declared safe read-only auto_collect work without new authorization. EVID-01 has no remaining safe repository slice and proceeds as production acceptance alongside EVID-02. In parallel, TUI-01, TAR-05 and other declared production/external/governance units may complete safe auto_collect work; deployments, production writes, paid calls and human decisions still require their recorded authorization boundary."
   },
   "workstreams": [
     {
@@ -130,8 +130,8 @@
       "category": "data_and_production_reliability",
       "priority": "P0/P1",
       "owner": "audit+data_center+task_monitor",
-      "status": "active",
-      "next_gate": "AUD-01 is the current bounded repository focus: assemble one canonical fail-closed audit publisher, runtime and authenticated scoped authority source, remove memory or generic-event fallback, and prove the boundary with focused contracts before advancing to AUD-02. The 2026-08-26 MCP delivery-identity repair is a local prerequisite only; production durable receipt, authority and decision-ready recovery remain separately gated.",
+      "status": "production_validation",
+      "next_gate": "AUD-01 and AUD-02 repository exit gates are complete. AUD-03 must bind production migration/rollback, backlog recovery, bounded metrics, alerts, admin TUI, archive/restore and owner/reviewer sign-off to one immutable deployed candidate; only its declared read-only auto_collect work is automatic, while deployment and production mutations remain authorization-gated.",
       "documents": [
         {
           "path": "docs/plans/system-audit-log-consolidation-plan-2026-08-13.md",
@@ -262,7 +262,7 @@
       "priority": "P1",
       "owner": "terminal",
       "status": "active",
-      "next_gate": "TUX-01 and TUX-02 repository exit gates are complete. EVID-01 remains the sole repository execution focus; TUX-03/TUX-04 may resume only after that focus advances and without disturbing the M5 candidate evidence line.",
+      "next_gate": "TUX-01 and TUX-02 repository exit gates are complete. TUX-04 is the sole repository execution focus: reorganize IA groups, disambiguate entries, unify terminology and close all 12 runtime screen metadata contracts without disturbing the M5 candidate evidence line. TUX-03 remains planned and must not expand repository scope in parallel.",
       "documents": [
         {
           "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
@@ -457,7 +457,7 @@
         "wave": 1,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Assemble the canonical audit publisher, runtime and authority source",
         "depends_on": [],
         "exit_gate": "The fail-closed dispatcher uses one production publisher and authenticated scoped authority composition with no memory or generic-event fallback."
@@ -468,7 +468,7 @@
         "wave": 1,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "waiting_dependency",
+        "status": "completed",
         "title": "Wire Data Center fetch events in the same unit of work",
         "depends_on": [
           "AUD-01"
@@ -481,7 +481,7 @@
         "wave": 2,
         "priority": "P0/P1",
         "execution_mode": "production",
-        "status": "waiting_dependency",
+        "status": "awaiting_production",
         "title": "Complete production audit migration and operational acceptance",
         "depends_on": [
           "AUD-02"
@@ -885,7 +885,7 @@
         "wave": 5,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "active",
         "title": "Restructure IA groups, disambiguate entries and complete runtime screen contracts",
         "depends_on": [],
         "exit_gate": "The research-tools catch-all group is reorganized, confusing entry pairs are renamed, terminology is unified, all 12 runtime screens carry full metadata contracts, and ordinary-role walkthrough hits no admin-only target."
