@@ -76,13 +76,33 @@ def _is_snapshot_usable(
     max_age_days: int,
 ) -> bool:
     """判断给定快照是否可供当前调用方使用。"""
-    if snapshot.observed_at > target_date:
-        return False
-    if (target_date - snapshot.observed_at).days > max_age_days:
+    if not pulse_snapshot_is_current(
+        snapshot,
+        as_of_date=target_date,
+        max_age_days=max_age_days,
+    ):
         return False
     if require_reliable and not snapshot.is_reliable:
         return False
     return True
+
+
+def pulse_snapshot_is_current(
+    snapshot: PulseSnapshot,
+    *,
+    as_of_date: date,
+    max_age_days: int = DEFAULT_MAX_SNAPSHOT_AGE_DAYS,
+) -> bool:
+    """Return whether a Pulse snapshot is inside the owned age boundary."""
+
+    _validate_snapshot_request(
+        require_reliable=False,
+        refresh_if_stale=False,
+        max_age_days=max_age_days,
+    )
+    if snapshot.observed_at > as_of_date:
+        return False
+    return (as_of_date - snapshot.observed_at).days <= max_age_days
 
 
 def _refresh_macro_inputs_for_pulse(target_date: date) -> None:

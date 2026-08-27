@@ -57,6 +57,10 @@ jobs:
         run: |
           python scripts/check_tui_action_copy_and_density.py
 
+      - name: Enforce TUI presentation details
+        run: |
+          python scripts/check_tui_presentation_details.py
+
       - name: Enforce current-data freshness contracts
         run: |
           python scripts/check_current_data_contracts.py

@@ -71,6 +71,22 @@
         }
     }
 
+    function catalogScreenLabel(screenKey) {
+        const normalizedKey = String(screenKey || "").trim();
+        if (!normalizedKey) {
+            return "";
+        }
+        for (const group of state.catalog?.groups || []) {
+            for (const module of group.modules || []) {
+                const screen = (module.screens || []).find((item) => item.key === normalizedKey);
+                if (screen) {
+                    return String(screen.label || "").trim();
+                }
+            }
+        }
+        return "";
+    }
+
     function isRedundantModuleTitle(group, module) {
         const modules = Array.isArray(group?.modules) ? group.modules : [];
         const groupLabel = String(group?.label || "").trim().toLocaleLowerCase();
@@ -568,6 +584,7 @@
             typeof runtimeHooks.getHomeActions === "function"
                 ? runtimeHooks.getHomeActions({
                     lastWorkspace: state.lastNonHomeScreen,
+                    lastWorkspaceLabel: catalogScreenLabel(state.lastNonHomeScreen),
                     preferredLane: state.preferredHomeLane,
                 })
                 : []
@@ -611,6 +628,7 @@
         const actions = typeof runtimeHooks.getHomeActions === "function"
             ? runtimeHooks.getHomeActions({
                 lastWorkspace: state.lastNonHomeScreen,
+                lastWorkspaceLabel: catalogScreenLabel(state.lastNonHomeScreen),
                 preferredLane: state.preferredHomeLane,
                 availableActionKeys: new Set(
                     (state.screen?.actions || []).map((action) => String(action.key || ""))

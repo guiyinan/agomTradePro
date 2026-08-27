@@ -56,7 +56,7 @@ pytest tests/unit/ci/test_check_current_data_contracts.py -q
 
 ## 现有受管数据面
 
-当前 manifest 登记 18 个数据面，覆盖：
+当前 manifest 登记 19 个数据面，覆盖：
 
 - Realtime 市场概况、轮询副作用、板块表现与缓存榜单；
 - Data Center 最新报价、统一价格、日线收盘/基金净值 failover 与市场温度计；
@@ -68,5 +68,6 @@ pytest tests/unit/ci/test_check_current_data_contracts.py -q
 - Equity 分时备用源校验；
 - Decision Rhythm 特征快照与统一推荐；
 - Pulse 当前快照。
+- TUI 操作者市场上下文对宏观象限、政策截面和 Pulse 时效结论的忠实呈现。
 
 受管范围应随新的决策数据面增加，只能扩展，不能静默删除。

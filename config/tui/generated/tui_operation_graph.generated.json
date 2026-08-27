@@ -5226,24 +5226,24 @@
         },
         {
           "key": "last_fetch_at",
-          "label": "Last Fetch At",
+          "label": "最近抓取时间",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Last Fetch At",
+          "placeholder": "输入最近抓取时间",
           "presentation_semantic": "identifier"
         },
         {
           "key": "last_fetch_status",
-          "label": "Last Fetch Status",
+          "label": "最近抓取状态",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Last Fetch Status",
+          "placeholder": "输入最近抓取状态",
           "presentation_semantic": "identifier"
         },
         {
@@ -5884,13 +5884,13 @@
         },
         {
           "key": "owner_user_id",
-          "label": "Owner User Id",
+          "label": "所有者用户ID",
           "required": false,
           "default": "",
           "input_type": "number",
           "binding": "query",
           "value_type": "integer",
-          "placeholder": "输入Owner User Id",
+          "placeholder": "输入所有者用户ID",
           "presentation_semantic": "primary_selector"
         },
         {
@@ -6184,24 +6184,24 @@
         },
         {
           "key": "user_id",
-          "label": "User Id",
+          "label": "用户ID",
           "required": false,
           "default": "",
           "input_type": "number",
           "binding": "query",
           "value_type": "integer",
-          "placeholder": "输入User Id",
+          "placeholder": "输入用户ID",
           "presentation_semantic": "primary_selector"
         },
         {
           "key": "username",
-          "label": "Username",
+          "label": "用户名",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Username",
+          "placeholder": "输入用户名",
           "presentation_semantic": "identifier"
         },
         {
@@ -6217,35 +6217,35 @@
         },
         {
           "key": "quota_charged",
-          "label": "Quota Charged",
+          "label": "已计入配额",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Quota Charged",
+          "placeholder": "输入已计入配额",
           "presentation_semantic": "identifier"
         },
         {
           "key": "model",
-          "label": "Model",
+          "label": "模型",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Model",
+          "placeholder": "输入模型",
           "presentation_semantic": "identifier"
         },
         {
           "key": "request_type",
-          "label": "Request Type",
+          "label": "请求类型",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Request Type",
+          "placeholder": "输入请求类型",
           "presentation_semantic": "identifier"
         },
         {
@@ -8876,13 +8876,13 @@
         },
         {
           "key": "must_not_use_for_decision",
-          "label": "Must Not Use For Decision",
+          "label": "禁止用于决策",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Must Not Use For Decision",
+          "placeholder": "输入禁止用于决策",
           "presentation_semantic": "identifier"
         },
         {
@@ -9099,13 +9099,13 @@
         },
         {
           "key": "must_not_use_for_decision",
-          "label": "Must Not Use For Decision",
+          "label": "禁止用于决策",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Must Not Use For Decision",
+          "placeholder": "输入禁止用于决策",
           "presentation_semantic": "identifier"
         },
         {
@@ -16107,13 +16107,13 @@
         },
         {
           "key": "owner_user_id",
-          "label": "Owner User Id",
+          "label": "所有者用户ID",
           "required": false,
           "default": "",
           "input_type": "number",
           "binding": "query",
           "value_type": "integer",
-          "placeholder": "输入Owner User Id",
+          "placeholder": "输入所有者用户ID",
           "presentation_semantic": "primary_selector"
         },
         {
@@ -17920,13 +17920,13 @@
         },
         {
           "key": "must_not_use_for_decision",
-          "label": "Must Not Use For Decision",
+          "label": "禁止用于决策",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Must Not Use For Decision",
+          "placeholder": "输入禁止用于决策",
           "presentation_semantic": "identifier"
         },
         {
@@ -22627,7 +22627,7 @@
         },
         {
           "key": "strict_freshness",
-          "label": "Strict Freshness",
+          "label": "严格时效校验",
           "input_type": "checkbox",
           "required": false,
           "binding": "query",
@@ -24321,24 +24321,24 @@
       "fields": [
         {
           "key": "user_id",
-          "label": "User Id",
+          "label": "用户ID",
           "required": false,
           "default": "",
           "input_type": "number",
           "binding": "query",
           "value_type": "integer",
-          "placeholder": "输入User Id",
+          "placeholder": "输入用户ID",
           "presentation_semantic": "primary_selector"
         },
         {
           "key": "username",
-          "label": "Username",
+          "label": "用户名",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Username",
+          "placeholder": "输入用户名",
           "presentation_semantic": "identifier"
         },
         {

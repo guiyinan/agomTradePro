@@ -1451,3 +1451,23 @@ Data Reliability typed writer/replay 接线，并把 20 项事件 registry 恢�
 memory/generic-event fallback、无 identity 事件或事实与审计分事务写入。本轮因用户已有改动与
 `docs/plans/README.md` 重叠，按 Goal 合同不自动 commit；没有 push、部署、生产/外部写入、容器操作或
 付费调用。
+
+## 实施记录（2026-08-28，AUD-02 完整 current-data 回归重新打开）
+
+TUX-05 为验证 freshness presentation 将 `run_current_data_contract_tests.py` 改为 Windows-safe 的 28,000
+字符顺序分批，首次使当前平台可以启动全部登记 nodeid。首批 242 个登记 nodeid 展开为 300 项后得到
+`268 passed / 29 failed / 3 errors`，runner 按 fail-fast 未执行余下 55 个；随后 TUX-05 新增的 4 个
+operator freshness nodeid 独立 `4 passed`。失败集中在既有 Equity repository/API/intraday 与 Account
+exchange-rate 读取：AUD-02 的 system-audited Data Center composition 在只读断言前 eager 构造 writer，
+因测试运行配置未物化 `audit.system_event.mode`、`audit.system_event.outbox_enabled`、
+`audit.system_event.authority_selector` 而抛出 `SystemAuditCompositionUnavailable` 或 runtime profile
+critical-definition 错误。真实迁移路径单例复核仍同样失败，因此不能归咎于 `--no-migrations`。
+
+该证据推翻了上一节“完整 repository regression 已闭合”的范围判断：当时 1449 个 Audit/Data Center unit
+和 231 个 component 未覆盖这些跨 App 现有 consumers。机器注册表据此把 `AUD-02` 从 `completed` 纠正为
+`active`，`AUD-03` 回到 `waiting_dependency`，且不创建新的临时 unit。下一切片先确认 audited sync 的
+writer composition 是否应在真实写动作前惰性取得，以及 Account 测试 runtime patch 应在哪个 owner 边界
+补齐完整 critical profile；必须以失败测试锁定“只读不被无关 writer 配置阻断、真实审计写仍 fail closed”，
+不得增加 production fallback、全局 test-only 逃逸或伪造 authority。完成后运行全部 298 个登记 nodeid、
+原 AUD-02 Audit/Data Center 包、增量 mypy/debt、architecture/governance/registry gates，再决定是否重新
+完成 AUD-02。本 checkpoint 未部署、未写生产、未激活 runtime profile、未运行故障注入或付费调用。

@@ -308,17 +308,16 @@ def test_tui_workbench_page_is_standalone(client, tui_user):
     assert "tui-theme.css" not in html
 
 
-def test_tui_workbench_page_keeps_screen_locator_for_admins(client, tui_admin_user):
+def test_tui_workbench_page_hides_internal_screen_locator_from_admins(client, tui_admin_user):
     client.force_login(tui_admin_user)
 
     response = client.get("/tui/")
 
     assert response.status_code == 200
     html = response.content.decode()
-    assert 'id="tui-location-input"' in html
-    assert "data-current-location" in html
-    assert 'value="screen:boot"' in html
-    assert 'aria-label="输入 TUI screen 地址后跳转"' in html
+    assert 'id="tui-location-input"' not in html
+    assert "data-current-location" not in html
+    assert "screen:boot" not in html
 
 
 def test_tui_workbench_page_exposes_pc_tools_interaction_shell(client, tui_user):
@@ -6357,6 +6356,200 @@ def test_tui_service_datagrid_uses_operator_field_labels(tui_user):
         {"key": "is_active", "label": "是否启用"},
     ]
     assert payload["view_model"]["rows"][0]["is_active"] == "是"
+
+
+@pytest.mark.parametrize(
+    ("field_key", "expected_label"),
+    [
+        ("must_not_use_for_decision", "禁止用于决策"),
+        ("quota_charged", "已计入配额"),
+        ("strict_freshness", "严格时效校验"),
+        ("global_heat_score", "全球热度评分"),
+        ("global_sentiment_score", "全球情绪评分"),
+        ("global_gate_level", "全球闸门等级"),
+        ("pending_review_count", "待审核数量"),
+        ("sla_exceeded_count", "SLA 超时数量"),
+        ("active_today_count", "今日生效数量"),
+        ("effective_today_count", "今日生效数量"),
+        ("last_fetch_at", "最近抓取时间"),
+        ("last_fetch_status", "最近抓取状态"),
+        ("provider_name", "服务商名称"),
+        ("provider_scope", "服务商范围"),
+        ("user_id", "用户ID"),
+        ("mustNotUseForDecision", "禁止用于决策"),
+        ("quotaCharged", "已计入配额"),
+        ("strictFreshness", "严格时效校验"),
+        ("globalHeatScore", "全球热度评分"),
+        ("globalSentimentScore", "全球情绪评分"),
+        ("globalGateLevel", "全球闸门等级"),
+        ("pendingReviewCount", "待审核数量"),
+        ("slaExceededCount", "SLA 超时数量"),
+        ("activeTodayCount", "今日生效数量"),
+        ("effectiveTodayCount", "今日生效数量"),
+        ("lastFetchAt", "最近抓取时间"),
+        ("providerName", "服务商名称"),
+        ("providerScope", "服务商范围"),
+        ("userID", "用户ID"),
+        ("kill_switch.active", "停止开关 / 启用"),
+        ("pending_approvals.estimated_amount", "待确认订单 / 预计金额"),
+        ("execution_exceptions.statuses", "执行异常 / 状态分布"),
+        ("reconciliation_differences.order", "对账差异 / 订单"),
+        ("metrics.avg_processing_time_ms", "指标 / 平均处理耗时（毫秒）"),
+        ("metrics.last_event_at", "指标 / 最近事件时间"),
+        ("thresholds.hot_threshold", "阈值 / 高温阈值"),
+        ("valid_component_count", "有效组件数量"),
+        ("app_version", "应用版本"),
+        ("must_not_trust_for_release", "禁止作为发布依据"),
+        ("monitor_gate.reason", "监控闸门 / 原因"),
+    ],
+)
+def test_tui_service_translates_audited_dynamic_field_names(
+    tui_user,
+    field_key,
+    expected_label,
+):
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            return {
+                "status_code": 200,
+                "payload": {"results": [{field_key: "value"}], "count": 1},
+            }
+
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                actions=[
+                    {
+                        "key": "audit.fields",
+                        "label": "审计字段",
+                        "method": "GET",
+                        "endpoint": "/api/audit/fields/",
+                        "intent": "read_audited_fields",
+                        "screen_key": "command-center.overview",
+                        "module_key": "command-center",
+                        "view_type": "datagrid",
+                        "risk": "read",
+                        "fields": [],
+                    }
+                ]
+            )
+        ),
+        action_executor=FakeExecutor(),
+    )
+
+    payload = service.run_action(action_key="audit.fields", params={}, user=tui_user)
+
+    assert payload["view_model"]["columns"] == [{"key": field_key, "label": expected_label}]
+
+
+@pytest.mark.parametrize(
+    ("raw_value", "expected_value"),
+    [
+        ("danger", "严重"),
+        ("deflation", "通缩"),
+        ("fix_scheduler", "修复调度"),
+        ("hot", "偏热"),
+        ("line", "折线图"),
+        ("needs_attention", "需要处理"),
+        ("operator_action_required", "需要人工处理"),
+        ("review", "需复核"),
+        ("unavailable", "无法核验"),
+    ],
+)
+def test_tui_service_translates_audited_dynamic_status_values(
+    tui_user,
+    raw_value,
+    expected_value,
+):
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            return {
+                "status_code": 200,
+                "payload": {"results": [{"status": raw_value}], "count": 1},
+            }
+
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                actions=[
+                    {
+                        "key": "audit.status-values",
+                        "label": "状态值",
+                        "method": "GET",
+                        "endpoint": "/api/audit/status-values/",
+                        "intent": "read_audited_status_values",
+                        "screen_key": "command-center.overview",
+                        "module_key": "command-center",
+                        "view_type": "datagrid",
+                        "risk": "read",
+                        "fields": [],
+                    }
+                ]
+            )
+        ),
+        action_executor=FakeExecutor(),
+    )
+
+    payload = service.run_action(
+        action_key="audit.status-values",
+        params={},
+        user=tui_user,
+    )
+
+    assert payload["view_model"]["rows"] == [{"status": expected_value}]
+
+
+def test_tui_service_honors_explicit_empty_rows_after_envelope_unwrap(tui_user):
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            return {
+                "status_code": 200,
+                "payload": {
+                    "success": True,
+                    "data": {
+                        "orders": [],
+                        "blocker_codes": ["broker_order_catalog_display_only"],
+                        "must_not_use_for_decision": True,
+                    },
+                },
+            }
+
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                actions=[
+                    {
+                        "key": "broker-execution.order-list",
+                        "label": "实盘订单",
+                        "method": "GET",
+                        "endpoint": "/api/broker-execution/orders/",
+                        "intent": "list_live_orders",
+                        "screen_key": "command-center.overview",
+                        "module_key": "command-center",
+                        "view_type": "datagrid",
+                        "risk": "read",
+                        "fields": [],
+                        "view_model": {
+                            "kind": "datagrid",
+                            "rows_path": "data.orders",
+                        },
+                    }
+                ]
+            )
+        ),
+        action_executor=FakeExecutor(),
+    )
+
+    payload = service.run_action(
+        action_key="broker-execution.order-list",
+        params={},
+        user=tui_user,
+    )
+
+    assert payload["view_model"]["kind"] == "datagrid"
+    assert payload["view_model"]["rows"] == []
+    assert payload["view_model"]["pager"]["total_rows"] == 0
+    assert "broker order catalog display only" not in str(payload["view_model"]).lower()
 
 
 def test_tui_service_localizes_asset_and_fund_screen_labels(tui_user):

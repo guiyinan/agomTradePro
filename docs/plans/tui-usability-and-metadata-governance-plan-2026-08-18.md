@@ -169,6 +169,16 @@
 - 最终门禁：TUI JS `37 passed`，metadata/compiler/source/density/IA/operator focused `125 passed`，完整 Workbench `258 passed`，Terminal Agent `20 passed`；action copy/density guard 为 `12 screens`、`413/871 actions`、所有 copy/reference/density 指标为 0，source guard 0 violations，static contracts `407 rules / 5 sources`，Web→TUI inventory、published validator、`npm run check:tui`、Black/isort/Ruff、增量 mypy 与 full debt ceiling 全绿。Luna 两轮只读复核提出的 protected-overflow 显式失败语义与 required-read 空参数请求风险均已补测试并关闭，最终无未处理 P0/P1。
 - 规范化证据见 [`tux03-repository-closure-evidence-2026-08-28.json`](../testing/tux03-repository-closure-evidence-2026-08-28.json)。本地 SQLite 首页并发读取曾产生可追踪的 `503/database locked` 恢复态；未翻译字段与 broker-order 占位文案继续归 `TUX-05`，不在本 unit 隐藏。此次未部署、未写生产、未做外部 portability 或 M5 candidate rebind；`TUX-03` repository exit gate 完成，唯一 repository focus 推进到依赖已满足的 `TUX-05`。
 
+## 6.3.4 TUX-05 repository closure（2026-08-28）
+
+- Workbench 表格改为固定布局并由局部 scroll host 承担宽表溢出；日期单元格和行操作保持单行，空分页不再显示 `页 -/- | 0 行`，状态栏继续发布当前状态与刷新时间。创建类 dashboard 的重复说明在渲染边界去重，broker legacy 入口解析到 `execution.accounts`，不再显示 display-only 占位符。
+- runtime/compiler/published/generated 四处字段翻译统一，19 个重点字段在两份图谱共有 34 次出现，机器 guard 实测 raw field name `0`、可见内部 locator `0`。恢复上次工作区仍保留真实内部目标，但用户只看到 catalog 标签；顶栏内部 screen 定位输入已移除。
+- freshness 矛盾按 owner contract 定性：宏观象限 45 日边界内只称“阈值内”并保留降级；政策 `as_of_date` 只表达“今日/历史截面”，不伪装源新鲜度；Pulse 以 8 日边界、未来日期、源指标 stale 和 reliability 任一失败即 `must_not_use_for_decision`。首页最终显示 Pulse“源指标过期 / 不可用于决策”，缺少可验证观测/抓取时间的决策数据继续 `BLOCKED`。
+- 8 个代表 screen 均在隔离 SQLite/本地认证浏览器留存截图与 SHA-256；最终 DOM 为 loading/recovery/internal-key/raw-field/technical-label `0`，空 pager 隐藏、状态栏可见、页面无横向溢出。首页曾因 SQLite 并发读取出现可追踪 lock 恢复态，顺序重试后最终证据为 clean；不把该本地现象计为生产可靠性结论。
+- 最终门禁：TUI JavaScript `41 passed`，完整 Workbench `308 passed`，Terminal Agent `20 passed`，metadata/compiler/source/presentation/IA/operator focused `130 passed`，TUX-05 current-data nodeid `4 passed`；presentation guard 为 `19 fields / 34 occurrences / 0 raw / 0 internal locator`，static contracts `407 rules / 5 sources`，两份 metadata validator、Web→TUI inventory、`npm run check:tui`、Black/isort/Ruff、5 个生产文件增量 mypy、full debt ceiling、architecture、governance 与 Django check 全绿。
+- Windows 完整 current-data runner 原先因 CreateProcess 命令行上限不可执行，现按 28,000 字符顺序分批并有单测。首批 242 个登记 nodeid 展开 300 项后为 `268 passed / 29 failed / 3 errors`；失败均在 AUD-02 引入严格 system-audit composition 后的既有 Equity/Account 读取链，缺少三项 critical audit runtime definition，另 55 个登记 nodeid因 fail-fast 未执行。TUX-05 新增的 4 项已独立全绿；该发现不放宽生产 fail-closed，而是证明 `AUD-02` 先前的 repository-complete 回归结论不完整，机器计划应纠正为下一唯一 repository focus。
+- 规范化证据见 [`tux05-repository-closure-evidence-2026-08-28.json`](../testing/tux05-repository-closure-evidence-2026-08-28.json)。本轮未部署、未写生产、未做外部 portability 或 M5 candidate rebind；`TUX-05` repository exit gate 完成，TUI usability workstream 的 repository units 全部关闭。回滚点为恢复旧 Workbench CSS/renderer、字段映射和 operator freshness projection；任何回滚不得恢复 raw screen key、虚假 freshness 或使 stale Pulse 可用于决策。
+
 ## 6.2.1 2026-08-20 TUX-02 candidate deployment observation
 
 - `05970a925f0b348574a1805c243d7d9140d3e243` was deployed code-only as release

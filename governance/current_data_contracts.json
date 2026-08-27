@@ -305,6 +305,53 @@
       ]
     },
     {
+      "id": "terminal.operator_market_context_presentation",
+      "surface": "TUI operator market-context freshness and reliability presentation",
+      "source_files": [
+        "apps/regime/application/current_regime.py",
+        "apps/pulse/application/use_cases.py",
+        "apps/terminal/application/tui_operator_services.py"
+      ],
+      "required_markers": {
+        "apps/regime/application/current_regime.py": [
+          "REGIME_MAX_MACRO_AGE_DAYS = 45",
+          "def _regime_is_stale(",
+          "must_not_use_for_decision=is_stale"
+        ],
+        "apps/pulse/application/use_cases.py": [
+          "DEFAULT_MAX_SNAPSHOT_AGE_DAYS = 8",
+          "def pulse_snapshot_is_current("
+        ],
+        "apps/terminal/application/tui_operator_services.py": [
+          "current_assessment = assessment_date == target_date.isoformat()",
+          "pulse_snapshot_is_current(snapshot, as_of_date=target_date)",
+          "\"must_not_use_for_decision\": must_not_use"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "regime_stale_contract_preserved",
+          "test_file": "tests/unit/test_tui_operator_services.py",
+          "test_function": "test_regime_market_row_preserves_stale_decision_block"
+        },
+        {
+          "case": "policy_evaluation_date_not_claimed_fresh",
+          "test_file": "tests/unit/test_tui_operator_services.py",
+          "test_function": "test_policy_market_row_presents_evaluation_date_without_claiming_freshness"
+        },
+        {
+          "case": "pulse_age_boundary_fails_closed",
+          "test_file": "tests/unit/test_tui_operator_services.py",
+          "test_function": "test_pulse_market_row_blocks_snapshot_beyond_owned_age_threshold"
+        },
+        {
+          "case": "pulse_stale_source_indicators_fail_closed",
+          "test_file": "tests/unit/test_tui_operator_services.py",
+          "test_function": "test_pulse_market_row_blocks_current_snapshot_with_stale_source_indicators"
+        }
+      ]
+    },
+    {
       "id": "regime.action_recommendation",
       "surface": "GET /api/regime/action/",
       "source_files": [

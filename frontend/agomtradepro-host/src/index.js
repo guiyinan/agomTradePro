@@ -23,13 +23,15 @@ runtime.hooks = {
             {
                 key: "operator.home.enter_governance_flow",
                 label: "进入系统治理流",
-                description: "从 runtime 起点进入治理主线",
+                description: "从系统治理起点进入治理主线",
                 active: context.preferredLane === "governance",
             },
             {
                 key: "operator.home.resume_last_workspace",
                 label: "恢复上次工作区",
-                description: context.lastWorkspace || "最近无可恢复工作区",
+                description: context.lastWorkspace
+                    ? context.lastWorkspaceLabel || "最近工作区"
+                    : "最近无可恢复工作区",
             },
             {
                 key: "operator.home.open_cli",

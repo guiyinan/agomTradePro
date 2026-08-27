@@ -341,7 +341,10 @@ class TuiWorkbenchResultModelMixin(
         if not path:
             return None
         current = payload
-        for part in path.split("."):
+        parts = path.split(".")
+        if isinstance(current, dict) and parts[0] == "data" and "data" not in current:
+            parts = parts[1:]
+        for part in parts:
             if not part:
                 return None
             if isinstance(current, dict):

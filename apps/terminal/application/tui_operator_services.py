@@ -40,7 +40,11 @@ from apps.operational_readiness.application.monitor_service import (
     get_personal_readiness_monitor_summary,
 )
 from apps.policy.application.query_services import get_policy_status_payload
-from apps.pulse.application.use_cases import GetLatestPulseUseCase
+from apps.pulse.application.use_cases import (
+    DEFAULT_MAX_SNAPSHOT_AGE_DAYS,
+    GetLatestPulseUseCase,
+    pulse_snapshot_is_current,
+)
 from apps.regime.application.interface_services import get_regime_current_payload
 from apps.signal.application.query_services import get_signal_diagnostic_summary
 from apps.terminal.application.query_services import get_terminal_surface_status_payload
@@ -427,7 +431,7 @@ def _regime_market_row() -> dict[str, Any]:
         severity = "blocked"
     elif warnings or confidence < 0.5 or bool(data.get("is_fallback")):
         severity = "warning"
-    freshness = "已过期" if is_stale else "新鲜"
+    freshness = "已过期" if is_stale else "阈值内"
     reliability = "不可用于决策" if must_not_use else ("降级" if severity == "warning" else "可靠")
     summary = (
         blocked_reason
@@ -456,17 +460,20 @@ def _regime_market_row() -> dict[str, Any]:
 
 
 def _policy_market_row() -> dict[str, Any]:
-    payload = get_policy_status_payload(as_of_date=date.today())
+    target_date = date.today()
+    payload = get_policy_status_payload(as_of_date=target_date)
     level = str(payload.get("current_level") or "UNKNOWN")
     intervention = bool(payload.get("is_intervention_active"))
     severity = "warning" if intervention else ("blocked" if level == "UNKNOWN" else "ok")
+    assessment_date = _iso(payload.get("as_of_date"))
+    current_assessment = assessment_date == target_date.isoformat()
     return {
         "area": "政策",
         "status": level,
-        "summary": "当前存在政策干预" if intervention else "政策状态可用",
-        "freshness": "新鲜",
-        "reliability": "不可用于决策" if level == "UNKNOWN" else "可靠",
-        "observed_at": _iso(payload.get("as_of_date")),
+        "summary": "当前存在政策干预" if intervention else "政策状态按数据基准日评估",
+        "freshness": "今日截面" if current_assessment else "历史截面",
+        "reliability": "不可用于决策" if level == "UNKNOWN" else "状态可用",
+        "observed_at": assessment_date,
         "next_action": "查看政策档位",
         "target_screen": "macro-regime.policy",
         "severity": severity,
@@ -474,7 +481,8 @@ def _policy_market_row() -> dict[str, Any]:
 
 
 def _pulse_market_row() -> dict[str, Any]:
-    snapshot = GetLatestPulseUseCase().execute(as_of_date=date.today())
+    target_date = date.today()
+    snapshot = GetLatestPulseUseCase().execute(as_of_date=target_date)
     if snapshot is None:
         return {
             "area": "脉搏",
@@ -486,18 +494,38 @@ def _pulse_market_row() -> dict[str, Any]:
             "next_action": "查看脉搏层",
             "target_screen": "macro-regime.pulse",
             "severity": "blocked",
+            "must_not_use_for_decision": True,
+            "blocking_reason": "当前没有可用脉搏快照。",
         }
-    severity = "warning" if snapshot.transition_warning or not snapshot.is_reliable else "ok"
+    is_current = pulse_snapshot_is_current(snapshot, as_of_date=target_date)
+    source_is_stale = bool(snapshot.stale_indicator_count) or snapshot.data_source == "stale"
+    must_not_use = not is_current or source_is_stale or not snapshot.is_reliable
+    severity = "blocked" if must_not_use else "warning" if snapshot.transition_warning else "ok"
+    if not is_current:
+        freshness = "已过期"
+        blocking_reason = f"脉搏快照已超过 {DEFAULT_MAX_SNAPSHOT_AGE_DAYS} 天时效阈值，仅供诊断。"
+    elif source_is_stale:
+        freshness = "源指标过期"
+        blocking_reason = "脉搏源指标未通过时效校验，仅供诊断。"
+    elif not snapshot.is_reliable:
+        freshness = "已降级"
+        blocking_reason = "脉搏数据未通过可靠性校验，仅供诊断。"
+    else:
+        freshness = "新鲜"
+        blocking_reason = ""
     return {
         "area": "脉搏",
         "status": str(snapshot.regime_strength or "unknown").upper(),
-        "summary": "存在转折预警" if snapshot.transition_warning else "脉搏层正常",
-        "freshness": "新鲜",
-        "reliability": "可靠" if snapshot.is_reliable else "降级",
+        "summary": blocking_reason
+        or ("存在转折预警" if snapshot.transition_warning else "脉搏层正常"),
+        "freshness": freshness,
+        "reliability": "不可用于决策" if must_not_use else "可靠",
         "observed_at": _iso(snapshot.observed_at),
         "next_action": "查看脉搏层",
         "target_screen": "macro-regime.pulse",
         "severity": severity,
+        "must_not_use_for_decision": must_not_use,
+        "blocking_reason": blocking_reason,
     }
 
 

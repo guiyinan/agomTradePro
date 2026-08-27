@@ -700,6 +700,9 @@ class TuiWorkbenchCatalogMixin:
         if value in FIELD_LABELS:
             return FIELD_LABELS[value]
         expanded = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", value).replace("-", "_")
+        normalized = expanded.lower()
+        if normalized in FIELD_LABELS:
+            return FIELD_LABELS[normalized]
         tokens = [token for token in expanded.split("_") if token]
         if not tokens:
             return value

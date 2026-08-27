@@ -8,6 +8,7 @@ import { chromium } from "playwright";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const bundlePath = resolve(root, "static/js/tui-workbench.js");
+const cssPath = resolve(root, "static/css/tui-workbench.css");
 
 const harnessHtml = `<!doctype html>
 <html><head><meta charset="utf-8"><title>TUI harness</title></head><body>
@@ -275,15 +276,22 @@ const userGovernanceScreen = {
                 columns: [
                     { key: "user_id", label: "用户 ID" },
                     { key: "username", label: "用户名" },
+                    { key: "observed_at", label: "观测时间" },
                     { key: "approval_status", label: "准入状态" },
                 ],
-                row_actions: [{
+                row_actions: [
+                    ["批准", "receipt", "users"],
+                    ["复核", "receipt", ""],
+                    ["查看", "receipt", ""],
+                    ["停用", "receipt", "users"],
+                    ["撤销", "receipt", "users"],
+                ].map(([label, resultPanelKey, refreshPanelKey]) => ({
                     action_key: "test.approve-user",
-                    label_template: "批准 {username}",
+                    label_template: `${label} {username}`,
                     param_map: { user_id: "user_id" },
-                    result_panel_key: "receipt",
-                    refresh_panel_key: "users",
-                }],
+                    result_panel_key: resultPanelKey,
+                    ...(refreshPanelKey ? { refresh_panel_key: refreshPanelKey } : {}),
+                })),
             },
             {
                 key: "receipt",
@@ -457,9 +465,15 @@ async function openHarness(url = "https://app.test/", options = {}) {
                         columns: [
                             { key: "user_id", label: "用户 ID" },
                             { key: "username", label: "用户名" },
+                            { key: "observed_at", label: "观测时间" },
                             { key: "approval_status", label: "准入状态" },
                         ],
-                        rows: [{ user_id: 42, username: "pending-user", approval_status: "pending" }],
+                        rows: [{
+                            user_id: 42,
+                            username: "pending-user",
+                            observed_at: "2026-08-28T09:30:00+08:00",
+                            approval_status: "pending",
+                        }],
                         total: 1,
                     },
                 }),
@@ -683,6 +697,7 @@ async function openHarness(url = "https://app.test/", options = {}) {
     });
     try {
         await page.goto(url);
+        await page.addStyleTag({ path: cssPath });
         await page.addScriptTag({ path: bundlePath });
         if (options.waitForInitialRows !== false) {
             await page.waitForSelector('[data-row-index="0"]');
@@ -928,6 +943,78 @@ test("dashboard auto-loads passive reads and never auto-runs sensitive actions",
     }
 });
 
+test("dashboard action guidance renders once when panel note and action copy match", async () => {
+    const { browser, page } = await openHarness(
+        "https://app.test/?screen=test.edit-dashboard",
+        { waitForInitialRows: false },
+    );
+    try {
+        const panel = page.locator('[data-dashboard-panel="edit-user"]');
+        await panel.locator(".tui-entry-action").waitFor({ state: "visible" });
+        const text = await panel.innerText();
+        assert.equal((text.match(/填写用户 ID 和用户名后提交。/g) || []).length, 1);
+        assert.equal(await panel.locator(".tui-dashboard-action-prompt p").count(), 0);
+    } finally {
+        await browser.close();
+    }
+});
+
+test("shell pager is visible only for a paginated result", async () => {
+    const { browser, page } = await openHarness();
+    try {
+        const pager = page.locator("[data-pager-status]");
+        assert.equal(await pager.isHidden(), false);
+        assert.match(await pager.innerText(), /页 1\/3 \| 205 行/);
+
+        const location = page.locator("[data-current-location]");
+        await location.fill("screen:test.dashboard");
+        await location.press("Enter");
+        await page.locator('[data-dashboard-panel="regime"] .q-marker').waitFor({ state: "visible" });
+        assert.equal(await pager.isHidden(), true);
+        assert.equal(await pager.textContent(), "");
+    } finally {
+        await browser.close();
+    }
+});
+
+test("wide governance rows scroll horizontally without breaking dates or row actions", async () => {
+    const { browser, page } = await openHarness(
+        "https://app.test/?screen=test.user-governance",
+        { waitForInitialRows: false },
+    );
+    try {
+        await page.setViewportSize({ width: 420, height: 720 });
+        const tableScroll = page.locator('[data-dashboard-panel="users"] .tui-table-scroll');
+        await tableScroll.waitFor({ state: "visible" });
+        const dateCell = tableScroll.getByRole("cell", {
+            name: "2026-08-28T09:30:00+08:00",
+        });
+        const rowActions = tableScroll.locator(".tui-row-actions");
+        assert.equal(await rowActions.locator("button").count(), 5);
+        const styles = await page.evaluate(() => {
+            const scroll = document.querySelector('[data-dashboard-panel="users"] .tui-table-scroll');
+            const date = Array.from(scroll.querySelectorAll("td")).find((cell) =>
+                cell.textContent.includes("2026-08-28T09:30:00+08:00")
+            );
+            const actions = scroll.querySelector(".tui-row-actions");
+            return {
+                overflowX: getComputedStyle(scroll).overflowX,
+                dateWhiteSpace: getComputedStyle(date).whiteSpace,
+                actionWrap: getComputedStyle(actions).flexWrap,
+                scrollWidth: scroll.scrollWidth,
+                clientWidth: scroll.clientWidth,
+            };
+        });
+        assert.equal(styles.overflowX, "auto");
+        assert.equal(styles.dateWhiteSpace, "nowrap");
+        assert.equal(styles.actionWrap, "nowrap");
+        assert.ok(styles.scrollWidth > styles.clientWidth);
+        assert.equal(await dateCell.count(), 1);
+    } finally {
+        await browser.close();
+    }
+});
+
 test("regime dashboard fails closed when its result contract drifts", async () => {
     const { browser, page } = await openHarness(
         "https://app.test/?screen=test.dashboard",
@@ -995,7 +1082,7 @@ test("admin governance row action shows a receipt and refreshes the source panel
         const request = await mutationRequest;
         assert.deepEqual(request.postDataJSON().params, { user_id: 42 });
         await page.locator('[data-dashboard-panel="receipt"]').getByText("已批准 pending-user").waitFor();
-        await page.waitForFunction(() => document.querySelectorAll('[data-dashboard-row-action]').length === 1);
+        await page.waitForFunction(() => document.querySelectorAll('[data-dashboard-row-action]').length === 5);
         assert.equal(listRequests, 2);
     } finally {
         await browser.close();

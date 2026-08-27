@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 
 import apps.terminal.application.tui_operator_services as operator_services
@@ -170,10 +170,80 @@ def test_operator_home_area_labels_use_canonical_user_vocabulary(monkeypatch):
     ]
     assert market_rows[0]["status"] == "复苏"
     assert market_rows[0]["status_code"] == "Recovery"
+    assert market_rows[0]["freshness"] == "阈值内"
     assert [row["area"] for row in operator_services._account_signal_rows()] == [
         "账户",
         "信号",
     ]
+
+
+def test_policy_market_row_presents_evaluation_date_without_claiming_freshness(monkeypatch):
+    previous_date = date.today() - timedelta(days=1)
+    monkeypatch.setattr(
+        operator_services,
+        "get_policy_status_payload",
+        lambda **kwargs: {
+            "current_level": "P0",
+            "is_intervention_active": False,
+            "as_of_date": previous_date.isoformat(),
+        },
+    )
+
+    row = operator_services._policy_market_row()
+
+    assert row["freshness"] == "历史截面"
+    assert row["reliability"] == "状态可用"
+    assert row["observed_at"] == previous_date.isoformat()
+    assert "新鲜" not in str(row)
+
+
+def test_pulse_market_row_blocks_snapshot_beyond_owned_age_threshold(monkeypatch):
+    stale_snapshot = SimpleNamespace(
+        observed_at=date.today() - timedelta(days=9),
+        regime_strength="strong",
+        transition_warning=False,
+        is_reliable=True,
+        data_source="calculated",
+        stale_indicator_count=0,
+    )
+    monkeypatch.setattr(
+        operator_services,
+        "GetLatestPulseUseCase",
+        lambda: SimpleNamespace(execute=lambda **kwargs: stale_snapshot),
+    )
+
+    row = operator_services._pulse_market_row()
+
+    assert row["severity"] == "blocked"
+    assert row["freshness"] == "已过期"
+    assert row["reliability"] == "不可用于决策"
+    assert row["must_not_use_for_decision"] is True
+    assert "仅供诊断" in row["summary"]
+
+
+def test_pulse_market_row_blocks_current_snapshot_with_stale_source_indicators(monkeypatch):
+    """A current aggregate date cannot reheat stale Pulse source indicators."""
+
+    stale_source_snapshot = SimpleNamespace(
+        observed_at=date.today(),
+        regime_strength="moderate",
+        transition_warning=False,
+        is_reliable=True,
+        data_source="calculated",
+        stale_indicator_count=1,
+    )
+    monkeypatch.setattr(
+        operator_services,
+        "GetLatestPulseUseCase",
+        lambda: SimpleNamespace(execute=lambda **kwargs: stale_source_snapshot),
+    )
+
+    row = operator_services._pulse_market_row()
+
+    assert row["severity"] == "blocked"
+    assert row["freshness"] == "源指标过期"
+    assert row["reliability"] == "不可用于决策"
+    assert row["must_not_use_for_decision"] is True
 
 
 def test_regime_market_row_translates_machine_blocking_reason(monkeypatch):
