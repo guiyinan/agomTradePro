@@ -113,20 +113,20 @@ class OnDemandDataCenterService:
         valuation_repo: ValuationFactRepositoryProtocol,
         financial_repo: FinancialFactRepositoryProtocol,
         quote_repo: QuoteSnapshotRepositoryProtocol,
-        sync_price_use_case: SyncPriceUseCaseProtocol,
-        sync_valuation_use_case: SyncValuationUseCaseProtocol,
-        sync_financial_use_case: SyncFinancialUseCaseProtocol,
-        sync_quote_use_case: SyncQuoteUseCaseProtocol,
+        sync_price_use_case_factory: Callable[[], SyncPriceUseCaseProtocol],
+        sync_valuation_use_case_factory: Callable[[], SyncValuationUseCaseProtocol],
+        sync_financial_use_case_factory: Callable[[], SyncFinancialUseCaseProtocol],
+        sync_quote_use_case_factory: Callable[[], SyncQuoteUseCaseProtocol],
         provider_id_resolver: Callable[[str], int | None],
     ) -> None:
         self._price_repo = price_repo
         self._valuation_repo = valuation_repo
         self._financial_repo = financial_repo
         self._quote_repo = quote_repo
-        self._sync_price = sync_price_use_case
-        self._sync_valuation = sync_valuation_use_case
-        self._sync_financial = sync_financial_use_case
-        self._sync_quote = sync_quote_use_case
+        self._sync_price_use_case_factory = sync_price_use_case_factory
+        self._sync_valuation_use_case_factory = sync_valuation_use_case_factory
+        self._sync_financial_use_case_factory = sync_financial_use_case_factory
+        self._sync_quote_use_case_factory = sync_quote_use_case_factory
         self._provider_id_resolver = provider_id_resolver
 
     def ensure_price_bars(
@@ -152,7 +152,7 @@ class OnDemandDataCenterService:
 
         errors = self._sync_sources(
             ("tushare", "akshare"),
-            lambda provider_id: self._sync_price.execute(
+            lambda provider_id: self._sync_price_use_case_factory().execute(
                 SyncPriceRequest(
                     provider_id=provider_id,
                     asset_code=asset_code,
@@ -194,7 +194,7 @@ class OnDemandDataCenterService:
 
         errors = self._sync_sources(
             ("tushare", "akshare"),
-            lambda provider_id: self._sync_valuation.execute(
+            lambda provider_id: self._sync_valuation_use_case_factory().execute(
                 SyncValuationRequest(
                     provider_id=provider_id,
                     asset_code=asset_code,
@@ -231,7 +231,7 @@ class OnDemandDataCenterService:
 
         errors = self._sync_sources(
             ("akshare", "tushare"),
-            lambda provider_id: self._sync_financial.execute(
+            lambda provider_id: self._sync_financial_use_case_factory().execute(
                 SyncFinancialRequest(
                     provider_id=provider_id,
                     asset_code=asset_code,
@@ -258,7 +258,7 @@ class OnDemandDataCenterService:
 
         errors = self._sync_sources(
             ("akshare",),
-            lambda provider_id: self._sync_quote.execute(
+            lambda provider_id: self._sync_quote_use_case_factory().execute(
                 SyncQuoteRequest(provider_id=provider_id, asset_codes=[asset_code])
             ),
         )

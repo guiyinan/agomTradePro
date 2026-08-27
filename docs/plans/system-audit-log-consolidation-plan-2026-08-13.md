@@ -1471,3 +1471,36 @@ writer composition 是否应在真实写动作前惰性取得，以及 Account �
 不得增加 production fallback、全局 test-only 逃逸或伪造 authority。完成后运行全部 298 个登记 nodeid、
 原 AUD-02 Audit/Data Center 包、增量 mypy/debt、architecture/governance/registry gates，再决定是否重新
 完成 AUD-02。本 checkpoint 未部署、未写生产、未激活 runtime profile、未运行故障注入或付费调用。
+
+## 实施记录（2026-08-28，AUD-02 corrective repository exit）
+
+纠偏切片将读写组合边界收回 Data Center owner：`OnDemandDataCenterService` 改为接收四个 typed sync
+factory，composition root 只传 callable，纯读 `assess_*` 与 Equity repository/API/intraday 构造不再
+提前加载 audit writer；只有真正 hydration 才在既有 provider guard 内解析 factory。factory 缺少 critical
+Audit runtime 时只产生 `provider_failed`、零记录和稳定错误类型，显式 sync composition 仍由原
+`make_system_audited_sync_*` 合同 fail closed，没有新增 production default/fallback。Account 汇率链
+本身不依赖 Audit writer；其独立错误由测试 runtime helper 显式补齐 mode=`off`、outbox=`false` 和
+typed authority selector 后关闭，未建立全局 fixture 或伪造生产 authority。
+
+验证先完成 On-Demand `9 passed`，再覆盖完整 Equity repository/intraday/API、Account API 与汇率边界
+`154 passed in 87.53s`。Windows-safe full registry 在保留真实迁移的最终口径下执行全部 298 个登记
+nodeid：第一批 243 个展开为 `301 passed in 206.17s`，第二批 `55 passed in 157.78s`。诊断性
+`--no-migrations` 运行只剩 Risk Center 一项 missing seed；该节点启用真实迁移后 `1 passed`，证明
+0004/0006 seed 是该合同的一部分，最终验收不得禁用迁移。原 AUD-02 回归重新执行为 Audit/Data Center
+unit `1449 passed in 164.18s`、component `231 passed, 8 skipped in 205.61s`；8 项仍是需要专用
+PostgreSQL 测试库的 opt-in，不写成通过。
+
+增量 mypy 为 `0 regressions / 0 legacy errors`，full debt ceiling `0 errors`；2987 个生产文件完整
+architecture 为 boundary/audit `0/0`，audit/current-data/Celery contracts 分别为 `20/51/91`，
+governance `0 violations`，migration dry-run `No changes detected`，Django check、Black、isort、
+Ruff 与 diff whitespace 全绿。规范化证据见
+[`aud02-corrective-repository-closure-evidence-2026-08-28.json`](../testing/aud02-corrective-repository-closure-evidence-2026-08-28.json)。
+
+据此 `AUD-02` 再次满足 repository exit，`AUD-03` 可回到 `awaiting_production`；但 production
+migration/rollback、backlog recovery、alerts/TUI、archive/restore、PostgreSQL opt-in 与双签均仍未完成。
+剩余唯一 repository unit `EVID-03` 继续等待 `EVID-01/02` 的真实生产验收，没有 dependency-ready 的
+repository unit。为忠实执行 Goal 停止规则，registry 允许 `execution_focus.unit_id=null`，但仅在零
+active 且零依赖已满足 repository unit 时通过；任何可执行仓库单元出现时仍 fail closed。回滚点为恢复
+旧 eager injection、显式测试 profile seed 和 null-focus validator 合同；不得以恢复 raw Audit fallback、
+关闭 current-data 测试或激活被阻断单元替代回滚。本轮没有部署、生产写、runtime 激活、外部/付费调用或
+人工签字。

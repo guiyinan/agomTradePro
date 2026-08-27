@@ -499,10 +499,10 @@ def make_on_demand_data_center_service() -> OnDemandDataCenterService:
         valuation_repo=ValuationFactRepository(),
         financial_repo=FinancialFactRepository(),
         quote_repo=QuoteSnapshotRepository(),
-        sync_price_use_case=make_sync_price_use_case(),
-        sync_valuation_use_case=make_sync_valuation_use_case(),
-        sync_financial_use_case=make_sync_financial_use_case(),
-        sync_quote_use_case=make_sync_quote_use_case(),
+        sync_price_use_case_factory=make_sync_price_use_case,
+        sync_valuation_use_case_factory=make_sync_valuation_use_case,
+        sync_financial_use_case_factory=make_sync_financial_use_case,
+        sync_quote_use_case_factory=make_sync_quote_use_case,
         provider_id_resolver=get_active_provider_id_by_source,
     )
 

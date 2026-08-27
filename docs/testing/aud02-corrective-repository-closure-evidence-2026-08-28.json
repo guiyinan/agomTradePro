@@ -1,0 +1,202 @@
+{
+  "schema": "aud02-corrective-repository-closure-evidence.v1",
+  "unit_id": "AUD-02",
+  "observed_at": "2026-08-27T22:57:48.8477227Z",
+  "execution_mode": "repository",
+  "branch": "dev/next-development",
+  "source_commit": "5ebf2700915f442e651e26161718690ec7faf301",
+  "implementation_commit": "the local commit containing this artifact",
+  "trigger": {
+    "source_unit": "TUX-05",
+    "initial_registered_batch": {
+      "registered_nodeids": 242,
+      "actual_outcomes": 300,
+      "passed": 268,
+      "failed": 29,
+      "errors": 3
+    },
+    "disposition": "The result disproved AUD-02's earlier cross-App regression claim, so AUD-02 was reopened instead of weakening the current-data registry."
+  },
+  "root_cause": {
+    "equity_read_path": {
+      "problem": "DjangoStockRepository construction eagerly built all On-Demand synchronization use cases. The audited price and quote factories loaded the system-audit runtime before any read-through hydration was requested.",
+      "call_chain": [
+        "apps.equity.infrastructure.repositories.DjangoStockRepository.__init__",
+        "apps.data_center.application.public.make_on_demand_data_center_service",
+        "apps.data_center.application.interface_services_decision_sync.make_on_demand_data_center_service",
+        "apps.data_center.application.interface_services_decision_sync.make_sync_price_use_case",
+        "apps.data_center.composition.make_system_audited_sync_price_use_case",
+        "apps.audit.application.repository_provider.get_data_reliability_audit_writers"
+      ],
+      "failure": "Pure Equity reads failed with SystemAuditCompositionUnavailable before their publication/freshness assertions ran."
+    },
+    "account_test_profile": {
+      "problem": "tests.support.runtime_config.configure_account_runtime activated a Data Center patch without explicitly seeding the three new critical Audit definitions introduced by AUD-01.",
+      "missing_definitions": [
+        "audit.system_event.mode",
+        "audit.system_event.outbox_enabled",
+        "audit.system_event.authority_selector"
+      ],
+      "failure": "Account exchange-rate tests failed during fixture setup with Missing critical runtime definitions; the exchange-rate production path itself did not compose an audit writer."
+    },
+    "verification_mode": {
+      "problem": "One Risk Center registered node depends on scenario seed migrations 0004/0006. --no-migrations removes that fixture and is therefore not a valid final full-registry acceptance mode.",
+      "probe": "The isolated node failed with --no-migrations and passed 1/1 with real migrations.",
+      "final_rule": "The closing full-registry command uses --reuse-db but does not disable migrations."
+    }
+  },
+  "implementation": {
+    "on_demand_boundary": [
+      "OnDemandDataCenterService now accepts typed synchronization factories.",
+      "The composition root passes factory callables without resolving them.",
+      "Read-only assess methods never compose write dependencies.",
+      "Hydration resolves a factory only inside the existing guarded provider loop; unavailable composition yields provider_failed diagnostics and zero records, never a successful write."
+    ],
+    "runtime_test_boundary": [
+      "The account test helper explicitly seeds an Audit mode=off, outbox=false and a complete typed authority selector before activating account/provider settings.",
+      "No production default, fallback, global test fixture or fabricated production authority was added."
+    ],
+    "goal_stop_contract": [
+      "The active-plan validator now permits execution_focus.unit_id=null only when there are zero active and zero dependency-ready repository units.",
+      "Null focus remains fail-closed when any repository unit is active, planned and dependency-ready, or waiting with all dependencies complete."
+    ],
+    "production_fail_closed_relaxed": false
+  },
+  "source_hashes": {
+    "apps/data_center/application/on_demand.py": "b50a5f29a7dca271bc3d58ac01a89c0e0d266aa270226746e833e7644b7a7b34",
+    "apps/data_center/application/interface_services_decision_sync.py": "964df7742cf94ff7819b663c8735208bf14436ca9bfed00722e3064108f85ead",
+    "tests/support/runtime_config.py": "6d0c7225ab248e957280a90788c32fcbc42500ab0d03f3de29d65afd52abee46",
+    "tests/unit/test_data_center_on_demand.py": "c904e37ebe5d84014bcc868c0a1a7d816b1a0ee667ca1f9c29aa27afdb93cf2a",
+    "scripts/check_active_plan_registry.py": "73d19625c78b0d51289d7cea64f30084c00f62dbe27bc88d5a499747a83bce0d",
+    "tests/unit/test_active_plan_registry.py": "e74f511b90191d025125e7630fc23e696344f05e1944a606cbd22849da6aa5ac"
+  },
+  "validation": [
+    {
+      "command": "pytest tests/unit/test_data_center_on_demand.py -q",
+      "outcome": "passed",
+      "passed": 9
+    },
+    {
+      "command": "pytest <Equity repository/intraday/API + Account API/freshness boundary files> -q --reuse-db --no-migrations",
+      "outcome": "passed",
+      "passed": 154,
+      "duration_seconds": 87.53
+    },
+    {
+      "command": "python scripts/run_current_data_contract_tests.py --pytest-arg=-q --pytest-arg=--reuse-db --pytest-arg=--tb=short",
+      "outcome": "passed",
+      "registered_nodeids": 298,
+      "batches": [
+        {
+          "registered_nodeids": 243,
+          "actual_outcomes": 301,
+          "passed": 301,
+          "duration_seconds": 206.17
+        },
+        {
+          "registered_nodeids": 55,
+          "actual_outcomes": 55,
+          "passed": 55,
+          "duration_seconds": 157.78
+        }
+      ]
+    },
+    {
+      "command": "pytest tests/unit/audit tests/unit/data_center -q --reuse-db",
+      "outcome": "passed",
+      "passed": 1449,
+      "duration_seconds": 164.18
+    },
+    {
+      "command": "pytest tests/component/audit tests/component/data_center -q --reuse-db",
+      "outcome": "passed_with_declared_skips",
+      "passed": 231,
+      "skipped": 8,
+      "duration_seconds": 205.61,
+      "skip_boundary": "Dedicated PostgreSQL opt-in paths remain unavailable in the local SQLite environment."
+    },
+    {
+      "command": "pytest tests/unit/test_active_plan_registry.py -q",
+      "outcome": "passed",
+      "passed": 8
+    },
+    {
+      "command": "python scripts/check_mypy_regression.py apps/data_center/application/on_demand.py apps/data_center/application/interface_services_decision_sync.py",
+      "outcome": "passed",
+      "regressions": 0,
+      "legacy_errors": 0
+    },
+    {
+      "command": "python scripts/check_mypy_debt_ceiling.py",
+      "outcome": "passed",
+      "errors": 0
+    },
+    {
+      "command": "python scripts/verify_architecture.py --include-audit --fail-on-audit-violations --format text",
+      "outcome": "passed",
+      "scanned_files": 2987,
+      "boundary_violations": 0,
+      "audit_violations": 0
+    },
+    {
+      "command": "python scripts/check_audit_event_contracts.py && python scripts/check_current_data_contracts.py && python scripts/check_celery_task_contracts.py",
+      "outcome": "passed",
+      "audit_events": 20,
+      "current_data_surfaces": 51,
+      "celery_tasks": 91
+    },
+    {
+      "command": "python manage.py makemigrations audit data_center --check --dry-run",
+      "outcome": "passed",
+      "result": "No changes detected"
+    },
+    {
+      "command": "python scripts/check_governance_consistency.py --baseline governance/governance_baseline.json --format text",
+      "outcome": "passed",
+      "violations": 0
+    },
+    {
+      "command": "python manage.py check",
+      "outcome": "passed",
+      "issues": 0
+    },
+    {
+      "command": "Black, isort, Ruff and git diff --check over changed files",
+      "outcome": "passed"
+    }
+  ],
+  "review": {
+    "sol_decision": "passed",
+    "luna_read_only_audit": {
+      "edits_performed": false,
+      "conclusion": "The Data Center On-Demand factory boundary is the narrowest cross-App fix; Account exchange-rate failures belong to explicit test runtime composition, not production fallback."
+    }
+  },
+  "limitations": [
+    "Eight PostgreSQL-specific component tests remain opt-in skipped because no dedicated local PostgreSQL test database was configured. They remain AUD-03 production-validation evidence and are not reported as passed.",
+    "No production migration, deployment, runtime activation, outbox dispatch, fault injection, archive/restore or owner/reviewer sign-off was performed.",
+    "The final full-registry result uses real migrations. A --no-migrations probe produced one expected missing-seed failure and is retained only as diagnostic evidence."
+  ],
+  "rollback": {
+    "code": "Restore eager On-Demand use-case injection only together with a replacement read/write composition boundary; never add an audit runtime fallback.",
+    "test_profile": "Remove the explicit Account test seed only if another owner-bound test fixture supplies all critical definitions.",
+    "governance": "Restore a non-null focus only when a repository unit is genuinely dependency-ready and active."
+  },
+  "production_actions": {
+    "deployment_performed": false,
+    "production_write_performed": false,
+    "runtime_profile_activated": false,
+    "external_call_performed": false,
+    "paid_call_performed": false
+  },
+  "next_execution_state": {
+    "AUD-02": "completed",
+    "AUD-03": "awaiting_production",
+    "repository_focus": null,
+    "blocked_repository_unit": "EVID-03",
+    "blocked_dependencies": [
+      "EVID-01",
+      "EVID-02"
+    ]
+  }
+}

@@ -1,14 +1,14 @@
 {
-  "version": "2026-08-28.v3",
+  "version": "2026-08-28.v4",
   "updated_at": "2026-08-28",
   "execution_focus": {
-    "unit_id": "AUD-02",
+    "unit_id": null,
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Only the reopened AUD-02 may expand repository scope. TUX-05 completed layout, field translation, internal-key/status-bar and freshness-presentation closure with eight-screen browser evidence. Its Windows-safe full current-data runner then exposed 29 failures and 3 errors in pre-existing Equity/Account reads: AUD-02's strict system-audit composition is eagerly required before read-only assertions and the three critical audit runtime definitions are unavailable. AUD-02 is therefore reopened until the regression suite passes without weakening production fail-closed behavior; AUD-03 returns to dependency wait. EVID-01/02 and other declared production/external/governance units may continue only their safe auto_collect work; deployments, production writes, paid calls and human decisions still require their recorded authorization boundary."
+    "policy": "No repository unit is currently dependency-ready. AUD-02's corrective exit delayed On-Demand sync composition until actual hydration, explicitly completed the Account test runtime profile, and passed all 298 registered current-data nodeids plus the original Audit/Data Center gates without weakening production fail-closed behavior. AUD-03 returns to awaiting production. EVID-03 remains waiting on EVID-01 and EVID-02, so it must not be activated. Declared production/external/governance units may continue only their non-duplicative safe auto_collect work; deployments, production writes, paid calls and human decisions still require their recorded authorization boundary."
   },
   "workstreams": [
     {
@@ -130,8 +130,8 @@
       "category": "data_and_production_reliability",
       "priority": "P0/P1",
       "owner": "audit+data_center+task_monitor",
-      "status": "active",
-      "next_gate": "AUD-02 is reopened because the full current-data registry exposes eager system-audit composition failures in existing Equity/Account read paths when the three critical audit runtime definitions are unavailable. Restore read-path compatibility or test composition at the correct owner boundary without weakening production fail-closed audit writes, then rerun all registered current-data nodeids and the original AUD-02 gates before returning AUD-03 to production acceptance.",
+      "status": "production_validation",
+      "next_gate": "AUD-01 and the corrective AUD-02 repository exit are complete. AUD-03 must bind production migration/rollback, PostgreSQL opt-in, backlog recovery, bounded metrics, alerts, admin TUI, archive/restore and owner/reviewer sign-off to one immutable deployed candidate; only its declared non-duplicative read-only auto_collect work is automatic.",
       "documents": [
         {
           "path": "docs/plans/system-audit-log-consolidation-plan-2026-08-13.md",
@@ -273,7 +273,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-08-28.v3",
+    "version": "2026-08-28.v4",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -468,7 +468,7 @@
         "wave": 1,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Wire Data Center fetch events in the same unit of work",
         "depends_on": [
           "AUD-01"
@@ -481,7 +481,7 @@
         "wave": 2,
         "priority": "P0/P1",
         "execution_mode": "production",
-        "status": "waiting_dependency",
+        "status": "awaiting_production",
         "title": "Complete production audit migration and operational acceptance",
         "depends_on": [
           "AUD-02"

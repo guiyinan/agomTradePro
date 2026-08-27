@@ -198,12 +198,14 @@ def evaluate_registry(
             )
         )
     execution_focus_unit = execution_focus.get("unit_id")
-    if not isinstance(execution_focus_unit, str) or not execution_focus_unit:
+    if execution_focus_unit is not None and (
+        not isinstance(execution_focus_unit, str) or not execution_focus_unit
+    ):
         violations.append(
             Violation(
                 "execution_focus_unit",
                 "execution_focus.unit_id",
-                "unit_id must be a non-empty canonical unit ID",
+                "unit_id must be null or a non-empty canonical unit ID",
             )
         )
     allowed_parallel_modes_value = execution_focus.get("allowed_parallel_execution_modes")
@@ -772,7 +774,42 @@ def evaluate_registry(
             )
         )
     known_unit_ids = set(unit_ids)
-    if isinstance(execution_focus_unit, str):
+    active_repository_units = sorted(
+        unit_id
+        for unit_id in known_unit_ids
+        if unit_execution_modes.get(unit_id) == "repository"
+        and unit_statuses.get(unit_id) == "active"
+    )
+    eligible_repository_units = sorted(
+        unit_id
+        for unit_id in known_unit_ids
+        if unit_execution_modes.get(unit_id) == "repository"
+        and unit_statuses.get(unit_id) in {"active", "planned", "waiting_dependency"}
+        and all(
+            unit_statuses.get(dependency) == "completed"
+            for dependency in unit_dependencies.get(unit_id, ())
+        )
+    )
+    if execution_focus_unit is None:
+        if active_repository_units:
+            violations.append(
+                Violation(
+                    "execution_focus_repository_lock",
+                    "closure_backlog.units",
+                    "null focus requires zero active repository units; "
+                    f"found {active_repository_units}",
+                )
+            )
+        if eligible_repository_units:
+            violations.append(
+                Violation(
+                    "execution_focus_missing_eligible_unit",
+                    "execution_focus.unit_id",
+                    "null focus cannot hide dependency-ready repository units; "
+                    f"found {eligible_repository_units}",
+                )
+            )
+    elif isinstance(execution_focus_unit, str):
         if execution_focus_unit not in known_unit_ids:
             violations.append(
                 Violation(
@@ -798,12 +835,6 @@ def evaluate_registry(
                         "execution focus must reference an active unit",
                     )
                 )
-        active_repository_units = sorted(
-            unit_id
-            for unit_id in known_unit_ids
-            if unit_execution_modes.get(unit_id) == "repository"
-            and unit_statuses.get(unit_id) == "active"
-        )
         if active_repository_units != [execution_focus_unit]:
             violations.append(
                 Violation(
