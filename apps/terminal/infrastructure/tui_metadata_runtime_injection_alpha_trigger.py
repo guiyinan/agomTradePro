@@ -176,9 +176,7 @@ RUNTIME_ALPHA_TRIGGER_READ_ACTIONS: tuple[dict[str, Any], ...] = (
         intent="read_alpha_trigger",
         description="复核触发条件、证伪条件、投资论点和生命周期状态。",
         sequence=320,
-        fields=[
-            _field("trigger_id", "触发器 ID", binding="path", required=True)
-        ],
+        fields=[_field("trigger_id", "触发器 ID", binding="path", required=True)],
         view_model={
             "kind": "detail",
             "title_path": "result.trigger_id",
@@ -257,9 +255,7 @@ RUNTIME_ALPHA_TRIGGER_READ_ACTIONS: tuple[dict[str, Any], ...] = (
         intent="read_alpha_candidate",
         description="复核候选的入场区、退出区、风险等级和决策执行跟踪。",
         sequence=360,
-        fields=[
-            _field("candidate_id", "候选 ID", binding="path", required=True)
-        ],
+        fields=[_field("candidate_id", "候选 ID", binding="path", required=True)],
         view_model={
             "kind": "detail",
             "title_path": "result.candidate_id",
@@ -387,7 +383,7 @@ _EDIT_FIELDS = [
         value_type="float",
     ),
     _field("thesis", "投资论点", binding="body", input_type="textarea"),
-    _field("related_regime", "相关 Regime", binding="body"),
+    _field("related_regime", "相关宏观象限", binding="body"),
     _field(
         "related_policy_level",
         "相关政策档位",
@@ -458,7 +454,7 @@ RUNTIME_ALPHA_TRIGGER_MUTATION_ACTIONS: tuple[dict[str, Any], ...] = (
                 input_type="number",
                 value_type="integer",
             ),
-            _field("related_regime", "相关 Regime", binding="body"),
+            _field("related_regime", "相关宏观象限", binding="body"),
             _field(
                 "related_policy_level",
                 "相关政策档位",
@@ -541,7 +537,7 @@ RUNTIME_ALPHA_TRIGGER_MUTATION_ACTIONS: tuple[dict[str, Any], ...] = (
                 value_type="object",
                 required=True,
             ),
-            _field("current_regime", "当前 Regime", binding="body"),
+            _field("current_regime", "当前宏观象限", binding="body"),
         ],
     ),
     _mutation_action(

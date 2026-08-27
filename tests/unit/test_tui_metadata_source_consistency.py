@@ -1190,3 +1190,26 @@ def test_source_guard_requires_runtime_screen_default_action() -> None:
 
     assert not report.passed
     assert report.violations[0].rule_id == "runtime_screen_contract:runtime"
+
+
+def test_source_guard_rejects_noncanonical_user_terminology() -> None:
+    """Canonical copy must not reintroduce the retired TUX-04 vocabulary."""
+
+    published = _minimal_payload()
+    published["screens"][0]["summary"] = "Review the current Regime."
+    ia = {
+        "version": "test",
+        "published_screens": [published["screens"][0]],
+        "runtime_screens": [],
+    }
+    runtime = _minimal_payload()
+    runtime["screens"][0]["summary"] = "Review the current Regime."
+
+    report = check_tui_metadata_source_consistency(
+        published_payload=published,
+        ia_payload=ia,
+        runtime_payload=runtime,
+    )
+
+    assert not report.passed
+    assert [item.rule_id for item in report.violations] == ["terminology:screen:published:regime"]

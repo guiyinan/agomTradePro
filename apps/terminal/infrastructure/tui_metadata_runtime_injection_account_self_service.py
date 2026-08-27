@@ -9,7 +9,7 @@ RUNTIME_ACCOUNT_SELF_SERVICE_SCREEN: dict[str, Any] = {
     "dashboard_layout": "task_flow",
     "workflow": {
         "name": "账户自助",
-        "label": "我的账户设置",
+        "label": "个人资料与交易设置",
         "role": "先核对个人资料，再维护资金流水和交易成本。",
         "previous": {"key": "execution.accounts", "label": "账户与持仓"},
         "next": {},

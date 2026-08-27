@@ -6,12 +6,12 @@ from typing import Any
 
 RUNTIME_CLI_GROUP: dict[str, Any] = {
     "key": "ops",
-    "label": "AI 助手",
+    "label": "AI 工作台",
 }
 
 RUNTIME_CLI_MODULE: dict[str, Any] = {
     "key": "cli",
-    "label": "AI 助手",
+    "label": "命令行任务台",
     "group": "ops",
     "summary": "从 TUI 直接进入命令行式 AI 交互、会话和授权指令入口。",
 }
@@ -19,7 +19,7 @@ RUNTIME_CLI_MODULE: dict[str, Any] = {
 RUNTIME_CLI_SCREEN: dict[str, Any] = {
     "key": "cli.terminal",
     "business_context": {
-        "objective": "在 TUI 内打开命令行式 AI 助手，发起自然语言任务。",
+        "objective": "在 TUI 内打开命令行任务台，发起自然语言任务。",
         "decision_output": "回复正文、工具进度和需要审批的下一步动作。",
         "checkpoints": [
             "先输入自然语言问题或任务。",

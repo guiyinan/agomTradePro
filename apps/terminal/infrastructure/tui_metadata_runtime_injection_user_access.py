@@ -12,7 +12,7 @@ RUNTIME_USER_ACCESS_GOVERNANCE_SCREEN: dict[str, Any] = {
         "label": "用户准入",
         "role": "先决定用户是否可以进入系统，再分配最小必要角色。",
         "previous": {},
-        "next": {"key": "capability-router.admin-access", "label": "MCP 用户接入治理"},
+        "next": {"key": "capability-router.admin-access", "label": "MCP 用户与令牌"},
     },
     "business_context": {
         "objective": "把用户审批和角色分配收敛为可复核的管理员任务。",

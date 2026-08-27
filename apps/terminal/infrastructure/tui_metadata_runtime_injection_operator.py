@@ -270,7 +270,7 @@ RUNTIME_OPERATOR_ACTIONS: tuple[dict[str, Any], ...] = (
     },
     {
         "key": "operator.governance.ai_provider_summary",
-        "label": "AI 服务商治理摘要",
+        "label": "系统 AI 服务商摘要",
         "method": "GET",
         "endpoint": "/api/tui/operator/governance-queue/",
         "intent": "read_ai_provider_governance_summary",

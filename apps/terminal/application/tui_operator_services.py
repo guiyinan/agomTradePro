@@ -67,6 +67,18 @@ OPERATOR_HOME_SECTION_KEYS = (
     "data_task_summary",
     "ai_config_summary",
 )
+_REGIME_STATUS_LABELS: dict[str, str] = {
+    "recovery": "复苏",
+    "overheat": "过热",
+    "stagflation": "滞胀",
+    "deflation": "通缩",
+    "unknown": "未知",
+}
+_REGIME_BLOCKING_REASON_LABELS: dict[str, str] = {
+    "regime_macro_observation_stale": "宏观观测已超过允许时效。",
+    "regime_snapshot_stale": "宏观象限快照已超过允许时效。",
+    "regime_data_unavailable": "当前没有可用的宏观象限数据。",
+}
 
 
 def build_operator_home_payload(*, user: Any) -> dict[str, Any]:
@@ -375,6 +387,26 @@ def _market_context_rows() -> list[dict[str, Any]]:
     return rows
 
 
+def _regime_status_label(status_code: str) -> str:
+    """Return the canonical user-facing label for one regime status code."""
+
+    return _REGIME_STATUS_LABELS.get(status_code.strip().lower(), "未知")
+
+
+def _regime_blocking_reason_label(reason_code: str) -> str:
+    """Return bounded user copy without exposing a machine reason code."""
+
+    normalized = reason_code.strip()
+    if not normalized:
+        return ""
+    configured = _REGIME_BLOCKING_REASON_LABELS.get(normalized)
+    if configured:
+        return configured
+    if normalized.startswith("regime_") or ("_" in normalized and " " not in normalized):
+        return "宏观象限暂不可用于决策。"
+    return normalized.replace("Regime", "宏观象限").replace("Unknown", "未知")
+
+
 def _regime_market_row() -> dict[str, Any]:
     payload = get_regime_current_payload(as_of_date=date.today())
     data = dict(payload.get("data") or {})
@@ -386,7 +418,10 @@ def _regime_market_row() -> dict[str, Any]:
     must_not_use = bool(
         data.get("must_not_use_for_decision") or contract.get("must_not_use_for_decision")
     )
-    blocked_reason = str(data.get("blocked_reason") or contract.get("blocked_reason") or "").strip()
+    blocked_reason_code = str(
+        data.get("blocked_reason") or contract.get("blocked_reason") or ""
+    ).strip()
+    blocked_reason = _regime_blocking_reason_label(blocked_reason_code)
     severity = "ok"
     if regime == "UNKNOWN" or must_not_use:
         severity = "blocked"
@@ -396,17 +431,23 @@ def _regime_market_row() -> dict[str, Any]:
     reliability = "不可用于决策" if must_not_use else ("降级" if severity == "warning" else "可靠")
     summary = (
         blocked_reason
-        or (str(warnings[0]) if warnings else "")
+        or (
+            str(warnings[0]).replace("Regime", "宏观象限").replace("Unknown", "未知")
+            if warnings
+            else ""
+        )
         or (f"置信度 {confidence:.2f}" if confidence else "当前环境不可用")
     )
     return {
-        "area": "Regime",
-        "status": regime,
+        "area": "宏观象限",
+        "status": _regime_status_label(regime),
+        "status_code": regime,
         "summary": summary,
         "freshness": freshness,
         "reliability": reliability,
         "must_not_use_for_decision": must_not_use,
         "blocking_reason": blocked_reason,
+        "blocking_reason_code": blocked_reason_code,
         "observed_at": _iso(data.get("observed_at")),
         "next_action": "查看环境判断",
         "target_screen": "macro-regime.overview",
@@ -420,7 +461,7 @@ def _policy_market_row() -> dict[str, Any]:
     intervention = bool(payload.get("is_intervention_active"))
     severity = "warning" if intervention else ("blocked" if level == "UNKNOWN" else "ok")
     return {
-        "area": "Policy",
+        "area": "政策",
         "status": level,
         "summary": "当前存在政策干预" if intervention else "政策状态可用",
         "freshness": "新鲜",
@@ -436,7 +477,7 @@ def _pulse_market_row() -> dict[str, Any]:
     snapshot = GetLatestPulseUseCase().execute(as_of_date=date.today())
     if snapshot is None:
         return {
-            "area": "Pulse",
+            "area": "脉搏",
             "status": "NO_DATA",
             "summary": "当前没有可用脉搏快照。",
             "freshness": "无数据",
@@ -448,7 +489,7 @@ def _pulse_market_row() -> dict[str, Any]:
         }
     severity = "warning" if snapshot.transition_warning or not snapshot.is_reliable else "ok"
     return {
-        "area": "Pulse",
+        "area": "脉搏",
         "status": str(snapshot.regime_strength or "unknown").upper(),
         "summary": "存在转折预警" if snapshot.transition_warning else "脉搏层正常",
         "freshness": "新鲜",
@@ -466,7 +507,7 @@ def _decision_data_market_row() -> dict[str, Any]:
     blocked_reasons = list(payload.get("blocked_reasons") or [])
     thermometer = dict(payload.get("market_thermometer") or {})
     return {
-        "area": "Decision Data",
+        "area": "决策数据",
         "status": str(payload.get("status") or "unknown").upper(),
         "summary": blocked_reasons[0] if blocked_reasons else "决策数据链路可用",
         "freshness": str(payload.get("freshness_status") or "待确认"),
@@ -492,7 +533,7 @@ def _account_signal_rows() -> list[dict[str, Any]]:
 
     return [
         {
-            "area": "Accounts",
+            "area": "账户",
             "status": "READY" if portfolio_count > 0 else "SETUP",
             "value": portfolio_count,
             "summary": f"活跃持仓 {open_position_count} 笔",
@@ -501,7 +542,7 @@ def _account_signal_rows() -> list[dict[str, Any]]:
             "severity": "warning" if portfolio_count == 0 else "ok",
         },
         {
-            "area": "Signals",
+            "area": "信号",
             "status": "ACTIVE" if active_signal_count > 0 else "EMPTY",
             "value": active_signal_count,
             "summary": f"已失效 {invalidated_count} 条",

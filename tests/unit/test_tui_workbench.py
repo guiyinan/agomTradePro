@@ -409,7 +409,7 @@ def test_tui_screen_payload_uses_operator_vocabulary(client, tui_user):
     text = str(payload)
     labels = {action["label"] for action in payload["actions"]}
 
-    assert payload["screen"]["label"] == "AI 工具与我的服务商"
+    assert payload["screen"]["label"] == "我的 AI 服务商"
     assert "提示词模板" in labels
     assert "Prompt" not in text
     assert "Chat" not in text
@@ -418,7 +418,7 @@ def test_tui_screen_payload_uses_operator_vocabulary(client, tui_user):
     providers_payload = providers_response.json()
     provider_text = str(providers_payload)
     provider_labels = {action["label"] for action in providers_payload["actions"]}
-    assert providers_payload["screen"]["label"] == "AI 工具与我的服务商"
+    assert providers_payload["screen"]["label"] == "我的 AI 服务商"
     assert "我的 AI 服务商" in provider_labels
     assert "对话模型" in provider_labels
     assert "AI Provider" not in provider_text
@@ -1722,7 +1722,7 @@ def test_tui_catalog_hides_admin_only_mcp_center_from_regular_user(client, tui_u
     assert "capability-router.gateway" not in screen_keys
     assert "capability-router.self-service" in screen_keys
     assert "capability-router.self-service" in {
-        screen["key"] for screen in modules["research-tools"]["screens"]
+        screen["key"] for screen in modules["personal-services"]["screens"]
     }
     assert "system-governance" not in modules
 
@@ -1742,7 +1742,7 @@ def test_tui_catalog_shows_admin_only_mcp_center_to_admin_user(client, tui_admin
     assert "capability-router.admin-access" in screens
     assert "capability-router.gateway" not in screens
     assert "capability-router.self-service" in {
-        screen["key"] for screen in modules["research-tools"]["screens"]
+        screen["key"] for screen in modules["personal-services"]["screens"]
     }
     assert "capability-router.mcp-center" in {
         screen["key"] for screen in modules["system-governance"]["screens"]
@@ -2695,7 +2695,7 @@ def test_tui_terminal_screen_defaults_to_interactive_chat(client, tui_user):
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["screen"]["label"] == "AI 助手"
+    assert payload["screen"]["label"] == "AI 任务助手"
     assert payload["screen"]["default_action_key"] == "terminal.agent_chat"
     assert [panel["key"] for panel in payload["screen"]["dashboard_panels"]] == [
         "assistant-conversation",
@@ -2718,10 +2718,10 @@ def test_tui_catalog_registers_cli_module_entry(client, tui_user):
     assert response.status_code == 200
     payload = response.json()
     modules = {module["key"]: module for group in payload["groups"] for module in group["modules"]}
-    assert modules["research-tools"]["label"] == "研究与工具"
-    assert modules["research-tools"]["group"] == "research"
+    assert modules["ai-workspace"]["label"] == "AI 工作台"
+    assert modules["ai-workspace"]["group"] == "research"
     cli_screen = next(
-        screen for screen in modules["research-tools"]["screens"] if screen["key"] == "cli.terminal"
+        screen for screen in modules["ai-workspace"]["screens"] if screen["key"] == "cli.terminal"
     )
     assert cli_screen["default_action_key"] == "cli.agent_chat"
 
@@ -2733,8 +2733,8 @@ def test_tui_cli_screen_defaults_to_runtime_chat_entry(client, tui_user):
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["module"]["key"] == "research-tools"
-    assert payload["screen"]["label"] == "CLI 终端"
+    assert payload["module"]["key"] == "ai-workspace"
+    assert payload["screen"]["label"] == "命令行任务台"
     assert payload["screen"]["default_action_key"] == "cli.agent_chat"
     action = next(action for action in payload["actions"] if action["key"] == "cli.agent_chat")
     assert action["label"] == "发送助手请求"
@@ -2757,10 +2757,10 @@ def test_tui_catalog_registers_capability_router_entry(client, tui_user):
     assert response.status_code == 200
     payload = response.json()
     modules = {module["key"]: module for group in payload["groups"] for module in group["modules"]}
-    assert modules["research-tools"]["label"] == "研究与工具"
+    assert modules["personal-services"]["label"] == "个人服务接入"
     self_service = next(
         screen
-        for screen in modules["research-tools"]["screens"]
+        for screen in modules["personal-services"]["screens"]
         if screen["key"] == "capability-router.self-service"
     )
     assert self_service["default_action_key"] == "capability-router.mcp-self-status"
@@ -2942,7 +2942,7 @@ def test_tui_capability_router_screen_uses_unified_route_api(client, tui_admin_u
     assert response.status_code == 200
     payload = response.json()
     assert payload["module"]["key"] == "system-governance"
-    assert payload["screen"]["label"] == "MCP 能力治理"
+    assert payload["screen"]["label"] == "MCP 工具治理"
     action = next(
         action
         for action in payload["actions"]
@@ -3055,6 +3055,32 @@ def test_tui_default_screen_returns_user_dashboard_panels(client, tui_user):
     } <= action_keys
     assert "operator.home.enter_governance_flow" not in action_keys
     assert "operator.home.data_task_summary" not in action_keys
+
+
+def test_regular_user_catalog_has_no_admin_only_panel_destination(client, tui_user):
+    client.force_login(tui_user)
+
+    catalog_response = client.get("/api/tui/catalog/")
+
+    assert catalog_response.status_code == 200
+    catalog = catalog_response.json()
+    visible_screen_keys = {
+        screen["key"]
+        for group in catalog["groups"]
+        for module in group["modules"]
+        for screen in module["screens"]
+    }
+    for screen_key in visible_screen_keys:
+        response = client.get(f"/api/tui/screens/{screen_key}/")
+        assert response.status_code == 200
+        for panel in response.json()["screen"].get("dashboard_panels", []):
+            target_screen = str(panel.get("target_screen") or "")
+            assert not target_screen or target_screen in visible_screen_keys
+
+    assert "api-library.data-center" not in visible_screen_keys
+    forbidden_response = client.get("/api/tui/screens/api-library.data-center/")
+    assert forbidden_response.status_code == 403
+    assert forbidden_response.json()["error_code"] == "tui_screen_forbidden"
 
 
 def test_tui_admin_home_keeps_governance_actions_and_panels(client, tui_admin_user):
@@ -7566,10 +7592,20 @@ def test_tui_metadata_repository_injects_canonical_modules_for_identity_access_s
 
     loaded = repository._normalize_runtime_payload(validate_tui_metadata(payload))
     modules = {module["key"]: module for module in loaded["modules"]}
-    assert modules["research-tools"]["group"] == "research"
+    assert modules["investment-research"]["group"] == "research"
+    assert modules["ai-workspace"]["group"] == "research"
+    assert modules["personal-services"]["group"] == "research"
+    assert modules["personal-settings"]["group"] == "research"
     assert modules["system-governance"]["group"] == "system"
     assert any(
-        screen["module_key"] in {"research-tools", "system-governance"}
+        screen["module_key"]
+        in {
+            "investment-research",
+            "ai-workspace",
+            "personal-services",
+            "personal-settings",
+            "system-governance",
+        }
         for screen in loaded["screens"]
     )
 

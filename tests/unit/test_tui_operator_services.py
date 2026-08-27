@@ -114,12 +114,89 @@ def test_regime_market_row_preserves_stale_decision_block(monkeypatch):
 
     row = operator_services._regime_market_row()
 
+    assert row["area"] == "宏观象限"
     assert row["severity"] == "blocked"
     assert row["freshness"] == "已过期"
     assert row["reliability"] == "不可用于决策"
     assert row["observed_at"] == "2026-06-30"
     assert row["summary"] == "宏观观测已超过允许时效。"
     assert row["must_not_use_for_decision"] is True
+
+
+def test_operator_home_area_labels_use_canonical_user_vocabulary(monkeypatch):
+    monkeypatch.setattr(
+        operator_services,
+        "get_regime_current_payload",
+        lambda **kwargs: {
+            "data": {
+                "dominant_regime": "Recovery",
+                "confidence": 0.8,
+                "observed_at": "2026-08-27",
+            }
+        },
+    )
+    monkeypatch.setattr(
+        operator_services,
+        "get_policy_status_payload",
+        lambda **kwargs: {"current_level": "P0", "as_of_date": "2026-08-27"},
+    )
+    monkeypatch.setattr(
+        operator_services,
+        "GetLatestPulseUseCase",
+        lambda: SimpleNamespace(execute=lambda **kwargs: None),
+    )
+    monkeypatch.setattr(
+        operator_services,
+        "get_decision_data_readiness_payload",
+        lambda: {"status": "ready", "must_not_use_for_decision": False},
+    )
+    monkeypatch.setattr(
+        operator_services,
+        "get_account_diagnostic_summary",
+        lambda: {"open_position_count": 0, "portfolio_count": 0},
+    )
+    monkeypatch.setattr(
+        operator_services,
+        "get_signal_diagnostic_summary",
+        lambda: {"active_count": 0, "invalidated_count": 0},
+    )
+
+    market_rows = operator_services._market_context_rows()
+    assert [row["area"] for row in market_rows] == [
+        "宏观象限",
+        "政策",
+        "脉搏",
+        "决策数据",
+    ]
+    assert market_rows[0]["status"] == "复苏"
+    assert market_rows[0]["status_code"] == "Recovery"
+    assert [row["area"] for row in operator_services._account_signal_rows()] == [
+        "账户",
+        "信号",
+    ]
+
+
+def test_regime_market_row_translates_machine_blocking_reason(monkeypatch):
+    monkeypatch.setattr(
+        operator_services,
+        "get_regime_current_payload",
+        lambda **kwargs: {
+            "data": {
+                "dominant_regime": "Unknown",
+                "is_stale": True,
+                "must_not_use_for_decision": True,
+                "blocked_reason": "regime_data_unavailable",
+            }
+        },
+    )
+
+    row = operator_services._regime_market_row()
+
+    assert row["status"] == "未知"
+    assert row["status_code"] == "Unknown"
+    assert row["summary"] == "当前没有可用的宏观象限数据。"
+    assert row["blocking_reason"] == "当前没有可用的宏观象限数据。"
+    assert row["blocking_reason_code"] == "regime_data_unavailable"
 
 
 def test_operator_governance_queue_sorts_by_severity_then_recent(monkeypatch):

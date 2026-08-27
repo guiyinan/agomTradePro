@@ -18,7 +18,7 @@
     },
     {
       "key": "research",
-      "label": "研究与工具"
+      "label": "研究与自助"
     },
     {
       "key": "system",
@@ -34,10 +34,28 @@
       "summary": "按八步工作流完成当天的环境判断、决策、执行检查与复盘。"
     },
     {
-      "key": "research-tools",
-      "label": "研究与工具",
+      "key": "investment-research",
+      "label": "投资研究",
       "group": "research",
-      "summary": "完成资产研究、AI 辅助和个人自助接入。"
+      "summary": "研究资产、因子、回测、基金和板块。"
+    },
+    {
+      "key": "ai-workspace",
+      "label": "AI 工作台",
+      "group": "research",
+      "summary": "通过对话、命令行和提示词编排完成 AI 辅助任务。"
+    },
+    {
+      "key": "personal-services",
+      "label": "个人服务接入",
+      "group": "research",
+      "summary": "管理个人 AI 服务商与 MCP 接入。"
+    },
+    {
+      "key": "personal-settings",
+      "label": "个人设置",
+      "group": "research",
+      "summary": "维护个人资料、安全设置与交易核算参数。"
     },
     {
       "key": "system-governance",
@@ -304,7 +322,7 @@
       "module_key": "daily-decisions",
       "group": "daily",
       "audience": "authenticated",
-      "summary": "判断 Regime、脉搏、政策上下文和市场温度。",
+      "summary": "判断宏观象限、脉搏、政策上下文和市场温度。",
       "view_type": "status",
       "default_action_key": "regime.current",
       "user_experience": {
@@ -316,7 +334,7 @@
       },
       "business_context": {
         "objective": "形成无后视偏差的环境判断。",
-        "decision_output": "Regime、脉搏与市场温度结论。",
+        "decision_output": "宏观象限、脉搏与市场温度结论。",
         "checkpoints": [
           "当前象限",
           "脉搏转折",
@@ -327,14 +345,14 @@
       "dashboard_panels": [
         {
           "key": "regime-quadrant",
-          "title": "当前 Regime",
+          "title": "当前宏观象限",
           "kind": "regime_quadrant",
           "action_key": "regime.current",
           "user_priority": "p0",
           "presentation_semantic": "primary_status",
-          "empty_message": "暂无 Regime 结果，请检查宏观数据。",
-          "error_message": "Regime 加载失败。",
-          "stale_message": "Regime 结果已过期，请刷新。",
+          "empty_message": "暂无宏观象限结果，请检查宏观数据。",
+          "error_message": "宏观象限加载失败。",
+          "stale_message": "宏观象限结果已过期，请刷新。",
           "row_actions": []
         },
         {
@@ -358,7 +376,7 @@
             },
             {
               "key": "observed_at",
-              "label": "数据日期"
+              "label": "观测时间"
             },
             {
               "key": "is_stale",
@@ -887,7 +905,7 @@
     {
       "key": "research.asset-lab",
       "label": "资产研究",
-      "module_key": "research-tools",
+      "module_key": "investment-research",
       "group": "research",
       "audience": "authenticated",
       "summary": "研究资产、因子、回测、基金和板块。",
@@ -929,16 +947,16 @@
     },
     {
       "key": "ai-ops.terminal",
-      "label": "AI 助手",
-      "module_key": "research-tools",
+      "label": "AI 任务助手",
+      "module_key": "ai-workspace",
       "group": "research",
       "audience": "authenticated",
-      "summary": "与 AI 助手交互并处理智能任务。",
+      "summary": "通过对话处理智能任务并跟进执行进度。",
       "view_type": "detail",
       "default_action_key": "terminal.agent_chat",
       "user_experience": {
         "journey": "workspace",
-        "primary_task": "向 AI 助手提问并处理需要人工关注的任务。",
+        "primary_task": "向 AI 任务助手提问并处理需要人工关注的任务。",
         "primary_outcome": "得到可执行的分析或任务结果。",
         "empty_state_hint": "输入问题开始对话。",
         "next_step_hint": "把结果带回对应业务工作区。"
@@ -982,8 +1000,8 @@
     },
     {
       "key": "ai-ops.providers",
-      "label": "AI 工具与我的服务商",
-      "module_key": "research-tools",
+      "label": "我的 AI 服务商",
+      "module_key": "personal-services",
       "group": "research",
       "audience": "authenticated",
       "summary": "管理个人 AI 服务商并查看能力、模型、提示词和日志。",
@@ -994,7 +1012,7 @@
         "primary_task": "确认个人 AI 服务可用并完成自助配置。",
         "primary_outcome": "得到个人服务商、配额和调用状态。",
         "empty_state_hint": "没有服务商时使用新增个人服务商操作。",
-        "next_step_hint": "返回 AI 助手验证配置。"
+        "next_step_hint": "返回 AI 任务助手验证配置。"
       },
       "business_context": {
         "objective": "完成个人 AI 能力自助管理。",
@@ -1280,7 +1298,7 @@
       "intent": "read_macro_state",
       "screen_key": "macro-regime.overview",
       "view_type": "status",
-      "description": "判断 Regime、脉搏、政策上下文和市场温度。（查看）",
+      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 环境状态",
       "sequence": 100
@@ -1292,7 +1310,7 @@
       "intent": "read_policy_state",
       "screen_key": "macro-regime.overview",
       "view_type": "detail",
-      "description": "判断 Regime、脉搏、政策上下文和市场温度。（查看）",
+      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "02 政策状态",
       "sequence": 200
@@ -1316,7 +1334,7 @@
       "intent": "read_market_temperature",
       "screen_key": "macro-regime.overview",
       "view_type": "status",
-      "description": "判断 Regime、脉搏、政策上下文和市场温度。（查看）",
+      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "03 市场温度",
       "sequence": 300
@@ -1475,7 +1493,7 @@
       "intent": "read_regime_navigator",
       "screen_key": "macro-regime.overview",
       "view_type": "detail",
-      "description": "判断 Regime、脉搏、政策上下文和市场温度。（查看）",
+      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 环境导航",
       "sequence": 100
@@ -1487,7 +1505,7 @@
       "intent": "read_regime_transition_history",
       "screen_key": "macro-regime.overview",
       "view_type": "datagrid",
-      "description": "判断 Regime、脉搏、政策上下文和市场温度。（查看）",
+      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
       "source": "approved:smoke-promoted",
       "view_model": {
         "rows_path": "data.regime_transitions"
@@ -1503,7 +1521,7 @@
       "intent": "read_current_pulse",
       "screen_key": "macro-regime.overview",
       "view_type": "status",
-      "description": "判断 Regime、脉搏、政策上下文和市场温度。（查看）",
+      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
       "source": "approved:smoke-promoted",
       "view_model": {
         "kind": "datagrid",
@@ -1523,7 +1541,7 @@
           },
           {
             "key": "observed_at",
-            "label": "数据日期"
+            "label": "观测时间"
           },
           {
             "key": "is_stale",
@@ -1541,7 +1559,7 @@
       "intent": "read_pulse_history",
       "screen_key": "macro-regime.overview",
       "view_type": "chart",
-      "description": "判断 Regime、脉搏、政策上下文和市场温度。（查看）",
+      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
       "source": "approved:smoke-promoted",
       "view_model": {
         "rows_path": "data",
@@ -1771,13 +1789,13 @@
         },
         {
           "key": "target_regime",
-          "label": "Target Regime",
+          "label": "目标宏观象限",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Target Regime",
+          "placeholder": "输入目标宏观象限",
           "presentation_semantic": "identifier"
         },
         {
@@ -1962,13 +1980,13 @@
         },
         {
           "key": "target_regime",
-          "label": "Target Regime",
+          "label": "目标宏观象限",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Target Regime",
+          "placeholder": "输入目标宏观象限",
           "presentation_semantic": "identifier"
         },
         {
@@ -4764,7 +4782,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.overview",
       "view_type": "status",
-      "description": "判断 Regime、脉搏、政策上下文和市场温度。（查看）",
+      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 环境状态",
       "sequence": 100,
@@ -4777,7 +4795,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.overview",
       "view_type": "status",
-      "description": "判断 Regime、脉搏、政策上下文和市场温度。（查看）",
+      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 环境状态",
       "sequence": 100
@@ -4789,7 +4807,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.overview",
       "view_type": "status",
-      "description": "判断 Regime、脉搏、政策上下文和市场温度。（查看）",
+      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "02 战术脉搏",
       "sequence": 200,
@@ -5648,13 +5666,13 @@
       "fields": [
         {
           "key": "regime",
-          "label": "Regime",
+          "label": "宏观象限",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Regime",
+          "placeholder": "输入宏观象限",
           "presentation_semantic": "identifier"
         },
         {
@@ -8517,13 +8535,13 @@
         },
         {
           "key": "regime_allocations",
-          "label": "Regime Allocations",
+          "label": "象限配置",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Regime Allocations",
+          "placeholder": "输入象限配置",
           "presentation_semantic": "identifier"
         },
         {
@@ -8653,13 +8671,13 @@
         },
         {
           "key": "current_regime",
-          "label": "Current Regime",
+          "label": "当前宏观象限",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Current Regime",
+          "placeholder": "输入当前宏观象限",
           "presentation_semantic": "identifier"
         },
         {
@@ -8876,13 +8894,13 @@
         },
         {
           "key": "current_regime",
-          "label": "Current Regime",
+          "label": "当前宏观象限",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Current Regime",
+          "placeholder": "输入当前宏观象限",
           "presentation_semantic": "identifier"
         },
         {
@@ -9089,13 +9107,13 @@
         },
         {
           "key": "regime_allocations",
-          "label": "Regime Allocations",
+          "label": "象限配置",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Regime Allocations",
+          "placeholder": "输入象限配置",
           "presentation_semantic": "identifier"
         },
         {
@@ -9214,13 +9232,13 @@
         },
         {
           "key": "regime_allocations",
-          "label": "Regime Allocations",
+          "label": "象限配置",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Regime Allocations",
+          "placeholder": "输入象限配置",
           "presentation_semantic": "identifier"
         },
         {
@@ -11499,7 +11517,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.overview",
       "view_type": "datagrid",
-      "description": "判断 Regime、脉搏、政策上下文和市场温度。（查看）",
+      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "02 市场温度",
       "sequence": 200
@@ -11511,7 +11529,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.overview",
       "view_type": "datagrid",
-      "description": "判断 Regime、脉搏、政策上下文和市场温度。（查看）",
+      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "02 市场温度",
       "sequence": 200
@@ -15568,13 +15586,13 @@
         },
         {
           "key": "target_regime",
-          "label": "Target Regime",
+          "label": "目标宏观象限",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Target Regime",
+          "placeholder": "输入目标宏观象限",
           "presentation_semantic": "identifier"
         },
         {
@@ -17550,13 +17568,13 @@
         },
         {
           "key": "regime_allocations",
-          "label": "Regime Allocations",
+          "label": "象限配置",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Regime Allocations",
+          "placeholder": "输入象限配置",
           "presentation_semantic": "identifier"
         },
         {
@@ -17697,13 +17715,13 @@
         },
         {
           "key": "current_regime",
-          "label": "Current Regime",
+          "label": "当前宏观象限",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Current Regime",
+          "placeholder": "输入当前宏观象限",
           "presentation_semantic": "identifier"
         },
         {
@@ -17921,13 +17939,13 @@
         },
         {
           "key": "regime_allocations",
-          "label": "Regime Allocations",
+          "label": "象限配置",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Regime Allocations",
+          "placeholder": "输入象限配置",
           "presentation_semantic": "identifier"
         },
         {
@@ -18057,13 +18075,13 @@
         },
         {
           "key": "regime_allocations",
-          "label": "Regime Allocations",
+          "label": "象限配置",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Regime Allocations",
+          "placeholder": "输入象限配置",
           "presentation_semantic": "identifier"
         },
         {
@@ -18204,13 +18222,13 @@
         },
         {
           "key": "regime_allocations",
-          "label": "Regime Allocations",
+          "label": "象限配置",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Regime Allocations",
+          "placeholder": "输入象限配置",
           "presentation_semantic": "identifier"
         },
         {
@@ -20815,11 +20833,11 @@
       "fields": [
         {
           "key": "regime",
-          "label": "Regime",
+          "label": "宏观象限",
           "input_type": "text",
           "required": true,
           "default": "",
-          "placeholder": "输入Regime",
+          "placeholder": "输入宏观象限",
           "binding": "path",
           "value_type": "string",
           "presentation_semantic": "identifier"
@@ -24097,7 +24115,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.overview",
       "view_type": "status",
-      "description": "判断 Regime、脉搏、政策上下文和市场温度。（查看）",
+      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 环境状态",
       "sequence": 100,
@@ -24110,7 +24128,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.overview",
       "view_type": "status",
-      "description": "判断 Regime、脉搏、政策上下文和市场温度。（查看）",
+      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 环境状态",
       "sequence": 100,
@@ -24123,7 +24141,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "macro-regime.overview",
       "view_type": "status",
-      "description": "判断 Regime、脉搏、政策上下文和市场温度。（查看）",
+      "description": "判断宏观象限、脉搏、政策上下文和市场温度。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 环境状态",
       "sequence": 100,
@@ -25655,7 +25673,7 @@
   },
   "publication_note": "Publish-ready TUI metadata generated from reviewed baseline plus direct safe-read tool candidates.",
   "schema_version": "tui-metadata.v3",
-  "ia_version": "2026-07-31",
+  "ia_version": "2026-08-27",
   "legacy_screen_aliases": {
     "command-center.dashboard": "command-center.overview",
     "macro-regime.navigator": "macro-regime.overview",
