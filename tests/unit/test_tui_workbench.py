@@ -14,6 +14,7 @@ from django.utils import timezone
 import apps.terminal.application.tui_workbench as tui_workbench_module
 from apps.ai_provider.infrastructure.models import AIProviderConfig
 from apps.alpha.infrastructure.models import QlibModelRegistryModel
+from apps.config_center.application.runtime_public import activate_runtime_profile_patch
 from apps.config_center.infrastructure.repositories import ConfigCenterSettingsRepository
 from apps.data_center.application.interface_services import save_provider_settings_payload
 from apps.share.infrastructure.models import ShareLinkModel, ShareSnapshotModel
@@ -3326,6 +3327,24 @@ def test_tui_admin_config_center_runtime_action_handles_active_model_without_upd
         provider_dir.mkdir(parents=True)
         model_dir.mkdir(parents=True)
 
+        activate_runtime_profile_patch(
+            environment="development",
+            patch={
+                "data_center.provider.failover_tolerance": 0.01,
+                "audit.system_event.mode": "off",
+                "audit.system_event.outbox_enabled": False,
+                "audit.system_event.authority_selector": {
+                    "actor_source_id": "tui-test-actor-source",
+                    "actor_source_version": "v1",
+                    "actor_content_hash": "a" * 64,
+                    "scope_source_id": "tui-test-scope-source",
+                    "scope_source_version": "v1",
+                    "scope_content_hash": "b" * 64,
+                },
+            },
+            actor="tui-test-bootstrap",
+            reason="seed critical runtime values for isolated TUI test",
+        )
         save_provider_settings_payload(
             default_source="akshare",
             enable_failover=True,
