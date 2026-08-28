@@ -6,14 +6,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 
-from apps.audit.application.system_audit_query import (
-    ListCorrelatedSystemAuditEventsCommand,
-    ListCorrelatedSystemAuditEventsUseCase,
-    SystemAuditQueryCorruption,
-    SystemAuditQueryUnavailable,
-    SystemAuditReaderContext,
-)
-from apps.audit.domain.system_audit_event import AuditEvidenceRef, SystemAuditEvent
 from apps.data_center.application.control_plane import (
     publication_rollback_evidence_content_hash,
 )
@@ -31,6 +23,15 @@ from apps.data_center.domain.control_plane import (
 )
 from apps.data_center.domain.entities import RawAudit, raw_audit_content_hash
 from core.exceptions import DataValidationError, ResourceNotFoundError
+from core.integration.data_center_audit import (
+    AuditEvidenceRef,
+    ListCorrelatedSystemAuditEventsCommand,
+    ListCorrelatedSystemAuditEventsUseCase,
+    SystemAuditEvent,
+    SystemAuditQueryCorruption,
+    SystemAuditQueryUnavailable,
+    SystemAuditReaderContext,
+)
 
 _FETCH_COMPLETED = "data.fetch.completed"
 _VALIDATION_REJECTED = "data.validation.rejected"

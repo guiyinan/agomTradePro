@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 126,
       "compatibility_facade": 90,
-      "current_data_surface": 50,
+      "current_data_surface": 51,
       "dynamic_import_edge": 10,
       "management_command": 25,
       "management_command_edge": 56,
@@ -30,13 +30,13 @@
       "workflow_step": 9
     },
     "by_status": {
-      "active_public": 712,
+      "active_public": 709,
       "adjacent_operational": 293,
-      "candidate-review": 2,
+      "candidate-review": 6,
       "compatibility": 133,
       "retired_blocked": 0
     },
-    "total": 1140
+    "total": 1141
   },
   "entries": [
     {
@@ -1592,8 +1592,8 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/terminal/application/tui_operator_services.py:get_active_stock_fact_coverage_payload:line:33",
-      "locator": "line:33",
+      "id": "application_consumer:apps/terminal/application/tui_operator_services.py:get_active_stock_fact_coverage_payload:line:32",
+      "locator": "line:32",
       "path": "apps/terminal/application/tui_operator_services.py",
       "status": "active_public",
       "symbol": "get_active_stock_fact_coverage_payload",
@@ -1602,8 +1602,8 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/terminal/application/tui_operator_services.py:get_decision_data_readiness_payload:line:33",
-      "locator": "line:33",
+      "id": "application_consumer:apps/terminal/application/tui_operator_services.py:get_decision_data_readiness_payload:line:32",
+      "locator": "line:32",
       "path": "apps/terminal/application/tui_operator_services.py",
       "status": "active_public",
       "symbol": "get_decision_data_readiness_payload",
@@ -1612,8 +1612,8 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/terminal/application/tui_operator_services.py:get_market_thermometer_payload:line:33",
-      "locator": "line:33",
+      "id": "application_consumer:apps/terminal/application/tui_operator_services.py:get_market_thermometer_payload:line:32",
+      "locator": "line:32",
       "path": "apps/terminal/application/tui_operator_services.py",
       "status": "active_public",
       "symbol": "get_market_thermometer_payload",
@@ -5131,7 +5131,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=20",
+      "evidence": "governed current-data contract; source_files=23",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.publication_writer_atomicity:Canonical publication writer and member snapshot commit",
       "locator": "Canonical publication writer and member snapshot commit",
       "path": "governance/current_data_contracts.json",
@@ -5431,6 +5431,16 @@
     },
     {
       "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=3",
+      "id": "current_data_surface:governance/current_data_contracts.json:terminal.operator_market_context_presentation:TUI operator market-context freshness and reliability presentation",
+      "locator": "TUI operator market-context freshness and reliability presentation",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "terminal.operator_market_context_presentation",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
       "evidence": "governed current-data contract; source_files=2",
       "id": "current_data_surface:governance/current_data_contracts.json:valuation.current_price_fallback:Asset valuation observable market-price fallback",
       "locator": "Asset valuation observable market-price fallback",
@@ -5452,8 +5462,8 @@
     {
       "category": "dynamic_import_edge",
       "evidence": "statically resolved dynamic import target",
-      "id": "dynamic_import_edge:apps/data_center/application/interface_services.py:import_module:line:241",
-      "locator": "line:241",
+      "id": "dynamic_import_edge:apps/data_center/application/interface_services.py:import_module:line:242",
+      "locator": "line:242",
       "path": "apps/data_center/application/interface_services.py",
       "status": "adjacent_operational",
       "symbol": "import_module",
@@ -6132,8 +6142,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/alpha/management/commands/build_qlib_data.py",
-      "id": "management_command_edge:apps/data_center/application/interface_services.py:build_qlib_data:line:219",
-      "locator": "line:219",
+      "id": "management_command_edge:apps/data_center/application/interface_services.py:build_qlib_data:line:220",
+      "locator": "line:220",
       "path": "apps/data_center/application/interface_services.py",
       "status": "adjacent_operational",
       "symbol": "build_qlib_data",
@@ -6142,8 +6152,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/alpha/management/commands/build_qlib_data.py",
-      "id": "management_command_edge:apps/data_center/application/interface_services.py:build_qlib_data:line:226",
-      "locator": "line:226",
+      "id": "management_command_edge:apps/data_center/application/interface_services.py:build_qlib_data:line:227",
+      "locator": "line:227",
       "path": "apps/data_center/application/interface_services.py",
       "status": "adjacent_operational",
       "symbol": "build_qlib_data",
@@ -6152,8 +6162,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/alpha/management/commands/build_qlib_data.py",
-      "id": "management_command_edge:apps/data_center/management/commands/repair_decision_data_reliability.py:build_qlib_data:line:252",
-      "locator": "line:252",
+      "id": "management_command_edge:apps/data_center/management/commands/repair_decision_data_reliability.py:build_qlib_data:line:249",
+      "locator": "line:249",
       "path": "apps/data_center/management/commands/repair_decision_data_reliability.py",
       "status": "adjacent_operational",
       "symbol": "build_qlib_data",
@@ -6162,8 +6172,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/alpha/management/commands/build_qlib_data.py",
-      "id": "management_command_edge:apps/data_center/management/commands/repair_decision_data_reliability.py:build_qlib_data:line:259",
-      "locator": "line:259",
+      "id": "management_command_edge:apps/data_center/management/commands/repair_decision_data_reliability.py:build_qlib_data:line:256",
+      "locator": "line:256",
       "path": "apps/data_center/management/commands/repair_decision_data_reliability.py",
       "status": "adjacent_operational",
       "symbol": "build_qlib_data",
@@ -10661,31 +10671,31 @@
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI screen-to-action dispatch edge",
+      "evidence": "TUI screen/action edge is missing or differs in published graph",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:api-library.data-center:auto.api.get.api.data-center",
       "locator": "auto.api.get.api.data-center",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
-      "status": "active_public",
+      "status": "candidate-review",
       "symbol": "api-library.data-center",
       "target": "/api/data-center/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI screen-to-action dispatch edge",
+      "evidence": "TUI screen/action edge is missing or differs in published graph",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:api-library.data-center:auto.api.get.api.data-center.providers",
       "locator": "auto.api.get.api.data-center.providers",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
-      "status": "active_public",
+      "status": "candidate-review",
       "symbol": "api-library.data-center",
       "target": "/api/data-center/providers/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph with matching dispatch contract",
+      "evidence": "generated TUI action is not present in published graph",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:auto.api.get.api.data-center:/api/data-center/",
       "locator": "/api/data-center/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
-      "status": "active_public",
+      "status": "candidate-review",
       "symbol": "auto.api.get.api.data-center",
       "target": "/api/data-center/"
     },
@@ -10801,11 +10811,11 @@
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph with matching dispatch contract",
+      "evidence": "generated TUI action is not present in published graph",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:auto.api.get.api.data-center.providers:/api/data-center/providers/",
       "locator": "/api/data-center/providers/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
-      "status": "active_public",
+      "status": "candidate-review",
       "symbol": "auto.api.get.api.data-center.providers",
       "target": "/api/data-center/providers/"
     },
@@ -11451,7 +11461,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 91,
-    "current_data_contracts": 50,
+    "current_data_contracts": 51,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 18,
     "runtime_config_keys": 45

@@ -6,21 +6,19 @@ from contextlib import AbstractContextManager
 from datetime import datetime
 from typing import Protocol
 
-from apps.audit.application.data_conflict_audit import DataConflictAuditObservation
-from apps.audit.application.data_decision_read_audit import DataDecisionReadAuditObservation
-from apps.audit.application.data_failover_audit import DataFailoverAuditObservation
-from apps.audit.application.data_fetch_audit import DataFetchAuditObservation
-from apps.audit.application.data_freshness_audit import DataFreshnessAuditObservation
-from apps.audit.application.data_provider_health_audit import (
+from core.integration.data_center_audit import (
+    DataConflictAuditObservation,
+    DataDecisionReadAuditObservation,
+    DataFailoverAuditObservation,
+    DataFetchAuditObservation,
+    DataFreshnessAuditObservation,
     DataProviderHealthAuditObservation,
-)
-from apps.audit.application.data_publication_audit import DataPublicationAuditObservation
-from apps.audit.application.data_publication_rollback_audit import (
+    DataPublicationAuditObservation,
     DataPublicationRollbackAuditObservation,
+    DataQualityAuditObservation,
+    DataRepairAuditObservation,
+    DataValidationRejectedObservation,
 )
-from apps.audit.application.data_quality_audit import DataQualityAuditObservation
-from apps.audit.application.data_repair_audit import DataRepairAuditObservation
-from apps.audit.application.data_validation_audit import DataValidationRejectedObservation
 
 
 class DataCenterSyncUnitOfWorkParticipant(Protocol):

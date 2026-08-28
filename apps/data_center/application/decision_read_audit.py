@@ -7,9 +7,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Final, Protocol
 
-from apps.audit.application.data_decision_read_audit import DataDecisionReadAuditObservation
-from apps.audit.application.data_freshness_audit import DataFreshnessAuditObservation
-from apps.audit.domain.system_audit_event import AuditOutcome
 from apps.data_center.application.dtos import SyncResult
 from apps.data_center.application.sync_transaction import (
     DataCenterSyncClock,
@@ -17,6 +14,11 @@ from apps.data_center.application.sync_transaction import (
     DataFreshnessAuditWriter,
 )
 from core.exceptions import DataValidationError
+from core.integration.data_center_audit import (
+    AuditOutcome,
+    DataDecisionReadAuditObservation,
+    DataFreshnessAuditObservation,
+)
 
 _TOKEN_PATTERN: Final[re.Pattern[str]] = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$")
 

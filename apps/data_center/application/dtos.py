@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Any
 
-from apps.audit.domain.system_audit_event import AuditOutcome
+from core.integration.data_center_audit import AuditOutcome
 
 
 @dataclass

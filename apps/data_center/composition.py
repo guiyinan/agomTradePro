@@ -493,7 +493,7 @@ def make_reconciliation_evidence_recorder(
 ) -> RecordReconciliationEvidenceUseCase:
     """Compose same-transaction reconciliation evidence and conflict audit."""
 
-    from apps.audit.application.repository_provider import get_data_conflict_audit_writer
+    from core.integration.data_center_audit import get_data_conflict_audit_writer
 
     repository = ReconciliationEvidenceRepository(using=using)
     audit_writer = get_data_conflict_audit_writer(
@@ -573,7 +573,7 @@ def get_rollback_canonical_publication_use_case(
 ) -> RollbackCanonicalPublicationUseCase:
     """Compose publication rollback, evidence, and required audit atomically."""
 
-    from apps.audit.application.repository_provider import (
+    from core.integration.data_center_audit import (
         get_data_publication_rollback_audit_writer,
     )
 
@@ -709,7 +709,7 @@ def make_repair_run_audit_dependencies(
 ) -> RepairRunAuditDependencies:
     """Compose the durable parent identity and scoped completion writer."""
 
-    from apps.audit.application.repository_provider import get_data_repair_audit_writer
+    from core.integration.data_center_audit import get_data_repair_audit_writer
 
     identity_repository = SyncExecutionIdentityRepository()
     return RepairRunAuditDependencies(
@@ -739,7 +739,7 @@ def make_system_audited_sync_macro_use_case(
 
     # Import at the cross-App composition boundary so importing data-center query
     # services does not eagerly initialize the audit repository graph.
-    from apps.audit.application.repository_provider import (
+    from core.integration.data_center_audit import (
         get_data_reliability_audit_writers,
     )
 
@@ -813,16 +813,14 @@ def make_system_audited_sync_macro_use_case(
 def make_data_chain_replay_use_case() -> ReplayDataChainUseCase:
     """Compose the exact system-audit and professional-evidence replay path."""
 
-    from apps.audit.application.system_audit_query import (
+    from core.integration.data_center_audit import (
         ListCorrelatedSystemAuditEventsUseCase,
-    )
-    from apps.audit.infrastructure.system_audit_repository import (
-        DjangoSystemAuditEventRepository,
+        get_system_audit_event_repository,
     )
 
     return ReplayDataChainUseCase(
         correlation_query=ListCorrelatedSystemAuditEventsUseCase(
-            DjangoSystemAuditEventRepository()
+            get_system_audit_event_repository()
         ),
         raw_audit_reader=RawAuditRepository(),
         publication_reader=CanonicalPublicationRepository(),
@@ -833,16 +831,14 @@ def make_data_chain_replay_use_case() -> ReplayDataChainUseCase:
 def make_repair_run_replay_use_case() -> ReplayRepairRunUseCase:
     """Compose parent repair replay with exact identity and child-chain readers."""
 
-    from apps.audit.application.system_audit_query import (
+    from core.integration.data_center_audit import (
         ListCorrelatedSystemAuditEventsUseCase,
-    )
-    from apps.audit.infrastructure.system_audit_repository import (
-        DjangoSystemAuditEventRepository,
+        get_system_audit_event_repository,
     )
 
     return ReplayRepairRunUseCase(
         correlation_query=ListCorrelatedSystemAuditEventsUseCase(
-            DjangoSystemAuditEventRepository()
+            get_system_audit_event_repository()
         ),
         identity_reader=SyncExecutionIdentityRepository(),
         publication_replay=make_data_chain_replay_use_case(),
@@ -854,7 +850,7 @@ def make_publication_decision_read_recorder(
 ) -> RecordPublicationDecisionReadUseCase:
     """Compose the canonical publication-bound decision-read recorder."""
 
-    from apps.audit.application.repository_provider import (
+    from core.integration.data_center_audit import (
         get_data_reliability_audit_writers,
     )
 
@@ -877,7 +873,7 @@ def make_system_audited_sync_price_use_case(
 ) -> SyncPriceUseCase:
     """Compose the canonical same-UOW historical-price sync writer."""
 
-    from apps.audit.application.repository_provider import (
+    from core.integration.data_center_audit import (
         get_data_reliability_audit_writers,
     )
 
@@ -950,7 +946,7 @@ def make_system_audited_sync_quote_use_case(
 ) -> SyncQuoteUseCase:
     """Compose the canonical same-UOW realtime-quote sync writer."""
 
-    from apps.audit.application.repository_provider import (
+    from core.integration.data_center_audit import (
         get_data_reliability_audit_writers,
     )
 

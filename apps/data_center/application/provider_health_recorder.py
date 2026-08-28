@@ -7,10 +7,6 @@ import hashlib
 import json
 from datetime import UTC, datetime
 
-from apps.audit.application.data_provider_health_audit import (
-    DataProviderHealthAuditObservation,
-)
-from apps.audit.domain.system_audit_event import AuditOutcome
 from apps.data_center.application.sync_transaction import DataProviderHealthAuditWriter
 from apps.data_center.domain.entities import ProviderConfig, ProviderHealthSnapshot
 from apps.data_center.domain.enums import (
@@ -20,6 +16,10 @@ from apps.data_center.domain.enums import (
 from apps.data_center.domain.protocols import (
     ProviderConfigRepositoryProtocol,
     ProviderRegistryProtocol,
+)
+from core.integration.data_center_audit import (
+    AuditOutcome,
+    DataProviderHealthAuditObservation,
 )
 
 

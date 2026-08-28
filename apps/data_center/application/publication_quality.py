@@ -7,11 +7,6 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Final, Protocol
 
-from apps.audit.application.data_quality_audit import (
-    DataQualityAuditObservation,
-    DataQualityState,
-    DataQualityStatusCount,
-)
 from apps.data_center.application.publication_utils import publication_hash
 from apps.data_center.application.sync_transaction import (
     DataCenterSyncClock,
@@ -22,6 +17,11 @@ from apps.data_center.domain.control_plane import (
     PublicationFactReference,
     PublicationMember,
     PublicationState,
+)
+from core.integration.data_center_audit import (
+    DataQualityAuditObservation,
+    DataQualityState,
+    DataQualityStatusCount,
 )
 
 _ACCEPTED_MEMBER_STATUSES: Final[frozenset[str]] = frozenset({"accepted", "valid", "verified"})

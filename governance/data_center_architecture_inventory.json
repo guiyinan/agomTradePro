@@ -36,7 +36,7 @@
   "counts": {
     "approved_non_data_http_imports": 4,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 4335,
+    "current_surface_references": 4382,
     "data_write_task_decorators": 62,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -4678,6 +4678,111 @@
       "text": "f\"Using latest data from {latest_snapshot.observed_at}\""
     },
     {
+      "line": 138,
+      "path": "apps/audit/application/data_conflict_audit.py",
+      "text": "raise ValueError(\"current and previous evidence identities must differ\")"
+    },
+    {
+      "line": 341,
+      "path": "apps/audit/application/data_conflict_audit.py",
+      "text": "raise ValueError(\"observation scope differs from current authority\")"
+    },
+    {
+      "line": 293,
+      "path": "apps/audit/application/data_decision_read_audit.py",
+      "text": "raise ValueError(\"observation scope differs from current authority\")"
+    },
+    {
+      "line": 324,
+      "path": "apps/audit/application/data_failover_audit.py",
+      "text": "\"\"\"Bind current authority, preserve first-winner replay, and append.\"\"\""
+    },
+    {
+      "line": 332,
+      "path": "apps/audit/application/data_failover_audit.py",
+      "text": "raise ValueError(\"observation scope differs from current authority\")"
+    },
+    {
+      "line": 143,
+      "path": "apps/audit/application/data_fetch_audit.py",
+      "text": "\"\"\"Resolve the exact current scope for one Data Center audit write.\"\"\""
+    },
+    {
+      "line": 278,
+      "path": "apps/audit/application/data_fetch_audit.py",
+      "text": "\"\"\"Bind current authority, preserve first-winner replay, and append.\"\"\""
+    },
+    {
+      "line": 286,
+      "path": "apps/audit/application/data_fetch_audit.py",
+      "text": "raise ValueError(\"observation scope differs from current authority\")"
+    },
+    {
+      "line": 292,
+      "path": "apps/audit/application/data_freshness_audit.py",
+      "text": "\"\"\"Read the current state from one validated canonical freshness head.\"\"\""
+    },
+    {
+      "line": 361,
+      "path": "apps/audit/application/data_freshness_audit.py",
+      "text": "raise ValueError(\"observation scope differs from current authority\")"
+    },
+    {
+      "line": 291,
+      "path": "apps/audit/application/data_provider_health_audit.py",
+      "text": "raise ValueError(\"observation scope differs from current authority\")"
+    },
+    {
+      "line": 153,
+      "path": "apps/audit/application/data_publication_audit.py",
+      "text": "\"\"\"Resolve the exact current scope for one publication audit write.\"\"\""
+    },
+    {
+      "line": 306,
+      "path": "apps/audit/application/data_publication_audit.py",
+      "text": "\"\"\"Bind current authority, preserve first-winner replay, and append.\"\"\""
+    },
+    {
+      "line": 314,
+      "path": "apps/audit/application/data_publication_audit.py",
+      "text": "raise ValueError(\"observation scope differs from current authority\")"
+    },
+    {
+      "line": 307,
+      "path": "apps/audit/application/data_publication_rollback_audit.py",
+      "text": "raise ValueError(\"observation scope differs from current authority\")"
+    },
+    {
+      "line": 371,
+      "path": "apps/audit/application/data_quality_audit.py",
+      "text": "raise ValueError(\"observation scope differs from current authority\")"
+    },
+    {
+      "line": 101,
+      "path": "apps/audit/application/data_repair_audit.py",
+      "text": "\"\"\"Sanitized outcome summary for one stable repair section.\"\"\""
+    },
+    {
+      "line": 392,
+      "path": "apps/audit/application/data_repair_audit.py",
+      "text": "raise ValueError(\"observation scope differs from current authority\")"
+    },
+    {
+      "line": 124,
+      "path": "apps/audit/application/data_validation_audit.py",
+      "text": "\"\"\"Resolve the current authoritative scope for a validation event.\"\"\""
+    },
+    {
+      "line": 251,
+      "path": "apps/audit/application/data_validation_audit.py",
+      "text": "\"\"\"Bind current authority, preserve first-winner replay, and append.\"\"\""
+    },
+    {
+      "line": 259,
+      "path": "apps/audit/application/data_validation_audit.py",
+      "text": "raise ValueError(\"observation scope differs from current authority\")"
+    },
+    {
       "line": 468,
       "path": "apps/audit/application/indicator_use_cases.py",
       "text": "summary = self.audit_repo.get_validation_summary_by_run_id("
@@ -4883,7 +4988,7 @@
       "text": "\"\"\"Return the JSON-friendly audit metrics summary.\"\"\""
     },
     {
-      "line": 136,
+      "line": 303,
       "path": "apps/audit/application/repository_provider.py",
       "text": "\"\"\"Return the current audit metrics summary.\"\"\""
     },
@@ -4913,14 +5018,24 @@
       "text": "\"\"\"Return the non-negative age of the oldest current claim lease.\"\"\""
     },
     {
-      "line": 264,
+      "line": 304,
       "path": "apps/audit/application/system_audit_query.py",
       "text": "previous.sequence_no >= current.sequence_no"
     },
     {
-      "line": 265,
+      "line": 305,
       "path": "apps/audit/application/system_audit_query.py",
-      "text": "for previous, current in zip(events, events[1:])"
+      "text": "for previous, current in zip(events, events[1:], strict=False)"
+    },
+    {
+      "line": 412,
+      "path": "apps/audit/application/system_audit_query.py",
+      "text": "previous >= current"
+    },
+    {
+      "line": 413,
+      "path": "apps/audit/application/system_audit_query.py",
+      "text": "for previous, current in zip(ordering_keys, ordering_keys[1:], strict=False)"
     },
     {
       "line": 7,
@@ -4928,12 +5043,12 @@
       "text": "the current runtime gate remains ``publisher_not_wired`` until a production"
     },
     {
-      "line": 129,
+      "line": 137,
       "path": "apps/audit/application/system_audit_runtime_composition.py",
       "text": "\"\"\"Read and validate current authority before a future outbox claim."
     },
     {
-      "line": 132,
+      "line": 140,
       "path": "apps/audit/application/system_audit_runtime_composition.py",
       "text": "current snapshot is still authenticated, staff-bound, in scope, and valid"
     },
@@ -5088,12 +5203,37 @@
       "text": "for key in (\"summary\", \"message\", \"decision\", \"status\", \"result\", \"recommendation\"):"
     },
     {
+      "line": 33,
+      "path": "apps/audit/infrastructure/system_audit_delivery_receipt.py",
+      "text": "\"\"\"Return the current aware timestamp.\"\"\""
+    },
+    {
+      "line": 108,
+      "path": "apps/audit/infrastructure/system_audit_event_outbox_coordinator.py",
+      "text": "\"\"\"Return the scoped current head through the coordinator alias.\"\"\""
+    },
+    {
       "line": 59,
       "path": "apps/audit/infrastructure/system_audit_outbox_repository.py",
       "text": "\"\"\"Return the current timezone-aware timestamp.\"\"\""
     },
     {
-      "line": 54,
+      "line": 89,
+      "path": "apps/audit/infrastructure/system_audit_outbox_runtime.py",
+      "text": "\"\"\"Validate the exact current authority at the dispatch cutoff.\"\"\""
+    },
+    {
+      "line": 96,
+      "path": "apps/audit/infrastructure/system_audit_outbox_runtime.py",
+      "text": "\"\"\"Resolve the current event scope from the inspected authority bundle.\"\"\""
+    },
+    {
+      "line": 101,
+      "path": "apps/audit/infrastructure/system_audit_outbox_runtime.py",
+      "text": "\"\"\"Return the exact current scope at the event persistence cutoff.\"\"\""
+    },
+    {
+      "line": 53,
       "path": "apps/audit/infrastructure/system_audit_repository.py",
       "text": "\"\"\"Return the current timezone-aware timestamp.\"\"\""
     },
@@ -7328,7 +7468,7 @@
       "text": "raise RuntimeError(\"Data-center config summary repository is not configured\")"
     },
     {
-      "line": 125,
+      "line": 173,
       "path": "apps/data_center/application/control_plane.py",
       "text": "\"\"\"Apply a publication policy before exposing selected facts as current.\"\"\""
     },
@@ -7358,42 +7498,52 @@
       "text": "\"\"\"Fetch and store one current valuation row per available asset.\"\"\""
     },
     {
-      "line": 508,
+      "line": 348,
+      "path": "apps/data_center/application/data_chain_replay.py",
+      "text": "latest = publication_reader.get_rollback_by_id(rollback_ids[-1])"
+    },
+    {
+      "line": 351,
+      "path": "apps/data_center/application/data_chain_replay.py",
+      "text": "if latest is None or publication.reinstated_at != latest.observed_at:"
+    },
+    {
+      "line": 512,
       "path": "apps/data_center/application/dtos.py",
       "text": "\"\"\"Input DTO for fetching the latest quote snapshot.\"\"\""
     },
     {
-      "line": 681,
+      "line": 741,
       "path": "apps/data_center/application/dtos.py",
       "text": "\"\"\"Result of one current-valuation batch sync.\"\"\""
     },
     {
-      "line": 142,
+      "line": 143,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Refresh the latest pulse snapshot through the owning pulse use case.\"\"\""
     },
     {
-      "line": 148,
+      "line": 149,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Fetch latest realtime prices through the owning realtime use case.\"\"\""
     },
     {
-      "line": 615,
+      "line": 619,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Build the latest quote query use case.\"\"\""
     },
     {
-      "line": 621,
+      "line": 625,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Fetch real-time prices from the realtime app fallback service.\"\"\""
     },
     {
-      "line": 723,
+      "line": 727,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Return the latest market-thermometer payload for UI/API consumers.\"\"\""
     },
     {
-      "line": 98,
+      "line": 100,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "return {\"status\": \"skipped\", \"message\": \"No realtime quote provider is available.\"}"
     },
@@ -7423,7 +7573,7 @@
       "text": "skipped_payload = latest.to_dict()"
     },
     {
-      "line": 492,
+      "line": 461,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "\"\"\"Build the current valuation batch sync use case.\"\"\""
     },
@@ -7666,6 +7816,11 @@
       "line": 102,
       "path": "apps/data_center/application/provider_connection_workflow.py",
       "text": "last_error=result.summary,"
+    },
+    {
+      "line": 145,
+      "path": "apps/data_center/application/provider_health_recorder.py",
+      "text": "raise ValueError(\"provider health audit transition lost its current snapshot\")"
     },
     {
       "line": 5,
@@ -8223,9 +8378,34 @@
       "text": "\"\"\"Observation and fetch provenance helpers for current quote reads.\"\"\""
     },
     {
-      "line": 66,
+      "line": 133,
       "path": "apps/data_center/application/reconciliation.py",
       "text": "never imports either legacy or canonical storage.  Production current"
+    },
+    {
+      "line": 290,
+      "path": "apps/data_center/application/reconciliation.py",
+      "text": "current: ReconciliationEvidence,"
+    },
+    {
+      "line": 295,
+      "path": "apps/data_center/application/reconciliation.py",
+      "text": "current_count = _semantic_conflict_count(current)"
+    },
+    {
+      "line": 587,
+      "path": "apps/data_center/application/reliability_repair_use_case.py",
+      "text": "publication_key=\"current\","
+    },
+    {
+      "line": 630,
+      "path": "apps/data_center/application/reliability_repair_use_case.py",
+      "text": "publication_key=\"current\","
+    },
+    {
+      "line": 167,
+      "path": "apps/data_center/application/repair_run_replay.py",
+      "text": "\"\"\"Rebuild and validate the sanitized section summary.\"\"\""
     },
     {
       "line": 79,
@@ -8268,6 +8448,16 @@
       "text": "raise AssertionError(\"retention current payload guard failed\")"
     },
     {
+      "line": 53,
+      "path": "apps/data_center/application/sync_market_use_cases.py",
+      "text": "publication_key = \"current\""
+    },
+    {
+      "line": 363,
+      "path": "apps/data_center/application/sync_market_use_cases.py",
+      "text": "publication_key = \"current\""
+    },
+    {
       "line": 142,
       "path": "apps/data_center/application/tasks.py",
       "text": "Current domain sync DTOs expose ``stored_count`` only, so the durable"
@@ -8308,27 +8498,32 @@
       "text": "return current"
     },
     {
+      "line": 947,
+      "path": "apps/data_center/composition.py",
+      "text": "\"\"\"Compose the canonical same-UOW realtime-quote sync writer.\"\"\""
+    },
+    {
       "line": 200,
       "path": "apps/data_center/domain/contracts.py",
       "text": "raise ValueError(\"current DataEnvelope requires publication_id\")"
     },
     {
-      "line": 175,
+      "line": 176,
       "path": "apps/data_center/domain/entities.py",
       "text": "summary: str"
     },
     {
-      "line": 183,
+      "line": 184,
       "path": "apps/data_center/domain/entities.py",
       "text": "\"summary\": self.summary,"
     },
     {
-      "line": 688,
+      "line": 718,
       "path": "apps/data_center/domain/entities.py",
       "text": "summary: str = \"\""
     },
     {
-      "line": 703,
+      "line": 733,
       "path": "apps/data_center/domain/entities.py",
       "text": "\"summary\": self.summary,"
     },
@@ -8538,102 +8733,112 @@
       "text": "summary=f\"Connection test failed ({error_type})\","
     },
     {
-      "line": 574,
+      "line": 586,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "\"\"\"Reject a late publication that would rewind the current scope."
     },
     {
-      "line": 577,
+      "line": 589,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "intervals.  Superseding an already-current row with an earlier (or"
     },
     {
-      "line": 579,
+      "line": 591,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "and could expose an out-of-order snapshot as current.  Keep this"
     },
     {
-      "line": 594,
+      "line": 606,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "raise ValueError(\"Cannot publish while current publication has no published_at\")"
     },
     {
-      "line": 595,
+      "line": 607,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "latest = active.order_by(\"-published_at\").first()"
     },
     {
-      "line": 597,
+      "line": 609,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "latest is not None"
     },
     {
-      "line": 598,
+      "line": 610,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "and latest.published_at is not None"
     },
     {
-      "line": 599,
+      "line": 611,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "and published_at <= latest.published_at"
     },
     {
-      "line": 601,
+      "line": 613,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "raise ValueError(\"Publication published_at must be later than current publication\")"
     },
     {
-      "line": 640,
+      "line": 661,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "raise ValueError(\"Rollback requires exactly one current published publication\")"
     },
     {
-      "line": 641,
+      "line": 662,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "current = current_rows[0]"
     },
     {
-      "line": 642,
+      "line": 663,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "if current.published_at is None or current.as_of is None:"
     },
     {
-      "line": 643,
+      "line": 664,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "raise ValueError(\"Current publication is missing publication time evidence\")"
     },
     {
-      "line": 644,
+      "line": 665,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "if current.as_of > current.published_at:"
     },
     {
-      "line": 645,
+      "line": 666,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "raise ValueError(\"Current publication has inconsistent publication time evidence\")"
     },
     {
-      "line": 646,
+      "line": 667,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "if rollback.observed_at <= current.published_at:"
     },
     {
-      "line": 647,
+      "line": 668,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "raise ValueError(\"Rollback observed_at must be later than current published_at\")"
     },
     {
-      "line": 652,
+      "line": 673,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "publication_id=current.publication_id,"
     },
     {
-      "line": 666,
+      "line": 687,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "previous_publication_id=current.publication_id,"
     },
     {
-      "line": 729,
+      "line": 702,
+      "path": "apps/data_center/infrastructure/control_plane_repositories.py",
+      "text": "\"\"\"Replay only an exact rollback whose resulting state is still current.\"\"\""
+    },
+    {
+      "line": 733,
+      "path": "apps/data_center/infrastructure/control_plane_repositories.py",
+      "text": "raise ValueError(\"publication rollback replay no longer matches current state\")"
+    },
+    {
+      "line": 811,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "\"\"\"Return the latest publication visible at an historical boundary.\"\"\""
     },
@@ -9213,7 +9418,7 @@
       "text": "\"summary\": {"
     },
     {
-      "line": 169,
+      "line": 176,
       "path": "apps/data_center/infrastructure/macro_fact_storage_repository.py",
       "text": "\"\"\"Return the selected fact for the latest reporting period.\"\"\""
     },
@@ -9363,7 +9568,7 @@
       "text": "\"\"\"Return one latest knowable version per business key.\"\"\""
     },
     {
-      "line": 101,
+      "line": 109,
       "path": "apps/data_center/infrastructure/quote_snapshot_repository.py",
       "text": "becomes the realtime observation boundary."
     },
@@ -9708,7 +9913,7 @@
       "text": "self.stdout.write(self.style.SUCCESS(summary))"
     },
     {
-      "line": 343,
+      "line": 340,
       "path": "apps/data_center/management/commands/repair_decision_data_reliability.py",
       "text": "return {\"status\": \"skipped\", \"message\": \"No realtime quote provider is available.\"}"
     },
@@ -13848,12 +14053,12 @@
       "text": "\"\"\"Resolve the current regime through the owning regime module.\"\"\""
     },
     {
-      "line": 141,
+      "line": 161,
       "path": "apps/pulse/application/use_cases.py",
       "text": "\"Skipping Pulse calculation for %s because current regime is unavailable\","
     },
     {
-      "line": 237,
+      "line": 257,
       "path": "apps/pulse/application/use_cases.py",
       "text": "\"Error getting latest Pulse\","
     },
@@ -20093,154 +20298,154 @@
       "text": "\"summary_id\": [\"summary_id\", \"summary.id\"],"
     },
     {
-      "line": 224,
+      "line": 41,
+      "path": "apps/terminal/application/tui_operator_formatting.py",
+      "text": "def _monitor_severity(summary: dict[str, Any]) -> str:"
+    },
+    {
+      "line": 42,
+      "path": "apps/terminal/application/tui_operator_formatting.py",
+      "text": "daily_state = dict(summary.get(\"daily_state\") or {})"
+    },
+    {
+      "line": 101,
+      "path": "apps/terminal/application/tui_operator_formatting.py",
+      "text": "latest = None"
+    },
+    {
+      "line": 106,
+      "path": "apps/terminal/application/tui_operator_formatting.py",
+      "text": "if latest is None or created_at > latest:"
+    },
+    {
+      "line": 107,
+      "path": "apps/terminal/application/tui_operator_formatting.py",
+      "text": "latest = created_at"
+    },
+    {
+      "line": 108,
+      "path": "apps/terminal/application/tui_operator_formatting.py",
+      "text": "return _iso(latest or timezone.now())"
+    },
+    {
+      "line": 250,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "\"summary\": dict(Counter(row[\"severity\"] for row in rows)),"
     },
     {
-      "line": 397,
+      "line": 446,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "summary = ("
     },
     {
-      "line": 405,
+      "line": 459,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "\"summary\": summary,"
     },
     {
-      "line": 425,
+      "line": 483,
       "path": "apps/terminal/application/tui_operator_services.py",
-      "text": "\"summary\": \"当前存在政策干预\" if intervention else \"政策状态可用\","
+      "text": "\"summary\": \"当前存在政策干预\" if intervention else \"政策状态按数据基准日评估\","
     },
     {
-      "line": 441,
+      "line": 500,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "\"summary\": \"当前没有可用脉搏快照。\","
     },
     {
-      "line": 453,
+      "line": 529,
       "path": "apps/terminal/application/tui_operator_services.py",
-      "text": "\"summary\": \"存在转折预警\" if snapshot.transition_warning else \"脉搏层正常\","
+      "text": "\"summary\": blocking_reason"
     },
     {
-      "line": 471,
+      "line": 550,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "\"summary\": blocked_reasons[0] if blocked_reasons else \"决策数据链路可用\","
     },
     {
-      "line": 498,
+      "line": 577,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "\"summary\": f\"活跃持仓 {open_position_count} 笔\","
     },
     {
-      "line": 507,
+      "line": 586,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "\"summary\": f\"已失效 {invalidated_count} 条\","
     },
     {
-      "line": 516,
+      "line": 595,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "summary = get_personal_readiness_monitor_summary(strict_runtime=False)"
     },
     {
-      "line": 520,
+      "line": 599,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "severity=_monitor_severity(summary),"
     },
     {
-      "line": 522,
+      "line": 601,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "title=str(((summary.get(\"daily_state\") or {}).get(\"title\")) or \"Readiness monitor\"),"
     },
     {
-      "line": 523,
+      "line": 602,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "status=str(summary.get(\"status\") or \"unknown\"),"
     },
     {
-      "line": 525,
+      "line": 604,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "(summary.get(\"blocking_issues\") or []),"
     },
     {
-      "line": 526,
+      "line": 605,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "(summary.get(\"daily_state\") or {}).get(\"message\"),"
     },
     {
-      "line": 527,
+      "line": 606,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "(summary.get(\"monitor_gate\") or {}).get(\"reason\"),"
     },
     {
-      "line": 691,
+      "line": 770,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "summary = get_operator_repository().get_summary()"
     },
     {
-      "line": 692,
+      "line": 771,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "needs_attention = int(summary.get(\"needs_attention_count\") or 0)"
     },
     {
-      "line": 693,
+      "line": 772,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "failed = int((summary.get(\"task_counts\") or {}).get(\"failed\", 0) or 0)"
     },
     {
-      "line": 694,
+      "line": 773,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "active = int(summary.get(\"total_tasks\") or 0)"
     },
     {
-      "line": 721,
+      "line": 800,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "summary = get_account_diagnostic_summary()"
     },
     {
-      "line": 723,
+      "line": 802,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "if int(summary.get(\"active_currency_count\") or 0) == 0:"
     },
     {
-      "line": 725,
+      "line": 804,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "if int(summary.get(\"asset_category_count\") or 0) == 0:"
     },
     {
-      "line": 727,
+      "line": 806,
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "if int(summary.get(\"portfolio_count\") or 0) == 0:"
-    },
-    {
-      "line": 935,
-      "path": "apps/terminal/application/tui_operator_services.py",
-      "text": "def _monitor_severity(summary: dict[str, Any]) -> str:"
-    },
-    {
-      "line": 936,
-      "path": "apps/terminal/application/tui_operator_services.py",
-      "text": "daily_state = dict(summary.get(\"daily_state\") or {})"
-    },
-    {
-      "line": 995,
-      "path": "apps/terminal/application/tui_operator_services.py",
-      "text": "latest = None"
-    },
-    {
-      "line": 1000,
-      "path": "apps/terminal/application/tui_operator_services.py",
-      "text": "if latest is None or created_at > latest:"
-    },
-    {
-      "line": 1001,
-      "path": "apps/terminal/application/tui_operator_services.py",
-      "text": "latest = created_at"
-    },
-    {
-      "line": 1002,
-      "path": "apps/terminal/application/tui_operator_services.py",
-      "text": "return _iso(latest or timezone.now())"
     },
     {
       "line": 87,
@@ -20328,12 +20533,12 @@
       "text": "\"summary\": curated.get(\"summary\") or self._clean_operator_text(row.get(\"summary\")),"
     },
     {
-      "line": 271,
+      "line": 288,
       "path": "apps/terminal/application/tui_workbench_constants.py",
       "text": "\"summary\": \"说明\","
     },
     {
-      "line": 399,
+      "line": 506,
       "path": "apps/terminal/application/tui_workbench_constants.py",
       "text": "\"current\": \"当前\","
     },
@@ -20403,27 +20608,32 @@
       "text": "current = payload"
     },
     {
-      "line": 347,
+      "line": 345,
+      "path": "apps/terminal/application/tui_workbench_result_models.py",
+      "text": "if isinstance(current, dict) and parts[0] == \"data\" and \"data\" not in current:"
+    },
+    {
+      "line": 350,
       "path": "apps/terminal/application/tui_workbench_result_models.py",
       "text": "if isinstance(current, dict):"
     },
     {
-      "line": 348,
+      "line": 351,
       "path": "apps/terminal/application/tui_workbench_result_models.py",
       "text": "current = current.get(part)"
     },
     {
-      "line": 349,
+      "line": 352,
       "path": "apps/terminal/application/tui_workbench_result_models.py",
       "text": "elif isinstance(current, list) and part.isdigit():"
     },
     {
-      "line": 351,
+      "line": 354,
       "path": "apps/terminal/application/tui_workbench_result_models.py",
       "text": "current = current[index] if 0 <= index < len(current) else None"
     },
     {
-      "line": 354,
+      "line": 357,
       "path": "apps/terminal/application/tui_workbench_result_models.py",
       "text": "return current"
     },
@@ -20568,28 +20778,28 @@
       "text": "\"\"\"Return a bounded JSON audit summary with sensitive values redacted.\"\"\""
     },
     {
-      "line": 432,
+      "line": 438,
       "path": "apps/terminal/infrastructure/tui_metadata_repository.py",
       "text": "\"\"\"Return True when the latest published payload already matches the requested publish.\"\"\""
     },
     {
-      "line": 967,
-      "path": "apps/terminal/infrastructure/tui_metadata_repository.py",
+      "line": 68,
+      "path": "apps/terminal/infrastructure/tui_metadata_repository_helpers.py",
       "text": "def changed_fields(previous: dict[str, Any], current: dict[str, Any]) -> list[str]:"
     },
     {
-      "line": 973,
-      "path": "apps/terminal/infrastructure/tui_metadata_repository.py",
+      "line": 74,
+      "path": "apps/terminal/infrastructure/tui_metadata_repository_helpers.py",
       "text": "for key in sorted(set(previous) | set(current)):"
     },
     {
-      "line": 976,
-      "path": "apps/terminal/infrastructure/tui_metadata_repository.py",
+      "line": 77,
+      "path": "apps/terminal/infrastructure/tui_metadata_repository_helpers.py",
       "text": "if previous.get(key) != current.get(key):"
     },
     {
-      "line": 986,
-      "path": "apps/terminal/infrastructure/tui_metadata_repository.py",
+      "line": 87,
+      "path": "apps/terminal/infrastructure/tui_metadata_repository_helpers.py",
       "text": "for action in current.get(\"actions\", [])"
     },
     {
@@ -21451,6 +21661,31 @@
       "line": 68,
       "path": "core/integration/sentiment_readiness.py",
       "text": "raise RuntimeError(\"current sentiment resolver is not wired\")"
+    },
+    {
+      "line": 32,
+      "path": "core/integration/system_audit_authority.py",
+      "text": "\"\"\"Read one exact-current Account actor authority source.\"\"\""
+    },
+    {
+      "line": 41,
+      "path": "core/integration/system_audit_authority.py",
+      "text": "\"\"\"Read one exact-current owner/tenant authority source.\"\"\""
+    },
+    {
+      "line": 82,
+      "path": "core/integration/system_audit_authority.py",
+      "text": "\"\"\"Forward the exact selector and project only a valid current source.\"\"\""
+    },
+    {
+      "line": 94,
+      "path": "core/integration/system_audit_authority.py",
+      "text": "if source.authority_state != \"current\" or not source.is_temporally_current_at(as_of):"
+    },
+    {
+      "line": 128,
+      "path": "core/integration/system_audit_authority.py",
+      "text": "\"\"\"Forward the exact selector and project only a valid current authority.\"\"\""
     },
     {
       "line": 72,

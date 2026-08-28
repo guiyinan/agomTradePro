@@ -8,10 +8,6 @@ from datetime import UTC, datetime
 from typing import Protocol
 from uuid import uuid4
 
-from apps.audit.application.data_publication_rollback_audit import (
-    DataPublicationRollbackAuditObservation,
-)
-from apps.audit.domain.system_audit_event import AuditOutcome
 from apps.data_center.application.sync_transaction import (
     DataCenterSyncClock,
     DataCenterSyncUnitOfWork,
@@ -27,6 +23,10 @@ from apps.data_center.domain.control_plane import (
     SyncBatch,
     SyncCheckpoint,
     SyncRun,
+)
+from core.integration.data_center_audit import (
+    AuditOutcome,
+    DataPublicationRollbackAuditObservation,
 )
 
 

@@ -10,10 +10,6 @@ from datetime import UTC, datetime
 from typing import Protocol
 from uuid import uuid4
 
-from apps.audit.application.data_conflict_audit import (
-    DataConflictAuditObservation,
-    DataConflictTransition,
-)
 from apps.data_center.application.sync_transaction import (
     DataCenterSyncClock,
     DataCenterSyncUnitOfWork,
@@ -27,6 +23,10 @@ from apps.data_center.domain.reconciliation import (
     ReconciliationReport,
     evaluate_query_budget,
     reconcile_records,
+)
+from core.integration.data_center_audit import (
+    DataConflictAuditObservation,
+    DataConflictTransition,
 )
 
 

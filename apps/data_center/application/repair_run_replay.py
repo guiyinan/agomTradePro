@@ -7,25 +7,6 @@ from datetime import date, datetime
 from typing import Protocol
 from uuid import UUID
 
-from apps.audit.application.data_repair_audit import (
-    RepairPublicationEvidence,
-    RepairSectionEvidence,
-)
-from apps.audit.application.system_audit_query import (
-    ListCorrelatedSystemAuditEventsCommand,
-    ListCorrelatedSystemAuditEventsResult,
-    SystemAuditQueryCorruption,
-    SystemAuditQueryUnavailable,
-    SystemAuditReaderContext,
-)
-from apps.audit.domain.system_audit_event import (
-    AuditCategory,
-    AuditEvidenceRef,
-    AuditOutcome,
-    AuditSeverity,
-    AuditWritePolicy,
-    SystemAuditEvent,
-)
 from apps.data_center.application.data_chain_replay import (
     DataChainReplayCommand,
     DataChainReplayResult,
@@ -35,6 +16,21 @@ from apps.data_center.application.data_chain_replay import (
 )
 from apps.data_center.application.sync_identity import SyncExecutionIdentity
 from core.exceptions import DataValidationError, ResourceNotFoundError
+from core.integration.data_center_audit import (
+    AuditCategory,
+    AuditEvidenceRef,
+    AuditOutcome,
+    AuditSeverity,
+    AuditWritePolicy,
+    ListCorrelatedSystemAuditEventsCommand,
+    ListCorrelatedSystemAuditEventsResult,
+    RepairPublicationEvidence,
+    RepairSectionEvidence,
+    SystemAuditEvent,
+    SystemAuditQueryCorruption,
+    SystemAuditQueryUnavailable,
+    SystemAuditReaderContext,
+)
 
 _REPAIR_EVENT_TYPE = "data.repair.completed"
 _REPAIR_DATASET_KEY = "decision.reliability.repair"

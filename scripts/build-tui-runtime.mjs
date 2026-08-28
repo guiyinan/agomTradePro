@@ -105,6 +105,7 @@ const metadataInfrastructureDirectory = resolve(root, "apps/terminal/infrastruct
 const metadataInfrastructureFiles = [
     resolve(metadataInfrastructureDirectory, "tui_information_architecture.py"),
     resolve(metadataInfrastructureDirectory, "tui_metadata_repository.py"),
+    resolve(metadataInfrastructureDirectory, "tui_metadata_repository_helpers.py"),
     resolve(metadataInfrastructureDirectory, "tui_metadata_signals.py"),
     ...(await sortedPythonFiles(metadataInfrastructureDirectory, "tui_metadata_runtime_")),
 ];

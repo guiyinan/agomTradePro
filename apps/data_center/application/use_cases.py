@@ -51,6 +51,10 @@ from apps.data_center.application.reliability_use_cases import (
 )
 from apps.data_center.application.sync_use_cases import (
     RECOVERABLE_DATA_CENTER_EXCEPTIONS,
+    MacroFailoverDecision,
+    MacroFailoverPolicy,
+    MacroFailoverPolicyProvider,
+    PreparedMacroSync,
     SyncCapitalFlowUseCase,
     SyncFinancialUseCase,
     SyncFundNavUseCase,
@@ -75,6 +79,10 @@ __all__ = [
     "ManageIndicatorUnitRuleUseCase",
     "ManageProviderConfigUseCase",
     "ManagePublisherCatalogUseCase",
+    "MacroFailoverDecision",
+    "MacroFailoverPolicy",
+    "MacroFailoverPolicyProvider",
+    "PreparedMacroSync",
     "QueryCapitalFlowsUseCase",
     "QueryFinancialsUseCase",
     "QueryFundNavUseCase",

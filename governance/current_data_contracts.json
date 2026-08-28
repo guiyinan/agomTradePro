@@ -2808,6 +2808,7 @@
         "apps/data_center/application/valuation_publication.py",
         "apps/data_center/application/publication_utils.py",
         "apps/data_center/application/sync_use_cases.py",
+        "apps/data_center/application/sync_market_use_cases.py",
         "apps/data_center/application/sync_macro_use_cases.py",
         "apps/data_center/application/interface_services.py",
         "apps/data_center/application/interface_services_decision_sync.py",
@@ -2872,10 +2873,13 @@
           "macro observation cannot be later than publication time"
         ],
         "apps/data_center/application/sync_use_cases.py": [
-          "publication_publisher: PublishPriceBarBatchUseCase | None = None",
-          "publication_publisher: PublishQuoteSnapshotBatchUseCase | None = None",
           "publication_publisher: PublishFinancialBatchUseCase | None = None",
           "publication_publisher: PublishValuationBatchUseCase | None = None",
+          "self._publication_publisher.execute("
+        ],
+        "apps/data_center/application/sync_market_use_cases.py": [
+          "publication_publisher: PublishPriceBarBatchUseCase | None = None",
+          "publication_publisher: PublishQuoteSnapshotBatchUseCase | None = None",
           "publication_quality_recorder: DataPublicationQualityRecorder | None = None",
           "publication publisher and quality recorder must be configured together",
           "quality_recorder.execute(",
