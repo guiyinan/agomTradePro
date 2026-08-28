@@ -113,7 +113,7 @@ def _publication(
         fact_table="data_center_price_bar",
         fact_pk=publication_id,
         observed_at=published_at,
-        raw_payload_hash=hashlib.sha256(f"raw:{publication_id}".encode("utf-8")).hexdigest(),
+        raw_payload_hash=hashlib.sha256(f"raw:{publication_id}".encode()).hexdigest(),
     )
     return publication, (member,)
 

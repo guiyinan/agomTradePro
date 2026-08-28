@@ -27,8 +27,7 @@ from apps.audit.application.data_publication_audit import (
     DataPublicationAuditObservation,
     build_data_publication_audit_event,
 )
-from apps.audit.domain.system_audit_event import AuditOutcome, AuditScopeRef
-from apps.audit.domain.system_audit_event import SystemAuditEvent
+from apps.audit.domain.system_audit_event import AuditOutcome, AuditScopeRef, SystemAuditEvent
 from apps.audit.infrastructure.system_audit_models import SystemAuditEventModel
 from apps.audit.infrastructure.system_audit_repository import (
     DjangoSystemAuditEventRepository,
@@ -355,15 +354,21 @@ def test_correlated_read_is_scope_and_pit_bounded() -> None:
                 recorded_at=event.recorded_at,
             )
 
-    assert repository.list_correlated_events(
-        None,
-        PUBLICATION_ID,
-        LATER,
-        OTHER_SCOPE,
-    ) == ()
-    assert repository.list_correlated_events(
-        None,
-        PUBLICATION_ID,
-        NOW + timedelta(seconds=1),
-        SCOPE,
-    ) == scoped_events[:2]
+    assert (
+        repository.list_correlated_events(
+            None,
+            PUBLICATION_ID,
+            LATER,
+            OTHER_SCOPE,
+        )
+        == ()
+    )
+    assert (
+        repository.list_correlated_events(
+            None,
+            PUBLICATION_ID,
+            NOW + timedelta(seconds=1),
+            SCOPE,
+        )
+        == scoped_events[:2]
+    )
