@@ -7,7 +7,7 @@
     "published_sha256": "63be10ee25bb73c87861c18cc92355938fd7abc096c33852bf5f904d4db532a2",
     "normalized_action_count": 413,
     "normalized_read_action_count": 391,
-    "normalized_read_key_sha256": "05143b00f7b0193ec43c851cf39e31ffa55cd9cfbbf49c186e539ef18088509d",
+    "normalized_read_set_sha256": "05143b00f7b0193ec43c851cf39e31ffa55cd9cfbbf49c186e539ef18088509d",
     "raw_debug_true_count": 413,
     "evidence_binding_count": 0
   },
