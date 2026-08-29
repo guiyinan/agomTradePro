@@ -548,7 +548,7 @@ def _ai_fields(*, required: bool) -> list[dict[str, Any]]:
                 "min": 1,
             }
             for key, label in (
-                ("prompt_template", "Prompt 模板 ID"),
+                ("prompt_template", "提示词模板 ID"),
                 ("chain_config", "执行链 ID"),
                 ("ai_provider", "AI 服务商 ID"),
             )
@@ -863,13 +863,13 @@ RUNTIME_STRATEGY_ACTIONS: tuple[dict[str, Any], ...] = (
     ),
     _rule_mutation(
         key="strategy.rule-create-regime",
-        label="新建 Regime 规则",
+        label="新建宏观象限规则",
         fields=_regime_rule_fields(),
         sequence=1000,
     ),
     _rule_mutation(
         key="strategy.rule-update-regime",
-        label="替换 Regime 规则",
+        label="替换宏观象限规则",
         fields=_regime_rule_fields(),
         sequence=1010,
         update=True,
@@ -1059,7 +1059,7 @@ RUNTIME_STRATEGY_ACTIONS: tuple[dict[str, Any], ...] = (
         effect="create",
         sequence=1150,
         fields=_ai_fields(required=True),
-        description="绑定 Prompt、执行链与服务商，并设置审批阈值。",
+        description="绑定提示词、执行链与服务商，并设置审批阈值。",
     ),
     _mutation(
         key="strategy.ai-config-update",

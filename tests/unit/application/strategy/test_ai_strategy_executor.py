@@ -195,6 +195,21 @@ class TestAIStrategyExecutor:
         with pytest.raises(ValueError, match="must have ai_config"):
             executor.execute(strategy, portfolio_id=1)
 
+    def test_unwired_authority_blocks_before_context_or_legacy_fallback(
+        self, executor, ai_strategy, mock_providers
+    ):
+        """AI strategy execution must not read portfolio or use legacy AI fallback."""
+
+        mock_providers["portfolio_provider"].get_positions.side_effect = AssertionError(
+            "portfolio must not be read"
+        )
+        mock_providers["portfolio_provider"].get_cash.side_effect = AssertionError(
+            "portfolio must not be read"
+        )
+
+        with pytest.raises(RuntimeError, match="agent_authority_not_wired"):
+            executor.execute(ai_strategy, portfolio_id=1)
+
     def test_apply_approval_mode_auto(self, executor):
         """测试自动审核模式"""
         risk_params = RiskControlParams()

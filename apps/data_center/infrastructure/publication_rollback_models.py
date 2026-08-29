@@ -228,6 +228,7 @@ class PublicationRollbackModel(models.Model):
             operator=self.operator,
             observed_at=self.observed_at,
             previous_publication_id=str(self.previous_publication_id),
+            rollback_id=str(self.rollback_id),
         )
 
 

@@ -8,6 +8,9 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
 
+from apps.data_center.application.decision_read_audit import (
+    RecordPublicationDecisionReadCommand,
+)
 from apps.data_center.application.dtos import (
     CreateProviderRequest,
     CreatePublisherCatalogRequest,
@@ -19,6 +22,11 @@ from apps.data_center.application.dtos import (
 )
 from apps.data_center.application.provider_connection_workflow import (
     RunProviderConnectionTestUseCase,
+)
+from apps.data_center.application.sync_use_cases import (
+    SyncMacroUseCase,
+    SyncPriceUseCase,
+    SyncQuoteUseCase,
 )
 from apps.data_center.application.use_cases import (
     ManageProviderConfigUseCase,
@@ -39,6 +47,16 @@ from apps.data_center.domain.entities import (
     RawAudit,
 )
 from apps.data_center.domain.enums import DataQualityStatus
+from tests.unit.data_center.audited_sync_test_support import (
+    CollectingDataFetchAuditWriter,
+    CollectingDataPublicationAuditWriter,
+    CollectingDataRepairAuditWriter,
+    CollectingDataValidationAuditWriter,
+    FixedSyncClock,
+    FixedSyncIdentityIssuer,
+    InMemorySyncUnitOfWork,
+    bind_raw_audit,
+)
 
 # ---------------------------------------------------------------------------
 # In-memory stub repository
@@ -253,8 +271,9 @@ class _RawAuditRepo:
         self.items: list[RawAudit] = []
 
     def log(self, audit: RawAudit) -> RawAudit:
-        self.items.append(audit)
-        return audit
+        stored = bind_raw_audit(audit)
+        self.items.append(stored)
+        return stored
 
 
 class _ProviderFactory:
@@ -1061,6 +1080,18 @@ class TestQueryLatestQuoteUseCase:
         assert result.must_not_use_for_decision is True
 
 
+class _CollectingDecisionReadRecorder:
+    def __init__(self, *, failing_key: str | None = None) -> None:
+        self.commands: list[RecordPublicationDecisionReadCommand] = []
+        self._failing_key = failing_key
+
+    def execute(self, command: RecordPublicationDecisionReadCommand) -> object:
+        if command.decision_key == self._failing_key:
+            raise RuntimeError("decision_read_audit_unavailable")
+        self.commands.append(command)
+        return object()
+
+
 class TestRepairDecisionDataReliabilityUseCase:
     def _make_use_case(
         self,
@@ -1069,6 +1100,7 @@ class TestRepairDecisionDataReliabilityUseCase:
         target_date: date = date(2026, 4, 21),
         price_date: date | None = None,
         macro_error: Exception | None = None,
+        decision_read_recorder: _CollectingDecisionReadRecorder | None = None,
         alpha_refresher=None,
         alpha_status_reader=None,
     ) -> RepairDecisionDataReliabilityUseCase:
@@ -1078,41 +1110,95 @@ class TestRepairDecisionDataReliabilityUseCase:
             price_date=price_date,
             macro_error=macro_error,
         )
+        provider_registry = _ProviderFactory(provider)
+        macro_fact_repo = _MacroFactRepo()
+        indicator_catalog_repo = _IndicatorCatalogRepo(
+            IndicatorCatalog(
+                code="CN_PMI",
+                name_cn="制造业PMI",
+                default_unit="指数",
+                default_period_type="D",
+            )
+        )
+        indicator_unit_rule_repo = _IndicatorUnitRuleRepo(
+            [
+                IndicatorUnitRule(
+                    id=1,
+                    indicator_code="CN_PMI",
+                    source_type="akshare",
+                    original_unit="指数",
+                    storage_unit="指数",
+                    display_unit="指数",
+                    multiplier_to_storage=1.0,
+                )
+            ]
+        )
+        raw_audit_repo = _RawAuditRepo()
+        price_bar_repo = _PriceBarRepo()
+        quote_snapshot_repo = _QuoteSnapshotRepo()
+        macro_sync_use_case = SyncMacroUseCase(
+            provider_repo=repo,
+            provider_registry=provider_registry,
+            fact_repo=macro_fact_repo,
+            catalog_repo=indicator_catalog_repo,
+            unit_rule_repo=indicator_unit_rule_repo,
+            raw_audit_repo=raw_audit_repo,
+            sync_identity_issuer=FixedSyncIdentityIssuer(),
+            sync_unit_of_work=InMemorySyncUnitOfWork(),
+            data_fetch_audit_writer=CollectingDataFetchAuditWriter(),
+            data_publication_audit_writer=CollectingDataPublicationAuditWriter(),
+            data_validation_audit_writer=CollectingDataValidationAuditWriter(),
+            clock=FixedSyncClock(),
+        )
+        price_sync_use_case = SyncPriceUseCase(
+            provider_repo=repo,
+            provider_registry=provider_registry,
+            fact_repo=price_bar_repo,
+            raw_audit_repo=raw_audit_repo,
+            sync_identity_issuer=FixedSyncIdentityIssuer(),
+            sync_unit_of_work=InMemorySyncUnitOfWork(),
+            data_fetch_audit_writer=CollectingDataFetchAuditWriter(),
+            data_publication_audit_writer=CollectingDataPublicationAuditWriter(),
+            clock=FixedSyncClock(),
+        )
+        quote_sync_use_case = SyncQuoteUseCase(
+            provider_repo=repo,
+            provider_registry=provider_registry,
+            fact_repo=quote_snapshot_repo,
+            raw_audit_repo=raw_audit_repo,
+            sync_identity_issuer=FixedSyncIdentityIssuer(),
+            sync_unit_of_work=InMemorySyncUnitOfWork(),
+            data_fetch_audit_writer=CollectingDataFetchAuditWriter(),
+            data_publication_audit_writer=CollectingDataPublicationAuditWriter(),
+            clock=FixedSyncClock(),
+        )
         return RepairDecisionDataReliabilityUseCase(
             provider_repo=repo,
-            provider_registry=_ProviderFactory(provider),
-            macro_fact_repo=_MacroFactRepo(),
-            indicator_catalog_repo=_IndicatorCatalogRepo(
-                IndicatorCatalog(
-                    code="CN_PMI",
-                    name_cn="制造业PMI",
-                    default_unit="指数",
-                    default_period_type="D",
-                )
-            ),
-            indicator_unit_rule_repo=_IndicatorUnitRuleRepo(
-                [
-                    IndicatorUnitRule(
-                        id=1,
-                        indicator_code="CN_PMI",
-                        source_type="akshare",
-                        original_unit="指数",
-                        storage_unit="指数",
-                        display_unit="指数",
-                        multiplier_to_storage=1.0,
-                    )
-                ]
-            ),
-            price_bar_repo=_PriceBarRepo(),
-            quote_snapshot_repo=_QuoteSnapshotRepo(),
-            raw_audit_repo=_RawAuditRepo(),
+            provider_registry=provider_registry,
+            macro_fact_repo=macro_fact_repo,
+            indicator_catalog_repo=indicator_catalog_repo,
+            indicator_unit_rule_repo=indicator_unit_rule_repo,
+            price_bar_repo=price_bar_repo,
+            quote_snapshot_repo=quote_snapshot_repo,
+            macro_sync_use_case=macro_sync_use_case,
+            price_sync_use_case=price_sync_use_case,
+            quote_sync_use_case=quote_sync_use_case,
+            decision_read_recorder=(decision_read_recorder or _CollectingDecisionReadRecorder()),
+            sync_identity_issuer=FixedSyncIdentityIssuer(),
+            repair_run_identity_unit_of_work=InMemorySyncUnitOfWork(),
+            data_repair_audit_writer=CollectingDataRepairAuditWriter(),
+            clock=FixedSyncClock(),
             alpha_refresher=alpha_refresher,
             alpha_status_reader=alpha_status_reader,
         )
 
     def test_bootstraps_akshare_and_repairs_fresh_macro_quote_price(self):
         target_date = date(2026, 4, 21)
-        use_case = self._make_use_case(target_date=target_date)
+        decision_read_recorder = _CollectingDecisionReadRecorder()
+        use_case = self._make_use_case(
+            target_date=target_date,
+            decision_read_recorder=decision_read_recorder,
+        )
 
         report = use_case.execute(
             DecisionReliabilityRepairRequest(
@@ -1133,6 +1219,38 @@ class TestRepairDecisionDataReliabilityUseCase:
         )
         assert payload["quote_status"]["status"] == "ready"
         assert payload["must_not_use_for_decision"] is False
+        assert [command.dataset_key for command in decision_read_recorder.commands] == [
+            "macro.fact",
+            "equity.quote.snapshot",
+            "equity.price.bar",
+        ]
+        assert all(
+            command.must_not_use_for_decision is False
+            for command in decision_read_recorder.commands
+        )
+
+    def test_decision_read_recorder_failure_fails_only_its_repair_section(self):
+        target_date = date(2026, 4, 21)
+        recorder = _CollectingDecisionReadRecorder(failing_key="decision-reliability-macro:CN_PMI")
+        use_case = self._make_use_case(
+            target_date=target_date,
+            decision_read_recorder=recorder,
+        )
+
+        report = use_case.execute(
+            DecisionReliabilityRepairRequest(
+                target_date=target_date,
+                asset_codes=["510300.SH"],
+                macro_indicator_codes=["CN_PMI"],
+                repair_pulse=False,
+                repair_alpha=False,
+            )
+        )
+
+        payload = report.to_dict()
+        assert payload["macro_status"]["status"] == "failed"
+        assert payload["quote_status"]["status"] == "ready"
+        assert "decision_read_audit_unavailable" not in str(payload["macro_status"])
 
     def test_macro_repair_exception_does_not_abort_quote_repair(self):
         target_date = date(2026, 4, 21)

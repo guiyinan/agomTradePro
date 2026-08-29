@@ -79,6 +79,8 @@ class _DispatchUnitOfWork:
 
 
 class _DurablePublisher:
+    database_alias = "default"
+
     def __init__(self) -> None:
         self.preflight_calls = 0
 
@@ -92,6 +94,30 @@ class _DurablePublisher:
     def publish(self, event: object) -> object:
         del event
         raise AssertionError("composition preflight must not publish")
+
+
+def test_publisher_alias_drift_is_blocked_before_preflight() -> None:
+    values = _kwargs()
+    publisher = values["publisher"]
+    publisher.database_alias = "other"
+    with pytest.raises(SystemAuditCompositionUnavailable) as exc_info:
+        inspect_system_audit_runtime_composition(**values)
+    assert exc_info.value.reason_code == "composition_alias_mismatch"
+    assert publisher.preflight_calls == 0
+
+
+def test_publisher_without_alias_is_blocked_before_preflight() -> None:
+    values = _kwargs()
+
+    class _PublisherNoAlias(_DurablePublisher):
+        database_alias = None
+
+    publisher = _PublisherNoAlias()
+    values["publisher"] = publisher
+    with pytest.raises(SystemAuditCompositionUnavailable) as exc_info:
+        inspect_system_audit_runtime_composition(**values)
+    assert exc_info.value.reason_code == "publisher_contract_unavailable"
+    assert publisher.preflight_calls == 0
 
 
 class _AuthorityProvider:

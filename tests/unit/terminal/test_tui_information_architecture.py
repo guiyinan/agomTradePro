@@ -67,6 +67,55 @@ def test_tui_ia_registry_is_the_complete_screen_routing_source() -> None:
     assert aliases["capability-router.admin-access"] == "capability-router.admin-access"
 
 
+def test_research_navigation_is_split_by_user_task_and_labels_are_unambiguous() -> None:
+    registry = load_tui_information_architecture()
+    modules = {module["key"]: module for module in registry["modules"]}
+    screens = {
+        screen["key"]: screen
+        for screen in [*registry["published_screens"], *registry["runtime_screens"]]
+    }
+
+    assert [module["key"] for module in registry["modules"] if module["group"] == "research"] == [
+        "investment-research",
+        "ai-workspace",
+        "personal-services",
+        "personal-settings",
+    ]
+    assert modules["investment-research"]["label"] == "投资研究"
+    assert modules["ai-workspace"]["label"] == "AI 工作台"
+    assert modules["personal-services"]["label"] == "个人服务接入"
+    assert modules["personal-settings"]["label"] == "个人设置"
+    assert screens["research.asset-lab"]["module_key"] == "investment-research"
+    assert screens["ai-ops.terminal"]["module_key"] == "ai-workspace"
+    assert screens["cli.terminal"]["module_key"] == "ai-workspace"
+    assert screens["prompt.workbench"]["module_key"] == "ai-workspace"
+    assert screens["ai-ops.providers"]["module_key"] == "personal-services"
+    assert screens["capability-router.self-service"]["module_key"] == "personal-services"
+    assert screens["account.self-service"]["module_key"] == "personal-settings"
+    assert screens["execution.accounts"]["label"] == "账户与持仓"
+    assert screens["account.self-service"]["label"] == "个人资料与交易设置"
+    assert screens["ai-ops.providers"]["label"] == "我的 AI 服务商"
+    assert screens["ai-ops.system-providers"]["label"] == "系统 AI 服务商治理"
+    assert screens["ai-ops.terminal"]["label"] == "AI 任务助手"
+    assert screens["cli.terminal"]["label"] == "命令行任务台"
+    assert screens["capability-router.self-service"]["label"] == "我的 MCP 接入"
+    assert screens["capability-router.mcp-center"]["label"] == "MCP 工具治理"
+    assert screens["capability-router.admin-access"]["label"] == "MCP 用户与令牌"
+
+
+def test_tui_ia_uses_one_user_facing_terminology_vocabulary() -> None:
+    registry = load_tui_information_architecture()
+    visible_copy = json.dumps(registry, ensure_ascii=False)
+
+    assert "Regime" not in visible_copy
+    assert "Prompt" not in visible_copy
+    assert "数据日期" not in visible_copy
+    assert "观测日期" not in visible_copy
+    assert "宏观象限" in visible_copy
+    assert "提示词" in visible_copy
+    assert "观测时间" in visible_copy
+
+
 def test_runtime_screen_registry_publishes_complete_user_experience_contract() -> None:
     registry = load_tui_information_architecture()
     payload = _runtime_payload()
@@ -159,6 +208,8 @@ def test_runtime_ia_is_idempotent_and_has_no_dangling_screen_references() -> Non
     normalized_twice = repository._normalize_runtime_payload(validate_tui_metadata(normalized_once))
 
     assert normalized_twice == normalized_once
+    assert normalized_once["coverage_summary"]["runtime_density_demoted_actions"] == 143
+    assert normalized_twice["coverage_summary"]["runtime_density_demoted_actions"] == 143
     screen_keys = {screen["key"] for screen in normalized_once["screens"]}
     action_keys = {action["key"] for action in normalized_once["actions"]}
     assert len(screen_keys) == 24

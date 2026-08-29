@@ -50,7 +50,7 @@ The project uses complementary guardrails:
 5. `scripts/select_quality_targets.py`
    - Runs in `.github/workflows/ci-fast-feedback.yml`.
    - Selects changed Python files for incremental `ruff` / `black` / `isort` / `mypy`.
-   - Also selects changed domain modules for the incremental Domain coverage gate.
+   - Also selects changed domain modules for the incremental Domain coverage gate; the runner includes app-owned tests plus unit tests that directly import the selected Domain package.
 
 6. `scripts/check_business_configuration_hardcodes.py --mode full`
    - Runs in `.github/workflows/consistency-check.yml`; its mutation-style self-tests run in `.github/workflows/ci-fast-feedback.yml`.

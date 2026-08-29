@@ -112,7 +112,7 @@ RUNTIME_SIMULATED_TRADING_ACTIONS: tuple[dict[str, Any], ...] = (
         "source": _SOURCE,
         "task_group": "06 模拟交易记录",
         "sequence": 620,
-        "task_tier": "operation",
+        "task_tier": "advanced",
         "fields": [
             {
                 "key": "account_name",

@@ -1,7 +1,7 @@
 {
   "version": "web-to-tui-telemetry.v1",
   "source_matrix": "docs/plans/web-to-tui-migration-matrix-2026-07-25.csv",
-  "source_sha256": "bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded",
+  "source_sha256": "e3027671d02d876c9f4b38b9d86395d45e26c0f2b344eb0646086be31869cd5d",
   "classic_routes": [
     {
       "url_name": "account:mcp_guide",
@@ -365,7 +365,7 @@
     },
     {
       "url_name": "data_center:dc-providers-page",
-      "task_key": "auto.api.get.api.data-center.providers",
+      "task_key": "data-center.provider-list",
       "screen_key": "api-library.data-center",
       "template_path": "core/templates/data_center/providers.html"
     },
@@ -383,7 +383,7 @@
     },
     {
       "url_name": "decision-workspace",
-      "task_key": "auto.api.get.api.decision.workspace.aggregated",
+      "task_key": "decision.workspace.summary",
       "screen_key": "command-center.decision-flow",
       "template_path": "core/templates/decision/workspace.html"
     },
@@ -808,11 +808,7 @@
     "audit.validation-run",
     "auto.api.get.api.alpha.ops.inference.overview",
     "auto.api.get.api.alpha.ops.qlib-data.overview",
-    "auto.api.get.api.dashboard.allocation",
-    "auto.api.get.api.dashboard.performance",
-    "auto.api.get.api.data-center.providers",
     "auto.api.get.api.data-center.publishers",
-    "auto.api.get.api.decision.workspace.aggregated",
     "auto.api.get.api.decision.workspace.conflicts",
     "auto.api.get.api.decision.workspace.recommendations",
     "auto.api.get.api.prompt.chains.execution_modes",
@@ -899,7 +895,9 @@
     "dashboard.alpha-history",
     "dashboard.alpha-history-detail",
     "dashboard.alpha-ranking",
+    "dashboard.asset-allocation",
     "dashboard.overview-summary",
+    "dashboard.portfolio-performance",
     "data-center.governance-overview",
     "data-center.governance-run",
     "data-center.market-thermometer-calculate",
@@ -909,6 +907,7 @@
     "data-center.market-thermometer-import",
     "data-center.market-thermometer-import-preview",
     "data-center.market-thermometer-sync",
+    "data-center.provider-list",
     "data-center.provider-status",
     "data-center.provider-test",
     "data-center.publisher-create",
@@ -931,6 +930,7 @@
     "decision.workspace.plan_update",
     "decision.workspace.recommendation_action",
     "decision.workspace.recommendations_refresh",
+    "decision.workspace.summary",
     "equity.intraday-price",
     "equity.pool-list",
     "equity.pool-refresh",

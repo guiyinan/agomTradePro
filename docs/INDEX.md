@@ -1,8 +1,8 @@
 # AgomTradePro 文档索引
 
 > **AgomTradePro 0.8.0** - 个人投研平台
-> **最后更新**: 2026-08-18
-> **项目状态**: 生产就绪
+> **最后更新**: 2026-08-24
+> **项目状态**: 生产验证进行中；关键决策与执行门禁仍 fail-closed
 > **版本管理**: [VERSION.md](VERSION.md)
 
 ---
@@ -23,11 +23,15 @@
 | 产品/业务 | [business/AgomTradePro_V3.4.md](business/AgomTradePro_V3.4.md) | 业务逻辑、金融规则、数据源 |
 | 最终用户 | [user/topdown-bottomup-execution-playbook.md](user/topdown-bottomup-execution-playbook.md) | 环境-标的-执行-审计一体化操作手册 |
 | 运维人员 | [deployment/VPS_BUNDLE_DEPLOYMENT.md](deployment/VPS_BUNDLE_DEPLOYMENT.md) | VPS Bundle 部署指南 |
-| FRP 三机部署 | [architecture/frp-vps-local-runtime-architecture.md](architecture/frp-vps-local-runtime-architecture.md) | VPS 入口 + 本地运行 + C 端 AI Agent/MCP 架构与落地配置 |
+| FRP 三机部署 | [architecture/frp-vps-local-runtime-architecture.md](architecture/frp-vps-local-runtime-architecture.md) | VPS 入口 + 服务端 AI/Agent 薄客户端架构；QMT 外部券商桥另有本地执行例外 |
 
 ---
 
 ## 当前收口说明
+
+- 2026-08-24 EVID-01 最新候选只读复核：候选 `94abd76e…` 的 health/ready/audit 为 `200`、decision-ready 为 `503` fail-closed，`0055`/`0029` 已应用且 13 张 authority/evidence 表全零；快照 [`evid-01-authority-inventory-snapshot-2026-08-24-recheck-2105.json`](deployment/evid-01-authority-inventory-snapshot-2026-08-24-recheck-2105.json)，report [`39760173ab5aa8e4adfab03d088c62519e22e5b6cea40d78eaf2d5d0befd6372.json`](deployment/evid-01-authority-inventory/39/39760173ab5aa8e4adfab03d088c62519e22e5b6cea40d78eaf2d5d0befd6372.json)；`authority_ready=false`、`production_claim=false`，不解除 EVID-01 或全局决策/执行总闸。
+- 2026-08-24 DATA-03 认证 canonical Data Center smoke：同一候选 `94abd76e…` / release `20260824133504` 上，认证 `/api/ready/`=`200`、`/api/decision-ready/`=`503` 且 `must_not_use_for_decision=true`；providers=`200` 返回 2 条脱敏记录，provider status=`200` 但 15 条 capability 中 8 条仍 `must_not_use_for_decision=true`，含 `stale/degraded`，故 smoke 失败而非误报通过。快照 [`data03-readiness-authenticated-smoke-2026-08-24-1335.json`](deployment/data03-readiness-authenticated-smoke-2026-08-24-1335.json)，报告 [`55f20b1348564daf6dea93f23aecc229953954e6fcc1859f40180fbebea84d98.json`](deployment/data03-readiness/55/55f20b1348564daf6dea93f23aecc229953954e6fcc1859f40180fbebea84d98.json)；仅只读观察，不解除 DATA-02/DATA-03、M9/M10 或决策总闸。
+- 2026-08-24 DATA-02 当前候选 `fund.nav` SELECT-only reconciliation：当前候选 `94abd76e…` / release `20260824133504` 内，`fund_net_value` 与 canonical `data_center_fund_nav_fact(source=fund_legacy_repo)` 各 `7,648` 条，snapshot hash 相同，`same=7,648`、差异/缺陷均为 `0`。原始 envelope [`data02-reconciliation-candidate-2026-08-24.json`](deployment/data02-reconciliation-candidate-2026-08-24.json)，canonical artifact [`65935870cc4002c1e96fb0ab2473ee679b6b1540318aa72f2155a95d47db43dc.json`](deployment/data02-reconciliation/65/65935870cc4002c1e96fb0ab2473ee679b6b1540318aa72f2155a95d47db43dc.json)；这是单 dataset/单快照证据，仍 `production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`，不解锁 DATA-02/03 或 decision-ready。
 
 - 可维护性定向重构的 R0、R1、R2 与 R3-lite 已完成并归档：历史计划与契约矩阵见 [archive/plans/maintainability-refactoring-plan-2026-07-20.md](archive/plans/maintainability-refactoring-plan-2026-07-20.md) 和 [archive/plans/maintainability-r0/r1-stage-record-2026-07-20.md](archive/plans/maintainability-r0/r1-stage-record-2026-07-20.md)。
 - 宏观运行时入口已统一收口到 `data_center`：HTTP 走 `/api/data-center/*`，MCP 走 `data_center_*` 工具族。
@@ -61,7 +65,7 @@
 | [adr-0001-shared-infrastructure-boundaries.md](architecture/adr-0001-shared-infrastructure-boundaries.md) | **ADR：shared.infrastructure 边界判定** | ✅ 2026-05-02 新增 |
 | [adr-0006-tui-primary-interface.md](architecture/adr-0006-tui-primary-interface.md) | **ADR：TUI 作为日常任务主界面与 Web 保留清单边界** | ✅ 2026-07-26 已接受 |
 | [adr-0007-evidence-envelope-and-decision-gates.md](architecture/adr-0007-evidence-envelope-and-decision-gates.md) | **ADR：Evidence Envelope、Track Record 与决策硬闸所有权** | 2026-08-12 分阶段实施 |
-| [adr-0008-terminal-agent-runtime-boundary.md](architecture/adr-0008-terminal-agent-runtime-boundary.md) | **ADR：Terminal Agent 多用户运行时边界与 queued composition contract** | 2026-08-18 TAR-01 契约冻结；TAR-02 已有候选级 bounded runtime observation，TAR-03 仍未启动 |
+| [adr-0008-terminal-agent-runtime-boundary.md](architecture/adr-0008-terminal-agent-runtime-boundary.md) | **ADR：Terminal Agent 多用户运行时边界与 queued composition contract** | 2026-08-18 TAR-01~04 repository 合同已完成；TAR-05 等待生产 provider、容量、混沌、恢复与观测验收 |
 | [shared-cleanup-program-2026-05-02.md](architecture/shared-cleanup-program-2026-05-02.md) | **shared 残留清理专项** | ✅ 2026-05-02 新增 |
 | [module-cycle-regression-remediation-2026-05-02.md](architecture/module-cycle-regression-remediation-2026-05-02.md) | **模块依赖回归整改说明（cycle 回归复盘与修复）** | ✅ 2026-05-02 新增 |
 | [mcp-hosted-transport-and-identity-memo-2026-05-10.md](architecture/mcp-hosted-transport-and-identity-memo-2026-05-10.md) | **MCP 服务化演进备忘录（stdio vs HTTP/SSE、Token vs per-user OAuth）** | ✅ 2026-05-10 新增 |
@@ -74,7 +78,7 @@
 | [ai-capability-architecture-review-2026-03-19.md](architecture/ai-capability-architecture-review-2026-03-19.md) | AI Capability Catalog 架构评估 | ✅ 2026-03-19 新增 |
 | [simulated_trading_design.md](architecture/simulated_trading_design.md) | 模拟盘交易设计 | 完整 |
 | [strategy_system_design.md](architecture/strategy_system_design.md) | 策略系统设计 | 完整 |
-| [frp-vps-local-runtime-architecture.md](architecture/frp-vps-local-runtime-architecture.md) | 三机架构方案：VPS FRP 转发 + 本地 Docker + C 端 AI Agent/MCP | ✅ 2026-03-08 新增 |
+| [frp-vps-local-runtime-architecture.md](architecture/frp-vps-local-runtime-architecture.md) | 三机架构方案：VPS FRP 转发 + 服务端 AI/Agent 与 B/S 薄客户端；仅 QMT 外部券商桥允许本地执行 | ✅ 2026-03-08 新增 |
 | [frontend_design_guide.md](architecture/frontend_design_guide.md) | 前端设计指南 | ✅ 2026-02-20 更新 |
 | [ui_ux_design_tokens_v1.md](architecture/ui_ux_design_tokens_v1.md) | UI/UX 设计 Token 规范 v1.0 | ✅ 完成验收 |
 | [routing_naming_convention.md](architecture/routing_naming_convention.md) | 路由命名规范 | ✅ 完成验收 |
@@ -100,6 +104,7 @@
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [quick-reference.md](development/quick-reference.md) | 快速参考手册 | ✅ 2026-03-31 更新 |
+| [codex-autonomous-goal-usage.md](development/codex-autonomous-goal-usage.md) | **Codex 自主 Goal 启动、Sol/Luna 调度、worktree、计划回写与恢复备忘** | ✅ 2026-08-25 新增 |
 | [runbook.md](operations/runbook.md) | **0.8.0 运维 Runbook（task_monitor / readiness / VPS 验收）** | ✅ 2026-07-05 更新 |
 | [engineering-guardrails.md](development/engineering-guardrails.md) | **工程护栏与 PR Checklist（含 API 改动同步门禁）** | ✅ 2026-03-31 更新 |
 | [../GIT_WORKFLOW.md](GIT_WORKFLOW.md) | **Git 工作流规范（`dev/*` 分支、commit、合并流程）** | ✅ 2026-03-23 新增 |
@@ -138,7 +143,7 @@
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
-| [active_plan_registry.json](../governance/active_plan_registry.json) | **活跃计划与 canonical closure backlog 机器真源（工作流 / owner / 状态 / 依赖 / 唯一退出门 / 文件归属 / 限期审查）** | 139 个历史未勾选细项已去重为 28 个工作包；9 条工作流、18 份主计划、39 个活跃文件；Terminal Agent 多用户整改 TAR-01 已登记为下一条 P0 repository 优先线，AI-01 等待 TAR-05 生产验收，CI 禁止待办、依赖和 plan 漂移 |
+| [active_plan_registry.json](../governance/active_plan_registry.json) | **活跃计划与 canonical closure backlog 机器真源（工作流 / owner / 状态 / 依赖 / 唯一退出门 / 文件归属 / 限期审查）** | AUD-02 corrective repository exit 已完成，AUD-03 转入生产验收；当前无 dependency-ready repository unit，focus 显式为 null，EVID-03 继续等待 EVID-01/02，CI 禁止待办、依赖和 plan 漂移 |
 | [scenario-governance-and-strategy-method-quick-wins-plan-2026-08-04.md](plans/scenario-governance-and-strategy-method-quick-wins-plan-2026-08-04.md) | **情景硬编码治理、动态/参数/宏观情景、AI MCP 受控修改及策略方法 Quick Wins（M0-M6）** | 提案，待评审实施 |
 | [strategy-research-capability-completion-audit-2026-08-05.md](plans/strategy-research-capability-completion-audit-2026-08-05.md) | **策略研究 R1—R8 完成度审计、真实数据阻断与无数据开发队列** | 实施中；无 P0，剩余 P1 分批收口 |
 | [sentiment-awareness-enhancement-plan-2026-07-31.md](archive/plans/sentiment-awareness-enhancement-plan-2026-07-31.md) | **A 股情绪态势感知增强计划（S0-S4，交易行为情绪指标 / Pulse sentiment 维度 / 文本情绪打通 / TUI 情绪面板）** | ✅ 已完成并归档 |
@@ -148,16 +153,16 @@
 | [web-to-tui-m2-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m2-consolidated-evidence-2026-07-26.md) | **Web → TUI M2 合并证据（W1-W20，15 份原始 wave 记录与 SHA-256 清单）** | ✅ M2 已完成并归档 |
 | [web-to-tui-m3-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m3-consolidated-evidence-2026-07-26.md) | **Web → TUI M3 合并证据（W21-W42，22 份原始 wave 记录与 SHA-256 清单）** | ✅ M3 已完成并归档 |
 | [web-to-tui-m4-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m4-consolidated-evidence-2026-07-26.md) | **Web → TUI M4 合并证据（W43-W51，9 份原始 wave 记录与 SHA-256 清单）** | ✅ M4 已完成并归档 |
-| [web-to-tui-m5-readiness-2026-07-27.md](plans/web-to-tui-m5-readiness-2026-07-27.md) | **Web → TUI M5 Readiness（14 日兼容期、UAT、telemetry 与回滚演练门禁）** | ⛔ 当前 DENY；候选 `443658d33159dd80a35b3001ae2c8505113e3fff` / `20260816223921` 已部署并开始只读观察，角色 UAT、写后回执、14 日窗口与回滚/备份证据仍待补 |
+| [web-to-tui-m5-readiness-2026-07-27.md](plans/web-to-tui-m5-readiness-2026-07-27.md) | **Web → TUI M5 Readiness（14 日兼容期、UAT、telemetry 与回滚演练门禁）** | ⛔ 当前 DENY；正式 cutover candidate `2f4554b5192191970a3ccbc98420388881725079` / `20260820211526` 的 preflight 身份已对齐，角色 UAT、写后回执、14 日窗口与回滚/备份证据仍待补 |
 | [web-to-tui-m5-production-preflight-2026-07-28.md](plans/web-to-tui-m5-production-preflight-2026-07-28.md) | **Web → TUI M5 生产 Preflight（只读健康、release/commit 与候选差异核查）** | 历史只读记录；不代表 2026-08-13 当前线上版本，不计入 cutover gate |
-| [web-to-tui-m5-production-preflight-2026-08-13.md](plans/web-to-tui-m5-production-preflight-2026-08-13.md) | **Web → TUI M5 当前生产 Preflight（公开探针 + release/OCI 核对）** | 当前候选 `20260816223921` / `443658d33159` 已完成标准 git-clone 构建、manifest/OCI/health/ready 复核；M5 仍 DENY，角色化 UAT、观察窗口和写后审计待补 |
+| [web-to-tui-m5-production-preflight-2026-08-13.md](plans/web-to-tui-m5-production-preflight-2026-08-13.md) | **Web → TUI M5 生产 Preflight（公开探针 + release/OCI 核对）** | 历史只读候选记录：`20260816223921` / `443658d33159`；当前运行候选以最新 deployment evidence 与 registry 绑定为准。M5 仍 DENY，角色化 UAT、观察窗口和写后审计待补 |
 | [web-to-tui-m5-rollback-drill-evidence-2026-07-27.md](plans/web-to-tui-m5-rollback-drill-evidence-2026-07-27.md) | **Web → TUI M5 回滚演练（隔离 reverse/restore、旧 graph 兼容与 registry 回滚发布）** | 历史记录不再算当前闸门；candidate-bound 本地演练已修复，最终候选/生产备份恢复待验 |
 | [web-to-tui-m5-browser-uat-evidence-2026-07-27.md](plans/web-to-tui-m5-browser-uat-evidence-2026-07-27.md) | **Web → TUI M5 浏览器 UAT（角色边界、矩阵深链、直读/参数读取与生命周期）** | 历史自动化 15/15、主任务 108/108；未绑定最终候选，当前 gate FAIL |
 | [web-to-tui-m5-route-closure-evidence-2026-07-27.md](plans/web-to-tui-m5-route-closure-evidence-2026-07-27.md) | **Web → TUI M5 逐 Route 清理证据（认证边界、兼容目标与状态/回滚范围）** | ✅ 六类 scope 均为 108/108；不替代生产门禁 |
 | [tui-regime-display-contract-postmortem-2026-07-30.md](archive/plans/tui-regime-display-contract-postmortem-2026-07-30.md) | **TUI Regime 有数据未显示复盘（契约漂移、fail-closed 与跨层回归门禁）** | ✅ 整改完成并归档，持续执行门禁 |
-| [qmt-live-trading-bridge-plan.md](plans/qmt-live-trading-bridge-plan.md) | **QMT 本地执行桥与 VPS 实盘交易接入计划（Web / TUI / MCP / 权限 / 风控 / 对账）** | 仓库 MVP 已实现；待目标券商 Phase 0 与仿真实测 |
-| [tui-usability-and-metadata-governance-plan-2026-08-18.md](plans/tui-usability-and-metadata-governance-plan-2026-08-18.md) | **TUI 可用性与 metadata 治理整改（加载回退 / 三真源合一 / auto action 文案重写 / IA 整理 / 布局收口，TUX-01~05）** | 已立项，仓库内小收口线；不触碰 M5 候选证据链 |
-| [terminal-agent-multi-user-runtime-plan-2026-08-18.md](plans/terminal-agent-multi-user-runtime-plan-2026-08-18.md) | **Terminal Agent 多用户队列、专用 Worker、可恢复事件流与用户自有密钥本地 CLI 混合运行整改（TAR-01~05）** | P0 已立项；当前原子工作包后优先执行 TAR-01，TAR-05 验收前保持 inline 并发 1 |
+| [qmt-live-trading-bridge-plan.md](plans/qmt-live-trading-bridge-plan.md) | **QMT 本地执行桥与 VPS 实盘交易接入计划（Web / TUI / MCP / 权限 / 风控 / 对账）** | 仅 QMT 外部券商桥允许本地执行；仓库 MVP 已实现，待目标券商 Phase 0 与仿真实测 |
+| [tui-usability-and-metadata-governance-plan-2026-08-18.md](plans/tui-usability-and-metadata-governance-plan-2026-08-18.md) | **TUI 可用性与 metadata 治理整改（加载回退 / 三真源合一 / auto action 文案重写 / IA 整理 / 布局收口，TUX-01~05）** | TUX-01~05 repository exit gate 已完成；TUX-05 的布局、字段翻译、内部 key/状态栏、freshness 呈现与 8 屏证据已闭合，外部/M5 生产证据仍独立 fail-closed |
+| [terminal-agent-multi-user-runtime-plan-2026-08-18.md](plans/terminal-agent-multi-user-runtime-plan-2026-08-18.md) | **Terminal Agent 多用户队列、专用 Worker、可恢复事件流与服务端 AI/Agent 薄客户端整改（TAR-01~05）** | TAR-01~04 repository 合同已完成；当前转入 TAR-05 生产 provider、容量、混沌、恢复与观测验收，TAR-05 通过前保持 inline 并发 1；普通用户不安装本地 Agent/provider |
 | [adr-0002-qmt-local-execution-bridge.md](architecture/adr-0002-qmt-local-execution-bridge.md) | QMT 本地 Agent + VPS 控制面架构决策 | 已接受 |
 | [qmt-agent-runbook.md](operations/qmt-agent-runbook.md) | Windows QMT Agent 安装、分级启用、停止与故障处理 | 可执行 |
 | [qmt-agent-local-install-package.md](operations/qmt-agent-local-install-package.md) | 国金普通 QMT `userdata` 本地 Agent ZIP 安装包、DPAPI Token、权限诊断与卸载 | 可执行 |
@@ -175,8 +180,8 @@
 | [production-code-remediation-plan-2026-06-26.md](archive/plans/production-code-remediation-plan-2026-06-26.md) | **投产代码整改方案（数据守门 / 初始化 / UI 闭环）** | ✅ 2026-06-26 完成并归档 |
 | [0.8.0-release-closure-plan-2026-07-05.md](archive/plans/0.8.0-release-closure-plan-2026-07-05.md) | **0.8.0 收口开发计划（发布 / 运维 / 架构减债 Top 10）** | ✅ 2026-07-05 已执行并归档 |
 | [post-0.8.0-stabilization-priority-2026-07-08.md](archive/plans/post-0.8.0-stabilization-priority-2026-07-08.md) | **0.8.0 发布后两周稳定化实施清单（优先级 / 负责人 / 命令 / 验收）** | ✅ 已归档；未完成生产门禁已转入当前 Data / Strategy / Evidence / TUI 工作流 |
-| [evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md](plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md) | **证据治理与决策硬闸改造计划** | 第一期 P0：Portfolio/Risk/Broker inactive owner contracts与ledgers、Risk policy workflow以及Broker pre-Risk ID-only scope已分阶段落盘；pre-Risk仍固定inactive，缺跨账户owner binding、Risk adapter、最终issuer/四节点重验与PG/生产证明，所有执行总闸保持关闭，MCP integrated=0 |
-| [system-audit-log-consolidation-plan-2026-08-13.md](plans/system-audit-log-consolidation-plan-2026-08-13.md) | **系统级统一审计日志收口计划（统一事件账本 / 数据可靠性纵向链 / 指标告警 / TUI 观测）** | M0 registry + M1 Domain/codec/schema-only/repository/query/outbox-claim、health backlog projection、Data Center fetch-event envelope 与 AUD-01 durable-publisher preflight contract 已落地；runtime 仍 `publisher_not_wired`，无真实 publisher/业务双写，首批 Data Center fetch→publication→decision gate 仍待实施 |
+| [evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md](plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md) | **证据治理与决策硬闸改造计划** | 第一期 P0：代码侧 immutable owner/tenant authority lifecycle、same-alias selector/writer composition 与 Evidence boundary 已落盘；受控候选 `94abd76e…` / release `20260824133504` 已应用 `0055`/`0029`，但 13 张 authority/evidence 表仍 zero-seed；仍缺真实独立 root approval、PG first-winner/successor/revocation/rollback、生产 route/writer 与双签，所有执行总闸保持关闭，MCP integrated=0 |
+| [system-audit-log-consolidation-plan-2026-08-13.md](plans/system-audit-log-consolidation-plan-2026-08-13.md) | **系统级统一审计日志收口计划（统一事件账本 / 数据可靠性纵向链 / 指标告警 / TUI 观测）** | AUD-01 canonical publisher/runtime/authority 与 AUD-02 Data Reliability same-UOW/replay、cross-App corrective regression 均完成 repository exit；AUD-03 仍需候选绑定的生产 migration/rollback、PostgreSQL、backlog/metrics/alerts/TUI、archive/restore 与双签 |
 | [mcp-consolidation-remediation-plan-2026-07-09.md](archive/plans/mcp-consolidation-remediation-plan-2026-07-09.md) | **MCP 收口整改计划（统一能力注册、统一调用、legacy 退役）** | ✅ 完成并归档；持续状态由机器门禁维护 |
 | [system-ai-capability-catalog-outsourcing-task-book-2026-03-19.md](archive/plans/system-ai-capability-catalog-outsourcing-task-book-2026-03-19.md) | **系统级 AI Capability Catalog 与统一路由任务书** | ✅ 代码与自动化验收完成并归档 |
 | [terminal-mcp-governance-outsourcing-task-book-2026-03-19.md](archive/plans/terminal-mcp-governance-outsourcing-task-book-2026-03-19.md) | **Terminal MCP 治理与确认机制任务书** | ✅ 已实现并由 AgentProposal 持久审批架构承接 |
@@ -280,6 +285,7 @@
 | [evid-01-authority-inventory-2026-08-16-2258.json](deployment/evid-01-authority-inventory-2026-08-16-2258.json) | `443658d33159` / `20260816223921` 候选只读 authority migration/zero-seed inventory；EVID-01 guard 动态核对当前 registry/preflight/runtime binding | ✅ 2026-08-17 |
 | [vps-postgres-backup-verification-2026-08-16-2348.json](deployment/vps-postgres-backup-verification-2026-08-16-2348.json) | `443658d33159` / `20260816223921` 候选 PostgreSQL custom-format 备份下载、尺寸与 SHA-256 复核（未恢复） | ✅ 2026-08-16 |
 | [evid-01-authority-inventory-2026-08-16.json](deployment/evid-01-authority-inventory-2026-08-16.json) | e167 候选只读 authority migration/zero-seed inventory | ✅ 2026-08-16 |
+| [evid-01-authority-inventory-snapshot-2026-08-23-0810.json](deployment/evid-01-authority-inventory-snapshot-2026-08-23-0810.json) | 候选 `4cef9040cccc...` 的 PostgreSQL authority 只读快照：0050–0053 已应用、12 张 authority/evidence/root-lock 表全零；经离线 normalizer 生成 content-addressed report `3900c08b9054...` | ✅ 2026-08-23 |
 | [vps-runtime-verification-2026-08-16-1811.json](deployment/vps-runtime-verification-2026-08-16-1811.json) | `5a13125bb84e` / `20260816181141` 候选只读 release/health/container/Qlib/Celery 复核 | ✅ 2026-08-16 |
 | [DOCKER_DEPLOYMENT.md](deployment/DOCKER_DEPLOYMENT.md) | Docker 部署指南 | 完整 |
 | [postgres_windows_docker.md](deployment/postgres_windows_docker.md) | Windows PostgreSQL Docker 配置 | 完整 |
@@ -470,12 +476,29 @@
 - 本索引只维护导航、清单和阅读路径，不复制业务模块数、MCP 工具数、静态测试函数数等动态治理数字。
 - 验证命令：`python scripts/check_governance_consistency.py --baseline governance/governance_baseline.json --format text`
 
-## 2026-08-16 当前收口状态
+## 2026-08-16 历史收口快照
 
 - 计划与机器状态的唯一导航入口是 [`docs/plans/README.md`](plans/README.md) 与 [`governance/active_plan_registry.json`](../governance/active_plan_registry.json)；本索引不复制动态 closure 数字。
-- AUD-01 的 durable-publisher preflight contract 与 release identity guard 已合入并部署到当前候选 `443658d33159dd80a35b3001ae2c8505113e3fff` / `20260816223921`；远端只读运行证据见 [`vps-runtime-verification-2026-08-16-2258.json`](deployment/vps-runtime-verification-2026-08-16-2258.json)。
-- EVID-01 authority inventory candidate guard 已将当前 registry/cutover/preflight/runtime/inventory 绑定到同一 `443658d33159dd80a35b3001ae2c8505113e3fff` / `20260816223921`；12 个 authority/evidence 表仍为零，结果继续是 `blocked_zero_seed_authority`，不代表 authority lifecycle 已存在。
-- 候选部署健康、迁移、schema、TUI registry、Qlib、Celery 与 HTTPS 已复核；角色化浏览器 UAT、写后 receipt/refresh、14 日 telemetry、生产 publisher/authority、数据恢复/回滚与 QMT/AI 外部验收仍按 registry 保持阻断。
+- AUD-01 的 durable-publisher preflight contract 与 release identity guard 曾合入候选 `443658d33159dd80a35b3001ae2c8505113e3fff` / `20260816223921`；远端只读运行证据见 [`vps-runtime-verification-2026-08-16-2258.json`](deployment/vps-runtime-verification-2026-08-16-2258.json)。
+- EVID-01 当时的 authority inventory 绑定同一候选，12 个 authority/evidence 表为零；该历史快照不代表当前代码侧 authority lifecycle 或生产 seed 已完成。
+- 该候选的健康、迁移、schema、TUI registry、Qlib、Celery 与 HTTPS 复核不解除角色化浏览器 UAT、写后 receipt/refresh、14 日 telemetry、生产 publisher/authority、数据恢复/回滚与 QMT/AI 外部验收。
+
+## 2026-08-24 当前验收状态
+
+- 代码验收候选为 `b779d4eaf21f9dbf3972191b8f4c4508bb3851ed`；随后部署绑定的候选为 `94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` / release `20260824133504` / image `sha256:1c560b5fed14964a008c278a88d9f3e3b144444a172ecc239d06cedbd76d6a3e`。本地验收基线 `95618f840c60ab545b9c194d3fe981e8c8aaed0e` 相对该 VPS 候选仅新增部署/计划/治理证据文档，无生产代码差异；截至当前 HEAD `5c6e4da5087c39ccdbaa612f6599a0b3b392f0a8`，`git diff --name-only 94abd76e..HEAD` 共 31 个文件，全部为 `docs/`、`governance/` 或 `.gitleaks.toml`，`apps/`、`config/`、`core/`、`scripts/`、`tests/` 均为 0，故仍不触发重复部署。候选的四条 push CI、部署 verifier、备份、迁移/schema、TUI registry、Qlib、Celery、Caddy/TLS 全通过。结构化验收见 [`tar01-current-vps-deployment-acceptance-2026-08-24-94abd76e.json`](deployment/tar01-current-vps-deployment-acceptance-2026-08-24-94abd76e.json)。
+- `0055_owner_tenant_authority_v1` 与 Research `0029` 已由正常部署迁移应用；同一 `default` PostgreSQL alias 的 13 张 authority/evidence 表全部为 `0` 行，EVID-01 post-0055 inventory 报告为 `blocked_zero_seed_authority`、`authority_ready=false`、`production_claim=false`、`runtime_enablement=not_authorized`（快照 [`evid-01-authority-inventory-snapshot-2026-08-24-post-0055.json`](deployment/evid-01-authority-inventory-snapshot-2026-08-24-post-0055.json)，报告 [`55bb41f6129c30d42c8ec3041bc4e90b4ae5064e29409b83d8df6ea86bb7d680.json`](deployment/evid-01-authority-inventory/55/55bb41f6129c30d42c8ec3041bc4e90b4ae5064e29409b83d8df6ea86bb7d680.json)）。未创建 approval/seed/backfill；EVID-01 继续 `active`/fail-closed，生产 first-winner/revocation/rollback、角色化 UAT 与 owner/reviewer sign-off 仍未完成。
+- 当前执行波次规则已与 registry 的 `execution_focus=EVID-01` 对齐：TAR-01 至 TAR-04 repository 合同完成，生产 auto-collect 可并行，但不因健康或本地合同解除 Evidence、决策、TUI 或容量门禁。
+- 公网 `/api/health/`、`/api/health/db/`、`/api/ready/`、`/api/audit/health/` 均正常；`/api/decision-ready/` 仍为 `503` 且 `must_not_use_for_decision=true`，匿名 `/api/tui/` 为 `403`。这次只做一次受控部署与低频只读观测，不反复部署、不启用 queued/capacity/chaos，不把健康或匿名边界当作角色写后回执；B/S、CLI/API 只向服务器提交请求，AI/provider/tool execution 在服务器端；本地执行仅适用于 QMT 外部券商桥。
+- EVID-02 已在同一已部署候选 `94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` / `20260824133504`、同一 `default` alias 下完成 `REPEATABLE READ READ ONLY` current-head 复核；三张 canonical approval/activation 相关 ledger 均为 `0` 行，head=`empty`。快照与报告见 [`evid-02-select-only-vps-snapshot-2026-08-24-94abd76e.json`](deployment/evid-02-select-only-vps-snapshot-2026-08-24-94abd76e.json) 与 [`3513ea4582a73d2afccd5c2967008c4a8c17aa70d3a7039473947724c289e4fd.json`](deployment/evid-02-head-audit/35/3513ea4582a73d2afccd5c2967008c4a8c17aa70d3a7039473947724c289e4fd.json)；报告固定 `human_approval_status=not_collected`、`production_claim=false`、`runtime_enablement=not_authorized`，EVID-02 仍 `awaiting_production`。
+- DATA-01 已在不重新部署 VPS、不创建远端归档的前提下，使用 `--download-latest` 读取并验证既有 `/opt/agomtradepro/backups/database/postgres-20260824-074227.dump`；远端/本地大小 `142813695` bytes、SHA-256=`7eb67da66bb6d3c550bc35f96abbc2c38ea403f776c56602316e83b912b4fd6d`，`pg_restore --list`=`7204` entries，manifest SHA=`795d83b33400407596991f92523a5b15b2148bbf5e4e77fc52682194875f3886`。结构化证据为 [`data-backup-evidence-2026-08-24.json`](deployment/data-backup-evidence-2026-08-24.json)，content hash=`423387ef6125233f4257694935beef0cea9c8543993803b3ef58bc896758e9f9`；仅证明现有恢复点的下载/格式完整性，生产 restore/rebuild、维护态 rollback、RTO/RPO、backfill/reconciliation 与 owner/reviewer 仍缺，`DATA-01` 继续 `awaiting_production`，`DATA-02/03` 不解锁。
+- DATA-01 同一归档随后在本地 disposable `postgres:16-alpine` 完成 source→restore 全量自洽校验：`539/539` public 表、`72/72` Data Center migrations、`460/460` sequences，schema/逐表内容/sequence 差异均为 `0`；restore `689.563s`、verification `628.355s`、total `2214.035s`，verifier report SHA-256=`0391884b5792150cdcefe74a9a41817c025a3d216e670dfbac18a47facd00f17`。精简证据 [`data01-local-isolated-restore-2026-08-24.json`](deployment/data01-local-isolated-restore-2026-08-24.json)，离线 canonical recorder artifact [`e7af4216ed86cdd63a62d84d5a38ef5bcc28ee255e82490611f673bb945ebe9d.json`](deployment/data01-isolated-restore/e7/e7af4216ed86cdd63a62d84d5a38ef5bcc28ee255e82490611f673bb945ebe9d.json)，artifact SHA-256=`e7af4216ed86cdd63a62d84d5a38ef5bcc28ee255e82490611f673bb945ebe9d`。restore/source 临时库已清理；该耗时不构成生产 RTO/RPO，未执行生产 restore/DDL、维护态 rollback、backfill/reconciliation 或 owner/reviewer 签署，`DATA-01` 仍 `awaiting_production`，不解锁 DATA-02/03。
+- STRAT-01 已对当前受控候选 `94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` / release `20260824133504` 做同一 `default` alias 的 `REPEATABLE READ READ ONLY` owner-ledger 盘点：Research `65`、Portfolio `7`、Account 广义 `16`、owner/policy/operator/assignment 广义 `35` 张表均为 `0` 行。快照与报告见 [`strat-01-owner-ledger-readonly-recheck-2026-08-24-0707.json`](deployment/strat-01-owner-ledger-readonly-recheck-2026-08-24-0707.json) 与 [`0bed8c11f20f7b93b1b5cb424270f98419f61e6c948f61f46a9c775a9ed3c0ca.json`](deployment/strat-01-owner-ledger-inventory/0b/0bed8c11f20f7b93b1b5cb424270f98419f61e6c948f61f46a9c775a9ed3c0ca.json)；结果固定 `zero_seed`、`production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`，`STRAT-01` 继续 `awaiting_production`，不解锁 STRAT-02/03。
+- AUD-03 已对同一受控候选 `94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` / release `20260824133504` 做一次低频 `select_only` 运营观察：公网 `/api/audit/health/`=`200/OK`，operation logs=`555`、failures=`0`、outbox 各 backlog gauge=`0`；同一 `default` alias migration applied=`495`、pending/failed=`0`、graph SHA=`142da62cb866ee9ef2a291bd0f1f0edf527615c3d76cf15a1aae02d1cb191c2a`。快照与报告见 [`aud03-operational-observation-select-only-2026-08-24-0736.json`](deployment/aud03-operational-observation-select-only-2026-08-24-0736.json) 与 [`00d9f623008af7d51286e6620fad6dee6e87a741f9439156d7830ab8918cee53.json`](deployment/aud03-operational-observation/00/00d9f623008af7d51286e6620fad6dee6e87a741f9439156d7830ab8918cee53.json)；alerts/TUI/recovery/archive 仍 unavailable（`missing_section_count=4`），因此 `AUD-03` 继续 `waiting_dependency`，不解锁 migration/rollback、recovery、archive/restore 或 owner/reviewer sign-off。
+- DATA-03 已对同一受控候选 `94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` / release `20260824133504` 做一次低频双 readiness 只读复核：`/api/ready/`=`200/ok`，`/api/decision-ready/`=`503/blocked` 且 `must_not_use_for_decision=true`，`/api/health/`=`200`；匿名 Data Center providers `403`，canonical smoke 保持 `unknown`。快照与报告见 [`data03-readiness-http-get-2026-08-24-0757.json`](deployment/data03-readiness-http-get-2026-08-24-0757.json) 与 [`8144f224cce8840a8284c64517fbf49b646e56d600235f976f7e423b4b35bf5a.json`](deployment/data03-readiness/81/8144f224cce8840a8284c64517fbf49b646e56d600235f976f7e423b4b35bf5a.json)；`decision_blocker_count=1`、`smoke_failure_count=1`，不解锁 DATA-03、M9/M10 或决策使用。
+- TUI-01/TAR-05 当前候选边界只读核对仍为 `DENY`：正式 M5 binding、108 路由/任务 UAT、101 项 telemetry、rollback、registry backup 与双签均缺；`94abd76e` 只作为 TAR/EVID 受控候选，不重复部署、不直接重绑为 M5 候选。
+- EVID-01 当前仓库合同复核：owner/tenant authority、core authenticated composition、Research scope lifecycle/provider/observation、Evidence composition guard 与 v2 inventory 定向回归 `89 passed`；Account/Research component repository/model 合同 `36 passed in 156.20s`；composition guard 扫描 `2931` 个生产文件通过，registry/governance 均为 `0 violations`。这只证明本地 fail-closed 合同，不解除 post-0055 zero-seed、生产 PG race/rollback、root approval、same-alias 端到端回执或 owner/reviewer sign-off。
+- 09:35 UTC 低频公网只读复核：health/ready/audit 均 `200`，匿名 `/api/tui/`=`403`，decision-ready=`503` 且 `must_not_use_for_decision=true`；结构化工件 [`tar01-public-health-readonly-recheck-2026-08-24-0935.json`](deployment/tar01-public-health-readonly-recheck-2026-08-24-0935.json)，SHA-256=`41f4604302b1ab4b5a9d2425fcb9713833636fb91436453722694ecfc9aeaa4e`。这是未绑定候选的只读事实，不解锁 TAR/AUD/TUI/EVID 生产门禁，也不触发重复部署。
+- TUI/M5、TAR-05、AUD-01、数据与策略生产门禁仍按 registry 逐项等待外部授权和证据。
 
 ---
 
@@ -976,6 +999,9 @@
 - ✅ **EVID-02 Evidence scope PostgreSQL concurrency harness（2026-08-15）**
   - 新增专用 settings 与 opt-in component，覆盖空 root first-winner、同 predecessor successor 单赢家和 rollback/no-orphan；数据库必须是本地/测试 PostgreSQL 且名称含 `evidence`/`test`，拒绝非空库、SQLite、VPS/生产 host
   - 默认回归 `3 skipped`；本轮 Docker daemon 未响应，尚未获得 disposable PostgreSQL 实际通过证据，因此 EVID-02 仍 planned，不能解除 owner/tenant lifecycle、production composition 或执行总闸
+- ✅ **EVID-02 VPS current-head SELECT-only observation（2026-08-23）**
+  - 对候选 `4cef9040c` / release `20260822134658` 以同一 `default` PostgreSQL alias 执行一次 `REPEATABLE READ READ ONLY` 查询；canonical approval/activation 账本均为 `0` 行，外部 envelope 与 content-addressed head-audit report 已分别落盘
+  - 这是只读事实采集，不是 approval/activation 写入、生产并发/rollback、owner/reviewer 签署或 Evidence hard-gate 证据；`production_claim=false`、`production_ready=false`、`human_approval_status=not_collected`，EVID-02 继续 `awaiting_production`
 - ✅ **Evidence owner/tenant authority source schema-only ledger（2026-08-15）**
   - 新增零种子 `research_evidence_scope_source_v1` append-only ORM 表与 `0028` migration；逐列保存 scope/artifact projection、canonical payload、identity/content hashes、root/successor/predecessor、PIT clocks 和 fixed read-only/non-execution flags，ORM shortcut 与 delete 全部 fail closed
   - isolated component `4 passed`，source 读/codec/Domain/facade 合计 `56 passed`，Django check、migration drift、增量 mypy、architecture audit、Black/isort、compile 通过；仅 schema/guard contract，未接 repository/provider/生产 route
@@ -1288,5 +1314,16 @@
 
 ---
 
+### 2026-08-24
+
+- TAR-05 当前候选认证保留路由只读阶梯证据：[`tar01-current-reserved-route-observation-2026-08-24-94abd76e.json`](deployment/tar01-current-reserved-route-observation-2026-08-24-94abd76e.json)。
+- DATA-02 当前候选 coverage/freshness 只读证据：[`data02-coverage-freshness-observation-2026-08-24-94abd76e.json`](deployment/data02-coverage-freshness-observation-2026-08-24-94abd76e.json)，active A-share=`5,533`，fact coverage 完整但 canonical publication 不完整，`decision-ready=503` fail-closed；不解除 DATA-02 或决策门禁。
+- EVID-01 本地 authority/composition focused revalidation：Account/Research/Core/Audit 合同 `93 passed`；仅证明 fail-closed 本地边界，VPS authority ledger 仍 zero-seed，不解除 EVID-01 或全局决策/执行门禁。
+- EVID-01 候选漂移最新复核：当前 HEAD `271513f2a` 相对 VPS 候选 `94abd76e…` 的 12 个非文档/治理差异均为 TUX-02 TUI 文件；无后端生产代码漂移，因此不重复部署。
+
+### 2026-08-25
+
+- EVID-01 owner/tenant authority same-alias guard：`GetCurrentOwnerTenantAuthorityV1` 暴露 repository `unit_of_work_key`，authenticated Evidence bridge 拒绝跨 `django:{using}` alias 的 authority reader；新增回归后 focused contract `94 passed`，本地质量与 mypy/debt 门禁通过。未 seed/写生产/部署或批准，VPS authority ledger 仍 zero-seed，EVID-01 与 decision-ready fail-closed 不变。
+
 **文档维护**: AgomTradePro Team
-**最后更新**: 2026-08-14
+**最后更新**: 2026-08-25

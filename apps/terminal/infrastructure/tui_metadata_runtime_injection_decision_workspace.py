@@ -86,7 +86,7 @@ RUNTIME_DECISION_WORKSPACE_ACTIONS: tuple[dict[str, Any], ...] = (
         "screen_key": _SCREEN,
         "module_key": _MODULE,
         "view_type": "detail",
-        "description": "结合当前 Pulse 与 Regime 上下文生成系统证伪模板。",
+        "description": "结合当前脉搏与宏观象限上下文生成系统证伪模板。",
         "source": _SOURCE,
         "task_group": "02 决策工作台",
         "sequence": 246,

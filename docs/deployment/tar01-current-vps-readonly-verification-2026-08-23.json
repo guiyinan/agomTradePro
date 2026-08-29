@@ -1,0 +1,92 @@
+{
+  "schema": "tar01-current-vps-readonly-verification.v1",
+  "observed_at": "2026-08-23T14:44:44.324233Z",
+  "source": "read-only SSH deploy_vps_verify.py plus public HTTPS probes",
+  "candidate": {
+    "release_tag": "20260822134658",
+    "source_commit": "4cef9040cccc2127c3f8128c8d858bc7958df2a4",
+    "image_id": "sha256:cfaf17560df2f85cd8ba2f5db8226a9dd9fe1cce081f30175c2a08737b4908d8",
+    "image_tag": "agomtradepro-web:20260822134658",
+    "source_mode": "git-clone",
+    "current_release": "/opt/agomtradepro/releases/source-20260822134658",
+    "local_branch": "dev/next-development",
+    "local_head": "ca920849fa87663407e8c92e1f60427d4af79ddf",
+    "bound_to_local_head": false
+  },
+  "read_only_verifier": {
+    "exit_code": 0,
+    "checks": {
+      "caddy_domain": "demo.agomtrade.pro",
+      "health": "passed",
+      "tls_certificate": "passed",
+      "containers": "passed",
+      "django_deploy_check": "passed",
+      "migrations": "passed",
+      "canonical_data_center_schema": "passed",
+      "tui_metadata_registry": "passed",
+      "qlib_identity": "pyqlib=0.9.7; wrong_qlib=absent",
+      "release_identity": "passed",
+      "secrets_and_backup": "passed",
+      "resources": "passed",
+      "healthcheck": "passed",
+      "celery_worker": "running",
+      "celery_beat": "running",
+      "celery_ping": "passed"
+    },
+    "production_mutation": false,
+    "deployment_performed": false,
+    "rollback_performed": false
+  },
+  "public_probes": {
+    "/api/health/": {
+      "http_status": 200,
+      "body_sha256": "0b6727de4cbff0a607536930d136361565cbd5b8a816a786c839aa7042e3c3d9",
+      "status": "ok"
+    },
+    "/api/ready/": {
+      "http_status": 200,
+      "body_sha256": "f61ef9b8782229815c94fb191406df959bed7ddb401122b4f8d1ec84d2685449",
+      "status": "ok",
+      "checks": {
+        "database": "ok",
+        "redis": "ok",
+        "celery": "ok",
+        "critical_data": "ok",
+        "alpha_workspace_consistency": "ok",
+        "decision_data": "warning"
+      },
+      "decision_data_must_not_use_for_decision": true
+    },
+    "/api/audit/health/": {
+      "http_status": 200,
+      "body_sha256": "806cbbabd770414242f339f40b07c49fc4fcc932c03b39e6a18e9623f7acd333",
+      "overall_status": "OK",
+      "total_operation_logs": 555,
+      "total_failures": 0,
+      "outbox_pending": 0,
+      "outbox_claimed": 0,
+      "outbox_expired": 0,
+      "outbox_failed": 0,
+      "outbox_delivered": 0
+    },
+    "/api/decision-ready/": {
+      "http_status": 503,
+      "body_sha256": "f0eb8e73c759561590bd28daf9e2f8ffddf740f8a4249263182339f8942b8f9f",
+      "status": "blocked",
+      "must_not_use_for_decision": true,
+      "runtime_state_reason": "MCP audit evidence write failed during final acceptance"
+    }
+  },
+  "acceptance": {
+    "candidate_bound_to_current_head": false,
+    "tar01_capacity_ready": false,
+    "decision_ready": false,
+    "formal_production_uat": false,
+    "owner_reviewer_signoff": false,
+    "notes": [
+      "This is a read-only identity and health observation of the existing VPS candidate.",
+      "It does not authorize deployment, queued runtime enablement, production writes, rollback, or decision use.",
+      "The public decision gate remains fail-closed; the current branch must be deployed in a separately authorized candidate window before this evidence can close any release gate."
+    ]
+  }
+}

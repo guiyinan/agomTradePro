@@ -35,6 +35,12 @@ SCREEN_SEMANTIC_FIELDS = (
     "module_key",
 )
 RUNTIME_SCREEN_REQUIRED_FIELDS = ("summary", "user_experience", "default_action_key")
+FORBIDDEN_USER_COPY_TERMS: tuple[tuple[str, str], ...] = (
+    ("regime", "Regime"),
+    ("prompt", "Prompt"),
+    ("data_date", "数据日期"),
+    ("observation_date", "观测日期"),
+)
 
 
 @dataclass(frozen=True)
@@ -127,6 +133,26 @@ def _append_violation(
     """Append one violation with deterministic text."""
 
     violations.append(TuiMetadataConsistencyViolation(rule_id, message))
+
+
+def _append_terminology_violations(
+    violations: list[TuiMetadataConsistencyViolation],
+    *,
+    item_kind: str,
+    entries: Mapping[str, Mapping[str, Any]],
+) -> None:
+    """Reject retired user-facing terminology in normalized runtime metadata."""
+
+    for item_key, item in sorted(entries.items()):
+        serialized = json.dumps(item, ensure_ascii=False, sort_keys=True)
+        for term_key, forbidden_term in FORBIDDEN_USER_COPY_TERMS:
+            if forbidden_term not in serialized:
+                continue
+            _append_violation(
+                violations,
+                f"terminology:{item_kind}:{item_key}:{term_key}",
+                f"runtime {item_kind} copy contains retired term: {forbidden_term}",
+            )
 
 
 def _patch_boundary(
@@ -229,6 +255,17 @@ def check_tui_metadata_source_consistency(
                     f"runtime_screen_contract:{screen_key}",
                     f"runtime screen is missing {field}",
                 )
+
+    _append_terminology_violations(
+        violations,
+        item_kind="screen",
+        entries=runtime,
+    )
+    _append_terminology_violations(
+        violations,
+        item_kind="action",
+        entries=runtime_actions,
+    )
 
     action_keys = set(runtime_actions)
     for action_key, action in sorted(runtime_actions.items()):

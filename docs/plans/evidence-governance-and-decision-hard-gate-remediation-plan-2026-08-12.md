@@ -2946,3 +2946,870 @@ SHA-256 为 `7f4e859915e7e0a8399ee75558a12e660b34ef04000f29988291f59d47eaaa55`�
 `awaiting_production`，`EVID-03`、`STRAT-02/03` 与 Evidence hard gate 继续 fail-closed；
 真实 owner/definition/policy/calendar/scope、PIT/OOS、canonical receipts、Promotion 与
 consumer UAT 仍未具备生产证据。
+
+## 2026-08-23：EVID-01 Research Evidence composition fail-closed 收口
+
+复核发现 Research Evidence API 的默认 composition 只注入 `EvidenceReadFacade`，
+staff-only permission 并不等于 artifact 的 owner/tenant scope。现已将
+`apps/research/evidence_composition.py` 改为始终构造 `ScopedEvidenceReadFacade`，并注入
+一个明确返回 `None` 的 `_UnwiredEvidenceScopeProvider`。在可信、不可变的
+authenticated owner/tenant authority provider 接入前，未知 scope 不会触碰 Evidence
+repository；API 继续返回稳定的 unavailable/not-found 语义，不会把 staff 身份升级为
+owner grant，也不会新增写入或执行能力。
+
+新增 `tests/unit/research/test_evidence_composition.py`，用不接 Django ORM 的 sentinel
+repository 验证默认 composition 的 exact selector 在 scope 缺失时 fail-closed，repository
+调用次数保持为零；Evidence scope/read/API 相关 focused 回归合计 `58 passed`。生产文件的
+增量 mypy regression、debt ceiling、Ruff、Black、isort 与 diff-check 均通过。
+
+这只是本地 composition 安全边界，不能宣称 EVID-01 完成：authenticated user/tenant/owner
+authority source、同 alias bundle、人工授权、production provider/rollback 与 PostgreSQL
+race 仍缺；VPS 不做重部署，Evidence hard gate 与 decision/execution 总闸保持
+fail-closed。CLI/SDK 仍是服务器 API 的传输客户端，AI/provider/tool execution 必须在
+服务器端完成，不能要求用户安装本地模型、provider runtime 或凭据。
+
+## 2026-08-23：EVID-01 同 alias scope-source authorized composition contract
+
+在既有 fail-closed composition 之上新增显式
+`make_authorized_evidence_read_facade(selector_provider, using)`。它把严格的
+`DjangoEvidenceScopeSourceV1Repository`、`GetCurrentEvidenceScopeSourceV1`、
+`EvidenceScopeSourceV1Provider` 与 `DjangoEvidenceRepository` 组装到同一个 database alias；
+selector provider 只能由外部权威组合注入 server-issued source ID/version/content hash，
+composition 本身不读取 request、session、User/Profile 或 tenant mutable rows，也不创建
+authority facts。默认 `make_evidence_read_facade()` 仍使用未接线 provider，在 scope 缺失时
+于 Evidence repository 之前稳定返回 unavailable。
+
+新增 composition 回归覆盖：默认无 provider 时 repository 调用数为零；注入 selector 后
+scope/evidence 使用同一 alias、artifact/hash/时钟精确保留并允许继续到 Evidence read；相关
+scope/source/facade/API 回归 `72 passed`，Black/isort/Ruff、增量 mypy 与 diff-check 通过。
+
+该 slice 只完成可注入的同 alias composition contract，不代表 authenticated owner/tenant
+lifecycle、selector issuer、atomic multi-source bundle、人工授权、production provider、
+PostgreSQL production race/rollback 或 Evidence hard gate 已完成；zero-seed authority 与
+全局写入/execution deny 保持不变。CLI/SDK 仍是服务器 API 的薄传输客户端，AI/provider/tool
+execution 只在服务器端运行，用户不安装本地 Agent 或模型。
+
+## 2026-08-23：EVID-01 composition candidate CI verification
+
+候选 commit `91b18e0c4fadbd31989b0afd75f1550ea32f3bae` 的 GitHub Actions
+`CI Fast Feedback` run `32591510019` 已完成：Python 3.11/3.13 targeted suite、无数据库
+TDD suite、增量 Ruff/Black/isort/mypy/debt ceiling、TUI/runtime guards 与静态检查均为
+成功；同一候选的 Architecture Layer Guard、Security Scan、Consistency Check 也均成功。
+
+这只是仓库候选的自动化证据，不是生产部署或 authority 证据。authenticated owner/tenant
+lifecycle、server-issued selector issuer、atomic multi-source bundle、人工授权、VPS
+production UAT、PostgreSQL production race/rollback 与 Evidence hard gate 仍未完成；默认
+composition 和所有无 authority 路径继续 fail-closed。CLI/SDK 仍只向服务器传输请求，AI、
+provider、tool execution 不落到用户本地。
+
+## 2026-08-23：EVID-01 Research Evidence append 时钟边界加固
+
+只读审计发现两个 append-only Research ledger 仍接受调用方提供的 `recorded_at`，但未用 repository-owned server clock 拒绝未来时间；这会让未来 PIT 行污染后续历史读取。现已在
+`apps/research/infrastructure/evidence_scope_source_v1_repository.py` 与
+`apps/research/infrastructure/evidence_repository.py` 的 private append store 中加入统一边界：
+先校验 repository clock 为 timezone-aware，再要求 `recorded_at <= server_now()`；未来时间抛稳定
+Conflict，naive/unavailable server clock 抛稳定 Unavailable，均在任何 ORM insert 前失败，不重写
+调用方时间或 hash。公开 PIT cutoff 也复用同一 validated clock。
+
+组件回归新增覆盖 scope-source root future timestamp、Evidence operator/track/envelope 三类
+future timestamp、naive/unavailable clock 与零落库；定向 Research component 合计 `20 passed`。
+Ruff、Black、isort、增量 strict mypy、full debt ceiling 与 diff-check 均通过。为避免测试依赖完整
+项目迁移，Evidence component 使用独立 in-memory SQLite schema fixture；这不构成 PostgreSQL
+并发或生产运行证据。
+
+该 slice 只收口 ledger 写入时钟，不新增 owner/tenant/authenticated authority、不伪造 selector
+issuer、不实现同 alias Repeatable Read bundle，也不连接 VPS 或生产 writer。EVID-01、Evidence hard
+gate、decision/execution 总闸保持 fail-closed；production PostgreSQL race/rollback、authority
+lifecycle、provider/UAT、人工 sign-off 仍未完成。CLI/SDK 仍是服务器 API 的薄传输客户端，AI、
+provider、MCP/tool execution 均在服务器端，用户不需要安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-23：EVID-01 scope selector authority identity binding
+
+`EvidenceScopeSourceV1Selector` 现在必须携带 server-issued 的
+`owner_id/tenant_id/account_id/actor_id`，`EvidenceScopeSourceV1Provider` 在授予 scope 前会将
+这组 authority identity 与 exact scope source 逐字段比较；任一替换均稳定返回
+`scope source authority selector substitution`，不会进入 Evidence repository。该切片只收紧
+后续 authenticated issuer 的 typed contract，不从 User/Profile/session、mutable tenant rows 或
+数据库 alias 推导身份，也不创建或回填 authority ledger。
+
+新增 selector authority-substitution 回归；已有 scope/provider/composition focused tests 继续
+覆盖 exact source/hash/artifact/PIT 语义。EVID-01、Evidence hard gate、同 alias atomic bundle、
+真实 owner/user/tenant lifecycle、production provider、PostgreSQL race/rollback、UAT 与人工签署
+仍未完成，默认 composition 和所有无 authority 路径继续 fail-closed。
+
+## 2026-08-23：EVID-01 PostgreSQL actor-authority bundle read contract
+
+新增 dormant Infrastructure composition
+`DjangoAccountActorAuthorityInputBundleProviderV3`。它只接受明确的 PostgreSQL
+database alias，在同一个外层 `transaction.atomic(using=...)` 中先执行
+`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY`，再复用现有 authentication-context、
+Account-user 与 RBAC 三个 immutable raw-source current reader，按 ID/version/content-hash
+selector 投影成 `ExactCurrentActorAuthorityInputBundleV3`。缺表、空 ledger、非 current、
+跨 ledger user/actor 不一致、alias/type/hash 替换均 fail-closed；嵌套 transaction、SQLite
+和其他 backend 也不被当作 authority snapshot。
+
+该切片没有读取 mutable User/Profile/session/request，没有现场 hash，没有接入 Evidence
+composition、HTTP/CLI route 或 production writer，也没有改变 zero-seed authority 状态。
+focused unit `7 passed`；Ruff、Black、isort、增量 mypy 与 architecture boundary 均通过。
+它只证明本地 PostgreSQL snapshot composition contract，不证明 authenticated owner/tenant
+lifecycle issuer、生产 source seed、VPS/PG race/rollback、UAT 或人工签署；EVID-01 与
+Evidence hard gate 继续 active/fail-closed。CLI/SDK 仍只向服务器提交请求，AI/provider/
+MCP/tool execution 在服务器端，用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-23：EVID-01 owner/tenant authority composition gate audit
+
+对下一步接线进行了只读审计。actor-authority bundle 只封存 authentication-context、Account
+user 与 RBAC 三个 immutable raw source，不能投影出 Evidence scope 所需的
+`owner_id`、`tenant_id`、`account_id`。仓库当前也没有可验证的 owner/tenant lifecycle issuer、
+selector receipt 或 production write route；`PortfolioObserverGrantModel` 等 mutable grant
+不能作为历史 authority source，不能被现场 hash 成 Evidence scope。
+
+因此本阶段不新增 scope 映射胶水，也不把 bundle provider 接入 Evidence/HTTP/CLI/Agent route。
+默认 composition 继续在 repository 前 fail-closed。下一可解除门禁的证据必须来自同一服务端
+生命周期：immutable owner/tenant/scope source、同 alias PostgreSQL 写入与回滚/并发观察、
+角色化 UAT 及 owner/reviewer 签署；zero-seed、fake provider、当前 User/Profile/session 或
+本地测试不能替代。CLI/API 仍是 B/S 薄传输客户端，AI、provider、MCP 与 Agent 执行均在
+服务器端，用户不安装本地模型或 provider 软件。
+
+## 2026-08-23：EVID-01 dormant scope-source winner-first replay
+
+补齐 dormant `IssueEvidenceScopeSourceV1` 的幂等重放顺序：同一事务内先按
+`source_id/source_version` 读取并严格恢复 immutable winner；winner 存在时只校验固定身份、状态、
+记录时钟与 canonical seals，直接返回历史 winner，不再读取当前 owner/tenant observation 或要求
+它仍是 logical head/current。只有没有 winner 的首次签发才读取 owner/tenant observation 两次，检查
+漂移后进入 predecessor/CAS append。
+
+新增纯 Application 回归 `4 passed`，覆盖已过期 winner 的历史重放、winner-first 零 observation 读取、
+首次签发双读和 observation 漂移回滚。该模块仍是 dormant contract：没有接入 HTTP、CLI、Agent、
+Evidence composition、mutable User/Profile/session 或生产 writer，也没有创建 owner/tenant authority
+source。EVID-01、Evidence hard gate、production authority/UAT/PG race/rollback 与人工签署继续
+fail-closed。CLI/API 仍只向服务器传输请求，AI/provider/MCP/tool execution 在服务器端，用户不安装
+本地 Agent、模型或 provider 软件。
+
+## 2026-08-23：EVID-01 scope observation content-hash selector
+
+继续收紧 dormant scope-source issuance command：`IssueEvidenceScopeSourceV1Command` 现在必须携带
+server-issued `expected_observation_content_hash`，provider exact-current 读取同时接收并返回该 selector，
+Application 在任何 scope Domain 构造、predecessor 检查或 append 前逐项核对 observation ID/version/hash。
+同 ID/version 的 authority facts 替换、伪造 content hash、未来/无效 observation 均稳定
+fail-closed，不会写入 scope ledger。
+
+生命周期回归更新为 `55 passed`（含 hash substitution、winner-first 与 existing scope read/provider
+contract）；增量 Ruff/Black/isort/mypy 与 full debt ceiling 保持通过。该切片仍未创建 owner/tenant
+lifecycle issuer，不读取 mutable User/Profile/session，不接 Evidence/HTTP/CLI/Agent 或 production writer；
+EVID-01 继续 active/fail-closed。CLI/API 仍只把请求传到服务器，AI/provider/MCP/tool execution 在服务器端，
+用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-23：EVID-01 next-slice exit audit
+
+在 observation strict read repository/provider 完成后，对 ScopeSourceV1 的 Domain、strict codec、
+Application exact/current readers、zero-seed ledger、closed-world repository、observation read seam、
+same-alias Evidence facade 以及 Account actor-authority bundle 做了只读闭环审计。结论是：当前本地
+read contract 已覆盖 selector ID/version/content hash、PIT/TTL、完整 restore、tamper/future/revoked/
+expired fail-closed、same-alias wiring 与默认无 authority 时不触碰 Evidence repository。
+
+因此本阶段不再新增 alias glue，也不把 Account actor bundle 映射为 Evidence 的 owner/tenant authority。
+继续实现前必须先有独立 immutable owner/tenant/scope lifecycle（root/successor/revocation/expiry/receipt），
+再有 server-issued selector provider 和同 alias atomic composition，最后才能接 authenticated route。
+当前缺少这些 owner/tenant 事实源与授权，EVID-01 继续 `active/fail-closed`；这不是生产 authority、UAT
+或人工签署。CLI/API 仍只向服务器传输请求，AI、模型、provider、MCP/tool execution 在服务器端，用户
+不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-23：EVID-01 scope observation strict read repository/provider seam
+
+新增 `DjangoEvidenceScopeSourceV1ObservationRepository`，实现 Application 的
+`ExactCurrentEvidenceScopeSourceV1ObservationProvider` 只读端口。每次 selector 读取前，repository
+先恢复整张 observation ledger，再用 strict codec 重建 DTO，并逐列核对 observation identity、
+owner/tenant/account/actor、嵌套 ArtifactRef、status、时钟、canonical payload 与 content hash；
+任何无关行的坏数据、未来记录、重复 identity/hash 或 canonical substitution 都不能被窄 selector
+隐藏。只有 exact observation ID/version/content hash、`recorded_at <= as_of` 且 active/TTL-current
+的记录返回；missing、revoked、expired、future cutoff 或服务器时钟不可用均 fail-closed/返回 None，
+不回退旧版本或其他 successor。
+
+isolated Django component 覆盖 zero-seed、exact round-trip、selector substitution、future/expired/
+revoked、全表 tamper 与私有只读表面，共 `11 passed`；Ruff、Black、isort、增量 mypy regression
+通过。该 slice 仍只是 dormant server-side read seam：没有 capture/append、owner/tenant lifecycle
+issuer、User/Profile/session 读取、HTTP/CLI/Agent route、生产 authority 或 VPS 部署，不解除
+EVID-01/Evidence hard gate。CLI/API 仍只向服务器传输请求，AI、provider、MCP/tool execution 均在
+服务器端，用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-23：EVID-01 scope observation strict codec
+
+为 `EvidenceScopeSourceV1Observation` 增加独立 strict canonical codec，固定顶层与
+`ArtifactRef` nested key 集合，拒绝未知/缺失 key、非 canonical token、伪 boolean/int、非 UTC-Z
+微秒时钟、大小写错误 digest、nested substitution 与 secret 字段。编码前重新执行 Domain
+不变量，解码后重新计算 observation content hash，并要求 encode/decode canonical round-trip。
+
+scope observation codec、model、repository、lifecycle、provider、composition 聚合回归 `61 passed`；
+增量 mypy regression `0`，Ruff、Black、isort 与 `git diff --check` 通过。此前 observation
+ledger 的 `canonical_payload` 同步包含 `content_hash`，避免后续 repository restore 时 JSON 与
+独立 row hash 脱节。
+
+该 slice 仍是 dormant serialization boundary：不创建或推导 owner/tenant authority，不读取
+User/Profile/session，不接 selector issuer、provider、writer、HTTP/CLI/Agent route，不回填或部署
+VPS。EVID-01/Evidence hard gate 继续 active/fail-closed；CLI/API 只把请求传到服务器，AI、模型、
+provider、MCP/tool execution 在服务器端，用户不安装本地软件。
+
+## 2026-08-23：EVID-01 scope observation schema-only ledger
+
+为 dormant `EvidenceScopeSourceV1Observation` DTO 增加独立的
+`EvidenceScopeSourceV1ObservationModel` 与 `0029_evidence_scope_source_v1_observation_ledger`
+迁移。迁移严格只包含一个 `CreateModel`，无 `RunPython`、`RunSQL`、默认值、seed 或回填；
+表按 observation identity、content hash、status、artifact owner 与 `recorded_at < valid_until`
+提供数据库约束，并复用 Research evidence 的 private exact-insert 与 append-only mutation guards。
+
+isolated component 覆盖 zero-seed、字段/canonical payload round-trip、重复 identity/hash、
+clock/status/artifact constraint，以及 save/update/bulk/raw/delete 绕过，结果 `5 passed`；
+scope model/repository/lifecycle/provider/composition focused 回归 `52 passed`，
+`makemigrations --check` 无漂移，增量 mypy、Ruff、Black、isort 与 `git diff --check` 通过。
+
+该 slice 只是 schema/persistence boundary，不是 owner/tenant authority：没有 selector issuer、
+immutable lifecycle source、User/Profile/session 读取、provider/writer、HTTP/CLI/Agent route，
+不回填现有 mutable 数据、不部署或写入 VPS，也不解除 EVID-01/Evidence hard gate。CLI/API
+仍只向服务器传输请求，AI、模型、provider、MCP/tool execution 均在服务器端，用户不安装
+本地软件；后续 repository/codec 必须在任何 selector 前完整恢复 DTO、canonical payload 与
+hash，且生产 authority/PG race/rollback/UAT/人工签署仍待独立门禁。
+
+## 2026-08-23：EVID-01 Research scope ledger disposable PostgreSQL concurrency evidence
+
+为补足 Research `EvidenceScopeSourceV1` repository 的数据库竞争证据，在现成的本地
+`agomtradepro-tar02-pg` disposable PostgreSQL 16 测试容器中创建了专用空库
+`evidence_scope_test_disposable`，并以显式
+`AGOM_EVIDENCE_SCOPE_PG_CONCURRENCY_EVIDENCE=1` 与测试数据库 URL 运行
+`tests/component/research/test_evidence_scope_source_v1_postgres_concurrency.py`。测试结果为
+`3 passed in 66.82s`：空表两个不同 root 只允许一个提交、同一 predecessor 的两个 successor
+只允许一个提交、外层异常回滚后 ledger 不留孤儿行。测试库随后已删除，未触碰其他本地数据库。
+
+这只是隔离 PostgreSQL 的 repository/事务合同证据，不能替代 VPS/生产 PostgreSQL、真实
+owner/tenant immutable lifecycle、server-issued selector、production writer、生产回滚/RTO、
+角色化 UAT 或人工签署；没有部署、回填、审批或生产写入。EVID-01 与 Evidence hard gate
+继续 active/fail-closed。CLI/API 仍是 B/S 薄传输客户端，AI、provider、MCP/tool execution
+继续在服务器端运行，用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-23：EVID-01 authorized Evidence composition same-alias guard
+
+收紧 `make_authorized_evidence_read_facade()` 的 dormant composition 边界：注入的 selector provider、
+`DjangoEvidenceScopeSourceV1Repository` 与 `DjangoEvidenceRepository` 现在都必须暴露
+`unit_of_work_key`，且与显式 `using` 精确对应 `django:{using}`。using 非规范、selector provider
+缺失/替换或跨 alias 时，在创建任一 repository、读取任何 Evidence 之前 fail-closed；这避免把
+两个不同数据库事务的 selector 与 scope/evidence ledger 误称为同一原子组合。
+
+新增 selector alias mismatch 回归；composition/provider/scope/repository focused `77 passed`，
+增量 mypy、Ruff、Black、isort、governance、architecture 与 deterministic inventory 检查通过。
+该 slice 仍只证明 dormant wiring contract，不创建 authenticated owner/tenant authority、selector
+issuer、User/Profile/session 读取或 production writer，不接 HTTP/CLI/Agent，不替代 PostgreSQL
+production race/rollback、VPS/UAT 或人工签署。EVID-01 与 Evidence hard gate 继续 active/fail-closed；
+CLI/API 仍只把请求发送到服务器，AI、provider、MCP/tool execution 在服务器端，用户不安装本地
+Agent、模型或 provider 软件。
+
+## 2026-08-23：EVID-01 scope-source lifecycle unit liveness guard
+
+将同一 unit-of-work 约束从 constructor-time 扩展到 lifecycle 执行期间：Application 记录 provider
+与 repository 的 canonical `unit_of_work_key`，并在 execute 入口、进入 repository-owned `atomic()`
+后、server cutoff、winner/head/observation 每次关键读取之间、source append 前后逐次重验。运行期间
+出现 alias/unit 替换、空白或非规范 key、provider/repository 重新绑定，都会以稳定 unavailable 失败；
+append 后发生漂移也必须让外层事务回滚，不能留下孤儿 scope row。
+
+新增构造边界、execute 前漂移、读取间漂移和 append 期间漂移/回滚回归；Research
+lifecycle/application/provider/composition/repository focused `76 passed`，增量 mypy、Ruff、Black、
+isort、governance 与 architecture 检查保持通过。该 slice 仍只证明 dormant transaction-identity
+contract，不创建 owner/tenant authority，不读取 User/Profile/session，不接 HTTP/CLI/Agent 或生产
+writer，不替代 PostgreSQL production race/rollback。EVID-01 与 Evidence hard gate 继续
+active/fail-closed；CLI/API 仍只把请求传到服务器，AI、provider、MCP/tool execution 在服务器端，
+用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-23：EVID-01 scope-source repository winner read port
+
+补齐 dormant scope-source lifecycle 与 Django repository 之间的 typed seam：
+`DjangoEvidenceScopeSourceV1Repository.get_winner()` 现在先执行完整 ledger restore/chain 校验，再按
+`source_id/source_version` 和 `recorded_at <= as_of` 返回 immutable 首赢家；它不检查 validity TTL，
+也不把 successor/final head 当成 winner，不会在历史重试时回退到其他 active 行。重复 identity、未来
+row、损坏或断链仍在 selector 前 fail-closed。
+
+新增 isolated component 覆盖 root+successor、过期首赢家历史重放和 head 不回退，repository focused
+回归 `10 passed`。该修复只完善 dormant read/append contract，未接 owner/tenant lifecycle issuer、
+mutable User/Profile/session、Evidence/HTTP/CLI/Agent route 或 production writer；EVID-01 继续
+active/fail-closed，CLI/API 仍只向服务器传输请求，AI/provider/MCP/tool execution 在服务器端。
+
+## 2026-08-23：EVID-01 scope-source lifecycle same-unit guard
+
+在 dormant scope-source lifecycle 构造阶段增加同一服务端 unit-of-work 约束：观察 provider 与
+append repository 都必须暴露非空 `unit_of_work_key`，且必须精确相等；缺失、类型替换或 alias
+不一致都会在任何观察读取、head 查询或 append 前失败关闭。Django store 使用其 database alias
+作为该 key，纯 Application fake 也必须显式声明测试 unit，避免把两个独立事务误称为原子
+owner/tenant observation。
+
+新增 alias mismatch 回归；scope lifecycle/application/provider/repository focused 回归 `71 passed`，
+Ruff、Black、isort、增量 mypy 与 diff-check 通过。该 guard 只证明 dormant composition 的事务边界
+合同，不创建 owner/tenant authority，不读取 User/Profile/session，不接 HTTP/CLI/Agent 或生产 writer，
+不替代 PostgreSQL production race/rollback。EVID-01 与 Evidence hard gate 继续 active/fail-closed；
+CLI/API 仍只向服务器传输请求，AI、provider、MCP/tool execution 全部在服务器端，用户不安装本地
+Agent、模型或 provider 软件。
+
+## 2026-08-23：EVID-01 scope-source lifecycle Django append seam
+
+将私有 Django scope-source store 对齐 dormant Application lifecycle 的 typed append 端口：支持
+`expected_predecessor_hash` 与 `recorded_at`，在同一 repository-owned UOW 内解析并校验完整 ledger
+中的 predecessor，要求记录时钟与 canonical source 一致且不晚于 server clock；旧的显式
+`append_root/append_successor` 测试/组合入口继续保留为兼容 shim。store 同时提供 lifecycle 所需的
+validated `now()`，因此 `IssueEvidenceScopeSourceV1` 可以在隔离 Django store 上真实走 root、successor、
+CAS 与 winner-first replay，而不是落到 fake repository。
+
+隔离 component 回归 `12 passed`；Research lifecycle/application/provider/composition 与 repository
+组合回归 `70 passed`；Ruff、Black、isort、增量 mypy、full debt ceiling、governance consistency、
+architecture delta 与 diff-check 均通过。该 slice 仍是 dormant/local SQLite contract：没有 owner/tenant
+authority source、production selector issuer、HTTP/CLI/Agent route、mutable User/Profile/session 读取、
+生产 writer、VPS 部署、PostgreSQL production race/rollback 或人工签署；EVID-01 与 Evidence hard gate
+继续 active/fail-closed。CLI/API 仍只向服务器传输请求，AI、provider、MCP/tool execution 在服务器端，
+用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-23：EVID-01 expired final predecessor successor policy
+
+修正 dormant scope-source lifecycle 的 predecessor policy：最终 head 只需在当前 PIT 已知、
+且状态仍为 `active`，即可作为新 successor 的 CAS predecessor；它是否已超过自身
+`valid_until` 不再阻断新的 owner observation 写入。`revoked` 仍是 terminal，future head 仍
+fail-closed，current read 仍由 final-head 与 temporal TTL 单独决定，不会回退到旧 active row。
+
+新增 active-but-expired final-head successor 回归；lifecycle focused tests `7 passed`，Ruff、Black、
+isort、增量 mypy regression 通过。该修正只澄清历史链续接与 current-read 的分离，不创建或回填
+owner/tenant authority，不接 User/Profile/session、HTTP/CLI/Agent 或生产 writer；EVID-01 继续
+active/fail-closed，CLI/API 仍只向服务器传输请求，AI、provider、MCP/tool execution 在服务器端，
+用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-23：EVID-02 SELECT-only current-head snapshot normalizer
+
+针对现有 VPS 只读盘点只能提供表计数、不能直接进入严格 current-head 审计输入的问题，新增
+`evid-02-select-only-ledger-snapshot.v1` transport contract。纯 Application normalizer 要求
+外部采集器提供 UTC/PIT、approval/activation 完整行、候选 commit/release、database alias、
+query digest 与 `read_mode=select_only`；它拒绝未知字段、mutation/human-approval 声明、秘密字段、
+未来行、错误链与非 canonical row 顺序，并将已验证行重建为既有
+`evid-02-head-audit-snapshot.v1`。`scripts/record_evid_02_head_audit.py --input-format select-only`
+显式完成该转换后，仍只生成本地 content-addressed report，默认 dry-run，绝不连接数据库或写入
+approval/activation ledger。
+
+新增 normalizer/recorder 回归，EVID-02 head-audit focused 为 `18 passed`；Black、isort、Ruff、
+增量 mypy regression 与 full mypy debt ceiling 均通过。当前没有新的 VPS 快照在本 slice 落盘，
+因此报告继续固定 `production_claim=false`、`production_ready=false`、
+`runtime_enablement=not_authorized`、`human_approval_status=not_collected`；`EVID-02` 仍为
+`awaiting_production`，真实 PostgreSQL current-head/rollback、production approval、owner/reviewer
+签署与 Evidence hard gate 不解锁。CLI/API 仍是服务器端 AI 的薄传输客户端，不能要求用户安装本地
+Agent、模型或 provider 软件。
+
+## 2026-08-23：EVID-02 VPS current-head SELECT-only observation
+
+在不部署、不迁移、不写库的前提下，对当前 VPS 运行候选
+`4cef9040cccc2127c3f8128c8d858bc7958df2a4` / release `20260822134658` 执行了一次
+同一 `default` PostgreSQL alias 的 `REPEATABLE READ READ ONLY` 查询。查询只投影
+`research_evidence_operator_spec_approval` 与 `research_activated_evidence_operator_spec`
+的 canonical 账本字段；两者均为零行，因此 head audit 为 `approval=empty`、
+`activation=empty`，没有现场构造 approval、activation 或人工决定。
+
+外部 SELECT envelope 保存在
+[`docs/deployment/evid-02-select-only-vps-snapshot-2026-08-23-4cef9040.json`](../deployment/evid-02-select-only-vps-snapshot-2026-08-23-4cef9040.json)，
+query SHA-256 为 `0735a5b16fee05f9b3fc07f564d56bea85467981b97bfc53234cf23bc9e00b6c`；
+本地 normalizer 生成的 content-addressed report 为
+[`dc03b94b2a454a3db500960d2abc19fd1f14f40affc1c045f40c77760fbd5c12`](../deployment/evid-02-head-audit/dc/dc03b94b2a454a3db500960d2abc19fd1f14f40affc1c045f40c77760fbd5c12.json)。
+报告固定 `production_claim=false`、`production_ready=false`、
+`human_approval_status=not_collected`、`runtime_enablement=not_authorized`；
+该观测只关闭“当前候选账本是否为空”的事实采集子项，不能替代真实审批记录、生产
+current-head/rollback 并发证据、owner/reviewer 签署或 Evidence hard gate，故 `EVID-02`
+仍为 `awaiting_production`。CLI/API 仍只向服务器传输请求，AI/provider/MCP/tool execution
+在服务器端，用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-23：EVID-01 当前 VPS authority inventory 只读复核
+
+在不部署、不迁移、不写库的前提下，对当前运行候选
+`4cef9040cccc2127c3f8128c8d858bc7958df2a4` / release `20260822134658` 读取同一
+PostgreSQL `default` alias 的 `django_migrations` 与 12 张 authority/evidence/root-lock
+表。0050–0053 已应用；authentication-context、User/RBAC raw authority、actor bundle、
+Evidence scope、subject/evidence/receipt 账本均为零行。远端镜像 OCI revision 同为
+`4cef9040cccc2127c3f8128c8d858bc7958df2a4`，没有把当前分支未部署的代码混入报告。
+
+原始只读快照保存在
+[`evid-01-authority-inventory-snapshot-2026-08-23-0810.json`](../deployment/evid-01-authority-inventory-snapshot-2026-08-23-0810.json)，
+经既有离线 normalizer 生成 content-addressed report
+[`3900c08b9054620f9b969f4bd5aab8097bb00ad1e3692e9aaeee66bda5cdf9b4`](../deployment/evid-01-authority-inventory/39/3900c08b9054620f9b969f4bd5aab8097bb00ad1e3692e9aaeee66bda5cdf9b4.json)。
+报告固定 `blocked_zero_seed_authority`、`authority_ready=false`、
+`production_claim=false`、`runtime_enablement=not_authorized`；该事实采集只确认
+schema-ready/zero-seed，不把 Account actor bundle 映射为 Evidence owner/tenant，也不解除
+EVID-01。继续实现仍需独立 immutable owner/tenant/scope lifecycle、server-issued selector
+issuer、同 alias production composition、真实 PostgreSQL race/rollback 与人工授权；
+CLI/API 仍只向服务器传输请求，AI、provider、MCP/tool execution 在服务器端，用户不安装
+本地 Agent、模型或 provider 软件。
+
+## 2026-08-23：EVID-02 disposable PostgreSQL concurrency recheck
+
+按 active registry 的 safe `auto_collect` 条目，在现有本地
+`agomtradepro-tar02-pg`（`postgres:16-alpine`）容器中显式设置
+`DJANGO_SETTINGS_MODULE=tests.settings_evidence_scope_source_v1_postgres` 与
+`AGOM_EVIDENCE_SCOPE_PG_CONCURRENCY_EVIDENCE=1`，为本次运行创建空的
+`evidence_scope_test_20260823` 数据库，并执行
+`tests/component/research/test_evidence_scope_source_v1_postgres_concurrency.py`。
+结果为 `3 passed in 12.20s`：空 root 竞争只产生一个 winner、同 predecessor 竞争只产生一个
+successor、外层异常回滚不留下孤儿行。测试使用的 test database 与专用数据库均已在本地
+容器中清理；未触碰 VPS、生产 PostgreSQL、approval/activation 账本或人工决定。
+
+随后以 `scripts/record_evid_02_postgres_evidence.py` 对既有 content-addressed harness
+报告做 dry-run 校验，报告 digest 仍为
+`a27e193f53910cdb4395cc88d4d96fb04fcda71f2f191dbda7df2626299e6df8`。本次重跑只是本地
+PostgreSQL 软件合同复核，不产生新的生产 claim；`EVID-02` 仍为 `awaiting_production`，真实
+approval/current-head/rollback、owner/reviewer 签署与 Evidence hard gate 不解锁。CLI/API
+仍只向服务器传输请求，AI/provider/MCP/tool execution 在服务器端，用户不安装本地软件。
+
+## 2026-08-23：EVID-01 Research unit acceptance recheck
+
+在不改变生产代码或 authority 组合的前提下，完整运行 `tests/unit/research`，覆盖 Evidence
+composition、scope provider/lifecycle/repository、read facades、R1–R8 readiness 与既有 Research
+contracts；结果为 `860 passed in 178.19s`。这只证明当前仓库的 Research unit contracts 没有回归，
+不把 unit fixtures 当作 owner/tenant authority，也不解除 EVID-01 的 production gate。独立
+immutable owner/tenant lifecycle、server-issued selector issuer、production writer、VPS/UAT、
+PostgreSQL production rollback/race 与人工 sign-off 仍待外部事实源；B/S CLI/API 仍只向服务器
+传输请求，AI/provider/MCP/tool execution 在服务器端。
+
+## 2026-08-23：审计健康只读复核（不解除 Evidence/AUD 门禁）
+
+对现有公网 B/S 服务执行一次无写入 HTTPS GET `/api/audit/health/`，返回 `200` 且
+`overall_status=OK`。失败计数为 `0`，数据库连接与审计表可访问，pending/due/claimed/
+expired/failed outbox backlog 均为 `0`，operation logs 为 `555`。原始结构化响应及
+body SHA-256=`db83db31700811c465d9b7ef76918aae5ef7e8f5c6a686f474e183a6c0cb8d83` 保存在
+[`tar01-public-audit-health-readonly-2026-08-23.json`](../deployment/tar01-public-audit-health-readonly-2026-08-23.json)。
+
+该事实只说明当前审计数据库/健康投影可达，不能证明 canonical durable publisher、
+authenticated owner/tenant authority、final-acceptance MCP evidence receipt 或
+decision-ready 可用；已持久化的 `MCP audit evidence write failed during final acceptance`
+阻断不会因健康端点自动清除。未部署、未写 production、未创建 approval/activation、未改变
+runtime state，`AUD-01`/`EVID-01` 与 global execution deny 继续 fail-closed；CLI/API 仍为
+服务器端 AI 的薄传输客户端，用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-23：EVID-01 当前 HEAD bounded-slice 再审定
+
+以当前 HEAD `eb57eddf016ca65c21d8c9915ca6d2182cfed07e` 复核 EVID-01 的可继续范围；本次
+未修改生产代码、未部署 VPS、未写入生产数据库。EVID-01 相关 composition、scope
+provider/lifecycle、observation、repository 与 authority-inventory targeted regression 共
+`150 passed in 9.61s`；`check_active_plan_registry.py` 与 `check_governance_consistency.py` 均为 `0`
+violations。既有生产快照仍显示 0050–0053 已应用，但 12 张 authority/evidence/root-lock
+表全为 `0` 行，content-addressed report 固定
+`blocked_zero_seed_authority`、`authority_ready=false`、`production_claim=false`、
+`runtime_enablement=not_authorized`。
+
+边界复核确认：`apps/research/evidence_composition.py` 的默认 facade 仍在 repository
+读取前使用未接线 scope provider 并 fail-closed；authorized factory 只接受 server-issued
+selector，并要求 scope-source、Evidence repository 与 selector 共享同一
+`django:{using}`。`apps/account` 的 actor-authority bundle 只覆盖 authentication-context、
+Account user 与 RBAC raw source，不能映射为 Evidence 的 `owner_id`/`tenant_id`/
+`account_id`，也不能从 User/Profile/session/grant 现场派生 authority。当前没有新的安全
+本地 slice：继续添加 alias glue 会重复已有合同，真正下一步必须由外部业务/授权先定义独立
+immutable owner/tenant/scope lifecycle（root/successor/revocation/expiry/receipt）、
+server-issued selector issuer、生产 writer 与 authenticated route，再做同 alias production
+composition、PostgreSQL race/rollback 及 owner/reviewer sign-off。故 EVID-01 保持
+`active`/fail-closed，AUD/Evidence hard gate 与全局 execution deny 不解除；B/S、CLI/API
+仍只把请求发往服务器，AI/provider/MCP/tool execution 在服务器端，用户不安装本地 Agent、
+模型或 provider 软件。
+
+## 2026-08-23：EVID-02 当前候选 approval/current-head 新鲜只读复核
+
+在仍运行的 `4cef9040cccc2127c3f8128c8d858bc7958df2a4` / release `20260822134658` /
+image `sha256:cfaf17560df2f85cd8ba2f5db8226a9dd9fe1cce081f30175c2a08737b4908d8` 上，使用同一
+PostgreSQL `default` alias 执行一个 `REPEATABLE READ READ ONLY` 事务。三张 EVID-02
+canonical ledger 表均为空：`research_evidence_operator_spec=0`、
+`research_evidence_operator_spec_approval=0`、
+`research_activated_evidence_operator_spec=0`；因此 current head 仍为 `empty`。
+
+结构化工件为
+[`evid-02-select-only-vps-snapshot-2026-08-23-1336.json`](../deployment/evid-02-select-only-vps-snapshot-2026-08-23-1336.json)，
+SHA-256 为 `3fea758393a9bf2ca2f449d3dabe1c0726388ee964a76a97e068139be8e028a1`，query digest 为
+`3a47396d69bb546ba6adeecab49de351eff0889caa42b236f397ca3c0a97dd3d`。本次仅刷新真实
+账本现状，没有创建 approval/activation、回滚或任何生产写入；
+`EVID-02=awaiting_production`、`production_claim=false`、`production_ready=false`、
+`human_approval_status=not_collected`、`runtime_enablement=not_authorized` 保持不变。
+该空 head 观察不能替代真实审批、生产 PostgreSQL 并发/rollback 或 owner/reviewer 签署。
+
+## 2026-08-23：当前分支计划验收与门禁复核
+
+当前 `dev/next-development` 的 HEAD 为 `c03d3c037a25dddd36dda8d248cc3c148ff34537`，并与
+`origin/dev/next-development` 同步。只读验收重新运行了注册表检查、治理一致性、Evidence
+output-surface freeze、decision-write-surface freeze、TUI metadata source guard 和
+TAR-01/M5 preflight：注册表/治理/冻结检查均为零违规，TUI source guard 为
+`12 published/24 runtime screens`、`430/890 actions`、`0 violations`，TAR-01 为
+`CONTRACT_COMPLETE` 且 `safety_ready=true`、`capacity_ready=false`，M5 readiness 仍为
+`DENY`。本轮只回写验收记录，没有部署 VPS、生产写入或 runtime gate 变更。
+
+这次复核没有发现可安全新增的 EVID-01 repository slice。12 张 authority/evidence/root-lock
+表仍是 zero-seed；不能把 Account actor bundle 映射为 Evidence owner/tenant，也不能用本地
+fixture、健康端点或只读账本替代 immutable authority、selector issuer、production writer、
+PG race/rollback 和 owner/reviewer sign-off。故 EVID-01 继续 `active`/fail-closed，后续实现
+必须等待独立 owner/tenant/scope 业务定义和授权输入；B/S、CLI/API 仍只向服务器提交请求，
+AI/provider/MCP/tool execution 在服务器端，用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-23：当前 HEAD 验收复核与 CI 收口
+
+在不部署 VPS、不写生产数据库的前提下，对当前 `dev/next-development` HEAD
+`07fd7c676946d1c7e5150ad57a5eee8f77cfcc8d` 做本地门禁复核。`check_active_plan_registry.py`
+与 `check_governance_consistency.py` 均为 `0` violations；Evidence output surface、MCP
+Evidence semantic surface 与 decision write surface freeze 均通过；TUI source guard 为
+`12 published/24 runtime screens`、`430/890 actions`、`0 violations`。EVID 相关定向回归
+为 `59 passed`，TUI/冻结定向回归为 `65 passed`，完整
+`tests/unit/test_tui_workbench.py` 为 `257 passed in 258.39s`；当前 HEAD 的四条 push CI
+均为成功。
+
+本次验收没有发现新的安全 EVID-01 repository slice。生产 authority/evidence/root-lock
+账本仍 zero-seed，故不能把本地合同、健康端点或只读账本升级为 immutable owner/tenant
+authority、selector issuer、production writer、PostgreSQL production race/rollback 或
+owner/reviewer sign-off。`EVID-01` 继续 `active`/fail-closed，TAR-01 仍
+`capacity_ready=false`，M5 readiness 仍 `DENY`；B/S、CLI/API 继续只向服务器提交请求，
+AI/provider/MCP/tool execution 在服务器端，用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-24：EVID-01 authority 回滚历史与恢复授权
+
+此前 `dev/next-development` 发现并回滚了当时尚未获得恢复授权的
+`bc6760465` authority 草稿提交；可追溯 revert 为 `a11ee194449ee91cfb9abaef6fc7c54b962b4b73`，
+并曾推送至 `origin/dev/next-development`。用户随后明确授权恢复该实现；恢复只代表代码与
+schema 重新进入开发分支，不构成真实生产 receipt、PostgreSQL first-winner/revocation/rollback
+或 owner/reviewer sign-off，也不作为生产验收证据。
+
+回滚后只读复核结果：`check_active_plan_registry.py` 与
+`check_governance_consistency.py` 均为 `0 violations`；TUI metadata source guard 为
+`outcome=ok`、`0 violations`；Evidence composition/scope provider 定向回归为 `24 passed`；
+针对 revert 的四条 push CI（Fast Feedback、Consistency Check、Architecture Layer Guard、
+Security Scan）均成功。工作树仅保留既有 `.gitignore` 用户改动，无 authority 草稿或生产代码
+改动。未部署 VPS、未执行 migration、未写生产、未改变 Evidence/global execution deny。
+
+该历史复核证明回滚点的 fail-closed 基线有效；后续恢复实现仍不解除 `EVID-01`。必须继续完成
+真实 root approval、生产 PostgreSQL race/rollback、同 alias 端到端验收和 owner/reviewer 双签；B/S、CLI/API
+仍只向服务器提交请求，AI/provider/MCP/tool execution 在服务器端，用户不安装本地 Agent、
+模型或 provider 软件。
+
+## 2026-08-24：EVID-01 Evidence read composition 机器守卫
+
+为继续收紧 EVID-01 的生产 read boundary，新增只读 AST guard
+`scripts/check_evidence_scope_composition.py`，并接入 `.github/workflows/consistency-check.yml`。
+它扫描 `apps/core/shared` 的 `2919` 个生产 Python 文件，禁止在
+`apps/research/evidence_composition.py` 以外直接导入或实例化
+`DjangoEvidenceRepository`、`DjangoEvidenceScopeSourceV1Repository`、
+`EvidenceReadFacade` 或 `ScopedEvidenceReadFacade`；同时要求三个 staff-scoped Evidence
+detail views 通过 `make_evidence_read_facade()` 进入默认 fail-closed composition。
+
+本地验证：guard `Evidence scope composition guard passed`；composition/API focused regression
+`23 passed`；Ruff、Black、isort 与 `check_mypy_regression.py` 均通过。该切片只增加机器证明，
+不读取或创建 owner/tenant authority，不接 authenticated production writer/route，不执行
+migration/生产写入，也不解除 zero-seed、Evidence hard gate 或 global execution deny。
+后续仍需独立 immutable owner/tenant/scope lifecycle、server-issued selector issuer、生产
+composition、PostgreSQL race/rollback 与 owner/reviewer sign-off；B/S、CLI/API 仍只向服务器
+提交请求，用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-24：EVID-02 当前候选新鲜 SELECT-only 只读复核
+
+在不部署、不迁移、不写库的前提下，使用只读 SSH verifier 再次确认当前 VPS
+运行候选为 `4cef9040cccc2127c3f8128c8d858bc7958df2a4` / release `20260822134658` /
+image `sha256:cfaf17560df2f85cd8ba2f5db8226a9dd9fe1cce081f30175c2a08737b4908d8`；Caddy/TLS、
+health、Django deploy check、迁移与 Data Center schema、TUI registry、QLib、容器资源、
+healthcheck、Celery worker/beat/ping 均通过。随后在同一 `default` alias 的 PostgreSQL
+`REPEATABLE READ READ ONLY` 事务中读取三张 canonical EVID-02 ledger 的安全字段；
+`research_evidence_operator_spec_approval` 与 `research_activated_evidence_operator_spec`
+均为 `0` 行（operator spec 也为空），current head 为 `empty`，没有构造或写入
+approval/activation。
+
+外部 envelope 为
+[`evid-02-select-only-vps-snapshot-2026-08-24-4cef9040.json`](../deployment/evid-02-select-only-vps-snapshot-2026-08-24-4cef9040.json)，
+input SHA-256=`962eb52c3a93fa39848777f12cf6acaad653d64c7b49a07cc5e889ffa0b2234c`，经既有
+`record_evid_02_head_audit.py --input-format select-only --write` 生成 content-addressed
+report [`894cce56837ad938da268b6b0c43f4f0dde01374d9efbba0176cfb1896d92225.json`](../deployment/evid-02-head-audit/89/894cce56837ad938da268b6b0c43f4f0dde01374d9efbba0176cfb1896d92225.json)。
+报告固定 `production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`；
+local `dev/next-development` HEAD 未部署，本次只读事实不能作为当前 HEAD production candidate，
+也不能解除 EVID-02 `awaiting_production`、真实 first-winner/current-head/rollback、human
+approval、owner/reviewer 或 Evidence hard gate。B/S、CLI/API 继续只向服务器提交请求，用户不安装本地
+Agent、模型或 provider 软件。
+
+## 2026-08-24：EVID-02 recorder 服务器端直接执行入口修复
+
+复核发现 `python scripts/record_evid_02_postgres_evidence.py --help` 从仓库根目录直接调用时，
+因脚本目录未把仓库根加入导入路径而抛出 `ModuleNotFoundError: apps`。现已在脚本启动边界
+显式加入仓库根路径，并增加直接子进程 CLI 回归；`--help` 现在可在服务器端仓库 checkout
+直接运行，focused recorder 回归为 `16 passed`。
+
+该修复只改善 EVID-02 离线 auto_collect 工具的可执行性，不改变默认 dry-run、content-addressed
+写入或 `production_claim=false` / `production_ready=false` / `runtime_enablement=not_authorized`
+语义；没有连接 PostgreSQL/VPS、创建 approval/activation、执行生产写入或发明人工审批。EVID-02
+仍为 `awaiting_production`，真实 PostgreSQL first-winner/current-head/rollback、人工审批与
+owner/reviewer sign-off 仍未解锁；B/S、CLI/API 继续只向服务器提交请求，AI/provider/MCP/tool
+execution 在服务器端，用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-24：EVID-01 composition guard module-import hardening
+
+在既有 Evidence read composition AST guard 的基础上，补充检测 module-only 绕过形式：
+`import ...evidence_repository as ...` 与 `from ... import evidence_repository` 现在同样被拒绝，
+而 `apps/research/infrastructure/` 内部实现之间的私有 repository helper import 仍被允许，避免
+把 Domain/Application/Infrastructure 合法依赖误判为 route composition bypass。新增回归覆盖两种
+语法，guard 实际扫描 `2921` 个 production Python 文件并通过，定向 guard 回归为 `21 passed`。
+
+该切片只扩大生产 read boundary 的静态证明，不创建 immutable owner/tenant authority、不接
+production writer/route、不访问 PostgreSQL/VPS，也不解除 zero-seed、Evidence hard gate 或
+global execution deny；EVID-01 仍需外部 authority lifecycle、selector issuer、production
+composition、PG race/rollback 与 owner/reviewer sign-off。
+## 2026-08-24：EVID-01 独立 owner/tenant authority 与自动 scope 采集
+
+用户明确授权继续实现后，新增 Account-owned `OwnerTenantAuthorityV1`。它不把现有
+authentication/user/RBAC actor bundle 误当作 tenant/owner；root 只接受 exact-current
+`AccountOwnerAssignmentEvidenceV3` 作为账户归属 seal，并要求另一名当前认证的 human staff
+admin 显式批准 `tenant_id` 与稳定 `owner_id`。owner actor 与审批 actor/user 必须不同。
+authority 账本只追加，支持 root、active successor、revocation 和 expiry；Account schema-only
+migration `0055_owner_tenant_authority_v1` 不含 seed 或生产回填。数据库约束单 root、单
+successor，current reader 总是读取最终 head，并重验上游 account assignment；撤销、过期或
+账户归属提前失效后禁止回退旧 active 行。
+
+新增 authenticated Account→Research composition：每次 Evidence read 或 ScopeSource issuance
+先重验 request principal 的 Account actor authority，再重验 exact authority id/version/hash 的
+active final head，并绑定 exact Research `ArtifactRef`。actor、artifact、hash 或
+`django:{using}` alias 任一不一致均 fail closed。真实 authority 存在后，服务器可自动投影
+content-addressed scope observation、调用现有 winner-first lifecycle 写入 scope source，再
+签发 same-alias selector；自动化负责采集真实证据，但不能替人决定 tenant/owner，也不能自动
+创建首个生产 trust root。
+
+本轮本地结果：authority/core/composition/guard 与 Django 账本 component 合计 `24 passed`；
+Account migration drift 为 `No changes detected`，增量 mypy `0` 回退、全量 mypy debt `0`，
+Ruff、架构、注册表与治理一致性均为 `0` 违规。另修正了 Evidence composition boundary：
+private ScopeSource writer 工厂只在 `apps/research/evidence_composition.py` 内导入
+Infrastructure，跨 App authenticated builder 通过 `core/integration` 组合根调用公开的
+Research root 工厂；scope guard 扫描
+`2931` 个 production files、`0` violations。未部署 VPS、未执行 migration、未写生产、
+未创建真实审批，也未解除 Evidence hard gate/global execution deny。`EVID-01` 继续 active；
+剩余为受控部署 0055、真实独立 root approval、生产 PostgreSQL first-winner/successor/
+revocation/rollback、同 alias 端到端验收和 owner/reviewer sign-off。
+
+## 2026-08-24：EVID-01 composition root cycle guard 收口
+
+CI 复核发现 Account composition 直接依赖 Research composition 会重新引入
+`account/equity/research` app-level cycle。现将 authenticated owner-scoped Evidence read/scope
+issuer 的跨 App 组装移入 `core/integration/owner_tenant_evidence_scope_v1.py`；Account 仅保留
+Account-owned authority reader 的构造并将其以 typed 端口注入，Research Infrastructure 仍只由
+Research composition root 访问。module-cycle guard
+恢复为 `206` 条边、`0` cycle、预算 `0` 超限，Evidence composition guard 仍扫描 `2931` 个生产
+文件且 `0` violations；authority/core/composition focused 回归、增量 mypy 与架构审计保持通过。
+这只是仓库边界修复，不接 HTTP/CLI/Agent route，不执行 migration/生产写入，也不解除 EVID-01
+的真实 root approval、PostgreSQL race/rollback、同 alias 端到端验收或 owner/reviewer sign-off。
+
+## 2026-08-24：EVID-01 owner/tenant authority PostgreSQL 并发验收 harness
+
+新增 `tests/component/account/test_owner_tenant_authority_v1_postgres_concurrency.py` 及专用
+`tests/settings_owner_tenant_authority_v1_postgres.py` 隔离配置，覆盖空 root first-winner、同
+predecessor successor first-winner、外层事务 rollback 无 orphan，以及 `0055` forward/reverse/
+re-forward zero-seed。数据库 URL 只接受显式 opt-in 的本地/测试 PostgreSQL，数据库名必须包含
+`authority` 与 `test`；缺少环境变量时测试明确 `4 skipped`。本机 disposable PostgreSQL 16
+空库实际运行 `5 passed in 25.82s`（含 revoked terminal head no-fallback），测试数据库已清理；这只是本地 PostgreSQL 软件证据，
+不把 SQLite、skip 或本机容器结果记为 VPS/production evidence。未连接 VPS、未执行生产
+migration/写入，EVID-01 仍需真实生产 PG race/revocation/rollback 与 owner/reviewer sign-off。
+
+## 2026-08-24：EVID-01 authority inventory v2 兼容性收口
+
+只读 inventory parser 原先固定在 Account `0050–0053` 与 12 张旧 authority/evidence 表；
+在 `0054_normalize_physical_v2_fixed_constraint`、`0055_owner_tenant_authority_v1` 和
+`account_owner_tenant_authority_v1` 出现后会拒绝 canonical snapshot。现已保留 v1 parser/
+report 及其历史 content hash，同时新增 v2 snapshot/report 分派，严格要求完整 `0050–0055`
+顺序和 13 张表（含新 owner/tenant ledger）。新 ledger 非零只派生
+`blocked_unverified_authority`，不会被计数提升为 authority；v1/v2 均固定
+`production_claim=false`、`production_ready=false`、`authority_ready=false`、
+`runtime_enablement=not_authorized`。
+
+纯 inventory/CLI 回归 `18 passed`；Ruff、Black、isort、增量 mypy 与 full debt ceiling 均通过。
+该切片只修复服务器端离线自动取证的 schema-version 兼容性，不读取 DB/VPS、不创建 authority、
+不接 route/writer、不改变 registry gate。`EVID-01` 仍需受控生产 migration、独立 root approval、
+same-alias authority/provider、PG revocation/rollback 与 owner/reviewer sign-off；B/S、CLI/API
+仍只向服务器提交请求，AI/provider/MCP/tool execution 在服务器端，用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-24：EVID-01 当前 VPS pre-0055 只读验收与中间态合同
+
+在不部署、不执行 migration、不写生产数据库的前提下，通过只读 SSH 查询确认当前运行候选为
+`4cef9040cccc2127c3f8128c8d858bc7958df2a4` / release `20260822134658` /
+image `sha256:cfaf17560df2f85cd8ba2f5db8226a9dd9fe1cce081f30175c2a08737b4908d8`。
+同一 `default` PostgreSQL alias 的 `django_migrations` 已应用 Account `0050`–`0054`，
+`0055_owner_tenant_authority_v1` 尚不存在；12 张既有 authority/evidence/root-lock 表均为
+`0` 行，新增 owner/tenant ledger 关系也不存在。公网只读 GET 同时确认 `/api/health/`、
+`/api/ready/`、`/api/audit/health/` 为 `200`，`/api/decision-ready/` 为 `503` 且
+`must_not_use_for_decision=true`，匿名 `/api/tui/` 为 `403`。原始状态摘要与响应 hashes
+见 [`evid-01-current-vps-readonly-2026-08-24.json`](../deployment/evid-01-current-vps-readonly-2026-08-24.json)。
+
+为使这个真实的 pre-0055 中间态可被离线 recorder 严格记录，而不是错误冒充 post-0055 zero-seed，
+新增 `evid-01-authority-inventory-snapshot.v2-pre-0055` / matching report format；报告固定
+`blocked_missing_owner_tenant_migration`、`production_claim=false`、`production_ready=false`、
+`authority_ready=false`、`runtime_enablement=not_authorized`。快照与 content-addressed report
+分别见 [`evid-01-authority-inventory-snapshot-2026-08-24-pre-0055.json`](../deployment/evid-01-authority-inventory-snapshot-2026-08-24-pre-0055.json)
+与 [`0ad0a48982b8fe84788df2bbe7b0d851a2d484d773efab65637f85bbca01ce13.json`](../deployment/evid-01-authority-inventory/0a/0ad0a48982b8fe84788df2bbe7b0d851a2d484d773efab65637f85bbca01ce13.json)。
+纯 inventory/CLI 回归 `20 passed`，增量 mypy 与 debt ceiling、Ruff/Black/isort 均通过。
+这只补齐服务器端只读自动取证的版本边界，不接 production writer/route，不创建 approval/seed，
+也不解除 EVID-01、Evidence hard gate 或 global execution deny；下一真实步骤仍需受控执行
+`0055`、独立 root approval、生产 PostgreSQL first-winner/revocation/rollback、same-alias
+端到端验收与 owner/reviewer 签署。B/S、CLI/API 仍只向服务器提交请求，AI/provider/MCP/tool
+execution 在服务器端，用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-24：EVID-01 post-0055 受控部署与只读验收
+
+按用户授权仅执行一次 `dev/next-development` code-only `-Upgrade`，保留 PostgreSQL/Redis
+数据卷并先生成 VPS PostgreSQL 备份；没有重复部署、没有手工写入 authority/evidence、没有
+seed/backfill/approval。候选绑定为 `94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` /
+release `20260824133504` / image
+`sha256:1c560b5fed14964a008c278a88d9f3e3b144444a172ecc239d06cedbd76d6a3e`，部署 verifier、
+迁移/schema、Django、TUI registry、Qlib=`pyqlib 0.9.7`、Caddy/TLS、Web/Worker/Beat 与
+Celery ping 均通过。正常迁移应用 `account.0055_owner_tenant_authority_v1` 与
+`research.0029_evidence_scope_source_v1_observation_ledger`；同一 `default` alias 的 13 张
+authority/evidence 表全为 `0` 行。
+
+独立公网只读探针确认 `/api/health/`、`/api/health/db/`、`/api/ready/`、
+`/api/audit/health/` 均 `200`，审计 operation logs=`555`、failures/backlog/outbox gauges
+全为 `0`；匿名 `/api/tui/`=`403`。`/api/decision-ready/` 保持 `503`，
+`must_not_use_for_decision=true`，稳定原因仍是 `decision_runtime_blocked` /
+`MCP audit evidence write failed during final acceptance`。部署与观察工件见
+[`tar01-current-vps-deployment-acceptance-2026-08-24-94abd76e.json`](../deployment/tar01-current-vps-deployment-acceptance-2026-08-24-94abd76e.json)。
+
+post-0055 inventory 使用同一只读快照生成 content-addressed 报告
+[`55bb41f6129c30d42c8ec3041bc4e90b4ae5064e29409b83d8df6ea86bb7d680.json`](../deployment/evid-01-authority-inventory/55/55bb41f6129c30d42c8ec3041bc4e90b4ae5064e29409b83d8df6ea86bb7d680.json)，
+结果固定为 `blocked_zero_seed_authority`、`authority_ready=false`、
+`production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`。
+因此本次只证明 schema 已在受控候选应用且运行健康，不把迁移、健康端点或零行账本升级为
+immutable owner/tenant authority、selector issuer、生产 writer、PostgreSQL production
+first-winner/revocation/rollback、角色化浏览器 UAT 或 owner/reviewer sign-off；EVID-01
+继续 `active`/fail-closed，TAR-01 继续 `CONTRACT_COMPLETE/safety_ready=true/capacity_ready=false`，
+全局 execution/decision gate 不变。B/S、CLI/API 仍只向服务器提交请求，AI/provider/MCP/tool
+execution 在服务器端，用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-24：EVID-02 当前 HEAD SELECT-only current-head 只读复核
+
+在上一节 post-0055 受控部署候选上，使用同一 `default` PostgreSQL alias 执行一条
+`REPEATABLE READ READ ONLY` 事务；查询只读取 EVID-02 approval/activation 账本及
+`research_r6_activation_authorization` 行数，不触碰 writer，也不构造 approval、activation
+或人工决定。候选绑定为 `94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` / release
+`20260824133504`，server `as_of=2026-08-24T06:15:50.828234Z`，capture time
+`2026-08-24T06:15:50.849865Z`，query digest
+`8553cd8217b7e1e03b3140c1cc7eed9d33f07899650b7a5f4f933bb7cff47d40`。
+
+`research_evidence_operator_spec_approval`、`research_activated_evidence_operator_spec` 与
+`research_r6_activation_authorization` 均为 `0` 行；approval/activation current head 均为
+`empty`。外部快照 [`evid-02-select-only-vps-snapshot-2026-08-24-94abd76e.json`](../deployment/evid-02-select-only-vps-snapshot-2026-08-24-94abd76e.json)
+的 input SHA 为 `69814588d331087160224ac16758840f1b833c1787863a54f4c2418763bfb64f`，经
+`record_evid_02_head_audit.py --input-format select-only --write` 生成报告
+[`3513ea4582a73d2afccd5c2967008c4a8c17aa70d3a7039473947724c289e4fd.json`](../deployment/evid-02-head-audit/35/3513ea4582a73d2afccd5c2967008c4a8c17aa70d3a7039473947724c289e4fd.json)。
+报告固定 `human_approval_status=not_collected`、`production_claim=false`、
+`production_ready=false`、`runtime_enablement=not_authorized`。
+
+本轮只是将只读 current-head 事实重新绑定到已部署候选，不解除 `EVID-02` 的
+`awaiting_production`；真实 first-winner/current-head/rollback 并发、Risk Center approval、
+owner/reviewer 签署与 Evidence hard gate 仍缺失。B/S、CLI/API 继续只向服务器提交请求，
+AI/provider/MCP/tool execution 在服务器端，用户不安装本地 Agent、模型或 provider 软件。
+
+## 2026-08-24：EVID-01 当前仓库合同复核
+
+在不修改生产代码、不部署 VPS、不执行 migration 或生产写入的前提下，复跑当前
+`dev/next-development` HEAD 的 EVID-01 定向合同：Account owner/tenant authority、core
+authenticated composition、Research scope lifecycle/provider/observation、Evidence
+composition guard 与 v2 authority inventory 共 `89 passed`；Account/Research component
+repository/model 合同再通过 `36 passed in 156.20s`。`check_evidence_scope_composition.py`
+扫描 `2931` 个生产 Python 文件并通过，active-plan registry 与 governance consistency
+均为 `0` violations，`git diff --check` 通过。
+
+本次没有发现可安全新增的本地 repository slice。证据只证明当前 fail-closed 边界与本地
+合同完整，不升级为生产 authority：VPS post-0055 账本仍 zero-seed，生产 PostgreSQL
+first-winner/successor/revocation/rollback、真实独立 root approval、same-alias 端到端
+写读回执和 owner/reviewer sign-off 仍缺失；`EVID-01` 继续 `active`，global
+execution/decision deny 不变。下一步仍是一次受控外部 authority/PG/UAT 验收，不应以本地
+测试替代，也不应为此重复部署 VPS。
+
+## 2026-08-24：EVID-01 canonical plan/index/registry 状态对齐
+
+复核发现 post-0055 的详细验收记录已经存在，但 registry 总览、计划 README 与 `docs/INDEX.md`
+仍将 `0055` 写成“下一步生产迁移”。现已统一绑定受控候选
+`94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` / release `20260824133504`：Account `0055` 与
+Research `0029` 已应用，13 张 authority/evidence 表仍为 zero-seed，报告仍固定
+`blocked_zero_seed_authority`、`authority_ready=false`、`production_claim=false`、
+`runtime_enablement=not_authorized`。本次只改治理摘要和索引文字，不部署、不迁移、不写生产，
+也不改变 `EVID-01`/global execution deny；下一真实门仍是独立 root approval、生产 PostgreSQL
+first-winner/successor/revocation/rollback、same-alias 端到端回执与 owner/reviewer 双签，
+不重复部署 VPS。
+
+## 2026-08-24：EVID-01 候选与当前 HEAD 漂移审定
+
+对已部署候选 `94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` 与当前
+`dev/next-development` HEAD `3900a064cf1e29406286db2450a020d346bc2afb` 做只读文件级比较：
+`git diff --name-only 94abd76e..HEAD` 共 `45` 个文件，包含 `apps/` `9` 个、`config/` `1` 个、
+`tests/` `2` 个、`docs/` `30` 个、`governance/` `2` 个和 `.gitleaks.toml` `1` 个。
+其中 `apps/terminal`、TUI manifest 与测试是 TUX-02 repository slice，尚未重新绑定到 VPS；
+分支 HEAD 与 origin 同步，最新四条 push CI（Architecture Layer Guard、Security Scan、
+Consistency Check、CI Fast Feedback）均成功。
+
+该检查证明本次不应把当前 HEAD 宣称为已部署候选：按“不频繁部署”要求不重新部署、不迁移、
+不写生产，也不重绑 `94abd76e`。它不能解除 EVID-01：post-0055 的 13 张 authority/evidence
+账本仍 zero-seed，独立 root approval、生产 PostgreSQL first-winner/successor/revocation/
+rollback、same-alias 端到端写读回执与 owner/reviewer 签署仍缺失；`EVID-01` 继续
+`active`/fail-closed，global execution/decision deny 不变。
+
+## 2026-08-24：EVID-01 post-0055 候选低频只读复核（13:04–13:05 UTC）
+
+在不部署、不执行 migration、不写入数据库的前提下，通过 SSH 只读复核同一受控候选
+`94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` / `agomtradepro-web:20260824133504`：Web、
+Celery worker/beat、PostgreSQL、Redis 与 Caddy 均在运行；公网 `/api/health/`、`/api/ready/`
+和 `/api/audit/health/` 均为 `200`，`/api/decision-ready/` 为 `503`，明确
+`must_not_use_for_decision=true`，原因仍为 `decision_runtime_blocked`。
+Account `0050–0055` 与 Research `0029` 均已应用；同一 `default` PostgreSQL alias 的
+13 张 authority/evidence 表逐表 `SELECT COUNT(*)` 均为 `0`。
+
+本次快照 [`evid-01-authority-inventory-snapshot-2026-08-24-recheck-2105.json`](../deployment/evid-01-authority-inventory-snapshot-2026-08-24-recheck-2105.json)
+经 `record_evid_01_authority_inventory.py --write` 生成 content-addressed 报告
+[`39760173ab5aa8e4adfab03d088c62519e22e5b6cea40d78eaf2d5d0befd6372.json`](../deployment/evid-01-authority-inventory/39/39760173ab5aa8e4adfab03d088c62519e22e5b6cea40d78eaf2d5d0befd6372.json)，
+结果固定为 `blocked_zero_seed_authority`、`authority_ready=false`、
+`production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`。
+这是新鲜只读运行事实，不是 authority seed/approval、PG race/rollback、same-alias 写读回执或
+owner/reviewer 签署；全局 execution/decision deny 继续保持。
+
+## 2026-08-24：EVID-01 authority/composition focused revalidation
+
+在不修改生产代码、不部署 VPS、不执行 migration 或生产写入的前提下，复跑当前
+`dev/next-development` HEAD 的 owner/tenant authority、scope selector/lifecycle/provider、
+Evidence composition 与 audit-authority focused unit contracts，共 `93 passed in 2.83s`。
+覆盖 Account authority root/successor/current-head 语义、Research scope codec/provider/lifecycle、
+same-alias owner-scoped Evidence facade，以及缺 provider/身份替换时的 fail-closed 行为。
+
+该回归只证明仓库合同仍稳定，不创建 owner/tenant seed，也不把 Account actor bundle 当作 Evidence
+authority；VPS post-0055 的 13 张 authority/evidence ledger 仍 zero-seed，生产 PostgreSQL
+first-winner/successor/revocation/rollback、独立 root approval、same-alias 端到端回执和
+owner/reviewer sign-off 仍缺失。`EVID-01` 继续 `active`/fail-closed，global execution/decision
+deny 不变，下一步仍需真实外部 authority/PG 验收而不是重复本地部署。
+
+## 2026-08-24：EVID-01 受控候选与当前 HEAD 漂移最新复核
+
+将已部署候选 `94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` 与当前同步的
+`dev/next-development@271513f2abd6b03233a8a32b20259798603a71f0` 做文件级只读比较，共
+`59` 个差异文件：`apps/` `9`、`config/` `1`、`tests/` `2`、`docs/` `44`、`governance/`
+`2`、`.gitleaks.toml` `1`。全部非文档/治理差异均属于 TUX-02 的 TUI runtime injection、
+manifest 或对应测试；没有 Evidence、Account、Research、Data Center 或 runtime backend
+生产代码漂移。
+
+因此按“不频繁部署 VPS”约束保持候选 `94abd76e` 不变，不把当前 HEAD 冒充已部署版本，也不
+触发重复部署。该比较只证明候选绑定边界，不解除 EVID-01：13 张 authority/evidence ledger
+仍 zero-seed，独立 root approval、生产 PostgreSQL first-winner/successor/revocation/
+rollback、same-alias 端到端回执和 owner/reviewer sign-off 仍缺，global execution/decision
+deny 继续保持。
+
+## 2026-08-25：EVID-01 owner/tenant authority same-alias guard
+
+补齐本地 composition contract 的一个 fail-closed 缺口：`GetCurrentOwnerTenantAuthorityV1`
+现在显式暴露其 repository 的 `unit_of_work_key`，authenticated owner/tenant → Evidence
+bridge 在组装 selector/Evidence repositories 之前要求 authority reader 与请求的
+`django:{using}` 完全一致；注入其它 alias 的 reader 立即拒绝，避免跨 alias authority
+与 Evidence 数据被拼接。新增 alias-mismatch 回归后，Account/Research/Core/Audit focused
+contract 共 `94 passed`；Black/isort/Ruff、增量 mypy regression 与债务门禁通过。
+
+该 slice 仍只证明仓库内 typed composition 边界：没有创建 owner/tenant seed、生产写入、
+VPS 部署或人工批准；post-0055 候选的 13 张 authority/evidence ledger 仍 zero-seed，
+独立 root approval、生产 PostgreSQL first-winner/successor/revocation/rollback、same-alias
+端到端写读回执和 owner/reviewer sign-off 仍缺。`EVID-01` 继续 `active`/fail-closed，
+global execution/decision deny 与 `/api/decision-ready/` 阻断不变。
+
+## 2026-08-26：decision-ready 恢复依赖记录
+
+仓库侧已修复 `sdk/agomtradepro_mcp/audit.py` 的嵌入式 audit sink 投递身份边界：本地 sink
+现在与网络发送一样携带稳定的 `delivery_id`，并由 SDK contract test `12 passed` 覆盖。该修复
+只解决 operation-log 写入的幂等身份缺口，不等于 durable final-acceptance receipt，也不生成
+任何 owner/tenant authority 或 Evidence ledger 数据。
+
+当前恢复仍必须取得真实生产证据：候选绑定的 durable MCP audit write/final-acceptance receipt、
+独立 authenticated scoped authority、同 alias PostgreSQL 写读/first-winner/rollback 证据以及
+owner/reviewer sign-off。`/api/audit/health/` 的 200、空 outbox 或本地/合成测试均不能替代这些
+证据；未取得前不得清除 persisted runtime blocker、不得把 EVID-01 标为完成。

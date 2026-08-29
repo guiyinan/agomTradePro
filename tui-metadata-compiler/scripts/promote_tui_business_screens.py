@@ -17,7 +17,7 @@ from apps.terminal.application.tui_metadata import (
     validate_tui_metadata,
 )
 
-SCREEN_SPECS = {
+SCREEN_SPECS: dict[str, dict[str, Any]] = {
     "command-center.decision-flow": {
         "key": "command-center.decision-flow",
         "label": "每日决策流程",
@@ -270,7 +270,7 @@ EXACT_DEFAULT_ACTION_OVERRIDES = {
     "execution.events": "auto.api.get.api.events.query",
     "execution.share": "auto.api.get.api.share.links",
 }
-SCREEN_USER_EXPERIENCE_OVERRIDES = {
+SCREEN_USER_EXPERIENCE_OVERRIDES: dict[str, dict[str, Any]] = {
     "command-center.overview": {
         "journey": "dashboard",
         "primary_task": "先判断今天是否继续投研，再决定是否先处理系统治理阻断。",
@@ -379,7 +379,7 @@ PANEL_PRESENTATION_OVERRIDES = {
     },
 }
 
-ACTION_RESULT_SEMANTIC_OVERRIDES = {
+ACTION_RESULT_SEMANTIC_OVERRIDES: dict[str, list[str]] = {
     "capability-router.mcp-self-status": ["primary_status", "copyable_secret"],
     "capability-router.mcp-self-endpoints": ["endpoint_list"],
     "capability-router.mcp-self-prompt-guide": ["multiline_prompt"],
@@ -565,7 +565,7 @@ EXACT_VIEW_TYPE_RULES = {
     "auto.api.get.api.hedge.alerts.active": "datagrid",
 }
 
-EXACT_VIEW_MODEL_RULES = {
+EXACT_VIEW_MODEL_RULES: dict[str, dict[str, Any]] = {
     "pulse.current": {
         "kind": "datagrid",
         "rows_path": "indicators",
@@ -573,7 +573,7 @@ EXACT_VIEW_MODEL_RULES = {
             {"key": "name", "label": "指标"},
             {"key": "value_display", "label": "当前值（含单位）"},
             {"key": "interpretation", "label": "市场解读"},
-            {"key": "observed_at", "label": "数据日期"},
+            {"key": "observed_at", "label": "观测时间"},
             {"key": "is_stale", "label": "是否过期"},
         ],
     },
@@ -867,7 +867,7 @@ APPROVED_OPERATION_ACTIONS: tuple[dict[str, Any], ...] = (
         "sequence": 200,
     },
     {
-        "key": "auto.api.get.api.data-center.providers",
+        "key": "data-center.provider-list",
         "label": "服务商列表",
         "method": "GET",
         "endpoint": "/api/data-center/providers/",
@@ -1377,6 +1377,19 @@ APPROVED_OPERATION_ACTIONS = (
 )
 
 EXACT_LABELS = {
+    "auto.api.get.api.signal.unified.by_asset": "按资产查看统一信号",
+    "auto.api.get.api.health.db": "数据库健康",
+    "auto.api.get.api.account.mcp.self": "我的 MCP 接入",
+    "auto.api.get.api.ai-capability.mcp-tools": "MCP 工具列表",
+    "auto.api.get.api.ai-capability.mcp-tools.stats": "MCP 工具统计",
+    "auto.api.get.api.ai-capability.mcp-access.verify": "验证我的 MCP 接入",
+    "auto.api.get.api.strategy.allocation-policies.active": "当前资产配置政策",
+    "auto.api.get.api.strategy.allocation-policies.versions": "资产配置政策版本",
+    "param.api.get.api.strategy.allocation-policies.versions.int.version": ("资产配置政策版本详情"),
+    "backtest.statistics": "回测总体统计",
+    "auto.api.get.api.backtest.backtests.statistics": "回测记录统计",
+    "param.api.get.api.rotation.asset-classes.code": "轮动资产类别配置",
+    "param.api.get.api.rotation.asset-classes.code.detail": "轮动资产类别详情",
     "auto.api.get.api.setup.password-strength": "初始化密码强度",
     "auto.api.get.api.dashboard": "今日仪表盘",
     "auto.api.get.api.dashboard.regime-status": "市场环境卡片",
@@ -1506,7 +1519,7 @@ EXACT_LABELS = {
     "auto.api.get.api.data-center.market-thermometer.me": "我的市场温度阈值",
     "auto.api.get.api.health": "系统健康",
     "auto.api.get.api.ready": "系统就绪检查",
-    "auto.api.get.api.system.celery.health": "Celery 健康",
+    "auto.api.get.api.system.celery.health": "任务队列健康",
     "auto.api.get.api.policy.status": "政策状态",
     "auto.api.get.api.policy": "政策总览",
     "auto.api.get.api.policy.audit.queue": "政策审核队列",
@@ -1528,7 +1541,6 @@ EXACT_LABELS = {
     "auto.api.get.api.factor.all-factors": "全部因子",
     "auto.api.get.api.factor.definitions.all_active": "当前启用因子",
     "auto.api.get.api.factor.health": "因子健康",
-    "auto.api.get.api.backtest.backtests.statistics": "回测统计",
     "auto.api.get.api.audit": "复盘审计总览",
     "auto.api.get.api.audit.execution-links": "执行关联",
     "auto.api.get.api.audit.health": "审计健康",
@@ -2167,6 +2179,32 @@ PRIMARY_ACTION_KEYS = {
     "auto.api.get.api.data-center.market-thermometer.me",
 }
 
+SEMANTIC_ACTION_KEYS = {
+    "auto.api.get.api.dashboard.allocation": "dashboard.asset-allocation",
+    "auto.api.get.api.dashboard.performance": "dashboard.portfolio-performance",
+    "auto.api.get.api.decision.workspace.aggregated": "decision.workspace.summary",
+    "auto.api.get.api.dashboard.action-recommendation": "dashboard.action-recommendation",
+    "auto.api.get.api.account.health": "account.health-summary",
+    "auto.api.get.api.account.positions.read-only": "account.position-list",
+    "auto.api.get.api.beta-gate.decisions": "beta-gate.decision-list",
+    "auto.api.get.api.hedge.alerts.active": "hedge.alert-active",
+    "auto.api.get.api.audit.health": "audit.health-summary",
+    "auto.api.get.api.events.metrics": "events.metric-summary",
+    "auto.api.get.api.asset-analysis.pool-summary": "asset-analysis.pool-summary",
+    "auto.api.get.api.ai.me.providers": "ai-ops.list-my-providers",
+    "auto.api.get.api.ai.me.logs": "ai-ops.my-ai-logs",
+    "auto.api.get.api.data-center": "data-center.status-summary",
+    "auto.api.get.api.data-center.providers": "data-center.provider-list",
+    "auto.api.get.api.health": "system.health-summary",
+}
+SEMANTIC_ACTION_SOURCE_KEYS = {value: key for key, value in SEMANTIC_ACTION_KEYS.items()}
+
+REDUNDANT_ACTION_PREFIXES = (
+    "auto.api.get.api.prompts",
+    "param.api.get.api.prompts",
+    "auto.api.get.api.ai-capabilities",
+)
+
 REDUNDANT_SCREEN_ACTION_KEYS = {
     "command-center.overview": {
         "auto.api.get.api.dashboard.auto-advisor-console",
@@ -2189,6 +2227,12 @@ REDUNDANT_SCREEN_ACTION_KEYS = {
     },
     "research.asset-lab": {
         "auto.api.get.api.factor.portfolio",
+    },
+    "research.signals": {
+        "param.api.get.api.filter.config.indicator_code",
+    },
+    "execution.audit": {
+        "audit.operation_logs",
     },
 }
 
@@ -2309,8 +2353,26 @@ def _promoted_screen_for(action_key: str, source_screen_key: str = "") -> str:
     return ""
 
 
+def _semantic_action_key(action_key: str) -> str:
+    """Return the curated semantic key for a promoted route action."""
+
+    return SEMANTIC_ACTION_KEYS.get(action_key, action_key)
+
+
+def _source_action_key(action_key: str) -> str:
+    """Return the source route key for a curated semantic action alias."""
+
+    return SEMANTIC_ACTION_SOURCE_KEYS.get(action_key, action_key)
+
+
+def _is_route_action_key(action_key: str) -> bool:
+    """Return whether an action key was generated directly from an API route."""
+
+    return action_key.startswith(("auto.api.", "param.api."))
+
+
 def _operator_label(action: dict[str, Any]) -> str:
-    key = str(action.get("key") or "")
+    key = _source_action_key(str(action.get("key") or ""))
     if key in EXACT_LABELS:
         return EXACT_LABELS[key]
     label = str(action.get("label") or "")
@@ -2331,6 +2393,7 @@ def _clean_operator_label(label: str) -> str:
 
 
 def _task_group(action_key: str) -> str:
+    action_key = _source_action_key(action_key)
     if action_key in EXACT_TASK_GROUPS:
         return EXACT_TASK_GROUPS[action_key]
     for prefix, group in TASK_GROUP_RULES:
@@ -2349,17 +2412,38 @@ def _sequence(action_key: str) -> int:
 
 def _task_tier(action: dict[str, Any]) -> str:
     key = str(action.get("key") or "")
+    source_key = _source_action_key(key)
     group = str(action.get("task_group") or "")
     risk = str(action.get("risk") or "read")
+    if _is_route_action_key(key):
+        return "advanced" if key.startswith("param.api.") or risk != "read" else "support"
     if str(action.get("source") or "") == "approved:operation":
         return "operation"
     if risk in {"write", "ai", "admin"}:
         return "operation"
-    if key.startswith("param.") or "条件查询" in group:
+    if source_key.startswith("param.") or "条件查询" in group:
         return "advanced"
-    if key in PRIMARY_ACTION_KEYS:
+    if source_key in PRIMARY_ACTION_KEYS:
         return "primary"
     return "support"
+
+
+def _operator_description(action: dict[str, Any]) -> str:
+    """Return action-specific user copy without repeating the screen summary."""
+
+    label = str(action.get("label") or "当前任务").strip() or "当前任务"
+    risk = str(action.get("risk") or "read").strip().lower()
+    fields = action.get("fields") or []
+    has_required_input = any(
+        isinstance(field, dict) and bool(field.get("required")) for field in fields
+    )
+    if risk == "read":
+        if has_required_input:
+            return f"按所需条件查看“{label}”。"
+        return f"查看“{label}”的当前结果。"
+    if risk == "ai":
+        return f"通过“{label}”完成 AI 交互；提交前需确认。"
+    return f"执行“{label}”操作；提交前需确认。"
 
 
 def _required_fields_without_defaults(action: dict[str, Any]) -> list[dict[str, Any]]:
@@ -2545,9 +2629,9 @@ def _apply_user_facing_design_metadata(payload: dict[str, Any]) -> int:
                 else "根据结果继续下一项主流程，或进入可执行操作。"
             ),
         )
-        override = SCREEN_USER_EXPERIENCE_OVERRIDES.get(screen_key)
-        if override:
-            user_experience.update(override)
+        user_experience_override = SCREEN_USER_EXPERIENCE_OVERRIDES.get(screen_key)
+        if user_experience_override:
+            user_experience.update(user_experience_override)
         if screen.get("user_experience") != user_experience:
             screen["user_experience"] = user_experience
             changed += 1
@@ -2575,30 +2659,31 @@ def _apply_user_facing_design_metadata(payload: dict[str, Any]) -> int:
         if not isinstance(action, dict):
             continue
         action_key = str(action.get("key") or "")
-        override = ACTION_RESULT_SEMANTIC_OVERRIDES.get(action_key)
-        if override and action.get("result_semantics") != override:
-            action["result_semantics"] = list(override)
+        result_semantic_override = ACTION_RESULT_SEMANTIC_OVERRIDES.get(action_key)
+        if result_semantic_override and action.get("result_semantics") != result_semantic_override:
+            action["result_semantics"] = list(result_semantic_override)
             changed += 1
     return changed
 
 
 def _normalize_special_action(action: dict[str, Any]) -> None:
-    exact_view_type = EXACT_VIEW_TYPE_RULES.get(str(action.get("key") or ""))
+    action_key = _source_action_key(str(action.get("key") or ""))
+    exact_view_type = EXACT_VIEW_TYPE_RULES.get(action_key)
     if exact_view_type:
         action["view_type"] = exact_view_type
-    exact_view_model = EXACT_VIEW_MODEL_RULES.get(str(action.get("key") or ""))
+    exact_view_model = EXACT_VIEW_MODEL_RULES.get(action_key)
     if exact_view_model:
         action["view_model"] = {
             **dict(action.get("view_model") or {}),
             **exact_view_model,
         }
-    field_overrides = EXACT_FIELD_OVERRIDES.get(str(action.get("key") or ""))
+    field_overrides = EXACT_FIELD_OVERRIDES.get(action_key)
     if field_overrides:
         for field in action.get("fields") or []:
             override = field_overrides.get(str(field.get("key") or ""))
             if override:
                 field.update(override)
-    if action.get("key") != "terminal.agent_chat":
+    if action_key != "terminal.agent_chat":
         return
     fields = action.get("fields") or []
     for field in fields:
@@ -2767,7 +2852,7 @@ def _prune_runtime_only_dashboard_panels(payload: dict[str, Any]) -> int:
 def _prune_redundant_screen_actions(payload: dict[str, Any]) -> int:
     """Drop duplicated screen actions when a row-backed business-key route exists."""
 
-    if not REDUNDANT_SCREEN_ACTION_KEYS:
+    if not REDUNDANT_SCREEN_ACTION_KEYS and not REDUNDANT_ACTION_PREFIXES:
         return 0
 
     kept: list[dict[str, Any]] = []
@@ -2775,6 +2860,12 @@ def _prune_redundant_screen_actions(payload: dict[str, Any]) -> int:
     for action in payload.get("actions", []):
         screen_key = str(action.get("screen_key") or "")
         action_key = str(action.get("key") or "")
+        if any(
+            action_key == prefix or action_key.startswith(f"{prefix}.")
+            for prefix in REDUNDANT_ACTION_PREFIXES
+        ):
+            removed += 1
+            continue
         redundant_keys = {
             redundant_action_key
             for source_screen_key, source_action_keys in REDUNDANT_SCREEN_ACTION_KEYS.items()
@@ -2820,9 +2911,7 @@ def promote_payload(payload: dict[str, Any]) -> tuple[dict[str, Any], int]:
         action["module_key"] = spec["module_key"]
         action["label"] = _operator_label(action)
         if action_key not in curated_action_keys:
-            risk = str(action.get("risk") or "read")
-            suffix = "需确认" if risk == "write" else ("交互" if risk == "ai" else "查看")
-            action["description"] = f"{spec['summary']}（{suffix}）"
+            action["description"] = _operator_description(action)
             source = str(action.get("source"))
             action["source"] = (
                 "approved:parameterized-promoted"
@@ -2832,6 +2921,11 @@ def promote_payload(payload: dict[str, Any]) -> tuple[dict[str, Any], int]:
             )
             action["task_group"] = _task_group(action_key)
             action["sequence"] = _sequence(action_key)
+        source_action_key = _source_action_key(action_key)
+        if source_action_key in SEMANTIC_ACTION_KEYS:
+            action_key = _semantic_action_key(source_action_key)
+            action["key"] = action_key
+            action["source"] = "approved:semantic-alias"
         if (
             spec["view_type"] in {"datagrid", "detail", "status"}
             and str(action.get("view_type")) == "auto"
@@ -2853,7 +2947,7 @@ def promote_payload(payload: dict[str, Any]) -> tuple[dict[str, Any], int]:
             action["task_group"] = _task_group(action_key)
         if "sequence" not in action:
             action["sequence"] = _sequence(action_key)
-        override_description = ACTION_DESCRIPTION_OVERRIDES.get(action_key)
+        override_description = ACTION_DESCRIPTION_OVERRIDES.get(_source_action_key(action_key))
         if override_description:
             action["description"] = override_description
         action["task_tier"] = _task_tier(action)

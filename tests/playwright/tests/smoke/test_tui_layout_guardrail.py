@@ -132,13 +132,8 @@ def test_mcp_self_service_task_flow_has_no_panel_overlap(
 ) -> None:
     authenticated_page.set_viewport_size({"width": width, "height": height})
     authenticated_page.route("**/api/tui/actions/*/run/", _mock_dashboard_action)
-    authenticated_page.goto(f"{base_url}/tui/")
+    authenticated_page.goto(f"{base_url}/tui/?screen=capability-router.self-service")
     authenticated_page.wait_for_load_state("networkidle")
-
-    location = authenticated_page.locator("[data-current-location]")
-    expect(location).to_be_visible()
-    location.fill("screen:capability-router.self-service")
-    location.press("Enter")
 
     grid = authenticated_page.locator(".tui-dashboard-grid.is-content-flow")
     expect(grid).to_be_visible()

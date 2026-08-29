@@ -513,6 +513,24 @@
         return form.querySelector(`[name="${CSS.escape(fieldKey)}"]`);
     }
 
+    function revealActionFormInPanel(action, screenSpec = state.screen) {
+        if (!action) {
+            return null;
+        }
+        const tier = actionTier(action);
+        if (tier === "support") {
+            state.showSupportTasks = true;
+        }
+        if (tier === "advanced") {
+            state.showAdvancedQueries = true;
+        }
+        state.actionFilterText = "";
+        refreshRenderedActionPanel(screenSpec?.actions || [], screenSpec?.screen || {});
+        const form = actionFormElement(action);
+        form?.closest("details")?.setAttribute("open", "");
+        return form;
+    }
+
     function focusDeepLinkedAction(screenSpec, actionKey) {
         const normalizedKey = String(actionKey || "").trim();
         if (!normalizedKey) {
@@ -538,23 +556,11 @@
             setStatus(`已定位到 ${action.label}`);
             return;
         }
-        const tier = actionTier(action);
-        if (tier === "support") {
-            state.showSupportTasks = true;
-        }
-        if (tier === "advanced") {
-            state.showAdvancedQueries = true;
-        }
-        state.actionFilterText = "";
-        refreshRenderedActionPanel(screenSpec.actions || [], screenSpec.screen || {});
-        const form = els.actions.querySelector(
-            `[data-action-ui-key="${CSS.escape(actionUiKey(action))}"]`,
-        );
+        const form = revealActionFormInPanel(action, screenSpec);
         if (!form) {
             setStatus("链接中的任务暂时无法定位");
             return;
         }
-        form.closest("details")?.setAttribute("open", "");
         const deepLinkedParams = actionParamsFromBrowserLocation();
         const runnableParams = {};
         (action.fields || []).forEach((field) => {

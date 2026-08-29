@@ -130,7 +130,26 @@ def test_remote_script_uses_custom_dump_and_restore_validation() -> None:
     assert "AGOM_BACKUP_MTIME_EPOCH" in script
     assert "AGOM_BACKUP_MANIFEST_SHA256" in script
     assert "AGOM_BACKUP_MANIFEST_ENTRIES" in script
+    assert "mkdir -p" in script
+    assert "chmod 700" in script
+    assert "pg_dump" in script
+    assert 'mv "$temporary" "$archive"' in script
     assert "docker volume prune" not in script
+
+
+def test_latest_download_script_is_remote_read_only_without_prune() -> None:
+    """Latest auto-collect must not create, chmod, dump, move, or delete remotely."""
+    script = MODULE._remote_backup_script(
+        "/opt/agomtradepro/backups", download_latest=True, prune_older_than_days=0
+    )
+
+    assert "mkdir" not in script
+    assert "chmod" not in script
+    assert "pg_dump" not in script
+    assert "mv " not in script
+    assert "-delete" not in script
+    assert "pg_restore --list" in script
+    assert "AGOM_BACKUP_MANIFEST_ENTRIES" in script
 
 
 def test_download_verified_resumes_after_sftp_drop(tmp_path: Path) -> None:

@@ -815,3 +815,315 @@ restore/DDL、回填、reconciliation 或 rollback。仅复核 VPS 上已存在�
 这条记录只证明现有恢复点的远端格式与传输完整性，不证明生产 restore/rebuild、RTO/RPO、
 维护态 rollback、controlled backfill、reconciliation 或 owner/reviewer 验收。`DATA-01`
 继续 `awaiting_production`，`DATA-02/03` 不解锁。
+
+## 实施记录（2026-08-23，DATA-01 最新归档 data-backup-evidence.v1 复核）
+
+本批严格按 `auto_collect` 只读取 VPS 上已有的最新 custom-format 归档；没有创建新备份、
+prune、重新部署、维护态切换，也没有连接生产数据库执行 restore/DDL、回填、reconciliation
+或 rollback。
+
+- 远端归档为 `/opt/agomtradepro/backups/database/postgres-20260822-075316.dump`，完整下载到
+  `backups/vps-postgres/postgres-20260822-075316.dump`；远端与本地大小均为 `142825371`
+  bytes，SHA-256 均为
+  `f028ec2fe986be3c0f56f529e3fc44332ece472000c6e43f917d42b9ac2ffc55`。
+- 远端 `pg_restore --list` 已通过；manifest 为 `7204` entries，manifest SHA-256 为
+  `7a75c9afffd87ed2aaa9bdade115a1898f5219075ded466f7e411ae3a18ddba7`；本地
+  `postgres:16-alpine` 只读 `pg_restore --list` 复核得到同一计数与 digest。
+- 结构化证据为 [`data-backup-evidence-2026-08-23.json`](../deployment/data-backup-evidence-2026-08-23.json)，
+  `schema=data-backup-evidence.v1`，content hash
+  `6566a9733e95ced40ae4fae0f4783d7029a881eed7bb6e0b1225b33347e17f38`；远端采集时间为
+  `2026-08-23T09:45:28Z`，归档 mtime 为 `2026-08-22T05:54:05Z`，归档年龄 `100283s`。
+- 备份脚本与 restore verifier 合计 `25 passed`；本地归档仅做格式列表验证，未把隔离
+  restore 时间冒充生产 RTO/RPO。
+
+这条记录补齐当前已有归档的 content-addressed 结构化证据和传输完整性；生产 restore/rebuild、
+RTO/RPO、维护态 rollback、controlled backfill、reconciliation 与 owner/reviewer 验收仍缺。
+因此 `DATA-01` 继续 `awaiting_production`，`DATA-02/03` 不解锁。
+
+## 实施记录（2026-08-23，DATA-01 最新归档本地隔离 restore 验收）
+
+为补齐上述只读格式复核与真正隔离 restore 之间的证据，本轮仅在本机
+`agomtradepro-tar02-pg` disposable PostgreSQL 16 容器中操作：先将同一归档恢复为专用
+source 基线，再由受控 verifier 恢复到第二个隔离库并逐表比较；两个临时数据库均已清理。
+VPS、生产数据库、生产卷和部署均未访问或写入。
+
+- 输入归档仍为 `/opt/agomtradepro/backups/database/postgres-20260822-075316.dump` 的本地副本
+  `backups/vps-postgres/postgres-20260822-075316.dump`，大小 `142825371` bytes，SHA-256
+  `f028ec2fe986be3c0f56f529e3fc44332ece472000c6e43f917d42b9ac2ffc55`；`pg_restore --list`
+  可恢复条目 `7189`。
+- 本地 source/restore 快照均为 `539` 张 public 表、`72` 个 Data Center migration、`460`
+  个 sequence；逐表行内容 hash、表集合、migration 集合、sequence 值及 schema hash
+  `47b7696d01371801a203560e830093712c6ace3bd94d8d6465699dab38857433` 均完全一致，
+  `snapshot_difference` 的所有集合/变更字段为空。
+- 结构化报告为 [`data01-latest-backup-restore-2026-08-23.json`](../deployment/data01-latest-backup-restore-2026-08-23.json)，
+  SHA-256 `7b8ee34b226169545945b32292d9daf9c2ec1b1c059cecfeb9e9750a5258af8e`；本地 restore
+  用时 `590.844s`、逐表验证 `536.518s`、总计 `1626.207s`，这些是本机容器耗时，不能
+  冒充生产 RTO/RPO。
+
+这一步把 `DATA-01` 的最新归档隔离恢复与精确一致性证据补齐，但没有执行生产 restore/rebuild、
+维护态 rollback、RTO/RPO、controlled backfill、reconciliation 或 owner/reviewer 签署；
+`DATA-01` 继续 `awaiting_production`，`DATA-02/03` 不解锁。
+
+## 实施记录（2026-08-24，DATA-01 latest download 远端只读修复）
+
+复核 `auto_collect` 契约时发现 `scripts/backup-vps-postgres.py --download-latest` 虽然不应
+创建新归档，生成的远端脚本仍包含无条件的 `mkdir -p`/`chmod`，会在只读观察路径改变 VPS
+文件系统。现已将 latest 模式拆为独立脚本：只读取既有 `postgres-*.dump`、运行
+`pg_restore --list`、计算 hash/size/manifest 并输出 markers；默认 `prune=0` 时不含
+`mkdir`、`chmod`、`pg_dump`、`mv` 或 `-delete`。用户明确指定正数 prune 时才生成删除块，
+并保持 create 模式原有的建档/校验行为。
+
+- `tests/unit/test_backup_vps_postgres.py` 回归 `11 passed`，新增静态合同断言 latest 脚本
+  不含远端写操作；Ruff/Black/isort、增量 mypy 已通过。
+- 本轮没有调用 VPS、没有下载/创建归档、没有 prune、没有维护态切换或生产写入。
+
+这只修复 `auto_collect` 的远端只读边界，不构成生产备份、restore、RTO/RPO、rollback 或
+owner/reviewer 验收；`DATA-01` 继续 `awaiting_production`，`DATA-02/03` 不解锁。
+
+## 实施记录（2026-08-24，DATA-01 隔离 restore 证据 recorder 合同）
+
+为让已完成的隔离恢复报告可以被重复、离线且 fail-closed 地验收，本轮新增纯
+Application parser `apps/data_center/application/data01_restore_evidence.py` 与
+`scripts/record_data01_restore_evidence.py`。recorder 只读取一份既有 JSON 快照，严格
+校验 dump SHA-256 的 before/after/final 一致、source/restore 数据库身份不同、表/序列/
+Data Center migrations/schema digest 逐项一致、差异集合为空、UTC 时间与时长合法；序列化
+结果固定为 `production_claim=false`、`production_ready=false`、
+`runtime_enablement=not_authorized`，并以 content-addressed、append-only 方式可选写入本地
+证据目录。它不连接 PostgreSQL/VPS，不运行 `pg_restore`，不创建数据库，不进入维护态，也
+不修改生产数据。
+
+- 以本仓库提交的 [`data01-latest-backup-restore-2026-08-23.json`](../deployment/data01-latest-backup-restore-2026-08-23.json)
+  dry-run 生成 artifact SHA-256 `dc705a787884f7ccfe781777654829e0243a5f4adca1d005783950ff2da4dd88`；
+  仍绑定 `539` 张表、`460` 个序列、`72` 项迁移和既有隔离 restore 比较结果。
+- `tests/unit/data_center/test_data01_restore_evidence.py` 回归 `7 passed`，并与既有
+  backup/restore 合同合计 `17 passed`；Ruff/Black/isort、增量 mypy、mypy debt ceiling
+  与治理检查均已通过。
+
+这只是 DATA-01 的离线证据合同收口，不把本机 `590.844s` restore 或 `1626.207s` 总耗时
+冒充生产 RTO/RPO；生产维护态 restore/rebuild、rollback、controlled backfill、
+reconciliation、候选绑定与 owner/reviewer 签署仍缺，`DATA-01` 继续 `awaiting_production`，
+`DATA-02/03` 不解锁。
+
+## 实施记录（2026-08-24，DATA-02 只读 reconciliation recorder 合同）
+
+为使受控回填前后的 canonical reconciliation 具备服务器侧可直接执行的离线采集入口，
+输出 schema `data02-reconciliation-readonly.v1`，新增纯 Application parser
+`apps/data_center/application/data02_reconciliation_evidence.py`
+与 `scripts/record_data02_reconciliation_evidence.py`。输入必须来自外部已完成的
+`select_only` 快照 envelope，包含同一 candidate 的 commit/version/OCI/matrix 身份、
+legacy/canonical 两侧 source 与 UTC `observed_at`，以及严格排序的 expected/code-defect
+自然键；parser 复用现有纯 `export_reconciliation_snapshot()`，保留
+`same/expected_difference/data_missing/semantic_conflict/code_defect` 分类、两侧快照 hash
+和观测时间，不把 unresolved 差异归零。
+
+recorder 默认 dry-run；显式 `--write` 只在本地写 content-addressed append-only artifact。
+它不连接 PostgreSQL/VPS、不执行 backfill、不写 Django reconciliation 表、不修改维护态，输出
+固定 `production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`。
+定向回归 `19 passed`，Data Center entrypoint inventory 重新生成为 `1137` 项、
+`candidate-review=0`；Ruff/Black/isort 与增量 mypy 通过。
+
+这只补齐 DATA-02 的“外部 snapshot → reconciliation 报告”自动采集合同，不是生产回填、
+coverage/freshness 全量验收，也不解除 DATA-01 前置、DATA-02/03 的生产状态、容差例外、
+维护态切换、canonical 写入或 owner/reviewer 签署；没有部署 VPS 或写生产数据。
+
+## 实施记录（2026-08-24，DATA-03 双 readiness 只读观察 recorder 合同）
+
+为把 M9/M10 前允许自动采集的“双 readiness + canonical smoke”边界固化为可复核输入，
+新增纯 Application parser
+`apps/data_center/application/data03_readiness_evidence.py` 与服务器侧
+`scripts/record_data03_readiness_evidence.py`，输出 schema
+`data03-readiness-readonly.v1`。输入必须是外部已捕获的 `http_get_read_only` envelope，
+每个样本重复封存 candidate 的 commit/version/OCI/matrix，并同时携带
+`/api/ready/` 与 `/api/decision-ready/` 的 endpoint、HTTP status、服务端 timestamp、
+checks 以及 decision 的 `must_not_use_for_decision`；canonical smoke checks 也要求显式
+状态和 source time。parser 拒绝未知字段、未来时间、候选漂移、非单调 observation、
+HTTP/status/gate 不一致、非有限 JSON 与未排序 smoke keys，并从原始响应只派生
+service failure、decision blocker、check defect、smoke failure、source age 和 observation
+duration，不把缺失字段补成成功。
+
+recorder 默认 dry-run；显式 `--write` 只在服务器侧调用者指定的本地目录写
+content-addressed append-only artifact。它不连接 VPS/HTTP/PostgreSQL，不执行 M9/M10
+切换、不改变维护态、不写 production/readiness 表，报告固定
+`production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`。
+`tests/unit/data_center/test_data03_readiness_evidence.py` 回归 `11 passed`，entrypoint
+inventory 已刷新为 `1138` 项且 `candidate-review=0`。
+
+本切片只完成“外部响应 → fail-closed 观察报告”的服务器端自动采集合同；没有新的外部
+readiness/coverage/freshness/canonical smoke 数据，因此不宣称 DATA-03 观察窗口、M9/M10
+切换或生产 readiness 通过。`DATA-03` 继续 `waiting_dependency`，仍需 DATA-02 受控
+reconciliation、真实候选绑定、维护窗口和生产/数据 owner 批准后才能运行正式观察。
+
+## 实施记录（2026-08-24，DATA-03 当前部署候选双 readiness 只读复核）
+
+在不重新部署 VPS、不切换 release、不改变维护态或写入生产库的前提下，对当前受控候选
+`94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` / version `20260824133504` /
+OCI `sha256:1c560b5fed14964a008c278a88d9f3e3b144444a172ecc239d06cedbd76d6a3e` /
+matrix `6272ea6606ebbf3c0791e48d807b733cbc6d9a4ce7d945d95c5e3a16c22aea64` 执行一次低频
+HTTPS `GET`。`/api/ready/`=`200/ok`，服务端 timestamp=`2026-08-24T07:59:30.063588Z`；
+`/api/decision-ready/`=`503/blocked`，timestamp=`2026-08-24T07:59:34.242560Z`，
+`must_not_use_for_decision=true`。`/api/health/` 返回 `200`；匿名
+`/api/data-center/providers/` 返回 `403`，所以 `canonical.data-center` smoke 明确为
+`unknown`，没有把未认证请求当成 canonical smoke 通过。
+
+原始 envelope [`data03-readiness-http-get-2026-08-24-0757.json`](../deployment/data03-readiness-http-get-2026-08-24-0757.json)，
+source payload SHA-256=`57ae566d61aa95c7848e8f5b8c1bbd0ae70f10bff6d9cdf43a580780ba728707`；经
+`record_data03_readiness_evidence.py` dry-run 后显式写入，content-addressed report
+[`8144f224cce8840a8284c64517fbf49b646e56d600235f976f7e423b4b35bf5a.json`](../deployment/data03-readiness/81/8144f224cce8840a8284c64517fbf49b646e56d600235f976f7e423b4b35bf5a.json)。
+报告派生 `service_failure_count=0`、`decision_blocker_count=1`、`check_defect_count=17`、
+`smoke_failure_count=1`、`max_source_age_seconds=4.178972`，并固定
+`production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`。
+
+这次仅完成当前候选的双 readiness 只读刷新，不构成 DATA-03 observation window、全市场
+coverage/freshness、M9/M10 切换、维护态操作、认证 canonical smoke 或 owner 签署；
+`DATA-03` 继续 `waiting_dependency`，仍需 DATA-02 受控 reconciliation、认证 smoke、
+维护窗口及生产/数据 owner 批准。
+
+## 历史记录（2026-08-24，DATA-03 旧候选双 readiness 只读采样）
+
+在不重新部署 VPS、不切换 release、不写生产库的前提下，对公开候选入口执行一次低频
+HTTPS `GET` 采样，并将它绑定到此前只读 verifier 已确认的候选
+`4cef9040cccc2127c3f8128c8d858bc7958df2a4` / version `20260822134658` /
+OCI `sha256:cfaf17560df2f85cd8ba2f5db8226a9dd9fe1cce081f30175c2a08737b4908d8` /
+matrix `6272ea6606ebbf3c0791e48d807b733cbc6d9a4ce7d945d95c5e3a16c22aea64`。本次公网响应
+本身不暴露候选身份，身份来源和“不重新部署”的约束以既有候选 verifier 为准，不把本地
+`dev/next-development` HEAD 冒充已部署版本。
+
+- 原始只读 envelope 为 [`data03-readiness-http-get-2026-08-24-0015.json`](../deployment/data03-readiness-http-get-2026-08-24-0015.json)，source payload SHA-256=`1a1211d8bbd6dd029b50d554cfb4d012f01549447a486e1077414b965229c267`；`/api/ready/`=`200`（服务端 timestamp `2026-08-24T00:15:16.877442Z`，body SHA=`f9da6637332ab7e679addbdb6a88d223aae08a03e8871d8f5468e57c5da709a5`），`/api/decision-ready/`=`503 blocked`（timestamp `2026-08-24T00:15:22.810927Z`，body SHA=`fb75710cb112071419aab62ea1f9104be760f93393ec6e9fc251d4b5767bbd01`，`must_not_use_for_decision=true`）。
+- `record_data03_readiness_evidence.py` 先 dry-run 后显式 `--write`，报告为
+  [`2e48775c3400fd35407265123f43acf4f7d3302be8b1407d0f20448b7c6e0782.json`](../deployment/data03-readiness/2e/2e48775c3400fd35407265123f43acf4f7d3302be8b1407d0f20448b7c6e0782.json)，artifact SHA-256=`2e48775c3400fd35407265123f43acf4f7d3302be8b1407d0f20448b7c6e0782`；第二次显式写入返回 `written=false`，证明 content-addressed append-only 幂等。报告派生 `service_failure_count=0`、`decision_blocker_count=1`、`check_defect_count=3`、`smoke_failure_count=1`、`max_source_age_seconds=38.122558`，并固定 `production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`。
+- `/api/health/` 只读 smoke 为 `200`；匿名 `/api/data-center/providers/` 返回 `403`，因此
+  `canonical.data-center` 明确记为 `unknown`，没有把未认证的 canonical smoke 当成通过。
+
+这一步完成了一次候选绑定的双 readiness 只读观察和可复核 artifact，不构成 observation window、
+全市场 coverage/freshness、M9/M10 切换、生产写入或决策解锁。`DATA-03` 继续
+`waiting_dependency`；仍需 DATA-02 受控 reconciliation、认证 canonical smoke、维护窗口
+及生产/数据 owner 批准后才能进入正式观察。
+
+## 实施记录（2026-08-24，DATA-01 latest existing backup 只读刷新）
+
+按 `DATA-01` 的 `auto_collect` 合同，仅通过 `scripts/backup-vps-postgres.py --download-latest`
+发现并下载 VPS 上已经存在的最新 custom-format 归档；本次远端脚本只读取归档、运行
+`pg_restore --list`、计算校验信息并返回 markers，未创建新备份、未执行 prune、未进入维护态，
+也没有写入 PostgreSQL 或替换候选。最新归档为
+`/opt/agomtradepro/backups/database/postgres-20260824-074227.dump`，远端/本地大小
+`142813695` bytes，SHA-256=`7eb67da66bb6d3c550bc35f96abbc2c38ea403f776c56602316e83b912b4fd6d`；
+远端 `pg_restore --list` 为 `7204` entries，manifest SHA-256=
+`795d83b33400407596991f92523a5b15b2148bbf5e4e77fc52682194875f3886`，远端 mtime 为
+`2026-08-24T05:43:16Z`，采集时间为 `2026-08-24T06:36:29Z`。
+
+结构化 `data-backup-evidence.v1` 工件为
+[`data-backup-evidence-2026-08-24.json`](../deployment/data-backup-evidence-2026-08-24.json)，
+content hash=`423387ef6125233f4257694935beef0cea9c8543993803b3ef58bc896758e9f9`；远端/本地
+SHA 与大小均匹配，partial archive 被拒绝。该工件只证明一个可下载、可列举的现有恢复点，
+不把它绑定为生产 RTO/RPO 或维护窗口成功。
+
+因此 `DATA-01` 仍为 `awaiting_production`：生产 restore/rebuild、维护态 rollback、RTO/RPO、
+controlled backfill、reconciliation 与生产/数据 owner 签署尚未完成，`DATA-02/03` 不解锁。
+
+## 实施记录（2026-08-24，DATA-01 最新归档本机隔离 restore 验收）
+
+沿用同一 `--download-latest` 归档，在本地 disposable `postgres:16-alpine` 中先装载
+source copy，再由 `scripts/verify_postgres_backup_restore.py` 创建受控命名的 restore 库，
+执行 `pg_restore`、逐表内容 hash、schema、Data Center migration 与 sequence 对比。归档
+`142813695` bytes、SHA-256=`7eb67da66bb6d3c550bc35f96abbc2c38ea403f776c56602316e83b912b4fd6d`，
+`pg_restore --list` 非注释条目 `7189`；source/restore 均为 `539` 张 public 表、`72` 条
+Data Center migration、`460` 条 sequence，schema SHA-256 均为
+`47b7696d01371801a203560e830093712c6ace3bd94d8d6465699dab38857433`，missing/extra/changed
+tables、migrations、sequences 与 schema 差异均为 `0`。restore 用时 `689.563s`，验证
+`628.355s`，总计 `2214.035s`；完整 verifier report SHA-256 为
+`0391884b5792150cdcefe74a9a41817c025a3d216e670dfbac18a47facd00f17`。
+
+精简证据为 [`data01-local-isolated-restore-2026-08-24.json`](../deployment/data01-local-isolated-restore-2026-08-24.json)；
+原始 verifier 报告随后通过 `record_data01_restore_evidence.py` dry-run、显式 `--write`、
+再次幂等写入，canonical artifact 为
+[`e7af4216ed86cdd63a62d84d5a38ef5bcc28ee255e82490611f673bb945ebe9d.json`](../deployment/data01-isolated-restore/e7/e7af4216ed86cdd63a62d84d5a38ef5bcc28ee255e82490611f673bb945ebe9d.json)，
+artifact SHA-256=`e7af4216ed86cdd63a62d84d5a38ef5bcc28ee255e82490611f673bb945ebe9d`，
+source payload SHA-256=`0391884b5792150cdcefe74a9a41817c025a3d216e670dfbac18a47facd00f17`，
+`isolated_restore_verified=true`、`production_claim=false`。该 recorder 只读取已完成的
+隔离报告，不连接 PostgreSQL/VPS。
+restore 库、source copy 与容器内临时归档均已删除。该结果只证明最新归档在本地隔离环境中
+自洽可恢复，耗时不能冒充生产 RTO/RPO；没有执行生产 restore/DDL、维护态 rollback、
+controlled backfill 或 reconciliation，`DATA-01` 继续 `awaiting_production`，`DATA-02/03`
+不解锁，生产/数据 owner 与 reviewer 签署仍缺。
+
+## 2026-08-24：DATA-03 当前候选认证 canonical Data Center smoke
+
+在不重新部署、不切换 release、不改变维护态或写入生产库的前提下，使用受控服务端
+认证会话对同一候选 `94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` / version
+`20260824133504` / OCI `sha256:1c560b5fed14964a008c278a88d9f3e3b144444a172ecc239d06cedbd76d6a3e` /
+matrix `6272ea6606ebbf3c0791e48d807b733cbc6d9a4ce7d945d95c5e3a16c22aea64` 做只读 smoke。
+`/api/ready/` 为 `200/ok`（database、Redis、Celery、critical data 均为 `ok`，worker=1，
+decision data=`warning`）；`/api/decision-ready/` 为 `503/blocked`，
+`must_not_use_for_decision=true`，reason=`decision_runtime_blocked`。认证
+`GET /api/data-center/providers/` 为 `200`，返回 2 条已脱敏 provider 记录；认证
+`GET /api/data-center/providers/status/` 为 `200`，返回 15 条 capability 状态，其中 8 条
+`must_not_use_for_decision=true`，状态含 `stale`/`degraded`，因此 provider-status smoke
+按失败记录，未把接口可达误报为数据可用。
+
+原始 envelope [`data03-readiness-authenticated-smoke-2026-08-24-1335.json`](../deployment/data03-readiness-authenticated-smoke-2026-08-24-1335.json)，
+source payload SHA-256=`c1df5cf05b81b26cdba86d51acb9a74c4836b986548adae1f5177d6154f121f`；经
+`record_data03_readiness_evidence.py --write` 生成 content-addressed report
+[`55f20b1348564daf6dea93f23aecc229953954e6fcc1859f40180fbebea84d98.json`](../deployment/data03-readiness/55/55f20b1348564daf6dea93f23aecc229953954e6fcc1859f40180fbebea84d98.json)。
+报告派生 `service_failure_count=0`、`decision_blocker_count=1`、`check_defect_count=2`、
+`smoke_failure_count=1`，并固定 `production_claim=false`、`production_ready=false`、
+`runtime_enablement=not_authorized`。
+
+本次只新增一条候选绑定的认证只读 smoke 事实，不构成 DATA-02 reconciliation、全市场
+coverage/freshness、M9/M10 切换、生产写入、维护窗口或 owner/reviewer 签署；
+`DATA-03` 继续 `waiting_dependency`，decision-ready 继续 fail-closed。
+
+## 实施记录（2026-08-24，DATA-02 当前候选 `fund.nav` SELECT-only reconciliation）
+
+在不重新部署 VPS、不进入维护态、不执行 backfill、不写入 Django reconciliation 表的前提下，
+通过 SSH 在当前候选容器内运行只读 ORM 查询，分别读取 `fund_net_value` 与
+`data_center_fund_nav_fact(source=fund_legacy_repo)`。两侧均为 `7,648` 条，最大
+`nav_date=2026-06-25`，服务端同一观测时点为 `2026-08-24T14:01:25.587369Z`；自然键和
+`nav/acc_nav/daily_return` 经过现有 migration 同样的 Decimal canonicalization 后，两侧
+snapshot hash 均为 `c733f38375b36029d9eb4920652c1fcb666966ef086463fb1eec91847ddbed92`。
+
+原始候选绑定 envelope [`data02-reconciliation-candidate-2026-08-24.json`](../deployment/data02-reconciliation-candidate-2026-08-24.json)，
+source payload SHA-256=`e0232b4587be7188103c4a1a51b3947a1da97baa7226c6a010896d10e2407b73`，绑定
+commit=`94abd76e46eeef4a8e21853799c7d69bcd9bbe3b`、version=`20260824133504`、
+OCI=`sha256:1c560b5fed14964a008c278a88d9f3e3b144444a172ecc239d06cedbd76d6a3e`、
+matrix=`6272ea6606ebbf3c0791e48d807b733cbc6d9a4ce7d945d95c5e3a16c22aea64`。经
+`record_data02_reconciliation_evidence.py` 先 dry-run、再显式 append-only 写入后，canonical
+artifact 为 [`65935870cc4002c1e96fb0ab2473ee679b6b1540318aa72f2155a95d47db43dc.json`](../deployment/data02-reconciliation/65/65935870cc4002c1e96fb0ab2473ee679b6b1540318aa72f2155a95d47db43dc.json)，
+artifact SHA-256=`65935870cc4002c1e96fb0ab2473ee679b6b1540318aa72f2155a95d47db43dc`。
+报告分类为 `same=7648`、`expected_difference=0`、`data_missing=0`、
+`semantic_conflict=0`、`code_defect=0`，`reconciliation_clean=true`。
+
+这只证明 `fund.nav` 这一已选 dataset 在当前候选、当前只读快照边界内两侧一致；报告仍固定
+`production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`。
+它不等于全 Data Center coverage/freshness、受控回填前后 reconciliation、维护窗口或
+DATA-01 生产 restore/rollback，也不解除 DATA-02/03、decision-ready 或 owner/reviewer 签署门禁。
+
+## 实施记录（2026-08-24，DATA-02 当前候选 coverage/freshness 只读复核）
+
+在不重新部署 VPS、不进入维护态、不回填、不改 universe/config、也不写入生产库的前提下，
+对当前受控候选 `94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` / version `20260824133504` /
+OCI `sha256:1c560b5fed14964a008c278a88d9f3e3b144444a172ecc239d06cedbd76d6a3e` /
+matrix `6272ea6606ebbf3c0791e48d807b733cbc6d9a4ce7d945d95c5e3a16c22aea64` 执行认证
+SELECT-only HTTP/ORM 观察。`active_a_share` universe 有 `5,533` 个 active stock，universe
+quality=`ok`（BSE=331、SSE=2,310、SZSE=2,892；issues=[]）。price、valuation、financial
+fact coverage 均为 `5,533/5,533`，但 canonical publication 仍阻断：price published
+`0/5,533`，valuation publication 缺失，financial published `1/5,533`；三域均
+`must_not_use_for_decision=true`。`/api/ready/`=`200` 但 decision-data=`warning`，
+`/api/decision-ready/`=`503/blocked`，因此没有把 fact coverage 冒充为可决策数据。
+
+结构化工件 [`data02-coverage-freshness-observation-2026-08-24-94abd76e.json`](../deployment/data02-coverage-freshness-observation-2026-08-24-94abd76e.json)，
+SHA-256=`bf78a00e45357b6e61f46e1f96f68ee7fed4fac9648c90dca55387fe4f9fdfeb`；响应 body
+hash、候选绑定、read-only/authentication 标记和 publication blockers 均封存。该证据只完成
+当前候选的 coverage/freshness 观测，不构成 backfill/reconciliation、M9/M10、维护态切换、
+容差例外、生产 ready、owner/reviewer 签署或 runtime enablement；`DATA-02` 继续
+`waiting_dependency`，decision-ready 保持 fail-closed。
+
+## 实施记录（2026-08-26，decision-ready 恢复依赖）
+
+恢复路线已登记为 DATA-02/DATA-03 的生产依赖，不把它们伪装成 TAR-01 仓库完成项。当前候选
+仍需真实的全 universe canonical publication、coverage/freshness、受控回填前后 reconciliation、
+provider capability recovery 与 DATA-03 observation window；现有事实 coverage 不能替代
+publication，`/api/ready/` 200 也不能替代 `/api/decision-ready/` 200。
+
+本次只完成 SDK audit delivery identity 的本地修复，没有执行 backfill、provider refresh、
+reconciliation 写入、维护态切换或任何生产数据修改。DATA-02/03 仍保持原状态，直到数据 owner
+批准必要的生产写入并提供候选绑定的真实结果。

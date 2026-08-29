@@ -13,21 +13,7 @@ RUNTIME_MCP_ACCESS_MODULE: dict[str, Any] = {
 
 RUNTIME_MCP_SELF_SERVICE_SCREEN: dict[str, Any] = {
     "key": "capability-router.self-service",
-    "label": "我的 MCP 接入",
-    "module_key": "mcp-access",
-    "group": "ops",
-    "summary": "管理自己的 MCP 接入令牌、读写级别，以及一键复制给 AI 代理的接入提示词。",
-    "view_type": "detail",
-    "audience": "authenticated",
     "dashboard_layout": "task_flow",
-    "default_action_key": "capability-router.mcp-self-status",
-    "user_experience": {
-        "journey": "self_service",
-        "primary_task": "在一个屏内完成 MCP 状态确认、令牌管理、连接地址复制和代理接入提示词获取。",
-        "primary_outcome": "拿到完整可复制的接入令牌、路由地址、能力目录和接入提示词，并明确下一步是否创建或撤销令牌。",
-        "empty_state_hint": "先读取我的 MCP 状态；如果未开通，回到上一屏完成接入，再返回这里生成或管理令牌。",
-        "next_step_hint": "完成复制后，把接入提示词和路由地址粘贴给外部代理；旧令牌不再使用时立即撤销。",
-    },
     "workflow": {
         "name": "能力接入流程",
         "label": "个人接入",
@@ -124,21 +110,7 @@ RUNTIME_MCP_SELF_SERVICE_SCREEN: dict[str, Any] = {
 
 RUNTIME_MCP_ADMIN_ACCESS_SCREEN: dict[str, Any] = {
     "key": "capability-router.admin-access",
-    "label": "MCP 用户治理",
-    "module_key": "mcp-governance",
-    "group": "ops",
-    "summary": "管理员在 TUI 内管理用户 MCP 开关、令牌发放与撤销。",
-    "view_type": "detail",
-    "audience": "admin",
     "dashboard_layout": "task_flow",
-    "default_action_key": "capability-router.mcp-admin-users",
-    "user_experience": {
-        "journey": "admin",
-        "primary_task": "筛出需要开通、收紧或回收凭证的用户，并在同屏完成 MCP 用户治理。",
-        "primary_outcome": "明确哪些用户缺令牌、哪些凭证仍在使用、哪些用户的读写权限需要调整。",
-        "empty_state_hint": "先读取用户与令牌分布，再按“仅无令牌”“仅已启用”等筛选条件定位目标用户。",
-        "next_step_hint": "确认用户状态后再执行发放、开关或撤销操作，并复核令牌是否已收紧。",
-    },
     "workflow": {
         "name": "能力接入流程",
         "label": "管理员治理",

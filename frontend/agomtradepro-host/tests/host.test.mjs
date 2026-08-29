@@ -30,6 +30,12 @@ test("home action copy does not hardcode workflow step count", async () => {
 
     assert.equal(decisionAction.description, "进入每日投研主流程");
     assert.doesNotMatch(decisionAction.description, /\d+步/);
+
+    const governanceAction = actions.find(
+        (action) => action.key === "operator.home.enter_governance_flow"
+    );
+    assert.equal(governanceAction.description, "从系统治理起点进入治理主线");
+    assert.doesNotMatch(governanceAction.description, /runtime/i);
 });
 
 test("home actions are filtered by server-published action keys", async () => {
@@ -51,4 +57,26 @@ test("home actions are filtered by server-published action keys", async () => {
             "operator.home.open_cli",
         ]
     );
+});
+
+test("resume action presents a catalog label instead of an internal screen key", async () => {
+    const runtime = await loadHostRuntime();
+    const actions = runtime.hooks.getHomeActions({
+        lastWorkspace: "ai-ops.providers",
+        lastWorkspaceLabel: "我的 AI 服务商",
+    });
+    const resumeAction = actions.find(
+        (action) => action.key === "operator.home.resume_last_workspace"
+    );
+
+    assert.equal(resumeAction.description, "我的 AI 服务商");
+    assert.doesNotMatch(resumeAction.description, /ai-ops\.providers/);
+
+    const fallbackActions = runtime.hooks.getHomeActions({
+        lastWorkspace: "unknown.internal-key",
+    });
+    const fallbackResumeAction = fallbackActions.find(
+        (action) => action.key === "operator.home.resume_last_workspace"
+    );
+    assert.equal(fallbackResumeAction.description, "最近工作区");
 });

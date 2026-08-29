@@ -6,21 +6,7 @@ from typing import Any
 
 RUNTIME_SYSTEM_SETTINGS_SCREEN: dict[str, Any] = {
     "key": "system.settings",
-    "label": "系统设置",
-    "module_key": "system-governance",
-    "group": "system",
-    "summary": "维护用户准入、MCP 默认值、市场视觉、协议与运行时映射。",
-    "view_type": "detail",
-    "audience": "admin",
     "dashboard_layout": "task_flow",
-    "default_action_key": "system-settings.read",
-    "user_experience": {
-        "journey": "admin",
-        "primary_task": "核对并更新影响全体用户和运行时语义的系统级设置。",
-        "primary_outcome": "全局准入、凭证、视觉、协议与代码映射均处于明确且可审计的状态。",
-        "empty_state_hint": "先读取当前设置；系统首次运行时会展示数据库默认值。",
-        "next_step_hint": "保存后分别进入用户准入、MCP 接入和数据中心复核实际效果。",
-    },
     "workflow": {
         "name": "系统治理流程",
         "label": "系统设置",

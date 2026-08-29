@@ -1572,3 +1572,25 @@ PostgreSQL run persistence, Worker/SSE, idempotency/cancel, provider/MCP, chaos,
 14-day telemetry, restore/rollback or owner/reviewer sign-off. Readiness still reports stale
 decision data as `warning/blocked` and `must_not_use_for_decision`; TAR-01 remains active and
 TAR-02/TAR-03 plus queued/worker enablement remain closed.
+
+## 2026-08-20 21:15 当前候选部署与观测（Web→TUI candidate preflight identity）
+
+The existing Web→TUI cutover candidate `dev/next-development@2f4554b5192191970a3ccbc98420388881725079`
+has a committed deployment preflight at
+`docs/deployment/web-to-tui-deployment-preflight-20260820211526.json` with SHA-256
+`637f646d92e646fb8d27e444bda4b967c109b8350fda26be50603afaadb39223`. Its recorded release is
+`20260820211526`, OCI image
+`sha256:74d094b6e606ee79a6e73ffd49364a3787c611511432d5194dc9902b2ec17696`, and the read-only
+health/readiness probes were HTTP `200`. This section records the preflight identity only; it
+does not claim a new deployment, role UAT, or M5 authorization.
+
+The complete binding is `web-to-tui-candidate-binding.v1`: candidate version `20260820211526`,
+candidate commit `2f4554b5192191970a3ccbc98420388881725079`, matrix
+`bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`, graph
+`5a2234c84d4156001a8bde73a7fe9a5c86534b77a6e87da68764043b55d7b597`, schema `tui-metadata.v3`,
+runtime `0.2.0`, build `agomtui-runtime-0.2.0+7bc2ca13ee9d`, and manifest
+`7da3c92633c8f71767687a7fe4b67fed5b8f4445a6c60106dc5a43f3c1771165`.
+
+No role-based browser UAT, write receipt/refresh, closing 14-day telemetry, registry
+backup/restore, rollback drill, or owner/reviewer sign-off is attached to this identity record;
+M5 remains `DENY`.

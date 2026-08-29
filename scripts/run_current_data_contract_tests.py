@@ -20,6 +20,7 @@ except ImportError:  # pragma: no cover - exercised by direct script execution
     from check_current_data_contracts import DEFAULT_MANIFEST_PATH, validate_current_data_contracts
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+MAX_PYTEST_COMMAND_CHARS = 28_000
 
 
 def _owning_test_class(path: Path, function_name: str) -> str | None:
@@ -81,6 +82,30 @@ def _registered_nodeids(manifest_path: Path) -> list[str]:
     return nodeids
 
 
+def _nodeid_batches(
+    base_command: Sequence[str],
+    nodeids: Sequence[str],
+    *,
+    max_command_chars: int | None = None,
+) -> list[list[str]]:
+    """Partition nodeids so each pytest command remains Windows-safe."""
+
+    command_limit = max_command_chars or MAX_PYTEST_COMMAND_CHARS
+    batches: list[list[str]] = []
+    current: list[str] = []
+    for nodeid in nodeids:
+        candidate = [*current, nodeid]
+        command = [*base_command, *candidate]
+        if current and len(subprocess.list2cmdline(command)) > command_limit:
+            batches.append(current)
+            current = [nodeid]
+            continue
+        current = candidate
+    if current:
+        batches.append(current)
+    return batches
+
+
 def run_registered_tests(
     manifest_path: Path = DEFAULT_MANIFEST_PATH,
     *,
@@ -104,10 +129,15 @@ def run_registered_tests(
         print("Refusing to run current-data tests: manifest contains no pytest nodeids")
         return 1
 
-    command = [sys.executable, "-m", "pytest", *pytest_args, *nodeids]
-    print(f"Running {len(nodeids)} current-data contract nodeid(s)")
-    print(" ".join(command))
-    return subprocess.call(command, cwd=PROJECT_ROOT)
+    base_command = [sys.executable, "-m", "pytest", *pytest_args]
+    batches = _nodeid_batches(base_command, nodeids)
+    print(f"Running {len(nodeids)} current-data contract nodeid(s) " f"in {len(batches)} batch(es)")
+    for index, batch in enumerate(batches, start=1):
+        print(f"Running current-data batch {index}/{len(batches)}: {len(batch)} nodeid(s)")
+        result = subprocess.call([*base_command, *batch], cwd=PROJECT_ROOT)
+        if result != 0:
+            return result
+    return 0
 
 
 def main() -> int:

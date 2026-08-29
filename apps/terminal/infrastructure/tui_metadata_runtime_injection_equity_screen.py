@@ -24,7 +24,7 @@ RUNTIME_EQUITY_SCREEN_ACTIONS: tuple[dict[str, Any], ...] = (
         "screen_key": _SCREEN,
         "module_key": _MODULE,
         "view_type": "datagrid",
-        "description": "按 Regime、估值、盈利成长和负债约束筛选个股候选。",
+        "description": "按宏观象限、估值、盈利成长和负债约束筛选个股候选。",
         "source": _SOURCE,
         "task_group": "02 个股筛选",
         "sequence": 220,
@@ -32,7 +32,7 @@ RUNTIME_EQUITY_SCREEN_ACTIONS: tuple[dict[str, Any], ...] = (
         "fields": [
             {
                 "key": "regime",
-                "label": "Regime（留空自动判断）",
+                "label": "宏观象限（留空自动判断）",
                 "binding": "body",
                 "input_type": "select",
                 "value_type": "string",

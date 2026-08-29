@@ -15,6 +15,11 @@ from typing import Any
 from django.utils import timezone
 
 from apps.ai_provider.application.repository_provider import get_ai_client_factory
+from apps.prompt.application.agent_authority import (
+    AGENT_AUTHORITY_NOT_WIRED,
+    AgentAuthorityGate,
+    UnwiredAgentAuthorityGate,
+)
 from apps.prompt.application.dtos import ExecuteChainRequest, ExecutePromptRequest
 from apps.prompt.application.repository_provider import (
     build_macro_adapter,
@@ -258,6 +263,7 @@ class AIStrategyExecutor:
         asset_pool_provider: AssetPoolProviderProtocol,
         signal_provider: SignalProviderProtocol,
         portfolio_provider: PortfolioDataProviderProtocol,
+        authority_gate: AgentAuthorityGate | None = None,
     ) -> None:
         """
         初始化 AI 策略执行器
@@ -268,12 +274,14 @@ class AIStrategyExecutor:
             asset_pool_provider: 资产池提供者
             signal_provider: 信号提供者
             portfolio_provider: 投资组合数据提供者
+            authority_gate: server-owned authority gate for portfolio-backed Agent execution
         """
         self.macro_provider = macro_provider
         self.regime_provider = regime_provider
         self.asset_pool_provider = asset_pool_provider
         self.signal_provider = signal_provider
         self.portfolio_provider = portfolio_provider
+        self.authority_gate = authority_gate or UnwiredAgentAuthorityGate()
 
         # 初始化 AI 中台组件
         self.ai_client_factory = get_ai_client_factory()
@@ -314,6 +322,20 @@ class AIStrategyExecutor:
         """
         if strategy.ai_config is None:
             raise ValueError("AI-driven strategy must have ai_config")
+
+        blocker = self.authority_gate.check(
+            context_scope=["portfolio"],
+            context_params=None,
+            tool_names=[
+                "get_portfolio_snapshot",
+                "get_portfolio_positions",
+                "get_portfolio_cash",
+            ],
+        )
+        if blocker is not None:
+            # Do not prepare a portfolio context or fall back to the legacy
+            # Prompt/Chain path when the server authority is unavailable.
+            raise RuntimeError(blocker)
 
         ai_config = strategy.ai_config
 
@@ -444,6 +466,8 @@ class AIStrategyExecutor:
                 return response.final_answer
 
             if not response.success:
+                if response.error_message == AGENT_AUTHORITY_NOT_WIRED:
+                    raise RuntimeError(AGENT_AUTHORITY_NOT_WIRED)
                 logger.warning(
                     "AgentRuntime strategy execution failed: %s, falling back",
                     response.error_message,

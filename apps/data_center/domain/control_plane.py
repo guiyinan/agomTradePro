@@ -9,11 +9,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
-class SyncRunStatus(str, Enum):
+class SyncRunStatus(StrEnum):
     """Lifecycle state for one dataset synchronization run."""
 
     REQUESTED = "requested"
@@ -30,7 +30,7 @@ class SyncRunStatus(str, Enum):
     FAILED = "failed"
 
 
-class SyncItemState(str, Enum):
+class SyncItemState(StrEnum):
     """State of an individual batch/checkpoint item."""
 
     PENDING = "pending"
@@ -41,7 +41,7 @@ class SyncItemState(str, Enum):
     SKIPPED = "skipped"
 
 
-class QuarantineResolution(str, Enum):
+class QuarantineResolution(StrEnum):
     """Allowed resolution states for a quarantined payload."""
 
     OPEN = "open"
@@ -79,7 +79,7 @@ class PublicationFactReference:
             raise ValueError("PublicationFactReference.revision_number must be positive")
 
 
-class PublicationState(str, Enum):
+class PublicationState(StrEnum):
     """Canonical publication lifecycle."""
 
     CANDIDATE = "candidate"
@@ -442,11 +442,16 @@ class PublicationRollback:
     operator: str
     observed_at: datetime
     previous_publication_id: str = ""
+    rollback_id: str = ""
 
     def __post_init__(self) -> None:
         for name in ("target_publication_id", "reason", "operator"):
             if not getattr(self, name).strip():
                 raise ValueError(f"PublicationRollback.{name} cannot be empty")
+        if self.rollback_id and not self.rollback_id.strip():
+            raise ValueError("PublicationRollback.rollback_id cannot be blank")
+        if self.previous_publication_id == self.target_publication_id:
+            raise ValueError("Rollback target and previous publication must differ")
         _require_aware(self.observed_at, "PublicationRollback.observed_at")
 
 

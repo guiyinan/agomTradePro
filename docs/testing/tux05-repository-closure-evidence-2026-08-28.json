@@ -1,0 +1,349 @@
+{
+  "schema": "tux05-repository-closure-evidence.v1",
+  "unit_id": "TUX-05",
+  "observed_at": "2026-08-27T21:57:11.5747459Z",
+  "execution_mode": "repository",
+  "branch": "dev/next-development",
+  "source_commit": "74d6d801a09011b9820d8b11f924023d787f5873",
+  "implementation_commit": "the local commit containing this artifact",
+  "source_hashes": {
+    "config/tui/published/tui_operation_graph.published.json": "63be10ee25bb73c87861c18cc92355938fd7abc096c33852bf5f904d4db532a2",
+    "config/tui/generated/tui_operation_graph.generated.json": "8ab1a502cb382d3c47df238929502f91630af4f36bbb88b7e42a247a0084a011",
+    "config/tui/agomtui-runtime.manifest.json": "24bed4dfbeaaccf83d6f71d65528dcafbea7ab087a119cd40f157c4e12ee70d5",
+    "static/js/tui-workbench.js": "1a76837985cddaf8d192033bec39eaecb861ef82a8341296d6f649478676745f",
+    "static/css/tui-workbench.css": "dbac0c8ae0b9f73555ab769a9e99d534221ac7e9bd2ef85ad8f9f667cdefab44",
+    "core/templates/terminal/tui_workbench.html": "fadb4933e3439e3dc92e7117a60dacf28b35fb6ba13dac4c8dd4963c2481a279"
+  },
+  "exit_gate": {
+    "outcome": "passed",
+    "layout_and_overflow": {
+      "passed": true,
+      "document_horizontal_overflow_observed": false,
+      "empty_pager_hidden": true,
+      "date_cells_nowrap": true,
+      "row_action_wrap_observed": false,
+      "wide_tables_use_local_horizontal_scroll": true
+    },
+    "duplicate_creation_guidance": {
+      "passed": true,
+      "duplicate_prompt_blocks_observed": 0,
+      "browser_regression": "dashboard action guidance renders once when panel note and action copy match"
+    },
+    "field_translation": {
+      "passed": true,
+      "audited_field_count": 19,
+      "graph_field_occurrence_count": 34,
+      "raw_field_name_count": 0,
+      "runtime_and_compiler_mapping_aligned": true
+    },
+    "internal_screen_keys": {
+      "passed": true,
+      "visible_locator_count": 0,
+      "home_resume_target": "我的 AI 服务商",
+      "raw_resume_key_exposed": false
+    },
+    "status_bar": {
+      "passed": true,
+      "visible": true,
+      "connected_status": "系统首页",
+      "refresh_time_present": true,
+      "empty_pager_text": ""
+    },
+    "broker_order_catalog": {
+      "passed": true,
+      "legacy_screen": "broker-execution.overview",
+      "canonical_screen": "execution.accounts",
+      "legacy_placeholder_observed": false,
+      "canonical_redirect_observed": true
+    },
+    "freshness_presentation": {
+      "passed": true,
+      "resolution": [
+        {
+          "area": "宏观象限",
+          "classification": "boundary-valid but degraded fallback",
+          "rule": "The owned regime boundary is 45 calendar days; the 2026-07-14 observation is exactly inside the 2026-08-28 boundary.",
+          "visible_freshness": "阈值内",
+          "visible_reliability": "降级",
+          "decision_claim": "No generic fresh claim is made."
+        },
+        {
+          "area": "政策",
+          "classification": "evaluation slice, not source freshness",
+          "rule": "The policy as-of date identifies today's or a historical evaluation slice and is not treated as source-observation freshness evidence.",
+          "visible_freshness": "今日截面",
+          "visible_reliability": "状态可用",
+          "historical_contract": "历史截面"
+        },
+        {
+          "area": "脉搏",
+          "classification": "fail-closed",
+          "rule": "A snapshot older than the owned 8-day boundary, a future snapshot, stale source indicators, or an unreliable snapshot blocks decision use.",
+          "visible_freshness": "源指标过期",
+          "visible_reliability": "不可用于决策",
+          "blocking_reason": "脉搏源指标未通过时效校验，仅供诊断。"
+        },
+        {
+          "area": "决策数据",
+          "classification": "fail-closed",
+          "visible_status": "BLOCKED",
+          "visible_reliability": "不可用于决策",
+          "blocking_reason": "行情缺少可验证的源观测与抓取时间，不得用于决策。"
+        }
+      ]
+    }
+  },
+  "browser_evidence": {
+    "settings": "core.settings.playwright",
+    "database": "disposable isolated SQLite clone",
+    "actor": "local synthetic superuser fixture",
+    "viewport": "1280x720",
+    "artifact_directory": "output/playwright/tux05-details-20260828",
+    "common_assertions": {
+      "loading_count": 0,
+      "service_recovery_count": 0,
+      "visible_internal_screen_key_count": 0,
+      "visible_raw_field_name_count": 0,
+      "visible_technical_label_count": 0,
+      "document_horizontal_overflow": false,
+      "empty_pager_hidden": true
+    },
+    "screenshots": [
+      {
+        "index": 1,
+        "screen": "policy.workbench",
+        "path": "output/playwright/tux05-details-20260828/01-policy-workbench.png",
+        "sha256": "64d6f2d1d33231903d6d2c9e2e3bcf2fcfcea2ea0cfd4605b09c6ff784308908",
+        "table_scroll_hosts": 2,
+        "scrollable_tables": 2,
+        "row_actions": 8,
+        "wrapped_row_actions": 0,
+        "date_cells": 16,
+        "non_nowrap_date_cells": 0
+      },
+      {
+        "index": 2,
+        "screen": "execution.accounts",
+        "path": "output/playwright/tux05-details-20260828/02-execution-accounts.png",
+        "sha256": "19d597b00012f9d092147b653164dd279828cb6638a420d92f44e34ae21ca6ee",
+        "table_scroll_hosts": 1,
+        "scrollable_tables": 1,
+        "row_actions": 2,
+        "wrapped_row_actions": 0
+      },
+      {
+        "index": 3,
+        "screen": "broker-execution.overview",
+        "resolved_screen": "execution.accounts",
+        "path": "output/playwright/tux05-details-20260828/03-broker-execution-alias.png",
+        "sha256": "1981c0a8007d324a8329c4715ab6c243322d987629058f8522538b6a2777e90a",
+        "canonical_redirect": true,
+        "legacy_placeholder": false,
+        "table_scroll_hosts": 1,
+        "scrollable_tables": 1
+      },
+      {
+        "index": 4,
+        "screen": "execution.audit",
+        "path": "output/playwright/tux05-details-20260828/04-execution-audit.png",
+        "sha256": "ad50334a2d335775d0feae00f762ae24a38e86378b5d42844c30a1eb6541aa68",
+        "table_scroll_hosts": 1,
+        "scrollable_tables": 1,
+        "date_cells": 4,
+        "non_nowrap_date_cells": 0
+      },
+      {
+        "index": 5,
+        "screen": "macro-regime.overview",
+        "path": "output/playwright/tux05-details-20260828/05-macro-regime-overview.png",
+        "sha256": "6011b59a82e9cf1f303f1f99b8d68a62a4837edd9c15c8c12a5866fefcdcc711",
+        "pulse_source_stale_marked": true,
+        "market_temperature_blocked": true,
+        "regime_and_band_localized": true,
+        "table_scroll_hosts": 1,
+        "scrollable_tables": 1
+      },
+      {
+        "index": 6,
+        "screen": "api-library.data-center",
+        "path": "output/playwright/tux05-details-20260828/06-api-library-data-center.png",
+        "sha256": "9cf98f12799391a2b66049490ac3f6a8121bddee4b7c061018c32a82a5587dea",
+        "release_status_localized": true,
+        "readiness_state_localized": true,
+        "table_scroll_hosts": 1,
+        "scrollable_tables": 0,
+        "row_actions": 3,
+        "wrapped_row_actions": 0
+      },
+      {
+        "index": 7,
+        "screen": "ai-ops.providers",
+        "path": "output/playwright/tux05-details-20260828/07-ai-ops-providers.png",
+        "sha256": "14b3ae0288f77a978402ca5669689fbf1290f75dfed531d7d5ebc7363c523033",
+        "table_scroll_hosts": 0,
+        "row_actions": 0
+      },
+      {
+        "index": 8,
+        "screen": "command-center.overview",
+        "path": "output/playwright/tux05-details-20260828/08-command-center-overview.png",
+        "sha256": "647e7d31dc6e30f0bc526c4ebaad488fc1df3363a59714944709cd81e5193e50",
+        "title": "今日总览",
+        "status": "系统首页",
+        "resume_action": "恢复上次工作区 我的 AI 服务商",
+        "status_bar_visible": true,
+        "table_scroll_hosts": 4,
+        "scrollable_tables": 2
+      }
+    ]
+  },
+  "validation": [
+    {
+      "command": "npm run build:tui && npm run check:tui",
+      "outcome": "passed"
+    },
+    {
+      "command": "npm run test:tui-js",
+      "outcome": "passed",
+      "passed": 41
+    },
+    {
+      "command": "pytest tests/unit/test_tui_workbench.py -q --reuse-db --no-migrations",
+      "outcome": "passed",
+      "passed": 308,
+      "duration_seconds": 151.97
+    },
+    {
+      "command": "pytest tests/unit/test_terminal_agent_service.py -q --reuse-db --no-migrations",
+      "outcome": "passed",
+      "passed": 20
+    },
+    {
+      "command": "pytest <TUI metadata/compiler/source/presentation/IA/operator/patch focused suite> -q",
+      "outcome": "passed",
+      "passed": 130,
+      "duration_seconds": 34.07
+    },
+    {
+      "command": "pytest <four TUX-05 current-data presentation nodeids> -q",
+      "outcome": "passed",
+      "passed": 4
+    },
+    {
+      "command": "python scripts/check_tui_presentation_details.py",
+      "outcome": "passed",
+      "audited_field_count": 19,
+      "graph_field_occurrence_count": 34,
+      "raw_field_name_count": 0,
+      "internal_screen_locator_count": 0
+    },
+    {
+      "command": "python scripts/check_tui_action_copy_and_density.py && python scripts/check_tui_metadata_source_consistency.py",
+      "outcome": "passed",
+      "published_actions": 413,
+      "runtime_actions": 871,
+      "violations": 0
+    },
+    {
+      "command": "python scripts/check_tui_static_contracts.py",
+      "outcome": "passed",
+      "rules": 407,
+      "sources": 5
+    },
+    {
+      "command": "python scripts/check_current_data_contracts.py",
+      "outcome": "passed",
+      "surfaces": 51
+    },
+    {
+      "command": "pytest tests/unit/test_current_data_contract_runner.py tests/unit/test_tui_static_contracts.py -q",
+      "outcome": "passed",
+      "passed": 6
+    },
+    {
+      "command": "python scripts/web_template_migration_inventory.py --check",
+      "outcome": "passed",
+      "templates": 196,
+      "route_pages": 117
+    },
+    {
+      "command": "validate_tui_metadata.py <published> && validate_tui_metadata.py <generated>",
+      "outcome": "passed",
+      "published_screens": 12,
+      "published_actions": 413,
+      "generated_screens": 17,
+      "generated_actions": 475
+    },
+    {
+      "command": "python scripts/check_mypy_regression.py <5 changed production Python files>",
+      "outcome": "passed",
+      "regressions": 0,
+      "legacy_errors": 0
+    },
+    {
+      "command": "python scripts/check_mypy_debt_ceiling.py",
+      "outcome": "passed",
+      "errors": 0
+    },
+    {
+      "command": "python scripts/verify_architecture.py --include-audit --fail-on-audit-violations --format text",
+      "outcome": "passed",
+      "scanned_files": 2987,
+      "boundary_violations": 0,
+      "audit_violations": 0
+    },
+    {
+      "command": "python scripts/check_governance_consistency.py --baseline governance/governance_baseline.json --format text",
+      "outcome": "passed",
+      "violations": 0
+    },
+    {
+      "command": "python manage.py check",
+      "outcome": "passed",
+      "issues": 0
+    },
+    {
+      "command": "Black, isort, Ruff and git diff --check over changed files",
+      "outcome": "passed"
+    }
+  ],
+  "cross_scope_discovery": {
+    "command": "python scripts/run_current_data_contract_tests.py --pytest-arg=-q --pytest-arg=--reuse-db --pytest-arg=--no-migrations --pytest-arg=--tb=short",
+    "runner_command_line_partition": "passed; 298 registered nodeids are now partitioned into Windows-safe batches",
+    "first_batch_result": {
+      "registered_nodeids": 242,
+      "parametrized_outcomes": 300,
+      "passed": 268,
+      "failed": 29,
+      "errors": 3
+    },
+    "remaining_registered_nodeids_not_run_after_fail_fast": 55,
+    "tux05_registered_nodeids": {
+      "count": 4,
+      "focused_result": "4 passed"
+    },
+    "root_cause_boundary": "The failures are pre-existing AUD-02 read paths that eagerly require audit.system_event.mode, audit.system_event.outbox_enabled and audit.system_event.authority_selector before their read-only assertions can run. This does not weaken or invalidate the four TUX-05 freshness-presentation contracts, but it disproves the prior AUD-02 repository-complete regression claim and requires AUD-02 to be reopened as the next repository focus.",
+    "production_fail_closed_relaxed": false
+  },
+  "review": {
+    "sol_decision": "passed",
+    "luna_read_only_inventory": {
+      "edits_performed": false,
+      "disposition": "The bounded layout, translation, status-bar, placeholder and freshness gaps were reviewed by Sol and closed with machine guards plus browser evidence."
+    }
+  },
+  "limitations": [
+    "The browser walkthrough used a disposable local SQLite clone and a synthetic local superuser; it is repository acceptance, not production role UAT.",
+    "Concurrent home-dashboard reads initially produced traceable SQLite database-lock recovery panels. Sequential retry/reload reached a clean final state with zero recovery panels; this local concurrency behavior is not production reliability evidence.",
+    "The pytest Playwright smoke target was skipped because its fixture expects a live server at localhost:8000; the eight-screen acceptance instead used the isolated authenticated server at 127.0.0.1:8775 and preserved screenshot hashes above.",
+    "The complete current-data registry is not green because of the separately recorded AUD-02 runtime-definition regression. TUX-05's four registered contracts and all TUX-specific gates are green; the prior AUD-02 completed state must be corrected rather than hiding the failures.",
+    "The published graph, runtime manifest and workbench assets changed. This evidence does not deploy or rebind the frozen Web-to-TUI M5 candidate; candidate binding remains a separately authorized TUI-01 decision."
+  ],
+  "production_actions": {
+    "deployment_performed": false,
+    "production_write_performed": false,
+    "external_call_performed": false,
+    "m5_candidate_rebound": false
+  },
+  "next_repository_unit": "AUD-02-reopened"
+}

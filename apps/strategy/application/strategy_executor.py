@@ -13,6 +13,10 @@ from typing import Any
 
 from django.utils import timezone
 
+from apps.prompt.application.agent_authority import (
+    AgentAuthorityGate,
+    UnwiredAgentAuthorityGate,
+)
 from apps.strategy.application.ai_strategy_executor import AIStrategyExecutor
 from apps.strategy.application.rule_evaluator import CompositeRuleEvaluator
 from apps.strategy.application.script_engine import ScriptBasedStrategyExecutor, SecurityMode
@@ -66,6 +70,7 @@ class StrategyExecutor:
         signal_provider: SignalProviderProtocol,
         portfolio_provider: PortfolioDataProviderProtocol,
         script_security_mode: str = SecurityMode.RELAXED,
+        agent_authority_gate: AgentAuthorityGate | None = None,
     ) -> None:
         """
         初始化策略执行引擎
@@ -79,6 +84,7 @@ class StrategyExecutor:
             signal_provider: 信号提供者
             portfolio_provider: 投资组合数据提供者
             script_security_mode: 脚本沙箱安全模式（strict/standard/relaxed）
+            agent_authority_gate: server-owned authority gate for AI portfolio access
         """
         self.strategy_repository = strategy_repository
         self.execution_log_repository = execution_log_repository
@@ -88,6 +94,7 @@ class StrategyExecutor:
         self.signal_provider = signal_provider
         self.portfolio_provider = portfolio_provider
         self.script_security_mode = script_security_mode
+        self.agent_authority_gate = agent_authority_gate or UnwiredAgentAuthorityGate()
 
         # 初始化规则评估器
         self.rule_evaluator = CompositeRuleEvaluator()
@@ -109,6 +116,7 @@ class StrategyExecutor:
             asset_pool_provider=asset_pool_provider,
             signal_provider=signal_provider,
             portfolio_provider=portfolio_provider,
+            authority_gate=self.agent_authority_gate,
         )
 
     def execute_strategy(self, strategy_id: int, portfolio_id: int) -> StrategyExecutionResult:
@@ -137,6 +145,10 @@ class StrategyExecutor:
                 raise ValueError(f"Strategy not found: {strategy_id}")
 
             logger.info(f"Executing strategy: {strategy.name} (ID: {strategy_id})")
+
+            # AI-backed strategies must prove server-owned portfolio authority
+            # before the shared context builder touches any portfolio data.
+            self._ensure_agent_authority_before_context(strategy)
 
             # 2. 准备执行上下文
             context = self._prepare_context(portfolio_id)
@@ -182,6 +194,27 @@ class StrategyExecutor:
             ) + "Strategy execution log persistence failed"
 
         return result
+
+    def _ensure_agent_authority_before_context(self, strategy: Strategy) -> None:
+        """Fail closed before portfolio reads for AI-backed strategy paths."""
+
+        requires_portfolio_agent_authority = strategy.strategy_type == StrategyType.AI_DRIVEN or (
+            strategy.strategy_type == StrategyType.HYBRID and strategy.ai_config is not None
+        )
+        if not requires_portfolio_agent_authority:
+            return
+
+        blocker = self.agent_authority_gate.check(
+            context_scope=["portfolio"],
+            context_params=None,
+            tool_names=[
+                "get_portfolio_snapshot",
+                "get_portfolio_positions",
+                "get_portfolio_cash",
+            ],
+        )
+        if blocker is not None:
+            raise StrategyContextUnavailableError(blocker)
 
     @staticmethod
     def _validate_execution_ids(strategy_id: int, portfolio_id: int) -> None:

@@ -9,34 +9,34 @@
       "celery_dispatch_edge": 18,
       "celery_task": 126,
       "compatibility_facade": 90,
-      "current_data_surface": 50,
+      "current_data_surface": 51,
       "dynamic_import_edge": 10,
       "management_command": 25,
       "management_command_edge": 56,
       "mcp_tool": 40,
       "migration_evidence": 14,
-      "operational_dispatch_edge": 60,
-      "operational_script": 28,
+      "operational_dispatch_edge": 61,
+      "operational_script": 29,
       "orchestration_entry": 9,
       "public_port": 91,
       "rest_url": 66,
       "runbook": 7,
       "runtime_config_key": 45,
       "scheduler_writer": 16,
-      "script": 3,
+      "script": 6,
       "sdk": 46,
       "terminal_tui": 28,
-      "test_evidence": 38,
+      "test_evidence": 41,
       "workflow_step": 9
     },
     "by_status": {
-      "active_public": 704,
+      "active_public": 709,
       "adjacent_operational": 293,
-      "candidate-review": 2,
+      "candidate-review": 6,
       "compatibility": 133,
       "retired_blocked": 0
     },
-    "total": 1132
+    "total": 1141
   },
   "entries": [
     {
@@ -1592,8 +1592,8 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/terminal/application/tui_operator_services.py:get_active_stock_fact_coverage_payload:line:33",
-      "locator": "line:33",
+      "id": "application_consumer:apps/terminal/application/tui_operator_services.py:get_active_stock_fact_coverage_payload:line:32",
+      "locator": "line:32",
       "path": "apps/terminal/application/tui_operator_services.py",
       "status": "active_public",
       "symbol": "get_active_stock_fact_coverage_payload",
@@ -1602,8 +1602,8 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/terminal/application/tui_operator_services.py:get_decision_data_readiness_payload:line:33",
-      "locator": "line:33",
+      "id": "application_consumer:apps/terminal/application/tui_operator_services.py:get_decision_data_readiness_payload:line:32",
+      "locator": "line:32",
       "path": "apps/terminal/application/tui_operator_services.py",
       "status": "active_public",
       "symbol": "get_decision_data_readiness_payload",
@@ -1612,8 +1612,8 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/terminal/application/tui_operator_services.py:get_market_thermometer_payload:line:33",
-      "locator": "line:33",
+      "id": "application_consumer:apps/terminal/application/tui_operator_services.py:get_market_thermometer_payload:line:32",
+      "locator": "line:32",
       "path": "apps/terminal/application/tui_operator_services.py",
       "status": "active_public",
       "symbol": "get_market_thermometer_payload",
@@ -5131,7 +5131,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=20",
+      "evidence": "governed current-data contract; source_files=23",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.publication_writer_atomicity:Canonical publication writer and member snapshot commit",
       "locator": "Canonical publication writer and member snapshot commit",
       "path": "governance/current_data_contracts.json",
@@ -5431,6 +5431,16 @@
     },
     {
       "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=3",
+      "id": "current_data_surface:governance/current_data_contracts.json:terminal.operator_market_context_presentation:TUI operator market-context freshness and reliability presentation",
+      "locator": "TUI operator market-context freshness and reliability presentation",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "terminal.operator_market_context_presentation",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
       "evidence": "governed current-data contract; source_files=2",
       "id": "current_data_surface:governance/current_data_contracts.json:valuation.current_price_fallback:Asset valuation observable market-price fallback",
       "locator": "Asset valuation observable market-price fallback",
@@ -5452,8 +5462,8 @@
     {
       "category": "dynamic_import_edge",
       "evidence": "statically resolved dynamic import target",
-      "id": "dynamic_import_edge:apps/data_center/application/interface_services.py:import_module:line:241",
-      "locator": "line:241",
+      "id": "dynamic_import_edge:apps/data_center/application/interface_services.py:import_module:line:242",
+      "locator": "line:242",
       "path": "apps/data_center/application/interface_services.py",
       "status": "adjacent_operational",
       "symbol": "import_module",
@@ -6132,8 +6142,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/alpha/management/commands/build_qlib_data.py",
-      "id": "management_command_edge:apps/data_center/application/interface_services.py:build_qlib_data:line:219",
-      "locator": "line:219",
+      "id": "management_command_edge:apps/data_center/application/interface_services.py:build_qlib_data:line:220",
+      "locator": "line:220",
       "path": "apps/data_center/application/interface_services.py",
       "status": "adjacent_operational",
       "symbol": "build_qlib_data",
@@ -6142,8 +6152,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/alpha/management/commands/build_qlib_data.py",
-      "id": "management_command_edge:apps/data_center/application/interface_services.py:build_qlib_data:line:226",
-      "locator": "line:226",
+      "id": "management_command_edge:apps/data_center/application/interface_services.py:build_qlib_data:line:227",
+      "locator": "line:227",
       "path": "apps/data_center/application/interface_services.py",
       "status": "adjacent_operational",
       "symbol": "build_qlib_data",
@@ -6152,8 +6162,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/alpha/management/commands/build_qlib_data.py",
-      "id": "management_command_edge:apps/data_center/management/commands/repair_decision_data_reliability.py:build_qlib_data:line:252",
-      "locator": "line:252",
+      "id": "management_command_edge:apps/data_center/management/commands/repair_decision_data_reliability.py:build_qlib_data:line:249",
+      "locator": "line:249",
       "path": "apps/data_center/management/commands/repair_decision_data_reliability.py",
       "status": "adjacent_operational",
       "symbol": "build_qlib_data",
@@ -6162,8 +6172,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/alpha/management/commands/build_qlib_data.py",
-      "id": "management_command_edge:apps/data_center/management/commands/repair_decision_data_reliability.py:build_qlib_data:line:259",
-      "locator": "line:259",
+      "id": "management_command_edge:apps/data_center/management/commands/repair_decision_data_reliability.py:build_qlib_data:line:256",
+      "locator": "line:256",
       "path": "apps/data_center/management/commands/repair_decision_data_reliability.py",
       "status": "adjacent_operational",
       "symbol": "build_qlib_data",
@@ -7281,6 +7291,16 @@
     },
     {
       "category": "operational_dispatch_edge",
+      "evidence": "canonical migration-graph and isolated PostgreSQL restore verification tooling",
+      "id": "operational_dispatch_edge:scripts/record_data01_restore_evidence.py:pg_restore:token:pg_restore",
+      "locator": "token:pg_restore",
+      "path": "scripts/record_data01_restore_evidence.py",
+      "status": "active_public",
+      "symbol": "pg_restore",
+      "target": "postgres:pg_restore"
+    },
+    {
+      "category": "operational_dispatch_edge",
       "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/register-macro-daily-sync-task.ps1:Register-ScheduledTask:token:Register-ScheduledTask",
       "locator": "token:Register-ScheduledTask",
@@ -7678,6 +7698,16 @@
       "status": "adjacent_operational",
       "symbol": "__main__",
       "target": "scripts/deploy-on-vps.sh,scripts/remote_build_deploy_vps.py,scripts/vps-backup.sh,scripts/vps-restore.sh"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "canonical migration-graph and isolated PostgreSQL restore verification tooling",
+      "id": "operational_script:scripts/record_data01_restore_evidence.py:__main__:",
+      "locator": "",
+      "path": "scripts/record_data01_restore_evidence.py",
+      "status": "active_public",
+      "symbol": "__main__",
+      "target": "postgres:pg_restore"
     },
     {
       "category": "operational_script",
@@ -10142,6 +10172,36 @@
     {
       "category": "script",
       "evidence": "Data Center governance/measurement tooling",
+      "id": "script:scripts/record_data01_restore_evidence.py:__main__:",
+      "locator": "",
+      "path": "scripts/record_data01_restore_evidence.py",
+      "status": "active_public",
+      "symbol": "__main__",
+      "target": ""
+    },
+    {
+      "category": "script",
+      "evidence": "Data Center governance/measurement tooling",
+      "id": "script:scripts/record_data02_reconciliation_evidence.py:__main__:",
+      "locator": "",
+      "path": "scripts/record_data02_reconciliation_evidence.py",
+      "status": "active_public",
+      "symbol": "__main__",
+      "target": ""
+    },
+    {
+      "category": "script",
+      "evidence": "Data Center governance/measurement tooling",
+      "id": "script:scripts/record_data03_readiness_evidence.py:__main__:",
+      "locator": "",
+      "path": "scripts/record_data03_readiness_evidence.py",
+      "status": "active_public",
+      "symbol": "__main__",
+      "target": ""
+    },
+    {
+      "category": "script",
+      "evidence": "Data Center governance/measurement tooling",
       "id": "script:scripts/verify_postgres_backup_restore.py:__main__:",
       "locator": "",
       "path": "scripts/verify_postgres_backup_restore.py",
@@ -10611,31 +10671,31 @@
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI screen-to-action dispatch edge",
+      "evidence": "TUI screen/action edge is missing or differs in published graph",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:api-library.data-center:auto.api.get.api.data-center",
       "locator": "auto.api.get.api.data-center",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
-      "status": "active_public",
+      "status": "candidate-review",
       "symbol": "api-library.data-center",
       "target": "/api/data-center/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI screen-to-action dispatch edge",
+      "evidence": "TUI screen/action edge is missing or differs in published graph",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:api-library.data-center:auto.api.get.api.data-center.providers",
       "locator": "auto.api.get.api.data-center.providers",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
-      "status": "active_public",
+      "status": "candidate-review",
       "symbol": "api-library.data-center",
       "target": "/api/data-center/providers/"
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph with matching dispatch contract",
+      "evidence": "generated TUI action is not present in published graph",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:auto.api.get.api.data-center:/api/data-center/",
       "locator": "/api/data-center/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
-      "status": "active_public",
+      "status": "candidate-review",
       "symbol": "auto.api.get.api.data-center",
       "target": "/api/data-center/"
     },
@@ -10751,11 +10811,11 @@
     },
     {
       "category": "terminal_tui",
-      "evidence": "published TUI operation graph with matching dispatch contract",
+      "evidence": "generated TUI action is not present in published graph",
       "id": "terminal_tui:config/tui/generated/tui_operation_graph.generated.json:auto.api.get.api.data-center.providers:/api/data-center/providers/",
       "locator": "/api/data-center/providers/",
       "path": "config/tui/generated/tui_operation_graph.generated.json",
-      "status": "active_public",
+      "status": "candidate-review",
       "symbol": "auto.api.get.api.data-center.providers",
       "target": "/api/data-center/providers/"
     },
@@ -10901,6 +10961,16 @@
     },
     {
       "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/account/test_owner_tenant_authority_v1_postgres_concurrency.py:test_owner_tenant_authority_v1_postgres_concurrency:",
+      "locator": "",
+      "path": "tests/component/account/test_owner_tenant_authority_v1_postgres_concurrency.py",
+      "status": "candidate-review",
+      "symbol": "test_owner_tenant_authority_v1_postgres_concurrency",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
       "evidence": "reviewed PostgreSQL concurrency evidence owned by the Audit application",
       "id": "test_evidence:tests/component/audit/test_system_audit_postgres_concurrency.py:test_system_audit_postgres_concurrency:",
       "locator": "",
@@ -11012,10 +11082,20 @@
     {
       "category": "test_evidence",
       "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/settings_owner_tenant_authority_v1_postgres.py:settings_owner_tenant_authority_v1_postgres:",
+      "locator": "",
+      "path": "tests/settings_owner_tenant_authority_v1_postgres.py",
+      "status": "candidate-review",
+      "symbol": "settings_owner_tenant_authority_v1_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
       "id": "test_evidence:tests/settings_terminal_agent_run_postgres.py:settings_terminal_agent_run_postgres:",
       "locator": "",
       "path": "tests/settings_terminal_agent_run_postgres.py",
-      "status": "candidate-review",
+      "status": "active_public",
       "symbol": "settings_terminal_agent_run_postgres",
       "target": ""
     },
@@ -11097,6 +11177,16 @@
       "path": "tests/unit/data_center/test_archive_tasks.py",
       "status": "active_public",
       "symbol": "test_archive_tasks",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/data_center/test_data01_restore_evidence.py:test_data01_restore_evidence:",
+      "locator": "",
+      "path": "tests/unit/data_center/test_data01_restore_evidence.py",
+      "status": "active_public",
+      "symbol": "test_data01_restore_evidence",
       "target": ""
     },
     {
@@ -11241,11 +11331,11 @@
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
       "id": "test_evidence:tests/unit/test_evid_02_postgres_evidence.py:test_evid_02_postgres_evidence:",
       "locator": "",
       "path": "tests/unit/test_evid_02_postgres_evidence.py",
-      "status": "candidate-review",
+      "status": "active_public",
       "symbol": "test_evid_02_postgres_evidence",
       "target": ""
     },
@@ -11371,7 +11461,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 91,
-    "current_data_contracts": 50,
+    "current_data_contracts": 51,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 18,
     "runtime_config_keys": 45

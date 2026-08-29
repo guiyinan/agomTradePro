@@ -1594,3 +1594,375 @@ No deployment was performed for this check. Provider/MCP success, candidate-boun
 production role UAT, capacity/chaos, telemetry, restore/rollback and owner/
 reviewer acceptance remain separate fail-closed gates. Users still do not
 install a provider-backed Agent locally.
+
+### TAR-04 server Agent portfolio authority preflight (2026-08-23)
+
+The default server-side Agent composition now injects an explicit authority
+gate before context construction, tool selection, model/provider access, or
+portfolio reads. Until an immutable owner/tenant authority provider is wired,
+caller-supplied `portfolio_id` values and portfolio context/tools return the
+stable `agent_authority_not_wired` blocker; the API maps that boundary to
+`503` and performs no model call. The gate is a server composition boundary,
+not a client-side permission claim and not a substitute for an authenticated
+owner/tenant source.
+
+Focused Agent/Application/API tests cover the pre-model short circuit and the
+server response contract (`33 passed` in the focused run); incrementally typed
+production files have `0` mypy regressions and the debt ceiling remains clean.
+This is a local fail-closed hardening slice only. The product remains B/S:
+CLI/API callers submit requests to the server Agent Runtime, while provider
+credentials, models, MCP, tools, confirmation and audit stay server-side; no
+user installs or runs a provider-backed Agent locally.
+
+The real owner/tenant authority provider, same-alias bundle, scoped portfolio
+UAT, provider success, queue/worker capacity, chaos/recovery, telemetry,
+restore/rollback and owner/reviewer gates remain open. No VPS deployment was
+performed for this slice.
+
+### TAR-04 strategy/internal Agent authority closure (2026-08-23)
+
+The strategy executor now performs the same authority preflight before its
+shared context builder reads portfolio data for AI-driven or AI-backed HYBRID
+strategies. The AI strategy executor also fails before context preparation and
+does not turn `agent_authority_not_wired` into a legacy Prompt/Chain fallback.
+Rule-only and script-only strategies retain their existing execution paths.
+
+This closes the internal read-before-gate and fallback escape hatches without
+inventing a caller-owned identity or querying mutable User/Profile data. The
+authority provider remains intentionally unwired, so portfolio-backed Agent
+execution stays fail-closed. Focused strategy authority tests pass (`40
+passed`); no VPS deployment or production write was performed.
+
+### TAR-04 all-runtime portfolio authority default (2026-08-23)
+
+The server `AgentRuntime` now defaults to the same fail-closed authority gate
+even when it is constructed directly, so terminal and strategy runtime
+composition helpers inherit the gate without relying on a caller to inject
+it. This closes the composition escape hatch where an internal strategy
+runtime could otherwise receive a caller-selected `portfolio_id` or portfolio
+tool without the public API gate.
+The default remains `agent_authority_not_wired` until an immutable owner/tenant
+authority provider and same-alias bundle are available; no caller-supplied
+identity is treated as authorization, and no model/provider call occurs on the
+blocked path.
+
+Focused Agent/runtime tests pass (`30 passed`); this is local fail-closed
+hardening only. The B/S product boundary remains unchanged: CLI/API callers
+submit to the server, while models, provider credentials, MCP, tools,
+confirmation and audit stay server-side. Users do not install or run a
+provider-backed Agent locally. Scoped owner UAT, provider success, queue/
+worker capacity, chaos/recovery, telemetry, restore/rollback and human gates
+remain open; no VPS deployment was performed.
+
+### TAR-01 current public health read-only observation (2026-08-23)
+
+A no-write HTTPS probe of the existing public candidate returned `200` from both
+`/api/health/` and `/api/ready/`. The ready response reported database, Redis,
+Celery (one worker) and critical data as `ok`, while decision data remained
+`warning` with `must_not_use_for_decision=true`: the market thermometer had only
+three valid components and fell back to the 2026-08-19 snapshot. Response hashes
+and the exact scope are preserved in
+[`tar01-current-public-health-readonly-2026-08-23.json`](../deployment/tar01-current-public-health-readonly-2026-08-23.json).
+
+The public health response did not expose a commit, release or OCI identity, so
+this is deliberately an unbound short-window observation. No deployment,
+production write, backup creation, rollback, role UAT or owner/reviewer sign-off
+was performed; TAR-01/TAR-05 and the decision-ready gate remain fail-closed.
+
+### TAR-01 public health read-only recheck (2026-08-23)
+
+A second no-write HTTPS observation of the public B/S service returned `200` from
+both `/api/health/` and `/api/ready/`. The ready projection reported database,
+Redis, Celery, and critical data as `ok`; decision data remained guarded. The
+structured responses and SHA-256 digests are preserved in
+[`tar01-public-health-readonly-recheck-2026-08-23.json`](../deployment/tar01-public-health-readonly-recheck-2026-08-23.json).
+
+`/api/decision-ready/` returned `503` with `status=blocked`,
+`must_not_use_for_decision=true`, and the stable observation reason
+`MCP audit evidence write failed during final acceptance`. This is an unresolved
+AUD/EVID evidence-write blocker, not a successful publisher/authority proof or a
+decision approval. The public endpoints did not expose an immutable commit,
+release, or OCI identity, so the observation remains unbound.
+
+No deployment, production write, queue/worker enablement, backup creation,
+rollback, role UAT, or owner/reviewer sign-off was performed. TAR-01/TAR-05,
+AUD-01/EVID-01, and the decision-ready gate remain fail-closed; the CLI/TUI
+continues to submit requests to the server-side Agent Runtime and users do not
+install a local provider-backed Agent.
+
+### TAR-01 public audit health read-only observation (2026-08-23)
+
+A single no-write HTTPS GET of `/api/audit/health/` returned `200` with
+`overall_status=OK`. The audit failure counter reported zero failures, the
+database and audit tables were accessible, and pending/claimed/expired/failed
+outbox counts were all zero; the service reported 555 operation logs. The exact
+response and body SHA-256
+(`db83db31700811c465d9b7ef76918aae5ef7e8f5c6a686f474e183a6c0cb8d83`) are
+preserved in
+[`tar01-public-audit-health-readonly-2026-08-23.json`](../deployment/tar01-public-audit-health-readonly-2026-08-23.json).
+
+This is a health observation only. It does not prove that the final-acceptance
+MCP evidence write was durably received, does not bind a candidate commit or
+release, and does not clear the persisted `decision-ready` blocker. No deploy,
+production write, approval/activation, queue enablement, backup, rollback,
+role UAT, or owner/reviewer sign-off was performed. TAR-01/TAR-05 and
+AUD-01/EVID-01 therefore remain fail-closed; the B/S client continues to submit
+requests to the server-side Agent Runtime and users do not install a local
+provider-backed Agent.
+
+### TAR-01/AUD-03 public health and audit read-only recheck (2026-08-23 12:19Z)
+
+One fresh no-write HTTPS probe confirmed that the B/S service remains reachable:
+`/api/health/` and `/api/ready/` returned `200`; readiness reported database,
+Redis, Celery (one worker) and critical data as `ok`, while decision data stayed
+`warning`. `/api/audit/health/` returned `200/OK` with 555 operation logs and
+zero pending, claimed, expired, failed or delivered outbox rows. The structured
+responses and body hashes are preserved in
+[`tar01-public-health-readonly-recheck-2026-08-23-1219.json`](../deployment/tar01-public-health-readonly-recheck-2026-08-23-1219.json).
+
+`/api/decision-ready/` continued to return `503` with
+`must_not_use_for_decision=true` and the unchanged
+`MCP audit evidence write failed during final acceptance` blocker. Public
+responses still exposed no immutable commit/release/OCI identity, so the
+observation is unbound. No deployment, production write, queue/worker
+enablement, approval/activation, backup, rollback, role UAT or owner/reviewer
+sign-off was performed; TAR-01/TAR-05, AUD-01/EVID-01 and decision-ready remain
+fail-closed. The CLI/TUI still submits to the server-side Agent Runtime; users
+do not install a local provider-backed Agent.
+
+### TAR-01/AUD-03 low-frequency public health and audit recheck (2026-08-23 14:13Z)
+
+After the earlier observation window, one additional no-write HTTPS GET rechecked
+the public B/S service. `/api/health/` and `/api/ready/` remained `200`; readiness
+reported database, Redis, Celery (one worker), and critical data as `ok`, while
+decision data stayed `warning`. `/api/audit/health/` remained `200/OK` with 555
+operation logs, zero failures, and zero pending/claimed/expired/failed/delivered
+outbox rows. The compact evidence artifact and response digests are preserved in
+[`tar01-public-health-readonly-recheck-2026-08-23-1413.json`](../deployment/tar01-public-health-readonly-recheck-2026-08-23-1413.json)
+with SHA-256 `0f6473dbfa0ec11cb934a49af4097804a4f68e6198b9832ce5d20491579f3fee`.
+
+`/api/decision-ready/` remained `503` with
+`must_not_use_for_decision=true` and the unchanged
+`MCP audit evidence write failed during final acceptance` blocker. Public
+responses still expose no immutable candidate identity, so this remains an
+unbound observation. No deployment, production write, queue/worker enablement,
+backup creation, rollback, role UAT, or owner/reviewer sign-off was performed;
+TAR-01/TAR-05, AUD-01/EVID-01, and the decision-ready gate remain fail-closed.
+
+### Decision freshness semantics acceptance clarification (2026-08-23)
+
+The public response also contained a quote with a large elapsed age while
+reporting `freshness_status=latest_completed_session` and `is_stale=false`.
+This is intentional for a closed China market session, not an age-check
+regression: `QueryLatestQuoteUseCase.build_response` only clears the elapsed
+age blocker when the asset is CN-listed, the snapshot belongs to the latest
+completed China session, and the market is already closed. The focused tests
+`test_accepts_latest_completed_session_quote_on_weekend`,
+`test_blocks_quote_older_than_latest_completed_session_on_weekend`, and
+`test_keeps_intraday_stale_quote_blocked_during_live_session` cover the
+accepted weekend/session case and both stale counter-cases.
+
+This clarification does not make the service decision-ready. The public
+`/api/decision-ready/` response remains `503` with
+`must_not_use_for_decision=true` because the separate audit-evidence-write and
+market/data coverage gates are still blocked. No production code, deployment,
+or decision gate was changed by this review.
+
+### TAR-01 current VPS candidate read-only verifier (2026-08-23)
+
+A single read-only SSH verifier was run against the existing VPS candidate;
+no build, release switch, migration, rollback, queue enablement, or business
+write was performed. The immutable release manifest identifies
+`4cef9040cccc2127c3f8128c8d858bc7958df2a4` / release `20260822134658` /
+image `sha256:cfaf17560df2f85cd8ba2f5db8226a9dd9fe1cce081f30175c2a08737b4908d8`.
+Caddy/TLS, health, Django deploy check, migrations, canonical Data Center
+schema, TUI registry, Qlib (`pyqlib=0.9.7`, wrong `qlib` distribution absent),
+containers, resources, healthcheck, Celery worker/beat and Celery ping all
+returned success. The structured artifact is
+[`tar01-current-vps-readonly-verification-2026-08-23.json`](../deployment/tar01-current-vps-readonly-verification-2026-08-23.json)
+with SHA-256
+`d92285f87677571d3cc75d0ca78bd50b16933137f2df15bcd3d0eabe18cf7b51`.
+
+The public probes in the same acceptance window returned health/ready/audit
+`200`; ready kept `decision_data=warning`, audit reported 555 operation logs
+and zero failures/backlog, and decision-ready remained `503` with
+`must_not_use_for_decision=true`. The read-only snapshot captured the local
+branch at `ca920849fa87663407e8c92e1f60427d4af79ddf`; the subsequent docs-only
+evidence commit is `17319c241bb8cd3019a509a0331ec4a3ca15f2c2`. The VPS
+candidate is not bound to either evidence commit, so this remains
+candidate-bound observation only, not acceptance of the current branch and not
+the TAR-01 capacity/provider/chaos/telemetry/restore/rollback or owner/reviewer
+exit gate. A one-time deployment of the current approved candidate remains a
+separate authorized step; repeated deployments are not required.
+
+### TAR-01 current VPS candidate low-frequency read-only recheck (2026-08-24)
+
+The existing VPS candidate was rechecked once with the read-only SSH verifier;
+no build, release switch, migration, rollback, queue enablement, or business
+write was performed. The verifier returned exit code `0` for Caddy/TLS,
+health, Django deploy check, migrations, canonical Data Center schema, TUI
+registry, Qlib (`pyqlib=0.9.7`, wrong `qlib` distribution absent), containers,
+resources, healthcheck, Celery worker/beat and Celery ping. The structured
+artifact is
+[`tar01-current-vps-readonly-verification-2026-08-24.json`](../deployment/tar01-current-vps-readonly-verification-2026-08-24.json)
+with SHA-256
+`7e364af02b2e72e5ffed55fb417923d8fa99a44e914ae092fd654f964c8d1eba`.
+
+Public health, readiness and audit probes returned `200`; readiness kept
+`decision_data=warning`, audit reported 555 operation logs and zero failures
+or outbox backlog, while decision-ready remained `503` with
+`must_not_use_for_decision=true`. The running candidate remains
+`4cef9040cccc2127c3f8128c8d858bc7958df2a4` / release `20260822134658`, and is
+not bound to local HEAD `8a755c3c2e79da067c0b9264b4e4f5bd1b8afe24`. This is a
+low-frequency read-only observation only; TAR-01/TAR-05 capacity, queue,
+provider, chaos, telemetry, restore/rollback, role UAT and owner/reviewer
+gates remain unchanged. Repeated deployment is not required.
+
+### TAR-05 current candidate authenticated reserved-route staircase (2026-08-24)
+
+Using one server-side account session with CSRF referer/token headers, the
+current controlled candidate `94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` /
+release `20260824133504` / image
+`sha256:1c560b5fed14964a008c278a88d9f3e3b144444a172ecc239d06cedbd76d6a3e`
+was observed without a deployment or runtime flag change. A task-id `0`
+preflight first returned `503 DISPATCH_UNAVAILABLE /
+queued_runtime_not_wired / Retry-After: 60`; the authenticated staircase then
+sent exactly `1/5/10/20` requests (`36` total), and every response had the same
+fail-closed contract. Health/readiness/audit were stable before and after:
+all three HTTP statuses were `200`, readiness was `200/ok` with one Celery
+worker, audit remained `OK` with `555` operation logs, `0` failures and zero
+pending/due/claimed/expired/failed backlog. The authenticated catalog was
+`tui-workbench.v2`, `886` normalized actions, `890` published actions and `23`
+approved-operation actions.
+
+The structured evidence is
+[`tar01-current-reserved-route-observation-2026-08-24-94abd76e.json`](../deployment/tar01-current-reserved-route-observation-2026-08-24-94abd76e.json)
+with SHA-256
+`23fc37fee8d54ab9f8f53252ca4d37753db83afbc52a336dfe8f68e235e6b8cd`;
+the offline validator passes with `capacity_ready=false`,
+`runtime_enablement=not_authorized` and `side_effects_observed=false`.
+This is current-candidate authenticated guard evidence, not queued admission,
+durable PostgreSQL run persistence, Worker/SSE, idempotency/cancel, provider/
+MCP, capacity, chaos, 14-day telemetry, restore/rollback or owner/reviewer
+evidence. TAR-01/TAR-05 remain fail-closed and no redeploy was performed.
+## 2026-08-24：当前公网只读健康复核
+
+仅对 `demo.agomtrade.pro` 执行了三条 HTTPS `GET`，没有部署、迁移、队列启用、回滚或生产写入。`/api/health/` 与 `/api/ready/` 均返回 `200`；ready 的 database、Redis、Celery、critical data 为 `ok`，decision-data 为 `warning`。`/api/decision-ready/` 返回 `503`，并明确 `must_not_use_for_decision=true`。原始响应的大小、SHA-256 与 acceptance 口径保存在 [`tar01-public-health-readonly-recheck-2026-08-24.json`](../deployment/tar01-public-health-readonly-recheck-2026-08-24.json)。
+
+这只刷新公共健康与 fail-closed 状态，不识别或重绑当前部署候选，也不产生 TAR-05 容量/chaos、queued/Worker/SSE、角色浏览器 UAT、写后 receipt/refresh、14 日 telemetry、restore/rollback 或 owner/reviewer 签署证据；TAR-01/TAR-05 与决策门禁继续保持 fail-closed。
+
+## 20. 2026-08-24：TAR-05 offline chaos evidence recorder
+
+为让已登记的 TAR-05 `auto_collect` 证据可以离线、可重复地验收，新增
+`scripts/record_terminal_runtime_chaos_evidence.py`。它只读取外部提供的
+`terminal-runtime-chaos-observation.v1` JSON 快照，并复用
+`terminal_runtime_chaos_evidence` 的严格解析/序列化合同：候选 commit/release/OCI
+与 canonical test-matrix digest 必须一致，观察必须绑定同一 environment，timeline
+必须使用单调 UTC，worker/run/stream/recovery 状态、重连/覆盖/重复副作用/跨用户泄漏
+计数必须显式出现，`unavailable`/`failed` 不得被填成零或通过；`runtime_enablement`
+固定为 `not_authorized`。可选的独立 candidate JSON 用于在录入时再次校验候选身份。
+
+录入器默认 dry-run；`--write` 只在调用方明确指定的本地目录创建 content-addressed
+append-only JSON 与 SHA-256 sidecar。它不启动负载、不注入故障、不连接 HTTP、Redis、Celery、
+Docker、PostgreSQL 或 VPS。回归 `19 passed`，Ruff/Black/isort/增量 mypy/debt ceiling
+需在提交前复跑。该切片只补齐离线收集边界，不把快照变成真实容量/混沌验收，也不改变
+TAR-01/TAR-05 的 `capacity_ready=false`、queued/Worker 关闭、decision fail-closed、
+14 日 telemetry、restore/rollback 或 owner/reviewer 门禁。
+
+## 2026-08-24：当前公网只读健康复核（09:35 UTC）
+
+按低频观察边界再次执行 public HTTPS `GET`，没有部署、迁移、队列启用、回滚或生产写入。
+`/api/health/`=`200`、`/api/ready/`=`200`（database/Redis/Celery/critical data=`ok`，
+decision-data=`warning`），`/api/audit/health/`=`200/OK`，匿名 `/api/tui/`=`403`；
+`/api/decision-ready/`=`503`、`must_not_use_for_decision=true`、
+`block_reason_code=decision_runtime_blocked`。响应大小与 SHA-256 记录在
+[`tar01-public-health-readonly-recheck-2026-08-24-0935.json`](../deployment/tar01-public-health-readonly-recheck-2026-08-24-0935.json)，
+文件 SHA-256=`41f4604302b1ab4b5a9d2425fcb9713833636fb91436453722694ecfc9aeaa4e`。
+
+这是未绑定候选的只读健康事实，不构成 TAR-01/TAR-05 capacity、queued/Worker/SSE、provider、
+chaos、角色 UAT、14 日 telemetry、restore/rollback 或 owner/reviewer 签署证据；不重复部署，
+决策与执行门禁继续 fail-closed。
+
+### TAR-01 current inline runtime gate observation (2026-08-25)
+
+在获得明确授权后，针对当前不可变候选
+`94abd76e46eeef4a8e21853799c7d69bcd9bbe3b` / release `20260824133504` /
+OCI `sha256:1c560b5fed14964a008c278a88d9f3e3b144444a172ecc239d06cedbd76d6a3e` /
+runtime manifest SHA `1988746a1b333810981705a3d34c83a64760fb87354f763125f592a7862ea08f`
+建立认证会话，并向真实 legacy `POST /api/terminal/chat/` 发送两次 bounded
+no-tool probe。生产开关再次确认 `TERMINAL_LEGACY_INLINE_CONCURRENCY=1`、inline
+enabled、queued intake/worker 与 `TERMINAL_RUNTIME_AUTHORIZED` 均为 `false`；health/ready
+为 `200`，web container restart count 为 `0`。
+
+在 15:12 UTC 的追加只读 GET 复核中，health/ready 仍为 `200`，`decision-ready` 仍为
+`503 blocked`，runtime blocker 仍为 `MCP audit evidence write failed during final acceptance`；
+同时 core coverage 仍为 `incomplete` / `core_data_coverage_incomplete`。该复核没有再次发送
+terminal POST，不产生容量信号。
+
+两次请求均在 `DecisionRuntimeGateMiddleware` 处于 view 前被 HTTP `503` 阻断，返回
+`block_reason_code=decision_runtime_blocked`、`must_not_use_for_decision=true`，原因是
+`MCP audit evidence write failed during final acceptance`。因此没有进入
+`TerminalChatView`、Agent service、provider 或 MCP；观测到的 provider/MCP 调用为零是
+“请求未越过全局门禁”的零值，不是容量指标。实际 inline 执行延迟、Daphne active
+requests、Redis/DB、model/MCP latency 和完整 hard-SLO 均 unavailable；5/10/20 阶梯及完整
+单槽 baseline 未执行，因为重复门禁拒绝不能产生容量信号，且不得绕过 global deny。
+
+完整的 observed/unavailable/zero/not-executed 分类保存在
+[`tar01-current-inline-runtime-gate-observation-2026-08-25-94abd76e.json`](../deployment/tar01-current-inline-runtime-gate-observation-2026-08-25-94abd76e.json)，
+SHA-256=`db0a6fe9db1585d2d649fafe98f827c8a7b9931040ed44fa83baa25885de5fb9`。
+该工件明确保持 `capacity_ready=false`、`safe_inline_capacity_baseline=unknown_not_zero`
+和 `runtime_enablement=not_authorized`；不把这次 503 fail-closed 观察当作容量基线，
+不修改 TAR-01/TAR-02 registry 状态或 execution focus，也不授权并发提升、队列启用或
+生产切换。后续只有在全局 decision gate 合法恢复且候选仍一致时，才可再次申请有界
+inline 观察。
+
+## 2026-08-26：TAR-01 decision-ready 恢复依赖已登记
+
+为恢复 TAR-01 的真实容量观测入口，仓库侧先修复了 SDK 嵌入式 MCP audit sink 缺少
+`delivery_id` 的问题，并以 `sdk/tests/test_mcp/test_audit.py` 的 `12 passed` 覆盖本地 sink
+投递身份。该代码修复不产生生产 receipt，不清除 runtime blocker，也不把 503 拒绝响应当成
+容量数据。
+
+TAR-01 的下一次真实容量观测仍以全局决策门恢复为前置条件：AUD/EVID 必须提供 durable
+MCP final-acceptance receipt 与 authority 证据，DATA-02/03 必须提供 canonical publication、
+freshness/reconciliation 和 readiness observation。未满足前继续保持 inline concurrency=1、
+queued intake/worker disabled、global deny/fail-closed，`capacity_ready=false`。
+
+## 2026-08-26：生产 blocker 只读复核（未部署）
+
+通过 Paramiko 只读 SSH 在候选 `94abd76e…` 的容器 `def8143b…` 上复核：
+`agomtradepro-web:20260824133504` 仍为 healthy，近 72 小时日志中没有
+`local_mcp_audit_write_failed`、`publisher_not_wired` 或新的 audit failure 匹配。
+容器内只读 GET 显示 `/api/health/`=`200`、`/api/ready/`=`200`（database、Redis、Celery、
+critical data 为 `ok`，decision data 为 warning），`/api/audit/health/`=`200/OK` 且四项
+audit health 检查均为 OK；`/api/decision-ready/` 仍为 `503`，`runtime_state` 为
+`decision_runtime_blocked`，原因仍是 `MCP audit evidence write failed during final acceptance`，
+同时 `core_coverage=incomplete`、`provider_capabilities=blocked`、`decision_data=warning`。
+
+这次复核证明 blocker 是已持久化的 readiness/证据链状态，不是当前 Web 进程崩溃；它也不证明
+本地 delivery-id 修复已在生产生效，因为没有部署或重启。没有执行 runtime state 清除、审计写入、
+配置修改、数据库修改、流量扩大或容量测试；TAR-01 继续保持 inline=1、队列/Worker 禁用、
+global deny/fail-closed、`safe_inline_capacity_baseline=unknown_not_zero` 和
+`capacity_ready=false`。下一步若要让修复生效，必须先得到 code-only 部署/重启的明确授权，
+再重新取得 durable receipt、authority 与有界 inline capacity evidence。
+
+## 2026-08-26：TAR-01 当前分支部署与 post-deploy 复核
+
+在明确授权后，已将已推送的 `dev/next-development@45d7616d3c38a86853104f93dbd3f13bd9a48838`
+以 `upgrade` 模式发布为 release `20260826135953`，image
+`sha256:c481bb88ac6547165bdebcd34573a6f0d69b042c93ce37136b8ea3b160a1ce66`；release identity
+验证通过，web/worker/beat 使用同一镜像，web healthy 且 restart count 为 `0`。部署前备份已完成，
+PostgreSQL migration plan 为 `No planned migration operations`，canonical schema check 通过。
+部署脚本执行了 deployment-owned data-center/MCP capability catalog 与周期任务同步；没有 authority
+seed、business backfill、decision repair、runtime-state clear 或 SQLite restore。完整部署报告保存在
+`dist/remote-build-reports/remote-build-report-20260826135953.json`，结构化证据见
+[`tar01-current-vps-deployment-acceptance-2026-08-26-45d7616d.json`](../deployment/tar01-current-vps-deployment-acceptance-2026-08-26-45d7616d.json)。
+
+post-deploy 只读 HTTPS 复核显示 `/api/health/`、`/api/ready/`、`/api/audit/health/` 均为 `200`，
+audit failure/outbox backlog 均为 `0`；inline enabled 且 concurrency=`1`，queued intake/worker 与
+`TERMINAL_RUNTIME_AUTHORIZED` 仍为 `false`。`/api/decision-ready/` 仍为 `503 blocked`，原有
+`decision_runtime_blocked`、`core_data_coverage_incomplete` 与
+`decision_provider_capabilities_unhealthy` 均保留，近 30 分钟 web/worker 日志无新的 audit failure
+匹配。该部署证明代码候选和 fail-closed 安全边界已生效，不证明 durable receipt/authority，也不
+提供真实 inline 执行延迟或容量数据；TAR-01 `capacity_ready=false`、safe baseline=
+`unknown_not_zero`，不推进 TAR-02、不提升并发、不启用队列。

@@ -73,6 +73,9 @@ GOVERNANCE_SCRIPT_ENTRYPOINTS = frozenset(
     {
         "scripts/check_data_center_runtime_catalog.py",
         "scripts/measure_data_center_query_ports.py",
+        "scripts/record_data01_restore_evidence.py",
+        "scripts/record_data02_reconciliation_evidence.py",
+        "scripts/record_data03_readiness_evidence.py",
         "scripts/verify_postgres_backup_restore.py",
         "scripts/check_migration_graph.py",
     }

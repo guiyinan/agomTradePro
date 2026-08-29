@@ -262,7 +262,7 @@ RUNTIME_AUDIT_ACTIONS: tuple[dict[str, Any], ...] = (
     ),
     _action(
         key="audit.operation-log-list",
-        label="操作日志",
+        label="操作审计记录",
         endpoint="/api/audit/operation-logs/",
         intent="list_owned_or_admin_operation_logs",
         view_type="datagrid",

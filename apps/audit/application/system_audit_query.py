@@ -112,7 +112,7 @@ class SystemAuditReaderContext:
         authority_state: str,
         authority_recorded_at: datetime,
         authority_valid_until: datetime,
-    ) -> "SystemAuditReaderContext":
+    ) -> SystemAuditReaderContext:
         """Issue a context only for the authority composition boundary."""
 
         context = cls(
@@ -188,6 +188,15 @@ class SystemAuditQueryRepository(Protocol):
     ) -> SystemAuditEvent | None:
         """Return one exact historical event or ``None`` at the PIT."""
 
+    def list_correlated_events(
+        self,
+        run_id: str | None,
+        publication_id: str | None,
+        as_of: datetime,
+        scope: AuditScopeRef,
+    ) -> tuple[SystemAuditEvent, ...]:
+        """Return one globally ordered run chain selected by run or publication."""
+
 
 @dataclass(frozen=True, slots=True)
 class ListSystemAuditEventsCommand:
@@ -240,6 +249,37 @@ class ListSystemAuditEventsResult:
     next_after_sequence_no: int | None
 
 
+@dataclass(frozen=True, slots=True)
+class ListCorrelatedSystemAuditEventsCommand:
+    """Select one complete audit run by run or canonical publication identity."""
+
+    run_id: str | None
+    publication_id: str | None
+    as_of: datetime
+    reader: SystemAuditReaderContext
+
+    def __post_init__(self) -> None:
+        selectors = (self.run_id is not None, self.publication_id is not None)
+        if selectors.count(True) != 1:
+            raise ValueError("exactly one audit correlation selector is required")
+        if self.run_id is not None:
+            _require_token(self.run_id, "audit run_id")
+        if self.publication_id is not None:
+            _require_token(self.publication_id, "audit publication_id")
+        _require_aware_datetime(self.as_of, "audit as_of")
+        if not isinstance(self.reader, SystemAuditReaderContext):
+            raise TypeError("audit reader must be a SystemAuditReaderContext")
+
+
+@dataclass(frozen=True, slots=True)
+class ListCorrelatedSystemAuditEventsResult:
+    """Immutable globally ordered events for one resolved run."""
+
+    events: tuple[SystemAuditEvent, ...]
+    resolved_run_id: str
+    requested_publication_id: str | None
+
+
 class ListSystemAuditEventsUseCase:
     """Authorize and page one immutable event stream."""
 
@@ -262,7 +302,7 @@ class ListSystemAuditEventsUseCase:
             raise SystemAuditQueryCorruption("repository returned an event from another stream")
         if any(
             previous.sequence_no >= current.sequence_no
-            for previous, current in zip(events, events[1:])
+            for previous, current in zip(events, events[1:], strict=False)
         ):
             raise SystemAuditQueryCorruption("repository returned an unsorted audit stream")
         if any(event.scope != command.reader.scope for event in events):
@@ -314,9 +354,80 @@ class GetSystemAuditEventUseCase:
         return event
 
 
+class ListCorrelatedSystemAuditEventsUseCase:
+    """Authorize and read a fail-closed full audit run correlation."""
+
+    def __init__(self, repository: SystemAuditQueryRepository) -> None:
+        self._repository = repository
+
+    def execute(
+        self,
+        command: ListCorrelatedSystemAuditEventsCommand,
+    ) -> ListCorrelatedSystemAuditEventsResult:
+        """Return a globally ordered chain with one unambiguous run identity."""
+
+        if not command.reader.can_read_at(command.as_of):
+            raise SystemAuditQueryUnavailable(
+                "system audit reads require an authenticated staff reader"
+            )
+        events = self._repository.list_correlated_events(
+            command.run_id,
+            command.publication_id,
+            command.as_of,
+            command.reader.scope,
+        )
+        if not events:
+            raise SystemAuditQueryUnavailable("correlated system audit run is unavailable")
+        if any(not isinstance(event, SystemAuditEvent) for event in events):
+            raise SystemAuditQueryCorruption("repository returned a non-audit event")
+        if any(event.scope != command.reader.scope for event in events):
+            raise SystemAuditQueryCorruption("repository returned an event outside the audit scope")
+        if any(event.recorded_at > command.as_of for event in events):
+            raise SystemAuditQueryCorruption("repository returned an event after the PIT cutoff")
+
+        event_run_ids = tuple(event.correlations.run_id for event in events)
+        if any(run_id is None or not run_id for run_id in event_run_ids):
+            raise SystemAuditQueryCorruption("correlated event is missing its run identity")
+        if command.run_id is not None:
+            resolved_run_id = command.run_id
+        else:
+            matching_run_ids = {
+                event.correlations.run_id
+                for event in events
+                if event.publication_id == command.publication_id
+                and event.correlations.run_id is not None
+            }
+            if len(matching_run_ids) != 1:
+                raise SystemAuditQueryCorruption(
+                    "publication selector did not resolve one audit run"
+                )
+            resolved_run_id = next(iter(matching_run_ids))
+        if any(run_id != resolved_run_id for run_id in event_run_ids):
+            raise SystemAuditQueryCorruption("repository mixed events from different audit runs")
+
+        ordering_keys = tuple(
+            (event.recorded_at, event.stream_id, event.sequence_no) for event in events
+        )
+        if any(
+            previous >= current
+            for previous, current in zip(ordering_keys, ordering_keys[1:], strict=False)
+        ):
+            raise SystemAuditQueryCorruption(
+                "repository returned a globally unsorted audit correlation"
+            )
+        return ListCorrelatedSystemAuditEventsResult(
+            events=events,
+            resolved_run_id=resolved_run_id,
+            requested_publication_id=command.publication_id,
+        )
+
+
 __all__ = [
     "GetSystemAuditEventCommand",
     "GetSystemAuditEventUseCase",
+    "ListCorrelatedSystemAuditEventsCommand",
+    "ListCorrelatedSystemAuditEventsResult",
+    "ListCorrelatedSystemAuditEventsUseCase",
     "ListSystemAuditEventsCommand",
     "ListSystemAuditEventsResult",
     "ListSystemAuditEventsUseCase",

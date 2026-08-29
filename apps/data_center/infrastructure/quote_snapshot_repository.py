@@ -16,6 +16,12 @@ from apps.data_center.infrastructure.models import QuoteSnapshotModel
 class QuoteSnapshotRepository:
     """ORM-backed repository for real-time quote snapshots."""
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the fixed transaction identity used by this repository."""
+
+        return "django:default"
+
     @staticmethod
     def _from_model(m: QuoteSnapshotModel) -> QuoteSnapshot:
         return QuoteSnapshot(
@@ -33,6 +39,7 @@ class QuoteSnapshotRepository:
             ask=float(m.ask) if m.ask is not None else None,
             source=m.source,
             extra=m.extra or {},
+            ingested_run_id=str(m.ingested_run_id) if m.ingested_run_id else "",
         )
 
     def get_latest(
@@ -86,6 +93,7 @@ class QuoteSnapshotRepository:
                     "bid": q.bid,
                     "ask": q.ask,
                     "extra": q.extra,
+                    "ingested_run_id": q.ingested_run_id or None,
                 },
             )
             count += 1

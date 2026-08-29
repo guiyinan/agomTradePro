@@ -1,0 +1,194 @@
+{
+  "schema": "tar01-current-vps-deployment-acceptance.v2",
+  "observed_at": "2026-08-26T06:30:48.200861Z",
+  "source": "controlled git-clone VPS upgrade with deployment-owned database synchronization and read-only post-deploy probes",
+  "candidate": {
+    "release_tag": "20260826135953",
+    "source_commit": "45d7616d3c38a86853104f93dbd3f13bd9a48838",
+    "image_id": "sha256:c481bb88ac6547165bdebcd34573a6f0d69b042c93ce37136b8ea3b160a1ce66",
+    "image_tag": "agomtradepro-web:20260826135953",
+    "source_mode": "git-clone",
+    "current_release": "/opt/agomtradepro/releases/source-20260826135953",
+    "local_branch": "dev/next-development",
+    "local_head": "45d7616d3c38a86853104f93dbd3f13bd9a48838",
+    "bound_to_local_head": true,
+    "runtime_identity": {
+      "status": "verified",
+      "runtime_match": true,
+      "must_not_trust_for_release": false,
+      "app_version": "0.8.0"
+    }
+  },
+  "deployment": {
+    "mode": "controlled_git_clone_upgrade",
+    "data_volumes_preserved": true,
+    "pre_deploy_backup": {
+      "database_directory": "/opt/agomtradepro/backups/database",
+      "redis_directory": "/opt/agomtradepro/backups/redis",
+      "manifest": "/opt/agomtradepro/backups/meta/manifest-20260826-081700.txt",
+      "completed": true
+    },
+    "schema_migration": {
+      "migration_plan": "No planned migration operations.",
+      "applied_migrations": [],
+      "canonical_schema_check": "passed"
+    },
+    "deployment_owned_database_sync": {
+      "data_center_catalog": {
+        "outcome": "synchronized",
+        "contracts": 10,
+        "bindings": 15,
+        "policies": 10,
+        "owners": 10
+      },
+      "mcp_capability_catalog": {
+        "source": "mcp_tool",
+        "type": "incremental",
+        "discovered": 707,
+        "created": 368,
+        "updated": 339,
+        "disabled": 0,
+        "errors": 0,
+        "stale_deleted_reported": 368,
+        "routing_enabled": 1033,
+        "routing_disabled": 231,
+        "pending_manual_review": 20
+      },
+      "tui_metadata_publish": {
+        "outcome": "noop",
+        "registry_id": 29,
+        "status": "published",
+        "active_source_hash_matched": true
+      },
+      "cold_start_bootstrap": {
+        "applied": 0,
+        "skipped": 19,
+        "decision_repair_requested": false
+      },
+      "macro_governance_checks": {
+        "indicator_governance_updated": 0,
+        "fact_unit_normalization_updated": 0,
+        "dry_run": true
+      },
+      "periodic_task_configuration": "completed"
+    },
+    "rollback_performed": false,
+    "business_domain_backfill_or_authority_seed": false,
+    "runtime_state_cleared": false,
+    "queued_runtime_enabled": false
+  },
+  "runtime_flags_observed": {
+    "TERMINAL_RUNTIME_AUTHORIZED": false,
+    "TERMINAL_QUEUED_INTAKE_ENABLED": false,
+    "TERMINAL_QUEUED_WORKER_ENABLED": false,
+    "TERMINAL_LEGACY_INLINE_ENABLED": true,
+    "TERMINAL_LEGACY_INLINE_CONCURRENCY": 1,
+    "TERMINAL_RUNTIME_ROLE": "legacy_inline",
+    "TERMINAL_AGENT_MAX_CONCURRENCY": 1
+  },
+  "runtime_checks": {
+    "release_identity": "verified",
+    "web": "agomtradepro-web:20260826135953; healthy; restart_count=0",
+    "celery_worker": "agomtradepro-web:20260826135953; running",
+    "celery_beat": "agomtradepro-web:20260826135953; running",
+    "postgres": "healthy",
+    "redis": "healthy",
+    "deploy_health_check": "passed",
+    "post_deploy_log_matches": {
+      "window": "30 minutes",
+      "web": 0,
+      "celery_worker": 0,
+      "patterns": [
+        "local_mcp_audit_write_failed",
+        "publisher_not_wired",
+        "audit failure"
+      ]
+    }
+  },
+  "public_probes": {
+    "/api/health/": {
+      "http_status": 200,
+      "body_sha256": "49da80a45c308686637f745e43351e80b895df8eb68b36421dae84e535daef10",
+      "status": "ok",
+      "observed_at": "2026-08-26T06:30:38.944970Z"
+    },
+    "/api/ready/": {
+      "http_status": 200,
+      "body_sha256": "f93a1bb15703ea68477686b261843103885271f78a583c5bfd7eb9f3e84c59fc",
+      "status": "ok",
+      "checks": {
+        "database": "ok",
+        "redis": "ok",
+        "celery": "ok",
+        "celery_workers": 1,
+        "critical_data": "ok",
+        "decision_data": "warning"
+      },
+      "decision_data_must_not_use_for_decision": true,
+      "observed_at": "2026-08-26T06:30:42.867312Z"
+    },
+    "/api/audit/health/": {
+      "http_status": 200,
+      "body_sha256": "c910d9ce6ba564e0391502be00fdf3549446101c138ea35094801ec843d1f488",
+      "overall_status": "OK",
+      "total_operation_logs": 555,
+      "total_failures": 0,
+      "outbox_pending": 0,
+      "outbox_due_pending": 0,
+      "outbox_claimed": 0,
+      "outbox_expired_claimed": 0,
+      "outbox_failed": 0,
+      "outbox_delivered": 0,
+      "observed_at": "2026-08-26T06:30:43.003485Z"
+    },
+    "/api/decision-ready/": {
+      "http_status": 503,
+      "body_sha256": "e019a536e7180cc6d9ecf0e608beb5d579085edc63028c25bdd3ff73a9a33503",
+      "status": "blocked",
+      "must_not_use_for_decision": true,
+      "runtime_state": {
+        "status": "blocked",
+        "block_reason_code": "decision_runtime_blocked",
+        "reason": "MCP audit evidence write failed during final acceptance"
+      },
+      "core_coverage": {
+        "status": "incomplete",
+        "block_reason_code": "core_data_coverage_incomplete"
+      },
+      "provider_capabilities": {
+        "status": "blocked",
+        "block_reason_code": "decision_provider_capabilities_unhealthy"
+      },
+      "observed_at": "2026-08-26T06:30:48.200861Z"
+    }
+  },
+  "acceptance": {
+    "candidate_bound_to_current_head": true,
+    "deployment_identity_verified": true,
+    "health_ready_audit_verified": true,
+    "decision_ready": false,
+    "tar01_capacity_ready": false,
+    "safe_inline_capacity_baseline": "unknown_not_zero",
+    "production_claim": false,
+    "runtime_enablement": "not_authorized",
+    "concurrency_increase_allowed": false,
+    "notes": [
+      "The deployment was authorized and completed without wiping Docker resources or data volumes.",
+      "The migration plan was empty; deployment-owned catalog and periodic-task synchronization ran as reported above.",
+      "No decision repair, runtime-state clear, authority seed, business backfill, traffic expansion, or queue enablement was performed.",
+      "Healthy deployment and audit health do not constitute a real inline capacity baseline.",
+      "The persisted decision-ready blocker remains fail-closed; no TAR-01 capacity exit gate is satisfied by this observation."
+    ]
+  },
+  "commands_and_checks": {
+    "executed": [
+      "python scripts/remote_build_deploy_vps.py --action upgrade --git-clone --git-branch dev/next-development --domain demo.agomtrade.pro --allowed-hosts 62.171.144.39,demo.agomtrade.pro,localhost,127.0.0.1 --enable-celery --download-report --report-dir dist/remote-build-reports --timeout 3600",
+      "production read-only docker inspect, compose ps, environment flag inspection and filtered logs",
+      "read-only HTTPS GET /api/health/, /api/ready/, /api/audit/health/ and /api/decision-ready/"
+    ],
+    "not_executed": [
+      "real inline capacity staircase and successful provider/MCP execution, because the decision gate remains blocked",
+      "runtime-state clear, queue/worker enablement, traffic expansion, fault injection, backfill, authority seed, or decision repair"
+    ]
+  }
+}

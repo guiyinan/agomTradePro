@@ -24,6 +24,7 @@ from ..domain.agent_entities import (
     ToolCallRecord,
 )
 from ..domain.context_entities import ContextBundle
+from .agent_authority import AgentAuthorityGate, UnwiredAgentAuthorityGate
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +50,7 @@ class AgentRuntime:
         tool_registry: FunctionRegistry | None = None,
         context_builder: _ContextBuilderProtocol | None = None,
         execution_logger: Any | None = None,
+        authority_gate: AgentAuthorityGate | None = None,
     ) -> None:
         """
         Args:
@@ -56,11 +58,17 @@ class AgentRuntime:
             tool_registry: 工具注册表（FunctionRegistry）
             context_builder: 上下文构建器（ContextBundleBuilder）
             execution_logger: 执行日志记录器
+            authority_gate: server-owned authority gate for user-owned scopes
         """
         self.ai_client_factory = ai_client_factory
         self.tool_registry = tool_registry or FunctionRegistry()
         self.context_builder = context_builder
         self.execution_logger = execution_logger
+        # Every runtime, including internal strategy composition, must fail
+        # closed until a server-owned owner/tenant authority provider is
+        # explicitly wired.  A caller constructing AgentRuntime directly must
+        # not be able to bypass the public composition boundary.
+        self.authority_gate = authority_gate or UnwiredAgentAuthorityGate()
 
     def execute(self, request: AgentExecutionRequest) -> AgentExecutionResponse:
         """
@@ -86,6 +94,21 @@ class AgentRuntime:
         total_completion_tokens = 0
 
         try:
+            authority_blocker = self._check_authority(request)
+            if authority_blocker is not None:
+                return self._build_error_response(
+                    authority_blocker,
+                    execution_id,
+                    start_time,
+                    all_tool_calls,
+                    all_turns,
+                    total_prompt_tokens,
+                    total_completion_tokens,
+                    None,
+                    None,
+                    [],
+                )
+
             # 1. 构建上下文
             context_bundle = self._build_context(request)
             used_context = context_bundle.get_used_domains() if context_bundle else []
@@ -266,6 +289,17 @@ class AgentRuntime:
                 None,
                 [],
             )
+
+    def _check_authority(self, request: AgentExecutionRequest) -> str | None:
+        """Check the composed authority gate before context, model, or tool calls."""
+
+        if self.authority_gate is None:
+            return None
+        return self.authority_gate.check(
+            context_scope=request.context_scope,
+            context_params=request.context_params,
+            tool_names=request.tool_names,
+        )
 
     def _build_context(self, request: AgentExecutionRequest) -> ContextBundle | None:
         """根据 scope 构建 ContextBundle。"""

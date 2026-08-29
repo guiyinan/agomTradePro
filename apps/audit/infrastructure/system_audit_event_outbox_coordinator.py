@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Iterator
 
 from django.db import transaction
 
@@ -12,7 +12,7 @@ from apps.audit.application.system_audit_event_outbox import (
     SystemAuditEventOutboxCommit,
     SystemAuditEventOutboxConflict,
 )
-from apps.audit.domain.system_audit_event import SystemAuditEvent
+from apps.audit.domain.system_audit_event import AuditScopeRef, SystemAuditEvent
 
 from .system_audit_outbox_repository import DjangoSystemAuditOutboxRepository
 from .system_audit_repository import DjangoSystemAuditEventRepository
@@ -81,6 +81,36 @@ class DjangoSystemAuditEventOutboxCoordinator:
             outbox_id=outbox_record.outbox_id,
             event_id=persisted_event.event_id,
             idempotency_key=persisted_event.idempotency_key,
+        )
+
+    def get_winner(
+        self,
+        *,
+        event_id: str,
+        event_version: str,
+        as_of: datetime,
+    ) -> SystemAuditEvent | None:
+        """Return an existing event identity through the coordinator alias."""
+
+        return self._event_repository.get_winner(
+            event_id=event_id,
+            event_version=event_version,
+            as_of=as_of,
+        )
+
+    def get_current_head(
+        self,
+        *,
+        stream_id: str,
+        as_of: datetime,
+        scope: AuditScopeRef,
+    ) -> SystemAuditEvent | None:
+        """Return the scoped current head through the coordinator alias."""
+
+        return self._event_repository.get_current_head(
+            stream_id=stream_id,
+            as_of=as_of,
+            scope=scope,
         )
 
 

@@ -129,7 +129,7 @@ def _validate_tui_closure(expected: dict[str, object]) -> None:
         "published_sha256": raw_sha,
         "normalized_action_count": len(actions),
         "normalized_read_action_count": len(read_keys),
-        "normalized_read_key_sha256": hashlib.sha256(
+        "normalized_read_set_sha256": hashlib.sha256(
             "\n".join(read_keys).encode("utf-8")
         ).hexdigest(),
         "raw_debug_true_count": sum(action["raw_debug"] is True for action in actions),

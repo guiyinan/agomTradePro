@@ -6,7 +6,7 @@ from typing import Any
 
 RUNTIME_AI_OPS_MODULE: dict[str, Any] = {
     "key": "ai-ops",
-    "label": "AI 助手",
+    "label": "AI 工作台",
     "group": "ops",
     "summary": "查看 AI 服务商、提示词模板、智能任务运行时与相关治理任务。",
 }

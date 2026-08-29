@@ -301,7 +301,7 @@ RUNTIME_DATA_CENTER_ACTIONS: tuple[dict[str, Any], ...] = (
         audit_required=True,
     ),
     _action(
-        key="auto.api.get.api.data-center.providers",
+        key="data-center.provider-list",
         label="数据服务商",
         endpoint="/api/data-center/providers/",
         intent="list_data_center_providers",

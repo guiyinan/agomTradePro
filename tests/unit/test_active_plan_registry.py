@@ -222,3 +222,38 @@ def test_registry_rejects_multiple_active_repository_units(tmp_path: Path):
     assert any(
         violation.code == "execution_focus_repository_lock" for violation in report.violations
     )
+
+
+def test_registry_accepts_no_focus_when_no_repository_unit_is_eligible(
+    tmp_path: Path,
+) -> None:
+    """A completed repository backlog may publish an explicit null focus."""
+
+    module = _load_module()
+    registry_path, index_path = _write_fixture_repository(tmp_path)
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    payload["execution_focus"]["unit_id"] = None
+    payload["closure_backlog"]["units"][1]["status"] = "completed"
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = module.evaluate_registry(tmp_path, registry_path, index_path)
+
+    assert report.violation_count == 0, report.violations
+
+
+def test_registry_rejects_no_focus_when_repository_work_is_eligible(
+    tmp_path: Path,
+) -> None:
+    """Null focus must not hide an active or dependency-ready repository unit."""
+
+    module = _load_module()
+    registry_path, index_path = _write_fixture_repository(tmp_path)
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    payload["execution_focus"]["unit_id"] = None
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = module.evaluate_registry(tmp_path, registry_path, index_path)
+
+    codes = {violation.code for violation in report.violations}
+    assert "execution_focus_repository_lock" in codes
+    assert "execution_focus_missing_eligible_unit" in codes

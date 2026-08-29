@@ -1,6 +1,6 @@
 # TUI User-Facing Design Standard
 
-> Last updated: 2026-07-21
+> Last updated: 2026-08-27
 
 This standard defines the user-facing contract for AgomTradePro `/tui/`. It exists to stop TUI screens from degenerating into route browsers, endpoint lists, or raw JSON shells.
 
@@ -40,9 +40,19 @@ New user-facing semantics:
 
 The versioned registry `config/tui/ia/tui_information_architecture.v1.json` is the only source of truth for TUI groups, modules, canonical screens, legacy aliases, the daily workflow, audiences, panels, and action-density budgets. Compiler promotion, database normalization, runtime injection, and deep-link resolution must load this registry; they must not maintain parallel screen-routing dictionaries.
 
-The current contract has three groups (`daily`, `research`, `system`), 12 published screens, 11 runtime screens, and an eight-step daily workflow. The registry separates published inputs from runtime inputs so both inventories are mechanically testable. Adding, merging, or retiring a screen starts with this registry and its contract tests.
+The current contract has three groups (`daily`, `research`, `system`), 12 published screens, 12 runtime screens, and an eight-step daily workflow. The registry separates published inputs from runtime inputs so both inventories are mechanically testable. Adding, merging, or retiring a screen starts with this registry and its contract tests.
+
+The `research` group is explicitly divided into four user-task modules: `investment-research`, `ai-workspace`, `personal-services`, and `personal-settings`. Do not recreate a generic research-tools catch-all or place account settings, personal service access, and asset research in one undifferentiated module.
 
 The navigation renderer must collapse a redundant module heading when a group contains exactly one module with the same user-facing label. Multi-module groups retain both levels so their hierarchy remains explicit.
+
+## Canonical User Vocabulary
+
+- Use `宏观象限` for the four-quadrant market regime and `市场环境` for a broader market context. Do not expose `Regime` in user-facing metadata.
+- Use `提示词` and `提示词模板与执行链`. Internal identifiers may retain `prompt`, but runtime labels, help text, and descriptions must not mix in `Prompt`.
+- Use `观测时间` for `observed_at`. Use `数据基准日` when a date is an explicit calculation cut-off; do not alternate between `数据日期` and `观测日期` for the same concept.
+- Distinguish personal and administrative entries in the label itself: `我的 AI 服务商` / `系统 AI 服务商治理`, `我的 MCP 接入` / `MCP 工具治理` / `MCP 用户与令牌`, and `账户与持仓` / `个人资料与交易设置`.
+- Distinguish interaction modes as `AI 任务助手` and `命令行任务台`; neither label may silently stand in for the other.
 
 ## Screen Rules
 

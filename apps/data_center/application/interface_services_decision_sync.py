@@ -24,10 +24,15 @@ from apps.data_center.composition import (
     PriceBarRepository,
     PublicationPolicyRepository,
     QuoteSnapshotRepository,
-    RawAuditRepository,
     SectorMembershipRepository,
     ValuationFactRepository,
     build_provider_registry_for_repo,
+    make_macro_failover_policy_provider,
+    make_publication_decision_read_recorder,
+    make_repair_run_audit_dependencies,
+    make_system_audited_sync_macro_use_case,
+    make_system_audited_sync_price_use_case,
+    make_system_audited_sync_quote_use_case,
 )
 from apps.data_center.domain.enums import DataCapability
 from core.exceptions import DataFetchError
@@ -45,14 +50,11 @@ from .interface_services import (
     make_calculate_market_thermometer_use_case,
     refresh_pulse_snapshot,
 )
-from .macro_publication import PublishMacroBatchUseCase
 from .publication_sync import (
     PublishCapitalFlowBatchUseCase,
     PublishFinancialBatchUseCase,
     PublishFundNavBatchUseCase,
     PublishNewsBatchUseCase,
-    PublishPriceBarBatchUseCase,
-    PublishQuoteSnapshotBatchUseCase,
     PublishSectorMembershipBatchUseCase,
     PublishValuationBatchUseCase,
 )
@@ -98,11 +100,9 @@ def _sync_scope_quotes(asset_codes: list[str]) -> dict[str, Any]:
         return {"status": "skipped", "message": "No realtime quote provider is available."}
 
     try:
-        result = SyncQuoteUseCase(
-            provider_repo=provider_repo,
+        result = make_system_audited_sync_quote_use_case(
+            provider_repository=provider_repo,
             provider_registry=build_provider_registry_for_repo(provider_repo),
-            fact_repo=QuoteSnapshotRepository(),
-            raw_audit_repo=RawAuditRepository(),
         ).execute(
             SyncQuoteRequest(
                 provider_id=provider.id,
@@ -110,7 +110,7 @@ def _sync_scope_quotes(asset_codes: list[str]) -> dict[str, Any]:
             )
         )
     except Exception as exc:
-        return {"status": "failed", "error_message": str(exc)}
+        return {"status": "failed", "error_class": type(exc).__name__}
     return _json_object(result.to_dict())
 
 
@@ -303,34 +303,36 @@ def make_decision_repair_use_case(
     """Build the decision reliability repair use case."""
 
     macro_repository = _make_macro_fact_repository()
+    provider_repository = _make_provider_repo()
+    provider_registry = _get_provider_registry()
     price_repository = PriceBarRepository()
     quote_repository = QuoteSnapshotRepository()
-    publication_repository = CanonicalPublicationRepository()
-    policy_repository = PublicationPolicyRepository()
+    repair_audit = make_repair_run_audit_dependencies()
     return RepairDecisionDataReliabilityUseCase(
-        provider_repo=_make_provider_repo(),
-        provider_registry=_get_provider_registry(),
+        provider_repo=provider_repository,
+        provider_registry=provider_registry,
         macro_fact_repo=macro_repository,
         indicator_catalog_repo=_make_indicator_catalog_repo(),
         indicator_unit_rule_repo=_make_indicator_unit_rule_repo(),
         price_bar_repo=price_repository,
         quote_snapshot_repo=quote_repository,
-        raw_audit_repo=_make_raw_audit_repo(),
-        macro_publication_publisher=PublishMacroBatchUseCase(
-            fact_repository=macro_repository,
-            publication_repository=publication_repository,
-            policy_repository=policy_repository,
+        macro_sync_use_case=make_system_audited_sync_macro_use_case(
+            provider_repository=provider_repository,
+            provider_registry=provider_registry,
         ),
-        price_publication_publisher=PublishPriceBarBatchUseCase(
-            fact_repository=price_repository,
-            publication_repository=publication_repository,
-            policy_repository=policy_repository,
+        price_sync_use_case=make_system_audited_sync_price_use_case(
+            provider_repository=provider_repository,
+            provider_registry=provider_registry,
         ),
-        quote_publication_publisher=PublishQuoteSnapshotBatchUseCase(
-            fact_repository=quote_repository,
-            publication_repository=publication_repository,
-            policy_repository=policy_repository,
+        quote_sync_use_case=make_system_audited_sync_quote_use_case(
+            provider_repository=provider_repository,
+            provider_registry=provider_registry,
         ),
+        decision_read_recorder=make_publication_decision_read_recorder(),
+        sync_identity_issuer=repair_audit.identity_issuer,
+        repair_run_identity_unit_of_work=repair_audit.identity_unit_of_work,
+        data_repair_audit_writer=repair_audit.audit_writer,
+        clock=repair_audit.clock,
         pulse_refresher=_build_pulse_refresher(),
         alpha_refresher=_build_alpha_refresher(user),
         alpha_status_reader=_build_alpha_status_reader(user),
@@ -340,19 +342,9 @@ def make_decision_repair_use_case(
 def make_sync_macro_use_case() -> SyncMacroUseCase:
     """Build the macro sync use case."""
 
-    macro_repository = _make_macro_fact_repository()
-    return SyncMacroUseCase(
-        provider_repo=_make_provider_repo(),
+    return make_system_audited_sync_macro_use_case(
+        provider_repository=_make_provider_repo(),
         provider_registry=_get_provider_registry(),
-        fact_repo=macro_repository,
-        catalog_repo=_make_indicator_catalog_repo(),
-        unit_rule_repo=_make_indicator_unit_rule_repo(),
-        raw_audit_repo=_make_raw_audit_repo(),
-        publication_publisher=PublishMacroBatchUseCase(
-            fact_repository=macro_repository,
-            publication_repository=CanonicalPublicationRepository(),
-            policy_repository=PublicationPolicyRepository(),
-        ),
     )
 
 
@@ -361,58 +353,35 @@ def make_sync_macro_batch_use_case() -> SyncMacroBatchUseCase:
 
     provider_repo = _make_provider_repo()
     provider_registry = _get_provider_registry()
-    macro_repository = _make_macro_fact_repository()
-    sync_use_case = SyncMacroUseCase(
-        provider_repo=provider_repo,
+    sync_use_case = make_system_audited_sync_macro_use_case(
+        provider_repository=provider_repo,
         provider_registry=provider_registry,
-        fact_repo=macro_repository,
-        catalog_repo=_make_indicator_catalog_repo(),
-        unit_rule_repo=_make_indicator_unit_rule_repo(),
-        raw_audit_repo=_make_raw_audit_repo(),
-        publication_publisher=PublishMacroBatchUseCase(
-            fact_repository=macro_repository,
-            publication_repository=CanonicalPublicationRepository(),
-            policy_repository=PublicationPolicyRepository(),
-        ),
     )
     return SyncMacroBatchUseCase(
         provider_repo=provider_repo,
         provider_registry=provider_registry,
         sync_use_case=sync_use_case,
+        failover_policy_provider=make_macro_failover_policy_provider(),
     )
 
 
 def make_sync_price_use_case() -> SyncPriceUseCase:
     """Build the historical price sync use case."""
 
-    price_repository = PriceBarRepository()
-    return SyncPriceUseCase(
-        provider_repo=_make_provider_repo(),
+    provider_repository = _make_provider_repo()
+    return make_system_audited_sync_price_use_case(
+        provider_repository=provider_repository,
         provider_registry=_get_provider_registry(),
-        fact_repo=price_repository,
-        raw_audit_repo=_make_raw_audit_repo(),
-        publication_publisher=PublishPriceBarBatchUseCase(
-            fact_repository=price_repository,
-            publication_repository=CanonicalPublicationRepository(),
-            policy_repository=PublicationPolicyRepository(),
-        ),
     )
 
 
 def make_sync_quote_use_case() -> SyncQuoteUseCase:
     """Build the quote sync use case."""
 
-    quote_repository = QuoteSnapshotRepository()
-    return SyncQuoteUseCase(
-        provider_repo=_make_provider_repo(),
+    provider_repository = _make_provider_repo()
+    return make_system_audited_sync_quote_use_case(
+        provider_repository=provider_repository,
         provider_registry=_get_provider_registry(),
-        fact_repo=quote_repository,
-        raw_audit_repo=_make_raw_audit_repo(),
-        publication_publisher=PublishQuoteSnapshotBatchUseCase(
-            fact_repository=quote_repository,
-            publication_repository=CanonicalPublicationRepository(),
-            policy_repository=PublicationPolicyRepository(),
-        ),
     )
 
 
@@ -530,10 +499,10 @@ def make_on_demand_data_center_service() -> OnDemandDataCenterService:
         valuation_repo=ValuationFactRepository(),
         financial_repo=FinancialFactRepository(),
         quote_repo=QuoteSnapshotRepository(),
-        sync_price_use_case=make_sync_price_use_case(),
-        sync_valuation_use_case=make_sync_valuation_use_case(),
-        sync_financial_use_case=make_sync_financial_use_case(),
-        sync_quote_use_case=make_sync_quote_use_case(),
+        sync_price_use_case_factory=make_sync_price_use_case,
+        sync_valuation_use_case_factory=make_sync_valuation_use_case,
+        sync_financial_use_case_factory=make_sync_financial_use_case,
+        sync_quote_use_case_factory=make_sync_quote_use_case,
         provider_id_resolver=get_active_provider_id_by_source,
     )
 

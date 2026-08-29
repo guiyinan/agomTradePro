@@ -5,6 +5,8 @@ from __future__ import annotations
 import ast
 import hashlib
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -270,3 +272,17 @@ def test_recorder_cli_defaults_to_dry_run_and_supports_explicit_write(
     )
     assert record_main() == 0
     assert list((output_root / "evid-02-postgres").rglob("*.json"))
+
+
+def test_recorder_script_runs_directly_from_repository_root() -> None:
+    """The server-side recorder must be executable without PYTHONPATH setup."""
+
+    result = subprocess.run(
+        [sys.executable, "scripts/record_evid_02_postgres_evidence.py", "--help"],
+        cwd=Path(__file__).resolve().parents[2],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert "raw harness result JSON path" in result.stdout

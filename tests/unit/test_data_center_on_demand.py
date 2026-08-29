@@ -85,10 +85,10 @@ def _service(
         valuation_repo=valuation_repo or FakeValuationRepo(),
         financial_repo=financial_repo or FakeFinancialRepo(),
         quote_repo=quote_repo or FakeQuoteRepo(),
-        sync_price_use_case=sync_price or FakeSyncUseCase(),
-        sync_valuation_use_case=sync_valuation or FakeSyncUseCase(),
-        sync_financial_use_case=sync_financial or FakeSyncUseCase(),
-        sync_quote_use_case=sync_quote or FakeSyncUseCase(),
+        sync_price_use_case_factory=lambda: sync_price or FakeSyncUseCase(),
+        sync_valuation_use_case_factory=lambda: sync_valuation or FakeSyncUseCase(),
+        sync_financial_use_case_factory=lambda: sync_financial or FakeSyncUseCase(),
+        sync_quote_use_case_factory=lambda: sync_quote or FakeSyncUseCase(),
         provider_id_resolver=lambda source: provider_ids.get(source),
     )
 
@@ -199,6 +199,78 @@ def test_assess_price_bars_marks_sparse_without_hydrating():
     assert result.quality.status == "sparse"
     assert result.quality.hydrated is False
     assert sync_price.calls == []
+
+
+def test_read_only_assessment_does_not_resolve_sync_factories():
+    """Read-only quality assessment must not compose any write-side dependency."""
+
+    resolved: list[str] = []
+
+    def unavailable_factory(name):
+        def _factory():
+            resolved.append(name)
+            raise RuntimeError(f"{name} writer unavailable")
+
+        return _factory
+
+    service = OnDemandDataCenterService(
+        price_repo=FakePriceRepo(),
+        valuation_repo=FakeValuationRepo(),
+        financial_repo=FakeFinancialRepo(),
+        quote_repo=FakeQuoteRepo(),
+        sync_price_use_case_factory=unavailable_factory("price"),
+        sync_valuation_use_case_factory=unavailable_factory("valuation"),
+        sync_financial_use_case_factory=unavailable_factory("financial"),
+        sync_quote_use_case_factory=unavailable_factory("quote"),
+        provider_id_resolver=lambda _source: 1,
+    )
+
+    result = service.assess_price_bars(
+        "600031.SH",
+        date(2026, 1, 1),
+        date(2026, 5, 1),
+    )
+
+    assert result.quality.status == "missing"
+    assert resolved == []
+
+
+def test_hydration_resolves_sync_factory_and_fails_closed_when_unavailable():
+    """A missing writer composition must never be treated as a successful hydration."""
+
+    resolved = 0
+
+    def unavailable_price_factory():
+        nonlocal resolved
+        resolved += 1
+        raise RuntimeError("system audit runtime configuration is unavailable")
+
+    service = OnDemandDataCenterService(
+        price_repo=FakePriceRepo(),
+        valuation_repo=FakeValuationRepo(),
+        financial_repo=FakeFinancialRepo(),
+        quote_repo=FakeQuoteRepo(),
+        sync_price_use_case_factory=unavailable_price_factory,
+        sync_valuation_use_case_factory=FakeSyncUseCase,
+        sync_financial_use_case_factory=FakeSyncUseCase,
+        sync_quote_use_case_factory=FakeSyncUseCase,
+        provider_id_resolver=lambda _source: 1,
+    )
+
+    result = service.ensure_price_bars(
+        "600031.SH",
+        date(2026, 5, 1),
+        date(2026, 5, 8),
+    )
+
+    assert resolved == 2
+    assert result.records == []
+    assert result.quality.status == "provider_failed"
+    assert result.quality.hydrated is True
+    assert result.quality.errors == (
+        "tushare: sync_failed (RuntimeError)",
+        "akshare: sync_failed (RuntimeError)",
+    )
 
 
 def test_ensure_financials_prefers_akshare_before_tushare():

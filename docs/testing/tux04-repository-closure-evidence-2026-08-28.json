@@ -1,0 +1,166 @@
+{
+  "schema": "tux04-repository-closure-evidence.v1",
+  "unit_id": "TUX-04",
+  "observed_at": "2026-08-27T16:51:01.4897141Z",
+  "execution_mode": "repository",
+  "branch": "dev/next-development",
+  "source_commit": "219125b924647f3aaec0f4b9e86bb776129c1d2d",
+  "implementation_commits": [
+    "7ec57b77e2f57bf78230c8b51185323a9f2cc8fe",
+    "219125b924647f3aaec0f4b9e86bb776129c1d2d"
+  ],
+  "source_hashes": {
+    "config/tui/ia/tui_information_architecture.v1.json": "ebdec2b31eb0d24ede57cc8368a2df4b05d6d8ae400f428a5673a08080840298",
+    "config/tui/published/tui_operation_graph.published.json": "4a8f5118aa512c1fd4ba643a531c7d067ef4ef4c4e8df94d971f6bc7d8a25be1",
+    "config/tui/agomtui-runtime.manifest.json": "46c25735004326b0bdb94dfee0d41de4958cf1bb276c50712a20b2b0f10898bd"
+  },
+  "exit_gate": {
+    "outcome": "passed",
+    "research_group_reorganized": {
+      "passed": true,
+      "modules": [
+        "investment-research",
+        "ai-workspace",
+        "personal-services",
+        "personal-settings"
+      ],
+      "retired_catch_all": "research-tools"
+    },
+    "ambiguous_entries_disambiguated": {
+      "passed": true,
+      "labels": [
+        "我的 AI 服务商",
+        "系统 AI 服务商治理",
+        "我的 MCP 接入",
+        "MCP 工具治理",
+        "MCP 用户与令牌",
+        "AI 任务助手",
+        "命令行任务台",
+        "个人资料与交易设置"
+      ]
+    },
+    "canonical_vocabulary": {
+      "passed": true,
+      "forbidden_terms": [
+        "Regime",
+        "Prompt",
+        "数据日期",
+        "观测日期"
+      ],
+      "canonical_terms": [
+        "宏观象限",
+        "提示词",
+        "观测时间",
+        "数据基准日"
+      ],
+      "normalized_runtime_actions_checked": 890,
+      "violations": 0
+    },
+    "runtime_screen_contracts": {
+      "passed": true,
+      "registered": 12,
+      "required_fields": [
+        "summary",
+        "user_experience",
+        "default_action_key"
+      ],
+      "missing": []
+    },
+    "execution_audit_alignment": {
+      "passed": true,
+      "panel_action_keys": [
+        "auto.api.get.api.audit.health",
+        "auto.api.get.api.events.metrics",
+        "broker-execution.reconciliation-list",
+        "broker-execution.audit-list"
+      ]
+    },
+    "ordinary_role_walkthrough": {
+      "passed": true,
+      "settings": "core.settings.playwright",
+      "database": "disposable isolated SQLite",
+      "actor": "non-staff, non-superuser local fixture",
+      "visible_screen_count": 15,
+      "verified_destinations": [
+        "research.asset-lab",
+        "ai-ops.terminal",
+        "ai-ops.providers",
+        "account.self-service"
+      ],
+      "forbidden_destination": "capability-router.admin-access",
+      "forbidden_http_status": 403,
+      "forbidden_user_message": "当前账号不能打开这个工作区。",
+      "unauthorized_jump_observed": false
+    }
+  },
+  "validation": [
+    {
+      "command": "npm run build:tui && npm run check:tui",
+      "outcome": "passed"
+    },
+    {
+      "command": "npm run test:tui-js",
+      "outcome": "passed",
+      "passed": 35
+    },
+    {
+      "command": "pytest tests/unit/terminal/test_tui_information_architecture.py tests/unit/test_tui_metadata_source_consistency.py tests/unit/test_tui_operator_services.py -q",
+      "outcome": "passed",
+      "passed": 64
+    },
+    {
+      "command": "python scripts/check_tui_metadata_source_consistency.py",
+      "outcome": "passed",
+      "published_screens": 12,
+      "runtime_screens": 24,
+      "published_actions": 430,
+      "runtime_actions": 890,
+      "violations": 0
+    },
+    {
+      "command": "pytest tests/unit/test_tui_workbench.py -q",
+      "outcome": "passed",
+      "passed": 258,
+      "duration_seconds": 278.46
+    },
+    {
+      "command": "pytest tests/unit/test_terminal_agent_service.py -q",
+      "outcome": "passed",
+      "passed": 20
+    },
+    {
+      "command": "python scripts/check_mypy_regression.py <15 changed production TUI Python files>",
+      "outcome": "passed",
+      "regressions": 0,
+      "legacy_errors": 0
+    },
+    {
+      "command": "python scripts/check_mypy_debt_ceiling.py",
+      "outcome": "passed",
+      "errors": 0
+    },
+    {
+      "command": "Black, isort, Ruff and git diff --check over changed Python files",
+      "outcome": "passed"
+    }
+  ],
+  "review": {
+    "sol_decision": "passed",
+    "luna_read_only_review": {
+      "ordinary_role_gap_disposition": "closed by full-catalog target closure test, direct 403 contract, and browser walkthrough",
+      "terminology_gap_disposition": "closed for the TUX-04 vocabulary by the normalized runtime screen and action guard; generic AI wording is not a retired TUX-04 term"
+    }
+  },
+  "limitations": [
+    "The browser walkthrough used an isolated local SQLite fixture and is repository acceptance, not production role UAT.",
+    "Disposable data left unrelated dashboard business reads empty or unavailable; these responses did not expose an admin-only target and are outside the TUX-04 IA exit gate.",
+    "The published graph and manifest hashes changed, so this evidence does not rebind or deploy the frozen Web-to-TUI M5 candidate. Candidate rebind remains a separately authorized TUI-01/TUI-02 decision."
+  ],
+  "production_actions": {
+    "deployment_performed": false,
+    "production_write_performed": false,
+    "external_call_performed": false,
+    "m5_candidate_rebound": false
+  },
+  "next_repository_unit": "TUX-03"
+}

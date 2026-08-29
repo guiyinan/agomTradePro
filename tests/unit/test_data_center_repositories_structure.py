@@ -29,7 +29,9 @@ REPOSITORY_OWNER_MODULES = (
     "apps.data_center.infrastructure.market_breadth_repositories",
     "apps.data_center.infrastructure._market_breadth_helpers",
     "apps.data_center.infrastructure.news_repository",
+    "apps.data_center.infrastructure._reconciliation_evidence_repository_helpers",
     "apps.data_center.infrastructure.reconciliation_evidence_repositories",
+    "apps.data_center.infrastructure.reconciliation_evidence_unit_of_work",
 )
 THERMOMETER_FACADE = "apps.data_center.application.market_thermometer"
 THERMOMETER_OWNER_MODULES = (
@@ -113,6 +115,15 @@ def test_repository_legacy_exports_resolve_to_owner_modules() -> None:
     for export_name, owner_module_name in expected_owners.items():
         owner_module = import_module(owner_module_name)
         assert getattr(repositories, export_name) is getattr(owner_module, export_name)
+    compatibility_module = import_module(
+        "apps.data_center.infrastructure.reconciliation_evidence_repositories"
+    )
+    unit_of_work_module = import_module(
+        "apps.data_center.infrastructure.reconciliation_evidence_unit_of_work"
+    )
+    assert compatibility_module.DjangoReconciliationEvidenceUnitOfWork is (
+        unit_of_work_module.DjangoReconciliationEvidenceUnitOfWork
+    )
     assert not hasattr(repositories, "DataProviderSettingsRepository")
 
 
@@ -137,7 +148,9 @@ def test_repository_modules_stay_bounded_and_one_way() -> None:
         "apps.data_center.infrastructure.market_breadth_repositories": 400,
         "apps.data_center.infrastructure._market_breadth_helpers": 100,
         "apps.data_center.infrastructure.news_repository": 250,
+        "apps.data_center.infrastructure._reconciliation_evidence_repository_helpers": 100,
         "apps.data_center.infrastructure.reconciliation_evidence_repositories": 100,
+        "apps.data_center.infrastructure.reconciliation_evidence_unit_of_work": 100,
     }
     for module_name, budget in budgets.items():
         relative_path = Path(*module_name.split(".")).with_suffix(".py")

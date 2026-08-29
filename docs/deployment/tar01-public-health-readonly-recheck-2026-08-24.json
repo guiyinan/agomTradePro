@@ -1,0 +1,50 @@
+{
+  "schema": "tar01-public-health-readonly-recheck.v1",
+  "observed_at": "2026-08-23T17:46:08.0171486Z",
+  "source": "public HTTPS GET only",
+  "candidate_binding": "not_observed",
+  "production_mutation": false,
+  "deployment_performed": false,
+  "endpoints": {
+    "/api/health/": {
+      "http_status": 200,
+      "body_bytes": 62,
+      "body_sha256": "7931648d35eff88afe7b630defd6c88d1452d25cfad550489ae2eb5ad6dd25c2",
+      "status": "ok"
+    },
+    "/api/ready/": {
+      "http_status": 200,
+      "body_bytes": 15158,
+      "body_sha256": "d064a5f010c78cbf243bd611e2c0ff4fff206f91b534f85736a71c19560950ab",
+      "status": "ok",
+      "checks": {
+        "database": "ok",
+        "redis": "ok",
+        "celery": "ok",
+        "critical_data": "ok",
+        "decision_data": "warning"
+      },
+      "decision_data_must_not_use_for_decision": true
+    },
+    "/api/decision-ready/": {
+      "http_status": 503,
+      "body_bytes": 18777,
+      "body_sha256": "6d0b8bbd5e6c175c9cad82119238edd3521e384921ddbe71cb5b4c40817219c9",
+      "status": "blocked",
+      "must_not_use_for_decision": true,
+      "block_reason_code": "decision_runtime_blocked"
+    }
+  },
+  "acceptance": {
+    "public_health": true,
+    "public_readiness": true,
+    "decision_ready": false,
+    "formal_production_uat": false,
+    "owner_reviewer_signoff": false,
+    "notes": [
+      "This is a read-only public probe and does not identify or rebind the deployed candidate.",
+      "The decision endpoint remains fail-closed and must not be used for decisions.",
+      "No deployment, migration, queue enablement, rollback, or production write was performed."
+    ]
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "schema": "tar01-public-health-readonly-recheck.v2",
+  "observed_at": "2026-08-23T12:19:51.411758Z",
+  "source": {
+    "base_url": "https://demo.agomtrade.pro",
+    "method": "GET",
+    "health": {
+      "path": "/api/health/",
+      "status_code": 200,
+      "timestamp": "2026-08-23T20:19:42.916624+08:00",
+      "body_sha256": "35df18e196157e046577bb0817c2498cb8b1df624b0eaee50746a9dc73e7bfe2",
+      "body_status": "ok"
+    },
+    "ready": {
+      "path": "/api/ready/",
+      "status_code": 200,
+      "timestamp": "2026-08-23T20:19:47.526937+08:00",
+      "body_sha256": "08a3cf2cc1bc38caa6a3bc21c4b0d04e49a46a60f2f00347819d4f363f661ebe",
+      "body_status": "ok",
+      "database": "ok",
+      "redis": "ok",
+      "celery": "ok",
+      "workers": 1,
+      "critical_data": "ok",
+      "decision_data": "warning"
+    },
+    "decision_ready": {
+      "path": "/api/decision-ready/",
+      "status_code": 503,
+      "timestamp": "2026-08-23T20:19:51.411758+08:00",
+      "body_sha256": "72b8bf1c466e411f64b49c6ec10cf9fe9194b447b8251f2bd5fe1105ccb73fb4",
+      "body_status": "blocked",
+      "must_not_use_for_decision": true,
+      "runtime_status": "blocked",
+      "blocked_reason": "MCP audit evidence write failed during final acceptance"
+    },
+    "audit_health": {
+      "path": "/api/audit/health/",
+      "status_code": 200,
+      "body_sha256": "8d18e0173ec05aaed280a2af76f8febd365f7b057395408cd3c2870583913ace",
+      "overall_status": "OK",
+      "total_operation_logs": 555,
+      "total_failures": 0,
+      "outbox_pending": 0,
+      "outbox_due_pending": 0,
+      "outbox_claimed": 0,
+      "outbox_expired_claimed": 0,
+      "outbox_failed": 0,
+      "outbox_delivered": 0
+    }
+  },
+  "candidate_binding": {
+    "commit": null,
+    "release": null,
+    "oci_revision": null,
+    "bound": false,
+    "reason": "Public endpoints do not expose immutable candidate identity"
+  },
+  "scope": {
+    "production_write": false,
+    "database_mutation": false,
+    "deployment": false,
+    "queue_or_worker_enablement": false,
+    "approval_or_activation": false,
+    "backup_created": false,
+    "rollback_executed": false,
+    "role_uat": false,
+    "owner_reviewer_signoff": false
+  },
+  "production_claim": false,
+  "interpretation": {
+    "service_reachable": true,
+    "audit_subsystem_healthy": true,
+    "decision_gate_changed": false,
+    "reason": "This is a fresh read-only liveness/audit observation; it does not prove a durable publisher, authenticated authority, candidate binding, decision-data completeness, or production acceptance."
+  }
+}

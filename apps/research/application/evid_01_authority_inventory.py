@@ -17,18 +17,36 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Final, cast
 
-EVID_01_INVENTORY_INPUT_FORMAT: Final[str] = "evid-01-authority-inventory-snapshot.v1"
-EVID_01_INVENTORY_REPORT_FORMAT: Final[str] = "evid-01-authority-inventory-report.v1"
+EVID_01_INVENTORY_INPUT_FORMAT_V1: Final[str] = "evid-01-authority-inventory-snapshot.v1"
+EVID_01_INVENTORY_INPUT_FORMAT_V2_PRE_0055: Final[str] = (
+    "evid-01-authority-inventory-snapshot.v2-pre-0055"
+)
+EVID_01_INVENTORY_INPUT_FORMAT_V2: Final[str] = "evid-01-authority-inventory-snapshot.v2"
+EVID_01_INVENTORY_INPUT_FORMAT: Final[str] = EVID_01_INVENTORY_INPUT_FORMAT_V1
+EVID_01_INVENTORY_REPORT_FORMAT_V1: Final[str] = "evid-01-authority-inventory-report.v1"
+EVID_01_INVENTORY_REPORT_FORMAT_V2_PRE_0055: Final[str] = (
+    "evid-01-authority-inventory-report.v2-pre-0055"
+)
+EVID_01_INVENTORY_REPORT_FORMAT_V2: Final[str] = "evid-01-authority-inventory-report.v2"
+EVID_01_INVENTORY_REPORT_FORMAT: Final[str] = EVID_01_INVENTORY_REPORT_FORMAT_V1
 EVID_01_INVENTORY_ENVIRONMENT: Final[str] = "production"
 EVID_01_INVENTORY_BACKEND: Final[str] = "postgresql"
 EVID_01_INVENTORY_SCHEMA: Final[str] = "public"
-EVID_01_INVENTORY_MIGRATIONS: Final[tuple[str, ...]] = (
+EVID_01_INVENTORY_MIGRATIONS_V1: Final[tuple[str, ...]] = (
     "0050_account_owner_assignment_evidence_v3_ledgers",
     "0051_actor_authority_source_v3_ledgers",
     "0052_account_actor_authority_raw_source_v3_ledgers",
     "0053_account_rbac_authority_mutation_binding_v3",
 )
-EVID_01_INVENTORY_TABLES: Final[tuple[str, ...]] = (
+EVID_01_INVENTORY_MIGRATIONS_V2: Final[tuple[str, ...]] = EVID_01_INVENTORY_MIGRATIONS_V1 + (
+    "0054_normalize_physical_v2_fixed_constraint",
+    "0055_owner_tenant_authority_v1",
+)
+EVID_01_INVENTORY_MIGRATIONS_V2_PRE_0055: Final[tuple[str, ...]] = (
+    EVID_01_INVENTORY_MIGRATIONS_V1 + ("0054_normalize_physical_v2_fixed_constraint",)
+)
+EVID_01_INVENTORY_MIGRATIONS: Final[tuple[str, ...]] = EVID_01_INVENTORY_MIGRATIONS_V1
+EVID_01_INVENTORY_TABLES_V1: Final[tuple[str, ...]] = (
     "account_auth_context_source_v3_anchor",
     "account_auth_context_source_v3_ledger",
     "account_user_authority_source_v3_anchor",
@@ -42,6 +60,11 @@ EVID_01_INVENTORY_TABLES: Final[tuple[str, ...]] = (
     "account_owner_assignment_evidence_v3_ledger",
     "account_owner_assignment_provenance_receipt_v3_ledger",
 )
+EVID_01_INVENTORY_TABLES_V2: Final[tuple[str, ...]] = EVID_01_INVENTORY_TABLES_V1 + (
+    "account_owner_tenant_authority_v1",
+)
+EVID_01_INVENTORY_TABLES_V2_PRE_0055: Final[tuple[str, ...]] = EVID_01_INVENTORY_TABLES_V1
+EVID_01_INVENTORY_TABLES: Final[tuple[str, ...]] = EVID_01_INVENTORY_TABLES_V1
 
 _TOKEN_RE: Final[re.Pattern[str]] = re.compile(r"^[A-Za-z0-9_.:-]{1,256}$")
 _COMMIT_RE: Final[re.Pattern[str]] = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
@@ -62,6 +85,42 @@ _FORBIDDEN_KEY_FRAGMENTS: Final[tuple[str, ...]] = (
 _MAX_PAYLOAD_BYTES: Final[int] = 2 * 1024 * 1024
 
 
+def _contract_migrations(format_version: str) -> tuple[str, ...]:
+    """Return the exact migration sequence for one snapshot contract."""
+
+    if format_version == EVID_01_INVENTORY_INPUT_FORMAT_V1:
+        return EVID_01_INVENTORY_MIGRATIONS_V1
+    if format_version == EVID_01_INVENTORY_INPUT_FORMAT_V2_PRE_0055:
+        return EVID_01_INVENTORY_MIGRATIONS_V2_PRE_0055
+    if format_version == EVID_01_INVENTORY_INPUT_FORMAT_V2:
+        return EVID_01_INVENTORY_MIGRATIONS_V2
+    raise Evid01AuthorityInventoryError("snapshot version is not canonical")
+
+
+def _contract_tables(format_version: str) -> tuple[str, ...]:
+    """Return the exact table sequence for one snapshot contract."""
+
+    if format_version == EVID_01_INVENTORY_INPUT_FORMAT_V1:
+        return EVID_01_INVENTORY_TABLES_V1
+    if format_version == EVID_01_INVENTORY_INPUT_FORMAT_V2_PRE_0055:
+        return EVID_01_INVENTORY_TABLES_V2_PRE_0055
+    if format_version == EVID_01_INVENTORY_INPUT_FORMAT_V2:
+        return EVID_01_INVENTORY_TABLES_V2
+    raise Evid01AuthorityInventoryError("snapshot version is not canonical")
+
+
+def _report_format(format_version: str) -> str:
+    """Map an input contract version to its matching report version."""
+
+    if format_version == EVID_01_INVENTORY_INPUT_FORMAT_V1:
+        return EVID_01_INVENTORY_REPORT_FORMAT_V1
+    if format_version == EVID_01_INVENTORY_INPUT_FORMAT_V2_PRE_0055:
+        return EVID_01_INVENTORY_REPORT_FORMAT_V2_PRE_0055
+    if format_version == EVID_01_INVENTORY_INPUT_FORMAT_V2:
+        return EVID_01_INVENTORY_REPORT_FORMAT_V2
+    raise Evid01AuthorityInventoryError("snapshot version is not canonical")
+
+
 class Evid01AuthorityInventoryError(ValueError):
     """Raised when an inventory snapshot is not a strict canonical payload."""
 
@@ -71,6 +130,7 @@ class Evid01AuthorityInventoryOutcome(StrEnum):
 
     BLOCKED_ZERO_SEED_AUTHORITY = "blocked_zero_seed_authority"
     BLOCKED_UNVERIFIED_AUTHORITY = "blocked_unverified_authority"
+    BLOCKED_MISSING_OWNER_TENANT_MIGRATION = "blocked_missing_owner_tenant_migration"
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,7 +158,14 @@ class Evid01InventoryMigration:
     def __post_init__(self) -> None:
         if self.app != "account":
             raise Evid01AuthorityInventoryError("migration app must be account")
-        if self.name not in EVID_01_INVENTORY_MIGRATIONS:
+        if type(self.name) is not str or not any(
+            self.name in migrations
+            for migrations in (
+                EVID_01_INVENTORY_MIGRATIONS_V1,
+                EVID_01_INVENTORY_MIGRATIONS_V2_PRE_0055,
+                EVID_01_INVENTORY_MIGRATIONS_V2,
+            )
+        ):
             raise Evid01AuthorityInventoryError("migration name is not canonical")
         _utc(self.applied_at, "migration.applied_at")
 
@@ -110,19 +177,19 @@ class Evid01InventoryDatabase:
     backend: str
     schema: str
     migrations: tuple[Evid01InventoryMigration, ...]
+    format_version: str = EVID_01_INVENTORY_INPUT_FORMAT_V1
 
     def __post_init__(self) -> None:
         if self.backend != EVID_01_INVENTORY_BACKEND:
             raise Evid01AuthorityInventoryError("database backend must be PostgreSQL")
         if self.schema != EVID_01_INVENTORY_SCHEMA:
             raise Evid01AuthorityInventoryError("database schema must be public")
-        if type(self.migrations) is not tuple or len(self.migrations) != len(
-            EVID_01_INVENTORY_MIGRATIONS
-        ):
+        expected_migrations = _contract_migrations(self.format_version)
+        if type(self.migrations) is not tuple or len(self.migrations) != len(expected_migrations):
             raise Evid01AuthorityInventoryError("all required migrations are required")
         if any(type(item) is not Evid01InventoryMigration for item in self.migrations):
             raise Evid01AuthorityInventoryError("migration type is invalid")
-        if tuple(item.name for item in self.migrations) != EVID_01_INVENTORY_MIGRATIONS:
+        if tuple(item.name for item in self.migrations) != expected_migrations:
             raise Evid01AuthorityInventoryError("migration order or uniqueness is invalid")
 
 
@@ -136,6 +203,7 @@ class Evid01AuthorityInventorySnapshot:
     database: Evid01InventoryDatabase
     row_counts: tuple[tuple[str, int], ...]
     source_payload_sha256: str
+    format_version: str = EVID_01_INVENTORY_INPUT_FORMAT_V1
 
     def __post_init__(self) -> None:
         _utc(self.captured_at, "captured_at")
@@ -145,7 +213,15 @@ class Evid01AuthorityInventorySnapshot:
             raise Evid01AuthorityInventoryError("inventory must be read-only")
         if type(self.database) is not Evid01InventoryDatabase:
             raise Evid01AuthorityInventoryError("database type is invalid")
-        _validate_row_counts(self.row_counts)
+        if self.format_version not in {
+            EVID_01_INVENTORY_INPUT_FORMAT_V1,
+            EVID_01_INVENTORY_INPUT_FORMAT_V2_PRE_0055,
+            EVID_01_INVENTORY_INPUT_FORMAT_V2,
+        }:
+            raise Evid01AuthorityInventoryError("snapshot version is not canonical")
+        if self.database.format_version != self.format_version:
+            raise Evid01AuthorityInventoryError("database and snapshot versions differ")
+        _validate_row_counts(self.row_counts, _contract_tables(self.format_version))
         _sha256(self.source_payload_sha256, "source_payload_sha256")
 
 
@@ -163,6 +239,7 @@ class Evid01AuthorityInventoryReport:
     production_ready: bool = False
     authority_ready: bool = False
     runtime_enablement: str = "not_authorized"
+    format_version: str = EVID_01_INVENTORY_INPUT_FORMAT_V1
 
     def __post_init__(self) -> None:
         _utc(self.captured_at, "captured_at")
@@ -170,7 +247,15 @@ class Evid01AuthorityInventoryReport:
             raise Evid01AuthorityInventoryError("candidate type is invalid")
         if type(self.database) is not Evid01InventoryDatabase:
             raise Evid01AuthorityInventoryError("database type is invalid")
-        _validate_row_counts(self.row_counts)
+        if self.format_version not in {
+            EVID_01_INVENTORY_INPUT_FORMAT_V1,
+            EVID_01_INVENTORY_INPUT_FORMAT_V2_PRE_0055,
+            EVID_01_INVENTORY_INPUT_FORMAT_V2,
+        }:
+            raise Evid01AuthorityInventoryError("report version is not canonical")
+        if self.database.format_version != self.format_version:
+            raise Evid01AuthorityInventoryError("database and report versions differ")
+        _validate_row_counts(self.row_counts, _contract_tables(self.format_version))
         _sha256(self.source_payload_sha256, "source_payload_sha256")
         if type(self.outcome) is not Evid01AuthorityInventoryOutcome:
             raise Evid01AuthorityInventoryError("outcome type is invalid")
@@ -267,7 +352,7 @@ def _parse_candidate(value: object) -> Evid01InventoryCandidate:
     )
 
 
-def _parse_database(value: object) -> Evid01InventoryDatabase:
+def _parse_database(value: object, format_version: str) -> Evid01InventoryDatabase:
     raw = _mapping(value, "database")
     _require_keys(raw, frozenset({"backend", "schema", "migrations"}), "database")
     migrations_raw = raw["migrations"]
@@ -288,17 +373,18 @@ def _parse_database(value: object) -> Evid01InventoryDatabase:
         backend=_token(raw["backend"], "database.backend"),
         schema=_token(raw["schema"], "database.schema"),
         migrations=tuple(migrations),
+        format_version=format_version,
     )
 
 
-def _parse_row_counts(value: object) -> tuple[tuple[str, int], ...]:
+def _parse_row_counts(value: object, tables: tuple[str, ...]) -> tuple[tuple[str, int], ...]:
     raw = _mapping(value, "row_counts")
-    if frozenset(raw) != frozenset(EVID_01_INVENTORY_TABLES):
+    if frozenset(raw) != frozenset(tables):
         raise Evid01AuthorityInventoryError(
-            "row_counts must contain exactly the 12 expected tables"
+            f"row_counts must contain exactly the {len(tables)} expected tables"
         )
     result: list[tuple[str, int]] = []
-    for table in EVID_01_INVENTORY_TABLES:
+    for table in tables:
         count = raw[table]
         if type(count) is not int or count < 0:
             raise Evid01AuthorityInventoryError(f"row_counts.{table} must be non-negative int")
@@ -306,10 +392,10 @@ def _parse_row_counts(value: object) -> tuple[tuple[str, int], ...]:
     return tuple(result)
 
 
-def _validate_row_counts(value: tuple[tuple[str, int], ...]) -> None:
-    if type(value) is not tuple or len(value) != len(EVID_01_INVENTORY_TABLES):
+def _validate_row_counts(value: tuple[tuple[str, int], ...], tables: tuple[str, ...]) -> None:
+    if type(value) is not tuple or len(value) != len(tables):
         raise Evid01AuthorityInventoryError("row_counts shape is invalid")
-    if tuple(item[0] for item in value) != EVID_01_INVENTORY_TABLES:
+    if tuple(item[0] for item in value) != tables:
         raise Evid01AuthorityInventoryError("row_counts order is not canonical")
     if any(type(item) is not tuple or len(item) != 2 for item in value):
         raise Evid01AuthorityInventoryError("row_counts item shape is invalid")
@@ -325,7 +411,7 @@ def _canonical_json(value: object) -> bytes:
 
 def _snapshot_payload(snapshot: Evid01AuthorityInventorySnapshot) -> dict[str, object]:
     return {
-        "version": EVID_01_INVENTORY_INPUT_FORMAT,
+        "version": snapshot.format_version,
         "environment": EVID_01_INVENTORY_ENVIRONMENT,
         "captured_at": _utc_text(snapshot.captured_at),
         "candidate": {
@@ -376,17 +462,24 @@ def parse_evid_01_authority_inventory_snapshot(payload: bytes) -> Evid01Authorit
         ),
         "snapshot",
     )
-    if raw["version"] != EVID_01_INVENTORY_INPUT_FORMAT:
+    format_version = raw["version"]
+    if format_version not in {
+        EVID_01_INVENTORY_INPUT_FORMAT_V1,
+        EVID_01_INVENTORY_INPUT_FORMAT_V2_PRE_0055,
+        EVID_01_INVENTORY_INPUT_FORMAT_V2,
+    }:
         raise Evid01AuthorityInventoryError("snapshot version is not canonical")
+    format_version = cast(str, format_version)
     if raw["environment"] != EVID_01_INVENTORY_ENVIRONMENT:
         raise Evid01AuthorityInventoryError("snapshot environment must be production")
     return Evid01AuthorityInventorySnapshot(
         captured_at=_parse_utc(raw["captured_at"], "captured_at"),
         candidate=_parse_candidate(raw["candidate"]),
         read_only=raw["read_only"] if type(raw["read_only"]) is bool else False,
-        database=_parse_database(raw["database"]),
-        row_counts=_parse_row_counts(raw["row_counts"]),
+        database=_parse_database(raw["database"], format_version),
+        row_counts=_parse_row_counts(raw["row_counts"], _contract_tables(format_version)),
         source_payload_sha256=hashlib.sha256(payload).hexdigest(),
+        format_version=format_version,
     )
 
 
@@ -395,12 +488,13 @@ def build_evid_01_authority_inventory_report(
 ) -> Evid01AuthorityInventoryReport:
     """Derive a permanently non-production report from a validated snapshot."""
 
-    _validate_row_counts(snapshot.row_counts)
-    outcome = (
-        Evid01AuthorityInventoryOutcome.BLOCKED_ZERO_SEED_AUTHORITY
-        if all(count == 0 for _, count in snapshot.row_counts)
-        else Evid01AuthorityInventoryOutcome.BLOCKED_UNVERIFIED_AUTHORITY
-    )
+    _validate_row_counts(snapshot.row_counts, _contract_tables(snapshot.format_version))
+    if snapshot.format_version == EVID_01_INVENTORY_INPUT_FORMAT_V2_PRE_0055:
+        outcome = Evid01AuthorityInventoryOutcome.BLOCKED_MISSING_OWNER_TENANT_MIGRATION
+    elif all(count == 0 for _, count in snapshot.row_counts):
+        outcome = Evid01AuthorityInventoryOutcome.BLOCKED_ZERO_SEED_AUTHORITY
+    else:
+        outcome = Evid01AuthorityInventoryOutcome.BLOCKED_UNVERIFIED_AUTHORITY
     return Evid01AuthorityInventoryReport(
         captured_at=snapshot.captured_at,
         candidate=snapshot.candidate,
@@ -408,12 +502,13 @@ def build_evid_01_authority_inventory_report(
         row_counts=snapshot.row_counts,
         source_payload_sha256=snapshot.source_payload_sha256,
         outcome=outcome,
+        format_version=snapshot.format_version,
     )
 
 
 def _report_payload(report: Evid01AuthorityInventoryReport) -> dict[str, object]:
     return {
-        "version": EVID_01_INVENTORY_REPORT_FORMAT,
+        "version": _report_format(report.format_version),
         "captured_at": _utc_text(report.captured_at),
         "candidate": {
             "stable_version": report.candidate.stable_version,

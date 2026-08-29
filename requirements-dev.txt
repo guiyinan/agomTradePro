@@ -14,7 +14,7 @@ factory-boy>=3.3
 faker>=20.0
 playwright>=1.53
 black>=26.3.1
-isort
+isort==6.0.1
 ruff
 mypy==1.14.1
 django-stubs==6.0.8

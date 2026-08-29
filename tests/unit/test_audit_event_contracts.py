@@ -14,14 +14,14 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_registry_is_valid() -> None:
-    """The shadow registry is canonical and all event test references resolve."""
+    """The active registry is canonical and all event test references resolve."""
 
     registry = load_registry(DEFAULT_REGISTRY_PATH)
     violations = validate_registry(registry, project_root=ROOT)
 
     assert violations == []
-    assert registry["status"] == "shadow"
-    assert registry["implementation_status"] == "registry_only"
+    assert registry["status"] == "active"
+    assert registry["implementation_status"] == "wired"
     assert len(registry["events"]) >= 20
     assert len(registry["inventory"]) == 6
     assert {item["category"] for item in registry["inventory"]} == {
@@ -49,10 +49,10 @@ def test_duplicate_event_type_and_unknown_reason_are_rejected() -> None:
 
 
 def test_active_event_requires_wired_implementation() -> None:
-    """A future active event cannot be declared before its implementation exists."""
+    """An active event cannot claim a non-wired implementation."""
 
     registry = copy.deepcopy(load_registry(DEFAULT_REGISTRY_PATH))
-    registry["events"][0]["status"] = "active"
+    registry["events"][0]["implementation_status"] = "not_wired"
 
     violations = validate_registry(registry, project_root=ROOT)
 
@@ -64,9 +64,10 @@ def test_registry_file_is_json_and_contains_only_contract_data() -> None:
 
     payload = json.loads(DEFAULT_REGISTRY_PATH.read_text(encoding="utf-8"))
 
-    assert payload["status"] == "shadow"
-    assert payload["implementation_status"] == "registry_only"
-    assert all(event["implementation_status"] == "not_wired" for event in payload["events"])
+    assert payload["status"] == "active"
+    assert payload["implementation_status"] == "wired"
+    assert all(event["status"] == "active" for event in payload["events"])
+    assert all(event["implementation_status"] == "wired" for event in payload["events"])
 
 
 def test_inventory_source_file_is_required() -> None:

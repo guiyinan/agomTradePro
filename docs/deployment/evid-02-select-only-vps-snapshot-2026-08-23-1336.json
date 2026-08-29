@@ -1,0 +1,47 @@
+{
+  "format": "evid-02-select-only-ledger-snapshot.v2",
+  "captured_at": "2026-08-23T13:36:56.039543Z",
+  "as_of": "2026-08-23T13:36:56.039543Z",
+  "capture": {
+    "candidate_commit": "4cef9040cccc2127c3f8128c8d858bc7958df2a4",
+    "candidate_release": "20260822134658",
+    "candidate_image": "sha256:cfaf17560df2f85cd8ba2f5db8226a9dd9fe1cce081f30175c2a08737b4908d8",
+    "database_alias": "default",
+    "environment": "production",
+    "query_digest": "3a47396d69bb546ba6adeecab49de351eff0889caa42b236f397ca3c0a97dd3d",
+    "read_mode": "select_only",
+    "transaction": "REPEATABLE READ READ ONLY"
+  },
+  "tables": {
+    "operator_spec": {
+      "table": "research_evidence_operator_spec",
+      "row_count": 0,
+      "rows": []
+    },
+    "approval": {
+      "table": "research_evidence_operator_spec_approval",
+      "row_count": 0,
+      "rows": []
+    },
+    "activation": {
+      "table": "research_activated_evidence_operator_spec",
+      "row_count": 0,
+      "rows": []
+    }
+  },
+  "decision": {
+    "evid_02": "awaiting_production",
+    "head": "empty",
+    "approval_rows": 0,
+    "activation_rows": 0,
+    "production_claim": false,
+    "production_ready": false,
+    "human_approval_status": "not_collected",
+    "runtime_enablement": "not_authorized"
+  },
+  "limitations": [
+    "All three ledger reads were SELECT-only inside one PostgreSQL REPEATABLE READ READ ONLY transaction through the deployed web container; no approval, activation, rollback, or production mutation was attempted.",
+    "An empty current head is an observed production fact, not approval or evidence that any operator is complete.",
+    "This snapshot does not prove PostgreSQL production race behavior, rollback, owner/reviewer approval, or downstream Evidence hard-gate readiness."
+  ]
+}

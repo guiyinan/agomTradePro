@@ -7,17 +7,44 @@ import json
 from collections.abc import Callable, Collection, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Protocol
 from uuid import uuid4
 
-from apps.data_center.domain.protocols import ReconciliationEvidenceRepositoryProtocol
+from apps.data_center.application.sync_transaction import (
+    DataCenterSyncClock,
+    DataCenterSyncUnitOfWork,
+    DataConflictAuditWriter,
+)
 from apps.data_center.domain.reconciliation import (
     QueryBudget,
     QueryBudgetResult,
+    ReconciliationClassification,
     ReconciliationEvidence,
     ReconciliationReport,
     evaluate_query_budget,
     reconcile_records,
 )
+from core.integration.data_center_audit import (
+    DataConflictAuditObservation,
+    DataConflictTransition,
+)
+
+
+class ReconciliationEvidenceRepositoryPort(Protocol):
+    """Transaction-bound persistence port for reconciliation evidence."""
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact transaction identity used by this repository."""
+
+    def save(self, evidence: ReconciliationEvidence) -> ReconciliationEvidence:
+        """Append or replay one immutable evidence record."""
+
+    def get_latest(self, dataset_key: str) -> ReconciliationEvidence | None:
+        """Return the newest evidence for one dataset."""
+
+    def get_latest_for_update(self, dataset_key: str) -> ReconciliationEvidence | None:
+        """Lock and return the newest evidence inside the active transaction."""
 
 
 def hash_reconciliation_snapshot(snapshot: Mapping[str, object]) -> str:
@@ -40,6 +67,46 @@ def hash_reconciliation_snapshot(snapshot: Mapping[str, object]) -> str:
         ).encode("utf-8")
     except (TypeError, ValueError) as exc:
         raise ValueError("reconciliation snapshot must be JSON-compatible") from exc
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def reconciliation_evidence_content_hash(evidence: ReconciliationEvidence) -> str:
+    """Hash the exact persisted reconciliation evidence representation.
+
+    The digest is calculated from the domain value returned by the repository,
+    so the audit reference covers the actual durable representation rather than
+    an unpersisted request object.
+    """
+
+    if not isinstance(evidence, ReconciliationEvidence):
+        raise TypeError("evidence must be a ReconciliationEvidence")
+    rows: list[dict[str, object]] = [
+        {
+            "natural_key": row.natural_key,
+            "classification": row.classification.value,
+            "legacy_value": row.legacy_value,
+            "canonical_value": row.canonical_value,
+        }
+        for row in evidence.report.rows
+    ]
+    payload: dict[str, object] = {
+        "evidence_id": evidence.evidence_id,
+        "dataset_key": evidence.report.dataset_key,
+        "legacy_snapshot_hash": evidence.legacy_snapshot_hash,
+        "canonical_snapshot_hash": evidence.canonical_snapshot_hash,
+        "observed_at": evidence.observed_at.astimezone(UTC).isoformat(timespec="microseconds"),
+        "rows": rows,
+    }
+    try:
+        encoded = json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError) as error:
+        raise ValueError("reconciliation evidence must be JSON-compatible") from error
     return hashlib.sha256(encoded).hexdigest()
 
 
@@ -133,10 +200,22 @@ def export_reconciliation_snapshot(
 
 
 class RecordReconciliationEvidenceUseCase:
-    """Turn an injected shadow report into durable Data Center evidence."""
+    """Persist evidence and its actual conflict transition in one unit of work."""
 
-    def __init__(self, repository: ReconciliationEvidenceRepositoryProtocol) -> None:
+    def __init__(
+        self,
+        repository: ReconciliationEvidenceRepositoryPort,
+        *,
+        audit_writer: DataConflictAuditWriter,
+        unit_of_work: DataCenterSyncUnitOfWork,
+        clock: DataCenterSyncClock,
+    ) -> None:
+        if repository.unit_of_work_key != unit_of_work.unit_of_work_key:
+            raise ValueError("reconciliation repository and unit of work differ")
         self._repository = repository
+        self._audit_writer = audit_writer
+        self._unit_of_work = unit_of_work
+        self._clock = clock
 
     def execute(
         self,
@@ -147,16 +226,78 @@ class RecordReconciliationEvidenceUseCase:
         evidence_id: str | None = None,
         observed_at: datetime | None = None,
     ) -> ReconciliationEvidence:
-        """Persist one report with immutable source hashes and observation time."""
+        """Persist evidence and emit only a detected/resolved state transition."""
 
+        recorded_at = self._clock.now()
+        if recorded_at.tzinfo is None or recorded_at.utcoffset() is None:
+            raise ValueError("reconciliation clock must be timezone-aware")
+        evidence_observed_at = observed_at or recorded_at
+        if evidence_observed_at.tzinfo is None or evidence_observed_at.utcoffset() is None:
+            raise ValueError("reconciliation observed_at must be timezone-aware")
+        if evidence_observed_at > recorded_at:
+            raise ValueError("reconciliation observed_at cannot be after recorded_at")
         evidence = ReconciliationEvidence(
             evidence_id=evidence_id or str(uuid4()),
             report=report,
             legacy_snapshot_hash=legacy_snapshot_hash,
             canonical_snapshot_hash=canonical_snapshot_hash,
-            observed_at=observed_at or datetime.now(UTC),
+            observed_at=evidence_observed_at,
         )
-        return self._repository.save(evidence)
+        with self._unit_of_work.atomic():
+            previous = self._repository.get_latest_for_update(report.dataset_key)
+            persisted = self._repository.save(evidence)
+            if persisted != evidence:
+                raise ValueError("reconciliation repository substituted the evidence")
+            transition = _conflict_transition(previous, persisted)
+            if transition is not None:
+                current_count = _semantic_conflict_count(persisted)
+                previous_count = (
+                    _semantic_conflict_count(previous) if previous is not None else None
+                )
+                self._audit_writer.write(
+                    DataConflictAuditObservation(
+                        dataset_key=persisted.report.dataset_key,
+                        transition=transition,
+                        evidence_id=persisted.evidence_id,
+                        evidence_version="1",
+                        evidence_content_hash=reconciliation_evidence_content_hash(persisted),
+                        conflict_count=current_count,
+                        previous_conflict_count=previous_count,
+                        previous_evidence_id=(
+                            previous.evidence_id if previous is not None else None
+                        ),
+                        previous_evidence_version="1" if previous is not None else None,
+                        previous_evidence_content_hash=(
+                            reconciliation_evidence_content_hash(previous)
+                            if previous is not None
+                            else None
+                        ),
+                        occurred_at=persisted.observed_at,
+                        recorded_at=recorded_at,
+                    )
+                )
+        return persisted
+
+
+def _semantic_conflict_count(evidence: ReconciliationEvidence) -> int:
+    """Return the exact semantic-conflict count from one evidence record."""
+
+    return evidence.report.counts[ReconciliationClassification.SEMANTIC_CONFLICT.value]
+
+
+def _conflict_transition(
+    previous: ReconciliationEvidence | None,
+    current: ReconciliationEvidence,
+) -> DataConflictTransition | None:
+    """Derive the only registered conflict lifecycle transitions."""
+
+    previous_count = _semantic_conflict_count(previous) if previous is not None else 0
+    current_count = _semantic_conflict_count(current)
+    if previous_count == 0 and current_count > 0:
+        return "detected"
+    if previous_count > 0 and current_count == 0:
+        return "resolved"
+    return None
 
 
 def build_reconciliation_report(
@@ -198,4 +339,6 @@ __all__ = [
     "check_query_budget",
     "export_reconciliation_snapshot",
     "hash_reconciliation_snapshot",
+    "reconciliation_evidence_content_hash",
+    "ReconciliationEvidenceRepositoryPort",
 ]

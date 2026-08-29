@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
@@ -10,20 +11,54 @@ from django.conf import settings
 from django.db import transaction
 
 from apps.data_center.application.control_plane import RollbackCanonicalPublicationUseCase
+from apps.data_center.application.data_chain_replay import ReplayDataChainUseCase
+from apps.data_center.application.decision_read_audit import (
+    RecordPublicationDecisionReadUseCase,
+)
+from apps.data_center.application.macro_publication import PublishMacroBatchUseCase
 from apps.data_center.application.pit_use_cases import (
     BuildPITManifestUseCase,
     QueryPITManifestUseCase,
 )
+from apps.data_center.application.publication_quality import RecordPublicationQualityUseCase
+from apps.data_center.application.publication_sync import (
+    PublishPriceBarBatchUseCase,
+    PublishQuoteSnapshotBatchUseCase,
+)
+from apps.data_center.application.reconciliation import RecordReconciliationEvidenceUseCase
+from apps.data_center.application.repair_run_replay import ReplayRepairRunUseCase
 from apps.data_center.application.research_data_foundation import (
     ResearchDataFoundationFacade,
 )
+from apps.data_center.application.sync_identity import SyncExecutionIdentityIssuer
+from apps.data_center.application.sync_transaction import (
+    DataCenterSyncClock,
+    DataCenterSyncUnitOfWork,
+    DataCenterSyncUnitOfWorkParticipant,
+    DataRepairAuditWriter,
+)
+from apps.data_center.application.sync_use_cases import (
+    MacroFailoverPolicyProvider,
+    SyncMacroUseCase,
+    SyncPriceUseCase,
+    SyncQuoteUseCase,
+)
 from apps.data_center.domain.control_plane import SyncBatch, SyncCheckpoint, SyncRun
 from apps.data_center.domain.entities import ProviderConfig
-from apps.data_center.domain.protocols import ProviderConfigRepositoryProtocol
+from apps.data_center.domain.protocols import (
+    ProviderConfigRepositoryProtocol,
+    ProviderRegistryProtocol,
+)
 from apps.data_center.infrastructure.archive_repositories import (
     ArchiveCandidateRepository,
     ArchiveCapacityGuard,
     ArchiveCoverageGateway,
+)
+from apps.data_center.infrastructure.audited_sync_runtime import (
+    DjangoDataCenterSyncClock,
+    DjangoDataCenterSyncUnitOfWork,
+    DjangoRepairRunIdentityUnitOfWork,
+    DjangoSyncExecutionIdentityIssuer,
 )
 from apps.data_center.infrastructure.cache_warmup_queries import (
     MacroFactCacheWarmupRepository,
@@ -39,9 +74,16 @@ from apps.data_center.infrastructure.control_plane_repositories import (
     QuarantineRepository,
     SyncBatchRepository,
     SyncCheckpointRepository,
+    SyncExecutionIdentityRepository,
     SyncRunRepository,
 )
+from apps.data_center.infrastructure.data_chain_replay_evidence import (
+    DjangoReplayFactEvidenceReader,
+)
 from apps.data_center.infrastructure.diagnostic_queries import DataCenterDiagnosticRepository
+from apps.data_center.infrastructure.macro_failover_policy import (
+    ConfigCenterMacroFailoverPolicyProvider,
+)
 from apps.data_center.infrastructure.macro_projection_repository import MacroProjectionRepository
 from apps.data_center.infrastructure.pit_repository import PITManifestRepository
 from apps.data_center.infrastructure.provider_registry import ProviderRegistry
@@ -49,6 +91,9 @@ from apps.data_center.infrastructure.raw_archive_store import FilesystemRawArchi
 from apps.data_center.infrastructure.raw_landing_repositories import (
     RawLandingRepository,
     SchemaFingerprintRepository,
+)
+from apps.data_center.infrastructure.reconciliation_evidence_repositories import (
+    DjangoReconciliationEvidenceUnitOfWork,
 )
 from apps.data_center.infrastructure.repositories import (
     AssetRepository,
@@ -111,6 +156,12 @@ __all__ = [
     "MarketThermometerConfigRepository",
     "MarketThermometerSnapshotRepository",
     "MarketThermometerUserOverrideRepository",
+    "make_macro_failover_policy_provider",
+    "make_data_chain_replay_use_case",
+    "make_repair_run_replay_use_case",
+    "make_publication_decision_read_recorder",
+    "make_reconciliation_evidence_recorder",
+    "make_repair_run_audit_dependencies",
     "NewsRepository",
     "PITManifestRepository",
     "PriceBarRepository",
@@ -134,6 +185,8 @@ __all__ = [
     "SchemaFingerprintRepository",
     "SyncBatchRepository",
     "SyncCheckpointRepository",
+    "SyncExecutionIdentityRepository",
+    "RepairRunAuditDependencies",
     "SyncRunRepository",
     "persist_sync_control_plane_snapshot",
     "StorageHoldRepository",
@@ -198,6 +251,9 @@ __all__ = [
     "make_manifest_bound_pit_data_view",
     "make_query_pit_manifest_use_case",
     "make_research_data_foundation_facade",
+    "make_system_audited_sync_macro_use_case",
+    "make_system_audited_sync_price_use_case",
+    "make_system_audited_sync_quote_use_case",
     "refresh_provider_registry",
     "run_data_center_connection_test",
 ]
@@ -432,6 +488,30 @@ def get_reconciliation_evidence_repository() -> ReconciliationEvidenceRepository
     return ReconciliationEvidenceRepository()
 
 
+def make_reconciliation_evidence_recorder(
+    *, environment: str = "production", using: str = "default"
+) -> RecordReconciliationEvidenceUseCase:
+    """Compose same-transaction reconciliation evidence and conflict audit."""
+
+    from core.integration.data_center_audit import get_data_conflict_audit_writer
+
+    repository = ReconciliationEvidenceRepository(using=using)
+    audit_writer = get_data_conflict_audit_writer(
+        environment=environment,
+        using=using,
+    )
+    return RecordReconciliationEvidenceUseCase(
+        repository,
+        audit_writer=audit_writer,
+        unit_of_work=DjangoReconciliationEvidenceUnitOfWork(
+            repository,
+            audit_writer,
+            using=using,
+        ),
+        clock=DjangoDataCenterSyncClock(),
+    )
+
+
 def get_sector_membership_repository() -> SectorMembershipRepository:
     return SectorMembershipRepository()
 
@@ -488,10 +568,30 @@ def get_canonical_publication_repository() -> CanonicalPublicationRepository:
     return CanonicalPublicationRepository()
 
 
-def get_rollback_canonical_publication_use_case() -> RollbackCanonicalPublicationUseCase:
-    """Return the explicit canonical publication rollback use case."""
+def get_rollback_canonical_publication_use_case(
+    *, environment: str = "production"
+) -> RollbackCanonicalPublicationUseCase:
+    """Compose publication rollback, evidence, and required audit atomically."""
 
-    return RollbackCanonicalPublicationUseCase(get_canonical_publication_repository())
+    from core.integration.data_center_audit import (
+        get_data_publication_rollback_audit_writer,
+    )
+
+    repository = get_canonical_publication_repository()
+    audit_writer = get_data_publication_rollback_audit_writer(
+        environment=environment,
+        using="default",
+    )
+    return RollbackCanonicalPublicationUseCase(
+        repository,
+        audit_writer=audit_writer,
+        unit_of_work=DjangoDataCenterSyncUnitOfWork(
+            (repository,),
+            audit_writer,
+            using="default",
+        ),
+        clock=DjangoDataCenterSyncClock(),
+    )
 
 
 def get_akshare_module() -> Any:
@@ -592,6 +692,331 @@ def build_provider_registry_for_repo(
     """Build an isolated provider registry for an explicit repository."""
 
     return ProviderRegistry.from_repository(provider_repo)
+
+
+@dataclass(frozen=True, slots=True)
+class RepairRunAuditDependencies:
+    """Canonical identity, transaction, writer, and clock for one repair run."""
+
+    identity_issuer: SyncExecutionIdentityIssuer
+    identity_unit_of_work: DataCenterSyncUnitOfWork
+    audit_writer: DataRepairAuditWriter
+    clock: DataCenterSyncClock
+
+
+def make_repair_run_audit_dependencies(
+    *, environment: str = "production"
+) -> RepairRunAuditDependencies:
+    """Compose the durable parent identity and scoped completion writer."""
+
+    from core.integration.data_center_audit import get_data_repair_audit_writer
+
+    identity_repository = SyncExecutionIdentityRepository()
+    return RepairRunAuditDependencies(
+        identity_issuer=DjangoSyncExecutionIdentityIssuer(
+            identity_repository,
+            using="default",
+        ),
+        identity_unit_of_work=DjangoRepairRunIdentityUnitOfWork(
+            identity_repository,
+            using="default",
+        ),
+        audit_writer=get_data_repair_audit_writer(
+            environment=environment,
+            using="default",
+        ),
+        clock=DjangoDataCenterSyncClock(),
+    )
+
+
+def make_system_audited_sync_macro_use_case(
+    *,
+    provider_repository: ProviderConfigRepositoryProtocol | None = None,
+    provider_registry: ProviderRegistryProtocol | None = None,
+    environment: str = "production",
+) -> SyncMacroUseCase:
+    """Compose the canonical same-UOW macro sync writer."""
+
+    # Import at the cross-App composition boundary so importing data-center query
+    # services does not eagerly initialize the audit repository graph.
+    from core.integration.data_center_audit import (
+        get_data_reliability_audit_writers,
+    )
+
+    provider_repo = provider_repository or ProviderConfigRepository()
+    registry = provider_registry or build_provider_registry_for_repo(provider_repo)
+    macro_repo = MacroFactRepository()
+    raw_audit_repo = RawAuditRepository()
+    publication_repo = CanonicalPublicationRepository()
+    policy_repo = PublicationPolicyRepository()
+    identity_repo = SyncExecutionIdentityRepository()
+    (
+        fetch_audit_writer,
+        publication_audit_writer,
+        validation_audit_writer,
+        failover_audit_writer,
+        _decision_read_audit_writer,
+        provider_health_audit_writer,
+        _freshness_audit_writer,
+        quality_audit_writer,
+    ) = get_data_reliability_audit_writers(environment=environment, using="default")
+    identity_issuer = DjangoSyncExecutionIdentityIssuer(identity_repo, using="default")
+    sync_clock = DjangoDataCenterSyncClock()
+    quality_recorder = RecordPublicationQualityUseCase(
+        publication_reader=publication_repo,
+        quality_writer=quality_audit_writer,
+        clock=sync_clock,
+    )
+    sync_uow = DjangoDataCenterSyncUnitOfWork(
+        (
+            cast(DataCenterSyncUnitOfWorkParticipant, provider_repo),
+            macro_repo,
+            raw_audit_repo,
+            publication_repo,
+            policy_repo,
+            identity_repo,
+        ),
+        fetch_audit_writer,
+        additional_audit_writers=(
+            publication_audit_writer,
+            validation_audit_writer,
+            failover_audit_writer,
+            provider_health_audit_writer,
+            quality_audit_writer,
+        ),
+        using="default",
+    )
+    return SyncMacroUseCase(
+        provider_repo=provider_repo,
+        provider_registry=registry,
+        fact_repo=macro_repo,
+        catalog_repo=IndicatorCatalogRepository(),
+        unit_rule_repo=IndicatorUnitRuleRepository(),
+        raw_audit_repo=raw_audit_repo,
+        publication_publisher=PublishMacroBatchUseCase(
+            fact_repository=macro_repo,
+            publication_repository=publication_repo,
+            policy_repository=policy_repo,
+        ),
+        sync_identity_issuer=identity_issuer,
+        sync_unit_of_work=sync_uow,
+        data_fetch_audit_writer=fetch_audit_writer,
+        data_publication_audit_writer=publication_audit_writer,
+        publication_quality_recorder=quality_recorder,
+        data_validation_audit_writer=validation_audit_writer,
+        data_failover_audit_writer=failover_audit_writer,
+        clock=sync_clock,
+        data_provider_health_audit_writer=provider_health_audit_writer,
+    )
+
+
+def make_data_chain_replay_use_case() -> ReplayDataChainUseCase:
+    """Compose the exact system-audit and professional-evidence replay path."""
+
+    from core.integration.data_center_audit import (
+        ListCorrelatedSystemAuditEventsUseCase,
+        get_system_audit_event_repository,
+    )
+
+    return ReplayDataChainUseCase(
+        correlation_query=ListCorrelatedSystemAuditEventsUseCase(
+            get_system_audit_event_repository()
+        ),
+        raw_audit_reader=RawAuditRepository(),
+        publication_reader=CanonicalPublicationRepository(),
+        fact_evidence_reader=DjangoReplayFactEvidenceReader(),
+    )
+
+
+def make_repair_run_replay_use_case() -> ReplayRepairRunUseCase:
+    """Compose parent repair replay with exact identity and child-chain readers."""
+
+    from core.integration.data_center_audit import (
+        ListCorrelatedSystemAuditEventsUseCase,
+        get_system_audit_event_repository,
+    )
+
+    return ReplayRepairRunUseCase(
+        correlation_query=ListCorrelatedSystemAuditEventsUseCase(
+            get_system_audit_event_repository()
+        ),
+        identity_reader=SyncExecutionIdentityRepository(),
+        publication_replay=make_data_chain_replay_use_case(),
+    )
+
+
+def make_publication_decision_read_recorder(
+    *, environment: str = "production"
+) -> RecordPublicationDecisionReadUseCase:
+    """Compose the canonical publication-bound decision-read recorder."""
+
+    from core.integration.data_center_audit import (
+        get_data_reliability_audit_writers,
+    )
+
+    audit_writers = get_data_reliability_audit_writers(
+        environment=environment,
+        using="default",
+    )
+    return RecordPublicationDecisionReadUseCase(
+        writer=audit_writers[4],
+        clock=DjangoDataCenterSyncClock(),
+        freshness_writer=audit_writers[6],
+    )
+
+
+def make_system_audited_sync_price_use_case(
+    *,
+    provider_repository: ProviderConfigRepositoryProtocol | None = None,
+    provider_registry: ProviderRegistryProtocol | None = None,
+    environment: str = "production",
+) -> SyncPriceUseCase:
+    """Compose the canonical same-UOW historical-price sync writer."""
+
+    from core.integration.data_center_audit import (
+        get_data_reliability_audit_writers,
+    )
+
+    provider_repo = provider_repository or ProviderConfigRepository()
+    registry = provider_registry or build_provider_registry_for_repo(provider_repo)
+    price_repo = PriceBarRepository()
+    raw_audit_repo = RawAuditRepository()
+    publication_repo = CanonicalPublicationRepository()
+    policy_repo = PublicationPolicyRepository()
+    identity_repo = SyncExecutionIdentityRepository()
+    (
+        fetch_audit_writer,
+        publication_audit_writer,
+        _validation_audit_writer,
+        _failover_audit_writer,
+        _decision_read_audit_writer,
+        provider_health_audit_writer,
+        _freshness_audit_writer,
+        quality_audit_writer,
+    ) = get_data_reliability_audit_writers(environment=environment, using="default")
+    identity_issuer = DjangoSyncExecutionIdentityIssuer(identity_repo, using="default")
+    sync_clock = DjangoDataCenterSyncClock()
+    quality_recorder = RecordPublicationQualityUseCase(
+        publication_reader=publication_repo,
+        quality_writer=quality_audit_writer,
+        clock=sync_clock,
+    )
+    sync_uow = DjangoDataCenterSyncUnitOfWork(
+        (
+            cast(DataCenterSyncUnitOfWorkParticipant, provider_repo),
+            price_repo,
+            raw_audit_repo,
+            publication_repo,
+            policy_repo,
+            identity_repo,
+        ),
+        fetch_audit_writer,
+        additional_audit_writers=(
+            publication_audit_writer,
+            provider_health_audit_writer,
+            quality_audit_writer,
+        ),
+        using="default",
+    )
+    return SyncPriceUseCase(
+        provider_repo=provider_repo,
+        provider_registry=registry,
+        fact_repo=price_repo,
+        raw_audit_repo=raw_audit_repo,
+        publication_publisher=PublishPriceBarBatchUseCase(
+            fact_repository=price_repo,
+            publication_repository=publication_repo,
+            policy_repository=policy_repo,
+        ),
+        sync_identity_issuer=identity_issuer,
+        sync_unit_of_work=sync_uow,
+        data_fetch_audit_writer=fetch_audit_writer,
+        data_publication_audit_writer=publication_audit_writer,
+        publication_quality_recorder=quality_recorder,
+        clock=sync_clock,
+        data_provider_health_audit_writer=provider_health_audit_writer,
+    )
+
+
+def make_system_audited_sync_quote_use_case(
+    *,
+    provider_repository: ProviderConfigRepositoryProtocol | None = None,
+    provider_registry: ProviderRegistryProtocol | None = None,
+    environment: str = "production",
+) -> SyncQuoteUseCase:
+    """Compose the canonical same-UOW realtime-quote sync writer."""
+
+    from core.integration.data_center_audit import (
+        get_data_reliability_audit_writers,
+    )
+
+    provider_repo = provider_repository or ProviderConfigRepository()
+    registry = provider_registry or build_provider_registry_for_repo(provider_repo)
+    quote_repo = QuoteSnapshotRepository()
+    raw_audit_repo = RawAuditRepository()
+    publication_repo = CanonicalPublicationRepository()
+    policy_repo = PublicationPolicyRepository()
+    identity_repo = SyncExecutionIdentityRepository()
+    (
+        fetch_audit_writer,
+        publication_audit_writer,
+        _validation_audit_writer,
+        _failover_audit_writer,
+        _decision_read_audit_writer,
+        provider_health_audit_writer,
+        _freshness_audit_writer,
+        quality_audit_writer,
+    ) = get_data_reliability_audit_writers(environment=environment, using="default")
+    identity_issuer = DjangoSyncExecutionIdentityIssuer(identity_repo, using="default")
+    sync_clock = DjangoDataCenterSyncClock()
+    quality_recorder = RecordPublicationQualityUseCase(
+        publication_reader=publication_repo,
+        quality_writer=quality_audit_writer,
+        clock=sync_clock,
+    )
+    sync_uow = DjangoDataCenterSyncUnitOfWork(
+        (
+            cast(DataCenterSyncUnitOfWorkParticipant, provider_repo),
+            quote_repo,
+            raw_audit_repo,
+            publication_repo,
+            policy_repo,
+            identity_repo,
+        ),
+        fetch_audit_writer,
+        additional_audit_writers=(
+            publication_audit_writer,
+            provider_health_audit_writer,
+            quality_audit_writer,
+        ),
+        using="default",
+    )
+    return SyncQuoteUseCase(
+        provider_repo=provider_repo,
+        provider_registry=registry,
+        fact_repo=quote_repo,
+        raw_audit_repo=raw_audit_repo,
+        publication_publisher=PublishQuoteSnapshotBatchUseCase(
+            fact_repository=quote_repo,
+            publication_repository=publication_repo,
+            policy_repository=policy_repo,
+        ),
+        sync_identity_issuer=identity_issuer,
+        sync_unit_of_work=sync_uow,
+        data_fetch_audit_writer=fetch_audit_writer,
+        data_publication_audit_writer=publication_audit_writer,
+        publication_quality_recorder=quality_recorder,
+        clock=sync_clock,
+        data_provider_health_audit_writer=provider_health_audit_writer,
+    )
+
+
+def make_macro_failover_policy_provider(
+    *, environment: str = "production"
+) -> MacroFailoverPolicyProvider:
+    """Compose the runtime-backed macro failover policy provider."""
+
+    return ConfigCenterMacroFailoverPolicyProvider(environment=environment)
 
 
 def build_tushare_client(*, token: str | None = None, http_url: str | None = None) -> object:

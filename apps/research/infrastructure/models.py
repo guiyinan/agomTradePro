@@ -177,6 +177,7 @@ from apps.research.infrastructure.evidence_models import (  # noqa: E402,F401
     EvidenceEnvelopeModel,
     EvidenceOperatorSpecModel,
     EvidenceScopeSourceV1Model,
+    EvidenceScopeSourceV1ObservationModel,
     EvidenceTrackRecordModel,
 )
 from apps.research.infrastructure.evidence_operator_spec_lifecycle_models import (  # noqa: E402,F401

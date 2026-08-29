@@ -196,14 +196,65 @@ def _validated_archive_name(remote_path: str) -> str:
     return name
 
 
+def _remote_latest_backup_script(
+    remote_backup_dir: str,
+    prune_older_than_days: int,
+) -> str:
+    """Build a latest-download script without remote filesystem writes."""
+    backup_dir = shlex.quote(remote_backup_dir)
+    prune = ""
+    if prune_older_than_days > 0:
+        prune = f"""if [ {prune_older_than_days} -gt 0 ]; then
+  find "$database_dir" -maxdepth 1 -type f -name 'postgres-*.dump' \\
+    -mtime +{prune_older_than_days} ! -path "$archive" -delete
+fi
+"""
+    return f"""set -euo pipefail
+umask 077
+backup_root={backup_dir}
+database_dir="$backup_root/database"
+[ -d "$database_dir" ] || {{ echo 'PostgreSQL backup directory is missing' >&2; exit 30; }}
+
+postgres_cid=$(docker ps \\
+  --filter label=com.docker.compose.project=agomtradepro \\
+  --filter label=com.docker.compose.service=postgres \\
+  --format '{{{{.ID}}}}' | head -n 1)
+[ -n "$postgres_cid" ] || {{ echo 'PostgreSQL container is not running' >&2; exit 31; }}
+
+archive=$(find "$database_dir" -maxdepth 1 -type f -name 'postgres-*.dump' \\
+  -printf '%T@ %p\\n' | sort -rn | head -n 1 | cut -d ' ' -f 2-)
+[ -n "$archive" ] || {{ echo 'No PostgreSQL backup was found' >&2; exit 33; }}
+docker exec -i "$postgres_cid" sh -lc 'exec pg_restore --list' \\
+  < "$archive" > /dev/null
+
+{prune}
+checksum=$(sha256sum "$archive" | awk '{{print $1}}')
+size=$(stat -c '%s' "$archive")
+mtime_epoch=$(stat -c '%Y' "$archive")
+collected_epoch=$(date -u +%s)
+manifest=$(docker exec -i "$postgres_cid" sh -lc 'exec pg_restore --list' < "$archive")
+manifest_sha256=$(printf '%s\\n' "$manifest" | sha256sum | awk '{{print $1}}')
+manifest_entries=$(printf '%s\\n' "$manifest" | sed '/^[[:space:]]*$/d' | wc -l | tr -d ' ')
+printf 'AGOM_BACKUP_PATH=%s\\n' "$archive"
+printf 'AGOM_BACKUP_SHA256=%s\\n' "$checksum"
+printf 'AGOM_BACKUP_SIZE=%s\\n' "$size"
+printf 'AGOM_BACKUP_MTIME_EPOCH=%s\\n' "$mtime_epoch"
+printf 'AGOM_BACKUP_COLLECTED_EPOCH=%s\\n' "$collected_epoch"
+printf 'AGOM_BACKUP_MANIFEST_SHA256=%s\\n' "$manifest_sha256"
+printf 'AGOM_BACKUP_MANIFEST_ENTRIES=%s\\n' "$manifest_entries"
+"""
+
+
 def _remote_backup_script(
     remote_backup_dir: str,
     download_latest: bool,
     prune_older_than_days: int,
 ) -> str:
     """Build the guarded remote backup and validation script."""
+    if download_latest:
+        return _remote_latest_backup_script(remote_backup_dir, prune_older_than_days)
     backup_dir = shlex.quote(remote_backup_dir)
-    mode = "latest" if download_latest else "create"
+    mode = "create"
     return f"""set -euo pipefail
 umask 077
 backup_root={backup_dir}

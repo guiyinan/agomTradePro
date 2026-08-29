@@ -135,6 +135,12 @@ class ProviderBindingRepository:
 class PublicationPolicyRepository:
     """Repository for active dataset publication policies."""
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the fixed transaction identity used by this repository."""
+
+        return "django:default"
+
     def list_active(self, dataset_key: str | None = None) -> list[PublicationPolicy]:
         """Return active policies in deterministic dataset order."""
 

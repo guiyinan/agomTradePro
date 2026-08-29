@@ -1,0 +1,81 @@
+{
+  "schema": "tar01-public-audit-health-readonly.v1",
+  "artifact_type": "audit_health_readonly_observation",
+  "environment": "production-vps",
+  "base_url": "https://demo.agomtrade.pro",
+  "collected_at": "2026-08-23T10:44:44.923214+00:00",
+  "method": "GET",
+  "path": "/api/audit/health/",
+  "write_scope": {
+    "production_write": false,
+    "database_mutation": false,
+    "deployment": false,
+    "approval_or_activation": false
+  },
+  "http": {
+    "status_code": 200,
+    "body_sha256": "db83db31700811c465d9b7ef76918aae5ef7e8f5c6a686f474e183a6c0cb8d83"
+  },
+  "response": {
+    "overall_status": "OK",
+    "checks": [
+      {
+        "component": "audit_failure_counter",
+        "status": "OK",
+        "message": "No audit failures recorded",
+        "details": {
+          "total_failures": 0,
+          "by_component": {},
+          "warning_threshold": 10,
+          "error_threshold": 50
+        },
+        "checked_at": "2026-08-23T10:44:44.865920+00:00"
+      },
+      {
+        "component": "audit_database_connection",
+        "status": "OK",
+        "message": "Database connection is healthy",
+        "details": {"probe": "passed"},
+        "checked_at": "2026-08-23T10:44:44.886306+00:00"
+      },
+      {
+        "component": "audit_tables_accessible",
+        "status": "OK",
+        "message": "Audit tables are accessible",
+        "details": {"probe": "passed"},
+        "checked_at": "2026-08-23T10:44:44.896610+00:00"
+      },
+      {
+        "component": "audit_outbox_backlog",
+        "status": "OK",
+        "message": "Audit outbox backlog is healthy",
+        "details": {
+          "as_of": "2026-08-23T10:44:44.896639+00:00",
+          "pending_count": 0,
+          "due_pending_count": 0,
+          "claimed_count": 0,
+          "expired_claimed_count": 0,
+          "failed_count": 0,
+          "delivered_count": 0,
+          "oldest_backlog_age_seconds": null,
+          "oldest_claimed_age_seconds": null
+        },
+        "checked_at": "2026-08-23T10:44:44.896639+00:00"
+      }
+    ],
+    "metrics": {
+      "available": true,
+      "total_operation_logs": 555,
+      "total_failures": 0,
+      "failure_rate": 0.0,
+      "failures_by_component": {}
+    },
+    "generated_at": "2026-08-23T10:44:44.923214+00:00"
+  },
+  "interpretation": {
+    "audit_subsystem_healthy": true,
+    "decision_gate_changed": false,
+    "production_acceptance": false,
+    "reason": "The persisted decision runtime blocker remains fail-closed; this health observation does not prove a durable publisher, authenticated authority, or final-acceptance receipt."
+  }
+}

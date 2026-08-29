@@ -6,27 +6,13 @@ from typing import Any
 
 RUNTIME_USER_ACCESS_GOVERNANCE_SCREEN: dict[str, Any] = {
     "key": "identity-access.user-governance",
-    "label": "用户准入治理",
-    "module_key": "system-governance",
-    "group": "system",
-    "summary": "管理员筛选待处理用户，并完成批准、拒绝、状态重置和角色调整。",
-    "view_type": "datagrid",
-    "audience": "admin",
     "dashboard_layout": "task_flow",
-    "default_action_key": "identity-access.user-list",
-    "user_experience": {
-        "journey": "admin",
-        "primary_task": "处理待审批用户并维护其系统角色。",
-        "primary_outcome": "所有待处理用户都有明确准入结论，已准入用户拥有正确角色。",
-        "empty_state_hint": "先查看全部用户；若没有待审批项，再按用户名或邮箱搜索目标用户。",
-        "next_step_hint": "准入完成后进入 MCP 用户接入治理，按需发放或回收接入令牌。",
-    },
     "workflow": {
         "name": "身份与接入治理",
         "label": "用户准入",
         "role": "先决定用户是否可以进入系统，再分配最小必要角色。",
         "previous": {},
-        "next": {"key": "capability-router.admin-access", "label": "MCP 用户接入治理"},
+        "next": {"key": "capability-router.admin-access", "label": "MCP 用户与令牌"},
     },
     "business_context": {
         "objective": "把用户审批和角色分配收敛为可复核的管理员任务。",

@@ -1,14 +1,14 @@
 {
-  "version": "2026-08-22.v2",
-  "updated_at": "2026-08-22",
+  "version": "2026-08-28.v4",
+  "updated_at": "2026-08-28",
   "execution_focus": {
-    "unit_id": "EVID-01",
+    "unit_id": null,
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Only EVID-01 may expand repository scope. In parallel, TUI-01, TAR-05 and other declared production/external/governance units may complete safe auto_collect work; deployments, production writes, paid calls and human decisions still require their recorded authorization boundary."
+    "policy": "No repository unit is currently dependency-ready. AUD-02's corrective exit delayed On-Demand sync composition until actual hydration, explicitly completed the Account test runtime profile, and passed all 298 registered current-data nodeids plus the original Audit/Data Center gates without weakening production fail-closed behavior. AUD-03 returns to awaiting production. EVID-03 remains waiting on EVID-01 and EVID-02, so it must not be activated. Declared production/external/governance units may continue only their non-duplicative safe auto_collect work; deployments, production writes, paid calls and human decisions still require their recorded authorization boundary."
   },
   "workstreams": [
     {
@@ -17,8 +17,8 @@
       "category": "strategy_research_and_evidence",
       "priority": "P0",
       "owner": "research+risk_center+portfolio+broker_execution+account",
-      "status": "active",
-      "next_gate": "EVID-01 is the repository execution focus: close authenticated owner/user/tenant authority and production composition while preserving the global execution deny; EVID-02 continues its declared safe auto_collect evidence lane in parallel.",
+      "status": "production_validation",
+      "next_gate": "EVID-01 repository contracts have no remaining safe code slice and are now in production validation. Migration 0055 and Research 0029 are applied on the controlled candidate 94abd76e46eeef4a8e21853799c7d69bcd9bbe3b / release 20260824133504, but all 13 authority/evidence ledgers remain zero-seed. Preserve the global execution deny; next collect a real independent root approval, then prove production PostgreSQL first-winner/successor/revocation/rollback, same-alias end-to-end receipts and owner/reviewer sign-off. Do not repeat deployment or derive tenant/owner from mutable User/Profile/session state.",
       "documents": [
         {
           "path": "docs/plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md",
@@ -130,8 +130,8 @@
       "category": "data_and_production_reliability",
       "priority": "P0/P1",
       "owner": "audit+data_center+task_monitor",
-      "status": "active",
-      "next_gate": "Repository expansion is paused behind the EVID-01 execution focus; preserve the current fail-closed publisher and authority boundaries while collecting only read-only backlog and health evidence.",
+      "status": "production_validation",
+      "next_gate": "AUD-01 and the corrective AUD-02 repository exit are complete. AUD-03 must bind production migration/rollback, PostgreSQL opt-in, backlog recovery, bounded metrics, alerts, admin TUI, archive/restore and owner/reviewer sign-off to one immutable deployed candidate; only its declared non-duplicative read-only auto_collect work is automatic.",
       "documents": [
         {
           "path": "docs/plans/system-audit-log-consolidation-plan-2026-08-13.md",
@@ -261,8 +261,8 @@
       "category": "product_interface_and_runtime",
       "priority": "P1",
       "owner": "terminal",
-      "status": "active",
-      "next_gate": "TUX-01 metadata-load fallback is complete; repository expansion is paused behind EVID-01. TUX-02/TUX-04 may resume only after the current repository focus advances and without disturbing the M5 candidate evidence line.",
+      "status": "production_validation",
+      "next_gate": "TUX-01 through TUX-05 repository exit gates are complete with machine guards and eight-screen browser evidence. Production candidate binding, role UAT and observation remain owned by TUI-01/TUI-02 and were not advanced or rebound by this repository workstream.",
       "documents": [
         {
           "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
@@ -273,7 +273,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-08-22.v2",
+    "version": "2026-08-28.v4",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -356,7 +356,7 @@
       {
         "id": 1,
         "title": "Decision safety, audit and urgent runtime isolation",
-        "rule": "Run one major repository line at a time; TAR-03 is now the bounded P0 repository priority after TAR-02 completion. Declared production auto-collection continues in parallel without weakening Evidence or Audit gates."
+        "rule": "Run one major repository line at a time; EVID-01 is the current bounded P0 repository priority. TAR-01 through TAR-04 repository contracts are complete; declared production auto-collection continues in parallel without weakening Evidence or Audit gates."
       },
       {
         "id": 2,
@@ -396,11 +396,23 @@
         "workstream_id": "evidence-hard-gate",
         "wave": 1,
         "priority": "P0",
-        "execution_mode": "repository",
-        "status": "active",
+        "execution_mode": "production",
+        "status": "awaiting_production",
         "title": "Close owner-scoped Evidence authority and production composition",
         "depends_on": [],
-        "exit_gate": "Exact user, tenant and owner authority is mandatory and fail-closed at every production Evidence read and approval composition boundary."
+        "exit_gate": "Exact user, tenant and owner authority is mandatory and fail-closed at every production Evidence read and approval composition boundary.",
+        "evidence_collection": {
+          "auto_collect": [
+            "Revalidate the deployed candidate, migration state and all canonical owner, tenant, authority and Evidence ledgers using read-only candidate-bound probes.",
+            "Run deterministic exact-current composition and PostgreSQL acceptance reports after an authorized authority fixture exists, preserving source timestamps and report hashes."
+          ],
+          "authorization_required": [
+            "Create, supersede or revoke a real production owner/tenant authority root or execute any production database write used by the acceptance harness."
+          ],
+          "human_or_external_required": [
+            "An independent authorized owner or admin approves the real root, and owner/reviewer sign the production acceptance package."
+          ]
+        }
       },
       {
         "id": "EVID-02",
@@ -445,7 +457,7 @@
         "wave": 1,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "completed",
         "title": "Assemble the canonical audit publisher, runtime and authority source",
         "depends_on": [],
         "exit_gate": "The fail-closed dispatcher uses one production publisher and authenticated scoped authority composition with no memory or generic-event fallback."
@@ -456,7 +468,7 @@
         "wave": 1,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "waiting_dependency",
+        "status": "completed",
         "title": "Wire Data Center fetch events in the same unit of work",
         "depends_on": [
           "AUD-01"
@@ -469,7 +481,7 @@
         "wave": 2,
         "priority": "P0/P1",
         "execution_mode": "production",
-        "status": "waiting_dependency",
+        "status": "awaiting_production",
         "title": "Complete production audit migration and operational acceptance",
         "depends_on": [
           "AUD-02"
@@ -849,7 +861,7 @@
         "wave": 5,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "completed",
         "title": "Consolidate the triple copy sources into the published flow",
         "depends_on": [],
         "exit_gate": "Dead Python screen patches are removed, the eight drifted dual-writes are reconciled, runtime screen copy moves under publish/review, and a machine check proves published JSON, IA registry and runtime loading agree."
@@ -860,12 +872,12 @@
         "wave": 5,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "waiting_dependency",
+        "status": "completed",
         "title": "Split auto-promoted actions and rewrite user-facing action copy",
         "depends_on": [
           "TUX-02"
         ],
-        "exit_gate": "All 430 actions pass the copy machine check with no route keys, machine-translated fragments or boilerplate descriptions, and every screen is back within its action-density budget."
+        "exit_gate": "The full 430-action baseline is accounted for (413 retained and 17 redundant registrations retired); retained actions pass the copy machine check with no exposed route keys, machine-translated fragments, boilerplate descriptions or duplicate labels, every published screen is within its action-density budget, and ordinary-role browser evidence proves referenced primary tasks remain reachable."
       },
       {
         "id": "TUX-04",
@@ -873,7 +885,7 @@
         "wave": 5,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "completed",
         "title": "Restructure IA groups, disambiguate entries and complete runtime screen contracts",
         "depends_on": [],
         "exit_gate": "The research-tools catch-all group is reorganized, confusing entry pairs are renamed, terminology is unified, all 12 runtime screens carry full metadata contracts, and ordinary-role walkthrough hits no admin-only target."
@@ -884,7 +896,7 @@
         "wave": 5,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "waiting_dependency",
+        "status": "completed",
         "title": "Close layout, field-name translation and freshness-presentation defects",
         "depends_on": [
           "TUX-03",

@@ -25,6 +25,7 @@ from apps.ai_provider.application.query_services import (
     list_supported_models,
 )
 
+from ..application.agent_authority import AGENT_AUTHORITY_NOT_WIRED
 from ..application.dtos import (
     ExecuteChainRequest,
     ExecutePromptRequest,
@@ -432,7 +433,13 @@ class AgentExecuteView(APIView):
 
             resp_serializer = AgentExecuteResponseSerializer(response_data)
             http_status = (
-                status.HTTP_200_OK if response.success else status.HTTP_422_UNPROCESSABLE_ENTITY
+                status.HTTP_200_OK
+                if response.success
+                else (
+                    status.HTTP_503_SERVICE_UNAVAILABLE
+                    if response.error_message == AGENT_AUTHORITY_NOT_WIRED
+                    else status.HTTP_422_UNPROCESSABLE_ENTITY
+                )
             )
             return Response(resp_serializer.data, status=http_status)
 

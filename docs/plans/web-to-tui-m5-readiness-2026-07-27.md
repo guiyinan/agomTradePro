@@ -702,3 +702,39 @@ which remains `f3881a04...` / `20260820043710`. The M5-A/TUI-01 gate still requi
 receipt/refresh evidence, 14-day telemetry, registry backup/restore, live rollback,
 owner/reviewer approval and the remaining external/capacity dependencies. Those requirements
 remain `DENY`/`awaiting` rather than being inferred from this short browser window.
+
+### 2026-08-20 21:15 当前候选部署复核
+
+候选 `dev/next-development@2f4554b5192191970a3ccbc98420388881725079` 的 code-only
+deployment preflight 为 `docs/deployment/web-to-tui-deployment-preflight-20260820211526.json`，
+SHA-256 `637f646d92e646fb8d27e444bda4b967c109b8350fda26be50603afaadb39223`；记录的 release 为
+`20260820211526`，OCI image 为
+`sha256:74d094b6e606ee79a6e73ffd49364a3787c611511432d5194dc9902b2ec17696`，health/readiness
+只读探测均为 `200`。该记录补齐 cutover evidence 中已有候选的 deployment 身份，不能被
+解释成新的部署或 M5 关闭授权。
+
+完整 candidate binding 为 `web-to-tui-candidate-binding.v1`：candidate version
+`20260820211526`、candidate commit `2f4554b5192191970a3ccbc98420388881725079`、matrix
+`bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`、graph
+`5a2234c84d4156001a8bde73a7fe9a5c86534b77a6e87da68764043b55d7b597`、schema
+`tui-metadata.v3`、runtime `0.2.0`、build `agomtui-runtime-0.2.0+7bc2ca13ee9d`、manifest
+`7da3c92633c8f71767687a7fe4b67fed5b8f4445a6c60106dc5a43f3c1771165`。
+
+本节只修复候选身份在 readiness 文档中的证据链，不新增角色化浏览器 UAT、写后
+receipt/refresh、14 日 telemetry、registry backup/restore、rollback 或 owner/reviewer
+双签；当前 M5 readiness 仍为 `DENY`，不得执行 cleanup 或 cutover。
+
+### 2026-08-24 当前机器 readiness 只读快照
+
+重新运行 `python scripts/check_web_to_tui_cutover_readiness.py --json`，结果仍为
+`decision=DENY`（`as_of=2026-08-24`）。source consistency 与 execution dependency 通过；
+stable candidate/version window、`108` 路由/任务 UAT、cleanup scope、`101` 项 production
+telemetry、rollback drill、production registry backup 以及 owner/reviewer attestations
+均明确未通过。原始机器快照为
+[`web-to-tui-readiness-observation-2026-08-24.json`](../deployment/web-to-tui-readiness-observation-2026-08-24.json)，
+SHA-256=`f60e19b683f7f31d900dd1964403d8bbd162f27398991757878b8b319dd037b5`。
+
+这是只读仓库 gate 的当前事实，不是生产 UAT 或候选重绑：没有部署 VPS、没有创建备份、
+没有执行 cleanup/rollback、没有写生产或调整 M5 gate；`TUI-01` 继续 `awaiting_production`，
+`TUX-02`/`TUX-04` 继续按 registry 暂停，B/S、CLI/API 仍只向服务器提交请求，用户不安装
+本地 Agent、模型或 provider 软件。

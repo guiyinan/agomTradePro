@@ -1,0 +1,189 @@
+{
+  "schema": "tux03-repository-closure-evidence.v1",
+  "unit_id": "TUX-03",
+  "observed_at": "2026-08-27T19:19:01.8937340Z",
+  "execution_mode": "repository",
+  "branch": "dev/next-development",
+  "source_commit": "a33c42f5c1b97c150c0d8ecb6bd44d67fe99df31",
+  "implementation_commits": [
+    "17cfbd4f7c7ce68fbb2c75f1ba00992022304ae8",
+    "a33c42f5c1b97c150c0d8ecb6bd44d67fe99df31"
+  ],
+  "acceptance_candidate": "The density, browser-reachability, evidence and governance changes are finalized by the commit containing this artifact, based on source_commit.",
+  "source_hashes": {
+    "config/tui/ia/tui_information_architecture.v1.json": "93758752eee7774a314784c956e32c29f470a574b0c1992367697ecb45f4cc8d",
+    "config/tui/published/tui_operation_graph.published.json": "34c7aa9f0e088fd22a7504517c8096ff7209f02e755136830944a9b637ba0c7a",
+    "config/tui/agomtui-runtime.manifest.json": "bf615ba4b4b85cff1d5c3bc0e95357559d876688e05f640482e133a602dc52fd",
+    "frontend/tui-workbench/src/20-dashboard.js": "47f36863a3880ac28ee48106ba43d73bd9eb6ed53148fe463e7080864f9c493f",
+    "frontend/tui-workbench/src/30-actions.js": "7dab8c1f4afa90d4525813daadcbad7002640ba06fe550bbc812f32acb56b2bc",
+    "static/js/tui-workbench.js": "dda05d2c5cc7e85fd5c01aa2dcacbdcf85e24c904aeadceb83eada13fdb6c94a"
+  },
+  "exit_gate": {
+    "outcome": "passed",
+    "action_inventory": {
+      "baseline_published_actions": 430,
+      "retired_redundant_actions": 17,
+      "accepted_published_actions": 413,
+      "accepted_runtime_actions": 871,
+      "route_derived_actions_audited": 338
+    },
+    "copy_and_reference_contract": {
+      "passed": true,
+      "exposed_route_actions": 0,
+      "boilerplate_descriptions": 0,
+      "machine_copy_actions": 0,
+      "published_duplicate_label_groups": 0,
+      "runtime_duplicate_label_groups": 0,
+      "route_default_references": 0,
+      "route_panel_references": 0
+    },
+    "action_density_contract": {
+      "passed": true,
+      "published_screens_checked": 12,
+      "over_budget_screens": 0,
+      "over_budget_task_groups": 0,
+      "runtime_density_demoted_actions": 143,
+      "runtime_only_screens_mutated": false,
+      "non_task_tier_action_fields_mutated": false,
+      "normalization_idempotent": true,
+      "protected_overflow_behavior": "default and panel references stay visible; an impossible protected-only budget remains a machine-reported failure instead of silently demoting the references"
+    },
+    "published_validation": {
+      "passed": true,
+      "normalized_screens": 24,
+      "normalized_actions": 871,
+      "canonical_sha256": "a55970aed3f607c2fa5faa00e500fd627261b24d0392d770ded77a5b063b0131"
+    },
+    "ordinary_role_walkthrough": {
+      "passed": true,
+      "settings": "core.settings.playwright",
+      "database": "disposable isolated SQLite",
+      "actor": "non-staff, non-superuser local fixture",
+      "visible_screen_count": 15,
+      "verified_destinations": [
+        "command-center.overview",
+        "execution.accounts",
+        "research.signals",
+        "execution.audit",
+        "ai-ops.providers",
+        "command-center.decision-flow",
+        "research.asset-lab"
+      ],
+      "primary_tasks_seen_first_screen": [
+        "创建投资账户",
+        "我的投资账户",
+        "活跃信号与证伪条件",
+        "审计健康",
+        "我的 AI 服务商",
+        "行动建议",
+        "回测统计"
+      ],
+      "advanced_panel_action_reachable": true,
+      "advanced_panel_action": "simulated-trading.account-create",
+      "advanced_panel_form_visible_and_focused": true,
+      "write_request_sent_before_form_submit": false,
+      "final_page_console_errors": 0,
+      "final_page_failed_requests": 0,
+      "local_artifact_directory": "output/playwright/tux03-density-20260828"
+    },
+    "frontend_reachability_contract": {
+      "passed": true,
+      "advanced_write_panel_reveals_form_without_request": true,
+      "required_read_panel_reveals_form_without_empty_request": true,
+      "dashboard_row_write_reveals_and_prefills_form": true
+    }
+  },
+  "validation": [
+    {
+      "command": "npm run build:tui && npm run check:tui",
+      "outcome": "passed"
+    },
+    {
+      "command": "npm run test:tui-js",
+      "outcome": "passed",
+      "passed": 37
+    },
+    {
+      "command": "pytest tests/unit/test_tui_metadata_compiler.py tests/unit/test_tui_metadata_source_consistency.py tests/unit/test_tui_action_copy_and_density.py tests/unit/terminal/test_tui_information_architecture.py tests/unit/test_tui_operator_services.py tests/unit/test_tui_metadata_patch_boundary.py -q",
+      "outcome": "passed",
+      "passed": 125,
+      "duration_seconds": 34.86
+    },
+    {
+      "command": "python scripts/check_tui_action_copy_and_density.py",
+      "outcome": "passed",
+      "published_screens": 12,
+      "published_actions": 413,
+      "runtime_actions": 871,
+      "violations": 0
+    },
+    {
+      "command": "python scripts/check_tui_metadata_source_consistency.py",
+      "outcome": "passed",
+      "published_screens": 12,
+      "runtime_screens": 24,
+      "published_actions": 413,
+      "runtime_actions": 871,
+      "violations": 0
+    },
+    {
+      "command": "pytest tests/unit/test_tui_workbench.py -q",
+      "outcome": "passed",
+      "passed": 258,
+      "duration_seconds": 337.67
+    },
+    {
+      "command": "pytest tests/unit/test_terminal_agent_service.py -q",
+      "outcome": "passed",
+      "passed": 20
+    },
+    {
+      "command": "python scripts/check_tui_static_contracts.py",
+      "outcome": "passed",
+      "rules": 407,
+      "sources": 5
+    },
+    {
+      "command": "python scripts/web_template_migration_inventory.py --check",
+      "outcome": "passed",
+      "templates": 196,
+      "route_pages": 117
+    },
+    {
+      "command": "python scripts/check_mypy_regression.py apps/terminal/infrastructure/tui_metadata_repository.py apps/terminal/infrastructure/tui_metadata_runtime_injection_simulated_trading.py",
+      "outcome": "passed",
+      "regressions": 0,
+      "legacy_errors": 0
+    },
+    {
+      "command": "python scripts/check_mypy_debt_ceiling.py",
+      "outcome": "passed",
+      "errors": 0
+    },
+    {
+      "command": "Black, isort, Ruff and git diff --check over changed files",
+      "outcome": "passed"
+    }
+  ],
+  "review": {
+    "sol_decision": "passed",
+    "luna_read_only_review": {
+      "density_boundary": "No P0/P1 remained after explicit protected-overflow fail-closed coverage.",
+      "browser_reachability": "No P0/P1 remained after advanced-write and required-read panel actions were both required to reveal and focus a form without issuing a request.",
+      "edits_performed": false
+    }
+  },
+  "limitations": [
+    "The walkthrough used a disposable local SQLite database and is repository acceptance, not production role UAT.",
+    "Concurrent home-dashboard reads in the disposable SQLite environment produced a traceable 503/database-locked recovery state. Representative TUX-03 screens and the account-create panel were then verified successfully; this local concurrency result is not treated as production reliability evidence.",
+    "The walkthrough still showed untranslated/internal field presentation and the broker-order catalog placeholder. These are recorded TUX-05 scope and were not hidden or counted as TUX-03 closure.",
+    "The published graph, runtime manifest and workbench bundle hashes changed. This evidence does not deploy or rebind the frozen Web-to-TUI M5 candidate; that remains a separately authorized TUI-01/TUI-02 decision."
+  ],
+  "production_actions": {
+    "deployment_performed": false,
+    "production_write_performed": false,
+    "external_call_performed": false,
+    "m5_candidate_rebound": false
+  },
+  "next_repository_unit": "TUX-05"
+}

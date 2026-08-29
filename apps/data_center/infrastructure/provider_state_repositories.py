@@ -25,6 +25,12 @@ class ProviderConfigRepository:
     def __init__(self) -> None:
         self._credentials = ProviderCredentialStore()
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the fixed transaction identity used by this repository."""
+
+        return "django:default"
+
     def _to_domain(self, model: ProviderConfigModel) -> ProviderConfig:
         """Resolve secrets through the encrypted credential owner."""
 
@@ -143,6 +149,12 @@ class ProductionCoverageUniverseConfigRepository:
 class RawAuditRepository:
     """ORM-backed repository for the raw fetch audit log."""
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the fixed transaction identity used by this repository."""
+
+        return "django:default"
+
     @staticmethod
     def _from_model(m: RawAuditModel) -> RawAudit:
         return RawAudit(
@@ -169,6 +181,8 @@ class RawAuditRepository:
         )
 
     def log(self, audit: RawAudit) -> RawAudit:
+        """Persist one canonicalized raw-fetch audit record."""
+
         content_hash = raw_audit_content_hash(audit)
         if audit.content_hash and audit.content_hash != content_hash:
             raise ValueError("RawAudit.content_hash does not match canonical audit content")
@@ -196,6 +210,19 @@ class RawAuditRepository:
             content_hash=content_hash,
         )
         return self._from_model(m)
+
+    def get_by_id(self, raw_audit_id: str) -> RawAudit | None:
+        """Return one exact raw-audit row without selector substitution."""
+
+        if (
+            not isinstance(raw_audit_id, str)
+            or not raw_audit_id.isascii()
+            or not raw_audit_id.isdecimal()
+            or int(raw_audit_id) <= 0
+        ):
+            return None
+        model = RawAuditModel.objects.filter(pk=int(raw_audit_id)).first()
+        return self._from_model(model) if model is not None else None
 
     def get_recent(
         self,

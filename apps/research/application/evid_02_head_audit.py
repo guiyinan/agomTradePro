@@ -22,7 +22,10 @@ EVID_02_HEAD_AUDIT_INPUT_FORMAT: Final[str] = "evid-02-head-audit-snapshot.v1"
 EVID_02_HEAD_AUDIT_REPORT_FORMAT: Final[str] = "evid-02-head-audit-report.v1"
 EVID_02_HEAD_AUDIT_SOURCE_KIND: Final[str] = "readonly_ledger_snapshot"
 EVID_02_HEAD_AUDIT_LEDGER_KINDS: Final[tuple[str, ...]] = ("approval", "activation")
+EVID_02_SELECT_ONLY_SNAPSHOT_FORMAT: Final[str] = "evid-02-select-only-ledger-snapshot.v1"
+EVID_02_SELECT_ONLY_READ_MODE: Final[str] = "select_only"
 _TOKEN_RE: Final[re.Pattern[str]] = re.compile(r"^[A-Za-z0-9_.:-]{1,256}$")
+_COMMIT_RE: Final[re.Pattern[str]] = re.compile(r"^[0-9a-f]{40}$")
 _SHA256_RE: Final[re.Pattern[str]] = re.compile(r"^[0-9a-f]{64}$")
 _UTC_TEXT_RE: Final[re.Pattern[str]] = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$")
 _MAX_PAYLOAD_BYTES: Final[int] = 2 * 1024 * 1024
@@ -49,6 +52,50 @@ class Evid02HeadAuditStatus(StrEnum):
     OK = "ok"
     EMPTY = "empty"
     CORRUPT = "corrupt"
+
+
+@dataclass(frozen=True, slots=True)
+class Evid02SelectOnlyCapture:
+    """Provenance bound to one externally captured SELECT-only snapshot."""
+
+    environment: str
+    database_alias: str
+    candidate_commit: str
+    candidate_release: str
+    query_digest: str
+    read_mode: str = EVID_02_SELECT_ONLY_READ_MODE
+
+    def __post_init__(self) -> None:
+        if type(self.environment) is not str or self.environment not in {
+            "production",
+            "staging",
+            "local_disposable",
+        }:
+            raise Evid02HeadAuditError("capture environment is unsupported")
+        _token(self.database_alias, "database_alias")
+        if (
+            type(self.candidate_commit) is not str
+            or _COMMIT_RE.fullmatch(self.candidate_commit) is None
+        ):
+            raise Evid02HeadAuditError("candidate_commit must be a lowercase git SHA-1")
+        _token(self.candidate_release, "candidate_release")
+        _sha256(self.query_digest, "query_digest")
+        if self.read_mode != EVID_02_SELECT_ONLY_READ_MODE:
+            raise Evid02HeadAuditError("capture read_mode must be select_only")
+
+
+@dataclass(frozen=True, slots=True)
+class Evid02SelectOnlySnapshot:
+    """Canonicalized snapshot plus non-production capture provenance."""
+
+    capture: Evid02SelectOnlyCapture
+    canonical_payload: bytes
+    source_payload_sha256: str
+
+    def __post_init__(self) -> None:
+        if type(self.canonical_payload) is not bytes or not self.canonical_payload:
+            raise Evid02HeadAuditError("canonical snapshot payload must be non-empty bytes")
+        _sha256(self.source_payload_sha256, "source_payload_sha256")
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,6 +181,7 @@ class Evid02HeadAuditReport:
     production_claim: bool = False
     production_ready: bool = False
     human_approval_status: str = "not_collected"
+    capture: Evid02SelectOnlyCapture | None = None
 
     def __post_init__(self) -> None:
         _utc(self.captured_at, "captured_at")
@@ -154,6 +202,8 @@ class Evid02HeadAuditReport:
             raise Evid02HeadAuditError("production_ready must remain false")
         if self.human_approval_status != "not_collected":
             raise Evid02HeadAuditError("automation cannot invent human approval")
+        if self.capture is not None and type(self.capture) is not Evid02SelectOnlyCapture:
+            raise Evid02HeadAuditError("capture type is invalid")
 
 
 def _token(value: object, field_name: str) -> str:
@@ -254,6 +304,119 @@ def _row(value: object, ledger_kind: str) -> Evid02HeadAuditRow:
         operator_version=_token(raw["operator_version"], "operator_version"),
         definition_hash=_sha256(raw["definition_hash"], "definition_hash"),
         approval_hash=approval,
+    )
+
+
+def _row_payload(row: Evid02HeadAuditRow) -> dict[str, object]:
+    """Serialize one validated row for the canonical snapshot shape."""
+
+    return {
+        "approval_hash": row.approval_hash,
+        "content_hash": row.content_hash,
+        "definition_hash": row.definition_hash,
+        "operator_id": row.operator_id,
+        "operator_version": row.operator_version,
+        "predecessor_hash": row.predecessor_hash,
+        "record_id": row.record_id,
+        "record_version": row.record_version,
+        "recorded_at": _utc_text(row.recorded_at),
+        "valid_until": _utc_text(row.valid_until),
+    }
+
+
+def _select_only_capture(value: object) -> Evid02SelectOnlyCapture:
+    """Validate the provenance envelope emitted by a SELECT-only collector."""
+
+    raw = _mapping(value, "capture")
+    _exact_keys(
+        raw,
+        frozenset(
+            {
+                "candidate_commit",
+                "candidate_release",
+                "database_alias",
+                "environment",
+                "query_digest",
+                "read_mode",
+            }
+        ),
+        "capture",
+    )
+    environment = raw["environment"]
+    if type(environment) is not str:
+        raise Evid02HeadAuditError("capture environment must be a string")
+    return Evid02SelectOnlyCapture(
+        environment=environment,
+        database_alias=_token(raw["database_alias"], "database_alias"),
+        candidate_commit=_token(raw["candidate_commit"], "candidate_commit"),
+        candidate_release=_token(raw["candidate_release"], "candidate_release"),
+        query_digest=_sha256(raw["query_digest"], "query_digest"),
+        read_mode=_token(raw["read_mode"], "read_mode"),
+    )
+
+
+def normalize_evid_02_select_only_snapshot(payload: bytes) -> Evid02SelectOnlySnapshot:
+    """Normalize an external SELECT-only ledger capture to the strict audit input.
+
+    The input is a transport envelope, not production authority.  It contains
+    only already-captured rows and immutable candidate/query identifiers; this
+    function never opens a database, infers approval, or accepts mutation or
+    human-approval claims.
+    """
+
+    if type(payload) is not bytes or not payload or len(payload) > _MAX_PAYLOAD_BYTES:
+        raise Evid02HeadAuditError("select-only payload must be bounded non-empty bytes")
+    source_payload_sha256 = hashlib.sha256(payload).hexdigest()
+    try:
+        decoded = json.loads(payload.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise Evid02HeadAuditError("select-only payload is not UTF-8 JSON") from exc
+    _reject_forbidden(decoded)
+    root = _mapping(decoded, "select-only snapshot")
+    _exact_keys(
+        root,
+        frozenset(
+            {"format", "captured_at", "as_of", "capture", "approval_rows", "activation_rows"}
+        ),
+        "select-only snapshot",
+    )
+    if root["format"] != EVID_02_SELECT_ONLY_SNAPSHOT_FORMAT:
+        raise Evid02HeadAuditError("select-only snapshot format is unsupported")
+    captured_at = _parse_utc(root["captured_at"], "captured_at")
+    as_of = _parse_utc(root["as_of"], "as_of")
+    if captured_at < as_of:
+        raise Evid02HeadAuditError("captured_at cannot precede as_of")
+    capture = _select_only_capture(root["capture"])
+    canonical_rows: dict[str, list[dict[str, object]]] = {}
+    for kind in EVID_02_HEAD_AUDIT_LEDGER_KINDS:
+        raw_rows = root[f"{kind}_rows"]
+        if isinstance(raw_rows, (str, bytes, bytearray)) or not isinstance(raw_rows, Sequence):
+            raise Evid02HeadAuditError(f"{kind}_rows must be an array")
+        rows = tuple(_row(item, kind) for item in raw_rows)
+        if tuple(sorted(rows, key=lambda item: (item.recorded_at, item.content_hash))) != rows:
+            raise Evid02HeadAuditError(f"{kind}_rows must be ordered by recorded_at/content_hash")
+        if any(row.recorded_at > as_of for row in rows):
+            raise Evid02HeadAuditError(f"{kind}_rows contains a future row beyond the PIT cutoff")
+        canonical_rows[f"{kind}_rows"] = [_row_payload(row) for row in rows]
+    canonical_root: dict[str, object] = {
+        "activation_rows": canonical_rows["activation_rows"],
+        "approval_rows": canonical_rows["approval_rows"],
+        "as_of": _utc_text(as_of),
+        "captured_at": _utc_text(captured_at),
+        "format": EVID_02_HEAD_AUDIT_INPUT_FORMAT,
+    }
+    canonical_payload = json.dumps(
+        canonical_root,
+        ensure_ascii=True,
+        separators=(",", ":"),
+        sort_keys=True,
+        allow_nan=False,
+    ).encode("utf-8")
+    parse_evid_02_head_audit_snapshot(canonical_payload)
+    return Evid02SelectOnlySnapshot(
+        capture=capture,
+        canonical_payload=canonical_payload,
+        source_payload_sha256=source_payload_sha256,
     )
 
 
@@ -382,6 +545,24 @@ def parse_evid_02_head_audit_snapshot(payload: bytes) -> Evid02HeadAuditReport:
     )
 
 
+def build_evid_02_select_only_head_audit_report(
+    snapshot: Evid02SelectOnlySnapshot,
+) -> Evid02HeadAuditReport:
+    """Build a report while retaining the external capture provenance."""
+
+    if type(snapshot) is not Evid02SelectOnlySnapshot:
+        raise Evid02HeadAuditError("select-only snapshot type is invalid")
+    report = parse_evid_02_head_audit_snapshot(snapshot.canonical_payload)
+    return Evid02HeadAuditReport(
+        captured_at=report.captured_at,
+        as_of=report.as_of,
+        source_kind=report.source_kind,
+        source_payload_sha256=snapshot.source_payload_sha256,
+        summaries=report.summaries,
+        capture=snapshot.capture,
+    )
+
+
 def _summary_payload(summary: Evid02HeadAuditSummary) -> dict[str, object]:
     return {
         "head_hash": summary.head_hash,
@@ -393,12 +574,31 @@ def _summary_payload(summary: Evid02HeadAuditSummary) -> dict[str, object]:
     }
 
 
+def _capture_payload(capture: Evid02SelectOnlyCapture) -> dict[str, str]:
+    """Serialize capture provenance without adding host or credential fields."""
+
+    return {
+        "candidate_commit": capture.candidate_commit,
+        "candidate_release": capture.candidate_release,
+        "database_alias": capture.database_alias,
+        "environment": capture.environment,
+        "query_digest": capture.query_digest,
+        "read_mode": capture.read_mode,
+    }
+
+
 def serialize_evid_02_head_audit_report(report: Evid02HeadAuditReport) -> bytes:
     """Serialize a validated report as deterministic canonical JSON bytes."""
 
     if type(report) is not Evid02HeadAuditReport:
         raise Evid02HeadAuditError("report type is invalid")
     report.__post_init__()
+    source: dict[str, object] = {
+        "kind": report.source_kind,
+        "payload_sha256": report.source_payload_sha256,
+    }
+    if report.capture is not None:
+        source["capture"] = _capture_payload(report.capture)
     payload: dict[str, object] = {
         "as_of": _utc_text(report.as_of),
         "captured_at": _utc_text(report.captured_at),
@@ -408,10 +608,7 @@ def serialize_evid_02_head_audit_report(report: Evid02HeadAuditReport) -> bytes:
         "production_claim": False,
         "production_ready": False,
         "runtime_enablement": "not_authorized",
-        "source": {
-            "kind": report.source_kind,
-            "payload_sha256": report.source_payload_sha256,
-        },
+        "source": source,
     }
     return json.dumps(
         payload,
@@ -434,12 +631,18 @@ __all__ = [
     "EVID_02_HEAD_AUDIT_INPUT_FORMAT",
     "EVID_02_HEAD_AUDIT_REPORT_FORMAT",
     "EVID_02_HEAD_AUDIT_SOURCE_KIND",
+    "EVID_02_SELECT_ONLY_READ_MODE",
+    "EVID_02_SELECT_ONLY_SNAPSHOT_FORMAT",
     "Evid02HeadAuditError",
     "Evid02HeadAuditReport",
     "Evid02HeadAuditRow",
     "Evid02HeadAuditStatus",
     "Evid02HeadAuditSummary",
+    "Evid02SelectOnlyCapture",
+    "Evid02SelectOnlySnapshot",
+    "build_evid_02_select_only_head_audit_report",
     "evid_02_head_audit_artifact_sha256",
+    "normalize_evid_02_select_only_snapshot",
     "parse_evid_02_head_audit_snapshot",
     "serialize_evid_02_head_audit_report",
 ]

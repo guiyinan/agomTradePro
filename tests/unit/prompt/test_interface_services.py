@@ -1,3 +1,4 @@
+from apps.prompt.application.agent_authority import UnwiredAgentAuthorityGate
 from apps.prompt.application.interface_services import build_agent_runtime
 
 
@@ -76,3 +77,4 @@ def test_build_ai_tool_runtime_uses_strategy_prompt_providers(monkeypatch):
     assert captured["signal_provider"] is expected_providers[1]
     assert captured["asset_pool_provider"] is expected_providers[2]
     assert runtime["tool_registry"] == "tool-registry"
+    assert isinstance(runtime["authority_gate"], UnwiredAgentAuthorityGate)

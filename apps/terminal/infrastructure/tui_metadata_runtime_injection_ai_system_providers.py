@@ -6,19 +6,6 @@ from typing import Any
 
 RUNTIME_AI_SYSTEM_PROVIDERS_SCREEN: dict[str, Any] = {
     "key": "ai-ops.system-providers",
-    "label": "系统 AI 服务商",
-    "module_key": "ai-ops",
-    "group": "ops",
-    "summary": "管理员在 TUI 内管理系统级 AI 服务商、连通性与使用统计。",
-    "view_type": "detail",
-    "default_action_key": "ai-ops.system-provider-overall-stats",
-    "user_experience": {
-        "journey": "admin",
-        "primary_task": "先判断系统级 AI 服务商是否可支撑当前业务，再决定是否新增、切换或测试连通性。",
-        "primary_outcome": "明确系统服务商总体可用性、启用状态，以及是否需要调整默认路由。",
-        "empty_state_hint": "先看系统服务商概览，再查看系统服务商列表。",
-        "next_step_hint": "若可用性不足或默认路由异常，继续在本屏执行创建、切换和连通性测试。",
-    },
     "workflow": {
         "name": "AI 管理流程",
         "step": 2,

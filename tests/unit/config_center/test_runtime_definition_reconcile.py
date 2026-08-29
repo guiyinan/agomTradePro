@@ -115,6 +115,27 @@ def test_account_runtime_definitions_are_bounded_and_typed() -> None:
     assert all(item.value_type.value in {"bool", "string"} for item in definitions.values())
 
 
+def test_system_audit_runtime_definitions_are_critical_and_typed() -> None:
+    definitions = {
+        item.key: item for item in DEFAULT_RUNTIME_DEFINITIONS if item.namespace == "audit"
+    }
+
+    assert set(definitions) == {
+        "audit.system_event.mode",
+        "audit.system_event.outbox_enabled",
+        "audit.system_event.authority_selector",
+    }
+    assert all(item.owner_app == "audit" for item in definitions.values())
+    assert all(item.criticality.value == "critical" for item in definitions.values())
+    assert all(item.reload_mode.value == "next_task" for item in definitions.values())
+    assert definitions["audit.system_event.mode"].value_type.value == "enum"
+    assert definitions["audit.system_event.mode"].constraints == {
+        "choices": ["off", "shadow", "required"]
+    }
+    assert definitions["audit.system_event.outbox_enabled"].value_type.value == "bool"
+    assert definitions["audit.system_event.authority_selector"].value_type.value == "typed_json"
+
+
 class _ProfileRepository:
     def __init__(self, profile: RuntimeConfigProfile) -> None:
         self.profile = profile
@@ -142,15 +163,39 @@ def test_active_profile_passes_reconciled_definition_validation() -> None:
         created_at=NOW,
         activated_at=NOW,
     )
-    value = RuntimeConfigValue(
-        profile_id=profile.profile_id,
-        definition_key=DEFAULT_RUNTIME_DEFINITIONS[0].key,
-        value_json=0.025,
-    )
+    values = [
+        RuntimeConfigValue(
+            profile_id=profile.profile_id,
+            definition_key="data_center.provider.failover_tolerance",
+            value_json=0.025,
+        ),
+        RuntimeConfigValue(
+            profile_id=profile.profile_id,
+            definition_key="audit.system_event.mode",
+            value_json="shadow",
+        ),
+        RuntimeConfigValue(
+            profile_id=profile.profile_id,
+            definition_key="audit.system_event.outbox_enabled",
+            value_json=False,
+        ),
+        RuntimeConfigValue(
+            profile_id=profile.profile_id,
+            definition_key="audit.system_event.authority_selector",
+            value_json={
+                "actor_source_id": "actor-source",
+                "actor_source_version": "v1",
+                "actor_content_hash": "a" * 64,
+                "scope_source_id": "scope-source",
+                "scope_source_version": "v1",
+                "scope_content_hash": "b" * 64,
+            },
+        ),
+    ]
     service = RuntimeConfigService(
         _DefinitionRepositoryWithDefaults(),
         _ProfileRepository(profile),
-        _ValueRepository([value]),
+        _ValueRepository(values),
         revisions=object(),
         snapshots=object(),
     )
@@ -158,7 +203,7 @@ def test_active_profile_passes_reconciled_definition_validation() -> None:
     report = service.validate_active_profile("development")
 
     assert report["valid"] is True
-    assert report["validated"] == 1
+    assert report["validated"] == 4
     assert report["errors"] == ()
 
 
@@ -186,6 +231,9 @@ def test_active_profile_reports_missing_critical_definition() -> None:
     assert report["valid"] is False
     assert report["errors"] == (
         "missing_critical_definition:data_center.provider.failover_tolerance",
+        "missing_critical_definition:audit.system_event.mode",
+        "missing_critical_definition:audit.system_event.outbox_enabled",
+        "missing_critical_definition:audit.system_event.authority_selector",
     )
 
 

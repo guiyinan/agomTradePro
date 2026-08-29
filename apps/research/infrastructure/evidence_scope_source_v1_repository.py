@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Protocol
 
 from django.core.exceptions import ValidationError
@@ -111,6 +111,33 @@ class DjangoEvidenceScopeSourceV1Repository:
             return None
         return matches[0]
 
+    def get_winner(
+        self,
+        *,
+        source_id: str,
+        source_version: str,
+        as_of: datetime,
+    ) -> EvidenceScopeSourceV1 | None:
+        """Return one immutable first winner by identity at a historical PIT."""
+
+        _require_token(source_id, "source_id")
+        _require_token(source_version, "source_version")
+        _require_aware(as_of, "as_of")
+        self._require_pit_cutoff(as_of)
+        records = self._restore_full_world()
+        matches = tuple(
+            record
+            for record in records
+            if record.source_id == source_id and record.source_version == source_version
+        )
+        if len(matches) > 1:
+            raise EvidenceScopeSourceV1Corruption(
+                "scope-source winner identity has multiple matches"
+            )
+        if not matches or matches[0].recorded_at > as_of:
+            return None
+        return matches[0]
+
     def get_current_head(
         self,
         *,
@@ -145,12 +172,27 @@ class DjangoEvidenceScopeSourceV1Repository:
         return heads[0]
 
     def _require_pit_cutoff(self, as_of: datetime) -> None:
-        now = self._clock.now()
-        _require_aware(now, "server clock")
+        now = self._server_now()
         if as_of > now:
             raise EvidenceScopeSourceV1Unavailable(
                 "future Evidence scope-source as_of is not permitted"
             )
+
+    def _server_now(self) -> datetime:
+        """Return the validated repository clock or fail closed."""
+
+        try:
+            now = self._clock.now()
+            _require_aware(now, "server clock")
+        except (TypeError, ValueError) as error:
+            raise EvidenceScopeSourceV1Unavailable(
+                "Evidence scope-source server clock is unavailable"
+            ) from error
+        except Exception as error:
+            raise EvidenceScopeSourceV1Unavailable(
+                "Evidence scope-source server clock is unavailable"
+            ) from error
+        return now
 
     def _restore_full_world(self) -> tuple[EvidenceScopeSourceV1, ...]:
         """Restore and validate every row before any caller selector runs."""
@@ -189,21 +231,73 @@ class _DjangoEvidenceScopeSourceV1Store(DjangoEvidenceScopeSourceV1Repository):
         with transaction.atomic(using=self._using), _activate_evidence_uow(self._token):
             yield
 
+    def now(self) -> datetime:
+        """Return the validated server clock for the lifecycle write port."""
+
+        return self._server_now()
+
     def append(
         self,
         source: EvidenceScopeSourceV1,
         *,
         predecessor: EvidenceScopeSourceV1 | None = None,
+        expected_predecessor_hash: str | None = None,
+        recorded_at: datetime | None = None,
     ) -> EvidenceScopeSourceV1:
-        """Append one exact root/successor or replay its immutable winner."""
+        """Append one exact root/successor or replay its immutable winner.
+
+        ``expected_predecessor_hash`` and ``recorded_at`` are the lifecycle
+        Application port.  The older ``predecessor`` keyword remains as a
+        private-store compatibility shim for the explicit root/successor test
+        builders; both forms resolve to the same persisted predecessor and
+        server-clock checks.
+        """
 
         if _ACTIVE_EVIDENCE_UOW.get() is not self._token:
             raise EvidenceScopeSourceV1Conflict(
                 "scope-source append requires its private atomic unit"
             )
         exact = _canonical_source(source)
+        if recorded_at is None:
+            effective_recorded_at = exact.recorded_at
+        else:
+            _require_aware(recorded_at, "recorded_at")
+            if recorded_at != exact.recorded_at:
+                raise EvidenceScopeSourceV1Conflict(
+                    "scope-source recorded_at must match the canonical source"
+                )
+            effective_recorded_at = recorded_at
+        if expected_predecessor_hash is not None:
+            _require_digest(expected_predecessor_hash, "expected_predecessor_hash")
         if predecessor is not None:
-            previous = _canonical_source(predecessor)
+            previous_from_argument = _canonical_source(predecessor)
+            if (
+                expected_predecessor_hash is not None
+                and expected_predecessor_hash != previous_from_argument.content_hash
+            ):
+                raise EvidenceScopeSourceV1Conflict(
+                    "scope-source predecessor selector differs from predecessor"
+                )
+            expected_predecessor_hash = previous_from_argument.content_hash
+        elif expected_predecessor_hash is not None:
+            previous_from_argument = None
+        else:
+            previous_from_argument = None
+        self._validate_recorded_at(effective_recorded_at)
+        if expected_predecessor_hash is not None:
+            records = self._restore_full_world()
+            predecessors = tuple(
+                record for record in records if record.content_hash == expected_predecessor_hash
+            )
+            if len(predecessors) != 1:
+                raise EvidenceScopeSourceV1Conflict(
+                    "scope-source successor predecessor selector is not unique"
+                )
+            previous = predecessors[0]
+            if previous_from_argument is not None and previous != previous_from_argument:
+                raise EvidenceScopeSourceV1Conflict(
+                    "scope-source successor predecessor content fork"
+                )
             validate_evidence_scope_source_v1_successor(previous, exact)
         else:
             previous = None
@@ -302,6 +396,13 @@ class _DjangoEvidenceScopeSourceV1Store(DjangoEvidenceScopeSourceV1Repository):
                 "scope-source append conflicted without an exact winner"
             ) from error
         return exact
+
+    def _validate_recorded_at(self, recorded_at: datetime) -> None:
+        """Reject a caller-supplied ledger timestamp beyond the server clock."""
+
+        _require_aware(recorded_at, "recorded_at")
+        if recorded_at > self._server_now():
+            raise EvidenceScopeSourceV1Conflict("scope-source recorded_at cannot be in the future")
 
     def append_root(self, source: EvidenceScopeSourceV1) -> EvidenceScopeSourceV1:
         """Append one candidate-independent root source."""

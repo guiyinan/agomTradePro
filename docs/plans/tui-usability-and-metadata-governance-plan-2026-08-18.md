@@ -90,7 +90,7 @@
 | `TUX-04` | W5 | repository | — | IA 整理：重排"研究与工具"杂物筐分组；易混入口改名消歧；统一术语表（Regime/象限、提示词/Prompt、观测日期口径）；12 个 runtime screen 补齐 `summary`/`user_experience`/`default_action_key`；修复 admin audience panel 对普通用户的碰壁跳转；`execution.audit` summary 与实际 panel 对齐 | IA 注册表契约测试通过；全部 screen（含 runtime）满足 metadata schema 必填项；普通角色浏览器走查确认无无权访问跳转 |
 | `TUX-05` | W5 | repository | TUX-03、TUX-04 | 界面细节收口：表格列宽/断行/行操作溢出修复；创建类 panel 重复提示去重；底部状态栏接线或移除；字段名翻译层（MustNotUseFor、QuotaCharged 等）；"broker order catalog display only" 占位符替换；顶栏内部 key 移除或折叠进调试语义；定性并修复 freshness 观感矛盾 | 8 个代表性 screen 的浏览器截图证据；字段名/内部 key 机检为零；freshness 判定结论记录在案（数据问题则修数据，判定缺陷则修判定） |
 
-执行纪律：`TUX-01` 阻断级回退已完成；`TUX-02` 与 `TUX-04` 在 `TAR-01 → TAR-02 → TAR-03` execution focus 期间保持 planned，不再作为“小收口”并行扩展 repository。TAR-03 退出后才恢复本线，每个 unit 的测试、治理清单更新与走查证据仍作为一个验收包，不拆算，也不得扰动已经冻结的正式 M5 候选。
+执行纪律：`TUX-01` 至 `TUX-04` 的 repository exit gate 已完成；当前唯一 repository execution focus 为依赖已满足的 `TUX-05`。本线不得自动重绑或扰动已经冻结的正式 M5 候选。每个 unit 的测试、治理清单更新与走查证据仍作为一个验收包，不拆算。
 
 ## 5. 验证与回归范围
 
@@ -141,6 +141,43 @@
 - 新增 `test_runtime_screen_registry_publishes_complete_user_experience_contract`，验证 IA runtime screen 与 normalized runtime 的 summary、UX 和 default action 完全一致；`tests/unit/terminal/test_tui_information_architecture.py` focused 回归为 `9 passed`。
 - `execution.audit` 的 summary、business context 与 checkpoints 已按实际 dashboard panels 对齐为审计健康、事件指标、实盘对账和操作审计；IA 与 published graph 保持同一份用户可见语义，新增对齐回归后该 focused 套件为 `10 passed`。
 - 本阶段只完成 metadata contract migration；“研究与工具”分组重排、易混入口消歧、术语统一、普通角色浏览器走查，以及外部 AgomTUI portability/M5 生产证据仍未完成，因此 `TUX-04` 保持 `active`。
+
+## 6.3.1 TUX-04 repository closure（2026-08-28）
+
+- IA 的 `research` group 已从 `research-tools` 杂物筐拆分为 `investment-research`、`ai-workspace`、`personal-services` 与 `personal-settings`；个人/系统 AI 服务商、个人/MCP 治理入口、AI 任务助手/命令行任务台及账户设置均以用户任务消歧。IA、published graph 与 runtime normalization 保持同一标签和模块归属。
+- canonical vocabulary 固化为 `宏观象限`、`提示词`、`观测时间` 与 `数据基准日`；source guard 对 24 个 normalized runtime screen 和 890 个 runtime action 全量拒绝 `Regime`、`Prompt`、`数据日期`、`观测日期`，实际结果为 0 violations。首页动态状态同时保留原始 reason/status code，并以“未知”“当前没有可用的宏观象限数据”等用户文案呈现。
+- 12 个 runtime screen 的 `summary`、`user_experience` 与 `default_action_key` 均由 IA 契约逐屏验证；`execution.audit` 继续与审计健康、事件指标、实盘对账、操作审计四块实际 panel 对齐。
+- 普通角色隔离浏览器走查显示 15 个可见 screen、4 个研究/自助模块；`research.asset-lab`、`ai-ops.terminal`、`ai-ops.providers`、`account.self-service` 均可进入。直接访问 `capability-router.admin-access` 显示“当前账号不能打开这个工作区”并返回预期 403；全目录测试同时逐 screen 验证所有 panel target 都属于普通用户可见集合。
+- 最终门禁：TUI JS `35 passed`，IA/source/operator focused `64 passed`，完整 Workbench `258 passed`，Terminal Agent `20 passed`；`npm run check:tui`、Black/isort/Ruff、15 个生产文件增量 mypy、full debt ceiling 与 source guard 全绿。完整 Workbench 首轮发现旧测试夹具缺少 AUD-02 新增的三项 critical audit runtime value；未放宽生产 fail-closed 校验，而是显式补齐隔离测试 profile，单例与全量复跑均通过。
+- 规范化证据见 [`tux04-repository-closure-evidence-2026-08-28.json`](../testing/tux04-repository-closure-evidence-2026-08-28.json)。本次未部署、未写生产、未做外部 portability 或 M5 candidate rebind；published graph/manifest 哈希已变化，正式候选是否重绑仍归 TUI-01/TUI-02 owner 与授权流程。`TUX-04` repository exit gate 因此完成，唯一 repository focus 顺序推进到依赖已满足的 `TUX-03`；`TUX-05` 继续等待二者同时完成。
+
+## 6.3.2 TUX-03 action copy/density machine baseline（2026-08-28）
+
+- 新增只读 `scripts/check_tui_action_copy_and_density.py`，把 TUX-03 退出范围固定为 IA 的 12 个 `published_screens`；normalized runtime graph 只用于核对继承后的 action tier、同屏重复 label 与这 12 屏的真实密度，不把另外 12 个 runtime-only screen 扩进本 unit。
+- 当前真实基线为 430 published / 890 runtime actions：370 个 route-derived action 中 61 个仍处于 `primary/operation`，355 条 description 直接复用 screen summary（其中 349 条为 `（查看）`），22 个 action 命中 10 类机翻/截断规则，published/runtime 分别有 6/8 组同屏重复 label；IA 仍有 7 个 route default 和 16 个 route panel 引用。
+- 按 renderer 的同一口径计算 `primary + operation`，12 个 published screen 中 11 个超出 screen budget，另有 12 个 task group 超出组预算；唯一未超 screen budget 的是 `policy.workbench`。focused guard regression 为 `3 passed`，其中单独证明 runtime-only screen 不影响 TUX-03 exit metric。
+- 本检查器在债务清零前故意返回 `outcome=blocked`，尚未接入 push CI；下一切片先在 compiler/published/runtime 边界完成 action-specific 文案、自动 action 分层和 semantic reference，再将真实图测试翻转为全绿并接入现有 Consistency Check。当前未发布 metadata、未部署、未写生产、未重绑 M5 candidate，`TUX-03` 保持唯一 active repository unit。
+- action copy/semantic reference 切片已完成：compiler 为 read/write/required-input action 生成独立操作文案，route-derived action 默认下沉到 `support/advanced`，IA 的 7 个 default 与 16 个 panel route 引用全部换为稳定的 semantic action key；17 个单复数兼容或冗余注册被确定性裁剪，published/runtime action 由基线 430/890 收敛为 413/871。
+- 同一机器检查现已得到 route key 暴露、样板 description、机翻/截断文案、published/runtime 重复 label、route default/panel 引用全部为 0；published validator、三源一致性、Web→TUI migration inventory 与 96 个 focused regression 均通过。validator 报告的 published graph canonical SHA-256 为 `c372a3fe645dfc89e5affd649d130dea1e5ff7de570acebd978dc16cb8add5bd`，compiler 二次生成前后文件哈希一致。
+- 密度仍保持 fail-closed：12 个 published screen 中 11 个 screen、11 个 task group 超预算，来源已收窄为 runtime curated injection，而非 compiler route action。下一切片在 metadata repository 归一化边界按 IA 既有预算确定性保留 default/panel 主动作并把溢出 read/write action 分别降为 `support/advanced`；在清零、全量回归和普通角色浏览器走查前不接 CI、不关闭 `TUX-03`。
+
+## 6.3.3 TUX-03 repository closure（2026-08-28）
+
+- 以 430 条原始 published action 为审计基线，删除 17 条单复数兼容或冗余注册后，最终图谱为 413 published / 871 normalized runtime actions。338 条 route-derived action 继续保留必要的能力覆盖，但首层暴露 route key、样板 description、机翻/截断片段、同屏重复 label，以及 route default/panel 引用均为 0。
+- `PublishedTuiMetadataRepository` 在 full-IA runtime normalization 的 injection、patch 与 redundant prune 之后执行 action density 收敛；只处理 12 个 `published_screens`，只改 `task_tier`，按 tier/sequence/group/key 确定性保留 default/panel 引用和预算内动作，并把溢出 read/write 分别降为 `support/advanced`。真实图共降级 143 条，最终 screen/group 超预算均为 0；二次归一化幂等，runtime-only screen 不受影响。若 protected 引用自身已超过预算，引用保持可见且机器 guard 继续 fail-closed，不以破坏入口方式伪造通过。
+- 普通角色隔离浏览器显示 15 个可见 screen；账户与持仓、研究信号、事件与复盘、我的 AI 服务商、每日决策流、资产研究等代表入口首屏均能看到主任务。走查发现 `simulated-trading.account-create` 降为 advanced 后，P0 panel 可点击但表单曾被 tier filter 隐藏；runtime 现统一 reveal/focus panel/row-action 表单。新增浏览器回归同时证明 advanced write 与 required-read panel 都不会在表单填写前误发请求，真实账户创建 panel 已复验表单可见并聚焦。
+- 最终门禁：TUI JS `37 passed`，metadata/compiler/source/density/IA/operator focused `125 passed`，完整 Workbench `258 passed`，Terminal Agent `20 passed`；action copy/density guard 为 `12 screens`、`413/871 actions`、所有 copy/reference/density 指标为 0，source guard 0 violations，static contracts `407 rules / 5 sources`，Web→TUI inventory、published validator、`npm run check:tui`、Black/isort/Ruff、增量 mypy 与 full debt ceiling 全绿。Luna 两轮只读复核提出的 protected-overflow 显式失败语义与 required-read 空参数请求风险均已补测试并关闭，最终无未处理 P0/P1。
+- 规范化证据见 [`tux03-repository-closure-evidence-2026-08-28.json`](../testing/tux03-repository-closure-evidence-2026-08-28.json)。本地 SQLite 首页并发读取曾产生可追踪的 `503/database locked` 恢复态；未翻译字段与 broker-order 占位文案继续归 `TUX-05`，不在本 unit 隐藏。此次未部署、未写生产、未做外部 portability 或 M5 candidate rebind；`TUX-03` repository exit gate 完成，唯一 repository focus 推进到依赖已满足的 `TUX-05`。
+
+## 6.3.4 TUX-05 repository closure（2026-08-28）
+
+- Workbench 表格改为固定布局并由局部 scroll host 承担宽表溢出；日期单元格和行操作保持单行，空分页不再显示 `页 -/- | 0 行`，状态栏继续发布当前状态与刷新时间。创建类 dashboard 的重复说明在渲染边界去重，broker legacy 入口解析到 `execution.accounts`，不再显示 display-only 占位符。
+- runtime/compiler/published/generated 四处字段翻译统一，19 个重点字段在两份图谱共有 34 次出现，机器 guard 实测 raw field name `0`、可见内部 locator `0`。恢复上次工作区仍保留真实内部目标，但用户只看到 catalog 标签；顶栏内部 screen 定位输入已移除。
+- freshness 矛盾按 owner contract 定性：宏观象限 45 日边界内只称“阈值内”并保留降级；政策 `as_of_date` 只表达“今日/历史截面”，不伪装源新鲜度；Pulse 以 8 日边界、未来日期、源指标 stale 和 reliability 任一失败即 `must_not_use_for_decision`。首页最终显示 Pulse“源指标过期 / 不可用于决策”，缺少可验证观测/抓取时间的决策数据继续 `BLOCKED`。
+- 8 个代表 screen 均在隔离 SQLite/本地认证浏览器留存截图与 SHA-256；最终 DOM 为 loading/recovery/internal-key/raw-field/technical-label `0`，空 pager 隐藏、状态栏可见、页面无横向溢出。首页曾因 SQLite 并发读取出现可追踪 lock 恢复态，顺序重试后最终证据为 clean；不把该本地现象计为生产可靠性结论。
+- 最终门禁：TUI JavaScript `41 passed`，完整 Workbench `308 passed`，Terminal Agent `20 passed`，metadata/compiler/source/presentation/IA/operator focused `130 passed`，TUX-05 current-data nodeid `4 passed`；presentation guard 为 `19 fields / 34 occurrences / 0 raw / 0 internal locator`，static contracts `407 rules / 5 sources`，两份 metadata validator、Web→TUI inventory、`npm run check:tui`、Black/isort/Ruff、5 个生产文件增量 mypy、full debt ceiling、architecture、governance 与 Django check 全绿。
+- Windows 完整 current-data runner 原先因 CreateProcess 命令行上限不可执行，现按 28,000 字符顺序分批并有单测。首批 242 个登记 nodeid 展开 300 项后为 `268 passed / 29 failed / 3 errors`；失败均在 AUD-02 引入严格 system-audit composition 后的既有 Equity/Account 读取链，缺少三项 critical audit runtime definition，另 55 个登记 nodeid因 fail-fast 未执行。TUX-05 新增的 4 项已独立全绿；该发现不放宽生产 fail-closed，而是证明 `AUD-02` 先前的 repository-complete 回归结论不完整，机器计划应纠正为下一唯一 repository focus。
+- 规范化证据见 [`tux05-repository-closure-evidence-2026-08-28.json`](../testing/tux05-repository-closure-evidence-2026-08-28.json)。本轮未部署、未写生产、未做外部 portability 或 M5 candidate rebind；`TUX-05` repository exit gate 完成，TUI usability workstream 的 repository units 全部关闭。回滚点为恢复旧 Workbench CSS/renderer、字段映射和 operator freshness projection；任何回滚不得恢复 raw screen key、虚假 freshness 或使 stale Pulse 可用于决策。
 
 ## 6.2.1 2026-08-20 TUX-02 candidate deployment observation
 
@@ -300,6 +337,91 @@
   source-boundary and UX contract only; no VPS deployment or production provider/MCP/queue
   enablement was performed. TAR-04/TUX-02/TUX-04 and their external UAT, capacity/chaos,
   telemetry, restore/rollback and owner/reviewer gates remain independently fail-closed.
+
+## 6.2.10 2026-08-23 TUX-02/TUX-04 current source-boundary audit
+
+- A fresh local `check_tui_metadata_source_consistency.py` run reports `outcome=ok` with
+  `12 published` / `24 runtime` screens, `430` published actions / `890` normalized runtime
+  actions, no configured or ignored screen patches, and `0` violations. Older `430/889`
+  figures in historical entries remain historical evidence and are not the current baseline.
+- The machine registry remains authoritative: `TUX-02` and `TUX-04` are `planned` while the
+  repository execution lock is held by `EVID-01`. This audit records current source-boundary
+  evidence only; it does not create a second active repository unit or change any gate.
+  Publish/review migration, IA group and terminology changes, external AgomTUI portability,
+  and ordinary-role browser UAT remain outstanding.
+- No VPS deployment, production write, role sign-off, receipt/refresh observation, telemetry,
+  rollback/restore or external portability evidence was created. The B/S boundary is unchanged:
+  browser/TUI/CLI clients submit to server-side AI Runtime; users do not install or run a
+  provider-backed Agent locally.
+
+## 6.2.11 2026-08-23 Web-to-TUI readiness collector observation
+
+- The read-only `check_web_to_tui_cutover_readiness.py --json` collector returned `decision=DENY`
+  for `as_of=2026-08-23`. Source consistency and dependency ordering passed, while the immutable
+  candidate/version binding, `108` route-page UAT, cleanup/readiness scopes, `101` task telemetry,
+  rollback drill, production registry backup and owner/reviewer attestations were all absent.
+- This is a current machine-derived denial, not a test failure and not a request to enable the
+  gate. It confirms that the repository/runtime contracts are ahead of production evidence; no
+  deployment, production write, registry-backup creation, rollback or role UAT was performed.
+  `TUI-01` remains `awaiting_production`, `TUX-02`/`TUX-04` remain `planned` in the machine
+  registry, and the M5/TAR production gates remain fail-closed.
+
+## 6.2.12 2026-08-23 candidate-guard and full Workbench acceptance recheck
+
+- Commit `e73930f66cc480b9bcac1fe20bb59e42845575a9` separates the EVID-01 authority-inventory
+  contract from the Web→TUI M5 candidate contract. The focused EVID-01, candidate-consistency and
+  readiness regression passed (`36 passed`); the full `tests/unit/test_tui_workbench.py` suite also
+  passed (`257 passed`).
+- The local source guard remains `outcome=ok` (`12/24` screens, `430/890` actions, no configured,
+  ignored or unregistered patches, `0` violations). Active-plan and governance consistency checks
+  both report `0` violations, and all four push CI workflows for this commit are green.
+- This is repository/test acceptance only. No VPS deployment or production write was performed;
+  the Web→TUI readiness collector remains `DENY`, EVID-01 remains zero-seed/fail-closed, and
+  role-based production UAT, write receipts/refresh, telemetry, backup/restore, rollback and
+  owner/reviewer attestations remain outstanding. The B/S boundary is unchanged: clients submit
+  to server-side AI Runtime and users do not install or run a provider-backed Agent locally.
+
+## 6.2.13 2026-08-23 focused source/actionability recheck
+
+- The current local source guard still reports `outcome=ok`: `12` published / `24` runtime
+  screens, `430` published / `890` normalized runtime actions, no configured/ignored/unregistered
+  patches and `0` violations. The TUI actionability contract regression passed `12` tests;
+  the focused Evidence composition/provider regression passed `24` tests and the candidate
+  consistency guard passed `1` test.
+- These are repository-only regression facts. No metadata publish, VPS deployment, production
+  write, role browser UAT, write receipt/refresh, portability check, telemetry, restore/rollback
+  or owner/reviewer sign-off was performed. The machine registry remains authoritative: `TUX-02`
+  and `TUX-04` stay `planned` while EVID-01 holds the repository execution focus, and M5/TAR
+  production gates remain fail-closed.
+
+## 6.2.14 2026-08-24 TUX-02 runtime screen copy ownership closure
+
+- 对 IA registry 的全部 12 个 runtime screen 逐一核对后，移除 10 个 Python runtime injection
+  fragment 中重复的 IA-owned 顶层字段（`label`、`module_key`、`group`、`audience`、`summary`、
+  `view_type`、`default_action_key`、`user_experience`）。`cli.terminal` 与 `prompt.workbench`
+  已在此前切片中完成同一边界；本次只保留 `key`、workflow/business context、布局、dashboard
+  panels 与运行行为，未删除嵌套 workflow 文案或 action/panel 定义。
+- `tui_metadata_runtime_injection_registry.py` 的 canonical merge 仍以 IA `public_screen_spec`
+  回填语义字段、以 runtime fragment 保留行为字段。新增参数化 source-boundary 回归覆盖
+  `account.self-service`、`ai-ops.user-quotas`、`ai-ops.system-providers`、`capability-router.*`、
+  `system.*`、`identity-access.user-governance` 与 `broker-execution.qmt-setup`，确认注入不再含
+  IA-owned copy，normalized runtime 仍与 IA 语义一致且 panels/target aliases 不漂移。
+- 代码改动后重建 `config/tui/agomtui-runtime.manifest.json`；`npm run check:tui` 通过。机器 source
+  guard 为 `outcome=ok`（12 published / 24 runtime screens、430 / 890 actions、configured/ignored/
+  unregistered patches 均为 0、violations=0）。metadata/source/actionability/IA focused 回归
+  `63 passed`，完整 `tests/unit/test_tui_workbench.py` `257 passed`，TUI JS `35 passed`；Ruff、
+  Black、isort、增量 mypy regression 与 debt ceiling 均通过。
+- 因此 TUX-02 的 repository exit gate（死 patch、8 处 copy drift、runtime screen copy 迁入
+  publish/review、三源机器一致性）达到本地验收条件，注册表状态更新为 `completed`；这不是 VPS
+  部署、外部 AgomTUI portability、普通角色生产浏览器 UAT、写后 receipt/refresh、14 日 telemetry、
+  restore/rollback 或 owner/reviewer 签署证据。EVID-01 的 zero-seed/生产权限门禁、M5/TUI-01 与
+  后续 TUX-03/TUX-04 仍保持 fail-closed。
+- 首次 push 的 CI 反馈发现两项生成物维护问题：Data Center deterministic inventory 尚未反映本次
+  删除的 source lines，且 gitleaks 将 manifest 的公开 SHA-256 内容哈希误报为 generic API key。
+  已用 `data_center_architecture_inventory.py --write` 刷新 inventory（`current_surface_references`
+  `4345→4335`），并对 `config/tui/agomtui-runtime.manifest.json` 的 64 位内容哈希增加精确 allowlist。
+  修复提交 `162255e5e` 的 Architecture Layer Guard、Security Scan、Consistency Check 与 CI Fast
+  Feedback 四条 push workflow 全部成功；这只证明仓库门禁，不改变任何生产候选或部署状态。
 
 ## 6. 风险与回滚
 

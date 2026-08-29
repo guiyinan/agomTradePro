@@ -140,7 +140,7 @@
                             <tr data-row-index="${globalIndex}" class="${globalIndex === state.selectedRowIndex ? "is-selected" : ""}">
                                 ${columns.map((column) => {
                                     const value = displayValue(row[column.key]);
-                                    return `<td title="${escapeHtml(value)}">${escapeHtml(value)}</td>`;
+                                    return `<td class="${cellClass(value, column.label || column.key)}" title="${escapeHtml(value)}">${escapeHtml(value)}</td>`;
                                 }).join("")}
                             </tr>
                         `;
@@ -985,9 +985,11 @@
     function updatePager(pager) {
         state.lastPager = pager;
         if (!pager) {
-            els.pager.textContent = "页 -/- | 0 行";
+            els.pager.textContent = "";
+            els.pager.hidden = true;
             return;
         }
+        els.pager.hidden = false;
         els.pager.textContent = `页 ${pager.page}/${pager.total_pages} | ${pager.total_rows} 行 | ${pager.has_previous ? "PgUp" : "--"} / ${pager.has_next ? "PgDn" : "--"}`;
     }
 

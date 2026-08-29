@@ -73,14 +73,10 @@
         }
         if (normalizedActionKey) {
             const action = currentAction(normalizedActionKey);
-            if (action && String(action.effect || "read") !== "read") {
+            if (action && !dashboardActionCanAutoRun(action)) {
                 focusActions();
-                const form = actionFormElement(action);
-                form?.scrollIntoView({ block: "nearest" });
-                const primaryInput = form?.querySelector(
-                    "textarea, input:not([type='hidden']), select",
-                );
-                (primaryInput || form?.querySelector("button"))?.focus();
+                const form = revealActionFormInPanel(action);
+                focusActionFormInPanel(form);
                 setStatus(`请填写“${action.label}”后继续`);
                 return;
             }
@@ -376,9 +372,16 @@
             return renderPanelPlaceholder(panel, panel.empty_message || "当前任务暂不可用。");
         }
         const label = String(action.submit_label || action.label || "继续").trim();
+        const panelNote = String(panel.note || "").trim();
+        const actionDescription = String(action.description || "").trim();
+        const prompt = actionDescription && actionDescription !== panelNote
+            ? actionDescription
+            : panelNote
+                ? ""
+                : "填写必要信息后继续。";
         return `
             <div class="tui-dashboard-action-prompt">
-                <p>${escapeHtml(panel.note || action.description || "填写必要信息后继续。")}</p>
+                ${prompt ? `<p>${escapeHtml(prompt)}</p>` : ""}
                 <button
                     type="button"
                     class="tui-entry-action"
@@ -595,6 +598,7 @@
             headers.push("操作");
         }
         return `
+            <div class="tui-table-scroll" tabindex="0" aria-label="${escapeHtml(panel.title || "表格")}">
             <table class="tui-mini-table">
                 <thead><tr>${headers.map((header, index) => `<th class="${rowActions.length && index === headers.length - 1 ? "tui-row-actions-header" : ""}">${escapeHtml(header)}</th>`).join("")}</tr></thead>
                 <tbody>
@@ -609,6 +613,7 @@
                     `).join("")}
                 </tbody>
             </table>
+            </div>
         `;
     }
 
@@ -681,7 +686,7 @@
     }
 
     function openDashboardRowActionForm(action, panel, descriptor, row, params) {
-        const form = actionFormElement(action);
+        const form = revealActionFormInPanel(action);
         if (!form) {
             setStatus(`请先打开“${action?.label || "编辑任务"}”表单`);
             return true;
@@ -1073,6 +1078,7 @@
 
     function renderMiniTable(headers, rows, selectedIndex) {
         return `
+            <div class="tui-table-scroll" tabindex="0" aria-label="表格">
             <table class="tui-mini-table">
                 <thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead>
                 <tbody>
@@ -1083,23 +1089,33 @@
                     `).join("")}
                 </tbody>
             </table>
+            </div>
         `;
     }
 
     function cellClass(value, header = "") {
         const text = String(value);
         const headerText = String(header || "");
+        const classes = [];
+        if (
+            /^\d{4}-\d{2}-\d{2}(?:[T\s].*)?$/.test(text.trim())
+            || ["日期", "时间", "观测", "基准日"].some((item) => headerText.includes(item))
+        ) {
+            classes.push("is-nowrap");
+        }
         if (["标的", "代码", "名称", "股票", "资产", "证券"].some((item) => headerText.includes(item))) {
-            return "";
+            return classes.join(" ");
         }
         if (/^-\d+(?:\.\d+)?%?$/.test(text.trim()) || text.includes("暂停") || text.includes("触发") || text.includes("失败") || text.includes("未运行")) {
-            return "is-red";
+            classes.push("is-red");
+            return classes.join(" ");
         }
         if (text.includes("观察") || /(进行中|运行中|处理中|同步中|排队中)/.test(text)) {
-            return "is-yellow";
+            classes.push("is-yellow");
+            return classes.join(" ");
         }
         if (text.includes("正常") || text.includes("运行") || text.includes("成功") || text.includes("%")) {
-            return "is-green";
+            classes.push("is-green");
         }
-        return "";
+        return classes.join(" ");
     }

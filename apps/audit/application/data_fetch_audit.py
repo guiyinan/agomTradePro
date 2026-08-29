@@ -9,10 +9,14 @@ reference and stream head before calling :func:`build_data_fetch_audit_event`.
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
-from typing import Final
+from typing import Final, Protocol
 
+from apps.audit.application.system_audit_event_outbox import (
+    SystemAuditEventOutboxCommit,
+    SystemAuditEventOutboxWriter,
+)
 from apps.audit.domain.system_audit_event import (
     AuditActorRef,
     AuditCategory,
@@ -135,6 +139,39 @@ def _stable_event_id(observation: DataFetchAuditObservation) -> str:
     return f"data-fetch-{digest}"
 
 
+class DataFetchAuditScopeProvider(Protocol):
+    """Resolve the exact current scope for one Data Center audit write."""
+
+    def get_scope(self, *, as_of: datetime) -> AuditScopeRef:
+        """Return one authenticated, server-issued scope at ``as_of``."""
+
+
+class DataFetchAuditEventOutboxWriter(SystemAuditEventOutboxWriter, Protocol):
+    """Canonical event/outbox writer with the reads needed for exact replay."""
+
+    @property
+    def database_alias(self) -> str:
+        """Return the database alias shared by event and outbox writes."""
+
+    def get_winner(
+        self,
+        *,
+        event_id: str,
+        event_version: str,
+        as_of: datetime,
+    ) -> SystemAuditEvent | None:
+        """Return an existing exact event identity at the PIT cutoff."""
+
+    def get_current_head(
+        self,
+        *,
+        stream_id: str,
+        as_of: datetime,
+        scope: AuditScopeRef,
+    ) -> SystemAuditEvent | None:
+        """Return the scoped stream head used for predecessor CAS."""
+
+
 def build_data_fetch_audit_event(
     observation: DataFetchAuditObservation,
     *,
@@ -211,10 +248,87 @@ def build_data_fetch_audit_event(
         predecessor_hash=predecessor_hash,
         idempotency_key=(
             f"data-fetch:{observation.run_id}:{observation.ingested_run_id}:"
-            f"{observation.dataset_key}"
+            f"{observation.dataset_key}:{observation.provider_key}:"
+            f"{observation.capability}"
         ),
         scope=observation.scope,
     )
 
 
-__all__ = ["DataFetchAuditObservation", "build_data_fetch_audit_event"]
+class AppendDataFetchAuditObservationUseCase:
+    """Append one scoped fetch observation and its outbox record atomically."""
+
+    __slots__ = ("_scope_provider", "_writer")
+
+    def __init__(
+        self,
+        writer: DataFetchAuditEventOutboxWriter,
+        scope_provider: DataFetchAuditScopeProvider,
+    ) -> None:
+        self._writer = writer
+        self._scope_provider = scope_provider
+
+    @property
+    def database_alias(self) -> str:
+        """Return the alias used by the canonical writer."""
+
+        return self._writer.database_alias
+
+    def execute(self, observation: DataFetchAuditObservation) -> SystemAuditEventOutboxCommit:
+        """Bind current authority, preserve first-winner replay, and append."""
+
+        if not isinstance(observation, DataFetchAuditObservation):
+            raise TypeError("observation must be a DataFetchAuditObservation")
+        scope = self._scope_provider.get_scope(as_of=observation.recorded_at)
+        if not isinstance(scope, AuditScopeRef):
+            raise TypeError("scope provider returned an invalid scope")
+        if observation.scope is not None and observation.scope != scope:
+            raise ValueError("observation scope differs from current authority")
+        scoped_observation = replace(observation, scope=scope)
+        event_id = _stable_event_id(scoped_observation)
+        stream_id = f"data.fetch:{scoped_observation.dataset_key}"
+
+        with self._writer.atomic():
+            winner = self._writer.get_winner(
+                event_id=event_id,
+                event_version=_EVENT_VERSION,
+                as_of=scoped_observation.recorded_at,
+            )
+            if winner is not None:
+                sequence_no = winner.sequence_no
+                predecessor_hash = winner.predecessor_hash
+            else:
+                head = self._writer.get_current_head(
+                    stream_id=stream_id,
+                    as_of=scoped_observation.recorded_at,
+                    scope=scope,
+                )
+                sequence_no = head.sequence_no + 1 if head is not None else 1
+                predecessor_hash = head.content_hash if head is not None else None
+            event = build_data_fetch_audit_event(
+                scoped_observation,
+                sequence_no=sequence_no,
+                predecessor_hash=predecessor_hash,
+            )
+            commit = self._writer.append_and_enqueue(
+                event,
+                expected_predecessor_hash=event.predecessor_hash,
+                recorded_at=event.recorded_at,
+            )
+        if commit.event != event:
+            raise ValueError("data fetch audit writer substituted the event")
+        return commit
+
+    def write(self, observation: DataFetchAuditObservation) -> SystemAuditEventOutboxCommit:
+        """Write one observation through the canonical append use case."""
+
+        return self.execute(observation)
+
+
+__all__ = [
+    "AppendDataFetchAuditObservationUseCase",
+    "DataFetchAuditEventOutboxWriter",
+    "DataFetchAuditObservation",
+    "DataFetchAuditScopeProvider",
+    "build_data_fetch_audit_event",
+]

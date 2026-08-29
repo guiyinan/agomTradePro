@@ -44,6 +44,41 @@ def test_domain_coverage_includes_shared_and_changed_app_tests(tmp_path: Path) -
     ]
 
 
+def test_domain_coverage_includes_external_unit_tests_with_direct_imports(
+    tmp_path: Path,
+) -> None:
+    """Legacy or cross-app unit tests must contribute when they import the Domain."""
+
+    runner = _load_script()
+    (tmp_path / "tests/unit/domain").mkdir(parents=True)
+    (tmp_path / "tests/unit/fixed_income").mkdir(parents=True)
+    external_test = tmp_path / "tests/unit/risk/test_liquidity_premium.py"
+    external_test.parent.mkdir(parents=True)
+    external_test.write_text(
+        "from apps.fixed_income.domain.liquidity_premium import calculate\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "tests/unit/test_unrelated.py").write_text(
+        "from apps.equity.domain.signals import Signal\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "tests/unit/fixed_income/test_owned.py").write_text(
+        "import apps.fixed_income.domain\n",
+        encoding="utf-8",
+    )
+
+    targets = runner.select_domain_test_targets(
+        ["apps.fixed_income.domain"],
+        root=tmp_path,
+    )
+
+    assert targets == [
+        "tests/unit/domain",
+        "tests/unit/fixed_income",
+        "tests/unit/risk/test_liquidity_premium.py",
+    ]
+
+
 def test_domain_coverage_command_keeps_threshold_and_exact_modules(tmp_path: Path) -> None:
     """The runner must preserve the configured threshold and exact coverage targets."""
 

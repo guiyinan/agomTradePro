@@ -158,7 +158,7 @@ RUNTIME_BETA_GATE_ACTIONS: tuple[dict[str, Any], ...] = (
             ),
             _field(
                 "allowed_regimes",
-                "允许的 Regime（JSON 数组）",
+                "允许的宏观象限（JSON 数组）",
                 input_type="textarea",
                 value_type="list",
             ),
@@ -226,7 +226,7 @@ RUNTIME_BETA_GATE_ACTIONS: tuple[dict[str, Any], ...] = (
             *[
                 _field(key, label, input_type="textarea", value_type="object")
                 for key, label in (
-                    ("regime_constraints", "Regime 约束（JSON）"),
+                    ("regime_constraints", "宏观象限约束（JSON）"),
                     ("policy_constraints", "Policy 约束（JSON）"),
                     ("portfolio_constraints", "组合约束（JSON）"),
                 )
@@ -274,14 +274,14 @@ RUNTIME_BETA_GATE_ACTIONS: tuple[dict[str, Any], ...] = (
             _field("asset_class", "资产类别", required=True),
             _field(
                 "current_regime",
-                "当前 Regime",
+                "当前宏观象限",
                 input_type="select",
                 required=True,
                 options=["Recovery", "Overheat", "Deflation", "Stagflation"],
             ),
             _field(
                 "regime_confidence",
-                "Regime 置信度",
+                "宏观象限置信度",
                 input_type="number",
                 value_type="float",
                 required=True,

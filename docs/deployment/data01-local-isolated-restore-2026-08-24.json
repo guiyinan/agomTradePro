@@ -1,0 +1,59 @@
+{
+  "schema": "data01-local-isolated-restore-observation.v1",
+  "observed_at": "2026-08-24T10:41:05.182403+00:00",
+  "outcome": "success",
+  "archive": {
+    "remote_path": "/opt/agomtradepro/backups/database/postgres-20260824-074227.dump",
+    "local_path": "backups/vps-postgres/postgres-20260824-074227.dump",
+    "size_bytes": 142813695,
+    "sha256": "7eb67da66bb6d3c550bc35f96abbc2c38ea403f776c56602316e83b912b4fd6d",
+    "manifest_entries": 7189
+  },
+  "isolated_restore": {
+    "postgres_image": "postgres:16-alpine",
+    "pg_restore_client": "postgres:16-alpine",
+    "public_tables": {
+      "source": 539,
+      "restored": 539
+    },
+    "data_center_migrations": {
+      "source": 72,
+      "restored": 72,
+      "latest": "0072_note_non_st_price_limit_scope"
+    },
+    "sequence_count": {
+      "source": 460,
+      "restored": 460
+    },
+    "schema_sha256": "47b7696d01371801a203560e830093712c6ace3bd94d8d6465699dab38857433",
+    "snapshot_difference": {
+      "missing_tables": 0,
+      "extra_tables": 0,
+      "changed_tables": 0,
+      "missing_migrations": 0,
+      "extra_migrations": 0,
+      "changed_sequences": 0,
+      "schema_mismatch": false
+    },
+    "elapsed_seconds": {
+      "restore": 689.563,
+      "verification": 628.355,
+      "total": 2214.035
+    },
+    "verifier_report_sha256": "0391884b5792150cdcefe74a9a41817c025a3d216e670dfbac18a47facd00f17"
+  },
+  "cleanup": {
+    "restore_database_dropped": true,
+    "source_disposable_database_dropped": true,
+    "temporary_archive_removed_from_container": true
+  },
+  "production_scope": {
+    "remote_operation": "download_latest_only",
+    "production_database_touched": false,
+    "production_backup_created": false,
+    "production_restore_performed": false,
+    "rto_rpo_established": false,
+    "owner_reviewer_signoff": "not_collected",
+    "data01_status": "awaiting_production"
+  }
+}

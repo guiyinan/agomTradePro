@@ -66,7 +66,7 @@ def test_data_center_dashboard_surfaces_connection_mode_and_row_operations() -> 
         screen for screen in runtime["screens"] if screen["key"] == "api-library.data-center"
     )
     assert screen["label"] == "数据与系统健康"
-    assert screen["default_action_key"] == "auto.api.get.api.health"
+    assert screen["default_action_key"] == "system.health-summary"
     panels = {
         str(panel["key"]): panel for panel in screen["dashboard_panels"] if isinstance(panel, dict)
     }

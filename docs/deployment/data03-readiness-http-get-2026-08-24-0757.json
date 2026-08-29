@@ -1,0 +1,1332 @@
+{
+  "candidate": {
+    "commit": "94abd76e46eeef4a8e21853799c7d69bcd9bbe3b",
+    "matrix_sha256": "6272ea6606ebbf3c0791e48d807b733cbc6d9a4ce7d945d95c5e3a16c22aea64",
+    "oci_revision": "sha256:1c560b5fed14964a008c278a88d9f3e3b144444a172ecc239d06cedbd76d6a3e",
+    "version": "20260824133504"
+  },
+  "observations": [
+    {
+      "candidate": {
+        "commit": "94abd76e46eeef4a8e21853799c7d69bcd9bbe3b",
+        "matrix_sha256": "6272ea6606ebbf3c0791e48d807b733cbc6d9a4ce7d945d95c5e3a16c22aea64",
+        "oci_revision": "sha256:1c560b5fed14964a008c278a88d9f3e3b144444a172ecc239d06cedbd76d6a3e",
+        "version": "20260824133504"
+      },
+      "captured_at": "2026-08-24T07:59:34.242560Z",
+      "decision": {
+        "checks": {
+          "core_coverage": {
+            "asset_count": 5533,
+            "block_reason_code": "core_data_coverage_incomplete",
+            "domains": {
+              "financial": {
+                "covered_count": 5533,
+                "latest_date": "2026-06-30",
+                "missing_count": 0,
+                "publication": {
+                  "age_seconds": null,
+                  "as_of": "2026-04-29T00:00:00+00:00",
+                  "blocked_reason": "canonical_publication_coverage_incomplete",
+                  "coverage_missing_count": 0,
+                  "coverage_selected_count": 80,
+                  "dataset_key": "equity.financial.fact",
+                  "freshness_status": "incomplete",
+                  "max_age_seconds": null,
+                  "member_bound_count": 1,
+                  "member_count": 80,
+                  "member_missing_count": 5532,
+                  "member_row_count": 80,
+                  "must_not_use_for_decision": true,
+                  "observed_at": null,
+                  "publication_id": "c8741812-cf01-512f-8d1c-91c0e6549f42",
+                  "publication_key": "current",
+                  "published_at": "2026-08-15T02:54:59.904908+00:00",
+                  "published_latest_date": "2026-03-31",
+                  "state": "published",
+                  "status": "blocked"
+                },
+                "published_covered_count": 1,
+                "published_missing_count": 5532,
+                "published_status": "blocked",
+                "status": "ok"
+              },
+              "price": {
+                "covered_count": 5533,
+                "latest_date": "2026-08-04",
+                "missing_count": 0,
+                "publication": {
+                  "age_seconds": null,
+                  "as_of": "2026-08-20T16:00:00+00:00",
+                  "blocked_reason": "canonical_publication_coverage_incomplete",
+                  "coverage_missing_count": 0,
+                  "coverage_selected_count": 21,
+                  "dataset_key": "equity.price.bar",
+                  "freshness_status": "incomplete",
+                  "max_age_seconds": null,
+                  "member_bound_count": 0,
+                  "member_count": 21,
+                  "member_missing_count": 5533,
+                  "member_row_count": 21,
+                  "must_not_use_for_decision": true,
+                  "observed_at": null,
+                  "publication_id": "464242d7-18d3-5e2e-8192-ce8f4a27e0fe",
+                  "publication_key": "current",
+                  "published_at": "2026-08-23T14:50:50.882966+00:00",
+                  "published_latest_date": "2026-08-21",
+                  "state": "published",
+                  "status": "blocked"
+                },
+                "published_covered_count": 0,
+                "published_missing_count": 5533,
+                "published_status": "blocked",
+                "status": "ok"
+              },
+              "valuation": {
+                "covered_count": 5533,
+                "latest_date": "2026-08-04",
+                "missing_count": 0,
+                "publication": {
+                  "age_seconds": null,
+                  "as_of": null,
+                  "blocked_reason": "canonical_publication_missing",
+                  "coverage_missing_count": 0,
+                  "coverage_selected_count": 0,
+                  "dataset_key": "equity.valuation.fact",
+                  "freshness_status": "blocked",
+                  "max_age_seconds": null,
+                  "member_bound_count": 0,
+                  "member_count": 0,
+                  "member_missing_count": 0,
+                  "member_row_count": 0,
+                  "must_not_use_for_decision": true,
+                  "observed_at": null,
+                  "publication_id": null,
+                  "publication_key": "current",
+                  "published_at": null,
+                  "published_latest_date": null,
+                  "state": null,
+                  "status": "blocked"
+                },
+                "published_covered_count": 0,
+                "published_missing_count": 0,
+                "published_status": "blocked",
+                "status": "ok"
+              }
+            },
+            "must_not_use_for_decision": true,
+            "status": "incomplete",
+            "universe": "active_a_share",
+            "universe_config": {
+              "asset_type": "stock",
+              "description": "Full active A-share universe used for production coverage.",
+              "exchanges": [
+                "SSE",
+                "SZSE",
+                "BSE"
+              ],
+              "include_inactive": false,
+              "min_active_asset_count": 4000,
+              "min_bse_count": 50,
+              "min_chinext_count": 0,
+              "min_star_market_count": 200,
+              "universe_id": "active_a_share"
+            },
+            "universe_quality": {
+              "board_counts": {
+                "bse": 331,
+                "chinext": 1399,
+                "sh_main": 1698,
+                "star_market": 612,
+                "sz_main": 1451
+              },
+              "exchange_counts": {
+                "BSE": 331,
+                "SSE": 2310,
+                "SZSE": 2892
+              },
+              "issues": [],
+              "minimum_active_a_share_count": 4000,
+              "minimum_bse_count": 50,
+              "minimum_chinext_count": 0,
+              "minimum_star_market_count": 200,
+              "status": "ok"
+            }
+          },
+          "decision_data": {
+            "asset_codes": [
+              "510300.SH",
+              "000300.SH"
+            ],
+            "blocked_reasons": [
+              "市场温度计标记为 must_not_use_for_decision。"
+            ],
+            "market_thermometer": {
+              "avoid_chasing": false,
+              "band": "warm",
+              "blocked_reason": "有效组件数不足，当前仅 3 个，低于要求 4 个。 已回退展示最近有效快照 2026-08-19，避免将断链结果显示为 0.0。",
+              "calculated_at": "2026-08-19T23:06:51.075665+00:00",
+              "change_20d": 6.77,
+              "change_5d": -8.6,
+              "component_data_provenance": [
+                {
+                  "component_key": "new_investor_accounts",
+                  "indicator_code": "CN_A_NEW_INVESTOR_ACCOUNTS",
+                  "proxy": "sse_monthly_all_account_openings",
+                  "reporting_period": "2026-07-31",
+                  "source": "akshare",
+                  "source_url": "https://www.sse.com.cn/aboutus/publication/monthly/investor/",
+                  "verification_status": "proxy_source"
+                },
+                {
+                  "component_key": "turnover",
+                  "indicator_code": "CN_A_TOTAL_TURNOVER",
+                  "proxy": null,
+                  "reporting_period": "2026-08-17",
+                  "source": "tushare",
+                  "source_url": null,
+                  "verification_status": null
+                },
+                {
+                  "component_key": "margin_balance",
+                  "indicator_code": "CN_A_MARGIN_BALANCE",
+                  "proxy": "sh_margin_plus_sz_margin",
+                  "reporting_period": "2026-08-19",
+                  "source": "akshare",
+                  "source_url": null,
+                  "verification_status": "proxy_source"
+                },
+                {
+                  "component_key": "etf_net_flow",
+                  "indicator_code": "CN_A_ETF_NET_FLOW",
+                  "proxy": "tushare_etf_share_size_delta",
+                  "reporting_period": "2026-07-30",
+                  "source": "data_center_consensus",
+                  "source_url": null,
+                  "verification_status": "fallback_proxy"
+                },
+                {
+                  "component_key": "market_news_count",
+                  "indicator_code": "CN_A_MARKET_NEWS_COUNT",
+                  "proxy": null,
+                  "reporting_period": "2026-08-14",
+                  "source": "akshare",
+                  "source_url": null,
+                  "verification_status": null
+                },
+                {
+                  "component_key": "market_news_sentiment",
+                  "indicator_code": "CN_A_MARKET_NEWS_SENTIMENT",
+                  "proxy": null,
+                  "reporting_period": "2026-08-14",
+                  "source": "akshare",
+                  "source_url": null,
+                  "verification_status": null
+                }
+              ],
+              "components": [
+                {
+                  "age_days": 19,
+                  "component_key": "new_investor_accounts",
+                  "current_value": 2854800,
+                  "growth_score": 36.881595507793584,
+                  "indicator_code": "CN_A_NEW_INVESTOR_ACCOUNTS",
+                  "is_missing": false,
+                  "is_stale": false,
+                  "label": "新增开户",
+                  "percentile_score": 60.86956521739131,
+                  "positive_ratio_score": null,
+                  "reason": "新增开户: 增速分 36.9 / 分位分 60.9",
+                  "score": 46.48,
+                  "sentiment_score": null,
+                  "unit": "户",
+                  "weight": 0.15
+                },
+                {
+                  "age_days": 2,
+                  "component_key": "turnover",
+                  "current_value": 2402511678610.232,
+                  "growth_score": 55.21904045681186,
+                  "indicator_code": "CN_A_TOTAL_TURNOVER",
+                  "is_missing": false,
+                  "is_stale": false,
+                  "label": "全市场成交额",
+                  "percentile_score": 28.18181818181818,
+                  "positive_ratio_score": null,
+                  "reason": "全市场成交额: 增速分 55.2 / 分位分 28.2",
+                  "score": 44.4,
+                  "sentiment_score": null,
+                  "unit": "元",
+                  "weight": 0.25
+                },
+                {
+                  "age_days": 1,
+                  "component_key": "margin_balance",
+                  "current_value": 2662515847021,
+                  "growth_score": 51.19938218093242,
+                  "indicator_code": "CN_A_MARGIN_BALANCE",
+                  "is_missing": false,
+                  "is_stale": false,
+                  "label": "融资余额",
+                  "percentile_score": 46.92307692307692,
+                  "positive_ratio_score": null,
+                  "reason": "融资余额: 增速分 51.2 / 分位分 46.9",
+                  "score": 49.49,
+                  "sentiment_score": null,
+                  "unit": "元",
+                  "weight": 0.2
+                },
+                {
+                  "age_days": 14,
+                  "component_key": "etf_net_flow",
+                  "current_value": -269266481667.00424,
+                  "growth_score": 50,
+                  "indicator_code": "CN_A_ETF_NET_FLOW",
+                  "is_missing": false,
+                  "is_stale": true,
+                  "label": "ETF 资金净流入",
+                  "percentile_score": 21.052631578947366,
+                  "positive_ratio_score": null,
+                  "reason": "ETF 资金净流入: 增速分 50.0 / 分位分 21.1",
+                  "score": 38.42,
+                  "sentiment_score": null,
+                  "unit": "元",
+                  "weight": 0.15
+                },
+                {
+                  "age_days": 3,
+                  "component_key": "market_news_count",
+                  "current_value": 7,
+                  "growth_score": 31.48148148148148,
+                  "indicator_code": "CN_A_MARKET_NEWS_COUNT",
+                  "is_missing": false,
+                  "is_stale": false,
+                  "label": "市场新闻热度",
+                  "percentile_score": 34.54545454545455,
+                  "positive_ratio_score": null,
+                  "reason": "市场新闻热度: 增速分 31.5 / 分位分 34.5",
+                  "score": 32.71,
+                  "sentiment_score": null,
+                  "unit": "篇",
+                  "weight": 0.15
+                },
+                {
+                  "age_days": 3,
+                  "component_key": "market_news_sentiment",
+                  "current_value": 0,
+                  "growth_score": null,
+                  "indicator_code": "CN_A_MARKET_NEWS_SENTIMENT",
+                  "is_missing": false,
+                  "is_stale": false,
+                  "label": "市场新闻情绪",
+                  "percentile_score": 67.27272727272727,
+                  "positive_ratio_score": 50,
+                  "reason": "市场新闻情绪: 分位分 67.3 / 情绪分 50.0",
+                  "score": 55.18,
+                  "sentiment_score": 50,
+                  "unit": "score",
+                  "weight": 0.1
+                }
+              ],
+              "data_source": "degraded",
+              "effective_band": "warm",
+              "fallback_used": true,
+              "latest_snapshot_observed_at": "2026-08-20",
+              "missing_components": [],
+              "must_not_use_for_decision": true,
+              "observed_at": "2026-08-19",
+              "overheating_risk": false,
+              "proxy_components": [
+                {
+                  "component_key": "new_investor_accounts",
+                  "indicator_code": "CN_A_NEW_INVESTOR_ACCOUNTS",
+                  "proxy": "sse_monthly_all_account_openings",
+                  "reporting_period": "2026-07-31",
+                  "source": "akshare",
+                  "source_url": "https://www.sse.com.cn/aboutus/publication/monthly/investor/",
+                  "verification_status": "proxy_source"
+                },
+                {
+                  "component_key": "margin_balance",
+                  "indicator_code": "CN_A_MARGIN_BALANCE",
+                  "proxy": "sh_margin_plus_sz_margin",
+                  "reporting_period": "2026-08-19",
+                  "source": "akshare",
+                  "source_url": null,
+                  "verification_status": "proxy_source"
+                },
+                {
+                  "component_key": "etf_net_flow",
+                  "indicator_code": "CN_A_ETF_NET_FLOW",
+                  "proxy": "tushare_etf_share_size_delta",
+                  "reporting_period": "2026-07-30",
+                  "source": "data_center_consensus",
+                  "source_url": null,
+                  "verification_status": "fallback_proxy"
+                }
+              ],
+              "score": 45.17,
+              "score_available": true,
+              "stale_components": [
+                "etf_net_flow"
+              ],
+              "status": "blocked",
+              "threshold_source": "system",
+              "thresholds": {
+                "extreme_threshold": 85,
+                "hot_threshold": 60,
+                "overheat_threshold": 75,
+                "warm_threshold": 35
+              },
+              "trigger_reasons": [
+                "全市场成交额: 增速分 55.2 / 分位分 28.2",
+                "融资余额: 增速分 51.2 / 分位分 46.9",
+                "新增开户: 增速分 36.9 / 分位分 60.9",
+                "市场新闻情绪: 分位分 67.3 / 情绪分 50.0",
+                "市场新闻热度: 增速分 31.5 / 分位分 34.5"
+              ],
+              "valid_component_count": 5
+            },
+            "must_not_use_for_decision": true,
+            "quote_max_age_hours": 4,
+            "quotes": {
+              "000300.SH": {
+                "age_minutes": 25,
+                "asset_code": "000300.SH",
+                "blocked_reason": "",
+                "contract": {
+                  "age_minutes": 25,
+                  "blocked_reason": "",
+                  "fetched_at": "2026-08-24T07:35:13.502980+00:00",
+                  "freshness_status": "fresh",
+                  "is_stale": false,
+                  "max_age_hours": 4,
+                  "must_not_use_for_decision": false,
+                  "observed_at": "2026-08-24T07:34:14+00:00",
+                  "snapshot_at": "2026-08-24T07:34:14+00:00"
+                },
+                "current_price": 4563.13,
+                "fetched_at": "2026-08-24T07:35:13.502980+00:00",
+                "freshness_status": "fresh",
+                "high": 4621.39,
+                "is_stale": false,
+                "low": 4527.49,
+                "max_age_hours": 4,
+                "must_not_use_for_decision": false,
+                "observed_at": "2026-08-24T07:34:14+00:00",
+                "open": 4620.95,
+                "prev_close": 4618.9,
+                "snapshot_at": "2026-08-24T07:34:14+00:00",
+                "source": "akshare",
+                "status": "ok",
+                "volume": 206616872
+              },
+              "510300.SH": {
+                "age_minutes": 24,
+                "asset_code": "510300.SH",
+                "blocked_reason": "",
+                "contract": {
+                  "age_minutes": 24,
+                  "blocked_reason": "",
+                  "fetched_at": "2026-08-24T07:35:13.502781+00:00",
+                  "freshness_status": "fresh",
+                  "is_stale": false,
+                  "max_age_hours": 4,
+                  "must_not_use_for_decision": false,
+                  "observed_at": "2026-08-24T07:35:02+00:00",
+                  "snapshot_at": "2026-08-24T07:35:02+00:00"
+                },
+                "current_price": 4.627,
+                "fetched_at": "2026-08-24T07:35:13.502781+00:00",
+                "freshness_status": "fresh",
+                "high": 4.692,
+                "is_stale": false,
+                "low": 4.593,
+                "max_age_hours": 4,
+                "must_not_use_for_decision": false,
+                "observed_at": "2026-08-24T07:35:02+00:00",
+                "open": 4.678,
+                "prev_close": 4.68,
+                "snapshot_at": "2026-08-24T07:35:02+00:00",
+                "source": "akshare",
+                "status": "ok",
+                "volume": 9229738
+              }
+            },
+            "readiness_status": "blocked",
+            "skipped_latest_market_thermometer": {
+              "band": "warm",
+              "blocked_reason": "有效组件数不足，当前仅 3 个，低于要求 4 个。",
+              "calculated_at": "2026-08-20T21:39:28.405579+00:00",
+              "change_20d": 4.65,
+              "change_5d": -8.56,
+              "components": [
+                {
+                  "age_days": 20,
+                  "component_key": "new_investor_accounts",
+                  "current_value": 2854800,
+                  "growth_score": 36.881595507793584,
+                  "indicator_code": "CN_A_NEW_INVESTOR_ACCOUNTS",
+                  "is_missing": false,
+                  "is_stale": false,
+                  "label": "新增开户",
+                  "percentile_score": 60.86956521739131,
+                  "positive_ratio_score": null,
+                  "reason": "新增开户: 增速分 36.9 / 分位分 60.9",
+                  "score": 46.48,
+                  "sentiment_score": null,
+                  "unit": "户",
+                  "weight": 0.15
+                },
+                {
+                  "age_days": 3,
+                  "component_key": "turnover",
+                  "current_value": 2402511678610.232,
+                  "growth_score": 49.62820987050836,
+                  "indicator_code": "CN_A_TOTAL_TURNOVER",
+                  "is_missing": false,
+                  "is_stale": false,
+                  "label": "全市场成交额",
+                  "percentile_score": 28.18181818181818,
+                  "positive_ratio_score": null,
+                  "reason": "全市场成交额: 增速分 49.6 / 分位分 28.2",
+                  "score": 41.05,
+                  "sentiment_score": null,
+                  "unit": "元",
+                  "weight": 0.25
+                },
+                {
+                  "age_days": 2,
+                  "component_key": "margin_balance",
+                  "current_value": 2662515847021,
+                  "growth_score": 51.152753354687036,
+                  "indicator_code": "CN_A_MARGIN_BALANCE",
+                  "is_missing": false,
+                  "is_stale": false,
+                  "label": "融资余额",
+                  "percentile_score": 46.92307692307692,
+                  "positive_ratio_score": null,
+                  "reason": "融资余额: 增速分 51.2 / 分位分 46.9",
+                  "score": 49.46,
+                  "sentiment_score": null,
+                  "unit": "元",
+                  "weight": 0.2
+                },
+                {
+                  "age_days": 15,
+                  "component_key": "etf_net_flow",
+                  "current_value": -269266481667.00424,
+                  "growth_score": 50,
+                  "indicator_code": "CN_A_ETF_NET_FLOW",
+                  "is_missing": false,
+                  "is_stale": true,
+                  "label": "ETF 资金净流入",
+                  "percentile_score": 21.052631578947366,
+                  "positive_ratio_score": null,
+                  "reason": "ETF 资金净流入: 增速分 50.0 / 分位分 21.1",
+                  "score": 38.42,
+                  "sentiment_score": null,
+                  "unit": "元",
+                  "weight": 0.15
+                },
+                {
+                  "age_days": 4,
+                  "component_key": "market_news_count",
+                  "current_value": 7,
+                  "growth_score": 60,
+                  "indicator_code": "CN_A_MARKET_NEWS_COUNT",
+                  "is_missing": false,
+                  "is_stale": true,
+                  "label": "市场新闻热度",
+                  "percentile_score": 34.54545454545455,
+                  "positive_ratio_score": null,
+                  "reason": "市场新闻热度: 增速分 60.0 / 分位分 34.5",
+                  "score": 49.82,
+                  "sentiment_score": null,
+                  "unit": "篇",
+                  "weight": 0.15
+                },
+                {
+                  "age_days": 4,
+                  "component_key": "market_news_sentiment",
+                  "current_value": 0,
+                  "growth_score": null,
+                  "indicator_code": "CN_A_MARKET_NEWS_SENTIMENT",
+                  "is_missing": false,
+                  "is_stale": true,
+                  "label": "市场新闻情绪",
+                  "percentile_score": 67.27272727272727,
+                  "positive_ratio_score": 50,
+                  "reason": "市场新闻情绪: 分位分 67.3 / 情绪分 50.0",
+                  "score": 55.18,
+                  "sentiment_score": 50,
+                  "unit": "score",
+                  "weight": 0.1
+                }
+              ],
+              "data_source": "degraded",
+              "missing_components": [],
+              "must_not_use_for_decision": true,
+              "observed_at": "2026-08-20",
+              "score": 45.21,
+              "skip_reason": "latest_snapshot_after_decision_safe_date",
+              "stale_components": [
+                "etf_net_flow",
+                "market_news_count",
+                "market_news_sentiment"
+              ],
+              "status": "blocked",
+              "trigger_reasons": [
+                "全市场成交额: 增速分 49.6 / 分位分 28.2",
+                "融资余额: 增速分 51.2 / 分位分 46.9",
+                "新增开户: 增速分 36.9 / 分位分 60.9"
+              ],
+              "valid_component_count": 3
+            },
+            "status": "warning"
+          },
+          "provider_capabilities": {
+            "block_reason_code": "decision_provider_capabilities_unhealthy",
+            "blocked_capabilities": [
+              "valuation",
+              "financial"
+            ],
+            "capabilities": {
+              "financial": {
+                "must_not_use_for_decision": true,
+                "providers": [
+                  {
+                    "avg_latency_ms": null,
+                    "block_reason_code": "provider_capability_success_stale",
+                    "capability": "financial",
+                    "consecutive_failures": 40,
+                    "dataset_key": "equity.financial.fact",
+                    "last_success_at": "2026-05-03T23:48:31.972Z",
+                    "max_age_hours": 24,
+                    "must_not_use_for_decision": true,
+                    "provider_name": "Tushare Pro",
+                    "status": "stale",
+                    "success_age_hours": 2696.184
+                  },
+                  {
+                    "avg_latency_ms": 1081.297,
+                    "block_reason_code": "provider_capability_success_stale",
+                    "capability": "financial",
+                    "consecutive_failures": 0,
+                    "dataset_key": "equity.financial.fact",
+                    "last_success_at": "2026-08-15T02:55:00.508Z",
+                    "max_age_hours": 24,
+                    "must_not_use_for_decision": true,
+                    "provider_name": "AKShare Public",
+                    "status": "stale",
+                    "success_age_hours": 221.076
+                  }
+                ],
+                "status": "blocked"
+              },
+              "historical_price": {
+                "must_not_use_for_decision": false,
+                "providers": [
+                  {
+                    "avg_latency_ms": 3142.722,
+                    "block_reason_code": "provider_capability_success_stale",
+                    "capability": "historical_price",
+                    "consecutive_failures": 21,
+                    "dataset_key": "equity.price.bar",
+                    "last_success_at": "2026-08-01T16:14:14.672Z",
+                    "max_age_hours": 24,
+                    "must_not_use_for_decision": true,
+                    "provider_name": "Tushare Pro",
+                    "status": "stale",
+                    "success_age_hours": 543.755
+                  },
+                  {
+                    "avg_latency_ms": 1670.693,
+                    "block_reason_code": "",
+                    "capability": "historical_price",
+                    "consecutive_failures": 0,
+                    "dataset_key": "equity.price.bar",
+                    "last_success_at": "2026-08-23T14:50:51.081Z",
+                    "max_age_hours": 24,
+                    "must_not_use_for_decision": false,
+                    "provider_name": "AKShare Public",
+                    "status": "healthy",
+                    "success_age_hours": 17.145
+                  }
+                ],
+                "status": "ok"
+              },
+              "valuation": {
+                "must_not_use_for_decision": true,
+                "providers": [
+                  {
+                    "avg_latency_ms": null,
+                    "block_reason_code": "provider_capability_success_stale",
+                    "capability": "valuation",
+                    "consecutive_failures": 22,
+                    "dataset_key": "equity.valuation.fact",
+                    "last_success_at": "2026-05-03T23:48:31.972Z",
+                    "max_age_hours": 24,
+                    "must_not_use_for_decision": true,
+                    "provider_name": "Tushare Pro",
+                    "status": "stale",
+                    "success_age_hours": 2696.184
+                  },
+                  {
+                    "avg_latency_ms": 6678.272,
+                    "block_reason_code": "provider_capability_success_stale",
+                    "capability": "valuation",
+                    "consecutive_failures": 0,
+                    "dataset_key": "equity.valuation.fact",
+                    "last_success_at": "2026-08-04T13:28:21.310Z",
+                    "max_age_hours": 24,
+                    "must_not_use_for_decision": true,
+                    "provider_name": "AKShare Public",
+                    "status": "stale",
+                    "success_age_hours": 474.52
+                  }
+                ],
+                "status": "blocked"
+              }
+            },
+            "must_not_use_for_decision": true,
+            "status": "blocked"
+          },
+          "runtime_state": {
+            "block_reason_code": "decision_runtime_blocked",
+            "changed_at": "2026-08-02T01:25:33.770160+00:00",
+            "changed_by": "codex",
+            "expected_resume_at": null,
+            "must_not_use_for_decision": true,
+            "reason": "MCP audit evidence write failed during final acceptance",
+            "release_ref": "3e08a3b3a7b6ccd33898e5bb2c5074300b1a4928",
+            "runtime_status": "blocked",
+            "status": "blocked"
+          }
+        },
+        "endpoint": "/api/decision-ready/",
+        "http_status": 503,
+        "must_not_use_for_decision": true,
+        "status": "blocked",
+        "timestamp": "2026-08-24T07:59:34.242560Z"
+      },
+      "service": {
+        "checks": {
+          "alpha_workspace_consistency": {
+            "alpha": {
+              "latest_trade_date": "2026-08-21",
+              "latest_updated_at": "2026-08-22T05:45:07.099220+00:00",
+              "provider_source": "qlib",
+              "runtime_provider_status": {
+                "cache": {
+                  "max_staleness_days": 5,
+                  "priority": 10,
+                  "status": "available"
+                },
+                "etf": {
+                  "max_staleness_days": 30,
+                  "priority": 1000,
+                  "status": "unavailable"
+                },
+                "qlib": {
+                  "max_staleness_days": 2,
+                  "priority": 1,
+                  "status": "available"
+                },
+                "simple": {
+                  "max_staleness_days": 7,
+                  "priority": 100,
+                  "status": "available"
+                }
+              },
+              "status": "available",
+              "top_codes": [
+                "600363.SH",
+                "688347.SH",
+                "300553.SZ",
+                "300873.SZ",
+                "688359.SH",
+                "002636.SZ",
+                "603211.SH",
+                "002965.SZ",
+                "300005.SZ",
+                "688768.SH",
+                "301588.SZ",
+                "600246.SH",
+                "300938.SZ",
+                "688702.SH",
+                "600641.SH",
+                "002832.SZ",
+                "600298.SH",
+                "688691.SH",
+                "603137.SH",
+                "300516.SZ",
+                "002353.SZ",
+                "300199.SZ",
+                "688615.SH",
+                "603198.SH",
+                "688729.SH",
+                "300779.SZ",
+                "300136.SZ",
+                "688048.SH",
+                "300757.SZ",
+                "000802.SZ"
+              ]
+            },
+            "checked_account_id": "default",
+            "issues": [],
+            "status": "ok",
+            "workspace": {
+              "account_id": "default",
+              "latest_updated_at": "2026-08-22T18:16:07.945326+00:00",
+              "recommendation_codes": [
+                "300866.SZ",
+                "601100.SH",
+                "000680.SZ",
+                "600879.SH",
+                "002174.SZ",
+                "600276.SH",
+                "600446.SH",
+                "300450.SZ",
+                "002008.SZ",
+                "688072.SH",
+                "688396.SH",
+                "300315.SZ",
+                "300274.SZ",
+                "601728.SH",
+                "600246.SH",
+                "301165.SZ",
+                "688256.SH",
+                "300136.SZ",
+                "600893.SH",
+                "600233.SH",
+                "002916.SZ",
+                "002468.SZ",
+                "600183.SH",
+                "002384.SZ",
+                "002353.SZ",
+                "601969.SH",
+                "002465.SZ",
+                "603259.SH",
+                "000988.SZ",
+                "600674.SH"
+              ],
+              "source_candidate_ids": [
+                "alpha_rank:300866.SZ:2026-08-21",
+                "alpha_rank:601100.SH:2026-08-21",
+                "alpha_rank:000680.SZ:2026-08-21",
+                "alpha_rank:600879.SH:2026-08-21",
+                "alpha_rank:002174.SZ:2026-08-21",
+                "alpha_rank:600276.SH:2026-08-21",
+                "alpha_rank:600446.SH:2026-08-21",
+                "alpha_rank:300450.SZ:2026-08-21",
+                "alpha_rank:002008.SZ:2026-08-21",
+                "alpha_rank:688072.SH:2026-08-21",
+                "alpha_rank:688396.SH:2026-08-21",
+                "alpha_rank:300315.SZ:2026-08-21",
+                "alpha_rank:300274.SZ:2026-08-21",
+                "alpha_rank:601728.SH:2026-08-21",
+                "alpha_rank:600246.SH:2026-08-21",
+                "alpha_rank:301165.SZ:2026-08-21",
+                "alpha_rank:688256.SH:2026-08-21",
+                "alpha_rank:300136.SZ:2026-08-21",
+                "alpha_rank:600893.SH:2026-08-21",
+                "alpha_rank:600233.SH:2026-08-21",
+                "alpha_rank:002916.SZ:2026-08-21",
+                "alpha_rank:002468.SZ:2026-08-21",
+                "alpha_rank:600183.SH:2026-08-21",
+                "alpha_rank:002384.SZ:2026-08-21",
+                "alpha_rank:002353.SZ:2026-08-21",
+                "alpha_rank:601969.SH:2026-08-21",
+                "alpha_rank:002465.SZ:2026-08-21",
+                "alpha_rank:603259.SH:2026-08-21",
+                "alpha_rank:000988.SZ:2026-08-21",
+                "alpha_rank:600674.SH:2026-08-21"
+              ],
+              "total_count": 1181
+            }
+          },
+          "celery": {
+            "status": "ok",
+            "workers": 1
+          },
+          "critical_data": {
+            "detail": {
+              "macro_indicator": true,
+              "regime_state": true
+            },
+            "status": "ok"
+          },
+          "database": {
+            "status": "ok"
+          },
+          "decision_data": {
+            "asset_codes": [
+              "510300.SH",
+              "000300.SH"
+            ],
+            "blocked_reasons": [
+              "市场温度计标记为 must_not_use_for_decision。"
+            ],
+            "market_thermometer": {
+              "avoid_chasing": false,
+              "band": "warm",
+              "blocked_reason": "有效组件数不足，当前仅 3 个，低于要求 4 个。 已回退展示最近有效快照 2026-08-19，避免将断链结果显示为 0.0。",
+              "calculated_at": "2026-08-19T23:06:51.075665+00:00",
+              "change_20d": 6.77,
+              "change_5d": -8.6,
+              "component_data_provenance": [
+                {
+                  "component_key": "new_investor_accounts",
+                  "indicator_code": "CN_A_NEW_INVESTOR_ACCOUNTS",
+                  "proxy": "sse_monthly_all_account_openings",
+                  "reporting_period": "2026-07-31",
+                  "source": "akshare",
+                  "source_url": "https://www.sse.com.cn/aboutus/publication/monthly/investor/",
+                  "verification_status": "proxy_source"
+                },
+                {
+                  "component_key": "turnover",
+                  "indicator_code": "CN_A_TOTAL_TURNOVER",
+                  "proxy": null,
+                  "reporting_period": "2026-08-17",
+                  "source": "tushare",
+                  "source_url": null,
+                  "verification_status": null
+                },
+                {
+                  "component_key": "margin_balance",
+                  "indicator_code": "CN_A_MARGIN_BALANCE",
+                  "proxy": "sh_margin_plus_sz_margin",
+                  "reporting_period": "2026-08-19",
+                  "source": "akshare",
+                  "source_url": null,
+                  "verification_status": "proxy_source"
+                },
+                {
+                  "component_key": "etf_net_flow",
+                  "indicator_code": "CN_A_ETF_NET_FLOW",
+                  "proxy": "tushare_etf_share_size_delta",
+                  "reporting_period": "2026-07-30",
+                  "source": "data_center_consensus",
+                  "source_url": null,
+                  "verification_status": "fallback_proxy"
+                },
+                {
+                  "component_key": "market_news_count",
+                  "indicator_code": "CN_A_MARKET_NEWS_COUNT",
+                  "proxy": null,
+                  "reporting_period": "2026-08-14",
+                  "source": "akshare",
+                  "source_url": null,
+                  "verification_status": null
+                },
+                {
+                  "component_key": "market_news_sentiment",
+                  "indicator_code": "CN_A_MARKET_NEWS_SENTIMENT",
+                  "proxy": null,
+                  "reporting_period": "2026-08-14",
+                  "source": "akshare",
+                  "source_url": null,
+                  "verification_status": null
+                }
+              ],
+              "components": [
+                {
+                  "age_days": 19,
+                  "component_key": "new_investor_accounts",
+                  "current_value": 2854800,
+                  "growth_score": 36.881595507793584,
+                  "indicator_code": "CN_A_NEW_INVESTOR_ACCOUNTS",
+                  "is_missing": false,
+                  "is_stale": false,
+                  "label": "新增开户",
+                  "percentile_score": 60.86956521739131,
+                  "positive_ratio_score": null,
+                  "reason": "新增开户: 增速分 36.9 / 分位分 60.9",
+                  "score": 46.48,
+                  "sentiment_score": null,
+                  "unit": "户",
+                  "weight": 0.15
+                },
+                {
+                  "age_days": 2,
+                  "component_key": "turnover",
+                  "current_value": 2402511678610.232,
+                  "growth_score": 55.21904045681186,
+                  "indicator_code": "CN_A_TOTAL_TURNOVER",
+                  "is_missing": false,
+                  "is_stale": false,
+                  "label": "全市场成交额",
+                  "percentile_score": 28.18181818181818,
+                  "positive_ratio_score": null,
+                  "reason": "全市场成交额: 增速分 55.2 / 分位分 28.2",
+                  "score": 44.4,
+                  "sentiment_score": null,
+                  "unit": "元",
+                  "weight": 0.25
+                },
+                {
+                  "age_days": 1,
+                  "component_key": "margin_balance",
+                  "current_value": 2662515847021,
+                  "growth_score": 51.19938218093242,
+                  "indicator_code": "CN_A_MARGIN_BALANCE",
+                  "is_missing": false,
+                  "is_stale": false,
+                  "label": "融资余额",
+                  "percentile_score": 46.92307692307692,
+                  "positive_ratio_score": null,
+                  "reason": "融资余额: 增速分 51.2 / 分位分 46.9",
+                  "score": 49.49,
+                  "sentiment_score": null,
+                  "unit": "元",
+                  "weight": 0.2
+                },
+                {
+                  "age_days": 14,
+                  "component_key": "etf_net_flow",
+                  "current_value": -269266481667.00424,
+                  "growth_score": 50,
+                  "indicator_code": "CN_A_ETF_NET_FLOW",
+                  "is_missing": false,
+                  "is_stale": true,
+                  "label": "ETF 资金净流入",
+                  "percentile_score": 21.052631578947366,
+                  "positive_ratio_score": null,
+                  "reason": "ETF 资金净流入: 增速分 50.0 / 分位分 21.1",
+                  "score": 38.42,
+                  "sentiment_score": null,
+                  "unit": "元",
+                  "weight": 0.15
+                },
+                {
+                  "age_days": 3,
+                  "component_key": "market_news_count",
+                  "current_value": 7,
+                  "growth_score": 31.48148148148148,
+                  "indicator_code": "CN_A_MARKET_NEWS_COUNT",
+                  "is_missing": false,
+                  "is_stale": false,
+                  "label": "市场新闻热度",
+                  "percentile_score": 34.54545454545455,
+                  "positive_ratio_score": null,
+                  "reason": "市场新闻热度: 增速分 31.5 / 分位分 34.5",
+                  "score": 32.71,
+                  "sentiment_score": null,
+                  "unit": "篇",
+                  "weight": 0.15
+                },
+                {
+                  "age_days": 3,
+                  "component_key": "market_news_sentiment",
+                  "current_value": 0,
+                  "growth_score": null,
+                  "indicator_code": "CN_A_MARKET_NEWS_SENTIMENT",
+                  "is_missing": false,
+                  "is_stale": false,
+                  "label": "市场新闻情绪",
+                  "percentile_score": 67.27272727272727,
+                  "positive_ratio_score": 50,
+                  "reason": "市场新闻情绪: 分位分 67.3 / 情绪分 50.0",
+                  "score": 55.18,
+                  "sentiment_score": 50,
+                  "unit": "score",
+                  "weight": 0.1
+                }
+              ],
+              "data_source": "degraded",
+              "effective_band": "warm",
+              "fallback_used": true,
+              "latest_snapshot_observed_at": "2026-08-20",
+              "missing_components": [],
+              "must_not_use_for_decision": true,
+              "observed_at": "2026-08-19",
+              "overheating_risk": false,
+              "proxy_components": [
+                {
+                  "component_key": "new_investor_accounts",
+                  "indicator_code": "CN_A_NEW_INVESTOR_ACCOUNTS",
+                  "proxy": "sse_monthly_all_account_openings",
+                  "reporting_period": "2026-07-31",
+                  "source": "akshare",
+                  "source_url": "https://www.sse.com.cn/aboutus/publication/monthly/investor/",
+                  "verification_status": "proxy_source"
+                },
+                {
+                  "component_key": "margin_balance",
+                  "indicator_code": "CN_A_MARGIN_BALANCE",
+                  "proxy": "sh_margin_plus_sz_margin",
+                  "reporting_period": "2026-08-19",
+                  "source": "akshare",
+                  "source_url": null,
+                  "verification_status": "proxy_source"
+                },
+                {
+                  "component_key": "etf_net_flow",
+                  "indicator_code": "CN_A_ETF_NET_FLOW",
+                  "proxy": "tushare_etf_share_size_delta",
+                  "reporting_period": "2026-07-30",
+                  "source": "data_center_consensus",
+                  "source_url": null,
+                  "verification_status": "fallback_proxy"
+                }
+              ],
+              "score": 45.17,
+              "score_available": true,
+              "stale_components": [
+                "etf_net_flow"
+              ],
+              "status": "blocked",
+              "threshold_source": "system",
+              "thresholds": {
+                "extreme_threshold": 85,
+                "hot_threshold": 60,
+                "overheat_threshold": 75,
+                "warm_threshold": 35
+              },
+              "trigger_reasons": [
+                "全市场成交额: 增速分 55.2 / 分位分 28.2",
+                "融资余额: 增速分 51.2 / 分位分 46.9",
+                "新增开户: 增速分 36.9 / 分位分 60.9",
+                "市场新闻情绪: 分位分 67.3 / 情绪分 50.0",
+                "市场新闻热度: 增速分 31.5 / 分位分 34.5"
+              ],
+              "valid_component_count": 5
+            },
+            "must_not_use_for_decision": true,
+            "quote_max_age_hours": 4,
+            "quotes": {
+              "000300.SH": {
+                "age_minutes": 25,
+                "asset_code": "000300.SH",
+                "blocked_reason": "",
+                "contract": {
+                  "age_minutes": 25,
+                  "blocked_reason": "",
+                  "fetched_at": "2026-08-24T07:35:13.502980+00:00",
+                  "freshness_status": "fresh",
+                  "is_stale": false,
+                  "max_age_hours": 4,
+                  "must_not_use_for_decision": false,
+                  "observed_at": "2026-08-24T07:34:14+00:00",
+                  "snapshot_at": "2026-08-24T07:34:14+00:00"
+                },
+                "current_price": 4563.13,
+                "fetched_at": "2026-08-24T07:35:13.502980+00:00",
+                "freshness_status": "fresh",
+                "high": 4621.39,
+                "is_stale": false,
+                "low": 4527.49,
+                "max_age_hours": 4,
+                "must_not_use_for_decision": false,
+                "observed_at": "2026-08-24T07:34:14+00:00",
+                "open": 4620.95,
+                "prev_close": 4618.9,
+                "snapshot_at": "2026-08-24T07:34:14+00:00",
+                "source": "akshare",
+                "status": "ok",
+                "volume": 206616872
+              },
+              "510300.SH": {
+                "age_minutes": 24,
+                "asset_code": "510300.SH",
+                "blocked_reason": "",
+                "contract": {
+                  "age_minutes": 24,
+                  "blocked_reason": "",
+                  "fetched_at": "2026-08-24T07:35:13.502781+00:00",
+                  "freshness_status": "fresh",
+                  "is_stale": false,
+                  "max_age_hours": 4,
+                  "must_not_use_for_decision": false,
+                  "observed_at": "2026-08-24T07:35:02+00:00",
+                  "snapshot_at": "2026-08-24T07:35:02+00:00"
+                },
+                "current_price": 4.627,
+                "fetched_at": "2026-08-24T07:35:13.502781+00:00",
+                "freshness_status": "fresh",
+                "high": 4.692,
+                "is_stale": false,
+                "low": 4.593,
+                "max_age_hours": 4,
+                "must_not_use_for_decision": false,
+                "observed_at": "2026-08-24T07:35:02+00:00",
+                "open": 4.678,
+                "prev_close": 4.68,
+                "snapshot_at": "2026-08-24T07:35:02+00:00",
+                "source": "akshare",
+                "status": "ok",
+                "volume": 9229738
+              }
+            },
+            "readiness_status": "blocked",
+            "skipped_latest_market_thermometer": {
+              "band": "warm",
+              "blocked_reason": "有效组件数不足，当前仅 3 个，低于要求 4 个。",
+              "calculated_at": "2026-08-20T21:39:28.405579+00:00",
+              "change_20d": 4.65,
+              "change_5d": -8.56,
+              "components": [
+                {
+                  "age_days": 20,
+                  "component_key": "new_investor_accounts",
+                  "current_value": 2854800,
+                  "growth_score": 36.881595507793584,
+                  "indicator_code": "CN_A_NEW_INVESTOR_ACCOUNTS",
+                  "is_missing": false,
+                  "is_stale": false,
+                  "label": "新增开户",
+                  "percentile_score": 60.86956521739131,
+                  "positive_ratio_score": null,
+                  "reason": "新增开户: 增速分 36.9 / 分位分 60.9",
+                  "score": 46.48,
+                  "sentiment_score": null,
+                  "unit": "户",
+                  "weight": 0.15
+                },
+                {
+                  "age_days": 3,
+                  "component_key": "turnover",
+                  "current_value": 2402511678610.232,
+                  "growth_score": 49.62820987050836,
+                  "indicator_code": "CN_A_TOTAL_TURNOVER",
+                  "is_missing": false,
+                  "is_stale": false,
+                  "label": "全市场成交额",
+                  "percentile_score": 28.18181818181818,
+                  "positive_ratio_score": null,
+                  "reason": "全市场成交额: 增速分 49.6 / 分位分 28.2",
+                  "score": 41.05,
+                  "sentiment_score": null,
+                  "unit": "元",
+                  "weight": 0.25
+                },
+                {
+                  "age_days": 2,
+                  "component_key": "margin_balance",
+                  "current_value": 2662515847021,
+                  "growth_score": 51.152753354687036,
+                  "indicator_code": "CN_A_MARGIN_BALANCE",
+                  "is_missing": false,
+                  "is_stale": false,
+                  "label": "融资余额",
+                  "percentile_score": 46.92307692307692,
+                  "positive_ratio_score": null,
+                  "reason": "融资余额: 增速分 51.2 / 分位分 46.9",
+                  "score": 49.46,
+                  "sentiment_score": null,
+                  "unit": "元",
+                  "weight": 0.2
+                },
+                {
+                  "age_days": 15,
+                  "component_key": "etf_net_flow",
+                  "current_value": -269266481667.00424,
+                  "growth_score": 50,
+                  "indicator_code": "CN_A_ETF_NET_FLOW",
+                  "is_missing": false,
+                  "is_stale": true,
+                  "label": "ETF 资金净流入",
+                  "percentile_score": 21.052631578947366,
+                  "positive_ratio_score": null,
+                  "reason": "ETF 资金净流入: 增速分 50.0 / 分位分 21.1",
+                  "score": 38.42,
+                  "sentiment_score": null,
+                  "unit": "元",
+                  "weight": 0.15
+                },
+                {
+                  "age_days": 4,
+                  "component_key": "market_news_count",
+                  "current_value": 7,
+                  "growth_score": 60,
+                  "indicator_code": "CN_A_MARKET_NEWS_COUNT",
+                  "is_missing": false,
+                  "is_stale": true,
+                  "label": "市场新闻热度",
+                  "percentile_score": 34.54545454545455,
+                  "positive_ratio_score": null,
+                  "reason": "市场新闻热度: 增速分 60.0 / 分位分 34.5",
+                  "score": 49.82,
+                  "sentiment_score": null,
+                  "unit": "篇",
+                  "weight": 0.15
+                },
+                {
+                  "age_days": 4,
+                  "component_key": "market_news_sentiment",
+                  "current_value": 0,
+                  "growth_score": null,
+                  "indicator_code": "CN_A_MARKET_NEWS_SENTIMENT",
+                  "is_missing": false,
+                  "is_stale": true,
+                  "label": "市场新闻情绪",
+                  "percentile_score": 67.27272727272727,
+                  "positive_ratio_score": 50,
+                  "reason": "市场新闻情绪: 分位分 67.3 / 情绪分 50.0",
+                  "score": 55.18,
+                  "sentiment_score": 50,
+                  "unit": "score",
+                  "weight": 0.1
+                }
+              ],
+              "data_source": "degraded",
+              "missing_components": [],
+              "must_not_use_for_decision": true,
+              "observed_at": "2026-08-20",
+              "score": 45.21,
+              "skip_reason": "latest_snapshot_after_decision_safe_date",
+              "stale_components": [
+                "etf_net_flow",
+                "market_news_count",
+                "market_news_sentiment"
+              ],
+              "status": "blocked",
+              "trigger_reasons": [
+                "全市场成交额: 增速分 49.6 / 分位分 28.2",
+                "融资余额: 增速分 51.2 / 分位分 46.9",
+                "新增开户: 增速分 36.9 / 分位分 60.9"
+              ],
+              "valid_component_count": 3
+            },
+            "status": "warning"
+          },
+          "redis": {
+            "source": "cache",
+            "status": "ok"
+          }
+        },
+        "endpoint": "/api/ready/",
+        "http_status": 200,
+        "status": "ok",
+        "timestamp": "2026-08-24T07:59:30.063588Z"
+      },
+      "smoke_checks": [
+        {
+          "detail": {
+            "body_bytes": 61,
+            "body_sha256": "c65bef74297615126656a101e44c654a66e04c61d4936c40643db8ce487152bd",
+            "http_status": 403,
+            "reason": "anonymous public probe; authenticated canonical Data Center smoke was not collected"
+          },
+          "key": "canonical.data-center",
+          "observed_at": "2026-08-24T07:59:33.198600Z",
+          "status": "unknown"
+        },
+        {
+          "detail": {
+            "body_bytes": 62,
+            "body_sha256": "02efb1db97dbafd71964a97f4c1e4792aaa92b4a7ece4edc7287067790ad4f2f",
+            "http_status": 200,
+            "status": "ok"
+          },
+          "key": "service.health",
+          "observed_at": "2026-08-24T07:59:31.447965Z",
+          "status": "ok"
+        }
+      ]
+    }
+  ],
+  "read_mode": "http_get_read_only"
+}

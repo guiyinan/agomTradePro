@@ -26,6 +26,15 @@ from apps.data_center.domain.entities import (
 )
 from apps.data_center.domain.enums import DataCapability, ProviderHealthStatus
 from apps.data_center.infrastructure.provider_registry import ProviderRegistry
+from tests.unit.data_center.audited_sync_test_support import (
+    CollectingDataFetchAuditWriter,
+    CollectingDataPublicationAuditWriter,
+    CollectingDataValidationAuditWriter,
+    FixedSyncClock,
+    FixedSyncIdentityIssuer,
+    InMemorySyncUnitOfWork,
+    bind_raw_audit,
+)
 
 
 def _provider_config() -> ProviderConfig:
@@ -82,8 +91,9 @@ class _RawAuditRepo:
         self.items: list[RawAudit] = []
 
     def log(self, audit: RawAudit):
-        self.items.append(audit)
-        return audit
+        stored = bind_raw_audit(audit)
+        self.items.append(stored)
+        return stored
 
 
 class _MacroFactRepo:
@@ -255,6 +265,12 @@ def test_sync_macro_use_case_stores_facts_and_audit():
         catalog_repo=catalog_repo,
         unit_rule_repo=unit_rule_repo,
         raw_audit_repo=raw_repo,
+        sync_identity_issuer=FixedSyncIdentityIssuer(),
+        sync_unit_of_work=InMemorySyncUnitOfWork(),
+        data_fetch_audit_writer=CollectingDataFetchAuditWriter(),
+        data_publication_audit_writer=CollectingDataPublicationAuditWriter(),
+        data_validation_audit_writer=CollectingDataValidationAuditWriter(),
+        clock=FixedSyncClock(),
     )
 
     result = use_case.execute(

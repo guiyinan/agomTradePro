@@ -263,17 +263,25 @@ def test_scope_quote_sync_handles_empty_missing_failure_and_success(
         def execute(self, _request: object) -> object:
             raise RuntimeError("sync unavailable")
 
-    monkeypatch.setattr(interface_services, "SyncQuoteUseCase", _FailingUseCase)
+    monkeypatch.setattr(
+        interface_services._decision_sync,
+        "make_system_audited_sync_quote_use_case",
+        lambda **_kwargs: _FailingUseCase(),
+    )
     assert interface_services._sync_scope_quotes(["000001.sz"]) == {
         "status": "failed",
-        "error_message": "sync unavailable",
+        "error_class": "RuntimeError",
     }
 
     class _SuccessUseCase(_FailingUseCase):
         def execute(self, _request: object) -> object:
             return SimpleNamespace(to_dict=lambda: {"status": "success", "stored_count": 1})
 
-    monkeypatch.setattr(interface_services, "SyncQuoteUseCase", _SuccessUseCase)
+    monkeypatch.setattr(
+        interface_services._decision_sync,
+        "make_system_audited_sync_quote_use_case",
+        lambda **_kwargs: _SuccessUseCase(),
+    )
     assert interface_services._sync_scope_quotes(["000001.sz"])["stored_count"] == 1
 
 

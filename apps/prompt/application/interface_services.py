@@ -7,6 +7,7 @@ from typing import Any
 
 from apps.ai_provider.application.client_provider import get_ai_client_factory
 
+from .agent_authority import UnwiredAgentAuthorityGate
 from .agent_runtime import AgentRuntime
 from .context_builders import (
     AssetPoolContextProvider,
@@ -187,4 +188,5 @@ def build_agent_runtime() -> AgentRuntime:
         tool_registry=tool_registry,
         context_builder=context_builder,
         execution_logger=execution_logger,
+        authority_gate=UnwiredAgentAuthorityGate(),
     )

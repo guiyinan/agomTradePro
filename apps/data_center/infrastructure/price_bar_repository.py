@@ -18,6 +18,12 @@ from apps.data_center.infrastructure.models import PriceBarModel
 class PriceBarRepository:
     """ORM-backed repository for OHLCV price bars."""
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the fixed transaction identity used by this repository."""
+
+        return "django:default"
+
     @staticmethod
     def _from_model(m: PriceBarModel) -> PriceBar:
         return PriceBar(
@@ -33,6 +39,7 @@ class PriceBarRepository:
             amount=float(m.amount) if m.amount is not None else None,
             source=m.source,
             fetched_at=m.fetched_at,
+            ingested_run_id=str(m.ingested_run_id) if m.ingested_run_id else "",
         )
 
     def get_bars(
@@ -94,6 +101,7 @@ class PriceBarRepository:
                 volume=bar.volume,
                 amount=bar.amount,
                 source=bar.source,
+                ingested_run_id=bar.ingested_run_id or None,
             )
             for bar in bars
         ]
@@ -101,7 +109,15 @@ class PriceBarRepository:
             models,
             batch_size=1_000,
             update_conflicts=True,
-            update_fields=["open", "high", "low", "close", "volume", "amount"],
+            update_fields=[
+                "open",
+                "high",
+                "low",
+                "close",
+                "volume",
+                "amount",
+                "ingested_run_id",
+            ],
             unique_fields=["asset_code", "bar_date", "freq", "adjustment", "source"],
         )
         return len(models)

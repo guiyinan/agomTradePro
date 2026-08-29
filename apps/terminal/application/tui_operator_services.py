@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Callable
-from datetime import date, datetime
+from datetime import date
 from typing import Any
 
 from django.core.cache import cache
@@ -24,7 +24,6 @@ from apps.alpha.application.repository_provider import (
     inspect_latest_trade_date,
     require_usable_qlib_runtime,
 )
-from apps.audit.domain.entities import mask_sensitive_text
 from apps.config_center.application.query_services import has_qlib_training_runs
 from apps.config_center.application.runtime_public import (
     get_active_runtime_profile,
@@ -40,18 +39,33 @@ from apps.operational_readiness.application.monitor_service import (
     get_personal_readiness_monitor_summary,
 )
 from apps.policy.application.query_services import get_policy_status_payload
-from apps.pulse.application.use_cases import GetLatestPulseUseCase
+from apps.pulse.application.use_cases import (
+    DEFAULT_MAX_SNAPSHOT_AGE_DAYS,
+    GetLatestPulseUseCase,
+    pulse_snapshot_is_current,
+)
 from apps.regime.application.interface_services import get_regime_current_payload
 from apps.signal.application.query_services import get_signal_diagnostic_summary
 from apps.terminal.application.query_services import get_terminal_surface_status_payload
+from apps.terminal.application.tui_operator_formatting import (
+    _coverage_reason,
+    _coverage_severity,
+    _decision_queue_severity,
+    _domain_action,
+    _domain_screen,
+    _first_text,
+    _governance_sort_key,
+    _highest_severity,
+    _is_admin_user,
+    _iso,
+    _latest_created_at,
+    _monitor_severity,
+    _normalize_severity,
+    _overall_status,
+    _surface_reason,
+    _surface_severity,
+)
 from core.integration.runtime_settings import get_runtime_qlib_config
-
-SEVERITY_ORDER = {
-    "blocked": 0,
-    "warning": 1,
-    "notice": 2,
-    "ok": 3,
-}
 
 DATA_TASK_DOMAINS = {"runtime", "data-center", "agent-runtime"}
 AI_CONFIG_DOMAINS = {"ai-provider", "config-center", "ai-capability"}
@@ -67,6 +81,18 @@ OPERATOR_HOME_SECTION_KEYS = (
     "data_task_summary",
     "ai_config_summary",
 )
+_REGIME_STATUS_LABELS: dict[str, str] = {
+    "recovery": "复苏",
+    "overheat": "过热",
+    "stagflation": "滞胀",
+    "deflation": "通缩",
+    "unknown": "未知",
+}
+_REGIME_BLOCKING_REASON_LABELS: dict[str, str] = {
+    "regime_macro_observation_stale": "宏观观测已超过允许时效。",
+    "regime_snapshot_stale": "宏观象限快照已超过允许时效。",
+    "regime_data_unavailable": "当前没有可用的宏观象限数据。",
+}
 
 
 def build_operator_home_payload(*, user: Any) -> dict[str, Any]:
@@ -375,6 +401,26 @@ def _market_context_rows() -> list[dict[str, Any]]:
     return rows
 
 
+def _regime_status_label(status_code: str) -> str:
+    """Return the canonical user-facing label for one regime status code."""
+
+    return _REGIME_STATUS_LABELS.get(status_code.strip().lower(), "未知")
+
+
+def _regime_blocking_reason_label(reason_code: str) -> str:
+    """Return bounded user copy without exposing a machine reason code."""
+
+    normalized = reason_code.strip()
+    if not normalized:
+        return ""
+    configured = _REGIME_BLOCKING_REASON_LABELS.get(normalized)
+    if configured:
+        return configured
+    if normalized.startswith("regime_") or ("_" in normalized and " " not in normalized):
+        return "宏观象限暂不可用于决策。"
+    return normalized.replace("Regime", "宏观象限").replace("Unknown", "未知")
+
+
 def _regime_market_row() -> dict[str, Any]:
     payload = get_regime_current_payload(as_of_date=date.today())
     data = dict(payload.get("data") or {})
@@ -386,27 +432,36 @@ def _regime_market_row() -> dict[str, Any]:
     must_not_use = bool(
         data.get("must_not_use_for_decision") or contract.get("must_not_use_for_decision")
     )
-    blocked_reason = str(data.get("blocked_reason") or contract.get("blocked_reason") or "").strip()
+    blocked_reason_code = str(
+        data.get("blocked_reason") or contract.get("blocked_reason") or ""
+    ).strip()
+    blocked_reason = _regime_blocking_reason_label(blocked_reason_code)
     severity = "ok"
     if regime == "UNKNOWN" or must_not_use:
         severity = "blocked"
     elif warnings or confidence < 0.5 or bool(data.get("is_fallback")):
         severity = "warning"
-    freshness = "已过期" if is_stale else "新鲜"
+    freshness = "已过期" if is_stale else "阈值内"
     reliability = "不可用于决策" if must_not_use else ("降级" if severity == "warning" else "可靠")
     summary = (
         blocked_reason
-        or (str(warnings[0]) if warnings else "")
+        or (
+            str(warnings[0]).replace("Regime", "宏观象限").replace("Unknown", "未知")
+            if warnings
+            else ""
+        )
         or (f"置信度 {confidence:.2f}" if confidence else "当前环境不可用")
     )
     return {
-        "area": "Regime",
-        "status": regime,
+        "area": "宏观象限",
+        "status": _regime_status_label(regime),
+        "status_code": regime,
         "summary": summary,
         "freshness": freshness,
         "reliability": reliability,
         "must_not_use_for_decision": must_not_use,
         "blocking_reason": blocked_reason,
+        "blocking_reason_code": blocked_reason_code,
         "observed_at": _iso(data.get("observed_at")),
         "next_action": "查看环境判断",
         "target_screen": "macro-regime.overview",
@@ -415,17 +470,20 @@ def _regime_market_row() -> dict[str, Any]:
 
 
 def _policy_market_row() -> dict[str, Any]:
-    payload = get_policy_status_payload(as_of_date=date.today())
+    target_date = date.today()
+    payload = get_policy_status_payload(as_of_date=target_date)
     level = str(payload.get("current_level") or "UNKNOWN")
     intervention = bool(payload.get("is_intervention_active"))
     severity = "warning" if intervention else ("blocked" if level == "UNKNOWN" else "ok")
+    assessment_date = _iso(payload.get("as_of_date"))
+    current_assessment = assessment_date == target_date.isoformat()
     return {
-        "area": "Policy",
+        "area": "政策",
         "status": level,
-        "summary": "当前存在政策干预" if intervention else "政策状态可用",
-        "freshness": "新鲜",
-        "reliability": "不可用于决策" if level == "UNKNOWN" else "可靠",
-        "observed_at": _iso(payload.get("as_of_date")),
+        "summary": "当前存在政策干预" if intervention else "政策状态按数据基准日评估",
+        "freshness": "今日截面" if current_assessment else "历史截面",
+        "reliability": "不可用于决策" if level == "UNKNOWN" else "状态可用",
+        "observed_at": assessment_date,
         "next_action": "查看政策档位",
         "target_screen": "macro-regime.policy",
         "severity": severity,
@@ -433,10 +491,11 @@ def _policy_market_row() -> dict[str, Any]:
 
 
 def _pulse_market_row() -> dict[str, Any]:
-    snapshot = GetLatestPulseUseCase().execute(as_of_date=date.today())
+    target_date = date.today()
+    snapshot = GetLatestPulseUseCase().execute(as_of_date=target_date)
     if snapshot is None:
         return {
-            "area": "Pulse",
+            "area": "脉搏",
             "status": "NO_DATA",
             "summary": "当前没有可用脉搏快照。",
             "freshness": "无数据",
@@ -445,18 +504,38 @@ def _pulse_market_row() -> dict[str, Any]:
             "next_action": "查看脉搏层",
             "target_screen": "macro-regime.pulse",
             "severity": "blocked",
+            "must_not_use_for_decision": True,
+            "blocking_reason": "当前没有可用脉搏快照。",
         }
-    severity = "warning" if snapshot.transition_warning or not snapshot.is_reliable else "ok"
+    is_current = pulse_snapshot_is_current(snapshot, as_of_date=target_date)
+    source_is_stale = bool(snapshot.stale_indicator_count) or snapshot.data_source == "stale"
+    must_not_use = not is_current or source_is_stale or not snapshot.is_reliable
+    severity = "blocked" if must_not_use else "warning" if snapshot.transition_warning else "ok"
+    if not is_current:
+        freshness = "已过期"
+        blocking_reason = f"脉搏快照已超过 {DEFAULT_MAX_SNAPSHOT_AGE_DAYS} 天时效阈值，仅供诊断。"
+    elif source_is_stale:
+        freshness = "源指标过期"
+        blocking_reason = "脉搏源指标未通过时效校验，仅供诊断。"
+    elif not snapshot.is_reliable:
+        freshness = "已降级"
+        blocking_reason = "脉搏数据未通过可靠性校验，仅供诊断。"
+    else:
+        freshness = "新鲜"
+        blocking_reason = ""
     return {
-        "area": "Pulse",
+        "area": "脉搏",
         "status": str(snapshot.regime_strength or "unknown").upper(),
-        "summary": "存在转折预警" if snapshot.transition_warning else "脉搏层正常",
-        "freshness": "新鲜",
-        "reliability": "可靠" if snapshot.is_reliable else "降级",
+        "summary": blocking_reason
+        or ("存在转折预警" if snapshot.transition_warning else "脉搏层正常"),
+        "freshness": freshness,
+        "reliability": "不可用于决策" if must_not_use else "可靠",
         "observed_at": _iso(snapshot.observed_at),
         "next_action": "查看脉搏层",
         "target_screen": "macro-regime.pulse",
         "severity": severity,
+        "must_not_use_for_decision": must_not_use,
+        "blocking_reason": blocking_reason,
     }
 
 
@@ -466,7 +545,7 @@ def _decision_data_market_row() -> dict[str, Any]:
     blocked_reasons = list(payload.get("blocked_reasons") or [])
     thermometer = dict(payload.get("market_thermometer") or {})
     return {
-        "area": "Decision Data",
+        "area": "决策数据",
         "status": str(payload.get("status") or "unknown").upper(),
         "summary": blocked_reasons[0] if blocked_reasons else "决策数据链路可用",
         "freshness": str(payload.get("freshness_status") or "待确认"),
@@ -492,7 +571,7 @@ def _account_signal_rows() -> list[dict[str, Any]]:
 
     return [
         {
-            "area": "Accounts",
+            "area": "账户",
             "status": "READY" if portfolio_count > 0 else "SETUP",
             "value": portfolio_count,
             "summary": f"活跃持仓 {open_position_count} 笔",
@@ -501,7 +580,7 @@ def _account_signal_rows() -> list[dict[str, Any]]:
             "severity": "warning" if portfolio_count == 0 else "ok",
         },
         {
-            "area": "Signals",
+            "area": "信号",
             "status": "ACTIVE" if active_signal_count > 0 else "EMPTY",
             "value": active_signal_count,
             "summary": f"已失效 {invalidated_count} 条",
@@ -595,7 +674,7 @@ def _data_center_governance_rows() -> list[dict[str, Any]]:
             blocking_reason=thermometer_reason,
             next_action="查看市场温度计",
             target_screen="api-library.data-center",
-            target_action_key="auto.api.get.api.data-center.providers",
+            target_action_key="data-center.provider-list",
             observed_at=timezone.now(),
         ),
     ]
@@ -659,7 +738,7 @@ def _ai_provider_governance_rows(*, user: Any) -> list[dict[str, Any]]:
             ),
             next_action="查看 AI 日志",
             target_screen="ai-ops.providers",
-            target_action_key="auto.api.get.api.ai.me.logs",
+            target_action_key="ai-ops.my-ai-logs",
             observed_at=_latest_created_at(recent_failures),
         ),
         _governance_row(
@@ -670,7 +749,7 @@ def _ai_provider_governance_rows(*, user: Any) -> list[dict[str, Any]]:
             blocking_reason=quota_reason,
             next_action="查看 AI 服务商配置",
             target_screen="ai-ops.providers",
-            target_action_key="auto.api.get.api.ai.me.providers",
+            target_action_key="ai-ops.list-my-providers",
             observed_at=timezone.now(),
         ),
         _governance_row(
@@ -909,184 +988,3 @@ def _governance_row(
         "target_action_key": str(target_action_key or "").strip(),
         "observed_at": _iso(observed_at),
     }
-
-
-def _governance_sort_key(row: dict[str, Any]) -> tuple[int, str]:
-    severity = _normalize_severity(str(row.get("severity") or "ok"))
-    observed_at = str(row.get("observed_at") or "")
-    return (SEVERITY_ORDER[severity], _descending_iso(observed_at))
-
-
-def _descending_iso(value: str) -> str:
-    return "".join(chr(255 - ord(ch)) for ch in value)
-
-
-def _decision_queue_severity(status: str) -> str:
-    normalized = str(status or "").upper()
-    if normalized.startswith(("CONFLICT", "ERROR", "BLOCKED", "FAIL")):
-        return "blocked"
-    if normalized.startswith(("DEGRADED", "PENDING", "WARN", "WAIT")):
-        return "warning"
-    if normalized.startswith(("CLEAR", "DONE", "SUCCESS")):
-        return "ok"
-    return "notice"
-
-
-def _monitor_severity(summary: dict[str, Any]) -> str:
-    daily_state = dict(summary.get("daily_state") or {})
-    return _map_external_severity(str(daily_state.get("severity") or ""))
-
-
-def _map_external_severity(value: str) -> str:
-    normalized = str(value or "").strip().lower()
-    if normalized in {"danger", "blocked", "error"}:
-        return "blocked"
-    if normalized in {"warn", "warning"}:
-        return "warning"
-    if normalized in {"neutral", "notice", "info"}:
-        return "notice"
-    return "ok"
-
-
-def _surface_severity(payload: dict[str, Any]) -> str:
-    status = str(payload.get("status") or "").strip().lower()
-    if status in {"error", "blocked", "unavailable"}:
-        return "blocked"
-    if status in {"incomplete", "warning", "attention", "empty"}:
-        return "warning"
-    if status in {"loading", "unknown"}:
-        return "notice"
-    return "ok"
-
-
-def _surface_reason(payload: dict[str, Any], fallback: str) -> str:
-    return _first_text(
-        payload.get("error"),
-        payload.get("message"),
-        payload.get("detail"),
-        fallback if _surface_severity(payload) != "ok" else "",
-    )
-
-
-def _coverage_severity(payload: dict[str, Any]) -> str:
-    status = str(payload.get("status") or "").strip().lower()
-    if status in {"error", "blocked"}:
-        return "blocked"
-    if status in {"incomplete", "warning", "loading"}:
-        return "warning"
-    return "ok"
-
-
-def _coverage_reason(payload: dict[str, Any]) -> str:
-    universe_quality = dict(payload.get("universe_quality") or {})
-    domains = dict(payload.get("domains") or {})
-    issues = list(universe_quality.get("issues") or [])
-    if issues:
-        return _first_text(issues[0])
-    for domain_name, detail in domains.items():
-        if int((detail or {}).get("missing_count") or 0) > 0:
-            return f"{domain_name} missing {(detail or {}).get('missing_count')} assets"
-    return str(payload.get("error") or "")
-
-
-def _latest_created_at(items: list[Any]) -> str:
-    if not items:
-        return _iso(timezone.now())
-    latest = None
-    for item in items:
-        created_at = getattr(item, "created_at", None)
-        if created_at is None:
-            continue
-        if latest is None or created_at > latest:
-            latest = created_at
-    return _iso(latest or timezone.now())
-
-
-def _overall_status(sections: list[list[dict[str, Any]]]) -> str:
-    severities = [
-        _normalize_severity(str(row.get("severity") or "ok"))
-        for section in sections
-        for row in section
-    ]
-    return _highest_severity(severities)
-
-
-def _highest_severity(severities: list[str]) -> str:
-    if any(severity == "blocked" for severity in severities):
-        return "blocked"
-    if any(severity == "warning" for severity in severities):
-        return "warning"
-    if any(severity == "notice" for severity in severities):
-        return "notice"
-    return "ok"
-
-
-def _normalize_severity(value: str) -> str:
-    normalized = str(value or "").strip().lower()
-    if normalized in SEVERITY_ORDER:
-        return normalized
-    return "ok"
-
-
-def _first_text(*values: Any) -> str:
-    for value in values:
-        if isinstance(value, list):
-            for item in value:
-                text = _first_text(item)
-                if text:
-                    return text
-            continue
-        text = str(value or "").strip()
-        if text:
-            return mask_sensitive_text(text)[:2_000]
-    return ""
-
-
-def _iso(value: Any) -> str:
-    if isinstance(value, datetime):
-        if timezone.is_naive(value):
-            value = timezone.make_aware(value, timezone.get_current_timezone())
-        return value.isoformat()
-    if isinstance(value, date):
-        return value.isoformat()
-    text = str(value or "").strip()
-    return text
-
-
-def _domain_screen(domain: str) -> str:
-    mapping = {
-        "runtime": "api-library.runtime",
-        "data-center": "api-library.data-center",
-        "ai-provider": "ai-ops.providers",
-        "ai-capability": "ai-ops.providers",
-        "agent-runtime": "ai-ops.agent-runtime",
-        "account-settings": "execution.account-settings",
-        "config-center": "api-library.config-center",
-    }
-    return mapping.get(domain, "api-library.runtime")
-
-
-def _domain_action(domain: str) -> str:
-    mapping = {
-        "runtime": "operator.governance.runtime_summary",
-        "data-center": "operator.governance.data_center_summary",
-        "ai-provider": "operator.governance.ai_provider_summary",
-        "ai-capability": "operator.governance.ai_provider_summary",
-        "agent-runtime": "operator.governance.agent_runtime_summary",
-        "account-settings": "operator.governance.account_settings_summary",
-        "config-center": "operator.governance.config_center_summary",
-    }
-    return mapping.get(domain, "operator.governance.runtime_summary")
-
-
-def _is_admin_user(user: Any | None) -> bool:
-    if user is None:
-        return False
-    if bool(getattr(user, "is_superuser", False) or getattr(user, "is_staff", False)):
-        return True
-    role = str(getattr(user, "rbac_role", "") or "").strip().lower()
-    if role == "admin":
-        return True
-    profile = getattr(user, "account_profile", None)
-    profile_role = str(getattr(profile, "rbac_role", "") or "").strip().lower()
-    return profile_role == "admin"

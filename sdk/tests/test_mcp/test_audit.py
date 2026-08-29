@@ -79,7 +79,9 @@ def test_scoped_audit_sink_bypasses_backend_http(monkeypatch) -> None:
         log_id = audit._send_audit_log({"request_id": "req-local"})
 
     assert log_id == "local-log-id"
-    sink.assert_called_once_with({"request_id": "req-local"})
+    captured = sink.call_args.args[0]
+    assert captured["request_id"] == "req-local"
+    UUID(captured["delivery_id"])
     request.assert_not_called()
 
 

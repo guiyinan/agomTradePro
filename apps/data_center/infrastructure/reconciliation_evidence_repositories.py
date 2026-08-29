@@ -2,29 +2,37 @@
 
 from __future__ import annotations
 
-import uuid
-
 from django.db import IntegrityError, transaction
 
 from apps.data_center.domain.reconciliation import ReconciliationEvidence
 
+from ._reconciliation_evidence_repository_helpers import (
+    evidence_uuid,
+    row_matches_evidence,
+    validated_alias,
+)
+from .reconciliation_evidence_unit_of_work import (
+    DjangoReconciliationEvidenceUnitOfWork,
+)
 from .reconciliation_models import (
     ReconciliationEvidenceModel,
     build_reconciliation_defaults,
 )
 
 
-def _evidence_uuid(value: str) -> uuid.UUID:
-    """Convert a domain evidence identifier into a database UUID."""
-
-    try:
-        return uuid.UUID(value)
-    except (ValueError, AttributeError) as exc:
-        raise ValueError("reconciliation evidence_id must be a UUID") from exc
-
-
 class ReconciliationEvidenceRepository:
     """Persist and query deterministic reconciliation snapshots."""
+
+    __slots__ = ("_using",)
+
+    def __init__(self, *, using: str = "default") -> None:
+        self._using = validated_alias(using)
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the exact Django transaction identity."""
+
+        return f"django:{self._using}"
 
     def save(self, evidence: ReconciliationEvidence) -> ReconciliationEvidence:
         """Append one snapshot or replay the exact existing evidence.
@@ -36,33 +44,30 @@ class ReconciliationEvidenceRepository:
         history.
         """
 
-        evidence_uuid = _evidence_uuid(evidence.evidence_id)
+        evidence_uuid_value = evidence_uuid(evidence.evidence_id)
         defaults = build_reconciliation_defaults(evidence)
-        existing = ReconciliationEvidenceModel._default_manager.filter(
-            evidence_id=evidence_uuid
-        ).first()
+        manager = ReconciliationEvidenceModel._default_manager.using(self._using)
+        existing = manager.filter(evidence_id=evidence_uuid_value).first()
         if existing is not None:
-            if not _row_matches_evidence(existing, defaults):
+            if not row_matches_evidence(existing, defaults):
                 raise ValueError(
                     "reconciliation evidence identity already contains a different snapshot"
                 )
             return existing.to_domain()
         try:
-            with transaction.atomic():
-                row = ReconciliationEvidenceModel._default_manager.create(
-                    evidence_id=evidence_uuid,
+            with transaction.atomic(using=self._using):
+                row = manager.create(
+                    evidence_id=evidence_uuid_value,
                     **defaults,
                 )
-        except IntegrityError:
-            existing = ReconciliationEvidenceModel._default_manager.filter(
-                evidence_id=evidence_uuid
-            ).first()
+        except IntegrityError as exc:
+            existing = manager.filter(evidence_id=evidence_uuid_value).first()
             if existing is None:
                 raise
-            if not _row_matches_evidence(existing, defaults):
+            if not row_matches_evidence(existing, defaults):
                 raise ValueError(
                     "reconciliation evidence identity already contains a different snapshot"
-                )
+                ) from exc
             row = existing
         return row.to_domain()
 
@@ -70,7 +75,23 @@ class ReconciliationEvidenceRepository:
         """Return the newest evidence for a dataset."""
 
         row = (
-            ReconciliationEvidenceModel._default_manager.filter(dataset_key=dataset_key.strip())
+            ReconciliationEvidenceModel._default_manager.using(self._using)
+            .filter(dataset_key=dataset_key.strip())
+            .order_by("-observed_at", "-created_at")
+            .first()
+        )
+        return row.to_domain() if row is not None else None
+
+    def get_latest_for_update(self, dataset_key: str) -> ReconciliationEvidence | None:
+        """Lock and return the newest dataset evidence in the active transaction."""
+
+        connection = transaction.get_connection(using=self._using)
+        if not connection.in_atomic_block:
+            raise RuntimeError("reconciliation evidence lock requires an active transaction")
+        row = (
+            ReconciliationEvidenceModel._default_manager.using(self._using)
+            .select_for_update()
+            .filter(dataset_key=dataset_key.strip())
             .order_by("-observed_at", "-created_at")
             .first()
         )
@@ -86,19 +107,15 @@ class ReconciliationEvidenceRepository:
 
         if isinstance(limit, bool) or limit <= 0:
             raise ValueError("limit must be positive")
-        rows = ReconciliationEvidenceModel._default_manager.filter(
-            dataset_key=dataset_key.strip()
-        ).order_by("-observed_at", "-created_at")[:limit]
+        rows = (
+            ReconciliationEvidenceModel._default_manager.using(self._using)
+            .filter(dataset_key=dataset_key.strip())
+            .order_by("-observed_at", "-created_at")[:limit]
+        )
         return [row.to_domain() for row in rows]
 
 
-def _row_matches_evidence(
-    row: ReconciliationEvidenceModel,
-    defaults: dict[str, object],
-) -> bool:
-    """Compare all immutable evidence fields while excluding ORM timestamps."""
-
-    return all(getattr(row, field) == value for field, value in defaults.items())
-
-
-__all__ = ["ReconciliationEvidenceRepository"]
+__all__ = [
+    "DjangoReconciliationEvidenceUnitOfWork",
+    "ReconciliationEvidenceRepository",
+]

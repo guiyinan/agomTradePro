@@ -31,20 +31,38 @@ from apps.research.domain.evidence_scope_source_v1 import EvidenceScopeSourceV1
 
 @dataclass(frozen=True, slots=True)
 class EvidenceScopeSourceV1Selector:
-    """Server-issued exact source identity used for one artifact lookup."""
+    """Server-issued exact source and authority identity for one artifact lookup.
+
+    The authority fields are deliberately repeated in the selector rather than
+    inferred from the returned source.  A future authenticated issuer must
+    bind its user/actor, owner, tenant, and account decision to the exact
+    source selector before this adapter reads the ledger.
+    """
 
     source_id: str
     source_version: str
     expected_content_hash: str
+    owner_id: str
+    tenant_id: str
+    account_id: str
+    actor_id: str
 
     def __post_init__(self) -> None:
         _token(self.source_id, "source_id")
         _token(self.source_version, "source_version")
         _digest(self.expected_content_hash, "expected_content_hash")
+        _token(self.owner_id, "owner_id")
+        _token(self.tenant_id, "tenant_id")
+        _token(self.account_id, "account_id")
+        _token(self.actor_id, "actor_id")
 
 
 class EvidenceScopeSourceV1SelectorProvider(Protocol):
     """Resolve a selector from an immutable authority source, never a request."""
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the server-side unit/alias used by the authority source."""
 
     def get_selector(
         self, *, artifact: ArtifactRef, as_of: datetime
@@ -144,6 +162,18 @@ class EvidenceScopeSourceV1Provider(EvidenceScopeProvider):
             selector.expected_content_hash,
         ):
             raise EvidenceScopeCorruption("scope source selector substitution")
+        if (
+            source.owner_id,
+            source.tenant_id,
+            source.account_id,
+            source.actor_id,
+        ) != (
+            selector.owner_id,
+            selector.tenant_id,
+            selector.account_id,
+            selector.actor_id,
+        ):
+            raise EvidenceScopeCorruption("scope source authority selector substitution")
         if source.artifact != artifact:
             raise EvidenceScopeCorruption("scope source artifact substitution")
         if not source.is_temporally_current_at(as_of):

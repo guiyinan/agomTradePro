@@ -26,7 +26,8 @@
       "evidence": "canonical migration-graph and isolated PostgreSQL restore verification tooling",
       "path": [
         "scripts/check_migration_graph.py",
-        "scripts/verify_postgres_backup_restore.py"
+        "scripts/verify_postgres_backup_restore.py",
+        "scripts/record_data01_restore_evidence.py"
       ],
       "status": "active_public"
     },
@@ -118,6 +119,7 @@
         "tests/component/test_macro_periodic_tasks.py",
         "tests/component/test_task_monitor.py",
         "tests/integration/test_tui_registry_backup_commands.py",
+        "tests/settings_terminal_agent_run_postgres.py",
         "tests/unit/account/test_t3a_documentation_view_and_task_contracts.py",
         "tests/unit/account/test_celery_task_outcome_contracts.py",
         "tests/unit/data_center/test_archive_application.py",
@@ -139,7 +141,9 @@
         "tests/unit/test_backup_vps_postgres.py",
         "tests/unit/test_data_center_entrypoint_inventory.py",
         "tests/unit/test_deploy_vps_verify.py",
+        "tests/unit/data_center/test_data01_restore_evidence.py",
         "tests/unit/test_docker_pyqlib_install.py",
+        "tests/unit/test_evid_02_postgres_evidence.py",
         "tests/unit/test_remote_build_deploy_vps.py",
         "tests/unit/test_verify_postgres_backup_restore.py"
       ],

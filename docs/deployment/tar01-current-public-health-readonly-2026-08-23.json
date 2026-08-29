@@ -1,0 +1,40 @@
+{
+  "format": "tar01-public-health-readonly-observation.v1",
+  "observed_at": "2026-08-23T04:13:18.957179Z",
+  "source": {
+    "health_url": "https://demo.agomtrade.pro/api/health/",
+    "health_status": 200,
+    "health_body_status": "ok",
+    "health_response_sha256": "e57e3f7432edee57ba67009840ddc8e1a362545d61e4c33e47e7f1b7255d4edd",
+    "ready_url": "https://demo.agomtrade.pro/api/ready/",
+    "ready_status": 200,
+    "ready_body_status": "ok",
+    "ready_response_sha256": "766ad7fad2262a1db30b33c0bf7773e09ce430e4cc3fef8acaacc06366505ac1"
+  },
+  "checks": {
+    "database": "ok",
+    "redis": "ok",
+    "celery": "ok",
+    "celery_workers": 1,
+    "critical_data": "ok",
+    "decision_data": "warning",
+    "must_not_use_for_decision": true,
+    "blocked_reason": "有效组件数不足，当前仅 3 个，低于要求 4 个。已回退展示最近有效快照 2026-08-19，避免将断链结果显示为 0.0。"
+  },
+  "candidate_binding": {
+    "commit": null,
+    "release": null,
+    "oci_revision": null,
+    "bound": false
+  },
+  "scope": {
+    "deployment": false,
+    "production_write": false,
+    "backup_created": false,
+    "rollback_executed": false,
+    "role_uat": false,
+    "owner_reviewer_signoff": false
+  },
+  "production_claim": false,
+  "runtime_enablement": "not_authorized"
+}

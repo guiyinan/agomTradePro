@@ -1,0 +1,77 @@
+{
+  "candidate": {
+    "commit": "94abd76e46eeef4a8e21853799c7d69bcd9bbe3b",
+    "matrix_sha256": "6272ea6606ebbf3c0791e48d807b733cbc6d9a4ce7d945d95c5e3a16c22aea64",
+    "oci_revision": "sha256:1c560b5fed14964a008c278a88d9f3e3b144444a172ecc239d06cedbd76d6a3e",
+    "version": "20260824133504"
+  },
+  "observations": [
+    {
+      "captured_at": "2026-08-24T13:35:24.000000Z",
+      "candidate": {
+        "commit": "94abd76e46eeef4a8e21853799c7d69bcd9bbe3b",
+        "matrix_sha256": "6272ea6606ebbf3c0791e48d807b733cbc6d9a4ce7d945d95c5e3a16c22aea64",
+        "oci_revision": "sha256:1c560b5fed14964a008c278a88d9f3e3b144444a172ecc239d06cedbd76d6a3e",
+        "version": "20260824133504"
+      },
+      "decision": {
+        "checks": {
+          "core_coverage": {
+            "status": "incomplete",
+            "published_missing_count": 5533
+          },
+          "runtime_state": {
+            "block_reason_code": "decision_runtime_blocked",
+            "reason": "MCP audit evidence write failed during final acceptance",
+            "status": "blocked"
+          }
+        },
+        "endpoint": "/api/decision-ready/",
+        "http_status": 503,
+        "must_not_use_for_decision": true,
+        "status": "blocked",
+        "timestamp": "2026-08-24T13:35:21.953407Z"
+      },
+      "service": {
+        "checks": {
+          "celery": {
+            "status": "ok",
+            "workers": 1
+          },
+          "critical_data": {
+            "status": "ok"
+          },
+          "database": {
+            "status": "ok"
+          },
+          "decision_data": {
+            "status": "warning"
+          },
+          "redis": {
+            "source": "cache",
+            "status": "ok"
+          }
+        },
+        "endpoint": "/api/ready/",
+        "http_status": 200,
+        "status": "ok",
+        "timestamp": "2026-08-24T13:35:14.906823Z"
+      },
+      "smoke_checks": [
+        {
+          "detail": "authenticated GET returned 200; 15 capability rows included 8 must_not_use_for_decision rows; statuses included stale and degraded",
+          "key": "canonical.data-center.provider-status",
+          "observed_at": "2026-08-24T13:35:22.000000Z",
+          "status": "failed"
+        },
+        {
+          "detail": "authenticated GET returned 200; 2 provider records; credential values were not returned",
+          "key": "canonical.data-center.providers",
+          "observed_at": "2026-08-24T13:35:22.000000Z",
+          "status": "ok"
+        }
+      ]
+    }
+  ],
+  "read_mode": "http_get_read_only"
+}

@@ -78,13 +78,11 @@ def dispatch_system_audit_outbox_task(
     worker_id: str | None = None,
     as_of: str | None = None,
 ) -> dict[str, object]:
-    """Return blocked until a durable canonical publisher is composed.
+    """Dispatch only through the configured durable and scoped audit runtime.
 
-    This task deliberately resolves the publisher before any repository claim.
-    A missing broker, eager/memory execution mode, or generic event-bus fallback
-    must therefore remain a blocked result rather than becoming a false
-    ``delivered`` transition.  A future implementation may replace the
-    infrastructure gate once it can carry the exact immutable event envelope.
+    Runtime configuration, authenticated authority, and the canonical sink are
+    resolved before any repository claim.  An unavailable prerequisite remains
+    a bounded blocked result and cannot become a false ``delivered`` transition.
     """
 
     del self

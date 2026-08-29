@@ -46,6 +46,26 @@ def test_registered_nodeids_include_pytest_class_methods() -> None:
     ) in nodes
 
 
+def test_nodeid_batches_preserve_order_within_command_budget() -> None:
+    """Long registries must be partitioned without dropping or reordering tests."""
+
+    base_command = ["python", "-m", "pytest"]
+    nodeids = [f"tests/test_contract.py::test_case_{index}_{'x' * 24}" for index in range(5)]
+
+    batches = runner._nodeid_batches(
+        base_command,
+        nodeids,
+        max_command_chars=120,
+    )
+
+    assert len(batches) > 1
+    assert [nodeid for batch in batches for nodeid in batch] == nodeids
+    assert all(
+        len(runner.subprocess.list2cmdline([*base_command, *batch])) <= 120 or len(batch) == 1
+        for batch in batches
+    )
+
+
 def test_runner_refuses_to_execute_an_invalid_manifest(monkeypatch, tmp_path: Path) -> None:
     """Static manifest violations must block test execution."""
 

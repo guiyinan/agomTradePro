@@ -368,7 +368,7 @@ RUNTIME_EQUITY_ANALYTICS_ACTIONS: tuple[dict[str, Any], ...] = (
                 {"key": "composite_percentile", "label": "综合分位（0-1）"},
                 {"key": "repair_progress", "label": "修复进度（0-1）"},
                 {"key": "estimated_days_to_target", "label": "预计天数"},
-                {"key": "as_of_date", "label": "数据日期"},
+                {"key": "as_of_date", "label": "数据基准日"},
             ],
         },
     ),
