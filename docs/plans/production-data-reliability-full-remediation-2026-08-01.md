@@ -1127,3 +1127,37 @@ publication，`/api/ready/` 200 也不能替代 `/api/decision-ready/` 200。
 本次只完成 SDK audit delivery identity 的本地修复，没有执行 backfill、provider refresh、
 reconciliation 写入、维护态切换或任何生产数据修改。DATA-02/03 仍保持原状态，直到数据 owner
 批准必要的生产写入并提供候选绑定的真实结果。
+
+## 实施记录（2026-08-29，DATA-01 当前生产恢复点与隔离 restore 重绑定）
+
+按 `DATA-01.auto_collect` 只读取并下载 2026-08-26 部署已生成的最新 custom-format 归档
+`/opt/agomtradepro/backups/database/postgres-20260826-081700.dump`。远端 `pg_restore --list`、
+完整 SFTP、远端/本地大小和 SHA-256 均通过：`144285484` bytes，SHA-256=
+`dc000ab26dac4d32b553012c3db4a73a5f76d0f5d4af9a493dec4d6768c0d4fa`；远端 manifest 为
+`7235` entries，manifest SHA-256=`224ac6d34551866f9f3c811200c8047d08a145e777590b7e0a32a620d6ebd106`，
+mtime=`2026-08-26T06:18:21Z`。结构化工件为
+[`data-backup-evidence-2026-08-29.json`](../deployment/data-backup-evidence-2026-08-29.json)，
+content hash=`4ec617212c136f2e310a3d5106c6aaaddc2e3bccf58326a3bdee67d258a39563`。本轮使用
+`--download-latest`，没有创建新备份、prune 或修改远端归档。
+
+随后在既有专用 disposable `postgres:16-alpine` 容器内，以同一 immutable dump 建立 source
+基线，再由 `verify_postgres_backup_restore.py` 创建受控前缀 restore 库，执行第二次 restore 与逐表
+内容、schema、Data Center migrations 和 sequence 精确对账。verifier 非注释 restore entries=`7220`；
+source/restore 均为 `541` 张 public 表、`72` 项 Data Center migration、`462` 个 sequences，schema
+SHA-256 均为 `028087c07f0c1cbc2dc2949d1fab8e47bc92e9226d2965bb528766c4ec218d81`；
+missing/extra/changed tables、migrations、sequences 和 schema 差异均为 0。dump 在格式校验前后和
+restore 后 SHA 不变。第二次 restore=`635.523s`，验证=`547.292s`，verifier 总计=`1662.332s`。
+
+原始报告为
+[`data01-current-backup-restore-2026-08-29-45d7616d.json`](../deployment/data01-current-backup-restore-2026-08-29-45d7616d.json)，
+SHA-256=`9ed7b83abfdf4b0bbdfebe08fd40393d9a328e617a97487c4fd9e6f528cc8305`；canonical
+content-addressed 工件为
+[`e13d10587add53aa1b6e53f3143f05f4de4cf30d7f8e465d833457da88016870.json`](../deployment/data01-isolated-restore/e1/e13d10587add53aa1b6e53f3143f05f4de4cf30d7f8e465d833457da88016870.json)，
+artifact SHA 同文件名，`isolated_restore_verified=true`、`production_claim=false`、
+`production_ready=false`、`runtime_enablement=not_authorized`。backup/restore/verifier recorder 聚焦
+合同 `33 passed`。临时 source/restore 库和容器内临时 dump 已删除。
+
+该证据证明 8 月 26 日恢复点可完整下载并在本地隔离环境自洽恢复，但本地耗时不能冒充生产 RTO/RPO；
+没有进入生产维护态、执行生产 restore/live rollback、创建或清理远端备份、回填/reconciliation 或
+人工签字。因此 `DATA-01` 继续 `awaiting_production`，其 live maintenance/rollback 与 owner 授权退出门
+仍未满足，`DATA-02/03` 不解锁。

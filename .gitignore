@@ -143,3 +143,4 @@ docs/xiaohongshu-draft-2026-04-24.md
 /.tmp-*
 /.pytest_*/
 /backups
+/docs/deployment/docker命令-远端.txt
