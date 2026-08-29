@@ -5,12 +5,13 @@ from io import StringIO
 
 import pytest
 from django.core.management import call_command
+from django.utils import timezone
 
 from apps.config_center.application.use_cases import (
     GetDecisionRuntimeStateUseCase,
     UpdateDecisionRuntimeStateUseCase,
 )
-from apps.config_center.domain.entities import DecisionRuntimeStatus
+from apps.config_center.domain.entities import DecisionRuntimeState, DecisionRuntimeStatus
 
 
 @pytest.mark.django_db
@@ -100,6 +101,17 @@ def test_decision_runtime_rejects_unknown_status() -> None:
 
 
 @pytest.mark.django_db
+def test_generic_runtime_update_rejects_active_transition() -> None:
+    with pytest.raises(ValueError, match="fail-closed activation"):
+        UpdateDecisionRuntimeStateUseCase().execute(
+            status="active",
+            reason="",
+            changed_by="operator",
+            release_ref="candidate",
+        )
+
+
+@pytest.mark.django_db
 def test_management_command_sets_maintenance_gate() -> None:
     stdout = StringIO()
 
@@ -116,3 +128,39 @@ def test_management_command_sets_maintenance_gate() -> None:
     assert state.status is DecisionRuntimeStatus.MAINTENANCE
     assert state.release_ref == "abc123"
     assert "maintenance" in stdout.getvalue()
+
+
+@pytest.mark.django_db
+def test_decision_runtime_compare_and_set_rejects_stale_expected_state() -> None:
+    """Only the exact locked singleton state can be transitioned."""
+
+    from apps.config_center.application.repository_provider import (
+        get_config_center_settings_repository,
+    )
+
+    repository = get_config_center_settings_repository()
+    expected = UpdateDecisionRuntimeStateUseCase().execute(
+        status="blocked",
+        reason="data repair pending",
+        changed_by="operator-old",
+        release_ref="old-release",
+    )
+    requested = DecisionRuntimeState(
+        status=DecisionRuntimeStatus.ACTIVE,
+        changed_at=timezone.now(),
+        changed_by="release-owner",
+        release_ref="new-release",
+    )
+
+    updated = repository.compare_and_set_decision_runtime_state(
+        expected=expected,
+        state=requested,
+    )
+    stale_retry = repository.compare_and_set_decision_runtime_state(
+        expected=expected,
+        state=requested,
+    )
+
+    assert updated is not None
+    assert updated.status is DecisionRuntimeStatus.ACTIVE
+    assert stale_retry is None

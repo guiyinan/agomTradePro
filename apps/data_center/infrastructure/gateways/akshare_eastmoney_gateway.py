@@ -214,10 +214,10 @@ class AKShareEastMoneyGateway(MarketGatewayProtocol):
     # ------------------------------------------------------------------
 
     def get_quote_snapshots(self, stock_codes: list[str]) -> list[QuoteSnapshot]:
-        """批量获取实时行情（东方财富单股接口）"""
-        self._throttle()
-        results: list[QuoteSnapshot] = []
-        missing_codes: list[str] = []
+        """批量优先获取实时行情，仅对批量缺口回退到单股接口。"""
+
+        requested_codes = list(dict.fromkeys(stock_codes))
+        snapshots_by_code: dict[str, QuoteSnapshot] = {}
         with requests.Session() as session:
             session.trust_env = False
             session.headers.update(
@@ -231,29 +231,33 @@ class AKShareEastMoneyGateway(MarketGatewayProtocol):
                     "Referer": "https://quote.eastmoney.com/",
                 }
             )
-            for stock_code in stock_codes:
-                snapshot = self._fetch_quote_snapshot(session, stock_code)
-                if snapshot is not None:
-                    results.append(snapshot)
-                else:
-                    missing_codes.append(stock_code)
+            for offset in range(0, len(requested_codes), self._batch_size):
+                batch_codes = requested_codes[offset : offset + self._batch_size]
                 self._throttle()
-
-            if missing_codes:
-                fallback_snapshots = self._fetch_quote_snapshots_from_ulist(
+                batch_snapshots = self._fetch_quote_snapshots_from_ulist(
                     session,
-                    missing_codes,
+                    batch_codes,
                 )
-                existing_codes = {snapshot.stock_code for snapshot in results}
-                results.extend(
-                    snapshot
-                    for snapshot in fallback_snapshots
-                    if snapshot.stock_code not in existing_codes
-                )
+                for snapshot in batch_snapshots:
+                    if snapshot.stock_code in batch_codes:
+                        snapshots_by_code[snapshot.stock_code] = snapshot
+
+                missing_codes = [code for code in batch_codes if code not in snapshots_by_code]
+                for stock_code in missing_codes:
+                    direct_snapshot = self._fetch_quote_snapshot(session, stock_code)
+                    if direct_snapshot is not None:
+                        snapshots_by_code[stock_code] = direct_snapshot
+                    self._throttle()
+
+        results = [
+            snapshots_by_code[stock_code]
+            for stock_code in requested_codes
+            if stock_code in snapshots_by_code
+        ]
 
         logger.info(
             "东方财富行情: 请求 %d 只, 成功 %d 只",
-            len(stock_codes),
+            len(requested_codes),
             len(results),
         )
         return results
@@ -840,9 +844,10 @@ class AKShareEastMoneyGateway(MarketGatewayProtocol):
                 payload = response.json()
             except Exception as exc:
                 logger.warning(
-                    "获取东方财富批量行情兜底失败: url=%s codes=%s error=%s",
+                    "获取东方财富批量行情兜底失败: url=%s count=%d sample=%s error=%s",
                     url,
-                    ",".join(stock_codes),
+                    len(stock_codes),
+                    ",".join(stock_codes[:5]),
                     exc,
                 )
                 continue

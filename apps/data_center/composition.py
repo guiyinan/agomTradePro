@@ -11,6 +11,19 @@ from django.conf import settings
 from django.db import transaction
 
 from apps.data_center.application.control_plane import RollbackCanonicalPublicationUseCase
+from apps.data_center.application.current_fact_remediation import (
+    CompletedSessionPriceBarUseCase,
+    CoreCurrentFactRefreshUseCase,
+    FinancialAvailabilityBackfillUseCase,
+)
+from apps.data_center.application.current_publication_rebuild import (
+    CoreCurrentPublicationRebuildUseCase,
+    CurrentPublicationDataset,
+    CurrentPublicationRebuildUseCase,
+)
+from apps.data_center.application.current_valuation_sync import (
+    SyncCurrentValuationBatchUseCase,
+)
 from apps.data_center.application.data_chain_replay import ReplayDataChainUseCase
 from apps.data_center.application.decision_read_audit import (
     RecordPublicationDecisionReadUseCase,
@@ -39,6 +52,7 @@ from apps.data_center.application.sync_transaction import (
 )
 from apps.data_center.application.sync_use_cases import (
     MacroFailoverPolicyProvider,
+    SyncFinancialUseCase,
     SyncMacroUseCase,
     SyncPriceUseCase,
     SyncQuoteUseCase,
@@ -158,6 +172,8 @@ __all__ = [
     "MarketThermometerUserOverrideRepository",
     "make_macro_failover_policy_provider",
     "make_data_chain_replay_use_case",
+    "make_core_current_fact_refresh_use_case",
+    "make_core_current_publication_rebuild_use_case",
     "make_repair_run_replay_use_case",
     "make_publication_decision_read_recorder",
     "make_reconciliation_evidence_recorder",
@@ -568,6 +584,125 @@ def get_canonical_publication_repository() -> CanonicalPublicationRepository:
     return CanonicalPublicationRepository()
 
 
+def make_core_current_publication_rebuild_use_case(
+    *,
+    created_by: str = "ops.current_publication_rebuild",
+) -> CoreCurrentPublicationRebuildUseCase:
+    """Compose the atomic active-universe publication rebuild workflow."""
+
+    publication_repository = CanonicalPublicationRepository()
+    policy_repository = PublicationPolicyRepository()
+    specifications = (
+        (
+            CurrentPublicationDataset(
+                dataset_key="equity.quote.snapshot",
+                fact_table="data_center_quote_snapshot",
+                created_by=created_by,
+            ),
+            QuoteSnapshotRepository(),
+        ),
+        (
+            CurrentPublicationDataset(
+                dataset_key="equity.price.bar",
+                fact_table="data_center_price_bar",
+                created_by=created_by,
+            ),
+            PriceBarRepository(),
+        ),
+        (
+            CurrentPublicationDataset(
+                dataset_key="equity.valuation.fact",
+                fact_table="data_center_valuation_fact",
+                created_by=created_by,
+            ),
+            ValuationFactRepository(),
+        ),
+        (
+            CurrentPublicationDataset(
+                dataset_key="equity.financial.fact",
+                fact_table="data_center_financial_fact",
+                created_by=created_by,
+            ),
+            FinancialFactRepository(),
+        ),
+    )
+    rebuilders = tuple(
+        CurrentPublicationRebuildUseCase(
+            dataset=dataset,
+            candidate_repository=repository,
+            publication_repository=publication_repository,
+            policy_repository=policy_repository,
+        )
+        for dataset, repository in specifications
+    )
+    return CoreCurrentPublicationRebuildUseCase(
+        rebuilders=rebuilders,
+        transaction=transaction.atomic,
+    )
+
+
+def make_core_current_fact_refresh_use_case(
+    *,
+    source_type: str,
+    created_by: str = "ops.current_fact_refresh",
+) -> CoreCurrentFactRefreshUseCase:
+    """Compose a fact-only provider refresh followed by atomic publication."""
+
+    normalized_source = source_type.strip().lower()
+    if not normalized_source:
+        raise ValueError("source_type cannot be empty")
+    provider_repository = ProviderConfigRepository()
+    providers = provider_repository.get_active_by_type(normalized_source)
+    provider = providers[0] if providers else None
+    if provider is None or provider.id is None:
+        raise ValueError(f"No active provider is configured for {normalized_source}")
+
+    provider_registry = build_provider_registry_for_repo(provider_repository)
+    financial_repository = FinancialFactRepository()
+    price_repository = PriceBarRepository()
+    quote_repository = QuoteSnapshotRepository()
+    raw_audit_repository = RawAuditRepository()
+    return CoreCurrentFactRefreshUseCase(
+        provider_id=int(provider.id),
+        quote_sync=make_system_audited_sync_quote_use_case(
+            provider_repository=provider_repository,
+            provider_registry=provider_registry,
+            publish_current=False,
+        ),
+        price_sync=make_system_audited_sync_price_use_case(
+            provider_repository=provider_repository,
+            provider_registry=provider_registry,
+            publish_current=False,
+        ),
+        valuation_sync=SyncCurrentValuationBatchUseCase(
+            provider_repo=provider_repository,
+            provider_registry=provider_registry,
+            fact_repo=ValuationFactRepository(),
+            raw_audit_repo=raw_audit_repository,
+            publication_publisher=None,
+        ),
+        financial_sync=SyncFinancialUseCase(
+            provider_repo=provider_repository,
+            provider_registry=provider_registry,
+            fact_repo=financial_repository,
+            raw_audit_repo=raw_audit_repository,
+            publication_publisher=None,
+        ),
+        financial_availability=FinancialAvailabilityBackfillUseCase(
+            repository=financial_repository,
+            transaction=transaction.atomic,
+        ),
+        completed_session_prices=CompletedSessionPriceBarUseCase(
+            quote_repository=quote_repository,
+            price_repository=price_repository,
+            transaction=transaction.atomic,
+        ),
+        publications=make_core_current_publication_rebuild_use_case(
+            created_by=created_by,
+        ),
+    )
+
+
 def get_rollback_canonical_publication_use_case(
     *, environment: str = "production"
 ) -> RollbackCanonicalPublicationUseCase:
@@ -870,6 +1005,7 @@ def make_system_audited_sync_price_use_case(
     provider_repository: ProviderConfigRepositoryProtocol | None = None,
     provider_registry: ProviderRegistryProtocol | None = None,
     environment: str = "production",
+    publish_current: bool = True,
 ) -> SyncPriceUseCase:
     """Compose the canonical same-UOW historical-price sync writer."""
 
@@ -896,10 +1032,14 @@ def make_system_audited_sync_price_use_case(
     ) = get_data_reliability_audit_writers(environment=environment, using="default")
     identity_issuer = DjangoSyncExecutionIdentityIssuer(identity_repo, using="default")
     sync_clock = DjangoDataCenterSyncClock()
-    quality_recorder = RecordPublicationQualityUseCase(
-        publication_reader=publication_repo,
-        quality_writer=quality_audit_writer,
-        clock=sync_clock,
+    quality_recorder = (
+        RecordPublicationQualityUseCase(
+            publication_reader=publication_repo,
+            quality_writer=quality_audit_writer,
+            clock=sync_clock,
+        )
+        if publish_current
+        else None
     )
     sync_uow = DjangoDataCenterSyncUnitOfWork(
         (
@@ -923,10 +1063,14 @@ def make_system_audited_sync_price_use_case(
         provider_registry=registry,
         fact_repo=price_repo,
         raw_audit_repo=raw_audit_repo,
-        publication_publisher=PublishPriceBarBatchUseCase(
-            fact_repository=price_repo,
-            publication_repository=publication_repo,
-            policy_repository=policy_repo,
+        publication_publisher=(
+            PublishPriceBarBatchUseCase(
+                fact_repository=price_repo,
+                publication_repository=publication_repo,
+                policy_repository=policy_repo,
+            )
+            if publish_current
+            else None
         ),
         sync_identity_issuer=identity_issuer,
         sync_unit_of_work=sync_uow,
@@ -943,6 +1087,7 @@ def make_system_audited_sync_quote_use_case(
     provider_repository: ProviderConfigRepositoryProtocol | None = None,
     provider_registry: ProviderRegistryProtocol | None = None,
     environment: str = "production",
+    publish_current: bool = True,
 ) -> SyncQuoteUseCase:
     """Compose the canonical same-UOW realtime-quote sync writer."""
 
@@ -969,10 +1114,14 @@ def make_system_audited_sync_quote_use_case(
     ) = get_data_reliability_audit_writers(environment=environment, using="default")
     identity_issuer = DjangoSyncExecutionIdentityIssuer(identity_repo, using="default")
     sync_clock = DjangoDataCenterSyncClock()
-    quality_recorder = RecordPublicationQualityUseCase(
-        publication_reader=publication_repo,
-        quality_writer=quality_audit_writer,
-        clock=sync_clock,
+    quality_recorder = (
+        RecordPublicationQualityUseCase(
+            publication_reader=publication_repo,
+            quality_writer=quality_audit_writer,
+            clock=sync_clock,
+        )
+        if publish_current
+        else None
     )
     sync_uow = DjangoDataCenterSyncUnitOfWork(
         (
@@ -996,10 +1145,14 @@ def make_system_audited_sync_quote_use_case(
         provider_registry=registry,
         fact_repo=quote_repo,
         raw_audit_repo=raw_audit_repo,
-        publication_publisher=PublishQuoteSnapshotBatchUseCase(
-            fact_repository=quote_repo,
-            publication_repository=publication_repo,
-            policy_repository=policy_repo,
+        publication_publisher=(
+            PublishQuoteSnapshotBatchUseCase(
+                fact_repository=quote_repo,
+                publication_repository=publication_repo,
+                policy_repository=policy_repo,
+            )
+            if publish_current
+            else None
         ),
         sync_identity_issuer=identity_issuer,
         sync_unit_of_work=sync_uow,

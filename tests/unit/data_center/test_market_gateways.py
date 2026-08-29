@@ -444,7 +444,7 @@ class TestAKShareEastMoneyGateway:
         assert quote.pre_close == Decimal("4.589")
         assert quote.change == Decimal("0.077")
 
-    def test_quote_falls_back_to_ulist_when_single_quote_is_blocked(self):
+    def test_quote_uses_ulist_batch_before_single_quote_fallback(self):
         from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
             AKShareEastMoneyGateway,
         )
@@ -468,7 +468,7 @@ class TestAKShareEastMoneyGateway:
         assert len(results) == 1
         assert results[0].stock_code == "510300.SH"
         assert results[0].price == Decimal("5.048")
-        single_quote.assert_called_once()
+        single_quote.assert_not_called()
         ulist_quote.assert_called_once()
 
     def test_ulist_quote_preserves_requested_sh_index_code(self):

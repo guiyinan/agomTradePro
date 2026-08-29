@@ -507,14 +507,19 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 snapshot_at=_ensure_aware(quote.observed_at),
                 fetched_at=_ensure_aware(quote.fetched_at),
                 current_price=float(quote.price),
-                source=self.provider_source(),
+                source=str(quote.source or self.provider_source()).strip(),
                 open=safe_float(quote.open),
                 high=safe_float(quote.high),
                 low=safe_float(quote.low),
                 prev_close=safe_float(quote.pre_close),
                 volume=float(quote.volume) if quote.volume is not None else None,
                 amount=safe_float(quote.amount),
-                extra=self._provider_extra(),
+                extra=self._provider_extra(
+                    {
+                        "actual_source": str(quote.source or self.provider_source()).strip(),
+                        "observation_contract": "batch_quote_snapshot",
+                    }
+                ),
             )
             for quote in quotes
             if quote.observed_at is not None
@@ -716,7 +721,13 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
 
         from apps.data_center.infrastructure.gateways.tencent_gateway import TencentGateway
 
-        snapshots = TencentGateway().get_valuation_snapshots(asset_codes)
+        gateway = TencentGateway()
+        snapshots = []
+        batch_size = 200
+        for offset in range(0, len(asset_codes), batch_size):
+            snapshots.extend(
+                gateway.get_valuation_snapshots(asset_codes[offset : offset + batch_size])
+            )
         return [
             ValuationFact(
                 asset_code=snapshot.stock_code,

@@ -12,6 +12,7 @@ from apps.data_center.domain.entities import (
     ProductionCoverageUniverseConfig,
 )
 from apps.data_center.domain.enums import DataQualityStatus
+from apps.data_center.domain.market_time import cn_market_date_start_utc
 from apps.data_center.infrastructure import orm_retry
 from apps.data_center.infrastructure.a_share_universe_sync import (
     AShareUniverseSyncService,
@@ -749,6 +750,45 @@ def test_diagnostic_coverage_requires_fresh_complete_publication_members():
         assert domain["publication"]["freshness_status"] == "fresh"
         assert domain["publication"]["must_not_use_for_decision"] is False
         assert domain["publication"]["blocked_reason"] == ""
+
+
+@pytest.mark.django_db
+def test_diagnostic_coverage_accepts_latest_closed_session_over_weekend():
+    """A Friday daily publication remains current during the weekend closure."""
+
+    codes = _configure_diagnostic_test_universe()
+    friday = date(2026, 8, 28)
+    sunday = datetime(2026, 8, 30, 4, 0, tzinfo=UTC)
+    price_rows = [
+        PriceBarModel.objects.create(
+            asset_code=code,
+            bar_date=friday,
+            freq="1d",
+            adjustment="none",
+            open="1",
+            high="1",
+            low="1",
+            close="1",
+            source="test",
+        )
+        for code in codes
+    ]
+    _save_diagnostic_contract("equity.price.bar", freshness_seconds=172_800)
+    _save_diagnostic_publication(
+        dataset_key="equity.price.bar",
+        fact_table="data_center_price_bar",
+        fact_rows=price_rows,
+        observed_at=cn_market_date_start_utc(friday),
+    )
+
+    payload = DataCenterDiagnosticRepository(
+        clock=lambda: sunday
+    ).get_active_stock_fact_coverage_summary()
+    publication = payload["domains"]["price"]["publication"]
+
+    assert publication["status"] == "ok"
+    assert publication["freshness_status"] == "latest_completed_session"
+    assert publication["must_not_use_for_decision"] is False
 
 
 @pytest.mark.django_db

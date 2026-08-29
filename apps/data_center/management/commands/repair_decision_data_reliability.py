@@ -156,10 +156,12 @@ class Command(BaseCommand):
             price_sync_use_case=make_system_audited_sync_price_use_case(
                 provider_repository=provider_repo,
                 provider_registry=provider_registry,
+                publish_current=False,
             ),
             quote_sync_use_case=make_system_audited_sync_quote_use_case(
                 provider_repository=provider_repo,
                 provider_registry=provider_registry,
+                publish_current=False,
             ),
             decision_read_recorder=make_publication_decision_read_recorder(),
             sync_identity_issuer=repair_audit.identity_issuer,
@@ -343,6 +345,7 @@ class Command(BaseCommand):
             result = make_system_audited_sync_quote_use_case(
                 provider_repository=provider_repo,
                 provider_registry=build_provider_registry_for_repo(provider_repo),
+                publish_current=False,
             ).execute(
                 SyncQuoteRequest(
                     provider_id=provider.id,

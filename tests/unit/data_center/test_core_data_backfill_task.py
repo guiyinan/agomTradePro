@@ -27,7 +27,13 @@ def _patch_control_plane_repositories(mocker):
     return repositories
 
 
-def _patch_backfill_dependencies(mocker, *, stored_count=1, failure=None) -> None:
+def _patch_backfill_dependencies(
+    mocker,
+    *,
+    stored_count=1,
+    failure=None,
+    publication_failure: bool = False,
+):
     mocker.patch(
         "apps.data_center.application.tasks.list_active_stock_codes_for_backfill",
         return_value=["000001.SZ", "002156.SZ"],
@@ -67,21 +73,31 @@ def _patch_backfill_dependencies(mocker, *, stored_count=1, failure=None) -> Non
         return use_case
 
     mocker.patch(
-        "apps.data_center.application.tasks.make_sync_quote_use_case",
+        "apps.data_center.application.tasks.make_backfill_sync_quote_use_case",
         return_value=_use_case("quote"),
     )
     mocker.patch(
-        "apps.data_center.application.tasks.make_sync_price_use_case",
+        "apps.data_center.application.tasks.make_backfill_sync_price_use_case",
         return_value=_use_case("price"),
     )
     mocker.patch(
-        "apps.data_center.application.tasks.make_sync_current_valuation_batch_use_case",
+        "apps.data_center.application.tasks." "make_backfill_sync_current_valuation_batch_use_case",
         return_value=_use_case("valuation"),
     )
     mocker.patch(
-        "apps.data_center.application.tasks.make_sync_financial_use_case",
+        "apps.data_center.application.tasks.make_backfill_sync_financial_use_case",
         return_value=_use_case("financial"),
     )
+    coordinator = mocker.Mock()
+    if publication_failure:
+        coordinator.execute.side_effect = ValueError("full universe incomplete")
+    else:
+        coordinator.execute.return_value = SimpleNamespace(published_count=6)
+    factory = mocker.patch(
+        "apps.data_center.application.tasks." "make_core_current_publication_rebuild_use_case",
+        return_value=coordinator,
+    )
+    return factory, coordinator
 
 
 def test_backfill_batch_rejects_invalid_input_before_repository_access(
@@ -102,7 +118,7 @@ def test_backfill_batch_rejects_invalid_input_before_repository_access(
 
 
 def test_backfill_batch_reports_all_success_with_checkpoint(mocker) -> None:
-    _patch_backfill_dependencies(mocker)
+    factory, coordinator = _patch_backfill_dependencies(mocker)
 
     result = backfill_active_a_share_core_data_batch_task.run(batch_size=2)
 
@@ -111,12 +127,15 @@ def test_backfill_batch_reports_all_success_with_checkpoint(mocker) -> None:
     assert result["succeeded"] == 2
     assert result["failed"] == 0
     assert result["stored"] == 8
+    assert result["published"] == 6
     assert result["checkpoint"] == {
         "offset": 0,
         "next_offset": 2,
         "total_assets": 2,
         "complete": True,
     }
+    factory.assert_called_once_with(created_by="celery.core_data_backfill")
+    coordinator.execute.assert_called_once()
 
 
 def test_backfill_batch_persists_stable_run_batch_and_cursor_on_retry(
@@ -142,13 +161,16 @@ def test_backfill_batch_persists_stable_run_batch_and_cursor_on_retry(
     assert batch_saves[0].args[0].requested == 2
     assert batch_saves[0].args[0].succeeded == 2
     assert batch_saves[0].args[0].stored == 8
-    assert batch_saves[0].args[0].published == 0
+    assert batch_saves[0].args[0].published == 6
     assert json.loads(checkpoint_saves[0].args[0].cursor_value) == first["checkpoint"]
     assert json.loads(checkpoint_saves[1].args[0].cursor_value) == second["checkpoint"]
 
 
 def test_backfill_batch_reports_partial_failure(mocker) -> None:
-    _patch_backfill_dependencies(mocker, failure=("financial", "002156.SZ"))
+    _factory, coordinator = _patch_backfill_dependencies(
+        mocker,
+        failure=("financial", "002156.SZ"),
+    )
 
     result = backfill_active_a_share_core_data_batch_task.run(batch_size=2)
 
@@ -157,6 +179,7 @@ def test_backfill_batch_reports_partial_failure(mocker) -> None:
     assert result["succeeded"] == 1
     assert result["failed"] == 1
     assert result["domains"]["financial"]["failed"] == 1
+    coordinator.execute.assert_not_called()
 
 
 def test_backfill_batch_reports_zero_output_as_complete_failure(mocker) -> None:
@@ -168,6 +191,34 @@ def test_backfill_batch_reports_zero_output_as_complete_failure(mocker) -> None:
     assert result["success"] is False
     assert result["failed"] == 2
     assert any(error["error"] == "zero_output" for error in result["errors"])
+
+
+def test_backfill_batch_blocks_and_keeps_checkpoint_open_when_publication_fails(
+    mocker,
+) -> None:
+    _factory, coordinator = _patch_backfill_dependencies(
+        mocker,
+        publication_failure=True,
+    )
+
+    result = backfill_active_a_share_core_data_batch_task.run(batch_size=2)
+
+    assert result["outcome"] == "blocked"
+    assert result["success"] is False
+    assert result["stage"] == "publication"
+    assert result["checkpoint"]["complete"] is False
+    assert result["checkpoint"]["next_offset"] == 0
+    assert result["published"] == 0
+    assert any(
+        error
+        == {
+            "domain": "publication",
+            "asset_code": "universe",
+            "error": "rebuild_failed",
+        }
+        for error in result["errors"]
+    )
+    coordinator.execute.assert_called_once()
 
 
 def test_backfill_batch_reports_missing_provider_as_failure(mocker) -> None:

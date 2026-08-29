@@ -2895,8 +2895,8 @@
           "return make_system_audited_sync_macro_use_case(",
           "return make_system_audited_sync_price_use_case(",
           "return make_system_audited_sync_quote_use_case(",
-          "publication_publisher=PublishFinancialBatchUseCase(",
-          "publication_publisher=PublishValuationBatchUseCase("
+          "publish_current=False",
+          "publication_publisher=None"
         ],
         "apps/data_center/composition.py": [
           "def make_system_audited_sync_macro_use_case(",
@@ -2945,7 +2945,7 @@
         ],
         "apps/data_center/infrastructure/price_bar_repository.py": [
           "def list_publication_candidates(",
-          "observed_at = cn_market_date_start_utc(row.bar_date)",
+          "observed_at=cn_market_date_start_utc(row.bar_date)",
           "row.raw_payload_hash or _price_bar_payload_hash(row)"
         ],
         "apps/data_center/infrastructure/quote_snapshot_repository.py": [
@@ -3396,6 +3396,199 @@
           "case": "stale_or_unpublished_blocked",
           "test_file": "tests/unit/risk_center/test_scenario_market_data_provider.py",
           "test_function": "test_provider_fails_closed_on_stale_or_unpublished_data"
+        }
+      ]
+    },
+    {
+      "id": "data_center.core_current_publication_rebuild",
+      "surface": "Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
+      "source_files": [
+        "apps/data_center/application/current_fact_remediation.py",
+        "apps/data_center/application/current_publication_rebuild.py",
+        "apps/data_center/domain/market_time.py",
+        "apps/data_center/infrastructure/diagnostic_queries.py",
+        "apps/data_center/infrastructure/price_bar_repository.py",
+        "apps/data_center/infrastructure/quote_snapshot_repository.py",
+        "apps/data_center/infrastructure/valuation_fact_repository.py",
+        "apps/data_center/infrastructure/financial_fact_repository.py",
+        "apps/data_center/application/core_data_backfill.py"
+      ],
+      "required_markers": {
+        "apps/data_center/application/current_fact_remediation.py": [
+          "FinancialAvailabilityBackfillUseCase",
+          "CompletedSessionPriceBarUseCase",
+          "completed-session quote coverage is incomplete or invalid",
+          "realtime-quote provider batch incomplete",
+          "published_at=publication_at"
+        ],
+        "apps/data_center/application/current_publication_rebuild.py": [
+          "def preview(",
+          "def execute(",
+          "published_at must be timezone-aware",
+          "Current publication contains a future observation",
+          "Current publication is missing active assets",
+          "oldest_observed_at",
+          "newest_observed_at"
+        ],
+        "apps/data_center/domain/market_time.py": [
+          "def latest_closed_cn_market_session(",
+          "market clock must be timezone-aware"
+        ],
+        "apps/data_center/infrastructure/diagnostic_queries.py": [
+          "latest_closed_cn_market_session(current_time)",
+          "freshness_status=\"latest_completed_session\"",
+          "canonical_publication_stale"
+        ],
+        "apps/data_center/infrastructure/price_bar_repository.py": [
+          "def list_current_publication_candidates(",
+          "freq=\"1d\"",
+          "adjustment=PriceAdjustment.NONE.value",
+          "cn_market_date_start_utc(row.bar_date)"
+        ],
+        "apps/data_center/infrastructure/quote_snapshot_repository.py": [
+          "def list_latest_for_asset_codes(",
+          "def list_current_publication_candidates(",
+          "observed_at=row.snapshot_at"
+        ],
+        "apps/data_center/infrastructure/valuation_fact_repository.py": [
+          "def list_current_publication_candidates(",
+          "cn_market_date_start_utc(row.val_date)",
+          "valuation available_at cannot be in the future"
+        ],
+        "apps/data_center/infrastructure/financial_fact_repository.py": [
+          "def list_current_publication_candidates(",
+          "available_at__isnull=False",
+          "observed_at=row.available_at"
+        ],
+        "apps/data_center/application/core_data_backfill.py": [
+          "rebuild_current_publications",
+          "current_publication_rebuild_failed",
+          "checkpoint = {**checkpoint, \"complete\": False}"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "exact_full_universe_current_publication",
+          "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
+          "test_function": "test_rebuild_publishes_exact_full_universe_and_is_idempotent"
+        },
+        {
+          "case": "missing_asset_blocks_publication",
+          "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
+          "test_function": "test_rebuild_preview_reports_missing_asset_and_execute_fails_closed"
+        },
+        {
+          "case": "future_observation_blocks_publication",
+          "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
+          "test_function": "test_rebuild_rejects_wrong_fact_table_and_future_observation"
+        },
+        {
+          "case": "quote_observation_preserved",
+          "test_file": "tests/component/data_center/test_current_publication_candidate_repositories.py",
+          "test_function": "test_quote_selector_returns_latest_snapshot_per_asset"
+        },
+        {
+          "case": "price_observation_preserved",
+          "test_file": "tests/component/data_center/test_current_publication_candidate_repositories.py",
+          "test_function": "test_price_selector_returns_latest_daily_unadjusted_fact_per_asset"
+        },
+        {
+          "case": "financial_availability_preserved",
+          "test_file": "tests/component/data_center/test_current_publication_candidate_repositories.py",
+          "test_function": "test_financial_selector_uses_latest_available_period_and_one_source_per_metric"
+        },
+        {
+          "case": "financial_source_date_availability_repair",
+          "test_file": "tests/component/data_center/test_current_publication_candidate_repositories.py",
+          "test_function": "test_financial_availability_backfill_uses_only_persisted_report_date"
+        },
+        {
+          "case": "completed_session_price_materialization",
+          "test_file": "tests/unit/data_center/test_current_fact_remediation.py",
+          "test_function": "test_completed_session_quotes_materialize_exact_daily_bars"
+        },
+        {
+          "case": "incomplete_quote_batch_fails_closed",
+          "test_file": "tests/unit/data_center/test_current_fact_remediation.py",
+          "test_function": "test_core_refresh_stops_before_publication_on_incomplete_quote_batch"
+        },
+        {
+          "case": "weekend_latest_session_is_current",
+          "test_file": "tests/component/data_center/test_repositories.py",
+          "test_function": "test_diagnostic_coverage_accepts_latest_closed_session_over_weekend"
+        },
+        {
+          "case": "publication_failure_keeps_backfill_open",
+          "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
+          "test_function": "test_backfill_batch_blocks_and_keeps_checkpoint_open_when_publication_fails"
+        }
+      ]
+    },
+    {
+      "id": "config_center.decision_runtime_fail_closed_activation",
+      "surface": "Candidate-bound decision-runtime preflight, compare-and-set activation and automatic re-block",
+      "source_files": [
+        "apps/config_center/application/decision_runtime_activation.py",
+        "apps/config_center/application/use_cases.py",
+        "apps/config_center/infrastructure/repositories.py",
+        "apps/config_center/management/commands/activate_decision_runtime_fail_closed.py",
+        "apps/config_center/management/commands/set_decision_runtime_state.py"
+      ],
+      "required_markers": {
+        "apps/config_center/application/decision_runtime_activation.py": [
+          "ACTIVATION_ALLOWED_STATUSES",
+          "activation probes must use the canonical three-check order",
+          "compare_and_set_runtime_state",
+          "Fail-closed activation verification failed",
+          "system:decision-runtime-activation"
+        ],
+        "apps/config_center/application/use_cases.py": [
+          "Active decision runtime transitions require the fail-closed activation workflow"
+        ],
+        "apps/config_center/infrastructure/repositories.py": [
+          "def compare_and_set_decision_runtime_state(",
+          "select_for_update()",
+          "if current != expected"
+        ],
+        "apps/config_center/management/commands/activate_decision_runtime_fail_closed.py": [
+          "--release-ref",
+          "--operator is required with --execute",
+          "runtime was re-blocked"
+        ],
+        "apps/config_center/management/commands/set_decision_runtime_state.py": [
+          "choices=(\"maintenance\", \"validating\", \"blocked\")"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "preflight_never_mutates",
+          "test_file": "tests/unit/config_center/test_decision_runtime_activation.py",
+          "test_function": "test_activation_preview_runs_three_checks_without_mutation"
+        },
+        {
+          "case": "cas_and_final_revalidation",
+          "test_file": "tests/unit/config_center/test_decision_runtime_activation.py",
+          "test_function": "test_activation_compare_and_set_revalidates_before_success"
+        },
+        {
+          "case": "preflight_failure_never_activates",
+          "test_file": "tests/unit/config_center/test_decision_runtime_activation.py",
+          "test_function": "test_activation_preflight_failure_never_writes_active"
+        },
+        {
+          "case": "final_failure_reblocks",
+          "test_file": "tests/unit/config_center/test_decision_runtime_activation.py",
+          "test_function": "test_activation_final_probe_failure_automatically_reblocks"
+        },
+        {
+          "case": "generic_update_rejects_active",
+          "test_file": "tests/component/config_center/test_decision_runtime_state.py",
+          "test_function": "test_generic_runtime_update_rejects_active_transition"
+        },
+        {
+          "case": "repository_cas_rejects_stale_state",
+          "test_file": "tests/component/config_center/test_decision_runtime_state.py",
+          "test_function": "test_decision_runtime_compare_and_set_rejects_stale_expected_state"
         }
       ]
     },

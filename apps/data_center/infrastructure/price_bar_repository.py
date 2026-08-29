@@ -7,6 +7,8 @@ import json
 from collections.abc import Sequence
 from datetime import date
 
+from django.db.models import OuterRef, Subquery
+
 from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import PriceBar
 from apps.data_center.domain.enums import PriceAdjustment
@@ -145,25 +147,52 @@ class PriceBarRepository:
                 continue
             fact_pk = str(row.pk)
             seen_fact_pks.add(fact_pk)
-            natural_key = (
-                f"{row.asset_code}:{row.bar_date.isoformat()}:{row.freq}:"
-                f"{row.adjustment}:{row.source}"
-            )
-            observed_at = cn_market_date_start_utc(row.bar_date)
-            references.append(
-                PublicationFactReference(
-                    natural_key=natural_key,
-                    source=row.source,
-                    source_record_id=row.source_record_id or natural_key,
-                    fact_table="data_center_price_bar",
-                    fact_pk=fact_pk,
-                    observed_at=observed_at,
-                    raw_payload_hash=row.raw_payload_hash or _price_bar_payload_hash(row),
-                    quality_status=row.quality_status,
-                    revision_number=row.revision_number,
-                )
-            )
+            references.append(_price_bar_publication_reference(row))
         return references
+
+    def list_current_publication_candidates(
+        self,
+        asset_codes: tuple[str, ...],
+    ) -> list[PublicationFactReference]:
+        """Select the latest daily unadjusted fact for every requested asset."""
+
+        if not asset_codes:
+            return []
+        latest_row = (
+            PriceBarModel._default_manager.filter(
+                asset_code=OuterRef("asset_code"),
+                freq="1d",
+                adjustment=PriceAdjustment.NONE.value,
+            )
+            .order_by("-bar_date", "-fetched_at", "-revision_number", "-id")
+            .values("id")[:1]
+        )
+        rows = PriceBarModel._default_manager.filter(
+            asset_code__in=asset_codes,
+            freq="1d",
+            adjustment=PriceAdjustment.NONE.value,
+            pk=Subquery(latest_row),
+        ).order_by("asset_code")
+        return [_price_bar_publication_reference(row) for row in rows]
+
+
+def _price_bar_publication_reference(row: PriceBarModel) -> PublicationFactReference:
+    """Convert one exact price row to immutable publication evidence."""
+
+    natural_key = (
+        f"{row.asset_code}:{row.bar_date.isoformat()}:{row.freq}:" f"{row.adjustment}:{row.source}"
+    )
+    return PublicationFactReference(
+        natural_key=natural_key,
+        source=row.source,
+        source_record_id=row.source_record_id or natural_key,
+        fact_table="data_center_price_bar",
+        fact_pk=str(row.pk),
+        observed_at=cn_market_date_start_utc(row.bar_date),
+        raw_payload_hash=row.raw_payload_hash or _price_bar_payload_hash(row),
+        quality_status=row.quality_status,
+        revision_number=row.revision_number,
+    )
 
 
 def _price_bar_payload_hash(row: PriceBarModel) -> str:

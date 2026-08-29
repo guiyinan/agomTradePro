@@ -282,6 +282,39 @@ class ConfigCenterSettingsRepository:
             state_model.save()
         return self.get_decision_runtime_state()
 
+    def compare_and_set_decision_runtime_state(
+        self,
+        *,
+        expected: DecisionRuntimeState,
+        state: DecisionRuntimeState,
+    ) -> DecisionRuntimeState | None:
+        """Persist ``state`` only when the locked singleton still equals ``expected``."""
+
+        with transaction.atomic():
+            state_model = (
+                DecisionRuntimeStateModel._default_manager.select_for_update().filter(pk=1).first()
+            )
+            if state_model is None:
+                return None
+            current = self._decision_runtime_state_from_values(
+                status=state_model.status,
+                reason=state_model.reason,
+                changed_at=state_model.changed_at,
+                changed_by=state_model.changed_by,
+                release_ref=state_model.release_ref,
+                expected_resume_at=state_model.expected_resume_at,
+            )
+            if current != expected:
+                return None
+            state_model.status = state.status.value
+            state_model.reason = state.reason
+            state_model.changed_at = state.changed_at
+            state_model.changed_by = state.changed_by
+            state_model.release_ref = state.release_ref
+            state_model.expected_resume_at = state.expected_resume_at
+            state_model.save()
+        return self.get_decision_runtime_state()
+
     def get_backup_delivery_state(self) -> BackupDeliveryState:
         """Read canonical backup delivery state or an empty fail-closed state."""
 

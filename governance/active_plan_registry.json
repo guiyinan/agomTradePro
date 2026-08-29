@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-30.v1",
+  "version": "2026-08-30.v3",
   "updated_at": "2026-08-30",
   "execution_focus": {
     "unit_id": null,
@@ -8,7 +8,7 @@
       "external",
       "governance"
     ],
-    "policy": "No repository unit is currently dependency-ready. TUX-05 corrective repository and production verification are complete on the manifest-bound candidate, while TUI-01 remains awaiting production for real role-owner confirmation and its remaining M5 gates. Declared production, external and governance units may continue only non-duplicative safe auto_collect work; external AI, queued runtime, authority or approval changes, traffic expansion, load, fault, maintenance and live rollback remain outside the current authorization."
+    "policy": "No repository unit is active; DATA-02 is the authorized production execution line. Its candidate now includes four-dataset atomic current publication, real completed-session fact remediation and a DATA-03 fail-closed CAS activation wrapper; deploy, run dry-run, execute only after exact provider coverage, then reconcile before DATA-03. The user authorized A1-A8 operational action packages on 2026-08-30, but every action remains bound to its prerequisites, exact target and rollback point; independent owner/reviewer decisions, real business definitions, broker environment and elapsed observation windows cannot be automated or inferred."
   },
   "workstreams": [
     {
@@ -88,7 +88,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "The 2026-08-29 pre-deploy PostgreSQL custom-format backup has been retained remotely, downloaded, SHA-256 verified without pruning, and restored twice in a disposable PostgreSQL 16 environment with 541 tables, 72 Data Center migrations, 462 sequences and zero differences. DATA-01 still requires the production owner to select a maintenance window and exactly authorize a live maintenance/rollback rehearsal before DATA-02 controlled backfill, reconciliation, M9/M10 cutover or observation may proceed; local elapsed time is not production RTO/RPO.",
+      "next_gate": "DATA-01 is complete. DATA-02 candidate preflight now proves the Tencent failover can return 5,533/5,533 completed-session quotes for 2026-08-28 with zero OHLC gaps; the candidate atomically rebuilds quote/price/valuation/financial current publications, repairs only null financial availability from persisted report_date, and preserves source observation time. Deploy this exact candidate, run the dry-run-first repair, execute A3 only if coverage remains exact, reconcile production results, and keep runtime blocked. DATA-03 has a fail-closed CAS wrapper but stays waiting until DATA-02 is production-complete.",
       "documents": [
         {
           "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
@@ -97,6 +97,10 @@
         {
           "path": "docs/plans/production-data-reliability-full-remediation-2026-08-01.md",
           "role": "primary"
+        },
+        {
+          "path": "docs/plans/release-blocker-closure-execution-plan-2026-08-29.md",
+          "role": "supporting"
         },
         {
           "path": "docs/plans/critical-reliability-test-closure-2026-07-22.md",
@@ -273,7 +277,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-08-29.v6",
+    "version": "2026-08-30.v7",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -543,7 +547,7 @@
         "wave": 2,
         "priority": "P0",
         "execution_mode": "production",
-        "status": "awaiting_production",
+        "status": "completed",
         "title": "Create verified backup and rehearse maintenance rollback",
         "depends_on": [],
         "exit_gate": "A production custom-format backup is downloaded and hash-verified, and maintenance plus rollback procedures are rehearsed before destructive work.",
@@ -566,7 +570,7 @@
         "wave": 2,
         "priority": "P0",
         "execution_mode": "production",
-        "status": "waiting_dependency",
+        "status": "awaiting_production",
         "title": "Run controlled backfill and canonical reconciliation",
         "depends_on": [
           "DATA-01"
@@ -575,7 +579,8 @@
         "evidence_collection": {
           "auto_collect": [
             "Run read-only preflight, coverage, freshness, timestamp-preservation and cross-source reconciliation reports before and after each authorized batch.",
-            "Collect checkpoint progress, failed symbols, retry outcomes and canonical tolerance breaches from production telemetry."
+            "Collect checkpoint progress, failed symbols, retry outcomes and canonical tolerance breaches from production telemetry.",
+            "Record exact 5,533-asset quote/valuation provider coverage, latest completed-session observation distribution, financial report-date availability repair counts and four immutable publication identities."
           ],
           "authorization_required": [
             "Start, retry or alter a production backfill, delete/correct production rows or change governed tolerances."
@@ -600,7 +605,8 @@
         "evidence_collection": {
           "auto_collect": [
             "Probe service and decision readiness separately, run read-only canonical smoke checks and track the immutable candidate throughout the observation window.",
-            "Derive freshness, reliability, must-not-use blockers, defect counts and observation duration from raw production responses."
+            "Derive freshness, reliability, must-not-use blockers, defect counts and observation duration from raw production responses.",
+            "Use the candidate-bound fail-closed activation wrapper: three-check preflight, locked compare-and-set, immediate revalidation and automatic re-block on any drift."
           ],
           "authorization_required": [
             "Perform M9/M10 cutover, change maintenance mode, replace the production candidate or execute rollback."

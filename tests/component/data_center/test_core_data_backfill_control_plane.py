@@ -67,16 +67,22 @@ def _patch_fake_backfill_dependencies(mocker, *, failure_domain: str | None = No
             error=RuntimeError(f"fake provider failure: {failure_domain}"),
         )
     factory_names = {
-        "quote": "make_sync_quote_use_case",
-        "price": "make_sync_price_use_case",
-        "valuation": "make_sync_current_valuation_batch_use_case",
-        "financial": "make_sync_financial_use_case",
+        "quote": "make_backfill_sync_quote_use_case",
+        "price": "make_backfill_sync_price_use_case",
+        "valuation": "make_backfill_sync_current_valuation_batch_use_case",
+        "financial": "make_backfill_sync_financial_use_case",
     }
     for domain_name, factory_name in factory_names.items():
         mocker.patch(
             f"apps.data_center.application.tasks.{factory_name}",
             return_value=use_cases[domain_name],
         )
+    coordinator = mocker.Mock()
+    coordinator.execute.return_value = SimpleNamespace(published_count=3)
+    mocker.patch(
+        "apps.data_center.application.tasks." "make_core_current_publication_rebuild_use_case",
+        return_value=coordinator,
+    )
 
 
 @pytest.mark.django_db
@@ -108,20 +114,26 @@ def test_backfill_persists_run_batch_and_checkpoint_rows(mocker) -> None:
     financial_use_case = mocker.Mock()
     financial_use_case.execute.return_value = SimpleNamespace(stored_count=1)
     mocker.patch(
-        "apps.data_center.application.tasks.make_sync_quote_use_case",
+        "apps.data_center.application.tasks.make_backfill_sync_quote_use_case",
         return_value=quote_use_case,
     )
     mocker.patch(
-        "apps.data_center.application.tasks.make_sync_price_use_case",
+        "apps.data_center.application.tasks.make_backfill_sync_price_use_case",
         return_value=price_use_case,
     )
     mocker.patch(
-        "apps.data_center.application.tasks.make_sync_current_valuation_batch_use_case",
+        "apps.data_center.application.tasks." "make_backfill_sync_current_valuation_batch_use_case",
         return_value=valuation_use_case,
     )
     mocker.patch(
-        "apps.data_center.application.tasks.make_sync_financial_use_case",
+        "apps.data_center.application.tasks.make_backfill_sync_financial_use_case",
         return_value=financial_use_case,
+    )
+    coordinator = mocker.Mock()
+    coordinator.execute.return_value = SimpleNamespace(published_count=3)
+    mocker.patch(
+        "apps.data_center.application.tasks." "make_core_current_publication_rebuild_use_case",
+        return_value=coordinator,
     )
 
     result = backfill_active_a_share_core_data_batch_task.run(batch_size=1)
@@ -138,7 +150,7 @@ def test_backfill_persists_run_batch_and_checkpoint_rows(mocker) -> None:
     checkpoint = SyncCheckpointModel._default_manager.get(batch_id=batch.batch_id)
     assert run.outcome == "success"
     assert run.stored == 4
-    assert run.published == 0
+    assert run.published == 3
     assert batch.idempotency_key.startswith("equity.core.backfill:tushare:offset=0:window=1:")
     assert checkpoint.cursor_name == "asset_offset"
     assert '"complete":true' in checkpoint.cursor_value

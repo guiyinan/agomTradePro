@@ -7,7 +7,7 @@ import json
 from collections.abc import Sequence
 from datetime import UTC, date, datetime
 
-from django.db.models import Max
+from django.db.models import F, Max, OuterRef, Subquery
 
 from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import ValuationFact
@@ -154,32 +154,64 @@ class ValuationFactRepository:
             )
             if row is None or str(row.pk) in seen_fact_pks:
                 continue
-            if row.available_at is not None:
-                if row.available_at.tzinfo is None or row.available_at.utcoffset() is None:
-                    raise ValueError("valuation available_at must be timezone-aware")
-                if row.available_at > now:
-                    raise ValueError("valuation available_at cannot be in the future")
             fact_pk = str(row.pk)
             seen_fact_pks.add(fact_pk)
-            natural_key = f"{row.asset_code}:{row.val_date.isoformat()}:{row.source}"
-            references.append(
-                PublicationFactReference(
-                    natural_key=natural_key,
-                    source=row.source,
-                    source_record_id=row.source_record_id or natural_key,
-                    fact_table="data_center_valuation_fact",
-                    fact_pk=fact_pk,
-                    observed_at=cn_market_date_start_utc(row.val_date),
-                    raw_payload_hash=row.raw_payload_hash or _valuation_payload_hash(row),
-                    quality_status=(
-                        row.quality_status
-                        if row.available_at is not None
-                        else "available_at_unverified"
-                    ),
-                    revision_number=row.revision_number,
-                )
-            )
+            references.append(_valuation_publication_reference(row, now=now))
         return references
+
+    def list_current_publication_candidates(
+        self,
+        asset_codes: tuple[str, ...],
+    ) -> list[PublicationFactReference]:
+        """Select the latest deterministic valuation fact for every asset."""
+
+        if not asset_codes:
+            return []
+        latest_row = (
+            ValuationFactModel._default_manager.filter(asset_code=OuterRef("asset_code"))
+            .order_by(
+                F("val_date").desc(),
+                F("available_at").desc(nulls_last=True),
+                F("fetched_at").desc(),
+                F("revision_number").desc(),
+                F("id").desc(),
+            )
+            .values("id")[:1]
+        )
+        rows = ValuationFactModel._default_manager.filter(
+            asset_code__in=asset_codes,
+            pk=Subquery(latest_row),
+        ).order_by("asset_code")
+        now = datetime.now(UTC)
+        return [_valuation_publication_reference(row, now=now) for row in rows]
+
+
+def _valuation_publication_reference(
+    row: ValuationFactModel,
+    *,
+    now: datetime,
+) -> PublicationFactReference:
+    """Convert one exact valuation row to immutable publication evidence."""
+
+    if row.available_at is not None:
+        if row.available_at.tzinfo is None or row.available_at.utcoffset() is None:
+            raise ValueError("valuation available_at must be timezone-aware")
+        if row.available_at > now:
+            raise ValueError("valuation available_at cannot be in the future")
+    natural_key = f"{row.asset_code}:{row.val_date.isoformat()}:{row.source}"
+    return PublicationFactReference(
+        natural_key=natural_key,
+        source=row.source,
+        source_record_id=row.source_record_id or natural_key,
+        fact_table="data_center_valuation_fact",
+        fact_pk=str(row.pk),
+        observed_at=cn_market_date_start_utc(row.val_date),
+        raw_payload_hash=row.raw_payload_hash or _valuation_payload_hash(row),
+        quality_status=(
+            row.quality_status if row.available_at is not None else "available_at_unverified"
+        ),
+        revision_number=row.revision_number,
+    )
 
 
 def _valuation_payload_hash(row: ValuationFactModel) -> str:

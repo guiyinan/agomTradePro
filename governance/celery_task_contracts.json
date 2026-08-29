@@ -213,7 +213,7 @@
         },
         "blocked": {
           "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
-          "test_function": "test_backfill_batch_blocks_when_market_session_is_unavailable"
+          "test_function": "test_backfill_batch_blocks_and_keeps_checkpoint_open_when_publication_fails"
         }
       }
     },

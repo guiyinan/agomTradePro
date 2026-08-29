@@ -37,7 +37,7 @@ class GetDecisionRuntimeStateUseCase:
 
 
 class UpdateDecisionRuntimeStateUseCase:
-    """Validate and persist an audited decision-runtime transition."""
+    """Validate and persist a non-active decision-runtime transition."""
 
     def execute(
         self,
@@ -53,6 +53,10 @@ class UpdateDecisionRuntimeStateUseCase:
             normalized_status = DecisionRuntimeStatus(str(status).strip().lower())
         except ValueError as exc:
             raise ValueError(f"Unsupported decision runtime status: {status}") from exc
+        if normalized_status is DecisionRuntimeStatus.ACTIVE:
+            raise ValueError(
+                "Active decision runtime transitions require the fail-closed activation workflow"
+            )
         state = DecisionRuntimeState(
             status=normalized_status,
             reason=str(reason or "").strip(),

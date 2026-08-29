@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from apps.data_center.application.dtos import (
@@ -14,7 +14,11 @@ from apps.data_center.application.dtos import (
     QuoteResponse,
     ResolveAssetRequest,
 )
-from apps.data_center.domain.market_time import CN_MARKET_TIMEZONE
+from apps.data_center.domain.market_time import (
+    CN_MARKET_CLOSE,
+    CN_MARKET_TIMEZONE,
+    latest_completed_cn_market_session,
+)
 from apps.data_center.domain.protocols import (
     AssetRepositoryProtocol,
     IndicatorCatalogRepositoryProtocol,
@@ -40,33 +44,7 @@ if TYPE_CHECKING:
     from apps.data_center.domain.entities import ProviderHealthSnapshot
 
 CN_MARKET_TZ = CN_MARKET_TIMEZONE
-CN_MARKET_OPEN = time(9, 30)
-CN_MARKET_CLOSE = time(15, 0)
 DEFAULT_LATEST_QUOTE_MAX_AGE_HOURS = 4.0
-
-
-def _previous_weekday(target_date: date) -> date:
-    """Return the latest weekday before ``target_date``."""
-
-    previous_day = target_date - timedelta(days=1)
-    while previous_day.weekday() >= 5:
-        previous_day -= timedelta(days=1)
-    return previous_day
-
-
-def latest_completed_cn_market_session(now: datetime) -> date | None:
-    """Return the latest completed A-share quote session for non-live periods."""
-
-    local_now = now.astimezone(CN_MARKET_TZ)
-    current_date = local_now.date()
-    if current_date.weekday() >= 5:
-        return _previous_weekday(current_date)
-    current_time = local_now.time()
-    if current_time < CN_MARKET_OPEN:
-        return _previous_weekday(current_date)
-    if current_time >= CN_MARKET_CLOSE:
-        return current_date
-    return None
 
 
 def latest_daily_market_observation_is_current(

@@ -38,6 +38,18 @@ class PersistBackfillControlPlane(Protocol):
         """Persist a normalized run, batch, and checkpoint."""
 
 
+class RebuildCurrentPublications(Protocol):
+    """Port for atomically publishing the complete core asset universe."""
+
+    def __call__(
+        self,
+        *,
+        asset_codes: list[str],
+        published_at: datetime,
+    ) -> object:
+        """Publish complete current snapshots or raise without partial commit."""
+
+
 @dataclass(frozen=True)
 class CoreDataBackfillServices:
     """Injected ports and use-case factories for one backfill batch."""
@@ -50,6 +62,7 @@ class CoreDataBackfillServices:
     make_sync_price_use_case: Callable[[], SyncPriceUseCase]
     make_sync_valuation_batch_use_case: Callable[[], SyncCurrentValuationBatchUseCase]
     make_sync_financial_use_case: Callable[[], SyncFinancialUseCase]
+    rebuild_current_publications: RebuildCurrentPublications
     published_count_from_result: Callable[[object], int]
     persist_control_plane: PersistBackfillControlPlane
 
@@ -292,6 +305,32 @@ def run_active_a_share_core_data_backfill_batch(
     else:
         outcome = TaskBusinessOutcome.SUCCESS
 
+    result_stage = "batch"
+    if outcome is TaskBusinessOutcome.SUCCESS and checkpoint["complete"] is True:
+        try:
+            rebuild_result = services.rebuild_current_publications(
+                asset_codes=asset_codes,
+                published_at=services.current_time(),
+            )
+            published_total += services.published_count_from_result(rebuild_result)
+        except Exception:
+            outcome = TaskBusinessOutcome.BLOCKED
+            result_stage = "publication"
+            checkpoint = {
+                **checkpoint,
+                "next_offset": validated_offset,
+                "complete": False,
+            }
+            succeeded_total = 0
+            failed_total = len(batch_codes)
+            errors.append(
+                {
+                    "domain": "publication",
+                    "asset_code": "universe",
+                    "error": "rebuild_failed",
+                }
+            )
+
     services.persist_control_plane(
         idempotency_key=idempotency_key,
         provider_name=normalized_source,
@@ -308,14 +347,22 @@ def run_active_a_share_core_data_backfill_batch(
         error_code=(
             "zero_output"
             if outcome is TaskBusinessOutcome.FAILED and stored_total == 0
-            else ("partial_failure" if outcome is TaskBusinessOutcome.PARTIAL else "")
+            else (
+                "partial_failure"
+                if outcome is TaskBusinessOutcome.PARTIAL
+                else (
+                    "current_publication_rebuild_failed"
+                    if outcome is TaskBusinessOutcome.BLOCKED
+                    else ""
+                )
+            )
         ),
         error_message=(errors[0]["error"] if errors else ""),
     )
     return {
         "success": outcome not in {TaskBusinessOutcome.FAILED, TaskBusinessOutcome.BLOCKED},
         "outcome": outcome.value,
-        "stage": "batch",
+        "stage": result_stage,
         "source": normalized_source,
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat(),

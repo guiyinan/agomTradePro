@@ -798,14 +798,26 @@ make_sync_macro_batch_use_case = _bind_decision_sync(
 make_sync_price_use_case = _bind_decision_sync(
     "make_sync_price_use_case", _decision_sync.make_sync_price_use_case
 )
+make_backfill_sync_price_use_case = _bind_decision_sync(
+    "make_backfill_sync_price_use_case",
+    _decision_sync.make_backfill_sync_price_use_case,
+)
 make_sync_quote_use_case = _bind_decision_sync(
     "make_sync_quote_use_case", _decision_sync.make_sync_quote_use_case
+)
+make_backfill_sync_quote_use_case = _bind_decision_sync(
+    "make_backfill_sync_quote_use_case",
+    _decision_sync.make_backfill_sync_quote_use_case,
 )
 make_sync_fund_nav_use_case = _bind_decision_sync(
     "make_sync_fund_nav_use_case", _decision_sync.make_sync_fund_nav_use_case
 )
 make_sync_financial_use_case = _bind_decision_sync(
     "make_sync_financial_use_case", _decision_sync.make_sync_financial_use_case
+)
+make_backfill_sync_financial_use_case = _bind_decision_sync(
+    "make_backfill_sync_financial_use_case",
+    _decision_sync.make_backfill_sync_financial_use_case,
 )
 get_active_provider_selection_by_source = _bind_decision_sync(
     "get_active_provider_selection_by_source",
@@ -820,6 +832,10 @@ make_sync_valuation_use_case = _bind_decision_sync(
 make_sync_current_valuation_batch_use_case = _bind_decision_sync(
     "make_sync_current_valuation_batch_use_case",
     _decision_sync.make_sync_current_valuation_batch_use_case,
+)
+make_backfill_sync_current_valuation_batch_use_case = _bind_decision_sync(
+    "make_backfill_sync_current_valuation_batch_use_case",
+    _decision_sync.make_backfill_sync_current_valuation_batch_use_case,
 )
 make_sync_sector_membership_use_case = _bind_decision_sync(
     "make_sync_sector_membership_use_case", _decision_sync.make_sync_sector_membership_use_case

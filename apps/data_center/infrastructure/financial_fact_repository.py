@@ -5,8 +5,14 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Sequence
-from datetime import date
+from datetime import date, datetime
 
+from django.db.models import Count, DateTimeField, Max, Min, OuterRef, Q, Subquery
+from django.db.models.functions import Cast
+
+from apps.data_center.application.current_fact_remediation import (
+    FinancialAvailabilityBackfillPreview,
+)
 from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import FinancialFact
 from apps.data_center.domain.enums import FinancialPeriodType
@@ -121,24 +127,124 @@ class FinancialFactRepository:
                 continue
             fact_pk = str(row.pk)
             seen_fact_pks.add(fact_pk)
-            natural_key = (
-                f"{row.asset_code}:{row.period_end.isoformat()}:{row.period_type}:"
-                f"{row.metric_code}:{row.source}"
-            )
-            references.append(
-                PublicationFactReference(
-                    natural_key=natural_key,
-                    source=row.source,
-                    source_record_id=row.source_record_id or natural_key,
-                    fact_table="data_center_financial_fact",
-                    fact_pk=fact_pk,
-                    observed_at=row.available_at,
-                    raw_payload_hash=row.raw_payload_hash or _financial_payload_hash(row),
-                    quality_status=row.quality_status,
-                    revision_number=row.revision_number,
-                )
-            )
+            references.append(_financial_publication_reference(row))
         return references
+
+    def list_current_publication_candidates(
+        self,
+        asset_codes: tuple[str, ...],
+    ) -> list[PublicationFactReference]:
+        """Select every metric from each asset's latest evidence-safe period."""
+
+        if not asset_codes:
+            return []
+        latest_available_period = (
+            FinancialFactModel._default_manager.filter(
+                asset_code=OuterRef("asset_code"),
+                available_at__isnull=False,
+            )
+            .order_by("-period_end")
+            .values("period_end")[:1]
+        )
+        latest_metric_row = (
+            FinancialFactModel._default_manager.filter(
+                asset_code=OuterRef("asset_code"),
+                period_end=OuterRef("period_end"),
+                period_type=OuterRef("period_type"),
+                metric_code=OuterRef("metric_code"),
+                available_at__isnull=False,
+            )
+            .order_by("-available_at", "-revision_number", "-fetched_at", "-id")
+            .values("id")[:1]
+        )
+        rows = FinancialFactModel._default_manager.filter(
+            asset_code__in=asset_codes,
+            available_at__isnull=False,
+            period_end=Subquery(latest_available_period),
+            pk=Subquery(latest_metric_row),
+        ).order_by("asset_code", "period_type", "metric_code")
+        return [_financial_publication_reference(row) for row in rows]
+
+    def preview_availability_backfill(
+        self,
+        *,
+        asset_codes: tuple[str, ...],
+        recorded_at: datetime,
+    ) -> FinancialAvailabilityBackfillPreview:
+        """Summarize source-date availability repair without mutating facts."""
+
+        queryset = FinancialFactModel._default_manager.filter(asset_code__in=asset_codes)
+        missing = queryset.filter(available_at__isnull=True)
+        eligible = missing.filter(
+            report_date__isnull=False,
+            report_date__lte=recorded_at.date(),
+        )
+        aggregate = missing.aggregate(
+            missing_row_count=Count("id"),
+            eligible_row_count=Count(
+                "id",
+                filter=Q(
+                    report_date__isnull=False,
+                    report_date__lte=recorded_at.date(),
+                ),
+            ),
+            unresolved_row_count=Count("id", filter=Q(report_date__isnull=True)),
+            future_report_date_count=Count(
+                "id",
+                filter=Q(report_date__gt=recorded_at.date()),
+            ),
+            oldest_report_date=Min("report_date"),
+            newest_report_date=Max("report_date"),
+        )
+        return FinancialAvailabilityBackfillPreview(
+            missing_row_count=int(aggregate["missing_row_count"] or 0),
+            eligible_row_count=int(aggregate["eligible_row_count"] or 0),
+            eligible_asset_count=eligible.values("asset_code").distinct().count(),
+            unresolved_row_count=int(aggregate["unresolved_row_count"] or 0),
+            future_report_date_count=int(aggregate["future_report_date_count"] or 0),
+            future_available_at_count=queryset.filter(available_at__gt=recorded_at).count(),
+            oldest_report_date=aggregate["oldest_report_date"],
+            newest_report_date=aggregate["newest_report_date"],
+        )
+
+    def backfill_available_at_from_report_date(
+        self,
+        *,
+        asset_codes: tuple[str, ...],
+        recorded_at: datetime,
+    ) -> int:
+        """Restore only null availability using the persisted source report date."""
+
+        return FinancialFactModel._default_manager.filter(
+            asset_code__in=asset_codes,
+            available_at__isnull=True,
+            report_date__isnull=False,
+            report_date__lte=recorded_at.date(),
+        ).update(available_at=Cast("report_date", output_field=DateTimeField()))
+
+
+def _financial_publication_reference(
+    row: FinancialFactModel,
+) -> PublicationFactReference:
+    """Convert one evidence-safe financial row to a publication reference."""
+
+    if row.available_at is None:
+        raise ValueError("financial publication candidate requires available_at")
+    natural_key = (
+        f"{row.asset_code}:{row.period_end.isoformat()}:{row.period_type}:"
+        f"{row.metric_code}:{row.source}"
+    )
+    return PublicationFactReference(
+        natural_key=natural_key,
+        source=row.source,
+        source_record_id=row.source_record_id or natural_key,
+        fact_table="data_center_financial_fact",
+        fact_pk=str(row.pk),
+        observed_at=row.available_at,
+        raw_payload_hash=row.raw_payload_hash or _financial_payload_hash(row),
+        quality_status=row.quality_status,
+        revision_number=row.revision_number,
+    )
 
 
 def _financial_payload_hash(row: FinancialFactModel) -> str:

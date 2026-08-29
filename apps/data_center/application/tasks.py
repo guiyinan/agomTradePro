@@ -23,6 +23,7 @@ from apps.data_center.composition import (
     get_retention_policy_repository,
     get_retention_run_repository,
     get_storage_hold_repository,
+    make_core_current_publication_rebuild_use_case,
     persist_sync_control_plane_snapshot,
 )
 from apps.data_center.domain.control_plane import (
@@ -42,17 +43,17 @@ from .core_data_backfill import (
     run_active_a_share_core_data_backfill_batch,
 )
 from .interface_services import (
-    make_sync_current_valuation_batch_use_case,
+    make_backfill_sync_current_valuation_batch_use_case,
+    make_backfill_sync_financial_use_case,
+    make_backfill_sync_price_use_case,
+    make_backfill_sync_quote_use_case,
     make_sync_market_thermometer_inputs_use_case,
-    make_sync_price_use_case,
-    make_sync_quote_use_case,
     refresh_decision_quote_snapshots,
 )
 from .market_thermometer_dates import resolve_market_thermometer_as_of_date
 from .public import (
     get_active_provider_id_by_source,
     make_calculate_market_thermometer_use_case,
-    make_sync_financial_use_case,
 )
 from .query_services import list_active_stock_codes_for_backfill
 from .query_use_cases import latest_completed_cn_market_session
@@ -461,10 +462,22 @@ def backfill_active_a_share_core_data_batch_task(
             get_active_provider_id=get_active_provider_id_by_source,
             latest_completed_market_session=latest_completed_cn_market_session,
             current_time=timezone.now,
-            make_sync_quote_use_case=make_sync_quote_use_case,
-            make_sync_price_use_case=make_sync_price_use_case,
-            make_sync_valuation_batch_use_case=(make_sync_current_valuation_batch_use_case),
-            make_sync_financial_use_case=make_sync_financial_use_case,
+            make_sync_quote_use_case=make_backfill_sync_quote_use_case,
+            make_sync_price_use_case=make_backfill_sync_price_use_case,
+            make_sync_valuation_batch_use_case=(
+                make_backfill_sync_current_valuation_batch_use_case
+            ),
+            make_sync_financial_use_case=make_backfill_sync_financial_use_case,
+            rebuild_current_publications=(
+                lambda *, asset_codes, published_at: (
+                    make_core_current_publication_rebuild_use_case(
+                        created_by="celery.core_data_backfill"
+                    ).execute(
+                        asset_codes=asset_codes,
+                        published_at=published_at,
+                    )
+                )
+            ),
             published_count_from_result=_published_count_from_result,
             persist_control_plane=_persist_backfill_control_plane,
         ),

@@ -7,6 +7,8 @@ import json
 from collections.abc import Sequence
 from datetime import date
 
+from django.db.models import OuterRef, Subquery
+
 from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import QuoteSnapshot
 from apps.data_center.infrastructure._repository_helpers import _resolve_asset_code_candidates
@@ -140,6 +142,34 @@ class QuoteSnapshotRepository:
                 )
             )
         return references
+
+    def list_latest_for_asset_codes(
+        self,
+        asset_codes: tuple[str, ...],
+    ) -> list[QuoteSnapshot]:
+        """Return one deterministic latest source snapshot per requested asset."""
+
+        if not asset_codes:
+            return []
+        latest_row = (
+            QuoteSnapshotModel._default_manager.filter(asset_code=OuterRef("asset_code"))
+            .order_by("-snapshot_at", "-fetched_at", "-revision_number", "-id")
+            .values("id")[:1]
+        )
+        rows = QuoteSnapshotModel._default_manager.filter(
+            asset_code__in=asset_codes,
+            pk=Subquery(latest_row),
+        ).order_by("asset_code")
+        return [self._from_model(row) for row in rows]
+
+    def list_current_publication_candidates(
+        self,
+        asset_codes: tuple[str, ...],
+    ) -> list[PublicationFactReference]:
+        """Select the latest immutable quote fact for every requested asset."""
+
+        quotes = self.list_latest_for_asset_codes(asset_codes)
+        return self.list_publication_candidates(quotes)
 
 
 def _quote_payload_hash(row: QuoteSnapshotModel) -> str:

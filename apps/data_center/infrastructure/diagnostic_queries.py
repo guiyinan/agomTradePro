@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, date, datetime
 from typing import TypedDict, cast
 
@@ -10,6 +11,10 @@ from django.db.models import Q
 
 from apps.data_center.domain.control_plane import PublicationState
 from apps.data_center.domain.entities import ProductionCoverageUniverseConfig
+from apps.data_center.domain.market_time import (
+    cn_market_date_from_observation,
+    latest_closed_cn_market_session,
+)
 from apps.data_center.infrastructure.catalog_runtime_repositories import (
     DatasetContractRepository,
 )
@@ -77,6 +82,9 @@ class _UniverseQualitySummary(TypedDict):
 
 class DataCenterDiagnosticRepository:
     """Read data-center summary counts for operational diagnostics."""
+
+    def __init__(self, *, clock: Callable[[], datetime] | None = None) -> None:
+        self._clock = clock or (lambda: datetime.now(UTC))
 
     def get_summary(self) -> dict[str, int]:
         """Return macro fact and provider configuration counts."""
@@ -494,16 +502,36 @@ class DataCenterDiagnosticRepository:
             )
             return self._typed_publication_summary(summary)
 
-        age_seconds = max(
-            (datetime.now(UTC) - oldest).total_seconds(),
-            0.0,
-        )
-        summary["age_seconds"] = age_seconds
-        if age_seconds > int(max_age_seconds):
+        current_time = self._clock()
+        if current_time.tzinfo is None or current_time.utcoffset() is None:
             summary.update(
                 status="blocked",
-                freshness_status="stale",
-                blocked_reason="canonical_publication_stale",
+                freshness_status="invalid",
+                blocked_reason="diagnostic_clock_naive",
+            )
+            return self._typed_publication_summary(summary)
+        age_seconds = max((current_time.astimezone(UTC) - oldest).total_seconds(), 0.0)
+        summary["age_seconds"] = age_seconds
+        if age_seconds > int(max_age_seconds):
+            latest_session = latest_closed_cn_market_session(current_time)
+            is_latest_market_session = dataset_key in {
+                "equity.price.bar",
+                "equity.valuation.fact",
+            } and all(
+                cn_market_date_from_observation(value) == latest_session for value in aware_observed
+            )
+            if not is_latest_market_session:
+                summary.update(
+                    status="blocked",
+                    freshness_status="stale",
+                    blocked_reason="canonical_publication_stale",
+                )
+                return self._typed_publication_summary(summary)
+            summary.update(
+                status="ok",
+                freshness_status="latest_completed_session",
+                must_not_use_for_decision=False,
+                blocked_reason="",
             )
             return self._typed_publication_summary(summary)
         summary.update(

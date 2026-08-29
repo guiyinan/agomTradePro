@@ -100,12 +100,12 @@ def test_gateway_identity_support_and_period_contracts() -> None:
     assert gateway._is_index_asset("600000") is False
 
 
-def test_quote_collection_keeps_direct_result_and_deduplicates_fallback(
+def test_quote_collection_uses_single_quote_only_for_batch_gaps(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    direct = _quote("600000.SH")
-    duplicate = _quote("600000.SH")
-    fallback = _quote("000001.SZ")
+    batch_quote = _quote("600000.SH")
+    single_fallback = _quote("000001.SZ")
+    single_calls: list[str] = []
     session = MagicMock()
     session.headers = {}
     session.__enter__.return_value = session
@@ -116,17 +116,20 @@ def test_quote_collection_keeps_direct_result_and_deduplicates_fallback(
     monkeypatch.setattr(
         gateway,
         "_fetch_quote_snapshot",
-        lambda _session, code: direct if code == "600000.SH" else None,
+        lambda _session, code: (
+            single_calls.append(code) or single_fallback if code == "000001.SZ" else None
+        ),
     )
     monkeypatch.setattr(
         gateway,
         "_fetch_quote_snapshots_from_ulist",
-        lambda _session, _codes: [duplicate, fallback],
+        lambda _session, _codes: [batch_quote],
     )
 
     snapshots = gateway.get_quote_snapshots(["600000.SH", "000001.SZ"])
 
     assert [snapshot.stock_code for snapshot in snapshots] == ["600000.SH", "000001.SZ"]
+    assert single_calls == ["000001.SZ"]
     assert session.trust_env is False
 
 

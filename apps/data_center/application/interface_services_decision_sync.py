@@ -52,11 +52,9 @@ from .interface_services import (
 )
 from .publication_sync import (
     PublishCapitalFlowBatchUseCase,
-    PublishFinancialBatchUseCase,
     PublishFundNavBatchUseCase,
     PublishNewsBatchUseCase,
     PublishSectorMembershipBatchUseCase,
-    PublishValuationBatchUseCase,
 )
 from .use_cases import (
     DEFAULT_DECISION_ASSET_CODES,
@@ -103,6 +101,7 @@ def _sync_scope_quotes(asset_codes: list[str]) -> dict[str, Any]:
         result = make_system_audited_sync_quote_use_case(
             provider_repository=provider_repo,
             provider_registry=build_provider_registry_for_repo(provider_repo),
+            publish_current=False,
         ).execute(
             SyncQuoteRequest(
                 provider_id=provider.id,
@@ -323,10 +322,12 @@ def make_decision_repair_use_case(
         price_sync_use_case=make_system_audited_sync_price_use_case(
             provider_repository=provider_repository,
             provider_registry=provider_registry,
+            publish_current=False,
         ),
         quote_sync_use_case=make_system_audited_sync_quote_use_case(
             provider_repository=provider_repository,
             provider_registry=provider_registry,
+            publish_current=False,
         ),
         decision_read_recorder=make_publication_decision_read_recorder(),
         sync_identity_issuer=repair_audit.identity_issuer,
@@ -372,6 +373,18 @@ def make_sync_price_use_case() -> SyncPriceUseCase:
     return make_system_audited_sync_price_use_case(
         provider_repository=provider_repository,
         provider_registry=_get_provider_registry(),
+        publish_current=False,
+    )
+
+
+def make_backfill_sync_price_use_case() -> SyncPriceUseCase:
+    """Build a fact-only price sync for a staged full-universe backfill."""
+
+    provider_repository = _make_provider_repo()
+    return make_system_audited_sync_price_use_case(
+        provider_repository=provider_repository,
+        provider_registry=_get_provider_registry(),
+        publish_current=False,
     )
 
 
@@ -382,6 +395,18 @@ def make_sync_quote_use_case() -> SyncQuoteUseCase:
     return make_system_audited_sync_quote_use_case(
         provider_repository=provider_repository,
         provider_registry=_get_provider_registry(),
+        publish_current=False,
+    )
+
+
+def make_backfill_sync_quote_use_case() -> SyncQuoteUseCase:
+    """Build a fact-only quote sync that cannot replace decision quote scope."""
+
+    provider_repository = _make_provider_repo()
+    return make_system_audited_sync_quote_use_case(
+        provider_repository=provider_repository,
+        provider_registry=_get_provider_registry(),
+        publish_current=False,
     )
 
 
@@ -403,7 +428,7 @@ def make_sync_fund_nav_use_case() -> SyncFundNavUseCase:
 
 
 def make_sync_financial_use_case() -> SyncFinancialUseCase:
-    """Build the financial facts sync use case."""
+    """Build a fact-only financial sync; aggregate publication is separate."""
 
     financial_repository = FinancialFactRepository()
     return SyncFinancialUseCase(
@@ -411,11 +436,20 @@ def make_sync_financial_use_case() -> SyncFinancialUseCase:
         provider_registry=_get_provider_registry(),
         fact_repo=financial_repository,
         raw_audit_repo=_make_raw_audit_repo(),
-        publication_publisher=PublishFinancialBatchUseCase(
-            fact_repository=financial_repository,
-            publication_repository=CanonicalPublicationRepository(),
-            policy_repository=PublicationPolicyRepository(),
-        ),
+        publication_publisher=None,
+    )
+
+
+def make_backfill_sync_financial_use_case() -> SyncFinancialUseCase:
+    """Build a fact-only financial sync for aggregate final publication."""
+
+    financial_repository = FinancialFactRepository()
+    return SyncFinancialUseCase(
+        provider_repo=_make_provider_repo(),
+        provider_registry=_get_provider_registry(),
+        fact_repo=financial_repository,
+        raw_audit_repo=_make_raw_audit_repo(),
+        publication_publisher=None,
     )
 
 
@@ -441,7 +475,7 @@ def get_active_provider_id_by_source(source_type: str) -> int | None:
 
 
 def make_sync_valuation_use_case() -> SyncValuationUseCase:
-    """Build the valuation sync use case."""
+    """Build a fact-only valuation sync; aggregate publication is separate."""
 
     valuation_repository = ValuationFactRepository()
     return SyncValuationUseCase(
@@ -449,16 +483,12 @@ def make_sync_valuation_use_case() -> SyncValuationUseCase:
         provider_registry=_get_provider_registry(),
         fact_repo=valuation_repository,
         raw_audit_repo=_make_raw_audit_repo(),
-        publication_publisher=PublishValuationBatchUseCase(
-            fact_repository=valuation_repository,
-            publication_repository=CanonicalPublicationRepository(),
-            policy_repository=PublicationPolicyRepository(),
-        ),
+        publication_publisher=None,
     )
 
 
 def make_sync_current_valuation_batch_use_case() -> SyncCurrentValuationBatchUseCase:
-    """Build the current valuation batch sync use case."""
+    """Build a fact-only current valuation batch sync use case."""
 
     valuation_repository = ValuationFactRepository()
     return SyncCurrentValuationBatchUseCase(
@@ -466,11 +496,20 @@ def make_sync_current_valuation_batch_use_case() -> SyncCurrentValuationBatchUse
         provider_registry=_get_provider_registry(),
         fact_repo=valuation_repository,
         raw_audit_repo=_make_raw_audit_repo(),
-        publication_publisher=PublishValuationBatchUseCase(
-            fact_repository=valuation_repository,
-            publication_repository=CanonicalPublicationRepository(),
-            policy_repository=PublicationPolicyRepository(),
-        ),
+        publication_publisher=None,
+    )
+
+
+def make_backfill_sync_current_valuation_batch_use_case() -> SyncCurrentValuationBatchUseCase:
+    """Build a fact-only current-valuation batch for aggregate publication."""
+
+    valuation_repository = ValuationFactRepository()
+    return SyncCurrentValuationBatchUseCase(
+        provider_repo=_make_provider_repo(),
+        provider_registry=_get_provider_registry(),
+        fact_repo=valuation_repository,
+        raw_audit_repo=_make_raw_audit_repo(),
+        publication_publisher=None,
     )
 
 

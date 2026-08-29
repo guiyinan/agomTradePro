@@ -13,12 +13,12 @@ from apps.config_center.application.use_cases import UpdateDecisionRuntimeStateU
 class Command(BaseCommand):
     """Persist an audited decision-runtime state transition."""
 
-    help = "Set active, maintenance, validating, or blocked decision runtime state."
+    help = "Set maintenance, validating, or blocked decision runtime state."
 
     def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "status",
-            choices=("active", "maintenance", "validating", "blocked"),
+            choices=("maintenance", "validating", "blocked"),
         )
         parser.add_argument("--reason", default="")
         parser.add_argument("--changed-by", required=True)
