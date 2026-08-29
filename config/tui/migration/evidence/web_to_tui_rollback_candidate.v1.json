@@ -1,0 +1,746 @@
+{
+  "candidate_binding": {
+    "candidate_commit": "36b72d2fc01604afdb15d236a1e91d082fb62a5b",
+    "candidate_version": "20260830071422",
+    "graph_sha256": "63be10ee25bb73c87861c18cc92355938fd7abc096c33852bf5f904d4db532a2",
+    "matrix_sha256": "e3027671d02d876c9f4b38b9d86395d45e26c0f2b344eb0646086be31869cd5d",
+    "runtime_build_id": "agomtui-runtime-0.2.0+1aa1996d160f",
+    "runtime_manifest_sha256": "8824e67064f5a572d346507cc3d7ab484282e45dd6e8a7b05f2682c7c1bad3a4",
+    "runtime_version": "0.2.0",
+    "schema_version": "tui-metadata.v3",
+    "version": "web-to-tui-candidate-binding.v1"
+  },
+  "drill": {
+    "artifact_manifest": [
+      {
+        "baseline_sha256": "9cc5317347b42cc537219b5fd9c6e235146a561b32f845609571bbc4d992bb59",
+        "candidate_sha256": "c8593b3d9a2b81f836dabcad3496b192e9d7ebda3999c6a8b058b61d023df3b7",
+        "path": "apps/simulated_trading/interface/api_urls.py",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "c2340067548a270bda7cceec465548279c9ab6f3ddf18c1f98efc75510503e3a",
+        "path": "apps/simulated_trading/interface/tui_serializers.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "23fba932e6ee6e40c4595ca280598a1b6373e78da9a856214e59d39a98b77f26",
+        "path": "apps/simulated_trading/interface/tui_views.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": "663dbfbc7693d4b99a87510626ccb82134d3ba7ebf6ce0b31abbbcca5cc46e32",
+        "candidate_sha256": "5f78c5f156b68432d4ff6209a627c6cdb3bb693deafc43799373c6356884456c",
+        "path": "apps/terminal/application/tui_metadata.py",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "87b0929e5f7a3ce18479935dd072d7647c8f8c9b5123f4eb06c48fb138ebd696",
+        "path": "apps/terminal/application/tui_metadata_constants.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": "117c6a3de5c529d537783399f553efc50d4bf9c0507c0b3d503f56f1c072269a",
+        "candidate_sha256": "117c6a3de5c529d537783399f553efc50d4bf9c0507c0b3d503f56f1c072269a",
+        "path": "apps/terminal/application/tui_metadata_field_aliases.py",
+        "transition": "unchanged"
+      },
+      {
+        "baseline_sha256": "ebc55b6c264fcf6cc817e5d3c808c0ae288a4568d3916e4148c199b08f831e04",
+        "candidate_sha256": "ebc55b6c264fcf6cc817e5d3c808c0ae288a4568d3916e4148c199b08f831e04",
+        "path": "apps/terminal/infrastructure/tui_information_architecture.py",
+        "transition": "unchanged"
+      },
+      {
+        "baseline_sha256": "0b5821775084e4060113095db804158607e3552a9bff7e23041f891dfd597704",
+        "candidate_sha256": "f59b8c4f7256769a7781b39961ed48356de85602b8f8cc48586e56bef26e92e1",
+        "path": "apps/terminal/infrastructure/tui_metadata_repository.py",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "ebbc590053ee8ef193dd6fb6ebc08ff4919b7c315aae2d54b31a0e7ea3399434",
+        "path": "apps/terminal/infrastructure/tui_metadata_repository_helpers.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": "958d3d1074b407defbf3b5e2c1b36beaae34ec8cb23bf541a953a0924933d082",
+        "candidate_sha256": "958d3d1074b407defbf3b5e2c1b36beaae34ec8cb23bf541a953a0924933d082",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_action_patch_alpha_policy.py",
+        "transition": "unchanged"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "f2993951bd8f003e945e19f86fd207275fb54fdbd5616202478260c51075e319",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_action_patch_config_center.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "bf307f3c6f4b484bfeb365b3e3739c348c4861669f1fb7f1852e17c3e8b84c61",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_action_patch_data_center.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": "35de6a3672b3a7fe9d8a13fc8c6a9343e64948b0f6a271d42ab377497eb15dd2",
+        "candidate_sha256": "bc054f673f15123faa8d37dbbe11ce6ecebbbef2021d550237ddfc15bd549dad",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_action_patch_execution.py",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "1a75b7c4cd3bd144a43e6d0670bbdf76c07b125ac3a412d7f206ae6b8fde11c3",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_action_patch_macro_data.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "5586ee55637f3c28206df70f0f9d91bdab6be4b125f89ff4530396afb551e4a8",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_action_patch_prompt.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": "55cabfd70c2c3713cae509b7c021c306457ce1498009263030854afc7c0afa31",
+        "candidate_sha256": "bd810cc4c75ed29f2517581fa500c0b4aaa17b7cd4c3fd166475850dcf019f37",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_action_patch_registry.py",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "1029a60af4bb948904c4e2788183cdf966cd59bba13f6dd9ff562b35fcfdd5cb",
+        "candidate_sha256": "1029a60af4bb948904c4e2788183cdf966cd59bba13f6dd9ff562b35fcfdd5cb",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_action_patch_system_audit.py",
+        "transition": "unchanged"
+      },
+      {
+        "baseline_sha256": "0f5be0d4d2d6de066b003b0a05e6aa873d7c5afd778ab7dfbdd94ca048f8d242",
+        "candidate_sha256": "0f5be0d4d2d6de066b003b0a05e6aa873d7c5afd778ab7dfbdd94ca048f8d242",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_action_patches.py",
+        "transition": "unchanged"
+      },
+      {
+        "baseline_sha256": "02b9fe03edeec1013d866db78c6a1d52ea96d1a9f360fd4cd3d8fc94e748ba63",
+        "candidate_sha256": "02b9fe03edeec1013d866db78c6a1d52ea96d1a9f360fd4cd3d8fc94e748ba63",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_constants.py",
+        "transition": "unchanged"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "40efe5448c3121ea9c423ce68ae872af0c2eac3488e703443773706c5b865181",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_account_overview.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "7fde14e4f63e77f3536d6ba12662eee4133b5deb6ce6f917ad516355073d182f",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_account_self_service.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": "0a63928527b4a28d8e670da9c3c46adac11ee89a44714a50760a699539f9f38f",
+        "candidate_sha256": "0a63928527b4a28d8e670da9c3c46adac11ee89a44714a50760a699539f9f38f",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_advisor.py",
+        "transition": "unchanged"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "47f19cf5f89cbfae3ed01b794efcc15bb4cd10069943e8ee5429fde95ad37860",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_agent_runtime.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": "8f741e58b43ecfc83bb60d98692c6cd5d647e7946ce985d76acbd0569b74ac84",
+        "candidate_sha256": "f122daa8c88923a39c570c7994ad90ece206cc5d444f9726923f1f5d44fc133d",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_ai_quotas.py",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "4e16d4592f09107b75640158b21268d7acdd88ec18a638d65e0b03448fbf9c41",
+        "candidate_sha256": "3ed0012ff2347f7ddf92df67ce9870d3768c7bcea85a61f41458c987c5cf040d",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_ai_system_providers.py",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "313ca7686c94a6894310b6aa17c7379e55db3ce31ff5e8e6759193b7a43cf4cb",
+        "candidate_sha256": "ca7e47b2578646fc1e2a8129c859bf0097e98474d2abd72b36bbd7fe9fbb9419",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_ai_user_providers.py",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "e93a34bd0121c1c810684bd210247779fb188eac3f04168e5518ae02ed266229",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_alpha_ops.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "bd1d8a6baa433d41ab2c400c1d6288b76e1c9f247752ac407da1c6066b1c4c70",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_alpha_trigger.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "223498ba7b6797936d17fdd0415cc161cbdea29a071521f7b5bb4b82434c484a",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_asset_analysis.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "0c343eb9d3d235537280fea2899a42def7917889aaf729310cd6fd0d02f90d94",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_audit.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "d1bca1d0dd1e3a1350ad37d8be9e95b7ab0f1d6f27032d3478ad9a1b3276128c",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_audit_analytics.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "881c4311be56c97cf6afdf5fd842996353d47f720dd12684f6ab7bbe3c68f6bc",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_backtest.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "4e5190f326d33b387793a7aef8d1a74a5adcf228d125ab4d3a43f1872e2a8c0c",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_beta_gate.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": "d28e9090f2b59396aa40ed38bebe0b49bd632ad29eb5a8dc182f6fde48515ee2",
+        "candidate_sha256": "2766522880e6ad68c17b64e43915c7f804b2f17579c740a1348d635470082315",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_broker_execution.py",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "78873b3436bfbe8539b56d2073df2c729bf202e1d4786ed1a45662cb653f8ab5",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_broker_execution_helpers.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": "72c9b2cce53f68e032dfa92af13905efec4399fe154879c3e7190832f447ea28",
+        "candidate_sha256": "598be835ebed2be1f98b8e52924e7f7a70d1595a64874b145e4faed8073526c3",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_capability_router.py",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "7dd13d0e0c793c775626a51d6f944d84e249ee5ae39d9c0156e379a3a394c672",
+        "candidate_sha256": "871dbf9fd949250daf55d7032257928ac9ef9439b8f0c6b76a5af4720caffbd4",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_cli.py",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "b2b8dcc85b03ea0dcb5c27fa02ac58f1bf44315de4213cc1d3452616b6013f87",
+        "candidate_sha256": "ee758480f5fe33254b0505361b06d7804387c56b240552bcf1fc3f4a0d6cacd5",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_config_center.py",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "881c2ea5d9c9ec731af4cf9595a5121f2f7ac4f6df47af4a4c0720dde44957af",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_dashboard_alpha.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "f6ea2c7e6c6b1fe27863f8c7b4e971c97148488c448879cef728247c9e1ae18c",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_dashboard_overview.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "91ebdb33ea853bfc5ca59840c120e6402210d9a21986beeb97e1c2eed1604b79",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_data_center.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "c364202dbf4ef6b7b2f7b931bf461c69545b458f13f094c9da57dc62847eb0fc",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_decision_rhythm.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "21e9f55774efc7b11a940b8cf93eee0f515079c15c67b7df3b66440f7cbe1e3e",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_decision_workspace.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "337286d5e23692bbcb325243d568ba50fd96ff437d55fd5770d45d2ce8eba97e",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_equity_analytics.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "2582af256c5ec16f36f2d026faaf3c66664c5cbb534d6b6cdbc01ecd4d2a29a0",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_equity_config.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "145f75730e7c7c63585af2d9e582b0fa56d3ae6e7299f434a37eb1fd00483720",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_equity_screen.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": "e3233d46ec538841c404eb8874c1c1b09d891866712864000f580129e94dd7df",
+        "candidate_sha256": "e3233d46ec538841c404eb8874c1c1b09d891866712864000f580129e94dd7df",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_event_replay.py",
+        "transition": "unchanged"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "f43f5186d3f7aec3babc50f8b94631d40dfd02cdb5c333f3532ef3dfbae49749",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_factor_calculate.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "2ce682176623b25e3cbb0a4e4ec0e55bc3b9fd0a9b1df52320991a8adbf407e4",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_factor_definitions.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "1758146afb3168e7c4a05d01ce7adf4a56e9b9c81e7236b099b9d58ed45dadfc",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_factor_portfolios.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "a67368a7b71040049451adb972958fd01420ba957d6711e077fe90d633064434",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_fund.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "e6b2a729faa4cfe996a32f361fbf2a6a84342f620221b1df54bcc083746b48a0",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_hedge.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": "135bfbb185180445f15d680e77badf258a315a0f47f0718df806220b4967ee20",
+        "candidate_sha256": "aa92d1b4fd887b5e9ea8d17883ca16cc85b9b15204a36f6dbeeedbb923970270",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_identity_access.py",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "b65de08c6ba567fa1f195088e261dc87577ec3ce272579632d814af0827fd5e0",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_macro_regime_analytics.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "1071aa4102bbb6264a1ca111965174d35cca3a49283be851192bcd2f4909daa3",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_macro_trend_filter.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "0a1d36ea406542e1344fb2691932aa45eeb8a67427d5060553a55c149fd4de1a",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_manual_trade_review.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": "55050a34aa7a830742f8914c46b303778708f924382d634b04671d2216e36b25",
+        "candidate_sha256": "077589f975c073a5df93934bc5861e90ca9306036d4f56c9e330a5afa4d38d72",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_mcp_access.py",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "2344488276a45a8df573e1e4fb71222b0123549ff78ffeb3657ba392ecec792f",
+        "candidate_sha256": "6e76bd51e2d23736eeed6f206b25ef865cdc626f133b8692bdaa4241d316ce67",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_operator.py",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "378a199aceb0d3cf37c870c492e713c7e1df982e1755a2f32223fe22a05ceb72",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_ops.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "1b173ce70b72a8b3fbc3ab894523c765155290abc073a77d71a3c721111d4ab4",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_policy.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "111c7dde47a6d598ab5e5a6bfef12bd8f6b998f7cdfdd20d8db754cf1ebf9321",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_prompt.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": "385721de6110c5df47fdb6b82a36194ee243a56ae48556a1ccbdae2e5484cc12",
+        "candidate_sha256": "385721de6110c5df47fdb6b82a36194ee243a56ae48556a1ccbdae2e5484cc12",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_realtime.py",
+        "transition": "unchanged"
+      },
+      {
+        "baseline_sha256": "de90fd181d9d798c5659c55b5465474b7aeef21100432eed8ed307d2b31f57c9",
+        "candidate_sha256": "514e65179365879bd7aed11ce9b1159b10359f4ed3b587be5a4db5b89d23f665",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_registry.py",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "782f7ff0e2bcad55c46881ce45f8eb8ee07563a15e06a402139ab6108e975313",
+        "candidate_sha256": "fbed8b9c7ef603b34f7f8b043bf8bd7eb62745d63421401be87bd7f8c9a43981",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_risk_center.py",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "4cc5bd88cc43864dc3caa5898e3df8b9776e0f38c05e61a33369009476a0dfed",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_risk_center_actions_core.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "e9805fb98bcc8825bc86dd778abe8d0ad051041f8d0f1441d26be0ab903604d1",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_risk_center_actions_governance.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "10aadbc48cb38ef296d05cf8b9dd7b4e7f9507b3b5c2558c89aa943014fe9128",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_rotation.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "acc808cfa27290f43b4a3c6252eeea0c06dcd1adba41147cda2b6b0a3edf56d4",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_sentiment.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "f909ed63cf5171520145d83865dde0ec9a0d8b321f8569682961aa0792e3dd07",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_signal.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "b5fa14c1a626e4fae973b8fe26854dffffd15d29e6336c8a29e80c35fff44feb",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_simulated_trading.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "920d3549f4e49cde301e9487748a71fc99dbaee644e61bd2cb2830b99bf4cf63",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_strategy.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "7e09d821f5bb44247b705b260eb02c97475bfad47f39cdce9567d0a2758ed4da",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_system_settings.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "a7229a6ed2cb945a9fae1d23fd572ef62acbc932b25f456660b9ae46bca5b4b7",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_task_monitor.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": null,
+        "candidate_sha256": "fdb24c6b8e2f7e25deadf0148926c805a020fd2a3dd7728051000a8c116cf9f1",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_user_access.py",
+        "transition": "added"
+      },
+      {
+        "baseline_sha256": "e95ef6abc7f1df2a80557c5e80003d3e18f9fee4b8305b804cb08fc011b0ebf8",
+        "candidate_sha256": "e95ef6abc7f1df2a80557c5e80003d3e18f9fee4b8305b804cb08fc011b0ebf8",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injections.py",
+        "transition": "unchanged"
+      },
+      {
+        "baseline_sha256": "62402f345516a69cdf805e431e643876a6d2868fdf2cbf2960b6491b08dedf92",
+        "candidate_sha256": "e3a5c7206e1bc3ddda73e427322e721503ef879744d7c62e035c5af1a47e97fa",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_command_center.py",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "df98f6ae8026f55883404102998794b3138a6c4e2c9eecf3685b13a298b6faa1",
+        "candidate_sha256": "2296e906125efb9525114cb3acd7cae5b4dfe65cf6be8cb43303420dd2cbdeb1",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_execution.py",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "ee1c6c3a1d99a21ca9d4d7645cecf7492e1333d405854a678d37b133134e1ad9",
+        "candidate_sha256": "d859a5da40f6c81ea231e1faca911e6e214e5b2db2e17a28c4ed3fbd4027008d",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_macro_data.py",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "552d0591752abaf425c4ed253f8b3d79433ddc908345ac0850beeea326c4848c",
+        "candidate_sha256": "0a769e63508d02267d1ef0adba5704e6038aa51f3de72a774fd8a950a3c98672",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_ops.py",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "1bc28ac8df6a96d84146eb99660b9e1b428d44e52d6b99b436510f00c3f61886",
+        "candidate_sha256": "1bc28ac8df6a96d84146eb99660b9e1b428d44e52d6b99b436510f00c3f61886",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_registry.py",
+        "transition": "unchanged"
+      },
+      {
+        "baseline_sha256": "0c79258e1137ce602b9b87761751c3ac6dcd54da8fac975ad12c0d5b7c38a094",
+        "candidate_sha256": "5ba95b78fdb0e713542d511d77c6372a5449fda53795d0ae8c4cfd97ab4a25b7",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patch_research.py",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "34edfc813992dfe20c6055ee3076a7194ea7c94222d794cfc7b156b5ad5cc97a",
+        "candidate_sha256": "34edfc813992dfe20c6055ee3076a7194ea7c94222d794cfc7b156b5ad5cc97a",
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_screen_patches.py",
+        "transition": "unchanged"
+      },
+      {
+        "baseline_sha256": "0c0071c88fcba28eec726cc7891ca9b0592b5b4d5c064b7f104cd85f0288bb5d",
+        "candidate_sha256": "0c0071c88fcba28eec726cc7891ca9b0592b5b4d5c064b7f104cd85f0288bb5d",
+        "path": "apps/terminal/infrastructure/tui_metadata_signals.py",
+        "transition": "unchanged"
+      },
+      {
+        "baseline_sha256": "da7830ea85f19b484116ffa70c8e29468fd1e4f99e8156254178829fe021d403",
+        "candidate_sha256": "8824e67064f5a572d346507cc3d7ab484282e45dd6e8a7b05f2682c7c1bad3a4",
+        "path": "config/tui/agomtui-runtime.manifest.json",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "164332b69ce0f94ddc564929bb6dd51f6dd2395d524d4546547442bfa87050f8",
+        "candidate_sha256": "afb5ea6aba28edbc7ee60cf10e6eca4507039dd9c7a8b91400a47a273851df50",
+        "path": "config/tui/ia/tui_information_architecture.v1.json",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "249ebc246b57374b9bd450704861feff358ae1977698580c982b8469afe44db0",
+        "candidate_sha256": "63be10ee25bb73c87861c18cc92355938fd7abc096c33852bf5f904d4db532a2",
+        "path": "config/tui/published/tui_operation_graph.published.json",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "8d948a8b0df35211f3ada83f24a158d184515ef579a8fda6d4f2e09ceb3db9cd",
+        "candidate_sha256": "fe6b314a2ebe3c0c9b09aa3a2a63f4e637e59a478f8011824195a2d19974588f",
+        "path": "config/tui/schema/tui_metadata.schema.v3.json",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "d4c3220cb3aceaecad61e3d3e22cad123b2bc8785db645ddd8df3da89778f6f3",
+        "candidate_sha256": "3dc364b3d0ce63e9866e893458c5d0663f332ee9f97de0868017a092f5d13013",
+        "path": "core/templates/simulated_trading/account_detail.html",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "ec0dfb979ae91b228f7026be986f19063267398c1ade8e5547ad88ccd044b3c1",
+        "candidate_sha256": "c057ff6b7dd770d71db118fd5cfa9090c0439efd0d245c691bd4749cd8ac8c13",
+        "path": "core/templates/simulated_trading/dashboard.html",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "28cdefba1c17e72f4d005182b0343d5556e1b500f243cc6852c0df0798f955b2",
+        "candidate_sha256": "8449a4be7bec2f96239ee6ee202e295ffc0b9b4640da206d6d33a8c8ad741752",
+        "path": "core/templates/simulated_trading/my_account_detail.html",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "568966d1317c200b30a1e41ebb69c2d4140ad0a20592de3000da7e4538904039",
+        "candidate_sha256": "475f6ff24e2ceb4d52a69ec3717a130244a1adf7abea7de303fcb988c88a7ea6",
+        "path": "core/templates/simulated_trading/my_accounts.html",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "e6a2cc3e4faa21a4880bedaf749ee053adb3e3f82193ca1662529d63ec291882",
+        "candidate_sha256": "e6a2cc3e4faa21a4880bedaf749ee053adb3e3f82193ca1662529d63ec291882",
+        "path": "frontend/agomtui-runtime/src/api.js",
+        "transition": "unchanged"
+      },
+      {
+        "baseline_sha256": "6409b08f5c7ce30033f35892925df059d8244ab3e43aa218349511b38b5649ee",
+        "candidate_sha256": "6409b08f5c7ce30033f35892925df059d8244ab3e43aa218349511b38b5649ee",
+        "path": "frontend/agomtui-runtime/src/dashboard-layout.js",
+        "transition": "unchanged"
+      },
+      {
+        "baseline_sha256": "ef9c95f72d9769b320b24b81a59f1835cabeac5a257dd4b0bb7f81d557406425",
+        "candidate_sha256": "ef9c95f72d9769b320b24b81a59f1835cabeac5a257dd4b0bb7f81d557406425",
+        "path": "frontend/agomtui-runtime/src/events.js",
+        "transition": "unchanged"
+      },
+      {
+        "baseline_sha256": "f7b032a908670f6ff5ee034588604b6c0ace948ff2baec3204ad83a96b39a241",
+        "candidate_sha256": "f7b032a908670f6ff5ee034588604b6c0ace948ff2baec3204ad83a96b39a241",
+        "path": "frontend/agomtui-runtime/src/extensions.js",
+        "transition": "unchanged"
+      },
+      {
+        "baseline_sha256": "f5fbf9bf5dea2f678d077191f27ac5a00e22e1327692c91633460070a9883221",
+        "candidate_sha256": "f5fbf9bf5dea2f678d077191f27ac5a00e22e1327692c91633460070a9883221",
+        "path": "frontend/agomtui-runtime/src/index.js",
+        "transition": "unchanged"
+      },
+      {
+        "baseline_sha256": "0996c6592c0a1c4245341b3da2b36a173fdfd7f695170b61f2b592e8b9ac6478",
+        "candidate_sha256": "0996c6592c0a1c4245341b3da2b36a173fdfd7f695170b61f2b592e8b9ac6478",
+        "path": "frontend/agomtui-runtime/src/pagination.js",
+        "transition": "unchanged"
+      },
+      {
+        "baseline_sha256": "cde6c7474d18f48f03c2ca2bb1ca35f1cac0aa245a69686ea391cc4058933a32",
+        "candidate_sha256": "cde6c7474d18f48f03c2ca2bb1ca35f1cac0aa245a69686ea391cc4058933a32",
+        "path": "frontend/agomtui-runtime/src/performance.js",
+        "transition": "unchanged"
+      },
+      {
+        "baseline_sha256": "253fa9b01e754a67060786d13f68cc153c5b20fbd3d0b71212946bd36075b6b7",
+        "candidate_sha256": "253fa9b01e754a67060786d13f68cc153c5b20fbd3d0b71212946bd36075b6b7",
+        "path": "frontend/agomtui-runtime/src/state.js",
+        "transition": "unchanged"
+      },
+      {
+        "baseline_sha256": "53720a1b3144d0aa9616e006fd85c924c32f9f2f8fc3fc85edfa70318dfe67d5",
+        "candidate_sha256": "46b57beb2c5e91c668a734cec4272ccd196002790ad142c625edd19766b34e23",
+        "path": "frontend/tui-workbench/src/00-runtime.js",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "8e85c36b222dc077530be3373d951231a0fd08acda6a38812ce3b315fdfd015a",
+        "candidate_sha256": "9444cfa0b18402fe122946a53909316fe445a303c0c62909dee7ef450c70c25d",
+        "path": "frontend/tui-workbench/src/10-navigation.js",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "9c1855bc02bc89413be4d1771e7ecdf68d533ebc680bfb2c35f34c8f0d748a18",
+        "candidate_sha256": "71c6640a209dde3357f23d8a5a870c567b648537f7bf6cbfea6b17dcbcc56424",
+        "path": "frontend/tui-workbench/src/20-dashboard.js",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "2dd2c00a0636619a858f22344f4ef84a700127aa09bee05fd285c1c2b6dad6b6",
+        "candidate_sha256": "349c285a4cd5a16af300faa56ff447d88708a111e56a1de6667cfc87f2c158ed",
+        "path": "frontend/tui-workbench/src/30-actions.js",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "bd7e574fbb76abd6bdb1cb948d7272b313083b8a1ae18834392096b7e99757f7",
+        "candidate_sha256": "1b87fcb0fbff830d5bb5ea3fbe5a10ac09acb74dcd2c6037354793c585e98db0",
+        "path": "frontend/tui-workbench/src/40-views.js",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "da20321b5a3918bf9e99ea1c8c516265a13eed90eaed597db6ef0f3a64d642c8",
+        "candidate_sha256": "bc6184e5380f32fffa91b3b3a4e33f26b7e123b8061d93ea719d92e4812812cb",
+        "path": "frontend/tui-workbench/src/50-shell.js",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "b6c5adfc6c56a7b5967676001655fed1f09d6a010a7b857606f4bbd38c0ab01c",
+        "candidate_sha256": "a56424aba164da2856c559915f2e6dc5059737cba63e6920d6f22b21ccace549",
+        "path": "static/css/tui-workbench.css",
+        "transition": "modified"
+      },
+      {
+        "baseline_sha256": "988216a4761b3053cc72c36a5ac7a83d84f6844c590c6bdc1045fff7a4b98e90",
+        "candidate_sha256": "988216a4761b3053cc72c36a5ac7a83d84f6844c590c6bdc1045fff7a4b98e90",
+        "path": "static/js/agomtui-runtime-core.js",
+        "transition": "unchanged"
+      },
+      {
+        "baseline_sha256": "ae2cd2409e2147e93350f45e4a77a1a7ccb70383bf3ea283cc1ab5a5d8ceff89",
+        "candidate_sha256": "1d8ba60d0a89633a0edbb26f52f1bdda2153a292b05397831fe3297ccd38bb6f",
+        "path": "static/js/tui-workbench.js",
+        "transition": "modified"
+      }
+    ],
+    "baseline_commit": "7e706d07caacca8b3e56a486d8c0b6b6ed2cdf37",
+    "baseline_contract": {
+      "actions": 402,
+      "schema_sha256": "8d948a8b0df35211f3ada83f24a158d184515ef579a8fda6d4f2e09ceb3db9cd",
+      "schema_version": "tui-metadata.v3",
+      "screens": 12
+    },
+    "baseline_graph_hash": "249ebc246b57374b9bd450704861feff358ae1977698580c982b8469afe44db0",
+    "baseline_runtime": {
+      "build_id": "agomtui-runtime-0.2.0+40a52d5a5e8f",
+      "manifest_sha256": "da7830ea85f19b484116ffa70c8e29468fd1e4f99e8156254178829fe021d403",
+      "verified_files": 18,
+      "version": "0.2.0"
+    },
+    "candidate_binding": {
+      "candidate_commit": "36b72d2fc01604afdb15d236a1e91d082fb62a5b",
+      "candidate_version": "20260830071422",
+      "graph_sha256": "63be10ee25bb73c87861c18cc92355938fd7abc096c33852bf5f904d4db532a2",
+      "matrix_sha256": "e3027671d02d876c9f4b38b9d86395d45e26c0f2b344eb0646086be31869cd5d",
+      "runtime_build_id": "agomtui-runtime-0.2.0+1aa1996d160f",
+      "runtime_manifest_sha256": "8824e67064f5a572d346507cc3d7ab484282e45dd6e8a7b05f2682c7c1bad3a4",
+      "runtime_version": "0.2.0",
+      "schema_version": "tui-metadata.v3",
+      "version": "web-to-tui-candidate-binding.v1"
+    },
+    "candidate_contract": {
+      "actions": 413,
+      "schema_sha256": "fe6b314a2ebe3c0c9b09aa3a2a63f4e637e59a478f8011824195a2d19974588f",
+      "schema_version": "tui-metadata.v3",
+      "screens": 12
+    },
+    "candidate_graph_hash": "63be10ee25bb73c87861c18cc92355938fd7abc096c33852bf5f904d4db532a2",
+    "candidate_runtime": {
+      "build_id": "agomtui-runtime-0.2.0+1aa1996d160f",
+      "manifest_sha256": "8824e67064f5a572d346507cc3d7ab484282e45dd6e8a7b05f2682c7c1bad3a4",
+      "verified_files": 99,
+      "version": "0.2.0"
+    },
+    "matrix_rollback_commits": {
+      "core/templates/simulated_trading/account_detail.html": "2f0e8cce24243ade60036cfd221c514cc2451bec",
+      "core/templates/simulated_trading/dashboard.html": "2f0e8cce24243ade60036cfd221c514cc2451bec",
+      "core/templates/simulated_trading/my_account_detail.html": "2f0e8cce24243ade60036cfd221c514cc2451bec",
+      "core/templates/simulated_trading/my_accounts.html": "2f0e8cce24243ade60036cfd221c514cc2451bec"
+    },
+    "migration_anchor_path": "apps/simulated_trading/interface/tui_serializers.py",
+    "migration_commit": "5554caf11d80aa0fa13340d4e187946743659c1a",
+    "ok": true,
+    "patch_sha256": "b6e0f5b5321e5696107d5eb66c50970c255d5dfebd447841c8e6b23d3092e950",
+    "restore_seconds": 1.397,
+    "rollback_seconds": 0.709,
+    "scope": "candidate-bound representative wave plus snapshot runtime bundle",
+    "total_seconds": 40.926,
+    "transition_counts": {
+      "added": 48,
+      "deleted": 0,
+      "modified": 38,
+      "unchanged": 22
+    },
+    "version": "web-to-tui-rollback-drill.v2",
+    "wave": "M4-simulated-accounts-w51",
+    "working_tree_read_as_candidate": false,
+    "working_tree_unchanged": true
+  },
+  "recorded_at": "2026-08-29T23:53:33.051511+00:00",
+  "summary": {
+    "artifact_count": 108,
+    "baseline_commit": "7e706d07caacca8b3e56a486d8c0b6b6ed2cdf37",
+    "candidate_commit": "36b72d2fc01604afdb15d236a1e91d082fb62a5b",
+    "candidate_graph_hash": "63be10ee25bb73c87861c18cc92355938fd7abc096c33852bf5f904d4db532a2",
+    "migration_commit": "5554caf11d80aa0fa13340d4e187946743659c1a",
+    "passed": true,
+    "patch_sha256": "b6e0f5b5321e5696107d5eb66c50970c255d5dfebd447841c8e6b23d3092e950",
+    "schema_version": "tui-metadata.v3",
+    "transition_counts": {
+      "added": 48,
+      "deleted": 0,
+      "modified": 38,
+      "unchanged": 22
+    },
+    "wave": "M4-simulated-accounts-w51"
+  },
+  "version": "web-to-tui-candidate-rollback-report.v1"
+}
