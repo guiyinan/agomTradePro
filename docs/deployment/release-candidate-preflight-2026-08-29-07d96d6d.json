@@ -1,0 +1,118 @@
+{
+  "version": "release-candidate-preflight.v1",
+  "captured_at": "2026-08-29T05:04:12Z",
+  "environment": "production",
+  "read_only": true,
+  "production_claim": false,
+  "deployment_performed": false,
+  "source_candidate": {
+    "frozen": true,
+    "candidate_commit": "07d96d6cdc24262e7cc6eb2f4a7e57308f962d70",
+    "origin_main": "07d96d6cdc24262e7cc6eb2f4a7e57308f962d70",
+    "candidate_version": null,
+    "binding": {
+      "version": "web-to-tui-candidate-binding.v1",
+      "matrix_sha256": "e3027671d02d876c9f4b38b9d86395d45e26c0f2b344eb0646086be31869cd5d",
+      "graph_sha256": "63be10ee25bb73c87861c18cc92355938fd7abc096c33852bf5f904d4db532a2",
+      "schema_version": "tui-metadata.v3",
+      "runtime_version": "0.2.0",
+      "runtime_build_id": "agomtui-runtime-0.2.0+7b2efaff4f9a",
+      "runtime_manifest_sha256": "bfa8eeb81da5165414a882f77f3333268847f217f858925a40597d720548e6fe"
+    }
+  },
+  "current_production": {
+    "source_commit": "45d7616d3c38a86853104f93dbd3f13bd9a48838",
+    "release_id": "20260826135953",
+    "image_id": "sha256:c481bb88ac6547165bdebcd34573a6f0d69b042c93ce37136b8ea3b160a1ce66",
+    "candidate_matches_source": false,
+    "identity_source": "docs/deployment/tar01-current-vps-deployment-acceptance-2026-08-26-45d7616d.json",
+    "runtime_verifier": {
+      "outcome": "passed",
+      "caddy_site": "demo.agomtrade.pro",
+      "tls": "valid_for_at_least_21_days",
+      "web": "healthy",
+      "django_deploy_check": "passed_with_1_silenced_issue",
+      "migrations": "no_unapplied_migrations",
+      "canonical_data_center_schema": "passed",
+      "tui_registry": "published_and_matching",
+      "pyqlib_version": "0.9.7",
+      "wrong_qlib_distribution": "absent",
+      "qlib_module": "/usr/local/lib/python3.11/site-packages/qlib/__init__.py",
+      "celery_worker": "running",
+      "celery_beat": "running",
+      "celery_ping": "one_node_online"
+    }
+  },
+  "public_probes": [
+    {
+      "path": "/api/health/",
+      "http_status": 200,
+      "bytes": 62,
+      "sha256": "ce0b3fd4657998ef750397a698cb3baa9e6d0627e03955e0ccaa4fa99b0cc786",
+      "status": "ok"
+    },
+    {
+      "path": "/api/ready/",
+      "http_status": 200,
+      "bytes": 11007,
+      "sha256": "10a60d192c99099739bd912e68ec597669b2cdbb34e19e9f99af5b6024b4cf4b",
+      "status": "ok"
+    },
+    {
+      "path": "/api/audit/health/",
+      "http_status": 200,
+      "bytes": 1171,
+      "sha256": "deafba3fd10419a8ef5292f17046a3e506e287ec89de1c227694d52b3c74913e",
+      "status": "OK"
+    },
+    {
+      "path": "/api/decision-ready/",
+      "http_status": 503,
+      "bytes": 14627,
+      "sha256": "339728d78009208b3a07c5dfa39ac994587c6633b22889af996e91946454015b",
+      "status": "blocked",
+      "must_not_use_for_decision": true,
+      "block_reason_code": "decision_runtime_blocked",
+      "reason": "MCP audit evidence write failed during final acceptance"
+    },
+    {
+      "path": "/api/tui/",
+      "http_status": 403,
+      "bytes": 61,
+      "sha256": "c65bef74297615126656a101e44c654a66e04c61d4936c40643db8ce487152bd",
+      "status": "authentication_required"
+    }
+  ],
+  "repository_gates": {
+    "post_merge_main_ci": "passed",
+    "active_plan_registry": "passed",
+    "web_template_migration_inventory": "passed",
+    "web_to_tui_cutover_readiness": "DENY",
+    "python_version_consistency": {
+      "status": "failed",
+      "detail": "docker/Dockerfile.qlib-train uses Python 3.10 while the runtime policy requires Python 3.11"
+    },
+    "local_production_config_audit": {
+      "status": "not_representative",
+      "detail": "The local shell intentionally lacks production SECRET_KEY, ALLOWED_HOSTS and SSL environment values; the deployed container Django --deploy check passed."
+    }
+  },
+  "release_decision": {
+    "status": "blocked_before_deploy",
+    "source_frozen": true,
+    "candidate_deployable": false,
+    "observation_window_started": false,
+    "blockers": [
+      "The Python version consistency gate fails on docker/Dockerfile.qlib-train.",
+      "Production still runs 45d7616d3c38a86853104f93dbd3f13bd9a48838 rather than the frozen source candidate.",
+      "The M5 cutover evidence remains bound to the older matrix and candidate, so source consistency, UAT, telemetry, rollback, registry backup and approvals are not satisfied.",
+      "Decision readiness remains fail-closed with HTTP 503 and must_not_use_for_decision=true."
+    ],
+    "required_next_step": "Authorize a bounded repository remediation for the Python 3.11 qlib-train image, pass CI, merge it, and freeze a new main commit before requesting an exact code-only production deployment."
+  },
+  "limitations": [
+    "No deployment, restart, migration, backup creation, production write, runtime enablement, load generation, fault injection or rollback was performed.",
+    "The source candidate has no deployment release ID or OCI image identity until an authorized deployment succeeds.",
+    "This evidence does not prove role-based browser UAT, production write receipts, capacity, chaos recovery, a 14-day observation window or owner/reviewer approval."
+  ]
+}

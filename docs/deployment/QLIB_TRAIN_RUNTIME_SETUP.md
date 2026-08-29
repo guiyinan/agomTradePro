@@ -1,6 +1,6 @@
 # Qlib 训练运行时搭建与接入指南
 
-> 最后更新: 2026-03-13
+> 最后更新: 2026-08-29
 > 适用目标: 让 AgomTradePro 真正训练出 `model.pkl`，并接入现有 Admin / Celery / Alpha 推理链路
 
 ---
@@ -62,7 +62,7 @@
 1. Linux Docker 容器
 2. WSL2 Ubuntu 环境
 3. 独立 Linux 训练机
-4. 独立 Conda Python 3.10/3.11 环境
+4. 独立 Conda Python 3.11 环境
 
 不推荐：
 
@@ -96,7 +96,7 @@
 
 单独起一个只负责训练的容器，使用：
 
-- Python 3.10 或 3.11
+- Python 3.11
 - `pyqlib`
 - `lightgbm`
 - `torch`（如果你要 LSTM/MLP）
@@ -206,16 +206,16 @@ sh scripts/stop-qlib-train-runtime.sh
 ### 5.2 推荐版本
 
 - Ubuntu 22.04
-- Python 3.10
+- Python 3.11
 - Conda 或 venv 都可以
 
 ### 5.3 基本步骤
 
 ```bash
 sudo apt update
-sudo apt install -y python3.10 python3.10-venv build-essential git
+sudo apt install -y python3.11 python3.11-venv build-essential git
 
-python3.10 -m venv ~/venvs/agomtradepro-qlib
+python3.11 -m venv ~/venvs/agomtradepro-qlib
 source ~/venvs/agomtradepro-qlib/bin/activate
 
 pip install -U pip setuptools wheel
@@ -413,7 +413,7 @@ python manage.py bootstrap_alpha_cold_start --universes csi300
 
 1. Django 主系统继续跑你现在的 Web / API / Admin
 2. 单独加一个 `qlib-train-worker` 运行时
-3. Python 固定到 3.10
+3. Python 固定到 3.11
 4. Qlib 数据目录独立挂载
 5. 模型目录独立挂载
 6. 训练完成后由当前系统负责注册、激活、验证、冷启动
@@ -431,4 +431,4 @@ python manage.py bootstrap_alpha_cold_start --universes csi300
 
 **不要在当前 Windows Python 3.13 里硬跑 Qlib 训练。**
 
-正确做法是给 AgomTradePro 单独配一个 Python 3.10 的 Qlib 训练运行时，再把它接到现有 Admin + Celery + 模型目录上。
+正确做法是给 AgomTradePro 单独配一个 Python 3.11 的 Qlib 训练运行时，再把它接到现有 Admin + Celery + 模型目录上。

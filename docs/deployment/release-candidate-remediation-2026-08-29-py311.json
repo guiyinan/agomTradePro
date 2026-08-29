@@ -1,0 +1,77 @@
+{
+  "version": "release-candidate-remediation.v1",
+  "captured_at": "2026-08-29T05:53:29Z",
+  "environment": "repository",
+  "production_accessed": false,
+  "deployment_performed": false,
+  "base_candidate_commit": "07d96d6cdc24262e7cc6eb2f4a7e57308f962d70",
+  "trigger": {
+    "status": "confirmed",
+    "detail": "docker/Dockerfile.qlib-train used Python 3.10 while the repository runtime policy requires Python 3.11"
+  },
+  "remediation": {
+    "status": "passed_local",
+    "changes": [
+      "docker/Dockerfile.qlib-train now uses python:3.11-slim",
+      "docs/deployment/QLIB_TRAIN_RUNTIME_SETUP.md now consistently specifies Python 3.11",
+      "tests/unit/test_docker_pyqlib_install.py guards the Python base image, pyqlib distribution and libgomp1 requirement",
+      ".dockerignore excludes Codex runtime temporary directories that must not enter the Docker build context"
+    ]
+  },
+  "validation": {
+    "python_version_consistency": {
+      "status": "passed",
+      "command": "python scripts/check_python_version_consistency.py",
+      "detail": "pyproject requires Python 3.11; all checked Dockerfiles use Python 3.11; CI covers Python 3.11 and 3.13"
+    },
+    "focused_tests": {
+      "status": "passed",
+      "command": "pytest tests/unit/test_docker_pyqlib_install.py tests/unit/test_deploy_vps_verify.py -q",
+      "result": "45 passed in 0.81s"
+    },
+    "compose_config": {
+      "status": "passed",
+      "command": "docker compose -f docker/docker-compose.qlib-train.yml config --quiet"
+    },
+    "dockerfile_build_check": {
+      "status": "passed",
+      "command": "docker build --check -f docker/Dockerfile.qlib-train .",
+      "result": "Check complete, no warnings found"
+    },
+    "python_311_pyqlib_wheel_smoke": {
+      "status": "passed",
+      "base_image": "python:3.11-slim",
+      "python_version": "3.11.14",
+      "system_dependency": "libgomp1",
+      "distribution": "pyqlib",
+      "distribution_version": "0.9.7",
+      "wheel": "pyqlib-0.9.7-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "module_path": "/usr/local/lib/python3.11/site-packages/qlib/__init__.py",
+      "wrong_qlib_distribution": "absent",
+      "scope": "The pyqlib wheel was installed with --no-deps to isolate CPython 3.11 wheel compatibility and distribution identity."
+    }
+  },
+  "incomplete_checks": [
+    {
+      "check": "full repository-context Docker image build",
+      "status": "not_completed",
+      "reason": "The local untracked workspace sent more than 1.04 GB of build context, so the diagnostic build was interrupted after Dockerfile parsing and base-system package installation."
+    },
+    {
+      "check": "full pyqlib dependency installation in the isolated container",
+      "status": "not_completed",
+      "reason": "Docker terminated pip with exit code 137 while downloading the full pyqlib dependency graph. The smaller CPython 3.11 wheel and distribution-identity smoke passed."
+    }
+  ],
+  "release_decision": {
+    "python_311_repository_blocker": "remediated_locally",
+    "candidate_deployable": false,
+    "status": "requires_ci_merge_and_refreeze",
+    "required_next_step": "Commit the bounded remediation, push it for CI and review, merge it to main, and freeze the resulting main commit before requesting a separately authorized deployment."
+  },
+  "limitations": [
+    "No deployment, restart, migration, backup, production write, candidate binding or observation window was performed.",
+    "This local remediation supersedes the deployability claim for the frozen 07d96d6d source candidate; a new main commit must be frozen after CI and merge.",
+    "M5 cutover readiness remains DENY and production decision readiness remains fail-closed."
+  ]
+}

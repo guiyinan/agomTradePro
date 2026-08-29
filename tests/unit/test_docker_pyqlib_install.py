@@ -25,6 +25,15 @@ def test_mirror_dockerfile_installs_pyqlib_distribution() -> None:
     assert " qlib>=0.9.0" not in dockerfile
 
 
+def test_qlib_train_image_uses_supported_python_and_pyqlib_distribution() -> None:
+    dockerfile = (REPO_ROOT / "docker" / "Dockerfile.qlib-train").read_text(encoding="utf-8")
+
+    assert dockerfile.startswith("FROM python:3.11-slim\n")
+    assert "python -m pip install pyqlib lightgbm scipy" in dockerfile
+    assert "libgomp1" in dockerfile
+    assert "python -m pip install qlib " not in dockerfile
+
+
 def test_production_images_include_postgresql_backup_client() -> None:
     for relative_path in ("docker/Dockerfile.prod", "docker/Dockerfile.prod.mirror"):
         dockerfile = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
@@ -63,6 +72,13 @@ def test_linux_wheelhouse_directory_is_preserved_for_docker_copy() -> None:
     )
     assert "SSH connection attempt {attempt}/4 failed" in deploy_script
     assert "find . -type f -name '*.sh' -exec sed -i 's/\\r$//' {} +" in deploy_script
+
+
+def test_docker_context_excludes_codex_runtime_temporaries() -> None:
+    dockerignore = (REPO_ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines()
+
+    assert ".codex_tmp/" in dockerignore
+    assert ".codex-test-deps/" in dockerignore
 
 
 def test_vps_compose_worker_consumes_qlib_queues() -> None:

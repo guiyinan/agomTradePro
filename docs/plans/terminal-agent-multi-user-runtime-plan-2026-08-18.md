@@ -1966,3 +1966,38 @@ audit failure/outbox backlog 均为 `0`；inline enabled 且 concurrency=`1`，q
 匹配。该部署证明代码候选和 fail-closed 安全边界已生效，不证明 durable receipt/authority，也不
 提供真实 inline 执行延迟或容量数据；TAR-01 `capacity_ready=false`、safe baseline=
 `unknown_not_zero`，不推进 TAR-02、不提升并发、不启用队列。
+
+## 2026-08-29：新 `main` source candidate 与生产部署前只读复核
+
+`origin/main@07d96d6cdc24262e7cc6eb2f4a7e57308f962d70` 已冻结为待部署 source candidate，
+但 VPS verifier 证明生产仍运行 `45d7616d3c38a86853104f93dbd3f13bd9a48838` / release
+`20260826135953` / image
+`sha256:c481bb88ac6547165bdebcd34573a6f0d69b042c93ce37136b8ea3b160a1ce66`。当前 web、TLS、
+迁移、canonical schema、TUI registry、Qlib 与 Celery 均健康；公网 health/ready/audit 为
+`200`，decision-ready 仍为 `503 blocked`、`must_not_use_for_decision=true`，没有形成新的
+inline/queued/provider/MCP 容量信号。
+
+结构化证据见
+[`release-candidate-preflight-2026-08-29-07d96d6d.json`](../deployment/release-candidate-preflight-2026-08-29-07d96d6d.json)，
+SHA-256=`a739324bf672fe68b15f60c4a767c3075444ed97d2d9859d6ff4a736244061d8`。部署前 Python
+一致性门禁因 `docker/Dockerfile.qlib-train` 仍为 Python 3.10 而失败；在该 repository
+remediation、CI、合并与重新冻结完成前，不部署这个 source candidate。本轮未重启、迁移、
+备份、写生产、启用 queued/Worker、生成负载、注入故障或执行 rollback；TAR-05 继续
+`awaiting_production`，`capacity_ready=false`、safe baseline=`unknown_not_zero`。
+
+## 2026-08-29：Qlib 训练镜像 Python 3.11 阻断修复
+
+有界 repository remediation 已把 `docker/Dockerfile.qlib-train` 升级到
+`python:3.11-slim`，同步运行时文档并新增基础镜像、`pyqlib`、`libgomp1` 与 Docker context
+回归断言。Python 版本一致性、Compose config、Dockerfile BuildKit `--check` 通过，聚焦测试
+`45 passed`；隔离容器证明 Python 3.11.14 可安装 `pyqlib=0.9.7` 的 CPython 3.11 wheel，模块
+位于 `/usr/local/lib/python3.11/site-packages/qlib/__init__.py`，错误的 `qlib` distribution
+不存在。证据见
+[`release-candidate-remediation-2026-08-29-py311.json`](../deployment/release-candidate-remediation-2026-08-29-py311.json)，
+SHA-256=`1156d941e429e79262bef23ab327d3492033e436bc8c741e1cf0d1bbcb45437d`。
+
+完整 pyqlib 依赖安装在当前 Docker Desktop 下被 exit `137` 终止，完整仓库 context build 因
+本地未跟踪数据超过 `1.04 GB` 中止；这两项不影响已确认的 Python 3.11 wheel 兼容性，但必须由
+CI/受控构建继续验证。当前修复尚未进入 `main`，原 `07d96d6d…` source freeze 已不足以作为最终
+候选；先提交、CI、review、合并并重新冻结，再另行申请部署。未访问或写入生产，TAR-05 继续
+`awaiting_production`，`capacity_ready=false`、safe baseline=`unknown_not_zero`。

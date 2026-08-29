@@ -738,3 +738,49 @@ SHA-256=`f60e19b683f7f31d900dd1964403d8bbd162f27398991757878b8b319dd037b5`。
 没有执行 cleanup/rollback、没有写生产或调整 M5 gate；`TUI-01` 继续 `awaiting_production`，
 `TUX-02`/`TUX-04` 继续按 registry 暂停，B/S、CLI/API 仍只向服务器提交请求，用户不安装
 本地 Agent、模型或 provider 软件。
+
+### 2026-08-29 `main` 源候选冻结与生产只读 preflight
+
+将已通过合并后四条 GitHub Actions 的 `origin/main@07d96d6cdc24262e7cc6eb2f4a7e57308f962d70`
+冻结为新的 **source candidate**。该提交的 matrix SHA 为
+`e3027671d02d876c9f4b38b9d86395d45e26c0f2b344eb0646086be31869cd5d`，published graph SHA 为
+`63be10ee25bb73c87861c18cc92355938fd7abc096c33852bf5f904d4db532a2`，runtime manifest SHA 为
+`bfa8eeb81da5165414a882f77f3333268847f217f858925a40597d720548e6fe`，runtime build 为
+`agomtui-runtime-0.2.0+7b2efaff4f9a`。尚未部署，因此 candidate version、release ID、OCI image
+identity 与 observation 起点保持 unavailable，不得用源代码冻结冒充生产候选绑定。
+
+VPS 只读 verifier 证明当前生产仍运行 `45d7616d3c38a86853104f93dbd3f13bd9a48838`、image
+`sha256:c481bb88ac6547165bdebcd34573a6f0d69b042c93ce37136b8ea3b160a1ce66`，与新 source
+candidate 不同；Caddy/TLS、web、Django deploy check、迁移、canonical Data Center schema、TUI
+registry、`pyqlib=0.9.7`、Celery worker/beat/ping 均通过。公网 `/api/health/`、`/api/ready/`、
+`/api/audit/health/` 为 `200`，匿名 `/api/tui/` 为预期 `403`；`/api/decision-ready/` 保持
+`503 blocked`、`must_not_use_for_decision=true`。原始预检汇总为
+[`release-candidate-preflight-2026-08-29-07d96d6d.json`](../deployment/release-candidate-preflight-2026-08-29-07d96d6d.json)，
+SHA-256=`a739324bf672fe68b15f60c4a767c3075444ed97d2d9859d6ff4a736244061d8`。
+
+当前 `python scripts/check_web_to_tui_cutover_readiness.py --json --as-of 2026-08-29` 仍为
+`DENY`；旧 evidence matrix、候选与当前 source 不一致，UAT、telemetry、rollback、registry
+backup 和双签均未绑定。部署前另发现 `python scripts/check_python_version_consistency.py`
+因 `docker/Dockerfile.qlib-train` 仍为 Python 3.10 而失败，违反 Python 3.11 runtime policy。
+因此本轮没有部署、重启、迁移、备份创建、生产写入、候选重绑或观察窗口启动；TUI-01 继续
+`awaiting_production`。下一步必须先获得有界 repository remediation 授权，修复该版本门禁、
+通过 CI 并合并后重新冻结 `main`，再申请精确的 code-only 生产部署。
+
+### 2026-08-29 Qlib 训练镜像 Python 3.11 repository remediation
+
+经授权完成有界修复：`docker/Dockerfile.qlib-train` 已从 `python:3.10-slim` 升级为
+`python:3.11-slim`，Qlib 训练运行时文档同步收敛到 Python 3.11，并新增回归测试锁定
+Python 基础镜像、`pyqlib` distribution、`libgomp1` 和 Docker context 临时目录排除规则。
+Python 版本一致性门禁、Compose config、Dockerfile BuildKit `--check` 均通过；聚焦测试
+`45 passed`。隔离 `python:3.11-slim` 容器实际运行 Python 3.11.14，成功安装
+`pyqlib=0.9.7` 的 CPython 3.11 wheel，`qlib` 模块落在 Python 3.11 site-packages，错误的
+`qlib` distribution 不存在。
+
+结构化修复证据见
+[`release-candidate-remediation-2026-08-29-py311.json`](../deployment/release-candidate-remediation-2026-08-29-py311.json)，
+SHA-256=`1156d941e429e79262bef23ab327d3492033e436bc8c741e1cf0d1bbcb45437d`。完整依赖安装在当前
+Docker Desktop 中因 exit `137` 未完成；完整仓库 context build 因本地未跟踪数据超过
+`1.04 GB` 被中止，两项均如实保留为后续 CI/受控构建验证风险。Python 3.11 repository
+阻断已在工作树内修复，但 `07d96d6d…` 不再可作为最终部署候选；仍须提交、CI、review、合并并
+重新冻结新的 `main`。本轮未访问生产、未部署、未重绑候选或启动观察窗口，M5 readiness 继续
+`DENY`，TUI-01 继续 `awaiting_production`。

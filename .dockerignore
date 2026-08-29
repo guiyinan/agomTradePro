@@ -84,6 +84,8 @@ dist/
 node_modules/
 screenshots/
 .claude/
+.codex_tmp/
+.codex-test-deps/
 
 # Project docs not required at runtime
 docs/
