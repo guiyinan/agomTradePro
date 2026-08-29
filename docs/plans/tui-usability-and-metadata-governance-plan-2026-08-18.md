@@ -446,6 +446,12 @@
 - **runtime screen 迁入 publish 流程的风险**：12 个 runtime screen 迁入后发布校验会收紧；`TUX-01` 的回退机制必须先就位，避免迁移期发布失败导致 `/tui/` 不可用。
 - **回滚点**：每个 unit 独立提交；published 图谱与 IA 注册表改动均可通过 `publish_tui_metadata.py` 重新发布旧版 payload 回滚（DB 中旧记录自动归档）。
 
+## 6.3.6 TUX-05 corrective production closure（2026-08-30）
+
+- corrective commit `f8a0d699ec8b8a6f46c31b0ecd2d0ddc65d06a55` 经 Sol/Luna review 与全量 CI 通过，PR #13 合并为 `c826f741edc0f12f5e29fa5b0441b34a89f6dac5`。新 main 候选从独立 clean worktree 部署为 release `20260829233430`，预部署 PostgreSQL backup 已完成远端 archive 校验、SFTP 下载与 SHA-256 双端一致性检查。
+- canonical production-safe UAT 为 `10/10`、`108/108`、三角色、两条同 run receipt；strategy/provider create/update 均 readback 成功，confirmed cleanup 各删除唯一目标且 residual=`0`。operator/regular 只读边界在单一 60 秒 settlement deadline 内通过，没有增加 retry/concurrency 或改变写入 SLO。
+- TUX-05 因此恢复 `completed`，本 workstream 回到 `production_validation`，repository execution focus 为 `null`。TUI-01 仍须真实 role owner 确认；14 日窗口、cleanup/rollback matrix、缺陷/telemetry、rollback drill、production registry backup 与 owner/reviewer attestations 仍按 M5 fail-closed 门禁推进。
+
 ## 7. 与其他工作流的关系
 
 - `web-to-tui-m5`（W3）：本线不触碰其候选证据链；若 `TUX-03/TUX-04` 改动 published 图谱 SHA，需在提交说明中标注对 M5 观察窗口的影响，由 `TUI-01/TUI-02` owner 决定是否重绑候选。
