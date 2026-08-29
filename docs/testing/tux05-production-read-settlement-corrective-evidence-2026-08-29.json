@@ -1,0 +1,103 @@
+{
+  "schema": "tux05-production-read-settlement-corrective-evidence.v1",
+  "unit_id": "TUX-05",
+  "observed_at": "2026-08-29T15:08:00Z",
+  "execution_mode": "repository",
+  "branch": "dev/test-tui-production-settlement",
+  "implementation_commit": "the local commit containing this artifact",
+  "production_attempt": {
+    "release_id": "20260829220843",
+    "source_commit": "003cb58c258086012e1238c513a4b1c68b3ecf98",
+    "image_id": "sha256:6926af28bc962b12aeef37dd20822739fb991e484615e665a07e390b6f109baa",
+    "profile": "production-safe",
+    "executed_tests": 10,
+    "passed_tests": 9,
+    "failed_tests": 1,
+    "skipped_tests": 0,
+    "duration_seconds": 1062.2,
+    "failed_case": "test_operator_group_can_open_queue_but_regular_user_cannot[chromium]",
+    "failure": "The operator queue grid completed and rendered seven rows immediately after Playwright's default 5 second visibility assertion expired.",
+    "failure_screenshot_sha256": "9ee49d38c27c27d5661bc6b00441dfaf4240a3b85c32207e5a3831972e677886",
+    "canonical_uat_written": false
+  },
+  "correction": {
+    "production_read_settlement_timeout_ms": 60000,
+    "operator_grid_required": true,
+    "operator_read_completed_required": true,
+    "regular_unavailable_message_required": true,
+    "regular_grid_count_required": 0,
+    "write_settlement_timeout_changed": false,
+    "route_requirement_changed": false,
+    "role_requirement_changed": false,
+    "receipt_requirement_changed": false,
+    "cleanup_requirement_changed": false,
+    "request_retry_added": false,
+    "concurrency_changed": false
+  },
+  "local_browser_validation": {
+    "settings": "core.settings.playwright",
+    "database": "disposable isolated SQLite database",
+    "profile": "production-safe fixed selection",
+    "executed_tests": 10,
+    "passed_tests": 10,
+    "failed_tests": 0,
+    "skipped_tests": 0,
+    "duration_seconds": 138.83,
+    "route_page_results": "108/108",
+    "roles": [
+      "regular",
+      "operator",
+      "admin"
+    ],
+    "junit_sha256": "b7ddbc8997fee05c8e4e8687cf718de4545037817c651dfda237de6568439037",
+    "controlled_write_receipts_sha256": "c4be517d52aeb35aef352f16da83fde9c3ba4d88c3a59f9cdadc92d0aad5abdb",
+    "receipt_entities": [
+      "ai_provider",
+      "strategy"
+    ],
+    "receipt_run_id": "tux05-single-deadline-fixed-20260829",
+    "ai_provider_settlement_ms": {
+      "create": 450,
+      "update": 199,
+      "slo": 60000
+    },
+    "strategy_settlement_ms": {
+      "create": 253,
+      "update": 211,
+      "slo": 60000
+    },
+    "cleanup_residual_count": {
+      "ai_provider": 0,
+      "strategy": 0
+    }
+  },
+  "validation": [
+    {
+      "command": "targeted local operator/regular Chromium UAT",
+      "outcome": "passed",
+      "passed": 1
+    },
+    {
+      "command": "production-safe fixed local Chromium UAT",
+      "outcome": "passed",
+      "passed": 10
+    },
+    {
+      "command": "pytest tests/unit/test_web_to_tui_candidate_evidence_recorder.py -q",
+      "outcome": "passed",
+      "passed": 7
+    },
+    {
+      "command": "Black, Ruff and git diff --check",
+      "outcome": "passed"
+    }
+  ],
+  "authorization_boundaries": {
+    "external_ai_called": false,
+    "queued_runtime_enabled": false,
+    "authority_or_approval_changed": false,
+    "load_or_fault_performed": false,
+    "maintenance_or_live_rollback_performed": false
+  },
+  "next_gate": "Pass CI and Sol review, merge the timing correction, deploy the resulting main commit from an independent clean worktree with the already authorized backup/migration/current-switch/restart/automatic-failure-rollback package, then rerun the complete candidate-bound production-safe recorder."
+}

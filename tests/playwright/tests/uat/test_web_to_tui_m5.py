@@ -41,6 +41,7 @@ REMOTE_ACCOUNT_ID = int(os.environ.get("AGOM_M5_REMOTE_ACCOUNT_ID", "2"))
 REMOTE_UAT_RUN_ID = os.environ.get("AGOM_REMOTE_UAT_RUN_ID", "").strip()
 UAT_RECEIPT_PATH = os.environ.get("AGOM_M5_UAT_RECEIPT_PATH", "").strip()
 CONFIRMED_MUTATION_SETTLEMENT_TIMEOUT_MS = 60_000
+PRODUCTION_READ_SETTLEMENT_TIMEOUT_MS = 60_000
 
 
 def _m5_uat_suffix() -> str:
@@ -384,13 +385,17 @@ def test_operator_group_can_open_queue_but_regular_user_cannot(
     target = "/tui/%3Fscreen%3Dai-ops.terminal%26action%3Dagent-runtime.operator-task-list"
 
     _login(page, base_url, username="m5_uat_operator", target=target)
-    expect(page.get_by_role("grid", name="智能任务队列")).to_be_visible()
-    expect(page.get_by_text("读取完成", exact=True)).to_be_visible()
+    expect(page.get_by_text("读取完成", exact=True)).to_be_visible(
+        timeout=PRODUCTION_READ_SETTLEMENT_TIMEOUT_MS
+    )
+    assert page.get_by_role("grid", name="智能任务队列").is_visible()
 
     page.goto(f"{base_url}/account/logout/", wait_until="domcontentloaded")
     _login(page, base_url, username="m5_uat_regular", target=target)
-    expect(page.get_by_text("链接中的任务在当前账号下不可用", exact=True)).to_be_visible()
-    expect(page.get_by_role("grid", name="智能任务队列")).to_have_count(0)
+    expect(page.get_by_text("链接中的任务在当前账号下不可用", exact=True)).to_be_visible(
+        timeout=PRODUCTION_READ_SETTLEMENT_TIMEOUT_MS
+    )
+    assert page.get_by_role("grid", name="智能任务队列").count() == 0
 
 
 @pytest.mark.uat

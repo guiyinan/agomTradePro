@@ -1,14 +1,14 @@
 {
-  "version": "2026-08-29.v8",
+  "version": "2026-08-29.v9",
   "updated_at": "2026-08-29",
   "execution_focus": {
-    "unit_id": null,
+    "unit_id": "TUX-05",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "No repository unit is currently dependency-ready. TUX-05 corrective repository exit restored F9 account-action reachability, deterministic confirmed-write settlement, template-response cleanup normalization and explicit deep-link priority without increasing concurrency, retrying writes or weakening timeouts. Its production-safe recorder still requires 108 route-page results, regular/operator/admin boundaries, same-run controlled write receipts, readback and exact zero-residual cleanup while excluding external AI, queued runtime, active RSS, shared quota, authority/approval, load, fault and live rollback. TUI-01 remains awaiting production and canonical UAT remains empty until the corrective commit passes CI/review/merge, a new immutable main candidate is deployed from an independent clean worktree and the candidate-bound production-safe recorder passes."
+    "policy": "TUX-05 is the sole repository focus after candidate 003cb58c258086012e1238c513a4b1c68b3ecf98 / release 20260829220843 failed the production-safe recorder at 9/10: the operator queue rendered successfully immediately after the default 5 second Playwright visibility assertion expired. The corrective scope is limited to applying the existing 60 second production read settlement ceiling to this role boundary; 108 route-page results, regular/operator/admin roles, same-run strategy/provider write receipts, readback and exact zero-residual cleanup remain mandatory. External AI, queued runtime, active RSS, shared quota, authority/approval, load, fault, maintenance and live rollback remain excluded."
   },
   "workstreams": [
     {
@@ -261,8 +261,8 @@
       "category": "product_interface_and_runtime",
       "priority": "P1",
       "owner": "terminal",
-      "status": "production_validation",
-      "next_gate": "TUX-01 through TUX-05, including the 2026-08-29 corrective reopen, have completed their repository gates. The corrective evidence proves account action reachability, confirmed-write settlement, exact cleanup and production-safe recorder boundaries without concurrency, retry or timeout relaxation. No further repository work is dependency-ready; CI/review/merge and new-candidate production UAT remain TUI-01 production work and cannot inherit local evidence.",
+      "status": "active",
+      "next_gate": "TUX-05 is reopened only for the production read-settlement assertion discovered by the 9/10 candidate-bound UAT. The fixed local profile passes 10/10 with 108 routes, three roles, both receipts and zero cleanup residual while preserving the 60 second write SLO and adding no retry or concurrency. Next pass CI/Sol review/merge, redeploy the resulting immutable main candidate from a clean worktree, and rerun the complete production-safe recorder before returning this workstream to production validation.",
       "documents": [
         {
           "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
@@ -896,7 +896,7 @@
         "wave": 5,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "completed",
+        "status": "active",
         "title": "Close layout, field-name translation and freshness-presentation defects",
         "depends_on": [
           "TUX-03",

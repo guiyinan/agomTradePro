@@ -905,3 +905,9 @@ delete 另补未渲染 template response adapter 回归。规范化本地证据�
 production-safe recorder 对真实生产角色重跑；外部 AI、queued runtime、authority/approval、active
 RSS/shared quota、load/fault、maintenance/live rollback 继续不在本授权包内，真实 role owner 的业务
 确认也不能由 recorder 代签。
+
+### 2026-08-29 production read settlement corrective
+
+新候选 `003cb58c258086012e1238c513a4b1c68b3ecf98` / release `20260829220843` 已按授权从独立 clean worktree 部署，migration graph 无待应用项且 `audit.0013` 保持 applied。candidate-bound production-safe recorder 执行 `10` 项、通过 `9` 项、跳过 `0` 项；唯一失败的 operator queue 在 Playwright 默认 `5s` 可见性断言刚超时后完成并渲染，失败截图可见命名 grid、`7` 行数据与“读取完成”。recorder 因此没有写 canonical UAT。
+
+corrective 只为该生产读取角色断言使用既有 `60s` settlement ceiling；operator grid/完成态、regular 不可用提示和 grid=0 仍必须全部成立。修正后隔离本地 fixed profile 为 `10/10`，继续覆盖 `108/108` route-page、regular/operator/admin、参数化 reads、strategy/provider 两条同 run receipt 与 cleanup residual=`0`。没有增加 retry/concurrency，也没有改变 confirmed write 的 `60s` SLO。CI/review/merge、从新 main clean worktree 重部署及完整生产 recorder 通过前，TUI-01 保持 `awaiting_production`、canonical UAT 为空、M5 保持 `DENY`。
