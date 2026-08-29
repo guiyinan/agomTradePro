@@ -187,6 +187,10 @@ class _SyncUseCase:
 
 
 class _FinancialAvailability:
+    def preview(self, **kwargs):
+        del kwargs
+        return _availability_preview()
+
     def execute(self, **kwargs):
         del kwargs
         before = _availability_preview()
@@ -195,6 +199,9 @@ class _FinancialAvailability:
 
 
 class _CompletedPrices:
+    def preview(self, **kwargs):
+        return SimpleNamespace(ready=True, to_dict=lambda: kwargs)
+
     def execute(self, **kwargs):
         return SimpleNamespace(to_dict=lambda: kwargs)
 
@@ -202,6 +209,9 @@ class _CompletedPrices:
 class _Publications:
     def __init__(self) -> None:
         self.execute_kwargs = None
+
+    def preview(self, **kwargs):
+        return SimpleNamespace(ready=True, to_dict=lambda: kwargs)
 
     def execute(self, **kwargs):
         self.execute_kwargs = kwargs
@@ -221,10 +231,10 @@ def test_core_refresh_batches_then_publishes_at_completion_time() -> None:
     publications = _Publications()
     use_case = CoreCurrentFactRefreshUseCase(
         provider_id=7,
-        quote_sync=quote_sync,
-        price_sync=price_sync,
-        valuation_sync=valuation_sync,
-        financial_sync=financial_sync,
+        quote_sync_factory=lambda: quote_sync,
+        price_sync_factory=lambda: price_sync,
+        valuation_sync_factory=lambda: valuation_sync,
+        financial_sync_factory=lambda: financial_sync,
         financial_availability=_FinancialAvailability(),
         completed_session_prices=_CompletedPrices(),
         publications=publications,
@@ -248,15 +258,15 @@ def test_core_refresh_stops_before_publication_on_incomplete_quote_batch() -> No
     publications = _Publications()
     use_case = CoreCurrentFactRefreshUseCase(
         provider_id=7,
-        quote_sync=_SyncUseCase(SimpleNamespace(stored_count=1)),
-        price_sync=_SyncUseCase(SimpleNamespace(stored_count=1)),
-        valuation_sync=_SyncUseCase(
+        quote_sync_factory=lambda: _SyncUseCase(SimpleNamespace(stored_count=1)),
+        price_sync_factory=lambda: _SyncUseCase(SimpleNamespace(stored_count=1)),
+        valuation_sync_factory=lambda: _SyncUseCase(
             SimpleNamespace(
                 stored_count=2,
                 succeeded_asset_codes=["000001.SZ", "600000.SH"],
             )
         ),
-        financial_sync=_SyncUseCase(SimpleNamespace(stored_count=4)),
+        financial_sync_factory=lambda: _SyncUseCase(SimpleNamespace(stored_count=4)),
         financial_availability=_FinancialAvailability(),
         completed_session_prices=_CompletedPrices(),
         publications=publications,
@@ -272,3 +282,28 @@ def test_core_refresh_stops_before_publication_on_incomplete_quote_batch() -> No
         )
 
     assert publications.execute_kwargs is None
+
+
+def test_core_refresh_preview_does_not_resolve_write_sync_factories() -> None:
+    def forbidden_factory():
+        raise AssertionError("write sync factory must stay lazy during preview")
+
+    use_case = CoreCurrentFactRefreshUseCase(
+        provider_id=7,
+        quote_sync_factory=forbidden_factory,
+        price_sync_factory=forbidden_factory,
+        valuation_sync_factory=forbidden_factory,
+        financial_sync_factory=forbidden_factory,
+        financial_availability=_FinancialAvailability(),
+        completed_session_prices=_CompletedPrices(),
+        publications=_Publications(),
+        clock=lambda: COMPLETED_AT,
+    )
+
+    preview = use_case.preview(
+        asset_codes=["000001.SZ"],
+        session_date=SESSION_DATE,
+        recorded_at=STARTED_AT,
+    )
+
+    assert preview.ready_without_provider_refresh is True

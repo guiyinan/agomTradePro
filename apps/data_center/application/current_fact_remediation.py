@@ -433,10 +433,10 @@ class CoreCurrentFactRefreshUseCase:
         self,
         *,
         provider_id: int,
-        quote_sync: SyncQuoteUseCase,
-        price_sync: SyncPriceUseCase,
-        valuation_sync: SyncCurrentValuationBatchUseCase,
-        financial_sync: SyncFinancialUseCase,
+        quote_sync_factory: Callable[[], SyncQuoteUseCase],
+        price_sync_factory: Callable[[], SyncPriceUseCase],
+        valuation_sync_factory: Callable[[], SyncCurrentValuationBatchUseCase],
+        financial_sync_factory: Callable[[], SyncFinancialUseCase],
         financial_availability: FinancialAvailabilityBackfillUseCase,
         completed_session_prices: CompletedSessionPriceBarUseCase,
         publications: CoreCurrentPublicationRebuildUseCase,
@@ -445,10 +445,10 @@ class CoreCurrentFactRefreshUseCase:
         if provider_id <= 0:
             raise ValueError("provider_id must be positive")
         self._provider_id = provider_id
-        self._quote_sync = quote_sync
-        self._price_sync = price_sync
-        self._valuation_sync = valuation_sync
-        self._financial_sync = financial_sync
+        self._quote_sync_factory = quote_sync_factory
+        self._price_sync_factory = price_sync_factory
+        self._valuation_sync_factory = valuation_sync_factory
+        self._financial_sync_factory = financial_sync_factory
         self._financial_availability = financial_availability
         self._completed_session_prices = completed_session_prices
         self._publications = publications
@@ -499,8 +499,12 @@ class CoreCurrentFactRefreshUseCase:
         ):
             raise ValueError("batch_size must be an integer between 1 and 500")
 
+        quote_sync = self._quote_sync_factory()
+        price_sync = self._price_sync_factory()
+        valuation_sync = self._valuation_sync_factory()
+        financial_sync = self._financial_sync_factory()
         probe_code = normalized_codes[0]
-        price_probe = self._price_sync.execute(
+        price_probe = price_sync.execute(
             SyncPriceRequest(
                 provider_id=self._provider_id,
                 asset_code=probe_code,
@@ -510,7 +514,7 @@ class CoreCurrentFactRefreshUseCase:
         )
         if price_probe.stored_count <= 0:
             raise ValueError("historical-price provider probe produced zero rows")
-        financial_probe = self._financial_sync.execute(
+        financial_probe = financial_sync.execute(
             SyncFinancialRequest(
                 provider_id=self._provider_id,
                 asset_code=probe_code,
@@ -524,13 +528,13 @@ class CoreCurrentFactRefreshUseCase:
         valuation_stored = 0
         for offset in range(0, len(normalized_codes), batch_size):
             batch_codes = list(normalized_codes[offset : offset + batch_size])
-            quote_result = self._quote_sync.execute(
+            quote_result = quote_sync.execute(
                 SyncQuoteRequest(provider_id=self._provider_id, asset_codes=batch_codes)
             )
             if quote_result.stored_count != len(batch_codes):
                 raise ValueError("realtime-quote provider batch incomplete at offset " f"{offset}")
             quote_stored += quote_result.stored_count
-            valuation_result = self._valuation_sync.execute(
+            valuation_result = valuation_sync.execute(
                 provider_id=self._provider_id,
                 asset_codes=batch_codes,
                 as_of_date=session_date,

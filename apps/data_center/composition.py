@@ -664,24 +664,24 @@ def make_core_current_fact_refresh_use_case(
     raw_audit_repository = RawAuditRepository()
     return CoreCurrentFactRefreshUseCase(
         provider_id=int(provider.id),
-        quote_sync=make_system_audited_sync_quote_use_case(
+        quote_sync_factory=lambda: make_system_audited_sync_quote_use_case(
             provider_repository=provider_repository,
             provider_registry=provider_registry,
             publish_current=False,
         ),
-        price_sync=make_system_audited_sync_price_use_case(
+        price_sync_factory=lambda: make_system_audited_sync_price_use_case(
             provider_repository=provider_repository,
             provider_registry=provider_registry,
             publish_current=False,
         ),
-        valuation_sync=SyncCurrentValuationBatchUseCase(
+        valuation_sync_factory=lambda: SyncCurrentValuationBatchUseCase(
             provider_repo=provider_repository,
             provider_registry=provider_registry,
             fact_repo=ValuationFactRepository(),
             raw_audit_repo=raw_audit_repository,
             publication_publisher=None,
         ),
-        financial_sync=SyncFinancialUseCase(
+        financial_sync_factory=lambda: SyncFinancialUseCase(
             provider_repo=provider_repository,
             provider_registry=provider_registry,
             fact_repo=financial_repository,
