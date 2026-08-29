@@ -2,34 +2,34 @@
   "version": "web-to-tui-cutover-evidence.v1",
   "source_sha256": "e3027671d02d876c9f4b38b9d86395d45e26c0f2b344eb0646086be31869cd5d",
   "candidate": {
-    "stable_version": "20260829163806",
-    "candidate_commit": "09269c14db1024584913081db49919085f34d008",
+    "stable_version": "20260829220843",
+    "candidate_commit": "003cb58c258086012e1238c513a4b1c68b3ecf98",
     "released_at": "2026-08-29",
     "observation_end": "2026-09-12",
     "binding": {
       "version": "web-to-tui-candidate-binding.v1",
-      "candidate_version": "20260829163806",
-      "candidate_commit": "09269c14db1024584913081db49919085f34d008",
+      "candidate_version": "20260829220843",
+      "candidate_commit": "003cb58c258086012e1238c513a4b1c68b3ecf98",
       "matrix_sha256": "e3027671d02d876c9f4b38b9d86395d45e26c0f2b344eb0646086be31869cd5d",
       "graph_sha256": "63be10ee25bb73c87861c18cc92355938fd7abc096c33852bf5f904d4db532a2",
       "schema_version": "tui-metadata.v3",
       "runtime_version": "0.2.0",
-      "runtime_build_id": "agomtui-runtime-0.2.0+7b2efaff4f9a",
-      "runtime_manifest_sha256": "bfa8eeb81da5165414a882f77f3333268847f217f858925a40597d720548e6fe"
+      "runtime_build_id": "agomtui-runtime-0.2.0+1aa1996d160f",
+      "runtime_manifest_sha256": "8824e67064f5a572d346507cc3d7ab484282e45dd6e8a7b05f2682c7c1bad3a4"
     },
     "deployment_preflight": {
       "version": "web-to-tui-production-deployment-preflight.v1",
-      "evidence": "docs/deployment/web-to-tui-deployment-preflight-20260829163806.json",
-      "evidence_sha256": "c28f3ebcaeeb51afa407596e6b587fb1a446636934ec62bf3c3d3c73036380d0",
-      "release_id": "20260829163806",
-      "source_commit": "09269c14db1024584913081db49919085f34d008",
-      "deployed_at": "2026-08-29T08:59:56.604375+00:00",
-      "image_id": "sha256:08650701deaa8286c5818a9ed1ba15d96f740fcc646d38e56d0a979c413884da",
-      "oci_revision": "09269c14db1024584913081db49919085f34d008",
-      "health_checked_at": "2026-08-29T09:06:02.347631+00:00",
-      "health_response_sha256": "84db5015cac929f1fc84aad0c6c212b034bb453515d3dfd60a1aed3b97eac50b",
-      "readiness_response_sha256": "274911973dbb6ec4f61deee1852177688cadc6cd17f1f9cd418bef9c91cb966d",
-      "verified_at": "2026-08-29T09:06:02.347631+00:00"
+      "evidence": "docs/deployment/web-to-tui-deployment-preflight-20260829220843.json",
+      "evidence_sha256": "511efdd34c859a21d4dce77db1bfdde5177ddc589a72d699900ce8a323502383",
+      "release_id": "20260829220843",
+      "source_commit": "003cb58c258086012e1238c513a4b1c68b3ecf98",
+      "deployed_at": "2026-08-29T14:25:02.448410+00:00",
+      "image_id": "sha256:6926af28bc962b12aeef37dd20822739fb991e484615e665a07e390b6f109baa",
+      "oci_revision": "003cb58c258086012e1238c513a4b1c68b3ecf98",
+      "health_checked_at": "2026-08-29T14:28:04.420154+00:00",
+      "health_response_sha256": "6cc8ead5b7f36d7da4d3ec5737c10b4955489ed2d0faca333b1c200884426e9b",
+      "readiness_response_sha256": "f33b674d6ab8b31c0b473bb3c8cf14690df9b410a9b1e0beb87d0a893c87e02e",
+      "verified_at": "2026-08-29T14:28:04.420154+00:00"
     }
   },
   "uat": {
