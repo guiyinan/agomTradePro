@@ -2001,3 +2001,32 @@ SHA-256=`1156d941e429e79262bef23ab327d3492033e436bc8c741e1cf0d1bbcb45437d`。
 CI/受控构建继续验证。当前修复尚未进入 `main`，原 `07d96d6d…` source freeze 已不足以作为最终
 候选；先提交、CI、review、合并并重新冻结，再另行申请部署。未访问或写入生产，TAR-05 继续
 `awaiting_production`，`capacity_ready=false`、safe baseline=`unknown_not_zero`。
+
+## 2026-08-29：合并后 `main` source candidate 重新冻结
+
+Python 3.11 remediation `86498b1f990b7e24184484b762d6de47e823de16` 已进入 `main`，其四条
+push CI 全绿；canonical production-closure evidence 经 PR #10 的双套 push/PR 门禁、review 与
+merge 后，新 `origin/main` 固定为
+`09269c14db1024584913081db49919085f34d008`。该提交现作为新的 source candidate，取代
+`07d96d6d…`；matrix、published graph、runtime manifest SHA 分别为
+`e3027671d02d876c9f4b38b9d86395d45e26c0f2b344eb0646086be31869cd5d`、
+`63be10ee25bb73c87861c18cc92355938fd7abc096c33852bf5f904d4db532a2`、
+`bfa8eeb81da5165414a882f77f3333268847f217f858925a40597d720548e6fe`。新 `main` 自身的
+Architecture、Security、Consistency 与 CI Fast Feedback 四条 push workflow 也全部通过，Python
+版本一致性门禁已恢复为 `PASSED`。
+
+只读 VPS verifier 再次确认生产仍为 `45d7616d3c38a86853104f93dbd3f13bd9a48838` / release
+`20260826135953` / image
+`sha256:c481bb88ac6547165bdebcd34573a6f0d69b042c93ce37136b8ea3b160a1ce66`；TLS、web、
+Django/migration/schema、TUI registry、`pyqlib=0.9.7` 与 Celery 均通过。公网
+health/ready/audit=`200`，decision-ready 仍为 `503 blocked`、
+`must_not_use_for_decision=true`。结构化证据为
+[`release-candidate-preflight-2026-08-29-09269c14.json`](../deployment/release-candidate-preflight-2026-08-29-09269c14.json)，
+SHA-256=`466b06878229fdead920ad5cf31de5a09bcd18d79cb5a1321271fa432b095ff3`。
+
+这次只完成 source freeze、只读生产对账和计划回写；没有部署、重启、迁移、备份创建、生产写入、
+queued/Worker 启用、负载、故障注入或 rollback。完整 image build 必须由获准的受控部署流程执行并
+产生 release/OCI identity；在此之前 observation window 不启动，TAR-05 继续
+`awaiting_production`，`capacity_ready=false`、safe baseline=`unknown_not_zero`。唯一下一步是
+对 `09269c14…` 取得精确 code-only 部署授权，保留 PostgreSQL/Redis 状态，并在部署后重新运行
+candidate-bound verifier；这不授权容量或 chaos 测试。
