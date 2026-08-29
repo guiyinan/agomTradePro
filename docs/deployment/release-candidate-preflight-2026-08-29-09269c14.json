@@ -1,0 +1,140 @@
+{
+  "version": "release-candidate-preflight.v1",
+  "captured_at": "2026-08-29T07:58:37Z",
+  "environment": "production",
+  "read_only": true,
+  "production_claim": false,
+  "deployment_performed": false,
+  "source_candidate": {
+    "frozen": true,
+    "candidate_commit": "09269c14db1024584913081db49919085f34d008",
+    "origin_main": "09269c14db1024584913081db49919085f34d008",
+    "candidate_version": null,
+    "supersedes_source_candidate": "07d96d6cdc24262e7cc6eb2f4a7e57308f962d70",
+    "binding": {
+      "version": "web-to-tui-candidate-binding.v1",
+      "matrix_sha256": "e3027671d02d876c9f4b38b9d86395d45e26c0f2b344eb0646086be31869cd5d",
+      "graph_sha256": "63be10ee25bb73c87861c18cc92355938fd7abc096c33852bf5f904d4db532a2",
+      "schema_version": "tui-metadata.v3",
+      "runtime_version": "0.2.0",
+      "runtime_build_id": "agomtui-runtime-0.2.0+7b2efaff4f9a",
+      "runtime_manifest_sha256": "bfa8eeb81da5165414a882f77f3333268847f217f858925a40597d720548e6fe"
+    }
+  },
+  "repository_provenance": {
+    "python_311_remediation_commit": "86498b1f990b7e24184484b762d6de47e823de16",
+    "canonical_evidence_merge_commit": "09269c14db1024584913081db49919085f34d008",
+    "canonical_evidence_pull_request": "https://github.com/guiyinan/agomTradePro/pull/10",
+    "canonical_evidence_policy": {
+      "tracked_scope": "canonical JSON evidence, content-addressed JSON and SHA-256 sidecars under docs/deployment",
+      "ignored_scope": "docs/deployment/docker命令-远端.txt only",
+      "database_dumps_tracked": false,
+      "operator_private_text_tracked": false
+    }
+  },
+  "current_production": {
+    "source_commit": "45d7616d3c38a86853104f93dbd3f13bd9a48838",
+    "release_id": "20260826135953",
+    "image_id": "sha256:c481bb88ac6547165bdebcd34573a6f0d69b042c93ce37136b8ea3b160a1ce66",
+    "candidate_matches_source": false,
+    "identity_source": "read-only VPS verifier plus docs/deployment/tar01-current-vps-deployment-acceptance-2026-08-26-45d7616d.json",
+    "runtime_verifier": {
+      "outcome": "passed",
+      "caddy_site": "demo.agomtrade.pro",
+      "tls": "valid",
+      "web": "healthy",
+      "django_deploy_check": "passed_with_1_silenced_issue",
+      "migrations": "no_unapplied_migrations",
+      "canonical_data_center_schema": "passed",
+      "tui_registry": "published_and_matching",
+      "pyqlib_version": "0.9.7",
+      "wrong_qlib_distribution": "absent",
+      "qlib_module": "/usr/local/lib/python3.11/site-packages/qlib/__init__.py",
+      "celery_worker": "running",
+      "celery_beat": "running",
+      "celery_ping": "one_node_online"
+    }
+  },
+  "public_probes": [
+    {
+      "path": "/api/health/",
+      "http_status": 200,
+      "bytes": 62,
+      "sha256": "cc159460a45849b6909c612d0150f054df5a3fe2ac18ad36a1b8c9e212993deb",
+      "status": "ok"
+    },
+    {
+      "path": "/api/ready/",
+      "http_status": 200,
+      "bytes": 11007,
+      "sha256": "e0feb3457cc2b0d202afa1055a8551a465c60c2725f909f5590e9960205ad886",
+      "status": "ok"
+    },
+    {
+      "path": "/api/audit/health/",
+      "http_status": 200,
+      "bytes": 1171,
+      "sha256": "1fe6866901aa6bc67b8d0c1eaec51d9fd646bf2a026b7018b0e9f34a69d633e7",
+      "status": "OK"
+    },
+    {
+      "path": "/api/decision-ready/",
+      "http_status": 503,
+      "bytes": 14627,
+      "sha256": "65591d8085b2febbee7ed60d3f8cb2173414f2e3be7b87cda2a7eed0f856d20b",
+      "status": "blocked",
+      "must_not_use_for_decision": true,
+      "block_reason_code": "decision_runtime_blocked",
+      "reason": "MCP audit evidence write failed during final acceptance"
+    },
+    {
+      "path": "/api/tui/",
+      "http_status": 403,
+      "bytes": 61,
+      "sha256": "c65bef74297615126656a101e44c654a66e04c61d4936c40643db8ce487152bd",
+      "status": "authentication_required"
+    }
+  ],
+  "repository_gates": {
+    "post_merge_main_ci": {
+      "status": "passed",
+      "runs": {
+        "architecture_layer_guard": "https://github.com/guiyinan/agomTradePro/actions/runs/33241764726",
+        "security_scan": "https://github.com/guiyinan/agomTradePro/actions/runs/33241764808",
+        "consistency_check": "https://github.com/guiyinan/agomTradePro/actions/runs/33241764763",
+        "ci_fast_feedback": "https://github.com/guiyinan/agomTradePro/actions/runs/33241764759"
+      }
+    },
+    "active_plan_registry": "passed",
+    "web_template_migration_inventory": "passed",
+    "web_to_tui_cutover_readiness": "DENY",
+    "python_version_consistency": {
+      "status": "passed",
+      "runtime_policy": "Python 3.11",
+      "qlib_train_base_image": "python:3.11-slim"
+    },
+    "qlib_training_image": {
+      "repository_remediation": "passed",
+      "python_311_pyqlib_wheel_smoke": "passed",
+      "controlled_full_image_build": "not_run_until_authorized_deployment"
+    }
+  },
+  "release_decision": {
+    "status": "awaiting_exact_deployment_authorization",
+    "source_frozen": true,
+    "repository_preflight_passed": true,
+    "observation_window_started": false,
+    "blockers": [
+      "Production still runs 45d7616d3c38a86853104f93dbd3f13bd9a48838 rather than the frozen source candidate.",
+      "No deployment release ID or OCI image identity exists for source candidate 09269c14db1024584913081db49919085f34d008.",
+      "The M5 cutover evidence remains bound to an older matrix and candidate; source consistency, role UAT, telemetry, rollback, registry backup and owner/reviewer approvals are not satisfied.",
+      "Decision readiness remains fail-closed with HTTP 503 and must_not_use_for_decision=true."
+    ],
+    "required_next_step": "Obtain exact authorization for a controlled code-only deployment of source candidate 09269c14db1024584913081db49919085f34d008, preserving PostgreSQL and Redis state; require the controlled build and post-deploy verifier to bind the release ID and OCI image before role UAT or observation starts."
+  },
+  "limitations": [
+    "No deployment, restart, migration, backup creation, production write, runtime enablement, load generation, fault injection or rollback was performed.",
+    "The controlled full image build is intentionally deferred to the authorized deployment workflow; repository CI and the Python 3.11 pyqlib wheel smoke do not substitute for that build.",
+    "This evidence does not prove role-based browser UAT, production write receipts, capacity, chaos recovery, a 14-day observation window or owner/reviewer approval."
+  ]
+}

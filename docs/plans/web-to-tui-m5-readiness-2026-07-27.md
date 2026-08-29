@@ -784,3 +784,31 @@ Docker Desktop 中因 exit `137` 未完成；完整仓库 context build 因本�
 阻断已在工作树内修复，但 `07d96d6d…` 不再可作为最终部署候选；仍须提交、CI、review、合并并
 重新冻结新的 `main`。本轮未访问生产、未部署、未重绑候选或启动观察窗口，M5 readiness 继续
 `DENY`，TUI-01 继续 `awaiting_production`。
+
+### 2026-08-29 合并后 `main` source candidate 重新冻结
+
+Qlib Python 3.11 修复提交 `86498b1f990b7e24184484b762d6de47e823de16` 已通过 `main` 四条
+push CI；canonical evidence PR #10 经双套 push/PR CI、review 和 merge 后，新的
+`origin/main@09269c14db1024584913081db49919085f34d008` 已冻结为 source candidate，明确取代
+`07d96d6d…`。source binding 的 matrix、published graph、runtime manifest SHA 仍分别为
+`e3027671d02d876c9f4b38b9d86395d45e26c0f2b344eb0646086be31869cd5d`、
+`63be10ee25bb73c87861c18cc92355938fd7abc096c33852bf5f904d4db532a2`、
+`bfa8eeb81da5165414a882f77f3333268847f217f858925a40597d720548e6fe`，runtime build 为
+`agomtui-runtime-0.2.0+7b2efaff4f9a`。新 merge commit 自身的 Architecture、Security、
+Consistency 与 CI Fast Feedback 也全部通过；Python version consistency、active registry 与 Web→TUI
+migration inventory 均为绿色。
+
+生产只读 verifier 仍识别到 `45d7616d3c38a86853104f93dbd3f13bd9a48838` / release
+`20260826135953` / image
+`sha256:c481bb88ac6547165bdebcd34573a6f0d69b042c93ce37136b8ea3b160a1ce66`，所以新 source 尚未
+形成 candidate version、release ID 或 OCI identity。TLS、web、Django/migration/schema、TUI registry、
+Qlib、Celery 均通过；公网 health/ready/audit=`200`，decision-ready=`503 blocked`。当前 readiness
+继续 `DENY`：旧 cutover evidence 与新 source 不一致，108 项角色/任务 UAT、101 项 telemetry、
+rollback、registry backup 和双签均未绑定。结构化 preflight 为
+[`release-candidate-preflight-2026-08-29-09269c14.json`](../deployment/release-candidate-preflight-2026-08-29-09269c14.json)，
+SHA-256=`466b06878229fdead920ad5cf31de5a09bcd18d79cb5a1321271fa432b095ff3`。
+
+本 checkpoint 没有部署、重启、迁移、备份创建、生产写入、候选生产重绑、UAT 写回执、观察窗口、
+cleanup、负载、fault injection 或 rollback。TUI-01 仍为 `awaiting_production`；下一步只能在精确授权后
+对 `09269c14…` 做保留 PostgreSQL/Redis 的受控 code-only deployment，完成 image build、release/OCI
+identity 与 post-deploy verifier 后，才能开始正式 candidate binding、角色 UAT 与第 0 天观察。
