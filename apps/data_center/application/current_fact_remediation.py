@@ -24,6 +24,7 @@ from .sync_use_cases import SyncFinancialUseCase
 
 CN_MARKET_TIMEZONE = ZoneInfo("Asia/Shanghai")
 CN_MARKET_CLOSE = time(15, 0)
+_EVIDENCE_ASSET_CODE_LIMIT = 20
 
 
 @dataclass(frozen=True)
@@ -207,7 +208,7 @@ class CompletedSessionPriceBarPreview:
         )
 
     def to_dict(self) -> dict[str, object]:
-        """Return stable JSON-safe preview evidence."""
+        """Return stable JSON-safe preview evidence with bounded code samples."""
 
         return {
             "ready": self.ready,
@@ -215,9 +216,15 @@ class CompletedSessionPriceBarPreview:
             "requested_asset_count": self.requested_asset_count,
             "eligible_asset_count": self.eligible_asset_count,
             "missing_asset_count": len(self.missing_asset_codes),
-            "missing_asset_codes": list(self.missing_asset_codes),
+            "missing_asset_codes": list(self.missing_asset_codes[:_EVIDENCE_ASSET_CODE_LIMIT]),
+            "missing_asset_codes_truncated": (
+                len(self.missing_asset_codes) > _EVIDENCE_ASSET_CODE_LIMIT
+            ),
             "invalid_asset_count": len(self.invalid_asset_codes),
-            "invalid_asset_codes": list(self.invalid_asset_codes),
+            "invalid_asset_codes": list(self.invalid_asset_codes[:_EVIDENCE_ASSET_CODE_LIMIT]),
+            "invalid_asset_codes_truncated": (
+                len(self.invalid_asset_codes) > _EVIDENCE_ASSET_CODE_LIMIT
+            ),
             "oldest_snapshot_at": (
                 self.oldest_snapshot_at.isoformat() if self.oldest_snapshot_at else None
             ),

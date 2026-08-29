@@ -21,6 +21,8 @@ from apps.data_center.domain.protocols import PublicationPolicyRepositoryProtoco
 from .control_plane import CanonicalPublicationRepositoryPort, PublishCanonicalDatasetUseCase
 from .publication_utils import publication_hash
 
+_EVIDENCE_ASSET_CODE_LIMIT = 20
+
 
 class CurrentPublicationCandidateRepositoryProtocol(Protocol):
     """Port selecting the decision-current canonical facts for an asset universe."""
@@ -72,7 +74,7 @@ class CurrentPublicationPreview:
         )
 
     def to_dict(self) -> dict[str, object]:
-        """Return stable JSON-safe preview evidence."""
+        """Return stable JSON-safe preview evidence with bounded code samples."""
 
         return {
             "dataset_key": self.dataset_key,
@@ -81,9 +83,17 @@ class CurrentPublicationPreview:
             "covered_asset_count": self.covered_asset_count,
             "member_count": self.member_count,
             "missing_asset_count": len(self.missing_asset_codes),
-            "missing_asset_codes": list(self.missing_asset_codes),
+            "missing_asset_codes": list(self.missing_asset_codes[:_EVIDENCE_ASSET_CODE_LIMIT]),
+            "missing_asset_codes_truncated": (
+                len(self.missing_asset_codes) > _EVIDENCE_ASSET_CODE_LIMIT
+            ),
             "unexpected_asset_count": len(self.unexpected_asset_codes),
-            "unexpected_asset_codes": list(self.unexpected_asset_codes),
+            "unexpected_asset_codes": list(
+                self.unexpected_asset_codes[:_EVIDENCE_ASSET_CODE_LIMIT]
+            ),
+            "unexpected_asset_codes_truncated": (
+                len(self.unexpected_asset_codes) > _EVIDENCE_ASSET_CODE_LIMIT
+            ),
             "oldest_observed_at": (
                 self.oldest_observed_at.isoformat() if self.oldest_observed_at is not None else None
             ),

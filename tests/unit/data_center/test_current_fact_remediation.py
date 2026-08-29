@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import pytest
 
 from apps.data_center.application.current_fact_remediation import (
+    CompletedSessionPriceBarPreview,
     CompletedSessionPriceBarUseCase,
     CoreCurrentFactRefreshUseCase,
     FinancialAvailabilityBackfillPreview,
@@ -21,6 +22,27 @@ STARTED_AT = datetime(2026, 8, 30, 1, 0, tzinfo=UTC)
 COMPLETED_AT = STARTED_AT + timedelta(minutes=5)
 SESSION_DATE = date(2026, 8, 28)
 SESSION_CLOSE = datetime(2026, 8, 28, 7, 0, tzinfo=UTC)
+
+
+def test_price_preview_serialization_bounds_asset_code_evidence() -> None:
+    missing = tuple(f"{index:06d}.SZ" for index in range(25))
+    invalid = tuple(f"{index:06d}.SH" for index in range(30))
+    payload = CompletedSessionPriceBarPreview(
+        session_date=SESSION_DATE,
+        requested_asset_count=25,
+        eligible_asset_count=0,
+        missing_asset_codes=missing,
+        invalid_asset_codes=invalid,
+        oldest_snapshot_at=None,
+        newest_snapshot_at=None,
+    ).to_dict()
+
+    assert payload["missing_asset_count"] == 25
+    assert payload["missing_asset_codes"] == list(missing[:20])
+    assert payload["missing_asset_codes_truncated"] is True
+    assert payload["invalid_asset_count"] == 30
+    assert payload["invalid_asset_codes"] == list(invalid[:20])
+    assert payload["invalid_asset_codes_truncated"] is True
 
 
 @contextmanager

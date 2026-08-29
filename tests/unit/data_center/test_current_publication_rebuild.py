@@ -10,6 +10,7 @@ import pytest
 from apps.data_center.application.current_publication_rebuild import (
     CoreCurrentPublicationRebuildUseCase,
     CurrentPublicationDataset,
+    CurrentPublicationPreview,
     CurrentPublicationRebuildUseCase,
 )
 from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
@@ -19,6 +20,28 @@ from apps.data_center.domain.control_plane import (
 )
 
 NOW = datetime(2026, 8, 30, 2, 0, tzinfo=UTC)
+
+
+def test_preview_serialization_bounds_asset_code_evidence() -> None:
+    missing = tuple(f"{index:06d}.SZ" for index in range(25))
+    unexpected = tuple(f"{index:06d}.SH" for index in range(30))
+    payload = CurrentPublicationPreview(
+        dataset_key="equity.financial.fact",
+        requested_asset_count=25,
+        covered_asset_count=0,
+        member_count=0,
+        missing_asset_codes=missing,
+        unexpected_asset_codes=unexpected,
+        oldest_observed_at=None,
+        newest_observed_at=None,
+    ).to_dict()
+
+    assert payload["missing_asset_count"] == 25
+    assert payload["missing_asset_codes"] == list(missing[:20])
+    assert payload["missing_asset_codes_truncated"] is True
+    assert payload["unexpected_asset_count"] == 30
+    assert payload["unexpected_asset_codes"] == list(unexpected[:20])
+    assert payload["unexpected_asset_codes_truncated"] is True
 
 
 class _CandidateRepository:
