@@ -325,7 +325,12 @@
             renderActions(screenSpec.actions || [], screen);
         }
         if (dashboardScreen) {
-            renderDashboardHome(screenSpec);
+            renderDashboardHome(screenSpec, {
+                suppressAutoActions: deepLinkedActionCanAutoRun(
+                    screenSpec,
+                    options.deepLinkedActionKey,
+                ),
+            });
             updatePager(null);
             updateRawDrawer();
             setLastRefresh();

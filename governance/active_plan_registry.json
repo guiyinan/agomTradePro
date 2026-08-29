@@ -1,6 +1,6 @@
 {
-  "version": "2026-08-28.v4",
-  "updated_at": "2026-08-28",
+  "version": "2026-08-29.v8",
+  "updated_at": "2026-08-29",
   "execution_focus": {
     "unit_id": null,
     "allowed_parallel_execution_modes": [
@@ -8,7 +8,7 @@
       "external",
       "governance"
     ],
-    "policy": "No repository unit is currently dependency-ready. AUD-02's corrective exit delayed On-Demand sync composition until actual hydration, explicitly completed the Account test runtime profile, and passed all 298 registered current-data nodeids plus the original Audit/Data Center gates without weakening production fail-closed behavior. AUD-03 returns to awaiting production. EVID-03 remains waiting on EVID-01 and EVID-02, so it must not be activated. Declared production/external/governance units may continue only their non-duplicative safe auto_collect work; deployments, production writes, paid calls and human decisions still require their recorded authorization boundary."
+    "policy": "No repository unit is currently dependency-ready. TUX-05 corrective repository exit restored F9 account-action reachability, deterministic confirmed-write settlement, template-response cleanup normalization and explicit deep-link priority without increasing concurrency, retrying writes or weakening timeouts. Its production-safe recorder still requires 108 route-page results, regular/operator/admin boundaries, same-run controlled write receipts, readback and exact zero-residual cleanup while excluding external AI, queued runtime, active RSS, shared quota, authority/approval, load, fault and live rollback. TUI-01 remains awaiting production and canonical UAT remains empty until the corrective commit passes CI/review/merge, a new immutable main candidate is deployed from an independent clean worktree and the candidate-bound production-safe recorder passes."
   },
   "workstreams": [
     {
@@ -18,7 +18,7 @@
       "priority": "P0",
       "owner": "research+risk_center+portfolio+broker_execution+account",
       "status": "production_validation",
-      "next_gate": "EVID-01 repository contracts have no remaining safe code slice and are now in production validation. Migration 0055 and Research 0029 are applied on the controlled candidate 94abd76e46eeef4a8e21853799c7d69bcd9bbe3b / release 20260824133504, but all 13 authority/evidence ledgers remain zero-seed. Preserve the global execution deny; next collect a real independent root approval, then prove production PostgreSQL first-winner/successor/revocation/rollback, same-alias end-to-end receipts and owner/reviewer sign-off. Do not repeat deployment or derive tenant/owner from mutable User/Profile/session state.",
+      "next_gate": "The candidate-bound EVID-01/EVID-02 read-only inventory is complete for 09269c14db1024584913081db49919085f34d008 / release 20260829163806: all 13 canonical authority/evidence tables remain zero-seed and approval/activation heads are empty. Preserve the global execution deny; next collect a real independent root approval and obtain exact authorization to prove production PostgreSQL first-winner/successor/revocation/rollback, same-alias end-to-end receipts and owner/reviewer sign-off. Do not repeat the read-only inventory or derive tenant/owner from mutable User/Profile/session state.",
       "documents": [
         {
           "path": "docs/plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md",
@@ -41,7 +41,7 @@
       "priority": "P0",
       "owner": "research+data_center+signal+portfolio+broker_execution",
       "status": "production_validation",
-      "next_gate": "Register real owner definitions and canonical receipts, accumulate required PIT/OOS history, then obtain Promotion and consumer UAT evidence.",
+      "next_gate": "The candidate-bound STRAT-01 owner-ledger inventory is complete for release 20260829163806 and remains zero-seed across the four declared selectors. Named business owners must now supply and approve real owner definitions, policies, calendars, scopes and qualifications; only then may canonical receipts and PIT/OOS history accumulate before Promotion and consumer UAT.",
       "documents": [
         {
           "path": "docs/plans/strategy-research-capability-completion-audit-2026-08-05.md",
@@ -88,7 +88,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "Complete production backup, controlled backfill, reconciliation, M9/M10 cutover and observation evidence on PostgreSQL.",
+      "next_gate": "The 2026-08-29 pre-deploy PostgreSQL custom-format backup has been retained remotely, downloaded, SHA-256 verified without pruning, and restored twice in a disposable PostgreSQL 16 environment with 541 tables, 72 Data Center migrations, 462 sequences and zero differences. DATA-01 still requires the production owner to select a maintenance window and exactly authorize a live maintenance/rollback rehearsal before DATA-02 controlled backfill, reconciliation, M9/M10 cutover or observation may proceed; local elapsed time is not production RTO/RPO.",
       "documents": [
         {
           "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
@@ -131,7 +131,7 @@
       "priority": "P0/P1",
       "owner": "audit+data_center+task_monitor",
       "status": "production_validation",
-      "next_gate": "AUD-01 and the corrective AUD-02 repository exit are complete. AUD-03 must bind production migration/rollback, PostgreSQL opt-in, backlog recovery, bounded metrics, alerts, admin TUI, archive/restore and owner/reviewer sign-off to one immutable deployed candidate; only its declared non-duplicative read-only auto_collect work is automatic.",
+      "next_gate": "AUD-01 and the corrective AUD-02 repository exit are complete. Candidate 09269c14db1024584913081db49919085f34d008 / release 20260829163806 has migration 0013 applied, and its non-duplicative read-only AUD-03 migration/backlog/metrics snapshot is now bound with 496 applied migrations, zero backlog and zero observed failures. Next obtain exact authorization for rollback, recovery/fault, alerts/admin TUI, archive/restore and owner/reviewer sign-off; deployment and a single healthy snapshot do not satisfy AUD-03.",
       "documents": [
         {
           "path": "docs/plans/system-audit-log-consolidation-plan-2026-08-13.md",
@@ -146,7 +146,7 @@
       "priority": "P0",
       "owner": "terminal+operational_readiness",
       "status": "production_validation",
-      "next_gate": "After TAR-03 exits and the release surface is frozen, bind one manifest-backed candidate from the canonical cutover evidence, run role-based browser UAT, and start the closing 14-day observation window; any earlier candidate window is non-closing soak evidence.",
+      "next_gate": "TUX-05 corrective repository exit is locally complete: the fixed production-safe profile passed 10/10 with 108 route-page coverage, three roles, 9/9 parameterized reads, same-run strategy/provider receipts and exact zero-residual cleanup, while external AI, queued runtime, active RSS, shared quota, authority/approval, load, fault and live rollback stayed excluded. Canonical UAT remains empty and M5 stays DENY because this is disposable local evidence. Next pass CI/review/merge, freeze the merged main identity in an independent clean worktree, deploy only through the authorized backup/migration/current-switch/restart/automatic-failure-rollback package, rerun the candidate-bound production-safe recorder, and obtain real role-owner confirmation before TUI-01 or the 14-day window can advance.",
       "documents": [
         {
           "path": "docs/plans/web-to-tui-migration-plan-2026-07-25.md",
@@ -197,7 +197,7 @@
       "priority": "P0",
       "owner": "agent_runtime+terminal+task_monitor+operational_readiness+sdk+mcp",
       "status": "production_validation",
-      "next_gate": "TAR-01 through TAR-04 repository contracts are complete. Freeze one immutable candidate and complete TUI-01 role UAT/write receipts plus TAR-05 provider, capacity, chaos, restore/rollback, telemetry and owner/reviewer production acceptance; queued/worker defaults remain fail-closed until those gates pass.",
+      "next_gate": "TAR-01 through TAR-04 repository contracts are complete and immutable candidate 09269c14db1024584913081db49919085f34d008 / release 20260829163806 is deployed with queued runtime still not accepted. Complete TUI-01 role UAT/write receipts plus TAR-05 provider, capacity, chaos, restore/rollback, telemetry and owner/reviewer acceptance on this exact identity; queued/worker defaults remain fail-closed until those gates pass.",
       "documents": [
         {
           "path": "docs/plans/terminal-agent-multi-user-runtime-plan-2026-08-18.md",
@@ -262,7 +262,7 @@
       "priority": "P1",
       "owner": "terminal",
       "status": "production_validation",
-      "next_gate": "TUX-01 through TUX-05 repository exit gates are complete with machine guards and eight-screen browser evidence. Production candidate binding, role UAT and observation remain owned by TUI-01/TUI-02 and were not advanced or rebound by this repository workstream.",
+      "next_gate": "TUX-01 through TUX-05, including the 2026-08-29 corrective reopen, have completed their repository gates. The corrective evidence proves account action reachability, confirmed-write settlement, exact cleanup and production-safe recorder boundaries without concurrency, retry or timeout relaxation. No further repository work is dependency-ready; CI/review/merge and new-candidate production UAT remain TUI-01 production work and cannot inherit local evidence.",
       "documents": [
         {
           "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
@@ -273,7 +273,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-08-28.v4",
+    "version": "2026-08-29.v6",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,

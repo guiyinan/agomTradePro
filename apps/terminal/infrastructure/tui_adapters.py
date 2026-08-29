@@ -8,6 +8,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from django.conf import settings
+from django.template.response import SimpleTemplateResponse
 from django.urls import resolve
 from rest_framework.test import APIRequestFactory
 
@@ -75,6 +76,8 @@ class TuiInternalActionExecutor:
             status_code = getattr(response, "status_code", 200)
             payload = getattr(response, "data", None)
             if payload is None:
+                if isinstance(response, SimpleTemplateResponse) and not response.is_rendered:
+                    response.render()
                 content = getattr(response, "content", b"")
                 text = content.decode("utf-8", errors="replace") if content else ""
                 try:

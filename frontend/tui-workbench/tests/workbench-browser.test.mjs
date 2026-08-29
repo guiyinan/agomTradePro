@@ -23,7 +23,7 @@ const harnessHtml = `<!doctype html>
   <div data-menu-popover role="menu" hidden></div>
   <aside data-rail-panel><button data-toggle-rail></button><div data-module-tree></div></aside>
   <div class="tui-workspace-grid">
-    <section class="tui-panel"><div data-actions-panel></div></section>
+    <section class="tui-panel"><div class="tui-panel-body" data-actions-panel></div></section>
     <section><span data-screen-title></span><span data-screen-status></span><span data-main-title></span><div data-workflow-strip></div><div data-main-panel></div></section>
     <section class="tui-panel" data-inspector-panel-shell><button data-toggle-inspector></button><div data-inspector-resize-handle></div><div data-inspector-panel></div></section>
   </div>
@@ -51,7 +51,7 @@ function action(key, options = {}) {
         description: options.description || "",
         task_tier: options.task_tier || "operation",
         task_group: options.task_group || "测试任务",
-        confirmation_required: false,
+        confirmation_required: Boolean(options.confirmation_required),
         result_semantics: options.result_semantics || [],
         sequence: options.sequence || 10,
     };
@@ -71,6 +71,9 @@ const actions = [
         label: "编辑记录",
         method: "POST",
         risk: "write",
+        effect: "update",
+        task_tier: "advanced",
+        confirmation_required: true,
         fields: [
             { key: "code", label: "代码", input_type: "text", required: true },
         ],
@@ -686,6 +689,23 @@ async function openHarness(url = "https://app.test/", options = {}) {
             return;
         }
         const actionKey = decodeURIComponent(url.pathname.match(/\/actions\/([^/]+)\/run\//)?.[1] || "");
+        const requestBody = route.request().postDataJSON?.() || {};
+        if (actionKey === "test.edit" && !requestBody.confirmed) {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    action: actions.find((item) => item.key === actionKey),
+                    confirmation_required: true,
+                    confirmation: { title: "确认操作", message: "确认保存编辑。" },
+                    view_model: { kind: "message", title: "等待确认", status: "等待", message: "等待确认" },
+                }),
+            });
+            return;
+        }
+        if (actionKey === "test.edit" && options.confirmedMutationDelayMs) {
+            await delay(options.confirmedMutationDelayMs);
+        }
         await route.fulfill({
             status: 200,
             contentType: "application/json",
@@ -704,7 +724,7 @@ async function openHarness(url = "https://app.test/", options = {}) {
         } else {
             await page.waitForSelector("[data-screen-title]");
         }
-        return { browser, page };
+        return { browser, page, requestLog };
     } catch (error) {
         const status = await page.locator("[data-workbench-status]").textContent().catch(() => "");
         const main = await page.locator("[data-main-panel]").innerText().catch(() => "");
@@ -731,6 +751,57 @@ test("action deep links reveal, focus, and prefill the requested task", async ()
             true,
         );
         assert.match(await page.locator("[data-workbench-status]").innerText(), /编辑记录/);
+    } finally {
+        await browser.close();
+    }
+});
+
+test("F9 exposes support and advanced tasks before focusing the task search", async () => {
+    const { browser, page } = await openHarness();
+    try {
+        const form = page.locator('form[data-action-ui-key="test.edit"]');
+        assert.equal(await form.isVisible(), false);
+        await page.keyboard.press("F9");
+        await form.waitFor({ state: "visible" });
+        assert.equal(
+            await page.locator("[data-action-filter]").evaluate(
+                (element) => element === document.activeElement,
+            ),
+            true,
+        );
+        const submit = form.locator(".tui-action-submit");
+        await submit.scrollIntoViewIfNeeded();
+        assert.equal(
+            await submit.evaluate((element) => {
+                const rect = element.getBoundingClientRect();
+                const scrollHost = element.closest(".tui-panel-body");
+                const hostRect = scrollHost?.getBoundingClientRect();
+                return Boolean(hostRect)
+                    && rect.top >= hostRect.top
+                    && rect.bottom <= hostRect.bottom;
+            }),
+            true,
+        );
+    } finally {
+        await browser.close();
+    }
+});
+
+test("confirmed mutations leave loading only after the real response settles", async () => {
+    const { browser, page } = await openHarness(
+        "https://app.test/?screen=test.grid&action=test.edit&code=settlement-code",
+        { waitForInitialRows: false, confirmedMutationDelayMs: 150 },
+    );
+    try {
+        const form = page.locator('form[data-action-ui-key="test.edit"]');
+        await form.locator(".tui-action-submit").click();
+        await page.locator("[data-confirm-action]").click();
+        assert.equal(await page.locator("[data-workbench-status]").innerText(), "读取数据");
+        await page.waitForFunction(
+            () => document.querySelector("[data-workbench-status]")?.textContent === "操作完成",
+        );
+        assert.match(await page.locator("[data-main-panel]").innerText(), /正常 \/ 完成/);
+        assert.equal(await page.locator(".tui-error").count(), 0);
     } finally {
         await browser.close();
     }
@@ -789,6 +860,24 @@ test("immersive dashboard deep links locate their matching panel", async () => {
         );
         assert.equal(
             await page.locator('[data-dashboard-panel="admin-read"]').count(),
+            1,
+        );
+    } finally {
+        await browser.close();
+    }
+});
+
+test("non-immersive dashboard deep links prioritize the explicit read", async () => {
+    const { browser, page, requestLog } = await openHarness(
+        "https://app.test/?screen=test.user-governance&action=test.user-list",
+        { waitForInitialRows: false },
+    );
+    try {
+        await delay(500);
+        assert.equal(
+            requestLog.filter((entry) => (
+                entry.startsWith("REQ ") && entry.includes("/actions/test.user-list/run/")
+            )).length,
             1,
         );
     } finally {

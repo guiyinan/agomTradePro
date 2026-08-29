@@ -1,0 +1,270 @@
+{
+  "schema": "web-to-tui-production-uat-checkpoint.v1",
+  "captured_at": "2026-08-29T11:35:00.398567Z",
+  "environment": "production",
+  "candidate_binding": {
+    "source_commit": "09269c14db1024584913081db49919085f34d008",
+    "release_id": "20260829163806",
+    "release_dir": "/opt/agomtradepro/releases/source-20260829163806",
+    "image_id": "sha256:08650701deaa8286c5818a9ed1ba15d96f740fcc646d38e56d0a979c413884da",
+    "oci_revision": "09269c14db1024584913081db49919085f34d008",
+    "matrix_sha256": "e3027671d02d876c9f4b38b9d86395d45e26c0f2b344eb0646086be31869cd5d",
+    "graph_sha256": "63be10ee25bb73c87861c18cc92355938fd7abc096c33852bf5f904d4db532a2",
+    "runtime_manifest_sha256": "bfa8eeb81da5165414a882f77f3333268847f217f858925a40597d720548e6fe",
+    "runtime_identity_rechecked": true,
+    "runtime_drift_detected": false
+  },
+  "authorization": {
+    "authorized": [
+      "Use the existing production UAT regular, operator, and admin role accounts",
+      "Run candidate-bound browser UAT for the 108 route pages",
+      "Create, update, read back, and clean up only uniquely named controlled UAT records",
+      "Persist write receipts"
+    ],
+    "prohibited": [
+      "Modify authority or approval",
+      "Enable queued runtime",
+      "Increase traffic or run load and fault injection",
+      "Enter maintenance or exercise live rollback",
+      "Trigger billable or external provider calls without separate authorization",
+      "Substitute deterministic assertions for real role-owner business confirmation"
+    ]
+  },
+  "preflight": {
+    "roles": [
+      {
+        "username": "m5_uat_regular",
+        "user_id": 6,
+        "is_active": true,
+        "is_staff": false,
+        "is_superuser": false,
+        "groups": [],
+        "profile_rbac_role": "owner"
+      },
+      {
+        "username": "m5_uat_operator",
+        "user_id": 5,
+        "is_active": true,
+        "is_staff": false,
+        "is_superuser": false,
+        "groups": [
+          "operator"
+        ],
+        "profile_rbac_role": "owner"
+      },
+      {
+        "username": "admin",
+        "user_id": 1,
+        "is_active": true,
+        "is_staff": true,
+        "is_superuser": true,
+        "groups": [],
+        "profile_rbac_role": "owner"
+      }
+    ],
+    "regular_user_parameterized_accounts": [
+      {
+        "id": 626,
+        "account_type": "real",
+        "is_active": true
+      },
+      {
+        "id": 627,
+        "account_type": "simulated",
+        "is_active": true
+      }
+    ],
+    "required_fixture_ids": {
+      "agent_task_id": null,
+      "agent_proposal_id": null,
+      "candidate_id": null,
+      "attribution_report_id": null,
+      "factor_config_id": null
+    },
+    "controlled_name_collision_counts": {
+      "M5 UAT 策略 P163806A": 0,
+      "M5 UAT 服务商 P163806A": 0
+    }
+  },
+  "browser_execution": {
+    "suite": "tests/playwright/tests/uat/test_web_to_tui_m5.py",
+    "base_url": "https://demo.agomtrade.pro",
+    "browser": "chromium",
+    "route_page_coverage": {
+      "required": 108,
+      "executed": 108,
+      "passed": 108,
+      "source": "test_every_migrated_route_resolves_its_reviewed_tui_deep_link",
+      "matrix_filter": "route_page and destination_class A/B and status migrated/deleted"
+    },
+    "least_privilege_read_coverage": {
+      "dynamic_direct_read_test": "passed",
+      "runtime_minimum_routes_asserted": 65,
+      "runtime_minimum_unique_tasks_asserted": 60,
+      "parameterized_reads_required": 9,
+      "parameterized_reads_passed": 9,
+      "operator_regular_boundary": "passed"
+    },
+    "raw_junit": [
+      {
+        "path": "dist/web_to_tui_uat_20260829163806_readonly.xml",
+        "sha256": "41da994f22d65ae0550ef052f2a4fd1c9038d88fc4188ee455d744dfaeab2c5e",
+        "bytes": 3842,
+        "tests": 8,
+        "passed": 6,
+        "failed": 2,
+        "skipped": 0,
+        "duration_seconds": 741.992,
+        "started_at": "2026-08-29T11:10:30.296458Z"
+      },
+      {
+        "path": "dist/web_to_tui_uat_20260829163806_readonly_retry.xml",
+        "sha256": "85e499c75e06ae45afe12e19dc59a99e5c8cdf36cae8f976843a79c2c327879e",
+        "bytes": 2458,
+        "tests": 4,
+        "passed": 3,
+        "failed": 1,
+        "skipped": 0,
+        "duration_seconds": 65.4,
+        "started_at": "2026-08-29T11:23:46.404869Z"
+      },
+      {
+        "path": "dist/web_to_tui_uat_20260829163806_strategy.xml",
+        "sha256": "5ccfb0e9737b13196afa3964a9ae1d0edc06d30b29a8097ae200af3a9387c76f",
+        "bytes": 1376,
+        "tests": 1,
+        "passed": 0,
+        "failed": 1,
+        "skipped": 0,
+        "duration_seconds": 45.408,
+        "started_at": "2026-08-29T11:28:44.226607Z"
+      },
+      {
+        "path": "dist/web_to_tui_uat_20260829163806_provider.xml",
+        "sha256": "13b2f4bc741c48d6c8351be5fa2c0746c980c57736f357c0c586ea335072f434",
+        "bytes": 387,
+        "tests": 1,
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0,
+        "duration_seconds": 26.785,
+        "started_at": "2026-08-29T11:31:01.784263Z"
+      }
+    ],
+    "deterministic_findings": [
+      {
+        "test": "test_account_read_missing_fields_and_confirmation_cancel[chromium]",
+        "outcome": "failed_twice",
+        "failure": "The account-create form exists after F9, but its exact 创建 button is not visible/clickable within 30 seconds.",
+        "production_write_performed": false,
+        "screenshot_path": "tests/playwright/reports/screenshots/errors/failure_test_account_read_missing_fields_and_confirmation_cancel[chromium]_20260829_192428.png",
+        "screenshot_sha256": "165ba0838eead8cf8c2d102418fff70b744bd7f29668183c3843cbc730f197a1"
+      },
+      {
+        "test": "test_tui_core_layout_has_no_horizontal_overflow[desktop-1440x900]",
+        "outcome": "passed_on_bounded_retry",
+        "first_failure": "The account grid was still loading after the five-second assertion window.",
+        "retry_viewports_passed": 3
+      },
+      {
+        "test": "test_strategy_create_detail_update_lifecycle_completes[chromium]",
+        "outcome": "browser_assertion_failed_write_receipt_confirmed",
+        "failure": "After confirmed update the five-second status assertion still read 读取数据.",
+        "screenshot_path": "tests/playwright/reports/screenshots/errors/failure_test_strategy_create_detail_update_lifecycle_completes[chromium]_20260829_192929.png",
+        "screenshot_sha256": "1359d47c020fd91a932164ac1061f26f82669b204c1bcb4d7cf2142d609c8a71"
+      },
+      {
+        "test": "test_personal_ai_provider_detail_update_lifecycle_completes[chromium]",
+        "outcome": "passed"
+      }
+    ]
+  },
+  "write_receipts": [
+    {
+      "entity": "strategy.StrategyModel",
+      "run_id": "P163806A",
+      "primary_key": 8,
+      "exact_name": "M5 UAT 策略 P163806A",
+      "actor": "m5_uat_regular",
+      "created_by_profile_id": 225,
+      "created_at": "2026-08-29T11:29:04.190334Z",
+      "updated_at": "2026-08-29T11:29:33.348622Z",
+      "readback": {
+        "strategy_type": "rule_based",
+        "version": 2,
+        "is_active": false,
+        "description": "M5 UAT 已验证详情与确认式更新"
+      },
+      "cleanup": {
+        "exact_primary_keys": [
+          8
+        ],
+        "deleted_count": 1,
+        "deleted_breakdown": {
+          "strategy.StrategyModel": 1
+        },
+        "remaining_exact_ids": 0,
+        "outcome": "passed"
+      }
+    },
+    {
+      "entity": "ai_provider.AIProviderConfig",
+      "run_id": "P163806A",
+      "primary_key": 16,
+      "exact_name": "M5 UAT 服务商 P163806A",
+      "actor": "m5_uat_regular",
+      "owner_user_id": 6,
+      "created_at": "2026-08-29T11:31:24.561835Z",
+      "updated_at": "2026-08-29T11:31:30.647473Z",
+      "readback": {
+        "scope": "user",
+        "provider_type": "custom",
+        "is_active": false,
+        "credential_present": true,
+        "credential_material_recorded": false,
+        "description": "M5 UAT 已验证用户归属和确认式更新"
+      },
+      "cleanup": {
+        "exact_primary_keys": [
+          16
+        ],
+        "deleted_count": 1,
+        "deleted_breakdown": {
+          "ai_provider.AIProviderConfig": 1
+        },
+        "remaining_exact_ids": 0,
+        "outcome": "passed"
+      }
+    }
+  ],
+  "not_executed": [
+    {
+      "batch": "admin policy lifecycle",
+      "reason": "The fixed test activates a keyword rule and RSS source, which can affect concurrent policy processing or create external fetch traffic before cleanup."
+    },
+    {
+      "batch": "governance and screening lifecycle",
+      "reason": "The fixed test updates a shared decision quota and can invoke equity/fund provider work; that is broader than unique-record-only UAT."
+    },
+    {
+      "batch": "fixture detail and lifecycle",
+      "reason": "All five production fixtures are absent; the fixed fixture includes a pending approval proposal plus Alpha, backtest, and factor writes, which conflicts with the approval and runtime boundary."
+    },
+    {
+      "batch": "external sentiment and Terminal Agent",
+      "reason": "Requires separate authorization for external or billable provider calls and cannot be used to enable queued runtime."
+    }
+  ],
+  "gate": {
+    "canonical_uat_projection_written": false,
+    "candidate_role_uat": "failed",
+    "tui_01_exit_gate": "not_satisfied",
+    "m5_readiness": "DENY",
+    "blocking_reasons": [
+      "The fixed account create/cancel browser journey fails deterministically.",
+      "The fixed strategy lifecycle browser assertion fails after the write receipt because the UI remains in a loading state past the assertion window.",
+      "The authorization-compatible subset is not the recorder-required full 15-test suite.",
+      "Real role-owner business confirmation is outstanding."
+    ]
+  }
+}

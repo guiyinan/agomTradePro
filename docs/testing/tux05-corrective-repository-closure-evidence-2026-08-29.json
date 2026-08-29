@@ -1,0 +1,236 @@
+{
+  "schema": "tux05-corrective-repository-closure-evidence.v1",
+  "unit_id": "TUX-05",
+  "observed_at": "2026-08-29T13:42:57.5976503Z",
+  "execution_mode": "repository",
+  "branch": "dev/deploy-candidate-09269c14-evidence",
+  "source_commit": "2aff19900dad1296b5b6d57d55979d3e4c0015fd",
+  "implementation_commit": "the local commit containing this artifact",
+  "exit_gate": {
+    "outcome": "passed",
+    "account_action_reachability": {
+      "f9_expands_support_and_advanced_tasks": true,
+      "create_form_visible": true,
+      "create_button_visible_and_clickable": true,
+      "confirmation_cancel_preserves_zero_writes": true
+    },
+    "confirmed_write_settlement": {
+      "terminal_status": "操作完成",
+      "slo_ms": 60000,
+      "loading_state_after_completion": false,
+      "strategy_create_ms": 322,
+      "strategy_update_ms": 274,
+      "ai_provider_create_ms": 432,
+      "ai_provider_update_ms": 155
+    },
+    "internal_template_response": {
+      "unrendered_response_normalized": true,
+      "strategy_delete_completed": true,
+      "ai_provider_delete_completed": true
+    },
+    "explicit_dashboard_task_priority": {
+      "passive_reads_suppressed_for_runnable_non_immersive_deep_link": true,
+      "internal_concurrency_limit_changed": false,
+      "request_retry_added": false,
+      "timeout_extended": false
+    },
+    "production_safe_recorder": {
+      "profile": "production-safe",
+      "expected_tests": 10,
+      "required_route_pages": 108,
+      "required_roles": [
+        "regular",
+        "operator",
+        "admin"
+      ],
+      "required_receipt_entities": [
+        "strategy",
+        "ai_provider"
+      ],
+      "external_ai_required": false,
+      "queued_runtime_included": false,
+      "authority_or_approval_mutation_included": false,
+      "active_rss_or_shared_quota_included": false,
+      "load_fault_or_live_rollback_included": false
+    }
+  },
+  "browser_evidence": {
+    "settings": "core.settings.playwright",
+    "database": "disposable isolated SQLite database",
+    "actor_set": [
+      "m5_uat_regular",
+      "m5_uat_operator",
+      "admin"
+    ],
+    "suite": "tests/playwright/tests/uat/test_web_to_tui_m5.py",
+    "junit_sha256": "17c223d17186a13a96fe4a4d2cc85be54447b2d45252e9666910b7cf78fda471",
+    "executed_tests": 10,
+    "passed_tests": 10,
+    "failed_tests": 0,
+    "skipped_tests": 0,
+    "duration_seconds": 162.75,
+    "route_page_results": "108/108",
+    "parameterized_read_results": "9/9",
+    "controlled_write_receipts_sha256": "723453558acf03333a0d078ab7cff91743e5a8948f75662b49812238120c1a89",
+    "controlled_write_receipts": [
+      {
+        "version": "web-to-tui-controlled-write-receipt.v1",
+        "run_id": "tux05-production-safe-local-fixed-20260829",
+        "entity_type": "ai_provider",
+        "entity_id": 5,
+        "entity_name": "M5 UAT 服务商 tux05pro",
+        "actor_username": "m5_uat_regular",
+        "owner_username": "m5_uat_regular",
+        "confirmation": {
+          "create": true,
+          "update": true,
+          "cleanup": true
+        },
+        "write_actions": [
+          "ai-ops.create-my-provider",
+          "ai-ops.update-my-provider",
+          "ai-ops.delete-my-provider"
+        ],
+        "readback": {
+          "created": true,
+          "updated": true,
+          "updated_description": "M5 UAT 已验证用户归属和确认式更新"
+        },
+        "settlement": {
+          "slo_ms": 60000,
+          "create_ms": 432,
+          "update_ms": 155
+        },
+        "cleanup": {
+          "action": "ai-ops.delete-my-provider",
+          "deleted": true,
+          "residual_count": 0
+        }
+      },
+      {
+        "version": "web-to-tui-controlled-write-receipt.v1",
+        "run_id": "tux05-production-safe-local-fixed-20260829",
+        "entity_type": "strategy",
+        "entity_id": 5,
+        "entity_name": "M5 UAT 策略 tux05pro",
+        "actor_username": "m5_uat_regular",
+        "owner_username": "m5_uat_regular",
+        "confirmation": {
+          "create": true,
+          "update": true,
+          "cleanup": true
+        },
+        "write_actions": [
+          "strategy.workbench-create",
+          "strategy.workbench-update",
+          "strategy.workbench-delete"
+        ],
+        "readback": {
+          "created": true,
+          "updated": true,
+          "updated_description": "M5 UAT 已验证详情与确认式更新"
+        },
+        "settlement": {
+          "slo_ms": 60000,
+          "create_ms": 322,
+          "update_ms": 274
+        },
+        "cleanup": {
+          "action": "strategy.workbench-delete",
+          "deleted": true,
+          "residual_count": 0
+        }
+      }
+    ]
+  },
+  "validation": [
+    {
+      "command": "npm run build:tui && npm run check:tui && npm run test:tui-js",
+      "outcome": "passed",
+      "passed": 44,
+      "bundle_sha256": "1d8ba60d0a89633a0edbb26f52f1bdda2153a292b05397831fe3297ccd38bb6f"
+    },
+    {
+      "command": "pytest tests/unit/test_tui_workbench.py tests/unit/test_terminal_agent_service.py --reuse-db -q",
+      "outcome": "passed",
+      "passed": 328
+    },
+    {
+      "command": "pytest tests/unit/test_web_to_tui_candidate_evidence_recorder.py -q",
+      "outcome": "passed",
+      "passed": 7
+    },
+    {
+      "command": "pytest tests/component/test_tui_adapters.py tests/component/test_tui_internal_action_executor.py",
+      "outcome": "passed",
+      "passed": 3
+    },
+    {
+      "command": "production-safe local Chromium UAT",
+      "outcome": "passed",
+      "passed": 10
+    },
+    {
+      "command": "TUI presentation, action-density, metadata-source and static-contract guards",
+      "outcome": "passed",
+      "violations": 0
+    },
+    {
+      "command": "published and generated TUI metadata validators",
+      "outcome": "passed",
+      "published": "12 screens / 413 actions",
+      "generated": "17 screens / 475 actions"
+    },
+    {
+      "command": "python scripts/web_template_migration_inventory.py --check",
+      "outcome": "passed",
+      "templates": 196,
+      "route_pages": 117
+    },
+    {
+      "command": "python scripts/check_mypy_regression.py apps/terminal/infrastructure/tui_adapters.py && python scripts/check_mypy_debt_ceiling.py",
+      "outcome": "passed",
+      "regressions": 0,
+      "debt_errors": 0
+    },
+    {
+      "command": "architecture, governance, Django and active-plan registry checks",
+      "outcome": "passed",
+      "violations": 0
+    },
+    {
+      "command": "Black, isort, Ruff and git diff --check over changed implementation/test files",
+      "outcome": "passed"
+    }
+  ],
+  "review": {
+    "sol_decision": "passed",
+    "luna_inventory_reviewed": true,
+    "review_corrections": [
+      "Added an adapter regression and explicit render for unrendered template responses.",
+      "Prioritized runnable non-immersive dashboard deep links instead of raising the concurrency cap.",
+      "Cleared the production-safe receipt sink from the full external-AI recorder profile."
+    ]
+  },
+  "limitations": [
+    "This artifact is repository acceptance from a disposable local database, not production role-owner acceptance.",
+    "The first complete local run recorded 9/10 because passive dashboard reads saturated the unchanged six-slot action gate; the explicit-task priority fix was then regression-tested and the complete 10-test profile passed without retry or timeout relaxation.",
+    "The corrected commit has not yet passed remote CI/review/merge, has not been deployed from a clean worktree and has not produced candidate-bound production UAT evidence.",
+    "External AI, queued runtime, authority/approval mutation, active RSS, shared quota, load/fault and maintenance/live rollback were not executed and remain independently fail-closed."
+  ],
+  "rollback_points": [
+    "Restore the previous F9 task-panel expansion behavior in frontend/tui-workbench/src/50-shell.js.",
+    "Restore the previous confirmed action terminal status and dashboard deep-link scheduling in the maintained Workbench sources, then rebuild the bundle.",
+    "Restore the previous TUI internal response normalization only if every template-based delete endpoint is replaced with a rendered or structured response.",
+    "Restore recorder v1 only together with removal of the production-safe profile and its canonical v2 evidence; do not mix report schemas."
+  ],
+  "production_actions": {
+    "deployment_performed": false,
+    "production_write_performed": false,
+    "external_ai_call_performed": false,
+    "queued_runtime_enabled": false,
+    "authority_or_approval_changed": false,
+    "load_fault_or_live_rollback_performed": false
+  },
+  "next_gate": "Create the coherent corrective commit, pass remote CI and review, merge it, freeze a new immutable main candidate from an independent clean worktree, deploy only through the authorized backup/migration/current-switch/restart/automatic-failure-rollback package, and run the candidate-bound production-safe recorder before seeking real role-owner confirmation."
+}

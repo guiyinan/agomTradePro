@@ -323,3 +323,24 @@ outcome=`zero_seed`，并固定 `production_claim=false`、`production_ready=fal
 evidence。该证据只将既有 zero-seed 阻断重绑定到当前生产候选；`STRAT-01` 继续
 `awaiting_production`，真实 owner/definition/policy/calendar/scope/qualification 输入仍需业务
 owner 决定，`STRAT-02/03` 依赖不变。
+
+## 23. 2026-08-29：STRAT-01 部署后 owner-ledger 只读重绑定（09269c14）
+
+在 candidate `09269c14db1024584913081db49919085f34d008` / release `20260829163806` /
+image `sha256:08650701deaa8286c5818a9ed1ba15d96f740fcc646d38e56d0a979c413884da`
+上执行同一 `default` alias、单个 PostgreSQL `REPEATABLE READ READ ONLY` inventory。观察时间
+`2026-08-29T09:20:58.172893Z`；Research R1–R8 为 `65` 表、Portfolio R4/R5/R8 为 `7`
+表、Account authority/assignment 广义集合为 `16` 表、owner/policy/operator/assignment 广义
+集合为 `35` 表，四组均为 `row_count_total=0`、`nonzero_table_count=0`。
+
+原始快照
+[`strat-01-owner-ledger-readonly-recheck-2026-08-29-09269c14.json`](../deployment/strat-01-owner-ledger-readonly-recheck-2026-08-29-09269c14.json)
+SHA-256=`263f9813715e5577b1423d04f9409f10ad03ced5c1bd6fa9c021345cd68253c7`；canonical recorder
+生成
+[`65fb8e2f45db6ddcea7bc19e4b96accf41764598644fd8b37d9abcec0e864a79.json`](../deployment/strat-01-owner-ledger-inventory/65/65fb8e2f45db6ddcea7bc19e4b96accf41764598644fd8b37d9abcec0e864a79.json)，
+artifact SHA 与文件名一致，outcome=`zero_seed`，并固定 `production_claim=false`、
+`production_ready=false`、`runtime_enablement=not_authorized`。
+
+本轮未创建、修改、删除、回填、promotion 或审批。STRAT-01 继续
+`awaiting_production`；下一门仍需命名业务 owner 提供并批准真实 definition/policy/calendar/
+scope/qualification，不能从零行只读事实推导 readiness。

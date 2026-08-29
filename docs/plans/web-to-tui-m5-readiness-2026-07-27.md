@@ -812,3 +812,96 @@ SHA-256=`466b06878229fdead920ad5cf31de5a09bcd18d79cb5a1321271fa432b095ff3`。
 cleanup、负载、fault injection 或 rollback。TUI-01 仍为 `awaiting_production`；下一步只能在精确授权后
 对 `09269c14…` 做保留 PostgreSQL/Redis 的受控 code-only deployment，完成 image build、release/OCI
 identity 与 post-deploy verifier 后，才能开始正式 candidate binding、角色 UAT 与第 0 天观察。
+
+### 2026-08-29 当前候选部署复核（`09269c14` canonical rebind）
+
+在精确授权下，部署前先创建并完整下载 PostgreSQL custom-format backup
+`/opt/agomtradepro/backups/database/postgres-20260829T083336Z.dump`；远端 `pg_restore --list`、
+SFTP 大小和本地 SHA-256 均通过，`146273315` bytes，SHA-256 为
+`a5c77b8c6af13c5f61a3ca7e3fa9437b0bf23b03b049eb758abaf8ef94e2b30a`，没有执行 retention prune。
+随后从 detached clean worktree 的
+`09269c14db1024584913081db49919085f34d008` 执行 code-only source-upload `upgrade`，保留
+PostgreSQL/Redis volumes、启用 Celery、禁用 SQLite 覆盖/Docker wipe/decision repair；部署为
+release `20260829163806`、image
+`sha256:08650701deaa8286c5818a9ed1ba15d96f740fcc646d38e56d0a979c413884da`。
+
+完整 immutable binding 为 `web-to-tui-candidate-binding.v1`：candidate version
+`20260829163806`、candidate commit `09269c14db1024584913081db49919085f34d008`、matrix SHA
+`e3027671d02d876c9f4b38b9d86395d45e26c0f2b344eb0646086be31869cd5d`、graph SHA
+`63be10ee25bb73c87861c18cc92355938fd7abc096c33852bf5f904d4db532a2`、schema
+`tui-metadata.v3`、runtime version `0.2.0`、runtime build
+`agomtui-runtime-0.2.0+7b2efaff4f9a`、runtime manifest SHA
+`bfa8eeb81da5165414a882f77f3333268847f217f858925a40597d720548e6fe`。
+
+部署事务应用 `audit.0013_systemauditdeliveryreceipt`，canonical schema check 通过，TUI registry
+`30` 以 backend version `20260829163806` 发布且 active source hash 匹配。独立 verifier 绑定精确
+commit，Caddy/TLS、health、容器、Django deploy check、migrations、canonical schema、TUI registry、
+`pyqlib=0.9.7`/Python 3.11、release/OCI、backup、resources、Celery worker/beat/ping 全部通过，
+未触发自动 rollback。结构化 deployment acceptance 为
+[`release-candidate-deployment-2026-08-29-09269c14.json`](../deployment/release-candidate-deployment-2026-08-29-09269c14.json)，
+SHA-256=`8e7646b373812739d621bc2afdac5a9ed648936d9e48d07f1618f2e18d7108d6`；M5 deployment preflight 为
+[`web-to-tui-deployment-preflight-20260829163806.json`](../deployment/web-to-tui-deployment-preflight-20260829163806.json)，
+SHA-256=`c28f3ebcaeeb51afa407596e6b587fb1a446636934ec62bf3c3d3c73036380d0`。
+
+`web_to_tui_cutover_evidence.v1.json` 已只重绑 candidate commit/version、matrix/graph/runtime 和
+deployment preflight；旧候选的 UAT、cleanup、defect、telemetry、rollback、registry backup 与审批
+均保持空值，未继承历史通过项。公网 health/ready/audit 为 `200`，ready 的 decision-data 已为 `ok`；
+但 decision-ready 仍为 `503 blocked`、`must_not_use_for_decision=true`，M5 readiness 继续 `DENY`。
+TUI-01 仍为 `awaiting_production`；下一门是对这一精确候选取得 role UAT 与生产 write receipt 授权，
+通过后才可启动 closing 14-day observation。未执行 load/chaos、registry restore、live rollback 或代签。
+
+### 2026-08-29 release `20260829163806` 生产角色浏览器 UAT checkpoint
+
+在精确授权下，先复核生产 `current`、容器 image 与 OCI revision，均继续绑定
+`09269c14db1024584913081db49919085f34d008` / release `20260829163806` /
+`sha256:08650701deaa8286c5818a9ed1ba15d96f740fcc646d38e56d0a979c413884da`，未发现候选漂移。
+三个现有 UAT 角色账户均存在且启用；普通角色名下的账户 `626/627` 可用于参数化读取。固定套件的
+route-page 解析测试通过，覆盖矩阵筛选出的 `108/108` 路由；最小权限动态 direct-read、operator/regular
+边界与 `9/9` 参数化读取测试也通过。初始只读批次为 `6 passed / 2 failed`，有界重跑确认三个视口均
+通过，桌面账户网格首次失败属于读取时延；但账户创建/补参/取消链路连续两次稳定失败：F9 面板内
+目标表单存在，精确“创建”按钮仍无法在 30 秒内变为可点击，且两次均未产生生产写入。
+
+普通 UAT 用户的策略 create/detail/update 已形成数据库写回执：`StrategyModel#8` 的版本为 `2`、描述
+与更新值一致；浏览器在更新确认后仍停留“读取数据”超过固定 5 秒断言，因此 fixed test 失败。随后
+仅按本次 run 的精确名称、owner 与主键删除 1 条，复核剩余为 0。个人 AI provider 生命周期 fixed
+test 通过；`AIProviderConfig#16` 读回为 user scope、owner user `6`、`is_active=false`、更新描述一致，
+未记录密钥内容，随后精确删除 1 条并复核剩余为 0。
+
+结构化 checkpoint 为
+[`web_to_tui_production_uat_checkpoint_20260829163806.v1.json`](../../config/tui/migration/evidence/web_to_tui_production_uat_checkpoint_20260829163806.v1.json)，
+SHA-256=`970193d031be43c7d33934007a9a3389546ba95f3df670775c6c50c51fcd28ab`。报告保留四份 JUnit 的
+hash、两张失败截图的 hash、候选/角色预检、写后 readback 与 exact cleanup receipt。未运行会激活
+RSS/关键词、修改共享 quota、创建 pending approval proposal、触发 factor/backtest/provider 或外部
+AI/Terminal Agent 的批次；未启用 queued runtime，未扩大流量、做 load/fault、maintenance 或 live
+rollback，也未代替 role owner 判断业务结果。
+
+因此当前证据是 material checkpoint，不是 canonical UAT pass：
+`web_to_tui_cutover_evidence.v1.json` 的 `uat` 仍保持空，M5 readiness 保持 `DENY`，TUI-01 继续
+`awaiting_production`。下一门是先修复并重新发布同候选族的账户 action 可达性与写后 loading
+收敛缺陷，再以不会修改 authority/approval、不会触发外部/queued/load 的生产安全 suite 重跑；完整
+recorder 无 failure/error/skip 且真实 role owner 确认前，不得晋级 TUI-01 或启动 14 日窗口。
+
+### 2026-08-29 production-safe recorder 与 corrective repository exit
+
+TUX-05 corrective 已将 fixed production-safe UAT 定义为独立 recorder profile，而不是对原 `15`
+项 full/external-AI suite 做 skip。该 profile 精确选择 `10` 个参数化后 case：账户缺参/确认取消、
+regular/operator/admin 边界、三个 viewport、矩阵 `108/108` route-page、最小权限 direct reads、
+`9/9` 参数化 reads，以及普通用户自有 strategy/personal-provider 的 create/update/readback/confirmed
+delete 生命周期。两条 controlled receipt 必须共享非空 run ID，并包含 entity type、PK、name、actor、
+owner、confirmation、动作序列、写后 readback、60 秒 settlement SLO、exact cleanup 和
+`residual_count=0`；任何敏感 key、缺失实体、重复/跨 run receipt 或 cleanup 残留都会使 recorder
+fail closed。full profile 继续要求外部 AI，但显式清除 production-safe receipt sink，二者证据不能混写。
+
+本地隔离 Chromium 最终 `10/10`、`0 skipped`、`162.75s`，两实体 create/update 分别在
+`322/274ms` 与 `432/155ms` 收敛并 cleanup 为 0。首轮 `9/10` 不是被忽略：`research.signals`
+显式 deep-link 与被动 dashboard reads 竞争既有 6-slot action gate，`signal.list` 收到 `503`；修复让
+可直接运行的非沉浸式 dashboard deep-link 优先，不增加并发、不重试请求、不延长超时。账户 F9
+action 可达与 confirmed mutation “操作完成”状态均有 Workbench 和真实浏览器回归；strategy/provider
+delete 另补未渲染 template response adapter 回归。规范化本地证据为
+[`tux05-corrective-repository-closure-evidence-2026-08-29.json`](../testing/tux05-corrective-repository-closure-evidence-2026-08-29.json)。
+
+该结果只关闭 TUX-05 repository gate，不填充 canonical `uat`。TUI-01 下一门仍是 corrective commit
+通过 CI/review/merge，从新 `main` 的独立 clean worktree 冻结并部署新候选，再由 candidate-bound
+production-safe recorder 对真实生产角色重跑；外部 AI、queued runtime、authority/approval、active
+RSS/shared quota、load/fault、maintenance/live rollback 继续不在本授权包内，真实 role owner 的业务
+确认也不能由 recorder 代签。

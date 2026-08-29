@@ -1594,3 +1594,31 @@ runtime `0.2.0`, build `agomtui-runtime-0.2.0+7bc2ca13ee9d`, and manifest
 No role-based browser UAT, write receipt/refresh, closing 14-day telemetry, registry
 backup/restore, rollback drill, or owner/reviewer sign-off is attached to this identity record;
 M5 remains `DENY`.
+## 2026-08-29 17:06 当前候选部署与观测（`09269c14`）
+
+在精确授权下，先创建、远端格式校验并下载 PostgreSQL backup
+`/opt/agomtradepro/backups/database/postgres-20260829T083336Z.dump`；归档为 `146273315` bytes，
+远端 `pg_restore --list`、SFTP 大小和本地 SHA-256
+`a5c77b8c6af13c5f61a3ca7e3fa9437b0bf23b03b049eb758abaf8ef94e2b30a` 全部通过，未执行 prune。
+随后从 detached clean worktree 的 `09269c14db1024584913081db49919085f34d008` 以 source-upload
+code-only `upgrade` 发布 release `20260829163806` / image
+`sha256:08650701deaa8286c5818a9ed1ba15d96f740fcc646d38e56d0a979c413884da`。PostgreSQL/Redis volumes
+保留，Celery 启用；`audit.0013_systemauditdeliveryreceipt` 应用成功，canonical schema、TUI registry
+`30`、Django deploy check、TLS/health、`pyqlib=0.9.7`/Python 3.11、release/OCI、worker/beat/ping 全通过。
+独立 expected-commit verifier armed 自动 rollback，但没有检查失败，因此未触发 rollback。
+
+完整 binding 为 `web-to-tui-candidate-binding.v1`：candidate version `20260829163806`、candidate commit
+`09269c14db1024584913081db49919085f34d008`、matrix SHA
+`e3027671d02d876c9f4b38b9d86395d45e26c0f2b344eb0646086be31869cd5d`、graph SHA
+`63be10ee25bb73c87861c18cc92355938fd7abc096c33852bf5f904d4db532a2`、schema `tui-metadata.v3`、
+runtime version `0.2.0`、runtime build `agomtui-runtime-0.2.0+7b2efaff4f9a`、runtime manifest SHA
+`bfa8eeb81da5165414a882f77f3333268847f217f858925a40597d720548e6fe`。结构化部署证据为
+[`release-candidate-deployment-2026-08-29-09269c14.json`](release-candidate-deployment-2026-08-29-09269c14.json)，
+SHA-256=`8e7646b373812739d621bc2afdac5a9ed648936d9e48d07f1618f2e18d7108d6`；M5 preflight 为
+[`web-to-tui-deployment-preflight-20260829163806.json`](web-to-tui-deployment-preflight-20260829163806.json)，
+SHA-256=`c28f3ebcaeeb51afa407596e6b587fb1a446636934ec62bf3c3d3c73036380d0`。
+
+公网 health/ready/audit 为 `200`，ready decision-data 已为 `ok`；decision-ready 仍为 `503 blocked`、
+`must_not_use_for_decision=true`。本次未启用 queued runtime、未做 role UAT/write receipt、load/chaos、
+registry restore、live rollback 或 owner/reviewer 代签。旧候选 UAT/telemetry/approval 不继承；TUI-01、
+TAR-05、AUD-03、DATA-01 继续 `awaiting_production`，M5 readiness 继续 `DENY`。

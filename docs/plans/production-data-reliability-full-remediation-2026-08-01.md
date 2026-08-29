@@ -1161,3 +1161,45 @@ artifact SHA 同文件名，`isolated_restore_verified=true`、`production_claim
 没有进入生产维护态、执行生产 restore/live rollback、创建或清理远端备份、回填/reconciliation 或
 人工签字。因此 `DATA-01` 继续 `awaiting_production`，其 live maintenance/rollback 与 owner 授权退出门
 仍未满足，`DATA-02/03` 不解锁。
+
+## 2026-08-29：新候选部署前 PostgreSQL 恢复点
+
+在精确授权下为 release `20260829163806` 部署创建了新的 PostgreSQL custom-format backup：远端
+`/opt/agomtradepro/backups/database/postgres-20260829T083336Z.dump`，本地
+`backups/vps-postgres/postgres-20260829T083336Z.dump`。远端 `pg_restore --list`、SFTP 完整下载、
+远端/本地大小和本地 SHA-256 均通过；归档为 `146273315` bytes，SHA-256=
+`a5c77b8c6af13c5f61a3ca7e3fa9437b0bf23b03b049eb758abaf8ef94e2b30a`。未启用 retention prune，
+没有删除历史 dump，也没有 restore 生产库。
+
+该 backup 已作为 rollback point 写入
+[`release-candidate-deployment-2026-08-29-09269c14.json`](../deployment/release-candidate-deployment-2026-08-29-09269c14.json)。
+它完成了 DATA-01 的“创建、下载、格式和 hash 校验”切片，但新 dump 尚未完成本地 isolated restore
+逐表/迁移/sequence 对账，也未进入 maintenance、production restore 或 live rollback。`DATA-01` 继续
+`awaiting_production`；下一安全切片是对该 immutable dump 做本地隔离恢复，production maintenance/rollback
+仍需 owner 精确授权。
+
+## 2026-08-29：新候选预部署恢复点本地隔离 restore 验收
+
+已在唯一命名的 disposable `postgres:16-alpine` 中将同一 immutable dump 建立为 source 基线，
+再由 `verify_postgres_backup_restore.py` 创建受控前缀的第二个 restore 库完成精确对账。归档在格式
+校验前、校验后和 restore 后 SHA-256 均为
+`a5c77b8c6af13c5f61a3ca7e3fa9437b0bf23b03b049eb758abaf8ef94e2b30a`，大小
+`146273315` bytes，非注释 restore entries=`7220`。source/restore 均为 `541` 张 public 表、
+`72` 项 Data Center migrations 和 `462` 个 sequences，schema SHA-256 均为
+`028087c07f0c1cbc2dc2949d1fab8e47bc92e9226d2965bb528766c4ec218d81`；missing/extra/changed
+tables、migrations、sequences 与 schema 差异全部为零。
+
+原始 verifier 报告
+[`data01-current-backup-restore-2026-08-29-09269c14.json`](../deployment/data01-current-backup-restore-2026-08-29-09269c14.json)
+为 `291178` bytes，SHA-256=`d7c438ebfdb239cba629c97e96a2e987a15b945abb3cd552501151a2f87020ca`；
+第二次 restore=`719.811s`、verification=`586.979s`、总计=`1864.578s`。canonical recorder
+生成
+[`a8da9c326c130ec5be19acbc525382178c258075c6aa55531e86c560552bb121.json`](../deployment/data01-isolated-restore/a8/a8da9c326c130ec5be19acbc525382178c258075c6aa55531e86c560552bb121.json)，
+artifact SHA 与文件名一致，`isolated_restore_verified=true`、`production_claim=false`、
+`production_ready=false`、`runtime_enablement=not_authorized`。临时 restore 库、source 库和容器
+均已删除。
+
+该验收只证明新恢复点在本地隔离环境中传输、格式、schema 与数据自洽；本地耗时不能冒充生产
+RTO/RPO。本轮没有进入生产 maintenance、执行 production restore/live rollback、prune、backfill、
+reconciliation 或代替 owner 决策。`DATA-01` 继续 `awaiting_production`，下一真实门为生产 owner
+选择维护窗口并精确授权 live maintenance/rollback rehearsal，`DATA-02/03` 不解锁。

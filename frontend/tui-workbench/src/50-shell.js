@@ -358,6 +358,16 @@
             grid.classList.remove("is-dashboard");
             setWorkspaceViewKind("idle");
         }
+        const actions = state.screen?.actions || [];
+        if (actions.some((action) => actionTier(action) === "support")) {
+            state.showSupportTasks = true;
+        }
+        if (actions.some((action) => actionTier(action) === "advanced")) {
+            state.showAdvancedQueries = true;
+        }
+        if (actions.length) {
+            refreshRenderedActionPanel(actions, state.screen?.screen || {});
+        }
         const actionFilter = els.actions.querySelector("[data-action-filter]");
         if (actionFilter) {
             actionFilter.focus();
@@ -970,6 +980,7 @@
                         }
                         renderScreen(payload.screen, {
                             suppressAutoAction: Boolean(deepLinkedAction),
+                            deepLinkedActionKey: deepLinkedAction,
                         });
                         focusDeepLinkedAction(payload.screen, deepLinkedAction);
                         syncBrowserScreenLocation(payload.screen?.screen?.key, {
