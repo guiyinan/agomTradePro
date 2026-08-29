@@ -26,3 +26,12 @@ condition = "AND"
 regexTarget = "line"
 regexes = ['''^\s*"apps/terminal/infrastructure/[^\"]+"\s*:\s*"[0-9a-f]{64}",?\s*$''']
 paths = ['''^config/tui/agomtui-runtime\.manifest\.json$''']
+
+[[rules]]
+id = "generic-api-key"
+
+[[rules.allowlists]]
+description = "Allow the exact DATA-01 migration identifier misclassified as an API key"
+condition = "AND"
+stopwords = ['''0068_evaluation_actual_ledgers''']
+paths = ['''^docs/deployment/data01-isolated-restore/e1/e13d10587add53aa1b6e53f3143f05f4de4cf30d7f8e465d833457da88016870\.json$''']
