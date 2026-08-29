@@ -94,7 +94,7 @@
       "version": "web-to-tui-candidate-binding.v1"
     },
     "evidence": "config/tui/migration/evidence/web_to_tui_uat_candidate.production-safe.v2.json",
-    "evidence_sha256": "90736bcb33268095218cd9467bb984fb8478db3d62044c5de1fd89736ae573c4",
+    "evidence_sha256": "47063a79228699c3eaa7adc50f592a7bcffde5b0e1b9832e3165222e586ad291",
     "passed_route_pages": [
       "apps/agent_runtime/templates/agent_runtime/operator_proposal_detail.html",
       "apps/agent_runtime/templates/agent_runtime/operator_proposal_list.html",

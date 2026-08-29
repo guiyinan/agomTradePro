@@ -23,8 +23,8 @@
         "create": true,
         "update": true
       },
-      "entity_id": 18,
-      "entity_name": "M5 UAT 服务商 tux05pro",
+      "entity_id": 19,
+      "entity_name": "M5 UAT 服务商 tui01161",
       "entity_type": "ai_provider",
       "owner_username": "m5_uat_regular",
       "readback": {
@@ -32,11 +32,11 @@
         "updated": true,
         "updated_description": "M5 UAT 已验证用户归属和确认式更新"
       },
-      "run_id": "tux05-production-20260829233430",
+      "run_id": "tui01-161cf87a-20260830-01",
       "settlement": {
-        "create_ms": 1961,
+        "create_ms": 933,
         "slo_ms": 60000,
-        "update_ms": 937
+        "update_ms": 942
       },
       "version": "web-to-tui-controlled-write-receipt.v1",
       "write_actions": [
@@ -57,8 +57,8 @@
         "create": true,
         "update": true
       },
-      "entity_id": 10,
-      "entity_name": "M5 UAT 策略 tux05pro",
+      "entity_id": 11,
+      "entity_name": "M5 UAT 策略 tui01161",
       "entity_type": "strategy",
       "owner_username": "m5_uat_regular",
       "readback": {
@@ -66,11 +66,11 @@
         "updated": true,
         "updated_description": "M5 UAT 已验证详情与确认式更新"
       },
-      "run_id": "tux05-production-20260829233430",
+      "run_id": "tui01-161cf87a-20260830-01",
       "settlement": {
-        "create_ms": 970,
+        "create_ms": 997,
         "slo_ms": 60000,
-        "update_ms": 964
+        "update_ms": 966
       },
       "version": "web-to-tui-controlled-write-receipt.v1",
       "write_actions": [
@@ -81,7 +81,7 @@
     }
   ],
   "profile": "production-safe",
-  "recorded_at": "2026-08-29T15:58:08.209138+00:00",
+  "recorded_at": "2026-08-29T22:19:26.737850+00:00",
   "route_results": [
     {
       "status": "passed",
@@ -520,61 +520,61 @@
     "cases": [
       {
         "classname": "tests.playwright.tests.uat.test_web_to_tui_m5",
-        "duration_seconds": 30.001,
+        "duration_seconds": 40.561,
         "name": "test_account_read_missing_fields_and_confirmation_cancel[chromium]",
         "status": "passed"
       },
       {
         "classname": "tests.playwright.tests.uat.test_web_to_tui_m5",
-        "duration_seconds": 497.645,
+        "duration_seconds": 312.825,
         "name": "test_every_migrated_route_resolves_its_reviewed_tui_deep_link[chromium]",
         "status": "passed"
       },
       {
         "classname": "tests.playwright.tests.uat.test_web_to_tui_m5",
-        "duration_seconds": 16.893,
+        "duration_seconds": 14.16,
         "name": "test_operator_group_can_open_queue_but_regular_user_cannot[chromium]",
         "status": "passed"
       },
       {
         "classname": "tests.playwright.tests.uat.test_web_to_tui_m5",
-        "duration_seconds": 91.923,
+        "duration_seconds": 55.227,
         "name": "test_parameterized_read_primary_tasks_complete[chromium]",
         "status": "passed"
       },
       {
         "classname": "tests.playwright.tests.uat.test_web_to_tui_m5",
-        "duration_seconds": 36.306,
+        "duration_seconds": 20.055,
         "name": "test_personal_ai_provider_detail_update_lifecycle_completes[chromium]",
         "status": "passed"
       },
       {
         "classname": "tests.playwright.tests.uat.test_web_to_tui_m5",
-        "duration_seconds": 332.343,
+        "duration_seconds": 254.446,
         "name": "test_role_appropriate_direct_read_primary_tasks_complete[chromium]",
         "status": "passed"
       },
       {
         "classname": "tests.playwright.tests.uat.test_web_to_tui_m5",
-        "duration_seconds": 39.948,
+        "duration_seconds": 25.651,
         "name": "test_strategy_create_detail_update_lifecycle_completes[chromium]",
         "status": "passed"
       },
       {
         "classname": "tests.playwright.tests.uat.test_web_to_tui_m5",
-        "duration_seconds": 12.771,
+        "duration_seconds": 6.869,
         "name": "test_tui_core_layout_has_no_horizontal_overflow[chromium-desktop-1440x900]",
         "status": "passed"
       },
       {
         "classname": "tests.playwright.tests.uat.test_web_to_tui_m5",
-        "duration_seconds": 10.479,
+        "duration_seconds": 6.976,
         "name": "test_tui_core_layout_has_no_horizontal_overflow[chromium-tablet-1024x768]",
         "status": "passed"
       },
       {
         "classname": "tests.playwright.tests.uat.test_web_to_tui_m5",
-        "duration_seconds": 16.739,
+        "duration_seconds": 8.764,
         "name": "test_tui_core_layout_has_no_horizontal_overflow[chromium-mobile-390x844]",
         "status": "passed"
       }

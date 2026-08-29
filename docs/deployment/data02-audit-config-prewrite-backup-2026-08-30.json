@@ -1,0 +1,27 @@
+{
+  "archive": {
+    "local_path": "D:\\githv\\agomTradePro-release-closure-20260830\\backups\\vps-postgres\\postgres-20260829T220625Z.dump",
+    "local_sha256": "434903ac03c4fd6e4623682c65628f6b3f7be533a279b53fa063d692470e3d95",
+    "local_size_bytes": 146646151,
+    "partial_rejected": true,
+    "remote_manifest_entries": 7244,
+    "remote_manifest_sha256": "c69708b9d1d080230faeac76c286fa611b22b4bf66481657392fd4cf2be37927",
+    "remote_sha256": "434903ac03c4fd6e4623682c65628f6b3f7be533a279b53fa063d692470e3d95",
+    "remote_size_bytes": 146646151
+  },
+  "artifact_type": "data_backup_evidence",
+  "content_hash": "23d6f5cea5da1b1baa4dd20025a96f2070343efe1443d5737c69848b4f78e986",
+  "schema": "data-backup-evidence.v1",
+  "source": {
+    "age_seconds": 1,
+    "host": "62.171.144.39",
+    "remote_collected_at": "2026-08-29T22:07:53Z",
+    "remote_mtime": "2026-08-29T22:07:52Z",
+    "remote_path": "/opt/agomtradepro/backups/database/postgres-20260829T220625Z.dump"
+  },
+  "verification": {
+    "pg_restore_manifest_verified": true,
+    "remote_local_sha256_match": true,
+    "remote_local_size_match": true
+  }
+}
