@@ -1,5 +1,7 @@
 # Terminal Agent 多用户队列、Worker 隔离与服务端 CLI 运行整改计划
 
+> TAR-05 的 provider、1/5/10/20、chaos、rollback 和观察顺序见 [`release-blocker-closure-execution-plan-2026-08-29.md`](release-blocker-closure-execution-plan-2026-08-29.md)；通过前 inline concurrency clamp 保持为 1。
+
 > 创建日期：2026-08-18
 > 工作流：`terminal-agent-multi-user-runtime`（category: `product_interface_and_runtime`，priority: P0）
 > Owner：`agent_runtime + terminal + task_monitor + operational_readiness + sdk + mcp`

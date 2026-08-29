@@ -1,5 +1,7 @@
 # Web 界面 → TUI 整体迁移计划（M0-M5）
 
+> TUI-01/02 的候选、角色 UAT、14 日观察与回滚顺序见 [`release-blocker-closure-execution-plan-2026-08-29.md`](release-blocker-closure-execution-plan-2026-08-29.md)。
+
 > **文档日期**: 2026-07-25
 > **最后修订**: 2026-08-14
 > **状态**: 实施中；M0、M0-D、M1、M2、M3 与 M4 仓库实现已完成；M5 遥测、同任务错误率与机器 cutover gate 已落地，但历史 108/108 UAT、cleanup 和本地 rollback 未绑定当前 candidate graph/runtime snapshot，已于 2026-08-13 改判未通过；当日生产 preflight 虽确认 release 已更新且 health/ready 正常，但 OCI revision=`unknown` 且无 source manifest，仍无候选部署证明；14 日窗口、最终候选 UAT/回滚、生产样本、缺陷窗口、生产 registry 备份与审批均未满足，当前禁止清理 Classic

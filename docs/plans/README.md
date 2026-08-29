@@ -1,6 +1,6 @@
 # 活跃计划索引
 
-> 更新日期：2026-08-29
+> 更新日期：2026-08-30
 > 本目录只保留仍需开发、真实数据、生产验收或外部依赖闭环的计划。已完成的实施计划、阶段记录、复盘和历史证据统一放在 [`../archive/plans/`](../archive/plans/)；归档记录见 [`../archive/ARCHIVE_INDEX.md`](../archive/ARCHIVE_INDEX.md)。
 
 ## 维护规则
@@ -57,9 +57,9 @@
 |------|-----:|
 | 独立工作流 | 9 |
 | 主计划 | 18 |
-| 支撑文档、证据与矩阵 | 22 |
+| 支撑文档、证据与矩阵 | 23 |
 | 限期审查项 | 0 |
-| 注册表覆盖的活跃文件 | 40 |
+| 注册表覆盖的活跃文件 | 41 |
 | 历史未勾选细项 | 136（非执行口径） |
 | 去重后 canonical closure units | 28 |
 
@@ -71,7 +71,7 @@
 |----|--------|------|-------|--------|------------|
 | `evidence-hard-gate` | P0 | production_validation | Research / Risk / Portfolio / Broker / Account | [Evidence hard gate](evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md) | EVID-01 repository 合同已完成当前安全代码审计并转入生产验证；受控候选 `94abd76e…` / release `20260824133504` 已应用 `0055`/`0029`，但 13 张 authority/evidence 表仍 zero-seed。下一门是独立 root approval、生产 PG race/revocation/rollback、same-alias 端到端回执与双签；不重复部署。EVID-02 并行自动取证，执行 deny 保持不变 |
 | `strategy-research-production` | P0 | production_validation | Research / Data Center / Signal / Portfolio / Broker | [Completion audit](strategy-research-capability-completion-audit-2026-08-05.md)、[Roadmap](strategy-research-capability-roadmap-execution-2026-08-05.md)、[生产数据跟踪](strategy-research-production-data-closure-tracking-memo-2026-08-12.md)、[R1-R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md)、[R3-R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md)、[R5-R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) | 真实 owner/receipt/PIT-OOS 历史、Promotion 与 consumer UAT |
-| `data-production-reliability` | P0 | production_validation | Data Center / Operational Readiness / Task Monitor | [Canonical architecture](data-center-canonical-architecture-refactor-2026-08-02.md)、[生产可靠性](production-data-reliability-full-remediation-2026-08-01.md)、[关键测试](critical-reliability-test-closure-2026-07-22.md)、[UAT 整改](uat-remediation-2026-07-20.md) | 生产备份、回填、reconciliation、M9/M10 和观察证据 |
+| `data-production-reliability` | P0 | production_validation | Data Center / Operational Readiness / Task Monitor | [综合清零方案](release-blocker-closure-execution-plan-2026-08-29.md)、[Canonical architecture](data-center-canonical-architecture-refactor-2026-08-02.md)、[生产可靠性](production-data-reliability-full-remediation-2026-08-01.md)、[关键测试](critical-reliability-test-closure-2026-07-22.md)、[UAT 整改](uat-remediation-2026-07-20.md) | DATA-01 已完成；DATA-02 四类 Publication/真实当前事实修复候选待部署、dry-run、执行与 reconciliation；DATA-03 CAS 激活包装器就绪但依赖未解锁，决策门继续 blocked |
 | `system-audit-consolidation` | P0/P1 | production_validation | Audit / Data Center / Task Monitor | [统一审计日志](system-audit-log-consolidation-plan-2026-08-13.md) | AUD-02 corrective repository exit 已完成；AUD-03 等待同一不可变候选上的生产 migration/rollback、PostgreSQL opt-in、backlog recovery、metrics/alerts/TUI、archive/restore 与双签 |
 | `web-to-tui-m5` | P0 | production_validation | Terminal / Operational Readiness | [迁移总计划](web-to-tui-migration-plan-2026-07-25.md)、[M5 readiness](web-to-tui-m5-readiness-2026-07-27.md) | TAR-03 退出并冻结 release surface 后，绑定最终候选、角色 UAT、14 日关闭窗口和签字 cleanup |
 | `terminal-agent-multi-user-runtime` | P0 | production_validation | Agent Runtime / Terminal / Task Monitor / Operational Readiness / SDK / MCP | [多用户队列与服务端 CLI 运行](terminal-agent-multi-user-runtime-plan-2026-08-18.md) | TAR-01 至 TAR-04 repository 合同已完成；下一门是同一不可变候选上的 TUI-01 角色 UAT/写回执与 TAR-05 provider、容量、chaos、恢复、telemetry、双签，queued/worker 默认仍 fail-closed |
@@ -81,11 +81,11 @@
 
 ## 当前执行焦点
 
-- 当前没有 dependency-ready 的 repository 主线，机器 `execution_focus.unit_id=null`。TUX-05 corrective 已以真实 Chromium `10/10` production-safe profile、同 run 写回执与零残留 cleanup 重新完成 repository exit；不得用 CI、部署或生产 UAT 待办制造第二条 repository 主线。
+- 当前没有 active repository 主线，机器 `execution_focus.unit_id=null`。`DATA-01=completed`，`DATA-02=awaiting_production` 是当前授权生产执行线；四类原子 Publication、真实当前事实修复和 DATA-03 激活包装器属于既有 closure unit 的执行能力，不新建第二条 repository 主线。
 - `AUD-02=completed`、`AUD-03=awaiting_production`；`EVID-03` 仍仅在 EVID-01/EVID-02 均完成后启动。null focus 只在零 active 且零依赖已满足 repository unit 时通过机器门禁，不得以已关闭单元或临时发现制造第二条仓库主线。
-- `EVID-01/02`、`DATA-01`、`STRAT-01` 按各自 `auto_collect` 清单并行取证；仅具体生产写入、付费调用和人工决定进入集中授权批次，不再因“需要生产证据”整体停工。
-- `TUI-01` 与 `TAR-05` 的 repository 依赖已满足并进入 `awaiting_production`；release `20260829163806` / `09269c14…` 的 checkpoint 只证明旧候选 108-route/read/cleanup 部分并暴露 corrective defect，canonical UAT 仍为空。经授权须先完成 corrective commit 的 CI/review/merge，再从新 main 独立 clean worktree 冻结和部署新候选，只有 candidate-bound production-safe recorder 全绿与真实 role-owner 确认后才能从第 0 天启动正式 14 日窗口。
-- 生产、外部和治理工作只允许在注册表声明的并行 mode 内进行；任何部署、生产写入或授权动作仍遵循专项计划的权限边界。
+- `EVID-01/02` 与 `STRAT-01` 继续收集真实 owner/root/reviewer 输入；DATA-02 在新候选部署后先 dry-run，再只回填真实 freshness/history 缺口。不得用 fixture、代理签字或修改阈值换取通过。
+- `TUI-01` 的 canonical production-safe UAT 已达 `10/10`、`108/108` 且精确 cleanup 为零残留，但仍需真实 role-owner 确认；确认后才从第 0 天启动 `TUI-02` 14 日窗口。`TAR-05` 仍保持 awaiting production。
+- 用户于 2026-08-30 授权 A1–A8 动作包继续执行；这只授权满足前置门后的精确动作，不替代业务判断、独立签字、券商 XtQuant 环境或不可压缩观察时间。所有失败线继续 fail-closed。
 
 ## 滚动执行排期
 

@@ -1,5 +1,7 @@
 # AgomTradePro AI-Native Milestone Delivery Pack
 
+> Current cross-workstream execution order: [`../release-blocker-closure-execution-plan-2026-08-29.md`](../release-blocker-closure-execution-plan-2026-08-29.md). AI-01 remains gated by TUI-01 and TAR-05.
+
 ## Purpose
 
 This folder contains the execution-ready milestone plans for the AI-native L4 upgrade program.

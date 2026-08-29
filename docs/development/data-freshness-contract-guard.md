@@ -21,6 +21,8 @@ pytest tests/unit/ci/test_check_current_data_contracts.py -q
 4. **降级必须显式**：历史收盘、代理值和不完整数据必须发布明确的 freshness/source/fallback 状态。
 5. **决策输出必须失败关闭**：数据不可靠时发布 `must_not_use_for_decision=true` 和稳定的 `blocked_reason`，不得继续生成确定性建议。
 
+日频 A 股 price/valuation 的自然小时预算到期后，只允许在所有 Publication member 都精确绑定最近已收盘交易日时标记为 `latest_completed_session`；这不会改变源观测时间，也不适用于实时 quote。全市场 current Publication 必须按冻结 universe 原子发布，单标的或中间批次同步只写 fact，不得缩小既有 current member 集合。
+
 ## 版本化登记内容
 
 每个当前数据面必须在 manifest 中登记：
@@ -56,7 +58,7 @@ pytest tests/unit/ci/test_check_current_data_contracts.py -q
 
 ## 现有受管数据面
 
-当前 manifest 登记 19 个数据面，覆盖：
+当前 manifest 登记 53 个数据面，覆盖：
 
 - Realtime 市场概况、轮询副作用、板块表现与缓存榜单；
 - Data Center 最新报价、统一价格、日线收盘/基金净值 failover 与市场温度计；
@@ -69,5 +71,7 @@ pytest tests/unit/ci/test_check_current_data_contracts.py -q
 - Decision Rhythm 特征快照与统一推荐；
 - Pulse 当前快照。
 - TUI 操作者市场上下文对宏观象限、政策截面和 Pulse 时效结论的忠实呈现。
+- Active A-share quote/price/valuation/financial 的全 universe current Publication、完成交易日语义、真实 report-date availability 修复和失败关闭的 provider 批次刷新。
+- 决策运行门的三项严格预检、候选绑定 compare-and-set 激活、激活后复验与失败自动 re-block；禁止以裸 `active` 状态写入替代该流程。
 
 受管范围应随新的决策数据面增加，只能扩展，不能静默删除。

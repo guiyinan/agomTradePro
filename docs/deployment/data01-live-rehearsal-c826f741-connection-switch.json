@@ -1,0 +1,44 @@
+{
+  "schema_version": "data01-live-rehearsal-connection-switch.v1",
+  "candidate_commit": "c826f741edc0f12f5e29fa5b0441b34a89f6dac5",
+  "production_url": "https://demo.agomtrade.pro",
+  "source_database": "agomtradepro",
+  "restore_database": "agomtradepro_restore_verify_d01c826f741",
+  "outcome": "success",
+  "restore_web_boot_seconds": 63,
+  "source_web_boot_seconds": 42,
+  "external_downtime_seconds": 217,
+  "source_identity_verified_after_switchback": true,
+  "critical_counts_before": {
+    "price_bars": 2784337,
+    "valuation_facts": 167724,
+    "financial_facts": 441944,
+    "canonical_publications": 2197,
+    "publication_members": 171503,
+    "terminal_audit_logs": 173
+  },
+  "critical_counts_after": {
+    "price_bars": 2784337,
+    "valuation_facts": 167724,
+    "financial_facts": 441944,
+    "canonical_publications": 2197,
+    "publication_members": 171503,
+    "terminal_audit_logs": 173
+  },
+  "wal_before": "3/EF274DF0",
+  "wal_after": "3/EF274DF0",
+  "post_switchback_checks": {
+    "web_container_healthy": true,
+    "public_health_http_status": 200,
+    "celery_nodes": 1,
+    "decision_runtime_restored": true,
+    "decision_runtime_status": "blocked",
+    "temporary_secret_files_removed": true
+  },
+  "restore_database_removed_after_evidence_download": true,
+  "retained_verified_backup": {
+    "remote_path": "/opt/agomtradepro/backups/database/postgres-20260829T171523Z.dump",
+    "size_bytes": 146743609,
+    "sha256": "18d208a5124862a8993a19f2482a8116c64f8bc6eb930fa934e4db415a86034f"
+  }
+}

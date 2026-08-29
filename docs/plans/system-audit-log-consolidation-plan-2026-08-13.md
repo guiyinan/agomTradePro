@@ -1,5 +1,7 @@
 # AgomTradePro 系统级统一审计日志收口计划
 
+> AUD-03 的受控故障、告警、恢复、archive/restore 与签字编排见 [`release-blocker-closure-execution-plan-2026-08-29.md`](release-blocker-closure-execution-plan-2026-08-29.md)。
+
 > 状态：**M0 机器合同与 M1 Domain/codec/schema-only/repository/query/outbox-claim 合同已落盘；业务双写及 M2+ 待评审实施**
 > 创建日期：2026-08-13
 > 优先级：P0（数据可靠性纵向链路）+ P1（其余系统审计面）

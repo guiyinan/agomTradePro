@@ -1,6 +1,7 @@
 # 生产数据可靠性完整修复与测试计划（2026-08-01）
 
 > 实施状态（2026-08-01）：本地代码、迁移、治理契约和专项回归已完成；待提交、CI、生产备份、维护态切换、全量回填和生产验收。生产步骤完成前不得勾选 P1/P2 的上线验收项。
+> 当前综合编排：[`release-blocker-closure-execution-plan-2026-08-29.md`](release-blocker-closure-execution-plan-2026-08-29.md)。截至 2026-08-30，`DATA-01` 已有真实连接切换/切回证据并关闭；`DATA-02` 原子 Publication 重建候选待部署与生产 dry-run，决策门仍 fail-closed。
 
 ## 1. 背景与问题定义
 
@@ -1203,3 +1204,44 @@ artifact SHA 与文件名一致，`isolated_restore_verified=true`、`production
 RTO/RPO。本轮没有进入生产 maintenance、执行 production restore/live rollback、prune、backfill、
 reconciliation 或代替 owner 决策。`DATA-01` 继续 `awaiting_production`，下一真实门为生产 owner
 选择维护窗口并精确授权 live maintenance/rollback rehearsal，`DATA-02/03` 不解锁。
+
+## 2026-08-30：DATA-01 真实切换演练关闭与 DATA-02 原子发布候选
+
+用户对 A1–A8 动作包给出继续执行授权后，在生产候选
+`c826f741edc0f12f5e29fa5b0441b34a89f6dac5` 上新建并保留
+`/opt/agomtradepro/backups/database/postgres-20260829T171523Z.dump`，下载文件为
+`146743609` bytes，远端/本地 SHA-256 均为
+`18d208a5124862a8993a19f2482a8116c64f8bc6eb930fa934e4db415a86034f`。dump 恢复到 sibling
+`agomtradepro_restore_verify_d01c826f741` 后得到 `542` 张表、`72` 项 Data Center migration、
+`463` 个 sequence 和 schema SHA-256
+`d9f761e83e45cf5111af7b76ef546f99d52d3e7198489a03a458ba9e519ca447`。
+
+隔离库完成 `0072 → 0071 → 0072` 往返；schema、业务表和 migration 名称集合一致，唯一差异是
+Django 正常记录 forward migration 导致 `django_migrations` ledger id/sequence 从 `496` 增为
+`497`。随后真实切换 Web 到 sibling 并切回原库：恢复库启动 `63s`、原库启动 `42s`、公网累计
+不可用 `217s`；price/valuation/financial/publication/member/terminal-audit 六项关键计数切换前后
+完全一致，WAL 前后均为 `3/EF274DF0`。切回后 health=`200`、Celery=`1`，原 decision runtime
+`blocked` 状态恢复；临时库和临时秘密文件已删除，恢复点保留。对应四个 JSON 工件与 hash 见
+[`发布阻塞清零综合实施方案 §13.1`](release-blocker-closure-execution-plan-2026-08-29.md#131-data-01-已关闭)。
+据此 `DATA-01=completed`，但该结论不关闭 AUD-03，也不构成 DATA-02/03 或 decision-ready 通过。
+
+DATA-02 候选新增 `CoreCurrentPublicationRebuildUseCase`、四个 repository latest-candidate selector、
+dry-run-first 的 `rebuild_active_a_share_core_publications` 命令及 composition root。执行前严格校验
+冻结 universe、dataset/table、aware/future observation time 和幂等性；price、valuation、financial
+三类 publication 使用同一外层事务，任一失败整体回滚。常规单资产同步与 backfill 中间批次改为
+fact-only，避免局部任务缩小全市场 current publication；完整 backfill 只有在最终批成功时才原子重建
+三类 publication，失败发布 `blocked` 并保留 checkpoint。
+
+本地定向证据为：application/command 单元测试 `22 passed`、repository selector component
+`3 passed`、current-data guard `52 surfaces`、Celery guard `91 tasks`，相关生产 Python 增量 mypy
+`0 issues`。下一步是部署精确候选后运行 publication dry-run，核对三类 candidate count、最新源观测
+时间与缺口；只对真实 stale/history 缺口执行受控 provider refresh/backfill，完成逐数据集 reconciliation
+后才允许进入 DATA-03。持久化 decision runtime 在此期间继续 `blocked`。
+
+### 2026-08-30：DATA-02 当前事实修复与 DATA-03 激活硬门候选
+
+在全量 Publication 候选之上新增 dry-run-first 的 `repair_active_a_share_current_facts`。执行链以 frozen active-A-share universe 为唯一范围，historical-price/financial 先做非零探针，quote 与 current valuation 按批精确覆盖；任一缺标的即在 Publication 前失败关闭。financial 只把已有真实 `report_date` 的 null `available_at` 写回，不用 fetched/request time 代替；price 只从最近已完成交易日且 15:00 后、OHLC 有效的真实 quote materialize。四份 current Publication 在统一事务内提交，局部同步全部 fact-only。
+
+生产只读 provider preflight（未写 DB）验证：active universe=`5,533`，Tencent failover 返回=`5,533`，源 observation date 均为 `2026-08-28`，invalid/missing OHLC=`0`；EastMoney batch endpoint 的 502/断连被保留为显式 failover 证据。日频 price/valuation freshness 新增最近已收盘交易日语义，避免周末自然小时误判；realtime quote 继续使用更严格的实时/已完成 session 合同。
+
+DATA-03 新增候选绑定的 `activate_decision_runtime_fail_closed`。普通 update use case 与通用 command 不再允许 `active`；激活必须完成三项非 runtime 严格预检、锁行 compare-and-set、精确 release/actor readback、三项立即复验，并在任一漂移时自动 re-block。此处只完成仓库实现与测试，`DATA-02` 尚待部署/生产 dry-run/执行/reconciliation，故 `DATA-03` 状态仍为 `waiting_dependency`。

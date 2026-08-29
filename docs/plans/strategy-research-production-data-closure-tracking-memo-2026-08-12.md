@@ -1,5 +1,7 @@
 # 策略研究真实数据与生产收口跟踪备忘录
 
+> 跨工作流执行顺序与 STRAT-01/02/03 前置门见 [`release-blocker-closure-execution-plan-2026-08-29.md`](release-blocker-closure-execution-plan-2026-08-29.md)；业务定义与 PIT/OOS 历史不得由代理补造。
+
 > 创建日期：2026-08-12  
 > 状态：待开发团队持续执行  
 > 适用范围：R1–R8 策略研究能力  

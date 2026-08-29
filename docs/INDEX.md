@@ -1,7 +1,7 @@
 # AgomTradePro 文档索引
 
 > **AgomTradePro 0.8.0** - 个人投研平台
-> **最后更新**: 2026-08-24
+> **最后更新**: 2026-08-30
 > **项目状态**: 生产验证进行中；关键决策与执行门禁仍 fail-closed
 > **版本管理**: [VERSION.md](VERSION.md)
 
@@ -29,6 +29,8 @@
 
 ## 当前收口说明
 
+- 2026-08-30 DATA-01 已在生产候选 `c826f741…` 完成新备份、sibling restore、`0072→0071→0072` 迁移往返、真实连接切换与切回；关键计数/WAL 一致，health=`200`、Celery=`1`，原决策门恢复为 `blocked`。四个原始证据见下方部署索引；`DATA-01=completed`，但不代表 DATA-02/03、AUD-03 或 decision-ready 通过。
+- 2026-08-30 DATA-02 四类原子全-universe Publication 与当前事实修复候选已实现；生产只读 provider preflight 为 Tencent failover `5,533/5,533`、全部绑定 `2026-08-28`、OHLC 缺口 `0`。DATA-03 同候选增加三检查 + CAS + 自动 re-block 激活包装器，并禁止通用命令裸写 `active`。下一步是部署后 dry-run、真实缺口修复和逐数据集 reconciliation；持久化决策门此前继续 fail-closed。
 - 2026-08-24 EVID-01 最新候选只读复核：候选 `94abd76e…` 的 health/ready/audit 为 `200`、decision-ready 为 `503` fail-closed，`0055`/`0029` 已应用且 13 张 authority/evidence 表全零；快照 [`evid-01-authority-inventory-snapshot-2026-08-24-recheck-2105.json`](deployment/evid-01-authority-inventory-snapshot-2026-08-24-recheck-2105.json)，report [`39760173ab5aa8e4adfab03d088c62519e22e5b6cea40d78eaf2d5d0befd6372.json`](deployment/evid-01-authority-inventory/39/39760173ab5aa8e4adfab03d088c62519e22e5b6cea40d78eaf2d5d0befd6372.json)；`authority_ready=false`、`production_claim=false`，不解除 EVID-01 或全局决策/执行总闸。
 - 2026-08-24 DATA-03 认证 canonical Data Center smoke：同一候选 `94abd76e…` / release `20260824133504` 上，认证 `/api/ready/`=`200`、`/api/decision-ready/`=`503` 且 `must_not_use_for_decision=true`；providers=`200` 返回 2 条脱敏记录，provider status=`200` 但 15 条 capability 中 8 条仍 `must_not_use_for_decision=true`，含 `stale/degraded`，故 smoke 失败而非误报通过。快照 [`data03-readiness-authenticated-smoke-2026-08-24-1335.json`](deployment/data03-readiness-authenticated-smoke-2026-08-24-1335.json)，报告 [`55f20b1348564daf6dea93f23aecc229953954e6fcc1859f40180fbebea84d98.json`](deployment/data03-readiness/55/55f20b1348564daf6dea93f23aecc229953954e6fcc1859f40180fbebea84d98.json)；仅只读观察，不解除 DATA-02/DATA-03、M9/M10 或决策总闸。
 - 2026-08-24 DATA-02 当前候选 `fund.nav` SELECT-only reconciliation：当前候选 `94abd76e…` / release `20260824133504` 内，`fund_net_value` 与 canonical `data_center_fund_nav_fact(source=fund_legacy_repo)` 各 `7,648` 条，snapshot hash 相同，`same=7,648`、差异/缺陷均为 `0`。原始 envelope [`data02-reconciliation-candidate-2026-08-24.json`](deployment/data02-reconciliation-candidate-2026-08-24.json)，canonical artifact [`65935870cc4002c1e96fb0ab2473ee679b6b1540318aa72f2155a95d47db43dc.json`](deployment/data02-reconciliation/65/65935870cc4002c1e96fb0ab2473ee679b6b1540318aa72f2155a95d47db43dc.json)；这是单 dataset/单快照证据，仍 `production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`，不解锁 DATA-02/03 或 decision-ready。
@@ -143,7 +145,8 @@
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
-| [active_plan_registry.json](../governance/active_plan_registry.json) | **活跃计划与 canonical closure backlog 机器真源（工作流 / owner / 状态 / 依赖 / 唯一退出门 / 文件归属 / 限期审查）** | AUD-02 corrective repository exit 已完成，AUD-03 转入生产验收；当前无 dependency-ready repository unit，focus 显式为 null，EVID-03 继续等待 EVID-01/02，CI 禁止待办、依赖和 plan 漂移 |
+| [active_plan_registry.json](../governance/active_plan_registry.json) | **活跃计划与 canonical closure backlog 机器真源（工作流 / owner / 状态 / 依赖 / 唯一退出门 / 文件归属 / 限期审查）** | DATA-01 已关闭，DATA-02 转入授权生产执行；当前无 active repository unit，focus 显式为 null，EVID-03 继续等待 EVID-01/02，CI 禁止待办、依赖和 plan 漂移 |
+| [release-blocker-closure-execution-plan-2026-08-29.md](plans/release-blocker-closure-execution-plan-2026-08-29.md) | **发布阻塞清零综合实施方案（DATA/AUD/EVID/STRAT/TUI/TAR/AI/QMT 顺序、授权包、回滚点和停止线）** | 执行中；DATA-01 完成，DATA-02 候选待部署/生产验证，其余硬门保持 fail-closed |
 | [scenario-governance-and-strategy-method-quick-wins-plan-2026-08-04.md](plans/scenario-governance-and-strategy-method-quick-wins-plan-2026-08-04.md) | **情景硬编码治理、动态/参数/宏观情景、AI MCP 受控修改及策略方法 Quick Wins（M0-M6）** | 提案，待评审实施 |
 | [strategy-research-capability-completion-audit-2026-08-05.md](plans/strategy-research-capability-completion-audit-2026-08-05.md) | **策略研究 R1—R8 完成度审计、真实数据阻断与无数据开发队列** | 实施中；无 P0，剩余 P1 分批收口 |
 | [sentiment-awareness-enhancement-plan-2026-07-31.md](archive/plans/sentiment-awareness-enhancement-plan-2026-07-31.md) | **A 股情绪态势感知增强计划（S0-S4，交易行为情绪指标 / Pulse sentiment 维度 / 文本情绪打通 / TUI 情绪面板）** | ✅ 已完成并归档 |
@@ -277,6 +280,10 @@
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [TEST_PACKAGE_RELEASE_WORKFLOW.md](deployment/TEST_PACKAGE_RELEASE_WORKFLOW.md) | 标准流程：测试->打包->发布->回滚（含门禁） | ✅ 新增 |
+| [data01-live-rehearsal-c826f741-baseline.json](deployment/data01-live-rehearsal-c826f741-baseline.json) | DATA-01 sibling restore 的 542 表、72 migration、463 sequence 与 schema/content hash 基线 | ✅ 2026-08-30 |
+| [data01-live-rehearsal-c826f741-migration-roundtrip.json](deployment/data01-live-rehearsal-c826f741-migration-roundtrip.json) | DATA-01 `0072→0071→0072` 原始迁移往返差异报告 | ✅ 2026-08-30 |
+| [data01-live-rehearsal-c826f741-migration-classification.json](deployment/data01-live-rehearsal-c826f741-migration-classification.json) | DATA-01 对 `django_migrations` 正常 ledger/sequence 增量的分类证明，业务/schema 一致 | ✅ 2026-08-30 |
+| [data01-live-rehearsal-c826f741-connection-switch.json](deployment/data01-live-rehearsal-c826f741-connection-switch.json) | DATA-01 真实 Web 连接切换/切回、RTO、关键计数/WAL 与健康检查证据 | ✅ 2026-08-30 |
 | [VPS_BUNDLE_DEPLOYMENT.md](deployment/VPS_BUNDLE_DEPLOYMENT.md) | VPS Bundle 一体化部署与迁移指南（含 Postgres/Redis 迁移） | ✅ 新增 |
 | [M5_OBSERVATION_BINDING_GUIDE.md](deployment/M5_OBSERVATION_BINDING_GUIDE.md) | M5 observation 候选绑定位置、命令、重置规则与验证方法 | ✅ 2026-08-19 新增 |
 | [vps-deployment-evidence-2026-08-15.md](deployment/vps-deployment-evidence-2026-08-15.md) | 候选部署、provenance、备份与运行复核证据（最新 `20260816223921`） | ✅ 2026-08-16 |

@@ -1,0 +1,16 @@
+{
+  "allowed_changed_sequence": "django_migrations_id_seq",
+  "allowed_changed_table": "django_migrations",
+  "business_tables_match": true,
+  "candidate_commit": "c826f741edc0f12f5e29fa5b0441b34a89f6dac5",
+  "canonical_schema_ok": true,
+  "migration_ledger_row_count_stable": true,
+  "migration_ledger_sequence_expected_increment": true,
+  "migration_name_set_match": true,
+  "observed_at": "2026-08-29T18:01:07.995064+00:00",
+  "outcome": "success",
+  "restore_database": "agomtradepro_restore_verify_d01c826f741",
+  "schema": "data01-vps-migration-roundtrip-classification.v1",
+  "schema_match": true,
+  "source_report": "/app/var/data01-live-rehearsal-c826f741-migration-roundtrip.json"
+}

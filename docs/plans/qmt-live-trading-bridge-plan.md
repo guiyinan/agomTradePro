@@ -1,5 +1,7 @@
 # QMT 实盘交易执行桥阶段计划
 
+> 跨工作流执行顺序与外部门禁见 [`release-blocker-closure-execution-plan-2026-08-29.md`](release-blocker-closure-execution-plan-2026-08-29.md)；操作授权不能替代 XtQuant 环境、券商回执和交易日验收。
+
 > 实施状态（2026-07-22）：仓库范围实现已完成。已交付 `broker_execution` 四层模块、六个迁移版本、服务端权威风控、动作/账户权限、Agent 机器鉴权与账户 scope/租约、登录及机器认证失败审计、恢复交易密码重认证、Fake/QMT Adapter、四维对账、P0 自动停机、告警/readiness/日报、Classic Web、canonical SDK、TUI、MCP governed capability、Windows 脚本和自动测试。目标券商 QMT/MiniQMT 的 Phase 0 兼容性探针、连续仿真和小额实盘仍必须在用户本地 Windows 与券商账户上执行，不能由仓库测试替代。
 
 实现依据：[`ADR-0002`](../architecture/adr-0002-qmt-local-execution-bridge.md)；安装与运维：[`QMT Agent 运行手册`](../operations/qmt-agent-runbook.md)。

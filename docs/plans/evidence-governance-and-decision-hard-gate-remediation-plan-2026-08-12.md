@@ -1,5 +1,7 @@
 # AgomTradePro 证据治理与决策硬闸改造计划
 
+> 跨工作流执行顺序与授权/停止线见 [`release-blocker-closure-execution-plan-2026-08-29.md`](release-blocker-closure-execution-plan-2026-08-29.md)；该编排不替代真实 root、owner 或 reviewer。
+
 > 执行状态（2026-08-13）：**M0 进行中，外部写面、Transition Plan 内部 writer、65 个显式高风险输出及 18 个动态 query/GET/presenter 面已冻结；M1 Domain、append-only persistence、staff-only exact read API、Operator Spec lifecycle、Risk Center approval provider、Research↔Risk read composition、人工 subject/审批写入面代码与首批 legacy adapters 已完成**。当前工作分支为 `dev/plan-closure-by-priority`；归档与排期基线提交为 `919a9cea7`。本状态只证明下列已列出的仓库交付，不代表用户/租户 owner-scoped API、写入面的完整项目 runtime/component 证明、其余 App 输出 adapter、TUI、Portfolio、Broker 或生产硬切换已经完成。
 
 ### 2026-08-15：旧计划收口后的 Evidence 接管范围
