@@ -1529,3 +1529,40 @@ source SHA=`017ff0854169ab93b5c71737c563ba708c221c8ee8faf9b1d5066a15585ba0d7`；
 生产写入、故障注入、backlog recovery、archive/restore、runtime 激活或人工签字。`AUD-03` 因此继续
 `awaiting_production`；其退出仍需要获批的 migration/rollback、recovery、alerts/TUI、archive/restore、
 PostgreSQL 并发/故障证据和 owner/reviewer 双签。
+
+## 实施记录（2026-08-29，AUD-03 migration deployment checkpoint）
+
+精确授权的 candidate deployment 已将
+`09269c14db1024584913081db49919085f34d008` 发布为 release `20260829163806` / image
+`sha256:08650701deaa8286c5818a9ed1ba15d96f740fcc646d38e56d0a979c413884da`，并在生产 PostgreSQL 成功
+应用 `audit.0013_systemauditdeliveryreceipt`。部署期 canonical schema check、独立 migration check、
+Audit health 均通过；部署后 `/api/audit/health/`=`200/OK`，operation logs=`563`、failures=`0`，
+outbox pending/due/claimed/expired/failed/delivered 全为 `0`。部署和 verifier 证据固定于
+[`release-candidate-deployment-2026-08-29-09269c14.json`](../deployment/release-candidate-deployment-2026-08-29-09269c14.json)，
+SHA-256=`8e7646b373812739d621bc2afdac5a9ed648936d9e48d07f1618f2e18d7108d6`。
+
+自动 rollback 已 armed 但未触发；其范围仅覆盖旧 release/container/current symlink/TUI publish，不会反向
+撤销 migration 或 deployment-owned database writes。本 checkpoint 因此证明 migration deployment 与
+即时健康，不证明 migration rollback、backlog recovery、alerts/admin TUI、archive/restore、故障注入或
+owner/reviewer 双签。`AUD-03` 继续 `awaiting_production`；下一步先做一次绑定新候选的非重复 SELECT-only
+migration/backlog snapshot，再对 rollback/recovery/archive 等具体动作逐项取授权。
+
+## 实施记录（2026-08-29，AUD-03 部署后 SELECT-only 观察重绑定）
+
+已按上一 checkpoint 的安全 auto-collect 对 release `20260829163806` / candidate
+`09269c14db1024584913081db49919085f34d008` 做一次非重复 PostgreSQL
+`REPEATABLE READ READ ONLY` 观察。`2026-08-29T09:20:58.172893Z` 时共 `496` 项 migration
+全部 applied，pending/failed 均为 `0`，migration graph SHA-256=
+`02406e0a395d09e89785ba969202a8fdb060bcb7814283f9cee9e4212ada0496`；operation log=`563`、
+failures=`0`、failure rate=`0.0`，outbox pending/due/claimed/expired/failed/delivered 均为 `0`。
+
+原始 envelope
+[`aud03-operational-observation-select-only-2026-08-29-09269c14.json`](../deployment/aud03-operational-observation-select-only-2026-08-29-09269c14.json)
+SHA-256=`969a2313d6360a8df59aa33d9c8b49df6621a964fef96e95c51dae30afeb60ff`；canonical artifact
+[`34f3b1a70283c491a9fbc8a20c4686e5d51315bac8be3cb5ead34bc2f07d2262.json`](../deployment/aud03-operational-observation/34/34f3b1a70283c491a9fbc8a20c4686e5d51315bac8be3cb5ead34bc2f07d2262.json)
+的 SHA 与文件名一致。artifact 如实保留 alerts/TUI/recovery/archive 四节 unavailable，固定
+`production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`。
+
+该观察完成了部署后只读 snapshot，但不证明 migration rollback、backlog recovery、alerts/admin
+TUI、archive/restore、故障注入或 owner/reviewer 双签。`AUD-03` 继续
+`awaiting_production`；上述生产动作仍需逐项精确授权。

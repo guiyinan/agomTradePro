@@ -425,6 +425,19 @@
 
 ## 6. 风险与回滚
 
+## 6.3.5 TUX-05 corrective reopen（2026-08-29）
+
+- release `20260829163806` 的候选绑定生产 UAT 已通过 `108/108` route-page 解析、角色最小权限读取、operator/regular 边界与 `9/9` 参数化读取，并形成两条唯一受控写入的 readback/cleanup receipt；但账户 create/cancel 深链连续两次出现表单存在而“创建”按钮不可点击，策略 confirmed update 的数据库写回成功后页面仍超过固定断言窗口停留在“读取数据”。证据为 `config/tui/migration/evidence/web_to_tui_production_uat_checkpoint_20260829163806.v1.json`。
+- 经用户精确授权，`TUX-05` corrective reopen 为唯一 repository focus。最小实现范围固定为：修复 action panel 布局后的可见/滚动/聚焦/点击契约；把 confirmed mutation 的完成态绑定真实 action/refresh 收敛而非任意延长超时；为上述两项补 JavaScript/Workbench/Playwright 回归；把 TUI-01 production-safe role/write/cleanup suite 与 AI-01/TAR-05 的外部 AI/queued runtime 验收分离。
+- production-safe recorder 不得放宽 gate：仍须从矩阵重算 `108` route results，校验 regular/operator/admin 权限，要求唯一 run ID、entity/PK/actor/owner、confirmation、写后 readback、exact cleanup 与零残留。active RSS、共享 quota、authority/approval、factor/backtest/provider 外部工作、queued runtime、load/fault、maintenance/live rollback 必须 fail-closed 排除，不能以 skip 冒充通过。
+- 本 corrective exit 要求：focused TUI JavaScript、完整 Workbench、固定 UAT/recorder contract、metadata/source/actionability/IA、`npm run check:tui`、Web→TUI inventory、mypy/debt/architecture/governance 全绿，并保留真实本地浏览器截图/trace。只有达到该 repository exit 后才允许 coherent commit、CI/review/merge；随后必须从新提交的独立 clean worktree 部署新候选并重跑生产 UAT，旧 release 的 UAT 不继承。
+- 回滚点限于本次 Workbench action reveal/settlement、Playwright suite 与 recorder profile 改动；回滚不得恢复不可点击的深链 action、把未完成状态伪装成成功、启用外部 AI/queued runtime，或删除 108-route、角色、receipt/cleanup 门禁。
+- corrective 实现已完成：F9 显式展开 support/advanced task 后聚焦搜索框，账户 create/cancel 的 form 与 submit 均由真实 Chromium 断言可见；confirmed mutation 仅在确认请求真实返回后发布“操作完成”。真实 lifecycle 同时暴露 strategy/provider delete 的未渲染 `TemplateResponse`，Infrastructure adapter 现在只在读取无 `data` 的模板响应前显式 render，并由失败先行的组件测试覆盖。
+- 完整 production-safe 本地首轮为 `9/10`：`research.signals / signal.list` 与同屏被动 dashboard reads 竞争未修改的 6-slot internal action gate，显式请求收到 `503`。修复没有放大并发、重试或延长超时，而是让可自动执行的非沉浸式 dashboard 深链先于被动 panel 读取；新增 Workbench 回归证明同一 action 从两次请求收敛为一次，沉浸式 dashboard 与普通被动加载契约保持全绿。
+- 最终隔离 Chromium production-safe profile 为 `10/10`、`0 skipped`、`162.75s`，覆盖 `108/108` route-page、regular/operator/admin、`9/9` 参数化读取与两条同 run ID 的普通用户自有写回执；strategy/provider create/update 均在 60 秒 SLO 内收敛，随后经 TUI confirmed delete、列表 readback 得到 exact cleanup 与 `residual_count=0`。外部 AI、queued runtime、authority/approval、active RSS/shared quota、load/fault、maintenance/live rollback 均未执行。
+- repository exit gate 全绿：TUI JavaScript `44 passed`，Workbench/Terminal Agent `328 passed`，recorder `7 passed`，adapter `3 passed`，presentation/source/density/static/metadata validators、Web→TUI inventory、Black/isort/Ruff、增量 mypy/full debt、architecture、governance、Django 与 active-plan registry 均通过。Sol 完整 diff 审核后另收紧 full external-AI profile，确保它不会继承 production-safe receipt sink。规范化证据见 [`tux05-corrective-repository-closure-evidence-2026-08-29.json`](../testing/tux05-corrective-repository-closure-evidence-2026-08-29.json)。
+- `TUX-05` corrective repository exit 因此完成；当前没有 dependency-ready repository unit，execution focus 回到 `null`。远端 CI/review/merge、新 main clean-worktree 候选冻结/部署及 candidate-bound production-safe UAT 仍是 TUI-01 的生产 gate，不由本地证据继承；真实 role owner 确认继续独立 fail-closed。
+
 - **文案批量重写风险**：430 个 action 的 label/description 重写可能误伤已被人工序列化的文案；分流时以 `source` 字段与人工策划 key 前缀白名单为界，重写前后做全量 diff 评审。
 - **死代码删除风险**：Python screen patch 对非 IA 的遗留/测试 payload 仍可能有效；删除前先固化"生产只加载 IA payload"的契约测试，再删 patch。
 - **runtime screen 迁入 publish 流程的风险**：12 个 runtime screen 迁入后发布校验会收紧；`TUX-01` 的回退机制必须先就位，避免迁移期发布失败导致 `/tui/` 不可用。

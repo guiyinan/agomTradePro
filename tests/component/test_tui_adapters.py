@@ -4,6 +4,8 @@ import pytest
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.sessions.backends.db import SessionStore
 from django.http import JsonResponse
+from django.template import engines
+from django.template.response import SimpleTemplateResponse
 from django.test import override_settings
 from django.urls import path
 
@@ -21,8 +23,14 @@ def session_echo_view(request):
     )
 
 
+def unrendered_json_template_view(request):
+    template = engines["django"].from_string('{"deleted": true}')
+    return SimpleTemplateResponse(template, content_type="application/json")
+
+
 urlpatterns = [
     path("test-session/", session_echo_view),
+    path("test-unrendered-template/", unrendered_json_template_view),
 ]
 
 
@@ -60,3 +68,21 @@ def test_tui_internal_action_executor_forwards_session(monkeypatch):
             body={},
             user=AnonymousUser(),
         )
+
+
+@override_settings(ROOT_URLCONF=__name__)
+def test_tui_internal_action_executor_renders_template_response() -> None:
+    """Template-based endpoints must be rendered before content normalization."""
+
+    payload = TuiInternalActionExecutor().execute(
+        method="DELETE",
+        endpoint="/test-unrendered-template/",
+        params={},
+        body={},
+        user=AnonymousUser(),
+    )
+
+    assert payload == {
+        "status_code": 200,
+        "payload": {"deleted": True},
+    }

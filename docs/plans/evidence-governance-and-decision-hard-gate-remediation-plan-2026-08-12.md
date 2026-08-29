@@ -3844,3 +3844,27 @@ rollback 或代替人工签署。该新鲜事实只把 zero-seed/empty-head 阻�
 EVID-01/02 继续 `awaiting_production`，下一真实门仍是独立 root/reviewer approval、生产
 PostgreSQL first-winner/successor/revocation/rollback、same-alias 端到端回执与双签，全局
 execution/decision deny 不变。
+
+## 2026-08-29：部署后 EVID-01/02 SELECT-only 账本重绑定（09269c14）
+
+精确授权部署完成后，在 release `20260829163806` / candidate
+`09269c14db1024584913081db49919085f34d008` 上以单个 PostgreSQL
+`REPEATABLE READ READ ONLY` 快照复核 authority/evidence、operator、approval 与 activation
+账本。观察时间为 `2026-08-29T09:20:58.172893Z`；Account `0050–0055` 均已应用，13 张
+canonical authority/evidence 表仍全部为 `0` 行，approval/activation head 仍为 `empty`，
+`human_approval_status=not_collected`。
+
+原始合并快照
+[`evid-01-evid-02-select-only-bundle-2026-08-29-09269c14.json`](../deployment/evid-01-evid-02-select-only-bundle-2026-08-29-09269c14.json)
+SHA-256=`2dfa68f1f185d5aa8f396c08266dd7d6fe3592a0d66b230feeb57805859adebc`。EVID-01
+严格输入 SHA-256=`76d5869179a70a46491966a65a2c44741e77bf9fa09a83b6645dbc9591857081`，生成
+[`23bbda2b41c8fc22e6cb27b74b9f3f35ea1ad59dfdb9a69125aca9702787693f.json`](../deployment/evid-01-authority-inventory/23/23bbda2b41c8fc22e6cb27b74b9f3f35ea1ad59dfdb9a69125aca9702787693f.json)，
+outcome=`blocked_zero_seed_authority`。EVID-02 严格输入 SHA-256=
+`7c673362c1d439cacb1bed7203b05de9fd56090c1e5ee1b60a87ec2c717b6793`，生成
+[`67edbdc604cd60e25980b0bf89566f99e9314e2b937919bdeba88a7cfc900dad.json`](../deployment/evid-02-head-audit/67/67edbdc604cd60e25980b0bf89566f99e9314e2b937919bdeba88a7cfc900dad.json)。
+两个 content-addressed artifact 的文件 SHA 均与文件名一致，并固定
+`production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`。
+
+本次只有候选绑定的 SELECT 观察，没有 authority seed、approval/activation 写入、并发 race、
+rollback 或人工签署。EVID-01/02 状态不变；下一真实门是独立 root/reviewer 决策，以及获批的
+PostgreSQL first-winner/successor/revocation/rollback 与 same-alias 端到端回执。

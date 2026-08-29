@@ -531,6 +531,26 @@
         return form;
     }
 
+    function deepLinkedActionCanAutoRun(screenSpec, actionKey) {
+        const normalizedKey = String(actionKey || "").trim();
+        const action = (screenSpec?.actions || []).find((item) => item.key === normalizedKey);
+        if (!action) {
+            return false;
+        }
+        const safeRead = ["read", "admin"].includes(
+            String(action.risk || "read").toLowerCase(),
+        )
+            && String(action.method || "GET").toUpperCase() === "GET"
+            && !action.confirmation_required;
+        if (!safeRead) {
+            return false;
+        }
+        const deepLinkedParams = actionParamsFromBrowserLocation();
+        return (action.fields || [])
+            .filter((field) => field.required)
+            .every((field) => Object.prototype.hasOwnProperty.call(deepLinkedParams, field.key));
+    }
+
     function focusDeepLinkedAction(screenSpec, actionKey) {
         const normalizedKey = String(actionKey || "").trim();
         if (!normalizedKey) {
@@ -980,7 +1000,8 @@
             }
             updateRawDrawer();
             if (!hasQueuedRun) {
-                setStatus("读取完成");
+                const confirmedMutation = Boolean(options.confirmed);
+                setStatus(confirmedMutation ? "操作完成" : "读取完成");
             }
             refreshGovernanceBadges();
         } catch (error) {

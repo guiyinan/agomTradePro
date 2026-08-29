@@ -3,15 +3,19 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
+import scripts.record_web_to_tui_candidate_evidence as recorder
 from scripts.build_web_to_tui_rollback_catalog import synchronize_candidate_evidence
 from scripts.record_web_to_tui_candidate_evidence import (
     CLEANUP_REQUIRED_CASES,
+    PRODUCTION_SAFE_UAT_REQUIRED_CASES,
+    UAT_PROFILES,
     UAT_REQUIRED_CASES,
     CandidateEvidenceError,
     build_cleanup_report,
@@ -21,15 +25,16 @@ from scripts.record_web_to_tui_candidate_evidence import (
     synchronize_rollback_projection,
     synchronize_uat_projection,
     validate_cleanup_report,
+    validate_controlled_write_receipts,
     validate_rollback_report,
     validate_suite_cases,
     validate_uat_report,
 )
 from scripts.web_to_tui_candidate_binding import CandidateBinding
 
-NOW = datetime(2026, 8, 13, 8, 30, tzinfo=timezone.utc)
+NOW = datetime(2026, 8, 13, 8, 30, tzinfo=UTC)
 ROUTES = frozenset({"templates/one.html", "templates/two.html"})
-CATALOG = {route: "a" * 40 for route in ROUTES}
+CATALOG = dict.fromkeys(ROUTES, "a" * 40)
 
 
 def _binding(*, commit: str = "b" * 40) -> CandidateBinding:
@@ -76,6 +81,49 @@ def _uat_cases() -> list[dict[str, Any]]:
 
 def _cleanup_cases() -> list[dict[str, Any]]:
     return _cases(CLEANUP_REQUIRED_CASES)
+
+
+def _controlled_receipt(entity_type: str) -> dict[str, Any]:
+    """Return one complete secret-free production-safe write receipt."""
+
+    actions = {
+        "strategy": [
+            "strategy.workbench-create",
+            "strategy.workbench-update",
+            "strategy.workbench-delete",
+        ],
+        "ai_provider": [
+            "ai-ops.create-my-provider",
+            "ai-ops.update-my-provider",
+            "ai-ops.delete-my-provider",
+        ],
+    }
+    cleanup_actions = {
+        "strategy": "strategy.workbench-delete",
+        "ai_provider": "ai-ops.delete-my-provider",
+    }
+    return {
+        "version": "web-to-tui-controlled-write-receipt.v1",
+        "run_id": "uat-20260829-01",
+        "entity_type": entity_type,
+        "entity_id": 17 if entity_type == "strategy" else 18,
+        "entity_name": f"M5 UAT {entity_type}",
+        "actor_username": "m5_uat_regular",
+        "owner_username": "m5_uat_regular",
+        "confirmation": {"cleanup": True, "create": True, "update": True},
+        "write_actions": actions[entity_type],
+        "readback": {
+            "created": True,
+            "updated": True,
+            "updated_description": "confirmed readback",
+        },
+        "settlement": {"slo_ms": 60_000, "create_ms": 3100, "update_ms": 4200},
+        "cleanup": {
+            "action": cleanup_actions[entity_type],
+            "deleted": True,
+            "residual_count": 0,
+        },
+    }
 
 
 def _drill(binding: CandidateBinding) -> dict[str, Any]:
@@ -199,6 +247,85 @@ def test_uat_report_recomputes_route_coverage_summary_and_projection() -> None:
     tampered["summary"]["passed_routes"] = 1
     with pytest.raises(CandidateEvidenceError, match="summary"):
         validate_uat_report(tampered, binding=binding, routes=ROUTES)
+
+
+def test_production_safe_uat_requires_exact_cases_receipts_and_cleanup() -> None:
+    """The safe profile keeps route coverage while excluding unapproved suites explicitly."""
+
+    binding = _binding()
+    receipts = [_controlled_receipt("strategy"), _controlled_receipt("ai_provider")]
+    report = build_uat_report(
+        binding=binding,
+        routes=ROUTES,
+        cases=_cases(PRODUCTION_SAFE_UAT_REQUIRED_CASES, layout_parameters=True),
+        recorded_at=NOW,
+        profile_name="production-safe",
+        write_receipts=receipts,
+    )
+
+    validate_uat_report(
+        report,
+        binding=binding,
+        routes=ROUTES,
+        expected_profile="production-safe",
+    )
+    assert report["profile"] == "production-safe"
+    assert report["summary"]["controlled_write_receipts"] == 2
+    assert report["summary"]["passed_routes"] == len(ROUTES)
+
+    tampered = deepcopy(receipts)
+    tampered[0]["cleanup"]["residual_count"] = 1
+    with pytest.raises(CandidateEvidenceError, match="cleanup mismatch"):
+        build_uat_report(
+            binding=binding,
+            routes=ROUTES,
+            cases=_cases(PRODUCTION_SAFE_UAT_REQUIRED_CASES, layout_parameters=True),
+            recorded_at=NOW,
+            profile_name="production-safe",
+            write_receipts=tampered,
+        )
+
+    sensitive = deepcopy(receipts)
+    sensitive[0]["api_key"] = "must-never-persist"
+    with pytest.raises(CandidateEvidenceError, match="sensitive keys"):
+        validate_controlled_write_receipts(
+            sensitive,
+            profile=UAT_PROFILES["production-safe"],
+        )
+
+
+def test_full_uat_profile_clears_controlled_receipt_output(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Full external-AI UAT cannot inherit the production-safe receipt sink."""
+
+    captured_env: dict[str, str] = {}
+
+    def run_command(command: object, *, env: dict[str, str] | None = None) -> object:
+        del command
+        captured_env.update(env or {})
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setenv("AGOM_M5_EXTERNAL_AI_UAT", "1")
+    monkeypatch.setenv("AGOM_M5_UAT_RECEIPT_PATH", "must-not-be-used.jsonl")
+    monkeypatch.setattr(recorder, "_run_command", run_command)
+    monkeypatch.setattr(recorder, "parse_junit_cases", lambda path: [])
+    args = SimpleNamespace(
+        uat_profile="full",
+        base_url="http://127.0.0.1:8766",
+        port=8766,
+        settings_module="core.settings.playwright",
+        skip_server=True,
+    )
+
+    recorder._run_uat_suite(
+        args,
+        tmp_path / "results.xml",
+        tmp_path / "controlled-write-receipts.jsonl",
+    )
+
+    assert "AGOM_M5_UAT_RECEIPT_PATH" not in captured_env
 
 
 def test_cleanup_report_joins_same_candidate_uat_suite_and_catalog() -> None:

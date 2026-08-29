@@ -6,6 +6,7 @@ import csv
 import json
 import os
 import re
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlparse
@@ -38,6 +39,8 @@ EXTERNAL_AI_UAT_SKIP_REASON = (
 )
 REMOTE_ACCOUNT_ID = int(os.environ.get("AGOM_M5_REMOTE_ACCOUNT_ID", "2"))
 REMOTE_UAT_RUN_ID = os.environ.get("AGOM_REMOTE_UAT_RUN_ID", "").strip()
+UAT_RECEIPT_PATH = os.environ.get("AGOM_M5_UAT_RECEIPT_PATH", "").strip()
+CONFIRMED_MUTATION_SETTLEMENT_TIMEOUT_MS = 60_000
 
 
 def _m5_uat_suffix() -> str:
@@ -46,6 +49,24 @@ def _m5_uat_suffix() -> str:
     if REMOTE_UAT_RUN_ID:
         return re.sub(r"[^A-Za-z0-9]", "", REMOTE_UAT_RUN_ID)[:8]
     return uuid4().hex[:8]
+
+
+def _persist_controlled_write_receipt(receipt: dict[str, object]) -> None:
+    """Append one secret-free controlled write receipt when recording is enabled."""
+
+    if not UAT_RECEIPT_PATH:
+        return
+    if not REMOTE_UAT_RUN_ID:
+        pytest.fail("controlled write receipt recording requires AGOM_REMOTE_UAT_RUN_ID")
+    path = Path(UAT_RECEIPT_PATH)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "version": "web-to-tui-controlled-write-receipt.v1",
+        "run_id": REMOTE_UAT_RUN_ID,
+        **receipt,
+    }
+    with path.open("a", encoding="utf-8", newline="\n") as handle:
+        handle.write(json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n")
 
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -298,7 +319,10 @@ def test_account_read_missing_fields_and_confirmation_cancel(
     expect(page.get_by_role("searchbox", name="任务", exact=True)).to_be_visible()
     create_form = page.locator("form:has(#tui-simulated-trading\\.account-create-account_name)")
     expect(create_form).to_have_count(1)
-    create_form.get_by_role("button", name="创建", exact=True).click()
+    expect(create_form).to_be_visible()
+    create_button = create_form.get_by_role("button", name="创建", exact=True)
+    expect(create_button).to_be_visible()
+    create_button.click()
 
     missing_dialog = page.get_by_role("dialog", name="补填参数", exact=True)
     expect(missing_dialog).to_be_visible()
@@ -626,7 +650,8 @@ def _run_confirmed_action(
     action_key: str,
     params: dict[str, str | int | float | bool],
     form_selector: str,
-    result_timeout_ms: int = 5_000,
+    result_timeout_ms: int = CONFIRMED_MUTATION_SETTLEMENT_TIMEOUT_MS,
+    completion_status: str = "操作完成",
 ) -> Locator:
     """Submit one visible TUI action and require its confirmed success receipt."""
 
@@ -638,9 +663,10 @@ def _run_confirmed_action(
     expect(confirmation).to_be_visible()
     confirmation.get_by_role("button", name="确认执行", exact=True).click()
     expect(page.locator("[data-workbench-status]")).to_have_text(
-        "读取完成", timeout=result_timeout_ms
+        completion_status, timeout=result_timeout_ms
     )
     expect(page.locator(".tui-error")).to_have_count(0)
+    expect(page.locator("[data-main-panel] .tui-entry-state")).to_have_count(0)
     main = page.locator("[data-main-panel]")
     expect(main.locator(".tui-view-status")).to_contain_text(re.compile(r"^(?:正常|暂无数据) / "))
     return main
@@ -876,8 +902,12 @@ def test_strategy_create_detail_update_lifecycle_completes(
         create_form.locator("button[type='submit']").click()
         confirmation = page.get_by_role("dialog", name="确认操作", exact=True)
         expect(confirmation).to_be_visible()
+        create_started = time.monotonic()
         confirmation.get_by_role("button", name="确认执行", exact=True).click()
-        expect(page.locator("[data-workbench-status]")).to_have_text("读取完成")
+        expect(page.locator("[data-workbench-status]")).to_have_text(
+            "操作完成", timeout=CONFIRMED_MUTATION_SETTLEMENT_TIMEOUT_MS
+        )
+        create_settlement_ms = round((time.monotonic() - create_started) * 1000)
         main = page.locator("[data-main-panel]")
         expect(main.get_by_text(strategy_name, exact=True)).to_be_visible()
         strategy_id = int(
@@ -916,12 +946,62 @@ def test_strategy_create_detail_update_lifecycle_completes(
         update_form.locator("button[type='submit']").click()
         confirmation = page.get_by_role("dialog", name="确认操作", exact=True)
         expect(confirmation).to_be_visible()
+        update_started = time.monotonic()
         confirmation.get_by_role("button", name="确认执行", exact=True).click()
-        expect(page.locator("[data-workbench-status]")).to_have_text("读取完成")
+        expect(page.locator("[data-workbench-status]")).to_have_text(
+            "操作完成", timeout=CONFIRMED_MUTATION_SETTLEMENT_TIMEOUT_MS
+        )
+        update_settlement_ms = round((time.monotonic() - update_started) * 1000)
         expect(
             page.locator("[data-main-panel]").get_by_text(updated_description, exact=True)
         ).to_be_visible()
         expect(page.locator(".tui-error")).to_have_count(0)
+
+        _run_confirmed_action(
+            page,
+            base_url,
+            screen_key="macro-regime.strategy",
+            action_key="strategy.workbench-delete",
+            params={"strategy_id": strategy_id},
+            form_selector="form:has(#tui-strategy\\.workbench-delete-strategy_id)",
+        )
+        main = _run_read_deep_link(
+            page,
+            base_url,
+            screen_key="macro-regime.strategy",
+            action_key="strategy.workbench-list",
+        )
+        expect(main.get_by_text(strategy_name, exact=True)).to_have_count(0)
+        _persist_controlled_write_receipt(
+            {
+                "entity_type": "strategy",
+                "entity_id": strategy_id,
+                "entity_name": strategy_name,
+                "actor_username": "m5_uat_regular",
+                "owner_username": "m5_uat_regular",
+                "confirmation": {"create": True, "update": True, "cleanup": True},
+                "write_actions": [
+                    "strategy.workbench-create",
+                    "strategy.workbench-update",
+                    "strategy.workbench-delete",
+                ],
+                "readback": {
+                    "created": True,
+                    "updated": True,
+                    "updated_description": updated_description,
+                },
+                "settlement": {
+                    "slo_ms": CONFIRMED_MUTATION_SETTLEMENT_TIMEOUT_MS,
+                    "create_ms": create_settlement_ms,
+                    "update_ms": update_settlement_ms,
+                },
+                "cleanup": {
+                    "action": "strategy.workbench-delete",
+                    "deleted": True,
+                    "residual_count": 0,
+                },
+            }
+        )
     finally:
         context.close()
 
@@ -967,8 +1047,12 @@ def test_personal_ai_provider_detail_update_lifecycle_completes(
         missing_dialog.get_by_role("button", name="继续", exact=True).click()
         confirmation = page.get_by_role("dialog", name="确认操作", exact=True)
         expect(confirmation).to_be_visible()
+        create_started = time.monotonic()
         confirmation.get_by_role("button", name="确认执行", exact=True).click()
-        expect(page.locator("[data-workbench-status]")).to_have_text("读取完成")
+        expect(page.locator("[data-workbench-status]")).to_have_text(
+            "操作完成", timeout=CONFIRMED_MUTATION_SETTLEMENT_TIMEOUT_MS
+        )
+        create_settlement_ms = round((time.monotonic() - create_started) * 1000)
         main = page.locator("[data-main-panel]")
         expect(main.get_by_text(provider_name, exact=True)).to_be_visible()
         provider_id = int(
@@ -1008,12 +1092,62 @@ def test_personal_ai_provider_detail_update_lifecycle_completes(
         update_form.locator("button[type='submit']").click()
         confirmation = page.get_by_role("dialog", name="确认操作", exact=True)
         expect(confirmation).to_be_visible()
+        update_started = time.monotonic()
         confirmation.get_by_role("button", name="确认执行", exact=True).click()
-        expect(page.locator("[data-workbench-status]")).to_have_text("读取完成")
+        expect(page.locator("[data-workbench-status]")).to_have_text(
+            "操作完成", timeout=CONFIRMED_MUTATION_SETTLEMENT_TIMEOUT_MS
+        )
+        update_settlement_ms = round((time.monotonic() - update_started) * 1000)
         expect(
             page.locator("[data-main-panel]").get_by_text(updated_description, exact=True)
         ).to_be_visible()
         expect(page.locator(".tui-error")).to_have_count(0)
+
+        _run_confirmed_action(
+            page,
+            base_url,
+            screen_key="ai-ops.providers",
+            action_key="ai-ops.delete-my-provider",
+            params={"provider_id": provider_id},
+            form_selector="form:has(#tui-ai-ops\\.delete-my-provider-provider_id)",
+        )
+        main = _run_read_deep_link(
+            page,
+            base_url,
+            screen_key="ai-ops.providers",
+            action_key="ai-ops.list-my-providers",
+        )
+        expect(main.get_by_text(provider_name, exact=True)).to_have_count(0)
+        _persist_controlled_write_receipt(
+            {
+                "entity_type": "ai_provider",
+                "entity_id": provider_id,
+                "entity_name": provider_name,
+                "actor_username": "m5_uat_regular",
+                "owner_username": "m5_uat_regular",
+                "confirmation": {"create": True, "update": True, "cleanup": True},
+                "write_actions": [
+                    "ai-ops.create-my-provider",
+                    "ai-ops.update-my-provider",
+                    "ai-ops.delete-my-provider",
+                ],
+                "readback": {
+                    "created": True,
+                    "updated": True,
+                    "updated_description": updated_description,
+                },
+                "settlement": {
+                    "slo_ms": CONFIRMED_MUTATION_SETTLEMENT_TIMEOUT_MS,
+                    "create_ms": create_settlement_ms,
+                    "update_ms": update_settlement_ms,
+                },
+                "cleanup": {
+                    "action": "ai-ops.delete-my-provider",
+                    "deleted": True,
+                    "residual_count": 0,
+                },
+            }
+        )
     finally:
         context.close()
 

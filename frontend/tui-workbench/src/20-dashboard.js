@@ -1,4 +1,4 @@
-    function renderDashboardHome(screenSpec) {
+    function renderDashboardHome(screenSpec, options = {}) {
         const screen = screenSpec.screen;
         const panels = screen.dashboard_panels || [];
         const immersiveDashboard = isImmersiveDashboardScreen(screen);
@@ -48,6 +48,9 @@
         els.main.querySelectorAll("[data-home-action-key]").forEach((button) => {
             button.addEventListener("click", () => executeHomeAction(button.dataset.homeActionKey));
         });
+        if (options.suppressAutoActions && !immersiveDashboard) {
+            return;
+        }
         const primaryPanels = panels.filter((panel) => panelPriority(panel) === "p0");
         const deferredPanels = panels.filter((panel) => panelPriority(panel) !== "p0");
         primaryPanels.forEach((panel) => loadDashboardPanel(panel));

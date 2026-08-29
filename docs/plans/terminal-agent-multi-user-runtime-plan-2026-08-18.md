@@ -2030,3 +2030,23 @@ queued/Worker 启用、负载、故障注入或 rollback。完整 image build �
 `awaiting_production`，`capacity_ready=false`、safe baseline=`unknown_not_zero`。唯一下一步是
 对 `09269c14…` 取得精确 code-only 部署授权，保留 PostgreSQL/Redis 状态，并在部署后重新运行
 candidate-bound verifier；这不授权容量或 chaos 测试。
+
+## 2026-08-29：`09269c14` immutable candidate 已部署
+
+获精确授权后，已从 detached clean worktree 将
+`09269c14db1024584913081db49919085f34d008` 以 code-only source-upload `upgrade` 发布为 release
+`20260829163806`、image
+`sha256:08650701deaa8286c5818a9ed1ba15d96f740fcc646d38e56d0a979c413884da`。PostgreSQL/Redis volumes
+保留，Celery 启用，未执行 SQLite restore、Docker/volume wipe、decision repair、runtime-state clear、
+queued runtime enablement、traffic/capacity increase 或 fault injection。独立 expected-commit verifier
+确认 web/worker/beat 同候选健康，`pyqlib=0.9.7` 运行于 Python 3.11，release/OCI identity、migration、
+schema、TUI registry、TLS 与 Celery ping 全部通过；自动 rollback 保持 armed 但未触发。
+
+完整证据见
+[`release-candidate-deployment-2026-08-29-09269c14.json`](../deployment/release-candidate-deployment-2026-08-29-09269c14.json)，
+SHA-256=`8e7646b373812739d621bc2afdac5a9ed648936d9e48d07f1618f2e18d7108d6`。该部署只关闭“候选尚无
+release/OCI identity”的门，不产生 provider 成功、真实 inline/queued 延迟、1/5/10/20 capacity、chaos、
+restore/rollback、14-day telemetry 或 owner/reviewer evidence。decision-ready 仍为 `503` 且
+`must_not_use_for_decision=true`，所以 `TAR-05` 继续 `awaiting_production`、`capacity_ready=false`；
+下一步仍须逐项授权 production load、fault、canary/queue enablement 或 live rollback，不能因部署健康
+而放大全局并发。
