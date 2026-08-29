@@ -1622,3 +1622,13 @@ SHA-256=`c28f3ebcaeeb51afa407596e6b587fb1a446636934ec62bf3c3d3c73036380d0`。
 `must_not_use_for_decision=true`。本次未启用 queued runtime、未做 role UAT/write receipt、load/chaos、
 registry restore、live rollback 或 owner/reviewer 代签。旧候选 UAT/telemetry/approval 不继承；TUI-01、
 TAR-05、AUD-03、DATA-01 继续 `awaiting_production`，M5 readiness 继续 `DENY`。
+
+## 2026-08-30 当前候选部署与观测（`c826f741` corrective closure）
+
+PR #13 通过 CI 与 Sol/Luna review 后合并为 `c826f741edc0f12f5e29fa5b0441b34a89f6dac5`。部署从该提交的独立 clean worktree 执行；预先创建并下载 PostgreSQL custom-format backup `/opt/agomtradepro/backups/database/postgres-20260829T153008Z.dump`，远端 archive、SFTP 大小 `146649635` bytes 与 SHA-256 `40448647f6818b49f1a664fc601f0e9c8a2073c026a85b25875a451de80fe825` 全部核验，未 prune。候选部署为 release `20260829233430`、image `sha256:7fbf039a59294ba959bd5a0f31731a30d856df71e7c05c3aefeddd876769df14`；migration 0013 已 applied、无 pending migration/missing table，`current` 已切换，web/Celery/PostgreSQL/Redis 与公开 health/readiness 均通过，自动 rollback 未触发。
+
+当前 immutable binding 为 `web-to-tui-candidate-binding.v1`：candidate version `20260829233430`、candidate commit `c826f741edc0f12f5e29fa5b0441b34a89f6dac5`、matrix SHA `e3027671d02d876c9f4b38b9d86395d45e26c0f2b344eb0646086be31869cd5d`、graph SHA `63be10ee25bb73c87861c18cc92355938fd7abc096c33852bf5f904d4db532a2`、schema `tui-metadata.v3`、runtime version `0.2.0`、runtime build `agomtui-runtime-0.2.0+1aa1996d160f`、runtime manifest SHA `8824e67064f5a572d346507cc3d7ab484282e45dd6e8a7b05f2682c7c1bad3a4`。
+
+candidate-bound production-safe recorder 以 run `tux05-production-20260829233430` 通过 `10/10` tests 与 `108/108` routes，覆盖 regular/operator/admin；strategy/provider 两条同 run create/update/readback receipt 均在 60 秒 SLO 内完成，confirmed cleanup 各删除唯一目标且 residual=`0`。canonical UAT SHA-256 为 `90736bcb33268095218cd9467bb984fb8478db3d62044c5de1fd89736ae573c4`。未执行 external AI、queued runtime、authority/approval 修改、流量扩大、load/fault、maintenance 或 live rollback。
+
+TUX-05 corrective exit 完成，但 M5 readiness 仍为 `DENY`：真实 role owner 业务确认、截至 `2026-09-12` 的 14 日稳定窗口、108 路由 cleanup/rollback 矩阵、缺陷快照、101-task production telemetry、rollback drill、production registry backup 与 owner/reviewer attestations 仍缺，TUI-01 保持 `awaiting_production`。

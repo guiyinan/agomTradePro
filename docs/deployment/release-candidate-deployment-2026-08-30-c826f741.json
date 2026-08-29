@@ -1,0 +1,93 @@
+{
+  "version": "release-candidate-deployment-evidence.v1",
+  "recorded_at": "2026-08-30T00:18:50+08:00",
+  "candidate": {
+    "source_commit": "c826f741edc0f12f5e29fa5b0441b34a89f6dac5",
+    "release_id": "20260829233430",
+    "image_id": "sha256:7fbf039a59294ba959bd5a0f31731a30d856df71e7c05c3aefeddd876769df14",
+    "source_mode": "source-upload",
+    "clean_worktree": "D:/githv/agomTradePro-release-c826f741"
+  },
+  "predeployment_backup": {
+    "remote_path": "/opt/agomtradepro/backups/database/postgres-20260829T153008Z.dump",
+    "local_path": "backups/vps-postgres/postgres-20260829T153008Z.dump",
+    "size_bytes": 146649635,
+    "sha256": "40448647f6818b49f1a664fc601f0e9c8a2073c026a85b25875a451de80fe825",
+    "remote_archive_validated": true,
+    "remote_local_hash_matched": true,
+    "retention_prune_performed": false
+  },
+  "deployment": {
+    "action": "upgrade",
+    "deployed": true,
+    "current_switched": true,
+    "containers_restarted": true,
+    "automatic_rollback_enabled": true,
+    "automatic_rollback_triggered": false,
+    "migration_0013_applied": true,
+    "pending_migrations": 0,
+    "missing_migrations": [],
+    "missing_tables": [],
+    "web_healthy": true,
+    "postgres_healthy": true,
+    "redis_healthy": true,
+    "celery_worker_running": true,
+    "celery_beat_running": true,
+    "report": "dist/remote-build-reports/remote-build-report-20260829233430.json",
+    "report_sha256": "630f54f4684238721116efcc21a540c7642026517a4fb19c961b265849bd61c9"
+  },
+  "production_preflight": {
+    "evidence": "docs/deployment/web-to-tui-deployment-preflight-20260829233430.json",
+    "evidence_sha256": "8cd2a61a456ea9400c0c61f0318271c79334a9c9342d64eb0f23412d4fd20e43",
+    "health_http_status": 200,
+    "readiness_http_status": 200
+  },
+  "production_safe_uat": {
+    "profile": "production-safe",
+    "run_id": "tux05-production-20260829233430",
+    "evidence": "config/tui/migration/evidence/web_to_tui_uat_candidate.production-safe.v2.json",
+    "evidence_sha256": "90736bcb33268095218cd9467bb984fb8478db3d62044c5de1fd89736ae573c4",
+    "passed_tests": 10,
+    "failed_tests": 0,
+    "skipped_tests": 0,
+    "required_route_pages": 108,
+    "passed_route_pages": 108,
+    "roles": [
+      "regular",
+      "operator",
+      "admin"
+    ],
+    "controlled_write_receipts": 2,
+    "write_readback_passed": true,
+    "cleanup_residual_count": 0
+  },
+  "excluded": [
+    "external_ai",
+    "queued_runtime",
+    "authority_or_approval_changes",
+    "traffic_expansion",
+    "load_testing",
+    "fault_injection",
+    "maintenance",
+    "live_rollback"
+  ],
+  "readiness": {
+    "decision": "DENY",
+    "as_of": "2026-08-30",
+    "passed_gates": [
+      "source_consistency",
+      "execution_dependency",
+      "route_task_uat"
+    ],
+    "remaining_gates": [
+      "stable_version_window",
+      "route_cleanup_readiness",
+      "blocking_defects",
+      "production_telemetry",
+      "rollback_drill",
+      "production_registry_backup",
+      "cutover_approvals"
+    ],
+    "role_owner_confirmation": "missing"
+  }
+}

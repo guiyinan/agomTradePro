@@ -1,14 +1,14 @@
 {
-  "version": "2026-08-29.v9",
-  "updated_at": "2026-08-29",
+  "version": "2026-08-30.v1",
+  "updated_at": "2026-08-30",
   "execution_focus": {
-    "unit_id": "TUX-05",
+    "unit_id": null,
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "TUX-05 is the sole repository focus after candidate 003cb58c258086012e1238c513a4b1c68b3ecf98 / release 20260829220843 failed the production-safe recorder at 9/10: the operator queue rendered successfully immediately after the default 5 second Playwright visibility assertion expired. The corrective scope is limited to applying the existing 60 second production read settlement ceiling to this role boundary; 108 route-page results, regular/operator/admin roles, same-run strategy/provider write receipts, readback and exact zero-residual cleanup remain mandatory. External AI, queued runtime, active RSS, shared quota, authority/approval, load, fault, maintenance and live rollback remain excluded."
+    "policy": "No repository unit is currently dependency-ready. TUX-05 corrective repository and production verification are complete on the manifest-bound candidate, while TUI-01 remains awaiting production for real role-owner confirmation and its remaining M5 gates. Declared production, external and governance units may continue only non-duplicative safe auto_collect work; external AI, queued runtime, authority or approval changes, traffic expansion, load, fault, maintenance and live rollback remain outside the current authorization."
   },
   "workstreams": [
     {
@@ -146,7 +146,7 @@
       "priority": "P0",
       "owner": "terminal+operational_readiness",
       "status": "production_validation",
-      "next_gate": "TUX-05 corrective repository exit is locally complete: the fixed production-safe profile passed 10/10 with 108 route-page coverage, three roles, 9/9 parameterized reads, same-run strategy/provider receipts and exact zero-residual cleanup, while external AI, queued runtime, active RSS, shared quota, authority/approval, load, fault and live rollback stayed excluded. Canonical UAT remains empty and M5 stays DENY because this is disposable local evidence. Next pass CI/review/merge, freeze the merged main identity in an independent clean worktree, deploy only through the authorized backup/migration/current-switch/restart/automatic-failure-rollback package, rerun the candidate-bound production-safe recorder, and obtain real role-owner confirmation before TUI-01 or the 14-day window can advance.",
+      "next_gate": "The manifest-backed candidate is deployed from an independent clean worktree after a verified PostgreSQL backup, with audit.0013 applied, no pending migrations, healthy web/Celery/PostgreSQL/Redis and automatic rollback not triggered. The canonical production-safe UAT passed 10/10 and 108/108 routes across regular/operator/admin, with same-run strategy/provider create-update-readback receipts and exact zero-residual cleanup. TUI-01 remains awaiting_production until real role owners confirm business outcomes; the 14-day window, cleanup/rollback matrix, defect snapshot, 101-task telemetry, rollback drill, production registry backup and owner/reviewer attestations remain fail-closed. Immutable commit and release identity remain owned by the canonical candidate binding and deployment evidence.",
       "documents": [
         {
           "path": "docs/plans/web-to-tui-migration-plan-2026-07-25.md",
@@ -261,8 +261,8 @@
       "category": "product_interface_and_runtime",
       "priority": "P1",
       "owner": "terminal",
-      "status": "active",
-      "next_gate": "TUX-05 is reopened only for the production read-settlement assertion discovered by the 9/10 candidate-bound UAT. The fixed local profile passes 10/10 with 108 routes, three roles, both receipts and zero cleanup residual while preserving the 60 second write SLO and adding no retry or concurrency. Next pass CI/Sol review/merge, redeploy the resulting immutable main candidate from a clean worktree, and rerun the complete production-safe recorder before returning this workstream to production validation.",
+      "status": "production_validation",
+      "next_gate": "TUX-05 corrective repository and production verification are complete on candidate c826f741edc0f12f5e29fa5b0441b34a89f6dac5 / release 20260829233430: CI and Sol/Luna review passed, the merged candidate was redeployed from a clean worktree, and the canonical production-safe recorder passed 10/10 with 108 routes, three roles, both receipts, readback and zero cleanup residual. No repository unit is active; real role-owner confirmation and the remaining TUI-01/M5 production gates are external or production work and remain fail-closed.",
       "documents": [
         {
           "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
@@ -896,7 +896,7 @@
         "wave": 5,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Close layout, field-name translation and freshness-presentation defects",
         "depends_on": [
           "TUX-03",

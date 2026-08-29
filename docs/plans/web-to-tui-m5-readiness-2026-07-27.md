@@ -911,3 +911,13 @@ RSS/shared quota、load/fault、maintenance/live rollback 继续不在本授权�
 新候选 `003cb58c258086012e1238c513a4b1c68b3ecf98` / release `20260829220843` 已按授权从独立 clean worktree 部署，migration graph 无待应用项且 `audit.0013` 保持 applied。candidate-bound production-safe recorder 执行 `10` 项、通过 `9` 项、跳过 `0` 项；唯一失败的 operator queue 在 Playwright 默认 `5s` 可见性断言刚超时后完成并渲染，失败截图可见命名 grid、`7` 行数据与“读取完成”。recorder 因此没有写 canonical UAT。
 
 corrective 只为该生产读取角色断言使用既有 `60s` settlement ceiling；operator grid/完成态、regular 不可用提示和 grid=0 仍必须全部成立。修正后隔离本地 fixed profile 为 `10/10`，继续覆盖 `108/108` route-page、regular/operator/admin、参数化 reads、strategy/provider 两条同 run receipt 与 cleanup residual=`0`。没有增加 retry/concurrency，也没有改变 confirmed write 的 `60s` SLO。CI/review/merge、从新 main clean worktree 重部署及完整生产 recorder 通过前，TUI-01 保持 `awaiting_production`、canonical UAT 为空、M5 保持 `DENY`。
+
+### 2026-08-30 当前候选部署复核（corrective production UAT closure）
+
+PR #13 已通过 CI 与 Sol/Luna review 并合并为 `c826f741edc0f12f5e29fa5b0441b34a89f6dac5`。从该提交的独立 clean worktree 创建并双端校验 PostgreSQL backup `postgres-20260829T153008Z.dump`（`146649635` bytes，SHA-256 `40448647f6818b49f1a664fc601f0e9c8a2073c026a85b25875a451de80fe825`，未 prune），随后部署 release `20260829233430` / image `sha256:7fbf039a59294ba959bd5a0f31731a30d856df71e7c05c3aefeddd876769df14`。migration 0013 保持 applied、无待迁移或缺表，web/Celery/PostgreSQL/Redis 与公开 health/readiness 均通过，自动 rollback 未触发。
+
+当前 immutable binding 为 `web-to-tui-candidate-binding.v1`：candidate version `20260829233430`、candidate commit `c826f741edc0f12f5e29fa5b0441b34a89f6dac5`、matrix SHA `e3027671d02d876c9f4b38b9d86395d45e26c0f2b344eb0646086be31869cd5d`、graph SHA `63be10ee25bb73c87861c18cc92355938fd7abc096c33852bf5f904d4db532a2`、schema `tui-metadata.v3`、runtime version `0.2.0`、runtime build `agomtui-runtime-0.2.0+1aa1996d160f`、runtime manifest SHA `8824e67064f5a572d346507cc3d7ab484282e45dd6e8a7b05f2682c7c1bad3a4`。
+
+candidate-bound canonical production-safe recorder 以 run `tux05-production-20260829233430` 得到 `10/10`、`0 failed`、`0 skipped`、`108/108` routes；regular/operator/admin、参数化 reads 和三个 viewport 均通过。普通 UAT 用户自有 strategy/provider 各形成一条 create/update/readback/confirmed-delete receipt，四个 settlement 均低于 60 秒，两个 cleanup 均 `deleted=true`、`residual_count=0`。canonical UAT SHA-256 为 `90736bcb33268095218cd9467bb984fb8478db3d62044c5de1fd89736ae573c4`。
+
+因此 TUX-05 corrective repository/production exit 完成，repository focus 回到 `null`；但 TUI-01 不晋级。`2026-08-30` readiness 仍为 `DENY`：14 日稳定窗口截至 `2026-09-12`，并且 108 路由 cleanup/rollback 矩阵、缺陷快照、101-task production telemetry、rollback drill、production registry backup、owner/reviewer attestations 与真实 role-owner 业务确认仍缺。external AI、queued runtime、authority/approval、流量扩大、load/fault、maintenance/live rollback 均未执行。
