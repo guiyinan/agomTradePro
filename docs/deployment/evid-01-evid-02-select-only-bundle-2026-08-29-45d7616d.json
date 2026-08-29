@@ -1,0 +1,69 @@
+{
+  "capture_contract": "evid-01-evid-02-select-only-bundle.v1",
+  "candidate": {
+    "source_commit": "45d7616d3c38a86853104f93dbd3f13bd9a48838",
+    "release": "20260826135953",
+    "image_id": "sha256:c481bb88ac6547165bdebcd34573a6f0d69b042c93ce37136b8ea3b160a1ce66"
+  },
+  "database_alias": "default",
+  "backend": "postgresql",
+  "schema": "public",
+  "transaction": "REPEATABLE READ READ ONLY",
+  "as_of": "2026-08-29T06:01:52.741324Z",
+  "captured_at": "2026-08-29T06:01:53.135201Z",
+  "query_digest": "5210ae0eb068e07384d594efb5159ca32d2521c1fab567909090d093b350e466",
+  "migrations": [
+    {
+      "app": "account",
+      "name": "0050_account_owner_assignment_evidence_v3_ledgers",
+      "applied_at": "2026-08-15T05:32:57.036668Z"
+    },
+    {
+      "app": "account",
+      "name": "0051_actor_authority_source_v3_ledgers",
+      "applied_at": "2026-08-15T05:32:57.305295Z"
+    },
+    {
+      "app": "account",
+      "name": "0052_account_actor_authority_raw_source_v3_ledgers",
+      "applied_at": "2026-08-15T05:32:58.924617Z"
+    },
+    {
+      "app": "account",
+      "name": "0053_account_rbac_authority_mutation_binding_v3",
+      "applied_at": "2026-08-15T05:33:00.857576Z"
+    },
+    {
+      "app": "account",
+      "name": "0054_normalize_physical_v2_fixed_constraint",
+      "applied_at": "2026-08-15T08:31:41.066253Z"
+    },
+    {
+      "app": "account",
+      "name": "0055_owner_tenant_authority_v1",
+      "applied_at": "2026-08-24T05:43:43.748055Z"
+    }
+  ],
+  "authority_row_counts": {
+    "account_auth_context_source_v3_anchor": 0,
+    "account_auth_context_source_v3_ledger": 0,
+    "account_user_authority_source_v3_anchor": 0,
+    "account_user_authority_source_v3_ledger": 0,
+    "account_rbac_authority_source_v3_anchor": 0,
+    "account_rbac_authority_source_v3_ledger": 0,
+    "account_actor_authority_source_v3_root_lock": 0,
+    "account_actor_authority_source_v3_ledger": 0,
+    "research_evidence_scope_source_v1": 0,
+    "account_owner_assignment_subject_v3_ledger": 0,
+    "account_owner_assignment_evidence_v3_ledger": 0,
+    "account_owner_assignment_provenance_receipt_v3_ledger": 0,
+    "account_owner_tenant_authority_v1": 0
+  },
+  "evid02_row_counts": {
+    "research_evidence_operator_spec": 0,
+    "research_evidence_operator_spec_approval": 0,
+    "research_activated_evidence_operator_spec": 0
+  },
+  "read_only": true,
+  "production_write_performed": false
+}

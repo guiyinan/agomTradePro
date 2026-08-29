@@ -3813,3 +3813,34 @@ global execution/decision deny 与 `/api/decision-ready/` 阻断不变。
 独立 authenticated scoped authority、同 alias PostgreSQL 写读/first-winner/rollback 证据以及
 owner/reviewer sign-off。`/api/audit/health/` 的 200、空 outbox 或本地/合成测试均不能替代这些
 证据；未取得前不得清除 persisted runtime blocker、不得把 EVID-01 标为完成。
+
+## 2026-08-29：当前生产候选 EVID-01/02 SELECT-only 账本重绑定
+
+按 active registry 已登记的安全 `auto_collect`，对当前生产候选执行一次低频、候选绑定的
+PostgreSQL 只读复核。先独立核对运行身份为
+`45d7616d3c38a86853104f93dbd3f13bd9a48838` / release `20260826135953` / image
+`sha256:c481bb88ac6547165bdebcd34573a6f0d69b042c93ce37136b8ea3b160a1ce66`，随后在部署 web
+容器的 `default` alias 内使用单个 `REPEATABLE READ READ ONLY` 事务读取 Account
+`0050–0055` migration 状态、13 张 canonical authority/evidence 表以及 EVID-02
+operator/approval/activation 三张表。数据库 `as_of=2026-08-29T06:01:52.741324Z`，query
+digest=`5210ae0eb068e07384d594efb5159ca32d2521c1fab567909090d093b350e466`；六项 migration
+均已应用，全部 16 张目标表仍为 `0` 行。
+
+原始合并快照见
+[`evid-01-evid-02-select-only-bundle-2026-08-29-45d7616d.json`](../deployment/evid-01-evid-02-select-only-bundle-2026-08-29-45d7616d.json)，
+SHA-256=`c1952a52ed9702cd06d6793aff1f6e99e45c1af04530d22db6293e421ec4386d`。EVID-01 严格输入
+[`evid-01-authority-inventory-snapshot-2026-08-29-45d7616d.json`](../deployment/evid-01-authority-inventory-snapshot-2026-08-29-45d7616d.json)
+派生 content-addressed report
+[`6bb8ff13ed444ae7dcff0372f1a4f10ec92e342ffd1c0ee98445ba661b90959d.json`](../deployment/evid-01-authority-inventory/6b/6bb8ff13ed444ae7dcff0372f1a4f10ec92e342ffd1c0ee98445ba661b90959d.json)，
+结果仍为 `blocked_zero_seed_authority`。EVID-02 严格输入
+[`evid-02-select-only-vps-snapshot-2026-08-29-45d7616d.json`](../deployment/evid-02-select-only-vps-snapshot-2026-08-29-45d7616d.json)
+派生 report
+[`3a831184a258babd96a48d515eac8b7e7207fd3f1529ee09f067351f7d96444a.json`](../deployment/evid-02-head-audit/3a/3a831184a258babd96a48d515eac8b7e7207fd3f1529ee09f067351f7d96444a.json)，
+approval/activation head 均为 `empty`、`human_approval_status=not_collected`。两个报告都固定
+`production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`。
+
+本轮未部署、未迁移、未创建或修改 authority/approval/activation，也未执行并发写 harness、
+rollback 或代替人工签署。该新鲜事实只把 zero-seed/empty-head 阻断重绑定到当前生产候选；
+EVID-01/02 继续 `awaiting_production`，下一真实门仍是独立 root/reviewer approval、生产
+PostgreSQL first-winner/successor/revocation/rollback、same-alias 端到端回执与双签，全局
+execution/decision deny 不变。

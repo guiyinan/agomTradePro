@@ -1504,3 +1504,28 @@ active 且零依赖已满足 repository unit 时通过；任何可执行仓库�
 旧 eager injection、显式测试 profile seed 和 null-focus validator 合同；不得以恢复 raw Audit fallback、
 关闭 current-data 测试或激活被阻断单元替代回滚。本轮没有部署、生产写、runtime 激活、外部/付费调用或
 人工签字。
+
+## 实施记录（2026-08-29，AUD-03 当前生产候选只读观察重绑定）
+
+当前运行身份重新固定为 commit `45d7616d3c38a86853104f93dbd3f13bd9a48838`、release
+`20260826135953`、image `sha256:c481bb88ac6547165bdebcd34573a6f0d69b042c93ce37136b8ea3b160a1ce66`，
+并以该 commit 内迁移矩阵 SHA `bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded`
+绑定本次观察。单个 PostgreSQL `REPEATABLE READ READ ONLY` 事务在
+`2026-08-29T06:13:26.033711Z` 读取迁移图和 audit/outbox 指标：495 项迁移全部 applied，pending/failed
+均为 0，迁移图 SHA 为 `c552b6fe2acda8710b05c353b793bbab1511b1046207ed8030c68e7b3fe5559d`；
+operation log 为 563 条、failure 为 0，failure rate 为 0.0；outbox 的 pending/due/claimed/expired/failed/
+delivered 均为 0，oldest pending 不存在。公网 audit health 同期返回 overall `OK`。
+
+原始 SELECT-only envelope 为
+[`aud03-operational-observation-select-only-2026-08-29-45d7616d.json`](../deployment/aud03-operational-observation-select-only-2026-08-29-45d7616d.json)，
+source SHA=`017ff0854169ab93b5c71737c563ba708c221c8ee8faf9b1d5066a15585ba0d7`；canonical content-addressed
+报告为
+[`526973c49dc79e1204adb086fb32f416c697b6d9efdbed4294e08fc3badeb68f.json`](../deployment/aud03-operational-observation/52/526973c49dc79e1204adb086fb32f416c697b6d9efdbed4294e08fc3badeb68f.json)，
+其 artifact SHA 同文件名。报告固定 `production_claim=false`、`production_ready=false`、
+`runtime_enablement=not_authorized`；alerts、TUI、recovery、archive 四节以稳定 unavailable reason 明示，
+没有把缺失观察写成通过。
+
+聚焦 recorder 合同 `12 passed`。本轮只执行身份、HTTPS 与数据库 SELECT 观察，没有部署、重启、迁移、
+生产写入、故障注入、backlog recovery、archive/restore、runtime 激活或人工签字。`AUD-03` 因此继续
+`awaiting_production`；其退出仍需要获批的 migration/rollback、recovery、alerts/TUI、archive/restore、
+PostgreSQL 并发/故障证据和 owner/reviewer 双签。

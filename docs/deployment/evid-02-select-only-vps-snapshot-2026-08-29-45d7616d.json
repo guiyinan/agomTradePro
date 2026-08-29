@@ -1,0 +1,15 @@
+{
+  "format": "evid-02-select-only-ledger-snapshot.v1",
+  "captured_at": "2026-08-29T06:01:53.135201Z",
+  "as_of": "2026-08-29T06:01:52.741324Z",
+  "capture": {
+    "candidate_commit": "45d7616d3c38a86853104f93dbd3f13bd9a48838",
+    "candidate_release": "20260826135953",
+    "database_alias": "default",
+    "environment": "production",
+    "query_digest": "5210ae0eb068e07384d594efb5159ca32d2521c1fab567909090d093b350e466",
+    "read_mode": "select_only"
+  },
+  "approval_rows": [],
+  "activation_rows": []
+}
