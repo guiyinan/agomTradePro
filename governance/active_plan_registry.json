@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-30.v15",
+  "version": "2026-08-30.v16",
   "updated_at": "2026-08-30",
   "execution_focus": {
     "unit_id": null,
@@ -8,7 +8,7 @@
       "external",
       "governance"
     ],
-    "policy": "Personal-project single-owner mode is active under docs/deployment/personal-project-single-owner-authorization-2026-08-30-36b72d2f.json. The user is the sole human project owner, so the same owner may hold governance roles and no independent second-person signature is required. This replaces only multi-person identity and separation requirements; it never supplies missing authority rows, typed runtime values, business definitions, retained observations, staging, model/broker outcomes or elapsed time. The five returned reports are valid fail-closed decisions: AUD/DATA DEFER, TUI source DEFER, TUI role-owner APPROVE, EVID DEFER, STRAT DEFER and TAR-05 DEFER. TUI-01 is completed. TUI-03 repository exit is complete with evidence docs/testing/tui03-retained-monitoring-repository-closure-evidence-2026-08-30.json: digest-pinned Prometheus, persistent 21-day/4GB bounds, web:8000 scrape, exact M5 rules, healthcheck, packaging and authenticated HTTPS query contracts all validate. No repository unit is active. TUI-02 is the next production line: create a clean immutable successor, provision a host-only query credential, deploy the collector, prove target up/retention/query access, then use the canonical starter to reset the full 14-day window. DATA/AUD/EVID/STRAT/TAR technical gates remain fail-closed; broad owner delegation permits their exact phases once prerequisites exist but does not fabricate phase results."
+    "policy": "Personal-project single-owner mode is active under docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json. The user is the sole human project owner, so the same owner may hold owner, business, operations, root and reviewer roles and no second-person signature is required. This removes only multi-person ceremony; it never supplies missing authority rows, typed runtime values, business definitions, retained observations, staging, model/broker outcomes or elapsed time. TUI-01 and TUI-03 are completed. TUI-02 is active on immutable commit 80ea002bf910110621022a70e4f1ec5c1b704a56 / release 20260830215638: retained Prometheus is healthy with 21d/4GB bounds and authenticated query access, the canonical observation window is 2026-08-30..2026-09-13, production-safe UAT passed 10/10 and 108/108 with two zero-residual receipts, candidate cleanup passed 8/8, isolated rollback passed and a protected generation-30 registry backup passed sidecar and restore dry-run verification. Readiness is still 5/10 DENY until the real window elapses and structured defects, 101-task telemetry, post-window backup attestation, review snapshot and sole-owner role-bound attestations exist. No repository unit is active. DATA/AUD/EVID/STRAT/TAR technical gates remain fail-closed; owner delegation permits their exact phases once prerequisites exist but does not fabricate results."
   },
   "workstreams": [
     {
@@ -150,7 +150,7 @@
       "priority": "P0",
       "owner": "terminal+operational_readiness",
       "status": "production_validation",
-      "next_gate": "Manifest-backed commit 36b72d2fc01604afdb15d236a1e91d082fb62a5b is deployed as release 20260830071422 / image sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b. Canonical production-safe UAT passed 10/10 and 108/108 routes across regular/operator/admin with two same-run receipts and zero residual; all six cleanup scopes cover 108/108 and the candidate-bound isolated rollback drill passed. Sole-owner receipt PERSONAL-OWNER-36B72D2F-20260830-01 confirms the business outcome, so TUI-01 is completed. TUI-03 repository exit is also complete: Prometheus is pinned to sha256:63805ebb...f4996, bounded to 21d/4GB persistent storage, scrapes only web:8000/metrics/, loads exact M5 rules, has a readiness healthcheck, and exposes only authenticated read query APIs through the existing HTTPS origin. Evidence SHA is 8fda7913...91a7. TUI-02 is awaiting production deployment: bind a clean successor candidate, provision the host-only query credential, deploy and verify target/retention/query access, then reset and naturally complete the full 14-day window. No historical backfill or zero synthesis is allowed; readiness remains 5/10 DENY until real post-deployment evidence exists.",
+      "next_gate": "TUI-01 and TUI-03 are completed. The manifest-backed candidate commit 80ea002bf910110621022a70e4f1ec5c1b704a56 is deployed as release 20260830215638 / image sha256:54cb9646912c494d64c1eb664b6a3a8af772c36f5388d8456d669285398c39fc. Prometheus is healthy with pinned image, 21d/4GB persistent retention, exact rules and authenticated HTTPS query access; the canonical observation window is 2026-08-30..2026-09-13. Candidate-bound production-safe UAT passed 10/10 and 108/108 across regular/operator/admin with two same-run zero-residual receipts; cleanup passed 8/8 across all six 108-route scopes, isolated rollback passed, and protected registry generation 30 passed sidecar plus restore dry-run verification. Evidence is docs/deployment/tui02-production-day0-checkpoint-2026-08-30-80ea002b.json. TUI-02 is active and readiness remains 5/10 DENY. Next retain real samples without backfill, then on or after 2026-09-13 collect structured blocking-defect and 101-task telemetry snapshots, export the post-window registry attestation, build the review snapshot and record both role-bound attestations from the sole owner.",
       "documents": [
         {
           "path": "docs/plans/web-to-tui-migration-plan-2026-07-25.md",
@@ -266,7 +266,7 @@
       "priority": "P1",
       "owner": "terminal",
       "status": "production_validation",
-      "next_gate": "TUX-05 corrective repository work remains complete and its deep-link settlement fix is deployed on commit 36b72d2fc01604afdb15d236a1e91d082fb62a5b / release 20260830071422. Canonical production-safe UAT passed 10/10 with 108 routes, three roles, both receipts, readback and zero cleanup residual; six-scope cleanup coverage and isolated rollback also pass. No repository unit is active. Real role-owner confirmation, observation, structured defect/telemetry evidence, formal registry attestation and approvals remain TUI-01/TUI-02 production work and stay fail-closed.",
+      "next_gate": "TUX-05 repository work remains complete and its fix is included in commit 80ea002bf910110621022a70e4f1ec5c1b704a56 / release 20260830215638. The successor production-safe UAT passed 10/10 with 108 routes, three roles, both receipts, readback and zero residual; six-scope cleanup and isolated rollback also pass. No repository unit is active. Single-owner governance removes the second-person requirement, while the naturally elapsed 2026-08-30..2026-09-13 observation, structured defect/telemetry evidence, post-window registry attestation and final role-bound owner attestations remain TUI-02 production work and stay fail-closed.",
       "documents": [
         {
           "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
@@ -277,7 +277,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-08-30.v15",
+    "version": "2026-08-30.v16",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -748,7 +748,7 @@
         "wave": 3,
         "priority": "P0",
         "execution_mode": "production",
-        "status": "awaiting_production",
+        "status": "active",
         "title": "Complete observation, signed cleanup waves and rollback evidence",
         "depends_on": [
           "TUI-01",
@@ -757,11 +757,11 @@
         "exit_gate": "The 14-day telemetry window, registry backup, wave observation, rollback drill and sole-owner sign-off all bind to the candidate.",
         "evidence_collection": {
           "auto_collect": [
-            "Calculate observation day, candidate drift and reset conditions; collect blocking-defect and 101-item telemetry snapshots and derive gate status.",
-            "Verify existing registry backup artifacts and run the candidate-bound isolated rollback drill without touching live state."
+            "Calculate observation day, candidate drift and reset conditions; verify the retained target, rules, bounded storage and authenticated query path without manufacturing historical values.",
+            "On or after 2026-09-13, collect the structured blocking-defect and 101-item telemetry snapshots, export and dry-run verify the post-window registry backup, then derive gate status."
           ],
           "authorization_required": [
-            "Create a production registry backup, execute cleanup waves, alter routes/assets or perform live rollback."
+            "Execute cleanup waves, alter routes/assets or perform live rollback."
           ],
           "human_or_external_required": [
             "The sole project owner provides the final sign-off after the technical evidence really exists."

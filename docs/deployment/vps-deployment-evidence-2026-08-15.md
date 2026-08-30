@@ -1632,3 +1632,29 @@ PR #13 通过 CI 与 Sol/Luna review 后合并为 `c826f741edc0f12f5e29fa5b0441b
 candidate-bound production-safe recorder 以 run `tux05-production-20260829233430` 通过 `10/10` tests 与 `108/108` routes，覆盖 regular/operator/admin；strategy/provider 两条同 run create/update/readback receipt 均在 60 秒 SLO 内完成，confirmed cleanup 各删除唯一目标且 residual=`0`。canonical UAT SHA-256 为 `90736bcb33268095218cd9467bb984fb8478db3d62044c5de1fd89736ae573c4`。未执行 external AI、queued runtime、authority/approval 修改、流量扩大、load/fault、maintenance 或 live rollback。
 
 TUX-05 corrective exit 完成，但 M5 readiness 仍为 `DENY`：真实 role owner 业务确认、截至 `2026-09-12` 的 14 日稳定窗口、108 路由 cleanup/rollback 矩阵、缺陷快照、101-task production telemetry、rollback drill、production registry backup 与 owner/reviewer attestations 仍缺，TUI-01 保持 `awaiting_production`。
+
+## 2026-08-30 23:38 当前候选部署与观测（`80ea002b` TUI-02 successor）
+
+single-owner successor commit `80ea002bf910110621022a70e4f1ec5c1b704a56` 已以 source-upload、code-only
+`upgrade` 部署为 release `20260830215638` / image
+`sha256:54cb9646912c494d64c1eb664b6a3a8af772c36f5388d8456d669285398c39fc`；PostgreSQL、Redis
+与所有 volumes 保留，自动 rollback 已 armed 且未触发。部署报告为
+`dist/remote-build-reports/remote-build-report-20260830215638.json`，部署前恢复点为
+`/opt/agomtradepro/backups/meta/manifest-20260830-160921.txt`。公网
+`https://demo.agomtrade.pro/api/health/` 为 `200`，TLS verifier 通过；Celery worker/beat 正常，
+`pyqlib=0.9.7` 且错误的 `qlib` distribution 不存在。decision-ready 仍为 `503 blocked`。
+
+完整 immutable binding 为 `web-to-tui-candidate-binding.v1`：candidate version `20260830215638`、
+candidate commit `80ea002bf910110621022a70e4f1ec5c1b704a56`、matrix SHA
+`e3027671d02d876c9f4b38b9d86395d45e26c0f2b344eb0646086be31869cd5d`、graph SHA
+`63be10ee25bb73c87861c18cc92355938fd7abc096c33852bf5f904d4db532a2`、schema `tui-metadata.v3`、
+runtime version `0.2.0`、runtime build `agomtui-runtime-0.2.0+1aa1996d160f`、runtime manifest SHA
+`8824e67064f5a572d346507cc3d7ab484282e45dd6e8a7b05f2682c7c1bad3a4`。部署 preflight 为
+`docs/deployment/web-to-tui-deployment-preflight-20260830215638.json`。
+
+retained Prometheus target=`up=1`，保留界限为 `21d/4GB`，17 条 rules 全部 healthy；未认证 query
+返回 `401`、host-only credential 认证 query 返回 `200`。production-safe UAT 通过 `10/10`、
+`108/108`、regular/operator/admin、两条同 run receipt 和 zero residual；cleanup `8/8`、六 scope
+均 `108/108`，isolated rollback PASS。generation `30` registry recovery bundle 的 sidecar 与 restore
+dry-run 通过。canonical observation 为 `2026-08-30..2026-09-13`，当前 readiness=`5/10 DENY`；
+Day 0 结果不冒充完整观察、101-task telemetry、defect snapshot、post-window attestation 或最终 cutover。

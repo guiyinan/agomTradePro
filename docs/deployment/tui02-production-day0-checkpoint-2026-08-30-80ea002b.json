@@ -1,0 +1,151 @@
+{
+  "version": "tui02-production-day0-checkpoint.v1",
+  "environment": "production",
+  "checked_at": "2026-08-30T15:38:06.5064163Z",
+  "candidate": {
+    "commit": "80ea002bf910110621022a70e4f1ec5c1b704a56",
+    "release_id": "20260830215638",
+    "image_id": "sha256:54cb9646912c494d64c1eb664b6a3a8af772c36f5388d8456d669285398c39fc",
+    "deployment_evidence": "docs/deployment/tui02-production-monitoring-deployment-evidence-2026-08-30.json",
+    "deployment_evidence_sha256": "6a603c4a7ae4348a2452aa6dae2577c2ffd0eaacc8203388fa3af770b1322804"
+  },
+  "authorization": {
+    "mode": "single_owner_personal_project",
+    "owner_display_name": "阿狗涅夫",
+    "same_owner_may_hold_governance_roles": true,
+    "independent_second_person_required": false,
+    "source": "docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json",
+    "source_sha256": "f675c44647764c93292f223fc94a0f7ac3d5c89a1ad651d2d12a6ba1918300e1"
+  },
+  "observation": {
+    "window_start": "2026-08-30",
+    "window_end": "2026-09-13",
+    "minimum_days": 14,
+    "status": "in_progress",
+    "historical_backfill_used": false,
+    "zero_synthesis_used": false,
+    "elapsed_window_claimed_complete": false
+  },
+  "production_safe_uat": {
+    "run_id": "tui02-80ea002b-20260830-01",
+    "recorded_at": "2026-08-30T15:08:46.466824+00:00",
+    "evidence": "config/tui/migration/evidence/web_to_tui_uat_candidate.production-safe.v2.json",
+    "evidence_sha256": "e295b3f4adc241ec289df2fca4d669c1a99166c17d10184982f97bcd18eb842b",
+    "executed_tests": 10,
+    "passed_tests": 10,
+    "failed_tests": 0,
+    "skipped_tests": 0,
+    "required_routes": 108,
+    "passed_routes": 108,
+    "roles": [
+      "regular",
+      "operator",
+      "admin"
+    ],
+    "controlled_write_receipts": 2,
+    "receipt_entities": [
+      "ai_provider",
+      "strategy"
+    ],
+    "cleanup_residual_total": 0
+  },
+  "candidate_cleanup": {
+    "recorded_at": "2026-08-30T15:28:56.805708+00:00",
+    "evidence": "config/tui/migration/evidence/web_to_tui_cleanup_candidate.v1.json",
+    "evidence_sha256": "1fecaf05d80e251d8e38826eabb86b942d97d79db485a27b6001107383b4a067",
+    "executed_tests": 8,
+    "passed_tests": 8,
+    "fully_closed_routes": 108,
+    "scope_counts": {
+      "empty_state": 108,
+      "error_state": 108,
+      "legacy_url": 108,
+      "permission": 108,
+      "primary_task": 108,
+      "rollback": 108
+    }
+  },
+  "isolated_rollback": {
+    "recorded_at": "2026-08-30T15:32:11.323999+00:00",
+    "environment": "local",
+    "passed": true,
+    "evidence": "config/tui/migration/evidence/web_to_tui_rollback_candidate.v1.json",
+    "evidence_sha256": "3421458965cd9efea1ec74f8e13545dee287c60bb5604a3459349337b612db23"
+  },
+  "temporary_fixture_cleanup": {
+    "scope": "exact records created before the corrected production-safe run and not consumed by that profile",
+    "removed_entities": [
+      "agent_task:9",
+      "agent_proposal:2",
+      "alpha_candidate:m5-uat-alpha-candidate-detail",
+      "attribution_report:3",
+      "associated_backtest:M5 attribution route fixture",
+      "factor_config:9"
+    ],
+    "verified_residual_counts": {
+      "agent_task": 0,
+      "agent_proposal": 0,
+      "alpha_candidate": 0,
+      "attribution_report": 0,
+      "backtest_result": 0,
+      "factor_config": 0
+    }
+  },
+  "production_registry_backup": {
+    "bundle_path": "/opt/agomtradepro/backups/tui-registry/tui-registry-release-20260830215638-80ea002b-20260830T153412Z.json",
+    "sidecar_path": "/opt/agomtradepro/backups/tui-registry/tui-registry-release-20260830215638-80ea002b-20260830T153412Z.json.sha256",
+    "bundle_sha256": "c3cc3a05dc509afad99262749d96f2c5c7b715754dd8c8b92ff69a1c86d48b8d",
+    "size_bytes": 1994667,
+    "file_mode": "0600",
+    "registry_key": "default",
+    "generation": 30,
+    "graph_hash": "68fc19962de486a2382584ec416a2a90dcffa08c35fcc9afa3c255d3f5850d72",
+    "schema_version": "tui-metadata.v3",
+    "runtime_version": "0.2.0",
+    "runtime_build_id": "agomtui-runtime-0.2.0+1aa1996d160f",
+    "exported_at": "2026-08-30T15:34:32.064967+00:00",
+    "bundle_sidecar_match": true,
+    "restore_dry_run_passed": true,
+    "formal_attestation_written": false,
+    "formal_attestation_earliest_date": "2026-09-13",
+    "formal_attestation_blocker": "The final payload-free attestation must be exported and verified on or after the natural observation end."
+  },
+  "public_https": {
+    "url": "https://demo.agomtrade.pro",
+    "certificate_common_name": "demo.agomtrade.pro",
+    "health_http_status": 200,
+    "tls_verification": "ok",
+    "wrong_domain_used_by_first_attempt": "demo.agom.trade.pro",
+    "first_attempt_wrote_canonical_uat": false,
+    "formal_caddy_config_restored": true
+  },
+  "readiness": {
+    "decision": "DENY",
+    "passed_gates": 5,
+    "required_gates": 10,
+    "passed": [
+      "source_consistency",
+      "execution_dependency",
+      "route_task_uat",
+      "route_cleanup_readiness",
+      "rollback_drill"
+    ],
+    "pending": [
+      "stable_version_window",
+      "blocking_defects",
+      "production_telemetry",
+      "production_registry_backup",
+      "cutover_approvals"
+    ],
+    "cutover_evidence": "config/tui/migration/web_to_tui_cutover_evidence.v1.json",
+    "cutover_evidence_sha256": "b501fd18d963160b2a90628590955931cf717813e165b3a884e337ffbf75c7c3"
+  },
+  "boundary": {
+    "decision_gate_cleared": false,
+    "data_coverage_gate_cleared": false,
+    "queued_terminal_runtime_enabled": false,
+    "live_trading_enabled": false,
+    "final_cutover_approved": false,
+    "next_gate": "Retain real telemetry through 2026-09-13, then collect the structured telemetry and defect snapshots, export the post-window registry backup attestation, build the review snapshot and let the sole owner issue both role-bound attestations."
+  }
+}

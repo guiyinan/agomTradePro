@@ -614,3 +614,24 @@ scrape target、M5 rules、健康检查、VPS/local 打包与 HTTPS basic-auth r
 SHA-256=`8fda79136ae1a3a70afd22ce4b1134f69f5d4af44bd484786ea4fd2f9c9891a7`。
 `TUI-02=awaiting_production`；必须先部署 clean successor、验证首个 retained sample，再重新起算完整 14 日，
 不得继承原名义窗口或合成历史。
+
+## 13. 2026-08-30 TUI-02 production Day 0
+
+successor commit `80ea002bf910110621022a70e4f1ec5c1b704a56` 已部署为 release `20260830215638`，
+retained Prometheus target、`21d/4GB`、rules、persistent volume 与 authenticated query 均通过生产探针；
+观察窗口已真实重置为 `2026-08-30..2026-09-13`。生产域名为 `demo.agomtrade.pro`，错误拼写的首轮
+reachability 失败没有生成 canonical evidence，正式域名的 TLS/health 已恢复并验证。
+
+candidate-bound production-safe UAT 为 `10/10`、`108/108`、三角色、两条同 run receipt、零残留；
+cleanup recorder 为 `8/8` 且六 scope 均 `108/108`，isolated rollback PASS。registry generation `30`
+的 root-only backup SHA-256 为 `c3cc3a05…48b8d`，sidecar 与 restore dry-run 均通过；正式 backup
+attestation 仍必须使用 2026-09-13 当日或之后的新导出。
+
+唯一真人 owner 的生效授权为
+[`personal-project-single-owner-authorization-2026-08-30-80ea002b.json`](../deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json)：
+取消第二名自然人和职责分离形式，但不取消真实观测、telemetry、defect、backup integrity 或时间门。
+Day 0 汇总见
+[`tui02-production-day0-checkpoint-2026-08-30-80ea002b.json`](../deployment/tui02-production-day0-checkpoint-2026-08-30-80ea002b.json)，
+SHA-256=`1cff7915f03e3c12618ada5e4b02fd3d81741db16c121cd3aef362192a9e4d85`。当前 `TUI-02=active`、
+readiness=`5/10 DENY`；剩余门仅为自然窗口、structured defect/101-task telemetry、post-window backup
+attestation、review snapshot 与同一 owner 的两个 role-bound attestations。

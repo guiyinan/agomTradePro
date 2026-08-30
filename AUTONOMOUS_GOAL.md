@@ -30,8 +30,9 @@ exit gate、验证和状态同步全部成立时，才自动选择下一个依�
 
 ## 个人项目单一所有者模式
 
-本仓库是个人项目，当前唯一真人项目所有者的授权记录为
-`docs/deployment/personal-project-single-owner-authorization-2026-08-30-36b72d2f.json`。
+本仓库是个人项目，当前唯一真人项目所有者的生效授权记录为
+`docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json`；
+它已取代候选 `36b72d2f` 的首份授权记录。
 该记录生效期间，owner、business owner、operations owner、root approver、reviewer 等治理角色
 可以由同一项目所有者承担，不再要求为了形式上的职责分离寻找第二个自然人；历史计划中的
 “独立 reviewer”“双签”按“同一真实所有者在对应技术证据形成后确认”解释。

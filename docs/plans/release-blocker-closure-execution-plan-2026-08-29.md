@@ -480,3 +480,28 @@ TAR 为有效 DEFER，TUI role-owner 对已发生 UAT 的范围内决定为 APPR
 [`tui03-retained-monitoring-repository-closure-evidence-2026-08-30.json`](../testing/tui03-retained-monitoring-repository-closure-evidence-2026-08-30.json)
 SHA-256=`8fda79136ae1a3a70afd22ce4b1134f69f5d4af44bd484786ea4fd2f9c9891a7`。`TUI-03=completed`、
 `execution_focus=null`、`TUI-02=awaiting_production`；尚未部署或生成观察样本。
+
+### 13.16 single-owner successor production Day 0
+
+后续用户授权已固化为
+[`personal-project-single-owner-authorization-2026-08-30-80ea002b.json`](../deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json)，
+SHA-256=`f675c44647764c93292f223fc94a0f7ac3d5c89a1ad651d2d12a6ba1918300e1`，并取代旧候选授权。
+个人项目不再要求 owner/root/reviewer 分属不同自然人；同一项目所有者可以在对应技术证据形成后承担
+这些角色。零播种账本、业务定义、外部环境、观察历史与执行结果仍不得补造。
+
+commit `80ea002bf910110621022a70e4f1ec5c1b704a56` 已部署为 release `20260830215638` / image
+`sha256:54cb9646912c494d64c1eb664b6a3a8af772c36f5388d8456d669285398c39fc`。Prometheus target、
+`21d/4GB`、17 rules/0 unhealthy、persistent volume 与 authenticated query 已通过生产探针，canonical
+observation 重置为 `2026-08-30..2026-09-13`。production-safe run
+`tui02-80ea002b-20260830-01` 通过 `10/10`、`108/108`、三角色、两 receipt、zero residual；cleanup
+recorder `8/8`、六 scope `108/108`，isolated rollback PASS。临时 fixture 已精确删除并查询为全零。
+
+生产 registry generation `30` 的 root-only bundle SHA-256=`c3cc3a05dc509afad99262749d96f2c5c7b715754dd8c8b92ff69a1c86d48b8d`，
+sidecar 与 restore dry-run 均通过。结构化 Day 0 证据为
+[`tui02-production-day0-checkpoint-2026-08-30-80ea002b.json`](../deployment/tui02-production-day0-checkpoint-2026-08-30-80ea002b.json)，
+SHA-256=`1cff7915f03e3c12618ada5e4b02fd3d81741db16c121cd3aef362192a9e4d85`。
+
+`TUI-02=active`、readiness=`5/10 DENY`、`execution_focus=null`。下一个真实 checkpoint 不是继续加审批人，
+而是维持候选和 retained source 到 2026-09-13；届时收集 structured defect/101-task telemetry、导出
+post-window registry backup/attestation、生成 review snapshot，再由同一 owner 写入 owner/reviewer 两个
+role-bound attestations。日期未到前不重复生成最终证据，也不把 Day 0 backup 当成 final attestation。

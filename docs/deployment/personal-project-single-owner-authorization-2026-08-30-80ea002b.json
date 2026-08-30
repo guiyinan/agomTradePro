@@ -1,0 +1,78 @@
+{
+  "schema": "agomtradepro-personal-project-single-owner-authorization.v2",
+  "authorization_id": "PERSONAL-OWNER-80EA002B-20260830-01",
+  "supersedes": "PERSONAL-OWNER-36B72D2F-20260830-01",
+  "recorded_at": "2026-08-30T15:38:06.5064163Z",
+  "source": {
+    "kind": "interactive_user_declaration",
+    "thread_id": "01a04e2c-3e20-7bf1-ab13-668d1d086d06",
+    "declared_text": "这是个人项目，不要搞得这么复杂；我作为项目主人（也是唯一的真人）授权你做这些事。",
+    "cryptographic_signature_present": false,
+    "external_approval_system_receipt_present": false,
+    "recorded_by": "codex_repository_governance_automation"
+  },
+  "owner": {
+    "repository_identity_id": "agomtradepro-personal-project-owner",
+    "display_name": "阿狗涅夫",
+    "display_name_is_user_asserted": true,
+    "legal_name_claimed": false,
+    "production_account_claimed": false,
+    "role": "project_owner",
+    "only_human_project_owner_asserted": true
+  },
+  "candidate": {
+    "commit": "80ea002bf910110621022a70e4f1ec5c1b704a56",
+    "release_id": "20260830215638",
+    "image_id": "sha256:54cb9646912c494d64c1eb664b6a3a8af772c36f5388d8456d669285398c39fc"
+  },
+  "governance_mode": {
+    "id": "single_owner_personal_project",
+    "multi_person_separation_of_duties_required": false,
+    "same_owner_may_hold_owner_business_operations_root_and_reviewer_roles": true,
+    "independent_second_person_signature_required": false,
+    "missing_legal_name_or_production_account_does_not_invalidate_owner_decision": true,
+    "single_owner_conflict_of_interest_acknowledged": true,
+    "automation_is_delegated_executor_not_a_human_reviewer": true,
+    "valid_until_revoked_or_superseded": true
+  },
+  "authorized_scope": {
+    "update_goal_plan_docs_checklists_reports_and_machine_registry": true,
+    "deploy_bounded_retained_monitoring_with_backup_and_automatic_rollback": true,
+    "provision_host_only_monitoring_query_credentials": true,
+    "start_candidate_bound_observation_after_verified_deployment": true,
+    "run_production_safe_tui_uat_with_exact_test_record_cleanup": true,
+    "run_candidate_bound_repository_cleanup_and_isolated_rollback_recorders": true,
+    "create_and_dry_run_verify_a_protected_tui_registry_backup": true,
+    "collect_read_only_production_health_telemetry_and_defect_evidence": true,
+    "same_owner_may_issue_final_owner_and_reviewer_attestations_after_all_technical_evidence_exists": true,
+    "phase_results_must_be_recorded_only_after_they_really_occur": true
+  },
+  "executed_under_this_action_envelope": {
+    "retained_monitoring_deployment": true,
+    "production_safe_uat_and_exact_cleanup": true,
+    "candidate_cleanup_recorder": true,
+    "isolated_rollback_drill": true,
+    "protected_registry_backup_and_restore_dry_run": true,
+    "final_cutover": false
+  },
+  "not_authorized_or_not_waived": [
+    "fabricating authority heads, business definitions, retained observations, staging environments, model outcomes, broker receipts or trading facts",
+    "treating a missing technical prerequisite as passed",
+    "backdating, shortening by assertion or synthesizing the observation window",
+    "clearing decision, data-quality or execution gates before their technical exit conditions pass",
+    "live trading or paid external-model calls without a separate exact action envelope",
+    "production database restore, destructive rollback or broad production-data deletion",
+    "changing freshness, reliability, coverage or tolerance rules to manufacture readiness"
+  ],
+  "decision_policy": {
+    "owner_receipt_replaces_multi_person_identity_and_separation_fields": true,
+    "same_owner_can_fill_both_role_bound_cutover_attestations_after_the_review_snapshot_exists": true,
+    "approve_requires_all_non_human_technical_fields_for_the_selected_branch": true,
+    "report_presence_alone_is_not_execution_authorization": true,
+    "fail_closed_remains_default": true
+  },
+  "production_claim": true,
+  "production_write_performed": true,
+  "deployment_performed": true,
+  "external_side_effect_performed": true
+}

@@ -1004,3 +1004,44 @@ compose、promtool、Caddy、alerts、PowerShell、mypy 和 registry 均通过�
 `TUI-03=completed`、repository focus 回到 `null`，`TUI-02=awaiting_production`。本 checkpoint 未部署、
 未创建生产 volume/credential 或 retained sample，也没有重置/回填窗口；下一门是 clean successor
 部署与 post-deploy target/retention/query 验证，再由 canonical starter 从首个可证明样本重新起算 14 日。
+
+### 2026-08-30 23:38 当前候选部署复核：successor 与 TUI-02 Day 0
+
+唯一真人所有者的后续授权已固化为
+[`personal-project-single-owner-authorization-2026-08-30-80ea002b.json`](../deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json)
+（SHA-256=`f675c44647764c93292f223fc94a0f7ac3d5c89a1ad651d2d12a6ba1918300e1`），并取代旧候选授权。
+同一 owner 可承担 owner、operations、root 与 reviewer 角色，不再要求第二名自然人；最终两个 role-bound
+attestation 仍只能在完整技术快照形成后签发。
+
+commit `80ea002bf910110621022a70e4f1ec5c1b704a56` 已以 source-upload `upgrade` 部署为 release
+`20260830215638` / image
+`sha256:54cb9646912c494d64c1eb664b6a3a8af772c36f5388d8456d669285398c39fc`，保留 PostgreSQL、Redis
+和所有 volumes，自动失败回滚已 armed 且未触发。Prometheus `up=1`、`21d/4GB`、17 条 rules、0 unhealthy，
+未认证 query=`401`、host-only credential 认证 query=`200`。canonical starter 据此建立
+`2026-08-30..2026-09-13` 观察窗口，没有继承旧候选或补造历史。
+
+完整 immutable binding 为 `web-to-tui-candidate-binding.v1`：candidate version `20260830215638`、
+candidate commit `80ea002bf910110621022a70e4f1ec5c1b704a56`、matrix SHA
+`e3027671d02d876c9f4b38b9d86395d45e26c0f2b344eb0646086be31869cd5d`、graph SHA
+`63be10ee25bb73c87861c18cc92355938fd7abc096c33852bf5f904d4db532a2`、schema `tui-metadata.v3`、
+runtime version `0.2.0`、runtime build `agomtui-runtime-0.2.0+1aa1996d160f`、runtime manifest SHA
+`8824e67064f5a572d346507cc3d7ab484282e45dd6e8a7b05f2682c7c1bad3a4`。
+
+正确生产域名为 `demo.agomtrade.pro`。首次 UAT 误用了 `demo.agom.trade.pro`，在 reachability 阶段即停止，
+没有写 canonical UAT；恢复正式 Caddy 配置后，正确域名 TLS 验证通过且 health 连续三次为 `200`。
+正式 run `tui02-80ea002b-20260830-01` 随后通过 `10/10`、`108/108`、regular/operator/admin、两条
+strategy/provider receipt 和 exact cleanup residual=`0`。candidate cleanup 为 `8/8`、六类 scope
+均 `108/108`，隔离 rollback PASS。误为未选中 fixture case 创建的六项精确测试记录已经按 PK/name/run
+逐项删除并再次查询为全零。
+
+生产 registry generation `30` 已写入 root-only bundle
+`/opt/agomtradepro/backups/tui-registry/tui-registry-release-20260830215638-80ea002b-20260830T153412Z.json`，
+SHA-256=`c3cc3a05dc509afad99262749d96f2c5c7b715754dd8c8b92ff69a1c86d48b8d`、mode=`0600`；sidecar
+核验和 restore dry-run 均通过。它是 Day 0 recovery point，不冒充必须在观察期结束后导出的正式 attestation。
+
+结构化汇总为
+[`tui02-production-day0-checkpoint-2026-08-30-80ea002b.json`](../deployment/tui02-production-day0-checkpoint-2026-08-30-80ea002b.json)，
+SHA-256=`1cff7915f03e3c12618ada5e4b02fd3d81741db16c121cd3aef362192a9e4d85`。当前 readiness 真实为
+`5/10 DENY`：source、dependency、UAT、cleanup、rollback 已通过；稳定窗口、structured defects、
+101-task telemetry、post-window registry attestation 与 final role-bound attestations待完成。`TUI-02=active`，
+repository focus 仍为 `null`；2026-09-13 前只维持真实采样、候选漂移与健康停止线，不重复造最终快照。
