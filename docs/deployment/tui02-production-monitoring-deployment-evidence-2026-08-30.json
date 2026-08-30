@@ -1,0 +1,113 @@
+{
+  "version": "tui02-production-monitoring-deployment-evidence.v1",
+  "environment": "production",
+  "checked_at": "2026-08-30T14:27:32.765964Z",
+  "authorization": {
+    "mode": "single_owner_personal_project",
+    "owner_display_name": "阿狗涅夫",
+    "source": "docs/deployment/personal-project-single-owner-authorization-2026-08-30-36b72d2f.json",
+    "source_sha256": "d9c6e9f4128603d0f2208e107a430db93332ec2db2e523886d5248bb63005fd7"
+  },
+  "repository_evidence": {
+    "source": "docs/testing/tui03-retained-monitoring-repository-closure-evidence-2026-08-30.json",
+    "source_sha256": "8fda79136ae1a3a70afd22ce4b1134f69f5d4af44bd484786ea4fd2f9c9891a7"
+  },
+  "deployment": {
+    "mode": "source-upload",
+    "action": "upgrade",
+    "source_commit": "80ea002bf910110621022a70e4f1ec5c1b704a56",
+    "release_tag": "20260830215638",
+    "release_dir": "/opt/agomtradepro/releases/source-20260830215638",
+    "deployed_at": "2026-08-30T14:16:45.642579948Z",
+    "image_tag": "agomtradepro-web:20260830215638",
+    "image_id": "sha256:54cb9646912c494d64c1eb664b6a3a8af772c36f5388d8456d669285398c39fc",
+    "build_started_at": "2026-08-30T13:58:31Z",
+    "build_finished_at": "2026-08-30T14:08:03Z",
+    "release_manifest_mode": "0444",
+    "deployment_report": "dist/remote-build-reports/remote-build-report-20260830215638.json",
+    "deployment_report_sha256": "5e37c08917325375fa48315aad60d91b1b65eed01d54d0110fa77d1f2a759974",
+    "deployment_report_deployed": true
+  },
+  "write_scope": {
+    "postgres_or_redis_restore": false,
+    "include_sqlite": false,
+    "wipe_docker": false,
+    "wipe_volumes": false,
+    "decision_repair": false,
+    "automatic_rollback_enabled": true,
+    "rollback_performed": false
+  },
+  "predeploy_backup": {
+    "status": "completed",
+    "database_backup_completed": true,
+    "redis_backup_completed": true,
+    "manifest": "/opt/agomtradepro/backups/meta/manifest-20260830-160921.txt",
+    "manifest_mode": "0600"
+  },
+  "production_probes": {
+    "health": {
+      "http_status": 200,
+      "status": "ok",
+      "response_sha256": "152d6aff2c30f3c680bad62404c0b0481371fc5512f36edeeb568d68cd20679f"
+    },
+    "readiness": {
+      "http_status": 200,
+      "status": "ok",
+      "response_sha256": "24f4f6a0c152814d21826c799977be7b34c49f19f6d4b4db7ebbe704f6e2412b"
+    },
+    "decision_ready": {
+      "http_status": 503,
+      "status": "blocked",
+      "must_not_use_for_decision": true,
+      "runtime_status": "blocked",
+      "core_coverage_status": "incomplete",
+      "response_sha256": "22ea2437005ec2a0c3326fa4e1b79abb72ef7ccfe0b3a5ee5cc063815a6155c1"
+    }
+  },
+  "retained_monitoring": {
+    "image": "prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996",
+    "container_status": "running",
+    "health_status": "healthy",
+    "started_at": "2026-08-30T14:17:04.663322218Z",
+    "retention_time": "21d",
+    "retention_size": "4GB",
+    "persistent_volume": "agomtradepro_prometheus_data",
+    "internal_query_status": "success",
+    "internal_up_values": [
+      "1"
+    ],
+    "rule_group_count": 2,
+    "rule_count": 17,
+    "unhealthy_rule_count": 0,
+    "storage_budget_rule_present": true
+  },
+  "protected_query_access": {
+    "unauthenticated_http_status": 401,
+    "authenticated_http_status": 200,
+    "authenticated_status": "success",
+    "authenticated_up_values": [
+      "1"
+    ],
+    "credential_file": "/opt/agomtradepro/ops-secrets/prometheus-query.credentials",
+    "credential_directory_mode": "0700",
+    "credential_file_mode": "0600",
+    "secret_material_in_repository": false
+  },
+  "runtime_checks": {
+    "celery_ping_ok": true,
+    "celery_nodes": 1,
+    "pyqlib_version": "0.9.7"
+  },
+  "observation": {
+    "deployment_preflight": "docs/deployment/web-to-tui-deployment-preflight-20260830215638.json",
+    "eligible_to_start_after_preflight_commit": true,
+    "window_started": false,
+    "minimum_days": 14
+  },
+  "boundary": {
+    "decision_gate_cleared": false,
+    "data_coverage_gate_cleared": false,
+    "live_trading_enabled": false,
+    "claim": "TUI retained monitoring is deployed and queryable; decision surfaces remain fail-closed and the 14-day observation has not yet elapsed."
+  }
+}
