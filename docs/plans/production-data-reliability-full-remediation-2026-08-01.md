@@ -1245,3 +1245,87 @@ fact-only，避免局部任务缩小全市场 current publication；完整 backf
 生产只读 provider preflight（未写 DB）验证：active universe=`5,533`，Tencent failover 返回=`5,533`，源 observation date 均为 `2026-08-28`，invalid/missing OHLC=`0`；EastMoney batch endpoint 的 502/断连被保留为显式 failover 证据。日频 price/valuation freshness 新增最近已收盘交易日语义，避免周末自然小时误判；realtime quote 继续使用更严格的实时/已完成 session 合同。
 
 DATA-03 新增候选绑定的 `activate_decision_runtime_fail_closed`。普通 update use case 与通用 command 不再允许 `active`；激活必须完成三项非 runtime 严格预检、锁行 compare-and-set、精确 release/actor readback、三项立即复验，并在任一漂移时自动 re-block。此处只完成仓库实现与测试，`DATA-02` 尚待部署/生产 dry-run/执行/reconciliation，故 `DATA-03` 状态仍为 `waiting_dependency`。
+
+## 2026-08-30：最终候选部署、DATA-02 生产 dry-run 与 typed Audit 阻塞
+
+DATA-02/03 实现已随 commit `36b72d2fc01604afdb15d236a1e91d082fb62a5b` 部署为 release
+`20260830071422`。默认 dry-run 保持 SELECT/provider-read 边界，没有写入事实或 Publication：active
+A-share universe=`5,533`，financial null-availability 可安全修复 `288,409` 行、覆盖 `3,750`
+个资产，unresolved/future=`0/0`；最近完成交易日 price 候选却为 eligible=`0`、invalid/stale=`5,533`。
+现有 current Publication 的 quote/price/valuation 均为 `5,533/5,533` 但 stale，financial 为
+`1,923/5,533`，缺 `3,610`。这证明代码路径和缺口规模，但没有满足 DATA-02 的 freshness、覆盖与
+reconciliation exit gate。
+
+执行前另创建并下载校验恢复点
+`/opt/agomtradepro/backups/database/postgres-20260829T220625Z.dump`，大小 `146,646,151` bytes，
+远端/本地 SHA-256 均为
+`434903ac03c4fd6e4623682c65628f6b3f7be533a279b53fa063d692470e3d95`。随后生产仅运行幂等
+`initialize_runtime_definitions`：三项 `audit.system_event.*` definition 已登记；active production
+profile v2 仍缺 mode、outbox_enabled、authority_selector 三项值，七张 canonical Account authority
+root/ledger 表均为 `0`。因此 typed audit composition 继续 fail closed，`repair_active_a_share_current_facts
+--execute` 未运行，DATA-03 activation 也未尝试。
+
+规范化 checkpoint 见
+[`data02-audit-runtime-checkpoint-2026-08-30.json`](../deployment/data02-audit-runtime-checkpoint-2026-08-30.json)，
+写前恢复点见
+[`data02-audit-config-prewrite-backup-2026-08-30.json`](../deployment/data02-audit-config-prewrite-backup-2026-08-30.json)。
+`DATA-02` 保持 `awaiting_production`，`DATA-03` 保持 `waiting_dependency`。唯一下一门是命名 production
+owner 与独立 root/reviewer 提供并批准真实 selector/profile 值；自动化不得从 User/Profile/session
+推导或创建替代 authority。typed writer 加载成功后，才可执行 A3、逐数据集 reconciliation，并在三项
+readiness 全绿后调用 fail-closed activation wrapper。
+
+## 2026-08-30：DATA-02 精确执行、停止与回滚契约
+
+候选绑定的逐项授权包已经生成：
+[`aud03-data02-production-authorization-preflight-2026-08-30-36b72d2f.json`](../deployment/aud03-data02-production-authorization-preflight-2026-08-30-36b72d2f.json)，
+SHA-256=`25dc78fd5dfc627460761f7c7aa28c5fef08da8f3cd7ec8b62b81ac3665096d1`。
+生产只读复核显示 active provider 为 Tushare Pro（priority `1`）和 AKShare Public（priority `10`）；
+`default_source=akshare`、failover=`true`、tolerance=`0.01`，代码能力矩阵中二者都覆盖本工作流。
+这只证明可选 provider 能力，不替代 owner 对本次 `--source` 的批准。
+
+获批后唯一命令模板为：
+
+```text
+python manage.py repair_active_a_share_current_facts --execute --operator <approved-operator> --source <approved-source> --batch-size <approved-1-through-500>
+```
+
+`operator` 必须是非空单行且不超过 100 字符，`source` 不超过 50 字符，`batch-size` 范围为
+`1..500`。执行前还必须明确接受现有恢复点
+`/opt/agomtradepro/backups/database/postgres-20260829T220625Z.dump`（SHA-256=
+`434903ac03c4fd6e4623682c65628f6b3f7be533a279b53fa063d692470e3d95`）作为本次写入回滚点，并先通过
+Audit writer 与 exact authority preflight。
+
+事务边界必须如实理解：historical-price/financial probes 以及 quote/valuation batches 会在最终
+Publication 事务前写入 facts；后续失败可能留下部分新 facts，但既有 current Publication 在最终提交前
+保持不变。四份 current Publication 仅在覆盖严格等于 `5,533`、时间戳/freshness 和审计回执都通过后
+由同一外层事务一次切换，任一 Publication 失败则四份切换全部回滚。部分 facts 禁止 blanket delete；
+只能保留 source identity 后，对精确受影响记录执行另行授权、证据绑定的 reconciliation/compensation。
+成功切换后的 Publication 回滚也必须调用 canonical rollback use case，携带精确 target/previous identity
+和 Audit evidence，不能把数据库备份或 profile 回退冒充业务 Publication rollback。
+
+候选漂移、owner/root/reviewer 未批准、profile/snapshot hash 不一致、selector/head 不匹配、writer
+preflight 失败、provider probe 零行、批次不完整、future/naive/stale observation、覆盖不等于 `5,533`、
+审计/reconciliation 缺口或回滚点未接受，任一条件发生即停止。当前所有写阶段仍为
+`not_authorized`；`DATA-02=awaiting_production`、`DATA-03=waiting_dependency` 不变。
+
+## 2026-08-30：审核团队回传合同
+
+审核说明已固化为
+[closure-review-team-handoff-2026-08-30-36b72d2f.md](../deployment/closure-review-team-handoff-2026-08-30-36b72d2f.md)，
+SHA-256=`4ba887ba3d7a81cf6c6e1349f08a082968626c9d647c55644b44852a4771dc36`；机器回传模板为
+[aud03-data02-production-review-return-template-2026-08-30-36b72d2f.json](../deployment/aud03-data02-production-review-return-template-2026-08-30-36b72d2f.json)，
+SHA-256=`bebe057503ef1d7196bd00f84ef3d71b3a2660dd0097283e68a40e71a490d6c7`。
+
+适当的审核输出必须逐 phase 给出 `APPROVE/REJECT/DEFER`，并精确填入 operator、source、batch、
+授权有效期、既有 backup 接受、partial-fact 风险确认和禁止 blanket delete/容差放宽/跨候选复用。
+pre-execution 批准仅授权一次精确执行；5,533 coverage、四 Publication id/hash、Audit receipts 与
+reconciliation 必须在真实执行后另签 post-execution acceptance。模板保持 `template_only=true`，
+因此当前仍无生产写授权，DATA-02/DATA-03 状态不变。
+
+## 2026-08-30 single-owner 回传处理
+
+AUD/DATA 回传已通过 JSON、sidecar、候选和缺失证据核验，并在 single-owner 模式下登记为有效 `DEFER`。
+项目所有者身份与 receipt 已满足，不再等待第二名 reviewer；DEFER 的技术原因仍是 production Audit
+profile `mode_invalid`、三项 typed 值未形成、七张 authority root/ledger 表零行，以及 DATA-02 price
+eligible=`0/5533`。下一步是按 owner receipt 建立真实 canonical authority/profile successor，再重跑只读
+writer preflight；只有它通过后才执行已授权的有界 DATA-02 remediation，不能用签字跳过。

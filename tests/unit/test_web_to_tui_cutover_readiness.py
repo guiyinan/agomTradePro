@@ -422,7 +422,7 @@ def _evaluate(
 
 
 def test_checked_in_evidence_is_explicitly_denied() -> None:
-    """Historical route proof without a candidate snapshot must fail closed."""
+    """Current machine evidence passes five gates while cutover stays denied."""
 
     from datetime import date
 
@@ -430,7 +430,7 @@ def test_checked_in_evidence_is_explicitly_denied() -> None:
         matrix_path=MATRIX_PATH,
         catalog_path=CATALOG_PATH,
         evidence_path=EVIDENCE_PATH,
-        as_of=date(2026, 7, 27),
+        as_of=date(2026, 8, 30),
     )
     gates = {gate.key: gate for gate in result.gates}
 
@@ -438,14 +438,21 @@ def test_checked_in_evidence_is_explicitly_denied() -> None:
     assert result.required_route_pages == 108
     assert result.required_tasks == 101
     assert gates["source_consistency"].passed is True
-    assert gates["route_task_uat"].passed is False
-    assert "covered=0/108" in gates["route_task_uat"].detail
-    assert "binding=false" in gates["route_task_uat"].detail
-    assert gates["route_cleanup_readiness"].passed is False
-    assert "covered=0/108" in gates["route_cleanup_readiness"].detail
-    assert "candidate_binding=false" in gates["route_cleanup_readiness"].detail
-    assert gates["rollback_drill"].passed is False
-    assert "binding=false" in gates["rollback_drill"].detail
+    assert gates["execution_dependency"].passed is True
+    assert gates["route_task_uat"].passed is True
+    assert "covered=108/108" in gates["route_task_uat"].detail
+    assert "binding=true" in gates["route_task_uat"].detail
+    assert gates["route_cleanup_readiness"].passed is True
+    assert "covered=108/108" in gates["route_cleanup_readiness"].detail
+    assert "candidate_binding=true" in gates["route_cleanup_readiness"].detail
+    assert gates["rollback_drill"].passed is True
+    assert "binding=true" in gates["rollback_drill"].detail
+    assert gates["stable_version_window"].passed is False
+    assert gates["blocking_defects"].passed is False
+    assert gates["production_telemetry"].passed is False
+    assert gates["production_registry_backup"].passed is False
+    assert gates["cutover_approvals"].passed is False
+    assert sum(gate.passed for gate in result.gates) == 5
 
 
 def test_cutover_waits_for_terminal_runtime_dependency(tmp_path: Path) -> None:

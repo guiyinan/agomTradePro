@@ -1,0 +1,69 @@
+{
+  "schema": "agomtradepro-personal-project-single-owner-authorization.v1",
+  "authorization_id": "PERSONAL-OWNER-36B72D2F-20260830-01",
+  "recorded_at": "2026-08-30T12:58:17.2834180Z",
+  "source": {
+    "kind": "interactive_user_declaration",
+    "thread_id": "01a04e2c-3e20-7bf1-ab13-668d1d086d06",
+    "declared_text": "这是个人项目，不要搞得这么复杂；我作为项目主人（也是唯一的真人）授权你做这些事。",
+    "cryptographic_signature_present": false,
+    "external_approval_system_receipt_present": false,
+    "recorded_by": "codex_repository_governance_automation"
+  },
+  "owner": {
+    "repository_identity_id": "agomtradepro-personal-project-owner",
+    "display_name": "阿狗涅夫",
+    "display_name_is_user_asserted": true,
+    "legal_name_claimed": false,
+    "production_account_claimed": false,
+    "role": "project_owner",
+    "only_human_project_owner_asserted": true
+  },
+  "candidate": {
+    "commit": "36b72d2fc01604afdb15d236a1e91d082fb62a5b",
+    "release_id": "20260830071422",
+    "image_id": "sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b"
+  },
+  "governance_mode": {
+    "id": "single_owner_personal_project",
+    "multi_person_separation_of_duties_required": false,
+    "same_owner_may_hold_governance_roles": true,
+    "missing_legal_name_or_production_account_does_not_invalidate_owner_decision": true,
+    "single_owner_conflict_of_interest_acknowledged": true,
+    "automation_is_delegated_executor_not_a_human_reviewer": true,
+    "valid_until_revoked_or_superseded": true
+  },
+  "authorized_scope": {
+    "record_and_validate_candidate_bound_review_reports": true,
+    "update_review_checklists_primary_plans_and_registry": true,
+    "confirm_existing_tui_uat_business_outcome": {
+      "approved": true,
+      "run_id": "tui01-36b72d2f-20260830-01",
+      "scope": "existing 10/10 production-safe UAT, 108/108 routes, three roles, two same-run receipts and zero cleanup residual only"
+    },
+    "prepare_and_implement_bounded_repository_remediation": true,
+    "run_safe_read_only_candidate_bound_checks": true,
+    "execute_production_remediation_only_after_exact_preflight_and_technical_gates_pass": true,
+    "phase_results_must_be_recorded_after_they_really_occur": true
+  },
+  "not_authorized_or_not_waived": [
+    "fabricating authority heads, business definitions, retained observations, staging environments, model outcomes, broker receipts or trading facts",
+    "treating a missing technical prerequisite as passed",
+    "backdating or synthesizing the 14-day observation window",
+    "live trading or external paid model calls without their exact separate action envelope",
+    "production data deletion, blanket compensation, database restore or destructive rollback",
+    "clearing decision or execution gates before their technical exit conditions pass",
+    "changing canonical freshness, reliability, coverage or tolerance rules to manufacture readiness"
+  ],
+  "decision_policy": {
+    "owner_receipt_replaces_multi_person_identity_and_separation_fields": true,
+    "defer_reports_are_valid_when_their_json_sidecar_candidate_and_missing_evidence_are_verified": true,
+    "approve_requires_all_non_human_technical_fields_for_the_selected_branch": true,
+    "report_presence_alone_is_not_execution_authorization": true,
+    "fail_closed_remains_default": true
+  },
+  "production_claim": false,
+  "production_write_performed": false,
+  "deployment_performed": false,
+  "external_side_effect_performed": false
+}

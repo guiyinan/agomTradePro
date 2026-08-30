@@ -449,7 +449,7 @@ python tui-metadata-compiler/scripts/publish_tui_metadata.py \
 | M2 | W1–W20，配置、CRUD 与治理任务 | 已完成 | `../archive/plans/web-to-tui-m2-consolidated-evidence-2026-07-26.md` |
 | M3 | W21–W42，长尾工作台与运维任务 | 已完成 | `../archive/plans/web-to-tui-m3-consolidated-evidence-2026-07-26.md` |
 | M4 | W43–W51，图表与分析任务 | 已完成 | `../archive/plans/web-to-tui-m4-consolidated-evidence-2026-07-26.md` |
-| M5 | 108-route UAT/closure、回滚与生产 cutover | M5-A DENY；2026-08-15 候选已部署并完成 provenance/health 复核，角色化 UAT、观察窗口和写后审计仍未完成 | [`docs/deployment/vps-deployment-evidence-2026-08-15.md`](../deployment/vps-deployment-evidence-2026-08-15.md) 与 `web-to-tui-m5-readiness-2026-07-27.md` |
+| M5 | 108-route UAT/closure、回滚与生产 cutover | DENY；最终 release 已完成 108-route 三角色 UAT、写回执、六类 cleanup matrix、隔离 rollback drill 与可恢复 raw registry backup；14 日稳定窗口、结构化 defect/101-task telemetry、正式 backup attestation 和双签仍缺 | canonical cutover JSON、[`tui-registry-backup-checkpoint-2026-08-30.json`](../deployment/tui-registry-backup-checkpoint-2026-08-30.json) 与 `web-to-tui-m5-readiness-2026-07-27.md` |
 
 ### 2026-08-15 候选部署证据
 
@@ -467,6 +467,97 @@ provenance，不自动开始 14 日窗口或角色化 UAT；M5-A 继续 `DENY`�
 TUI registry 与 release manifest/OCI/source binding。该候选仅更新 provenance/schema 运行证据；
 角色化浏览器 UAT、写后回执/刷新、14 日 telemetry、registry backup/restore、rollback 与双签
 仍缺，M5 继续 `DENY`。
+
+## 2026-08-30 最终候选 M5 机器证据检查点
+
+最终 source commit `36b72d2fc01604afdb15d236a1e91d082fb62a5b` 已从独立 clean worktree
+部署为 release `20260830071422`、image
+`sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b`；OCI revision、
+deployment preflight、matrix/graph/runtime binding 精确一致，公网 health/ready=`200/200`。观察记录已
+重置并绑定该身份，窗口为 `2026-08-29..2026-09-12`，旧候选证据不继承。
+
+canonical production-safe run `tui01-36b72d2f-20260830-01` 通过 `10/10` tests、`108/108`
+route pages、regular/operator/admin 三角色、strategy/provider 两条同 run create-update-readback receipt，
+exact cleanup residual=`0`。随后 cleanup recorder 对 `empty_state`、`error_state`、`legacy_url`、
+`permission`、`primary_task`、`rollback` 六类 scope 全部得到 `108/108`；候选绑定的 local isolated
+rollback drill 通过，未触碰 live registry 或生产数据。
+
+证据 SHA-256：
+
+- `web_to_tui_uat_candidate.production-safe.v2.json`：`f18c28fefa0c1207da56541d2e6bbc674a7d712eaa58251462cb87f883255613`
+- `web_to_tui_cleanup_candidate.v1.json`：`803afe058ef6c359abc3baa19577576c445764e60f2f80861d4469489857b04c`
+- `web_to_tui_rollback_candidate.v1.json`：`351eb05bdf498c2f3b4ebd345076e691a0ba92268e14b21e17b197489992aaf4`
+- `web_to_tui_cutover_evidence.v1.json`：`2694f1274e943e85ca811234932f23344ac8a49a10e788bd7073e50d5de7fd5f`
+
+生产 registry generation `30` 已导出到 Git 工作树外的 root-only bundle；bundle SHA-256=
+`1fe6b01fd36cf855a9af395c5b570029442cb5593834d2a15c24fa8601dfb882`，sidecar 与 restore dry-run
+通过，backup graph hash 与 active source hash 均为
+`68fc19962de486a2382584ec416a2a90dcffa08c35fcc9afa3c255d3f5850d72`。原始 bundle 不进入 Git；
+payload-free checkpoint 见
+[`tui-registry-backup-checkpoint-2026-08-30.json`](../deployment/tui-registry-backup-checkpoint-2026-08-30.json)。
+按既有硬门，正式 `build_tui_registry_backup_evidence --write-evidence` 只能在观察结束后、由真实独立
+reviewer 验证时运行，因此 raw backup 当前不等于 formal attestation PASS。
+
+`check_web_to_tui_cutover_readiness.py` 当前得到 `5/10` gates PASS：source consistency、execution
+dependency、route task UAT、route cleanup readiness、rollback drill 已通过；stable window、structured
+blocking-defect snapshot、101-task production telemetry、formal registry-backup attestation、owner/reviewer
+approvals 未通过，整体严格保持 `DENY`。`TUI-01` 因真实 role-owner 业务确认缺失继续
+`awaiting_production`；`TUI-02` 继续 `waiting_dependency`，不得提前生成 cleanup wave 或删除 Classic。
+
+## 2026-08-30 M5 observation source 只读 preflight
+
+候选绑定的 observation source preflight 已固化为
+[`tui-m5-observation-source-preflight-2026-08-30-36b72d2f.json`](../deployment/tui-m5-observation-source-preflight-2026-08-30-36b72d2f.json)，
+SHA-256=`b8b22c64f260d5a2d43de78a2ee30d30637ea741203d3173b1b28fe6fc660bcf`。
+本次只读取公网 metrics exporter、VPS 容器/监听进程和仓库 collector 契约，没有部署或修改监控、
+没有写生产业务数据，也没有生成提前日期的 defect/telemetry 通过证据。
+
+公网 `/metrics/` 返回 `200`，一次 scrape 为 `469,645` bytes、SHA-256=
+`17bf7d89d24d91f232426a54bd03fd9b333d78d45aba3dd32a13e7fd9bfa8059`，包含
+`203` 条 `web_to_tui_migration_events_total` series、`108` 个 task key；catalog 要求的 `101`
+个可比较 task key 全部出现，另有 `7` 个 TUI-only key。但当前 series 全部为 `surface=tui`，没有
+Classic surface，且 exporter 只暴露当前进程 counter，不能回答正式合同中的六条
+`increase(...[14d])` 查询。
+
+VPS 当前 `8` 个运行容器中没有 Prometheus、VictoriaMetrics、Thanos 或 Mimir，主机没有 TCP
+`9090` listener 或相应进程，部署 compose 也没有时序库 service。外部托管的 Prometheus-compatible
+source 可能存在，但本 Goal 未获得其 query origin、凭证或从 `2026-08-29` 开始的 retention 证明，
+因此不能宣称已有 14 日历史源。
+
+补充的 local-source discovery 还确认 web 容器与宿主 `.env` 没有监控 source 变量名，Docker volume、
+systemd unit、container/process、Caddy route 以及 `/etc/prometheus`、`/var/lib/prometheus`、
+`/opt/prometheus` 均无 Prometheus 或常见 agent 线索。该检查不可能否定“外部 SaaS 直接抓取公网
+exporter”的情形，因此 external source 仍必须由 operations 提供 query origin 和 retention 证明，
+不能由自动化据本机空结果推断为绝对不存在。
+
+两个正式 builder 都严格要求完整窗口结束后才接受输入：production telemetry 的
+`collected_at >= 2026-09-12`，blocking defect 的 `queried_at >= 2026-09-12`；提前写入会被机器拒绝。
+这纠正了“观察期内即可生成最终结构化快照”的排期表述。现在必须由 operations 提供现有受治理的
+Prometheus query origin/retention 证明和受审 P0/P1 tracker source。若不存在可证明从窗口起点连续
+保留的外部 source，则安装或配置 collector 属于另行授权的生产变更，观察窗口必须从首个可证明保留
+样本重新开始，不能用 9 月 12 日的瞬时 scrape 或零值回填历史。
+
+该 preflight 不改变 unit 状态：`TUI-01` 仍等待真实 role-owner 确认，`TUI-02` 仍
+`waiting_dependency`，M5 readiness 仍为 `5/10 DENY`。在外部监控/缺陷源、role-owner 或候选身份
+没有新状态前，不重复 exporter 或 readiness 探针。
+
+聚焦回归首次暴露 checked-in readiness 测试仍按历史空 UAT 断言 `route_task_uat=false`，与当前
+canonical 108/108 UAT、cleanup 和 rollback 证据矛盾。测试已只更新为当前 `5/10` 投影：五项机器门
+为 true，stable window、defects、telemetry、formal backup attestation 与 approvals 五门仍为 false；
+没有修改 readiness 实现或阈值。telemetry、defect、readiness 三组合同回归最终 `48 passed`。
+
+若 operations 不能提供既有外部 source，下一动作的完整授权前置已经写入
+[`tui-m5-monitoring-remediation-preflight-2026-08-30-36b72d2f.json`](../deployment/tui-m5-monitoring-remediation-preflight-2026-08-30-36b72d2f.json)，
+SHA-256=`c386ea4552df2af991c2ae824acbef79ccd7dc337bc139994145babdc89c1b76`。
+静态审计确认现有 `monitoring/prometheus.yml` 不能原样作为独立 compose service：其 Django、
+Alertmanager 及 exporter targets 都使用 `localhost`，而 VPS compose 未部署对应同容器服务。新 collector
+需要受控 repository focus、固定 image digest、persistent volume/retention、可达 scrape target、
+health/query access 与 exact rule 验证，不能在 `execution_focus=null` 时直接实现。
+
+执行顺序固定为：先证明既有外部 source；若不存在，由 operations 选择并授权 bounded repository
+remediation → 单独授权监控部署并验证 → 用 fresh deployment preflight 重新证明候选并由 canonical
+`start_web_to_tui_observation.py` 重置窗口 → 完整 14 日后才生成 final snapshots。观察工具从新鲜部署
+verification date 取起点且拒绝手填日期，因此仅启动 collector 而不重新 attestation 不能修复当前窗口。
 
 ## 10. M0 映射矩阵契约
 
@@ -507,6 +598,19 @@ M0 的主产物固定为 `docs/plans/web-to-tui-migration-matrix-2026-07-25.csv`
 - [ ] `legacy_screen_aliases` 完成清理，IA registry 无死别名
 - [ ] 冻结条款从 AGENTS.md 移除，替换为"web 模板仅保留清单内可新增"的常态条款
 - [ ] 发布与回滚证据包含 graph hash、schema version、runtime build id、registry generation 和对应 commit
-- [ ] M5 唯一放行命令对最终候选版本返回 ALLOW，生产 registry 备份可恢复，owner 与独立 reviewer 的审批绑定同一证据快照
-- [ ] 各 M5-B 清理 wave 完成约定的生产观察且没有触发停止线，所有低频例外均有 owner、独立 reviewer、到期日和复核结论
+- [ ] M5 唯一放行命令对最终候选版本返回 ALLOW，生产 registry 备份可恢复，唯一真人项目所有者的审批绑定同一证据快照
+- [ ] 各 M5-B 清理 wave 完成约定的生产观察且没有触发停止线，所有低频例外均有 owner、到期日和复核结论
 - [ ] 本计划归档至 `docs/archive/plans/` 并在 `docs/INDEX.md` 标记完成
+
+## 12. 2026-08-30 single-owner 与 retained monitoring 更新
+
+唯一真人项目所有者授权替代本计划中历史“独立 reviewer/双签”的多人形式要求，但所有机器门、
+候选绑定、真实生产结果和 14 日时间门保持不变。owner 已确认候选 `36b72d2f…` 的既有 canonical UAT，
+所以 `TUI-01=completed`。
+
+`TUI-03` 已完成 repository exit：固定 digest 的 Prometheus、`21d/4GB` 持久留存、唯一真实 Django
+scrape target、M5 rules、健康检查、VPS/local 打包与 HTTPS basic-auth read-query allowlist 均通过测试。
+证据为 [`tui03-retained-monitoring-repository-closure-evidence-2026-08-30.json`](../testing/tui03-retained-monitoring-repository-closure-evidence-2026-08-30.json)，
+SHA-256=`8fda79136ae1a3a70afd22ce4b1134f69f5d4af44bd484786ea4fd2f9c9891a7`。
+`TUI-02=awaiting_production`；必须先部署 clean successor、验证首个 retained sample，再重新起算完整 14 日，
+不得继承原名义窗口或合成历史。

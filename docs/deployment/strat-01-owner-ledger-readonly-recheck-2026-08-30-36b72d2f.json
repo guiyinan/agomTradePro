@@ -1,0 +1,63 @@
+{
+  "schema": "strat-01-owner-ledger-readonly-recheck.v2",
+  "observed_at": "2026-08-30T02:48:34.840669Z",
+  "observation_kind": "candidate_bound_read_only_inventory",
+  "candidate": {
+    "source_commit": "36b72d2fc01604afdb15d236a1e91d082fb62a5b",
+    "release_tag": "20260830071422",
+    "image_tag": "agomtradepro-web:20260830071422",
+    "image_id": "sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b",
+    "runtime_revision_match": true
+  },
+  "database_alias": "default",
+  "database": "agomtradepro",
+  "read_mode": "select_only",
+  "query_scope": {
+    "source": "deployed web container Django PostgreSQL connection",
+    "schema": "public",
+    "selectors": {
+      "research_r1_to_r8": "^research_r[1-8]_",
+      "portfolio_r4_r5_r8": "^portfolio_r[458]_",
+      "account_authority_assignment": "account_* containing owner, assignment, or authority",
+      "explicit_owner_policy_operator_assignment": "account_/research_/portfolio_ table containing owner, policy, operator, or assignment"
+    },
+    "query_kind": "table inventory plus SELECT COUNT(*) per selected table"
+  },
+  "inventory": {
+    "research_r1_to_r8": {
+      "table_count": 65,
+      "row_count_total": 0,
+      "nonzero_table_count": 0
+    },
+    "portfolio_r4_r5_r8": {
+      "table_count": 7,
+      "row_count_total": 0,
+      "nonzero_table_count": 0
+    },
+    "account_authority_assignment_broad": {
+      "table_count": 16,
+      "row_count_total": 0,
+      "nonzero_table_count": 0
+    },
+    "explicit_owner_policy_operator_assignment_broad": {
+      "table_count": 35,
+      "row_count_total": 0,
+      "nonzero_table_count": 0
+    }
+  },
+  "decision": {
+    "strat_01": "awaiting_production",
+    "production_claim": false,
+    "production_ready": false,
+    "runtime_enablement": "not_authorized",
+    "human_approval_status": "not_collected"
+  },
+  "limitations": [
+    "All database access was read-only SELECT through the deployed PostgreSQL web container; no production row was created, updated, deleted, backfilled, promoted, approved, or rolled back.",
+    "The account and explicit owner selectors are intentionally broad recheck selectors; the canonical exact 9-table/9-table inventory remains recorded in the prior v1 artifact.",
+    "The current post-0055 schema includes the owner/tenant authority table in the broad account selector; this is reported as observed inventory, not as authority readiness.",
+    "Zero owner/definition/policy/calendar/scope/qualification rows are an observed production blocker, not evidence that R1-R8 capabilities are complete.",
+    "Existing Data Center facts and publications were not hashed or promoted into owner evidence.",
+    "This observation does not prove PIT/OOS history, canonical receipts, Promotion, consumer UAT, PostgreSQL race/rollback, or owner/reviewer sign-off."
+  ]
+}

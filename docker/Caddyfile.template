@@ -30,5 +30,20 @@ __SITE_ADDRESS__ {
         file_server
     }
 
+    # Prometheus is not published directly. Only the read-only query surface is
+    # reachable through the existing TLS origin and it always requires a
+    # deployment-provided bcrypt credential. The checked-in fallback hash was
+    # generated from a discarded random value, so it keeps access disabled.
+    @prometheus_query {
+        path /internal/prometheus/api/v1/query /internal/prometheus/api/v1/query_range /internal/prometheus/api/v1/series /internal/prometheus/api/v1/labels /internal/prometheus/api/v1/label/*
+    }
+    handle @prometheus_query {
+        basic_auth {
+            {$PROMETHEUS_QUERY_USER:monitoring_disabled} {$PROMETHEUS_QUERY_PASSWORD_HASH:$2b$14$lVnWEISt4AVKo6lpL0Q2Fu.ZiPSSnG5INw/m6qUt3W.g/AUnOf5qa}
+        }
+        uri strip_prefix /internal/prometheus
+        reverse_proxy prometheus:9090
+    }
+
     reverse_proxy web:8000
 }

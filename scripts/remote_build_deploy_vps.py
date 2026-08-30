@@ -657,21 +657,49 @@ def _create_local_runtime_bundle(
     compose_src = project_root / "docker" / "docker-compose.vps.yml"
     env_src = project_root / "deploy" / ".env.vps.example"
     caddy_src = project_root / "docker" / "Caddyfile.template"
+    prometheus_src = project_root / "monitoring" / "prometheus.vps.yml"
+    alerts_src = project_root / "monitoring" / "alerts.yml"
+    prometheus_query_env_src = project_root / "deploy" / "prometheus-query.env.example"
 
-    if not compose_src.exists() or not env_src.exists() or not caddy_src.exists():
-        _die("Missing local runtime bundle source files (compose/env/caddy template)")
+    if not all(
+        path.exists()
+        for path in (
+            compose_src,
+            env_src,
+            caddy_src,
+            prometheus_src,
+            alerts_src,
+            prometheus_query_env_src,
+        )
+    ):
+        _die("Missing local runtime bundle source files (compose/env/caddy/monitoring)")
 
     env_text = _render_local_env(env_src.read_text(encoding="utf-8"), image_tag=image_tag)
     caddy_text = _render_local_caddy(caddy_src.read_text(encoding="utf-8"))
+    compose_text = (
+        compose_src.read_text(encoding="utf-8")
+        .replace("../monitoring/", "./monitoring/")
+        .replace("../deploy/prometheus-query.env", "./prometheus-query.env")
+    )
     image_filename = local_image_path.name
 
     with zipfile.ZipFile(bundle_zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         zf.write(local_image_path, arcname=f"{bundle_root_name}/images/{image_filename}")
-        zf.writestr(
-            f"{bundle_root_name}/docker-compose.yml", compose_src.read_text(encoding="utf-8")
-        )
+        zf.writestr(f"{bundle_root_name}/docker-compose.yml", compose_text)
         zf.writestr(f"{bundle_root_name}/.env.example", env_text)
         zf.writestr(f"{bundle_root_name}/Caddyfile", caddy_text)
+        zf.writestr(
+            f"{bundle_root_name}/monitoring/prometheus.vps.yml",
+            prometheus_src.read_text(encoding="utf-8"),
+        )
+        zf.writestr(
+            f"{bundle_root_name}/monitoring/alerts.yml",
+            alerts_src.read_text(encoding="utf-8"),
+        )
+        zf.writestr(
+            f"{bundle_root_name}/prometheus-query.env.example",
+            prometheus_query_env_src.read_text(encoding="utf-8"),
+        )
         zf.writestr(
             f"{bundle_root_name}/scripts/start-local.ps1",
             _local_start_ps1(image_filename, include_sqlite),
@@ -693,6 +721,7 @@ def _create_local_runtime_bundle(
                     "- docker-compose.yml",
                     "- .env.example",
                     "- Caddyfile",
+                    "- bounded Prometheus configuration and query-credential example",
                     "- start/stop scripts",
                     "- selected MCP/deployment docs",
                     "- redacted MCP skill reference",

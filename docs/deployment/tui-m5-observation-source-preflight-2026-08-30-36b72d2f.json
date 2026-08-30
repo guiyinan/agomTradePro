@@ -1,0 +1,170 @@
+{
+  "schema": "tui-m5-observation-source-preflight.v1",
+  "candidate": {
+    "commit": "36b72d2fc01604afdb15d236a1e91d082fb62a5b",
+    "release_id": "20260830071422",
+    "image_id": "sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b",
+    "container_id": "9f2068c7af6f",
+    "release_directory_name_observed": "source-20260830071422",
+    "deployment_preflight": {
+      "path": "docs/deployment/web-to-tui-deployment-preflight-20260830071422.json",
+      "sha256": "98f0f70cf648af82ecdbfa548fd0d55f53c81a895c1234037579564b86dec9d2"
+    },
+    "cutover_evidence": {
+      "path": "config/tui/migration/web_to_tui_cutover_evidence.v1.json",
+      "sha256": "2694f1274e943e85ca811234932f23344ac8a49a10e788bd7073e50d5de7fd5f"
+    },
+    "production_safe_uat": {
+      "path": "config/tui/migration/evidence/web_to_tui_uat_candidate.production-safe.v2.json",
+      "sha256": "f18c28fefa0c1207da56541d2e6bbc674a7d712eaa58251462cb87f883255613"
+    }
+  },
+  "observation": {
+    "observed_at": "2026-08-30T03:37:02.8804028Z",
+    "mode": "read_only_preflight",
+    "window_start": "2026-08-29",
+    "window_end": "2026-09-12",
+    "production_write_performed": false,
+    "deployment_or_monitoring_change_performed": false
+  },
+  "catalog_contract": {
+    "path": "config/tui/migration/web_to_tui_telemetry.v1.json",
+    "sha256": "3eba4acd9fcfa9291d0f1b39c277303bc7a39ba8215c5ce354d5c7c90d087e01",
+    "source_sha256": "e3027671d02d876c9f4b38b9d86395d45e26c0f2b344eb0646086be31869cd5d",
+    "classic_route_records": 118,
+    "required_unique_task_keys": 101,
+    "sorted_unique_task_key_sha256": "2b0c241f5ed12fa89da34273a9ae37890af3051fe1ac714bf888f25173937fdf"
+  },
+  "live_exporter_observation": {
+    "endpoint_path": "/metrics/",
+    "http_status": 200,
+    "content_type": "text/plain; version=1.0.0; charset=utf-8",
+    "response_bytes": 469645,
+    "response_sha256": "17bf7d89d24d91f232426a54bd03fd9b333d78d45aba3dd32a13e7fd9bfa8059",
+    "raw_payload_retained": false,
+    "raw_payload_retention_reason": "This is an exporter availability preflight, not the governed end-of-window Prometheus query snapshot.",
+    "metric_name": "web_to_tui_migration_events_total",
+    "metric_series_count": 203,
+    "observed_unique_task_keys": 108,
+    "missing_required_task_keys": 0,
+    "extra_task_keys": 7,
+    "series_by_surface": {
+      "tui": 203
+    },
+    "series_by_event_type": {
+      "confirmation": 7,
+      "entry": 105,
+      "execution": 89,
+      "form": 2
+    },
+    "series_by_outcome": {
+      "client_error": 5,
+      "confirmation_required": 7,
+      "input_required": 2,
+      "server_error": 4,
+      "success": 185
+    },
+    "can_prove_14_day_increase_queries": false,
+    "reason": "The exporter exposes the current process counter state only; it is not a Prometheus query-range or retained time-series source. No classic-surface series were present in this scrape."
+  },
+  "production_monitor_store_preflight": {
+    "running_container_count": 8,
+    "prometheus_or_compatible_containers": [],
+    "tcp_9090_listener_count": 0,
+    "prometheus_or_compatible_processes": [],
+    "repository_vps_compose_has_prometheus_service": false,
+    "external_prometheus_query_origin": null,
+    "external_prometheus_query_origin_status": "not_supplied",
+    "retention_from_window_start_proven": false,
+    "extended_local_source_discovery": {
+      "observed_at": "2026-08-30T03:53:59.8222482Z",
+      "web_container_monitoring_environment_keys": [],
+      "host_environment_monitoring_keys": [],
+      "prometheus_or_agent_docker_volumes": [],
+      "prometheus_or_agent_systemd_units": [],
+      "prometheus_or_agent_containers": [],
+      "prometheus_or_agent_processes": [],
+      "caddy_monitoring_route_matches": [],
+      "known_paths": {
+        "/etc/prometheus/prometheus.yml": "absent",
+        "/var/lib/prometheus": "absent",
+        "/opt/prometheus": "absent"
+      },
+      "searched_agent_families": [
+        "prometheus",
+        "grafana-alloy",
+        "telegraf",
+        "opentelemetry",
+        "datadog",
+        "new-relic",
+        "vector",
+        "vmagent",
+        "victoriametrics",
+        "thanos",
+        "mimir"
+      ],
+      "secret_values_read_into_evidence": false,
+      "external_saas_scraping_disproved": false,
+      "reason": "An external service can scrape the public exporter without leaving a local agent, so only an operations-supplied query origin and retention proof can establish that source."
+    },
+    "conclusion": "No Prometheus-compatible retained query source was found on the deployed VPS. An externally operated source may exist, but no endpoint, credentials or retention evidence was supplied to this Goal."
+  },
+  "final_builder_contracts": {
+    "production_telemetry": {
+      "builder_path": "scripts/build_web_to_tui_production_telemetry.py",
+      "builder_sha256": "cb6c7101e06800ba6e41b198cd86452a23c662d3f95a1d0a84479a737a8917f5",
+      "snapshot_version": "web-to-tui-production-telemetry-snapshot.v1",
+      "environment": "production",
+      "exact_window_required": true,
+      "earliest_valid_collected_at": "2026-09-12",
+      "six_approved_promql_queries_required": true,
+      "exact_101_task_coverage_required": true,
+      "minimum_classic_requests_per_task": 20,
+      "minimum_tui_requests_per_task": 20,
+      "minimum_combined_entries_per_task_or_dual_signed_exception": 20,
+      "maximum_classic_entry_share": 0.05,
+      "maximum_tui_minus_classic_error_rate_delta": 0.005,
+      "can_build_before_window_end": false
+    },
+    "blocking_defects": {
+      "builder_path": "scripts/build_web_to_tui_defect_evidence.py",
+      "builder_sha256": "df9a1a6ea80845c1e3a4703a2a4b35564781350bf9c92b5fba3642b37ba7bae4",
+      "snapshot_version": "web-to-tui-blocking-defect-snapshot.v1",
+      "approved_tracker_systems": [
+        "github",
+        "jira",
+        "linear"
+      ],
+      "query_scope": "created_or_open_during_candidate_window",
+      "exact_window_required": true,
+      "earliest_valid_queried_at": "2026-09-12",
+      "reviewed_tracker_snapshot": null,
+      "reviewed_tracker_snapshot_status": "not_supplied",
+      "can_build_before_window_end": false
+    }
+  },
+  "human_inputs": {
+    "tui_01_role_owner_identity": null,
+    "tui_01_role_owner_decision": null,
+    "tui_01_role_owner_receipt_sha256": null,
+    "low_frequency_exception_owner_reviewer_pairs": [],
+    "final_cutover_owner_identity": null,
+    "final_cutover_reviewer_identity": null,
+    "status": "not_supplied"
+  },
+  "risk_and_stop_condition": {
+    "inference": "Unless an external Prometheus-compatible source can prove uninterrupted retention from 2026-08-29, the current 14-day telemetry window cannot be reconstructed from the live exporter on 2026-09-12.",
+    "required_response": "Operations must identify the existing governed query origin and retention proof. If none exists, any collector deployment or configuration is a separately authorized production change and the observation window must restart from the first proven retained sample.",
+    "do_not": [
+      "Treat the live exporter scrape as a 14-day Prometheus query snapshot.",
+      "Backfill missing dates or classic samples with zeros.",
+      "Create low-frequency exceptions without distinct real owner and reviewer identities.",
+      "Generate the final telemetry or defect evidence before 2026-09-12.",
+      "Mark TUI-01 or TUI-02 complete from machine UAT alone."
+    ]
+  },
+  "next_action": "Obtain the governed Prometheus query origin and retention proof plus the reviewed P0/P1 tracker source; separately obtain the TUI-01 role-owner confirmation. If no retained query source exists, preflight and request authorization for monitoring deployment/configuration, then reset the candidate observation window rather than fabricating history.",
+  "production_claim": false,
+  "production_ready": false,
+  "runtime_enablement": "not_authorized"
+}

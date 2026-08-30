@@ -2052,3 +2052,46 @@ restore/rollback、14-day telemetry 或 owner/reviewer evidence。decision-ready
 `must_not_use_for_decision=true`，所以 `TAR-05` 继续 `awaiting_production`、`capacity_ready=false`；
 下一步仍须逐项授权 production load、fault、canary/queue enablement 或 live rollback，不能因部署健康
 而放大全局并发。
+
+## 2026-08-30：最终 release TAR-05 分阶段审核与执行前置合同（36b72d2f）
+
+最终候选已由 release report 与 deployment preflight 双重绑定为 commit
+`36b72d2fc01604afdb15d236a1e91d082fb62a5b`、release `20260830071422`、image
+`sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b`；Web、通用
+Celery worker/beat、PostgreSQL 与 Redis 基础服务健康。但现有 final release artifact 没有发现专用
+Terminal Agent Worker，也没有重新证明最终候选的 runtime manifest digest、完整 runtime flag
+snapshot、批准的 staging、真实 provider/MCP profile 或 retained metrics source。
+
+候选绑定 preflight
+[`tar05-production-authorization-preflight-2026-08-30-36b72d2f.json`](../deployment/tar05-production-authorization-preflight-2026-08-30-36b72d2f.json)
+SHA-256=`0e07657152230a52e431e76d899d1527588f7556a3146d8b247a78ac54ea9ed6`，固定 canonical
+test-matrix digest=`6272ea6606ebbf3c0791e48d807b733cbc6d9a4ce7d945d95c5e3a16c22aea64` 和全部
+19 项 hard SLO。历史候选 `71e62773…` 的 capacity artifact 只用于说明旧的 bounded guard 行为，明确
+`portable_to_current_candidate=false`，不得拼入当前 TAR-05 exit gate。
+
+审核团队使用
+[`tar05-operations-review-return-template-2026-08-30-36b72d2f.json`](../deployment/tar05-operations-review-return-template-2026-08-30-36b72d2f.json)，
+SHA-256=`06c71dc80c8196e0273a8eca77be5f91ba2fa3f024464376fb573dc5b5276b3f`。稳定入口为
+[`docs/reviews/release-36b72d2f/terminal-runtime/README.md`](../reviews/release-36b72d2f/terminal-runtime/README.md)，
+动态清单为
+[`review-checklist.json`](../reviews/release-36b72d2f/terminal-runtime/review-checklist.json)，final report 只接收于
+[`reports/terminal-runtime/`](../reviews/release-36b72d2f/reports/terminal-runtime/README.md)。
+
+审核顺序固定为：P1 environment/candidate → P2 staging `1/5/10/20` capacity/soak 与 P3 staging
+chaos → P4 bounded real provider/MCP/role UAT → P5 production staff canary（同时等待 `TUI-01`）→
+P6 retained observation/cutover → P7 general-user rollout 与 legacy inline retirement。当前只有 P1
+为 dependency-ready；一次 final report 只能决定一个当前 phase，后置执行结果不得预签。
+
+本 checkpoint 只创建审核 preflight/template/entry/checklist，没有启动 Worker、生成负载、注入故障、
+调用外部模型、修改 flag、部署、rollback 或写生产。`TAR-05` 继续 `awaiting_production`，
+`capacity_ready=false`、`runtime_enablement=not_authorized`、legacy inline concurrency=`1` 与全局
+fail-closed 保持不变；下一真实门是审核团队返回带真实身份、批准 staging、runtime manifest/flags/
+resources、预算和回滚边界的 P1 final report。
+
+## 2026-08-30 single-owner 回传处理
+
+TAR-05 P1 回传的候选/sidecar/缺失环境事实有效，并在唯一真人项目所有者模式下登记为 `DEFER`；不再
+要求 Operations/Product/QA-Security 由三个自然人分别签字。DEFER 仍由技术事实决定：批准 staging、
+最终 runtime manifest digest、完整 flags/resources、专用 Worker、retained metrics 和 bounded provider
+profile 均未出现。下一步可由同一 owner 选择并创建 staging envelope 后直接运行 P1/P2，但在真实
+manifest、1/5/10/20 load、chaos、provider/canary 和观察证据形成前，queued/并发大于 1 继续 fail-closed。

@@ -1,0 +1,634 @@
+{
+  "schema": "strat-01-business-owner-review-return.v1",
+  "template_only": true,
+  "instructions": {
+    "copy_to_new_final_file": true,
+    "set_template_only_false_only_after_review": true,
+    "null_means_not_reviewed_or_not_approved": true,
+    "decision_values": [
+      "APPROVE",
+      "REJECT",
+      "DEFER"
+    ],
+    "decision_required_per_capability": true,
+    "business_documents_must_be_attached_and_hashed": true,
+    "canonical_hashes_are_computed_by_dry_run_not_invented_by_reviewer": true,
+    "final_file_requires_sha256_sidecar": true,
+    "secrets_forbidden": true
+  },
+  "decision_id": null,
+  "issued_at": null,
+  "expires_at": null,
+  "candidate": {
+    "commit": "36b72d2fc01604afdb15d236a1e91d082fb62a5b",
+    "release_id": "20260830071422",
+    "image_id": "sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b",
+    "database_alias": "default"
+  },
+  "source_preflight": {
+    "path": "docs/deployment/evid-strat-production-authorization-preflight-2026-08-30-36b72d2f.json",
+    "sha256": "8518c165c21395716497a320f23e232d2744e29bea1cec8281f50fd7d19787ae"
+  },
+  "current_state_acknowledgement": {
+    "research_r1_to_r8_owner_rows_are_zero_seed": null,
+    "portfolio_r4_r5_r8_owner_rows_are_zero_seed": null,
+    "data_center_facts_cannot_be_promoted_into_owner_definitions": null,
+    "no_pit_oos_promotion_or_consumer_evidence_exists_yet": null,
+    "strategy_execution_remains_forbidden": null
+  },
+  "governance_parties": {
+    "research_governance_owner": {
+      "legal_name": null,
+      "production_account_id": null,
+      "role": null,
+      "organization": null,
+      "receipt_reference": null,
+      "receipt_sha256": null,
+      "decision": null
+    },
+    "independent_reviewer": {
+      "legal_name": null,
+      "production_account_id": null,
+      "role": null,
+      "organization": null,
+      "receipt_reference": null,
+      "receipt_sha256": null,
+      "decision": null
+    },
+    "separation_of_duties": {
+      "governance_owner_and_reviewer_are_distinct_people": null,
+      "governance_owner_and_reviewer_are_distinct_production_accounts": null,
+      "verified_by": null,
+      "verified_at": null
+    }
+  },
+  "capability_decisions": [
+    {
+      "capability_id": "R1",
+      "capability_name": "Forecast Baseline",
+      "decision": null,
+      "business_owner": {
+        "legal_name": null,
+        "production_account_id": null,
+        "role": null,
+        "organization": null,
+        "receipt_reference": null,
+        "receipt_sha256": null
+      },
+      "definition": {
+        "id": null,
+        "version": null,
+        "document_reference": null,
+        "document_sha256": null,
+        "canonical_content_hash_after_dry_run": null
+      },
+      "policy": {
+        "id": null,
+        "version": null,
+        "decision_rules_reference": null,
+        "decision_rules_sha256": null
+      },
+      "calendar": {
+        "id": null,
+        "version": null,
+        "timezone": null,
+        "cutoff_semantics": null
+      },
+      "scope": {
+        "id": null,
+        "version": null,
+        "universe_reference": null,
+        "universe_sha256": null
+      },
+      "sample_window": {
+        "minimum_duration": null,
+        "minimum_periods": null,
+        "minimum_samples": null,
+        "minimum_coverage": null
+      },
+      "qualification": {
+        "id": null,
+        "version": null,
+        "thresholds_reference": null,
+        "thresholds_sha256": null,
+        "falsification_conditions": null
+      },
+      "business_semantics": {
+        "benchmark": null,
+        "cost": null,
+        "liquidity": null,
+        "label": null,
+        "invalidation_conditions": null,
+        "retirement_conditions": null,
+        "rollback_conditions": null
+      },
+      "valid_from": null,
+      "valid_until": null,
+      "review_notes": null
+    },
+    {
+      "capability_id": "R2",
+      "capability_name": "Market Structure",
+      "decision": null,
+      "business_owner": {
+        "legal_name": null,
+        "production_account_id": null,
+        "role": null,
+        "organization": null,
+        "receipt_reference": null,
+        "receipt_sha256": null
+      },
+      "definition": {
+        "id": null,
+        "version": null,
+        "document_reference": null,
+        "document_sha256": null,
+        "canonical_content_hash_after_dry_run": null
+      },
+      "policy": {
+        "id": null,
+        "version": null,
+        "decision_rules_reference": null,
+        "decision_rules_sha256": null
+      },
+      "calendar": {
+        "id": null,
+        "version": null,
+        "timezone": null,
+        "cutoff_semantics": null
+      },
+      "scope": {
+        "id": null,
+        "version": null,
+        "universe_reference": null,
+        "universe_sha256": null
+      },
+      "sample_window": {
+        "minimum_duration": null,
+        "minimum_periods": null,
+        "minimum_samples": null,
+        "minimum_coverage": null
+      },
+      "qualification": {
+        "id": null,
+        "version": null,
+        "thresholds_reference": null,
+        "thresholds_sha256": null,
+        "falsification_conditions": null
+      },
+      "business_semantics": {
+        "benchmark": null,
+        "cost": null,
+        "liquidity": null,
+        "label": null,
+        "invalidation_conditions": null,
+        "retirement_conditions": null,
+        "rollback_conditions": null
+      },
+      "valid_from": null,
+      "valid_until": null,
+      "review_notes": null
+    },
+    {
+      "capability_id": "R3",
+      "capability_name": "Macro Factor",
+      "decision": null,
+      "business_owner": {
+        "legal_name": null,
+        "production_account_id": null,
+        "role": null,
+        "organization": null,
+        "receipt_reference": null,
+        "receipt_sha256": null
+      },
+      "definition": {
+        "id": null,
+        "version": null,
+        "document_reference": null,
+        "document_sha256": null,
+        "canonical_content_hash_after_dry_run": null
+      },
+      "policy": {
+        "id": null,
+        "version": null,
+        "decision_rules_reference": null,
+        "decision_rules_sha256": null
+      },
+      "calendar": {
+        "id": null,
+        "version": null,
+        "timezone": null,
+        "cutoff_semantics": null
+      },
+      "scope": {
+        "id": null,
+        "version": null,
+        "universe_reference": null,
+        "universe_sha256": null
+      },
+      "sample_window": {
+        "minimum_duration": null,
+        "minimum_periods": null,
+        "minimum_samples": null,
+        "minimum_coverage": null
+      },
+      "qualification": {
+        "id": null,
+        "version": null,
+        "thresholds_reference": null,
+        "thresholds_sha256": null,
+        "falsification_conditions": null
+      },
+      "business_semantics": {
+        "benchmark": null,
+        "cost": null,
+        "liquidity": null,
+        "label": null,
+        "invalidation_conditions": null,
+        "retirement_conditions": null,
+        "rollback_conditions": null
+      },
+      "valid_from": null,
+      "valid_until": null,
+      "review_notes": null
+    },
+    {
+      "capability_id": "R4",
+      "capability_name": "Risk/Allocation",
+      "decision": null,
+      "business_owner": {
+        "legal_name": null,
+        "production_account_id": null,
+        "role": null,
+        "organization": null,
+        "receipt_reference": null,
+        "receipt_sha256": null
+      },
+      "definition": {
+        "id": null,
+        "version": null,
+        "document_reference": null,
+        "document_sha256": null,
+        "canonical_content_hash_after_dry_run": null
+      },
+      "policy": {
+        "id": null,
+        "version": null,
+        "decision_rules_reference": null,
+        "decision_rules_sha256": null
+      },
+      "calendar": {
+        "id": null,
+        "version": null,
+        "timezone": null,
+        "cutoff_semantics": null
+      },
+      "scope": {
+        "id": null,
+        "version": null,
+        "universe_reference": null,
+        "universe_sha256": null
+      },
+      "sample_window": {
+        "minimum_duration": null,
+        "minimum_periods": null,
+        "minimum_samples": null,
+        "minimum_coverage": null
+      },
+      "qualification": {
+        "id": null,
+        "version": null,
+        "thresholds_reference": null,
+        "thresholds_sha256": null,
+        "falsification_conditions": null
+      },
+      "business_semantics": {
+        "benchmark": null,
+        "cost": null,
+        "liquidity": null,
+        "label": null,
+        "invalidation_conditions": null,
+        "retirement_conditions": null,
+        "rollback_conditions": null
+      },
+      "valid_from": null,
+      "valid_until": null,
+      "review_notes": null
+    },
+    {
+      "capability_id": "R5",
+      "capability_name": "Relative Value",
+      "decision": null,
+      "business_owner": {
+        "legal_name": null,
+        "production_account_id": null,
+        "role": null,
+        "organization": null,
+        "receipt_reference": null,
+        "receipt_sha256": null
+      },
+      "definition": {
+        "id": null,
+        "version": null,
+        "document_reference": null,
+        "document_sha256": null,
+        "canonical_content_hash_after_dry_run": null
+      },
+      "policy": {
+        "id": null,
+        "version": null,
+        "decision_rules_reference": null,
+        "decision_rules_sha256": null
+      },
+      "calendar": {
+        "id": null,
+        "version": null,
+        "timezone": null,
+        "cutoff_semantics": null
+      },
+      "scope": {
+        "id": null,
+        "version": null,
+        "universe_reference": null,
+        "universe_sha256": null
+      },
+      "sample_window": {
+        "minimum_duration": null,
+        "minimum_periods": null,
+        "minimum_samples": null,
+        "minimum_coverage": null
+      },
+      "qualification": {
+        "id": null,
+        "version": null,
+        "thresholds_reference": null,
+        "thresholds_sha256": null,
+        "falsification_conditions": null
+      },
+      "business_semantics": {
+        "benchmark": null,
+        "cost": null,
+        "liquidity": null,
+        "label": null,
+        "invalidation_conditions": null,
+        "retirement_conditions": null,
+        "rollback_conditions": null
+      },
+      "valid_from": null,
+      "valid_until": null,
+      "review_notes": null
+    },
+    {
+      "capability_id": "R6",
+      "capability_name": "State Model",
+      "decision": null,
+      "business_owner": {
+        "legal_name": null,
+        "production_account_id": null,
+        "role": null,
+        "organization": null,
+        "receipt_reference": null,
+        "receipt_sha256": null
+      },
+      "definition": {
+        "id": null,
+        "version": null,
+        "document_reference": null,
+        "document_sha256": null,
+        "canonical_content_hash_after_dry_run": null
+      },
+      "policy": {
+        "id": null,
+        "version": null,
+        "decision_rules_reference": null,
+        "decision_rules_sha256": null
+      },
+      "calendar": {
+        "id": null,
+        "version": null,
+        "timezone": null,
+        "cutoff_semantics": null
+      },
+      "scope": {
+        "id": null,
+        "version": null,
+        "universe_reference": null,
+        "universe_sha256": null
+      },
+      "sample_window": {
+        "minimum_duration": null,
+        "minimum_periods": null,
+        "minimum_samples": null,
+        "minimum_coverage": null
+      },
+      "qualification": {
+        "id": null,
+        "version": null,
+        "thresholds_reference": null,
+        "thresholds_sha256": null,
+        "falsification_conditions": null
+      },
+      "business_semantics": {
+        "benchmark": null,
+        "cost": null,
+        "liquidity": null,
+        "label": null,
+        "invalidation_conditions": null,
+        "retirement_conditions": null,
+        "rollback_conditions": null
+      },
+      "valid_from": null,
+      "valid_until": null,
+      "review_notes": null
+    },
+    {
+      "capability_id": "R7",
+      "capability_name": "Scenario Research",
+      "decision": null,
+      "business_owner": {
+        "legal_name": null,
+        "production_account_id": null,
+        "role": null,
+        "organization": null,
+        "receipt_reference": null,
+        "receipt_sha256": null
+      },
+      "definition": {
+        "id": null,
+        "version": null,
+        "document_reference": null,
+        "document_sha256": null,
+        "canonical_content_hash_after_dry_run": null
+      },
+      "policy": {
+        "id": null,
+        "version": null,
+        "decision_rules_reference": null,
+        "decision_rules_sha256": null
+      },
+      "calendar": {
+        "id": null,
+        "version": null,
+        "timezone": null,
+        "cutoff_semantics": null
+      },
+      "scope": {
+        "id": null,
+        "version": null,
+        "universe_reference": null,
+        "universe_sha256": null
+      },
+      "sample_window": {
+        "minimum_duration": null,
+        "minimum_periods": null,
+        "minimum_samples": null,
+        "minimum_coverage": null
+      },
+      "qualification": {
+        "id": null,
+        "version": null,
+        "thresholds_reference": null,
+        "thresholds_sha256": null,
+        "falsification_conditions": null
+      },
+      "business_semantics": {
+        "benchmark": null,
+        "cost": null,
+        "liquidity": null,
+        "label": null,
+        "invalidation_conditions": null,
+        "retirement_conditions": null,
+        "rollback_conditions": null
+      },
+      "valid_from": null,
+      "valid_until": null,
+      "review_notes": null
+    },
+    {
+      "capability_id": "R8",
+      "capability_name": "Optimization Monitoring",
+      "decision": null,
+      "business_owner": {
+        "legal_name": null,
+        "production_account_id": null,
+        "role": null,
+        "organization": null,
+        "receipt_reference": null,
+        "receipt_sha256": null
+      },
+      "definition": {
+        "id": null,
+        "version": null,
+        "document_reference": null,
+        "document_sha256": null,
+        "canonical_content_hash_after_dry_run": null
+      },
+      "policy": {
+        "id": null,
+        "version": null,
+        "decision_rules_reference": null,
+        "decision_rules_sha256": null
+      },
+      "calendar": {
+        "id": null,
+        "version": null,
+        "timezone": null,
+        "cutoff_semantics": null
+      },
+      "scope": {
+        "id": null,
+        "version": null,
+        "universe_reference": null,
+        "universe_sha256": null
+      },
+      "sample_window": {
+        "minimum_duration": null,
+        "minimum_periods": null,
+        "minimum_samples": null,
+        "minimum_coverage": null
+      },
+      "qualification": {
+        "id": null,
+        "version": null,
+        "thresholds_reference": null,
+        "thresholds_sha256": null,
+        "falsification_conditions": null
+      },
+      "business_semantics": {
+        "benchmark": null,
+        "cost": null,
+        "liquidity": null,
+        "label": null,
+        "invalidation_conditions": null,
+        "retirement_conditions": null,
+        "rollback_conditions": null
+      },
+      "valid_from": null,
+      "valid_until": null,
+      "review_notes": null
+    }
+  ],
+  "phase_2_append_only_registration": {
+    "decision": null,
+    "depends_on": "all selected capability decisions and canonical dry-run",
+    "authorization_valid_from": null,
+    "authorization_expires_at": null,
+    "dry_run_report_reference": null,
+    "dry_run_report_sha256": null,
+    "approved_capability_ids": [],
+    "exact_command_or_admin_workflow_reference": null,
+    "expected_row_plan_reference": null,
+    "expected_row_plan_sha256": null,
+    "current_head_and_overlap_check_passed": null,
+    "append_only_and_no_overwrite_acknowledged": null,
+    "stop_conditions": [],
+    "successor_revocation_or_rollback_plan_reference": null,
+    "authorization_receipt_reference": null,
+    "authorization_receipt_sha256": null,
+    "does_not_authorize": [
+      "pit_or_oos_backfill",
+      "synthetic_history",
+      "promotion",
+      "consumer_uat",
+      "strategy_execution",
+      "threshold_reduction"
+    ],
+    "review_notes": null
+  },
+  "post_registration_acceptance": {
+    "must_be_issued_after_real_registration": true,
+    "cannot_be_presigned": true,
+    "required_evidence": [
+      "exact_registered_rows_and_canonical_hashes",
+      "current_head_overlap_and_fork_checks",
+      "owner_source_receipts",
+      "read_only_capability_readiness_inventory",
+      "zero_unapproved_rows",
+      "owner_and_independent_reviewer_signoff"
+    ],
+    "decision": null,
+    "receipt_reference": null,
+    "receipt_sha256": null
+  },
+  "future_history_promotion_and_consumer_review": {
+    "not_part_of_current_review": true,
+    "cannot_be_presigned": true,
+    "still_required": [
+      "real_pit_and_oos_windows",
+      "canonical_receipts_and_lineage",
+      "assessment_and_monitoring",
+      "manual_promotion_or_activation",
+      "consumer_uat",
+      "rollback_acceptance"
+    ],
+    "decision": null
+  },
+  "final_current_stage_decision": null,
+  "attestation": {
+    "signing_system": null,
+    "signed_document_reference": null,
+    "signed_document_sha256": null,
+    "signed_at": null,
+    "signature_binds_final_json_sha256": null
+  }
+}

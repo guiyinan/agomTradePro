@@ -1,0 +1,292 @@
+{
+  "schema": "evid-01-evid-02-production-review-return.v1",
+  "template_only": true,
+  "instructions": {
+    "copy_to_new_final_file": true,
+    "set_template_only_false_only_after_review": true,
+    "null_means_not_reviewed_or_not_approved": true,
+    "decision_values": [
+      "APPROVE",
+      "REJECT",
+      "DEFER"
+    ],
+    "each_phase_requires_its_own_decision": true,
+    "downstream_phase_cannot_be_approved_before_dependencies": true,
+    "final_file_requires_sha256_sidecar": true,
+    "secrets_forbidden": true
+  },
+  "decision_id": null,
+  "issued_at": null,
+  "expires_at": null,
+  "candidate": {
+    "commit": "36b72d2fc01604afdb15d236a1e91d082fb62a5b",
+    "release_id": "20260830071422",
+    "image_id": "sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b",
+    "database_alias": "default"
+  },
+  "source_preflight": {
+    "path": "docs/deployment/evid-strat-production-authorization-preflight-2026-08-30-36b72d2f.json",
+    "sha256": "8518c165c21395716497a320f23e232d2744e29bea1cec8281f50fd7d19787ae"
+  },
+  "current_state_acknowledgement": {
+    "authority_and_evidence_tables_are_zero_seed": null,
+    "approval_and_activation_heads_are_empty": null,
+    "local_postgresql_harness_is_not_production_evidence": null,
+    "global_decision_and_execution_deny_remain_closed": null
+  },
+  "parties": {
+    "authority_subject_owner": {
+      "legal_name": null,
+      "production_account_id": null,
+      "actor_id": null,
+      "actor_user_id": null,
+      "tenant_id": null,
+      "owner_id": null,
+      "organization": null,
+      "receipt_reference": null,
+      "receipt_sha256": null,
+      "decision": null
+    },
+    "independent_root_approver": {
+      "legal_name": null,
+      "production_account_id": null,
+      "actor_id": null,
+      "actor_user_id": null,
+      "role": "owner_tenant_authority_approver",
+      "kind": "human",
+      "is_staff": null,
+      "organization": null,
+      "receipt_reference": null,
+      "receipt_sha256": null,
+      "decision": null
+    },
+    "operations_owner": {
+      "legal_name": null,
+      "production_account_id": null,
+      "role": null,
+      "organization": null,
+      "receipt_reference": null,
+      "receipt_sha256": null,
+      "decision": null
+    },
+    "independent_reviewer": {
+      "legal_name": null,
+      "production_account_id": null,
+      "role": null,
+      "organization": null,
+      "receipt_reference": null,
+      "receipt_sha256": null,
+      "decision": null
+    },
+    "separation_of_duties": {
+      "subject_and_root_approver_are_distinct_people": null,
+      "subject_and_root_approver_are_distinct_production_accounts": null,
+      "root_approver_and_reviewer_are_distinct_people": null,
+      "root_approver_and_reviewer_are_distinct_production_accounts": null,
+      "verified_by": null,
+      "verified_at": null
+    }
+  },
+  "phase_decisions": {
+    "phase_1_upstream_account_assignment": {
+      "decision": null,
+      "authorization_valid_from": null,
+      "authorization_expires_at": null,
+      "actor_authority_source": {
+        "source_id": null,
+        "source_version": null,
+        "expected_content_hash": null,
+        "current_head_verified": null,
+        "not_superseded_or_expired_verified": null
+      },
+      "owner_assignment_subject": {
+        "subject_id": null,
+        "subject_version": null,
+        "expected_content_hash": null
+      },
+      "provenance_receipt": {
+        "receipt_id": null,
+        "receipt_version": null,
+        "receipt_reference": null,
+        "receipt_sha256": null
+      },
+      "assignment_evidence": {
+        "evidence_id": null,
+        "evidence_version": null,
+        "expected_content_hash": null,
+        "account_namespace": null,
+        "account_id": null,
+        "actor_id": null,
+        "actor_user_id": null,
+        "valid_until": null
+      },
+      "same_database_alias_required": true,
+      "mutable_user_profile_or_session_inference_forbidden": true,
+      "authorization_receipt_reference": null,
+      "authorization_receipt_sha256": null,
+      "review_notes": null
+    },
+    "phase_2_owner_tenant_authority_root": {
+      "decision": null,
+      "depends_on": [
+        "phase_1_upstream_account_assignment"
+      ],
+      "authorization_valid_from": null,
+      "authorization_expires_at": null,
+      "command": {
+        "authority_id": null,
+        "authority_version": null,
+        "tenant_id": null,
+        "owner_id": null,
+        "assignment_evidence_id": null,
+        "assignment_evidence_version": null,
+        "expected_assignment_evidence_content_hash": null
+      },
+      "fixed_requirements": {
+        "status": "active",
+        "permission": "evidence_read",
+        "root_has_no_predecessor": true,
+        "approver_role": "owner_tenant_authority_approver",
+        "approver_is_independent_human_staff": true,
+        "derived_identity_fields_are_not_caller_supplied": true,
+        "in_place_update_or_delete_forbidden": true
+      },
+      "required_post_write_receipts": [
+        "first_winner_root",
+        "exact_current_same_alias_read",
+        "identity_and_content_hash",
+        "duplicate_conflict_or_exact_idempotent_replay"
+      ],
+      "authorization_receipt_reference": null,
+      "authorization_receipt_sha256": null,
+      "review_notes": null
+    },
+    "phase_3_research_evidence_scope": {
+      "decision": null,
+      "depends_on": [
+        "phase_2_owner_tenant_authority_root"
+      ],
+      "authorization_valid_from": null,
+      "authorization_expires_at": null,
+      "command": {
+        "source_id": null,
+        "source_version": null,
+        "observation_id": null,
+        "observation_version": null,
+        "expected_observation_content_hash": null
+      },
+      "approved_observation": {
+        "owner_id": null,
+        "tenant_id": null,
+        "account_id": null,
+        "actor_id": null,
+        "artifact_owner": null,
+        "artifact_type": null,
+        "artifact_id": null,
+        "artifact_version": null,
+        "artifact_content_hash": null,
+        "valid_until": null
+      },
+      "required_post_write_receipts": [
+        "scope_first_winner",
+        "exact_current_same_alias_scope",
+        "root_or_successor_chain_validation",
+        "owner_tenant_authority_scope_hash_binding"
+      ],
+      "authorization_receipt_reference": null,
+      "authorization_receipt_sha256": null,
+      "review_notes": null
+    },
+    "phase_4_operator_definition_approval_activation": {
+      "decision": null,
+      "depends_on": [
+        "phase_3_research_evidence_scope"
+      ],
+      "authorization_valid_from": null,
+      "authorization_expires_at": null,
+      "owner_record": {
+        "record_id": null,
+        "record_version": null,
+        "content_hash": null
+      },
+      "operator_definition": {
+        "operator_id": null,
+        "operator_version": null,
+        "definition_document_reference": null,
+        "definition_document_sha256": null,
+        "canonical_definition_hash_after_dry_run": null,
+        "valid_until": null,
+        "invalidation_condition": null,
+        "rollback_condition": null
+      },
+      "approval": {
+        "decision": null,
+        "approver_account_id": null,
+        "receipt_reference": null,
+        "receipt_sha256": null
+      },
+      "activation": {
+        "decision": null,
+        "activation_account_id": null,
+        "receipt_reference": null,
+        "receipt_sha256": null
+      },
+      "post_write_head_requirements": {
+        "single_approval_root_and_head": true,
+        "single_activation_root_and_head": true,
+        "activation_references_exact_approval_hash": true,
+        "operator_and_definition_identity_drift_forbidden": true
+      },
+      "review_notes": null
+    },
+    "phase_5_production_postgresql_acceptance": {
+      "decision": null,
+      "depends_on": [
+        "phase_4_operator_definition_approval_activation"
+      ],
+      "authorization_valid_from": null,
+      "authorization_expires_at": null,
+      "target_database": null,
+      "maintenance_window_reference": null,
+      "bounded_subject_ids": [],
+      "required_cases": [
+        "empty_root_first_winner",
+        "same_predecessor_successor_first_winner",
+        "outer_transaction_rollback_zero_partial_rows",
+        "revoked_or_expired_head_no_fallback",
+        "same_alias_end_to_end_authority_and_evidence_read"
+      ],
+      "stop_conditions": [],
+      "cleanup_or_forward_revocation_plan_reference": null,
+      "rollback_point_reference": null,
+      "rollback_point_sha256": null,
+      "local_harness_is_not_accepted_as_production_evidence": true,
+      "authorization_receipt_reference": null,
+      "authorization_receipt_sha256": null,
+      "review_notes": null
+    }
+  },
+  "post_execution_acceptance": {
+    "must_be_issued_after_real_execution": true,
+    "cannot_be_presigned": true,
+    "required_evidence": [
+      "all_authority_and_scope_current_heads_with_hashes",
+      "approval_and_activation_current_heads_with_hashes",
+      "production_postgresql_race_and_rollback_report",
+      "same_alias_end_to_end_receipts",
+      "revocation_and_no_fallback_result",
+      "owner_and_independent_reviewer_signoff"
+    ],
+    "decision": null,
+    "receipt_reference": null,
+    "receipt_sha256": null
+  },
+  "final_current_stage_decision": null,
+  "attestation": {
+    "signing_system": null,
+    "signed_document_reference": null,
+    "signed_document_sha256": null,
+    "signed_at": null,
+    "signature_binds_final_json_sha256": null
+  }
+}

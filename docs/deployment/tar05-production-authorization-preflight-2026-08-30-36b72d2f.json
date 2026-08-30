@@ -1,0 +1,286 @@
+{
+  "schema": "agomtradepro-tar05-production-authorization-preflight.v1",
+  "generated_at": "2026-08-30T07:06:44.8637499Z",
+  "candidate": {
+    "commit": "36b72d2fc01604afdb15d236a1e91d082fb62a5b",
+    "release_id": "20260830071422",
+    "image_id": "sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b",
+    "identity_verified": true,
+    "runtime_manifest_digest": null,
+    "runtime_manifest_digest_status": "must_be_re_attested_before_any_load_or_fault_action",
+    "canonical_test_matrix_digest": "6272ea6606ebbf3c0791e48d807b733cbc6d9a4ce7d945d95c5e3a16c22aea64"
+  },
+  "unit": {
+    "id": "TAR-05",
+    "status": "awaiting_production",
+    "execution_focus": null,
+    "capacity_ready": false,
+    "production_ready": false,
+    "runtime_enablement": "not_authorized",
+    "production_claim": false
+  },
+  "authoritative_inputs": [
+    {
+      "id": "FINAL_RELEASE_REPORT",
+      "path": "dist/remote-build-reports/remote-build-report-20260830071422.json",
+      "sha256": "0f3c99b52f42fb1a35a5bc5c41e0e81ae9a8e29e2e72c73454309537184254ad",
+      "role": "final_release_identity_and_compose_snapshot"
+    },
+    {
+      "id": "FINAL_DEPLOYMENT_PREFLIGHT",
+      "path": "docs/deployment/web-to-tui-deployment-preflight-20260830071422.json",
+      "sha256": "98f0f70cf648af82ecdbfa548fd0d55f53c81a895c1234037579564b86dec9d2",
+      "role": "candidate_bound_health_and_readiness"
+    },
+    {
+      "id": "TERMINAL_RUNTIME_CONTRACT",
+      "path": "governance/terminal_agent_runtime_contracts.json",
+      "sha256": "55f5e975b79fd16f673e6ebff516e60ffcd27d5a61b3a63a0af1b852deeb5f3c",
+      "role": "hard_slo_matrix_and_fail_closed_contract"
+    },
+    {
+      "id": "OBSERVATION_SOURCE_PREFLIGHT",
+      "path": "docs/deployment/tui-m5-observation-source-preflight-2026-08-30-36b72d2f.json",
+      "sha256": "b8b22c64f260d5a2d43de78a2ee30d30637ea741203d3173b1b28fe6fc660bcf",
+      "role": "retained_telemetry_source_gap"
+    },
+    {
+      "id": "HISTORICAL_CAPACITY_ONLY",
+      "path": "docs/deployment/tar01-current-production-capacity-2026-08-22-71e62773.json",
+      "sha256": "4e7f440396d871b224efefa87f306a1a3773269e32ae1ae3bbf57d6a54e3ffa2",
+      "role": "historical_nonportable_capacity_observation"
+    },
+    {
+      "id": "BASELINE_RECORDER",
+      "path": "scripts/record_terminal_runtime_baseline_evidence.py",
+      "sha256": "2fd3da795cc578de2e8c381e960ca28631e780e5be1b3788097c8fed6a81fef9",
+      "role": "offline_candidate_bound_baseline_recorder"
+    },
+    {
+      "id": "CHAOS_RECORDER",
+      "path": "scripts/record_terminal_runtime_chaos_evidence.py",
+      "sha256": "f29766568b85b0355f46f01fcd78e75cc1f44abcd55fcbb13598f1de5a84b8fa",
+      "role": "offline_candidate_bound_chaos_recorder"
+    },
+    {
+      "id": "CAPACITY_VALIDATOR",
+      "path": "scripts/validate_terminal_runtime_capacity_evidence.py",
+      "sha256": "bb604ac7f50d21bce22be3160edae6e9a52e527915a2ef493d3c91bf0fbd734d",
+      "role": "candidate_binding_validator"
+    },
+    {
+      "id": "LOAD_HARNESS",
+      "path": "tests/load/agent_runtime/test_terminal_agent_capacity.py",
+      "sha256": "83bb942e7e7ec71310e5fc525fe06ef50cf8e5c7b243b1dc60d041c9918373fc",
+      "role": "local_controlled_load_contract_not_runtime_evidence"
+    },
+    {
+      "id": "CHAOS_HARNESS",
+      "path": "tests/chaos/agent_runtime/test_terminal_agent_recovery.py",
+      "sha256": "f85fe91fe458b7975bbf9c398da6389d3bd2fc5e9687cb5a20a421d291615760",
+      "role": "local_controlled_chaos_contract_not_runtime_evidence"
+    }
+  ],
+  "current_facts": {
+    "final_release": {
+      "deployed": true,
+      "runtime_identity_match": true,
+      "health_http_status": 200,
+      "ready_http_status": 200,
+      "general_celery_worker_observed": true,
+      "dedicated_terminal_agent_worker_observed": false,
+      "current_candidate_terminal_flag_values": "not_re_attested_in_the_final_release_artifacts"
+    },
+    "capacity_and_chaos": {
+      "current_candidate_baseline_report": null,
+      "current_candidate_chaos_report": null,
+      "current_candidate_provider_mcp_success_report": null,
+      "current_candidate_production_canary_report": null,
+      "current_candidate_restore_or_rollback_report": null,
+      "current_candidate_owner_reviewer_signoff": null,
+      "historical_capacity_candidate": "71e62773ebc3032996f5f14801ac6a2a3ad28b65",
+      "historical_capacity_portable_to_current_candidate": false
+    },
+    "telemetry": {
+      "governed_prometheus_compatible_query_source": null,
+      "retention_proof": null,
+      "fourteen_day_terminal_runtime_window_available": false,
+      "instantaneous_or_zero_backfill_allowed": false
+    },
+    "contract_status": {
+      "tar01_safety_contract": "complete",
+      "tar05_capacity_gate": "blocked",
+      "load_matrix_status": "planned_until_real_candidate_bound_observation_exists",
+      "chaos_matrix_status": "planned_until_real_candidate_bound_observation_exists"
+    }
+  },
+  "hard_slo_contract": {
+    "all_measurements_required": true,
+    "unavailable_or_breach_result": "capacity_gate_blocked",
+    "criteria": [
+      {"key": "run_api_p95_ms", "comparator": "maximum", "threshold": 500, "unit": "milliseconds"},
+      {"key": "run_api_provider_calls", "comparator": "exact", "threshold": 0, "unit": "count"},
+      {"key": "run_api_mcp_calls", "comparator": "exact", "threshold": 0, "unit": "count"},
+      {"key": "ordinary_web_5xx", "comparator": "exact", "threshold": 0, "unit": "count"},
+      {"key": "ordinary_web_p95_degradation_percent", "comparator": "maximum", "threshold": 10, "unit": "percent"},
+      {"key": "daphne_chat_load_restarts", "comparator": "exact", "threshold": 0, "unit": "count"},
+      {"key": "idempotent_created_runs", "comparator": "exact", "threshold": 1, "unit": "count"},
+      {"key": "idempotent_model_calls", "comparator": "exact", "threshold": 1, "unit": "count"},
+      {"key": "cross_user_leaks", "comparator": "exact", "threshold": 0, "unit": "count"},
+      {"key": "unrecoverable_running_tasks", "comparator": "exact", "threshold": 0, "unit": "count"},
+      {"key": "duplicate_non_idempotent_side_effects", "comparator": "exact", "threshold": 0, "unit": "count"},
+      {"key": "queue_boundary_violations", "comparator": "exact", "threshold": 0, "unit": "count"},
+      {"key": "unbounded_queue_growth_events", "comparator": "exact", "threshold": 0, "unit": "count"},
+      {"key": "timeout_boundary_violations", "comparator": "exact", "threshold": 0, "unit": "count"},
+      {"key": "late_terminal_overwrites", "comparator": "exact", "threshold": 0, "unit": "count"},
+      {"key": "cancel_checkpoint_violations", "comparator": "exact", "threshold": 0, "unit": "count"},
+      {"key": "event_recovery_violations", "comparator": "exact", "threshold": 0, "unit": "count"},
+      {"key": "queue_isolation_violations", "comparator": "exact", "threshold": 0, "unit": "count"},
+      {"key": "secret_occurrences", "comparator": "exact", "threshold": 0, "unit": "count"}
+    ]
+  },
+  "authorization_phases": [
+    {
+      "phase_id": "TAR05-P1-ENVIRONMENT-CANDIDATE",
+      "title": "Name and approve the governed staging environment and exact candidate",
+      "authorization_state": "not_authorized",
+      "required_before_action": [
+        "real operations owner, product owner, QA/security reviewer and bounded operator identities",
+        "approved staging environment identity and access receipt without secrets",
+        "exact candidate commit/release/image, runtime manifest digest and canonical matrix digest",
+        "dedicated Worker, Redis, PostgreSQL and Web resource/isolation manifest",
+        "real provider and MCP test profile identities without credentials",
+        "cost, request, duration and data-retention budgets",
+        "stop owner, rollback owner and validity window"
+      ],
+      "allowed_action_after_approval": "read-only environment and candidate re-attestation only",
+      "not_authorized_by_this_phase": ["load", "fault injection", "external model call", "production flag change"]
+    },
+    {
+      "phase_id": "TAR05-P2-STAGING-CAPACITY",
+      "title": "Run candidate-bound 1/5/10/20 staging capacity and soak",
+      "authorization_state": "not_authorized",
+      "depends_on": ["TAR05-P1-ENVIRONMENT-CANDIDATE"],
+      "required_concurrency_levels": [1, 5, 10, 20],
+      "required_outputs": [
+        "all baseline metrics and all 19 hard SLO measurements",
+        "ordinary Web baseline and loaded p95/5xx comparison",
+        "queue limits, fairness, duplicate, idempotency and cross-user isolation",
+        "Worker, Redis, PostgreSQL, Web, provider and MCP resource timelines",
+        "candidate-bound raw snapshot, recorder output and SHA-256 sidecars"
+      ],
+      "not_authorized_by_this_phase": ["production load", "fault injection", "production flag change", "capacity increase"]
+    },
+    {
+      "phase_id": "TAR05-P3-STAGING-CHAOS",
+      "title": "Run separately approved staging recovery scenarios",
+      "authorization_state": "not_authorized",
+      "depends_on": ["TAR05-P1-ENVIRONMENT-CANDIDATE"],
+      "required_scenarios": [
+        "redis_down_restart",
+        "broker_message_loss_and_reconciliation",
+        "worker_sigterm",
+        "worker_sigkill",
+        "model_429_5xx_timeout",
+        "mcp_timeout",
+        "sse_disconnect_reconnect",
+        "web_restart",
+        "deployment_drain"
+      ],
+      "required_outputs": [
+        "monotonic UTC raw event timeline",
+        "worker/run/stream/recovery states",
+        "reconnect, overwrite, duplicate side-effect and cross-user-leak counters",
+        "durable current state and queue drain reconciliation",
+        "candidate-bound chaos recorder output and SHA-256 sidecar"
+      ],
+      "not_authorized_by_this_phase": ["production fault injection", "production flag change", "live rollback"]
+    },
+    {
+      "phase_id": "TAR05-P4-PROVIDER-MCP-UAT",
+      "title": "Run bounded real provider, MCP, approval and role UAT in staging",
+      "authorization_state": "not_authorized",
+      "depends_on": ["TAR05-P2-STAGING-CAPACITY", "TAR05-P3-STAGING-CHAOS"],
+      "required_before_action": [
+        "approved provider/model profile identity and maximum call/token/cost budget",
+        "approved MCP registry digest and tool allowlist",
+        "real role accounts and owner-scoped test data",
+        "proposal/approval and non-idempotent side-effect boundaries",
+        "audit, fee and secret-redaction receipts"
+      ],
+      "required_outputs": ["provider/MCP success and failure outcomes", "role lifecycle UAT", "cost and audit reconciliation", "zero secret leakage"],
+      "not_authorized_by_this_phase": ["production canary", "production load", "live trading"]
+    },
+    {
+      "phase_id": "TAR05-P5-PRODUCTION-STAFF-CANARY",
+      "title": "Enable a bounded production staff canary with an armed rollback",
+      "authorization_state": "not_authorized",
+      "depends_on": ["TAR05-P4-PROVIDER-MCP-UAT", "TUI-01"],
+      "required_before_action": [
+        "exact production flag values and dedicated Worker configuration",
+        "named staff canary accounts and traffic envelope",
+        "backup or recovery point acceptance",
+        "monitoring source and alert ownership",
+        "stop conditions, drain procedure and safe-state rollback command",
+        "production operator and independent reviewer receipts"
+      ],
+      "required_safe_state": {
+        "TERMINAL_RUNTIME_AUTHORIZED": false,
+        "TERMINAL_QUEUED_INTAKE_ENABLED": false,
+        "TERMINAL_QUEUED_WORKER_ENABLED": false,
+        "TERMINAL_LEGACY_INLINE_ENABLED": true,
+        "TERMINAL_LEGACY_INLINE_CONCURRENCY": 1
+      },
+      "not_authorized_by_this_phase": ["general-user rollout", "inline retirement", "capacity increase", "production chaos"]
+    },
+    {
+      "phase_id": "TAR05-P6-OBSERVATION-CUTOVER",
+      "title": "Review the real production observation window and any later cutover",
+      "authorization_state": "not_due",
+      "depends_on": ["TAR05-P5-PRODUCTION-STAFF-CANARY"],
+      "required_outputs": [
+        "governed retained telemetry covering the full approved observation window",
+        "capacity, fairness, duplicate, queue, Web, Redis, PostgreSQL, Worker, provider and MCP metrics",
+        "defect, incident, cost, audit, restore/rollback and role-owner evidence",
+        "same-candidate operations/product/QA-security sign-off"
+      ],
+      "cutover_rule": "general-user rollout and legacy inline retirement require separate post-observation decisions and cannot be pre-signed"
+    }
+  ],
+  "universal_stop_conditions": [
+    "candidate, release, image, runtime manifest or test matrix digest drifts",
+    "review identity, production account, separation of duties, receipt or validity is missing",
+    "required metric is unavailable or any hard SLO breaches",
+    "cross-user leak, duplicate non-idempotent side effect or late terminal overwrite is nonzero",
+    "queue or resource growth is unbounded",
+    "secret, prompt, credential or provider key appears in an artifact",
+    "rollback owner or safe-state command is unavailable",
+    "retained telemetry origin or retention cannot be proven",
+    "an action exceeds its phase-specific traffic, fault, cost, duration or account envelope"
+  ],
+  "rollback_contract": {
+    "stop_new_intake_first": true,
+    "drain_or_safely_terminalize_existing_runs": true,
+    "preserve_durable_run_timeline_proposal_approval_and_audit_ledgers": true,
+    "delete_or_blanket_cleanup_forbidden": true,
+    "restore_fail_closed_flags_and_inline_single_slot": true,
+    "post_rollback_reconciliation_and_independent_review_required": true
+  },
+  "report_contract": {
+    "review_entry": "docs/reviews/release-36b72d2f/terminal-runtime/README.md",
+    "dynamic_checklist": "docs/reviews/release-36b72d2f/terminal-runtime/review-checklist.json",
+    "report_output": "docs/reviews/release-36b72d2f/reports/terminal-runtime/",
+    "template_only_is_authorization": false,
+    "report_presence_is_authorization": false
+  },
+  "side_effects": {
+    "production_write": false,
+    "load_generated": false,
+    "fault_injected": false,
+    "external_model_called": false,
+    "runtime_flag_changed": false,
+    "worker_started_or_restarted": false,
+    "deployment_or_rollback": false,
+    "authorization_changed": false
+  }
+}

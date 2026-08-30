@@ -1,0 +1,108 @@
+{
+  "schema": "tui03-retained-monitoring-repository-closure-evidence.v1",
+  "unit_id": "TUI-03",
+  "recorded_at": "2026-08-30T13:32:08.2002910Z",
+  "repository": {
+    "base_commit": "a74b8252bcc61340993de101ff07e204a5913e6f",
+    "working_tree_contains_uncommitted_unit_changes": true,
+    "production_candidate_not_yet_rebound": true
+  },
+  "owner_authorization": {
+    "authorization_id": "PERSONAL-OWNER-36B72D2F-20260830-01",
+    "path": "docs/deployment/personal-project-single-owner-authorization-2026-08-30-36b72d2f.json",
+    "sha256": "d9c6e9f4128603d0f2208e107a430db93332ec2db2e523886d5248bb63005fd7"
+  },
+  "collector": {
+    "image": "prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996",
+    "manifest_digest_verified_by": "docker buildx imagetools inspect prom/prometheus:v3.5.0",
+    "linux_amd64_manifest_digest": "sha256:8672a850efe2f9874702406c8318704edb363587f8c2ca88586b4c8fdb5cea24",
+    "retention_time": "21d",
+    "retention_size": "4GB",
+    "persistent_volume": "prometheus_data",
+    "direct_host_port_published": false,
+    "scrape_target": "http://web:8000/metrics/",
+    "configured_jobs": [
+      "agomtradepro"
+    ],
+    "unavailable_exporters_not_configured": [
+      "celery",
+      "flower",
+      "postgres",
+      "redis",
+      "node"
+    ]
+  },
+  "query_access": {
+    "https_path": "/internal/prometheus/",
+    "allowed_api_surface": [
+      "/api/v1/query",
+      "/api/v1/query_range",
+      "/api/v1/series",
+      "/api/v1/labels",
+      "/api/v1/label/*"
+    ],
+    "authentication": "caddy basic_auth with a host-only optional env file",
+    "checked_in_fallback_usable": false,
+    "prometheus_admin_or_lifecycle_exposed": false
+  },
+  "authoritative_file_hashes": {
+    "docker/docker-compose.vps.yml": "f7a506afbacd2a3374d944c3b838f2c1dba94aa05d95a204ea252bb2172ad224",
+    "docker/Caddyfile.template": "86606e17562a7798e492cf33bc4c17abef83fb5e01036fb9ebcae4c6bd3e9741",
+    "monitoring/prometheus.vps.yml": "a87d668e886e333b580b13da1fde0e7c3146acd2047eb1c492f1e25d4fff712a",
+    "monitoring/alerts.yml": "c7844d4b569cb98231471f2d094342e3ff77841a233c12bf7bc5d59dd5a7250b",
+    "deploy/.env.vps.example": "6367c762fe90594759026b98eb4bd262613e2dc541b98710ec1346c61e2340d5",
+    "deploy/prometheus-query.env.example": "a7e15f303a3267453cf61895e265b88f6ad6a3f7b1ead6a05879331b4716a55f",
+    "scripts/package-for-vps.ps1": "8de34b68f439430176a08de9377ba5178eebbf2f5b3cfd7e009d8ede3bd24998",
+    "scripts/verify-vps-bundle.ps1": "336dd716acb2186611eeeb788bf8c74765641de66082431b0a3f7b2b14319e9f",
+    "scripts/remote_build_deploy_vps.py": "38076fb69c81a60617e865bef75028cdef29569590329edaa7f5b12ed24ebcbc",
+    "tests/unit/test_m5_prometheus_deployment_contract.py": "f480bd33104d9eaf0916f92c56620e1f832fad9b5de52afca51a0207a2c1d07f"
+  },
+  "verification": [
+    {
+      "command": "pytest tests/unit/test_m5_prometheus_deployment_contract.py tests/unit/test_web_to_tui_telemetry.py tests/unit/test_web_to_tui_cutover_readiness.py -q",
+      "result": "48 passed in 71.55s"
+    },
+    {
+      "command": "docker compose -f docker/docker-compose.vps.yml --env-file deploy/.env.vps.example config --quiet",
+      "result": "passed"
+    },
+    {
+      "command": "promtool check config /etc/prometheus/prometheus.yml",
+      "result": "configuration valid; 1 rule file and 17 rules loaded"
+    },
+    {
+      "command": "caddy validate --config - --adapter caddyfile",
+      "result": "valid configuration"
+    },
+    {
+      "command": "python scripts/check_alerts.py",
+      "result": "passed"
+    },
+    {
+      "command": "python scripts/check_active_plan_registry.py",
+      "result": "version v14; 29 units; 0 violations"
+    },
+    {
+      "command": "python scripts/check_mypy_regression.py scripts/remote_build_deploy_vps.py",
+      "result": "0 regressions"
+    },
+    {
+      "command": "python scripts/check_mypy_debt_ceiling.py",
+      "result": "0 errors in 0 files"
+    },
+    {
+      "command": "PowerShell ScriptBlock parse for package-for-vps.ps1 and verify-vps-bundle.ps1",
+      "result": "passed"
+    }
+  ],
+  "exit_gate": {
+    "repository_contract_complete": true,
+    "production_deployment_complete": false,
+    "first_retained_sample_observed": false,
+    "observation_window_reset": false,
+    "next_unit": "TUI-02"
+  },
+  "production_claim": false,
+  "production_write_performed": false,
+  "deployment_performed": false
+}

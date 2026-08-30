@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-30.v3",
+  "version": "2026-08-30.v15",
   "updated_at": "2026-08-30",
   "execution_focus": {
     "unit_id": null,
@@ -8,7 +8,7 @@
       "external",
       "governance"
     ],
-    "policy": "No repository unit is active; DATA-02 is the authorized production execution line. Its candidate now includes four-dataset atomic current publication, real completed-session fact remediation and a DATA-03 fail-closed CAS activation wrapper; deploy, run dry-run, execute only after exact provider coverage, then reconcile before DATA-03. The user authorized A1-A8 operational action packages on 2026-08-30, but every action remains bound to its prerequisites, exact target and rollback point; independent owner/reviewer decisions, real business definitions, broker environment and elapsed observation windows cannot be automated or inferred."
+    "policy": "Personal-project single-owner mode is active under docs/deployment/personal-project-single-owner-authorization-2026-08-30-36b72d2f.json. The user is the sole human project owner, so the same owner may hold governance roles and no independent second-person signature is required. This replaces only multi-person identity and separation requirements; it never supplies missing authority rows, typed runtime values, business definitions, retained observations, staging, model/broker outcomes or elapsed time. The five returned reports are valid fail-closed decisions: AUD/DATA DEFER, TUI source DEFER, TUI role-owner APPROVE, EVID DEFER, STRAT DEFER and TAR-05 DEFER. TUI-01 is completed. TUI-03 repository exit is complete with evidence docs/testing/tui03-retained-monitoring-repository-closure-evidence-2026-08-30.json: digest-pinned Prometheus, persistent 21-day/4GB bounds, web:8000 scrape, exact M5 rules, healthcheck, packaging and authenticated HTTPS query contracts all validate. No repository unit is active. TUI-02 is the next production line: create a clean immutable successor, provision a host-only query credential, deploy the collector, prove target up/retention/query access, then use the canonical starter to reset the full 14-day window. DATA/AUD/EVID/STRAT/TAR technical gates remain fail-closed; broad owner delegation permits their exact phases once prerequisites exist but does not fabricate phase results."
   },
   "workstreams": [
     {
@@ -18,7 +18,7 @@
       "priority": "P0",
       "owner": "research+risk_center+portfolio+broker_execution+account",
       "status": "production_validation",
-      "next_gate": "The candidate-bound EVID-01/EVID-02 read-only inventory is complete for 09269c14db1024584913081db49919085f34d008 / release 20260829163806: all 13 canonical authority/evidence tables remain zero-seed and approval/activation heads are empty. Preserve the global execution deny; next collect a real independent root approval and obtain exact authorization to prove production PostgreSQL first-winner/successor/revocation/rollback, same-alias end-to-end receipts and owner/reviewer sign-off. Do not repeat the read-only inventory or derive tenant/owner from mutable User/Profile/session state.",
+      "next_gate": "The candidate-bound EVID-01/EVID-02 read-only inventory is complete for deployed commit 36b72d2fc01604afdb15d236a1e91d082fb62a5b / release 20260830071422 / image sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b. One PostgreSQL REPEATABLE READ READ ONLY snapshot confirms Account 0050-0055 applied, all 13 canonical authority/evidence tables zero-seed, and operator/approval/activation plus approval/activation heads empty. A candidate-bound preflight, five-phase machine return template, stable review entry and report output contract now exist under docs/reviews/release-36b72d2f/evidence-strategy/. Next obtain a finalized report from real independent subject owners, root approver, operations owner and reviewer; validate its sidecar, identities, separation of duties, receipts, validity and phase dependencies before separately authorizing any exact phase. Production PostgreSQL first-winner/successor/revocation/rollback, same-alias end-to-end receipts and post-execution sign-off cannot be pre-signed. Preserve the global execution deny, do not repeat the inventory until candidate or ledger state changes, and never derive tenant/owner from mutable User/Profile/session state.",
       "documents": [
         {
           "path": "docs/plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md",
@@ -41,7 +41,7 @@
       "priority": "P0",
       "owner": "research+data_center+signal+portfolio+broker_execution",
       "status": "production_validation",
-      "next_gate": "The candidate-bound STRAT-01 owner-ledger inventory is complete for release 20260829163806 and remains zero-seed across the four declared selectors. Named business owners must now supply and approve real owner definitions, policies, calendars, scopes and qualifications; only then may canonical receipts and PIT/OOS history accumulate before Promotion and consumer UAT.",
+      "next_gate": "The candidate-bound STRAT-01 owner-ledger inventory is complete for deployed commit 36b72d2fc01604afdb15d236a1e91d082fb62a5b / release 20260830071422 / image sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b. One PostgreSQL REPEATABLE READ READ ONLY inventory confirms the four governed selector groups at 65/7/16/35 tables with zero total and nonzero rows. A candidate-bound R1-R8 business-owner template, stable review entry and report output contract now exist under docs/reviews/release-36b72d2f/evidence-strategy/. Next obtain a finalized per-capability report with real owners and hashed definitions, policies, calendars, scopes, sample windows, qualification/falsification rules and applicable benchmark/cost/liquidity/label/invalidation/rollback semantics. Validate the report first, then run a canonical dry-run; append-only production registration requires a separate phase-two authorization and post-write review. PIT/OOS history, Promotion and consumer UAT cannot be pre-signed. Do not repeat this inventory until candidate or ledger state changes.",
       "documents": [
         {
           "path": "docs/plans/strategy-research-capability-completion-audit-2026-08-05.md",
@@ -88,7 +88,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "DATA-01 is complete. DATA-02 candidate preflight now proves the Tencent failover can return 5,533/5,533 completed-session quotes for 2026-08-28 with zero OHLC gaps; the candidate atomically rebuilds quote/price/valuation/financial current publications, repairs only null financial availability from persisted report_date, and preserves source observation time. Deploy this exact candidate, run the dry-run-first repair, execute A3 only if coverage remains exact, reconcile production results, and keep runtime blocked. DATA-03 has a fail-closed CAS wrapper but stays waiting until DATA-02 is production-complete.",
+      "next_gate": "DATA-01 is complete. Commit 36b72d2fc01604afdb15d236a1e91d082fb62a5b is deployed as release 20260830071422 and the DATA-02 dry-run completed without writes: universe=5,533; financial repair eligibility=288,409 rows / 3,750 assets with zero unresolved/future rows; completed-session price eligibility=0 with 5,533 stale/invalid assets; quote/price/valuation publications are full but stale and financial is 1,923/5,533. The candidate-bound authorization package now fixes the execute command inputs (operator, approved source, batch size 1..500), stop conditions and accepted rollback-point decision. Historical-price/financial probes and quote/valuation batches can write facts before the final atomic four-publication switch; a later failure must preserve source identity and reconcile exact partial facts, never blanket-delete. Do not execute until named owner/root/reviewer inputs and receipts are supplied, the forward Audit profile successor and exact authority heads are separately authorized, and the read-only writer preflight passes. Reconcile all four publications before DATA-03.",
       "documents": [
         {
           "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
@@ -135,7 +135,7 @@
       "priority": "P0/P1",
       "owner": "audit+data_center+task_monitor",
       "status": "production_validation",
-      "next_gate": "AUD-01 and the corrective AUD-02 repository exit are complete. Candidate 09269c14db1024584913081db49919085f34d008 / release 20260829163806 has migration 0013 applied, and its non-duplicative read-only AUD-03 migration/backlog/metrics snapshot is now bound with 496 applied migrations, zero backlog and zero observed failures. Next obtain exact authorization for rollback, recovery/fault, alerts/admin TUI, archive/restore and owner/reviewer sign-off; deployment and a single healthy snapshot do not satisfy AUD-03.",
+      "next_gate": "AUD-01 and the corrective AUD-02 repository exit remain complete on deployed commit 36b72d2fc01604afdb15d236a1e91d082fb62a5b / release 20260830071422. The final-candidate AUD-03 SELECT-only snapshot confirms 496 applied migrations with no pending plan, audit.0013 present, operation logs/failures 563/0, zero outbox backlog and public audit health 200/OK; alerts/admin TUI/recovery/archive remain explicitly unavailable. The authorization preflight proves active production profile v2 and snapshot identity/hash are internally consistent but current-catalog validation fails on mode, outbox_enabled and authority_selector; the loader stops at mode_invalid and the exact actor plus owner/tenant authority reader tables are zero. Named production owner, independent root approver and reviewer must fill real identities, receipt hashes, six exact ledger-head fields, mode/outbox decision and activation actor/reason. Then separately authorize a higher-version forward profile successor, run read-only writer/authority preflight, and only afterward authorize DATA-02. Rollback must also be a higher-version forward successor. Do not repeat unchanged probes.",
       "documents": [
         {
           "path": "docs/plans/system-audit-log-consolidation-plan-2026-08-13.md",
@@ -150,7 +150,7 @@
       "priority": "P0",
       "owner": "terminal+operational_readiness",
       "status": "production_validation",
-      "next_gate": "The manifest-backed candidate is deployed from an independent clean worktree after a verified PostgreSQL backup, with audit.0013 applied, no pending migrations, healthy web/Celery/PostgreSQL/Redis and automatic rollback not triggered. The canonical production-safe UAT passed 10/10 and 108/108 routes across regular/operator/admin, with same-run strategy/provider create-update-readback receipts and exact zero-residual cleanup. TUI-01 remains awaiting_production until real role owners confirm business outcomes; the 14-day window, cleanup/rollback matrix, defect snapshot, 101-task telemetry, rollback drill, production registry backup and owner/reviewer attestations remain fail-closed. Immutable commit and release identity remain owned by the canonical candidate binding and deployment evidence.",
+      "next_gate": "Manifest-backed commit 36b72d2fc01604afdb15d236a1e91d082fb62a5b is deployed as release 20260830071422 / image sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b. Canonical production-safe UAT passed 10/10 and 108/108 routes across regular/operator/admin with two same-run receipts and zero residual; all six cleanup scopes cover 108/108 and the candidate-bound isolated rollback drill passed. Sole-owner receipt PERSONAL-OWNER-36B72D2F-20260830-01 confirms the business outcome, so TUI-01 is completed. TUI-03 repository exit is also complete: Prometheus is pinned to sha256:63805ebb...f4996, bounded to 21d/4GB persistent storage, scrapes only web:8000/metrics/, loads exact M5 rules, has a readiness healthcheck, and exposes only authenticated read query APIs through the existing HTTPS origin. Evidence SHA is 8fda7913...91a7. TUI-02 is awaiting production deployment: bind a clean successor candidate, provision the host-only query credential, deploy and verify target/retention/query access, then reset and naturally complete the full 14-day window. No historical backfill or zero synthesis is allowed; readiness remains 5/10 DENY until real post-deployment evidence exists.",
       "documents": [
         {
           "path": "docs/plans/web-to-tui-migration-plan-2026-07-25.md",
@@ -201,7 +201,7 @@
       "priority": "P0",
       "owner": "agent_runtime+terminal+task_monitor+operational_readiness+sdk+mcp",
       "status": "production_validation",
-      "next_gate": "TAR-01 through TAR-04 repository contracts are complete and immutable candidate 09269c14db1024584913081db49919085f34d008 / release 20260829163806 is deployed with queued runtime still not accepted. Complete TUI-01 role UAT/write receipts plus TAR-05 provider, capacity, chaos, restore/rollback, telemetry and owner/reviewer acceptance on this exact identity; queued/worker defaults remain fail-closed until those gates pass.",
+      "next_gate": "TAR-01 through TAR-04 repository contracts are complete and immutable commit 36b72d2fc01604afdb15d236a1e91d082fb62a5b / release 20260830071422 is deployed with queued runtime still not accepted. The final release report proves the candidate and basic Web/Celery/PostgreSQL/Redis health but does not show a dedicated Terminal Agent Worker or re-attest the final runtime manifest and complete flag snapshot. Historical 71e62773 capacity evidence is nonportable. A candidate-bound TAR-05 preflight, phased return template, stable review entry and checklist now exist under docs/reviews/release-36b72d2f/terminal-runtime/. Next obtain and validate only the P1 report containing real Operations/Product/QA-Security/operator identities, approved staging, exact runtime manifest/flags/resources, bounded traffic/cost/retention envelope and rollback ownership. P2 1/5/10/20 capacity, P3 chaos, P4 real provider/MCP UAT, P5 production staff canary, P6 observation/cutover and P7 inline retirement remain separately dependency-gated and cannot be pre-signed. Queued/worker defaults, capacity_ready=false and concurrency above one remain fail-closed until their real gates pass.",
       "documents": [
         {
           "path": "docs/plans/terminal-agent-multi-user-runtime-plan-2026-08-18.md",
@@ -216,7 +216,7 @@
       "priority": "P1",
       "owner": "agent_runtime+terminal",
       "status": "external_validation",
-      "next_gate": "Bind staging and production browser UAT plus independent owner/reviewer approval to the same candidate commit and release manifest.",
+      "next_gate": "After TUI-01 role-owner acceptance and TAR-05 completion, bind staging and production browser UAT, real external-model outcomes and independent owner/reviewer approval to commit 36b72d2fc01604afdb15d236a1e91d082fb62a5b / release 20260830071422 or its explicitly re-bound successor.",
       "documents": [
         {
           "path": "docs/plans/ai-native/README.md",
@@ -266,7 +266,7 @@
       "priority": "P1",
       "owner": "terminal",
       "status": "production_validation",
-      "next_gate": "TUX-05 corrective repository and production verification are complete on candidate c826f741edc0f12f5e29fa5b0441b34a89f6dac5 / release 20260829233430: CI and Sol/Luna review passed, the merged candidate was redeployed from a clean worktree, and the canonical production-safe recorder passed 10/10 with 108 routes, three roles, both receipts, readback and zero cleanup residual. No repository unit is active; real role-owner confirmation and the remaining TUI-01/M5 production gates are external or production work and remain fail-closed.",
+      "next_gate": "TUX-05 corrective repository work remains complete and its deep-link settlement fix is deployed on commit 36b72d2fc01604afdb15d236a1e91d082fb62a5b / release 20260830071422. Canonical production-safe UAT passed 10/10 with 108 routes, three roles, both receipts, readback and zero cleanup residual; six-scope cleanup coverage and isolated rollback also pass. No repository unit is active. Real role-owner confirmation, observation, structured defect/telemetry evidence, formal registry attestation and approvals remain TUI-01/TUI-02 production work and stay fail-closed.",
       "documents": [
         {
           "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
@@ -277,7 +277,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-08-30.v7",
+    "version": "2026-08-30.v15",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -710,7 +710,7 @@
         "wave": 3,
         "priority": "P0",
         "execution_mode": "production",
-        "status": "awaiting_production",
+        "status": "completed",
         "title": "Deploy one manifest-bound candidate and run role UAT",
         "depends_on": [
           "TAR-03"
@@ -725,9 +725,22 @@
             "Deploy or replace the production candidate and execute UAT mutations that create production write receipts."
           ],
           "human_or_external_required": [
-            "Role owners confirm business outcomes that cannot be decided from deterministic assertions."
+            "The sole project owner confirmed the existing candidate-bound business outcome in PERSONAL-OWNER-36B72D2F-20260830-01."
           ]
         }
+      },
+      {
+        "id": "TUI-03",
+        "workstream_id": "web-to-tui-m5",
+        "wave": 3,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "completed",
+        "title": "Add a bounded retained monitoring source for M5",
+        "depends_on": [
+          "TUI-01"
+        ],
+        "exit_gate": "The repository contains a digest-pinned Prometheus service with persistent 21-day/4GB retention, a reachable Django metrics target, exact M5 rule loading, a healthcheck and a bounded authenticated HTTPS query path; compose/config/security contract tests pass without deploying production."
       },
       {
         "id": "TUI-02",
@@ -735,12 +748,13 @@
         "wave": 3,
         "priority": "P0",
         "execution_mode": "production",
-        "status": "waiting_dependency",
+        "status": "awaiting_production",
         "title": "Complete observation, signed cleanup waves and rollback evidence",
         "depends_on": [
-          "TUI-01"
+          "TUI-01",
+          "TUI-03"
         ],
-        "exit_gate": "The 14-day telemetry window, registry backup, wave observation, rollback drill and owner/reviewer sign-off all bind to the candidate.",
+        "exit_gate": "The 14-day telemetry window, registry backup, wave observation, rollback drill and sole-owner sign-off all bind to the candidate.",
         "evidence_collection": {
           "auto_collect": [
             "Calculate observation day, candidate drift and reset conditions; collect blocking-defect and 101-item telemetry snapshots and derive gate status.",
@@ -750,7 +764,7 @@
             "Create a production registry backup, execute cleanup waves, alter routes/assets or perform live rollback."
           ],
           "human_or_external_required": [
-            "The owner and independent reviewer provide the two real sign-offs."
+            "The sole project owner provides the final sign-off after the technical evidence really exists."
           ]
         }
       },

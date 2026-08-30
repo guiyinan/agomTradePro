@@ -1,0 +1,409 @@
+{
+  "schema": "agomtradepro-production-closure-review-checklist.v1",
+  "checklist_id": "release-36b72d2f-production-closure-review",
+  "candidate": {
+    "commit": "36b72d2fc01604afdb15d236a1e91d082fb62a5b",
+    "release_id": "20260830071422",
+    "image_id": "sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b"
+  },
+  "governance_mode": {
+    "id": "single_owner_personal_project",
+    "authorization_path": "docs/deployment/personal-project-single-owner-authorization-2026-08-30-36b72d2f.json",
+    "authorization_sha256": "d9c6e9f4128603d0f2208e107a430db93332ec2db2e523886d5248bb63005fd7",
+    "owner_display_name": "阿狗涅夫",
+    "multi_person_separation_of_duties_required": false,
+    "technical_exit_gates_waived": false,
+    "production_write_or_runtime_authorization_changed": true
+  },
+  "dynamic_status": {
+    "state": "tui_repository_remediation_complete_deployment_ready_fail_closed",
+    "updated_at": "2026-08-30T13:32:08.2002910Z",
+    "updated_by_role": "repository_governance_automation",
+    "authorization_changed": true,
+    "execution_focus": null,
+    "summary": {
+      "total_work_orders": 11,
+      "awaiting_review_report": 0,
+      "waiting_dependency": 4,
+      "not_selected": 0,
+      "not_due": 2,
+      "ready_for_exact_action": 1,
+      "deferred": 1,
+      "approved": 4,
+      "completed": 3
+    }
+  },
+  "status_values": [
+    "awaiting_review_report",
+    "waiting_dependency",
+    "not_selected",
+    "not_due",
+    "approved_not_executable",
+    "ready_for_read_only_validation",
+    "ready_for_exact_action",
+    "deferred",
+    "rejected",
+    "completed"
+  ],
+  "decision_values": [
+    "APPROVE",
+    "REJECT",
+    "DEFER"
+  ],
+  "authoritative_sources": [
+    {
+      "id": "PERSONAL_OWNER_AUTHORIZATION",
+      "path": "docs/deployment/personal-project-single-owner-authorization-2026-08-30-36b72d2f.json",
+      "sha256": "d9c6e9f4128603d0f2208e107a430db93332ec2db2e523886d5248bb63005fd7",
+      "role": "single_owner_personal_project_authorization"
+    },
+    {
+      "id": "HANDOFF",
+      "path": "docs/deployment/closure-review-team-handoff-2026-08-30-36b72d2f.md",
+      "sha256": "4ba887ba3d7a81cf6c6e1349f08a082968626c9d647c55644b44852a4771dc36",
+      "role": "human_review_instructions"
+    },
+    {
+      "id": "AUD_DATA_PREFLIGHT",
+      "path": "docs/deployment/aud03-data02-production-authorization-preflight-2026-08-30-36b72d2f.json",
+      "sha256": "25dc78fd5dfc627460761f7c7aa28c5fef08da8f3cd7ec8b62b81ac3665096d1",
+      "role": "aud_data_candidate_bound_preflight"
+    },
+    {
+      "id": "AUD_DATA_TEMPLATE",
+      "path": "docs/deployment/aud03-data02-production-review-return-template-2026-08-30-36b72d2f.json",
+      "sha256": "bebe057503ef1d7196bd00f84ef3d71b3a2660dd0097283e68a40e71a490d6c7",
+      "role": "aud_data_review_return_template"
+    },
+    {
+      "id": "DATA02_CHECKPOINT",
+      "path": "docs/deployment/data02-audit-runtime-checkpoint-2026-08-30.json",
+      "sha256": "2c2fe18467ce2b6c41a68bd752c16f53408956fb42737276146ca48c7baa5559",
+      "role": "data02_dry_run_checkpoint"
+    },
+    {
+      "id": "AUD03_RAW",
+      "path": "docs/deployment/aud03-operational-observation-select-only-2026-08-30-36b72d2f.json",
+      "sha256": "6d16a9ff57fd9391927714d66ed3d61b74aaf3dfe81c7f338f6fda2a266b864a",
+      "role": "aud03_select_only_raw_observation"
+    },
+    {
+      "id": "TUI_SOURCE_PREFLIGHT",
+      "path": "docs/deployment/tui-m5-observation-source-preflight-2026-08-30-36b72d2f.json",
+      "sha256": "b8b22c64f260d5a2d43de78a2ee30d30637ea741203d3173b1b28fe6fc660bcf",
+      "role": "tui_observation_source_preflight"
+    },
+    {
+      "id": "TUI_REMEDIATION_PREFLIGHT",
+      "path": "docs/deployment/tui-m5-monitoring-remediation-preflight-2026-08-30-36b72d2f.json",
+      "sha256": "c386ea4552df2af991c2ae824acbef79ccd7dc337bc139994145babdc89c1b76",
+      "role": "tui_monitoring_remediation_preflight"
+    },
+    {
+      "id": "TUI03_REPOSITORY_EVIDENCE",
+      "path": "docs/testing/tui03-retained-monitoring-repository-closure-evidence-2026-08-30.json",
+      "sha256": "8fda79136ae1a3a70afd22ce4b1134f69f5d4af44bd484786ea4fd2f9c9891a7",
+      "role": "tui_retained_monitoring_repository_exit"
+    },
+    {
+      "id": "TUI_TEMPLATE",
+      "path": "docs/deployment/tui-m5-operations-review-return-template-2026-08-30-36b72d2f.json",
+      "sha256": "1cd479735fc9888e7e08d9f5badeb5d5c9ce216ededa4565bd31610666e93fd5",
+      "role": "tui_review_return_template"
+    },
+    {
+      "id": "TUI_UAT",
+      "path": "config/tui/migration/evidence/web_to_tui_uat_candidate.production-safe.v2.json",
+      "sha256": "f18c28fefa0c1207da56541d2e6bbc674a7d712eaa58251462cb87f883255613",
+      "role": "tui_candidate_bound_uat"
+    },
+    {
+      "id": "TUI_CLEANUP",
+      "path": "config/tui/migration/evidence/web_to_tui_cleanup_candidate.v1.json",
+      "sha256": "803afe058ef6c359abc3baa19577576c445764e60f2f80861d4469489857b04c",
+      "role": "tui_candidate_bound_cleanup"
+    },
+    {
+      "id": "TUI_ROLLBACK",
+      "path": "config/tui/migration/evidence/web_to_tui_rollback_candidate.v1.json",
+      "sha256": "351eb05bdf498c2f3b4ebd345076e691a0ba92268e14b21e17b197489992aaf4",
+      "role": "tui_candidate_bound_rollback"
+    },
+    {
+      "id": "TUI_REGISTRY_CHECKPOINT",
+      "path": "docs/deployment/tui-registry-backup-checkpoint-2026-08-30.json",
+      "sha256": "2c0a68ce5a841505e7974296ef075060ec5535afb161f2c346af4ae55c6b26fb",
+      "role": "tui_registry_recovery_checkpoint_not_formal_attestation"
+    }
+  ],
+  "report_output": {
+    "directory": "docs/reviews/release-36b72d2f/reports",
+    "absolute_worktree_directory": "D:\\githv\\agomTradePro-release-closure-20260830\\docs\\reviews\\release-36b72d2f\\reports",
+    "immediate_filename_patterns": [
+      "aud03-data02-production-review-return-<decision_id>.json",
+      "tui-m5-operations-review-return-<decision_id>.json"
+    ],
+    "sha256_sidecar_suffix": ".json.sha256",
+    "overwrite_templates_or_checklist_forbidden": true,
+    "unverified_report_changes_status": false
+  },
+  "work_orders": [
+    {
+      "id": "AUD-DATA-P1",
+      "title": "Verify real parties and issue or select exact current authority heads",
+      "status": "completed",
+      "decision": "APPROVE",
+      "depends_on": [],
+      "report_schema": "aud03-data02-production-review-return.v1",
+      "report_phase": "phase_1_authority_heads",
+      "required_outputs": [
+        "production_owner_identity_and_receipt",
+        "independent_root_approver_identity_and_receipt",
+        "independent_reviewer_identity_and_receipt",
+        "verified_separation_of_duties",
+        "actor_source_id_version_content_hash",
+        "scope_source_id_version_content_hash",
+        "current_head_and_not_superseded_checks"
+      ],
+      "report_path": "docs/reviews/release-36b72d2f/reports/aud03-data02-production-review-return-DEFER-AUD03-DATA02-20260830-01.json",
+      "report_sha256": "3cbadbe79c92a33bfbdef4e8c7a614b3e1847a084ab638c73aa5bb8b697c6707",
+      "next_gate": "Under the single-owner policy, bootstrap or select real actor and owner/tenant authority heads through the canonical Account boundary, then verify both exact current heads before Phase 2. No head is inferred from the owner declaration."
+    },
+    {
+      "id": "AUD-DATA-P2",
+      "title": "Authorize and activate a forward runtime profile successor",
+      "status": "waiting_dependency",
+      "decision": null,
+      "depends_on": [
+        "AUD-DATA-P1"
+      ],
+      "report_schema": "aud03-data02-production-review-return.v1",
+      "report_phase": "phase_2_forward_runtime_profile_successor",
+      "required_outputs": [
+        "mode_shadow_or_required",
+        "outbox_enabled_true",
+        "exact_authority_selector",
+        "activation_actor_reason_release_ref",
+        "forward_successor_rollback_acceptance"
+      ],
+      "report_path": null,
+      "report_sha256": null,
+      "next_gate": "An approved higher-version successor is actually published through the sole Application boundary and its profile/snapshot/revision evidence validates."
+    },
+    {
+      "id": "AUD-DATA-P3",
+      "title": "Run candidate-bound read-only writer and authority preflight",
+      "status": "waiting_dependency",
+      "decision": null,
+      "depends_on": [
+        "AUD-DATA-P2"
+      ],
+      "report_schema": "aud03-data02-production-review-return.v1",
+      "report_phase": "phase_3_read_only_writer_authority_preflight",
+      "auto_collect_after_dependency": true,
+      "required_outputs": [
+        "successor_profile_snapshot_hash_match",
+        "exact_changed_keys",
+        "mode_and_outbox_validation",
+        "same_alias_exact_current_authority_match",
+        "zero_outbox_claim_publish_consume"
+      ],
+      "report_path": null,
+      "report_sha256": null,
+      "next_gate": "Every read-only preflight assertion passes without claiming, publishing or consuming outbox rows."
+    },
+    {
+      "id": "AUD-DATA-P4",
+      "title": "Authorize one exact DATA-02 controlled execution",
+      "status": "waiting_dependency",
+      "decision": null,
+      "depends_on": [
+        "AUD-DATA-P3"
+      ],
+      "report_schema": "aud03-data02-production-review-return.v1",
+      "report_phase": "phase_4_data02_controlled_execute",
+      "required_outputs": [
+        "operator_identity",
+        "approved_source",
+        "batch_size_1_through_500",
+        "authorization_validity_window",
+        "exact_command",
+        "rollback_point_acceptance",
+        "partial_fact_and_no_blanket_delete_acknowledgements",
+        "unchanged_exact_coverage_freshness_tolerance_atomicity"
+      ],
+      "report_path": null,
+      "report_sha256": null,
+      "next_gate": "The exact authorized command executes inside its validity window and stops on every preflight or coverage drift."
+    },
+    {
+      "id": "AUD-DATA-POST",
+      "title": "Review real DATA-02 execution and reconciliation evidence",
+      "status": "not_due",
+      "decision": null,
+      "depends_on": [
+        "AUD-DATA-P4"
+      ],
+      "required_outputs": [
+        "exact_5533_provider_timestamp_coverage",
+        "four_immutable_publication_identities_and_hashes",
+        "single_transaction_publication_switch",
+        "partial_fact_checkpoint_and_reconciliation",
+        "audit_event_outbox_delivery_receipts",
+        "rollback_revalidation"
+      ],
+      "report_path": null,
+      "report_sha256": null,
+      "next_gate": "A separate post-execution acceptance is issued only after real execution evidence exists."
+    },
+    {
+      "id": "TUI-SOURCE-P1",
+      "title": "Choose and substantiate the retained telemetry source path",
+      "status": "deferred",
+      "decision": "DEFER",
+      "depends_on": [],
+      "report_schema": "tui03-retained-monitoring-repository-closure-evidence.v1",
+      "report_phase": "owner_selected_repository_remediation",
+      "required_outputs": [
+        "operations_owner_and_independent_reviewer",
+        "verified_separation_of_duties",
+        "one_allowed_source_option",
+        "all_required_fields_for_selected_option",
+        "receipt_and_validity_window"
+      ],
+      "report_path": "docs/testing/tui03-retained-monitoring-repository-closure-evidence-2026-08-30.json",
+      "report_sha256": "8fda79136ae1a3a70afd22ce4b1134f69f5d4af44bd484786ea4fd2f9c9891a7",
+      "next_gate": "The sole owner selected bounded repository and production remediation; the exact pinned image, retention, storage, query access and rule contracts are now verified. Existing retained history remains unavailable until deployment."
+    },
+    {
+      "id": "TUI-REMEDIATION-P2",
+      "title": "Implement bounded repository collector and retention remediation when selected",
+      "status": "completed",
+      "decision": "APPROVE",
+      "depends_on": [
+        "TUI-SOURCE-P1"
+      ],
+      "activation_condition": "source_decision.option == authorize_repository_and_production_monitoring_remediation",
+      "required_outputs": [
+        "bounded_repository_execution_focus",
+        "pinned_image_digest",
+        "retention_greater_than_complete_14_day_window",
+        "bounded_storage_and_volume",
+        "controlled_query_access",
+        "alertmanager_policy",
+        "compose_rules_queries_and_health_validation"
+      ],
+      "report_path": "docs/testing/tui03-retained-monitoring-repository-closure-evidence-2026-08-30.json",
+      "report_sha256": "8fda79136ae1a3a70afd22ce4b1134f69f5d4af44bd484786ea4fd2f9c9891a7",
+      "next_gate": "TUI-03 exited with compose, promtool, Caddy, alert, packaging, test, mypy and registry gates green. Production deployment remains a distinct real action."
+    },
+    {
+      "id": "TUI-DEPLOY-P3",
+      "title": "Deploy and verify the approved retained monitoring path",
+      "status": "ready_for_exact_action",
+      "decision": "APPROVE",
+      "depends_on": [
+        "TUI-REMEDIATION-P2"
+      ],
+      "required_outputs": [
+        "separate_deployment_authorization",
+        "pinned_service_identity",
+        "target_up",
+        "retention_and_storage_active",
+        "recording_rules_and_exact_queries_loaded",
+        "bounded_access",
+        "application_health_and_readiness_unchanged",
+        "rollback_receipt"
+      ],
+      "report_path": "docs/deployment/personal-project-single-owner-authorization-2026-08-30-36b72d2f.json",
+      "report_sha256": "d9c6e9f4128603d0f2208e107a430db93332ec2db2e523886d5248bb63005fd7",
+      "next_gate": "Create a clean immutable successor, generate a host-only credential, deploy the reviewed collector and record target-up, retention, query, application-health and rollback evidence. Approval does not claim those results before they occur."
+    },
+    {
+      "id": "TUI-WINDOW-P4",
+      "title": "Re-attest the candidate and start the canonical observation window",
+      "status": "waiting_dependency",
+      "decision": null,
+      "depends_on": [
+        "TUI-DEPLOY-P3"
+      ],
+      "required_outputs": [
+        "fresh_candidate_deployment_preflight",
+        "canonical_observation_starter_receipt",
+        "actual_new_window",
+        "prior_nontransferable_evidence_cleared",
+        "first_retained_sample_timestamp"
+      ],
+      "report_path": null,
+      "report_sha256": null,
+      "next_gate": "The canonical starter writes the only valid 14-day window; no date is manually backfilled."
+    },
+    {
+      "id": "TUI-ROLE-OWNER",
+      "title": "Obtain real role-owner confirmation for the completed candidate UAT",
+      "status": "completed",
+      "decision": "APPROVE",
+      "depends_on": [],
+      "report_schema": "tui-m5-operations-review-return.v1",
+      "report_phase": "role_owner_confirmation",
+      "required_outputs": [
+        "real_role_owner_identity",
+        "candidate_run_tui01_36b72d2f_20260830_01",
+        "business_outcome_accept_reject_or_defer",
+        "confirmation_receipt_and_sha256"
+      ],
+      "report_path": "docs/reviews/release-36b72d2f/reports/tui-m5-operations-review-return-DEFER-TUI-M5-20260830-01.json",
+      "report_sha256": "a23b40e7192f48cbb816bc6c9b39d98c90f96e7a0efd407a93dec4d530db593b",
+      "next_gate": "Completed for run tui01-36b72d2f-20260830-01 under the project owner's candidate-bound single-owner authorization; this approval does not cover retained telemetry, final cutover or runtime enablement."
+    },
+    {
+      "id": "TUI-FINAL",
+      "title": "Review the naturally completed observation window and final cutover package",
+      "status": "not_due",
+      "decision": null,
+      "depends_on": [
+        "TUI-WINDOW-P4",
+        "TUI-ROLE-OWNER"
+      ],
+      "required_outputs": [
+        "exact_six_promql_queries",
+        "exact_101_task_coverage_and_minimum_samples",
+        "classic_ratio_and_error_regression_gates",
+        "full_window_p0_p1_defect_snapshot",
+        "payload_free_registry_attestation",
+        "candidate_bound_rollback_evidence",
+        "same_snapshot_owner_and_independent_reviewer_attestations"
+      ],
+      "report_path": null,
+      "report_sha256": null,
+      "next_gate": "Final review occurs only after the actual valid window ends and all evidence binds to one candidate."
+    }
+  ],
+  "update_policy": {
+    "review_team_may_edit_checklist": false,
+    "accepted_input": "candidate-bound technical report plus matching SHA-256 sidecar and either the single-owner authorization or team-mode identity receipts",
+    "required_validation_before_update": [
+      "json_parse_and_exact_schema",
+      "template_only_false",
+      "sidecar_matches_report",
+      "candidate_commit_release_image_match",
+      "single_owner_authorization_or_team_identity_and_separation_of_duties",
+      "owner_authorization_or_team_receipt_references_and_hashes",
+      "decision_branch_required_fields",
+      "dependency_and_validity_window"
+    ],
+    "invalid_report_state_change": false,
+    "single_owner_mode_accepts_verified_defer_without_multi_party_fields": true,
+    "single_owner_mode_never_waives_selected_branch_technical_fields": true,
+    "defer_or_reject_is_recorded_without_unlock": true,
+    "after_valid_update": [
+      "set_matching_work_order_status_decision_report_path_and_hash",
+      "recalculate_dynamic_status_summary",
+      "update_timestamp",
+      "regenerate_checklist_sha256_sidecar",
+      "sync_primary_plan_docs_plans_readme_and_active_plan_registry"
+    ],
+    "preexecution_approval_claims_exit_gate": false,
+    "observation_or_execution_results_may_be_presigned": false
+  }
+}

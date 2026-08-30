@@ -1,0 +1,290 @@
+{
+  "schema": "evid-strat-production-authorization-preflight.v1",
+  "created_at": "2026-08-30T06:38:01.4555044Z",
+  "candidate": {
+    "commit": "36b72d2fc01604afdb15d236a1e91d082fb62a5b",
+    "release_id": "20260830071422",
+    "image_id": "sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b",
+    "database_alias": "default",
+    "database_backend": "postgresql"
+  },
+  "scope": {
+    "closure_units": [
+      "EVID-01",
+      "EVID-02",
+      "STRAT-01"
+    ],
+    "mode": "governance_and_read_only_preflight",
+    "production_write_performed": false,
+    "production_claim": false,
+    "production_ready": false,
+    "runtime_enablement": "not_authorized"
+  },
+  "authoritative_evidence": [
+    {
+      "path": "docs/deployment/evid-01-evid-02-select-only-bundle-2026-08-30-36b72d2f.json",
+      "sha256": "f7a26a5eb5db3fd31fb5d601e146120346f8681aaa7c2f8ca55308e982b3a0cd",
+      "meaning": "single-transaction production SELECT-only authority and EVID-02 ledger inventory"
+    },
+    {
+      "path": "docs/deployment/evid-01-authority-inventory/63/63c08dcb2d984da92f4b2dddd8e039fe3dafc79688c629e9e2f42d73adbf4d85.json",
+      "sha256": "63c08dcb2d984da92f4b2dddd8e039fe3dafc79688c629e9e2f42d73adbf4d85",
+      "meaning": "EVID-01 blocked_zero_seed_authority report"
+    },
+    {
+      "path": "docs/deployment/evid-02-head-audit/c2/c2fec726ef6903c8c941703f6afd9036190cb9c8be7a43ebe630667065ca6275.json",
+      "sha256": "c2fec726ef6903c8c941703f6afd9036190cb9c8be7a43ebe630667065ca6275",
+      "meaning": "EVID-02 approval and activation heads are empty"
+    },
+    {
+      "path": "docs/deployment/evid-02-postgres/a2/a27e193f53910cdb4395cc88d4d96fb04fcda71f2f191dbda7df2626299e6df8.json",
+      "sha256": "a27e193f53910cdb4395cc88d4d96fb04fcda71f2f191dbda7df2626299e6df8",
+      "meaning": "disposable local PostgreSQL software evidence only; not production acceptance"
+    },
+    {
+      "path": "docs/deployment/strat-01-owner-ledger-inventory/71/71bd1af35985eea8795f797095de07522b5ad7ece3a4562f70ca44c64f9299d4.json",
+      "sha256": "71bd1af35985eea8795f797095de07522b5ad7ece3a4562f70ca44c64f9299d4",
+      "meaning": "STRAT-01 candidate-bound zero-seed owner ledger report"
+    }
+  ],
+  "observed_production_state": {
+    "account_migrations_0050_through_0055_applied": true,
+    "authority_and_evidence_tables": {
+      "table_count": 13,
+      "row_count_total": 0
+    },
+    "evidence_operator_tables": {
+      "research_evidence_operator_spec": 0,
+      "research_evidence_operator_spec_approval": 0,
+      "research_activated_evidence_operator_spec": 0,
+      "approval_head": null,
+      "activation_head": null,
+      "human_approval_status": "not_collected"
+    },
+    "strategy_owner_inventory": {
+      "research_r1_to_r8_tables": 65,
+      "portfolio_r4_r5_r8_tables": 7,
+      "account_authority_assignment_broad_tables": 16,
+      "explicit_owner_policy_operator_assignment_broad_tables": 35,
+      "row_count_total": 0
+    }
+  },
+  "fixed_authority_semantics": {
+    "owner_tenant_authority_schema": "account.owner_tenant_authority.v1",
+    "permission": "evidence_read",
+    "root_status": "active",
+    "approver_role": "owner_tenant_authority_approver",
+    "approver_kind": "human",
+    "approver_must_be_staff": true,
+    "authority_subject_and_approver_must_be_distinct": true,
+    "upstream_assignment_evidence_must_be_exact_current": true,
+    "account_namespace_account_actor_and_user_are_derived_from_upstream_assignment": true,
+    "root_must_have_no_predecessor": true,
+    "successor_must_seal_exact_predecessor_and_cannot_widen_identity": true,
+    "same_database_alias_required": true,
+    "in_place_update_or_delete_forbidden": true
+  },
+  "required_review_parties": {
+    "evidence_authority_subject_owner": "real named owner using a production account",
+    "independent_root_approver": "real human staff account with the exact approver role",
+    "independent_reviewer": "person and production account distinct from the root approver",
+    "strategy_business_owners": "named accountable owner for each approved R1-R8 definition",
+    "operations_owner": "authorizes bounded production writes and PostgreSQL acceptance",
+    "separation_of_duties_required": true
+  },
+  "phase_gates": [
+    {
+      "id": "EVID-P1-UPSTREAM-ASSIGNMENT",
+      "title": "Authorize real Account authority and owner-assignment upstream seals",
+      "decision_required": true,
+      "required_inputs": [
+        "real subject owner identity and production account",
+        "actor/auth-context/user/RBAC source identities and exact content hashes",
+        "owner-assignment subject identity and version",
+        "provenance receipt reference and SHA-256",
+        "assignment evidence identity, version and expected content hash",
+        "validity window and revocation path",
+        "independent approval receipt and SHA-256"
+      ],
+      "stop_if": [
+        "any upstream head is missing, superseded, expired, cross-alias or hash-mismatched",
+        "identity or account namespace is inferred from mutable User, Profile or session state",
+        "subject and approver are not independent"
+      ],
+      "does_not_authorize": [
+        "owner_tenant_authority_root",
+        "research_evidence_scope",
+        "operator_approval_or_activation",
+        "strategy_definition_registration"
+      ]
+    },
+    {
+      "id": "EVID-P2-OWNER-TENANT-ROOT",
+      "title": "Issue one exact owner/tenant authority root",
+      "depends_on": [
+        "EVID-P1-UPSTREAM-ASSIGNMENT"
+      ],
+      "command_fields": [
+        "authority_id",
+        "authority_version",
+        "tenant_id",
+        "owner_id",
+        "assignment_evidence_id",
+        "assignment_evidence_version",
+        "expected_assignment_evidence_content_hash"
+      ],
+      "derived_not_caller_supplied": [
+        "account_namespace",
+        "account_id",
+        "actor_id",
+        "actor_user_id",
+        "approved_by",
+        "approved_at",
+        "recorded_at",
+        "valid_until",
+        "identity_hash",
+        "content_hash"
+      ],
+      "required_post_write_receipts": [
+        "first-winner root receipt",
+        "exact-current same-alias read receipt",
+        "authority identity and content hash",
+        "duplicate attempt conflict or exact idempotent replay result"
+      ]
+    },
+    {
+      "id": "EVID-P3-RESEARCH-SCOPE",
+      "title": "Issue a Research evidence scope source from an exact approved observation",
+      "depends_on": [
+        "EVID-P2-OWNER-TENANT-ROOT"
+      ],
+      "required_inputs": [
+        "source_id and source_version",
+        "observation_id and observation_version",
+        "expected_observation_content_hash",
+        "owner_id, tenant_id, account_id and actor_id proven by exact-current authority",
+        "artifact owner, type, id, version and content hash",
+        "validity and revocation semantics"
+      ],
+      "required_post_write_receipts": [
+        "scope first-winner receipt",
+        "exact-current same-alias scope receipt",
+        "root or successor chain validation",
+        "owner/tenant authority and scope content-hash binding"
+      ]
+    },
+    {
+      "id": "EVID-P4-OPERATOR-LIFECYCLE",
+      "title": "Register, approve and activate a real evidence operator definition",
+      "depends_on": [
+        "EVID-P3-RESEARCH-SCOPE"
+      ],
+      "required_inputs": [
+        "owner record id, version and content hash",
+        "operator id and version",
+        "canonical definition document and SHA-256",
+        "independent approval decision and receipt",
+        "activation decision and receipt",
+        "validity window, invalidation condition and rollback approval path"
+      ],
+      "post_write_head_requirements": [
+        "one approval root and one current head",
+        "one activation root and one current head",
+        "activation references the exact approval hash",
+        "operator identity, version and definition hash do not drift"
+      ]
+    },
+    {
+      "id": "EVID-P5-PRODUCTION-PG-ACCEPTANCE",
+      "title": "Run bounded production PostgreSQL concurrency and rollback acceptance",
+      "depends_on": [
+        "EVID-P4-OPERATOR-LIFECYCLE"
+      ],
+      "required_cases": [
+        "empty-root first-winner race",
+        "same-predecessor successor first-winner race",
+        "outer transaction rollback leaves zero partial rows",
+        "revoked or expired head does not fall back to an older row",
+        "same-alias end-to-end authority and Evidence read"
+      ],
+      "authorization_boundaries": [
+        "exact database and candidate",
+        "bounded subjects and record identities",
+        "maintenance window",
+        "stop conditions",
+        "cleanup or forward-only revocation plan",
+        "operations owner and independent reviewer receipts"
+      ],
+      "local_harness_cannot_substitute_for_production": true
+    },
+    {
+      "id": "STRAT-P1-BUSINESS-DEFINITIONS",
+      "title": "Approve authoritative business inputs for R1 through R8",
+      "decision_required_per_capability": true,
+      "required_fields_per_capability": [
+        "named business owner and production account",
+        "definition id, version, document reference and SHA-256",
+        "policy id, version and decision rules",
+        "calendar id, version, timezone and cutoff semantics",
+        "scope id, version, universe reference and universe hash",
+        "minimum sample window, periods, sample count and coverage threshold",
+        "qualification id, version and falsification thresholds",
+        "benchmark, cost, liquidity and label semantics when applicable",
+        "invalidation, retirement and rollback conditions",
+        "validity window and owner approval receipt"
+      ],
+      "capabilities": [
+        "R1 Forecast Baseline",
+        "R2 Market Structure",
+        "R3 Macro Factor",
+        "R4 Risk/Allocation",
+        "R5 Relative Value",
+        "R6 State Model",
+        "R7 Scenario Research",
+        "R8 Optimization Monitoring"
+      ],
+      "system_must_compute_canonical_hashes_before_write_authorization": true
+    },
+    {
+      "id": "STRAT-P2-APPEND-ONLY-REGISTRATION",
+      "title": "Authorize append-only registration only after canonical dry-run",
+      "depends_on": [
+        "STRAT-P1-BUSINESS-DEFINITIONS"
+      ],
+      "required_before_authorization": [
+        "schema and exact repository mapping",
+        "canonical content hashes",
+        "current-head and overlap checks",
+        "dry-run row plan",
+        "per-capability command inputs",
+        "stop conditions and successor or revocation rollback plan"
+      ],
+      "does_not_authorize": [
+        "PIT or OOS backfill",
+        "synthetic history",
+        "Promotion",
+        "consumer UAT",
+        "strategy execution",
+        "tolerance or threshold reduction"
+      ]
+    }
+  ],
+  "post_execution_reviews_not_preapprovable": [
+    "EVID authority, scope, approval and activation current-head audit",
+    "production PostgreSQL first-winner, successor, revocation and rollback evidence",
+    "same-alias end-to-end receipts and independent sign-off",
+    "STRAT owner-ledger exact rows and content hashes",
+    "PIT/OOS history and canonical receipts",
+    "Promotion, consumer UAT and rollback acceptance"
+  ],
+  "global_stop_conditions": [
+    "candidate commit, release, image or database alias drift",
+    "missing or invalid SHA-256 sidecar",
+    "placeholder, synthetic, fixture or proxy-signed identity",
+    "scope or identity inferred from mutable user/session state",
+    "unapproved production write or expanded subject set",
+    "secret material in any report",
+    "attempt to clear the global decision or execution deny before all dependent gates pass"
+  ],
+  "next_action": "Obtain separate finalized EVID and STRAT review returns. No production write is executable until the exact phase decision, real identities, receipts, validity window and dependencies are validated."
+}

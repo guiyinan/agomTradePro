@@ -1,0 +1,152 @@
+{
+  "schema": "tui-m5-operations-review-return.v1",
+  "template_only": true,
+  "instructions": {
+    "copy_to_new_final_file": true,
+    "set_template_only_false_only_after_review": true,
+    "null_means_not_reviewed_or_not_approved": true,
+    "decision_values": [
+      "APPROVE",
+      "REJECT",
+      "DEFER"
+    ],
+    "option_values": [
+      "provide_existing_external_prometheus_source",
+      "authorize_repository_and_production_monitoring_remediation"
+    ],
+    "complete_only_the_selected_option": true,
+    "final_file_requires_sha256_sidecar": true,
+    "secrets_forbidden": true
+  },
+  "decision_id": null,
+  "issued_at": null,
+  "expires_at": null,
+  "candidate": {
+    "commit": "36b72d2fc01604afdb15d236a1e91d082fb62a5b",
+    "release_id": "20260830071422",
+    "image_id": "sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b",
+    "currently_recorded_window": {
+      "start": "2026-08-29",
+      "end": "2026-09-12",
+      "retained_query_source_proven": false
+    }
+  },
+  "source_preflights": [
+    {
+      "path": "docs/deployment/tui-m5-observation-source-preflight-2026-08-30-36b72d2f.json",
+      "sha256": "b8b22c64f260d5a2d43de78a2ee30d30637ea741203d3173b1b28fe6fc660bcf"
+    },
+    {
+      "path": "docs/deployment/tui-m5-monitoring-remediation-preflight-2026-08-30-36b72d2f.json",
+      "sha256": "c386ea4552df2af991c2ae824acbef79ccd7dc337bc139994145babdc89c1b76"
+    }
+  ],
+  "parties": {
+    "operations_owner": {
+      "legal_name": null,
+      "production_account_id": null,
+      "role": null,
+      "organization": null,
+      "receipt_reference": null,
+      "receipt_sha256": null,
+      "decision": null
+    },
+    "independent_reviewer": {
+      "legal_name": null,
+      "production_account_id": null,
+      "role": null,
+      "organization": null,
+      "receipt_reference": null,
+      "receipt_sha256": null,
+      "decision": null
+    },
+    "role_owner": {
+      "legal_name": null,
+      "production_account_id": null,
+      "role": null,
+      "organization": null
+    },
+    "separation_of_duties": {
+      "operations_owner_and_reviewer_are_distinct_people": null,
+      "operations_owner_and_reviewer_are_distinct_production_accounts": null,
+      "verified_by": null,
+      "verified_at": null
+    }
+  },
+  "source_decision": {
+    "decision": null,
+    "option": null,
+    "authorization_valid_from": null,
+    "authorization_expires_at": null,
+    "existing_external_source": {
+      "governed_https_query_origin_without_credentials": null,
+      "retention_proof_reference": null,
+      "retention_proof_sha256": null,
+      "first_retained_sample_at": null,
+      "continuous_from_2026_08_29_verified": null,
+      "time_synchronization_verified": null,
+      "exact_six_promql_queries_verified": null,
+      "secret_free_candidate_bound_export_verified": null
+    },
+    "repository_and_production_remediation": {
+      "bounded_repository_focus_assignment_approved": null,
+      "approved_prometheus_compatible_image_digest": null,
+      "approved_retention_period": null,
+      "approved_storage_budget": null,
+      "approved_volume_name": null,
+      "approved_storage_capacity_alert": null,
+      "approved_query_access_policy": null,
+      "approved_alertmanager_policy": null,
+      "new_container_volume_scrape_and_disk_impact_accepted": null,
+      "separate_production_deployment_review_required": true,
+      "fresh_candidate_redeployment_or_reattestation_accepted": null,
+      "canonical_observation_window_reset_accepted": null,
+      "prior_nontransferable_evidence_clear_accepted": null
+    },
+    "authorization_receipt_reference": null,
+    "authorization_receipt_sha256": null,
+    "review_notes": null
+  },
+  "role_owner_confirmation": {
+    "candidate_run_id": "tui01-36b72d2f-20260830-01",
+    "scope": [
+      "10_of_10_production_safe_uat",
+      "108_of_108_routes",
+      "regular_operator_admin_roles",
+      "two_same_run_write_readback_receipts",
+      "exact_cleanup_zero_residual"
+    ],
+    "business_outcome_decision": null,
+    "confirmation_receipt_reference": null,
+    "confirmation_receipt_sha256": null,
+    "confirmed_at": null,
+    "does_not_claim_final_cutover": true,
+    "review_notes": null
+  },
+  "final_window_review": {
+    "must_be_issued_after_valid_window_naturally_ends": true,
+    "cannot_be_presigned": true,
+    "current_window_end_is_valid_only_if_original_retention_is_proven": true,
+    "new_window_must_come_from_canonical_starter_after_remediation": true,
+    "required_evidence": [
+      "exact_six_promql_queries",
+      "exact_101_task_coverage_and_minimum_samples",
+      "classic_ratio_and_error_regression_gates",
+      "full_window_p0_p1_defect_snapshot",
+      "payload_free_production_registry_attestation",
+      "candidate_bound_rollback_evidence",
+      "owner_and_independent_reviewer_same_snapshot_attestations"
+    ],
+    "decision": null,
+    "receipt_reference": null,
+    "receipt_sha256": null
+  },
+  "final_current_stage_decision": null,
+  "attestation": {
+    "signing_system": null,
+    "signed_document_reference": null,
+    "signed_document_sha256": null,
+    "signed_at": null,
+    "signature_binds_final_json_sha256": null
+  }
+}

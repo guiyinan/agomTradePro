@@ -1,0 +1,370 @@
+{
+  "schema": "agomtradepro-tar05-operations-review-return.v1",
+  "template_only": false,
+  "decision_values": [
+    "APPROVE",
+    "REJECT",
+    "DEFER"
+  ],
+  "decision_id": "DEFER-TAR05-20260830-01",
+  "generated_at": "2026-08-30T10:16:07Z",
+  "valid_from": null,
+  "valid_until": null,
+  "candidate": {
+    "commit": "36b72d2fc01604afdb15d236a1e91d082fb62a5b",
+    "release_id": "20260830071422",
+    "image_id": "sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b",
+    "runtime_manifest_digest": null,
+    "test_matrix_digest": "6272ea6606ebbf3c0791e48d807b733cbc6d9a4ce7d945d95c5e3a16c22aea64",
+    "candidate_re_attestation_receipt": null,
+    "candidate_re_attestation_sha256": null
+  },
+  "review_parties": {
+    "operations_owner": {
+      "real_name": null,
+      "organization": null,
+      "role": null,
+      "production_account": null,
+      "identity_receipt": null,
+      "identity_receipt_sha256": null
+    },
+    "product_owner": {
+      "real_name": null,
+      "organization": null,
+      "role": null,
+      "production_account": null,
+      "identity_receipt": null,
+      "identity_receipt_sha256": null
+    },
+    "qa_security_reviewer": {
+      "real_name": null,
+      "organization": null,
+      "role": null,
+      "production_account": null,
+      "identity_receipt": null,
+      "identity_receipt_sha256": null
+    },
+    "bounded_operator": {
+      "real_name": null,
+      "organization": null,
+      "role": null,
+      "production_account": null,
+      "identity_receipt": null,
+      "identity_receipt_sha256": null
+    },
+    "rollback_owner": {
+      "real_name": null,
+      "organization": null,
+      "role": null,
+      "production_account": null,
+      "identity_receipt": null,
+      "identity_receipt_sha256": null
+    },
+    "separation_of_duties": {
+      "operations_owner_distinct_from_operator": null,
+      "qa_security_reviewer_distinct_from_operator": null,
+      "rollback_owner_available_during_window": null,
+      "evidence_receipt": null,
+      "evidence_receipt_sha256": null
+    }
+  },
+  "phase_decisions": {
+    "TAR05-P1-ENVIRONMENT-CANDIDATE": {
+      "status": "awaiting_review_report",
+      "decision": "DEFER",
+      "decision_reason": "missing_evidence: tar05 preflight 显示 staging 环境未获批（authorization_state=not_authorized）；runtime_manifest_digest 为 null 且必须在任何 load/fault 动作前重新 attest；未观察到专用 terminal worker（dedicated_terminal_agent_worker_observed=false）；traffic/fault/cost/duration/account 有界 envelope 全部为 null；历史容量证据（旧候选 71e62773）明确不可移植。个人项目 owner authorization 已替代多角色身份要求，但不生成环境或 runtime 事实。next_action: 提供实际 staging identity，定稿 runtime manifest/flag snapshot、专用 Worker/resources、完整 envelope 与停止/回滚合同后重新提交 P1。P2-P7 保持 null。",
+      "decision_receipt": null,
+      "decision_receipt_sha256": null,
+      "approved_environment": {
+        "environment_id": null,
+        "classification": null,
+        "host_or_cluster_identity": null,
+        "access_receipt": null,
+        "access_receipt_sha256": null,
+        "isolated_from_production": null,
+        "production_data_present": null,
+        "secrets_recorded_in_report": false
+      },
+      "candidate_binding": {
+        "commit": "36b72d2fc01604afdb15d236a1e91d082fb62a5b",
+        "release_id": "20260830071422",
+        "image_id": "sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b",
+        "runtime_manifest_digest": null,
+        "test_matrix_digest": "6272ea6606ebbf3c0791e48d807b733cbc6d9a4ce7d945d95c5e3a16c22aea64",
+        "web_worker_redis_postgresql_manifest_receipt": null,
+        "web_worker_redis_postgresql_manifest_sha256": null,
+        "dedicated_terminal_worker_identity": null,
+        "flag_snapshot_receipt": null,
+        "flag_snapshot_sha256": null
+      },
+      "bounded_envelope": {
+        "maximum_requests": null,
+        "maximum_duration_seconds": null,
+        "maximum_external_model_calls": null,
+        "maximum_tokens": null,
+        "maximum_cost_amount": null,
+        "cost_currency": null,
+        "data_retention_policy_id": null,
+        "data_retention_policy_sha256": null,
+        "stop_owner_account": null,
+        "rollback_owner_account": null
+      },
+      "approved_action": "read_only_environment_and_candidate_re_attestation_only",
+      "load_authorized": false,
+      "fault_injection_authorized": false,
+      "external_model_call_authorized": false,
+      "production_flag_change_authorized": false
+    },
+    "TAR05-P2-STAGING-CAPACITY": {
+      "status": "waiting_dependency",
+      "depends_on": [
+        "TAR05-P1-ENVIRONMENT-CANDIDATE"
+      ],
+      "decision": null,
+      "decision_reason": null,
+      "decision_receipt": null,
+      "decision_receipt_sha256": null,
+      "environment_id": null,
+      "concurrency_levels": [
+        1,
+        5,
+        10,
+        20
+      ],
+      "sample_count_per_level": null,
+      "warmup_duration_seconds": null,
+      "measurement_duration_seconds": null,
+      "soak_duration_seconds": null,
+      "maximum_requests": null,
+      "maximum_cost_amount": null,
+      "cost_currency": null,
+      "load_profile_document": null,
+      "load_profile_sha256": null,
+      "ordinary_web_baseline_receipt": null,
+      "ordinary_web_baseline_sha256": null,
+      "observer_identity": null,
+      "output_snapshot_path": null,
+      "output_snapshot_sha256": null,
+      "recorder_output_path": null,
+      "recorder_output_sha256": null,
+      "required_hard_slo_count": 19,
+      "unavailable_metric_policy": "BLOCK",
+      "production_load_authorized": false,
+      "capacity_increase_authorized": false
+    },
+    "TAR05-P3-STAGING-CHAOS": {
+      "status": "waiting_dependency",
+      "depends_on": [
+        "TAR05-P1-ENVIRONMENT-CANDIDATE"
+      ],
+      "decision": null,
+      "decision_reason": null,
+      "decision_receipt": null,
+      "decision_receipt_sha256": null,
+      "environment_id": null,
+      "scenario_authorizations": [
+        {
+          "scenario_id": "redis_down_restart",
+          "decision": null,
+          "fault_envelope": null,
+          "stop_condition": null,
+          "rollback_action": null
+        },
+        {
+          "scenario_id": "broker_message_loss_and_reconciliation",
+          "decision": null,
+          "fault_envelope": null,
+          "stop_condition": null,
+          "rollback_action": null
+        },
+        {
+          "scenario_id": "worker_sigterm",
+          "decision": null,
+          "fault_envelope": null,
+          "stop_condition": null,
+          "rollback_action": null
+        },
+        {
+          "scenario_id": "worker_sigkill",
+          "decision": null,
+          "fault_envelope": null,
+          "stop_condition": null,
+          "rollback_action": null
+        },
+        {
+          "scenario_id": "model_429_5xx_timeout",
+          "decision": null,
+          "fault_envelope": null,
+          "stop_condition": null,
+          "rollback_action": null
+        },
+        {
+          "scenario_id": "mcp_timeout",
+          "decision": null,
+          "fault_envelope": null,
+          "stop_condition": null,
+          "rollback_action": null
+        },
+        {
+          "scenario_id": "sse_disconnect_reconnect",
+          "decision": null,
+          "fault_envelope": null,
+          "stop_condition": null,
+          "rollback_action": null
+        },
+        {
+          "scenario_id": "web_restart",
+          "decision": null,
+          "fault_envelope": null,
+          "stop_condition": null,
+          "rollback_action": null
+        },
+        {
+          "scenario_id": "deployment_drain",
+          "decision": null,
+          "fault_envelope": null,
+          "stop_condition": null,
+          "rollback_action": null
+        }
+      ],
+      "maximum_total_duration_seconds": null,
+      "maximum_affected_runs": null,
+      "raw_timeline_path": null,
+      "raw_timeline_sha256": null,
+      "recorder_output_path": null,
+      "recorder_output_sha256": null,
+      "production_fault_injection_authorized": false,
+      "live_rollback_authorized": false
+    },
+    "TAR05-P4-PROVIDER-MCP-UAT": {
+      "status": "waiting_dependency",
+      "depends_on": [
+        "TAR05-P2-STAGING-CAPACITY",
+        "TAR05-P3-STAGING-CHAOS"
+      ],
+      "decision": null,
+      "decision_reason": null,
+      "decision_receipt": null,
+      "decision_receipt_sha256": null,
+      "environment_id": null,
+      "provider_profile_id": null,
+      "provider_profile_version": null,
+      "provider_profile_sha256": null,
+      "model_id": null,
+      "model_version": null,
+      "mcp_registry_id": null,
+      "mcp_registry_version": null,
+      "mcp_registry_sha256": null,
+      "tool_allowlist": [],
+      "role_accounts": [],
+      "owner_scoped_test_data_receipt": null,
+      "owner_scoped_test_data_sha256": null,
+      "maximum_model_calls": null,
+      "maximum_tokens": null,
+      "maximum_cost_amount": null,
+      "cost_currency": null,
+      "proposal_and_approval_policy_receipt": null,
+      "proposal_and_approval_policy_sha256": null,
+      "audit_and_cost_reconciliation_owner": null,
+      "production_canary_authorized": false,
+      "live_trading_authorized": false
+    },
+    "TAR05-P5-PRODUCTION-STAFF-CANARY": {
+      "status": "waiting_dependency",
+      "depends_on": [
+        "TAR05-P4-PROVIDER-MCP-UAT",
+        "TUI-01"
+      ],
+      "decision": null,
+      "decision_reason": null,
+      "decision_receipt": null,
+      "decision_receipt_sha256": null,
+      "production_candidate_re_attestation_receipt": null,
+      "production_candidate_re_attestation_sha256": null,
+      "approved_staff_accounts": [],
+      "maximum_staff_accounts": null,
+      "maximum_concurrent_runs": null,
+      "maximum_total_runs": null,
+      "maximum_duration_seconds": null,
+      "maximum_cost_amount": null,
+      "cost_currency": null,
+      "approved_flag_values": {
+        "TERMINAL_RUNTIME_AUTHORIZED": null,
+        "TERMINAL_QUEUED_INTAKE_ENABLED": null,
+        "TERMINAL_QUEUED_WORKER_ENABLED": null,
+        "TERMINAL_LEGACY_INLINE_ENABLED": true,
+        "TERMINAL_LEGACY_INLINE_CONCURRENCY": 1,
+        "TERMINAL_EMERGENCY_STOP": false
+      },
+      "dedicated_worker_config_receipt": null,
+      "dedicated_worker_config_sha256": null,
+      "queue_limit_config_receipt": null,
+      "queue_limit_config_sha256": null,
+      "recovery_point_receipt": null,
+      "recovery_point_sha256": null,
+      "monitoring_query_origin": null,
+      "monitoring_retention_receipt": null,
+      "monitoring_retention_sha256": null,
+      "stop_conditions": [],
+      "rollback_command_receipt": null,
+      "rollback_command_sha256": null,
+      "safe_state_after_rollback": {
+        "TERMINAL_RUNTIME_AUTHORIZED": false,
+        "TERMINAL_QUEUED_INTAKE_ENABLED": false,
+        "TERMINAL_QUEUED_WORKER_ENABLED": false,
+        "TERMINAL_LEGACY_INLINE_ENABLED": true,
+        "TERMINAL_LEGACY_INLINE_CONCURRENCY": 1
+      },
+      "general_user_rollout_authorized": false,
+      "legacy_inline_retirement_authorized": false,
+      "production_chaos_authorized": false
+    },
+    "TAR05-P6-OBSERVATION-CUTOVER": {
+      "status": "not_due",
+      "depends_on": [
+        "TAR05-P5-PRODUCTION-STAFF-CANARY"
+      ],
+      "decision": null,
+      "decision_reason": null,
+      "decision_receipt": null,
+      "decision_receipt_sha256": null,
+      "observation_started_at": null,
+      "observation_completed_at": null,
+      "retained_query_origin": null,
+      "retention_receipt": null,
+      "retention_receipt_sha256": null,
+      "capacity_report_path": null,
+      "capacity_report_sha256": null,
+      "chaos_report_path": null,
+      "chaos_report_sha256": null,
+      "provider_mcp_uat_report_path": null,
+      "provider_mcp_uat_report_sha256": null,
+      "production_canary_report_path": null,
+      "production_canary_report_sha256": null,
+      "defect_and_incident_report_path": null,
+      "defect_and_incident_report_sha256": null,
+      "audit_and_cost_report_path": null,
+      "audit_and_cost_report_sha256": null,
+      "restore_or_rollback_report_path": null,
+      "restore_or_rollback_report_sha256": null,
+      "operations_signoff_receipt": null,
+      "operations_signoff_sha256": null,
+      "product_signoff_receipt": null,
+      "product_signoff_sha256": null,
+      "qa_security_signoff_receipt": null,
+      "qa_security_signoff_sha256": null,
+      "general_user_rollout_decision": null,
+      "legacy_inline_retirement_decision": null,
+      "must_remain_deferred_until_real_window_completes": true
+    }
+  },
+  "universal_stop_conditions_acknowledged": true,
+  "rollback_contract_acknowledged": true,
+  "no_secrets_or_placeholders_acknowledged": true,
+  "no_presigned_results_acknowledged": true,
+  "final_report": {
+    "report_sha256": null,
+    "external_signature_receipt": null,
+    "external_signature_sha256": null
+  }
+}

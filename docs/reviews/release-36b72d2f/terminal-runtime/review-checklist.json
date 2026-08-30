@@ -1,0 +1,245 @@
+{
+  "schema": "agomtradepro-tar05-review-checklist.v1",
+  "checklist_id": "release-36b72d2f-terminal-runtime-review",
+  "candidate": {
+    "commit": "36b72d2fc01604afdb15d236a1e91d082fb62a5b",
+    "release_id": "20260830071422",
+    "image_id": "sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b"
+  },
+  "governance_mode": {
+    "id": "single_owner_personal_project",
+    "authorization_path": "docs/deployment/personal-project-single-owner-authorization-2026-08-30-36b72d2f.json",
+    "authorization_sha256": "d9c6e9f4128603d0f2208e107a430db93332ec2db2e523886d5248bb63005fd7",
+    "owner_display_name": "阿狗涅夫",
+    "multi_person_separation_of_duties_required": false,
+    "technical_exit_gates_waived": false
+  },
+  "dynamic_status": {
+    "state": "owner_review_processed_fail_closed",
+    "updated_at": "2026-08-30T12:58:17.2834180Z",
+    "updated_by_role": "repository_governance_automation",
+    "authorization_changed": false,
+    "execution_focus": null,
+    "summary": {
+      "total_work_orders": 7,
+      "awaiting_review_report": 0,
+      "waiting_dependency": 4,
+      "not_due": 2,
+      "deferred": 1,
+      "approved": 0,
+      "completed": 0
+    }
+  },
+  "status_values": [
+    "awaiting_review_report",
+    "waiting_dependency",
+    "not_due",
+    "approved_not_executable",
+    "ready_for_read_only_validation",
+    "ready_for_exact_action",
+    "deferred",
+    "rejected",
+    "completed"
+  ],
+  "decision_values": ["APPROVE", "REJECT", "DEFER"],
+  "authoritative_sources": [
+    {
+      "id": "PERSONAL_OWNER_AUTHORIZATION",
+      "path": "docs/deployment/personal-project-single-owner-authorization-2026-08-30-36b72d2f.json",
+      "sha256": "d9c6e9f4128603d0f2208e107a430db93332ec2db2e523886d5248bb63005fd7",
+      "role": "single_owner_personal_project_authorization"
+    },
+    {
+      "id": "HANDOFF",
+      "path": "docs/deployment/tar05-review-team-handoff-2026-08-30-36b72d2f.md",
+      "sha256": "5bbf3cebd5ecb567c29cb7af844036161b648a027b4f2df895e0d1a41d4802fc",
+      "role": "human_review_instructions"
+    },
+    {
+      "id": "PREFLIGHT",
+      "path": "docs/deployment/tar05-production-authorization-preflight-2026-08-30-36b72d2f.json",
+      "sha256": "0e07657152230a52e431e76d899d1527588f7556a3146d8b247a78ac54ea9ed6",
+      "role": "candidate_bound_authorization_preflight"
+    },
+    {
+      "id": "TEMPLATE",
+      "path": "docs/deployment/tar05-operations-review-return-template-2026-08-30-36b72d2f.json",
+      "sha256": "06c71dc80c8196e0273a8eca77be5f91ba2fa3f024464376fb573dc5b5276b3f",
+      "role": "operations_review_return_template"
+    },
+    {
+      "id": "FINAL_RELEASE_REPORT",
+      "path": "dist/remote-build-reports/remote-build-report-20260830071422.json",
+      "sha256": "0f3c99b52f42fb1a35a5bc5c41e0e81ae9a8e29e2e72c73454309537184254ad",
+      "role": "final_release_identity_and_compose_snapshot"
+    },
+    {
+      "id": "FINAL_DEPLOYMENT_PREFLIGHT",
+      "path": "docs/deployment/web-to-tui-deployment-preflight-20260830071422.json",
+      "sha256": "98f0f70cf648af82ecdbfa548fd0d55f53c81a895c1234037579564b86dec9d2",
+      "role": "candidate_bound_health_and_readiness"
+    },
+    {
+      "id": "TERMINAL_RUNTIME_CONTRACT",
+      "path": "governance/terminal_agent_runtime_contracts.json",
+      "sha256": "55f5e975b79fd16f673e6ebff516e60ffcd27d5a61b3a63a0af1b852deeb5f3c",
+      "role": "hard_slo_matrix_and_fail_closed_contract"
+    },
+    {
+      "id": "OBSERVATION_SOURCE_PREFLIGHT",
+      "path": "docs/deployment/tui-m5-observation-source-preflight-2026-08-30-36b72d2f.json",
+      "sha256": "b8b22c64f260d5a2d43de78a2ee30d30637ea741203d3173b1b28fe6fc660bcf",
+      "role": "retained_telemetry_source_gap"
+    },
+    {
+      "id": "HISTORICAL_CAPACITY_ONLY",
+      "path": "docs/deployment/tar01-current-production-capacity-2026-08-22-71e62773.json",
+      "sha256": "4e7f440396d871b224efefa87f306a1a3773269e32ae1ae3bbf57d6a54e3ffa2",
+      "role": "historical_nonportable_capacity_observation"
+    },
+    {
+      "id": "BASELINE_RECORDER",
+      "path": "scripts/record_terminal_runtime_baseline_evidence.py",
+      "sha256": "2fd3da795cc578de2e8c381e960ca28631e780e5be1b3788097c8fed6a81fef9",
+      "role": "offline_candidate_bound_baseline_recorder"
+    },
+    {
+      "id": "CHAOS_RECORDER",
+      "path": "scripts/record_terminal_runtime_chaos_evidence.py",
+      "sha256": "f29766568b85b0355f46f01fcd78e75cc1f44abcd55fcbb13598f1de5a84b8fa",
+      "role": "offline_candidate_bound_chaos_recorder"
+    },
+    {
+      "id": "CAPACITY_VALIDATOR",
+      "path": "scripts/validate_terminal_runtime_capacity_evidence.py",
+      "sha256": "bb604ac7f50d21bce22be3160edae6e9a52e527915a2ef493d3c91bf0fbd734d",
+      "role": "candidate_binding_validator"
+    },
+    {
+      "id": "LOAD_HARNESS",
+      "path": "tests/load/agent_runtime/test_terminal_agent_capacity.py",
+      "sha256": "83bb942e7e7ec71310e5fc525fe06ef50cf8e5c7b243b1dc60d041c9918373fc",
+      "role": "local_controlled_load_contract_not_runtime_evidence"
+    },
+    {
+      "id": "CHAOS_HARNESS",
+      "path": "tests/chaos/agent_runtime/test_terminal_agent_recovery.py",
+      "sha256": "f85fe91fe458b7975bbf9c398da6389d3bd2fc5e9687cb5a20a421d291615760",
+      "role": "local_controlled_chaos_contract_not_runtime_evidence"
+    }
+  ],
+  "report_output": {
+    "directory": "docs/reviews/release-36b72d2f/reports/terminal-runtime/",
+    "accepted_patterns": [
+      "tar05-operations-review-return-<decision_id>.json",
+      "tar05-operations-review-return-<decision_id>.json.sha256"
+    ],
+    "report_presence_is_not_authorization": true
+  },
+  "work_orders": [
+    {
+      "id": "TAR05-P1-ENVIRONMENT-CANDIDATE",
+      "unit": "TAR-05",
+      "status": "deferred",
+      "decision": "DEFER",
+      "depends_on": [],
+      "required_output": "real review parties, approved staging identity, exact runtime manifest, flags, dedicated Worker/resources and bounded budgets",
+      "report_path": "docs/reviews/release-36b72d2f/reports/terminal-runtime/tar05-operations-review-return-DEFER-TAR05-20260830-01.json",
+      "report_sha256": "d95632be8ab42221c64eb05e5d89cf283afb7282d9f7cc1bec4a97cc3746baff",
+      "next_gate": "The owner delegation removes the multi-person review requirement, but an actual approved staging identity, final runtime manifest/flags, dedicated Worker/resources and bounded envelope must still be supplied before read-only re-attestation or load work."
+    },
+    {
+      "id": "TAR05-P2-STAGING-CAPACITY",
+      "unit": "TAR-05",
+      "status": "waiting_dependency",
+      "decision": null,
+      "depends_on": ["TAR05-P1-ENVIRONMENT-CANDIDATE"],
+      "required_output": "separate approved 1/5/10/20 plus soak envelope and candidate-bound raw/recorder evidence",
+      "report_path": null,
+      "report_sha256": null,
+      "next_gate": "all baseline metrics and 19 hard SLO values must be observed and pass"
+    },
+    {
+      "id": "TAR05-P3-STAGING-CHAOS",
+      "unit": "TAR-05",
+      "status": "waiting_dependency",
+      "decision": null,
+      "depends_on": ["TAR05-P1-ENVIRONMENT-CANDIDATE"],
+      "required_output": "per-scenario staging fault envelopes, timelines, recovery states and zero safety counters",
+      "report_path": null,
+      "report_sha256": null,
+      "next_gate": "all approved scenarios recover without duplicate, overwrite or cross-user leakage"
+    },
+    {
+      "id": "TAR05-P4-PROVIDER-MCP-UAT",
+      "unit": "TAR-05",
+      "status": "waiting_dependency",
+      "decision": null,
+      "depends_on": ["TAR05-P2-STAGING-CAPACITY", "TAR05-P3-STAGING-CHAOS"],
+      "required_output": "bounded real provider/MCP, approval, role UAT, cost/audit and secret-redaction authorization and evidence",
+      "report_path": null,
+      "report_sha256": null,
+      "next_gate": "reconcile successful and failure paths before any production canary"
+    },
+    {
+      "id": "TAR05-P5-PRODUCTION-STAFF-CANARY",
+      "unit": "TAR-05",
+      "status": "waiting_dependency",
+      "decision": null,
+      "depends_on": ["TAR05-P4-PROVIDER-MCP-UAT", "TUI-01"],
+      "required_output": "exact staff accounts, flags, worker/queue config, traffic/cost envelope, monitoring, recovery point and rollback receipts",
+      "report_path": null,
+      "report_sha256": null,
+      "next_gate": "run only the bounded staff canary and return to the fixed fail-closed safe state on any stop condition"
+    },
+    {
+      "id": "TAR05-P6-OBSERVATION-CUTOVER",
+      "unit": "TAR-05",
+      "status": "not_due",
+      "decision": null,
+      "depends_on": ["TAR05-P5-PRODUCTION-STAFF-CANARY"],
+      "required_output": "real retained observation, defects/incidents, capacity/chaos/provider/canary, audit/cost, rollback and triple sign-off",
+      "report_path": null,
+      "report_sha256": null,
+      "next_gate": "cannot be reviewed before the governed observation window completes"
+    },
+    {
+      "id": "TAR05-P7-INLINE-RETIREMENT",
+      "unit": "TAR-05",
+      "status": "not_due",
+      "decision": null,
+      "depends_on": ["TAR05-P6-OBSERVATION-CUTOVER"],
+      "required_output": "separate general-user rollout and legacy inline retirement decisions with emergency-disable rollback",
+      "report_path": null,
+      "report_sha256": null,
+      "next_gate": "never infer retirement from canary or observation alone"
+    }
+  ],
+  "update_policy": {
+    "reviewers_may_edit_checklist": false,
+    "accepted_input": "candidate-bound technical report plus same-name SHA-256 sidecar and either the single-owner authorization or team-mode receipts",
+    "one_dependency_ready_phase_per_report": true,
+    "validation_before_update": [
+      "json_schema_and_template_only_false",
+      "same_name_sidecar",
+      "exact_candidate_binding",
+      "single_owner_authorization_or_team_identity",
+      "single_owner_exception_or_team_separation_of_duties",
+      "owner_authorization_or_team_receipt_and_validity",
+      "bounded_traffic_fault_cost_duration_and_account_envelope",
+      "phase_required_fields",
+      "dependency_satisfaction",
+      "no_secrets_or_placeholders",
+      "no_presigned_results"
+    ],
+    "on_valid_report": [
+      "update_matching_work_order_only",
+      "update_summary_and_timestamp",
+      "rebuild_checklist_sidecar",
+      "synchronize_terminal_primary_plan_docs_plans_readme_and_active_plan_registry"
+    ],
+    "single_owner_mode_accepts_verified_defer_without_multi_party_fields": true,
+    "single_owner_mode_never_waives_environment_manifest_or_bounded_envelope": true,
+    "on_invalid_report": "record no authorization or state change"
+  }
+}

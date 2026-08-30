@@ -107,6 +107,15 @@ groups:
           summary: "TUI task error rate exceeds the Classic baseline"
           description: "Task {{ $labels.task_key }} exceeds the 0.5 percentage-point M5 allowance"
 
+      - alert: PrometheusStorageBudgetNearLimit
+        expr: prometheus_tsdb_storage_blocks_bytes > 3758096384
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Prometheus retained blocks approach the 4 GB budget"
+          description: "TSDB block storage has exceeded the reviewed 3.5 GB warning threshold"
+
   - name: agomtradepro_alerts
     rules:
       # 5xx 激增告警

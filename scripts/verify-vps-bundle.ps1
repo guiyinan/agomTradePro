@@ -60,9 +60,12 @@ if (-not $bundleRoot) {
 $requiredFiles = @(
     "deploy/manifest.json",
     "deploy/.env.vps.example",
+    "deploy/prometheus-query.env.example",
     "docker/docker-compose.vps.yml",
     "docker/Caddyfile.template",
     "docker/Dockerfile.prod",
+    "monitoring/prometheus.vps.yml",
+    "monitoring/alerts.yml",
     "scripts/deploy-on-vps.sh",
     "scripts/deploy-on-vps.ps1",
     "scripts/vps-backup.sh",
@@ -70,7 +73,8 @@ $requiredFiles = @(
     "images/web.tar",
     "images/redis.tar",
     "images/caddy.tar",
-    "images/rsshub.tar"
+    "images/rsshub.tar",
+    "images/prometheus.tar"
 )
 
 $missing = @()

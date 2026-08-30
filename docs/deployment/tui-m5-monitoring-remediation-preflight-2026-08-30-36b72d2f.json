@@ -1,0 +1,172 @@
+{
+  "schema": "tui-m5-monitoring-remediation-preflight.v1",
+  "candidate": {
+    "commit": "36b72d2fc01604afdb15d236a1e91d082fb62a5b",
+    "release_id": "20260830071422",
+    "image_id": "sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b",
+    "observation_window_currently_recorded": {
+      "start": "2026-08-29",
+      "end": "2026-09-12",
+      "retained_query_source_proven": false
+    }
+  },
+  "observation": {
+    "observed_at": "2026-08-30T03:37:02.8804028Z",
+    "mode": "repository_and_production_read_only_preflight",
+    "production_write_performed": false,
+    "deployment_performed": false,
+    "monitoring_configuration_changed": false
+  },
+  "source_contracts": {
+    "vps_compose": {
+      "path": "docker/docker-compose.vps.yml",
+      "sha256": "805e3d0e7957ae97f44d2e86866faef3511ac3fb00109de5ec0dbe1fb8a76b27",
+      "prometheus_service_present": false,
+      "alertmanager_service_present": false,
+      "metrics_exporter_services_present": false
+    },
+    "prometheus_config": {
+      "path": "monitoring/prometheus.yml",
+      "sha256": "e283c917436adadd24bd8a7466a03a1936a219e27c02f2cf8cbf67f141957ccc",
+      "rule_file": "alerts.yml",
+      "django_target": "localhost:8000",
+      "metrics_path": "/metrics",
+      "scrape_interval": "30s",
+      "alertmanager_target": "localhost:9093",
+      "deployable_unchanged_as_separate_compose_service": false,
+      "reason": "localhost targets would resolve inside a separate Prometheus container, while the VPS compose defines no colocated Prometheus, Alertmanager, Flower, PostgreSQL exporter, Redis exporter or node exporter services."
+    },
+    "alert_rules": {
+      "path": "monitoring/alerts.yml",
+      "sha256": "6233d8ab9cc2c48e536951dd8ea318e78208a9aa3ca09ca80f40a93ef900690e",
+      "m5_recording_rules_present": true,
+      "m5_alerts_present": [
+        "WebToTuiLegacyEntryRatioHigh",
+        "WebToTuiErrorRateRegression"
+      ]
+    },
+    "observation_start": {
+      "path": "scripts/start_web_to_tui_observation.py",
+      "sha256": "a3894eb8a359032dab524f805af583272b9686e23592a601f21859ea0d6482e7",
+      "minimum_observation_days": 14,
+      "deployment_preflight_max_age_hours": 24,
+      "health_preflight_max_age_minutes": 30,
+      "start_date_source": "fresh deployment verification date",
+      "manual_date_backfill_allowed": false
+    },
+    "telemetry_builder": {
+      "path": "scripts/build_web_to_tui_production_telemetry.py",
+      "sha256": "cb6c7101e06800ba6e41b198cd86452a23c662d3f95a1d0a84479a737a8917f5",
+      "exact_six_promql_queries_required": true,
+      "exact_101_task_coverage_required": true,
+      "https_query_origin_without_embedded_credentials_required": true
+    }
+  },
+  "production_facts": {
+    "public_metrics_without_authentication": {
+      "path": "/metrics/",
+      "http_status": 200,
+      "content_type": "text/plain; version=1.0.0; charset=utf-8"
+    },
+    "running_container_count": 8,
+    "prometheus_or_compatible_containers": [],
+    "tcp_9090_listener_count": 0,
+    "prometheus_or_compatible_processes": [],
+    "external_query_origin_and_retention": "not_supplied"
+  },
+  "decision_required": {
+    "option": null,
+    "allowed_options": [
+      "provide_existing_external_prometheus_source",
+      "authorize_repository_and_production_monitoring_remediation"
+    ],
+    "status": "operations_decision_required"
+  },
+  "required_human_inputs": {
+    "operations_owner_identity": null,
+    "independent_reviewer_identity": null,
+    "approval_receipt_sha256": null,
+    "existing_external_query_origin": null,
+    "existing_external_retention_proof_sha256": null,
+    "existing_external_first_retained_sample_at": null,
+    "approved_prometheus_image_digest": null,
+    "approved_retention_period": null,
+    "approved_storage_budget_and_volume": null,
+    "approved_query_access_policy": null,
+    "approved_alertmanager_policy": null,
+    "candidate_redeployment_and_window_reset_accepted": null,
+    "status": "not_supplied"
+  },
+  "conditional_execution_contract": [
+    {
+      "phase": 1,
+      "name": "prove_existing_external_source",
+      "authorization_status": "read_only_when_endpoint_and_access_are_supplied",
+      "exit_check": "The governed HTTPS query origin answers the exact six approved PromQL queries, proves uninterrupted retention from the recorded window start, has stable time synchronization and can export a secret-free candidate-bound snapshot."
+    },
+    {
+      "phase": 2,
+      "name": "activate_bounded_repository_collector_remediation_if_needed",
+      "authorization_status": "not_authorized",
+      "entry_condition": "Phase 1 proves no acceptable retained external source exists and governance assigns one explicit repository execution_focus unit.",
+      "required_repository_outcome": "Add a pinned Prometheus-compatible service, persistent volume, retention policy, healthcheck and non-public or approved query access; change the Django scrape target from localhost to a network-reachable service or approved HTTPS exporter; include only deployed scrape jobs; validate alerts and exact M5 queries."
+    },
+    {
+      "phase": 3,
+      "name": "deploy_and_verify_monitoring",
+      "authorization_status": "not_authorized",
+      "exit_check": "The pinned monitoring service is healthy, target up=1, storage and retention are active, exact M5 recording rules load, query access is bounded, and application health/readiness remain unchanged."
+    },
+    {
+      "phase": 4,
+      "name": "redeploy_or_reattest_candidate_then_reset_observation",
+      "authorization_status": "not_authorized",
+      "reason": "The canonical observation start tool derives released_at from a fresh deployment verification and forbids manual date backfill.",
+      "exit_check": "A fresh candidate deployment preflight is committed, start_web_to_tui_observation writes a new exact 14-day window, and all candidate-bound evidence that cannot carry forward is cleared by the canonical tool."
+    },
+    {
+      "phase": 5,
+      "name": "collect_full_window_and_build_final_evidence",
+      "authorization_status": "read_only_after_phases_1_or_4",
+      "exit_check": "After the new window end, a reviewed Prometheus snapshot covers all six query keys and 101 tasks and the defect snapshot covers the exact window; both builders and readiness checker remain fail-closed."
+    }
+  ],
+  "impact_and_stop_conditions": {
+    "expected_impact_if_new_store_is_authorized": "A new monitoring container, persistent volume, scrape traffic, disk growth and a fresh candidate observation window; no business database mutation is required by the collector itself.",
+    "stop_on": [
+      "missing_named_operations_owner_or_approval_receipt",
+      "unpinned_monitoring_image",
+      "unbounded_or_unapproved_storage_growth",
+      "query_endpoint_exposed_beyond_approved_policy",
+      "scrape_target_not_up",
+      "retention_not_longer_than_the_complete_14_day_query_window",
+      "recording_rule_or_exact_promql_validation_failure",
+      "candidate_or_source_sha_drift",
+      "time_synchronization_or_sample_gap",
+      "application_health_or_readiness_regression"
+    ]
+  },
+  "rollback_contract": {
+    "monitoring_service": "Restore the prior compose/config release and stop the new monitoring service under separate authorization; retain the monitoring volume and logs for evidence until the owner approves disposal.",
+    "application_candidate": "Use the existing candidate deployment rollback contract if the re-attested deployment affects application health; do not alter production database state solely to remove monitoring.",
+    "observation_evidence": "Keep the current window denied and supersede it only through the canonical observation-start tool. Never edit dates or copy forward telemetry, defects, backup attestations or approvals."
+  },
+  "evidence_template": {
+    "required": [
+      "repository_commit_and_ci",
+      "pinned_image_digest",
+      "compose_config_and_rule_validation",
+      "deployment_and_rollback_receipts",
+      "target_health_and_retention_configuration",
+      "first_retained_sample_timestamp",
+      "exact_six_query_dry_run",
+      "fresh_candidate_deployment_preflight",
+      "new_observation_window_and_cleared_prior_evidence"
+    ],
+    "unavailable_fields_must_remain_unavailable": true
+  },
+  "next_action": "Operations chooses and supplies an existing retained Prometheus source or authorizes a bounded repository plus production monitoring remediation. No collector implementation or deployment may begin while execution_focus remains null and the required inputs are empty.",
+  "production_claim": false,
+  "production_ready": false,
+  "runtime_enablement": "not_authorized"
+}

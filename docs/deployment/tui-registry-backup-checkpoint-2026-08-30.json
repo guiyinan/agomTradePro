@@ -1,0 +1,44 @@
+{
+  "version": "tui-registry-backup-production-checkpoint.v1",
+  "environment": "production",
+  "candidate": {
+    "commit": "36b72d2fc01604afdb15d236a1e91d082fb62a5b",
+    "release_id": "20260830071422",
+    "image_id": "sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b"
+  },
+  "backup": {
+    "bundle_path": "/opt/agomtradepro/backups/tui-registry/tui-registry-release-20260830071422-36b72d2f.json",
+    "sidecar_path": "/opt/agomtradepro/backups/tui-registry/tui-registry-release-20260830071422-36b72d2f.json.sha256",
+    "bundle_sha256": "1fe6b01fd36cf855a9af395c5b570029442cb5593834d2a15c24fa8601dfb882",
+    "size_bytes": 1994667,
+    "file_mode": "600",
+    "owner": "root:root",
+    "registry_key": "default",
+    "generation": 30,
+    "graph_hash": "68fc19962de486a2382584ec416a2a90dcffa08c35fcc9afa3c255d3f5850d72",
+    "schema_version": "tui-metadata.v3",
+    "runtime_build_id": "agomtui-runtime-0.2.0+1aa1996d160f"
+  },
+  "verification": {
+    "bundle_sidecar_match": true,
+    "restore_dry_run_passed": true,
+    "active_source_hash": "68fc19962de486a2382584ec416a2a90dcffa08c35fcc9afa3c255d3f5850d72",
+    "active_source_hash_matches_backup": true,
+    "public_health_http_status": 200,
+    "public_health_status": "ok",
+    "public_readiness_http_status": 200,
+    "verified_at": "2026-08-29T23:59:21.038649Z"
+  },
+  "cutover_gate": {
+    "formal_attestation_written": false,
+    "readiness_gate_passed": false,
+    "observation_end": "2026-09-12",
+    "blocking_reason": "The canonical payload-free attestation cannot be written before the observation window ends and must name a real independent reviewer. This checkpoint records the recoverable external bundle only."
+  },
+  "production_state_changed": {
+    "registry_payload": false,
+    "database": false,
+    "release": false,
+    "runtime_enablement": false
+  }
+}

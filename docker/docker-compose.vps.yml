@@ -362,6 +362,35 @@ services:
       retries: 5
     mem_limit: 500m
 
+  prometheus:
+    image: ${PROMETHEUS_IMAGE:-prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996}
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-21d}
+      - --storage.tsdb.retention.size=${PROMETHEUS_RETENTION_SIZE:-4GB}
+    volumes:
+      - ../monitoring/prometheus.vps.yml:/etc/prometheus/prometheus.yml:ro
+      - ../monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      web:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:9090/-/ready || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    mem_limit: ${PROMETHEUS_MEMORY_LIMIT:-512m}
+    cpus: ${PROMETHEUS_CPUS:-0.5}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   caddy:
     image: ${CADDY_IMAGE:-caddy:2-alpine}
     restart: unless-stopped
@@ -374,8 +403,13 @@ services:
       - media_data:/srv/media:ro
       - caddy_data:/data
       - caddy_config:/config
+    env_file:
+      - path: ../deploy/prometheus-query.env
+        required: false
     depends_on:
       web:
+        condition: service_healthy
+      prometheus:
         condition: service_healthy
     mem_limit: 200m
 
@@ -388,3 +422,4 @@ volumes:
   media_data:
   caddy_data:
   caddy_config:
+  prometheus_data:

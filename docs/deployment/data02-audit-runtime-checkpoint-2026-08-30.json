@@ -1,0 +1,80 @@
+{
+  "version": "data02-audit-runtime-production-checkpoint.v1",
+  "environment": "production",
+  "candidate": {
+    "commit": "36b72d2fc01604afdb15d236a1e91d082fb62a5b",
+    "release_id": "20260830071422"
+  },
+  "data02_dry_run": {
+    "command": "repair_active_a_share_current_facts",
+    "write_mode": false,
+    "active_universe": 5533,
+    "completed_session": "2026-08-28",
+    "financial": {
+      "eligible_rows": 288409,
+      "eligible_assets": 3750,
+      "unresolved_rows": 0,
+      "future_rows": 0
+    },
+    "completed_session_price": {
+      "ready": false,
+      "eligible_assets": 0,
+      "invalid_or_stale_assets": 5533
+    },
+    "current_publication_coverage": {
+      "quote": "5533/5533_stale",
+      "price": "5533/5533_stale",
+      "valuation": "5533/5533_stale",
+      "financial": "1923/5533",
+      "financial_missing_assets": 3610
+    },
+    "outcome": "blocked_before_execute"
+  },
+  "audit_runtime": {
+    "definition_reconcile": {
+      "command": "initialize_runtime_definitions",
+      "idempotent": true,
+      "definition_count": 3,
+      "definitions": [
+        "audit.system_event.authority_selector",
+        "audit.system_event.mode",
+        "audit.system_event.outbox_enabled"
+      ]
+    },
+    "active_profile": {
+      "profile_key": "production",
+      "profile_version": 2,
+      "status": "active",
+      "content_hash": "af164c1ca395916276a5ff0990d699dbee2141a2a1b9e69f2258fbdf4474d80c",
+      "valid": false,
+      "validated_definition_count": 37,
+      "errors": [
+        "missing_critical_definition:audit.system_event.authority_selector",
+        "missing_critical_definition:audit.system_event.mode",
+        "missing_critical_definition:audit.system_event.outbox_enabled"
+      ]
+    },
+    "authority_counts": {
+      "account_actor_authority_source_v3_ledger": 0,
+      "account_actor_authority_source_v3_root_lock": 0,
+      "account_owner_tenant_authority_v1": 0,
+      "account_rbac_authority_source_v3_anchor": 0,
+      "account_rbac_authority_source_v3_ledger": 0,
+      "account_user_authority_source_v3_anchor": 0,
+      "account_user_authority_source_v3_ledger": 0
+    },
+    "production_write_performed": "definition_reconcile_only",
+    "profile_or_authority_created": false
+  },
+  "rollback_point": {
+    "evidence": "docs/deployment/data02-audit-config-prewrite-backup-2026-08-30.json",
+    "remote_path": "/opt/agomtradepro/backups/database/postgres-20260829T220625Z.dump",
+    "sha256": "434903ac03c4fd6e4623682c65628f6b3f7be533a279b53fa063d692470e3d95"
+  },
+  "decision_runtime": {
+    "state": "blocked",
+    "activation_attempted": false,
+    "must_not_use_for_decision": true
+  },
+  "next_gate": "A named production owner and independent root/reviewer must create or approve the real authority selector and the three active-profile values. Only after the typed audit writer loads successfully may DATA-02 execute and reconcile; automation must not invent these values."
+}

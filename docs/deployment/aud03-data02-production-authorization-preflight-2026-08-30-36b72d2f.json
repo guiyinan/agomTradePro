@@ -1,0 +1,271 @@
+{
+  "schema": "aud03-data02-production-authorization-preflight.v1",
+  "candidate": {
+    "commit": "36b72d2fc01604afdb15d236a1e91d082fb62a5b",
+    "release_id": "20260830071422",
+    "image_id": "sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b",
+    "container_id": "9f2068c7af6f",
+    "runtime_revision_match": true
+  },
+  "observation": {
+    "observed_at": "2026-08-30T03:16:27.172293Z",
+    "provider_state_observed_at": "2026-08-30T03:18:29.230413Z",
+    "read_mode": "select_only",
+    "database_alias": "default",
+    "database_vendor": "postgresql",
+    "production_write_performed": false
+  },
+  "current_runtime": {
+    "profile": {
+      "profile_id": "59c6575b-872f-43c8-bf20-95a50567eca3",
+      "profile_key": "production",
+      "profile_version": 2,
+      "status": "active",
+      "based_on_profile": "e1ad3c7e-2114-4e34-a3f0-6cac9639d496",
+      "content_hash": "af164c1ca395916276a5ff0990d699dbee2141a2a1b9e69f2258fbdf4474d80c",
+      "release_ref": "",
+      "activated_at": "2026-08-09T08:39:31.911872Z",
+      "value_count": 37,
+      "definition_key_sha256": "e78b4ceef879abd553336a1efec5b101d9bac971b7ee457e87f8facf19002a72",
+      "current_catalog_validation": {
+        "valid": false,
+        "validated_definition_count": 37,
+        "errors": [
+          "missing_critical_definition:audit.system_event.authority_selector",
+          "missing_critical_definition:audit.system_event.mode",
+          "missing_critical_definition:audit.system_event.outbox_enabled"
+        ]
+      }
+    },
+    "snapshot": {
+      "snapshot_id": "f96ceca1-9fb5-4321-9604-0d53da22aa9c",
+      "profile_id": "59c6575b-872f-43c8-bf20-95a50567eca3",
+      "profile_key": "production",
+      "profile_version": 2,
+      "snapshot_hash": "af164c1ca395916276a5ff0990d699dbee2141a2a1b9e69f2258fbdf4474d80c",
+      "recomputed_hash": "af164c1ca395916276a5ff0990d699dbee2141a2a1b9e69f2258fbdf4474d80c",
+      "resolved_key_count": 37,
+      "resolved_key_sha256": "e78b4ceef879abd553336a1efec5b101d9bac971b7ee457e87f8facf19002a72",
+      "profile_link_matches": true,
+      "hash_matches": true,
+      "stored_validation_report_valid": true,
+      "current_catalog_revalidation_valid": false
+    },
+    "audit_definitions": {
+      "audit.system_event.mode": {
+        "value_type": "enum",
+        "choices": [
+          "off",
+          "shadow",
+          "required"
+        ],
+        "criticality": "critical",
+        "reload_mode": "next_task",
+        "value_present": false
+      },
+      "audit.system_event.outbox_enabled": {
+        "value_type": "bool",
+        "criticality": "critical",
+        "reload_mode": "next_task",
+        "value_present": false
+      },
+      "audit.system_event.authority_selector": {
+        "value_type": "typed_json",
+        "criticality": "critical",
+        "reload_mode": "next_task",
+        "value_present": false
+      }
+    },
+    "runtime_loader": {
+      "available": false,
+      "first_reason_code": "mode_invalid"
+    },
+    "profile_status_counts": {
+      "active": 1,
+      "superseded": 1
+    }
+  },
+  "authority_state": {
+    "exact_reader_tables": {
+      "account_actor_authority_source_v3_root_lock": 0,
+      "account_actor_authority_source_v3_ledger": 0,
+      "account_owner_tenant_authority_v1": 0
+    },
+    "selector_ready": false,
+    "block_reason": "exact_actor_and_scope_authority_sources_are_zero_seed"
+  },
+  "provider_state": {
+    "active_providers": [
+      {
+        "id": 2,
+        "name": "Tushare Pro",
+        "source_type": "tushare",
+        "priority": 1
+      },
+      {
+        "id": 3,
+        "name": "AKShare Public",
+        "source_type": "akshare",
+        "priority": 10
+      }
+    ],
+    "settings": {
+      "default_source": "akshare",
+      "enable_failover": true,
+      "failover_tolerance": 0.01
+    },
+    "full_workflow_capability_source_types_from_code": [
+      "akshare",
+      "tushare"
+    ],
+    "approved_execute_source": null
+  },
+  "required_human_inputs": {
+    "production_owner_identity": {
+      "value": null,
+      "status": "not_supplied"
+    },
+    "independent_root_approver_identity": {
+      "value": null,
+      "status": "not_supplied"
+    },
+    "independent_reviewer_identity": {
+      "value": null,
+      "status": "not_supplied"
+    },
+    "owner_approval_receipt_sha256": {
+      "value": null,
+      "status": "not_collected"
+    },
+    "root_approval_receipt_sha256": {
+      "value": null,
+      "status": "not_collected"
+    },
+    "reviewer_approval_receipt_sha256": {
+      "value": null,
+      "status": "not_collected"
+    },
+    "audit_profile_patch": {
+      "audit.system_event.mode": {
+        "value": null,
+        "allowed_by_definition": [
+          "off",
+          "shadow",
+          "required"
+        ],
+        "allowed_for_writer_preflight": [
+          "shadow",
+          "required"
+        ],
+        "status": "owner_decision_required"
+      },
+      "audit.system_event.outbox_enabled": {
+        "value": null,
+        "required_for_writer_preflight": true,
+        "status": "owner_decision_required"
+      },
+      "audit.system_event.authority_selector": {
+        "value": {
+          "actor_source_id": null,
+          "actor_source_version": null,
+          "actor_content_hash": null,
+          "scope_source_id": null,
+          "scope_source_version": null,
+          "scope_content_hash": null
+        },
+        "status": "real_ledger_heads_required"
+      }
+    },
+    "profile_activation": {
+      "actor": null,
+      "reason": null,
+      "release_ref": "36b72d2fc01604afdb15d236a1e91d082fb62a5b",
+      "status": "actor_reason_and_approval_required"
+    },
+    "data02_execute": {
+      "operator_identity": null,
+      "source_type": null,
+      "batch_size": null,
+      "batch_size_allowed_range": [
+        1,
+        500
+      ],
+      "existing_backup_accepted_as_rollback_point": null,
+      "status": "specific_action_authorization_required"
+    }
+  },
+  "execution_contract": [
+    {
+      "phase": 1,
+      "name": "issue_or_select_real_authority_heads",
+      "entry_boundary": "Account application/composition authority writers",
+      "authorization_status": "not_authorized",
+      "exit_check": "The exact actor and owner/tenant scope sources exist, are current, share actor/user identity, and their source id/version/content hashes equal the approved selector."
+    },
+    {
+      "phase": 2,
+      "name": "activate_forward_runtime_profile_successor",
+      "entry_boundary": "apps.config_center.application.runtime_public.activate_runtime_profile_patch",
+      "authorization_status": "not_authorized",
+      "exit_check": "A version greater than 2 is active; all carried-forward values remain present; profile/snapshot id-key-version and recomputed hash match; revision records actor, reason, release_ref and exact changed keys."
+    },
+    {
+      "phase": 3,
+      "name": "audit_writer_load_and_authority_preflight",
+      "entry_boundary": "load_system_audit_runtime_config plus system audit composition/authority preflight",
+      "authorization_status": "read_only_after_phases_1_and_2",
+      "exit_check": "mode is not off, outbox_enabled is true, runtime and authority readers share database alias default, and the exact current authority context matches the selector without claiming or publishing outbox rows."
+    },
+    {
+      "phase": 4,
+      "name": "data02_provider_refresh_and_atomic_publication",
+      "command_template": "python manage.py repair_active_a_share_current_facts --execute --operator <approved-operator> --source <approved-source> --batch-size <approved-1-through-500>",
+      "authorization_status": "not_authorized",
+      "exit_check": "All 5,533 assets pass provider, timestamp and exact-coverage checks; all four current publications commit atomically with immutable ids/hashes; reconciliation and audit receipts are complete."
+    }
+  ],
+  "impact_and_stop_conditions": {
+    "fact_write_boundary": "Historical-price and financial probes and quote/valuation batches write facts before the final four-publication transaction; a later failure can leave partial new facts while current publications remain unchanged.",
+    "publication_boundary": "The four current publications switch in one outer transaction only after exact universe validation; any publication failure rolls back all four publication changes.",
+    "stop_on": [
+      "candidate_commit_release_or_image_drift",
+      "missing_or_unapproved_owner_root_reviewer_input",
+      "profile_preview_or_snapshot_hash_mismatch",
+      "authority_selector_or_current_head_mismatch",
+      "audit_writer_or_authority_preflight_failure",
+      "provider_probe_zero_rows",
+      "quote_or_valuation_batch_incomplete",
+      "future_naive_or_stale_observation",
+      "publication_coverage_not_exact_5533",
+      "audit_receipt_or_reconciliation_gap",
+      "rollback_point_not_accepted"
+    ]
+  },
+  "rollback_contract": {
+    "runtime_profile": "Publish a higher-version forward successor containing the complete previously validated value set; never update or delete the active profile in place. Restoring profile v2 re-establishes the current fail-closed Audit state.",
+    "current_publications": "Until phase 4 commits, existing current publications remain selected. After a successful switch, any rollback must use the canonical publication rollback use case with exact target/previous publication identities and required Audit evidence under separate authorization.",
+    "partial_fact_writes": "Do not bulk-delete provider facts. Preserve source identities and reconcile or compensate only exact affected records after a failed batch, with a separately approved evidence-bound action.",
+    "existing_database_backup": {
+      "remote_path": "/opt/agomtradepro/backups/database/postgres-20260829T220625Z.dump",
+      "sha256": "434903ac03c4fd6e4623682c65628f6b3f7be533a279b53fa063d692470e3d95",
+      "acceptance_for_next_write": "not_decided"
+    }
+  },
+  "code_contract_sources": [
+    "apps/config_center/application/runtime_definition_reconcile.py:428",
+    "apps/config_center/application/runtime_public.py:167",
+    "apps/config_center/application/runtime_config.py:225",
+    "apps/config_center/application/runtime_config.py:323",
+    "core/integration/system_audit_runtime_config.py:85",
+    "apps/audit/application/system_audit_authority_provider.py:46",
+    "apps/audit/application/system_audit_runtime_composition.py:132",
+    "apps/audit/infrastructure/system_audit_outbox_runtime.py:171",
+    "apps/data_center/management/commands/repair_active_a_share_current_facts.py:29",
+    "apps/data_center/application/current_fact_remediation.py:436",
+    "apps/data_center/application/current_publication_rebuild.py:393"
+  ],
+  "production_claim": false,
+  "production_ready": false,
+  "runtime_enablement": "not_authorized",
+  "next_action": "Collect real owner/root/reviewer identities and receipt hashes, issue or select exact current authority heads, fill the approved typed profile and DATA-02 execution inputs, and then rerun candidate-bound read-only validation before requesting each write phase separately."
+}

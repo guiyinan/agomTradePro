@@ -1,0 +1,634 @@
+{
+  "schema": "strat-01-business-owner-review-return.v1",
+  "template_only": false,
+  "instructions": {
+    "copy_to_new_final_file": true,
+    "set_template_only_false_only_after_review": true,
+    "null_means_not_reviewed_or_not_approved": true,
+    "decision_values": [
+      "APPROVE",
+      "REJECT",
+      "DEFER"
+    ],
+    "decision_required_per_capability": true,
+    "business_documents_must_be_attached_and_hashed": true,
+    "canonical_hashes_are_computed_by_dry_run_not_invented_by_reviewer": true,
+    "final_file_requires_sha256_sidecar": true,
+    "secrets_forbidden": true
+  },
+  "decision_id": "DEFER-STRAT-20260830-01",
+  "issued_at": "2026-08-30T10:16:07Z",
+  "expires_at": null,
+  "candidate": {
+    "commit": "36b72d2fc01604afdb15d236a1e91d082fb62a5b",
+    "release_id": "20260830071422",
+    "image_id": "sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b",
+    "database_alias": "default"
+  },
+  "source_preflight": {
+    "path": "docs/deployment/evid-strat-production-authorization-preflight-2026-08-30-36b72d2f.json",
+    "sha256": "8518c165c21395716497a320f23e232d2744e29bea1cec8281f50fd7d19787ae"
+  },
+  "current_state_acknowledgement": {
+    "research_r1_to_r8_owner_rows_are_zero_seed": true,
+    "portfolio_r4_r5_r8_owner_rows_are_zero_seed": true,
+    "data_center_facts_cannot_be_promoted_into_owner_definitions": true,
+    "no_pit_oos_promotion_or_consumer_evidence_exists_yet": true,
+    "strategy_execution_remains_forbidden": true
+  },
+  "governance_parties": {
+    "research_governance_owner": {
+      "legal_name": null,
+      "production_account_id": null,
+      "role": null,
+      "organization": null,
+      "receipt_reference": null,
+      "receipt_sha256": null,
+      "decision": null
+    },
+    "independent_reviewer": {
+      "legal_name": null,
+      "production_account_id": null,
+      "role": null,
+      "organization": null,
+      "receipt_reference": null,
+      "receipt_sha256": null,
+      "decision": null
+    },
+    "separation_of_duties": {
+      "governance_owner_and_reviewer_are_distinct_people": null,
+      "governance_owner_and_reviewer_are_distinct_production_accounts": null,
+      "verified_by": null,
+      "verified_at": null
+    }
+  },
+  "capability_decisions": [
+    {
+      "capability_id": "R1",
+      "capability_name": "Forecast Baseline",
+      "decision": "DEFER",
+      "business_owner": {
+        "legal_name": null,
+        "production_account_id": null,
+        "role": null,
+        "organization": null,
+        "receipt_reference": null,
+        "receipt_sha256": null
+      },
+      "definition": {
+        "id": null,
+        "version": null,
+        "document_reference": null,
+        "document_sha256": null,
+        "canonical_content_hash_after_dry_run": null
+      },
+      "policy": {
+        "id": null,
+        "version": null,
+        "decision_rules_reference": null,
+        "decision_rules_sha256": null
+      },
+      "calendar": {
+        "id": null,
+        "version": null,
+        "timezone": null,
+        "cutoff_semantics": null
+      },
+      "scope": {
+        "id": null,
+        "version": null,
+        "universe_reference": null,
+        "universe_sha256": null
+      },
+      "sample_window": {
+        "minimum_duration": null,
+        "minimum_periods": null,
+        "minimum_samples": null,
+        "minimum_coverage": null
+      },
+      "qualification": {
+        "id": null,
+        "version": null,
+        "thresholds_reference": null,
+        "thresholds_sha256": null,
+        "falsification_conditions": null
+      },
+      "business_semantics": {
+        "benchmark": null,
+        "cost": null,
+        "liquidity": null,
+        "label": null,
+        "invalidation_conditions": null,
+        "retirement_conditions": null,
+        "rollback_conditions": null
+      },
+      "valid_from": null,
+      "valid_until": null,
+      "review_notes": "missing_evidence: strat-01-owner-ledger-readonly-recheck 显示 Research R1-R8、Portfolio R4/R5/R8、Account 及广义 owner/policy/operator 台账全部零行，human_approval_status=not_collected；无真实 business owner 提交带 hash 的 definition/policy/calendar/scope/qualification 文档，不得用零行事实或 Data Center facts 反充业务定义。next_action: 真实业务 owner 逐项提交并签署完整业务定义文档（含 hash）后再审。"
+    },
+    {
+      "capability_id": "R2",
+      "capability_name": "Market Structure",
+      "decision": "DEFER",
+      "business_owner": {
+        "legal_name": null,
+        "production_account_id": null,
+        "role": null,
+        "organization": null,
+        "receipt_reference": null,
+        "receipt_sha256": null
+      },
+      "definition": {
+        "id": null,
+        "version": null,
+        "document_reference": null,
+        "document_sha256": null,
+        "canonical_content_hash_after_dry_run": null
+      },
+      "policy": {
+        "id": null,
+        "version": null,
+        "decision_rules_reference": null,
+        "decision_rules_sha256": null
+      },
+      "calendar": {
+        "id": null,
+        "version": null,
+        "timezone": null,
+        "cutoff_semantics": null
+      },
+      "scope": {
+        "id": null,
+        "version": null,
+        "universe_reference": null,
+        "universe_sha256": null
+      },
+      "sample_window": {
+        "minimum_duration": null,
+        "minimum_periods": null,
+        "minimum_samples": null,
+        "minimum_coverage": null
+      },
+      "qualification": {
+        "id": null,
+        "version": null,
+        "thresholds_reference": null,
+        "thresholds_sha256": null,
+        "falsification_conditions": null
+      },
+      "business_semantics": {
+        "benchmark": null,
+        "cost": null,
+        "liquidity": null,
+        "label": null,
+        "invalidation_conditions": null,
+        "retirement_conditions": null,
+        "rollback_conditions": null
+      },
+      "valid_from": null,
+      "valid_until": null,
+      "review_notes": "missing_evidence: strat-01-owner-ledger-readonly-recheck 显示 Research R1-R8、Portfolio R4/R5/R8、Account 及广义 owner/policy/operator 台账全部零行，human_approval_status=not_collected；无真实 business owner 提交带 hash 的 definition/policy/calendar/scope/qualification 文档，不得用零行事实或 Data Center facts 反充业务定义。next_action: 真实业务 owner 逐项提交并签署完整业务定义文档（含 hash）后再审。"
+    },
+    {
+      "capability_id": "R3",
+      "capability_name": "Macro Factor",
+      "decision": "DEFER",
+      "business_owner": {
+        "legal_name": null,
+        "production_account_id": null,
+        "role": null,
+        "organization": null,
+        "receipt_reference": null,
+        "receipt_sha256": null
+      },
+      "definition": {
+        "id": null,
+        "version": null,
+        "document_reference": null,
+        "document_sha256": null,
+        "canonical_content_hash_after_dry_run": null
+      },
+      "policy": {
+        "id": null,
+        "version": null,
+        "decision_rules_reference": null,
+        "decision_rules_sha256": null
+      },
+      "calendar": {
+        "id": null,
+        "version": null,
+        "timezone": null,
+        "cutoff_semantics": null
+      },
+      "scope": {
+        "id": null,
+        "version": null,
+        "universe_reference": null,
+        "universe_sha256": null
+      },
+      "sample_window": {
+        "minimum_duration": null,
+        "minimum_periods": null,
+        "minimum_samples": null,
+        "minimum_coverage": null
+      },
+      "qualification": {
+        "id": null,
+        "version": null,
+        "thresholds_reference": null,
+        "thresholds_sha256": null,
+        "falsification_conditions": null
+      },
+      "business_semantics": {
+        "benchmark": null,
+        "cost": null,
+        "liquidity": null,
+        "label": null,
+        "invalidation_conditions": null,
+        "retirement_conditions": null,
+        "rollback_conditions": null
+      },
+      "valid_from": null,
+      "valid_until": null,
+      "review_notes": "missing_evidence: strat-01-owner-ledger-readonly-recheck 显示 Research R1-R8、Portfolio R4/R5/R8、Account 及广义 owner/policy/operator 台账全部零行，human_approval_status=not_collected；无真实 business owner 提交带 hash 的 definition/policy/calendar/scope/qualification 文档，不得用零行事实或 Data Center facts 反充业务定义。next_action: 真实业务 owner 逐项提交并签署完整业务定义文档（含 hash）后再审。"
+    },
+    {
+      "capability_id": "R4",
+      "capability_name": "Risk/Allocation",
+      "decision": "DEFER",
+      "business_owner": {
+        "legal_name": null,
+        "production_account_id": null,
+        "role": null,
+        "organization": null,
+        "receipt_reference": null,
+        "receipt_sha256": null
+      },
+      "definition": {
+        "id": null,
+        "version": null,
+        "document_reference": null,
+        "document_sha256": null,
+        "canonical_content_hash_after_dry_run": null
+      },
+      "policy": {
+        "id": null,
+        "version": null,
+        "decision_rules_reference": null,
+        "decision_rules_sha256": null
+      },
+      "calendar": {
+        "id": null,
+        "version": null,
+        "timezone": null,
+        "cutoff_semantics": null
+      },
+      "scope": {
+        "id": null,
+        "version": null,
+        "universe_reference": null,
+        "universe_sha256": null
+      },
+      "sample_window": {
+        "minimum_duration": null,
+        "minimum_periods": null,
+        "minimum_samples": null,
+        "minimum_coverage": null
+      },
+      "qualification": {
+        "id": null,
+        "version": null,
+        "thresholds_reference": null,
+        "thresholds_sha256": null,
+        "falsification_conditions": null
+      },
+      "business_semantics": {
+        "benchmark": null,
+        "cost": null,
+        "liquidity": null,
+        "label": null,
+        "invalidation_conditions": null,
+        "retirement_conditions": null,
+        "rollback_conditions": null
+      },
+      "valid_from": null,
+      "valid_until": null,
+      "review_notes": "missing_evidence: strat-01-owner-ledger-readonly-recheck 显示 Research R1-R8、Portfolio R4/R5/R8、Account 及广义 owner/policy/operator 台账全部零行，human_approval_status=not_collected；无真实 business owner 提交带 hash 的 definition/policy/calendar/scope/qualification 文档，不得用零行事实或 Data Center facts 反充业务定义。next_action: 真实业务 owner 逐项提交并签署完整业务定义文档（含 hash）后再审。"
+    },
+    {
+      "capability_id": "R5",
+      "capability_name": "Relative Value",
+      "decision": "DEFER",
+      "business_owner": {
+        "legal_name": null,
+        "production_account_id": null,
+        "role": null,
+        "organization": null,
+        "receipt_reference": null,
+        "receipt_sha256": null
+      },
+      "definition": {
+        "id": null,
+        "version": null,
+        "document_reference": null,
+        "document_sha256": null,
+        "canonical_content_hash_after_dry_run": null
+      },
+      "policy": {
+        "id": null,
+        "version": null,
+        "decision_rules_reference": null,
+        "decision_rules_sha256": null
+      },
+      "calendar": {
+        "id": null,
+        "version": null,
+        "timezone": null,
+        "cutoff_semantics": null
+      },
+      "scope": {
+        "id": null,
+        "version": null,
+        "universe_reference": null,
+        "universe_sha256": null
+      },
+      "sample_window": {
+        "minimum_duration": null,
+        "minimum_periods": null,
+        "minimum_samples": null,
+        "minimum_coverage": null
+      },
+      "qualification": {
+        "id": null,
+        "version": null,
+        "thresholds_reference": null,
+        "thresholds_sha256": null,
+        "falsification_conditions": null
+      },
+      "business_semantics": {
+        "benchmark": null,
+        "cost": null,
+        "liquidity": null,
+        "label": null,
+        "invalidation_conditions": null,
+        "retirement_conditions": null,
+        "rollback_conditions": null
+      },
+      "valid_from": null,
+      "valid_until": null,
+      "review_notes": "missing_evidence: strat-01-owner-ledger-readonly-recheck 显示 Research R1-R8、Portfolio R4/R5/R8、Account 及广义 owner/policy/operator 台账全部零行，human_approval_status=not_collected；无真实 business owner 提交带 hash 的 definition/policy/calendar/scope/qualification 文档，不得用零行事实或 Data Center facts 反充业务定义。next_action: 真实业务 owner 逐项提交并签署完整业务定义文档（含 hash）后再审。"
+    },
+    {
+      "capability_id": "R6",
+      "capability_name": "State Model",
+      "decision": "DEFER",
+      "business_owner": {
+        "legal_name": null,
+        "production_account_id": null,
+        "role": null,
+        "organization": null,
+        "receipt_reference": null,
+        "receipt_sha256": null
+      },
+      "definition": {
+        "id": null,
+        "version": null,
+        "document_reference": null,
+        "document_sha256": null,
+        "canonical_content_hash_after_dry_run": null
+      },
+      "policy": {
+        "id": null,
+        "version": null,
+        "decision_rules_reference": null,
+        "decision_rules_sha256": null
+      },
+      "calendar": {
+        "id": null,
+        "version": null,
+        "timezone": null,
+        "cutoff_semantics": null
+      },
+      "scope": {
+        "id": null,
+        "version": null,
+        "universe_reference": null,
+        "universe_sha256": null
+      },
+      "sample_window": {
+        "minimum_duration": null,
+        "minimum_periods": null,
+        "minimum_samples": null,
+        "minimum_coverage": null
+      },
+      "qualification": {
+        "id": null,
+        "version": null,
+        "thresholds_reference": null,
+        "thresholds_sha256": null,
+        "falsification_conditions": null
+      },
+      "business_semantics": {
+        "benchmark": null,
+        "cost": null,
+        "liquidity": null,
+        "label": null,
+        "invalidation_conditions": null,
+        "retirement_conditions": null,
+        "rollback_conditions": null
+      },
+      "valid_from": null,
+      "valid_until": null,
+      "review_notes": "missing_evidence: strat-01-owner-ledger-readonly-recheck 显示 Research R1-R8、Portfolio R4/R5/R8、Account 及广义 owner/policy/operator 台账全部零行，human_approval_status=not_collected；无真实 business owner 提交带 hash 的 definition/policy/calendar/scope/qualification 文档，不得用零行事实或 Data Center facts 反充业务定义。next_action: 真实业务 owner 逐项提交并签署完整业务定义文档（含 hash）后再审。"
+    },
+    {
+      "capability_id": "R7",
+      "capability_name": "Scenario Research",
+      "decision": "DEFER",
+      "business_owner": {
+        "legal_name": null,
+        "production_account_id": null,
+        "role": null,
+        "organization": null,
+        "receipt_reference": null,
+        "receipt_sha256": null
+      },
+      "definition": {
+        "id": null,
+        "version": null,
+        "document_reference": null,
+        "document_sha256": null,
+        "canonical_content_hash_after_dry_run": null
+      },
+      "policy": {
+        "id": null,
+        "version": null,
+        "decision_rules_reference": null,
+        "decision_rules_sha256": null
+      },
+      "calendar": {
+        "id": null,
+        "version": null,
+        "timezone": null,
+        "cutoff_semantics": null
+      },
+      "scope": {
+        "id": null,
+        "version": null,
+        "universe_reference": null,
+        "universe_sha256": null
+      },
+      "sample_window": {
+        "minimum_duration": null,
+        "minimum_periods": null,
+        "minimum_samples": null,
+        "minimum_coverage": null
+      },
+      "qualification": {
+        "id": null,
+        "version": null,
+        "thresholds_reference": null,
+        "thresholds_sha256": null,
+        "falsification_conditions": null
+      },
+      "business_semantics": {
+        "benchmark": null,
+        "cost": null,
+        "liquidity": null,
+        "label": null,
+        "invalidation_conditions": null,
+        "retirement_conditions": null,
+        "rollback_conditions": null
+      },
+      "valid_from": null,
+      "valid_until": null,
+      "review_notes": "missing_evidence: strat-01-owner-ledger-readonly-recheck 显示 Research R1-R8、Portfolio R4/R5/R8、Account 及广义 owner/policy/operator 台账全部零行，human_approval_status=not_collected；无真实 business owner 提交带 hash 的 definition/policy/calendar/scope/qualification 文档，不得用零行事实或 Data Center facts 反充业务定义。next_action: 真实业务 owner 逐项提交并签署完整业务定义文档（含 hash）后再审。"
+    },
+    {
+      "capability_id": "R8",
+      "capability_name": "Optimization Monitoring",
+      "decision": "DEFER",
+      "business_owner": {
+        "legal_name": null,
+        "production_account_id": null,
+        "role": null,
+        "organization": null,
+        "receipt_reference": null,
+        "receipt_sha256": null
+      },
+      "definition": {
+        "id": null,
+        "version": null,
+        "document_reference": null,
+        "document_sha256": null,
+        "canonical_content_hash_after_dry_run": null
+      },
+      "policy": {
+        "id": null,
+        "version": null,
+        "decision_rules_reference": null,
+        "decision_rules_sha256": null
+      },
+      "calendar": {
+        "id": null,
+        "version": null,
+        "timezone": null,
+        "cutoff_semantics": null
+      },
+      "scope": {
+        "id": null,
+        "version": null,
+        "universe_reference": null,
+        "universe_sha256": null
+      },
+      "sample_window": {
+        "minimum_duration": null,
+        "minimum_periods": null,
+        "minimum_samples": null,
+        "minimum_coverage": null
+      },
+      "qualification": {
+        "id": null,
+        "version": null,
+        "thresholds_reference": null,
+        "thresholds_sha256": null,
+        "falsification_conditions": null
+      },
+      "business_semantics": {
+        "benchmark": null,
+        "cost": null,
+        "liquidity": null,
+        "label": null,
+        "invalidation_conditions": null,
+        "retirement_conditions": null,
+        "rollback_conditions": null
+      },
+      "valid_from": null,
+      "valid_until": null,
+      "review_notes": "missing_evidence: strat-01-owner-ledger-readonly-recheck 显示 Research R1-R8、Portfolio R4/R5/R8、Account 及广义 owner/policy/operator 台账全部零行，human_approval_status=not_collected；无真实 business owner 提交带 hash 的 definition/policy/calendar/scope/qualification 文档，不得用零行事实或 Data Center facts 反充业务定义。next_action: 真实业务 owner 逐项提交并签署完整业务定义文档（含 hash）后再审。"
+    }
+  ],
+  "phase_2_append_only_registration": {
+    "decision": "DEFER",
+    "depends_on": "all selected capability decisions and canonical dry-run",
+    "authorization_valid_from": null,
+    "authorization_expires_at": null,
+    "dry_run_report_reference": null,
+    "dry_run_report_sha256": null,
+    "approved_capability_ids": [],
+    "exact_command_or_admin_workflow_reference": null,
+    "expected_row_plan_reference": null,
+    "expected_row_plan_sha256": null,
+    "current_head_and_overlap_check_passed": null,
+    "append_only_and_no_overwrite_acknowledged": null,
+    "stop_conditions": [],
+    "successor_revocation_or_rollback_plan_reference": null,
+    "authorization_receipt_reference": null,
+    "authorization_receipt_sha256": null,
+    "does_not_authorize": [
+      "pit_or_oos_backfill",
+      "synthetic_history",
+      "promotion",
+      "consumer_uat",
+      "strategy_execution",
+      "threshold_reduction"
+    ],
+    "review_notes": "missing_evidence: 依赖的 R1-R8 业务定义均未获批，且 canonical dry-run 尚未执行，dry_run_report_reference/sha256 不存在；按 handoff 规则本阶段只能 DEFER。next_action: 业务定义获批后先完成 canonical dry-run，再重新提交 append-only registration 审核。"
+  },
+  "post_registration_acceptance": {
+    "must_be_issued_after_real_registration": true,
+    "cannot_be_presigned": true,
+    "required_evidence": [
+      "exact_registered_rows_and_canonical_hashes",
+      "current_head_overlap_and_fork_checks",
+      "owner_source_receipts",
+      "read_only_capability_readiness_inventory",
+      "zero_unapproved_rows",
+      "owner_and_independent_reviewer_signoff"
+    ],
+    "decision": null,
+    "receipt_reference": null,
+    "receipt_sha256": null
+  },
+  "future_history_promotion_and_consumer_review": {
+    "not_part_of_current_review": true,
+    "cannot_be_presigned": true,
+    "still_required": [
+      "real_pit_and_oos_windows",
+      "canonical_receipts_and_lineage",
+      "assessment_and_monitoring",
+      "manual_promotion_or_activation",
+      "consumer_uat",
+      "rollback_acceptance"
+    ],
+    "decision": null
+  },
+  "final_current_stage_decision": "DEFER",
+  "attestation": {
+    "signing_system": null,
+    "signed_document_reference": null,
+    "signed_document_sha256": null,
+    "signed_at": null,
+    "signature_binds_final_json_sha256": null
+  }
+}

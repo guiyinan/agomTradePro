@@ -23,12 +23,14 @@
 | 产品/业务 | [business/AgomTradePro_V3.4.md](business/AgomTradePro_V3.4.md) | 业务逻辑、金融规则、数据源 |
 | 最终用户 | [user/topdown-bottomup-execution-playbook.md](user/topdown-bottomup-execution-playbook.md) | 环境-标的-执行-审计一体化操作手册 |
 | 运维人员 | [deployment/VPS_BUNDLE_DEPLOYMENT.md](deployment/VPS_BUNDLE_DEPLOYMENT.md) | VPS Bundle 部署指南 |
+| 审核团队 | [reviews/README.md](reviews/README.md) | **候选 `36b72d2f` 的 AUD/DATA/TUI、EVID/STRAT 与 TAR-05 Terminal Runtime 审核入口、动态 JSON 清单、输入证据和报告输出地址** |
 | FRP 三机部署 | [architecture/frp-vps-local-runtime-architecture.md](architecture/frp-vps-local-runtime-architecture.md) | VPS 入口 + 服务端 AI/Agent 薄客户端架构；QMT 外部券商桥另有本地执行例外 |
 
 ---
 
 ## 当前收口说明
 
+- 2026-08-30 候选 `36b72d2fc01604afdb15d236a1e91d082fb62a5b` 的总审核导航为 [`reviews/README.md`](reviews/README.md)。本个人项目采用 [`single-owner 授权`](deployment/personal-project-single-owner-authorization-2026-08-30-36b72d2f.json)：唯一真人 owner 可承担治理角色，不要求第二名自然人，但技术证据和 fail-closed 门禁不豁免。五份回传已处理，只有既有 TUI UAT 的 owner gate 获批，`TUI-01=completed`；AUD/DATA、TUI source、EVID、STRAT、TAR 均为有效 DEFER。`TUI-03` retained monitoring repository contract 已完成，证据见 [`tui03-retained-monitoring-repository-closure-evidence-2026-08-30.json`](testing/tui03-retained-monitoring-repository-closure-evidence-2026-08-30.json)；下一步为 `TUI-02` clean successor 部署和重新起算的真实 14 日窗口。
 - 2026-08-30 DATA-01 已在生产候选 `c826f741…` 完成新备份、sibling restore、`0072→0071→0072` 迁移往返、真实连接切换与切回；关键计数/WAL 一致，health=`200`、Celery=`1`，原决策门恢复为 `blocked`。四个原始证据见下方部署索引；`DATA-01=completed`，但不代表 DATA-02/03、AUD-03 或 decision-ready 通过。
 - 2026-08-30 DATA-02 四类原子全-universe Publication 与当前事实修复候选已实现；生产只读 provider preflight 为 Tencent failover `5,533/5,533`、全部绑定 `2026-08-28`、OHLC 缺口 `0`。DATA-03 同候选增加三检查 + CAS + 自动 re-block 激活包装器，并禁止通用命令裸写 `active`。下一步是部署后 dry-run、真实缺口修复和逐数据集 reconciliation；持久化决策门此前继续 fail-closed。
 - 2026-08-24 EVID-01 最新候选只读复核：候选 `94abd76e…` 的 health/ready/audit 为 `200`、decision-ready 为 `503` fail-closed，`0055`/`0029` 已应用且 13 张 authority/evidence 表全零；快照 [`evid-01-authority-inventory-snapshot-2026-08-24-recheck-2105.json`](deployment/evid-01-authority-inventory-snapshot-2026-08-24-recheck-2105.json)，report [`39760173ab5aa8e4adfab03d088c62519e22e5b6cea40d78eaf2d5d0befd6372.json`](deployment/evid-01-authority-inventory/39/39760173ab5aa8e4adfab03d088c62519e22e5b6cea40d78eaf2d5d0befd6372.json)；`authority_ready=false`、`production_claim=false`，不解除 EVID-01 或全局决策/执行总闸。

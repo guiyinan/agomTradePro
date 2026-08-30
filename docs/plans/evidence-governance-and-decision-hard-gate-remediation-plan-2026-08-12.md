@@ -3870,3 +3870,65 @@ outcome=`blocked_zero_seed_authority`。EVID-02 严格输入 SHA-256=
 本次只有候选绑定的 SELECT 观察，没有 authority seed、approval/activation 写入、并发 race、
 rollback 或人工签署。EVID-01/02 状态不变；下一真实门是独立 root/reviewer 决策，以及获批的
 PostgreSQL first-winner/successor/revocation/rollback 与 same-alias 端到端回执。
+
+## 2026-08-30：最终 release EVID-01/02 SELECT-only 重绑定（36b72d2f）
+
+按 active registry 的 `production auto_collect` 再次从当前运行态解析候选身份，确认 deployed
+commit=`36b72d2fc01604afdb15d236a1e91d082fb62a5b`、release=`20260830071422`、image=
+`sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b`，OCI revision、
+release symlink 与预期完全一致。在同一 Web 容器的 `default` PostgreSQL alias 中，以单个
+`REPEATABLE READ READ ONLY` 事务读取 Account `0050–0055` migration、13 张 canonical
+authority/evidence 表和 EVID-02 operator/approval/activation 三表；数据库
+`as_of=2026-08-30T02:37:34.265883Z`，query digest=
+`4bb264e8b33d023697913ee6a48abe54aaeffd269e809f17b3f4bfd51017e486`。六项 migration 均已
+应用，全部 16 张目标表仍为 `0` 行。
+
+原始合并快照
+[`evid-01-evid-02-select-only-bundle-2026-08-30-36b72d2f.json`](../deployment/evid-01-evid-02-select-only-bundle-2026-08-30-36b72d2f.json)
+SHA-256=`f7a26a5eb5db3fd31fb5d601e146120346f8681aaa7c2f8ca55308e982b3a0cd`。EVID-01 strict
+snapshot SHA-256=`9ca06b4cc1b412e07b231732730bc31b10e4b0115f067f85555bbdf82c46e7f7`，生成
+[`63c08dcb2d984da92f4b2dddd8e039fe3dafc79688c629e9e2f42d73adbf4d85.json`](../deployment/evid-01-authority-inventory/63/63c08dcb2d984da92f4b2dddd8e039fe3dafc79688c629e9e2f42d73adbf4d85.json)，
+outcome=`blocked_zero_seed_authority`。EVID-02 SELECT-only snapshot SHA-256=
+`467bb1f733790694ed083941c021b0f76267389f0b9852c0310032bd35e83ca4`，生成
+[`c2fec726ef6903c8c941703f6afd9036190cb9c8be7a43ebe630667065ca6275.json`](../deployment/evid-02-head-audit/c2/c2fec726ef6903c8c941703f6afd9036190cb9c8be7a43ebe630667065ca6275.json)，
+approval/activation 均为 `empty`，`human_approval_status=not_collected`。两个 artifact 的文件
+SHA 与内容地址一致，并固定 `production_claim=false`、`production_ready=false`、
+`runtime_enablement=not_authorized`。
+
+本轮没有部署、迁移或生产写入，没有创建 authority、approval、activation，也没有执行生产
+race、rollback 或人工签署。该 checkpoint 只把 zero-seed/empty-head 事实绑定到最终 release；
+`EVID-01/02` 继续 `awaiting_production`，全局 execution/decision deny 不变。解除阻塞仍必须由
+真实独立 root/reviewer 作出决定，并在精确授权下完成生产 PostgreSQL first-winner、successor、
+revocation、rollback、same-alias 端到端回执与 owner/reviewer 双签；候选或 ledger 状态未变化前
+不重复执行相同 inventory。
+
+## 2026-08-30：EVID-01/02 五阶段审核入口与机器回传合同
+
+最终 release 的 zero-seed/empty-head 事实现已形成候选绑定审核 preflight：
+[`evid-strat-production-authorization-preflight-2026-08-30-36b72d2f.json`](../deployment/evid-strat-production-authorization-preflight-2026-08-30-36b72d2f.json)，
+SHA-256=`8518c165c21395716497a320f23e232d2744e29bea1cec8281f50fd7d19787ae`。它把 EVID-01/02
+拆为五个有序决定：Account 上游 assignment seal、owner/tenant authority root、Research evidence
+scope、operator definition/approval/activation、生产 PostgreSQL acceptance。后续阶段不得绕过前置
+current-head 与 receipt；本地 disposable PostgreSQL 合同不得冒充第五阶段生产验收。
+
+审核团队使用
+[`evid-01-evid-02-production-review-return-template-2026-08-30-36b72d2f.json`](../deployment/evid-01-evid-02-production-review-return-template-2026-08-30-36b72d2f.json)，
+SHA-256=`e7055af3c6dc94893a1c2900c2fbc6fd783125b96d432cddfa3f691df05269a2`，并从
+[`docs/reviews/release-36b72d2f/evidence-strategy/README.md`](../reviews/release-36b72d2f/evidence-strategy/README.md)
+进入；动态清单为
+[`review-checklist.json`](../reviews/release-36b72d2f/evidence-strategy/review-checklist.json)，final report 只接收于
+[`reports/evidence-strategy/`](../reviews/release-36b72d2f/reports/evidence-strategy/README.md)。模板保持
+`template_only=true`，其存在不构成审批。只有 final report 的候选、sidecar、真实生产身份、职责分离、
+receipt、有效期、必填字段与阶段依赖全部验证通过，才能单独授权相应精确动作。
+
+本 checkpoint 没有写入 authority/operator/approval/activation，没有运行生产 race/rollback，也没有
+代签执行后验收；`EVID-01/02` 继续 `awaiting_production`，`EVID-03` 继续等待依赖，global
+decision/execution deny 与 `execution_focus=null` 均不变。
+
+## 2026-08-30 single-owner 回传处理
+
+个人项目唯一真人 owner 授权（`PERSONAL-OWNER-36B72D2F-20260830-01`）替代多人身份与职责分离要求。
+EVID 回传的 JSON、sidecar、候选和 zero-seed 事实有效，P1 决定因此登记为 `DEFER`；其余阶段继续等待
+技术依赖。授权不生成 13 张 authority/evidence 表的任何行，也不生成 approval/activation head。
+下一步不再等待第二名 reviewer，而是以真实 owner receipt 建立 canonical subject/authority 输入，
+随后逐项运行 PostgreSQL race/revocation/rollback 和 same-alias 回执；执行 deny 保持不变。

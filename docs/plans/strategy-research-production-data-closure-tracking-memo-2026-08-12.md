@@ -346,3 +346,61 @@ artifact SHA 与文件名一致，outcome=`zero_seed`，并固定 `production_cl
 本轮未创建、修改、删除、回填、promotion 或审批。STRAT-01 继续
 `awaiting_production`；下一门仍需命名业务 owner 提供并批准真实 definition/policy/calendar/
 scope/qualification，不能从零行只读事实推导 readiness。
+
+## 24. 2026-08-30：最终 release STRAT-01 owner-ledger 只读重绑定（36b72d2f）
+
+按 active registry 的 `production auto_collect`，先从运行容器、release symlink 与 OCI label
+复核 deployed commit=`36b72d2fc01604afdb15d236a1e91d082fb62a5b`、release=
+`20260830071422`、image=
+`sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b`。随后在同一
+`default` alias 的 PostgreSQL `REPEATABLE READ READ ONLY` 事务中，以四个既定 selector
+从 `public` schema 发现目标表并逐表执行安全 identifier quoting 的 `COUNT(*)`。观察时间为
+`2026-08-30T02:48:34.840669Z`；Research R1–R8 命中 `65` 张表、Portfolio R4/R5/R8
+命中 `7` 张表、Account authority/assignment 广义集合命中 `16` 张表、
+owner/policy/operator/assignment 广义集合命中 `35` 张表，四组均为
+`row_count_total=0`、`nonzero_table_count=0`。
+
+原始 strict snapshot
+[`strat-01-owner-ledger-readonly-recheck-2026-08-30-36b72d2f.json`](../deployment/strat-01-owner-ledger-readonly-recheck-2026-08-30-36b72d2f.json)
+SHA-256=`6f8dac572a2c72c410975413833d9c4852462fff9b5a31779499d69536035814`；经现有 recorder
+生成 content-addressed report
+[`71bd1af35985eea8795f797095de07522b5ad7ece3a4562f70ca44c64f9299d4.json`](../deployment/strat-01-owner-ledger-inventory/71/71bd1af35985eea8795f797095de07522b5ad7ece3a4562f70ca44c64f9299d4.json)，
+artifact SHA 与文件名一致，outcome=`zero_seed`，并固定 `production_claim=false`、
+`production_ready=false`、`runtime_enablement=not_authorized`。
+
+本轮没有部署、生产写入、owner/definition/policy/calendar/scope/qualification 创建、回填、
+Promotion 或审批，也没有把 Data Center facts 转换为 owner evidence。该 checkpoint 只把
+zero-seed 阻断绑定到最终 release；`STRAT-01` 继续 `awaiting_production`，`STRAT-02/03`
+依赖不变。下一真实门仍是命名业务 owner 提供并批准真实输入；候选或 owner-ledger 状态未
+变化前不重复相同 inventory。
+
+## 25. 2026-08-30：STRAT-01 R1–R8 业务 owner 审核入口
+
+最终 release 的 owner-ledger zero-seed 事实已绑定到
+[`evid-strat-production-authorization-preflight-2026-08-30-36b72d2f.json`](../deployment/evid-strat-production-authorization-preflight-2026-08-30-36b72d2f.json)，
+SHA-256=`8518c165c21395716497a320f23e232d2744e29bea1cec8281f50fd7d19787ae`。审核团队使用
+[`strat-01-business-owner-review-return-template-2026-08-30-36b72d2f.json`](../deployment/strat-01-business-owner-review-return-template-2026-08-30-36b72d2f.json)，
+SHA-256=`c21b14ed8a60123f3412fde414a4c2aab6ccd695eb651e5daef7722973322c24`，对 R1–R8 每项分别
+提交真实 business owner、带 hash 的 definition/policy/calendar/scope、sample window、qualification/
+falsification，以及适用的 benchmark/cost/liquidity/label/invalidation/retire/rollback 语义。
+
+稳定入口为
+[`docs/reviews/release-36b72d2f/evidence-strategy/README.md`](../reviews/release-36b72d2f/evidence-strategy/README.md)，
+动态清单为
+[`review-checklist.json`](../reviews/release-36b72d2f/evidence-strategy/review-checklist.json)，final report 输出到
+[`reports/evidence-strategy/`](../reviews/release-36b72d2f/reports/evidence-strategy/README.md)。业务定义审核通过后仍须先运行
+canonical schema/hash/current-head/overlap dry-run；append-only production registration 必须另取第二阶段
+精确授权，执行后的 rows/hashes/current-head 另行验收。PIT/OOS、Promotion、consumer UAT 与 strategy
+execution 均不在本次审核范围，不能预签。
+
+本 checkpoint 没有生产写入、registration、backfill、Promotion 或审批。模板仍为
+`template_only=true`；`STRAT-01` 继续 `awaiting_production`，`STRAT-02/03` 依赖、全局 deny 与
+`execution_focus=null` 均不变。
+
+## 2026-08-30 single-owner 回传处理
+
+唯一真人项目所有者已经满足 owner 身份与治理角色要求，STRAT P1 回传作为真实 `DEFER` 收录；不再要求
+另一名自然人签字。但 R1–R8 的 definition、policy、calendar、scope、sample window、qualification、
+falsification、cost/liquidity/label/invalidation 等内容仍未由 owner 给出，65/7/16/35 表也仍为零。
+这些业务定义不能由自动化猜测，所以 `STRAT-01=awaiting_production`；owner 提供最小真实策略定义后，
+直接进入 canonical dry-run 和 append-only registration，不再重复多人审批流程。

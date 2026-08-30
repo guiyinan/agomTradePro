@@ -1,0 +1,191 @@
+{
+  "schema": "aud03-data02-production-review-return.v1",
+  "template_only": true,
+  "instructions": {
+    "copy_to_new_final_file": true,
+    "set_template_only_false_only_after_review": true,
+    "null_means_not_reviewed_or_not_approved": true,
+    "decision_values": [
+      "APPROVE",
+      "REJECT",
+      "DEFER"
+    ],
+    "final_file_requires_sha256_sidecar": true,
+    "secrets_forbidden": true
+  },
+  "decision_id": null,
+  "issued_at": null,
+  "expires_at": null,
+  "candidate": {
+    "commit": "36b72d2fc01604afdb15d236a1e91d082fb62a5b",
+    "release_id": "20260830071422",
+    "image_id": "sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b",
+    "database_alias": "default"
+  },
+  "source_preflight": {
+    "path": "docs/deployment/aud03-data02-production-authorization-preflight-2026-08-30-36b72d2f.json",
+    "sha256": "25dc78fd5dfc627460761f7c7aa28c5fef08da8f3cd7ec8b62b81ac3665096d1"
+  },
+  "parties": {
+    "production_owner": {
+      "legal_name": null,
+      "production_account_id": null,
+      "role": null,
+      "organization": null,
+      "receipt_reference": null,
+      "receipt_sha256": null,
+      "decision": null
+    },
+    "independent_root_approver": {
+      "legal_name": null,
+      "production_account_id": null,
+      "role": null,
+      "organization": null,
+      "receipt_reference": null,
+      "receipt_sha256": null,
+      "decision": null
+    },
+    "independent_reviewer": {
+      "legal_name": null,
+      "production_account_id": null,
+      "role": null,
+      "organization": null,
+      "receipt_reference": null,
+      "receipt_sha256": null,
+      "decision": null
+    },
+    "separation_of_duties": {
+      "root_approver_and_reviewer_are_distinct_people": null,
+      "root_approver_and_reviewer_are_distinct_production_accounts": null,
+      "authority_verified_by": null,
+      "verified_at": null
+    }
+  },
+  "phase_decisions": {
+    "phase_1_authority_heads": {
+      "decision": null,
+      "authorization_valid_from": null,
+      "authorization_expires_at": null,
+      "actor_authority": {
+        "actor_source_id": null,
+        "actor_source_version": null,
+        "actor_content_hash": null,
+        "current_head_verified": null,
+        "not_superseded_verified": null,
+        "actor_user_identity_verified": null
+      },
+      "scope_authority": {
+        "scope_source_id": null,
+        "scope_source_version": null,
+        "scope_content_hash": null,
+        "current_head_verified": null,
+        "not_superseded_verified": null,
+        "owner_tenant_scope_verified": null
+      },
+      "same_database_alias_verified": null,
+      "authority_receipt_reference": null,
+      "authority_receipt_sha256": null,
+      "review_notes": null
+    },
+    "phase_2_forward_runtime_profile_successor": {
+      "decision": null,
+      "audit_profile_patch": {
+        "audit.system_event.mode": null,
+        "audit.system_event.outbox_enabled": null,
+        "audit.system_event.authority_selector": {
+          "actor_source_id": null,
+          "actor_source_version": null,
+          "actor_content_hash": null,
+          "scope_source_id": null,
+          "scope_source_version": null,
+          "scope_content_hash": null
+        }
+      },
+      "activation": {
+        "actor": null,
+        "reason": null,
+        "release_ref": "36b72d2fc01604afdb15d236a1e91d082fb62a5b",
+        "minimum_successor_profile_version": 3,
+        "approved_entry_boundary": "apps.config_center.application.runtime_public.activate_runtime_profile_patch"
+      },
+      "forward_successor_rollback_accepted": null,
+      "in_place_update_or_delete_forbidden_acknowledged": null,
+      "authorization_receipt_reference": null,
+      "authorization_receipt_sha256": null,
+      "review_notes": null
+    },
+    "phase_3_read_only_writer_authority_preflight": {
+      "decision": null,
+      "authorized_checks": [
+        "active_successor_profile_and_snapshot_linkage",
+        "snapshot_hash_recomputation",
+        "carried_forward_values_and_exact_changed_keys",
+        "runtime_mode_and_outbox_flag",
+        "same_alias_authority_composition",
+        "exact_current_authority_selector_match"
+      ],
+      "outbox_claim_publish_or_consume_forbidden": true,
+      "all_checks_must_pass_before_phase_4": true,
+      "review_notes": null
+    },
+    "phase_4_data02_controlled_execute": {
+      "decision": null,
+      "authorization_valid_from": null,
+      "authorization_expires_at": null,
+      "operator_identity": null,
+      "source_type": null,
+      "batch_size": null,
+      "exact_command": null,
+      "rollback_point": {
+        "remote_path": "/opt/agomtradepro/backups/database/postgres-20260829T220625Z.dump",
+        "sha256": "434903ac03c4fd6e4623682c65628f6b3f7be533a279b53fa063d692470e3d95",
+        "accepted_for_this_write": null
+      },
+      "risk_acknowledgements": {
+        "provider_facts_can_write_before_final_publication_transaction": null,
+        "only_exact_reconciliation_or_compensation_after_failure": null,
+        "blanket_fact_delete_forbidden": null,
+        "exact_5533_coverage_required": null,
+        "future_naive_or_stale_observation_forbidden": null,
+        "cross_source_default_tolerance_unchanged": null,
+        "four_publication_atomicity_required": null
+      },
+      "authorization_does_not_include": [
+        "unapproved_retry",
+        "production_row_delete_or_correction",
+        "governed_tolerance_change",
+        "database_restore",
+        "publication_rollback",
+        "data03_activation",
+        "successor_candidate"
+      ],
+      "authorization_receipt_reference": null,
+      "authorization_receipt_sha256": null,
+      "review_notes": null
+    }
+  },
+  "post_execution_acceptance": {
+    "must_be_issued_after_real_execution": true,
+    "preexecution_review_claims_exit_gate": false,
+    "required_evidence": [
+      "exact_5533_provider_timestamp_and_coverage_report",
+      "four_immutable_publication_identities_and_hashes",
+      "single_transaction_publication_switch",
+      "partial_fact_checkpoint_and_reconciliation",
+      "audit_event_outbox_and_delivery_receipts",
+      "rollback_point_and_rollback_path_revalidation"
+    ],
+    "decision": null,
+    "receipt_reference": null,
+    "receipt_sha256": null
+  },
+  "final_preexecution_decision": null,
+  "attestation": {
+    "signing_system": null,
+    "signed_document_reference": null,
+    "signed_document_sha256": null,
+    "signed_at": null,
+    "signature_binds_final_json_sha256": null
+  }
+}
+

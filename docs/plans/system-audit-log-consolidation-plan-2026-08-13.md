@@ -1568,3 +1568,111 @@ SHA-256=`969a2313d6360a8df59aa33d9c8b49df6621a964fef96e95c51dae30afeb60ff`；can
 该观察完成了部署后只读 snapshot，但不证明 migration rollback、backlog recovery、alerts/admin
 TUI、archive/restore、故障注入或 owner/reviewer 双签。`AUD-03` 继续
 `awaiting_production`；上述生产动作仍需逐项精确授权。
+
+## 实施记录（2026-08-30，Audit runtime definition reconcile 与 authority 停止线）
+
+最终运行候选已更新为 commit `36b72d2fc01604afdb15d236a1e91d082fb62a5b`、release
+`20260830071422`。在任何 Config Center 写入前，新建并下载校验 PostgreSQL custom-format backup
+`/opt/agomtradepro/backups/database/postgres-20260829T220625Z.dump`，大小 `146,646,151` bytes，
+SHA-256=`434903ac03c4fd6e4623682c65628f6b3f7be533a279b53fa063d692470e3d95`；没有 prune。
+
+生产随后只运行幂等 `initialize_runtime_definitions`，成功登记：
+
+- `audit.system_event.authority_selector`
+- `audit.system_event.mode`
+- `audit.system_event.outbox_enabled`
+
+该 reconcile 只建立 definition catalog，不生成业务默认值。active production profile v2（content
+hash `af164c1ca395916276a5ff0990d699dbee2141a2a1b9e69f2258fbdf4474d80c`）仍因上述三项
+`missing_critical_definition` 校验失败；七张 actor/owner-tenant/RBAC/user authority root/ledger 表
+全部为 `0`。没有创建 profile successor、authority selector、root、owner、reviewer 或 approval，Audit
+writer 与依赖它的 DATA-02 execute 继续 fail closed。
+
+结构化事实见
+[`data02-audit-runtime-checkpoint-2026-08-30.json`](../deployment/data02-audit-runtime-checkpoint-2026-08-30.json)，
+写前备份见
+[`data02-audit-config-prewrite-backup-2026-08-30.json`](../deployment/data02-audit-config-prewrite-backup-2026-08-30.json)。
+`AUD-03` 状态保持 `awaiting_production`；definition reconcile 不是 runtime activation，也不满足
+migration rollback、backlog recovery、alerts/admin TUI、archive/restore、fault evidence 或双签。
+下一门必须由命名 production owner 与独立 root/reviewer 提供真实 typed selector/profile 值，之后才运行
+writer load smoke 与 AUD-03 的逐项运营验收。
+
+## 实施记录（2026-08-30，AUD-03 最终候选 SELECT-only 观察重绑定）
+
+最终候选 `36b72d2fc01604afdb15d236a1e91d082fb62a5b` / release
+`20260830071422` / image
+`sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b`
+已再次按容器、current symlink 与 OCI revision 精确核对。在单个 PostgreSQL
+`REPEATABLE READ READ ONLY` 事务中，`2026-08-30T02:59:24.576960Z` 共读取 `496`
+项 migration，全部 applied、pending/failed=`0/0`，最新 Audit migration 为
+`0013_systemauditdeliveryreceipt`。`09269c14…` 到 `36b72d2f…` 之间没有 migration 文件变化，
+数据库 migration 数和 leaf plan 也未变化，因此候选沿用同一 migration graph SHA-256
+`02406e0a395d09e89785ba969202a8fdb060bcb7814283f9cee9e4212ada0496`。
+
+同一只读观察得到 operation logs=`563`、failures=`0`、failure rate=`0.0`；outbox 的
+pending/due/claimed/expired/failed/delivered 均为 `0`，oldest backlog/claim 均为空。
+公网 `/api/audit/health/` 于 `2026-08-30T03:04:29.844379Z` 返回 `200/OK`，并复核同一组
+日志与失败指标。原始 envelope
+[`aud03-operational-observation-select-only-2026-08-30-36b72d2f.json`](../deployment/aud03-operational-observation-select-only-2026-08-30-36b72d2f.json)
+SHA-256=`6d16a9ff57fd9391927714d66ed3d61b74aaf3dfe81c7f338f6fda2a266b864a`；
+canonical report
+[`963e4efd8527916d4bbbe5a5b0923868f3be043a1d63834014b9e0fa97a86950.json`](../deployment/aud03-operational-observation/96/963e4efd8527916d4bbbe5a5b0923868f3be043a1d63834014b9e0fa97a86950.json)
+的 SHA 与文件名一致，聚焦合同 `12 passed`。
+
+报告仍把 alerts、admin TUI、recovery、archive 四节明确保留为 `unavailable`，固定
+`production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`。
+本轮没有迁移、生产写入、claim/publish、故障注入、archive/restore、runtime 激活或代签；
+`AUD-03` 保持 `awaiting_production`。在候选、ledger 或获批观察范围没有变化前，不重复该
+SELECT-only probe；下一真实门仍是命名 production owner 与独立 root/reviewer 提供 authority/profile，
+随后逐项证明 writer load、rollback/recovery、alerts/admin TUI、archive/restore 与双签。
+
+## 实施记录（2026-08-30，AUD-03/DATA-02 逐项授权 preflight）
+
+已把下一次生产写入前必须由人提供的输入和机器可验证项收敛为结构化授权包
+[`aud03-data02-production-authorization-preflight-2026-08-30-36b72d2f.json`](../deployment/aud03-data02-production-authorization-preflight-2026-08-30-36b72d2f.json)，
+SHA-256=`25dc78fd5dfc627460761f7c7aa28c5fef08da8f3cd7ec8b62b81ac3665096d1`。
+本次仅做候选绑定的 SELECT-only 观察和代码契约复核，没有创建 authority/profile、没有激活 runtime、
+没有运行 DATA-02 execute。
+
+active production profile 为 `59c6575b-872f-43c8-bf20-95a50567eca3` / version `2`，content hash
+`af164c1ca395916276a5ff0990d699dbee2141a2a1b9e69f2258fbdf4474d80c`；其 snapshot
+`f96ceca1-9fb5-4321-9604-0d53da22aa9c` 的 profile id/key/version 与重算 hash 均匹配。snapshot
+保存时的 validation report 为 valid，但按当前 definition catalog 重新校验仍因三项 critical value
+缺失而 invalid；typed loader 第一阻断原因为 `mode_invalid`。精确 authority reader 使用的
+`account_actor_authority_source_v3_root_lock`、`account_actor_authority_source_v3_ledger`、
+`account_owner_tenant_authority_v1` 仍全部为零，不能从其他用户或会话字段推导替代值。
+
+三项配置的严格契约固定为：`mode` 仅允许 `off/shadow/required`，writer preflight 只接受
+`shadow/required`；`outbox_enabled` 必须为 `true`；`authority_selector` 必须包含 actor/scope 各自的
+`source_id`、`source_version`、小写 SHA-256 `content_hash` 六个字段，并与当前真实 ledger head 精确
+匹配。唯一合法激活路径是
+`apps.config_center.application.runtime_public.activate_runtime_profile_patch`：创建 version 大于 2 的
+完整 forward successor，记录 actor/reason/release_ref、revision 和 snapshot；回滚同样必须发布更高
+版本 successor，禁止原地修改或删除 active profile。
+
+授权包仍为空且保持 `not_authorized`：须由命名 production owner、独立 root approver、独立 reviewer
+分别提供身份与 approval receipt hash，并提供真实 actor/scope ledger heads、mode/outbox 决策、激活
+actor/reason，以及 DATA-02 operator/source/batch-size 和现有恢复点接受决定。填齐后仍按四阶段逐项授权：
+真实 authority heads → forward profile successor → SELECT-only writer/authority preflight → DATA-02 execute；
+任一 selector/head、profile/snapshot hash 或 candidate identity 漂移立即停止。
+
+## 实施记录（2026-08-30，审核团队正式交接）
+
+逐项授权 preflight 已进一步投影为审核团队可直接回传的工作包：
+[closure-review-team-handoff-2026-08-30-36b72d2f.md](../deployment/closure-review-team-handoff-2026-08-30-36b72d2f.md)，
+SHA-256=`4ba887ba3d7a81cf6c6e1349f08a082968626c9d647c55644b44852a4771dc36`；AUD/DATA 机器模板为
+[aud03-data02-production-review-return-template-2026-08-30-36b72d2f.json](../deployment/aud03-data02-production-review-return-template-2026-08-30-36b72d2f.json)，
+SHA-256=`bebe057503ef1d7196bd00f84ef3d71b3a2660dd0097283e68a40e71a490d6c7`。
+
+模板强制 production owner、独立 root approver 与独立 reviewer 的真实生产身份和 receipt，并把
+authority head、profile successor、SELECT-only preflight 与 DATA-02 execute 分开决策。审核团队只能
+对各 phase 输出 `APPROVE/REJECT/DEFER`；template、泛化“同意”或 pre-execution 批准均不构成
+AUD-03 生产验收。当前无 authority/profile/runtime 写入，`AUD-03=awaiting_production` 不变。
+
+## 2026-08-30 single-owner 回传处理
+
+唯一真人项目所有者授权取消 production owner/root/reviewer 必须为不同自然人的要求；AUD/DATA 回传因
+候选、sidecar 与缺失证据真实而登记为 `DEFER`。这只关闭身份流程，不关闭 `mode_invalid`、缺失 typed
+profile 字段、零行 authority heads、writer/recovery/archive/restore/alerts 等技术门。后续可由同一 owner
+receipt 驱动 forward-only profile successor 与 canonical authority bootstrap，但真实写入和结果必须在
+发生后记录，`AUD-03=awaiting_production`。

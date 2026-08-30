@@ -921,3 +921,86 @@ PR #13 已通过 CI 与 Sol/Luna review 并合并为 `c826f741edc0f12f5e29fa5b04
 candidate-bound canonical production-safe recorder 以 run `tux05-production-20260829233430` 得到 `10/10`、`0 failed`、`0 skipped`、`108/108` routes；regular/operator/admin、参数化 reads 和三个 viewport 均通过。普通 UAT 用户自有 strategy/provider 各形成一条 create/update/readback/confirmed-delete receipt，四个 settlement 均低于 60 秒，两个 cleanup 均 `deleted=true`、`residual_count=0`。canonical UAT SHA-256 为 `90736bcb33268095218cd9467bb984fb8478db3d62044c5de1fd89736ae573c4`。
 
 因此 TUX-05 corrective repository/production exit 完成，repository focus 回到 `null`；但 TUI-01 不晋级。`2026-08-30` readiness 仍为 `DENY`：14 日稳定窗口截至 `2026-09-12`，并且 108 路由 cleanup/rollback 矩阵、缺陷快照、101-task production telemetry、rollback drill、production registry backup、owner/reviewer attestations 与真实 role-owner 业务确认仍缺。external AI、queued runtime、authority/approval、流量扩大、load/fault、maintenance/live rollback 均未执行。
+
+### 2026-08-30 最终候选 observation source preflight
+
+本节精确绑定最终候选 commit `36b72d2fc01604afdb15d236a1e91d082fb62a5b`、release
+`20260830071422` 与 image
+`sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b`；后续审核、
+retained-source 证明、候选 re-attestation 和观察窗口均不得跨候选继承。
+
+结构化 preflight
+[`tui-m5-observation-source-preflight-2026-08-30-36b72d2f.json`](../deployment/tui-m5-observation-source-preflight-2026-08-30-36b72d2f.json)
+（SHA-256=`b8b22c64f260d5a2d43de78a2ee30d30637ea741203d3173b1b28fe6fc660bcf`）确认：公网 exporter
+可读且本次返回 `203` 条 TUI migration series，catalog 的 `101` 个 Classic-comparable task key
+均有对应 TUI series；但是本次没有任何 Classic surface series。exporter 是当前进程累计值，不是
+保留的 Prometheus query-range source。
+
+当前 VPS 的 `8` 个运行容器、监听端口和进程中均未发现 Prometheus-compatible store，VPS compose
+也未定义该 service；外部 query origin 与从 `2026-08-29` 开始的 retention 证明均未提供。正式
+telemetry builder 又要求 exact `2026-08-29..2026-09-12` window、六条固定 PromQL、精确 101 task
+coverage，且 `collected_at` 不得早于 `2026-09-12`；defect builder 对完整窗口有相同结束日约束。
+
+进一步检查 web/host 环境变量名、Docker volumes、systemd、常见 monitoring agents、Caddy route 和
+标准 Prometheus 路径也全部为空；它关闭了“VPS 上已有未登记本地 source”的可能性，但不能否定外部
+SaaS 无 agent 直抓公网 exporter，后者仍须 operations 提供可验证入口与 retention。
+
+因此当前不能生成 final telemetry/defect snapshot，也不能假设 9 月 12 日还能从瞬时 exporter 重建
+14 天历史。下一门为 operations 提供现有外部 query origin、retention 证明和受审 tracker snapshot；
+若没有，从首个获批 collector 留存样本重新计时。该结论保持 `stable_version_window`、
+`blocking_defects`、`production_telemetry`、formal registry attestation 与 approvals 五门为 FAIL，
+不把 exporter 可达性解释为 readiness。
+
+同轮聚焦回归发现 `test_checked_in_evidence_is_explicitly_denied` 仍断言旧候选的空 UAT/cleanup/
+rollback；该测试已改为核对当前真实 `5/10` gate 投影，同时继续严格断言最终 decision=`DENY` 和其余
+五门失败。gate 计算实现、阈值和 checked-in evidence 均未放宽；三组聚焦测试最终 `48 passed`。
+
+条件化 remediation 授权包
+[`tui-m5-monitoring-remediation-preflight-2026-08-30-36b72d2f.json`](../deployment/tui-m5-monitoring-remediation-preflight-2026-08-30-36b72d2f.json)
+（SHA-256=`c386ea4552df2af991c2ae824acbef79ccd7dc337bc139994145babdc89c1b76`）进一步固定了实现边界。
+现有 Prometheus 配置的 `localhost` targets 与缺少 Prometheus/Alertmanager/exporter service 的 VPS
+compose 不匹配，不能未经 repository review 直接挂载上线。若无既有外部 source，必须先显式分配
+一个 bounded repository focus，完成 pinned image、volume/retention、network target、health/access、
+rules/query 和 rollback 合同，再逐项授权生产部署。
+
+collector 首个 retained sample 建立后，还需 fresh candidate deployment preflight；canonical observation
+starter 以该 verification date 建立新 14 日窗口并清空不可继承证据。当前 package 的 owner、reviewer、
+image digest、storage、retention、query access 和窗口重置接受值全部保持空值/`not_authorized`，不会把
+preflight 当成实施批准。
+
+### 2026-08-30 TUI operations 审核交接
+
+TUI retained-source 与 monitoring-remediation 决策已经进入统一审核说明
+[closure-review-team-handoff-2026-08-30-36b72d2f.md](../deployment/closure-review-team-handoff-2026-08-30-36b72d2f.md)，
+SHA-256=`4ba887ba3d7a81cf6c6e1349f08a082968626c9d647c55644b44852a4771dc36`；机器回传模板为
+[tui-m5-operations-review-return-template-2026-08-30-36b72d2f.json](../deployment/tui-m5-operations-review-return-template-2026-08-30-36b72d2f.json)，
+SHA-256=`1cd479735fc9888e7e08d9f5badeb5d5c9ce216ededa4565bd31610666e93fd5`。
+
+operations 必须在“提供既有 external retained source”与“授权 bounded repository + production
+monitoring remediation”中二选一。前者必须证明从原窗口起点连续 retention、六条 PromQL、时钟同步和
+无秘密导出；后者必须给出 pinned image digest、>14 日 retention、有界 storage/volume、受控 query
+access、Alertmanager policy，并接受候选 re-attestation 与 canonical 14 日窗口重置。真实 role-owner
+只能确认已经发生的 UAT，不能预签最终 cutover。模板本身不是批准；当前 focus、TUI-01/02 状态和
+`5/10 DENY` 均不变。
+
+### 2026-08-30 single-owner intake 与 TUI-03 repository exit
+
+个人项目唯一真人所有者授权
+[`personal-project-single-owner-authorization-2026-08-30-36b72d2f.json`](../deployment/personal-project-single-owner-authorization-2026-08-30-36b72d2f.json)
+（SHA-256=`d9c6e9f4128603d0f2208e107a430db93332ec2db2e523886d5248bb63005fd7`）取消了第二名自然人和职责分离要求。
+同一 owner 对既有 run `tui01-36b72d2f-20260830-01` 的 UAT 业务结果作出范围内 APPROVE；候选绑定、
+`10/10`、`108/108`、两条 receipt、零残留、六类 cleanup 与隔离 rollback 已有机器证据，因此
+`TUI-01=completed`。这项决定不预签 retained telemetry、defect 或最终 cutover。
+
+不存在可证明的外部留存源后，`TUI-03` 作为唯一 repository unit 完成：Prometheus 固定为
+`prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996`，
+保留 `21d` 且上限 `4GB`，使用 `prometheus_data`，只抓取 `web:8000/metrics/`，加载现有 M5 rules，
+自身不发布 host port；Caddy 只放行五类 read query API，并由 host-only bcrypt 文件认证。VPS bundle
+和 local runtime bundle 投影同步。结构化证据
+[`tui03-retained-monitoring-repository-closure-evidence-2026-08-30.json`](../testing/tui03-retained-monitoring-repository-closure-evidence-2026-08-30.json)
+SHA-256=`8fda79136ae1a3a70afd22ce4b1134f69f5d4af44bd484786ea4fd2f9c9891a7`；聚焦回归 `48 passed`，
+compose、promtool、Caddy、alerts、PowerShell、mypy 和 registry 均通过。
+
+`TUI-03=completed`、repository focus 回到 `null`，`TUI-02=awaiting_production`。本 checkpoint 未部署、
+未创建生产 volume/credential 或 retained sample，也没有重置/回填窗口；下一门是 clean successor
+部署与 post-deploy target/retention/query 验证，再由 canonical starter 从首个可证明样本重新起算 14 日。

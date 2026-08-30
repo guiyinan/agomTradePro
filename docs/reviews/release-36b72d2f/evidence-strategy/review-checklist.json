@@ -1,0 +1,293 @@
+{
+  "schema": "agomtradepro-evidence-strategy-review-checklist.v1",
+  "checklist_id": "release-36b72d2f-evidence-strategy-review",
+  "candidate": {
+    "commit": "36b72d2fc01604afdb15d236a1e91d082fb62a5b",
+    "release_id": "20260830071422",
+    "image_id": "sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b"
+  },
+  "governance_mode": {
+    "id": "single_owner_personal_project",
+    "authorization_path": "docs/deployment/personal-project-single-owner-authorization-2026-08-30-36b72d2f.json",
+    "authorization_sha256": "d9c6e9f4128603d0f2208e107a430db93332ec2db2e523886d5248bb63005fd7",
+    "owner_display_name": "阿狗涅夫",
+    "multi_person_separation_of_duties_required": false,
+    "technical_exit_gates_waived": false
+  },
+  "dynamic_status": {
+    "state": "owner_review_processed_fail_closed",
+    "updated_at": "2026-08-30T12:58:17.2834180Z",
+    "updated_by_role": "repository_governance_automation",
+    "authorization_changed": false,
+    "execution_focus": null,
+    "summary": {
+      "total_work_orders": 10,
+      "awaiting_review_report": 0,
+      "waiting_dependency": 6,
+      "not_due": 2,
+      "deferred": 2,
+      "approved": 0,
+      "completed": 0
+    }
+  },
+  "status_values": [
+    "awaiting_review_report",
+    "waiting_dependency",
+    "not_due",
+    "approved_not_executable",
+    "ready_for_read_only_validation",
+    "ready_for_exact_action",
+    "deferred",
+    "rejected",
+    "completed"
+  ],
+  "decision_values": [
+    "APPROVE",
+    "REJECT",
+    "DEFER"
+  ],
+  "authoritative_sources": [
+    {
+      "id": "PERSONAL_OWNER_AUTHORIZATION",
+      "path": "docs/deployment/personal-project-single-owner-authorization-2026-08-30-36b72d2f.json",
+      "sha256": "d9c6e9f4128603d0f2208e107a430db93332ec2db2e523886d5248bb63005fd7",
+      "role": "single_owner_personal_project_authorization"
+    },
+    {
+      "id": "HANDOFF",
+      "path": "docs/deployment/evid-strat-review-team-handoff-2026-08-30-36b72d2f.md",
+      "sha256": "5ef24dd97c3115ca8f5ae2032f9f6e48d8e88fe1cc7349187c89103a3b4eba33",
+      "role": "human_review_instructions"
+    },
+    {
+      "id": "PREFLIGHT",
+      "path": "docs/deployment/evid-strat-production-authorization-preflight-2026-08-30-36b72d2f.json",
+      "sha256": "8518c165c21395716497a320f23e232d2744e29bea1cec8281f50fd7d19787ae",
+      "role": "candidate_bound_authorization_preflight"
+    },
+    {
+      "id": "EVID_TEMPLATE",
+      "path": "docs/deployment/evid-01-evid-02-production-review-return-template-2026-08-30-36b72d2f.json",
+      "sha256": "e7055af3c6dc94893a1c2900c2fbc6fd783125b96d432cddfa3f691df05269a2",
+      "role": "evidence_review_return_template"
+    },
+    {
+      "id": "STRAT_TEMPLATE",
+      "path": "docs/deployment/strat-01-business-owner-review-return-template-2026-08-30-36b72d2f.json",
+      "sha256": "c21b14ed8a60123f3412fde414a4c2aab6ccd695eb651e5daef7722973322c24",
+      "role": "strategy_review_return_template"
+    },
+    {
+      "id": "EVID_BUNDLE",
+      "path": "docs/deployment/evid-01-evid-02-select-only-bundle-2026-08-30-36b72d2f.json",
+      "sha256": "f7a26a5eb5db3fd31fb5d601e146120346f8681aaa7c2f8ca55308e982b3a0cd",
+      "role": "production_select_only_bundle"
+    },
+    {
+      "id": "EVID1_SNAPSHOT",
+      "path": "docs/deployment/evid-01-authority-inventory-snapshot-2026-08-30-36b72d2f.json",
+      "sha256": "9ca06b4cc1b412e07b231732730bc31b10e4b0115f067f85555bbdf82c46e7f7",
+      "role": "authority_inventory_snapshot"
+    },
+    {
+      "id": "EVID1_REPORT",
+      "path": "docs/deployment/evid-01-authority-inventory/63/63c08dcb2d984da92f4b2dddd8e039fe3dafc79688c629e9e2f42d73adbf4d85.json",
+      "sha256": "63c08dcb2d984da92f4b2dddd8e039fe3dafc79688c629e9e2f42d73adbf4d85",
+      "role": "authority_inventory_report"
+    },
+    {
+      "id": "EVID2_SNAPSHOT",
+      "path": "docs/deployment/evid-02-select-only-vps-snapshot-2026-08-30-36b72d2f.json",
+      "sha256": "467bb1f733790694ed083941c021b0f76267389f0b9852c0310032bd35e83ca4",
+      "role": "approval_activation_snapshot"
+    },
+    {
+      "id": "EVID2_REPORT",
+      "path": "docs/deployment/evid-02-head-audit/c2/c2fec726ef6903c8c941703f6afd9036190cb9c8be7a43ebe630667065ca6275.json",
+      "sha256": "c2fec726ef6903c8c941703f6afd9036190cb9c8be7a43ebe630667065ca6275",
+      "role": "approval_activation_head_audit"
+    },
+    {
+      "id": "EVID2_LOCAL_PG",
+      "path": "docs/deployment/evid-02-postgres/a2/a27e193f53910cdb4395cc88d4d96fb04fcda71f2f191dbda7df2626299e6df8.json",
+      "sha256": "a27e193f53910cdb4395cc88d4d96fb04fcda71f2f191dbda7df2626299e6df8",
+      "role": "local_software_evidence_not_production"
+    },
+    {
+      "id": "STRAT_SNAPSHOT",
+      "path": "docs/deployment/strat-01-owner-ledger-readonly-recheck-2026-08-30-36b72d2f.json",
+      "sha256": "6f8dac572a2c72c410975413833d9c4852462fff9b5a31779499d69536035814",
+      "role": "strategy_owner_inventory_snapshot"
+    },
+    {
+      "id": "STRAT_REPORT",
+      "path": "docs/deployment/strat-01-owner-ledger-inventory/71/71bd1af35985eea8795f797095de07522b5ad7ece3a4562f70ca44c64f9299d4.json",
+      "sha256": "71bd1af35985eea8795f797095de07522b5ad7ece3a4562f70ca44c64f9299d4",
+      "role": "strategy_owner_inventory_report"
+    }
+  ],
+  "report_output": {
+    "directory": "docs/reviews/release-36b72d2f/reports/evidence-strategy/",
+    "accepted_patterns": [
+      "evid-01-evid-02-production-review-return-<decision_id>.json",
+      "evid-01-evid-02-production-review-return-<decision_id>.json.sha256",
+      "strat-01-business-owner-review-return-<decision_id>.json",
+      "strat-01-business-owner-review-return-<decision_id>.json.sha256"
+    ],
+    "report_presence_is_not_authorization": true
+  },
+  "work_orders": [
+    {
+      "id": "EVID-P1-UPSTREAM-ASSIGNMENT",
+      "unit": "EVID-01",
+      "status": "deferred",
+      "decision": "DEFER",
+      "depends_on": [],
+      "required_output": "finalized EVID report with real subject, independent approver and exact upstream seal references",
+      "report_path": "docs/reviews/release-36b72d2f/reports/evidence-strategy/evid-01-evid-02-production-review-return-DEFER-EVID-20260830-01.json",
+      "report_sha256": "c2a76862ce948ec8770a46360a27d72fe9ff81068de40ca0ff5f46fd54a7337d",
+      "next_gate": "Use the project-owner authorization to define a bounded canonical bootstrap path, but do not advance until exact upstream assignment and current-head inputs really exist and validate."
+    },
+    {
+      "id": "EVID-P2-OWNER-TENANT-ROOT",
+      "unit": "EVID-01",
+      "status": "waiting_dependency",
+      "decision": null,
+      "depends_on": [
+        "EVID-P1-UPSTREAM-ASSIGNMENT"
+      ],
+      "required_output": "exact owner/tenant root command inputs and phase-specific approval",
+      "report_path": null,
+      "report_sha256": null,
+      "next_gate": "issue root only after Phase 1 current heads are validated"
+    },
+    {
+      "id": "EVID-P3-RESEARCH-SCOPE",
+      "unit": "EVID-01",
+      "status": "waiting_dependency",
+      "decision": null,
+      "depends_on": [
+        "EVID-P2-OWNER-TENANT-ROOT"
+      ],
+      "required_output": "approved observation and exact Research scope inputs",
+      "report_path": null,
+      "report_sha256": null,
+      "next_gate": "issue scope only after root exact-current same-alias receipt"
+    },
+    {
+      "id": "EVID-P4-OPERATOR-LIFECYCLE",
+      "unit": "EVID-02",
+      "status": "waiting_dependency",
+      "decision": null,
+      "depends_on": [
+        "EVID-P3-RESEARCH-SCOPE"
+      ],
+      "required_output": "real operator definition, approval and activation decisions with receipts",
+      "report_path": null,
+      "report_sha256": null,
+      "next_gate": "append and audit exact approval/activation chains"
+    },
+    {
+      "id": "EVID-P5-PRODUCTION-PG",
+      "unit": "EVID-02",
+      "status": "waiting_dependency",
+      "decision": null,
+      "depends_on": [
+        "EVID-P4-OPERATOR-LIFECYCLE"
+      ],
+      "required_output": "bounded production PostgreSQL race and rollback authorization",
+      "report_path": null,
+      "report_sha256": null,
+      "next_gate": "run exact candidate-bound cases and collect immutable receipts"
+    },
+    {
+      "id": "EVID-POST-EXECUTION",
+      "unit": "EVID-01,EVID-02",
+      "status": "not_due",
+      "decision": null,
+      "depends_on": [
+        "EVID-P5-PRODUCTION-PG"
+      ],
+      "required_output": "post-execution current-head, race, rollback, same-alias and dual-signoff report",
+      "report_path": null,
+      "report_sha256": null,
+      "next_gate": "cannot be reviewed before real execution"
+    },
+    {
+      "id": "STRAT-P1-BUSINESS-DEFINITIONS",
+      "unit": "STRAT-01",
+      "status": "deferred",
+      "decision": "DEFER",
+      "depends_on": [],
+      "required_output": "per-capability R1-R8 business owner decisions and hashed definition documents",
+      "report_path": "docs/reviews/release-36b72d2f/reports/evidence-strategy/strat-01-business-owner-review-return-DEFER-STRAT-20260830-01.json",
+      "report_sha256": "15762ed8a721adb8745cf060b19c9155a212a25ad2e3ce56a0e554144f9652f4",
+      "next_gate": "The single owner may submit definitions without separate reviewers, but R1-R8 definition, policy, calendar, scope, qualification and falsification content must be explicitly supplied before canonical dry-run."
+    },
+    {
+      "id": "STRAT-P2-APPEND-ONLY-REGISTRATION",
+      "unit": "STRAT-01",
+      "status": "waiting_dependency",
+      "decision": null,
+      "depends_on": [
+        "STRAT-P1-BUSINESS-DEFINITIONS"
+      ],
+      "required_output": "separate exact write authorization after canonical dry-run",
+      "report_path": null,
+      "report_sha256": null,
+      "next_gate": "register only selected capabilities with exact row plan and stop conditions"
+    },
+    {
+      "id": "STRAT-POST-REGISTRATION",
+      "unit": "STRAT-01",
+      "status": "waiting_dependency",
+      "decision": null,
+      "depends_on": [
+        "STRAT-P2-APPEND-ONLY-REGISTRATION"
+      ],
+      "required_output": "exact registered rows, hashes, heads and owner receipts",
+      "report_path": null,
+      "report_sha256": null,
+      "next_gate": "read-only owner-ledger and readiness validation"
+    },
+    {
+      "id": "STRAT-FUTURE-HISTORY-PROMOTION",
+      "unit": "STRAT-02,STRAT-03",
+      "status": "not_due",
+      "decision": null,
+      "depends_on": [
+        "STRAT-POST-REGISTRATION",
+        "DATA-02",
+        "EVID-03"
+      ],
+      "required_output": "real PIT/OOS, receipts, Promotion, consumer UAT and rollback evidence",
+      "report_path": null,
+      "report_sha256": null,
+      "next_gate": "cannot be presigned or synthesized"
+    }
+  ],
+  "update_policy": {
+    "reviewers_may_edit_checklist": false,
+    "accepted_input": "candidate-bound technical report plus same-name SHA-256 sidecar and either the single-owner authorization or team-mode receipts",
+    "validation_before_update": [
+      "json_schema_and_template_only_false",
+      "same_name_sidecar",
+      "exact_candidate_binding",
+      "single_owner_authorization_or_team_identity",
+      "single_owner_exception_or_team_separation_of_duties",
+      "owner_authorization_or_team_receipt_and_validity",
+      "phase_required_fields",
+      "dependency_satisfaction",
+      "no_secrets_or_placeholders"
+    ],
+    "on_valid_report": [
+      "update_matching_work_order_only",
+      "update_summary_and_timestamp",
+      "rebuild_checklist_sidecar",
+      "synchronize_primary_plans_docs_plans_readme_and_active_plan_registry"
+    ],
+    "single_owner_mode_accepts_verified_defer_without_multi_party_fields": true,
+    "single_owner_mode_never_waives_business_definition_or_technical_fields": true,
+    "on_invalid_report": "record no authorization or state change"
+  }
+}

@@ -1,6 +1,6 @@
 # 发布阻塞清零综合实施方案（2026-08-29）
 
-> 状态：执行中；`DATA-01` 已关闭，`DATA-02` 候选实现待部署与生产执行，决策总闸仍保持 `blocked`
+> 状态：执行中；`DATA-01` 已关闭，`DATA-02/03` 候选已部署且生产 dry-run 已完成，但真实执行被 Audit typed authority/profile 缺口正确阻断；TUI 最终候选的机器 UAT、清理矩阵、隔离回滚与原始 registry 备份已完成，决策总闸仍保持 `blocked`
 > 机器状态真源：`governance/active_plan_registry.json`
 > 适用 closure units：`DATA-01/02/03`、`AUD-03`、`EVID-01/02/03`、`STRAT-01/02/03`、`TUI-01/02`、`TAR-05`、`AI-01`、`QMT-01/02`
 > 原则：本文只编排既有 unit，不建立第二套状态、不降低阈值、不代签、不伪造 PIT/OOS 历史，也不把生产写入授权扩大为实盘交易授权。
@@ -248,7 +248,7 @@ A1–A8 不互相蕴含。特别是 A1/A3/A6 不能推导 A8 实盘授权。
 - [`data01-live-rehearsal-c826f741-migration-classification.json`](../deployment/data01-live-rehearsal-c826f741-migration-classification.json)：`cb51a8f9e87b4bfe4bcdb795b620a5de76599480fa615712b8c7c4cf7d1f79ec`
 - [`data01-live-rehearsal-c826f741-connection-switch.json`](../deployment/data01-live-rehearsal-c826f741-connection-switch.json)：`d7e73b6f24ad6ee6660ec24abe5f31ab2cc07f6b3e7f5b12577a95fd663cb526`
 
-### 13.2 DATA-02 候选实现已就绪，尚未宣称生产通过
+### 13.2 DATA-02 候选已部署并完成 dry-run，尚未宣称生产通过
 
 新增 active-A-share quote/price/valuation/financial Publication 的全量原子重建用例和 dry-run-first 管理命令。候选选择以每个资产的确定性最新真实 fact 为来源，执行前验证 universe 精确一致、时间戳 aware 且不在未来、dataset/table 绑定正确；四类 Publication 在同一外层事务中发布，任一失败整体回滚。标准单标的同步和 backfill 中间批次改为 fact-only，避免局部任务把全市场 current Publication 缩成单标的；只有完整 backfill 成功后才触发全 universe 原子发布，失败返回 `blocked` 并保留 checkpoint。
 
@@ -256,12 +256,227 @@ DATA-02 增加 `repair_active_a_share_current_facts`：默认 dry-run；显式�
 
 DATA-03 同候选新增 `activate_decision_runtime_fail_closed`。通用 runtime update 和 `set_decision_runtime_state` 已禁止写 `active`；唯一激活入口先在 blocked/validating 状态运行 core coverage、provider capability、decision data 三检查，再锁行 compare-and-set 到精确 release ref，随后立即复验，任何失败自动写回 blocked。该实现就绪不等于 DATA-03 解锁；必须先完成 DATA-02 生产执行与 reconciliation。
 
-部署前候选门禁已经统一复跑：DATA-02/03 与相关数据链回归包 `230 passed, 2 skipped`，四个强制高风险包（TUI、Terminal Agent、SDK、内部 SSL）`356 passed`，改写后的四类 latest-fact 选择器及 remediation 组件包 `43 passed`，最终 backfill checkpoint 回退用例包 `9 passed`。Black/isort/Ruff、Django system check、25 个生产 Python 文件增量 mypy、完整 mypy debt ceiling、architecture delta、91 项 Celery task contract、53 项 current-data contract 与 active-plan registry 均通过。最终批次若 Publication 重建失败，checkpoint 的 `next_offset` 会回退到该批次起点，避免后续空批次把未发布状态误报为完成。生产执行仍须先运行 dry-run，随后只对真实 freshness/history 缺口回填并做 canonical reconciliation；在覆盖率、provider capability 和 decision-data 全绿前不得执行激活 wrapper。
+部署前候选门禁已经统一复跑：DATA-02/03 与相关数据链回归包 `230 passed, 2 skipped`，四个强制高风险包（TUI、Terminal Agent、SDK、内部 SSL）`356 passed`，改写后的四类 latest-fact 选择器及 remediation 组件包 `43 passed`，最终 backfill checkpoint 回退用例包 `9 passed`。Black/isort/Ruff、Django system check、25 个生产 Python 文件增量 mypy、完整 mypy debt ceiling、architecture delta、91 项 Celery task contract、53 项 current-data contract 与 active-plan registry 均通过。最终批次若 Publication 重建失败，checkpoint 的 `next_offset` 会回退到该批次起点，避免后续空批次把未发布状态误报为完成。
+
+该实现已随 commit `36b72d2fc01604afdb15d236a1e91d082fb62a5b` 部署为 release `20260830071422`。生产默认 dry-run 确认 universe=`5,533`：financial 可安全修复 `288,409` 行、覆盖 `3,750` 个资产，unresolved/future=`0/0`；但最近完成交易日 price 的合格资产为 `0`、旧事实 invalid/stale=`5,533`。现有 quote/price/valuation Publication 虽为 `5,533/5,533`，仍是 stale；financial 仅 `1,923/5,533`，缺 `3,610`。因此没有执行写回或 Publication replacement，更没有尝试 DATA-03 激活。结构化 checkpoint 见 [`data02-audit-runtime-checkpoint-2026-08-30.json`](../deployment/data02-audit-runtime-checkpoint-2026-08-30.json)。
 
 ### 13.3 仍保持阻断的边界
 
-- `TUI-01` 自动化已经 10/10、108/108，但真实 role-owner 业务确认和后续 14 日窗口仍未完成。
-- `EVID-01/02`、`STRAT-01` 仍缺真实 root/reviewer/业务 owner 输入，不能用 fixture 或代理签名补齐。
-- `AUD-03` 的 alert、fault recovery、archive/restore 和双签仍需单独生产证据。
+- `TUI-01` 最终 release 自动化已经 10/10、108/108、两条同 run 写回执、精确零残留；六类 cleanup/rollback scope 也为 108/108，隔离 rollback drill 已通过。真实 role-owner 业务确认仍缺，`TUI-02` 的 14 日窗口到 `2026-09-12` 才能自然结束。
+- `EVID-01/02` 已在最终 release 的同一只读事务中重绑：Account 0050–0055 应用，但 13 张 authority/evidence 表及 operator/approval/activation 三表仍为零，approval/activation head 为空；真实 root/reviewer/业务 owner 输入仍缺，不能用 fixture 或代理签名补齐。
+- `STRAT-01` 已在最终 release 重绑四个固定 selector：65/7/16/35 张目标表全部 zero-seed；真实 owner/definition/policy/calendar/scope/qualification 仍缺，不能把 Data Center facts 或空表推导成业务批准。
+- `AUD-03` 的三项 runtime definition 已幂等登记，但 production profile 缺少三项真实值，七张 authority root/ledger 表均为零；alert、fault recovery、archive/restore 和双签仍需单独生产证据。
 - `TAR-05` 的 1/5/10/20、chaos、恢复和观察未完成；inline concurrency clamp 继续为 1。
 - `QMT-01/02` 仍缺获批 XtQuant 目标环境；A8 授权不能替代券商环境、回执和交易日观察。
+
+### 13.4 最终 TUI 候选与 M5 机器门禁
+
+最终候选 `36b72d2fc01604afdb15d236a1e91d082fb62a5b` 已部署为 release `20260830071422`、image `sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b`，OCI revision 与 source commit 精确一致；health/ready=`200/200`，decision-ready 按设计继续 `503 blocked`。canonical production-safe run `tui01-36b72d2f-20260830-01` 通过 `10/10` tests、`108/108` routes、regular/operator/admin 三角色、strategy/provider 两条 create-update-readback receipt 与 exact cleanup residual=`0`。
+
+随后 cleanup recorder 对 `empty_state/error_state/legacy_url/permission/primary_task/rollback` 六类 scope 全部得到 `108/108`，候选绑定的本地隔离 rollback drill 通过。当前 readiness 为 `5/10` gate 通过：`source_consistency`、`execution_dependency`、`route_task_uat`、`route_cleanup_readiness`、`rollback_drill` 为 PASS；`stable_version_window`、`blocking_defects`、`production_telemetry`、正式 `production_registry_backup` attestation、`cutover_approvals` 为 FAIL，整体保持 DENY。
+
+生产 registry generation `30` 已备份到 Git 工作树外，bundle SHA-256=`1fe6b01fd36cf855a9af395c5b570029442cb5593834d2a15c24fa8601dfb882`，sidecar 校验和 restore dry-run 均通过，active graph hash 与 backup 一致。它只关闭“没有可恢复原始 bundle”的缺口；正式 payload-free attestation 必须在 `2026-09-12` 后由真实独立 reviewer 生成，当前不得把 raw backup 投影成 gate PASS。证据见 [`tui-registry-backup-checkpoint-2026-08-30.json`](../deployment/tui-registry-backup-checkpoint-2026-08-30.json)。
+
+### 13.5 Audit 配置阻塞与唯一可继续顺序
+
+在新建且校验通过的 PostgreSQL 恢复点 `postgres-20260829T220625Z.dump`（SHA-256=`434903ac03c4fd6e4623682c65628f6b3f7be533a279b53fa063d692470e3d95`）之后，生产只执行了幂等 `initialize_runtime_definitions`。现在三项定义均存在，但 active production profile v2 仍缺 `audit.system_event.mode`、`audit.system_event.outbox_enabled`、`audit.system_event.authority_selector` 三项值；七张 Account authority root/ledger 表计数均为零。没有创建 profile successor、selector、root、owner 或 reviewer，也没有绕过 writer fail-closed。
+
+因此下一顺序固定为：命名 production owner 与独立 root/reviewer 提供并批准真实 authority/profile 值 → 验证 typed audit writer 可加载 → 执行 DATA-02 A3 写回与四 Publication reconciliation → 只有三项 readiness 全绿才调用 DATA-03 fail-closed activation wrapper。Goal 可以继续自动采集 TUI 缺陷/遥测、观察日与已有外部状态，但不能靠重复探针、代签或虚构业务输入推进上述人工门。
+
+### 13.6 最终 Evidence 候选重绑定
+
+在同一 release `20260830071422` 上完成 EVID-01/02 的 `REPEATABLE READ READ ONLY` 快照：
+Account 0050–0055 均已应用，13 张 authority/evidence 表与 EVID-02 operator/approval/activation
+三表全部为零。原始 bundle SHA-256=`f7a26a5eb5db3fd31fb5d601e146120346f8681aaa7c2f8ca55308e982b3a0cd`；
+EVID-01 content-addressed report SHA-256=`63c08dcb2d984da92f4b2dddd8e039fe3dafc79688c629e9e2f42d73adbf4d85`，
+outcome=`blocked_zero_seed_authority`；EVID-02 report SHA-256=
+`c2fec726ef6903c8c941703f6afd9036190cb9c8be7a43ebe630667065ca6275`，approval/activation head 均为
+`empty`，人工批准保持 `not_collected`。这关闭了“Evidence 证据仍绑定旧候选”的缺口，不关闭
+EVID-01/02 exit gate；未创建 authority/approval、未执行生产并发/rollback、未解除全局 deny。
+
+### 13.7 最终 Strategy owner-ledger 重绑定
+
+STRAT-01 在同一最终 release 上完成候选绑定的 PostgreSQL `REPEATABLE READ READ ONLY`
+inventory：Research R1–R8、Portfolio R4/R5/R8、Account authority/assignment、
+owner/policy/operator/assignment 四个 selector 分别命中 `65/7/16/35` 张表，全部总行数与非零
+表数为 0。strict snapshot SHA-256=`6f8dac572a2c72c410975413833d9c4852462fff9b5a31779499d69536035814`，
+canonical report SHA-256=`71bd1af35985eea8795f797095de07522b5ad7ece3a4562f70ca44c64f9299d4`，
+outcome=`zero_seed`。这只关闭“STRAT-01 证据仍绑定旧候选”的缺口；真实业务 owner 输入、
+PIT/OOS、receipts、Promotion、consumer UAT 与双签仍缺，`STRAT-01/02/03` 状态不晋级。
+
+### 13.8 最终 AUD-03 只读运行观察重绑定
+
+最终 release `20260830071422` 在 `2026-08-30T02:59:24.576960Z` 的单个 PostgreSQL
+`REPEATABLE READ READ ONLY` 事务中确认 `496` 项 migration 全部 applied、pending/failed=`0/0`，
+最新为 `audit.0013`；候选自 `09269c14…` 起没有 migration 文件变化，leaf plan 仍为空，graph SHA
+保持 `02406e0a395d09e89785ba969202a8fdb060bcb7814283f9cee9e4212ada0496`。operation logs/failures=
+`563/0`、failure rate=`0.0`，outbox 六类 backlog 均为 `0`；随后公网 Audit health 复核为 `200/OK`。
+
+原始 envelope SHA-256=`6d16a9ff57fd9391927714d66ed3d61b74aaf3dfe81c7f338f6fda2a266b864a`，
+canonical artifact SHA-256=`963e4efd8527916d4bbbe5a5b0923868f3be043a1d63834014b9e0fa97a86950`。
+alerts/admin TUI/recovery/archive 仍明确 unavailable；本次未做迁移、写入、fault、recovery、
+archive/restore 或代签，`AUD-03` 不晋级。在候选、ledger 或授权范围变化前不重复探针，下一步只接受
+真实 owner/root/reviewer 输入及逐项可回滚的运营验收。
+
+### 13.9 AUD-03/DATA-02 逐项授权包
+
+下一次生产写入的 no-fake-values preflight 已固化为
+[`aud03-data02-production-authorization-preflight-2026-08-30-36b72d2f.json`](../deployment/aud03-data02-production-authorization-preflight-2026-08-30-36b72d2f.json)，
+SHA-256=`25dc78fd5dfc627460761f7c7aa28c5fef08da8f3cd7ec8b62b81ac3665096d1`。只读复核确认 active profile
+v2 与 snapshot 的 identity/hash 内部一致，但按当前 catalog 仍缺三项 critical Audit value，loader
+第一原因是 `mode_invalid`；exact actor 与 owner/tenant authority reader 的三张表也均为零。
+
+现在不再缺“怎么做”的操作定义，缺的是不得由自动化生成的真实输入：production owner、独立 root
+approver/reviewer 及三份 receipt hash，actor/scope 各三项 exact ledger head，`shadow|required` mode、
+`outbox_enabled=true` 决策，profile activation actor/reason，以及 DATA-02 operator、source、`1..500`
+batch-size 和恢复点接受决定。四阶段固定为 authority heads → 高版本 profile successor → 只读 writer/
+authority preflight → `repair_active_a_share_current_facts --execute`，每阶段单独授权、单独验收。
+
+DATA-02 的 provider facts 会先于最终四 Publication 事务写入，因此失败时只能对精确 partial facts 做另行
+授权的 reconciliation/compensation；不能批量删除。四 Publication 的切换本身保持原子性。profile
+回滚也必须创建携带完整值集的更高版本 successor，不能原地修改/删除。当前 artifact 明确
+`production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`；没有执行任何
+生产写入，AUD-03/DATA-02/DATA-03 状态均不晋级。
+
+### 13.10 TUI M5 observation source preflight
+
+候选绑定的只读检查已形成
+[`tui-m5-observation-source-preflight-2026-08-30-36b72d2f.json`](../deployment/tui-m5-observation-source-preflight-2026-08-30-36b72d2f.json)，
+SHA-256=`b8b22c64f260d5a2d43de78a2ee30d30637ea741203d3173b1b28fe6fc660bcf`。公网 exporter 可达并覆盖
+catalog 的全部 `101` 个可比较 task key，但 `203` 条 series 全部来自 TUI surface；它只提供当前
+进程 counters，不能执行六条固定的 14 日 PromQL。VPS 无 Prometheus-compatible 容器、9090 listener
+或进程，部署 compose 也没有时序库；外部 query origin/retention 证明未提供。
+
+扩展只读 discovery 对 web/host env key、Docker volume、systemd、常见 agent、Caddy route 和标准
+Prometheus 路径也均未发现本地 source 线索；外部 SaaS 直接 scrape 仍只能由 operations 提供证明。
+
+正式 telemetry/defect builder 均拒绝 `2026-09-12` 前的最终快照。若 operations 不能证明已有从
+`2026-08-29` 连续留存的外部 source，则监控部署/配置必须另行授权，并从首个可证明 retained sample
+重置 14 日窗口；不得在窗口结束时用瞬时 scrape、零值或 UAT counters 回填历史。`TUI-01` 仍缺真实
+role-owner，`TUI-02` 仍等待依赖，readiness 保持 `5/10 DENY`。
+
+聚焦回归同时修正一处仍期待历史空 UAT 的 checked-in readiness 测试，只让测试接受当前五项机器门
+PASS、五项最终门 FAIL 的事实，没有改 gate 实现或阈值；telemetry/defect/readiness 合同最终
+`48 passed`。
+
+条件化监控整改授权包
+[`tui-m5-monitoring-remediation-preflight-2026-08-30-36b72d2f.json`](../deployment/tui-m5-monitoring-remediation-preflight-2026-08-30-36b72d2f.json)
+SHA-256=`c386ea4552df2af991c2ae824acbef79ccd7dc337bc139994145babdc89c1b76` 已准备完毕。若没有既有外部
+retained source，现有 `localhost` targets 配置不能原样部署；必须先分配 bounded repository focus，
+再逐项授权 pinned monitoring service、持久化 retention、受控 query access 与 candidate re-attestation。
+只有 canonical observation starter 从新的 verification date 重置 14 日窗口后，才允许积累最终证据。
+
+### 13.11 审核团队交接包
+
+为避免“泛化审批”继续缺少可执行字段，已把 AUD-03/DATA-02 与 TUI M5 拆成两个独立审核 work order，
+并形成可直接转发的
+[closure-review-team-handoff-2026-08-30-36b72d2f.md](../deployment/closure-review-team-handoff-2026-08-30-36b72d2f.md)，
+SHA-256=`4ba887ba3d7a81cf6c6e1349f08a082968626c9d647c55644b44852a4771dc36`。
+交接包要求每个 phase 只能输出 `APPROVE/REJECT/DEFER`，真实身份、生产账号、职责分离、receipt、
+小写 SHA-256、授权有效期和精确候选均为必填；未审核字段必须保持 `null`，禁止用 placeholder 冒充。
+
+AUD-03/DATA-02 回传模板
+[aud03-data02-production-review-return-template-2026-08-30-36b72d2f.json](../deployment/aud03-data02-production-review-return-template-2026-08-30-36b72d2f.json)
+SHA-256=`bebe057503ef1d7196bd00f84ef3d71b3a2660dd0097283e68a40e71a490d6c7`，分别约束真实
+authority heads、forward profile successor、只读 writer/authority preflight 与一次精确 DATA-02
+execute。pre-execution 批准明确不宣称 DATA-02/AUD-03 exit gate；执行后的 5,533 coverage、四
+Publication identities、Audit receipts 与 reconciliation 必须另行审核，不能预签。
+
+TUI 回传模板
+[tui-m5-operations-review-return-template-2026-08-30-36b72d2f.json](../deployment/tui-m5-operations-review-return-template-2026-08-30-36b72d2f.json)
+SHA-256=`1cd479735fc9888e7e08d9f5badeb5d5c9ce216ededa4565bd31610666e93fd5`，要求 operations 在“提供
+既有 retained source”与“授权 repository+production monitoring remediation”中二选一，并单独记录
+role-owner 对既有 UAT 的业务确认。14 日 telemetry/defect、formal registry attestation 与 cutover
+双签仍必须在有效窗口自然结束后形成。
+
+三个文件均有独立 `.sha256` sidecar。模板本身保持 `template_only=true`，不构成审批；审核团队必须
+复制为新的 final return、设为 `false` 并附最终 JSON sidecar 与外部 receipt hash。该治理 handoff
+不改变 `execution_focus=null`，也不晋级 AUD-03、DATA-02、DATA-03、TUI-01 或 TUI-02。
+
+### 13.12 Docs 审核入口与动态清单
+
+面向审核团队的稳定入口已放入
+[`docs/reviews/release-36b72d2f/README.md`](../reviews/release-36b72d2f/README.md)，动态审核状态投影为
+[`review-checklist.json`](../reviews/release-36b72d2f/review-checklist.json)，初始 SHA-256=
+`1ed28752073e9cb409fa4772d6e54c8626598e9ef11051b737713c31f1d3c417`。审核结果统一返回
+[`docs/reviews/release-36b72d2f/reports/`](../reviews/release-36b72d2f/reports/README.md)，不覆盖 preflight、
+template 或 checklist。加入 single-owner 授权和 TUI-03 repository evidence 后，可脱离仓库转发的 23 项输入包为
+[`release-36b72d2f-review-input-package.zip`](../reviews/release-36b72d2f/release-36b72d2f-review-input-package.zip)，
+SHA-256=`b587848dbc690f607acc21881c2b092f74f7513dfa938ae736f1f008af0ceb41`，并附独立 sidecar。
+
+checklist 只由 repository governance 流程动态维护：收到 final report 后先验证 JSON/schema、
+`template_only=false`、同名 sidecar、候选 commit/release/image、真实身份与 production account、职责分离、
+receipt、有效期、分阶段必填字段及依赖；全部通过才写入对应 work order 的 decision/status/report hash，
+重建 checklist sidecar，并同步本计划、`docs/plans/README.md` 与机器 registry。无效、过期、跨候选、缺
+sidecar 或尚未发生的 execution/14-day final review 不改变授权。当前 checklist 为
+`awaiting_review_reports`，`approved=0`、`completed=0`、`authorization_changed=false`，因此所有既有
+fail-closed 状态保持不变。
+
+### 13.13 EVID/STRAT 补充审核入口
+
+主审核包未覆盖的 `EVID-01/02` 与 `STRAT-01` 已形成独立、不可与 AUD/DATA/TUI 决定互相替代的
+补充审核入口：
+[`docs/reviews/release-36b72d2f/evidence-strategy/README.md`](../reviews/release-36b72d2f/evidence-strategy/README.md)。
+候选绑定 preflight SHA-256=`8518c165c21395716497a320f23e232d2744e29bea1cec8281f50fd7d19787ae`；
+EVID 五阶段模板 SHA-256=`e7055af3c6dc94893a1c2900c2fbc6fd783125b96d432cddfa3f691df05269a2`；
+STRAT R1–R8 模板 SHA-256=`c21b14ed8a60123f3412fde414a4c2aab6ccd695eb651e5daef7722973322c24`。
+
+补充动态清单
+[`review-checklist.json`](../reviews/release-36b72d2f/evidence-strategy/review-checklist.json) 将 10 个 work order
+按真实依赖登记为 `2 awaiting_review_report / 6 waiting_dependency / 2 not_due`，当前
+`approved=0`、`completed=0`、`authorization_changed=false`。final report 只接收于
+[`reports/evidence-strategy/`](../reviews/release-36b72d2f/reports/evidence-strategy/README.md)。可脱离仓库转发的
+加入 single-owner 授权后的 28 项输入包为
+[`release-36b72d2f-evidence-strategy-review-input-package.zip`](../reviews/release-36b72d2f/evidence-strategy/release-36b72d2f-evidence-strategy-review-input-package.zip)，
+SHA-256=`93c7540d88dc437c6c843e923a2385d03f7e2e60eeb4f318c38750ad11175fc6`，并附独立 sidecar。
+
+EVID 生产 race/rollback 与 post-execution heads、STRAT append-only registration、PIT/OOS、Promotion 和
+consumer UAT 都必须真实发生后再审核，不能在当前报告预签。此 handoff 没有生产写入、authority seed、
+registration 或授权变更；`EVID-01/02`、`STRAT-01` 保持 `awaiting_production`，`EVID-03`、
+`STRAT-02/03` 继续等待依赖，`execution_focus=null`。
+
+### 13.14 TAR-05 Terminal Runtime 补充审核入口
+
+TAR-05 已形成第三个独立补充入口：
+[`docs/reviews/release-36b72d2f/terminal-runtime/README.md`](../reviews/release-36b72d2f/terminal-runtime/README.md)。
+最终 release report 证明 commit/release/image 与基础 Web/Celery/PostgreSQL/Redis 健康，但未发现专用
+Terminal Agent Worker，也没有在最终候选重新证明 runtime manifest digest、完整 flag snapshot、
+批准 staging、真实 provider/MCP profile 或 retained metrics source。历史 `71e62773…` capacity
+artifact 明确不可跨候选复用。
+
+候选绑定 preflight SHA-256=`0e07657152230a52e431e76d899d1527588f7556a3146d8b247a78ac54ea9ed6`；
+TAR-05 return template SHA-256=`06c71dc80c8196e0273a8eca77be5f91ba2fa3f024464376fb573dc5b5276b3f`；
+动态清单
+[`review-checklist.json`](../reviews/release-36b72d2f/terminal-runtime/review-checklist.json) 登记 7 个 work order：
+`1 awaiting_review_report / 4 waiting_dependency / 2 not_due`，当前 `approved=0`、`completed=0`、
+`authorization_changed=false`。final report 只接收于
+[`reports/terminal-runtime/`](../reviews/release-36b72d2f/reports/terminal-runtime/README.md)。
+
+审核顺序固定为 P1 environment/candidate → P2 staging capacity 与 P3 staging chaos → P4 real
+provider/MCP/role UAT → P5 production staff canary（等待 `TUI-01`）→ P6 retained observation/cutover →
+P7 general-user rollout/inline retirement。当前只允许审核 P1，且其批准也只允许只读 re-attestation；
+load、fault、model、flag、canary、rollback、观察或退役都需后续独立决定。
+
+加入 single-owner 授权后的 23 项输入包为
+[`release-36b72d2f-terminal-runtime-review-input-package.zip`](../reviews/release-36b72d2f/terminal-runtime/release-36b72d2f-terminal-runtime-review-input-package.zip)，
+SHA-256=`684bd75a6754c73b3dc64ad876418f87bc3ea103e9d6e8c3affee355d7bec196`，并附独立 sidecar。
+本 checkpoint 未启动 Worker、生成负载、注入故障、调用外部模型、修改生产 flag、部署或 rollback；
+`TAR-05` 保持 `awaiting_production`、`capacity_ready=false`，queued runtime 与并发大于 1 继续
+fail-closed，`execution_focus=null`。
+
+### 13.15 个人项目治理简化与首个技术整改
+
+唯一真人项目所有者的交互式授权已固化为
+[`personal-project-single-owner-authorization-2026-08-30-36b72d2f.json`](../deployment/personal-project-single-owner-authorization-2026-08-30-36b72d2f.json)，
+SHA-256=`d9c6e9f4128603d0f2208e107a430db93332ec2db2e523886d5248bb63005fd7`。同一 owner 可承担
+owner/root/reviewer/role-owner；五份回传均按真实技术内容处理：AUD/DATA、TUI source、EVID、STRAT、
+TAR 为有效 DEFER，TUI role-owner 对已发生 UAT 的范围内决定为 APPROVE。只有 `TUI-01` 因机器证据
+和 owner 业务确认同时满足而完成；零播种账本、业务定义、staging、runtime manifest、retention 与
+负载/模型结果均未被签字替代。
+
+随后登记并关闭 `TUI-03` repository unit，产出固定 digest 的 Prometheus、`21d/4GB` 双上限、持久卷、
+真实 `web:8000/metrics/` target、M5 rules、健康检查、host-only credential 和 HTTPS read-query allowlist，
+同步 VPS/local 打包。证据
+[`tui03-retained-monitoring-repository-closure-evidence-2026-08-30.json`](../testing/tui03-retained-monitoring-repository-closure-evidence-2026-08-30.json)
+SHA-256=`8fda79136ae1a3a70afd22ce4b1134f69f5d4af44bd484786ea4fd2f9c9891a7`。`TUI-03=completed`、
+`execution_focus=null`、`TUI-02=awaiting_production`；尚未部署或生成观察样本。

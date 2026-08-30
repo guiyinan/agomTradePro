@@ -5,6 +5,7 @@ param(
     [string]$RedisImage = "redis:7-alpine",
     [string]$CaddyImage = "caddy:2-alpine",
     [string]$RsshubImage = "diygod/rsshub:latest",
+    [string]$PrometheusImage = "prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996",
     [string]$SqliteFile = "db.sqlite3",
     [string]$RedisContainer,
     [switch]$IncludeSqliteData,
@@ -35,6 +36,7 @@ Options:
   -RedisImage <string>        Redis image to bundle. Default: redis:7-alpine
   -CaddyImage <string>        Caddy image to bundle. Default: caddy:2-alpine
   -RsshubImage <string>       RSSHub image to bundle. Default: diygod/rsshub:latest
+  -PrometheusImage <string>   Prometheus image to bundle. Default: pinned v3.5.0 manifest digest
   -SqliteFile <string>        SQLite file path. Default: db.sqlite3
   -RedisContainer <string>    Redis container name used for snapshot export (optional, explicit only)
   -IncludeSqliteData          Include SQLite backup in bundle (default: ask, and default answer is No)
@@ -262,10 +264,11 @@ $imagesDir = Join-Path $bundleRoot "images"
 $backupsDir = Join-Path $bundleRoot "backups"
 $deployDir = Join-Path $bundleRoot "deploy"
 $dockerDir = Join-Path $bundleRoot "docker"
+$monitoringDir = Join-Path $bundleRoot "monitoring"
 $scriptsDir = Join-Path $bundleRoot "scripts"
 
 Write-Info "Preparing bundle workspace: $bundleRoot"
-New-Item -ItemType Directory -Force $imagesDir, $backupsDir, $deployDir, $dockerDir, $scriptsDir | Out-Null
+New-Item -ItemType Directory -Force $imagesDir, $backupsDir, $deployDir, $dockerDir, $monitoringDir, $scriptsDir | Out-Null
 
 # Prefer conda env "agomtradepro" for script-level python operations.
 $pythonCmdParts = @("python")
@@ -469,6 +472,8 @@ Write-Host "  Pulling $CaddyImage..." -ForegroundColor Cyan
 docker pull $CaddyImage
 Write-Host "  Pulling $RsshubImage..." -ForegroundColor Cyan
 docker pull $RsshubImage
+Write-Host "  Pulling $PrometheusImage..." -ForegroundColor Cyan
+docker pull $PrometheusImage
 
 Write-Info "Saving images to tar"
 Write-Host "  Saving web image..." -ForegroundColor Cyan
@@ -479,6 +484,8 @@ Write-Host "  Saving caddy image..." -ForegroundColor Cyan
 docker save -o (Join-Path $imagesDir "caddy.tar") $CaddyImage
 Write-Host "  Saving rsshub image..." -ForegroundColor Cyan
 docker save -o (Join-Path $imagesDir "rsshub.tar") $RsshubImage
+Write-Host "  Saving prometheus image..." -ForegroundColor Cyan
+docker save -o (Join-Path $imagesDir "prometheus.tar") $PrometheusImage
 Write-Host "  All images saved!" -ForegroundColor Green
 
 if (-not $SkipData) {
@@ -553,6 +560,9 @@ Copy-Item docker/docker-compose.vps.yml (Join-Path $dockerDir "docker-compose.vp
 Copy-Item docker/Caddyfile.template (Join-Path $dockerDir "Caddyfile.template") -Force
 Copy-Item docker/entrypoint.prod.sh (Join-Path $dockerDir "entrypoint.prod.sh") -Force
 Copy-Item deploy/.env.vps.example (Join-Path $deployDir ".env.vps.example") -Force
+Copy-Item deploy/prometheus-query.env.example (Join-Path $deployDir "prometheus-query.env.example") -Force
+Copy-Item monitoring/prometheus.vps.yml (Join-Path $monitoringDir "prometheus.vps.yml") -Force
+Copy-Item monitoring/alerts.yml (Join-Path $monitoringDir "alerts.yml") -Force
 Copy-Item deploy/README_DEPLOY.md (Join-Path $deployDir "README_DEPLOY.md") -Force
 Copy-Item scripts/deploy-on-vps.sh (Join-Path $scriptsDir "deploy-on-vps.sh") -Force
 Copy-Item scripts/deploy-on-vps.ps1 (Join-Path $scriptsDir "deploy-on-vps.ps1") -Force
@@ -577,6 +587,7 @@ $manifest = [ordered]@{
         redis = $RedisImage
         caddy = $CaddyImage
         rsshub = $RsshubImage
+        prometheus = $PrometheusImage
     }
     checksums = @()
 }
