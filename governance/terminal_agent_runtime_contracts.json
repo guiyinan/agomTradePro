@@ -21,7 +21,10 @@
       "apps/agent_runtime/application/terminal_runtime_slo.py",
       "apps/agent_runtime/application/terminal_runtime_test_matrix.py",
       "apps/agent_runtime/infrastructure/terminal_runtime_baseline_snapshot_observer.py",
+      "apps/agent_runtime/infrastructure/terminal_runtime_controlled_observer.py",
+      "apps/agent_runtime/infrastructure/terminal_runtime_staging_harness.py",
       "scripts/record_terminal_runtime_baseline_evidence.py",
+      "scripts/run_terminal_runtime_staging_baseline.py",
       "apps/agent_runtime/application/terminal_runtime_queue_policy.py",
       "apps/terminal/interface/queued_runtime_views.py",
       "apps/terminal/interface/api_urls.py",
@@ -55,6 +58,7 @@
       "browser workbench queued-run status and durable event replay UX with finite polling",
       "local MCP capability discovery/schema/call/confirmation-resume facade backed by the canonical core tools",
       "strict offline snapshot parsing and content-addressed baseline evidence serialization",
+      "opt-in non-production 1/5/10/20 HTTP/Prometheus staging collector with exact candidate binding, twenty distinct actors, bounded request budget, explicit unavailable metrics and secret-free append-only evidence",
       "candidate-bound short-window VPS observation recorded separately from exit readiness"
     ],
     "not_implemented": [
@@ -432,6 +436,10 @@
     "canonical_test_matrix_digest": "6272ea6606ebbf3c0791e48d807b733cbc6d9a4ce7d945d95c5e3a16c22aea64",
     "offline_snapshot_format": "terminal-runtime-baseline-snapshot.v1",
     "offline_evidence_format": "terminal-runtime-baseline-evidence.v1",
+    "controlled_staging_source_format": "terminal-runtime-staging-source.v1",
+    "controlled_staging_evidence_scope": "controlled_staging_observation",
+    "controlled_staging_runner": "scripts/run_terminal_runtime_staging_baseline.py",
+    "controlled_staging_execution_status": "collector_available_no_current_candidate_run",
     "runtime_enablement": "not_authorized",
     "production_evidence_status": "not_runtime"
   },

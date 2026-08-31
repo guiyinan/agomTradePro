@@ -173,9 +173,18 @@ def test_serializer_is_deterministic_and_non_enabling() -> None:
     )
     decoded = json.loads(payload)
     assert decoded["runtime_enablement"] == "not_authorized"
+    assert decoded["evidence_scope"] == "offline_snapshot"
     assert decoded["computed_ready_for_capacity_gate"] is True
     assert "password" not in payload.decode("utf-8")
     assert terminal_runtime_baseline_artifact_sha256(payload) == hashlib.sha256(payload).hexdigest()
+
+    staging_payload = serialize_terminal_runtime_baseline_report(
+        report,
+        source_kind="staging_http_prometheus",
+        source_payload_sha256=hashlib.sha256(b"raw-staging-source").hexdigest(),
+        evidence_scope="controlled_staging_observation",
+    )
+    assert json.loads(staging_payload)["evidence_scope"] == ("controlled_staging_observation")
 
 
 def test_noncanonical_timestamp_is_rejected() -> None:

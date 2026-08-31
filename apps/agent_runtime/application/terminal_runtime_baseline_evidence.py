@@ -23,6 +23,9 @@ from apps.agent_runtime.application.terminal_runtime_slo import (
 
 _SHA256_RE: Final[re.Pattern[str]] = re.compile(r"^[0-9a-f]{64}$")
 _TOKEN_RE: Final[re.Pattern[str]] = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
+_EVIDENCE_SCOPES: Final[frozenset[str]] = frozenset(
+    {"offline_snapshot", "controlled_staging_observation"}
+)
 
 
 class TerminalRuntimeBaselineEvidenceError(ValueError):
@@ -76,6 +79,7 @@ def serialize_terminal_runtime_baseline_report(
     *,
     source_kind: str,
     source_payload_sha256: str,
+    evidence_scope: str = "offline_snapshot",
 ) -> bytes:
     """Serialize a validated report into deterministic, non-enabling JSON bytes."""
 
@@ -87,6 +91,8 @@ def serialize_terminal_runtime_baseline_report(
         or _SHA256_RE.fullmatch(source_payload_sha256) is None
     ):
         raise TerminalRuntimeBaselineEvidenceError("source_payload_sha256 is invalid")
+    if evidence_scope not in _EVIDENCE_SCOPES:
+        raise TerminalRuntimeBaselineEvidenceError("evidence_scope is invalid")
     candidate = report.samples[0].candidate_identity
     if candidate is None:
         raise TerminalRuntimeBaselineEvidenceError("capacity evidence must bind a candidate")
@@ -102,7 +108,7 @@ def serialize_terminal_runtime_baseline_report(
             "test_matrix_digest": candidate.test_matrix_digest,
         },
         "computed_ready_for_capacity_gate": report.ready_for_capacity_gate,
-        "evidence_scope": "offline_snapshot",
+        "evidence_scope": evidence_scope,
         "format": "terminal-runtime-baseline-evidence.v1",
         "runtime_enablement": "not_authorized",
         "samples": [

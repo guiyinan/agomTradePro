@@ -6,8 +6,8 @@
 > 工作流：`terminal-agent-multi-user-runtime`（category: `product_interface_and_runtime`，priority: P0）
 > Owner：`agent_runtime + terminal + task_monitor + operational_readiness + sdk + mcp`
 > 机器进度真源：`governance/active_plan_registry.json`
-> Canonical closure units：`TAR-01` 至 `TAR-05`
-> 执行优先级：`TAR-01` 至 `TAR-04` repository 合同已完成，Terminal Runtime 转入 `TUI-01/TAR-05` 生产验证。用户侧不安装 provider-backed Agent；下一步是在同一不可变候选上完成角色UAT、写回执、provider、容量、chaos、恢复、telemetry与双签，在 `TAR-05` 通过前不得直接放大全局 inline 并发。
+> Canonical closure units：`TAR-01` 至 `TAR-06`（`TAR-06` 是 `TAR-05` 的 repository enabler）
+> 执行优先级：`TAR-01` 至 `TAR-04` 与 `TAR-06` repository 合同已完成；当前由 `TAR-05` 收口真实 staging 容量、chaos、provider、恢复、telemetry 与生产验收。用户侧不安装 provider-backed Agent；在 `TAR-05` 通过前不得放大全局 inline 并发。
 
 本文只维护问题、目标架构、分期交付、验收门和回滚边界。`active / waiting_dependency / production_validation` 等执行状态只在机器注册表维护，不在本文形成第二套进度。
 
@@ -32,6 +32,8 @@
 校正后只保留一条 repository 主线：`TAR-02 → TAR-03`。容量、chaos、恢复、telemetry 和人工验收继续 fail-closed，并在 `TAR-05` 绑定同一不可变候选收口；`TAR-01` 完成不授权生产启用、扩大并发或跳过任何生产证据。
 
 2026-08-22 后续复核确认 `TAR-04` 的服务端API提交、SDK状态/事件消费、受控MCP能力调用与重连、客户端无provider密钥/本地Agent打包边界，以及浏览器/TUI queued结果合同均已有仓库测试证据。`TAR-04` repository gate 因而关闭；候选部署、角色UAT、provider成功、容量/chaos、恢复、telemetry和签字不再重复挂在 `TAR-04`，分别由 `TUI-01` 与 `TAR-05` 收口。
+
+2026-08-31 复核发现现有 controlled observer、load/chaos tests 与 recorder 只能校验调用方提供的离线快照，无法驱动批准的 staging 或采集 Prometheus。该机械缺口登记为唯一 repository unit `TAR-06`；它只交付 fail-closed collector，不把代码测试当作 `TAR-05` 的真实容量结果。
 
 ## 2. 背景、现状证据与根因
 
@@ -307,6 +309,7 @@ provider-backed Agent 的安装包。
 | M2 Worker 与事件隔离 | `TAR-03` | 5–7 人日 | Agent Runtime / DevOps / Task Monitor | 专用 queue/worker、原子 claim、timeout/cancel/orphan、Redis Stream + durable checkpoint、指标与健康 | 杀死 Worker 不影响 Web；重复 delivery 不重复执行；断线恢复事件；数据/QLib Worker 不被 Agent 饥饿 |
 | M3 TUI/SDK 用户闭环 | `TAR-03` | 3–4 人日 | Terminal / SDK / QA | 排队/执行/审批/完成/失败/取消 UI，SSE reconnect + polling fallback，SDK 类型化接口，旧接口迁移 | 普通用户可完成提交、等待、恢复、取消；无内部路由/异常泄露；API/SDK/TUI 契约一致 |
 | M4 服务器端 CLI/MCP 薄客户端 | `TAR-04` | 3–5 人日 | SDK / MCP / Security | API/queued 提交、状态/事件/确认恢复、远程能力目录、Token 轮换；不提供本地 Agent 安装包 | 模型/MCP/审批均在服务器端；客户端不接收 provider key；断网/过期 Token 有可恢复行为 |
+| M4.5 staging load/metrics collector | `TAR-06` | 1–2 人日 | Agent Runtime / Operational Readiness / QA | non-production target guard、20 个独立 staging actor、1/5/10/20 阶梯、HTTP/Prometheus 观测、原始/规范化证据 | 默认不联网；拒绝已知生产 host；缺失指标保持 unavailable；凭据不落盘；只生成候选绑定证据，不授权 runtime |
 | M5 容量与生产验收 | `TAR-05` | 3–4 人日 + 观察期 | Operational Readiness / QA / Owners | 1/5/10/20 用户压测、故障注入、资源预算、canary、候选绑定、回滚演练、旧 inline 退役决策 | 达成第 11 节 SLO；生产 Web 无重启/拥塞；同候选 UAT 和观察通过后才解除全局并发 1 |
 
 ### 9.1 `TAR-01`：契约冻结与基线
@@ -352,7 +355,19 @@ provider-backed Agent 的安装包。
 4. 保留有界断线重连、Token 轮换和日志脱敏；任何 queued/Worker 未启用状态继续稳定 fail-closed。
 5. 不创建用户侧 Windows/WSL/Linux Agent 安装包；平台差异只覆盖服务器部署矩阵与薄客户端协议兼容性。
 
-### 9.5 `TAR-05`：容量、发布与退役
+### 9.5 `TAR-06`：staging load/metrics collector
+
+交付顺序：
+
+1. `TerminalRuntimeStagingHarness` 复用既有 controlled observer port，在任何 I/O 前校验 non-production environment、HTTPS/loopback target、内置与显式 production-host denylist、exact candidate/OCI/runtime-manifest/test-matrix identity、批准 preflight hash、请求时限与总预算。
+2. 执行时必须从 stdin 提供恰好 20 个互异 staging actor token 和一组 Prometheus 凭据；凭据、prompt 与 response body 均不得进入 receipt。每档使用同步 barrier 形成真实的 `1/5/10/20` 并发起点，单次默认总请求预算由 manifest 明确给出。
+3. Web p50/p95/p99 与 run API p95 由实际 HTTP 时延计算；其余 baseline 和 19 项 hard SLO 通过 exact Prometheus query map 读取。未配置、无 sample、查询失败或非有限值全部保持 `unavailable`，不得填零。
+4. `scripts/run_terminal_runtime_staging_baseline.py` 默认只做 manifest/preflight 校验且不联网；只有显式 `--execute --credentials-stdin --output-root` 才访问批准的 staging，并写入 secret-free raw source、recorder-compatible snapshot 与 canonical evidence 三类 content-addressed JSON/SHA-256 sidecar。
+5. canonical evidence 使用 `controlled_staging_observation` scope 并直接绑定 raw source SHA；CLI 固定输出 `tar05_acceptance=not_granted`、`production_claim=false`、`runtime_enablement=not_authorized`。代码通过不改变 feature flag、capacity-ready 生产状态或 `TAR-05` 阶段决定。
+
+运行前仍必须由单一项目所有者提供真实 staging identity、最终 runtime manifest/flags/resources、专用 Worker、查询表达式与 bounded provider profile。缺少任何一项时只运行默认 validation-only，不执行 `--execute`。本 unit 不执行 chaos、付费 provider/MCP、生产 canary、flag 变更或 inline 退役。
+
+### 9.6 `TAR-05`：容量、发布与退役
 
 交付顺序：
 
@@ -2095,3 +2110,25 @@ TAR-05 P1 回传的候选/sidecar/缺失环境事实有效，并在唯一真人�
 最终 runtime manifest digest、完整 flags/resources、专用 Worker、retained metrics 和 bounded provider
 profile 均未出现。下一步可由同一 owner 选择并创建 staging envelope 后直接运行 P1/P2，但在真实
 manifest、1/5/10/20 load、chaos、provider/canary 和观察证据形成前，queued/并发大于 1 继续 fail-closed。
+
+## 2026-08-31：`TAR-06` staging load/metrics collector
+
+针对“现有 TAR-05 资产只能读离线快照、无人真正驱动 staging”的机械缺口，新增
+`apps/agent_runtime/infrastructure/terminal_runtime_staging_harness.py` 和
+`scripts/run_terminal_runtime_staging_baseline.py`。collector 在网络前校验 exact candidate、canonical
+matrix、approved-preflight hash、non-production URL/production denylist、20 个互异 actor 和 bounded
+request envelope；默认 CLI 仅校验且 `network_io=false`。显式执行才以 barrier 驱动 1/5/10/20，读取
+HTTP 时延与 exact Prometheus queries，并把 missing/query failure 保留为 unavailable。
+
+输出链为 secret-free raw source → recorder-compatible snapshot → canonical
+`controlled_staging_observation` evidence，三者都使用 content-addressed append-only JSON 与同名 SHA-256
+sidecar；canonical evidence 直接绑定 raw source digest。凭据仅从 stdin 读取，不写 receipt；CLI 固定
+`tar05_acceptance=not_granted`、`production_claim=false`、`runtime_enablement=not_authorized`。Terminal runtime
+focused `84 passed`，高风险 TUI/SDK/SSL 回归 `356 passed`；增量 mypy 与全仓 debt ceiling 均为 `0`，
+3002-file architecture、governance/registry、Black/isort/Ruff 全绿。结构化 repository closure evidence 为
+[`tar06-staging-collector-repository-closure-evidence-2026-08-31.json`](../testing/tar06-staging-collector-repository-closure-evidence-2026-08-31.json)，
+SHA-256=`c7af18fa7722443105018d7693dff46de5a02e4f1849f7dd03e1ea319fe958f2`。
+
+本 checkpoint 没有访问 staging/VPS、没有创建真实负载、没有调用 provider/MCP、没有修改 runtime flag、
+没有注入故障，也没有形成当前候选容量结论。`TAR-06=completed`、repository focus 已回到 `null`；
+`TAR-05` 仍须真实 staging P1/P2、chaos、provider/MCP、canary、观察与退役阶段证据。

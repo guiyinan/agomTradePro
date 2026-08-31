@@ -1,6 +1,6 @@
 # 活跃计划索引
 
-> 更新日期：2026-08-30
+> 更新日期：2026-08-31
 > 本目录只保留仍需开发、真实数据、生产验收或外部依赖闭环的计划。已完成的实施计划、阶段记录、复盘和历史证据统一放在 [`../archive/plans/`](../archive/plans/)；归档记录见 [`../archive/ARCHIVE_INDEX.md`](../archive/ARCHIVE_INDEX.md)。
 
 ## 维护规则
@@ -46,10 +46,10 @@
 | `DATA-01/02/03` | 已有备份下载与 SHA、隔离 restore/RTO、覆盖/freshness/reconciliation、双 readiness、观察计时 | 新建/清理备份、回填/删改、维护态、切换和 live rollback；数据 owner 例外 |
 | `STRAT-01/02/03` | owner/policy 缺口盘点、PIT/OOS 时长、receipt/lineage/reconciliation、权限与 consumer 测试 | 生产登记/Promotion/回填；策略 owner 参数与业务 UAT |
 | `TUI-01/02` | commit/version/OCI/matrix/graph/runtime 对账、health/ready、角色只读旅程、108 UAT 派生、14 日计时、缺陷、101 telemetry、隔离 rollback | 候选部署、生产写回执、registry backup 创建、cleanup/live rollback；双签 |
-| `TAR-05` / `AI-01` | 已批准环境中的 load/soak/browser、metrics、event timeline、候选绑定与报告 | 生产 load/chaos/canary/cutover、付费模型调用；容量与业务验收 |
+| `TAR-06` / `TAR-05` / `AI-01` | 默认无网络校验、已批准 staging 的 load/soak/browser、metrics、event timeline、候选绑定与报告 | 任何生产 load/chaos/canary/cutover、付费模型调用；容量与业务验收 |
 | `QMT-01/02` | 获权后的 Phase 0 只读探针、仿真 timeline、callback/reconciliation 报告 | 券商权限、任何真实订单/撤单/live enable；券商与业务 owner 签字 |
 
-当前已有的直接 collector 包括：`check_web_to_tui_cutover_readiness.py --json`、`record_web_to_tui_candidate_evidence.py`、`build_web_to_tui_defect_evidence.py`、`build_web_to_tui_production_telemetry.py`、`drill_web_to_tui_rollback.py`、`backup-vps-postgres.py --download-latest`、`verify_postgres_backup_restore.py`、`record_data01_restore_evidence.py`、`record_data02_reconciliation_evidence.py`、`record_data03_readiness_evidence.py` 和 `record_aud03_operational_observation_evidence.py`。执行具体命令时仍以 `--help`、专项计划和当前任务授权范围为准。
+当前已有的直接 collector 包括：`check_web_to_tui_cutover_readiness.py --json`、`record_web_to_tui_candidate_evidence.py`、`build_web_to_tui_defect_evidence.py`、`build_web_to_tui_production_telemetry.py`、`drill_web_to_tui_rollback.py`、`backup-vps-postgres.py --download-latest`、`verify_postgres_backup_restore.py`、`record_data01_restore_evidence.py`、`record_data02_reconciliation_evidence.py`、`record_data03_readiness_evidence.py`、`record_aud03_operational_observation_evidence.py` 和 `run_terminal_runtime_staging_baseline.py`（默认 validation-only）。执行具体命令时仍以 `--help`、专项计划和当前任务授权范围为准。
 
 ## 当前治理快照
 
@@ -61,7 +61,7 @@
 | 限期审查项 | 0 |
 | 注册表覆盖的活跃文件 | 41 |
 | 历史未勾选细项 | 136（非执行口径） |
-| 去重后 canonical closure units | 28 |
+| 去重后 canonical closure units | 30 |
 
 “主计划”是需求和证据入口，不等于独立工程量；同一工作流下的路线图、readiness 和生产跟踪不会再重复计算成多条主线。完整文件归属、owner、状态、依赖和唯一退出门见机器注册表的 `closure_backlog`。
 
@@ -74,19 +74,19 @@
 | `data-production-reliability` | P0 | production_validation | Data Center / Operational Readiness / Task Monitor | [综合清零方案](release-blocker-closure-execution-plan-2026-08-29.md)、[Canonical architecture](data-center-canonical-architecture-refactor-2026-08-02.md)、[生产可靠性](production-data-reliability-full-remediation-2026-08-01.md)、[关键测试](critical-reliability-test-closure-2026-07-22.md)、[UAT 整改](uat-remediation-2026-07-20.md) | DATA-01 已完成；DATA-02 候选已部署并完成 dry-run，量化出 5,533 stale price 与 financial 缺 3,610，执行被缺失的 typed Audit authority/profile 正确阻断；DATA-03 继续等待 reconciliation，决策门保持 blocked |
 | `system-audit-consolidation` | P0/P1 | production_validation | Personal Project Owner / Audit / Data Center / Task Monitor | [统一审计日志](system-audit-log-consolidation-plan-2026-08-13.md) | 三项 Audit definition 已幂等登记，但 production profile 缺三项真实值且七张 authority root/ledger 表为零；同一项目所有者可承担治理角色，AUD-03 仍须真实完成 writer load、rollback/recovery、metrics/alerts/TUI 与 archive/restore |
 | `web-to-tui-m5` | P0 | production_validation | Personal Project Owner / Terminal / Operational Readiness | [迁移总计划](web-to-tui-migration-plan-2026-07-25.md)、[M5 readiness](web-to-tui-m5-readiness-2026-07-27.md) | `TUI-01/TUI-03` completed，`TUI-02=active`：successor `80ea002b…` / `20260830215638` 已部署，retained source、10/10 UAT、108/108 cleanup、rollback 与 Day 0 registry backup 均通过；窗口 `2026-08-30..2026-09-13` 正在自然运行，readiness=`5/10 DENY` |
-| `terminal-agent-multi-user-runtime` | P0 | production_validation | Agent Runtime / Terminal / Task Monitor / Operational Readiness / SDK / MCP | [多用户队列与服务端 CLI 运行](terminal-agent-multi-user-runtime-plan-2026-08-18.md) | TAR-01 至 TAR-04 repository 合同已完成；最终 release 仅证明候选和基础服务健康，未发现专用 Terminal Worker，runtime manifest/flags/staging 仍需 Operations 重新证明。TAR-05 分阶段审核已就绪，当前只接受 P1 环境/候选报告，后续 capacity/chaos/provider/canary/观察/退役不得预签 |
+| `terminal-agent-multi-user-runtime` | P0 | production_validation | Agent Runtime / Terminal / Task Monitor / Operational Readiness / SDK / MCP | [多用户队列与服务端 CLI 运行](terminal-agent-multi-user-runtime-plan-2026-08-18.md) | TAR-01 至 TAR-04 与 `TAR-06` repository 合同已完成；non-production 1/5/10/20 HTTP/Prometheus collector 已可用但尚无真实 run。最终 release 的专用 Worker、runtime manifest/flags/staging 与 TAR-05 capacity/chaos/provider/canary/观察/退役仍须真实证明 |
 | `ai-native-release` | P1 | external_validation | Agent Runtime / Terminal | [AI-Native delivery pack](ai-native/README.md) | `TUI-01` 已完成；等待 TAR-05 后绑定同候选 staging/production 真实模型 UAT 与单一所有者验收 |
 | `qmt-live-bridge` | P2 | blocked_external | Broker Execution / 外部券商 Owner | [QMT 实盘桥](qmt-live-trading-bridge-plan.md) | Windows XtQuant Phase 0、连续仿真和受控小额实盘 |
 | `tui-usability-governance` | P1 | production_validation | Terminal | [TUI 可用性与 metadata 治理](tui-usability-and-metadata-governance-plan-2026-08-18.md) | TUX-01～05 repository gate 全部完成，successor `80ea002b…` 已部署；production-safe UAT、cleanup matrix 与 rollback drill 已通过，剩余为 TUI-02 自然观察、结构化快照和单一 owner 最终确认 |
 
 ## 当前执行焦点
 
-- 当前没有 active repository 主线，机器 `execution_focus.unit_id=null`。`TUI-03` 已完成 M5 retained monitoring source 的 compose/config/security/packaging/test，结构化证据为 [`tui03-retained-monitoring-repository-closure-evidence-2026-08-30.json`](../testing/tui03-retained-monitoring-repository-closure-evidence-2026-08-30.json)，SHA=`8fda7913…91a7`。
+- `TAR-06` repository exit 已完成，机器 `execution_focus.unit_id=null`，当前没有 active repository 主线。结构化证据为 [`tar06-staging-collector-repository-closure-evidence-2026-08-31.json`](../testing/tar06-staging-collector-repository-closure-evidence-2026-08-31.json)，SHA=`c7af18fa…958f2`。collector 只提供 fail-closed non-production staging load/metrics 能力；本次没有执行 staging/生产网络动作，没有启用 queued runtime、调用付费 provider、注入故障或授予 `TAR-05` acceptance。
 - 生效的单一所有者授权记录为 [`personal-project-single-owner-authorization-2026-08-30-80ea002b.json`](../deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json)，SHA=`f675c446…300e1`。同一所有者可承担 owner/root/reviewer/role-owner，不再要求第二个自然人；这不填充 authority 行、业务定义、环境、观察历史或执行结果。
 - `AUD-02=completed`、`AUD-03=awaiting_production`；`EVID-03` 仍仅在 EVID-01/EVID-02 均完成后启动。当前没有 dependency-ready 的其他 repository unit。
 - `EVID-01/02` 与 `STRAT-01` 不再等待多名人员；同一项目所有者可以填写各治理角色，但仍须提供真实 authority head、业务 definition/policy/calendar/scope 与 typed production value。稳定入口仍为 [`evidence-strategy/README.md`](../reviews/release-36b72d2f/evidence-strategy/README.md)，零播种表不得由 fixture、User/Profile/session 或默认值补齐。
 - `TUI-01` 与 `TUI-03` 已完成。`TUI-02=active`：successor deployment、retained source、production-safe UAT、cleanup、isolated rollback 与 Day 0 registry backup 已通过；结构化汇总为 [`tui02-production-day0-checkpoint-2026-08-30-80ea002b.json`](../deployment/tui02-production-day0-checkpoint-2026-08-30-80ea002b.json)，SHA=`1cff7915…e4d85`。当前只等待窗口自然到 `2026-09-13` 后形成 defect/101-task telemetry、post-window backup/review snapshot 和同一 owner 的两个 role-bound attestations；`TAR-05` 保持 awaiting production。
-- `TAR-05` 的补充稳定入口为 [`terminal-runtime/README.md`](../reviews/release-36b72d2f/terminal-runtime/README.md)，动态清单为 [`terminal-runtime/review-checklist.json`](../reviews/release-36b72d2f/terminal-runtime/review-checklist.json)，final report 只进入 [`reports/terminal-runtime/`](../reviews/release-36b72d2f/reports/terminal-runtime/README.md)。当前仅 P1 dependency-ready；P2/P3 staging、P4 provider/MCP、P5 production staff canary、P6 observation/cutover 和 P7 inline retirement 逐阶段另审，旧候选证据不能复用。
+- `TAR-06` 的代码入口为 `scripts/run_terminal_runtime_staging_baseline.py`，默认 validation-only；显式执行还必须提供批准的 staging manifest/preflight、20 个 stdin actor credential、Prometheus credential 与本地 output root。`TAR-05` 的稳定审核入口仍为 [`terminal-runtime/README.md`](../reviews/release-36b72d2f/terminal-runtime/README.md)，下一真实门是 P1 staging/candidate envelope；P2 capacity、P3 chaos、P4 provider/MCP、P5 production staff canary、P6 observation/cutover 和 P7 inline retirement 逐阶段保留，旧候选证据不能复用。
 - 用户于 2026-08-30 以唯一真人项目所有者身份授权仓库整改和技术前置满足后的精确生产阶段；同一 action envelope 内不再重复索要多人签字。授权不替代券商 XtQuant、业务定义、外部模型结果或不可压缩观察时间，所有失败线继续 fail-closed。
 - 历史 AUD-03/DATA-02/TUI 审核包仍保留为证据入口，但 single-owner 模式已取消职责分离和第二名真人要求；同一项目所有者的 repository identity、真实 receipt、候选/依赖校验和 SHA sidecar 足够。TUI 已由 successor Day 0 checkpoint 接管动态状态；旧模板不得覆盖新候选，也不能预签 14 日终审。
 
@@ -98,7 +98,7 @@
 |---|---|---|---|
 | 2026-08-25～08-27 | `AUD-01`：canonical publisher、runtime、scoped authority composition 与无 fallback 合同（已完成） | `EVID-01/02` 准备 root approval/PG 验收包；`DATA-01` 完成已有备份与隔离恢复证据；准备 TUI-01 正式 preflight | AUD-01 代码、focused tests、架构/mypy/治理门禁全绿，2026-08-27 已切换焦点至 AUD-02 |
 | 2026-08-28～08-30 | `AUD-02`、`TUX-04`、`TUX-03`、`TUX-05` 顺序完成原登记 gate；current-data 全登记回归推翻 AUD-02 的完整回归结论后完成 corrective exit | EVID/DATA/STRAT/TUI/TAR 只执行各自已登记且无需新授权的 auto_collect；AUD-03 恢复 awaiting production | AUD-02 的 eager composition 与测试 critical-profile 根因均已最小修复，完整 current-data 和原 AUD-02 gate 全绿 |
-| 2026-08-31～09-03 | `TUI-03` 已完成；当前无 active repository unit | `TUI-02` 已完成 successor 部署与 Day 0 验证，持续检查 candidate drift、target/rules/storage/query 健康；DATA/AUD/EVID/STRAT/TAR 保持 fail-closed | 保持 `2026-08-30..2026-09-13` 真实留存，不回填或提前生成最终快照 |
+| 2026-08-31～09-03 | `TAR-06` 已完成；当前无 active repository unit | `TUI-02` 持续真实窗口；等待 TAR-05 P1 的 approved staging/candidate envelope，DATA/AUD/EVID/STRAT/TAR production gates 保持 fail-closed | 只有真实 staging identity、runtime manifest/flags/resources、专用 Worker、query map 与 bounded provider profile 到位后才执行 collector；不以离线测试替代 TAR-05 staging 结果 |
 | 2026-09-04～09-07 | 仅在 EVID-01/02 均真实完成后激活 EVID-03，否则继续无 eligible repository unit | 继续已登记且有新外部状态的生产只读取证；任何写入、部署、故障注入、备份创建或人工判断仍需授权 | EVID-03 依赖真实解除，或满足 Goal 的无安全 eligible work 停止条件 |
 | 2026-09-08～09-11 | 以机器注册表为准；当前无其他依赖已满足的 repository unit | TUI-02 仅在 TUI-01 完成后观察；AI-01 仅在 TUI-01/TAR-05 后启动；QMT 不占内部排期 | 不通过刷新日期、重复探针或放宽依赖制造仓库工作 |
 | 2026-09-13 起 | 当时最高优先级且依赖已满足的唯一 repository unit；若不存在则停止 | 为 TUI-02 收集完整 defect/101-task telemetry，导出 post-window registry backup/attestation，生成 review snapshot 并由同一 owner 完成两个 role-bound attestations | readiness 必须从真实 artifact 重算为 ALLOW；日期到达本身不等于通过 |
@@ -129,7 +129,7 @@
 
 ## 去重后的收口 Backlog
 
-136 个历史未勾选细项按共同产物、共同依赖和共同验收证据折叠为以下 **29 个唯一工作包**。状态只在机器注册表更新；本表不形成第二套待办。
+136 个历史未勾选细项按共同产物、共同依赖和共同验收证据折叠为以下 **30 个唯一工作包**。状态只在机器注册表更新；本表不形成第二套待办。
 
 | 波次 | Canonical unit | 类型 | 状态 | 依赖 | 唯一交付 |
 |------|----------------|------|------|------|----------|
@@ -153,7 +153,8 @@
 | W3 | `TUI-01` | production | completed | TAR-03 | manifest 候选、机器 UAT、写回执、cleanup/rollback 与单一所有者业务确认均完成 |
 | W3 | `TUI-03` | repository | completed | TUI-01 | digest-pinned Prometheus、21 日/4GB 持久留存、可达 scrape target、健康检查、M5 rules、打包与受控 HTTPS query 合同均通过 |
 | W3 | `TUI-02` | production | active | TUI-01/TUI-03 | successor 与 Day 0 gate 已完成；持续至 2026-09-13 后收集 defect/101-task telemetry、post-window registry attestation、review snapshot 与单一 owner role-bound attestations |
-| W3 | `TAR-05` | production | awaiting | TAR-03 | 1/5/10/20 用户容量、故障恢复、回滚、观察与生产切换验收 |
+| W3 | `TAR-06` | repository | completed | TAR-04 | 默认无网络、拒绝生产 target 的 20-actor 1/5/10/20 HTTP/Prometheus collector；缺失指标 unavailable，凭据不落盘，证据 content-addressed |
+| W3 | `TAR-05` | production | awaiting | TAR-03/TAR-06 | 真实候选的 1/5/10/20 用户容量、故障恢复、回滚、观察与生产切换验收 |
 | W3 | `AI-01` | external | waiting | TUI-01/TAR-05 | 同候选 staging/production 真实 UAT 与独立双签 |
 | W4 | `QMT-01` | external | blocked | — | 券商 XtQuant 权限和目标机 Phase 0 |
 | W4 | `QMT-02` | external | blocked | QMT-01 | 连续仿真和受控小额实盘验收 |
@@ -163,7 +164,7 @@
 | W5 | `TUX-04` | repository | completed | — | 分组重排、入口消歧、12 个 runtime screen 补齐契约与普通角色浏览器走查 |
 | W5 | `TUX-05` | repository | completed | TUX-03/TUX-04 | corrective 修复深链 action 可达性、confirmed write loading 收敛与 production-safe TUI-01 recorder；不降低 108-route/角色/receipt/cleanup 门禁 |
 
-执行纪律：机器注册表 `execution_focus.unit_id=null`，当前没有 dependency-ready 的 repository unit。`TUI-02` 是 active production line；AUD-03、EVID-01/02、DATA-02、STRAT-01 与 TAR-05 仅在技术前置和真实新状态到位后推进。single-owner 模式取消多人签字，不取消 external AI、queued runtime、authority/approval、load/fault、maintenance/live rollback 的技术停止线。
+执行纪律：机器注册表 `execution_focus.unit_id=null`，当前没有 active repository unit；`TUI-02` 作为 active production observation line 自然运行。AUD-03、EVID-01/02、DATA-02、STRAT-01 与 TAR-05 仅在技术前置和真实新状态到位后推进。single-owner 模式取消多人签字，不取消 external AI、queued runtime、authority/approval、load/fault、maintenance/live rollback 的技术停止线。
 
 ## 分阶段执行记录
 
@@ -793,3 +794,4 @@
 | 2026-08-30 | P0 governance simplification | 个人项目 single-owner 合同与五份回传处理 | 唯一真人项目所有者授权固化为 [`personal-project-single-owner-authorization-2026-08-30-36b72d2f.json`](../deployment/personal-project-single-owner-authorization-2026-08-30-36b72d2f.json)，SHA=`d9c6e9f4…5fd7`；同一 owner 可承担治理角色，不再要求第二名自然人。五份报告的 JSON/sidecar/候选与缺失证据已校验：AUD/DATA、TUI source、EVID、STRAT、TAR 均为有效 DEFER；TUI role-owner 对既有 run 的范围内决定为 APPROVE | `TUI-01=completed`；其余技术门禁没有被签字替代。authority zero-seed、业务定义、staging/runtime manifest、retention/负载/模型结果仍保持真实 DEFER/fail-closed |
 | 2026-08-30 | P0 repository exit | `TUI-03` retained monitoring source | 新增 manifest-digest pinned Prometheus、21d/4GB 双上限、`prometheus_data`、`web:8000/metrics/` 唯一真实 target、健康检查、精确 M5 rules、host-only credential 和 Caddy HTTPS read-query allowlist；VPS/本地 runtime 打包投影同步。结构化证据 [`tui03-retained-monitoring-repository-closure-evidence-2026-08-30.json`](../testing/tui03-retained-monitoring-repository-closure-evidence-2026-08-30.json)，SHA=`8fda7913…91a7`；聚焦 TUI 回归 `48 passed`，compose/promtool/Caddy/alerts/PowerShell/mypy/registry 均通过 | `TUI-03=completed`、focus 回到 null、`TUI-02=awaiting_production`。本 checkpoint 未部署、未创建生产 volume/credential、未生成 retained sample、未重置或回填观察窗口；下一步是 clean successor 部署与真实 post-deploy evidence |
 | 2026-08-30 | P0 production Day 0 | `TUI-02` successor deployment、UAT、cleanup、rollback 与 registry backup | commit `80ea002b…` 已部署为 release `20260830215638` / image `sha256:54cb9646…8c39fc`；Prometheus `up=1`、21d/4GB、17 rules/0 unhealthy、认证 query=200，窗口重置为 `2026-08-30..2026-09-13`。正确域名 `demo.agomtrade.pro` 的 TLS/health 通过；正式 run `tui02-80ea002b-20260830-01` 为 10/10、108/108、三角色、两 receipt、零残留，cleanup 8/8、六 scope 108/108、isolated rollback PASS。generation 30 backup SHA=`c3cc3a05…48b8d` 通过 sidecar/restore dry-run。汇总 [`tui02-production-day0-checkpoint-2026-08-30-80ea002b.json`](../deployment/tui02-production-day0-checkpoint-2026-08-30-80ea002b.json)，SHA=`1cff7915…e4d85`；single-owner 授权 SHA=`f675c446…300e1` | `TUI-02=active`、readiness=`5/10 DENY`、repository focus=`null`。第二名真人/职责分离要求已取消；自然窗口、structured defect/101-task telemetry、post-window registry attestation、review snapshot 和同一 owner 的两个 role-bound attestations仍须真实完成，不回填历史或提前签发 |
+| 2026-08-31 | P0 repository exit | `TAR-06` fail-closed staging load/metrics collector | 新增 non-production URL/production denylist、exact candidate/preflight/matrix、20 个互异 stdin actor、barrier 同步 1/5/10/20、HTTP percentile 与 exact Prometheus query collector；missing/failure 保留 unavailable。CLI 默认 validation-only，显式 execute 才写 secret-free raw source、snapshot 与 canonical `controlled_staging_observation` content-addressed JSON/SHA sidecar，canonical artifact 直接绑定 raw source digest。Terminal runtime focused `84 passed`、高风险 TUI/SDK/SSL `356 passed`，增量/全量 mypy、3002-file architecture、governance/registry、Black/isort/Ruff 全绿；[closure evidence](../testing/tar06-staging-collector-repository-closure-evidence-2026-08-31.json) SHA=`c7af18fa…958f2` | `TAR-06=completed`、repository focus=`null`。本 checkpoint 未访问 staging/VPS、未生成真实负载、未调用 provider/MCP、未修改 flag 或形成容量结论；`TAR-05` 仍须真实 staging/chaos/provider/canary/观察证据，queued/并发>1 保持 fail-closed |

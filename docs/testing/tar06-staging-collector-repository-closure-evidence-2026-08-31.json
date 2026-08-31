@@ -1,0 +1,102 @@
+{
+  "schema": "tar06-staging-collector-repository-closure-evidence.v1",
+  "unit_id": "TAR-06",
+  "recorded_at": "2026-08-31T02:58:41.0546934Z",
+  "repository": {
+    "base_commit": "88d699c1f3bbf965ac851e93328b02219b8886d4",
+    "working_tree_contains_uncommitted_unit_changes": true,
+    "production_candidate_rebound": false
+  },
+  "owner_authorization": {
+    "mode": "single_owner_personal_project",
+    "path": "docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json",
+    "sha256": "f675c44647764c93292f223fc94a0f7ac3d5c89a1ad651d2d12a6ba1918300e1"
+  },
+  "collector_contract": {
+    "default_mode": "validation_only",
+    "default_network_io": false,
+    "allowed_environment_prefixes": [
+      "local-",
+      "staging-"
+    ],
+    "required_concurrency_levels": [
+      1,
+      5,
+      10,
+      20
+    ],
+    "required_distinct_staging_actors": 20,
+    "credentials_transport": "bounded_json_on_stdin_only",
+    "missing_metric_semantics": "unavailable",
+    "source_format": "terminal-runtime-staging-source.v1",
+    "snapshot_format": "terminal-runtime-baseline-snapshot.v1",
+    "canonical_evidence_format": "terminal-runtime-baseline-evidence.v1",
+    "canonical_evidence_scope": "controlled_staging_observation",
+    "runtime_enablement": "not_authorized",
+    "tar05_acceptance": "not_granted",
+    "production_claim": false
+  },
+  "authoritative_file_hashes": {
+    "apps/agent_runtime/application/terminal_runtime_baseline_evidence.py": "95f5649be1729fc304fee495f1a8da2c691818112b85cabb30213451e32e8220",
+    "apps/agent_runtime/infrastructure/terminal_runtime_staging_harness.py": "299b5fa403c66550e8257b5495cd2be27bcd83965fc3e9a78c8a7a473189a84c",
+    "scripts/run_terminal_runtime_staging_baseline.py": "bc3f359f591f3195858e5a605822ac133de6def321c56f3e978db858ab3a594d",
+    "tests/unit/agent_runtime/test_terminal_runtime_baseline_snapshot_observer.py": "2db9341582e39488d779efcd873e9f3430c947557ee52148d45f8cabecb02860",
+    "tests/unit/agent_runtime/test_terminal_runtime_staging_harness.py": "1764c4764d7f8a7721fd458c5c2d4d9c5dfe4bf802ba71506a1382ccc85c2824",
+    "governance/terminal_agent_runtime_contracts.json": "4b138a0ff54d1c12e4ead8bf6d14f87779fb88ab1be6325a4b6f9ec0b276340d"
+  },
+  "verification": [
+    {
+      "scope": "terminal_runtime_focused",
+      "result": "84 passed in 1.07s"
+    },
+    {
+      "scope": "tui_sdk_ssl_high_risk_regression",
+      "result": "356 passed in 301.60s"
+    },
+    {
+      "scope": "incremental_mypy",
+      "result": "0 regressions in 3 production files"
+    },
+    {
+      "scope": "full_mypy_debt_ceiling",
+      "result": "0 errors in 0 files"
+    },
+    {
+      "scope": "full_architecture",
+      "result": "3002 files; 0 boundary violations; 0 audit violations"
+    },
+    {
+      "scope": "governance_consistency",
+      "result": "0 violations"
+    },
+    {
+      "scope": "active_plan_registry",
+      "result": "version 2026-08-31.v18; 30 units; 0 violations"
+    },
+    {
+      "scope": "format_and_lint",
+      "result": "Black, isort and Ruff passed"
+    },
+    {
+      "scope": "direct_cli",
+      "result": "--help passed; validation-only path covered with network adapters forbidden"
+    }
+  ],
+  "exit_gate": {
+    "repository_contract_complete": true,
+    "staging_execution_complete": false,
+    "current_candidate_capacity_evidence_complete": false,
+    "tar05_satisfied": false,
+    "next_gate": "TAR-05 P1 approved staging/candidate/runtime envelope"
+  },
+  "side_effects": {
+    "staging_or_production_network_access": false,
+    "load_generated": false,
+    "external_provider_or_mcp_called": false,
+    "runtime_flag_changed": false,
+    "worker_started_or_restarted": false,
+    "fault_injected": false,
+    "deployment_or_rollback": false,
+    "production_write": false
+  }
+}

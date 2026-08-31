@@ -1,6 +1,6 @@
 {
-  "version": "2026-08-30.v16",
-  "updated_at": "2026-08-30",
+  "version": "2026-08-31.v18",
+  "updated_at": "2026-08-31",
   "execution_focus": {
     "unit_id": null,
     "allowed_parallel_execution_modes": [
@@ -8,7 +8,7 @@
       "external",
       "governance"
     ],
-    "policy": "Personal-project single-owner mode is active under docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json. The user is the sole human project owner, so the same owner may hold owner, business, operations, root and reviewer roles and no second-person signature is required. This removes only multi-person ceremony; it never supplies missing authority rows, typed runtime values, business definitions, retained observations, staging, model/broker outcomes or elapsed time. TUI-01 and TUI-03 are completed. TUI-02 is active on immutable commit 80ea002bf910110621022a70e4f1ec5c1b704a56 / release 20260830215638: retained Prometheus is healthy with 21d/4GB bounds and authenticated query access, the canonical observation window is 2026-08-30..2026-09-13, production-safe UAT passed 10/10 and 108/108 with two zero-residual receipts, candidate cleanup passed 8/8, isolated rollback passed and a protected generation-30 registry backup passed sidecar and restore dry-run verification. Readiness is still 5/10 DENY until the real window elapses and structured defects, 101-task telemetry, post-window backup attestation, review snapshot and sole-owner role-bound attestations exist. No repository unit is active. DATA/AUD/EVID/STRAT/TAR technical gates remain fail-closed; owner delegation permits their exact phases once prerequisites exist but does not fabricate results."
+    "policy": "Personal-project single-owner mode is active under docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json. The user is the sole human project owner, so the same owner may hold owner, business, operations, root and reviewer roles and no second-person signature is required. This removes only multi-person ceremony; it never supplies missing authority rows, typed runtime values, business definitions, retained observations, staging, model/broker outcomes or elapsed time. TUI-01 and TUI-03 are completed. TUI-02 is active on immutable commit 80ea002bf910110621022a70e4f1ec5c1b704a56 / release 20260830215638: retained Prometheus is healthy with 21d/4GB bounds and authenticated query access, the canonical observation window is 2026-08-30..2026-09-13, production-safe UAT passed 10/10 and 108/108 with two zero-residual receipts, candidate cleanup passed 8/8, isolated rollback passed and a protected generation-30 registry backup passed sidecar and restore dry-run verification. Readiness is still 5/10 DENY until the real window elapses and structured defects, 101-task telemetry, post-window backup attestation, review snapshot and sole-owner role-bound attestations exist. TAR-06 is completed: the repository now has a fail-closed non-production 1/5/10/20 HTTP/Prometheus collector with no-network default validation, exact candidate/preflight binding, twenty distinct stdin actors, explicit unavailable metrics and secret-free content-addressed evidence. No staging run was performed and this does not satisfy TAR-05, enable queued runtime, authorize paid provider calls or permit production faults. No repository unit is active. DATA/AUD/EVID/STRAT/TAR technical gates remain fail-closed; owner delegation permits their exact phases once prerequisites exist but does not fabricate results."
   },
   "workstreams": [
     {
@@ -201,7 +201,7 @@
       "priority": "P0",
       "owner": "agent_runtime+terminal+task_monitor+operational_readiness+sdk+mcp",
       "status": "production_validation",
-      "next_gate": "TAR-01 through TAR-04 repository contracts are complete and immutable commit 36b72d2fc01604afdb15d236a1e91d082fb62a5b / release 20260830071422 is deployed with queued runtime still not accepted. The final release report proves the candidate and basic Web/Celery/PostgreSQL/Redis health but does not show a dedicated Terminal Agent Worker or re-attest the final runtime manifest and complete flag snapshot. Historical 71e62773 capacity evidence is nonportable. A candidate-bound TAR-05 preflight, phased return template, stable review entry and checklist now exist under docs/reviews/release-36b72d2f/terminal-runtime/. Next obtain and validate only the P1 report containing real Operations/Product/QA-Security/operator identities, approved staging, exact runtime manifest/flags/resources, bounded traffic/cost/retention envelope and rollback ownership. P2 1/5/10/20 capacity, P3 chaos, P4 real provider/MCP UAT, P5 production staff canary, P6 observation/cutover and P7 inline retirement remain separately dependency-gated and cannot be pre-signed. Queued/worker defaults, capacity_ready=false and concurrency above one remain fail-closed until their real gates pass.",
+      "next_gate": "TAR-01 through TAR-04 and TAR-06 repository contracts are complete. The opt-in collector now defaults to no-network validation, refuses known production targets, requires an exact candidate/preflight and twenty distinct staging actors, drives a bounded 1/5/10/20 staircase, preserves unavailable Prometheus values and writes secret-free content-addressed source/snapshot/canonical evidence. No real staging run exists yet. Immutable commit 36b72d2fc01604afdb15d236a1e91d082fb62a5b / release 20260830071422 remains deployed with queued runtime not accepted; historical 71e62773 capacity evidence is nonportable. TAR-05 P1 must now supply a real approved staging identity, exact runtime manifest/flags/resources, dedicated Worker, query map and bounded provider profile before validation-only may become an explicit staging execution. P2 capacity, P3 chaos, P4 real provider/MCP UAT, P5 production staff canary, P6 observation/cutover and P7 inline retirement remain separately dependency-gated. Queued/worker defaults, capacity_ready=false and concurrency above one remain fail-closed.",
       "documents": [
         {
           "path": "docs/plans/terminal-agent-multi-user-runtime-plan-2026-08-18.md",
@@ -277,7 +277,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-08-30.v16",
+    "version": "2026-08-31.v18",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -360,7 +360,7 @@
       {
         "id": 1,
         "title": "Decision safety, audit and urgent runtime isolation",
-        "rule": "Run one major repository line at a time; EVID-01 is the current bounded P0 repository priority. TAR-01 through TAR-04 repository contracts are complete; declared production auto-collection continues in parallel without weakening Evidence or Audit gates."
+        "rule": "Run one major repository line at a time. TAR-01 through TAR-04 repository contracts are complete; the current repository focus is resolved exclusively through execution_focus, while declared production auto-collection continues in parallel without weakening Evidence or Audit gates."
       },
       {
         "id": 2,
@@ -370,7 +370,7 @@
       {
         "id": 3,
         "title": "Candidate release and user acceptance",
-        "rule": "Bind deployment, browser UAT, telemetry and sign-off to one immutable candidate."
+        "rule": "Bind deployment, browser UAT, telemetry and sign-off to one immutable candidate. TAR-06 completed the fail-closed staging load/metrics collector required before TAR-05; code availability is not capacity acceptance."
       },
       {
         "id": 4,
@@ -769,6 +769,19 @@
         }
       },
       {
+        "id": "TAR-06",
+        "workstream_id": "terminal-agent-multi-user-runtime",
+        "wave": 3,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "completed",
+        "title": "Build the fail-closed staging load and metrics collector",
+        "depends_on": [
+          "TAR-04"
+        ],
+        "exit_gate": "An opt-in runner refuses production targets, validates an exact candidate and bounded multi-actor staging envelope before network I/O, drives the 1/5/10/20 queued API staircase, collects HTTP and Prometheus observations with explicit unavailable semantics, and emits secret-free content-addressed source and canonical evidence without enabling runtime or claiming TAR-05 acceptance."
+      },
+      {
         "id": "AI-01",
         "workstream_id": "ai-native-release",
         "wave": 3,
@@ -803,7 +816,8 @@
         "status": "awaiting_production",
         "title": "Prove capacity, chaos recovery and production cutover",
         "depends_on": [
-          "TAR-03"
+          "TAR-03",
+          "TAR-06"
         ],
         "exit_gate": "The immutable candidate passes 1/5/10/20-user load, fairness, duplicate, worker-crash, Redis outage, model-timeout, Web SLO, rollback and observation gates before inline retirement or any capacity increase.",
         "evidence_collection": {
