@@ -1,5 +1,36 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+.gitattributes text eol=lf
 
 # Shell scripts run inside Linux containers and must remain executable by POSIX shells.
 *.sh text eol=lf
+
+# Hash-bound evidence must retain the repository bytes on every platform.
+*.sha256 text eol=lf
+docs/deployment/aud03-data02-production-review-return-template-2026-08-30-36b72d2f.json text eol=lf
+docs/deployment/aud03-operational-observation-select-only-2026-08-31-80ea002b.json text eol=lf
+docs/deployment/aud03-successor-production-readonly-checkpoint-2026-08-31-80ea002b.json text eol=lf
+docs/deployment/closure-review-team-handoff-2026-08-30-36b72d2f.md text eol=lf
+docs/deployment/evid-01-evid-02-production-review-return-template-2026-08-30-36b72d2f.json text eol=lf
+docs/deployment/evid-strat-production-authorization-preflight-2026-08-30-36b72d2f.json text eol=lf
+docs/deployment/evid-strat-review-team-handoff-2026-08-30-36b72d2f.md text eol=lf
+docs/deployment/personal-project-single-owner-authorization-2026-08-30-36b72d2f.json text eol=lf
+docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json text eol=lf
+docs/deployment/strat-01-business-owner-review-return-template-2026-08-30-36b72d2f.json text eol=lf
+docs/deployment/tar05-operations-review-return-template-2026-08-30-36b72d2f.json text eol=lf
+docs/deployment/tar05-production-authorization-preflight-2026-08-30-36b72d2f.json text eol=lf
+docs/deployment/tar05-review-team-handoff-2026-08-30-36b72d2f.md text eol=lf
+docs/deployment/tui-m5-operations-review-return-template-2026-08-30-36b72d2f.json text eol=lf
+docs/deployment/tui02-production-day0-checkpoint-2026-08-30-80ea002b.json text eol=lf
+docs/deployment/tui02-production-monitoring-deployment-evidence-2026-08-30.json text eol=lf
+docs/deployment/tui02-production-observation-checkpoint-2026-08-31-80ea002b.json text eol=lf
+docs/deployment/web-to-tui-deployment-preflight-20260830215638.json text eol=lf
+docs/reviews/release-36b72d2f/evidence-strategy/review-checklist.json text eol=lf
+docs/reviews/release-36b72d2f/review-checklist.json text eol=lf
+docs/reviews/release-36b72d2f/terminal-runtime/review-checklist.json text eol=lf
+docs/testing/aud04-audit-archive-rehearsal-repository-closure-evidence-2026-08-31.json text eol=lf
+docs/testing/data04-asgi-db-select-only-preview-repository-closure-evidence-2026-08-31.json text eol=lf
+docs/testing/data05-financial-repository-owner-closure-evidence-2026-08-31.json text eol=lf
+docs/testing/tar06-staging-collector-repository-closure-evidence-2026-08-31.json text eol=lf
+docs/testing/tar06-staging-preflight-corrective-closure-evidence-2026-08-31.json text eol=lf
+docs/testing/tui03-retained-monitoring-repository-closure-evidence-2026-08-30.json text eol=lf
