@@ -1,8 +1,8 @@
 # 发布阻塞清零综合实施方案（2026-08-29）
 
-> 状态：执行中；`DATA-01` 已关闭，`DATA-02/03` 候选已部署且生产 dry-run 已完成，但真实执行被 Audit typed authority/profile 缺口正确阻断；TUI 最终候选的机器 UAT、清理矩阵、隔离回滚与原始 registry 备份已完成，决策总闸仍保持 `blocked`
+> 状态：执行中；`DATA-01` 已关闭，`DATA-04/05` repository 修复已完成但尚未部署；successor PostgreSQL client 仍耗尽，`DATA-02/03` 继续 fail-closed；TUI successor 的机器 UAT、清理矩阵、隔离回滚与 retained source 已形成，但候选变更会重置其观察窗口
 > 机器状态真源：`governance/active_plan_registry.json`
-> 适用 closure units：`DATA-01/02/03`、`AUD-03`、`EVID-01/02/03`、`STRAT-01/02/03`、`TUI-01/02`、`TAR-05`、`AI-01`、`QMT-01/02`
+> 适用 closure units：`DATA-01/02/03/04`、`AUD-03/04`、`EVID-01/02/03`、`STRAT-01/02/03`、`TUI-01/02`、`TAR-05/06`、`AI-01`、`QMT-01/02`
 > 原则：本文只编排既有 unit，不建立第二套状态、不降低阈值、不代签、不伪造 PIT/OOS 历史，也不把生产写入授权扩大为实盘交易授权。
 > 授权记录（2026-08-30）：用户已授权 A1–A8 动作包继续执行；每个动作仍受其前置门、精确目标、回滚点、外部环境和真实 owner/reviewer 决策约束，授权不等于验收通过。
 
@@ -505,3 +505,57 @@ SHA-256=`1cff7915f03e3c12618ada5e4b02fd3d81741db16c121cd3aef362192a9e4d85`。
 而是维持候选和 retained source 到 2026-09-13；届时收集 structured defect/101-task telemetry、导出
 post-window registry backup/attestation、生成 review snapshot，再由同一 owner 写入 owner/reviewer 两个
 role-bound attestations。日期未到前不重复生成最终证据，也不把 Day 0 backup 当成 final attestation。
+
+### 13.17 AUD-04 repository archive/rehearsal checkpoint
+
+在不触碰生产的前提下，AUD-04 已补齐候选绑定的审计归档与隔离恢复演练能力：归档源读取要求
+provider-issued reader context，并在读取前后复核 exact candidate；归档窗口采用半开区间、限定 scope、
+确定性排序和成员上限；canonical JSON codec、manifest/stream anchor/replay hash、严格 schema 与重复键
+拒绝共同防止替换或降级；恢复目标被固定为 `memory_only`，结果固定
+`production_claim=false`、`production_ready=false`。内容寻址归档存储只提供写入和校验读取，没有删除接口。
+
+Repository exit 证据为
+[`aud04-audit-archive-rehearsal-repository-closure-evidence-2026-08-31.json`](../testing/aud04-audit-archive-rehearsal-repository-closure-evidence-2026-08-31.json)，
+SHA-256=`1c64e66a5a975b9041f7c1e34291cc0b6d4de8f11d3d16d48f657c8507f4e317`。聚焦回归
+`32 passed`，audit 全量回归 `531 passed, 5 skipped`；增量 mypy、债务上限、Black、isort、Ruff、
+全量架构扫描及 active-plan registry 校验均通过。治理状态为 `AUD-04=completed`、
+`execution_focus=null`，AUD-03 依赖更新为 `AUD-02 + AUD-04`。
+
+这不是 AUD-03 的生产批准或生产验收：仍未执行生产 reader/writer、archive/restore/delete、故障注入、
+运行时 profile 切换、部署或 canary。AUD-03 只有在真实生产 authority/profile 可用，并完成受控写入、
+恢复/归档演练和负面查询后才能关闭；原生产 exit 标准不因 AUD-04 完成而降低。
+
+### 13.18 DATA-04 PostgreSQL client saturation corrective
+
+2026-08-31 的 successor-bound DATA-02 SELECT-only preview 在业务计算前被 PostgreSQL
+`too many clients already` 阻断。只读证据固定：`max_connections=100`、保留槽位 `3`，database
+health、service readiness、Audit health 均为 `503`；依赖无关 liveness 仍为 `200`。Web 容器占据
+绝大多数 idle client，并按约 30 秒累积；这与 DB-backed Prometheus scrape 周期以及生产
+Daphne/ASGI 的 `CONN_MAX_AGE=600` 同时存在。源码还证明 coverage-universe 的所谓读取通过
+`get_or_create` 可能隐式写入。
+
+`DATA-04` repository exit 已把生产 `CONN_MAX_AGE` 固定为 `0`，读配置改为纯 SELECT +
+`MISSING_CONFIG` fail-closed，显式 PUT/save 成为唯一初始化边界，并补管理命令、API、repository 与
+production-settings 合同。证据
+[`data04-asgi-db-select-only-preview-repository-closure-evidence-2026-08-31.json`](../testing/data04-asgi-db-select-only-preview-repository-closure-evidence-2026-08-31.json)
+SHA-256=`aaaa675ed5bc078a916244de91bf2a335da5e2519883b312c2cc1dd0a034ea8d`；聚焦 `18 passed`，
+增量/全量 mypy、current-data、架构、格式、Django、migration 与治理门禁通过。
+
+本次未终止生产 session、重启、部署、写库或回填，故不宣称 incident recovered。
+`DATA-02` 新增 `DATA-04` 依赖；下一步必须另行授权部署含修复的 clean candidate，验证连接数跨多个
+scrape interval 不增长且 readiness 恢复，再重跑 candidate-bound dry-run。部署或重启将使当前 TUI
+观察候选发生变化，必须按 TUI-02 规则重绑定并重新计时，不能保留旧窗口完成度。
+
+### 13.19 DATA-05 financial repository bounded-owner corrective
+
+DATA-04 扩大回归确认一个独立 HEAD CI blocker：`financial_fact_repository.py=243` 非空行，超过
+`200` 行预算，且修改前工作树与 HEAD 完全一致。DATA-05 在不改公开 repository identity/behavior 的
+前提下，把 availability preview/backfill 持久化抽到 65/100 行的独立 owner，原模块降到 189/200；
+结构门预算和债务基线均未提高。新 owner 同步纳入 current-data source/marker 清单。
+
+证据
+[`data05-financial-repository-owner-closure-evidence-2026-08-31.json`](../testing/data05-financial-repository-owner-closure-evidence-2026-08-31.json)
+SHA-256=`7c535f2a1802561be3430a8a9a2149da4ab08b885f2ad672f96828209da8a56a`；聚焦 `12 passed`，
+扩大回归 `70 passed`，mypy/debt、current-data、格式、3,006-file architecture、Django/migration 与
+治理门禁通过。该单元纯 repository 整理，未连接/写入生产、未重启/部署/backfill，不解除 DATA-02
+生产阻塞，也不改变 TUI-02 候选/观察规则。

@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-31.v19",
+  "version": "2026-08-31.v27",
   "updated_at": "2026-08-31",
   "execution_focus": {
     "unit_id": null,
@@ -8,7 +8,7 @@
       "external",
       "governance"
     ],
-    "policy": "Personal-project single-owner mode is active under docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json. The user is the sole human project owner, so the same owner may hold owner, business, operations, root and reviewer roles and no second-person signature is required. This removes only multi-person ceremony; it never supplies missing authority rows, typed runtime values, business definitions, retained observations, staging, model/broker outcomes or elapsed time. TUI-01 and TUI-03 are completed. TUI-02 is active on immutable commit 80ea002bf910110621022a70e4f1ec5c1b704a56 / release 20260830215638: retained Prometheus is healthy with 21d/4GB bounds and authenticated query access, the canonical observation window is 2026-08-30..2026-09-13, production-safe UAT passed 10/10 and 108/108 with two zero-residual receipts, candidate cleanup passed 8/8, isolated rollback passed and a protected generation-30 registry backup passed sidecar and restore dry-run verification. Readiness is still 5/10 DENY until the real window elapses and structured defects, 101-task telemetry, post-window backup attestation, review snapshot and sole-owner role-bound attestations exist. TAR-06 and its same-day corrective are completed: the non-production 1/5/10/20 HTTP/Prometheus collector defaults to no network, rejects production targets, requires a semantic APPROVE valid for at most 24 hours and bound to the complete candidate/target/runtime/workload/query envelope, limits action scope to staging load, requires a non-billable stub with MCP disabled, rechecks approval and a live dedicated-worker heartbeat before every concurrency level, and consumes a one-shot internal authorization before each load without reauthorizing an attempted level after partial failure. Twenty distinct stdin actors, explicit unavailable metrics and secret-free content-addressed evidence remain mandatory. No staging run was performed and this does not satisfy TAR-05, enable queued runtime, authorize paid provider calls, change flags or permit faults. No repository unit is active. DATA/AUD/EVID/STRAT/TAR technical gates remain fail-closed; owner delegation permits their exact phases once prerequisites exist but does not fabricate results."
+    "policy": "Personal-project single-owner mode remains active under docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json: one real owner may hold all governance roles, but signatures never manufacture authority rows, typed runtime values, business definitions, retained observations, staging outcomes or elapsed time. DATA-04 is completed with repository evidence docs/testing/data04-asgi-db-select-only-preview-repository-closure-evidence-2026-08-31.json (SHA-256 aaaa675ed5bc078a916244de91bf2a335da5e2519883b312c2cc1dd0a034ea8d); its live incident remains unrecovered until a separately authorized clean deployment and production revalidation. DATA-05 is completed with evidence docs/testing/data05-financial-repository-owner-closure-evidence-2026-08-31.json (SHA-256 7c535f2a1802561be3430a8a9a2149da4ab08b885f2ad672f96828209da8a56a): the existing financial owner is 189/200 lines, the extracted availability owner is 65/100, public repository identity and current-data behavior remain compatible, and the prior 243/200 HEAD CI failure is closed without raising a budget or baseline. No production read/write, session termination, restart, deployment or backfill was executed by DATA-05. TUI-02 remains 5/10 DENY; any later candidate change must rebind/reset its observation clock. No repository unit is active. DATA/AUD/EVID/STRAT/TAR technical gates remain fail-closed."
   },
   "workstreams": [
     {
@@ -88,7 +88,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "DATA-01 is complete. Commit 36b72d2fc01604afdb15d236a1e91d082fb62a5b is deployed as release 20260830071422 and the DATA-02 dry-run completed without writes: universe=5,533; financial repair eligibility=288,409 rows / 3,750 assets with zero unresolved/future rows; completed-session price eligibility=0 with 5,533 stale/invalid assets; quote/price/valuation publications are full but stale and financial is 1,923/5,533. The candidate-bound authorization package now fixes the execute command inputs (operator, approved source, batch size 1..500), stop conditions and accepted rollback-point decision. Historical-price/financial probes and quote/valuation batches can write facts before the final atomic four-publication switch; a later failure must preserve source identity and reconcile exact partial facts, never blanket-delete. Do not execute until named owner/root/reviewer inputs and receipts are supplied, the forward Audit profile successor and exact authority heads are separately authorized, and the read-only writer preflight passes. Reconcile all four publications before DATA-03.",
+      "next_gate": "DATA-01, DATA-04 and DATA-05 repository work are complete. DATA-05 closes the existing financial repository 243/200 CI blocker as 189/200 plus a governed 65/100 availability owner without behavior or budget changes; evidence is docs/testing/data05-financial-repository-owner-closure-evidence-2026-08-31.json, SHA-256 7c535f2a1802561be3430a8a9a2149da4ab08b885f2ad672f96828209da8a56a. Deployed successor 80ea002bf910110621022a70e4f1ec5c1b704a56 / release 20260830215638 remains in a PostgreSQL client-saturation incident: max_connections=100, database/service/Audit readiness is 503, and Web-origin idle clients dominate. DATA-04 pins production Daphne/ASGI CONN_MAX_AGE=0, removes the get_or_create read side effect, fails closed with MISSING_CONFIG and preserves explicit PUT/save initialization, but the fix is not deployed and the incident is not claimed recovered. DATA-02 remains awaiting production and depends on a separately authorized clean candidate deployment, restored database/service readiness, stable Web connection count across multiple 30-second scrape intervals and a candidate-bound dry-run proving no write statements before any backfill. Any candidate change must also rebind and reset TUI-02 observation rather than preserve old elapsed-time acceptance.",
       "documents": [
         {
           "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
@@ -135,7 +135,7 @@
       "priority": "P0/P1",
       "owner": "audit+data_center+task_monitor",
       "status": "production_validation",
-      "next_gate": "AUD-01 and the corrective AUD-02 repository exit remain complete on deployed commit 36b72d2fc01604afdb15d236a1e91d082fb62a5b / release 20260830071422. The final-candidate AUD-03 SELECT-only snapshot confirms 496 applied migrations with no pending plan, audit.0013 present, operation logs/failures 563/0, zero outbox backlog and public audit health 200/OK; alerts/admin TUI/recovery/archive remain explicitly unavailable. The authorization preflight proves active production profile v2 and snapshot identity/hash are internally consistent but current-catalog validation fails on mode, outbox_enabled and authority_selector; the loader stops at mode_invalid and the exact actor plus owner/tenant authority reader tables are zero. Named production owner, independent root approver and reviewer must fill real identities, receipt hashes, six exact ledger-head fields, mode/outbox decision and activation actor/reason. Then separately authorize a higher-version forward profile successor, run read-only writer/authority preflight, and only afterward authorize DATA-02. Rollback must also be a higher-version forward successor. Do not repeat unchanged probes.",
+      "next_gate": "AUD-01, corrective AUD-02 and repository unit AUD-04 are complete. AUD-04 adds an authority-gated and candidate-revalidated half-open ledger-window read, deterministic event/source/manifest/stream-anchor hashing, strict closed-schema bytes, append-only content-addressed storage, and memory-only isolated exact stream replay. It rejects candidate drift before and after reads, scope/window substitution, truncation, duplicate members, sequence loss, predecessor forks, non-canonical bytes, sidecar drift and attempts to set a production claim. The repository checkpoint is docs/testing/aud04-audit-archive-rehearsal-repository-closure-evidence-2026-08-31.json; it does not claim or execute production archive/restore. The successor production checkpoint on commit 80ea002bf910110621022a70e4f1ec5c1b704a56 still has missing_section_count=2: recovery and archive/restore remain unavailable in production. Next establish canonical authority/profile inputs and writer smoke, then invoke the new archive/replay capability only under an exact production action authorization, separately evidence controlled rollback/recovery, and finally record the sole owner confirmation. Do not repeat unchanged read-only probes or treat the local isolated result as AUD-03 acceptance.",
       "documents": [
         {
           "path": "docs/plans/system-audit-log-consolidation-plan-2026-08-13.md",
@@ -150,7 +150,7 @@
       "priority": "P0",
       "owner": "terminal+operational_readiness",
       "status": "production_validation",
-      "next_gate": "TUI-01 and TUI-03 are completed. The manifest-backed candidate commit 80ea002bf910110621022a70e4f1ec5c1b704a56 is deployed as release 20260830215638 / image sha256:54cb9646912c494d64c1eb664b6a3a8af772c36f5388d8456d669285398c39fc. Prometheus is healthy with pinned image, 21d/4GB persistent retention, exact rules and authenticated HTTPS query access; the canonical observation window is 2026-08-30..2026-09-13. Candidate-bound production-safe UAT passed 10/10 and 108/108 across regular/operator/admin with two same-run zero-residual receipts; cleanup passed 8/8 across all six 108-route scopes, isolated rollback passed, and protected registry generation 30 passed sidecar plus restore dry-run verification. Evidence is docs/deployment/tui02-production-day0-checkpoint-2026-08-30-80ea002b.json. TUI-02 is active and readiness remains 5/10 DENY. Next retain real samples without backfill, then on or after 2026-09-13 collect structured blocking-defect and 101-task telemetry snapshots, export the post-window registry attestation, build the review snapshot and record both role-bound attestations from the sole owner.",
+      "next_gate": "TUI-01 and TUI-03 are completed. The manifest-backed candidate commit 80ea002bf910110621022a70e4f1ec5c1b704a56 is deployed as release 20260830215638 / image sha256:54cb9646912c494d64c1eb664b6a3a8af772c36f5388d8456d669285398c39fc. Production read-only evidence docs/deployment/tui02-production-observation-checkpoint-2026-08-31-80ea002b.json (SHA-256 db055a18e86d3b0da10a8612e92b75bf4ef5c2860d7ca34b21166f1efa3b0d2a) confirms no candidate drift or Prometheus restart, a healthy persistent 21d/4GB source, 17 healthy rules, authenticated query access and first retained raw sample 2026-08-30T15:09:35.034000Z. The exact earliest complete 14-day instant is 2026-09-13T15:09:35.034000Z. Candidate-bound production-safe UAT passed 10/10 and 108/108 across regular/operator/admin with two same-run zero-residual receipts; cleanup passed 8/8 across all six 108-route scopes, isolated rollback passed, and protected registry generation 30 passed sidecar plus restore dry-run verification. TUI-02 is active and readiness remains 5/10 DENY. Retain the unchanged real source without backfill; only at or after the exact eligible instant may v2 structured blocking-defect and 101-task telemetry snapshots be built, followed by a new registry attestation, review snapshot and the sole owner's role-bound attestations.",
       "documents": [
         {
           "path": "docs/plans/web-to-tui-migration-plan-2026-07-25.md",
@@ -277,7 +277,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-08-31.v19",
+    "version": "2026-08-31.v25",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -480,6 +480,19 @@
         "exit_gate": "Fetch, validation, failover, persistence and publication events use the canonical event/outbox transaction and can be replayed without silent loss."
       },
       {
+        "id": "AUD-04",
+        "workstream_id": "system-audit-consolidation",
+        "wave": 1,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "completed",
+        "title": "Build candidate-bound audit archive and isolated restore rehearsal",
+        "depends_on": [
+          "AUD-02"
+        ],
+        "exit_gate": "A scoped immutable audit window can be exported into a deterministic candidate-bound archive, every event/content/predecessor anchor is revalidated, and the bytes can be restored into a memory-only isolated namespace for exact stream replay without enabling production archive, deletion or runtime state."
+      },
+      {
         "id": "AUD-03",
         "workstream_id": "system-audit-consolidation",
         "wave": 2,
@@ -488,7 +501,8 @@
         "status": "awaiting_production",
         "title": "Complete production audit migration and operational acceptance",
         "depends_on": [
-          "AUD-02"
+          "AUD-02",
+          "AUD-04"
         ],
         "exit_gate": "Migration and rollback, backlog recovery observation, bounded metrics, alerts, admin TUI, archive/restore and production sign-off are evidenced.",
         "evidence_collection": {
@@ -573,7 +587,8 @@
         "status": "awaiting_production",
         "title": "Run controlled backfill and canonical reconciliation",
         "depends_on": [
-          "DATA-01"
+          "DATA-01",
+          "DATA-04"
         ],
         "exit_gate": "The production universe is backfilled with observation-time preservation and reconciled against canonical sources within governed tolerances.",
         "evidence_collection": {
@@ -589,6 +604,32 @@
             "A data owner approves any tolerance exception or source-quality waiver."
           ]
         }
+      },
+      {
+        "id": "DATA-04",
+        "workstream_id": "data-production-reliability",
+        "wave": 2,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "completed",
+        "title": "Close ASGI database connection leakage and enforce a SELECT-only DATA-02 preview",
+        "depends_on": [
+          "DATA-01"
+        ],
+        "exit_gate": "The production settings candidate disables persistent request-scoped PostgreSQL connections under Daphne/ASGI, the DATA-02 coverage-universe read path cannot create or mutate configuration, missing configuration fails closed, and focused tests plus architecture, type and governance checks pass."
+      },
+      {
+        "id": "DATA-05",
+        "workstream_id": "data-production-reliability",
+        "wave": 2,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "completed",
+        "title": "Restore the bounded financial repository owner contract",
+        "depends_on": [
+          "DATA-04"
+        ],
+        "exit_gate": "financial_fact_repository.py is at or below its 200-line owner budget, the extracted availability owner is independently bounded and registered, public repository identity and behavior remain compatible, current-data markers remain governed, and focused tests plus architecture, type and governance checks pass."
       },
       {
         "id": "DATA-03",

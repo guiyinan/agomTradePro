@@ -1,0 +1,130 @@
+{
+  "schema": "aud03-successor-production-readonly-checkpoint.v1",
+  "candidate": {
+    "expected": {
+      "commit": "80ea002bf910110621022a70e4f1ec5c1b704a56",
+      "release_id": "20260830215638",
+      "image_id": "sha256:54cb9646912c494d64c1eb664b6a3a8af772c36f5388d8456d669285398c39fc",
+      "matrix_sha256": "e3027671d02d876c9f4b38b9d86395d45e26c0f2b344eb0646086be31869cd5d"
+    },
+    "observed": {
+      "commit": "80ea002bf910110621022a70e4f1ec5c1b704a56",
+      "release_id": "20260830215638",
+      "image_id": "sha256:54cb9646912c494d64c1eb664b6a3a8af772c36f5388d8456d669285398c39fc",
+      "web_started_at": "2026-08-30T14:16:45.642579948Z",
+      "web_restart_count": 0,
+      "identity_projection_sha256": "ed8268a20411b64189307cc52e99f01376728574e5b6b1016caa03399f9279dd"
+    },
+    "drift": false
+  },
+  "observation": {
+    "observed_at": "2026-08-31T05:20:33.464713Z",
+    "environment": "production",
+    "read_mode": "select_only",
+    "database_alias": "default",
+    "raw_envelope": {
+      "path": "docs/deployment/aud03-operational-observation-select-only-2026-08-31-80ea002b.json",
+      "sha256": "dc6792d77f834d773f5586ec7bff1a1e0c59ef8a0198b877c1f55a032f1f4c6c"
+    },
+    "canonical_artifact": {
+      "path": "docs/deployment/aud03-operational-observation/60/6022067c4c615ebd1b92e97da6df03608c261f9e39b3495f288ee3eae622efaf.json",
+      "sha256": "6022067c4c615ebd1b92e97da6df03608c261f9e39b3495f288ee3eae622efaf",
+      "missing_section_count": 2,
+      "production_ready": false,
+      "runtime_enablement": "not_authorized"
+    }
+  },
+  "sources": {
+    "migration_plan": {
+      "boundary": "deployed web container manage.py showmigrations --plan --verbosity 0",
+      "applied_count": 496,
+      "pending_count": 0,
+      "failed_count": 0,
+      "normalized_output_sha256": "57991bbcbe3d4baf86fcbbe6a1ad76f1e9a3e7c168b44e11007d4a09df676372"
+    },
+    "public_audit_health": {
+      "endpoint": "https://demo.agomtrade.pro/api/audit/health/",
+      "http_status": 200,
+      "overall_status": "OK",
+      "generated_at": "2026-08-31T05:20:26.436277Z",
+      "response_sha256": "232d7d2f343aab70ff042024a1ec7f07b6b8d22a614f2004d9f308637fef7f01",
+      "operation_logs": 563,
+      "failures": 0,
+      "failure_rate": 0.0,
+      "outbox": {
+        "pending": 0,
+        "due_pending": 0,
+        "claimed": 0,
+        "expired_claimed": 0,
+        "failed": 0,
+        "delivered": 0
+      }
+    },
+    "prometheus_alerts": {
+      "boundary": "production Prometheus local read-only /api/v1/alerts",
+      "response_sha256": "ce777868edaa04d525edc5f96d3e310828eb72691d53e18cd926dc12805579cc",
+      "active_count": 0,
+      "active_codes": [],
+      "critical_codes": []
+    },
+    "prometheus_rules": {
+      "boundary": "production Prometheus local read-only /api/v1/rules?type=alert",
+      "response_sha256": "e484f7853f29761657c5d6c776e6b3cd224448fa5c69ac7024d0a5fd44472808",
+      "group_count": 2,
+      "rule_count": 12,
+      "unhealthy_count": 0,
+      "rule_names": [
+        "AuditWriteFailure",
+        "CeleryTaskBacklog",
+        "DataCollectionFailure",
+        "DatabaseConnectionPoolExhausted",
+        "DiskSpaceLow",
+        "High5xxRate",
+        "HighAPILatency",
+        "PrometheusStorageBudgetNearLimit",
+        "QlibInferenceFailure",
+        "RedisConnectionFailure",
+        "WebToTuiErrorRateRegression",
+        "WebToTuiLegacyEntryRatioHigh"
+      ]
+    },
+    "candidate_uat": {
+      "path": "config/tui/migration/evidence/web_to_tui_uat_candidate.production-safe.v2.json",
+      "sha256": "e295b3f4adc241ec289df2fca4d669c1a99166c17d10184982f97bcd18eb842b",
+      "recorded_at": "2026-08-30T15:08:46.466824Z",
+      "passed_routes": 108,
+      "required_routes": 108,
+      "audit_route_count": 10,
+      "audit_routes_all_passed": true
+    }
+  },
+  "gate": {
+    "candidate_unchanged": true,
+    "migration_clean": true,
+    "outbox_clean": true,
+    "metrics_available": true,
+    "alerts_available": true,
+    "alerts_clear": true,
+    "admin_tui_available": true,
+    "recovery_evidence_available": false,
+    "archive_restore_evidence_available": false,
+    "aud03_final_authorized": false
+  },
+  "limitations": [
+    "The alert observation proves configured rules are healthy and no alert is active at this instant; it is not a retained alert-history acceptance window.",
+    "The candidate-bound UAT proves the ten migrated Audit route pages in the 108-route suite passed; it does not prove archive or recovery behavior.",
+    "No backlog recovery, fault injection, audit archive, archive restore, database restore, runtime profile activation or authority bootstrap was executed.",
+    "The read-only artifact remains production_ready=false and cannot clear AUD-03 by itself."
+  ],
+  "side_effects": {
+    "production_write": false,
+    "migration": false,
+    "claim_or_publish": false,
+    "fault_injection": false,
+    "archive_or_restore": false,
+    "runtime_activation": false,
+    "deployment_or_restart": false,
+    "business_request": false
+  },
+  "production_claim": false
+}

@@ -2,7 +2,7 @@
 
 > AUD-03 的受控故障、告警、恢复、archive/restore 与签字编排见 [`release-blocker-closure-execution-plan-2026-08-29.md`](release-blocker-closure-execution-plan-2026-08-29.md)。
 
-> 状态：**M0 机器合同与 M1 Domain/codec/schema-only/repository/query/outbox-claim 合同已落盘；业务双写及 M2+ 待评审实施**
+> 状态：**AUD-01/AUD-02 repository exit 已完成；AUD-04 候选绑定归档与内存隔离恢复合同已完成；AUD-03 生产 recovery/archive/restore 仍待真实执行**
 > 创建日期：2026-08-13
 > 优先级：P0（数据可靠性纵向链路）+ P1（其余系统审计面）
 > 建议 Owner：`audit`（统一事件账本）/ 各业务 App（事件语义）/ `task_monitor`（聚合告警）
@@ -1676,3 +1676,68 @@ AUD-03 生产验收。当前无 authority/profile/runtime 写入，`AUD-03=await
 profile 字段、零行 authority heads、writer/recovery/archive/restore/alerts 等技术门。后续可由同一 owner
 receipt 驱动 forward-only profile successor 与 canonical authority bootstrap，但真实写入和结果必须在
 发生后记录，`AUD-03=awaiting_production`。
+
+## 实施记录（2026-08-31，AUD-03 successor alerts/admin TUI 只读重绑定）
+
+生产已经从旧候选推进到 successor commit
+`80ea002bf910110621022a70e4f1ec5c1b704a56` / release `20260830215638` / image
+`sha256:54cb9646912c494d64c1eb664b6a3a8af772c36f5388d8456d669285398c39fc`，因此本次不是对
+`36b72d2f…` 的重复探针。容器 OCI revision 与预期 commit 一致，Web restart count=`0`。部署容器内
+`showmigrations --plan` 共 `496` 项，applied/pending/failed=`496/0/0`；规范化清单 SHA-256=
+`57991bbcbe3d4baf86fcbbe6a1ad76f1e9a3e7c168b44e11007d4a09df676372`。
+
+公网 `/api/audit/health/` 于 `2026-08-31T05:20:26.436277Z` 返回 `200/OK`，operation logs/failures=
+`563/0`、failure rate=`0.0`，outbox pending/due/claimed/expired/failed/delivered 六项均为 `0`。新部署的
+retained Prometheus 通过容器本地只读 API 返回 `2` 个 alert groups、`12` 条 alert rules、unhealthy=`0`、
+active/critical alerts=`0/0`；alerts 与 rules 原始响应 SHA-256 分别为
+`ce777868…79cc`、`e484f785…2808`。同一候选既有 production-safe UAT SHA-256=
+`e295b3f4…842b`，108/108 route 全通过，其中 `10` 个 Audit route page 均通过，因此本 checkpoint 将
+`alerts` 与 `admin TUI` 从 `unavailable` 收敛为 `available/ok`。
+
+原始 envelope
+[`aud03-operational-observation-select-only-2026-08-31-80ea002b.json`](../deployment/aud03-operational-observation-select-only-2026-08-31-80ea002b.json)
+SHA-256=`dc6792d77f834d773f5586ec7bff1a1e0c59ef8a0198b877c1f55a032f1f4c6c`；canonical artifact
+[`6022067c4c615ebd1b92e97da6df03608c261f9e39b3495f288ee3eae622efaf.json`](../deployment/aud03-operational-observation/60/6022067c4c615ebd1b92e97da6df03608c261f9e39b3495f288ee3eae622efaf.json)
+的 SHA 与文件名一致，`missing_section_count` 从 `4` 降为 `2`。完整来源绑定、摘要和停止线见
+[`aud03-successor-production-readonly-checkpoint-2026-08-31-80ea002b.json`](../deployment/aud03-successor-production-readonly-checkpoint-2026-08-31-80ea002b.json)，
+SHA-256=`a5ce4fbd17b254cb440955066a4a66a02e732a03ad22b747ca8f97808a7d182d`。
+
+本次只执行 HTTP GET、Prometheus read API、Docker inspect 与 migration state read；没有生产写入、
+migration、claim/publish、故障注入、archive/restore、runtime 激活、部署或重启。瞬时无 active alert
+不冒充留存告警窗口，108-route UAT 也不冒充 recovery/archive 行为。`AUD-03` 继续
+`awaiting_production`；下一真实门已收敛为 canonical authority/profile 后的 writer smoke、受控
+rollback/recovery、Audit archive/restore 完整性以及技术证据形成后的 single-owner 最终确认。
+
+## 实施记录（2026-08-31，AUD-04 归档与隔离恢复 repository exit）
+
+在 AUD-03 的只读 checkpoint 已把 alerts/admin TUI 收敛、但 recovery 与 archive/restore 仍为
+`unavailable` 后，确认仓库只有运营证据 parser，没有可执行的 Audit archive/restore 软件合同。经唯一真人
+项目所有者授权，本缺口登记为 `AUD-04`，并在实施期间作为唯一 repository focus；它依赖已完成的
+`AUD-02`，且成为 `AUD-03` 的显式前置。该单元现已完成，机器 focus 回到 `null`。
+
+新增 `apps/audit/application/system_audit_archive.py`：只有 provider-issued scoped reader 在 PIT 有效，且
+外部 candidate provider 在账本读取前后两次返回同一 exact commit/release/OCI-or-image revision/matrix
+身份时，才允许读取 `[window_started_at, window_ended_at)` 半开窗口。超过上限时读取 `limit+1` 并整体
+阻断，禁止静默截断；scope/window/order、event identity/content hash、stream sequence、内部 predecessor、
+外部 predecessor anchor 与每 stream replay digest 均重新派生。任何 candidate 漂移、duplicate、loss、
+fork 或替换均 fail closed。
+
+新增 `apps/audit/infrastructure/system_audit_archive_codec.py`：严格 closed-schema canonical JSON 拒绝未知/
+重复 key、非规范时钟/bytes 与 event/manifest substitution；append-only store 只接受绝对、非根目录，按
+artifact SHA-256 分桶写一次并校验同名 sidecar，不提供删除入口。restore use case 只把验证后的 members
+装入 `memory_only` 隔离 namespace 并重放一个 exact stream；输出固定
+`production_claim=false`、`production_ready=false`，尝试改写这两个结论会被拒绝。现有
+`DjangoSystemAuditEventRepository` 增加同样半开、scope/PIT/limit 约束的 closed-world 只读窗口；没有新增
+Model、migration、HTTP/CLI 生产写入口或 retention delete。
+
+聚焦归档/repository tests 为 `32 passed`；Audit unit+component 回归为 `531 passed / 5 skipped`；增量
+mypy 与全量 debt ceiling 均为 `0`，Black/isort/Ruff 通过，architecture 为 `3005 files / 7 rules /
+0 violations`，active registry 为 `v23 / 31 units / 0 violations`。结构化证据为
+[`aud04-audit-archive-rehearsal-repository-closure-evidence-2026-08-31.json`](../testing/aud04-audit-archive-rehearsal-repository-closure-evidence-2026-08-31.json)，
+SHA-256=`1c64e66a5a975b9041f7c1e34291cc0b6d4de8f11d3d16d48f657c8507f4e317`，并附同名 sidecar。
+
+该 exit 只证明源码哈希绑定的 repository 能力，不是生产 archive/restore 结果。本轮未读取或写入生产
+数据库、未写生产文件、未删除 source row、未注入故障、未改 runtime、未部署；`AUD-03` 仍为
+`awaiting_production`。下一步必须先建立真实 canonical authority/profile 与 writer smoke，再对精确
+candidate/window/output root 单独授权生产 canary archive，并把真实 source/restored/manifest/replay hash
+写回 AUD-03；rollback/recovery timeline 与 single-owner 最终确认仍分别以真实事实为准。
