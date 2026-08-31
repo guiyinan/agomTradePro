@@ -1,0 +1,126 @@
+{
+  "schema_version": "aud04-audit-archive-rehearsal-repository-closure.v1",
+  "unit_id": "AUD-04",
+  "recorded_on": "2026-08-31",
+  "repository_head": "9d304d9f49fc1083f294f9ffd4c1f72097357435",
+  "working_tree_binding": {
+    "state": "uncommitted_source_hashes",
+    "files": [
+      {
+        "path": "apps/audit/application/system_audit_archive.py",
+        "sha256": "d8f8e90ff8f9099d4aba743ef499eebf4b947498bb0dc2c8f3cde63170942a66"
+      },
+      {
+        "path": "apps/audit/infrastructure/system_audit_archive_codec.py",
+        "sha256": "fd6b98852af4933e642862dc86926b819072cc78cf92f85253dc2888d16b30f8"
+      },
+      {
+        "path": "apps/audit/infrastructure/system_audit_repository.py",
+        "sha256": "4bca4fd17fdaf434d833cf0c8e82af1753aa13299f39a4b7c8f15e699647a45e"
+      },
+      {
+        "path": "tests/unit/audit/test_system_audit_archive.py",
+        "sha256": "4ec93fdcced5f5fb67294bd722daff8ed2b86de817cd5f32869db3252dd3719b"
+      },
+      {
+        "path": "tests/component/audit/test_system_audit_repository.py",
+        "sha256": "8c35ab2fea5455df740f3a60104c22ed06808e79d73589fc43a0d1dd0e700a92"
+      }
+    ]
+  },
+  "implemented_contract": {
+    "candidate_revalidated_before_and_after_read": true,
+    "provider_issued_scoped_reader_required": true,
+    "half_open_window": "[window_started_at, window_ended_at)",
+    "bounded_member_limit": 10000,
+    "closed_world_repository_restore": true,
+    "event_hash_revalidation": true,
+    "source_sha256": true,
+    "manifest_sha256": true,
+    "stream_predecessor_anchors": true,
+    "stream_replay_sha256": true,
+    "strict_canonical_json": true,
+    "append_only_content_addressed_store": true,
+    "sha256_sidecar_verification": true,
+    "isolated_restore_mode": "memory_only",
+    "exact_stream_replay": true
+  },
+  "fail_closed_cases": [
+    "authority_unavailable",
+    "candidate_unavailable_or_drifted",
+    "scope_substitution",
+    "window_substitution",
+    "member_limit_exceeded",
+    "source_order_invalid",
+    "duplicate_event",
+    "stream_sequence_gap",
+    "stream_predecessor_mismatch",
+    "event_or_manifest_hash_mismatch",
+    "unknown_or_duplicate_json_keys",
+    "non_canonical_bytes",
+    "artifact_or_sidecar_tamper",
+    "production_claim_attempt"
+  ],
+  "validation": {
+    "focused_tests": {
+      "command": "pytest tests/unit/audit/test_system_audit_archive.py tests/component/audit/test_system_audit_repository.py -q",
+      "passed": 32,
+      "failed": 0
+    },
+    "audit_regression": {
+      "command": "pytest tests/unit/audit tests/component/audit -q",
+      "passed": 531,
+      "skipped": 5,
+      "failed": 0
+    },
+    "mypy_regression": {
+      "command": "python scripts/check_mypy_regression.py apps/audit/application/system_audit_archive.py apps/audit/infrastructure/system_audit_archive_codec.py apps/audit/infrastructure/system_audit_repository.py",
+      "regressions": 0,
+      "legacy_errors": 0
+    },
+    "mypy_debt_ceiling": {
+      "command": "python scripts/check_mypy_debt_ceiling.py",
+      "errors": 0
+    },
+    "format_and_lint": {
+      "black": "passed",
+      "isort": "passed",
+      "ruff": "passed"
+    },
+    "architecture": {
+      "command": "python scripts/verify_architecture.py",
+      "scanned_files": 3005,
+      "boundary_rules": 7,
+      "violations": 0
+    },
+    "active_plan_registry": {
+      "version": "2026-08-31.v23",
+      "units": 31,
+      "violations": 0
+    }
+  },
+  "exit_gate": {
+    "repository_unit_completed": true,
+    "production_archive_or_restore_completed": false,
+    "aud03_production_gate_completed": false
+  },
+  "safety_boundary": {
+    "production_database_reads": false,
+    "production_database_writes": false,
+    "production_files_written": false,
+    "source_rows_deleted": false,
+    "fault_injection_executed": false,
+    "runtime_state_changed": false,
+    "deployment_executed": false,
+    "production_claim": false,
+    "production_ready": false
+  },
+  "remaining_production_work": [
+    "establish real canonical Audit authority and runtime profile inputs",
+    "complete writer smoke and controlled recovery timeline evidence",
+    "authorize and execute one candidate-bound production canary archive action",
+    "restore that artifact into an approved isolated production-adjacent namespace",
+    "bind source, restored, manifest and replay hashes into AUD-03 evidence",
+    "record the sole owner's final confirmation only after technical evidence exists"
+  ]
+}

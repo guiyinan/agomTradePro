@@ -372,3 +372,102 @@ def test_correlated_read_is_scope_and_pit_bounded() -> None:
         )
         == scoped_events[:2]
     )
+
+
+def _foreign_root(root: SystemAuditEvent) -> SystemAuditEvent:
+    """Rebuild one root under a distinct identity, stream and scope."""
+
+    return SystemAuditEvent.create(
+        event_id=f"{root.event_id}:foreign",
+        event_version=root.event_version,
+        schema_version=root.schema_version,
+        category=root.category,
+        event_type=root.event_type,
+        owner=root.owner,
+        write_policy=root.write_policy,
+        outcome=root.outcome,
+        severity=root.severity,
+        reason_codes=root.reason_codes,
+        occurred_at=root.occurred_at,
+        recorded_at=root.recorded_at,
+        observed_at=root.observed_at,
+        actor=root.actor,
+        source_app=root.source_app,
+        source_component=root.source_component,
+        source_surface=root.source_surface,
+        correlations=root.correlations,
+        resource=root.resource,
+        dataset_key=root.dataset_key,
+        provider_key=root.provider_key,
+        capability=root.capability,
+        publication_id=root.publication_id,
+        evidence_refs=root.evidence_refs,
+        scope=OTHER_SCOPE,
+        detail_schema=root.detail_schema,
+        detail=root.detail,
+        stream_id=f"{root.stream_id}:foreign",
+        sequence_no=1,
+        predecessor_hash=None,
+        idempotency_key=f"{root.idempotency_key}:foreign",
+    )
+
+
+def test_archive_window_read_is_scoped_bounded_and_globally_ordered() -> None:
+    repository = _repository()
+    scoped_events = _correlated_events()
+    foreign = _foreign_root(scoped_events[0])
+    with repository.atomic():
+        for event in (*scoped_events, foreign):
+            repository.append(
+                event,
+                expected_predecessor_hash=None,
+                recorded_at=event.recorded_at,
+            )
+
+    assert (
+        repository.list_archive_window(
+            window_started_at=NOW,
+            window_ended_at=NOW + timedelta(seconds=1),
+            as_of=LATER,
+            scope=SCOPE,
+            limit=3,
+        )
+        == scoped_events[:1]
+    )
+    assert (
+        repository.list_archive_window(
+            window_started_at=NOW,
+            window_ended_at=NOW + timedelta(seconds=3),
+            as_of=LATER,
+            scope=SCOPE,
+            limit=2,
+        )
+        == scoped_events[:2]
+    )
+
+
+@pytest.mark.parametrize(
+    ("started_at", "ended_at", "as_of", "limit", "reason"),
+    [
+        (LATER, NOW, LATER, 1, "window order"),
+        (NOW, NOW, LATER, 1, "window order"),
+        (NOW, LATER + timedelta(seconds=1), LATER, 1, "after the PIT"),
+        (NOW, LATER, LATER, 0, "limit"),
+        (NOW.replace(tzinfo=None), LATER, LATER, 1, "timezone-aware"),
+    ],
+)
+def test_archive_window_read_rejects_unbounded_or_invalid_selectors(
+    started_at: datetime,
+    ended_at: datetime,
+    as_of: datetime,
+    limit: int,
+    reason: str,
+) -> None:
+    with pytest.raises(SystemAuditUnavailable, match=reason):
+        _repository().list_archive_window(
+            window_started_at=started_at,
+            window_ended_at=ended_at,
+            as_of=as_of,
+            scope=SCOPE,
+            limit=limit,
+        )

@@ -226,6 +226,49 @@ class DjangoSystemAuditEventRepository:
             )
         )
 
+    def list_archive_window(
+        self,
+        *,
+        window_started_at: datetime,
+        window_ended_at: datetime,
+        as_of: datetime,
+        scope: AuditScopeRef,
+        limit: int,
+    ) -> tuple[SystemAuditEvent, ...]:
+        """Return one closed-world, scoped and bounded archive window."""
+
+        self._require_cutoff(as_of)
+        for value in (window_started_at, window_ended_at):
+            if value.tzinfo is None or value.utcoffset() is None:
+                raise SystemAuditUnavailable("archive window must be timezone-aware")
+        if window_started_at >= window_ended_at:
+            raise SystemAuditUnavailable("archive window order is invalid")
+        if window_ended_at > as_of:
+            raise SystemAuditUnavailable("archive window ends after the PIT cutoff")
+        if type(limit) is not int or not 1 <= limit <= 10_001:
+            raise SystemAuditUnavailable("archive window limit is invalid")
+        if not isinstance(scope, AuditScopeRef):
+            raise SystemAuditUnavailable("archive window scope is invalid")
+        visible = self._scope_visible(
+            tuple(item.event for item in self._state()),
+            scope=scope,
+        )
+        selected = tuple(
+            event for event in visible if window_started_at <= event.recorded_at < window_ended_at
+        )
+        return tuple(
+            sorted(
+                selected,
+                key=lambda event: (
+                    event.recorded_at,
+                    event.stream_id,
+                    event.sequence_no,
+                    event.event_id,
+                    event.event_version,
+                ),
+            )[:limit]
+        )
+
     def append(
         self,
         event: SystemAuditEvent,
