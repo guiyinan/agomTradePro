@@ -22,12 +22,10 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from threading import Barrier, BrokenBarrierError, Lock
 from typing import Final, Protocol, cast
-from urllib.parse import urlsplit
 
 import requests
 
 from apps.agent_runtime.application.terminal_runtime_baseline import (
-    TerminalRuntimeBaselineCandidate,
     TerminalRuntimeBaselineMetric,
     TerminalRuntimeBaselineMetricStatus,
     required_baseline_metric_keys,
@@ -42,19 +40,23 @@ from apps.agent_runtime.application.terminal_runtime_slo import (
     TerminalRuntimeSloStatus,
     terminal_runtime_slo_criteria,
 )
-from apps.agent_runtime.application.terminal_runtime_test_matrix import (
-    canonical_terminal_runtime_test_matrix_digest,
-)
 from apps.agent_runtime.infrastructure.terminal_runtime_controlled_observer import (
     TerminalRuntimeBaselineCommandReceipt,
     TerminalRuntimeBaselineLoadReceipt,
     TerminalRuntimeBaselineMetricSnapshot,
     TerminalRuntimeBaselineSloSnapshot,
 )
-from core.exceptions import ConfigurationError, ExternalServiceError
+from apps.agent_runtime.infrastructure.terminal_runtime_staging_contract import (
+    TerminalRuntimeStagingApproval,
+    TerminalRuntimeStagingConfigurationError,
+    TerminalRuntimeStagingQuery,
+    TerminalRuntimeStagingRuntimeEnvelope,
+    TerminalRuntimeStagingSpecification,
+    parse_terminal_runtime_staging_manifest,
+)
+from core.exceptions import ExternalServiceError
 from shared.numeric import safe_float
 
-_FORMAT: Final[str] = "terminal-runtime-staging-harness.v1"
 _SOURCE_FORMAT: Final[str] = "terminal-runtime-staging-source.v1"
 _RUN_PATH: Final[str] = "/api/terminal/runs/"
 _QUEUE_PATH: Final[str] = "/api/terminal/runs/queue/"
@@ -63,11 +65,6 @@ _PROMETHEUS_QUERY_PATH: Final[str] = "/api/v1/query"
 _REQUEST_TEMPLATE: Final[str] = "Return STAGING_OK without tools."
 _MAX_RESPONSE_BYTES: Final[int] = 1024 * 1024
 _TOKEN_RE: Final[re.Pattern[str]] = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
-_SHA256_RE: Final[re.Pattern[str]] = re.compile(r"^[0-9a-f]{64}$")
-_COMPUTED_BASELINE_KEYS: Final[frozenset[str]] = frozenset(
-    {"web_p50_ms", "web_p95_ms", "web_p99_ms"}
-)
-_COMPUTED_SLO_KEYS: Final[frozenset[str]] = frozenset({"run_api_p95_ms"})
 _ALLOWED_REJECTION_REASONS: Final[frozenset[str]] = frozenset(
     {
         "per_user_active_limit",
@@ -76,13 +73,6 @@ _ALLOWED_REJECTION_REASONS: Final[frozenset[str]] = frozenset(
         "global_queued_limit",
     }
 )
-_KNOWN_PRODUCTION_HOSTS: Final[frozenset[str]] = frozenset({"demo.agomtrade.pro"})
-
-
-class TerminalRuntimeStagingConfigurationError(ConfigurationError):
-    """Raised before network I/O when a staging envelope is unsafe or malformed."""
-
-    default_code = "TERMINAL_STAGING_CONFIGURATION_INVALID"
 
 
 class TerminalRuntimeStagingObservationError(ExternalServiceError):
@@ -103,27 +93,12 @@ def _observation_error(message: str) -> TerminalRuntimeStagingObservationError:
     return TerminalRuntimeStagingObservationError(message)
 
 
-def _mapping(value: object, field_name: str) -> Mapping[str, object]:
-    """Narrow one decoded JSON object and require string keys."""
-
-    if not isinstance(value, Mapping) or any(type(key) is not str for key in value):
-        raise _configuration_error(f"{field_name} must be an object")
-    return cast(Mapping[str, object], value)
-
-
 def _observation_mapping(value: object, field_name: str) -> Mapping[str, object]:
     """Narrow one external response object without classifying it as config."""
 
     if not isinstance(value, Mapping) or any(type(key) is not str for key in value):
         raise _observation_error(f"{field_name} is not a JSON object")
     return cast(Mapping[str, object], value)
-
-
-def _exact_keys(value: Mapping[str, object], expected: frozenset[str], field_name: str) -> None:
-    """Reject both missing and unknown operational manifest fields."""
-
-    if set(value) != expected:
-        raise _configuration_error(f"{field_name} has an invalid key set")
 
 
 def _token(value: object, field_name: str) -> str:
@@ -134,33 +109,6 @@ def _token(value: object, field_name: str) -> str:
     return value
 
 
-def _sha256(value: object, field_name: str) -> str:
-    """Require a canonical SHA-256 digest."""
-
-    if type(value) is not str or _SHA256_RE.fullmatch(value) is None:
-        raise _configuration_error(f"{field_name} must be a SHA-256 digest")
-    return value
-
-
-def _positive_integer(value: object, field_name: str, maximum: int) -> int:
-    """Require a bounded positive integer while rejecting booleans."""
-
-    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= maximum:
-        raise _configuration_error(f"{field_name} is outside its bounded range")
-    return value
-
-
-def _positive_number(value: object, field_name: str, maximum: float) -> float:
-    """Require one finite positive operational duration."""
-
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise _configuration_error(f"{field_name} must be numeric")
-    parsed = float(value)
-    if not math.isfinite(parsed) or not 0 < parsed <= maximum:
-        raise _configuration_error(f"{field_name} is outside its bounded range")
-    return parsed
-
-
 def _aware(value: datetime, field_name: str) -> datetime:
     """Require a timezone-aware observation clock."""
 
@@ -169,118 +117,11 @@ def _aware(value: datetime, field_name: str) -> datetime:
     return value
 
 
-def _host(value: object, field_name: str) -> str:
-    """Require a bare, normalized hostname without credentials or a port."""
-
-    if type(value) is not str or not value or value.strip() != value:
-        raise _configuration_error(f"{field_name} is invalid")
-    parsed = urlsplit(f"//{value}")
-    if (
-        parsed.hostname is None
-        or parsed.username is not None
-        or parsed.password is not None
-        or parsed.port is not None
-        or parsed.path not in ("", "/")
-        or parsed.query
-        or parsed.fragment
-    ):
-        raise _configuration_error(f"{field_name} must be a bare hostname")
-    return parsed.hostname.casefold().rstrip(".")
-
-
-def _url(value: object, field_name: str, *, allow_path: bool) -> tuple[str, str]:
-    """Validate a credential-free HTTPS origin, allowing HTTP only on loopback."""
-
-    if type(value) is not str or not value or value.strip() != value:
-        raise _configuration_error(f"{field_name} is invalid")
-    parsed = urlsplit(value)
-    hostname = (parsed.hostname or "").casefold().rstrip(".")
-    loopback = hostname in {"127.0.0.1", "::1", "localhost"}
-    unsafe_path_segment = any(segment in {".", ".."} for segment in parsed.path.split("/"))
-    if (
-        not hostname
-        or parsed.scheme not in ({"http", "https"} if loopback else {"https"})
-        or parsed.username is not None
-        or parsed.password is not None
-        or parsed.query
-        or parsed.fragment
-        or unsafe_path_segment
-        or (not allow_path and parsed.path not in ("", "/"))
-    ):
-        raise _configuration_error(f"{field_name} must be a credential-free safe URL")
-    normalized_path = parsed.path.rstrip("/")
-    normalized = f"{parsed.scheme}://{parsed.netloc}{normalized_path}"
-    return normalized, hostname
-
-
-def _host_is_forbidden(hostname: str, production_hosts: Sequence[str]) -> bool:
-    """Reject an exact production hostname or any of its subdomains."""
-
-    return any(
-        hostname == production_host or hostname.endswith(f".{production_host}")
-        for production_host in production_hosts
-    )
-
-
 def _utc_text(value: datetime) -> str:
     """Serialize one aware clock as canonical UTC text."""
 
     _aware(value, "timestamp")
     return value.astimezone(UTC).isoformat(timespec="microseconds").replace("+00:00", "Z")
-
-
-@dataclass(frozen=True, slots=True)
-class TerminalRuntimeStagingQuery:
-    """One exact Prometheus expression or an explicit unavailable declaration."""
-
-    key: str
-    expression: str | None
-
-    def __post_init__(self) -> None:
-        """Validate query text without accepting empty or oversized expressions."""
-
-        _token(self.key, "query.key")
-        if self.expression is not None and (
-            type(self.expression) is not str
-            or not self.expression.strip()
-            or self.expression.strip() != self.expression
-            or len(self.expression) > 4096
-        ):
-            raise _configuration_error("query.expression is invalid")
-
-
-@dataclass(frozen=True, slots=True)
-class TerminalRuntimeStagingSpecification:
-    """Validated non-production target, candidate, budget, and query envelope."""
-
-    environment: str
-    candidate_identity: TerminalRuntimeBaselineCandidate
-    base_url: str
-    prometheus_url: str
-    production_hosts: tuple[str, ...]
-    task_id: int
-    repetitions: int
-    request_timeout_seconds: float
-    approved_preflight_sha256: str
-    manifest_sha256: str
-    baseline_metric_queries: tuple[TerminalRuntimeStagingQuery, ...]
-    slo_queries: tuple[TerminalRuntimeStagingQuery, ...]
-
-    @property
-    def total_request_budget(self) -> int:
-        """Return the exact 1+5+10+20 request total across repetitions."""
-
-        return sum(required_concurrency_levels()) * self.repetitions
-
-    def baseline_query(self, key: str) -> TerminalRuntimeStagingQuery:
-        """Return the exact baseline query registered for a required key."""
-
-        return next(item for item in self.baseline_metric_queries if item.key == key)
-
-    def slo_query(self, key: str) -> TerminalRuntimeStagingQuery:
-        """Return the exact hard-SLO query registered for a required key."""
-
-        return next(item for item in self.slo_queries if item.key == key)
 
 
 @dataclass(frozen=True, slots=True)
@@ -411,166 +252,19 @@ class TerminalRuntimePrometheusPort(Protocol):
         ...
 
 
-def _parse_query_map(
-    value: object,
-    *,
-    field_name: str,
-    expected_keys: frozenset[str],
-) -> tuple[TerminalRuntimeStagingQuery, ...]:
-    """Parse an exact query map while preserving explicit null entries."""
+class TerminalRuntimeStagingClock(Protocol):
+    """Inject an aware clock so approval-window checks remain deterministic."""
 
-    raw = _mapping(value, field_name)
-    if set(raw) != expected_keys:
-        raise _configuration_error(f"{field_name} must contain every exact required key")
-    queries: list[TerminalRuntimeStagingQuery] = []
-    for key in sorted(expected_keys):
-        expression = raw[key]
-        if expression is not None and type(expression) is not str:
-            raise _configuration_error(f"{field_name} contains an invalid expression")
-        queries.append(TerminalRuntimeStagingQuery(key=key, expression=expression))
-    return tuple(queries)
+    def __call__(self) -> datetime:
+        """Return the current aware time."""
+
+        ...
 
 
-def parse_terminal_runtime_staging_manifest(
-    payload: bytes,
-    *,
-    approved_preflight: bytes,
-) -> TerminalRuntimeStagingSpecification:
-    """Parse one exact manifest and verify its independently supplied preflight.
+def _system_utc_now() -> datetime:
+    """Return the production approval-check clock."""
 
-    The function performs no network I/O.  Target classification, candidate
-    identity, request budget, query coverage, and the preflight digest all fail
-    closed before any staging actor credential is accepted.
-    """
-
-    if type(payload) is not bytes or not payload or len(payload) > _MAX_RESPONSE_BYTES:
-        raise _configuration_error("staging manifest bytes are invalid")
-    if type(approved_preflight) is not bytes or not approved_preflight:
-        raise _configuration_error("approved preflight bytes are required")
-    try:
-        decoded = json.loads(payload.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise _configuration_error("staging manifest is not valid UTF-8 JSON") from exc
-    top = _mapping(decoded, "manifest")
-    _exact_keys(
-        top,
-        frozenset(
-            {
-                "format",
-                "environment",
-                "candidate",
-                "target",
-                "workload",
-                "approved_preflight_sha256",
-                "baseline_metric_queries",
-                "slo_queries",
-            }
-        ),
-        "manifest",
-    )
-    if top["format"] != _FORMAT:
-        raise _configuration_error("staging manifest format is unsupported")
-    environment = _token(top["environment"], "environment")
-    if not environment.startswith(("staging-", "local-")):
-        raise _configuration_error("environment must identify non-production staging")
-
-    candidate_raw = _mapping(top["candidate"], "candidate")
-    _exact_keys(
-        candidate_raw,
-        frozenset(
-            {
-                "candidate_commit",
-                "candidate_release",
-                "oci_revision",
-                "runtime_manifest_digest",
-                "test_matrix_digest",
-            }
-        ),
-        "candidate",
-    )
-    try:
-        candidate = TerminalRuntimeBaselineCandidate(
-            candidate_commit=cast(str, candidate_raw["candidate_commit"]),
-            candidate_release=cast(str, candidate_raw["candidate_release"]),
-            oci_revision=cast(str, candidate_raw["oci_revision"]),
-            runtime_manifest_digest=cast(str, candidate_raw["runtime_manifest_digest"]),
-            test_matrix_digest=cast(str, candidate_raw["test_matrix_digest"]),
-        )
-    except (TypeError, ValueError) as exc:
-        raise _configuration_error("candidate identity is invalid") from exc
-    if candidate.test_matrix_digest != canonical_terminal_runtime_test_matrix_digest():
-        raise _configuration_error("candidate test matrix digest is not canonical")
-
-    target = _mapping(top["target"], "target")
-    _exact_keys(
-        target,
-        frozenset({"base_url", "prometheus_url", "production_hosts"}),
-        "target",
-    )
-    raw_production_hosts = target["production_hosts"]
-    if not isinstance(raw_production_hosts, list) or not raw_production_hosts:
-        raise _configuration_error("production host denylist must be non-empty")
-    declared_production_hosts = tuple(
-        _host(item, "target.production_hosts[]") for item in raw_production_hosts
-    )
-    if len(set(declared_production_hosts)) != len(declared_production_hosts):
-        raise _configuration_error("production host denylist contains duplicates")
-    production_hosts = tuple(sorted(_KNOWN_PRODUCTION_HOSTS | set(declared_production_hosts)))
-    base_url, base_host = _url(target["base_url"], "target.base_url", allow_path=False)
-    prometheus_url, prometheus_host = _url(
-        target["prometheus_url"], "target.prometheus_url", allow_path=True
-    )
-    if _host_is_forbidden(base_host, production_hosts) or _host_is_forbidden(
-        prometheus_host, production_hosts
-    ):
-        raise _configuration_error("production target is forbidden for the staging harness")
-
-    workload = _mapping(top["workload"], "workload")
-    _exact_keys(
-        workload,
-        frozenset({"task_id", "repetitions", "request_timeout_seconds"}),
-        "workload",
-    )
-    task_id = _positive_integer(workload["task_id"], "workload.task_id", 2_147_483_647)
-    repetitions = _positive_integer(workload["repetitions"], "workload.repetitions", 10)
-    timeout = _positive_number(
-        workload["request_timeout_seconds"],
-        "workload.request_timeout_seconds",
-        30.0,
-    )
-    expected_preflight_sha256 = _sha256(
-        top["approved_preflight_sha256"], "approved_preflight_sha256"
-    )
-    if hashlib.sha256(approved_preflight).hexdigest() != expected_preflight_sha256:
-        raise _configuration_error("approved preflight digest does not match")
-
-    baseline_query_keys = required_baseline_metric_keys() - _COMPUTED_BASELINE_KEYS
-    slo_query_keys = (
-        frozenset(criterion.key for criterion in terminal_runtime_slo_criteria())
-        - _COMPUTED_SLO_KEYS
-    )
-    return TerminalRuntimeStagingSpecification(
-        environment=environment,
-        candidate_identity=candidate,
-        base_url=base_url,
-        prometheus_url=prometheus_url,
-        production_hosts=production_hosts,
-        task_id=task_id,
-        repetitions=repetitions,
-        request_timeout_seconds=timeout,
-        approved_preflight_sha256=expected_preflight_sha256,
-        manifest_sha256=hashlib.sha256(payload).hexdigest(),
-        baseline_metric_queries=_parse_query_map(
-            top["baseline_metric_queries"],
-            field_name="baseline_metric_queries",
-            expected_keys=baseline_query_keys,
-        ),
-        slo_queries=_parse_query_map(
-            top["slo_queries"],
-            field_name="slo_queries",
-            expected_keys=slo_query_keys,
-        ),
-    )
+    return datetime.now(UTC)
 
 
 def _percentile(values: Sequence[float], quantile: float) -> float:
@@ -598,6 +292,7 @@ class TerminalRuntimeStagingHarness:
         actors: tuple[TerminalRuntimeStagingActor, ...],
         http_port: TerminalRuntimeStagingHttpPort,
         prometheus_port: TerminalRuntimePrometheusPort,
+        clock: TerminalRuntimeStagingClock | None = None,
     ) -> None:
         """Bind exact actors and external adapters without performing I/O."""
 
@@ -619,13 +314,25 @@ class TerminalRuntimeStagingHarness:
         self._actors = actors
         self._http_port = http_port
         self._prometheus_port = prometheus_port
+        self._clock = clock or _system_utc_now
         self._lock = Lock()
         self._preflight: TerminalRuntimeStagingPreflightObservation | None = None
+        self._authorized_levels: set[int] = set()
+        self._attempted_levels: set[int] = set()
         self._level_observations: dict[
             int, tuple[TerminalRuntimeStagingRequestObservation, ...]
         ] = {}
         self._metric_snapshots: dict[int, TerminalRuntimeBaselineMetricSnapshot] = {}
         self._slo_snapshot: TerminalRuntimeBaselineSloSnapshot | None = None
+        self._worker_heartbeat_age_by_level: dict[int, float] = {}
+
+    def _require_current_approval(self) -> None:
+        """Reject network work outside the parsed approval's exact UTC window."""
+
+        current = _aware(self._clock(), "approval observed_at").astimezone(UTC)
+        approval = self.specification.approval
+        if current < approval.issued_at or current >= approval.expires_at:
+            raise _observation_error("staging approval is not currently valid")
 
     def _validate_level_request(self, request: TerminalRuntimeBaselineObservationRequest) -> None:
         """Require the exact configured environment and candidate."""
@@ -641,10 +348,19 @@ class TerminalRuntimeStagingHarness:
     def execute(
         self, request: TerminalRuntimeBaselineObservationRequest
     ) -> TerminalRuntimeBaselineCommandReceipt:
-        """Run read-only Web/queue/Prometheus preflight once before any load."""
+        """Authorize one level after current approval and live-worker checks."""
 
         self._validate_level_request(request)
+        self._require_current_approval()
         with self._lock:
+            if (
+                request.concurrency in self._authorized_levels
+                or request.concurrency in self._attempted_levels
+                or request.concurrency in self._level_observations
+            ):
+                raise _observation_error(
+                    "staging concurrency level was already authorized or attempted"
+                )
             if self._preflight is None:
                 preflight = self._http_port.preflight(self._actors[0])
                 if type(preflight) is not TerminalRuntimeStagingPreflightObservation:
@@ -659,6 +375,20 @@ class TerminalRuntimeStagingHarness:
                 if prometheus_probe != 1.0:
                     raise _observation_error("staging Prometheus preflight did not pass")
                 self._preflight = preflight
+            heartbeat_query = self.specification.baseline_query("worker_heartbeat_age_seconds")
+            if heartbeat_query.expression is None:
+                raise _observation_error("staging worker heartbeat query is unavailable")
+            worker_heartbeat_age = self._prometheus_port.query(heartbeat_query.expression)
+            if (
+                worker_heartbeat_age is None
+                or not math.isfinite(worker_heartbeat_age)
+                or worker_heartbeat_age < 0
+                or worker_heartbeat_age
+                > self.specification.runtime.worker_heartbeat_max_age_seconds
+            ):
+                raise _observation_error("staging worker heartbeat is stale or unavailable")
+            self._worker_heartbeat_age_by_level[request.concurrency] = worker_heartbeat_age
+            self._authorized_levels.add(request.concurrency)
         return TerminalRuntimeBaselineCommandReceipt(
             environment=request.environment,
             candidate_identity=request.candidate_identity,
@@ -709,8 +439,18 @@ class TerminalRuntimeStagingHarness:
         ):
             raise _observation_error("staging command binding changed")
         with self._lock:
-            if request.concurrency in self._level_observations:
-                raise _observation_error("staging concurrency level was already executed")
+            if request.concurrency not in self._authorized_levels:
+                raise _observation_error(
+                    "staging concurrency level was not authorized by current preflight"
+                )
+            self._authorized_levels.remove(request.concurrency)
+            if (
+                request.concurrency in self._attempted_levels
+                or request.concurrency in self._level_observations
+            ):
+                raise _observation_error("staging concurrency level was already attempted")
+            self._attempted_levels.add(request.concurrency)
+        self._require_current_approval()
 
         observations: list[TerminalRuntimeStagingRequestObservation] = []
         level_actors = self._actors[: request.concurrency]
@@ -783,6 +523,7 @@ class TerminalRuntimeStagingHarness:
         """Compute HTTP percentiles and read every remaining baseline metric."""
 
         self._validate_level_request(request)
+        self._require_current_approval()
         if (
             type(load) is not TerminalRuntimeBaselineLoadReceipt
             or load.environment != request.environment
@@ -868,6 +609,7 @@ class TerminalRuntimeStagingHarness:
     ) -> TerminalRuntimeBaselineSloSnapshot:
         """Build all hard SLO measurements from load timings and exact queries."""
 
+        self._require_current_approval()
         if (
             type(request) is not TerminalRuntimeBaselineCollectionRequest
             or request.environment != self.specification.environment
@@ -912,6 +654,7 @@ class TerminalRuntimeStagingHarness:
 
         if (
             self._preflight is None
+            or set(self._worker_heartbeat_age_by_level) != required_concurrency_levels()
             or set(self._level_observations) != required_concurrency_levels()
             or set(self._metric_snapshots) != required_concurrency_levels()
             or self._slo_snapshot is None
@@ -931,6 +674,11 @@ class TerminalRuntimeStagingHarness:
             "source_binding": {
                 "manifest_sha256": self.specification.manifest_sha256,
                 "approved_preflight_sha256": self.specification.approved_preflight_sha256,
+                "staging_envelope_sha256": self.specification.approval.envelope_sha256,
+                "authorization_id": self.specification.approval.authorization_id,
+                "approved_by": self.specification.approval.approved_by,
+                "approval_issued_at": _utc_text(self.specification.approval.issued_at),
+                "approval_expires_at": _utc_text(self.specification.approval.expires_at),
             },
             "target": {
                 "base_url": self.specification.base_url,
@@ -951,6 +699,16 @@ class TerminalRuntimeStagingHarness:
                 "health_status_code": self._preflight.health_status_code,
                 "queue_status_code": self._preflight.queue_status_code,
                 "worker_ready": self._preflight.worker_ready,
+                "worker_heartbeat_age_seconds": self._worker_heartbeat_age_by_level[
+                    max(required_concurrency_levels())
+                ],
+                "worker_heartbeat_age_seconds_by_level": {
+                    str(level): self._worker_heartbeat_age_by_level[level]
+                    for level in sorted(self._worker_heartbeat_age_by_level)
+                },
+                "worker_heartbeat_max_age_seconds": (
+                    self.specification.runtime.worker_heartbeat_max_age_seconds
+                ),
                 "prometheus_query": "vector(1)",
             },
             "levels": [
@@ -1191,13 +949,16 @@ __all__ = [
     "TerminalRuntimePrometheusCredentials",
     "TerminalRuntimePrometheusPort",
     "TerminalRuntimeStagingActor",
+    "TerminalRuntimeStagingApproval",
     "TerminalRuntimeStagingConfigurationError",
+    "TerminalRuntimeStagingClock",
     "TerminalRuntimeStagingHarness",
     "TerminalRuntimeStagingHttpPort",
     "TerminalRuntimeStagingObservationError",
     "TerminalRuntimeStagingPreflightObservation",
     "TerminalRuntimeStagingQuery",
     "TerminalRuntimeStagingRequestObservation",
+    "TerminalRuntimeStagingRuntimeEnvelope",
     "TerminalRuntimeStagingSpecification",
     "parse_terminal_runtime_staging_manifest",
 ]

@@ -47,6 +47,7 @@ _METRIC_UNITS: Final[dict[str, str]] = {
     "redis_memory_bytes": "bytes",
     "redis_connected_clients": "count",
     "db_connections": "count",
+    "worker_heartbeat_age_seconds": "seconds",
     "mcp_latency_ms": "milliseconds",
     "model_latency_ms": "milliseconds",
 }

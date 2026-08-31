@@ -59,6 +59,7 @@ def _snapshot() -> dict[str, object]:
         "web_p50_ms",
         "web_p95_ms",
         "web_p99_ms",
+        "worker_heartbeat_age_seconds",
     )
     metrics = [
         {"key": key, "status": "observed", "value": 0, "reason": None} for key in metric_keys

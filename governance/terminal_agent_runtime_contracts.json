@@ -22,6 +22,7 @@
       "apps/agent_runtime/application/terminal_runtime_test_matrix.py",
       "apps/agent_runtime/infrastructure/terminal_runtime_baseline_snapshot_observer.py",
       "apps/agent_runtime/infrastructure/terminal_runtime_controlled_observer.py",
+      "apps/agent_runtime/infrastructure/terminal_runtime_staging_contract.py",
       "apps/agent_runtime/infrastructure/terminal_runtime_staging_harness.py",
       "scripts/record_terminal_runtime_baseline_evidence.py",
       "scripts/run_terminal_runtime_staging_baseline.py",
@@ -58,7 +59,7 @@
       "browser workbench queued-run status and durable event replay UX with finite polling",
       "local MCP capability discovery/schema/call/confirmation-resume facade backed by the canonical core tools",
       "strict offline snapshot parsing and content-addressed baseline evidence serialization",
-      "opt-in non-production 1/5/10/20 HTTP/Prometheus staging collector with exact candidate binding, twenty distinct actors, bounded request budget, explicit unavailable metrics and secret-free append-only evidence",
+      "opt-in non-production 1/5/10/20 HTTP/Prometheus staging collector with a semantic 24-hour approval, full executable-envelope binding, isolated non-billable runtime profile, per-level approval/worker-heartbeat preflight, one-shot internal load authorization, twenty distinct actors, bounded request budget, explicit unavailable metrics and secret-free append-only evidence",
       "candidate-bound short-window VPS observation recorded separately from exit readiness"
     ],
     "not_implemented": [
@@ -401,6 +402,7 @@
       "tests/unit/agent_runtime/test_terminal_runtime_baseline.py",
       "tests/unit/agent_runtime/test_terminal_runtime_baseline_collector.py",
       "tests/unit/agent_runtime/test_terminal_runtime_baseline_snapshot_observer.py",
+      "tests/unit/agent_runtime/test_terminal_runtime_staging_harness.py",
       "tests/unit/agent_runtime/test_terminal_runtime_slo.py",
       "tests/unit/agent_runtime/test_terminal_runtime_test_matrix.py",
       "tests/unit/agent_runtime/test_terminal_runtime_contract_manifest.py",
@@ -410,7 +412,9 @@
       "sdk/tests/test_sdk/test_local_cli_contract.py",
       "sdk/tests/test_sdk/test_local_mcp_contract.py",
       "frontend/tui-workbench/tests/workbench-browser.test.mjs",
-      "docs/deployment/tar01-current-production-capacity-2026-08-22-71e62773.json"
+      "docs/deployment/tar01-current-production-capacity-2026-08-22-71e62773.json",
+      "docs/testing/tar06-staging-collector-repository-closure-evidence-2026-08-31.json",
+      "docs/testing/tar06-staging-preflight-corrective-closure-evidence-2026-08-31.json"
     ],
     "next_gate": "Bind candidate-specific server/API and role-based browser/TUI UAT, write receipts/refresh persistence, and runtime enablement to one immutable candidate. Local MCP/TUI queued client integration and browser/TUI streamed-result UX are covered by current evidence. Do not create a user-side Agent package; keep multi-user/global capacity, reconnect/chaos, provider, restore/rollback, telemetry and human sign-off bound to TAR-05.",
     "production_evidence_missing": [
@@ -437,9 +441,28 @@
     "offline_snapshot_format": "terminal-runtime-baseline-snapshot.v1",
     "offline_evidence_format": "terminal-runtime-baseline-evidence.v1",
     "controlled_staging_source_format": "terminal-runtime-staging-source.v1",
+    "controlled_staging_preflight_format": "terminal-runtime-staging-preflight.v1",
     "controlled_staging_evidence_scope": "controlled_staging_observation",
     "controlled_staging_runner": "scripts/run_terminal_runtime_staging_baseline.py",
     "controlled_staging_execution_status": "collector_available_no_current_candidate_run",
+    "controlled_staging_approval_max_validity_hours": 24,
+    "controlled_staging_approval_scope": {
+      "staging_network_load": true,
+      "production_load": false,
+      "fault_injection": false,
+      "paid_provider_or_mcp_calls": false,
+      "runtime_flag_changes": false
+    },
+    "controlled_staging_runtime_profile": {
+      "dedicated_worker_service": "terminal_agent_worker",
+      "dedicated_worker_queue": "terminal_agent",
+      "legacy_inline_concurrency": 1,
+      "provider_execution_mode": "non_billable_stub",
+      "mcp_execution_mode": "disabled",
+      "approval_rechecked_before_each_network_stage": true,
+      "command_authorization": "one_shot_per_concurrency_level_no_retry_after_attempt",
+      "live_worker_heartbeat_required_before_each_level": true
+    },
     "runtime_enablement": "not_authorized",
     "production_evidence_status": "not_runtime"
   },

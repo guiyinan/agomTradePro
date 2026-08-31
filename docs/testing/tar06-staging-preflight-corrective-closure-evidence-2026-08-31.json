@@ -1,0 +1,145 @@
+{
+  "schema": "tar06-staging-preflight-corrective-closure-evidence.v1",
+  "unit_id": "TAR-06",
+  "recorded_at": "2026-08-31T04:04:23.7085849Z",
+  "execution_mode": "repository_only",
+  "repository": {
+    "base_commit": "546699fd5d6f43424a429143102172cbc62c9bf8",
+    "working_tree_contains_uncommitted_unit_changes": true,
+    "production_candidate_rebound": false
+  },
+  "corrective_finding": {
+    "severity": "fail_closed_contract_gap",
+    "summary": "The TAR-06 staging harness called its input an approved preflight but previously proved only byte-level SHA-256 equality. Arbitrary bytes could therefore satisfy the approval-file digest without proving an APPROVED decision, a current approval window, an accountable owner, or authorization for the exact executable envelope.",
+    "additional_gaps": [
+      "The queue endpoint worker_ready flag did not prove a live dedicated terminal_agent worker before a queued load request.",
+      "A caller could construct a field-equal command receipt and invoke the load port without consuming execute-time preflight state.",
+      "Approval validity and worker heartbeat were not rechecked for every 1/5/10/20 staircase level, leaving a time-of-check/time-of-use window.",
+      "A level that had already emitted partial traffic could be reauthorized after an uncontracted response, exceeding the approval's bounded request budget."
+    ],
+    "canonical_unit_added": false,
+    "tar06_reopened_as_new_active_unit": false
+  },
+  "correction": {
+    "approval_format": "terminal-runtime-staging-preflight.v1",
+    "required_decision": "approved",
+    "maximum_approval_validity_seconds": 86400,
+    "required_identity_fields": [
+      "authorization_id",
+      "approved_by"
+    ],
+    "approval_binds_full_executable_envelope": true,
+    "exact_allowed_actions": {
+      "staging_network_load": true,
+      "production_load": false,
+      "fault_injection": false,
+      "paid_provider_or_mcp_calls": false,
+      "runtime_flag_changes": false
+    },
+    "runtime_profile": {
+      "worker": "terminal_agent_worker",
+      "queue": "terminal_agent",
+      "worker_prefetch_multiplier": 1,
+      "maximum_worker_heartbeat_age_seconds": 120,
+      "legacy_inline_max_concurrency": 1,
+      "provider_mode": "non_billable_stub",
+      "mcp_mode": "disabled"
+    },
+    "approval_rechecked_before_each_network_stage": true,
+    "live_worker_heartbeat_required_before_each_staircase_level": true,
+    "command_authorization": "one_shot_per_concurrency_level_with_no_retry_after_attempt",
+    "source_receipt_records_heartbeat_by_level": true,
+    "production_host_denial_retained": true,
+    "default_mode_remains_validation_only": true
+  },
+  "authoritative_file_hashes": {
+    "apps/agent_runtime/application/terminal_runtime_baseline.py": "0838f58743c86fc82b04ea18406583b4f1927c89e7cbc49d1cadd067b381f2e9",
+    "apps/agent_runtime/infrastructure/terminal_runtime_staging_contract.py": "260a17b797d07345ea9e2770dfa0ca66f894680645a49e620949585922764c7d",
+    "apps/agent_runtime/infrastructure/terminal_runtime_staging_harness.py": "4ea9831445b22d60b85d7f90ccbd603b13ea627ce7a8c7de081b893585c3258c",
+    "scripts/run_terminal_runtime_staging_baseline.py": "040c901098b819c4c75e9947a949467a57d5562a2e77406f7566d642d637a2ba",
+    "tests/unit/agent_runtime/test_terminal_runtime_baseline_snapshot_observer.py": "39bac47ab67ccf908f402eaed808167632f71d6a91d330793cb40af1b07fffd9",
+    "tests/unit/agent_runtime/test_terminal_runtime_staging_harness.py": "be4be1b6b891a316af0514ed455aa22026234795821b971bed2eaaaa650d0716",
+    "governance/terminal_agent_runtime_contracts.json": "0ada15592fd3379b152701ed0a098a6c964f67a45c148335595b2e70cb13104a"
+  },
+  "verification": [
+    {
+      "scope": "tdd_fail_first",
+      "result": "27 failed, 2 passed; failures were expected before the strict contract implementation"
+    },
+    {
+      "scope": "staging_contract_focused_after_module_split",
+      "result": "39 passed in 0.76s"
+    },
+    {
+      "scope": "final_review_tdd_fail_first",
+      "result": "4 failed, 29 passed; direct-run bypass, approval TOCTOU and per-level heartbeat tests failed before the final hardening"
+    },
+    {
+      "scope": "staging_harness_final",
+      "result": "34 passed in 0.66s"
+    },
+    {
+      "scope": "final_review_retry_budget_fail_first",
+      "result": "1 failed; an attempted level could be reauthorized before the no-retry state was implemented"
+    },
+    {
+      "scope": "agent_runtime_load_and_recovery",
+      "result": "302 passed in 1.88s"
+    },
+    {
+      "scope": "tui_sdk_ssl_high_risk_regression",
+      "result": "356 passed in 306.14s"
+    },
+    {
+      "scope": "incremental_mypy",
+      "result": "0 regressions in 4 production files"
+    },
+    {
+      "scope": "full_mypy_debt_ceiling",
+      "result": "0 errors in 0 files"
+    },
+    {
+      "scope": "full_architecture",
+      "result": "3003 files; 0 boundary violations"
+    },
+    {
+      "scope": "governance_consistency",
+      "result": "0 violations, including large_python_files"
+    },
+    {
+      "scope": "active_plan_registry",
+      "result": "version 2026-08-31.v19; 30 units; 0 violations"
+    },
+    {
+      "scope": "tar01_exit_gate",
+      "result": "CONTRACT_COMPLETE; safety_ready=true; capacity_ready=false"
+    },
+    {
+      "scope": "format_lint_and_diff",
+      "result": "Black, isort, Ruff and git diff --check passed"
+    },
+    {
+      "scope": "direct_cli",
+      "result": "--help passed; default remains validation-only"
+    }
+  ],
+  "exit_gate": {
+    "tar06_corrective_repository_contract_complete": true,
+    "staging_execution_complete": false,
+    "current_candidate_capacity_evidence_complete": false,
+    "tar05_satisfied": false,
+    "repository_execution_focus": null,
+    "next_gate": "TAR-05 P1 must supply a current semantic APPROVED preflight bound to the exact staging candidate, runtime profile, workload, queries and safe action envelope"
+  },
+  "side_effects": {
+    "staging_or_production_network_access": false,
+    "load_generated": false,
+    "external_provider_or_mcp_called": false,
+    "runtime_flag_changed": false,
+    "worker_started_or_restarted": false,
+    "fault_injected": false,
+    "deployment_or_rollback": false,
+    "production_write": false,
+    "approval_or_identity_fabricated": false
+  }
+}

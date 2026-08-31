@@ -299,10 +299,16 @@ def _dry_run_output(specification: TerminalRuntimeStagingSpecification) -> dict[
         "candidate_commit": specification.candidate_identity.candidate_commit,
         "manifest_sha256": specification.manifest_sha256,
         "approved_preflight_sha256": specification.approved_preflight_sha256,
+        "authorization_id": specification.approval.authorization_id,
+        "approved_by": specification.approval.approved_by,
+        "approval_expires_at": _utc_text(specification.approval.expires_at),
+        "staging_envelope_sha256": specification.approval.envelope_sha256,
         "levels": sorted(required_concurrency_levels()),
         "total_request_budget": specification.total_request_budget,
         "missing_baseline_queries": missing_baseline,
         "missing_slo_queries": missing_slo,
+        "provider_execution_mode": specification.runtime.provider_execution_mode,
+        "mcp_execution_mode": specification.runtime.mcp_execution_mode,
         "runtime_enablement": "not_authorized",
     }
 

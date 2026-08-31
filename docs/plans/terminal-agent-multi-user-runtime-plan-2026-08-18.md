@@ -33,7 +33,7 @@
 
 2026-08-22 后续复核确认 `TAR-04` 的服务端API提交、SDK状态/事件消费、受控MCP能力调用与重连、客户端无provider密钥/本地Agent打包边界，以及浏览器/TUI queued结果合同均已有仓库测试证据。`TAR-04` repository gate 因而关闭；候选部署、角色UAT、provider成功、容量/chaos、恢复、telemetry和签字不再重复挂在 `TAR-04`，分别由 `TUI-01` 与 `TAR-05` 收口。
 
-2026-08-31 复核发现现有 controlled observer、load/chaos tests 与 recorder 只能校验调用方提供的离线快照，无法驱动批准的 staging 或采集 Prometheus。该机械缺口登记为唯一 repository unit `TAR-06`；它只交付 fail-closed collector，不把代码测试当作 `TAR-05` 的真实容量结果。
+2026-08-31 复核发现现有 controlled observer、load/chaos tests 与 recorder 只能校验调用方提供的离线快照，无法驱动批准的 staging 或采集 Prometheus。该机械缺口登记为唯一 repository unit `TAR-06`；它只交付 fail-closed collector，不把代码测试当作 `TAR-05` 的真实容量结果。同日 corrective review 又发现首版 runner 只比较名为 `approved_preflight` 的文件 SHA，未验证 APPROVE 语义、时效、可执行 envelope 或 action scope；该结论推翻了首版 approval gate，必须在严格审批合同和真实 Worker heartbeat preflight 通过后重新关闭 `TAR-06`。
 
 ## 2. 背景、现状证据与根因
 
@@ -359,11 +359,13 @@ provider-backed Agent 的安装包。
 
 交付顺序：
 
-1. `TerminalRuntimeStagingHarness` 复用既有 controlled observer port，在任何 I/O 前校验 non-production environment、HTTPS/loopback target、内置与显式 production-host denylist、exact candidate/OCI/runtime-manifest/test-matrix identity、批准 preflight hash、请求时限与总预算。
-2. 执行时必须从 stdin 提供恰好 20 个互异 staging actor token 和一组 Prometheus 凭据；凭据、prompt 与 response body 均不得进入 receipt。每档使用同步 barrier 形成真实的 `1/5/10/20` 并发起点，单次默认总请求预算由 manifest 明确给出。
-3. Web p50/p95/p99 与 run API p95 由实际 HTTP 时延计算；其余 baseline 和 19 项 hard SLO 通过 exact Prometheus query map 读取。未配置、无 sample、查询失败或非有限值全部保持 `unavailable`，不得填零。
-4. `scripts/run_terminal_runtime_staging_baseline.py` 默认只做 manifest/preflight 校验且不联网；只有显式 `--execute --credentials-stdin --output-root` 才访问批准的 staging，并写入 secret-free raw source、recorder-compatible snapshot 与 canonical evidence 三类 content-addressed JSON/SHA-256 sidecar。
-5. canonical evidence 使用 `controlled_staging_observation` scope 并直接绑定 raw source SHA；CLI 固定输出 `tar05_acceptance=not_granted`、`production_claim=false`、`runtime_enablement=not_authorized`。代码通过不改变 feature flag、capacity-ready 生产状态或 `TAR-05` 阶段决定。
+1. `TerminalRuntimeStagingHarness` 复用既有 controlled observer port，在任何 I/O 前校验 non-production environment、HTTPS/loopback target、内置与显式 production-host denylist、exact candidate/OCI/runtime-manifest/test-matrix identity、请求时限与总预算。
+2. `approved_preflight` 必须是 `terminal-runtime-staging-preflight.v1` JSON：决定精确为 `approved`，包含稳定 owner/authorization identity、UTC 签发/失效时间且有效期不超过 24 小时，并绑定 manifest 中除 approval 文件 SHA 外的全部 candidate、target、runtime、workload 与 query 字段。其 action scope 只允许 staging network load，必须显式禁止 production load、fault、paid provider/MCP 与 runtime flag change；摘要相同但内容不是该合同、DEFER、过期、跨 envelope 或扩权决定均在联网前拒绝。
+3. runtime envelope 必须保持 legacy inline concurrency=`1`，绑定专用 `terminal_agent_worker` / `terminal_agent` queue、资源/并发/prefetch、已启用的 staging-only queued flags、`non_billable_stub` provider 和 disabled MCP。HTTP queue flag 不能冒充活 Worker；每个并发阶梯前必须重新校验 approval 时效并通过 exact Prometheus query 证明 worker heartbeat age 未超过 manifest 上限。`execute()` 产生的阶梯授权只能在同一 harness 内由 `run()` 一次性消费，字段相同的外部 command receipt 不能绕过 preflight；阶梯一旦开始尝试，即使部分失败也不得在同一 harness 重新授权，以免突破审批请求预算。
+4. 执行时必须从 stdin 提供恰好 20 个互异 staging actor token 和一组 Prometheus 凭据；凭据、prompt 与 response body 均不得进入 receipt。每档使用同步 barrier 形成真实的 `1/5/10/20` 并发起点，单次默认总请求预算由 manifest 明确给出。
+5. Web p50/p95/p99 与 run API p95 由实际 HTTP 时延计算；其余 baseline、worker heartbeat 和 19 项 hard SLO 通过 exact Prometheus query map 读取。未配置、无 sample、查询失败或非有限值全部保持 `unavailable`，不得填零。
+6. `scripts/run_terminal_runtime_staging_baseline.py` 默认只做 manifest/preflight 校验且不联网；只有显式 `--execute --credentials-stdin --output-root` 才访问批准的 staging，并写入 secret-free raw source、recorder-compatible snapshot 与 canonical evidence 三类 content-addressed JSON/SHA-256 sidecar。
+7. canonical evidence 使用 `controlled_staging_observation` scope 并直接绑定 raw source SHA；source receipt 同时封存 approval/envelope SHA、authorization identity、有效期和实际 heartbeat。CLI 固定输出 `tar05_acceptance=not_granted`、`production_claim=false`、`runtime_enablement=not_authorized`。代码通过不改变 feature flag、capacity-ready 生产状态或 `TAR-05` 阶段决定。
 
 运行前仍必须由单一项目所有者提供真实 staging identity、最终 runtime manifest/flags/resources、专用 Worker、查询表达式与 bounded provider profile。缺少任何一项时只运行默认 validation-only，不执行 `--execute`。本 unit 不执行 chaos、付费 provider/MCP、生产 canary、flag 变更或 inline 退役。
 
@@ -2132,3 +2134,34 @@ SHA-256=`c7af18fa7722443105018d7693dff46de5a02e4f1849f7dd03e1ea319fe958f2`。
 本 checkpoint 没有访问 staging/VPS、没有创建真实负载、没有调用 provider/MCP、没有修改 runtime flag、
 没有注入故障，也没有形成当前候选容量结论。`TAR-06=completed`、repository focus 已回到 `null`；
 `TAR-05` 仍须真实 staging P1/P2、chaos、provider/MCP、canary、观察与退役阶段证据。
+
+## 2026-08-31：`TAR-06` approved-preflight corrective
+
+后续 adversarial review 证明首版 `approved_preflight` 仅做字节 SHA 对账，任意非空文件只要摘要写入
+manifest 就能进入 `--execute`；同时 queue summary 的布尔值不能证明专用 Worker 仍存活。这两项使
+“approved staging before network I/O”的 repository exit 结论不成立，因此同日有界重开 `TAR-06`，
+没有新建平行 backlog。
+
+corrective 将 manifest/approval 解析拆入
+`apps/agent_runtime/infrastructure/terminal_runtime_staging_contract.py`，并把 preflight 收窄为严格
+`terminal-runtime-staging-preflight.v1`：必须显式 APPROVE、绑定
+authorization/owner identity、UTC 生效窗口且最长 24 小时，并以 canonical envelope SHA 覆盖候选、
+目标、runtime、workload 和完整 query map。允许动作精确为 staging load；production load、fault、
+paid provider/MCP 和 runtime flag change 全部必须为 false。runtime envelope 进一步要求专用 Worker/
+queue、prefetch=1、legacy inline=1、资源上限、staging queued flags、non-billable stub provider 与 MCP
+disabled。每个 1/5/10/20 阶梯前都会重新核验 approval 时效并读取
+`worker_heartbeat_age_seconds` 的 exact Prometheus query；missing、stale 或越限均停止该阶梯且不会
+生成新负载。`run()` 还必须一次性消费同一 harness 内 `execute()` 生成的阶梯授权，伪造字段相同的
+command receipt 不能直接进入 load port；阶梯开始尝试后即永久消费，部分失败不能在同一 harness 重试；
+所有后续 Prometheus 网络阶段也复核 approval 时效。
+
+首轮失败优先用例得到 `27 failed / 2 passed`；最终审阅补出的直接 `run()` 绕过、approval TOCTOU 与
+逐阶心跳用例在修复前得到 `4 failed / 29 passed`，部分失败后的重复授权用例另得到 `1 failed`。
+最终 TAR06/Agent Runtime/load/recovery 回归为
+`302 passed`，TUI/SDK/SSL 高风险回归为 `356 passed`；增量与全量 mypy、3003-file architecture、
+governance/registry、Black/isort/Ruff 均通过。最终结构化证据见
+[`tar06-staging-preflight-corrective-closure-evidence-2026-08-31.json`](../testing/tar06-staging-preflight-corrective-closure-evidence-2026-08-31.json)，
+SHA=`926f11051303a24d9fa48246b6b531c4a99b4c6c8743e99ab05074d6bf336746`。
+本 corrective 只恢复 repository collector 的 fail-closed 结论，仍未访问 staging/VPS、未发送负载、未
+创建或代签真实 approval、未调用模型/MCP、未注入故障或修改 runtime；`TAR-05` 的 P1–P7 与
+`capacity_ready=false` 保持不变。
