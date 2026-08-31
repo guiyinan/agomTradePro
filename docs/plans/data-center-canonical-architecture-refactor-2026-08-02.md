@@ -4942,3 +4942,40 @@ Git SHA / 镜像 / migration：
   SHA-256=`7c535f2a1802561be3430a8a9a2149da4ab08b885f2ad672f96828209da8a56a`。
 - 本 checkpoint 纯 repository 结构整改，没有生产读取、写入、重启、部署或回填；DATA-02/03
   production gate 与 DATA-04 clean-deploy/revalidation 前置保持不变。
+
+## 148. 2026-08-31：DATA-06 隔离历史模拟 focus 激活
+
+- 项目所有者授权采用历史数据 simulation-first 推进后，机器注册表将 `DATA-06` 设为唯一
+  repository focus。盘点确认当前能力存在断点：restore verifier 能验证 custom dump，DATA-02
+  recorder 能解析外部 SELECT-only snapshot，但没有一个 runner 在 disposable PostgreSQL 中完成
+  restore → provider/network-free coverage/freshness/source-time/reconciliation → candidate-bound artifact →
+  zero-residual cleanup。
+- 工作区已有两个被 `.gitignore` 隔离且 SHA-256 sidecar 匹配的 2026-08-29 custom dump；本单元只允许
+  使用已有不可变输入，不创建/下载生产备份。所有数据查询必须位于 repeatable-read read-only 事务，
+  unsafe/non-local target、dump drift、写语句、schema 缺失、候选绑定缺失或 cleanup residue 均失败关闭。
+- 本单元只证明历史备份上的候选离线行为和可重放 reconciliation；不连接生产、不调用 provider、不执行
+  backfill/publication 写入、不建立 authority/profile、不启用 decision runtime，也不替代 DATA-02/03 的
+  clean-deploy、current freshness、生产容量、真实回填/reconciliation 与 owner acceptance。
+
+## 149. 2026-09-01：DATA-06 隔离历史模拟 repository exit
+
+- 新增 Application 层纯分析合同、psycopg Infrastructure snapshot adapter 与独立 CLI runner。runner 只接受
+  loopback PostgreSQL 和 `agom_data02_sim_*` disposable database，先校验 dump sidecar，再通过 PostgreSQL
+  `REPEATABLE READ READ ONLY` 事务读取生产 coverage config、active Dataset Contract、四类最新事实与 current
+  publication/member；provider 和外部网络不参与。unsafe target、dump drift、schema/contract ambiguity、naive/future
+  observation、非只读事务及 cleanup residue 均 fail closed。
+- 使用既有 `postgres-20260829T171523Z.dump` 完成两次真实本地恢复。最终绑定 dump SHA-256
+  `18d208a5…6034f`、7,229 restore entries、Data Center migration head
+  `0072_note_non_st_price_limit_scope`、5,533 个 active A-share；分析 artifact SHA-256
+  `204d5706…20cd1`，数据库和外层 disposable container 复查均无残留。
+- 历史数据没有被“测试通过”美化为可用：四类 Dataset Contract freshness 均读取成功但四类 gate 全为 `DENY`。
+  Quote/Price/Valuation 的候选事实覆盖均为 `5,533/5,533`，Financial 仅 `1,923/5,533`；四类 current
+  publication reconciliation 均失败，全部存在 stale observation。该结果把后续开发输入固定为真实覆盖、时效与
+  publication rebuild 缺口，而不是 simulator 选择器缺失。
+- 聚焦与相关回归 `57 passed`；3 个生产文件增量 mypy 与全仓 debt 均为 0；53 个 current-data surfaces、
+  3,008-file architecture、Ruff/Black/isort、Django check 和 migration drift 全部通过。规范化证据为
+  [`data06-isolated-historical-simulation-repository-closure-evidence-2026-09-01.json`](../testing/data06-isolated-historical-simulation-repository-closure-evidence-2026-09-01.json)，
+  SHA-256=`e4883f46426b2b9082392371276a79ff4bbcab07e7a6c6022c02f8563d68579a`。
+- DATA-06 仅关闭 repository capability，`production_claim=false`、`production_ready=false`。DATA-02 仍须 clean
+  successor 部署、跨 scrape interval 的连接/readiness 稳定、candidate-bound production dry-run、已授权有界
+  backfill 与生产 reconciliation；DATA-03 activation 和 TUI-02 候选观察不得继承本历史结果。

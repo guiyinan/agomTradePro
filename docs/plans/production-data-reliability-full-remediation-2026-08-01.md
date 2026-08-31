@@ -1376,3 +1376,35 @@ architecture、Django/migration 与治理检查均通过。结构化证据为
 [`data05-financial-repository-owner-closure-evidence-2026-08-31.json`](../testing/data05-financial-repository-owner-closure-evidence-2026-08-31.json)，
 SHA-256=`7c535f2a1802561be3430a8a9a2149da4ab08b885f2ad672f96828209da8a56a`。
 本单元没有读取或修改生产、重启、部署或执行回填，不改变 DATA-02 的生产 exit gate。
+
+## 2026-08-31：DATA-06 隔离历史 DATA-02 simulation-first 开发
+
+项目所有者授权先用历史数据模拟、再迭代开发。现有 restore verifier 与 DATA-02 reconciliation recorder
+各自完整，但中间缺少从已验证 dump 的 disposable PostgreSQL 恢复库采集 SELECT-only coverage、freshness、
+源观测时间和 legacy/canonical snapshot 的有界 runner。`DATA-06` 因此登记为唯一 repository focus。
+
+范围冻结为：只接受已有 dump 与匹配 sidecar；只创建受控前缀的 disposable database；禁用 provider 与
+network；在 repeatable-read read-only 事务中采集并输出 candidate-bound、content-addressed、
+`production_claim=false`/`production_ready=false` 的本地 artifact；finally 必须证明零残留。任何 unsafe
+target、输入漂移、写尝试、schema 缺失、未来/naive observation time、候选漂移或 cleanup residue 都失败
+关闭。历史模拟不能代替 DATA-04 clean deploy、生产 DATA-02 backfill/reconciliation、current freshness、
+authority/profile、live connection capacity 或 DATA-03 activation。
+
+## 2026-09-01：DATA-06 隔离历史模拟能力完成
+
+DATA-06 已实现并真实运行 restore-to-analysis 闭环：匹配 SHA sidecar 的既有 custom dump 只恢复到 loopback
+`agom_data02_sim_*` database，所有分析位于 `REPEATABLE READ READ ONLY` 事务，无 provider/外部网络，finally
+删除数据库并由外层 disposable PostgreSQL container 复查零残留。runner 输出 candidate/source-tree/dump 绑定、
+content-addressed artifact，且固定 `production_claim=false`、`production_ready=false`。
+
+最终历史快照包含 7,229 restore entries、72 个 Data Center migrations 和 5,533 个 active A-share。四类 active
+Dataset Contract freshness policy 均存在，但 Quote/Price/Valuation/Financial 全部 stale；Financial 最新 evidence-safe
+period 仅覆盖 1,923 个资产，另外三类事实覆盖完整；四类 current publication 均无法与候选事实精确 reconciliation，
+因此总 gate 正确保持 `DENY`。这份结果只用于指导后续 backfill/publication repair，不是 production readiness。
+
+聚焦/相关测试 `57 passed`，增量与全仓 mypy debt 为 0，53-surface current-data、3,008-file architecture、格式、
+Django/migration 均通过。规范化证据
+[`data06-isolated-historical-simulation-repository-closure-evidence-2026-09-01.json`](../testing/data06-isolated-historical-simulation-repository-closure-evidence-2026-09-01.json)
+SHA-256=`e4883f46426b2b9082392371276a79ff4bbcab07e7a6c6022c02f8563d68579a`。机器注册表将 DATA-06 置为
+`completed` 并清空 repository execution focus；下一步仍是 clean successor 部署、连接/readiness 稳定、生产 dry-run、
+已授权有界 backfill 与 reconciliation，不能以历史 `DENY` artifact 启用 DATA-03 或继承 TUI-02 观察。

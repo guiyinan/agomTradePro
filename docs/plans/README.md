@@ -1,6 +1,6 @@
 # 活跃计划索引
 
-> 更新日期：2026-08-31
+> 更新日期：2026-09-01
 > 本目录只保留仍需开发、真实数据、生产验收或外部依赖闭环的计划。已完成的实施计划、阶段记录、复盘和历史证据统一放在 [`../archive/plans/`](../archive/plans/)；归档记录见 [`../archive/ARCHIVE_INDEX.md`](../archive/ARCHIVE_INDEX.md)。
 
 ## 维护规则
@@ -61,7 +61,7 @@
 | 限期审查项 | 0 |
 | 注册表覆盖的活跃文件 | 41 |
 | 历史未勾选细项 | 136（非执行口径） |
-| 去重后 canonical closure units | 33 |
+| 去重后 canonical closure units | 34 |
 
 “主计划”是需求和证据入口，不等于独立工程量；同一工作流下的路线图、readiness 和生产跟踪不会再重复计算成多条主线。完整文件归属、owner、状态、依赖和唯一退出门见机器注册表的 `closure_backlog`。
 
@@ -71,7 +71,7 @@
 |----|--------|------|-------|--------|------------|
 | `evidence-hard-gate` | P0 | production_validation | Personal Project Owner / Research / Risk / Portfolio / Broker / Account | [Evidence hard gate](evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md) | 单一所有者授权已替代多人签字，但 13 张 authority/evidence 表及 operator/approval/activation 仍 zero-seed/empty-head；有效 DEFER 已记录。下一门是按真实 owner receipt 建立 canonical authority heads，再执行 PG race/revocation/rollback 与 same-alias 回执，执行 deny 保持不变 |
 | `strategy-research-production` | P0 | production_validation | Research / Data Center / Signal / Portfolio / Broker | [Completion audit](strategy-research-capability-completion-audit-2026-08-05.md)、[Roadmap](strategy-research-capability-roadmap-execution-2026-08-05.md)、[生产数据跟踪](strategy-research-production-data-closure-tracking-memo-2026-08-12.md)、[R1-R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md)、[R3-R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md)、[R5-R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) | 最终候选的 65/7/16/35 表 owner-ledger inventory 全零；R1–R8 逐项 owner/定义审核入口已就绪，审核后仍须 canonical dry-run 与独立 registration 授权，PIT/OOS、Promotion、consumer UAT 不得预签 |
-| `data-production-reliability` | P0 | production_validation | Data Center / Operational Readiness / Task Monitor | [综合清零方案](release-blocker-closure-execution-plan-2026-08-29.md)、[Canonical architecture](data-center-canonical-architecture-refactor-2026-08-02.md)、[生产可靠性](production-data-reliability-full-remediation-2026-08-01.md)、[关键测试](critical-reliability-test-closure-2026-07-22.md)、[UAT 整改](uat-remediation-2026-07-20.md) | DATA-01、DATA-04、DATA-05 repository exit 已完成；既有 financial owner 243/200 CI blocker 已收敛为 189/200 + 65/100。successor PostgreSQL incident 尚未恢复，DATA-02 仍依赖 clean deploy、连接/readiness 与 SELECT-only dry-run，DATA-03 等待 reconciliation |
+| `data-production-reliability` | P0 | production_validation | Data Center / Operational Readiness / Task Monitor | [综合清零方案](release-blocker-closure-execution-plan-2026-08-29.md)、[Canonical architecture](data-center-canonical-architecture-refactor-2026-08-02.md)、[生产可靠性](production-data-reliability-full-remediation-2026-08-01.md)、[关键测试](critical-reliability-test-closure-2026-07-22.md)、[UAT 整改](uat-remediation-2026-07-20.md) | `DATA-06` repository exit 已关闭：历史快照四类数据均按真实 contract freshness 与 current publication reconciliation 保持 `DENY`。下一门仍是 clean successor 部署、连接/readiness 稳定、生产 dry-run、受控 backfill 与 reconciliation |
 | `system-audit-consolidation` | P0/P1 | production_validation | Personal Project Owner / Audit / Data Center / Task Monitor | [统一审计日志](system-audit-log-consolidation-plan-2026-08-13.md) | `AUD-04` repository exit 已补齐 candidate/authority 双重绑定、半开归档窗口、manifest/content/predecessor hash、append-only artifact 与 memory-only exact replay；successor 生产证据仍为 `missing_section_count=2`，下一门是 authority/profile、writer smoke 后真实 rollback/recovery 与获批 archive/restore |
 | `web-to-tui-m5` | P0 | production_validation | Personal Project Owner / Terminal / Operational Readiness | [迁移总计划](web-to-tui-migration-plan-2026-07-25.md)、[M5 readiness](web-to-tui-m5-readiness-2026-07-27.md) | `TUI-01/TUI-03` completed，`TUI-02=active`：successor `80ea002b…` / `20260830215638` 已部署，retained source、10/10 UAT、108/108 cleanup、rollback 与 Day 0 registry backup 均通过；首样本 `2026-08-30T15:09:35.034Z`，精确 eligible=`2026-09-13T15:09:35.034Z`，readiness=`5/10 DENY` |
 | `terminal-agent-multi-user-runtime` | P0 | production_validation | Agent Runtime / Terminal / Task Monitor / Operational Readiness / SDK / MCP | [多用户队列与服务端 CLI 运行](terminal-agent-multi-user-runtime-plan-2026-08-18.md) | TAR-01 至 TAR-04 与 `TAR-06` repository 合同已完成；TAR-06 corrective 已把任意摘要文件冒充批准和假 Worker-ready 两条旁路封闭为 24h semantic approval、全 envelope/action binding、non-billable runtime profile 与真实 heartbeat preflight。collector 尚无真实 run，TAR-05 capacity/chaos/provider/canary/观察/退役仍须真实证明 |
@@ -81,12 +81,13 @@
 
 ## 当前执行焦点
 
+- `DATA-06=completed`，隔离历史 simulation harness 已以已有 SHA-verified dump 完成真实演练：7,229 restore entries、72 个 Data Center migrations、5,533 active A-share、repeatable-read read-only、provider/network-free、数据库与容器零残留。四类历史 gate 均为 `DENY`：全部 stale，financial 事实覆盖 `1,923/5,533`，四类 current publication reconciliation 均失败。规范化 [closure evidence](../testing/data06-isolated-historical-simulation-repository-closure-evidence-2026-09-01.json) SHA=`e4883f46…579a`；该结果不会冒充生产 exit gate。
 - `DATA-05` 已作为唯一 repository focus 完成并回到 `execution_focus.unit_id=null`。既有 `financial_fact_repository.py` 243/200 行失败在不抬预算的前提下降为 189/200，availability owner 独立为 65/100；公开 `FinancialFactRepository` identity/行为不变，新 source 已纳入 current-data 清单。结构化 [closure evidence](../testing/data05-financial-repository-owner-closure-evidence-2026-08-31.json) SHA=`7c535f2a…8a56a`；聚焦 `12 passed`、扩大回归 `70 passed`，未触碰生产。
 - `DATA-04` 已作为唯一 repository focus 完成并回到 `execution_focus.unit_id=null`。生产 Daphne/ASGI `CONN_MAX_AGE` 固定为 0；coverage-universe 读取删除 `get_or_create`，缺配置稳定 `MISSING_CONFIG`，只有显式 PUT/save 可初始化。结构化 [closure evidence](../testing/data04-asgi-db-select-only-preview-repository-closure-evidence-2026-08-31.json) SHA=`aaaa675e…ea8d`。本次没有终止生产连接、重启、部署、写库或 backfill，故 database/readiness 仍未宣称恢复；DATA-02 必须等 clean candidate 部署后重新做跨 scrape 周期连接观察和 SELECT-only dry-run。
 - `AUD-04` 已作为唯一 repository focus 完成并回到 `execution_focus.unit_id=null`。新增 scoped/candidate-revalidated 半开 ledger window、deterministic manifest/source/stream-anchor hashes、strict canonical codec、append-only content-addressed store 与 `memory_only` exact replay；对 candidate drift、scope/window substitution、truncation、duplicate/loss/fork、byte/sidecar tamper 和 production-claim 改写均 fail closed。结构化 [closure evidence](../testing/aud04-audit-archive-rehearsal-repository-closure-evidence-2026-08-31.json) SHA=`1c64e66a…4e317`；本次没有生产读写、archive/restore、删除、fault、runtime 变更或部署，不能替代 `AUD-03` 生产验收。
 - `TAR-06` repository corrective 保持 completed；其结构化证据为 [`tar06-staging-preflight-corrective-closure-evidence-2026-08-31.json`](../testing/tar06-staging-preflight-corrective-closure-evidence-2026-08-31.json)，SHA=`926f1105…36746`。runner 仍要求最长 24 小时 semantic APPROVE、全 envelope/action binding、non-billable stub/MCP-disabled runtime、逐阶梯真实 Worker heartbeat 与一次性授权；仍未执行 staging/生产负载或授予 `TAR-05` acceptance。
 - 生效的单一所有者授权记录为 [`personal-project-single-owner-authorization-2026-08-30-80ea002b.json`](../deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json)，SHA=`f675c446…300e1`。同一所有者可承担 owner/root/reviewer/role-owner，不再要求第二个自然人；这不填充 authority 行、业务定义、环境、观察历史或执行结果。
-- `DATA-01/DATA-04/DATA-05` 与 `AUD-01/AUD-02/AUD-04=completed`；`DATA-02/AUD-03=awaiting_production`，`EVID-03` 仍仅在 EVID-01/EVID-02 均完成后启动。当前没有 dependency-ready 的其他 repository unit。
+- `DATA-01/DATA-04/DATA-05/DATA-06` 与 `AUD-01/AUD-02/AUD-04=completed`；当前没有 dependency-ready repository unit，`execution_focus.unit_id=null`；`DATA-02/AUD-03=awaiting_production`，`EVID-03` 仍仅在 EVID-01/EVID-02 均完成后启动。
 - `AUD-03` 已随当前 successor `80ea002b…` 做一次非重复 SELECT-only 重绑定；[`successor checkpoint`](../deployment/aud03-successor-production-readonly-checkpoint-2026-08-31-80ea002b.json) SHA=`a5ce4fbd…182d` 证明 496 migration 全 applied、outbox/失败为 0、12 条 Prometheus alert rules 健康且无 active alert，并复用同候选 108/108 UAT 证明 10 个 Audit route 全通过。alerts/admin TUI 已从 unavailable 收敛为 available；recovery/archive 仍 unavailable，read-only artifact 保持 `production_ready=false`。
 - `EVID-01/02` 与 `STRAT-01` 不再等待多名人员；同一项目所有者可以填写各治理角色，但仍须提供真实 authority head、业务 definition/policy/calendar/scope 与 typed production value。稳定入口仍为 [`evidence-strategy/README.md`](../reviews/release-36b72d2f/evidence-strategy/README.md)，零播种表不得由 fixture、User/Profile/session 或默认值补齐。
 - `TUI-01` 与 `TUI-03` 已完成。`TUI-02=active`：successor deployment、retained source、production-safe UAT、cleanup、isolated rollback 与 Day 0 registry backup 已通过；最新只读 checkpoint 为 [`tui02-production-observation-checkpoint-2026-08-31-80ea002b.json`](../deployment/tui02-production-observation-checkpoint-2026-08-31-80ea002b.json)，SHA=`db055a18…b0d2a`。首个真实样本 `2026-08-30T15:09:35.034Z`，只有在 `2026-09-13T15:09:35.034Z` 或之后才能形成 v2 defect/101-task telemetry，再做 post-window backup/review snapshot 和同一 owner 的两个 role-bound attestations；`TAR-05` 保持 awaiting production。
@@ -102,7 +103,7 @@
 |---|---|---|---|
 | 2026-08-25～08-27 | `AUD-01`：canonical publisher、runtime、scoped authority composition 与无 fallback 合同（已完成） | `EVID-01/02` 准备 root approval/PG 验收包；`DATA-01` 完成已有备份与隔离恢复证据；准备 TUI-01 正式 preflight | AUD-01 代码、focused tests、架构/mypy/治理门禁全绿，2026-08-27 已切换焦点至 AUD-02 |
 | 2026-08-28～08-30 | `AUD-02`、`TUX-04`、`TUX-03`、`TUX-05` 顺序完成原登记 gate；current-data 全登记回归推翻 AUD-02 的完整回归结论后完成 corrective exit | EVID/DATA/STRAT/TUI/TAR 只执行各自已登记且无需新授权的 auto_collect；AUD-03 恢复 awaiting production | AUD-02 的 eager composition 与测试 critical-profile 根因均已最小修复，完整 current-data 和原 AUD-02 gate 全绿 |
-| 2026-08-31～09-03 | `TAR-06` corrective、`AUD-04`、`DATA-04` 与同回归暴露的 `DATA-05` bounded-owner 单元均已顺序完成；当前无 active repository unit | DATA-04 clean candidate 部署后重验连接/readiness/dry-run；该候选变化将重置 TUI-02 观察。继续等待 TAR-05 staging envelope 与 AUD authority/profile | repository 能力不得冒充生产恢复/验收；任何 deploy/restart/write 仍走精确生产授权，其他 gate 保持 fail-closed |
+| 2026-08-31～09-03 | `TAR-06` corrective、`AUD-04`、`DATA-04/05/06` 已完成；无 dependency-ready repository unit | DATA-04/06 clean candidate 部署后仍须重验连接/readiness/dry-run；该候选变化将重置 TUI-02 观察。继续等待 TAR-05 staging envelope 与 AUD authority/profile | DATA-06 已证明 read-only、provider/network-free、candidate/hash 绑定和零残留，但历史四类 gate 均 DENY，不冒充生产恢复/验收 |
 | 2026-09-04～09-07 | 仅在 EVID-01/02 均真实完成后激活 EVID-03，否则继续无 eligible repository unit | 继续已登记且有新外部状态的生产只读取证；任何写入、部署、故障注入、备份创建或人工判断仍需授权 | EVID-03 依赖真实解除，或满足 Goal 的无安全 eligible work 停止条件 |
 | 2026-09-08～09-11 | 以机器注册表为准；当前无其他依赖已满足的 repository unit | TUI-02 仅在 TUI-01 完成后观察；AI-01 仅在 TUI-01/TAR-05 后启动；QMT 不占内部排期 | 不通过刷新日期、重复探针或放宽依赖制造仓库工作 |
 | 2026-09-13 起 | 当时最高优先级且依赖已满足的唯一 repository unit；若不存在则停止 | 为 TUI-02 收集完整 defect/101-task telemetry，导出 post-window registry backup/attestation，生成 review snapshot 并由同一 owner 完成两个 role-bound attestations | readiness 必须从真实 artifact 重算为 ALLOW；日期到达本身不等于通过 |
@@ -133,7 +134,7 @@
 
 ## 去重后的收口 Backlog
 
-136 个历史未勾选细项按共同产物、共同依赖和共同验收证据折叠为以下 **31 个唯一工作包**。状态只在机器注册表更新；本表不形成第二套待办。
+136 个历史未勾选细项按共同产物、共同依赖和共同验收证据折叠为以下 **34 个唯一工作包**。状态只在机器注册表更新；本表不形成第二套待办。
 
 | 波次 | Canonical unit | 类型 | 状态 | 依赖 | 唯一交付 |
 |------|----------------|------|------|------|----------|
