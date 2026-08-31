@@ -1,0 +1,194 @@
+{
+  "version": "tui02-production-retained-observation-checkpoint.v1",
+  "environment": "production",
+  "checked_at": "2026-08-31T04:20:19.974523Z",
+  "collection_mode": "read_only",
+  "candidate": {
+    "expected": {
+      "commit": "80ea002bf910110621022a70e4f1ec5c1b704a56",
+      "release_id": "20260830215638",
+      "image_id": "sha256:54cb9646912c494d64c1eb664b6a3a8af772c36f5388d8456d669285398c39fc"
+    },
+    "observed": {
+      "commit": "80ea002bf910110621022a70e4f1ec5c1b704a56",
+      "release_id": "20260830215638",
+      "release_target": "/opt/agomtradepro/releases/source-20260830215638",
+      "image_id": "sha256:54cb9646912c494d64c1eb664b6a3a8af772c36f5388d8456d669285398c39fc"
+    },
+    "candidate_drift": false,
+    "day0_evidence": "docs/deployment/tui02-production-day0-checkpoint-2026-08-30-80ea002b.json",
+    "day0_evidence_sha256": "1cff7915f03e3c12618ada5e4b02fd3d81741db16c121cd3aef362192a9e4d85"
+  },
+  "containers": {
+    "web": {
+      "id": "f3a3b2268db535cc3f04c6a296f21d0c2eb75ae4e1b2aa081e4d2468b5f04242",
+      "configured_image": "agomtradepro-web:20260830215638",
+      "image_id": "sha256:54cb9646912c494d64c1eb664b6a3a8af772c36f5388d8456d669285398c39fc",
+      "revision": "80ea002bf910110621022a70e4f1ec5c1b704a56",
+      "started_at": "2026-08-30T14:16:45.642579948Z",
+      "status": "running",
+      "health": "healthy",
+      "restart_count": 0
+    },
+    "prometheus": {
+      "id": "2de1ddf6e2e81a817a6a48e564784fa9941989641c136b584a7a9841cb862f0c",
+      "configured_image": "prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996",
+      "image_id": "sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996",
+      "started_at": "2026-08-30T14:17:04.663322218Z",
+      "status": "running",
+      "health": "healthy",
+      "restart_count": 0,
+      "unexpected_restart_since_day0": false
+    },
+    "caddy": {
+      "id": "363e08838d02fc93440e9d29316ee18cf22fa1b8309898ec956f9d21f4e49b4f",
+      "configured_image": "caddy:2-alpine",
+      "image_id": "sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648",
+      "started_at": "2026-08-30T14:25:10.891225809Z",
+      "status": "running",
+      "restart_count": 0
+    }
+  },
+  "retained_monitoring": {
+    "persistent_volume": {
+      "name": "agomtradepro_prometheus_data",
+      "driver": "local",
+      "mountpoint_present": true,
+      "approximate_bytes": 22300632,
+      "ok": true
+    },
+    "retention": {
+      "configured_time": "3w",
+      "configured_size": "4GiB",
+      "runtime": "3w or 4GiB",
+      "admin_api_enabled": false,
+      "remote_write_receiver_enabled": false,
+      "ok": true
+    },
+    "runtime": {
+      "start_time": "2026-08-30T14:17:12.099509308Z",
+      "reload_config_success": true,
+      "corruption_count": 0
+    },
+    "target": {
+      "count": 1,
+      "scrape_url": "http://web:8000/metrics/",
+      "health": "up",
+      "last_error": "",
+      "up": "1",
+      "ok": true
+    },
+    "rules": {
+      "group_count": 2,
+      "rule_count": 17,
+      "unhealthy_count": 0,
+      "m5_rule_names": [
+        "WebToTuiErrorRateRegression",
+        "WebToTuiLegacyEntryRatioHigh",
+        "web_to_tui:entry_samples_14d",
+        "web_to_tui:execution_error_ratio_14d",
+        "web_to_tui:legacy_entry_ratio_14d",
+        "web_to_tui:task_request_error_ratio_14d",
+        "web_to_tui:task_request_samples_14d"
+      ],
+      "ok": true
+    },
+    "current_web_to_tui_series": 203
+  },
+  "protected_query": {
+    "origin": "https://demo.agomtrade.pro",
+    "route": "/internal/prometheus/api/v1/query",
+    "unauthenticated_http_status": 401,
+    "authenticated_http_status": 200,
+    "authenticated_api_status": "success",
+    "authenticated_up": "1",
+    "authenticated_body_sha256": "d9c08eb912e40f1c949e8bc43e95b8e264563361935a38337c7af01b35af1c3c",
+    "credential_file_mode": "0600",
+    "credential_file_size_bytes": 78,
+    "credential_keys": [
+      "password",
+      "username"
+    ],
+    "credential_values_exposed": false,
+    "ok": true
+  },
+  "observation": {
+    "nominal_window_start": "2026-08-30",
+    "nominal_window_end": "2026-09-13",
+    "calendar_day_index": 1,
+    "first_retained_evaluation_at": "2026-08-30T15:09:36Z",
+    "first_retained_raw_sample_at": "2026-08-30T15:09:35.034000Z",
+    "first_sample_query": "min(timestamp(web_to_tui_migration_events_total))",
+    "first_sample_probe_range": {
+      "start": "2026-08-30T14:00:00Z",
+      "end": "2026-08-30T16:00:00Z",
+      "step_seconds": 1,
+      "returned_point_count": 3025,
+      "last_evaluation_at": "2026-08-30T16:00:00Z"
+    },
+    "completed_24h_periods": 0,
+    "minimum_observation_seconds": 1209600,
+    "earliest_full_14d_telemetry_at": "2026-09-13T15:09:35.034000Z",
+    "elapsed_complete": false,
+    "historical_backfill_used": false,
+    "synthetic_zero_used": false,
+    "window_reset_required": false,
+    "status": "in_progress"
+  },
+  "public_probes": {
+    "health": {
+      "http_status": 200,
+      "status": "ok",
+      "body_sha256": "8aca867591a8812ffd5a993a3fd601e43bc161acb45f67c490844f91ba202eaa"
+    },
+    "ready": {
+      "http_status": 200,
+      "status": "ok",
+      "body_sha256": "8f8c04060045ba6debf7b9164f0d2af2a629ceacd9254188262d13034fa9b650"
+    },
+    "decision_ready": {
+      "http_status": 503,
+      "status": "blocked",
+      "must_not_use_for_decision": true,
+      "body_sha256": "f53267321cb05d03deeb3c33bd76cc0b58d97117330ce6d276480a25c70f9f52"
+    }
+  },
+  "source_sha256": {
+    "prometheus_flags": "66b7c26cd5278ddd056752b85548c59001923aa848aa707490dce6094515d4f8",
+    "prometheus_runtime": "045be2594568cb3430b823de69115f49a1b5814ddb6c2fe3d74e42bd9414f538",
+    "prometheus_targets": "0aadf6416871f2868b81283c9f2badfb0af3028f0697063a1a184d903690c2fa",
+    "prometheus_rules": "a4917229ba76307025a86bd1a310abbf3cdad5915a06197407410492b0ea5ef0",
+    "prometheus_up": "803e62a1fe40a30810b77eed8adb794fd4ac30efaf05dfc5e9cc962a4a02315f",
+    "prometheus_series_count": "ab4b94f7dc555de050b778ef7b858c93d85db5deb07ec7285f0aacd5e02b4585",
+    "prometheus_first_sample_range": "a51132a3a47b01922ca2de7d94e50d66cefd7be09c0254f6cd6956ad7173a304"
+  },
+  "gate": {
+    "candidate_unchanged": true,
+    "prometheus_unexpected_restart": false,
+    "target_ok": true,
+    "rules_ok": true,
+    "retention_ok": true,
+    "storage_ok": true,
+    "protected_query_ok": true,
+    "window_reset_required": false,
+    "tui02_final_authorized": false,
+    "readiness_score": "5/10",
+    "decision": "DENY"
+  },
+  "boundary": {
+    "decision_gate_cleared": false,
+    "data_coverage_gate_cleared": false,
+    "classic_cleanup_authorized": false,
+    "final_cutover_approved": false,
+    "next_gate": "Retain the unchanged candidate and real samples through 2026-09-13T15:09:35.034000Z, then collect the exact structured defect and 101-task telemetry snapshots, export a new registry attestation, build the review snapshot and record the sole owner's role-bound attestations."
+  },
+  "side_effects": {
+    "remote_write": false,
+    "deployment": false,
+    "restart": false,
+    "configuration_change": false,
+    "backup": false,
+    "load_test": false,
+    "business_request": false
+  }
+}

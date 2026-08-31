@@ -31,6 +31,14 @@
       "version": "web-to-tui-production-deployment-preflight.v1"
     },
     "observation_end": "2026-09-13",
+    "retained_observation": {
+      "version": "web-to-tui-retained-observation-binding.v1",
+      "evidence": "docs/deployment/tui02-production-observation-checkpoint-2026-08-31-80ea002b.json",
+      "evidence_sha256": "db055a18e86d3b0da10a8612e92b75bf4ef5c2860d7ca34b21166f1efa3b0d2a",
+      "first_retained_sample_at": "2026-08-30T15:09:35.034000Z",
+      "minimum_observation_seconds": 1209600,
+      "eligible_at": "2026-09-13T15:09:35.034000Z"
+    },
     "released_at": "2026-08-30",
     "stable_version": "20260830215638"
   },

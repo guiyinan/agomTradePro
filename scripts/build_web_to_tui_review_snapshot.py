@@ -10,7 +10,7 @@ import importlib
 import json
 import os
 import re
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
@@ -69,6 +69,20 @@ def _parse_date(value: object, *, field: str) -> date:
         return date.fromisoformat(value.strip())
     except ValueError as exc:
         raise ReviewSnapshotError(f"Invalid date field: {field}") from exc
+
+
+def _parse_utc_timestamp(value: object, *, field: str) -> datetime:
+    """Parse one required timezone-aware UTC timestamp."""
+
+    if not isinstance(value, str) or not value.strip():
+        raise ReviewSnapshotError(f"Missing UTC timestamp: {field}")
+    try:
+        parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ReviewSnapshotError(f"Invalid UTC timestamp: {field}") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() != timedelta(0):
+        raise ReviewSnapshotError(f"{field} must include an explicit UTC offset")
+    return parsed.astimezone(UTC)
 
 
 def build_review_snapshot(
@@ -146,6 +160,10 @@ def main() -> int:
     parser.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG)
     parser.add_argument("--evidence", type=Path, default=DEFAULT_EVIDENCE)
     parser.add_argument("--as-of", required=True, type=date.fromisoformat)
+    parser.add_argument(
+        "--evaluated-at",
+        help="Exact UTC evaluation timestamp; defaults to the current UTC time.",
+    )
     parser.add_argument("--snapshot-output", required=True, type=Path)
     parser.add_argument("--replace", action="store_true")
     parser.add_argument(
@@ -156,6 +174,16 @@ def main() -> int:
     args = parser.parse_args()
 
     try:
+        current_time = datetime.now(UTC)
+        evaluated_at = (
+            _parse_utc_timestamp(args.evaluated_at, field="--evaluated-at")
+            if args.evaluated_at
+            else current_time
+        )
+        if evaluated_at.date() != args.as_of:
+            raise ReviewSnapshotError("--as-of must match the UTC date of --evaluated-at")
+        if evaluated_at > current_time:
+            raise ReviewSnapshotError("--evaluated-at cannot be in the future")
         evidence_path = args.evidence.resolve()
         evidence = _load_object(evidence_path)
         result = readiness_checker.evaluate_readiness(
@@ -163,6 +191,7 @@ def main() -> int:
             catalog_path=args.catalog.resolve(),
             evidence_path=evidence_path,
             as_of=args.as_of,
+            evaluated_at=evaluated_at,
             evidence_root=ROOT,
         )
         snapshot = build_review_snapshot(

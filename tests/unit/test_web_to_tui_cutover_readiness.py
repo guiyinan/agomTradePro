@@ -6,17 +6,15 @@ import csv
 import hashlib
 import json
 import subprocess
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from scripts.build_web_to_tui_defect_evidence import build_defect_evidence
-from scripts.build_web_to_tui_production_telemetry import (
-    APPROVED_QUERIES,
-    build_production_telemetry_evidence,
-)
+from scripts import build_web_to_tui_defect_evidence as defect_builder
+from scripts import build_web_to_tui_production_telemetry as telemetry_builder
+from scripts import web_to_tui_retained_observation as retained_observation
 from scripts.build_web_to_tui_review_snapshot import build_review_snapshot
 from scripts.check_web_to_tui_cutover_readiness import (
     _load_catalog,
@@ -33,6 +31,13 @@ ROOT = Path(__file__).resolve().parents[2]
 MATRIX_PATH = ROOT / "docs/plans/web-to-tui-migration-matrix-2026-07-25.csv"
 CATALOG_PATH = ROOT / "config/tui/migration/web_to_tui_telemetry.v1.json"
 EVIDENCE_PATH = ROOT / "config/tui/migration/web_to_tui_cutover_evidence.v1.json"
+APPROVED_QUERIES = telemetry_builder.APPROVED_QUERIES
+DEFECT_SNAPSHOT_VERSION = defect_builder.SNAPSHOT_VERSION
+TELEMETRY_SNAPSHOT_VERSION = telemetry_builder.SNAPSHOT_VERSION
+RETAINED_BINDING_VERSION = retained_observation.BINDING_VERSION
+RETAINED_CHECKPOINT_VERSION = retained_observation.CHECKPOINT_VERSION
+build_defect_evidence = defect_builder.build_defect_evidence
+build_production_telemetry_evidence = telemetry_builder.build_production_telemetry_evidence
 
 
 def _file_digest(path: Path) -> str:
@@ -161,7 +166,7 @@ def _sync_defect_snapshot(
         evidence=payload,
         snapshot_evidence_path=defects["evidence"],
         snapshot_sha256=_file_digest(path),
-        as_of=date(2026, 8, 9),
+        as_of=datetime(2026, 8, 9, 13, tzinfo=UTC),
     )
     payload["defects"] = prepared["defects"]
 
@@ -179,6 +184,58 @@ def _complete_evidence(evidence_root: Path) -> dict[str, Any]:
         matrix_path=MATRIX_PATH,
         graph_path=ROOT / "config/tui/published/tui_operation_graph.published.json",
         runtime_manifest_path=ROOT / "config/tui/agomtui-runtime.manifest.json",
+    )
+    image_id = f"sha256:{'9' * 64}"
+    retained_checkpoint = {
+        "version": RETAINED_CHECKPOINT_VERSION,
+        "environment": "production",
+        "collection_mode": "read_only",
+        "candidate": {
+            "expected": {
+                "commit": candidate_commit,
+                "release_id": "0.9.0-rc1",
+                "image_id": image_id,
+            },
+            "observed": {
+                "commit": candidate_commit,
+                "release_id": "0.9.0-rc1",
+                "image_id": image_id,
+            },
+            "candidate_drift": False,
+        },
+        "observation": {
+            "first_retained_raw_sample_at": "2026-07-26T12:00:00Z",
+            "minimum_observation_seconds": 1209600,
+            "earliest_full_14d_telemetry_at": "2026-08-09T12:00:00Z",
+            "historical_backfill_used": False,
+            "synthetic_zero_used": False,
+            "window_reset_required": False,
+        },
+        "gate": {
+            "candidate_unchanged": True,
+            "prometheus_unexpected_restart": False,
+            "target_ok": True,
+            "rules_ok": True,
+            "retention_ok": True,
+            "storage_ok": True,
+            "protected_query_ok": True,
+            "window_reset_required": False,
+            "tui02_final_authorized": False,
+        },
+        "side_effects": {
+            "remote_write": False,
+            "deployment": False,
+            "restart": False,
+            "configuration_change": False,
+            "backup": False,
+            "load_test": False,
+            "business_request": False,
+        },
+    }
+    retained_evidence, retained_sha256 = _write_fixture(
+        evidence_root,
+        "retained-observation.json",
+        retained_checkpoint,
     )
     readiness_evidence, readiness_sha256 = _write_fixture(
         evidence_root,
@@ -245,6 +302,15 @@ def _complete_evidence(evidence_root: Path) -> dict[str, Any]:
             "candidate_commit": candidate_commit,
             "released_at": "2026-07-26",
             "observation_end": "2026-08-09",
+            "deployment_preflight": {"image_id": image_id},
+            "retained_observation": {
+                "version": RETAINED_BINDING_VERSION,
+                "evidence": retained_evidence,
+                "evidence_sha256": retained_sha256,
+                "first_retained_sample_at": "2026-07-26T12:00:00Z",
+                "minimum_observation_seconds": 1209600,
+                "eligible_at": "2026-08-09T12:00:00Z",
+            },
         },
         "uat": {
             "evidence": uat_evidence,
@@ -287,13 +353,13 @@ def _complete_evidence(evidence_root: Path) -> dict[str, Any]:
     payload["rollback"]["candidate_binding"] = candidate_binding
 
     defect_snapshot = {
-        "version": "web-to-tui-blocking-defect-snapshot.v1",
+        "version": DEFECT_SNAPSHOT_VERSION,
         "candidate_version": "0.9.0-rc1",
         "candidate_commit": candidate_commit,
         "source_sha256": source_sha256,
         "window_start": "2026-07-26",
         "window_end": "2026-08-09",
-        "queried_at": "2026-08-09",
+        "queried_at": "2026-08-09T12:00:00Z",
         "query_scope": "created_or_open_during_candidate_window",
         "tracker": {
             "system": "github",
@@ -314,18 +380,18 @@ def _complete_evidence(evidence_root: Path) -> dict[str, Any]:
         evidence=payload,
         snapshot_evidence_path=defect_path,
         snapshot_sha256=defect_sha256,
-        as_of=date(2026, 8, 9),
+        as_of=datetime(2026, 8, 9, 13, tzinfo=UTC),
     )
 
     telemetry_snapshot = {
-        "version": "web-to-tui-production-telemetry-snapshot.v1",
+        "version": TELEMETRY_SNAPSHOT_VERSION,
         "environment": "production",
         "candidate_version": "0.9.0-rc1",
         "candidate_commit": candidate_commit,
         "source_sha256": source_sha256,
         "window_start": "2026-07-26",
         "window_end": "2026-08-09",
-        "collected_at": "2026-08-09",
+        "collected_at": "2026-08-09T12:00:00Z",
         "collection": {
             "system": "prometheus",
             "endpoint": "https://prometheus.example.test",
@@ -344,7 +410,7 @@ def _complete_evidence(evidence_root: Path) -> dict[str, Any]:
         evidence=payload,
         snapshot_evidence_path=telemetry_path,
         snapshot_sha256=telemetry_sha256,
-        as_of=date(2026, 8, 9),
+        as_of=datetime(2026, 8, 9, 13, tzinfo=UTC),
     )
 
     pre_review_path = evidence_root / "pre-review-evidence.json"
@@ -354,6 +420,7 @@ def _complete_evidence(evidence_root: Path) -> dict[str, Any]:
         catalog_path=CATALOG_PATH,
         evidence_path=pre_review_path,
         as_of=date(2026, 8, 9),
+        evaluated_at=datetime(2026, 8, 9, 13, tzinfo=UTC),
         plan_registry_path=_write_plan_registry(evidence_root),
         evidence_root=evidence_root,
     )
@@ -416,6 +483,7 @@ def _evaluate(
         catalog_path=CATALOG_PATH,
         evidence_path=path,
         as_of=date(2026, 8, 9),
+        evaluated_at=datetime(2026, 8, 9, 13, tzinfo=UTC),
         plan_registry_path=plan_registry_path or _write_plan_registry(tmp_path),
         evidence_root=tmp_path,
     )
@@ -424,13 +492,12 @@ def _evaluate(
 def test_checked_in_evidence_is_explicitly_denied() -> None:
     """Current machine evidence passes five gates while cutover stays denied."""
 
-    from datetime import date
-
     result = evaluate_readiness(
         matrix_path=MATRIX_PATH,
         catalog_path=CATALOG_PATH,
         evidence_path=EVIDENCE_PATH,
         as_of=date(2026, 8, 30),
+        evaluated_at=datetime(2026, 8, 30, 23, 59, tzinfo=UTC),
     )
     gates = {gate.key: gate for gate in result.gates}
 
@@ -499,6 +566,45 @@ def test_complete_independent_evidence_allows_cutover(tmp_path: Path) -> None:
 
     assert result.decision == "ALLOW"
     assert all(gate.passed for gate in result.gates)
+
+
+def test_cutover_denies_one_microsecond_before_exact_retained_window(tmp_path: Path) -> None:
+    """A matching calendar date cannot substitute for 14 complete 24-hour periods."""
+
+    payload = _complete_evidence(tmp_path)
+    path = tmp_path / "evidence-before-eligible.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    result = evaluate_readiness(
+        matrix_path=MATRIX_PATH,
+        catalog_path=CATALOG_PATH,
+        evidence_path=path,
+        as_of=date(2026, 8, 9),
+        evaluated_at=datetime(2026, 8, 9, 11, 59, 59, 999999, tzinfo=UTC),
+        plan_registry_path=_write_plan_registry(tmp_path),
+        evidence_root=tmp_path,
+    )
+
+    assert result.decision == "DENY"
+    gates = {gate.key: gate for gate in result.gates}
+    assert gates["stable_version_window"].passed is False
+    assert gates["blocking_defects"].passed is False
+    assert gates["production_telemetry"].passed is False
+
+
+def test_cutover_denies_retained_checkpoint_hash_drift(tmp_path: Path) -> None:
+    """The stable window cannot survive mutation of its production source checkpoint."""
+
+    payload = _complete_evidence(tmp_path)
+    retained_path = tmp_path / payload["candidate"]["retained_observation"]["evidence"]
+    retained_path.write_text("{}", encoding="utf-8")
+
+    result = _evaluate(tmp_path, payload)
+
+    assert result.decision == "DENY"
+    stable = next(gate for gate in result.gates if gate.key == "stable_version_window")
+    assert stable.passed is False
+    assert "retained_source=false" in stable.detail
 
 
 @pytest.mark.parametrize(

@@ -635,3 +635,33 @@ Day 0 汇总见
 SHA-256=`1cff7915f03e3c12618ada5e4b02fd3d81741db16c121cd3aef362192a9e4d85`。当前 `TUI-02=active`、
 readiness=`5/10 DENY`；剩余门仅为自然窗口、structured defect/101-task telemetry、post-window backup
 attestation、review snapshot 与同一 owner 的两个 role-bound attestations。
+
+## 14. 2026-08-31 TUI-02 retained observation checkpoint
+
+生产只读 retained-source 复核已固化为
+[`tui02-production-observation-checkpoint-2026-08-31-80ea002b.json`](../deployment/tui02-production-observation-checkpoint-2026-08-31-80ea002b.json)，
+SHA-256=`db055a18e86d3b0da10a8612e92b75bf4ef5c2860d7ca34b21166f1efa3b0d2a`。候选 commit、release、
+OCI image 均与 Day 0 一致；web/Prometheus/Caddy restart count 为 0，Prometheus 的启动时间未变化，
+持久卷约有 22.3 MB 数据，`3w/4GiB` 保留、唯一 Django target、17 条 rules 与 HTTPS authenticated
+query 均通过。未执行部署、重启、配置修改、生产写入、backup、load test 或业务请求。
+
+对 `min(timestamp(web_to_tui_migration_events_total))` 的 1 秒 query-range 证明首个真实 retained raw
+sample 为 `2026-08-30T15:09:35.034000Z`。因此自然窗口不能仅按日历日判定；完整
+`14 * 24 * 60 * 60` 秒的最早时点是 `2026-09-13T15:09:35.034000Z`。本次检查时完整 24 小时周期仍为
+0，candidate drift、Prometheus restart 和 window reset 均为 false，readiness 继续严格保持
+`5/10 DENY`。`/api/decision-ready/` 同时仍返回 `503 blocked` 且
+`must_not_use_for_decision=true`，本 checkpoint 不解除 DATA/AUD decision gate。
+
+同轮补齐了可独立推进的 repository guard：
+
+- `web_to_tui_retained_observation.py` 将 hash-bound production checkpoint 绑定到 cutover candidate，
+  校验 candidate/image、真实 first sample、retention/target/rules/auth、无 backfill/zero synthesis 和无
+  restart/reset；重绑只清空已经过期的 post-window 证据，不抹掉仍绑定同候选的 UAT/cleanup/rollback；
+- telemetry 与 defect snapshot 契约升级为 v2，`collected_at` / `queried_at` 必须是精确 UTC timestamp；
+- readiness 同时复核 checkpoint 文件 SHA 和精确 eligible instant。即使日期已经是 9 月 13 日，早
+  1 微秒也不能通过 stable window、defect 或 telemetry gate。
+
+下一动作不再是笼统“9 月 13 日当天”采集，而是持续保留同一 candidate/source，并仅在
+`2026-09-13T15:09:35.034000Z` 或之后构建 v2 defect 与 101-task telemetry 快照；随后导出新的
+post-window registry attestation、构建 review snapshot，再记录唯一 owner 的两个 role-bound
+attestation。此前不得生成 final evidence、cleanup wave 或删除 Classic。

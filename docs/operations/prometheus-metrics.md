@@ -269,8 +269,19 @@ Classic 侧统计页面 entry 及其同源 API execution；TUI 侧统计真实 a
 
 #### M5：生产遥测快照入证
 
-观察窗口结束后，生产 Prometheus 查询结果必须先保存为仓库内、无凭证的
-`web-to-tui-production-telemetry-snapshot.v1` JSON，再由生成器写入 cutover evidence：
+首次真实 retained sample 必须先由只读 production checkpoint 绑定到候选；绑定器校验 checkpoint
+SHA、candidate/image、retention/target/rules/auth 以及无 restart/backfill/zero synthesis，并计算精确
+14 日 eligible instant：
+
+```bash
+python scripts/web_to_tui_retained_observation.py \
+  --checkpoint <repo-relative-retained-checkpoint.json>
+python scripts/web_to_tui_retained_observation.py \
+  --checkpoint <repo-relative-retained-checkpoint.json> --write-evidence
+```
+
+精确观察窗口结束后，生产 Prometheus 查询结果必须先保存为仓库内、无凭证的
+`web-to-tui-production-telemetry-snapshot.v2` JSON，再由生成器写入 cutover evidence：
 
 ```bash
 python scripts/build_web_to_tui_production_telemetry.py \
@@ -280,7 +291,8 @@ python scripts/build_web_to_tui_production_telemetry.py \
 ```
 
 快照必须包含 `candidate_version`、`candidate_commit`、`source_sha256`、`environment`、
-`window_start`、`window_end`、`collected_at`、`collection` 和 `tasks`。`collection` 只能登记
+`window_start`、`window_end`、`collected_at`、`collection` 和 `tasks`；`collected_at` 必须是带显式
+UTC offset 的 ISO 8601 timestamp，日期字符串不能代替完整 14×24 小时。`collection` 只能登记
 不含用户名、密码、query 或 fragment 的 HTTPS Prometheus origin，并逐项保存生成器内置的
 六条批准 PromQL；`tasks` 必须精确覆盖 catalog 中 `classic_routes.task_key` 去重后的 101 个
 可比较任务，不能使用包含 TUI-only action 的全量 `tui_task_keys`，并提供 Classic/TUI entry、
@@ -297,6 +309,9 @@ SHA 一致，并覆盖机器推导出的全部 migrated A/B route page 和全部
 ```bash
 python scripts/check_web_to_tui_cutover_readiness.py
 ```
+
+默认检查使用当前 UTC timestamp；重放历史检查时，`--as-of` 必须与 `--evaluated-at` 的 UTC 日期一致。
+readiness 会重新核验 retained checkpoint SHA 和 exact eligible instant，不接受仅按日历日提前放行。
 
 普通检查即使判定为 `DENY` 也以成功状态退出，便于兼容期持续验证证据结构；实际执行
 Classic 清理、production registry 切换或计划归档前必须使用硬门：
@@ -317,7 +332,9 @@ python scripts/build_web_to_tui_defect_evidence.py \
 ```
 
 生成器分别登记窗口内新增和窗口内曾未关闭的 P0/P1；四项均为 0 才能通过，候选、commit、
-矩阵 SHA、查询范围或快照摘要不匹配时 fail closed。
+矩阵 SHA、查询范围或快照摘要不匹配时 fail closed。缺陷快照版本为
+`web-to-tui-blocking-defect-snapshot.v2`，其 `queried_at` 同样必须是达到 exact eligible instant 后的
+UTC timestamp。
 
 ## 架构说明
 

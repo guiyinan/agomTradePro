@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -15,7 +15,7 @@ from jsonschema import Draft202012Validator
 from scripts import start_web_to_tui_observation as observation
 from scripts.web_to_tui_candidate_binding import CandidateBinding
 
-NOW = datetime(2026, 7, 28, 12, 10, tzinfo=timezone.utc)
+NOW = datetime(2026, 7, 28, 12, 10, tzinfo=UTC)
 
 
 def _evidence() -> dict[str, Any]:
@@ -236,6 +236,14 @@ def test_prepare_is_idempotent_for_same_deployment_proof() -> None:
         replace=False,
     )
     initial["telemetry"]["tasks"] = [{"task_key": "current"}]
+    initial["candidate"]["retained_observation"] = {
+        "version": "web-to-tui-retained-observation-binding.v1",
+        "evidence": "docs/deployment/retained.json",
+        "evidence_sha256": "9" * 64,
+        "first_retained_sample_at": "2026-07-28T12:00:00Z",
+        "minimum_observation_seconds": 1209600,
+        "eligible_at": "2026-08-11T12:00:00Z",
+    }
 
     repeated = observation.prepare_observation_evidence(
         initial,
@@ -245,6 +253,10 @@ def test_prepare_is_idempotent_for_same_deployment_proof() -> None:
     )
 
     assert repeated["telemetry"]["tasks"] == [{"task_key": "current"}]
+    assert (
+        repeated["candidate"]["retained_observation"]
+        == initial["candidate"]["retained_observation"]
+    )
 
 
 def test_prepare_requires_replace_for_different_deployment_proof() -> None:

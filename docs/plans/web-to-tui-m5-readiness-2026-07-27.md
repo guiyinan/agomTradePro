@@ -240,9 +240,10 @@ python scripts/build_web_to_tui_defect_evidence.py \
   --snapshot <repo-relative-defect-snapshot.json> --write-evidence --require-clear
 ```
 
-快照必须使用 `web-to-tui-blocking-defect-snapshot.v1`，登记 candidate/source/window、
+快照必须使用 `web-to-tui-blocking-defect-snapshot.v2`，登记 candidate/source/window、
 `created_or_open_during_candidate_window`、tracker system/project/HTTPS endpoint/query filter/
-queried_by，以及每条 P0/P1 的 `id`、`priority`、`state`、`created_at`、`closed_at`。
+queried_by，以及每条 P0/P1 的 `id`、`priority`、`state`、`created_at`、`closed_at`；`queried_at`
+必须是达到 retained binding 精确 eligible instant 后的 UTC timestamp。
 
 观察窗口结束并把不含密钥的 Prometheus 快照存入仓库后，先 dry-run，再写入 evidence：
 
@@ -252,6 +253,9 @@ python scripts/build_web_to_tui_production_telemetry.py \
 python scripts/build_web_to_tui_production_telemetry.py \
   --snapshot <repo-relative-production-snapshot.json> --write-evidence
 ```
+
+Prometheus 快照必须使用 `web-to-tui-production-telemetry-snapshot.v2`，且 `collected_at` 必须是
+达到同一 exact eligible instant 后的 UTC timestamp；日期字符串不能通过。
 
 逐 route rollback 证据必须由矩阵中的真实 commit 生成，不得手工复制占位值：
 
@@ -1045,3 +1049,17 @@ SHA-256=`1cff7915f03e3c12618ada5e4b02fd3d81741db16c121cd3aef362192a9e4d85`。当
 `5/10 DENY`：source、dependency、UAT、cleanup、rollback 已通过；稳定窗口、structured defects、
 101-task telemetry、post-window registry attestation 与 final role-bound attestations待完成。`TUI-02=active`，
 repository focus 仍为 `null`；2026-09-13 前只维持真实采样、候选漂移与健康停止线，不重复造最终快照。
+
+### 2026-08-31 retained sample 精确时间门
+
+生产只读 checkpoint
+[`tui02-production-observation-checkpoint-2026-08-31-80ea002b.json`](../deployment/tui02-production-observation-checkpoint-2026-08-31-80ea002b.json)
+（SHA-256=`db055a18e86d3b0da10a8612e92b75bf4ef5c2860d7ca34b21166f1efa3b0d2a`）确认候选未漂移、
+Prometheus 未重启、persistent volume/`3w or 4GiB`/target/17 rules/authenticated query 全部健康；首个
+retained raw sample 为 `2026-08-30T15:09:35.034000Z`。因此 exact eligible instant 是
+`2026-09-13T15:09:35.034000Z`，不是 9 月 13 日零点。
+
+repository guard 已改为 hash-bound retained binding，并把 telemetry/defect snapshot 升级到 v2：
+`collected_at`、`queried_at` 必须是 UTC timestamp，readiness 会重放 snapshot builder、复核 checkpoint
+SHA，并在 exact instant 前保持 stable/defect/telemetry 三门失败。当前仍为 `5/10 DENY`，没有因此
+授权 cleanup、final backup、review 或 attestations。

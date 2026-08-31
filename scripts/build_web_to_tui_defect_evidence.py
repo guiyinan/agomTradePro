@@ -10,14 +10,25 @@ import json
 import os
 import re
 import subprocess
-from datetime import date
+import sys
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.web_to_tui_retained_observation import (  # noqa: E402
+    RetainedObservationError,
+    parse_retained_observation,
+    parse_utc_timestamp,
+    utc_text,
+)
+
 DEFAULT_EVIDENCE = ROOT / "config/tui/migration/web_to_tui_cutover_evidence.v1.json"
-SNAPSHOT_VERSION = "web-to-tui-blocking-defect-snapshot.v1"
+SNAPSHOT_VERSION = "web-to-tui-blocking-defect-snapshot.v2"
 QUERY_SCOPE = "created_or_open_during_candidate_window"
 TRACKER_SYSTEMS = frozenset({"github", "jira", "linear"})
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
@@ -168,7 +179,7 @@ def build_defect_evidence(
     evidence: dict[str, Any],
     snapshot_evidence_path: str,
     snapshot_sha256: str,
-    as_of: date,
+    as_of: datetime,
 ) -> dict[str, Any]:
     """Return cutover evidence populated from one validated issue-tracker snapshot."""
 
@@ -191,19 +202,37 @@ def build_defect_evidence(
     ):
         raise DefectEvidenceError("Snapshot is bound to a different candidate")
 
+    try:
+        retained_observation = parse_retained_observation(candidate)
+    except RetainedObservationError as exc:
+        raise DefectEvidenceError(str(exc)) from exc
+    if as_of.tzinfo is None or as_of.utcoffset() != timedelta(0):
+        raise DefectEvidenceError("as_of must include an explicit UTC offset")
+    reviewed_at = as_of.astimezone(UTC)
+
     released_at = _parse_date(candidate.get("released_at"), field="candidate.released_at")
     observation_end = _parse_date(
         candidate.get("observation_end"), field="candidate.observation_end"
     )
     window_start = _parse_date(snapshot.get("window_start"), field="snapshot.window_start")
     window_end = _parse_date(snapshot.get("window_end"), field="snapshot.window_end")
-    queried_at = _parse_date(snapshot.get("queried_at"), field="snapshot.queried_at")
-    if window_start != released_at or window_end != observation_end:
+    try:
+        queried_at = parse_utc_timestamp(snapshot.get("queried_at"), field="snapshot.queried_at")
+    except RetainedObservationError as exc:
+        raise DefectEvidenceError(str(exc)) from exc
+    expected_window_start = retained_observation.first_retained_sample_at.date()
+    expected_window_end = retained_observation.eligible_at.date()
+    if (
+        released_at > expected_window_start
+        or observation_end != expected_window_end
+        or window_start != expected_window_start
+        or window_end != expected_window_end
+    ):
         raise DefectEvidenceError("Snapshot window must exactly match the candidate window")
     if (window_end - window_start).days < 14:
         raise DefectEvidenceError("Candidate defect window is shorter than 14 days")
-    if not window_end <= queried_at <= as_of:
-        raise DefectEvidenceError("Snapshot query date is outside the review window")
+    if not retained_observation.eligible_at <= queried_at <= reviewed_at:
+        raise DefectEvidenceError("Snapshot query timestamp is outside the exact review window")
 
     query_filter = _validate_tracker(snapshot)
     counts = _derive_counts(snapshot, window_start=window_start, window_end=window_end)
@@ -222,7 +251,7 @@ def build_defect_evidence(
         "query_scope": QUERY_SCOPE,
         "query_filter": query_filter,
         "snapshot_sha256": snapshot_sha256,
-        "queried_at": queried_at.isoformat(),
+        "queried_at": utc_text(queried_at),
     }
     return prepared
 
@@ -260,7 +289,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--snapshot", type=Path, required=True)
     parser.add_argument("--evidence", type=Path, default=DEFAULT_EVIDENCE)
-    parser.add_argument("--as-of", type=date.fromisoformat, default=date.today())
+    parser.add_argument(
+        "--as-of",
+        help="Exact UTC review timestamp; defaults to the current UTC time.",
+    )
     parser.add_argument(
         "--write-evidence",
         action="store_true",
@@ -280,12 +312,16 @@ def main() -> int:
         snapshot = _load_object(snapshot_path)
         evidence_path = args.evidence.resolve()
         evidence = _load_object(evidence_path)
+        current_time = datetime.now(UTC)
+        as_of = parse_utc_timestamp(args.as_of, field="--as-of") if args.as_of else current_time
+        if as_of > current_time:
+            raise DefectEvidenceError("--as-of cannot be in the future")
         prepared = build_defect_evidence(
             snapshot=snapshot,
             evidence=evidence,
             snapshot_evidence_path=snapshot_evidence_path,
             snapshot_sha256=snapshot_sha256,
-            as_of=args.as_of,
+            as_of=as_of,
         )
         defects = cast(dict[str, Any], prepared["defects"])
         blocking = sum(
@@ -295,7 +331,13 @@ def main() -> int:
             _write_json_atomic(evidence_path, prepared)
         if args.require_clear and blocking:
             raise DefectEvidenceError(f"Snapshot contains {blocking} blocking defect observations")
-    except (OSError, json.JSONDecodeError, DefectEvidenceError, ValueError) as exc:
+    except (
+        OSError,
+        json.JSONDecodeError,
+        DefectEvidenceError,
+        RetainedObservationError,
+        ValueError,
+    ) as exc:
         print(f"Web-to-TUI blocking defects: FAIL - {exc}")
         return 1
 

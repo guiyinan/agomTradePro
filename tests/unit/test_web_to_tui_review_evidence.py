@@ -173,6 +173,8 @@ def test_cli_writes_review_then_role_bound_approval(
             str(tmp_path / "catalog.json"),
             "--as-of",
             "2026-08-11",
+            "--evaluated-at",
+            "2026-08-11T13:00:00Z",
             "--snapshot-output",
             str(review_path),
             "--write-evidence",

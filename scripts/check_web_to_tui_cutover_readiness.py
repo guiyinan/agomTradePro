@@ -12,7 +12,7 @@ import re
 import subprocess
 import sys
 from dataclasses import asdict, dataclass
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any, TypedDict, cast
 from urllib.parse import urlparse
@@ -27,12 +27,15 @@ from scripts.web_to_tui_candidate_binding import (  # noqa: E402
     build_candidate_binding,
 )
 
-module_prefix = "scripts." if __package__ else ""
+module_prefix = "scripts."
 defect_evidence_builder: Any = importlib.import_module(
     f"{module_prefix}build_web_to_tui_defect_evidence"
 )
 production_telemetry_builder: Any = importlib.import_module(
     f"{module_prefix}build_web_to_tui_production_telemetry"
+)
+retained_observation_validator: Any = importlib.import_module(
+    f"{module_prefix}web_to_tui_retained_observation"
 )
 
 DEFAULT_MATRIX = ROOT / "docs/plans/web-to-tui-migration-matrix-2026-07-25.csv"
@@ -127,6 +130,18 @@ def _parse_date(value: object) -> date | None:
     try:
         return date.fromisoformat(value.strip())
     except ValueError:
+        return None
+
+
+def _parse_utc_datetime(value: object) -> datetime | None:
+    """Parse one exact UTC timestamp without accepting dates or naive datetimes."""
+
+    try:
+        return cast(
+            datetime,
+            retained_observation_validator.parse_utc_timestamp(value, field="timestamp"),
+        )
+    except retained_observation_validator.RetainedObservationError:
         return None
 
 
@@ -486,6 +501,8 @@ def _telemetry_gate(
     required_tasks: set[str],
     observation_start: date | None,
     observation_end: date | None,
+    observation_eligible_at: datetime | None,
+    evaluated_at: datetime,
     *,
     evidence_root: Path,
     structured_snapshot_ok: bool,
@@ -494,7 +511,7 @@ def _telemetry_gate(
 
     window_start = _parse_date(telemetry.get("window_start"))
     window_end = _parse_date(telemetry.get("window_end"))
-    collected_at = _parse_date(telemetry.get("collected_at"))
+    collected_at = _parse_utc_datetime(telemetry.get("collected_at"))
     evidence_ok = (
         _verified_repo_evidence(
             telemetry.get("evidence"),
@@ -576,7 +593,8 @@ def _telemetry_gate(
         and window_end >= observation_end
         and (window_end - window_start).days >= 14
         and collected_at
-        and collected_at >= window_end
+        and observation_eligible_at
+        and observation_eligible_at <= collected_at <= evaluated_at
     )
     passed = not (
         missing
@@ -603,7 +621,7 @@ def _defect_snapshot_matches(
     defects: dict[str, Any],
     evidence: dict[str, Any],
     evidence_root: Path,
-    as_of: date,
+    as_of: datetime,
 ) -> bool:
     """Rebuild defect evidence from its structured snapshot and compare exactly."""
 
@@ -639,7 +657,7 @@ def _telemetry_snapshot_matches(
     catalog: dict[str, Any],
     evidence: dict[str, Any],
     evidence_root: Path,
-    as_of: date,
+    as_of: datetime,
 ) -> bool:
     """Rebuild telemetry evidence from its structured snapshot and compare exactly."""
 
@@ -784,12 +802,22 @@ def evaluate_readiness(
     catalog_path: Path,
     evidence_path: Path,
     as_of: date,
+    evaluated_at: datetime | None = None,
     graph_path: Path = DEFAULT_GRAPH,
     runtime_manifest_path: Path = DEFAULT_RUNTIME_MANIFEST,
     plan_registry_path: Path = DEFAULT_PLAN_REGISTRY,
     evidence_root: Path = ROOT,
 ) -> ReadinessResult:
     """Evaluate every M5 cutover requirement against current evidence."""
+
+    exact_evaluated_at = evaluated_at or datetime.now(UTC)
+    if (
+        exact_evaluated_at.tzinfo is None
+        or exact_evaluated_at.utcoffset() != timedelta(0)
+        or exact_evaluated_at.date() != as_of
+    ):
+        raise ValueError("evaluated_at must be an exact UTC timestamp on the as_of date")
+    exact_evaluated_at = exact_evaluated_at.astimezone(UTC)
 
     matrix_bytes = _normalized_source_bytes(matrix_path)
     matrix_sha256 = hashlib.sha256(matrix_bytes).hexdigest()
@@ -816,6 +844,30 @@ def evaluate_readiness(
     candidate_commit = str(candidate.get("candidate_commit") or "").strip()
     released_at = _parse_date(candidate.get("released_at"))
     observation_end = _parse_date(candidate.get("observation_end"))
+    try:
+        retained_observation = (
+            retained_observation_validator.validate_retained_observation_checkpoint(
+                candidate,
+                root=evidence_root,
+            )
+        )
+    except (
+        OSError,
+        ValueError,
+        json.JSONDecodeError,
+        retained_observation_validator.RetainedObservationError,
+    ):
+        retained_observation = None
+    observation_start = (
+        cast(datetime, retained_observation.first_retained_sample_at).date()
+        if retained_observation is not None
+        else None
+    )
+    observation_eligible_at = (
+        cast(datetime, retained_observation.eligible_at)
+        if retained_observation is not None
+        else None
+    )
     expected_binding = build_candidate_binding(
         stable_version=stable_version,
         candidate_commit=candidate_commit,
@@ -842,8 +894,15 @@ def evaluate_readiness(
         and candidate_source_ok
         and released_at
         and observation_end
-        and observation_end <= as_of
-        and (observation_end - released_at).days >= 14
+        and observation_start
+        and observation_eligible_at
+        and released_at <= observation_start
+        and observation_end == observation_eligible_at.date()
+        and observation_eligible_at <= exact_evaluated_at
+        and (
+            observation_eligible_at - cast(datetime, retained_observation.first_retained_sample_at)
+        ).total_seconds()
+        >= 14 * 24 * 60 * 60
     )
     gates.append(
         GateResult(
@@ -853,7 +912,9 @@ def evaluate_readiness(
             f"commit={'verified_with_snapshot' if candidate_source_ok else 'missing_or_source_mismatch'}; "
             f"binding={str(candidate_binding_ok).lower()}; "
             f"released_at={released_at}; "
-            f"observation_end={observation_end}; minimum_days=14",
+            f"first_retained_sample_at={getattr(retained_observation, 'first_retained_sample_at', None)}; "
+            f"eligible_at={observation_eligible_at}; evaluated_at={exact_evaluated_at}; "
+            f"retained_source={str(retained_observation is not None).lower()}; minimum_seconds=1209600",
         )
     )
 
@@ -909,11 +970,11 @@ def evaluate_readiness(
         defects=defects,
         evidence=evidence,
         evidence_root=evidence_root,
-        as_of=as_of,
+        as_of=exact_evaluated_at,
     )
     defect_filter = str(defects.get("query_filter") or "").strip()
     defect_scope = str(defects.get("query_scope") or "").strip()
-    defect_queried_at = _parse_date(defects.get("queried_at"))
+    defect_queried_at = _parse_utc_datetime(defects.get("queried_at"))
     defect_binding_ok = bool(
         str(defects.get("candidate_version") or "").strip() == stable_version
         and str(defects.get("candidate_commit") or "").strip() == candidate_commit
@@ -936,8 +997,8 @@ def evaluate_readiness(
         and defect_scope == DEFECT_QUERY_SCOPE
         and defect_filter
         and defect_queried_at
-        and defect_queried_at >= defect_end
-        and defect_queried_at <= as_of
+        and observation_eligible_at
+        and observation_eligible_at <= defect_queried_at <= exact_evaluated_at
     )
     gates.append(
         GateResult(
@@ -956,15 +1017,17 @@ def evaluate_readiness(
         _telemetry_gate(
             telemetry,
             tasks,
-            released_at,
+            observation_start,
             observation_end,
+            observation_eligible_at,
+            exact_evaluated_at,
             evidence_root=evidence_root,
             structured_snapshot_ok=_telemetry_snapshot_matches(
                 telemetry=telemetry,
                 catalog=catalog_payload,
                 evidence=evidence,
                 evidence_root=evidence_root,
-                as_of=as_of,
+                as_of=exact_evaluated_at,
             ),
         )
     )
@@ -1138,16 +1201,39 @@ def main() -> None:
     parser.add_argument("--graph", type=Path, default=DEFAULT_GRAPH)
     parser.add_argument("--runtime-manifest", type=Path, default=DEFAULT_RUNTIME_MANIFEST)
     parser.add_argument("--plan-registry", type=Path, default=DEFAULT_PLAN_REGISTRY)
-    parser.add_argument("--as-of", type=date.fromisoformat, default=date.today())
+    parser.add_argument("--as-of", type=date.fromisoformat)
+    parser.add_argument(
+        "--evaluated-at",
+        help="Exact UTC evaluation timestamp; defaults to the current UTC time.",
+    )
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--require-allow", action="store_true")
     args = parser.parse_args()
+
+    current_time = datetime.now(UTC)
+    try:
+        evaluated_at = (
+            retained_observation_validator.parse_utc_timestamp(
+                args.evaluated_at,
+                field="--evaluated-at",
+            )
+            if args.evaluated_at
+            else current_time
+        )
+    except retained_observation_validator.RetainedObservationError as exc:
+        parser.error(str(exc))
+    as_of = args.as_of or cast(datetime, evaluated_at).date()
+    if cast(datetime, evaluated_at).date() != as_of:
+        parser.error("--as-of must match the UTC date of --evaluated-at")
+    if cast(datetime, evaluated_at) > current_time:
+        parser.error("--evaluated-at cannot be in the future")
 
     result = evaluate_readiness(
         matrix_path=args.matrix.resolve(),
         catalog_path=args.catalog.resolve(),
         evidence_path=args.evidence.resolve(),
-        as_of=args.as_of,
+        as_of=as_of,
+        evaluated_at=cast(datetime, evaluated_at),
         graph_path=args.graph.resolve(),
         runtime_manifest_path=args.runtime_manifest.resolve(),
         plan_registry_path=args.plan_registry.resolve(),

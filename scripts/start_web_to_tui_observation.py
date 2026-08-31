@@ -10,25 +10,22 @@ import json
 import os
 import re
 import subprocess
+import sys
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
-if __package__:
-    from scripts.web_to_tui_candidate_binding import (
-        CandidateBinding,
-        build_candidate_binding,
-        source_sha256,
-    )
-else:
-    from web_to_tui_candidate_binding import (  # type: ignore[no-redef]
-        CandidateBinding,
-        build_candidate_binding,
-        source_sha256,
-    )
-
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.web_to_tui_candidate_binding import (  # noqa: E402
+    CandidateBinding,
+    build_candidate_binding,
+    source_sha256,
+)
+
 DEFAULT_MATRIX = ROOT / "docs/plans/web-to-tui-migration-matrix-2026-07-25.csv"
 DEFAULT_EVIDENCE = ROOT / "config/tui/migration/web_to_tui_cutover_evidence.v1.json"
 DEFAULT_GRAPH = ROOT / "config/tui/published/tui_operation_graph.published.json"
@@ -238,10 +235,10 @@ def parse_deployment_preflight(
     )
     verified_at = _aware_datetime(payload["verified_at"], field="deployment_preflight.verified_at")
 
-    current = now.astimezone(timezone.utc)
-    deployment_time = deployed_at.astimezone(timezone.utc)
-    health_time = health_checked_at.astimezone(timezone.utc)
-    verification_time = verified_at.astimezone(timezone.utc)
+    current = now.astimezone(UTC)
+    deployment_time = deployed_at.astimezone(UTC)
+    health_time = health_checked_at.astimezone(UTC)
+    verification_time = verified_at.astimezone(UTC)
     if not deployment_time <= health_time <= verification_time <= current:
         raise ObservationStartError(
             "Deployment, health, verification, and current timestamps are not monotonic"
@@ -518,6 +515,14 @@ def prepare_observation_evidence(
     }
     current = evidence.get("candidate")
     current_candidate = current if isinstance(current, dict) else {}
+    current_identity = copy.deepcopy(current_candidate)
+    current_identity.pop("retained_observation", None)
+    current_identity["observation_end"] = observation_end.isoformat()
+    if current_identity == requested and "retained_observation" in current_candidate:
+        requested["retained_observation"] = copy.deepcopy(current_candidate["retained_observation"])
+        requested["observation_end"] = current_candidate.get(
+            "observation_end", observation_end.isoformat()
+        )
     has_current = any(value is not None and value != "" for value in current_candidate.values())
     same_candidate = current_candidate == requested
     if has_current and not same_candidate and not replace:
@@ -568,7 +573,7 @@ def main() -> int:
     args = parser.parse_args()
 
     try:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         matrix_path = args.matrix.resolve()
         graph_path = args.graph.resolve()
         runtime_manifest_path = args.runtime_manifest.resolve()

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import date
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -48,6 +48,14 @@ def _evidence() -> dict[str, Any]:
             "candidate_commit": CANDIDATE_COMMIT,
             "released_at": "2026-07-28",
             "observation_end": "2026-08-11",
+            "retained_observation": {
+                "version": "web-to-tui-retained-observation-binding.v1",
+                "evidence": "docs/deployment/retained-checkpoint.json",
+                "evidence_sha256": "d" * 64,
+                "first_retained_sample_at": "2026-07-28T12:00:00Z",
+                "minimum_observation_seconds": 1209600,
+                "eligible_at": "2026-08-11T12:00:00Z",
+            },
         },
         "telemetry": {"tasks": []},
     }
@@ -79,7 +87,7 @@ def _snapshot() -> dict[str, Any]:
         "environment": "production",
         "window_start": "2026-07-28",
         "window_end": "2026-08-11",
-        "collected_at": "2026-08-11",
+        "collected_at": "2026-08-11T12:00:00Z",
         "collection": {
             "system": "prometheus",
             "endpoint": "https://prometheus.example.test",
@@ -98,7 +106,7 @@ def _build(snapshot: dict[str, Any]) -> dict[str, Any]:
         evidence=_evidence(),
         snapshot_evidence_path="docs/plans/production-telemetry.json",
         snapshot_sha256="c" * 64,
-        as_of=date(2026, 8, 11),
+        as_of=datetime(2026, 8, 11, 13, tzinfo=UTC),
     )
 
 
@@ -149,6 +157,23 @@ def test_rejects_snapshot_for_another_candidate_or_window() -> None:
     snapshot = _snapshot()
     snapshot["window_start"] = "2026-07-27"
     with pytest.raises(production_telemetry.ProductionTelemetryError, match="exactly match"):
+        _build(snapshot)
+
+
+@pytest.mark.parametrize(
+    "collected_at",
+    ("2026-08-11", "2026-08-11T11:59:59.999999Z"),
+)
+def test_rejects_date_only_or_premature_collection_timestamp(collected_at: str) -> None:
+    """The final telemetry snapshot cannot pass before 14 exact retained days."""
+
+    snapshot = _snapshot()
+    snapshot["collected_at"] = collected_at
+
+    with pytest.raises(
+        production_telemetry.ProductionTelemetryError,
+        match="timestamp|UTC",
+    ):
         _build(snapshot)
 
 
