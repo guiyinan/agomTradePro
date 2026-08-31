@@ -10,6 +10,8 @@ from types import SimpleNamespace
 import pytest
 from django.core.management import CommandError, call_command
 
+from core.exceptions import MissingConfigError
+
 NOW = datetime(2026, 8, 30, 1, 0, tzinfo=UTC)
 SESSION_DATE = date(2026, 8, 28)
 COMMAND_MODULE = "apps.data_center.management.commands.repair_active_a_share_current_facts"
@@ -51,6 +53,19 @@ def test_current_fact_repair_is_dry_run_by_default(mocker) -> None:
         source_type="akshare",
         created_by="ops.current_fact_refresh.preview",
     )
+
+
+def test_current_fact_repair_fails_closed_when_universe_config_is_missing(mocker) -> None:
+    mocker.patch(
+        f"{COMMAND_MODULE}.list_active_stock_codes_for_backfill",
+        side_effect=MissingConfigError("Production coverage universe config is not initialized"),
+    )
+    factory = mocker.patch(f"{COMMAND_MODULE}.make_core_current_fact_refresh_use_case")
+
+    with pytest.raises(CommandError, match="not initialized"):
+        call_command("repair_active_a_share_current_facts", stdout=StringIO())
+
+    factory.assert_not_called()
 
 
 def test_current_fact_repair_requires_operator_for_execute() -> None:

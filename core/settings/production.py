@@ -137,11 +137,14 @@ if not database_url.startswith(("postgres://", "postgresql://")) and not (
         "for development and the one-time migration source."
     )
 
-# Database - PostgreSQL is mandatory for production concurrency.
+# Database - PostgreSQL is mandatory for production concurrency. Daphne serves
+# the production application through ASGI, where Django persistent request
+# connections are unsafe; use a database-side/external pooler if pooling is
+# required instead of retaining one connection per request thread.
 DATABASES = {
     "default": {
         **env.db_url_config(database_url),
-        "CONN_MAX_AGE": env.int("DB_CONN_MAX_AGE", default=600),
+        "CONN_MAX_AGE": 0,
         "CONN_HEALTH_CHECKS": True,  # Django 4.1+ auto-detect broken connections
     }
 }

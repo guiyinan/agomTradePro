@@ -1,7 +1,7 @@
 # 生产数据可靠性完整修复与测试计划（2026-08-01）
 
 > 实施状态（2026-08-01）：本地代码、迁移、治理契约和专项回归已完成；待提交、CI、生产备份、维护态切换、全量回填和生产验收。生产步骤完成前不得勾选 P1/P2 的上线验收项。
-> 当前综合编排：[`release-blocker-closure-execution-plan-2026-08-29.md`](release-blocker-closure-execution-plan-2026-08-29.md)。截至 2026-08-30，`DATA-01` 已有真实连接切换/切回证据并关闭；`DATA-02` 原子 Publication 重建候选待部署与生产 dry-run，决策门仍 fail-closed。
+> 当前综合编排：[`release-blocker-closure-execution-plan-2026-08-29.md`](release-blocker-closure-execution-plan-2026-08-29.md)。截至 2026-08-31，`DATA-01` 已关闭；successor 上 PostgreSQL client 已耗尽，`DATA-04/05` repository 修复已完成但尚未部署，`DATA-02/03` 继续 fail-closed。
 
 ## 1. 背景与问题定义
 
@@ -1329,3 +1329,50 @@ AUD/DATA 回传已通过 JSON、sidecar、候选和缺失证据核验，并在 s
 profile `mode_invalid`、三项 typed 值未形成、七张 authority root/ledger 表零行，以及 DATA-02 price
 eligible=`0/5533`。下一步是按 owner receipt 建立真实 canonical authority/profile successor，再重跑只读
 writer preflight；只有它通过后才执行已授权的有界 DATA-02 remediation，不能用签字跳过。
+
+## 2026-08-31：DATA-04 ASGI 连接耗尽与 SELECT-only 预演整改
+
+在 successor commit `80ea002bf910110621022a70e4f1ec5c1b704a56` / release
+`20260830215638` 上重新绑定 DATA-02 dry-run 时，命令在形成 preview 前即被 PostgreSQL 拒绝：
+`max_connections=100`、`superuser_reserved_connections=3`，公网 database health、service readiness
+与 Audit health 均为 `503`，dependency-free liveness 仍为 `200`。只读进程/日志证据显示空闲 client
+几乎都来自 Web 容器，并按约 30 秒持续增长；同一周期与 Prometheus 的 DB-backed `/metrics/`
+scrape 对齐，而生产 Daphne/ASGI 设置仍为 `CONN_MAX_AGE=600`。这是高置信度根因关联，尚不是
+修复部署后的生产证明。
+
+源码复核还发现 `ProductionCoverageUniverseConfigModel.load()` 在 dry-run 读取路径使用
+`get_or_create`，因此“预演”在 singleton 缺行时可能写库。`DATA-04` 将生产 ASGI
+`CONN_MAX_AGE` 固定为 `0` 且拒绝正数环境覆盖；删除隐式建行 loader，repository `load()` 只执行
+SELECT，缺配置抛出稳定 `MISSING_CONFIG`；只有显式 `save()` 或完整 PUT 可以初始化，PATCH 仍要求
+已有配置。管理命令在缺配置时于 coordinator/provider 前失败关闭。
+
+结构化 repository 证据为
+[`data04-asgi-db-select-only-preview-repository-closure-evidence-2026-08-31.json`](../testing/data04-asgi-db-select-only-preview-repository-closure-evidence-2026-08-31.json)，
+SHA-256=`aaaa675ed5bc078a916244de91bf2a335da5e2519883b312c2cc1dd0a034ea8d`。聚焦合同
+`18 passed`；扩大相关回归中 DATA-04 行为 `69 passed`，唯一失败是 HEAD 本身已存在且未改动的
+`financial_fact_repository.py` 243 行/预算 200 结构债务。增量/全量 mypy、53 个 current-data
+surface、Black/isort/Ruff、3,005-file architecture、Django check、migration drift 与治理检查均通过。
+
+该 exit 只关闭 repository 缺陷，不宣称线上数据库已恢复：本轮未终止 session、未重启容器、未部署、
+未写生产或执行 backfill。`DATA-02` 现在依赖 `DATA-04`；下一生产门是另行授权部署 clean candidate，
+验证多个 scrape 周期不再累积 Web idle client、恢复 database/readiness，再重跑真正无写入的
+candidate-bound dry-run。任何 restart/deploy 都不得沿用旧 TUI 观察窗口的完成声明。
+
+## 2026-08-31：DATA-05 financial repository owner 结构门关闭
+
+DATA-04 扩大回归暴露 HEAD 上既有的确定性 CI 失败：
+`financial_fact_repository.py` 有 243 个非空行，超过 200 行 owner budget；工作树修改前该文件与
+HEAD 完全一致。该问题独立登记为 DATA-05，不回写或稀释 DATA-04 证据。
+
+整改把 availability preview/backfill ORM 行为原样迁入独立
+`financial_availability_repository.py` owner，通过 mixin 保持
+`FinancialFactRepository` 的公开类、facade identity 和调用签名不变。原 owner 降至 189/200，
+新 owner 为 65/100；没有抬预算或增加豁免。新文件同步登记到
+`data_center.core_current_publication_rebuild` current-data source/marker 清单。
+
+聚焦结构与 ORM 回归 `12 passed`，DATA-04/05 扩大相关回归由先前 69+1 收敛为 `70 passed`；
+53-surface current-data、7 个生产文件增量 mypy、全仓 mypy debt、Black/isort/Ruff、3,006-file
+architecture、Django/migration 与治理检查均通过。结构化证据为
+[`data05-financial-repository-owner-closure-evidence-2026-08-31.json`](../testing/data05-financial-repository-owner-closure-evidence-2026-08-31.json)，
+SHA-256=`7c535f2a1802561be3430a8a9a2149da4ab08b885f2ad672f96828209da8a56a`。
+本单元没有读取或修改生产、重启、部署或执行回填，不改变 DATA-02 的生产 exit gate。

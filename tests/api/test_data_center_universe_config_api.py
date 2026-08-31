@@ -1,16 +1,19 @@
 import pytest
 
-from apps.data_center.infrastructure.models import AssetMasterModel
+from apps.data_center.infrastructure.models import (
+    AssetMasterModel,
+    ProductionCoverageUniverseConfigModel,
+)
 
 
 @pytest.mark.django_db
 def test_production_coverage_universe_config_api_round_trips(admin_client):
     response = admin_client.get("/api/data-center/production-coverage/universe/")
 
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["universe_id"] == "active_a_share"
-    assert payload["exchanges"] == ["SSE", "SZSE", "BSE"]
+    assert response.status_code == 500
+    assert response["Content-Type"].startswith("application/json")
+    assert response.json()["code"] == "MISSING_CONFIG"
+    assert ProductionCoverageUniverseConfigModel.objects.count() == 0
 
     update_response = admin_client.put(
         "/api/data-center/production-coverage/universe/",
@@ -29,14 +32,21 @@ def test_production_coverage_universe_config_api_round_trips(admin_client):
     )
 
     assert update_response.status_code == 200
+    assert update_response["Content-Type"].startswith("application/json")
     updated = update_response.json()
     assert updated["universe_id"] == "szse_chinext"
     assert updated["exchanges"] == ["SZSE"]
     assert updated["min_chinext_count"] == 1
+    assert ProductionCoverageUniverseConfigModel.objects.count() == 1
+
+    read_response = admin_client.get("/api/data-center/production-coverage/universe/")
+    assert read_response.status_code == 200
+    assert read_response.json() == updated
 
 
 @pytest.mark.django_db
 def test_production_coverage_summary_uses_saved_universe_config(admin_client):
+    ProductionCoverageUniverseConfigModel.objects.create()
     AssetMasterModel.objects.create(
         code="300750.SZ",
         name="宁德时代",

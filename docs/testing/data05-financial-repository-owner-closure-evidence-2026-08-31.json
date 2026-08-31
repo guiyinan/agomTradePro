@@ -1,0 +1,108 @@
+{
+  "schema_version": "data05-financial-repository-owner-closure.v1",
+  "unit_id": "DATA-05",
+  "recorded_at": "2026-08-31T08:01:43.694Z",
+  "repository_head": "9d304d9f49fc1083f294f9ffd4c1f72097357435",
+  "trigger": {
+    "failing_nodeid": "tests/unit/test_data_center_repositories_structure.py::test_repository_modules_stay_bounded_and_one_way",
+    "module": "apps/data_center/infrastructure/financial_fact_repository.py",
+    "head_nonempty_lines": 243,
+    "budget": 200,
+    "target_file_was_dirty_before_data05": false,
+    "working_tree_matched_head_before_data05": true,
+    "classification": "confirmed_pre_existing_head_ci_failure"
+  },
+  "working_tree_binding": {
+    "state": "uncommitted_source_hashes",
+    "files": [
+      {
+        "path": "apps/data_center/infrastructure/financial_availability_repository.py",
+        "sha256": "763c605fa1a023d0a0c63a108808996c8999fde3c8f4d83f5137fedab0bc0880"
+      },
+      {
+        "path": "apps/data_center/infrastructure/financial_fact_repository.py",
+        "sha256": "26b96814b28a1cd77ab9160d0043c50d0816bd1dff19862a360b35fbfe2c3232"
+      },
+      {
+        "path": "tests/unit/test_data_center_repositories_structure.py",
+        "sha256": "e0738600eb2ab076490c4192435ef3d84adabf50523469d9ac9478f085996394"
+      },
+      {
+        "path": "governance/current_data_contracts.json",
+        "sha256": "129f5d90ab8ece63f293d9f280ba7d42354866297d3b0062e0a0c8e000e91235"
+      }
+    ]
+  },
+  "implemented_contract": {
+    "public_repository_class": "apps.data_center.infrastructure.financial_fact_repository.FinancialFactRepository",
+    "public_repository_identity_preserved": true,
+    "compatibility_facade_identity_preserved": true,
+    "financial_fact_repository_nonempty_lines": 189,
+    "financial_fact_repository_budget": 200,
+    "availability_owner": "apps.data_center.infrastructure.financial_availability_repository.FinancialAvailabilityRepositoryMixin",
+    "availability_owner_nonempty_lines": 65,
+    "availability_owner_budget": 100,
+    "preview_behavior_moved_without_semantic_change": true,
+    "backfill_behavior_moved_without_semantic_change": true,
+    "current_data_source_registered": true,
+    "line_budget_or_baseline_raised": false
+  },
+  "validation": {
+    "focused_structure_and_orm_tests": {
+      "command": "pytest tests/unit/test_data_center_repositories_structure.py tests/component/data_center/test_current_publication_candidate_repositories.py tests/component/data_center/test_core_fact_bulk_upserts.py -q",
+      "passed": 12,
+      "failed": 0
+    },
+    "expanded_data04_data05_regression": {
+      "command": "pytest tests/unit/test_production_settings.py tests/unit/test_production_asgi_database_settings.py tests/unit/test_data_center_repositories_structure.py tests/unit/data_center/test_current_fact_remediation.py tests/unit/data_center/test_current_fact_remediation_command.py tests/api/test_data_center_universe_config_api.py tests/component/data_center/test_repositories.py -q",
+      "passed": 70,
+      "failed": 0
+    },
+    "current_data_contracts": {
+      "surfaces": 53,
+      "guard": "passed",
+      "ci_tests_passed": 6,
+      "ci_tests_failed": 0
+    },
+    "mypy_regression": {
+      "combined_data04_data05_production_files": 7,
+      "regressions": 0,
+      "legacy_errors": 0
+    },
+    "mypy_debt_ceiling": {
+      "errors": 0
+    },
+    "format_and_lint": {
+      "black": "passed",
+      "isort": "passed",
+      "ruff": "passed"
+    },
+    "architecture": {
+      "scanned_files": 3006,
+      "boundary_rules": 7,
+      "violations": 0
+    },
+    "governance": {
+      "baseline_version": "2026-08-12.v219",
+      "violations": 0
+    },
+    "django_check": "passed",
+    "migration_drift": "none"
+  },
+  "exit_gate": {
+    "repository_unit_completed": true,
+    "original_structure_failure_resolved": true,
+    "production_behavior_changed": false,
+    "production_gate_completed": false
+  },
+  "safety_boundary": {
+    "production_database_reads": false,
+    "production_database_writes": false,
+    "production_sessions_terminated": false,
+    "production_container_restarted": false,
+    "production_deployment_executed": false,
+    "production_backfill_executed": false,
+    "production_claim": false,
+    "production_ready": false
+  }
+}

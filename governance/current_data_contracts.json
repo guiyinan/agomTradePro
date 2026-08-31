@@ -3410,6 +3410,7 @@
         "apps/data_center/infrastructure/price_bar_repository.py",
         "apps/data_center/infrastructure/quote_snapshot_repository.py",
         "apps/data_center/infrastructure/valuation_fact_repository.py",
+        "apps/data_center/infrastructure/financial_availability_repository.py",
         "apps/data_center/infrastructure/financial_fact_repository.py",
         "apps/data_center/application/core_data_backfill.py"
       ],
@@ -3454,6 +3455,11 @@
           "def list_current_publication_candidates(",
           "cn_market_date_start_utc(row.val_date)",
           "valuation available_at cannot be in the future"
+        ],
+        "apps/data_center/infrastructure/financial_availability_repository.py": [
+          "def preview_availability_backfill(",
+          "def backfill_available_at_from_report_date(",
+          "report_date__lte=recorded_at.date()"
         ],
         "apps/data_center/infrastructure/financial_fact_repository.py": [
           "def list_current_publication_candidates(",

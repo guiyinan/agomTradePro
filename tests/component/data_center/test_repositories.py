@@ -3,7 +3,8 @@ from uuid import uuid4
 
 import pytest
 from django.contrib.auth.models import User
-from django.db import OperationalError, models
+from django.db import OperationalError, connection, models
+from django.test.utils import CaptureQueriesContext
 
 from apps.data_center.domain.entities import (
     MacroFact,
@@ -42,6 +43,7 @@ from apps.data_center.infrastructure.repositories import (
     ProductionCoverageUniverseConfigRepository,
     PublisherCatalogRepository,
 )
+from core.exceptions import MissingConfigError
 
 
 def _governed_extra(*, source: str = "akshare") -> dict[str, object]:
@@ -422,6 +424,7 @@ def test_news_repository_rejects_inverted_aggregation_range():
 
 @pytest.mark.django_db
 def test_data_center_diagnostic_repository_summarizes_active_stock_fact_coverage():
+    ProductionCoverageUniverseConfigRepository().save(ProductionCoverageUniverseConfig())
     AssetMasterModel.objects.create(
         code="600000.SH",
         name="浦发银行",
@@ -878,16 +881,27 @@ def test_diagnostic_coverage_blocks_member_observed_after_publication_as_of():
 
 
 @pytest.mark.django_db
-def test_production_coverage_universe_config_repository_round_trips_defaults():
-    config = ProductionCoverageUniverseConfigRepository().load()
+def test_production_coverage_universe_config_load_is_select_only_and_fails_closed():
+    repository = ProductionCoverageUniverseConfigRepository()
 
-    assert config.universe_id == "active_a_share"
-    assert config.asset_type == "stock"
-    assert config.exchanges == ["SSE", "SZSE", "BSE"]
-    assert config.min_active_asset_count == 4000
+    with CaptureQueriesContext(connection) as queries:
+        with pytest.raises(MissingConfigError, match="not initialized"):
+            repository.load()
+
+    statements = [str(query["sql"]).lstrip().upper() for query in queries.captured_queries]
+    assert statements
+    assert all(not statement.startswith(("INSERT", "UPDATE", "DELETE")) for statement in statements)
+    assert ProductionCoverageUniverseConfigModel.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_production_coverage_universe_config_repository_saves_explicitly():
+    repository = ProductionCoverageUniverseConfigRepository()
+    repository.save(ProductionCoverageUniverseConfig())
+
     assert ProductionCoverageUniverseConfigModel.objects.count() == 1
 
-    saved = ProductionCoverageUniverseConfigRepository().save(
+    saved = repository.save(
         ProductionCoverageUniverseConfig(
             universe_id="local_test",
             asset_type="stock",
@@ -905,6 +919,7 @@ def test_production_coverage_universe_config_repository_round_trips_defaults():
     assert saved.exchanges == ["SZSE"]
     assert saved.include_inactive is True
     assert ProductionCoverageUniverseConfigModel.objects.count() == 1
+    assert repository.load() == saved
 
 
 @pytest.mark.django_db

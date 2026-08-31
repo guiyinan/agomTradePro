@@ -475,24 +475,21 @@ def production_coverage_universe_config(request: Request) -> Response:
     )
     serializer.is_valid(raise_exception=True)
     data = serializer.validated_data
-    current = load_production_coverage_universe_config_payload()
+    current = (
+        load_production_coverage_universe_config_payload() if request.method == "PATCH" else {}
+    )
+    merged = {**current, **data}
     return Response(
         save_production_coverage_universe_config_payload(
-            universe_id=data.get("universe_id", current["universe_id"]),
-            asset_type=data.get("asset_type", current["asset_type"]),
-            exchanges=data.get("exchanges", current["exchanges"]),
-            include_inactive=data.get("include_inactive", current["include_inactive"]),
-            min_active_asset_count=data.get(
-                "min_active_asset_count",
-                current["min_active_asset_count"],
-            ),
-            min_star_market_count=data.get(
-                "min_star_market_count",
-                current["min_star_market_count"],
-            ),
-            min_chinext_count=data.get("min_chinext_count", current["min_chinext_count"]),
-            min_bse_count=data.get("min_bse_count", current["min_bse_count"]),
-            description=data.get("description", current["description"]),
+            universe_id=merged["universe_id"],
+            asset_type=merged["asset_type"],
+            exchanges=merged["exchanges"],
+            include_inactive=merged["include_inactive"],
+            min_active_asset_count=merged["min_active_asset_count"],
+            min_star_market_count=merged["min_star_market_count"],
+            min_chinext_count=merged["min_chinext_count"],
+            min_bse_count=merged["min_bse_count"],
+            description=merged["description"],
         )
     )
 

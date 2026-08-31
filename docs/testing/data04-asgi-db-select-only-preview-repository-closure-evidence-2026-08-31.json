@@ -1,0 +1,174 @@
+{
+  "schema_version": "data04-asgi-db-select-only-preview-repository-closure.v1",
+  "unit_id": "DATA-04",
+  "recorded_at": "2026-08-31T07:17:09.132Z",
+  "repository_head": "9d304d9f49fc1083f294f9ffd4c1f72097357435",
+  "deployed_candidate_observed": {
+    "source_commit": "80ea002bf910110621022a70e4f1ec5c1b704a56",
+    "release": "20260830215638",
+    "image": "sha256:54cb9646912c494d64c1eb664b6a3a8af772c36f5388d8456d669285398c39fc",
+    "candidate_drift_detected": false
+  },
+  "production_incident": {
+    "observation_date": "2026-08-31",
+    "preview_command_mode": "dry_run",
+    "preview_outcome": "blocked_before_preview",
+    "database_error": "PostgreSQL rejected a new connection because all non-reserved client slots were occupied",
+    "service_probes": {
+      "dependency_free_liveness": 200,
+      "database_health": 503,
+      "service_readiness": 503,
+      "audit_health": 503,
+      "decision_readiness": 503,
+      "decision_must_not_use_for_decision": true
+    },
+    "postgresql": {
+      "max_connections": 100,
+      "superuser_reserved_connections": 3,
+      "client_backend_count": "approximately_100",
+      "dominant_idle_client_origin": "web_container",
+      "too_many_clients_log_entries_last_six_hours": 2186
+    },
+    "correlation": {
+      "web_connection_growth_interval": "approximately_30_seconds",
+      "prometheus_scrape_interval": "30_seconds",
+      "metrics_surface_performs_database_query": true,
+      "deployed_production_conn_max_age_seconds": 600,
+      "server": "Daphne_ASGI",
+      "root_cause_classification": "high_confidence_runtime_and_source_correlation_not_post_fix_production_proof"
+    },
+    "read_contract_defect": {
+      "path": "ProductionCoverageUniverseConfigModel.load",
+      "operation": "get_or_create",
+      "risk": "an advertised preview read could create the singleton when absent",
+      "write_observed_during_incident_probe": false
+    }
+  },
+  "working_tree_binding": {
+    "state": "uncommitted_source_hashes",
+    "files": [
+      {
+        "path": "core/settings/production.py",
+        "sha256": "fd57946da94ae1fda47e1809e54a4228bcb9afd5fb6187a76a0ab8a38f867fbe"
+      },
+      {
+        "path": "apps/data_center/infrastructure/models.py",
+        "sha256": "f3c1ff32807dc2becbde18d20484cbeb4435cfa1678d8b665e6ec51a84f3ca94"
+      },
+      {
+        "path": "apps/data_center/infrastructure/provider_state_repositories.py",
+        "sha256": "37788dbf29c4d2061dd3cfa74277f1dcb3792538c237e1be784f1024cf534578"
+      },
+      {
+        "path": "apps/data_center/management/commands/repair_active_a_share_current_facts.py",
+        "sha256": "31010af8aa92c08aa104c56ddb91c8c9ecd47fd93a47ef8c63449279934b8ba1"
+      },
+      {
+        "path": "apps/data_center/interface/api_views.py",
+        "sha256": "a9fedf90bc0202fb716f2b767b9ccef24adc8b093c56eaffa61bd2b4bd818dea"
+      },
+      {
+        "path": "tests/unit/test_production_asgi_database_settings.py",
+        "sha256": "83a13f97b13ff186f762bc1cf37cdf55b238a3e256f42193c09fe34999d4f2ef"
+      },
+      {
+        "path": "tests/unit/data_center/test_current_fact_remediation_command.py",
+        "sha256": "af22c5e3ef81c90555f0651ea36e53b535a3baea6e155b884b392a59f008b984"
+      },
+      {
+        "path": "tests/component/data_center/test_repositories.py",
+        "sha256": "24134a353e97fa1b4037bea4feffc12b3501a47502e865efb01726d2b6fdcb8a"
+      },
+      {
+        "path": "tests/api/test_data_center_universe_config_api.py",
+        "sha256": "57ae58f9b648c7a692a78df0efef5676430405c05c21e1a70d8353e70e308c33"
+      }
+    ]
+  },
+  "implemented_contract": {
+    "production_daphne_asgi_conn_max_age_seconds": 0,
+    "positive_environment_override_ignored": true,
+    "coverage_universe_load_operation": "select_only",
+    "missing_config_behavior": "MISSING_CONFIG_fail_closed",
+    "explicit_create_or_update_boundary": "ProductionCoverageUniverseConfigRepository.save",
+    "empty_state_api_read_status": 500,
+    "empty_state_api_explicit_put_can_initialize": true,
+    "dry_run_missing_config_stops_before_coordinator": true
+  },
+  "validation": {
+    "focused_contract_tests": {
+      "command": "pytest tests/api/test_data_center_universe_config_api.py tests/unit/test_production_asgi_database_settings.py tests/unit/data_center/test_current_fact_remediation_command.py plus four exact repository nodes -q",
+      "passed": 18,
+      "failed": 0
+    },
+    "expanded_related_regression": {
+      "command": "pytest tests/unit/test_production_settings.py tests/unit/test_production_asgi_database_settings.py tests/unit/test_data_center_repositories_structure.py tests/unit/data_center/test_current_fact_remediation.py tests/unit/data_center/test_current_fact_remediation_command.py tests/api/test_data_center_universe_config_api.py tests/component/data_center/test_repositories.py -q",
+      "passed": 69,
+      "failed": 1,
+      "data04_related_failures": 0,
+      "pre_existing_unrelated_failure": {
+        "nodeid": "tests/unit/test_data_center_repositories_structure.py::test_repository_modules_stay_bounded_and_one_way",
+        "reason": "financial_fact_repository.py has 243 non-empty lines versus a 200-line budget",
+        "target_file_dirty": false,
+        "working_tree_nonempty_lines": 243,
+        "head_nonempty_lines": 243,
+        "working_tree_matches_head": true
+      }
+    },
+    "current_data_contracts": {
+      "surfaces": 53,
+      "guard": "passed",
+      "ci_tests_passed": 6,
+      "ci_tests_failed": 0
+    },
+    "mypy_regression": {
+      "production_files": 5,
+      "regressions": 0,
+      "legacy_errors": 0
+    },
+    "mypy_debt_ceiling": {
+      "errors": 0
+    },
+    "format_and_lint": {
+      "black": "passed",
+      "isort": "passed",
+      "ruff": "passed"
+    },
+    "architecture": {
+      "scanned_files": 3005,
+      "boundary_rules": 7,
+      "violations": 0
+    },
+    "governance": {
+      "baseline_version": "2026-08-12.v219",
+      "violations": 0
+    },
+    "django_check": "passed",
+    "migration_drift": "none"
+  },
+  "exit_gate": {
+    "repository_unit_completed": true,
+    "production_incident_recovered": false,
+    "fixed_candidate_deployed": false,
+    "data02_preview_rebound_to_fixed_candidate": false,
+    "data02_production_gate_completed": false
+  },
+  "safety_boundary": {
+    "production_probe_mode": "read_only",
+    "production_database_writes": false,
+    "production_sessions_terminated": false,
+    "production_container_restarted": false,
+    "production_deployment_executed": false,
+    "production_backfill_executed": false,
+    "production_claim": false,
+    "production_ready": false
+  },
+  "next_production_steps": [
+    "build and deploy a clean candidate containing DATA-04 under a separate deployment authorization",
+    "recover PostgreSQL client capacity without preserving the invalid TUI observation claim across a candidate restart or deployment",
+    "verify database health and service readiness on the new candidate",
+    "prove Web-origin idle connections do not accumulate across multiple Prometheus scrape intervals",
+    "rerun the DATA-02 candidate-bound dry-run and confirm the configuration path executes no write statement",
+    "only then reassess the separately gated DATA-02 backfill authorization"
+  ]
+}

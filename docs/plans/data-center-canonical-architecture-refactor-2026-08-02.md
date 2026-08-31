@@ -4908,3 +4908,37 @@ Git SHA / 镜像 / migration：
 - 该条只解除“GitHub PostgreSQL Nightly 实际运行取证”这一测试计划子项；生产 backup/restore、
   RTO/RPO、维护态 rollback、生产回填/reconciliation、shadow 对账、M9/M10 和旧表删除仍未完成，
   不改变 DATA-01/02/03 的生产 gate。
+
+## 146. 2026-08-31：DATA-04 只读配置边界与 ASGI 连接生命周期
+
+- successor-bound DATA-02 preview 暴露生产 PostgreSQL client saturation；只读运行证据将绝大多数 idle
+  client 归因到 Daphne Web，增长周期约 30 秒，与 DB-backed Prometheus scrape 对齐，生产设置仍为
+  `CONN_MAX_AGE=600`。该关联为高置信度根因，不冒充 post-fix 生产验收。
+- production settings 现固定 `CONN_MAX_AGE=0`，正数环境变量不能重新启用 ASGI request-scoped
+  persistent connection；如需复用连接，应由外部 transaction pool 承担。
+- `ProductionCoverageUniverseConfigRepository.load()` 只做 exact singleton SELECT；缺行抛
+  `MissingConfigError`，不再由 model `get_or_create` 自动播种。显式 repository `save()` 和完整 PUT
+  才能初始化，PATCH/diagnostic/dry-run 在缺配置时 fail closed。
+- 聚焦合同 `18 passed`；DATA-04 相关扩大回归 `69 passed`，另有与本批无关且 HEAD 已存在的
+  `financial_fact_repository.py` 243/200 行结构门失败；mypy、current-data、架构、格式、Django、
+  migration 和治理检查均通过。规范化证据为
+  [`data04-asgi-db-select-only-preview-repository-closure-evidence-2026-08-31.json`](../testing/data04-asgi-db-select-only-preview-repository-closure-evidence-2026-08-31.json)，
+  SHA-256=`aaaa675ed5bc078a916244de91bf2a335da5e2519883b312c2cc1dd0a034ea8d`。
+- 本 checkpoint 没有终止生产连接、重启、部署、写事实或执行 backfill。只有 clean successor 部署后
+  跨多个 scrape interval 的连接稳定性、database/readiness 恢复和 truly SELECT-only dry-run 通过，
+  才能继续 DATA-02；任何候选变更同时触发 TUI-02 重新绑定和观察计时。
+
+## 147. 2026-08-31：DATA-05 Financial availability owner 拆分
+
+- 结构回归确认 `financial_fact_repository.py` 在 HEAD 上即为 243/200 行，属于真实 CI blocker；没有把
+  该失败归因到 DATA-04，也没有通过提高预算、白名单或 debt baseline 掩盖。
+- availability preview/backfill 移入 65/100 行的
+  `financial_availability_repository.py`；`FinancialFactRepository` 继续由原模块导出并继承该行为，
+  facade/import identity、publication selector 和 as-of read 均不变。原 owner 降至 189/200。
+- `data_center.core_current_publication_rebuild` 注册新 source 和三项稳定 marker；结构/ORM `12 passed`，
+  DATA-04/05 组合回归 `70 passed`，mypy、current-data、架构、格式、Django/migration 与治理全绿。
+  证据为
+  [`data05-financial-repository-owner-closure-evidence-2026-08-31.json`](../testing/data05-financial-repository-owner-closure-evidence-2026-08-31.json)，
+  SHA-256=`7c535f2a1802561be3430a8a9a2149da4ab08b885f2ad672f96828209da8a56a`。
+- 本 checkpoint 纯 repository 结构整改，没有生产读取、写入、重启、部署或回填；DATA-02/03
+  production gate 与 DATA-04 clean-deploy/revalidation 前置保持不变。

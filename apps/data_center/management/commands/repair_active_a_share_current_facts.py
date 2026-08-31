@@ -15,6 +15,7 @@ from apps.data_center.application.query_use_cases import (
     latest_completed_cn_market_session,
 )
 from apps.data_center.composition import make_core_current_fact_refresh_use_case
+from core.exceptions import MissingConfigError
 
 
 class Command(BaseCommand):
@@ -79,7 +80,10 @@ class Command(BaseCommand):
         ):
             raise CommandError("--batch-size must be an integer between 1 and 500")
 
-        asset_codes = list_active_stock_codes_for_backfill()
+        try:
+            asset_codes = list_active_stock_codes_for_backfill()
+        except MissingConfigError as exc:
+            raise CommandError(str(exc)) from exc
         if not asset_codes:
             raise CommandError("active A-share universe is empty")
         started_at = timezone.now()
@@ -131,7 +135,7 @@ class Command(BaseCommand):
                     "started_at": started_at.isoformat(),
                     **preview.to_dict(),
                 }
-        except (TypeError, ValueError) as exc:
+        except (MissingConfigError, TypeError, ValueError) as exc:
             raise CommandError(str(exc)) from exc
         self.stdout.write(
             json.dumps(

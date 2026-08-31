@@ -16,7 +16,10 @@ from apps.ai_provider.infrastructure.models import AIProviderConfig
 from apps.alpha.infrastructure.models import QlibModelRegistryModel
 from apps.config_center.application.runtime_public import activate_runtime_profile_patch
 from apps.config_center.infrastructure.repositories import ConfigCenterSettingsRepository
-from apps.data_center.application.interface_services import save_provider_settings_payload
+from apps.data_center.application.interface_services import (
+    save_production_coverage_universe_config_payload,
+    save_provider_settings_payload,
+)
 from apps.share.infrastructure.models import ShareLinkModel, ShareSnapshotModel
 from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 from apps.terminal.application.tui_errors import TuiActionBusyError
@@ -9849,6 +9852,17 @@ def test_published_tui_dashboard_alpha_history_renders_datagrid_runtime(client, 
 
 @pytest.mark.django_db
 def test_published_tui_write_and_admin_actions_are_gated_consistently(client, tui_admin_user):
+    save_production_coverage_universe_config_payload(
+        universe_id="active_a_share",
+        asset_type="stock",
+        exchanges=["SSE", "SZSE", "BSE"],
+        include_inactive=False,
+        min_active_asset_count=4000,
+        min_star_market_count=200,
+        min_chinext_count=0,
+        min_bse_count=50,
+        description="TUI published-action contract fixture",
+    )
     client.force_login(tui_admin_user)
 
     metadata = PublishedTuiMetadataRepository().load_published()

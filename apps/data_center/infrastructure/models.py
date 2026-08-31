@@ -255,26 +255,6 @@ class ProductionCoverageUniverseConfigModel(models.Model):
         self.exchanges = self.normalized_exchanges()
         super().save(*args, **kwargs)
 
-    @classmethod
-    def load(cls) -> "ProductionCoverageUniverseConfigModel":
-        """Return singleton, creating the full A-share default if absent."""
-
-        obj, _ = cls.objects.get_or_create(
-            pk=cls._SINGLETON_PK,
-            defaults={
-                "universe_id": "active_a_share",
-                "asset_type": "stock",
-                "exchanges": ["SSE", "SZSE", "BSE"],
-                "include_inactive": False,
-                "min_active_asset_count": 4000,
-                "min_star_market_count": 200,
-                "min_chinext_count": 0,
-                "min_bse_count": 50,
-                "description": "Full active A-share universe used for production coverage.",
-            },
-        )
-        return obj
-
     def normalized_exchanges(self) -> list[str]:
         """Return uppercase unique exchange codes with a production-safe default."""
 

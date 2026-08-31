@@ -179,6 +179,10 @@ default_pool_size = 25
 
 ### Django 配置
 
+生产 Web 使用 Daphne/ASGI，Django request-scoped persistent connections 必须关闭；连接复用应由
+pgBouncer 等外部 transaction pool 提供。不得通过 `DB_CONN_MAX_AGE` 把生产 Web 改回正数，避免
+周期性 metrics/HTTP 请求按 ASGI 执行线程累积空闲 PostgreSQL client。
+
 ```python
 DATABASES = {
     'default': {
@@ -188,7 +192,7 @@ DATABASES = {
         'PASSWORD': '***',
         'HOST': 'localhost',
         'PORT': '5432',
-        'CONN_MAX_AGE': 600,  # 连接复用 10 分钟
+        'CONN_MAX_AGE': 0,  # Daphne/ASGI 请求结束即关闭
         'OPTIONS': {
             'connect_timeout': 10,
             'options': '-c statement_timeout=30000',  # 30 秒查询超时
