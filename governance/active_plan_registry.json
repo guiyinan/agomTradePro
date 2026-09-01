@@ -1,14 +1,14 @@
 {
-  "version": "2026-09-01.v35",
+  "version": "2026-09-01.v36",
   "updated_at": "2026-09-01",
   "execution_focus": {
-    "unit_id": "DATA-09",
+    "unit_id": null,
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Personal-project single-owner mode remains active under docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json: one real owner may hold all governance roles, but signatures never manufacture authority rows, typed runtime values, business definitions, retained observations, staging outcomes or elapsed time. On 2026-09-01 the owner explicitly authorized registering and completing DATA-08 then DATA-09 as independent commits and, after local gates pass, pushing the resulting branch to origin/dev/next-development. DATA-08 is repository-complete with canonical evidence and an inventory of 1151 entries, candidate-review=0 and legacy direct/wrapper=0. DATA-09 is now the sole repository focus and may only register the exact decision-runtime activation dynamic reliability reason boundary; runtime logic and current-data gates must remain unchanged. No merge, deployment, production read/write, external call, load, fault injection or runtime enablement is authorized."
+    "policy": "Personal-project single-owner mode remains active under docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json: one real owner may hold all governance roles, but signatures never manufacture authority rows, typed runtime values, business definitions, retained observations, staging outcomes or elapsed time. The owner-authorized DATA-08 then DATA-09 sequence is repository-complete with two independent commits and SHA-sidecar evidence. DATA-08 closes the deterministic entrypoint inventory at candidate-review=0 and legacy direct/wrapper=0; DATA-09 registers only the three exact decision-runtime probe-failure reason codes without runtime or current-data changes. execution_focus returns to null. After combined clean-worktree gates pass, pushing dev/next-development is authorized. No merge, deployment, production read/write, external call, load, fault injection or runtime enablement is authorized."
   },
   "workstreams": [
     {
@@ -88,7 +88,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "DATA-08 is repository-complete with docs/testing/data08-data-center-entrypoint-inventory-closure-evidence-2026-09-01.json: the DATA-06 runner now uses App-root composition, the deterministic inventory contains 1151 entries with candidate-review=0, and legacy direct/wrapper counts remain zero. DATA-09 is the sole repository focus: register only the exact decision-runtime activation reliability-reason boundary, then prove the ownership guard, focused activation tests and all current-data contracts remain valid. DATA-06 historical simulation remains DENY and does not satisfy DATA-02/03; no production behavior or gate is changed.",
+      "next_gate": "DATA-08 and DATA-09 are repository-complete with SHA-sidecar evidence: the deterministic inventory contains 1151 entries with candidate-review=0 and legacy direct/wrapper=0, and the decision-runtime activation boundary permits only core_coverage, provider_capabilities and decision_data probe failures. DATA-06 historical simulation remains DENY and does not satisfy DATA-02/03. After the authorized push and CI observation, DATA-02 still requires a clean successor deployment, multi-scrape connection/readiness stability, candidate-bound SELECT-only dry-run and the separately authorized bounded production reconciliation; no repository result manufactures that production gate.",
       "documents": [
         {
           "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
@@ -277,7 +277,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-09-01.v33",
+    "version": "2026-09-01.v34",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -691,12 +691,12 @@
         "wave": 3,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Register the decision-runtime dynamic reliability reason boundary",
         "depends_on": [
           "DATA-08"
         ],
-        "exit_gate": "governance/reliability_contracts.json binds apps/config_center/application/decision_runtime_activation.py and its _run_probes symbol to only the three canonical probe-failure reason codes, the reliability ownership guard and focused activation/ownership tests pass, all current-data contracts remain valid, and no runtime logic or reason code is weakened."
+        "exit_gate": "Completed on 2026-09-01 with docs/testing/data09-decision-runtime-reliability-boundary-closure-evidence-2026-09-01.json (SHA-256 acc0721682a26081819b89d35382c0e853e637ce2b169d34488d9100b301663b): governance/reliability_contracts.json binds decision_runtime_activation.py::def _run_probes to exactly core_coverage, provider_capabilities and decision_data probe-failure codes. The ownership guard passes, 7 activation/ownership tests pass, all 53 current-data contracts remain valid, and no production/runtime code changed."
       },
       {
         "id": "DATA-03",

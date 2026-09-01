@@ -5043,3 +5043,19 @@ Git SHA / 镜像 / migration：
   SHA-256=`7bc2d406d72cfb6fdd176b9fc3faf16b7bb9fa50ff0c939fafe0d1ab47407db0`。
 - 本单元没有连接生产、读写数据库、调用网络、部署、启用 runtime 或形成生产可用结论。唯一 repository
   focus 已切换为 `DATA-09`，只允许登记精确 dynamic reliability reason boundary。
+
+## 154. 2026-09-01：DATA-09 dynamic reliability reason boundary exit
+
+- `governance/reliability_contracts.json` 现将
+  `apps/config_center/application/decision_runtime_activation.py::def _run_probes` 绑定到精确 pattern
+  `^(core_coverage|provider_capabilities|decision_data)_probe_failed$`；只接受三类现有 probe failure，不能
+  匹配任意新增前缀、任意通用 reason 或其他 runtime 状态。
+- reliability ownership guard 通过并保持 7 statuses、14 static reasons；activation/ownership 聚焦回归
+  `7 passed`，全部 53 个 current-data surfaces 继续通过。未修改 Application/runtime Python、reason 生成
+  逻辑、current-data manifest 或启用状态。
+- 结构化证据为
+  [`data09-decision-runtime-reliability-boundary-closure-evidence-2026-09-01.json`](../testing/data09-decision-runtime-reliability-boundary-closure-evidence-2026-09-01.json)，
+  SHA-256=`acc0721682a26081819b89d35382c0e853e637ce2b169d34488d9100b301663b`。
+- `DATA-08 -> DATA-09` corrective 顺序已完成且保持独立提交边界；execution focus 回到 null。只有在新 HEAD
+  的独立 clean worktree 通过组合门禁后才执行已授权 push。merge、部署、生产读写、外部调用、queued/
+  decision runtime enablement、流量/故障和 live rollback 仍不在本单元内。

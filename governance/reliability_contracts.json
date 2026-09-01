@@ -36,6 +36,11 @@
       "pattern": "^decision_runtime_(maintenance|validating|blocked)$"
     },
     {
+      "path": "apps/config_center/application/decision_runtime_activation.py",
+      "symbol": "def _run_probes",
+      "pattern": "^(core_coverage|provider_capabilities|decision_data)_probe_failed$"
+    },
+    {
       "path": "apps/config_center/application/decision_readiness_guard.py",
       "symbol": "run_decision_readiness_guard",
       "pattern": "^[a-z0-9_]+_probe_failed$"
