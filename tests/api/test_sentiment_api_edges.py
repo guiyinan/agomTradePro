@@ -265,6 +265,98 @@ def test_sentiment_tui_overview_flattens_recent_indices(
 
 
 @pytest.mark.django_db
+def test_sentiment_tui_overview_does_not_chart_insufficient_rows_as_zero(
+    authenticated_client,
+) -> None:
+    recent = {
+        "indices": [
+            {
+                "date": "2026-09-01",
+                "index": {"composite": 0.0, "news": 0.0, "policy": 0.0},
+                "level": "数据不足",
+                "confidence": 0.0,
+                "data_sufficient": False,
+                "sources": {"news_count": 0, "policy_events_count": 0},
+            }
+        ],
+        "total": 1,
+    }
+    health = {
+        "status": "degraded",
+        "ai_provider_available": True,
+        "cache_count": 0,
+        "latest_index_date": "2026-09-01",
+        "freshness_status": "insufficient",
+        "must_not_use_for_decision": True,
+        "blocked_reason": "sentiment_data_insufficient",
+    }
+    with (
+        patch(
+            "apps.sentiment.interface.tui_views.get_recent_sentiment_indices_payload",
+            return_value=recent,
+        ),
+        patch(
+            "apps.sentiment.interface.tui_views.get_sentiment_health_payload",
+            return_value=health,
+        ),
+    ):
+        response = authenticated_client.get("/api/sentiment/tui/overview/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["indices"][0]["composite"] is None
+    assert payload["indices"][0]["news"] is None
+    assert payload["indices"][0]["policy"] is None
+    assert payload["indices"][0]["decision_status"] == "仅供诊断"
+    assert payload["summary"]["latest_composite"] is None
+
+
+@pytest.mark.django_db
+def test_sentiment_tui_overview_leaves_failed_component_as_gap(
+    authenticated_client,
+) -> None:
+    recent = {
+        "indices": [
+            {
+                "date": "2026-09-01",
+                "index": {"composite": 0.053333, "news": 0.133333, "policy": 0.0},
+                "level": "中性",
+                "confidence": 0.5,
+                "data_sufficient": True,
+                "sources": {"news_count": 5, "policy_events_count": 0},
+            }
+        ],
+        "total": 1,
+    }
+    health = {
+        "status": "healthy",
+        "ai_provider_available": True,
+        "cache_count": 0,
+        "latest_index_date": "2026-09-01",
+        "freshness_status": "fresh",
+        "must_not_use_for_decision": False,
+        "blocked_reason": "",
+    }
+    with (
+        patch(
+            "apps.sentiment.interface.tui_views.get_recent_sentiment_indices_payload",
+            return_value=recent,
+        ),
+        patch(
+            "apps.sentiment.interface.tui_views.get_sentiment_health_payload",
+            return_value=health,
+        ),
+    ):
+        response = authenticated_client.get("/api/sentiment/tui/overview/")
+
+    assert response.status_code == 200
+    row = response.json()["indices"][0]
+    assert row["composite"] == 0.053333
+    assert row["news"] == 0.133333
+    assert row["policy"] is None
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("days", ["0", "366", "bad"])
 def test_sentiment_tui_overview_rejects_invalid_days(
     authenticated_client,

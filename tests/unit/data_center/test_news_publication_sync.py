@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -19,8 +20,13 @@ class _CandidateRepository:
     def __init__(self, references: list[PublicationFactReference]) -> None:
         self.references = references
 
-    def list_publication_candidates(self, _articles):
-        return list(self.references)
+    def list_publication_candidates(
+        self, articles: Sequence[NewsFact]
+    ) -> list[PublicationFactReference]:
+        external_ids = {article.external_id for article in articles}
+        return [
+            reference for reference in self.references if reference.source_record_id in external_ids
+        ]
 
 
 class _PolicyRepository:
@@ -29,6 +35,16 @@ class _PolicyRepository:
 
     def get_active(self, _dataset_key: str):
         return self.policy
+
+
+class _ContractRepository:
+    def __init__(self, freshness_seconds: int | None = 172_800) -> None:
+        self.freshness_seconds = freshness_seconds
+
+    def get_active(self, _dataset_key: str):
+        if self.freshness_seconds is None:
+            return None
+        return SimpleNamespace(freshness_seconds=self.freshness_seconds)
 
 
 class _PublicationRepository:
@@ -87,6 +103,7 @@ def test_news_sync_publication_binds_members_and_as_of_boundary() -> None:
         ),
         publication_repository=repository,
         policy_repository=_PolicyRepository(_policy()),
+        contract_repository=_ContractRepository(),
     )
 
     publication = use_case.execute(
@@ -112,6 +129,7 @@ def test_news_sync_publication_is_idempotent_for_same_member_snapshot() -> None:
         fact_repository=_CandidateRepository([_reference("n1", "11", articles[0].published_at)]),
         publication_repository=repository,
         policy_repository=_PolicyRepository(_policy()),
+        contract_repository=_ContractRepository(),
     )
 
     first = use_case.execute(articles, provider_name="provider-main", published_at=NOW)
@@ -128,6 +146,7 @@ def test_news_sync_repairs_memberless_same_hash_publication() -> None:
         fact_repository=_CandidateRepository([_reference("n1", "11", articles[0].published_at)]),
         publication_repository=repository,
         policy_repository=_PolicyRepository(_policy()),
+        contract_repository=_ContractRepository(),
     )
 
     first = use_case.execute(articles, provider_name="provider-main", published_at=NOW)
@@ -151,10 +170,51 @@ def test_news_sync_publication_fails_closed_below_coverage_policy() -> None:
         fact_repository=_CandidateRepository([_reference("n1", "11", NOW)]),
         publication_repository=_PublicationRepository(),
         policy_repository=_PolicyRepository(_policy()),
+        contract_repository=_ContractRepository(),
     )
 
     with pytest.raises(ValueError, match="coverage"):
         use_case.execute(articles, provider_name="provider-main", published_at=NOW)
+
+
+def test_current_news_publication_excludes_members_outside_freshness_window() -> None:
+    stale_time = NOW - timedelta(seconds=172_801)
+    articles = [_article("stale", stale_time), _article("fresh", NOW)]
+    repository = _PublicationRepository()
+    use_case = PublishNewsBatchUseCase(
+        fact_repository=_CandidateRepository(
+            [
+                _reference("stale", "10", stale_time),
+                _reference("fresh", "11", NOW),
+            ]
+        ),
+        publication_repository=repository,
+        policy_repository=_PolicyRepository(_policy()),
+        contract_repository=_ContractRepository(),
+    )
+
+    publication = use_case.execute(
+        articles,
+        provider_name="provider-main",
+        published_at=NOW,
+    )
+
+    assert publication is not None
+    assert publication.member_count == 1
+    assert publication.coverage.requested_count == 1
+    assert [member.fact_pk for member in repository.published[0][1]] == ["11"]
+
+
+def test_current_news_publication_fails_closed_without_freshness_contract() -> None:
+    use_case = PublishNewsBatchUseCase(
+        fact_repository=_CandidateRepository([_reference("n1", "11", NOW)]),
+        publication_repository=_PublicationRepository(),
+        policy_repository=_PolicyRepository(_policy()),
+        contract_repository=_ContractRepository(freshness_seconds=None),
+    )
+
+    with pytest.raises(ValueError, match="freshness contract"):
+        use_case.execute([_article("n1", NOW)], provider_name="provider-main", published_at=NOW)
 
 
 def test_sync_news_use_case_invokes_publication_after_fact_write() -> None:

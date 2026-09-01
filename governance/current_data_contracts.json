@@ -940,7 +940,9 @@
         "apps/sentiment/interface/tui_views.py": [
           "health.get(\"must_not_use_for_decision\", True)",
           "health.get(\"blocked_reason\")",
-          "decision_status = \"仅供诊断\" if must_not_use_for_decision else \"可用于判断\""
+          "decision_status = \"仅供诊断\" if must_not_use_for_decision else \"可用于判断\"",
+          "data_sufficient = bool(raw_row.get(\"data_sufficient\", False))",
+          "if data_sufficient else None"
         ],
         "apps/pulse/infrastructure/data_provider.py": [
           "code == \"SENTIMENT_DAILY_INDEX\"",
@@ -999,6 +1001,16 @@
       "case": "tui_market_sentiment_not_system_status",
       "test_file": "tests/api/test_sentiment_api_edges.py",
       "test_function": "test_sentiment_tui_overview_flattens_recent_indices"
+    },
+    {
+      "case": "tui_insufficient_sentiment_is_not_neutral_zero",
+      "test_file": "tests/api/test_sentiment_api_edges.py",
+      "test_function": "test_sentiment_tui_overview_does_not_chart_insufficient_rows_as_zero"
+    },
+    {
+      "case": "tui_missing_sentiment_component_is_a_gap",
+      "test_file": "tests/api/test_sentiment_api_edges.py",
+      "test_function": "test_sentiment_tui_overview_leaves_failed_component_as_gap"
     }
       ]
     },
@@ -2433,6 +2445,8 @@
       "id": "data_center.publication_only_d7_d9",
       "surface": "Data Center Public Ports for sector membership, market news, and capital flow",
       "source_files": [
+        "apps/data_center/application/interface_services_decision_sync.py",
+        "apps/data_center/application/publication_sync.py",
         "apps/data_center/application/query_services.py",
         "apps/data_center/application/public.py",
         "apps/data_center/application/public_published_queries.py",
@@ -2441,6 +2455,14 @@
         "sdk/agomtradepro/modules/data_center.py"
       ],
       "required_markers": {
+        "apps/data_center/application/interface_services_decision_sync.py": [
+          "contract_repository=DatasetContractRepository()"
+        ],
+        "apps/data_center/application/publication_sync.py": [
+          "contract_repository: DatasetContractRepositoryProtocol",
+          "if normalized_key == \"current\"",
+          "freshness_cutoff = publish_time - timedelta(seconds=freshness_seconds)"
+        ],
         "apps/data_center/application/query_services.py": [
           "def query_published_sector_memberships(",
           "def query_published_market_news(",
@@ -2480,6 +2502,16 @@
           "case": "news_flow_publication_evidence",
           "test_file": "tests/unit/data_center/test_published_query_ports.py",
           "test_function": "test_published_news_and_capital_flow_preserve_publication_evidence"
+        },
+        {
+          "case": "current_news_publication_excludes_stale_members",
+          "test_file": "tests/unit/data_center/test_news_publication_sync.py",
+          "test_function": "test_current_news_publication_excludes_members_outside_freshness_window"
+        },
+        {
+          "case": "current_news_publication_requires_freshness_contract",
+          "test_file": "tests/unit/data_center/test_news_publication_sync.py",
+          "test_function": "test_current_news_publication_fails_closed_without_freshness_contract"
         },
         {
           "case": "capital_flow_query_not_executed_when_blocked",
