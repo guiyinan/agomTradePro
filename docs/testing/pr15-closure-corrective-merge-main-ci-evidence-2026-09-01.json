@@ -1,0 +1,98 @@
+{
+  "schema_version": "github-pr-merge-main-ci-evidence.v1",
+  "recorded_at": "2026-09-01T13:46:07.513Z",
+  "source": {
+    "repository": "guiyinan/agomTradePro",
+    "provider": "github",
+    "collection_interface": "gh_cli",
+    "state_kind": "immutable_merge_and_completed_workflow_runs"
+  },
+  "pull_request": {
+    "number": 15,
+    "url": "https://github.com/guiyinan/agomTradePro/pull/15",
+    "state": "MERGED",
+    "is_draft": false,
+    "base_branch": "main",
+    "base_commit": "e1d95d58076e064bb88b4ffe6a6bbc8dd502d690",
+    "head_branch": "dev/next-development",
+    "head_commit": "e38ebdcf8da2dafb58de16d2314df642bfa1e6c7",
+    "merge_commit": "1546ca0ecfaa0d2d9a004720065a3acac9240d87",
+    "merged_at": "2026-09-01T13:23:09Z"
+  },
+  "main_workflow_runs": [
+    {
+      "id": 33513058174,
+      "workflow": "Architecture Layer Guard",
+      "url": "https://github.com/guiyinan/agomTradePro/actions/runs/33513058174",
+      "event": "push",
+      "head_branch": "main",
+      "head_commit": "1546ca0ecfaa0d2d9a004720065a3acac9240d87",
+      "created_at": "2026-09-01T13:23:12Z",
+      "started_at": "2026-09-01T13:23:12Z",
+      "github_updated_at": "2026-09-01T13:24:42Z",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 33513058194,
+      "workflow": "Security Scan",
+      "url": "https://github.com/guiyinan/agomTradePro/actions/runs/33513058194",
+      "event": "push",
+      "head_branch": "main",
+      "head_commit": "1546ca0ecfaa0d2d9a004720065a3acac9240d87",
+      "created_at": "2026-09-01T13:23:12Z",
+      "started_at": "2026-09-01T13:23:12Z",
+      "github_updated_at": "2026-09-01T13:24:38Z",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 33513058305,
+      "workflow": "Consistency Check",
+      "url": "https://github.com/guiyinan/agomTradePro/actions/runs/33513058305",
+      "event": "push",
+      "head_branch": "main",
+      "head_commit": "1546ca0ecfaa0d2d9a004720065a3acac9240d87",
+      "created_at": "2026-09-01T13:23:12Z",
+      "started_at": "2026-09-01T13:23:12Z",
+      "github_updated_at": "2026-09-01T13:26:39Z",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 33513058369,
+      "workflow": "CI Fast Feedback",
+      "url": "https://github.com/guiyinan/agomTradePro/actions/runs/33513058369",
+      "event": "push",
+      "head_branch": "main",
+      "head_commit": "1546ca0ecfaa0d2d9a004720065a3acac9240d87",
+      "created_at": "2026-09-01T13:23:12Z",
+      "started_at": "2026-09-01T13:23:12Z",
+      "github_updated_at": "2026-09-01T13:32:09Z",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "verification": {
+    "exact_pr_head_binding": true,
+    "merge_commit_is_origin_main": true,
+    "head_commit_is_merge_ancestor": true,
+    "main_workflow_count": 4,
+    "main_workflows_all_completed": true,
+    "main_workflows_all_success": true
+  },
+  "scope": {
+    "artifact_kind": "post_merge_external_state_record",
+    "repository_unit_status_changed": false,
+    "dependency_changed": false,
+    "deployment_performed": false,
+    "migration_performed": false,
+    "production_database_read": false,
+    "production_database_write": false,
+    "external_model_call_performed": false,
+    "load_or_fault_performed": false,
+    "runtime_enablement_performed": false,
+    "production_claim": false,
+    "production_ready": false
+  }
+}
