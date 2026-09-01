@@ -4979,3 +4979,30 @@ Git SHA / 镜像 / migration：
 - DATA-06 仅关闭 repository capability，`production_claim=false`、`production_ready=false`。DATA-02 仍须 clean
   successor 部署、跨 scrape interval 的连接/readiness 稳定、candidate-bound production dry-run、已授权有界
   backfill 与生产 reconciliation；DATA-03 activation 和 TUI-02 候选观察不得继承本历史结果。
+
+## 150. 2026-09-01：候选 CI corrective 顺序登记与 DATA-07 focus
+
+- `53ddbff137c9a0c379c73c6f4c64244613e2741b` 推送后的 Fast Feedback 在 Python 3.11/3.13
+  上均暴露同一测试合同失败：`test_t3a_akshare_provider_paths.py` 的 fake quote 未提供权威
+  `market_gateway_entities.QuoteSnapshot.source` 字段，而生产 gateway 的返回类型和两条构造路径均保证该字段。
+  该失败不能通过把生产 adapter 改成无类型对象兼容层来掩盖，应让测试 fixture 遵守正式 DTO 并断言实际
+  source provenance 被传递。
+- 项目所有者已明确授权登记 `DATA-07 -> TAR-07 -> GOV-02` 三个独立 corrective unit。`DATA-07`
+  是当前唯一 repository focus；后两项保持 `waiting_dependency`，不得并行扩展代码，也不得混成一个提交。
+- DATA-07 仅允许修改 Data Center provider-path 测试、对应结构化 evidence 及本计划/README/registry 回写。
+  它不修改生产 adapter、provider、freshness、publication 或运行时行为，不连接生产、不调用外部数据源、
+  不执行 backfill/部署/推送。exit gate 是原失败用例、相关 provider adapter 回归、治理与注册表勾稽全部通过。
+
+## 151. 2026-09-01：DATA-07 fixture contract repository exit
+
+- fake quote 现在显式提供正式 DTO 的 `source="eastmoney"`，并断言 Application 输出的 `source` 与
+  `extra.actual_source` 均保持该 provenance。Sol/Luna 审查确认正式
+  `AKShareEastMoneyGateway.get_quote_snapshots()` 返回 `list[QuoteSnapshot]`，两条正式构造路径都提供
+  `source`，因此没有用 `getattr` 放宽生产 adapter 的类型边界。
+- 原失败文件与同类 provider adapter 组合回归 `40 passed`；Ruff、Black、isort、active plan registry
+  和 governance consistency 全绿。结构化证据为
+  [`data07-akshare-quote-fixture-contract-closure-evidence-2026-09-01.json`](../testing/data07-akshare-quote-fixture-contract-closure-evidence-2026-09-01.json)，
+  SHA-256=`13f91dc5d9a387bffe5549ac5d098d7f4680efcfa0fdddbc5530fffabd032b78`。
+- DATA-07 只关闭候选 CI 的 Data fixture blocker，不宣称整条候选 CI 已绿；TAR inventory/HTTP ownership
+  与 documentation route parser 仍由 `TAR-07`、`GOV-02` 分别关闭。无生产读写、外部网络、部署、push、
+  runtime enablement 或生产结论。唯一 repository focus 已晋级 `TAR-07`。

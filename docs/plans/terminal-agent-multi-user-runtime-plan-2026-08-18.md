@@ -2165,3 +2165,16 @@ SHA=`926f11051303a24d9fa48246b6b531c4a99b4c6c8743e99ab05074d6bf336746`。
 本 corrective 只恢复 repository collector 的 fail-closed 结论，仍未访问 staging/VPS、未发送负载、未
 创建或代签真实 approval、未调用模型/MCP、未注入故障或修改 runtime；`TAR-05` 的 P1–P7 与
 `capacity_ready=false` 保持不变。
+
+## 2026-09-01：`TAR-07` HTTP ownership / deterministic inventory focus
+
+候选 `53ddbff137c9a0c379c73c6f4c64244613e2741b` 的 Incremental quality gates 证明
+`governance/data_center_architecture_inventory.json` 已过期。只读生成器进一步确认唯一未处置 external HTTP
+import 是 `apps/agent_runtime/infrastructure/terminal_runtime_staging_harness.py` 的 `requests`；该 harness
+在 inventory 最近刷新之后才进入仓库。它只访问明确 staging 的内部 Terminal control plane 与 Prometheus，
+不获取 canonical investment data，但必须在 owner-bound disposition 中以精确 path/import/scope/reason 登记，
+不能靠直接重生成 inventory 把 review 项变成通过。
+
+`TAR-07` 现为唯一 repository focus。范围只包含精确 HTTP disposition、对应 inventory contract 测试、
+确定性 inventory 刷新、结构化 evidence 和计划/registry/README 回写；不修改 harness 网络行为，不执行
+staging/VPS 请求、负载、provider/MCP、flag、Worker、fault、部署或生产写入。`GOV-02` 保持依赖等待。

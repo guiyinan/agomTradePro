@@ -1,14 +1,14 @@
 {
-  "version": "2026-09-01.v29",
+  "version": "2026-09-01.v31",
   "updated_at": "2026-09-01",
   "execution_focus": {
-    "unit_id": null,
+    "unit_id": "TAR-07",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Personal-project single-owner mode remains active under docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json: one real owner may hold all governance roles, but signatures never manufacture authority rows, typed runtime values, business definitions, retained observations, staging outcomes or elapsed time. DATA-04, DATA-05 and DATA-06 are repository-complete with canonical evidence. DATA-06 restored the existing SHA-verified 2026-08-29 dump into a controlled disposable PostgreSQL database, ran provider/network-free repeatable-read read-only analysis and proved zero residual cleanup; all four historical datasets correctly remained DENY because freshness and publication reconciliation failed. No dependency-ready repository unit remains, so execution_focus is null. DATA-02 still requires the separately authorized clean deployment, connection/readiness stability, candidate-bound production dry-run, backfill and production reconciliation. Production, external and governance collectors may continue only within their registered authorization boundaries; no historical simulation may satisfy production acceptance or preserve TUI-02 elapsed time across a candidate change."
+    "policy": "Personal-project single-owner mode remains active under docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json: one real owner may hold all governance roles, but signatures never manufacture authority rows, typed runtime values, business definitions, retained observations, staging outcomes or elapsed time. The owner explicitly authorized DATA-07, TAR-07 and GOV-02 in sequence after commit 53ddbff137c9a0c379c73c6f4c64244613e2741b exposed three terminal CI blockers. DATA-07 is complete with SHA-sidecar evidence: its test fixture now obeys the authoritative QuoteSnapshot source contract, preserves source provenance, 40 focused tests pass and no production code changed. TAR-07 is the sole repository focus; GOV-02 waits on TAR-07. TAR-07 may only disposition the exact staging-harness requests import, refresh the deterministic inventory and close focused Agent Runtime/governance checks. No network execution, push, merge, deployment, production write, external call, load, fault injection or runtime enablement is authorized."
   },
   "workstreams": [
     {
@@ -88,7 +88,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "DATA-06 repository work is complete. Its SHA-sidecar-verified historical restore analyzed 5,533 active A-share assets in repeatable-read read-only mode, emitted content-addressed evidence and removed the disposable database/container. The historical gate correctly remained DENY: all four datasets were stale at the dump cutoff, financial candidate coverage was 1,923/5,533, and current publication reconciliation failed for every dataset. Next deploy a clean successor containing DATA-04 and DATA-06, prove connection/readiness stability across multiple scrape intervals, then run the candidate-bound production dry-run followed by the already authorized bounded backfill and production reconciliation. Historical simulation does not satisfy DATA-02/03 acceptance, and any deployed candidate change resets TUI-02 observation.",
+      "next_gate": "DATA-07 is repository-complete with docs/testing/data07-akshare-quote-fixture-contract-closure-evidence-2026-09-01.json: the CI fixture now obeys the authoritative QuoteSnapshot source contract, asserts propagated source provenance, 40 focused tests pass and production adapter behavior is unchanged. DATA-06 historical simulation remains DENY and does not satisfy DATA-02/03. After the separately registered TAR-07/GOV-02 CI corrective chain closes and a clean successor is deployed, prove connection/readiness stability across multiple scrape intervals, then run the candidate-bound production dry-run followed by the already authorized bounded backfill and production reconciliation. Any deployed candidate change resets TUI-02 observation.",
       "documents": [
         {
           "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
@@ -201,7 +201,7 @@
       "priority": "P0",
       "owner": "agent_runtime+terminal+task_monitor+operational_readiness+sdk+mcp",
       "status": "production_validation",
-      "next_gate": "TAR-01 through TAR-04 and TAR-06 repository contracts are complete, including the TAR-06 approval/heartbeat corrective. The opt-in collector defaults to no-network validation, refuses known production targets, requires a semantic APPROVE valid for at most 24 hours and bound to every candidate/target/runtime/workload/query field, limits authority to staging load, requires legacy inline=1 plus an isolated non-billable worker profile, rechecks approval and the dedicated Worker heartbeat before every concurrency level, and consumes one internal authorization per load level. Twenty distinct actors, bounded 1/5/10/20 requests, unavailable semantics and secret-free content-addressed evidence remain mandatory. No real staging run exists yet. Immutable commit 36b72d2fc01604afdb15d236a1e91d082fb62a5b / release 20260830071422 remains deployed with queued runtime not accepted; historical 71e62773 capacity evidence is nonportable. TAR-05 P1 must supply a real approved staging identity, exact runtime manifest/flags/resources, live dedicated Worker, complete query map and bounded non-billable provider profile before validation-only may become explicit staging execution. P2 capacity, P3 chaos, P4 real provider/MCP UAT, P5 production staff canary, P6 observation/cutover and P7 inline retirement remain separately dependency-gated. Queued/worker defaults, capacity_ready=false and concurrency above one remain fail-closed.",
+      "next_gate": "TAR-07 is the sole repository focus after candidate CI proved the TAR-06 staging harness requests import was absent from the exact non-data HTTP ownership contract and the deterministic Data Center architecture inventory had not been refreshed since before TAR-06/DATA-06. Close only that owner-bound disposition and generated inventory drift, with no network execution or runtime change. TAR-01 through TAR-04 and TAR-06 remain repository-complete; TAR-05 still requires a real approved staging identity, exact runtime manifest/flags/resources, live dedicated Worker, complete query map and bounded non-billable provider profile. P2 capacity, P3 chaos, P4 provider/MCP, P5 canary, P6 observation/cutover and P7 retirement stay dependency-gated; queued/worker defaults, capacity_ready=false and concurrency above one remain fail-closed.",
       "documents": [
         {
           "path": "docs/plans/terminal-agent-multi-user-runtime-plan-2026-08-18.md",
@@ -277,7 +277,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-09-01.v27",
+    "version": "2026-09-01.v29",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -394,6 +394,19 @@
         "title": "Dispose of the seven remaining time-bounded legacy plans",
         "depends_on": [],
         "exit_gate": "All seven remaining review items were archived or mapped to canonical workstreams on 2026-08-15; the review queue is empty and no new implementation line was opened."
+      },
+      {
+        "id": "GOV-02",
+        "workstream_id": "web-to-tui-m5",
+        "wave": 3,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "waiting_dependency",
+        "title": "Reject filesystem paths from documentation route consistency checks",
+        "depends_on": [
+          "TAR-07"
+        ],
+        "exit_gate": "The documentation parser ignores exact filesystem prefixes such as /etc/ and /var/ without suppressing real Django/API routes, focused parser tests pass, and the canonical consistency check reports no new issue."
       },
       {
         "id": "EVID-01",
@@ -647,6 +660,19 @@
         "exit_gate": "Completed on 2026-09-01 with docs/testing/data06-isolated-historical-simulation-repository-closure-evidence-2026-09-01.json (SHA-256 e4883f46426b2b9082392371276a79ff4bbcab07e7a6c6022c02f8563d68579a): the existing custom dump matched its sidecar before and after restore, 7,229 entries restored only into a controlled disposable PostgreSQL database, provider/network-free coverage/freshness/source-time/reconciliation ran in one repeatable-read read-only snapshot, output remained candidate-bound/content-addressed/non-production, and database/container cleanup had zero residual. The historical data gate remained DENY and does not satisfy DATA-02 production acceptance. Focused 57 tests, zero mypy regression/debt, 53 current-data surfaces, 3,008-file architecture, Django and migration gates passed."
       },
       {
+        "id": "DATA-07",
+        "workstream_id": "data-production-reliability",
+        "wave": 2,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "completed",
+        "title": "Restore the AKShare quote fixture contract exposed by candidate CI",
+        "depends_on": [
+          "DATA-06"
+        ],
+        "exit_gate": "Completed on 2026-09-01 with docs/testing/data07-akshare-quote-fixture-contract-closure-evidence-2026-09-01.json (SHA-256 13f91dc5d9a387bffe5549ac5d098d7f4680efcfa0fdddbc5530fffabd032b78): the AKShare provider-path fixture now uses the authoritative QuoteSnapshot source contract and asserts both output source and extra.actual_source. The previously failing CI node and related provider adapter coverage pass as 40/40; Ruff, Black, isort, registry and governance checks pass, and no production code or runtime behavior changed."
+      },
+      {
         "id": "DATA-03",
         "workstream_id": "data-production-reliability",
         "wave": 2,
@@ -836,6 +862,19 @@
           "TAR-04"
         ],
         "exit_gate": "An opt-in runner refuses production targets; requires a semantic APPROVE valid for at most 24 hours and bound to the full candidate, target, runtime, workload and query envelope; limits action scope to staging load with a non-billable stub and MCP disabled; rechecks approval and a live dedicated-worker heartbeat before each 1/5/10/20 level; consumes a one-shot internal authorization before each load; and emits explicit-unavailable, secret-free content-addressed evidence without enabling production runtime or claiming TAR-05 acceptance."
+      },
+      {
+        "id": "TAR-07",
+        "workstream_id": "terminal-agent-multi-user-runtime",
+        "wave": 3,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "active",
+        "title": "Own the TAR staging harness HTTP boundary and refresh its deterministic inventory",
+        "depends_on": [
+          "DATA-07"
+        ],
+        "exit_gate": "The exact staging-harness requests import has a non-data owner, scope and reason; no external HTTP import remains unreviewed; the deterministic Data Center architecture inventory matches the current tree; focused inventory, Agent Runtime and governance checks pass without authorizing network execution."
       },
       {
         "id": "AI-01",
