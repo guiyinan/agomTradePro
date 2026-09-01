@@ -1,0 +1,45 @@
+{
+  "schema": "strat-01-owner-ledger-readonly-recheck.v2",
+  "observed_at": "2026-09-01T16:18:49.971064Z",
+  "observation_kind": "candidate_bound_read_only_inventory",
+  "candidate": {
+    "source_commit": "aa7127ff4d9f71555b0d0486314da5518bd2ac20",
+    "release_tag": "20260901232812",
+    "image_tag": "agomtradepro-web:20260901232812",
+    "image_id": "sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c",
+    "runtime_revision_match": true
+  },
+  "database_alias": "default",
+  "database": "agomtradepro",
+  "read_mode": "select_only",
+  "query_scope": {
+    "source": "deployed web container Django PostgreSQL connection",
+    "schema": "public",
+    "selectors": {
+      "research_r1_to_r8": "^research_r[1-8]_",
+      "portfolio_r4_r5_r8": "^portfolio_r[458]_",
+      "account_authority_assignment": "account_* containing owner, assignment, or authority",
+      "explicit_owner_policy_operator_assignment": "account_/research_/portfolio_ table containing owner, policy, operator, or assignment"
+    },
+    "query_kind": "table inventory plus SELECT COUNT(*) per selected table"
+  },
+  "inventory": {
+    "research_r1_to_r8": {"table_count": 65, "row_count_total": 0, "nonzero_table_count": 0},
+    "portfolio_r4_r5_r8": {"table_count": 7, "row_count_total": 0, "nonzero_table_count": 0},
+    "account_authority_assignment_broad": {"table_count": 16, "row_count_total": 0, "nonzero_table_count": 0},
+    "explicit_owner_policy_operator_assignment_broad": {"table_count": 35, "row_count_total": 0, "nonzero_table_count": 0}
+  },
+  "decision": {
+    "strat_01": "awaiting_production",
+    "production_claim": false,
+    "production_ready": false,
+    "runtime_enablement": "not_authorized",
+    "human_approval_status": "not_collected"
+  },
+  "limitations": [
+    "All database access was read-only SELECT through the deployed PostgreSQL web container; no production row was created, updated, deleted, backfilled, promoted, approved, or rolled back.",
+    "The broad selectors are recheck selectors and do not replace the canonical exact inventory contract.",
+    "Zero owner, definition, policy, calendar, scope and qualification rows are a production blocker, not evidence that R1-R8 capabilities are complete.",
+    "This observation does not prove PIT/OOS history, canonical receipts, Promotion, consumer UAT or owner sign-off."
+  ]
+}

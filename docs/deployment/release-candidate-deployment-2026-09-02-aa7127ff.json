@@ -1,0 +1,76 @@
+{
+  "schema": "release-candidate-deployment-evidence.v1",
+  "recorded_at": "2026-09-01T16:21:40.158842Z",
+  "environment": "production",
+  "candidate": {
+    "source_commit": "aa7127ff4d9f71555b0d0486314da5518bd2ac20",
+    "release_id": "20260901232812",
+    "image_tag": "agomtradepro-web:20260901232812",
+    "image_id": "sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c",
+    "source_mode": "git-clone",
+    "runtime_match": true,
+    "candidate_drift": false
+  },
+  "source_worktree": {
+    "path": "D:/githv/agomTradePro-deploy-aa7127ff4-clean",
+    "detached": true,
+    "clean_before_deploy": true,
+    "head": "aa7127ff4d9f71555b0d0486314da5518bd2ac20"
+  },
+  "deployment": {
+    "mode": "upgrade",
+    "code_only": true,
+    "postgres_volume_preserved": true,
+    "redis_volume_preserved": true,
+    "celery_enabled": true,
+    "predeploy_backup_required": true,
+    "automatic_rollback_enabled": true,
+    "automatic_rollback_triggered": false,
+    "migration_pending_count": 0,
+    "canonical_schema_ok": true,
+    "exit_code": 0
+  },
+  "backup": {
+    "remote_path": "/opt/agomtradepro/backups/database/postgres-20260901-174054.dump",
+    "local_path": "backups/vps-postgres/postgres-20260901-174054.dump",
+    "size_bytes": 147464528,
+    "sha256": "c9f7cf876bd79908aa66461e5d07b254104ba1013b134f669cb91bf8119b1caf",
+    "remote_pg_restore_list_valid": true,
+    "sftp_download_complete": true,
+    "remote_local_size_match": true,
+    "remote_local_sha256_match": true,
+    "prune_executed": false,
+    "restore_executed": false
+  },
+  "verification": {
+    "https_health": 200,
+    "tls": "ok",
+    "containers_running": true,
+    "django_deploy_check": "passed",
+    "migrations": "passed",
+    "data_center_schema": "passed",
+    "tui_metadata_registry": "passed",
+    "qlib": {
+      "pyqlib_version": "0.9.7",
+      "wrong_qlib_distribution": "absent",
+      "module_path": "/usr/local/lib/python3.11/site-packages/qlib/__init__.py"
+    },
+    "celery_worker": "running",
+    "celery_beat": "running",
+    "celery_ping_nodes": 1
+  },
+  "source_report": {
+    "path": "dist/remote-build-reports/remote-build-report-20260901232812.json",
+    "sha256": "3b812dfbcee58ee9e48601e049a285ef34a070778a2d3a5ef9be5946342c2da3"
+  },
+  "scope": {
+    "production_write_beyond_standard_deployment": false,
+    "backfill_executed": false,
+    "decision_runtime_activated": false,
+    "authority_or_approval_modified": false,
+    "queued_runtime_enabled": false,
+    "load_or_fault_injection": false,
+    "live_rollback_executed": false,
+    "production_claim": true
+  }
+}

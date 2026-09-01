@@ -1,0 +1,76 @@
+{
+  "schema": "data02-successor-production-readonly-checkpoint.v1",
+  "observed_at": "2026-09-01T16:13:51.097154Z",
+  "candidate": {
+    "source_commit": "aa7127ff4d9f71555b0d0486314da5518bd2ac20",
+    "release_id": "20260901232812",
+    "image_id": "sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c",
+    "candidate_drift": false
+  },
+  "connection_stability": {
+    "scrape_interval_seconds": 30,
+    "sample_interval_seconds": 35,
+    "samples": [
+      {"observed_at": "2026-09-01T16:08:48.004Z", "max_connections": 100, "superuser_reserved_connections": 3, "client_backend_count": 2, "idle_count": 1, "remote_client_count": 1},
+      {"observed_at": "2026-09-01T16:09:24.742Z", "max_connections": 100, "superuser_reserved_connections": 3, "client_backend_count": 2, "idle_count": 1, "remote_client_count": 1},
+      {"observed_at": "2026-09-01T16:10:01.650Z", "max_connections": 100, "superuser_reserved_connections": 3, "client_backend_count": 2, "idle_count": 1, "remote_client_count": 1}
+    ],
+    "client_backend_growth": 0,
+    "idle_growth": 0,
+    "data04_successor_stability_verified": true
+  },
+  "public_probe_window": {
+    "sample_count": 3,
+    "health_200_count": 3,
+    "ready_200_count": 3,
+    "audit_health_200_count": 3,
+    "decision_ready_503_count": 3,
+    "decision_must_not_use_for_decision": true,
+    "response_sha256": {
+      "health": ["088b20dadf293874990dabebead2792da80d53d9471c2b1a82aa2ef76886702f", "a1bb586b951c08abcf7ca7cb15e8f146f7e006e9123b9e68482ba3d3a265a104", "1c770f45316d6fc86cc1b50c207515c1c31ddbcd1129f21f419fc4d0a6d6b487"],
+      "ready": ["9a49c4c08e37edc7f818fb900bf6fcf38279608bdb453471cbd6e2fefc61c970", "728b25c2e110d1583a85a913ba286a3bdb58d7e55ef624dca4768f4990a76672", "a6777681d0150521ed64dec25568e2fa506edc933d601f0536828f3a25777076"],
+      "audit_health": ["77f17ee8790c54a014dd29209df95a889a8d827b135d514a076bdd4f5f2ef482", "677b5540a9ed67f60d5c6059c965036742824cb438f376c824645688f11740e0", "a58fc8724161023979233b6290b2e6103e815f0c84c761525c9480885129a97b"],
+      "decision_ready": ["940d31ae3a7b774bb2947b9ec90ffa0d020ae77ebb14b2beac3535f2c7bf7ba9", "3d86696e18344537d86c295f5a648d659a6bcd2a09f668542034ce717e30c4be", "3e5163c2c5b259f9798e7207ee7534579585bac08b60a3bf9389ac7afe573143"]
+    }
+  },
+  "fact_repair_dry_run": {
+    "mode": "dry_run",
+    "source": "akshare",
+    "batch_size": 200,
+    "asset_count": 5533,
+    "session_date": "2026-09-01",
+    "financial_availability": {"eligible_asset_count": 3750, "eligible_row_count": 288409, "missing_row_count": 288409, "unresolved_row_count": 0, "future_available_at_count": 0, "future_report_date_count": 0, "safe_to_execute": true},
+    "completed_session_prices": {"requested_asset_count": 5533, "eligible_asset_count": 0, "invalid_asset_count": 5533, "missing_asset_count": 0, "newest_snapshot_at": "2026-08-04T08:15:00+00:00", "oldest_snapshot_at": "2026-07-31T07:37:59+00:00", "ready": false},
+    "ready_without_provider_refresh": false,
+    "exit_code": 0
+  },
+  "publication_rebuild_dry_run": {
+    "mode": "dry_run",
+    "asset_count": 5533,
+    "member_count": 35796,
+    "dataset_count": 4,
+    "datasets": {
+      "equity.quote.snapshot": {"covered_asset_count": 5533, "missing_asset_count": 0, "ready": true, "newest_observed_at": "2026-08-04T08:15:00+00:00"},
+      "equity.price.bar": {"covered_asset_count": 5533, "missing_asset_count": 0, "ready": true, "newest_observed_at": "2026-08-03T16:00:00+00:00"},
+      "equity.valuation.fact": {"covered_asset_count": 5533, "missing_asset_count": 0, "ready": true, "newest_observed_at": "2026-08-03T16:00:00+00:00"},
+      "equity.financial.fact": {"covered_asset_count": 1923, "missing_asset_count": 3610, "ready": false, "newest_observed_at": "2026-08-15T00:00:00+00:00"}
+    },
+    "ready": false,
+    "exit_code": 0
+  },
+  "gate": {
+    "data04_production_revalidation": "passed",
+    "data02_execution_ready": false,
+    "data02_exit_gate_complete": false,
+    "data03_activation_allowed": false,
+    "next_blocker": "Current completed-session price facts and full-universe financial facts remain incomplete; provider refresh/backfill and post-write reconciliation are still required."
+  },
+  "side_effects": {
+    "read_mode": "select_only_and_provider_read",
+    "production_database_write": false,
+    "backfill_executed": false,
+    "publication_switched": false,
+    "runtime_activated": false,
+    "production_ready": false
+  }
+}
