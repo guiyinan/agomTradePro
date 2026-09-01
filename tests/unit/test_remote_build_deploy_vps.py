@@ -223,6 +223,18 @@ def test_remote_deploy_validates_manifest_and_image_before_any_start_or_switch()
     assert script.index(validation) < script.index(current_switch)
 
 
+def test_remote_deploy_rejects_persistent_asgi_database_connections_before_shutdown() -> None:
+    script = remote_build_deploy_vps._build_remote_deploy_script()
+
+    policy_error = "ASGI database policy requires CONN_MAX_AGE=0"
+    shutdown = 'if [ "$ACTION" = "fresh" ]; then'
+
+    assert "CONN_MAX_AGE" in script
+    assert "docker run --rm --env-file deploy/.env --entrypoint python" in script
+    assert policy_error in script
+    assert script.index(policy_error) < script.index(shutdown)
+
+
 def test_deployment_report_retains_validated_release_identity() -> None:
     script = remote_build_deploy_vps._build_remote_deploy_script()
 

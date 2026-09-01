@@ -1753,6 +1753,22 @@ grep '^SECRET_KEY=' deploy/.env >/dev/null 2>&1 || {
   exit 1
 }
 
+candidate_image="$(env_value WEB_IMAGE)"
+if [ -z "$candidate_image" ]; then
+  echo "[ERROR] WEB_IMAGE is missing from deploy/.env" >&2
+  exit 1
+fi
+if ! docker run --rm --env-file deploy/.env --entrypoint python "$candidate_image" -c '
+from django.conf import settings
+value = settings.DATABASES["default"].get("CONN_MAX_AGE")
+if value != 0:
+    raise SystemExit(f"ASGI database policy requires CONN_MAX_AGE=0, got {value!r}")
+print("conn_max_age=0")
+'; then
+  echo "[ERROR] ASGI database policy requires CONN_MAX_AGE=0" >&2
+  exit 1
+fi
+
 if [ "$ACTION" = "fresh" ]; then
   compose down --remove-orphans || true
 fi

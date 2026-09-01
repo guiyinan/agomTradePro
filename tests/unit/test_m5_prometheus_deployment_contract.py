@@ -83,6 +83,34 @@ def test_vps_scrape_config_contains_only_the_deployed_django_target() -> None:
         if isinstance(group, dict) and isinstance(rule, dict)
     }
     assert "PrometheusStorageBudgetNearLimit" in rule_names
+    assert "DatabaseConnectionPoolExhausted" in rule_names
+    assert "DatabaseConnectionObservationUnavailable" in rule_names
+
+
+def test_database_connection_alerts_use_real_capacity_and_all_django_5xx() -> None:
+    """Connection exhaustion and page-level failures must be observable."""
+
+    alerts = _yaml(ALERTS_PATH)
+    groups = alerts["groups"]
+    assert isinstance(groups, list)
+    rules = {
+        rule["alert"]: rule
+        for group in groups
+        if isinstance(group, dict)
+        for rule in group.get("rules", [])
+        if isinstance(rule, dict) and isinstance(rule.get("alert"), str)
+    }
+
+    pool_expression = str(rules["DatabaseConnectionPoolExhausted"]["expr"])
+    observation_expression = str(rules["DatabaseConnectionObservationUnavailable"]["expr"])
+    http_expression = str(rules["High5xxRate"]["expr"])
+
+    assert "db_connection_capacity" in pool_expression
+    assert "db_connections_total" in pool_expression
+    assert "> 0.8" in pool_expression
+    assert "database_connection_observation_up" in observation_expression
+    assert "django_http_responses_total_by_status_total" in http_expression
+    assert "0.000001" in http_expression
 
 
 def test_query_api_uses_tls_origin_auth_and_an_unusable_fallback_credential() -> None:

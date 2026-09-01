@@ -383,6 +383,27 @@ def build_django_deploy_check_command(target_dir: str) -> str:
     )
 
 
+def build_asgi_database_policy_command(target_dir: str) -> str:
+    """Require request-scoped database connections to close under ASGI."""
+
+    python_code = """from django.conf import settings
+
+value = settings.DATABASES["default"].get("CONN_MAX_AGE")
+if value != 0:
+    raise SystemExit(f"ASGI database policy requires CONN_MAX_AGE=0, got {value!r}")
+print("conn_max_age=0")
+"""
+    return build_compose_command(
+        target_dir,
+        "exec",
+        "-T",
+        "web",
+        "python",
+        "-c",
+        python_code,
+    )
+
+
 def build_migration_check_command(target_dir: str) -> str:
     """Build a command that fails while migrations remain unapplied."""
 
@@ -737,6 +758,11 @@ def main() -> int:
                 "Django deploy check",
                 build_django_deploy_check_command(args.target_dir),
                 max(args.timeout, DJANGO_DEPLOY_CHECK_TIMEOUT_SECONDS),
+            ),
+            (
+                "ASGI database connection policy",
+                build_asgi_database_policy_command(args.target_dir),
+                max(args.timeout, 30),
             ),
             (
                 "Migrations",
