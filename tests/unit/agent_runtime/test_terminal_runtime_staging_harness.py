@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import json
 from dataclasses import dataclass, field, replace
@@ -755,6 +756,12 @@ def test_runner_default_mode_validates_without_network_io(
 ) -> None:
     """The CLI defaults to a no-network validation summary."""
 
+    parser = functools.partial(
+        staging_runner.parse_terminal_runtime_staging_manifest,
+        observed_at=CAPTURED_AT,
+    )
+    monkeypatch.setattr(staging_runner, "parse_terminal_runtime_staging_manifest", parser)
+
     manifest_path = tmp_path / "manifest.json"
     preflight_path = tmp_path / "approved-preflight.json"
     manifest_path.write_bytes(_manifest())
@@ -798,6 +805,11 @@ def test_runner_execution_binds_canonical_evidence_to_the_raw_source(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The persisted canonical artifact hashes the secret-free live receipt."""
+
+    monkeypatch.setattr(
+        "apps.agent_runtime.infrastructure.terminal_runtime_staging_harness._system_utc_now",
+        _captured_clock,
+    )
 
     specification = parse_terminal_runtime_staging_manifest(
         _manifest(),

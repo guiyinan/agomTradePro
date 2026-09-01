@@ -11,6 +11,7 @@ Usage:
     python scripts/check_doc_route_sdk_consistency.py [--baseline reports/consistency/baseline.json]
     python scripts/check_doc_route_sdk_consistency.py --update-baseline
 """
+
 from __future__ import annotations
 
 import argparse
@@ -19,20 +20,22 @@ import json
 import os
 import re
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, cast
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 # Setup Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.base')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings.base")
 
 try:
     import django
+
     django.setup()
 except Exception as e:
     print(f"Warning: Could not setup Django: {e}", file=sys.stderr)
@@ -83,36 +86,39 @@ class RouteExtractor:
         # First, try to use Django's URL resolver
         try:
             from django.urls import get_resolver
+
             resolver = get_resolver()
 
-            def collect_urls(patterns: list, prefix: str = "") -> None:
+            def collect_urls(patterns: Sequence[Any], prefix: str = "") -> None:
                 for pattern in patterns:
-                    if hasattr(pattern, 'url_patterns'):
+                    if hasattr(pattern, "url_patterns"):
                         # This is an include()
                         new_prefix = prefix + str(pattern.pattern)
                         collect_urls(pattern.url_patterns, new_prefix)
-                    elif hasattr(pattern, 'callback'):
+                    elif hasattr(pattern, "callback"):
                         # This is a URL pattern
                         route_str = prefix + str(pattern.pattern)
                         # Clean up regex patterns
-                        route_str = route_str.replace('^', '').replace('$', '')
+                        route_str = route_str.replace("^", "").replace("$", "")
                         # Normalize
-                        if not route_str.startswith('/'):
-                            route_str = '/' + route_str
+                        if not route_str.startswith("/"):
+                            route_str = "/" + route_str
 
-                        name = getattr(pattern, 'name', None)
+                        name = getattr(pattern, "name", None)
                         callback = pattern.callback
 
                         # Determine methods
                         methods = ["GET"]
-                        view_name = callback.__name__ if hasattr(callback, '__name__') else str(callback)
+                        view_name = (
+                            callback.__name__ if hasattr(callback, "__name__") else str(callback)
+                        )
 
                         # Check for ViewSet or APIView
-                        if hasattr(callback, 'cls'):
+                        if hasattr(callback, "cls"):
                             cls = callback.cls
                             view_name = cls.__name__
                             # DRF ViewSets typically support multiple methods
-                            if hasattr(cls, 'get_queryset'):
+                            if hasattr(cls, "get_queryset"):
                                 methods = ["GET", "POST", "PUT", "PATCH", "DELETE"]
 
                         routes[route_str] = RouteInfo(
@@ -120,7 +126,11 @@ class RouteExtractor:
                             name=name,
                             methods=methods,
                             view_name=view_name,
-                            module=callback.__module__ if hasattr(callback, '__module__') else "unknown",
+                            module=(
+                                callback.__module__
+                                if hasattr(callback, "__module__")
+                                else "unknown"
+                            ),
                         )
 
             collect_urls(resolver.url_patterns)
@@ -200,25 +210,25 @@ class RouteExtractor:
                 callback = match.group(2).strip()
 
                 # Skip include() and redirect views
-                if 'include(' in callback or 'RedirectView' in callback:
+                if "include(" in callback or "RedirectView" in callback:
                     continue
 
                 # Clean up route pattern
-                route_pattern = route_pattern.replace('<', ':').replace('>', '')
+                route_pattern = route_pattern.replace("<", ":").replace(">", "")
 
                 # Build full path
                 if base_prefix and not route_pattern.startswith(base_prefix):
-                    full_path = base_prefix.rstrip('/') + '/' + route_pattern.lstrip('/')
+                    full_path = base_prefix.rstrip("/") + "/" + route_pattern.lstrip("/")
                 else:
-                    full_path = '/' + route_pattern.lstrip('/')
+                    full_path = "/" + route_pattern.lstrip("/")
 
                 # Extract view name
-                view_match = re.search(r'(\w+)\.as_view\(\)', callback)
+                view_match = re.search(r"(\w+)\.as_view\(\)", callback)
                 if view_match:
                     view_name = view_match.group(1)
                 else:
                     # Extract from views.xxx or api_views.xxx
-                    view_match = re.search(r'(?:views|api_views)\.(\w+)', callback)
+                    view_match = re.search(r"(?:views|api_views)\.(\w+)", callback)
                     view_name = view_match.group(1) if view_match else callback
 
                 routes[full_path] = RouteInfo(
@@ -236,8 +246,8 @@ class RouteExtractor:
                 viewset = match.group(2)
 
                 # DRF ViewSet routes
-                full_prefix = base_prefix.rstrip('/') + '/' + prefix.lstrip('/')
-                full_prefix = '/' + full_prefix.lstrip('/')
+                full_prefix = base_prefix.rstrip("/") + "/" + prefix.lstrip("/")
+                full_prefix = "/" + full_prefix.lstrip("/")
 
                 # Standard REST routes
                 standard_routes = [
@@ -267,19 +277,21 @@ class DocumentationParser:
         self.docs_dir = docs_dir
         self.route_patterns = [
             # Markdown code blocks
-            r'```[a-z]*\n(?:[^`]*\n)*?(GET|POST|PUT|PATCH|DELETE)\s+(/[^\s`]+)',
+            r"```[a-z]*\n(?:[^`]*\n)*?(GET|POST|PUT|PATCH|DELETE)\s+(/[^\s`]+)",
             # Inline code
-            r'`(?:GET|POST|PUT|PATCH|DELETE)\s+(/[^\s`]+)`',
+            r"`(?:GET|POST|PUT|PATCH|DELETE)\s+(/[^\s`]+)`",
             # Direct references
-            r'(?:端点|Endpoint|API):\s*`?(/[a-zA-Z0-9/_-]+)`?',
+            r"(?:端点|Endpoint|API):\s*`?(/[a-zA-Z0-9/_-]+)`?",
             # URL format
-            r'`(/[a-z]+/[a-z0-9_-]+/?)`',
+            r"`(/[a-z]+/[a-z0-9_-]+/?)`",
         ]
         self.ignored_doc_parts = {
             "archive",
             "migration",
         }
         self.ignored_route_prefixes = (
+            "/etc/",
+            "/var/",
             "/opt/",
             "/rsshub/",
             "/mof/",
@@ -312,14 +324,18 @@ class DocumentationParser:
                 content = md_file.read_text(encoding="utf-8")
                 file_routes: list[tuple[str, int]] = []
 
-                lines = content.split('\n')
+                lines = content.split("\n")
                 for line_num, line in enumerate(lines, 1):
                     for pattern in self.route_patterns:
                         for match in re.finditer(pattern, line):
-                            route = match.group(1) if match.lastindex >= 1 else match.group(0)
+                            route = (
+                                match.group(1)
+                                if match.lastindex is not None and match.lastindex >= 1
+                                else match.group(0)
+                            )
                             # Clean up the route
-                            route = route.strip('`\'"')
-                            if not route.startswith('/'):
+                            route = route.strip("`'\"")
+                            if not route.startswith("/"):
                                 continue
                             if self._should_ignore_route(route):
                                 continue
@@ -402,7 +418,7 @@ class SDKParser:
                     tool_endpoints = []
                     for match in re.finditer(endpoint_pattern, content):
                         endpoint = match.group(1)
-                        if endpoint.startswith('/api/') or endpoint.startswith('/'):
+                        if endpoint.startswith("/api/") or endpoint.startswith("/"):
                             tool_endpoints.append(endpoint)
 
                     if tool_endpoints:
@@ -443,11 +459,14 @@ def load_baseline(path: Path) -> dict[str, Any]:
             "version": "1.0",
             "created": datetime.now().isoformat(),
             "routes": [],
-            "notes": "Baseline for existing inconsistencies - warnings only"
+            "notes": "Baseline for existing inconsistencies - warnings only",
         }
 
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        parsed: object = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(parsed, dict):
+            raise ValueError("baseline root must be a JSON object")
+        return cast(dict[str, Any], parsed)
     except Exception as e:
         print(f"Warning: Could not load baseline: {e}", file=sys.stderr)
         return {}
@@ -462,7 +481,7 @@ def save_baseline(path: Path, issues: list[ConsistencyIssue]) -> None:
         "created": datetime.now().isoformat(),
         "routes": [issue.route for issue in issues],
         "issues": [issue.to_dict() for issue in issues],
-        "notes": "Baseline for existing inconsistencies - warnings only"
+        "notes": "Baseline for existing inconsistencies - warnings only",
     }
 
     path.write_text(json.dumps(baseline, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -470,8 +489,7 @@ def save_baseline(path: Path, issues: list[ConsistencyIssue]) -> None:
 
 
 def check_consistency(
-    project_root: Path,
-    baseline: dict[str, Any] | None = None
+    project_root: Path, baseline: dict[str, Any] | None = None
 ) -> list[ConsistencyIssue]:
     """Run all consistency checks."""
     issues: list[ConsistencyIssue] = []
@@ -482,8 +500,7 @@ def check_consistency(
     route_extractor = RouteExtractor(project_root)
     django_routes = route_extractor.extract_all_routes()
     django_route_patterns = [
-        _route_pattern_to_regex(route_info.path)
-        for route_info in django_routes.values()
+        _route_pattern_to_regex(route_info.path) for route_info in django_routes.values()
     ]
     print(f"  Found {len(django_routes)} routes")
 
@@ -505,12 +522,12 @@ def check_consistency(
     for doc_file, routes in doc_routes.items():
         for route, line_num in routes:
             # Normalize route for comparison
-            normalized_route = route.rstrip('/')
+            normalized_route = route.rstrip("/")
 
             # Check for exact match
             found = False
             for django_route in django_routes.values():
-                if normalized_route == django_route.path.rstrip('/'):
+                if normalized_route == django_route.path.rstrip("/"):
                     found = True
                     break
             if not found:
@@ -523,7 +540,7 @@ def check_consistency(
                 # Check if it's in baseline
                 if normalized_route in baseline_routes or route in baseline_routes:
                     issue = ConsistencyIssue(
-                        type='missing_route',
+                        type="missing_route",
                         source=doc_file,
                         route=route,
                         details=f"Route {route} referenced in docs but not found in Django (baseline)",
@@ -532,7 +549,7 @@ def check_consistency(
                     )
                 else:
                     issue = ConsistencyIssue(
-                        type='missing_route',
+                        type="missing_route",
                         source=doc_file,
                         route=route,
                         details=f"Route {route} referenced in docs but not found in Django",
@@ -545,20 +562,20 @@ def check_consistency(
     print("\nChecking SDK endpoint coverage...")
     for module_name, endpoints in sdk_endpoints.items():
         for endpoint in endpoints:
-            if not endpoint.startswith('/'):
+            if not endpoint.startswith("/"):
                 # This is likely a relative path from a base path
                 continue
 
-            normalized_endpoint = endpoint.rstrip('/')
+            normalized_endpoint = endpoint.rstrip("/")
 
             # Check for exact or partial match
             found = False
             for django_route in django_routes.values():
-                if normalized_endpoint == django_route.path.rstrip('/'):
+                if normalized_endpoint == django_route.path.rstrip("/"):
                     found = True
                     break
                 # Check for prefix match (for base paths)
-                if django_route.path.rstrip('/').startswith(normalized_endpoint):
+                if django_route.path.rstrip("/").startswith(normalized_endpoint):
                     found = True
                     break
 
@@ -566,7 +583,7 @@ def check_consistency(
                 # Check if it's in baseline
                 if normalized_endpoint in baseline_routes or endpoint in baseline_routes:
                     issue = ConsistencyIssue(
-                        type='missing_route',
+                        type="missing_route",
                         source=f"sdk/{module_name}",
                         route=endpoint,
                         details=f"SDK endpoint {endpoint} not found in Django routes (baseline)",
@@ -574,7 +591,7 @@ def check_consistency(
                     )
                 else:
                     issue = ConsistencyIssue(
-                        type='missing_route',
+                        type="missing_route",
                         source=f"sdk/{module_name}",
                         route=endpoint,
                         details=f"SDK endpoint {endpoint} not found in Django routes",
@@ -607,8 +624,14 @@ _LEDGER_SCAN_TARGETS = [
 
 # Pattern → description of violation
 _LEGACY_PATTERNS = [
-    (re.compile(r'["\'`]account/api/'), "Legacy path 'account/api/…' — must use canonical '/api/account/…'"),
-    (re.compile(r'["\'`]/account/api/'), "Legacy path '/account/api/…' — must use canonical '/api/account/…'"),
+    (
+        re.compile(r'["\'`]account/api/'),
+        "Legacy path 'account/api/…' — must use canonical '/api/account/…'",
+    ),
+    (
+        re.compile(r'["\'`]/account/api/'),
+        "Legacy path '/account/api/…' — must use canonical '/api/account/…'",
+    ),
 ]
 
 # Patterns that indicate old two-ledger mental model in docs / SDK
@@ -661,28 +684,34 @@ def _check_unified_ledger_rules(project_root: Path) -> list[ConsistencyIssue]:
             ):
                 continue
             # Skip lines that are describing what was fixed/migrated (past-tense history)
-            if rel_path.endswith(".md") and re.search(r"原系统|旧账本|两套.*账本|两套.*系统", line, re.IGNORECASE):
+            if rel_path.endswith(".md") and re.search(
+                r"原系统|旧账本|两套.*账本|两套.*系统", line, re.IGNORECASE
+            ):
                 continue
 
             for pattern, description in _LEGACY_PATTERNS:
                 if pattern.search(line):
-                    issues.append(ConsistencyIssue(
-                        type="deprecated_route",
-                        source=rel_path,
-                        route="account/api/",
-                        details=description,
-                        line=lineno,
-                    ))
+                    issues.append(
+                        ConsistencyIssue(
+                            type="deprecated_route",
+                            source=rel_path,
+                            route="account/api/",
+                            details=description,
+                            line=lineno,
+                        )
+                    )
 
             for pattern, description in _WRONG_SEMANTICS_PATTERNS:
                 if pattern.search(line):
-                    issues.append(ConsistencyIssue(
-                        type="deprecated_route",
-                        source=rel_path,
-                        route="(semantic)",
-                        details=description,
-                        line=lineno,
-                    ))
+                    issues.append(
+                        ConsistencyIssue(
+                            type="deprecated_route",
+                            source=rel_path,
+                            route="(semantic)",
+                            details=description,
+                            line=lineno,
+                        )
+                    )
 
     if not issues:
         print("  ✓ No unified ledger violations found")
@@ -698,21 +727,19 @@ def main() -> int:
         description="Check consistency between documentation, routes, and SDK"
     )
     parser.add_argument(
-        '--baseline',
+        "--baseline",
         type=Path,
-        default=Path('reports/consistency/baseline.json'),
-        help="Path to baseline file"
+        default=Path("reports/consistency/baseline.json"),
+        help="Path to baseline file",
     )
     parser.add_argument(
-        '--update-baseline',
-        action='store_true',
-        help="Update baseline with current issues"
+        "--update-baseline", action="store_true", help="Update baseline with current issues"
     )
     parser.add_argument(
-        '--project-root',
+        "--project-root",
         type=Path,
         default=Path(__file__).parent.parent,
-        help="Project root directory"
+        help="Project root directory",
     )
 
     args = parser.parse_args()
@@ -743,7 +770,10 @@ def main() -> int:
         print(f"\n[ERROR] {len(new_issues)} new issues found", file=sys.stderr)
         for issue in new_issues:
             if issue.line:
-                print(f"  - [{issue.type}] {issue.route} in {issue.source}:{issue.line}", file=sys.stderr)
+                print(
+                    f"  - [{issue.type}] {issue.route} in {issue.source}:{issue.line}",
+                    file=sys.stderr,
+                )
             else:
                 print(f"  - [{issue.type}] {issue.route} in {issue.source}", file=sys.stderr)
             print(f"    {issue.details}", file=sys.stderr)

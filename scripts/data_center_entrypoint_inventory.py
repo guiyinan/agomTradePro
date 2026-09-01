@@ -78,6 +78,7 @@ GOVERNANCE_SCRIPT_ENTRYPOINTS = frozenset(
         "scripts/record_data03_readiness_evidence.py",
         "scripts/verify_postgres_backup_restore.py",
         "scripts/check_migration_graph.py",
+        "scripts/run_data02_isolated_simulation.py",
     }
 )
 
@@ -2197,6 +2198,29 @@ def _tui_action_signature(item: dict[str, Any]) -> tuple[str, ...]:
     )
 
 
+def _resolve_published_action(
+    generated_key: str,
+    generated: dict[str, Any],
+    published_actions: dict[str, dict[str, Any]],
+) -> tuple[str, dict[str, Any]] | None:
+    """Resolve an exact published action or one unique approved semantic alias."""
+
+    exact = published_actions.get(generated_key)
+    if exact is not None:
+        return generated_key, exact
+    generated_screen_key = str(generated.get("screen_key", ""))
+    if not generated_screen_key:
+        return None
+    candidates = [
+        (key, item)
+        for key, item in published_actions.items()
+        if str(item.get("screen_key", "")) == generated_screen_key
+        and item.get("source") == "approved:semantic-alias"
+        and _tui_action_signature(item) == _tui_action_signature(generated)
+    ]
+    return candidates[0] if len(candidates) == 1 else None
+
+
 def _nested_strings(value: object) -> set[str]:
     """Collect exact string values from one JSON-compatible object."""
 
@@ -2218,7 +2242,8 @@ def _discover_terminal_tui() -> list[dict[str, object]]:
     generated_actions = _tui_actions(generated)
     results: list[dict[str, object]] = []
     for key, item in sorted(generated_actions.items()):
-        published_item = published_actions.get(key)
+        resolved = _resolve_published_action(key, item, published_actions)
+        published_item = resolved[1] if resolved is not None else None
         is_published = published_item is not None
         contract_matches = published_item is not None and _tui_action_signature(
             item
@@ -2255,7 +2280,9 @@ def _discover_terminal_tui() -> list[dict[str, object]]:
         action_refs = sorted(_nested_strings(screen) & set(generated_actions))
         for action_key in action_refs:
             action = generated_actions[action_key]
-            published_action = published_actions.get(action_key)
+            resolved = _resolve_published_action(action_key, action, published_actions)
+            published_key = resolved[0] if resolved is not None else None
+            published_action = resolved[1] if resolved is not None else None
             contract_matches = published_action is not None and _tui_action_signature(
                 action
             ) == _tui_action_signature(published_action)
@@ -2263,7 +2290,7 @@ def _discover_terminal_tui() -> list[dict[str, object]]:
             published_refs = (
                 _nested_strings(published_screen) if published_screen is not None else set()
             )
-            active = contract_matches and action_key in published_refs
+            active = contract_matches and published_key in published_refs
             endpoint = str(action.get("endpoint", ""))
             results.append(
                 _entry(

@@ -235,6 +235,82 @@ def test_inventory_includes_internal_consumers_admin_and_config_compatibility(
     )
 
 
+def test_generated_data_center_actions_resolve_to_two_active_semantic_aliases(
+    inventory_payload: tuple[ModuleType, dict[str, object]],
+) -> None:
+    """Generated Data Center keys use only unique, contract-identical published aliases."""
+
+    inventory, payload = inventory_payload
+    generated = json.loads(
+        (ROOT / "config/tui/generated/tui_operation_graph.generated.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    published = json.loads(
+        (ROOT / "config/tui/published/tui_operation_graph.published.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    generated_actions = inventory._tui_actions(generated)
+    published_actions = inventory._tui_actions(published)
+    data_center_actions = {
+        key: item
+        for key, item in generated_actions.items()
+        if str(item.get("endpoint", "")).startswith("/api/data-center")
+    }
+    resolved = [
+        inventory._resolve_published_action(key, item, published_actions)
+        for key, item in data_center_actions.items()
+        if key not in published_actions
+    ]
+
+    assert len(resolved) == 2
+    assert all(
+        item is not None and item[1]["source"] == "approved:semantic-alias" for item in resolved
+    )
+    entries = payload["entries"]
+    data_center_entries = [
+        entry
+        for entry in entries
+        if entry["category"] == "terminal_tui"
+        and entry["symbol"]
+        in {
+            "auto.api.get.api.data-center",
+            "auto.api.get.api.data-center.providers",
+        }
+    ]
+    assert len(data_center_entries) == 2
+    assert all(entry["status"] == "active_public" for entry in data_center_entries)
+
+
+def test_semantic_alias_resolution_fails_closed_on_missing_screen_or_ambiguity() -> None:
+    """Semantic aliases require one non-empty screen-bound contract match."""
+
+    inventory = _load_script()
+    generated = {
+        "endpoint": "/api/data-center/",
+        "method": "GET",
+        "intent": "read_data_center",
+    }
+    alias = {
+        **generated,
+        "screen_key": "api-library.data-center",
+        "source": "approved:semantic-alias",
+    }
+
+    assert inventory._resolve_published_action("generated", generated, {"alias": alias}) is None
+
+    generated["screen_key"] = "api-library.data-center"
+    assert (
+        inventory._resolve_published_action(
+            "generated",
+            generated,
+            {"alias.one": alias, "alias.two": dict(alias)},
+        )
+        is None
+    )
+
+
 def test_inventory_expands_command_edges_and_publishes_full_task_targets(
     inventory_payload: tuple[ModuleType, dict[str, object]],
 ) -> None:

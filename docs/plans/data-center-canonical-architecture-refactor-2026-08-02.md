@@ -4942,3 +4942,120 @@ Git SHA / 镜像 / migration：
   SHA-256=`7c535f2a1802561be3430a8a9a2149da4ab08b885f2ad672f96828209da8a56a`。
 - 本 checkpoint 纯 repository 结构整改，没有生产读取、写入、重启、部署或回填；DATA-02/03
   production gate 与 DATA-04 clean-deploy/revalidation 前置保持不变。
+
+## 148. 2026-08-31：DATA-06 隔离历史模拟 focus 激活
+
+- 项目所有者授权采用历史数据 simulation-first 推进后，机器注册表将 `DATA-06` 设为唯一
+  repository focus。盘点确认当前能力存在断点：restore verifier 能验证 custom dump，DATA-02
+  recorder 能解析外部 SELECT-only snapshot，但没有一个 runner 在 disposable PostgreSQL 中完成
+  restore → provider/network-free coverage/freshness/source-time/reconciliation → candidate-bound artifact →
+  zero-residual cleanup。
+- 工作区已有两个被 `.gitignore` 隔离且 SHA-256 sidecar 匹配的 2026-08-29 custom dump；本单元只允许
+  使用已有不可变输入，不创建/下载生产备份。所有数据查询必须位于 repeatable-read read-only 事务，
+  unsafe/non-local target、dump drift、写语句、schema 缺失、候选绑定缺失或 cleanup residue 均失败关闭。
+- 本单元只证明历史备份上的候选离线行为和可重放 reconciliation；不连接生产、不调用 provider、不执行
+  backfill/publication 写入、不建立 authority/profile、不启用 decision runtime，也不替代 DATA-02/03 的
+  clean-deploy、current freshness、生产容量、真实回填/reconciliation 与 owner acceptance。
+
+## 149. 2026-09-01：DATA-06 隔离历史模拟 repository exit
+
+- 新增 Application 层纯分析合同、psycopg Infrastructure snapshot adapter 与独立 CLI runner。runner 只接受
+  loopback PostgreSQL 和 `agom_data02_sim_*` disposable database，先校验 dump sidecar，再通过 PostgreSQL
+  `REPEATABLE READ READ ONLY` 事务读取生产 coverage config、active Dataset Contract、四类最新事实与 current
+  publication/member；provider 和外部网络不参与。unsafe target、dump drift、schema/contract ambiguity、naive/future
+  observation、非只读事务及 cleanup residue 均 fail closed。
+- 使用既有 `postgres-20260829T171523Z.dump` 完成两次真实本地恢复。最终绑定 dump SHA-256
+  `18d208a5…6034f`、7,229 restore entries、Data Center migration head
+  `0072_note_non_st_price_limit_scope`、5,533 个 active A-share；分析 artifact SHA-256
+  `204d5706…20cd1`，数据库和外层 disposable container 复查均无残留。
+- 历史数据没有被“测试通过”美化为可用：四类 Dataset Contract freshness 均读取成功但四类 gate 全为 `DENY`。
+  Quote/Price/Valuation 的候选事实覆盖均为 `5,533/5,533`，Financial 仅 `1,923/5,533`；四类 current
+  publication reconciliation 均失败，全部存在 stale observation。该结果把后续开发输入固定为真实覆盖、时效与
+  publication rebuild 缺口，而不是 simulator 选择器缺失。
+- 聚焦与相关回归 `57 passed`；3 个生产文件增量 mypy 与全仓 debt 均为 0；53 个 current-data surfaces、
+  3,008-file architecture、Ruff/Black/isort、Django check 和 migration drift 全部通过。规范化证据为
+  [`data06-isolated-historical-simulation-repository-closure-evidence-2026-09-01.json`](../testing/data06-isolated-historical-simulation-repository-closure-evidence-2026-09-01.json)，
+  SHA-256=`e4883f46426b2b9082392371276a79ff4bbcab07e7a6c6022c02f8563d68579a`。
+- DATA-06 仅关闭 repository capability，`production_claim=false`、`production_ready=false`。DATA-02 仍须 clean
+  successor 部署、跨 scrape interval 的连接/readiness 稳定、candidate-bound production dry-run、已授权有界
+  backfill 与生产 reconciliation；DATA-03 activation 和 TUI-02 候选观察不得继承本历史结果。
+
+## 150. 2026-09-01：候选 CI corrective 顺序登记与 DATA-07 focus
+
+- `53ddbff137c9a0c379c73c6f4c64244613e2741b` 推送后的 Fast Feedback 在 Python 3.11/3.13
+  上均暴露同一测试合同失败：`test_t3a_akshare_provider_paths.py` 的 fake quote 未提供权威
+  `market_gateway_entities.QuoteSnapshot.source` 字段，而生产 gateway 的返回类型和两条构造路径均保证该字段。
+  该失败不能通过把生产 adapter 改成无类型对象兼容层来掩盖，应让测试 fixture 遵守正式 DTO 并断言实际
+  source provenance 被传递。
+- 项目所有者已明确授权登记 `DATA-07 -> TAR-07 -> GOV-02` 三个独立 corrective unit。`DATA-07`
+  是当前唯一 repository focus；后两项保持 `waiting_dependency`，不得并行扩展代码，也不得混成一个提交。
+- DATA-07 仅允许修改 Data Center provider-path 测试、对应结构化 evidence 及本计划/README/registry 回写。
+  它不修改生产 adapter、provider、freshness、publication 或运行时行为，不连接生产、不调用外部数据源、
+  不执行 backfill/部署/推送。exit gate 是原失败用例、相关 provider adapter 回归、治理与注册表勾稽全部通过。
+
+## 151. 2026-09-01：DATA-07 fixture contract repository exit
+
+- fake quote 现在显式提供正式 DTO 的 `source="eastmoney"`，并断言 Application 输出的 `source` 与
+  `extra.actual_source` 均保持该 provenance。Sol/Luna 审查确认正式
+  `AKShareEastMoneyGateway.get_quote_snapshots()` 返回 `list[QuoteSnapshot]`，两条正式构造路径都提供
+  `source`，因此没有用 `getattr` 放宽生产 adapter 的类型边界。
+- 原失败文件与同类 provider adapter 组合回归 `40 passed`；Ruff、Black、isort、active plan registry
+  和 governance consistency 全绿。结构化证据为
+  [`data07-akshare-quote-fixture-contract-closure-evidence-2026-09-01.json`](../testing/data07-akshare-quote-fixture-contract-closure-evidence-2026-09-01.json)，
+  SHA-256=`13f91dc5d9a387bffe5549ac5d098d7f4680efcfa0fdddbc5530fffabd032b78`。
+- DATA-07 只关闭候选 CI 的 Data fixture blocker，不宣称整条候选 CI 已绿；TAR inventory/HTTP ownership
+  与 documentation route parser 仍由 `TAR-07`、`GOV-02` 分别关闭。无生产读写、外部网络、部署、push、
+  runtime enablement 或生产结论。唯一 repository focus 已晋级 `TAR-07`。
+
+## 152. 2026-09-01：DATA-08/09 corrective activation
+
+- 项目所有者已授权在 `GOV-02` 后依次登记并完成 `DATA-08 -> DATA-09`，各自形成独立提交；本地门禁
+  全部通过后，允许把现有及新增 corrective 提交推送至 `origin/dev/next-development`。先前三个 corrective
+  已随用户的 `STRAT-01` 提交 `fe0fc33bc78390c15244025f176cfd6ed31550e8` 到达远端，因此本轮不得
+  回退、重写或混合该历史。
+- `DATA-08` 是唯一 repository focus：DATA-06 runner 必须通过 App-root composition factory 取得
+  PostgreSQL snapshot adapter，不再从 script 直接导入 Infrastructure；runner 同时登记为受治理的 active
+  Data Center tool。deterministic inventory 只能把唯一且 contract-identical 的 published semantic alias
+  视为同一 TUI action，歧义或签名漂移继续失败关闭；全部 operational test-evidence surface 必须逐项给出
+  owner disposition，重建后的 `candidate-review` 必须为 0，legacy direct/wrapper 必须保持 0。
+- `DATA-09=waiting_dependency`，只在 DATA-08 完成后登记
+  `apps/config_center/application/decision_runtime_activation.py::_run_probes` 生成的三个 canonical
+  `*_probe_failed` reliability reason；不得修改 runtime 逻辑、放宽 reason pattern、启用 queued/decision
+  runtime 或改变 current-data gate。
+- 两个单元都只允许 repository 代码、测试、机器治理、结构化 evidence 与计划回写；不授权 merge、部署、
+  生产读写、外部调用、流量/负载、故障注入、authority/approval 变更或 live rollback。
+
+## 153. 2026-09-01：DATA-08 deterministic entrypoint inventory exit
+
+- `run_data02_isolated_simulation.py` 现在只从 App-root composition 导入 candidate/request/factory，由
+  `data02_isolated_simulation_composition.py` 在仓库边界组装 PostgreSQL adapter 与 Application use case；
+  script 不再直接导入 Infrastructure，并作为 active Data Center governance tool 进入 inventory。
+- generated TUI action 先按 exact key 匹配；只有 exact key 缺失时，才接受同一非空 `screen_key`、
+  `source=approved:semantic-alias`、五字段 dispatch signature 完全一致且唯一的 published alias。缺 screen、
+  签名差异或多个候选全部 fail closed。Data Center 两条既有 semantic alias 的 action 与 screen edge 均由
+  `candidate-review` 收敛为 `active_public`。
+- Account owner-tenant PostgreSQL concurrency/settings 与 Audit archive 三项 test evidence 已逐项登记为
+  `adjacent_operational`。重建 inventory 共 1,151 项：718 active、296 adjacent、137 compatibility、
+  `candidate-review=0`、retired=0；legacy direct/wrapper 均为 0。
+- 聚焦组合回归 `34 passed`；3 个生产文件增量 mypy 和全仓 debt 均为 0；3,009-file architecture、
+  Black/isort/Ruff、active-plan registry 与 governance consistency 全绿。结构化证据为
+  [`data08-data-center-entrypoint-inventory-closure-evidence-2026-09-01.json`](../testing/data08-data-center-entrypoint-inventory-closure-evidence-2026-09-01.json)，
+  SHA-256=`7bc2d406d72cfb6fdd176b9fc3faf16b7bb9fa50ff0c939fafe0d1ab47407db0`。
+- 本单元没有连接生产、读写数据库、调用网络、部署、启用 runtime 或形成生产可用结论。唯一 repository
+  focus 已切换为 `DATA-09`，只允许登记精确 dynamic reliability reason boundary。
+
+## 154. 2026-09-01：DATA-09 dynamic reliability reason boundary exit
+
+- `governance/reliability_contracts.json` 现将
+  `apps/config_center/application/decision_runtime_activation.py::def _run_probes` 绑定到精确 pattern
+  `^(core_coverage|provider_capabilities|decision_data)_probe_failed$`；只接受三类现有 probe failure，不能
+  匹配任意新增前缀、任意通用 reason 或其他 runtime 状态。
+- reliability ownership guard 通过并保持 7 statuses、14 static reasons；activation/ownership 聚焦回归
+  `7 passed`，全部 53 个 current-data surfaces 继续通过。未修改 Application/runtime Python、reason 生成
+  逻辑、current-data manifest 或启用状态。
+- 结构化证据为
+  [`data09-decision-runtime-reliability-boundary-closure-evidence-2026-09-01.json`](../testing/data09-decision-runtime-reliability-boundary-closure-evidence-2026-09-01.json)，
+  SHA-256=`acc0721682a26081819b89d35382c0e853e637ce2b169d34488d9100b301663b`。
+- `DATA-08 -> DATA-09` corrective 顺序已完成且保持独立提交边界；execution focus 回到 null。只有在新 HEAD
+  的独立 clean worktree 通过组合门禁后才执行已授权 push。merge、部署、生产读写、外部调用、queued/
+  decision runtime enablement、流量/故障和 live rollback 仍不在本单元内。

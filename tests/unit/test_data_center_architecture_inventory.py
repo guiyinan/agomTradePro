@@ -40,7 +40,7 @@ def test_inventory_separates_sdk_ownership_from_reviewed_non_data_http() -> None
     assert payload["counts"]["provider_imports_outside_data_center"] == 0
     assert payload["counts"]["direct_data_center_imports_outside_data_center"] == 0
     assert payload["counts"]["external_http_imports_for_review"] == 0
-    assert payload["counts"]["approved_non_data_http_imports"] == 4
+    assert payload["counts"]["approved_non_data_http_imports"] == 5
     approved = payload["approved_non_data_http_imports"]
     assert {(item["path"], item["import"], item["owner"], item["scope"]) for item in approved} == {
         (
@@ -53,6 +53,12 @@ def test_inventory_separates_sdk_ownership_from_reviewed_non_data_http() -> None
             "apps/terminal/infrastructure/http_client.py",
             "requests",
             "terminal",
+            "internal_control_plane",
+        ),
+        (
+            "apps/agent_runtime/infrastructure/terminal_runtime_staging_harness.py",
+            "requests",
+            "agent-runtime",
             "internal_control_plane",
         ),
         (

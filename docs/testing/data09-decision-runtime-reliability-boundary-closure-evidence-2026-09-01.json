@@ -1,0 +1,78 @@
+{
+  "schema_version": "data09-decision-runtime-reliability-boundary-closure.v1",
+  "unit_id": "DATA-09",
+  "recorded_at": "2026-09-01T06:54:46.652Z",
+  "repository_head": "599cc62c3c6dd1157c22a10487a741fcbdb6c99d",
+  "trigger": {
+    "guard_violation": "dynamic_reason_boundary_unregistered:apps/config_center/application/decision_runtime_activation.py:217",
+    "source_symbol": "apps/config_center/application/decision_runtime_activation.py::def _run_probes",
+    "classification": "dynamic_reliability_reason_boundary_unregistered"
+  },
+  "working_tree_binding": {
+    "state": "uncommitted_manifest_hash",
+    "files": [
+      {
+        "path": "governance/reliability_contracts.json",
+        "sha256": "fb1e52af440d8daacc647f4ccdd29429af64b78daf49582f78c2dc375ec41a73"
+      }
+    ]
+  },
+  "registered_contract": {
+    "path": "apps/config_center/application/decision_runtime_activation.py",
+    "symbol": "def _run_probes",
+    "pattern": "^(core_coverage|provider_capabilities|decision_data)_probe_failed$",
+    "allowed_reason_codes": [
+      "core_coverage_probe_failed",
+      "provider_capabilities_probe_failed",
+      "decision_data_probe_failed"
+    ],
+    "pattern_widened": false,
+    "runtime_code_changed": false,
+    "current_data_contract_changed": false
+  },
+  "validation": {
+    "reliability_ownership_guard": {
+      "owner": "shared/domain/reliability.py",
+      "statuses": 7,
+      "reasons": 14,
+      "violations": 0
+    },
+    "focused_tests": {
+      "command": "pytest tests/unit/test_reliability_contract_ownership.py tests/unit/config_center/test_decision_runtime_activation.py -q",
+      "passed": 7,
+      "failed": 0
+    },
+    "current_data_contracts": {
+      "surfaces": 53,
+      "guard": "passed"
+    },
+    "active_plan_registry": {
+      "version": "2026-09-01.v36",
+      "violations": 0
+    },
+    "governance": {
+      "baseline_version": "2026-08-12.v219",
+      "violations": 0
+    },
+    "json_and_diff": "passed"
+  },
+  "exit_gate": {
+    "repository_unit_completed": true,
+    "dynamic_reason_boundary_registered": true,
+    "runtime_behavior_unchanged": true,
+    "current_data_gate_unchanged": true,
+    "production_gate_completed": false
+  },
+  "safety_boundary": {
+    "production_code_changed": false,
+    "production_database_reads": false,
+    "production_database_writes": false,
+    "network_io": false,
+    "deployment_executed": false,
+    "push_executed": false,
+    "queued_runtime_enabled": false,
+    "decision_runtime_enabled": false,
+    "production_claim": false,
+    "production_ready": false
+  }
+}

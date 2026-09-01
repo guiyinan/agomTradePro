@@ -1,0 +1,175 @@
+{
+  "schema_version": "data06-isolated-historical-simulation-repository-closure.v1",
+  "unit_id": "DATA-06",
+  "recorded_at": "2026-08-31T16:16:55.679Z",
+  "repository_head": "e1d95d58076e064bb88b4ffe6a6bbc8dd502d690",
+  "working_tree_binding": {
+    "state": "uncommitted_source_hashes",
+    "source_tree_sha256": "74ad293bac8af38f3baa4bbccf78164b1d3f1f8dcddb4ffee4e4f1e73758f85c",
+    "files": [
+      {
+        "path": "apps/data_center/application/data02_isolated_simulation.py",
+        "sha256": "d47ae1d3e4c7cffd2692e0d4afe360eebc849979be19d1cae7c7a7f0482195bb"
+      },
+      {
+        "path": "apps/data_center/infrastructure/data02_isolated_snapshot.py",
+        "sha256": "5741bd15c0a0dba726298b903f5b7360c84e97c22c9872ead5aa293f04a63a74"
+      },
+      {
+        "path": "scripts/run_data02_isolated_simulation.py",
+        "sha256": "02deae2711e78cbb9dc852f5b3139aaa4ecde4cc4c9e71b061d3320d8c9eda03"
+      },
+      {
+        "path": "tests/unit/data_center/test_data02_isolated_simulation.py",
+        "sha256": "5e62a5266f7c92868740e9803d119fe2e2617daf8cdb756b65cd5eb5ddd2cb4b"
+      },
+      {
+        "path": "tests/unit/test_run_data02_isolated_simulation.py",
+        "sha256": "0f2a007caa965de880dafc520582e2e1d0db8282219fb4d869551ae0dab6a588"
+      }
+    ]
+  },
+  "historical_input": {
+    "name": "postgres-20260829T171523Z.dump",
+    "size": 146743609,
+    "sha256_before": "18d208a5124862a8993a19f2482a8116c64f8bc6eb930fa934e4db415a86034f",
+    "sha256_after": "18d208a5124862a8993a19f2482a8116c64f8bc6eb930fa934e4db415a86034f",
+    "sidecar_filename_and_digest_matched": true,
+    "restore_entries": 7229,
+    "as_of": "2026-08-29T17:15:23Z"
+  },
+  "simulation_artifact": {
+    "schema_version": "data02-isolated-simulation-run.v1",
+    "artifact_sha256": "204d57061538254db9f1b45c9e1beee2c5491d28a90ec72867e5a77b27f20cd1",
+    "analysis_sha256": "8fec7c0c8a258e55bfcb1d91d85c9c16dd37ba75c0f4de039e7bfdd6edd8ae6f",
+    "candidate_commit": "e1d95d58076e064bb88b4ffe6a6bbc8dd502d690",
+    "candidate_version": "0.8.0-build.20260705",
+    "captured_at": "2026-08-31T16:08:14.502665Z",
+    "transaction_isolation": "repeatable_read",
+    "transaction_read_only": true,
+    "provider_or_external_network_used": false,
+    "data_center_migration_count": 72,
+    "data_center_migration_head": "0072_note_non_st_price_limit_scope",
+    "universe_id": "active_a_share",
+    "universe_asset_count": 5533,
+    "universe_asset_codes_sha256": "1579f1d52f3a58129102bfb090ed25ca2af0e56e6fe880722f7b6ae1e66c5a69",
+    "cleanup_database_absent": true,
+    "cleanup_container_absent_on_recheck": true,
+    "historical_data_gate": "DENY",
+    "production_claim": false,
+    "production_ready": false,
+    "runtime_enablement": "not_authorized"
+  },
+  "dataset_results": [
+    {
+      "dataset_key": "equity.financial.fact",
+      "max_age_seconds": 7776000,
+      "age_seconds": 26414123.0,
+      "freshness_status": "stale",
+      "stale_observation_count": 17488,
+      "requested_asset_count": 5533,
+      "candidate_asset_count": 1923,
+      "candidate_member_count": 19197,
+      "publication_asset_count": 1,
+      "publication_member_count": 80,
+      "missing_asset_count": 3610,
+      "source_only_count": 19187,
+      "target_only_count": 70,
+      "exact_match_count": 10,
+      "future_observation_count": 0,
+      "historical_gate": "DENY"
+    },
+    {
+      "dataset_key": "equity.price.bar",
+      "max_age_seconds": 172800,
+      "age_seconds": 3201323.0,
+      "freshness_status": "stale",
+      "stale_observation_count": 5533,
+      "requested_asset_count": 5533,
+      "candidate_asset_count": 5533,
+      "candidate_member_count": 5533,
+      "publication_asset_count": 0,
+      "publication_member_count": 23,
+      "missing_asset_count": 0,
+      "source_only_count": 5533,
+      "target_only_count": 23,
+      "exact_match_count": 0,
+      "future_observation_count": 0,
+      "historical_gate": "DENY"
+    },
+    {
+      "dataset_key": "equity.quote.snapshot",
+      "max_age_seconds": 14400,
+      "age_seconds": 2540244.0,
+      "freshness_status": "stale",
+      "stale_observation_count": 5533,
+      "requested_asset_count": 5533,
+      "candidate_asset_count": 5533,
+      "candidate_member_count": 5533,
+      "publication_asset_count": 0,
+      "publication_member_count": 1,
+      "missing_asset_count": 0,
+      "source_only_count": 5533,
+      "target_only_count": 1,
+      "exact_match_count": 0,
+      "future_observation_count": 0,
+      "historical_gate": "DENY"
+    },
+    {
+      "dataset_key": "equity.valuation.fact",
+      "max_age_seconds": 172800,
+      "age_seconds": 2596523.0,
+      "freshness_status": "stale",
+      "stale_observation_count": 5533,
+      "requested_asset_count": 5533,
+      "candidate_asset_count": 5533,
+      "candidate_member_count": 5533,
+      "publication_asset_count": 0,
+      "publication_member_count": 0,
+      "missing_asset_count": 0,
+      "source_only_count": 5533,
+      "target_only_count": 0,
+      "exact_match_count": 0,
+      "future_observation_count": 0,
+      "historical_gate": "DENY"
+    }
+  ],
+  "validation": {
+    "focused_and_related_tests": {
+      "command": "pytest tests/unit/data_center/test_data02_isolated_simulation.py tests/unit/test_run_data02_isolated_simulation.py tests/unit/data_center/test_data02_reconciliation_evidence.py tests/unit/test_verify_postgres_backup_restore.py tests/unit/data_center/test_current_publication_rebuild.py tests/unit/data_center/test_current_publication_rebuild_command.py tests/unit/data_center/test_core_data_backfill_command.py tests/unit/data_center/test_core_data_backfill_task.py -q",
+      "passed": 57,
+      "failed": 0
+    },
+    "mypy_regression": {
+      "production_files": 3,
+      "regressions": 0,
+      "legacy_errors": 0
+    },
+    "mypy_debt_ceiling_errors": 0,
+    "current_data_contract_surfaces": 53,
+    "architecture_scanned_files": 3008,
+    "architecture_boundary_violations": 0,
+    "django_check": "passed",
+    "migration_drift": "none",
+    "format_and_lint": "passed"
+  },
+  "exit_gate": {
+    "repository_unit_completed": true,
+    "historical_simulation_capability_completed": true,
+    "historical_data_accepted": false,
+    "production_data02_completed": false,
+    "next_action": "Deploy a clean successor containing DATA-04 and DATA-06, prove connection/readiness stability, then perform the separately authorized candidate-bound production dry-run, backfill and reconciliation."
+  },
+  "safety_boundary": {
+    "production_database_reads": false,
+    "production_database_writes": false,
+    "provider_calls": false,
+    "new_backup_created_or_downloaded": false,
+    "production_deployment_executed": false,
+    "production_backfill_executed": false,
+    "authority_or_approval_changed": false,
+    "queued_runtime_enabled": false,
+    "production_claim": false,
+    "production_ready": false
+  }
+}

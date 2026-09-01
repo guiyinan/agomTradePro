@@ -1,0 +1,80 @@
+{
+  "schema_version": "data07-akshare-quote-fixture-contract-closure.v1",
+  "unit_id": "DATA-07",
+  "recorded_at": "2026-09-01T02:11:01.356Z",
+  "repository_head": "53ddbff137c9a0c379c73c6f4c64244613e2741b",
+  "trigger": {
+    "candidate_ci_run": 33460074846,
+    "workflow": "CI Fast Feedback",
+    "python_contracts": [
+      "3.11",
+      "3.13"
+    ],
+    "failing_nodeid": "tests/unit/data_center/test_t3a_akshare_provider_paths.py::test_price_quote_and_stock_news_gateway_rows_are_converted",
+    "failure": "AttributeError: 'types.SimpleNamespace' object has no attribute 'source'",
+    "classification": "test_fixture_violated_authoritative_gateway_dto"
+  },
+  "authoritative_contract": {
+    "dto": "apps.data_center.infrastructure.market_gateway_entities.QuoteSnapshot",
+    "source_field_declared": true,
+    "source_default": "",
+    "gateway_return_contract": "list[QuoteSnapshot]",
+    "production_adapter_changed": false,
+    "fallback_or_boundary_weakened": false
+  },
+  "working_tree_binding": {
+    "state": "uncommitted_test_hash",
+    "files": [
+      {
+        "path": "tests/unit/data_center/test_t3a_akshare_provider_paths.py",
+        "sha256": "5d297bae5e6a3a8527e0af1226c97efaab3d698f4e67aa64bfc82e5ae7ffd4c0"
+      }
+    ]
+  },
+  "implemented_contract": {
+    "fixture_source": "eastmoney",
+    "output_source_asserted": true,
+    "extra_actual_source_asserted": true,
+    "source_provenance_preserved": true
+  },
+  "validation": {
+    "focused_provider_paths_and_adapters": {
+      "command": "pytest tests/unit/data_center/test_t3a_akshare_provider_paths.py tests/unit/data_center/test_phase3_provider_adapters.py -q",
+      "passed": 40,
+      "failed": 0
+    },
+    "format_and_lint": {
+      "ruff": "passed",
+      "black": "passed",
+      "isort": "passed"
+    },
+    "active_plan_registry": {
+      "version": "2026-09-01.v31",
+      "units": 37,
+      "violations": 0
+    },
+    "governance": {
+      "baseline_version": "2026-08-12.v219",
+      "violations": 0
+    }
+  },
+  "exit_gate": {
+    "repository_unit_completed": true,
+    "original_ci_test_failure_resolved_locally": true,
+    "candidate_ci_fully_green": false,
+    "remaining_corrective_units": [
+      "TAR-07",
+      "GOV-02"
+    ]
+  },
+  "safety_boundary": {
+    "production_code_changed": false,
+    "network_io": false,
+    "production_database_reads": false,
+    "production_database_writes": false,
+    "deployment_executed": false,
+    "push_executed": false,
+    "production_claim": false,
+    "production_ready": false
+  }
+}

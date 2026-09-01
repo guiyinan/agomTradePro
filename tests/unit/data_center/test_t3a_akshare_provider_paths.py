@@ -122,6 +122,7 @@ def test_price_quote_and_stock_news_gateway_rows_are_converted(
                     pre_close=10.2,
                     volume=1000,
                     amount=2000,
+                    source="eastmoney",
                 )
             ]
 
@@ -151,6 +152,8 @@ def test_price_quote_and_stock_news_gateway_rows_are_converted(
 
     assert prices[0].asset_code == "000001.SZ"
     assert quotes[0].current_price == 10.5
+    assert quotes[0].source == "eastmoney"
+    assert quotes[0].extra["actual_source"] == "eastmoney"
     assert news[0].published_at.tzinfo is UTC
 
 

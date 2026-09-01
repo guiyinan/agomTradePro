@@ -225,6 +225,27 @@
       "path": "tests/settings_evidence_scope_source_v1_postgres.py",
       "symbol": "settings_evidence_scope_source_v1_postgres",
       "status": "adjacent_operational"
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "reviewed PostgreSQL owner-tenant authority concurrency evidence",
+      "path": "tests/component/account/test_owner_tenant_authority_v1_postgres_concurrency.py",
+      "symbol": "test_owner_tenant_authority_v1_postgres_concurrency",
+      "status": "adjacent_operational"
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "reviewed PostgreSQL owner-tenant authority settings evidence",
+      "path": "tests/settings_owner_tenant_authority_v1_postgres.py",
+      "symbol": "settings_owner_tenant_authority_v1_postgres",
+      "status": "adjacent_operational"
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "reviewed PostgreSQL audit archive evidence",
+      "path": "tests/unit/audit/test_system_audit_archive.py",
+      "symbol": "test_system_audit_archive",
+      "status": "adjacent_operational"
     }
   ],
   "owner": "data_center",

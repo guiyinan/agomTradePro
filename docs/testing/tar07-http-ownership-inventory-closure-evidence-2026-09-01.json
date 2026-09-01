@@ -1,0 +1,110 @@
+{
+  "schema_version": "tar07-http-ownership-inventory-closure.v1",
+  "unit_id": "TAR-07",
+  "recorded_at": "2026-09-01T02:40:10.536Z",
+  "repository_head": "3d404d989cc61f060a5502187c6c6b09fcb86cb1",
+  "trigger": {
+    "candidate_ci_run": 33460074846,
+    "workflow": "CI Fast Feedback",
+    "failed_step": "Enforce deterministic Data Center architecture inventory",
+    "committed_inventory_last_refresh": "46cb9921ce7e25ab8d4dea3fdece8fa814de7169",
+    "classification": "unowned_non_data_http_import_and_stale_generated_inventory"
+  },
+  "working_tree_binding": {
+    "state": "uncommitted_source_hashes",
+    "files": [
+      {
+        "path": "governance/data_center_architecture_inventory.json",
+        "sha256": "b47d43b516c30a414f63f4c40fadbb96c85d4959f204da8fbdb5a44336c85132"
+      },
+      {
+        "path": "governance/data_center_external_http_dispositions.json",
+        "sha256": "502b36090840c73cc9cdb93c2b3c4f29ce6fd0eedd28f062463679618da815f5"
+      },
+      {
+        "path": "tests/unit/test_data_center_architecture_inventory.py",
+        "sha256": "c88750e6ae606496b9dcbd7c1b588e4645332411bc5f31b531ac355e18fe8fcc"
+      },
+      {
+        "path": "tests/unit/agent_runtime/test_terminal_runtime_staging_harness.py",
+        "sha256": "52965f90e270187282f143093b84836a4ddea7b0e8ec05ab083a64e8f683a818"
+      }
+    ]
+  },
+  "http_disposition": {
+    "path": "apps/agent_runtime/infrastructure/terminal_runtime_staging_harness.py",
+    "import": "requests",
+    "owner": "agent-runtime",
+    "scope": "internal_control_plane",
+    "canonical_investment_data_acquisition": false,
+    "exact_path_import_binding": true
+  },
+  "deterministic_inventory": {
+    "approved_non_data_http_imports": 5,
+    "cross_app_orm_imports": 48,
+    "current_surface_references": 4453,
+    "data_write_task_decorators": 62,
+    "direct_data_center_imports_outside_data_center": 0,
+    "external_http_imports_for_review": 0,
+    "legacy_fact_references": 0,
+    "provider_imports_outside_data_center": 0,
+    "runtime_parameter_references": 56,
+    "second_pass_drift": false
+  },
+  "time_fixture_corrective": {
+    "expanded_regression_initial_failures": 2,
+    "cause": "fixed approval bytes were evaluated by the production system clock after expiry",
+    "runner_parser_observed_at_injected": true,
+    "harness_clock_injected": true,
+    "approval_bytes_changed": false,
+    "maximum_approval_validity_changed": false,
+    "production_fail_closed_changed": false,
+    "expired_approval_negative_test_preserved": true
+  },
+  "validation": {
+    "inventory_and_harness_tests": {
+      "command": "pytest tests/unit/test_data_center_architecture_inventory.py tests/unit/agent_runtime/test_terminal_runtime_staging_harness.py -q",
+      "passed": 38,
+      "failed": 0
+    },
+    "deterministic_inventory_check": "passed",
+    "format_and_lint": {
+      "ruff": "passed",
+      "black": "passed",
+      "isort": "passed"
+    },
+    "active_plan_registry": {
+      "version": "2026-09-01.v32",
+      "units": 37,
+      "violations": 0
+    },
+    "governance": {
+      "baseline_version": "2026-08-12.v219",
+      "violations": 0
+    }
+  },
+  "exit_gate": {
+    "repository_unit_completed": true,
+    "unreviewed_external_http_imports": 0,
+    "inventory_current": true,
+    "staging_harness_behavior_changed": false,
+    "network_execution_performed": false,
+    "candidate_ci_fully_green": false,
+    "remaining_corrective_units": [
+      "GOV-02"
+    ]
+  },
+  "safety_boundary": {
+    "production_code_changed": false,
+    "network_io": false,
+    "staging_load_executed": false,
+    "provider_or_mcp_called": false,
+    "runtime_flags_changed": false,
+    "production_database_reads": false,
+    "production_database_writes": false,
+    "deployment_executed": false,
+    "push_executed": false,
+    "production_claim": false,
+    "capacity_ready": false
+  }
+}

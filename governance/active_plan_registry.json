@@ -1,6 +1,6 @@
 {
-  "version": "2026-08-31.v27",
-  "updated_at": "2026-08-31",
+  "version": "2026-09-01.v36",
+  "updated_at": "2026-09-01",
   "execution_focus": {
     "unit_id": null,
     "allowed_parallel_execution_modes": [
@@ -8,7 +8,7 @@
       "external",
       "governance"
     ],
-    "policy": "Personal-project single-owner mode remains active under docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json: one real owner may hold all governance roles, but signatures never manufacture authority rows, typed runtime values, business definitions, retained observations, staging outcomes or elapsed time. DATA-04 is completed with repository evidence docs/testing/data04-asgi-db-select-only-preview-repository-closure-evidence-2026-08-31.json (SHA-256 aaaa675ed5bc078a916244de91bf2a335da5e2519883b312c2cc1dd0a034ea8d); its live incident remains unrecovered until a separately authorized clean deployment and production revalidation. DATA-05 is completed with evidence docs/testing/data05-financial-repository-owner-closure-evidence-2026-08-31.json (SHA-256 7c535f2a1802561be3430a8a9a2149da4ab08b885f2ad672f96828209da8a56a): the existing financial owner is 189/200 lines, the extracted availability owner is 65/100, public repository identity and current-data behavior remain compatible, and the prior 243/200 HEAD CI failure is closed without raising a budget or baseline. No production read/write, session termination, restart, deployment or backfill was executed by DATA-05. TUI-02 remains 5/10 DENY; any later candidate change must rebind/reset its observation clock. No repository unit is active. DATA/AUD/EVID/STRAT/TAR technical gates remain fail-closed."
+    "policy": "Personal-project single-owner mode remains active under docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json: one real owner may hold all governance roles, but signatures never manufacture authority rows, typed runtime values, business definitions, retained observations, staging outcomes or elapsed time. The owner-authorized DATA-08 then DATA-09 sequence is repository-complete with two independent commits and SHA-sidecar evidence. DATA-08 closes the deterministic entrypoint inventory at candidate-review=0 and legacy direct/wrapper=0; DATA-09 registers only the three exact decision-runtime probe-failure reason codes without runtime or current-data changes. execution_focus returns to null. After combined clean-worktree gates pass, pushing dev/next-development is authorized. No merge, deployment, production read/write, external call, load, fault injection or runtime enablement is authorized."
   },
   "workstreams": [
     {
@@ -88,7 +88,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "DATA-01, DATA-04 and DATA-05 repository work are complete. DATA-05 closes the existing financial repository 243/200 CI blocker as 189/200 plus a governed 65/100 availability owner without behavior or budget changes; evidence is docs/testing/data05-financial-repository-owner-closure-evidence-2026-08-31.json, SHA-256 7c535f2a1802561be3430a8a9a2149da4ab08b885f2ad672f96828209da8a56a. Deployed successor 80ea002bf910110621022a70e4f1ec5c1b704a56 / release 20260830215638 remains in a PostgreSQL client-saturation incident: max_connections=100, database/service/Audit readiness is 503, and Web-origin idle clients dominate. DATA-04 pins production Daphne/ASGI CONN_MAX_AGE=0, removes the get_or_create read side effect, fails closed with MISSING_CONFIG and preserves explicit PUT/save initialization, but the fix is not deployed and the incident is not claimed recovered. DATA-02 remains awaiting production and depends on a separately authorized clean candidate deployment, restored database/service readiness, stable Web connection count across multiple 30-second scrape intervals and a candidate-bound dry-run proving no write statements before any backfill. Any candidate change must also rebind and reset TUI-02 observation rather than preserve old elapsed-time acceptance.",
+      "next_gate": "DATA-08 and DATA-09 are repository-complete with SHA-sidecar evidence: the deterministic inventory contains 1151 entries with candidate-review=0 and legacy direct/wrapper=0, and the decision-runtime activation boundary permits only core_coverage, provider_capabilities and decision_data probe failures. DATA-06 historical simulation remains DENY and does not satisfy DATA-02/03. After the authorized push and CI observation, DATA-02 still requires a clean successor deployment, multi-scrape connection/readiness stability, candidate-bound SELECT-only dry-run and the separately authorized bounded production reconciliation; no repository result manufactures that production gate.",
       "documents": [
         {
           "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
@@ -150,7 +150,7 @@
       "priority": "P0",
       "owner": "terminal+operational_readiness",
       "status": "production_validation",
-      "next_gate": "TUI-01 and TUI-03 are completed. The manifest-backed candidate commit 80ea002bf910110621022a70e4f1ec5c1b704a56 is deployed as release 20260830215638 / image sha256:54cb9646912c494d64c1eb664b6a3a8af772c36f5388d8456d669285398c39fc. Production read-only evidence docs/deployment/tui02-production-observation-checkpoint-2026-08-31-80ea002b.json (SHA-256 db055a18e86d3b0da10a8612e92b75bf4ef5c2860d7ca34b21166f1efa3b0d2a) confirms no candidate drift or Prometheus restart, a healthy persistent 21d/4GB source, 17 healthy rules, authenticated query access and first retained raw sample 2026-08-30T15:09:35.034000Z. The exact earliest complete 14-day instant is 2026-09-13T15:09:35.034000Z. Candidate-bound production-safe UAT passed 10/10 and 108/108 across regular/operator/admin with two same-run zero-residual receipts; cleanup passed 8/8 across all six 108-route scopes, isolated rollback passed, and protected registry generation 30 passed sidecar plus restore dry-run verification. TUI-02 is active and readiness remains 5/10 DENY. Retain the unchanged real source without backfill; only at or after the exact eligible instant may v2 structured blocking-defect and 101-task telemetry snapshots be built, followed by a new registry attestation, review snapshot and the sole owner's role-bound attestations.",
+      "next_gate": "GOV-02 is repository-complete with docs/testing/gov02-doc-route-filesystem-filter-closure-evidence-2026-09-01.json: exact /etc/ and /var/ filesystem paths are excluded without suppressing real API routes, focused parser tests pass and the canonical consistency check reports no new issue. TUI-01 and TUI-03 remain completed. Candidate-bound production-safe UAT, cleanup, isolated rollback and Day 0 registry backup remain valid for deployed candidate 80ea002bf910110621022a70e4f1ec5c1b704a56; TUI-02 readiness remains 5/10 DENY until the naturally elapsed 2026-09-13T15:09:35.034000Z observation, structured snapshots, post-window attestation and sole-owner role-bound confirmations exist.",
       "documents": [
         {
           "path": "docs/plans/web-to-tui-migration-plan-2026-07-25.md",
@@ -201,7 +201,7 @@
       "priority": "P0",
       "owner": "agent_runtime+terminal+task_monitor+operational_readiness+sdk+mcp",
       "status": "production_validation",
-      "next_gate": "TAR-01 through TAR-04 and TAR-06 repository contracts are complete, including the TAR-06 approval/heartbeat corrective. The opt-in collector defaults to no-network validation, refuses known production targets, requires a semantic APPROVE valid for at most 24 hours and bound to every candidate/target/runtime/workload/query field, limits authority to staging load, requires legacy inline=1 plus an isolated non-billable worker profile, rechecks approval and the dedicated Worker heartbeat before every concurrency level, and consumes one internal authorization per load level. Twenty distinct actors, bounded 1/5/10/20 requests, unavailable semantics and secret-free content-addressed evidence remain mandatory. No real staging run exists yet. Immutable commit 36b72d2fc01604afdb15d236a1e91d082fb62a5b / release 20260830071422 remains deployed with queued runtime not accepted; historical 71e62773 capacity evidence is nonportable. TAR-05 P1 must supply a real approved staging identity, exact runtime manifest/flags/resources, live dedicated Worker, complete query map and bounded non-billable provider profile before validation-only may become explicit staging execution. P2 capacity, P3 chaos, P4 real provider/MCP UAT, P5 production staff canary, P6 observation/cutover and P7 inline retirement remain separately dependency-gated. Queued/worker defaults, capacity_ready=false and concurrency above one remain fail-closed.",
+      "next_gate": "TAR-07 is repository-complete with docs/testing/tar07-http-ownership-inventory-closure-evidence-2026-09-01.json: the exact staging-harness requests import has agent-runtime/internal-control-plane ownership, unreviewed external HTTP imports are zero, the deterministic inventory is current and 38 inventory/harness tests pass. Test clocks, not production approval logic, corrected two expired fixed-fixture regressions; the 24-hour maximum and fail-closed checks remain intact. TAR-01 through TAR-04 and TAR-06 remain complete. TAR-05 still requires a real approved staging identity, exact runtime manifest/flags/resources, live dedicated Worker, complete query map and bounded non-billable provider profile; queued/worker defaults, capacity_ready=false and concurrency above one remain fail-closed.",
       "documents": [
         {
           "path": "docs/plans/terminal-agent-multi-user-runtime-plan-2026-08-18.md",
@@ -277,7 +277,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-08-31.v25",
+    "version": "2026-09-01.v34",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -394,6 +394,19 @@
         "title": "Dispose of the seven remaining time-bounded legacy plans",
         "depends_on": [],
         "exit_gate": "All seven remaining review items were archived or mapped to canonical workstreams on 2026-08-15; the review queue is empty and no new implementation line was opened."
+      },
+      {
+        "id": "GOV-02",
+        "workstream_id": "web-to-tui-m5",
+        "wave": 3,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "completed",
+        "title": "Reject filesystem paths from documentation route consistency checks",
+        "depends_on": [
+          "TAR-07"
+        ],
+        "exit_gate": "Completed on 2026-09-01 with docs/testing/gov02-doc-route-filesystem-filter-closure-evidence-2026-09-01.json (SHA-256 9c2801119c08dd3cc6043fc73ce311a469838f6b8e4940fa893ce38baaa27b53): exact /etc/ and /var/ filesystem prefixes are ignored while /api/account/ remains visible, focused parser tests pass 2/2, the canonical consistency check passes across 2249 routes, 85 documentation files and 34 SDK modules, and the full Fast Feedback targeted pytest selection passes 1329 with 3 skipped. Baseline and documentation were not changed to hide the issue; downstream unregistered entrypoint and reliability-boundary failures remain outside this unit."
       },
       {
         "id": "EVID-01",
@@ -632,6 +645,60 @@
         "exit_gate": "financial_fact_repository.py is at or below its 200-line owner budget, the extracted availability owner is independently bounded and registered, public repository identity and behavior remain compatible, current-data markers remain governed, and focused tests plus architecture, type and governance checks pass."
       },
       {
+        "id": "DATA-06",
+        "workstream_id": "data-production-reliability",
+        "wave": 2,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "completed",
+        "title": "Build an isolated historical DATA-02 simulation harness",
+        "depends_on": [
+          "DATA-01",
+          "DATA-04",
+          "DATA-05"
+        ],
+        "exit_gate": "Completed on 2026-09-01 with docs/testing/data06-isolated-historical-simulation-repository-closure-evidence-2026-09-01.json (SHA-256 e4883f46426b2b9082392371276a79ff4bbcab07e7a6c6022c02f8563d68579a): the existing custom dump matched its sidecar before and after restore, 7,229 entries restored only into a controlled disposable PostgreSQL database, provider/network-free coverage/freshness/source-time/reconciliation ran in one repeatable-read read-only snapshot, output remained candidate-bound/content-addressed/non-production, and database/container cleanup had zero residual. The historical data gate remained DENY and does not satisfy DATA-02 production acceptance. Focused 57 tests, zero mypy regression/debt, 53 current-data surfaces, 3,008-file architecture, Django and migration gates passed."
+      },
+      {
+        "id": "DATA-07",
+        "workstream_id": "data-production-reliability",
+        "wave": 2,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "completed",
+        "title": "Restore the AKShare quote fixture contract exposed by candidate CI",
+        "depends_on": [
+          "DATA-06"
+        ],
+        "exit_gate": "Completed on 2026-09-01 with docs/testing/data07-akshare-quote-fixture-contract-closure-evidence-2026-09-01.json (SHA-256 13f91dc5d9a387bffe5549ac5d098d7f4680efcfa0fdddbc5530fffabd032b78): the AKShare provider-path fixture now uses the authoritative QuoteSnapshot source contract and asserts both output source and extra.actual_source. The previously failing CI node and related provider adapter coverage pass as 40/40; Ruff, Black, isort, registry and governance checks pass, and no production code or runtime behavior changed."
+      },
+      {
+        "id": "DATA-08",
+        "workstream_id": "data-production-reliability",
+        "wave": 3,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "completed",
+        "title": "Close the deterministic Data Center entrypoint inventory",
+        "depends_on": [
+          "GOV-02"
+        ],
+        "exit_gate": "Completed on 2026-09-01 with docs/testing/data08-data-center-entrypoint-inventory-closure-evidence-2026-09-01.json (SHA-256 7bc2d406d72cfb6fdd176b9fc3faf16b7bb9fa50ff0c939fafe0d1ab47407db0): the DATA-06 runner reaches PostgreSQL only through App-root composition, its script is governed as active, semantic aliases require one non-empty screen-bound contract-identical match, all discovered operational evidence is dispositioned, the current 1151-entry inventory has candidate-review=0, legacy direct/wrapper=0, and 34 focused tests plus format, type, architecture and governance gates pass."
+      },
+      {
+        "id": "DATA-09",
+        "workstream_id": "data-production-reliability",
+        "wave": 3,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "completed",
+        "title": "Register the decision-runtime dynamic reliability reason boundary",
+        "depends_on": [
+          "DATA-08"
+        ],
+        "exit_gate": "Completed on 2026-09-01 with docs/testing/data09-decision-runtime-reliability-boundary-closure-evidence-2026-09-01.json (SHA-256 acc0721682a26081819b89d35382c0e853e637ce2b169d34488d9100b301663b): governance/reliability_contracts.json binds decision_runtime_activation.py::def _run_probes to exactly core_coverage, provider_capabilities and decision_data probe-failure codes. The ownership guard passes, 7 activation/ownership tests pass, all 53 current-data contracts remain valid, and no production/runtime code changed."
+      },
+      {
         "id": "DATA-03",
         "workstream_id": "data-production-reliability",
         "wave": 2,
@@ -821,6 +888,19 @@
           "TAR-04"
         ],
         "exit_gate": "An opt-in runner refuses production targets; requires a semantic APPROVE valid for at most 24 hours and bound to the full candidate, target, runtime, workload and query envelope; limits action scope to staging load with a non-billable stub and MCP disabled; rechecks approval and a live dedicated-worker heartbeat before each 1/5/10/20 level; consumes a one-shot internal authorization before each load; and emits explicit-unavailable, secret-free content-addressed evidence without enabling production runtime or claiming TAR-05 acceptance."
+      },
+      {
+        "id": "TAR-07",
+        "workstream_id": "terminal-agent-multi-user-runtime",
+        "wave": 3,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "completed",
+        "title": "Own the TAR staging harness HTTP boundary and refresh its deterministic inventory",
+        "depends_on": [
+          "DATA-07"
+        ],
+        "exit_gate": "Completed on 2026-09-01 with docs/testing/tar07-http-ownership-inventory-closure-evidence-2026-09-01.json (SHA-256 8d23556414ac6bea32bbd2ad5b12989d8d5f27731492d2646fd1fd8f7cbad2c7): the exact staging-harness requests import has agent-runtime/internal-control-plane ownership, external_http_imports_for_review is zero, approved non-data callers are exactly five, and the deterministic inventory matches the current tree. Expanded inventory/harness tests pass 38/38; fixed test-clock injection preserves approval bytes, the 24-hour maximum and production fail-closed behavior. Format, registry and governance gates pass without network execution or runtime change."
       },
       {
         "id": "AI-01",

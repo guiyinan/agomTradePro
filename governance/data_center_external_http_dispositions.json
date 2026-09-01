@@ -18,6 +18,13 @@
       "reason": "Invokes AgomTradePro command APIs for the terminal control plane and is not an external data provider."
     },
     {
+      "path": "apps/agent_runtime/infrastructure/terminal_runtime_staging_harness.py",
+      "import": "requests",
+      "owner": "agent-runtime",
+      "scope": "internal_control_plane",
+      "reason": "Accesses only the approved staging Terminal control-plane and Prometheus endpoints for bounded runtime validation; it does not acquire canonical investment data."
+    },
+    {
       "path": "shared/infrastructure/alert_service.py",
       "import": "requests",
       "owner": "task-monitor",
