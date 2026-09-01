@@ -1,0 +1,247 @@
+{
+  "version": "tui02-production-retained-observation-checkpoint.v1",
+  "environment": "production",
+  "checked_at": "2026-09-01T17:34:46.6596019Z",
+  "collection_mode": "read_only",
+  "candidate": {
+    "expected": {
+      "commit": "aa7127ff4d9f71555b0d0486314da5518bd2ac20",
+      "release_id": "20260901232812",
+      "image_id": "sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c"
+    },
+    "observed": {
+      "commit": "aa7127ff4d9f71555b0d0486314da5518bd2ac20",
+      "release_id": "20260901232812",
+      "release_target": "/opt/agomtradepro/releases/source-20260901232812",
+      "image_id": "sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c"
+    },
+    "candidate_drift": false,
+    "deployment_evidence": "docs/deployment/web-to-tui-deployment-preflight-20260901232812.json",
+    "deployment_evidence_sha256": "e5b613548811f89cb06659eed976786a5fb7e97593626ce2529665ff2b6a8f89"
+  },
+  "containers": {
+    "web": {
+      "id": "57effffd85c88b23ce699d4aeff45ceda7b79f7b155bab4d778997c173cc519e",
+      "configured_image": "agomtradepro-web:20260901232812",
+      "image_id": "sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c",
+      "revision": "aa7127ff4d9f71555b0d0486314da5518bd2ac20",
+      "started_at": "2026-09-01T16:47:12.395198638Z",
+      "status": "running",
+      "health": "healthy",
+      "restart_count": 0
+    },
+    "prometheus": {
+      "id": "27879c7067c3e38d7727fc4dbd62fe59abf7ceddcf7019cfd62b8eb661849f60",
+      "configured_image": "prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996",
+      "image_id": "sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996",
+      "started_at": "2026-09-01T16:47:28.328237377Z",
+      "status": "running",
+      "health": "healthy",
+      "restart_count": 0,
+      "unexpected_restart_since_first_sample": false
+    },
+    "caddy": {
+      "id": "ea82b7fdbfb5e06aa22adcacc47cdafb61f2675b0b845c0897e7a9a16fd05272",
+      "configured_image": "caddy:2-alpine",
+      "image_id": "sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648",
+      "started_at": "2026-09-01T16:47:34.370737567Z",
+      "status": "running",
+      "restart_count": 0
+    }
+  },
+  "retained_monitoring": {
+    "persistent_volume": {
+      "name": "agomtradepro_prometheus_data",
+      "driver": "local",
+      "mountpoint_present": true,
+      "approximate_bytes": 34198113,
+      "ok": true
+    },
+    "retention": {
+      "configured_time": "3w",
+      "configured_size": "4GiB",
+      "runtime": "3w or 4GiB",
+      "admin_api_enabled": false,
+      "remote_write_receiver_enabled": false,
+      "ok": true
+    },
+    "runtime": {
+      "start_time": "2026-09-01T16:47:29.122721049Z",
+      "reload_config_success": true,
+      "corruption_count": 0
+    },
+    "target": {
+      "count": 1,
+      "scrape_url": "http://web:8000/metrics/",
+      "health": "up",
+      "last_error": "",
+      "up": "1",
+      "ok": true
+    },
+    "rules": {
+      "group_count": 2,
+      "rule_count": 17,
+      "unhealthy_count": 0,
+      "m5_rule_names": [
+        "WebToTuiErrorRateRegression",
+        "WebToTuiLegacyEntryRatioHigh",
+        "web_to_tui:entry_samples_14d",
+        "web_to_tui:execution_error_ratio_14d",
+        "web_to_tui:legacy_entry_ratio_14d",
+        "web_to_tui:task_request_error_ratio_14d",
+        "web_to_tui:task_request_samples_14d"
+      ],
+      "ok": true
+    },
+    "current_web_to_tui_series": 616
+  },
+  "protected_query": {
+    "origin": "https://demo.agomtrade.pro",
+    "route": "/internal/prometheus/api/v1/query",
+    "allowlist_boundary": "query/query_range/series/labels only",
+    "non_allowlisted_status_api_http_status": 404,
+    "unauthenticated_http_status": 401,
+    "authenticated_http_status": 200,
+    "authenticated_api_status": "success",
+    "authenticated_up": "1",
+    "authenticated_body_sha256": "1182121ebeb6d8a3d97c4d03092c8c5d06672fb7bf5d57859c4a76cfcf5d6acf",
+    "credential_file_mode": "0600",
+    "credential_file_size_bytes": 78,
+    "credential_keys": [
+      "password",
+      "username"
+    ],
+    "credential_values_exposed": false,
+    "ok": true
+  },
+  "production_safe_uat": {
+    "run_id": "tui02-aa7127ff-20260902-01",
+    "recorded_at": "2026-09-01T16:55:22.129349+00:00",
+    "evidence": "config/tui/migration/evidence/web_to_tui_uat_candidate.production-safe.v2.json",
+    "evidence_sha256": "f6dfa391e962bd9431ec87907aa84316590ddcb10da3548cddbacddfc2c6ffa3",
+    "executed_tests": 10,
+    "passed_tests": 10,
+    "failed_tests": 0,
+    "skipped_tests": 0,
+    "required_routes": 108,
+    "passed_routes": 108,
+    "roles": [
+      "regular",
+      "operator",
+      "admin"
+    ],
+    "controlled_write_receipts": 2,
+    "receipt_entities": [
+      "ai_provider",
+      "strategy"
+    ],
+    "cleanup_residual_total": 0
+  },
+  "candidate_cleanup": {
+    "recorded_at": "2026-09-01T17:12:36.339139+00:00",
+    "evidence": "config/tui/migration/evidence/web_to_tui_cleanup_candidate.v1.json",
+    "evidence_sha256": "595012ed56c103dcb7147d9283a4e66aa0af26558c8c66fd0f2a5d189ff0b575",
+    "executed_tests": 8,
+    "passed_tests": 8,
+    "fully_closed_routes": 108,
+    "scope_counts": {
+      "empty_state": 108,
+      "error_state": 108,
+      "legacy_url": 108,
+      "permission": 108,
+      "primary_task": 108,
+      "rollback": 108
+    }
+  },
+  "observation": {
+    "nominal_window_start": "2026-09-01",
+    "nominal_window_end": "2026-09-15",
+    "calendar_day_index": 0,
+    "first_retained_evaluation_at": "2026-09-01T16:56:30.395000Z",
+    "first_retained_raw_sample_at": "2026-09-01T16:56:29.796000Z",
+    "first_sample_query": "min(timestamp(web_to_tui_migration_events_total))",
+    "first_sample_probe_range": {
+      "start": "2026-09-01T16:47:12.395198638Z",
+      "end": "2026-09-01T17:33:39.395000Z",
+      "step_seconds": 1,
+      "returned_point_count": 2230,
+      "first_evaluation_at": "2026-09-01T16:56:30.395000Z",
+      "last_evaluation_at": "2026-09-01T17:33:39.395000Z"
+    },
+    "completed_24h_periods": 0,
+    "minimum_observation_seconds": 1209600,
+    "earliest_full_14d_telemetry_at": "2026-09-15T16:56:29.796000Z",
+    "elapsed_complete": false,
+    "historical_backfill_used": false,
+    "synthetic_zero_used": false,
+    "window_reset_required": false,
+    "status": "in_progress"
+  },
+  "public_probes": {
+    "health": {
+      "http_status": 200,
+      "status": "ok",
+      "body_sha256": "cc5fd3ce311e4b999b104d57c5fdcd7ecdb5dec4afd1c961219bc557fd359b87"
+    },
+    "ready": {
+      "http_status": 200,
+      "status": "ok",
+      "body_sha256": "98d8697f4dccc376f8513754190df7adcaada9964e90f0a498fb3f900d755954"
+    },
+    "decision_ready": {
+      "http_status": 503,
+      "status": "blocked",
+      "must_not_use_for_decision": true,
+      "body_sha256": "c4eb24c805f926e9502055722d689fd686284b9ae14832a80abffe2c8ad3989b"
+    }
+  },
+  "source_sha256": {
+    "prometheus_flags": "66b7c26cd5278ddd056752b85548c59001923aa848aa707490dce6094515d4f8",
+    "prometheus_runtime": "0c789054a4998b27cb9cc9d854e04ec02d714c92ce1603cd8fae39404ca84d22",
+    "prometheus_targets": "e134a6b491389e1e09b346c4f37f098d3686dd21dc23ddf8ba6fc115356807bd",
+    "prometheus_rules": "ca45ed3e37ddfec24a93f2a1856734e911a8684f27873c15fb3ab24e81615b82",
+    "prometheus_up": "1182121ebeb6d8a3d97c4d03092c8c5d06672fb7bf5d57859c4a76cfcf5d6acf",
+    "prometheus_series_count": "b4133704d38b7ec7baf098532aa609d3841b119b85eacdbcdacc3ae1117d7e84",
+    "prometheus_first_sample_range": "e55f3d06ff50942c15300591f62c74550f387edf97e05a9f2b4fa3601df33450"
+  },
+  "corrective_restart_boundary": {
+    "reason": "The clean git-clone release did not inherit the optional host-only Prometheus query credential file; the credential was restored from the existing production source and Caddy was recreated.",
+    "compose_dependency_recreation_observed": [
+      "web",
+      "prometheus",
+      "caddy"
+    ],
+    "postgres_recreated": false,
+    "redis_recreated": false,
+    "observation_started_after_all_corrective_restarts": true,
+    "first_sample_after_prometheus_start": true
+  },
+  "gate": {
+    "candidate_unchanged": true,
+    "prometheus_unexpected_restart": false,
+    "target_ok": true,
+    "rules_ok": true,
+    "retention_ok": true,
+    "storage_ok": true,
+    "protected_query_ok": true,
+    "window_reset_required": false,
+    "tui02_final_authorized": false,
+    "decision": "DENY"
+  },
+  "boundary": {
+    "decision_gate_cleared": false,
+    "data_coverage_gate_cleared": false,
+    "classic_cleanup_authorized": false,
+    "final_cutover_approved": false,
+    "next_gate": "Retain the unchanged candidate and real samples through 2026-09-15T16:56:29.796000Z, then collect exact structured defect and 101-task telemetry snapshots, export a post-window registry attestation, build the review snapshot and collect role-owner attestations."
+  },
+  "side_effects": {
+    "remote_write": false,
+    "deployment": false,
+    "restart": false,
+    "configuration_change": false,
+    "backup": false,
+    "load_test": false,
+    "business_request": false
+  }
+}

@@ -1,6 +1,6 @@
 {
-  "version": "2026-09-01.v37",
-  "updated_at": "2026-09-01",
+  "version": "2026-09-02.v39",
+  "updated_at": "2026-09-02",
   "execution_focus": {
     "unit_id": null,
     "allowed_parallel_execution_modes": [
@@ -8,7 +8,7 @@
       "external",
       "governance"
     ],
-    "policy": "Personal-project single-owner mode remains active under docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json: one real owner may hold all governance roles, but signatures never manufacture authority rows, typed runtime values, business definitions, retained observations, staging outcomes or elapsed time. The owner-authorized DATA-08 then DATA-09 sequence is repository-complete with two independent commits and SHA-sidecar evidence. DATA-08 closes the deterministic entrypoint inventory at candidate-review=0 and legacy direct/wrapper=0; DATA-09 registers only the three exact decision-runtime probe-failure reason codes without runtime or current-data changes. The complete corrective stack was pushed at e38ebdcf8da2dafb58de16d2314df642bfa1e6c7, merged through PR #15 as main commit 1546ca0ecfaa0d2d9a004720065a3acac9240d87, and all four main workflows completed successfully; canonical GitHub evidence is docs/testing/pr15-closure-corrective-merge-main-ci-evidence-2026-09-01.json with SHA-256 2febac5464d167e54c610d70a9673645d202727c3e2fdb548cf7b7cb42f48e6a. execution_focus remains null. This merge checkpoint does not authorize deployment, production read/write, external calls, load, fault injection or runtime enablement."
+    "policy": "Personal-project single-owner mode remains active, but signatures never manufacture authority rows, business definitions, retained observations, production outcomes or elapsed time. PR #16 merged candidate aa7127ff4d9f71555b0d0486314da5518bd2ac20 to main and its clean-worktree deployment produced release 20260901232812 / image sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c. The predeploy PostgreSQL backup was custom-format verified and downloaded with SHA-256 c9f7cf876bd79908aa66461e5d07b254104ba1013b134f669cb91bf8119b1caf. Candidate-bound read-only probes confirm stable PostgreSQL connections, zero pending migrations, healthy target/rules and the existing EVID/STRAT zero-seed blockers; DATA-02 dry-runs remain non-writing and DENY. Production-safe UAT run tui02-aa7127ff-20260902-01 passed 10/10 and 108/108 with regular/operator/admin coverage, two same-run write receipts and zero cleanup residual; the 108-route cleanup suite passed 8/8 and the candidate-bound local isolated rollback drill passed. A corrective Caddy credential-continuity repair recreated web/prometheus/caddy, so TUI-02 binds only the first post-restart real sample at 2026-09-01T16:56:29.796000Z and remains DENY until the exact 2026-09-15T16:56:29.796000Z threshold plus post-window evidence. EVID-04 is repository-complete: the checked-in fixture test now consumes Git-canonical LF text bytes independent of Windows checkout conversion, while production raw-byte provenance remains unchanged; the formerly failing test passes and Black, isort, Ruff, active-plan and governance checks are green. execution_focus returns to null; authority/approval mutation, queued runtime, load/fault, live rollback and unsupported production writes remain denied."
   },
   "workstreams": [
     {
@@ -18,7 +18,7 @@
       "priority": "P0",
       "owner": "research+risk_center+portfolio+broker_execution+account",
       "status": "production_validation",
-      "next_gate": "The candidate-bound EVID-01/EVID-02 read-only inventory is complete for deployed commit 36b72d2fc01604afdb15d236a1e91d082fb62a5b / release 20260830071422 / image sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b. One PostgreSQL REPEATABLE READ READ ONLY snapshot confirms Account 0050-0055 applied, all 13 canonical authority/evidence tables zero-seed, and operator/approval/activation plus approval/activation heads empty. A candidate-bound preflight, five-phase machine return template, stable review entry and report output contract now exist under docs/reviews/release-36b72d2f/evidence-strategy/. Next obtain a finalized report from real independent subject owners, root approver, operations owner and reviewer; validate its sidecar, identities, separation of duties, receipts, validity and phase dependencies before separately authorizing any exact phase. Production PostgreSQL first-winner/successor/revocation/rollback, same-alias end-to-end receipts and post-execution sign-off cannot be pre-signed. Preserve the global execution deny, do not repeat the inventory until candidate or ledger state changes, and never derive tenant/owner from mutable User/Profile/session state.",
+      "next_gate": "Candidate aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812 has a new content-addressed EVID-01/EVID-02 PostgreSQL REPEATABLE READ READ ONLY snapshot: Account 0050-0055 are applied, all 13 authority/evidence tables remain zero-seed, and operator-spec approval/activation plus approval/activation heads remain empty. EVID-01 is blocked_zero_seed_authority and EVID-02 has no human approval; neither is production-ready. Next obtain real owner/tenant/root authority and reviewer decisions through the governed report contract, then separately authorize any exact append-only phase. Do not repeat the unchanged inventory, invent authority, or pre-sign first-winner/successor/revocation/rollback outcomes.",
       "documents": [
         {
           "path": "docs/plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md",
@@ -41,7 +41,7 @@
       "priority": "P0",
       "owner": "research+data_center+signal+portfolio+broker_execution",
       "status": "production_validation",
-      "next_gate": "The candidate-bound STRAT-01 owner-ledger inventory is complete for deployed commit 36b72d2fc01604afdb15d236a1e91d082fb62a5b / release 20260830071422 / image sha256:09f6491440a4bc16934ac5544c793a0b5b9d22c8ec6f8ab35d61693b0121c94b. One PostgreSQL REPEATABLE READ READ ONLY inventory confirms the four governed selector groups at 65/7/16/35 tables with zero total and nonzero rows. A candidate-bound R1-R8 business-owner template, stable review entry and report output contract now exist under docs/reviews/release-36b72d2f/evidence-strategy/. Next obtain a finalized per-capability report with real owners and hashed definitions, policies, calendars, scopes, sample windows, qualification/falsification rules and applicable benchmark/cost/liquidity/label/invalidation/rollback semantics. Validate the report first, then run a canonical dry-run; append-only production registration requires a separate phase-two authorization and post-write review. PIT/OOS history, Promotion and consumer UAT cannot be pre-signed. Do not repeat this inventory until candidate or ledger state changes.",
+      "next_gate": "Candidate aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812 has a new read-only STRAT-01 owner-ledger inventory. The governed selector groups remain zero-seed: research R1-R8 65 tables, portfolio 7, account owner/assignment/authority 16, and explicit owner/policy/operator/assignment 35, all with zero rows. Next obtain real per-capability owners and hashed definitions, policies, calendars, scopes, sample windows and qualification/falsification semantics; validate the report before any separately authorized append-only registration. PIT/OOS history, promotion and consumer UAT cannot be pre-signed.",
       "documents": [
         {
           "path": "docs/plans/strategy-research-capability-completion-audit-2026-08-05.md",
@@ -88,7 +88,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "DATA-08 and DATA-09 are repository-complete with SHA-sidecar evidence: the deterministic inventory contains 1151 entries with candidate-review=0 and legacy direct/wrapper=0, and the decision-runtime activation boundary permits only core_coverage, provider_capabilities and decision_data probe failures. The corrective stack is merged at main commit 1546ca0ecfaa0d2d9a004720065a3acac9240d87 and all four main workflows passed; the canonical GitHub checkpoint SHA-256 is 2febac5464d167e54c610d70a9673645d202727c3e2fdb548cf7b7cb42f48e6a. DATA-06 historical simulation remains DENY and does not satisfy DATA-02/03. DATA-02 still requires a clean successor deployment, multi-scrape connection/readiness stability, candidate-bound SELECT-only dry-run and the separately authorized bounded production reconciliation; no repository or CI result manufactures that production gate.",
+      "next_gate": "Candidate aa7127ff4d9f71555b0d0486314da5518bd2ac20 was deployed from an independent clean worktree as release 20260901232812 after a verified predeploy PostgreSQL backup. Three read-only PostgreSQL samples show client backends stable at 2 with no connection growth, validating DATA-04 in production. DATA-02 SELECT-only dry-runs cover the 5,533-asset universe and report 288,409 safe financial availability rows across 3,750 assets with zero unresolved/future rows, but completed-session prices are 0/5,533 eligible, all 5,533 quote/price/valuation facts are stale, and financial facts cover only 1,923 with 3,610 missing. DATA-02 therefore remains DENY and awaiting_production; the next gate is a separately bounded production reconciliation with before/after evidence and real data-owner handling of tolerance exceptions. DATA-03 remains dependency-blocked.",
       "documents": [
         {
           "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
@@ -135,7 +135,7 @@
       "priority": "P0/P1",
       "owner": "audit+data_center+task_monitor",
       "status": "production_validation",
-      "next_gate": "AUD-01, corrective AUD-02 and repository unit AUD-04 are complete. AUD-04 adds an authority-gated and candidate-revalidated half-open ledger-window read, deterministic event/source/manifest/stream-anchor hashing, strict closed-schema bytes, append-only content-addressed storage, and memory-only isolated exact stream replay. It rejects candidate drift before and after reads, scope/window substitution, truncation, duplicate members, sequence loss, predecessor forks, non-canonical bytes, sidecar drift and attempts to set a production claim. The repository checkpoint is docs/testing/aud04-audit-archive-rehearsal-repository-closure-evidence-2026-08-31.json; it does not claim or execute production archive/restore. The successor production checkpoint on commit 80ea002bf910110621022a70e4f1ec5c1b704a56 still has missing_section_count=2: recovery and archive/restore remain unavailable in production. Next establish canonical authority/profile inputs and writer smoke, then invoke the new archive/replay capability only under an exact production action authorization, separately evidence controlled rollback/recovery, and finally record the sole owner confirmation. Do not repeat unchanged read-only probes or treat the local isolated result as AUD-03 acceptance.",
+      "next_gate": "AUD-01, AUD-02 and repository AUD-04 remain complete. Candidate aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812 has 496 applied migrations and zero pending, audit outbox/backlog/failures all zero, 563 operation logs, Prometheus target up, 17 healthy rules and zero active alerts. The candidate-bound AUD-03 recorder remains not production-ready because recovery/archive-restore and the then-missing new-candidate TUI section were not accepted; the later UAT does not manufacture those sections. Next collect a fresh candidate-bound AUD checkpoint only after canonical authority/profile inputs and an authorized writer smoke exist, then separately evidence recovery/archive replay and owner sign-off. No fault injection, archive/restore or live rollback is implied.",
       "documents": [
         {
           "path": "docs/plans/system-audit-log-consolidation-plan-2026-08-13.md",
@@ -150,7 +150,7 @@
       "priority": "P0",
       "owner": "terminal+operational_readiness",
       "status": "production_validation",
-      "next_gate": "GOV-02 is repository-complete with docs/testing/gov02-doc-route-filesystem-filter-closure-evidence-2026-09-01.json: exact /etc/ and /var/ filesystem paths are excluded without suppressing real API routes, focused parser tests pass and the canonical consistency check reports no new issue. TUI-01 and TUI-03 remain completed. Candidate-bound production-safe UAT, cleanup, isolated rollback and Day 0 registry backup remain valid for deployed candidate 80ea002bf910110621022a70e4f1ec5c1b704a56; TUI-02 readiness remains 5/10 DENY until the naturally elapsed 2026-09-13T15:09:35.034000Z observation, structured snapshots, post-window attestation and sole-owner role-bound confirmations exist.",
+      "next_gate": "TUI-01 and TUI-03 remain completed. Candidate aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812 now has production-safe UAT 10/10 and 108/108 across regular/operator/admin, two same-run create/update/readback/delete receipts with zero residual, cleanup 8/8 and six 108/108 closure scopes, plus a candidate-bound local isolated rollback PASS. After the corrective credential-continuity recreation of web/prometheus/caddy, the canonical retained source binds only the first real post-restart sample at 2026-09-01T16:56:29.796000Z. Readiness is 5/10 DENY until the exact 2026-09-15T16:56:29.796000Z threshold, structured blocking-defect and 101-task telemetry snapshots, post-window registry backup and sole-owner role-bound attestations exist.",
       "documents": [
         {
           "path": "docs/plans/web-to-tui-migration-plan-2026-07-25.md",
@@ -277,7 +277,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-09-01.v34",
+    "version": "2026-09-02.v39",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -467,6 +467,17 @@
           "EVID-02"
         ],
         "exit_gate": "Priority Research, Portfolio and Broker consumers use canonical Evidence and exact-current authorization without relaxing the global deny."
+      },
+      {
+        "id": "EVID-04",
+        "workstream_id": "evidence-hard-gate",
+        "wave": 1,
+        "priority": "P1",
+        "execution_mode": "repository",
+        "status": "completed",
+        "title": "Realign the legacy authority-inventory fixture with canonical serializer bytes",
+        "depends_on": [],
+        "exit_gate": "Completed on 2026-09-02: the checked-in EVID-01 fixture consumes Git-canonical LF bytes independent of platform checkout conversion and recomputes to artifact/sidecar 3900c08b9054620f9b969f4bd5aab8097bb00ad1e3692e9aaeee66bda5cdf9b4. The formerly failing focused test passes; Black, isort, Ruff, active-plan and governance checks pass without changing production raw-byte provenance, rewriting production evidence, weakening hash validation or raising a baseline."
       },
       {
         "id": "AUD-01",
@@ -866,7 +877,7 @@
         "evidence_collection": {
           "auto_collect": [
             "Calculate observation day, candidate drift and reset conditions; verify the retained target, rules, bounded storage and authenticated query path without manufacturing historical values.",
-            "On or after 2026-09-13, collect the structured blocking-defect and 101-item telemetry snapshots, export and dry-run verify the post-window registry backup, then derive gate status."
+        "On or after 2026-09-15T16:56:29.796000Z, collect the structured blocking-defect and 101-item telemetry snapshots, export and dry-run verify the post-window registry backup, then derive gate status."
           ],
           "authorization_required": [
             "Execute cleanup waves, alter routes/assets or perform live rollback."

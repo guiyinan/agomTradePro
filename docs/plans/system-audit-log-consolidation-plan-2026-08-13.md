@@ -1741,3 +1741,19 @@ SHA-256=`1c64e66a5a975b9041f7c1e34291cc0b6d4de8f11d3d16d48f657c8507f4e317`，并
 `awaiting_production`。下一步必须先建立真实 canonical authority/profile 与 writer smoke，再对精确
 candidate/window/output root 单独授权生产 canary archive，并把真实 source/restored/manifest/replay hash
 写回 AUD-03；rollback/recovery timeline 与 single-owner 最终确认仍分别以真实事实为准。
+
+## 2026-09-02：AUD-03 successor production read-only checkpoint
+
+当前 candidate `aa7127ff4d9f71555b0d0486314da5518bd2ac20` / release `20260901232812` 上，
+只读快照确认 applied migrations=`496`、pending=`0`，normalized graph SHA-256=
+`57991bbcbe3d4baf86fcbbe6a1ad76f1e9a3e7c168b44e11007d4a09df676372`；Audit outbox 各状态和
+failure 均为 0，operation logs=`563`。Prometheus target=`up`、17 rules/unhealthy=`0`、active alerts=`0`，
+retention=`3w/4GiB`。原始快照为
+[`aud03-operational-observation-select-only-2026-09-02-aa7127ff.json`](../deployment/aud03-operational-observation-select-only-2026-09-02-aa7127ff.json)，
+canonical content-addressed report 为
+[`74d994d9aaff596cc94b244f6338b75e4f8ddee9cee437d1086f48959ef1d7be.json`](../deployment/aud03-operational-observation/74/74d994d9aaff596cc94b244f6338b75e4f8ddee9cee437d1086f48959ef1d7be.json)。
+
+该 recorder 采集时 recovery、archive/restore 和新候选 TUI section 仍 unavailable；随后通过的 TUI UAT
+不能反向改写已固化快照。AUD-03 继续 `awaiting_production`：下一门是 canonical authority/profile、
+受控 writer smoke、fresh candidate-bound recorder，以及逐动作授权的 recovery/archive replay 与 owner
+确认。本 checkpoint 未执行 migration、fault、archive、restore、生产写入或 runtime activation。

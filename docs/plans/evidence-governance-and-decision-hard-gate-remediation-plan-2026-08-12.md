@@ -3932,3 +3932,39 @@ EVID 回传的 JSON、sidecar、候选和 zero-seed 事实有效，P1 决定因�
 技术依赖。授权不生成 13 张 authority/evidence 表的任何行，也不生成 approval/activation head。
 下一步不再等待第二名 reviewer，而是以真实 owner receipt 建立 canonical subject/authority 输入，
 随后逐项运行 PostgreSQL race/revocation/rollback 和 same-alias 回执；执行 deny 保持不变。
+
+## 2026-09-02 successor zero-seed revalidation
+
+候选 `aa7127ff4d9f71555b0d0486314da5518bd2ac20` / release `20260901232812` 的同一 PostgreSQL
+`REPEATABLE READ READ ONLY` 快照确认 Account migrations 0050–0055 已应用，13 张 canonical
+authority/evidence 表仍全部 0 行；EVID-01 canonical report 为
+[`0e6cac03cbc39507e614e2e3e0a9c4383ca5e421454b746505e2d3837b0c7a4d.json`](../deployment/evid-01-authority-inventory/0e/0e6cac03cbc39507e614e2e3e0a9c4383ca5e421454b746505e2d3837b0c7a4d.json)，
+outcome=`blocked_zero_seed_authority`。三张 operator/approval/activation 表及 approval/activation heads 也为空；
+EVID-02 canonical report 为
+[`3533df8909220377ed8c6e8958d316afbc1ca892d41e3a4941658a1da140c598.json`](../deployment/evid-02-head-audit/35/3533df8909220377ed8c6e8958d316afbc1ca892d41e3a4941658a1da140c598.json)，
+human approval=`not_collected`。
+
+两份报告均固定 `production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`。
+没有创建、修改、撤销 authority/approval/activation；EVID-01/02 继续 `awaiting_production`，EVID-03 继续
+等待依赖。候选或 ledger 状态未改变前不再重复 inventory；下一真实输入仍是 owner 提供 canonical
+subject/authority 和 reviewer decision，自动化不得从 single-owner 身份猜测 ledger row。
+
+### 已登记的 repository fixture debt
+
+扩大回归中的
+`test_authority_inventory_is_read_only_zero_seed_and_content_addressed` 仍有一个早于本轮工件的固定 fixture
+失败：tracked artifact/sidecar 的真实 SHA 为
+`3900c08b9054620f9b969f4bd5aab8097bb00ad1e3692e9aaeee66bda5cdf9b4`。根因不是 serializer 漂移，
+而是 source fixture 的 Git LF blob SHA=`d789b48e…28fb` 在 Windows `text=auto` checkout 后变成 CRLF raw
+SHA=`bf648f39…4692`，进而重算出 `387772ae…28cd`。现有 artifact/sidecar 自身一致，本轮新
+`0e6cac…` candidate artifact 也通过 recorder；因此不静默重写历史工件。
+机器注册表曾登记 `EVID-04` 为唯一 repository focus：checked-in fixture test 只将 repository text
+恢复为 Git-canonical LF bytes 后再调用原 strict parser；production parser/recorder 继续对外部原始 bytes 计算
+provenance hash。修复必须保持 content-addressed 验证和 `production_claim=false`，不能以改断言、改生产
+artifact 或抬基线消除失败。
+
+EVID-04 已于 2026-09-02 完成：测试使用 `Path.read_text(encoding="utf-8").encode("utf-8")` 取得
+Git-canonical LF fixture bytes，未修改 Application serializer、parser、recorder、snapshot 或历史 artifact。
+原失败节点现为 `1 passed`；Black、isort、Ruff、active-plan registry 与 governance consistency 均通过。
+`execution_focus` 回到 null。该修复只关闭跨平台 repository fixture debt，不改变 EVID-01/02 的 zero-seed、
+human-approval 缺失或 production readiness 状态。

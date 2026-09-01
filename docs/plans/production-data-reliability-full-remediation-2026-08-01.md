@@ -1408,3 +1408,22 @@ Django/migration 均通过。规范化证据
 SHA-256=`e4883f46426b2b9082392371276a79ff4bbcab07e7a6c6022c02f8563d68579a`。机器注册表将 DATA-06 置为
 `completed` 并清空 repository execution focus；下一步仍是 clean successor 部署、连接/readiness 稳定、生产 dry-run、
 已授权有界 backfill 与 reconciliation，不能以历史 `DENY` artifact 启用 DATA-03 或继承 TUI-02 观察。
+
+## 2026-09-02：DATA-02 successor production read-only checkpoint
+
+PR #16 合并后的 immutable candidate `aa7127ff4d9f71555b0d0486314da5518bd2ac20` 已从独立 clean
+worktree 部署为 release `20260901232812` / image
+`sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c`。部署前 PostgreSQL
+custom-format dump 已创建、`pg_restore --list` 验证并下载；remote/local SHA-256 均为
+`c9f7cf876bd79908aa66461e5d07b254104ba1013b134f669cb91bf8119b1caf`。部署后 migration pending=0，
+三轮 35 秒间隔只读采样的 client backends 恒为 2、idle=1、remote client=1，没有 DATA-04 修复前的连接累积。
+
+候选绑定的 [`data02-successor-production-readonly-checkpoint-2026-09-02-aa7127ff.json`](../deployment/data02-successor-production-readonly-checkpoint-2026-09-02-aa7127ff.json)
+只运行 `repair_active_a_share_current_facts` 与 `rebuild_active_a_share_core_publications` dry-run，没有
+`--execute`。5,533 资产中 completed-session price eligible=`0`、invalid=`5,533`；quote/price/valuation
+虽覆盖 5,533，但全部 stale；financial availability 安全修复预览为 288,409 rows / 3,750 assets、
+unresolved/future=0，而实际 financial fact 仅覆盖 1,923、缺 3,610。overall ready 正确保持 false。
+
+因此 DATA-02 仍为 `awaiting_production`。下一门不是再跑历史模拟或重复只读 inventory，而是在已备份、
+候选未漂移和 before/after recorder 生效的前提下，按有界批次执行生产 reconciliation；任何 tolerance waiver
+仍由真实 data owner 决定。DATA-03 继续等待 DATA-02，不得用 service-ready=200 替代 decision-ready=503。
