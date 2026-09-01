@@ -3954,9 +3954,17 @@ subject/authority 和 reviewer decision，自动化不得从 single-owner 身份
 扩大回归中的
 `test_authority_inventory_is_read_only_zero_seed_and_content_addressed` 仍有一个早于本轮工件的固定 fixture
 失败：tracked artifact/sidecar 的真实 SHA 为
-`3900c08b9054620f9b969f4bd5aab8097bb00ad1e3692e9aaeee66bda5cdf9b4`，但当前 canonical serializer
-从 fixture payload 重算为
-`387772aed78a2c380fcadf6f20122c3a6165532fe555e36743aeb22a693128cd`。现有文件与 sidecar 自身一致，
-本轮新 `0e6cac…` candidate artifact 也通过 recorder；因此不在生产证据提交中静默重写历史工件。
-机器注册表登记 `EVID-04=active` 并作为唯一 repository focus 对齐 fixture/serializer provenance，必须保持
-content-addressed 验证和 `production_claim=false`，不能以改断言或抬基线消除失败。
+`3900c08b9054620f9b969f4bd5aab8097bb00ad1e3692e9aaeee66bda5cdf9b4`。根因不是 serializer 漂移，
+而是 source fixture 的 Git LF blob SHA=`d789b48e…28fb` 在 Windows `text=auto` checkout 后变成 CRLF raw
+SHA=`bf648f39…4692`，进而重算出 `387772ae…28cd`。现有 artifact/sidecar 自身一致，本轮新
+`0e6cac…` candidate artifact 也通过 recorder；因此不静默重写历史工件。
+机器注册表曾登记 `EVID-04` 为唯一 repository focus：checked-in fixture test 只将 repository text
+恢复为 Git-canonical LF bytes 后再调用原 strict parser；production parser/recorder 继续对外部原始 bytes 计算
+provenance hash。修复必须保持 content-addressed 验证和 `production_claim=false`，不能以改断言、改生产
+artifact 或抬基线消除失败。
+
+EVID-04 已于 2026-09-02 完成：测试使用 `Path.read_text(encoding="utf-8").encode("utf-8")` 取得
+Git-canonical LF fixture bytes，未修改 Application serializer、parser、recorder、snapshot 或历史 artifact。
+原失败节点现为 `1 passed`；Black、isort、Ruff、active-plan registry 与 governance consistency 均通过。
+`execution_focus` 回到 null。该修复只关闭跨平台 repository fixture debt，不改变 EVID-01/02 的 zero-seed、
+human-approval 缺失或 production readiness 状态。

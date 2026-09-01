@@ -1,14 +1,14 @@
 {
-  "version": "2026-09-02.v38",
+  "version": "2026-09-02.v39",
   "updated_at": "2026-09-02",
   "execution_focus": {
-    "unit_id": "EVID-04",
+    "unit_id": null,
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Personal-project single-owner mode remains active, but signatures never manufacture authority rows, business definitions, retained observations, production outcomes or elapsed time. PR #16 merged candidate aa7127ff4d9f71555b0d0486314da5518bd2ac20 to main and its clean-worktree deployment produced release 20260901232812 / image sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c. The predeploy PostgreSQL backup was custom-format verified and downloaded with SHA-256 c9f7cf876bd79908aa66461e5d07b254104ba1013b134f669cb91bf8119b1caf. Candidate-bound read-only probes confirm stable PostgreSQL connections, zero pending migrations, healthy target/rules and the existing EVID/STRAT zero-seed blockers; DATA-02 dry-runs remain non-writing and DENY. Production-safe UAT run tui02-aa7127ff-20260902-01 passed 10/10 and 108/108 with regular/operator/admin coverage, two same-run write receipts and zero cleanup residual; the 108-route cleanup suite passed 8/8 and the candidate-bound local isolated rollback drill passed. A corrective Caddy credential-continuity repair recreated web/prometheus/caddy, so TUI-02 binds only the first post-restart real sample at 2026-09-01T16:56:29.796000Z and remains DENY until the exact 2026-09-15T16:56:29.796000Z threshold plus post-window evidence. One pre-existing EVID-01 fixture debt is now the sole repository focus EVID-04: its checked-in artifact/sidecar hash is valid, but the current serializer recomputes 387772aed78a2c380fcadf6f20122c3a6165532fe555e36743aeb22a693128cd instead of the legacy filename 3900c08b9054620f9b969f4bd5aab8097bb00ad1e3692e9aaeee66bda5cdf9b4. EVID-04 may only align fixture/serializer provenance and focused tests; authority/approval mutation, queued runtime, load/fault, live rollback and unsupported production writes remain denied."
+    "policy": "Personal-project single-owner mode remains active, but signatures never manufacture authority rows, business definitions, retained observations, production outcomes or elapsed time. PR #16 merged candidate aa7127ff4d9f71555b0d0486314da5518bd2ac20 to main and its clean-worktree deployment produced release 20260901232812 / image sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c. The predeploy PostgreSQL backup was custom-format verified and downloaded with SHA-256 c9f7cf876bd79908aa66461e5d07b254104ba1013b134f669cb91bf8119b1caf. Candidate-bound read-only probes confirm stable PostgreSQL connections, zero pending migrations, healthy target/rules and the existing EVID/STRAT zero-seed blockers; DATA-02 dry-runs remain non-writing and DENY. Production-safe UAT run tui02-aa7127ff-20260902-01 passed 10/10 and 108/108 with regular/operator/admin coverage, two same-run write receipts and zero cleanup residual; the 108-route cleanup suite passed 8/8 and the candidate-bound local isolated rollback drill passed. A corrective Caddy credential-continuity repair recreated web/prometheus/caddy, so TUI-02 binds only the first post-restart real sample at 2026-09-01T16:56:29.796000Z and remains DENY until the exact 2026-09-15T16:56:29.796000Z threshold plus post-window evidence. EVID-04 is repository-complete: the checked-in fixture test now consumes Git-canonical LF text bytes independent of Windows checkout conversion, while production raw-byte provenance remains unchanged; the formerly failing test passes and Black, isort, Ruff, active-plan and governance checks are green. execution_focus returns to null; authority/approval mutation, queued runtime, load/fault, live rollback and unsupported production writes remain denied."
   },
   "workstreams": [
     {
@@ -277,7 +277,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-09-02.v38",
+    "version": "2026-09-02.v39",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -474,10 +474,10 @@
         "wave": 1,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Realign the legacy authority-inventory fixture with canonical serializer bytes",
         "depends_on": [],
-        "exit_gate": "The checked-in EVID-01 fixture recomputes to its content-addressed filename and sidecar under the current canonical serializer, and the focused test passes without rewriting production evidence, weakening hash validation or raising a baseline."
+        "exit_gate": "Completed on 2026-09-02: the checked-in EVID-01 fixture consumes Git-canonical LF bytes independent of platform checkout conversion and recomputes to artifact/sidecar 3900c08b9054620f9b969f4bd5aab8097bb00ad1e3692e9aaeee66bda5cdf9b4. The formerly failing focused test passes; Black, isort, Ruff, active-plan and governance checks pass without changing production raw-byte provenance, rewriting production evidence, weakening hash validation or raising a baseline."
       },
       {
         "id": "AUD-01",

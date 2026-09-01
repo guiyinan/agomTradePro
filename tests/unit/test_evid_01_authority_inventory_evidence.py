@@ -41,10 +41,16 @@ EXPECTED_TABLES = (
 )
 
 
+def _repository_text_bytes(path: Path) -> bytes:
+    """Return Git-canonical LF bytes independent of checkout EOL conversion."""
+
+    return path.read_text(encoding="utf-8").encode("utf-8")
+
+
 def test_authority_inventory_is_read_only_zero_seed_and_content_addressed() -> None:
     """Validate the EVID-01 inventory without borrowing a Web-to-TUI candidate."""
 
-    snapshot_payload = SNAPSHOT_PATH.read_bytes()
+    snapshot_payload = _repository_text_bytes(SNAPSHOT_PATH)
     snapshot = parse_evid_01_authority_inventory_snapshot(snapshot_payload)
     report = build_evid_01_authority_inventory_report(snapshot)
     report_payload = serialize_evid_01_authority_inventory_report(report)
