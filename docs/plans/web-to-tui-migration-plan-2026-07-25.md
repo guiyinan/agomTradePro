@@ -689,3 +689,28 @@ filesystem-prefix exclusions、focused tests、canonical consistency check、结
 SHA-256=`9c2801119c08dd3cc6043fc73ce311a469838f6b8e4940fa893ce38baaa27b53`。本单元没有改变 Django route、
 TUI runtime、生产状态或观察窗口。下游质量检查另行发现 DATA-06 runner/entrypoint inventory 与 dynamic reliability
 reason boundary 两项未登记问题；它们不属于 GOV-02，必须在获得计划修改授权并登记新 closure unit 后处理。
+
+## 15. 2026-09-02 TUI-02 successor candidate and exact retained window
+
+PR #16 的 immutable candidate `aa7127ff4d9f71555b0d0486314da5518bd2ac20` 已从独立 clean worktree
+部署为 release `20260901232812` / image
+`sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c`。production-safe run
+`tui02-aa7127ff-20260902-01` 通过 `10/10`、`108/108` 和 regular/operator/admin；ai_provider 与
+strategy 两条同 run create/update/readback/delete receipt 均在 60 秒 SLO 内完成且 residual=0。
+cleanup recorder 通过 `8/8`，empty/error/legacy URL/permission/primary task/rollback 六 scope 均
+`108/108`；candidate-bound local isolated rollback report SHA-256=
+`1eace4d3f2d82adbb6638e83c440ec6cf66fc0ad09891a78a7bcf0ab204dfb3c`，未访问生产。
+
+clean git-clone release 未自动携带 optional host-only Prometheus query credential。恢复既有 production
+credential 并请求重建 Caddy 时，Compose 同时重建了 Web 与 Prometheus；PostgreSQL/Redis 未重建、数据卷
+保持。旧 candidate/window 证据因此不得继承。新的只读
+[`tui02-production-observation-checkpoint-2026-09-02-aa7127ff.json`](../deployment/tui02-production-observation-checkpoint-2026-09-02-aa7127ff.json)
+SHA-256=`96d7031e0da8ba6a6d037d800fd8cd4add782b9f3369e93e0e6c645a051052c3` 证明 target up、17 rules
+健康、persistent volume、`3w/4GiB`、外部 unauth=401/auth=200，并只绑定重启后首个真实 raw sample
+`2026-09-01T16:56:29.796000Z`。exact eligible instant 为
+`2026-09-15T16:56:29.796000Z`；无 historical backfill 或 synthetic zero。
+
+readiness 当前为 `5/10 DENY`：source、execution dependency、108-route UAT、108-route cleanup、isolated
+rollback 通过；stable window、structured defects、101-task telemetry、post-window registry backup 和
+role-bound attestations仍缺。此前不得执行 Classic cleanup 或生成 final approval；external AI、queued runtime、
+authority/approval、load/fault 与 live rollback 保持未授权。

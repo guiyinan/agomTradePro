@@ -404,3 +404,17 @@ execution 均不在本次审核范围，不能预签。
 falsification、cost/liquidity/label/invalidation 等内容仍未由 owner 给出，65/7/16/35 表也仍为零。
 这些业务定义不能由自动化猜测，所以 `STRAT-01=awaiting_production`；owner 提供最小真实策略定义后，
 直接进入 canonical dry-run 和 append-only registration，不再重复多人审批流程。
+
+## 2026-09-02 successor owner-ledger revalidation
+
+候选 `aa7127ff4d9f71555b0d0486314da5518bd2ac20` / release `20260901232812` 的单一
+PostgreSQL `REPEATABLE READ READ ONLY` inventory 再次确认四个既定 selector 全为 zero-seed：Research
+R1–R8 `65` 表、Portfolio R4/R5/R8 `7` 表、Account authority/assignment `16` 表，以及显式
+owner/policy/operator/assignment `35` 表，全部 `row_count_total=0`、`nonzero_table_count=0`。
+canonical report 为
+[`1a39e4e8088b50a26e7e5fcbadca7ae753286ea3f3ba55364294f585924682b3.json`](../deployment/strat-01-owner-ledger-inventory/1a/1a39e4e8088b50a26e7e5fcbadca7ae753286ea3f3ba55364294f585924682b3.json)，
+outcome=`zero_seed`，production/runtime claim 均为 false。
+
+本轮没有 registration、backfill、Promotion、approval 或 policy/definition 写入。STRAT-01 保持
+`awaiting_production`；下一门仍是唯一真人 owner 提供最小真实 definition/policy/calendar/scope/sample
+window/qualification/falsification 输入，先跑 canonical dry-run，再对 append-only registration 单独取证。

@@ -5076,3 +5076,20 @@ Git SHA / 镜像 / migration：
   runtime enablement 或 live rollback。`execution_focus` 继续为 null；下一真实门仍是另行授权的 clean
   successor deployment 后，多 scrape 周期连接/readiness、candidate-bound SELECT-only dry-run 与有界
   production reconciliation。
+
+## 156. 2026-09-02：successor production DATA-02 read-only revalidation
+
+- PR #16/main candidate `aa7127ff4d9f71555b0d0486314da5518bd2ac20` 已从独立 clean worktree 部署为
+  release `20260901232812` / image
+  `sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c`；部署前 custom-format
+  PostgreSQL backup 已远端校验并下载，SHA-256=
+  `c9f7cf876bd79908aa66461e5d07b254104ba1013b134f669cb91bf8119b1caf`。
+- 三轮低频连接快照的 client backends 恒为 2，证明 DATA-04 的 ASGI `CONN_MAX_AGE=0` 候选未再出现
+  旧版连接累积。health/ready/audit 均 200；decision-ready 仍 503 且 must-not-use=true。
+- DATA-02 两个 candidate-bound 命令仅运行 dry-run：5,533 资产的 completed-session price eligible=0，
+  quote/price/valuation facts 虽全覆盖但 stale，financial facts 仅 1,923/5,533。financial availability
+  安全修复预览为 288,409 rows / 3,750 assets，unresolved/future=0。结构化 checkpoint 为
+  [`data02-successor-production-readonly-checkpoint-2026-09-02-aa7127ff.json`](../deployment/data02-successor-production-readonly-checkpoint-2026-09-02-aa7127ff.json)。
+- 没有执行 `--execute`、写回事实、切换 publication、启用 runtime 或修改 tolerance。DATA-02 保持
+  `awaiting_production`，DATA-03 保持 `waiting_dependency`；下一步是带 before/after recorder、固定批次和
+  owner exception review 的 production reconciliation，而不是再次运行历史模拟。
