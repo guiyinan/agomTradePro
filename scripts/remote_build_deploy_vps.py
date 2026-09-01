@@ -813,6 +813,35 @@ if [ "$AVAILABLE_CPUS" -le 1 ]; then
   sed -i 's/cpus: 1.5/cpus: 1.0/g' docker/docker-compose.vps.yml
 fi
 
+echo "[INFO] Pruning unused AgomTradePro images before build"
+docker images --filter 'reference=agomtradepro-web:*' --format '{{.Repository}}:{{.Tag}}' |
+while IFS= read -r image_ref; do
+  [ -n "$image_ref" ] || continue
+  if docker ps -a --format '{{.Image}}' | grep -Fqx "$image_ref"; then
+    echo "[INFO] Keeping container-referenced image $image_ref"
+    continue
+  fi
+  if docker image rm "$image_ref"; then
+    echo "[INFO] Removed unused project image $image_ref"
+  else
+    echo "[WARN] Could not remove project image $image_ref; Docker kept it protected" >&2
+  fi
+done
+
+MIN_DOCKER_BUILD_FREE_KB=12582912
+DOCKER_BUILD_FREE_KB="$(df -Pk /var/lib/docker | awk 'NR == 2 {print $4}')"
+case "$DOCKER_BUILD_FREE_KB" in
+  ''|*[!0-9]*)
+    echo "[ERROR] Could not determine free Docker disk space" >&2
+    exit 1
+    ;;
+esac
+if [ "$DOCKER_BUILD_FREE_KB" -lt "$MIN_DOCKER_BUILD_FREE_KB" ]; then
+  echo "[ERROR] Insufficient Docker disk headroom: ${DOCKER_BUILD_FREE_KB} KiB available, ${MIN_DOCKER_BUILD_FREE_KB} KiB required after project image cleanup" >&2
+  exit 1
+fi
+echo "[INFO] Docker build headroom: ${DOCKER_BUILD_FREE_KB} KiB available"
+
 if ! docker build --build-arg PIP_OFFLINE_ONLY=0 --build-arg BUILDKIT_INLINE_CACHE=1 --build-arg "SOURCE_COMMIT=$SOURCE_COMMIT" -f docker/Dockerfile.prod -t "agomtradepro-web:$RELEASE_TAG" .; then
   DOCKER_BUILDKIT=0 docker build --build-arg PIP_OFFLINE_ONLY=0 --build-arg "SOURCE_COMMIT=$SOURCE_COMMIT" -f docker/Dockerfile.prod -t "agomtradepro-web:$RELEASE_TAG" .
 fi
@@ -1018,6 +1047,35 @@ esac
 if [ "$AVAILABLE_CPUS" -le 1 ]; then
   sed -i 's/cpus: 1.5/cpus: 1.0/g' docker/docker-compose.vps.yml
 fi
+
+echo "[INFO] Pruning unused AgomTradePro images before build"
+docker images --filter 'reference=agomtradepro-web:*' --format '{{.Repository}}:{{.Tag}}' |
+while IFS= read -r image_ref; do
+  [ -n "$image_ref" ] || continue
+  if docker ps -a --format '{{.Image}}' | grep -Fqx "$image_ref"; then
+    echo "[INFO] Keeping container-referenced image $image_ref"
+    continue
+  fi
+  if docker image rm "$image_ref"; then
+    echo "[INFO] Removed unused project image $image_ref"
+  else
+    echo "[WARN] Could not remove project image $image_ref; Docker kept it protected" >&2
+  fi
+done
+
+MIN_DOCKER_BUILD_FREE_KB=12582912
+DOCKER_BUILD_FREE_KB="$(df -Pk /var/lib/docker | awk 'NR == 2 {print $4}')"
+case "$DOCKER_BUILD_FREE_KB" in
+  ''|*[!0-9]*)
+    echo "[ERROR] Could not determine free Docker disk space" >&2
+    exit 1
+    ;;
+esac
+if [ "$DOCKER_BUILD_FREE_KB" -lt "$MIN_DOCKER_BUILD_FREE_KB" ]; then
+  echo "[ERROR] Insufficient Docker disk headroom: ${DOCKER_BUILD_FREE_KB} KiB available, ${MIN_DOCKER_BUILD_FREE_KB} KiB required after project image cleanup" >&2
+  exit 1
+fi
+echo "[INFO] Docker build headroom: ${DOCKER_BUILD_FREE_KB} KiB available"
 
 echo "[INFO] Building Docker image agomtradepro-web:$RELEASE_TAG"
 if ! docker build --build-arg PIP_OFFLINE_ONLY=0 --build-arg BUILDKIT_INLINE_CACHE=1 --build-arg "SOURCE_COMMIT=$SOURCE_COMMIT" -f docker/Dockerfile.prod -t "agomtradepro-web:$RELEASE_TAG" .; then

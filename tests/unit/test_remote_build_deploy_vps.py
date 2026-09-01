@@ -158,6 +158,35 @@ def test_remote_builds_fail_closed_and_write_immutable_release_manifest(
     )
 
 
+@pytest.mark.parametrize(
+    "builder_name",
+    ["_build_remote_build_script", "_build_remote_git_clone_build_script"],
+)
+def test_remote_builds_prune_only_unused_project_images_and_require_disk_headroom(
+    builder_name: str,
+) -> None:
+    """Builds must bound project image growth without touching volumes or other projects."""
+
+    script = getattr(remote_build_deploy_vps, builder_name)()
+
+    inventory = "docker images --filter 'reference=agomtradepro-web:*'"
+    active_check = "docker ps -a --format '{{.Image}}'"
+    removal = 'docker image rm "$image_ref"'
+    disk_check = "df -Pk /var/lib/docker"
+
+    assert inventory in script
+    assert active_check in script
+    assert removal in script
+    assert "MIN_DOCKER_BUILD_FREE_KB=12582912" in script
+    assert disk_check in script
+    assert "Insufficient Docker disk headroom" in script
+    assert "docker system prune" not in script
+    assert "docker volume" not in script
+    assert script.index(active_check) < script.index(removal)
+    assert script.index(removal) < script.index(disk_check)
+    assert script.index(disk_check) < script.index("docker build")
+
+
 def test_upload_mode_passes_exact_local_source_commit_without_unknown_fallback() -> None:
     source = (
         Path(__file__).resolve().parents[2] / "scripts" / "remote_build_deploy_vps.py"
