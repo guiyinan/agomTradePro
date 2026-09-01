@@ -1,14 +1,14 @@
 {
-  "version": "2026-09-01.v31",
+  "version": "2026-09-01.v32",
   "updated_at": "2026-09-01",
   "execution_focus": {
-    "unit_id": "TAR-07",
+    "unit_id": "GOV-02",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Personal-project single-owner mode remains active under docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json: one real owner may hold all governance roles, but signatures never manufacture authority rows, typed runtime values, business definitions, retained observations, staging outcomes or elapsed time. The owner explicitly authorized DATA-07, TAR-07 and GOV-02 in sequence after commit 53ddbff137c9a0c379c73c6f4c64244613e2741b exposed three terminal CI blockers. DATA-07 is complete with SHA-sidecar evidence: its test fixture now obeys the authoritative QuoteSnapshot source contract, preserves source provenance, 40 focused tests pass and no production code changed. TAR-07 is the sole repository focus; GOV-02 waits on TAR-07. TAR-07 may only disposition the exact staging-harness requests import, refresh the deterministic inventory and close focused Agent Runtime/governance checks. No network execution, push, merge, deployment, production write, external call, load, fault injection or runtime enablement is authorized."
+    "policy": "Personal-project single-owner mode remains active under docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json: one real owner may hold all governance roles, but signatures never manufacture authority rows, typed runtime values, business definitions, retained observations, staging outcomes or elapsed time. The owner explicitly authorized DATA-07, TAR-07 and GOV-02 in sequence after commit 53ddbff137c9a0c379c73c6f4c64244613e2741b exposed three terminal CI blockers. DATA-07 and TAR-07 are complete with SHA-sidecar evidence. TAR-07 now owns the exact staging-harness requests import, leaves zero unreviewed external HTTP imports, refreshes the deterministic inventory, and keeps the production approval window and fail-closed behavior unchanged; 38 focused tests pass. GOV-02 is the sole repository focus and may only distinguish /etc/ and /var/ filesystem paths from real route references, add focused parser tests and close the canonical consistency check. No push, merge, deployment, production write, external call, load, fault injection or runtime enablement is authorized."
   },
   "workstreams": [
     {
@@ -150,7 +150,7 @@
       "priority": "P0",
       "owner": "terminal+operational_readiness",
       "status": "production_validation",
-      "next_gate": "TUI-01 and TUI-03 are completed. The manifest-backed candidate commit 80ea002bf910110621022a70e4f1ec5c1b704a56 is deployed as release 20260830215638 / image sha256:54cb9646912c494d64c1eb664b6a3a8af772c36f5388d8456d669285398c39fc. Production read-only evidence docs/deployment/tui02-production-observation-checkpoint-2026-08-31-80ea002b.json (SHA-256 db055a18e86d3b0da10a8612e92b75bf4ef5c2860d7ca34b21166f1efa3b0d2a) confirms no candidate drift or Prometheus restart, a healthy persistent 21d/4GB source, 17 healthy rules, authenticated query access and first retained raw sample 2026-08-30T15:09:35.034000Z. The exact earliest complete 14-day instant is 2026-09-13T15:09:35.034000Z. Candidate-bound production-safe UAT passed 10/10 and 108/108 across regular/operator/admin with two same-run zero-residual receipts; cleanup passed 8/8 across all six 108-route scopes, isolated rollback passed, and protected registry generation 30 passed sidecar plus restore dry-run verification. TUI-02 is active and readiness remains 5/10 DENY. Retain the unchanged real source without backfill; only at or after the exact eligible instant may v2 structured blocking-defect and 101-task telemetry snapshots be built, followed by a new registry attestation, review snapshot and the sole owner's role-bound attestations.",
+      "next_gate": "GOV-02 is the sole repository focus after Consistency Check run 33460074878 misclassified the documented filesystem path /etc/prometheus as a missing Django route. Add exact /etc/ and /var/ filesystem-prefix exclusions with tests proving real API routes remain visible; do not change the baseline or documentation to hide the issue. TUI-01 and TUI-03 remain completed. Candidate-bound production-safe UAT, cleanup, isolated rollback and Day 0 registry backup remain valid for deployed candidate 80ea002bf910110621022a70e4f1ec5c1b704a56; TUI-02 readiness remains 5/10 DENY until the naturally elapsed 2026-09-13T15:09:35.034000Z observation, structured snapshots, post-window attestation and sole-owner role-bound confirmations exist.",
       "documents": [
         {
           "path": "docs/plans/web-to-tui-migration-plan-2026-07-25.md",
@@ -201,7 +201,7 @@
       "priority": "P0",
       "owner": "agent_runtime+terminal+task_monitor+operational_readiness+sdk+mcp",
       "status": "production_validation",
-      "next_gate": "TAR-07 is the sole repository focus after candidate CI proved the TAR-06 staging harness requests import was absent from the exact non-data HTTP ownership contract and the deterministic Data Center architecture inventory had not been refreshed since before TAR-06/DATA-06. Close only that owner-bound disposition and generated inventory drift, with no network execution or runtime change. TAR-01 through TAR-04 and TAR-06 remain repository-complete; TAR-05 still requires a real approved staging identity, exact runtime manifest/flags/resources, live dedicated Worker, complete query map and bounded non-billable provider profile. P2 capacity, P3 chaos, P4 provider/MCP, P5 canary, P6 observation/cutover and P7 retirement stay dependency-gated; queued/worker defaults, capacity_ready=false and concurrency above one remain fail-closed.",
+      "next_gate": "TAR-07 is repository-complete with docs/testing/tar07-http-ownership-inventory-closure-evidence-2026-09-01.json: the exact staging-harness requests import has agent-runtime/internal-control-plane ownership, unreviewed external HTTP imports are zero, the deterministic inventory is current and 38 inventory/harness tests pass. Test clocks, not production approval logic, corrected two expired fixed-fixture regressions; the 24-hour maximum and fail-closed checks remain intact. TAR-01 through TAR-04 and TAR-06 remain complete. TAR-05 still requires a real approved staging identity, exact runtime manifest/flags/resources, live dedicated Worker, complete query map and bounded non-billable provider profile; queued/worker defaults, capacity_ready=false and concurrency above one remain fail-closed.",
       "documents": [
         {
           "path": "docs/plans/terminal-agent-multi-user-runtime-plan-2026-08-18.md",
@@ -277,7 +277,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-09-01.v29",
+    "version": "2026-09-01.v30",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -401,7 +401,7 @@
         "wave": 3,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "waiting_dependency",
+        "status": "active",
         "title": "Reject filesystem paths from documentation route consistency checks",
         "depends_on": [
           "TAR-07"
@@ -869,12 +869,12 @@
         "wave": 3,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Own the TAR staging harness HTTP boundary and refresh its deterministic inventory",
         "depends_on": [
           "DATA-07"
         ],
-        "exit_gate": "The exact staging-harness requests import has a non-data owner, scope and reason; no external HTTP import remains unreviewed; the deterministic Data Center architecture inventory matches the current tree; focused inventory, Agent Runtime and governance checks pass without authorizing network execution."
+        "exit_gate": "Completed on 2026-09-01 with docs/testing/tar07-http-ownership-inventory-closure-evidence-2026-09-01.json (SHA-256 8d23556414ac6bea32bbd2ad5b12989d8d5f27731492d2646fd1fd8f7cbad2c7): the exact staging-harness requests import has agent-runtime/internal-control-plane ownership, external_http_imports_for_review is zero, approved non-data callers are exactly five, and the deterministic inventory matches the current tree. Expanded inventory/harness tests pass 38/38; fixed test-clock injection preserves approval bytes, the 24-hour maximum and production fail-closed behavior. Format, registry and governance gates pass without network execution or runtime change."
       },
       {
         "id": "AI-01",

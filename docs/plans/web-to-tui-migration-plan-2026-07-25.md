@@ -665,3 +665,14 @@ sample 为 `2026-08-30T15:09:35.034000Z`。因此自然窗口不能仅按日历�
 `2026-09-13T15:09:35.034000Z` 或之后构建 v2 defect 与 101-task telemetry 快照；随后导出新的
 post-window registry attestation、构建 review snapshot，再记录唯一 owner 的两个 role-bound
 attestation。此前不得生成 final evidence、cleanup wave 或删除 Classic。
+
+## 2026-09-01：GOV-02 documentation route parser corrective focus
+
+候选 `53ddbff137c9a0c379c73c6f4c64244613e2741b` 的 Consistency Check run `33460074878`
+把本计划中的文件系统路径 `/etc/prometheus` 误判为缺失 Django route。只读复核确认 parser 的宽泛 inline-code
+pattern 会匹配任意两段 slash path，而 ignored-prefix contract 已排除 `/opt/`，却没有同类 `/etc/`、`/var/`。
+
+项目所有者已授权的顺序 corrective 现推进到 `GOV-02` 唯一 repository focus。范围仅为 parser 的 exact
+filesystem-prefix exclusions、focused tests、canonical consistency check、结构化 evidence 与计划/registry/README
+回写。禁止修改本计划中的真实部署路径来躲避扫描，禁止写 baseline 掩盖误报，也不得放宽真实 HTTP/API route
+检测；不涉及 TUI runtime、生产部署、路由切换、UAT、观察窗口或生产写入。
