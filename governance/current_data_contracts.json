@@ -942,7 +942,8 @@
           "health.get(\"blocked_reason\")",
           "decision_status = \"仅供诊断\" if must_not_use_for_decision else \"可用于判断\"",
           "data_sufficient = bool(raw_row.get(\"data_sufficient\", False))",
-          "if data_sufficient else None"
+          "if data_sufficient else None",
+          "latest = rows[-1] if rows else {}"
         ],
         "apps/pulse/infrastructure/data_provider.py": [
           "code == \"SENTIMENT_DAILY_INDEX\"",
@@ -1011,6 +1012,11 @@
       "case": "tui_missing_sentiment_component_is_a_gap",
       "test_file": "tests/api/test_sentiment_api_edges.py",
       "test_function": "test_sentiment_tui_overview_leaves_failed_component_as_gap"
+    },
+    {
+      "case": "tui_sentiment_summary_uses_latest_row",
+      "test_file": "tests/api/test_sentiment_api_edges.py",
+      "test_function": "test_sentiment_tui_overview_summary_uses_most_recent_row"
     }
       ]
     },

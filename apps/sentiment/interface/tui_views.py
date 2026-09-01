@@ -98,7 +98,7 @@ class SentimentTuiOverviewView(APIView):
                     "decision_status": decision_status,
                 }
             )
-        latest = rows[0] if rows else {}
+        latest = rows[-1] if rows else {}
         return Response(
             {
                 "success": True,
