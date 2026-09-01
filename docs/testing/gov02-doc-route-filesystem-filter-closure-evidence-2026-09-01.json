@@ -1,0 +1,98 @@
+{
+  "schema_version": "gov02-doc-route-filesystem-filter-closure.v1",
+  "unit_id": "GOV-02",
+  "recorded_at": "2026-09-01T03:30:51.063Z",
+  "repository_head": "473d2fc7120a3c76a416f8eae0f7de428facbf45",
+  "trigger": {
+    "candidate_ci_run": 33460074878,
+    "workflow": "Consistency Check",
+    "misclassified_reference": "/etc/prometheus",
+    "classification": "filesystem_path_treated_as_django_route"
+  },
+  "working_tree_binding": {
+    "state": "uncommitted_source_hashes",
+    "files": [
+      {
+        "path": "scripts/check_doc_route_sdk_consistency.py",
+        "sha256": "5102f514d95dfd77fb8514e5a62969d810e8b458f0149dac8e76817f04226481"
+      },
+      {
+        "path": "tests/unit/test_check_doc_route_sdk_consistency.py",
+        "sha256": "02e2b13392e93e16d031eaaff81f2681ae68ff30f3d89dfadfd07a8fe26c9493"
+      }
+    ]
+  },
+  "implemented_contract": {
+    "added_exact_ignored_prefixes": [
+      "/etc/",
+      "/var/"
+    ],
+    "existing_opt_prefix_preserved": true,
+    "real_api_route_visibility_tested": "/api/account/",
+    "baseline_changed": false,
+    "documentation_changed_to_hide_issue": false
+  },
+  "validation": {
+    "focused_parser_tests": {
+      "command": "pytest tests/unit/test_check_doc_route_sdk_consistency.py -q",
+      "passed": 2,
+      "failed": 0
+    },
+    "canonical_consistency": {
+      "command": "python scripts/check_doc_route_sdk_consistency.py --baseline reports/consistency/baseline.json",
+      "routes": 2249,
+      "documentation_files": 85,
+      "sdk_modules": 34,
+      "result": "passed"
+    },
+    "fast_feedback_regression": {
+      "scope": "CI Fast Feedback targeted pytest selection",
+      "passed": 1329,
+      "skipped": 3,
+      "failed": 0
+    },
+    "incremental_mypy": {
+      "new_errors": 0,
+      "legacy_errors": 0
+    },
+    "mypy_debt_ceiling": {
+      "full_debt": 0,
+      "result": "passed"
+    },
+    "format_and_lint": {
+      "ruff": "passed",
+      "black": "passed",
+      "isort": "passed"
+    },
+    "active_plan_registry": {
+      "version": "2026-09-01.v33",
+      "units": 37,
+      "violations": 0
+    },
+    "governance": {
+      "baseline_version": "2026-08-12.v219",
+      "violations": 0
+    }
+  },
+  "exit_gate": {
+    "repository_unit_completed": true,
+    "filesystem_paths_ignored": true,
+    "real_routes_still_checked": true,
+    "canonical_consistency_passed": true,
+    "candidate_ci_fully_green": false,
+    "remaining_unregistered_ci_blockers": [
+      "scripts/run_data02_isolated_simulation.py is absent from legacy entrypoint governance and governance/data_center_entrypoints.json is stale",
+      "apps/config_center/application/decision_runtime_activation.py:217 has an unregistered dynamic reliability reason boundary"
+    ]
+  },
+  "safety_boundary": {
+    "production_runtime_changed": false,
+    "route_or_api_behavior_changed": false,
+    "network_io": false,
+    "production_database_reads": false,
+    "production_database_writes": false,
+    "deployment_executed": false,
+    "push_executed": false,
+    "production_claim": false
+  }
+}

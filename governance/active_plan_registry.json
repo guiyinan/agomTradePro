@@ -1,14 +1,14 @@
 {
-  "version": "2026-09-01.v32",
+  "version": "2026-09-01.v33",
   "updated_at": "2026-09-01",
   "execution_focus": {
-    "unit_id": "GOV-02",
+    "unit_id": null,
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Personal-project single-owner mode remains active under docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json: one real owner may hold all governance roles, but signatures never manufacture authority rows, typed runtime values, business definitions, retained observations, staging outcomes or elapsed time. The owner explicitly authorized DATA-07, TAR-07 and GOV-02 in sequence after commit 53ddbff137c9a0c379c73c6f4c64244613e2741b exposed three terminal CI blockers. DATA-07 and TAR-07 are complete with SHA-sidecar evidence. TAR-07 now owns the exact staging-harness requests import, leaves zero unreviewed external HTTP imports, refreshes the deterministic inventory, and keeps the production approval window and fail-closed behavior unchanged; 38 focused tests pass. GOV-02 is the sole repository focus and may only distinguish /etc/ and /var/ filesystem paths from real route references, add focused parser tests and close the canonical consistency check. No push, merge, deployment, production write, external call, load, fault injection or runtime enablement is authorized."
+    "policy": "Personal-project single-owner mode remains active under docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json: one real owner may hold all governance roles, but signatures never manufacture authority rows, typed runtime values, business definitions, retained observations, staging outcomes or elapsed time. The owner-authorized DATA-07, TAR-07 and GOV-02 sequence is repository-complete with three independent commits and SHA-sidecar evidence; execution_focus therefore returns to null. GOV-02 excludes exact /etc/ and /var/ filesystem prefixes while preserving real route detection, and the canonical consistency check plus the complete Fast Feedback targeted pytest selection pass. Downstream checks separately exposed an unregistered DATA-06 runner/stale entrypoint inventory and an unregistered dynamic reliability-reason boundary; neither is absorbed into GOV-02, and a new repository unit requires explicit plan authorization. No push, merge, deployment, production write, external call, load, fault injection or runtime enablement is authorized."
   },
   "workstreams": [
     {
@@ -150,7 +150,7 @@
       "priority": "P0",
       "owner": "terminal+operational_readiness",
       "status": "production_validation",
-      "next_gate": "GOV-02 is the sole repository focus after Consistency Check run 33460074878 misclassified the documented filesystem path /etc/prometheus as a missing Django route. Add exact /etc/ and /var/ filesystem-prefix exclusions with tests proving real API routes remain visible; do not change the baseline or documentation to hide the issue. TUI-01 and TUI-03 remain completed. Candidate-bound production-safe UAT, cleanup, isolated rollback and Day 0 registry backup remain valid for deployed candidate 80ea002bf910110621022a70e4f1ec5c1b704a56; TUI-02 readiness remains 5/10 DENY until the naturally elapsed 2026-09-13T15:09:35.034000Z observation, structured snapshots, post-window attestation and sole-owner role-bound confirmations exist.",
+      "next_gate": "GOV-02 is repository-complete with docs/testing/gov02-doc-route-filesystem-filter-closure-evidence-2026-09-01.json: exact /etc/ and /var/ filesystem paths are excluded without suppressing real API routes, focused parser tests pass and the canonical consistency check reports no new issue. TUI-01 and TUI-03 remain completed. Candidate-bound production-safe UAT, cleanup, isolated rollback and Day 0 registry backup remain valid for deployed candidate 80ea002bf910110621022a70e4f1ec5c1b704a56; TUI-02 readiness remains 5/10 DENY until the naturally elapsed 2026-09-13T15:09:35.034000Z observation, structured snapshots, post-window attestation and sole-owner role-bound confirmations exist.",
       "documents": [
         {
           "path": "docs/plans/web-to-tui-migration-plan-2026-07-25.md",
@@ -277,7 +277,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-09-01.v30",
+    "version": "2026-09-01.v31",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -401,12 +401,12 @@
         "wave": 3,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Reject filesystem paths from documentation route consistency checks",
         "depends_on": [
           "TAR-07"
         ],
-        "exit_gate": "The documentation parser ignores exact filesystem prefixes such as /etc/ and /var/ without suppressing real Django/API routes, focused parser tests pass, and the canonical consistency check reports no new issue."
+        "exit_gate": "Completed on 2026-09-01 with docs/testing/gov02-doc-route-filesystem-filter-closure-evidence-2026-09-01.json (SHA-256 9c2801119c08dd3cc6043fc73ce311a469838f6b8e4940fa893ce38baaa27b53): exact /etc/ and /var/ filesystem prefixes are ignored while /api/account/ remains visible, focused parser tests pass 2/2, the canonical consistency check passes across 2249 routes, 85 documentation files and 34 SDK modules, and the full Fast Feedback targeted pytest selection passes 1329 with 3 skipped. Baseline and documentation were not changed to hide the issue; downstream unregistered entrypoint and reliability-boundary failures remain outside this unit."
       },
       {
         "id": "EVID-01",
