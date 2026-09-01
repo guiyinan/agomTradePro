@@ -5059,3 +5059,20 @@ Git SHA / 镜像 / migration：
 - `DATA-08 -> DATA-09` corrective 顺序已完成且保持独立提交边界；execution focus 回到 null。只有在新 HEAD
   的独立 clean worktree 通过组合门禁后才执行已授权 push。merge、部署、生产读写、外部调用、queued/
   decision runtime enablement、流量/故障和 live rollback 仍不在本单元内。
+
+## 155. 2026-09-01：closure corrective stack merge 与 main CI checkpoint
+
+- 完整七提交 closure corrective stack 已以 `dev/next-development@e38ebdcf8da2dafb58de16d2314df642bfa1e6c7`
+  推送。PR #15 保持 exact head binding，经 Sol/Luna review 后以 merge commit
+  `1546ca0ecfaa0d2d9a004720065a3acac9240d87` 进入 `main`；`e38ebdcf8…` 已验证为该 main commit 的祖先。
+- PR required checks 全部成功；合并后 main push 的 Architecture `33513058174`、Security
+  `33513058194`、Consistency `33513058305` 与 Fast Feedback `33513058369` 四组 workflow 均为
+  `completed/success`，其中 Fast Feedback 的 Python 3.11、Python 3.13、增量质量门禁和 no-database
+  suite 均通过。不可变 [canonical GitHub evidence](../testing/pr15-closure-corrective-merge-main-ci-evidence-2026-09-01.json)
+  记录 PR/head/merge、run URL、时间与终态，SHA-256=
+  `2febac5464d167e54c610d70a9673645d202727c3e2fdb548cf7b7cb42f48e6a`。
+- 该 checkpoint 只证明 repository review、merge 与 main CI 终态，不重新解释 DATA-06 历史 DENY，
+  也不满足 DATA-02/03。未执行部署、重启、迁移、生产读写、external call、load/fault、queued/decision
+  runtime enablement 或 live rollback。`execution_focus` 继续为 null；下一真实门仍是另行授权的 clean
+  successor deployment 后，多 scrape 周期连接/readiness、candidate-bound SELECT-only dry-run 与有界
+  production reconciliation。

@@ -1,5 +1,5 @@
 {
-  "version": "2026-09-01.v36",
+  "version": "2026-09-01.v37",
   "updated_at": "2026-09-01",
   "execution_focus": {
     "unit_id": null,
@@ -8,7 +8,7 @@
       "external",
       "governance"
     ],
-    "policy": "Personal-project single-owner mode remains active under docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json: one real owner may hold all governance roles, but signatures never manufacture authority rows, typed runtime values, business definitions, retained observations, staging outcomes or elapsed time. The owner-authorized DATA-08 then DATA-09 sequence is repository-complete with two independent commits and SHA-sidecar evidence. DATA-08 closes the deterministic entrypoint inventory at candidate-review=0 and legacy direct/wrapper=0; DATA-09 registers only the three exact decision-runtime probe-failure reason codes without runtime or current-data changes. execution_focus returns to null. After combined clean-worktree gates pass, pushing dev/next-development is authorized. No merge, deployment, production read/write, external call, load, fault injection or runtime enablement is authorized."
+    "policy": "Personal-project single-owner mode remains active under docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json: one real owner may hold all governance roles, but signatures never manufacture authority rows, typed runtime values, business definitions, retained observations, staging outcomes or elapsed time. The owner-authorized DATA-08 then DATA-09 sequence is repository-complete with two independent commits and SHA-sidecar evidence. DATA-08 closes the deterministic entrypoint inventory at candidate-review=0 and legacy direct/wrapper=0; DATA-09 registers only the three exact decision-runtime probe-failure reason codes without runtime or current-data changes. The complete corrective stack was pushed at e38ebdcf8da2dafb58de16d2314df642bfa1e6c7, merged through PR #15 as main commit 1546ca0ecfaa0d2d9a004720065a3acac9240d87, and all four main workflows completed successfully; canonical GitHub evidence is docs/testing/pr15-closure-corrective-merge-main-ci-evidence-2026-09-01.json with SHA-256 2febac5464d167e54c610d70a9673645d202727c3e2fdb548cf7b7cb42f48e6a. execution_focus remains null. This merge checkpoint does not authorize deployment, production read/write, external calls, load, fault injection or runtime enablement."
   },
   "workstreams": [
     {
@@ -88,7 +88,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "DATA-08 and DATA-09 are repository-complete with SHA-sidecar evidence: the deterministic inventory contains 1151 entries with candidate-review=0 and legacy direct/wrapper=0, and the decision-runtime activation boundary permits only core_coverage, provider_capabilities and decision_data probe failures. DATA-06 historical simulation remains DENY and does not satisfy DATA-02/03. After the authorized push and CI observation, DATA-02 still requires a clean successor deployment, multi-scrape connection/readiness stability, candidate-bound SELECT-only dry-run and the separately authorized bounded production reconciliation; no repository result manufactures that production gate.",
+      "next_gate": "DATA-08 and DATA-09 are repository-complete with SHA-sidecar evidence: the deterministic inventory contains 1151 entries with candidate-review=0 and legacy direct/wrapper=0, and the decision-runtime activation boundary permits only core_coverage, provider_capabilities and decision_data probe failures. The corrective stack is merged at main commit 1546ca0ecfaa0d2d9a004720065a3acac9240d87 and all four main workflows passed; the canonical GitHub checkpoint SHA-256 is 2febac5464d167e54c610d70a9673645d202727c3e2fdb548cf7b7cb42f48e6a. DATA-06 historical simulation remains DENY and does not satisfy DATA-02/03. DATA-02 still requires a clean successor deployment, multi-scrape connection/readiness stability, candidate-bound SELECT-only dry-run and the separately authorized bounded production reconciliation; no repository or CI result manufactures that production gate.",
       "documents": [
         {
           "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
