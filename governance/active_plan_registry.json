@@ -1,14 +1,14 @@
 {
-  "version": "2026-09-01.v33",
+  "version": "2026-09-01.v35",
   "updated_at": "2026-09-01",
   "execution_focus": {
-    "unit_id": null,
+    "unit_id": "DATA-09",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Personal-project single-owner mode remains active under docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json: one real owner may hold all governance roles, but signatures never manufacture authority rows, typed runtime values, business definitions, retained observations, staging outcomes or elapsed time. The owner-authorized DATA-07, TAR-07 and GOV-02 sequence is repository-complete with three independent commits and SHA-sidecar evidence; execution_focus therefore returns to null. GOV-02 excludes exact /etc/ and /var/ filesystem prefixes while preserving real route detection, and the canonical consistency check plus the complete Fast Feedback targeted pytest selection pass. Downstream checks separately exposed an unregistered DATA-06 runner/stale entrypoint inventory and an unregistered dynamic reliability-reason boundary; neither is absorbed into GOV-02, and a new repository unit requires explicit plan authorization. No push, merge, deployment, production write, external call, load, fault injection or runtime enablement is authorized."
+    "policy": "Personal-project single-owner mode remains active under docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json: one real owner may hold all governance roles, but signatures never manufacture authority rows, typed runtime values, business definitions, retained observations, staging outcomes or elapsed time. On 2026-09-01 the owner explicitly authorized registering and completing DATA-08 then DATA-09 as independent commits and, after local gates pass, pushing the resulting branch to origin/dev/next-development. DATA-08 is repository-complete with canonical evidence and an inventory of 1151 entries, candidate-review=0 and legacy direct/wrapper=0. DATA-09 is now the sole repository focus and may only register the exact decision-runtime activation dynamic reliability reason boundary; runtime logic and current-data gates must remain unchanged. No merge, deployment, production read/write, external call, load, fault injection or runtime enablement is authorized."
   },
   "workstreams": [
     {
@@ -88,7 +88,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "DATA-07 is repository-complete with docs/testing/data07-akshare-quote-fixture-contract-closure-evidence-2026-09-01.json: the CI fixture now obeys the authoritative QuoteSnapshot source contract, asserts propagated source provenance, 40 focused tests pass and production adapter behavior is unchanged. DATA-06 historical simulation remains DENY and does not satisfy DATA-02/03. After the separately registered TAR-07/GOV-02 CI corrective chain closes and a clean successor is deployed, prove connection/readiness stability across multiple scrape intervals, then run the candidate-bound production dry-run followed by the already authorized bounded backfill and production reconciliation. Any deployed candidate change resets TUI-02 observation.",
+      "next_gate": "DATA-08 is repository-complete with docs/testing/data08-data-center-entrypoint-inventory-closure-evidence-2026-09-01.json: the DATA-06 runner now uses App-root composition, the deterministic inventory contains 1151 entries with candidate-review=0, and legacy direct/wrapper counts remain zero. DATA-09 is the sole repository focus: register only the exact decision-runtime activation reliability-reason boundary, then prove the ownership guard, focused activation tests and all current-data contracts remain valid. DATA-06 historical simulation remains DENY and does not satisfy DATA-02/03; no production behavior or gate is changed.",
       "documents": [
         {
           "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
@@ -277,7 +277,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-09-01.v31",
+    "version": "2026-09-01.v33",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -671,6 +671,32 @@
           "DATA-06"
         ],
         "exit_gate": "Completed on 2026-09-01 with docs/testing/data07-akshare-quote-fixture-contract-closure-evidence-2026-09-01.json (SHA-256 13f91dc5d9a387bffe5549ac5d098d7f4680efcfa0fdddbc5530fffabd032b78): the AKShare provider-path fixture now uses the authoritative QuoteSnapshot source contract and asserts both output source and extra.actual_source. The previously failing CI node and related provider adapter coverage pass as 40/40; Ruff, Black, isort, registry and governance checks pass, and no production code or runtime behavior changed."
+      },
+      {
+        "id": "DATA-08",
+        "workstream_id": "data-production-reliability",
+        "wave": 3,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "completed",
+        "title": "Close the deterministic Data Center entrypoint inventory",
+        "depends_on": [
+          "GOV-02"
+        ],
+        "exit_gate": "Completed on 2026-09-01 with docs/testing/data08-data-center-entrypoint-inventory-closure-evidence-2026-09-01.json (SHA-256 7bc2d406d72cfb6fdd176b9fc3faf16b7bb9fa50ff0c939fafe0d1ab47407db0): the DATA-06 runner reaches PostgreSQL only through App-root composition, its script is governed as active, semantic aliases require one non-empty screen-bound contract-identical match, all discovered operational evidence is dispositioned, the current 1151-entry inventory has candidate-review=0, legacy direct/wrapper=0, and 34 focused tests plus format, type, architecture and governance gates pass."
+      },
+      {
+        "id": "DATA-09",
+        "workstream_id": "data-production-reliability",
+        "wave": 3,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "active",
+        "title": "Register the decision-runtime dynamic reliability reason boundary",
+        "depends_on": [
+          "DATA-08"
+        ],
+        "exit_gate": "governance/reliability_contracts.json binds apps/config_center/application/decision_runtime_activation.py and its _run_probes symbol to only the three canonical probe-failure reason codes, the reliability ownership guard and focused activation/ownership tests pass, all current-data contracts remain valid, and no runtime logic or reason code is weakened."
       },
       {
         "id": "DATA-03",

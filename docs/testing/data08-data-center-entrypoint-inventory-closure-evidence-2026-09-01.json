@@ -1,0 +1,119 @@
+{
+  "schema_version": "data08-data-center-entrypoint-inventory-closure.v1",
+  "unit_id": "DATA-08",
+  "recorded_at": "2026-09-01T06:45:22.158Z",
+  "repository_head": "fe0fc33bc78390c15244025f176cfd6ed31550e8",
+  "trigger": {
+    "legacy_guard_failure": "unregistered_script_entrypoint:scripts/run_data02_isolated_simulation.py",
+    "inventory_state": "stale",
+    "candidate_review_before": 6,
+    "classification": "data_center_entrypoint_governance_boundary_incomplete"
+  },
+  "working_tree_binding": {
+    "state": "uncommitted_source_hashes",
+    "files": [
+      {
+        "path": "apps/data_center/data02_isolated_simulation_composition.py",
+        "sha256": "a5954b388ecd9513771fa579741977e0fae8ed250ada8cb3f6d70e22e8270ac4"
+      },
+      {
+        "path": "scripts/run_data02_isolated_simulation.py",
+        "sha256": "90eec029a1e76905210c9e90cf5d90d8b9059cbbfb5025e2ca46dc7d4fe44922"
+      },
+      {
+        "path": "scripts/data_center_entrypoint_inventory.py",
+        "sha256": "1486280c5ac13d2db03e1a2802fd7cf8f37102bf92e77f1cdf7eaab7558bb6c7"
+      },
+      {
+        "path": "governance/data_center_operational_entrypoints.json",
+        "sha256": "67bca642386aaac4f86c9b7d69b2f200b32164bb80786c1b09b3bbcfbc4635d9"
+      },
+      {
+        "path": "governance/data_center_entrypoints.json",
+        "sha256": "27c93a322956ca2b762dabf8458b1068a6bdd4c139798f8529cb0f23919ca3c5"
+      },
+      {
+        "path": "tests/unit/test_data_center_entrypoint_inventory.py",
+        "sha256": "07c204b3980037e65a995d948981d43eea9bd0bdd99376a7924249d36a6f4038"
+      },
+      {
+        "path": "tests/unit/data_center/test_data02_isolated_simulation_composition.py",
+        "sha256": "aa05da0bc4a18f38c45406d5a49141013082c5fd78e6ce37cea4b4b08d0f0375"
+      }
+    ]
+  },
+  "implemented_contract": {
+    "runner": "scripts/run_data02_isolated_simulation.py",
+    "composition_root": "apps.data_center.data02_isolated_simulation_composition.make_data02_isolated_simulation_use_case",
+    "runner_direct_infrastructure_import": false,
+    "runner_governed_as_active_script": true,
+    "semantic_alias_rule": "exact key or one unique approved:semantic-alias with non-empty identical screen_key and identical endpoint/method/intent/request/response signature",
+    "ambiguous_or_missing_screen_alias_rejected": true,
+    "operational_test_evidence_dispositioned": 3,
+    "inventory_regenerated": true
+  },
+  "inventory": {
+    "total": 1151,
+    "active_public": 718,
+    "adjacent_operational": 296,
+    "compatibility": 137,
+    "candidate_review": 0,
+    "retired_blocked": 0,
+    "legacy_direct": 0,
+    "legacy_compatibility_wrappers": 0
+  },
+  "validation": {
+    "focused_tests": {
+      "command": "pytest tests/unit/test_data_center_entrypoint_inventory.py tests/unit/test_data_center_legacy_entrypoints.py tests/unit/test_run_data02_isolated_simulation.py tests/unit/data_center/test_data02_isolated_simulation.py tests/unit/data_center/test_data02_isolated_simulation_composition.py -q",
+      "passed": 34,
+      "failed": 0,
+      "duration_seconds": 93.26
+    },
+    "inventory_guard": "passed",
+    "legacy_entrypoint_guard": "passed",
+    "mypy_regression": {
+      "production_files": 3,
+      "regressions": 0,
+      "legacy_errors": 0
+    },
+    "mypy_debt_ceiling": {
+      "errors": 0
+    },
+    "format_and_lint": {
+      "black": "passed",
+      "isort": "passed",
+      "ruff": "passed"
+    },
+    "architecture": {
+      "scanned_files": 3009,
+      "boundary_rules": 7,
+      "violations": 0
+    },
+    "active_plan_registry": {
+      "version": "2026-09-01.v35",
+      "violations": 0
+    },
+    "governance": {
+      "baseline_version": "2026-08-12.v219",
+      "violations": 0
+    }
+  },
+  "exit_gate": {
+    "repository_unit_completed": true,
+    "inventory_current": true,
+    "candidate_review_zero": true,
+    "legacy_entrypoints_zero": true,
+    "production_gate_completed": false,
+    "next_repository_unit": "DATA-09"
+  },
+  "safety_boundary": {
+    "production_database_reads": false,
+    "production_database_writes": false,
+    "network_io": false,
+    "deployment_executed": false,
+    "push_executed": false,
+    "runtime_enabled": false,
+    "production_claim": false,
+    "production_ready": false
+  }
+}

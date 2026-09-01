@@ -5006,3 +5006,40 @@ Git SHA / 镜像 / migration：
 - DATA-07 只关闭候选 CI 的 Data fixture blocker，不宣称整条候选 CI 已绿；TAR inventory/HTTP ownership
   与 documentation route parser 仍由 `TAR-07`、`GOV-02` 分别关闭。无生产读写、外部网络、部署、push、
   runtime enablement 或生产结论。唯一 repository focus 已晋级 `TAR-07`。
+
+## 152. 2026-09-01：DATA-08/09 corrective activation
+
+- 项目所有者已授权在 `GOV-02` 后依次登记并完成 `DATA-08 -> DATA-09`，各自形成独立提交；本地门禁
+  全部通过后，允许把现有及新增 corrective 提交推送至 `origin/dev/next-development`。先前三个 corrective
+  已随用户的 `STRAT-01` 提交 `fe0fc33bc78390c15244025f176cfd6ed31550e8` 到达远端，因此本轮不得
+  回退、重写或混合该历史。
+- `DATA-08` 是唯一 repository focus：DATA-06 runner 必须通过 App-root composition factory 取得
+  PostgreSQL snapshot adapter，不再从 script 直接导入 Infrastructure；runner 同时登记为受治理的 active
+  Data Center tool。deterministic inventory 只能把唯一且 contract-identical 的 published semantic alias
+  视为同一 TUI action，歧义或签名漂移继续失败关闭；全部 operational test-evidence surface 必须逐项给出
+  owner disposition，重建后的 `candidate-review` 必须为 0，legacy direct/wrapper 必须保持 0。
+- `DATA-09=waiting_dependency`，只在 DATA-08 完成后登记
+  `apps/config_center/application/decision_runtime_activation.py::_run_probes` 生成的三个 canonical
+  `*_probe_failed` reliability reason；不得修改 runtime 逻辑、放宽 reason pattern、启用 queued/decision
+  runtime 或改变 current-data gate。
+- 两个单元都只允许 repository 代码、测试、机器治理、结构化 evidence 与计划回写；不授权 merge、部署、
+  生产读写、外部调用、流量/负载、故障注入、authority/approval 变更或 live rollback。
+
+## 153. 2026-09-01：DATA-08 deterministic entrypoint inventory exit
+
+- `run_data02_isolated_simulation.py` 现在只从 App-root composition 导入 candidate/request/factory，由
+  `data02_isolated_simulation_composition.py` 在仓库边界组装 PostgreSQL adapter 与 Application use case；
+  script 不再直接导入 Infrastructure，并作为 active Data Center governance tool 进入 inventory。
+- generated TUI action 先按 exact key 匹配；只有 exact key 缺失时，才接受同一非空 `screen_key`、
+  `source=approved:semantic-alias`、五字段 dispatch signature 完全一致且唯一的 published alias。缺 screen、
+  签名差异或多个候选全部 fail closed。Data Center 两条既有 semantic alias 的 action 与 screen edge 均由
+  `candidate-review` 收敛为 `active_public`。
+- Account owner-tenant PostgreSQL concurrency/settings 与 Audit archive 三项 test evidence 已逐项登记为
+  `adjacent_operational`。重建 inventory 共 1,151 项：718 active、296 adjacent、137 compatibility、
+  `candidate-review=0`、retired=0；legacy direct/wrapper 均为 0。
+- 聚焦组合回归 `34 passed`；3 个生产文件增量 mypy 和全仓 debt 均为 0；3,009-file architecture、
+  Black/isort/Ruff、active-plan registry 与 governance consistency 全绿。结构化证据为
+  [`data08-data-center-entrypoint-inventory-closure-evidence-2026-09-01.json`](../testing/data08-data-center-entrypoint-inventory-closure-evidence-2026-09-01.json)，
+  SHA-256=`7bc2d406d72cfb6fdd176b9fc3faf16b7bb9fa50ff0c939fafe0d1ab47407db0`。
+- 本单元没有连接生产、读写数据库、调用网络、部署、启用 runtime 或形成生产可用结论。唯一 repository
+  focus 已切换为 `DATA-09`，只允许登记精确 dynamic reliability reason boundary。

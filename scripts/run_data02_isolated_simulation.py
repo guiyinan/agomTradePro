@@ -26,13 +26,10 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from apps.data_center.application.data02_isolated_simulation import (  # noqa: E402
+from apps.data_center.data02_isolated_simulation_composition import (  # noqa: E402
     Data02IsolatedSimulationCandidate,
     Data02IsolatedSimulationRequest,
-    RunData02IsolatedSimulationUseCase,
-)
-from apps.data_center.infrastructure.data02_isolated_snapshot import (  # noqa: E402
-    PostgresData02HistoricalSnapshotAdapter,
+    make_data02_isolated_simulation_use_case,
 )
 from scripts.verify_postgres_backup_restore import (  # noqa: E402
     PostgresTarget,
@@ -248,10 +245,8 @@ def main(argv: list[str] | None = None) -> int:
             restored_database=restore_database,
             as_of=_parse_utc(str(args.as_of)),
         )
-        report = RunData02IsolatedSimulationUseCase(
-            snapshot_port=PostgresData02HistoricalSnapshotAdapter(
-                database_url=target.url_for_database(restore_database)
-            )
+        report = make_data02_isolated_simulation_use_case(
+            database_url=target.url_for_database(restore_database)
         ).execute(request)
         report_payload = report.to_dict()
     except BaseException as exc:  # noqa: BLE001 - normalized after mandatory cleanup
