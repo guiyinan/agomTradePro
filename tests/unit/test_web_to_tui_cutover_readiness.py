@@ -46,6 +46,7 @@ def _file_digest(path: Path) -> str:
     content = (
         _normalized_source_bytes(path)
         if path.suffix.lower() in {".csv", ".md", ".txt"}
+        or path.name == "retained-observation.json"
         else path.read_bytes()
     )
     return hashlib.sha256(content).hexdigest()

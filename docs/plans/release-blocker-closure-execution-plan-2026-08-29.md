@@ -612,3 +612,17 @@ Consistency `33619653074`、Fast Feedback `33619653085` 四条 CI 均 success。
 不使用 Docker socket sidecar；本 slice 未安装、未重启、未部署或修改 VPS，未改变当前候选、TUI-02
 观察窗口或任何 DATA/EVID/STRAT/AUD/TAR 门禁。下一步仅在明确授权后安装 timer，并对实际恢复取一次
 候选绑定证据；安装或任何 restart 都按 TUI-02 规则重新绑定 retained sample。
+
+### 13.22 TUI-02 retained checkpoint 跨平台哈希护栏
+
+候选 `aa7127ff4` 的 retained checkpoint sidecar 使用 Git canonical LF 字节，但 Windows
+`text=auto` checkout 会把工作树 JSON materialize 为 CRLF。此前
+`scripts/check_web_to_tui_cutover_readiness.py` 调用的 retained validator 直接哈希 raw bytes，
+因而在本机把有效 checkpoint 误判为 `retained_source=false`；Linux CI 不会暴露该差异。
+
+`scripts/web_to_tui_retained_observation.py` 现在在绑定和校验时统一使用 UTF-8/Git-compatible LF
+字节，仍对内容变化保持 SHA fail-closed；不会修改生产 raw-byte provenance，也不会放宽候选、观察窗口或
+任何生产门禁。新增 CRLF checkout 回归，并修正 synthetic readiness fixture 使用同一 canonical digest。
+验证：retained/readiness focused `41 passed`；retained binding CLI dry-run 正确识别首样本
+`2026-09-01T16:56:29.796000Z` 与 eligible `2026-09-15T16:56:29.796000Z`；当前 readiness 仍
+`5/10 DENY`，其余缺失的 telemetry/defect/backup/attestation 证据未被伪造。

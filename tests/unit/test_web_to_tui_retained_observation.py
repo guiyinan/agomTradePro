@@ -133,6 +133,28 @@ def test_checkpoint_hash_drift_fails_closed(tmp_path: Path) -> None:
         )
 
 
+def test_checkpoint_hash_is_stable_across_checkout_line_endings(tmp_path: Path) -> None:
+    """A Git-canonical evidence digest survives a Windows CRLF checkout."""
+
+    checkpoint = _write_checkpoint(tmp_path)
+    prepared = retained.bind_retained_observation(
+        _evidence(),
+        checkpoint_path=checkpoint,
+        replace=False,
+        root=tmp_path,
+    )
+    canonical = checkpoint.read_bytes()
+    checkpoint.write_bytes(canonical.replace(b"\n", b"\r\n"))
+
+    binding = retained.validate_retained_observation_checkpoint(
+        prepared["candidate"],
+        root=tmp_path,
+    )
+    assert (
+        binding.evidence_sha256 == prepared["candidate"]["retained_observation"]["evidence_sha256"]
+    )
+
+
 def test_candidate_or_monitoring_drift_cannot_start_the_clock(tmp_path: Path) -> None:
     """Candidate identity and every retained-source health gate remain mandatory."""
 

@@ -1352,6 +1352,7 @@
 - 当前 `dev/next-development` 已包含 `efe301941` 的 registered blocked decision-readiness fail-closed 修复；此前 `353de23e` 同步索引、`140bf23f` 刷新 deterministic Data Center architecture/entrypoint inventories，相关 Architecture、Security、Consistency、Fast Feedback 四条 CI 均已转绿。
 - 当前受控 VPS 候选仍为 `aa7127ff4d9f71555b0d0486314da5518bd2ac20` / release `20260901232812`；9/2 的只读部署、EVID/STRAT/AUD 快照和 TUI-02 retained-source 事实已回写计划 README。EVID/DATA/STRAT/AUD/TAR 生产门禁仍按注册表 fail-closed，TUI-02 观察窗口未到期，不重复部署或写生产。
 - EVID-04 跨平台 content-addressed fixture 已完成；修复只影响 repository fixture bytes，不改变生产 raw-byte provenance、authority zero-seed 或 `decision-ready` 阻断。
+- TUI-02 retained checkpoint 读取护栏已补齐：validator 与 binding 统一使用 Git canonical LF 字节，Windows CRLF checkout 不再误报 retained source 缺失；retained/readiness focused `41 passed`，当前 readiness 仍 `5/10 DENY`，未改变生产候选、观察窗口或任何门禁。
 - 2026-09-02 候选只读复核发现 Web `running/unhealthy`、公网 health/ready/decision 全为 `502`，但候选身份未漂移、Prometheus target 仍 up；已新增候选绑定只读工件和本地 decision-readiness blocked 短路修复，未重启/部署/写生产，所有生产门禁继续 fail-closed。
 
 **文档维护**: AgomTradePro Team

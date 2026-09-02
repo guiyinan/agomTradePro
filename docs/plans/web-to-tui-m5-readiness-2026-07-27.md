@@ -1087,6 +1087,9 @@ SHA-256=`96d7031e0da8ba6a6d037d800fd8cd4add782b9f3369e93e0e6c645a051052c3`；首
 该 checkpoint 当时确认 candidate/image 无漂移、Prometheus target/rules/retention 可用；另一次
 候选绑定只读刷新记录了 Web `running/unhealthy` 与公网 `502`，因此生产可用性不能从部署身份推断。
 
+本地 retained checkpoint validator 已按 Git canonical LF 字节校验 JSON，Windows CRLF checkout 不再
+把该有效 checkpoint 误判为缺失；这只是证据读取一致性修复，不改变 checkpoint 内容、候选绑定或生产门禁。
+
 本候选 readiness 仍为 `5/10 DENY`：source consistency、execution dependency、route UAT、
 cleanup readiness、isolated rollback 已有证据；稳定窗口、structured blocking-defect、101-task
 telemetry、post-window registry backup/review 与 sole-owner role-bound attestations 尚未满足。

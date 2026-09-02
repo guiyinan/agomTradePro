@@ -37,6 +37,13 @@ class RetainedObservationBinding:
     minimum_observation_seconds: int
 
 
+def _canonical_text_bytes(path: Path) -> bytes:
+    """Return UTF-8 evidence bytes with Git-compatible LF line endings."""
+
+    text = path.read_text(encoding="utf-8")
+    return text.replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
+
+
 def _mapping(value: object) -> dict[str, Any]:
     """Narrow one dynamic JSON value to a mapping."""
 
@@ -131,7 +138,7 @@ def validate_retained_observation_checkpoint(
 
     binding = parse_retained_observation(candidate)
     path = _repository_evidence_path(binding.evidence, root=root)
-    if hashlib.sha256(path.read_bytes()).hexdigest() != binding.evidence_sha256:
+    if hashlib.sha256(_canonical_text_bytes(path)).hexdigest() != binding.evidence_sha256:
         raise RetainedObservationError("Retained-observation checkpoint SHA-256 mismatch")
     payload_value = cast(Any, json.loads(path.read_text(encoding="utf-8")))
     if not isinstance(payload_value, dict):
@@ -298,7 +305,7 @@ def bind_retained_observation(
     if not resolved.is_relative_to(resolved_root) or not resolved.is_file():
         raise RetainedObservationError("Checkpoint must be an existing repository file")
     relative = resolved.relative_to(resolved_root).as_posix()
-    checkpoint_sha256 = hashlib.sha256(resolved.read_bytes()).hexdigest()
+    checkpoint_sha256 = hashlib.sha256(_canonical_text_bytes(resolved)).hexdigest()
     checkpoint_value = cast(Any, json.loads(resolved.read_text(encoding="utf-8")))
     if not isinstance(checkpoint_value, dict):
         raise RetainedObservationError("Checkpoint must be a JSON object")
