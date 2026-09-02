@@ -1,7 +1,8 @@
 # 生产数据可靠性完整修复与测试计划（2026-08-01）
 
-> 实施状态（2026-08-01）：本地代码、迁移、治理契约和专项回归已完成；待提交、CI、生产备份、维护态切换、全量回填和生产验收。生产步骤完成前不得勾选 P1/P2 的上线验收项。
-> 当前综合编排：[`release-blocker-closure-execution-plan-2026-08-29.md`](release-blocker-closure-execution-plan-2026-08-29.md)。截至 2026-08-31，`DATA-01` 已关闭；successor 上 PostgreSQL client 已耗尽，`DATA-04/05` repository 修复已完成但尚未部署，`DATA-02/03` 继续 fail-closed。
+> 历史实施状态（2026-08-01）：本地代码、迁移、治理契约和专项回归已完成；当时待提交、CI、生产备份、维护态切换、全量回填和生产验收。生产步骤完成前不得勾选 P1/P2 的上线验收项。
+> 历史综合快照（截至 2026-08-31）：[`release-blocker-closure-execution-plan-2026-08-29.md`](release-blocker-closure-execution-plan-2026-08-29.md) 当时记录 `DATA-01` 已关闭、successor 上 PostgreSQL client 已耗尽，`DATA-04/05` repository 修复已完成但尚未部署，`DATA-02/03` 继续 fail-closed；该段不代表当前部署状态。
+> 当前状态（2026-09-03）：registry v40 已确认 `DATA-04/05/06/07/08/09` repository closure 完成；候选 `aa7127ff4d9f71555b0d0486314da5518bd2ac20` / release `20260901232812` 已部署。`DATA-02` 仍为 `DENY`/`awaiting_production`，只读 dry-run 不写生产；`DATA-03` 继续依赖阻断。当前决策使用、回填/publication 切换和 owner 授权仍未通过。
 
 ## 1. 背景与问题定义
 
