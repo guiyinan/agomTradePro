@@ -1666,7 +1666,7 @@ Day 0 结果不冒充完整观察、101-task telemetry、defect snapshot、post-
 `sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c`。对应部署 preflight
 [`web-to-tui-deployment-preflight-20260901232812.json`](web-to-tui-deployment-preflight-20260901232812.json)
 SHA-256=`e5b613548811f89cb06659eed976786a5fb7e97593626ce2529665ff2b6a8f89`，candidate commit、
-release 与 OCI revision 精确一致；本节复用已落盘工件，未在本轮重复部署或重启。
+release 与 OCI revision 精确一致；本节复用已落盘部署工件，不重复部署候选。
 
 immutable binding 为 `web-to-tui-candidate-binding.v1`：candidate version `20260901232812`、
 candidate commit `aa7127ff4d9f71555b0d0486314da5518bd2ac20`、matrix SHA
@@ -1683,6 +1683,9 @@ sample 为 `2026-09-01T16:56:29.796000Z`，精确 eligible instant 为 `2026-09-
 
 9 月 2 日候选绑定只读刷新还记录了 Web `running/unhealthy`、Caddy upstream timeout 与公网
 health/ready/decision `502`；Prometheus target 仍 up。该可用性事故已在仓库补齐可选 host-level
-Web watchdog 合同，但 watcher 尚未安装或在 VPS 执行；任何实际 restart 都会按 TUI-02 规则重绑
-retained sample。因而本候选的生产 readiness、决策门和容量/故障/恢复门禁仍保持
-`DENY` / `must_not_use_for_decision=true`，没有把本地修复或 CI 绿灯当作生产恢复证据。
+Web watchdog 合同，但 watcher 尚未安装或在 VPS 执行。随后仅执行一次受控 web-only restart，
+同一候选恢复为 Web/Prometheus `healthy`，公网 health/ready=`200`、decision-ready=`503` 且
+`must_not_use_for_decision=true`；对应 reset artifact
+[`tui02-production-observation-reset-2026-09-02-aa7127ff.json`](tui02-production-observation-reset-2026-09-02-aa7127ff.json)
+已绑定候选与旧 checkpoint 的 canonical SHA。因而旧 retained sample 仅保留为历史，当前生产 readiness、
+决策门和容量/故障/恢复门禁仍保持 `DENY` / fail-closed，不能把本地修复或 CI 绿灯当作生产恢复证据。

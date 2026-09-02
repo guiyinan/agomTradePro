@@ -26,4 +26,5 @@
 留存、持久卷、真实 scrape target、M5 rules、健康检查、打包与认证 HTTPS query 合同已经通过，
 结构化证据为
 [`tui03-retained-monitoring-repository-closure-evidence-2026-08-30.json`](../testing/tui03-retained-monitoring-repository-closure-evidence-2026-08-30.json)。
-`TUI-02` 已在后续候选 `aa7127ff4…` / release `20260901232812` 部署并进入从首个 retained sample 起算的真实 14 日窗口；本历史包中的部署状态不再适用。
+`TUI-02` 已在后续候选 `aa7127ff4…` / release `20260901232812` 部署；2026-09-02 的受控 web-only restart
+使此前 retained window 作废，当前等待重启后的首个真实样本及新的精确 14 日窗口。本历史包中的部署状态不再适用。
