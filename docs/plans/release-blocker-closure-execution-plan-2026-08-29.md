@@ -626,3 +626,14 @@ Consistency `33619653074`、Fast Feedback `33619653085` 四条 CI 均 success。
 验证：retained/readiness focused `41 passed`；retained binding CLI dry-run 正确识别首样本
 `2026-09-01T16:56:29.796000Z` 与 eligible `2026-09-15T16:56:29.796000Z`；当前 readiness 仍
 `5/10 DENY`，其余缺失的 telemetry/defect/backup/attestation 证据未被伪造。
+
+### 13.23 VPS bundle watchdog 资产验收护栏
+
+watchdog 已由 `scripts/package-for-vps.ps1` 纳入部署包，但原
+`scripts/verify-vps-bundle.ps1` 的 required-file 集合未强制检查 service、timer 和脚本本身；
+这会允许不完整的 bundle 在不启用 watcher 的情况下通过文件验收。现已把
+`deploy/agomtradepro-web-watchdog.service`、`deploy/agomtradepro-web-watchdog.timer` 与
+`scripts/vps-web-watchdog.sh` 加入 required-file 合同，并补 verifier source regression。
+
+`tests/unit/test_vps_web_watchdog.py` `5 passed`，PowerShell parser 通过；本 slice 不安装 timer、
+不部署或重启 VPS，不改变候选、retained window 或任何生产门禁。

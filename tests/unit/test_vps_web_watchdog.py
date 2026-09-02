@@ -242,6 +242,7 @@ def test_watchdog_installation_is_explicit_and_packaged_without_docker_sidecar()
     )
     timer = (REPO_ROOT / "deploy" / "agomtradepro-web-watchdog.timer").read_text(encoding="utf-8")
     packaging = (REPO_ROOT / "scripts" / "package-for-vps.ps1").read_text(encoding="utf-8")
+    verifier = (REPO_ROOT / "scripts" / "verify-vps-bundle.ps1").read_text(encoding="utf-8")
 
     assert '"$docker_bin" compose' in script
     assert "docker.sock" not in script
@@ -251,3 +252,6 @@ def test_watchdog_installation_is_explicit_and_packaged_without_docker_sidecar()
     assert "Copy-Item scripts/vps-web-watchdog.sh" in packaging
     assert "Copy-Item deploy/agomtradepro-web-watchdog.service" in packaging
     assert "Copy-Item deploy/agomtradepro-web-watchdog.timer" in packaging
+    assert '"deploy/agomtradepro-web-watchdog.service"' in verifier
+    assert '"deploy/agomtradepro-web-watchdog.timer"' in verifier
+    assert '"scripts/vps-web-watchdog.sh"' in verifier
