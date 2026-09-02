@@ -1365,7 +1365,7 @@
 ### 2026-09-03
 
 - TUI Workbench 完整单测复核通过：`python -m pytest tests/unit/test_tui_workbench.py -q -p no:cacheprovider` 为 `308 passed`；仅补强本地验收证据，不改变 TUI-02 或其他生产门禁。
-- 服务器端只读 TUI-02 探针登录页 `200`/CSRF 存在，但 login POST `403`；随后 TUI GET `200` 未形成已认证 migration metric，Prometheus raw series 仍为 `0`。未提交表单、写业务库、部署或重启；认证/角色 UAT 与 post-reset retained sample 仍待受控账号和真实流量。
+- 服务器端只读 TUI-02 探针登录页 `200`/CSRF 存在，login POST `200` 并建立会话；带会话访问 `/tui/`、`/api/tui/registry/`、`/api/tui/catalog/`、`/api/tui/screens/command-center.overview/` 均 `200`，公开 Prometheus 暴露 `screen:command-center.overview=7`、`screen:research.signals=2` 两条 TUI entry series。未提交表单、写业务库、部署或重启；这是已认证只读可达性证据，不是 candidate-bound retained sample，认证/角色 UAT、写后持久化与 post-reset 精确 14 日窗口仍待受控账号和真实流量。
 - 低频公网只读复核 [`tar01-public-health-readonly-recheck-2026-09-03.json`](deployment/tar01-public-health-readonly-recheck-2026-09-03.json)：`/api/health/` 与 `/api/ready/` 均 `200`（database/Redis/Celery/critical data=`ok`，decision data=`warning`，Celery worker=`1`）；`/api/decision-ready/` 为 `503 blocked`、`must_not_use_for_decision=true`，runtime/core coverage/provider capability 仍 fail-closed。公开端点未暴露候选身份，本次未部署、未重启、未迁移、未写生产。
 - active registry v41 已将 AI-01 与 TUI usability next_gate 统一绑定当前候选 `aa7127ff4…` / `20260901232812`，并保留 TAR-05、TUI-02 的依赖停止线；不改变任何生产 unit 状态或授权边界。
 - 2026-09-03 计划投影复核已将发布阻塞、M5 readiness、关键可靠性和 Data Center 计划中的旧候选/初始缺口明确标为历史，并把当前事实对齐到 `aa7127ff4…` / `20260901232812`；仅修正文档，不改变生产门禁。
