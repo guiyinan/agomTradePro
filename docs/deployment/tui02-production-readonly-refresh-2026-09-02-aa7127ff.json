@@ -1,0 +1,123 @@
+{
+  "schema": "tui02-production-readonly-refresh.v1",
+  "environment": "production",
+  "collected_at": "2026-09-02T09:24:13Z",
+  "collection_mode": "read_only",
+  "production_claim": false,
+  "production_ready": false,
+  "runtime_enablement": "not_authorized",
+  "candidate": {
+    "expected": {
+      "commit": "aa7127ff4d9f71555b0d0486314da5518bd2ac20",
+      "release_id": "20260901232812",
+      "image_id": "sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c"
+    },
+    "observed": {
+      "commit": "aa7127ff4d9f71555b0d0486314da5518bd2ac20",
+      "release_id": "20260901232812",
+      "release_target": "/opt/agomtradepro/releases/source-20260901232812",
+      "image_id": "sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c",
+      "manifest_sha256": "0622dc39b39f9f264173dea889a4cbc40d48cf90827856ef43406ba109accb6c"
+    },
+    "candidate_drift": false
+  },
+  "observations": {
+    "web": {
+      "observed_at": "2026-09-02T09:24:13Z",
+      "container_id": "57effffd85c88b23ce699d4aeff45ceda7b79f7b155bab4d778997c173cc519e",
+      "status": "running",
+      "health": "unhealthy",
+      "restart_count": 0,
+      "oom_killed": false,
+      "started_at": "2026-09-01T16:47:12.395198638Z",
+      "healthcheck_last_failure": "curl: (28) Connection timed out after 2007 milliseconds",
+      "healthcheck_failure_at": "2026-09-02T09:24:07.792958336Z"
+    },
+    "public_probes": {
+      "observed_at": "2026-09-02T09:24:13Z",
+      "origin": "https://demo.agomtrade.pro",
+      "health": {
+        "http_status": 502,
+        "response_time_seconds": 3.116943,
+        "body_bytes": 0
+      },
+      "ready": {
+        "http_status": 502,
+        "response_time_seconds": 3.029073,
+        "body_bytes": 0
+      },
+      "decision_ready": {
+        "http_status": 502,
+        "response_time_seconds": 3.017892,
+        "body_bytes": 0
+      },
+      "caddy_upstream_error": "dial tcp 172.18.0.6:8000: i/o timeout"
+    },
+    "prometheus": {
+      "observed_at": "2026-09-02T09:19:17.592659309Z",
+      "container_id": "27879c7067c3e38d7727fc4dbd62fe59abf7ceddcf7019cfd62b8eb661849f60",
+      "status": "running",
+      "health": "healthy",
+      "restart_count": 0,
+      "target_up": true,
+      "active_alert": {
+        "name": "HighAPILatency",
+        "endpoint": "/api/ready/",
+        "state": "pending",
+        "p95_seconds": 4.875,
+        "threshold_seconds": 1.0
+      }
+    },
+    "decision_probe_incident": {
+      "observed_at": "2026-09-02T08:59:27Z",
+      "request_timeout_seconds": 12,
+      "response": "timeout_without_body",
+      "daphne_application_killed_slow_request": true,
+      "fail_closed_expected": true
+    },
+    "worker": {
+      "observed_at": "2026-09-02T09:23:24Z",
+      "status": "running",
+      "restart_count": 0,
+      "recent_task": "apps.data_center.application.tasks.refresh_market_thermometer_task",
+      "recent_task_outcome": "success",
+      "recent_task_runtime_seconds": 110.10348774772137,
+      "upstream_warnings": "EastMoney/AKShare requests repeatedly disconnected or returned 502"
+    }
+  },
+  "local_correction": {
+    "commit": "ac95af184",
+    "source_files": [
+      "core/health_checks.py",
+      "tests/component/test_health_checks.py"
+    ],
+    "behavior": "When the persisted decision runtime gate is blocked, return the complete four-key fail-closed projection without scanning the full decision universe; retain the full checks when the gate is open.",
+    "deployed": false,
+    "ci_pending": false,
+    "ci_runs": {
+      "architecture": "https://github.com/guiyinan/agomTradePro/actions/runs/33615499188",
+      "security": "https://github.com/guiyinan/agomTradePro/actions/runs/33615499197",
+      "consistency": "https://github.com/guiyinan/agomTradePro/actions/runs/33615499196",
+      "fast_feedback": "https://github.com/guiyinan/agomTradePro/actions/runs/33615499201"
+    }
+  },
+  "side_effects": {
+    "remote_deploy": false,
+    "remote_restart": false,
+    "remote_database_write": false,
+    "remote_configuration_change": false,
+    "load_or_chaos_test": false,
+    "authority_or_approval_mutation": false
+  },
+  "gate": {
+    "decision": "DENY",
+    "must_not_use_for_decision": true,
+    "web_service_available": false,
+    "next_action": "Review CI for the local fail-closed correction, then obtain explicit approval for one controlled candidate-bound recovery deployment or restart; re-attest candidate identity and reset any observation window after a restart."
+  },
+  "limitations": [
+    "This is a low-frequency read-only incident observation, not a production UAT or readiness approval.",
+    "The running candidate does not contain the local correction yet.",
+    "No durable publisher, authority lifecycle, DATA-02 reconciliation, queued runtime, capacity/chaos, restore/rollback, 14-day telemetry, or owner/reviewer attestation is evidenced by this artifact."
+  ]
+}

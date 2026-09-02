@@ -559,3 +559,39 @@ SHA-256=`7c535f2a1802561be3430a8a9a2149da4ab08b885f2ad672f96828209da8a56a`；聚
 扩大回归 `70 passed`，mypy/debt、current-data、格式、3,006-file architecture、Django/migration 与
 治理门禁通过。该单元纯 repository 整理，未连接/写入生产、未重启/部署/backfill，不解除 DATA-02
 生产阻塞，也不改变 TUI-02 候选/观察规则。
+
+### 13.20 候选只读可用性事故与 decision-readiness fail-closed 修复
+
+2026-09-02 对当前 TUI-02 候选执行了一次低频、候选绑定的只读观察，未部署、未重启、未写库、未改配置。
+候选身份没有漂移：commit=`aa7127ff4d9f71555b0d0486314da5518bd2ac20`、release=`20260901232812`、
+image=`sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c`，运行 Web 容器
+restart=`0`、OOM=`false`，但在 `2026-09-02T09:24:13Z` 已为 `running/unhealthy`。同一时间公网
+`/api/health/`、`/api/ready/`、`/api/decision-ready/` 均返回 `502`，Caddy 记录到 `web:8000`
+上游连接超时；最后一次容器 healthcheck 也以 2 秒连接超时失败。Prometheus 仍为
+`running/healthy`、restart=`0`、唯一 scrape target=`up`，但 `/api/ready/` P95=`4.875s` 的
+`HighAPILatency` 告警处于 pending。此前一次 12 秒 decision-ready 探针无响应，Daphne 日志记录了
+超时 application instance 被杀；同一观察窗口中 Celery 的 `refresh_market_thermometer_task`
+耗时约 `110.10s` 成功完成，并伴随 EastMoney/AKShare 断连或 502 警告。这些是事故事实，不足以
+推断单一根因，也不能把当前服务状态判为可用。
+
+候选只读工件为
+[`tui02-production-readonly-refresh-2026-09-02-aa7127ff.json`](../deployment/tui02-production-readonly-refresh-2026-09-02-aa7127ff.json)，
+SHA-256=`8992083e05e5a45c4b22ae20b88802cdc0485d844ecfd8f7942035eeeedb6c16`，并附 sidecar。该工件固定
+`production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`、决策门
+`DENY`/`must_not_use_for_decision=true`，不能作为 production UAT、容量、恢复或签署证据。
+
+为避免全局决策门已经 blocked 时仍扫描 5,533 资产并再次拖住 Web，本地新增
+`run_decision_readiness_checks()` 的 fail-closed 短路：持久化 runtime gate 非 `ok` 或明确
+`must_not_use_for_decision` 时，直接返回完整四键 blocked projection；gate open 时保留原四项严格检查。
+`core/health_checks.py` 的增量 mypy regression=`0`，Black/isort/Ruff 通过；完整
+`tests/component/test_health_checks.py`=`25 passed in 179.93s`，新增 blocked/open 两路径回归均通过。
+修复已提交为 `ac95af184` 并推送，尚未部署到上述候选；对应 CI 与 review 完成前不改变生产绑定。
+
+后续 reason-code 校正提交为 `efe301941`，Architecture、Security、Consistency、Fast Feedback 四条
+CI 均 completed/success（run `33615499188`、`33615499197`、`33615499196`、`33615499201`）。
+CI 只证明仓库合同，不改变生产候选或恢复状态。
+
+本节不授权或暗示远端恢复动作。下一步是等待 CI/review，并在另行明确批准后只做一次受控候选恢复
+（restart/deploy 二选一）与重新取证；任何 restart 都会使 TUI-02 retained window 按规则重新绑定，
+并需复核 Caddy/Daphne/healthcheck 的恢复机制。DATA-02、AUD-03、EVID-01/02、STRAT-01、TAR-01/05
+以及 TUI-02 的 14 日窗口、queued/load/chaos、restore/rollback 与 owner/reviewer 门禁均保持原状态。
