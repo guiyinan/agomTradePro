@@ -1362,6 +1362,7 @@
 ### 2026-09-03
 
 - TUI Workbench 完整单测复核通过：`python -m pytest tests/unit/test_tui_workbench.py -q -p no:cacheprovider` 为 `308 passed`；仅补强本地验收证据，不改变 TUI-02 或其他生产门禁。
+- 服务器端只读 TUI-02 探针登录页 `200`/CSRF 存在，但 login POST `403`；随后 TUI GET `200` 未形成已认证 migration metric，Prometheus raw series 仍为 `0`。未提交表单、写业务库、部署或重启；认证/角色 UAT 与 post-reset retained sample 仍待受控账号和真实流量。
 
 **文档维护**: AgomTradePro Team
 **最后更新**: 2026-09-03
