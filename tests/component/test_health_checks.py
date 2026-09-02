@@ -186,6 +186,74 @@ class TestHealthCheckEndpoints:
 class TestHealthCheckFunctions:
     """Test health check module functions"""
 
+    def test_decision_readiness_short_circuits_after_global_block(self, monkeypatch):
+        """A blocked runtime gate must not run expensive diagnostic checks."""
+
+        from core import health_checks
+
+        runtime_state = {
+            "status": "blocked",
+            "must_not_use_for_decision": True,
+            "block_reason_code": "decision_runtime_blocked",
+        }
+        monkeypatch.setattr(health_checks, "check_decision_runtime_state", lambda: runtime_state)
+
+        def unexpected_check():
+            raise AssertionError("blocked decision readiness must short-circuit")
+
+        monkeypatch.setattr(health_checks, "check_core_data_coverage", unexpected_check)
+        monkeypatch.setattr(health_checks, "check_decision_provider_capabilities", unexpected_check)
+        monkeypatch.setattr(health_checks, "check_decision_data_readiness", unexpected_check)
+
+        result = health_checks.run_decision_readiness_checks()
+
+        assert result["runtime_state"] is runtime_state
+        assert set(result) == {
+            "runtime_state",
+            "core_coverage",
+            "provider_capabilities",
+            "decision_data",
+        }
+        for check_name in ("core_coverage", "provider_capabilities", "decision_data"):
+            assert result[check_name] == {
+                "status": "blocked",
+                "must_not_use_for_decision": True,
+                "block_reason_code": "decision_runtime_blocked",
+                "blocked_by": "decision_runtime_blocked",
+            }
+
+    def test_decision_readiness_runs_all_checks_when_runtime_is_open(self, monkeypatch):
+        """An open runtime gate must retain the complete strict check path."""
+
+        from core import health_checks
+
+        runtime_state = {"status": "ok", "must_not_use_for_decision": False}
+        monkeypatch.setattr(health_checks, "check_decision_runtime_state", lambda: runtime_state)
+        checks = {
+            "core_coverage": {"status": "ok", "must_not_use_for_decision": False},
+            "provider_capabilities": {"status": "ok", "must_not_use_for_decision": False},
+            "decision_data": {"status": "ok", "must_not_use_for_decision": False},
+        }
+        monkeypatch.setattr(
+            health_checks,
+            "check_core_data_coverage",
+            lambda: checks["core_coverage"],
+        )
+        monkeypatch.setattr(
+            health_checks,
+            "check_decision_provider_capabilities",
+            lambda: checks["provider_capabilities"],
+        )
+        monkeypatch.setattr(
+            health_checks,
+            "check_decision_data_readiness",
+            lambda: checks["decision_data"],
+        )
+
+        result = health_checks.run_decision_readiness_checks()
+
+        assert result == {"runtime_state": runtime_state, **checks}
+
     def test_check_database_healthy(self, db):
         """Test database check returns ok when database is accessible"""
         from core.health_checks import check_database
