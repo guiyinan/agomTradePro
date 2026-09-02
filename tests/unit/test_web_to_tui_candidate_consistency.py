@@ -128,6 +128,16 @@ def test_current_candidate_identity_is_consistent_across_registry_and_evidence()
             f"{projection_name} current projection is missing candidate "
             f"version {candidate_version!r}"
         )
+    tui02_unit = next(
+        unit for unit in registry["closure_backlog"]["units"] if unit["id"] == "TUI-02"
+    )
+    assert tui02_unit["status"] == "active"
+    assert (
+        "TUI-02=active" in plans_row
+    ), "docs/plans/README.md current M5 projection is missing TUI-02 active status"
+    assert (
+        "5/10 DENY" in docs_row
+    ), "docs/INDEX.md current M5 readiness projection is missing 5/10 DENY status"
     readiness_current = _latest_section_for_candidate(
         readiness,
         heading_level=3,

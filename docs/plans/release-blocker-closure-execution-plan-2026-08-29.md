@@ -648,5 +648,6 @@ watchdog 已由 `scripts/package-for-vps.ps1` 纳入部署包，但原
 新增 `test_current_candidate_identity_is_consistent_across_registry_and_evidence` 的计划投影断言：
 它从 active registry/cutover binding 读取不可变 candidate commit/version，并精确校验
 `docs/plans/README.md` 的 `web-to-tui-m5` 行与 `docs/INDEX.md` 的 M5 readiness 行同时包含该绑定。
-这样候选切换时若只更新机器真源而遗漏人读计划或索引，测试会 fail-closed；本 slice 仅验证静态
-投影，不改变 registry 状态、生产候选、VPS、TUI-02 观察窗口或任何生产门禁。
+同时校验 `TUI-02=active` 与 `5/10 DENY` 的当前状态投影。这样候选或状态切换时若只更新机器真源
+而遗漏人读计划或索引，测试会 fail-closed；本 slice 仅验证静态投影，不改变 registry 状态、生产
+候选、VPS、TUI-02 观察窗口或任何生产门禁。
