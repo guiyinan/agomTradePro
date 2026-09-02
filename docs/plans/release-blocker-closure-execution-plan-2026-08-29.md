@@ -1,6 +1,6 @@
 # 发布阻塞清零综合实施方案（2026-08-29）
 
-> 状态：执行中；`DATA-01` 已关闭，`DATA-04/05` repository 修复已完成但尚未部署；successor PostgreSQL client 仍耗尽，`DATA-02/03` 继续 fail-closed；TUI successor 的机器 UAT、清理矩阵、隔离回滚与 retained source 已形成，但候选变更会重置其观察窗口
+> 状态：执行中；`DATA-01` 已关闭，`DATA-04/05` repository 修复已随当前候选部署，部署后 PostgreSQL client 只读样本稳定；2026-09-02 09:24Z 曾出现 Web liveness unhealthy/公网 502，15:38Z 受控 web-only restart 后恢复 healthy，`DATA-02/03` 继续 fail-closed；TUI successor 的机器 UAT、清理矩阵、隔离回滚与 retained source 已形成，但重启会重置其观察窗口
 > 机器状态真源：`governance/active_plan_registry.json`
 > 适用 closure units：`DATA-01/02/03/04`、`AUD-03/04`、`EVID-01/02/03`、`STRAT-01/02/03`、`TUI-01/02`、`TAR-05/06`、`AI-01`、`QMT-01/02`
 > 原则：本文只编排既有 unit，不建立第二套状态、不降低阈值、不代签、不伪造 PIT/OOS 历史，也不把生产写入授权扩大为实盘交易授权。

@@ -150,9 +150,11 @@ post-window backup、review 和 approvals；不会部署、重启、写数据库
 
 不要通过手工修改 JSON 绕过这些检查，也不要回填观察开始时间。
 
-## 当前候选示例
+## 历史候选示例（非当前 binding）
 
-2026-08-30/31 启动并复核的当前绑定为：
+以下是 2026-08-30/31 启动并复核的旧绑定，仅用于说明 checkpoint 格式。2026-09-02 的受控
+web-only restart 已使该 retained window 作废；当前候选为 `aa7127ff4…` / release
+`20260901232812`，需按 reset artifact 重新取得首个真实样本，不能继承以下时间：
 
 - release：`20260830215638`；
 - candidate commit：`80ea002bf910110621022a70e4f1ec5c1b704a56`；

@@ -2,7 +2,10 @@
 
 ## 结论
 
-`dev/next-development` 的提交 `96ce6ee43b06e6eb6ad51528ff8ee783a4bf0952` 已在 `demo.agomtrade.pro` 完成一次带 provenance 校验的后续候选部署。该 release 包含 TUI AI provider failure guidance 修复；当前服务正常运行，M5 观察窗口从本次独立核验时间重新计算。本证据不解除角色化浏览器 UAT、写后回执、14 日观察、恢复演练或数据覆盖门禁。
+本节是 2026-08-15 的历史部署记录，不是当前线上候选或 M5 观察绑定。`dev/next-development` 的提交
+`96ce6ee43b06e6eb6ad51528ff8ee783a4bf0952` 当时已在 `demo.agomtrade.pro` 完成一次带 provenance
+校验的候选部署；该 release 包含 TUI AI provider failure guidance 修复。当前候选与观察状态见文末
+`2026-09-02` 小节；本历史记录不解除角色化浏览器 UAT、写后回执、14 日观察、恢复演练或数据覆盖门禁。
 
 ## 2026-08-19 04:46 TAR-01 baseline identity guard 候选部署与只读观测
 
