@@ -1346,5 +1346,11 @@
 
 - EVID-01 owner/tenant authority same-alias guard：`GetCurrentOwnerTenantAuthorityV1` 暴露 repository `unit_of_work_key`，authenticated Evidence bridge 拒绝跨 `django:{using}` alias 的 authority reader；新增回归后 focused contract `94 passed`，本地质量与 mypy/debt 门禁通过。未 seed/写生产/部署或批准，VPS authority ledger 仍 zero-seed，EVID-01 与 decision-ready fail-closed 不变。
 
+### 2026-09-02
+
+- 当前 `dev/next-development` 已同步至 `140bf23fcdacdd92160ec59286eabba88e156252`；deterministic Data Center architecture/entrypoint inventories 已按合并源码刷新，Architecture、Security、Consistency、Fast Feedback 四条 CI 全绿。
+- 当前受控 VPS 候选仍为 `aa7127ff4d9f71555b0d0486314da5518bd2ac20` / release `20260901232812`；9/2 的只读部署、EVID/STRAT/AUD 快照和 TUI-02 retained-source 事实已回写计划 README。EVID/DATA/STRAT/AUD/TAR 生产门禁仍按注册表 fail-closed，TUI-02 观察窗口未到期，不重复部署或写生产。
+- EVID-04 跨平台 content-addressed fixture 已完成；修复只影响 repository fixture bytes，不改变生产 raw-byte provenance、authority zero-seed 或 `decision-ready` 阻断。
+
 **文档维护**: AgomTradePro Team
-**最后更新**: 2026-08-25
+**最后更新**: 2026-09-02
