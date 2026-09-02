@@ -30,6 +30,7 @@
 
 ## 当前收口说明
 
+- 2026-09-03 发布阻塞执行计划第 13 节已明确为自 2026-08-30 起的时间序列；旧候选只按各自日期解释，当前状态以计划顶部、active registry 与最新检查点为准。此为文档澄清，不改变任何生产门禁。
 - 2026-09-02 本个人项目的生效 [`single-owner 授权`](deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json) 允许唯一真人 owner 承担 owner/root/reviewer/role-owner，不要求第二名自然人；技术事实和 fail-closed 门禁不豁免。`TUI-01/TUI-03` 已完成，当前候选 `aa7127ff4…` / release `20260901232812` 已部署，10/10 UAT、108/108 cleanup、isolated rollback 和 Day 0 registry backup 均通过。一次受控 web-only restart 于 `2026-09-02T15:38:21.178433901Z` 恢复同一候选，旧 [`retained observation checkpoint`](deployment/tui02-production-observation-checkpoint-2026-09-02-aa7127ff.json) 已作废并保留为历史；新的 reset artifact 要求重启后首个真实样本，`TUI-02=active`、readiness 仍为 `5/10 DENY`。
 - 2026-09-02 [`AUD-03 候选只读 checkpoint`](deployment/aud03-operational-observation-select-only-2026-09-02-aa7127ff.json) 将 Audit 运营证据绑定到当前候选：496 migration 全 applied、outbox/失败为 0、563 条 operation logs、AUD-scoped Prometheus 12 条 alert rules 全健康且无 active alert（全局配置共 17 条）；recovery/archive 仍 unavailable，`AUD-03` 保持 fail-closed。
 - 2026-08-31 [`AUD-04 repository closure`](testing/aud04-audit-archive-rehearsal-repository-closure-evidence-2026-08-31.json) 已补齐 scoped/candidate-revalidated 半开归档窗口、event/source/manifest/predecessor/replay hash、append-only artifact 与 `memory_only` exact replay；Audit 回归 `531 passed / 5 skipped`、架构/类型/治理全绿。该结果固定 non-production，未执行生产 archive/restore；`AUD-03` 的 recovery/archive 两节仍须真实取证。
