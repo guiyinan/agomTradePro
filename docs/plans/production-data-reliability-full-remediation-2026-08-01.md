@@ -1445,3 +1445,17 @@ Data Center entrypoint inventory 更新为 `1,152` 项且 `candidate-review=0`�
 backfill、写入事实或切换 publication，不生成 synthetic production identity；`DATA-02` 仍保持
 `awaiting_production`，待真实 owner 批准的 provider refresh/backfill 后用该 recorder 采集 before/after
 reconciliation。
+
+## 2026-09-03：DATA-02 successor recorder operator output
+
+对已签入 checkpoint 的服务器端操作路径做了一个不改变数据契约的收口：
+`scripts/record_data02_successor_checkpoint.py` 现在在 CLI 边界捕获
+`Data02SuccessorCheckpointError`，以稳定的 `blocked` JSON 和退出码 `2` 返回
+`reason_code=invalid_successor_checkpoint`，而不是把预期的校验阻断打印为完整 traceback。底层
+parser 仍保持异常契约，缺少四个 immutable publication identity 仍然 fail-closed；有效报告的既有
+输出字段、默认 dry-run、显式 append-only 写入和 `production_claim=false`/`runtime_enablement=not_authorized`
+均不变。focused recorder 回归 `12 passed`，Black/isort/Ruff、增量 mypy 与 debt ceiling 均通过。
+
+这只是服务器端工具可操作性修复，没有连接 VPS/数据库、写入生产、执行 backfill 或切换 publication，
+也没有把失败 checkpoint 变成生产证据；`DATA-02` 继续 `awaiting_production`，仍等待真实 provider
+refresh/backfill、before/after reconciliation 以及 data-owner 的容差决定。
