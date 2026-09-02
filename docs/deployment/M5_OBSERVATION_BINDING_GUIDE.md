@@ -103,6 +103,28 @@ binding。若同一候选的 Prometheus 重启或 retained source 改变，retai
 defect、telemetry、post-window backup、review 和 approvals；仍绑定同一候选的 UAT/cleanup/rollback drill
 不会被误删。
 
+## 受控重启后的窗口重置
+
+候选已经绑定 retained sample 后，如果发生受控 Web 重启，旧窗口必须作废，不能沿用旧 sample
+或旧的 post-window 证据。先保存候选绑定的只读 reset artifact（必须包含同一 commit/release/image、
+容器实际启动时间、health/ready=200、decision-ready=503 和旧 checkpoint 的 canonical SHA），再执行
+dry-run：
+
+```powershell
+$ResetArtifact = "docs/deployment/tui02-production-observation-reset-<date>-<commit>.json"
+python scripts/reset_web_to_tui_observation.py --reset-artifact $ResetArtifact
+```
+
+确认 `READY (dry-run)` 后才写入候选证据：
+
+```powershell
+python scripts/reset_web_to_tui_observation.py --reset-artifact $ResetArtifact --write-evidence
+```
+
+该操作只更新本地 candidate evidence：清除 retained window、observation end、缺陷/telemetry、
+post-window backup、review 和 approvals；不会部署、重启、写数据库或启用 runtime。随后必须等待
+重启后的首个真实 retained sample，并重新计算精确 14 日 eligible instant。
+
 ## 窗口如何计算
 
 - 候选名义日期：deployment attestation 的 UTC 部署/验证日期；

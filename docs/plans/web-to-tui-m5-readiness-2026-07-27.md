@@ -1080,19 +1080,23 @@ candidate commit `aa7127ff4d9f71555b0d0486314da5518bd2ac20`、matrix SHA
 runtime version `0.2.0`、runtime build `agomtui-runtime-0.2.0+1aa1996d160f`、runtime manifest SHA
 `8824e67064f5a572d346507cc3d7ab484282e45dd6e8a7b05f2682c7c1bad3a4`。
 
-候选绑定的 retained source 为
+此前绑定的 retained source 为
 [`tui02-production-observation-checkpoint-2026-09-02-aa7127ff.json`](../deployment/tui02-production-observation-checkpoint-2026-09-02-aa7127ff.json)，
-SHA-256=`96d7031e0da8ba6a6d037d800fd8cd4add782b9f3369e93e0e6c645a051052c3`；首个真实样本为
-`2026-09-01T16:56:29.796000Z`，精确 eligible instant 为 `2026-09-15T16:56:29.796000Z`。
-该 checkpoint 当时确认 candidate/image 无漂移、Prometheus target/rules/retention 可用；另一次
-候选绑定只读刷新记录了 Web `running/unhealthy` 与公网 `502`，因此生产可用性不能从部署身份推断。
+SHA-256=`96d7031e0da8ba6a6d037d800fd8cd4add782b9f3369e93e0e6c645a051052c3`；它的首个真实样本
+`2026-09-01T16:56:29.796000Z` 与 eligible `2026-09-15T16:56:29.796000Z` 已因后续 web
+restart 作废，保留为历史证据而不再绑定。新的 reset artifact
+[`tui02-production-observation-reset-2026-09-02-aa7127ff.json`](../deployment/tui02-production-observation-reset-2026-09-02-aa7127ff.json)
+SHA-256=`78cc512926193b5fad05db1e34f053a852816700817e4cd357d5999c05dab004` 绑定同一 candidate，
+记录 web start=`2026-09-02T15:38:21.178433901Z`、web/prometheus healthy、public health/ready=`200`
+与 decision-ready=`503` fail-closed；cutover evidence 已清空 retained projection，等待重启后首个真实样本。
 
 本地 retained checkpoint validator 已按 Git canonical LF 字节校验 JSON，Windows CRLF checkout 不再
 把该有效 checkpoint 误判为缺失；这只是证据读取一致性修复，不改变 checkpoint 内容、候选绑定或生产门禁。
 
 本候选 readiness 仍为 `5/10 DENY`：source consistency、execution dependency、route UAT、
-cleanup readiness、isolated rollback 已有证据；稳定窗口、structured blocking-defect、101-task
-telemetry、post-window registry backup/review 与 sole-owner role-bound attestations 尚未满足。
-未在本章节对应的本地文档更新中执行生产写入、再次部署、重启、load/chaos、live rollback 或决策门
-激活；`production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`
-继续有效。
+cleanup readiness、isolated rollback 已有证据；稳定窗口因 reset 后尚无 retained source，
+structured blocking-defect、101-task telemetry、post-window registry backup/review 与 sole-owner
+role-bound attestations 尚未满足。reset 后只执行了上述一次受控 web-only restart 和只读探针，未部署
+新镜像、未写库/改配置、未执行 load/chaos、live rollback 或决策门激活；`production_claim=false`、
+`production_ready=false`、`runtime_enablement=not_authorized` 继续有效。新 retained sample 形成后，
+其 exact eligible instant 将重新成为后续 v2 快照的最早时间门。

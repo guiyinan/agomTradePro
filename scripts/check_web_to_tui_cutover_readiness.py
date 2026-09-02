@@ -858,6 +858,18 @@ def evaluate_readiness(
         retained_observation_validator.RetainedObservationError,
     ):
         retained_observation = None
+    try:
+        observation_reset = retained_observation_validator.validate_observation_reset(
+            candidate,
+            root=evidence_root,
+        )
+    except (
+        OSError,
+        ValueError,
+        json.JSONDecodeError,
+        retained_observation_validator.RetainedObservationError,
+    ):
+        observation_reset = None
     observation_start = (
         cast(datetime, retained_observation.first_retained_sample_at).date()
         if retained_observation is not None
@@ -914,7 +926,9 @@ def evaluate_readiness(
             f"released_at={released_at}; "
             f"first_retained_sample_at={getattr(retained_observation, 'first_retained_sample_at', None)}; "
             f"eligible_at={observation_eligible_at}; evaluated_at={exact_evaluated_at}; "
-            f"retained_source={str(retained_observation is not None).lower()}; minimum_seconds=1209600",
+            f"retained_source={str(retained_observation is not None).lower()}; minimum_seconds=1209600; "
+            f"reset_source={str(observation_reset is not None).lower()}; "
+            f"reset_at={getattr(observation_reset, 'reset_at', None)}",
         )
     )
 

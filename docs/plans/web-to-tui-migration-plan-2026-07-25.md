@@ -703,14 +703,17 @@ cleanup recorder 通过 `8/8`，empty/error/legacy URL/permission/primary task/r
 
 clean git-clone release 未自动携带 optional host-only Prometheus query credential。恢复既有 production
 credential 并请求重建 Caddy 时，Compose 同时重建了 Web 与 Prometheus；PostgreSQL/Redis 未重建、数据卷
-保持。旧 candidate/window 证据因此不得继承。新的只读
+保持。随后 2026-09-02T15:38:21.178433901Z 的一次受控 web-only restart 恢复同一候选；公网只读探针
+health/ready=`200`、decision-ready=`503` 且 `must_not_use_for_decision=true`。旧 candidate/window
+证据因此不得继承；旧 checkpoint
 [`tui02-production-observation-checkpoint-2026-09-02-aa7127ff.json`](../deployment/tui02-production-observation-checkpoint-2026-09-02-aa7127ff.json)
-SHA-256=`96d7031e0da8ba6a6d037d800fd8cd4add782b9f3369e93e0e6c645a051052c3` 证明 target up、17 rules
-健康、persistent volume、`3w/4GiB`、外部 unauth=401/auth=200，并只绑定重启后首个真实 raw sample
-`2026-09-01T16:56:29.796000Z`。exact eligible instant 为
-`2026-09-15T16:56:29.796000Z`；无 historical backfill 或 synthetic zero。
+SHA-256=`96d7031e0da8ba6a6d037d800fd8cd4add782b9f3369e93e0e6c645a051052c3` 保留为历史，不再作为
+retained source。新的 reset artifact
+[`tui02-production-observation-reset-2026-09-02-aa7127ff.json`](../deployment/tui02-production-observation-reset-2026-09-02-aa7127ff.json)
+SHA-256=`78cc512926193b5fad05db1e34f053a852816700817e4cd357d5999c05dab004` 绑定相同候选并要求
+重启后的首个真实 raw sample；无 historical backfill 或 synthetic zero。
 
 readiness 当前为 `5/10 DENY`：source、execution dependency、108-route UAT、108-route cleanup、isolated
-rollback 通过；stable window、structured defects、101-task telemetry、post-window registry backup 和
-role-bound attestations仍缺。此前不得执行 Classic cleanup 或生成 final approval；external AI、queued runtime、
-authority/approval、load/fault 与 live rollback 保持未授权。
+rollback 通过；stable window 因 reset 后尚无 retained source、structured defects、101-task telemetry、
+post-window registry backup 和 role-bound attestations 均缺。此前不得执行 Classic cleanup 或生成 final
+approval；external AI、queued runtime、authority/approval、load/fault 与 live rollback 保持未授权。

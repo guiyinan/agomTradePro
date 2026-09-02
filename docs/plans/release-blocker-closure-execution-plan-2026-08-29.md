@@ -501,10 +501,12 @@ sidecar 与 restore dry-run 均通过。结构化 Day 0 证据为
 [`tui02-production-day0-checkpoint-2026-08-30-80ea002b.json`](../deployment/tui02-production-day0-checkpoint-2026-08-30-80ea002b.json)，
 SHA-256=`1cff7915f03e3c12618ada5e4b02fd3d81741db16c121cd3aef362192a9e4d85`。
 
-`TUI-02=active`、readiness=`5/10 DENY`、`execution_focus=null`。下一个真实 checkpoint 不是继续加审批人，
-而是维持候选和 retained source 到 2026-09-13；届时收集 structured defect/101-task telemetry、导出
-post-window registry backup/attestation、生成 review snapshot，再由同一 owner 写入 owner/reviewer 两个
-role-bound attestations。日期未到前不重复生成最终证据，也不把 Day 0 backup 当成 final attestation。
+`TUI-02=active`、readiness=`5/10 DENY`、`execution_focus=null`。随后一次受控 web-only restart 于
+`2026-09-02T15:38:21.178433901Z` 恢复同一候选，旧 retained source 按合同作废；reset artifact 已绑定
+候选、旧 checkpoint SHA 与健康探针，cutover evidence 已清空旧 retained projection。下一个真实 checkpoint
+是重启后的首个 retained sample；其精确 14 日窗口结束后再收集 structured defect/101-task telemetry、
+导出 post-window registry backup/attestation、生成 review snapshot，再由同一 owner 写入 owner/reviewer
+两个 role-bound attestations。不得回填或把 Day 0 backup 当成 final attestation。
 
 ### 13.17 AUD-04 repository archive/rehearsal checkpoint
 
@@ -622,10 +624,11 @@ Consistency `33619653074`、Fast Feedback `33619653085` 四条 CI 均 success。
 
 `scripts/web_to_tui_retained_observation.py` 现在在绑定和校验时统一使用 UTF-8/Git-compatible LF
 字节，仍对内容变化保持 SHA fail-closed；不会修改生产 raw-byte provenance，也不会放宽候选、观察窗口或
-任何生产门禁。新增 CRLF checkout 回归，并修正 synthetic readiness fixture 使用同一 canonical digest。
-验证：retained/readiness focused `41 passed`；retained binding CLI dry-run 正确识别首样本
-`2026-09-01T16:56:29.796000Z` 与 eligible `2026-09-15T16:56:29.796000Z`；当前 readiness 仍
-`5/10 DENY`，其余缺失的 telemetry/defect/backup/attestation 证据未被伪造。
+任何生产门禁。新增 CRLF checkout 回归，以及候选绑定的 restart-reset 合同：reset artifact 必须证明同一
+候选、旧 checkpoint SHA、web start/healthy、public health/ready=200 与 decision-ready=503 fail-closed；
+绑定后 retained projection 与 post-window 证据被清空，旧样本不能与 reset marker 共存。验证：retained/readiness
+focused `44 passed`；当前 readiness 仍 `5/10 DENY`，重启后的新 retained sample、telemetry/defect/backup/
+attestation 证据未被伪造。
 
 ### 13.23 VPS bundle watchdog 资产验收护栏
 
