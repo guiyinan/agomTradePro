@@ -17,6 +17,7 @@ from apps.data_center.application.provider_capabilities import SOURCE_TYPE_CAPAB
 from apps.data_center.composition import (
     CanonicalPublicationRepository,
     CapitalFlowRepository,
+    DatasetContractRepository,
     FinancialFactRepository,
     FundNavRepository,
     MarketThermometerSnapshotRepository,
@@ -559,6 +560,7 @@ def make_sync_news_use_case() -> SyncNewsUseCase:
             fact_repository=news_repository,
             publication_repository=CanonicalPublicationRepository(),
             policy_repository=PublicationPolicyRepository(),
+            contract_repository=DatasetContractRepository(),
         ),
     )
 
