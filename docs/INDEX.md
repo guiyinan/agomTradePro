@@ -1359,5 +1359,9 @@
 - 2026-09-02 候选只读复核先发现 Web `running/unhealthy`、公网 health/ready/decision 全为 `502`，但候选身份未漂移、Prometheus target 仍 up；随后仅执行一次受控 web-only restart，容器恢复 `healthy`，公网 health/ready 为 `200`，decision-ready 为 `503` 且 `must_not_use_for_decision=true`。新增 reset artifact 与本地 decision-readiness blocked 短路修复，未部署新镜像、未写库/改配置，所有生产门禁继续 fail-closed。
 - TUI-02 observation reset evidence [`tui02-production-observation-reset-2026-09-02-aa7127ff.json`](deployment/tui02-production-observation-reset-2026-09-02-aa7127ff.json) 绑定同一 candidate、旧 checkpoint SHA 与 web start time；cutover evidence 已清除旧 retained projection，后续必须等待真实 post-reset sample 和新的精确 14 日窗口。旧 checkpoint 保留为历史，不再用于 readiness。
 
+### 2026-09-03
+
+- TUI Workbench 完整单测复核通过：`python -m pytest tests/unit/test_tui_workbench.py -q -p no:cacheprovider` 为 `308 passed`；仅补强本地验收证据，不改变 TUI-02 或其他生产门禁。
+
 **文档维护**: AgomTradePro Team
 **最后更新**: 2026-09-03
