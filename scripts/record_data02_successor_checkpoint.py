@@ -23,6 +23,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from apps.data_center.application.data02_successor_checkpoint import (  # noqa: E402
     Data02SuccessorCheckpoint,
+    Data02SuccessorCheckpointError,
     data02_successor_checkpoint_artifact_sha256,
     parse_data02_successor_checkpoint,
     serialize_data02_successor_checkpoint,
@@ -122,11 +123,25 @@ def main() -> int:
     """Validate one checkpoint and print a stable dry-run/write summary."""
 
     args = _parser().parse_args()
-    result = record_data02_successor_checkpoint(
-        args.input,
-        output_root=args.output_root,
-        write=args.write,
-    )
+    try:
+        result = record_data02_successor_checkpoint(
+            args.input,
+            output_root=args.output_root,
+            write=args.write,
+        )
+    except Data02SuccessorCheckpointError as exc:
+        blocked: dict[str, object] = {
+            "error_type": type(exc).__name__,
+            "message": str(exc),
+            "outcome": "blocked",
+            "production_claim": False,
+            "production_ready": False,
+            "reason_code": "invalid_successor_checkpoint",
+            "runtime_enablement": "not_authorized",
+            "written": False,
+        }
+        print(json.dumps(blocked, ensure_ascii=True, sort_keys=True))
+        return 2
     output: dict[str, object] = {
         "artifact_sha256": result.artifact_sha256,
         "data02_execution_ready": result.data02_execution_ready,

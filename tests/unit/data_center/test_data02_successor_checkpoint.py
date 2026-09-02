@@ -160,6 +160,36 @@ def test_recorder_cli_runs_directly_from_repository_root() -> None:
     assert "checkpoint JSON path" in result.stdout
 
 
+def test_recorder_cli_reports_invalid_checkpoint_as_stable_blocked_json() -> None:
+    """Expected missing publication identities do not leak a traceback to operators."""
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/record_data02_successor_checkpoint.py",
+            "--input",
+            str(CHECKPOINT_PATH),
+        ],
+        cwd=Path(__file__).resolve().parents[3],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 2
+    payload = json.loads(result.stdout)
+    assert payload == {
+        "error_type": "Data02SuccessorCheckpointError",
+        "message": "publication.datasets.equity.financial.fact keys changed (missing=['publication_hash', 'publication_id'], extra=[])",
+        "outcome": "blocked",
+        "production_claim": False,
+        "production_ready": False,
+        "reason_code": "invalid_successor_checkpoint",
+        "runtime_enablement": "not_authorized",
+        "written": False,
+    }
+    assert result.stderr == ""
+
+
 def test_recorder_modules_have_no_network_or_orm_imports() -> None:
     """The parser and CLI cannot silently become a production client."""
 
