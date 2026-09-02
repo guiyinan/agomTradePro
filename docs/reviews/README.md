@@ -5,7 +5,9 @@
 动态执行状态仍以 governance/active_plan_registry.json 为机器真源；本目录只管理审核清单、输入证据、
 回传报告和经验证后的审核状态投影。
 
-## 当前审核包
+## 历史审核包（release `36b72d2f`）
+
+以下目录是 release-specific 的历史审核输入与回传模板，不代表当前生产候选。当前候选、部署身份和动态门禁以 [`governance/active_plan_registry.json`](../../governance/active_plan_registry.json)、[`docs/INDEX.md`](../INDEX.md) 及最新 `docs/deployment/*2026-09-02-aa7127ff*` 证据为准。
 
 - [Release 36b72d2f AUD / DATA / TUI 审核入口](release-36b72d2f/README.md)
 - [Release 36b72d2f EVID / STRAT 审核入口](release-36b72d2f/evidence-strategy/README.md)
@@ -24,4 +26,4 @@
 留存、持久卷、真实 scrape target、M5 rules、健康检查、打包与认证 HTTPS query 合同已经通过，
 结构化证据为
 [`tui03-retained-monitoring-repository-closure-evidence-2026-08-30.json`](../testing/tui03-retained-monitoring-repository-closure-evidence-2026-08-30.json)。
-`TUI-02` 现等待生产部署和从首个 retained sample 重新起算的真实 14 日窗口。
+`TUI-02` 已在后续候选 `aa7127ff4…` / release `20260901232812` 部署并进入从首个 retained sample 起算的真实 14 日窗口；本历史包中的部署状态不再适用。

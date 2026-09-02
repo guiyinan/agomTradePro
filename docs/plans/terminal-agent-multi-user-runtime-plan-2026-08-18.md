@@ -6,8 +6,8 @@
 > 工作流：`terminal-agent-multi-user-runtime`（category: `product_interface_and_runtime`，priority: P0）
 > Owner：`agent_runtime + terminal + task_monitor + operational_readiness + sdk + mcp`
 > 机器进度真源：`governance/active_plan_registry.json`
-> Canonical closure units：`TAR-01` 至 `TAR-06`（`TAR-06` 是 `TAR-05` 的 repository enabler）
-> 执行优先级：`TAR-01` 至 `TAR-04` 与 `TAR-06` repository 合同已完成；当前由 `TAR-05` 收口真实 staging 容量、chaos、provider、恢复、telemetry 与生产验收。用户侧不安装 provider-backed Agent；在 `TAR-05` 通过前不得放大全局 inline 并发。
+> Canonical closure units：`TAR-01` 至 `TAR-07`（`TAR-06` 是 `TAR-05` 的 repository enabler，`TAR-07` 收口 staging harness HTTP boundary）
+> 执行优先级：`TAR-01` 至 `TAR-04`、`TAR-06` 与 `TAR-07` repository 合同已完成；当前由 `TAR-05` 收口真实 staging 容量、chaos、provider、恢复、telemetry 与生产验收。用户侧不安装 provider-backed Agent；在 `TAR-05` 通过前不得放大全局 inline 并发。
 
 本文只维护问题、目标架构、分期交付、验收门和回滚边界。`active / waiting_dependency / production_validation` 等执行状态只在机器注册表维护，不在本文形成第二套进度。
 
