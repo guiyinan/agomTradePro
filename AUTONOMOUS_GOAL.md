@@ -13,7 +13,7 @@
 在模型选择为 `gpt-5.6-sol` 的 Codex 任务中设置：
 
 ```text
-/goal 按照 AUTONOMOUS_GOAL.md 自主推进 AgomTradePro canonical closure backlog。持续工作并在一个 closure unit 达到真实 exit gate 后自动调度下一个符合依赖和执行锁的 unit；由 Sol 负责规划、审查、验收和状态晋级，优先调用 gpt-5.6-luna 完成有界且互不重叠的实现、测试、调查和文档切片。直到不存在无需新增授权即可安全推进的 eligible work，或全部 canonical closure units 达到真实终态才停止。不得伪造证据、放宽 fail-closed 门禁或把外部阻塞解释为完成。
+/goal 按照 AUTONOMOUS_GOAL.md 自主推进 AgomTradePro canonical closure backlog。每轮从机器注册表重建全量 eligible work set：始终只允许一个 repository unit 扩展代码边界，同时并行推进获准且互不冲突的 production/external/governance 只读取证、观察和 preflight；任何生产变更保持单通道串行。由 Sol 负责规划、冲突判断、审查、验收和状态晋级，优先调用 gpt-5.6-luna 完成有界且互不重叠的实现、测试、调查和证据切片。直到所有允许通道都不存在无需新增授权即可安全推进的工作，或全部 canonical closure units 达到真实终态才停止。不得伪造证据、放宽 fail-closed 门禁或把外部阻塞解释为完成。
 ```
 
 文件本身不会切换当前任务的主模型。启动 Goal 前必须在 Codex 中选择 Sol；Sol
@@ -24,6 +24,11 @@
 持续推进注册表中的 canonical closure backlog，同时始终保持一个且仅一个
 `repository` unit 扩展代码边界。完成当前 `execution_focus.unit_id` 后，只有在其真实
 exit gate、验证和状态同步全部成立时，才自动选择下一个依赖已满足的 unit。
+
+`execution_focus` 只是 repository 写入锁，不是整个 Goal 的全局活动锁。Sol 每轮都必须同时扫描
+依赖已满足且执行模式被 `allowed_parallel_execution_modes` 允许的 production、external 和
+governance unit；`execution_focus.unit_id=null` 只表示当前没有可执行的 repository unit，不能单独
+作为停止 Goal、忽略到期观察或跳过安全只读取证的理由。
 
 “持续推进”不代表无限创建工作。它只允许处理注册表中已经存在、依赖明确、验收条件
 明确的 closure unit；禁止把历史 checklist、临时发现或松散建议直接升级成新主线。
@@ -70,6 +75,8 @@ diff 重建：已完成 checkpoint、已验证命令、未满足 exit gate、精
 Sol 是唯一调度者和验收者，负责：
 
 - 从当前 unit 的 exit gate 反推最小可验证切片，并维护简短的内部执行计划。
+- 每轮从全部 closure units 重建 repository、evidence/observation、production-mutation 和
+  waiting 四类通道，优先处理会缩短真实关键路径且不会使其他候选证据失效的工作。
 - 判断哪些工作适合交给 Luna，给每个 worker 明确文件边界、交付物、禁止事项和验证命令。
 - 审查 Luna 的完整 diff 与证据；必要时由 Sol 修正架构、契约和跨模块问题。
 - 运行最终的聚焦回归、架构、类型、治理和专项门禁。
@@ -77,6 +84,27 @@ Sol 是唯一调度者和验收者，负责：
   `governance/active_plan_registry.json`，随后选择下一个 unit。
 - 处理跨 App 架构决策、生产权限判断、候选晋级、回滚判断和最终完成声明；这些判断不得
   委托给 Luna。
+
+## 并行通道与冲突控制
+
+并行只用于缩短真实关键路径，不改变 closure unit 的依赖、exit gate 或权限。Sol 在每轮调度前
+按下表分配通道；所有通道合计最多同时运行两个 Luna worker：
+
+| 通道 | 并发规则 | 允许工作 | 禁止事项 |
+| --- | --- | --- | --- |
+| Repository | 最多 1 个 unit、最多 1 个 Luna | 当前 `execution_focus.unit_id` 内的代码、测试和直接配套文档 | 第二条 repository 主线、跨 unit 扩展文件边界 |
+| Evidence / Observation | 使用剩余 Luna 槽位；互不依赖且来源隔离时可并行 | 已登记 `auto_collect` 的安全只读查询、候选对账、观察窗口计算、报告派生和 dry-run/preflight | 生产写入、代签、重复无变化探针、抢跑未满足依赖的 unit |
+| Production mutation | 全局最多 1 个，由 Sol 串行控制 | 精确 action envelope 已授权、候选绑定、停止线和回滚点齐全的单项生产动作 | 与 repository 修改、另一生产动作、故障/负载注入，或会被该动作重置的候选观察并行 |
+| Human / External wait | 不占 worker | 准备 evidence template、记录精确输入缺口和下一可验证时间 | 忙轮询、虚构输入、把等待标记为完成 |
+
+Evidence / Observation worker 只返回原始来源、命令结果、候选身份、hash 和建议结论。Sol 必须在
+当前工作树上重新校验后，串行固化 evidence artifact，并串行更新 primary plan、机器注册表和
+`docs/plans/README.md`；多个 worker 不得并行编辑这些共享真源。若两个通道会写同一文件、读取会被
+另一动作改变的生产状态、占用同一维护窗口，或影响同一候选的稳定性/遥测窗口，则视为冲突并串行。
+
+自然时间窗口尚未到期时，不重复运行不能产生新信息的 collector。应记录精确 next eligible time，
+使用 Goal/heartbeat 等可用等待机制在到期后恢复；若当前环境不支持定时恢复，则按停止条件交接，
+不得用瞬时样本回填历史。
 
 ## Luna worker 合同
 
@@ -106,18 +134,22 @@ Luna 完成后，Sol 必须先审查和验证结果，再使用 follow-up 继续
 
 Sol 按以下规则选择工作，不凭提交数量或主观新鲜感排期：
 
-1. 当前 `execution_focus.unit_id` 永远优先，且是唯一允许扩展 repository scope 的 unit。
-2. 当前 unit 未满足 exit gate 时保持焦点；测试通过、代码存在或文档写完都不能单独触发晋级。
-3. 当前 unit 完成后，从注册表中选择依赖全部完成、执行模式为 `repository`，并且符合
+1. 每轮先扫描全部 closure units，按依赖、状态、执行模式、证据采集类别、授权和冲突关系构造
+   eligible work set；不得把 `execution_focus=null` 等同于“无工作”。
+2. 当前 `execution_focus.unit_id` 永远是唯一允许扩展 repository scope 的 unit；其未满足 exit gate
+   时保持焦点，测试通过、代码存在或文档写完都不能单独触发晋级。
+3. 当前 repository unit 完成后，从注册表中选择依赖全部完成、执行模式为 `repository`，并且符合
    `docs/plans/README.md` 滚动排期的下一 unit。
 4. 如果高优先级 unit 的生产依赖尚未满足，只能选择排期明确给出的 fallback；不得擅自
    把其他 planned unit 激活。
 5. `production`、`external` 和 `governance` unit 只有在
    `execution_focus.allowed_parallel_execution_modes` 允许时才能并行推进，并且只执行其
-   `evidence_collection.auto_collect` 中安全、只读、无需新授权的工作。
+   `evidence_collection.auto_collect` 中安全、只读、无需新授权且依赖已满足的工作。preflight 和
+   dry-run 可以提前准备精确动作包，但不能据此晋级状态或执行 `authorization_required` 动作。
 6. 缺少 collector 而 exit gate 可机械验证时，把最小 collector 实现归入当前获准的
    repository unit；不得借此开启第二条仓库主线。
-7. 没有 eligible repository unit 时，不得通过重复刷新日期、HEAD、文档或相同探针制造工作。
+7. 没有 eligible repository unit 时，继续处理到期且安全的 Evidence / Observation 工作；只有全部
+   允许通道都没有可执行项时才进入停止判断。不得通过重复刷新日期、HEAD、文档或相同探针制造工作。
 
 ## 工程与验证纪律
 
@@ -190,18 +222,21 @@ action envelope 重复请求泛化审批。以下动作仍未获得泛化授权�
 
 ## 进度与停止条件
 
-每个检查点只报告：当前 unit/切片、Luna 派工、已验证证据、剩余 exit gate、权限阻塞和下一步。
+每个检查点只报告：各活动通道的 unit/切片、Luna 派工、已验证证据、剩余 exit gate、权限阻塞、
+冲突关系和下一步。
 避免用重复状态消息代替进展。
 
 Goal 在以下任一条件满足时停止：
 
 1. 注册表中所有 canonical closure units 已满足真实 exit gate，并达到正确终态。
-2. 当前焦点没有剩余安全工作，且所有可选下一 unit 都被未完成依赖、生产授权、人工判断或
-   外部环境阻断。
+2. 完成一次全 backlog 通道扫描后，repository、Evidence / Observation 和已授权 Production
+   mutation 均没有剩余安全工作，且所有其他 unit 都被未完成依赖、未到期自然时间、生产授权、
+   人工判断或外部环境阻断。
 3. 工作树出现无法安全隔离的重叠修改，继续会覆盖用户或其他代理工作。
 4. 真源互相矛盾，且修正会改变业务目标、权限边界或计划优先级，需要用户决定。
 
 停止时必须给出：已完成 unit、当前机器状态、已验证命令、未验证风险、精确阻塞条件，以及
-解除阻塞后应继续的唯一 unit。不得把 blocked、awaiting production、观察窗口未满或证据不可用
+解除阻塞后应继续的各独立通道首个 unit；repository 通道仍只能有一个唯一 unit。不得把 blocked、
+awaiting production、观察窗口未满或证据不可用
 标记为 completed。最终回复前还必须复核最后一个 material checkpoint 已完成上述持久化回写，
 确保下一次 Goal 可以仅凭仓库真源无歧义续跑。

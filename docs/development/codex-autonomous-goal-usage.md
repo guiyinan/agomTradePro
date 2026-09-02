@@ -22,11 +22,17 @@
 3. 输入：
 
 ```text
-/goal 按照 AUTONOMOUS_GOAL.md 持续自主推进，严格执行其中的 Sol/Luna 调度、单 repository 执行锁、计划回写、验证、权限和停止规则。
+/goal 按照 AUTONOMOUS_GOAL.md 持续自主推进 AgomTradePro canonical closure backlog，严格执行 Sol/Luna 多通道调度、单 repository 执行锁、Evidence/Observation 安全并行、Production mutation 串行、计划回写、验证、权限和停止规则。
 ```
 
-之后可以不持续盯守。Sol 应从机器注册表当前 `execution_focus.unit_id` 开始，审查并验收 Luna
-完成的有界切片；一个 unit 达到真实 exit gate 并完成回写后，再自动调度下一 eligible unit。
+之后可以不持续盯守。Sol 应从机器注册表重建全 backlog eligible work set：当前
+`execution_focus.unit_id` 是唯一 repository 写入通道，但获准的 production/external/governance
+只读取证、观察和 preflight 可以在无冲突时并行。一个 unit 达到真实 exit gate 并完成回写后，
+再自动调度该通道的下一 eligible unit。
+
+已经运行的 Goal 不应依赖旧聊天上下文猜测合同变化。修改本文件或 `AUTONOMOUS_GOAL.md` 后，向
+运行中的任务发送一次“重新完整读取 `AUTONOMOUS_GOAL.md`，从机器注册表恢复并按最新合同继续”
+即可；无需清除已形成的计划、证据或工作树状态。另一 worktree 中的 Goal 必须先取得同一文档版本。
 
 ## 3. 三种使用场景
 
@@ -56,8 +62,12 @@
 ## 4. 运行时会发生什么
 
 - Sol 读取 AGENTS、机器注册表、plans 索引、当前 unit primary plan、代码和测试。
-- Sol 默认复用一个 `gpt-5.6-luna` worker；仅在文件范围和验收互不依赖时并行第二个 worker。
+- Sol 每轮扫描全部 closure units，将工作分成唯一 repository、Evidence/Observation、单一
+  Production mutation 和 Human/External wait 四类通道。
+- Sol 默认复用一个 `gpt-5.6-luna` worker；仅在文件范围、数据源和验收互不依赖时并行第二个
+  worker，总计不超过两个 Luna。
 - Luna 完成搜索、实现、测试或文档切片，不 commit、不 push、不执行生产写入。
+- 只读取证 worker 不并行编辑 registry、plans 索引或 primary plan；由 Sol 重验后串行固化和回写。
 - Sol 审查完整 diff，运行最终门禁，并判断 exit gate 是否真实满足。
 - 每个 material checkpoint 回写 primary plan；unit 完成时同步证据 artifact、registry、plans
   人工投影和必要的文档索引。
