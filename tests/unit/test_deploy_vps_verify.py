@@ -150,6 +150,15 @@ def test_build_django_deploy_check_command_uses_isolated_web_container():
     assert deploy_vps_verify.DJANGO_DEPLOY_CHECK_TIMEOUT_SECONDS == 180
 
 
+def test_build_asgi_database_policy_command_rejects_persistent_connections():
+    command = deploy_vps_verify.build_asgi_database_policy_command("/opt/agomtradepro")
+
+    assert "exec -T web python -c" in command
+    assert "CONN_MAX_AGE" in command
+    assert "conn_max_age=0" in command
+    assert "ASGI database policy requires CONN_MAX_AGE=0" in command
+
+
 def test_build_migration_check_command_rejects_unapplied_migrations():
     command = deploy_vps_verify.build_migration_check_command("/opt/agomtradepro")
 

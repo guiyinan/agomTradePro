@@ -121,8 +121,12 @@ groups:
       # 5xx 激增告警
       - alert: High5xxRate
         expr: |
-          sum(rate(api_request_total{status_code=~"5.."}[5m]))
-          / sum(rate(api_request_total[5m])) > 0.05
+          sum(rate(django_http_responses_total_by_status_total{status=~"5.."}[5m]))
+          /
+          clamp_min(
+            sum(rate(django_http_responses_total_by_status_total[5m])),
+            0.000001
+          ) > 0.05
         for: 2m
         labels:
           severity: critical
@@ -189,13 +193,25 @@ groups:
       # 数据库连接池告警
       - alert: DatabaseConnectionPoolExhausted
         expr: |
-          sum(db_connections_total{status="active"}) > 100
+          sum by (database) (db_connections_total)
+          /
+          on (database)
+          db_connection_capacity{kind="usable"} > 0.8
         for: 2m
         labels:
           severity: critical
         annotations:
           summary: "Database connection pool nearly exhausted"
           description: "Connection pool usage is {{ $value | humanizePercentage }}"
+
+      - alert: DatabaseConnectionObservationUnavailable
+        expr: database_connection_observation_up{database="default"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection observation failed"
+          description: "PostgreSQL connection capacity could not be observed for one minute"
 
       # Redis 连接告警
       - alert: RedisConnectionFailure

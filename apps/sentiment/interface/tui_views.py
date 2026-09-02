@@ -62,32 +62,43 @@ class SentimentTuiOverviewView(APIView):
                 continue
             index = dict(raw_row.get("index") or {})
             sources = dict(raw_row.get("sources") or {})
+            data_sufficient = bool(raw_row.get("data_sufficient", False))
+            news_count = int(sources.get("news_count", sources.get("news", 0)) or 0)
+            policy_events_count = int(
+                sources.get(
+                    "policy_events_count",
+                    sources.get("policy", 0),
+                )
+                or 0
+            )
             rows.append(
                 {
                     "date": str(raw_row.get("date") or ""),
-                    "composite": _number(index, "composite", "overall"),
-                    "news": _number(index, "news"),
-                    "policy": _number(index, "policy"),
+                    "composite": (
+                        _number(index, "composite", "overall") if data_sufficient else None
+                    ),
+                    "news": (
+                        _number(index, "news") if data_sufficient and news_count > 0 else None
+                    ),
+                    "policy": (
+                        _number(index, "policy")
+                        if data_sufficient and policy_events_count > 0
+                        else None
+                    ),
                     "level": str(raw_row.get("level") or ""),
                     "confidence_percent": round(
                         float(raw_row.get("confidence") or 0) * 100,
                         6,
                     ),
-                    "data_sufficient": bool(raw_row.get("data_sufficient", False)),
-                    "news_count": int(sources.get("news_count", sources.get("news", 0)) or 0),
-                    "policy_events_count": int(
-                        sources.get(
-                            "policy_events_count",
-                            sources.get("policy", 0),
-                        )
-                        or 0
-                    ),
+                    "data_sufficient": data_sufficient,
+                    "news_count": news_count,
+                    "policy_events_count": policy_events_count,
                     "score_range": "-3 至 +3",
                     "freshness_status": freshness_status,
                     "decision_status": decision_status,
                 }
             )
-        latest = rows[0] if rows else {}
+        latest = rows[-1] if rows else {}
         return Response(
             {
                 "success": True,

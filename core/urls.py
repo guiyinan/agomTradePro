@@ -610,6 +610,16 @@ def metrics_view(request: HttpRequest) -> HttpResponse:
     """
     del request
 
+    try:
+        from core.database_metrics import project_database_connection_metrics
+
+        project_database_connection_metrics()
+    except Exception as exc:
+        logger.warning(
+            "Failed to project database connection metrics before scrape (error_type=%s)",
+            type(exc).__name__,
+        )
+
     # Keep the audit dependency lazy: the generic metrics endpoint must remain
     # usable during migrations, partial deployments, and audit-table outages.
     try:
