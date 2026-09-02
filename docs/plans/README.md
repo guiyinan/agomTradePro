@@ -152,7 +152,7 @@
 | W1 | `TAR-03` | repository | completed | TAR-02 | 专用 Agent Worker、租约/取消/崩溃恢复和可续传事件流；SDK queued facade 已补齐 |
 | W2 | `AUD-03` | production | awaiting_production | AUD-02/AUD-04 | successor 已完成 migration/outbox/metrics/alerts/admin TUI 只读重绑；仍待真实 authority/profile、writer smoke、rollback/recovery、获批 archive/restore 与 single-owner 最终确认 |
 | W2 | `DATA-01` | production | completed | — | 校验备份、维护态与回滚预演 |
-| W2 | `DATA-02` | production | awaiting_production | DATA-01 | 受控回填与 canonical reconciliation；dry-run 已完成，execute 等待真实 typed Audit authority/profile |
+| W2 | `DATA-02` | production | awaiting_production | DATA-01/DATA-04 | 受控回填与 canonical reconciliation；dry-run 已完成，execute 等待真实 typed Audit authority/profile |
 | W2 | `DATA-03` | production | waiting_dependency | DATA-02 | M9/M10 切换、readiness/smoke 与观察窗口 |
 | W2 | `DATA-04` | repository | completed | DATA-01 | ASGI PostgreSQL 连接生命周期与 SELECT-only DATA-02 preview 收口 |
 | W2 | `DATA-05` | repository | completed | DATA-04 | financial repository owner contract 与预算收口 |
@@ -169,7 +169,7 @@
 | W3 | `TAR-07` | repository | completed | DATA-07 | TAR staging harness HTTP boundary ownership 与 deterministic inventory 收口 |
 | W3 | `TAR-05` | production | awaiting_production | TAR-03/TAR-06 | 真实候选的 1/5/10/20 用户容量、故障恢复、回滚、观察与生产切换验收 |
 | W3 | `AI-01` | external | waiting_dependency | TUI-01/TAR-05 | 同候选 staging/production 真实 UAT 与独立双签 |
-| W3 | `GOV-02` | governance | completed | TAR-07 | 文档 route consistency 检查过滤 filesystem path，同时保留真实 API route |
+| W3 | `GOV-02` | repository | completed | TAR-07 | 文档 route consistency 检查过滤 filesystem path，同时保留真实 API route |
 | W3 | `DATA-08` | repository | completed | GOV-02 | Data Center entrypoint inventory 通过 App-root composition deterministic 收口 |
 | W3 | `DATA-09` | repository | completed | DATA-08 | decision-runtime dynamic reliability reason boundary 登记与守卫 |
 | W4 | `QMT-01` | external | blocked_external | — | 券商 XtQuant 权限和目标机 Phase 0 |

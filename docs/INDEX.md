@@ -1360,4 +1360,4 @@
 - TUI-02 observation reset evidence [`tui02-production-observation-reset-2026-09-02-aa7127ff.json`](deployment/tui02-production-observation-reset-2026-09-02-aa7127ff.json) 绑定同一 candidate、旧 checkpoint SHA 与 web start time；cutover evidence 已清除旧 retained projection，后续必须等待真实 post-reset sample 和新的精确 14 日窗口。旧 checkpoint 保留为历史，不再用于 readiness。
 
 **文档维护**: AgomTradePro Team
-**最后更新**: 2026-09-02
+**最后更新**: 2026-09-03
