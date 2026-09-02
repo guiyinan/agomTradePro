@@ -61,7 +61,7 @@
 | 限期审查项 | 0 |
 | 注册表覆盖的活跃文件 | 41 |
 | 历史未勾选细项 | 136（非执行口径） |
-| 去重后 canonical closure units | 34 |
+| 去重后 canonical closure units | 40 |
 
 “主计划”是需求和证据入口，不等于独立工程量；同一工作流下的路线图、readiness 和生产跟踪不会再重复计算成多条主线。完整文件归属、owner、状态、依赖和唯一退出门见机器注册表的 `closure_backlog`。
 
@@ -817,3 +817,4 @@
 | 2026-09-02 | P1 repository corrective exit | VPS Web liveness host watchdog | 提交 `efdbb63c6c9ccc2b108ab3e5f3155404dc0758bf` 新增 server-side `scripts/vps-web-watchdog.sh` 与 systemd service/timer 模板：Docker `web` 连续 3 次 unhealthy 后才允许只重启 `web`，15 分钟 cooldown、1 小时最多 2 次、120 秒恢复确认；healthy/decision-ready blocked 清零，不 kill 共享 PID 或触碰 runtime_ns/Celery/DB。五项行为测试、`sh -n` 与打包投影通过；Architecture `33619653200`、Security `33619653029`、Consistency `33619653074`、Fast Feedback `33619653085` 均 success | 仅完成仓库合同，未安装 timer、未重启/部署 VPS、未形成恢复/容量/14 日证据；安装为一次显式运维动作，任何实际 restart 按 TUI-02 规则重新绑定 retained sample，所有生产门禁保持原状态 |
 | 2026-09-02 | P1 repository corrective exit | TUI-02 retained checkpoint 跨平台哈希护栏 | retained validator 与 binding 统一使用 Git canonical LF 字节，避免 Windows CRLF checkout 将有效 checkpoint 误判为缺失；新增 CRLF 回归，retained/readiness focused `41 passed`，dry-run 识别 `2026-09-01T16:56:29.796000Z` 首样本与 `2026-09-15T16:56:29.796000Z` eligible | 仅修复本地/CI 证据读取一致性，不改变生产 raw-byte provenance、候选身份、观察窗口或门禁；当前 readiness 仍 `5/10 DENY` |
 | 2026-09-02 | P1 repository corrective exit | VPS bundle verifier watchdog 资产护栏 | `verify-vps-bundle.ps1` required-file 合同现在强制包含 watchdog service/timer/script，避免部署包缺件却通过验收；watchdog 行为回归 `5 passed`，PowerShell parser 通过 | 仅收紧本地打包验收，不安装 timer、不部署/重启 VPS，不改变候选、观察窗口或生产门禁 |
+| 2026-09-02 | P1 governance projection correction | active registry v39 / 40 canonical closure units | 按 `governance/active_plan_registry.json` 重新核对 `docs/plans/README.md` 与 `docs/INDEX.md`：修正 34→40、v27/33→v39/40，并同步当前 TUI-02 观察窗与 awaiting-production 单元；未改变机器注册表状态或生产证据 | 仅修正人读计划/索引投影；`execution_focus=null`，当前无可执行 repository unit，生产/外部门禁继续 fail-closed |
