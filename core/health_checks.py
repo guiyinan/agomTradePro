@@ -307,7 +307,7 @@ def run_decision_readiness_checks() -> dict[str, dict[str, Any]]:
         blocked_projection = {
             "status": "blocked",
             "must_not_use_for_decision": True,
-            "block_reason_code": "decision_runtime_blocked",
+            "block_reason_code": "decision_readiness_blocked",
             "blocked_by": reason,
         }
         return {

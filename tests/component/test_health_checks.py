@@ -218,7 +218,7 @@ class TestHealthCheckFunctions:
             assert result[check_name] == {
                 "status": "blocked",
                 "must_not_use_for_decision": True,
-                "block_reason_code": "decision_runtime_blocked",
+                "block_reason_code": "decision_readiness_blocked",
                 "blocked_by": "decision_runtime_blocked",
             }
 
