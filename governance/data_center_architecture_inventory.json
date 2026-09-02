@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 4453,
+    "current_surface_references": 4457,
     "data_write_task_decorators": 62,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -7826,42 +7826,42 @@
       "text": "\"\"\"Return the latest market-thermometer payload for UI/API consumers.\"\"\""
     },
     {
-      "line": 98,
+      "line": 99,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "return {\"status\": \"skipped\", \"message\": \"No realtime quote provider is available.\"}"
     },
     {
-      "line": 243,
+      "line": 244,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "latest = MarketThermometerSnapshotRepository().get_latest()"
     },
     {
-      "line": 244,
+      "line": 245,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "if latest is None:"
     },
     {
-      "line": 248,
+      "line": 249,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "latest_observed_at = latest.observed_at.isoformat()"
     },
     {
-      "line": 250,
+      "line": 251,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "latest_is_blocked = latest.must_not_use_for_decision"
     },
     {
-      "line": 254,
+      "line": 255,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "skipped_payload = latest.to_dict()"
     },
     {
-      "line": 491,
+      "line": 492,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "\"\"\"Build a fact-only current valuation batch sync use case.\"\"\""
     },
     {
-      "line": 504,
+      "line": 505,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "\"\"\"Build a fact-only current-valuation batch for aggregate publication.\"\"\""
     },
@@ -8256,132 +8256,147 @@
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
     {
-      "line": 77,
+      "line": 82,
       "path": "apps/data_center/application/publication_sync.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 84,
+      "line": 89,
       "path": "apps/data_center/application/publication_sync.py",
       "text": "and returns the existing current publication without creating another"
     },
     {
-      "line": 117,
+      "line": 91,
+      "path": "apps/data_center/application/publication_sync.py",
+      "text": "through the active Dataset Publication Policy. Current publications"
+    },
+    {
+      "line": 93,
+      "path": "apps/data_center/application/publication_sync.py",
+      "text": "window, while non-current publication keys retain their supplied scope."
+    },
+    {
+      "line": 114,
+      "path": "apps/data_center/application/publication_sync.py",
+      "text": "if normalized_key == \"current\":"
+    },
+    {
+      "line": 145,
       "path": "apps/data_center/application/publication_sync.py",
       "text": "current = self._publications.get_current(self.dataset_key, normalized_key)"
     },
     {
-      "line": 118,
+      "line": 146,
       "path": "apps/data_center/application/publication_sync.py",
       "text": "if current is not None and current.publication_hash == publication_hash:"
     },
     {
-      "line": 119,
+      "line": 147,
       "path": "apps/data_center/application/publication_sync.py",
       "text": "member_count_matches = current.member_count == len(references)"
     },
     {
-      "line": 122,
+      "line": 150,
       "path": "apps/data_center/application/publication_sync.py",
       "text": "persisted_members = member_reader(current.publication_id)"
     },
     {
-      "line": 133,
+      "line": 161,
       "path": "apps/data_center/application/publication_sync.py",
       "text": "return current"
     },
     {
-      "line": 239,
+      "line": 267,
       "path": "apps/data_center/application/publication_sync.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 277,
+      "line": 305,
       "path": "apps/data_center/application/publication_sync.py",
       "text": "current = self._publications.get_current(self.dataset_key, normalized_key)"
     },
     {
-      "line": 278,
+      "line": 306,
       "path": "apps/data_center/application/publication_sync.py",
       "text": "if current is not None and current.publication_hash == publication_hash:"
     },
     {
-      "line": 279,
+      "line": 307,
       "path": "apps/data_center/application/publication_sync.py",
       "text": "member_count_matches = current.member_count == len(references)"
     },
     {
-      "line": 282,
+      "line": 310,
       "path": "apps/data_center/application/publication_sync.py",
       "text": "persisted_members = member_reader(current.publication_id)"
     },
     {
-      "line": 289,
+      "line": 317,
       "path": "apps/data_center/application/publication_sync.py",
       "text": "return current"
     },
     {
-      "line": 393,
+      "line": 421,
       "path": "apps/data_center/application/publication_sync.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 426,
+      "line": 454,
       "path": "apps/data_center/application/publication_sync.py",
       "text": "current = self._publications.get_current(self.dataset_key, normalized_key)"
     },
     {
-      "line": 427,
+      "line": 455,
       "path": "apps/data_center/application/publication_sync.py",
       "text": "if current is not None and current.publication_hash == publication_hash:"
     },
     {
-      "line": 428,
+      "line": 456,
       "path": "apps/data_center/application/publication_sync.py",
       "text": "member_count_matches = current.member_count == len(references)"
     },
     {
-      "line": 431,
+      "line": 459,
       "path": "apps/data_center/application/publication_sync.py",
       "text": "persisted_members = member_reader(current.publication_id)"
     },
     {
-      "line": 438,
+      "line": 466,
       "path": "apps/data_center/application/publication_sync.py",
       "text": "return current"
     },
     {
-      "line": 542,
+      "line": 570,
       "path": "apps/data_center/application/publication_sync.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 577,
+      "line": 605,
       "path": "apps/data_center/application/publication_sync.py",
       "text": "current = self._publications.get_current(self.dataset_key, normalized_key)"
     },
     {
-      "line": 578,
+      "line": 606,
       "path": "apps/data_center/application/publication_sync.py",
       "text": "if current is not None and current.publication_hash == publication_hash:"
     },
     {
-      "line": 579,
+      "line": 607,
       "path": "apps/data_center/application/publication_sync.py",
       "text": "member_count_matches = current.member_count == len(references)"
     },
     {
-      "line": 582,
+      "line": 610,
       "path": "apps/data_center/application/publication_sync.py",
       "text": "persisted_members = member_reader(current.publication_id)"
     },
     {
-      "line": 589,
+      "line": 617,
       "path": "apps/data_center/application/publication_sync.py",
       "text": "return current"
     },
     {
-      "line": 751,
+      "line": 779,
       "path": "apps/data_center/application/publication_sync.py",
       "text": "\"summary\": article.summary,"
     },
@@ -18866,47 +18881,47 @@
       "text": "\"\"\"Return dashboard summary and portable recent sentiment rows.\"\"\""
     },
     {
-      "line": 90,
-      "path": "apps/sentiment/interface/tui_views.py",
-      "text": "latest = rows[0] if rows else {}"
-    },
-    {
-      "line": 94,
-      "path": "apps/sentiment/interface/tui_views.py",
-      "text": "\"summary\": {"
-    },
-    {
-      "line": 99,
-      "path": "apps/sentiment/interface/tui_views.py",
-      "text": "health.get(\"latest_index_date\") or latest.get(\"date\") or \"\""
-    },
-    {
       "line": 101,
       "path": "apps/sentiment/interface/tui_views.py",
-      "text": "\"latest_composite\": latest.get(\"composite\"),"
-    },
-    {
-      "line": 102,
-      "path": "apps/sentiment/interface/tui_views.py",
-      "text": "\"latest_news\": latest.get(\"news\"),"
-    },
-    {
-      "line": 103,
-      "path": "apps/sentiment/interface/tui_views.py",
-      "text": "\"latest_policy\": latest.get(\"policy\"),"
-    },
-    {
-      "line": 104,
-      "path": "apps/sentiment/interface/tui_views.py",
-      "text": "\"latest_level\": str(latest.get(\"level\") or \"\"),"
+      "text": "latest = rows[-1] if rows else {}"
     },
     {
       "line": 105,
       "path": "apps/sentiment/interface/tui_views.py",
+      "text": "\"summary\": {"
+    },
+    {
+      "line": 110,
+      "path": "apps/sentiment/interface/tui_views.py",
+      "text": "health.get(\"latest_index_date\") or latest.get(\"date\") or \"\""
+    },
+    {
+      "line": 112,
+      "path": "apps/sentiment/interface/tui_views.py",
+      "text": "\"latest_composite\": latest.get(\"composite\"),"
+    },
+    {
+      "line": 113,
+      "path": "apps/sentiment/interface/tui_views.py",
+      "text": "\"latest_news\": latest.get(\"news\"),"
+    },
+    {
+      "line": 114,
+      "path": "apps/sentiment/interface/tui_views.py",
+      "text": "\"latest_policy\": latest.get(\"policy\"),"
+    },
+    {
+      "line": 115,
+      "path": "apps/sentiment/interface/tui_views.py",
+      "text": "\"latest_level\": str(latest.get(\"level\") or \"\"),"
+    },
+    {
+      "line": 116,
+      "path": "apps/sentiment/interface/tui_views.py",
       "text": "\"latest_confidence_percent\": latest.get(\"confidence_percent\"),"
     },
     {
-      "line": 106,
+      "line": 117,
       "path": "apps/sentiment/interface/tui_views.py",
       "text": "\"latest_data_sufficient\": bool(latest.get(\"data_sufficient\", False)),"
     },
@@ -22286,47 +22301,52 @@
       "text": "\"celery_queue_length\", \"Current number of tasks in Celery queue\", [\"queue_name\"]"
     },
     {
-      "line": 603,
+      "line": 178,
+      "path": "core/metrics.py",
+      "text": "\"Whether the latest PostgreSQL connection-capacity observation succeeded\","
+    },
+    {
+      "line": 657,
       "path": "core/metrics.py",
       "text": "summary: MetricsSummary = {"
     },
     {
-      "line": 616,
+      "line": 670,
       "path": "core/metrics.py",
       "text": "summary[\"api_requests\"][\"total\"] += float(sample.value)"
     },
     {
-      "line": 618,
+      "line": 672,
       "path": "core/metrics.py",
       "text": "summary[\"api_requests\"][\"errors\"] += float(sample.value)"
     },
     {
-      "line": 622,
+      "line": 676,
       "path": "core/metrics.py",
       "text": "summary[\"celery_tasks\"][\"total\"] += float(sample.value)"
     },
     {
-      "line": 624,
+      "line": 678,
       "path": "core/metrics.py",
       "text": "summary[\"celery_tasks\"][\"retries\"] += float(sample.value)"
     },
     {
-      "line": 628,
+      "line": 682,
       "path": "core/metrics.py",
       "text": "summary[\"audit_writes\"][\"total\"] += float(sample.value)"
     },
     {
-      "line": 630,
+      "line": 684,
       "path": "core/metrics.py",
       "text": "summary[\"audit_writes\"][\"failures\"] += float(sample.value)"
     },
     {
-      "line": 632,
+      "line": 686,
       "path": "core/metrics.py",
       "text": "return summary"
     },
     {
-      "line": 636,
+      "line": 690,
       "path": "core/metrics.py",
       "text": "\"Failed to get metrics summary (error_type=%s)\","
     },
@@ -22868,7 +22888,7 @@
       "text": "@shared_task"
     },
     {
-      "line": 501,
+      "line": 555,
       "path": "core/metrics.py",
       "text": "@shared_task"
     }
