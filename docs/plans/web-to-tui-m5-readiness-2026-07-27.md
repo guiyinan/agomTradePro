@@ -1063,3 +1063,33 @@ repository guard 已改为 hash-bound retained binding，并把 telemetry/defect
 `collected_at`、`queried_at` 必须是 UTC timestamp，readiness 会重放 snapshot builder、复核 checkpoint
 SHA，并在 exact instant 前保持 stable/defect/telemetry 三门失败。当前仍为 `5/10 DENY`，没有因此
 授权 cleanup、final backup、review 或 attestations。
+
+### 2026-09-02 当前候选部署复核（`aa7127ff4` / `20260901232812`）
+
+当前生产候选为 commit
+`aa7127ff4d9f71555b0d0486314da5518bd2ac20`、release `20260901232812`，OCI image
+`sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c`。部署 preflight
+[`web-to-tui-deployment-preflight-20260901232812.json`](../deployment/web-to-tui-deployment-preflight-20260901232812.json)
+的 SHA-256 为 `e5b613548811f89cb06659eed976786a5fb7e97593626ce2529665ff2b6a8f89`，候选 commit、
+release、OCI revision 一致；本次章节只引用已提交的只读/部署工件，不代表本轮重新部署。
+
+immutable binding 为 `web-to-tui-candidate-binding.v1`：candidate version `20260901232812`、
+candidate commit `aa7127ff4d9f71555b0d0486314da5518bd2ac20`、matrix SHA
+`e3027671d02d876c9f4b38b9d86395d45e26c0f2b344eb0646086be31869cd5d`、graph SHA
+`63be10ee25bb73c87861c18cc92355938fd7abc096c33852bf5f904d4db532a2`、schema `tui-metadata.v3`、
+runtime version `0.2.0`、runtime build `agomtui-runtime-0.2.0+1aa1996d160f`、runtime manifest SHA
+`8824e67064f5a572d346507cc3d7ab484282e45dd6e8a7b05f2682c7c1bad3a4`。
+
+候选绑定的 retained source 为
+[`tui02-production-observation-checkpoint-2026-09-02-aa7127ff.json`](../deployment/tui02-production-observation-checkpoint-2026-09-02-aa7127ff.json)，
+SHA-256=`96d7031e0da8ba6a6d037d800fd8cd4add782b9f3369e93e0e6c645a051052c3`；首个真实样本为
+`2026-09-01T16:56:29.796000Z`，精确 eligible instant 为 `2026-09-15T16:56:29.796000Z`。
+该 checkpoint 当时确认 candidate/image 无漂移、Prometheus target/rules/retention 可用；另一次
+候选绑定只读刷新记录了 Web `running/unhealthy` 与公网 `502`，因此生产可用性不能从部署身份推断。
+
+本候选 readiness 仍为 `5/10 DENY`：source consistency、execution dependency、route UAT、
+cleanup readiness、isolated rollback 已有证据；稳定窗口、structured blocking-defect、101-task
+telemetry、post-window registry backup/review 与 sole-owner role-bound attestations 尚未满足。
+未在本章节对应的本地文档更新中执行生产写入、再次部署、重启、load/chaos、live rollback 或决策门
+激活；`production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`
+继续有效。

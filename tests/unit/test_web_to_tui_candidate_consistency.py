@@ -81,10 +81,12 @@ def test_current_candidate_identity_is_consistent_across_registry_and_evidence()
     binding = {str(key): str(value) for key, value in binding_payload.items()}
     assert binding["candidate_version"] == candidate_version
     assert binding["candidate_commit"] == candidate_commit
-    # The registry next gate is intentionally candidate-agnostic.  The
-    # immutable commit/version are owned by the cutover binding and the
-    # candidate-specific deployment artifacts checked below.
-    assert "manifest-backed candidate" in next_gate
+    # The registry may keep this gate candidate-agnostic, or include an
+    # explicit immutable candidate binding.  In either form it must not
+    # contradict the canonical cutover binding used by the evidence below.
+    if "manifest-backed candidate" not in next_gate:
+        assert candidate_commit in next_gate
+        assert candidate_version in next_gate
 
     preflight_path = _find_candidate_preflight(
         candidate_version=candidate_version,
