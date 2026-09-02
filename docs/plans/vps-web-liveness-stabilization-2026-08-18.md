@@ -88,8 +88,10 @@ recover. It never kills a shared-PID process, restarts `runtime_ns`/Celery, or
 touches database/configuration state. Healthy Web liveness—including an
 application-level decision gate that is correctly blocked—clears the counter.
 
-The contract is covered by five local shell-behavior tests and `sh -n`; it has
-not been installed on or exercised against the VPS. Installing the timer is a
+The contract is covered by five local shell-behavior tests and `sh -n`; commit
+`efdbb63c6c9ccc2b108ab3e5f3155404dc0758bf` passed the repository's Architecture,
+Security, Consistency, and Fast Feedback CI checks. It has not been installed
+on or exercised against the VPS. Installing the timer is a
 single explicit operations action, not a reason to redeploy the application or
 reset the TUI-02 candidate window. Production installation, recovery and
 post-restart evidence remain pending authorization and observation.

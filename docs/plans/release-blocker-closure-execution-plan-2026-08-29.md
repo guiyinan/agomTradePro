@@ -606,7 +606,9 @@ CI 只证明仓库合同，不改变生产候选或恢复状态。
 `healthy`（包括 decision-ready 业务门正确 blocked）会清理失败计数而不触发重启。
 
 `tests/unit/test_vps_web_watchdog.py` 覆盖阈值、精确 Web-only restart、恢复确认、冷却、滚动重启预算
-和健康清零；`sh -n` 与现有打包脚本检查通过。watchdog 是一次显式运维安装，不随应用部署自动启用，
+和健康清零；`sh -n` 与现有打包脚本检查通过。实现已提交为
+`efdbb63c6c9ccc2b108ab3e5f3155404dc0758bf`，Architecture `33619653200`、Security `33619653029`、
+Consistency `33619653074`、Fast Feedback `33619653085` 四条 CI 均 success。watchdog 是一次显式运维安装，不随应用部署自动启用，
 不使用 Docker socket sidecar；本 slice 未安装、未重启、未部署或修改 VPS，未改变当前候选、TUI-02
 观察窗口或任何 DATA/EVID/STRAT/AUD/TAR 门禁。下一步仅在明确授权后安装 timer，并对实际恢复取一次
 候选绑定证据；安装或任何 restart 都按 TUI-02 规则重新绑定 retained sample。
