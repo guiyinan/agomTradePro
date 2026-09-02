@@ -1,7 +1,7 @@
 # Prometheus 指标体系
 
-> 版本: 1.1
-> 更新时间: 2026-07-27
+> 版本: 1.2
+> 更新时间: 2026-09-01
 
 ## 概述
 
@@ -10,6 +10,7 @@ AgomTradePro 通过 `prometheus-client` 和 `django-prometheus` 实现了完整�
 - **API 请求指标**：请求量、延迟、错误率
 - **Celery 任务指标**：任务执行、重试、队列堆积
 - **审计日志指标**：写入成功/失败计数
+- **PostgreSQL 连接指标**：实际 backend 数、非保留容量及观测状态
 - **Web → TUI 迁移指标**：按受审任务对照 Classic/TUI 入口占比和真实执行错误率
 - **Django 基础指标**：数据库连接、缓存等（由 django-prometheus 自动收集）
 
@@ -140,6 +141,22 @@ TUI action 外层 HTTP 200 不作为成功依据；中间件读取 action respon
 - `django_model_deletes_total`: 模型删除次数
 - `django_cache_get_total`: 缓存获取次数
 - `django_db_connections_total`: 数据库连接数
+
+### PostgreSQL 连接容量指标
+
+`/metrics/` 每次抓取会用当前请求的同一条数据库连接读取聚合后的
+`pg_stat_activity`。生产 Daphne/ASGI 固定使用 `CONN_MAX_AGE=0`，请求结束即关闭该连接；
+连接复用只能交给 PgBouncer 等外部 transaction pool。
+
+| 指标名 | 类型 | 标签 | 描述 |
+|--------|------|------|------|
+| `db_connections_total` | Gauge | database, status | 当前 active、idle、other backend 数 |
+| `db_connection_capacity` | Gauge | database, kind | max、reserved、usable 连接容量 |
+| `database_connection_observation_up` | Gauge | database | 最近一次容量观测成功为 1，失败为 0 |
+
+生产告警以 `sum(db_connections_total) / db_connection_capacity{kind="usable"}`
+计算真实占用率，超过 80% 持续两分钟即告警；观测本身失败持续一分钟也会独立告警。
+页面和 API 的 5xx 告警读取 django-prometheus 的全站响应计数，因此登录页等非 API 路由不会被漏掉。
 
 ## 代码使用
 

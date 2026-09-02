@@ -158,6 +158,35 @@ def test_remote_builds_fail_closed_and_write_immutable_release_manifest(
     )
 
 
+@pytest.mark.parametrize(
+    "builder_name",
+    ["_build_remote_build_script", "_build_remote_git_clone_build_script"],
+)
+def test_remote_builds_prune_only_unused_project_images_and_require_disk_headroom(
+    builder_name: str,
+) -> None:
+    """Builds must bound project image growth without touching volumes or other projects."""
+
+    script = getattr(remote_build_deploy_vps, builder_name)()
+
+    inventory = "docker images --filter 'reference=agomtradepro-web:*'"
+    active_check = "docker ps -a --format '{{.Image}}'"
+    removal = 'docker image rm "$image_ref"'
+    disk_check = "df -Pk /var/lib/docker"
+
+    assert inventory in script
+    assert active_check in script
+    assert removal in script
+    assert "MIN_DOCKER_BUILD_FREE_KB=12582912" in script
+    assert disk_check in script
+    assert "Insufficient Docker disk headroom" in script
+    assert "docker system prune" not in script
+    assert "docker volume" not in script
+    assert script.index(active_check) < script.index(removal)
+    assert script.index(removal) < script.index(disk_check)
+    assert script.index(disk_check) < script.index("docker build")
+
+
 def test_upload_mode_passes_exact_local_source_commit_without_unknown_fallback() -> None:
     source = (
         Path(__file__).resolve().parents[2] / "scripts" / "remote_build_deploy_vps.py"
@@ -221,6 +250,18 @@ def test_remote_deploy_validates_manifest_and_image_before_any_start_or_switch()
     assert script.index(validation) < script.index(first_start)
     assert script.index(validation) < script.index(final_start)
     assert script.index(validation) < script.index(current_switch)
+
+
+def test_remote_deploy_rejects_persistent_asgi_database_connections_before_shutdown() -> None:
+    script = remote_build_deploy_vps._build_remote_deploy_script()
+
+    policy_error = "ASGI database policy requires CONN_MAX_AGE=0"
+    shutdown = 'if [ "$ACTION" = "fresh" ]; then'
+
+    assert "CONN_MAX_AGE" in script
+    assert "docker run --rm --env-file deploy/.env --entrypoint python" in script
+    assert policy_error in script
+    assert script.index(policy_error) < script.index(shutdown)
 
 
 def test_deployment_report_retains_validated_release_identity() -> None:

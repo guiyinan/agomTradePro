@@ -136,6 +136,12 @@ Default deployment root:
 
 - `/opt/agomtradepro`
 
+### 5.1 Remote-build disk guard
+
+Before either source-upload or Git-clone Docker builds, `scripts/remote_build_deploy_vps.py` removes only unused `agomtradepro-web:*` images. Images referenced by any running or stopped container are retained, and the guard does not prune volumes, other repositories, or global Docker resources.
+
+After that project-scoped cleanup, the build requires at least 12 GiB free under `/var/lib/docker`. Insufficient capacity fails before `docker build`, leaving the current containers and data volumes untouched. Inspect `df -h /var/lib/docker` and `docker system df` before any separately authorized global cleanup.
+
 ---
 
 ## 6. PowerShell Deployment on Linux (Optional)
