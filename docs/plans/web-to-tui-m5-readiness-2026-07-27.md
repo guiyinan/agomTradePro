@@ -30,6 +30,11 @@ preflight 确认线上仍运行 `dev/next-development@2e399607977fea260436992952
 `.git`/source manifest，仍无法绑定任何候选 commit。公开 health/ready 均为 200/ok 不改变
 此结论。见 `web-to-tui-m5-production-preflight-2026-08-13.md`。
 
+> 当前候选状态（2026-09-03）：生产候选已绑定 `aa7127ff4d9f71555b0d0486314da5518bd2ac20` /
+> release `20260901232812`，`TUI-01`/`TUI-03` 已完成，`TUI-02` 保持 `5/10 DENY`。2026-09-02
+> 受控 web-only restart 已使此前 retained source 作废；当前等待重启后首个真实样本及新的精确
+> 14 日窗口。下面的“当前证据”表是 2026-08-13 历史快照，仅供追溯，不代表当前候选。
+
 ## 退出门槛快照
 
 | 门槛 | 当前证据 | 判定 |
@@ -218,7 +223,9 @@ python scripts/start_web_to_tui_observation.py \
   --released-at <YYYY-MM-DD> --write
 ```
 
-当前 M5 实现已绑定并部署候选 `dev/next-development@e167ab2fc748e4c93d2622f93fa8cc75442b2bb6`，
+### 2026-08-16 历史候选（非当前生产候选）
+
+当时的 M5 实现已绑定并部署候选 `dev/next-development@e167ab2fc748e4c93d2622f93fa8cc75442b2bb6`，
 release 为 `20260816004134`；完整 provenance、健康、迁移和 TUI registry 证据见
 `docs/deployment/vps-deployment-evidence-2026-08-15.md`。这只建立了候选身份，不自动开始观察窗口；
 该命令仍必须 fail closed，不能用当前 `HEAD`、本地文档状态或旧生产版本冒充稳定候选。

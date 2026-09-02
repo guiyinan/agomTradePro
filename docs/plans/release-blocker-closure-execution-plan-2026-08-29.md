@@ -1,6 +1,6 @@
 # 发布阻塞清零综合实施方案（2026-08-29）
 
-> 状态：执行中；`DATA-01` 已关闭，`DATA-04/05` repository 修复已随当前候选部署，部署后 PostgreSQL client 只读样本稳定；2026-09-02 09:24Z 曾出现 Web liveness unhealthy/公网 502，15:38Z 受控 web-only restart 后恢复 healthy，`DATA-02/03` 继续 fail-closed；TUI successor 的机器 UAT、清理矩阵、隔离回滚与 retained source 已形成，但重启会重置其观察窗口
+> 状态：执行中；`DATA-01` 已关闭，`DATA-04/05` repository 修复已随当前候选部署，部署后 PostgreSQL client 只读样本稳定；2026-09-02 09:24Z 曾出现 Web liveness unhealthy/公网 502，15:38Z 受控 web-only restart 后恢复 healthy，`DATA-02/03` 继续 fail-closed；TUI successor 的机器 UAT、清理矩阵与隔离回滚已形成，旧 retained source 已因该次重启作废并仅保留为历史，等待重启后首个真实样本及新的 14 日窗口
 > 机器状态真源：`governance/active_plan_registry.json`
 > 适用 closure units：`DATA-01/02/03/04`、`AUD-03/04`、`EVID-01/02/03`、`STRAT-01/02/03`、`TUI-01/02`、`TAR-05/06`、`AI-01`、`QMT-01/02`
 > 原则：本文只编排既有 unit，不建立第二套状态、不降低阈值、不代签、不伪造 PIT/OOS 历史，也不把生产写入授权扩大为实盘交易授权。
@@ -23,9 +23,9 @@
 ## 2. 当前事实与先行纠偏
 
 - `core/middleware/decision_gate.py` 覆盖 11 类决策路径；`core/health_checks.py` 要求 runtime state、核心覆盖、provider capability 与 decision data 四项同时通过。
-- 当前 active-A-share fact 与 Publication 不是同一口径：已有只读证据显示底层 fact 可覆盖 5,533 个标的，但 canonical price/financial Publication member 曾仅为 `0/5,533` 与 `1/5,533`，valuation Publication 缺失。第一动作应先区分“事实缺失”和“发布成员缺失”，不能无差别重抓全市场。
-- 工作分支 `2e83d161c…` 已是 `origin/main` 的祖先，合并提交为 `003cb58c…`；另有尚未进入当前工作树的候选部署 attestation。执行时先以只读生产 verifier 对账实际 commit/release/OCI/matrix/graph/runtime identity。若生产已经运行含修复的精确候选，只补 canonical evidence 与 UAT；只有身份不符才重新部署。
-- TUX-05 本地 production-safe profile 已通过，但 local evidence 不继承为生产 `TUI-01`；canonical `uat` 为空时仍是 DENY。
+- 当前候选 `aa7127ff4d9f71555b0d0486314da5518bd2ac20` / release `20260901232812` 的只读 dry-run 显示 completed-session price 合格覆盖为 `0/5,533`，quote/price/valuation Publication 覆盖为 `5,533/5,533` 但全部 stale，financial fact 覆盖为 `1,923/5,533`；因此 `DATA-02` 仍为 `DENY`，没有执行回填或 Publication 切换。第一动作仍须区分“事实缺失”“发布成员缺失”和“新鲜度失败”，不能无差别重抓全市场。
+- 当前生产候选已由只读 deployment/preflight 工件绑定到 `aa7127ff4d9f71555b0d0486314da5518bd2ac20` / `20260901232812`；执行时仍先对账实际 commit/release/OCI/matrix/graph/runtime identity。候选身份不符才允许另行申请部署，身份一致时只补 canonical evidence 与 UAT。
+- `TUI-01` 的 candidate-bound production-safe UAT、cleanup 与 isolated rollback 已完成；`TUI-02` 仍为 `5/10 DENY`，等待重启后真实 retained sample、精确 14 日窗口与结构化 telemetry/attestation。
 - authority/evidence 与 R1–R8 owner-ledger 的零行是缺少真实业务/审批输入，不是 migration 或 fixture 问题。
 
 ## 3. 总体执行顺序

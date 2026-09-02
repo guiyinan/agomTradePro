@@ -12,7 +12,7 @@
 数据 → 决策快照 → 风险检查 → 订单审批 → Agent 执行 → 回报对账
 ```
 
-当前首要缺口是增量测试选择器未映射 `broker_execution`、`operational_readiness`、`risk_center`、`portfolio`、`research`、`valuation`、`config_center`。这些模块发生变化时，目前只会选中通用护栏。
+初始首要缺口（已于实施阶段关闭）是增量测试选择器未映射 `broker_execution`、`operational_readiness`、`risk_center`、`portfolio`、`research`、`valuation`、`config_center`；当时这些模块发生变化只会选中通用护栏。当前映射、关键链路与 CI 门禁均已完成，后文保留历史实施证据。
 
 ## 实施内容
 
@@ -116,7 +116,7 @@
 - [x] 新增关键链路测试。
 - [x] 补齐关键迁移验证并配置 PostgreSQL Nightly 入口。
 - [x] 接入 PR、Nightly 和 RC 门禁。
-- [x] 在 GitHub Nightly 完成 PostgreSQL 实际运行取证（当前候选 `578064409b8269e440ba7edbf9c480aa7d9917ff`，run `32276242287` 的 `Critical Reliability (PostgreSQL)` job 成功；SQLite fallback concurrency 的 1 个预期 skip 保留）。
+- [x] 在 GitHub Nightly 完成 PostgreSQL 实际运行取证（2026-08-20 历史 CI 候选 `578064409b8269e440ba7edbf9c480aa7d9917ff`，run `32276242287` 的 `Critical Reliability (PostgreSQL)` job 成功；SQLite fallback concurrency 的 1 个预期 skip 保留）。
 - [x] 记录真实 QMT 发布前验证证据；当前结论为 `QMT_SERVER_NOT_ALLOWED`，保持实盘禁用。
 
 ## 2026-07-22 实施记录
@@ -154,13 +154,13 @@
 
 ### 未完成项与未验证风险
 
-- GitHub PostgreSQL Job 已在当前候选上实际成功；这只证明 CI 空库迁移、关键链路和隔离恢复合同，不替代生产 PostgreSQL、维护态 rollback 或真实数据覆盖证据。
+- GitHub PostgreSQL Job 已在 2026-08-20 历史 CI 候选上实际成功；这只证明 CI 空库迁移、关键链路和隔离恢复合同，不替代生产 PostgreSQL、维护态 rollback 或真实数据覆盖证据。
 - 真实 QMT 不进入普通 CI。本阶段引用 `docs/operations/qmt-agent-runbook.md` 中 2026-07-22 的目标机证据：国金 QMT `2.1.19.0`、Python 3.11、`xtquant 250807.1.2` 隔离导入成功，但真实只读探针返回 `QMT_SERVER_NOT_ALLOWED`。本次收口不重复连接、不提交或撤销真实订单。
 - 实盘激活前仍必须按 `docs/operations/qmt-agent-runbook.md` 运行 preflight 和只读探针；券商权限未开通或版本矩阵未记录时必须保持实盘禁用。
 
-## 2026-08-20 实施记录：当前候选 PostgreSQL Nightly 实际取证
+## 2026-08-20 实施记录：历史 CI 候选 PostgreSQL Nightly 实际取证
 
-当前分支候选 `dev/next-development@578064409b8269e440ba7edbf9c480aa7d9917ff` 的
+2026-08-20 历史 CI 候选 `dev/next-development@578064409b8269e440ba7edbf9c480aa7d9917ff` 的
 [GitHub Actions Nightly run 32276242287](https://github.com/guiyinan/agomTradePro/actions/runs/32276242287)
 中，独立 `Critical Reliability (PostgreSQL)` job 已成功完成。它不是只运行 SQLite 的
 普通 job，而是在 PostgreSQL 16.15 空库上完成全量迁移和分层回归：
