@@ -1427,3 +1427,21 @@ unresolved/future=0，而实际 financial fact 仅覆盖 1,923、缺 3,610。ove
 因此 DATA-02 仍为 `awaiting_production`。下一门不是再跑历史模拟或重复只读 inventory，而是在已备份、
 候选未漂移和 before/after recorder 生效的前提下，按有界批次执行生产 reconciliation；任何 tolerance waiver
 仍由真实 data owner 决定。DATA-03 继续等待 DATA-02，不得用 service-ready=200 替代 decision-ready=503。
+
+## 2026-09-02：DATA-02 successor checkpoint recorder contract
+
+现有 successor checkpoint 缺少四个 core dataset 的 immutable `publication_id` 与
+`publication_hash`，直接交给旧的双快照 reconciliation recorder 会因 schema 不同而失败，且不能证明
+后续 before/after publication 没有发生 identity substitution。新增纯 Application
+`apps/data_center/application/data02_successor_checkpoint.py` 与服务器端
+`scripts/record_data02_successor_checkpoint.py`：只接受 candidate-bound、UTC、SELECT-only 的 successor
+checkpoint，核对 5,533 asset partition、completed-session price 分布、连接增长、public probe digest、
+dry-run exit code、side-effect flags 和四个 publication identity 的唯一性。默认只做 dry-run，显式写入仅为
+本地 content-addressed append-only artifact。
+
+当前签入的真实 checkpoint 在 publication identity 缺失处按预期 fail-closed；补充单元回归 `11 passed`，
+Data Center entrypoint inventory 更新为 `1,152` 项且 `candidate-review=0`，增量 mypy 与全量 debt ceiling
+均为 `0`，Black/isort/Ruff、active-plan 和 governance checks 全绿。本 slice 没有访问 VPS/数据库、执行
+backfill、写入事实或切换 publication，不生成 synthetic production identity；`DATA-02` 仍保持
+`awaiting_production`，待真实 owner 批准的 provider refresh/backfill 后用该 recorder 采集 before/after
+reconciliation。

@@ -23,20 +23,20 @@
       "runbook": 7,
       "runtime_config_key": 45,
       "scheduler_writer": 16,
-      "script": 7,
+      "script": 8,
       "sdk": 46,
       "terminal_tui": 28,
       "test_evidence": 42,
       "workflow_step": 9
     },
     "by_status": {
-      "active_public": 718,
+      "active_public": 719,
       "adjacent_operational": 296,
       "candidate-review": 0,
       "compatibility": 137,
       "retired_blocked": 0
     },
-    "total": 1151
+    "total": 1152
   },
   "entries": [
     {
@@ -10265,6 +10265,16 @@
       "id": "script:scripts/record_data02_reconciliation_evidence.py:__main__:",
       "locator": "",
       "path": "scripts/record_data02_reconciliation_evidence.py",
+      "status": "active_public",
+      "symbol": "__main__",
+      "target": ""
+    },
+    {
+      "category": "script",
+      "evidence": "Data Center governance/measurement tooling",
+      "id": "script:scripts/record_data02_successor_checkpoint.py:__main__:",
+      "locator": "",
+      "path": "scripts/record_data02_successor_checkpoint.py",
       "status": "active_public",
       "symbol": "__main__",
       "target": ""
