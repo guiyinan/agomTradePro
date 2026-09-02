@@ -1,5 +1,5 @@
 {
-  "version": "2026-09-03.v40",
+  "version": "2026-09-03.v41",
   "updated_at": "2026-09-03",
   "execution_focus": {
     "unit_id": null,
@@ -216,7 +216,7 @@
       "priority": "P1",
       "owner": "agent_runtime+terminal",
       "status": "external_validation",
-      "next_gate": "After TUI-01 role-owner acceptance and TAR-05 completion, bind staging and production browser UAT, real external-model outcomes and independent owner/reviewer approval to commit 36b72d2fc01604afdb15d236a1e91d082fb62a5b / release 20260830071422 or its explicitly re-bound successor.",
+      "next_gate": "After TUI-01 role-owner acceptance and TAR-05 completion, bind staging and production browser UAT, real external-model outcomes and independent owner/reviewer approval to the current candidate aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812, or a later explicitly re-bound successor. TAR-05 remains incomplete, so AI-01 UAT is not yet authorized.",
       "documents": [
         {
           "path": "docs/plans/ai-native/README.md",
@@ -266,7 +266,7 @@
       "priority": "P1",
       "owner": "terminal",
       "status": "production_validation",
-      "next_gate": "TUX-05 repository work remains complete and its fix is included in commit 80ea002bf910110621022a70e4f1ec5c1b704a56 / release 20260830215638. The successor production-safe UAT passed 10/10 with 108 routes, three roles, both receipts, readback and zero residual; six-scope cleanup and isolated rollback also pass. No repository unit is active. Single-owner governance removes the second-person requirement, while the 2026-09-02 controlled web restart invalidated the previous retained window; a new real sample, exact 14-day observation, structured defect/telemetry evidence, post-window registry attestation and final role-bound owner attestations remain TUI-02 production work and stay fail-closed.",
+      "next_gate": "TUX-05 repository work remains complete and its fix is included in the current candidate aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812. The candidate-bound production-safe UAT passed 10/10 with 108 routes, three roles, both receipts, readback and zero residual; six-scope cleanup and isolated rollback also pass. No repository unit is active. Single-owner governance removes the second-person requirement, while the 2026-09-02 controlled web restart invalidated the previous retained window; a new real sample, exact 14-day observation, structured defect/telemetry evidence, post-window registry attestation and final role-bound owner attestations remain TUI-02 production work and stay fail-closed.",
       "documents": [
         {
           "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
@@ -277,7 +277,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-09-03.v40",
+    "version": "2026-09-03.v41",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,

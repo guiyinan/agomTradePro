@@ -154,7 +154,7 @@
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
-| [active_plan_registry.json](../governance/active_plan_registry.json) | **活跃计划与 canonical closure backlog 机器真源（工作流 / owner / 状态 / 依赖 / 唯一退出门 / 文件归属 / 限期审查）** | v40 共 40 units；当前 focus 显式为 null；TUI-02 旧观察窗已因 2026-09-02 web 重启作废，等待重启后首个真实样本及精确 14 日窗口；EVID-01/02、DATA-02、AUD-03、STRAT-01、TAR-05 保持 awaiting production，其余依赖/外部门保持 fail-closed |
+| [active_plan_registry.json](../governance/active_plan_registry.json) | **活跃计划与 canonical closure backlog 机器真源（工作流 / owner / 状态 / 依赖 / 唯一退出门 / 文件归属 / 限期审查）** | v41 共 40 units；当前 focus 显式为 null；TUI-02 旧观察窗已因 2026-09-02 web 重启作废，等待重启后首个真实样本及精确 14 日窗口；EVID-01/02、DATA-02、AUD-03、STRAT-01、TAR-05 保持 awaiting production，其余依赖/外部门保持 fail-closed |
 | [release-blocker-closure-execution-plan-2026-08-29.md](plans/release-blocker-closure-execution-plan-2026-08-29.md) | **发布阻塞清零综合实施方案（DATA/AUD/EVID/STRAT/TUI/TAR/AI/QMT 顺序、授权包、回滚点和停止线）** | 执行中；DATA-01/DATA-04/05 repository exit 已完成并随当前候选部署，DB 连接样本稳定、SELECT-only dry-run 已完成；2026-09-02 09:24Z 的 Web liveness 曾出现 unhealthy/502，随后 15:38Z 受控 web-only restart 恢复 healthy；DATA-02 仍受 completed-session price、financial coverage 与 publication freshness 阻断，其余硬门保持 fail-closed |
 | [scenario-governance-and-strategy-method-quick-wins-plan-2026-08-04.md](plans/scenario-governance-and-strategy-method-quick-wins-plan-2026-08-04.md) | **情景硬编码治理、动态/参数/宏观情景、AI MCP 受控修改及策略方法 Quick Wins（M0-M6）** | 提案，待评审实施 |
 | [strategy-research-capability-completion-audit-2026-08-05.md](plans/strategy-research-capability-completion-audit-2026-08-05.md) | **策略研究 R1—R8 完成度审计、真实数据阻断与无数据开发队列** | 实施中；无 P0，剩余 P1 分批收口 |
@@ -1365,6 +1365,7 @@
 - TUI Workbench 完整单测复核通过：`python -m pytest tests/unit/test_tui_workbench.py -q -p no:cacheprovider` 为 `308 passed`；仅补强本地验收证据，不改变 TUI-02 或其他生产门禁。
 - 服务器端只读 TUI-02 探针登录页 `200`/CSRF 存在，但 login POST `403`；随后 TUI GET `200` 未形成已认证 migration metric，Prometheus raw series 仍为 `0`。未提交表单、写业务库、部署或重启；认证/角色 UAT 与 post-reset retained sample 仍待受控账号和真实流量。
 - 低频公网只读复核 [`tar01-public-health-readonly-recheck-2026-09-03.json`](deployment/tar01-public-health-readonly-recheck-2026-09-03.json)：`/api/health/` 与 `/api/ready/` 均 `200`（database/Redis/Celery/critical data=`ok`，decision data=`warning`，Celery worker=`1`）；`/api/decision-ready/` 为 `503 blocked`、`must_not_use_for_decision=true`，runtime/core coverage/provider capability 仍 fail-closed。公开端点未暴露候选身份，本次未部署、未重启、未迁移、未写生产。
+- active registry v41 已将 AI-01 与 TUI usability next_gate 统一绑定当前候选 `aa7127ff4…` / `20260901232812`，并保留 TAR-05、TUI-02 的依赖停止线；不改变任何生产 unit 状态或授权边界。
 
 **文档维护**: AgomTradePro Team
 **最后更新**: 2026-09-03
