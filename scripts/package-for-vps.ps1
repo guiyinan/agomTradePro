@@ -561,11 +561,14 @@ Copy-Item docker/Caddyfile.template (Join-Path $dockerDir "Caddyfile.template") 
 Copy-Item docker/entrypoint.prod.sh (Join-Path $dockerDir "entrypoint.prod.sh") -Force
 Copy-Item deploy/.env.vps.example (Join-Path $deployDir ".env.vps.example") -Force
 Copy-Item deploy/prometheus-query.env.example (Join-Path $deployDir "prometheus-query.env.example") -Force
+Copy-Item deploy/agomtradepro-web-watchdog.service (Join-Path $deployDir "agomtradepro-web-watchdog.service") -Force
+Copy-Item deploy/agomtradepro-web-watchdog.timer (Join-Path $deployDir "agomtradepro-web-watchdog.timer") -Force
 Copy-Item monitoring/prometheus.vps.yml (Join-Path $monitoringDir "prometheus.vps.yml") -Force
 Copy-Item monitoring/alerts.yml (Join-Path $monitoringDir "alerts.yml") -Force
 Copy-Item deploy/README_DEPLOY.md (Join-Path $deployDir "README_DEPLOY.md") -Force
 Copy-Item scripts/deploy-on-vps.sh (Join-Path $scriptsDir "deploy-on-vps.sh") -Force
 Copy-Item scripts/deploy-on-vps.ps1 (Join-Path $scriptsDir "deploy-on-vps.ps1") -Force
+Copy-Item scripts/vps-web-watchdog.sh (Join-Path $scriptsDir "vps-web-watchdog.sh") -Force
 Copy-Item scripts/vps-backup.sh (Join-Path $scriptsDir "vps-backup.sh") -Force
 Copy-Item scripts/vps-restore.sh (Join-Path $scriptsDir "vps-restore.sh") -Force
 Copy-Item scripts/verify-vps-bundle.ps1 (Join-Path $scriptsDir "verify-vps-bundle.ps1") -Force
@@ -575,6 +578,7 @@ Copy-Item scripts/shared/common.ps1 (Join-Path $scriptsDir "common.ps1") -Force
 # Ensure shell scripts have LF line endings for Linux hosts.
 Convert-ToLf -Path (Join-Path $dockerDir "entrypoint.prod.sh")
 Convert-ToLf -Path (Join-Path $scriptsDir "deploy-on-vps.sh")
+Convert-ToLf -Path (Join-Path $scriptsDir "vps-web-watchdog.sh")
 Convert-ToLf -Path (Join-Path $scriptsDir "vps-backup.sh")
 Convert-ToLf -Path (Join-Path $scriptsDir "vps-restore.sh")
 Convert-ToLf -Path (Join-Path $scriptsDir "common.sh")

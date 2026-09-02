@@ -595,3 +595,18 @@ CI 只证明仓库合同，不改变生产候选或恢复状态。
 （restart/deploy 二选一）与重新取证；任何 restart 都会使 TUI-02 retained window 按规则重新绑定，
 并需复核 Caddy/Daphne/healthcheck 的恢复机制。DATA-02、AUD-03、EVID-01/02、STRAT-01、TAR-01/05
 以及 TUI-02 的 14 日窗口、queued/load/chaos、restore/rollback 与 owner/reviewer 门禁均保持原状态。
+
+### 13.21 Web liveness host-watchdog repository slice
+
+对 13.20 事故的仓库侧整改不通过重复部署解决，而是补齐明确的服务器端恢复合同：新增
+`scripts/vps-web-watchdog.sh` 与 systemd service/timer 模板。watchdog 只读取 compose `web`
+容器的 Docker health 状态；连续三次 `unhealthy` 后才允许 `docker compose ... restart web`，并
+保留 15 分钟冷却、每小时最多两次重启和最多 120 秒恢复等待。它不会直接 kill 共享 PID namespace
+中的 Daphne，也不会重启 `runtime_ns`、Celery、PostgreSQL、Redis、volume 或写入数据库/配置。
+`healthy`（包括 decision-ready 业务门正确 blocked）会清理失败计数而不触发重启。
+
+`tests/unit/test_vps_web_watchdog.py` 覆盖阈值、精确 Web-only restart、恢复确认、冷却、滚动重启预算
+和健康清零；`sh -n` 与现有打包脚本检查通过。watchdog 是一次显式运维安装，不随应用部署自动启用，
+不使用 Docker socket sidecar；本 slice 未安装、未重启、未部署或修改 VPS，未改变当前候选、TUI-02
+观察窗口或任何 DATA/EVID/STRAT/AUD/TAR 门禁。下一步仅在明确授权后安装 timer，并对实际恢复取一次
+候选绑定证据；安装或任何 restart 都按 TUI-02 规则重新绑定 retained sample。

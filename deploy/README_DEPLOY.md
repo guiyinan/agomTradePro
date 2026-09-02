@@ -216,6 +216,43 @@ provided by `pyqlib` (and not the unrelated `qlib` distribution), and pings
 Celery when workers are enabled. Any failed check makes the deploy command exit
 non-zero.
 
+## Optional Web liveness watchdog
+
+The VPS compose stack deliberately keeps `web`, `celery_worker`, and
+`celery_beat` in a neutral shared PID namespace. Docker therefore reports an
+unhealthy Web container, but its `restart: unless-stopped` policy cannot
+recover a still-running Daphne process. The bundle includes an optional,
+host-level watchdog for this case:
+
+```sh
+sudo install -m 0644 deploy/agomtradepro-web-watchdog.service \
+  /etc/systemd/system/agomtradepro-web-watchdog.service
+sudo install -m 0644 deploy/agomtradepro-web-watchdog.timer \
+  /etc/systemd/system/agomtradepro-web-watchdog.timer
+sudo install -d -m 0750 /var/lib/agomtradepro/web-watchdog
+sudo systemctl daemon-reload
+sudo systemctl enable --now agomtradepro-web-watchdog.timer
+```
+
+The timer runs once per minute with a small random delay. The script reads
+only the Docker health state, waits for three consecutive `unhealthy` samples,
+and then runs `docker compose ... restart web` only. It keeps a 15-minute
+cooldown and a two-restarts-per-hour budget, then verifies recovery for up to
+120 seconds. `runtime_ns`, Celery, PostgreSQL, Redis, volumes, and database
+contents are never restarted or modified by this watchdog. A healthy Web (or
+an application-level `decision-ready` block while Web liveness is healthy)
+clears the failure counter without any restart.
+
+This is an explicit operations step, not part of every application deploy. If
+the timer is not installed, an unhealthy Web remains a deployment/operations
+incident and must be investigated before any manual restart. Inspect one run
+with:
+
+```sh
+sudo systemctl status agomtradepro-web-watchdog.timer
+sudo journalctl -u agomtradepro-web-watchdog.service --since '15 minutes ago'
+```
+
 Remote image build/deploy commands default to a 3600-second timeout. For the
 one-click entry point, override it with
 `scripts/deploy-vps.ps1 -BuildTimeoutSeconds <seconds>`; for the Python helper,

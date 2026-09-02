@@ -67,3 +67,29 @@ Alpha latency/restart/error telemetry before calling it stable. This does not
 provide role-based TUI UAT, write receipts, 14-day telemetry, backup/restore
 drill evidence, or AUD-01/EVID-01 authority and publisher evidence; those gates
 remain unchanged.
+
+## 2026-09-02: bounded host recovery contract
+
+The 2026-09-02 candidate-bound read-only probe found a real recovery gap: Web
+was `running/unhealthy` with `restart=0`, Daphne was still alive, and Caddy
+returned `502` because `web:8000` timed out. The compose healthcheck only
+reported the failure (`WEB_HEALTH_SELF_TERMINATE_AFTER_FAILURES=0`), while the
+shared `runtime_ns` PID namespace makes healthcheck-triggered process kills an
+unsafe recovery mechanism. No systemd/monit/supervisor watcher was present on
+the VPS.
+
+The repository now provides an optional server-side watchdog at
+`scripts/vps-web-watchdog.sh`, plus systemd service/timer templates. It is
+deliberately not invoked by application deployment. Each timer tick reads the
+Docker health state, counts three consecutive `unhealthy` samples, enforces a
+15-minute cooldown and two-restarts-per-hour budget, then issues only
+`docker compose ... restart web` and waits up to 120 seconds for health to
+recover. It never kills a shared-PID process, restarts `runtime_ns`/Celery, or
+touches database/configuration state. Healthy Web liveness—including an
+application-level decision gate that is correctly blocked—clears the counter.
+
+The contract is covered by five local shell-behavior tests and `sh -n`; it has
+not been installed on or exercised against the VPS. Installing the timer is a
+single explicit operations action, not a reason to redeploy the application or
+reset the TUI-02 candidate window. Production installation, recovery and
+post-restart evidence remain pending authorization and observation.

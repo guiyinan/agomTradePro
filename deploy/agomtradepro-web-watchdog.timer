@@ -1,0 +1,12 @@
+[Unit]
+Description=Run AgomTradePro Web liveness recovery checks
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+RandomizedDelaySec=15s
+Persistent=true
+Unit=agomtradepro-web-watchdog.service
+
+[Install]
+WantedBy=timers.target
