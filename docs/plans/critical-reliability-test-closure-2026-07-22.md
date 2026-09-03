@@ -207,7 +207,7 @@ bytes，而期望值绑定 Git 中 LF bytes。`git ls-files --eol` 对三份引�
 
 - Pulse API 文件 + 两个 migration hash guard：`18 passed`。
 - Black、isort、Ruff：通过。
-- active-plan registry v44：41 units、唯一 focus `DATA-10`、0 violations。
+- active-plan registry v46：41 units、唯一 focus `DATA-10`、0 violations。
 - 首次完整本地 API/Migration：`1,088 passed / 2 failed`，两个失败均已按上述 canonical LF 根因修复。
 - 第二次完整本地运行使用机器默认 Python 3.13.5，在 Django test-db model render 阶段发生 Windows
   原生 `access violation` 并异常终止；仓库约定的 `agomtradepro` Python 3.11 conda 环境在本机并不存在，
@@ -217,8 +217,26 @@ bytes，而期望值绑定 Git 中 LF bytes。`git ls-files --eol` 对三份引�
   `13,867 passed / 1 failed / 1 skipped`。唯一失败是新增 DATA-10 后 closed-world registry test 仍断言
   `closure_unit_count == 40`，而机器注册表与 README 均已合法登记 41 units；该投影现已同步为 41，
   registry focused test 为 `8 passed`。
+- 精确提交 `20e5421bb710e3e554ac9ed9ef7847b7a5c6dc4d` 的后续 Nightly run `33758054039`
+  已使独立 PostgreSQL、full unit、component、API/migration 和 SQLite critical reliability 阶段全部
+  成功。core integration 执行到 `1,037 passed / 4 failed / 13 deselected` 后停止，四项均为已有测试或
+  历史快照没有满足当前合同：两条 Data Center API 测试缺少显式 audit composition，一条 Config
+  Center 测试缺 critical runtime profile，历史 Web→TUI 基线图套用当前 IA 后则只剩 P1/P2 面板而
+  丢失 P0。
+- Data Center API 测试现在只替换 authority/config 装配，仍使用真实 Django system-audit event/outbox
+  writer，并额外断言 `data.fetch.completed` 落库；Config Center 复用现有 fail-closed critical runtime
+  seed。TUI repository 对历史 full-IA payload 过滤面板后，如只剩无 P0 的不完整面板组，则将其整体
+  移除并把 dashboard journey 降级为有主动作的 workspace，随后仍执行完整 metadata validator；不会
+  虚构 P0 action，也不会接受无效 payload。
+- 最新本地验证：上述两条 audited API 节点 `2 passed`；三个受影响 integration 文件 `48 passed`；
+  完整 `tests/unit/test_tui_workbench.py` 为 `309 passed`；TUI static/source/copy-density/presentation 四项
+  门禁通过；增量 mypy 与全仓 debt ceiling 均为 0 errors；Black、isort、Ruff 通过。
+- 按 Nightly 相同 marker 选择器执行完整 `tests/integration/`，结果为
+  `1,041 passed / 13 deselected / 1 warning`（674.73s）。唯一 warning 是 Windows teardown 时测试数据库
+  文件仍被进程占用；全部测试节点已成功，不把该清理 warning 隐瞒或误报成 Python 3.11 证据。
 
-`DATA-10` 继续保持 active，直到包含上述投影同步的精确后续提交在 GitHub Python 3.11 Nightly 完整通过，再生成
-content-addressed closure evidence、同步 registry/计划并把 focus 置回 null。本单元不部署、不重启、
-不读写生产数据库、不修改候选、历史 migration、数据门或 TUI 观察窗口；回滚点仅为三份测试文件和
-closed-world registry test，以及对应治理投影。
+`DATA-10` 继续保持 active，直到包含上述四项 integration corrective 的精确最终提交在 GitHub Python
+3.11 Nightly 完整通过，再生成 content-addressed closure evidence、同步 registry/计划并把 focus 置回
+null。本单元不部署、不重启、不读写生产数据库、不修改候选、历史 migration、数据门或 TUI 观察窗口；
+当前回滚点为 Pulse/migration/registry 测试修复、三项 integration fixture、TUI legacy normalization 及
+对应治理投影。

@@ -7801,6 +7801,37 @@ def test_tui_metadata_repository_skips_dashboard_patch_when_panel_actions_are_ab
     assert screen["user_experience"]["journey"] == "workspace"
 
 
+def test_tui_metadata_repository_drops_incomplete_dashboard_panel_groups():
+    screens = [
+        {
+            "key": "command-center.overview",
+            "default_action_key": "overview.read",
+            "dashboard_panels": [
+                {
+                    "key": "missing-primary",
+                    "action_key": "overview.primary",
+                    "user_priority": "p0",
+                },
+                {
+                    "key": "available-support",
+                    "action_key": "overview.read",
+                    "user_priority": "p1",
+                },
+            ],
+            "user_experience": {"journey": "dashboard"},
+        }
+    ]
+    actions = [{"key": "overview.read", "screen_key": "command-center.overview"}]
+
+    PublishedTuiMetadataRepository._repair_runtime_screen_contracts(
+        screens=screens,
+        actions=actions,
+    )
+
+    assert screens[0]["dashboard_panels"] == []
+    assert screens[0]["user_experience"]["journey"] == "workspace"
+
+
 def test_tui_metadata_repository_injects_canonical_modules_for_identity_access_screens():
     payload = _metadata_payload()
     repository = PublishedTuiMetadataRepository()

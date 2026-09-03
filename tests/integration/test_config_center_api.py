@@ -12,7 +12,7 @@ from apps.account.infrastructure.models import (
 from apps.config_center.infrastructure.repositories import ConfigCenterSettingsRepository
 from apps.data_center.application.interface_services import save_provider_settings_payload
 from apps.data_center.infrastructure.models import ProviderConfigModel
-from tests.support.runtime_config import configure_account_runtime
+from tests.support.runtime_config import configure_account_runtime, configure_critical_runtime
 
 
 def _ensure_account_profile(user: User) -> None:
@@ -189,6 +189,7 @@ def test_config_center_snapshot_includes_data_center_runtime_summary(staff_clien
 
 @pytest.mark.django_db
 def test_config_center_snapshot_treats_data_center_provider_config_as_configured(staff_client):
+    configure_critical_runtime()
     ProviderConfigModel.objects.create(
         name="akshare-main",
         source_type="akshare",

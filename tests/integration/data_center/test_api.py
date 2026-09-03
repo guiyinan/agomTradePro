@@ -5,6 +5,31 @@ import pytest
 from django.contrib.auth.models import User
 from django.test import Client
 
+from apps.audit.application.data_decision_read_audit import (
+    AppendDataDecisionReadAuditObservationUseCase,
+)
+from apps.audit.application.data_failover_audit import (
+    AppendDataFailoverAuditObservationUseCase,
+)
+from apps.audit.application.data_fetch_audit import AppendDataFetchAuditObservationUseCase
+from apps.audit.application.data_freshness_audit import (
+    AppendDataFreshnessAuditObservationUseCase,
+)
+from apps.audit.application.data_provider_health_audit import (
+    AppendDataProviderHealthAuditObservationUseCase,
+)
+from apps.audit.application.data_publication_audit import (
+    AppendDataPublicationAuditObservationUseCase,
+)
+from apps.audit.application.data_quality_audit import AppendDataQualityAuditObservationUseCase
+from apps.audit.application.data_validation_audit import (
+    AppendDataValidationRejectedObservationUseCase,
+)
+from apps.audit.domain.system_audit_event import AuditScopeRef
+from apps.audit.infrastructure.system_audit_event_outbox_coordinator import (
+    DjangoSystemAuditEventOutboxCoordinator,
+)
+from apps.audit.infrastructure.system_audit_models import SystemAuditEventModel
 from apps.data_center.infrastructure.catalog_models import DatasetPublicationPolicyModel
 from apps.data_center.infrastructure.models import (
     FinancialFactModel,
@@ -15,6 +40,47 @@ from apps.data_center.infrastructure.models import (
     RawAuditModel,
     ValuationFactModel,
 )
+
+
+class _AuditScopeProvider:
+    def get_scope(self, *, as_of: datetime) -> AuditScopeRef:
+        del as_of
+        return AuditScopeRef("tenant:integration", "owner:data-center-test")
+
+
+def _canonical_audit_writers() -> tuple[
+    AppendDataFetchAuditObservationUseCase,
+    AppendDataPublicationAuditObservationUseCase,
+    AppendDataValidationRejectedObservationUseCase,
+    AppendDataFailoverAuditObservationUseCase,
+    AppendDataDecisionReadAuditObservationUseCase,
+    AppendDataProviderHealthAuditObservationUseCase,
+    AppendDataFreshnessAuditObservationUseCase,
+    AppendDataQualityAuditObservationUseCase,
+]:
+    """Build real database writers behind an explicit isolated test scope."""
+
+    coordinator = DjangoSystemAuditEventOutboxCoordinator()
+    scope_provider = _AuditScopeProvider()
+    return (
+        AppendDataFetchAuditObservationUseCase(coordinator, scope_provider),
+        AppendDataPublicationAuditObservationUseCase(coordinator, scope_provider),
+        AppendDataValidationRejectedObservationUseCase(coordinator, scope_provider),
+        AppendDataFailoverAuditObservationUseCase(coordinator, scope_provider),
+        AppendDataDecisionReadAuditObservationUseCase(coordinator, scope_provider),
+        AppendDataProviderHealthAuditObservationUseCase(coordinator, scope_provider),
+        AppendDataFreshnessAuditObservationUseCase(coordinator, scope_provider),
+        AppendDataQualityAuditObservationUseCase(coordinator, scope_provider),
+    )
+
+
+def _install_canonical_audit_writers(mocker) -> None:
+    """Keep API integration tests on canonical audit persistence without authority fixtures."""
+
+    mocker.patch(
+        "core.integration.data_center_audit.get_data_reliability_audit_writers",
+        return_value=_canonical_audit_writers(),
+    )
 
 
 def _seed_publication_policy(dataset_key: str, required_evidence: list[str]) -> None:
@@ -166,6 +232,7 @@ class _StubRegistry:
 
 @pytest.mark.django_db
 def test_sync_macro_endpoint_persists_fact_and_raw_audit(admin_client, mocker):
+    _install_canonical_audit_writers(mocker)
     _seed_publication_policy(
         "macro.fact", ["source", "observed_at", "published_at", "payload_hash"]
     )
@@ -197,10 +264,12 @@ def test_sync_macro_endpoint_persists_fact_and_raw_audit(admin_client, mocker):
     assert response["Content-Type"].startswith("application/json")
     assert MacroFactModel.objects.filter(indicator_code="CN_PMI").count() == 1
     assert RawAuditModel.objects.filter(capability="macro", status="ok").count() == 1
+    assert SystemAuditEventModel.objects.filter(event_type="data.fetch.completed").count() == 1
 
 
 @pytest.mark.django_db
 def test_sync_quotes_endpoint_persists_snapshot_and_raw_audit(admin_client, mocker):
+    _install_canonical_audit_writers(mocker)
     _seed_publication_policy(
         "equity.quote.snapshot", ["source", "observed_at", "fetched_at", "payload_hash"]
     )
@@ -224,6 +293,7 @@ def test_sync_quotes_endpoint_persists_snapshot_and_raw_audit(admin_client, mock
     assert response.status_code == 200
     assert QuoteSnapshotModel.objects.filter(asset_code="000001.SZ").count() == 1
     assert RawAuditModel.objects.filter(capability="realtime_quote", status="ok").count() == 1
+    assert SystemAuditEventModel.objects.filter(event_type="data.fetch.completed").count() == 1
 
 
 @pytest.mark.django_db
