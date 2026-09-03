@@ -1072,8 +1072,8 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/macro/application/tasks.py:get_active_provider_id_by_source:line:22",
-      "locator": "line:22",
+      "id": "application_consumer:apps/macro/application/tasks.py:get_active_provider_id_by_source:line:23",
+      "locator": "line:23",
       "path": "apps/macro/application/tasks.py",
       "status": "active_public",
       "symbol": "get_active_provider_id_by_source",
@@ -1082,8 +1082,8 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/macro/application/tasks.py:make_query_macro_series_use_case:line:22",
-      "locator": "line:22",
+      "id": "application_consumer:apps/macro/application/tasks.py:make_query_macro_series_use_case:line:23",
+      "locator": "line:23",
       "path": "apps/macro/application/tasks.py",
       "status": "active_public",
       "symbol": "make_query_macro_series_use_case",
@@ -1092,8 +1092,8 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/macro/application/tasks.py:make_sync_macro_use_case:line:22",
-      "locator": "line:22",
+      "id": "application_consumer:apps/macro/application/tasks.py:make_sync_macro_use_case:line:23",
+      "locator": "line:23",
       "path": "apps/macro/application/tasks.py",
       "status": "active_public",
       "symbol": "make_sync_macro_use_case",
@@ -2732,8 +2732,8 @@
     {
       "category": "celery_dispatch_edge",
       "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
-      "id": "celery_dispatch_edge:apps/macro/application/tasks.py:delay:line:419",
-      "locator": "line:419",
+      "id": "celery_dispatch_edge:apps/macro/application/tasks.py:delay:line:420",
+      "locator": "line:420",
       "path": "apps/macro/application/tasks.py",
       "status": "active_public",
       "symbol": "delay",
