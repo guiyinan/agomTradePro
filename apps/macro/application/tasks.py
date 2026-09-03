@@ -12,13 +12,14 @@ Celery Tasks for Macro Data Synchronization.
     from apps.regime.application.orchestration import sync_macro_then_refresh_regime
 """
 
+from collections.abc import Callable
 from datetime import date, timedelta
 from typing import Any
 
 from celery import shared_task
 from celery.utils.log import get_task_logger
 
-from apps.data_center.application.dtos import MacroSeriesRequest, SyncMacroRequest
+from apps.data_center.application.dtos import MacroSeriesRequest, SyncMacroRequest, SyncResult
 from apps.data_center.application.public import (
     get_active_provider_id_by_source,
     make_query_macro_series_use_case,
@@ -596,7 +597,7 @@ def auto_sync_due_macro_indicators(
                 },
             )
 
-        sync_use_case = make_sync_macro_use_case()
+        sync_executor: Callable[[SyncMacroRequest], SyncResult] | None = None
         today = date.today()
         sync_runs: list[dict[str, Any]] = []
 
@@ -630,7 +631,9 @@ def auto_sync_due_macro_indicators(
                 today=today,
             )
             try:
-                result = sync_use_case.execute(
+                if sync_executor is None:
+                    sync_executor = make_sync_macro_use_case().execute
+                result = sync_executor(
                     SyncMacroRequest(
                         provider_id=provider_id,
                         indicator_code=indicator_code,

@@ -281,6 +281,11 @@ def test_auto_sync_due_macro_indicators_blocks_without_provider(monkeypatch) -> 
         lambda: [_due_indicator("CN_PMI")],
     )
     monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda _source: None)
+    monkeypatch.setattr(
+        tasks,
+        "make_sync_macro_use_case",
+        lambda: (_ for _ in ()).throw(AssertionError("must not compose")),
+    )
 
     result = tasks.auto_sync_due_macro_indicators()
 
