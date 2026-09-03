@@ -12061,22 +12061,22 @@
       "text": "\"\"\"Return the latest date for one macro indicator.\"\"\""
     },
     {
-      "line": 207,
+      "line": 208,
       "path": "apps/macro/application/tasks.py",
       "text": "latest = response.data[0] if response.data else None"
     },
     {
-      "line": 232,
+      "line": 233,
       "path": "apps/macro/application/tasks.py",
       "text": "\"days_lag\": latest.age_days if latest else None,"
     },
     {
-      "line": 509,
+      "line": 510,
       "path": "apps/macro/application/tasks.py",
       "text": "f\"latest={item.get('latest_date', '')} \""
     },
     {
-      "line": 553,
+      "line": 554,
       "path": "apps/macro/application/tasks.py",
       "text": "dict: Sync result summary."
     },
@@ -22728,37 +22728,37 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 238,
+      "line": 239,
       "path": "apps/macro/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 401,
+      "line": 402,
       "path": "apps/macro/application/tasks.py",
       "text": "@shared_task(time_limit=300, soft_time_limit=280)  # type: ignore[misc]"
     },
     {
-      "line": 461,
+      "line": 462,
       "path": "apps/macro/application/tasks.py",
       "text": "@shared_task(time_limit=300, soft_time_limit=280)  # type: ignore[misc]"
     },
     {
-      "line": 542,
+      "line": 543,
       "path": "apps/macro/application/tasks.py",
       "text": "@shared_task(time_limit=1800, soft_time_limit=1700)  # type: ignore[misc]"
     },
     {
-      "line": 730,
+      "line": 733,
       "path": "apps/macro/application/tasks.py",
       "text": "@shared_task(time_limit=900, soft_time_limit=850)  # type: ignore[misc]"
     },
     {
-      "line": 911,
+      "line": 914,
       "path": "apps/macro/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 952,
+      "line": 955,
       "path": "apps/macro/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
