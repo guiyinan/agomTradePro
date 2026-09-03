@@ -207,13 +207,18 @@ bytes，而期望值绑定 Git 中 LF bytes。`git ls-files --eol` 对三份引�
 
 - Pulse API 文件 + 两个 migration hash guard：`18 passed`。
 - Black、isort、Ruff：通过。
-- active-plan registry v43：41 units、唯一 focus `DATA-10`、0 violations。
+- active-plan registry v44：41 units、唯一 focus `DATA-10`、0 violations。
 - 首次完整本地 API/Migration：`1,088 passed / 2 failed`，两个失败均已按上述 canonical LF 根因修复。
 - 第二次完整本地运行使用机器默认 Python 3.13.5，在 Django test-db model render 阶段发生 Windows
   原生 `access violation` 并异常终止；仓库约定的 `agomtradepro` Python 3.11 conda 环境在本机并不存在，
   因此该次运行既不记为测试失败，也不记为通过。
+- 精确提交 `a03078fb51339a98e4c30a27255b9d3426e7f81d` 的 GitHub Python 3.11 Nightly run
+  `33754275868` 中，独立 PostgreSQL job 完整成功；主 Unit Tests 为
+  `13,867 passed / 1 failed / 1 skipped`。唯一失败是新增 DATA-10 后 closed-world registry test 仍断言
+  `closure_unit_count == 40`，而机器注册表与 README 均已合法登记 41 units；该投影现已同步为 41，
+  registry focused test 为 `8 passed`。
 
-`DATA-10` 继续保持 active，直到精确修复提交在 GitHub Python 3.11 Nightly 完整通过，再生成
+`DATA-10` 继续保持 active，直到包含上述投影同步的精确后续提交在 GitHub Python 3.11 Nightly 完整通过，再生成
 content-addressed closure evidence、同步 registry/计划并把 focus 置回 null。本单元不部署、不重启、
 不读写生产数据库、不修改候选、历史 migration、数据门或 TUI 观察窗口；回滚点仅为三份测试文件和
-对应治理投影。
+closed-world registry test，以及对应治理投影。
