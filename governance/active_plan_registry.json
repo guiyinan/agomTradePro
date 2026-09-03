@@ -1,14 +1,14 @@
 {
-  "version": "2026-09-03.v41",
+  "version": "2026-09-03.v43",
   "updated_at": "2026-09-03",
   "execution_focus": {
-    "unit_id": null,
+    "unit_id": "DATA-10",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Personal-project single-owner mode remains active, but signatures never manufacture authority rows, business definitions, retained observations, production outcomes or elapsed time. PR #16 merged candidate aa7127ff4d9f71555b0d0486314da5518bd2ac20 to main and its clean-worktree deployment produced release 20260901232812 / image sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c. The predeploy PostgreSQL backup was custom-format verified and downloaded with SHA-256 c9f7cf876bd79908aa66461e5d07b254104ba1013b134f669cb91bf8119b1caf. Candidate-bound read-only probes confirm stable PostgreSQL connections, zero pending migrations, healthy target/rules and the existing EVID/STRAT zero-seed blockers; DATA-02 dry-runs remain non-writing and DENY. Production-safe UAT run tui02-aa7127ff-20260902-01 passed 10/10 and 108/108 with regular/operator/admin coverage, two same-run write receipts and zero cleanup residual; the 108-route cleanup suite passed 8/8 and the candidate-bound local isolated rollback drill passed. A controlled web-only restart recovered the same candidate at 2026-09-02T15:38:21.178433901Z; read-only reset evidence records web/prometheus health and public health/ready=200 while decision-ready remains 503 fail-closed. The pre-restart retained checkpoint is preserved as historical evidence, its binding is cleared, and TUI-02 now requires the first real post-reset sample plus a fresh exact 14-day window. EVID-04 is repository-complete: the checked-in fixture test now consumes Git-canonical LF text bytes independent of Windows checkout conversion, while production raw-byte provenance remains unchanged; the formerly failing test passes and Black, isort, Ruff, active-plan and governance checks are green. execution_focus returns to null; authority/approval mutation, queued runtime, load/fault, live rollback and unsupported production writes remain denied."
+    "policy": "Personal-project single-owner mode remains active, but signatures never manufacture authority rows, business definitions, retained observations, production outcomes or elapsed time. PR #16 merged candidate aa7127ff4d9f71555b0d0486314da5518bd2ac20 to main and its clean-worktree deployment produced release 20260901232812 / image sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c. The predeploy PostgreSQL backup was custom-format verified and downloaded with SHA-256 c9f7cf876bd79908aa66461e5d07b254104ba1013b134f669cb91bf8119b1caf. Candidate-bound read-only probes confirm stable PostgreSQL connections, zero pending migrations, healthy target/rules and the existing EVID/STRAT zero-seed blockers; DATA-02 dry-runs remain non-writing and DENY. Production-safe UAT run tui02-aa7127ff-20260902-01 passed 10/10 and 108/108 with regular/operator/admin coverage, two same-run write receipts and zero cleanup residual; the 108-route cleanup suite passed 8/8 and the candidate-bound local isolated rollback drill passed. A controlled web-only restart recovered the same candidate at 2026-09-02T15:38:21.178433901Z; read-only reset evidence records web/prometheus health and public health/ready=200 while decision-ready remains 503 fail-closed. The pre-restart retained checkpoint is preserved as historical evidence, its binding is cleared, and TUI-02 now requires the first real post-reset sample plus a fresh exact 14-day window. GitHub Nightly run 33726889412 independently exposed one deterministic Pulse history API test-clock regression at current HEAD 713a961eeeee7bd7ec4b77f2d5a2ecafa3354d3f; local reproduction confirms the fixed March fixture has fallen outside its six-month query window. The same full local Nightly scope then proved two historical migration hash assertions read CRLF working-tree bytes even though their expected hashes bind Git-canonical LF bytes; canonical LF recomputation matches all three expected digests exactly. DATA-10 is the sole repository focus for these bounded test-only determinism corrections and exact Nightly revalidation; production behavior, historical migration files, candidate binding and fail-closed gates remain unchanged. Authority/approval mutation, queued runtime, load/fault, live rollback and unsupported production writes remain denied."
   },
   "workstreams": [
     {
@@ -88,7 +88,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "Candidate aa7127ff4d9f71555b0d0486314da5518bd2ac20 was deployed from an independent clean worktree as release 20260901232812 after a verified predeploy PostgreSQL backup. Three read-only PostgreSQL samples show client backends stable at 2 with no connection growth, validating DATA-04 in production. DATA-02 SELECT-only dry-runs cover the 5,533-asset universe and report 288,409 safe financial availability rows across 3,750 assets with zero unresolved/future rows, but completed-session prices are 0/5,533 eligible, all 5,533 quote/price/valuation facts are stale, and financial facts cover only 1,923 with 3,610 missing. DATA-02 therefore remains DENY and awaiting_production; the next gate is a separately bounded production reconciliation with before/after evidence and real data-owner handling of tolerance exceptions. DATA-03 remains dependency-blocked.",
+      "next_gate": "DATA-10 is the sole repository focus after GitHub Nightly run 33726889412 and a local reproduction proved that one Pulse history API test uses fixed dates outside its six-month window. The full 1,090-item local Nightly API/migration scope then passed 1,088 items and exposed only two existing historical-migration hash assertions that compare CRLF working-tree bytes to Git-canonical LF digests; normalizing the three referenced files to LF reproduces all expected hashes exactly. Keep the correction test-only: use one captured relative date for Pulse fixtures and canonical LF bytes for the two migration hash guards, rerun the focused and full Nightly scopes, then require a green GitHub Nightly result before closing the unit. Production behavior, historical migrations and the deployed candidate do not change. Separately, candidate aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812 remains DATA-02 DENY: completed-session prices are 0/5,533 eligible, all 5,533 quote/price/valuation facts are stale, and financial facts cover only 1,923 with 3,610 missing; DATA-03 remains dependency-blocked.",
       "documents": [
         {
           "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
@@ -277,7 +277,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-09-03.v41",
+    "version": "2026-09-03.v43",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -708,6 +708,19 @@
           "DATA-08"
         ],
         "exit_gate": "Completed on 2026-09-01 with docs/testing/data09-decision-runtime-reliability-boundary-closure-evidence-2026-09-01.json (SHA-256 acc0721682a26081819b89d35382c0e853e637ce2b169d34488d9100b301663b): governance/reliability_contracts.json binds decision_runtime_activation.py::def _run_probes to exactly core_coverage, provider_capabilities and decision_data probe-failure codes. The ownership guard passes, 7 activation/ownership tests pass, all 53 current-data contracts remain valid, and no production/runtime code changed."
+      },
+      {
+        "id": "DATA-10",
+        "workstream_id": "data-production-reliability",
+        "wave": 3,
+        "priority": "P1",
+        "execution_mode": "repository",
+        "status": "active",
+        "title": "Stabilize Nightly test clocks and canonical migration-byte guards",
+        "depends_on": [
+          "DATA-09"
+        ],
+        "exit_gate": "The Pulse history API contract uses time-relative rows within one captured six-month window; historical migration hash guards validate Git-canonical LF bytes independently of checkout EOL conversion; focused tests and the full 1,090-item API/migration scope pass; and a GitHub Nightly run for the exact corrective commit completes successfully without changing production Pulse behavior, freshness semantics or historical migration files."
       },
       {
         "id": "DATA-03",

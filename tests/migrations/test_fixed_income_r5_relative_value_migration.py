@@ -24,10 +24,17 @@ def _rows(model: Any) -> list[dict[str, object]]:
     return list(model.objects.order_by(model._meta.pk.name).values())
 
 
+def _canonical_migration_digest(path: Path) -> str:
+    """Hash repository text independently of checkout line-ending policy."""
+
+    content = path.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return sha256(content).hexdigest()
+
+
 def test_0003_is_create_only_and_preserves_0001_0002_migration_bytes() -> None:
     migration_directory = _REPOSITORY_ROOT / "apps" / "fixed_income" / "migrations"
     for filename, expected_hash in _HISTORICAL_MIGRATION_HASHES.items():
-        assert sha256((migration_directory / filename).read_bytes()).hexdigest() == expected_hash
+        assert _canonical_migration_digest(migration_directory / filename) == expected_hash
 
     migration = importlib.import_module(
         "apps.fixed_income.migrations.0003_r5_relative_value_audit_ledger"

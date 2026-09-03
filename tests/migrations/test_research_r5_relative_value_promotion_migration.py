@@ -26,9 +26,16 @@ def _rows(model: Any) -> list[dict[str, object]]:
     return list(model.objects.order_by(model._meta.pk.name).values())
 
 
+def _canonical_migration_digest(path: Path) -> str:
+    """Hash repository text independently of checkout line-ending policy."""
+
+    content = path.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return hashlib.sha256(content).hexdigest().upper()
+
+
 def test_0005_bytes_are_unchanged() -> None:
     path = REPO_ROOT / "apps" / "research" / "migrations" / "0005_r7_sample_policy_ledger.py"
-    assert hashlib.sha256(path.read_bytes()).hexdigest().upper() == PREVIOUS_MIGRATION_HASH
+    assert _canonical_migration_digest(path) == PREVIOUS_MIGRATION_HASH
 
 
 def test_0006_is_schema_only_and_depends_only_on_research_0005() -> None:

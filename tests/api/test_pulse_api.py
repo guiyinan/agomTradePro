@@ -1,6 +1,6 @@
 import logging
 from dataclasses import replace
-from datetime import date
+from datetime import date, timedelta
 from unittest.mock import MagicMock
 
 import pytest
@@ -160,9 +160,10 @@ def test_pulse_current_api_marks_stale_snapshot_as_diagnostic_only(authenticated
 
 @pytest.mark.django_db
 def test_pulse_history_api_contract(authenticated_client):
-    PulseRepository().save_snapshot(_pulse_snapshot())
+    query_date = date.today()
+    PulseRepository().save_snapshot(replace(_pulse_snapshot(), observed_at=query_date))
     PulseLog.objects.create(
-        observed_at=date(2026, 3, 1),
+        observed_at=query_date - timedelta(days=30),
         regime_context="Recovery",
         growth_score=0.2,
         inflation_score=0.1,

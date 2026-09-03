@@ -177,3 +177,43 @@
 这条证据完成的是 CI PostgreSQL 迁移/关键可靠性测试与隔离恢复子门，不是生产数据库恢复或
 RTO/RPO、维护态 rollback、全市场回填、生产 reconciliation、M9/M10 或真实 QMT 探针；这些
 仍保持未完成和 fail-closed。
+
+## 2026-09-03 DATA-10：Nightly 测试时钟与 canonical migration bytes
+
+### 触发与根因
+
+GitHub Actions Nightly run `33726889412` 在
+`tests/api/test_pulse_api.py::test_pulse_history_api_contract` 失败：接口返回一条历史记录，而固定断言
+要求至少两条。本地同一测试复现为 `count=1`。仓储按 `date.today() - months * 30 days` 计算窗口，
+测试却固定写入 2026-03-24 与 2026-03-01；随着真实日期推进，后一行已经自然落出六个月窗口。
+
+修复只修改测试夹具：在一次测试内捕获 `date.today()`，分别写入当日和前 30 日两条记录。这样仍
+真实经过仓储的六个月过滤，不冻结生产时钟、不扩大查询窗口，也不改变 Pulse API、freshness 或
+`must_not_use_for_decision` 语义。
+
+首次完整执行 Nightly 的 API/Migration 原命令共收集 1,090 项，结果为 `1,088 passed / 2 failed`。
+Pulse 文件的 16 项均通过；剩余两项是历史 migration hash guard 在 Windows 工作树直接读取 CRLF
+bytes，而期望值绑定 Git 中 LF bytes。`git ls-files --eol` 对三份引用文件均证明 `i/lf w/crlf`；将
+工作树 bytes 规范化为 LF 后，SHA-256 与三个期望值逐一完全一致：
+
+- `fixed_income/0001_initial.py`：`201b740746c21cf86f22db535c849f0bce2edcca7b67da871c795ff7039103cf`
+- `fixed_income/0002_seal_research_results.py`：`15d271e90ffcaf3ee5590cf065ad5ef9c839885c1b92884d98b2dbf1402edc92`
+- `research/0005_r7_sample_policy_ledger.py`：`5bfdd5eabcc8e3318890a8622df48ca8805cd30745dc941a3553a1da204746ae`
+
+两个 guard 现按仓库既有迁移测试约定将 CRLF/CR 规范化为 LF 后校验。历史 migration 文件本身未
+修改，hash 期望值未更新，因而仍能检测任何真实内容漂移。
+
+### 当前验证与退出门
+
+- Pulse API 文件 + 两个 migration hash guard：`18 passed`。
+- Black、isort、Ruff：通过。
+- active-plan registry v43：41 units、唯一 focus `DATA-10`、0 violations。
+- 首次完整本地 API/Migration：`1,088 passed / 2 failed`，两个失败均已按上述 canonical LF 根因修复。
+- 第二次完整本地运行使用机器默认 Python 3.13.5，在 Django test-db model render 阶段发生 Windows
+  原生 `access violation` 并异常终止；仓库约定的 `agomtradepro` Python 3.11 conda 环境在本机并不存在，
+  因此该次运行既不记为测试失败，也不记为通过。
+
+`DATA-10` 继续保持 active，直到精确修复提交在 GitHub Python 3.11 Nightly 完整通过，再生成
+content-addressed closure evidence、同步 registry/计划并把 focus 置回 null。本单元不部署、不重启、
+不读写生产数据库、不修改候选、历史 migration、数据门或 TUI 观察窗口；回滚点仅为三份测试文件和
+对应治理投影。
