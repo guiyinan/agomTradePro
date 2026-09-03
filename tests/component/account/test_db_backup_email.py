@@ -19,6 +19,7 @@ from apps.account.infrastructure.backup_service import (
 from apps.config_center.application.public import update_backup_delivery_settings
 from apps.config_center.models import BackupDeliveryStateModel
 from apps.data_center.application.interface_services import save_provider_settings_payload
+from tests.support.runtime_config import configure_critical_runtime
 
 
 @pytest.fixture(autouse=True)
@@ -27,6 +28,7 @@ def _encryption_key(settings) -> None:
 
 
 def _configure_backup_settings(**overrides):
+    configure_critical_runtime()
     save_provider_settings_payload(
         default_source="akshare",
         enable_failover=True,

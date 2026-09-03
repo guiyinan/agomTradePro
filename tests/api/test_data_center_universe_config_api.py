@@ -10,9 +10,14 @@ from apps.data_center.infrastructure.models import (
 def test_production_coverage_universe_config_api_round_trips(admin_client):
     response = admin_client.get("/api/data-center/production-coverage/universe/")
 
-    assert response.status_code == 500
+    assert response.status_code == 503
     assert response["Content-Type"].startswith("application/json")
-    assert response.json()["code"] == "MISSING_CONFIG"
+    assert response.json() == {
+        "error": "Production coverage universe config is not initialized",
+        "code": "MISSING_CONFIG",
+        "success": False,
+        "must_not_use_for_decision": True,
+    }
     assert ProductionCoverageUniverseConfigModel.objects.count() == 0
 
     update_response = admin_client.put(

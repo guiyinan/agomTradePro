@@ -18,6 +18,7 @@ from apps.data_center.application.interface_services import (
     save_provider_settings_payload,
 )
 from apps.data_center.infrastructure.models import DataProviderSettingsModel
+from tests.support.runtime_config import configure_critical_runtime
 
 
 def test_profile_bootstrap_does_not_reheat_legacy_qlib_fields() -> None:
@@ -138,6 +139,7 @@ def test_qlib_runtime_update_activates_typed_profile_without_legacy_write(tmp_pa
     settings_obj = SystemSettingsModel.get_settings()
     settings_obj.qlib_enabled = False
     settings_obj.save(update_fields=["qlib_enabled", "updated_at"])
+    configure_critical_runtime()
     save_provider_settings_payload(
         default_source="akshare",
         enable_failover=True,
@@ -188,6 +190,7 @@ def test_qlib_runtime_update_activates_typed_profile_without_legacy_write(tmp_pa
 def test_provider_settings_update_uses_typed_failover_values() -> None:
     """Data Center provider settings publish failover values into the runtime profile."""
 
+    configure_critical_runtime()
     payload = save_provider_settings_payload(
         default_source="akshare",
         enable_failover=False,
@@ -237,6 +240,7 @@ def test_account_system_settings_update_uses_typed_market_governance() -> None:
             "updated_at",
         ]
     )
+    configure_critical_runtime()
     save_provider_settings_payload(
         default_source="akshare",
         enable_failover=True,

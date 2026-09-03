@@ -12,11 +12,13 @@ from apps.config_center.application.use_cases import (
     TriggerQlibTrainingUseCase,
 )
 from apps.config_center.infrastructure.models import QlibTrainingRunModel
+from tests.support.runtime_config import configure_critical_runtime
 
 
 def _activate_test_qlib_runtime(tmp_path) -> None:
     """Seed one explicit typed runtime profile for Qlib use-case tests."""
 
+    configure_critical_runtime()
     provider_dir = tmp_path / "qlib" / "cn_data"
     model_dir = tmp_path / "qlib" / "models"
     provider_dir.mkdir(parents=True)

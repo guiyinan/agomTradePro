@@ -17,9 +17,11 @@ from apps.config_center.domain.backup_delivery import (
 )
 from apps.config_center.models import ConfigCenterSecretModel, SystemSettingsModel
 from apps.data_center.application.interface_services import save_provider_settings_payload
+from tests.support.runtime_config import configure_critical_runtime
 
 
 def _configure_provider_runtime() -> None:
+    configure_critical_runtime()
     save_provider_settings_payload(
         default_source="akshare",
         enable_failover=True,

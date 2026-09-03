@@ -74,6 +74,8 @@ EMPTY_STATE_REDIRECT_ROUTES = {
 }
 
 GOVERNED_UNAVAILABLE_ROUTES = {
+    "/api/data-center/production-coverage/summary/",
+    "/api/data-center/production-coverage/universe/",
     "/api/decision-ready/",
     "/api/ready/",
     "/api/realtime/market-summary/",
@@ -83,6 +85,9 @@ GOVERNED_UNAVAILABLE_ROUTES = {
     "/api/risk-center/stress-scenario-sets/active/",
     "/api/risk-center/stress-scenario-sets/impact-preview/",
     "/api/sector/rotation/",
+    "/api/terminal/runs/",
+    "/api/terminal/runs/queue/",
+    "/api/tui/operator/governance-queue/",
 }
 
 
