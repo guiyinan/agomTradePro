@@ -21716,32 +21716,32 @@
       "text": "\"\"\"Run a published safe action for the current user.\"\"\""
     },
     {
-      "line": 261,
+      "line": 265,
       "path": "apps/terminal/interface/queued_runtime_views.py",
       "text": "\"\"\"Return queue summary or one owner-scoped durable status snapshot.\"\"\""
     },
     {
-      "line": 268,
+      "line": 272,
       "path": "apps/terminal/interface/queued_runtime_views.py",
       "text": "summary = repository.queue_summary(actor_user_id=actor_user_id)"
     },
     {
-      "line": 271,
+      "line": 275,
       "path": "apps/terminal/interface/queued_runtime_views.py",
       "text": "\"user_active\": summary.user_active,"
     },
     {
-      "line": 272,
+      "line": 276,
       "path": "apps/terminal/interface/queued_runtime_views.py",
       "text": "\"user_queued\": summary.user_queued,"
     },
     {
-      "line": 273,
+      "line": 277,
       "path": "apps/terminal/interface/queued_runtime_views.py",
       "text": "\"global_active\": summary.global_active,"
     },
     {
-      "line": 274,
+      "line": 278,
       "path": "apps/terminal/interface/queued_runtime_views.py",
       "text": "\"global_queued\": summary.global_queued,"
     },
