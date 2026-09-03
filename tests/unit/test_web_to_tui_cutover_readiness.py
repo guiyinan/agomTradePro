@@ -560,6 +560,21 @@ def test_text_evidence_digest_normalizes_windows_line_endings(tmp_path: Path) ->
     )
 
 
+def test_legacy_json_evidence_digest_accepts_crlf_without_weakening_content(
+    tmp_path: Path,
+) -> None:
+    """Historical Windows JSON digests remain portable but content-bound."""
+
+    evidence = tmp_path / "uat.json"
+    evidence.write_bytes(b'{"passed": true}\n')
+    legacy_digest = hashlib.sha256(b'{"passed": true}\r\n').hexdigest()
+
+    assert _verified_repo_evidence(evidence.name, legacy_digest, root=tmp_path) == evidence
+
+    evidence.write_bytes(b'{"passed": false}\n')
+    assert _verified_repo_evidence(evidence.name, legacy_digest, root=tmp_path) is None
+
+
 def test_complete_independent_evidence_allows_cutover(tmp_path: Path) -> None:
     """Every explicit gate can pass only with full machine evidence."""
 

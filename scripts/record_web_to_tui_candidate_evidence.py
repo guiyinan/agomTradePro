@@ -863,9 +863,11 @@ def _aware_iso(value: datetime) -> str:
 
 
 def _file_sha256(path: Path) -> str:
-    """Return the exact on-disk SHA-256 used by readiness for JSON evidence."""
+    """Return the Git-compatible LF SHA-256 used for JSON evidence."""
 
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    text = path.read_text(encoding="utf-8")
+    canonical = text.replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
 
 
 def _resolve_repo_path(value: object, *, root: Path = ROOT) -> Path | None:
@@ -898,10 +900,8 @@ def _write_json(path: Path, payload: dict[str, Any]) -> str:
     """Write one deterministic JSON report and return its exact byte digest."""
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    with path.open("w", encoding="utf-8", newline="\n") as stream:
+        stream.write(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
     return _file_sha256(path)
 
 

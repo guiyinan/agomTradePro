@@ -48,7 +48,7 @@ SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
 BACKUP_LOCATION_SCHEMES = frozenset({"artifact", "s3", "sftp", "https"})
 LEGACY_URL_POLICIES = frozenset({"redirect_to_tui", "retain", "remove_410", "remove_404"})
-NORMALIZED_TEXT_EVIDENCE_SUFFIXES = frozenset({".csv", ".md", ".txt"})
+NORMALIZED_TEXT_EVIDENCE_SUFFIXES = frozenset({".csv", ".json", ".md", ".txt"})
 REQUIRED_ROUTE_CLOSURE_SCOPES = frozenset(
     {"primary_task", "permission", "empty_state", "error_state", "legacy_url", "rollback"}
 )
@@ -309,13 +309,15 @@ def _verified_repo_evidence(
     if path is None or not _valid_sha256(digest):
         return None
     expected = str(digest).strip()
-    content = (
-        _normalized_source_bytes(path)
-        if path.suffix.lower() in NORMALIZED_TEXT_EVIDENCE_SUFFIXES
-        else path.read_bytes()
-    )
-    actual = hashlib.sha256(content).hexdigest()
-    return path if actual == expected else None
+    if path.suffix.lower() in NORMALIZED_TEXT_EVIDENCE_SUFFIXES:
+        canonical_lf = _normalized_source_bytes(path)
+        accepted_digests = {
+            hashlib.sha256(canonical_lf).hexdigest(),
+            hashlib.sha256(canonical_lf.replace(b"\n", b"\r\n")).hexdigest(),
+        }
+    else:
+        accepted_digests = {hashlib.sha256(path.read_bytes()).hexdigest()}
+    return path if expected in accepted_digests else None
 
 
 def _bound_approval(
