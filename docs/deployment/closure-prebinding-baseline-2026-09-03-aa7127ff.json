@@ -1,0 +1,186 @@
+{
+  "version": "agomtradepro-closure-prebinding-baseline.v1",
+  "environment": "production",
+  "collected_at": "2026-09-03T05:39:45.185Z",
+  "collection_mode": "read_only_production_plus_local_isolated_restore",
+  "requested_observation_binding": {
+    "candidate_commit": "c826f741edc0f12f5e29fa5b0441b34a89f6dac5",
+    "candidate_version": "20260829233430",
+    "image_id": "sha256:7fbf039a59294ba959bd5a0f31731a30d856df71e7c05c3aefeddd876769df14",
+    "status": "denied_candidate_mismatch"
+  },
+  "observed_production_candidate": {
+    "candidate_commit": "aa7127ff4d9f71555b0d0486314da5518bd2ac20",
+    "candidate_version": "20260901232812",
+    "image_id": "sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c",
+    "source_mode": "git-clone",
+    "web_started_at": "2026-09-02T15:38:21.178433901Z",
+    "web_healthy": true,
+    "candidate_drift": false,
+    "deployment_evidence": "docs/deployment/web-to-tui-deployment-preflight-20260901232812.json",
+    "deployment_evidence_sha256": "e5b613548811f89cb06659eed976786a5fb7e97593626ce2529665ff2b6a8f89"
+  },
+  "data01": {
+    "historical_live_switchback": {
+      "candidate_commit": "c826f741edc0f12f5e29fa5b0441b34a89f6dac5",
+      "status": "verified_historical_evidence_only",
+      "external_downtime_seconds": 217,
+      "critical_counts_match": true,
+      "wal_match": true,
+      "source_identity_verified_after_switchback": true,
+      "temporary_restore_database_removed": true,
+      "migration_roundtrip_raw_outcome": "failed",
+      "migration_roundtrip_classification": "accepted_django_migration_ledger_bookkeeping_only",
+      "business_tables_match": true,
+      "canonical_schema_ok": true,
+      "artifacts": [
+        {
+          "path": "docs/deployment/data01-live-rehearsal-c826f741-baseline.json",
+          "sha256": "8f940230c378a35bc9c44cf9e284b7e38b6765a2c9aa0ff7a6939e05f53b23ca"
+        },
+        {
+          "path": "docs/deployment/data01-live-rehearsal-c826f741-connection-switch.json",
+          "sha256": "5ae052046944f88075977b15cf6a949f2deaaf738e9d8913f7907f316cfd5198"
+        },
+        {
+          "path": "docs/deployment/data01-live-rehearsal-c826f741-migration-classification.json",
+          "sha256": "4664c48cee98105a07ba240ccac0a43f9814bd32af0de74e78bf27ed55f40da3"
+        },
+        {
+          "path": "docs/deployment/data01-live-rehearsal-c826f741-migration-roundtrip.json",
+          "sha256": "deef651b2b76e1657ceaace606230d6797e9a0d6492890b73d5fa5f5617a8cfe"
+        }
+      ]
+    },
+    "latest_existing_backup": {
+      "remote_path": "/opt/agomtradepro/backups/database/postgres-20260901-174054.dump",
+      "local_path": "backups/vps-postgres/postgres-20260901-174054.dump",
+      "remote_modified_at": "2026-09-01T17:42:06.615243342+02:00",
+      "size_bytes": 147464528,
+      "sha256": "c9f7cf876bd79908aa66461e5d07b254104ba1013b134f669cb91bf8119b1caf",
+      "remote_pg_restore_list_ok": true,
+      "remote_local_hash_match": true,
+      "created_in_this_collection": false,
+      "pruned_in_this_collection": false,
+      "age_hours_at_collection": 37.96,
+      "within_24_hour_inflight_target": false
+    },
+    "latest_backup_isolated_restore": {
+      "status": "verified",
+      "source_report": "docs/deployment/data01-current-backup-restore-2026-09-03-b80c92f5.json",
+      "source_report_sha256": "c66ac406c26a5365a7fea07298f320e91623f7b91264289363f63d198831aa8f",
+      "canonical_evidence": "docs/deployment/data01-isolated-restore/15/159558c981837b67ab3d2389c97c648047d1f671947ac087b7aa3db9c35cec19.json",
+      "canonical_evidence_sha256": "159558c981837b67ab3d2389c97c648047d1f671947ac087b7aa3db9c35cec19",
+      "restore_entries": 7229,
+      "tables": 542,
+      "data_center_migrations": 72,
+      "sequences": 463,
+      "schema_sha256": "d9f761e83e45cf5111af7b76ef546f99d52d3e7198489a03a458ba9e519ca447",
+      "changed_tables": 0,
+      "changed_sequences": 0,
+      "missing_or_extra_objects": 0,
+      "restore_seconds": 1174.415,
+      "verification_seconds": 811.135,
+      "total_seconds": 3183.388,
+      "production_claim": false,
+      "production_ready": false,
+      "runtime_enablement": "not_authorized"
+    }
+  },
+  "tui02": {
+    "route_cleanup": {
+      "candidate_commit": "aa7127ff4d9f71555b0d0486314da5518bd2ac20",
+      "candidate_version": "20260901232812",
+      "evidence": "config/tui/migration/evidence/web_to_tui_cleanup_candidate.v1.json",
+      "declared_evidence_sha256": "595012ed56c103dcb7147d9283a4e66aa0af26558c8c66fd0f2a5d189ff0b575",
+      "git_lf_evidence_sha256": "cbee5e2af04c99ef297645405cf71f29daf3b2a3246607c61618d87ef74dccab",
+      "executed_tests": 8,
+      "passed_tests": 8,
+      "required_routes": 108,
+      "fully_closed_routes": 108,
+      "scope_counts": {
+        "empty_state": 108,
+        "error_state": 108,
+        "legacy_url": 108,
+        "permission": 108,
+        "primary_task": 108,
+        "rollback": 108
+      },
+      "gate_passed": true
+    },
+    "telemetry_baseline": {
+      "system": "prometheus",
+      "prometheus_started_at": "2026-09-01T16:47:28.328237377Z",
+      "prometheus_restart_count": 0,
+      "retention_time": "21d",
+      "retention_size": "4GB",
+      "first_post_reset_raw_sample_at": "2026-09-02T17:59:59.796Z",
+      "earliest_full_14d_telemetry_at": "2026-09-16T17:59:59.796Z",
+      "metric_series_count": 205,
+      "catalog_required_task_keys": 101,
+      "observed_unique_task_keys": 110,
+      "covered_required_task_keys": 101,
+      "missing_required_task_keys": [],
+      "extra_observed_task_keys": 9,
+      "final_14d_snapshot": false,
+      "gate_passed": false,
+      "reason": "The post-reset retained window has not elapsed and this baseline must not be promoted into final telemetry evidence."
+    },
+    "defect_tracker_baseline": {
+      "system": "github",
+      "project": "guiyinan/agomTradePro",
+      "endpoint": "https://github.com/guiyinan/agomTradePro/issues",
+      "queried_at": "2026-09-03T05:39:45.185Z",
+      "query_scope": "all_repository_issues_for_priority_taxonomy_preflight",
+      "total_issues": 1,
+      "open_issues": 1,
+      "p0_or_p1_classified_issues": 0,
+      "unclassified_issue_ids": [
+        3
+      ],
+      "p0_label_present": false,
+      "p1_label_present": false,
+      "classification_complete": false,
+      "final_14d_snapshot": false,
+      "gate_passed": false,
+      "reason": "The repository has no P0/P1 label taxonomy, so absence of classified P0/P1 issues cannot be interpreted as zero blocking defects."
+    },
+    "public_probes": {
+      "health": {
+        "http_status": 200,
+        "body_sha256": "a85a6cd2e7ebf6c0d7754f5d1cf624fb63fb537a084be671934d77a4f015eeb2"
+      },
+      "ready": {
+        "http_status": 200,
+        "body_sha256": "7d916ba68dd289ccf6ece3512b24df860d1bb95500330ccf44b2c30fe27a8de5"
+      },
+      "decision_ready": {
+        "http_status": 503,
+        "status": "blocked",
+        "body_sha256": "086a048d231deb5180166a0f9f2cecbcca75669117850120c2c86c4c41971d9c"
+      }
+    }
+  },
+  "authorization_boundary": {
+    "m5_observation_bound": false,
+    "role_owner_confirmation_received": false,
+    "binding_authorization_requested": false,
+    "binding_authorization_granted": false,
+    "blockers": [
+      "The requested c826f741 candidate is not the candidate currently deployed in production.",
+      "A real role-owner confirmation for the exact deployed candidate has not been received.",
+      "The post-reset retained observation has not been formally bound and has not elapsed for 14 complete days.",
+      "The defect tracker lacks a P0/P1 classification taxonomy."
+    ]
+  },
+  "side_effects": {
+    "production_database_write": false,
+    "production_deployment": false,
+    "production_restart": false,
+    "production_configuration_change": false,
+    "production_backup_created": false,
+    "production_backup_pruned": false,
+    "m5_observation_started_or_replaced": false,
+    "local_disposable_database_created_and_removed": true
+  }
+}

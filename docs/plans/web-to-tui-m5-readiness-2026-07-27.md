@@ -1107,3 +1107,24 @@ role-bound attestations 尚未满足。reset 后只执行了上述一次受控 w
 新镜像、未写库/改配置、未执行 load/chaos、live rollback 或决策门激活；`production_claim=false`、
 `production_ready=false`、`runtime_enablement=not_authorized` 继续有效。新 retained sample 形成后，
 其 exact eligible instant 将重新成为后续 v2 快照的最早时间门。
+
+### 2026-09-03 pre-binding 自动采集基线
+
+只读生产核验再次确认实际运行候选仍为 `aa7127ff4d9f71555b0d0486314da5518bd2ac20` / release
+`20260901232812` / image
+`sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c`；因此旧候选
+`c826f741edc0f12f5e29fa5b0441b34a89f6dac5` / `20260829233430` /
+`sha256:7fbf039a59294ba959bd5a0f31731a30d856df71e7c05c3aefeddd876769df14` 不得重新绑定为
+当前 production observation。机器采集没有部署、重启、改配置、写生产库或启动/替换 observation。
+
+当前候选的 route cleanup 继续为 `8/8`、`108/108`，六类 scope 均 `108/108`。Prometheus 中
+catalog 的 `101` 个必需 task key 已全部出现，另有 `9` 个非必需 key；但 reset 后首个真实 raw sample
+是 `2026-09-02T17:59:59.796Z`，最早完整 14 日时刻只能是
+`2026-09-16T17:59:59.796Z`，本次只形成 telemetry baseline，不写 final v2 snapshot。GitHub tracker
+当前只有 issue `#3`，且仓库没有 `P0`/`P1` 标签 taxonomy；因此 defect baseline 明确为
+`classification_complete=false`，不能把“没有已分类 P0/P1”冒充为零阻断缺陷。
+
+完整机器基线见
+[`closure-prebinding-baseline-2026-09-03-aa7127ff.json`](../deployment/closure-prebinding-baseline-2026-09-03-aa7127ff.json)。
+M5 继续 `DENY`：在真实 role-owner 对精确的当前部署候选确认之前不请求绑定授权；候选不一致时即使收到
+旧候选确认也不得执行 `--replace`。

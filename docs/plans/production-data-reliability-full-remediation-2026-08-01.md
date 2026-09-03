@@ -1460,3 +1460,25 @@ parser 仍保持异常契约，缺少四个 immutable publication identity 仍�
 这只是服务器端工具可操作性修复，没有连接 VPS/数据库、写入生产、执行 backfill 或切换 publication，
 也没有把失败 checkpoint 变成生产证据；`DATA-02` 继续 `awaiting_production`，仍等待真实 provider
 refresh/backfill、before/after reconciliation 以及 data-owner 的容差决定。
+
+## 2026-09-03：DATA-01 latest backup 隔离恢复复核
+
+按 `DATA-01.auto_collect` 只选择并下载生产现有最新 custom-format dump
+`postgres-20260901-174054.dump`，未创建新备份、未 prune、未进入维护态。远端 `pg_restore --list`、
+完整 SFTP 下载、远端/本地大小 `147464528` bytes 与 SHA-256
+`c9f7cf876bd79908aa66461e5d07b254104ba1013b134f669cb91bf8119b1caf` 一致；但采集时该恢复点约
+`37.96h`，超过 VPS in-flight `<24h` 目标，后续刷新必须另行取得生产写授权。
+
+同一不可变 dump 已在本机一次性 PostgreSQL 中完成两次恢复视图的全量比对：`7229` restore entries、
+`542` 张表、Data Center `72` 条 migration、`463` 条 sequence 全部一致，schema SHA-256 为
+`d9f761e83e45cf5111af7b76ef546f99d52d3e7198489a03a458ba9e519ca447`，changed/missing/extra
+均为 `0`。restore/RTO 为 `1174.415s`，验证 `811.135s`，总耗时 `3183.388s`；第二恢复库和源容器
+均已删除。原始报告为
+[`data01-current-backup-restore-2026-09-03-b80c92f5.json`](../deployment/data01-current-backup-restore-2026-09-03-b80c92f5.json)，
+content-addressed evidence 为
+[`159558c981837b67ab3d2389c97c648047d1f671947ac087b7aa3db9c35cec19.json`](../deployment/data01-isolated-restore/15/159558c981837b67ab3d2389c97c648047d1f671947ac087b7aa3db9c35cec19.json)。
+
+历史 `c826f741` live switchback 四件套同时重新按文件摘要索引；原始 migration roundtrip 的唯一差异仍是
+`django_migrations` ledger/sequence bookkeeping，并由后续 classification artifact 证明 business tables、
+migration name set 与 canonical schema 一致。它仍只证明历史 DATA-01 演练，不证明当前 M5 候选、当前
+RPO 或 DATA-02 backfill 已通过。
