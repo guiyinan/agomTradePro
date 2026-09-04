@@ -207,7 +207,7 @@ bytes，而期望值绑定 Git 中 LF bytes。`git ls-files --eol` 对三份引�
 
 - Pulse API 文件 + 两个 migration hash guard：`18 passed`。
 - Black、isort、Ruff：通过。
-- active-plan registry v46：41 units、唯一 focus `DATA-10`、0 violations。
+- active-plan registry v47：41 units、唯一 focus `DATA-10`、0 violations。
 - 首次完整本地 API/Migration：`1,088 passed / 2 failed`，两个失败均已按上述 canonical LF 根因修复。
 - 第二次完整本地运行使用机器默认 Python 3.13.5，在 Django test-db model render 阶段发生 Windows
   原生 `access violation` 并异常终止；仓库约定的 `agomtradepro` Python 3.11 conda 环境在本机并不存在，
@@ -234,9 +234,19 @@ bytes，而期望值绑定 Git 中 LF bytes。`git ls-files --eol` 对三份引�
 - 按 Nightly 相同 marker 选择器执行完整 `tests/integration/`，结果为
   `1,041 passed / 13 deselected / 1 warning`（674.73s）。唯一 warning 是 Windows teardown 时测试数据库
   文件仍被进程占用；全部测试节点已成功，不把该清理 warning 隐瞒或误报成 Python 3.11 证据。
+- 精确提交 `e4095270af5576e05cc4de4e3c4833a1f86cc703` 的 GitHub Python 3.11 Nightly run
+  [`33820056980`](https://github.com/guiyinan/agomTradePro/actions/runs/33820056980) 中，独立 PostgreSQL
+  job 完整成功；主 job 的 current-data、Celery、full mypy 与 frontend 阶段均成功，full unit 为
+  `13,868 passed / 1 failed / 1 skipped`。唯一失败是本次修改
+  `apps/terminal/infrastructure/tui_metadata_repository.py` 后，没有同时刷新 reviewed
+  `config/tui/agomtui-runtime.manifest.json` 中该文件的规范化 SHA-256；后续阶段按 fail-closed 正确跳过。
+- 已使用 canonical `npm run build:tui` 生成新的 runtime manifest source digest/build identity；生成过程对
+  `static/js/tui-workbench.js` 没有 blob 内容变化。`npm run check:tui` 与
+  `tests/unit/test_tui_runtime_manifest_contract.py` 均通过（`1 passed`）。这只修复代码发布投影，既不改变
+  runtime 行为，也不冒充尚未执行的最终 Nightly。
 
-`DATA-10` 继续保持 active，直到包含上述四项 integration corrective 的精确最终提交在 GitHub Python
-3.11 Nightly 完整通过，再生成 content-addressed closure evidence、同步 registry/计划并把 focus 置回
-null。本单元不部署、不重启、不读写生产数据库、不修改候选、历史 migration、数据门或 TUI 观察窗口；
-当前回滚点为 Pulse/migration/registry 测试修复、三项 integration fixture、TUI legacy normalization 及
-对应治理投影。
+`DATA-10` 继续保持 active，直到包含上述 integration corrective 与 runtime manifest 投影的精确最终提交
+在 GitHub Python 3.11 Nightly 完整通过，再生成 content-addressed closure evidence、同步 registry/计划并
+把 focus 置回 null。本单元不部署、不重启、不读写生产数据库、不修改候选、历史 migration、数据门或
+TUI 观察窗口；当前回滚点为 Pulse/migration/registry 测试修复、三项 integration fixture、TUI legacy
+normalization、runtime manifest 及对应治理投影。
