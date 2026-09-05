@@ -30,6 +30,11 @@ preflight 确认线上仍运行 `dev/next-development@2e399607977fea260436992952
 `.git`/source manifest，仍无法绑定任何候选 commit。公开 health/ready 均为 200/ok 不改变
 此结论。见 `web-to-tui-m5-production-preflight-2026-08-13.md`。
 
+> 当前候选状态（2026-09-03）：生产候选已绑定 `aa7127ff4d9f71555b0d0486314da5518bd2ac20` /
+> release `20260901232812`，`TUI-01`/`TUI-03` 已完成，`TUI-02` 保持 `5/10 DENY`。2026-09-02
+> 受控 web-only restart 已使此前 retained source 作废；当前等待重启后首个真实样本及新的精确
+> 14 日窗口。下面的“当前证据”表是 2026-08-13 历史快照，仅供追溯，不代表当前候选。
+
 ## 退出门槛快照
 
 | 门槛 | 当前证据 | 判定 |
@@ -218,7 +223,9 @@ python scripts/start_web_to_tui_observation.py \
   --released-at <YYYY-MM-DD> --write
 ```
 
-当前 M5 实现已绑定并部署候选 `dev/next-development@e167ab2fc748e4c93d2622f93fa8cc75442b2bb6`，
+### 2026-08-16 历史候选（非当前生产候选）
+
+当时的 M5 实现已绑定并部署候选 `dev/next-development@e167ab2fc748e4c93d2622f93fa8cc75442b2bb6`，
 release 为 `20260816004134`；完整 provenance、健康、迁移和 TUI registry 证据见
 `docs/deployment/vps-deployment-evidence-2026-08-15.md`。这只建立了候选身份，不自动开始观察窗口；
 该命令仍必须 fail closed，不能用当前 `HEAD`、本地文档状态或旧生产版本冒充稳定候选。
@@ -1063,3 +1070,61 @@ repository guard 已改为 hash-bound retained binding，并把 telemetry/defect
 `collected_at`、`queried_at` 必须是 UTC timestamp，readiness 会重放 snapshot builder、复核 checkpoint
 SHA，并在 exact instant 前保持 stable/defect/telemetry 三门失败。当前仍为 `5/10 DENY`，没有因此
 授权 cleanup、final backup、review 或 attestations。
+
+### 2026-09-02 当前候选部署复核（`aa7127ff4` / `20260901232812`）
+
+当前生产候选为 commit
+`aa7127ff4d9f71555b0d0486314da5518bd2ac20`、release `20260901232812`，OCI image
+`sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c`。部署 preflight
+[`web-to-tui-deployment-preflight-20260901232812.json`](../deployment/web-to-tui-deployment-preflight-20260901232812.json)
+的 SHA-256 为 `e5b613548811f89cb06659eed976786a5fb7e97593626ce2529665ff2b6a8f89`，候选 commit、
+release、OCI revision 一致；本次章节只引用已提交的只读/部署工件，不代表本轮重新部署。
+
+immutable binding 为 `web-to-tui-candidate-binding.v1`：candidate version `20260901232812`、
+candidate commit `aa7127ff4d9f71555b0d0486314da5518bd2ac20`、matrix SHA
+`e3027671d02d876c9f4b38b9d86395d45e26c0f2b344eb0646086be31869cd5d`、graph SHA
+`63be10ee25bb73c87861c18cc92355938fd7abc096c33852bf5f904d4db532a2`、schema `tui-metadata.v3`、
+runtime version `0.2.0`、runtime build `agomtui-runtime-0.2.0+1aa1996d160f`、runtime manifest SHA
+`8824e67064f5a572d346507cc3d7ab484282e45dd6e8a7b05f2682c7c1bad3a4`。
+
+此前绑定的 retained source 为
+[`tui02-production-observation-checkpoint-2026-09-02-aa7127ff.json`](../deployment/tui02-production-observation-checkpoint-2026-09-02-aa7127ff.json)，
+SHA-256=`96d7031e0da8ba6a6d037d800fd8cd4add782b9f3369e93e0e6c645a051052c3`；它的首个真实样本
+`2026-09-01T16:56:29.796000Z` 与 eligible `2026-09-15T16:56:29.796000Z` 已因后续 web
+restart 作废，保留为历史证据而不再绑定。新的 reset artifact
+[`tui02-production-observation-reset-2026-09-02-aa7127ff.json`](../deployment/tui02-production-observation-reset-2026-09-02-aa7127ff.json)
+SHA-256=`78cc512926193b5fad05db1e34f053a852816700817e4cd357d5999c05dab004` 绑定同一 candidate，
+记录 web start=`2026-09-02T15:38:21.178433901Z`、web/prometheus healthy、public health/ready=`200`
+与 decision-ready=`503` fail-closed；cutover evidence 已清空 retained projection，等待重启后首个真实样本。
+
+本地 retained checkpoint validator 已按 Git canonical LF 字节校验 JSON，Windows CRLF checkout 不再
+把该有效 checkpoint 误判为缺失；这只是证据读取一致性修复，不改变 checkpoint 内容、候选绑定或生产门禁。
+
+本候选 readiness 仍为 `5/10 DENY`：source consistency、execution dependency、route UAT、
+cleanup readiness、isolated rollback 已有证据；稳定窗口因 reset 后尚无 retained source，
+structured blocking-defect、101-task telemetry、post-window registry backup/review 与 sole-owner
+role-bound attestations 尚未满足。reset 后只执行了上述一次受控 web-only restart 和只读探针，未部署
+新镜像、未写库/改配置、未执行 load/chaos、live rollback 或决策门激活；`production_claim=false`、
+`production_ready=false`、`runtime_enablement=not_authorized` 继续有效。新 retained sample 形成后，
+其 exact eligible instant 将重新成为后续 v2 快照的最早时间门。
+
+### 2026-09-03 pre-binding 自动采集基线
+
+只读生产核验再次确认实际运行候选仍为 `aa7127ff4d9f71555b0d0486314da5518bd2ac20` / release
+`20260901232812` / image
+`sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c`；因此旧候选
+`c826f741edc0f12f5e29fa5b0441b34a89f6dac5` / `20260829233430` /
+`sha256:7fbf039a59294ba959bd5a0f31731a30d856df71e7c05c3aefeddd876769df14` 不得重新绑定为
+当前 production observation。机器采集没有部署、重启、改配置、写生产库或启动/替换 observation。
+
+当前候选的 route cleanup 继续为 `8/8`、`108/108`，六类 scope 均 `108/108`。Prometheus 中
+catalog 的 `101` 个必需 task key 已全部出现，另有 `9` 个非必需 key；但 reset 后首个真实 raw sample
+是 `2026-09-02T17:59:59.796Z`，最早完整 14 日时刻只能是
+`2026-09-16T17:59:59.796Z`，本次只形成 telemetry baseline，不写 final v2 snapshot。GitHub tracker
+当前只有 issue `#3`，且仓库没有 `P0`/`P1` 标签 taxonomy；因此 defect baseline 明确为
+`classification_complete=false`，不能把“没有已分类 P0/P1”冒充为零阻断缺陷。
+
+完整机器基线见
+[`closure-prebinding-baseline-2026-09-03-aa7127ff.json`](../deployment/closure-prebinding-baseline-2026-09-03-aa7127ff.json)。
+M5 继续 `DENY`：在真实 role-owner 对精确的当前部署候选确认之前不请求绑定授权；候选不一致时即使收到
+旧候选确认也不得执行 `--replace`。

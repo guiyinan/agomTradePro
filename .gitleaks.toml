@@ -34,4 +34,4 @@ id = "generic-api-key"
 description = "Allow the exact DATA-01 migration identifier misclassified as an API key"
 condition = "AND"
 stopwords = ['''0068_evaluation_actual_ledgers''']
-paths = ['''^docs/deployment/data01-isolated-restore/e1/e13d10587add53aa1b6e53f3143f05f4de4cf30d7f8e465d833457da88016870\.json$''']
+paths = ['''^docs/deployment/data01-isolated-restore/[0-9a-f]{2}/[0-9a-f]{64}\.json$''']

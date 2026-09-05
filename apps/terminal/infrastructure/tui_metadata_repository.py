@@ -886,7 +886,7 @@ class PublishedTuiMetadataRepository:
                 continue
             panels = screen.get("dashboard_panels")
             if isinstance(panels, list):
-                screen["dashboard_panels"] = [
+                retained_panels = [
                     panel
                     for panel in panels
                     if not isinstance(panel, dict)
@@ -895,6 +895,22 @@ class PublishedTuiMetadataRepository:
                     if str(panel.get("target_screen") or "").strip() == ""
                     or str(panel.get("target_screen") or "").strip() in screen_keys
                 ]
+                if retained_panels and not any(
+                    isinstance(panel, dict) and panel.get("user_priority") == "p0"
+                    for panel in retained_panels
+                ):
+                    retained_panels = []
+                screen["dashboard_panels"] = retained_panels
+                user_experience = screen.get("user_experience")
+                if (
+                    not retained_panels
+                    and isinstance(user_experience, dict)
+                    and str(user_experience.get("journey") or "") == "dashboard"
+                ):
+                    screen["user_experience"] = {
+                        **user_experience,
+                        "journey": "workspace",
+                    }
             default_action_key = str(screen.get("default_action_key") or "").strip()
             if default_action_key and default_action_key not in action_keys:
                 fallback_action_key = next(

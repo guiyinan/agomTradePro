@@ -116,7 +116,7 @@ def test_current_repository_is_explicitly_not_finalized() -> None:
 
 
 def test_current_alias_inventory_exposes_known_m5_c_debt() -> None:
-    """The 32 published aliases include 11 without live production references."""
+    """The 32 published aliases expose the exact known M5-C dead-reference debt."""
 
     payload = json.loads(DEFAULT_PUBLISHED_GRAPH_PATH.read_text(encoding="utf-8"))
     dangling, dead = _legacy_alias_violations(
@@ -125,7 +125,21 @@ def test_current_alias_inventory_exposes_known_m5_c_debt() -> None:
     )
 
     assert len(payload["legacy_screen_aliases"]) == 32
-    assert len(dead) == 11
+    assert dead == [
+        "ai-ops.prompt-workbench",
+        "api-library.market-thermometer",
+        "command-center.dashboard",
+        "execution.trading-ledger",
+        "macro-regime.beta-gate",
+        "macro-regime.hedge",
+        "macro-regime.navigator",
+        "macro-regime.risk-controls",
+        "macro-regime.rotation",
+        "research.backtests",
+        "research.factors",
+        "research.fund-sector",
+        "research.screening-sentiment",
+    ]
     assert dangling == []
 
 

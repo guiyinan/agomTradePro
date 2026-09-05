@@ -3780,7 +3780,7 @@ VPS 本地备份不是持久备份，只是传输暂存。
 - [x] stored=0 不再无条件 success。
 - [x] Provider、Schedule、MCP Catalog 可确定性 reconcile contract（实际生产 reconcile 尚未接入）。
 - [ ] 覆盖、新鲜度、健康、冲突和发布进度可监控。
-- [ ] PostgreSQL 备份、恢复和 rollback drill 有真实生产证据；GitHub Nightly 已提供当前候选的 PostgreSQL custom backup/隔离 restore/schema 对比子证据，生产维护态 rollback 仍未演练。
+- [ ] PostgreSQL 备份、恢复和 rollback drill 有真实生产证据；GitHub Nightly 已提供历史 CI 候选的 PostgreSQL custom backup/隔离 restore/schema 对比子证据，生产维护态 rollback 仍未演练。
 - [ ] 整盘、PostgreSQL、WAL、Docker、Redis、Raw、备份和日志纳入同一 active StorageBudgetPolicy 水位控制。
 - [ ] Retention、Rollup、Archive、Hold 与 StoragePressureGuard 实际运行并通过故障注入。
 - [ ] VPS 不保留超过 1 份或 24 小时的完整数据库备份。
@@ -3793,7 +3793,7 @@ VPS 本地备份不是持久备份，只是传输暂存。
 
 ### 22.6 测试与治理
 
-- [x] current-data 与 Celery manifest 中的 pytest nodeid 在 CI 实际执行（当前候选 `578064409b8269e440ba7edbf9c480aa7d9917ff` 的 Nightly run `32276242287` artifact：current-data `349 passed`、Celery `220 passed`）。
+- [x] current-data 与 Celery manifest 中的 pytest nodeid 在 CI 实际执行（2026-08-20 历史 CI 候选 `578064409b8269e440ba7edbf9c480aa7d9917ff` 的 Nightly run `32276242287` artifact：current-data `349 passed`、Celery `220 passed`）。
 - [x] 核心链路在 PostgreSQL 通过（同一 run 的 `Critical Reliability (PostgreSQL)` job 成功；保留 1 个明确的 SQLite fallback concurrency skip）。
 - [ ] Provider schema drift、故障注入、性能和全市场回填通过。
 - [ ] runtime_config_contracts 覆盖所有受管运行参数，非默认 profile 和无 active profile 测试通过。
@@ -4891,9 +4891,9 @@ Git SHA / 镜像 / migration：
 - 本地门禁复核：`check_governance_consistency.py`、`verify_architecture.py --include-audit --format text`、Data Center catalog/legacy-fact/current-data/Celery contract guards 均通过；本次只刷新 source inventory，不改变运行时数据、不回填生产表、不删除 retained legacy schema。
 - 解释边界：`cross_app_orm_imports` 与 `current_surface_references` 是静态源码计数，不能替代 PostgreSQL 生产 snapshot、VPS 部署版本、备份/恢复、shadow reconciliation、writer quiescence 或 M9 destructive migration 证据；在这些证据齐备前，Data Center 生产切换与旧表删除继续保持 DENY。
 
-## 145. 2026-08-20：当前候选 PostgreSQL Nightly 关键可靠性证据
+## 145. 2026-08-20：历史 CI 候选 PostgreSQL Nightly 关键可靠性证据
 
-- 当前候选 `dev/next-development@578064409b8269e440ba7edbf9c480aa7d9917ff` 的
+- 2026-08-20 历史 CI 候选 `dev/next-development@578064409b8269e440ba7edbf9c480aa7d9917ff` 的
   [Nightly run 32276242287](https://github.com/guiyinan/agomTradePro/actions/runs/32276242287)
   独立 `Critical Reliability (PostgreSQL)` job 成功；PostgreSQL `16.15` 空库全量迁移、
   migration plan、Data Center catalog、storage capacity profile、custom-format backup、

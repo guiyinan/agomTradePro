@@ -2,7 +2,10 @@
 
 ## 结论
 
-`dev/next-development` 的提交 `96ce6ee43b06e6eb6ad51528ff8ee783a4bf0952` 已在 `demo.agomtrade.pro` 完成一次带 provenance 校验的后续候选部署。该 release 包含 TUI AI provider failure guidance 修复；当前服务正常运行，M5 观察窗口从本次独立核验时间重新计算。本证据不解除角色化浏览器 UAT、写后回执、14 日观察、恢复演练或数据覆盖门禁。
+本节是 2026-08-15 的历史部署记录，不是当前线上候选或 M5 观察绑定。`dev/next-development` 的提交
+`96ce6ee43b06e6eb6ad51528ff8ee783a4bf0952` 当时已在 `demo.agomtrade.pro` 完成一次带 provenance
+校验的候选部署；该 release 包含 TUI AI provider failure guidance 修复。当前候选与观察状态见文末
+`2026-09-02` 小节；本历史记录不解除角色化浏览器 UAT、写后回执、14 日观察、恢复演练或数据覆盖门禁。
 
 ## 2026-08-19 04:46 TAR-01 baseline identity guard 候选部署与只读观测
 
@@ -1658,3 +1661,34 @@ retained Prometheus target=`up=1`，保留界限为 `21d/4GB`，17 条 rules 全
 均 `108/108`，isolated rollback PASS。generation `30` registry recovery bundle 的 sidecar 与 restore
 dry-run 通过。canonical observation 为 `2026-08-30..2026-09-13`，当前 readiness=`5/10 DENY`；
 Day 0 结果不冒充完整观察、101-task telemetry、defect snapshot、post-window attestation 或最终 cutover。
+
+## 2026-09-02 当前候选部署与观测（`aa7127ff4` / `20260901232812`）
+
+当前运行候选为 commit
+`aa7127ff4d9f71555b0d0486314da5518bd2ac20`、release `20260901232812`、OCI image
+`sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c`。对应部署 preflight
+[`web-to-tui-deployment-preflight-20260901232812.json`](web-to-tui-deployment-preflight-20260901232812.json)
+SHA-256=`e5b613548811f89cb06659eed976786a5fb7e97593626ce2529665ff2b6a8f89`，candidate commit、
+release 与 OCI revision 精确一致；本节复用已落盘部署工件，不重复部署候选。
+
+immutable binding 为 `web-to-tui-candidate-binding.v1`：candidate version `20260901232812`、
+candidate commit `aa7127ff4d9f71555b0d0486314da5518bd2ac20`、matrix SHA
+`e3027671d02d876c9f4b38b9d86395d45e26c0f2b344eb0646086be31869cd5d`、graph SHA
+`63be10ee25bb73c87861c18cc92355938fd7abc096c33852bf5f904d4db532a2`、schema `tui-metadata.v3`、
+runtime version `0.2.0`、runtime build `agomtui-runtime-0.2.0+1aa1996d160f`、runtime manifest SHA
+`8824e67064f5a572d346507cc3d7ab484282e45dd6e8a7b05f2682c7c1bad3a4`。
+
+候选只读部署与 TUI 观察工件为
+[`release-candidate-deployment-2026-09-02-aa7127ff.json`](release-candidate-deployment-2026-09-02-aa7127ff.json)、
+[`tui02-production-observation-checkpoint-2026-09-02-aa7127ff.json`](tui02-production-observation-checkpoint-2026-09-02-aa7127ff.json)，
+后者 SHA-256=`96d7031e0da8ba6a6d037d800fd8cd4add782b9f3369e93e0e6c645a051052c3`。首个真实 retained
+sample 为 `2026-09-01T16:56:29.796000Z`，精确 eligible instant 为 `2026-09-15T16:56:29.796000Z`。
+
+9 月 2 日候选绑定只读刷新还记录了 Web `running/unhealthy`、Caddy upstream timeout 与公网
+health/ready/decision `502`；Prometheus target 仍 up。该可用性事故已在仓库补齐可选 host-level
+Web watchdog 合同，但 watcher 尚未安装或在 VPS 执行。随后仅执行一次受控 web-only restart，
+同一候选恢复为 Web/Prometheus `healthy`，公网 health/ready=`200`、decision-ready=`503` 且
+`must_not_use_for_decision=true`；对应 reset artifact
+[`tui02-production-observation-reset-2026-09-02-aa7127ff.json`](tui02-production-observation-reset-2026-09-02-aa7127ff.json)
+已绑定候选与旧 checkpoint 的 canonical SHA。因而旧 retained sample 仅保留为历史，当前生产 readiness、
+决策门和容量/故障/恢复门禁仍保持 `DENY` / fail-closed，不能把本地修复或 CI 绿灯当作生产恢复证据。

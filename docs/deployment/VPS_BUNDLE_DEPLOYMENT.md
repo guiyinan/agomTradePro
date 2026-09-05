@@ -136,6 +136,12 @@ Default deployment root:
 
 - `/opt/agomtradepro`
 
+### 5.1 Remote-build disk guard
+
+Before either source-upload or Git-clone Docker builds, `scripts/remote_build_deploy_vps.py` removes only unused `agomtradepro-web:*` images. Images referenced by any running or stopped container are retained, and the guard does not prune volumes, other repositories, or global Docker resources.
+
+After that project-scoped cleanup, the build requires at least 12 GiB free under `/var/lib/docker`. Insufficient capacity fails before `docker build`, leaving the current containers and data volumes untouched. Inspect `df -h /var/lib/docker` and `docker system df` before any separately authorized global cleanup.
+
 ---
 
 ## 6. PowerShell Deployment on Linux (Optional)
@@ -407,6 +413,42 @@ The deployment fails and rolls back when persisted MCP tokens, AI provider crede
 
 1. Ensure `backups/dump.rdb` exists in bundle.
 2. Check Redis container state and volume permissions.
+
+### Web remains unhealthy after deployment
+
+The VPS compose file intentionally keeps `web`, `celery_worker`, and
+`celery_beat` in the neutral `runtime_ns` PID namespace. A healthcheck failure
+therefore does not necessarily make Docker restart the Web container, and the
+healthcheck must not kill a shared Daphne process. The bundle includes an
+optional host-level watchdog for this exact incident:
+
+```bash
+sudo install -m 0644 deploy/agomtradepro-web-watchdog.service \
+  /etc/systemd/system/agomtradepro-web-watchdog.service
+sudo install -m 0644 deploy/agomtradepro-web-watchdog.timer \
+  /etc/systemd/system/agomtradepro-web-watchdog.timer
+sudo install -d -m 0750 /var/lib/agomtradepro/web-watchdog
+sudo systemctl daemon-reload
+sudo systemctl enable --now agomtradepro-web-watchdog.timer
+```
+
+The timer is not enabled by application deployment. Each minute it reads the
+Docker health state, waits for three consecutive `unhealthy` samples, applies
+a 15-minute cooldown and two-restarts-per-hour budget, then runs only
+`docker compose -p agomtradepro ... restart web` and waits up to 120 seconds for
+health to recover. It never restarts `runtime_ns`, Celery, Redis, PostgreSQL,
+volumes, or data. An application-level `decision-ready` block is not a Web
+liveness failure and does not cause a restart. Inspect the bounded history with:
+
+```bash
+sudo systemctl status agomtradepro-web-watchdog.timer
+sudo journalctl -u agomtradepro-web-watchdog.service --since '15 minutes ago'
+```
+
+If the timer is not installed, keep the incident fail-closed and collect
+`docker compose ... ps`, Web/Caddy logs, and the candidate identity before a
+single manually approved `restart web`. Any restart resets the TUI-02 retained
+observation window; do not repeatedly deploy while investigating.
 
 ---
 

@@ -71,6 +71,8 @@ def test_reserved_routes_return_redacted_503_without_agent_composition(path: str
         "code": "DISPATCH_UNAVAILABLE",
         "reason_code": "queued_runtime_not_wired",
         "retryable": True,
+        "success": False,
+        "must_not_use_for_decision": True,
     }
     assert response["Retry-After"] == "60"
 

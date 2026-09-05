@@ -1,6 +1,6 @@
 # 发布阻塞清零综合实施方案（2026-08-29）
 
-> 状态：执行中；`DATA-01` 已关闭，`DATA-04/05` repository 修复已完成但尚未部署；successor PostgreSQL client 仍耗尽，`DATA-02/03` 继续 fail-closed；TUI successor 的机器 UAT、清理矩阵、隔离回滚与 retained source 已形成，但候选变更会重置其观察窗口
+> 状态：执行中；`DATA-01` 已关闭，`DATA-04/05` repository 修复已随当前候选部署，部署后 PostgreSQL client 只读样本稳定；2026-09-02 09:24Z 曾出现 Web liveness unhealthy/公网 502，15:38Z 受控 web-only restart 后恢复 healthy，`DATA-02/03` 继续 fail-closed；TUI successor 的机器 UAT、清理矩阵与隔离回滚已形成，旧 retained source 已因该次重启作废并仅保留为历史，等待重启后首个真实样本及新的 14 日窗口
 > 机器状态真源：`governance/active_plan_registry.json`
 > 适用 closure units：`DATA-01/02/03/04`、`AUD-03/04`、`EVID-01/02/03`、`STRAT-01/02/03`、`TUI-01/02`、`TAR-05/06`、`AI-01`、`QMT-01/02`
 > 原则：本文只编排既有 unit，不建立第二套状态、不降低阈值、不代签、不伪造 PIT/OOS 历史，也不把生产写入授权扩大为实盘交易授权。
@@ -23,9 +23,9 @@
 ## 2. 当前事实与先行纠偏
 
 - `core/middleware/decision_gate.py` 覆盖 11 类决策路径；`core/health_checks.py` 要求 runtime state、核心覆盖、provider capability 与 decision data 四项同时通过。
-- 当前 active-A-share fact 与 Publication 不是同一口径：已有只读证据显示底层 fact 可覆盖 5,533 个标的，但 canonical price/financial Publication member 曾仅为 `0/5,533` 与 `1/5,533`，valuation Publication 缺失。第一动作应先区分“事实缺失”和“发布成员缺失”，不能无差别重抓全市场。
-- 工作分支 `2e83d161c…` 已是 `origin/main` 的祖先，合并提交为 `003cb58c…`；另有尚未进入当前工作树的候选部署 attestation。执行时先以只读生产 verifier 对账实际 commit/release/OCI/matrix/graph/runtime identity。若生产已经运行含修复的精确候选，只补 canonical evidence 与 UAT；只有身份不符才重新部署。
-- TUX-05 本地 production-safe profile 已通过，但 local evidence 不继承为生产 `TUI-01`；canonical `uat` 为空时仍是 DENY。
+- 当前候选 `aa7127ff4d9f71555b0d0486314da5518bd2ac20` / release `20260901232812` 的只读 dry-run 显示 completed-session price 合格覆盖为 `0/5,533`，quote/price/valuation Publication 覆盖为 `5,533/5,533` 但全部 stale，financial fact 覆盖为 `1,923/5,533`；因此 `DATA-02` 仍为 `DENY`，没有执行回填或 Publication 切换。第一动作仍须区分“事实缺失”“发布成员缺失”和“新鲜度失败”，不能无差别重抓全市场。
+- 当前生产候选已由只读 deployment/preflight 工件绑定到 `aa7127ff4d9f71555b0d0486314da5518bd2ac20` / `20260901232812`；执行时仍先对账实际 commit/release/OCI/matrix/graph/runtime identity。候选身份不符才允许另行申请部署，身份一致时只补 canonical evidence 与 UAT。
+- `TUI-01` 的 candidate-bound production-safe UAT、cleanup 与 isolated rollback 已完成；`TUI-02` 仍为 `5/10 DENY`，等待重启后真实 retained sample、精确 14 日窗口与结构化 telemetry/attestation。
 - authority/evidence 与 R1–R8 owner-ledger 的零行是缺少真实业务/审批输入，不是 migration 或 fixture 问题。
 
 ## 3. 总体执行顺序
@@ -233,7 +233,9 @@ A1–A8 不互相蕴含。特别是 A1/A3/A6 不能推导 A8 实盘授权。
 - 不通过把 `can_execute` 改为 true 绕过 Evidence/Promotion/QMT。
 - 任一写入超出授权包、候选身份漂移、数据/审计 hash 不一致、无法回滚或出现秘密泄漏时立即停止并保留 fail-closed。
 
-## 13. 执行检查点（2026-08-30）
+## 13. 执行检查点（从 2026-08-30 起的时间序列）
+
+> 本节按时间追加检查点；候选与状态以各小节日期为准，较早小节不代表当前生产状态。当前投影以本计划顶部、`governance/active_plan_registry.json` 和最新检查点为准。
 
 ### 13.1 DATA-01 已关闭
 
@@ -501,10 +503,12 @@ sidecar 与 restore dry-run 均通过。结构化 Day 0 证据为
 [`tui02-production-day0-checkpoint-2026-08-30-80ea002b.json`](../deployment/tui02-production-day0-checkpoint-2026-08-30-80ea002b.json)，
 SHA-256=`1cff7915f03e3c12618ada5e4b02fd3d81741db16c121cd3aef362192a9e4d85`。
 
-`TUI-02=active`、readiness=`5/10 DENY`、`execution_focus=null`。下一个真实 checkpoint 不是继续加审批人，
-而是维持候选和 retained source 到 2026-09-13；届时收集 structured defect/101-task telemetry、导出
-post-window registry backup/attestation、生成 review snapshot，再由同一 owner 写入 owner/reviewer 两个
-role-bound attestations。日期未到前不重复生成最终证据，也不把 Day 0 backup 当成 final attestation。
+`TUI-02=active`、readiness=`5/10 DENY`、`execution_focus=null`。随后一次受控 web-only restart 于
+`2026-09-02T15:38:21.178433901Z` 恢复同一候选，旧 retained source 按合同作废；reset artifact 已绑定
+候选、旧 checkpoint SHA 与健康探针，cutover evidence 已清空旧 retained projection。下一个真实 checkpoint
+是重启后的首个 retained sample；其精确 14 日窗口结束后再收集 structured defect/101-task telemetry、
+导出 post-window registry backup/attestation、生成 review snapshot，再由同一 owner 写入 owner/reviewer
+两个 role-bound attestations。不得回填或把 Day 0 backup 当成 final attestation。
 
 ### 13.17 AUD-04 repository archive/rehearsal checkpoint
 
@@ -559,3 +563,91 @@ SHA-256=`7c535f2a1802561be3430a8a9a2149da4ab08b885f2ad672f96828209da8a56a`；聚
 扩大回归 `70 passed`，mypy/debt、current-data、格式、3,006-file architecture、Django/migration 与
 治理门禁通过。该单元纯 repository 整理，未连接/写入生产、未重启/部署/backfill，不解除 DATA-02
 生产阻塞，也不改变 TUI-02 候选/观察规则。
+
+### 13.20 候选只读可用性事故与 decision-readiness fail-closed 修复
+
+2026-09-02 对当前 TUI-02 候选执行了一次低频、候选绑定的只读观察，未部署、未重启、未写库、未改配置。
+候选身份没有漂移：commit=`aa7127ff4d9f71555b0d0486314da5518bd2ac20`、release=`20260901232812`、
+image=`sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c`，运行 Web 容器
+restart=`0`、OOM=`false`，但在 `2026-09-02T09:24:13Z` 已为 `running/unhealthy`。同一时间公网
+`/api/health/`、`/api/ready/`、`/api/decision-ready/` 均返回 `502`，Caddy 记录到 `web:8000`
+上游连接超时；最后一次容器 healthcheck 也以 2 秒连接超时失败。Prometheus 仍为
+`running/healthy`、restart=`0`、唯一 scrape target=`up`，但 `/api/ready/` P95=`4.875s` 的
+`HighAPILatency` 告警处于 pending。此前一次 12 秒 decision-ready 探针无响应，Daphne 日志记录了
+超时 application instance 被杀；同一观察窗口中 Celery 的 `refresh_market_thermometer_task`
+耗时约 `110.10s` 成功完成，并伴随 EastMoney/AKShare 断连或 502 警告。这些是事故事实，不足以
+推断单一根因，也不能把当前服务状态判为可用。
+
+候选只读工件为
+[`tui02-production-readonly-refresh-2026-09-02-aa7127ff.json`](../deployment/tui02-production-readonly-refresh-2026-09-02-aa7127ff.json)，
+SHA-256=`8992083e05e5a45c4b22ae20b88802cdc0485d844ecfd8f7942035eeeedb6c16`，并附 sidecar。该工件固定
+`production_claim=false`、`production_ready=false`、`runtime_enablement=not_authorized`、决策门
+`DENY`/`must_not_use_for_decision=true`，不能作为 production UAT、容量、恢复或签署证据。
+
+为避免全局决策门已经 blocked 时仍扫描 5,533 资产并再次拖住 Web，本地新增
+`run_decision_readiness_checks()` 的 fail-closed 短路：持久化 runtime gate 非 `ok` 或明确
+`must_not_use_for_decision` 时，直接返回完整四键 blocked projection；gate open 时保留原四项严格检查。
+`core/health_checks.py` 的增量 mypy regression=`0`，Black/isort/Ruff 通过；完整
+`tests/component/test_health_checks.py`=`25 passed in 179.93s`，新增 blocked/open 两路径回归均通过。
+修复已提交为 `ac95af184` 并推送，尚未部署到上述候选；对应 CI 与 review 完成前不改变生产绑定。
+
+后续 reason-code 校正提交为 `efe301941`，Architecture、Security、Consistency、Fast Feedback 四条
+CI 均 completed/success（run `33615499188`、`33615499197`、`33615499196`、`33615499201`）。
+CI 只证明仓库合同，不改变生产候选或恢复状态。
+
+本节不授权或暗示远端恢复动作。下一步是等待 CI/review，并在另行明确批准后只做一次受控候选恢复
+（restart/deploy 二选一）与重新取证；任何 restart 都会使 TUI-02 retained window 按规则重新绑定，
+并需复核 Caddy/Daphne/healthcheck 的恢复机制。DATA-02、AUD-03、EVID-01/02、STRAT-01、TAR-01/05
+以及 TUI-02 的 14 日窗口、queued/load/chaos、restore/rollback 与 owner/reviewer 门禁均保持原状态。
+
+### 13.21 Web liveness host-watchdog repository slice
+
+对 13.20 事故的仓库侧整改不通过重复部署解决，而是补齐明确的服务器端恢复合同：新增
+`scripts/vps-web-watchdog.sh` 与 systemd service/timer 模板。watchdog 只读取 compose `web`
+容器的 Docker health 状态；连续三次 `unhealthy` 后才允许 `docker compose ... restart web`，并
+保留 15 分钟冷却、每小时最多两次重启和最多 120 秒恢复等待。它不会直接 kill 共享 PID namespace
+中的 Daphne，也不会重启 `runtime_ns`、Celery、PostgreSQL、Redis、volume 或写入数据库/配置。
+`healthy`（包括 decision-ready 业务门正确 blocked）会清理失败计数而不触发重启。
+
+`tests/unit/test_vps_web_watchdog.py` 覆盖阈值、精确 Web-only restart、恢复确认、冷却、滚动重启预算
+和健康清零；`sh -n` 与现有打包脚本检查通过。实现已提交为
+`efdbb63c6c9ccc2b108ab3e5f3155404dc0758bf`，Architecture `33619653200`、Security `33619653029`、
+Consistency `33619653074`、Fast Feedback `33619653085` 四条 CI 均 success。watchdog 是一次显式运维安装，不随应用部署自动启用，
+不使用 Docker socket sidecar；本 slice 未安装、未重启、未部署或修改 VPS，未改变当前候选、TUI-02
+观察窗口或任何 DATA/EVID/STRAT/AUD/TAR 门禁。下一步仅在明确授权后安装 timer，并对实际恢复取一次
+候选绑定证据；安装或任何 restart 都按 TUI-02 规则重新绑定 retained sample。
+
+### 13.22 TUI-02 retained checkpoint 跨平台哈希护栏
+
+候选 `aa7127ff4` 的 retained checkpoint sidecar 使用 Git canonical LF 字节，但 Windows
+`text=auto` checkout 会把工作树 JSON materialize 为 CRLF。此前
+`scripts/check_web_to_tui_cutover_readiness.py` 调用的 retained validator 直接哈希 raw bytes，
+因而在本机把有效 checkpoint 误判为 `retained_source=false`；Linux CI 不会暴露该差异。
+
+`scripts/web_to_tui_retained_observation.py` 现在在绑定和校验时统一使用 UTF-8/Git-compatible LF
+字节，仍对内容变化保持 SHA fail-closed；不会修改生产 raw-byte provenance，也不会放宽候选、观察窗口或
+任何生产门禁。新增 CRLF checkout 回归，以及候选绑定的 restart-reset 合同：reset artifact 必须证明同一
+候选、旧 checkpoint SHA、web start/healthy、public health/ready=200 与 decision-ready=503 fail-closed；
+绑定后 retained projection 与 post-window 证据被清空，旧样本不能与 reset marker 共存。验证：retained/readiness
+focused `44 passed`；当前 readiness 仍 `5/10 DENY`，重启后的新 retained sample、telemetry/defect/backup/
+attestation 证据未被伪造。
+
+### 13.23 VPS bundle watchdog 资产验收护栏
+
+watchdog 已由 `scripts/package-for-vps.ps1` 纳入部署包，但原
+`scripts/verify-vps-bundle.ps1` 的 required-file 集合未强制检查 service、timer 和脚本本身；
+这会允许不完整的 bundle 在不启用 watcher 的情况下通过文件验收。现已把
+`deploy/agomtradepro-web-watchdog.service`、`deploy/agomtradepro-web-watchdog.timer` 与
+`scripts/vps-web-watchdog.sh` 加入 required-file 合同，并补 verifier source regression。
+
+`tests/unit/test_vps_web_watchdog.py` `5 passed`，PowerShell parser 通过；本 slice 不安装 timer、
+不部署或重启 VPS，不改变候选、retained window 或任何生产门禁。
+
+### 13.24 当前候选计划/索引投影一致性护栏
+
+新增 `test_current_candidate_identity_is_consistent_across_registry_and_evidence` 的计划投影断言：
+它从 active registry/cutover binding 读取不可变 candidate commit/version，并精确校验
+`docs/plans/README.md` 的 `web-to-tui-m5` 行与 `docs/INDEX.md` 的 M5 readiness 行同时包含该绑定。
+同时校验 `TUI-02=active` 与 `5/10 DENY` 的当前状态投影。这样候选或状态切换时若只更新机器真源
+而遗漏人读计划或索引，测试会 fail-closed；本 slice 仅验证静态投影，不改变 registry 状态、生产
+候选、VPS、TUI-02 观察窗口或任何生产门禁。

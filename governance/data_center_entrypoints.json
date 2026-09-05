@@ -23,20 +23,20 @@
       "runbook": 7,
       "runtime_config_key": 45,
       "scheduler_writer": 16,
-      "script": 7,
+      "script": 8,
       "sdk": 46,
       "terminal_tui": 28,
       "test_evidence": 42,
       "workflow_step": 9
     },
     "by_status": {
-      "active_public": 718,
+      "active_public": 719,
       "adjacent_operational": 296,
       "candidate-review": 0,
       "compatibility": 137,
       "retired_blocked": 0
     },
-    "total": 1151
+    "total": 1152
   },
   "entries": [
     {
@@ -1072,8 +1072,8 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/macro/application/tasks.py:get_active_provider_id_by_source:line:22",
-      "locator": "line:22",
+      "id": "application_consumer:apps/macro/application/tasks.py:get_active_provider_id_by_source:line:23",
+      "locator": "line:23",
       "path": "apps/macro/application/tasks.py",
       "status": "active_public",
       "symbol": "get_active_provider_id_by_source",
@@ -1082,8 +1082,8 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/macro/application/tasks.py:make_query_macro_series_use_case:line:22",
-      "locator": "line:22",
+      "id": "application_consumer:apps/macro/application/tasks.py:make_query_macro_series_use_case:line:23",
+      "locator": "line:23",
       "path": "apps/macro/application/tasks.py",
       "status": "active_public",
       "symbol": "make_query_macro_series_use_case",
@@ -1092,8 +1092,8 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/macro/application/tasks.py:make_sync_macro_use_case:line:22",
-      "locator": "line:22",
+      "id": "application_consumer:apps/macro/application/tasks.py:make_sync_macro_use_case:line:23",
+      "locator": "line:23",
       "path": "apps/macro/application/tasks.py",
       "status": "active_public",
       "symbol": "make_sync_macro_use_case",
@@ -2732,8 +2732,8 @@
     {
       "category": "celery_dispatch_edge",
       "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
-      "id": "celery_dispatch_edge:apps/macro/application/tasks.py:delay:line:419",
-      "locator": "line:419",
+      "id": "celery_dispatch_edge:apps/macro/application/tasks.py:delay:line:420",
+      "locator": "line:420",
       "path": "apps/macro/application/tasks.py",
       "status": "active_public",
       "symbol": "delay",
@@ -5181,7 +5181,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=6",
+      "evidence": "governed current-data contract; source_files=8",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.publication_only_d7_d9:Data Center Public Ports for sector membership, market news, and capital flow",
       "locator": "Data Center Public Ports for sector membership, market news, and capital flow",
       "path": "governance/current_data_contracts.json",
@@ -7922,8 +7922,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/deploy_vps_verify.py:verify_canonical_schema:line:411",
-      "locator": "line:411",
+      "id": "orchestration_entry:scripts/deploy_vps_verify.py:verify_canonical_schema:line:432",
+      "locator": "line:432",
       "path": "scripts/deploy_vps_verify.py",
       "status": "active_public",
       "symbol": "verify_canonical_schema",
@@ -7932,8 +7932,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:init_macro_indicator_governance:line:1834",
-      "locator": "line:1834",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:init_macro_indicator_governance:line:1908",
+      "locator": "line:1908",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "init_macro_indicator_governance",
@@ -7942,8 +7942,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:initialize_data_center_catalog:line:1785",
-      "locator": "line:1785",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:initialize_data_center_catalog:line:1859",
+      "locator": "line:1859",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "initialize_data_center_catalog",
@@ -7952,8 +7952,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:normalize_macro_fact_units:line:1834",
-      "locator": "line:1834",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:normalize_macro_fact_units:line:1908",
+      "locator": "line:1908",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "normalize_macro_fact_units",
@@ -7962,8 +7962,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:verify_canonical_schema:line:1780",
-      "locator": "line:1780",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:verify_canonical_schema:line:1854",
+      "locator": "line:1854",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "verify_canonical_schema",
@@ -10265,6 +10265,16 @@
       "id": "script:scripts/record_data02_reconciliation_evidence.py:__main__:",
       "locator": "",
       "path": "scripts/record_data02_reconciliation_evidence.py",
+      "status": "active_public",
+      "symbol": "__main__",
+      "target": ""
+    },
+    {
+      "category": "script",
+      "evidence": "Data Center governance/measurement tooling",
+      "id": "script:scripts/record_data02_successor_checkpoint.py:__main__:",
+      "locator": "",
+      "path": "scripts/record_data02_successor_checkpoint.py",
       "status": "active_public",
       "symbol": "__main__",
       "target": ""

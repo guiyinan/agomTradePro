@@ -103,6 +103,28 @@ binding。若同一候选的 Prometheus 重启或 retained source 改变，retai
 defect、telemetry、post-window backup、review 和 approvals；仍绑定同一候选的 UAT/cleanup/rollback drill
 不会被误删。
 
+## 受控重启后的窗口重置
+
+候选已经绑定 retained sample 后，如果发生受控 Web 重启，旧窗口必须作废，不能沿用旧 sample
+或旧的 post-window 证据。先保存候选绑定的只读 reset artifact（必须包含同一 commit/release/image、
+容器实际启动时间、health/ready=200、decision-ready=503 和旧 checkpoint 的 canonical SHA），再执行
+dry-run：
+
+```powershell
+$ResetArtifact = "docs/deployment/tui02-production-observation-reset-<date>-<commit>.json"
+python scripts/reset_web_to_tui_observation.py --reset-artifact $ResetArtifact
+```
+
+确认 `READY (dry-run)` 后才写入候选证据：
+
+```powershell
+python scripts/reset_web_to_tui_observation.py --reset-artifact $ResetArtifact --write-evidence
+```
+
+该操作只更新本地 candidate evidence：清除 retained window、observation end、缺陷/telemetry、
+post-window backup、review 和 approvals；不会部署、重启、写数据库或启用 runtime。随后必须等待
+重启后的首个真实 retained sample，并重新计算精确 14 日 eligible instant。
+
 ## 窗口如何计算
 
 - 候选名义日期：deployment attestation 的 UTC 部署/验证日期；
@@ -128,9 +150,11 @@ defect、telemetry、post-window backup、review 和 approvals；仍绑定同一
 
 不要通过手工修改 JSON 绕过这些检查，也不要回填观察开始时间。
 
-## 当前候选示例
+## 历史候选示例（非当前 binding）
 
-2026-08-30/31 启动并复核的当前绑定为：
+以下是 2026-08-30/31 启动并复核的旧绑定，仅用于说明 checkpoint 格式。2026-09-02 的受控
+web-only restart 已使该 retained window 作废；当前候选为 `aa7127ff4…` / release
+`20260901232812`，需按 reset artifact 重新取得首个真实样本，不能继承以下时间：
 
 - release：`20260830215638`；
 - candidate commit：`80ea002bf910110621022a70e4f1ec5c1b704a56`；

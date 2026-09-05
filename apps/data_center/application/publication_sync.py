@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Protocol
 from uuid import NAMESPACE_URL, uuid5
 
@@ -25,7 +25,10 @@ from apps.data_center.domain.entities import (
     QuoteSnapshot,
     SectorMembershipFact,
 )
-from apps.data_center.domain.protocols import PublicationPolicyRepositoryProtocol
+from apps.data_center.domain.protocols import (
+    DatasetContractRepositoryProtocol,
+    PublicationPolicyRepositoryProtocol,
+)
 
 from .control_plane import CanonicalPublicationRepositoryPort, PublishCanonicalDatasetUseCase
 from .publication_sync_market import (
@@ -63,10 +66,12 @@ class PublishNewsBatchUseCase:
         fact_repository: NewsPublicationCandidateRepositoryProtocol,
         publication_repository: CanonicalPublicationRepositoryPort,
         policy_repository: PublicationPolicyRepositoryProtocol,
+        contract_repository: DatasetContractRepositoryProtocol,
     ) -> None:
         self._facts = fact_repository
         self._publications = publication_repository
         self._policies = policy_repository
+        self._contracts = contract_repository
         self._publisher = PublishCanonicalDatasetUseCase(publication_repository)
 
     def execute(
@@ -83,7 +88,9 @@ class PublishNewsBatchUseCase:
         A repeated provider response produces the same publication/member ids
         and returns the existing current publication without creating another
         version. Missing candidate rows are counted in coverage and fail closed
-        through the active Dataset Publication Policy.
+        through the active Dataset Publication Policy. Current publications
+        contain only observations inside the active Dataset Contract freshness
+        window, while non-current publication keys retain their supplied scope.
         """
 
         normalized_key = publication_key.strip()
@@ -92,9 +99,33 @@ class PublishNewsBatchUseCase:
         provider = provider_name.strip()
         if not provider:
             raise ValueError("provider_name cannot be empty")
+        publish_time = published_at or datetime.now(UTC)
+        if publish_time.tzinfo is None or publish_time.utcoffset() is None:
+            raise ValueError("published_at must be timezone-aware")
         unique_articles = _unique_articles(articles)
         if not unique_articles:
             return None
+        for article in unique_articles:
+            observed_at = article.published_at
+            if observed_at.tzinfo is None or observed_at.utcoffset() is None:
+                raise ValueError("news observation must be timezone-aware")
+            if observed_at > publish_time:
+                raise ValueError("news observation cannot be later than publication time")
+        if normalized_key == "current":
+            contract = self._contracts.get_active(self.dataset_key)
+            freshness_seconds = contract.freshness_seconds if contract is not None else None
+            if (
+                isinstance(freshness_seconds, bool)
+                or not isinstance(freshness_seconds, int)
+                or freshness_seconds <= 0
+            ):
+                raise ValueError(f"No active freshness contract for {self.dataset_key}")
+            freshness_cutoff = publish_time - timedelta(seconds=freshness_seconds)
+            unique_articles = [
+                article for article in unique_articles if article.published_at >= freshness_cutoff
+            ]
+            if not unique_articles:
+                return None
         references = self._deduplicate_references(
             self._facts.list_publication_candidates(unique_articles)
         )
@@ -107,9 +138,6 @@ class PublishNewsBatchUseCase:
             raise ValueError("Publication policy dataset mismatch")
         observed = [reference.observed_at for reference in references]
         as_of = max(observed)
-        publish_time = published_at or datetime.now(UTC)
-        if publish_time.tzinfo is None or publish_time.utcoffset() is None:
-            raise ValueError("published_at must be timezone-aware")
         if as_of > publish_time:
             raise ValueError("news observation cannot be later than publication time")
 

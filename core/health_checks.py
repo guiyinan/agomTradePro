@@ -288,8 +288,37 @@ def check_decision_provider_capabilities() -> dict[str, Any]:
 def run_decision_readiness_checks() -> dict[str, dict[str, Any]]:
     """Run strict checks required before publishing decision conclusions."""
 
+    runtime_state = check_decision_runtime_state()
+    if (
+        runtime_state.get("status") != "ok"
+        or runtime_state.get("must_not_use_for_decision") is True
+    ):
+        # Once the persistent global gate is blocked, the remaining checks are
+        # diagnostic detail only.  They can scan the complete active universe
+        # and publication members, so running them behind an already-blocked
+        # gate needlessly ties up an ASGI worker and can leave the public
+        # fail-closed probe hanging.  Preserve the four-key response contract
+        # while making the short-circuit explicit and fail closed.
+        reason = str(
+            runtime_state.get("block_reason_code")
+            or runtime_state.get("reason")
+            or "decision_runtime_blocked"
+        )
+        blocked_projection = {
+            "status": "blocked",
+            "must_not_use_for_decision": True,
+            "block_reason_code": "decision_readiness_blocked",
+            "blocked_by": reason,
+        }
+        return {
+            "runtime_state": runtime_state,
+            "core_coverage": dict(blocked_projection),
+            "provider_capabilities": dict(blocked_projection),
+            "decision_data": dict(blocked_projection),
+        }
+
     return {
-        "runtime_state": check_decision_runtime_state(),
+        "runtime_state": runtime_state,
         "core_coverage": check_core_data_coverage(),
         "provider_capabilities": check_decision_provider_capabilities(),
         "decision_data": check_decision_data_readiness(),

@@ -1,0 +1,14 @@
+[Unit]
+Description=AgomTradePro Web liveness recovery
+Documentation=/opt/agomtradepro/current/deploy/README_DEPLOY.md
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/agomtradepro/current
+Environment=AGOMTRADEPRO_WATCHDOG_TARGET_DIR=/opt/agomtradepro/current
+Environment=AGOMTRADEPRO_WATCHDOG_STATE_DIR=/var/lib/agomtradepro/web-watchdog
+TimeoutStartSec=150s
+ExecStart=/bin/sh /opt/agomtradepro/current/scripts/vps-web-watchdog.sh

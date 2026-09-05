@@ -30,17 +30,26 @@
       "verified_at": "2026-09-01T16:21:40.158842+00:00",
       "version": "web-to-tui-production-deployment-preflight.v1"
     },
-    "observation_end": "2026-09-15",
+    "observation_end": null,
     "released_at": "2026-09-01",
-    "retained_observation": {
-      "eligible_at": "2026-09-15T16:56:29.796000Z",
-      "evidence": "docs/deployment/tui02-production-observation-checkpoint-2026-09-02-aa7127ff.json",
-      "evidence_sha256": "96d7031e0da8ba6a6d037d800fd8cd4add782b9f3369e93e0e6c645a051052c3",
-      "first_retained_sample_at": "2026-09-01T16:56:29.796000Z",
-      "minimum_observation_seconds": 1209600,
-      "version": "web-to-tui-retained-observation-binding.v1"
-    },
-    "stable_version": "20260901232812"
+    "retained_observation": null,
+    "stable_version": "20260901232812",
+    "observation_reset": {
+      "version": "tui02-production-observation-reset.v1",
+      "evidence": "docs/deployment/tui02-production-observation-reset-2026-09-02-aa7127ff.json",
+      "evidence_sha256": "78cc512926193b5fad05db1e34f053a852816700817e4cd357d5999c05dab004",
+      "reset_at": "2026-09-02T15:38:21.178433Z",
+      "reason_code": "controlled_web_restart_after_liveness_incident",
+      "new_sample_required": true,
+      "previous_retained_observation": {
+        "eligible_at": "2026-09-15T16:56:29.796000Z",
+        "evidence": "docs/deployment/tui02-production-observation-checkpoint-2026-09-02-aa7127ff.json",
+        "evidence_sha256": "96d7031e0da8ba6a6d037d800fd8cd4add782b9f3369e93e0e6c645a051052c3",
+        "first_retained_sample_at": "2026-09-01T16:56:29.796000Z",
+        "minimum_observation_seconds": 1209600,
+        "version": "web-to-tui-retained-observation-binding.v1"
+      }
+    }
   },
   "cleanup": {
     "candidate_binding": {

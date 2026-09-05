@@ -14,6 +14,7 @@ from apps.config_center.infrastructure.models import (
 )
 from apps.config_center.infrastructure.repositories import ConfigCenterSettingsRepository
 from apps.data_center.application.interface_services import save_provider_settings_payload
+from tests.support.runtime_config import configure_critical_runtime
 
 
 def _activate_typed_qlib_runtime(
@@ -22,6 +23,7 @@ def _activate_typed_qlib_runtime(
 ) -> dict[str, object]:
     """Publish one complete typed Qlib runtime for Classic compatibility tests."""
 
+    configure_critical_runtime()
     save_provider_settings_payload(
         default_source="akshare",
         enable_failover=True,
@@ -137,6 +139,7 @@ def test_qlib_config_center_page_updates_runtime_for_superuser(tmp_path):
     settings_obj.qlib_provider_uri = str(provider_dir)
     settings_obj.qlib_model_path = str(model_dir)
     settings_obj.save(update_fields=["qlib_provider_uri", "qlib_model_path", "updated_at"])
+    configure_critical_runtime()
     save_provider_settings_payload(
         default_source="akshare",
         enable_failover=True,

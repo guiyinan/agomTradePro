@@ -211,6 +211,15 @@ class MissingConfigError(ConfigurationError):
 
     default_message = "缺少必要配置"
     default_code = "MISSING_CONFIG"
+    default_status_code = 503
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a fail-closed unavailable response instead of a server error."""
+
+        result = super().to_dict()
+        result["success"] = False
+        result["must_not_use_for_decision"] = True
+        return result
 
 
 # ========== Data Errors ==========

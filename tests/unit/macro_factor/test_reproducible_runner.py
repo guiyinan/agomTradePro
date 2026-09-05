@@ -225,6 +225,25 @@ def test_manifest_factory_live_validates_nested_owner_evidence(nested_kind: str)
         )
 
 
+@pytest.mark.parametrize(
+    ("changes", "message"),
+    [
+        ({"calendar_id": ""}, "non-blank bounded token"),
+        ({"calendar_id": "noncanonical calendar"}, "cannot contain whitespace"),
+        ({"calendar_hash": "not-a-sha256"}, "SHA-256 hex digest"),
+        ({"content_hash": "0" * 64}, "hash does not match content"),
+    ],
+)
+def test_calendar_member_rejects_noncanonical_or_tampered_fields(
+    changes: dict[str, object],
+    message: str,
+) -> None:
+    member = complete_manifest().inference_periods[0]
+
+    with pytest.raises(ValueError, match=message):
+        replace(member, **changes)
+
+
 def test_outer_folds_select_independently_and_only_explicit_final_fold_binds_result() -> None:
     artifact = external_runner_artifact()
     first = artifact.fold_selections[0]

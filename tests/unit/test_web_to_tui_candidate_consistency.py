@@ -12,6 +12,8 @@ ROOT = Path(__file__).resolve().parents[2]
 REGISTRY_PATH = ROOT / "governance" / "active_plan_registry.json"
 READINESS_PATH = ROOT / "docs" / "plans" / "web-to-tui-m5-readiness-2026-07-27.md"
 DEPLOYMENT_PATH = ROOT / "docs" / "deployment" / "vps-deployment-evidence-2026-08-15.md"
+PLANS_INDEX_PATH = ROOT / "docs" / "plans" / "README.md"
+DOCS_INDEX_PATH = ROOT / "docs" / "INDEX.md"
 PREFLIGHT_DIR = ROOT / "docs" / "deployment"
 CUTOVER_PATH = ROOT / "config" / "tui" / "migration" / "web_to_tui_cutover_evidence.v1.json"
 
@@ -65,6 +67,15 @@ def _find_candidate_preflight(*, candidate_version: str, candidate_commit: str) 
     return matches[0]
 
 
+def _line_containing(text: str, marker: str) -> str:
+    """Return one projection line containing ``marker`` or fail closed."""
+
+    for line in text.splitlines():
+        if marker in line:
+            return line
+    raise AssertionError(f"missing projection line containing {marker!r}")
+
+
 def test_current_candidate_identity_is_consistent_across_registry_and_evidence() -> None:
     """Keep the immutable cutover candidate aligned across its evidence files."""
 
@@ -81,10 +92,12 @@ def test_current_candidate_identity_is_consistent_across_registry_and_evidence()
     binding = {str(key): str(value) for key, value in binding_payload.items()}
     assert binding["candidate_version"] == candidate_version
     assert binding["candidate_commit"] == candidate_commit
-    # The registry next gate is intentionally candidate-agnostic.  The
-    # immutable commit/version are owned by the cutover binding and the
-    # candidate-specific deployment artifacts checked below.
-    assert "manifest-backed candidate" in next_gate
+    # The registry may keep this gate candidate-agnostic, or include an
+    # explicit immutable candidate binding.  In either form it must not
+    # contradict the canonical cutover binding used by the evidence below.
+    if "manifest-backed candidate" not in next_gate:
+        assert candidate_commit in next_gate
+        assert candidate_version in next_gate
 
     preflight_path = _find_candidate_preflight(
         candidate_version=candidate_version,
@@ -98,6 +111,33 @@ def test_current_candidate_identity_is_consistent_across_registry_and_evidence()
 
     readiness = READINESS_PATH.read_text(encoding="utf-8")
     deployment = DEPLOYMENT_PATH.read_text(encoding="utf-8")
+    plans_index = PLANS_INDEX_PATH.read_text(encoding="utf-8")
+    docs_index = DOCS_INDEX_PATH.read_text(encoding="utf-8")
+    candidate_prefix = candidate_commit[:9]
+    plans_row = _line_containing(plans_index, "| `web-to-tui-m5` |")
+    docs_row = _line_containing(docs_index, "web-to-tui-m5-readiness-2026-07-27.md")
+    for projection_name, projection_row in (
+        ("docs/plans/README.md", plans_row),
+        ("docs/INDEX.md", docs_row),
+    ):
+        assert candidate_prefix in projection_row, (
+            f"{projection_name} current projection is missing candidate "
+            f"prefix {candidate_prefix!r}"
+        )
+        assert candidate_version in projection_row, (
+            f"{projection_name} current projection is missing candidate "
+            f"version {candidate_version!r}"
+        )
+    tui02_unit = next(
+        unit for unit in registry["closure_backlog"]["units"] if unit["id"] == "TUI-02"
+    )
+    assert tui02_unit["status"] == "active"
+    assert (
+        "TUI-02=active" in plans_row
+    ), "docs/plans/README.md current M5 projection is missing TUI-02 active status"
+    assert (
+        "5/10 DENY" in docs_row
+    ), "docs/INDEX.md current M5 readiness projection is missing 5/10 DENY status"
     readiness_current = _latest_section_for_candidate(
         readiness,
         heading_level=3,

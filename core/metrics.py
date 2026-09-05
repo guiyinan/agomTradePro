@@ -164,7 +164,19 @@ celery_active_workers = Gauge(
 db_connections_total = Gauge(
     "db_connections_total",
     "Total database connections",
-    ["database", "status"],  # status: active/idle
+    ["database", "status"],  # status: active/idle/other
+)
+
+db_connection_capacity = Gauge(
+    "db_connection_capacity",
+    "Configured PostgreSQL connection capacity",
+    ["database", "kind"],  # kind: max/reserved/usable
+)
+
+db_connection_observation_up = Gauge(
+    "database_connection_observation_up",
+    "Whether the latest PostgreSQL connection-capacity observation succeeded",
+    ["database"],
 )
 
 # 数据库查询延迟
@@ -404,6 +416,48 @@ def record_audit_write(
     except Exception as exc:
         logger.warning(
             "Failed to record audit metric (error_type=%s)",
+            _exception_type(exc),
+        )
+
+
+def record_database_connection_snapshot(
+    *,
+    database: str,
+    active: int,
+    idle: int,
+    other: int,
+    max_connections: int,
+    reserved_connections: int,
+) -> None:
+    """Publish one validated PostgreSQL connection-capacity snapshot."""
+
+    values = (active, idle, other, max_connections, reserved_connections)
+    if any(isinstance(value, bool) or value < 0 for value in values):
+        raise ValueError("database connection metrics must be non-negative integers")
+    usable_connections = max_connections - reserved_connections
+    if usable_connections <= 0:
+        raise ValueError("usable database connection capacity must be positive")
+
+    normalized_database = _bounded_label(database, limit=64)
+    for status, value in (("active", active), ("idle", idle), ("other", other)):
+        db_connections_total.labels(database=normalized_database, status=status).set(value)
+    for kind, value in (
+        ("max", max_connections),
+        ("reserved", reserved_connections),
+        ("usable", usable_connections),
+    ):
+        db_connection_capacity.labels(database=normalized_database, kind=kind).set(value)
+    db_connection_observation_up.labels(database=normalized_database).set(1)
+
+
+def record_database_connection_observation_failure(*, database: str) -> None:
+    """Publish a failed PostgreSQL connection-capacity observation."""
+
+    try:
+        db_connection_observation_up.labels(database=_bounded_label(database, limit=64)).set(0)
+    except Exception as exc:
+        logger.warning(
+            "Failed to record database observation failure (error_type=%s)",
             _exception_type(exc),
         )
 

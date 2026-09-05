@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import sys
+from pathlib import Path
 
 
 def test_production_asgi_disables_persistent_database_connections(monkeypatch) -> None:
@@ -25,3 +26,13 @@ def test_production_asgi_disables_persistent_database_connections(monkeypatch) -
         assert production.DATABASES["default"]["CONN_MAX_AGE"] == 0
     finally:
         sys.modules.pop("core.settings.production", None)
+
+
+def test_environment_example_does_not_advertise_persistent_asgi_connections() -> None:
+    """Operators must not be invited to restore the unsafe production setting."""
+
+    env_example = Path(__file__).resolve().parents[2] / ".env.example"
+    content = env_example.read_text(encoding="utf-8")
+
+    assert "DB_CONN_MAX_AGE=" not in content
+    assert "Daphne/ASGI" in content

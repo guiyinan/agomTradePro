@@ -1,0 +1,67 @@
+{
+  "schema": "tar01-public-health-readonly-recheck.v1",
+  "observed_at": "2026-09-02T19:05:22.108651Z",
+  "source": "public HTTPS GET only",
+  "candidate_binding": "not_observed",
+  "production_mutation": false,
+  "deployment_performed": false,
+  "endpoints": {
+    "/api/health/": {
+      "http_status": 200,
+      "endpoint_timestamp": "2026-09-02T19:05:27.515814+00:00",
+      "body_bytes": 62,
+      "body_sha256": "f736dcb5bfc2728ff48a7ac2a9db6de30442242d00f6ba245c5a9646e3456b5f",
+      "status": "ok"
+    },
+    "/api/ready/": {
+      "http_status": 200,
+      "endpoint_timestamp": "2026-09-02T19:05:32.246322+00:00",
+      "body_bytes": 12168,
+      "body_sha256": "26ccc17361fd2cc302497f546d47e8c356f025afdca3c5df86eb34a737fc43d5",
+      "status": "ok",
+      "checks": {
+        "database": "ok",
+        "redis": "ok",
+        "celery": "ok",
+        "critical_data": "ok",
+        "decision_data": "warning",
+        "alpha_workspace_consistency": "ok"
+      },
+      "celery_workers": 1
+    },
+    "/api/decision-ready/": {
+      "http_status": 503,
+      "endpoint_timestamp": "2026-09-02T19:05:36.868436+00:00",
+      "body_bytes": 15861,
+      "body_sha256": "a0b744be369807e2e92a31fde1c55175abf28210138625d7817b369d4d30408b",
+      "status": "blocked",
+      "must_not_use_for_decision": true,
+      "runtime_state": {
+        "status": "blocked",
+        "block_reason_code": "decision_runtime_blocked"
+      },
+      "core_coverage": {
+        "status": "incomplete",
+        "asset_count": 5533,
+        "block_reason_code": "core_data_coverage_incomplete"
+      },
+      "provider_capabilities": {
+        "status": "blocked",
+        "block_reason_code": "decision_provider_capabilities_unhealthy",
+        "blocked_capabilities": ["historical_price", "valuation", "financial"]
+      }
+    }
+  },
+  "acceptance": {
+    "public_health": true,
+    "public_readiness": true,
+    "decision_ready": false,
+    "formal_production_uat": false,
+    "owner_reviewer_signoff": false,
+    "notes": [
+      "The public endpoints do not expose candidate identity; the probe is not candidate-bound.",
+      "The decision endpoint remains fail-closed and must not be used for decisions.",
+      "No deployment, restart, migration, queue enablement, rollback, or production write was performed."
+    ]
+  }
+}

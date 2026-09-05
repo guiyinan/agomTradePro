@@ -18,8 +18,8 @@ _TEST_AUDIT_AUTHORITY_SELECTOR: dict[str, object] = {
 }
 
 
-def _seed_complete_critical_runtime_profile() -> None:
-    """Seed explicit fail-closed audit values required by test profile activation."""
+def configure_critical_runtime() -> None:
+    """Seed explicit fail-closed audit values for an isolated test database."""
 
     settings_module = str(os.environ.get("DJANGO_SETTINGS_MODULE") or "").strip()
     environment = "production" if settings_module.endswith(".production") else "development"
@@ -43,7 +43,7 @@ def configure_account_runtime(
 ) -> None:
     """Publish complete critical and account groups for an isolated test database."""
 
-    _seed_complete_critical_runtime_profile()
+    configure_critical_runtime()
     save_provider_settings_payload(
         default_source="akshare",
         enable_failover=True,
@@ -64,4 +64,4 @@ def configure_account_runtime(
     )
 
 
-__all__ = ["configure_account_runtime"]
+__all__ = ["configure_account_runtime", "configure_critical_runtime"]

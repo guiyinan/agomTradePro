@@ -1,0 +1,71 @@
+{
+  "version": "tui02-production-observation-reset.v1",
+  "environment": "production",
+  "collection_mode": "read_only",
+  "checked_at": "2026-09-02T15:53:33.776786Z",
+  "candidate": {
+    "expected": {
+      "commit": "aa7127ff4d9f71555b0d0486314da5518bd2ac20",
+      "release_id": "20260901232812",
+      "image_id": "sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c"
+    },
+    "observed": {
+      "commit": "aa7127ff4d9f71555b0d0486314da5518bd2ac20",
+      "release_id": "20260901232812",
+      "image_id": "sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c"
+    },
+    "candidate_drift": false
+  },
+  "reset": {
+    "reason_code": "controlled_web_restart_after_liveness_incident",
+    "reset_at": "2026-09-02T15:38:21.178433901Z",
+    "web_container_id": "57effffd85c88b23ce699d4aeff45ceda7b79f7b155bab4d778997c173cc519e",
+    "web_started_at": "2026-09-02T15:38:21.178433901Z",
+    "web_status": "running",
+    "web_health": "healthy",
+    "web_restart_count": 0,
+    "prometheus_restart_count": 0,
+    "prometheus_unexpected_restart": false
+  },
+  "public_probes": {
+    "origin": "https://demo.agomtrade.pro",
+    "health": {
+      "observed_at": "2026-09-02T15:53:33.776812Z",
+      "http_status": 200,
+      "body_bytes": 62
+    },
+    "ready": {
+      "observed_at": "2026-09-02T15:53:35.248840Z",
+      "http_status": 200,
+      "body_bytes": 12168
+    },
+    "decision_ready": {
+      "observed_at": "2026-09-02T15:53:40.706336Z",
+      "http_status": 503,
+      "must_not_use_for_decision": true
+    }
+  },
+  "previous_observation": {
+    "checkpoint": "docs/deployment/tui02-production-observation-checkpoint-2026-09-02-aa7127ff.json",
+    "checkpoint_sha256": "96d7031e0da8ba6a6d037d800fd8cd4add782b9f3369e93e0e6c645a051052c3",
+    "previous_web_started_at": "2026-09-01T16:47:12.395198638Z",
+    "first_retained_sample_at": "2026-09-01T16:56:29.796000Z",
+    "eligible_at": "2026-09-15T16:56:29.796000Z"
+  },
+  "observation": {
+    "window_reset_required": true,
+    "new_sample_required": true,
+    "post_reset_sample_observed": false
+  },
+  "production_claim": false,
+  "production_ready": false,
+  "runtime_enablement": "not_authorized",
+  "side_effects": {
+    "remote_restart": true,
+    "remote_deploy": false,
+    "remote_database_write": false,
+    "remote_configuration_change": false,
+    "load_or_chaos_test": false,
+    "authority_or_approval_mutation": false
+  }
+}

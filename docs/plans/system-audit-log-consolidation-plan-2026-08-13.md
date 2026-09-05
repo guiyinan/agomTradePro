@@ -1747,7 +1747,7 @@ candidate/window/output root 单独授权生产 canary archive，并把真实 so
 当前 candidate `aa7127ff4d9f71555b0d0486314da5518bd2ac20` / release `20260901232812` 上，
 只读快照确认 applied migrations=`496`、pending=`0`，normalized graph SHA-256=
 `57991bbcbe3d4baf86fcbbe6a1ad76f1e9a3e7c168b44e11007d4a09df676372`；Audit outbox 各状态和
-failure 均为 0，operation logs=`563`。Prometheus target=`up`、17 rules/unhealthy=`0`、active alerts=`0`，
+failure 均为 0，operation logs=`563`。Prometheus target=`up`、AUD-scoped alert rules=`12`/unhealthy=`0`、active alerts=`0`（全局配置共 17 条），
 retention=`3w/4GiB`。原始快照为
 [`aud03-operational-observation-select-only-2026-09-02-aa7127ff.json`](../deployment/aud03-operational-observation-select-only-2026-09-02-aa7127ff.json)，
 canonical content-addressed report 为

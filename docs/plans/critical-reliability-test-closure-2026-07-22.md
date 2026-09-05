@@ -12,7 +12,7 @@
 数据 → 决策快照 → 风险检查 → 订单审批 → Agent 执行 → 回报对账
 ```
 
-当前首要缺口是增量测试选择器未映射 `broker_execution`、`operational_readiness`、`risk_center`、`portfolio`、`research`、`valuation`、`config_center`。这些模块发生变化时，目前只会选中通用护栏。
+初始首要缺口（已于实施阶段关闭）是增量测试选择器未映射 `broker_execution`、`operational_readiness`、`risk_center`、`portfolio`、`research`、`valuation`、`config_center`；当时这些模块发生变化只会选中通用护栏。当前映射、关键链路与 CI 门禁均已完成，后文保留历史实施证据。
 
 ## 实施内容
 
@@ -116,7 +116,7 @@
 - [x] 新增关键链路测试。
 - [x] 补齐关键迁移验证并配置 PostgreSQL Nightly 入口。
 - [x] 接入 PR、Nightly 和 RC 门禁。
-- [x] 在 GitHub Nightly 完成 PostgreSQL 实际运行取证（当前候选 `578064409b8269e440ba7edbf9c480aa7d9917ff`，run `32276242287` 的 `Critical Reliability (PostgreSQL)` job 成功；SQLite fallback concurrency 的 1 个预期 skip 保留）。
+- [x] 在 GitHub Nightly 完成 PostgreSQL 实际运行取证（2026-08-20 历史 CI 候选 `578064409b8269e440ba7edbf9c480aa7d9917ff`，run `32276242287` 的 `Critical Reliability (PostgreSQL)` job 成功；SQLite fallback concurrency 的 1 个预期 skip 保留）。
 - [x] 记录真实 QMT 发布前验证证据；当前结论为 `QMT_SERVER_NOT_ALLOWED`，保持实盘禁用。
 
 ## 2026-07-22 实施记录
@@ -154,13 +154,13 @@
 
 ### 未完成项与未验证风险
 
-- GitHub PostgreSQL Job 已在当前候选上实际成功；这只证明 CI 空库迁移、关键链路和隔离恢复合同，不替代生产 PostgreSQL、维护态 rollback 或真实数据覆盖证据。
+- GitHub PostgreSQL Job 已在 2026-08-20 历史 CI 候选上实际成功；这只证明 CI 空库迁移、关键链路和隔离恢复合同，不替代生产 PostgreSQL、维护态 rollback 或真实数据覆盖证据。
 - 真实 QMT 不进入普通 CI。本阶段引用 `docs/operations/qmt-agent-runbook.md` 中 2026-07-22 的目标机证据：国金 QMT `2.1.19.0`、Python 3.11、`xtquant 250807.1.2` 隔离导入成功，但真实只读探针返回 `QMT_SERVER_NOT_ALLOWED`。本次收口不重复连接、不提交或撤销真实订单。
 - 实盘激活前仍必须按 `docs/operations/qmt-agent-runbook.md` 运行 preflight 和只读探针；券商权限未开通或版本矩阵未记录时必须保持实盘禁用。
 
-## 2026-08-20 实施记录：当前候选 PostgreSQL Nightly 实际取证
+## 2026-08-20 实施记录：历史 CI 候选 PostgreSQL Nightly 实际取证
 
-当前分支候选 `dev/next-development@578064409b8269e440ba7edbf9c480aa7d9917ff` 的
+2026-08-20 历史 CI 候选 `dev/next-development@578064409b8269e440ba7edbf9c480aa7d9917ff` 的
 [GitHub Actions Nightly run 32276242287](https://github.com/guiyinan/agomTradePro/actions/runs/32276242287)
 中，独立 `Critical Reliability (PostgreSQL)` job 已成功完成。它不是只运行 SQLite 的
 普通 job，而是在 PostgreSQL 16.15 空库上完成全量迁移和分层回归：
@@ -177,3 +177,191 @@
 这条证据完成的是 CI PostgreSQL 迁移/关键可靠性测试与隔离恢复子门，不是生产数据库恢复或
 RTO/RPO、维护态 rollback、全市场回填、生产 reconciliation、M9/M10 或真实 QMT 探针；这些
 仍保持未完成和 fail-closed。
+
+## 2026-09-03 DATA-10：Nightly 测试时钟与 canonical migration bytes
+
+### 触发与根因
+
+GitHub Actions Nightly run `33726889412` 在
+`tests/api/test_pulse_api.py::test_pulse_history_api_contract` 失败：接口返回一条历史记录，而固定断言
+要求至少两条。本地同一测试复现为 `count=1`。仓储按 `date.today() - months * 30 days` 计算窗口，
+测试却固定写入 2026-03-24 与 2026-03-01；随着真实日期推进，后一行已经自然落出六个月窗口。
+
+修复只修改测试夹具：在一次测试内捕获 `date.today()`，分别写入当日和前 30 日两条记录。这样仍
+真实经过仓储的六个月过滤，不冻结生产时钟、不扩大查询窗口，也不改变 Pulse API、freshness 或
+`must_not_use_for_decision` 语义。
+
+首次完整执行 Nightly 的 API/Migration 原命令共收集 1,090 项，结果为 `1,088 passed / 2 failed`。
+Pulse 文件的 16 项均通过；剩余两项是历史 migration hash guard 在 Windows 工作树直接读取 CRLF
+bytes，而期望值绑定 Git 中 LF bytes。`git ls-files --eol` 对三份引用文件均证明 `i/lf w/crlf`；将
+工作树 bytes 规范化为 LF 后，SHA-256 与三个期望值逐一完全一致：
+
+- `fixed_income/0001_initial.py`：`201b740746c21cf86f22db535c849f0bce2edcca7b67da871c795ff7039103cf`
+- `fixed_income/0002_seal_research_results.py`：`15d271e90ffcaf3ee5590cf065ad5ef9c839885c1b92884d98b2dbf1402edc92`
+- `research/0005_r7_sample_policy_ledger.py`：`5bfdd5eabcc8e3318890a8622df48ca8805cd30745dc941a3553a1da204746ae`
+
+两个 guard 现按仓库既有迁移测试约定将 CRLF/CR 规范化为 LF 后校验。历史 migration 文件本身未
+修改，hash 期望值未更新，因而仍能检测任何真实内容漂移。
+
+### 当前验证与退出门
+
+- Pulse API 文件 + 两个 migration hash guard：`18 passed`。
+- Black、isort、Ruff：通过。
+- active-plan registry v47：41 units、唯一 focus `DATA-10`、0 violations。
+- 首次完整本地 API/Migration：`1,088 passed / 2 failed`，两个失败均已按上述 canonical LF 根因修复。
+- 第二次完整本地运行使用机器默认 Python 3.13.5，在 Django test-db model render 阶段发生 Windows
+  原生 `access violation` 并异常终止；仓库约定的 `agomtradepro` Python 3.11 conda 环境在本机并不存在，
+  因此该次运行既不记为测试失败，也不记为通过。
+- 精确提交 `a03078fb51339a98e4c30a27255b9d3426e7f81d` 的 GitHub Python 3.11 Nightly run
+  `33754275868` 中，独立 PostgreSQL job 完整成功；主 Unit Tests 为
+  `13,867 passed / 1 failed / 1 skipped`。唯一失败是新增 DATA-10 后 closed-world registry test 仍断言
+  `closure_unit_count == 40`，而机器注册表与 README 均已合法登记 41 units；该投影现已同步为 41，
+  registry focused test 为 `8 passed`。
+- 精确提交 `20e5421bb710e3e554ac9ed9ef7847b7a5c6dc4d` 的后续 Nightly run `33758054039`
+  已使独立 PostgreSQL、full unit、component、API/migration 和 SQLite critical reliability 阶段全部
+  成功。core integration 执行到 `1,037 passed / 4 failed / 13 deselected` 后停止，四项均为已有测试或
+  历史快照没有满足当前合同：两条 Data Center API 测试缺少显式 audit composition，一条 Config
+  Center 测试缺 critical runtime profile，历史 Web→TUI 基线图套用当前 IA 后则只剩 P1/P2 面板而
+  丢失 P0。
+- Data Center API 测试现在只替换 authority/config 装配，仍使用真实 Django system-audit event/outbox
+  writer，并额外断言 `data.fetch.completed` 落库；Config Center 复用现有 fail-closed critical runtime
+  seed。TUI repository 对历史 full-IA payload 过滤面板后，如只剩无 P0 的不完整面板组，则将其整体
+  移除并把 dashboard journey 降级为有主动作的 workspace，随后仍执行完整 metadata validator；不会
+  虚构 P0 action，也不会接受无效 payload。
+- 最新本地验证：上述两条 audited API 节点 `2 passed`；三个受影响 integration 文件 `48 passed`；
+  完整 `tests/unit/test_tui_workbench.py` 为 `309 passed`；TUI static/source/copy-density/presentation 四项
+  门禁通过；增量 mypy 与全仓 debt ceiling 均为 0 errors；Black、isort、Ruff 通过。
+- 按 Nightly 相同 marker 选择器执行完整 `tests/integration/`，结果为
+  `1,041 passed / 13 deselected / 1 warning`（674.73s）。唯一 warning 是 Windows teardown 时测试数据库
+  文件仍被进程占用；全部测试节点已成功，不把该清理 warning 隐瞒或误报成 Python 3.11 证据。
+- 精确提交 `e4095270af5576e05cc4de4e3c4833a1f86cc703` 的 GitHub Python 3.11 Nightly run
+  [`33820056980`](https://github.com/guiyinan/agomTradePro/actions/runs/33820056980) 中，独立 PostgreSQL
+  job 完整成功；主 job 的 current-data、Celery、full mypy 与 frontend 阶段均成功，full unit 为
+  `13,868 passed / 1 failed / 1 skipped`。唯一失败是本次修改
+  `apps/terminal/infrastructure/tui_metadata_repository.py` 后，没有同时刷新 reviewed
+  `config/tui/agomtui-runtime.manifest.json` 中该文件的规范化 SHA-256；后续阶段按 fail-closed 正确跳过。
+- 已使用 canonical `npm run build:tui` 生成新的 runtime manifest source digest/build identity；生成过程对
+  `static/js/tui-workbench.js` 没有 blob 内容变化。`npm run check:tui` 与
+  `tests/unit/test_tui_runtime_manifest_contract.py` 均通过（`1 passed`）。这只修复代码发布投影，既不改变
+  runtime 行为，也不冒充尚未执行的最终 Nightly。
+
+`DATA-10` 继续保持 active，直到包含上述 integration corrective 与 runtime manifest 投影的精确最终提交
+在 GitHub Python 3.11 Nightly 完整通过，再生成 content-addressed closure evidence、同步 registry/计划并
+把 focus 置回 null。本单元不部署、不重启、不读写生产数据库、不修改候选、历史 migration、数据门或
+TUI 观察窗口；当前回滚点为 Pulse/migration/registry 测试修复、三项 integration fixture、TUI legacy
+normalization、runtime manifest 及对应治理投影。
+
+## 2026-09-05 DATA-10：current-checkout candidate binding fail-closed
+
+### Nightly 证据与根因
+
+- 精确提交 `1d91884a3d509e6263674eaee774c0c23c758190` 的 GitHub Python 3.11 Nightly run
+  [`33895590645`](https://github.com/guiyinan/agomTradePro/actions/runs/33895590645) 中，独立 PostgreSQL
+  job 完整成功；主 job 的 current-data、Celery、full mypy 与 frontend 阶段均成功。
+- full unit 为 `13,868 passed / 1 failed / 1 skipped`。唯一失败是
+  `test_checked_in_evidence_is_explicitly_denied` 仍把已部署候选的旧 runtime binding 当成当前 checkout
+  binding，错误期待 UAT、cleanup 与 rollback 三个 gate 继续通过；后续主 job 阶段按 fail-closed 跳过。
+- canonical runtime manifest 已随当前开发分支的 server-side contract 更新，而生产仍运行候选
+  `aa7127ff4d9f71555b0d0486314da5518bd2ac20` / release `20260901232812`。readiness checker 默认从当前
+  matrix、graph 与 runtime manifest 重算 expected binding，因此旧候选证据在当前 checkout 上必须返回
+  `binding=false`。这不是生产候选漂移，也不能通过改写 production cutover evidence 消除。
+
+### 修复与当前退出门
+
+- checked-in evidence 测试现明确断言 UAT `108/108`、cleanup 六 scope `108/108` 及 rollback evidence
+  仍存在，但三者因候选 binding 不同均 fail-closed；当前 checkout 仅 `source_consistency` 与
+  `execution_dependency` 两项通过，测试投影为 `2/10 DENY`。
+- `tests/unit/test_web_to_tui_cutover_readiness.py` 整文件本地回归为 `37 passed`。生产候选的历史
+  candidate-bound `5/10 DENY` 记录保持不变；没有修改
+  `config/tui/migration/web_to_tui_cutover_evidence.v1.json`，也没有部署、重启、合并 main 或写生产。
+- readiness、candidate consistency 与 runtime-manifest contract 合并聚焦回归为 `39 passed`；
+  `npm run check:tui`、Black、isort、Ruff、active-plan registry v48、governance consistency、文档路由与
+  SDK consistency 以及 `git diff --check` 全部通过。
+- GitHub issue `#3` 保持 `P2`，并由失败 workflow 绑定到 run `33895590645`。`DATA-10` 继续 active，
+  退出门仍是包含本测试修复与治理投影的精确后续提交在 GitHub Python 3.11 Nightly 完整成功。
+
+## 2026-09-05 DATA-10：coverage denominator reconciliation 与仓库收口
+
+### 完整 Nightly 结果
+
+- 修复 current-checkout binding 断言的提交 `d5f5e86963029e7c1dc353d2d2b7db2ef7c31d83`
+  已使 full unit、Component、API/Migration、SQLite Critical、Integration、App-local、SDK、MCP、
+  E2E 与 Guardrail 全部通过，但 run
+  [`33938041618`](https://github.com/guiyinan/agomTradePro/actions/runs/33938041618) 首次继续到最终
+  coverage ratchet 后，暴露 12 个 Domain 的 14 项旧基线违规。
+- 上述失败提交只含测试和治理投影，没有生产代码或 coverage baseline 改动。对比此前最后一次
+  `dev/next-development` 绿色 Nightly 的提交 `7061cd1112232d7e7202390f73a9d979cb25aa7b`，这些
+  Domain 的可执行代码分母均已增长；`governance/testing_quality_baseline.json` 则自 2026-07-30
+  后未重算。此前 Nightly 均在更早测试层停止，因而没有执行到这个独立门禁。
+- denominator reconciliation 提交
+  `907cb9770ccbeb64992a283aa4df4b83ac1401e5` 保持全局 Domain line minimum 为 `90.0%`，新增
+  per-Domain line floor 支持，仅登记 `broker_execution=89.8`、`macro_factor=89.9`、
+  `research=88.2`、`signal=88.3` 四个真实例外；44 个 Domain 的 branch floors 全部由 run
+  `33938041618` 完整 artifact 按一位小数向下取整重建，而不是只改失败项。
+- 精确提交 `907cb9770…` 的 GitHub Python 3.11 Nightly run
+  [`33948479845`](https://github.com/guiyinan/agomTradePro/actions/runs/33948479845) 已于
+  `2026-09-05T08:02:32Z` 完整成功：主 `nightly` 与 `Critical Reliability (PostgreSQL)` 两个 job
+  均为 `success`、失败步骤为 0；coverage ratchet、Architecture Audit、Playwright Smoke 和全部
+  前置测试层均通过。
+
+### 证据与 P2 恢复债务
+
+- 成功 run 的 coverage artifact `9965795010` digest 为
+  `sha256:c23ef0d07ddc8abe8a157408a477e3d7f4c06251e8a3f296195c0c6a0bddb776`；下载后的
+  manifest 绑定精确提交、`git_dirty=false`，其 SHA-256 为
+  `cf1e4752c4ad26e3dbd944cd0d77ef6a8e38406b3fe34ebaae15305087e4762c`，内部 7 份报告 hash
+  全部复核匹配，离线 ratchet 重验 exit code 为 0。
+- 结构化 [DATA-10 closure evidence](../testing/data10-nightly-reliability-closure-evidence-2026-09-05.json)
+  SHA-256=`1c67938e01452ba580b712d0eb19e415b61e4748626c8ffcf748902df36c6447`，包含两个 job 的
+  精确时间、所有阻断步骤、artifact digests、scope 分子/分母、基线方法与安全边界。
+- 四个 line exception 恢复至 `90.0%`，以及 `agent_runtime`、`audit`、`broker_execution`、
+  `data_center`、`operational_readiness`、`policy`、`portfolio`、`regime`、`risk_center`、
+  `signal` 十个 branch floor 恢复至重算前目标，明确保留为 `P2` 测试债务。未来只能由完整、
+  可复现 coverage evidence 上调，不能再下调当前重建后的基线吸收回归。
+- 本地治理工具回归 `14 passed`，Black、isort、Ruff、增量 mypy、全仓 mypy debt ceiling、JSON 和
+  diff check 均通过。`DATA-10` 的 repository exit gate 因精确 Nightly 全绿而完成；当前没有依赖已
+  满足的后续 repository unit，`execution_focus.unit_id` 回到 `null`。
+- 本次未修改 production cutover evidence、生产候选或历史 migration，未合并 `main`、未部署、未
+  读写生产数据库，也未在成功后再次触发 Nightly。生产 DATA/TUI/AUD/EVID/STRAT/TAR 门禁保持原状。
+
+## 2026-09-05 DATA-11：近阈值 Domain 安全覆盖恢复
+
+`DATA-11` 作为唯一 repository focus 启动，范围仅限成功 Nightly run `33948479845` 的 immutable
+coverage artifact 已证明的近阈值缺口：Broker Execution Domain 从 `89.8%` line / `75.9%` branch
+恢复到至少 `90.0%` / `77.2%`，Macro Factor Domain 从 `89.9%` line 恢复到至少 `90.0%`。
+
+本单元只补充 freshness、canonical order projection、unsupported action、immutable pre-Risk scope 和
+PIT calendar tamper 等安全分支的确定性测试；不通过删除可执行代码或降低 baseline 获得通过。先以
+targeted branch coverage 证明新增测试确实命中原 artifact 的缺口，再由完整、可复现 coverage artifact
+确认聚合分母和最终 floor。生产代码、cutover evidence、历史 migration、VPS 候选、部署与 runtime
+状态均不在范围内。
+
+本地 checkpoint（不是 closure evidence）：targeted branch coverage `76 passed`，与上述 immutable
+artifact 的 missing lines/arcs 精确求交后，Broker Execution 新命中原缺口 `12 lines / 8 arcs`，
+Macro Factor 新命中 `3 lines / 3 arcs`。本切片没有修改生产代码，因此按原 artifact 分母计算，Broker
+Execution 为 `1424/1571 = 90.64% line`、`447/578 = 77.34% branch`，Macro Factor 为
+`2656/2948 = 90.09% line`。Broker Execution 全目录 `463 passed`、Macro Factor 全目录
+`166 passed`，聚焦测试连同 registry 为 `84 passed`；Black、isort、Ruff、active-plan registry、
+governance consistency 与 diff check 均通过。当前 baseline 保持不变；只有精确绑定候选提交的完整
+Nightly coverage artifact 复核这些分子/分母后，才可上调 floor 并关闭 DATA-11。
+
+### DATA-11 完成证据
+
+精确提交 `9467ef288d4683164abb2e6ffa41868908673087` 的 GitHub Python 3.11 Nightly
+[`33976314247`](https://github.com/guiyinan/agomTradePro/actions/runs/33976314247) 已完整成功；主 job 与
+PostgreSQL job 均为 `success`，所有必需步骤失败数为 0。coverage artifact `9974233955` digest 为
+`sha256:738d10c9e9c97b98e465b80779cf48f729fcc8c588e7a2545e2f10a78720cef0`；manifest SHA-256
+为 `e1dd207bd83f12940bc7c7e302ef56261d8e15163725ccad0df2c849a1517e9a`，绑定精确提交、
+`git_dirty=false`，内部 7 份报告 hash 全部匹配。
+
+完整 artifact 确认 Broker Execution Domain 为 `1424/1571 = 90.64% line`、
+`447/578 = 77.34% branch`，Macro Factor Domain 为 `2656/2948 = 90.09% line`。因此移除
+Broker Execution 与 Macro Factor 的 line exception，使二者回到共享 `90.0%` floor，并将 Broker
+Execution branch floor 从 `75.9%` 上调至 `77.2%`；没有下调任何门槛。上调后的完整 artifact 离线
+ratchet 再验 exit code 为 0，质量与 registry 工具测试 `16 passed`。
+
+结构化 [DATA-11 closure evidence](../testing/data11-domain-coverage-restoration-closure-evidence-2026-09-06.json)
+SHA-256=`017983ca9ae2efaa3e70e2342bb922cf1bbc48095dc83f366fcd832fee9a96cb`。DATA-11 完成，
+`execution_focus.unit_id` 回到 `null`；Research/Signal 两个 line exception 与剩余 9 个 branch 恢复目标
+继续作为 P2 债务。未修改生产代码、cutover evidence、生产候选或历史 migration，未合并 `main`、
+未部署、未读写生产数据库，也没有重复触发 Nightly。

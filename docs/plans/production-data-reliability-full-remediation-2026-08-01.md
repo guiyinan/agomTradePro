@@ -1,7 +1,8 @@
 # 生产数据可靠性完整修复与测试计划（2026-08-01）
 
-> 实施状态（2026-08-01）：本地代码、迁移、治理契约和专项回归已完成；待提交、CI、生产备份、维护态切换、全量回填和生产验收。生产步骤完成前不得勾选 P1/P2 的上线验收项。
-> 当前综合编排：[`release-blocker-closure-execution-plan-2026-08-29.md`](release-blocker-closure-execution-plan-2026-08-29.md)。截至 2026-08-31，`DATA-01` 已关闭；successor 上 PostgreSQL client 已耗尽，`DATA-04/05` repository 修复已完成但尚未部署，`DATA-02/03` 继续 fail-closed。
+> 历史实施状态（2026-08-01）：本地代码、迁移、治理契约和专项回归已完成；当时待提交、CI、生产备份、维护态切换、全量回填和生产验收。生产步骤完成前不得勾选 P1/P2 的上线验收项。
+> 历史综合快照（截至 2026-08-31）：[`release-blocker-closure-execution-plan-2026-08-29.md`](release-blocker-closure-execution-plan-2026-08-29.md) 当时记录 `DATA-01` 已关闭、successor 上 PostgreSQL client 已耗尽，`DATA-04/05` repository 修复已完成但尚未部署，`DATA-02/03` 继续 fail-closed；该段不代表当前部署状态。
+> 当前状态（2026-09-03）：registry v41 已确认 `DATA-04/05/06/07/08/09` repository closure 完成；候选 `aa7127ff4d9f71555b0d0486314da5518bd2ac20` / release `20260901232812` 已部署。`DATA-02` 仍为 `DENY`/`awaiting_production`，只读 dry-run 不写生产；`DATA-03` 继续依赖阻断。当前决策使用、回填/publication 切换和 owner 授权仍未通过。
 
 ## 1. 背景与问题定义
 
@@ -1427,3 +1428,57 @@ unresolved/future=0，而实际 financial fact 仅覆盖 1,923、缺 3,610。ove
 因此 DATA-02 仍为 `awaiting_production`。下一门不是再跑历史模拟或重复只读 inventory，而是在已备份、
 候选未漂移和 before/after recorder 生效的前提下，按有界批次执行生产 reconciliation；任何 tolerance waiver
 仍由真实 data owner 决定。DATA-03 继续等待 DATA-02，不得用 service-ready=200 替代 decision-ready=503。
+
+## 2026-09-02：DATA-02 successor checkpoint recorder contract
+
+现有 successor checkpoint 缺少四个 core dataset 的 immutable `publication_id` 与
+`publication_hash`，直接交给旧的双快照 reconciliation recorder 会因 schema 不同而失败，且不能证明
+后续 before/after publication 没有发生 identity substitution。新增纯 Application
+`apps/data_center/application/data02_successor_checkpoint.py` 与服务器端
+`scripts/record_data02_successor_checkpoint.py`：只接受 candidate-bound、UTC、SELECT-only 的 successor
+checkpoint，核对 5,533 asset partition、completed-session price 分布、连接增长、public probe digest、
+dry-run exit code、side-effect flags 和四个 publication identity 的唯一性。默认只做 dry-run，显式写入仅为
+本地 content-addressed append-only artifact。
+
+当前签入的真实 checkpoint 在 publication identity 缺失处按预期 fail-closed；补充单元回归 `11 passed`，
+Data Center entrypoint inventory 更新为 `1,152` 项且 `candidate-review=0`，增量 mypy 与全量 debt ceiling
+均为 `0`，Black/isort/Ruff、active-plan 和 governance checks 全绿。本 slice 没有访问 VPS/数据库、执行
+backfill、写入事实或切换 publication，不生成 synthetic production identity；`DATA-02` 仍保持
+`awaiting_production`，待真实 owner 批准的 provider refresh/backfill 后用该 recorder 采集 before/after
+reconciliation。
+
+## 2026-09-03：DATA-02 successor recorder operator output
+
+对已签入 checkpoint 的服务器端操作路径做了一个不改变数据契约的收口：
+`scripts/record_data02_successor_checkpoint.py` 现在在 CLI 边界捕获
+`Data02SuccessorCheckpointError`，以稳定的 `blocked` JSON 和退出码 `2` 返回
+`reason_code=invalid_successor_checkpoint`，而不是把预期的校验阻断打印为完整 traceback。底层
+parser 仍保持异常契约，缺少四个 immutable publication identity 仍然 fail-closed；有效报告的既有
+输出字段、默认 dry-run、显式 append-only 写入和 `production_claim=false`/`runtime_enablement=not_authorized`
+均不变。focused recorder 回归 `12 passed`，Black/isort/Ruff、增量 mypy 与 debt ceiling 均通过。
+
+这只是服务器端工具可操作性修复，没有连接 VPS/数据库、写入生产、执行 backfill 或切换 publication，
+也没有把失败 checkpoint 变成生产证据；`DATA-02` 继续 `awaiting_production`，仍等待真实 provider
+refresh/backfill、before/after reconciliation 以及 data-owner 的容差决定。
+
+## 2026-09-03：DATA-01 latest backup 隔离恢复复核
+
+按 `DATA-01.auto_collect` 只选择并下载生产现有最新 custom-format dump
+`postgres-20260901-174054.dump`，未创建新备份、未 prune、未进入维护态。远端 `pg_restore --list`、
+完整 SFTP 下载、远端/本地大小 `147464528` bytes 与 SHA-256
+`c9f7cf876bd79908aa66461e5d07b254104ba1013b134f669cb91bf8119b1caf` 一致；但采集时该恢复点约
+`37.96h`，超过 VPS in-flight `<24h` 目标，后续刷新必须另行取得生产写授权。
+
+同一不可变 dump 已在本机一次性 PostgreSQL 中完成两次恢复视图的全量比对：`7229` restore entries、
+`542` 张表、Data Center `72` 条 migration、`463` 条 sequence 全部一致，schema SHA-256 为
+`d9f761e83e45cf5111af7b76ef546f99d52d3e7198489a03a458ba9e519ca447`，changed/missing/extra
+均为 `0`。restore/RTO 为 `1174.415s`，验证 `811.135s`，总耗时 `3183.388s`；第二恢复库和源容器
+均已删除。原始报告为
+[`data01-current-backup-restore-2026-09-03-b80c92f5.json`](../deployment/data01-current-backup-restore-2026-09-03-b80c92f5.json)，
+content-addressed evidence 为
+[`159558c981837b67ab3d2389c97c648047d1f671947ac087b7aa3db9c35cec19.json`](../deployment/data01-isolated-restore/15/159558c981837b67ab3d2389c97c648047d1f671947ac087b7aa3db9c35cec19.json)。
+
+历史 `c826f741` live switchback 四件套同时重新按文件摘要索引；原始 migration roundtrip 的唯一差异仍是
+`django_migrations` ledger/sequence bookkeeping，并由后续 classification artifact 证明 business tables、
+migration name set 与 canonical schema 一致。它仍只证明历史 DATA-01 演练，不证明当前 M5 候选、当前
+RPO 或 DATA-02 backfill 已通过。

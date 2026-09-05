@@ -48,7 +48,7 @@ SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
 BACKUP_LOCATION_SCHEMES = frozenset({"artifact", "s3", "sftp", "https"})
 LEGACY_URL_POLICIES = frozenset({"redirect_to_tui", "retain", "remove_410", "remove_404"})
-NORMALIZED_TEXT_EVIDENCE_SUFFIXES = frozenset({".csv", ".md", ".txt"})
+NORMALIZED_TEXT_EVIDENCE_SUFFIXES = frozenset({".csv", ".json", ".md", ".txt"})
 REQUIRED_ROUTE_CLOSURE_SCOPES = frozenset(
     {"primary_task", "permission", "empty_state", "error_state", "legacy_url", "rollback"}
 )
@@ -309,13 +309,15 @@ def _verified_repo_evidence(
     if path is None or not _valid_sha256(digest):
         return None
     expected = str(digest).strip()
-    content = (
-        _normalized_source_bytes(path)
-        if path.suffix.lower() in NORMALIZED_TEXT_EVIDENCE_SUFFIXES
-        else path.read_bytes()
-    )
-    actual = hashlib.sha256(content).hexdigest()
-    return path if actual == expected else None
+    if path.suffix.lower() in NORMALIZED_TEXT_EVIDENCE_SUFFIXES:
+        canonical_lf = _normalized_source_bytes(path)
+        accepted_digests = {
+            hashlib.sha256(canonical_lf).hexdigest(),
+            hashlib.sha256(canonical_lf.replace(b"\n", b"\r\n")).hexdigest(),
+        }
+    else:
+        accepted_digests = {hashlib.sha256(path.read_bytes()).hexdigest()}
+    return path if expected in accepted_digests else None
 
 
 def _bound_approval(
@@ -858,6 +860,18 @@ def evaluate_readiness(
         retained_observation_validator.RetainedObservationError,
     ):
         retained_observation = None
+    try:
+        observation_reset = retained_observation_validator.validate_observation_reset(
+            candidate,
+            root=evidence_root,
+        )
+    except (
+        OSError,
+        ValueError,
+        json.JSONDecodeError,
+        retained_observation_validator.RetainedObservationError,
+    ):
+        observation_reset = None
     observation_start = (
         cast(datetime, retained_observation.first_retained_sample_at).date()
         if retained_observation is not None
@@ -914,7 +928,9 @@ def evaluate_readiness(
             f"released_at={released_at}; "
             f"first_retained_sample_at={getattr(retained_observation, 'first_retained_sample_at', None)}; "
             f"eligible_at={observation_eligible_at}; evaluated_at={exact_evaluated_at}; "
-            f"retained_source={str(retained_observation is not None).lower()}; minimum_seconds=1209600",
+            f"retained_source={str(retained_observation is not None).lower()}; minimum_seconds=1209600; "
+            f"reset_source={str(observation_reset is not None).lower()}; "
+            f"reset_at={getattr(observation_reset, 'reset_at', None)}",
         )
     )
 

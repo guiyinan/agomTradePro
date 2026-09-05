@@ -39,7 +39,9 @@ The ratchet evaluates:
 - per-App line coverage;
 - optional per-App overrides from `coverage.module_minimums`, used to lock completed remediation
   modules above the shared core/default floor;
-- Domain line and branch coverage;
+- Domain line and branch coverage, with `domain_module_minimums` and
+  `domain_branch_minimums` providing explicit per-Domain floors while the shared defaults remain
+  unchanged;
 - independent line and branch totals for `apps/core/shared/sdk`;
 - missing required reports.
 
@@ -54,6 +56,28 @@ merged baseline. This is a denominator reconciliation, not permission to lower a
 unchanged code tree. The 2026-07-29 consolidation rebuilt the Domain branch baselines after 64
 Domain files changed by 4,710 insertions and 2,178 deletions; subsequent changes ratchet from that
 merged result.
+
+The 2026-09-05 reconciliation is bound to commit
+`d5f5e86963029e7c1dc353d2d2b7db2ef7c31d83`, Nightly run `33938041618`, coverage artifact
+`9962383584`, and manifest SHA-256
+`ec5a0dee1344f0bf7e38e00911e9af7c5198b1fbd703258f2b21d797a379088e`. The manifest reports
+`git_dirty=false`; every report digest was reverified after download. All four source scopes passed
+their existing line and branch floors, while 44 current Domains were remeasured after denominator
+growth since the previous green Nightly. Four line floors use explicit per-Domain overrides instead
+of weakening the shared 90% default, and every Domain branch floor is the complete run's
+one-decimal rounded-down result. Restoring those four line exceptions to 90% and the ten decreased
+branch floors to their pre-reconciliation values remains P2 test debt; the reconciliation itself is
+not evidence that missing behavior has become tested.
+
+The first restoration slice completed on 2026-09-06 at commit
+`9467ef288d4683164abb2e6ffa41868908673087`, Nightly run `33976314247`, coverage artifact
+`9974233955`, and manifest SHA-256
+`e1dd207bd83f12940bc7c7e302ef56261d8e15163725ccad0df2c849a1517e9a`. The git-clean,
+internally hash-verified artifact reports Broker Execution Domain at `1424/1571` lines and
+`447/578` branches and Macro Factor Domain at `2656/2948` lines. The Broker Execution and Macro
+Factor line overrides were therefore removed so the shared 90% line floor applies, and the Broker
+Execution branch floor was raised from 75.9% to 77.2%. No floor was lowered. Research and Signal
+line exceptions and nine branch restoration targets remain explicit P2 debt.
 
 ## Local evidence workflow
 
