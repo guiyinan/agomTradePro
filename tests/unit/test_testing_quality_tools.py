@@ -85,6 +85,33 @@ def test_coverage_ratchet_reports_repository_module_and_domain_failures() -> Non
     ]
 
 
+def test_domain_line_ratchet_supports_module_specific_floors() -> None:
+    """A reconciled Domain keeps its own floor without weakening the default."""
+    baseline = {
+        "coverage": {
+            "repository_minimum": 0,
+            "default_module_minimum": 0,
+            "core_module_minimum": 0,
+            "domain_module_minimum": 90,
+            "domain_module_minimums": {"research": 88.2},
+            "require_branch_coverage": False,
+            "core_modules": [],
+        }
+    }
+
+    violations = find_violations(
+        CoverageTotals(covered=1, valid=1),
+        {},
+        {
+            "research": CoverageTotals(covered=882, valid=1000),
+            "signal": CoverageTotals(covered=899, valid=1000),
+        },
+        baseline,
+    )
+
+    assert violations == ["domain signal 89.9% is below 90.0%"]
+
+
 def test_coverage_parser_accepts_source_relative_and_repository_paths(
     tmp_path: Path,
 ) -> None:
