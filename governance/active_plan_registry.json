@@ -1,14 +1,14 @@
 {
-  "version": "2026-09-05.v50",
-  "updated_at": "2026-09-05",
+  "version": "2026-09-06.v51",
+  "updated_at": "2026-09-06",
   "execution_focus": {
-    "unit_id": "DATA-11",
+    "unit_id": null,
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Personal-project single-owner mode remains active, but signatures never manufacture authority rows, business definitions, retained observations, production outcomes or elapsed time. The deployed candidate remains aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812 / image sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c; DATA-02 remains non-writing and DENY, and the 2026-09-02 web-only restart requires a new real TUI-02 sample plus an exact 14-day window. DATA-10 completed on exact commit 907cb9770ccbeb64992a283aa4df4b83ac1401e5 with GitHub Python 3.11 Nightly run 33948479845 fully green. DATA-11 is the sole repository focus and is bounded to restoring the near-threshold Broker Execution and Macro Factor Domain safety coverage from the immutable successful coverage artifact, without lowering any baseline or changing production behavior. Production cutover evidence, candidate binding, historical migrations and all production gates remain unchanged. Authority/approval mutation, queued runtime, load/fault, live rollback and unsupported production writes remain denied."
+    "policy": "Personal-project single-owner mode remains active, but signatures never manufacture authority rows, business definitions, retained observations, production outcomes or elapsed time. The deployed candidate remains aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812 / image sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c; DATA-02 remains non-writing and DENY, and the 2026-09-02 web-only restart requires a new real TUI-02 sample plus an exact 14-day window. DATA-11 completed on exact commit 9467ef288d4683164abb2e6ffa41868908673087 with GitHub Python 3.11 Nightly run 33976314247 fully green. Verified coverage artifact 9974233955 restores Broker Execution Domain to 90.64 percent line and 77.34 percent branch and Macro Factor Domain to 90.09 percent line; the Broker and Macro line exceptions were removed and the Broker branch floor was raised from 75.9 to 77.2 without lowering any floor. Content-addressed closure evidence is docs/testing/data11-domain-coverage-restoration-closure-evidence-2026-09-06.json with SHA-256 017983ca9ae2efaa3e70e2342bb922cf1bbc48095dc83f366fcd832fee9a96cb. No dependency-ready repository unit remains, so execution_focus is null. Production cutover evidence, candidate binding, historical migrations and all production gates remain unchanged. Authority/approval mutation, queued runtime, load/fault, live rollback and unsupported production writes remain denied."
   },
   "workstreams": [
     {
@@ -88,7 +88,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "DATA-10 is complete on exact commit 907cb9770ccbeb64992a283aa4df4b83ac1401e5 with GitHub Python 3.11 Nightly run 33948479845 fully green. DATA-11 is the sole repository focus. Its local checkpoint adds deterministic safety-boundary tests that intersect the immutable prior artifact at 12 previously missing Broker Execution lines and 8 arcs plus 3 previously missing Macro Factor lines and 3 arcs. With production-code denominators unchanged, the projected scopes are Broker Execution 1424/1571 = 90.64 percent line and 447/578 = 77.34 percent branch, and Macro Factor 2656/2948 = 90.09 percent line; full app test directories pass 463 and 166 tests respectively. This is not closure evidence: keep the current baseline unchanged until an exact-commit complete Nightly coverage artifact confirms the numerator and denominator, then raise the floors and close DATA-11. No production behavior is changed. Separately, candidate aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812 remains DATA-02 DENY: completed-session prices are 0/5,533 eligible, all 5,533 quote/price/valuation facts are stale, and financial facts cover only 1,923 with 3,610 missing; DATA-03 remains dependency-blocked.",
+      "next_gate": "DATA-11 is complete on exact commit 9467ef288d4683164abb2e6ffa41868908673087 with GitHub Python 3.11 Nightly run 33976314247 fully green. Coverage artifact 9974233955 is commit-bound, git-clean and internally hash-verified; it reports Broker Execution Domain 1424/1571 = 90.64 percent line and 447/578 = 77.34 percent branch and Macro Factor Domain 2656/2948 = 90.09 percent line. The Broker and Macro line exceptions were removed and the Broker branch floor was restored from 75.9 to 77.2; no floor was lowered. Closure evidence docs/testing/data11-domain-coverage-restoration-closure-evidence-2026-09-06.json has SHA-256 017983ca9ae2efaa3e70e2342bb922cf1bbc48095dc83f366fcd832fee9a96cb. Research and Signal line exceptions plus nine branch restoration targets remain P2 debt; no dependency-ready repository unit is active. Separately, candidate aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812 remains DATA-02 DENY: completed-session prices are 0/5,533 eligible, all 5,533 quote/price/valuation facts are stale, and financial facts cover only 1,923 with 3,610 missing; DATA-03 remains dependency-blocked.",
       "documents": [
         {
           "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
@@ -277,7 +277,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-09-05.v50",
+    "version": "2026-09-06.v51",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -728,12 +728,12 @@
         "wave": 3,
         "priority": "P2",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Restore near-threshold Domain safety coverage without lowering baselines",
         "depends_on": [
           "DATA-10"
         ],
-        "exit_gate": "Deterministic tests cover the missing Broker Execution freshness, canonical projection, action rejection and immutable-scope validation paths plus the Macro Factor PIT calendar tamper path; a complete reproducible coverage artifact proves Broker Execution Domain line coverage at or above 90.0 percent and branch coverage at or above 77.2 percent, and Macro Factor Domain line coverage at or above 90.0 percent, before those floors are raised. No production code, cutover evidence, historical migration, deployment or runtime state is changed."
+        "exit_gate": "Completed on 2026-09-06 with docs/testing/data11-domain-coverage-restoration-closure-evidence-2026-09-06.json (SHA-256 017983ca9ae2efaa3e70e2342bb922cf1bbc48095dc83f366fcd832fee9a96cb). Exact commit 9467ef288d4683164abb2e6ffa41868908673087 passed GitHub Python 3.11 Nightly run 33976314247 end to end. Hash-verified coverage artifact 9974233955 reports Broker Execution Domain 1424/1571 = 90.64 percent line and 447/578 = 77.34 percent branch and Macro Factor Domain 2656/2948 = 90.09 percent line. The Broker and Macro line exceptions were removed and the Broker branch floor was raised from 75.9 to 77.2 without lowering any floor. No production code, cutover evidence, historical migration, deployment or runtime state changed; main was not merged."
       },
       {
         "id": "DATA-03",

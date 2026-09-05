@@ -344,3 +344,24 @@ Execution 为 `1424/1571 = 90.64% line`、`447/578 = 77.34% branch`，Macro Fact
 `166 passed`，聚焦测试连同 registry 为 `84 passed`；Black、isort、Ruff、active-plan registry、
 governance consistency 与 diff check 均通过。当前 baseline 保持不变；只有精确绑定候选提交的完整
 Nightly coverage artifact 复核这些分子/分母后，才可上调 floor 并关闭 DATA-11。
+
+### DATA-11 完成证据
+
+精确提交 `9467ef288d4683164abb2e6ffa41868908673087` 的 GitHub Python 3.11 Nightly
+[`33976314247`](https://github.com/guiyinan/agomTradePro/actions/runs/33976314247) 已完整成功；主 job 与
+PostgreSQL job 均为 `success`，所有必需步骤失败数为 0。coverage artifact `9974233955` digest 为
+`sha256:738d10c9e9c97b98e465b80779cf48f729fcc8c588e7a2545e2f10a78720cef0`；manifest SHA-256
+为 `e1dd207bd83f12940bc7c7e302ef56261d8e15163725ccad0df2c849a1517e9a`，绑定精确提交、
+`git_dirty=false`，内部 7 份报告 hash 全部匹配。
+
+完整 artifact 确认 Broker Execution Domain 为 `1424/1571 = 90.64% line`、
+`447/578 = 77.34% branch`，Macro Factor Domain 为 `2656/2948 = 90.09% line`。因此移除
+Broker Execution 与 Macro Factor 的 line exception，使二者回到共享 `90.0%` floor，并将 Broker
+Execution branch floor 从 `75.9%` 上调至 `77.2%`；没有下调任何门槛。上调后的完整 artifact 离线
+ratchet 再验 exit code 为 0，质量与 registry 工具测试 `16 passed`。
+
+结构化 [DATA-11 closure evidence](../testing/data11-domain-coverage-restoration-closure-evidence-2026-09-06.json)
+SHA-256=`017983ca9ae2efaa3e70e2342bb922cf1bbc48095dc83f366fcd832fee9a96cb`。DATA-11 完成，
+`execution_focus.unit_id` 回到 `null`；Research/Signal 两个 line exception 与剩余 9 个 branch 恢复目标
+继续作为 P2 债务。未修改生产代码、cutover evidence、生产候选或历史 migration，未合并 `main`、
+未部署、未读写生产数据库，也没有重复触发 Nightly。

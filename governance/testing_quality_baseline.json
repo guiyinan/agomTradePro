@@ -28,8 +28,6 @@
     },
     "domain_module_minimum": 90.0,
     "domain_module_minimums": {
-      "broker_execution": 89.8,
-      "macro_factor": 89.9,
       "research": 88.2,
       "signal": 88.3
     },
@@ -45,7 +43,7 @@
       "audit": 83.3,
       "backtest": 82.7,
       "beta_gate": 95.5,
-      "broker_execution": 75.9,
+      "broker_execution": 77.2,
       "config_center": 100.0,
       "dashboard": 89.0,
       "data_center": 80.5,

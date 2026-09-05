@@ -1,0 +1,216 @@
+{
+  "schema_version": "data11-domain-coverage-restoration-closure.v1",
+  "unit_id": "DATA-11",
+  "recorded_at": "2026-09-05T18:05:37.069Z",
+  "repository": {
+    "branch": "dev/next-development",
+    "test_commit": "9467ef288d4683164abb2e6ffa41868908673087",
+    "test_commit_subject": "test: restore DATA-11 domain coverage",
+    "remote_ref": "origin/dev/next-development",
+    "remote_synced_before_nightly": true
+  },
+  "nightly": {
+    "workflow": "Nightly Tests",
+    "workflow_file": ".github/workflows/nightly-tests.yml",
+    "event": "workflow_dispatch",
+    "dispatch_count": 1,
+    "run_id": 33976314247,
+    "url": "https://github.com/guiyinan/agomTradePro/actions/runs/33976314247",
+    "head_sha": "9467ef288d4683164abb2e6ffa41868908673087",
+    "created_at": "2026-09-05T15:56:26Z",
+    "updated_at": "2026-09-05T18:02:20Z",
+    "status": "completed",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "nightly",
+        "database_id": 101333518447,
+        "started_at": "2026-09-05T15:56:39Z",
+        "completed_at": "2026-09-05T18:02:19Z",
+        "conclusion": "success",
+        "failed_step_count": 0
+      },
+      {
+        "name": "Critical Reliability (PostgreSQL)",
+        "database_id": 101333518285,
+        "started_at": "2026-09-05T15:56:38Z",
+        "completed_at": "2026-09-05T16:07:07Z",
+        "conclusion": "success",
+        "failed_step_count": 0
+      }
+    ],
+    "required_main_steps": {
+      "registered_current_data_contracts": "success",
+      "registered_celery_contracts": "success",
+      "full_production_mypy": "success",
+      "frontend_node_contracts": "success",
+      "full_unit": "success",
+      "test_tier_inventory": "success",
+      "component": "success",
+      "api_and_migration": "success",
+      "critical_reliability_sqlite_fake_agent": "success",
+      "core_integration": "success",
+      "app_local": "success",
+      "sdk_client": "success",
+      "mcp_contract": "success",
+      "django_e2e": "success",
+      "guardrail": "success",
+      "coverage_ratchet": "success",
+      "architecture_audit": "success",
+      "playwright_smoke": "success",
+      "quality_report": "success"
+    },
+    "required_postgresql_steps": {
+      "full_migration_graph": "success",
+      "isolated_backup_restore_compare": "success",
+      "critical_reliability": "success",
+      "migration_integrity": "success",
+      "canonical_publication_runtime_profile": "success",
+      "current_data_manifest": "success",
+      "celery_manifest": "success",
+      "backfill_retention_control_plane": "success",
+      "retention_qlib_concurrency": "success"
+    }
+  },
+  "coverage_artifact": {
+    "artifact_id": 9974233955,
+    "artifact_digest": "sha256:738d10c9e9c97b98e465b80779cf48f729fcc8c588e7a2545e2f10a78720cef0",
+    "artifact_size_bytes": 38740649,
+    "manifest_sha256": "e1dd207bd83f12940bc7c7e302ef56261d8e15163725ccad0df2c849a1517e9a",
+    "manifest_commit": "9467ef288d4683164abb2e6ffa41868908673087",
+    "manifest_git_dirty": false,
+    "branch_measurement": true,
+    "internal_report_hashes_verified": true,
+    "report_sha256": {
+      "apps": "bda21ec68b8c5e100abd93483eef033f4fc4ec8880f847ced459f111eba1045b",
+      "combined": "edb7bcbd12eeac5a3cdc103054fe52c833f99ec3df1bffafe9705baec3d545f1",
+      "core": "1b43669090b3a46779cc639f3ea5d1c4033367496e5ab43b79c59edb06d81935",
+      "details": "01c59a62d3270a0f39cb51121436e76d9ddbce5053871dee9b54a10307d14d9f",
+      "inventory": "dc873b4207afed03bd55be0252bdc846cdd220d1b6b3426d68286b186e3def52",
+      "sdk": "53ed82e52c989c48800183d3854cc4fc06b9107951c39f0c3ae5bce8a3ac972f",
+      "shared": "8db131fc38a1636b66ee1d63bc927950b078e007d92453effc884e7be20e4af2"
+    },
+    "scopes": {
+      "apps": {
+        "covered_lines": 248285,
+        "valid_lines": 285727,
+        "covered_branches": 54629,
+        "valid_branches": 78540
+      },
+      "core": {
+        "covered_lines": 4466,
+        "valid_lines": 5341,
+        "covered_branches": 795,
+        "valid_branches": 1196
+      },
+      "shared": {
+        "covered_lines": 2568,
+        "valid_lines": 3148,
+        "covered_branches": 588,
+        "valid_branches": 892
+      },
+      "sdk": {
+        "covered_lines": 9740,
+        "valid_lines": 12045,
+        "covered_branches": 1884,
+        "valid_branches": 3098
+      }
+    },
+    "domain_results": {
+      "broker_execution": {
+        "covered_lines": 1424,
+        "valid_lines": 1571,
+        "line_percent": 90.64,
+        "previous_line_floor": 89.8,
+        "restored_line_floor": 90.0,
+        "covered_branches": 447,
+        "valid_branches": 578,
+        "branch_percent": 77.34,
+        "previous_branch_floor": 75.9,
+        "restored_branch_floor": 77.2
+      },
+      "macro_factor": {
+        "covered_lines": 2656,
+        "valid_lines": 2948,
+        "line_percent": 90.09,
+        "previous_line_floor": 89.9,
+        "restored_line_floor": 90.0,
+        "covered_branches": 740,
+        "valid_branches": 1024,
+        "branch_percent": 72.27,
+        "branch_floor_changed": false
+      }
+    },
+    "offline_ratchet_recheck_exit_code": 0
+  },
+  "deterministic_test_delta": {
+    "targeted_branch_coverage_tests_passed": 76,
+    "previously_missing_coverage_hit": {
+      "broker_execution": {
+        "lines": 12,
+        "branch_arcs": 8
+      },
+      "macro_factor": {
+        "lines": 3,
+        "branch_arcs": 3
+      }
+    },
+    "full_app_unit_tests": {
+      "broker_execution_passed": 463,
+      "macro_factor_passed": 166
+    },
+    "covered_safety_boundaries": [
+      "missing_or_naive broker heartbeat clocks",
+      "malformed trading windows and unsupported human order actions",
+      "canonical order projection expiry and source arrays",
+      "immutable pre-risk execution scope version and identifier validation",
+      "noncanonical or tampered PIT calendar members"
+    ]
+  },
+  "baseline_update": {
+    "domain_line_default": 90.0,
+    "removed_line_exceptions": [
+      "broker_execution",
+      "macro_factor"
+    ],
+    "broker_execution_branch_floor_before": 75.9,
+    "broker_execution_branch_floor_after": 77.2,
+    "lowered_floor_count": 0,
+    "remaining_line_exceptions": {
+      "research": 88.2,
+      "signal": 88.3
+    },
+    "remaining_branch_restoration_count": 9
+  },
+  "local_validation": {
+    "coverage_ratchet_with_raised_floors": "passed",
+    "quality_and_registry_tool_tests": {
+      "passed": 16,
+      "failed": 0
+    },
+    "json_validation": "passed"
+  },
+  "exit_gate": {
+    "exact_commit_nightly_completed": true,
+    "main_job_success": true,
+    "postgresql_job_success": true,
+    "complete_coverage_artifact_verified": true,
+    "broker_execution_line_restored": true,
+    "broker_execution_branch_restored": true,
+    "macro_factor_line_restored": true,
+    "baseline_raised_without_lowering": true,
+    "repository_unit_completed": true
+  },
+  "safety_boundary": {
+    "production_python_changed": false,
+    "production_cutover_evidence_modified": false,
+    "production_candidate_modified": false,
+    "production_database_read": false,
+    "production_database_write": false,
+    "main_merged": false,
+    "deployment_executed": false,
+    "nightly_dispatch_count": 1,
+    "production_claim": false,
+    "production_ready": false
+  }
+}
