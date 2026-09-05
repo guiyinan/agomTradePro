@@ -120,6 +120,19 @@ def test_execution_freshness_helper_rejects_old_or_misordered_clocks() -> None:
     )
 
 
+def test_execution_freshness_helper_rejects_missing_or_naive_clocks() -> None:
+    assert not heartbeat_times_are_fresh(
+        source_observed_at=NOW - timedelta(seconds=1),
+        received_at=NOW,
+        evaluated_at=NOW.replace(tzinfo=None),
+    )
+    assert not heartbeat_times_are_fresh(
+        source_observed_at=None,
+        received_at=NOW,
+        evaluated_at=NOW,
+    )
+
+
 def test_query_service_uses_shared_projection_and_aggregate_fail_closed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

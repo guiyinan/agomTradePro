@@ -323,3 +323,24 @@ normalization、runtime manifest 及对应治理投影。
   满足的后续 repository unit，`execution_focus.unit_id` 回到 `null`。
 - 本次未修改 production cutover evidence、生产候选或历史 migration，未合并 `main`、未部署、未
   读写生产数据库，也未在成功后再次触发 Nightly。生产 DATA/TUI/AUD/EVID/STRAT/TAR 门禁保持原状。
+
+## 2026-09-05 DATA-11：近阈值 Domain 安全覆盖恢复
+
+`DATA-11` 作为唯一 repository focus 启动，范围仅限成功 Nightly run `33948479845` 的 immutable
+coverage artifact 已证明的近阈值缺口：Broker Execution Domain 从 `89.8%` line / `75.9%` branch
+恢复到至少 `90.0%` / `77.2%`，Macro Factor Domain 从 `89.9%` line 恢复到至少 `90.0%`。
+
+本单元只补充 freshness、canonical order projection、unsupported action、immutable pre-Risk scope 和
+PIT calendar tamper 等安全分支的确定性测试；不通过删除可执行代码或降低 baseline 获得通过。先以
+targeted branch coverage 证明新增测试确实命中原 artifact 的缺口，再由完整、可复现 coverage artifact
+确认聚合分母和最终 floor。生产代码、cutover evidence、历史 migration、VPS 候选、部署与 runtime
+状态均不在范围内。
+
+本地 checkpoint（不是 closure evidence）：targeted branch coverage `76 passed`，与上述 immutable
+artifact 的 missing lines/arcs 精确求交后，Broker Execution 新命中原缺口 `12 lines / 8 arcs`，
+Macro Factor 新命中 `3 lines / 3 arcs`。本切片没有修改生产代码，因此按原 artifact 分母计算，Broker
+Execution 为 `1424/1571 = 90.64% line`、`447/578 = 77.34% branch`，Macro Factor 为
+`2656/2948 = 90.09% line`。Broker Execution 全目录 `463 passed`、Macro Factor 全目录
+`166 passed`，聚焦测试连同 registry 为 `84 passed`；Black、isort、Ruff、active-plan registry、
+governance consistency 与 diff check 均通过。当前 baseline 保持不变；只有精确绑定候选提交的完整
+Nightly coverage artifact 复核这些分子/分母后，才可上调 floor 并关闭 DATA-11。

@@ -105,12 +105,14 @@ def test_every_material_binding_participates_in_canonical_hash(
         {"recorded_at": datetime(2026, 8, 13, 4)},
         {"valid_until": NOW + timedelta(hours=4)},
         {"owner": "risk_center"},
+        {"scope_version": "broker-pre-risk-execution-scope.v2"},
         {"permission": "active"},
         {"blocker_codes": ("different",)},
+        {"scope_id": "noncanonical scope"},
     ],
 )
 def test_scope_rejects_noncanonical_or_authority_upgrading_values(
-    changes: dict[str, object]
+    changes: dict[str, object],
 ) -> None:
     with pytest.raises(ValueError):
         _scope(**changes)
