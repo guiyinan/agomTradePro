@@ -1,6 +1,6 @@
 {
-  "version": "2026-09-04.v47",
-  "updated_at": "2026-09-04",
+  "version": "2026-09-05.v48",
+  "updated_at": "2026-09-05",
   "execution_focus": {
     "unit_id": "DATA-10",
     "allowed_parallel_execution_modes": [
@@ -8,7 +8,7 @@
       "external",
       "governance"
     ],
-    "policy": "Personal-project single-owner mode remains active, but signatures never manufacture authority rows, business definitions, retained observations, production outcomes or elapsed time. The deployed candidate remains aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812 / image sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c; DATA-02 remains non-writing and DENY, and the 2026-09-02 web-only restart requires a new real TUI-02 sample plus an exact 14-day window. DATA-10 is the sole repository focus. Exact GitHub Python 3.11 Nightly run 33820056980 on commit e4095270af5576e05cc4de4e3c4833a1f86cc703 made the complete PostgreSQL job and the main current-data, Celery, mypy and frontend stages green; full unit reached 13,868 passed / 1 failed / 1 skipped. The sole failure was the reviewed TUI runtime manifest retaining the previous SHA-256 for the modified tui_metadata_repository.py, so fail-closed correctly skipped later stages. The canonical TUI generator now refreshes that source digest and manifest build identity; npm run check:tui and the focused runtime-manifest contract both pass locally. The prior full core-integration selector remains 1,041 passed / 13 deselected and TUI Workbench remains 309 passed. DATA-10 stays active until one exact final GitHub Python 3.11 Nightly completes successfully; production candidate binding, historical migrations and all production gates remain unchanged. Authority/approval mutation, queued runtime, load/fault, live rollback and unsupported production writes remain denied."
+    "policy": "Personal-project single-owner mode remains active, but signatures never manufacture authority rows, business definitions, retained observations, production outcomes or elapsed time. The deployed candidate remains aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812 / image sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c; DATA-02 remains non-writing and DENY, and the 2026-09-02 web-only restart requires a new real TUI-02 sample plus an exact 14-day window. DATA-10 is the sole repository focus. Exact GitHub Python 3.11 Nightly run 33895590645 on commit 1d91884a3d509e6263674eaee774c0c23c758190 made the complete PostgreSQL job and the main current-data, Celery, mypy and frontend stages green; full unit reached 13,868 passed / 1 failed / 1 skipped. Its sole failure was a stale checked-in readiness expectation: the current runtime manifest correctly differs from the deployed candidate's historical binding, so UAT, cleanup and rollback must remain evidence-present but binding-false in a current-checkout evaluation. The focused readiness file passes 37 tests after correcting that fail-closed assertion. DATA-10 stays active until one exact follow-up GitHub Python 3.11 Nightly completes successfully; production cutover evidence, candidate binding, historical migrations and all production gates remain unchanged. Authority/approval mutation, queued runtime, load/fault, live rollback and unsupported production writes remain denied."
   },
   "workstreams": [
     {
@@ -88,7 +88,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "DATA-10 is the sole repository focus. Nightly run 33820056980 on exact commit e4095270af5576e05cc4de4e3c4833a1f86cc703 proved the full PostgreSQL job green and the main job green through current-data, Celery, full mypy and frontend contracts. Full unit reached 13,868 passed / 1 failed / 1 skipped; its only failure was the stale reviewed-runtime-manifest digest for tui_metadata_repository.py, and all later main-job stages were correctly skipped. The canonical generator has refreshed config/tui/agomtui-runtime.manifest.json with the normalized source digest and new build identity; npm run check:tui and tests/unit/test_tui_runtime_manifest_contract.py pass locally. The earlier corrective evidence remains valid: affected integration is 48 passed, the exact core-integration selector is 1,041 passed / 13 deselected, full TUI Workbench is 309 passed, TUI design and mypy debt gates pass. Keep DATA-10 active until a GitHub Python 3.11 Nightly for the exact manifest-inclusive corrective commit is fully green, then write content-addressed closure evidence and synchronize status/focus. Separately, candidate aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812 remains DATA-02 DENY: completed-session prices are 0/5,533 eligible, all 5,533 quote/price/valuation facts are stale, and financial facts cover only 1,923 with 3,610 missing; DATA-03 remains dependency-blocked.",
+      "next_gate": "DATA-10 is the sole repository focus. Nightly run 33895590645 on exact commit 1d91884a3d509e6263674eaee774c0c23c758190 proved the full PostgreSQL job green and the main job green through current-data, Celery, full mypy and frontend contracts. Full unit reached 13,868 passed / 1 failed / 1 skipped; the only failure was test_checked_in_evidence_is_explicitly_denied still expecting the deployed candidate's historical runtime binding to equal the updated current-checkout manifest. The test now preserves 108/108 UAT and cleanup evidence assertions while requiring UAT, cleanup and rollback to fail closed with binding=false on current source drift; the full readiness test file passes 37 tests locally. Keep DATA-10 active until a GitHub Python 3.11 Nightly for the exact follow-up corrective commit is fully green, then write content-addressed closure evidence and synchronize status/focus. Production cutover evidence was not modified. Separately, candidate aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812 remains DATA-02 DENY: completed-session prices are 0/5,533 eligible, all 5,533 quote/price/valuation facts are stale, and financial facts cover only 1,923 with 3,610 missing; DATA-03 remains dependency-blocked.",
       "documents": [
         {
           "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
@@ -277,7 +277,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-09-04.v47",
+    "version": "2026-09-05.v48",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -720,7 +720,7 @@
         "depends_on": [
           "DATA-09"
         ],
-        "exit_gate": "The Pulse history API contract uses time-relative rows within one captured six-month window; historical migration hash guards validate Git-canonical LF bytes independently of checkout EOL conversion; the closed-world registry guard recognizes all 41 canonical closure units; Data Center and Config Center integration fixtures explicitly satisfy current fail-closed runtime composition while retaining real audit event/outbox persistence; legacy full-IA rollback payloads normalize to a valid current runtime screen contract without inventing a P0 action or relaxing final validation; the reviewed TUI runtime manifest carries the normalized SHA-256 of every modified server-side contract and passes its generator check; focused and affected full-file tests pass; and a GitHub Python 3.11 Nightly run for the exact final corrective commit completes successfully without changing production Pulse behavior, freshness semantics, historical migration files or the deployed candidate."
+        "exit_gate": "The Pulse history API contract uses time-relative rows within one captured six-month window; historical migration hash guards validate Git-canonical LF bytes independently of checkout EOL conversion; the closed-world registry guard recognizes all 41 canonical closure units; Data Center and Config Center integration fixtures explicitly satisfy current fail-closed runtime composition while retaining real audit event/outbox persistence; legacy full-IA rollback payloads normalize to a valid current runtime screen contract without inventing a P0 action or relaxing final validation; the reviewed TUI runtime manifest carries the normalized SHA-256 of every modified server-side contract and passes its generator check; checked-in readiness tests distinguish current-checkout runtime drift from immutable deployed-candidate evidence and require candidate-bound gates to fail closed on mismatch; focused and affected full-file tests pass; and a GitHub Python 3.11 Nightly run for the exact final corrective commit completes successfully without changing production Pulse behavior, freshness semantics, historical migration files, production cutover evidence or the deployed candidate."
       },
       {
         "id": "DATA-03",

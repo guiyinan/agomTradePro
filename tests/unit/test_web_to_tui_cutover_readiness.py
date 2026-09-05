@@ -491,7 +491,7 @@ def _evaluate(
 
 
 def test_checked_in_evidence_is_explicitly_denied() -> None:
-    """Current machine evidence passes five gates while cutover stays denied."""
+    """Current checkout rejects evidence bound to an older runtime manifest."""
 
     result = evaluate_readiness(
         matrix_path=MATRIX_PATH,
@@ -507,20 +507,22 @@ def test_checked_in_evidence_is_explicitly_denied() -> None:
     assert result.required_tasks == 101
     assert gates["source_consistency"].passed is True
     assert gates["execution_dependency"].passed is True
-    assert gates["route_task_uat"].passed is True
+    assert gates["route_task_uat"].passed is False
     assert "covered=108/108" in gates["route_task_uat"].detail
-    assert "binding=true" in gates["route_task_uat"].detail
-    assert gates["route_cleanup_readiness"].passed is True
+    assert "binding=false" in gates["route_task_uat"].detail
+    assert "evidence=true" in gates["route_task_uat"].detail
+    assert gates["route_cleanup_readiness"].passed is False
     assert "covered=108/108" in gates["route_cleanup_readiness"].detail
-    assert "candidate_binding=true" in gates["route_cleanup_readiness"].detail
-    assert gates["rollback_drill"].passed is True
-    assert "binding=true" in gates["rollback_drill"].detail
+    assert "candidate_binding=false" in gates["route_cleanup_readiness"].detail
+    assert "evidence=true" in gates["route_cleanup_readiness"].detail
+    assert gates["rollback_drill"].passed is False
+    assert "binding=false" in gates["rollback_drill"].detail
     assert gates["stable_version_window"].passed is False
     assert gates["blocking_defects"].passed is False
     assert gates["production_telemetry"].passed is False
     assert gates["production_registry_backup"].passed is False
     assert gates["cutover_approvals"].passed is False
-    assert sum(gate.passed for gate in result.gates) == 5
+    assert sum(gate.passed for gate in result.gates) == 2
 
 
 def test_cutover_waits_for_terminal_runtime_dependency(tmp_path: Path) -> None:

@@ -250,3 +250,32 @@ bytes，而期望值绑定 Git 中 LF bytes。`git ls-files --eol` 对三份引�
 把 focus 置回 null。本单元不部署、不重启、不读写生产数据库、不修改候选、历史 migration、数据门或
 TUI 观察窗口；当前回滚点为 Pulse/migration/registry 测试修复、三项 integration fixture、TUI legacy
 normalization、runtime manifest 及对应治理投影。
+
+## 2026-09-05 DATA-10：current-checkout candidate binding fail-closed
+
+### Nightly 证据与根因
+
+- 精确提交 `1d91884a3d509e6263674eaee774c0c23c758190` 的 GitHub Python 3.11 Nightly run
+  [`33895590645`](https://github.com/guiyinan/agomTradePro/actions/runs/33895590645) 中，独立 PostgreSQL
+  job 完整成功；主 job 的 current-data、Celery、full mypy 与 frontend 阶段均成功。
+- full unit 为 `13,868 passed / 1 failed / 1 skipped`。唯一失败是
+  `test_checked_in_evidence_is_explicitly_denied` 仍把已部署候选的旧 runtime binding 当成当前 checkout
+  binding，错误期待 UAT、cleanup 与 rollback 三个 gate 继续通过；后续主 job 阶段按 fail-closed 跳过。
+- canonical runtime manifest 已随当前开发分支的 server-side contract 更新，而生产仍运行候选
+  `aa7127ff4d9f71555b0d0486314da5518bd2ac20` / release `20260901232812`。readiness checker 默认从当前
+  matrix、graph 与 runtime manifest 重算 expected binding，因此旧候选证据在当前 checkout 上必须返回
+  `binding=false`。这不是生产候选漂移，也不能通过改写 production cutover evidence 消除。
+
+### 修复与当前退出门
+
+- checked-in evidence 测试现明确断言 UAT `108/108`、cleanup 六 scope `108/108` 及 rollback evidence
+  仍存在，但三者因候选 binding 不同均 fail-closed；当前 checkout 仅 `source_consistency` 与
+  `execution_dependency` 两项通过，测试投影为 `2/10 DENY`。
+- `tests/unit/test_web_to_tui_cutover_readiness.py` 整文件本地回归为 `37 passed`。生产候选的历史
+  candidate-bound `5/10 DENY` 记录保持不变；没有修改
+  `config/tui/migration/web_to_tui_cutover_evidence.v1.json`，也没有部署、重启、合并 main 或写生产。
+- readiness、candidate consistency 与 runtime-manifest contract 合并聚焦回归为 `39 passed`；
+  `npm run check:tui`、Black、isort、Ruff、active-plan registry v48、governance consistency、文档路由与
+  SDK consistency 以及 `git diff --check` 全部通过。
+- GitHub issue `#3` 保持 `P2`，并由失败 workflow 绑定到 run `33895590645`。`DATA-10` 继续 active，
+  退出门仍是包含本测试修复与治理投影的精确后续提交在 GitHub Python 3.11 Nightly 完整成功。
