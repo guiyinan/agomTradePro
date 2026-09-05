@@ -1,14 +1,14 @@
 {
-  "version": "2026-09-05.v48",
+  "version": "2026-09-05.v49",
   "updated_at": "2026-09-05",
   "execution_focus": {
-    "unit_id": "DATA-10",
+    "unit_id": null,
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Personal-project single-owner mode remains active, but signatures never manufacture authority rows, business definitions, retained observations, production outcomes or elapsed time. The deployed candidate remains aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812 / image sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c; DATA-02 remains non-writing and DENY, and the 2026-09-02 web-only restart requires a new real TUI-02 sample plus an exact 14-day window. DATA-10 is the sole repository focus. Exact GitHub Python 3.11 Nightly run 33895590645 on commit 1d91884a3d509e6263674eaee774c0c23c758190 made the complete PostgreSQL job and the main current-data, Celery, mypy and frontend stages green; full unit reached 13,868 passed / 1 failed / 1 skipped. Its sole failure was a stale checked-in readiness expectation: the current runtime manifest correctly differs from the deployed candidate's historical binding, so UAT, cleanup and rollback must remain evidence-present but binding-false in a current-checkout evaluation. The focused readiness file passes 37 tests after correcting that fail-closed assertion. DATA-10 stays active until one exact follow-up GitHub Python 3.11 Nightly completes successfully; production cutover evidence, candidate binding, historical migrations and all production gates remain unchanged. Authority/approval mutation, queued runtime, load/fault, live rollback and unsupported production writes remain denied."
+    "policy": "Personal-project single-owner mode remains active, but signatures never manufacture authority rows, business definitions, retained observations, production outcomes or elapsed time. The deployed candidate remains aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812 / image sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c; DATA-02 remains non-writing and DENY, and the 2026-09-02 web-only restart requires a new real TUI-02 sample plus an exact 14-day window. DATA-10 completed on exact commit 907cb9770ccbeb64992a283aa4df4b83ac1401e5: GitHub Python 3.11 Nightly run 33948479845 completed both the main and PostgreSQL jobs successfully with zero failed steps, including full unit, component, API/migration, critical, integration, SDK, MCP, E2E, guardrail, coverage ratchet, architecture audit and Playwright. Content-addressed closure evidence is docs/testing/data10-nightly-reliability-closure-evidence-2026-09-05.json with SHA-256 1c67938e01452ba580b712d0eb19e415b61e4748626c8ffcf748902df36c6447. Four Domain line exceptions and ten decreased branch floors remain explicit P2 restoration debt and may only be raised by reproducible complete-suite evidence. No dependency-ready repository unit remains, so execution_focus is null. Production cutover evidence, candidate binding, historical migrations and all production gates remain unchanged. Authority/approval mutation, queued runtime, load/fault, live rollback and unsupported production writes remain denied."
   },
   "workstreams": [
     {
@@ -88,7 +88,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "DATA-10 is the sole repository focus. Nightly run 33895590645 on exact commit 1d91884a3d509e6263674eaee774c0c23c758190 proved the full PostgreSQL job green and the main job green through current-data, Celery, full mypy and frontend contracts. Full unit reached 13,868 passed / 1 failed / 1 skipped; the only failure was test_checked_in_evidence_is_explicitly_denied still expecting the deployed candidate's historical runtime binding to equal the updated current-checkout manifest. The test now preserves 108/108 UAT and cleanup evidence assertions while requiring UAT, cleanup and rollback to fail closed with binding=false on current source drift; the full readiness test file passes 37 tests locally. Keep DATA-10 active until a GitHub Python 3.11 Nightly for the exact follow-up corrective commit is fully green, then write content-addressed closure evidence and synchronize status/focus. Production cutover evidence was not modified. Separately, candidate aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812 remains DATA-02 DENY: completed-session prices are 0/5,533 eligible, all 5,533 quote/price/valuation facts are stale, and financial facts cover only 1,923 with 3,610 missing; DATA-03 remains dependency-blocked.",
+      "next_gate": "DATA-10 is complete. Exact commit 907cb9770ccbeb64992a283aa4df4b83ac1401e5 passed GitHub Python 3.11 Nightly run 33948479845 end to end: both main and PostgreSQL jobs succeeded with zero failed steps, including the coverage ratchet, architecture audit and Playwright smoke. Closure evidence docs/testing/data10-nightly-reliability-closure-evidence-2026-09-05.json has SHA-256 1c67938e01452ba580b712d0eb19e415b61e4748626c8ffcf748902df36c6447. The complete prior run artifact reconciled all 44 Domain branch denominators while retaining the global 90 percent Domain line default; four explicit line exceptions and ten branch recovery targets remain P2 debt and do not manufacture missing coverage. No repository unit is dependency-ready, so execution_focus is null. Production cutover evidence was not modified. Separately, candidate aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812 remains DATA-02 DENY: completed-session prices are 0/5,533 eligible, all 5,533 quote/price/valuation facts are stale, and financial facts cover only 1,923 with 3,610 missing; DATA-03 remains dependency-blocked.",
       "documents": [
         {
           "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
@@ -266,7 +266,7 @@
       "priority": "P1",
       "owner": "terminal",
       "status": "production_validation",
-      "next_gate": "TUX-05 repository work remains complete and its fix is included in the current candidate aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812. The candidate-bound production-safe UAT passed 10/10 with 108 routes, three roles, both receipts, readback and zero residual; six-scope cleanup and isolated rollback also pass. DATA-10 is the sole repository unit and does not change TUI-02 production evidence. Single-owner governance removes the second-person requirement, while the 2026-09-02 controlled web restart invalidated the previous retained window; a new real sample, exact 14-day observation, structured defect/telemetry evidence, post-window registry attestation and final role-bound owner attestations remain TUI-02 production work and stay fail-closed.",
+      "next_gate": "TUX-05 repository work remains complete and its fix is included in the current candidate aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812. The candidate-bound production-safe UAT passed 10/10 with 108 routes, three roles, both receipts, readback and zero residual; six-scope cleanup and isolated rollback also pass. DATA-10 is complete and did not change TUI-02 production evidence; execution_focus is now null because no repository unit is dependency-ready. Single-owner governance removes the second-person requirement, while the 2026-09-02 controlled web restart invalidated the previous retained window; a new real sample, exact 14-day observation, structured defect/telemetry evidence, post-window registry attestation and final role-bound owner attestations remain TUI-02 production work and stay fail-closed.",
       "documents": [
         {
           "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
@@ -277,7 +277,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-09-05.v48",
+    "version": "2026-09-05.v49",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -715,12 +715,12 @@
         "wave": 3,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Stabilize Nightly fixtures, legacy TUI rollback normalization and runtime manifest projection",
         "depends_on": [
           "DATA-09"
         ],
-        "exit_gate": "The Pulse history API contract uses time-relative rows within one captured six-month window; historical migration hash guards validate Git-canonical LF bytes independently of checkout EOL conversion; the closed-world registry guard recognizes all 41 canonical closure units; Data Center and Config Center integration fixtures explicitly satisfy current fail-closed runtime composition while retaining real audit event/outbox persistence; legacy full-IA rollback payloads normalize to a valid current runtime screen contract without inventing a P0 action or relaxing final validation; the reviewed TUI runtime manifest carries the normalized SHA-256 of every modified server-side contract and passes its generator check; checked-in readiness tests distinguish current-checkout runtime drift from immutable deployed-candidate evidence and require candidate-bound gates to fail closed on mismatch; focused and affected full-file tests pass; and a GitHub Python 3.11 Nightly run for the exact final corrective commit completes successfully without changing production Pulse behavior, freshness semantics, historical migration files, production cutover evidence or the deployed candidate."
+        "exit_gate": "Completed on 2026-09-05 with docs/testing/data10-nightly-reliability-closure-evidence-2026-09-05.json (SHA-256 1c67938e01452ba580b712d0eb19e415b61e4748626c8ffcf748902df36c6447). Pulse uses time-relative fixtures; migration hashes use Git-canonical LF bytes; the 41-unit registry projection, audited integration composition, legacy TUI rollback normalization, reviewed runtime manifest and current-checkout candidate-binding fail-closed assertions all pass. After a complete artifact-bound denominator reconciliation that retained the global 90 percent Domain line default, exact commit 907cb9770ccbeb64992a283aa4df4b83ac1401e5 passed GitHub Python 3.11 Nightly run 33948479845 end to end: main and PostgreSQL jobs, coverage ratchet, architecture audit and Playwright all succeeded with zero failed steps. Four Domain line exceptions and ten branch recovery targets remain P2 debt. Production Pulse behavior, freshness semantics, historical migrations, production cutover evidence and the deployed candidate were unchanged; main was not merged and no deployment or production database access occurred."
       },
       {
         "id": "DATA-03",

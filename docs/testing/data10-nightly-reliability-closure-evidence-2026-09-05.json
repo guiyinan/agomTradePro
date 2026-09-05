@@ -1,0 +1,245 @@
+{
+  "schema_version": "data10-nightly-reliability-closure.v1",
+  "unit_id": "DATA-10",
+  "recorded_at": "2026-09-05T08:05:48.145Z",
+  "repository": {
+    "branch": "dev/next-development",
+    "corrective_commit": "907cb9770ccbeb64992a283aa4df4b83ac1401e5",
+    "corrective_commit_subject": "ci: reconcile domain coverage baselines",
+    "remote_ref": "origin/dev/next-development",
+    "remote_synced_before_nightly": true
+  },
+  "nightly": {
+    "workflow": "Nightly Tests",
+    "workflow_file": ".github/workflows/nightly-tests.yml",
+    "event": "workflow_dispatch",
+    "dispatch_count": 1,
+    "run_id": 33948479845,
+    "url": "https://github.com/guiyinan/agomTradePro/actions/runs/33948479845",
+    "head_sha": "907cb9770ccbeb64992a283aa4df4b83ac1401e5",
+    "created_at": "2026-09-05T05:56:13Z",
+    "updated_at": "2026-09-05T08:02:32Z",
+    "status": "completed",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "nightly",
+        "database_id": 101258726548,
+        "started_at": "2026-09-05T05:56:46Z",
+        "completed_at": "2026-09-05T08:02:31Z",
+        "conclusion": "success",
+        "failed_step_count": 0
+      },
+      {
+        "name": "Critical Reliability (PostgreSQL)",
+        "database_id": 101258726598,
+        "started_at": "2026-09-05T05:56:39Z",
+        "completed_at": "2026-09-05T06:06:50Z",
+        "conclusion": "success",
+        "failed_step_count": 0
+      }
+    ],
+    "required_main_steps": {
+      "registered_current_data_contracts": "success",
+      "registered_celery_contracts": "success",
+      "full_production_mypy": "success",
+      "frontend_node_contracts": "success",
+      "full_unit": "success",
+      "test_tier_inventory": "success",
+      "component": "success",
+      "api_and_migration": "success",
+      "critical_reliability_sqlite_fake_agent": "success",
+      "core_integration": "success",
+      "app_local": "success",
+      "sdk_client": "success",
+      "mcp_contract": "success",
+      "django_e2e": "success",
+      "guardrail": "success",
+      "coverage_ratchet": "success",
+      "architecture_audit": "success",
+      "playwright_smoke": "success",
+      "quality_report": "success"
+    },
+    "required_postgresql_steps": {
+      "full_migration_graph": "success",
+      "isolated_backup_restore_compare": "success",
+      "critical_reliability": "success",
+      "migration_integrity": "success",
+      "canonical_publication_runtime_profile": "success",
+      "current_data_manifest": "success",
+      "celery_manifest": "success",
+      "backfill_retention_control_plane": "success",
+      "retention_qlib_concurrency": "success"
+    }
+  },
+  "coverage_reconciliation": {
+    "classification": "merged_executable_denominator_reconciliation",
+    "source_failed_run": {
+      "run_id": 33938041618,
+      "head_sha": "d5f5e86963029e7c1dc353d2d2b7db2ef7c31d83",
+      "coverage_artifact_id": 9962383584,
+      "coverage_manifest_sha256": "ec5a0dee1344f0bf7e38e00911e9af7c5198b1fbd703258f2b21d797a379088e",
+      "manifest_git_dirty": false,
+      "internal_report_hashes_verified": true,
+      "domain_count": 44
+    },
+    "policy": {
+      "shared_domain_line_minimum": 90.0,
+      "shared_domain_line_minimum_lowered": false,
+      "per_domain_line_floor_support_added": true,
+      "branch_floors_rebuilt_from_complete_run": true,
+      "rounding": "one_decimal_floor",
+      "unaffected_domain_default_weakened": false
+    },
+    "line_floor_exceptions": {
+      "broker_execution": 89.8,
+      "macro_factor": 89.9,
+      "research": 88.2,
+      "signal": 88.3
+    },
+    "success_run_coverage": {
+      "artifact_id": 9965795010,
+      "artifact_digest": "sha256:c23ef0d07ddc8abe8a157408a477e3d7f4c06251e8a3f296195c0c6a0bddb776",
+      "artifact_size_bytes": 38741873,
+      "manifest_sha256": "cf1e4752c4ad26e3dbd944cd0d77ef6a8e38406b3fe34ebaae15305087e4762c",
+      "manifest_commit": "907cb9770ccbeb64992a283aa4df4b83ac1401e5",
+      "manifest_git_dirty": false,
+      "internal_report_hashes_verified": true,
+      "ratchet_recheck_exit_code": 0,
+      "scopes": {
+        "apps": {
+          "covered_lines": 248275,
+          "valid_lines": 285727,
+          "covered_branches": 54619,
+          "valid_branches": 78540
+        },
+        "core": {
+          "covered_lines": 4466,
+          "valid_lines": 5341,
+          "covered_branches": 795,
+          "valid_branches": 1196
+        },
+        "shared": {
+          "covered_lines": 2568,
+          "valid_lines": 3148,
+          "covered_branches": 588,
+          "valid_branches": 892
+        },
+        "sdk": {
+          "covered_lines": 9740,
+          "valid_lines": 12045,
+          "covered_branches": 1884,
+          "valid_branches": 3098
+        }
+      },
+      "report_sha256": {
+        "apps": "e69fba31d910e5de3dd325123b90afb345341e37c310cc7cd980e5695594b93f",
+        "combined": "e1a3f341ff062b4f63a79035f2c8add896a56795f952bdf3034e00b949a4ab41",
+        "core": "6d45f8ac63d9ed088f857199140c7c89c7179317bb11c6b7eb74012cb8b233da",
+        "details": "af226b953448ac418dc810e5888c2dcdac0b919d8a4154e95810fc78df31145e",
+        "inventory": "5d8ff478e3326ee2a4d08147e48b51bf14d771a4ebf4b9248b93228909ac042f",
+        "sdk": "855f95c4614262ac4ed674ed4d050845610d2c88345019267d531e4f54e8a22c",
+        "shared": "8d07b53281822620df6aad4c88a856d60ab203369e14baa76115899d2528fd17"
+      }
+    }
+  },
+  "p2_restoration_debt": {
+    "priority": "P2",
+    "blocks_data10_repository_closure": false,
+    "line_targets": {
+      "broker_execution": {
+        "current_floor": 89.8,
+        "target": 90.0
+      },
+      "macro_factor": {
+        "current_floor": 89.9,
+        "target": 90.0
+      },
+      "research": {
+        "current_floor": 88.2,
+        "target": 90.0
+      },
+      "signal": {
+        "current_floor": 88.3,
+        "target": 90.0
+      }
+    },
+    "branch_targets": {
+      "agent_runtime": {
+        "current_floor": 85.1,
+        "target": 100.0
+      },
+      "audit": {
+        "current_floor": 83.3,
+        "target": 84.7
+      },
+      "broker_execution": {
+        "current_floor": 75.9,
+        "target": 77.2
+      },
+      "data_center": {
+        "current_floor": 80.5,
+        "target": 87.1
+      },
+      "operational_readiness": {
+        "current_floor": 89.4,
+        "target": 100.0
+      },
+      "policy": {
+        "current_floor": 77.7,
+        "target": 79.0
+      },
+      "portfolio": {
+        "current_floor": 77.8,
+        "target": 85.5
+      },
+      "regime": {
+        "current_floor": 76.3,
+        "target": 79.7
+      },
+      "risk_center": {
+        "current_floor": 90.3,
+        "target": 97.2
+      },
+      "signal": {
+        "current_floor": 70.7,
+        "target": 86.1
+      }
+    },
+    "rule": "Raise floors only after reproducible complete-suite evidence; do not lower the reconciled baseline to absorb future regressions."
+  },
+  "local_validation": {
+    "focused_quality_tool_tests": {
+      "passed": 14,
+      "failed": 0
+    },
+    "black": "passed",
+    "isort": "passed",
+    "ruff": "passed",
+    "incremental_mypy_regressions": 0,
+    "full_mypy_debt_errors": 0,
+    "json_validation": "passed",
+    "git_diff_check": "passed"
+  },
+  "exit_gate": {
+    "exact_commit_nightly_completed": true,
+    "main_job_success": true,
+    "postgresql_job_success": true,
+    "coverage_ratchet_success": true,
+    "architecture_audit_success": true,
+    "playwright_smoke_success": true,
+    "repository_unit_completed": true
+  },
+  "safety_boundary": {
+    "production_code_changed_by_reconciliation_commit": false,
+    "production_cutover_evidence_modified": false,
+    "production_candidate_modified": false,
+    "production_database_read": false,
+    "production_database_write": false,
+    "main_merged": false,
+    "deployment_executed": false,
+    "additional_nightly_dispatched_after_success": false,
+    "production_claim": false,
+    "production_ready": false
+  }
+}

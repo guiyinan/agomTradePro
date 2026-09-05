@@ -231,9 +231,9 @@
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [master-test-strategy-2026-02.md](testing/master-test-strategy-2026-02.md) | **全面测试策略（L0-L7、关键可靠性、测试分层与覆盖率门禁）** | ✅ 2026-07-24 更新 |
-| [critical-reliability-test-closure-2026-07-22.md](plans/critical-reliability-test-closure-2026-07-22.md) | **数据到对账关键可靠性测试与发布门禁收口记录** | ✅ SQLite + GitHub PostgreSQL Nightly 已取证；生产 QMT 仍受外部权限阻断 |
+| [critical-reliability-test-closure-2026-07-22.md](plans/critical-reliability-test-closure-2026-07-22.md) | **数据到对账关键可靠性测试与发布门禁收口记录** | ✅ DATA-10 精确 Nightly `33948479845` 全绿；生产 QMT 仍受外部权限阻断 |
 | [smart-test-selection.md](development/ci/smart-test-selection.md) | **增量测试映射、未知 App 全量回退与关键集合选择规则** | ✅ 2026-07-22 更新 |
-| [coverage-governance.md](development/ci/coverage-governance.md) | **多范围行/分支覆盖率真源、报告与 ratchet 规则** | ✅ 2026-07-24 新增 |
+| [coverage-governance.md](development/ci/coverage-governance.md) | **多范围行/分支覆盖率真源、报告与 ratchet 规则** | ✅ 2026-09-05 完成 44-Domain denominator reconciliation，恢复目标保留 P2 |
 | [celery-task-contract-guard.md](development/celery-task-contract-guard.md) | **Celery 技术状态、业务 outcome 与关键任务测试契约门禁** | ✅ 已纳入 fast feedback |
 | [data-freshness-contract-guard.md](development/data-freshness-contract-guard.md) | **当前数据 observation/freshness/failover/决策阻断契约门禁** | ✅ 已纳入 consistency check |
 | [postmortem-realtime-stale-market-summary-2026-07-30.md](development/postmortem-realtime-stale-market-summary-2026-07-30.md) | **VPS Terminal 旧行情冒充当前值事故复盘与防复发矩阵** | ✅ 2026-07-30 完成 |
@@ -244,6 +244,7 @@
 | [aud04-audit-archive-rehearsal-repository-closure-evidence-2026-08-31.json](testing/aud04-audit-archive-rehearsal-repository-closure-evidence-2026-08-31.json) | **AUD-04 候选绑定归档、append-only artifact 与内存隔离恢复 repository closure 证据** | ✅ 2026-08-31；仅 repository 能力，不是生产 archive/restore 验收 |
 | [data04-asgi-db-select-only-preview-repository-closure-evidence-2026-08-31.json](testing/data04-asgi-db-select-only-preview-repository-closure-evidence-2026-08-31.json) | **DATA-04 PostgreSQL client saturation 只读事实、ASGI 连接生命周期与 SELECT-only preview repository closure 证据** | ✅ 2026-08-31 repository exit；当前候选已完成修复后的 3 样本连接/readiness 重验，DATA-02 仍待数据修复与 reconciliation |
 | [data05-financial-repository-owner-closure-evidence-2026-08-31.json](testing/data05-financial-repository-owner-closure-evidence-2026-08-31.json) | **DATA-05 Financial availability owner 拆分、结构预算与兼容回归 closure 证据** | ✅ 2026-08-31；243/200 既有 CI blocker 已关闭，未触碰生产 |
+| [data10-nightly-reliability-closure-evidence-2026-09-05.json](testing/data10-nightly-reliability-closure-evidence-2026-09-05.json) | **DATA-10 Nightly 全层回归、PostgreSQL、coverage ratchet、Architecture 与 Playwright closure 证据** | ✅ 精确提交 `907cb9770…` / run `33948479845`；仅 repository closure，不代表生产 readiness |
 | [outsourcing-full-regression-plan-2026-02-26.md](archive/process/testing/outsourcing-full-regression-plan-2026-02-26.md) | 外包全量回归执行方案（双环境+分层门禁+证据包）（归档） | ✅ 已归档 |
 | [outsourcing-acceptance-plan-post-v34-2026-02-26.md](archive/process/testing/outsourcing-acceptance-plan-post-v34-2026-02-26.md) | 外包开发验收方案（V3.4 后续路线图）（归档） | ✅ 已归档 |
 | [requirements-traceability-matrix-2026-02.md](testing/requirements-traceability-matrix-2026-02.md) | **需求-测试追踪矩阵（含关键可靠性、分层质量与真实 QMT 门禁）** | ✅ 2026-07-24 更新 |
@@ -1369,6 +1370,7 @@
 - 低频公网只读复核 [`tar01-public-health-readonly-recheck-2026-09-03.json`](deployment/tar01-public-health-readonly-recheck-2026-09-03.json)：`/api/health/` 与 `/api/ready/` 均 `200`（database/Redis/Celery/critical data=`ok`，decision data=`warning`，Celery worker=`1`）；`/api/decision-ready/` 为 `503 blocked`、`must_not_use_for_decision=true`，runtime/core coverage/provider capability 仍 fail-closed。公开端点未暴露候选身份，本次未部署、未重启、未迁移、未写生产。
 - active registry v41 已将 AI-01 与 TUI usability next_gate 统一绑定当前候选 `aa7127ff4…` / `20260901232812`，并保留 TAR-05、TUI-02 的依赖停止线；不改变任何生产 unit 状态或授权边界。
 - 2026-09-03 计划投影复核已将发布阻塞、M5 readiness、关键可靠性和 Data Center 计划中的旧候选/初始缺口明确标为历史，并把当前事实对齐到 `aa7127ff4…` / `20260901232812`；仅修正文档，不改变生产门禁。
+- 2026-09-05 DATA-10 在精确提交 `907cb9770ccbeb64992a283aa4df4b83ac1401e5` 的 GitHub Python 3.11 Nightly run `33948479845` 完整全绿后关闭；coverage denominator reconciliation 保留全局 Domain line 90% 默认值，4 个 line exception 与 10 个 branch 恢复目标登记为 P2。结构化证据 SHA-256=`1c67938e01452ba580b712d0eb19e415b61e4748626c8ffcf748902df36c6447`；`execution_focus=null`，未修改生产 cutover evidence、未合并 main、未部署。
 
 **文档维护**: AgomTradePro Team
-**最后更新**: 2026-09-03
+**最后更新**: 2026-09-05

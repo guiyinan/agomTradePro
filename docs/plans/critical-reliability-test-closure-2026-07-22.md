@@ -279,3 +279,47 @@ normalization、runtime manifest 及对应治理投影。
   SDK consistency 以及 `git diff --check` 全部通过。
 - GitHub issue `#3` 保持 `P2`，并由失败 workflow 绑定到 run `33895590645`。`DATA-10` 继续 active，
   退出门仍是包含本测试修复与治理投影的精确后续提交在 GitHub Python 3.11 Nightly 完整成功。
+
+## 2026-09-05 DATA-10：coverage denominator reconciliation 与仓库收口
+
+### 完整 Nightly 结果
+
+- 修复 current-checkout binding 断言的提交 `d5f5e86963029e7c1dc353d2d2b7db2ef7c31d83`
+  已使 full unit、Component、API/Migration、SQLite Critical、Integration、App-local、SDK、MCP、
+  E2E 与 Guardrail 全部通过，但 run
+  [`33938041618`](https://github.com/guiyinan/agomTradePro/actions/runs/33938041618) 首次继续到最终
+  coverage ratchet 后，暴露 12 个 Domain 的 14 项旧基线违规。
+- 上述失败提交只含测试和治理投影，没有生产代码或 coverage baseline 改动。对比此前最后一次
+  `dev/next-development` 绿色 Nightly 的提交 `7061cd1112232d7e7202390f73a9d979cb25aa7b`，这些
+  Domain 的可执行代码分母均已增长；`governance/testing_quality_baseline.json` 则自 2026-07-30
+  后未重算。此前 Nightly 均在更早测试层停止，因而没有执行到这个独立门禁。
+- denominator reconciliation 提交
+  `907cb9770ccbeb64992a283aa4df4b83ac1401e5` 保持全局 Domain line minimum 为 `90.0%`，新增
+  per-Domain line floor 支持，仅登记 `broker_execution=89.8`、`macro_factor=89.9`、
+  `research=88.2`、`signal=88.3` 四个真实例外；44 个 Domain 的 branch floors 全部由 run
+  `33938041618` 完整 artifact 按一位小数向下取整重建，而不是只改失败项。
+- 精确提交 `907cb9770…` 的 GitHub Python 3.11 Nightly run
+  [`33948479845`](https://github.com/guiyinan/agomTradePro/actions/runs/33948479845) 已于
+  `2026-09-05T08:02:32Z` 完整成功：主 `nightly` 与 `Critical Reliability (PostgreSQL)` 两个 job
+  均为 `success`、失败步骤为 0；coverage ratchet、Architecture Audit、Playwright Smoke 和全部
+  前置测试层均通过。
+
+### 证据与 P2 恢复债务
+
+- 成功 run 的 coverage artifact `9965795010` digest 为
+  `sha256:c23ef0d07ddc8abe8a157408a477e3d7f4c06251e8a3f296195c0c6a0bddb776`；下载后的
+  manifest 绑定精确提交、`git_dirty=false`，其 SHA-256 为
+  `cf1e4752c4ad26e3dbd944cd0d77ef6a8e38406b3fe34ebaae15305087e4762c`，内部 7 份报告 hash
+  全部复核匹配，离线 ratchet 重验 exit code 为 0。
+- 结构化 [DATA-10 closure evidence](../testing/data10-nightly-reliability-closure-evidence-2026-09-05.json)
+  SHA-256=`1c67938e01452ba580b712d0eb19e415b61e4748626c8ffcf748902df36c6447`，包含两个 job 的
+  精确时间、所有阻断步骤、artifact digests、scope 分子/分母、基线方法与安全边界。
+- 四个 line exception 恢复至 `90.0%`，以及 `agent_runtime`、`audit`、`broker_execution`、
+  `data_center`、`operational_readiness`、`policy`、`portfolio`、`regime`、`risk_center`、
+  `signal` 十个 branch floor 恢复至重算前目标，明确保留为 `P2` 测试债务。未来只能由完整、
+  可复现 coverage evidence 上调，不能再下调当前重建后的基线吸收回归。
+- 本地治理工具回归 `14 passed`，Black、isort、Ruff、增量 mypy、全仓 mypy debt ceiling、JSON 和
+  diff check 均通过。`DATA-10` 的 repository exit gate 因精确 Nightly 全绿而完成；当前没有依赖已
+  满足的后续 repository unit，`execution_focus.unit_id` 回到 `null`。
+- 本次未修改 production cutover evidence、生产候选或历史 migration，未合并 `main`、未部署、未
+  读写生产数据库，也未在成功后再次触发 Nightly。生产 DATA/TUI/AUD/EVID/STRAT/TAR 门禁保持原状。
