@@ -37,3 +37,15 @@ def test_get_eligibility_matrix_falls_back_to_default_when_provider_raises():
         )
     finally:
         set_eligibility_matrix_provider(lambda: DEFAULT_ELIGIBILITY_MATRIX)
+
+
+def test_get_eligibility_matrix_uses_default_without_provider(monkeypatch):
+    monkeypatch.setattr(
+        "apps.regime.domain.asset_eligibility._eligibility_matrix_provider",
+        None,
+    )
+
+    assert get_preferred_asset_classes("Recovery")[:2] == [
+        "a_share_growth",
+        "a_share_value",
+    ]

@@ -5,6 +5,7 @@ from __future__ import annotations
 from contextlib import nullcontext
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from typing import cast
 
 import pytest
 
@@ -366,6 +367,95 @@ def test_codec_round_trip_is_canonical_and_rejects_tamper() -> None:
         decode_evidence_operator_spec_approval_record(noncanonical)
 
 
+def test_domain_contract_rejects_actor_subject_and_record_substitution() -> None:
+    subject = _subject()
+    approval = EvidenceOperatorSpecApprovalRecord.create(
+        approval_id="operator-approval:sector-score:v1",
+        approval_version="1",
+        subject=subject,
+        approved_by=_approver(),
+        issued_at=RECORDED_AT,
+    )
+
+    cases = (
+        lambda: EvidenceOperatorSpecApprovalActor(
+            actor_id="",
+            kind=EvidenceOperatorSpecApprovalActorKind.SERVICE,
+            is_staff=False,
+        ),
+        lambda: _subject(definition_hash="BAD"),
+        lambda: EvidenceOperatorSpecApprovalSubject.create(
+            subject_id="subject:bad-supersedes",
+            subject_version="1",
+            operator_id="sector-score",
+            operator_version="1",
+            definition_hash=HASH_A,
+            supersedes_activation_hash="BAD",
+            requested_by=_requester(),
+            requested_at=REQUESTED_AT,
+            valid_until=VALID_UNTIL,
+        ),
+        lambda: EvidenceOperatorSpecApprovalSubject.create(
+            subject_id="subject:naive",
+            subject_version="1",
+            operator_id="sector-score",
+            operator_version="1",
+            definition_hash=HASH_A,
+            supersedes_activation_hash=None,
+            requested_by=_requester(),
+            requested_at=datetime(2026, 8, 12, 8),
+            valid_until=VALID_UNTIL,
+        ),
+        lambda: EvidenceOperatorSpecApprovalActor(
+            actor_id="user:invalid",
+            kind=EvidenceOperatorSpecApprovalActorKind.HUMAN,
+            is_staff=True,
+            user_id=0,
+        ),
+        lambda: EvidenceOperatorSpecApprovalActor(
+            actor_id="user:invalid-kind",
+            kind=cast(EvidenceOperatorSpecApprovalActorKind, "human"),
+            is_staff=True,
+            user_id=1,
+        ),
+        lambda: EvidenceOperatorSpecApprovalActor(
+            actor_id="user:invalid-staff",
+            kind=EvidenceOperatorSpecApprovalActorKind.HUMAN,
+            is_staff=cast(bool, 1),
+            user_id=1,
+        ),
+        lambda: EvidenceOperatorSpecApprovalActor(
+            actor_id="service:invalid-identity",
+            kind=EvidenceOperatorSpecApprovalActorKind.SERVICE,
+            is_staff=False,
+            user_id=1,
+        ),
+        lambda: replace(
+            subject,
+            requested_by=cast(EvidenceOperatorSpecApprovalActor, object()),
+        ),
+        lambda: replace(subject, requested_at=subject.valid_until),
+        lambda: replace(approval, owner="research"),
+        lambda: replace(
+            approval,
+            subject=cast(EvidenceOperatorSpecApprovalSubject, object()),
+        ),
+        lambda: replace(
+            approval,
+            approved_by=cast(EvidenceOperatorSpecApprovalActor, object()),
+        ),
+        lambda: replace(
+            approval,
+            valid_until=approval.valid_until - timedelta(seconds=1),
+        ),
+        lambda: replace(approval, issued_at=approval.valid_until),
+    )
+
+    for case in cases:
+        with pytest.raises((TypeError, ValueError)):
+            case()
+
+
 @pytest.mark.parametrize(
     "value",
     [
@@ -386,4 +476,4 @@ def test_codec_round_trip_is_canonical_and_rejects_tamper() -> None:
 )
 def test_commands_are_frozen(value: object) -> None:
     with pytest.raises((AttributeError, TypeError)):
-        setattr(value, "as_of", RECORDED_AT)
+        value.as_of = RECORDED_AT

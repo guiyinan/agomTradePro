@@ -6,6 +6,7 @@ import pytest
 
 from apps.regime.domain.action_mapper import (
     ActionMapperConfig,
+    cached_action_is_stale,
     map_regime_pulse_to_action,
 )
 
@@ -271,3 +272,64 @@ class TestMapRegimePulseToAction:
 def test_action_mapper_config_rejects_nonfinite_limits():
     with pytest.raises(ValueError, match="max_risk_budget"):
         ActionMapperConfig(max_risk_budget=float("nan"))
+
+
+def test_cached_action_rejects_negative_tolerance_and_future_observation() -> None:
+    with pytest.raises(ValueError, match="non-negative"):
+        cached_action_is_stale(
+            date(2026, 9, 5),
+            as_of_date=date(2026, 9, 6),
+            max_business_days=-1,
+        )
+
+    assert cached_action_is_stale(
+        date(2026, 9, 7),
+        as_of_date=date(2026, 9, 6),
+    )
+
+
+def test_action_mapper_rejects_invalid_strong_factor() -> None:
+    with pytest.raises(ValueError, match="strong_risk_factor"):
+        ActionMapperConfig(strong_risk_factor=0.0)
+
+
+def test_action_mapper_rejects_empty_and_duplicate_weight_categories() -> None:
+    common = {
+        "regime_name": "Recovery",
+        "risk_budget": 0.85,
+        "sectors": [],
+        "styles": [],
+        "reasoning": "test",
+        "pulse_composite_score": 0.0,
+        "pulse_regime_strength": "moderate",
+        "confidence": 0.8,
+        "as_of_date": date(2026, 9, 6),
+    }
+
+    with pytest.raises(ValueError, match="must not be empty"):
+        map_regime_pulse_to_action(weight_ranges=[], **common)
+    with pytest.raises(ValueError, match="non-empty and unique"):
+        map_regime_pulse_to_action(
+            weight_ranges=[
+                {"category": "equity", "lower": 0.0, "upper": 0.0},
+                {"category": "equity", "lower": 0.0, "upper": 0.0},
+            ],
+            **common,
+        )
+
+
+def test_action_mapper_preserves_zero_total_without_division() -> None:
+    result = map_regime_pulse_to_action(
+        regime_name="Recovery",
+        weight_ranges=[{"category": "equity", "lower": 0.0, "upper": 0.0}],
+        risk_budget=0.0,
+        sectors=[],
+        styles=[],
+        reasoning="zero allocation",
+        pulse_composite_score=0.0,
+        pulse_regime_strength="moderate",
+        confidence=0.0,
+        as_of_date=date(2026, 9, 6),
+    )
+
+    assert result.asset_weights == {"equity": 0.0}

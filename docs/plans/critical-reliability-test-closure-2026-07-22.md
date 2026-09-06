@@ -365,3 +365,29 @@ SHA-256=`017983ca9ae2efaa3e70e2342bb922cf1bbc48095dc83f366fcd832fee9a96cb`。DAT
 `execution_focus.unit_id` 回到 `null`；Research/Signal 两个 line exception 与剩余 9 个 branch 恢复目标
 继续作为 P2 债务。未修改生产代码、cutover evidence、生产候选或历史 migration，未合并 `main`、
 未部署、未读写生产数据库，也没有重复触发 Nightly。
+
+## 2026-09-06 DATA-12：剩余 Domain coverage 恢复总清零
+
+`DATA-12` 作为唯一 repository focus 启动，范围固定为 DATA-11 的 immutable Nightly artifact
+`9974233955` 中尚未恢复的全部 P2 debt：Research/Signal line 回到共享 `90.0%`；Agent Runtime、
+Audit、Data Center、Operational Readiness、Policy、Portfolio、Regime、Risk Center、Signal branch
+分别回到 `100.0/84.7/87.1/100.0/79.0/85.5/79.7/97.2/86.1%`。
+
+在生产代码分母不变时，最低新增量为 Research `243 lines`、Signal `25 lines`，以及合计 `496`
+branch arcs（依次为 `14/5/84/4/2/243/19/40/85`）。执行分为小域、Signal/Data Center、
+Portfolio/Risk/Research 三个内部批次；每批新增测试必须与 run `33976314247` 的原 missing
+lines/arcs 精确求交。只有全部目标在同一个 exact-commit complete coverage artifact 中同时满足，才
+允许删除最后两个 line exception、上调 9 个 branch floor 并关闭 DATA-12。不得降低 baseline、删除
+可执行生产逻辑、修改 production cutover evidence、合并 `main` 或部署。
+
+本地实现门已于 2026-09-06 通过。以 artifact `9974233955` 的 missing sets 为固定真源，当前测试
+精确命中 Research `245/243`、Signal `94/25` 个所需旧缺行；9 个 branch scope 依次命中
+Agent Runtime `14/14`、Audit `5/5`、Data Center `89/84`、Operational Readiness `4/4`、
+Policy `2/2`、Portfolio `244/243`、Regime `19/19`、Risk Center `43/40`、Signal `94/85`
+个所需旧缺 arc。生产分母不变时，投影值已全部越过登记目标。全部 23 个改动测试文件联合回归
+`346 passed`，Black、isort、Ruff 均通过；未修改生产代码。
+
+这仍是本地候选证据，不代替完整 Nightly。当前 baseline 保持原值，`DATA-12` 保持 `active`；下一步
+仅为把同一批改动提交并推送至 `origin/dev/next-development`，触发一次 GitHub Python 3.11
+Nightly，并由该 exact-commit 的完整 coverage artifact 复核分子、分母。只有 Nightly 全绿后才删除
+Research/Signal 两项 line exception、上调 9 项 branch floor 并登记 closure evidence。

@@ -1,8 +1,10 @@
 """Contracts for the Signal-owned R7 realization manifest bridge."""
 
-from dataclasses import fields
+from dataclasses import fields, replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from types import SimpleNamespace
+from typing import cast
 from uuid import UUID
 
 import pytest
@@ -19,6 +21,7 @@ from apps.signal.domain.forecast_realization_owner import (
     ForecastRealizationManifest,
     ForecastRealizationManifestSource,
     ForecastRealizationMemberSource,
+    ForecastRealizationReceipt,
     forecast_observation_hash_from_values,
 )
 from apps.signal.domain.forecast_scenario_evidence import ScenarioForecastBinding
@@ -45,40 +48,55 @@ def _binding() -> ScenarioForecastBinding:
     )
 
 
-def _member_source() -> ForecastRealizationMemberSource:
-    outcome = _outcome()
-    observation_hash = forecast_observation_hash_from_values(
+def _member_source(
+    *,
+    entry_id: str = "forecast-1",
+    observation_id: str = "forecast-1",
+    outcome: ForecastOutcomeOwnerRecord | None = None,
+    expected_observation_hash: str | None = None,
+    outcome_evidence_valid_until: datetime = VALID_UNTIL,
+    available_at: datetime = MEMBER_AVAILABLE_AT,
+) -> ForecastRealizationMemberSource:
+    owner_outcome = outcome or _outcome()
+    observation_hash = expected_observation_hash or forecast_observation_hash_from_values(
         observation_version="r7-forecast-observation.v1",
-        observation_id="forecast-1",
-        entry_id="forecast-1",
+        observation_id=observation_id,
+        entry_id=owner_outcome.entry_id,
         forecast_group_id="forecast-group-1",
-        binding=outcome.binding,
-        pit_manifest_id=outcome.pit_manifest_id,
+        binding=owner_outcome.binding,
+        pit_manifest_id=owner_outcome.pit_manifest_id,
         pit_manifest_version="pit-manifest.v1",
         pit_manifest_hash="c" * 64,
         censoring_rule_version="censoring.v1",
-        published_at=outcome.published_at,
-        horizon_end=outcome.horizon_end,
-        scenario_realized=outcome.scenario_realized,
-        outcome_recorded_at=outcome.outcome_recorded_at,
-        outcome_evidence_valid_until=VALID_UNTIL,
+        published_at=owner_outcome.published_at,
+        horizon_end=owner_outcome.horizon_end,
+        scenario_realized=owner_outcome.scenario_realized,
+        outcome_recorded_at=owner_outcome.outcome_recorded_at,
+        outcome_evidence_valid_until=outcome_evidence_valid_until,
     )
     return ForecastRealizationMemberSource.create(
-        entry_id="forecast-1",
-        observation_id="forecast-1",
+        entry_id=entry_id,
+        observation_id=observation_id,
         observation_version="r7-forecast-observation.v1",
         expected_observation_hash=observation_hash,
         forecast_group_id="forecast-group-1",
         pit_manifest_version="pit-manifest.v1",
         pit_manifest_hash="c" * 64,
         censoring_rule_version="censoring.v1",
-        outcome_evidence_valid_until=VALID_UNTIL,
-        available_at=MEMBER_AVAILABLE_AT,
-        evidence_ref="forecast-outcome:forecast-1",
+        outcome_evidence_valid_until=outcome_evidence_valid_until,
+        available_at=available_at,
+        evidence_ref=f"forecast-outcome:{entry_id}",
     )
 
 
-def _source() -> ForecastRealizationManifestSource:
+def _source(
+    *,
+    members: tuple[ForecastRealizationMemberSource, ...] | None = None,
+    period_start: datetime = PERIOD_START,
+    period_end: datetime = PERIOD_END,
+    available_at: datetime = MANIFEST_AVAILABLE_AT,
+    valid_until: datetime = VALID_UNTIL,
+) -> ForecastRealizationManifestSource:
     return ForecastRealizationManifestSource.create(
         owner_record_id="realization-manifest-1",
         owner_record_version="manifest.v1",
@@ -90,12 +108,12 @@ def _source() -> ForecastRealizationManifestSource:
         period_id="period-1",
         period_version="period.v1",
         period_hash="b" * 64,
-        period_start=PERIOD_START,
-        period_end=PERIOD_END,
-        available_at=MANIFEST_AVAILABLE_AT,
-        valid_until=VALID_UNTIL,
+        period_start=period_start,
+        period_end=period_end,
+        available_at=available_at,
+        valid_until=valid_until,
         evidence_ref="forecast-realization-manifest:1",
-        members=(_member_source(),),
+        members=members if members is not None else (_member_source(),),
     )
 
 
@@ -376,3 +394,187 @@ def test_outcome_validator_override_cannot_enter_manifest_draft() -> None:
         ForecastRealizationManifest.from_sources(
             source=_source(), outcomes=(outcome,), recorded_at=RECORDED_AT
         )
+
+
+def test_realization_source_and_outcome_contracts_reject_substitution() -> None:
+    member = _member_source()
+    outcome = _outcome()
+    source = _source()
+    early_member = _member_source(
+        available_at=PERIOD_END - timedelta(hours=1),
+    )
+    fake_member = cast(
+        ForecastRealizationMemberSource,
+        SimpleNamespace(entry_id="forecast-1"),
+    )
+
+    cases = (
+        lambda: replace(member, entry_id=""),
+        lambda: replace(member, expected_observation_hash="BAD"),
+        lambda: replace(member, available_at=MEMBER_AVAILABLE_AT.replace(tzinfo=None)),
+        lambda: replace(
+            outcome,
+            binding=cast(ScenarioForecastBinding, object()),
+        ),
+        lambda: replace(member, source_version="member.v2"),
+        lambda: replace(member, available_at=member.outcome_evidence_valid_until),
+        lambda: replace(member, content_hash="d" * 64),
+        lambda: replace(outcome, source_version="outcome.v2"),
+        lambda: replace(outcome, scenario_realized=cast(bool, 1)),
+        lambda: replace(outcome, outcome_recorded_at=outcome.published_at),
+        lambda: replace(source, source_version="manifest-source.v2"),
+        lambda: replace(source, period_end=source.period_start),
+        lambda: replace(source, members=()),
+        lambda: _source(members=(member, member)),
+        lambda: replace(source, members=(fake_member,)),
+        lambda: _source(members=(early_member,)),
+        lambda: replace(source, content_hash="d" * 64),
+    )
+
+    for case in cases:
+        with pytest.raises((TypeError, ValueError)):
+            case()
+
+
+def test_realization_receipt_rejects_identity_hash_and_clock_substitution() -> None:
+    metadata = _member_source()
+    outcome = _outcome()
+    manifest = ForecastRealizationManifest.from_sources(
+        source=_source(),
+        outcomes=(outcome,),
+        recorded_at=RECORDED_AT,
+    )
+    receipt = manifest.members[0]
+    different_metadata = _member_source(
+        entry_id="forecast-2",
+        observation_id="forecast-2",
+        expected_observation_hash="d" * 64,
+    )
+    mismatched_hash_metadata = _member_source(
+        expected_observation_hash="d" * 64,
+    )
+
+    cases = (
+        lambda: ForecastRealizationReceipt.from_sources(
+            metadata=cast(ForecastRealizationMemberSource, object()),
+            outcome=outcome,
+            recorded_at=RECORDED_AT,
+        ),
+        lambda: ForecastRealizationReceipt.from_sources(
+            metadata=metadata,
+            outcome=cast(ForecastOutcomeOwnerRecord, object()),
+            recorded_at=RECORDED_AT,
+        ),
+        lambda: ForecastRealizationReceipt.from_sources(
+            metadata=different_metadata,
+            outcome=outcome,
+            recorded_at=RECORDED_AT,
+        ),
+        lambda: ForecastRealizationReceipt.from_sources(
+            metadata=mismatched_hash_metadata,
+            outcome=outcome,
+            recorded_at=RECORDED_AT,
+        ),
+        lambda: replace(receipt, receipt_version="receipt.v2"),
+        lambda: replace(receipt, observation_id="forecast-2"),
+        lambda: replace(receipt, scenario_realized=cast(bool, 1)),
+        lambda: forecast_observation_hash_from_values(
+            observation_version="r7-forecast-observation.v1",
+            observation_id="forecast-2",
+            entry_id="forecast-1",
+            forecast_group_id="forecast-group-1",
+            binding=outcome.binding,
+            pit_manifest_id=outcome.pit_manifest_id,
+            pit_manifest_version="pit-manifest.v1",
+            pit_manifest_hash="c" * 64,
+            censoring_rule_version="censoring.v1",
+            published_at=outcome.published_at,
+            horizon_end=outcome.horizon_end,
+            scenario_realized=outcome.scenario_realized,
+            outcome_recorded_at=outcome.outcome_recorded_at,
+            outcome_evidence_valid_until=VALID_UNTIL,
+        ),
+    )
+
+    for case in cases:
+        with pytest.raises((TypeError, ValueError)):
+            case()
+
+
+def test_realization_manifest_rejects_membership_authority_and_seal_forks() -> None:
+    source = _source()
+    outcome = _outcome()
+    manifest = ForecastRealizationManifest.from_sources(
+        source=source,
+        outcomes=(outcome,),
+        recorded_at=RECORDED_AT,
+    )
+    fake_receipt = cast(
+        ForecastRealizationReceipt,
+        SimpleNamespace(entry_id="forecast-1"),
+    )
+    short_horizon_outcome = ForecastOutcomeOwnerRecord.create(
+        entry_id="forecast-1",
+        binding=_binding(),
+        pit_manifest_id="pit-1",
+        published_at=PUBLISHED_AT,
+        horizon_end=PERIOD_END - timedelta(days=1),
+        scenario_realized=True,
+        outcome_recorded_at=OUTCOME_RECORDED_AT,
+    )
+    short_horizon_receipt = ForecastRealizationReceipt.from_sources(
+        metadata=_member_source(outcome=short_horizon_outcome),
+        outcome=short_horizon_outcome,
+        recorded_at=RECORDED_AT,
+    )
+    later_receipt = ForecastRealizationReceipt.from_sources(
+        metadata=_member_source(),
+        outcome=outcome,
+        recorded_at=RECORDED_AT + timedelta(hours=1),
+    )
+    shorter_evidence_receipt = ForecastRealizationReceipt.from_sources(
+        metadata=_member_source(
+            outcome_evidence_valid_until=VALID_UNTIL - timedelta(hours=1),
+        ),
+        outcome=outcome,
+        recorded_at=RECORDED_AT,
+    )
+
+    cases = (
+        lambda: ForecastRealizationManifest.from_sources(
+            source=cast(ForecastRealizationManifestSource, object()),
+            outcomes=(outcome,),
+            recorded_at=RECORDED_AT,
+        ),
+        lambda: ForecastRealizationManifest.from_sources(
+            source=source,
+            outcomes=cast(tuple[ForecastOutcomeOwnerRecord, ...], []),
+            recorded_at=RECORDED_AT,
+        ),
+        lambda: ForecastRealizationManifest.from_sources(
+            source=source,
+            outcomes=cast(tuple[ForecastOutcomeOwnerRecord, ...], (object(),)),
+            recorded_at=RECORDED_AT,
+        ),
+        lambda: replace(manifest, owner="research"),
+        lambda: replace(manifest, recorded_at=manifest.period_end),
+        lambda: replace(manifest, research_only=False),
+        lambda: replace(manifest, members=()),
+        lambda: replace(manifest, members=(fake_receipt,)),
+        lambda: replace(manifest, members=(short_horizon_receipt,)),
+        lambda: replace(manifest, members=(later_receipt,)),
+        lambda: replace(manifest, members=(shorter_evidence_receipt,)),
+        lambda: replace(manifest, payload_hash="d" * 64),
+        lambda: replace(manifest, content_hash="d" * 64),
+    )
+
+    for case in cases:
+        with pytest.raises((TypeError, ValueError)):
+            case()
+
+    class _ManifestSubclass(ForecastRealizationManifest):
+        pass
+
+    substituted = _ManifestSubclass(**manifest.__dict__)
+    with pytest.raises(TypeError, match="exact Domain type"):
+        substituted.validated_copy()

@@ -158,3 +158,79 @@ def test_result_rejects_non_normalized_distribution() -> None:
             distribution={regime.value: 0.1 for regime in RegimeType},
             trend_indicators=[],
         )
+
+
+def test_momentum_rejects_non_list_history() -> None:
+    with pytest.raises(ValueError, match="series must be a list"):
+        calculate_momentum_simple((49.0, 50.0), period=1)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"indicator_code": ""}, "indicator_code"),
+        ({"strength": "extreme"}, "strength"),
+    ],
+)
+def test_trend_indicator_rejects_missing_code_and_unknown_strength(
+    overrides: dict[str, object],
+    message: str,
+) -> None:
+    values: dict[str, object] = {
+        "indicator_code": "PMI",
+        "current_value": 50.0,
+        "momentum": 0.1,
+        "momentum_z": 0.2,
+        "direction": "up",
+        "strength": "moderate",
+    }
+    values.update(overrides)
+
+    with pytest.raises(ValueError, match=message):
+        TrendIndicator(**values)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"regime": "Recovery"}, "RegimeType"),
+        ({"confidence": -0.1}, "confidence"),
+        ({"distribution": {"Recovery": 1.0}}, "every Regime"),
+        (
+            {
+                "distribution": {
+                    "Recovery": 1.2,
+                    "Overheat": 0.0,
+                    "Stagflation": 0.0,
+                    "Deflation": 0.0,
+                }
+            },
+            "between 0 and 1",
+        ),
+        ({"growth_state": "accelerating"}, "growth_state"),
+        ({"inflation_state": "surging"}, "inflation_state"),
+        ({"trend_indicators": [object()]}, "TrendIndicator"),
+        ({"warnings": [17]}, "warnings"),
+        ({"prediction": 17}, "prediction"),
+    ],
+)
+def test_regime_result_rejects_invalid_public_contract_fields(
+    overrides: dict[str, object],
+    message: str,
+) -> None:
+    values: dict[str, object] = {
+        "regime": RegimeType.RECOVERY,
+        "confidence": 0.25,
+        "growth_level": 51.0,
+        "inflation_level": 1.0,
+        "growth_state": "expansion",
+        "inflation_state": "low",
+        "distribution": {regime.value: 0.25 for regime in RegimeType},
+        "trend_indicators": [],
+        "warnings": [],
+        "prediction": None,
+    }
+    values.update(overrides)
+
+    with pytest.raises(ValueError, match=message):
+        RegimeCalculationResult(**values)  # type: ignore[arg-type]

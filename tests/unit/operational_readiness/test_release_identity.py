@@ -9,6 +9,15 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import override_settings
 
+from apps.operational_readiness.domain.release_identity import (
+    BuildIdentity,
+    BuildIdentityEvidence,
+    ReleaseIdentityEvidence,
+    ReleaseManifest,
+    ReleaseManifestEvidence,
+    verify_release_identity,
+)
+
 SOURCE_COMMIT = "7fe4b2ef60f9a5c044911f9d5026303177bd18aa"
 OTHER_COMMIT = "8ae5c3fa71a0b6d155a220ae6137414288ce29bb"
 
@@ -36,6 +45,87 @@ def _release_manifest(*, source_commit: str = SOURCE_COMMIT) -> dict[str, object
         "build_finished_at": "2026-08-16T11:20:17Z",
         "source_mode": "git-clone",
     }
+
+
+def _domain_build_identity(
+    *,
+    source_commit: str = SOURCE_COMMIT,
+    app_version: str = "0.8.0",
+) -> BuildIdentity:
+    return BuildIdentity(
+        schema_version=1,
+        app_version=app_version,
+        source_commit=source_commit,
+    )
+
+
+def _domain_release_manifest(*, source_commit: str = SOURCE_COMMIT) -> ReleaseManifest:
+    return ReleaseManifest(
+        schema_version=1,
+        release_tag="20260816112017",
+        source_commit=source_commit,
+        image_tag="agomtradepro-web:20260816112017",
+        image_id=f"sha256:{'a' * 64}",
+        build_started_at="2026-08-16T11:18:00Z",
+        build_finished_at="2026-08-16T11:20:17Z",
+        source_mode="git-clone",
+    )
+
+
+def test_release_identity_domain_preserves_build_commit_when_manifest_is_missing() -> None:
+    result = verify_release_identity(
+        ReleaseIdentityEvidence(
+            build=BuildIdentityEvidence(status="valid", value=_domain_build_identity()),
+            release=ReleaseManifestEvidence(status="missing"),
+        ),
+        fallback_app_version="0.8.0",
+    )
+
+    assert result.status == "unavailable"
+    assert result.source_commit == SOURCE_COMMIT
+
+
+def test_release_identity_domain_rejects_invalid_or_contradictory_evidence() -> None:
+    invalid = verify_release_identity(
+        ReleaseIdentityEvidence(
+            build=BuildIdentityEvidence(status="invalid"),
+            release=ReleaseManifestEvidence(status="missing"),
+        ),
+        fallback_app_version="0.8.0",
+    )
+    contradictory = verify_release_identity(
+        ReleaseIdentityEvidence(
+            build=BuildIdentityEvidence(status="valid"),
+            release=ReleaseManifestEvidence(
+                status="valid",
+                value=_domain_release_manifest(),
+            ),
+        ),
+        fallback_app_version="0.8.0",
+    )
+
+    assert invalid.status == "invalid"
+    assert contradictory.status == "invalid"
+    assert contradictory.blocked_reason == "部署身份凭证状态与内容不一致。"
+
+
+def test_release_identity_domain_rejects_application_version_mismatch() -> None:
+    result = verify_release_identity(
+        ReleaseIdentityEvidence(
+            build=BuildIdentityEvidence(
+                status="valid",
+                value=_domain_build_identity(app_version="0.7.9"),
+            ),
+            release=ReleaseManifestEvidence(
+                status="valid",
+                value=_domain_release_manifest(),
+            ),
+        ),
+        fallback_app_version="0.8.0",
+    )
+
+    assert result.status == "mismatch"
+    assert result.blocked_reason == "运行镜像中的应用版本与当前代码版本不一致。"
 
 
 @pytest.mark.django_db

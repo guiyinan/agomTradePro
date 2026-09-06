@@ -1,7 +1,7 @@
 """Contracts for Portfolio-owned R8 raw period feedback receipts."""
 
 from contextlib import nullcontext
-from dataclasses import fields
+from dataclasses import fields, replace
 from datetime import timedelta
 from decimal import Decimal
 
@@ -12,6 +12,7 @@ from apps.portfolio.application.r8_monitoring_feedback_registry import (
     RegisterPortfolioR8MonitoringFeedback,
     RegisterPortfolioR8MonitoringFeedbackCommand,
 )
+from apps.portfolio.domain import r8_monitoring_feedback_registry as feedback_contracts
 from apps.portfolio.domain.governed_optimization_monitoring_metrics import (
     MonitoringMetricKey,
 )
@@ -272,3 +273,123 @@ def test_feedback_registry_codec_is_strict_and_seal_preserving() -> None:
     source_payload["content_hash"] = "0" * 64
     with pytest.raises(PortfolioR8MonitoringFeedbackCodecError):
         decode_portfolio_r8_monitoring_feedback_source_receipt(source_payload)
+
+
+def _subclass_instance(value: object) -> object:
+    """Rebuild one dataclass as a strict subclass for exact-type contract tests."""
+
+    subclass = type(f"Data12{type(value).__name__}Subclass", (type(value),), {})
+    return subclass(**{item.name: getattr(value, item.name) for item in fields(value) if item.init})
+
+
+def test_data12_raw_feedback_graph_rejects_noncanonical_members_and_ratios() -> None:
+    """Cover every raw-member and ratio fail-closed branch retained by DATA-11."""
+
+    members = _members()
+    facts = _facts()
+    member = members[0]
+    raw_return = facts[0]
+    non_return = facts[1]
+    count_ratio = facts[5]
+    unsupported_metric = MonitoringMetricKey.TOTAL_COST_RATE
+    wrong_member_fact = PortfolioR8MonitoringRawRatio.create(
+        metric_key=raw_return.metric_key,
+        numerator=raw_return.numerator,
+        denominator=raw_return.denominator,
+        source_member_hashes=(members[1].content_hash,),
+    )
+
+    invalid_constructions = (
+        lambda: feedback_contracts._token(None, "value"),
+        lambda: feedback_contracts._hash("A" * 64, "digest"),
+        lambda: feedback_contracts._aware("not-a-clock", "clock"),
+        lambda: feedback_contracts._decimal(1, "number"),
+        lambda: replace(member, member_kind="performance_path"),
+        lambda: replace(member, available_at=member.observed_at - timedelta(seconds=1)),
+        lambda: PortfolioR8MonitoringRawRatio.create(
+            metric_key=unsupported_metric,
+            numerator=Decimal("0"),
+            denominator=Decimal("1"),
+            source_member_hashes=(member.content_hash,),
+        ),
+        lambda: PortfolioR8MonitoringRawRatio.create(
+            metric_key=raw_return.metric_key,
+            numerator=raw_return.numerator,
+            denominator=raw_return.denominator,
+            source_member_hashes=[member.content_hash],
+        ),
+        lambda: replace(raw_return, metric_key="net_realized_return"),
+        lambda: replace(raw_return, numerator_name="wrong-numerator"),
+        lambda: replace(raw_return, denominator=Decimal("0")),
+        lambda: replace(
+            raw_return,
+            numerator=Decimal("-2"),
+            denominator=Decimal("1"),
+        ),
+        lambda: replace(non_return, numerator=Decimal("-1")),
+        lambda: replace(non_return, numerator=Decimal("2"), denominator=Decimal("1")),
+        lambda: replace(count_ratio, numerator=Decimal("0.5")),
+        lambda: replace(raw_return, source_member_hashes=()),
+        lambda: replace(raw_return, content_hash="0" * 64),
+        lambda: feedback_contracts._canonical_members(list(members)),
+        lambda: feedback_contracts._canonical_members((object(), *members[1:])),
+        lambda: feedback_contracts._canonical_members(members[1:]),
+        lambda: feedback_contracts._canonical_members(
+            (members[0], replace(members[1], content_hash=members[0].content_hash), *members[2:])
+        ),
+        lambda: feedback_contracts._canonical_facts(list(facts), members),
+        lambda: feedback_contracts._canonical_facts((object(), *facts[1:]), members),
+        lambda: feedback_contracts._canonical_facts(facts[1:], members),
+        lambda: feedback_contracts._canonical_facts((wrong_member_fact, *facts[1:]), members),
+    )
+
+    for construct in invalid_constructions:
+        with pytest.raises((TypeError, ValueError)):
+            construct()
+
+    with pytest.raises(TypeError, match="source member type differs"):
+        _subclass_instance(member).validated_copy()  # type: ignore[attr-defined]
+    with pytest.raises(TypeError, match="raw ratio type differs"):
+        _subclass_instance(raw_return).validated_copy()  # type: ignore[attr-defined]
+    altered_raw = replace(raw_return)
+    object.__setattr__(altered_raw, "content_hash", "0" * 64)
+    with pytest.raises(ValueError, match="differs after replay"):
+        altered_raw.validated_copy()
+
+
+def test_data12_feedback_definition_and_source_reject_identity_or_clock_drift() -> None:
+    """Cover the sealed feedback, definition, and independent receipt boundaries."""
+
+    feedback = _feedback()
+    definition = _definition()
+    source = _source()
+    invalid_constructions = (
+        lambda: replace(feedback, feedback_version="unsupported"),
+        lambda: replace(feedback, period_end_at=feedback.period_start_at),
+        lambda: replace(feedback, available_at=feedback.observed_at - timedelta(seconds=1)),
+        lambda: replace(feedback, content_hash="0" * 64),
+        lambda: PortfolioR8MonitoringFeedbackDefinition.from_feedback(object()),
+        lambda: replace(definition, definition_version="unsupported"),
+        lambda: replace(definition, feedback=object()),
+        lambda: replace(source, source_receipt_version="unsupported"),
+        lambda: replace(source, source_owner="research"),
+        lambda: replace(source, valid_until=source.available_at),
+        lambda: replace(source, content_hash="0" * 64),
+    )
+    for construct in invalid_constructions:
+        with pytest.raises((TypeError, ValueError)):
+            construct()
+
+    for value, match in (
+        (feedback, "feedback type differs"),
+        (definition, "definition type differs"),
+        (source, "source receipt type differs"),
+    ):
+        with pytest.raises(TypeError, match=match):
+            _subclass_instance(value).validated_copy()  # type: ignore[attr-defined]
+
+    for value in (feedback, definition, source):
+        altered = replace(value)
+        object.__setattr__(altered, "content_hash", "0" * 64)
+        with pytest.raises(ValueError, match="differs after replay"):
+            altered.validated_copy()  # type: ignore[attr-defined]

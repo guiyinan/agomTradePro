@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import fields, replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
 
+from apps.portfolio.domain import macro_factor_risk_optimizer as optimizer_contracts
 from apps.portfolio.domain.macro_factor_risk import (
     FactorCovarianceVersion,
     MacroRiskCandidateKind,
@@ -420,3 +421,155 @@ def test_source_and_policy_use_exclusive_valid_until() -> None:
     assert source_boundary.blockers[0].code is MacroRiskOptimizationBlockerCode.SOURCE_NOT_ACTIVE
     assert policy_boundary.status is MacroRiskOptimizationStatus.BLOCKED
     assert policy_boundary.blockers[0].code is MacroRiskOptimizationBlockerCode.POLICY_NOT_ACTIVE
+
+
+def test_data12_optimizer_seals_reject_invalid_primitives_and_owner_graphs() -> None:
+    """Restore the retained fail-closed branches on source and policy contracts."""
+
+    source = _source()
+    policy = _policy()
+    invalid_constructions = (
+        lambda: optimizer_contracts._require_text("", "text"),
+        lambda: optimizer_contracts._require_text("x" * 161, "text"),
+        lambda: optimizer_contracts._require_decimal(1, "number"),
+        lambda: optimizer_contracts._require_utc(datetime(2026, 1, 1), "clock"),
+        lambda: optimizer_contracts._require_utc(
+            datetime(2026, 1, 1, tzinfo=timezone(timedelta(hours=8))),
+            "clock",
+        ),
+        lambda: optimizer_contracts._require_hash("short", "digest"),
+        lambda: optimizer_contracts._require_hash("g" * 64, "digest"),
+        lambda: replace(source.constraints[0], current_weight=Decimal("-1")),
+        lambda: replace(
+            source.constraints[0],
+            minimum_weight=Decimal("0.8"),
+            maximum_weight=Decimal("0.2"),
+        ),
+        lambda: replace(source.constraints[0], maximum_trade_weight=Decimal("-1")),
+        lambda: replace(source.constraints[0], transaction_cost_rate=Decimal("-1")),
+        lambda: replace(source, valid_until=source.selection_as_of),
+        lambda: replace(source, exposure_version=object()),
+        lambda: replace(source, factor_covariance_version=object()),
+        lambda: replace(source, asset_covariance=object()),
+        lambda: replace(source, constraints=()),
+        lambda: replace(source, constraints=tuple(reversed(source.constraints))),
+        lambda: replace(source, constraints=source.constraints[:1]),
+        lambda: replace(
+            source,
+            factor_covariance_version=replace(
+                source.factor_covariance_version,
+                factor_codes=tuple(reversed(source.factor_covariance_version.factor_codes)),
+            ),
+        ),
+        lambda: replace(
+            source,
+            factor_covariance_version=replace(
+                source.factor_covariance_version,
+                pit_manifest_id="different-pit-manifest",
+            ),
+        ),
+        lambda: replace(
+            source,
+            selection_as_of=source.exposure_version.observed_at - timedelta(seconds=1),
+        ),
+        lambda: replace(source, content_hash="0" * 64),
+        lambda: replace(policy, method="coordinate-transfer"),
+        lambda: replace(policy, validation_policy=object()),
+        lambda: replace(policy, tolerance=Decimal("0")),
+        lambda: replace(policy, max_iterations=True),
+        lambda: replace(policy, max_iterations=0),
+        lambda: replace(
+            policy,
+            tolerance=policy.validation_policy.macro_risk_parity_tolerance + Decimal("0.01"),
+        ),
+        lambda: replace(policy, valid_until=policy.activated_at),
+        lambda: replace(policy, policy_hash="0" * 64),
+    )
+
+    for construct in invalid_constructions:
+        with pytest.raises((TypeError, ValueError)):
+            construct()
+
+
+def test_data12_optimizer_outcomes_preserve_research_only_shape() -> None:
+    """Exercise solution/family invariants and numerical degeneracy branches."""
+
+    source = _source()
+    policy = _policy()
+    result = build_macro_risk_candidate_family(
+        source=source,
+        policy=policy,
+        evaluated_at=source.selection_as_of,
+    )
+    solution = result.solutions[0]
+    invalid_constructions = (
+        lambda: replace(solution, iterations=-1),
+        lambda: replace(solution, convergence_error=Decimal("-1")),
+        lambda: replace(solution, usage_scope="decision"),
+        lambda: replace(solution, must_not_execute=False),
+        lambda: replace(result, solutions=result.solutions[:2]),
+        lambda: replace(
+            result,
+            status=MacroRiskOptimizationStatus.BLOCKED,
+            solutions=(),
+            blockers=(),
+        ),
+        lambda: replace(result, usage_scope="decision"),
+        lambda: replace(result, must_not_use_for_decision=False),
+        lambda: replace(result, content_hash="0" * 64),
+        lambda: build_macro_risk_candidate_family(
+            source=object(),
+            policy=policy,
+            evaluated_at=source.selection_as_of,
+        ),
+        lambda: build_macro_risk_candidate_family(
+            source=source,
+            policy=object(),
+            evaluated_at=source.selection_as_of,
+        ),
+    )
+    for construct in invalid_constructions:
+        with pytest.raises((TypeError, ValueError)):
+            construct()
+
+    tolerance = Decimal("0.00000001")
+    zero = ((Decimal("0"), Decimal("0")), (Decimal("0"), Decimal("0")))
+    zero_pivot = ((Decimal("0"), Decimal("0")), (Decimal("1"), Decimal("1")))
+    assert optimizer_contracts._is_psd(zero, tolerance) is True
+    assert optimizer_contracts._is_psd(zero_pivot, tolerance) is False
+    assert optimizer_contracts._matrix_rank(zero, tolerance) == 0
+    assert (
+        optimizer_contracts._risk_parity_error(
+            (Decimal("0.5"), Decimal("0.5")),
+            zero,
+            tolerance,
+        )
+        is None
+    )
+
+    macro_zero_source = _source()
+    object.__setattr__(macro_zero_source.factor_covariance_version, "values", zero)
+    assert (
+        optimizer_contracts._macro_risk_parity_error(
+            (Decimal("0.5"), Decimal("0.5")),
+            macro_zero_source,
+            tolerance,
+        )
+        is None
+    )
+    fixed_weights = optimizer_contracts._solve_risk_parity(
+        covariance=source.asset_covariance.values,
+        lower_bounds=(Decimal("0.5"), Decimal("0.5")),
+        upper_bounds=(Decimal("0.5"), Decimal("0.5")),
+        constraints=source.constraints,
+        policy=policy,
+    )
+    zero_error = optimizer_contracts._solve_risk_parity(
+        covariance=zero,
+        lower_bounds=(Decimal("0"), Decimal("0")),
+        upper_bounds=(Decimal("1"), Decimal("1")),
+        constraints=source.constraints,
+        policy=policy,
+    )
+    assert fixed_weights[0] == (Decimal("0.5"), Decimal("0.5"))
+    assert zero_error[2] is None

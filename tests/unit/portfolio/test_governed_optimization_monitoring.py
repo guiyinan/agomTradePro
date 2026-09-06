@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from contextlib import nullcontext
 from copy import deepcopy
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -562,3 +563,191 @@ def test_application_rejects_whitespace_uow_key_before_owner_reads() -> None:
         use_case.execute(command)
 
     assert raw_provider.calls == 0
+
+
+def test_data12_monitoring_owner_graph_rejects_every_unsealed_edge() -> None:
+    """Exercise the fail-closed branches on each nested monitoring owner contract."""
+
+    receipt, result = _receipt_and_result()
+    active = _active_result(result)
+    calendar = _calendar()
+    policy = _policy(calendar, active, receipt)
+    portfolio, _, observations = _facts(
+        calendar=calendar,
+        receipt=receipt,
+        result=result,
+    )
+    period = calendar.periods[0]
+    threshold = policy.thresholds[0]
+    target = policy.target
+    source = portfolio[0]
+    metric = observations[0].metrics[0]
+    observation = observations[0]
+    different_threshold = next(
+        item
+        for item in policy.thresholds
+        if (item.unit, item.direction, item.source_owner)
+        != (threshold.unit, threshold.direction, threshold.source_owner)
+    )
+    discontinuous = OptimizationMonitoringPeriod.create(
+        calendar_id=calendar.calendar_id,
+        calendar_version=calendar.calendar_version,
+        index=2,
+        start_at=calendar.periods[1].start_at + timedelta(hours=1),
+        end_at=calendar.periods[1].end_at + timedelta(hours=1),
+    )
+
+    invalid_constructions = (
+        lambda: replace(period, end_at=period.start_at),
+        lambda: replace(calendar, calendar_version="unsupported"),
+        lambda: replace(calendar, owner="research"),
+        lambda: replace(calendar, periods=[]),
+        lambda: replace(calendar, periods=(object(),)),
+        lambda: replace(calendar, periods=(replace(period, index=2), *calendar.periods[1:])),
+        lambda: replace(
+            calendar,
+            periods=(replace(period, period_id="wrong-period"), *calendar.periods[1:]),
+        ),
+        lambda: replace(
+            calendar,
+            periods=(calendar.periods[0], discontinuous, calendar.periods[2]),
+        ),
+        lambda: replace(calendar, recorded_at=calendar.periods[0].start_at + timedelta(seconds=1)),
+        lambda: replace(calendar, valid_until=calendar.periods[-1].end_at),
+        lambda: replace(calendar, content_hash="0" * 64),
+        lambda: replace(threshold, metric_key="not-a-metric"),
+        lambda: replace(
+            threshold,
+            unit=different_threshold.unit,
+            direction=different_threshold.direction,
+            source_owner=different_threshold.source_owner,
+        ),
+        lambda: replace(threshold, content_hash="0" * 64),
+        lambda: replace(target, upstream_promotions=list(target.upstream_promotions)),
+        lambda: replace(target, upstream_promotions=(object(),)),
+        lambda: replace(target, upstream_promotions=target.upstream_promotions[1:]),
+        lambda: replace(target, content_hash="0" * 64),
+        lambda: replace(policy, policy_version="unsupported"),
+        lambda: replace(policy, owner="portfolio"),
+        lambda: replace(policy, target=object()),
+        lambda: replace(policy, thresholds=list(policy.thresholds)),
+        lambda: replace(policy, thresholds=(object(), *policy.thresholds[1:])),
+        lambda: replace(policy, thresholds=tuple(reversed(policy.thresholds))),
+        lambda: replace(policy, recorded_at=policy.valid_until),
+        lambda: replace(
+            policy,
+            calendar_recorded_at=policy.recorded_at + timedelta(seconds=1),
+        ),
+        lambda: replace(policy, content_hash="0" * 64),
+        lambda: replace(policy, policy_id="r8_monitoring_policy:wrong"),
+        lambda: type(active).create(result=result, lifecycle_events=()),
+        lambda: replace(active, evidence_version="unsupported"),
+        lambda: replace(active, result=object()),
+        lambda: replace(active, lifecycle_events=list(active.lifecycle_events)),
+        lambda: replace(active, lifecycle_events=(object(),)),
+        lambda: replace(active, lifecycle_events=active.lifecycle_events[:1]),
+        lambda: replace(active, promotion_event_id="wrong-event"),
+        lambda: replace(active, content_hash="0" * 64),
+        lambda: replace(source, owner="portfolio"),
+        lambda: replace(source, metric_payload=list(source.metric_payload)),
+        lambda: replace(source, metric_payload=(object(), *source.metric_payload[1:])),
+        lambda: replace(source, metric_payload=source.metric_payload[1:]),
+        lambda: replace(source, available_at=source.observed_at - timedelta(seconds=1)),
+        lambda: replace(source, content_hash="0" * 64),
+        lambda: OptimizationMonitoringMetricObservation.create(
+            metric_key=metric.metric_key,
+            value=metric.value + Decimal("0.01"),
+            source_evidence=source,
+            evidence_namespace=metric.evidence_namespace,
+        ),
+        lambda: replace(metric, metric_key="not-a-metric"),
+        lambda: replace(
+            metric,
+            unit=different_threshold.unit,
+            source_owner=different_threshold.source_owner,
+        ),
+        lambda: replace(metric, available_at=metric.observed_at - timedelta(seconds=1)),
+        lambda: replace(metric, content_hash="0" * 64),
+        lambda: replace(observation, observation_version="unsupported"),
+        lambda: replace(observation, metrics=list(observation.metrics)),
+        lambda: replace(observation, metrics=(object(), *observation.metrics[1:])),
+        lambda: replace(observation, metrics=tuple(reversed(observation.metrics))),
+        lambda: replace(observation, content_hash="0" * 64),
+    )
+
+    for construct in invalid_constructions:
+        with pytest.raises((TypeError, ValueError)):
+            construct()
+
+
+def test_data12_monitoring_assessment_rejects_incoherent_outcome_shapes() -> None:
+    """Restore the assessment branch contract without manufacturing monitoring facts."""
+
+    healthy = _evaluate()
+    blocked = _evaluate(receipt_recorded_at=AS_OF + timedelta(seconds=1))
+    blocker = blocked.blocker_codes[0]
+
+    invalid_constructions = (
+        lambda: replace(healthy, assessment_version="unsupported"),
+        lambda: replace(healthy, status="healthy"),
+        lambda: replace(healthy, metric_results=list(healthy.metric_results)),
+        lambda: replace(healthy, observation_hashes=list(healthy.observation_hashes)),
+        lambda: replace(
+            healthy,
+            observation_hashes=(healthy.observation_hashes[0],) * 2,
+        ),
+        lambda: replace(healthy, metric_results=(object(), *healthy.metric_results[1:])),
+        lambda: replace(healthy, metric_results=tuple(reversed(healthy.metric_results))),
+        lambda: replace(blocked, blocker_codes=(object(),)),
+        lambda: replace(blocked, blocker_codes=(blocker, blocker)),
+        lambda: replace(blocked, latest_period_id="unexpected-period"),
+        lambda: replace(healthy, blocker_codes=(blocker,)),
+        lambda: replace(healthy, latest_period_id=None),
+        lambda: replace(healthy, observation_hashes=()),
+        lambda: replace(healthy, status=MonitoringAssessmentStatus.BREACHED),
+        lambda: replace(healthy, manual_retirement_review_required=True),
+        lambda: replace(healthy, automatic_retirement=1),
+        lambda: replace(healthy, research_only=False),
+        lambda: replace(healthy, content_hash="0" * 64),
+        lambda: replace(healthy, assessment_id="r8_monitoring_assessment:wrong"),
+    )
+
+    for construct in invalid_constructions:
+        with pytest.raises((TypeError, ValueError)):
+            construct()
+
+    receipt, result = _receipt_and_result()
+    active = _active_result(result)
+    calendar = _calendar()
+    policy = _policy(calendar, active, receipt)
+    portfolio, broker, observations = _facts(
+        calendar=calendar,
+        receipt=receipt,
+        result=result,
+    )
+    del portfolio, broker
+    different_policy = GovernedOptimizationMonitoringPolicy.create(
+        policy_id="r8-monitoring-policy:alternate:v1",
+        owner=policy.owner,
+        target=policy.target,
+        thresholds=policy.thresholds,
+        required_consecutive_breaches=policy.required_consecutive_breaches,
+        minimum_complete_periods=policy.minimum_complete_periods,
+        max_period_lag_seconds=policy.max_period_lag_seconds,
+        max_evidence_delay_seconds=policy.max_evidence_delay_seconds,
+        calendar=calendar,
+        recorded_at=policy.recorded_at,
+        valid_until=policy.valid_until,
+    )
+    with pytest.raises(ValueError, match="policy binding"):
+        healthy.validated_copy(
+            policy=different_policy,
+            calendar=calendar,
+            observations=observations,
+        )
+    with pytest.raises(ValueError, match="observation binding"):
+        healthy.validated_copy(
+            policy=policy,
+            calendar=calendar,
+            observations=tuple(reversed(observations)),
+        )

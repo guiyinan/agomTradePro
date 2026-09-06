@@ -1,14 +1,14 @@
 {
-  "version": "2026-09-06.v51",
+  "version": "2026-09-06.v52",
   "updated_at": "2026-09-06",
   "execution_focus": {
-    "unit_id": null,
+    "unit_id": "DATA-12",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Personal-project single-owner mode remains active, but signatures never manufacture authority rows, business definitions, retained observations, production outcomes or elapsed time. The deployed candidate remains aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812 / image sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c; DATA-02 remains non-writing and DENY, and the 2026-09-02 web-only restart requires a new real TUI-02 sample plus an exact 14-day window. DATA-11 completed on exact commit 9467ef288d4683164abb2e6ffa41868908673087 with GitHub Python 3.11 Nightly run 33976314247 fully green. Verified coverage artifact 9974233955 restores Broker Execution Domain to 90.64 percent line and 77.34 percent branch and Macro Factor Domain to 90.09 percent line; the Broker and Macro line exceptions were removed and the Broker branch floor was raised from 75.9 to 77.2 without lowering any floor. Content-addressed closure evidence is docs/testing/data11-domain-coverage-restoration-closure-evidence-2026-09-06.json with SHA-256 017983ca9ae2efaa3e70e2342bb922cf1bbc48095dc83f366fcd832fee9a96cb. No dependency-ready repository unit remains, so execution_focus is null. Production cutover evidence, candidate binding, historical migrations and all production gates remain unchanged. Authority/approval mutation, queued runtime, load/fault, live rollback and unsupported production writes remain denied."
+    "policy": "Personal-project single-owner mode remains active, but signatures never manufacture authority rows, business definitions, retained observations, production outcomes or elapsed time. The deployed candidate remains aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812 / image sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c; DATA-02 remains non-writing and DENY, and the 2026-09-02 web-only restart requires a new real TUI-02 sample plus an exact 14-day window. DATA-11 completed on exact commit 9467ef288d4683164abb2e6ffa41868908673087 with GitHub Python 3.11 Nightly run 33976314247 fully green. DATA-12 remains the sole repository focus, with its deterministic test implementation locally complete: exact intersection against artifact 9974233955 proves 245 Research and 94 Signal previously missing lines plus all nine branch restorations at 14/5/89/4/2/244/19/43/94 arcs, exceeding every registered minimum without changing production code. The 346-test combined regression and Black/isort/Ruff checks pass. Baselines remain unchanged and DATA-12 stays active until these changes are committed, pushed and a complete same-commit Nightly coverage artifact verifies the final numerators and denominators; only then may the two line exceptions be removed, the nine branch floors be raised and the unit close. Production cutover evidence, candidate binding, historical migrations and all production gates remain unchanged. Authority/approval mutation, queued runtime, load/fault, live rollback and unsupported production writes remain denied."
   },
   "workstreams": [
     {
@@ -88,7 +88,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "DATA-11 is complete on exact commit 9467ef288d4683164abb2e6ffa41868908673087 with GitHub Python 3.11 Nightly run 33976314247 fully green. Coverage artifact 9974233955 is commit-bound, git-clean and internally hash-verified; it reports Broker Execution Domain 1424/1571 = 90.64 percent line and 447/578 = 77.34 percent branch and Macro Factor Domain 2656/2948 = 90.09 percent line. The Broker and Macro line exceptions were removed and the Broker branch floor was restored from 75.9 to 77.2; no floor was lowered. Closure evidence docs/testing/data11-domain-coverage-restoration-closure-evidence-2026-09-06.json has SHA-256 017983ca9ae2efaa3e70e2342bb922cf1bbc48095dc83f366fcd832fee9a96cb. Research and Signal line exceptions plus nine branch restoration targets remain P2 debt; no dependency-ready repository unit is active. Separately, candidate aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812 remains DATA-02 DENY: completed-session prices are 0/5,533 eligible, all 5,533 quote/price/valuation facts are stale, and financial facts cover only 1,923 with 3,610 missing; DATA-03 remains dependency-blocked.",
+      "next_gate": "DATA-11 is complete on exact commit 9467ef288d4683164abb2e6ffa41868908673087 with GitHub Python 3.11 Nightly run 33976314247 fully green. DATA-12 deterministic implementation is locally complete. Against the immutable artifact 9974233955 missing sets, the current tests hit Research 245/243 and Signal 94/25 required lines, plus Agent Runtime 14/14, Audit 5/5, Data Center 89/84, Operational Readiness 4/4, Policy 2/2, Portfolio 244/243, Regime 19/19, Risk Center 43/40 and Signal 94/85 required branch arcs. With unchanged production denominators, the projected results clear every registered target; 346 changed-file tests and Black/isort/Ruff pass. The remaining gate is a complete same-commit GitHub Python 3.11 Nightly coverage artifact. Until it passes, keep the Research and Signal exceptions and all nine branch floors unchanged and DATA-12 active. No executable production logic was removed or modified. Separately, candidate aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812 remains DATA-02 DENY; DATA-03 remains dependency-blocked.",
       "documents": [
         {
           "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
@@ -277,7 +277,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-09-06.v51",
+    "version": "2026-09-06.v52",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -734,6 +734,19 @@
           "DATA-10"
         ],
         "exit_gate": "Completed on 2026-09-06 with docs/testing/data11-domain-coverage-restoration-closure-evidence-2026-09-06.json (SHA-256 017983ca9ae2efaa3e70e2342bb922cf1bbc48095dc83f366fcd832fee9a96cb). Exact commit 9467ef288d4683164abb2e6ffa41868908673087 passed GitHub Python 3.11 Nightly run 33976314247 end to end. Hash-verified coverage artifact 9974233955 reports Broker Execution Domain 1424/1571 = 90.64 percent line and 447/578 = 77.34 percent branch and Macro Factor Domain 2656/2948 = 90.09 percent line. The Broker and Macro line exceptions were removed and the Broker branch floor was raised from 75.9 to 77.2 without lowering any floor. No production code, cutover evidence, historical migration, deployment or runtime state changed; main was not merged."
+      },
+      {
+        "id": "DATA-12",
+        "workstream_id": "data-production-reliability",
+        "wave": 3,
+        "priority": "P2",
+        "execution_mode": "repository",
+        "status": "active",
+        "title": "Restore all remaining reconciled Domain coverage debt",
+        "depends_on": [
+          "DATA-11"
+        ],
+        "exit_gate": "Local implementation gate passed on 2026-09-06: immutable artifact 9974233955 intersection is Research 245/243 and Signal 94/25 required lines, with branch arcs Agent Runtime 14/14, Audit 5/5, Data Center 89/84, Operational Readiness 4/4, Policy 2/2, Portfolio 244/243, Regime 19/19, Risk Center 43/40 and Signal 94/85; 346 changed-file tests and Black/isort/Ruff pass. DATA-12 remains active and baselines remain unchanged until a complete same-commit GitHub Python 3.11 Nightly artifact verifies Research and Signal Domain line coverage at least 90.0 percent and branch coverage at least Agent Runtime 100.0, Audit 84.7, Data Center 87.1, Operational Readiness 100.0, Policy 79.0, Portfolio 85.5, Regime 79.7, Risk Center 97.2 and Signal 86.1 percent. After that evidence only, remove the two line exceptions, raise all nine branch floors without lowering any floor and close DATA-12. No executable production logic is deleted or modified, and no production code, cutover evidence, migration, deployment or runtime state is changed."
       },
       {
         "id": "DATA-03",

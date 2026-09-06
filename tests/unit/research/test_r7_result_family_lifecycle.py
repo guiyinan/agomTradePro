@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
+from copy import deepcopy
+from dataclasses import replace
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 
 import pytest
 
@@ -20,6 +23,7 @@ from apps.research.application.r7_result_family_lifecycle import (
     R7FamilyResultIdRef,
     R7ResultFamilyRef,
 )
+from apps.research.domain import r7_result_family_lifecycle as family_contracts
 from apps.research.domain.r7_research_result_lifecycle import (
     R7ResearchResultRef,
     R7ResultLifecycleAction,
@@ -935,3 +939,460 @@ def test_application_final_owner_reread_compares_result_content_identity() -> No
         use_case.execute(_family_command(authorization))
     assert repository.stream == []
     assert repository.append_calls == 0
+
+
+def _data12_family_chain() -> tuple[object, ...]:
+    result_a = _result("data12-a")
+    result_b = _result("data12-b")
+    evidence_a = _evidence(result_a)
+    evidence_b = _evidence(result_b)
+    family = R7ResultFamilyIdentity.from_result(result_a)
+    authorization_a = _authorization(
+        family=family,
+        action=R7FamilyLifecycleAction.PROMOTE,
+        subject=evidence_a,
+        sequence=1,
+        recorded_at=evidence_a.evaluated_at + timedelta(minutes=1),
+        previous=None,
+    )
+    event_a = _event(
+        previous_events=(),
+        authorization=authorization_a,
+        subject=evidence_a,
+    )
+    authorization_b = _authorization(
+        family=family,
+        action=R7FamilyLifecycleAction.PROMOTE,
+        subject=evidence_b,
+        sequence=2,
+        recorded_at=event_a.recorded_at + timedelta(minutes=1),
+        previous=event_a,
+    )
+    event_b = _event(
+        previous_events=(event_a,),
+        authorization=authorization_b,
+        subject=evidence_b,
+    )
+    return (
+        result_a,
+        result_b,
+        evidence_a,
+        evidence_b,
+        family,
+        authorization_a,
+        event_a,
+        authorization_b,
+        event_b,
+    )
+
+
+def _tamper_and_validate(value: object, field_name: str, replacement: object) -> None:
+    clone = replace(value)  # type: ignore[arg-type]
+    object.__setattr__(clone, field_name, replacement)
+    type(value).__post_init__(clone)
+
+
+def test_data12_family_identity_attestation_and_owner_evidence_fail_closed() -> None:
+    """Cover retained owner-graph validation lines with exact invalid variants."""
+
+    (
+        result_a,
+        result_b,
+        evidence_a,
+        evidence_b,
+        family,
+        _,
+        event_a,
+        _,
+        _,
+    ) = _data12_family_chain()
+    stream_a = _local_stream(result_a)
+    stream_b = _local_stream(result_b)
+    attestation = evidence_a.local_lifecycle_attestation
+    tampered_local_event = replace(stream_a[0])
+    object.__setattr__(tampered_local_event, "event_id", "")
+
+    invalid_constructions = (
+        lambda: family_contracts._require_aware("not-a-clock", "clock"),
+        lambda: replace(family, family_version="unsupported"),
+        lambda: replace(family, content_hash="0" * 64),
+        lambda: R7LocalLifecycleStreamAttestation.from_stream(
+            attestation_id=attestation.attestation_id,
+            attestation_version=attestation.attestation_version,
+            complete_local_lifecycle_stream=(),
+            recorded_at=attestation.recorded_at,
+        ),
+        lambda: R7LocalLifecycleStreamAttestation.from_stream(
+            attestation_id=attestation.attestation_id,
+            attestation_version=attestation.attestation_version,
+            complete_local_lifecycle_stream=(stream_a[0], object()),
+            recorded_at=attestation.recorded_at,
+        ),
+        lambda: R7LocalLifecycleStreamAttestation.from_stream(
+            attestation_id=attestation.attestation_id,
+            attestation_version=attestation.attestation_version,
+            complete_local_lifecycle_stream=(stream_a[0], stream_b[0]),
+            recorded_at=attestation.recorded_at,
+        ),
+        lambda: R7LocalLifecycleStreamAttestation.from_stream(
+            attestation_id=attestation.attestation_id,
+            attestation_version=attestation.attestation_version,
+            complete_local_lifecycle_stream=stream_a,
+            recorded_at=stream_a[-1].recorded_at - timedelta(seconds=1),
+        ),
+        lambda: replace(attestation, attestation_version="unsupported"),
+        lambda: replace(attestation, event_count=0),
+        lambda: _tamper_and_validate(attestation, "owner", "portfolio"),
+        lambda: _tamper_and_validate(attestation, "content_hash", "0" * 64),
+        lambda: R7FamilyResultOwnerEvidence.from_owner_graph(
+            result=result_a,
+            complete_local_lifecycle_stream=(),
+            local_lifecycle_attestation=attestation,
+            evaluated_at=evidence_a.evaluated_at,
+        ),
+        lambda: R7FamilyResultOwnerEvidence.from_owner_graph(
+            result=result_a,
+            complete_local_lifecycle_stream=(stream_a[0], object()),
+            local_lifecycle_attestation=attestation,
+            evaluated_at=evidence_a.evaluated_at,
+        ),
+        lambda: R7FamilyResultOwnerEvidence.from_owner_graph(
+            result=result_a,
+            complete_local_lifecycle_stream=stream_a,
+            local_lifecycle_attestation=object(),
+            evaluated_at=evidence_a.evaluated_at,
+        ),
+        lambda: replace(evidence_a, evidence_version="unsupported"),
+        lambda: replace(evidence_a, local_lifecycle_status="promoted"),
+        lambda: replace(evidence_a, local_lifecycle_sequence=0),
+        lambda: replace(evidence_a, local_lifecycle_event_count=2),
+        lambda: replace(evidence_a, local_lifecycle_attestation=object()),
+        lambda: replace(
+            evidence_a,
+            local_lifecycle_attestation=evidence_b.local_lifecycle_attestation,
+        ),
+        lambda: replace(
+            evidence_a,
+            result_recorded_at=evidence_a.local_promoted_at + timedelta(seconds=1),
+        ),
+        lambda: replace(
+            evidence_a,
+            evaluated_at=evidence_a.local_promoted_at - timedelta(seconds=1),
+        ),
+        lambda: replace(evidence_a, local_retired_at=evidence_a.evaluated_at),
+        lambda: _tamper_and_validate(evidence_a, "research_only", False),
+        lambda: _tamper_and_validate(evidence_a, "content_hash", "0" * 64),
+        lambda: family_contracts._validate_result_live(object()),
+        lambda: family_contracts._require_reasons((), "reason"),
+        lambda: family_contracts._require_reasons(("b", "a"), "reason"),
+    )
+    for construct in invalid_constructions:
+        with pytest.raises((TypeError, ValueError)):
+            construct()
+
+    assert attestation.validates_stream((object(),)) is False
+    assert attestation.validates_stream((tampered_local_event,)) is False
+    assert (
+        family_contracts.derive_r7_family_lifecycle_state(
+            (event_a,),
+            evaluated_at=evidence_a.evidence_valid_until,
+        ).status
+        is R7FamilyLifecycleStatus.EXPIRED
+    )
+
+
+def test_data12_family_authorization_event_and_snapshot_shapes_fail_closed() -> None:
+    """Cover retained authorization and replay branches without publishing a result."""
+
+    (
+        _,
+        _,
+        evidence_a,
+        evidence_b,
+        family,
+        authorization_a,
+        event_a,
+        authorization_b,
+        event_b,
+    ) = _data12_family_chain()
+    snapshot = derive_r7_family_lifecycle_state(
+        (event_a, event_b),
+        evaluated_at=event_b.recorded_at,
+    )
+    invalid_constructions = (
+        lambda: replace(authorization_a, action="promote"),
+        lambda: replace(
+            authorization_a,
+            action=R7FamilyLifecycleAction.ROLLBACK,
+        ),
+        lambda: replace(
+            authorization_a,
+            action=R7FamilyLifecycleAction.ROLLBACK,
+            rollback_target_ref=evidence_b.result_ref,
+        ),
+        lambda: replace(authorization_a, expected_sequence=0),
+        lambda: replace(
+            authorization_a,
+            expected_sequence=2,
+            expected_previous_event_id=event_a.event_id,
+        ),
+        lambda: replace(
+            authorization_a,
+            expected_previous_event_id=event_a.event_id,
+            expected_previous_event_version=event_a.event_version,
+            expected_previous_event_hash=event_a.content_hash,
+        ),
+        lambda: replace(authorization_a, expected_sequence=2),
+        lambda: replace(authorization_a, owner="portfolio"),
+        lambda: replace(authorization_a, recorded_at=authorization_a.valid_until),
+        lambda: _tamper_and_validate(authorization_a, "research_only", False),
+        lambda: _tamper_and_validate(authorization_a, "content_hash", "0" * 64),
+        lambda: replace(event_a, action="promote"),
+        lambda: replace(event_a, sequence=0),
+        lambda: replace(event_a, subject_evidence=object()),
+        lambda: replace(event_a, rollback_target_evidence=object()),
+        lambda: replace(event_a, authorization=object()),
+        lambda: replace(event_a, event_id="different-event"),
+        lambda: replace(event_a, occurred_at=event_a.recorded_at + timedelta(seconds=1)),
+        lambda: _tamper_and_validate(event_a, "research_only", False),
+        lambda: _tamper_and_validate(event_a, "content_hash", "0" * 64),
+        lambda: replace(snapshot, status="promoted"),
+        lambda: replace(snapshot, approved_stack=list(snapshot.approved_stack)),
+        lambda: replace(
+            snapshot,
+            approved_stack=(snapshot.approved_stack[0], snapshot.approved_stack[0]),
+        ),
+        lambda: replace(snapshot, sequence=0),
+        lambda: _tamper_and_validate(snapshot, "research_only", False),
+        lambda: create_r7_family_lifecycle_event(
+            previous_events=[],
+            authorization=authorization_a,
+            subject_evidence=evidence_a,
+            rollback_target_evidence=None,
+            occurred_at=authorization_a.recorded_at + timedelta(seconds=1),
+            recorded_at=authorization_a.recorded_at + timedelta(seconds=2),
+        ),
+        lambda: create_r7_family_lifecycle_event(
+            previous_events=(),
+            authorization=object(),
+            subject_evidence=evidence_a,
+            rollback_target_evidence=None,
+            occurred_at=authorization_a.recorded_at + timedelta(seconds=1),
+            recorded_at=authorization_a.recorded_at + timedelta(seconds=2),
+        ),
+        lambda: create_r7_family_lifecycle_event(
+            previous_events=(),
+            authorization=authorization_a,
+            subject_evidence=object(),
+            rollback_target_evidence=None,
+            occurred_at=authorization_a.recorded_at + timedelta(seconds=1),
+            recorded_at=authorization_a.recorded_at + timedelta(seconds=2),
+        ),
+        lambda: create_r7_family_lifecycle_event(
+            previous_events=(),
+            authorization=authorization_a,
+            subject_evidence=evidence_a,
+            rollback_target_evidence=object(),
+            occurred_at=authorization_a.recorded_at + timedelta(seconds=1),
+            recorded_at=authorization_a.recorded_at + timedelta(seconds=2),
+        ),
+        lambda: create_r7_family_lifecycle_event(
+            previous_events=(),
+            authorization=authorization_a,
+            subject_evidence=evidence_a,
+            rollback_target_evidence=None,
+            occurred_at=authorization_a.valid_until,
+            recorded_at=authorization_a.valid_until + timedelta(seconds=1),
+        ),
+        lambda: derive_r7_family_lifecycle_state((), evaluated_at=event_a.recorded_at),
+        lambda: derive_r7_family_lifecycle_state(
+            (event_a,),
+            evaluated_at=event_a.recorded_at - timedelta(seconds=1),
+        ),
+        lambda: family_contracts._replay_chain(()),
+        lambda: family_contracts._replay_chain((event_a, object())),
+    )
+    for construct in invalid_constructions:
+        with pytest.raises((TypeError, ValueError)):
+            construct()
+
+    rollback_root = _authorization(
+        family=family,
+        action=R7FamilyLifecycleAction.ROLLBACK,
+        subject=evidence_a,
+        target=evidence_b,
+        sequence=1,
+        recorded_at=evidence_a.evaluated_at + timedelta(minutes=1),
+        previous=None,
+    )
+    with pytest.raises(ValueError, match="root must promote"):
+        _event(
+            previous_events=(),
+            authorization=rollback_root,
+            subject=evidence_a,
+            target=evidence_b,
+        )
+
+    stale_head = replace(
+        authorization_b,
+        expected_previous_event_hash="0" * 64,
+    )
+    with pytest.raises(ValueError, match="previous head mismatch"):
+        create_r7_family_lifecycle_event(
+            previous_events=(event_a,),
+            authorization=stale_head,
+            subject_evidence=evidence_b,
+            rollback_target_evidence=None,
+            occurred_at=stale_head.recorded_at + timedelta(seconds=1),
+            recorded_at=stale_head.recorded_at + timedelta(seconds=2),
+        )
+
+
+def test_data12_family_cross_graph_authorizations_remain_fail_closed() -> None:
+    """Exercise the remaining reachable next-event and result-owner guards."""
+
+    (
+        result_a,
+        result_b,
+        evidence_a,
+        evidence_b,
+        family,
+        authorization_a,
+        event_a,
+        _,
+        event_b,
+    ) = _data12_family_chain()
+
+    stale_sequence = _authorization(
+        family=family,
+        action=R7FamilyLifecycleAction.PROMOTE,
+        subject=evidence_b,
+        sequence=2,
+        recorded_at=event_b.recorded_at + timedelta(minutes=1),
+        previous=event_b,
+    )
+    wrong_attestation = replace(
+        authorization_a,
+        subject_owner_attestation_hash="0" * 64,
+    )
+    premature_subject = _authorization(
+        family=family,
+        action=R7FamilyLifecycleAction.PROMOTE,
+        subject=evidence_a,
+        sequence=1,
+        recorded_at=evidence_a.evaluated_at,
+        previous=None,
+    )
+    rollback = _authorization(
+        family=family,
+        action=R7FamilyLifecycleAction.ROLLBACK,
+        subject=evidence_b,
+        target=evidence_a,
+        sequence=3,
+        recorded_at=event_b.recorded_at + timedelta(minutes=1),
+        previous=event_b,
+    )
+    wrong_target_attestation = replace(
+        rollback,
+        rollback_target_owner_attestation_hash="0" * 64,
+    )
+    late_target = _evidence(
+        result_a,
+        as_of=event_b.recorded_at + timedelta(minutes=2),
+    )
+    premature_target = _authorization(
+        family=family,
+        action=R7FamilyLifecycleAction.ROLLBACK,
+        subject=evidence_b,
+        target=late_target,
+        sequence=3,
+        recorded_at=late_target.evaluated_at,
+        previous=event_b,
+    )
+    wrong_retirement = _authorization(
+        family=family,
+        action=R7FamilyLifecycleAction.RETIRE,
+        subject=evidence_a,
+        sequence=3,
+        recorded_at=event_b.recorded_at + timedelta(minutes=1),
+        previous=event_b,
+    )
+
+    cases = (
+        (
+            (event_a, event_b),
+            stale_sequence,
+            evidence_b,
+            None,
+            "sequence is stale",
+        ),
+        ((), authorization_a, evidence_b, None, "subject differs"),
+        ((), wrong_attestation, evidence_a, None, "owner attestation differs"),
+        ((), premature_subject, evidence_a, None, "predates its subject"),
+        (
+            (event_a, event_b),
+            rollback,
+            evidence_b,
+            None,
+            "rollback target differs",
+        ),
+        (
+            (event_a, event_b),
+            wrong_target_attestation,
+            evidence_b,
+            evidence_a,
+            "target owner attestation differs",
+        ),
+        (
+            (event_a, event_b),
+            premature_target,
+            evidence_b,
+            late_target,
+            "predates rollback target",
+        ),
+        (
+            (event_a, event_b),
+            wrong_retirement,
+            evidence_a,
+            None,
+            "clean up the active result",
+        ),
+    )
+    for previous, authorization, subject, target, match in cases:
+        with pytest.raises(ValueError, match=match):
+            create_r7_family_lifecycle_event(
+                previous_events=previous,
+                authorization=authorization,
+                subject_evidence=subject,
+                rollback_target_evidence=target,
+                occurred_at=authorization.recorded_at + timedelta(seconds=1),
+                recorded_at=authorization.recorded_at + timedelta(seconds=2),
+            )
+
+    empty_observations = SimpleNamespace(
+        evidence_graph=SimpleNamespace(forecast_observations=()),
+        recorded_at=result_a.recorded_at,
+    )
+    assert family_contracts._result_evidence_valid_until(empty_observations) == (
+        result_a.recorded_at
+    )
+    missing_studies = SimpleNamespace(
+        evidence_graph=SimpleNamespace(
+            forecast_observations=(
+                SimpleNamespace(outcome_evidence_valid_until=result_a.recorded_at),
+            ),
+            historical_analogy=None,
+            path_study=SimpleNamespace(valid_until=result_a.recorded_at),
+        ),
+        recorded_at=result_a.recorded_at,
+    )
+    assert family_contracts._result_evidence_valid_until(missing_studies) == result_a.recorded_at
+
+    invalid_observation_result = deepcopy(result_a)
+    object.__setattr__(
+        invalid_observation_result.evidence_graph,
+        "forecast_observations",
+        (object(),),
+    )
+    with pytest.raises(TypeError, match="forecast observation type"):
+        family_contracts._validate_result_live(invalid_observation_result)

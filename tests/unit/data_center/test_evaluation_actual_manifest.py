@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from dataclasses import replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from typing import cast
 
 import pytest
 
@@ -128,6 +129,15 @@ def _graph(
         knowledge_scope="public",
         facts=facts if facts is not None else (_fact(),),
     )
+
+
+def _assert_evaluation_contract_error(
+    factory: Callable[[], object],
+    error_type: type[Exception],
+    message: str,
+) -> None:
+    with pytest.raises(error_type, match=message):
+        factory()
 
 
 class _Clock:
@@ -494,3 +504,259 @@ def test_domain_fork_is_not_equal_to_the_canonical_winner() -> None:
         replace(winner.definition, industry_code="other")
     assert winner.validated_copy() == winner
     assert EvaluationActualConflict.__mro__[1] is ValueError
+
+
+def test_evaluation_actual_identity_member_policy_and_definition_boundaries() -> None:
+    identity = _identity("member", HASH_B)
+    rule = _definition().expected_members[0]
+    policy = _definition().coverage_policy
+    definition = _definition()
+
+    cases: tuple[tuple[Callable[[], object], type[Exception], str], ...] = (
+        (
+            lambda: replace(identity, stable_id=""),
+            ValueError,
+            "non-blank token",
+        ),
+        (
+            lambda: replace(identity, content_hash="bad"),
+            ValueError,
+            "sha256 digest",
+        ),
+        (
+            lambda: replace(
+                rule,
+                period_end=cast(date, datetime(2025, 2, 28, tzinfo=UTC)),
+            ),
+            ValueError,
+            "period_end must be a date",
+        ),
+        (
+            lambda: replace(
+                rule,
+                member=cast(ActualEvidenceIdentity, object()),
+            ),
+            TypeError,
+            "member must be an exact",
+        ),
+        (
+            lambda: replace(
+                rule,
+                vintage=cast(ActualEvidenceIdentity, object()),
+            ),
+            TypeError,
+            "vintage must be an exact",
+        ),
+        (
+            lambda: replace(policy, require_verified=cast(bool, 1)),
+            ValueError,
+            "must be a bool",
+        ),
+        (
+            lambda: replace(policy, minimum_coverage_ratio=Decimal("1.1")),
+            ValueError,
+            "finite Decimal",
+        ),
+        (
+            lambda: replace(policy, maximum_missing_count=-1),
+            ValueError,
+            "non-negative integer",
+        ),
+        (
+            lambda: replace(definition, owner="research"),
+            ValueError,
+            "owner must be data_center",
+        ),
+        (
+            lambda: replace(
+                definition,
+                calendar=cast(ActualEvidenceIdentity, object()),
+            ),
+            TypeError,
+            "calendar must be an exact",
+        ),
+        (
+            lambda: replace(
+                definition,
+                expected_members=cast(tuple[ExpectedActualMemberRule, ...], []),
+            ),
+            TypeError,
+            "expected_members must be an exact tuple",
+        ),
+        (
+            lambda: replace(
+                definition,
+                expected_members=cast(
+                    tuple[ExpectedActualMemberRule, ...],
+                    (object(),),
+                ),
+            ),
+            TypeError,
+            "member rules must use exact types",
+        ),
+        (
+            lambda: replace(definition, expected_members=()),
+            ValueError,
+            "ordered and unique",
+        ),
+        (
+            lambda: replace(
+                definition,
+                coverage_policy=cast(EvaluationActualCoveragePolicy, object()),
+            ),
+            TypeError,
+            "coverage_policy must be exact",
+        ),
+        (
+            lambda: replace(definition, valid_until=definition.registered_at),
+            ValueError,
+            "validity interval is invalid",
+        ),
+        (
+            lambda: replace(definition, must_not_execute=False),
+            ValueError,
+            "cannot grant decision authority",
+        ),
+        (
+            lambda: replace(definition, dataset="research.other-actual.v1"),
+            ValueError,
+            "content hash mismatch",
+        ),
+    )
+
+    for factory, error_type, message in cases:
+        _assert_evaluation_contract_error(factory, error_type, message)
+
+
+def test_evaluation_actual_persisted_fact_and_graph_boundaries() -> None:
+    definition = _definition()
+    persisted = _persisted_definition()
+    fact = _fact()
+    graph = _graph()
+
+    cases: tuple[tuple[Callable[[], object], type[Exception], str], ...] = (
+        (
+            lambda: PersistedEvaluationActualSourceDefinition.create(
+                definition=cast(EvaluationActualSourceDefinition, object()),
+                ledger_recorded_at=LEDGER_RECORDED_AT,
+            ),
+            TypeError,
+            "use the exact type",
+        ),
+        (
+            lambda: replace(
+                persisted,
+                definition=cast(EvaluationActualSourceDefinition, object()),
+            ),
+            TypeError,
+            "must be exact",
+        ),
+        (
+            lambda: PersistedEvaluationActualSourceDefinition.create(
+                definition=definition,
+                ledger_recorded_at=datetime(2025, 1, 2),
+            ),
+            ValueError,
+            "timezone-aware",
+        ),
+        (
+            lambda: replace(persisted, ledger_recorded_at=VALID_UNTIL),
+            ValueError,
+            "outside validity",
+        ),
+        (
+            lambda: replace(
+                fact,
+                period_end=cast(date, datetime(2025, 2, 28, tzinfo=UTC)),
+            ),
+            ValueError,
+            "period_end must be a date",
+        ),
+        (
+            lambda: replace(fact, value=Decimal("NaN")),
+            ValueError,
+            "finite Decimal",
+        ),
+        (
+            lambda: replace(fact, unit=""),
+            ValueError,
+            "non-blank text",
+        ),
+        (
+            lambda: replace(
+                fact,
+                source_fact=cast(ActualEvidenceIdentity, object()),
+            ),
+            TypeError,
+            "source_fact must be an exact",
+        ),
+        (
+            lambda: replace(fact, revision_number=0),
+            ValueError,
+            "revision_number must be positive",
+        ),
+        (
+            lambda: replace(
+                fact,
+                available_at=fact.effective_at.replace(year=2024),
+            ),
+            ValueError,
+            "available before effective",
+        ),
+        (
+            lambda: replace(
+                fact,
+                member=cast(ActualEvidenceIdentity, object()),
+            ),
+            TypeError,
+            "member must be an exact",
+        ),
+        (
+            lambda: replace(
+                fact,
+                vintage=cast(ActualEvidenceIdentity, object()),
+            ),
+            TypeError,
+            "vintage must be an exact",
+        ),
+        (
+            lambda: replace(fact, quality="unreviewed"),
+            ValueError,
+            "quality is unsupported",
+        ),
+        (
+            lambda: replace(
+                graph,
+                source_definition=cast(ActualEvidenceIdentity, object()),
+            ),
+            TypeError,
+            "source_definition must be exact",
+        ),
+        (
+            lambda: replace(
+                graph,
+                facts=cast(tuple[CanonicalEvaluationActualFact, ...], []),
+            ),
+            TypeError,
+            "facts must be an exact tuple",
+        ),
+        (
+            lambda: replace(
+                graph,
+                facts=cast(
+                    tuple[CanonicalEvaluationActualFact, ...],
+                    (object(),),
+                ),
+            ),
+            TypeError,
+            "facts must use exact types",
+        ),
+    )
+
+    for factory, error_type, message in cases:
+        _assert_evaluation_contract_error(factory, error_type, message)
+
+    tampered = _persisted_definition()
+    object.__setattr__(tampered, "record_hash", HASH_E)
+    with pytest.raises(ValueError, match="record hash mismatch"):
+        tampered.validated_copy()

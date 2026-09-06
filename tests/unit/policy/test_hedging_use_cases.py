@@ -127,6 +127,27 @@ def test_calculate_hedge_uses_injected_policy_configuration() -> None:
     assert result.recommended_instrument == "IF-CURRENT"
 
 
+@pytest.mark.parametrize(
+    ("ratio", "cost_rate", "message"),
+    [
+        (Decimal("1.01"), Decimal("0"), "hedge ratio"),
+        (Decimal("0"), Decimal("-0.01"), "hedge cost rate"),
+    ],
+)
+def test_hedge_rule_rejects_invalid_ratio_and_cost(
+    ratio: Decimal,
+    cost_rate: Decimal,
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        HedgeRule(
+            ratio=ratio,
+            instrument_code="IF-CURRENT",
+            instrument_type="future",
+            estimated_cost_rate=cost_rate,
+        )
+
+
 def test_calculate_hedge_rejects_unknown_policy_and_invalid_financial_values() -> None:
     config = HedgePolicyConfig(rules=())
     use_case = CalculateHedgeUseCase(config)

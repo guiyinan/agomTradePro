@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import fields
+from dataclasses import fields, replace
 from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
+from typing import cast
 from uuid import UUID
 
 import pytest
@@ -90,6 +91,29 @@ def _expected(
     )
 
 
+def _rebuild_expected(
+    member: ForecastCalibrationExpectedMember,
+    **changes: object,
+) -> ForecastCalibrationExpectedMember:
+    values: dict[str, object] = {
+        "entry_id": member.entry_id,
+        "observation_version": member.observation_version,
+        "forecast_group_id": member.forecast_group_id,
+        "binding": member.binding,
+        "pit_manifest_id": member.pit_manifest_id,
+        "pit_manifest_version": member.pit_manifest_version,
+        "pit_manifest_hash": member.pit_manifest_hash,
+        "censoring_rule_version": member.censoring_rule_version,
+        "published_at": member.published_at,
+        "horizon_end": member.horizon_end,
+        "entry_recorded_at": member.entry_recorded_at,
+        "outcome_evidence_valid_until": member.outcome_evidence_valid_until,
+        "evidence_ref": member.evidence_ref,
+    }
+    values.update(changes)
+    return ForecastCalibrationExpectedMember.create(**values)  # type: ignore[arg-type]
+
+
 def _source(scope_content_hash: str = "a" * 64) -> ForecastCalibrationSampleSource:
     return ForecastCalibrationSampleSource.create(
         sample_id="calibration-sample-1",
@@ -111,6 +135,29 @@ def _source(scope_content_hash: str = "a" * 64) -> ForecastCalibrationSampleSour
             _expected("entry-d", REVISION_B, "0.3", days=30),
         ),
     )
+
+
+def _rebuild_source(
+    source: ForecastCalibrationSampleSource,
+    **changes: object,
+) -> ForecastCalibrationSampleSource:
+    values: dict[str, object] = {
+        "sample_id": source.sample_id,
+        "sample_version": source.sample_version,
+        "scope_content_hash": source.scope_content_hash,
+        "scenario_set_revision_id": source.scenario_set_revision_id,
+        "scenario_revision_ids": source.scenario_revision_ids,
+        "forecast_horizon": source.forecast_horizon,
+        "censoring_rule_version": source.censoring_rule_version,
+        "sample_window_start": source.sample_window_start,
+        "sample_window_end": source.sample_window_end,
+        "available_at": source.available_at,
+        "valid_until": source.valid_until,
+        "evidence_ref": source.evidence_ref,
+        "members": source.members,
+    }
+    values.update(changes)
+    return ForecastCalibrationSampleSource.create(**values)  # type: ignore[arg-type]
 
 
 def _owner(
@@ -370,3 +417,266 @@ def test_strict_codec_rejects_unknown_or_missing_nested_keys() -> None:
     owner_payload.pop("outcome_source_hash")
     with pytest.raises(ForecastCalibrationSampleCodecError, match="keys"):
         decode_forecast_calibration_sample_receipt(receipt_payload)
+
+
+def test_calibration_primitives_expected_members_and_invalidation_fail_closed() -> None:
+    expected = _source().members[0]
+    invalidation = ForecastCalibrationInvalidationEvidence.create(
+        evidence_version="invalidation.v1",
+        invalidated_at=expected.horizon_end - timedelta(days=1),
+        invalidation_rule_version="rule.v1",
+        evidence_refs=("signal://invalidation/entry-a",),
+    )
+
+    cases = (
+        lambda: replace(expected, entry_id=cast(str, 17)),
+        lambda: replace(expected, entry_id=" "),
+        lambda: replace(expected, entry_id="entry\ncontrol"),
+        lambda: replace(expected, pit_manifest_hash="bad"),
+        lambda: replace(
+            expected,
+            binding=cast(ScenarioForecastBinding, object()),
+        ),
+        lambda: ForecastCalibrationInvalidationEvidence.create(
+            evidence_version="invalidation.v1",
+            invalidated_at=expected.horizon_end - timedelta(days=1),
+            invalidation_rule_version="rule.v1",
+            evidence_refs=(),
+        ),
+        lambda: ForecastCalibrationInvalidationEvidence.create(
+            evidence_version="invalidation.v1",
+            invalidated_at=expected.horizon_end - timedelta(days=1),
+            invalidation_rule_version="rule.v1",
+            evidence_refs=("signal://z", "signal://a"),
+        ),
+        lambda: replace(invalidation, content_hash="d" * 64),
+        lambda: replace(expected, horizon_end=expected.published_at),
+        lambda: replace(
+            expected,
+            entry_recorded_at=expected.published_at - timedelta(seconds=1),
+        ),
+        lambda: replace(
+            expected,
+            outcome_evidence_valid_until=expected.horizon_end,
+        ),
+        lambda: replace(expected, source_version="expected.v2"),
+        lambda: replace(expected, content_hash="d" * 64),
+    )
+    for case in cases:
+        with pytest.raises(ValueError):
+            case()
+
+    class _InvalidationSubclass(ForecastCalibrationInvalidationEvidence):
+        pass
+
+    class _ExpectedSubclass(ForecastCalibrationExpectedMember):
+        pass
+
+    with pytest.raises(ValueError, match="exact domain type"):
+        _InvalidationSubclass(**invalidation.__dict__).validated_copy()
+    with pytest.raises(ValueError, match="exact domain type"):
+        _ExpectedSubclass(**expected.__dict__).validated_copy()
+
+
+def test_calibration_source_and_definition_reject_membership_and_clock_forks() -> None:
+    source = _source()
+    first = source.members[0]
+    other_set = UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
+    other_revision = UUID("33333333-3333-4333-8333-333333333333")
+    set_mismatch = _rebuild_expected(
+        first,
+        binding=ScenarioForecastBinding.from_values(
+            scenario_revision_id=REVISION_A,
+            scenario_set_revision_id=other_set,
+            subjective_probability=Decimal("0.6"),
+            subjective_probability_source_version="subjective.v1",
+        ),
+    )
+    revision_mismatch = _rebuild_expected(
+        first,
+        binding=ScenarioForecastBinding.from_values(
+            scenario_revision_id=other_revision,
+            scenario_set_revision_id=SET_REVISION,
+            subjective_probability=Decimal("0.6"),
+            subjective_probability_source_version="subjective.v1",
+        ),
+    )
+    censoring_mismatch = _rebuild_expected(first, censoring_rule_version="censor.v2")
+    horizon_mismatch = _rebuild_expected(
+        first,
+        horizon_end=first.published_at + timedelta(days=11),
+    )
+    outside_window = _rebuild_expected(
+        first,
+        published_at=source.sample_window_end,
+        horizon_end=source.sample_window_end + timedelta(days=10),
+        entry_recorded_at=source.sample_window_end + timedelta(hours=1),
+    )
+    late_entry = _rebuild_expected(
+        first,
+        entry_recorded_at=source.available_at + timedelta(seconds=1),
+    )
+    early_expiry = _rebuild_expected(
+        first,
+        outcome_evidence_valid_until=source.valid_until - timedelta(seconds=1),
+    )
+    incomplete_group = tuple(member for member in source.members if member.entry_id != "entry-b")
+
+    cases = (
+        lambda: replace(source, forecast_horizon=timedelta(0)),
+        lambda: replace(
+            source,
+            scenario_set_revision_id=cast(UUID, "not-a-uuid"),
+        ),
+        lambda: replace(source, scenario_revision_ids=()),
+        lambda: replace(
+            source,
+            scenario_revision_ids=(cast(UUID, "not-a-uuid"),),
+        ),
+        lambda: replace(
+            source,
+            scenario_revision_ids=(REVISION_A, REVISION_A),
+        ),
+        lambda: replace(source, available_at=source.sample_window_end - timedelta(seconds=1)),
+        lambda: replace(source, members=()),
+        lambda: replace(
+            source,
+            members=(cast(ForecastCalibrationExpectedMember, object()),),
+        ),
+        lambda: _rebuild_source(source, members=(first, first)),
+        lambda: _rebuild_source(
+            source,
+            members=(set_mismatch, *source.members[1:]),
+        ),
+        lambda: _rebuild_source(
+            source,
+            members=(revision_mismatch, *source.members[1:]),
+        ),
+        lambda: _rebuild_source(
+            source,
+            members=(censoring_mismatch, *source.members[1:]),
+        ),
+        lambda: _rebuild_source(
+            source,
+            members=(horizon_mismatch, *source.members[1:]),
+        ),
+        lambda: _rebuild_source(
+            source,
+            members=(outside_window, *source.members[1:]),
+        ),
+        lambda: _rebuild_source(
+            source,
+            members=(late_entry, *source.members[1:]),
+        ),
+        lambda: _rebuild_source(
+            source,
+            members=(early_expiry, *source.members[1:]),
+        ),
+        lambda: _rebuild_source(source, members=incomplete_group),
+        lambda: replace(source, source_version="source.v2"),
+        lambda: replace(source, content_hash="d" * 64),
+        lambda: ForecastCalibrationSampleDefinition.create(
+            source=cast(ForecastCalibrationSampleSource, object()),
+            registered_at=NOW,
+        ),
+        lambda: ForecastCalibrationSampleDefinition.create(
+            source=source,
+            registered_at=source.available_at - timedelta(seconds=1),
+        ),
+    )
+    for case in cases:
+        with pytest.raises(ValueError):
+            case()
+
+    definition = _definition()
+    definition_cases = (
+        lambda: replace(definition, definition_version="definition.v2"),
+        lambda: replace(
+            definition,
+            source=cast(ForecastCalibrationSampleSource, object()),
+        ),
+        lambda: replace(
+            definition,
+            registered_at=source.available_at - timedelta(seconds=1),
+        ),
+        lambda: replace(definition, content_hash="d" * 64),
+    )
+    for case in definition_cases:
+        with pytest.raises(ValueError):
+            case()
+
+    class _SourceSubclass(ForecastCalibrationSampleSource):
+        pass
+
+    class _DefinitionSubclass(ForecastCalibrationSampleDefinition):
+        pass
+
+    with pytest.raises(ValueError, match="exact domain type"):
+        _SourceSubclass(**source.__dict__).validated_copy()
+    with pytest.raises(ValueError, match="exact domain type"):
+        _DefinitionSubclass(**definition.__dict__).validated_copy()
+
+
+def test_calibration_owner_state_machine_rejects_incomplete_raw_evidence() -> None:
+    expected = _source().members[0]
+    unresolved = _owner(expected, ForecastCalibrationResolution.UNRESOLVED)
+    resolved = _owner(
+        expected,
+        ForecastCalibrationResolution.RESOLVED,
+        scenario_realized=True,
+    )
+    censored = _owner(expected, ForecastCalibrationResolution.CENSORED)
+    invalidated = _owner(expected, ForecastCalibrationResolution.INVALIDATED)
+    late_invalidation = ForecastCalibrationInvalidationEvidence.create(
+        evidence_version="invalidation.v1",
+        invalidated_at=expected.horizon_end,
+        invalidation_rule_version="rule.v1",
+        evidence_refs=("signal://invalidation/late",),
+    )
+
+    cases = (
+        lambda: replace(
+            unresolved,
+            resolution=cast(ForecastCalibrationResolution, "unresolved"),
+        ),
+        lambda: replace(unresolved, scenario_realized=cast(bool, 1)),
+        lambda: replace(
+            unresolved,
+            invalidation=cast(ForecastCalibrationInvalidationEvidence, object()),
+        ),
+        lambda: replace(unresolved, outcome_source_type="unexpected"),
+        lambda: replace(resolved, outcome_source_hash=None),
+        lambda: replace(
+            resolved,
+            outcome_recorded_at=expected.horizon_end - timedelta(seconds=1),
+        ),
+        lambda: replace(censored, outcome_source_hash=None),
+        lambda: replace(
+            censored,
+            outcome_recorded_at=expected.horizon_end - timedelta(seconds=1),
+        ),
+        lambda: replace(invalidated, invalidation=None),
+        lambda: ForecastCalibrationEntryOwnerRecord.create(
+            entry_id=expected.entry_id,
+            binding=expected.binding,
+            pit_manifest_id=expected.pit_manifest_id,
+            published_at=expected.published_at,
+            horizon_end=expected.horizon_end,
+            entry_recorded_at=expected.entry_recorded_at,
+            resolution=ForecastCalibrationResolution.INVALIDATED,
+            scenario_realized=None,
+            outcome_recorded_at=expected.horizon_end + timedelta(hours=1),
+            outcome_source_type="invalidated",
+            outcome_source_hash="b" * 64,
+            invalidation=late_invalidation,
+        ),
+        lambda: replace(
+            invalidated,
+            outcome_recorded_at=expected.published_at + timedelta(hours=1),
+        ),
+        lambda: replace(unresolved, source_version="owner.v2"),
+        lambda: replace(unresolved, content_hash="d" * 64),
+    )
+    for case in cases:
+        with pytest.raises(ValueError):
+            case()

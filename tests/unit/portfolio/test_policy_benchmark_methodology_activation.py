@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from apps.portfolio.domain import policy_benchmark_methodology_activation as activation_contracts
 from apps.portfolio.domain.policy_benchmark_definition import (
     PolicyBenchmarkConstituentDefinition,
     PolicyBenchmarkMethodologyRef,
@@ -373,3 +374,63 @@ def test_domain_module_has_no_framework_cross_app_or_individual_activation_surfa
         & activation_fields
     )
     assert "PolicyBenchmarkMethodologyRef(" not in source
+
+
+def test_data12_methodology_activation_rejects_every_unsealed_chain_edge() -> None:
+    """Restore the retained activation branches without granting runtime authority."""
+
+    definition = _definition()
+    bundle = PolicyBenchmarkMethodologyBundle.from_definition(definition)
+    subject = _subject(definition)
+    activation = _activation(subject)
+    invalid_constructions = (
+        lambda: activation_contracts._token("bad token", "token"),
+        lambda: activation_contracts._digest("short", "digest"),
+        lambda: replace(_actor("requester", 101), user_id=0),
+        lambda: PolicyBenchmarkMethodologyBundle.from_definition(object()),
+        lambda: replace(bundle, methodology_refs=list(bundle.methodology_refs)),
+        lambda: replace(
+            bundle,
+            methodology_refs=(
+                replace(bundle.methodology_refs[0], owner="research"),
+                *bundle.methodology_refs[1:],
+            ),
+            bundle_hash="",
+        ),
+        lambda: replace(bundle, bundle_hash="0" * 64),
+        lambda: replace(subject, bundle=object()),
+        lambda: replace(subject, requested_by=object()),
+        lambda: replace(
+            subject,
+            valid_until=subject.definition_valid_until - timedelta(seconds=1),
+            content_hash="",
+        ),
+        lambda: replace(
+            subject,
+            requested_at=subject.valid_until,
+            content_hash="",
+        ),
+        lambda: replace(subject, content_hash="0" * 64),
+        lambda: PolicyBenchmarkMethodologyBundleActivation.create(
+            activation_id="activation",
+            activation_version="v1",
+            subject=object(),
+            approved_by=_actor("approver", 202),
+            issued_at=NOW + timedelta(hours=2),
+        ),
+        lambda: replace(activation, subject=object()),
+        lambda: replace(activation, approved_by=object()),
+        lambda: replace(
+            activation,
+            valid_until=activation.valid_until - timedelta(seconds=1),
+            content_hash="",
+        ),
+        lambda: validate_policy_benchmark_methodology_activation_root(object()),
+        lambda: validate_policy_benchmark_methodology_activation_successor(
+            object(),
+            activation,
+        ),
+    )
+    for construct in invalid_constructions:
+        with pytest.raises((TypeError, ValueError)):
+            construct()

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+from typing import cast
 
 import pytest
 
@@ -16,7 +17,7 @@ from apps.risk_center.domain.broker_order_risk_authorization import (
     validate_risk_authorization_successor,
 )
 
-NOW = datetime(2026, 8, 13, 4, tzinfo=timezone.utc)
+NOW = datetime(2026, 8, 13, 4, tzinfo=UTC)
 ORDER_ID = "56f9ae53-7606-46de-bf88-a6543f822d4a"
 
 
@@ -80,6 +81,34 @@ def _record(**changes: object) -> BrokerOrderRiskAuthorizationRecord:
     }
     values.update(changes)
     return BrokerOrderRiskAuthorizationRecord(**values)  # type: ignore[arg-type]
+
+
+def _successor(
+    previous: BrokerOrderRiskAuthorizationRecord,
+    *,
+    scope_changes: dict[str, object] | None = None,
+    requested_at: datetime | None = None,
+    issued_at: datetime | None = None,
+) -> BrokerOrderRiskAuthorizationRecord:
+    scope = replace(
+        previous.subject.scope,
+        **(scope_changes or {}),
+        content_hash="",
+    )
+    request_clock = requested_at or previous.issued_at + timedelta(minutes=1)
+    subject = _subject(
+        subject_id="risk-subject:order-1:successor",
+        scope=scope,
+        requested_at=request_clock,
+        valid_until=scope.effective_valid_until,
+        supersedes_authorization_hash=previous.content_hash,
+    )
+    return _record(
+        authorization_id="risk-authorization:order-1:successor",
+        subject=subject,
+        issued_at=issued_at or request_clock + timedelta(minutes=1),
+        valid_until=subject.valid_until,
+    )
 
 
 def test_scope_subject_and_record_are_exact_content_addressed_contracts() -> None:
@@ -183,3 +212,107 @@ def test_identity_hashes_are_deterministic_and_separate() -> None:
     assert len(subject_hash) == 64
     assert len(authorization_hash) == 64
     assert subject_hash != authorization_hash
+
+
+def test_actor_scope_subject_and_record_reject_every_authority_substitution() -> None:
+    subject = _subject()
+    record = _record(subject=subject)
+    non_staff = BrokerOrderRiskAuthorizationActor(
+        actor_id="user:20",
+        kind=BrokerOrderRiskAuthorizationActorKind.HUMAN,
+        is_staff=False,
+        user_id=20,
+    )
+
+    cases = (
+        lambda: BrokerOrderRiskAuthorizationActor(
+            actor_id="",
+            kind=BrokerOrderRiskAuthorizationActorKind.HUMAN,
+            is_staff=True,
+            user_id=1,
+        ),
+        lambda: BrokerOrderRiskAuthorizationActor(
+            actor_id="user:1",
+            kind=cast(BrokerOrderRiskAuthorizationActorKind, "human"),
+            is_staff=True,
+            user_id=1,
+        ),
+        lambda: BrokerOrderRiskAuthorizationActor(
+            actor_id="user:1",
+            kind=BrokerOrderRiskAuthorizationActorKind.HUMAN,
+            is_staff=cast(bool, 1),
+            user_id=1,
+        ),
+        lambda: BrokerOrderRiskAuthorizationActor(
+            actor_id="user:1",
+            kind=BrokerOrderRiskAuthorizationActorKind.HUMAN,
+            is_staff=True,
+            user_id=0,
+        ),
+        lambda: _scope(execution_scope_version="v2"),
+        lambda: _scope(order_id=ORDER_ID.upper()),
+        lambda: replace(subject, subject_version="v2"),
+        lambda: replace(subject, scope=cast(BrokerOrderRiskScope, object())),
+        lambda: replace(
+            subject,
+            requested_by=cast(BrokerOrderRiskAuthorizationActor, object()),
+        ),
+        lambda: replace(subject, requested_by=non_staff),
+        lambda: replace(subject, requested_at=subject.valid_until),
+        lambda: replace(subject, content_hash="0" * 64),
+        lambda: replace(record, owner="portfolio"),
+        lambda: replace(record, capability="other"),
+        lambda: replace(record, authorization_version="v2"),
+        lambda: replace(record, permission_cap="read_only"),
+        lambda: replace(
+            record,
+            subject=cast(BrokerOrderRiskAuthorizationSubject, object()),
+        ),
+        lambda: replace(
+            record,
+            approved_by=cast(BrokerOrderRiskAuthorizationActor, object()),
+        ),
+        lambda: replace(record, approved_by=non_staff),
+        lambda: replace(
+            record,
+            approved_by=_actor(subject.requested_by.actor_id, 19),
+        ),
+        lambda: replace(record, issued_at=record.valid_until),
+        lambda: replace(record, content_hash="0" * 64),
+    )
+
+    for case in cases:
+        with pytest.raises((TypeError, ValueError)):
+            case()
+
+    service_actor = BrokerOrderRiskAuthorizationActor(
+        actor_id="service:risk-ingest",
+        kind=BrokerOrderRiskAuthorizationActorKind.SERVICE,
+        is_staff=False,
+    )
+    assert service_actor.user_id is None
+
+
+def test_successor_validation_rejects_type_identity_and_clock_forks() -> None:
+    previous = _record()
+    account_fork = _successor(previous, scope_changes={"account_id": 8})
+    order_fork = _successor(
+        previous,
+        scope_changes={"order_id": "b25e4c64-68c2-4af1-a067-3e6ec7e5098d"},
+    )
+    stale_clock = _successor(
+        previous,
+        requested_at=previous.subject.requested_at,
+        issued_at=previous.issued_at,
+    )
+
+    invalid_pairs = (
+        (cast(BrokerOrderRiskAuthorizationRecord, object()), _successor(previous)),
+        (previous, cast(BrokerOrderRiskAuthorizationRecord, object())),
+        (previous, account_fork),
+        (previous, order_fork),
+        (previous, stale_clock),
+    )
+    for prior, successor in invalid_pairs:
+        with pytest.raises((TypeError, ValueError)):
+            validate_risk_authorization_successor(prior, successor)

@@ -2,6 +2,8 @@
 Unit tests for Operation Audit Log Domain layer.
 """
 
+from typing import cast
+
 from apps.audit.domain.entities import (
     OperationAction,
     OperationLog,
@@ -11,6 +13,7 @@ from apps.audit.domain.entities import (
     infer_module_from_tool,
     mask_sensitive_params,
 )
+from apps.audit.domain.operation_log_services import OperationLogFactory
 
 
 class TestMaskSensitiveParams:
@@ -238,3 +241,26 @@ class TestOperationLogEntity:
         assert "raw-access-token" not in serialized
         assert "raw-api-key" not in serialized
         assert "://user:secret@" not in serialized
+
+
+class TestOperationLogFactory:
+    """Test deterministic factory defaults and request-method mapping."""
+
+    def test_mcp_factory_infers_default_contract_fields(self) -> None:
+        log = OperationLogFactory.create_from_mcp_call(
+            request_id="req-mcp-factory",
+            tool_name="create_signal",
+        )
+
+        assert log.source is OperationSource.MCP
+        assert log.operation_type is OperationType.MCP_CALL
+        assert log.module == "signal"
+        assert log.action is OperationAction.CREATE
+        assert log.request_path == "/mcp/tools/create_signal"
+
+        explicit_action = OperationLogFactory.create_from_mcp_call(
+            request_id="req-mcp-explicit-action",
+            tool_name="get_signal",
+            action=cast(str, OperationAction.READ),
+        )
+        assert explicit_action.action is OperationAction.READ

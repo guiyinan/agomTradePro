@@ -23,7 +23,9 @@ from apps.research.domain.r2_market_structure_trial_monitoring import (
     R2CyclePITEvidence,
     R2EvidenceRef,
     R2ExplanatoryMetricKey,
+    R2ExplanatoryTrialAssessment,
     R2MarketStructureTrialPolicy,
+    R2MonitoringAssessment,
     R2MonitoringRawFact,
     R2MonitoringStatus,
     R2PublicationKind,
@@ -32,6 +34,7 @@ from apps.research.domain.r2_market_structure_trial_monitoring import (
     R2TrialBlockerCode,
     R2TrialStatus,
     derive_r2_audit_outcome_id,
+    derive_r2_holm_adjustments,
     derive_r2_monitoring_fact_id,
     derive_r2_pit_manifest_ref,
     evaluate_r2_explanatory_trial,
@@ -1149,3 +1152,104 @@ def test_metric_direction_is_explicitly_preregistered() -> None:
         rule.direction is R2ThresholdDirection.AT_LEAST for rule in scenario.policy.metric_rules
     )
     assert {rule.metric_key for rule in scenario.policy.metric_rules} == set(R2ExplanatoryMetricKey)
+
+
+def test_data12_r2_trial_value_objects_reject_incoherent_evidence_shapes() -> None:
+    """Restore line coverage for Audit metrics, Holm evidence, and trial outcomes."""
+
+    scenario = build_r2_scenario()
+    passed = _trial(scenario)
+    regular = next(
+        item
+        for item in scenario.audit.metrics
+        if item.metric_key is not R2ExplanatoryMetricKey.INCREMENTAL_EXPLANATORY_POWER
+    )
+    significant = next(
+        item
+        for item in scenario.audit.metrics
+        if item.metric_key is R2ExplanatoryMetricKey.INCREMENTAL_EXPLANATORY_POWER
+    )
+    holm = passed.holm_adjustments[0]
+    blocked = R2ExplanatoryTrialAssessment.blocked(
+        assessed_at=NOW,
+        blockers=(R2TrialBlockerCode.POLICY_INACTIVE,),
+        policy_ref=scenario.policy.reference,
+    )
+    invalid_constructions = (
+        lambda: replace(regular, metric_key="coverage_ratio"),
+        lambda: replace(regular, sample_count=regular.expected_sample_count + 1),
+        lambda: replace(significant, raw_p_value=None),
+        lambda: replace(significant, raw_p_value=Decimal("1.01")),
+        lambda: replace(regular, test_family_id="unexpected-family"),
+        lambda: replace(holm, raw_p_value=Decimal("1.01")),
+        lambda: replace(holm, adjusted_p_value=Decimal("1.01")),
+        lambda: replace(holm, rank=0),
+        lambda: derive_r2_holm_adjustments((significant,), scenario.policy.multiple_testing),
+        lambda: replace(
+            scenario.audit,
+            cycle_evidence_refs=scenario.audit.cycle_evidence_refs[:1],
+        ),
+        lambda: replace(
+            scenario.audit,
+            cycle_evidence_refs=(scenario.audit.cycle_evidence_refs[0],) * 2,
+        ),
+        lambda: replace(
+            scenario.audit,
+            metrics=(scenario.audit.metrics[0], scenario.audit.metrics[0]),
+        ),
+        lambda: replace(
+            scenario.audit,
+            available_at=scenario.audit.observed_at - timedelta(seconds=1),
+        ),
+        lambda: replace(scenario.audit, valid_until=scenario.audit.valid_from),
+        lambda: replace(passed, status="passed"),
+        lambda: replace(blocked, metrics=passed.metrics),
+        lambda: replace(
+            passed,
+            blockers=(R2TrialBlockerCode.POLICY_INACTIVE,),
+        ),
+        lambda: replace(passed, holm_adjustments=()),
+        lambda: replace(
+            passed,
+            breached_metrics=(R2ExplanatoryMetricKey.STABILITY_SCORE,),
+        ),
+        lambda: replace(passed, status=R2TrialStatus.BREACHED),
+        lambda: replace(passed, must_not_execute=False),
+    )
+    for construct in invalid_constructions:
+        with pytest.raises((TypeError, ValueError)):
+            construct()
+
+
+def test_data12_r2_monitoring_value_objects_reject_invalid_period_and_status() -> None:
+    """Restore raw-fact and assessment lines while keeping automatic action denied."""
+
+    scenario = build_r2_scenario()
+    fact = scenario.monitoring_facts[0]
+    metric = fact.metrics[0]
+    healthy = _monitoring(scenario)
+    blocked = R2MonitoringAssessment.blocked(
+        assessed_at=NOW,
+        blockers=(R2TrialBlockerCode.MONITORING_FACTS_MISSING,),
+        policy_ref=scenario.policy.reference,
+    )
+    invalid_constructions = (
+        lambda: replace(metric, metric_key="coverage_ratio"),
+        lambda: replace(metric, sample_count=metric.expected_sample_count + 1),
+        lambda: replace(fact, period_end=fact.period_start),
+        lambda: replace(fact, metrics=fact.metrics[:1]),
+        lambda: replace(fact, available_at=fact.observed_at - timedelta(seconds=1)),
+        lambda: replace(fact, valid_until=fact.valid_from),
+        lambda: replace(healthy, status="healthy"),
+        lambda: replace(blocked, fact_refs=(fact.reference,)),
+        lambda: replace(
+            healthy,
+            blockers=(R2TrialBlockerCode.MONITORING_FACTS_MISSING,),
+        ),
+        lambda: replace(healthy, retirement_review_required=True),
+        lambda: replace(healthy, automatic_retirement=True),
+        lambda: replace(healthy, must_not_execute=False),
+    )
+    for construct in invalid_constructions:
+        with pytest.raises((TypeError, ValueError)):
+            construct()

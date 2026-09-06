@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from dataclasses import fields
+from dataclasses import fields, replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from inspect import signature
 
 import pytest
 
+from apps.portfolio.domain import r5_relative_value_monitoring_contracts as monitoring_contracts
 from apps.research.domain.r5_relative_value_monitoring import (
     R5MonitoringAssessmentStatus,
     R5MonitoringMetricResult,
@@ -503,3 +504,116 @@ def test_metric_domain_unit_and_direction_are_canonical(
             breach_threshold=value,
             retirement_review_consecutive_breaches=2,
         )
+
+
+def test_data12_r5_monitoring_contracts_reject_every_noncanonical_owner_edge() -> None:
+    """Restore Portfolio branch coverage using only invalid sealed-owner variants."""
+
+    calendar = _calendar()
+    active = _active()
+    fixed_income = _fixed_income()
+    target = _target()
+    thresholds = _thresholds()
+    policy = _policy(calendar)
+    period = calendar.entries[0]
+    metric = R5MonitoringMetric.canonical(
+        R5MonitoringMetricKey.COVERAGE_RATIO,
+        Decimal("1"),
+    )
+    threshold = thresholds[0]
+    discontinuous = R5MonitoringPeriodEntry.create(
+        calendar_id=calendar.owner.owner_id,
+        calendar_version=calendar.owner.owner_version,
+        period_start=calendar.entries[1].period_start + timedelta(hours=1),
+        period_end=calendar.entries[1].period_end + timedelta(hours=1),
+    )
+    wrong_seal = replace(fixed_income, owner_seal_hash=HASH_F)
+    late_fixed_income = replace(
+        fixed_income,
+        recorded_at=active.promoted_at + timedelta(seconds=1),
+    )
+
+    invalid_constructions = (
+        lambda: monitoring_contracts._require_aware("not-a-clock", "clock"),
+        lambda: monitoring_contracts._require_decimal(1, "number"),
+        lambda: monitoring_contracts._validate_metric_value(
+            R5MonitoringMetricKey.COVERAGE_RATIO,
+            Decimal("1.01"),
+            "ratio",
+        ),
+        lambda: monitoring_contracts._validate_metric_value(
+            R5MonitoringMetricKey.DRAWDOWN_INCREASE,
+            Decimal("1.01"),
+            "drawdown",
+        ),
+        lambda: monitoring_contracts._validate_metric_value(
+            R5MonitoringMetricKey.EXCESS_NET_RETURN,
+            Decimal("2.01"),
+            "return",
+        ),
+        lambda: R5MonitoringPeriodEntry.create(
+            calendar_id=calendar.owner.owner_id,
+            calendar_version=calendar.owner.owner_version,
+            period_start=period.period_start,
+            period_end=period.period_start,
+        ),
+        lambda: replace(period, period_end=period.period_start),
+        lambda: replace(calendar, owner=target.benchmark),
+        lambda: replace(calendar, entries=list(calendar.entries)),
+        lambda: replace(calendar, entries=(object(),)),
+        lambda: replace(
+            calendar,
+            entries=(replace(period, period_id="0" * 64), *calendar.entries[1:]),
+        ),
+        lambda: replace(calendar, entries=tuple(reversed(calendar.entries))),
+        lambda: replace(
+            calendar,
+            entries=(calendar.entries[0], calendar.entries[0], calendar.entries[2]),
+        ),
+        lambda: replace(
+            calendar,
+            entries=(calendar.entries[0], discontinuous, calendar.entries[2]),
+        ),
+        lambda: replace(calendar, recorded_at=period.period_start + timedelta(seconds=1)),
+        lambda: replace(calendar, recorded_at=calendar.recorded_at + timedelta(seconds=1)),
+        lambda: replace(calendar, valid_until=calendar.entries[-1].period_end),
+        lambda: replace(calendar, valid_until=calendar.owner.valid_until + timedelta(seconds=1)),
+        lambda: replace(active, fixed_income_owner_seal_hashes=()),
+        lambda: replace(active, fixed_income_owner_seal_hashes=(HASH_E, HASH_D)),
+        lambda: replace(active, recorded_at=active.valid_until),
+        lambda: replace(target, active_lifecycle=object()),
+        lambda: replace(target, fixed_income=object()),
+        lambda: replace(target, benchmark=object()),
+        lambda: replace(target, benchmark=target.cost_policy),
+        lambda: replace(target, fixed_income=wrong_seal),
+        lambda: replace(target, fixed_income=late_fixed_income),
+        lambda: replace(metric, metric_key="coverage_ratio"),
+        lambda: replace(metric, unit=R5MonitoringMetricUnit.RETURN_RATE),
+        lambda: replace(threshold, metric_key="coverage_ratio"),
+        lambda: replace(threshold, unit=R5MonitoringMetricUnit.RETURN_RATE),
+        lambda: replace(threshold, direction=R5MonitoringThresholdDirection.AT_MOST),
+        lambda: replace(policy, policy_version="unsupported"),
+        lambda: replace(policy, thresholds=list(policy.thresholds)),
+        lambda: replace(policy, thresholds=(object(), *policy.thresholds[1:])),
+        lambda: replace(policy, thresholds=tuple(reversed(policy.thresholds))),
+        lambda: replace(
+            policy,
+            recorded_at=policy.calendar_first_period_start + timedelta(seconds=1),
+        ),
+        lambda: replace(
+            policy,
+            valid_until=policy.calendar_owner.valid_until + timedelta(hours=12),
+        ),
+        lambda: replace(policy, content_hash="0" * 64),
+    )
+
+    for construct in invalid_constructions:
+        with pytest.raises((TypeError, ValueError)):
+            construct()
+
+    policy_subclass = type("Data12R5MonitoringPolicySubclass", (R5MonitoringPolicy,), {})
+    subclass_value = policy_subclass(
+        **{item.name: getattr(policy, item.name) for item in fields(policy) if item.init}
+    )
+    with pytest.raises(ValueError, match="validated copy differs"):
+        subclass_value.validated_copy()

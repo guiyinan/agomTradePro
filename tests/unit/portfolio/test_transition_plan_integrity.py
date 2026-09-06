@@ -3,11 +3,12 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import replace
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
 
+from apps.portfolio.domain import transition_plan_integrity as integrity
 from apps.portfolio.domain.entities import ConstraintDecision, OrderDraft, TransitionPlan
 from apps.portfolio.domain.transition_plan_integrity import (
     TransitionPlanApprovalActor,
@@ -52,6 +53,28 @@ def _plan(**changes: object) -> TransitionPlan:
     }
     values.update(changes)
     return TransitionPlan(**values)  # type: ignore[arg-type]
+
+
+def _receipt() -> TransitionPlanApprovalReceipt:
+    return TransitionPlanApprovalReceipt.create(
+        receipt_id="plan-approval:plan-1:v1",
+        receipt_version="v1",
+        subject_id="plan-approval-subject:plan-1:v1",
+        subject_version="v1",
+        subject_content_hash="a" * 64,
+        requested_by=TransitionPlanApprovalActor(
+            actor_id="user:18",
+            user_id=18,
+            role="owner",
+        ),
+        plan=_plan(),
+        approved_by=TransitionPlanApprovalActor(
+            actor_id="user:19",
+            user_id=19,
+            role="reviewer",
+        ),
+        issued_at=NOW + timedelta(minutes=1),
+    )
 
 
 def test_v1_bytes_match_the_historical_infrastructure_algorithm() -> None:
@@ -107,7 +130,7 @@ def test_v1_bytes_match_the_historical_infrastructure_algorithm() -> None:
 def test_v1_preserves_historical_decimal_and_timezone_byte_semantics() -> None:
     original = _plan()
     decimal_changed = replace(original, cash_before=Decimal("1000.0"))
-    timezone_changed = replace(original, as_of_time=original.as_of_time.astimezone(timezone.utc))
+    timezone_changed = replace(original, as_of_time=original.as_of_time.astimezone(UTC))
     assert transition_plan_content_hash_v1(decimal_changed) != transition_plan_content_hash_v1(
         original
     )
@@ -211,3 +234,118 @@ def test_receipt_binds_subject_and_requires_two_distinct_actor_identities() -> N
             approved_by=same_actor,
             issued_at=NOW + timedelta(minutes=1),
         )
+
+
+def test_data12_transition_plan_validation_rejects_every_mutable_edge() -> None:
+    """Restore strict approval eligibility branches without issuing authority."""
+
+    plan = _plan()
+    order = plan.orders[0]
+    constraint = plan.constraints[0]
+    assert transition_plan_hash_matches_v1(plan, "short") is False
+    assert transition_plan_hash_matches_v1(plan, "g" * 64) is False
+    invalid_constructions = (
+        lambda: integrity.canonical_transition_plan_payload_v1(object()),
+        lambda: integrity._require_token("", "token"),
+        lambda: integrity._require_token("x" * 193, "token"),
+        lambda: integrity._require_finite_decimal(
+            Decimal("0"),
+            "positive",
+            positive=True,
+        ),
+        lambda: integrity._require_finite_decimal(Decimal("-1"), "nonnegative"),
+        lambda: validate_transition_plan_for_approval_receipt(object()),
+        lambda: validate_transition_plan_for_approval_receipt(_plan(expires_at=plan.as_of_time)),
+        lambda: validate_transition_plan_for_approval_receipt(_plan(orders=(object(),))),
+        lambda: validate_transition_plan_for_approval_receipt(
+            _plan(orders=(order, order), constraints=(constraint, constraint))
+        ),
+        lambda: validate_transition_plan_for_approval_receipt(
+            _plan(orders=(replace(order, status="filled"),))
+        ),
+        lambda: validate_transition_plan_for_approval_receipt(
+            _plan(orders=(replace(order, quantity=-1),))
+        ),
+        lambda: validate_transition_plan_for_approval_receipt(
+            _plan(orders=(replace(order, remaining_quantity=-1),))
+        ),
+        lambda: validate_transition_plan_for_approval_receipt(_plan(constraints=(object(),))),
+        lambda: validate_transition_plan_for_approval_receipt(
+            _plan(
+                orders=(replace(order, constraints=(replace(constraint, allowed=1),)),),
+                constraints=(replace(constraint, allowed=1),),
+            )
+        ),
+        lambda: validate_transition_plan_for_approval_receipt(
+            _plan(
+                orders=(replace(order, constraints=(replace(constraint, original_quantity=-1),)),),
+                constraints=(replace(constraint, original_quantity=-1),),
+            )
+        ),
+        lambda: validate_transition_plan_for_approval_receipt(
+            _plan(
+                orders=(replace(order, constraints=(replace(constraint, allowed_quantity=1.5),)),),
+                constraints=(replace(constraint, allowed_quantity=1.5),),
+            )
+        ),
+        lambda: validate_transition_plan_for_approval_receipt(
+            _plan(
+                orders=(replace(order, constraints=(replace(constraint, allowed_quantity=101),)),),
+                constraints=(replace(constraint, allowed_quantity=101),),
+            )
+        ),
+        lambda: validate_transition_plan_for_approval_receipt(
+            _plan(constraints=(replace(constraint, reason="different"),))
+        ),
+        lambda: TransitionPlanApprovalActor(actor_id="user:0", user_id=0, role="owner"),
+    )
+    for construct in invalid_constructions:
+        with pytest.raises((TypeError, ValueError)):
+            construct()
+
+
+def test_data12_transition_receipt_rejects_authority_identity_and_state_drift() -> None:
+    """Exercise inactive-receipt branches while preserving the execution deny."""
+
+    receipt = _receipt()
+    requester = receipt.requested_by
+    approver = receipt.approved_by
+    with pytest.raises(ValueError, match="only an approved"):
+        TransitionPlanApprovalReceipt.create(
+            receipt_id=receipt.receipt_id,
+            receipt_version=receipt.receipt_version,
+            subject_id=receipt.subject_id,
+            subject_version=receipt.subject_version,
+            subject_content_hash=receipt.subject_content_hash,
+            requested_by=requester,
+            plan=_plan(status="DRAFT"),
+            approved_by=approver,
+            issued_at=receipt.issued_at,
+        )
+    with pytest.raises(ValueError, match="cannot predate"):
+        TransitionPlanApprovalReceipt.create(
+            receipt_id=receipt.receipt_id,
+            receipt_version=receipt.receipt_version,
+            subject_id=receipt.subject_id,
+            subject_version=receipt.subject_version,
+            subject_content_hash=receipt.subject_content_hash,
+            requested_by=requester,
+            plan=_plan(),
+            approved_by=approver,
+            issued_at=NOW - timedelta(seconds=1),
+        )
+
+    invalid_constructions = (
+        lambda: replace(receipt, owner="research"),
+        lambda: replace(receipt, plan_version=0),
+        lambda: replace(receipt, plan_content_hash="short"),
+        lambda: replace(receipt, subject_content_hash="g" * 64),
+        lambda: replace(receipt, requested_by=object()),
+        lambda: replace(receipt, approved_by=object()),
+        lambda: replace(receipt, plan_status_at_issue="DRAFT"),
+        lambda: replace(receipt, execution_permission="active"),
+        lambda: replace(receipt, blocker_codes=()),
+    )
+    for construct in invalid_constructions:
+        with pytest.raises((TypeError, ValueError)):
+            construct()

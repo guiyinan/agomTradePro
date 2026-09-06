@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import fields
+from copy import deepcopy
+from dataclasses import fields, replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
@@ -15,6 +16,8 @@ from apps.research.application.r7_analogy_path_owner import (
     RegisterScenarioPathDefinitionCommand,
     RegisterScenarioPathReceiptCommand,
 )
+from apps.research.domain import r7_analogy_path_owner as analogy_contracts
+from apps.research.domain import r7_path_owner as path_contracts
 from apps.research.domain.r7_analogy_path_owner import (
     AnalogyCandidateRawEvidence,
     AnalogyFeatureObservation,
@@ -382,3 +385,387 @@ def test_owner_codecs_are_strict_and_seal_preserving() -> None:
     payload["content_hash"] = "0" * 64
     with pytest.raises(R7AnalogyPathOwnerCodecError):
         decode_scenario_path_receipt(payload)
+
+
+def _strict_subclass(value: object) -> object:
+    subclass = type(f"Data12{type(value).__name__}Subclass", (type(value),), {})
+    return subclass(**{item.name: getattr(value, item.name) for item in fields(value) if item.init})
+
+
+def _assert_replay_difference(value: object) -> None:
+    altered = replace(value)  # type: ignore[arg-type]
+    object.__setattr__(altered, "content_hash", "0" * 64)
+    with pytest.raises(ValueError, match="differs after replay"):
+        altered.validated_copy()  # type: ignore[attr-defined]
+
+
+def test_data12_analogy_owner_rejects_unsealed_definition_and_raw_graph() -> None:
+    """Cover retained R7 analogy lines with explicit invalid owner variants."""
+
+    definition = _analogy_definition()
+    receipt = _analogy_receipt()
+    source = receipt.source
+    rule = definition.feature_rules[0]
+    feature = source.query_features[0]
+    candidate = source.candidates[0]
+    second_candidate = AnalogyCandidateRawEvidence.create(
+        candidate_id="candidate-2",
+        candidate_version=candidate.candidate_version,
+        window_start=candidate.window_start - timedelta(days=1),
+        window_end=candidate.window_end,
+        decision_cutoff=candidate.decision_cutoff,
+        pit_manifest=candidate.pit_manifest,
+        features=candidate.features,
+        evidence_refs=candidate.evidence_refs,
+    )
+    bad_weight = AnalogyFeatureRule.create(
+        feature_key=rule.feature_key,
+        unit=rule.unit,
+        weight=Decimal("0.20"),
+        scale=rule.scale,
+    )
+    mismatched_feature = _feature(
+        feature.feature_key,
+        "1",
+        source.query_manifest.as_of,
+        "f",
+    )
+
+    invalid_constructions = (
+        lambda: analogy_contracts._utc_text(datetime(2026, 1, 1), "clock"),
+        lambda: analogy_contracts._duration_text("one day", "duration"),
+        lambda: analogy_contracts._decimal(1, "number"),
+        lambda: analogy_contracts._decimal(Decimal("0"), "number", positive=True),
+        lambda: analogy_contracts._positive_int(0, "count"),
+        lambda: analogy_contracts._evidence_refs((), "evidence"),
+        lambda: analogy_contracts._evidence_refs(("b", "a"), "evidence"),
+        lambda: analogy_contracts._copy_scope(object()),
+        lambda: analogy_contracts._copy_manifest(object()),
+        lambda: replace(rule, content_hash="0" * 64),
+        lambda: replace(feature, content_hash="0" * 64),
+        lambda: replace(definition, similarity_method_version="cosine.v1"),
+        lambda: replace(definition, feature_rules=()),
+        lambda: replace(definition, feature_rules=tuple(reversed(definition.feature_rules))),
+        lambda: replace(definition, feature_rules=(rule, rule)),
+        lambda: replace(
+            definition,
+            feature_rules=(bad_weight, definition.feature_rules[1]),
+        ),
+        lambda: replace(definition, allowed_release_lag=-timedelta(seconds=1)),
+        lambda: replace(definition, valid_until=definition.activated_at),
+        lambda: replace(definition, content_hash="0" * 64),
+        lambda: analogy_contracts._exact_analogy_rule(object()),
+        lambda: replace(candidate, window_end=candidate.window_start),
+        lambda: replace(
+            candidate,
+            decision_cutoff=candidate.decision_cutoff + timedelta(seconds=1),
+        ),
+        lambda: replace(candidate, content_hash="0" * 64),
+        lambda: analogy_contracts._exact_analogy_observation(object()),
+        lambda: analogy_contracts._exact_analogy_features((), "features"),
+        lambda: analogy_contracts._exact_analogy_features(
+            tuple(reversed(source.query_features)),
+            "features",
+        ),
+        lambda: analogy_contracts._exact_analogy_features((feature, feature), "features"),
+        lambda: analogy_contracts._match_analogy_manifest(
+            source.query_manifest,
+            source.query_features[:1],
+        ),
+        lambda: analogy_contracts._match_analogy_manifest(
+            source.query_manifest,
+            (mismatched_feature, source.query_features[1]),
+        ),
+        lambda: replace(source, candidates=()),
+        lambda: replace(source, candidates=(second_candidate, candidate)),
+        lambda: replace(source, candidates=(candidate, candidate)),
+        lambda: replace(source, available_at=source.query_manifest.as_of - timedelta(seconds=1)),
+        lambda: replace(source, content_hash="0" * 64),
+        lambda: analogy_contracts._exact_analogy_candidate(object()),
+        lambda: replace(receipt, receipt_version="unsupported"),
+        lambda: replace(receipt, recorded_at=definition.activated_at - timedelta(seconds=1)),
+        lambda: replace(receipt, recorded_at=source.available_at - timedelta(seconds=1)),
+        lambda: replace(receipt, content_hash="0" * 64),
+        lambda: analogy_contracts._exact_analogy_definition(object()),
+        lambda: analogy_contracts._exact_analogy_source(object()),
+    )
+    for construct in invalid_constructions:
+        with pytest.raises((TypeError, ValueError)):
+            construct()
+
+    for value, match in (
+        (rule, "feature rule type differs"),
+        (feature, "feature observation type differs"),
+        (definition, "definition type differs"),
+        (candidate, "candidate raw type differs"),
+        (source, "raw source type differs"),
+        (receipt, "receipt type differs"),
+    ):
+        with pytest.raises(TypeError, match=match):
+            _strict_subclass(value).validated_copy()  # type: ignore[attr-defined]
+        _assert_replay_difference(value)
+
+
+def test_data12_path_owner_rejects_unsealed_members_sources_and_receipts() -> None:
+    """Cover retained R7 path lines without synthesizing resolved denominators."""
+
+    definition = _path_definition()
+    receipt = _path_receipt()
+    source = receipt.source
+    expected = definition.expected_members[0]
+    rule = definition.shock_rules[0]
+    observed = source.sample_members[0]
+    shock = source.shocks[0]
+    late_observed = PathObservedSampleMember.create(
+        expected=observed.expected,
+        resolution=observed.resolution,
+        to_scenario_revision_id=observed.to_scenario_revision_id,
+        observed_at=observed.observed_at,
+        available_at=source.available_at + timedelta(seconds=1),
+        source_version=observed.source_version,
+        source_hash=observed.source_hash,
+        evidence_ref=observed.evidence_ref,
+    )
+    foreign_observed = PathObservedSampleMember.create(
+        expected=observed.expected,
+        resolution=observed.resolution,
+        to_scenario_revision_id=UUID("00000000-0000-0000-0000-000000000999"),
+        observed_at=observed.observed_at,
+        available_at=observed.available_at,
+        source_version=observed.source_version,
+        source_hash=observed.source_hash,
+        evidence_ref=observed.evidence_ref,
+    )
+    wrong_version_observed = PathObservedSampleMember.create(
+        expected=observed.expected,
+        resolution=observed.resolution,
+        to_scenario_revision_id=observed.to_scenario_revision_id,
+        observed_at=observed.observed_at,
+        available_at=observed.available_at,
+        source_version="different-source.v1",
+        source_hash=observed.source_hash,
+        evidence_ref=observed.evidence_ref,
+    )
+
+    invalid_constructions = (
+        lambda: path_contracts._utc_text(datetime(2026, 1, 1), "clock"),
+        lambda: path_contracts._duration_text("one day", "duration"),
+        lambda: path_contracts._decimal(1, "number"),
+        lambda: path_contracts._decimal(Decimal("0"), "number", positive=True),
+        lambda: path_contracts._positive_int(0, "count"),
+        lambda: path_contracts._evidence_refs((), "evidence"),
+        lambda: path_contracts._evidence_refs(("b", "a"), "evidence"),
+        lambda: path_contracts._copy_scope(object()),
+        lambda: path_contracts._copy_manifest(object()),
+        lambda: replace(expected, from_scenario_revision_id="revision"),
+        lambda: replace(expected, content_hash="0" * 64),
+        lambda: replace(rule, scenario_revision_id="revision"),
+        lambda: replace(rule, period_end=rule.period_start),
+        lambda: replace(rule, content_hash="0" * 64),
+        lambda: replace(definition, probability_sum_tolerance=Decimal("1")),
+        lambda: replace(definition, valid_until=definition.activated_at),
+        lambda: replace(definition, content_hash="0" * 64),
+        lambda: path_contracts._exact_path_expected(object()),
+        lambda: path_contracts._exact_path_members(()),
+        lambda: path_contracts._exact_path_members(tuple(reversed(definition.expected_members))),
+        lambda: path_contracts._exact_path_members((expected, expected)),
+        lambda: path_contracts._exact_path_shock_rule(object()),
+        lambda: path_contracts._exact_path_shock_rules(()),
+        lambda: path_contracts._exact_path_shock_rules(tuple(reversed(definition.shock_rules))),
+        lambda: path_contracts._exact_path_shock_rules((rule, rule)),
+        lambda: replace(observed, resolution="resolved"),
+        lambda: replace(
+            observed,
+            resolution=PathSampleResolution.UNRESOLVED,
+        ),
+        lambda: replace(observed, to_scenario_revision_id="revision"),
+        lambda: replace(
+            observed,
+            available_at=observed.observed_at - timedelta(seconds=1),
+        ),
+        lambda: replace(observed, content_hash="0" * 64),
+        lambda: replace(shock, available_at=rule.period_end - timedelta(seconds=1)),
+        lambda: replace(shock, content_hash="0" * 64),
+        lambda: replace(source, available_at=source.pit_manifest.as_of - timedelta(seconds=1)),
+        lambda: replace(
+            source,
+            sample_members=(late_observed, *source.sample_members[1:]),
+        ),
+        lambda: replace(source, content_hash="0" * 64),
+        lambda: path_contracts._exact_path_observed(object()),
+        lambda: path_contracts._exact_path_observed_members(()),
+        lambda: path_contracts._exact_path_observed_members(tuple(reversed(source.sample_members))),
+        lambda: path_contracts._exact_path_observed_members((observed, observed)),
+        lambda: path_contracts._exact_path_shock_observation(object()),
+        lambda: path_contracts._exact_path_shock_observations(()),
+        lambda: path_contracts._exact_path_shock_observations(tuple(reversed(source.shocks))),
+        lambda: path_contracts._exact_path_shock_observations((shock, shock)),
+        lambda: replace(receipt, receipt_version="unsupported"),
+        lambda: replace(receipt, recorded_at=definition.activated_at - timedelta(seconds=1)),
+        lambda: replace(receipt, recorded_at=source.available_at - timedelta(seconds=1)),
+        lambda: path_contracts._exact_path_definition(object()),
+        lambda: path_contracts._exact_path_source(object()),
+    )
+    for construct in invalid_constructions:
+        with pytest.raises((TypeError, ValueError)):
+            construct()
+
+    for value, match in (
+        (expected, "expected member type differs"),
+        (rule, "shock rule type differs"),
+        (definition, "definition type differs"),
+        (observed, "observed member type differs"),
+        (shock, "shock observation type differs"),
+        (source, "raw source type differs"),
+        (receipt, "receipt type differs"),
+    ):
+        with pytest.raises(TypeError, match=match):
+            _strict_subclass(value).validated_copy()  # type: ignore[attr-defined]
+        _assert_replay_difference(value)
+
+    late_source = ScenarioPathRawSource.create(
+        pit_manifest=source.pit_manifest,
+        sample_members=(foreign_observed, *source.sample_members[1:]),
+        shocks=source.shocks,
+        available_at=source.available_at,
+        evidence_refs=source.evidence_refs,
+    )
+    with pytest.raises(ValueError, match="outside scenario scope"):
+        path_contracts._match_path_source(definition, late_source)
+    wrong_version_source = ScenarioPathRawSource.create(
+        pit_manifest=source.pit_manifest,
+        sample_members=(wrong_version_observed, *source.sample_members[1:]),
+        shocks=source.shocks,
+        available_at=source.available_at,
+        evidence_refs=source.evidence_refs,
+    )
+    with pytest.raises(ValueError, match="source version differs"):
+        path_contracts._match_path_source(definition, wrong_version_source)
+
+
+def test_data12_owner_graph_cross_member_consistency_is_fail_closed() -> None:
+    """Exercise remaining reachable analogy/path graph consistency branches."""
+
+    assert analogy_contracts._positive_int(1, "count") == 1
+    assert path_contracts._duration_text(timedelta(days=1), "duration") == "86400.0"
+
+    analogy_definition = _analogy_definition()
+    analogy_source = _analogy_receipt().source
+    query_subset = deepcopy(analogy_source)
+    object.__setattr__(query_subset, "query_features", query_subset.query_features[:1])
+    bad_query_unit = deepcopy(analogy_source)
+    query_feature = deepcopy(bad_query_unit.query_features[0])
+    object.__setattr__(query_feature, "unit", "percent")
+    object.__setattr__(
+        bad_query_unit,
+        "query_features",
+        (query_feature, *bad_query_unit.query_features[1:]),
+    )
+    candidate_subset = deepcopy(analogy_source)
+    candidate = deepcopy(candidate_subset.candidates[0])
+    object.__setattr__(candidate, "features", candidate.features[:1])
+    object.__setattr__(candidate_subset, "candidates", (candidate,))
+    excessive_lag = deepcopy(analogy_source)
+    candidate = deepcopy(excessive_lag.candidates[0])
+    object.__setattr__(
+        candidate,
+        "window_end",
+        candidate.decision_cutoff - analogy_definition.allowed_release_lag - timedelta(seconds=1),
+    )
+    object.__setattr__(excessive_lag, "candidates", (candidate,))
+    bad_candidate_unit = deepcopy(analogy_source)
+    candidate = deepcopy(bad_candidate_unit.candidates[0])
+    feature = deepcopy(candidate.features[0])
+    object.__setattr__(feature, "unit", "percent")
+    object.__setattr__(candidate, "features", (feature, *candidate.features[1:]))
+    object.__setattr__(bad_candidate_unit, "candidates", (candidate,))
+
+    for source, match in (
+        (query_subset, "query features"),
+        (bad_query_unit, "query feature unit"),
+        (candidate_subset, "candidate features"),
+        (excessive_lag, "release lag"),
+        (bad_candidate_unit, "candidate feature unit"),
+    ):
+        with pytest.raises(ValueError, match=match):
+            analogy_contracts._validate_analogy_graph(analogy_definition, source)
+
+    equal_cutoff_candidate = AnalogyCandidateRawEvidence.create(
+        candidate_id="candidate-at-query-cutoff",
+        candidate_version="analogy-candidate.v1",
+        window_start=analogy_source.query_manifest.as_of - timedelta(days=3),
+        window_end=analogy_source.query_manifest.as_of - timedelta(days=1),
+        decision_cutoff=analogy_source.query_manifest.as_of,
+        pit_manifest=analogy_source.query_manifest,
+        features=analogy_source.query_features,
+        evidence_refs=("data-center:candidate-at-query-cutoff",),
+    )
+    with pytest.raises(ValueError, match="must predate"):
+        replace(analogy_source, candidates=(equal_cutoff_candidate,))
+
+    path_definition = _path_definition()
+    members = path_definition.expected_members
+    rules = path_definition.shock_rules
+    unbalanced_members = members[:-1]
+    foreign_rule = deepcopy(rules[0])
+    object.__setattr__(
+        foreign_rule,
+        "scenario_revision_id",
+        UUID("00000000-0000-0000-0000-000000000999"),
+    )
+    split_boundary_rule = deepcopy(rules[0])
+    object.__setattr__(split_boundary_rule, "scenario_revision_id", REVISION_B)
+    object.__setattr__(
+        split_boundary_rule,
+        "period_start",
+        rules[0].period_start + timedelta(hours=1),
+    )
+    overlap_rule = deepcopy(rules[1])
+    object.__setattr__(
+        overlap_rule,
+        "period_start",
+        rules[0].period_end - timedelta(hours=1),
+    )
+    graph_cases = (
+        (members[:1], rules, "cover every period"),
+        (unbalanced_members, rules, "balanced group"),
+        (members, rules[:1], "exact path horizon"),
+        (members, (foreign_rule, rules[1]), "outside scope"),
+        (members, (rules[0], split_boundary_rule, rules[1]), "different boundaries"),
+        (members, (rules[0], overlap_rule), "overlap"),
+    )
+    for actual_members, actual_rules, match in graph_cases:
+        with pytest.raises(ValueError, match=match):
+            path_contracts._validate_path_definition_graph(
+                path_definition.scope,
+                actual_members,
+                actual_rules,
+            )
+
+    path_source = _path_receipt().source
+    incomplete_shocks = ScenarioPathRawSource.create(
+        pit_manifest=path_source.pit_manifest,
+        sample_members=path_source.sample_members,
+        shocks=path_source.shocks[:1],
+        available_at=path_source.available_at,
+        evidence_refs=path_source.evidence_refs,
+    )
+    with pytest.raises(ValueError, match="expected shock rules"):
+        path_contracts._match_path_source(path_definition, incomplete_shocks)
+    wrong_shock = PathShockObservation.create(
+        rule=path_source.shocks[0].rule,
+        magnitude=path_source.shocks[0].magnitude,
+        source_version="different-source.v1",
+        available_at=path_source.shocks[0].available_at,
+        source_hash=path_source.shocks[0].source_hash,
+        evidence_ref=path_source.shocks[0].evidence_ref,
+    )
+    wrong_shock_source = ScenarioPathRawSource.create(
+        pit_manifest=path_source.pit_manifest,
+        sample_members=path_source.sample_members,
+        shocks=(wrong_shock, *path_source.shocks[1:]),
+        available_at=path_source.available_at,
+        evidence_refs=path_source.evidence_refs,
+    )
+    with pytest.raises(ValueError, match="shock source version differs"):
+        path_contracts._match_path_source(path_definition, wrong_shock_source)
