@@ -1,0 +1,294 @@
+{
+  "schema_version": "data12-domain-coverage-restoration-closure.v1",
+  "unit_id": "DATA-12",
+  "recorded_at": "2026-09-06T12:04:48.757Z",
+  "repository": {
+    "branch": "dev/next-development",
+    "test_commit": "df52ac606a0cf8f85b2b20af27bad1bf6ba58bf7",
+    "test_commit_subject": "test: restore DATA-12 domain coverage",
+    "verified_commit": "79f91c2e6536ffca550a3c19c03b96fcf8dcc75d",
+    "verified_commit_subject": "ci: isolate nightly Playwright database",
+    "remote_ref": "origin/dev/next-development",
+    "remote_synced_before_nightly": true,
+    "production_python_changed": false
+  },
+  "nightly": {
+    "workflow": "Nightly Tests",
+    "workflow_file": ".github/workflows/nightly-tests.yml",
+    "event": "workflow_dispatch",
+    "data12_total_dispatch_count": 2,
+    "successful_candidate_dispatch_count": 1,
+    "run_id": 34025990248,
+    "url": "https://github.com/guiyinan/agomTradePro/actions/runs/34025990248",
+    "head_sha": "79f91c2e6536ffca550a3c19c03b96fcf8dcc75d",
+    "created_at": "2026-09-06T09:55:26Z",
+    "updated_at": "2026-09-06T12:01:41Z",
+    "status": "completed",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "nightly",
+        "database_id": 101466926857,
+        "started_at": "2026-09-06T09:55:39Z",
+        "completed_at": "2026-09-06T12:01:41Z",
+        "conclusion": "success",
+        "failed_step_count": 0
+      },
+      {
+        "name": "Critical Reliability (PostgreSQL)",
+        "database_id": 101466926922,
+        "started_at": "2026-09-06T09:55:41Z",
+        "completed_at": "2026-09-06T10:05:30Z",
+        "conclusion": "success",
+        "failed_step_count": 0
+      }
+    ],
+    "required_main_steps": {
+      "registered_current_data_contracts": "success",
+      "registered_celery_contracts": "success",
+      "full_production_mypy": "success",
+      "frontend_node_contracts": "success",
+      "full_unit": "success",
+      "test_tier_inventory": "success",
+      "component": "success",
+      "api_and_migration": "success",
+      "critical_reliability_sqlite_fake_agent": "success",
+      "core_integration": "success",
+      "app_local": "success",
+      "sdk_client": "success",
+      "mcp_contract": "success",
+      "django_e2e": "success",
+      "guardrail": "success",
+      "coverage_ratchet": "success",
+      "architecture_audit": "success",
+      "playwright_smoke": "success",
+      "quality_report": "success"
+    },
+    "required_postgresql_steps": {
+      "full_migration_graph": "success",
+      "isolated_backup_restore_compare": "success",
+      "critical_reliability": "success",
+      "migration_integrity": "success",
+      "canonical_publication_runtime_profile": "success",
+      "current_data_manifest": "success",
+      "celery_manifest": "success",
+      "backfill_retention_control_plane": "success",
+      "retention_qlib_concurrency": "success"
+    }
+  },
+  "preceding_failed_run": {
+    "run_id": 34013108889,
+    "url": "https://github.com/guiyinan/agomTradePro/actions/runs/34013108889",
+    "head_sha": "df52ac606a0cf8f85b2b20af27bad1bf6ba58bf7",
+    "conclusion": "failure",
+    "failed_step": "Run Playwright Smoke Tests",
+    "failure": "Dashboard GET attempted to persist a market thermometer snapshot while the non-isolated SQLite database was locked",
+    "corrective_boundary": "Nightly now uses core.settings.playwright with one disposable shared SQLite path, explicit migrations and --reuse-db; production application behavior is unchanged",
+    "local_corrective_smoke": {
+      "passed": 38,
+      "failed": 0
+    }
+  },
+  "coverage_artifact": {
+    "artifact_id": 9988878086,
+    "artifact_digest": "sha256:0f00dec0d50b765610c0342102ce01baf2b83392e27c4a8b56b3f4909bc899ca",
+    "artifact_size_bytes": 38679747,
+    "manifest_sha256": "12afdb01fe3bd5025388708122ca88a2039204c2a98c23ff3ff5950c32275efb",
+    "manifest_commit": "79f91c2e6536ffca550a3c19c03b96fcf8dcc75d",
+    "manifest_git_dirty": false,
+    "branch_measurement": true,
+    "internal_report_hashes_verified": true,
+    "report_sha256": {
+      "apps": "4c1bbf855429ee0098188ebca237c9ed42d1616098d55192c6450e0ed70d0577",
+      "combined": "9cbe77cb785b7714d457d8adee13302c1787498484ccdf2be812e17ab755b105",
+      "core": "78743fb8bb30594877b0444cfbe2c493839c5fe1b0fcd369d256fbb9831aaa79",
+      "details": "f979b9583d1a0209115d0b5298c27bded686174ef24dc9a6a4e8216ca024b220",
+      "inventory": "aaf6d8e38fba1049f165886759d0f51cc1401c6c37a20799d2a29bce12cb73a3",
+      "sdk": "85a6c42bd5e0fed0a1b2f689c5e6f8ec2a2c27ed8736eab57f368a314e4bc7b7",
+      "shared": "94ffc510c52d5743826b9a66ab24ccc41ccf2e6abebcbc30c9284bdae1e62d49"
+    },
+    "scopes": {
+      "apps": {
+        "covered_lines": 249054,
+        "valid_lines": 285727,
+        "covered_branches": 55385,
+        "valid_branches": 78540
+      },
+      "core": {
+        "covered_lines": 4466,
+        "valid_lines": 5341,
+        "covered_branches": 795,
+        "valid_branches": 1196
+      },
+      "shared": {
+        "covered_lines": 2568,
+        "valid_lines": 3148,
+        "covered_branches": 588,
+        "valid_branches": 892
+      },
+      "sdk": {
+        "covered_lines": 9740,
+        "valid_lines": 12045,
+        "covered_branches": 1884,
+        "valid_branches": 3098
+      }
+    },
+    "domain_results": {
+      "agent_runtime": {
+        "covered_lines": 559,
+        "valid_lines": 559,
+        "line_percent": 100.0,
+        "covered_branches": 94,
+        "valid_branches": 94,
+        "branch_percent": 100.0,
+        "restored_branch_floor": 100.0
+      },
+      "audit": {
+        "covered_lines": 1030,
+        "valid_lines": 1091,
+        "line_percent": 94.41,
+        "covered_branches": 270,
+        "valid_branches": 318,
+        "branch_percent": 84.91,
+        "restored_branch_floor": 84.7
+      },
+      "data_center": {
+        "covered_lines": 3536,
+        "valid_lines": 3697,
+        "line_percent": 95.65,
+        "covered_branches": 1115,
+        "valid_branches": 1274,
+        "branch_percent": 87.52,
+        "restored_branch_floor": 87.1
+      },
+      "operational_readiness": {
+        "covered_lines": 125,
+        "valid_lines": 125,
+        "line_percent": 100.0,
+        "covered_branches": 38,
+        "valid_branches": 38,
+        "branch_percent": 100.0,
+        "restored_branch_floor": 100.0
+      },
+      "policy": {
+        "covered_lines": 382,
+        "valid_lines": 400,
+        "line_percent": 95.5,
+        "covered_branches": 72,
+        "valid_branches": 90,
+        "branch_percent": 80.0,
+        "restored_branch_floor": 79.0
+      },
+      "portfolio": {
+        "covered_lines": 8389,
+        "valid_lines": 8884,
+        "line_percent": 94.43,
+        "covered_branches": 2703,
+        "valid_branches": 3160,
+        "branch_percent": 85.54,
+        "restored_branch_floor": 85.5
+      },
+      "regime": {
+        "covered_lines": 1420,
+        "valid_lines": 1542,
+        "line_percent": 92.09,
+        "covered_branches": 425,
+        "valid_branches": 532,
+        "branch_percent": 79.89,
+        "restored_branch_floor": 79.7
+      },
+      "research": {
+        "covered_lines": 12192,
+        "valid_lines": 13544,
+        "line_percent": 90.02,
+        "previous_line_floor": 88.2,
+        "restored_line_floor": 90.0,
+        "covered_branches": 3715,
+        "valid_branches": 5032,
+        "branch_percent": 73.83,
+        "branch_floor_changed": false
+      },
+      "risk_center": {
+        "covered_lines": 1662,
+        "valid_lines": 1671,
+        "line_percent": 99.46,
+        "covered_branches": 569,
+        "valid_branches": 582,
+        "branch_percent": 97.77,
+        "restored_branch_floor": 97.2
+      },
+      "signal": {
+        "covered_lines": 1397,
+        "valid_lines": 1475,
+        "line_percent": 94.71,
+        "previous_line_floor": 88.3,
+        "restored_line_floor": 90.0,
+        "covered_branches": 483,
+        "valid_branches": 550,
+        "branch_percent": 87.82,
+        "restored_branch_floor": 86.1
+      }
+    }
+  },
+  "baseline_update": {
+    "domain_line_default": 90.0,
+    "removed_line_exceptions": [
+      "research",
+      "signal"
+    ],
+    "remaining_line_exceptions": {},
+    "raised_branch_floors": {
+      "agent_runtime": [85.1, 100.0],
+      "audit": [83.3, 84.7],
+      "data_center": [80.5, 87.1],
+      "operational_readiness": [89.4, 100.0],
+      "policy": [77.7, 79.0],
+      "portfolio": [77.8, 85.5],
+      "regime": [76.3, 79.7],
+      "risk_center": [90.3, 97.2],
+      "signal": [70.7, 86.1]
+    },
+    "lowered_floor_count": 0,
+    "remaining_reconciled_domain_coverage_debt_count": 0
+  },
+  "local_validation": {
+    "playwright_corrective_smoke": {
+      "passed": 38,
+      "failed": 0
+    },
+    "coverage_ratchet_with_raised_floors": "passed",
+    "quality_and_registry_tool_tests": {
+      "passed": 45,
+      "failed": 0,
+      "test_files": [
+        "tests/unit/test_testing_quality_tools.py",
+        "tests/unit/test_active_plan_registry.py",
+        "tests/guardrails/test_governance_consistency.py"
+      ]
+    },
+    "json_validation": "passed"
+  },
+  "exit_gate": {
+    "exact_commit_nightly_completed": true,
+    "main_job_success": true,
+    "postgresql_job_success": true,
+    "complete_coverage_artifact_verified": true,
+    "research_line_restored": true,
+    "signal_line_restored": true,
+    "all_nine_branch_targets_restored": true,
+    "baseline_raised_without_lowering": true,
+    "repository_unit_completed": true
+  },
+  "safety_boundary": {
+    "production_python_changed": false,
+    "production_cutover_evidence_modified_by_repository_closure": false,
+    "production_candidate_modified_by_repository_closure": false,
+    "production_database_read_by_repository_closure": false,
+    "production_database_write_by_repository_closure": false,
+    "main_merge_authorized_as_follow_up": true,
+    "deployment_authorized_as_follow_up": true,
+    "cutover_rebinding_authorized_as_follow_up": true,
+    "production_claim": false,
+    "production_ready": false
+  }
+}

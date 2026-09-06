@@ -391,3 +391,32 @@ Policy `2/2`、Portfolio `244/243`、Regime `19/19`、Risk Center `43/40`、Sign
 仅为把同一批改动提交并推送至 `origin/dev/next-development`，触发一次 GitHub Python 3.11
 Nightly，并由该 exact-commit 的完整 coverage artifact 复核分子、分母。只有 Nightly 全绿后才删除
 Research/Signal 两项 line exception、上调 9 项 branch floor 并登记 closure evidence。
+
+### DATA-12 完成证据
+
+首个精确测试提交 `df52ac606a0cf8f85b2b20af27bad1bf6ba58bf7` 的 Nightly run
+[`34013108889`](https://github.com/guiyinan/agomTradePro/actions/runs/34013108889) 在所有 Python、
+PostgreSQL、coverage 与架构步骤成功后，因旧 Nightly Playwright 配置仍使用共享
+`development_sqlite` 而在 Dashboard 自动写入温度计快照时触发 SQLite lock，最终失败。修复提交
+`79f91c2e6536ffca550a3c19c03b96fcf8dcc75d` 将该步骤切换到仓库既有的 disposable
+`core.settings.playwright` 契约，显式 migration 并使用 `--reuse-db`；本地 38 项 smoke 与精确提交
+Nightly [`34025990248`](https://github.com/guiyinan/agomTradePro/actions/runs/34025990248) 均完整成功。
+
+成功 run 的主 job 与 PostgreSQL job 均为 `success`，所有必需步骤失败数为 0。coverage artifact
+`9988878086` digest 为
+`sha256:0f00dec0d50b765610c0342102ce01baf2b83392e27c4a8b56b3f4909bc899ca`；manifest
+SHA-256 为 `12afdb01fe3bd5025388708122ca88a2039204c2a98c23ff3ff5950c32275efb`，绑定精确
+提交、`git_dirty=false`、branch measurement 启用，内部 7 份报告 hash 全部匹配。
+
+完整 artifact 确认 Research Domain `12192/13544 = 90.02% line`、Signal Domain
+`1397/1475 = 94.71% line`。9 个 branch scope 分别为 Agent Runtime `94/94 = 100.0%`、
+Audit `270/318 = 84.91%`、Data Center `1115/1274 = 87.52%`、Operational Readiness
+`38/38 = 100.0%`、Policy `72/90 = 80.0%`、Portfolio `2703/3160 = 85.54%`、Regime
+`425/532 = 79.89%`、Risk Center `569/582 = 97.77%`、Signal `483/550 = 87.82%`。
+因此删除最后两项 line exception，并将对应 branch floor 上调为预登记的
+`100.0/84.7/87.1/100.0/79.0/85.5/79.7/97.2/86.1%`；没有下调任何门槛。
+
+结构化 [DATA-12 closure evidence](../testing/data12-domain-coverage-restoration-closure-evidence-2026-09-06.json)
+记录成功 Nightly、失败前序及 CI 修复边界。DATA-12 完成，`execution_focus.unit_id` 回到 `null`，
+重算后的 Domain coverage 债务已清零。此 repository closure 不替代 DATA-02 的生产数据回填、
+TUI-02 的新候选观察或其它生产门禁；后续合并与部署按项目所有者本次独立授权执行。

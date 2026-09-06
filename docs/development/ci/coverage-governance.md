@@ -79,6 +79,17 @@ Factor line overrides were therefore removed so the shared 90% line floor applie
 Execution branch floor was raised from 75.9% to 77.2%. No floor was lowered. Research and Signal
 line exceptions and nine branch restoration targets remain explicit P2 debt.
 
+The final restoration slice completed on 2026-09-06 at commit
+`79f91c2e6536ffca550a3c19c03b96fcf8dcc75d`, Nightly run `34025990248`, coverage artifact
+`9988878086`, and manifest SHA-256
+`12afdb01fe3bd5025388708122ca88a2039204c2a98c23ff3ff5950c32275efb`. The git-clean,
+internally hash-verified artifact restores Research and Signal Domain line coverage to `90.0%`
+and `94.7%`, respectively. It also verifies the nine registered branch targets: Agent Runtime
+`100.0%`, Audit `84.9%`, Data Center `87.5%`, Operational Readiness `100.0%`, Policy `80.0%`,
+Portfolio `85.5%`, Regime `79.9%`, Risk Center `97.8%`, and Signal `87.8%`. The last two line
+overrides were removed and all nine branch floors were raised to their pre-registered restoration
+targets. No floor was lowered; DATA-12 closes the reconciled Domain coverage debt.
+
 ## Local evidence workflow
 
 Each pytest layer appends to the same coverage data:
