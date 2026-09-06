@@ -27,16 +27,16 @@
       "sdk": 46,
       "terminal_tui": 28,
       "test_evidence": 42,
-      "workflow_step": 9
+      "workflow_step": 10
     },
     "by_status": {
-      "active_public": 719,
+      "active_public": 720,
       "adjacent_operational": 296,
       "candidate-review": 0,
       "compatibility": 137,
       "retired_blocked": 0
     },
-    "total": 1152
+    "total": 1153
   },
   "entries": [
     {
@@ -7892,8 +7892,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:.github/workflows/nightly-tests.yml:initialize_data_center_catalog:line:405",
-      "locator": "line:405",
+      "id": "orchestration_entry:.github/workflows/nightly-tests.yml:initialize_data_center_catalog:line:409",
+      "locator": "line:409",
       "path": ".github/workflows/nightly-tests.yml",
       "status": "active_public",
       "symbol": "initialize_data_center_catalog",
@@ -11528,6 +11528,16 @@
       "status": "active_public",
       "symbol": "Restore backup in isolation and compare exact PostgreSQL state",
       "target": "scripts/verify_postgres_backup_restore.py"
+    },
+    {
+      "category": "workflow_step",
+      "evidence": "CI-owned database setup or PostgreSQL migration/backup/restore verification step",
+      "id": "workflow_step:.github/workflows/nightly-tests.yml:Run Playwright Smoke Tests:tokens:manage.py migrate",
+      "locator": "tokens:manage.py migrate",
+      "path": ".github/workflows/nightly-tests.yml",
+      "status": "active_public",
+      "symbol": "Run Playwright Smoke Tests",
+      "target": "django:migrate"
     },
     {
       "category": "workflow_step",

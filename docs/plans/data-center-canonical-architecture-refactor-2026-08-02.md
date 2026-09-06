@@ -5093,3 +5093,12 @@ Git SHA / 镜像 / migration：
 - 没有执行 `--execute`、写回事实、切换 publication、启用 runtime 或修改 tolerance。DATA-02 保持
   `awaiting_production`，DATA-03 保持 `waiting_dependency`；下一步是带 before/after recorder、固定批次和
   owner exception review 的 production reconciliation，而不是再次运行历史模拟。
+
+## 157. 2026-09-06：Nightly workflow 入口清单同步
+
+- `79f91c2e6` 为 Nightly Playwright 独立数据库增加迁移步骤后，未同步生成入口清单，导致
+  Consistency Check 和 CI Fast Feedback 的入口完整性检查失败。
+- 使用 `python scripts/data_center_entrypoint_inventory.py --write` 重建清单：新增该 workflow 的
+  `django:migrate` 入口，并修正已有 catalog 初始化入口的行号；共 1,153 项，`candidate-review=0`。
+- Workflow 数据库准备步骤变更时须同步重建清单，并以无 `--write` 模式复核；本次仅同步治理记录，
+  不修改业务代码或检查规则。
