@@ -226,13 +226,19 @@ jobs:
 
       - name: Run Playwright Smoke Tests
         timeout-minutes: 15
+        env:
+          AGOM_PLAYWRIGHT_DB_PATH: ${{ runner.temp }}/agomtradepro-nightly-playwright.sqlite3
+          DJANGO_SETTINGS_MODULE: core.settings.playwright
+          PYTEST_PLAYWRIGHT_DRIVER: chromium
         run: |
+          rm -f "${AGOM_PLAYWRIGHT_DB_PATH}"
+          python manage.py migrate --noinput --settings=core.settings.playwright
           python scripts/run_live_server_pytest.py \
             --suite-name nightly-playwright-smoke \
             --host 127.0.0.1 \
             --port 8000 \
             --base-url http://127.0.0.1:8000 \
-            --settings-module core.settings.development_sqlite \
+            --settings-module core.settings.playwright \
             --health-timeout 180 \
             --min-tests 10 \
             --junitxml reports/quality/nightly-playwright-smoke.xml \
@@ -240,11 +246,9 @@ jobs:
             --pytest-log reports/quality/nightly-playwright-smoke.pytest.log \
             -- \
             tests/playwright/tests/smoke/ -v \
+            --reuse-db \
             --screenshot=only-on-failure \
             --video=retain-on-failure
-        env:
-          DJANGO_SETTINGS_MODULE: core.settings.development
-          PYTEST_PLAYWRIGHT_DRIVER: chromium
 
       - name: Full lint fallback (non-blocking)
         continue-on-error: true
