@@ -246,6 +246,15 @@
       "path": "tests/unit/audit/test_system_audit_archive.py",
       "symbol": "test_system_audit_archive",
       "status": "adjacent_operational"
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "reviewed Account-owned disposable PostgreSQL capture, replay, locking, revocation and rollback evidence; no production authority is issued",
+      "path": [
+        "tests/component/account/test_actor_authority_capture_postgres.py",
+        "tests/support/actor_authority_capture_postgres.py"
+      ],
+      "status": "adjacent_operational"
     }
   ],
   "owner": "data_center",

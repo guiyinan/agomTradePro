@@ -303,6 +303,8 @@ class DjangoAccountUserAuthoritySourceV3Repository:
         return anchor
 
     def _closed_world(self, *, lock: bool, permitted_empty_anchor: int | None = None) -> _World:
+        """Load the closed ledger world while locking only nullable-safe row targets."""
+
         anchors_query = AccountUserAuthoritySourceV3AnchorModel._base_manager.using(
             self._using
         ).all()
@@ -313,7 +315,7 @@ class DjangoAccountUserAuthoritySourceV3Repository:
         )
         if lock:
             anchors_query = anchors_query.select_for_update()
-            rows_query = rows_query.select_for_update()
+            rows_query = rows_query.select_for_update(of=("self",))
         anchors = tuple(anchors_query.order_by("pk"))
         anchor_ids = {_pk(anchor): anchor for anchor in anchors}
         records: list[
