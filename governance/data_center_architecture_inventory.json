@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 4457,
+    "current_surface_references": 4462,
     "data_write_task_decorators": 62,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -296,6 +296,11 @@
   ],
   "current_surface_references": [
     {
+      "line": 61,
+      "path": "apps/account/account_actor_authority_capture_composition.py",
+      "text": "\"\"\"Build the exact-current request reader on one canonical source alias.\"\"\""
+    },
+    {
       "line": 1,
       "path": "apps/account/account_owner_assignment_evidence_v3_composition.py",
       "text": "\"\"\"Account-owned read composition for current owner-assignment evidence v3.\"\"\""
@@ -349,6 +354,26 @@
       "line": 51,
       "path": "apps/account/application/account_actor_authority_raw_source_primitives_v3.py",
       "text": "\"\"\"Select one exact version for replay or exact-current head verification.\"\"\""
+    },
+    {
+      "line": 1,
+      "path": "apps/account/application/account_actor_authority_request_reader.py",
+      "text": "\"\"\"Exact-current request adapter for canonical Account actor authority.\"\"\""
+    },
+    {
+      "line": 24,
+      "path": "apps/account/application/account_actor_authority_request_reader.py",
+      "text": "\"\"\"Read one exact-current canonical actor-authority source.\"\"\""
+    },
+    {
+      "line": 29,
+      "path": "apps/account/application/account_actor_authority_request_reader.py",
+      "text": "\"\"\"Return the selected current source, or ``None`` when unavailable.\"\"\""
+    },
+    {
+      "line": 63,
+      "path": "apps/account/application/account_actor_authority_request_reader.py",
+      "text": "\"\"\"Return the exact current request authority without any fallback.\"\"\""
     },
     {
       "line": 127,
@@ -476,27 +501,27 @@
       "text": "\"account identity snapshot current selector substitution\""
     },
     {
-      "line": 18,
+      "line": 23,
       "path": "apps/account/application/account_owner_assignment_actor_authority_source_v3.py",
       "text": "\"\"\"An exact-current authority input is unavailable.\"\"\""
     },
     {
-      "line": 166,
+      "line": 171,
       "path": "apps/account/application/account_owner_assignment_actor_authority_source_v3.py",
       "text": "\"\"\"Select three exact-current authority inputs using IDs and hashes only.\"\"\""
     },
     {
-      "line": 439,
+      "line": 444,
       "path": "apps/account/application/account_owner_assignment_actor_authority_source_v3.py",
       "text": "else (\"deactivated\" if not user.is_active else \"current\")"
     },
     {
-      "line": 518,
+      "line": 537,
       "path": "apps/account/application/account_owner_assignment_actor_authority_source_v3.py",
       "text": "\"exact-current authority input is unavailable\""
     },
     {
-      "line": 606,
+      "line": 625,
       "path": "apps/account/application/account_owner_assignment_actor_authority_source_v3.py",
       "text": "raise TypeError(\"command must be an exact authority current command\")"
     },
@@ -1771,17 +1796,17 @@
       "text": "\"\"\"Return the current aware time.\"\"\""
     },
     {
-      "line": 359,
+      "line": 361,
       "path": "apps/account/infrastructure/account_authentication_context_source_v3_repository.py",
       "text": "current_row, current = root_row, root"
     },
     {
-      "line": 368,
+      "line": 370,
       "path": "apps/account/infrastructure/account_authentication_context_source_v3_repository.py",
       "text": "current.source, successor.source"
     },
     {
-      "line": 375,
+      "line": 377,
       "path": "apps/account/infrastructure/account_authentication_context_source_v3_repository.py",
       "text": "current_row, current = next_row, successor"
     },
@@ -1926,22 +1951,22 @@
       "text": "\"summary = client.dashboard.get_summary()\","
     },
     {
-      "line": 5,
+      "line": 4,
       "path": "apps/account/infrastructure/account_owner_assignment_actor_authority_bundle_provider.py",
       "text": "current readers and returns the consumer-owned DTO bundle used by the actor"
     },
     {
-      "line": 128,
+      "line": 129,
       "path": "apps/account/infrastructure/account_owner_assignment_actor_authority_bundle_provider.py",
       "text": "\"\"\"Read one exact-current Account actor bundle from a PostgreSQL snapshot."
     },
     {
-      "line": 162,
+      "line": 163,
       "path": "apps/account/infrastructure/account_owner_assignment_actor_authority_bundle_provider.py",
       "text": "\"\"\"Return a same-cutoff bundle, or ``None`` when any source is not current.\"\"\""
     },
     {
-      "line": 310,
+      "line": 325,
       "path": "apps/account/infrastructure/account_owner_assignment_actor_authority_bundle_provider.py",
       "text": "\"\"\"Validate current source identity and project only existing DTO fields.\"\"\""
     },
@@ -1956,22 +1981,22 @@
       "text": "~models.Q(authority_state=\"current\")"
     },
     {
-      "line": 50,
+      "line": 52,
       "path": "apps/account/infrastructure/account_owner_assignment_actor_authority_source_v3_repository.py",
       "text": "\"\"\"Return the current aware time.\"\"\""
     },
     {
-      "line": 421,
+      "line": 444,
       "path": "apps/account/infrastructure/account_owner_assignment_actor_authority_source_v3_repository.py",
       "text": "current_row, current = root_row, root"
     },
     {
-      "line": 434,
+      "line": 457,
       "path": "apps/account/infrastructure/account_owner_assignment_actor_authority_source_v3_repository.py",
       "text": "current.source, successor.source"
     },
     {
-      "line": 441,
+      "line": 464,
       "path": "apps/account/infrastructure/account_owner_assignment_actor_authority_source_v3_repository.py",
       "text": "current_row, current = next_row, successor"
     },
@@ -2196,17 +2221,17 @@
       "text": "\"\"\"Return the current aware server time.\"\"\""
     },
     {
-      "line": 364,
+      "line": 366,
       "path": "apps/account/infrastructure/account_rbac_authority_source_v3_repository.py",
       "text": "current_row, current = root_row, root"
     },
     {
-      "line": 373,
+      "line": 375,
       "path": "apps/account/infrastructure/account_rbac_authority_source_v3_repository.py",
       "text": "current.source, successor.source"
     },
     {
-      "line": 380,
+      "line": 382,
       "path": "apps/account/infrastructure/account_rbac_authority_source_v3_repository.py",
       "text": "current_row, current = next_row, successor"
     },
@@ -2216,17 +2241,17 @@
       "text": "\"\"\"Return the current aware server time.\"\"\""
     },
     {
-      "line": 366,
+      "line": 368,
       "path": "apps/account/infrastructure/account_user_authority_source_v3_repository.py",
       "text": "current_row, current = root_row, root"
     },
     {
-      "line": 375,
+      "line": 377,
       "path": "apps/account/infrastructure/account_user_authority_source_v3_repository.py",
       "text": "current.source, next_record.source"
     },
     {
-      "line": 382,
+      "line": 384,
       "path": "apps/account/infrastructure/account_user_authority_source_v3_repository.py",
       "text": "current_row, current = next_row, next_record"
     },
