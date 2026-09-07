@@ -491,14 +491,14 @@ def _evaluate(
 
 
 def test_checked_in_evidence_is_explicitly_denied() -> None:
-    """Current checkout rejects evidence bound to an older runtime manifest."""
+    """Fresh candidates cannot inherit route acceptance or a retained window."""
 
     result = evaluate_readiness(
         matrix_path=MATRIX_PATH,
         catalog_path=CATALOG_PATH,
         evidence_path=EVIDENCE_PATH,
-        as_of=date(2026, 8, 30),
-        evaluated_at=datetime(2026, 8, 30, 23, 59, tzinfo=UTC),
+        as_of=date(2026, 9, 7),
+        evaluated_at=datetime(2026, 9, 7, 23, 59, tzinfo=UTC),
     )
     gates = {gate.key: gate for gate in result.gates}
 
@@ -508,13 +508,13 @@ def test_checked_in_evidence_is_explicitly_denied() -> None:
     assert gates["source_consistency"].passed is True
     assert gates["execution_dependency"].passed is True
     assert gates["route_task_uat"].passed is False
-    assert "covered=108/108" in gates["route_task_uat"].detail
+    assert "covered=0/108" in gates["route_task_uat"].detail
     assert "binding=false" in gates["route_task_uat"].detail
-    assert "evidence=true" in gates["route_task_uat"].detail
+    assert "evidence=false" in gates["route_task_uat"].detail
     assert gates["route_cleanup_readiness"].passed is False
-    assert "covered=108/108" in gates["route_cleanup_readiness"].detail
+    assert "covered=0/108" in gates["route_cleanup_readiness"].detail
     assert "candidate_binding=false" in gates["route_cleanup_readiness"].detail
-    assert "evidence=true" in gates["route_cleanup_readiness"].detail
+    assert "evidence=false" in gates["route_cleanup_readiness"].detail
     assert gates["rollback_drill"].passed is False
     assert "binding=false" in gates["rollback_drill"].detail
     assert gates["stable_version_window"].passed is False
