@@ -1,0 +1,28 @@
+{
+  "version": "web-to-tui-production-deployment-preflight.v1",
+  "environment": "production",
+  "release": {
+    "stable_version": "20260907170119",
+    "release_id": "20260907170119",
+    "source_commit": "0e9f890e8185d897630fd937b5ffc220fd7830ce",
+    "deployed_at": "2026-09-07T09:16:33.494930162Z"
+  },
+  "oci_image": {
+    "image_id": "sha256:778e50018124dd4d67dbe6a607b495d2e480c1bc6ff1aed42a9f50f484331e1e",
+    "revision": "0e9f890e8185d897630fd937b5ffc220fd7830ce"
+  },
+  "production_health": {
+    "checked_at": "2026-09-07T09:19:03.222217+00:00",
+    "health": {
+      "http_status": 200,
+      "status": "ok",
+      "response_sha256": "79575ab771403da88d8eafc434e4c49688acfb51ff0cdcbb57787f07be3ec150"
+    },
+    "readiness": {
+      "http_status": 200,
+      "status": "ok",
+      "response_sha256": "73ba6bc108e2f0e8c1082c3786c035e7652d2cfec431c4dd14fb5852b5d20bc6"
+    }
+  },
+  "verified_at": "2026-09-07T09:22:09.521220+00:00"
+}
