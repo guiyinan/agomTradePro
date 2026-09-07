@@ -3968,3 +3968,74 @@ Git-canonical LF fixture bytes，未修改 Application serializer、parser、rec
 原失败节点现为 `1 passed`；Black、isort、Ruff、active-plan registry 与 governance consistency 均通过。
 `execution_focus` 回到 null。该修复只关闭跨平台 repository fixture debt，不改变 EVID-01/02 的 zero-seed、
 human-approval 缺失或 production readiness 状态。
+
+## 2026-09-06：EVID-05 canonical actor 接线整改
+
+单一所有者内测 Goal 的只读调用链复核确认：`CaptureAccountOwnerAssignmentActorAuthoritySourceV3`
+已有 writer，但没有生产 composition/command 调用；`ExactCurrentAccountActorAuthorityV3Reader`
+只有请求侧 Protocol。`system_audit_authority_composition.py` 已使用 canonical input bundle provider
+与 source repository，可复用，不能再把缺口全部归因于用户未填审批模板。
+
+`EVID-05` 登记为唯一 repository focus，`EVID-01` 增加该前置。范围只包含 actor capture factory、
+exact-current request adapter、默认无写入的显式 selector command 和对应测试；禁止用 User/Profile/
+session 构造缺失 authority、创建新表、改历史证据或直接播种生产。命令必须复用已有 writer，
+保持同数据库 alias、时间/身份/hash 精确核验、缺失/过期/撤销/漂移阻断，并验证 dry-run 零写入。
+
+退出需 focused unit/component、Black/isort/Ruff、增量 mypy、全仓 debt、架构与治理检查通过。
+这不是 EVID-01/02 的生产验收，也不更改 claimant/approver 分离规则；单一所有者运行时规则如需
+调整，应另以真实 owner 决定和精确契约审查处理。SSH 当前握手失败，生产 authority head 状态仍未
+重新验证；生产数据库、审批、决策门和 queued runtime 均未变更。
+
+## 2026-09-06：EVID-05 implementation checkpoint
+
+本切片新增四个生产文件：actor capture composition、exact-current request reader、strict request
+parser 与 management command；四者复用同一 validated database alias 和 exact canonical source selectors。
+默认 dry-run 只解析本地请求，不构造 writer、不访问数据库；显式 execute 才调用既有 canonical writer。
+execute 可能只是 immutable historical winner replay，因此不能将 `upstream_authority_verified` 记为真实
+上游新验证；`runtime_enabled` 保持 false。未播种生产数据，SSH/current candidate 仍未验证。
+
+Root 已核对 focused 75 tests（3 个新增测试文件及既有 application/source repository/request-authority 测试）；
+isort、Black、Ruff、增量 mypy（4 个文件，0 regression）、active registry 与 governance checks 通过。
+Full architecture check（3015 files，0 boundary violations）与 mypy debt ceiling（0 errors）也已通过。
+但 Luna 复核发现首次 capture 的真实事务组合仍有阻塞：writer 进入 repository.atomic 后调用 provider，
+而现有 provider 要求独占外层 read-only repeatable-read transaction，故拒绝同 alias 的嵌套事务。
+75 项测试尚未覆盖这一真实组合，不能据此声明写入入口可用。下一切片先补事务组合复现，再修正
+捕获时的 snapshot/锁契约；必须保留 same alias、winner replay、upstream drift 检查和 CAS rollback。
+另需核对 raw-source unavailable 到 actor-source unavailable 的异常边界。EVID-05 继续 active，EVID-01/02
+生产状态不变。回滚点为移除新增 wiring/CLI 文件，既有 persistence/repository 保留。
+
+事务复现已补入 `tests/component/account/test_account_actor_authority_capture_composition.py`：
+`-k reaches_raw_factory_before_nested_outer_transaction_guard` 实际为 1 failed / 13 deselected，
+real capture factory/provider 在 fake PostgreSQL transaction 中抛出 `authority bundle requires its own
+outer transaction`，未到达 raw repository factory。此为尚待修复的 TDD 失败，不是生产 PG 证据。
+不采用把全部读取搬到写事务之前的方案，因为其最后一次验证与 append 之间仍有 TOCTOU。
+下一步评审 capture 专用的同 alias、canonical UOW 内 raw-ledger 锁定读取；独立 provider 的外层
+read-only snapshot 契约保持不变。实现及真实 PostgreSQL 首次写入/重放/锁冲突验证尚未完成。
+
+## 2026-09-07：EVID-05 PostgreSQL 实证修复
+
+首次 capture 的事务冲突已修正：capture 专用 provider 校验同 alias 的 canonical UOW 和
+READ COMMITTED，读取前以固定顺序取得六张 raw anchor/ledger 表的 SHARE NOWAIT 锁，锁保持到
+actor 写事务结束；默认 provider 的独立只读 repeatable-read、嵌套拒绝及 alias 漂移事务前拒绝保留。
+raw unavailable/corruption/conflict 在 Application 边界归一，缺失上游仍不能成为 current authority。
+
+真实 PostgreSQL 又复现三个 raw repository 及 actor repository 对可空 predecessor 外连接执行
+FOR UPDATE 的失败；现已对 ledger 使用 `of=("self",)`，anchor/root 继续单独锁定，所有账本行及
+其前驱仍包含在 closed-world 行锁集合中。没有用 SQLite 结果代替这次数据库验证。
+
+隔离 PostgreSQL 16.14 回归 12 passed：首次 capture/current read/replay、六表写冲突拒绝、锁保持到
+append/commit、落库后异常回滚、旧隔离快照拒绝、raw revoke 使 current reader 失效。撤销测试随后
+改为 capture 后一分钟发生，推进 repository clock 后单独复验 1 passed；其余 11 项未改变。
+扩大 unit/component 为 95 passed；CLI 19 passed，实际 manage.py 默认入口输出 noop/dry_run。
+11 个生产文件的增量 mypy 分批均为零回归，全仓 mypy debt=0；17 文件格式检查、3016 文件架构扫描
+及治理一致性通过。测试库退出时 public base tables=0，本轮临时 PostgreSQL 容器已删除。
+
+最后发现 Data Center 入口投影新增两份 PostgreSQL test_evidence；已审核为 Account-owned
+adjacent_operational，官方脚本已重生成 1155 项投影，candidate-review=0。
+规范化 [closure evidence](../testing/evid05-account-actor-capture-repository-closure-evidence-2026-09-07.json)
+SHA=`470e5b15776bd4f1bdf8488827c49f4b223cc1ef317f88a9b0336dbd45db1714` 绑定 17 个源码/测试文件。
+EVID-05 已满足 repository exit gate，注册表晋级 completed 并释放唯一 repository focus。
+当前 VPS SSH 重试仍超时；生产数据、authority、approval、runtime、部署和观察窗口均未变更。
+实际调用：`python manage.py capture_account_actor_authority --input <canonical-selector-json>` 默认只验证；
+显式 `--execute` 才调用既有 writer，历史 replay 不代表 current authority 已通过。无需新增迁移。
+本轮未创建 commit/push：工作树中的既有计划草稿与本次范围重叠，保留原始编辑供统一审阅。

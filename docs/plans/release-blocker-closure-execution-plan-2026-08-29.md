@@ -6,6 +6,81 @@
 > 原则：本文只编排既有 unit，不建立第二套状态、不降低阈值、不代签、不伪造 PIT/OOS 历史，也不把生产写入授权扩大为实盘交易授权。
 > 授权记录（2026-08-30）：用户已授权 A1–A8 动作包继续执行；每个动作仍受其前置门、精确目标、回滚点、外部环境和真实 owner/reviewer 决策约束，授权不等于验收通过。
 
+## 0. 2026-09-06：单一所有者内测冲刺提案
+
+用户明确系统尚未正式对外，要求按单一所有者项目重新评估发布范围与门槛。本节登记执行提案，
+不构成已经签署的风险接受、生产动作回执或 unit 完成证据。机器注册表仍是状态与依赖真源；
+截至本次核对有 15 个未完成 unit，`DATA-12` 仍是 repository focus，等待完整同提交 Nightly
+覆盖率证据。允许的 production/governance 工作可以继续准备，不据此跳过 repository 执行锁。
+
+### 范围与门槛修订
+
+- TUI：优先考虑延后 Classic 清理，把单一所有者内测验收与旧页面退役分开；保留现有
+  `TUI-02` 观察及清理门，内测可用不得记作 `TUI-02=completed`。若所有者选择三天方案，须
+  另行记录所替代的条款、适用候选与环境、真实起算样本、重置条件、风险接受和恢复原门的条件，
+  同步 checker/config/registry/测试后才生效；不得仅把历史时间或状态改成通过。
+- Terminal：全局并发 5 是待测上限，不是既定安全容量。先验证 1，再验证至多 5 的受限内测
+  envelope；通过 Web SLO、队列背压、去重、Worker 存活、资源与恢复/回滚检查后，才能按实测
+  接受的上限启用。现有 TAR-06 runner 只接受 staging，不能把 VPS production 目标伪装为 staging。
+  内测 canary、完整 TAR-05 验收和 inline 退役须分别记录；若要调整 1/5/10/20 或观察门，先正式
+  修订对应合同，不能以低并发测试代替当前完整退出门。
+- 策略：首批限定为实际数据和 owner 输入齐备的 1–2 个 capability，其余逐项记录为本轮范围外，
+  保持不可 Promotion。具体 capability 待真实数据盘点确定；被选中的项目仍必须完整通过
+  `STRAT-01 -> STRAT-02 -> STRAT-03` 及 `EVID-01/02 -> EVID-03`，不豁免 PIT/OOS、证伪阈值、
+  权限、回执和回滚。范围缩减不自动关闭原来覆盖更广的 unit。
+- QMT：保留外部阻塞及实盘禁用，不作为研究展示或非交易内测的前置。
+
+### 一周执行顺序与可验证交付
+
+以下 D1 从候选绑定及必要前置完成后起算，是计划预算，不是已发生的观察天数。
+
+| 时段 | 单元 | 本阶段交付 | 不满足时的处理 |
+|---|---|---|---|
+| D1–D2 | DATA-02 | 核对真实缺口与恢复点；有界回填、逐批 checkpoint、来源时间和写后对账 | partial、stale、容差或资源超限即停在 checkpoint；DATA-03 不放行 |
+| D1–D2 | STRAT-01 准备 | 选定 1–2 个 capability，列出真实 owner、定义、policy、calendar、scope、样本及证伪输入 | 缺输入保持未登记，不用默认值替代 |
+| D2–D3 | EVID-01/02 | 真实 owner receipt 对应的 canonical authority/approval 写入与 PostgreSQL first-winner、撤销、current-head、rollback 证据 | 缺真实授权或并发证据不关闭；EVID-03 仍等待 |
+| D3–D4 | AUD-03 | candidate-bound 告警/恢复、archive/restore、管理员 TUI 与可恢复性演练证据 | unavailable 明示，不能作零值通过 |
+| D4–D5 | TAR-05 内测准备 | 精确目标、负载与资源预算、受限阶梯结果、终止条件及回滚点；据实决定是否启用受限 canary | 容量未验证不启用；不能据此宣称完整 TAR-05 或 AI-01 验收 |
+| D5–D7 | DATA-03、STRAT-02、EVID-03 | 按已满足的依赖启动真实观察、样本积累或 adapter 实现；仓库工作遵守唯一 focus | 时间不足继续积累，不补写历史；DATA-12 未退出前不抢占实现焦点 |
+
+周末分别报告已通过退出门的 unit、获得阶段证据的 unit、等待真实时间/owner 输入/外部环境的
+unit，不以“约关闭 10 个”作为验收指标。DATA-03 的行情交易日与宏观调度周期、TAR-05 的观察、
+策略样本窗口都须单独核算。单一所有者可作真实角色决定，代理负责准备、执行和取证，不代造决定。
+
+### Goal 启动记录（2026-09-06）
+
+用户随后明确要求“设置一个goal 然后指挥luna max完成”。当前任务已创建持续 Goal，由主代理负责
+派工、审查、生产动作协调和状态晋级；worker 使用 `gpt-5.6-luna`、`max`，覆盖自主调度合同中
+worker `medium` 的默认值。先分别核验 DATA-12 的 exact-commit Nightly/coverage 证据与 DATA-02
+只读 preflight/动作包，最多两个 worker，均不得提交、推送或执行生产写入。初始工作树的本节提案
+保留，技术门槛和 unit 状态尚未修改。TUI 在明确选择三天修订之前按延后 Classic 清理处理；
+启动 Goal 本身不构成风险接受签字或任何验收通过。
+
+### Goal 检查点：DATA-12 验核与前置接线（2026-09-06）
+
+- DATA-12 的 Nightly `34025990248` 与 artifact `9988878086` 已由 Luna 复核；主代理重新计算
+  manifest 及其 7 份报告哈希均匹配。Research/Signal line 为 `90.02%/94.71%`，九项 branch
+  目标全部满足。已有提交 `1e02caf5d` 的 completed 状态成立，不重复收尾。
+- 14:56–14:57 UTC 的[生产域名探针](../deployment/prelaunch-public-readiness-observation-2026-09-06.json)
+  确认 health/ready=200、decision-ready=503；5,533 资产的 price published coverage=0、financial=1，
+  valuation publication 缺失，provider capability 仍 stale。它是当前公开接口的实际返回，不能与
+  旧 DATA-02 dry-run 的候选重建结果混为已发布事实。工件仅保存解析后的 JSON 和原响应 hash，
+  未保留原始响应字节；不作为 canonical reconciliation 或候选验收。
+- 环境中的 SSH 目标两次在协议握手前失败，未认证、未执行远端命令；候选 commit/OCI 和数据库
+  仍未重验。本地 SDK 地址实际为 loopback，已排除，不能据其连接失败声称生产宕机。
+- 仓库调用链确认 canonical actor capture 缺 composition、请求 exact-current reader 缺实现；
+  已登记 `EVID-05` 为唯一 repository focus，并作为 EVID-01 前置。Luna 执行有界接线与测试，
+  主代理审查。生产 seeding、审批规则修订、DATA-02 execute、TAR capacity 和 runtime 均未放行。
+
+### Goal repository 收口记录（2026-09-07）
+
+`EVID-05` 已按机器注册表完成并释放 repository focus：95 项扩大回归、12 项隔离 PostgreSQL 回归、
+capture 后撤销的独立复验及类型/架构/格式/治理门禁通过。正式
+[closure evidence](../testing/evid05-account-actor-capture-repository-closure-evidence-2026-09-07.json)
+绑定 17 个源码/测试文件；其 scope 只证明仓库接线和本地数据库行为，不能替代 EVID-01/02 生产验收。
+SSH banner 重试仍超时，未部署补丁，DATA-02、authority/approval、TAR runtime 与 TUI 窗口均未变更。
+当前无依赖已满足的 repository unit；生产和外部通道仍按 registry 的 auto_collect/真实前置继续判断。
+
 ## 1. 目标与完成口径
 
 本方案把当前“可用但降级”和“部署后仍硬阻断”拆成七条可独立验收的执行轨。整体完成必须同时满足：

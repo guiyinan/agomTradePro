@@ -1,0 +1,243 @@
+{
+  "schema_version": 1,
+  "unit_id": "DATA-02",
+  "checkpoint_type": "authenticated_https_readonly_observation",
+  "candidate": {
+    "status": "verified",
+    "status_label": "已核验",
+    "app_version": "0.8.0",
+    "release_tag": "20260901232812",
+    "source_commit": "aa7127ff4d9f71555b0d0486314da5518bd2ac20",
+    "short_commit": "aa7127ff4d9f",
+    "image_tag": "agomtradepro-web:20260901232812",
+    "image_id": "sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c",
+    "build_started_at": "2026-09-01T15:28:21Z",
+    "build_finished_at": "2026-09-01T15:40:50Z",
+    "source_mode": "git-clone",
+    "runtime_match": true,
+    "must_not_trust_for_release": false,
+    "blocked_reason": null
+  },
+  "candidate_binding_scope": "HTTPS application report: embedded build source commit equals mounted release manifest source commit, and embedded app version equals runtime app version; identical identity responses bracket the coverage request. Not independent Docker inspection, filesystem attestation, database transaction snapshot or proof that every replica has this identity.",
+  "samples": [
+    {
+      "label": "identity_before",
+      "url": "https://demo.agomtrade.pro/api/operational-readiness/release-identity/",
+      "observed_at": "2026-09-06T16:16:35.429601+00:00",
+      "status_code": 200,
+      "body_sha256": "60018a5b658bbcc4f79a3d818262405119e798fb38d75d81eb1ce706c2958919",
+      "content_type": "application/json",
+      "authentication": "temporary existing-user Django session",
+      "business_mutation_requested": false,
+      "raw_body_base64": "eyJzdWNjZXNzIjp0cnVlLCJkYXRhIjp7InN0YXR1cyI6InZlcmlmaWVkIiwic3RhdHVzX2xhYmVsIjoi5bey5qC46aqMIiwiYXBwX3ZlcnNpb24iOiIwLjguMCIsInJlbGVhc2VfdGFnIjoiMjAyNjA5MDEyMzI4MTIiLCJzb3VyY2VfY29tbWl0IjoiYWE3MTI3ZmY0ZDlmNzE1NTViMGQwNDg2MzE0ZGE1NTE4YmQyYWMyMCIsInNob3J0X2NvbW1pdCI6ImFhNzEyN2ZmNGQ5ZiIsImltYWdlX3RhZyI6ImFnb210cmFkZXByby13ZWI6MjAyNjA5MDEyMzI4MTIiLCJpbWFnZV9pZCI6InNoYTI1Njo1NWQyYjFkOGRkNzA3OGFjYzQyYWVmNzJmMGZhMzNlNTcwMzVkMzBlNWMyNzI3YjU3NGRmZDQzYWFmZDk1MTljIiwiYnVpbGRfc3RhcnRlZF9hdCI6IjIwMjYtMDktMDFUMTU6Mjg6MjFaIiwiYnVpbGRfZmluaXNoZWRfYXQiOiIyMDI2LTA5LTAxVDE1OjQwOjUwWiIsInNvdXJjZV9tb2RlIjoiZ2l0LWNsb25lIiwicnVudGltZV9tYXRjaCI6dHJ1ZSwibXVzdF9ub3RfdHJ1c3RfZm9yX3JlbGVhc2UiOmZhbHNlLCJibG9ja2VkX3JlYXNvbiI6bnVsbH19",
+      "parsed_body": {
+        "success": true,
+        "data": {
+          "status": "verified",
+          "status_label": "已核验",
+          "app_version": "0.8.0",
+          "release_tag": "20260901232812",
+          "source_commit": "aa7127ff4d9f71555b0d0486314da5518bd2ac20",
+          "short_commit": "aa7127ff4d9f",
+          "image_tag": "agomtradepro-web:20260901232812",
+          "image_id": "sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c",
+          "build_started_at": "2026-09-01T15:28:21Z",
+          "build_finished_at": "2026-09-01T15:40:50Z",
+          "source_mode": "git-clone",
+          "runtime_match": true,
+          "must_not_trust_for_release": false,
+          "blocked_reason": null
+        }
+      }
+    },
+    {
+      "label": "coverage",
+      "url": "https://demo.agomtrade.pro/api/data-center/production-coverage/summary/",
+      "observed_at": "2026-09-06T16:16:39.726186+00:00",
+      "status_code": 200,
+      "body_sha256": "47fcf602acd68957f5671850853e30fe63db0f72b85000603b5655930e582d77",
+      "content_type": "application/json",
+      "authentication": "temporary existing-user Django session",
+      "business_mutation_requested": false,
+      "raw_body_base64": "eyJzdGF0dXMiOiJpbmNvbXBsZXRlIiwidW5pdmVyc2UiOiJhY3RpdmVfYV9zaGFyZSIsImFzc2V0X2NvdW50Ijo1NTMzLCJ1bml2ZXJzZV9jb25maWciOnsidW5pdmVyc2VfaWQiOiJhY3RpdmVfYV9zaGFyZSIsImFzc2V0X3R5cGUiOiJzdG9jayIsImV4Y2hhbmdlcyI6WyJTU0UiLCJTWlNFIiwiQlNFIl0sImluY2x1ZGVfaW5hY3RpdmUiOmZhbHNlLCJtaW5fYWN0aXZlX2Fzc2V0X2NvdW50Ijo0MDAwLCJtaW5fc3Rhcl9tYXJrZXRfY291bnQiOjIwMCwibWluX2NoaW5leHRfY291bnQiOjAsIm1pbl9ic2VfY291bnQiOjUwLCJkZXNjcmlwdGlvbiI6IkZ1bGwgYWN0aXZlIEEtc2hhcmUgdW5pdmVyc2UgdXNlZCBmb3IgcHJvZHVjdGlvbiBjb3ZlcmFnZS4ifSwidW5pdmVyc2VfcXVhbGl0eSI6eyJzdGF0dXMiOiJvayIsIm1pbmltdW1fYWN0aXZlX2Ffc2hhcmVfY291bnQiOjQwMDAsIm1pbmltdW1fc3Rhcl9tYXJrZXRfY291bnQiOjIwMCwibWluaW11bV9jaGluZXh0X2NvdW50IjowLCJtaW5pbXVtX2JzZV9jb3VudCI6NTAsImV4Y2hhbmdlX2NvdW50cyI6eyJTU0UiOjIzMTAsIlNaU0UiOjI4OTIsIkJTRSI6MzMxfSwiYm9hcmRfY291bnRzIjp7InN0YXJfbWFya2V0Ijo2MTIsImNoaW5leHQiOjEzOTksImJzZSI6MzMxLCJzaF9tYWluIjoxNjk4LCJzel9tYWluIjoxNDUxfSwiaXNzdWVzIjpbXX0sImRvbWFpbnMiOnsicHJpY2UiOnsiY292ZXJlZF9jb3VudCI6NTUzMywibWlzc2luZ19jb3VudCI6MCwibGF0ZXN0X2RhdGUiOiIyMDI2LTA4LTA0Iiwic3RhdHVzIjoib2siLCJwdWJsaXNoZWRfY292ZXJlZF9jb3VudCI6MCwicHVibGlzaGVkX21pc3NpbmdfY291bnQiOjU1MzMsInB1Ymxpc2hlZF9zdGF0dXMiOiJibG9ja2VkIiwicHVibGljYXRpb24iOnsiZGF0YXNldF9rZXkiOiJlcXVpdHkucHJpY2UuYmFyIiwicHVibGljYXRpb25fa2V5IjoiY3VycmVudCIsInB1YmxpY2F0aW9uX2lkIjoiOTNiYjIyYmYtZDJlZC01OGNhLThiMTktNzIxN2E3NDA0MWQxIiwic3RhdGUiOiJwdWJsaXNoZWQiLCJtZW1iZXJfY291bnQiOjIzLCJtZW1iZXJfcm93X2NvdW50IjoyMywibWVtYmVyX2JvdW5kX2NvdW50IjowLCJtZW1iZXJfbWlzc2luZ19jb3VudCI6NTUzMywiY292ZXJhZ2Vfc2VsZWN0ZWRfY291bnQiOjIzLCJjb3ZlcmFnZV9taXNzaW5nX2NvdW50IjowLCJhc19vZiI6IjIwMjYtMDgtMjdUMTY6MDA6MDArMDA6MDAiLCJwdWJsaXNoZWRfYXQiOiIyMDI2LTA4LTI4VDE1OjE3OjUyLjMwMjI5MSswMDowMCIsInB1Ymxpc2hlZF9sYXRlc3RfZGF0ZSI6IjIwMjYtMDgtMjgiLCJvYnNlcnZlZF9hdCI6bnVsbCwiYWdlX3NlY29uZHMiOm51bGwsIm1heF9hZ2Vfc2Vjb25kcyI6bnVsbCwiZnJlc2huZXNzX3N0YXR1cyI6ImluY29tcGxldGUiLCJtdXN0X25vdF91c2VfZm9yX2RlY2lzaW9uIjp0cnVlLCJibG9ja2VkX3JlYXNvbiI6ImNhbm9uaWNhbF9wdWJsaWNhdGlvbl9jb3ZlcmFnZV9pbmNvbXBsZXRlIiwic3RhdHVzIjoiYmxvY2tlZCJ9fSwidmFsdWF0aW9uIjp7ImNvdmVyZWRfY291bnQiOjU1MzMsIm1pc3NpbmdfY291bnQiOjAsImxhdGVzdF9kYXRlIjoiMjAyNi0wOC0wNCIsInN0YXR1cyI6Im9rIiwicHVibGlzaGVkX2NvdmVyZWRfY291bnQiOjAsInB1Ymxpc2hlZF9taXNzaW5nX2NvdW50IjowLCJwdWJsaXNoZWRfc3RhdHVzIjoiYmxvY2tlZCIsInB1YmxpY2F0aW9uIjp7ImRhdGFzZXRfa2V5IjoiZXF1aXR5LnZhbHVhdGlvbi5mYWN0IiwicHVibGljYXRpb25fa2V5IjoiY3VycmVudCIsInB1YmxpY2F0aW9uX2lkIjpudWxsLCJzdGF0ZSI6bnVsbCwibWVtYmVyX2NvdW50IjowLCJtZW1iZXJfcm93X2NvdW50IjowLCJtZW1iZXJfYm91bmRfY291bnQiOjAsIm1lbWJlcl9taXNzaW5nX2NvdW50IjowLCJjb3ZlcmFnZV9zZWxlY3RlZF9jb3VudCI6MCwiY292ZXJhZ2VfbWlzc2luZ19jb3VudCI6MCwiYXNfb2YiOm51bGwsInB1Ymxpc2hlZF9hdCI6bnVsbCwicHVibGlzaGVkX2xhdGVzdF9kYXRlIjpudWxsLCJvYnNlcnZlZF9hdCI6bnVsbCwiYWdlX3NlY29uZHMiOm51bGwsIm1heF9hZ2Vfc2Vjb25kcyI6bnVsbCwiZnJlc2huZXNzX3N0YXR1cyI6ImJsb2NrZWQiLCJtdXN0X25vdF91c2VfZm9yX2RlY2lzaW9uIjp0cnVlLCJibG9ja2VkX3JlYXNvbiI6ImNhbm9uaWNhbF9wdWJsaWNhdGlvbl9taXNzaW5nIiwic3RhdHVzIjoiYmxvY2tlZCJ9fSwiZmluYW5jaWFsIjp7ImNvdmVyZWRfY291bnQiOjU1MzMsIm1pc3NpbmdfY291bnQiOjAsImxhdGVzdF9kYXRlIjoiMjAyNi0wNi0zMCIsInN0YXR1cyI6Im9rIiwicHVibGlzaGVkX2NvdmVyZWRfY291bnQiOjEsInB1Ymxpc2hlZF9taXNzaW5nX2NvdW50Ijo1NTMyLCJwdWJsaXNoZWRfc3RhdHVzIjoiYmxvY2tlZCIsInB1YmxpY2F0aW9uIjp7ImRhdGFzZXRfa2V5IjoiZXF1aXR5LmZpbmFuY2lhbC5mYWN0IiwicHVibGljYXRpb25fa2V5IjoiY3VycmVudCIsInB1YmxpY2F0aW9uX2lkIjoiYzg3NDE4MTItY2YwMS01MTJmLThkMWMtOTFjMGU2NTQ5ZjQyIiwic3RhdGUiOiJwdWJsaXNoZWQiLCJtZW1iZXJfY291bnQiOjgwLCJtZW1iZXJfcm93X2NvdW50Ijo4MCwibWVtYmVyX2JvdW5kX2NvdW50IjoxLCJtZW1iZXJfbWlzc2luZ19jb3VudCI6NTUzMiwiY292ZXJhZ2Vfc2VsZWN0ZWRfY291bnQiOjgwLCJjb3ZlcmFnZV9taXNzaW5nX2NvdW50IjowLCJhc19vZiI6IjIwMjYtMDQtMjlUMDA6MDA6MDArMDA6MDAiLCJwdWJsaXNoZWRfYXQiOiIyMDI2LTA4LTE1VDAyOjU0OjU5LjkwNDkwOCswMDowMCIsInB1Ymxpc2hlZF9sYXRlc3RfZGF0ZSI6IjIwMjYtMDMtMzEiLCJvYnNlcnZlZF9hdCI6bnVsbCwiYWdlX3NlY29uZHMiOm51bGwsIm1heF9hZ2Vfc2Vjb25kcyI6bnVsbCwiZnJlc2huZXNzX3N0YXR1cyI6ImluY29tcGxldGUiLCJtdXN0X25vdF91c2VfZm9yX2RlY2lzaW9uIjp0cnVlLCJibG9ja2VkX3JlYXNvbiI6ImNhbm9uaWNhbF9wdWJsaWNhdGlvbl9jb3ZlcmFnZV9pbmNvbXBsZXRlIiwic3RhdHVzIjoiYmxvY2tlZCJ9fX19",
+      "parsed_body": {
+        "status": "incomplete",
+        "universe": "active_a_share",
+        "asset_count": 5533,
+        "universe_config": {
+          "universe_id": "active_a_share",
+          "asset_type": "stock",
+          "exchanges": [
+            "SSE",
+            "SZSE",
+            "BSE"
+          ],
+          "include_inactive": false,
+          "min_active_asset_count": 4000,
+          "min_star_market_count": 200,
+          "min_chinext_count": 0,
+          "min_bse_count": 50,
+          "description": "Full active A-share universe used for production coverage."
+        },
+        "universe_quality": {
+          "status": "ok",
+          "minimum_active_a_share_count": 4000,
+          "minimum_star_market_count": 200,
+          "minimum_chinext_count": 0,
+          "minimum_bse_count": 50,
+          "exchange_counts": {
+            "SSE": 2310,
+            "SZSE": 2892,
+            "BSE": 331
+          },
+          "board_counts": {
+            "star_market": 612,
+            "chinext": 1399,
+            "bse": 331,
+            "sh_main": 1698,
+            "sz_main": 1451
+          },
+          "issues": []
+        },
+        "domains": {
+          "price": {
+            "covered_count": 5533,
+            "missing_count": 0,
+            "latest_date": "2026-08-04",
+            "status": "ok",
+            "published_covered_count": 0,
+            "published_missing_count": 5533,
+            "published_status": "blocked",
+            "publication": {
+              "dataset_key": "equity.price.bar",
+              "publication_key": "current",
+              "publication_id": "93bb22bf-d2ed-58ca-8b19-7217a74041d1",
+              "state": "published",
+              "member_count": 23,
+              "member_row_count": 23,
+              "member_bound_count": 0,
+              "member_missing_count": 5533,
+              "coverage_selected_count": 23,
+              "coverage_missing_count": 0,
+              "as_of": "2026-08-27T16:00:00+00:00",
+              "published_at": "2026-08-28T15:17:52.302291+00:00",
+              "published_latest_date": "2026-08-28",
+              "observed_at": null,
+              "age_seconds": null,
+              "max_age_seconds": null,
+              "freshness_status": "incomplete",
+              "must_not_use_for_decision": true,
+              "blocked_reason": "canonical_publication_coverage_incomplete",
+              "status": "blocked"
+            }
+          },
+          "valuation": {
+            "covered_count": 5533,
+            "missing_count": 0,
+            "latest_date": "2026-08-04",
+            "status": "ok",
+            "published_covered_count": 0,
+            "published_missing_count": 0,
+            "published_status": "blocked",
+            "publication": {
+              "dataset_key": "equity.valuation.fact",
+              "publication_key": "current",
+              "publication_id": null,
+              "state": null,
+              "member_count": 0,
+              "member_row_count": 0,
+              "member_bound_count": 0,
+              "member_missing_count": 0,
+              "coverage_selected_count": 0,
+              "coverage_missing_count": 0,
+              "as_of": null,
+              "published_at": null,
+              "published_latest_date": null,
+              "observed_at": null,
+              "age_seconds": null,
+              "max_age_seconds": null,
+              "freshness_status": "blocked",
+              "must_not_use_for_decision": true,
+              "blocked_reason": "canonical_publication_missing",
+              "status": "blocked"
+            }
+          },
+          "financial": {
+            "covered_count": 5533,
+            "missing_count": 0,
+            "latest_date": "2026-06-30",
+            "status": "ok",
+            "published_covered_count": 1,
+            "published_missing_count": 5532,
+            "published_status": "blocked",
+            "publication": {
+              "dataset_key": "equity.financial.fact",
+              "publication_key": "current",
+              "publication_id": "c8741812-cf01-512f-8d1c-91c0e6549f42",
+              "state": "published",
+              "member_count": 80,
+              "member_row_count": 80,
+              "member_bound_count": 1,
+              "member_missing_count": 5532,
+              "coverage_selected_count": 80,
+              "coverage_missing_count": 0,
+              "as_of": "2026-04-29T00:00:00+00:00",
+              "published_at": "2026-08-15T02:54:59.904908+00:00",
+              "published_latest_date": "2026-03-31",
+              "observed_at": null,
+              "age_seconds": null,
+              "max_age_seconds": null,
+              "freshness_status": "incomplete",
+              "must_not_use_for_decision": true,
+              "blocked_reason": "canonical_publication_coverage_incomplete",
+              "status": "blocked"
+            }
+          }
+        }
+      }
+    },
+    {
+      "label": "identity_after",
+      "url": "https://demo.agomtrade.pro/api/operational-readiness/release-identity/",
+      "observed_at": "2026-09-06T16:16:40.140492+00:00",
+      "status_code": 200,
+      "body_sha256": "60018a5b658bbcc4f79a3d818262405119e798fb38d75d81eb1ce706c2958919",
+      "content_type": "application/json",
+      "authentication": "temporary existing-user Django session",
+      "business_mutation_requested": false,
+      "raw_body_base64": "eyJzdWNjZXNzIjp0cnVlLCJkYXRhIjp7InN0YXR1cyI6InZlcmlmaWVkIiwic3RhdHVzX2xhYmVsIjoi5bey5qC46aqMIiwiYXBwX3ZlcnNpb24iOiIwLjguMCIsInJlbGVhc2VfdGFnIjoiMjAyNjA5MDEyMzI4MTIiLCJzb3VyY2VfY29tbWl0IjoiYWE3MTI3ZmY0ZDlmNzE1NTViMGQwNDg2MzE0ZGE1NTE4YmQyYWMyMCIsInNob3J0X2NvbW1pdCI6ImFhNzEyN2ZmNGQ5ZiIsImltYWdlX3RhZyI6ImFnb210cmFkZXByby13ZWI6MjAyNjA5MDEyMzI4MTIiLCJpbWFnZV9pZCI6InNoYTI1Njo1NWQyYjFkOGRkNzA3OGFjYzQyYWVmNzJmMGZhMzNlNTcwMzVkMzBlNWMyNzI3YjU3NGRmZDQzYWFmZDk1MTljIiwiYnVpbGRfc3RhcnRlZF9hdCI6IjIwMjYtMDktMDFUMTU6Mjg6MjFaIiwiYnVpbGRfZmluaXNoZWRfYXQiOiIyMDI2LTA5LTAxVDE1OjQwOjUwWiIsInNvdXJjZV9tb2RlIjoiZ2l0LWNsb25lIiwicnVudGltZV9tYXRjaCI6dHJ1ZSwibXVzdF9ub3RfdHJ1c3RfZm9yX3JlbGVhc2UiOmZhbHNlLCJibG9ja2VkX3JlYXNvbiI6bnVsbH19",
+      "parsed_body": {
+        "success": true,
+        "data": {
+          "status": "verified",
+          "status_label": "已核验",
+          "app_version": "0.8.0",
+          "release_tag": "20260901232812",
+          "source_commit": "aa7127ff4d9f71555b0d0486314da5518bd2ac20",
+          "short_commit": "aa7127ff4d9f",
+          "image_tag": "agomtradepro-web:20260901232812",
+          "image_id": "sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c",
+          "build_started_at": "2026-09-01T15:28:21Z",
+          "build_finished_at": "2026-09-01T15:40:50Z",
+          "source_mode": "git-clone",
+          "runtime_match": true,
+          "must_not_trust_for_release": false,
+          "blocked_reason": null
+        }
+      }
+    }
+  ],
+  "business_mutations_requested": false,
+  "authentication_side_effects": "Existing-user login/logout may write ordinary Django session, last_login and auth audit records. No API token created. Logout returned 302.",
+  "conclusion": "DATA-02 remains awaiting_production; published price/valuation/financial coverage is blocked. This snapshot does not establish backfill, timestamp preservation or cross-source reconciliation acceptance.",
+  "missing_evidence": [
+    "Independent container/image inspection and current migration state",
+    "Quote publication identity and coverage",
+    "Immutable publication hashes for all four datasets",
+    "Completed-session observation distributions and provider coverage",
+    "Timestamp preservation and cross-source reconciliation within governed tolerance",
+    "Exact before/after action envelope for production backfill"
+  ],
+  "decision_runtime_enabled": false,
+  "deployment_performed": false
+}

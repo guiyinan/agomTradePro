@@ -29,6 +29,10 @@
 - 后续 Goal 只从注册表、对应 primary plan、规范化证据、本页投影和 Git 工作树恢复上下文；禁止
   依赖聊天记忆或另建第二份 Goal 进度表。
 
+DATA-02 的最新 [备份与数据库对账 checkpoint](../deployment/data02-backup-db-reconciliation-checkpoint-2026-09-07-aa7127ff.json)
+已通过已有备份完整性、真实容器/迁移和 104 个存量 publication 成员核验。A 股 published
+quote/price/valuation/financial 覆盖仍为 0/0/0/1，需新备份、财务可用时间修复、行情刷新与完整对账。
+
 ## 生产证据自动采集纪律
 
 生产证据要求“来自真实生产源且可复核”，不要求人工抄录。机器真源中所有 `production` / `external` closure unit 都必须登记 `evidence_collection`，并分成三类：
@@ -61,7 +65,7 @@
 | 限期审查项 | 0 |
 | 注册表覆盖的活跃文件 | 41 |
 | 历史未勾选细项 | 136（非执行口径） |
-| 去重后 canonical closure units | 41 |
+| 去重后 canonical closure units | 44 |
 
 “主计划”是需求和证据入口，不等于独立工程量；同一工作流下的路线图、readiness 和生产跟踪不会再重复计算成多条主线。完整文件归属、owner、状态、依赖和唯一退出门见机器注册表的 `closure_backlog`。
 
@@ -69,7 +73,7 @@
 
 | ID | 优先级 | 状态 | Owner | 主计划 | 下一退出门 |
 |----|--------|------|-------|--------|------------|
-| `evidence-hard-gate` | P0 | production_validation | Personal Project Owner / Research / Risk / Portfolio / Broker / Account | [Evidence hard gate](evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md) | 单一所有者授权已替代多人签字，但 13 张 authority/evidence 表及 operator/approval/activation 仍 zero-seed/empty-head；有效 DEFER 已记录。下一门是按真实 owner receipt 建立 canonical authority heads，再执行 PG race/revocation/rollback 与 same-alias 回执，执行 deny 保持不变 |
+| `evidence-hard-gate` | P0 | production_validation | Personal Project Owner / Research / Risk / Portfolio / Broker / Account | [Evidence hard gate](evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md) | `EVID-05` repository 接线及隔离 PostgreSQL 验证完成。EVID-01/02 仍等待真实 authority/approval、候选部署和生产验收；当前 SSH 超时，决策阻断不变 |
 | `strategy-research-production` | P0 | production_validation | Research / Data Center / Signal / Portfolio / Broker | [Completion audit](strategy-research-capability-completion-audit-2026-08-05.md)、[Roadmap](strategy-research-capability-roadmap-execution-2026-08-05.md)、[生产数据跟踪](strategy-research-production-data-closure-tracking-memo-2026-08-12.md)、[R1-R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md)、[R3-R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md)、[R5-R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) | 最终候选的 65/7/16/35 表 owner-ledger inventory 全零；R1–R8 逐项 owner/定义审核入口已就绪，审核后仍须 canonical dry-run 与独立 registration 授权，PIT/OOS、Promotion、consumer UAT 不得预签 |
 | `data-production-reliability` | P0 | production_validation | Data Center / Operational Readiness / Task Monitor | [综合清零方案](release-blocker-closure-execution-plan-2026-08-29.md)、[Canonical architecture](data-center-canonical-architecture-refactor-2026-08-02.md)、[生产可靠性](production-data-reliability-full-remediation-2026-08-01.md)、[关键测试](critical-reliability-test-closure-2026-07-22.md)、[UAT 整改](uat-remediation-2026-07-20.md) | `DATA-10/DATA-11/DATA-12=completed`。精确 Nightly `34025990248` 与 hash-verified artifact `9988878086` 证明 Research/Signal line 已回到共享 `90%` floor，9 个 branch floor 全部恢复并只上调不下调；reconciled Domain coverage P2 债务清零。生产候选在本次部署前仍为 `aa7127ff4…` / `20260901232812`，DATA-02 继续 `DENY` |
 | `system-audit-consolidation` | P0/P1 | production_validation | Personal Project Owner / Audit / Data Center / Task Monitor | [统一审计日志](system-audit-log-consolidation-plan-2026-08-13.md) | `AUD-04` repository exit 已补齐 candidate/authority 双重绑定、半开归档窗口、manifest/content/predecessor hash、append-only artifact 与 memory-only exact replay；当前 successor 生产证据为 `missing_section_count=3`（archive、recovery、重启后 TUI section 均 unavailable），下一门是 authority/profile、writer smoke 后真实 rollback/recovery 与获批 archive/restore |
@@ -81,7 +85,14 @@
 
 ## 当前执行焦点
 
-- `DATA-12=completed`；`execution_focus.unit_id=null`。精确提交 `79f91c2e6…` 的 Nightly [`34025990248`](https://github.com/guiyinan/agomTradePro/actions/runs/34025990248) 主 job 与 PostgreSQL job 全绿，coverage artifact `9988878086`（digest `0f00dec0…99ca`）内部 7 份 hash 全部匹配。Research/Signal Domain line 为 `90.02%/94.71%`；9 个 branch scope 为 `100.0/84.91/87.52/100.0/80.0/85.54/79.89/97.77/87.82%`。最后 2 项 line exception 已删除，9 项 branch floor 已按登记目标上调，无门槛下调；[closure evidence](../testing/data12-domain-coverage-restoration-closure-evidence-2026-09-06.json) 登记后，reconciled Domain coverage P2 债务清零。
+- `EVID-05=completed`；`execution_focus.unit_id=null`。Account actor capture 和 exact-current request
+  reader 已接线，捕获路径保留同 alias/UOW、六表锁及默认 dry-run。扩大回归 95 passed，隔离
+  PostgreSQL 12 passed，capture 后撤销单独复验 1 passed；类型、架构、格式与治理检查通过。
+  [closure evidence](../testing/evid05-account-actor-capture-repository-closure-evidence-2026-09-07.json)
+  SHA=`470e5b15…1714` 绑定 17 个源码/测试文件。EVID-01/02 生产状态不变，EVID-03 仍等待依赖。
+  未部署此补丁；SSH 重试仍超时，未创建生产 authority 或更改 claimant/approver 分离规则。
+
+- `DATA-12=completed`，其 repository 焦点已释放。精确提交 `79f91c2e6…` 的 Nightly [`34025990248`](https://github.com/guiyinan/agomTradePro/actions/runs/34025990248) 主 job 与 PostgreSQL job 全绿，coverage artifact `9988878086`（digest `0f00dec0…99ca`）内部 7 份 hash 全部匹配。Research/Signal Domain line 为 `90.02%/94.71%`；9 个 branch scope 为 `100.0/84.91/87.52/100.0/80.0/85.54/79.89/97.77/87.82%`。最后 2 项 line exception 已删除，9 项 branch floor 已按登记目标上调，无门槛下调；[closure evidence](../testing/data12-domain-coverage-restoration-closure-evidence-2026-09-06.json) 登记后，reconciled Domain coverage P2 债务清零。
 - `DATA-06=completed`，隔离历史 simulation harness 已以已有 SHA-verified dump 完成真实演练：7,229 restore entries、72 个 Data Center migrations、5,533 active A-share、repeatable-read read-only、provider/network-free、数据库与容器零残留。四类历史 gate 均为 `DENY`：全部 stale，financial 事实覆盖 `1,923/5,533`，四类 current publication reconciliation 均失败。规范化 [closure evidence](../testing/data06-isolated-historical-simulation-repository-closure-evidence-2026-09-01.json) SHA=`e4883f46…579a`；该结果不会冒充生产 exit gate。
 - `DATA-05` 已作为唯一 repository focus 完成并回到 `execution_focus.unit_id=null`。既有 `financial_fact_repository.py` 243/200 行失败在不抬预算的前提下降为 189/200，availability owner 独立为 65/100；公开 `FinancialFactRepository` identity/行为不变，新 source 已纳入 current-data 清单。结构化 [closure evidence](../testing/data05-financial-repository-owner-closure-evidence-2026-08-31.json) SHA=`7c535f2a…8a56a`；聚焦 `12 passed`、扩大回归 `70 passed`，未触碰生产。
 - `DATA-04` 已作为唯一 repository focus 完成并回到 `execution_focus.unit_id=null`。生产 Daphne/ASGI `CONN_MAX_AGE` 固定为 0；coverage-universe 读取删除 `get_or_create`，缺配置稳定 `MISSING_CONFIG`，只有显式 PUT/save 可初始化。结构化 [closure evidence](../testing/data04-asgi-db-select-only-preview-repository-closure-evidence-2026-08-31.json) SHA=`aaaa675e…ea8d`。当前候选 `aa7127ff4…` / `20260901232812` 在 `2026-09-01T16:08–16:10Z` 的只读重验中 3 个跨 scrape 样本 client backend 恒为 2、health/ready/Audit health 均为 200；随后 `2026-09-02T09:24Z` 的 Web liveness refresh 为 unhealthy/502，故不能把 DB 样本稳定误报为整体生产恢复。DATA-02 仍须在此候选上完成 provider refresh/backfill 与写后 reconciliation。

@@ -1,0 +1,180 @@
+{
+  "samples": [
+    {
+      "label": "identity_before",
+      "url": "https://demo.agomtrade.pro/api/operational-readiness/release-identity/",
+      "observed_at": "2026-09-06T16:21:38.828360+00:00",
+      "http_status": 200,
+      "content_type": "application/json",
+      "body_sha256": "60018a5b658bbcc4f79a3d818262405119e798fb38d75d81eb1ce706c2958919",
+      "raw_body_base64": "eyJzdWNjZXNzIjp0cnVlLCJkYXRhIjp7InN0YXR1cyI6InZlcmlmaWVkIiwic3RhdHVzX2xhYmVsIjoi5bey5qC46aqMIiwiYXBwX3ZlcnNpb24iOiIwLjguMCIsInJlbGVhc2VfdGFnIjoiMjAyNjA5MDEyMzI4MTIiLCJzb3VyY2VfY29tbWl0IjoiYWE3MTI3ZmY0ZDlmNzE1NTViMGQwNDg2MzE0ZGE1NTE4YmQyYWMyMCIsInNob3J0X2NvbW1pdCI6ImFhNzEyN2ZmNGQ5ZiIsImltYWdlX3RhZyI6ImFnb210cmFkZXByby13ZWI6MjAyNjA5MDEyMzI4MTIiLCJpbWFnZV9pZCI6InNoYTI1Njo1NWQyYjFkOGRkNzA3OGFjYzQyYWVmNzJmMGZhMzNlNTcwMzVkMzBlNWMyNzI3YjU3NGRmZDQzYWFmZDk1MTljIiwiYnVpbGRfc3RhcnRlZF9hdCI6IjIwMjYtMDktMDFUMTU6Mjg6MjFaIiwiYnVpbGRfZmluaXNoZWRfYXQiOiIyMDI2LTA5LTAxVDE1OjQwOjUwWiIsInNvdXJjZV9tb2RlIjoiZ2l0LWNsb25lIiwicnVudGltZV9tYXRjaCI6dHJ1ZSwibXVzdF9ub3RfdHJ1c3RfZm9yX3JlbGVhc2UiOmZhbHNlLCJibG9ja2VkX3JlYXNvbiI6bnVsbH19",
+      "parsed_body": {
+        "success": true,
+        "data": {
+          "status": "verified",
+          "status_label": "已核验",
+          "app_version": "0.8.0",
+          "release_tag": "20260901232812",
+          "source_commit": "aa7127ff4d9f71555b0d0486314da5518bd2ac20",
+          "short_commit": "aa7127ff4d9f",
+          "image_tag": "agomtradepro-web:20260901232812",
+          "image_id": "sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c",
+          "build_started_at": "2026-09-01T15:28:21Z",
+          "build_finished_at": "2026-09-01T15:40:50Z",
+          "source_mode": "git-clone",
+          "runtime_match": true,
+          "must_not_trust_for_release": false,
+          "blocked_reason": null
+        }
+      }
+    },
+    {
+      "label": "audit_health",
+      "url": "https://demo.agomtrade.pro/api/audit/health/",
+      "observed_at": "2026-09-06T16:21:39.291988+00:00",
+      "http_status": 200,
+      "content_type": "application/json",
+      "body_sha256": "91431713996c5cfe1ce2cec528469072182b8187949e7b99e79abfddc61ff743",
+      "raw_body_base64": "eyJvdmVyYWxsX3N0YXR1cyI6Ik9LIiwiY2hlY2tzIjpbeyJjb21wb25lbnQiOiJhdWRpdF9mYWlsdXJlX2NvdW50ZXIiLCJzdGF0dXMiOiJPSyIsIm1lc3NhZ2UiOiJObyBhdWRpdCBmYWlsdXJlcyByZWNvcmRlZCIsImRldGFpbHMiOnsidG90YWxfZmFpbHVyZXMiOjAsImJ5X2NvbXBvbmVudCI6e30sIndhcm5pbmdfdGhyZXNob2xkIjoxMCwiZXJyb3JfdGhyZXNob2xkIjo1MH0sImNoZWNrZWRfYXQiOiIyMDI2LTA5LTA2VDE2OjIxOjM5LjI3OTQ5MiswMDowMCJ9LHsiY29tcG9uZW50IjoiYXVkaXRfZGF0YWJhc2VfY29ubmVjdGlvbiIsInN0YXR1cyI6Ik9LIiwibWVzc2FnZSI6IkRhdGFiYXNlIGNvbm5lY3Rpb24gaXMgaGVhbHRoeSIsImRldGFpbHMiOnsicHJvYmUiOiJwYXNzZWQifSwiY2hlY2tlZF9hdCI6IjIwMjYtMDktMDZUMTY6MjE6MzkuMjgwNTM4KzAwOjAwIn0seyJjb21wb25lbnQiOiJhdWRpdF90YWJsZXNfYWNjZXNzaWJsZSIsInN0YXR1cyI6Ik9LIiwibWVzc2FnZSI6IkF1ZGl0IHRhYmxlcyBhcmUgYWNjZXNzaWJsZSIsImRldGFpbHMiOnsicHJvYmUiOiJwYXNzZWQifSwiY2hlY2tlZF9hdCI6IjIwMjYtMDktMDZUMTY6MjE6MzkuMzM3ODY5KzAwOjAwIn0seyJjb21wb25lbnQiOiJhdWRpdF9vdXRib3hfYmFja2xvZyIsInN0YXR1cyI6Ik9LIiwibWVzc2FnZSI6IkF1ZGl0IG91dGJveCBiYWNrbG9nIGlzIGhlYWx0aHkiLCJkZXRhaWxzIjp7ImFzX29mIjoiMjAyNi0wOS0wNlQxNjoyMTozOS4zMzc5MTgrMDA6MDAiLCJwZW5kaW5nX2NvdW50IjowLCJkdWVfcGVuZGluZ19jb3VudCI6MCwiY2xhaW1lZF9jb3VudCI6MCwiZXhwaXJlZF9jbGFpbWVkX2NvdW50IjowLCJmYWlsZWRfY291bnQiOjAsImRlbGl2ZXJlZF9jb3VudCI6MCwib2xkZXN0X2JhY2tsb2dfYWdlX3NlY29uZHMiOm51bGwsIm9sZGVzdF9jbGFpbWVkX2FnZV9zZWNvbmRzIjpudWxsfSwiY2hlY2tlZF9hdCI6IjIwMjYtMDktMDZUMTY6MjE6MzkuMzM3OTE4KzAwOjAwIn1dLCJtZXRyaWNzIjp7ImF2YWlsYWJsZSI6dHJ1ZSwidG90YWxfb3BlcmF0aW9uX2xvZ3MiOjU3MSwidG90YWxfZmFpbHVyZXMiOjAsImZhaWx1cmVfcmF0ZSI6MC4wLCJmYWlsdXJlc19ieV9jb21wb25lbnQiOnt9fSwiZ2VuZXJhdGVkX2F0IjoiMjAyNi0wOS0wNlQxNjoyMTozOS4zNTU1NTcrMDA6MDAifQ==",
+      "parsed_body": {
+        "overall_status": "OK",
+        "checks": [
+          {
+            "component": "audit_failure_counter",
+            "status": "OK",
+            "message": "No audit failures recorded",
+            "details": {
+              "total_failures": 0,
+              "by_component": {},
+              "warning_threshold": 10,
+              "error_threshold": 50
+            },
+            "checked_at": "2026-09-06T16:21:39.279492+00:00"
+          },
+          {
+            "component": "audit_database_connection",
+            "status": "OK",
+            "message": "Database connection is healthy",
+            "details": {
+              "probe": "passed"
+            },
+            "checked_at": "2026-09-06T16:21:39.280538+00:00"
+          },
+          {
+            "component": "audit_tables_accessible",
+            "status": "OK",
+            "message": "Audit tables are accessible",
+            "details": {
+              "probe": "passed"
+            },
+            "checked_at": "2026-09-06T16:21:39.337869+00:00"
+          },
+          {
+            "component": "audit_outbox_backlog",
+            "status": "OK",
+            "message": "Audit outbox backlog is healthy",
+            "details": {
+              "as_of": "2026-09-06T16:21:39.337918+00:00",
+              "pending_count": 0,
+              "due_pending_count": 0,
+              "claimed_count": 0,
+              "expired_claimed_count": 0,
+              "failed_count": 0,
+              "delivered_count": 0,
+              "oldest_backlog_age_seconds": null,
+              "oldest_claimed_age_seconds": null
+            },
+            "checked_at": "2026-09-06T16:21:39.337918+00:00"
+          }
+        ],
+        "metrics": {
+          "available": true,
+          "total_operation_logs": 571,
+          "total_failures": 0,
+          "failure_rate": 0.0,
+          "failures_by_component": {}
+        },
+        "generated_at": "2026-09-06T16:21:39.355557+00:00"
+      }
+    },
+    {
+      "label": "audit_metrics",
+      "url": "https://demo.agomtrade.pro/api/audit/metrics/",
+      "observed_at": "2026-09-06T16:21:39.678710+00:00",
+      "http_status": 200,
+      "content_type": "text/plain; version=0.0.4; charset=utf-8",
+      "body_sha256": "5ddb680547535c4b565f82a1cee280047c0fa136c9282efbccec8aa115ccc8f6",
+      "raw_body_base64": "IyBIRUxQIGF1ZGl0X3dyaXRlX3N1Y2Nlc3NfdG90YWwgVG90YWwgbnVtYmVyIG9mIHN1Y2Nlc3NmdWwgYXVkaXQgd3JpdGUgb3BlcmF0aW9ucwojIFRZUEUgYXVkaXRfd3JpdGVfc3VjY2Vzc190b3RhbCBjb3VudGVyCiMgSEVMUCBhdWRpdF93cml0ZV9mYWlsdXJlX3RvdGFsIFRvdGFsIG51bWJlciBvZiBmYWlsZWQgYXVkaXQgd3JpdGUgb3BlcmF0aW9ucwojIFRZUEUgYXVkaXRfd3JpdGVfZmFpbHVyZV90b3RhbCBjb3VudGVyCiMgSEVMUCBhdWRpdF93cml0ZV9vcGVyYXRpb25zX3RvdGFsIFRvdGFsIGF1ZGl0IHdyaXRlIG9wZXJhdGlvbnMgYnkgc3RhdHVzCiMgVFlQRSBhdWRpdF93cml0ZV9vcGVyYXRpb25zX3RvdGFsIGNvdW50ZXIKIyBIRUxQIGF1ZGl0X3dyaXRlX2xhdGVuY3lfc2Vjb25kcyBBdWRpdCBsb2cgd3JpdGUgbGF0ZW5jeSBpbiBzZWNvbmRzCiMgVFlQRSBhdWRpdF93cml0ZV9sYXRlbmN5X3NlY29uZHMgaGlzdG9ncmFtCiMgSEVMUCBzeXN0ZW1fYXVkaXRfb3V0Ym94X3BlbmRpbmcgTnVtYmVyIG9mIHBlbmRpbmcgc3lzdGVtLWF1ZGl0IG91dGJveCByb3dzCiMgVFlQRSBzeXN0ZW1fYXVkaXRfb3V0Ym94X3BlbmRpbmcgZ2F1Z2UKc3lzdGVtX2F1ZGl0X291dGJveF9wZW5kaW5ne293bmVyPSJhdWRpdCJ9IDAuMAojIEhFTFAgc3lzdGVtX2F1ZGl0X291dGJveF9vbGRlc3RfYWdlX3NlY29uZHMgQWdlIGluIHNlY29uZHMgb2YgdGhlIG9sZGVzdCByZWNvdmVyYWJsZSBzeXN0ZW0tYXVkaXQgb3V0Ym94IHJvdwojIFRZUEUgc3lzdGVtX2F1ZGl0X291dGJveF9vbGRlc3RfYWdlX3NlY29uZHMgZ2F1Z2UKc3lzdGVtX2F1ZGl0X291dGJveF9vbGRlc3RfYWdlX3NlY29uZHN7b3duZXI9ImF1ZGl0In0gMC4wCiMgSEVMUCBzeXN0ZW1fYXVkaXRfb3V0Ym94X2R1ZV9wZW5kaW5nIE51bWJlciBvZiBkdWUgcGVuZGluZyBzeXN0ZW0tYXVkaXQgb3V0Ym94IHJvd3MKIyBUWVBFIHN5c3RlbV9hdWRpdF9vdXRib3hfZHVlX3BlbmRpbmcgZ2F1Z2UKc3lzdGVtX2F1ZGl0X291dGJveF9kdWVfcGVuZGluZ3tvd25lcj0iYXVkaXQifSAwLjAKIyBIRUxQIHN5c3RlbV9hdWRpdF9vdXRib3hfY2xhaW1lZCBOdW1iZXIgb2YgY3VycmVudGx5IGNsYWltZWQgc3lzdGVtLWF1ZGl0IG91dGJveCByb3dzCiMgVFlQRSBzeXN0ZW1fYXVkaXRfb3V0Ym94X2NsYWltZWQgZ2F1Z2UKc3lzdGVtX2F1ZGl0X291dGJveF9jbGFpbWVke293bmVyPSJhdWRpdCJ9IDAuMAojIEhFTFAgc3lzdGVtX2F1ZGl0X291dGJveF9leHBpcmVkX2NsYWltZWQgTnVtYmVyIG9mIGV4cGlyZWQgY2xhaW1lZCBzeXN0ZW0tYXVkaXQgb3V0Ym94IHJvd3MKIyBUWVBFIHN5c3RlbV9hdWRpdF9vdXRib3hfZXhwaXJlZF9jbGFpbWVkIGdhdWdlCnN5c3RlbV9hdWRpdF9vdXRib3hfZXhwaXJlZF9jbGFpbWVke293bmVyPSJhdWRpdCJ9IDAuMAojIEhFTFAgc3lzdGVtX2F1ZGl0X291dGJveF9mYWlsZWQgTnVtYmVyIG9mIHRlcm1pbmFsIGZhaWxlZCBzeXN0ZW0tYXVkaXQgb3V0Ym94IHJvd3MKIyBUWVBFIHN5c3RlbV9hdWRpdF9vdXRib3hfZmFpbGVkIGdhdWdlCnN5c3RlbV9hdWRpdF9vdXRib3hfZmFpbGVke293bmVyPSJhdWRpdCJ9IDAuMAojIEhFTFAgc3lzdGVtX2F1ZGl0X291dGJveF9kZWxpdmVyZWQgTnVtYmVyIG9mIGRlbGl2ZXJlZCBzeXN0ZW0tYXVkaXQgb3V0Ym94IHJvd3MKIyBUWVBFIHN5c3RlbV9hdWRpdF9vdXRib3hfZGVsaXZlcmVkIGdhdWdlCnN5c3RlbV9hdWRpdF9vdXRib3hfZGVsaXZlcmVke293bmVyPSJhdWRpdCJ9IDAuMAo="
+    },
+    {
+      "label": "identity_after",
+      "url": "https://demo.agomtrade.pro/api/operational-readiness/release-identity/",
+      "observed_at": "2026-09-06T16:21:40.087069+00:00",
+      "http_status": 200,
+      "content_type": "application/json",
+      "body_sha256": "60018a5b658bbcc4f79a3d818262405119e798fb38d75d81eb1ce706c2958919",
+      "raw_body_base64": "eyJzdWNjZXNzIjp0cnVlLCJkYXRhIjp7InN0YXR1cyI6InZlcmlmaWVkIiwic3RhdHVzX2xhYmVsIjoi5bey5qC46aqMIiwiYXBwX3ZlcnNpb24iOiIwLjguMCIsInJlbGVhc2VfdGFnIjoiMjAyNjA5MDEyMzI4MTIiLCJzb3VyY2VfY29tbWl0IjoiYWE3MTI3ZmY0ZDlmNzE1NTViMGQwNDg2MzE0ZGE1NTE4YmQyYWMyMCIsInNob3J0X2NvbW1pdCI6ImFhNzEyN2ZmNGQ5ZiIsImltYWdlX3RhZyI6ImFnb210cmFkZXByby13ZWI6MjAyNjA5MDEyMzI4MTIiLCJpbWFnZV9pZCI6InNoYTI1Njo1NWQyYjFkOGRkNzA3OGFjYzQyYWVmNzJmMGZhMzNlNTcwMzVkMzBlNWMyNzI3YjU3NGRmZDQzYWFmZDk1MTljIiwiYnVpbGRfc3RhcnRlZF9hdCI6IjIwMjYtMDktMDFUMTU6Mjg6MjFaIiwiYnVpbGRfZmluaXNoZWRfYXQiOiIyMDI2LTA5LTAxVDE1OjQwOjUwWiIsInNvdXJjZV9tb2RlIjoiZ2l0LWNsb25lIiwicnVudGltZV9tYXRjaCI6dHJ1ZSwibXVzdF9ub3RfdHJ1c3RfZm9yX3JlbGVhc2UiOmZhbHNlLCJibG9ja2VkX3JlYXNvbiI6bnVsbH19",
+      "parsed_body": {
+        "success": true,
+        "data": {
+          "status": "verified",
+          "status_label": "已核验",
+          "app_version": "0.8.0",
+          "release_tag": "20260901232812",
+          "source_commit": "aa7127ff4d9f71555b0d0486314da5518bd2ac20",
+          "short_commit": "aa7127ff4d9f",
+          "image_tag": "agomtradepro-web:20260901232812",
+          "image_id": "sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c",
+          "build_started_at": "2026-09-01T15:28:21Z",
+          "build_finished_at": "2026-09-01T15:40:50Z",
+          "source_mode": "git-clone",
+          "runtime_match": true,
+          "must_not_trust_for_release": false,
+          "blocked_reason": null
+        }
+      }
+    }
+  ],
+  "logout_status": 302,
+  "schema_version": 1,
+  "unit_id": "AUD-03",
+  "checkpoint_type": "https_observation_not_operational_acceptance",
+  "candidate": {
+    "status": "verified",
+    "status_label": "已核验",
+    "app_version": "0.8.0",
+    "release_tag": "20260901232812",
+    "source_commit": "aa7127ff4d9f71555b0d0486314da5518bd2ac20",
+    "short_commit": "aa7127ff4d9f",
+    "image_tag": "agomtradepro-web:20260901232812",
+    "image_id": "sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c",
+    "build_started_at": "2026-09-01T15:28:21Z",
+    "build_finished_at": "2026-09-01T15:40:50Z",
+    "source_mode": "git-clone",
+    "runtime_match": true,
+    "must_not_trust_for_release": false,
+    "blocked_reason": null
+  },
+  "candidate_binding_scope": "Identical HTTPS application identity reports bracket the requests; embedded build/manifest agreement only, not independent Docker inspection, migration verification, all-replica attestation or database transaction snapshot.",
+  "business_mutations_requested": false,
+  "authentication_side_effects": "Temporary existing-user Django login/logout; ordinary session, last_login and auth audit writes may occur. No API token creation.",
+  "findings": {
+    "health_status": "OK",
+    "operation_logs": 571,
+    "outbox_state_counts_zero": true,
+    "oldest_backlog_age_seconds": null,
+    "oldest_claimed_age_seconds": null,
+    "outbox_exported_gauges": "Seven owner=audit gauge samples are 0.0; empty-backlog age gauge is not a measured recovery duration.",
+    "audit_write_counters_and_latency": "HELP/TYPE definitions only; no samples. Do not interpret absent samples as zero successes/failures or measured latency."
+  },
+  "unavailable": [
+    "Current applied/pending migrations and migration graph hash",
+    "Retained Prometheus target/rule/alert evaluation",
+    "Authorized writer smoke and source receipt",
+    "Recovery duration and duplicate/loss reconciliation",
+    "Archive/restore source, manifest and replay hashes",
+    "Current admin TUI acceptance and real owner sign-off"
+  ],
+  "production_ready": false,
+  "unit_status": "awaiting_production"
+}

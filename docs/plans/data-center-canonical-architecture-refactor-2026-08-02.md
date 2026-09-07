@@ -5102,3 +5102,57 @@ Git SHA / 镜像 / migration：
   `django:migrate` 入口，并修正已有 catalog 初始化入口的行号；共 1,153 项，`candidate-review=0`。
 - Workflow 数据库准备步骤变更时须同步重建清单，并以无 `--write` 模式复核；本次仅同步治理记录，
   不修改业务代码或检查规则。
+
+
+## 158. 2026-09-07：DATA-02 authenticated HTTPS checkpoint
+
+- 使用现有用户临时 Django session 对 release-identity → production-coverage → release-identity
+  进行顺序 GET，随后退出会话；三次均 HTTP 200，原始响应字节、UTC 采集时间和 SHA-256 已保存在
+  [HTTPS checkpoint](../deployment/data02-https-readonly-checkpoint-2026-09-07-aa7127ff.json)。
+- 两次身份响应完全一致且 status=verified/runtime_match=true：source commit `aa7127ff4d9f71555b0d0486314da5518bd2ac20`，
+  release `20260901232812`，manifest image ID `sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c`。
+  这证明应用报告的内嵌构建 commit 与挂载 manifest 一致、应用版本一致；不替代 Docker inspect、
+  文件系统证明、多副本一致性或数据库事务快照。
+- 5,533 个资产在 price/valuation/financial facts 均有覆盖，最新日期分别为 2026-08-04、2026-08-04、
+  2026-06-30。published covered 分别为 0、0、1，三项继续 blocked；估值 publication 缺失，
+  其 missing_count=0 不能解释为覆盖完成。价格 publication 为 `93bb22bf-d2ed-58ca-8b19-7217a74041d1`，
+  财务 publication 为 `c8741812-cf01-512f-8d1c-91c0e6549f42`。
+- 尚缺 quote identity、四组 immutable publication hashes、源观测分布、时间戳保留和跨源 tolerance 对账。
+  DATA-02 保持 awaiting_production，DATA-03 不晋级。未回填、切换 publication、部署或启用 runtime；
+  登录/退出可能产生正常 session、last_login 与认证审计写入，本次未请求业务数据写入。
+
+
+## 159. 2026-09-07：DATA-02 backup verification and database reconciliation
+
+- 用户要求从 DATA-02 备份核验与数据库对账继续。Mihomo 已将 VPS 的单 IP 设置为 DIRECT，
+  普通 SSH 使用原环境凭据恢复；没有更改服务器 SSH、密码、生产配置或部署版本。
+- `scripts/backup-vps-postgres.ps1 -DownloadLatest` 成功下载最新已有归档
+  `postgres-20260901-174054.dump`（147,464,528 bytes）。远端 `pg_restore --list`、下载大小和
+  SHA-256 均通过，本地主代理独立重算为
+  `c9f7cf876bd79908aa66461e5d07b254104ba1013b134f669cb91bf8119b1caf`。没有新建或清理备份；
+  9 月 1 日归档仅是已验证历史恢复点，新生产写入前仍应新建并核验备份。
+- 真实 Docker image、host manifest、嵌入 build identity 一致绑定 `aa7127ff4d9f71555b0d0486314da5518bd2ac20` /
+  release `20260901232812` / image `sha256:55d2b1d8dd7078acc42aef72f0fa33e57035d30e5c2727b574dfd43aafd9519c`，
+  采集前后身份与容器启动时间不变。PostgreSQL READ ONLY / REPEATABLE READ 下确认 applied=496、pending=0。
+- 全量 A 股事实覆盖均为 5,533，但 quote/price/valuation 最新仍为 8 月 4 日。实际 current publication
+  对 A 股 universe 覆盖为 quote=0、price=0、valuation=0、financial=1；前三种存量 publication
+  （quote/price/financial）的 104 个成员都能解析到底层事实，正式 reference 算法重算 hash 全部匹配，
+  source/time/quality/revision 等字段无漂移。估值 publication 全表为 0，不能补造第四个 identity。
+- fact 的 raw_payload_hash 列为空时，正式 publisher 使用内容派生 fallback；只比原始列得到的差异
+  不属于内容漂移。其逐成员算法复核已固化，但不等于已取得外部原始 payload 的完整 lineage。
+- 两个正式命令均在同一只读事务内无 `--execute` 运行：当前 session=2026-09-07，completed-session
+  price eligible=0/5,533；financial availability 预览为 288,409 rows / 3,750 assets，
+  unresolved/future=0。publication preview 的 financial 合格覆盖仍为 1,923/5,533，缺 3,610。
+  preview 的 quote/price/valuation coverage ready 仅代表选择覆盖，不能解释为 fresh/current。
+- [完整原始响应、命令与核验包](../deployment/data02-backup-db-reconciliation-checkpoint-2026-09-07-aa7127ff.json)
+  SHA-256=`7acd52b202385f8b0d1bd4d05e42893fdaab18a60748d8ef4c37559d3a712909`。
+  该包区分分次只读 snapshot 与全局事务，不借用不同算法的历史 migration graph hash。
+- DATA-02 保持 awaiting_production，DATA-03 不晋级。下一步按精确动作包先取得新备份，处理可确定的
+  financial availability 缺口，再按固定批次刷新真实行情/估值、补全 canonical source 对账与四 publication。
+  本轮无 backfill、provider refresh、publication switch、restore、deployment 或 runtime enablement。
+
+- Luna 的只读合同复核进一步确认：`data_center.provider.failover_tolerance` 的现行口径属于 macro
+  failover，不能套用于历史价格跨源验收。现成 `reconcile_records` 默认按自然键精确比较，
+  数值容差只能通过显式 equivalent 注入。后续跨源验收仍需固定两端 source、frequency/adjustment、
+  比较字段、绝对/相对容差及舍入、会话/时区、quality 与例外规则；不得用 fetched_at 替代 bar_date，
+  也不得从全局 1% 建议推导出未登记的历史价格验收合同。
