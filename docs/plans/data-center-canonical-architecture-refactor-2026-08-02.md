@@ -5156,3 +5156,16 @@ Git SHA / 镜像 / migration：
   数值容差只能通过显式 equivalent 注入。后续跨源验收仍需固定两端 source、frequency/adjustment、
   比较字段、绝对/相对容差及舍入、会话/时区、quality 与例外规则；不得用 fetched_at 替代 bar_date，
   也不得从全局 1% 建议推导出未登记的历史价格验收合同。
+
+## 160. 2026-09-07 main 部署后的 DATA-02 核验
+
+PR #19 已合入 main，提交 `0e9f890e8185d897630fd937b5ffc220fd7830ce` 部署为 release
+`20260907170119`。本次为 code-only upgrade，保留数据卷；独立新备份完整下载 149,948,039 bytes，
+SHA-256=`e806581fd317401f7af25f75d0d9801f8cb09de6558a3e7e9708f84dca60c54c`，远端 `pg_restore --list`
+及本地哈希均通过；部署脚本另执行切换前备份。
+
+[部署与只读核验证据](../deployment/main-vps-upgrade-2026-09-07-0e9f890e.json)绑定实际 main/OCI/容器身份。
+PostgreSQL 仍为 496 applied migrations、0 pending；quote/price/financial current publication identity
+与前一检查点一致，member count 分别为 1/23/80，valuation publication 仍缺失。health/ready=200，
+decision-ready=503 且 `must_not_use_for_decision=true`。这不是 provider 回填、跨源验收或 publication
+切换；第 159 节的数据和合同缺口继续适用，DATA-02 保持未完成，DATA-03 不放行。

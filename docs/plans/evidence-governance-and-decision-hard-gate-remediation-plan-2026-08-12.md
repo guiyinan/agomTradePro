@@ -4039,3 +4039,12 @@ EVID-05 已满足 repository exit gate，注册表晋级 completed 并释放唯�
 实际调用：`python manage.py capture_account_actor_authority --input <canonical-selector-json>` 默认只验证；
 显式 `--execute` 才调用既有 writer，历史 replay 不代表 current authority 已通过。无需新增迁移。
 本轮未创建 commit/push：工作树中的既有计划草稿与本次范围重叠，保留原始编辑供统一审阅。
+
+### 2026-09-07 main 部署检查点
+
+此前仓库检查点之后，SSH 已恢复；用户授权提交、合入 main 并部署。PR #19 的
+`0e9f890e8185d897630fd937b5ffc220fd7830ce` 已部署为 `20260907170119`，
+[部署证据](../deployment/main-vps-upgrade-2026-09-07-0e9f890e.json)记录完整 source/OCI/容器与
+数据库核验。`capture_account_actor_authority --help` 在新镜像中通过，EVID-05 代码已部署。
+本次没有执行 capture 写入、authority/approval 播种或策略 Promotion；EVID-01/02 的真实输入与
+生产验收仍缺，EVID-03 继续等待依赖。部署成功不替代上述验收。
