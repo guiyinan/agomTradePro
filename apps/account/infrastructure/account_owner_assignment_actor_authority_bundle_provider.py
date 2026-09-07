@@ -1,16 +1,17 @@
 """PostgreSQL-only, read-only composition of Account actor authority sources v3.
 
-This module is deliberately a dormant composition boundary.  It reads the
-three immutable raw authority ledgers through their existing Application
+This module reads the three immutable raw authority ledgers through their existing Application
 current readers and returns the consumer-owned DTO bundle used by the actor
 authority Application contract.  It does not read Django's mutable user,
 session, profile, or request objects and it is not registered in Evidence
-runtime composition.
+runtime composition. Capture composition uses the dedicated UOW-locked subclass;
+the default reader retains its standalone read-only snapshot contract.
 """
 
 from __future__ import annotations
 
-from contextlib import AbstractContextManager
+from collections.abc import Iterator
+from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol, TypeAlias, cast
@@ -176,12 +177,11 @@ class DjangoAccountActorAuthorityInputBundleProviderV3(ExactActorAuthorityInputB
             as_of=as_of,
         )
         connection = _connection_for_alias(self._using)
-        _require_postgresql_outer_connection(connection, self._using)
         try:
+            snapshot = self._snapshot(connection)
             repositories = self._repositories_factory.build(using=self._using)
             _require_repository_bundle(repositories, self._using)
-            with _atomic_for_alias(self._using):
-                _configure_snapshot(connection)
+            with snapshot:
                 context = GetCurrentAccountAuthenticationContextSourceV3(
                     repositories.authentication
                 ).execute(selectors[0])
@@ -210,6 +210,12 @@ class DjangoAccountActorAuthorityInputBundleProviderV3(ExactActorAuthorityInputB
             raise AccountActorAuthorityRawSourceV3Corruption(
                 "authority snapshot composition is corrupt"
             ) from error
+
+    def _snapshot(self, connection: BaseDatabaseWrapper) -> AbstractContextManager[None]:
+        """Return this provider's standalone repeatable-read snapshot."""
+
+        _require_postgresql_outer_connection(connection, self._using)
+        return _provider_snapshot(self._using, connection)
 
 
 def _selectors(
@@ -278,6 +284,15 @@ def _configure_snapshot(connection: BaseDatabaseWrapper) -> None:
 
     with connection.cursor() as cursor:
         cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+
+
+@contextmanager
+def _provider_snapshot(using: str, connection: BaseDatabaseWrapper) -> Iterator[None]:
+    """Run provider reads in one clean, read-only repeatable-read transaction."""
+
+    with _atomic_for_alias(using):
+        _configure_snapshot(connection)
+        yield
 
 
 def _require_repository_bundle(

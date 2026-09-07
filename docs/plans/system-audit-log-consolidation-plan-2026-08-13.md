@@ -1757,3 +1757,18 @@ canonical content-addressed report 为
 不能反向改写已固化快照。AUD-03 继续 `awaiting_production`：下一门是 canonical authority/profile、
 受控 writer smoke、fresh candidate-bound recorder，以及逐动作授权的 recovery/archive replay 与 owner
 确认。本 checkpoint 未执行 migration、fault、archive、restore、生产写入或 runtime activation。
+
+
+## 2026-09-07：AUD-03 HTTPS health / metrics observation
+
+- 顺序读取 release-identity、audit health、audit metrics、release-identity，均 HTTP 200；
+  两次应用身份响应完全一致，绑定 `aa7127ff4d9f71555b0d0486314da5518bd2ac20` / `20260901232812`。
+  [原始响应与 SHA-256](../deployment/aud03-https-readonly-observation-2026-09-07-aa7127ff.json)
+  保留了采集时间与原始字节；身份范围只是内嵌 build 与 mounted manifest 一致，不替代容器或 migration 核验。
+- health=OK，operation logs=571，outbox 六类状态计数均为 0；两项 oldest age 为 null。
+  Prometheus 导出含七条 owner=audit gauge，均为 0.0；空 backlog 的 age gauge 不代表恢复用时。
+  audit write success/failure/operations/latency 只有 HELP/TYPE、没有样本，不能解释为零失败、
+  已测吞吐或已测延迟。此瞬时快照不能建立连续恢复 timeline 或 duplicate/loss 对账。
+- 当前 migration graph、retained targets/rules/alerts、真实 writer receipt、recovery、archive/restore
+  和 owner acceptance 仍缺；AUD-03 保持 awaiting_production。本次没有请求业务写入、fault、
+  migration、archive、restore 或部署；临时登录/退出可能产生正常认证相关写入，未创建 API token。

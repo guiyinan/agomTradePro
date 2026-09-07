@@ -26,17 +26,17 @@
       "script": 8,
       "sdk": 46,
       "terminal_tui": 28,
-      "test_evidence": 42,
+      "test_evidence": 44,
       "workflow_step": 10
     },
     "by_status": {
       "active_public": 720,
-      "adjacent_operational": 296,
+      "adjacent_operational": 298,
       "candidate-review": 0,
       "compatibility": 137,
       "retired_blocked": 0
     },
-    "total": 1153
+    "total": 1155
   },
   "entries": [
     {
@@ -11051,6 +11051,16 @@
     },
     {
       "category": "test_evidence",
+      "evidence": "reviewed Account-owned disposable PostgreSQL capture, replay, locking, revocation and rollback evidence; no production authority is issued",
+      "id": "test_evidence:tests/component/account/test_actor_authority_capture_postgres.py:test_actor_authority_capture_postgres:",
+      "locator": "",
+      "path": "tests/component/account/test_actor_authority_capture_postgres.py",
+      "status": "adjacent_operational",
+      "symbol": "test_actor_authority_capture_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
       "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
       "id": "test_evidence:tests/component/account/test_db_backup_email.py:test_db_backup_email:",
       "locator": "",
@@ -11197,6 +11207,16 @@
       "path": "tests/settings_terminal_agent_run_postgres.py",
       "status": "active_public",
       "symbol": "settings_terminal_agent_run_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "reviewed Account-owned disposable PostgreSQL capture, replay, locking, revocation and rollback evidence; no production authority is issued",
+      "id": "test_evidence:tests/support/actor_authority_capture_postgres.py:actor_authority_capture_postgres:",
+      "locator": "",
+      "path": "tests/support/actor_authority_capture_postgres.py",
+      "status": "adjacent_operational",
+      "symbol": "actor_authority_capture_postgres",
       "target": ""
     },
     {
@@ -11583,7 +11603,7 @@
     "celery_tasks": 91,
     "current_data_contracts": 53,
     "legacy_entrypoints_and_wrappers": 0,
-    "operational_governance_rules": 21,
+    "operational_governance_rules": 22,
     "runtime_config_keys": 45
   },
   "source_contracts": [

@@ -1,0 +1,160 @@
+{
+  "schema_version": "evid05-account-actor-capture-repository-closure.v1",
+  "unit_id": "EVID-05",
+  "recorded_at": "2026-09-06T16:02:54.627342+00:00",
+  "scope": "repository implementation and isolated local PostgreSQL verification only",
+  "repository": {
+    "branch": "dev/next-development",
+    "base_commit": "1e02caf5dd9bd6b060c17748e35d740789e63861",
+    "uncommitted_worktree": true,
+    "commit_created": false,
+    "push_performed": false
+  },
+  "source_hash_contract": "SHA-256 of UTF-8 text with universal newlines normalized to LF; includes 11 production and 6 test/support files",
+  "source_files": {
+    "apps/account/account_actor_authority_capture_composition.py": "f76193af44cbada387e3b0f44fbe22c515b47257e523e88af70cfde1ea0fb54d",
+    "apps/account/application/account_actor_authority_request_reader.py": "0aff7c7d6a5f756ef19769b4c2c955af392646705ad508f31ce8333401d3fcc4",
+    "apps/account/application/account_owner_assignment_actor_authority_source_v3.py": "58d0fba072cbcd9e2d36f603962f640680fdd95c4c274eded8bbd5931728c8b8",
+    "apps/account/infrastructure/account_actor_authority_capture_request.py": "b01a7e007c0a17210c57097e70a7c87672311cfaddc5139a23ed9323b6995f82",
+    "apps/account/infrastructure/account_actor_authority_capture_snapshot.py": "ac86854146a23c3187db336852e51797f2ba2a4689381e5ba1affb828ab1572a",
+    "apps/account/infrastructure/account_authentication_context_source_v3_repository.py": "a785ed988109937fb24cfa040862f3a80a1a692f56bd61ef176a0f9e81427eaf",
+    "apps/account/infrastructure/account_owner_assignment_actor_authority_bundle_provider.py": "0e91d75a90de623513eb84fa77c3e60fa65d1adcf609caaa2cdae521e28eecba",
+    "apps/account/infrastructure/account_owner_assignment_actor_authority_source_v3_repository.py": "d72d9aea8c8e135af6e55cc13cbbb3877fc7ea3c4768b0c58bd7967ecad44589",
+    "apps/account/infrastructure/account_rbac_authority_source_v3_repository.py": "f21851753a715d75668a43318d2a9d06277ba9baa986298c66a6b2bbc5d54b61",
+    "apps/account/infrastructure/account_user_authority_source_v3_repository.py": "ff9726835d68159b358cde1431074da3e52b2b438b9b3b5905201a66d843a678",
+    "apps/account/management/commands/capture_account_actor_authority.py": "a452dd09461a5f10bec043e017d27f7657b448bee90e195b06476a54a6e86cb1",
+    "tests/component/account/test_account_actor_authority_capture_composition.py": "b2bf67b8362abf63780ff1fc475491a42641145728284b0441e83006bb8e1420",
+    "tests/component/account/test_actor_authority_capture_postgres.py": "377c9faa0bc9ea54d960fb4cf2610f24e65691a29745836be18933a3cc3b510c",
+    "tests/support/actor_authority_capture_postgres.py": "4d393a3e1317303f2a739161ea89841eac0d3f7ab3ac4a6420e7ed9bb0467657",
+    "tests/unit/account/test_account_actor_authority_request_reader.py": "69ac787c074c678022c1c7ab1aec7f7e4c6247c717d072f7dbec382e633d658b",
+    "tests/unit/account/test_actor_authority_capture_command.py": "e3c850b571e7339f128868b0fbb2c446c2e06fd89a794f28d5469c7a0cbf3384",
+    "tests/unit/account/test_actor_authority_unavailable_boundary.py": "fe7f6612ce233db21835e23dd6b10eec925cec7db04833cebd43215c2f99f2ad"
+  },
+  "governance_projections": {
+    "governance/data_center_operational_entrypoints.json": "1d07bb9ade0697b6da9f12da2f1a572ab44e022c14d0b5579b5cf823d6a65d94",
+    "governance/data_center_entrypoints.json": "527d07120493c7b4616a28c7ab8fd73088907a2f00a51bc0e276c63d0bb3e346"
+  },
+  "verification_record_source": "Agent-observed local command results; this JSON is not a captured raw console transcript or production acceptance.",
+  "python": "3.13.5",
+  "verification": {
+    "expanded_pytest": {
+      "command": [
+        "python",
+        "-m",
+        "pytest",
+        "tests/unit/account/test_account_actor_authority_request_reader.py",
+        "tests/unit/account/test_actor_authority_capture_command.py",
+        "tests/unit/account/test_actor_authority_unavailable_boundary.py",
+        "tests/unit/account/test_account_owner_assignment_actor_authority_source_v3_application.py",
+        "tests/unit/account/test_account_owner_assignment_actor_authority_v3.py",
+        "tests/unit/account/test_account_owner_assignment_actor_authority_bundle_provider.py",
+        "tests/component/account/test_account_actor_authority_capture_composition.py",
+        "tests/component/account/test_account_owner_assignment_actor_authority_source_v3_repository.py",
+        "tests/component/account/test_account_user_authority_source_v3_repository.py",
+        "tests/component/account/test_account_rbac_authority_source_v3_repository.py",
+        "-q",
+        "-o",
+        "addopts=",
+        "--tb=short",
+        "--basetemp=pytest-tmp/evid05-expanded"
+      ],
+      "passed": 95
+    },
+    "postgresql_suite": {
+      "command": "AGOM_EVID05_POSTGRES_TEST=1 python -m pytest tests/component/account/test_actor_authority_capture_postgres.py -q -x -o addopts= --tb=short --basetemp=pytest-tmp/evid05-pg-joins",
+      "passed": 12,
+      "seconds": 129.34,
+      "note": "Suite passed before the revocation test was refined to revoke one minute after capture; the other eleven tests were unchanged."
+    },
+    "post_capture_revocation": {
+      "command": "AGOM_EVID05_POSTGRES_TEST=1 python -m pytest tests/component/account/test_actor_authority_capture_postgres.py -q -x -k committed_raw_revocation -o addopts= --tb=short --basetemp=pytest-tmp/evid05-pg-revocation-clock",
+      "passed": 1,
+      "deselected": 11
+    },
+    "cli_pytest": {
+      "command": "python -m pytest tests/unit/account/test_actor_authority_capture_command.py -q -o addopts= --tb=short --basetemp=pytest-tmp/evid05-cli-final",
+      "passed": 19
+    },
+    "actual_cli_dry_run": {
+      "command": "python manage.py capture_account_actor_authority --input reports/quality/evid05-local-capture-request.json",
+      "outcome": "noop",
+      "mode": "dry_run",
+      "capture_executed": false,
+      "upstream_authority_verified": false,
+      "runtime_enabled": false,
+      "input_kind": "local synthetic test selectors, never executed"
+    },
+    "incremental_mypy": {
+      "command": "python scripts/check_mypy_regression.py <explicit production files>",
+      "distinct_files": 11,
+      "run_file_counts": [
+        8,
+        4,
+        1
+      ],
+      "regressions": 0,
+      "legacy_errors_observed": 0
+    },
+    "full_mypy": {
+      "command": "python scripts/check_mypy_debt_ceiling.py",
+      "errors": 0,
+      "files_with_errors": 0,
+      "baseline_raised": false
+    },
+    "format": {
+      "commands": [
+        "python -m isort --check-only <17 changed Python files>",
+        "python -m black --check <17 changed Python files>",
+        "python -m ruff check <17 changed Python files>"
+      ],
+      "passed": true
+    },
+    "architecture": {
+      "command": "python scripts/verify_architecture.py",
+      "scanned_files": 3016,
+      "boundary_violations": 0
+    },
+    "governance": {
+      "command": "python scripts/check_governance_consistency.py",
+      "violations": 0
+    },
+    "entrypoint_projection": {
+      "command": "python scripts/data_center_entrypoint_inventory.py --write",
+      "total": 1155,
+      "candidate_review": 0,
+      "account_owned_test_evidence_added": 2
+    },
+    "test_tiers": {
+      "command": "python scripts/test_tier_inventory.py --check --output reports/quality/evid05-test-tier-inventory.json",
+      "passed": true
+    }
+  },
+  "postgresql": {
+    "server_version": "16.14 (Debian 16.14-1.pgdg13+1)",
+    "endpoint": "127.0.0.1:55435",
+    "database": "evid05_authority_test",
+    "container_id": "628edc7e6ca26a53a72ccdac201c25c1a0278b8800f69d74384a6629ff28335e",
+    "remaining_public_tables_before_stop": 0,
+    "temporary_container_removed": true
+  },
+  "guarantees": [
+    "same-alias canonical UOW guard",
+    "six raw anchor/ledger SHARE NOWAIT locks held through append/commit",
+    "standalone read-only repeatable-read provider preserved",
+    "exact-current source/principal/user/authentication-content-hash binding",
+    "historical winner replay never asserts current upstream verification",
+    "nullable predecessor joins lock ledger self rows; anchors and roots locked separately",
+    "raw unavailable/corruption/conflict normalized without fabricating authority",
+    "default CLI only validates selectors; execute is explicit"
+  ],
+  "production_claim": false,
+  "production_ready": false,
+  "production_writes_performed": false,
+  "runtime_enabled": false,
+  "remaining": [
+    "EVID-01 and EVID-02 live authority/approval/acceptance remain incomplete",
+    "VPS SSH banner preflight still times out; current deployed candidate has not been revalidated",
+    "No deployment, promotion, owner-separation policy change, capacity increase or observation-window change",
+    "Local PostgreSQL fixtures are not production authority or EVID-02 production concurrency acceptance"
+  ]
+}

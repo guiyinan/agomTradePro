@@ -10,8 +10,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Protocol, TypeVar
 
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connections, transaction
 from django.utils import timezone
+from django.utils.connection import ConnectionDoesNotExist
 
 from apps.account.application.account_owner_assignment_actor_authority_source_v3 import (
     AccountOwnerAssignmentActorAuthoritySourceV3Conflict,
@@ -30,6 +31,7 @@ from apps.account.infrastructure.account_owner_assignment_actor_authority_source
     encode_account_owner_assignment_actor_authority_source_v3,
 )
 from apps.account.infrastructure.account_owner_assignment_actor_authority_source_v3_models import (
+    _ACTIVE_AUTHORITY_V3_UOW,
     AccountOwnerAssignmentActorAuthoritySourceV3Model,
     AccountOwnerAssignmentActorAuthoritySourceV3RootLockModel,
     _activate_account_owner_assignment_actor_authority_source_v3_uow,
@@ -110,6 +112,25 @@ class DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository:
                 "repository clock is naive"
             )
         return value
+
+    def require_capture_transaction(self) -> None:
+        """Require the active same-alias actor-authority capture transaction."""
+
+        token = self._uow
+        if token is None or _ACTIVE_AUTHORITY_V3_UOW.get() is not token:
+            raise AccountOwnerAssignmentActorAuthoritySourceV3Unavailable(
+                "capture requires the active actor-authority UOW"
+            )
+        try:
+            connection = connections[self._using]
+        except (ConnectionDoesNotExist, KeyError) as error:
+            raise AccountOwnerAssignmentActorAuthoritySourceV3Unavailable(
+                "capture database alias is unavailable"
+            ) from error
+        if getattr(connection, "alias", None) != self._using or not connection.in_atomic_block:
+            raise AccountOwnerAssignmentActorAuthoritySourceV3Unavailable(
+                "capture requires its same-alias active transaction"
+            )
 
     def get_winner(
         self, *, source_id: str, source_version: str, as_of: datetime
@@ -335,6 +356,8 @@ class DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository:
         return anchor
 
     def _closed_world(self, *, lock: bool, permitted_empty_anchor: int | None = None) -> _World:
+        """Load the closed ledger world while locking only nullable-safe row targets."""
+
         anchor_query = (
             AccountOwnerAssignmentActorAuthoritySourceV3RootLockModel._base_manager.using(
                 self._using
@@ -347,7 +370,7 @@ class DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository:
         )
         if lock:
             anchor_query = anchor_query.select_for_update()
-            record_query = record_query.select_for_update()
+            record_query = record_query.select_for_update(of=("self",))
         anchors = tuple(anchor_query.order_by("pk"))
         by_anchor = {_pk(anchor): anchor for anchor in anchors}
         records: list[

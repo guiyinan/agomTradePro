@@ -7,6 +7,11 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Protocol
 
+from apps.account.application.account_actor_authority_raw_source_primitives_v3 import (
+    AccountActorAuthorityRawSourceV3Conflict,
+    AccountActorAuthorityRawSourceV3Corruption,
+    AccountActorAuthorityRawSourceV3Unavailable,
+)
 from apps.account.domain.account_owner_assignment_actor_authority_source_v3 import (
     AccountOwnerAssignmentActorAuthoritySourceV3,
     root_claim_hash_for_actor_authority_source_v3,
@@ -501,18 +506,32 @@ def _read_inputs(
     command: CaptureAccountOwnerAssignmentActorAuthoritySourceV3Command,
     cutoff: datetime,
 ) -> _Inputs:
-    bundle = provider.get_exact_current(
-        authentication_context_id=command.authentication_context_id,
-        authentication_context_version=command.authentication_context_version,
-        expected_authentication_context_content_hash=command.expected_authentication_context_content_hash,
-        user_source_id=command.user_source_id,
-        user_source_version=command.user_source_version,
-        expected_user_source_content_hash=command.expected_user_source_content_hash,
-        rbac_source_id=command.rbac_source_id,
-        rbac_source_version=command.rbac_source_version,
-        expected_rbac_source_content_hash=command.expected_rbac_source_content_hash,
-        as_of=cutoff,
-    )
+    """Read canonical inputs and normalize the raw authority failure boundary."""
+    try:
+        bundle = provider.get_exact_current(
+            authentication_context_id=command.authentication_context_id,
+            authentication_context_version=command.authentication_context_version,
+            expected_authentication_context_content_hash=command.expected_authentication_context_content_hash,
+            user_source_id=command.user_source_id,
+            user_source_version=command.user_source_version,
+            expected_user_source_content_hash=command.expected_user_source_content_hash,
+            rbac_source_id=command.rbac_source_id,
+            rbac_source_version=command.rbac_source_version,
+            expected_rbac_source_content_hash=command.expected_rbac_source_content_hash,
+            as_of=cutoff,
+        )
+    except AccountActorAuthorityRawSourceV3Unavailable as error:
+        raise AccountOwnerAssignmentActorAuthoritySourceV3Unavailable(
+            "raw authority input is unavailable"
+        ) from error
+    except AccountActorAuthorityRawSourceV3Corruption as error:
+        raise AccountOwnerAssignmentActorAuthoritySourceV3Corruption(
+            "raw authority input is corrupt"
+        ) from error
+    except AccountActorAuthorityRawSourceV3Conflict as error:
+        raise AccountOwnerAssignmentActorAuthoritySourceV3Conflict(
+            "raw authority input changed"
+        ) from error
     if bundle is None:
         raise AccountOwnerAssignmentActorAuthoritySourceV3Unavailable(
             "exact-current authority input is unavailable"
