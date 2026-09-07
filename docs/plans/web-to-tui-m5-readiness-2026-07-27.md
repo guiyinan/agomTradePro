@@ -4,6 +4,14 @@
 
 **M5 清理判定：DENY。**
 
+> 2026-09-07 当前候选：main `0e9f890e8185d897630fd937b5ffc220fd7830ce` / `20260907170119`
+> 已通过 code-only 部署及 source/OCI/健康核验，并使用已提交 attestation 执行 `--replace --write`。
+> 当前实测 **2/10 DENY**，仅 source consistency 和 execution dependency 通过；旧 UAT、cleanup、
+> rollback、telemetry、approval 与 retained window 不继承。候选日期 `2026-09-07..2026-09-21`
+> 不是已流逝观察证据，尚无首个真实 retained sample 或精确 eligible instant。
+> [重绑定证据](../deployment/tui02-candidate-rebind-2026-09-07-0e9f890e.json)保留实际 checker 结果。
+> 下方历史检查点保留，不代表新候选通过。
+
 > 2026-08-21 执行依赖纠偏：`TUI-01` 现在显式依赖 `TAR-03`。Terminal Agent 的
 > Worker、事件恢复与 TUI/SDK 状态闭环会改变最终 release surface，因此
 > `2f4554b5192191970a3ccbc98420388881725079` / `20260820211526` 上已经启动的观察只作为

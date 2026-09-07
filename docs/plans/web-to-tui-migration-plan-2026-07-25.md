@@ -717,3 +717,17 @@ readiness 当前为 `5/10 DENY`：source、execution dependency、108-route UAT�
 rollback 通过；stable window 因 reset 后尚无 retained source、structured defects、101-task telemetry、
 post-window registry backup 和 role-bound attestations 均缺。此前不得执行 Classic cleanup 或生成 final
 approval；external AI、queued runtime、authority/approval、load/fault 与 live rollback 保持未授权。
+
+## 16. 2026-09-07 main 候选部署与观察重绑定
+
+main `0e9f890e8185d897630fd937b5ffc220fd7830ce` 已部署为 `20260907170119`，
+image `sha256:778e50018124dd4d67dbe6a607b495d2e480c1bc6ff1aed42a9f50f484331e1e`。
+[部署证据](../deployment/main-vps-upgrade-2026-09-07-0e9f890e.json)记录 code-only upgrade、
+新备份、主机/容器/OCI 一致性和 health/ready=200；decision-ready=503 且禁止决策使用。
+已提交 deployment attestation 后，官方 observation starter 的 dry-run 与 `--replace --write` 均通过。
+[候选重绑定证据](../deployment/tui02-candidate-rebind-2026-09-07-0e9f890e.json)记录实际 `2/10 DENY`。
+仅 source consistency 与 execution dependency 通过；旧候选 UAT/cleanup/rollback/telemetry/approval
+均不继承。`2026-09-07..2026-09-21` 是候选日期投影，不是 retained 窗口；需要首个真实样本才可
+计算精确 14 日 eligible instant。TUI-02 保持 active，Classic 清理继续禁止。
+本次已将现有 host-only `deploy/prometheus-query.env` 安全带入新 release，并核验 Caddy 内值一致；
+该文件不随 Git clone 携带，后续部署仍需保留这一环境配置。
