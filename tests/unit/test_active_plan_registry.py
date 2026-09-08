@@ -108,7 +108,7 @@ def _write_fixture_repository(root: Path) -> tuple[Path, Path]:
     return registry_path, index_path
 
 
-def test_repository_active_plan_registry_is_closed_world():
+def test_repository_active_plan_registry_is_closed_world() -> None:
     module = _load_module()
     report = module.evaluate_registry(
         REPO_ROOT,
@@ -119,10 +119,10 @@ def test_repository_active_plan_registry_is_closed_world():
     assert report.violation_count == 0, report.violations
     assert report.workstream_count == 9
     assert report.primary_plan_count == 18
-    assert report.supporting_document_count == 23
+    assert report.supporting_document_count == 24
     assert report.review_queue_count == 0
-    assert report.closure_unit_count == 43
-    assert report.registered_path_count == report.active_path_count == 41
+    assert report.closure_unit_count == 45
+    assert report.registered_path_count == report.active_path_count == 42
 
 
 def test_registry_rejects_unregistered_active_plan(tmp_path: Path):
