@@ -275,6 +275,23 @@ def test_tui_workbench_requires_login(client):
     assert "/account/login/" in response["Location"]
 
 
+def test_tui_screen_projects_each_visible_action_once(tui_user, monkeypatch):
+    """Compatibility blocks reuse the projection without doubling field work."""
+    service = TuiWorkbenchService(metadata_repository=FakeMetadataRepository(_metadata_payload()))
+    original = service._action_payload
+    calls = []
+
+    def project(action, **kwargs):
+        calls.append(action["key"])
+        return original(action, **kwargs)
+
+    monkeypatch.setattr(service, "_action_payload", project)
+    result = service.get_screen("command-center.overview", user=tui_user)
+    assert result["actions"]
+    assert calls == [action["key"] for action in result["actions"]]
+    assert result["blocks"][1]["items"] == result["actions"]
+
+
 def test_tui_workbench_page_is_standalone(client, tui_user):
     client.force_login(tui_user)
 
@@ -290,8 +307,9 @@ def test_tui_workbench_page_is_standalone(client, tui_user):
     assert "data-module-tree" in html
     assert f'data-user-key="{tui_user.pk}"' in html
     assert "data-workflow-strip" in html
-    assert 'id="tui-location-input"' not in html
-    assert "data-current-location" not in html
+    assert 'id="tui-location-input"' in html
+    assert "data-current-location" in html
+    assert 'aria-label="TUI屏幕地址"' in html
     assert "用户: tui_user" in html
     assert "工作台:" in html
     assert "DEBUG ONLY" not in html
@@ -311,16 +329,16 @@ def test_tui_workbench_page_is_standalone(client, tui_user):
     assert "tui-theme.css" not in html
 
 
-def test_tui_workbench_page_hides_internal_screen_locator_from_admins(client, tui_admin_user):
+def test_tui_workbench_page_exposes_screen_locator_to_admins(client, tui_admin_user):
     client.force_login(tui_admin_user)
 
     response = client.get("/tui/")
 
     assert response.status_code == 200
     html = response.content.decode()
-    assert 'id="tui-location-input"' not in html
-    assert "data-current-location" not in html
-    assert "screen:boot" not in html
+    assert 'id="tui-location-input"' in html
+    assert "data-current-location" in html
+    assert 'aria-label="TUI屏幕地址"' in html
 
 
 def test_tui_workbench_page_exposes_pc_tools_interaction_shell(client, tui_user):
@@ -337,7 +355,7 @@ def test_tui_workbench_page_exposes_pc_tools_interaction_shell(client, tui_user)
     assert "<strong>F1</strong> 帮助" in html
     assert "<strong>F3</strong> 上屏" in html
     assert "<strong>F4</strong> 下屏" in html
-    assert "<strong>F6</strong> 下一项" in html
+    assert "<strong>F6</strong> 执行下一任务" in html
     assert "<strong>F9</strong> 任务" in html
     assert "<strong>Alt+A</strong>" not in html
     assert "<strong>Alt+F</strong>" not in html
@@ -706,7 +724,13 @@ def test_tui_dashboard_alpha_publishes_ranking_and_history_tasks(client, tui_use
     ranking_fields = {field["key"]: field for field in actions["dashboard.alpha-ranking"]["fields"]}
     assert ranking_fields["format"]["default"] == "json"
     assert ranking_fields["alpha_scope"]["options"] == ["general", "portfolio"]
+    assert ranking_fields["alpha_scope"]["default"] == "general"
     assert ranking_fields["top_n"]["default"] == 10
+    assert ranking_fields["top_n"]["presentation_semantic"] == "primary_selector"
+    assert ranking_fields["top_n"]["label"] == "展示数量"
+    assert ranking_fields["account_id"]["presentation_semantic"] == "primary_selector"
+    assert ranking_fields["account_id"]["label"] == "投资账户"
+    assert ranking_fields["account_id"]["input_type"] == "select"
     runtime = PublishedTuiMetadataRepository().load_published()
     runtime_actions = {action["key"]: action for action in runtime["actions"]}
     assert runtime_actions["dashboard.beta-market-summary"]["view_model"]["rows_path"] == ("rows")
@@ -720,16 +744,64 @@ def test_tui_dashboard_alpha_publishes_ranking_and_history_tasks(client, tui_use
         column["key"]
         for column in runtime_actions["dashboard.alpha-ranking"]["view_model"]["columns"]
     ] == [
-        "rank",
         "code",
-        "name",
         "alpha_score",
+        "asof_date",
+        "must_not_use_for_decision",
         "gate_status",
         "suggested_position_pct",
         "buy_reason_summary",
         "no_buy_reason_summary",
     ]
     assert runtime_actions["dashboard.alpha-history"]["view_model"]["rows_path"] == "data"
+
+
+def test_tui_dashboard_alpha_defaults_to_research_and_preserves_decision_block(tui_user):
+    """Default selection shows real research rows with their source date and block."""
+
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            assert kwargs["params"]["alpha_scope"] == "general"
+            return {
+                "status_code": 200,
+                "payload": {
+                    "success": True,
+                    "data": {
+                        "items": [
+                            {
+                                "rank": 1,
+                                "code": "600118.SH",
+                                "name": "研究候选",
+                                "alpha_score": 0.8,
+                                "asof_date": "2026-09-04",
+                                "must_not_use_for_decision": True,
+                                "gate_status": "blocked",
+                                "suggested_position_pct": 0,
+                                "no_buy_reason_summary": "评分已过期，仅供研究。",
+                            }
+                        ],
+                        "count": 1,
+                        "contract": {
+                            "must_not_use_for_decision": True,
+                            "blocked_reason": "评分已过期，仅供研究。",
+                        },
+                    },
+                },
+            }
+
+    service = TuiWorkbenchService(
+        metadata_repository=PublishedTuiMetadataRepository(),
+        action_executor=FakeExecutor(),
+    )
+    result = service.run_action(action_key="dashboard.alpha-ranking", params={}, user=tui_user)
+    model = result["view_model"]
+    assert len(model["rows"]) == 1
+    row = model["rows"][0]
+    assert row["code"] == "600118.SH 研究候选"
+    assert row["asof_date"] == "2026-09-04"
+    assert row["must_not_use_for_decision"] == "是"
+    assert row["no_buy_reason_summary"] == "评分已过期，仅供研究。"
+    assert model["pager"]["total_rows"] == 1
 
 
 def test_tui_dashboard_alpha_does_not_turn_pool_size_into_placeholder_picks(tui_user):
@@ -3110,12 +3182,18 @@ def test_tui_research_asset_lab_screen_returns_overview_panels(client, tui_user)
     assert payload["screen"]["chrome_mode"] == ""
     assert payload["screen"]["default_action_key"] == "asset-analysis.pool-summary"
     panels = payload["screen"]["dashboard_panels"]
-    assert [panel["action_key"] for panel in panels] == [
+    assert [panel["action_key"] for panel in panels if panel["action_key"]] == [
         "asset-analysis.pool-summary",
         "backtest.summary",
         "backtest.list",
     ]
-    assert [panel["kind"] for panel in panels] == ["detail", "detail", "datagrid"]
+    assert [panel["kind"] for panel in panels if panel["action_key"]] == [
+        "detail",
+        "detail",
+        "datagrid",
+    ]
+
+    assert panels[-1]["key"] == "operation-receipt"
 
 
 def test_tui_beta_gate_screen_returns_overview_panels(client, tui_user):
@@ -3129,7 +3207,7 @@ def test_tui_beta_gate_screen_returns_overview_panels(client, tui_user):
     assert payload["screen"]["default_action_key"] == "beta-gate.decision-list"
     panels = payload["screen"]["dashboard_panels"]
     action_keys = [action["key"] for action in payload["actions"]]
-    assert [panel["action_key"] for panel in panels] == [
+    assert [panel["action_key"] for panel in panels if panel["action_key"]] == [
         "beta-gate.decision-list",
         "beta-gate.config-list",
         "rotation.asset-list",
@@ -3142,6 +3220,8 @@ def test_tui_beta_gate_screen_returns_overview_panels(client, tui_user):
         "beta-gate.decision-list",
         "hedge.alert-active",
     }
+
+    assert panels[-1]["key"] == "operation-receipt"
 
 
 def test_tui_data_center_screen_returns_overview_panels(client, tui_admin_user):
@@ -3219,7 +3299,7 @@ def test_tui_alpha_triggers_screen_returns_overview_panels(client, tui_user):
     payload = response.json()
     assert payload["screen"]["default_action_key"] == "dashboard.beta-market-summary"
     panels = payload["screen"]["dashboard_panels"]
-    assert [panel["action_key"] for panel in panels] == [
+    assert [panel["action_key"] for panel in panels if panel["action_key"]] == [
         "dashboard.beta-market-summary",
         "dashboard.alpha-ranking",
         "alpha-trigger.candidate-actionable",
@@ -3227,6 +3307,8 @@ def test_tui_alpha_triggers_screen_returns_overview_panels(client, tui_user):
     ]
     action_keys = [action["key"] for action in payload["actions"]]
     assert "auto.api.get.api.alpha-triggers" in action_keys
+
+    assert panels[-1]["key"] == "operation-receipt"
 
 
 def test_tui_pulse_and_hedge_screens_return_overview_panels(client, tui_user):
@@ -3249,7 +3331,7 @@ def test_tui_pulse_and_hedge_screens_return_overview_panels(client, tui_user):
         "data_center.market_thermometer",
         "pulse.history",
     ]
-    assert [panel["action_key"] for panel in hedge_panels] == [
+    assert [panel["action_key"] for panel in hedge_panels if panel["action_key"]] == [
         "beta-gate.decision-list",
         "beta-gate.config-list",
         "rotation.asset-list",
@@ -3258,6 +3340,8 @@ def test_tui_pulse_and_hedge_screens_return_overview_panels(client, tui_user):
         "rotation.account-config-list",
         "hedge.alert-active",
     ]
+
+    assert hedge_panels[-1]["key"] == "operation-receipt"
 
 
 def test_tui_business_labels_do_not_leak_endpoint_generated_words(client, tui_user):
@@ -4189,6 +4273,59 @@ def test_tui_service_action_runner_wraps_list_as_datagrid(tui_user):
     assert payload["view_model"]["columns"][0]["key"] == "code"
     assert payload["view_model"]["pager"]["total_rows"] == 2
     assert payload["response"]["status_code"] == 200
+
+
+def test_tui_unpaged_collection_retains_all_rows_for_client_pagination(tui_user):
+    class Executor:
+        def execute(self, **kwargs):
+            return {"status_code": 200, "payload": [{"code": str(i)} for i in range(45)]}
+
+    action = {
+        "key": "asset.list",
+        "label": "资产列表",
+        "method": "GET",
+        "endpoint": "/api/asset-analysis/pool-summary/",
+        "intent": "list_assets",
+        "screen_key": "command-center.overview",
+        "module_key": "command-center",
+        "view_type": "datagrid",
+        "risk": "read",
+        "fields": [],
+    }
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(_metadata_payload(actions=[action])),
+        action_executor=Executor(),
+    )
+    model = service.run_action(action_key="asset.list", params={}, user=tui_user)["view_model"]
+    assert [row["code"] for row in model["rows"]] == [str(i) for i in range(45)]
+    assert model["pager"]["client_side"] is True
+    assert model["pager"]["total_rows"] == 45
+
+
+@pytest.mark.parametrize(
+    "owner_payload,expected",
+    [
+        ({"outcome": "blocked"}, "blocked"),
+        ({"outcome": "partial"}, "partial"),
+        ({"data": {"outcome": "failed"}}, "failed"),
+        ({"success": False}, "failed"),
+        ({"outcome": "noop"}, "noop"),
+    ],
+)
+def test_tui_result_retains_owner_outcome_on_successful_transport(
+    tui_user, owner_payload, expected
+):
+    class Executor:
+        def execute(self, **kwargs):
+            return {"status_code": 200, "payload": owner_payload}
+
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(_metadata_payload()),
+        action_executor=Executor(),
+    )
+    result = service.run_action(action_key="sample.list", params={}, user=tui_user)
+    assert result["response"]["status_code"] == 200
+    assert result["outcome"] == expected
 
 
 def test_tui_service_action_runner_honors_explicit_datagrid_columns(tui_user):

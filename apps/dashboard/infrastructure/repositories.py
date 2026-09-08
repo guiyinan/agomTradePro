@@ -30,6 +30,7 @@ from apps.dashboard.infrastructure.dashboard_state_repositories import (
 )
 from apps.data_center.application.public import update_asset_display_name
 from apps.fund.application.repository_provider import resolve_fund_holding_names
+from shared.numeric import safe_float
 
 from .models import (
     AlphaRecommendationRunModel,
@@ -385,35 +386,36 @@ class DashboardAlphaContextRepository:
         codes: list[str],
         code_aliases: dict[str, set[str]],
     ) -> dict[str, dict[str, Any]]:
+        """Resolve quote aliases in one publication-gated batch per context read."""
         if not codes:
             return {}
 
+        aliases = sorted(
+            {str(alias).upper() for code in codes for alias in code_aliases.get(code, {code})}
+        )
+        quotes = self._integration_gateway.query_latest_quotes(aliases)
+        quotes_by_code = {
+            str(quote.get("asset_code") or "").upper(): quote
+            for quote in quotes
+            if quote.get("asset_code")
+        }
         context: dict[str, dict[str, Any]] = {}
         for code in codes:
-            for alias in code_aliases.get(code, {code}):
-                quote = self._integration_gateway.query_latest_quote(str(alias).upper())
+            for alias in [code, *sorted(code_aliases.get(code, {code}) - {code})]:
+                quote = quotes_by_code.get(str(alias).upper())
                 if quote is None:
                     continue
-                if isinstance(quote, Mapping):
-                    snapshot_at = quote.get("snapshot_at")
-                    current_price = quote.get("current_price")
-                    volume = quote.get("volume")
-                    source = quote.get("source")
-                else:
-                    snapshot_at = quote.snapshot_at
-                    current_price = quote.current_price
-                    volume = quote.volume
-                    source = quote.source
+                snapshot_at = quote.get("snapshot_at")
                 snapshot_text = (
                     snapshot_at.isoformat()
                     if isinstance(snapshot_at, date)
                     else str(snapshot_at or "")
                 )
                 context[code] = {
-                    "current_price": (float(current_price) if current_price is not None else None),
-                    "volume": float(volume) if volume is not None else None,
+                    "current_price": safe_float(quote.get("current_price")),
+                    "volume": safe_float(quote.get("volume")),
                     "snapshot_at": snapshot_text or None,
-                    "source": str(source or ""),
+                    "source": str(quote.get("source") or ""),
                 }
                 break
         return context

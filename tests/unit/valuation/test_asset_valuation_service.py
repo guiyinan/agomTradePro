@@ -117,6 +117,8 @@ def test_stale_formal_valuation_falls_through_to_valid_fact() -> None:
         facts=[
             {
                 "valuation_fact_date": date(2026, 7, 19),
+                "source_updated_at": "2026-07-19T08:00:00+00:00",
+                "fetched_at": "2026-07-19T09:00:00+00:00",
                 "extra": {"intrinsic_value_per_share": "11.8", "quality_flag": "ok"},
             }
         ],
@@ -215,6 +217,7 @@ def test_canonical_valuation_source_preserves_published_observation(monkeypatch)
             "rows": [
                 {
                     "val_date": "2026-07-20",
+                    "observed_at": "2026-07-20T07:00:00+00:00",
                     "fetched_at": "2026-07-20T08:00:00+00:00",
                     "extra": {"intrinsic_value_per_share": "11.8"},
                 }
@@ -232,10 +235,24 @@ def test_canonical_valuation_source_preserves_published_observation(monkeypatch)
     assert facts == [
         {
             "valuation_fact_date": "2026-07-20",
+            "source_updated_at": "2026-07-20T07:00:00+00:00",
             "fetched_at": "2026-07-20T08:00:00+00:00",
             "extra": {"intrinsic_value_per_share": "11.8"},
         }
     ]
+
+
+def test_canonical_valuation_source_does_not_invent_source_time_from_fetch() -> None:
+    normalized = DataCenterValuationFactSource._normalize(
+        {
+            "val_date": "2026-07-20",
+            "fetched_at": "2026-07-20T08:00:00+00:00",
+            "extra": {},
+        }
+    )
+
+    assert normalized["source_updated_at"] is None
+    assert normalized["fetched_at"] == "2026-07-20T08:00:00+00:00"
 
 
 def test_persisted_price_fallback_cannot_bypass_canonical_price() -> None:

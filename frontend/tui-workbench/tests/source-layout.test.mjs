@@ -8,9 +8,11 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const sourceNames = [
     "00-runtime.js",
     "10-navigation.js",
+    "15-workspace-state.js",
     "20-dashboard.js",
     "30-actions.js",
     "40-views.js",
+    "45-pagination.js",
     "50-shell.js",
 ];
 

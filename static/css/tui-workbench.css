@@ -1673,6 +1673,24 @@ a {
     scrollbar-gutter: stable;
 }
 
+.tui-dashboard-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 8px;
+    margin: 8px 0 12px;
+}
+
+.tui-dashboard-filters .tui-field {
+    flex: 1 1 140px;
+    min-width: 0;
+}
+
+.tui-dashboard-filters .tui-action-submit {
+    width: auto;
+    min-height: 32px;
+}
+
 .tui-table-scroll:focus-visible {
     outline: 2px solid var(--tui-accent);
     outline-offset: 2px;
@@ -2077,6 +2095,11 @@ a {
 }
 
 .tui-datagrid-pager {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    background: var(--tui-bg);
+    flex-wrap: wrap;
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -2089,6 +2112,16 @@ a {
     color: var(--tui-muted);
     font: 700 11px/1.2 var(--tui-mono);
 }
+
+.tui-datagrid-pager input { width: 5em; }
+.tui-datagrid-pager input,
+.tui-datagrid-pager select { background: var(--tui-bg); color: var(--tui-text); border: 1px solid var(--tui-border); }
+.tui-datagrid-pager input,
+.tui-datagrid-pager select,
+.tui-datagrid-pager button { min-height: 32px; }
+.tui-datagrid-pager :focus-visible { outline: 2px solid var(--tui-accent); outline-offset: 2px; }
+[data-grid-update], [data-grid-error] { padding: 8px; border: 1px solid var(--tui-border); }
+[data-grid-error] button { margin-left: 12px; }
 
 .tui-datagrid-pager button,
 .tui-action-submit {

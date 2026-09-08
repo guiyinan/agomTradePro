@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -69,8 +69,13 @@ class ValuationPayloadPolicy:
         fact: Mapping[str, Any],
         *,
         today: date,
+        now: datetime | None = None,
     ) -> dict[str, Any] | None:
-        """Build a canonical price contract from one data-center valuation fact."""
+        """Build a canonical price contract from one data-center valuation fact.
+
+        ``now`` is injectable for deterministic boundary tests; production callers
+        may omit it and use the current UTC clock.
+        """
         extra = fact.get("extra") or {}
         if not isinstance(extra, Mapping):
             return None
@@ -85,6 +90,15 @@ class ValuationPayloadPolicy:
         )
         if fair_value <= 0:
             return None
+        source_updated_at = fact.get("source_updated_at")
+        if source_updated_at is None:
+            source_updated_at = fact.get("observed_at")
+        if not cls._is_current_data_center_observation(
+            source_updated_at,
+            today=today,
+            now=now,
+        ):
+            return None
         payload: dict[str, Any] = {
             "fair_value": fair_value,
             "entry_price_low": cls._pick_decimal(extra, ("entry_price_low", "entry_low")),
@@ -95,6 +109,7 @@ class ValuationPayloadPolicy:
             "valuation_method": str(extra.get("valuation_method") or "DATA_CENTER_FACT"),
             "valuation_source": "data_center_valuation_fact",
             "valuation_fact_date": fact.get("valuation_fact_date"),
+            "source_updated_at": source_updated_at,
             "fetched_at": fact.get("fetched_at"),
             "is_valid": extra.get("is_valid", True),
             "quality_flag": extra.get("quality_flag") or extra.get("data_quality_flag") or "ok",
@@ -218,6 +233,46 @@ class ValuationPayloadPolicy:
                     except ValueError:
                         return None
         return None
+
+    @staticmethod
+    def _coerce_aware_datetime(value: object) -> datetime | None:
+        """Parse one source observation timestamp without accepting naive input."""
+
+        if isinstance(value, datetime):
+            parsed = value
+        elif isinstance(value, str) and value.strip():
+            normalized = value.strip()
+            if normalized.endswith("Z"):
+                normalized = f"{normalized[:-1]}+00:00"
+            try:
+                parsed = datetime.fromisoformat(normalized)
+            except ValueError:
+                return None
+        else:
+            return None
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            return None
+        return parsed.astimezone(UTC)
+
+    @classmethod
+    def _is_current_data_center_observation(
+        cls,
+        value: object,
+        *,
+        today: date,
+        now: datetime | None,
+    ) -> bool:
+        """Require a bounded, aware, current source observation for fact decisions."""
+
+        observed_at = cls._coerce_aware_datetime(value)
+        if observed_at is None:
+            return False
+        reference = now or datetime.now(UTC)
+        if reference.tzinfo is None or reference.utcoffset() is None:
+            return False
+        reference = reference.astimezone(UTC)
+        earliest = today - timedelta(days=cls.MAX_FORMAL_VALUATION_AGE_DAYS)
+        return earliest <= observed_at.date() <= today and observed_at <= reference
 
     @classmethod
     def _pick_decimal(cls, payload: Mapping[str, Any], keys: tuple[str, ...]) -> Decimal:

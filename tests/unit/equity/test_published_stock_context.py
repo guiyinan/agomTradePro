@@ -103,6 +103,7 @@ def test_published_stock_context_aggregates_same_financial_period(monkeypatch) -
                     "pb": 0.72,
                     "ps_ttm": 1.34,
                     "dv_ratio": 4.5,
+                    "observed_at": "2026-08-01T01:00:00+00:00",
                 }
             ],
             **_fresh_gate(),
@@ -156,6 +157,43 @@ def test_published_stock_context_drops_stale_rows_and_preserves_block_reason(mon
     assert row["must_not_use_for_decision"] is True
     assert row["blocked_reason"] == "canonical_publication_stale"
     assert row["publication_gates"]["price"]["freshness_status"] == "stale"
+
+
+def test_published_stock_context_blocks_valuation_without_source_observation(monkeypatch) -> None:
+    """A fresh publication cannot make a valuation row usable without source time."""
+
+    monkeypatch.setattr(
+        query_services,
+        "get_equity_stock_repository",
+        lambda: _StockRepository(),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_published_valuation_facts",
+        lambda *args, **kwargs: {
+            "rows": [
+                {
+                    "val_date": "2026-08-01",
+                    "pe_ttm": 5.6,
+                    "pb": 0.72,
+                    "fetched_at": "2026-08-01T02:00:00+00:00",
+                }
+            ],
+            **_fresh_gate(),
+        },
+    )
+
+    context = query_services.get_published_stock_context_map(
+        ["000001.SZ"],
+        include_price=False,
+        include_financial=False,
+    )
+
+    row = context["000001.SZ"]
+    assert "pe" not in row
+    assert row["must_not_use_for_decision"] is True
+    assert row["blocked_reason"] == "missing_source_observation"
+    assert row["publication_gates"]["valuation"]["blocked_reason"] == ("missing_source_observation")
 
 
 def test_published_stock_context_blocks_missing_member_rows(monkeypatch) -> None:

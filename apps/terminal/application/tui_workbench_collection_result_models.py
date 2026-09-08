@@ -242,6 +242,16 @@ class TuiWorkbenchCollectionResultMixin:
         asset_name_map = self._asset_name_map_for_rows(normalized_rows)
         explicit_page_size = self._int_from_path(action, envelope, "page_size_path", default=0)
         request_limit = self._int_from_params(request_params, "limit", default=0)
+        pagination_fields = {"page", "page_size", "pageSize", "limit", "offset", "cursor"}
+        has_pagination_contract = bool(
+            action.get("pagination")
+            or self._view_model_path(action, "total_path")
+            or self._view_model_path(action, "page_path")
+            or self._view_model_path(action, "page_size_path")
+            or any(field.get("key") in pagination_fields for field in action.get("fields", []))
+            or pagination_fields.intersection(request_params or {})
+        )
+        client_side = not has_pagination_contract
         page_size = explicit_page_size or request_limit
         if str(action.get("intent")) == "list_ai_capabilities":
             total = len(normalized_rows)
@@ -268,11 +278,12 @@ class TuiWorkbenchCollectionResultMixin:
             "columns": columns,
             "rows": [
                 self._datagrid_row_payload(row, columns, asset_name_map)
-                for row in normalized_rows[:page_size]
+                for row in (normalized_rows if client_side else normalized_rows[:page_size])
             ],
             "empty_message": self._empty_datagrid_message(action, total),
             "empty_guidance": self._empty_datagrid_guidance(action, total),
             "pager": {
+                "client_side": client_side,
                 "page": page,
                 "page_size": page_size,
                 "offset": request_offset,

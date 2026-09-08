@@ -1,6 +1,6 @@
 # Codex 自主 Goal 使用备忘
 
-> 用途：让 Codex 在 AgomTradePro 仓库中由 Sol 负责调度和验收，调用 Luna 持续完成有界
+> 用途：让 Codex 在 AgomTradePro 仓库中由主代理负责调度和验收，调用 Luna 持续完成有界
 > closure unit，并在完成后把状态、证据和下一任务写回仓库真源。
 
 ## 1. 相关文件
@@ -17,18 +17,18 @@
 
 在已经打开 AgomTradePro 仓库的 Codex 任务中：
 
-1. 主模型选择 `gpt-5.6-sol`。
+1. 主模型沿用当前任务设置；worker 使用 `gpt-5.6-luna` / `max`。
 2. 确认当前 worktree 能看到上述四个文件。
 3. 输入：
 
 ```text
-/goal 按照 AUTONOMOUS_GOAL.md 持续自主推进 AgomTradePro canonical closure backlog，严格执行 Sol/Luna 多通道调度、单 repository 执行锁、Evidence/Observation 安全并行、Production mutation 串行、计划回写、验证、权限和停止规则。
+/goal 执行 AUTONOMOUS_GOAL.md 的本阶段目标：当前主代理指导 Luna max 优先完成 DATA-02 有界修复、回填与真实对账，推进不冲突的 TUI-02/AUD-03 切片，精确列出 Evidence/策略/TAR 输入缺口；遵守阶段完成条件、真实证据、单 repository focus 与生产串行规则，不重复 completed 单元，不把 QMT 纳入本阶段完成条件。
 ```
 
-之后可以不持续盯守。Sol 应从机器注册表重建全 backlog eligible work set：当前
+之后可以不持续盯守。主代理应从机器注册表重建本阶段 eligible work set：当前
 `execution_focus.unit_id` 是唯一 repository 写入通道，但获准的 production/external/governance
 只读取证、观察和 preflight 可以在无冲突时并行。一个 unit 达到真实 exit gate 并完成回写后，
-再自动调度该通道的下一 eligible unit。
+再按本阶段边界判断该通道的下一步，不自动扩展到阶段外的 unit。
 
 已经运行的 Goal 不应依赖旧聊天上下文猜测合同变化。修改本文件或 `AUTONOMOUS_GOAL.md` 后，向
 运行中的任务发送一次“重新完整读取 `AUTONOMOUS_GOAL.md`，从机器注册表恢复并按最新合同继续”
@@ -61,19 +61,24 @@
 
 ## 4. 运行时会发生什么
 
-- Sol 读取 AGENTS、机器注册表、plans 索引、当前 unit primary plan、代码和测试。
-- Sol 每轮扫描全部 closure units，将工作分成唯一 repository、Evidence/Observation、单一
+- 主代理读取 AGENTS、机器注册表、plans 索引、当前 unit primary plan、代码和测试。
+- 主代理每轮扫描本阶段范围内的 closure units，将工作分成唯一 repository、Evidence/Observation、单一
   Production mutation 和 Human/External wait 四类通道。
-- Sol 默认复用一个 `gpt-5.6-luna` worker；仅在文件范围、数据源和验收互不依赖时并行第二个
+- 主代理默认复用一个 `gpt-5.6-luna` worker；仅在文件范围、数据源和验收互不依赖时并行第二个
   worker，总计不超过两个 Luna。
 - Luna 完成搜索、实现、测试或文档切片，不 commit、不 push、不执行生产写入。
-- 只读取证 worker 不并行编辑 registry、plans 索引或 primary plan；由 Sol 重验后串行固化和回写。
-- Sol 审查完整 diff，运行最终门禁，并判断 exit gate 是否真实满足。
+- 只读取证 worker 不并行编辑 registry、plans 索引或 primary plan；由主代理重验后串行固化和回写。
+- 主代理审查完整 diff，运行最终门禁，并判断 exit gate 是否真实满足。
 - 每个 material checkpoint 回写 primary plan；unit 完成时同步证据 artifact、registry、plans
   人工投影和必要的文档索引。
 - 勾稽或验证失败时保持当前 focus，不得提前激活下一 unit。
 
 ## 5. Goal 控制命令
+
+修改仓库文件不会自动修改当前应用 Goal。若当前会话工具不能改写已有 objective，
+不要把未完成的旧目标标为 completed，也不要直接改应用内部存储；在任务输入框清除旧 Goal
+后，使用本文件第 2 节指令建立新 Goal，并读回核验 objective/status。普通消息仍可指导当前
+工作继续，但不能据此声称应用 Goal 的持久化设置已改变。
 
 ```text
 /goal
@@ -105,15 +110,16 @@
 - `python scripts/check_active_plan_registry.py` 通过。
 - 未满足的生产授权、人工审批、观察窗口和外部环境没有被标记为 completed。
 
-Goal 或聊天上下文被压缩、任务重启时，新的 Sol 必须从这些仓库真源恢复，不依赖聊天记忆，
+Goal 或聊天上下文被压缩、任务重启时，新的主代理必须从这些仓库真源恢复，不依赖聊天记忆，
 也不另建第二份 Goal 进度表。
 
 ## 7. Git 与权限提醒
 
-- 当前 Goal 合同只允许 Sol 在一个 unit 真实完成且门禁全绿后创建最多一个 coherent local
+- 当前 Goal 合同只允许主代理在一个 unit 真实完成且门禁全绿后创建最多一个 coherent local
   commit；禁止自动 push、merge、rebase 和碎片化探针提交。
 - 保留用户已有未提交修改；范围重叠时停止自动提交并报告。
-- 部署、生产写入、故障注入、备份创建/删除、付费调用、真实交易和人工签字仍需要单独授权。
+- 部署、生产写入、故障注入、备份创建/删除、付费调用、真实交易和人工签字应逐项核对既有授权；
+  只对尚未覆盖的具体动作请求授权，不重复索要已授予的权限。
 
 ## 8. 官方参考
 

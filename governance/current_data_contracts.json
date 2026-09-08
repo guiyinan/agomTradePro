@@ -631,6 +631,9 @@
       "surface": "Equity repository current valuation context and fundamentals listing",
       "source_files": [
         "apps/equity/infrastructure/fundamentals_repository.py",
+        "apps/equity/infrastructure/fundamentals_write_repository.py",
+        "apps/equity/infrastructure/valuation_source_gateways.py",
+        "apps/equity/application/query_services.py",
         "apps/data_center/application/public.py",
         "apps/data_center/application/public_published_queries.py"
       ],
@@ -640,7 +643,22 @@
           "def _get_published_valuations_from_data_center(",
           "published_only=as_of_date is None",
           "published_only=True",
+          "source_updated_at=fact.observed_at",
+          "missing_source_observation",
           "must_not_use_for_decision"
+        ],
+        "apps/equity/infrastructure/valuation_source_gateways.py": [
+          "source_updated_at=row.observed_at",
+          "missing_source_observation"
+        ],
+        "apps/equity/infrastructure/fundamentals_write_repository.py": [
+          "observed_at=_parse_fact_datetime(valuation.source_updated_at)"
+        ],
+        "apps/equity/application/query_services.py": [
+          "_valuation_source_observation_reason",
+          "valuation_source_updated_at",
+          "missing_source_observation",
+          "invalid_source_observation"
         ],
         "apps/data_center/application/public_published_queries.py": [
           "def get_published_valuation_facts("
@@ -656,6 +674,26 @@
           "case": "published_valuation_observation_preserved",
           "test_file": "tests/component/test_equity_repository_data_center.py",
           "test_function": "test_latest_valuation_current_read_preserves_published_fact"
+        },
+        {
+          "case": "fact_source_time_distinct_from_fetch",
+          "test_file": "tests/unit/equity/test_valuation_source_gateway.py",
+          "test_function": "test_public_row_preserves_source_observation_and_unknown_when_missing"
+        },
+        {
+          "case": "gateway_missing_source_time_unusable",
+          "test_file": "tests/unit/equity/test_valuation_source_gateway.py",
+          "test_function": "test_configured_gateway_marks_missing_source_observation_unusable"
+        },
+        {
+          "case": "green_publication_missing_fact_observation_blocks_context",
+          "test_file": "tests/unit/equity/test_published_stock_context.py",
+          "test_function": "test_published_stock_context_blocks_valuation_without_source_observation"
+        },
+        {
+          "case": "valuation_mirror_preserves_source_and_fetch_times",
+          "test_file": "tests/component/test_equity_repository_data_center.py",
+          "test_function": "test_save_methods_mirror_equity_data_to_data_center"
         }
       ]
     },
@@ -885,6 +923,11 @@
         ]
       },
       "required_tests": [
+        {
+          "case": "alpha_account_failure_cannot_fallback_to_general",
+          "test_file": "apps/dashboard/tests/test_alpha_account_selection.py",
+          "test_function": "test_alpha_account_failures_never_load_general_candidates"
+        },
         {
           "case": "fresh_beta_context_guides_alpha_usage",
           "test_file": "tests/unit/dashboard/test_beta_market_summary.py",
@@ -2026,6 +2069,16 @@
           "test_function": "test_dashboard_quote_blocks_stale_publication"
         },
         {
+          "case": "dashboard_batch_quotes_preserve_observation",
+          "test_file": "tests/unit/dashboard/test_data_center_publication_gate.py",
+          "test_function": "test_dashboard_batch_quotes_share_one_publication_read"
+        },
+        {
+          "case": "dashboard_batch_quotes_stale_publication_blocks",
+          "test_file": "tests/unit/dashboard/test_data_center_publication_gate.py",
+          "test_function": "test_dashboard_batch_quotes_block_stale_publication"
+        },
+        {
           "case": "mcp_data_center_defaults_to_published",
           "test_file": "sdk/tests/test_mcp/test_core_registry_owner_data_center_01.py",
           "test_function": "test_data_center_read_fallbacks_default_to_published_mode"
@@ -2126,6 +2179,7 @@
       "id": "data_center.publication_only_d4_d5",
       "surface": "Current financial and valuation reads use Data Center publication-only ports",
       "source_files": [
+        "apps/data_center/domain/entities.py",
         "apps/data_center/domain/market_time.py",
         "apps/data_center/application/query_services.py",
         "apps/data_center/application/public.py",
@@ -2375,7 +2429,8 @@
       "id": "valuation.formal_missing_fields",
       "surface": "Legacy formal valuation adapter preserves missing price fields as unknown",
       "source_files": [
-        "apps/valuation/infrastructure/providers.py"
+        "apps/valuation/infrastructure/providers.py",
+        "apps/valuation/domain/rules.py"
       ],
       "required_markers": {
         "apps/valuation/infrastructure/providers.py": [
@@ -2384,6 +2439,11 @@
           "getattr(valuation, \"stop_loss_price\", None)",
           "get_published_valuation_facts(",
           "must_not_use_for_decision"
+        ],
+        "apps/valuation/domain/rules.py": [
+          "_is_current_data_center_observation",
+          "_coerce_aware_datetime",
+          "observed_at <= reference"
         ]
       },
       "required_tests": [
@@ -2401,6 +2461,21 @@
           "case": "canonical_valuation_publication_preserves_rows",
           "test_file": "tests/unit/valuation/test_asset_valuation_service.py",
           "test_function": "test_canonical_valuation_source_preserves_published_observation"
+        },
+        {
+          "case": "missing_source_time_never_replaced_by_fetch",
+          "test_file": "tests/unit/valuation/test_asset_valuation_service.py",
+          "test_function": "test_canonical_valuation_source_does_not_invent_source_time_from_fetch"
+        },
+        {
+          "case": "missing_naive_stale_source_observation_unusable",
+          "test_file": "tests/unit/domain/test_valuation_domain_edges.py",
+          "test_function": "test_data_center_fact_requires_current_aware_source_observation"
+        },
+        {
+          "case": "same_day_future_observation_unusable",
+          "test_file": "tests/unit/domain/test_valuation_domain_edges.py",
+          "test_function": "test_data_center_fact_rejects_same_day_future_source_observation"
         }
       ]
     },
@@ -2837,9 +2912,11 @@
       "id": "data_center.publication_writer_atomicity",
       "surface": "Canonical publication writer and member snapshot commit",
       "source_files": [
+        "apps/data_center/domain/entities.py",
         "apps/data_center/domain/market_time.py",
         "apps/data_center/application/control_plane.py",
         "apps/data_center/infrastructure/control_plane_repositories.py",
+        "apps/data_center/infrastructure/fact_and_operational_models.py",
         "apps/data_center/application/macro_publication.py",
         "apps/data_center/application/publication_sync.py",
         "apps/data_center/application/publication_sync_market.py",
@@ -2862,6 +2939,11 @@
         "apps/data_center/infrastructure/quote_snapshot_repository.py"
       ],
       "required_markers": {
+        "apps/data_center/domain/entities.py": [
+          "class ValuationFact:",
+          "observed_at: datetime | None = None",
+          "ValuationFact.fetched_at cannot precede observed_at"
+        ],
         "apps/data_center/domain/market_time.py": [
           "CN_MARKET_TIMEZONE = timezone(timedelta(hours=8))",
           "def cn_market_date_start_utc(",
@@ -2878,6 +2960,11 @@
           "state=PublicationState.CANDIDATE",
           "Persisted publication member snapshot is incomplete",
           "@transaction.atomic"
+        ],
+        "apps/data_center/infrastructure/fact_and_operational_models.py": [
+          "class ValuationFactModel(models.Model):",
+          "observed_at = models.DateTimeField(null=True, blank=True, db_index=True)",
+          "fetched_at = models.DateTimeField(default=timezone.now)"
         ],
         "apps/data_center/application/publication_sync.py": [
           "class PublishNewsBatchUseCase:",
@@ -2966,7 +3053,8 @@
         ],
         "apps/data_center/infrastructure/valuation_fact_repository.py": [
           "def list_publication_candidates(",
-          "observed_at=cn_market_date_start_utc(row.val_date)",
+          "valuation publication candidate requires observed_at",
+          "observed_at=row.observed_at",
           "available_at_unverified",
           "valuation available_at cannot be in the future"
         ],
@@ -3191,7 +3279,7 @@
         {
           "case": "valuation_publication_members_and_as_of",
           "test_file": "tests/unit/data_center/test_valuation_publication_sync.py",
-          "test_function": "test_valuation_publication_uses_val_date_and_exact_members"
+          "test_function": "test_valuation_publication_uses_source_observed_at_and_exact_members"
         },
         {
           "case": "valuation_publication_idempotency",
@@ -3206,12 +3294,32 @@
         {
           "case": "valuation_candidate_observation_boundary",
           "test_file": "tests/unit/data_center/test_valuation_publication_sync.py",
-          "test_function": "test_valuation_repository_candidate_preserves_val_date_and_evidence"
+          "test_function": "test_valuation_repository_candidate_preserves_source_observed_at_and_evidence"
         },
         {
           "case": "valuation_candidate_future_available_at_blocks",
           "test_file": "tests/unit/data_center/test_valuation_publication_sync.py",
           "test_function": "test_valuation_repository_rejects_future_available_at"
+        },
+        {
+          "case": "valuation_candidate_missing_observed_at_blocks",
+          "test_file": "tests/unit/data_center/test_valuation_publication_sync.py",
+          "test_function": "test_valuation_repository_rejects_missing_observed_at"
+        },
+        {
+          "case": "valuation_observed_at_requires_timezone",
+          "test_file": "tests/unit/data_center/test_valuation_publication_sync.py",
+          "test_function": "test_valuation_fact_rejects_naive_observed_at"
+        },
+        {
+          "case": "valuation_fetched_at_cannot_precede_observed_at",
+          "test_file": "tests/unit/data_center/test_valuation_publication_sync.py",
+          "test_function": "test_valuation_fact_rejects_fetched_at_before_observed_at"
+        },
+        {
+          "case": "valuation_candidate_future_observed_at_blocks",
+          "test_file": "tests/unit/data_center/test_valuation_publication_sync.py",
+          "test_function": "test_valuation_repository_rejects_future_observed_at"
         },
         {
           "case": "valuation_sync_invokes_publication_writer",
@@ -3491,7 +3599,8 @@
         ],
         "apps/data_center/infrastructure/valuation_fact_repository.py": [
           "def list_current_publication_candidates(",
-          "cn_market_date_start_utc(row.val_date)",
+          "valuation publication candidate requires observed_at",
+          "observed_at=row.observed_at",
           "valuation available_at cannot be in the future"
         ],
         "apps/data_center/infrastructure/financial_availability_repository.py": [

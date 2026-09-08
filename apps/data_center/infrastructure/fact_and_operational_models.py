@@ -47,7 +47,27 @@ from apps.data_center.domain.retention import (
     RetentionPolicy,
     StorageHold,
 )
-from shared.numeric import safe_float
+
+from .fact_json_values import (
+    _json_bool,
+    _optional_json_float,
+    _optional_json_nonnegative_int,
+    _required_json_float,
+)
+from .pit_models import PITDatasetManifestModel, PITFactVersionModel  # noqa: F401
+from .publication_models import CanonicalPublicationModel as CanonicalPublicationModel
+from .publication_models import CoverageSnapshotModel as CoverageSnapshotModel
+from .publication_models import PublicationMemberModel as PublicationMemberModel
+from .publication_models import PublicationRollbackModel as PublicationRollbackModel
+from .research_data_foundation_models import (  # noqa: F401
+    AssetGroupRevisionModel as AssetGroupRevisionModel,
+)
+from .research_data_foundation_models import (
+    InvestorFlowDefinitionModel as InvestorFlowDefinitionModel,
+)
+from .research_data_foundation_models import (
+    OperatingMetricDefinitionModel as OperatingMetricDefinitionModel,
+)
 
 _SYNC_IDENTITY_UOW: ContextVar[object | None] = ContextVar(
     "data_center_sync_identity_uow", default=None
@@ -152,67 +172,12 @@ class _SyncIdentityManager(models.Manager[_MODEL_T]):
         raise ValidationError("sync execution identities are append-only")
 
 
-from .pit_models import PITDatasetManifestModel, PITFactVersionModel  # noqa: F401
-from .publication_models import CanonicalPublicationModel as CanonicalPublicationModel
-from .publication_models import CoverageSnapshotModel as CoverageSnapshotModel
-from .publication_models import PublicationMemberModel as PublicationMemberModel
-from .publication_models import PublicationRollbackModel as PublicationRollbackModel
-from .research_data_foundation_models import (  # noqa: F401
-    AssetGroupRevisionModel as AssetGroupRevisionModel,
-)
-from .research_data_foundation_models import (
-    InvestorFlowDefinitionModel as InvestorFlowDefinitionModel,
-)
-from .research_data_foundation_models import (
-    OperatingMetricDefinitionModel as OperatingMetricDefinitionModel,
-)
-
-
-def _optional_json_float(value: object, field_name: str) -> float | None:
-    """Parse a nullable finite number from persisted JSON."""
-
-    if value is None:
-        return None
-    if isinstance(value, bool):
-        raise ValueError(f"{field_name} must be a finite number")
-    parsed = safe_float(value)
-    if parsed is None:
-        raise ValueError(f"{field_name} must be a finite number")
-    return parsed
-
-
-def _required_json_float(value: object, field_name: str) -> float:
-    """Parse a required finite number from persisted JSON."""
-
-    parsed = _optional_json_float(value, field_name)
-    if parsed is None:
-        raise ValueError(f"{field_name} is required")
-    return parsed
-
-
-def _json_bool(value: object, field_name: str) -> bool:
-    """Require real booleans instead of truthy strings from persisted JSON."""
-
-    if not isinstance(value, bool):
-        raise ValueError(f"{field_name} must be a boolean")
-    return value
-
-
-def _optional_json_nonnegative_int(value: object, field_name: str) -> int | None:
-    """Parse a nullable non-negative integer from persisted JSON."""
-
-    if value is None:
-        return None
-    parsed = _optional_json_float(value, field_name)
-    if parsed is None or not parsed.is_integer() or parsed < 0:
-        raise ValueError(f"{field_name} must be a non-negative integer")
-    return int(parsed)
-
-
 class ValuationFactModel(models.Model):
     """Daily valuation multiples snapshot (PE, PB, PS, etc.).
 
-    Natural key: (asset_code, val_date, source).
+    Natural key: (asset_code, val_date, source). ``observed_at`` is the
+    provider observation instant, ``fetched_at`` is local ingestion time, and
+    ``available_at`` remains the independent source-availability boundary.
     """
 
     asset_code = models.CharField(max_length=20, db_index=True)
@@ -242,7 +207,8 @@ class ValuationFactModel(models.Model):
         help_text="Dividend yield",
     )
     source = models.CharField(max_length=50)
-    fetched_at = models.DateTimeField(auto_now_add=True)
+    observed_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    fetched_at = models.DateTimeField(default=timezone.now)
     extra = models.JSONField(default=dict, blank=True)
     contract_version = models.CharField(max_length=40, default="1.0")
     schema_version = models.CharField(max_length=40, default="1.0")

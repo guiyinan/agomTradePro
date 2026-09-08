@@ -431,6 +431,16 @@ class TuiWorkbenchCatalogMixin:
         include_technical: bool = False,
         user: Any | None = None,
     ) -> dict[str, Any]:
+        """Project an action, retaining curated labels for explicit panel filters."""
+
+        filter_keys = {
+            key
+            for screen in self._metadata().get("screens", [])
+            if screen.get("key") == action.get("screen_key")
+            for panel in screen.get("dashboard_panels", [])
+            if panel.get("action_key") == action.get("key")
+            for key in panel.get("filter_fields", [])
+        }
         payload = {
             "key": action["key"],
             "ui_key": self._action_ui_key(action),
@@ -441,7 +451,9 @@ class TuiWorkbenchCatalogMixin:
             "risk": action["risk"],
             "confirmation_required": self._requires_confirmation(action),
             "fields": [
-                self._field_payload(field, action=action, user=user)
+                self._field_payload(
+                    field, action=action, user=user, preserve_label=field.get("key") in filter_keys
+                )
                 for field in action.get("fields") or []
             ],
             "description": self._operator_text(action.get("description", "")),
@@ -513,11 +525,12 @@ class TuiWorkbenchCatalogMixin:
         *,
         action: dict[str, Any] | None = None,
         user: Any | None = None,
+        preserve_label: bool = False,
     ) -> dict[str, Any]:
         payload = dict(field)
         key = str(payload.get("key") or "").strip()
         label = str(payload.get("label") or "").strip()
-        canonical_label = key in FIELD_LABELS
+        canonical_label = key in FIELD_LABELS and not preserve_label
         if canonical_label or self._is_technical_field_label(key=key, label=label):
             payload["label"] = self._humanize(key)
         resolved_default = (
@@ -558,6 +571,10 @@ class TuiWorkbenchCatalogMixin:
             and not payload.get("required")
         ):
             empty_label = "全部账户"
+        for option in payload.get("options", []):
+            if isinstance(option, dict) and option.get("value") == "" and option.get("label"):
+                empty_label = str(option["label"])
+                break
         payload["options"] = [{"value": "", "label": empty_label}, *account_options]
 
     def _account_options_for_user(self, user: Any | None) -> list[dict[str, Any]]:

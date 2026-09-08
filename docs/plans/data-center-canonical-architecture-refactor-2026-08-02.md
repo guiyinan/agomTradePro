@@ -5169,3 +5169,212 @@ PostgreSQL 仍为 496 applied migrations、0 pending；quote/price/financial cur
 与前一检查点一致，member count 分别为 1/23/80，valuation publication 仍缺失。health/ready=200，
 decision-ready=503 且 `must_not_use_for_decision=true`。这不是 provider 回填、跨源验收或 publication
 切换；第 159 节的数据和合同缺口继续适用，DATA-02 保持未完成，DATA-03 不放行。
+
+## 161. 2026-09-07 DATA-02 首个财务修复切片只读核验
+
+当前 host manifest、canonical web OCI revision/image 与第 160 节候选一致。
+PostgreSQL REPEATABLE READ / READ ONLY、UTC 事务取得首个缺失资产 `000001.SZ` 的完整 before image：
+仅 10 行，主键 251–260，source=akshare，period_end=2024-06-30，report_date=2024-08-16，
+available_at 与 announced_at 均为空。未写生产、未刷新 provider、未切换 publication。
+
+[原始切片及候选核验](../deployment/data02-financial-first-slice-preflight-2026-09-07-0e9f890e.json)
+SHA-256=`65d323d6d911ed35d23cff44fa345ff63e4447de81e06a391b14298632b8102b`。该证据只固定待评估切片，不证明已执行修复或取得源公告的日内时间。
+下一步核验源日期转换、恢复点、冻结主键和并发保护；总刷新命令的 batch-size 不是全局写入上限，
+不能据此把全 universe 刷新当作这 10 行的独立修复。DATA-02 保持未完成，DATA-03 不晋级。
+
+## 162. 2026-09-07 DATA-02 首批 10 行财务时间修复已执行
+
+在当前用户 Goal 与单一所有者有界整改授权下，完成候选核对、备份复核及真实只读 dry-run，
+使用 REPEATABLE READ、nowait 行锁、完整 before image 显式保护执行现有 availability 用例。
+`000001.SZ` 的 PK 251–260 共 10 行仅补入 `available_at=2024-08-16T00:00:00Z`；
+其他字段保持一致，同事务幂等重跑 updated=0，独立只读事务再次验证全部 10 行与 after image 一致。
+该值按既有源 report_date 转换，不能宣称取得公告日内时间。
+
+[原始执行、备份和独立写后核验](../deployment/data02-financial-first-slice-execution-2026-09-07-0e9f890e.json)
+SHA-256=`fd68f79c90722c566de2f96a849e2b9f99b7b96a87aa2e13646106070f5668ce`。全库 remaining available_at null=288559；
+首批目标资产 missing=0，未刷新 provider 或切换 publication，DATA-02 未完成、DATA-03 不晋级。
+本地完整备份 SHA e806581f… 已重算通过；远端旧 084008Z 文件已不在，当前 111022 备份
+SHA 2dcfc4d7… 与 pg_restore --list 另行通过，本批未清理或恢复数据库。
+下一步按完整资产集合冻结并限量推进剩余修复；跨源来源、复权和容差定义已向所有者单独询问。
+
+## 163. 2026-09-07 DATA-02 第二批 20 资产 / 200 行修复
+
+正式 universe 为 5,533，hash `1579f1d52f3a58129102bfb090ed25ca2af0e56e6fe880722f7b6ae1e66c5a69`。
+按完整资产选择第二批 20 资产、200 行，全部 AKShare；只读冻结快照与带保护 dry-run 通过后，
+使用同一既有 availability 用例串行执行，完整字段保护和独立写后核验通过，重跑 updated=0。
+累计修复 210 行，正式 A 股范围空 availability 剩余 288199 行。
+三个既有 publication 的身份、hash、member count 与首批后相同；估值 publication 仍缺失。
+
+[第二批原始证据](../deployment/data02-financial-batch02-execution-2026-09-07-0e9f890e.json)
+SHA-256=`bdf20728c2c4dd0bc5365873f8b6902fc10752ae1d0a7d3ba5019e76bafecf0e`。未执行 provider refresh、publication switch 或容差变更。
+后续继续按完整资产、每批最多 20 资产 / 2,000 行推进；来源、字段或范围异常必须停止。
+DATA-02 继续未完成，DATA-03 不晋级；跨源对账业务定义仍等待真实输入。
+
+## 164. 2026-09-07 DATA-02 首轮十批有界执行
+
+经 Luna max 边界检查、主代理审查、真实只读试运行及备份核验后，单进程串行执行
+10 批 / 200 个完整资产，共补入 7,665 行 availability，累计 7,875 行。每批最多 20 资产 /
+2,000 行；候选、universe、完整 before image、NOWAIT 锁、日期语义、提交状态和独立 postflight
+均有记录，幂等重跑全部 0。主代理另启只读进程复核每批 after hash 与空值数，全量符合。
+
+[原始执行与独立核验](../deployment/data02-financial-run01-evidence-2026-09-07-0e9f890e.json)
+SHA-256=`693d5f77792a263189684736b4b8b480ec01a2176432bf8ade53c2a10bb4458c`。完整原始响应以可逆 gzip/base64 保存并附解压内容 SHA-256，未丢弃 before/after。
+A 股范围剩余空 availability 为 280,534 行；三个既有 publication 的 identity/hash/member count
+均未改变，估值 publication 仍缺。未刷新 provider、切换 publication 或变更容差，DATA-02 未完成。
+
+## 165. 2026-09-07 DATA-02 第二轮十批与远端日志留存
+
+第二轮 10 批 / 200 资产新增修复 16,007 行，累计 23,882 行，A 股空 availability 剩余
+264,527 行。每批 planned/committed/success 生命周期、完整字段比对、独立只读 postflight 与
+幂等重跑均通过。原始 JSONL 以 0600 排他创建在 VPS backups/data02-financial-repair 下；
+没有重跑同一轮。原始 77 MB 回传缓慢，另以无损 gzip 副本检索既有终态日志并复核原始字节 SHA。
+/proc 已确认目标 docker exec 不在运行；原连接仅继续读取日志。
+
+[完整执行请求、远端日志与核验](../deployment/data02-financial-run02-evidence-2026-09-07-0e9f890e.json)
+SHA-256=`263fe601cbbce54d0f50d4d0ef155788c8ba88e1656c365c2a47d7691b93e153`。未刷新 provider、切换 publication 或缩减 DATA-02 的完整退出条件。
+
+## 166. 2026-09-07 DATA-02 第三至六轮有界修复
+
+第三至六轮各完成 10 批，保持每批最多 20 个完整资产 / 2,000 行。
+累计 62 批修复 87,435 行，正式 A 股 null availability 剩余 200,974 行。
+每批生命周期顺序、candidate/universe、完整 before/after 字段、主键唯一性、幂等 updated=0、
+独立只读 postflight 及轮次前后差额均通过；原始日志无损压缩保存，附执行请求和 SHA。
+
+| 轮次 | 新修复行数 | 剩余行数 | 原始证据及 SHA-256 |
+| --- | ---: | ---: | --- |
+| 3 | 16,000 | 248,527 | [证据](../deployment/data02-financial-run03-evidence-2026-09-07-0e9f890e.json) `72fe48f76560eeea6e7a6e5fe3ec7dff298cfba5c78081aaf1dccff21178ff46` |
+| 4 | 15,991 | 232,536 | [证据](../deployment/data02-financial-run04-evidence-2026-09-07-0e9f890e.json) `eb33c278b7ac8cbcff4142840df9d1bfc386961760a66cd6376662d80b7d9a50` |
+| 5 | 15,952 | 216,584 | [证据](../deployment/data02-financial-run05-evidence-2026-09-07-0e9f890e.json) `6f7e4a214fd51505b5345c7a08a0e44e2a2eba415872394cec39bc3aafa88009` |
+| 6 | 15,610 | 200,974 | [证据](../deployment/data02-financial-run06-evidence-2026-09-07-0e9f890e.json) `f188cb531d6151d0ca55abd7eb6dc99f68589ffd3887b6e6cf5dd3d17b921f5e` |
+
+第二轮原始慢传连接随后自然退出 0，未重跑或终止数据库写入。
+本轮未进行 provider refresh、publication switch、生产代码部署或容差修改；
+publication identity 的最近单独复核仍为 run01 后，不能把未执行的复核写成本轮结果。
+源 report_date 的 UTC 午夜转换不代表已取得公告日内时刻。DATA-02 仍未完成，DATA-03 不晋级。
+
+## 167. 2026-09-07 本阶段一次性真实输入清单
+
+已有 Goal / 单一所有者授权继续适用于条件齐全的有界 DATA-02 修复；下表区分业务输入与可自动采集的证据，不能把后者转嫁给所有者，也不能从缺失记录中编造前者。
+
+| 通道 | 尚需真实输入或选择 | 代理自动读取或执行后形成 |
+| --- | --- | --- |
+| DATA-02 | 四类事实的权威源/核对源及优先级；跨源比较字段、频率、价格复权、单位/币种、绝对或相对误差及舍入、冲突处理。 | 现有 dataset/provider 配置、endpoint/限速/secret 引用、universe/hash、原始源时间、失败资产、publication identity/hash 与候选绑定；生产 Config Center 的宏观 failover_tolerance=0.01 已证实存在；其运行定义及唯一业务调用都限于宏观序列，不能充当 financial/quote/valuation/price 的完整对账合同。 |
+| [EVID-01/02](evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md) | 真实 user/principal、tenant、owner、authority scope/有效期与 approval subject；生产 acceptance fixture 的 create/supersede/revoke 须有与该精确对象对应的授权，不能以通用 Goal 伪造 authority 行。 | 现有 ledger、current heads、selector/version/content hash、auth-context、迁移与 candidate；真实并发执行后才产生 first-winner/successor/rollback 结果。 |
+| [Strategy](strategy-research-capability-completion-audit-2026-08-05.md) | 选择本轮 1–2 个 capability ID，提供真实 owner、definition/policy、calendar/scope、PIT/OOS 窗口、qualification/falsification 阈值及具体例外。 | 对应记录、hash/current-head、publication、audit outcome、样本覆盖及缺失字段；未选择 capability 不据此宣称完成。 |
+| [TAR-05](terminal-agent-multi-user-runtime-plan-2026-08-18.md) | 指定隔离 staging 目标/窗口，选择 non-billable stub 或具体免费 provider，明确并发、资源、外部调用上限。 | 目标形成后核对 manifest/flags、专用 worker/queue、资源、query map、指标查询与网络边界；真实压测后才产生容量证据。 |
+
+本清单初次登记时，估值静态链路会丢弃完整 snapshot.observed_at，publication reference 按 val_date 的市场日起点生成时间。该技术缺口现已由 DATA-13 完成本地验收（第 174 节）：独立 observed_at 字段贯穿适配、存储、发布和直接消费，available_at 语义保留，旧行不补造时间。因此字段方案不再是待所有者选择的输入；代码尚未部署，真实 provider 回填、审计主体绑定及相应 dataset 对账合同仍未完成。
+
+## 168. 2026-09-07 真实 provider 配置补充核验
+
+只读事务在当前候选读取：Tushare Pro id=2、active、priority=1；AKShare Public id=3、active、priority=10。旧 settings 表 id=1 为 default_source=akshare、enable_failover=true、failover_tolerance=0.01。这些是已有真实配置，不应再请求所有者手工补同一输入；provider 排序与 default_source 的含义须按实际调度路径区分。逐 dataset 对账是否采用该容差仍待实现/合同核实。
+
+[原始只读配置证据](../deployment/data02-provider-settings-readonly-2026-09-07-0e9f890e.json)，SHA-256=`a258dbb5c6f5f1e20b506e230c0db413f80a2763dacddbd662cc1432774062e0`。未读出凭据、未调用外部 provider、未修改配置或 publication。
+
+## 169. 2026-09-07 DATA-02 第七至十轮修复
+
+累计 102 批修复 151,385 行，正式 A 股空 availability 剩余 137,024 行。
+第八至十轮使用已审查的最多三轮串行工具；上一轮证据 SHA/剩余值与 run03 包装脚本严格比较通过，
+每轮退出后完成 lifecycle、完整字段、幂等、独立 postflight 及差额核验才进入下一轮。
+首次本地路径表示检查在 SSH 前停止，修正为解析后的精确路径比较后重过 dry-run；未重跑数据库操作。
+
+| 轮次 | 新修复行数 | 剩余行数 | 证据及 SHA-256 |
+| --- | ---: | ---: | --- |
+| 7 | 15,982 | 184,992 | [证据](../deployment/data02-financial-run07-evidence-2026-09-07-0e9f890e.json) `009246838e1808896c934c3514b03ed890945e1f6bc54c2fa42253be9aba83ac` |
+| 8 | 15,987 | 169,005 | [证据](../deployment/data02-financial-run08-evidence-2026-09-07-0e9f890e.json) `e8abe8738d2c680d9b13f80521c166b5fe197db499a0555de49f910b957b99e3` |
+| 9 | 15,991 | 153,014 | [证据](../deployment/data02-financial-run09-evidence-2026-09-07-0e9f890e.json) `1f1b3fc31dffbfd0b1dd999bd4e9d85eb92b40a9dee47b85231c090b1eb80e37` |
+| 10 | 15,990 | 137,024 | [证据](../deployment/data02-financial-run10-evidence-2026-09-07-0e9f890e.json) `6277a1a48f22230d0a66748ff55aa5d6be04e6af48238430f6aa348ab7c1d784` |
+
+仅按既有 report_date 补 available_at；未改其他字段、provider、publication 或门禁，DATA-02 未完成。
+
+运行时真源另行复核：生产 settings module=core.settings.production，Config Center active snapshot 返回 default_source=akshare、enable_failover=true、failover_tolerance=0.01，status=active。这证明有效配置值存在，但不证明四类事实逐字段对账已通过。
+
+[有效运行配置原始证据](../deployment/data02-effective-provider-runtime-readonly-2026-09-07-0e9f890e.json)，SHA-256=`0669026b653c250d4b3dd9149a28ac80f93296ed8c07b3079731f2a48d244531`。
+
+## 170. 2026-09-07 DATA-02 第十一至十三轮修复
+
+累计 132 批修复 199,076 行，正式 A 股空 availability 剩余 89,333 行。
+候选、备份、固定 universe、完整字段保护、提交生命周期、幂等及独立 postflight 全部通过。
+
+| 轮次 | 新修复行数 | 剩余行数 | 证据及 SHA-256 |
+| --- | ---: | ---: | --- |
+| 11 | 15,953 | 121,071 | [证据](../deployment/data02-financial-run11-evidence-2026-09-07-0e9f890e.json) `e995419e7754a5816a833b4c5470ddd224e45b281ade1038af90cb536ba34172` |
+| 12 | 15,739 | 105,332 | [证据](../deployment/data02-financial-run12-evidence-2026-09-07-0e9f890e.json) `037681f85a18a68fc51cccd3ee9e9b34c2e20f2cf051d50e8ad6dff4b8a51741` |
+| 13 | 15,999 | 89,333 | [证据](../deployment/data02-financial-run13-evidence-2026-09-07-0e9f890e.json) `9711f2a9252517bd20830119a84a86a46e97970a240e9aee2a2e57469969ee0b` |
+
+DATA-02 全退出仍需剩余回填、源时间保留及真实 canonical 对账；DATA-03 不晋级。
+
+容差适用范围最终核对：`runtime_definition_reconcile.py` 明确将 data_center.provider.failover_tolerance 定义为 macro failover；唯一业务比较在宏观 adapter 中按 code/observed_at 对齐数值。financial 的自然键含 asset/period_end/period_type/metric/source，通用 reconcile_records 默认严格相等且比较器由调用方注入。现有 provider_bindings 为四类股票事实列出 Tushare 优先于 AKShare 的元数据，但不提供逐字段单位/时间/修订冲突和容差合同；显式 provider_id 的 sync 也不自动执行跨源仲裁。真实缺口应限定为 dataset-scoped comparator policy，不能把已存在的宏观配置说成缺失，也不能把它扩大用于财务验收。财务事实不适用价格复权；该项只属于 price 对账。
+
+## 171. 2026-09-07 财务 availability 目标范围清空与全量独立核验
+
+第十四至十九轮完成后，累计 189 批修复 288,409 行；第十九轮在 7 批后实际读到剩余 0 并停止。
+独立只读进程重新读取全部 288,409 个唯一主键，逐批完整行 SHA 与已保存 after-image 全部一致；
+固定 5,533 资产 universe 内 null availability=0，全库其余 160 行位于范围外，本轮未处理。
+
+| 轮次 | 新修复行数 | 剩余行数 | 原始证据 |
+| --- | ---: | ---: | --- |
+| 14 | 16,009 | 73,324 | [证据](../deployment/data02-financial-run14-evidence-2026-09-07-0e9f890e.json) |
+| 15 | 15,996 | 57,328 | [证据](../deployment/data02-financial-run15-evidence-2026-09-07-0e9f890e.json) |
+| 16 | 15,985 | 41,343 | [证据](../deployment/data02-financial-run16-evidence-2026-09-07-0e9f890e.json) |
+| 17 | 15,562 | 25,781 | [证据](../deployment/data02-financial-run17-evidence-2026-09-07-0e9f890e.json) |
+| 18 | 15,463 | 10,318 | [证据](../deployment/data02-financial-run18-evidence-2026-09-07-0e9f890e.json) |
+| 19 | 10,318 | 0 | [证据](../deployment/data02-financial-run19-evidence-2026-09-07-0e9f890e.json) |
+
+[范围完成检查点、21 份执行证据哈希和完整独立核验](../deployment/data02-financial-availability-scope-checkpoint-2026-09-07-0e9f890e.json)，
+SHA-256=`79697085d76c1e8f27cbead8d0b52ebed17bddf5e56c1b7fa1b42dadd6c89ead`。
+2026-09-07T12:54:42.564093Z 的最终复核确认候选未变，quote/price/financial 三个 current publication 的 identity/hash/member count 仍为既有 1/23/80，估值 publication 仍缺。
+本切片只按既有源 report_date 转换 UTC 午夜 available_at，不能声称获得公告日内时刻；没有 provider refresh、publication switch、部署/重启或容差更改。
+
+DATA-02 完整 exit gate 仍未通过。下一步为带写前返回值范围保护的行情刷新、估值源时刻合同落地与回填，以及四类事实 canonical 对账；先复用现有来源/单位/优先级定义，仅补真实缺失的 dataset comparator 输入。
+DATA-03 继续 waiting_dependency；只有 DATA-02 全退出后才执行 canonical smoke、双 readiness、候选观察及 M9/M10 维护模式切换流程。
+
+## 172. 2026-09-07 行情回填的真实审计前置阻塞
+
+对 provider=3 / AKShare、000001.SZ 执行只读预检，在实际 audited quote composition 构造阶段失败，未进入 provider fetch。进一步核对 production profile version=2、snapshot f96ceca1-9fb5-4321-9604-0d53da22aa9c，hash af164c1ca395916276a5ff0990d699dbee2141a2a1b9e69f2258fbdf4474d80c；audit.system_event.mode / outbox_enabled / authority_selector 全部缺失，reason=mode_invalid。目标资产既有 quote 2 行，本次未改。
+
+[失败预检与精确配置诊断](../deployment/data02-quote-audit-preflight-2026-09-07-0e9f890e.json)，SHA-256=`5061122fc09043d0c1ea603651eb6d0722a76a1211ecf393e95b98d4bc9c4a74`。
+
+2026-09-07T13:06:29Z 独立只读查询进一步确认 actor authority source v3 ledger=0 行、owner/tenant authority v1=0 行。
+[真实 authority 来源清单](../deployment/data02-audit-authority-sources-readonly-2026-09-07-0e9f890e.json)，SHA-256=`37aa43833f953b1f74ef3c056d503d1f1f5d9ef5693031e30d02fa611779094a`。不能通过随填 selector、开关或替换 noop writer 绕过。
+已向所有者询问实际 Account 用户与 tenant/owner 输入；已有 DATA-02 修复授权未撤回，本阻塞来自缺失的真实身份/权限来源和运行绑定。下一步使用 canonical Account 服务形成实际 authority，再通过 Config Center 正式发布匹配快照；需要精确输入和对应动作包。行情保护脚本准备暂停外部执行，继续估值源时刻技术方案；DATA-02 与 DATA-03 状态不晋级。
+
+## 173. 2026-09-07 DATA-13：估值源观察时刻端到端保留
+
+在 DATA-02 的源时间保留目标内，将已证实的 adapter 截断/存储缺失登记为唯一 repository focus DATA-13；依赖已完成的 DATA-12，不抢跑任何生产 authority 或切换门。当前工作树保留现有证据修改，Luna 仅修改本项代码与聚焦测试，治理回写由主代理串行完成。
+
+- 范围：ValuationFact、ValuationFactModel 及增量迁移、AKShare current valuation adapter、valuation repository 插入/更新/读取/序列化和 publication reference/hash，以及直接对应的 dataset/current-data 合同与测试。
+- 行为：源 observed_at 独立保存；available_at 继续表达可用/公告语义，fetched_at 继续表达抓取时间。新观察的同日 upsert 不得留下早于 observed_at 的旧 fetched_at。旧行 observed_at 为空时不从 val_date、available_at 或 fetched_at 合成，也不得被当作已核实源时间。
+- 完成标准：真实源时刻往返不丢失、更新与 hash 敏感性、naive/future/missing/stale 和 publication gate 回归通过；迁移只新增/调整必要字段，不编造历史数据；格式、增量 mypy、债务上限、current-data 和治理检查通过。
+- 风险与回滚点：存在日级旧行兼容及当前发布语义风险；保留未知/阻断状态，不能以通过旧测试为由继续洗成日起点。代码阶段不部署、不迁移 VPS、不重置 TUI 留样；后续发布须重新绑定候选并执行备份/迁移验证。
+- DATA-13 的代码完成不等于 DATA-02 全退出；真实审计来源、provider 回填和跨源比较口径仍按第 167–172 节推进。
+
+根代理先新增 `tests/component/data_center/test_valuation_source_observation_roundtrip.py`，覆盖不同 observed/fetched/available 时刻插入往返、同日刷新保留主键并更新时刻与证据 hash，以及旧行缺失 observed_at 时拒绝 publication candidate。实现前运行该文件得到 3 failed（234.27 秒）：两个构造函数不接受 observed_at、一个实体缺少该属性，确认缺陷可复现。此为预期失败基线，尚非修复验收结果。
+
+持久化实现后的同文件独立复验为 3 passed（206.67 秒），覆盖增量迁移后的 SQLite 往返与上述拒绝行为。直接消费者、完整聚焦回归和静态门仍在验收中，此结果不代表 DATA-13 全部完成，更不代表生产已部署。
+
+根代理检查点：`makemigrations data_center --check --dry-run --settings=core.settings.development_sqlite` 返回无变更；注册表 v68 / 45 units / 0 violations；`check_mypy_debt_ceiling.py` 为 0 errors in 0 files，未调整债务基线。本地首次类型检查因缺少 Django 类型插件无法运行，随后按 pyproject.toml 声明安装 django-stubs 6.0.8、djangorestframework-stubs 3.17.1 与 types-requests 后复验通过；没有修改依赖声明。
+
+独立组件最终增补旧 source_record_id/raw_payload_hash 不得被新观察沿用的回归，4 passed（232.47 秒）。`check_current_data_contracts.py` 为 53 surfaces OK；`check_governance_consistency.py` 为 0 violations（baseline v219）。Luna 所负责的完整聚焦测试及增量类型检查仍须汇总，不用单一组件通过代替退出门。
+
+直接消费者审查发现 valuation provider/rules 未转发 observed_at，equity fundamentals/public-row 与 valuation gateway 将 fetched_at 赋给 source_updated_at，published valuation context 也未保留事实来源时刻。本项同步修复这些直接出口，保持缺失来源时间为未知；由原只读 Luna 负责 apps/valuation 与 apps/equity 的这些文件和对应测试，与 data_center 实现按文件分工，仍为同一个 DATA-13 repository focus。available_at_unverified 的既有 degraded 质量语义本项保留，不将其表述为已通过可用时间核验，也不借此改写全局发布质量门。
+
+## 174. 2026-09-07 DATA-13 本地验收完成与生产交接
+
+DATA-13 的有界代码退出门已通过，注册表 v69 将其标为 completed 并释放 repository focus；目前没有依赖齐全的后继 repository unit。本地验收绑定在 [来源时刻闭环证据](../testing/data13-valuation-source-time-closure-evidence-2026-09-07.json)，SHA-256=`455e4f850c8fed91562591ba9528843956c350353acffab37d2a4537bf650824`，包含 23 个实现/测试/清单文件内容 hash 和 equity 组件 JUnit 的可逆压缩原件。候选是当前未提交工作树，不冒充已提交或已部署版本。
+
+最终实现保持 observed_at、fetched_at、available_at 各自语义；迁移 0073 不回填旧行。来源时间为空的旧估值不能生成 publication candidate，缺失/naive/过期/同日未来 observation 不能被新 fetched_at 救活。equity 的两个转换出口发布 missing_source_observation，原发布门显示通过而事实行缺时刻时，同一 valuation gate 阻断并不提供 PE/PB。根代理补齐 equity 写回 Data Center 的反向来源时刻映射；同日覆盖不沿用旧响应 source_record_id/raw_payload_hash。available_at_unverified 继续是原 degraded 语义，不声明其已通过可用时间核验。
+
+验证结果：
+
+- Luna data_center 聚焦 5 个测试文件：60 passed；消费端 4 个测试文件：54 passed，精确命令见证据。
+- 根代理来源时刻往返组件 4 passed（232.47 秒）；equity 原有组件全文件 15 passed（156.49 秒），涵盖发布读取、历史读取及保存镜像。此前组件 2 failed 来自正常样本缺失来源时刻，补充明确测试观测时间后整文件复验通过；未放宽生产门。
+- 增量 mypy 分别覆盖 data_center 6 文件、消费端 5 文件、反向 writer 1 文件，均 0 regressions；全量债务最终复验 0 errors，未改基线。
+- makemigrations check 无遗漏；Black/isort/新增代码 Ruff 与 diff check 通过。模型文件既有 8 条 E402 与 HEAD 的原位置逐条一致，本项未增、未屏蔽。
+- 新鲜度清单 53 surfaces OK；架构增量 11 文件 / 229 新增行 / 0 boundary violations；关闭后的注册表 v69 / 45 units / 0 violations，治理一致性最终复验 0 violations；验收 artifact SHA-256 与 23 个来源文件 hash 均再次核对一致。
+
+本项最后的 docstring 编辑曾引入缩进错误，根代理静态验收发现并恢复，随后 compile、Black、增量 mypy 和最终组件复验均通过。此记录不把微小编辑视为免检理由。
+
+未执行 VPS migration、provider refresh、publication 切换、生产写入或部署；本地 SQLite 通过不等于 VPS PostgreSQL 已迁移。后续部署须按已有候选、备份、迁移和 TUI 重新绑定要求进行，不为无可执行生产回填重置观察窗口。DATA-02 仍 awaiting_production；需先提供真实 Account user/principal 与 tenant/owner 来源、形成 canonical audit authority 和有效 runtime binding，并明确相应 dataset 的字段/单位/时间/容差对账合同，再按既有 action envelope 做真实 provider 回填与对账。DATA-03 继续 waiting_dependency，只有 DATA-02 全退出后才进入下一步。
+
+未自动提交：AUTONOMOUS_GOAL.md 的 Git 合同规定现有未提交修改与当前范围重叠时保留工作树；本项必要的 registry、README 和 primary plan 与本阶段既有财务、审计、TUI 证据修改重叠，未将其混入代码提交。未覆盖或暂存其他修改。应用 Goal 仍未成功：完成的是 DATA-13 本地代码项，DATA-02 的真实生产退出条件没有变化。

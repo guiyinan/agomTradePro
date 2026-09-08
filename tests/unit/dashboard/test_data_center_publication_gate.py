@@ -5,6 +5,39 @@ from __future__ import annotations
 from apps.dashboard.application.integration_gateways import DashboardApplicationGateway
 
 
+def test_dashboard_batch_quotes_share_one_publication_read(monkeypatch) -> None:
+    """A list of aliases uses one gated read and preserves source observations."""
+    calls = []
+    rows = [
+        {
+            "asset_code": "600000.SH",
+            "current_price": 12.3,
+            "snapshot_at": "2026-09-08T01:30:00+00:00",
+        }
+    ]
+
+    def read(codes):
+        calls.append(codes)
+        return {"rows": rows, "must_not_use_for_decision": False}
+
+    monkeypatch.setattr("apps.data_center.application.public.get_published_quote_payloads", read)
+    assert DashboardApplicationGateway().query_latest_quotes(["600000.SH", "600000"]) == rows
+    assert calls == [["600000.SH", "600000"]]
+
+
+def test_dashboard_batch_quotes_block_stale_publication(monkeypatch) -> None:
+    """Batching must not release rows from a stale publication."""
+    monkeypatch.setattr(
+        "apps.data_center.application.public.get_published_quote_payloads",
+        lambda codes: {
+            "rows": [{"asset_code": "600000.SH", "current_price": 12.3}],
+            "must_not_use_for_decision": True,
+            "blocked_reason": "canonical_publication_stale",
+        },
+    )
+    assert DashboardApplicationGateway().query_latest_quotes(["600000.SH"]) == []
+
+
 def test_dashboard_macro_value_reads_published_rows(monkeypatch) -> None:
     """A dashboard macro value comes from the publication-only port."""
 

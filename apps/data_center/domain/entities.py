@@ -614,7 +614,7 @@ class FinancialFact:
 
 @dataclass(frozen=True)
 class ValuationFact:
-    """Daily valuation multiples for an asset."""
+    """Daily valuation multiples with distinct source and ingestion times."""
 
     asset_code: str
     val_date: date
@@ -629,6 +629,9 @@ class ValuationFact:
     available_at: datetime | None = None
     fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     extra: dict[str, Any] = field(default_factory=dict)
+    observed_at: datetime | None = None
+    source_record_id: str = ""
+    raw_payload_hash: str = ""
 
     def __post_init__(self) -> None:
         if not self.asset_code:
@@ -652,6 +655,14 @@ class ValuationFact:
             self.available_at.tzinfo is None or self.available_at.utcoffset() is None
         ):
             raise ValueError("ValuationFact.available_at must be timezone-aware")
+        if self.observed_at is not None and (
+            self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None
+        ):
+            raise ValueError("ValuationFact.observed_at must be timezone-aware")
+        if self.fetched_at.tzinfo is None or self.fetched_at.utcoffset() is None:
+            raise ValueError("ValuationFact.fetched_at must be timezone-aware")
+        if self.observed_at is not None and self.fetched_at < self.observed_at:
+            raise ValueError("ValuationFact.fetched_at cannot precede observed_at")
         for field_name, value in (
             ("market_cap", self.market_cap),
             ("float_market_cap", self.float_market_cap),
@@ -660,6 +671,8 @@ class ValuationFact:
                 raise ValueError(f"ValuationFact.{field_name} cannot be negative")
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize valuation values and their source/ingestion provenance."""
+
         return {
             "asset_code": self.asset_code,
             "val_date": self.val_date.isoformat(),
@@ -671,9 +684,12 @@ class ValuationFact:
             "float_market_cap": self.float_market_cap,
             "dv_ratio": self.dv_ratio,
             "source": self.source,
+            "observed_at": self.observed_at.isoformat() if self.observed_at else None,
             "available_at": self.available_at.isoformat() if self.available_at else None,
             "fetched_at": self.fetched_at.isoformat(),
             "extra": self.extra,
+            "source_record_id": self.source_record_id,
+            "raw_payload_hash": self.raw_payload_hash,
         }
 
 

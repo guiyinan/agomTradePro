@@ -32,6 +32,14 @@
       "health_response_sha256": "79575ab771403da88d8eafc434e4c49688acfb51ff0cdcbb57787f07be3ec150",
       "readiness_response_sha256": "73ba6bc108e2f0e8c1082c3786c035e7652d2cfec431c4dd14fb5852b5d20bc6",
       "verified_at": "2026-09-07T09:22:09.521220+00:00"
+    },
+    "retained_observation": {
+      "version": "web-to-tui-retained-observation-binding.v1",
+      "evidence": "docs/deployment/tui02-production-observation-checkpoint-2026-09-07-0e9f890e.json",
+      "evidence_sha256": "5213277b9fcddeb2b96dc050ed52619079060395d79467b68d1616fa2a10a636",
+      "first_retained_sample_at": "2026-09-07T11:15:50.030000Z",
+      "minimum_observation_seconds": 1209600,
+      "eligible_at": "2026-09-21T11:15:50.030000Z"
     }
   },
   "cleanup": {
@@ -43,20 +51,20 @@
     "route_rollback_commits": {}
   },
   "defects": {
-    "candidate_version": null,
     "candidate_commit": null,
-    "source_sha256": null,
-    "window_start": null,
-    "window_end": null,
+    "candidate_version": null,
+    "evidence": null,
     "new_p0": null,
     "new_p1": null,
     "open_p0": null,
     "open_p1": null,
-    "evidence": null,
-    "query_scope": null,
+    "queried_at": null,
     "query_filter": null,
+    "query_scope": null,
     "snapshot_sha256": null,
-    "queried_at": null
+    "source_sha256": null,
+    "window_end": null,
+    "window_start": null
   },
   "review_snapshot": {
     "evidence": null,
@@ -73,13 +81,13 @@
   },
   "source_sha256": "e3027671d02d876c9f4b38b9d86395d45e26c0f2b344eb0646086be31869cd5d",
   "telemetry": {
-    "window_start": null,
-    "window_end": null,
     "collected_at": null,
     "environment": null,
     "evidence": null,
     "snapshot_sha256": null,
-    "tasks": []
+    "tasks": [],
+    "window_end": null,
+    "window_start": null
   },
   "uat": {
     "candidate_binding": null,

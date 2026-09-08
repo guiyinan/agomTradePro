@@ -8,7 +8,9 @@
 > 已通过 code-only 部署及 source/OCI/健康核验，并使用已提交 attestation 执行 `--replace --write`。
 > 当前实测 **2/10 DENY**，仅 source consistency 和 execution dependency 通过；旧 UAT、cleanup、
 > rollback、telemetry、approval 与 retained window 不继承。候选日期 `2026-09-07..2026-09-21`
-> 不是已流逝观察证据，尚无首个真实 retained sample 或精确 eligible instant。
+> 不是已流逝观察证据。当前已绑定真实 retained sample `2026-09-07T11:15:50.030000Z`，
+> 精确 14 日 eligible instant 为 `2026-09-21T11:15:50.030000Z`；自然时间尚未满足。
+> [首样本及监控原始证据](../deployment/tui02-production-observation-checkpoint-2026-09-07-0e9f890e.json)已通过官方 retained binder。
 > [重绑定证据](../deployment/tui02-candidate-rebind-2026-09-07-0e9f890e.json)保留实际 checker 结果。
 > 下方历史检查点保留，不代表新候选通过。
 

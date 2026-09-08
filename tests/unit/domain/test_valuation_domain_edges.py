@@ -163,6 +163,8 @@ def test_fact_payload_rejects_invalid_shape_and_applies_price_defaults() -> None
     payload = ValuationPayloadPolicy.build_fact_payload(
         {
             "valuation_fact_date": today,
+            "source_updated_at": datetime(2026, 7, 24, 8, tzinfo=UTC),
+            "fetched_at": datetime(2026, 7, 24, 9, tzinfo=UTC),
             "extra": {
                 "estimated_fair_value": "100",
                 "entry_low": "0",
@@ -175,6 +177,8 @@ def test_fact_payload_rejects_invalid_shape_and_applies_price_defaults() -> None
     assert payload["entry_price_low"] == 95.0
     assert payload["target_price_high"] == 125.0
     assert payload["stop_loss_price"] == 85.5
+    assert payload["source_updated_at"] == datetime(2026, 7, 24, 8, tzinfo=UTC)
+    assert payload["fetched_at"] == datetime(2026, 7, 24, 9, tzinfo=UTC)
 
     assert (
         ValuationPayloadPolicy.build_fact_payload(
@@ -186,6 +190,50 @@ def test_fact_payload_rejects_invalid_shape_and_applies_price_defaults() -> None
         )
         is None
     )
+
+
+@pytest.mark.parametrize(
+    "source_updated_at",
+    [
+        None,
+        datetime(2026, 7, 24, 8),
+        datetime(2026, 6, 22, 8, tzinfo=UTC),
+        datetime(2026, 7, 25, 8, tzinfo=UTC),
+    ],
+)
+def test_data_center_fact_requires_current_aware_source_observation(
+    source_updated_at: datetime | None,
+) -> None:
+    """A fresh fetch or current val_date cannot rescue bad source timing."""
+
+    payload = ValuationPayloadPolicy.build_fact_payload(
+        {
+            "valuation_fact_date": date(2026, 7, 24),
+            "source_updated_at": source_updated_at,
+            "fetched_at": datetime(2026, 7, 24, 9, tzinfo=UTC),
+            "extra": {"fair_value": 100, "quality_flag": "ok"},
+        },
+        today=date(2026, 7, 24),
+    )
+
+    assert payload is None
+
+
+def test_data_center_fact_rejects_same_day_future_source_observation() -> None:
+    """A source timestamp later than the decision clock cannot be rescued by fetch time."""
+
+    payload = ValuationPayloadPolicy.build_fact_payload(
+        {
+            "valuation_fact_date": date(2026, 7, 24),
+            "source_updated_at": datetime(2026, 7, 24, 12, tzinfo=UTC),
+            "fetched_at": datetime(2026, 7, 24, 12, 5, tzinfo=UTC),
+            "extra": {"fair_value": 100, "quality_flag": "ok"},
+        },
+        today=date(2026, 7, 24),
+        now=datetime(2026, 7, 24, 11, tzinfo=UTC),
+    )
+
+    assert payload is None
 
 
 @pytest.mark.parametrize(

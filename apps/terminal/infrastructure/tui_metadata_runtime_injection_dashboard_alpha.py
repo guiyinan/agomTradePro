@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from apps.alpha.application.pool_resolver import ALPHA_POOL_MODE_CHOICES
-from apps.dashboard.application.alpha_homepage import ALPHA_SCOPE_CHOICES
+from apps.dashboard.application.alpha_homepage import ALPHA_SCOPE_CHOICES, ALPHA_SCOPE_GENERAL
 
 _SCREEN = "research.signals"
 _MODULE = "daily-decisions"
@@ -56,7 +56,7 @@ RUNTIME_DASHBOARD_ALPHA_ACTIONS: tuple[dict[str, Any], ...] = (
         "screen_key": _SCREEN,
         "module_key": _MODULE,
         "view_type": "datagrid",
-        "description": "查看 Alpha 排名、Beta/风控校验、建议仓位、入选理由与不行动理由。",
+        "description": "选择展示数量与投资账户；不指定账户时展示通用研究，指定账户时检查其关联组合候选。",
         "source": _SOURCE,
         "task_group": "02 Alpha 选股",
         "sequence": 240,
@@ -72,13 +72,23 @@ RUNTIME_DASHBOARD_ALPHA_ACTIONS: tuple[dict[str, Any], ...] = (
                 "default": "json",
             },
             {
+                "key": "account_id",
+                "label": "投资账户",
+                "binding": "query",
+                "input_type": "select",
+                "value_type": "integer",
+                "required": False,
+                "options": [{"value": "", "label": "通用研究（不指定账户）"}],
+                "presentation_semantic": "primary_selector",
+            },
+            {
                 "key": "alpha_scope",
                 "label": "Alpha 范围",
                 "binding": "query",
                 "input_type": "select",
                 "value_type": "string",
                 "required": False,
-                "default": "portfolio",
+                "default": ALPHA_SCOPE_GENERAL,
                 "options": sorted(ALPHA_SCOPE_CHOICES),
             },
             {
@@ -104,7 +114,7 @@ RUNTIME_DASHBOARD_ALPHA_ACTIONS: tuple[dict[str, Any], ...] = (
             },
             {
                 "key": "top_n",
-                "label": "返回数量",
+                "label": "展示数量",
                 "binding": "query",
                 "input_type": "number",
                 "value_type": "integer",
@@ -112,6 +122,7 @@ RUNTIME_DASHBOARD_ALPHA_ACTIONS: tuple[dict[str, Any], ...] = (
                 "default": 10,
                 "min": 1,
                 "max": 500,
+                "presentation_semantic": "primary_selector",
             },
         ],
         "view_model": {
@@ -123,10 +134,10 @@ RUNTIME_DASHBOARD_ALPHA_ACTIONS: tuple[dict[str, Any], ...] = (
                 "请检查评分日、股票池与数据可靠性。"
             ),
             "columns": [
-                {"key": "rank", "label": "排名"},
-                {"key": "code", "label": "证券代码"},
-                {"key": "name", "label": "名称"},
+                {"key": "code", "label": "证券代码与名称"},
                 {"key": "alpha_score", "label": "Alpha"},
+                {"key": "asof_date", "label": "评分日"},
+                {"key": "must_not_use_for_decision", "label": "禁止用于决策"},
                 {"key": "gate_status", "label": "约束结果"},
                 {"key": "suggested_position_pct", "label": "建议仓位（%）"},
                 {"key": "buy_reason_summary", "label": "入选理由"},

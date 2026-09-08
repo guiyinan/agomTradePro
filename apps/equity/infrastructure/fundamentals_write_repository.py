@@ -226,6 +226,8 @@ class StockFundamentalsWriteRepositoryMixin:
         return [fact for fact in raw_facts if fact is not None]
 
     def _valuation_entity_to_dc_fact(self, valuation: ValuationMetrics) -> ValuationFact:
+        """Preserve source observation time when mirroring valuation metrics."""
+
         source, lineage_extra = _canonical_fact_source(valuation.source_provider)
         fetched_at = _parse_fact_datetime(valuation.fetched_at) or timezone.now()
         return ValuationFact(
@@ -238,6 +240,7 @@ class StockFundamentalsWriteRepositoryMixin:
             float_market_cap=(float(valuation.circ_mv) if valuation.circ_mv is not None else None),
             dv_ratio=valuation.dividend_yield,
             source=source,
+            observed_at=_parse_fact_datetime(valuation.source_updated_at),
             available_at=_parse_fact_datetime(valuation.source_updated_at),
             fetched_at=fetched_at,
             extra=lineage_extra,

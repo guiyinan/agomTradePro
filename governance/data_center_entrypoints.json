@@ -3,7 +3,7 @@
     "by_category": {
       "admin_surface": 13,
       "agent_skill": 3,
-      "application_consumer": 157,
+      "application_consumer": 158,
       "beat_schedule": 59,
       "capability_runtime": 25,
       "celery_dispatch_edge": 18,
@@ -30,13 +30,13 @@
       "workflow_step": 10
     },
     "by_status": {
-      "active_public": 720,
+      "active_public": 721,
       "adjacent_operational": 298,
       "candidate-review": 0,
       "compatibility": 137,
       "retired_blocked": 0
     },
-    "total": 1155
+    "total": 1156
   },
   "entries": [
     {
@@ -482,8 +482,8 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/dashboard/application/integration_gateways.py:get_published_macro_fact_series:line:314",
-      "locator": "line:314",
+      "id": "application_consumer:apps/dashboard/application/integration_gateways.py:get_published_macro_fact_series:line:325",
+      "locator": "line:325",
       "path": "apps/dashboard/application/integration_gateways.py",
       "status": "active_public",
       "symbol": "get_published_macro_fact_series",
@@ -494,6 +494,16 @@
       "evidence": "canonical Data Center Application Public Port import",
       "id": "application_consumer:apps/dashboard/application/integration_gateways.py:get_published_quote_payloads:line:58",
       "locator": "line:58",
+      "path": "apps/dashboard/application/integration_gateways.py",
+      "status": "active_public",
+      "symbol": "get_published_quote_payloads",
+      "target": ""
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/dashboard/application/integration_gateways.py:get_published_quote_payloads:line:70",
+      "locator": "line:70",
       "path": "apps/dashboard/application/integration_gateways.py",
       "status": "active_public",
       "symbol": "get_published_quote_payloads",
@@ -2712,8 +2722,8 @@
     {
       "category": "celery_dispatch_edge",
       "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
-      "id": "celery_dispatch_edge:apps/dashboard/interface/alpha_stock_views.py:delay:line:243",
-      "locator": "line:243",
+      "id": "celery_dispatch_edge:apps/dashboard/interface/alpha_stock_views.py:delay:line:244",
+      "locator": "line:244",
       "path": "apps/dashboard/interface/alpha_stock_views.py",
       "status": "active_public",
       "symbol": "delay",
@@ -2722,8 +2732,8 @@
     {
       "category": "celery_dispatch_edge",
       "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
-      "id": "celery_dispatch_edge:apps/dashboard/interface/alpha_stock_views.py:delay:line:305",
-      "locator": "line:305",
+      "id": "celery_dispatch_edge:apps/dashboard/interface/alpha_stock_views.py:delay:line:306",
+      "locator": "line:306",
       "path": "apps/dashboard/interface/alpha_stock_views.py",
       "status": "active_public",
       "symbol": "delay",
@@ -5171,7 +5181,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=13",
+      "evidence": "governed current-data contract; source_files=14",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.publication_only_d4_d5:Current financial and valuation reads use Data Center publication-only ports",
       "locator": "Current financial and valuation reads use Data Center publication-only ports",
       "path": "governance/current_data_contracts.json",
@@ -5191,7 +5201,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=23",
+      "evidence": "governed current-data contract; source_files=25",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.publication_writer_atomicity:Canonical publication writer and member snapshot commit",
       "locator": "Canonical publication writer and member snapshot commit",
       "path": "governance/current_data_contracts.json",
@@ -5251,7 +5261,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=3",
+      "evidence": "governed current-data contract; source_files=6",
       "id": "current_data_surface:governance/current_data_contracts.json:equity.current_valuation:Equity repository current valuation context and fundamentals listing",
       "locator": "Equity repository current valuation context and fundamentals listing",
       "path": "governance/current_data_contracts.json",
@@ -5511,7 +5521,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=1",
+      "evidence": "governed current-data contract; source_files=2",
       "id": "current_data_surface:governance/current_data_contracts.json:valuation.formal_missing_fields:Legacy formal valuation adapter preserves missing price fields as unknown",
       "locator": "Legacy formal valuation adapter preserves missing price fields as unknown",
       "path": "governance/current_data_contracts.json",

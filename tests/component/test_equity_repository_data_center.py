@@ -103,6 +103,7 @@ def test_get_valuation_history_can_read_from_data_center_only():
         float_market_cap=Decimal("1800000000000"),
         dv_ratio=Decimal("1.2"),
         source="akshare-main",
+        observed_at=datetime(2026, 3, 20, 7, tzinfo=UTC),
     )
 
     repo = DjangoStockRepository()
@@ -134,6 +135,7 @@ def test_latest_valuation_current_read_requires_publication(monkeypatch):
                     "float_market_cap": 1_800_000_000_000,
                     "dv_ratio": 1.2,
                     "source": "akshare-main",
+                    "observed_at": datetime(2026, 7, 30, 23, tzinfo=UTC).isoformat(),
                     "fetched_at": datetime(2026, 7, 31, tzinfo=UTC).isoformat(),
                 }
             ],
@@ -162,6 +164,7 @@ def test_latest_valuation_current_read_preserves_published_fact(monkeypatch):
                     "float_market_cap": 1_800_000_000_000,
                     "dv_ratio": 1.2,
                     "source": "akshare-main",
+                    "observed_at": datetime(2026, 7, 30, 23, tzinfo=UTC).isoformat(),
                     "fetched_at": datetime(2026, 7, 31, tzinfo=UTC).isoformat(),
                 }
             ],
@@ -175,6 +178,8 @@ def test_latest_valuation_current_read_preserves_published_fact(monkeypatch):
     assert valuation.trade_date == date(2026, 7, 31)
     assert valuation.pe == 25.5
     assert valuation.source_provider == "akshare-main"
+    assert valuation.source_updated_at == datetime(2026, 7, 30, 23, tzinfo=UTC)
+    assert valuation.fetched_at == datetime(2026, 7, 31, tzinfo=UTC)
 
 
 @pytest.mark.django_db
@@ -356,7 +361,7 @@ def test_valuation_history_current_read_requires_publication(monkeypatch):
 
 @pytest.mark.django_db
 def test_valuation_history_current_read_preserves_published_observations(monkeypatch):
-    fetched_at = datetime(2026, 7, 31, tzinfo=UTC).isoformat()
+    fetched_at = datetime(2026, 8, 1, tzinfo=UTC).isoformat()
     monkeypatch.setattr(
         "apps.equity.infrastructure.fundamentals_repository.get_published_valuation_facts",
         lambda *args, **kwargs: {
@@ -371,6 +376,7 @@ def test_valuation_history_current_read_preserves_published_observations(monkeyp
                     "float_market_cap": 1_800_000_000_000,
                     "dv_ratio": 1.2,
                     "source": "akshare-main",
+                    "observed_at": f"{val_date}T07:00:00+00:00",
                     "fetched_at": fetched_at,
                 }
                 for val_date, pe in (("2026-07-30", 24.5), ("2026-07-31", 25.5))
@@ -388,6 +394,10 @@ def test_valuation_history_current_read_preserves_published_observations(monkeyp
 
     assert [row.trade_date for row in rows] == [date(2026, 7, 30), date(2026, 7, 31)]
     assert [row.pe for row in rows] == [24.5, 25.5]
+    assert [row.source_updated_at for row in rows] == [
+        datetime(2026, 7, 30, 7, tzinfo=UTC),
+        datetime(2026, 7, 31, 7, tzinfo=UTC),
+    ]
 
 
 @pytest.mark.django_db
@@ -549,8 +559,13 @@ def test_save_methods_mirror_equity_data_to_data_center():
             circ_mv=Decimal("1800000000000"),
             dividend_yield=1.2,
             source_provider="legacy-test",
+            source_updated_at=datetime(2026, 3, 20, 7, tzinfo=UTC),
+            fetched_at=datetime(2026, 3, 20, 7, 1, tzinfo=UTC),
         )
     )
 
     assert FinancialFactModel.objects.filter(asset_code="600519.SH").count() >= 7
     assert ValuationFactModel.objects.filter(asset_code="600519.SH").count() == 1
+    stored_valuation = ValuationFactModel.objects.get(asset_code="600519.SH")
+    assert stored_valuation.observed_at == datetime(2026, 3, 20, 7, tzinfo=UTC)
+    assert stored_valuation.fetched_at == datetime(2026, 3, 20, 7, 1, tzinfo=UTC)

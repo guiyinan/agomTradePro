@@ -286,6 +286,10 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
                 screen_key=screen["key"],
             )
         )
+        action_payloads = [
+            self._action_payload(action, include_technical=include_technical_actions, user=user)
+            for action in actions
+        ]
         return {
             "version": metadata["version"],
             "registry_key": metadata.get("registry_key", self.registry_key),
@@ -306,24 +310,10 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
                 {
                     "type": "actions",
                     "title": "任务",
-                    "items": [
-                        self._action_payload(
-                            action,
-                            include_technical=include_technical_actions,
-                            user=user,
-                        )
-                        for action in actions
-                    ],
+                    "items": action_payloads,
                 },
             ],
-            "actions": [
-                self._action_payload(
-                    action,
-                    include_technical=include_technical_actions,
-                    user=user,
-                )
-                for action in actions
-            ],
+            "actions": action_payloads,
         }
 
     def search_agent_actions(
@@ -539,6 +529,7 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
             )
             envelope = {
                 "version": "tui-workbench.v2",
+                "outcome": self._execution_outcome(payload, status_code),
                 "action": self._action_payload(action, user=user),
                 "confirmation_required": False,
                 "response": {
@@ -575,6 +566,22 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
             result=envelope,
         )
         return envelope
+
+    def _execution_outcome(self, payload: Any, status_code: int) -> str:
+        """Preserve a bounded owner outcome separately from transport success."""
+        if status_code >= 400:
+            return "failed"
+        if isinstance(payload, dict):
+            data = payload.get("data")
+            source = (
+                payload if "outcome" in payload else data if isinstance(data, dict) else payload
+            )
+            outcome = source.get("outcome")
+            if outcome in ("success", "partial", "noop", "blocked", "failed"):
+                return str(outcome)
+            if payload.get("success") is False or source.get("success") is False:
+                return "failed"
+        return "success"
 
     def _action_with_empty_state_context(self, action: dict[str, Any]) -> dict[str, Any]:
         """Attach reviewed screen guidance to one result projection.

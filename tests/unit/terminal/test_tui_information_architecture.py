@@ -336,6 +336,7 @@ def test_research_signals_publishes_beta_then_alpha_user_journey() -> None:
         "actionable-candidates",
         "active-signals",
         "signal-create",
+        "operation-receipt",
     ]
     assert panels[0]["user_priority"] == "p0"
     assert panels[1]["action_key"] == "dashboard.alpha-ranking"

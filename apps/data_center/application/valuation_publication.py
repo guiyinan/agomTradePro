@@ -58,8 +58,9 @@ class PublishValuationBatchUseCase:
     ) -> CanonicalPublication | None:
         """Resolve and atomically publish valuation facts by ``val_date``.
 
-        ``fetched_at`` is deliberately not used as an observation boundary;
-        valuation observations are the persisted ``val_date`` at UTC midnight.
+        The publication boundary is the provider's persisted ``observed_at``;
+        ``val_date`` only groups the daily valuation record and ``fetched_at``
+        remains the local ingestion time.
         """
 
         normalized_key = publication_key.strip()

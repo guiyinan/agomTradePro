@@ -135,16 +135,23 @@ class DataCenterValuationFactSource:
     def _normalize(fact: Any) -> dict[str, Any]:
         if isinstance(fact, dict):
             fact_date = fact.get("val_date")
+            source_updated_at = fact.get("observed_at")
+            if source_updated_at is None:
+                source_updated_at = fact.get("source_updated_at")
             fetched_at = fact.get("fetched_at")
             extra = fact.get("extra") or {}
         else:
             fact_date = getattr(fact, "val_date", None)
+            source_updated_at = getattr(fact, "observed_at", None)
+            if source_updated_at is None:
+                source_updated_at = getattr(fact, "source_updated_at", None)
             fetched_at = getattr(fact, "fetched_at", None)
             extra = getattr(fact, "extra", None) or {}
         return {
             "valuation_fact_date": (
                 fact_date.isoformat() if isinstance(fact_date, date) else fact_date
             ),
+            "source_updated_at": source_updated_at,
             "fetched_at": fetched_at,
             "extra": extra,
         }

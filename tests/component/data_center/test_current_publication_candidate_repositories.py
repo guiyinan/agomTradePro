@@ -109,12 +109,14 @@ def test_valuation_selector_returns_latest_fact_per_asset() -> None:
             val_date=date(2026, 8, 27),
             pe_ttm=10,
             source="source-old",
+            observed_at=AVAILABLE_AT - timedelta(days=1),
         )
         ValuationFactModel.objects.create(
             asset_code=asset_code,
             val_date=date(2026, 8, 28),
             pe_ttm=11,
             source="source-new",
+            observed_at=AVAILABLE_AT,
             available_at=AVAILABLE_AT,
         )
 

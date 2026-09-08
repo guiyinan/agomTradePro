@@ -1,6 +1,6 @@
 # TUI User-Facing Design Standard
 
-> Last updated: 2026-08-27
+> Last updated: 2026-09-08
 
 This standard defines the user-facing contract for AgomTradePro `/tui/`. It exists to stop TUI screens from degenerating into route browsers, endpoint lists, or raw JSON shells.
 
@@ -78,6 +78,17 @@ Hard rules:
 - `action_density.primary_operation_limit` and `task_group_limit` control the visible action budget. The renderer may collapse overflow, but it must not hardcode per-screen business keys or limits.
 
 ## Task Deep-Link Rules
+
+The shared shell exposes a selectable `TUI屏幕地址` location input to all signed-in
+users. It displays `screen:<canonical-key>`, follows navigation and browser history,
+accepts a screen address with Enter, and restores the current address with Escape.
+This is a user-requested navigation control; keep it outside business result panels.
+
+`research.signals` opens Alpha ranking in the general research scope. Research rows
+must retain their scoring date and decision prohibition alongside the no-action
+reason. Users can explicitly select portfolio scope; its readiness gate still
+controls which portfolio candidates are returned. Never fabricate candidate rows
+from stock-pool size or relax the owner service's decision gate to fill the table.
 
 Classic compatibility pages and cross-screen task links use
 `/tui/?screen=<screen-key>&action=<action-key>`. Additional query parameters
@@ -315,3 +326,44 @@ Don't:
 - Are task-critical datagrid states and native row actions visible at 1440 × 1000?
 - Does the happy-path browser flow complete with zero unexpected console errors or warnings?
 - Do task-flow panels pass the three-viewport browser geometry guard with no overlap or horizontal overflow?
+
+## Candidate selection controls
+
+Passive primary-list panels may opt into `filter_fields`, an ordered list of the
+action's `primary_selector` fields. Schema and metadata validation reject unknown,
+duplicate or unsafe selectors. These controls stay above the list; submitting updates
+that panel, retains selections and makes every returned row accessible with an actual
+loaded count. Candidate count defines the research set; page size only controls
+browsing. The common panel renderer pages the loaded set at 20/50/100 rows without
+rerunning the candidate query for each local page.
+Other summary panels retain their `max_rows` limit.
+
+`research.signals` exposes investment account and candidate count (1–500, default 10).
+The account list is limited to the signed-in user. No account means general research;
+an explicit account resolves to its owned active portfolio before querying candidates.
+Missing mappings and foreign accounts fail explicitly, never falling back to general
+research. Source dates and decision gates remain unchanged.
+
+## Pagination, refresh and workspace continuity
+
+- Summary tables identify the displayed prefix and offer a full-list entry when
+  additional loaded rows or a following server page exist.
+- Full lists expose page range, supported page-size controls and page navigation.
+  Cursor lists do not invent a total count or random page access.
+- F7 names its scope: current server page or loaded collection. It is not a
+  replacement for server-side search over the entire dataset.
+- Unpaged owner collections retain their returned rows and use client pagination;
+  the host must not slice to the first 20 rows and fabricate server page access.
+- Server page changes retain the old table while loading and on failure, clearly
+  label the retained page, and offer a local retry. Pure page reads do not reload
+  navigation badges.
+- F5 only repeats passive reads or observes an existing queued run. AI/write
+  submissions require their explicit action control.
+- Session-local workspace restoration retains safe form fields and list controls,
+  revalidates screen access and rereads business data. Passwords, secrets and file
+  inputs are excluded; business result payloads are not persisted in browser storage.
+- Primary progress is an operation checklist, not business approval or decision
+  readiness. Its copy must say so and it must not count queued, failed, blocked or
+  partial results as a completed operation.
+- `shell-ready` and `p0-ready` are separate timing marks. Primary data loading must
+  settle before auxiliary work is scheduled; failed panels retain bounded recovery.

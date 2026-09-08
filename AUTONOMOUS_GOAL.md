@@ -10,28 +10,37 @@
 
 ## 启动方式
 
-在模型选择为 `gpt-5.6-sol` 的 Codex 任务中设置：
+在当前 AgomTradePro 任务中设置以下阶段 Goal；主模型沿用用户当前选择，worker 明确使用
+`gpt-5.6-luna` / `max`：
 
 ```text
-/goal 按照 AUTONOMOUS_GOAL.md 自主推进 AgomTradePro canonical closure backlog。每轮从机器注册表重建全量 eligible work set：始终只允许一个 repository unit 扩展代码边界，同时并行推进获准且互不冲突的 production/external/governance 只读取证、观察和 preflight；任何生产变更保持单通道串行。由 Sol 负责规划、冲突判断、审查、验收和状态晋级，优先调用 gpt-5.6-luna 完成有界且互不重叠的实现、测试、调查和证据切片。直到所有允许通道都不存在无需新增授权即可安全推进的工作，或全部 canonical closure units 达到真实终态才停止。不得伪造证据、放宽 fail-closed 门禁或把外部阻塞解释为完成。
+/goal 按照 AUTONOMOUS_GOAL.md 的本阶段合同，由当前主代理指导并验收 gpt-5.6-luna（reasoning=max），以 governance/active_plan_registry.json 为唯一状态真源，优先完成 DATA-02 的有界生产修复、真实回填与 canonical source 对账。先核验候选、来源时间、治理容差、备份、精确选择器、停止线和恢复点，再串行执行已授权且技术条件齐全的动作，逐批记录写后核验；不要把已有授权误写成缺失输入。并行推进不与生产写入冲突的 TUI-02 新候选真实留样和 AUD-03 准备；把 Evidence、策略与 TAR 的真实权限、定义、数据或环境缺口整理为一次性精确输入清单，不伪造输入或重复无变化探针。不要重做 completed 单元，不把 QMT 纳入本阶段完成条件。最多两个有界 Luna worker、一个 repository focus、一个生产变更通道；最小化不必要部署和观察重置。阶段成功仅在 DATA-02 真实退出门通过、证据与治理状态同步且 DATA-03 下一步已明确时成立；其他通道交接其真实检查点即可，不借此宣称完成。若所有允许通道均缺真实输入或等待自然时间，记录精确阻塞与下一恢复条件，不能标记成功。
 ```
 
-文件本身不会切换当前任务的主模型。启动 Goal 前必须在 Codex 中选择 Sol；Sol
-创建子代理时显式选择 `gpt-5.6-luna`。
+上述文字是可复制的 Goal 指令；修改本文件不等于应用内 Goal 已更新。只有 Goal 工具/UI
+读回的新 objective 与状态才能证明应用设置成功，不得把旧 Goal 标为 completed 来绕过替换限制。
 
-## 唯一目标
+## 本阶段目标与停止边界
 
-持续推进注册表中的 canonical closure backlog，同时始终保持一个且仅一个
-`repository` unit 扩展代码边界。完成当前 `execution_focus.unit_id` 后，只有在其真实
-exit gate、验证和状态同步全部成立时，才自动选择下一个依赖已满足的 unit。
+本阶段以 DATA-02 为主交付，具体候选、状态和下一步始终读取注册表及 primary plan，
+不在本文件复制动态进度。已完成单元只按必要的依赖证据复用，不再次领取。
 
-`execution_focus` 只是 repository 写入锁，不是整个 Goal 的全局活动锁。Sol 每轮都必须同时扫描
-依赖已满足且执行模式被 `allowed_parallel_execution_modes` 允许的 production、external 和
-governance unit；`execution_focus.unit_id=null` 只表示当前没有可执行的 repository unit，不能单独
-作为停止 Goal、忽略到期观察或跳过安全只读取证的理由。
+- DATA-02：优先核验可确定的 financial availability 修复切片，再推进受控 provider 回填
+  和四类 publication 的真实对账。治理容差、源时间或权限输入缺失时不得用默认值补造。
+- TUI-02：稳定候选并采集首个真实 retained sample；无样本时没有精确 eligible instant，
+  候选日期不能充当已流逝观察。Classic 清理默认延后，保留 14 日技术门。
+- AUD-03：推进条件齐全的独立准备和获准取证；故障/恢复动作仍按既有精确动作边界执行。
+- Evidence、策略、TAR：合并列出必须由真实主体提供的输入，已有授权无需重复请求；
+  输入齐全后的新实现仍服从注册表依赖和唯一 repository focus。
+- QMT：保留机器真源中的外部依赖状态，不作为本阶段成功的必要条件。
 
-“持续推进”不代表无限创建工作。它只允许处理注册表中已经存在、依赖明确、验收条件
-明确的 closure unit；禁止把历史 checklist、临时发现或松散建议直接升级成新主线。
+DATA-02 达到真实 exit gate 并完成证据、计划与治理回写，同时明确 DATA-03 下一步后，
+本阶段才可报告成功。并行通道仅交接实际检查点，不要求所有 backlog unit 都完成。
+若所有允许通道均无安全可执行工作，应记录 blocked 事实、精确输入与恢复条件；
+应用 Goal 的 blocked 标记仍须符合工具的重复阻塞判定规则，不能代替成功。
+
+`execution_focus` 只约束 repository 写入，不是生产/只读取证的全局活动锁；其值为 null
+时仍应扫描本阶段允许通道。不得为保持忙碌而创建新主线、重复收集未变化证据或刷新日期。
 
 ## 个人项目单一所有者模式
 
@@ -54,7 +63,7 @@ unit 登记进机器注册表并设为唯一 focus；这不允许从松散建议
 
 ## 开始前的真源审计
 
-Sol 在第一次派工和每次焦点晋级前必须重新读取：
+主代理在第一次派工和每次焦点晋级前必须重新读取：
 
 1. `AGENTS.md` 以及本次文件范围内更深层的代理说明。
 2. `governance/active_plan_registry.json`。
@@ -66,38 +75,38 @@ Sol 在第一次派工和每次焦点晋级前必须重新读取：
 冲突再实施。不得因历史上下文继续已经 completed 的 unit，也不得覆盖用户或其他代理的
 未提交修改。
 
-恢复一个已经运行过的 Goal 时，不依赖聊天摘要猜测进度。Sol 必须从当前 focus unit 的
+恢复一个已经运行过的 Goal 时，不依赖聊天摘要猜测进度。主代理必须从当前 focus unit 的
 primary plan 最新实施记录、注册表 `status/next_gate/depends_on`、已有证据 artifact 和工作树
 diff 重建：已完成 checkpoint、已验证命令、未满足 exit gate、精确下一步和权限阻塞。
 
-## Sol 调度职责
+## 主代理调度职责
 
-Sol 是唯一调度者和验收者，负责：
+主代理是唯一调度者和验收者，负责：
 
 - 从当前 unit 的 exit gate 反推最小可验证切片，并维护简短的内部执行计划。
-- 每轮从全部 closure units 重建 repository、evidence/observation、production-mutation 和
+- 每轮从本阶段范围内的 closure units 重建 repository、evidence/observation、production-mutation 和
   waiting 四类通道，优先处理会缩短真实关键路径且不会使其他候选证据失效的工作。
 - 判断哪些工作适合交给 Luna，给每个 worker 明确文件边界、交付物、禁止事项和验证命令。
-- 审查 Luna 的完整 diff 与证据；必要时由 Sol 修正架构、契约和跨模块问题。
+- 审查 Luna 的完整 diff 与证据；必要时由主代理修正架构、契约和跨模块问题。
 - 运行最终的聚焦回归、架构、类型、治理和专项门禁。
 - 只有真实 exit gate 成立后，才同步 primary plan、`docs/plans/README.md` 和
-  `governance/active_plan_registry.json`，随后选择下一个 unit。
+  `governance/active_plan_registry.json`，随后按本阶段边界判断下一步。
 - 处理跨 App 架构决策、生产权限判断、候选晋级、回滚判断和最终完成声明；这些判断不得
   委托给 Luna。
 
 ## 并行通道与冲突控制
 
-并行只用于缩短真实关键路径，不改变 closure unit 的依赖、exit gate 或权限。Sol 在每轮调度前
+并行只用于缩短真实关键路径，不改变 closure unit 的依赖、exit gate 或权限。主代理在每轮调度前
 按下表分配通道；所有通道合计最多同时运行两个 Luna worker：
 
 | 通道 | 并发规则 | 允许工作 | 禁止事项 |
 | --- | --- | --- | --- |
 | Repository | 最多 1 个 unit、最多 1 个 Luna | 当前 `execution_focus.unit_id` 内的代码、测试和直接配套文档 | 第二条 repository 主线、跨 unit 扩展文件边界 |
 | Evidence / Observation | 使用剩余 Luna 槽位；互不依赖且来源隔离时可并行 | 已登记 `auto_collect` 的安全只读查询、候选对账、观察窗口计算、报告派生和 dry-run/preflight | 生产写入、代签、重复无变化探针、抢跑未满足依赖的 unit |
-| Production mutation | 全局最多 1 个，由 Sol 串行控制 | 精确 action envelope 已授权、候选绑定、停止线和回滚点齐全的单项生产动作 | 与 repository 修改、另一生产动作、故障/负载注入，或会被该动作重置的候选观察并行 |
+| Production mutation | 全局最多 1 个，由主代理串行控制 | 精确 action envelope 已授权、候选绑定、停止线和回滚点齐全的单项生产动作 | 与 repository 修改、另一生产动作、故障/负载注入，或会被该动作重置的候选观察并行 |
 | Human / External wait | 不占 worker | 准备 evidence template、记录精确输入缺口和下一可验证时间 | 忙轮询、虚构输入、把等待标记为完成 |
 
-Evidence / Observation worker 只返回原始来源、命令结果、候选身份、hash 和建议结论。Sol 必须在
+Evidence / Observation worker 只返回原始来源、命令结果、候选身份、hash 和建议结论。主代理必须在
 当前工作树上重新校验后，串行固化 evidence artifact，并串行更新 primary plan、机器注册表和
 `docs/plans/README.md`；多个 worker 不得并行编辑这些共享真源。若两个通道会写同一文件、读取会被
 另一动作改变的生产状态、占用同一维护窗口，或影响同一候选的稳定性/遥测窗口，则视为冲突并串行。
@@ -108,7 +117,7 @@ Evidence / Observation worker 只返回原始来源、命令结果、候选身�
 
 ## Luna worker 合同
 
-Sol 默认复用一个 `gpt-5.6-luna` worker，reasoning effort 使用 `medium`。只有两个任务
+主代理默认复用一个 `gpt-5.6-luna` worker，reasoning effort 使用 `max`。只有两个任务
 文件范围互不重叠、验收互不依赖且并行确实缩短关键路径时，才允许同时运行第二个 Luna；
 不得为了“保持忙碌”制造并行任务。
 
@@ -121,20 +130,20 @@ Sol 默认复用一个 `gpt-5.6-luna` worker，reasoning effort 使用 `medium`�
 
 每个 Luna 任务必须满足：
 
-- 只处理 Sol 指定的一个 bounded subtask，不自行扩展 backlog。
+- 只处理主代理指定的一个 bounded subtask，不自行扩展 backlog。
 - 不再创建子代理。
 - 不修改分配范围以外的文件，不接触已存在的无关工作树改动。
 - 不 commit、不 push、不部署、不执行生产写入、不发起付费调用、不代替人工审批。
 - 返回修改文件、关键判断、执行过的验证、未验证风险和剩余问题。
 
-Luna 完成后，Sol 必须先审查和验证结果，再使用 follow-up 继续派发下一个切片。未经审查
+Luna 完成后，主代理必须先审查和验证结果，再使用 follow-up 继续派发下一个切片。未经审查
 不得连续叠加多个 worker diff。
 
 ## 自动选取下一任务
 
-Sol 按以下规则选择工作，不凭提交数量或主观新鲜感排期：
+主代理按以下规则选择工作，不凭提交数量或主观新鲜感排期：
 
-1. 每轮先扫描全部 closure units，按依赖、状态、执行模式、证据采集类别、授权和冲突关系构造
+1. 每轮先扫描本阶段范围内的 closure units，按依赖、状态、执行模式、证据采集类别、授权和冲突关系构造
    eligible work set；不得把 `execution_focus=null` 等同于“无工作”。
 2. 当前 `execution_focus.unit_id` 永远是唯一允许扩展 repository scope 的 unit；其未满足 exit gate
    时保持焦点，测试通过、代码存在或文档写完都不能单独触发晋级。
@@ -145,7 +154,8 @@ Sol 按以下规则选择工作，不凭提交数量或主观新鲜感排期：
 5. `production`、`external` 和 `governance` unit 只有在
    `execution_focus.allowed_parallel_execution_modes` 允许时才能并行推进，并且只执行其
    `evidence_collection.auto_collect` 中安全、只读、无需新授权且依赖已满足的工作。preflight 和
-   dry-run 可以提前准备精确动作包，但不能据此晋级状态或执行 `authorization_required` 动作。
+   dry-run 可以提前准备精确动作包，但不能仅凭预览晋级状态。`authorization_required` 动作
+   在已有精确授权覆盖且技术门、停止线和恢复点齐全时，由主代理按 production mutation 通道串行执行。
 6. 缺少 collector 而 exit gate 可机械验证时，把最小 collector 实现归入当前获准的
    repository unit；不得借此开启第二条仓库主线。
 7. 没有 eligible repository unit 时，继续处理到期且安全的 Evidence / Observation 工作；只有全部
@@ -170,7 +180,7 @@ python scripts/check_mypy_debt_ceiling.py
 
 ## 持久化回写与交接
 
-完成回写是每个 closure unit exit gate 的组成部分，不是可选的收尾文档。Sol 不得先切换
+完成回写是每个 closure unit exit gate 的组成部分，不是可选的收尾文档。主代理不得先切换
 `execution_focus`，再把证据和上下文留给后续任务补写。
 
 每个 material checkpoint 至少把可复核状态写回该 unit 的 primary plan；每个 unit 完成时，
@@ -193,14 +203,14 @@ checkpoint 尚未满足 exit gate 时，允许记录已经形成的、不会被�
 提前把 unit 标记 completed 或激活后继 unit。重复探针、相同 HEAD、纯日期刷新和无状态变化的
 记录不回写、不提交。
 
-不创建独立的“Goal 当前进度”状态文件。后续 Sol/Luna 的恢复上下文只来自：机器注册表、
+不创建独立的“Goal 当前进度”状态文件。后续主代理/Luna 的恢复上下文只来自：机器注册表、
 对应 primary plan、规范化证据 artifact、`docs/plans/README.md` 投影和当前 Git 工作树。
 
 ## Git 与提交节奏
 
 - 保留当前分支和用户工作树，不修改、暂存或提交无关文件。
 - 禁止 destructive Git、自动 merge/rebase、强推和向远端 push。
-- Sol 可以在一个 closure unit 的真实 exit gate 达成且全部本地门禁通过后，创建最多一个
+- 主代理可以在一个 closure unit 的真实 exit gate 达成且全部本地门禁通过后，创建最多一个
   coherent local commit。未达到 exit gate 时不做“探针提交”“日期提交”或碎片化阶段提交。
 - 提交必须只包含该 unit 的代码、测试和必要文档；生产观察证据不得与无关代码混合。
 - 如果现有未提交修改与当前范围重叠，停止自动提交，保留工作树并准确报告冲突。
@@ -216,7 +226,7 @@ action envelope 重复请求泛化审批。以下动作仍未获得泛化授权�
 - 创建或删除备份、删除容器/文件、付费 API 调用、真实交易。
 - 代替项目所有者编造其未作出的业务定义，或代替外部机构作出决定和签字。
 
-遇到上述动作时，Sol 先完成 preflight、dry-run、影响范围、回滚点和证据模板，然后只针对仍未
+遇到上述动作时，主代理先完成 preflight、dry-run、影响范围、回滚点和证据模板，然后只针对仍未
 被单一所有者授权覆盖的具体高风险动作请求授权。不要把整条 workstream 泛化为“需要生产，所以
 无法工作”，也不要把所有者授权解释为可以跳过技术门禁。
 
@@ -228,8 +238,8 @@ action envelope 重复请求泛化审批。以下动作仍未获得泛化授权�
 
 Goal 在以下任一条件满足时停止：
 
-1. 注册表中所有 canonical closure units 已满足真实 exit gate，并达到正确终态。
-2. 完成一次全 backlog 通道扫描后，repository、Evidence / Observation 和已授权 Production
+1. DATA-02 已满足真实 exit gate、完成回写并明确 DATA-03 下一步；本阶段其他通道已有真实检查点或精确缺口交接。
+2. 完成一次本阶段允许通道扫描后，repository、Evidence / Observation 和已授权 Production
    mutation 均没有剩余安全工作，且所有其他 unit 都被未完成依赖、未到期自然时间、生产授权、
    人工判断或外部环境阻断。
 3. 工作树出现无法安全隔离的重叠修改，继续会覆盖用户或其他代理工作。

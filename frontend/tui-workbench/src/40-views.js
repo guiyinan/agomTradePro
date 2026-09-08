@@ -80,8 +80,17 @@
         state.currentViewModel = viewModel;
         state.currentColumns = viewModel.columns || [];
         state.currentRows = viewModel.rows || [];
-        state.clientPage = 1;
+        const restored = state.pendingGridRestore;
+        state.pendingGridRestore = null;
+        state.clientPage = restored?.clientPage || 1;
+        if (!restored && viewModel.pager?.client_side && viewModel.pager.page_size) state.clientPageSize = viewModel.pager.page_size;
+        if (restored) {
+            state.clientPageSize = restored.clientPageSize;
+            state.filterText = restored.filterText;
+            state.selectedRowIndex = restored.selectedRowIndex;
+        }
         applyFilter(false);
+        if (restored) els.main.scrollTop = restored.scrollTop;
     }
 
     function rowMatchesFilter(row) {
@@ -114,11 +123,12 @@
         const viewModel = state.currentViewModel;
         const columns = state.currentColumns;
         const allRows = state.visibleRows;
-        const localPage = !viewModel.pager && typeof runtimeCore.clientPage === "function"
+        const localPage = (!viewModel.pager || viewModel.pager.client_side) && typeof runtimeCore.clientPage === "function"
             ? runtimeCore.clientPage(allRows, state.clientPage, state.clientPageSize)
             : { rows: allRows, pager: null };
         const rows = localPage.rows;
-        const activePager = viewModel.pager || localPage.pager;
+        if (!viewModel.pager || viewModel.pager.client_side) state.clientPage = localPage.pager?.page || 1;
+        const activePager = (viewModel.pager?.client_side ? null : viewModel.pager) || localPage.pager || { client_side: true, page: 1, total_pages: 1, total_rows: allRows.length, has_next: false, has_previous: false };
         state.lastPager = activePager;
         const pageOffset = localPage.pager
             ? (localPage.pager.page - 1) * state.clientPageSize
@@ -155,6 +165,7 @@
             );
         els.main.innerHTML = `
             <div class="tui-view-status">${escapeHtml(viewModel.status)} / ${escapeHtml(viewModel.title)}${escapeHtml(filterSuffix)}</div>
+            <div class="tui-panel-caption">${viewModel.pager && !viewModel.pager.client_side ? 'F7 筛选当前页；查找全部记录请使用任务查询条件。' : 'F7 筛选已加载记录。'}</div>
             ${renderDecisionCue(viewModel)}
             <div class="tui-datagrid" role="grid" tabindex="0" aria-label="${escapeHtml(viewModel.title)}">
                 ${gridBody}
@@ -169,6 +180,7 @@
             button.addEventListener("click", () => pageDelta(Number(button.dataset.pageDelta || 0)));
         });
         bindNextStepButtons(els.main, viewModel.next_steps);
+        bindGridPagination();
         if (rows.length) {
             if (state.selectedRowIndex < pageOffset || state.selectedRowIndex >= pageOffset + rows.length) {
                 state.selectedRowIndex = pageOffset;
@@ -184,23 +196,6 @@
         updatePager(activePager);
         renderSelectedRowInspector();
         refreshRowFillButtons();
-    }
-
-    function renderDataGridPager(pager) {
-        if (!pager) {
-            return "";
-        }
-        const page = pager.page ?? "-";
-        const totalPages = pager.total_pages ?? "-";
-        const totalRows = pager.total_rows ?? 0;
-        return `
-            <div class="tui-datagrid-pager" aria-label="分页">
-                <button type="button" data-page-delta="-1" ${pager.has_previous ? "" : "disabled"}>上一页</button>
-                <span>第 ${escapeHtml(page)} / ${escapeHtml(totalPages)} 页</span>
-                <span>共 ${escapeHtml(totalRows)} 行</span>
-                <button type="button" data-page-delta="1" ${pager.has_next ? "" : "disabled"}>下一页</button>
-            </div>
-        `;
     }
 
     function renderEmptyState(message, guidance, nextSteps = []) {
@@ -1113,114 +1108,4 @@
         const next = Math.max(firstIndex, Math.min(lastIndex, state.selectedRowIndex + delta));
         selectRow(next);
         els.main.querySelector(`[data-row-index="${next}"]`)?.scrollIntoView({ block: "nearest" });
-    }
-
-    async function pageDelta(delta) {
-        if (state.lastPager?.client_side) {
-            if (delta < 0 && !state.lastPager.has_previous) {
-                setStatus("已经是第一页");
-                return;
-            }
-            if (delta > 0 && !state.lastPager.has_next) {
-                setStatus("已经是最后一页");
-                return;
-            }
-            state.clientPage = Math.max(1, state.clientPage + delta);
-            state.selectedRowIndex = (state.clientPage - 1) * state.clientPageSize;
-            drawDataGrid();
-            setStatus(`第 ${state.clientPage} 页`);
-            return;
-        }
-        if (state.pendingController) {
-            setStatus("翻页中，请稍候");
-            return;
-        }
-        if (!state.lastAction || !state.lastPager) {
-            setStatus("当前视图不可翻页");
-            return;
-        }
-        const action = currentAction(state.lastAction);
-        if (!action) {
-            setStatus("任务未找到");
-            return;
-        }
-        if (delta < 0 && !state.lastPager.has_previous) {
-            setStatus("已经是第一页");
-            return;
-        }
-        if (delta > 0 && !state.lastPager.has_next) {
-            setStatus("已经是最后一页");
-            return;
-        }
-        const patch = paginationParamPatch(action, state.lastPager, state.lastParams, delta);
-        if (!patch) {
-            setStatus("当前分页参数不可推断");
-            return;
-        }
-        await runAction(state.lastAction, null, { params: { ...state.lastParams, ...patch } });
-    }
-
-    function paginationParamPatch(action, pager, params, delta) {
-        const pagination = action.pagination || {};
-        const pagerMode = String(pager.pagination_mode || pager.mode || "");
-        const mode = pagination.mode || (pagerMode === "limit_offset" ? "offset" : pagerMode) || inferPaginationMode(action);
-        if (mode === "cursor") {
-            const cursorParam = pagination.cursor_param || firstFieldKey(action, ["cursor", "nextCursor", "next_cursor"]);
-            const cursor = delta > 0
-                ? valueAtPath(pager, pagination.next_cursor_path || "next_cursor")
-                : valueAtPath(pager, pagination.previous_cursor_path || "previous_cursor");
-            return cursorParam && cursor ? { [cursorParam]: cursor } : null;
-        }
-        if (mode === "offset") {
-            const offsetParam = pagination.offset_param || firstFieldKey(action, ["offset", "start"]);
-            const limitParam = pagination.limit_param || firstFieldKey(action, ["limit", "pageSize", "page_size"]);
-            const limit = Number(params[limitParam] || pager.page_size || pager.limit || 10);
-            const current = Number(params[offsetParam] || pager.offset || 0);
-            if (!offsetParam || !Number.isFinite(limit) || !Number.isFinite(current)) {
-                return null;
-            }
-            const nextOffset = Math.max(0, current + (delta * limit));
-            return limitParam ? { [offsetParam]: nextOffset, [limitParam]: limit } : { [offsetParam]: nextOffset };
-        }
-        const pageParam = pagination.page_param || firstFieldKey(action, ["page", "pageNum", "page_num", "pageNo", "page_no"]);
-        const pageSizeParam = pagination.page_size_param || firstFieldKey(action, ["page_size", "pageSize", "limit", "size"]);
-        const current = Number(params[pageParam] || pager.page || 1);
-        if (!pageParam || !Number.isFinite(current)) {
-            return null;
-        }
-        const next = Math.max(1, current + delta);
-        const patch = { [pageParam]: next };
-        const pageSize = Number(params[pageSizeParam] || pager.page_size || pager.pageSize || 0);
-        if (pageSizeParam && Number.isFinite(pageSize) && pageSize > 0) {
-            patch[pageSizeParam] = pageSize;
-        }
-        return patch;
-    }
-
-    function inferPaginationMode(action) {
-        const fields = (action.fields || []).map((field) => String(field.key || ""));
-        if (fields.some((key) => ["cursor", "nextCursor", "next_cursor"].includes(key))) {
-            return "cursor";
-        }
-        if (fields.some((key) => ["offset", "start"].includes(key))) {
-            return "offset";
-        }
-        return "page";
-    }
-
-    function firstFieldKey(action, candidates) {
-        const fields = (action.fields || []).map((field) => String(field.key || ""));
-        return candidates.find((candidate) => fields.includes(candidate)) || candidates[0] || "";
-    }
-
-    function valueAtPath(value, path) {
-        if (!path) {
-            return undefined;
-        }
-        return String(path).split(".").reduce((current, key) => {
-            if (current && Object.prototype.hasOwnProperty.call(current, key)) {
-                return current[key];
-            }
-            return undefined;
-        }, value);
     }

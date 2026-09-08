@@ -1,4 +1,10 @@
     function renderDashboardHome(screenSpec, options = {}) {
+        state.dashboardController?.abort();
+        const dashboardController = new AbortController();
+        state.dashboardController = dashboardController;
+        state.dashboardFilters = options.snapshot?.filters || {};
+        Object.keys(panelPages).forEach(key => delete panelPages[key]);
+        Object.assign(panelPages, options.snapshot?.panelPages || {});
         const screen = screenSpec.screen;
         const panels = screen.dashboard_panels || [];
         const immersiveDashboard = isImmersiveDashboardScreen(screen);
@@ -13,7 +19,9 @@
             <div class="tui-dashboard-grid${layout.contentFlow ? " is-content-flow" : ""}" style="${escapeHtml(layout.gridStyle)}">
                 ${panels.map((panel, index) => `
                     <article class="tui-dash-panel" style="grid-area: ${escapeHtml(layout.areas[index])};" data-dashboard-panel="${escapeHtml(panel.key)}" data-panel-priority="${escapeHtml(panelPriority(panel))}" data-panel-semantic="${escapeHtml(panelPresentationSemantic(panel))}">
-                        ${renderDashboardPanelShell(panel, '<div class="tui-loading">读取业务数据...</div>')}
+                        ${renderDashboardPanelShell(panel, dashboardPanelShouldCollapse(panel)
+                            ? '<div class="tui-panel-caption" data-panel-idle>展开后读取业务数据。</div>'
+                            : '<div class="tui-loading">读取业务数据...</div>')}
                     </article>
                 `).join("")}
             </div>
@@ -45,21 +53,40 @@
             ],
         });
         bindDashboardPanelOpenControls(els.main);
+        bindDashboardFilters(els.main);
         els.main.querySelectorAll("[data-home-action-key]").forEach((button) => {
             button.addEventListener("click", () => executeHomeAction(button.dataset.homeActionKey));
         });
         if (options.suppressAutoActions && !immersiveDashboard) {
             return;
         }
-        const primaryPanels = panels.filter((panel) => panelPriority(panel) === "p0");
-        const deferredPanels = panels.filter((panel) => panelPriority(panel) !== "p0");
-        primaryPanels.forEach((panel) => loadDashboardPanel(panel));
-        const loadDeferredPanels = () => deferredPanels.forEach((panel) => loadDashboardPanel(panel));
-        if (typeof window.requestIdleCallback === "function") {
-            window.requestIdleCallback(loadDeferredPanels, { timeout: dashboardIdleTimeoutMs });
-        } else {
-            window.setTimeout(loadDeferredPanels, 0);
-        }
+        const visiblePanels = panels.filter((panel) => !dashboardPanelShouldCollapse(panel));
+        panels.filter(dashboardPanelShouldCollapse).forEach((panel) => {
+            const disclosure = els.main.querySelector(`[data-dashboard-panel="${CSS.escape(panel.key)}"] details`);
+            let requested = false;
+            disclosure?.addEventListener("toggle", () => {
+                if (disclosure.open && !requested && !dashboardController.signal.aborted) {
+                    requested = true;
+                    loadDashboardPanel(panel);
+                }
+            });
+        });
+        const primaryPanels = visiblePanels.filter((panel) => panelPriority(panel) === "p0");
+        const deferredPanels = visiblePanels.filter((panel) => panelPriority(panel) !== "p0");
+        Promise.all(primaryPanels.map(panel => loadDashboardPanel(panel))).then(async results => {
+            if (dashboardController.signal.aborted) return;
+            if (results.some(Boolean)) markDataReady();
+            if (!options.preserveTaskStatus) setStatus(results.every(Boolean) ? '主任务数据已返回' : '部分主任务数据不可用');
+            for (const panel of deferredPanels) {
+                if (dashboardController.signal.aborted) return;
+                await loadDashboardPanel(panel);
+            }
+            if (!dashboardController.signal.aborted) {
+                const failures = els.main.querySelectorAll('.tui-panel-error').length;
+                if (!options.preserveTaskStatus && !state.currentViewModel) setStatus(failures ? '部分数据不可用，请查看对应面板' : '数据加载完成');
+                if (options.snapshot) els.main.scrollTop = options.snapshot.scrollTop;
+            }
+        });
     }
 
     function dashboardTargetScreen(panel) {
@@ -267,12 +294,24 @@
         if (!container) {
             return;
         }
+        container.panelRequestController?.abort();
+        container.panelRequestController = new AbortController();
+        const signal = state.dashboardController
+            ? AbortSignal.any([state.dashboardController.signal, container.panelRequestController.signal])
+            : container.panelRequestController.signal;
+        const params = state.dashboardFilters[panel.key] || {};
+        const expanded = Boolean(container.querySelector("details")?.open);
+        const restoreDisclosure = () => {
+            const disclosure = container.querySelector("details");
+            if (expanded && disclosure) disclosure.open = true;
+        };
         if (!panel.action_key) {
             container.innerHTML = renderDashboardPanelShell(
                 panel,
                 renderPanelPlaceholder(panel, panel.empty_message || "等待发布数据源。"),
             );
             bindDashboardPanelOpenControls(container);
+            restoreDisclosure();
             return;
         }
         const operatorSectionKey = isOperatorHomeScreen(state.screen?.screen?.key)
@@ -285,7 +324,14 @@
                 renderDashboardActionPrompt(panel, panelAction),
             );
             bindDashboardPanelOpenControls(container);
+            restoreDisclosure();
             return;
+        }
+        const idle = container.querySelector('[data-panel-idle]');
+        if (idle) {
+            idle.className = 'tui-loading';
+            idle.textContent = '读取业务数据...';
+            idle.removeAttribute('data-panel-idle');
         }
         try {
             let viewModel = null;
@@ -295,6 +341,8 @@
                     actionRunUrl,
                     fetchJson,
                     screen: state.screen,
+                    signal,
+                    params,
                 });
                 if (hosted) {
                     viewModel = hosted.view_model || hosted;
@@ -316,11 +364,14 @@
             } else {
                 const result = await fetchJson(actionRunUrl(panel.action_key), {
                     method: "POST",
-                    body: JSON.stringify({ params: {} }),
+                    body: JSON.stringify({ params }),
+                    signal,
                 });
                 viewModel = result.view_model;
                 panelBadge = badgeCountsFromRows(Array.isArray(viewModel?.rows) ? viewModel.rows : []);
             }
+            if (signal?.aborted || !container.isConnected) return;
+            container.panelViewModel = viewModel;
             if (isOperatorHomeScreen(state.screen?.screen?.key)) {
                 state.homePanelBadges[panel.key] = panelBadge;
             }
@@ -328,9 +379,12 @@
                 container.innerHTML = renderDashboardPanelShell(panel, renderDashboardPanelBody(panel, viewModel));
                 bindCopyButtons(container);
                 bindDashboardRowActions(container, panel);
+                bindPanelPagination(container, panel, viewModel);
                 bindDashboardPanelOpenControls(container);
                 processHostSlot(container);
             }
+            restoreDisclosure();
+            bindDashboardFilters(container);
             if (isOperatorHomeScreen(state.screen?.screen?.key)) {
                 const badgeHost = container.querySelector("[data-panel-badge]");
                 if (badgeHost) {
@@ -338,11 +392,60 @@
                 }
             }
             setLastRefresh();
+            return true;
         } catch (error) {
+            if (signal?.aborted || !container.isConnected) return;
             container.innerHTML = renderDashboardPanelShell(panel, renderDashboardPanelError(panel, error));
             bindDashboardPanelOpenControls(container);
             bindDashboardPanelRecovery(container, panel);
+            restoreDisclosure();
+            bindDashboardFilters(container);
+            return false;
         }
+    }
+
+    function dashboardFilterFields(panel) {
+        const action = currentAction(panel.action_key);
+        if (panelPresentationSemantic(panel) !== "primary_list" || !dashboardActionCanAutoRun(action)) return [];
+        const keys = panel.filter_fields || [];
+        return keys.map((key) => (action?.fields || []).find((field) => field.key === key))
+            .filter((field) => field?.presentation_semantic === "primary_selector");
+    }
+
+    function renderDashboardFilters(panel) {
+        const fields = dashboardFilterFields(panel);
+        if (!fields.length) return "";
+        const action = currentAction(panel.action_key);
+        const params = state.dashboardFilters[panel.key] || {};
+        return `<form class="tui-dashboard-filters" data-dashboard-filters="${escapeHtml(panel.key)}">
+            ${fields.map((field) => renderField(
+                { ...action, key: `panel-${panel.key}` },
+                { ...field, default: params[field.key] ?? field.default },
+            )).join("")}
+            <button class="tui-action-submit" type="submit">更新清单</button>
+        </form>`;
+    }
+
+    function bindDashboardFilters(host) {
+        host.querySelectorAll("[data-dashboard-filters]").forEach((form) => {
+            form.addEventListener("submit", (event) => {
+                event.preventDefault();
+                const panel = state.screen.screen.dashboard_panels.find((item) => item.key === form.dataset.dashboardFilters);
+                if (!panel || !form.reportValidity()) return;
+                const params = {};
+                dashboardFilterFields(panel).forEach((field) => {
+                    const input = form.elements.namedItem(field.key);
+                    params[field.key] = coerceFieldValue(field, input.value, input.checked);
+                });
+                state.dashboardFilters[panel.key] = params;
+                delete panelPages[panel.key];
+                const container = form.closest("[data-dashboard-panel]");
+                container.innerHTML = renderDashboardPanelShell(panel, '<div class="tui-loading">正在更新清单...</div>');
+                bindDashboardFilters(container);
+                bindDashboardPanelOpenControls(container);
+                loadDashboardPanel(panel);
+            });
+        });
     }
 
     function renderDashboardPanelShell(panel, body) {
@@ -357,6 +460,7 @@
                 </span>
             </h3>
             ${panel.note ? `<div class="tui-panel-caption">${escapeHtml(panel.note)}</div>` : ""}
+            ${renderDashboardFilters(panel)}
             ${body}
         `;
         if (!dashboardPanelShouldCollapse(panel)) {
@@ -587,13 +691,20 @@
     }
 
     function renderPanelDataGrid(panel, viewModel) {
-        const rows = (viewModel.rows || []).slice(0, Number(panel.max_rows || 8));
+        const filterable = dashboardFilterFields(panel).length > 0;
+        const sourceRows = viewModel.rows || [];
+        const paging = panelPages[panel.key] || { page: 1, size: 20 };
+        const pageCount = Math.max(1, Math.ceil(sourceRows.length / paging.size));
+        paging.page = Math.min(paging.page, pageCount);
+        panelPages[panel.key] = paging;
+        const rows = filterable ? sourceRows.slice((paging.page - 1) * paging.size, paging.page * paging.size)
+            : sourceRows.slice(0, Number(panel.max_rows || 8));
         const panelColumns = Array.isArray(panel.columns) ? panel.columns : [];
         const preferredColumns = panelColumns.filter((column) => rows.some((row) => Object.prototype.hasOwnProperty.call(row, column.key)));
         const sourceColumns = preferredColumns.length ? preferredColumns : (viewModel.columns || []);
-        const columns = sourceColumns.filter((column) => rows.some((row) => Object.prototype.hasOwnProperty.call(row, column.key))).slice(0, 6);
+        const columns = sourceColumns.filter((column) => rows.some((row) => Object.prototype.hasOwnProperty.call(row, column.key))).slice(0, panelColumns.length || 6);
         if (!rows.length || !columns.length) {
-            return renderPanelPlaceholder(panel, panel.empty_message || "暂无表格数据。");
+            return `${filterable ? '<div class="tui-panel-caption" role="status">实际展示 0 条</div>' : ""}${renderPanelPlaceholder(panel, panel.empty_message || "暂无表格数据。")}`;
         }
         const rowActions = Array.isArray(panel.row_actions) ? panel.row_actions : [];
         const headers = columns.map((column) => column.label || column.key);
@@ -601,6 +712,7 @@
             headers.push("操作");
         }
         return `
+            <div class="tui-panel-caption" role="status">${filterable ? `实际展示 ${rows.length} 条 / 已加载 ${sourceRows.length} 条` : `显示前 ${rows.length} 条${viewModel.pager?.total_rows != null ? `，共 ${viewModel.pager.total_rows} 条` : ''}`}</div>
             <div class="tui-table-scroll" tabindex="0" aria-label="${escapeHtml(panel.title || "表格")}">
             <table class="tui-mini-table">
                 <thead><tr>${headers.map((header, index) => `<th class="${rowActions.length && index === headers.length - 1 ? "tui-row-actions-header" : ""}">${escapeHtml(header)}</th>`).join("")}</tr></thead>
@@ -617,6 +729,8 @@
                 </tbody>
             </table>
             </div>
+            ${filterable ? `<div class="tui-datagrid-pager"><label>每页 <select data-panel-page-size aria-label="${escapeHtml(panel.title)}每页条数">${[20,50,100].map(size => `<option value="${size}" ${size === paging.size ? 'selected' : ''}>${size}</option>`).join('')}</select> 条</label><button type="button" data-panel-page-delta="-1" ${paging.page <= 1 ? 'disabled' : ''}>上一页</button><span>第 ${paging.page} / ${pageCount} 页</span><button type="button" data-panel-page-delta="1" ${paging.page >= pageCount ? 'disabled' : ''}>下一页</button></div>` : ''}
+            ${(!filterable && (sourceRows.length > rows.length || viewModel.pager?.has_next)) || (filterable && viewModel.pager?.has_next) ? '<button type="button" data-panel-full-list>查看完整列表</button>' : ''}
         `;
     }
 

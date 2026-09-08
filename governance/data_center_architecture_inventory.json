@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 4462,
+    "current_surface_references": 4466,
     "data_write_task_decorators": 62,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -7441,7 +7441,7 @@
       "text": "\"summary\": advice.summary,"
     },
     {
-      "line": 605,
+      "line": 607,
       "path": "apps/dashboard/infrastructure/repositories.py",
       "text": "\"\"\"Return the latest macro indicator value for one code.\"\"\""
     },
@@ -7451,12 +7451,12 @@
       "text": "\"\"\"Return recommendation history list for the current user.\"\"\""
     },
     {
-      "line": 109,
+      "line": 110,
       "path": "apps/dashboard/interface/alpha_stock_views.py",
       "text": "\"\"\"Trigger a manual realtime Alpha refresh for today's dashboard universe.\"\"\""
     },
     {
-      "line": 358,
+      "line": 359,
       "path": "apps/dashboard/interface/alpha_stock_views.py",
       "text": "\"Failed to trigger alpha realtime refresh: %s\","
     },
@@ -8791,27 +8791,27 @@
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 92,
+      "line": 93,
       "path": "apps/data_center/application/valuation_publication.py",
       "text": "current = self._publications.get_current(self.dataset_key, normalized_key)"
     },
     {
-      "line": 93,
+      "line": 94,
       "path": "apps/data_center/application/valuation_publication.py",
       "text": "if current is not None and current.publication_hash == publication_digest:"
     },
     {
-      "line": 94,
+      "line": 95,
       "path": "apps/data_center/application/valuation_publication.py",
       "text": "member_count_matches = current.member_count == len(references)"
     },
     {
-      "line": 97,
+      "line": 98,
       "path": "apps/data_center/application/valuation_publication.py",
       "text": "persisted_members = member_reader(current.publication_id)"
     },
     {
-      "line": 104,
+      "line": 105,
       "path": "apps/data_center/application/valuation_publication.py",
       "text": "return current"
     },
@@ -8836,12 +8836,12 @@
       "text": "\"summary\": self.summary,"
     },
     {
-      "line": 718,
+      "line": 734,
       "path": "apps/data_center/domain/entities.py",
       "text": "summary: str = \"\""
     },
     {
-      "line": 733,
+      "line": 749,
       "path": "apps/data_center/domain/entities.py",
       "text": "\"summary\": self.summary,"
     },
@@ -8906,12 +8906,12 @@
       "text": "\"\"\"Fetch current valuation coverage through Tencent's batch quote contract.\"\"\""
     },
     {
-      "line": 775,
+      "line": 776,
       "path": "apps/data_center/infrastructure/_provider_adapter_akshare.py",
       "text": "summary=article.content,"
     },
     {
-      "line": 793,
+      "line": 794,
       "path": "apps/data_center/infrastructure/_provider_adapter_akshare.py",
       "text": "summary=article.content,"
     },
@@ -9606,7 +9606,7 @@
       "text": "status=str(summary[\"status\"]),"
     },
     {
-      "line": 330,
+      "line": 296,
       "path": "apps/data_center/infrastructure/fact_and_operational_models.py",
       "text": "summary = models.TextField(blank=True)"
     },
@@ -10061,12 +10061,12 @@
       "text": "\"\"\"Return SSE MDATE query months, allowing current-year publication lag.\"\"\""
     },
     {
-      "line": 74,
+      "line": 76,
       "path": "apps/data_center/infrastructure/valuation_fact_repository.py",
       "text": "value = ValuationFactModel._default_manager.aggregate(latest=Max(\"val_date\"))[\"latest\"]"
     },
     {
-      "line": 166,
+      "line": 178,
       "path": "apps/data_center/infrastructure/valuation_fact_repository.py",
       "text": "\"\"\"Select the latest deterministic valuation fact for every asset.\"\"\""
     },
@@ -10786,7 +10786,17 @@
       "text": "\"dividend_yield\": safe_float(latest.get(\"dv_ratio\"), default=None),"
     },
     {
-      "line": 192,
+      "line": 187,
+      "path": "apps/equity/application/query_services.py",
+      "text": "source_updated_at = latest.get(\"observed_at\")"
+    },
+    {
+      "line": 190,
+      "path": "apps/equity/application/query_services.py",
+      "text": "fetched_at = latest.get(\"fetched_at\")"
+    },
+    {
+      "line": 230,
       "path": "apps/equity/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
@@ -11306,7 +11316,7 @@
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 691,
+      "line": 708,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "publication_key: str = \"current\","
     },
@@ -20671,27 +20681,27 @@
       "text": "\"\"\"Raised when the current user is outside a screen's audience.\"\"\""
     },
     {
-      "line": 96,
+      "line": 100,
       "path": "apps/terminal/application/tui_metadata.py",
       "text": "_require_fields(module, \"module\", (\"key\", \"label\", \"group\", \"summary\"))"
     },
     {
-      "line": 105,
+      "line": 109,
       "path": "apps/terminal/application/tui_metadata.py",
       "text": "screen, \"screen\", (\"key\", \"label\", \"module_key\", \"group\", \"summary\", \"view_type\")"
     },
     {
-      "line": 985,
+      "line": 965,
       "path": "apps/terminal/application/tui_metadata.py",
       "text": "summary = str(screen.get(\"summary\") or \"\").strip()"
     },
     {
-      "line": 991,
+      "line": 971,
       "path": "apps/terminal/application/tui_metadata.py",
       "text": "\"primary_task\": str(existing.get(\"primary_task\") or summary or label).strip(),"
     },
     {
-      "line": 995,
+      "line": 975,
       "path": "apps/terminal/application/tui_metadata.py",
       "text": "or summary"
     },
@@ -20856,12 +20866,12 @@
       "text": "\"agent-runtime.operator-summary\","
     },
     {
-      "line": 303,
+      "line": 307,
       "path": "apps/terminal/application/tui_workbench.py",
       "text": "\"body\": self._operator_text(screen[\"summary\"]),"
     },
     {
-      "line": 909,
+      "line": 916,
       "path": "apps/terminal/application/tui_workbench.py",
       "text": "\"\"\"Return whether an action belongs to the current user's role.\"\"\""
     },
@@ -20916,22 +20926,22 @@
       "text": "\"objective\": str(screen.get(\"summary\") or screen.get(\"label\") or \"\"),"
     },
     {
-      "line": 366,
+      "line": 377,
       "path": "apps/terminal/application/tui_workbench_collection_result_models.py",
       "text": "\"summary\": \"查看当前市场环境、政策档位和基础行动边界。\","
     },
     {
-      "line": 370,
+      "line": 381,
       "path": "apps/terminal/application/tui_workbench_collection_result_models.py",
       "text": "\"summary\": \"检查系统健康、就绪状态和基础运行情况。\","
     },
     {
-      "line": 374,
+      "line": 385,
       "path": "apps/terminal/application/tui_workbench_collection_result_models.py",
       "text": "\"summary\": \"查看市场温度、风险区间和过热提示。\","
     },
     {
-      "line": 380,
+      "line": 391,
       "path": "apps/terminal/application/tui_workbench_collection_result_models.py",
       "text": "\"summary\": curated.get(\"summary\") or self._clean_operator_text(row.get(\"summary\")),"
     },
@@ -21796,6 +21806,16 @@
       "text": "\"\"\"Port for the latest observable market price.\"\"\""
     },
     {
+      "line": 77,
+      "path": "apps/valuation/domain/rules.py",
+      "text": "may omit it and use the current UTC clock."
+    },
+    {
+      "line": 265,
+      "path": "apps/valuation/domain/rules.py",
+      "text": "\"\"\"Require a bounded, aware, current source observation for fact decisions.\"\"\""
+    },
+    {
       "line": 30,
       "path": "apps/valuation/infrastructure/providers.py",
       "text": "\"\"\"Decision-safe latest-price boundary owned by data_center.\"\"\""
@@ -21811,7 +21831,7 @@
       "text": "\"\"\"Return normalized recent facts only after the current publication gate.\"\"\""
     },
     {
-      "line": 197,
+      "line": 204,
       "path": "apps/valuation/infrastructure/providers.py",
       "text": "or freshness not in {\"realtime\", \"close_fallback\"}"
     },

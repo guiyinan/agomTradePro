@@ -80,7 +80,7 @@
         "primary_task": "判断今天是否继续投研，以及最先处理哪项任务。",
         "primary_outcome": "明确今日主线、阻断点和下一工作区。",
         "empty_state_hint": "暂无待办时先检查环境与账户摘要。",
-        "next_step_hint": "进入环境与脉搏，开始每日决策链。"
+        "next_step_hint": "继续浏览环境与脉搏；是否可以推进决策，请以业务约束结果为准。"
       },
       "business_context": {
         "objective": "用一屏建立今日决策上下文。",
@@ -330,7 +330,7 @@
         "primary_task": "确认当前宏观象限、战术脉搏与A股情绪。",
         "primary_outcome": "形成当天 Beta 市场态势判断。",
         "empty_state_hint": "无数据时检查数据新鲜度与同步状态。",
-        "next_step_hint": "进入 Beta 态势与 Alpha 选股查看今天的股票清单。"
+        "next_step_hint": "继续浏览政策与热点；是否可以推进决策，请以业务约束结果为准。"
       },
       "business_context": {
         "objective": "形成无后视偏差的环境判断。",
@@ -446,7 +446,7 @@
         "primary_task": "确认政策档位与待处理政策事件。",
         "primary_outcome": "形成政策上下文和待审清单。",
         "empty_state_hint": "暂无政策事件时检查采集状态。",
-        "next_step_hint": "进入每日决策流形成建议。"
+        "next_step_hint": "继续浏览每日决策流；是否可以推进决策，请以业务约束结果为准。"
       },
       "business_context": {
         "objective": "把政策事实转成可审阅上下文。",
@@ -555,7 +555,7 @@
         "primary_task": "形成今日决策建议或执行计划。",
         "primary_outcome": "得到可解释、可证伪的行动结论。",
         "empty_state_hint": "上下文不足时按提示补齐环境、信号或账户信息。",
-        "next_step_hint": "进入信号与候选核对标的。"
+        "next_step_hint": "继续浏览Beta 态势与 Alpha 选股；是否可以推进决策，请以业务约束结果为准。"
       },
       "business_context": {
         "objective": "汇总决策证据并形成行动建议。",
@@ -623,7 +623,7 @@
         "primary_task": "先确认 Beta 市场态势，再筛出今天最值得研究的 Alpha 股票。",
         "primary_outcome": "得到市场参与结论、Alpha 股票清单及每只股票的入选或阻断理由。",
         "empty_state_hint": "无候选时先看 Beta 数据可用性，再检查 Alpha 评分日、股票池和触发条件。",
-        "next_step_hint": "仅对通过 Beta 与风控约束的股票进入账户和持仓检查。"
+        "next_step_hint": "继续浏览账户与持仓；是否可以推进决策，请以业务约束结果为准。"
       },
       "business_context": {
         "objective": "把 Beta 市场态势与 Alpha 横截面选股收敛为一条可解释判断链。",
@@ -715,7 +715,7 @@
         "primary_task": "确认账户健康、持仓和组合状态。",
         "primary_outcome": "得到执行前账户与仓位结论。",
         "empty_state_hint": "无账户数据时先完成账户初始化或授权。",
-        "next_step_hint": "进入策略与风控确认约束。"
+        "next_step_hint": "继续浏览策略与风控；是否可以推进决策，请以业务约束结果为准。"
       },
       "business_context": {
         "objective": "在行动前检查资金、持仓与组合。",
@@ -801,7 +801,7 @@
         "primary_task": "确认市场暴露是否放行以及当前主动风控约束。",
         "primary_outcome": "得到策略、仓位、对冲与风险边界。",
         "empty_state_hint": "无决策时先检查 Beta Gate 配置和风控策略。",
-        "next_step_hint": "进入事件与复盘完成留痕。"
+        "next_step_hint": "继续浏览事件与复盘；是否可以推进决策，请以业务约束结果为准。"
       },
       "business_context": {
         "objective": "把策略选择限制在当前风险边界内。",

@@ -737,6 +737,7 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 market_cap=snapshot.market_cap,
                 float_market_cap=snapshot.float_market_cap,
                 source=snapshot.source,
+                observed_at=snapshot.observed_at,
                 extra=self._provider_extra(
                     {
                         "actual_source": snapshot.source,

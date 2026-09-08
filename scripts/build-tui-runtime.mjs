@@ -27,9 +27,11 @@ const targets = [
 const workbenchSegments = [
     "frontend/tui-workbench/src/00-runtime.js",
     "frontend/tui-workbench/src/10-navigation.js",
+    "frontend/tui-workbench/src/15-workspace-state.js",
     "frontend/tui-workbench/src/20-dashboard.js",
     "frontend/tui-workbench/src/30-actions.js",
     "frontend/tui-workbench/src/40-views.js",
+    "frontend/tui-workbench/src/45-pagination.js",
     "frontend/tui-workbench/src/50-shell.js",
 ];
 const workbenchOutfile = resolve(root, "static/js/tui-workbench.js");
