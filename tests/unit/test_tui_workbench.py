@@ -355,7 +355,7 @@ def test_tui_workbench_page_exposes_pc_tools_interaction_shell(client, tui_user)
     assert "<strong>F1</strong> 帮助" in html
     assert "<strong>F3</strong> 上屏" in html
     assert "<strong>F4</strong> 下屏" in html
-    assert "<strong>F6</strong> 下一项" in html
+    assert "<strong>F6</strong> 执行下一任务" in html
     assert "<strong>F9</strong> 任务" in html
     assert "<strong>Alt+A</strong>" not in html
     assert "<strong>Alt+F</strong>" not in html
@@ -3182,12 +3182,18 @@ def test_tui_research_asset_lab_screen_returns_overview_panels(client, tui_user)
     assert payload["screen"]["chrome_mode"] == ""
     assert payload["screen"]["default_action_key"] == "asset-analysis.pool-summary"
     panels = payload["screen"]["dashboard_panels"]
-    assert [panel["action_key"] for panel in panels] == [
+    assert [panel["action_key"] for panel in panels if panel["action_key"]] == [
         "asset-analysis.pool-summary",
         "backtest.summary",
         "backtest.list",
     ]
-    assert [panel["kind"] for panel in panels] == ["detail", "detail", "datagrid"]
+    assert [panel["kind"] for panel in panels if panel["action_key"]] == [
+        "detail",
+        "detail",
+        "datagrid",
+    ]
+
+    assert panels[-1]["key"] == "operation-receipt"
 
 
 def test_tui_beta_gate_screen_returns_overview_panels(client, tui_user):
@@ -3201,7 +3207,7 @@ def test_tui_beta_gate_screen_returns_overview_panels(client, tui_user):
     assert payload["screen"]["default_action_key"] == "beta-gate.decision-list"
     panels = payload["screen"]["dashboard_panels"]
     action_keys = [action["key"] for action in payload["actions"]]
-    assert [panel["action_key"] for panel in panels] == [
+    assert [panel["action_key"] for panel in panels if panel["action_key"]] == [
         "beta-gate.decision-list",
         "beta-gate.config-list",
         "rotation.asset-list",
@@ -3214,6 +3220,8 @@ def test_tui_beta_gate_screen_returns_overview_panels(client, tui_user):
         "beta-gate.decision-list",
         "hedge.alert-active",
     }
+
+    assert panels[-1]["key"] == "operation-receipt"
 
 
 def test_tui_data_center_screen_returns_overview_panels(client, tui_admin_user):
@@ -3291,7 +3299,7 @@ def test_tui_alpha_triggers_screen_returns_overview_panels(client, tui_user):
     payload = response.json()
     assert payload["screen"]["default_action_key"] == "dashboard.beta-market-summary"
     panels = payload["screen"]["dashboard_panels"]
-    assert [panel["action_key"] for panel in panels] == [
+    assert [panel["action_key"] for panel in panels if panel["action_key"]] == [
         "dashboard.beta-market-summary",
         "dashboard.alpha-ranking",
         "alpha-trigger.candidate-actionable",
@@ -3299,6 +3307,8 @@ def test_tui_alpha_triggers_screen_returns_overview_panels(client, tui_user):
     ]
     action_keys = [action["key"] for action in payload["actions"]]
     assert "auto.api.get.api.alpha-triggers" in action_keys
+
+    assert panels[-1]["key"] == "operation-receipt"
 
 
 def test_tui_pulse_and_hedge_screens_return_overview_panels(client, tui_user):
@@ -3321,7 +3331,7 @@ def test_tui_pulse_and_hedge_screens_return_overview_panels(client, tui_user):
         "data_center.market_thermometer",
         "pulse.history",
     ]
-    assert [panel["action_key"] for panel in hedge_panels] == [
+    assert [panel["action_key"] for panel in hedge_panels if panel["action_key"]] == [
         "beta-gate.decision-list",
         "beta-gate.config-list",
         "rotation.asset-list",
@@ -3330,6 +3340,8 @@ def test_tui_pulse_and_hedge_screens_return_overview_panels(client, tui_user):
         "rotation.account-config-list",
         "hedge.alert-active",
     ]
+
+    assert hedge_panels[-1]["key"] == "operation-receipt"
 
 
 def test_tui_business_labels_do_not_leak_endpoint_generated_words(client, tui_user):
@@ -4261,6 +4273,59 @@ def test_tui_service_action_runner_wraps_list_as_datagrid(tui_user):
     assert payload["view_model"]["columns"][0]["key"] == "code"
     assert payload["view_model"]["pager"]["total_rows"] == 2
     assert payload["response"]["status_code"] == 200
+
+
+def test_tui_unpaged_collection_retains_all_rows_for_client_pagination(tui_user):
+    class Executor:
+        def execute(self, **kwargs):
+            return {"status_code": 200, "payload": [{"code": str(i)} for i in range(45)]}
+
+    action = {
+        "key": "asset.list",
+        "label": "资产列表",
+        "method": "GET",
+        "endpoint": "/api/asset-analysis/pool-summary/",
+        "intent": "list_assets",
+        "screen_key": "command-center.overview",
+        "module_key": "command-center",
+        "view_type": "datagrid",
+        "risk": "read",
+        "fields": [],
+    }
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(_metadata_payload(actions=[action])),
+        action_executor=Executor(),
+    )
+    model = service.run_action(action_key="asset.list", params={}, user=tui_user)["view_model"]
+    assert [row["code"] for row in model["rows"]] == [str(i) for i in range(45)]
+    assert model["pager"]["client_side"] is True
+    assert model["pager"]["total_rows"] == 45
+
+
+@pytest.mark.parametrize(
+    "owner_payload,expected",
+    [
+        ({"outcome": "blocked"}, "blocked"),
+        ({"outcome": "partial"}, "partial"),
+        ({"data": {"outcome": "failed"}}, "failed"),
+        ({"success": False}, "failed"),
+        ({"outcome": "noop"}, "noop"),
+    ],
+)
+def test_tui_result_retains_owner_outcome_on_successful_transport(
+    tui_user, owner_payload, expected
+):
+    class Executor:
+        def execute(self, **kwargs):
+            return {"status_code": 200, "payload": owner_payload}
+
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(_metadata_payload()),
+        action_executor=Executor(),
+    )
+    result = service.run_action(action_key="sample.list", params={}, user=tui_user)
+    assert result["response"]["status_code"] == 200
+    assert result["outcome"] == expected
 
 
 def test_tui_service_action_runner_honors_explicit_datagrid_columns(tui_user):

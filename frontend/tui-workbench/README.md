@@ -6,9 +6,11 @@ Source ownership:
 
 - `00-runtime.js`: shared state, persistence, request coordination, errors, and runtime integration.
 - `10-navigation.js`: catalog, screen entry, user-experience metadata, and workflow navigation.
+- `15-workspace-state.js`: safe session-local state restoration and read-only run observation.
 - `20-dashboard.js`: dashboard layout, panels, semantic detail rendering, and panel actions.
 - `30-actions.js`: action grouping, forms, row parameter mapping, action execution, and dashboard result coordination.
 - `40-views.js`: view-model rendering, grids, charts, inspectors, pagination, and export-ready data handling.
+- `45-pagination.js`: list/panel paging controls and retained-table query recovery.
 - `50-shell.js`: modal flows, shell commands, focus/resize behavior, keyboard controls, and bootstrap.
 
 Do not edit the generated static bundle directly. Update the owning source segment, run the focused tests, then run `npm run build:tui` and `npm run check:tui`.

@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TUI Workbench - AgomTradePro</title>
-    <link rel="stylesheet" href="{% static 'css/tui-workbench.css' %}?v=tui-selectors-20260908-1">
+    <link rel="stylesheet" href="{% static 'css/tui-workbench.css' %}?v=tui-ux-20260908-2">
 </head>
 <body>
     <div
@@ -31,7 +31,7 @@
 
         <section class="tui-system-strip" aria-label="System status">
             <div class="tui-system-primary">
-                <span>工作台: <strong class="tui-green">已就绪</strong></span>
+                <span>工作台: <strong class="tui-green">界面已载入</strong></span>
                 <span>用户: {{ request.user.username }}</span>
             </div>
             <div class="tui-system-location">
@@ -117,7 +117,7 @@
         <section class="tui-status-strip">
             <span>状态: <strong data-workbench-status>就绪</strong></span>
             <span data-pager-status hidden></span>
-            <span>上次刷新: <strong data-last-refresh>--:--:--</strong></span>
+            <span>最近收到数据: <strong data-last-refresh>--:--:--</strong></span>
             <span>原始响应: <strong>调试入口</strong></span>
         </section>
 
@@ -127,10 +127,10 @@
             <span><strong>F3</strong> 上屏</span>
             <span><strong>F4</strong> 下屏</span>
             <span><strong>F5</strong> 刷新</span>
-            <span><strong>F6</strong> 下一项</span>
+            <span><strong>F6</strong> 执行下一任务</span>
             <span><strong>F9</strong> 任务</span>
             <span data-theme-indicator><strong>ALT+T</strong> <bdi data-theme-indicator-code>T:B</bdi></span>
-            <span><strong>Esc</strong> 返回</span>
+            <span><strong>Esc</strong> 关闭浮层</span>
             <a class="tui-function-link" href="/dashboard/" title="打开经典 Dashboard"><strong>Classic</strong> 界面</a>
             <a class="tui-function-link tui-function-link--cli" href="/terminal/" target="_blank" rel="noopener noreferrer" title="在新标签页打开 CLI 系统"><strong>CLI</strong> 系统</a>
         </footer>
@@ -138,6 +138,6 @@
 
     <script src="{% static 'js/agomtui-runtime-core.js' %}?v=agomtui-design-review-20260725-2"></script>
     <script src="{% static 'js/tui-agomtradepro-adapter.js' %}?v=tux05-presentation-20260828-1"></script>
-    <script src="{% static 'js/tui-workbench.js' %}?v=tui-selectors-20260908-1"></script>
+    <script src="{% static 'js/tui-workbench.js' %}?v=tui-ux-20260908-2"></script>
 </body>
 </html>

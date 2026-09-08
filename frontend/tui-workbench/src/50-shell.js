@@ -208,6 +208,7 @@
         `).join("");
         const targetScreen = String(row?.target_screen || "").trim();
         const targetActionKey = String(row?.target_action_key || "").trim();
+        const sourceRow = rowContextWithSource(row);
         const canDrillDown = Boolean(targetScreen || targetActionKey);
         showModal(
             `第 ${state.selectedRowIndex + 1} 行`,
@@ -226,9 +227,13 @@
             if (!nextScreen) {
                 return;
             }
-            await loadScreen(nextScreen);
+            const loaded = await loadScreen(nextScreen, { suppressAutoAction: true, skipRestoreAction: true });
+            if (!loaded) return;
             if (targetActionKey && currentAction(targetActionKey)) {
-                runAction(targetActionKey, null, { params: {} });
+                const action = currentAction(targetActionKey);
+                revealTaskWithParams(action, paramsFromRowForAction(sourceRow, action));
+            } else if (targetActionKey) {
+                setStatus('目标任务不可用，请在当前工作区选择可用任务');
             }
         });
         setStatus("行详情");
@@ -279,6 +284,7 @@
         }
         els.filterBar.hidden = false;
         els.filterInput.value = state.filterText;
+        els.filterInput.placeholder = state.currentViewModel.pager && !state.currentViewModel.pager.client_side ? '筛选当前页，其他页不在筛选范围' : '筛选已加载记录';
         els.filterInput.focus();
         els.filterInput.select();
         setStatus("筛选就绪");
@@ -331,10 +337,19 @@
     }
 
     async function refreshCurrent() {
+        if (state.currentViewModel?.queued_run) {
+            await refreshQueuedObservation(state.currentViewModel);
+            return;
+        }
         const lastAction = state.lastAction ? currentAction(state.lastAction) : null;
-        const isWriteAction = ["write", "admin"].includes(String(lastAction?.risk || "").toLowerCase());
-        if (lastAction && !isWriteAction) {
-            await runAction(state.lastAction, null, { params: { ...state.lastParams } });
+        if (isPassiveRead(lastAction)) {
+            if (state.currentViewModel?.kind === 'datagrid') {
+                captureWorkspace();
+                state.pendingGridRestore = workspaceStates.get(state.screen.screen.key);
+            }
+            await runAction(state.lastAction, null, { params: { ...state.lastParams }, preserveGrid: state.currentViewModel?.kind === 'datagrid' });
+        } else if (lastAction && String(lastAction.risk) === 'ai') {
+            setStatus('当前结果没有可读取的运行状态；再次执行请使用任务按钮');
         } else if (state.screen?.screen?.key) {
             await loadScreen(state.screen.screen.key);
         } else {
@@ -566,10 +581,10 @@
     }
 
     function screenCompletedSet(screenKey = state.screen?.screen?.key) {
-        const key = screenKey || "";
-        if (!key) {
+        if (!screenKey) {
             return new Set();
         }
+        const key = `${screenKey}:${new Date().toLocaleDateString('en-CA')}`;
         if (!state.completedActionsByScreen[key]) {
             state.completedActionsByScreen[key] = new Set();
         }
@@ -580,8 +595,15 @@
         return screenCompletedSet().has(actionKey);
     }
 
-    function markActionCompleted(action) {
+    function markActionCompleted(action, result = {}) {
         if (!action || actionTier(action) !== "primary") {
+            return;
+        }
+        const outcome = result.outcome || result.view_model?.outcome;
+        if (result.view_model?.queued_run || ['blocked','failed','partial'].includes(outcome)
+            || Number(result.response?.status_code || 200) >= 400) {
+            screenCompletedSet(action.screen_key).delete(action.key);
+            persistProgress();
             return;
         }
         screenCompletedSet(action.screen_key).add(action.key);
@@ -600,7 +622,7 @@
             setStatus("没有可重置的工作区");
             return;
         }
-        state.completedActionsByScreen[screenKey] = new Set();
+        screenCompletedSet(screenKey).clear();
         persistProgress();
         if (!isImmersiveDashboardScreen(state.screen?.screen)) {
             refreshRenderedActionPanel(state.screen.actions || [], state.screen.screen);
@@ -621,7 +643,7 @@
         }
         const action = nextPrimaryAction();
         if (!action) {
-            setStatus("本屏主流程已完成");
+            setStatus("本次主任务均已操作，请以业务结果为准");
             return;
         }
         const form = els.actions.querySelector(`[data-action-ui-key="${CSS.escape(actionUiKey(action))}"]`);
@@ -991,8 +1013,7 @@
                         if (requestedScreen && payload.resolved_screen !== requestedScreen) {
                             setStatus("上次工作区已不可用，已返回首页");
                         }
-                        runtimeCore.mark?.("p0-ready");
-                        runtimeCore.measure?.("bootstrap-to-p0", "bootstrap-start", "p0-ready");
+                        runtimeCore.mark?.("shell-ready");
                         return;
                     }
                 } catch (optimizedError) {
@@ -1019,8 +1040,7 @@
                     : "上次工作区已不可用，已返回首页");
                 await loadScreen(catalog.default_screen, { replaceHistory: true });
             }
-            runtimeCore.mark?.("p0-ready");
-            runtimeCore.measure?.("bootstrap-to-p0", "bootstrap-start", "p0-ready");
+            runtimeCore.mark?.("shell-ready");
         } catch (error) {
             els.moduleTree.innerHTML = '<div class="tui-error">导航暂时不可用</div>';
             renderBoundedApplicationError(error);

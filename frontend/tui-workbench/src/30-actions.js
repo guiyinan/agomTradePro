@@ -47,7 +47,7 @@
             <div class="tui-action-brief">
                 <div>
                     <strong>${escapeHtml((screen && screen.label) || "当前工作区")}</strong>
-                    <span data-action-summary>主流程 ${progress.completed}/${progress.total} / 操作 ${summary.operation} / 支撑 ${summary.support} / 高级 ${summary.advanced}</span>
+                    <span data-action-summary>本次已操作 ${progress.completed}/${progress.total} / 操作 ${summary.operation} / 支撑 ${summary.support} / 高级 ${summary.advanced}</span>
                 </div>
                 <label class="tui-action-filter">
                     <span>任务</span>
@@ -150,7 +150,7 @@
         const progress = screenProgress(actions);
         const summaryHost = els.actions.querySelector("[data-action-summary]");
         if (summaryHost) {
-            summaryHost.textContent = `主流程 ${progress.completed}/${progress.total} / 操作 ${summary.operation} / 支撑 ${summary.support} / 高级 ${summary.advanced}${filterNeedle ? ` / 匹配 ${visibleCount}` : ""}`;
+            summaryHost.textContent = `本次已操作 ${progress.completed}/${progress.total} / 操作 ${summary.operation} / 支撑 ${summary.support} / 高级 ${summary.advanced}${filterNeedle ? ` / 匹配 ${visibleCount}` : ""}`;
         }
         const empty = els.actions.querySelector("[data-action-filter-empty]");
         if (empty) {
@@ -708,6 +708,8 @@
     }
 
     async function loadScreen(screenKey, options = {}) {
+        if (!options.skipCapture) captureWorkspace();
+        els.main.removeAttribute('aria-busy');
         state.dashboardController?.abort();
         const controller = new AbortController();
         const requestId = startPendingRequest(controller);
@@ -725,10 +727,20 @@
                 state.operatorHomePayload = null;
                 state.operatorHomePromise = null;
             }
+            const snapshot = !options.deepLinkedActionKey ? workspaceStates.get(screenSpec.screen.key) : null;
             renderScreen(screenSpec, {
                 ...options,
-                suppressAutoAction: Boolean(options.deepLinkedActionKey) || options.suppressAutoAction,
+                snapshot,
+                suppressAutoAction: Boolean(options.deepLinkedActionKey) || options.suppressAutoAction || Boolean(snapshot?.actionKey || snapshot?.queued),
             });
+            restoreWorkspaceForms(snapshot);
+            if (!options.skipRestoreAction && snapshot?.actionKey && isPassiveRead(currentAction(snapshot.actionKey))) {
+                state.pendingGridRestore = snapshot;
+                runAction(snapshot.actionKey, null, { params: snapshot.params });
+            } else if (!options.skipRestoreAction && snapshot?.queued) {
+                renderViewModel(snapshot.queued);
+                refreshQueuedObservation(snapshot.queued);
+            }
             focusDeepLinkedAction(screenSpec, options.deepLinkedActionKey || "");
             if (!options.suppressHistory) {
                 syncBrowserScreenLocation(screenSpec?.screen?.key || screenKey, {
@@ -862,6 +874,7 @@
                 return;
             }
             const nextViewModel = queuedViewModelWithSnapshot(viewModel, queuedRun, status, events);
+            if (!isLatestRequest(requestId)) return;
             state.currentViewModel = nextViewModel;
             renderViewModel(nextViewModel);
             if (QUEUED_TERMINAL_STATUSES.has(status)) {
@@ -883,6 +896,9 @@
             return;
         }
         const actualActionKey = action.key;
+        const previousParams = state.lastParams;
+        const previousSelection = state.selectedRowIndex;
+        const retainedGrid = options.preserveGrid && state.currentViewModel?.kind === 'datagrid';
         if (isHomeClientAction(actualActionKey)) {
             executeHomeAction(actualActionKey);
             return;
@@ -905,6 +921,7 @@
                     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
                 params.client_request_id = `request-tui-${suffix}`;
             }
+            if (!retainedGrid) invalidateOperationContext(action, params);
             state.lastAction = actualActionKey;
             state.lastParams = params;
             state.selectedRowIndex = 0;
@@ -916,6 +933,8 @@
                     options.dashboardResultPanelMarkup = dashboardPanelMarkup(dashboardResultPanelKey);
                 }
                 renderDashboardActionLoading(dashboardResultPanelKey, action);
+            } else if (retainedGrid) {
+                setGridUpdating(true);
             } else if (!options.dashboardPanelKey && !isTargetedDashboardAction) {
                 renderActionLoadingState(action, state.screen);
                 scheduleSlowActionState(requestId, action);
@@ -969,7 +988,7 @@
                 setStatus("等待验密");
                 return;
             }
-            markActionCompleted(action);
+            if (!retainedGrid) markActionCompleted(action, result);
             state.lastRaw = result.debug?.raw_response ?? null;
             if (isTargetedDashboardAction) {
                 if (hasDashboardResultTarget) {
@@ -979,7 +998,7 @@
                     await refreshDashboardPanel(dashboardRefreshPanelKey);
                 }
                 updateRawDrawer();
-                setStatus(hasDashboardRefreshTarget ? "操作完成，治理工作区已更新" : "详情已在当前页面打开");
+                setStatus(hasDashboardRefreshTarget ? "结果已返回，治理工作区已更新" : "详情已在当前页面打开");
                 refreshGovernanceBadges();
                 return;
             }
@@ -993,7 +1012,10 @@
             if (!isImmersiveDashboardScreen(state.screen?.screen)) {
                 refreshRenderedActionPanel(state.screen.actions || [], state.screen.screen);
             }
+            if (retainedGrid) setGridUpdating(false);
             renderViewModel(result.view_model);
+            if (retainedGrid) els.main.querySelector('.tui-datagrid')?.focus({ preventScroll: true });
+            markDataReady();
             renderResultInspector(result, result.view_model);
             const hasQueuedRun = Boolean(result.view_model?.queued_run);
             if (hasQueuedRun) {
@@ -1004,7 +1026,7 @@
                 const confirmedMutation = Boolean(options.confirmed);
                 setStatus(confirmedMutation ? "操作完成" : "读取完成");
             }
-            refreshGovernanceBadges();
+            if (!retainedGrid) refreshGovernanceBadges();
         } catch (error) {
             if (!isLatestRequest(requestId)) {
                 return;
@@ -1014,6 +1036,14 @@
                 return;
             }
             clearPendingRequest();
+            if (retainedGrid) {
+                const retryParams = { ...state.lastParams };
+                state.lastParams = previousParams;
+                state.selectedRowIndex = previousSelection;
+                state.pendingGridRestore = null;
+                renderGridFailure(retryParams);
+                return;
+            }
             const dashboardResultPanelKey = String(options.dashboardResultPanelKey || "").trim();
             if (dashboardResultPanelKey) {
                 renderDashboardActionError(dashboardResultPanelKey, error);

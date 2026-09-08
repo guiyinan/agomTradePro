@@ -11,6 +11,191 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const bundlePath = resolve(root, "static/js/tui-workbench.js");
 const cssPath = resolve(root, "static/css/tui-workbench.css");
 
+test("UX summary full-list entry returns to the overview", async () => {
+    const summaryScreen = structuredClone(dashboardScreen);
+    summaryScreen.actions = [action('test.list')];
+    summaryScreen.screen.dashboard_panels = [{ key: 'summary', title: '摘要清单', kind: 'datagrid', action_key: 'test.list', user_priority: 'p0', presentation_semantic: 'primary_list', max_rows: 8 }];
+    const { browser, page } = await openHarness('https://app.test/?screen=test.dashboard', { dashboardScreen: summaryScreen, waitForInitialRows: false });
+    try {
+        await page.locator('[data-panel-full-list]').click();
+        await page.locator('.tui-datagrid').waitFor();
+        await page.locator('[data-return-dashboard]').click();
+        await page.locator('[data-dashboard-panel="summary"]').waitFor();
+        assert.equal(await page.locator('[data-dashboard-panel="summary"] tbody tr').count(), 8);
+    } finally { await browser.close(); }
+});
+
+test("UX blocked business outcome removes the operated checklist mark", async () => {
+    const { browser, page } = await openHarness();
+    try {
+        await page.route('**/actions/test.list/run/', async route => {
+            const result = listResult(); result.outcome = 'blocked';
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(result) });
+        });
+        await page.locator('form[data-action-ui-key="test.list"] .tui-action-button').click();
+        await page.waitForFunction(() => !document.querySelector('form[data-action-ui-key="test.list"]').classList.contains('is-completed'));
+        assert.match(await page.locator('[data-action-summary]').innerText(), /本次已操作 0/);
+    } finally { await browser.close(); }
+});
+
+test("UX row task navigation prefills the object without submitting a write", async () => {
+    const { browser, page } = await openHarness();
+    let writes = 0;
+    page.on('request', request => { if (request.url().includes('/actions/test.edit/run/')) writes++; });
+    try {
+        await page.route('**/actions/test.list/run/', async route => {
+            const result = listResult();
+            result.view_model.rows = [{ code: 'asset-A', target_screen: 'test.grid', target_action_key: 'test.edit' }];
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(result) });
+        });
+        await page.keyboard.press('F5');
+        await page.getByText('asset-A', { exact: true }).first().waitFor();
+        await page.locator('[data-row-index="0"]').dblclick();
+        await page.locator('[data-row-target-screen]').click();
+        const input = page.locator('form[data-action-ui-key="test.edit"] [name="code"]');
+        await input.waitFor();
+        assert.equal(await input.inputValue(), 'asset-A');
+        assert.equal(writes, 0);
+    } finally { await browser.close(); }
+});
+
+test("UX candidate count is independent of page size and preserves every loaded row", async () => {
+    const candidateScreen = structuredClone(dashboardScreen);
+    candidateScreen.actions = [action('test.list', { fields: [{ key: 'top_n', label: '候选数量', input_type: 'select', options: ['45'], default: '45', presentation_semantic: 'primary_selector' }] })];
+    candidateScreen.screen.dashboard_panels = [{ key: 'candidates', title: '候选清单', kind: 'datagrid', action_key: 'test.list', filter_fields: ['top_n'], user_priority: 'p0', presentation_semantic: 'primary_list' }];
+    const { browser, page } = await openHarness('https://app.test/', { dashboardScreen: candidateScreen });
+    let requests = 0;
+    try {
+        await page.route('**/actions/test.list/run/', async route => {
+            requests++;
+            if (requests === 2) {
+                await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ title: '暂时不可用' }) });
+                return;
+            }
+            const result = listResult(); result.view_model.rows = result.view_model.rows.slice(0, 45);
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(result) });
+        });
+        await page.locator('[data-current-location]').fill('screen:test.dashboard');
+        await page.locator('[data-current-location]').press('Enter');
+        const panel = page.locator('[data-dashboard-panel="candidates"]');
+        await panel.locator('[data-panel-page-delta="1"]').waitFor();
+        assert.equal(await panel.locator('tbody tr').count(), 20);
+        await panel.locator('[data-panel-page-delta="1"]').click();
+        assert.match(await panel.locator('tbody').innerText(), /row-021/);
+        await panel.locator('[data-panel-page-delta="1"]').click();
+        assert.equal(await panel.locator('tbody tr').count(), 5);
+        assert.match(await panel.locator('tbody').innerText(), /row-045/);
+        assert.equal(requests, 1);
+        await panel.getByRole('button', { name: '更新清单' }).click();
+        await panel.locator('.tui-panel-error').waitFor();
+        await panel.getByRole('button', { name: '更新清单' }).click();
+        await panel.locator('tbody tr').first().waitFor();
+        assert.equal(requests, 3);
+    } finally { await browser.close(); }
+});
+
+test("UX navigation never restores password drafts", async () => {
+    const { browser, page } = await openHarness('https://app.test/?screen=test.grid&action=test.password', { waitForInitialRows: false });
+    try {
+        await page.locator('form[data-action-ui-key="test.password"] [name="new_password"]').fill('not-for-storage');
+        await page.locator('[data-current-location]').fill('screen:test.dashboard');
+        await page.locator('[data-current-location]').press('Enter');
+        await page.locator('[data-dashboard-panel]').first().waitFor();
+        await page.goBack();
+        const secret = page.locator('form[data-action-ui-key="test.password"] [name="new_password"]');
+        await secret.waitFor();
+        assert.equal(await secret.inputValue(), '');
+        assert.equal(await page.evaluate(() => JSON.stringify({ ...sessionStorage, ...localStorage }).includes('not-for-storage')), false);
+    } finally { await browser.close(); }
+});
+
+test("UX unknown cursor totals are not presented as zero or random pages", async () => {
+    const { browser, page } = await openHarness();
+    try {
+        await page.route('**/actions/test.list/run/', async route => {
+            const result = listResult(); result.view_model.rows = result.view_model.rows.slice(0, 20);
+            result.view_model.pager = { pagination_mode: 'cursor', has_next: true, has_previous: false, next_cursor: 'next' };
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(result) });
+        });
+        await page.keyboard.press('F5');
+        await page.getByText(/总量未知/).waitFor();
+        assert.equal(await page.locator('[data-page-number]').count(), 0);
+        assert.doesNotMatch(await page.locator('.tui-datagrid-pager').innerText(), /共 0 行/);
+    } finally { await browser.close(); }
+});
+
+test("UX pagination offers page size, range and direct page navigation", async () => {
+    const { browser, page } = await openHarness();
+    try {
+        await page.locator('[data-page-size]').selectOption('20');
+        assert.equal(await page.locator('[data-row-index]').count(), 20);
+        await page.locator('[data-page-number]').fill('3');
+        await page.locator('[data-page-number]').press('Enter');
+        await page.locator('[data-row-index="40"]').waitFor();
+        assert.match(await page.locator('.tui-datagrid-pager').innerText(), /41–60/);
+    } finally { await browser.close(); }
+});
+
+test("UX returning to a screen restores safe drafts, filter and client page", async () => {
+    const { browser, page } = await openHarness();
+    try {
+        await page.locator('[data-page-delta="1"]').click();
+        await page.locator('form[data-action-ui-key="test.detail"] [name="code"]').fill('draft-code');
+        await page.locator('[data-current-location]').fill('screen:test.dashboard');
+        await page.locator('[data-current-location]').press('Enter');
+        await page.locator('[data-dashboard-panel]').first().waitFor();
+        await page.goBack();
+        await page.locator('[data-row-index="20"]').waitFor();
+        assert.equal(await page.locator('form[data-action-ui-key="test.detail"] [name="code"]').inputValue(), 'draft-code');
+    } finally { await browser.close(); }
+});
+
+test("UX refreshing a queued AI run only observes the existing run", async () => {
+    const { browser, page } = await openHarness('https://app.test/?screen=test.grid&action=test.queued', { waitForInitialRows: false });
+    let submissions = 0;
+    page.on('request', request => { if (request.url().includes('/actions/test.queued/run/')) submissions++; });
+    try {
+        const form = page.locator('form[data-action-ui-key="test.queued"]');
+        await form.locator('[name="task_id"]').fill('7');
+        await form.locator('[name="message"]').fill('Observe this task');
+        await form.locator('.tui-action-button').click();
+        await page.waitForFunction(() => document.querySelector('[data-workbench-status]').textContent.includes('已完成'));
+        await page.keyboard.press('F5');
+        await delay(250);
+        assert.equal(submissions, 1);
+    } finally { await browser.close(); }
+});
+
+test("UX server pagination retains the table and recovers from a failed page", async () => {
+    const { browser, page } = await openHarness();
+    const requests = [];
+    try {
+        await page.route('**/actions/test.list/run/', async route => {
+            const params = route.request().postDataJSON().params;
+            requests.push(params);
+            if (params.page === 2) {
+                await delay(250);
+                await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ title: '暂时不可用' }) });
+            } else {
+                const result = listResult();
+                result.view_model.rows = result.view_model.rows.slice(0, 20);
+                result.view_model.pager = { page: 1, page_size: 20, total_rows: 45, total_pages: 3, has_next: true, has_previous: false };
+                await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(result) });
+            }
+        });
+        await page.keyboard.press('F5');
+        await page.waitForFunction(() => document.querySelectorAll('[data-row-index]').length === 20);
+        await page.keyboard.press('F7');
+        assert.match(await page.locator('[data-filter-input]').getAttribute('placeholder'), /当前页/);
+        await page.keyboard.press('Escape');
+        await page.locator('[data-page-delta="1"]').click();
+        assert.equal(await page.locator('[data-row-index]').count(), 20);
+        await page.locator('[data-grid-retry]').waitFor();
+        assert.equal(await page.locator('[data-row-index]').first().innerText().then(text => text.includes('row-001')), true);
+        assert.equal(requests.at(-1).page, 2);
+    } finally { await browser.close(); }
+});
+
 const harnessHtml = `<!doctype html>
 <html><head><meta charset="utf-8"><title>TUI harness</title></head><body>
 <div data-tui-app data-user-key="test-user">
@@ -904,12 +1089,12 @@ test("client pagination keeps second-page row selection aligned", async () => {
     const { browser, page } = await openHarness();
     try {
         await page.locator('[data-page-delta="1"]').click();
-        const firstSecondPageRow = page.locator('[data-row-index="100"]');
+        const firstSecondPageRow = page.locator('[data-row-index="20"]');
         await firstSecondPageRow.click();
         await page.locator('form[data-action-ui-key="test.detail"] [data-fill-from-row]').click();
-        assert.equal(await page.locator('form[data-action-ui-key="test.detail"] [name="code"]').inputValue(), "row-101");
+        assert.equal(await page.locator('form[data-action-ui-key="test.detail"] [name="code"]').inputValue(), "row-021");
         await firstSecondPageRow.dblclick();
-        assert.match(await page.locator("[data-modal-body]").innerText(), /row-101/);
+        assert.match(await page.locator("[data-modal-body]").innerText(), /row-021/);
     } finally {
         await browser.close();
     }
@@ -1169,7 +1354,7 @@ test("shell pager is visible only for a paginated result", async () => {
     try {
         const pager = page.locator("[data-pager-status]");
         assert.equal(await pager.isHidden(), false);
-        assert.match(await pager.innerText(), /页 1\/3 \| 205 行/);
+        assert.match(await pager.innerText(), /页 1\/11 \| 205 行/);
 
         const location = page.locator("[data-current-location]");
         await location.fill("screen:test.dashboard");

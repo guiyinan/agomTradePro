@@ -38,7 +38,7 @@
         dashboardFilters: {},
         slowActionTimer: null,
         clientPage: 1,
-        clientPageSize: 100,
+        clientPageSize: 20,
         operatorHomePayload: null,
         operatorHomePromise: null,
         modalReturnFocus: null,
@@ -1105,7 +1105,7 @@
     function actionMetaLabel(action, completed) {
         const parts = [];
         if (completed) {
-            parts.push("已完成");
+            parts.push("已操作");
         }
         parts.push(actionRoleLabel(action));
         parts.push(actionVerbLabel(action));

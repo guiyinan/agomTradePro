@@ -294,6 +294,8 @@
 
     function renderScreen(screenSpec, options = {}) {
         state.screen = screenSpec;
+        state.lastAction = null;
+        state.lastParams = {};
         state.lastRaw = null;
         state.lastPager = null;
         state.homePanelBadges = {};
@@ -327,6 +329,8 @@
         }
         if (dashboardScreen) {
             renderDashboardHome(screenSpec, {
+                snapshot: options.snapshot,
+                preserveTaskStatus: Boolean(options.deepLinkedActionKey),
                 suppressAutoActions: deepLinkedActionCanAutoRun(
                     screenSpec,
                     options.deepLinkedActionKey,
@@ -334,8 +338,7 @@
             });
             updatePager(null);
             updateRawDrawer();
-            setLastRefresh();
-            setStatus(immersiveDashboard ? "系统首页" : "概览已加载");
+            setStatus('正在加载主任务数据');
             return;
         }
         renderActions(screenSpec.actions || [], screen);
