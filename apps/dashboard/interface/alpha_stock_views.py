@@ -11,9 +11,10 @@ from django.http import HttpRequest, HttpResponse, HttpResponseNotAllowed, JsonR
 from django.shortcuts import redirect, render
 from django.views.decorators.cache import never_cache
 
+from apps.account.application.alpha_account_selection import resolve_alpha_account_portfolio
 from apps.alpha.application.pool_resolver import ResolvedAlphaPool
 from apps.dashboard.interface.api_auth import dashboard_api_view
-from core.exceptions import BusinessLogicError
+from core.exceptions import AuthorizationError, BusinessLogicError, ValidationError
 
 
 def _dashboard_views() -> ModuleType:
@@ -555,6 +556,21 @@ def alpha_stocks_htmx(request: HttpRequest) -> HttpResponse:
         )
     except ValueError as exc:
         return JsonResponse({"success": False, "error": str(exc)}, status=400)
+
+    raw_account_id = request.GET.get("account_id")
+    if raw_account_id not in (None, ""):
+        try:
+            account_id = dashboard_views._parse_positive_int_param(
+                raw_account_id, field_name="account_id", default=0
+            )
+            portfolio_id = resolve_alpha_account_portfolio(
+                user_id=cast(int, request.user.pk), account_id=account_id
+            )
+            alpha_scope = dashboard_views.ALPHA_SCOPE_PORTFOLIO
+        except AuthorizationError as exc:
+            return JsonResponse({"success": False, "error": str(exc)}, status=403)
+        except (ValueError, ValidationError) as exc:
+            return JsonResponse({"success": False, "error": str(exc)}, status=400)
 
     scores_payload = dashboard_views._get_alpha_stock_scores_payload(
         top_n=top_n,

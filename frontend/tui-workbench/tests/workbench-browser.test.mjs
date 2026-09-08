@@ -1022,6 +1022,45 @@ test("production shell exposes screen address and restores it after Escape", asy
     }
 });
 
+test("primary list selectors update the same panel without truncating requested rows", async () => {
+    const filterScreen = structuredClone(dashboardScreen);
+    filterScreen.actions = [action("test.list", { fields: [
+        { key: "top_n", label: "展示数量", input_type: "select", value_type: "integer", default: 10, options: ["10", "20"], presentation_semantic: "primary_selector" },
+        { key: "portfolio_id", label: "投资组合", input_type: "select", value_type: "integer", options: [{ value: "", label: "通用研究" }, { value: 7, label: "我的组合" }], presentation_semantic: "primary_selector" },
+    ] })];
+    filterScreen.screen.dashboard_panels = [{ key: "list", title: "候选清单", kind: "datagrid", action_key: "test.list", user_priority: "p0", presentation_semantic: "primary_list", filter_fields: ["portfolio_id", "top_n"], max_rows: 10 }];
+    const { browser, page } = await openHarness("https://app.test/", { dashboardScreen: filterScreen });
+    const received = [];
+    try {
+        await page.route("**/actions/test.list/run/", async (route) => {
+            const params = route.request().postDataJSON().params;
+            received.push(params);
+            await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ view_model: {
+                kind: "datagrid", columns: [{ key: "code", label: "证券代码" }],
+                rows: Array.from({ length: params.top_n || 10 }, (_, i) => ({ code: `stock-${i}` })),
+            } }) });
+        });
+        await page.locator("[data-current-location]").fill("screen:test.dashboard");
+        await page.locator("[data-current-location]").press("Enter");
+        const panel = page.locator('[data-dashboard-panel="list"]');
+        await panel.getByText("实际展示 10 条").waitFor();
+        await panel.getByLabel("展示数量").selectOption("20");
+        await panel.getByLabel("投资组合").selectOption("7");
+        await panel.getByRole("button", { name: "更新清单" }).click();
+        await panel.getByText("实际展示 20 条").waitFor();
+        assert.equal(await panel.locator("tbody tr").count(), 20);
+        assert.deepEqual(received.at(-1), { top_n: 20, portfolio_id: 7 });
+        assert.equal(await panel.getByLabel("投资组合").inputValue(), "7");
+        assert.equal(await panel.getByLabel("展示数量").inputValue(), "20");
+        for (const width of [390, 768, 1440]) {
+            await page.setViewportSize({ width, height: 900 });
+            assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
+        }
+    } finally {
+        await browser.close();
+    }
+});
+
 test("collapsed support panels load once on expansion and remain open", async () => {
     const lazyScreen = structuredClone(dashboardScreen);
     lazyScreen.screen.dashboard_panels.find((panel) => panel.key === "admin-read").user_priority = "p2";

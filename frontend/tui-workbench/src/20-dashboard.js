@@ -2,6 +2,7 @@
         state.dashboardController?.abort();
         const dashboardController = new AbortController();
         state.dashboardController = dashboardController;
+        state.dashboardFilters = {};
         const screen = screenSpec.screen;
         const panels = screen.dashboard_panels || [];
         const immersiveDashboard = isImmersiveDashboardScreen(screen);
@@ -48,6 +49,7 @@
             ],
         });
         bindDashboardPanelOpenControls(els.main);
+        bindDashboardFilters(els.main);
         els.main.querySelectorAll("[data-home-action-key]").forEach((button) => {
             button.addEventListener("click", () => executeHomeAction(button.dataset.homeActionKey));
         });
@@ -285,7 +287,12 @@
         if (!container) {
             return;
         }
-        const signal = state.dashboardController?.signal;
+        container.panelRequestController?.abort();
+        container.panelRequestController = new AbortController();
+        const signal = state.dashboardController
+            ? AbortSignal.any([state.dashboardController.signal, container.panelRequestController.signal])
+            : container.panelRequestController.signal;
+        const params = state.dashboardFilters[panel.key] || {};
         const expanded = Boolean(container.querySelector("details")?.open);
         const restoreDisclosure = () => {
             const disclosure = container.querySelector("details");
@@ -322,6 +329,7 @@
                     fetchJson,
                     screen: state.screen,
                     signal,
+                    params,
                 });
                 if (hosted) {
                     viewModel = hosted.view_model || hosted;
@@ -343,7 +351,7 @@
             } else {
                 const result = await fetchJson(actionRunUrl(panel.action_key), {
                     method: "POST",
-                    body: JSON.stringify({ params: {} }),
+                    body: JSON.stringify({ params }),
                     signal,
                 });
                 viewModel = result.view_model;
@@ -361,6 +369,7 @@
                 processHostSlot(container);
             }
             restoreDisclosure();
+            bindDashboardFilters(container);
             if (isOperatorHomeScreen(state.screen?.screen?.key)) {
                 const badgeHost = container.querySelector("[data-panel-badge]");
                 if (badgeHost) {
@@ -374,7 +383,51 @@
             bindDashboardPanelOpenControls(container);
             bindDashboardPanelRecovery(container, panel);
             restoreDisclosure();
+            bindDashboardFilters(container);
         }
+    }
+
+    function dashboardFilterFields(panel) {
+        const action = currentAction(panel.action_key);
+        if (panelPresentationSemantic(panel) !== "primary_list" || !dashboardActionCanAutoRun(action)) return [];
+        const keys = panel.filter_fields || [];
+        return keys.map((key) => (action?.fields || []).find((field) => field.key === key))
+            .filter((field) => field?.presentation_semantic === "primary_selector");
+    }
+
+    function renderDashboardFilters(panel) {
+        const fields = dashboardFilterFields(panel);
+        if (!fields.length) return "";
+        const action = currentAction(panel.action_key);
+        const params = state.dashboardFilters[panel.key] || {};
+        return `<form class="tui-dashboard-filters" data-dashboard-filters="${escapeHtml(panel.key)}">
+            ${fields.map((field) => renderField(
+                { ...action, key: `panel-${panel.key}` },
+                { ...field, default: params[field.key] ?? field.default },
+            )).join("")}
+            <button class="tui-action-submit" type="submit">更新清单</button>
+        </form>`;
+    }
+
+    function bindDashboardFilters(host) {
+        host.querySelectorAll("[data-dashboard-filters]").forEach((form) => {
+            form.addEventListener("submit", (event) => {
+                event.preventDefault();
+                const panel = state.screen.screen.dashboard_panels.find((item) => item.key === form.dataset.dashboardFilters);
+                if (!panel || !form.reportValidity()) return;
+                const params = {};
+                dashboardFilterFields(panel).forEach((field) => {
+                    const input = form.elements.namedItem(field.key);
+                    params[field.key] = coerceFieldValue(field, input.value, input.checked);
+                });
+                state.dashboardFilters[panel.key] = params;
+                const container = form.closest("[data-dashboard-panel]");
+                container.innerHTML = renderDashboardPanelShell(panel, '<div class="tui-loading">正在更新清单...</div>');
+                bindDashboardFilters(container);
+                bindDashboardPanelOpenControls(container);
+                loadDashboardPanel(panel);
+            });
+        });
     }
 
     function renderDashboardPanelShell(panel, body) {
@@ -389,6 +442,7 @@
                 </span>
             </h3>
             ${panel.note ? `<div class="tui-panel-caption">${escapeHtml(panel.note)}</div>` : ""}
+            ${renderDashboardFilters(panel)}
             ${body}
         `;
         if (!dashboardPanelShouldCollapse(panel)) {
@@ -619,13 +673,14 @@
     }
 
     function renderPanelDataGrid(panel, viewModel) {
-        const rows = (viewModel.rows || []).slice(0, Number(panel.max_rows || 8));
+        const filterable = dashboardFilterFields(panel).length > 0;
+        const rows = filterable ? (viewModel.rows || []) : (viewModel.rows || []).slice(0, Number(panel.max_rows || 8));
         const panelColumns = Array.isArray(panel.columns) ? panel.columns : [];
         const preferredColumns = panelColumns.filter((column) => rows.some((row) => Object.prototype.hasOwnProperty.call(row, column.key)));
         const sourceColumns = preferredColumns.length ? preferredColumns : (viewModel.columns || []);
         const columns = sourceColumns.filter((column) => rows.some((row) => Object.prototype.hasOwnProperty.call(row, column.key))).slice(0, 6);
         if (!rows.length || !columns.length) {
-            return renderPanelPlaceholder(panel, panel.empty_message || "暂无表格数据。");
+            return `${filterable ? '<div class="tui-panel-caption" role="status">实际展示 0 条</div>' : ""}${renderPanelPlaceholder(panel, panel.empty_message || "暂无表格数据。")}`;
         }
         const rowActions = Array.isArray(panel.row_actions) ? panel.row_actions : [];
         const headers = columns.map((column) => column.label || column.key);
@@ -633,6 +688,7 @@
             headers.push("操作");
         }
         return `
+            ${filterable ? `<div class="tui-panel-caption" role="status">实际展示 ${rows.length} 条</div>` : ""}
             <div class="tui-table-scroll" tabindex="0" aria-label="${escapeHtml(panel.title || "表格")}">
             <table class="tui-mini-table">
                 <thead><tr>${headers.map((header, index) => `<th class="${rowActions.length && index === headers.length - 1 ? "tui-row-actions-header" : ""}">${escapeHtml(header)}</th>`).join("")}</tr></thead>

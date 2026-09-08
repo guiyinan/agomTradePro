@@ -726,6 +726,11 @@ def test_tui_dashboard_alpha_publishes_ranking_and_history_tasks(client, tui_use
     assert ranking_fields["alpha_scope"]["options"] == ["general", "portfolio"]
     assert ranking_fields["alpha_scope"]["default"] == "general"
     assert ranking_fields["top_n"]["default"] == 10
+    assert ranking_fields["top_n"]["presentation_semantic"] == "primary_selector"
+    assert ranking_fields["top_n"]["label"] == "展示数量"
+    assert ranking_fields["account_id"]["presentation_semantic"] == "primary_selector"
+    assert ranking_fields["account_id"]["label"] == "投资账户"
+    assert ranking_fields["account_id"]["input_type"] == "select"
     runtime = PublishedTuiMetadataRepository().load_published()
     runtime_actions = {action["key"]: action for action in runtime["actions"]}
     assert runtime_actions["dashboard.beta-market-summary"]["view_model"]["rows_path"] == ("rows")

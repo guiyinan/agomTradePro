@@ -326,3 +326,17 @@ Don't:
 - Are task-critical datagrid states and native row actions visible at 1440 × 1000?
 - Does the happy-path browser flow complete with zero unexpected console errors or warnings?
 - Do task-flow panels pass the three-viewport browser geometry guard with no overlap or horizontal overflow?
+
+## Candidate selection controls
+
+Passive primary-list panels may opt into `filter_fields`, an ordered list of the
+action's `primary_selector` fields. Schema and metadata validation reject unknown,
+duplicate or unsafe selectors. These controls stay above the list; submitting updates
+that panel, retains selections and displays every returned row with the actual count.
+Other summary panels retain their `max_rows` limit.
+
+`research.signals` exposes investment account and candidate count (1–500, default 10).
+The account list is limited to the signed-in user. No account means general research;
+an explicit account resolves to its owned active portfolio before querying candidates.
+Missing mappings and foreign accounts fail explicitly, never falling back to general
+research. Source dates and decision gates remain unchanged.

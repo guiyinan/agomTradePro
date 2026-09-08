@@ -298,6 +298,7 @@
         "error_message": { "type": "string" },
         "stale_message": { "type": "string" },
         "max_rows": { "type": "integer" },
+        "filter_fields": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
         "user_priority": { "enum": ["p0", "p1", "p2"] },
         "presentation_semantic": { "$ref": "#/$defs/presentationSemantic" },
         "columns": {

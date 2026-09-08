@@ -1673,6 +1673,24 @@ a {
     scrollbar-gutter: stable;
 }
 
+.tui-dashboard-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 8px;
+    margin: 8px 0 12px;
+}
+
+.tui-dashboard-filters .tui-field {
+    flex: 1 1 140px;
+    min-width: 0;
+}
+
+.tui-dashboard-filters .tui-action-submit {
+    width: auto;
+    min-height: 32px;
+}
+
 .tui-table-scroll:focus-visible {
     outline: 2px solid var(--tui-accent);
     outline-offset: 2px;

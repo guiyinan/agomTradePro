@@ -164,6 +164,7 @@ ALLOWED_TUI_DASHBOARD_PANEL_KEYS = {
     "error_message",
     "stale_message",
     "max_rows",
+    "filter_fields",
     "user_priority",
     "presentation_semantic",
     "columns",

@@ -165,7 +165,8 @@
         }
         if (field.input_type === "select") {
             const options = field.options || [];
-            const emptyOption = !field.required && value === ""
+            const hasEmptyOption = options.some((option) => (typeof option === "string" ? option : option.value) === "");
+            const emptyOption = !field.required && value === "" && !hasEmptyOption
                 ? '<option value=""></option>'
                 : "";
             return `
@@ -209,7 +210,7 @@
         return `
             <label class="tui-field" for="${escapeHtml(id)}">
                 <span>${escapeHtml(field.label)}</span>
-                <input id="${escapeHtml(id)}" name="${escapeHtml(field.key)}" type="${escapeHtml(field.input_type || "text")}" value="${escapeHtml(value)}" ${required} placeholder="${escapeHtml(field.placeholder || "")}">
+                <input id="${escapeHtml(id)}" name="${escapeHtml(field.key)}" type="${escapeHtml(field.input_type || "text")}" value="${escapeHtml(value)}" ${required} ${field.min != null ? `min="${escapeHtml(field.min)}"` : ""} ${field.max != null ? `max="${escapeHtml(field.max)}"` : ""} placeholder="${escapeHtml(field.placeholder || "")}">
             </label>
         `;
     }

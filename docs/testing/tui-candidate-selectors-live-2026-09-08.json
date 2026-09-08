@@ -1,0 +1,21 @@
+{
+  "general_rows": 20,
+  "linked_account_rows": 0,
+  "account_options": 2,
+  "unlinked_message": "二、Alpha 选股清单\nP0\n主任务\n打开\n可选择展示数量与投资账户；不指定账户时为通用研究，指定账户时按关联组合筛选。请核对评分日与禁止用于决策标记。\n投资账户\n通用研究（不指定账户）\n默认组合 · real · #365\nadmin_投研验收模拟仓 · simulated · #613\n展示数量\n更新清单\n错误\n所选账户尚未关联有效投资组合，请先完成账户与组合关联。",
+  "viewport_checks": [
+    {
+      "width": 390,
+      "overflow": false
+    },
+    {
+      "width": 768,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "overflow": false
+    }
+  ],
+  "page_errors": []
+}

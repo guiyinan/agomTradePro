@@ -286,6 +286,7 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
                 raise TuiMetadataValidationError(
                     f"Dashboard panel references unknown action: {screen['key']}.{panel['key']}"
                 )
+            _validate_dashboard_filter_fields(panel, action_by_key.get(action_key, {}))
             if action_key:
                 _validate_dashboard_panel_action_kind(
                     screen=screen,
@@ -397,6 +398,33 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
     )
     _validate_with_json_schema(payload)
     return payload
+
+
+def _validate_dashboard_filter_fields(panel: dict[str, Any], action: dict[str, Any]) -> None:
+    """Validate explicitly opted-in passive list selectors against action fields."""
+
+    fields = panel.get("filter_fields", [])
+    if not isinstance(fields, list) or not all(isinstance(key, str) for key in fields):
+        raise TuiMetadataValidationError("Dashboard filter_fields must be a string list")
+    if not fields:
+        return
+    available = {
+        field["key"]
+        for field in action.get("fields", [])
+        if field.get("presentation_semantic") == "primary_selector"
+        and field.get("input_type") not in {"hidden", "password", "file"}
+    }
+    if (
+        len(fields) != len(set(fields))
+        or not set(fields) <= available
+        or panel.get("presentation_semantic") != "primary_list"
+        or action.get("risk") != "read"
+        or action.get("method") != "GET"
+        or action.get("confirmation_required")
+    ):
+        raise TuiMetadataValidationError(
+            "Dashboard filters require unique selectors on a passive primary list"
+        )
 
 
 def _validate_dashboard_panel_action_kind(

@@ -924,6 +924,11 @@
       },
       "required_tests": [
         {
+          "case": "alpha_account_failure_cannot_fallback_to_general",
+          "test_file": "apps/dashboard/tests/test_alpha_account_selection.py",
+          "test_function": "test_alpha_account_failures_never_load_general_candidates"
+        },
+        {
           "case": "fresh_beta_context_guides_alpha_usage",
           "test_file": "tests/unit/dashboard/test_beta_market_summary.py",
           "test_function": "test_beta_market_summary_explains_how_to_use_alpha_when_context_is_ready"

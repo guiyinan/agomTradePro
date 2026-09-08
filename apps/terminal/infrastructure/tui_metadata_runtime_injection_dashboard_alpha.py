@@ -56,7 +56,7 @@ RUNTIME_DASHBOARD_ALPHA_ACTIONS: tuple[dict[str, Any], ...] = (
         "screen_key": _SCREEN,
         "module_key": _MODULE,
         "view_type": "datagrid",
-        "description": "默认展示通用研究排名及评分日，仅供研究；可切换组合范围检查可用候选。",
+        "description": "选择展示数量与投资账户；不指定账户时展示通用研究，指定账户时检查其关联组合候选。",
         "source": _SOURCE,
         "task_group": "02 Alpha 选股",
         "sequence": 240,
@@ -70,6 +70,16 @@ RUNTIME_DASHBOARD_ALPHA_ACTIONS: tuple[dict[str, Any], ...] = (
                 "value_type": "string",
                 "required": True,
                 "default": "json",
+            },
+            {
+                "key": "account_id",
+                "label": "投资账户",
+                "binding": "query",
+                "input_type": "select",
+                "value_type": "integer",
+                "required": False,
+                "options": [{"value": "", "label": "通用研究（不指定账户）"}],
+                "presentation_semantic": "primary_selector",
             },
             {
                 "key": "alpha_scope",
@@ -104,7 +114,7 @@ RUNTIME_DASHBOARD_ALPHA_ACTIONS: tuple[dict[str, Any], ...] = (
             },
             {
                 "key": "top_n",
-                "label": "返回数量",
+                "label": "展示数量",
                 "binding": "query",
                 "input_type": "number",
                 "value_type": "integer",
@@ -112,6 +122,7 @@ RUNTIME_DASHBOARD_ALPHA_ACTIONS: tuple[dict[str, Any], ...] = (
                 "default": 10,
                 "min": 1,
                 "max": 500,
+                "presentation_semantic": "primary_selector",
             },
         ],
         "view_model": {
