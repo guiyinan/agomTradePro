@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Iterator
 
 import pytest
 from django.db import connection
@@ -14,6 +15,17 @@ from apps.account.infrastructure.canonical_account_creation_consumption_inventor
     CanonicalAccountCreationConsumptionInventoryUnavailable,
     inventory_canonical_account_creation_consumption,
 )
+
+
+@pytest.fixture(autouse=True)
+def _restore_account_migration_records(transactional_db: None) -> Iterator[None]:
+    """Restore the migration ledger, which TransactionTestCase flush leaves intact."""
+    records = list(MigrationRecorder.Migration.objects.filter(app="account"))
+    try:
+        yield
+    finally:
+        MigrationRecorder.Migration.objects.filter(app="account").delete()
+        MigrationRecorder.Migration.objects.bulk_create(records)
 
 
 def _record_required_migrations(*, include_knowledge: bool = True) -> None:
