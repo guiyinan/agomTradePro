@@ -17,6 +17,7 @@ def _build_gateway(**overrides):
         "get_stock_context_map": lambda codes: {},
         "resolve_asset": lambda code: None,
         "query_latest_quote": lambda asset_code: None,
+        "query_latest_quotes": lambda asset_codes: [],
         "list_actionable_alpha_candidates": lambda *, limit: [],
         "list_pending_execution_requests": lambda *, limit: [],
         "get_manual_override_trigger_ids": lambda: set(),
@@ -73,8 +74,12 @@ def test_dashboard_alpha_context_loads_asset_and_quote_from_gateway():
 
     gateway = _build_gateway(
         resolve_asset=lambda code: FakeResolveAssetUseCase().execute(SimpleNamespace(code=code)),
-        query_latest_quote=(
-            lambda asset_code: FakeQuoteUseCase().execute(SimpleNamespace(asset_code=asset_code))
+        query_latest_quotes=(
+            lambda asset_codes: [
+                {"asset_code": code, **vars(quote)}
+                for code in asset_codes
+                if (quote := FakeQuoteUseCase().execute(SimpleNamespace(asset_code=code)))
+            ]
         ),
     )
 
@@ -90,6 +95,39 @@ def test_dashboard_alpha_context_loads_asset_and_quote_from_gateway():
     assert set(captured["asset_codes"]).issubset({"000001", "000001.SZ"})
     assert "000001.SZ" in captured["quote_codes"]
     assert set(captured["quote_codes"]).issubset({"000001", "000001.SZ"})
+
+
+def test_dashboard_alpha_quote_context_batches_aliases_and_keeps_missing_prices():
+    """One batch resolves multiple aliases without inventing missing prices."""
+    calls = []
+
+    def quotes(codes):
+        calls.append(codes)
+        return [
+            {
+                "asset_code": "000001.SZ",
+                "current_price": 12.34,
+                "volume": 123,
+                "snapshot_at": "2026-09-08T01:30:00+00:00",
+                "source": "published",
+            },
+            {
+                "asset_code": "600000",
+                "current_price": None,
+                "volume": None,
+                "snapshot_at": "2026-09-08T01:29:00+00:00",
+                "source": "published",
+            },
+        ]
+
+    repo = DashboardAlphaContextRepository(_build_gateway(query_latest_quotes=quotes))
+    codes = ["000001.SZ", "600000.SH"]
+    context = repo._load_data_center_quote_context(codes, repo._build_code_aliases(codes))
+    assert len(calls) == 1
+    assert set(calls[0]) == {"000001.SZ", "000001", "600000.SH", "600000"}
+    assert context["000001.SZ"]["current_price"] == 12.34
+    assert context["600000.SH"]["current_price"] is None
+    assert context["600000.SH"]["snapshot_at"] == "2026-09-08T01:29:00+00:00"
 
 
 def test_dashboard_alpha_context_uses_gateway_for_valuation_repairs():

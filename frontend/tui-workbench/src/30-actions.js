@@ -708,6 +708,7 @@
     }
 
     async function loadScreen(screenKey, options = {}) {
+        state.dashboardController?.abort();
         const controller = new AbortController();
         const requestId = startPendingRequest(controller);
         try {

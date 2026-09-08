@@ -27,6 +27,16 @@ Runtime prerequisites:
 
 The V2 catalog is read from published TUI metadata:
 
+Performance contract: each screen projects its authorized action descriptions once,
+reusing that projection for compatibility blocks. Non-home P2 panels load only when
+expanded; expansion stays open after loading, and reopening an already loaded panel
+does not issue another read. Navigating away aborts the browser's outstanding panel
+requests and prevents detached panels from updating status. This is browser
+cancellation, not a guarantee that an already-running server query has stopped.
+Dashboard Alpha quote aliases use one publication-gated batch per context request;
+source timestamps and stale-publication blocking are preserved without caching
+financial results across requests.
+
 - Runtime primary source: `terminal_tui_metadata_registry` rows with `status=published`.
 - Runtime fallback source: `config/tui/published/tui_operation_graph.published.json`.
 - Candidate graph: `config/tui/generated/tui_operation_graph.generated.json`.
@@ -75,6 +85,13 @@ The browser must not translate the internal `risk=read` policy into visible labe
 The ordinary DOM uses `actions[].ui_key` for action form bindings. Real metadata action keys remain inside the loaded screen contract so the runner can call `/api/tui/actions/<action_key>/run/`, but they should not be copied into visible HTML attributes or labels. This keeps endpoint-shaped keys out of the operator surface while preserving a stable backend execution contract.
 
 Published labels must also be operator-facing. Do not publish labels that are only cleaned-up route names, such as `Dashboard Alpha Ic Trends`, `System List`, `Password Strength`, `Validate`, or `Assignment`. Add exact labels or shared vocabulary rules in `promote_tui_business_screens.py` so generated actions become user jobs such as `Alpha IC 趋势`, `系统任务列表`, `初始化密码强度`, or `策略绑定`.
+
+The shell's “位置” input (`TUI屏幕地址`) shows the current `screen:<key>` and supports
+select/copy, Enter navigation, and Escape restoration. The research selection screen
+defaults to general Alpha research rankings, preserving the scoring date and decision
+block in both its panel and full result. Portfolio scope remains an explicit choice
+with the existing readiness gate. These changes retain the existing workbench template
+and screen inventory; no Classic migration mapping changes are needed.
 
 Action execution returns a business-first `view_model`:
 

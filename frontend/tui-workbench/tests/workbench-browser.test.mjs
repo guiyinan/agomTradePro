@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -435,7 +436,7 @@ async function openHarness(url = "https://app.test/", options = {}) {
     await page.route("https://app.test/**", async (route) => {
         const url = new URL(route.request().url());
         if (url.pathname === "/") {
-            await route.fulfill({ status: 200, contentType: "text/html", body: harnessHtml });
+            await route.fulfill({ status: 200, contentType: "text/html", body: options.html || harnessHtml });
             return;
         }
         if (url.pathname === "/api/tui/catalog/") {
@@ -447,7 +448,7 @@ async function openHarness(url = "https://app.test/", options = {}) {
             return;
         }
         if (url.pathname === "/api/tui/screens/test.dashboard/") {
-            await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(dashboardScreen) });
+            await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(options.dashboardScreen || dashboardScreen) });
             return;
         }
         if (url.pathname === "/api/tui/screens/test.user-governance/") {
@@ -988,6 +989,82 @@ test("next steps without params do not inherit the previous action form", async 
         await nextStep.click();
         const request = await nextRequest;
         assert.deepEqual(request.postDataJSON().params, {});
+    } finally {
+        await browser.close();
+    }
+});
+
+test("production shell exposes screen address and restores it after Escape", async () => {
+    const template = await readFile(resolve(root, "core/templates/terminal/tui_workbench.html"), "utf8");
+    const html = template
+        .replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, "")
+        .replace(/<link\b[^>]*>/g, "")
+        .replace(/{%[\s\S]*?%}/g, "")
+        .replace(/{{[\s\S]*?}}/g, "test-user");
+    const { browser, page } = await openHarness("https://app.test/", { html });
+    try {
+        const location = page.getByRole("textbox", { name: "TUI屏幕地址" });
+        for (const width of [1440, 768, 390]) {
+            await page.setViewportSize({ width, height: 1000 });
+            assert.equal(await location.isVisible(), true);
+            const box = await location.boundingBox();
+            assert.ok(box.width > 100 && box.x >= 0 && box.x + box.width <= width);
+        }
+        await location.fill("screen:test.dashboard");
+        await location.press("Enter");
+        await page.waitForFunction(() => new URL(window.location.href).searchParams.get("screen") === "test.dashboard");
+        assert.equal(await location.inputValue(), "screen:test.dashboard");
+        await location.fill("screen:unfinished");
+        await location.press("Escape");
+        assert.equal(await location.inputValue(), "screen:test.dashboard");
+    } finally {
+        await browser.close();
+    }
+});
+
+test("collapsed support panels load once on expansion and remain open", async () => {
+    const lazyScreen = structuredClone(dashboardScreen);
+    lazyScreen.screen.dashboard_panels.find((panel) => panel.key === "admin-read").user_priority = "p2";
+    const { browser, page, requestLog } = await openHarness("https://app.test/", { dashboardScreen: lazyScreen });
+    const requestCount = () => requestLog.filter((line) => line.startsWith("REQ") && line.includes("/actions/test.admin-read/run/")).length;
+    try {
+        await page.locator("[data-current-location]").fill("screen:test.dashboard");
+        await page.locator("[data-current-location]").press("Enter");
+        await page.locator('[data-dashboard-panel="regime"] .q-marker').waitFor({ state: "visible" });
+        await delay(150);
+        assert.equal(requestCount(), 0);
+        const panel = page.locator('[data-dashboard-panel="admin-read"]');
+        await panel.locator("summary").click();
+        await panel.locator(".tui-loading").waitFor({ state: "hidden" });
+        assert.equal(requestCount(), 1);
+        assert.equal(await panel.locator("details").getAttribute("open"), "");
+        await panel.locator("summary").click();
+        await panel.locator("summary").click();
+        await delay(100);
+        assert.equal(requestCount(), 1);
+    } finally {
+        await browser.close();
+    }
+});
+
+test("leaving a dashboard aborts obsolete panel requests", async () => {
+    const { browser, page } = await openHarness();
+    try {
+        await page.route("**/actions/test.regime/run/", async (route) => {
+            await delay(1500);
+            await route.abort().catch(() => {});
+        });
+        const requested = page.waitForRequest((request) => request.url().includes("/actions/test.regime/run/"));
+        await page.locator("[data-current-location]").fill("screen:test.dashboard");
+        await page.locator("[data-current-location]").press("Enter");
+        await requested;
+        const aborted = page.waitForEvent("requestfailed", { predicate: (request) => request.url().includes("/actions/test.regime/run/") });
+        await page.locator("[data-current-location]").fill("screen:test.grid");
+        await page.locator("[data-current-location]").press("Enter");
+        const failed = await aborted;
+        assert.match(failed.failure().errorText, /ABORTED/);
+        await page.locator("[data-main-panel] tbody tr").first().waitFor({ state: "visible" });
+        assert.match(await page.locator("[data-current-location]").inputValue(), /^screen:test.grid(?: action:test.list)?$/);
     } finally {
         await browser.close();
     }

@@ -275,6 +275,23 @@ def test_tui_workbench_requires_login(client):
     assert "/account/login/" in response["Location"]
 
 
+def test_tui_screen_projects_each_visible_action_once(tui_user, monkeypatch):
+    """Compatibility blocks reuse the projection without doubling field work."""
+    service = TuiWorkbenchService(metadata_repository=FakeMetadataRepository(_metadata_payload()))
+    original = service._action_payload
+    calls = []
+
+    def project(action, **kwargs):
+        calls.append(action["key"])
+        return original(action, **kwargs)
+
+    monkeypatch.setattr(service, "_action_payload", project)
+    result = service.get_screen("command-center.overview", user=tui_user)
+    assert result["actions"]
+    assert calls == [action["key"] for action in result["actions"]]
+    assert result["blocks"][1]["items"] == result["actions"]
+
+
 def test_tui_workbench_page_is_standalone(client, tui_user):
     client.force_login(tui_user)
 
@@ -290,8 +307,9 @@ def test_tui_workbench_page_is_standalone(client, tui_user):
     assert "data-module-tree" in html
     assert f'data-user-key="{tui_user.pk}"' in html
     assert "data-workflow-strip" in html
-    assert 'id="tui-location-input"' not in html
-    assert "data-current-location" not in html
+    assert 'id="tui-location-input"' in html
+    assert "data-current-location" in html
+    assert 'aria-label="TUI屏幕地址"' in html
     assert "用户: tui_user" in html
     assert "工作台:" in html
     assert "DEBUG ONLY" not in html
@@ -311,16 +329,16 @@ def test_tui_workbench_page_is_standalone(client, tui_user):
     assert "tui-theme.css" not in html
 
 
-def test_tui_workbench_page_hides_internal_screen_locator_from_admins(client, tui_admin_user):
+def test_tui_workbench_page_exposes_screen_locator_to_admins(client, tui_admin_user):
     client.force_login(tui_admin_user)
 
     response = client.get("/tui/")
 
     assert response.status_code == 200
     html = response.content.decode()
-    assert 'id="tui-location-input"' not in html
-    assert "data-current-location" not in html
-    assert "screen:boot" not in html
+    assert 'id="tui-location-input"' in html
+    assert "data-current-location" in html
+    assert 'aria-label="TUI屏幕地址"' in html
 
 
 def test_tui_workbench_page_exposes_pc_tools_interaction_shell(client, tui_user):
@@ -706,6 +724,7 @@ def test_tui_dashboard_alpha_publishes_ranking_and_history_tasks(client, tui_use
     ranking_fields = {field["key"]: field for field in actions["dashboard.alpha-ranking"]["fields"]}
     assert ranking_fields["format"]["default"] == "json"
     assert ranking_fields["alpha_scope"]["options"] == ["general", "portfolio"]
+    assert ranking_fields["alpha_scope"]["default"] == "general"
     assert ranking_fields["top_n"]["default"] == 10
     runtime = PublishedTuiMetadataRepository().load_published()
     runtime_actions = {action["key"]: action for action in runtime["actions"]}
@@ -720,16 +739,64 @@ def test_tui_dashboard_alpha_publishes_ranking_and_history_tasks(client, tui_use
         column["key"]
         for column in runtime_actions["dashboard.alpha-ranking"]["view_model"]["columns"]
     ] == [
-        "rank",
         "code",
-        "name",
         "alpha_score",
+        "asof_date",
+        "must_not_use_for_decision",
         "gate_status",
         "suggested_position_pct",
         "buy_reason_summary",
         "no_buy_reason_summary",
     ]
     assert runtime_actions["dashboard.alpha-history"]["view_model"]["rows_path"] == "data"
+
+
+def test_tui_dashboard_alpha_defaults_to_research_and_preserves_decision_block(tui_user):
+    """Default selection shows real research rows with their source date and block."""
+
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            assert kwargs["params"]["alpha_scope"] == "general"
+            return {
+                "status_code": 200,
+                "payload": {
+                    "success": True,
+                    "data": {
+                        "items": [
+                            {
+                                "rank": 1,
+                                "code": "600118.SH",
+                                "name": "研究候选",
+                                "alpha_score": 0.8,
+                                "asof_date": "2026-09-04",
+                                "must_not_use_for_decision": True,
+                                "gate_status": "blocked",
+                                "suggested_position_pct": 0,
+                                "no_buy_reason_summary": "评分已过期，仅供研究。",
+                            }
+                        ],
+                        "count": 1,
+                        "contract": {
+                            "must_not_use_for_decision": True,
+                            "blocked_reason": "评分已过期，仅供研究。",
+                        },
+                    },
+                },
+            }
+
+    service = TuiWorkbenchService(
+        metadata_repository=PublishedTuiMetadataRepository(),
+        action_executor=FakeExecutor(),
+    )
+    result = service.run_action(action_key="dashboard.alpha-ranking", params={}, user=tui_user)
+    model = result["view_model"]
+    assert len(model["rows"]) == 1
+    row = model["rows"][0]
+    assert row["code"] == "600118.SH 研究候选"
+    assert row["asof_date"] == "2026-09-04"
+    assert row["must_not_use_for_decision"] == "是"
+    assert row["no_buy_reason_summary"] == "评分已过期，仅供研究。"
+    assert model["pager"]["total_rows"] == 1
 
 
 def test_tui_dashboard_alpha_does_not_turn_pool_size_into_placeholder_picks(tui_user):

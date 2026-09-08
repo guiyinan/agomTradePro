@@ -79,6 +79,17 @@ Hard rules:
 
 ## Task Deep-Link Rules
 
+The shared shell exposes a selectable `TUI屏幕地址` location input to all signed-in
+users. It displays `screen:<canonical-key>`, follows navigation and browser history,
+accepts a screen address with Enter, and restores the current address with Escape.
+This is a user-requested navigation control; keep it outside business result panels.
+
+`research.signals` opens Alpha ranking in the general research scope. Research rows
+must retain their scoring date and decision prohibition alongside the no-action
+reason. Users can explicitly select portfolio scope; its readiness gate still
+controls which portfolio candidates are returned. Never fabricate candidate rows
+from stock-pool size or relax the owner service's decision gate to fill the table.
+
 Classic compatibility pages and cross-screen task links use
 `/tui/?screen=<screen-key>&action=<action-key>`. Additional query parameters
 may prefill fields declared by that action.

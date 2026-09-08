@@ -1,0 +1,102 @@
+[
+  {
+    "path": "/api/tui/screens/research.signals/",
+    "status": 200,
+    "duration_ms": 186,
+    "sql_count": 6,
+    "row_count": 0,
+    "score_dates": [],
+    "decision_blocked": null
+  },
+  {
+    "path": "/api/tui/screens/research.signals/",
+    "status": 200,
+    "duration_ms": 199,
+    "sql_count": 6,
+    "row_count": 0,
+    "score_dates": [],
+    "decision_blocked": null
+  },
+  {
+    "path": "/api/tui/screens/research.signals/",
+    "status": 200,
+    "duration_ms": 215,
+    "sql_count": 6,
+    "row_count": 0,
+    "score_dates": [],
+    "decision_blocked": null
+  },
+  {
+    "path": "/api/tui/screens/research.signals/",
+    "status": 200,
+    "duration_ms": 207,
+    "sql_count": 6,
+    "row_count": 0,
+    "score_dates": [],
+    "decision_blocked": null
+  },
+  {
+    "path": "/api/tui/screens/research.signals/",
+    "status": 200,
+    "duration_ms": 1059,
+    "sql_count": 6,
+    "row_count": 0,
+    "score_dates": [],
+    "decision_blocked": null
+  },
+  {
+    "path": "/api/tui/actions/dashboard.alpha-ranking/run/",
+    "status": 200,
+    "duration_ms": 892,
+    "sql_count": 179,
+    "row_count": 10,
+    "score_dates": [
+      "2026-09-04"
+    ],
+    "decision_blocked": true
+  },
+  {
+    "path": "/api/tui/actions/dashboard.alpha-ranking/run/",
+    "status": 200,
+    "duration_ms": 1210,
+    "sql_count": 179,
+    "row_count": 10,
+    "score_dates": [
+      "2026-09-04"
+    ],
+    "decision_blocked": true
+  },
+  {
+    "path": "/api/tui/actions/dashboard.alpha-ranking/run/",
+    "status": 200,
+    "duration_ms": 1286,
+    "sql_count": 179,
+    "row_count": 10,
+    "score_dates": [
+      "2026-09-04"
+    ],
+    "decision_blocked": true
+  },
+  {
+    "path": "/api/tui/actions/dashboard.alpha-ranking/run/",
+    "status": 200,
+    "duration_ms": 1066,
+    "sql_count": 179,
+    "row_count": 10,
+    "score_dates": [
+      "2026-09-04"
+    ],
+    "decision_blocked": true
+  },
+  {
+    "path": "/api/tui/actions/dashboard.alpha-ranking/run/",
+    "status": 200,
+    "duration_ms": 902,
+    "sql_count": 179,
+    "row_count": 10,
+    "score_dates": [
+      "2026-09-04"
+    ],
+    "decision_blocked": true
+  }
+]

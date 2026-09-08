@@ -1,4 +1,7 @@
     function renderDashboardHome(screenSpec, options = {}) {
+        state.dashboardController?.abort();
+        const dashboardController = new AbortController();
+        state.dashboardController = dashboardController;
         const screen = screenSpec.screen;
         const panels = screen.dashboard_panels || [];
         const immersiveDashboard = isImmersiveDashboardScreen(screen);
@@ -51,10 +54,25 @@
         if (options.suppressAutoActions && !immersiveDashboard) {
             return;
         }
-        const primaryPanels = panels.filter((panel) => panelPriority(panel) === "p0");
-        const deferredPanels = panels.filter((panel) => panelPriority(panel) !== "p0");
+        const visiblePanels = panels.filter((panel) => !dashboardPanelShouldCollapse(panel));
+        panels.filter(dashboardPanelShouldCollapse).forEach((panel) => {
+            const disclosure = els.main.querySelector(`[data-dashboard-panel="${CSS.escape(panel.key)}"] details`);
+            let requested = false;
+            disclosure?.addEventListener("toggle", () => {
+                if (disclosure.open && !requested && !dashboardController.signal.aborted) {
+                    requested = true;
+                    loadDashboardPanel(panel);
+                }
+            });
+        });
+        const primaryPanels = visiblePanels.filter((panel) => panelPriority(panel) === "p0");
+        const deferredPanels = visiblePanels.filter((panel) => panelPriority(panel) !== "p0");
         primaryPanels.forEach((panel) => loadDashboardPanel(panel));
-        const loadDeferredPanels = () => deferredPanels.forEach((panel) => loadDashboardPanel(panel));
+        const loadDeferredPanels = () => {
+            if (!dashboardController.signal.aborted) {
+                deferredPanels.forEach((panel) => loadDashboardPanel(panel));
+            }
+        };
         if (typeof window.requestIdleCallback === "function") {
             window.requestIdleCallback(loadDeferredPanels, { timeout: dashboardIdleTimeoutMs });
         } else {
@@ -267,12 +285,19 @@
         if (!container) {
             return;
         }
+        const signal = state.dashboardController?.signal;
+        const expanded = Boolean(container.querySelector("details")?.open);
+        const restoreDisclosure = () => {
+            const disclosure = container.querySelector("details");
+            if (expanded && disclosure) disclosure.open = true;
+        };
         if (!panel.action_key) {
             container.innerHTML = renderDashboardPanelShell(
                 panel,
                 renderPanelPlaceholder(panel, panel.empty_message || "等待发布数据源。"),
             );
             bindDashboardPanelOpenControls(container);
+            restoreDisclosure();
             return;
         }
         const operatorSectionKey = isOperatorHomeScreen(state.screen?.screen?.key)
@@ -285,6 +310,7 @@
                 renderDashboardActionPrompt(panel, panelAction),
             );
             bindDashboardPanelOpenControls(container);
+            restoreDisclosure();
             return;
         }
         try {
@@ -295,6 +321,7 @@
                     actionRunUrl,
                     fetchJson,
                     screen: state.screen,
+                    signal,
                 });
                 if (hosted) {
                     viewModel = hosted.view_model || hosted;
@@ -317,10 +344,12 @@
                 const result = await fetchJson(actionRunUrl(panel.action_key), {
                     method: "POST",
                     body: JSON.stringify({ params: {} }),
+                    signal,
                 });
                 viewModel = result.view_model;
                 panelBadge = badgeCountsFromRows(Array.isArray(viewModel?.rows) ? viewModel.rows : []);
             }
+            if (signal?.aborted || !container.isConnected) return;
             if (isOperatorHomeScreen(state.screen?.screen?.key)) {
                 state.homePanelBadges[panel.key] = panelBadge;
             }
@@ -331,6 +360,7 @@
                 bindDashboardPanelOpenControls(container);
                 processHostSlot(container);
             }
+            restoreDisclosure();
             if (isOperatorHomeScreen(state.screen?.screen?.key)) {
                 const badgeHost = container.querySelector("[data-panel-badge]");
                 if (badgeHost) {
@@ -339,9 +369,11 @@
             }
             setLastRefresh();
         } catch (error) {
+            if (signal?.aborted || !container.isConnected) return;
             container.innerHTML = renderDashboardPanelShell(panel, renderDashboardPanelError(panel, error));
             bindDashboardPanelOpenControls(container);
             bindDashboardPanelRecovery(container, panel);
+            restoreDisclosure();
         }
     }
 

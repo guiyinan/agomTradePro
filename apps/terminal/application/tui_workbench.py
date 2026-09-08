@@ -286,6 +286,10 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
                 screen_key=screen["key"],
             )
         )
+        action_payloads = [
+            self._action_payload(action, include_technical=include_technical_actions, user=user)
+            for action in actions
+        ]
         return {
             "version": metadata["version"],
             "registry_key": metadata.get("registry_key", self.registry_key),
@@ -306,24 +310,10 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
                 {
                     "type": "actions",
                     "title": "任务",
-                    "items": [
-                        self._action_payload(
-                            action,
-                            include_technical=include_technical_actions,
-                            user=user,
-                        )
-                        for action in actions
-                    ],
+                    "items": action_payloads,
                 },
             ],
-            "actions": [
-                self._action_payload(
-                    action,
-                    include_technical=include_technical_actions,
-                    user=user,
-                )
-                for action in actions
-            ],
+            "actions": action_payloads,
         }
 
     def search_agent_actions(

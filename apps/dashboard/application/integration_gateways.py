@@ -65,6 +65,17 @@ class DashboardApplicationGateway:
             return None
         return next((dict(row) for row in rows if isinstance(row, Mapping)), None)
 
+    def query_latest_quotes(self, asset_codes: list[str]) -> list[dict[str, Any]]:
+        """Read one batch of quote aliases behind the existing publication gate."""
+        from apps.data_center.application.public import get_published_quote_payloads
+
+        if not asset_codes:
+            return []
+        payload = get_published_quote_payloads(asset_codes)
+        if not isinstance(payload, Mapping) or bool(payload.get("must_not_use_for_decision")):
+            return []
+        return _json_rows(payload.get("rows"))
+
     def list_actionable_alpha_candidates(self, *, limit: int) -> list[Any]:
         from apps.alpha_trigger.application.repository_provider import (
             get_alpha_candidate_repository,

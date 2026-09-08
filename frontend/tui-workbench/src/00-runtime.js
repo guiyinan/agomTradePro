@@ -34,6 +34,7 @@
         pendingRequestId: 0,
         latestRequestId: 0,
         pendingController: null,
+        dashboardController: null,
         slowActionTimer: null,
         clientPage: 1,
         clientPageSize: 100,
