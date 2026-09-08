@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from scripts.check_tui_presentation_details import (
     AUDITED_FIELD_LABELS,
     build_report,
@@ -58,3 +60,28 @@ def test_real_tui_sources_close_audited_field_and_internal_key_debt() -> None:
     assert report.graph_field_occurrence_count > 0
     assert report.raw_field_name_count == 0
     assert report.internal_screen_locator_count == 0
+
+
+@pytest.mark.parametrize("extra", ["", " hidden", " disabled", " readonly"])
+def test_only_editable_labelled_address_control_is_allowed(extra: str) -> None:
+    """Navigation is permitted; inert internal-address displays remain forbidden."""
+    control = (
+        '<input id="tui-location-input" data-current-location type="text" '
+        f'aria-label="TUI屏幕地址" value="screen:boot"{extra}>'
+    )
+    report = check_tui_presentation_details(
+        published_payload={},
+        generated_payload={},
+        runtime_labels=AUDITED_FIELD_LABELS,
+        compiler_labels=AUDITED_FIELD_LABELS,
+        template_text=control,
+    )
+    assert report.passed is (not extra)
+    duplicate = check_tui_presentation_details(
+        published_payload={},
+        generated_payload={},
+        runtime_labels=AUDITED_FIELD_LABELS,
+        compiler_labels=AUDITED_FIELD_LABELS,
+        template_text=control + "<span>screen:boot</span>",
+    )
+    assert not duplicate.passed

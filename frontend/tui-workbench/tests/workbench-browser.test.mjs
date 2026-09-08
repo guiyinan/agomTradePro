@@ -180,10 +180,12 @@ test("UX server pagination retains the table and recovers from a failed page", a
                 const result = listResult();
                 result.view_model.rows = result.view_model.rows.slice(0, 20);
                 result.view_model.pager = { page: 1, page_size: 20, total_rows: 45, total_pages: 3, has_next: true, has_previous: false };
+                await delay(150);
                 await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(result) });
             }
         });
         await page.keyboard.press('F5');
+        await page.waitForFunction(() => document.querySelector('[data-page-number]')?.max === '3');
         await page.waitForFunction(() => document.querySelectorAll('[data-row-index]').length === 20);
         await page.keyboard.press('F7');
         assert.match(await page.locator('[data-filter-input]').getAttribute('placeholder'), /当前页/);

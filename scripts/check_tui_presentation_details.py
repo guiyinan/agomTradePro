@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -250,6 +251,22 @@ def check_tui_presentation_details(
         graph_field_occurrence_count += occurrences
         raw_field_name_count += raw_count
         violations.extend(graph_issues)
+
+    # The reviewed shell contract permits one labelled, editable address control.
+    # Continue rejecting locator markers outside that dedicated navigation input.
+    location_controls = re.findall(r"<input\b[^>]*>", template_text)
+    for control in location_controls:
+        if all(
+            marker in control
+            for marker in (
+                "data-current-location",
+                'id="tui-location-input"',
+                'type="text"',
+                'aria-label="TUI屏幕地址"',
+            )
+        ) and not re.search(r"\b(?:disabled|readonly|hidden)\b", control):
+            template_text = template_text.replace(control, "", 1)
+            break
 
     internal_screen_locator_count = 0
     for marker in INTERNAL_LOCATOR_MARKERS:
