@@ -1,0 +1,929 @@
+{
+  "version": "main-vps-code-only-upgrade-evidence.v1",
+  "recorded_at": "2026-09-08T08:50:43.405894+00:00",
+  "environment": "production",
+  "source_commit": "b79687e46de05725c7cbea2cd135a040141ca331",
+  "release_id": "20260908163105",
+  "image_id": "sha256:22661f49c8ded9b040da18e524e93dba1c24558de7a1f67a8fff2a8b63d06562",
+  "pull_request": "https://github.com/guiyinan/agomTradePro/pull/22",
+  "deployment": {
+    "mode": "code-only",
+    "action": "upgrade",
+    "command": "scripts/deploy-vps.ps1 -Upgrade -GitBranch main",
+    "clean_main_worktree": true,
+    "deployment_exit_code": 0,
+    "verification_exit_code": 0,
+    "celery_enabled": true,
+    "volumes_preserved": true,
+    "global_docker_cleanup": false,
+    "auto_rollback_enabled": true,
+    "decision_repair_requested": false,
+    "backup_restore_performed": false
+  },
+  "fresh_backup": {
+    "remote_path": "/opt/agomtradepro/backups/database/postgres-20260908T072921Z.dump",
+    "local_path": "backups/vps-postgres/postgres-20260908T072921Z.dump",
+    "bytes": 150356267,
+    "sha256": "d9761373178b848a7b3c74cb651d1b7d7b855015d1cfc9480a8d657349b117b2",
+    "remote_pg_restore_list_validated": true,
+    "local_sha256_verified": true,
+    "remote_pruning_performed": false
+  },
+  "build_deploy_report": {
+    "version": 1,
+    "release_tag": "20260908163105",
+    "release_dir": "/opt/agomtradepro/releases/source-20260908163105",
+    "target_dir": "/opt/agomtradepro",
+    "health_json": "{\"status\":\"ok\",\"timestamp\":\"2026-09-08T08:47:30.276329+00:00\"}",
+    "runtime_release_identity": {
+      "app_version": "0.8.0",
+      "blocked_reason": null,
+      "build_finished_at": "2026-09-08T08:39:46Z",
+      "build_started_at": "2026-09-08T08:31:08Z",
+      "image_id": "sha256:22661f49c8ded9b040da18e524e93dba1c24558de7a1f67a8fff2a8b63d06562",
+      "image_tag": "agomtradepro-web:20260908163105",
+      "must_not_trust_for_release": false,
+      "release_tag": "20260908163105",
+      "runtime_match": true,
+      "short_commit": "b79687e46de0",
+      "source_commit": "b79687e46de05725c7cbea2cd135a040141ca331",
+      "source_mode": "git-clone",
+      "status": "verified",
+      "status_label": "已核验"
+    },
+    "compose_ps": "NAME                           IMAGE                                                                                            COMMAND                  SERVICE         CREATED              STATUS                        PORTS\nagomtradepro-caddy-1           caddy:2-alpine                                                                                   \"caddy run --config …\"   caddy           About a minute ago   Up 52 seconds                 0.0.0.0:80->80/tcp, [::]:80->80/tcp, 0.0.0.0:443->443/tcp, [::]:443->443/tcp, 443/udp, 2019/tcp\nagomtradepro-celery_beat-1     agomtradepro-web:20260908163105                                                                  \"/entrypoint.sh cele…\"   celery_beat     About a minute ago   Up 58 seconds                 8000/tcp\nagomtradepro-celery_worker-1   agomtradepro-web:20260908163105                                                                  \"/entrypoint.sh cele…\"   celery_worker   About a minute ago   Up 58 seconds                 8000/tcp\nagomtradepro-postgres-1        postgres:16-alpine                                                                               \"docker-entrypoint.s…\"   postgres        7 days ago           Up 7 days (healthy)           5432/tcp\nagomtradepro-prometheus-1      prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996   \"/bin/prometheus --c…\"   prometheus      About a minute ago   Up 58 seconds (healthy)       9090/tcp\nagomtradepro-redis-1           redis:7-alpine                                                                                   \"docker-entrypoint.s…\"   redis           7 days ago           Up 7 days (healthy)           6379/tcp\nagomtradepro-rsshub-1          diygod/rsshub:latest                                                                             \"dumb-init -- npm ru…\"   rsshub          7 days ago           Up 7 days (healthy)           1200/tcp\nagomtradepro-runtime_ns-1      alpine:3.20                                                                                      \"sh -c 'trap 'exit 0…\"   runtime_ns      7 days ago           Up 7 days                     \nagomtradepro-web-1             agomtradepro-web:20260908163105                                                                  \"/entrypoint.sh daph…\"   web             About a minute ago   Up About a minute (healthy)   8000/tcp\n",
+    "image_tag": "agomtradepro-web:20260908163105",
+    "image_id": "sha256:22661f49c8ded9b040da18e524e93dba1c24558de7a1f67a8fff2a8b63d06562",
+    "source_commit": "b79687e46de05725c7cbea2cd135a040141ca331",
+    "build_started_at": "2026-09-08T08:31:08Z",
+    "build_finished_at": "2026-09-08T08:39:46Z",
+    "source_mode": "git-clone",
+    "release_manifest": {
+      "build_finished_at": "2026-09-08T08:39:46Z",
+      "build_started_at": "2026-09-08T08:31:08Z",
+      "image_id": "sha256:22661f49c8ded9b040da18e524e93dba1c24558de7a1f67a8fff2a8b63d06562",
+      "image_tag": "agomtradepro-web:20260908163105",
+      "release_tag": "20260908163105",
+      "source_commit": "b79687e46de05725c7cbea2cd135a040141ca331",
+      "source_mode": "git-clone",
+      "version": 1
+    },
+    "deployed": true
+  },
+  "preflight": {
+    "checked_at": "2026-09-08T07:29:44.216358+00:00",
+    "release_dir": "/opt/agomtradepro/releases/source-20260907170119",
+    "manifest": {
+      "build_finished_at": "2026-09-07T09:10:19Z",
+      "build_started_at": "2026-09-07T09:01:22Z",
+      "image_id": "sha256:778e50018124dd4d67dbe6a607b495d2e480c1bc6ff1aed42a9f50f484331e1e",
+      "image_tag": "agomtradepro-web:20260907170119",
+      "release_tag": "20260907170119",
+      "source_commit": "0e9f890e8185d897630fd937b5ffc220fd7830ce",
+      "source_mode": "git-clone",
+      "version": 1
+    },
+    "services": [
+      {
+        "service": "caddy",
+        "id": "800e04ddcc978f23afaaafb6f486524d5fa6313d13b38913728a838bbef56399",
+        "image": "sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648",
+        "revision": null,
+        "status": "running",
+        "health": null,
+        "started_at": "2026-09-07T09:16:55.352634252Z",
+        "restart_count": 0
+      },
+      {
+        "service": "celery_worker",
+        "id": "d1b41003c3755f7c43b2b083f00c9473e6748b23b9c0facdeac3db83e29f5f08",
+        "image": "sha256:778e50018124dd4d67dbe6a607b495d2e480c1bc6ff1aed42a9f50f484331e1e",
+        "revision": "0e9f890e8185d897630fd937b5ffc220fd7830ce",
+        "status": "running",
+        "health": null,
+        "started_at": "2026-09-07T09:16:49.41692264Z",
+        "restart_count": 0
+      },
+      {
+        "service": "celery_beat",
+        "id": "f4a2c4056e92eea6edb33c98173dbaa21e3f8dc098d3e88f0dddf7519f433edd",
+        "image": "sha256:778e50018124dd4d67dbe6a607b495d2e480c1bc6ff1aed42a9f50f484331e1e",
+        "revision": "0e9f890e8185d897630fd937b5ffc220fd7830ce",
+        "status": "running",
+        "health": null,
+        "started_at": "2026-09-07T09:16:49.412400435Z",
+        "restart_count": 0
+      },
+      {
+        "service": "prometheus",
+        "id": "537a5b4867f4b9f7a5958f982e4a9f23c98807d5266a0d386def4de4fa22129d",
+        "image": "sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996",
+        "revision": null,
+        "status": "running",
+        "health": "healthy",
+        "started_at": "2026-09-07T09:16:49.417776877Z",
+        "restart_count": 0
+      },
+      {
+        "service": "web",
+        "id": "0c695cfec9dd14a32b3572ebb78bbdd71daf2d2328f671497f1e8218ac397ae7",
+        "image": "sha256:778e50018124dd4d67dbe6a607b495d2e480c1bc6ff1aed42a9f50f484331e1e",
+        "revision": "0e9f890e8185d897630fd937b5ffc220fd7830ce",
+        "status": "running",
+        "health": "healthy",
+        "started_at": "2026-09-08T02:54:14.995289428Z",
+        "restart_count": 0
+      },
+      {
+        "service": "rsshub",
+        "id": "eab1b7e619a3d13ec6de0ab8fa691de03d56dcabb87b4d7c75da5827398b8af8",
+        "image": "sha256:44abdc89a6da34574efb8c52ce54ce51a822e347e5432270bf6d7ad759c7d83f",
+        "revision": "5850f584426fa666f70bba7c5934b3cbd8b34059",
+        "status": "running",
+        "health": "healthy",
+        "started_at": "2026-09-01T07:09:48.323627419Z",
+        "restart_count": 0
+      },
+      {
+        "service": "postgres",
+        "id": "c646f7323f9cfdd7d0cf74978ed87c55549357adfa217110c91dc731f1cc390a",
+        "image": "sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685",
+        "revision": null,
+        "status": "running",
+        "health": "healthy",
+        "started_at": "2026-09-01T07:04:23.455486255Z",
+        "restart_count": 0
+      },
+      {
+        "service": "redis",
+        "id": "a01ce99817ad431c29ff1b79998655d2d750e72193d49884915cfa89f110c6fa",
+        "image": "sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf",
+        "revision": null,
+        "status": "running",
+        "health": "healthy",
+        "started_at": "2026-09-01T07:04:23.461403888Z",
+        "restart_count": 0
+      },
+      {
+        "service": "runtime_ns",
+        "id": "78be61d0461e7b51270b39cfe8a0e96c6749a197869501011e94bb00361bc20d",
+        "image": "sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+        "revision": null,
+        "status": "running",
+        "health": null,
+        "started_at": "2026-09-01T07:04:23.459444992Z",
+        "restart_count": 0
+      }
+    ],
+    "caddy_site": "demo.agomtrade.pro {",
+    "disk": "Filesystem     1024-blocks      Used Available Capacity Mounted on\n/dev/sda1        151263856 118118084  33129388      79% /\n"
+  },
+  "postflight": {
+    "checked_at": "2026-09-08T08:49:34.209835+00:00",
+    "release_dir": "/opt/agomtradepro/releases/source-20260908163105",
+    "manifest": {
+      "build_finished_at": "2026-09-08T08:39:46Z",
+      "build_started_at": "2026-09-08T08:31:08Z",
+      "image_id": "sha256:22661f49c8ded9b040da18e524e93dba1c24558de7a1f67a8fff2a8b63d06562",
+      "image_tag": "agomtradepro-web:20260908163105",
+      "release_tag": "20260908163105",
+      "source_commit": "b79687e46de05725c7cbea2cd135a040141ca331",
+      "source_mode": "git-clone",
+      "version": 1
+    },
+    "services": [
+      {
+        "service": "caddy",
+        "id": "795c0dfa4586f0141f83f096cbad602dd94565a02fa1381dfe114ff82d971224",
+        "image": "sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648",
+        "revision": null,
+        "status": "running",
+        "health": null,
+        "started_at": "2026-09-08T08:47:24.25246763Z",
+        "restart_count": 0
+      },
+      {
+        "service": "celery_worker",
+        "id": "cc830e01d1d728677c90500f7fce86e1f855dd9a556031112c876e48d00d79bd",
+        "image": "sha256:22661f49c8ded9b040da18e524e93dba1c24558de7a1f67a8fff2a8b63d06562",
+        "revision": "b79687e46de05725c7cbea2cd135a040141ca331",
+        "status": "running",
+        "health": null,
+        "started_at": "2026-09-08T08:47:18.277190126Z",
+        "restart_count": 0
+      },
+      {
+        "service": "celery_beat",
+        "id": "e65b5c933025b06a93cf09e5c4630ce22cc8e351ed18967e028cba96359c12a2",
+        "image": "sha256:22661f49c8ded9b040da18e524e93dba1c24558de7a1f67a8fff2a8b63d06562",
+        "revision": "b79687e46de05725c7cbea2cd135a040141ca331",
+        "status": "running",
+        "health": null,
+        "started_at": "2026-09-08T08:47:18.283289504Z",
+        "restart_count": 0
+      },
+      {
+        "service": "prometheus",
+        "id": "dcbec9f80e9baab6c9a1042c6b1fe2393883a6d16e29c1b79c3abe8bdb3502e6",
+        "image": "sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996",
+        "revision": null,
+        "status": "running",
+        "health": "healthy",
+        "started_at": "2026-09-08T08:47:18.279671958Z",
+        "restart_count": 0
+      },
+      {
+        "service": "web",
+        "id": "05d159ad5b96c7f97c0a15d0cfd168298273ff201d2bc459b150f0d48851061c",
+        "image": "sha256:22661f49c8ded9b040da18e524e93dba1c24558de7a1f67a8fff2a8b63d06562",
+        "revision": "b79687e46de05725c7cbea2cd135a040141ca331",
+        "status": "running",
+        "health": "healthy",
+        "started_at": "2026-09-08T08:47:02.387222367Z",
+        "restart_count": 0
+      },
+      {
+        "service": "rsshub",
+        "id": "eab1b7e619a3d13ec6de0ab8fa691de03d56dcabb87b4d7c75da5827398b8af8",
+        "image": "sha256:44abdc89a6da34574efb8c52ce54ce51a822e347e5432270bf6d7ad759c7d83f",
+        "revision": "5850f584426fa666f70bba7c5934b3cbd8b34059",
+        "status": "running",
+        "health": "healthy",
+        "started_at": "2026-09-01T07:09:48.323627419Z",
+        "restart_count": 0
+      },
+      {
+        "service": "postgres",
+        "id": "c646f7323f9cfdd7d0cf74978ed87c55549357adfa217110c91dc731f1cc390a",
+        "image": "sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685",
+        "revision": null,
+        "status": "running",
+        "health": "healthy",
+        "started_at": "2026-09-01T07:04:23.455486255Z",
+        "restart_count": 0
+      },
+      {
+        "service": "redis",
+        "id": "a01ce99817ad431c29ff1b79998655d2d750e72193d49884915cfa89f110c6fa",
+        "image": "sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf",
+        "revision": null,
+        "status": "running",
+        "health": "healthy",
+        "started_at": "2026-09-01T07:04:23.461403888Z",
+        "restart_count": 0
+      },
+      {
+        "service": "runtime_ns",
+        "id": "78be61d0461e7b51270b39cfe8a0e96c6749a197869501011e94bb00361bc20d",
+        "image": "sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+        "revision": null,
+        "status": "running",
+        "health": null,
+        "started_at": "2026-09-01T07:04:23.459444992Z",
+        "restart_count": 0
+      }
+    ],
+    "caddy_site": "demo.agomtrade.pro {",
+    "disk": "Filesystem     1024-blocks      Used Available Capacity Mounted on\n/dev/sda1        151263856 120539856  30707616      80% /\n"
+  },
+  "public_probes": {
+    "checked_at": "2026-09-08T08:49:34.451195+00:00",
+    "origin": "https://demo.agomtrade.pro",
+    "tls_verification": true,
+    "responses": {
+      "/api/health/": {
+        "http_status": 200,
+        "url": "https://demo.agomtrade.pro/api/health/",
+        "sha256": "ee4707fdd51cb488f9fb5f9135ad3ec9d1ff36d136ffc336eef0c543b197f731",
+        "bytes": 62,
+        "content_type": "application/json",
+        "observed_at": "2026-09-08T08:49:35.810376+00:00",
+        "body_base64": "eyJzdGF0dXMiOiJvayIsInRpbWVzdGFtcCI6IjIwMjYtMDktMDhUMDg6NDk6MzYuMDg5NTkzKzAwOjAwIn0=",
+        "payload": {
+          "status": "ok",
+          "timestamp": "2026-09-08T08:49:36.089593+00:00"
+        }
+      },
+      "/api/ready/": {
+        "http_status": 200,
+        "url": "https://demo.agomtrade.pro/api/ready/",
+        "sha256": "a2e7226c95ea5e15b9fa33b6107e644ab768e6ce1c4fe10011506d2e2917debc",
+        "bytes": 12176,
+        "content_type": "application/json",
+        "observed_at": "2026-09-08T08:49:45.637259+00:00",
+        "body_base64": "eyJzdGF0dXMiOiAib2siLCAidGltZXN0YW1wIjogIjIwMjYtMDktMDhUMDg6NDk6NDUuODgzNjcyKzAwOjAwIiwgImNoZWNrcyI6IHsiZGF0YWJhc2UiOiB7InN0YXR1cyI6ICJvayJ9LCAicmVkaXMiOiB7InN0YXR1cyI6ICJvayIsICJzb3VyY2UiOiAiY2FjaGUifSwgImNlbGVyeSI6IHsic3RhdHVzIjogIm9rIiwgIndvcmtlcnMiOiAxfSwgImNyaXRpY2FsX2RhdGEiOiB7InN0YXR1cyI6ICJvayIsICJkZXRhaWwiOiB7Im1hY3JvX2luZGljYXRvciI6IHRydWUsICJyZWdpbWVfc3RhdGUiOiB0cnVlfX0sICJkZWNpc2lvbl9kYXRhIjogeyJzdGF0dXMiOiAid2FybmluZyIsICJhc3NldF9jb2RlcyI6IFsiNTEwMzAwLlNIIiwgIjAwMDMwMC5TSCJdLCAicXVvdGVfbWF4X2FnZV9ob3VycyI6IDQuMCwgInF1b3RlcyI6IHsiNTEwMzAwLlNIIjogeyJhc3NldF9jb2RlIjogIjUxMDMwMC5TSCIsICJzbmFwc2hvdF9hdCI6ICIyMDI2LTA4LTI4VDA4OjE0OjQ2KzAwOjAwIiwgIm9ic2VydmVkX2F0IjogIjIwMjYtMDgtMjhUMDg6MTQ6NDYrMDA6MDAiLCAiZmV0Y2hlZF9hdCI6ICIyMDI2LTA4LTI5VDA2OjAyOjM1LjI4NjYxOCswMDowMCIsICJjdXJyZW50X3ByaWNlIjogNC42NzksICJvcGVuIjogNC42ODQsICJoaWdoIjogNC43MDYsICJsb3ciOiA0LjY3NSwgInByZXZfY2xvc2UiOiA0LjY5MSwgInZvbHVtZSI6IDYwNDY5MzMuMCwgInNvdXJjZSI6ICJha3NoYXJlIiwgImFnZV9taW51dGVzIjogMTU4NzQsICJpc19zdGFsZSI6IHRydWUsICJmcmVzaG5lc3Nfc3RhdHVzIjogInN0YWxlIiwgIm11c3Rfbm90X3VzZV9mb3JfZGVjaXNpb24iOiB0cnVlLCAiYmxvY2tlZF9yZWFzb24iOiAiXHU2NzAwXHU2NWIwXHU4ODRjXHU2MGM1XHU1ZmViXHU3MTY3XHU1ZGYyXHU4ZDg1XHU4ZmM3IGZyZXNobmVzcyBcdTk2MDhcdTUwM2NcdWZmMGNcdTVmNTNcdTUyNGRcdTdlZDNcdTY3OWNcdTRlYzVcdTUzZWZcdTc1MjhcdTRlOGVcdThiY2FcdTY1YWRcdWZmMGNcdTRlMGRcdTVmOTdcdTc2ZjRcdTYzYTVcdTc1MjhcdTRlOGVcdTUxYjNcdTdiNTZcdTMwMDIiLCAibWF4X2FnZV9ob3VycyI6IDQuMCwgImNvbnRyYWN0IjogeyJzbmFwc2hvdF9hdCI6ICIyMDI2LTA4LTI4VDA4OjE0OjQ2KzAwOjAwIiwgIm9ic2VydmVkX2F0IjogIjIwMjYtMDgtMjhUMDg6MTQ6NDYrMDA6MDAiLCAiZmV0Y2hlZF9hdCI6ICIyMDI2LTA4LTI5VDA2OjAyOjM1LjI4NjYxOCswMDowMCIsICJhZ2VfbWludXRlcyI6IDE1ODc0LCAiaXNfc3RhbGUiOiB0cnVlLCAiZnJlc2huZXNzX3N0YXR1cyI6ICJzdGFsZSIsICJtdXN0X25vdF91c2VfZm9yX2RlY2lzaW9uIjogdHJ1ZSwgImJsb2NrZWRfcmVhc29uIjogIlx1NjcwMFx1NjViMFx1ODg0Y1x1NjBjNVx1NWZlYlx1NzE2N1x1NWRmMlx1OGQ4NVx1OGZjNyBmcmVzaG5lc3MgXHU5NjA4XHU1MDNjXHVmZjBjXHU1ZjUzXHU1MjRkXHU3ZWQzXHU2NzljXHU0ZWM1XHU1M2VmXHU3NTI4XHU0ZThlXHU4YmNhXHU2NWFkXHVmZjBjXHU0ZTBkXHU1Zjk3XHU3NmY0XHU2M2E1XHU3NTI4XHU0ZThlXHU1MWIzXHU3YjU2XHUzMDAyIiwgIm1heF9hZ2VfaG91cnMiOiA0LjB9LCAic3RhdHVzIjogImJsb2NrZWQifSwgIjAwMDMwMC5TSCI6IHsiYXNzZXRfY29kZSI6ICIwMDAzMDAuU0giLCAic25hcHNob3RfYXQiOiAiMjAyNi0wOC0yOFQwODoxNDoxNCswMDowMCIsICJvYnNlcnZlZF9hdCI6ICIyMDI2LTA4LTI4VDA4OjE0OjE0KzAwOjAwIiwgImZldGNoZWRfYXQiOiAiMjAyNi0wOC0yOVQwNjowMjozNS4yODY3NDkrMDA6MDAiLCAiY3VycmVudF9wcmljZSI6IDQ2MDkuMTgsICJvcGVuIjogNDYxNS44NCwgImhpZ2giOiA0NjQzLjM0LCAibG93IjogNDYwOC40NiwgInByZXZfY2xvc2UiOiA0NjMwLjI4LCAidm9sdW1lIjogMTgwOTg5NDk1LjAsICJzb3VyY2UiOiAiYWtzaGFyZSIsICJhZ2VfbWludXRlcyI6IDE1ODc1LCAiaXNfc3RhbGUiOiB0cnVlLCAiZnJlc2huZXNzX3N0YXR1cyI6ICJzdGFsZSIsICJtdXN0X25vdF91c2VfZm9yX2RlY2lzaW9uIjogdHJ1ZSwgImJsb2NrZWRfcmVhc29uIjogIlx1NjcwMFx1NjViMFx1ODg0Y1x1NjBjNVx1NWZlYlx1NzE2N1x1NWRmMlx1OGQ4NVx1OGZjNyBmcmVzaG5lc3MgXHU5NjA4XHU1MDNjXHVmZjBjXHU1ZjUzXHU1MjRkXHU3ZWQzXHU2NzljXHU0ZWM1XHU1M2VmXHU3NTI4XHU0ZThlXHU4YmNhXHU2NWFkXHVmZjBjXHU0ZTBkXHU1Zjk3XHU3NmY0XHU2M2E1XHU3NTI4XHU0ZThlXHU1MWIzXHU3YjU2XHUzMDAyIiwgIm1heF9hZ2VfaG91cnMiOiA0LjAsICJjb250cmFjdCI6IHsic25hcHNob3RfYXQiOiAiMjAyNi0wOC0yOFQwODoxNDoxNCswMDowMCIsICJvYnNlcnZlZF9hdCI6ICIyMDI2LTA4LTI4VDA4OjE0OjE0KzAwOjAwIiwgImZldGNoZWRfYXQiOiAiMjAyNi0wOC0yOVQwNjowMjozNS4yODY3NDkrMDA6MDAiLCAiYWdlX21pbnV0ZXMiOiAxNTg3NSwgImlzX3N0YWxlIjogdHJ1ZSwgImZyZXNobmVzc19zdGF0dXMiOiAic3RhbGUiLCAibXVzdF9ub3RfdXNlX2Zvcl9kZWNpc2lvbiI6IHRydWUsICJibG9ja2VkX3JlYXNvbiI6ICJcdTY3MDBcdTY1YjBcdTg4NGNcdTYwYzVcdTVmZWJcdTcxNjdcdTVkZjJcdThkODVcdThmYzcgZnJlc2huZXNzIFx1OTYwOFx1NTAzY1x1ZmYwY1x1NWY1M1x1NTI0ZFx1N2VkM1x1Njc5Y1x1NGVjNVx1NTNlZlx1NzUyOFx1NGU4ZVx1OGJjYVx1NjVhZFx1ZmYwY1x1NGUwZFx1NWY5N1x1NzZmNFx1NjNhNVx1NzUyOFx1NGU4ZVx1NTFiM1x1N2I1Nlx1MzAwMiIsICJtYXhfYWdlX2hvdXJzIjogNC4wfSwgInN0YXR1cyI6ICJibG9ja2VkIn19LCAibWFya2V0X3RoZXJtb21ldGVyIjogeyJvYnNlcnZlZF9hdCI6ICIyMDI2LTA5LTA3IiwgInNjb3JlIjogMjkuNCwgImJhbmQiOiAiY29sZCIsICJjaGFuZ2VfNWQiOiAtMC4xNSwgImNoYW5nZV8yMGQiOiAtMTkuNzksICJjb21wb25lbnRzIjogW3siY29tcG9uZW50X2tleSI6ICJuZXdfaW52ZXN0b3JfYWNjb3VudHMiLCAibGFiZWwiOiAiXHU2NWIwXHU1ODllXHU1ZjAwXHU2MjM3IiwgImluZGljYXRvcl9jb2RlIjogIkNOX0FfTkVXX0lOVkVTVE9SX0FDQ09VTlRTIiwgInNjb3JlIjogMzUuNTYsICJ3ZWlnaHQiOiAwLjE1LCAiY3VycmVudF92YWx1ZSI6IDI1NjY2MDAuMCwgInVuaXQiOiAiXHU2MjM3IiwgImdyb3d0aF9zY29yZSI6IDMzLjE3NDUzNjQ1MzIyNDk4LCAicGVyY2VudGlsZV9zY29yZSI6IDM5LjEzMDQzNDc4MjYwODY5NSwgInNlbnRpbWVudF9zY29yZSI6IG51bGwsICJwb3NpdGl2ZV9yYXRpb19zY29yZSI6IG51bGwsICJpc19zdGFsZSI6IGZhbHNlLCAiaXNfbWlzc2luZyI6IGZhbHNlLCAiYWdlX2RheXMiOiA3LCAicmVhc29uIjogIlx1NjViMFx1NTg5ZVx1NWYwMFx1NjIzNzogXHU1ODllXHU5MDFmXHU1MjA2IDMzLjIgLyBcdTUyMDZcdTRmNGRcdTUyMDYgMzkuMSJ9LCB7ImNvbXBvbmVudF9rZXkiOiAidHVybm92ZXIiLCAibGFiZWwiOiAiXHU1MTY4XHU1ZTAyXHU1NzNhXHU2MjEwXHU0ZWE0XHU5ODlkIiwgImluZGljYXRvcl9jb2RlIjogIkNOX0FfVE9UQUxfVFVSTk9WRVIiLCAic2NvcmUiOiAzMC43MSwgIndlaWdodCI6IDAuMjUsICJjdXJyZW50X3ZhbHVlIjogMjA1MTA0ODY4MTE2Ni42MjU3LCAidW5pdCI6ICJcdTUxNDMiLCAiZ3Jvd3RoX3Njb3JlIjogNDIuNTgzNDI2OTA1MzQxMDcsICJwZXJjZW50aWxlX3Njb3JlIjogMTIuOTAzMjI1ODA2NDUxNjEyLCAic2VudGltZW50X3Njb3JlIjogbnVsbCwgInBvc2l0aXZlX3JhdGlvX3Njb3JlIjogbnVsbCwgImlzX3N0YWxlIjogZmFsc2UsICJpc19taXNzaW5nIjogZmFsc2UsICJhZ2VfZGF5cyI6IDEsICJyZWFzb24iOiAiXHU1MTY4XHU1ZTAyXHU1NzNhXHU2MjEwXHU0ZWE0XHU5ODlkOiBcdTU4OWVcdTkwMWZcdTUyMDYgNDIuNiAvIFx1NTIwNlx1NGY0ZFx1NTIwNiAxMi45In0sIHsiY29tcG9uZW50X2tleSI6ICJtYXJnaW5fYmFsYW5jZSIsICJsYWJlbCI6ICJcdTg3OGRcdThkNDRcdTRmNTlcdTk4OWQiLCAiaW5kaWNhdG9yX2NvZGUiOiAiQ05fQV9NQVJHSU5fQkFMQU5DRSIsICJzY29yZSI6IDM0LjA4LCAid2VpZ2h0IjogMC4yLCAiY3VycmVudF92YWx1ZSI6IDI2MDA3NzUyMzc1ODAuMCwgInVuaXQiOiAiXHU1MTQzIiwgImdyb3d0aF9zY29yZSI6IDQ3LjAwNDkxNDgyMjcxNTE3LCAicGVyY2VudGlsZV9zY29yZSI6IDE0LjY4NTMxNDY4NTMxNDY4NSwgInNlbnRpbWVudF9zY29yZSI6IG51bGwsICJwb3NpdGl2ZV9yYXRpb19zY29yZSI6IG51bGwsICJpc19zdGFsZSI6IGZhbHNlLCAiaXNfbWlzc2luZyI6IGZhbHNlLCAiYWdlX2RheXMiOiAxLCAicmVhc29uIjogIlx1ODc4ZFx1OGQ0NFx1NGY1OVx1OTg5ZDogXHU1ODllXHU5MDFmXHU1MjA2IDQ3LjAgLyBcdTUyMDZcdTRmNGRcdTUyMDYgMTQuNyJ9LCB7ImNvbXBvbmVudF9rZXkiOiAiZXRmX25ldF9mbG93IiwgImxhYmVsIjogIkVURiBcdThkNDRcdTkxZDFcdTUxYzBcdTZkNDFcdTUxNjUiLCAiaW5kaWNhdG9yX2NvZGUiOiAiQ05fQV9FVEZfTkVUX0ZMT1ciLCAic2NvcmUiOiAyNC4xMywgIndlaWdodCI6IDAuMTUsICJjdXJyZW50X3ZhbHVlIjogLTIzNDEyNDEwNzg1OC45OTkzNiwgInVuaXQiOiAiXHU1MTQzIiwgImdyb3d0aF9zY29yZSI6IDE0LjEyNDA0MTIzNzc0NzgxLCAicGVyY2VudGlsZV9zY29yZSI6IDM5LjEzMDQzNDc4MjYwODY5NSwgInNlbnRpbWVudF9zY29yZSI6IG51bGwsICJwb3NpdGl2ZV9yYXRpb19zY29yZSI6IG51bGwsICJpc19zdGFsZSI6IGZhbHNlLCAiaXNfbWlzc2luZyI6IGZhbHNlLCAiYWdlX2RheXMiOiAyLCAicmVhc29uIjogIkVURiBcdThkNDRcdTkxZDFcdTUxYzBcdTZkNDFcdTUxNjU6IFx1NTg5ZVx1OTAxZlx1NTIwNiAxNC4xIC8gXHU1MjA2XHU0ZjRkXHU1MjA2IDM5LjEifSwgeyJjb21wb25lbnRfa2V5IjogIm1hcmtldF9uZXdzX2NvdW50IiwgImxhYmVsIjogIlx1NWUwMlx1NTczYVx1NjViMFx1OTVmYlx1NzBlZFx1NWVhNiIsICJpbmRpY2F0b3JfY29kZSI6ICJDTl9BX01BUktFVF9ORVdTX0NPVU5UIiwgInNjb3JlIjogMTguMzMsICJ3ZWlnaHQiOiAwLjE1LCAiY3VycmVudF92YWx1ZSI6IDMuMCwgInVuaXQiOiAiXHU3YmM3IiwgImdyb3d0aF9zY29yZSI6IDI1LjAsICJwZXJjZW50aWxlX3Njb3JlIjogOC4zMzMzMzMzMzMzMzMzMzIsICJzZW50aW1lbnRfc2NvcmUiOiBudWxsLCAicG9zaXRpdmVfcmF0aW9fc2NvcmUiOiBudWxsLCAiaXNfc3RhbGUiOiBmYWxzZSwgImlzX21pc3NpbmciOiBmYWxzZSwgImFnZV9kYXlzIjogMSwgInJlYXNvbiI6ICJcdTVlMDJcdTU3M2FcdTY1YjBcdTk1ZmJcdTcwZWRcdTVlYTY6IFx1NTg5ZVx1OTAxZlx1NTIwNiAyNS4wIC8gXHU1MjA2XHU0ZjRkXHU1MjA2IDguMyJ9LCB7ImNvbXBvbmVudF9rZXkiOiAibWFya2V0X25ld3Nfc2VudGltZW50IiwgImxhYmVsIjogIlx1NWUwMlx1NTczYVx1NjViMFx1OTVmYlx1NjBjNVx1N2VlYSIsICJpbmRpY2F0b3JfY29kZSI6ICJDTl9BX01BUktFVF9ORVdTX1NFTlRJTUVOVCIsICJzY29yZSI6IDMyLjA2LCAid2VpZ2h0IjogMC4xLCAiY3VycmVudF92YWx1ZSI6IC0wLjExMTExMSwgInVuaXQiOiAic2NvcmUiLCAiZ3Jvd3RoX3Njb3JlIjogbnVsbCwgInBlcmNlbnRpbGVfc2NvcmUiOiA1LjAsICJzZW50aW1lbnRfc2NvcmUiOiAzOC44ODg5LCAicG9zaXRpdmVfcmF0aW9fc2NvcmUiOiA1MC4wLCAiaXNfc3RhbGUiOiBmYWxzZSwgImlzX21pc3NpbmciOiBmYWxzZSwgImFnZV9kYXlzIjogMSwgInJlYXNvbiI6ICJcdTVlMDJcdTU3M2FcdTY1YjBcdTk1ZmJcdTYwYzVcdTdlZWE6IFx1NTIwNlx1NGY0ZFx1NTIwNiA1LjAgLyBcdTYwYzVcdTdlZWFcdTUyMDYgMzguOSJ9XSwgInRyaWdnZXJfcmVhc29ucyI6IFsiXHU1MTY4XHU1ZTAyXHU1NzNhXHU2MjEwXHU0ZWE0XHU5ODlkOiBcdTU4OWVcdTkwMWZcdTUyMDYgNDIuNiAvIFx1NTIwNlx1NGY0ZFx1NTIwNiAxMi45IiwgIlx1ODc4ZFx1OGQ0NFx1NGY1OVx1OTg5ZDogXHU1ODllXHU5MDFmXHU1MjA2IDQ3LjAgLyBcdTUyMDZcdTRmNGRcdTUyMDYgMTQuNyIsICJcdTY1YjBcdTU4OWVcdTVmMDBcdTYyMzc6IFx1NTg5ZVx1OTAxZlx1NTIwNiAzMy4yIC8gXHU1MjA2XHU0ZjRkXHU1MjA2IDM5LjEiLCAiRVRGIFx1OGQ0NFx1OTFkMVx1NTFjMFx1NmQ0MVx1NTE2NTogXHU1ODllXHU5MDFmXHU1MjA2IDE0LjEgLyBcdTUyMDZcdTRmNGRcdTUyMDYgMzkuMSIsICJcdTVlMDJcdTU3M2FcdTY1YjBcdTk1ZmJcdTYwYzVcdTdlZWE6IFx1NTIwNlx1NGY0ZFx1NTIwNiA1LjAgLyBcdTYwYzVcdTdlZWFcdTUyMDYgMzguOSJdLCAic3RhbGVfY29tcG9uZW50cyI6IFtdLCAibWlzc2luZ19jb21wb25lbnRzIjogW10sICJ2YWxpZF9jb21wb25lbnRfY291bnQiOiA2LCAiZGF0YV9zb3VyY2UiOiAiY2FsY3VsYXRlZCIsICJtdXN0X25vdF91c2VfZm9yX2RlY2lzaW9uIjogZmFsc2UsICJibG9ja2VkX3JlYXNvbiI6ICIiLCAiY2FsY3VsYXRlZF9hdCI6ICIyMDI2LTA5LTA3VDExOjE2OjIzLjkwNjE1MSswMDowMCIsICJ0aHJlc2hvbGRfc291cmNlIjogInN5c3RlbSIsICJ0aHJlc2hvbGRzIjogeyJ3YXJtX3RocmVzaG9sZCI6IDM1LjAsICJob3RfdGhyZXNob2xkIjogNjAuMCwgIm92ZXJoZWF0X3RocmVzaG9sZCI6IDc1LjAsICJleHRyZW1lX3RocmVzaG9sZCI6IDg1LjB9LCAic2NvcmVfYXZhaWxhYmxlIjogdHJ1ZSwgImZhbGxiYWNrX3VzZWQiOiBmYWxzZSwgImxhdGVzdF9zbmFwc2hvdF9vYnNlcnZlZF9hdCI6ICIyMDI2LTA5LTA3IiwgImVmZmVjdGl2ZV9iYW5kIjogImNvbGQiLCAib3ZlcmhlYXRpbmdfcmlzayI6IGZhbHNlLCAiYXZvaWRfY2hhc2luZyI6IGZhbHNlLCAiY29tcG9uZW50X2RhdGFfcHJvdmVuYW5jZSI6IFt7ImNvbXBvbmVudF9rZXkiOiAibmV3X2ludmVzdG9yX2FjY291bnRzIiwgImluZGljYXRvcl9jb2RlIjogIkNOX0FfTkVXX0lOVkVTVE9SX0FDQ09VTlRTIiwgInJlcG9ydGluZ19wZXJpb2QiOiAiMjAyNi0wOC0zMSIsICJzb3VyY2UiOiAiYWtzaGFyZSIsICJwcm94eSI6ICJzc2VfbW9udGhseV9hbGxfYWNjb3VudF9vcGVuaW5ncyIsICJ2ZXJpZmljYXRpb25fc3RhdHVzIjogInByb3h5X3NvdXJjZSIsICJzb3VyY2VfdXJsIjogImh0dHBzOi8vd3d3LnNzZS5jb20uY24vYWJvdXR1cy9wdWJsaWNhdGlvbi9tb250aGx5L2ludmVzdG9yLyJ9LCB7ImNvbXBvbmVudF9rZXkiOiAidHVybm92ZXIiLCAiaW5kaWNhdG9yX2NvZGUiOiAiQ05fQV9UT1RBTF9UVVJOT1ZFUiIsICJyZXBvcnRpbmdfcGVyaW9kIjogIjIwMjYtMDktMDQiLCAic291cmNlIjogInR1c2hhcmUiLCAicHJveHkiOiBudWxsLCAidmVyaWZpY2F0aW9uX3N0YXR1cyI6IG51bGwsICJzb3VyY2VfdXJsIjogbnVsbH0sIHsiY29tcG9uZW50X2tleSI6ICJtYXJnaW5fYmFsYW5jZSIsICJpbmRpY2F0b3JfY29kZSI6ICJDTl9BX01BUkdJTl9CQUxBTkNFIiwgInJlcG9ydGluZ19wZXJpb2QiOiAiMjAyNi0wOS0wNCIsICJzb3VyY2UiOiAiYWtzaGFyZSIsICJwcm94eSI6ICJzaF9tYXJnaW5fcGx1c19zel9tYXJnaW4iLCAidmVyaWZpY2F0aW9uX3N0YXR1cyI6ICJwcm94eV9zb3VyY2UiLCAic291cmNlX3VybCI6IG51bGx9LCB7ImNvbXBvbmVudF9rZXkiOiAiZXRmX25ldF9mbG93IiwgImluZGljYXRvcl9jb2RlIjogIkNOX0FfRVRGX05FVF9GTE9XIiwgInJlcG9ydGluZ19wZXJpb2QiOiAiMjAyNi0wOS0wMyIsICJzb3VyY2UiOiAiZGF0YV9jZW50ZXJfY29uc2Vuc3VzIiwgInByb3h5IjogInR1c2hhcmVfZXRmX3NoYXJlX3NpemVfZGVsdGEiLCAidmVyaWZpY2F0aW9uX3N0YXR1cyI6ICJmYWxsYmFja19wcm94eSIsICJzb3VyY2VfdXJsIjogbnVsbH0sIHsiY29tcG9uZW50X2tleSI6ICJtYXJrZXRfbmV3c19jb3VudCIsICJpbmRpY2F0b3JfY29kZSI6ICJDTl9BX01BUktFVF9ORVdTX0NPVU5UIiwgInJlcG9ydGluZ19wZXJpb2QiOiAiMjAyNi0wOS0wNCIsICJzb3VyY2UiOiAiYWtzaGFyZSIsICJwcm94eSI6IG51bGwsICJ2ZXJpZmljYXRpb25fc3RhdHVzIjogbnVsbCwgInNvdXJjZV91cmwiOiBudWxsfSwgeyJjb21wb25lbnRfa2V5IjogIm1hcmtldF9uZXdzX3NlbnRpbWVudCIsICJpbmRpY2F0b3JfY29kZSI6ICJDTl9BX01BUktFVF9ORVdTX1NFTlRJTUVOVCIsICJyZXBvcnRpbmdfcGVyaW9kIjogIjIwMjYtMDktMDQiLCAic291cmNlIjogImFrc2hhcmUiLCAicHJveHkiOiBudWxsLCAidmVyaWZpY2F0aW9uX3N0YXR1cyI6IG51bGwsICJzb3VyY2VfdXJsIjogbnVsbH1dLCAicHJveHlfY29tcG9uZW50cyI6IFt7ImNvbXBvbmVudF9rZXkiOiAibmV3X2ludmVzdG9yX2FjY291bnRzIiwgImluZGljYXRvcl9jb2RlIjogIkNOX0FfTkVXX0lOVkVTVE9SX0FDQ09VTlRTIiwgInJlcG9ydGluZ19wZXJpb2QiOiAiMjAyNi0wOC0zMSIsICJzb3VyY2UiOiAiYWtzaGFyZSIsICJwcm94eSI6ICJzc2VfbW9udGhseV9hbGxfYWNjb3VudF9vcGVuaW5ncyIsICJ2ZXJpZmljYXRpb25fc3RhdHVzIjogInByb3h5X3NvdXJjZSIsICJzb3VyY2VfdXJsIjogImh0dHBzOi8vd3d3LnNzZS5jb20uY24vYWJvdXR1cy9wdWJsaWNhdGlvbi9tb250aGx5L2ludmVzdG9yLyJ9LCB7ImNvbXBvbmVudF9rZXkiOiAibWFyZ2luX2JhbGFuY2UiLCAiaW5kaWNhdG9yX2NvZGUiOiAiQ05fQV9NQVJHSU5fQkFMQU5DRSIsICJyZXBvcnRpbmdfcGVyaW9kIjogIjIwMjYtMDktMDQiLCAic291cmNlIjogImFrc2hhcmUiLCAicHJveHkiOiAic2hfbWFyZ2luX3BsdXNfc3pfbWFyZ2luIiwgInZlcmlmaWNhdGlvbl9zdGF0dXMiOiAicHJveHlfc291cmNlIiwgInNvdXJjZV91cmwiOiBudWxsfSwgeyJjb21wb25lbnRfa2V5IjogImV0Zl9uZXRfZmxvdyIsICJpbmRpY2F0b3JfY29kZSI6ICJDTl9BX0VURl9ORVRfRkxPVyIsICJyZXBvcnRpbmdfcGVyaW9kIjogIjIwMjYtMDktMDMiLCAic291cmNlIjogImRhdGFfY2VudGVyX2NvbnNlbnN1cyIsICJwcm94eSI6ICJ0dXNoYXJlX2V0Zl9zaGFyZV9zaXplX2RlbHRhIiwgInZlcmlmaWNhdGlvbl9zdGF0dXMiOiAiZmFsbGJhY2tfcHJveHkiLCAic291cmNlX3VybCI6IG51bGx9XSwgInN0YXR1cyI6ICJvayJ9LCAibXVzdF9ub3RfdXNlX2Zvcl9kZWNpc2lvbiI6IHRydWUsICJibG9ja2VkX3JlYXNvbnMiOiBbIjUxMDMwMC5TSDogXHU2NzAwXHU2NWIwXHU4ODRjXHU2MGM1XHU1ZmViXHU3MTY3XHU1ZGYyXHU4ZDg1XHU4ZmM3IGZyZXNobmVzcyBcdTk2MDhcdTUwM2NcdWZmMGNcdTVmNTNcdTUyNGRcdTdlZDNcdTY3OWNcdTRlYzVcdTUzZWZcdTc1MjhcdTRlOGVcdThiY2FcdTY1YWRcdWZmMGNcdTRlMGRcdTVmOTdcdTc2ZjRcdTYzYTVcdTc1MjhcdTRlOGVcdTUxYjNcdTdiNTZcdTMwMDIiLCAiMDAwMzAwLlNIOiBcdTY3MDBcdTY1YjBcdTg4NGNcdTYwYzVcdTVmZWJcdTcxNjdcdTVkZjJcdThkODVcdThmYzcgZnJlc2huZXNzIFx1OTYwOFx1NTAzY1x1ZmYwY1x1NWY1M1x1NTI0ZFx1N2VkM1x1Njc5Y1x1NGVjNVx1NTNlZlx1NzUyOFx1NGU4ZVx1OGJjYVx1NjVhZFx1ZmYwY1x1NGUwZFx1NWY5N1x1NzZmNFx1NjNhNVx1NzUyOFx1NGU4ZVx1NTFiM1x1N2I1Nlx1MzAwMiJdLCAicmVhZGluZXNzX3N0YXR1cyI6ICJibG9ja2VkIn0sICJhbHBoYV93b3Jrc3BhY2VfY29uc2lzdGVuY3kiOiB7InN0YXR1cyI6ICJvayIsICJjaGVja2VkX2FjY291bnRfaWQiOiAiZGVmYXVsdCIsICJhbHBoYSI6IHsibGF0ZXN0X3RyYWRlX2RhdGUiOiAiMjAyNi0wOS0wNyIsICJsYXRlc3RfdXBkYXRlZF9hdCI6ICIyMDI2LTA5LTA3VDA5OjQ5OjQ0LjQ3Mzk4MyswMDowMCIsICJ0b3BfY29kZXMiOiBbIjYwMDExOC5TSCIsICIwMDI0OTMuU1oiLCAiMDAyMjAyLlNaIiwgIjY4ODA0MS5TSCIsICI2ODg1MjEuU0giLCAiNjAxMDU4LlNIIiwgIjMwMDI3NC5TWiIsICI2MDE5MTkuU0giLCAiNjAzNzk5LlNIIiwgIjAwMjM1My5TWiIsICI2MDMyNjAuU0giLCAiMDAyMzg0LlNaIiwgIjYwMTY5OC5TSCIsICIwMDI0NzUuU1oiLCAiNjAxMDg4LlNIIiwgIjAwMDQwOC5TWiIsICIwMDE5NjUuU1oiLCAiNjAzOTg2LlNIIiwgIjYwMTAxOC5TSCIsICIzMDA0NzYuU1oiLCAiNjAxMzE5LlNIIiwgIjY4ODUwNi5TSCIsICIwMDI3MDkuU1oiLCAiNjg4OTgxLlNIIiwgIjMwMDQ1MC5TWiIsICI2MDA4MDMuU0giLCAiMDAyOTE2LlNaIiwgIjAwMDk3NS5TWiIsICIwMDAzMzguU1oiLCAiMzAwMzE2LlNaIl0sICJwcm92aWRlcl9zb3VyY2UiOiAicWxpYiIsICJzdGF0dXMiOiAiYXZhaWxhYmxlIiwgInJ1bnRpbWVfcHJvdmlkZXJfc3RhdHVzIjogeyJxbGliIjogeyJwcmlvcml0eSI6IDEsICJzdGF0dXMiOiAiYXZhaWxhYmxlIiwgIm1heF9zdGFsZW5lc3NfZGF5cyI6IDJ9LCAiY2FjaGUiOiB7InByaW9yaXR5IjogMTAsICJzdGF0dXMiOiAiYXZhaWxhYmxlIiwgIm1heF9zdGFsZW5lc3NfZGF5cyI6IDV9LCAic2ltcGxlIjogeyJwcmlvcml0eSI6IDEwMCwgInN0YXR1cyI6ICJhdmFpbGFibGUiLCAibWF4X3N0YWxlbmVzc19kYXlzIjogN30sICJldGYiOiB7InByaW9yaXR5IjogMTAwMCwgInN0YXR1cyI6ICJ1bmF2YWlsYWJsZSIsICJtYXhfc3RhbGVuZXNzX2RheXMiOiAzMH19fSwgIndvcmtzcGFjZSI6IHsiYWNjb3VudF9pZCI6ICJkZWZhdWx0IiwgImxhdGVzdF91cGRhdGVkX2F0IjogIjIwMjYtMDktMDdUMDk6NDk6NTUuOTY3NTA0KzAwOjAwIiwgInJlY29tbWVuZGF0aW9uX2NvZGVzIjogWyIwMDI3MDkuU1oiLCAiMDAyOTE2LlNaIiwgIjYwMzI2MC5TSCIsICIwMDI0NzUuU1oiLCAiMDAwNDA4LlNaIiwgIjMwMDI3NC5TWiIsICI2MDEwNTguU0giLCAiNjAwMTE4LlNIIiwgIjYwMTA4OC5TSCIsICIwMDIzODQuU1oiLCAiMzAwNDUwLlNaIiwgIjYwMTAxOC5TSCIsICI2MDE5MTkuU0giLCAiNjAwODAzLlNIIiwgIjAwMjQ5My5TWiIsICIwMDIzNTMuU1oiLCAiNjAxNjk4LlNIIiwgIjY4ODUwNi5TSCIsICI2ODg1MjEuU0giLCAiMzAwMzE2LlNaIiwgIjY4ODA0MS5TSCIsICIwMDA5NzUuU1oiLCAiNjg4OTgxLlNIIiwgIjYwMzc5OS5TSCIsICI2MDEzMTkuU0giLCAiNjAzOTg2LlNIIiwgIjMwMDQ3Ni5TWiIsICIwMDAzMzguU1oiLCAiMDAxOTY1LlNaIiwgIjAwMjIwMi5TWiJdLCAic291cmNlX2NhbmRpZGF0ZV9pZHMiOiBbImFscGhhX3Jhbms6MDAyNzA5LlNaOjIwMjYtMDktMDciLCAiYWxwaGFfcmFuazowMDI5MTYuU1o6MjAyNi0wOS0wNyIsICJhbHBoYV9yYW5rOjYwMzI2MC5TSDoyMDI2LTA5LTA3IiwgImFscGhhX3Jhbms6MDAyNDc1LlNaOjIwMjYtMDktMDciLCAiYWxwaGFfcmFuazowMDA0MDguU1o6MjAyNi0wOS0wNyIsICJhbHBoYV9yYW5rOjMwMDI3NC5TWjoyMDI2LTA5LTA3IiwgImFscGhhX3Jhbms6NjAxMDU4LlNIOjIwMjYtMDktMDciLCAiYWxwaGFfcmFuazo2MDAxMTguU0g6MjAyNi0wOS0wNyIsICJhbHBoYV9yYW5rOjYwMTA4OC5TSDoyMDI2LTA5LTA3IiwgImFscGhhX3Jhbms6MDAyMzg0LlNaOjIwMjYtMDktMDciLCAiYWxwaGFfcmFuazozMDA0NTAuU1o6MjAyNi0wOS0wNyIsICJhbHBoYV9yYW5rOjYwMTAxOC5TSDoyMDI2LTA5LTA3IiwgImFscGhhX3Jhbms6NjAxOTE5LlNIOjIwMjYtMDktMDciLCAiYWxwaGFfcmFuazo2MDA4MDMuU0g6MjAyNi0wOS0wNyIsICJhbHBoYV9yYW5rOjAwMjQ5My5TWjoyMDI2LTA5LTA3IiwgImFscGhhX3Jhbms6MDAyMzUzLlNaOjIwMjYtMDktMDciLCAiYWxwaGFfcmFuazo2MDE2OTguU0g6MjAyNi0wOS0wNyIsICJhbHBoYV9yYW5rOjY4ODUwNi5TSDoyMDI2LTA5LTA3IiwgImFscGhhX3Jhbms6Njg4NTIxLlNIOjIwMjYtMDktMDciLCAiYWxwaGFfcmFuazozMDAzMTYuU1o6MjAyNi0wOS0wNyIsICJhbHBoYV9yYW5rOjY4ODA0MS5TSDoyMDI2LTA5LTA3IiwgImFscGhhX3Jhbms6MDAwOTc1LlNaOjIwMjYtMDktMDciLCAiYWxwaGFfcmFuazo2ODg5ODEuU0g6MjAyNi0wOS0wNyIsICJhbHBoYV9yYW5rOjYwMzc5OS5TSDoyMDI2LTA5LTA3IiwgImFscGhhX3Jhbms6NjAxMzE5LlNIOjIwMjYtMDktMDciLCAiYWxwaGFfcmFuazo2MDM5ODYuU0g6MjAyNi0wOS0wNyIsICJhbHBoYV9yYW5rOjMwMDQ3Ni5TWjoyMDI2LTA5LTA3IiwgImFscGhhX3Jhbms6MDAwMzM4LlNaOjIwMjYtMDktMDciLCAiYWxwaGFfcmFuazowMDE5NjUuU1o6MjAyNi0wOS0wNyIsICJhbHBoYV9yYW5rOjAwMjIwMi5TWjoyMDI2LTA5LTA3Il0sICJ0b3RhbF9jb3VudCI6IDE1NzF9LCAiaXNzdWVzIjogW119fX0=",
+        "payload": {
+          "status": "ok",
+          "timestamp": "2026-09-08T08:49:45.883672+00:00",
+          "checks": {
+            "database": {
+              "status": "ok"
+            },
+            "redis": {
+              "status": "ok",
+              "source": "cache"
+            },
+            "celery": {
+              "status": "ok",
+              "workers": 1
+            },
+            "critical_data": {
+              "status": "ok",
+              "detail": {
+                "macro_indicator": true,
+                "regime_state": true
+              }
+            },
+            "decision_data": {
+              "status": "warning",
+              "asset_codes": [
+                "510300.SH",
+                "000300.SH"
+              ],
+              "quote_max_age_hours": 4.0,
+              "quotes": {
+                "510300.SH": {
+                  "asset_code": "510300.SH",
+                  "snapshot_at": "2026-08-28T08:14:46+00:00",
+                  "observed_at": "2026-08-28T08:14:46+00:00",
+                  "fetched_at": "2026-08-29T06:02:35.286618+00:00",
+                  "current_price": 4.679,
+                  "open": 4.684,
+                  "high": 4.706,
+                  "low": 4.675,
+                  "prev_close": 4.691,
+                  "volume": 6046933.0,
+                  "source": "akshare",
+                  "age_minutes": 15874,
+                  "is_stale": true,
+                  "freshness_status": "stale",
+                  "must_not_use_for_decision": true,
+                  "blocked_reason": "最新行情快照已超过 freshness 阈值，当前结果仅可用于诊断，不得直接用于决策。",
+                  "max_age_hours": 4.0,
+                  "contract": {
+                    "snapshot_at": "2026-08-28T08:14:46+00:00",
+                    "observed_at": "2026-08-28T08:14:46+00:00",
+                    "fetched_at": "2026-08-29T06:02:35.286618+00:00",
+                    "age_minutes": 15874,
+                    "is_stale": true,
+                    "freshness_status": "stale",
+                    "must_not_use_for_decision": true,
+                    "blocked_reason": "最新行情快照已超过 freshness 阈值，当前结果仅可用于诊断，不得直接用于决策。",
+                    "max_age_hours": 4.0
+                  },
+                  "status": "blocked"
+                },
+                "000300.SH": {
+                  "asset_code": "000300.SH",
+                  "snapshot_at": "2026-08-28T08:14:14+00:00",
+                  "observed_at": "2026-08-28T08:14:14+00:00",
+                  "fetched_at": "2026-08-29T06:02:35.286749+00:00",
+                  "current_price": 4609.18,
+                  "open": 4615.84,
+                  "high": 4643.34,
+                  "low": 4608.46,
+                  "prev_close": 4630.28,
+                  "volume": 180989495.0,
+                  "source": "akshare",
+                  "age_minutes": 15875,
+                  "is_stale": true,
+                  "freshness_status": "stale",
+                  "must_not_use_for_decision": true,
+                  "blocked_reason": "最新行情快照已超过 freshness 阈值，当前结果仅可用于诊断，不得直接用于决策。",
+                  "max_age_hours": 4.0,
+                  "contract": {
+                    "snapshot_at": "2026-08-28T08:14:14+00:00",
+                    "observed_at": "2026-08-28T08:14:14+00:00",
+                    "fetched_at": "2026-08-29T06:02:35.286749+00:00",
+                    "age_minutes": 15875,
+                    "is_stale": true,
+                    "freshness_status": "stale",
+                    "must_not_use_for_decision": true,
+                    "blocked_reason": "最新行情快照已超过 freshness 阈值，当前结果仅可用于诊断，不得直接用于决策。",
+                    "max_age_hours": 4.0
+                  },
+                  "status": "blocked"
+                }
+              },
+              "market_thermometer": {
+                "observed_at": "2026-09-07",
+                "score": 29.4,
+                "band": "cold",
+                "change_5d": -0.15,
+                "change_20d": -19.79,
+                "components": [
+                  {
+                    "component_key": "new_investor_accounts",
+                    "label": "新增开户",
+                    "indicator_code": "CN_A_NEW_INVESTOR_ACCOUNTS",
+                    "score": 35.56,
+                    "weight": 0.15,
+                    "current_value": 2566600.0,
+                    "unit": "户",
+                    "growth_score": 33.17453645322498,
+                    "percentile_score": 39.130434782608695,
+                    "sentiment_score": null,
+                    "positive_ratio_score": null,
+                    "is_stale": false,
+                    "is_missing": false,
+                    "age_days": 7,
+                    "reason": "新增开户: 增速分 33.2 / 分位分 39.1"
+                  },
+                  {
+                    "component_key": "turnover",
+                    "label": "全市场成交额",
+                    "indicator_code": "CN_A_TOTAL_TURNOVER",
+                    "score": 30.71,
+                    "weight": 0.25,
+                    "current_value": 2051048681166.6257,
+                    "unit": "元",
+                    "growth_score": 42.58342690534107,
+                    "percentile_score": 12.903225806451612,
+                    "sentiment_score": null,
+                    "positive_ratio_score": null,
+                    "is_stale": false,
+                    "is_missing": false,
+                    "age_days": 1,
+                    "reason": "全市场成交额: 增速分 42.6 / 分位分 12.9"
+                  },
+                  {
+                    "component_key": "margin_balance",
+                    "label": "融资余额",
+                    "indicator_code": "CN_A_MARGIN_BALANCE",
+                    "score": 34.08,
+                    "weight": 0.2,
+                    "current_value": 2600775237580.0,
+                    "unit": "元",
+                    "growth_score": 47.00491482271517,
+                    "percentile_score": 14.685314685314685,
+                    "sentiment_score": null,
+                    "positive_ratio_score": null,
+                    "is_stale": false,
+                    "is_missing": false,
+                    "age_days": 1,
+                    "reason": "融资余额: 增速分 47.0 / 分位分 14.7"
+                  },
+                  {
+                    "component_key": "etf_net_flow",
+                    "label": "ETF 资金净流入",
+                    "indicator_code": "CN_A_ETF_NET_FLOW",
+                    "score": 24.13,
+                    "weight": 0.15,
+                    "current_value": -234124107858.99936,
+                    "unit": "元",
+                    "growth_score": 14.12404123774781,
+                    "percentile_score": 39.130434782608695,
+                    "sentiment_score": null,
+                    "positive_ratio_score": null,
+                    "is_stale": false,
+                    "is_missing": false,
+                    "age_days": 2,
+                    "reason": "ETF 资金净流入: 增速分 14.1 / 分位分 39.1"
+                  },
+                  {
+                    "component_key": "market_news_count",
+                    "label": "市场新闻热度",
+                    "indicator_code": "CN_A_MARKET_NEWS_COUNT",
+                    "score": 18.33,
+                    "weight": 0.15,
+                    "current_value": 3.0,
+                    "unit": "篇",
+                    "growth_score": 25.0,
+                    "percentile_score": 8.333333333333332,
+                    "sentiment_score": null,
+                    "positive_ratio_score": null,
+                    "is_stale": false,
+                    "is_missing": false,
+                    "age_days": 1,
+                    "reason": "市场新闻热度: 增速分 25.0 / 分位分 8.3"
+                  },
+                  {
+                    "component_key": "market_news_sentiment",
+                    "label": "市场新闻情绪",
+                    "indicator_code": "CN_A_MARKET_NEWS_SENTIMENT",
+                    "score": 32.06,
+                    "weight": 0.1,
+                    "current_value": -0.111111,
+                    "unit": "score",
+                    "growth_score": null,
+                    "percentile_score": 5.0,
+                    "sentiment_score": 38.8889,
+                    "positive_ratio_score": 50.0,
+                    "is_stale": false,
+                    "is_missing": false,
+                    "age_days": 1,
+                    "reason": "市场新闻情绪: 分位分 5.0 / 情绪分 38.9"
+                  }
+                ],
+                "trigger_reasons": [
+                  "全市场成交额: 增速分 42.6 / 分位分 12.9",
+                  "融资余额: 增速分 47.0 / 分位分 14.7",
+                  "新增开户: 增速分 33.2 / 分位分 39.1",
+                  "ETF 资金净流入: 增速分 14.1 / 分位分 39.1",
+                  "市场新闻情绪: 分位分 5.0 / 情绪分 38.9"
+                ],
+                "stale_components": [],
+                "missing_components": [],
+                "valid_component_count": 6,
+                "data_source": "calculated",
+                "must_not_use_for_decision": false,
+                "blocked_reason": "",
+                "calculated_at": "2026-09-07T11:16:23.906151+00:00",
+                "threshold_source": "system",
+                "thresholds": {
+                  "warm_threshold": 35.0,
+                  "hot_threshold": 60.0,
+                  "overheat_threshold": 75.0,
+                  "extreme_threshold": 85.0
+                },
+                "score_available": true,
+                "fallback_used": false,
+                "latest_snapshot_observed_at": "2026-09-07",
+                "effective_band": "cold",
+                "overheating_risk": false,
+                "avoid_chasing": false,
+                "component_data_provenance": [
+                  {
+                    "component_key": "new_investor_accounts",
+                    "indicator_code": "CN_A_NEW_INVESTOR_ACCOUNTS",
+                    "reporting_period": "2026-08-31",
+                    "source": "akshare",
+                    "proxy": "sse_monthly_all_account_openings",
+                    "verification_status": "proxy_source",
+                    "source_url": "https://www.sse.com.cn/aboutus/publication/monthly/investor/"
+                  },
+                  {
+                    "component_key": "turnover",
+                    "indicator_code": "CN_A_TOTAL_TURNOVER",
+                    "reporting_period": "2026-09-04",
+                    "source": "tushare",
+                    "proxy": null,
+                    "verification_status": null,
+                    "source_url": null
+                  },
+                  {
+                    "component_key": "margin_balance",
+                    "indicator_code": "CN_A_MARGIN_BALANCE",
+                    "reporting_period": "2026-09-04",
+                    "source": "akshare",
+                    "proxy": "sh_margin_plus_sz_margin",
+                    "verification_status": "proxy_source",
+                    "source_url": null
+                  },
+                  {
+                    "component_key": "etf_net_flow",
+                    "indicator_code": "CN_A_ETF_NET_FLOW",
+                    "reporting_period": "2026-09-03",
+                    "source": "data_center_consensus",
+                    "proxy": "tushare_etf_share_size_delta",
+                    "verification_status": "fallback_proxy",
+                    "source_url": null
+                  },
+                  {
+                    "component_key": "market_news_count",
+                    "indicator_code": "CN_A_MARKET_NEWS_COUNT",
+                    "reporting_period": "2026-09-04",
+                    "source": "akshare",
+                    "proxy": null,
+                    "verification_status": null,
+                    "source_url": null
+                  },
+                  {
+                    "component_key": "market_news_sentiment",
+                    "indicator_code": "CN_A_MARKET_NEWS_SENTIMENT",
+                    "reporting_period": "2026-09-04",
+                    "source": "akshare",
+                    "proxy": null,
+                    "verification_status": null,
+                    "source_url": null
+                  }
+                ],
+                "proxy_components": [
+                  {
+                    "component_key": "new_investor_accounts",
+                    "indicator_code": "CN_A_NEW_INVESTOR_ACCOUNTS",
+                    "reporting_period": "2026-08-31",
+                    "source": "akshare",
+                    "proxy": "sse_monthly_all_account_openings",
+                    "verification_status": "proxy_source",
+                    "source_url": "https://www.sse.com.cn/aboutus/publication/monthly/investor/"
+                  },
+                  {
+                    "component_key": "margin_balance",
+                    "indicator_code": "CN_A_MARGIN_BALANCE",
+                    "reporting_period": "2026-09-04",
+                    "source": "akshare",
+                    "proxy": "sh_margin_plus_sz_margin",
+                    "verification_status": "proxy_source",
+                    "source_url": null
+                  },
+                  {
+                    "component_key": "etf_net_flow",
+                    "indicator_code": "CN_A_ETF_NET_FLOW",
+                    "reporting_period": "2026-09-03",
+                    "source": "data_center_consensus",
+                    "proxy": "tushare_etf_share_size_delta",
+                    "verification_status": "fallback_proxy",
+                    "source_url": null
+                  }
+                ],
+                "status": "ok"
+              },
+              "must_not_use_for_decision": true,
+              "blocked_reasons": [
+                "510300.SH: 最新行情快照已超过 freshness 阈值，当前结果仅可用于诊断，不得直接用于决策。",
+                "000300.SH: 最新行情快照已超过 freshness 阈值，当前结果仅可用于诊断，不得直接用于决策。"
+              ],
+              "readiness_status": "blocked"
+            },
+            "alpha_workspace_consistency": {
+              "status": "ok",
+              "checked_account_id": "default",
+              "alpha": {
+                "latest_trade_date": "2026-09-07",
+                "latest_updated_at": "2026-09-07T09:49:44.473983+00:00",
+                "top_codes": [
+                  "600118.SH",
+                  "002493.SZ",
+                  "002202.SZ",
+                  "688041.SH",
+                  "688521.SH",
+                  "601058.SH",
+                  "300274.SZ",
+                  "601919.SH",
+                  "603799.SH",
+                  "002353.SZ",
+                  "603260.SH",
+                  "002384.SZ",
+                  "601698.SH",
+                  "002475.SZ",
+                  "601088.SH",
+                  "000408.SZ",
+                  "001965.SZ",
+                  "603986.SH",
+                  "601018.SH",
+                  "300476.SZ",
+                  "601319.SH",
+                  "688506.SH",
+                  "002709.SZ",
+                  "688981.SH",
+                  "300450.SZ",
+                  "600803.SH",
+                  "002916.SZ",
+                  "000975.SZ",
+                  "000338.SZ",
+                  "300316.SZ"
+                ],
+                "provider_source": "qlib",
+                "status": "available",
+                "runtime_provider_status": {
+                  "qlib": {
+                    "priority": 1,
+                    "status": "available",
+                    "max_staleness_days": 2
+                  },
+                  "cache": {
+                    "priority": 10,
+                    "status": "available",
+                    "max_staleness_days": 5
+                  },
+                  "simple": {
+                    "priority": 100,
+                    "status": "available",
+                    "max_staleness_days": 7
+                  },
+                  "etf": {
+                    "priority": 1000,
+                    "status": "unavailable",
+                    "max_staleness_days": 30
+                  }
+                }
+              },
+              "workspace": {
+                "account_id": "default",
+                "latest_updated_at": "2026-09-07T09:49:55.967504+00:00",
+                "recommendation_codes": [
+                  "002709.SZ",
+                  "002916.SZ",
+                  "603260.SH",
+                  "002475.SZ",
+                  "000408.SZ",
+                  "300274.SZ",
+                  "601058.SH",
+                  "600118.SH",
+                  "601088.SH",
+                  "002384.SZ",
+                  "300450.SZ",
+                  "601018.SH",
+                  "601919.SH",
+                  "600803.SH",
+                  "002493.SZ",
+                  "002353.SZ",
+                  "601698.SH",
+                  "688506.SH",
+                  "688521.SH",
+                  "300316.SZ",
+                  "688041.SH",
+                  "000975.SZ",
+                  "688981.SH",
+                  "603799.SH",
+                  "601319.SH",
+                  "603986.SH",
+                  "300476.SZ",
+                  "000338.SZ",
+                  "001965.SZ",
+                  "002202.SZ"
+                ],
+                "source_candidate_ids": [
+                  "alpha_rank:002709.SZ:2026-09-07",
+                  "alpha_rank:002916.SZ:2026-09-07",
+                  "alpha_rank:603260.SH:2026-09-07",
+                  "alpha_rank:002475.SZ:2026-09-07",
+                  "alpha_rank:000408.SZ:2026-09-07",
+                  "alpha_rank:300274.SZ:2026-09-07",
+                  "alpha_rank:601058.SH:2026-09-07",
+                  "alpha_rank:600118.SH:2026-09-07",
+                  "alpha_rank:601088.SH:2026-09-07",
+                  "alpha_rank:002384.SZ:2026-09-07",
+                  "alpha_rank:300450.SZ:2026-09-07",
+                  "alpha_rank:601018.SH:2026-09-07",
+                  "alpha_rank:601919.SH:2026-09-07",
+                  "alpha_rank:600803.SH:2026-09-07",
+                  "alpha_rank:002493.SZ:2026-09-07",
+                  "alpha_rank:002353.SZ:2026-09-07",
+                  "alpha_rank:601698.SH:2026-09-07",
+                  "alpha_rank:688506.SH:2026-09-07",
+                  "alpha_rank:688521.SH:2026-09-07",
+                  "alpha_rank:300316.SZ:2026-09-07",
+                  "alpha_rank:688041.SH:2026-09-07",
+                  "alpha_rank:000975.SZ:2026-09-07",
+                  "alpha_rank:688981.SH:2026-09-07",
+                  "alpha_rank:603799.SH:2026-09-07",
+                  "alpha_rank:601319.SH:2026-09-07",
+                  "alpha_rank:603986.SH:2026-09-07",
+                  "alpha_rank:300476.SZ:2026-09-07",
+                  "alpha_rank:000338.SZ:2026-09-07",
+                  "alpha_rank:001965.SZ:2026-09-07",
+                  "alpha_rank:002202.SZ:2026-09-07"
+                ],
+                "total_count": 1571
+              },
+              "issues": []
+            }
+          }
+        }
+      },
+      "/api/decision-ready/": {
+        "http_status": 503,
+        "url": "https://demo.agomtrade.pro/api/decision-ready/",
+        "sha256": "344c023dfd210a0080037fd77123a02bca2a0de180e73608c3d7ae8b2cb61307",
+        "bytes": 1029,
+        "content_type": "application/json",
+        "observed_at": "2026-09-08T08:49:46.880973+00:00",
+        "body_base64": "eyJzdGF0dXMiOiAiYmxvY2tlZCIsICJ0aW1lc3RhbXAiOiAiMjAyNi0wOS0wOFQwODo0OTo0Ny4xNDc2MTQrMDA6MDAiLCAibXVzdF9ub3RfdXNlX2Zvcl9kZWNpc2lvbiI6IHRydWUsICJjaGVja3MiOiB7InJ1bnRpbWVfc3RhdGUiOiB7InN0YXR1cyI6ICJibG9ja2VkIiwgInJlYXNvbiI6ICJNQ1AgYXVkaXQgZXZpZGVuY2Ugd3JpdGUgZmFpbGVkIGR1cmluZyBmaW5hbCBhY2NlcHRhbmNlIiwgImNoYW5nZWRfYXQiOiAiMjAyNi0wOC0yOVQxODoxNDowNi43OTk5MzIrMDA6MDAiLCAiY2hhbmdlZF9ieSI6ICJjb2RleC5kYXRhMDEuc3dpdGNoYmFjayIsICJyZWxlYXNlX3JlZiI6ICIzZTA4YTNiM2E3YjZjY2QzMzg5OGU1YmIyYzUwNzQzMDBiMWE0OTI4IiwgImV4cGVjdGVkX3Jlc3VtZV9hdCI6IG51bGwsICJtdXN0X25vdF91c2VfZm9yX2RlY2lzaW9uIjogdHJ1ZSwgImJsb2NrX3JlYXNvbl9jb2RlIjogImRlY2lzaW9uX3J1bnRpbWVfYmxvY2tlZCIsICJydW50aW1lX3N0YXR1cyI6ICJibG9ja2VkIn0sICJjb3JlX2NvdmVyYWdlIjogeyJzdGF0dXMiOiAiYmxvY2tlZCIsICJtdXN0X25vdF91c2VfZm9yX2RlY2lzaW9uIjogdHJ1ZSwgImJsb2NrX3JlYXNvbl9jb2RlIjogImRlY2lzaW9uX3JlYWRpbmVzc19ibG9ja2VkIiwgImJsb2NrZWRfYnkiOiAiZGVjaXNpb25fcnVudGltZV9ibG9ja2VkIn0sICJwcm92aWRlcl9jYXBhYmlsaXRpZXMiOiB7InN0YXR1cyI6ICJibG9ja2VkIiwgIm11c3Rfbm90X3VzZV9mb3JfZGVjaXNpb24iOiB0cnVlLCAiYmxvY2tfcmVhc29uX2NvZGUiOiAiZGVjaXNpb25fcmVhZGluZXNzX2Jsb2NrZWQiLCAiYmxvY2tlZF9ieSI6ICJkZWNpc2lvbl9ydW50aW1lX2Jsb2NrZWQifSwgImRlY2lzaW9uX2RhdGEiOiB7InN0YXR1cyI6ICJibG9ja2VkIiwgIm11c3Rfbm90X3VzZV9mb3JfZGVjaXNpb24iOiB0cnVlLCAiYmxvY2tfcmVhc29uX2NvZGUiOiAiZGVjaXNpb25fcmVhZGluZXNzX2Jsb2NrZWQiLCAiYmxvY2tlZF9ieSI6ICJkZWNpc2lvbl9ydW50aW1lX2Jsb2NrZWQifX19",
+        "payload": {
+          "status": "blocked",
+          "timestamp": "2026-09-08T08:49:47.147614+00:00",
+          "must_not_use_for_decision": true,
+          "checks": {
+            "runtime_state": {
+              "status": "blocked",
+              "reason": "MCP audit evidence write failed during final acceptance",
+              "changed_at": "2026-08-29T18:14:06.799932+00:00",
+              "changed_by": "codex.data01.switchback",
+              "release_ref": "3e08a3b3a7b6ccd33898e5bb2c5074300b1a4928",
+              "expected_resume_at": null,
+              "must_not_use_for_decision": true,
+              "block_reason_code": "decision_runtime_blocked",
+              "runtime_status": "blocked"
+            },
+            "core_coverage": {
+              "status": "blocked",
+              "must_not_use_for_decision": true,
+              "block_reason_code": "decision_readiness_blocked",
+              "blocked_by": "decision_runtime_blocked"
+            },
+            "provider_capabilities": {
+              "status": "blocked",
+              "must_not_use_for_decision": true,
+              "block_reason_code": "decision_readiness_blocked",
+              "blocked_by": "decision_runtime_blocked"
+            },
+            "decision_data": {
+              "status": "blocked",
+              "must_not_use_for_decision": true,
+              "block_reason_code": "decision_readiness_blocked",
+              "blocked_by": "decision_runtime_blocked"
+            }
+          }
+        }
+      },
+      "/tui/": {
+        "http_status": 200,
+        "url": "https://demo.agomtrade.pro/account/login/?next=/tui/",
+        "sha256": "7e92373bc433d19de31ae8a210df1d5d82287cc94e9b70aea4142199a0834a2b",
+        "bytes": 8184,
+        "content_type": "text/html; charset=utf-8",
+        "observed_at": "2026-09-08T08:49:49.520240+00:00"
+      },
+      "/static/js/tui-workbench.js": {
+        "http_status": 200,
+        "url": "https://demo.agomtrade.pro/static/js/tui-workbench.js",
+        "sha256": "91b1a9e1fd8c68f93ece3fa9e86c3ce2be7c826b5c03e65cdb0e218051c4b5e4",
+        "bytes": 163307,
+        "content_type": "text/javascript; charset=utf-8",
+        "observed_at": "2026-09-08T08:49:51.586471+00:00",
+        "ux_markers_present": true
+      },
+      "/static/css/tui-workbench.css": {
+        "http_status": 200,
+        "url": "https://demo.agomtrade.pro/static/css/tui-workbench.css",
+        "sha256": "961eead629666165cd2fa34884fe646ec3a716102dbcb21f378477ede642c04a",
+        "bytes": 81645,
+        "content_type": "text/css; charset=utf-8",
+        "observed_at": "2026-09-08T08:49:53.339755+00:00"
+      }
+    },
+    "finished_at": "2026-09-08T08:49:53.339781+00:00"
+  },
+  "verification": {
+    "log_sha256": "1eb80dfff0c26b6656aacba6c4a1b268fb7f3fa03ab0cc74e26e1b4d0e7af1ce",
+    "checks": [
+      "[OK] Caddyfile: demo.agomtrade.pro {",
+      "[OK] Health: HTTP 200 {\"status\":\"ok\",\"timestamp\":\"2026-09-08T08:48:22.730889+00:00\"}",
+      "[OK] TLS expiry: Certificate will not expire",
+      "[OK] Containers: NAMES STATUS agomtradepro-caddy-1 Up 59 seconds agomtradepro-celery_worker-1 Up About a minute agomtradepro-celery_beat-1 Up About a minute agomtradepro-prometheus-1 Up About a minute (healthy) ago...",
+      "[OK] Django deploy check: redis is ready at redis:6379 postgres is ready at postgres:5432 System check identified no issues (1 silenced).",
+      "[OK] ASGI database connection policy: conn_max_age=0",
+      "[OK] Migrations: {\"timestamp\": \"2026-09-08T08:48:59.237178Z\", \"level\": \"INFO\", \"logger\": \"apps.events.application.event_bus_initializer\", \"message\": \"Event bus initialized with 18 handlers\", \"module\": \"event_bus_in...",
+      "[OK] Canonical Data Center schema: {\"missing_migrations\": [], \"missing_tables\": [], \"ok\": true}",
+      "[OK] TUI metadata registry: { \"ok\": true, \"mode\": \"check\", \"registry_id\": 31, \"registry_key\": \"default\", \"status\": \"published\", \"schema_version\": \"tui-metadata.v3\", \"backend_version\": \"20260908163105\", \"expected_source_hash\":...",
+      "[OK] Qlib identity: pyqlib=0.9.7 wrong_qlib=absent module=/usr/local/lib/python3.11/site-packages/qlib/__init__.py",
+      "[OK] Release identity: git_sha=b79687e46de05725c7cbea2cd135a040141ca331 image_id=sha256:22661f49c8ded9b040da18e524e93dba1c24558de7a1f67a8fff2a8b63d06562",
+      "[OK] Secrets and backup: backup=/opt/agomtradepro/backups/database/postgres-20260908-103948.dump",
+      "[OK] Resources: checked 2 containers",
+      "[OK] Healthcheck: { \"healthy\": true, \"checks\": { \"database\": { \"status\": \"ok\" }, \"redis\": { \"status\": \"ok\", \"source\": \"cache\" }, \"celery\": { \"status\": \"ok\", \"workers\": 1 }, \"critical_data\": { \"status\": \"ok\" }, \"deci...",
+      "[OK] celery_worker: running",
+      "[OK] celery_beat: running",
+      "[OK] Celery ping: -> celery@cc830e01d1d7: OK pong 1 node online."
+    ]
+  },
+  "ci": [
+    {
+      "conclusion": "success",
+      "databaseId": 34204738874,
+      "name": "Consistency Check",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 34204738883,
+      "name": "Architecture Layer Guard",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 34204738879,
+      "name": "Security Scan",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 34204738915,
+      "name": "CI Fast Feedback",
+      "status": "completed"
+    }
+  ],
+  "tests": {
+    "javascript": {
+      "passed": 58,
+      "failed": 0
+    },
+    "live_django_layout": {
+      "passed": 8,
+      "failed": 0
+    },
+    "normal_migration_sequence": {
+      "passed": 8,
+      "failed": 0
+    },
+    "domain_coverage": {
+      "data_center": {
+        "passed": 2710,
+        "coverage_percent": 95.23
+      },
+      "valuation": {
+        "passed": 1557,
+        "coverage_percent": 97.56
+      }
+    },
+    "full_production_mypy_new_errors": 0
+  },
+  "limits": [
+    "Authenticated production UAT and production cold/warm/P95 measurements are pending.",
+    "The 14-day retained observation and remaining candidate-specific acceptance gates are incomplete.",
+    "DATA-02 decision-data acceptance remains DENY; deployment does not refresh or reconcile business data.",
+    "Backup structure and checksum were verified; no restore drill or live rollback was performed."
+  ],
+  "deployment_attestation": "docs/deployment/web-to-tui-deployment-preflight-20260908163105.json"
+}

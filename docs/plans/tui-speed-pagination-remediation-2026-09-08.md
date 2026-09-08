@@ -78,3 +78,15 @@ CI 发现分页浏览器测试过早读取旧表格，已改为等待目标分�
 扩大回归定位出账户 inventory 事务测试清除了 `django_migrations` 的 account 记录，却未在结束时恢复，污染随后 MigrationExecutor 的状态图。为该测试模块增加精确记录恢复 fixture；迁移单独运行 1/1，通过原先污染模块后顺序运行 8/8（正常迁移路径，265.85 秒），无需修改生产迁移。拆分后的元数据/actionability/IA 回归 72/72，runtime manifest 重新生成。
 
 真实 Django 浏览器门禁进一步发现：延迟读取的折叠 P2 面板仍保留初始 loading 标记。改为明确的“展开后读取业务数据”，真正开始请求后再显示 loading；不通过放宽浏览器断言绕过。`run_live_server_pytest.py` 的 8 个生产模板布局场景全部通过（32.29 秒）。前述截图及 `evidence.json` 保留最初仓库整改快照，后续发布以部署记录的候选与 runtime hash 为准。
+
+### 合并、部署与候选重绑定（2026-09-08）
+
+PR [#22](https://github.com/guiyinan/agomTradePro/pull/22) 已合并；部署源为 `b79687e46de05725c7cbea2cd135a040141ca331`，release `20260908163105`，镜像 `sha256:22661f49c8ded9b040da18e524e93dba1c24558de7a1f67a8fff2a8b63d06562`。后续证据文档提交不改变线上源码身份。前述“未部署”与环境限制描述属于仓库整改时的历史状态。
+
+从独立、干净的 main 工作区运行 `scripts/deploy-vps.ps1 -Upgrade -GitBranch main`，部署及强制验证退出码均为 0。生产 PostgreSQL/Redis 容器保持原身份，数据卷与密钥保留；部署前备份已下载并核对 SHA-256，未执行恢复。HTTPS health/readiness、迁移与 canonical schema、TUI registry、运行镜像身份、Qlib、Celery 和容器健康检查通过；线上 JS/CSS 内容指纹与部署源码一致。验证细节见[部署记录](../deployment/main-vps-upgrade-2026-09-08-b79687e4.json)。
+
+PR 全部 CI 与合并后的主线 CI 通过，覆盖 Python 3.11/3.13。前端 58/58、真实 Django 浏览器布局 8/8、正常迁移顺序回归 8/8；Data Center Domain 2710/2710（95.23%）、Valuation Domain 1557/1557（97.56%），类型与质量门禁通过。
+
+通过官方脚本重绑定真实部署候选，清除旧候选验收数据。A real retained migration sample is not yet available; the new observation time gate has not started. No previous candidate sample or synthetic zero is inherited. 14 天自然观察、真实角色 UAT、生产冷/热请求瀑布与 P95、完整业务主任务验收仍未完成，不能据部署成功宣称线上性能达标。TUI-02、Classic cleanup 与 DATA-02 决策数据验收继续 DENY；未执行业务数据刷新、权限/审批写入或运行时启用。
+
+只读采集器返回 `migration_series_count_unavailable`；未绑定 retained sample 或精确 14 天到期时间。[待采样记录](../deployment/tui02-production-observation-pending-2026-09-08-b79687e4.json) 保留原始采集输出和门禁结果。候选日期范围仅为发布登记，不等于真实计时已开始。
