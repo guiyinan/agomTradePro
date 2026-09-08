@@ -7,6 +7,10 @@
 
 ## 1. 背景与证据来源
 
+2026-09-08 用户新增速度、分页及连续操作整改要求，实施切片见
+[`tui-speed-pagination-remediation-2026-09-08.md`](tui-speed-pagination-remediation-2026-09-08.md)。
+该切片承接两份同日 review，不重开历史 TUX-01～05，也不改变生产 M5 验收门禁。
+
 2026-08-18 对 `/tui/` 做了一轮用户视角的四路审查，本计划是该审查的整改收口：
 
 - **信息架构（IA）静态审查**：`config/tui/ia/tui_information_architecture.v1.json` 全量导航树与契约字段核查。

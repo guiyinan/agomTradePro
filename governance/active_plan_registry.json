@@ -1,6 +1,6 @@
 {
-  "version": "2026-09-07.v69",
-  "updated_at": "2026-09-07",
+  "version": "2026-09-08.v70",
+  "updated_at": "2026-09-08",
   "execution_focus": {
     "unit_id": null,
     "allowed_parallel_execution_modes": [
@@ -271,6 +271,10 @@
         {
           "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
           "role": "primary"
+        },
+        {
+          "path": "docs/plans/tui-speed-pagination-remediation-2026-09-08.md",
+          "role": "supporting"
         }
       ]
     }

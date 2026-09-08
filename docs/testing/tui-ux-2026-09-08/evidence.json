@@ -1,0 +1,89 @@
+{
+  "date": "2026-09-08",
+  "scope": "repository-only remediation; no deployment or production performance claim",
+  "base_commit": "285733cb68522dbcdd9320fcd4e16478201987ff",
+  "branch": "dev/fix-tui-speed-pagination-ux",
+  "tests": {
+    "frontend": {
+      "passed": 58,
+      "failed": 0
+    },
+    "tui_python_with_nomigrations": {
+      "passed": 335,
+      "failed": 0
+    },
+    "agent_sdk_ssl_with_nomigrations": {
+      "passed": 48,
+      "failed": 0
+    },
+    "post_review_focused": {
+      "passed": 1,
+      "failed": 0,
+      "note": "Repeat of candidate pagination test after error-recovery binding fix; not additive to the full suite."
+    }
+  },
+  "checks_passed": [
+    "check:tui",
+    "incremental mypy: 2 files, zero regressions",
+    "mypy debt ceiling: zero errors",
+    "Black",
+    "isort",
+    "Ruff",
+    "metadata source consistency",
+    "action copy and density",
+    "active plan registry",
+    "web template migration inventory"
+  ],
+  "browser": {
+    "environment": "production shell / intercepted synthetic responses",
+    "viewports": [
+      {
+        "width": 1440,
+        "height": 1000,
+        "last_page_rows": 5,
+        "horizontal_page_overflow": false,
+        "screenshot": "docs/testing/tui-ux-2026-09-08/pagination-1440x1000.png",
+        "sha256": "9ac7b6fc3a386f743b8f52d715e341c34d49185eb73148a0cf7424a5c15aa50f"
+      },
+      {
+        "width": 1280,
+        "height": 800,
+        "last_page_rows": 5,
+        "horizontal_page_overflow": false,
+        "screenshot": "docs/testing/tui-ux-2026-09-08/pagination-1280x800.png",
+        "sha256": "6c8cd3387dee7bfcb809e2ab5625cf9957cd0581fb287fd733d27883c391b828"
+      },
+      {
+        "width": 1024,
+        "height": 768,
+        "last_page_rows": 5,
+        "horizontal_page_overflow": false,
+        "screenshot": "docs/testing/tui-ux-2026-09-08/pagination-1024x768.png",
+        "sha256": "f9c3c19527dc2bc6161c6111a3333c3e29e33b534f270219e63b18bd7e276819"
+      }
+    ],
+    "console_errors": []
+  },
+  "source_sha256": {
+    "frontend/tui-workbench/src/00-runtime.js": "94fa5c7334d393c84870b002efbb1cf419ee4820e06a51013a60633d5cdf9ce0",
+    "frontend/tui-workbench/src/10-navigation.js": "d126b5ab78d68f6da1936ac2614e40115f63f86d87a06605cf69bd3f6462b552",
+    "frontend/tui-workbench/src/15-workspace-state.js": "b3d2f5af1127329030f38595edcfebb8b22b0101dbb2b2be1daeaf68dca5c083",
+    "frontend/tui-workbench/src/20-dashboard.js": "9a927b9230a7dc7d39e69215e734b6b63c3c6c42116c75a860804ad29e2feaad",
+    "frontend/tui-workbench/src/30-actions.js": "554e49cf395503bfec894e8089780c9fa5577a5fa278003d0056f29710597e3a",
+    "frontend/tui-workbench/src/40-views.js": "ef7edbf24bf93a83bb51ba90ef4be9a49e7c79ec06fcfb0a4076d907965c9242",
+    "frontend/tui-workbench/src/45-pagination.js": "67feaab519bb72d4245395bc5fa95fbb23b293e4fb347126ae1d710f92e2c4e8",
+    "frontend/tui-workbench/src/50-shell.js": "200b186a84d18b234adf92b81fad1e49d2fccca958897817ea16144496601e62",
+    "static/js/tui-workbench.js": "990d1228760c31b49fbdc0b7f026cdd3789dc10e1fd51a4a9f9f076e4c19766a",
+    "static/css/tui-workbench.css": "588b21b3dd5b8cdc040afe389a54f759e69a324664439d27f8881e5216890778",
+    "apps/terminal/application/tui_workbench.py": "4eab8ca33f2735910308ca018337d63fe1831b8ca3d3e0519b91ff3039be2bd6",
+    "apps/terminal/application/tui_workbench_collection_result_models.py": "71af41892ce501626696d1f0681763b6867067ab14a403d39e1a150208288afc",
+    "config/tui/ia/tui_information_architecture.v1.json": "c492db406839181ff6e77e651b374b5988e8684e268bc59c8271e13f2fc5336f"
+  },
+  "limitations": [
+    "Production request waterfall and latency P95 were not measured.",
+    "Browser data are intercepted synthetic fixtures.",
+    "Python tests use model-based schema creation; historical migration replay was stopped after diagnosing setup cost.",
+    "Configured agomtradepro environment was unavailable; available Python 3.13 and Django 5.2.12 were used.",
+    "No production deployment, business writes, or candidate observation rebinding."
+  ]
+}

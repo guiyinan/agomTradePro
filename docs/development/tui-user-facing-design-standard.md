@@ -1,6 +1,6 @@
 # TUI User-Facing Design Standard
 
-> Last updated: 2026-08-27
+> Last updated: 2026-09-08
 
 This standard defines the user-facing contract for AgomTradePro `/tui/`. It exists to stop TUI screens from degenerating into route browsers, endpoint lists, or raw JSON shells.
 
@@ -332,7 +332,10 @@ Don't:
 Passive primary-list panels may opt into `filter_fields`, an ordered list of the
 action's `primary_selector` fields. Schema and metadata validation reject unknown,
 duplicate or unsafe selectors. These controls stay above the list; submitting updates
-that panel, retains selections and displays every returned row with the actual count.
+that panel, retains selections and makes every returned row accessible with an actual
+loaded count. Candidate count defines the research set; page size only controls
+browsing. The common panel renderer pages the loaded set at 20/50/100 rows without
+rerunning the candidate query for each local page.
 Other summary panels retain their `max_rows` limit.
 
 `research.signals` exposes investment account and candidate count (1–500, default 10).
@@ -340,3 +343,27 @@ The account list is limited to the signed-in user. No account means general rese
 an explicit account resolves to its owned active portfolio before querying candidates.
 Missing mappings and foreign accounts fail explicitly, never falling back to general
 research. Source dates and decision gates remain unchanged.
+
+## Pagination, refresh and workspace continuity
+
+- Summary tables identify the displayed prefix and offer a full-list entry when
+  additional loaded rows or a following server page exist.
+- Full lists expose page range, supported page-size controls and page navigation.
+  Cursor lists do not invent a total count or random page access.
+- F7 names its scope: current server page or loaded collection. It is not a
+  replacement for server-side search over the entire dataset.
+- Unpaged owner collections retain their returned rows and use client pagination;
+  the host must not slice to the first 20 rows and fabricate server page access.
+- Server page changes retain the old table while loading and on failure, clearly
+  label the retained page, and offer a local retry. Pure page reads do not reload
+  navigation badges.
+- F5 only repeats passive reads or observes an existing queued run. AI/write
+  submissions require their explicit action control.
+- Session-local workspace restoration retains safe form fields and list controls,
+  revalidates screen access and rereads business data. Passwords, secrets and file
+  inputs are excluded; business result payloads are not persisted in browser storage.
+- Primary progress is an operation checklist, not business approval or decision
+  readiness. Its copy must say so and it must not count queued, failed, blocked or
+  partial results as a completed operation.
+- `shell-ready` and `p0-ready` are separate timing marks. Primary data loading must
+  settle before auxiliary work is scheduled; failed panels retain bounded recovery.
