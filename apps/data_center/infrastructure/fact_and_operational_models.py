@@ -47,7 +47,27 @@ from apps.data_center.domain.retention import (
     RetentionPolicy,
     StorageHold,
 )
-from shared.numeric import safe_float
+
+from .fact_json_values import (
+    _json_bool,
+    _optional_json_float,
+    _optional_json_nonnegative_int,
+    _required_json_float,
+)
+from .pit_models import PITDatasetManifestModel, PITFactVersionModel  # noqa: F401
+from .publication_models import CanonicalPublicationModel as CanonicalPublicationModel
+from .publication_models import CoverageSnapshotModel as CoverageSnapshotModel
+from .publication_models import PublicationMemberModel as PublicationMemberModel
+from .publication_models import PublicationRollbackModel as PublicationRollbackModel
+from .research_data_foundation_models import (  # noqa: F401
+    AssetGroupRevisionModel as AssetGroupRevisionModel,
+)
+from .research_data_foundation_models import (
+    InvestorFlowDefinitionModel as InvestorFlowDefinitionModel,
+)
+from .research_data_foundation_models import (
+    OperatingMetricDefinitionModel as OperatingMetricDefinitionModel,
+)
 
 _SYNC_IDENTITY_UOW: ContextVar[object | None] = ContextVar(
     "data_center_sync_identity_uow", default=None
@@ -150,63 +170,6 @@ class _SyncIdentityManager(models.Manager[_MODEL_T]):
     ) -> NoReturn:
         del objs, fields, batch_size
         raise ValidationError("sync execution identities are append-only")
-
-
-from .pit_models import PITDatasetManifestModel, PITFactVersionModel  # noqa: F401
-from .publication_models import CanonicalPublicationModel as CanonicalPublicationModel
-from .publication_models import CoverageSnapshotModel as CoverageSnapshotModel
-from .publication_models import PublicationMemberModel as PublicationMemberModel
-from .publication_models import PublicationRollbackModel as PublicationRollbackModel
-from .research_data_foundation_models import (  # noqa: F401
-    AssetGroupRevisionModel as AssetGroupRevisionModel,
-)
-from .research_data_foundation_models import (
-    InvestorFlowDefinitionModel as InvestorFlowDefinitionModel,
-)
-from .research_data_foundation_models import (
-    OperatingMetricDefinitionModel as OperatingMetricDefinitionModel,
-)
-
-
-def _optional_json_float(value: object, field_name: str) -> float | None:
-    """Parse a nullable finite number from persisted JSON."""
-
-    if value is None:
-        return None
-    if isinstance(value, bool):
-        raise ValueError(f"{field_name} must be a finite number")
-    parsed = safe_float(value)
-    if parsed is None:
-        raise ValueError(f"{field_name} must be a finite number")
-    return parsed
-
-
-def _required_json_float(value: object, field_name: str) -> float:
-    """Parse a required finite number from persisted JSON."""
-
-    parsed = _optional_json_float(value, field_name)
-    if parsed is None:
-        raise ValueError(f"{field_name} is required")
-    return parsed
-
-
-def _json_bool(value: object, field_name: str) -> bool:
-    """Require real booleans instead of truthy strings from persisted JSON."""
-
-    if not isinstance(value, bool):
-        raise ValueError(f"{field_name} must be a boolean")
-    return value
-
-
-def _optional_json_nonnegative_int(value: object, field_name: str) -> int | None:
-    """Parse a nullable non-negative integer from persisted JSON."""
-
-    if value is None:
-        return None
-    parsed = _optional_json_float(value, field_name)
-    if parsed is None or not parsed.is_integer() or parsed < 0:
-        raise ValueError(f"{field_name} must be a non-negative integer")
-    return int(parsed)
 
 
 class ValuationFactModel(models.Model):

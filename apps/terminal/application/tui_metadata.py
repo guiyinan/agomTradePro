@@ -36,11 +36,19 @@ from apps.terminal.application.tui_metadata_constants import (
     ALLOWED_TUI_VIEW_TYPES,
     GOVERNED_TUI_RISKS,
     HIGH_REVIEW_FIELD_TOKENS,
-    STRICT_TUI_DASHBOARD_PANEL_ACTION_KINDS,
     TUI_METADATA_SCHEMA_PATH,
     TUI_METADATA_SCHEMA_VERSION,
 )
 from apps.terminal.application.tui_metadata_field_aliases import DEFAULT_TUI_FIELD_ALIASES
+from apps.terminal.application.tui_metadata_filter_validation import (
+    TuiMetadataValidationError as TuiMetadataValidationError,
+)
+from apps.terminal.application.tui_metadata_filter_validation import (
+    validate_dashboard_filter_fields as _validate_dashboard_filter_fields,
+)
+from apps.terminal.application.tui_metadata_filter_validation import (
+    validate_dashboard_panel_action_kind as _validate_dashboard_panel_action_kind,
+)
 
 try:
     from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
@@ -50,10 +58,6 @@ try:
 except ImportError:  # pragma: no cover - local validator still protects runtime.
     Draft202012Validator = None
     JsonSchemaValidationError = Exception
-
-
-class TuiMetadataValidationError(ValueError):
-    """Raised when TUI metadata cannot be safely published."""
 
 
 def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
@@ -398,58 +402,6 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
     )
     _validate_with_json_schema(payload)
     return payload
-
-
-def _validate_dashboard_filter_fields(panel: dict[str, Any], action: dict[str, Any]) -> None:
-    """Validate explicitly opted-in passive list selectors against action fields."""
-
-    fields = panel.get("filter_fields", [])
-    if not isinstance(fields, list) or not all(isinstance(key, str) for key in fields):
-        raise TuiMetadataValidationError("Dashboard filter_fields must be a string list")
-    if not fields:
-        return
-    available = {
-        field["key"]
-        for field in action.get("fields", [])
-        if field.get("presentation_semantic") == "primary_selector"
-        and field.get("input_type") not in {"hidden", "password", "file"}
-    }
-    if (
-        len(fields) != len(set(fields))
-        or not set(fields) <= available
-        or panel.get("presentation_semantic") != "primary_list"
-        or action.get("risk") != "read"
-        or action.get("method") != "GET"
-        or action.get("confirmation_required")
-    ):
-        raise TuiMetadataValidationError(
-            "Dashboard filters require unique selectors on a passive primary list"
-        )
-
-
-def _validate_dashboard_panel_action_kind(
-    *,
-    screen: dict[str, Any],
-    panel: dict[str, Any],
-    action: dict[str, Any],
-) -> None:
-    """Reject strict dashboard renderers wired to incompatible action results."""
-
-    panel_kind = str(panel.get("kind") or "").strip()
-    expected_kinds = STRICT_TUI_DASHBOARD_PANEL_ACTION_KINDS.get(panel_kind)
-    if expected_kinds is None:
-        return
-    view_model = action.get("view_model")
-    configured_kind = (
-        str(view_model.get("kind") or "").strip() if isinstance(view_model, dict) else ""
-    )
-    action_kind = configured_kind or str(action.get("view_type") or "").strip()
-    if action_kind in expected_kinds:
-        return
-    raise TuiMetadataValidationError(
-        "Dashboard panel/action kind mismatch: "
-        f"{screen['key']}.{panel['key']} panel={panel_kind} action={action_kind or 'unset'}"
-    )
 
 
 def _validate_dashboard_row_actions(

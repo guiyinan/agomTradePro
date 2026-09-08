@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
+from django.test import Client
 from django.utils import timezone
 
 from apps.data_center.infrastructure.models import (
@@ -93,8 +94,8 @@ def test_equity_pool_returns_empty_payload_when_no_pool(authenticated_client):
 
 @pytest.mark.django_db
 def test_equity_pool_default_read_chain_does_not_persist_business_state(
-    authenticated_client,
-):
+    authenticated_client: Client,
+) -> None:
     from django.core.cache import cache
 
     today = timezone.localdate()
@@ -184,6 +185,7 @@ def test_equity_pool_default_read_chain_does_not_persist_business_state(
         market_cap=Decimal("1000000000"),
         float_market_cap=Decimal("800000000"),
         source="test",
+        observed_at=timezone.now(),
     )
     tracked_models = (
         StockPoolSnapshot,
