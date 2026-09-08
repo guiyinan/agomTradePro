@@ -622,6 +622,8 @@ def test_akshare_current_valuation_batch_preserves_tencent_provenance(monkeypatc
     assert len(facts) == 1
     assert facts[0].source == "tencent"
     assert facts[0].val_date == date(2026, 7, 31)
+    assert facts[0].observed_at == datetime(2026, 7, 31, 15, 0, tzinfo=UTC)
+    assert facts[0].available_at is None
     assert facts[0].extra["actual_source"] == "tencent"
     assert facts[0].extra["provider_name"] == "AKShare Public"
 

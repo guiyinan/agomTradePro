@@ -74,6 +74,10 @@ class _BaseValuationGateway:
                 previous_pb=previous_pb,
                 previous_pe=previous_pe,
             )
+            if row.observed_at is None:
+                is_valid = False
+                quality_flag = "missing_source_observation"
+                quality_notes = "missing source observation timestamp"
             payload_hash = hashlib.sha256(
                 json.dumps(
                     {
@@ -97,19 +101,15 @@ class _BaseValuationGateway:
                     pe=pe_ttm if pe_ttm is not None else pe_static,
                     pb=pb,
                     ps=ps_ttm,
-                    total_mv=(
-                        Decimal(str(row.market_cap)) if row.market_cap is not None else None
-                    ),
+                    total_mv=(Decimal(str(row.market_cap)) if row.market_cap is not None else None),
                     circ_mv=(
                         Decimal(str(row.float_market_cap))
                         if row.float_market_cap is not None
-                        else (
-                            Decimal(str(row.market_cap)) if row.market_cap is not None else None
-                        )
+                        else (Decimal(str(row.market_cap)) if row.market_cap is not None else None)
                     ),
                     dividend_yield=dv_ratio,
                     source_provider=provider_name,
-                    source_updated_at=row.fetched_at,
+                    source_updated_at=row.observed_at,
                     fetched_at=row.fetched_at,
                     pe_type="ttm" if row.pe_ttm is not None else "dynamic",
                     is_valid=is_valid,

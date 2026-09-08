@@ -11,7 +11,6 @@ from django.db.models import F, Max, OuterRef, Subquery
 
 from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import ValuationFact
-from apps.data_center.domain.market_time import cn_market_date_start_utc
 from apps.data_center.infrastructure._repository_helpers import _resolve_asset_code_candidates
 from apps.data_center.infrastructure.models import ValuationFactModel
 
@@ -32,9 +31,12 @@ class ValuationFactRepository:
             float_market_cap=float(m.float_market_cap) if m.float_market_cap is not None else None,
             dv_ratio=float(m.dv_ratio) if m.dv_ratio is not None else None,
             source=m.source,
+            observed_at=m.observed_at,
             available_at=m.available_at,
             fetched_at=m.fetched_at,
             extra=m.extra or {},
+            source_record_id=m.source_record_id,
+            raw_payload_hash=m.raw_payload_hash,
         )
 
     def get_series(
@@ -91,6 +93,8 @@ class ValuationFactRepository:
         return list(queryset.order_by("asset_code").values_list("asset_code", flat=True).distinct())
 
     def bulk_upsert(self, facts: list[ValuationFact]) -> int:
+        """Upsert facts by natural key while refreshing values and provenance."""
+
         if not facts:
             return 0
         models = [
@@ -105,8 +109,12 @@ class ValuationFactRepository:
                 float_market_cap=fact.float_market_cap,
                 dv_ratio=fact.dv_ratio,
                 source=fact.source,
+                observed_at=fact.observed_at,
                 available_at=fact.available_at,
+                fetched_at=fact.fetched_at,
                 extra=fact.extra,
+                source_record_id=fact.source_record_id,
+                raw_payload_hash=fact.raw_payload_hash,
             )
             for fact in facts
         ]
@@ -122,8 +130,12 @@ class ValuationFactRepository:
                 "market_cap",
                 "float_market_cap",
                 "dv_ratio",
+                "observed_at",
                 "available_at",
+                "fetched_at",
                 "extra",
+                "source_record_id",
+                "raw_payload_hash",
             ],
             unique_fields=["asset_code", "val_date", "source"],
         )
@@ -134,9 +146,9 @@ class ValuationFactRepository:
     ) -> list[PublicationFactReference]:
         """Resolve exact valuation rows without substituting fetch time.
 
-        ``val_date`` is the observed market date. Optional ``available_at`` is
-        retained as a safety check only; missing availability is marked as an
-        unverified quality state rather than fabricated from ``fetched_at``.
+        ``observed_at`` is required source evidence. Missing observation time
+        is rejected instead of being fabricated from ``val_date`` or
+        ``fetched_at``; ``available_at`` remains an independent safety field.
         """
 
         references: list[PublicationFactReference] = []
@@ -171,6 +183,7 @@ class ValuationFactRepository:
             ValuationFactModel._default_manager.filter(asset_code=OuterRef("asset_code"))
             .order_by(
                 F("val_date").desc(),
+                F("observed_at").desc(nulls_last=True),
                 F("available_at").desc(nulls_last=True),
                 F("fetched_at").desc(),
                 F("revision_number").desc(),
@@ -198,6 +211,16 @@ def _valuation_publication_reference(
             raise ValueError("valuation available_at must be timezone-aware")
         if row.available_at > now:
             raise ValueError("valuation available_at cannot be in the future")
+    if row.observed_at is None:
+        raise ValueError("valuation publication candidate requires observed_at")
+    if row.observed_at.tzinfo is None or row.observed_at.utcoffset() is None:
+        raise ValueError("valuation observed_at must be timezone-aware")
+    if row.observed_at > now:
+        raise ValueError("valuation observed_at cannot be in the future")
+    if row.fetched_at.tzinfo is None or row.fetched_at.utcoffset() is None:
+        raise ValueError("valuation fetched_at must be timezone-aware")
+    if row.fetched_at < row.observed_at:
+        raise ValueError("valuation fetched_at cannot precede observed_at")
     natural_key = f"{row.asset_code}:{row.val_date.isoformat()}:{row.source}"
     return PublicationFactReference(
         natural_key=natural_key,
@@ -205,7 +228,7 @@ def _valuation_publication_reference(
         source_record_id=row.source_record_id or natural_key,
         fact_table="data_center_valuation_fact",
         fact_pk=str(row.pk),
-        observed_at=cn_market_date_start_utc(row.val_date),
+        observed_at=row.observed_at,
         raw_payload_hash=row.raw_payload_hash or _valuation_payload_hash(row),
         quality_status=(
             row.quality_status if row.available_at is not None else "available_at_unverified"
@@ -228,6 +251,7 @@ def _valuation_payload_hash(row: ValuationFactModel) -> str:
         "float_market_cap": str(row.float_market_cap) if row.float_market_cap is not None else None,
         "dv_ratio": str(row.dv_ratio) if row.dv_ratio is not None else None,
         "source": row.source,
+        "observed_at": row.observed_at.isoformat() if row.observed_at else None,
         "available_at": row.available_at.isoformat() if row.available_at else None,
     }
     return hashlib.sha256(

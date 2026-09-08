@@ -490,6 +490,10 @@ class StockFundamentalsRepositoryMixin(StockFundamentalsWriteRepositoryMixin):
         """Convert one publication-bound valuation row without fabricating time."""
 
         val_date = _parse_fact_date(row.get("val_date"))
+        observed_raw = row.get("observed_at")
+        observed_at = _parse_fact_datetime(observed_raw) if observed_raw not in (None, "") else None
+        if observed_raw not in (None, "") and observed_at is None:
+            return None
         fetched_at = _parse_fact_datetime(row.get("fetched_at"))
         if val_date is None or fetched_at is None:
             return None
@@ -517,6 +521,7 @@ class StockFundamentalsRepositoryMixin(StockFundamentalsWriteRepositoryMixin):
                 float_market_cap=_number("float_market_cap"),
                 dv_ratio=_number("dv_ratio"),
                 source=str(row.get("source") or ""),
+                observed_at=observed_at,
                 available_at=available_at,
                 fetched_at=fetched_at,
                 extra=extra,
@@ -656,14 +661,18 @@ class StockFundamentalsRepositoryMixin(StockFundamentalsWriteRepositoryMixin):
         circ_mv = (
             Decimal(str(fact.float_market_cap)) if fact.float_market_cap is not None else total_mv
         )
-        quality_is_complete = all(
-            value is not None
-            for value in (
-                fact.pe_ttm if fact.pe_ttm is not None else fact.pe_static,
-                fact.pb,
-                fact.market_cap,
+        quality_is_complete = (
+            all(
+                value is not None
+                for value in (
+                    fact.pe_ttm if fact.pe_ttm is not None else fact.pe_static,
+                    fact.pb,
+                    fact.market_cap,
+                )
             )
+            and fact.observed_at is not None
         )
+        missing_source_observation = fact.observed_at is None
         return ValuationMetrics(
             stock_code=fact.asset_code,
             trade_date=fact.val_date,
@@ -674,12 +683,20 @@ class StockFundamentalsRepositoryMixin(StockFundamentalsWriteRepositoryMixin):
             circ_mv=circ_mv,
             dividend_yield=fact.dv_ratio,
             source_provider=fact.source,
-            source_updated_at=fact.fetched_at,
+            source_updated_at=fact.observed_at,
             fetched_at=fact.fetched_at,
             pe_type="ttm" if fact.pe_ttm is not None else "static",
             is_valid=quality_is_complete,
-            quality_flag="ok" if quality_is_complete else "missing_required_metric",
-            quality_notes=("" if quality_is_complete else "missing PE, PB, or market cap"),
+            quality_flag=(
+                "missing_source_observation"
+                if missing_source_observation
+                else ("ok" if quality_is_complete else "missing_required_metric")
+            ),
+            quality_notes=(
+                "missing source observation timestamp"
+                if missing_source_observation
+                else ("" if quality_is_complete else "missing PE, PB, or market cap")
+            ),
         )
 
     def get_latest_financial_data(

@@ -1,0 +1,112 @@
+{
+  "schema_version": "1.0",
+  "unit_id": "DATA-13",
+  "generated_at": "2026-09-07T14:13:59.730735+00:00",
+  "scope": "Local valuation source observation preservation and direct consumers",
+  "base_head": "10e22b4f89623cd0710360394971312686203131",
+  "candidate_kind": "reviewed uncommitted worktree; source hashes bind final content",
+  "source_sha256": {
+    "apps/data_center/application/valuation_publication.py": "b1ba3a0d535c6dfbdefa4f43138ffee905d9f77c38f09d9557b5e1ab4b32748c",
+    "apps/data_center/domain/entities.py": "392ec4ab1491eead3221559961e606b5c1b95d448f753451e9f480273ee04ad5",
+    "apps/data_center/infrastructure/_provider_adapter_akshare.py": "fc69cf884e5ddf65349b83f052024abfd5863afbc99f2c42ee22d81a899078d9",
+    "apps/data_center/infrastructure/fact_and_operational_models.py": "2e13cce0f11bc3022068bcf0a1af350bee01446cc5d01684d71f53e7e625dce7",
+    "apps/data_center/infrastructure/valuation_fact_repository.py": "05f12f1509cf835f3596ff429b94dbdcd1a72a6e61f76460f012ebb49a4b47fe",
+    "apps/data_center/migrations/0073_valuationfactmodel_observed_at_and_more.py": "50f1e2554da95104432df8d258e2673d979c07a77d2e250ee0a33be5d891e4c3",
+    "apps/equity/application/query_services.py": "f3195277fa79d983af7c7a915a4bca293db559c405be98fd5b8bfc8e66ee20d6",
+    "apps/equity/infrastructure/fundamentals_repository.py": "5fdac1a46bccfe484dedfe5284f0c16038ad5a4bbfbd34264d1e2f8af2ea4e1a",
+    "apps/equity/infrastructure/fundamentals_write_repository.py": "2e628c5a069125bd10396602e7c67a26ce5fc9b9111990be2a054bfbf493360a",
+    "apps/equity/infrastructure/valuation_source_gateways.py": "301a78d7753956daafea644d0102e704b895faea0c9fca3bd9e468112a8c599e",
+    "apps/valuation/domain/rules.py": "b1468e6129c25da0a547f8acc1258689d6ade3af621bba27f9479be9d6f57a3f",
+    "apps/valuation/infrastructure/providers.py": "848db14f0959233a976e75bf6e3cc29db8075cc3da309e7a8774f13fe84c0c99",
+    "governance/current_data_contracts.json": "13e9ce408b77af5b128f7fc30d755d2cb1afa4845424b9a599019ff17d19eec0",
+    "governance/dataset_contracts.json": "cdb20c3ef24b8d9b32d2b2ddfa9a017e2d34548a30ca055e90f4bdf2964031c4",
+    "tests/component/data_center/test_current_publication_candidate_repositories.py": "a22e99de352492625b4d80bab8123feb6e21fc325deaea9b77301529c00d8a26",
+    "tests/component/data_center/test_valuation_source_observation_roundtrip.py": "3e63bcbe955eb89cb461043ac35d40cc5913c7e2be26d165dab3f6c18186cb0d",
+    "tests/component/test_equity_repository_data_center.py": "5a41518f87b638f258caf689ccb2afa6b6b1190e3437de69baae6efb59906eed",
+    "tests/unit/data_center/test_phase3_provider_adapters.py": "c24d347bbc66abdfd6e7175452e2ee7c872f0c01faf32b706630dcaf7252c85c",
+    "tests/unit/data_center/test_valuation_publication_sync.py": "c28236bb9fd26f86bed85d9df9344d43c9b9dfdb8aae13fab06fa040a22fd898",
+    "tests/unit/domain/test_valuation_domain_edges.py": "7290dee71ca74ae5f182b9511391ff7e6270ca965b3927aa3aa1f29c87f0ba3e",
+    "tests/unit/equity/test_published_stock_context.py": "37c081f95f6018ba7c869082da2d4c8e770d13b35fd15e0d64d6922c2f9f0750",
+    "tests/unit/equity/test_valuation_source_gateway.py": "e271f4a79ae070f884d994e392b2f8a4f329b3c4393e1b1c78550e30de1e179f",
+    "tests/unit/valuation/test_asset_valuation_service.py": "eb1c6bf2727c550aa7c3ba646c79473bf07dacf8fa6a65e148ff0995d2aa4d89"
+  },
+  "completed": true,
+  "data02_complete": false,
+  "goal_complete": false,
+  "production_mutated": false,
+  "vps_migration_applied": false,
+  "legacy_observed_at_fabricated": false,
+  "behavior": [
+    "Distinct observed_at, fetched_at and available_at survive adapter, serialization, insert/update/read and publication references.",
+    "Same natural-key updates refresh fetch time and discard stale response provenance when the new observation carries none.",
+    "Legacy unknown source time stays null; valuation publication candidates explicitly reject it.",
+    "Direct equity and valuation consumers preserve source time, block missing/invalid observations and never use fresh fetch time to revive stale observations.",
+    "Equity mirror writes preserve source observation time; existing available_at semantics and publication coverage gates remain unchanged."
+  ],
+  "verification": [
+    {
+      "owner": "luna_data12_evidence",
+      "command": "python -m pytest tests/unit/data_center/test_valuation_publication_sync.py tests/unit/data_center/test_phase3_provider_adapters.py tests/unit/data_center/test_tencent_gateway.py tests/component/data_center/test_valuation_source_observation_roundtrip.py tests/component/data_center/test_current_publication_candidate_repositories.py -q --basetemp=reports/quality/pytest-data13-worker3",
+      "result": "60 passed in 200.63s",
+      "source": "worker terminal result reported to and reviewed by root"
+    },
+    {
+      "owner": "luna_data02_preflight",
+      "command": "python -m pytest tests/unit/equity/test_published_stock_context.py tests/unit/equity/test_valuation_source_gateway.py tests/unit/domain/test_valuation_domain_edges.py tests/unit/valuation/test_asset_valuation_service.py -q",
+      "result": "54 passed",
+      "source": "worker terminal result reported to and reviewed by root"
+    },
+    {
+      "owner": "root",
+      "command": "python -m pytest tests/component/data_center/test_valuation_source_observation_roundtrip.py -q --basetemp=reports/quality/pytest-data13-root-final",
+      "result": "4 passed in 232.47s"
+    },
+    {
+      "owner": "root",
+      "command": "python -m pytest tests/component/test_equity_repository_data_center.py -q --basetemp=reports/quality/pytest-data13-equity-component-verified --junitxml=reports/quality/data13-equity-component.xml",
+      "result": "15 passed in 156.49s"
+    },
+    {
+      "owner": "root and worker",
+      "command": "python scripts/check_mypy_regression.py <changed-production-files>",
+      "result": "data_center 6 files: 0 regressions; consumer 5 files: 0 regressions; mirror writer 1 file: 0 regressions"
+    },
+    {
+      "owner": "root",
+      "command": "python scripts/check_mypy_debt_ceiling.py",
+      "result": "0 errors in 0 files; no baseline update"
+    },
+    {
+      "owner": "root",
+      "command": "python manage.py makemigrations data_center --check --dry-run --settings=core.settings.development_sqlite",
+      "result": "No changes detected"
+    },
+    {
+      "owner": "root",
+      "command": "python scripts/check_current_data_contracts.py",
+      "result": "53 surfaces OK"
+    },
+    {
+      "owner": "root",
+      "command": "python scripts/check_architecture_delta.py",
+      "result": "11 changed files, 229 added lines, 0 boundary violations"
+    },
+    {
+      "owner": "root and worker",
+      "command": "black / isort / ruff / git diff --check",
+      "result": "Formatting and new-code checks pass; existing model E402 diagnostics separately verified against HEAD"
+    }
+  ],
+  "equity_component_junit": {
+    "sha256": "657dfd2627ca371e828bbceba7bbe4a53faed317b887367f80dceb714708f00e",
+    "encoding": "gzip+base64",
+    "content": "H4sIAAAAAAAC/82W3XLbIBCFX0XDbccKVmLH9kTJS+SewWgdMUVAWaRGb98VSmplarfphR1diZ89y6fDSvDw9NqYrIOA2tmSLXPOMrDKVdq+lKyNh8WGPT0+RMCIraZHZmUDJfP9MJSlcTaZ/zBNqUJwAUtGWQ9SmzbA2MHv2nuoUjtpaekVNfUgXq7W+e16M3YxysaXrODFesG3C37/XBQ7vt3drfP7VcG3m298s+OUpnYYx8V/arvkdbdYvoEpiZApIxHH+bRgrlzjnQUb86Ev4Afh9yKAd6ijC72oZJRCUQAElh2V4gWiOGgrrdLSvEVJS0pZiUNwzVQonDX99L0ImGU3F+PqpGllpK0UtcYU/Tk0nvPi7lJgRqbHkU21IVDYyBWGRFQXwrd7o1WKmGDxL8LyhAShe+fCGshCqeIU7fbCaMcqm5VjZ7DOOYbXZPNBKxB7GeZl2RmsU5a5/TD0B+HFau3EL+N/nPsqrn9Yh1dhrOhM68fNxZkU3HmkWTgWQdWW/DDDx4AzKbW/QZ10rTaquwoZyg5EA7F2FYpGD7epd3WSRPdRejzNeUK6+X0xm7bx8ReIl1EK9wkAAA=="
+  },
+  "limitations": [
+    "Tests exercised local SQLite; migration was not applied to VPS PostgreSQL.",
+    "fact_and_operational_models.py retains exactly eight pre-existing Ruff E402 diagnostics at HEAD lines 155,156,157,158,159,160,163,166; none were introduced or suppressed.",
+    "No commit: pre-existing phase changes overlap the registry, README and primary plan; automatic staging is stopped under the current Goal contract.",
+    "No deployment, source-provider refresh, production authority creation, publication switch or TUI candidate reset occurred in DATA-13.",
+    "DATA-02 still needs real audit identity/runtime binding and dataset-specific canonical comparison inputs plus controlled production backfill and reconciliation."
+  ]
+}

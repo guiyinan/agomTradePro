@@ -16,6 +16,7 @@ from apps.data_center.infrastructure.models import ValuationFactModel
 
 PUBLISHED_AT = datetime(2026, 8, 4, 12, 0, tzinfo=UTC)
 VAL_DATE = date(2026, 8, 3)
+OBSERVED_AT = datetime(2026, 8, 3, 8, 14, 36, tzinfo=UTC)
 
 
 class _CandidateRepository:
@@ -59,6 +60,7 @@ def _fact(asset_code: str = "000001.SZ") -> ValuationFact:
         pe_ttm=12.3,
         pb=1.7,
         source="provider-main",
+        observed_at=OBSERVED_AT,
         available_at=None,
         fetched_at=PUBLISHED_AT,
     )
@@ -74,13 +76,13 @@ def _reference(
         source_record_id=f"valuation-{asset_code}",
         fact_table="data_center_valuation_fact",
         fact_pk=fact_pk,
-        observed_at=datetime.combine(VAL_DATE, datetime.min.time(), tzinfo=UTC),
+        observed_at=OBSERVED_AT,
         raw_payload_hash="a" * 64,
         quality_status="available_at_unverified",
     )
 
 
-def test_valuation_publication_uses_val_date_and_exact_members() -> None:
+def test_valuation_publication_uses_source_observed_at_and_exact_members() -> None:
     repository = _PublicationRepository()
     use_case = PublishValuationBatchUseCase(
         fact_repository=_CandidateRepository([_reference()]),
@@ -95,7 +97,7 @@ def test_valuation_publication_uses_val_date_and_exact_members() -> None:
     )
 
     assert publication is not None
-    expected_as_of = datetime.combine(VAL_DATE, datetime.min.time(), tzinfo=UTC)
+    expected_as_of = OBSERVED_AT
     assert publication.as_of == expected_as_of
     assert publication.as_of != _fact().fetched_at
     assert publication.coverage.selected_count == 1
@@ -134,7 +136,7 @@ def test_valuation_publication_fails_closed_below_coverage_policy() -> None:
 
 
 @pytest.mark.django_db
-def test_valuation_repository_candidate_preserves_val_date_and_evidence() -> None:
+def test_valuation_repository_candidate_preserves_source_observed_at_and_evidence() -> None:
     row = ValuationFactModel.objects.create(
         asset_code="000001.SZ",
         val_date=VAL_DATE,
@@ -143,6 +145,7 @@ def test_valuation_repository_candidate_preserves_val_date_and_evidence() -> Non
         source="provider-main",
         source_record_id="valuation-1",
         raw_payload_hash="b" * 64,
+        observed_at=OBSERVED_AT,
         available_at=None,
     )
 
@@ -152,7 +155,7 @@ def test_valuation_repository_candidate_preserves_val_date_and_evidence() -> Non
     assert references[0].fact_pk == str(row.pk)
     assert references[0].source_record_id == "valuation-1"
     assert references[0].raw_payload_hash == "b" * 64
-    assert references[0].observed_at == datetime(2026, 8, 2, 16, tzinfo=UTC)
+    assert references[0].observed_at == OBSERVED_AT
     assert references[0].observed_at != row.fetched_at
     assert references[0].quality_status == "available_at_unverified"
 
@@ -165,10 +168,63 @@ def test_valuation_repository_rejects_future_available_at() -> None:
         val_date=VAL_DATE,
         pe_ttm=12.3,
         source="provider-main",
+        observed_at=OBSERVED_AT,
         available_at=future,
     )
 
     with pytest.raises(ValueError, match="future"):
+        ValuationFactRepository().list_publication_candidates([_fact()])
+
+
+@pytest.mark.django_db
+def test_valuation_repository_rejects_missing_observed_at() -> None:
+    ValuationFactModel.objects.create(
+        asset_code="000001.SZ",
+        val_date=VAL_DATE,
+        pe_ttm=12.3,
+        source="provider-main",
+        available_at=None,
+    )
+
+    with pytest.raises(ValueError, match="observed_at"):
+        ValuationFactRepository().list_publication_candidates([_fact()])
+
+
+def test_valuation_fact_rejects_naive_observed_at() -> None:
+    with pytest.raises(ValueError, match="observed_at.*timezone"):
+        ValuationFact(
+            asset_code="000001.SZ",
+            val_date=VAL_DATE,
+            source="provider-main",
+            observed_at=datetime(2026, 8, 3, 8, 14, 36),
+            fetched_at=PUBLISHED_AT,
+        )
+
+
+def test_valuation_fact_rejects_fetched_at_before_observed_at() -> None:
+    with pytest.raises(ValueError, match="fetched_at.*precede"):
+        ValuationFact(
+            asset_code="000001.SZ",
+            val_date=VAL_DATE,
+            source="provider-main",
+            observed_at=OBSERVED_AT,
+            fetched_at=OBSERVED_AT - timedelta(seconds=1),
+        )
+
+
+@pytest.mark.django_db
+def test_valuation_repository_rejects_future_observed_at() -> None:
+    future = datetime.now(UTC) + timedelta(days=1)
+    ValuationFactModel.objects.create(
+        asset_code="000001.SZ",
+        val_date=VAL_DATE,
+        pe_ttm=12.3,
+        source="provider-main",
+        observed_at=future,
+        fetched_at=future + timedelta(seconds=1),
+    )
+
+    with pytest.raises(ValueError, match="observed_at.*future"):
         ValuationFactRepository().list_publication_candidates([_fact()])
 
 

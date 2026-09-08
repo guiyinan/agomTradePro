@@ -170,11 +170,11 @@ def _published_valuation_context(payload: object) -> dict[str, object]:
     """Select the newest row from a published valuation payload."""
 
     rows = _payload_rows(payload)
-    if not rows:
+    if not rows or _valuation_source_observation_reason(payload) is not None:
         return {}
     latest = rows[-1]
     pe_value = latest.get("pe_ttm")
-    return {
+    context: dict[str, object] = {
         "valuation_trade_date": _context_date(latest.get("val_date")),
         "pe": safe_float(
             pe_value if pe_value is not None else latest.get("pe_static"),
@@ -184,6 +184,44 @@ def _published_valuation_context(payload: object) -> dict[str, object]:
         "ps": safe_float(latest.get("ps_ttm"), default=None),
         "dividend_yield": safe_float(latest.get("dv_ratio"), default=None),
     }
+    source_updated_at = latest.get("observed_at")
+    if source_updated_at not in (None, ""):
+        context["valuation_source_updated_at"] = source_updated_at
+    fetched_at = latest.get("fetched_at")
+    if fetched_at not in (None, ""):
+        context["valuation_fetched_at"] = fetched_at
+    return context
+
+
+def _valuation_source_observation_reason(payload: object) -> str | None:
+    """Return a stable gate reason when the selected valuation lacks source time."""
+
+    rows = _payload_rows(payload)
+    if not rows:
+        return None
+    observed_at = rows[-1].get("observed_at")
+    if observed_at in (None, ""):
+        return "missing_source_observation"
+    if isinstance(observed_at, datetime):
+        return (
+            None
+            if observed_at.tzinfo is not None and observed_at.utcoffset() is not None
+            else "invalid_source_observation"
+        )
+    if isinstance(observed_at, str):
+        normalized = observed_at.strip()
+        if normalized.endswith("Z"):
+            normalized = f"{normalized[:-1]}+00:00"
+        try:
+            parsed = datetime.fromisoformat(normalized)
+        except ValueError:
+            return "invalid_source_observation"
+        return (
+            None
+            if parsed.tzinfo is not None and parsed.utcoffset() is not None
+            else "invalid_source_observation"
+        )
+    return "invalid_source_observation"
 
 
 def get_published_stock_context_map(
@@ -242,7 +280,17 @@ def get_published_stock_context_map(
         if include_financial:
             gates["financial"] = _payload_gate(financial_payload)
         if include_valuation:
-            gates["valuation"] = _payload_gate(valuation_payload)
+            valuation_gate = _payload_gate(valuation_payload)
+            source_observation_reason = _valuation_source_observation_reason(valuation_payload)
+            if source_observation_reason is not None and not valuation_gate.get(
+                "must_not_use_for_decision"
+            ):
+                valuation_gate = {
+                    **valuation_gate,
+                    "must_not_use_for_decision": True,
+                    "blocked_reason": source_observation_reason,
+                }
+            gates["valuation"] = valuation_gate
         if include_price:
             gates["price"] = _payload_gate(price_payload)
         blocked_gates = [gate for gate in gates.values() if gate.get("must_not_use_for_decision")]

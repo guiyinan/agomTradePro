@@ -212,7 +212,9 @@ def _optional_json_nonnegative_int(value: object, field_name: str) -> int | None
 class ValuationFactModel(models.Model):
     """Daily valuation multiples snapshot (PE, PB, PS, etc.).
 
-    Natural key: (asset_code, val_date, source).
+    Natural key: (asset_code, val_date, source). ``observed_at`` is the
+    provider observation instant, ``fetched_at`` is local ingestion time, and
+    ``available_at`` remains the independent source-availability boundary.
     """
 
     asset_code = models.CharField(max_length=20, db_index=True)
@@ -242,7 +244,8 @@ class ValuationFactModel(models.Model):
         help_text="Dividend yield",
     )
     source = models.CharField(max_length=50)
-    fetched_at = models.DateTimeField(auto_now_add=True)
+    observed_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    fetched_at = models.DateTimeField(default=timezone.now)
     extra = models.JSONField(default=dict, blank=True)
     contract_version = models.CharField(max_length=40, default="1.0")
     schema_version = models.CharField(max_length=40, default="1.0")
