@@ -23,7 +23,7 @@
 
 ## 自主 Goal 调度入口
 
-- 仓库级自主调度合同见 [`AUTONOMOUS_GOAL.md`](../../AUTONOMOUS_GOAL.md)。它负责约束 Sol/Luna
+- 仓库级自主调度合同见 [`AUTONOMOUS_GOAL.md`](../../AUTONOMOUS_GOAL.md)。它负责约束主代理/Luna
   分工、单 repository 执行锁、权限边界、验证、状态晋级和停止条件，不维护任务状态副本。
 - 每个 material checkpoint 回写对应 primary plan；每个 closure unit 完成时，必须把证据 artifact、
   primary plan 实施记录、机器注册表状态/下一焦点和本页人工投影作为同一个验收包同步。勾稽与
@@ -31,9 +31,13 @@
 - 后续 Goal 只从注册表、对应 primary plan、规范化证据、本页投影和 Git 工作树恢复上下文；禁止
   依赖聊天记忆或另建第二份 Goal 进度表。
 
-DATA-02 的最新 [备份与数据库对账 checkpoint](../deployment/data02-backup-db-reconciliation-checkpoint-2026-09-07-aa7127ff.json)
-已通过已有备份完整性、真实容器/迁移和 104 个存量 publication 成员核验。A 股 published
-quote/price/valuation/financial 覆盖仍为 0/0/0/1，需新备份、财务可用时间修复、行情刷新与完整对账。
+DATA-02 的 [财务 availability 切片](../deployment/data02-financial-availability-scope-checkpoint-2026-09-07-0e9f890e.json) 已完成 189 批、288,409 行修复；独立进程复核全部 after-image 哈希通过。
+正式 A 股范围空值为 0，范围外 160 行未处理；三个既有 publication 未变，估值 publication 仍缺。
+下一步是受控行情/估值回填、源观察时间保留和 dataset-specific canonical 对账；DATA-02 整体未完成、DATA-03 不晋级。
+宏观 1% 配置及 provider 优先级已核实存在；其他事实的字段/单位/时间比较合同缺口见 primary plan 第 167–170 节。
+行情实际只读预检另确认审计 runtime 三项配置缺失、actor/scope authority 来源均为 0 行；须先补真实主体与绑定，详见 [预检证据](../deployment/data02-quote-audit-preflight-2026-09-07-0e9f890e.json)。
+
+`DATA-13` 已完成本地代码验收，repository focus 已释放：[来源时刻闭环证据](../testing/data13-valuation-source-time-closure-evidence-2026-09-07.json)。适配、持久化、发布引用、直接消费及 equity 反向保存保留准确 observed_at；缺失来源时间不再被抓取时间替代。60 项与 54 项聚焦回归通过，根代理另行复验 4 项来源往返与 15 项 equity 组件测试；增量类型、全量零债务、迁移、新鲜度和架构检查通过。当前没有依赖齐全的后继 repository unit；代码尚未提交或部署，已有治理/证据修改与本项回写重叠，按 Goal 合同保留工作树。DATA-02 继续等待真实审计主体/绑定、dataset-specific 对账定义与受控生产回填，DATA-03 不晋级；TUI 留样不重置。
 
 ## 生产证据自动采集纪律
 
@@ -79,7 +83,7 @@ quote/price/valuation/financial 覆盖仍为 0/0/0/1，需新备份、财务可�
 | `strategy-research-production` | P0 | production_validation | Research / Data Center / Signal / Portfolio / Broker | [Completion audit](strategy-research-capability-completion-audit-2026-08-05.md)、[Roadmap](strategy-research-capability-roadmap-execution-2026-08-05.md)、[生产数据跟踪](strategy-research-production-data-closure-tracking-memo-2026-08-12.md)、[R1-R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md)、[R3-R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md)、[R5-R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) | 最终候选的 65/7/16/35 表 owner-ledger inventory 全零；R1–R8 逐项 owner/定义审核入口已就绪，审核后仍须 canonical dry-run 与独立 registration 授权，PIT/OOS、Promotion、consumer UAT 不得预签 |
 | `data-production-reliability` | P0 | production_validation | Data Center / Operational Readiness / Task Monitor | [综合清零方案](release-blocker-closure-execution-plan-2026-08-29.md)、[Canonical architecture](data-center-canonical-architecture-refactor-2026-08-02.md)、[生产可靠性](production-data-reliability-full-remediation-2026-08-01.md)、[关键测试](critical-reliability-test-closure-2026-07-22.md)、[UAT 整改](uat-remediation-2026-07-20.md) | `DATA-10/DATA-11/DATA-12=completed`。精确 Nightly `34025990248` 与 hash-verified artifact `9988878086` 证明 Research/Signal line 已回到共享 `90%` floor，9 个 branch floor 全部恢复并只上调不下调；reconciled Domain coverage P2 债务清零。生产候选在本次部署前仍为 `aa7127ff4…` / `20260901232812`，DATA-02 继续 `DENY` |
 | `system-audit-consolidation` | P0/P1 | production_validation | Personal Project Owner / Audit / Data Center / Task Monitor | [统一审计日志](system-audit-log-consolidation-plan-2026-08-13.md) | `AUD-04` repository exit 已补齐 candidate/authority 双重绑定、半开归档窗口、manifest/content/predecessor hash、append-only artifact 与 memory-only exact replay；当前 successor 生产证据为 `missing_section_count=3`（archive、recovery、重启后 TUI section 均 unavailable），下一门是 authority/profile、writer smoke 后真实 rollback/recovery 与获批 archive/restore |
-| `web-to-tui-m5` | P0 | production_validation | Personal Project Owner / Terminal / Operational Readiness | [迁移总计划](web-to-tui-migration-plan-2026-07-25.md)、[M5 readiness](web-to-tui-m5-readiness-2026-07-27.md) | 当前 `2/10 DENY`；main `0e9f890e8…` / `20260907170119` 已部署并重绑候选，旧 UAT/cleanup/rollback 不继承；等待新候选验收与首个真实 retained sample，候选日期不证明已流逝 14 日观察，Classic 清理仍禁止 |
+| `web-to-tui-m5` | P0 | production_validation | Personal Project Owner / Terminal / Operational Readiness | [迁移总计划](web-to-tui-migration-plan-2026-07-25.md)、[M5 readiness](web-to-tui-m5-readiness-2026-07-27.md) | 当前 `2/10 DENY`；main `0e9f890e8…` / `20260907170119` 已部署并重绑候选，旧 UAT/cleanup/rollback 不继承；已绑定真实 retained sample，精确 14 日 eligible 为 `2026-09-21T11:15:50.030000Z`；自然时间与其余新候选验收尚未完成，Classic 清理仍禁止 |
 | `terminal-agent-multi-user-runtime` | P0 | production_validation | Agent Runtime / Terminal / Task Monitor / Operational Readiness / SDK / MCP | [多用户队列与服务端 CLI 运行](terminal-agent-multi-user-runtime-plan-2026-08-18.md) | TAR-01 至 TAR-04 与 `TAR-06` repository 合同已完成；TAR-06 corrective 已把任意摘要文件冒充批准和假 Worker-ready 两条旁路封闭为 24h semantic approval、全 envelope/action binding、non-billable runtime profile 与真实 heartbeat preflight。collector 尚无真实 run，TAR-05 capacity/chaos/provider/canary/观察/退役仍须真实证明 |
 | `ai-native-release` | P1 | external_validation | Agent Runtime / Terminal | [AI-Native delivery pack](ai-native/README.md) | `TUI-01` 已完成；等待 TAR-05 后绑定同候选 staging/production 真实模型 UAT 与单一所有者验收 |
 | `qmt-live-bridge` | P2 | blocked_external | Broker Execution / 外部券商 Owner | [QMT 实盘桥](qmt-live-trading-bridge-plan.md) | Windows XtQuant Phase 0、连续仿真和受控小额实盘 |

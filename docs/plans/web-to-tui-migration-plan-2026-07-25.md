@@ -731,3 +731,18 @@ image `sha256:778e50018124dd4d67dbe6a607b495d2e480c1bc6ff1aed42a9f50f484331e1e`�
 计算精确 14 日 eligible instant。TUI-02 保持 active，Classic 清理继续禁止。
 本次已将现有 host-only `deploy/prometheus-query.env` 安全带入新 release，并核验 Caddy 内值一致；
 该文件不随 Git clone 携带，后续部署仍需保留这一环境配置。
+
+## 17. 2026-09-07 当前候选的首个真实 retained sample
+
+现有主机查询凭据实际是两行 username/password 键值格式；只修正本地一次性采集器的解析，
+未更改凭据、部署或重启。HTTPS 认证查询=200、未认证=401、非允许状态路由=404。
+Prometheus 目标 up、18 条规则健康，retention=3w/4GiB，持久卷存在、剩余空间超过 4GiB，
+corruptionCount=0、reloadConfigSuccess=true、restartCount=0；采集前后候选身份一致。
+
+[真实查询、监控与存储证据](../deployment/tui02-production-observation-checkpoint-2026-09-07-0e9f890e.json)
+SHA-256=`5213277b9fcddeb2b96dc050ed52619079060395d79467b68d1616fa2a10a636`。
+排除早于本候选 web 启动的旧样本后，本次有界查询取得的首个真实 sample 为
+`2026-09-07T11:15:50.030000Z`，精确 14 日 eligible instant 为 `2026-09-21T11:15:50.030000Z`。
+这是本次查询证明的首个样本，不宣称绝对最早样本；未回填历史、合成零或缩短窗口。
+官方 retained binder dry-run 与 --write-evidence 均通过，candidate.retained_observation 已绑定。
+自然时间未满足，旧候选 UAT/cleanup/rollback/approval 不继承，Classic 清理继续禁止。

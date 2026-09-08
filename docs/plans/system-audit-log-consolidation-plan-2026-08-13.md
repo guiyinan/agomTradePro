@@ -1772,3 +1772,19 @@ canonical content-addressed report 为
 - 当前 migration graph、retained targets/rules/alerts、真实 writer receipt、recovery、archive/restore
   和 owner acceptance 仍缺；AUD-03 保持 awaiting_production。本次没有请求业务写入、fault、
   migration、archive、restore 或部署；临时登录/退出可能产生正常认证相关写入，未创建 API token。
+
+## 2026-09-07 当前 0e9f890e 候选的 AUD-03 只读准备
+
+当前 release `20260907170119` 在 PostgreSQL REPEATABLE READ / READ ONLY 下实测
+496 applied migrations、0 pending，outbox 全表 0 行；operation logs 571 行，其中历史
+response_status >=400 为 16 行。该计数不是当前故障率，也不与历史不同谓词的 failures 混比。
+
+[当前数据库原始取证](../deployment/aud03-current-readonly-preparation-2026-09-07-0e9f890e.json)
+SHA-256=`2ac5fcfc4c7756281931da42024d57085fc8034138585e3be4a47c1ec9b95fec`。没有执行 writer smoke、authority 写入、故障/恢复或 archive replay。
+该检查点只补齐当前候选数据库准备事实，不是完整 operational recorder envelope；
+缺失的 recovery/archive、真实 writer/authority 输入仍阻止 AUD-03 生产验收，不能用空队列代替演练。
+
+## 2026-09-07 DATA-02 调用实际审计 composition 的前置核验
+
+当前候选的 audited quote factory 在 provider fetch 前即因 mode_invalid 阻断：production active snapshot 缺 mode/outbox_enabled/authority_selector，且 actor authority 与 owner/tenant authority 来源表实际均为 0 行。
+[配置诊断](../deployment/data02-quote-audit-preflight-2026-09-07-0e9f890e.json) 与 [来源清单](../deployment/data02-audit-authority-sources-readonly-2026-09-07-0e9f890e.json) 保留原始只读证据。未执行 writer smoke、authority 写入或配置发布；这也说明空 outbox 不能证明审计 writer 可用。恢复路径先解决实际主体、owner/tenant scope 和 Config Center 绑定，不能改用 noop writer。
