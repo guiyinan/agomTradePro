@@ -4,42 +4,34 @@
     "reviewer": null
   },
   "candidate": {
-    "stable_version": "20260907170119",
-    "candidate_commit": "0e9f890e8185d897630fd937b5ffc220fd7830ce",
-    "released_at": "2026-09-07",
-    "observation_end": "2026-09-21",
+    "stable_version": "20260908163105",
+    "candidate_commit": "b79687e46de05725c7cbea2cd135a040141ca331",
+    "released_at": "2026-09-08",
+    "observation_end": "2026-09-22",
     "binding": {
       "version": "web-to-tui-candidate-binding.v1",
-      "candidate_version": "20260907170119",
-      "candidate_commit": "0e9f890e8185d897630fd937b5ffc220fd7830ce",
-      "matrix_sha256": "e3027671d02d876c9f4b38b9d86395d45e26c0f2b344eb0646086be31869cd5d",
-      "graph_sha256": "63be10ee25bb73c87861c18cc92355938fd7abc096c33852bf5f904d4db532a2",
+      "candidate_version": "20260908163105",
+      "candidate_commit": "b79687e46de05725c7cbea2cd135a040141ca331",
+      "matrix_sha256": "e03916f904971f242337523252681d65ee8a34dd160ee443f7baa5315588d514",
+      "graph_sha256": "a846ba1485b2337f4b5283ecb2bc9ceda6356daabd508f6b1fa635153f28517f",
       "schema_version": "tui-metadata.v3",
       "runtime_version": "0.2.0",
-      "runtime_build_id": "agomtui-runtime-0.2.0+cce2c21b80b1",
-      "runtime_manifest_sha256": "5e12ee1717a266f238f6bab1fc8f5cbd3e2dfae731f88135fed7231c14eaf8d9"
+      "runtime_build_id": "agomtui-runtime-0.2.0+47bef2addf31",
+      "runtime_manifest_sha256": "de39272f6a09cd0c0cf648928944a652e00bac34f6ab8e85d554b093199d4086"
     },
     "deployment_preflight": {
       "version": "web-to-tui-production-deployment-preflight.v1",
-      "evidence": "docs/deployment/web-to-tui-deployment-preflight-20260907170119.json",
-      "evidence_sha256": "d401e30276270e842b6b18a63e7cb95af1e384d79ee8961dcbee04b621d4f3a0",
-      "release_id": "20260907170119",
-      "source_commit": "0e9f890e8185d897630fd937b5ffc220fd7830ce",
-      "deployed_at": "2026-09-07T09:16:33.494930+00:00",
-      "image_id": "sha256:778e50018124dd4d67dbe6a607b495d2e480c1bc6ff1aed42a9f50f484331e1e",
-      "oci_revision": "0e9f890e8185d897630fd937b5ffc220fd7830ce",
-      "health_checked_at": "2026-09-07T09:19:03.222217+00:00",
-      "health_response_sha256": "79575ab771403da88d8eafc434e4c49688acfb51ff0cdcbb57787f07be3ec150",
-      "readiness_response_sha256": "73ba6bc108e2f0e8c1082c3786c035e7652d2cfec431c4dd14fb5852b5d20bc6",
-      "verified_at": "2026-09-07T09:22:09.521220+00:00"
-    },
-    "retained_observation": {
-      "version": "web-to-tui-retained-observation-binding.v1",
-      "evidence": "docs/deployment/tui02-production-observation-checkpoint-2026-09-07-0e9f890e.json",
-      "evidence_sha256": "5213277b9fcddeb2b96dc050ed52619079060395d79467b68d1616fa2a10a636",
-      "first_retained_sample_at": "2026-09-07T11:15:50.030000Z",
-      "minimum_observation_seconds": 1209600,
-      "eligible_at": "2026-09-21T11:15:50.030000Z"
+      "evidence": "docs/deployment/web-to-tui-deployment-preflight-20260908163105.json",
+      "evidence_sha256": "58ad6f5ae630fc5ed5368590637ad8ecda99008c9b92a0b62538983bc71c82b8",
+      "release_id": "20260908163105",
+      "source_commit": "b79687e46de05725c7cbea2cd135a040141ca331",
+      "deployed_at": "2026-09-08T08:47:02.387222+00:00",
+      "image_id": "sha256:22661f49c8ded9b040da18e524e93dba1c24558de7a1f67a8fff2a8b63d06562",
+      "oci_revision": "b79687e46de05725c7cbea2cd135a040141ca331",
+      "health_checked_at": "2026-09-08T08:49:45.637259+00:00",
+      "health_response_sha256": "ee4707fdd51cb488f9fb5f9135ad3ec9d1ff36d136ffc336eef0c543b197f731",
+      "readiness_response_sha256": "a2e7226c95ea5e15b9fa33b6107e644ab768e6ce1c4fe10011506d2e2917debc",
+      "verified_at": "2026-09-08T08:50:43.405894+00:00"
     }
   },
   "cleanup": {
@@ -51,20 +43,20 @@
     "route_rollback_commits": {}
   },
   "defects": {
-    "candidate_commit": null,
     "candidate_version": null,
-    "evidence": null,
+    "candidate_commit": null,
+    "source_sha256": null,
+    "window_start": null,
+    "window_end": null,
     "new_p0": null,
     "new_p1": null,
     "open_p0": null,
     "open_p1": null,
-    "queried_at": null,
-    "query_filter": null,
+    "evidence": null,
     "query_scope": null,
+    "query_filter": null,
     "snapshot_sha256": null,
-    "source_sha256": null,
-    "window_end": null,
-    "window_start": null
+    "queried_at": null
   },
   "review_snapshot": {
     "evidence": null,
@@ -81,13 +73,13 @@
   },
   "source_sha256": "e03916f904971f242337523252681d65ee8a34dd160ee443f7baa5315588d514",
   "telemetry": {
+    "window_start": null,
+    "window_end": null,
     "collected_at": null,
     "environment": null,
     "evidence": null,
     "snapshot_sha256": null,
-    "tasks": [],
-    "window_end": null,
-    "window_start": null
+    "tasks": []
   },
   "uat": {
     "candidate_binding": null,
