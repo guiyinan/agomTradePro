@@ -76,3 +76,5 @@ CI 发现分页浏览器测试过早读取旧表格，已改为等待目标分�
 完整 main 差异 CI 还发现前置提交的超长文件增长及治理指纹未同步。将 dashboard selector/panel-kind 校验与持久化 JSON 数值解析拆至各自模块，原导入接口兼容；模型结构与迁移不变。19 项定向回归、增量类型与全量债务检查通过。重新生成 Data Center 两份清单；复核 published graph 仅七处下一步提示文案变化后更新 MCP/decision 图指纹，动作集合和写入权限检查通过。估值纯读取 API 的正常样本补齐真实测试源时间，独立回归通过；没有用抓取时间为业务历史数据兜底。
 
 扩大回归定位出账户 inventory 事务测试清除了 `django_migrations` 的 account 记录，却未在结束时恢复，污染随后 MigrationExecutor 的状态图。为该测试模块增加精确记录恢复 fixture；迁移单独运行 1/1，通过原先污染模块后顺序运行 8/8（正常迁移路径，265.85 秒），无需修改生产迁移。拆分后的元数据/actionability/IA 回归 72/72，runtime manifest 重新生成。
+
+真实 Django 浏览器门禁进一步发现：延迟读取的折叠 P2 面板仍保留初始 loading 标记。改为明确的“展开后读取业务数据”，真正开始请求后再显示 loading；不通过放宽浏览器断言绕过。`run_live_server_pytest.py` 的 8 个生产模板布局场景全部通过（32.29 秒）。前述截图及 `evidence.json` 保留最初仓库整改快照，后续发布以部署记录的候选与 runtime hash 为准。

@@ -1260,7 +1260,12 @@ test("collapsed support panels load once on expansion and remain open", async ()
         await delay(150);
         assert.equal(requestCount(), 0);
         const panel = page.locator('[data-dashboard-panel="admin-read"]');
-        await panel.locator("summary").click();
+        assert.equal(await panel.locator('.tui-loading').count(), 0);
+        assert.match(await panel.locator('[data-panel-idle]').textContent(), /展开后读取/);
+        await Promise.all([
+            page.waitForRequest(request => request.url().includes('/actions/test.admin-read/run/')),
+            panel.locator("summary").click(),
+        ]);
         await panel.locator(".tui-loading").waitFor({ state: "hidden" });
         assert.equal(requestCount(), 1);
         assert.equal(await panel.locator("details").getAttribute("open"), "");

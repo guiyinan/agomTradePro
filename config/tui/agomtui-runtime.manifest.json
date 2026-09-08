@@ -1,8 +1,8 @@
 {
   "version": "0.2.0",
   "source_owner": "AgomTradePro",
-  "upstream_commit": "7d119621478cd1a4dbdf857f02b3e9b34f67fc22",
-  "build_id": "agomtui-runtime-0.2.0+f7ced3b2ad22",
+  "upstream_commit": "b317fca597572dc4c31ab681c4dfc47d171fc21d",
+  "build_id": "agomtui-runtime-0.2.0+47bef2addf31",
   "direction": "AgomTradePro -> AgOMTUI",
   "contracts": {
     "screen_dashboard_layouts": [
@@ -23,13 +23,13 @@
     "frontend/tui-workbench/src/00-runtime.js": "632c4a0c6141f960e6d59245640227e15f1d1d66dc084b359776099a63c15640",
     "frontend/tui-workbench/src/10-navigation.js": "30356f593d3b26a3678d36cadc4c638e2e8673da1266528e7dbf08fa6b54451b",
     "frontend/tui-workbench/src/15-workspace-state.js": "b3d2f5af1127329030f38595edcfebb8b22b0101dbb2b2be1daeaf68dca5c083",
-    "frontend/tui-workbench/src/20-dashboard.js": "4bd85d68d6b9261f0bd0578e72f5daf3c2d8e96a0dfd7a873fbbe96f067fd1a5",
+    "frontend/tui-workbench/src/20-dashboard.js": "39167c5b31390ad15832ca0353735e56edd47907daf8919802b844ae37fa36c1",
     "frontend/tui-workbench/src/30-actions.js": "5bb6908ccd4316a7e620412b0bb5a7ce47a0e35bb59efe0577ceea7380fe0d8f",
     "frontend/tui-workbench/src/40-views.js": "7102f2c0e520dec0be708de30a8119daccc7ae181756fa2609037e86ecdb9805",
     "frontend/tui-workbench/src/45-pagination.js": "dc99258f2307692cff99e586181e357fe91a580f7a1dd834ca5f9673a6e8619a",
     "frontend/tui-workbench/src/50-shell.js": "53e2e7128f534711f3ab3523ec02c431274c43ec5725117c7c8c568e76a336e2",
     "static/js/agomtui-runtime-core.js": "988216a4761b3053cc72c36a5ac7a83d84f6844c590c6bdc1045fff7a4b98e90",
-    "static/js/tui-workbench.js": "990d1228760c31b49fbdc0b7f026cdd3789dc10e1fd51a4a9f9f076e4c19766a",
+    "static/js/tui-workbench.js": "91b1a9e1fd8c68f93ece3fa9e86c3ce2be7c826b5c03e65cdb0e218051c4b5e4",
     "static/css/tui-workbench.css": "961eead629666165cd2fa34884fe646ec3a716102dbcb21f378477ede642c04a",
     "config/tui/ia/tui_information_architecture.v1.json": "cb2f3510d904653c7ae82518645268e33413874790d18781e15ecd2595ba879e",
     "apps/terminal/application/tui_metadata_constants.py": "372ef9a906b0f0723e03dd7f2a0235fd35dde6dcacb8a701ba4ba656041f804c",

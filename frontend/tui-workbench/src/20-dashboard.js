@@ -19,7 +19,9 @@
             <div class="tui-dashboard-grid${layout.contentFlow ? " is-content-flow" : ""}" style="${escapeHtml(layout.gridStyle)}">
                 ${panels.map((panel, index) => `
                     <article class="tui-dash-panel" style="grid-area: ${escapeHtml(layout.areas[index])};" data-dashboard-panel="${escapeHtml(panel.key)}" data-panel-priority="${escapeHtml(panelPriority(panel))}" data-panel-semantic="${escapeHtml(panelPresentationSemantic(panel))}">
-                        ${renderDashboardPanelShell(panel, '<div class="tui-loading">读取业务数据...</div>')}
+                        ${renderDashboardPanelShell(panel, dashboardPanelShouldCollapse(panel)
+                            ? '<div class="tui-panel-caption" data-panel-idle>展开后读取业务数据。</div>'
+                            : '<div class="tui-loading">读取业务数据...</div>')}
                     </article>
                 `).join("")}
             </div>
@@ -324,6 +326,12 @@
             bindDashboardPanelOpenControls(container);
             restoreDisclosure();
             return;
+        }
+        const idle = container.querySelector('[data-panel-idle]');
+        if (idle) {
+            idle.className = 'tui-loading';
+            idle.textContent = '读取业务数据...';
+            idle.removeAttribute('data-panel-idle');
         }
         try {
             let viewModel = null;
