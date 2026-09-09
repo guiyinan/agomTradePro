@@ -59,7 +59,7 @@ class AccountProfileView(APIView):
         """获取当前用户的账户配置"""
         profile = interface_services.get_api_profile(_request_user_id(request))
         serializer = AccountProfileSerializer(profile)
-        return Response(serializer.data)
+        return Response({**serializer.data, "is_staff": request.user.is_staff})
 
     def put(self, request: Request) -> Response:
         """更新当前用户的账户配置"""

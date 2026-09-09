@@ -4,6 +4,26 @@ import agomtradepro
 from agomtradepro_mcp import rbac
 
 
+@pytest.mark.parametrize(
+    ("role", "profile", "allowed"),
+    [
+        ("owner", {"rbac_role": "owner", "is_staff": True}, True),
+        ("owner", {"rbac_role": "owner", "is_staff": False}, False),
+        ("owner", {"rbac_role": "owner", "is_staff": "true"}, False),
+        ("owner", {"rbac_role": "owner"}, False),
+        ("owner", None, False),
+        ("read_only", {"rbac_role": "owner", "is_staff": True}, False),
+        ("admin", None, True),
+        ("staff", None, True),
+    ],
+)
+def test_staff_capabilities_use_matching_backend_identity(monkeypatch, role, profile, allowed):
+    monkeypatch.setattr(rbac, "_BACKEND_PROFILE_CACHE", profile)
+    assert rbac.role_matches_required_roles(role, ("staff",)) is allowed
+    if role == "owner":
+        assert rbac.role_matches_required_roles(role, ("admin",)) is False
+
+
 class _ProfileClient:
     def get(self, endpoint: str) -> dict[str, object]:
         assert endpoint == "api/account/profile/"

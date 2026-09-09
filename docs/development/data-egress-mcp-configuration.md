@@ -8,6 +8,8 @@
 
 本组能力要求可信运行身份具备 `staff` 权限；后端再次校验管理员权限。沿用现有 MCP 的系统地址和认证配置。路由预览使用 POST，因此认证配置也需要允许对应请求；不应只配置 GET 权限。
 
+`/api/account/profile/` 返回只读 `is_staff` 标志。业务角色为 `owner`、同时具备 Django 管理员权限的账户也可使用本组能力；普通 `owner` 不会因此获得管理员权限。身份标志只来自后端认证资料，不能通过配置参数或资料更新接口写入。
+
 | 操作 | capability_key | 对应 SDK 方法 |
 | --- | --- | --- |
 | 出口清单 | `data_center.read.egress_endpoints` | `list_egress_endpoints()` |

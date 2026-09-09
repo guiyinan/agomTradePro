@@ -243,6 +243,12 @@ Black/isort/Ruff、架构 boundary/audit 与 active-plan registry 检查通过�
 
 本次仍是本地实现和提交；VPS 与已运行的 MCP 进程需要部署更新后重启。真实 FRP 连接、出口 IP、行情可用性和 PostgreSQL/Redis 并发验收继续保留为部署环境待办。
 
+### 部署验收中的身份兼容修复
+
+远端真实账户具有 Django `is_staff=True`，业务角色为 `owner`。原身份接口只返回业务角色，MCP 将其排除在 staff-only 出口能力之外。身份接口现发布只读 `is_staff`，MCP 在缓存身份的角色与当前角色一致、且该标志严格为 true 时满足 staff 要求；普通 owner、缺失标志、字符串 true 和不匹配身份继续拒绝。账户权限与 `admin` 专属规则不变，资料更新接口拒绝写入 `is_staff`。
+
+接口及 MCP 初次回归 73 passed；补齐 staff-owner 确认时权限撤销断言后的 MCP/RBAC/审计集合 82 passed。两个生产文件增量 mypy 0 regressions，全仓 mypy debt ceiling 0 errors；架构 boundary/audit 和格式检查通过。真实部署身份、健康与最终验收以发布报告为准。
+
 ## 外部依据
 
 - [frp 客户端插件](https://gofrp.org/en/docs/features/common/client-plugin/)

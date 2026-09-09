@@ -8,10 +8,12 @@ from apps.account.infrastructure.models import AccountProfileModel
 
 
 @pytest.mark.django_db
-def test_account_profile_get_exposes_authenticated_mcp_identity() -> None:
+@pytest.mark.parametrize("is_staff", [True, False])
+def test_account_profile_get_exposes_authenticated_mcp_identity(is_staff: bool) -> None:
     user = get_user_model().objects.create_user(
         username="profile_identity_user",
         password="testpass123",
+        is_staff=is_staff,
     )
     AccountProfileModel.objects.update_or_create(
         user=user,
@@ -34,6 +36,7 @@ def test_account_profile_get_exposes_authenticated_mcp_identity() -> None:
     payload = response.json()
     assert payload["user_id"] == user.id
     assert payload["username"] == user.username
+    assert payload["is_staff"] is is_staff
 
 
 @pytest.mark.django_db
@@ -111,8 +114,11 @@ def test_account_profile_put_rejects_invalid_email_and_unknown_fields() -> None:
         {"rbac_role": "admin"},
         format="json",
     )
+    staff_override = client.put("/api/account/profile/", {"is_staff": True}, format="json")
 
     assert invalid_email.status_code == 400
     assert unknown_field.status_code == 400
+    assert staff_override.status_code == 400
     user.refresh_from_db()
     assert user.email == "before@example.com"
+    assert user.is_staff is False

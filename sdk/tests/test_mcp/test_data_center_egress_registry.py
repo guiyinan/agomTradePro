@@ -261,6 +261,27 @@ def test_all_egress_capabilities_require_staff_and_are_discoverable(harness):
     assert module.mock_calls == []
 
 
+def test_staff_owner_can_discover_and_preview_without_granting_nonstaff_owner(harness, monkeypatch):
+    from agomtradepro_mcp import rbac
+
+    dispatcher, module, _ = harness
+    dispatcher._role_provider = lambda: "owner"
+    monkeypatch.setattr(rbac, "_BACKEND_PROFILE_CACHE", {"rbac_role": "owner", "is_staff": True})
+    assert len(dispatcher.search(query="frpc", limit=20)) == 11
+    result = dispatcher.call(
+        capability_key="data_center.create.egress_endpoint",
+        arguments={**ENDPOINT, "idempotency_key": "staff-owner"},
+    )
+    assert result["status"] == "confirmation_required"
+    monkeypatch.setattr(rbac, "_BACKEND_PROFILE_CACHE", {"rbac_role": "owner", "is_staff": False})
+    assert dispatcher.search(query="frpc", limit=20) == []
+    result = dispatcher.resume_confirmation(
+        confirmation_token=result["confirmation_token"], approve=True
+    )
+    assert result["ok"] is False
+    module.create_egress_endpoint.assert_not_called()
+
+
 def test_cancel_and_role_revocation_prevent_configuration_write(harness):
     dispatcher, module, _ = harness
     key = "data_center.create.egress_endpoint"

@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import os
 from collections.abc import Callable
+from typing import ParamSpec, TypeVar
+
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
 
 
 def _split_csv_env(name: str) -> set[str]:
@@ -78,7 +82,8 @@ def _get_role_from_backend() -> str | None:
 
     try:
         payload = _get_backend_profile()
-        role = _normalize_role(payload.get("rbac_role") if isinstance(payload, dict) else None)
+        raw_role = payload.get("rbac_role") if isinstance(payload, dict) else None
+        role = _normalize_role(raw_role if isinstance(raw_role, str) else None)
         _BACKEND_ROLE_CACHE = role
         return role
     except Exception:
@@ -117,6 +122,14 @@ def role_matches_required_roles(role: str, required_roles: tuple[str, ...]) -> b
         normalized_required = _normalize_role(required_role)
         if normalized_required == "staff":
             if normalized_role in {"admin", "staff"}:
+                return True
+            profile = _BACKEND_PROFILE_CACHE or {}
+            backend_role = profile.get("rbac_role")
+            if (
+                profile.get("is_staff") is True
+                and isinstance(backend_role, str)
+                and _normalize_role(backend_role) == normalized_role
+            ):
                 return True
             continue
         if normalized_role == normalized_required:
@@ -340,15 +353,17 @@ def enforce_prompt_access(prompt_name: str) -> None:
         raise PermissionError(f"RBAC deny: role '{role}' cannot use prompt '{prompt_name}'")
 
 
-def wrap_tool_with_rbac(name: str, fn: Callable) -> Callable:
-    def _wrapped(*args, **kwargs):
+def wrap_tool_with_rbac(name: str, fn: Callable[_P, _R]) -> Callable[_P, _R]:
+    """Preserve a tool's signature while enforcing its RBAC policy."""
+
+    def _wrapped(*args: _P.args, **kwargs: _P.kwargs) -> _R:
         enforce_tool_access(name)
         return fn(*args, **kwargs)
 
     return _wrapped
 
 
-def wrap_tool_with_rbac_and_audit(name: str, fn: Callable) -> Callable:
+def wrap_tool_with_rbac_and_audit(name: str, fn: Callable[_P, _R]) -> Callable[_P, _R]:
     """
     Wrap a tool with RBAC enforcement and audit logging.
 
@@ -367,7 +382,7 @@ def wrap_tool_with_rbac_and_audit(name: str, fn: Callable) -> Callable:
         Wrapped function with RBAC and audit logging
     """
 
-    def _wrapped(*args, **kwargs):
+    def _wrapped(*args: _P.args, **kwargs: _P.kwargs) -> _R:
         from .audit import AuditContext, get_audit_logger
 
         # 创建审计上下文
@@ -378,8 +393,8 @@ def wrap_tool_with_rbac_and_audit(name: str, fn: Callable) -> Callable:
         )
 
         audit_logger = get_audit_logger()
-        error = None
-        result = None
+        error: Exception | None = None
+        result: _R | None = None
 
         try:
             # 执行 RBAC 检查
