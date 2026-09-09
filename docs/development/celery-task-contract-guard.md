@@ -5,6 +5,11 @@
 
 ## 目标
 
+2026-09-09 Alpha 额度耗尽处理：Qlib builder 遇到 `token daily limit exceeded`
+立即抛出 `TUSHARE_DAILY_QUOTA_EXHAUSTED`，停止未开始的并发请求；推理任务发布
+`blocked`、`stored=0`，不重试推理或改写缓存。若其他刷新失败导致使用旧交易日，
+缓存标为 `degraded`，任务发布 `partial`，阻断下游推荐刷新。
+
 防止以下故障再次进入生产：
 
 - beat、CLI 或其他任务绕过 HTTP Serializer，把非法参数传入任务；
@@ -112,3 +117,8 @@ python scripts/check_celery_task_contracts.py \
 
 代码评审时还需确认：任务结果是否能让调用方区分“全成功、部分成功、无操作、被阻断和
 失败”，以及告警是否会在“函数正常返回但业务失败”时触发。
+
+
+### 2026-09-09 Qlib 中台数据阻断
+
+`qlib_predict_scores` 的 blocked 用例同时覆盖额度耗尽和 `MODEL_MARKET_*`（过期、切源冲突、参考不足、配置缺失）；均必须 `stored=0`，不得执行预测或写评分缓存。复用 manifest 中该任务的 blocked 用例并参数化测试；详细边界见 [模型行情中台改造](../plans/model-market-data-center-routing-2026-09-09.md)。

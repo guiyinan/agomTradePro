@@ -27,6 +27,7 @@ from apps.data_center.domain.entities import (
 from apps.data_center.domain.enums import (
     DataQualityStatus,
 )
+from apps.data_center.domain.model_market_data import ModelMarketDataPort
 from apps.data_center.domain.rules import normalize_asset_code
 from apps.data_center.infrastructure._provider_adapter_base import (
     BaseUnifiedProviderAdapter,
@@ -39,6 +40,7 @@ from apps.data_center.infrastructure._provider_adapter_base import (
     _score_market_news_sentiment,
     _valuation_period,
 )
+from apps.data_center.infrastructure.akshare_model_market_source import AkshareModelMarketSource
 from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
 from apps.data_center.infrastructure.macro_sources import AKShareAdapter
 from apps.data_center.infrastructure.sse_investor_accounts import fetch_investor_account_facts
@@ -67,6 +69,12 @@ _A_SHARE_BEHAVIOR_CODES = frozenset(
 
 class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
     """Standardized AKShare provider wrapper."""
+
+    def model_market_source(self, *, tolerance: float) -> ModelMarketDataPort:
+        """Expose typed raw-price and corporate-action observations."""
+        return AkshareModelMarketSource(
+            get_akshare_module(), source=self.provider_name(), tolerance=tolerance
+        )
 
     def fetch_macro_series(
         self,

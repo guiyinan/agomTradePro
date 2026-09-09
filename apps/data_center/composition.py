@@ -59,6 +59,7 @@ from apps.data_center.application.sync_use_cases import (
 )
 from apps.data_center.domain.control_plane import SyncBatch, SyncCheckpoint, SyncRun
 from apps.data_center.domain.entities import ProviderConfig
+from apps.data_center.domain.model_market_data import ModelMarketDataPort
 from apps.data_center.domain.protocols import (
     ProviderConfigRepositoryProtocol,
     ProviderRegistryProtocol,
@@ -149,6 +150,7 @@ from apps.data_center.infrastructure.rss_gateway import (
 )
 
 __all__ = [
+    "build_model_market_data_service",
     "AssetRepository",
     "ArchiveManifestRepository",
     "ArchiveCandidateRepository",
@@ -1227,3 +1229,13 @@ def make_manifest_bound_pit_data_view(manifest_id: str):  # type: ignore[no-unty
     from apps.data_center.infrastructure.pit_repository import ManifestBoundPITDataView
 
     return ManifestBoundPITDataView(manifest_id)
+
+
+def build_model_market_data_service() -> ModelMarketDataPort:
+    """Compose provider-neutral model inputs using the active Data Center policy."""
+    from apps.data_center.application.interface_services import load_provider_settings_payload
+    from apps.data_center.infrastructure.model_market_wiring import build_model_market_service
+
+    return build_model_market_service(
+        get_provider_registry(), get_price_bar_repository(), load_provider_settings_payload()
+    )

@@ -117,7 +117,7 @@ from apps.alpha.application.repository_provider import train_qlib_model as _trai
 from apps.alpha.application.repository_provider import upsert_qlib_cache as _upsert_qlib_cache
 from apps.alpha.application.trade_dates import resolve_recent_closed_trade_date
 from apps.alpha.application.workspace_sync import sync_default_workspace_after_alpha_update
-from apps.alpha.domain.entities import AlphaPoolScope, normalize_stock_code
+from apps.alpha.domain.entities import AlphaPoolScope
 from apps.config_center.application.repository_provider import get_qlib_training_run_repository
 from shared.infrastructure.celery_typing import BoundTask, typed_shared_task
 
@@ -363,6 +363,21 @@ def qlib_predict_scores(
                 )
             )
 
+        refresh_error_code = str(refresh_metadata.get("qlib_runtime_refresh_error_code") or "")
+        if refresh_error_code == "TUSHARE_DAILY_QUOTA_EXHAUSTED" or refresh_error_code.startswith(
+            "MODEL_MARKET_"
+        ):
+            return {
+                "status": "blocked",
+                "reason": refresh_error_code.lower(),
+                "blocked_reason": refresh_error_code.lower(),
+                "must_not_use_for_decision": True,
+                "trade_date": intended_trade_date,
+                "universe_id": universe_id,
+                **refresh_metadata,
+                **_outcomes.task_outcome_fields("blocked", 1, 0, 1, 0),
+            }
+
         outdated_reason = None
         if latest_qlib_data_date is None:
             outdated_reason = "本地 Qlib 数据目录为空，无法执行实时推理"
@@ -470,6 +485,17 @@ def qlib_predict_scores(
                 return _outcomes.degraded_task_result(fallback_result)
             raise RuntimeError("Qlib 预测未返回任何评分")
 
+        source_is_stale = asof_date < trade_date
+        if source_is_stale:
+            execution_metadata.update(
+                {
+                    "freshness": "stale",
+                    "reliability": "degraded",
+                    "must_not_use_for_decision": True,
+                    "blocked_reason": "qlib_source_data_stale",
+                }
+            )
+
         # 4. 写入缓存
         cache, created = _upsert_qlib_cache(
             active_model=active_model,
@@ -477,7 +503,7 @@ def qlib_predict_scores(
             trade_date=trade_date,
             asof_date=asof_date,
             scores_data=scores_data,
-            status="available",
+            status="degraded" if source_is_stale else "available",
             metrics_snapshot=execution_metadata,
             pool_scope=pool_scope,
         )
@@ -487,13 +513,20 @@ def qlib_predict_scores(
             f"Qlib 推理完成: {action}缓存 {universe_id}@{intended_trade_date}, "
             f"共 {len(scores_data)} 只股票"
         )
-        workspace_refresh_metadata = sync_default_workspace_after_alpha_update(
-            pool_scope.universe_id if pool_scope else universe_id, trade_date, pool_scope
+        workspace_refresh_metadata = (
+            {"workspace_recommendations_status": "blocked"}
+            if source_is_stale
+            else sync_default_workspace_after_alpha_update(
+                pool_scope.universe_id if pool_scope else universe_id, trade_date, pool_scope
+            )
+        )
+        build_result = (
+            _outcomes.degraded_task_result if source_is_stale else _outcomes.completed_task_result
         )
 
-        return _outcomes.completed_task_result(
+        return build_result(
             {
-                "status": "success",
+                "status": "degraded" if source_is_stale else "success",
                 "universe_id": universe_id,
                 "scope_hash": pool_scope.scope_hash if pool_scope else None,
                 "trade_date": intended_trade_date,

@@ -42,6 +42,7 @@ from apps.data_center.application.use_cases import (
 )
 from apps.data_center.composition import (
     backfill_asset_master_codes,
+    build_model_market_data_service,
     build_provider_registry_for_repo,
     build_tushare_client,
     fetch_rss_feed,
@@ -78,6 +79,7 @@ from apps.data_center.domain.entities import NewsFact
 from apps.data_center.domain.macro_semantics import (
     is_direct_consumer_input_allowed as _is_direct_consumer_input_allowed,
 )
+from apps.data_center.domain.model_market_data import ModelMarketDataPort
 from apps.data_center.domain.protocols import (
     AssetRepositoryProtocol,
     CapitalFlowRepositoryProtocol,
@@ -950,6 +952,7 @@ get_publication_as_of = _bind_published_query(
     "get_publication_as_of", _published_queries.get_publication_as_of
 )
 __all__ = [
+    "get_model_market_data_port",
     "MacroProjectionRepositoryProtocol",
     "backfill_asset_master_codes_port",
     "get_asset_repository_port",
@@ -1044,3 +1047,8 @@ __all__ = [
     "update_asset_display_name",
     "save_macro_facts",
 ]
+
+
+def get_model_market_data_port() -> ModelMarketDataPort:
+    """Return normalized model inputs; Data Center owns routing and failover."""
+    return build_model_market_data_service()

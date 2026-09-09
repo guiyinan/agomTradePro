@@ -106,20 +106,14 @@ def test_build_qlib_data_helpers_and_command_modes(monkeypatch) -> None:
     """Build command reports actionable blockers and delegates a normalized build request."""
     target = date(2026, 7, 24)
     assert (
-        build_qlib_data._build_qlib_blocker_message(
-            date(2026, 7, 22), target_date=target, has_tushare_token=False
-        )
-        is None
+        build_qlib_data._build_qlib_blocker_message(date(2026, 7, 22), target_date=target) is None
     )
-    assert "目录为空" in build_qlib_data._build_qlib_blocker_message(
-        None, target_date=target, has_tushare_token=False
-    )
-    assert "可直接运行" in build_qlib_data._build_qlib_blocker_message(
-        date(2026, 1, 1), target_date=target, has_tushare_token=True
+    assert "目录为空" in build_qlib_data._build_qlib_blocker_message(None, target_date=target)
+    assert "再运行" in build_qlib_data._build_qlib_blocker_message(
+        date(2026, 1, 1), target_date=target
     )
 
     monkeypatch.setattr(build_qlib_data, "get_runtime_qlib_config", lambda: {})
-    monkeypatch.setattr(build_qlib_data, "_resolve_tushare_token", lambda: None)
     monkeypatch.setattr(build_qlib_data, "_inspect_latest_trade_date", lambda *args: None)
     options = {
         "provider_uri": "/qlib",
@@ -133,7 +127,6 @@ def test_build_qlib_data_helpers_and_command_modes(monkeypatch) -> None:
     with pytest.raises(CommandError, match="目录为空"):
         build_qlib_data.Command(stdout=StringIO()).handle(**options)
 
-    monkeypatch.setattr(build_qlib_data, "_resolve_tushare_token", lambda: "token")
     monkeypatch.setattr(
         build_qlib_data,
         "_inspect_latest_trade_date",
@@ -163,7 +156,7 @@ def test_build_qlib_data_helpers_and_command_modes(monkeypatch) -> None:
             calls.append(kwargs)
             return summary
 
-    monkeypatch.setattr(build_qlib_data, "TushareQlibBuilder", _Builder)
+    monkeypatch.setattr(build_qlib_data, "DataCenterQlibBuilder", _Builder)
     build_options = dict(options)
     build_options.update(check_only=False, universes=" CSI300, SSE50 ")
     build_command = build_qlib_data.Command(stdout=StringIO())

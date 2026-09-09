@@ -15,6 +15,7 @@ from apps.alpha.infrastructure.qlib_builder import (
     resolve_effective_trade_date,
 )
 from apps.config_center.infrastructure.models import AlphaUniverseConfigModel
+from apps.data_center.infrastructure.tushare_model_market_source import TushareModelMarketSource
 
 
 class _MockTushareProClient:
@@ -228,9 +229,7 @@ class _ConcurrentStockClient(_MockTushareProClient):
 
     def adj_factor(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame:
         return self._record_call(
-            pd.DataFrame(
-                [{"ts_code": ts_code, "trade_date": "20260403", "adj_factor": 16.5}]
-            )
+            pd.DataFrame([{"ts_code": ts_code, "trade_date": "20260403", "adj_factor": 16.5}])
         )
 
     def _record_call(self, result: pd.DataFrame) -> pd.DataFrame:
@@ -277,7 +276,9 @@ def test_resolve_effective_trade_date_raises_when_gap_is_too_large() -> None:
 @pytest.mark.django_db
 def test_tushare_qlib_builder_writes_recent_layout(tmp_path: Path) -> None:
     provider_uri = tmp_path / "cn_data"
-    builder = TushareQlibBuilder(str(provider_uri), pro_client=_MockTushareProClient())
+    builder = TushareQlibBuilder(
+        str(provider_uri), data_port=TushareModelMarketSource(_MockTushareProClient())
+    )
 
     summary = builder.build_recent_data(
         target_date=date(2026, 4, 6),
@@ -318,7 +319,9 @@ def test_tushare_qlib_builder_falls_back_to_local_universe_members(tmp_path: Pat
         "SH600000\t2005-01-01\t2026-05-06\n",
         encoding="utf-8",
     )
-    builder = TushareQlibBuilder(str(provider_uri), pro_client=_RateLimitedIndexWeightClient())
+    builder = TushareQlibBuilder(
+        str(provider_uri), data_port=TushareModelMarketSource(_RateLimitedIndexWeightClient())
+    )
 
     summary = builder.build_recent_data(
         target_date=date(2026, 4, 6),
@@ -334,7 +337,9 @@ def test_tushare_qlib_builder_falls_back_to_local_universe_members(tmp_path: Pat
 
 def test_tushare_qlib_builder_writes_explicit_stock_scope(tmp_path: Path) -> None:
     provider_uri = tmp_path / "cn_data"
-    builder = TushareQlibBuilder(str(provider_uri), pro_client=_MockTushareProClient())
+    builder = TushareQlibBuilder(
+        str(provider_uri), data_port=TushareModelMarketSource(_MockTushareProClient())
+    )
 
     summary = builder.build_recent_data_for_codes(
         target_date=date(2026, 4, 6),
@@ -362,7 +367,9 @@ def test_tushare_qlib_builder_resolves_custom_config_center_universe(tmp_path: P
         is_active=True,
     )
     provider_uri = tmp_path / "cn_data"
-    builder = TushareQlibBuilder(str(provider_uri), pro_client=_MockTushareProClient())
+    builder = TushareQlibBuilder(
+        str(provider_uri), data_port=TushareModelMarketSource(_MockTushareProClient())
+    )
 
     summary = builder.build_recent_data(
         target_date=date(2026, 4, 6),
@@ -389,7 +396,9 @@ def test_tushare_qlib_builder_resolves_index_mapping_from_config_center(
         is_active=True,
     )
     client = _CapturingIndexWeightClient()
-    builder = TushareQlibBuilder(str(tmp_path / "cn_data"), pro_client=client)
+    builder = TushareQlibBuilder(
+        str(tmp_path / "cn_data"), data_port=TushareModelMarketSource(client)
+    )
 
     summary = builder.build_recent_data(
         target_date=date(2026, 4, 6),
@@ -404,7 +413,7 @@ def test_tushare_qlib_builder_resolves_index_mapping_from_config_center(
 def test_tushare_qlib_builder_rejects_invalid_explicit_scope(tmp_path: Path) -> None:
     builder = TushareQlibBuilder(
         str(tmp_path / "cn_data"),
-        pro_client=_MockTushareProClient(),
+        data_port=TushareModelMarketSource(_MockTushareProClient()),
     )
 
     with pytest.raises(ValueError, match="Tushare format"):
@@ -424,7 +433,7 @@ def test_tushare_qlib_builder_rejects_invalid_explicit_scope(tmp_path: Path) -> 
 def test_tushare_qlib_builder_rejects_invalid_build_window(tmp_path: Path) -> None:
     builder = TushareQlibBuilder(
         str(tmp_path / "cn_data"),
-        pro_client=_MockTushareProClient(),
+        data_port=TushareModelMarketSource(_MockTushareProClient()),
     )
 
     with pytest.raises(ValueError, match="1 to 3650"):
@@ -462,7 +471,7 @@ def test_tushare_qlib_builder_redacts_provider_error_detail(
     )
     builder = TushareQlibBuilder(
         str(provider_uri),
-        pro_client=_SensitiveIndexWeightErrorClient(),
+        data_port=TushareModelMarketSource(_SensitiveIndexWeightErrorClient()),
     )
 
     with caplog.at_level("WARNING"):
@@ -482,7 +491,7 @@ def test_tushare_qlib_builder_drops_non_finite_adjustment_factors(
     provider_uri = tmp_path / "cn_data"
     builder = TushareQlibBuilder(
         str(provider_uri),
-        pro_client=_NonFiniteFactorClient(),
+        data_port=TushareModelMarketSource(_NonFiniteFactorClient()),
     )
 
     summary = builder.build_recent_data_for_codes(
@@ -501,7 +510,7 @@ def test_tushare_qlib_builder_rejects_out_of_scope_and_invalid_daily_rows(
     provider_uri = tmp_path / "cn_data"
     builder = TushareQlibBuilder(
         str(provider_uri),
-        pro_client=_UntrustedDailyRowsClient(),
+        data_port=TushareModelMarketSource(_UntrustedDailyRowsClient()),
     )
 
     summary = builder.build_recent_data_for_codes(
@@ -520,10 +529,10 @@ def test_tushare_qlib_builder_rejects_out_of_scope_and_invalid_daily_rows(
 
 def test_tushare_qlib_builder_rejects_invalid_retry_policy() -> None:
     with pytest.raises(ValueError, match="positive integer"):
-        TushareQlibBuilder._call_with_retry(lambda: None, retries=0)
+        TushareModelMarketSource._call_with_retry(lambda: None, retries=0)
 
     with pytest.raises(ValueError, match="finite and non-negative"):
-        TushareQlibBuilder._call_with_retry(lambda: None, delay_seconds=float("nan"))
+        TushareModelMarketSource._call_with_retry(lambda: None, delay_seconds=float("nan"))
 
 
 def test_tushare_qlib_builder_fetches_stocks_with_bounded_concurrency(
@@ -532,7 +541,7 @@ def test_tushare_qlib_builder_fetches_stocks_with_bounded_concurrency(
     client = _ConcurrentStockClient()
     builder = TushareQlibBuilder(
         str(tmp_path / "cn_data"),
-        pro_client=client,
+        data_port=TushareModelMarketSource(client),
         fetch_workers=4,
     )
 
@@ -561,7 +570,7 @@ def test_tushare_qlib_builder_rejects_invalid_fetch_workers(
     with pytest.raises(ValueError, match="fetch_workers"):
         TushareQlibBuilder(
             str(tmp_path / "cn_data"),
-            pro_client=_MockTushareProClient(),
+            data_port=TushareModelMarketSource(_MockTushareProClient()),
             fetch_workers=fetch_workers,  # type: ignore[arg-type]
         )
 
@@ -575,10 +584,63 @@ def test_tushare_qlib_builder_does_not_retry_authorization_failures() -> None:
         raise PermissionError("provider authorization rejected")
 
     with pytest.raises(PermissionError, match="authorization rejected"):
-        TushareQlibBuilder._call_with_retry(
+        TushareModelMarketSource._call_with_retry(
             reject,
             retries=3,
             delay_seconds=0,
         )
 
     assert calls == 1
+
+
+def test_qlib_quota_exhaustion_stops_batch_without_retry(tmp_path: Path) -> None:
+    from core.exceptions import TushareError
+
+    class ExhaustedClient:
+        calls = 0
+
+        def daily(self, **kwargs: object) -> None:
+            self.calls += 1
+            raise RuntimeError("token daily limit exceeded")
+
+    client = ExhaustedClient()
+    builder = TushareQlibBuilder(
+        str(tmp_path), data_port=TushareModelMarketSource(client), fetch_workers=4
+    )
+    with pytest.raises(TushareError, match="daily quota exhausted"):
+        builder._fetch_stock_daily(
+            [f"{code:06d}.SZ" for code in range(1, 101)],
+            date(2026, 9, 7),
+            date(2026, 9, 8),
+        )
+    assert client.calls <= 4
+
+
+def test_data_center_index_volume_is_canonical_but_existing_qlib_units_are_preserved():
+    source = TushareModelMarketSource(_MockTushareProClient())
+    rows = source.index_history("000300.SH", date(2026, 3, 31), date(2026, 4, 3))
+    assert rows[0].volume == 100_000_000
+    frame = TushareQlibBuilder._daily_frame(rows, is_index=True)
+    assert frame.iloc[0]["vol"] == 1_000_000
+
+
+def test_index_fetch_failure_does_not_advance_qlib_calendar(tmp_path: Path):
+    from core.exceptions import DataFetchError
+
+    class RejectedIndex(TushareModelMarketSource):
+        def index_history(self, *args):
+            raise DataFetchError("index source blocked", code="MODEL_MARKET_STALE")
+
+    provider_uri = tmp_path / "cn_data"
+    builder = TushareQlibBuilder(
+        str(provider_uri), data_port=RejectedIndex(_MockTushareProClient())
+    )
+    with pytest.raises(DataFetchError):
+        builder._build_recent_data_for_members(
+            target_date=date(2026, 4, 3),
+            universe_members={"test": ["600000.SH"]},
+            lookback_days=30,
+            index_codes=["000300.SH"],
+        )
+    assert inspect_latest_trade_date(str(provider_uri)) is None
+    assert not (provider_uri / "features").exists()

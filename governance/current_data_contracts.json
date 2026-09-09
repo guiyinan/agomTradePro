@@ -2,6 +2,69 @@
   "schema_version": 1,
   "contracts": [
     {
+      "id": "data_center.model_market_history",
+      "surface": "Provider-neutral Qlib and Equity historical model inputs",
+      "source_files": [
+        "apps/data_center/application/model_market_data.py"
+      ],
+      "required_markers": {
+        "apps/data_center/application/model_market_data.py": [
+          "MODEL_MARKET_STALE",
+          "MODEL_MARKET_UNVERIFIED_FAILOVER",
+          "MODEL_MARKET_SOURCE_CONFLICT",
+          "row.trade_date"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "stale_failover",
+          "test_file": "tests/unit/data_center/test_model_market_data.py",
+          "test_function": "test_stale_primary_continues_to_consistent_fresh_source_and_stores_raw_values"
+        },
+        {
+          "case": "untrusted_source_no_write",
+          "test_file": "tests/unit/data_center/test_model_market_data.py",
+          "test_function": "test_bad_failover_never_writes"
+        },
+        {
+          "case": "consumers_do_not_route_vendors",
+          "test_file": "tests/unit/data_center/test_model_market_data.py",
+          "test_function": "test_model_consumers_cannot_obtain_vendor_sdks_or_choose_market_sources"
+        }
+      ]
+    },
+    {
+      "id": "alpha.qlib_prediction_source_freshness",
+      "surface": "Alpha Qlib prediction cache and downstream workspace refresh",
+      "source_files": ["apps/alpha/application/tasks.py"],
+      "required_markers": {
+        "apps/alpha/application/tasks.py": [
+          "source_is_stale = asof_date < trade_date",
+          "qlib_source_data_stale",
+          "must_not_use_for_decision",
+          "TUSHARE_DAILY_QUOTA_EXHAUSTED",
+          "MODEL_MARKET_"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "stale_source_preserves_asof_and_blocks_workspace",
+          "test_file": "apps/alpha/tests/test_tasks_prediction.py",
+          "test_function": "test_qlib_stale_prediction_is_degraded_and_skips_workspace"
+        },
+        {
+          "case": "quota_exhaustion_blocks_without_writes",
+          "test_file": "apps/alpha/tests/test_tasks_prediction.py",
+          "test_function": "test_qlib_quota_exhaustion_blocks_without_prediction_or_write"
+        },
+        {
+          "case": "fresh_source_refreshes_workspace",
+          "test_file": "apps/alpha/tests/test_tasks_prediction.py",
+          "test_function": "test_qlib_predict_scores_refreshes_general_runtime_data_before_prediction"
+        }
+      ]
+    },
+    {
       "id": "strategy.execution_preview",
       "surface": "POST /api/strategy/execution/evaluate/ display-only preview",
       "source_files": [

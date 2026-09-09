@@ -7,6 +7,7 @@ from datetime import date
 from typing import Any
 
 from apps.alpha.domain.entities import AlphaPoolScope
+from core.exceptions import ConfigurationError, DataFetchError
 
 RefreshUniverses = Callable[..., dict[str, Any]]
 RefreshCodes = Callable[..., dict[str, Any]]
@@ -52,6 +53,8 @@ def refresh_runtime_for_prediction(
     except Exception as exc:
         metadata["qlib_runtime_refresh_status"] = "failed"
         metadata["qlib_runtime_refresh_error"] = str(exc)
+        if isinstance(exc, (DataFetchError, ConfigurationError)):
+            metadata["qlib_runtime_refresh_error_code"] = exc.code
         return latest_qlib_data_date, metadata
 
     metadata["qlib_runtime_refresh_status"] = str(refresh_summary.get("status") or "unknown")

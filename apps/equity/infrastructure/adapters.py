@@ -6,9 +6,7 @@ data_center 或本地持久化事实表，避免模块继续直连外部 SDK。
 """
 
 import logging
-from collections.abc import Callable
 from datetime import date, datetime
-from typing import Any
 
 import pandas as pd  # type: ignore[import-untyped]
 
@@ -16,22 +14,14 @@ from apps.account.application.config_summary_service import (
     get_account_config_summary_service,
 )
 from apps.data_center.application.public import (
-    get_akshare_module_port,
     get_asset_repository_port,
+    get_model_market_data_port,
     get_price_bar_repository_port,
 )
-from apps.data_center.domain.entities import PriceBar as DataCenterPriceBar
-from apps.data_center.domain.enums import PriceAdjustment
 from apps.data_center.domain.protocols import AssetRepositoryProtocol, PriceBarRepositoryProtocol
 from apps.regime.domain.entities import RegimeSnapshot
 
 logger = logging.getLogger(__name__)
-
-
-def get_akshare_module() -> Any:
-    """Compatibility seam for remote index loaders; transport stays in Data Center."""
-
-    return get_akshare_module_port()
 
 
 def get_price_bar_repository() -> PriceBarRepositoryProtocol:
@@ -220,7 +210,7 @@ class MarketDataRepositoryAdapter:
     """
     市场数据仓储适配器
 
-    从 macro 模块获取指数数据，计算收益率。
+    从数据中台获取指数日线，计算收益率。
     """
 
     def __init__(self) -> None:
@@ -240,137 +230,11 @@ class MarketDataRepositoryAdapter:
         )
         return [(bar.bar_date, float(bar.close)) for bar in bars if bar.close and bar.close > 0]
 
-    @staticmethod
-    def _to_akshare_symbol(index_code: str) -> str | None:
-        normalized = index_code.upper()
-        if normalized.endswith(".SH"):
-            return f"sh{normalized[:-3].lower()}"
-        if normalized.endswith(".SZ"):
-            return f"sz{normalized[:-3].lower()}"
-        return None
-
-    @staticmethod
-    def _to_raw_index_code(index_code: str) -> str:
-        return index_code.split(".")[0]
-
-    @staticmethod
-    def _extract_index_points(df: pd.DataFrame) -> list[tuple[date, float]]:
-        if df is None or df.empty:
-            return []
-
-        date_column = None
-        close_column = None
-
-        for candidate in ("date", "日期", "trade_date", "datetime"):
-            if candidate in df.columns:
-                date_column = candidate
-                break
-
-        for candidate in ("close", "收盘", "收盘价", "Close"):
-            if candidate in df.columns:
-                close_column = candidate
-                break
-
-        if date_column is None or close_column is None:
-            return []
-
-        frame = df.copy()
-        frame["trade_date"] = pd.to_datetime(frame[date_column], errors="coerce").dt.date
-        frame["close_price"] = pd.to_numeric(frame[close_column], errors="coerce")
-        frame = frame.dropna(subset=["trade_date", "close_price"])
-        frame = frame[frame["close_price"] > 0]
-        frame = frame.sort_values("trade_date").drop_duplicates(subset=["trade_date"], keep="last")
-        return list(zip(frame["trade_date"], frame["close_price"].astype(float), strict=True))
-
-    def _persist_index_points(
-        self,
-        index_code: str,
-        data_points: list[tuple[date, float]],
-        source: str,
-    ) -> None:
-        if not data_points:
-            return
-
-        bars = [
-            DataCenterPriceBar(
-                asset_code=index_code,
-                bar_date=trade_date,
-                open=close_price,
-                high=close_price,
-                low=close_price,
-                close=close_price,
-                freq="1d",
-                adjustment=PriceAdjustment.NONE,
-                source=source,
-            )
-            for trade_date, close_price in data_points
-        ]
-        self._bar_repo.bulk_upsert(bars)
-
     def _load_remote_index_points(
-        self,
-        index_code: str,
-        start_date: date,
-        end_date: date,
+        self, index_code: str, start_date: date, end_date: date
     ) -> list[tuple[date, float]]:
-        symbol = self._to_akshare_symbol(index_code)
-        raw_code = self._to_raw_index_code(index_code)
-        ak = get_akshare_module()
-
-        fetch_attempts: list[tuple[str, Callable[[], pd.DataFrame]]] = []
-        if symbol is not None:
-            fetch_attempts.extend(
-                [
-                    (
-                        "akshare:stock_zh_index_daily_em",
-                        lambda: ak.stock_zh_index_daily_em(
-                            symbol=symbol,
-                            start_date=start_date.strftime("%Y%m%d"),
-                            end_date=end_date.strftime("%Y%m%d"),
-                        ),
-                    ),
-                    (
-                        "akshare:stock_zh_index_daily",
-                        lambda: ak.stock_zh_index_daily(symbol=symbol),
-                    ),
-                    (
-                        "akshare:stock_zh_index_daily_tx",
-                        lambda: ak.stock_zh_index_daily_tx(symbol=symbol),
-                    ),
-                ]
-            )
-
-        fetch_attempts.append(
-            (
-                "akshare:index_zh_a_hist",
-                lambda: ak.index_zh_a_hist(
-                    symbol=raw_code,
-                    period="daily",
-                    start_date=start_date.strftime("%Y%m%d"),
-                    end_date=end_date.strftime("%Y%m%d"),
-                ),
-            )
-        )
-
-        for source_name, loader in fetch_attempts:
-            try:
-                points = self._extract_index_points(loader())
-            except Exception as exc:
-                logger.warning("获取指数 %s 历史行情失败(%s): %s", index_code, source_name, exc)
-                continue
-
-            filtered = [
-                (trade_date, close_price)
-                for trade_date, close_price in points
-                if start_date <= trade_date <= end_date
-            ]
-            if not filtered:
-                continue
-
-            self._persist_index_points(index_code, filtered, source_name)
-            return filtered
-
-        return []
+        bars = get_model_market_data_port().index_history(index_code, start_date, end_date)
+        return [(bar.trade_date, bar.close) for bar in bars]
 
     def get_index_daily_returns(
         self,
@@ -383,7 +247,7 @@ class MarketDataRepositoryAdapter:
         """
         获取指数日收益率
 
-        从 MacroIndicator 表获取指数日线价格数据，计算收益率。
+        读取数据中台指数价格；缺少历史窗口时由中台选择来源补数。
 
         Args:
             index_code: 指数代码（如 000300.SH 表示沪深 300）

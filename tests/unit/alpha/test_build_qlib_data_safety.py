@@ -47,8 +47,8 @@ def test_invalid_options_fail_before_token_or_local_data_io(
     monkeypatch.setattr(build_qlib_data, "get_runtime_qlib_config", lambda: {})
     monkeypatch.setattr(
         build_qlib_data,
-        "_resolve_tushare_token",
-        lambda: pytest.fail("invalid options must fail before secret lookup"),
+        "DataCenterQlibBuilder",
+        lambda *_args: pytest.fail("invalid options must fail before secret lookup"),
     )
     monkeypatch.setattr(
         build_qlib_data,
@@ -69,8 +69,8 @@ def test_runtime_provider_config_is_validated_before_io(monkeypatch) -> None:
     )
     monkeypatch.setattr(
         build_qlib_data,
-        "_resolve_tushare_token",
-        lambda: pytest.fail("invalid runtime config must fail before secret lookup"),
+        "DataCenterQlibBuilder",
+        lambda *_args: pytest.fail("invalid runtime config must fail before secret lookup"),
     )
 
     options = _valid_options() | {"provider_uri": None, "region": None}
@@ -104,11 +104,5 @@ def test_option_parser_normalizes_and_deduplicates_universes() -> None:
     assert parsed.lookback_days == 400
 
 
-@pytest.mark.parametrize("token", [None, "", "   ", 42, {"token": "secret"}])
-def test_tushare_token_resolver_rejects_non_string_or_blank_values(
-    monkeypatch,
-    token: object,
-) -> None:
-    monkeypatch.setattr("shared.config.secrets.get_tushare_token", lambda: token)
-
-    assert build_qlib_data._resolve_tushare_token() is None
+def test_command_does_not_resolve_vendor_secrets() -> None:
+    assert not hasattr(build_qlib_data, "_resolve_tushare_token")

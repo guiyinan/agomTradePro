@@ -1,5 +1,8 @@
 from datetime import date
 from types import SimpleNamespace
+from unittest.mock import Mock
+
+import pytest
 
 from apps.alpha.application.tasks import (
     _normalize_qlib_instrument_code,
@@ -8,6 +11,77 @@ from apps.alpha.application.tasks import (
 )
 from apps.alpha.application.workspace_sync import sync_default_workspace_after_alpha_update
 from apps.alpha.domain.entities import AlphaPoolScope
+
+
+def test_qlib_stale_prediction_is_degraded_and_skips_workspace(monkeypatch):
+    import apps.alpha.application.tasks as tasks
+
+    monkeypatch.setattr(
+        tasks,
+        "_get_runtime_qlib_config",
+        lambda: {"enabled": True, "source": "test", "provider_uri": "local-data"},
+    )
+    monkeypatch.setattr(
+        tasks,
+        "get_qlib_model_registry_repository",
+        lambda: SimpleNamespace(get_active_model=lambda: SimpleNamespace(artifact_hash="hash-1")),
+    )
+    monkeypatch.setattr(tasks, "_get_qlib_data_latest_date", lambda: date(2026, 9, 4))
+    monkeypatch.setattr(
+        tasks,
+        "_maybe_refresh_qlib_runtime_data_for_prediction",
+        lambda **kw: (date(2026, 9, 4), {"qlib_runtime_refresh_status": "failed"}),
+    )
+    monkeypatch.setattr(
+        tasks, "_execute_qlib_prediction", lambda **kw: [{"code": "000001.SZ", "score": 0.5}]
+    )
+    upsert = Mock(return_value=(SimpleNamespace(), True))
+    workspace = Mock()
+    monkeypatch.setattr(tasks, "_upsert_qlib_cache", upsert)
+    monkeypatch.setattr(tasks, "sync_default_workspace_after_alpha_update", workspace)
+    result = tasks.qlib_predict_scores.run("csi300", "2026-09-08", 10)
+    assert result["outcome"] == "partial"
+    assert result["must_not_use_for_decision"] is True
+    assert result["blocked_reason"] == "qlib_source_data_stale"
+    assert upsert.call_args.kwargs["status"] == "degraded"
+    assert upsert.call_args.kwargs["asof_date"] == date(2026, 9, 4)
+    workspace.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "error_code",
+    [
+        "TUSHARE_DAILY_QUOTA_EXHAUSTED",
+        "MODEL_MARKET_STALE",
+        "MODEL_MARKET_SOURCE_CONFLICT",
+        "MODEL_MARKET_UNVERIFIED_FAILOVER",
+        "MODEL_MARKET_CONFIG_UNAVAILABLE",
+    ],
+)
+def test_qlib_quota_exhaustion_blocks_without_prediction_or_write(monkeypatch, error_code):
+    import apps.alpha.application.tasks as tasks
+    from core.exceptions import DataFetchError
+
+    monkeypatch.setattr(tasks, "_get_runtime_qlib_config", lambda: {"enabled": True})
+    monkeypatch.setattr(tasks, "_require_usable_qlib_runtime", lambda _: None)
+    monkeypatch.setattr(
+        tasks,
+        "get_qlib_model_registry_repository",
+        lambda: SimpleNamespace(get_active_model=lambda: SimpleNamespace(artifact_hash="hash-1")),
+    )
+    monkeypatch.setattr(tasks, "_get_qlib_data_latest_date", lambda: date(2026, 9, 4))
+    refresh = Mock(side_effect=DataFetchError("source blocked", code=error_code))
+    predict, upsert = Mock(), Mock()
+    monkeypatch.setattr(tasks, "_refresh_qlib_runtime_data", refresh)
+    monkeypatch.setattr(tasks, "_execute_qlib_prediction", predict)
+    monkeypatch.setattr(tasks, "_upsert_qlib_cache", upsert)
+    result = tasks.qlib_predict_scores.run("csi300", "2026-09-08", 10)
+    assert result["outcome"] == "blocked"
+    assert result["blocked_reason"] == error_code.lower()
+    assert result["stored"] == 0
+    assert result["success"] is False
+    predict.assert_not_called()
+    upsert.assert_not_called()
 
 
 def test_normalize_qlib_instrument_code_converts_ts_code_to_qlib_code():

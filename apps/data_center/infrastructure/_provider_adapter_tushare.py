@@ -23,6 +23,7 @@ from apps.data_center.domain.enums import (
     DataQualityStatus,
     PriceAdjustment,
 )
+from apps.data_center.domain.model_market_data import ModelMarketDataPort
 from apps.data_center.domain.rules import normalize_asset_code
 from apps.data_center.infrastructure._provider_adapter_base import (
     BaseUnifiedProviderAdapter,
@@ -34,6 +35,7 @@ from apps.data_center.infrastructure._provider_adapter_base import (
 )
 from apps.data_center.infrastructure.macro_sources import TushareAdapter
 from apps.data_center.infrastructure.tushare_client import create_tushare_pro_client
+from apps.data_center.infrastructure.tushare_model_market_source import TushareModelMarketSource
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
@@ -192,6 +194,12 @@ def _financial_fact_builder(
 
 class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
     """Standardized Tushare provider wrapper."""
+
+    def model_market_source(self, *, tolerance: float) -> ModelMarketDataPort:
+        """Expose typed model inputs using only this configured provider's credentials."""
+        return TushareModelMarketSource(
+            client_factory=self._create_pro_client, source=self.provider_name()
+        )
 
     def _configured_request_mode(self) -> str | None:
         """Return this provider row's explicit Tushare transport mode."""

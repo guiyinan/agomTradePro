@@ -3,36 +3,29 @@ from __future__ import annotations
 import logging
 import math
 import re
-import time
 from collections.abc import Callable, Iterable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Any, Protocol, TypeVar, cast
+from threading import Event
+from typing import Any
 
 import numpy as np
 
 from apps.alpha.infrastructure.scientific_runtime import get_pandas
 from apps.config_center.application import interface_services as config_center_services
 from apps.config_center.domain.entities import AlphaUniverseConfig
-from apps.data_center.application.public import get_tushare_client
+from apps.data_center.application.public import get_model_market_data_port
+from apps.data_center.domain.model_market_data import ModelDailyBar, ModelMarketDataPort
+from core.exceptions import DataFetchError
 
 logger = logging.getLogger(__name__)
 pd = get_pandas()
-_T = TypeVar("_T")
 PandasDataFrame = Any
 PandasSeries = Any
 _DEFAULT_FETCH_WORKERS = 8
 _MAX_FETCH_WORKERS = 32
-
-
-class _TushareProClient(Protocol):
-    def trade_cal(self, **kwargs: object) -> Any: ...
-    def index_weight(self, **kwargs: object) -> Any: ...
-    def daily(self, **kwargs: object) -> Any: ...
-    def adj_factor(self, **kwargs: object) -> Any: ...
-    def index_daily(self, **kwargs: object) -> Any: ...
 
 
 @dataclass(frozen=True)
@@ -146,14 +139,14 @@ def resolve_effective_trade_date(
     }
 
 
-class TushareQlibBuilder:
-    """Build or refresh recent qlib daily data from Tushare."""
+class DataCenterQlibBuilder:
+    """Build Qlib features from provider-neutral Data Center observations."""
 
     def __init__(
         self,
         provider_uri: str,
         *,
-        pro_client: object | None = None,
+        data_port: ModelMarketDataPort | None = None,
         fetch_workers: int = _DEFAULT_FETCH_WORKERS,
     ) -> None:
         if (
@@ -162,14 +155,10 @@ class TushareQlibBuilder:
             or fetch_workers <= 0
             or fetch_workers > _MAX_FETCH_WORKERS
         ):
-            raise ValueError(
-                f"fetch_workers must be an integer from 1 to {_MAX_FETCH_WORKERS}"
-            )
+            raise ValueError(f"fetch_workers must be an integer from 1 to {_MAX_FETCH_WORKERS}")
         self._provider_uri = Path(provider_uri).expanduser()
-        self._pro = cast(
-            _TushareProClient,
-            pro_client if pro_client is not None else get_tushare_client(),
-        )
+        self._data_port = data_port if data_port is not None else get_model_market_data_port()
+        self._history_cache: dict[tuple[str, date, date], tuple[ModelDailyBar, ...]] = {}
         self._fetch_workers = fetch_workers
         self._calendar_path = _calendar_path(self._provider_uri)
         self._instrument_dir = self._provider_uri / "instruments"
@@ -255,12 +244,13 @@ class TushareQlibBuilder:
         index_codes: Iterable[str],
     ) -> QlibBuildSummary:
         """Build qlib data for already-resolved universe members."""
+        self._history_cache.clear()
         latest_before = inspect_latest_trade_date(str(self._provider_uri))
         requested_start_date = target_date - timedelta(days=max(lookback_days, 90))
 
         stock_codes = sorted({code for members in universe_members.values() for code in members})
         if not stock_codes:
-            raise RuntimeError("未从 Tushare 获取到任何股票池成分股")
+            raise RuntimeError("数据中台未返回股票池成分股")
 
         stock_daily = self._fetch_stock_daily(stock_codes, requested_start_date, target_date)
         if stock_daily.empty:
@@ -298,6 +288,10 @@ class TushareQlibBuilder:
         if not trade_days:
             raise RuntimeError("未获取到交易日历，无法构建 Qlib 数据")
 
+        index_frames = {
+            code: self._fetch_index_daily(code, requested_start_date, effective_target_date)
+            for code in sorted(set(index_codes))
+        }
         self._ensure_layout()
         calendar_days_written = self._upsert_calendar(trade_days)
         calendar_values = _read_calendar_values(self._calendar_path)
@@ -313,10 +307,7 @@ class TushareQlibBuilder:
             )
             feature_series_written += written
 
-        for index_code in sorted(set(index_codes)):
-            index_frame = self._fetch_index_daily(
-                index_code, requested_start_date, effective_target_date
-            )
+        for index_code, index_frame in index_frames.items():
             if index_frame.empty:
                 continue
             written = self._write_index_features(
@@ -336,7 +327,7 @@ class TushareQlibBuilder:
         warnings: list[str] = []
         if effective_target_date < target_date:
             warnings.append(
-                f"Tushare 最新可用日线仅到 {effective_target_date.isoformat()}，"
+                f"数据中台最新可用日线仅到 {effective_target_date.isoformat()}，"
                 f"未达到请求日期 {target_date.isoformat()}。"
             )
 
@@ -359,31 +350,7 @@ class TushareQlibBuilder:
         self._features_dir.mkdir(parents=True, exist_ok=True)
 
     def _fetch_trade_days(self, start_date: date, end_date: date) -> list[date]:
-        df = self._call_with_retry(
-            self._pro.trade_cal,
-            exchange="SSE",
-            start_date=start_date.strftime("%Y%m%d"),
-            end_date=end_date.strftime("%Y%m%d"),
-            is_open="1",
-        )
-        if df is None or df.empty:
-            return []
-        if "cal_date" not in df.columns:
-            logger.warning("Invalid trade calendar schema returned by provider")
-            return []
-        normalized = df.copy()
-        normalized["cal_date"] = pd.to_datetime(
-            normalized["cal_date"],
-            format="%Y%m%d",
-            errors="coerce",
-        )
-        normalized = normalized.loc[
-            normalized["cal_date"].notna()
-            & (normalized["cal_date"] >= pd.Timestamp(start_date))
-            & (normalized["cal_date"] <= pd.Timestamp(end_date))
-        ]
-        normalized = normalized.sort_values("cal_date")
-        return [item.date() for item in normalized["cal_date"].tolist()]
+        return list(self._data_port.trade_days(start_date, end_date))
 
     def _fetch_universe_members(
         self,
@@ -437,58 +404,9 @@ class TushareQlibBuilder:
         return universe_members, sorted(index_codes)
 
     def _fetch_index_weight_members(
-        self,
-        *,
-        universe: str,
-        index_code: str,
-        target_date: date,
+        self, *, universe: str, index_code: str, target_date: date
     ) -> list[str]:
-        """Fetch the latest effective constituents for one configured index."""
-        try:
-            frame = self._call_with_retry(
-                self._pro.index_weight,
-                index_code=index_code,
-                start_date=(target_date - timedelta(days=140)).strftime("%Y%m%d"),
-                end_date=target_date.strftime("%Y%m%d"),
-            )
-        except PermissionError:
-            raise
-        except Exception as exc:
-            logger.warning(
-                "Failed to fetch index_weight for %s: %s",
-                universe,
-                type(exc).__name__,
-            )
-            return []
-        if frame is None or frame.empty:
-            logger.warning("No index_weight returned for %s", universe)
-            return []
-        if not {"trade_date", "con_code"}.issubset(frame.columns):
-            logger.warning("Invalid index_weight schema returned for %s", universe)
-            return []
-
-        normalized = frame.copy()
-        normalized["trade_date"] = pd.to_datetime(
-            normalized["trade_date"],
-            format="%Y%m%d",
-            errors="coerce",
-        )
-        normalized = normalized.loc[
-            normalized["trade_date"].notna()
-            & (normalized["trade_date"] <= pd.Timestamp(target_date))
-        ]
-        if normalized.empty:
-            return []
-        latest_weight_date = normalized["trade_date"].max()
-        members = {
-            code
-            for raw_code in normalized.loc[
-                normalized["trade_date"] == latest_weight_date,
-                "con_code",
-            ].tolist()
-            if (code := _normalize_tushare_code(raw_code)) is not None
-        }
-        return sorted(members)
+        return list(self._data_port.index_members(index_code, target_date))
 
     @staticmethod
     def _resolve_configured_universe_members(config: AlphaUniverseConfig) -> list[str]:
@@ -534,101 +452,65 @@ class TushareQlibBuilder:
                     members.add(ts_code)
         return sorted(members)
 
-    def _fetch_stock_daily(
-        self,
-        stock_codes: list[str],
-        start_date: date,
-        end_date: date,
-    ) -> PandasDataFrame:
-        def fetch_one(ts_code: str) -> PandasDataFrame | None:
-            try:
-                df = self._call_with_retry(
-                    self._pro.daily,
-                    ts_code=ts_code,
-                    start_date=start_date.strftime("%Y%m%d"),
-                    end_date=end_date.strftime("%Y%m%d"),
-                )
-            except PermissionError:
-                raise
-            except Exception as exc:
-                logger.warning(
-                    "Failed to fetch daily for %s: %s",
-                    ts_code,
-                    type(exc).__name__,
-                )
-                return None
-            if df is None or df.empty:
-                return None
-            normalized = self._normalize_daily_frame(
-                df,
-                requested_code=ts_code,
-                start_date=start_date,
-                end_date=end_date,
-            )
-            if normalized.empty:
-                return None
-            return normalized
+    def _stock_rows(self, asset_code: str, start: date, end: date) -> tuple[ModelDailyBar, ...]:
+        key = (asset_code, start, end)
+        if key not in self._history_cache:
+            self._history_cache[key] = self._data_port.stock_history(asset_code, start, end)
+        return self._history_cache[key]
 
-        rows = self._fetch_stock_frames(stock_codes, fetch_one)
-        if not rows:
-            return pd.DataFrame()
-        return pd.concat(rows, ignore_index=True, sort=False)
+    @staticmethod
+    def _daily_frame(rows: tuple[ModelDailyBar, ...], *, is_index: bool = False) -> PandasDataFrame:
+        return pd.DataFrame(
+            [
+                {
+                    "ts_code": row.asset_code,
+                    "trade_date": pd.Timestamp(row.trade_date),
+                    "open": row.open,
+                    "high": row.high,
+                    "low": row.low,
+                    "close": row.close,
+                    "vol": row.volume / 100.0,
+                    "pct_chg": row.change_percent,
+                }
+                for row in rows
+            ]
+        )
+
+    def _fetch_stock_daily(
+        self, stock_codes: list[str], start_date: date, end_date: date
+    ) -> PandasDataFrame:
+        def fetch_one(code: str) -> PandasDataFrame:
+            return self._daily_frame(self._stock_rows(code, start_date, end_date))
+
+        frames = self._fetch_stock_frames(stock_codes, fetch_one)
+        return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
     def _fetch_stock_adj_factor(
-        self,
-        stock_codes: list[str],
-        start_date: date,
-        end_date: date,
+        self, stock_codes: list[str], start_date: date, end_date: date
     ) -> PandasDataFrame:
-        def fetch_one(ts_code: str) -> PandasDataFrame | None:
-            try:
-                df = self._call_with_retry(
-                    self._pro.adj_factor,
-                    ts_code=ts_code,
-                    start_date=start_date.strftime("%Y%m%d"),
-                    end_date=end_date.strftime("%Y%m%d"),
-                )
-            except PermissionError:
-                raise
-            except Exception as exc:
-                logger.warning(
-                    "Failed to fetch adj_factor for %s: %s",
-                    ts_code,
-                    type(exc).__name__,
-                )
-                return None
-            if df is None or df.empty:
-                return None
-            if not {"ts_code", "trade_date", "adj_factor"}.issubset(df.columns):
-                logger.warning("Invalid adj_factor schema returned for %s", ts_code)
-                return None
-            normalized = df.copy()
-            normalized["trade_date"] = pd.to_datetime(
-                normalized["trade_date"],
-                format="%Y%m%d",
-                errors="coerce",
+        records: list[dict[str, object]] = []
+        for code in stock_codes:
+            covering = next(
+                (
+                    rows
+                    for (asset, start, end), rows in self._history_cache.items()
+                    if asset == code and start <= start_date and end >= end_date
+                ),
+                None,
             )
-            normalized["adj_factor"] = pd.to_numeric(
-                normalized["adj_factor"],
-                errors="coerce",
+            rows = (
+                covering if covering is not None else self._stock_rows(code, start_date, end_date)
             )
-            normalized["ts_code"] = normalized["ts_code"].map(_normalize_tushare_code)
-            normalized = normalized.loc[
-                normalized["trade_date"].notna()
-                & (normalized["trade_date"] >= pd.Timestamp(start_date))
-                & (normalized["trade_date"] <= pd.Timestamp(end_date))
-                & (normalized["ts_code"] == ts_code)
-                & np.isfinite(normalized["adj_factor"])
-                & (normalized["adj_factor"] > 0)
-            ]
-            if normalized.empty:
-                return None
-            return normalized
-
-        rows = self._fetch_stock_frames(stock_codes, fetch_one)
-        if not rows:
-            return pd.DataFrame(columns=["ts_code", "trade_date", "adj_factor"])
-        return pd.concat(rows, ignore_index=True, sort=False)
+            records.extend(
+                {
+                    "ts_code": row.asset_code,
+                    "trade_date": pd.Timestamp(row.trade_date),
+                    "adj_factor": row.adjustment_factor,
+                }
+                for row in rows
+                if start_date <= row.trade_date <= end_date
+            )
+        return pd.DataFrame(records, columns=["ts_code", "trade_date", "adj_factor"])
 
     def _fetch_stock_frames(
         self,
@@ -638,100 +520,34 @@ class TushareQlibBuilder:
         """Fetch independent per-stock frames with bounded I/O concurrency."""
         if not stock_codes:
             return []
+        stopped = Event()
+
+        def fetch_unless_stopped(ts_code: str) -> PandasDataFrame | None:
+            if stopped.is_set():
+                return None
+            try:
+                return fetch_one(ts_code)
+            except (PermissionError, DataFetchError):
+                stopped.set()
+                raise
+
         worker_count = min(self._fetch_workers, len(stock_codes))
         if worker_count == 1:
             frames = [fetch_one(ts_code) for ts_code in stock_codes]
         else:
             with ThreadPoolExecutor(
                 max_workers=worker_count,
-                thread_name_prefix="qlib-tushare",
+                thread_name_prefix="qlib-data-center",
             ) as executor:
-                frames = list(executor.map(fetch_one, stock_codes))
+                frames = list(executor.map(fetch_unless_stopped, stock_codes))
         return [frame for frame in frames if frame is not None and not frame.empty]
 
     def _fetch_index_daily(
-        self,
-        index_code: str,
-        start_date: date,
-        end_date: date,
+        self, index_code: str, start_date: date, end_date: date
     ) -> PandasDataFrame:
-        try:
-            df = self._call_with_retry(
-                self._pro.index_daily,
-                ts_code=index_code,
-                start_date=start_date.strftime("%Y%m%d"),
-                end_date=end_date.strftime("%Y%m%d"),
-            )
-        except PermissionError:
-            raise
-        except Exception as exc:
-            logger.warning(
-                "Failed to fetch index_daily for %s: %s",
-                index_code,
-                type(exc).__name__,
-            )
-            return pd.DataFrame()
-        if df is None or df.empty:
-            return pd.DataFrame()
-        return self._normalize_daily_frame(
-            df,
-            requested_code=index_code,
-            start_date=start_date,
-            end_date=end_date,
+        return self._daily_frame(
+            self._data_port.index_history(index_code, start_date, end_date), is_index=True
         )
-
-    @staticmethod
-    def _normalize_daily_frame(
-        frame: PandasDataFrame,
-        *,
-        requested_code: str,
-        start_date: date,
-        end_date: date,
-    ) -> PandasDataFrame:
-        """Validate provider daily rows before they affect Qlib availability."""
-        required_columns = {
-            "ts_code",
-            "trade_date",
-            "open",
-            "high",
-            "low",
-            "close",
-            "vol",
-            "pct_chg",
-        }
-        if not required_columns.issubset(frame.columns):
-            logger.warning("Invalid daily schema returned for %s", requested_code)
-            return pd.DataFrame()
-
-        normalized = frame.copy()
-        normalized["ts_code"] = normalized["ts_code"].map(_normalize_tushare_code)
-        normalized["trade_date"] = pd.to_datetime(
-            normalized["trade_date"],
-            format="%Y%m%d",
-            errors="coerce",
-        )
-        numeric_columns = ["open", "high", "low", "close", "vol", "pct_chg"]
-        for column in numeric_columns:
-            normalized[column] = pd.to_numeric(normalized[column], errors="coerce")
-
-        finite_prices = np.isfinite(normalized[["open", "high", "low", "close"]]).all(axis=1)
-        valid_prices = (
-            finite_prices
-            & (normalized[["open", "high", "low", "close"]] > 0).all(axis=1)
-            & (normalized["high"] >= normalized[["open", "low", "close"]].max(axis=1))
-            & (normalized["low"] <= normalized[["open", "high", "close"]].min(axis=1))
-        )
-        valid_volume = np.isfinite(normalized["vol"]) & (normalized["vol"] >= 0)
-        valid_change = np.isfinite(normalized["pct_chg"])
-        return normalized.loc[
-            normalized["trade_date"].notna()
-            & (normalized["trade_date"] >= pd.Timestamp(start_date))
-            & (normalized["trade_date"] <= pd.Timestamp(end_date))
-            & (normalized["ts_code"] == requested_code)
-            & valid_prices
-            & valid_volume
-            & valid_change
-        ].copy()
 
     @staticmethod
     def _merge_stock_frame(
@@ -1040,33 +856,9 @@ class TushareQlibBuilder:
         payload = np.hstack(([float(merged_start)], merged))
         payload.astype("<f").tofile(path)
 
-    @staticmethod
-    def _call_with_retry(
-        func: Callable[..., _T],
-        /,
-        *args: object,
-        retries: int = 3,
-        delay_seconds: float = 0.6,
-        **kwargs: object,
-    ) -> _T:
-        if isinstance(retries, bool) or retries <= 0:
-            raise ValueError("retries must be a positive integer")
-        if not math.isfinite(delay_seconds) or delay_seconds < 0:
-            raise ValueError("delay_seconds must be finite and non-negative")
-        last_error: Exception | None = None
-        for attempt in range(1, retries + 1):
-            try:
-                return func(*args, **kwargs)
-            except PermissionError:
-                raise
-            except Exception as exc:  # noqa: BLE001
-                last_error = exc
-                if attempt >= retries:
-                    break
-                time.sleep(delay_seconds * attempt)
-        if last_error is not None:
-            raise last_error
-        raise RuntimeError("unexpected retry state")
+
+# Compatibility name for existing callers; provider selection belongs to Data Center.
+TushareQlibBuilder = DataCenterQlibBuilder
 
 
 def _merge_ranges(

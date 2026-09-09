@@ -8,7 +8,7 @@ from datetime import date, timedelta
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from apps.alpha.infrastructure.qlib_builder import (
-    TushareQlibBuilder,
+    DataCenterQlibBuilder,
     inspect_latest_trade_date,
 )
 from core.integration.runtime_settings import get_runtime_qlib_config
@@ -36,7 +36,6 @@ def _build_qlib_blocker_message(
     latest_trade_date: date | None,
     *,
     target_date: date,
-    has_tushare_token: bool,
     max_staleness_days: int = 5,
 ) -> str | None:
     """Return a user-facing blocker when local/public qlib data is still stale."""
@@ -53,29 +52,10 @@ def _build_qlib_blocker_message(
             f"早于目标日期 {target_date.isoformat()}。"
         )
 
-    if has_tushare_token:
-        return (
-            f"{base_reason} 已检测到 Tushare Token，可直接运行 "
-            "`python manage.py build_qlib_data` 执行最近窗口自建更新。"
-        )
-
     return (
-        f"{base_reason} 当前未配置 Tushare Token，无法执行自建更新。"
-        "请先在 Django Admin 数据源配置或环境变量 TUSHARE_TOKEN 中提供凭据。"
+        f"{base_reason} 请通过数据中台配置可用行情源，再运行 "
+        "`python manage.py build_qlib_data` 更新。"
     )
-
-
-def _resolve_tushare_token() -> str | None:
-    try:
-        from shared.config.secrets import get_tushare_token
-
-        token = get_tushare_token()
-    except Exception:
-        return None
-    if not isinstance(token, str):
-        return None
-    normalized = token.strip()
-    return normalized or None
 
 
 def _inspect_latest_trade_date(provider_uri: str, region: str) -> date | None:
@@ -213,7 +193,7 @@ def _bounded_int_option(
 
 
 class Command(BaseCommand):
-    help = "Diagnose or build recent qlib runtime data from Tushare"
+    help = "Diagnose or build recent qlib runtime data through Data Center"
 
     def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
@@ -268,13 +248,11 @@ class Command(BaseCommand):
     def handle(self, *args: object, **options: object) -> None:
         runtime_config = get_runtime_qlib_config()
         command_options = _parse_command_options(options, runtime_config)
-        has_tushare_token = _resolve_tushare_token() is not None
 
         self.stdout.write(self.style.SUCCESS("Qlib 自建诊断"))
         self.stdout.write(f"  provider_uri: {command_options.provider_uri}")
         self.stdout.write(f"  region: {command_options.region}")
         self.stdout.write(f"  target_date: {command_options.target_date.isoformat()}")
-        self.stdout.write(f"  tushare_token: {'configured' if has_tushare_token else 'missing'}")
 
         latest_trade_date = _inspect_latest_trade_date(
             command_options.provider_uri,
@@ -287,7 +265,6 @@ class Command(BaseCommand):
         blocker = _build_qlib_blocker_message(
             latest_trade_date,
             target_date=command_options.target_date,
-            has_tushare_token=has_tushare_token,
             max_staleness_days=command_options.max_staleness_days,
         )
         if command_options.check_only:
@@ -296,10 +273,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS("Qlib 数据新鲜度满足要求，无需自建更新。"))
             return
 
-        if blocker and not has_tushare_token:
-            raise CommandError(blocker)
-
-        builder = TushareQlibBuilder(command_options.provider_uri)
+        builder = DataCenterQlibBuilder(command_options.provider_uri)
         summary = builder.build_recent_data(
             target_date=command_options.target_date,
             universes=list(command_options.universes),

@@ -39,7 +39,7 @@ def test_get_daily_prices_falls_back_to_remote_source_when_local_cache_missing(m
     monkeypatch.setattr(repository._dc_price_bar_repo, "get_bars", lambda *args, **kwargs: [])
     monkeypatch.setattr(
         repository,
-        "_get_tushare_gateway_daily_prices",
+        "_get_remote_daily_prices",
         lambda stock_code, start_date, end_date: [
             (date(2026, 3, 20), Decimal("10.20")),
             (date(2026, 3, 21), Decimal("10.50")),
@@ -55,25 +55,19 @@ def test_get_daily_prices_falls_back_to_remote_source_when_local_cache_missing(m
 
 
 @pytest.mark.django_db
-def test_get_daily_prices_falls_back_to_akshare_when_tushare_unavailable(monkeypatch):
+def test_get_daily_prices_consumes_data_center_history(monkeypatch):
     repository = DjangoStockRepository()
     stock_code = "TEST0001.SZ"
 
     monkeypatch.setattr(repository._dc_price_bar_repo, "get_bars", lambda *args, **kwargs: [])
     monkeypatch.setattr(
         repository,
-        "_get_tushare_gateway_daily_prices",
-        lambda stock_code, start_date, end_date: [],
-    )
-    monkeypatch.setattr(
-        repository,
-        "_get_akshare_gateway_historical_bars",
+        "_get_remote_historical_bars",
         lambda stock_code, start_date, end_date: [
             SimpleNamespace(trade_date=date(2026, 3, 20), close="10.20"),
             SimpleNamespace(trade_date=date(2026, 3, 21), close="10.50"),
         ],
     )
-    monkeypatch.setattr(repository, "_cache_remote_historical_bars", lambda stock_code, bars: None)
 
     prices = repository.get_daily_prices(stock_code, date(2026, 3, 1), date(2026, 3, 31))
 
@@ -83,32 +77,27 @@ def test_get_daily_prices_falls_back_to_akshare_when_tushare_unavailable(monkeyp
     ]
 
 
-def test_cache_remote_bars_preserves_missing_optional_volume(monkeypatch):
+def test_remote_history_storage_is_owned_by_data_center(monkeypatch):
     repository = DjangoStockRepository()
-    captured = []
+    from apps.data_center.domain.model_market_data import ModelDailyBar
+
+    row = ModelDailyBar(
+        "600000.SH", date(2026, 3, 20), 10, 11, 9, 10.2, 1000, 2.0, 1.0, "configured-route"
+    )
+    monkeypatch.setattr(
+        "apps.equity.infrastructure.market_data_repository.get_model_market_data_port",
+        lambda: SimpleNamespace(stock_history=lambda *args: (row,)),
+    )
     monkeypatch.setattr(
         repository._dc_price_bar_repo,
         "bulk_upsert",
-        lambda bars: captured.extend(bars),
+        lambda *_: pytest.fail("consumer must not persist the same source rows again"),
     )
-
-    repository._cache_remote_historical_bars(
-        "TEST0001.SZ",
-        [
-            SimpleNamespace(
-                trade_date=date(2026, 3, 20),
-                open="10.00",
-                high="10.50",
-                low="9.80",
-                close="10.20",
-                amount=None,
-            )
-        ],
+    result = repository._get_remote_historical_bars(
+        "600000.SH", date(2026, 3, 1), date(2026, 3, 31)
     )
-
-    assert len(captured) == 1
-    assert captured[0].volume is None
-    assert captured[0].amount is None
+    assert result == [row]
+    assert result[0].amount is None
 
 
 @pytest.mark.django_db
@@ -142,7 +131,6 @@ def test_get_technical_bars_does_not_stop_at_sparse_data_center_cache(monkeypatc
     monkeypatch.setattr(
         repository, "_get_remote_historical_bars", lambda *args, **kwargs: remote_bars
     )
-    monkeypatch.setattr(repository, "_cache_remote_historical_bars", lambda *args, **kwargs: None)
 
     bars = repository.get_technical_bars(stock_code, date(2026, 1, 1), date(2026, 5, 1))
 

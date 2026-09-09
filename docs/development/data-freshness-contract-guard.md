@@ -15,6 +15,10 @@ pytest tests/unit/ci/test_check_current_data_contracts.py -q
 
 ## 五条不可破坏的语义
 
+Alpha Qlib 推理缓存必须按 `asof_date` 核对请求交易日；旧源日期仅可写为
+`degraded`，发布 `must_not_use_for_decision=true` 和 `qlib_source_data_stale`，
+并跳过下游推荐刷新。每日行情额度耗尽直接返回阻断且零写入，不改变旧评分时间。
+
 1. **排序最新不等于当前可用**：`get_latest()` 之后必须执行 freshness/reliability 判断。
 2. **源观测时间不可变**：`snapshot_at`、`observed_at`、`bar_date`、`as_of` 必须来自源数据；不得用请求时间或计算时间覆盖。
 3. **过期结果不能截断 failover**：provider 返回非空但已过期时，组合数据源必须继续尝试后续来源。
@@ -80,3 +84,8 @@ pytest tests/unit/ci/test_check_current_data_contracts.py -q
 ### 2026-09-09 Pulse 持久化快照读取
 
 重建 Pulse 快照时，按既有指标频率与 PulseConfig 阈值重新计算数据年龄。保留采集时基于发布日计算的年龄，再加上快照观测日到读取日的经过天数（日频使用工作日）；保留原始 observed_at，历史已过期标记不能重新变为可用。缺失源日期或年龄、未来源日期均阻断。回归：`test_pulse_current_rechecks_persisted_reading_age`。
+
+
+### 2026-09-09 模型历史行情中台路由
+
+Qlib/Equity 的历史行情统一经过中台：旧观测继续尝试后续源，无重叠参考或超过配置容差时阻断；保留原始日期与不复权口径。详见 [本地改造与边界](../plans/model-market-data-center-routing-2026-09-09.md)。证据登记在 `data_center.model_market_history`。

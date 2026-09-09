@@ -1381,8 +1381,8 @@ def test_equity_technical_chart_uses_tushare_gateway_bar_fallback(authenticated_
     ]
 
     with patch(
-        "apps.equity.infrastructure.repositories.DjangoStockRepository._get_tushare_gateway_historical_bars",
-        return_value=remote_bars,
+        "apps.equity.infrastructure.market_data_repository.get_model_market_data_port",
+        return_value=_model_market_port_for_bars(remote_bars),
     ):
         response = authenticated_client.get(
             "/api/equity/technical/300308.SZ/?timeframe=day&lookback_days=30&mode=historical"
@@ -1401,7 +1401,7 @@ def test_equity_technical_chart_uses_tushare_gateway_bar_fallback(authenticated_
 
 
 @pytest.mark.django_db
-def test_equity_regime_correlation_uses_tushare_gateway_daily_price_fallback(authenticated_client):
+def test_equity_regime_correlation_uses_data_center_daily_history(authenticated_client):
     today = timezone.localdate()
     asset = AssetMasterModel.objects.create(
         code="300308.SZ",
@@ -1464,8 +1464,8 @@ def test_equity_regime_correlation_uses_tushare_gateway_daily_price_fallback(aut
 
     with (
         patch(
-            "apps.equity.infrastructure.repositories.DjangoStockRepository._get_tushare_gateway_historical_bars",
-            return_value=remote_bars,
+            "apps.equity.infrastructure.market_data_repository.get_model_market_data_port",
+            return_value=_model_market_port_for_bars(remote_bars),
         ),
         patch(
             "apps.equity.application.use_cases.AnalyzeRegimeCorrelationUseCase._get_regime_history",
@@ -1515,3 +1515,53 @@ def test_screen_stocks_serializer_folds_flat_tui_fields_into_custom_rule():
         "max_debt_ratio": 70.0,
     }
     assert serializer.validated_data["max_count"] == 20
+
+
+def _model_market_port_for_bars(remote_bars):
+    """Exercise real Data Center normalization/storage wiring with an isolated source."""
+    from apps.data_center.application.public import get_price_bar_repository_port
+    from apps.data_center.domain.model_market_data import ModelDailyBar
+    from apps.data_center.infrastructure.model_market_wiring import build_model_market_service
+
+    def history(asset_code, start, end):
+        return tuple(
+            ModelDailyBar(
+                asset_code,
+                row.trade_date,
+                row.open,
+                row.high,
+                row.low,
+                row.close,
+                row.volume,
+                0.0,
+                1.0,
+                "test-model-route",
+                amount=row.amount,
+            )
+            for row in remote_bars
+            if start <= row.trade_date <= end
+        )
+
+    source = SimpleNamespace(
+        stock_history=history,
+        index_history=history,
+        trade_days=lambda start, end: tuple(
+            row.trade_date for row in remote_bars if start <= row.trade_date <= end
+        ),
+        index_members=lambda *_: (),
+    )
+    provider = SimpleNamespace(
+        provider_name=lambda: "test-model-route",
+        provider_source=lambda: "tushare",
+        model_market_source=lambda **_: source,
+    )
+    return build_model_market_service(
+        SimpleNamespace(get_providers=lambda _: [provider]),
+        get_price_bar_repository_port(),
+        {
+            "status": "active",
+            "enable_failover": True,
+            "default_source": "tushare",
+            "failover_tolerance": 0.01,
+        },
+    )

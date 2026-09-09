@@ -1447,6 +1447,11 @@
       "source_file": "apps/alpha/application/tasks.py",
       "criticality": "freshness_critical",
       "required_cases": {
+        "blocked": {
+          "test_file": "apps/alpha/tests/test_tasks_prediction.py",
+          "test_function": "test_qlib_quota_exhaustion_blocks_without_prediction_or_write",
+          "coverage_note": "Quota and MODEL_MARKET stale/conflict/unverified/config rejection must block before prediction and writes"
+        },
         "all_success": {
           "test_file": "tests/unit/alpha/test_qlib_task_outcome_contracts.py",
           "test_function": "test_qlib_predict_scores_reports_stored_success"
