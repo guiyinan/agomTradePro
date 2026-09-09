@@ -11,3 +11,10 @@ This directory contains the standalone Windows execution Agent and its repeatabl
 The package does not contain QMT, a broker password, an Agent token, or an XtQuant wheel. The installer downloads the recorded official wheel and verifies its SHA-256, or accepts a broker-provided wheel together with an explicit SHA-256.
 
 Chinese installation documentation: `docs/operations/qmt-agent-local-install-package.md`.
+# Integrated market bridge
+
+The same Agent package now supports owner/server pairing and an independent market worker.
+Use `python -m qmt_agent.main --bridge --help`; Windows installation supports `-MarketOnly`.
+Packaged instructions: `docs/qmt-integrated-bridge.md` (repository path:
+`docs/operations/qmt-integrated-bridge.md`). They cover pairing, source approval,
+protected credentials, collection, backfill and recovery.

@@ -29,4 +29,10 @@ Classic Web、TUI、正式 SDK 和 MCP 共享 `broker_execution` Application Use
 
 ## 结果
 
+### 2026-09-09：整合行情工作单元
+
+沿用同一 `qmt_agent/` 制品与 Windows 运行环境，增加独立行情进程；原交易进程、交易凭证、账户绑定和订单状态机不变。行情由登录用户创建一次性配对码，本地桥绑定精确服务器地址，凭证用当前 Windows 用户 DPAPI 保存。服务器管理员另行批准公共 Provider 和单位契约；行情授权不授予交易能力。
+
+行情通过出站 HTTPS 上传数据中台，保留源观测时间与幂等批次回执；VPS Provider 读取桥事实而非直接加载 `xtquant`。行情与交易各有状态库和暂停开关，不能让补采阻塞交易回报。本次仓库实现不解除真实券商兼容性、连续供数或实盘验收门禁。用户流程见 [整体桥运行指南](../operations/qmt-integrated-bridge.md)。
+
 该方案不要求家庭网络公网 IP，VPS 与 QMT 依赖隔离，且能统一 Web/TUI/MCP 的权限、幂等和审计。代价是 Windows 主机必须在交易时段稳定运行，券商 QMT/`xtquant` 兼容性和真实仿真验收必须在目标环境单独完成。

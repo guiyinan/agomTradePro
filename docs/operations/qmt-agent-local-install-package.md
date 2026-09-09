@@ -142,3 +142,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\Uninstall.ps1 -RemoveState
 ```
 
 完整运行、停止、故障和仿真验收流程参见 [QMT Agent 运维手册](qmt-agent-runbook.md)。
+# 行情模式补充（2026-09-09）
+
+同一安装包支持 `Install.ps1 -MarketOnly`，无需填写系统交易账户编号。
+用户/服务器配对、DPAPI 行情凭证、审批和采集见 [整体桥指南](qmt-integrated-bridge.md)。
+原交易安装步骤和实盘验收门禁继续适用于交易工作进程。

@@ -30,6 +30,7 @@ try {
     New-Item -ItemType Directory -Force -Path $DocsRoot | Out-Null
     Copy-Item -LiteralPath (Join-Path $RepoRoot "docs\operations\qmt-agent-local-install-package.md") -Destination $DocsRoot -Force
     Copy-Item -LiteralPath (Join-Path $RepoRoot "docs\operations\qmt-agent-runbook.md") -Destination $DocsRoot -Force
+    Copy-Item -LiteralPath (Join-Path $RepoRoot "docs\operations\qmt-integrated-bridge.md") -Destination $DocsRoot -Force
 
     Get-ChildItem -LiteralPath $StagingRoot -Directory -Recurse -Filter "__pycache__" | ForEach-Object {
         Remove-Item -LiteralPath $_.FullName -Recurse -Force

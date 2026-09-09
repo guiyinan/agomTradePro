@@ -51,6 +51,8 @@ Alpha Qlib 推理缓存必须按 `asof_date` 核对请求交易日；旧源日�
 
 ## 新数据面接入清单
 
+QMT 整体桥登记为 `data_center.qmt_bridge_observations`：源时间在重试时保持不变，VPS 仅接收授权标的，stale 快照不能截断备用源；批次落库不等同于全 universe current Publication 激活。
+
 新增任何当前数据读取时，按顺序完成：
 
 1. 在 Domain/DTO 中定义 observation 与 freshness 约束；
