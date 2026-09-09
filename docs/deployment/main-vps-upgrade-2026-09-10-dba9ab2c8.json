@@ -1,0 +1,176 @@
+{
+  "version": "main-vps-code-only-upgrade-evidence.v1",
+  "recorded_at": "2026-09-09T16:45:19.243283+00:00",
+  "environment": "production",
+  "source_commit": "dba9ab2c8c18b824a6ed60d90b0765e020e6908d",
+  "release_id": "20260910002501",
+  "image_id": "sha256:7a42abe215ba5fe80af304758c0f7cd74ee221d88867e7eedd66badbc9904706",
+  "deployment": {
+    "mode": "code-only",
+    "action": "upgrade",
+    "command": "scripts/deploy-vps.ps1 -Upgrade -GitBranch main",
+    "deployment_exit_code": 0,
+    "verification_exit_code": 0,
+    "celery_enabled": true,
+    "volumes_preserved": true,
+    "global_docker_cleanup": false,
+    "auto_rollback_enabled": true,
+    "decision_repair_requested": false,
+    "backup_restore_performed": false
+  },
+  "build_deploy_report": {
+    "version": 1,
+    "release_tag": "20260910002501",
+    "release_dir": "/opt/agomtradepro/releases/source-20260910002501",
+    "target_dir": "/opt/agomtradepro",
+    "health_json": "{\"status\":\"ok\",\"timestamp\":\"2026-09-09T16:40:31.744165+00:00\"}",
+    "runtime_release_identity": {
+      "app_version": "0.8.0",
+      "blocked_reason": null,
+      "build_finished_at": "2026-09-09T16:33:32Z",
+      "build_started_at": "2026-09-09T16:25:04Z",
+      "image_id": "sha256:7a42abe215ba5fe80af304758c0f7cd74ee221d88867e7eedd66badbc9904706",
+      "image_tag": "agomtradepro-web:20260910002501",
+      "must_not_trust_for_release": false,
+      "release_tag": "20260910002501",
+      "runtime_match": true,
+      "short_commit": "dba9ab2c8c18",
+      "source_commit": "dba9ab2c8c18b824a6ed60d90b0765e020e6908d",
+      "source_mode": "git-clone",
+      "status": "verified",
+      "status_label": "已核验"
+    },
+    "compose_ps": "NAME                           IMAGE                                                                                            COMMAND                  SERVICE         CREATED              STATUS                        PORTS\nagomtradepro-caddy-1           caddy:2-alpine                                                                                   \"caddy run --config …\"   caddy           About a minute ago   Up About a minute             0.0.0.0:80->80/tcp, [::]:80->80/tcp, 0.0.0.0:443->443/tcp, [::]:443->443/tcp, 443/udp, 2019/tcp\nagomtradepro-celery_beat-1     agomtradepro-web:20260910002501                                                                  \"/entrypoint.sh cele…\"   celery_beat     About a minute ago   Up About a minute             8000/tcp\nagomtradepro-celery_worker-1   agomtradepro-web:20260910002501                                                                  \"/entrypoint.sh cele…\"   celery_worker   About a minute ago   Up About a minute             8000/tcp\nagomtradepro-postgres-1        postgres:16-alpine                                                                               \"docker-entrypoint.s…\"   postgres        8 days ago           Up 8 days (healthy)           5432/tcp\nagomtradepro-prometheus-1      prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996   \"/bin/prometheus --c…\"   prometheus      About a minute ago   Up About a minute (healthy)   9090/tcp\nagomtradepro-redis-1           redis:7-alpine                                                                                   \"docker-entrypoint.s…\"   redis           8 days ago           Up 8 days (healthy)           6379/tcp\nagomtradepro-rsshub-1          diygod/rsshub:latest                                                                             \"dumb-init -- npm ru…\"   rsshub          8 days ago           Up 8 days (healthy)           1200/tcp\nagomtradepro-runtime_ns-1      alpine:3.20                                                                                      \"sh -c 'trap 'exit 0…\"   runtime_ns      8 days ago           Up 8 days                     \nagomtradepro-web-1             agomtradepro-web:20260910002501                                                                  \"/entrypoint.sh daph…\"   web             About a minute ago   Up About a minute (healthy)   8000/tcp\n",
+    "image_tag": "agomtradepro-web:20260910002501",
+    "image_id": "sha256:7a42abe215ba5fe80af304758c0f7cd74ee221d88867e7eedd66badbc9904706",
+    "source_commit": "dba9ab2c8c18b824a6ed60d90b0765e020e6908d",
+    "build_started_at": "2026-09-09T16:25:04Z",
+    "build_finished_at": "2026-09-09T16:33:32Z",
+    "source_mode": "git-clone",
+    "release_manifest": {
+      "build_finished_at": "2026-09-09T16:33:32Z",
+      "build_started_at": "2026-09-09T16:25:04Z",
+      "image_id": "sha256:7a42abe215ba5fe80af304758c0f7cd74ee221d88867e7eedd66badbc9904706",
+      "image_tag": "agomtradepro-web:20260910002501",
+      "release_tag": "20260910002501",
+      "source_commit": "dba9ab2c8c18b824a6ed60d90b0765e020e6908d",
+      "source_mode": "git-clone",
+      "version": 1
+    },
+    "deployed": true
+  },
+  "fresh_backup": {
+    "remote_path": "/opt/agomtradepro/backups/database/postgres-20260909-183335.dump",
+    "bytes": 151390985,
+    "sha256": "fbb457f2226a2a5c7b2c8c03b489e25d0998e69303339b8e105072a915a56a01",
+    "remote_pg_restore_list_validated": true,
+    "downloaded": false
+  },
+  "live_verification": {
+    "database_vendor": "postgresql",
+    "price_bars": {
+      "count": 2784337,
+      "latest_bar_date": "2026-08-28"
+    },
+    "alpha": {
+      "count": 99,
+      "latest": {
+        "intended_trade_date": "2026-09-08",
+        "asof_date": "2026-09-04",
+        "status": "degraded"
+      }
+    },
+    "pyqlib": "0.9.7",
+    "qlib_path": "/usr/local/lib/python3.11/site-packages/qlib/__init__.py",
+    "wrong_qlib_distribution": false,
+    "egress_capabilities": [
+      "data_center.read.egress_endpoints",
+      "data_center.read.egress_endpoint",
+      "data_center.create.egress_endpoint",
+      "data_center.update.egress_endpoint",
+      "data_center.run.egress_endpoint_test",
+      "data_center.read.egress_rules",
+      "data_center.read.egress_rule",
+      "data_center.create.egress_rule",
+      "data_center.update.egress_rule",
+      "data_center.read.egress_route_preview",
+      "data_center.run.egress_diagnostics"
+    ],
+    "confirmed_capabilities": 6,
+    "core_tools": [
+      "agom_bootstrap",
+      "agom_get_agent_contract",
+      "agom_get_workflow_playbook",
+      "agom_capability_search",
+      "agom_capability_schema",
+      "agom_capability_call",
+      "agom_confirmation_resume",
+      "agom_workflow_start",
+      "agom_workflow_status"
+    ],
+    "endpoint_count": 0,
+    "rule_count": 0,
+    "deployment_region": "unknown",
+    "source_commit": "dba9ab2c8c18b824a6ed60d90b0765e020e6908d",
+    "image_id": "sha256:7a42abe215ba5fe80af304758c0f7cd74ee221d88867e7eedd66badbc9904706",
+    "started_at": "2026-09-09T16:39:57.448666219Z",
+    "release_dir": "/opt/agomtradepro/releases/source-20260910002501",
+    "base_url": "https://demo.agomtrade.pro",
+    "health": {
+      "http_status": 200,
+      "status": "ok",
+      "response_sha256": "edba294bf4aa98115c157ef2e26945e81b17034294fc3b6d4d4af3f38f6b2c82"
+    },
+    "readiness": {
+      "http_status": 200,
+      "status": "ok",
+      "response_sha256": "5fa918d3bdb1fa935b1ac8c6d5228aa84028f442f51cf8c0c844771ef5f5a8b5"
+    },
+    "health_checked_at": "2026-09-09T16:44:57.562069+00:00",
+    "authenticated_identity": {
+      "rbac_role": "owner",
+      "is_staff": true
+    },
+    "sdk_endpoint_count": 0,
+    "sdk_rule_count": 0,
+    "tui_http_status": 200,
+    "tui_action_keys": [
+      "data-center.egress-endpoints",
+      "data-center.egress-providers",
+      "data-center.egress-endpoint-create",
+      "data-center.egress-endpoint-update",
+      "data-center.egress-endpoint-test",
+      "data-center.egress-rules",
+      "data-center.egress-rule-create",
+      "data-center.egress-rule-update",
+      "data-center.egress-preview",
+      "data-center.egress-diagnostics"
+    ],
+    "mcp_discovered_count": 11,
+    "mcp_reads": {
+      "data_center.read.egress_endpoints": {
+        "status": "completed",
+        "count": 0
+      },
+      "data_center.read.egress_rules": {
+        "status": "completed",
+        "count": 0
+      }
+    },
+    "mcp_audit_sink": "verification-local",
+    "verified_at": "2026-09-09T16:45:19.243283+00:00"
+  },
+  "local_validation": {
+    "tui_javascript_tests_passed": 63,
+    "previous_sdk_rbac_egress_audit_tests_passed": 82,
+    "previous_incremental_mypy_regressions": 0
+  },
+  "unresolved": [
+    "CI module dependency budget: data_center -> config_center adds one edge without a corresponding inventory update.",
+    "CI changed Python file size: tui_workbench_result_models_specialized.py grows past the 1000 non-empty-line limit.",
+    "CI TUI static source contracts: three assertions do not match the current source.",
+    "Real mainland FRP endpoint and routing rules remain unconfigured; external provider connectivity and current Alpha data are not accepted.",
+    "MCP verification uses a local audit sink and does not prove production audit delivery.",
+    "TUI HTTP availability is verified; full browser configuration-write UAT and retained observation acceptance remain pending."
+  ]
+}
