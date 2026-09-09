@@ -25,6 +25,7 @@ from apps.data_center.models import (
     ReconciliationEvidenceModel,
 )
 from shared.config.tushare import (
+    TUSHARE_REQUEST_MODE_REST_PATH,
     TUSHARE_REQUEST_MODE_SDK_PATH,
     TUSHARE_REQUEST_MODE_UNIFIED_RELAY,
     TUSHARE_REQUEST_MODE_VALUES,
@@ -34,6 +35,7 @@ from shared.infrastructure.django_admin import TypedModelAdmin, TypedModelForm
 _TUSHARE_REQUEST_MODE_LABELS: dict[str, str] = {
     TUSHARE_REQUEST_MODE_SDK_PATH: "标准 Tushare",
     TUSHARE_REQUEST_MODE_UNIFIED_RELAY: "统一中继",
+    TUSHARE_REQUEST_MODE_REST_PATH: "RDS 数据服务",
 }
 
 
@@ -56,6 +58,7 @@ class ProviderConfigAdminForm(TypedModelForm[ProviderConfigModel]):
         choices=[
             (TUSHARE_REQUEST_MODE_SDK_PATH, "标准 Tushare"),
             (TUSHARE_REQUEST_MODE_UNIFIED_RELAY, "统一中继"),
+            (TUSHARE_REQUEST_MODE_REST_PATH, "RDS 数据服务"),
         ],
         help_text="统一中继使用上方服务地址和 API Key；标准方式保持官方 SDK 调用。",
     )
@@ -111,8 +114,11 @@ class ProviderConfigAdminForm(TypedModelForm[ProviderConfigModel]):
         if mode not in TUSHARE_REQUEST_MODE_VALUES:
             self.add_error("tushare_request_mode", "请选择有效的 Tushare 连接方式。")
             return cleaned_data
-        if mode == TUSHARE_REQUEST_MODE_UNIFIED_RELAY and not cleaned_data.get("http_url"):
-            self.add_error("http_url", "统一中继连接必须填写服务地址。")
+        if mode in {
+            TUSHARE_REQUEST_MODE_UNIFIED_RELAY,
+            TUSHARE_REQUEST_MODE_REST_PATH,
+        } and not cleaned_data.get("http_url"):
+            self.add_error("http_url", "此连接方式必须填写服务地址。")
 
         extra_config["tushare_request_mode"] = mode
         cleaned_data["extra_config"] = extra_config

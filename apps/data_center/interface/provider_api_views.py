@@ -26,6 +26,7 @@ from apps.data_center.interface.serializers import (
 from apps.data_center.provider_runtime import get_registry as _runtime_get_registry
 from apps.data_center.provider_runtime import refresh_registry
 from shared.config.tushare import (
+    TUSHARE_REQUEST_MODE_REST_PATH,
     TUSHARE_REQUEST_MODE_SDK_PATH,
     TUSHARE_REQUEST_MODE_UNIFIED_RELAY,
     TUSHARE_REQUEST_MODE_VALUES,
@@ -116,9 +117,12 @@ def _provider_extra_config_with_tushare_mode(
     raw_mode = extra_config.get("tushare_request_mode", TUSHARE_REQUEST_MODE_SDK_PATH)
     mode = raw_mode.strip() if isinstance(raw_mode, str) else ""
     if mode not in TUSHARE_REQUEST_MODE_VALUES:
-        raise ValidationError({"tushare_request_mode": "请选择标准 Tushare 或统一中继。"})
-    if mode == TUSHARE_REQUEST_MODE_UNIFIED_RELAY and not http_url.strip():
-        raise ValidationError({"http_url": "统一中继连接必须填写服务地址。"})
+        raise ValidationError({"tushare_request_mode": "请选择有效的 Tushare 连接方式。"})
+    if (
+        mode in {TUSHARE_REQUEST_MODE_UNIFIED_RELAY, TUSHARE_REQUEST_MODE_REST_PATH}
+        and not http_url.strip()
+    ):
+        raise ValidationError({"http_url": "此连接方式必须填写服务地址。"})
     extra_config["tushare_request_mode"] = mode
     return extra_config
 

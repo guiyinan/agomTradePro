@@ -46,7 +46,7 @@ def test_tui_exposes_typed_tushare_create_and_provider_update_actions() -> None:
         option["value"]
         for option in create_fields["tushare_request_mode"]["options"]
         if isinstance(option, dict)
-    } == {"sdk_path", "unified_relay"}
+    } == {"sdk_path", "unified_relay", "rest_path"}
     assert create_action["confirmation_required"] is True
     assert create_action["audit_required"] is True
 

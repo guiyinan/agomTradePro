@@ -101,7 +101,8 @@ def test_tushare_transport_mode_is_explicit_in_admin_form():
 
 
 @pytest.mark.django_db
-def test_admin_rejects_unified_tushare_transport_without_service_address():
+@pytest.mark.parametrize("mode", ["unified_relay", "rest_path"])
+def test_admin_rejects_unified_tushare_transport_without_service_address(mode):
     """The relay choice must not be saved without its endpoint."""
 
     form = data_center_admin.ProviderConfigAdminForm(
@@ -113,7 +114,7 @@ def test_admin_rejects_unified_tushare_transport_without_service_address():
             "api_key": "relay-key",
             "api_secret": "",
             "http_url": "",
-            "tushare_request_mode": "unified_relay",
+            "tushare_request_mode": mode,
             "api_endpoint": "",
             "extra_config": '{"health_metrics":{"success_count":5}}',
             "description": "",
@@ -121,7 +122,7 @@ def test_admin_rejects_unified_tushare_transport_without_service_address():
     )
 
     assert not form.is_valid()
-    assert form.errors["http_url"] == ["统一中继连接必须填写服务地址。"]
+    assert form.errors["http_url"] == ["此连接方式必须填写服务地址。"]
 
 
 def test_singleton_add_permission_rejects_staff_without_model_permission(

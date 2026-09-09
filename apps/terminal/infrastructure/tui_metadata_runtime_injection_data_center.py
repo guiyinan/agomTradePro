@@ -344,6 +344,7 @@ RUNTIME_DATA_CENTER_ACTIONS: tuple[dict[str, Any], ...] = (
                 default="unified_relay",
                 options=[
                     {"value": "unified_relay", "label": "统一中继"},
+                    {"value": "rest_path", "label": "RDS 数据服务"},
                     {"value": "sdk_path", "label": "标准 Tushare"},
                 ],
             ),
@@ -420,6 +421,7 @@ RUNTIME_DATA_CENTER_ACTIONS: tuple[dict[str, Any], ...] = (
                 options=[
                     {"value": "", "label": "保持现有设置"},
                     {"value": "unified_relay", "label": "统一中继"},
+                    {"value": "rest_path", "label": "RDS 数据服务"},
                     {"value": "sdk_path", "label": "标准 Tushare"},
                 ],
             ),

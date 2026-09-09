@@ -13,6 +13,7 @@ from typing import Any, cast
 from rest_framework import serializers
 
 from shared.config.tushare import (
+    TUSHARE_REQUEST_MODE_REST_PATH,
     TUSHARE_REQUEST_MODE_SDK_PATH,
     TUSHARE_REQUEST_MODE_UNIFIED_RELAY,
     TUSHARE_REQUEST_MODE_VALUES,
@@ -22,6 +23,7 @@ _SENSITIVE_PROVIDER_KEYS = frozenset({"api_key", "api_secret", "token", "secret"
 _TUSHARE_REQUEST_MODE_LABELS: dict[str, str] = {
     TUSHARE_REQUEST_MODE_SDK_PATH: "标准 Tushare",
     TUSHARE_REQUEST_MODE_UNIFIED_RELAY: "统一中继",
+    TUSHARE_REQUEST_MODE_REST_PATH: "RDS 数据服务",
 }
 
 

@@ -7,14 +7,17 @@ relay.  The shared package no longer owns financial-provider transport.
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from functools import partial
 from importlib import import_module
 from typing import Any, Protocol, cast
 from urllib.parse import urlsplit
 
+from core.exceptions import DataFetchError
 from shared.config.secrets import get_secrets
 from shared.config.tushare import (
+    TUSHARE_REQUEST_MODE_REST_PATH,
     TUSHARE_REQUEST_MODE_SDK_PATH,
     TUSHARE_REQUEST_MODE_UNIFIED_RELAY,
     TushareRequestMode,
@@ -83,6 +86,8 @@ def _validated_request_mode(request_mode: str | None) -> TushareRequestMode:
         return TUSHARE_REQUEST_MODE_SDK_PATH
     if normalized == TUSHARE_REQUEST_MODE_UNIFIED_RELAY:
         return TUSHARE_REQUEST_MODE_UNIFIED_RELAY
+    if normalized == TUSHARE_REQUEST_MODE_REST_PATH:
+        return TUSHARE_REQUEST_MODE_REST_PATH
     raise ValueError("Tushare request mode is unsupported")
 
 
@@ -220,6 +225,52 @@ class _UnifiedRelayClient:
         return partial(self.query, api_name)
 
 
+class _RestPathClient(_UnifiedRelayClient):
+    """Read Tushare-shaped data from authenticated GET resource endpoints."""
+
+    def query(self, api_name: str, fields: str = "", **params: object) -> PandasDataFrame:
+        """Fetch a complete table, rejecting redirects and declared truncation."""
+        if not re.fullmatch(r"[a-z][a-z0-9_]{0,127}", api_name):
+            raise ValueError("Tushare API name has invalid format")
+        query_params = dict(params)
+        if fields:
+            query_params["fields"] = fields
+        response = self._session.get(
+            self._http_url.rstrip("/") + "/" + api_name.replace("_", "-"),
+            params=query_params,
+            timeout=self._timeout_seconds,
+            allow_redirects=False,
+        )
+        if response.status_code in {401, 403}:
+            raise TushareRelayAuthorizationError(
+                f"Tushare relay authorization failed with HTTP {response.status_code}"
+            )
+        if 300 <= response.status_code < 400:
+            raise DataFetchError("Tushare resource redirect rejected")
+        response.raise_for_status()
+        payload: object = response.json()
+        if not isinstance(payload, dict) or payload.get("code") != 0:
+            raise DataFetchError("Tushare resource request rejected")
+        data = payload.get("data")
+        if not isinstance(data, dict):
+            raise DataFetchError("Tushare resource response is missing data")
+        if data.get("has_more"):
+            raise DataFetchError(
+                "Tushare resource result is incomplete; narrow the requested range",
+                code="MODEL_MARKET_INCOMPLETE_RESULT",
+            )
+        columns, items = data.get("fields"), data.get("items")
+        if (
+            not isinstance(columns, list)
+            or not all(isinstance(column, str) for column in columns)
+            or len(set(columns)) != len(columns)
+            or not isinstance(items, list)
+            or not all(isinstance(row, list) and len(row) == len(columns) for row in items)
+        ):
+            raise DataFetchError("Tushare resource table shape is invalid")
+        return pd.DataFrame(items, columns=columns)
+
+
 def create_tushare_pro_client(
     token: str | None = None,
     http_url: str | None = None,
@@ -234,10 +285,18 @@ def create_tushare_pro_client(
     )
     if not settings.token:
         raise ValueError("Tushare token 未配置")
-    if settings.request_mode == TUSHARE_REQUEST_MODE_UNIFIED_RELAY:
+    if settings.request_mode in {
+        TUSHARE_REQUEST_MODE_UNIFIED_RELAY,
+        TUSHARE_REQUEST_MODE_REST_PATH,
+    }:
         if not settings.http_url:
             raise ValueError("Tushare unified relay URL 未配置")
-        return _UnifiedRelayClient(
+        client_type = (
+            _RestPathClient
+            if settings.request_mode == TUSHARE_REQUEST_MODE_REST_PATH
+            else _UnifiedRelayClient
+        )
+        return client_type(
             token=settings.token,
             http_url=settings.http_url,
         )
