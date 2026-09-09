@@ -1,0 +1,103 @@
+# Optional FRP egress visitor for the VPS deployment.
+#
+# Apply this file after docker/docker-compose.vps.yml and explicitly enable the
+# profile:
+#
+#   docker compose -f docker/docker-compose.vps.yml \
+#     -f docker/docker-compose.vps.frp-egress.yml \
+#     --profile frp-egress up -d web celery_worker terminal_agent_worker \
+#     celery_beat frpc_egress_visitor
+#
+# The visitor has no host port.  Applications reach it at
+# http://frpc_egress_visitor:18080 on the private Docker network.  The second
+# network is intentionally not marked internal because the visitor must reach
+# the existing frps control endpoint.
+
+services:
+  # Keep the application endpoint private and discoverable by service name.
+  # The base compose file remains the source of truth for all other settings.
+  web:
+    environment:
+      # Static deployment label consumed by data-center routing for the
+      # equity.price.bar dataset. It does not enable the egress route.
+      DATA_CENTER_DEPLOYMENT_REGION: "${DATA_CENTER_DEPLOYMENT_REGION:-overseas_vps}"
+    networks:
+      - default
+      - frp_egress_private
+
+  celery_worker:
+    environment:
+      DATA_CENTER_DEPLOYMENT_REGION: "${DATA_CENTER_DEPLOYMENT_REGION:-overseas_vps}"
+    networks:
+      - default
+      - frp_egress_private
+
+  celery_beat:
+    environment:
+      DATA_CENTER_DEPLOYMENT_REGION: "${DATA_CENTER_DEPLOYMENT_REGION:-overseas_vps}"
+    networks:
+      - default
+      - frp_egress_private
+
+  terminal_agent_worker:
+    environment:
+      DATA_CENTER_DEPLOYMENT_REGION: "${DATA_CENTER_DEPLOYMENT_REGION:-overseas_vps}"
+    networks:
+      - default
+      - frp_egress_private
+
+  frpc_egress_visitor:
+    profiles:
+      - frp-egress
+    image: ghcr.io/fatedier/frpc:v0.69.0
+    restart: unless-stopped
+    # The official image ENTRYPOINT is /usr/bin/frpc; command contains args.
+    command: ["-c", "/etc/frp/frpc.toml"]
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    environment:
+      # These values are consumed by the Go-template expressions in the
+      # mounted config. Keep them in the host-only env file or secret store.
+      FRP_SERVER_ADDR: "${FRP_SERVER_ADDR:?FRP_SERVER_ADDR is required when frp-egress profile is enabled}"
+      FRP_SERVER_PORT: "${FRP_SERVER_PORT:?FRP_SERVER_PORT is required when frp-egress profile is enabled}"
+      FRP_STCP_SECRET: "${FRP_STCP_SECRET:?FRP_STCP_SECRET is required when frp-egress profile is enabled}"
+    volumes:
+      - type: bind
+        source: ${FRP_VISITOR_CONFIG_FILE:-../deploy/frp/vps-visitor.toml.example}
+        target: /etc/frp/frpc.toml
+        read_only: true
+    secrets:
+      - source: frp_auth_token
+        target: frp_auth_token
+        mode: 0400
+    expose:
+      - "18080"
+    networks:
+      - frp_egress_private
+      - frp_egress_outbound
+    mem_limit: ${FRP_VISITOR_MEMORY_LIMIT:-64m}
+    cpus: ${FRP_VISITOR_CPUS:-0.25}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+secrets:
+  # The default path is deliberately outside the repository's tracked
+  # templates. Set FRP_AUTH_TOKEN_FILE to a host-only file with mode 0400.
+  frp_auth_token:
+    file: ${FRP_AUTH_TOKEN_FILE:-/run/secrets/agomtradepro-frp-auth-token}
+
+networks:
+  frp_egress_private:
+    name: ${FRP_EGRESS_PRIVATE_NETWORK:-agomtradepro_frp_egress_private}
+    internal: true
+  frp_egress_outbound:
+    name: ${FRP_EGRESS_OUTBOUND_NETWORK:-agomtradepro_frp_egress_outbound}
+    driver: bridge

@@ -1,0 +1,34 @@
+# frpc visitor for the overseas VPS.
+#
+# This file is rendered by frpc with Go's environment template support. Keep
+# FRP_SERVER_ADDR and FRP_STCP_SECRET in a host-only environment file. The
+# authentication token is read from /run/secrets/frp_auth_token by the
+# compose override.
+#
+# The visitor binds inside its private Docker network only. The compose
+# override deliberately does not publish port 18080 on the host. Web/worker
+# reach it as http://frpc_egress_visitor:18080.
+
+serverAddr = "{{ .Envs.FRP_SERVER_ADDR }}"
+serverPort = {{ .Envs.FRP_SERVER_PORT }}
+loginFailExit = false
+
+auth.method = "token"
+auth.tokenSource.type = "file"
+auth.tokenSource.file.path = "/run/secrets/frp_auth_token"
+
+transport.protocol = "tcp"
+transport.tls.enable = true
+transport.poolCount = 1
+
+log.to = "console"
+log.level = "info"
+
+[[visitors]]
+name = "egress_http_proxy_visitor"
+type = "stcp"
+enabled = true
+serverName = "egress_http_proxy"
+secretKey = "{{ .Envs.FRP_STCP_SECRET }}"
+bindAddr = "0.0.0.0"
+bindPort = 18080

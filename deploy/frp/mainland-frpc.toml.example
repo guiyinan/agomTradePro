@@ -1,0 +1,33 @@
+# frpc proxy for the mainland egress host.
+#
+# The process must run on the mainland host (or in a container whose outbound
+# route is mainland). The http_proxy plugin is therefore the final egress
+# process; the overseas visitor only carries the STCP stream.
+#
+# Rendered values come from the host-only environment. Never commit a token,
+# STCP secret, or upstream proxy password to this file.
+
+serverAddr = "{{ .Envs.FRP_SERVER_ADDR }}"
+serverPort = {{ .Envs.FRP_SERVER_PORT }}
+loginFailExit = false
+
+auth.method = "token"
+auth.tokenSource.type = "file"
+auth.tokenSource.file.path = "/run/secrets/frp_auth_token"
+
+transport.protocol = "tcp"
+transport.tls.enable = true
+transport.poolCount = 1
+
+log.to = "console"
+log.level = "info"
+
+[[proxies]]
+name = "egress_http_proxy"
+type = "stcp"
+enabled = true
+secretKey = "{{ .Envs.FRP_STCP_SECRET }}"
+[proxies.plugin]
+type = "http_proxy"
+httpUser = "{{ .Envs.FRP_HTTP_PROXY_USER }}"
+httpPassword = "{{ .Envs.FRP_HTTP_PROXY_PASSWORD }}"
