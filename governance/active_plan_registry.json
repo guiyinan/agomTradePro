@@ -1,6 +1,6 @@
 {
-  "version": "2026-09-08.v71",
-  "updated_at": "2026-09-08",
+  "version": "2026-09-09.v72",
+  "updated_at": "2026-09-09",
   "execution_focus": {
     "unit_id": null,
     "allowed_parallel_execution_modes": [
@@ -125,6 +125,18 @@
         {
           "path": "docs/plans/test-coverage-weakness-remediation-progress-2026-07-24.md",
           "role": "evidence"
+        },
+        {
+          "path": "docs/plans/data-center-regional-egress-plan-2026-09-09.md",
+          "role": "supporting"
+        },
+        {
+          "path": "docs/plans/model-market-data-center-routing-2026-09-09.md",
+          "role": "supporting"
+        },
+        {
+          "path": "docs/plans/datahubco-rds-binding-2026-09-09.md",
+          "role": "supporting"
         }
       ]
     },
@@ -1138,6 +1150,17 @@
           "TUX-04"
         ],
         "exit_gate": "Browser evidence shows fixed table layout, translated field names, no internal screen keys, a working or removed status bar, and a recorded resolution of the freshness-presentation contradiction."
+      },
+      {
+        "id": "DATA-14",
+        "workstream_id": "data-production-reliability",
+        "wave": 2,
+        "priority": "P1",
+        "execution_mode": "repository",
+        "status": "completed",
+        "title": "Implement configurable regional market-data egress and frpc integration",
+        "depends_on": [],
+        "exit_gate": "Repository routing, encrypted endpoints, provider transport isolation, bounded fault handling, staff TUI, opt-in frpc deployment and contract tests pass; preserve separate DATA-02 production acceptance. Source plan: docs/plans/data-center-regional-egress-plan-2026-09-09.md."
       }
     ]
   }

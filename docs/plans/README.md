@@ -5,6 +5,8 @@
 > 更新日期：2026-09-07
 > 本目录只保留仍需开发、真实数据、生产验收或外部依赖闭环的计划。已完成的实施计划、阶段记录、复盘和历史证据统一放在 [`../archive/plans/`](../archive/plans/)；归档记录见 [`../archive/ARCHIVE_INDEX.md`](../archive/ARCHIVE_INDEX.md)。
 
+境内出口开发方案见 [数据中台境内出口与 frp 开发计划](data-center-regional-egress-plan-2026-09-09.md)，登记在 data-production-reliability 工作流，支撑 DATA-02；用户授权的仓库实现 DATA-14 已完成，真实出口与 DATA-02 生产验收单独保留。
+
 ## 维护规则
 
 - 机器唯一真源是 [`governance/active_plan_registry.json`](../../governance/active_plan_registry.json)；本页是面向人的执行投影，不单独维护另一套状态。
