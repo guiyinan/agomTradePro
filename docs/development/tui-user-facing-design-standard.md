@@ -40,7 +40,7 @@ New user-facing semantics:
 
 The versioned registry `config/tui/ia/tui_information_architecture.v1.json` is the only source of truth for TUI groups, modules, canonical screens, legacy aliases, the daily workflow, audiences, panels, and action-density budgets. Compiler promotion, database normalization, runtime injection, and deep-link resolution must load this registry; they must not maintain parallel screen-routing dictionaries.
 
-The current contract has three groups (`daily`, `research`, `system`), 12 published screens, 12 runtime screens, and an eight-step daily workflow. The registry separates published inputs from runtime inputs so both inventories are mechanically testable. Adding, merging, or retiring a screen starts with this registry and its contract tests.
+The current contract has three groups (`daily`, `research`, `system`), 12 published screens, 13 runtime screens, and an eight-step daily workflow. The registry separates published inputs from runtime inputs so both inventories are mechanically testable. Adding, merging, or retiring a screen starts with this registry and its contract tests.
 
 The `research` group is explicitly divided into four user-task modules: `investment-research`, `ai-workspace`, `personal-services`, and `personal-settings`. Do not recreate a generic research-tools catch-all or place account settings, personal service access, and asset research in one undifferentiated module.
 

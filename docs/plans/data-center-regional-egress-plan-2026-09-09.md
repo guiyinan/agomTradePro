@@ -209,6 +209,26 @@ DNS/HTTPS helper 集合 13 passed。全部 31 个生产 Python 文件增量 mypy
 Black/isort/Ruff、架构 boundary/audit 与 active-plan registry 检查通过。
 这些证据不替代真实境内网络验证。
 
+## TUI 配置页补齐（2026-09-09）
+
+管理员入口为系统治理 → 数据出口配置（`/tui/?screen=data-center.egress-config`），数据中台原页提供跳转。独立页面集中登记出口、数据源选择、路由规则、编辑启停、指定出口测试、预览和诊断；操作说明见 [数据出网配置](../development/data-egress-tui-configuration.md)。
+
+- 出口/规则清单首屏展示，规则显示数据源和出口名称。数据源行可发起新增规则并回填编号。
+- 编辑先打开表单，回填非密字段并保留原布尔状态；密码留空保留，可明确清除认证。保存后刷新对应清单。
+- 修复通用 dashboard 行编辑依赖未发布 HTTP method 的问题；dashboard 隐藏侧栏时使用可见模态表单，防止编辑按钮直接跳到确认。
+- 预览与真实连接结果分开展示；诊断列出尝试顺序、耗时和失败标识，业务失败不因接口响应成功而显示为连接成功。
+- 浏览器验收使用 Chromium、真实 Django TUI/出口接口及临时 SQLite 数据库；网络诊断注入可控失败，未向真实行情服务发请求。登记、编辑、状态保持、数据源选择、规则启用与失败展示均作为验收范围。
+
+验收证据：
+
+- 前端 Chromium 工作台回归：49 passed，包含隐藏技术字段时的行编辑、模态表单、确认提交及原有工作流。
+- 真实 Django 接口与 Chromium 工作流、出口管理 API 合并验证：18 passed。保存回执展示补齐后，浏览器与结果展示再次验证：5 passed。
+- 扩展 TUI 回归初次 400 passed、3 failed；其中布尔原值保留新增字段的断言已同步，单项复验通过。另两项在修改前 `cce1c4f1a` 独立工作树中以相同错误复现：旧情绪标题断言，以及关闭 runtime patches 的 density 测试夹具与筛选字段契约冲突。未将这些既有失败标记为通过。
+- 7 个生产 Python 文件增量 mypy 0 regressions；保存回执新增逻辑另经 2 文件 mypy 复验。全仓 mypy debt ceiling 为 0 errors。
+- TUI source consistency：889 runtime actions / 25 screens，0 violations；Black/isort/Ruff、runtime build manifest、架构 boundary/audit 和 active-plan registry 检查通过。
+
+本次仅提交本地配置页面和契约修复，未部署 VPS；真实 FRP 连通性和出口 IP 验收仍待部署环境完成。
+
 ## 外部依据
 
 - [frp 客户端插件](https://gofrp.org/en/docs/features/common/client-plugin/)

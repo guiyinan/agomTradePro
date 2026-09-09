@@ -643,7 +643,7 @@ async function openHarness(url = "https://app.test/", options = {}) {
             return;
         }
         if (url.pathname === "/api/tui/screens/test.edit-dashboard/") {
-            await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(editableDashboardScreen) });
+            await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(options.editableDashboardScreen || editableDashboardScreen) });
             return;
         }
         if (url.pathname.includes("/actions/test.user-list/run/")) {
@@ -1505,7 +1505,7 @@ test("editable dashboard row action opens a form before sending the update", asy
         await page.waitForTimeout(150);
         assert.equal(updateRequests, 0);
 
-        const form = page.locator('form[data-action-ui-key="test.edit-row"]');
+        const form = page.locator('form[data-action-ui-key="test.edit-row"]:visible');
         await form.waitFor({ state: "visible" });
         assert.equal(await form.locator('[name="user_id"]').inputValue(), "42");
         assert.equal(await form.locator('[name="username"]').inputValue(), "pending-user");
@@ -1523,6 +1523,24 @@ test("editable dashboard row action opens a form before sending the update", asy
     } finally {
         await browser.close();
     }
+});
+
+test("public immersive row edit opens a prefilled modal without HTTP metadata", async () => {
+    const config = structuredClone(editableDashboardScreen);
+    config.screen.chrome_mode = "immersive";
+    config.actions.forEach(item => { delete item.method; });
+    const { browser, page } = await openHarness("https://app.test/?screen=test.edit-dashboard", {
+        waitForInitialRows: false, editableDashboardScreen: config,
+    });
+    try {
+        let writes = 0;
+        page.on("request", request => { if (request.url().includes("/actions/test.edit-row/run/")) writes++; });
+        await page.locator('[data-dashboard-row-action][aria-label="编辑 pending-user"]').click();
+        const form = page.locator('form[data-action-ui-key="test.edit-row"]:visible');
+        await form.waitFor();
+        assert.equal(await form.locator('[name="username"]').inputValue(), "pending-user");
+        assert.equal(writes, 0);
+    } finally { await browser.close(); }
 });
 
 test("advanced action referenced by a dashboard panel remains reachable", async () => {

@@ -3243,12 +3243,6 @@ def test_tui_data_center_screen_returns_overview_panels(client, tui_admin_user):
         "system.health-summary",
         "data-center.status-summary",
         "data-center.provider-list",
-        "data-center.egress-endpoint-create",
-        "data-center.egress-rule-create",
-        "data-center.egress-preview",
-        "data-center.egress-diagnostics",
-        "data-center.egress-endpoints",
-        "data-center.egress-rules",
         "",
         "",
     ]
@@ -3258,6 +3252,38 @@ def test_tui_data_center_screen_returns_overview_panels(client, tui_admin_user):
     assert "data-center.status-summary" in action_keys
     assert "data-center.tushare-create" in action_keys
     assert "data-center.provider-update" in action_keys
+
+
+def test_tui_egress_screen_returns_configuration_workbench(client, tui_admin_user):
+    """The dedicated admin screen exposes the complete exit workflow."""
+
+    client.force_login(tui_admin_user)
+
+    response = client.get("/api/tui/screens/data-center.egress-config/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    screen = payload["screen"]
+    assert screen["key"] == "data-center.egress-config"
+    assert screen["audience"] == "admin"
+    panels = {panel["key"]: panel for panel in screen["dashboard_panels"]}
+    assert panels["egress-endpoints"]["user_priority"] == "p0"
+    assert panels["egress-rules"]["user_priority"] == "p0"
+    assert panels["egress-endpoints"]["action_key"] == "data-center.egress-endpoints"
+    assert panels["egress-rules"]["action_key"] == "data-center.egress-rules"
+    action_keys = {action["key"] for action in payload["actions"]}
+    assert {
+        "data-center.egress-endpoints",
+        "data-center.egress-endpoint-create",
+        "data-center.egress-endpoint-update",
+        "data-center.egress-endpoint-test",
+        "data-center.egress-providers",
+        "data-center.egress-rules",
+        "data-center.egress-rule-create",
+        "data-center.egress-rule-update",
+        "data-center.egress-preview",
+        "data-center.egress-diagnostics",
+    } <= action_keys
 
 
 def test_tui_events_screen_returns_overview_panels(client, tui_user):
@@ -4402,6 +4428,8 @@ def test_tui_service_action_runner_honors_explicit_datagrid_columns(tui_user):
         "capability_key": "mcp_tool.example.read",
         "enabled_for_routing": "是",
         "enabled_for_terminal": "否",
+        "__raw_enabled_for_routing": True,
+        "__raw_enabled_for_terminal": False,
     }
 
 

@@ -452,7 +452,13 @@ class TuiWorkbenchCatalogMixin:
             "confirmation_required": self._requires_confirmation(action),
             "fields": [
                 self._field_payload(
-                    field, action=action, user=user, preserve_label=field.get("key") in filter_keys
+                    field,
+                    action=action,
+                    user=user,
+                    preserve_label=(
+                        field.get("key") in filter_keys
+                        or str(action["key"]).startswith("data-center.egress-")
+                    ),
                 )
                 for field in action.get("fields") or []
             ],

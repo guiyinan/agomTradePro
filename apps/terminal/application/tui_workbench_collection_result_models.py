@@ -336,6 +336,7 @@ class TuiWorkbenchCollectionResultMixin:
         normalized = str(key or "").strip().lower().replace("-", "_")
         if not (
             self._should_preserve_row_identifier(normalized)
+            or isinstance(raw_value, bool)
             or normalized == "code"
             or normalized.endswith("_code")
             or normalized

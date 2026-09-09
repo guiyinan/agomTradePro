@@ -43,6 +43,7 @@ _NO_INPUT_MUTATIONS = {
 _NON_MUTATING_POST_COMMANDS = {
     "audit.threshold-update-preview",
     "audit.validation-preview",
+    "data-center.egress-preview",
     "data-center.market-thermometer-import-preview",
     "data-center.provider-test",
 }

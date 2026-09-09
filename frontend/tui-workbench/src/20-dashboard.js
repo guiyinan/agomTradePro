@@ -783,10 +783,8 @@
     }
 
     function dashboardRowActionNeedsForm(action) {
-        const method = String(action?.method || "GET").trim().toUpperCase();
-        if (!["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
-            return false;
-        }
+        // Public action metadata omits HTTP methods; visible body inputs are
+        // the user-facing contract for opening an editor before execution.
         // Path/query identity fields are already supplied by the row action.
         // Only an explicit visible body field means the user has extra input
         // to review or change before the mutation is sent.
@@ -824,7 +822,14 @@
     }
 
     function openDashboardRowActionForm(action, panel, descriptor, row, params) {
-        const form = revealActionFormInPanel(action);
+        let form;
+        if (hasDashboardPanels(state.screen?.screen)) {
+            showModal(action.label || "编辑配置", renderActionForm(action));
+            bindRenderedActionForms(els.modalBody);
+            form = els.modalBody.querySelector("form[data-action-ui-key]");
+        } else {
+            form = revealActionFormInPanel(action);
+        }
         if (!form) {
             setStatus(`请先打开“${action?.label || "编辑任务"}”表单`);
             return true;

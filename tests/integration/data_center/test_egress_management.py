@@ -73,6 +73,13 @@ def test_register_disabled_endpoint_and_rule_then_enable(operator, monkeypatch):
     )
     assert rule_response.status_code == 201, rule_response.content
     rule_id = rule_response.json()["data"]["id"]
+    listing = operator.get("/api/data-center/egress/rules/")
+    assert listing.status_code == 200
+    assert listing["Content-Type"].startswith("application/json")
+    listed = listing.json()["results"][0]
+    assert listed["provider_name"] == provider.name
+    assert listed["egress_name"] == "Mainland test"
+    assert "private-proxy" not in listing.content.decode()
     context = {
         "provider_id": provider.pk,
         "dataset_key": "equity.price.bar",

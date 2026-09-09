@@ -48,13 +48,13 @@ def test_tui_ia_registry_is_the_complete_screen_routing_source() -> None:
 
     assert [group["key"] for group in registry["groups"]] == ["daily", "research", "system"]
     assert len(registry["published_screens"]) == 12
-    assert len(registry["runtime_screens"]) == 12
+    assert len(registry["runtime_screens"]) == 13
     assert len(registry["workflow"]) == 8
     assert sum(len(screen["sources"]) for screen in registry["published_screens"]) == 37
     assert (
         sum(len(screen.get("runtime_sources", [])) for screen in registry["published_screens"])
         + sum(len(screen["sources"]) for screen in registry["runtime_screens"])
-        == 19
+        == 20
     )
     assert aliases["macro-regime.pulse"] == "macro-regime.overview"
     assert aliases["command-center.auto-advisor"] == "command-center.decision-flow"
@@ -123,7 +123,7 @@ def test_runtime_screen_registry_publishes_complete_user_experience_contract() -
     normalized_screens = {screen["key"]: screen for screen in payload["screens"]}
     action_keys = {action["key"] for action in payload["actions"]}
 
-    assert len(runtime_screens) == 12
+    assert len(runtime_screens) == 13
     assert set(runtime_screens) <= set(normalized_screens)
     for key, screen in runtime_screens.items():
         assert screen["summary"]
@@ -189,7 +189,7 @@ def test_runtime_catalog_has_15_user_screens_and_24_admin_screens() -> None:
     admin_screens = _catalog_screen_keys(service.get_catalog(user=admin))
 
     assert len(user_screens) == 15
-    assert len(admin_screens) == 24
+    assert len(admin_screens) == 25
     assert "api-library.data-center" not in user_screens
     assert "ai-ops.system-providers" not in user_screens
     assert "capability-router.mcp-center" not in user_screens
@@ -208,11 +208,11 @@ def test_runtime_ia_is_idempotent_and_has_no_dangling_screen_references() -> Non
     normalized_twice = repository._normalize_runtime_payload(validate_tui_metadata(normalized_once))
 
     assert normalized_twice == normalized_once
-    assert normalized_once["coverage_summary"]["runtime_density_demoted_actions"] == 147
-    assert normalized_twice["coverage_summary"]["runtime_density_demoted_actions"] == 147
+    assert normalized_once["coverage_summary"]["runtime_density_demoted_actions"] == 143
+    assert normalized_twice["coverage_summary"]["runtime_density_demoted_actions"] == 143
     screen_keys = {screen["key"] for screen in normalized_once["screens"]}
     action_keys = {action["key"] for action in normalized_once["actions"]}
-    assert len(screen_keys) == 24
+    assert len(screen_keys) == 25
     assert all(action["screen_key"] in screen_keys for action in normalized_once["actions"])
     assert all(
         not panel.get("action_key") or panel["action_key"] in action_keys

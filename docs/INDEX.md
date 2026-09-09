@@ -65,6 +65,7 @@
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [data-center-regional-egress-plan-2026-09-09.md](plans/data-center-regional-egress-plan-2026-09-09.md) | **数据中台境内出口与 frp 开发计划（分流规则 / SDK 隔离 / TUI / 部署回滚）** | DATA-14 仓库实现完成；复用境内 frps，真实出口验收待参数；支撑 DATA-02 |
+- [数据出口 TUI 配置操作说明](development/data-egress-tui-configuration.md)：登记、规则、测试与启停顺序。
 | [SYSTEM_BASELINE.md](governance/SYSTEM_BASELINE.md) | **系统基线叙事索引（不复制动态治理数字）** | ✅ 2026-03-18 新增 |
 | [MODULE_CLASSIFICATION.md](governance/MODULE_CLASSIFICATION.md) | **模块分级表（核心/成熟/试验）** | ✅ 2026-03-18 新增 |
 | [DEVELOPMENT_BANLIST.md](governance/DEVELOPMENT_BANLIST.md) | **开发禁令（5条核心约束）** | ✅ 2026-03-18 新增 |

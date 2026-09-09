@@ -5,6 +5,11 @@ from __future__ import annotations
 import math
 from typing import TYPE_CHECKING, Any
 
+from apps.terminal.application.tui_egress_result import (
+    build_egress_result,
+    build_egress_saved_result,
+)
+
 
 class TuiWorkbenchSpecializedResultMixin:
     """Specialized view-model builders layered on top of the base mixin."""
@@ -49,6 +54,23 @@ class TuiWorkbenchSpecializedResultMixin:
         request_params: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
         action_key = str(action.get("key") or "")
+        if action_key in {
+            "data-center.egress-preview",
+            "data-center.egress-endpoint-test",
+            "data-center.egress-diagnostics",
+        } and isinstance(payload, dict):
+            return build_egress_result(
+                payload, title=self._action_title(action), status_code=status_code
+            )
+        if action_key in {
+            "data-center.egress-endpoint-create",
+            "data-center.egress-endpoint-update",
+            "data-center.egress-rule-create",
+            "data-center.egress-rule-update",
+        } and isinstance(payload, dict):
+            return build_egress_saved_result(
+                payload, title=self._action_title(action), status_code=status_code
+            )
         if action_key == "policy.queue_summary" and isinstance(payload, dict):
             keys = (
                 "pending_review_count",

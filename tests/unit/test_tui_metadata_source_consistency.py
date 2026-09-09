@@ -63,7 +63,7 @@ def test_real_tui_sources_have_consistent_published_screen_ownership() -> None:
 
     assert report.passed, report.as_json()
     assert report.published_screen_count == 12
-    assert report.runtime_screen_count == 24
+    assert report.runtime_screen_count == 25
     assert report.published_action_count == 413
     assert report.runtime_action_count >= report.published_action_count
 

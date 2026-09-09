@@ -10,6 +10,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.data_center.application import egress_service
+from apps.data_center.application.interface_services import make_manage_provider_config_use_case
 from apps.data_center.domain.egress_routing import (
     EgressRequestContext,
     EgressRouteDecision,
@@ -148,7 +149,29 @@ def egress_endpoint_test(request: Request, endpoint_id: int) -> Response:
 def egress_rule_list(request: Request) -> Response:
     """List rules or create a validated rule with one optional exit."""
     if request.method == "GET":
-        return _respond(egress_service.list_rules)
+        provider_names = {
+            provider.id: provider.name
+            for provider in make_manage_provider_config_use_case().list_all()
+        }
+        endpoint_names = {
+            endpoint.id: endpoint.name for endpoint in egress_service.list_endpoints()
+        }
+        return Response(
+            {
+                "results": [
+                    {
+                        **_public_payload(rule),
+                        "provider_name": provider_names.get(rule.provider_id, "未找到数据源"),
+                        "egress_name": (
+                            "直连"
+                            if rule.fixed_egress_id is None
+                            else endpoint_names.get(rule.fixed_egress_id, "未找到出口")
+                        ),
+                    }
+                    for rule in egress_service.list_rules()
+                ]
+            }
+        )
     serializer = EgressRuleSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     return _respond(
