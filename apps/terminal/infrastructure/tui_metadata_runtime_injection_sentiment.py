@@ -87,7 +87,7 @@ RUNTIME_SENTIMENT_ACTIONS: tuple[dict[str, Any], ...] = (
         "screen_key": "macro-regime.overview",
         "module_key": _MODULE,
         "view_type": "datagrid",
-        "description": "查看当日A股综合、新闻、政策情绪及其决策可用性；这里不是系统运行状态。",
+        "description": "查看最新观测的A股综合、新闻、政策情绪及其决策可用性；这里不是系统运行状态。",
         "source": _SOURCE,
         "task_group": "02 情绪态势",
         "sequence": 210,

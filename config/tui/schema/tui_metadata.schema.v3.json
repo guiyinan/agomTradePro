@@ -241,7 +241,7 @@
         },
         "columns": {
           "type": "array",
-          "maxItems": 8,
+          "maxItems": 16,
           "description": "Ordered user-facing projection. For chart, the first item is the x-axis and the remaining items are numeric series; labels must include units when the unit is not otherwise unambiguous.",
           "items": {
             "type": "object",
@@ -354,6 +354,15 @@
       "type": "object",
       "required": ["action_key", "label_template", "param_map"],
       "properties": {
+        "visible_when": {
+          "type": "object", "required": ["field", "values"],
+          "properties": {
+            "field": {"type": "string", "minLength": 1},
+            "values": {"type": "array", "minItems": 1, "items": {"type": ["string", "number", "boolean"]}},
+            "negate": {"type": "boolean"}
+          },
+          "additionalProperties": false
+        },
         "action_key": { "type": "string", "minLength": 1 },
         "label_template": { "type": "string", "minLength": 1 },
         "param_map": {

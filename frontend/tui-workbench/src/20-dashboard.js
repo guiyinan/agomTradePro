@@ -6,7 +6,7 @@
         Object.keys(panelPages).forEach(key => delete panelPages[key]);
         Object.assign(panelPages, options.snapshot?.panelPages || {});
         const screen = screenSpec.screen;
-        const panels = screen.dashboard_panels || [];
+        const panels = [...(screen.dashboard_panels || [])].sort((a, b) => panelPriority(a).localeCompare(panelPriority(b)));
         const immersiveDashboard = isImmersiveDashboardScreen(screen);
         const actionSummary = summarizeActions(screenSpec.actions || []);
         const businessContext = screen.business_context || {};
@@ -18,7 +18,7 @@
             ${isOperatorHomeScreen(screen.key) ? renderHomeActionStrip() : ""}
             <div class="tui-dashboard-grid${layout.contentFlow ? " is-content-flow" : ""}" style="${escapeHtml(layout.gridStyle)}">
                 ${panels.map((panel, index) => `
-                    <article class="tui-dash-panel" style="grid-area: ${escapeHtml(layout.areas[index])};" data-dashboard-panel="${escapeHtml(panel.key)}" data-panel-priority="${escapeHtml(panelPriority(panel))}" data-panel-semantic="${escapeHtml(panelPresentationSemantic(panel))}">
+                    <article class="tui-dash-panel" data-panel-kind="${escapeHtml(panel.kind)}" data-dashboard-panel="${escapeHtml(panel.key)}" data-panel-priority="${escapeHtml(panelPriority(panel))}" data-panel-semantic="${escapeHtml(panelPresentationSemantic(panel))}">
                         ${renderDashboardPanelShell(panel, dashboardPanelShouldCollapse(panel)
                             ? '<div class="tui-panel-caption" data-panel-idle>展开后读取业务数据。</div>'
                             : '<div class="tui-loading">读取业务数据...</div>')}
@@ -191,13 +191,14 @@
     function dashboardLayout(panels, screen) {
         const areas = uniqueDashboardAreas(panels);
         const desktopColumns = dashboardDesktopColumns(screen);
-        const contentFlow = desktopColumns === 1 || isOperatorHomeScreen(screen?.key);
+        const contentFlow = true;
         const desktopRowSize = contentFlow ? "auto" : "minmax(190px, auto)";
         const tabletRowSize = contentFlow ? "auto" : "minmax(190px, 1fr)";
         return {
             areas,
             contentFlow,
             gridStyle: [
+                `--tui-content-columns: ${Math.min(desktopColumns, 2)}`,
                 `--tui-dashboard-areas-desktop: ${dashboardAreaTemplate(areas, desktopColumns, true)}`,
                 `--tui-dashboard-areas-tablet: ${dashboardAreaTemplate(areas, 2)}`,
                 `--tui-dashboard-areas-mobile: ${dashboardAreaTemplate(areas, 1)}`,
@@ -285,6 +286,7 @@
         const sameAdminScreen = String(screen.audience || "") === "admin"
             && String(action.screen_key || "") === String(screen.key || "");
         return ["GET", "HEAD", "OPTIONS"].includes(method)
+            && !action.confirmation_required
             && (risk === "read" || (risk === "admin" && sameAdminScreen))
             && unresolvedRequiredFields(action).length === 0;
     }
@@ -323,6 +325,7 @@
                 panel,
                 renderDashboardActionPrompt(panel, panelAction),
             );
+            bindRenderedActionForms(container);
             bindDashboardPanelOpenControls(container);
             restoreDisclosure();
             return;
@@ -440,6 +443,12 @@
                 state.dashboardFilters[panel.key] = params;
                 delete panelPages[panel.key];
                 const container = form.closest("[data-dashboard-panel]");
+                if (!container) {
+                    const action = currentAction(panel.action_key);
+                    const reset = paginationParamPatch(action, state.lastPager || {}, state.lastParams, 1 - Number(state.lastPager?.page || 1)) || {};
+                    runGridQuery({ ...state.lastParams, ...reset, ...params });
+                    return;
+                }
                 container.innerHTML = renderDashboardPanelShell(panel, '<div class="tui-loading">正在更新清单...</div>');
                 bindDashboardFilters(container);
                 bindDashboardPanelOpenControls(container);
@@ -477,6 +486,9 @@
     function renderDashboardActionPrompt(panel, action) {
         if (!action) {
             return renderPanelPlaceholder(panel, panel.empty_message || "当前任务暂不可用。");
+        }
+        if (panelPresentationSemantic(panel) === 'next_step') {
+            return renderActionForm(action);
         }
         const label = String(action.submit_label || action.label || "继续").trim();
         const panelNote = String(panel.note || "").trim();
@@ -664,7 +676,7 @@
             <div class="tui-quadrant">
                 <div class="q q-recovery">复苏<br><strong>RECOVERY</strong></div>
                 <div class="q q-overheat">过热<br><strong>OVERHEAT</strong></div>
-                <div class="q q-recession">衰退<br><strong>RECESSION</strong></div>
+                <div class="q q-recession">通缩<br><strong>DEFLATION</strong></div>
                 <div class="q q-stagflation">滞胀<br><strong>STAGFLATION</strong></div>
                 <div class="q-axis-x"></div>
                 <div class="q-axis-y"></div>
@@ -700,9 +712,9 @@
         const rows = filterable ? sourceRows.slice((paging.page - 1) * paging.size, paging.page * paging.size)
             : sourceRows.slice(0, Number(panel.max_rows || 8));
         const panelColumns = Array.isArray(panel.columns) ? panel.columns : [];
-        const preferredColumns = panelColumns.filter((column) => rows.some((row) => Object.prototype.hasOwnProperty.call(row, column.key)));
+        const preferredColumns = panelColumns;
         const sourceColumns = preferredColumns.length ? preferredColumns : (viewModel.columns || []);
-        const columns = sourceColumns.filter((column) => rows.some((row) => Object.prototype.hasOwnProperty.call(row, column.key))).slice(0, panelColumns.length || 6);
+        const columns = sourceColumns;
         if (!rows.length || !columns.length) {
             return `${filterable ? '<div class="tui-panel-caption" role="status">实际展示 0 条</div>' : ""}${renderPanelPlaceholder(panel, panel.empty_message || "暂无表格数据。")}`;
         }
@@ -736,7 +748,13 @@
 
     function renderDashboardRowActions(panel, row) {
         const descriptors = Array.isArray(panel?.row_actions) ? panel.row_actions : [];
-        return `<div class="tui-row-actions">${descriptors.map((descriptor) => {
+        const buttons = descriptors.filter((descriptor) => {
+            const rule = descriptor.visible_when;
+            if (!rule) return true;
+            const value = row?.[`__raw_${rule.field}`] ?? row?.[rule.field];
+            const matches = rule.values.some(item => String(item) === String(value));
+            return rule.negate ? !matches : matches;
+        }).map((descriptor) => {
             const action = currentAction(descriptor.action_key);
             const params = Object.fromEntries(
                 Object.entries(descriptor.param_map || {}).map(([paramKey, rowKey]) => [paramKey, row?.[rowKey]]),
@@ -754,7 +772,10 @@
                     title="${escapeHtml(label)}"
                 >${escapeHtml(action?.label || "操作")}</button>
             `;
-        }).join("")}</div>`;
+        });
+        return `<div class="tui-row-actions">${buttons[0] || ""}${buttons.length > 1
+            ? `<details class="tui-row-action-menu"><summary aria-label="更多行操作">更多</summary><div>${buttons.slice(1).join("")}</div></details>`
+            : ""}</div>`;
     }
 
     function interpolateRowActionLabel(template, row) {
@@ -847,6 +868,9 @@
                     const descriptor = (panel.row_actions || []).find(
                         (item) => item.action_key === button.dataset.rowActionKey,
                     ) || {};
+                    if (!els.main.querySelector('[data-dashboard-panel]')) {
+                        await loadScreen(state.screen.screen.key, { skipCapture: true, skipRestoreAction: true, suppressAutoAction: true });
+                    }
                     if (dashboardRowActionNeedsForm(action)) {
                         const row = JSON.parse(button.dataset.rowActionRow || "{}");
                         openDashboardRowActionForm(action, panel, descriptor, row, params);
@@ -904,8 +928,9 @@
     }
 
     function renderSemanticDetailView(viewModel, semantics, options = {}) {
-        const fields = applyPanelFieldRules(viewModel.fields || [], options.panel)
-            .slice(0, Number(options.panel?.max_rows || 12));
+        const allFields = applyPanelFieldRules(viewModel.fields || [], options.panel);
+        const fields = allFields.slice(0, Number(options.panel?.max_rows || 12));
+        const remainingFields = allFields.slice(fields.length);
         const nested = (viewModel.nested || []).slice(0, Number(options.panel?.max_rows || 12));
         const classes = [
             "tui-semantic-detail",
@@ -934,10 +959,14 @@
             (field) => fieldPresentation(field) === "multiline" && hasDisplayValue(field.value),
         );
         const metaFields = fields.filter((field) => fieldPresentation(field) === "metadata");
+        const compactStatus = options.compact && hasSemantic(semantics, 'primary_status') && metaFields.length <= 6;
+        const metaMarkup = compactStatus
+            ? `<div class="tui-summary-metrics">${metaFields.map(field => `<dl><dt>${escapeHtml(field.label)}</dt><dd>${escapeHtml(displayValue(field.value))}</dd></dl>`).join('')}</div>`
+            : renderSemanticGridFields(metaFields);
         const fieldMarkup = [
             secretFields.length ? renderSemanticSecretFields(secretFields) : "",
             copyFields.length ? renderSemanticCopyFields(copyFields) : "",
-            metaFields.length ? renderSemanticGridFields(metaFields) : "",
+            metaFields.length ? metaMarkup : "",
             multilineFields.length ? renderSemanticMultilineFields(multilineFields) : "",
         ].filter(Boolean).join("");
         const nestedMarkup = nested.length
@@ -947,6 +976,7 @@
             <section class="${classes}">
                 ${statusHero}
                 ${fieldMarkup || renderPanelPlaceholder(options.panel || {}, "暂无摘要数据。")}
+                ${remainingFields.length ? `<details class="tui-more-detail"><summary>其余 ${remainingFields.length} 项</summary>${renderSemanticSecretFields(remainingFields.filter(field => fieldPresentation(field) === 'secret'))}${renderSemanticCopyFields(remainingFields.filter(field => fieldPresentation(field) === 'copyable'))}${renderSemanticMultilineFields(remainingFields.filter(field => fieldPresentation(field) === 'multiline'))}${renderSemanticGridFields(remainingFields.filter(field => fieldPresentation(field) === 'metadata'))}</details>` : ""}
                 ${nestedMarkup}
             </section>
         `;
@@ -1024,7 +1054,7 @@
         return `
             <div class="tui-copy-stack">
                 ${fields.map((field) => `
-                    <div class="tui-copy-row is-secret">
+                    <div class="tui-copy-row is-secret${String(field.value).includes('\n') ? ' is-dominant' : ''}">
                         <div class="tui-copy-head">
                             <span>${escapeHtml(field.label)}</span>
                             <span class="tui-copy-controls">
@@ -1041,7 +1071,7 @@
                                     type="button"
                                     data-copy-value="${escapeHtml(field.value)}"
                                     data-copy-label="${escapeHtml(field.label)}"
-                                >复制</button>
+                                >复制${escapeHtml(field.label)}</button>
                             </span>
                         </div>
                         <code data-secret-value="${escapeHtml(field.value)}">••••••••••••</code>

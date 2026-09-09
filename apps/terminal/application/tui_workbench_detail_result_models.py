@@ -19,6 +19,16 @@ from apps.terminal.application.tui_workbench_constants import (
     VALUE_LABELS,
 )
 
+_REASON_LIST_KEYS = frozenset(
+    {
+        "blocking_reasons",
+        "blocking_reason_codes",
+        "blocked_reasons",
+        "validation_errors",
+        "blocking_issues",
+    }
+)
+
 
 class _PlainTextHTMLParser(HTMLParser):
     """Extract readable text from legacy HTML/HTMX fragments."""
@@ -130,7 +140,9 @@ class TuiWorkbenchDetailResultMixin:
         nested = [
             {"key": key, "label": self._humanize(key), "count": len(value)}
             for key, value in payload.items()
-            if isinstance(value, list) and not self._is_technical_detail_field(str(key), value)
+            if isinstance(value, list)
+            and key not in _REASON_LIST_KEYS
+            and not self._is_technical_detail_field(str(key), value)
         ]
         return {
             "kind": "detail",
@@ -333,7 +345,7 @@ class TuiWorkbenchDetailResultMixin:
         *,
         prefix: str = "",
         depth: int = 0,
-        limit: int = 24,
+        limit: int = 48,
     ) -> list[dict[str, str]]:
         fields: list[dict[str, str]] = []
         for key, value in payload.items():
@@ -341,11 +353,32 @@ class TuiWorkbenchDetailResultMixin:
                 break
             field_key = f"{prefix}.{key}" if prefix else str(key)
             if isinstance(value, list):
+                if key in _REASON_LIST_KEYS:
+                    fields.insert(
+                        0,
+                        {
+                            "key": field_key,
+                            "label": self._humanize(field_key),
+                            "value": "；".join(
+                                (
+                                    "，".join(
+                                        f"{self._humanize(str(k))}: {self._display_value(v)}"
+                                        for k, v in item.items()
+                                        if not isinstance(v, dict | list)
+                                    )
+                                    if isinstance(item, dict)
+                                    else self._display_value(item)
+                                )
+                                for item in value
+                            )
+                            or "无",
+                        },
+                    )
                 continue
             if self._is_technical_detail_field(field_key, value):
                 continue
             if isinstance(value, dict):
-                if depth < 1:
+                if depth < 3:
                     fields.extend(
                         self._detail_fields(
                             value,
@@ -549,7 +582,7 @@ class TuiWorkbenchDetailResultMixin:
             {"key": str(column["key"]), "label": str(column["label"])}
             for column in columns
             if isinstance(column, dict) and column.get("key") and column.get("label")
-        ][:8]
+        ]
 
     def _display_value(self, value: Any) -> str:
         if value is None:

@@ -513,6 +513,18 @@ RUNTIME_AI_USER_PROVIDER_ACTIONS: tuple[dict[str, Any], ...] = (
                 "value_type": "integer",
             },
         ],
-        "view_model": {"kind": "datagrid"},
+        "view_model": {
+            "kind": "datagrid",
+            "columns": [
+                {"key": "created_at", "label": "调用时间"},
+                {"key": "status", "label": "结果"},
+                {"key": "provider_name", "label": "服务商"},
+                {"key": "model", "label": "模型"},
+                {"key": "total_tokens", "label": "Token 用量"},
+                {"key": "estimated_cost", "label": "成本（美元）"},
+                {"key": "response_time_ms", "label": "耗时（毫秒）"},
+                {"key": "error_message", "label": "失败原因"},
+            ],
+        },
     },
 )

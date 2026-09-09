@@ -278,6 +278,7 @@
       "id": "pulse.current",
       "surface": "GET /api/pulse/current/",
       "source_files": [
+        "apps/pulse/infrastructure/repositories.py",
         "apps/pulse/application/query_services.py",
         "apps/pulse/interface/api_views.py"
       ],
@@ -292,6 +293,7 @@
         ]
       },
       "required_tests": [
+        {"case": "persisted_age_rechecked", "test_file": "tests/api/test_pulse_api.py", "test_function": "test_pulse_current_rechecks_persisted_reading_age"},
         {
           "case": "stale_snapshot_blocked",
           "test_file": "tests/api/test_pulse_api.py",

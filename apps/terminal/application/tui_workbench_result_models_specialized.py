@@ -21,6 +21,19 @@ class TuiWorkbenchSpecializedResultMixin:
 
         def _status_label(self, status_code: int, payload: Any | None = None) -> str: ...
 
+        def _detail_model(
+            self, action: dict[str, Any], payload: dict[str, Any], status_code: int
+        ) -> dict[str, Any]: ...
+
+        def _datagrid_model(
+            self,
+            action: dict[str, Any],
+            rows: list[Any],
+            status_code: int,
+            envelope: dict[str, Any] | None = None,
+            request_params: dict[str, Any] | None = None,
+        ) -> dict[str, Any]: ...
+
     @staticmethod
     def _mapping(value: Any) -> dict[str, Any]:
         """Return a mapping payload or an empty mapping for malformed API data."""
@@ -36,6 +49,28 @@ class TuiWorkbenchSpecializedResultMixin:
         request_params: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
         action_key = str(action.get("key") or "")
+        if action_key == "policy.queue_summary" and isinstance(payload, dict):
+            keys = (
+                "pending_review_count",
+                "sla_exceeded_count",
+                "effective_today_count",
+                "policy_level",
+                "gate_level",
+            )
+            ordered = {key: payload[key] for key in keys if key in payload}
+            ordered.update(payload)
+            result = self._detail_model(action, ordered, status_code)
+            if payload.get("sla_exceeded_count"):
+                result["status"] = "存在超时待审事件"
+            elif payload.get("pending_review_count"):
+                result["status"] = "有事件待审核"
+            return result
+        if action_key == "sentiment.awareness-summary" and isinstance(payload, dict):
+            rows = [row for row in payload.get("indices", []) if isinstance(row, dict)]
+            latest = sorted(rows, key=lambda row: str(row.get("date") or ""), reverse=True)[:1]
+            return self._datagrid_model(
+                action, latest, status_code, {**payload, "total": len(latest)}
+            )
         if action_key == "advisor.today_sheet" and isinstance(payload, dict):
             return self._advisor_today_sheet_model(action, payload)
         if action_key in {
@@ -751,7 +786,7 @@ class TuiWorkbenchSpecializedResultMixin:
                         "key": "access_package",
                         "label": "完整接入包",
                         "value": access_package_text,
-                        "presentation": "multiline",
+                        "presentation": "secret",
                     },
                     {
                         "key": "transport_security",

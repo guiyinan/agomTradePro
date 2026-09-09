@@ -41,7 +41,7 @@ RUNTIME_MCP_SELF_SERVICE_SCREEN: dict[str, Any] = {
             "target_screen": "capability-router.self-service",
             "note": "首次接入或需要轮换凭证时从这里创建；默认使用只读权限。",
             "empty_message": "创建令牌后即可复制完整接入包。",
-            "user_priority": "p0",
+            "user_priority": "p2",
             "presentation_semantic": "next_step",
         },
         {
@@ -167,6 +167,7 @@ RUNTIME_MCP_ADMIN_ACCESS_SCREEN: dict[str, Any] = {
                 },
                 {
                     "action_key": "capability-router.admin-revoke-user-mcp-tokens",
+                    "visible_when": {"field": "token_count", "values": [0], "negate": True},
                     "label_template": "回收 {username} 的全部 MCP 令牌",
                     "param_map": {"user_id": "user_id"},
                     "result_panel_key": "mcp-admin-user-workspace",

@@ -367,3 +367,14 @@ research. Source dates and decision gates remain unchanged.
   partial results as a completed operation.
 - `shell-ready` and `p0-ready` are separate timing marks. Primary data loading must
   settle before auxiliary work is scheduled; failed panels retain bounded recovery.
+
+
+## 2026-09-09 巡检修复契约
+
+- 导航、恢复和刷新仅自动执行无确认、无未填必填参数的 GET/HEAD/OPTIONS 读取任务；AI、写操作与要求确认的读取任务展示表单。
+- 面板按 `user_priority` 稳定排序；宽表独占一行，P2 折叠仅占标题高度，回执返回时自动展开。行操作保留首项，其余使用可键盘操作的原生 disclosure。
+- 显式 `view_model.columns` 支持最多 16 列，schema 与运行时一致；通用推断维持紧凑列数，不得截断显式审核字段。完整列表保留筛选与行操作。
+- 行操作可声明 `visible_when: {field, values, negate?}`；field 必须属于面板列，values 为非空标量列表。前端比较保留的原始状态值，服务端仍负责权限与状态校验。
+- `presentation=secret` 对独立凭证和含凭证的完整接入包同样生效，且不依赖 action 是否声明结果语义；正文默认隐藏，复制保留完整内容。
+- HTTP 成功只表示数据已读取；业务阻断、待审积压与超时必须分别呈现。详情展示嵌套标量与阻断原因，剩余详情按需展开。
+- 验证依据见 `docs/reviews/vps-tui-page-design-audit-2026-09-08.md` 及其中修复验收记录。

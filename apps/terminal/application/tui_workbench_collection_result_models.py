@@ -338,6 +338,15 @@ class TuiWorkbenchCollectionResultMixin:
             self._should_preserve_row_identifier(normalized)
             or normalized == "code"
             or normalized.endswith("_code")
+            or normalized
+            in {
+                "audit_status",
+                "approval_status",
+                "gate_effective",
+                "is_active",
+                "is_enabled",
+                "token_count",
+            }
         ):
             return False
         return str(raw_value) != str(display_value)

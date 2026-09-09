@@ -35,10 +35,10 @@ RUNTIME_AI_USER_QUOTAS_SCREEN: dict[str, Any] = {
             "target_screen": "ai-ops.user-quotas",
             "columns": [
                 {"key": "username", "label": "用户"},
-                {"key": "daily_limit", "label": "日额度"},
-                {"key": "monthly_limit", "label": "月额度"},
-                {"key": "daily_spent", "label": "今日已用"},
-                {"key": "monthly_spent", "label": "本月已用"},
+                {"key": "daily_limit", "label": "日额度（美元）"},
+                {"key": "monthly_limit", "label": "月额度（美元）"},
+                {"key": "daily_spent", "label": "今日已用（美元）"},
+                {"key": "monthly_spent", "label": "本月已用（美元）"},
                 {"key": "is_active", "label": "启用"},
                 {"key": "user_id", "label": "用户 ID"},
             ],
@@ -148,7 +148,7 @@ RUNTIME_AI_QUOTA_ACTIONS: tuple[dict[str, Any], ...] = (
             },
             {
                 "key": "daily_limit",
-                "label": "日额度",
+                "label": "日额度（美元）",
                 "input_type": "number",
                 "required": False,
                 "binding": "body",
@@ -156,7 +156,7 @@ RUNTIME_AI_QUOTA_ACTIONS: tuple[dict[str, Any], ...] = (
             },
             {
                 "key": "monthly_limit",
-                "label": "月额度",
+                "label": "月额度（美元）",
                 "input_type": "number",
                 "required": False,
                 "binding": "body",
@@ -203,7 +203,7 @@ RUNTIME_AI_QUOTA_ACTIONS: tuple[dict[str, Any], ...] = (
         "fields": [
             {
                 "key": "daily_limit",
-                "label": "日额度",
+                "label": "日额度（美元）",
                 "input_type": "number",
                 "required": False,
                 "binding": "body",
@@ -211,7 +211,7 @@ RUNTIME_AI_QUOTA_ACTIONS: tuple[dict[str, Any], ...] = (
             },
             {
                 "key": "monthly_limit",
-                "label": "月额度",
+                "label": "月额度（美元）",
                 "input_type": "number",
                 "required": False,
                 "binding": "body",

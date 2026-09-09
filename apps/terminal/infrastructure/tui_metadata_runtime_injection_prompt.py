@@ -231,6 +231,12 @@ RUNTIME_PROMPT_SCREEN: dict[str, Any] = {
             ],
             "row_actions": [
                 {
+                    "action_key": "prompt-template.detail",
+                    "label_template": "查看 {name}",
+                    "param_map": {"template_id": "id"},
+                    "result_panel_key": "prompt-operation-workspace",
+                },
+                {
                     "action_key": "prompt-template.update",
                     "label_template": "编辑 {name}",
                     "param_map": {"template_id": "id"},
@@ -437,6 +443,25 @@ RUNTIME_PROMPT_ACTIONS: tuple[dict[str, Any], ...] = (
         "sequence": 110,
         "task_tier": "operation",
         "fields": _TEMPLATE_FIELDS,
+    },
+    {
+        "key": "prompt-template.detail",
+        "label": "查看提示词模板",
+        "endpoint": "/api/prompt/templates/<int:template_id>/",
+        "method": "GET",
+        "intent": "inspect_prompt_template",
+        "risk": "read",
+        "audience": "authenticated",
+        "effect": "read",
+        "screen_key": "prompt.workbench",
+        "module_key": "research-tools",
+        "view_type": "detail",
+        "description": "查看模板全文、占位符及版本。",
+        "source": "approved:runtime-prompt-workbench",
+        "task_group": "01 模板",
+        "sequence": 115,
+        "task_tier": "support",
+        "fields": [_path_field("template_id", "模板 ID")],
     },
     {
         "key": "prompt-template.update",

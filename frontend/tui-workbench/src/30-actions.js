@@ -170,8 +170,10 @@
         }
     }
 
-    function bindRenderedActionForms() {
-        els.actions.querySelectorAll("[data-action-ui-key]").forEach((form) => {
+    function bindRenderedActionForms(root = els.actions) {
+        root.querySelectorAll("[data-action-ui-key]").forEach((form) => {
+            if (form.dataset.submitBound) return;
+            form.dataset.submitBound = 'true';
             form.addEventListener("submit", (event) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -1153,6 +1155,8 @@
             panel,
             renderDashboardPanelBody(resultPanel, viewModel),
         );
+        container.querySelector('.tui-panel-disclosure')?.setAttribute('open', '');
+        container.scrollIntoView({ block: 'nearest' });
         bindCopyButtons(container);
         bindDashboardPanelOpenControls(container);
         bindDashboardRowActions(container, resultPanel);

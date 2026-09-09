@@ -3,9 +3,23 @@
 from datetime import date
 from typing import Any
 
+from django.utils import timezone
+
 from apps.pulse.application.dtos import PulseHistoryDTO
-from apps.pulse.domain.entities import DimensionScore, PulseIndicatorReading, PulseSnapshot
-from apps.pulse.infrastructure.models import NavigatorAssetConfigModel, PulseLog
+from apps.pulse.domain.entities import (
+    DimensionScore,
+    PulseConfig,
+    PulseIndicatorReading,
+    PulseSnapshot,
+)
+from apps.pulse.infrastructure.data_provider import DEFAULT_PULSE_INDICATORS
+from apps.pulse.infrastructure.models import (
+    NavigatorAssetConfigModel,
+    PulseIndicatorConfigModel,
+    PulseLog,
+)
+from shared.date_utils import business_day_age
+from shared.numeric import safe_float
 
 
 class PulseRepository:
@@ -98,9 +112,30 @@ class PulseRepository:
         """将 PulseLog ORM 实例转换回 PulseSnapshot 域对象"""
         # 重建指标读数
         readings = []
+        today = timezone.localdate()
+        config = PulseConfig.defaults()
+        frequencies = {item.code: item.frequency for item in DEFAULT_PULSE_INDICATORS}
+        frequencies.update(
+            PulseIndicatorConfigModel.objects.values_list("indicator_code", "frequency")
+        )
         for r in log.indicator_readings or []:
             if isinstance(r, dict):
                 reading_observed_at = _parse_date(r.get("observed_at"))
+                frequency = frequencies.get(str(r.get("code") or ""))
+                stale_days = (
+                    config.monthly_stale_days if frequency == "monthly" else config.daily_stale_days
+                )
+                elapsed = (
+                    business_day_age(log.observed_at, today)
+                    if frequency == "daily"
+                    else max(0, (today - log.observed_at).days)
+                )
+                recorded_age = safe_float(r.get("data_age_days"))
+                age = (
+                    int(recorded_age) + elapsed
+                    if recorded_age is not None and recorded_age >= 0
+                    else None
+                )
                 readings.append(
                     PulseIndicatorReading(
                         code=r.get("code", ""),
@@ -112,8 +147,12 @@ class PulseRepository:
                         signal=r.get("signal", "neutral"),
                         signal_score=r.get("signal_score", 0.0),
                         weight=r.get("weight", 1.0),
-                        data_age_days=r.get("data_age_days", 0),
-                        is_stale=bool(r.get("is_stale", False)) or reading_observed_at is None,
+                        data_age_days=max(0, age) if age is not None else 0,
+                        is_stale=bool(r.get("is_stale", False))
+                        or reading_observed_at is None
+                        or reading_observed_at > today
+                        or age is None
+                        or age > stale_days,
                         observed_at=reading_observed_at,
                         source_kind=str(r.get("source_kind") or "legacy_unknown"),
                     )

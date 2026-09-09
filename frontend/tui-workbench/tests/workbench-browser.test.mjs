@@ -631,7 +631,7 @@ async function openHarness(url = "https://app.test/", options = {}) {
             return;
         }
         if (url.pathname === "/api/tui/screens/test.grid/") {
-            await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(screen) });
+            await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(options.screen || screen) });
             return;
         }
         if (url.pathname === "/api/tui/screens/test.dashboard/") {
@@ -1834,4 +1834,69 @@ test("late stale errors cannot replace the latest action result", async () => {
     } finally {
         await browser.close();
     }
+});
+
+
+test("audit unsafe defaults only reveal a form on navigation and refresh", async () => {
+    const unsafe = structuredClone(screen);
+    unsafe.screen.default_action_key = 'test.ai-default';
+    unsafe.actions = [action('test.ai-default', { method: 'POST', risk: 'ai', task_tier: 'primary', fields: [{ key: 'message', label: '问题', input_type: 'textarea', required: true, default: '分析账户' }] })];
+    const { browser, page, requestLog } = await openHarness('https://app.test/?screen=test.grid', { screen: unsafe, waitForInitialRows: false });
+    try {
+        const input = page.locator('[data-main-panel] form[data-action-ui-key="test.ai-default"] textarea');
+        await input.waitFor({ state: 'visible' });
+        assert.equal(await input.inputValue(), '分析账户');
+        await page.keyboard.press('F5');
+        await delay(200);
+        assert.equal(requestLog.filter(item => item.startsWith('REQ') && item.includes('/actions/test.ai-default/run/')).length, 0);
+    } finally { await browser.close(); }
+});
+
+test("audit access package stays masked until explicitly revealed", async () => {
+    const { browser, page } = await openHarness();
+    try {
+        await page.route('**/actions/test.list/run/', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ action: actions[0], view_model: { kind: 'detail', title: '接入包', status: '已读取', fields: [{ key: 'package', label: '完整接入包', presentation: 'secret', value: 'test-only-credential\nhttps://example.test' }] } }) }));
+        await page.keyboard.press('F5');
+        await page.locator('[data-secret-toggle]').waitFor();
+        assert.doesNotMatch(await page.locator('[data-secret-value]').innerText(), /test-only-credential/);
+        await page.locator('[data-secret-toggle]').click();
+        assert.match(await page.locator('[data-secret-value]').innerText(), /test-only-credential/);
+        await page.locator('[data-secret-toggle]').click();
+        assert.doesNotMatch(await page.locator('[data-secret-value]').innerText(), /test-only-credential/);
+    } finally { await browser.close(); }
+});
+
+
+test("audit wide tables retain columns and conditional row tasks in the full list", async () => {
+    const spec = structuredClone(dashboardScreen);
+    spec.actions = [action("test.list"), actions.find(item => item.key === "test.admin-read")];
+    spec.screen.dashboard_panels = [
+        { key: 'receipt', title: '操作回执', kind: 'detail', user_priority: 'p2', presentation_semantic: 'supporting_detail' },
+        { key: 'queue', title: '审核队列', kind: 'datagrid', action_key: 'test.list', user_priority: 'p0', presentation_semantic: 'primary_list', max_rows: 8, columns: [{ key: 'code', label: '对象' }, { key: 'missing_state', label: '审核状态' }], row_actions: [{ action_key: 'test.admin-read', label_template: '查看 {code}', param_map: {}, result_panel_key: 'receipt', visible_when: { field: 'code', values: ['row-001'] } }] },
+    ];
+    const queueSpec = spec.screen.dashboard_panels[1];
+    queueSpec.row_actions.push({ ...queueSpec.row_actions[0], label_template: '再次查看 {code}' });
+    const { browser, page } = await openHarness('https://app.test/?screen=test.dashboard', { dashboardScreen: spec, waitForInitialRows: false });
+    try {
+        const queue = page.locator('[data-dashboard-panel="queue"]');
+        await queue.locator('tbody tr').first().waitFor();
+        assert.equal(await queue.locator('[data-dashboard-row-action]').count(), 2);
+        assert.match(await queue.locator('thead').innerText(), /审核状态/);
+        const more = queue.locator('.tui-row-action-menu summary');
+        const moreBounds = await more.boundingBox();
+        const tableBounds = await queue.locator('.tui-table-scroll').boundingBox();
+        assert.ok(moreBounds.x + moreBounds.width <= tableBounds.x + tableBounds.width + 1);
+        await more.click();
+        await more.click();
+        for (const width of [1280, 1440]) {
+            await page.setViewportSize({ width, height: 1000 });
+            assert.ok((await queue.boundingBox()).width > 600);
+            assert.ok((await page.locator('[data-dashboard-panel="receipt"]').boundingBox()).height < 110);
+        }
+        await queue.locator('[data-panel-full-list]').click();
+        assert.equal(await page.locator('[data-dashboard-row-action]').count(), 2);
+        await page.locator('[data-dashboard-row-action]').first().click();
+        await page.locator('[data-dashboard-panel]').first().waitFor();
+        assert.equal(await page.locator('[data-dashboard-panel="receipt"] details').getAttribute('open'), '');
+    } finally { await browser.close(); }
 });

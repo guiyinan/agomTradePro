@@ -39,6 +39,7 @@ RUNTIME_CONFIG_CENTER_SCREEN: dict[str, Any] = {
         },
         {
             "key": "qlib-runtime-status",
+            "max_rows": 4,
             "title": "一、Qlib 运行条件",
             "kind": "detail",
             "action_key": "config_center.qlib_runtime",

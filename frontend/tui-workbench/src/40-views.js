@@ -121,6 +121,8 @@
 
     function drawDataGrid() {
         const viewModel = state.currentViewModel;
+        const panel = (state.screen?.screen?.dashboard_panels || []).find(item => item.action_key === state.lastAction);
+        const hasRowActions = Boolean(panel?.row_actions?.length);
         const columns = state.currentColumns;
         const allRows = state.visibleRows;
         const localPage = (!viewModel.pager || viewModel.pager.client_side) && typeof runtimeCore.clientPage === "function"
@@ -141,7 +143,7 @@
             ? `
                 <table>
                     <thead>
-                        <tr>${columns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join("")}</tr>
+                        <tr>${columns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join("")}${hasRowActions ? '<th class="tui-row-actions-header">操作</th>' : ''}</tr>
                     </thead>
                     <tbody>
                         ${rows.map((row, rowIndex) => {
@@ -152,6 +154,7 @@
                                     const value = displayValue(row[column.key]);
                                     return `<td class="${cellClass(value, column.label || column.key)}" title="${escapeHtml(value)}">${escapeHtml(value)}</td>`;
                                 }).join("")}
+                                ${hasRowActions ? `<td class="tui-row-actions-cell">${renderDashboardRowActions(panel, row)}</td>` : ''}
                             </tr>
                         `;
                         }).join("")}
@@ -164,6 +167,7 @@
                 state.filterText ? [] : viewModel.next_steps,
             );
         els.main.innerHTML = `
+            ${panel ? '<button type="button" data-return-dashboard>返回概览</button>' + renderDashboardFilters(panel) : ''}
             <div class="tui-view-status">${escapeHtml(viewModel.status)} / ${escapeHtml(viewModel.title)}${escapeHtml(filterSuffix)}</div>
             <div class="tui-panel-caption">${viewModel.pager && !viewModel.pager.client_side ? 'F7 筛选当前页；查找全部记录请使用任务查询条件。' : 'F7 筛选已加载记录。'}</div>
             ${renderDecisionCue(viewModel)}
@@ -181,6 +185,11 @@
         });
         bindNextStepButtons(els.main, viewModel.next_steps);
         bindGridPagination();
+        if (panel) {
+            bindDashboardFilters(els.main);
+            bindDashboardRowActions(els.main, panel);
+            els.main.querySelector('[data-return-dashboard]')?.addEventListener('click', () => loadScreen(state.screen.screen.key, { skipCapture: true, skipRestoreAction: true }));
+        }
         if (rows.length) {
             if (state.selectedRowIndex < pageOffset || state.selectedRowIndex >= pageOffset + rows.length) {
                 state.selectedRowIndex = pageOffset;
@@ -644,7 +653,7 @@
 
     function renderDetail(viewModel) {
         const semantics = currentActionSemantics();
-        const detailBody = semantics.length
+        const detailBody = semantics.length || (viewModel.fields || []).some(field => fieldPresentation(field) !== 'metadata')
             ? renderSemanticDetailView(viewModel, semantics)
             : renderSemanticGridFields(viewModel.fields || []);
         const isEmpty = !detailBody;

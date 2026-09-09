@@ -118,8 +118,6 @@
             state.lastAction = panel.action_key;
             state.lastParams = { ...state.dashboardFilters[panel.key] };
             renderViewModel(viewModel);
-            els.main.insertAdjacentHTML('afterbegin', '<button type="button" data-return-dashboard>返回概览</button>');
-            els.main.querySelector('[data-return-dashboard]').addEventListener('click', () => loadScreen(state.screen.screen.key, { skipCapture: true, skipRestoreAction: true }));
         });
     }
 

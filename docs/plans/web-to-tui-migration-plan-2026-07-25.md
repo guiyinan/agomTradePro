@@ -746,3 +746,8 @@ SHA-256=`5213277b9fcddeb2b96dc050ed52619079060395d79467b68d1616fa2a10a636`。
 这是本次查询证明的首个样本，不宣称绝对最早样本；未回填历史、合成零或缩短窗口。
 官方 retained binder dry-run 与 --write-evidence 均通过，candidate.retained_observation 已绑定。
 自然时间未满足，旧候选 UAT/cleanup/rollback/approval 不继承，Classic 清理继续禁止。
+
+
+### 2026-09-09 巡检缺陷修复
+
+Classic 首页当前配置的 0–1 比例按百分比展示；Alpha 入口文案引导至专门排名页，移除实现细节；Classic 政策动作按事件审核/生效状态呈现，TUI 与 Classic 政策页同步刷新静态资源版本。路由及迁移矩阵不变，已运行模板迁移清单检查。TUI 页面整改记录见 `docs/reviews/vps-tui-page-design-audit-2026-09-08.md`。

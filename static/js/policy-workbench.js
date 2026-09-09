@@ -179,12 +179,12 @@ function renderEvents(items) {
             </td>
             <td>
                 <div class="actions">
-                    ${currentTab === 'pending' ? `
+                    ${item.audit_status === 'pending_review' ? `
                         <button class="btn btn-success btn-sm" data-action="approve" data-id="${item.id}">通过</button>
                         <button class="btn btn-danger btn-sm" data-action="reject" data-id="${item.id}">拒绝</button>
                         <button class="btn btn-outline btn-sm" data-action="detail" data-id="${item.id}">详情</button>
                     ` : `
-                        <button class="btn btn-warning btn-sm" data-action="rollback" data-id="${item.id}">回滚</button>
+                        ${item.gate_effective ? `<button class="btn btn-warning btn-sm" data-action="rollback" data-id="${item.id}">回滚</button>` : ''}
                         <button class="btn btn-outline btn-sm" data-action="detail" data-id="${item.id}">详情</button>
                     `}
                 </div>

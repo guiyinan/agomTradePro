@@ -44,6 +44,7 @@ RUNTIME_USER_ACCESS_GOVERNANCE_SCREEN: dict[str, Any] = {
             "row_actions": [
                 {
                     "action_key": "identity-access.approve-user",
+                    "visible_when": {"field": "approval_status", "values": ["pending"]},
                     "label_template": "批准 {username}",
                     "param_map": {"user_id": "user_id"},
                     "result_panel_key": "user-access-receipt",
@@ -51,6 +52,7 @@ RUNTIME_USER_ACCESS_GOVERNANCE_SCREEN: dict[str, Any] = {
                 },
                 {
                     "action_key": "identity-access.reject-user",
+                    "visible_when": {"field": "approval_status", "values": ["pending"]},
                     "label_template": "拒绝 {username}",
                     "param_map": {"user_id": "user_id"},
                     "result_panel_key": "user-access-receipt",
@@ -65,6 +67,11 @@ RUNTIME_USER_ACCESS_GOVERNANCE_SCREEN: dict[str, Any] = {
                 },
                 {
                     "action_key": "identity-access.reset-user",
+                    "visible_when": {
+                        "field": "approval_status",
+                        "values": ["pending"],
+                        "negate": True,
+                    },
                     "label_template": "重置 {username} 的准入状态",
                     "param_map": {"user_id": "user_id"},
                     "result_panel_key": "user-access-receipt",

@@ -591,6 +591,7 @@ def test_tui_auto_advisor_screen_defaults_to_account_selector(client, tui_user):
     assert action_by_key["advisor.today_sheet"]["fields"][0]["key"] == "account_id"
     panels = payload["screen"]["dashboard_panels"]
     assert {panel["action_key"] for panel in panels} == {
+        "decision.workspace.recommendations_refresh",
         "decision.workspace.summary",
         "dashboard.action-recommendation",
         "decision-rhythm.quota-list",
@@ -3047,7 +3048,7 @@ def test_tui_mcp_self_service_screen_exposes_status_endpoint_and_prompt_panels(c
     ]
     actions = {action["key"]: action for action in payload["actions"]}
     assert "capability-router.verify-my-mcp-access" in actions
-    assert panels[0]["user_priority"] == "p0"
+    assert panels[0]["user_priority"] == "p2"
     assert panels[1]["user_priority"] == "p0"
     assert panels[2]["user_priority"] == "p1"
     assert panels[3]["user_priority"] == "p2"
@@ -3183,11 +3184,13 @@ def test_tui_research_asset_lab_screen_returns_overview_panels(client, tui_user)
     assert payload["screen"]["default_action_key"] == "asset-analysis.pool-summary"
     panels = payload["screen"]["dashboard_panels"]
     assert [panel["action_key"] for panel in panels if panel["action_key"]] == [
+        "asset-analysis.pool-screen",
         "asset-analysis.pool-summary",
         "backtest.summary",
         "backtest.list",
     ]
     assert [panel["kind"] for panel in panels if panel["action_key"]] == [
+        "detail",
         "detail",
         "detail",
         "datagrid",
@@ -3234,13 +3237,13 @@ def test_tui_data_center_screen_returns_overview_panels(client, tui_admin_user):
     assert payload["screen"]["default_action_key"] == "system.health-summary"
     panels = payload["screen"]["dashboard_panels"]
     assert [panel["action_key"] for panel in panels] == [
+        "task-monitor.readiness",
+        "task-monitor.task-list",
         "operational-readiness.release-identity",
         "system.health-summary",
         "data-center.status-summary",
         "data-center.provider-list",
         "",
-        "task-monitor.readiness",
-        "task-monitor.task-list",
     ]
     action_keys = [action["key"] for action in payload["actions"]]
     actions = {action["key"]: action for action in payload["actions"]}
@@ -4931,7 +4934,7 @@ def test_tui_action_api_reuses_session_for_password_protected_public_share(
     assert snapshot_response.status_code == 200
     snapshot_payload = snapshot_response.json()
     assert snapshot_payload["response"]["status_code"] == 200
-    assert snapshot_payload["view_model"]["status"] == "正常"
+    assert snapshot_payload["view_model"]["status"] == "已读取"
     assert snapshot_payload["debug"]["raw_response"]["summary"]["account_name"] == (
         f"TUI Share {share_link.short_code}"
     )
@@ -5994,8 +5997,8 @@ def test_tui_service_localizes_share_snapshot_and_prompt_labels(tui_user):
     assert share_fields["share_link.share_level"]["value"] == "快照"
     assert share_fields["share_link.visibility"]["label"] == "分享链接 / 可见性"
     assert share_fields["share_link.visibility"]["value"] == "公开"
-    assert share_fields["snapshot.performance"]["label"] == "快照 / 绩效"
-    assert share_fields["snapshot.transactions"]["label"] == "快照 / 交易"
+    assert share_fields["snapshot.performance.annualized_return"]["value"] == "0.12"
+    assert share_fields["snapshot.transactions.total_trades"]["value"] == "4"
     assert share_fields["summary.portfolio_type"]["value"] == "模拟"
 
     class PromptExecutor:
@@ -6125,8 +6128,8 @@ def test_tui_service_localizes_alpha_stats_and_agent_runtime_labels(tui_user):
     assert alpha_fields["result.actionable"]["label"] == "结果 / 可操作"
     assert alpha_fields["result.watch"]["label"] == "结果 / 观察"
     assert alpha_fields["result.candidate"]["label"] == "结果 / 候选"
-    assert alpha_fields["result.by_status"]["label"] == "结果 / 按状态"
-    assert alpha_fields["result.by_direction"]["label"] == "结果 / 按方向"
+    assert alpha_fields["result.by_status.draft"]["value"] == "4"
+    assert alpha_fields["result.by_direction.long"]["value"] == "2"
 
     task_payload = service.run_action(action_key="agent.task.detail", params={}, user=tui_user)
     task_fields = {field["key"]: field for field in task_payload["view_model"]["fields"]}
@@ -6134,7 +6137,7 @@ def test_tui_service_localizes_alpha_stats_and_agent_runtime_labels(tui_user):
     assert task_fields["task.task_domain"]["label"] == "任务 / 任务域"
     assert task_fields["task.task_domain"]["value"] == "研究"
     assert task_fields["task.status"]["value"] == "草稿"
-    assert task_fields["task.input_payload"]["label"] == "任务 / 输入参数"
+    assert task_fields["task.input_payload.foo"]["value"] == "bar"
     assert task_fields["task.current_step"]["label"] == "任务 / 当前步骤"
     assert task_fields["task.last_error"]["label"] == "任务 / 最近错误"
     assert task_fields["task.steps_count"]["label"] == "任务 / 步骤数量"
@@ -6248,7 +6251,7 @@ def test_tui_service_projects_regime_overview_for_quadrant_panel(tui_user):
     view_model = payload["view_model"]
     fields = {field["key"]: field["value"] for field in view_model["fields"]}
     assert view_model["kind"] == "detail"
-    assert view_model["status"] == "正常"
+    assert view_model["status"] == "已读取"
     assert fields["current_regime"] == "复苏"
     assert fields["confidence"] == "36.88"
     assert fields["trend"] == "增长上行 / 通胀下行"
@@ -6443,7 +6446,7 @@ def test_tui_service_detail_model_flattens_one_level_nested_objects(tui_user):
         "value": "2",
         "presentation": "metadata",
     } in fields
-    assert payload["view_model"]["status"] == "正常"
+    assert payload["view_model"]["status"] == "已读取"
 
 
 def test_tui_service_datagrid_uses_operator_field_labels(tui_user):
@@ -6488,7 +6491,7 @@ def test_tui_service_datagrid_uses_operator_field_labels(tui_user):
 
     payload = service.run_action(action_key="asset.pool", params={}, user=tui_user)
 
-    assert payload["view_model"]["status"] == "正常"
+    assert payload["view_model"]["status"] == "已读取"
     assert payload["view_model"]["columns"] == [
         {"key": "asset_code", "label": "标的代码"},
         {"key": "asset_name", "label": "标的名称"},
@@ -8045,7 +8048,7 @@ def test_tui_metadata_repository_patches_policy_workbench_items_pagination():
         "offset_param": "offset",
         "limit_param": "limit",
     }
-    assert [field["key"] for field in action["fields"]] == ["limit", "offset"]
+    assert [field["key"] for field in action["fields"]] == ["search", "tab", "start_date", "end_date", "limit", "offset"]
 
 
 @pytest.mark.django_db
@@ -8969,7 +8972,7 @@ def test_tui_mcp_self_service_status_model_prioritizes_canonical_access_package(
         "access_token": "secret",
         "route_endpoint": "copyable",
         "capability_catalog_endpoint": "copyable",
-        "access_package": "multiline",
+        "access_package": "secret",
         "transport_security": "metadata",
         "environment_statement": "metadata",
         "blocking_reason": "metadata",
@@ -9795,7 +9798,7 @@ def test_tui_capability_router_self_service_screen_publishes_user_facing_semanti
     assert screen["user_experience"]["journey"] == "self_service"
     assert screen["dashboard_layout"] == "task_flow"
     assert panels["mcp-create-token"]["presentation_semantic"] == "next_step"
-    assert panels["mcp-create-token"]["user_priority"] == "p0"
+    assert panels["mcp-create-token"]["user_priority"] == "p2"
     assert panels["mcp-access-package"]["presentation_semantic"] == "copyable_secret"
     assert panels["mcp-access-package"]["user_priority"] == "p0"
     assert panels["mcp-access-verification"]["presentation_semantic"] == "primary_status"
@@ -10121,3 +10124,50 @@ def test_published_tui_write_and_admin_actions_are_gated_consistently(client, tu
             )
 
     assert not failures, failures[:5]
+
+
+def test_audit_policy_projection_preserves_review_states_and_reasons():
+    from apps.terminal.infrastructure.tui_metadata_runtime_action_patch_alpha_policy import RUNTIME_ACTION_PATCHES_ALPHA_POLICY
+    service = TuiWorkbenchService(metadata_repository=FakeMetadataRepository())
+    action = {"key": "policy.workbench_items", "label": "政策队列", **RUNTIME_ACTION_PATCHES_ALPHA_POLICY["policy.workbench_items"]}
+    row = {"id": 7, "title": "审核事件", "audit_status": "approved", "gate_effective": True, "event_date": "2026-09-08", "review_notes": "证据齐全", "rollback_reason": "", "level": "P1", "gate_level": "L1"}
+    result = service._to_view_model(action=action, payload={"items": [row], "total": 1}, status_code=200)
+    assert result["rows"][0]["review_notes"] == "证据齐全"
+    assert result["rows"][0]["__raw_audit_status"] == "approved"
+    assert result["rows"][0]["__raw_gate_effective"] is True
+    assert len(result["columns"]) == 9
+
+
+def test_audit_policy_summary_leads_with_backlog_and_overdue_status():
+    service = TuiWorkbenchService(metadata_repository=FakeMetadataRepository())
+    result = service._to_view_model(action={"key": "policy.queue_summary", "label": "政策摘要"}, payload={"policy_level": "P1", "pending_review_count": 200, "sla_exceeded_count": 12}, status_code=200)
+    assert result["fields"][0]["key"] == "pending_review_count"
+    assert result["status"] == "存在超时待审事件"
+
+
+def test_audit_sentiment_summary_selects_latest_observation():
+    service = TuiWorkbenchService(metadata_repository=FakeMetadataRepository())
+    action = {"key": "sentiment.awareness-summary", "label": "最新情绪", "view_model": {"columns": [{"key": "date", "label": "观测日期"}], "total_path": "total"}}
+    result = service._to_view_model(action=action, payload={"indices": [{"date": "2026-08-13"}, {"date": "2026-09-08"}, {"date": "2026-08-20"}]}, status_code=200)
+    assert [row["date"] for row in result["rows"]] == ["2026-09-08"]
+
+
+def test_audit_blocking_reason_is_readable_in_detail():
+    service = TuiWorkbenchService(metadata_repository=FakeMetadataRepository())
+    result = service._to_view_model(action={"key": "test.readiness", "label": "就绪状态", "view_model": {"kind": "detail"}}, payload={"must_not_use_for_decision": True, "blocking_reason_codes": ["approval_required"]}, status_code=200)
+    assert result["status"] == "不可用于决策"
+    assert any(field["key"] == "blocking_reason_codes" and field["value"] != "1 行" for field in result["fields"])
+
+
+@pytest.mark.parametrize("condition", [{"field": "missing", "values": ["pending"]}, {"field": "state", "values": []}, {"field": "state", "values": [{}]}])
+def test_audit_row_condition_rejects_invalid_state_contract(condition):
+    from apps.terminal.application.tui_metadata import _validate_dashboard_row_actions
+    with pytest.raises(TuiMetadataValidationError, match="invalid visible_when"):
+        _validate_dashboard_row_actions(screen={"key": "test"}, panel={"key": "queue", "columns": [{"key": "state", "label": "状态"}], "row_actions": [{"action_key": "test.read", "label_template": "查看", "param_map": {}, "visible_when": condition}]}, action_by_key={})
+
+
+def test_audit_blocking_issue_objects_show_the_actual_reason():
+    service = TuiWorkbenchService(metadata_repository=FakeMetadataRepository())
+    result = service._to_view_model(action={"key": "test.readiness", "label": "验收", "view_model": {"kind": "detail"}}, payload={"blocking_issues": [{"code": "scheduler_missing", "message": "调度未就绪"}]}, status_code=200)
+    assert "调度未就绪" in result["fields"][0]["value"]
+    assert not result["nested"]

@@ -123,7 +123,7 @@ RUNTIME_BROKER_EXECUTION_SCREENS: tuple[dict[str, Any], ...] = (
                 "layout_area": "qmt_guide",
                 "target_screen": "broker-execution.qmt-setup",
                 "note": "按顺序完成准备、绑定、门禁、凭证、安装、只读验收和分级启用。",
-                "user_priority": "p0",
+                "user_priority": "p2",
                 "presentation_semantic": "setup_guide",
             },
             {

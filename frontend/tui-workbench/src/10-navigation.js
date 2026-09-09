@@ -381,10 +381,16 @@
         if (entryState.mode === "parameter_gate" && defaultAction) {
             renderEntryState(screenSpec, defaultAction, entryState);
             setStatus("等待选择");
-        } else if (defaultAction && !options.suppressAutoAction) {
+        } else if (defaultAction && !options.suppressAutoAction && dashboardActionCanAutoRun(defaultAction)) {
             const defaultForm = els.actions.querySelector(`[data-action-ui-key="${CSS.escape(actionUiKey(defaultAction))}"]`);
             renderActionLoadingState(defaultAction, screenSpec, { waitingCopy: entryState.empty_copy });
             runAction(defaultAction.key, defaultForm);
+        } else if (defaultAction) {
+            els.main.closest('.tui-workspace-grid').classList.add('is-dashboard');
+            els.main.innerHTML = renderEmptyState("填写任务内容后提交。", [screenEmptyStateHint(screen, screen.summary)]) + renderActionForm(defaultAction);
+            bindRenderedActionForms(els.main);
+            focusActionFormInPanel(els.main.querySelector('form'));
+            setStatus("等待提交");
         } else {
             els.main.innerHTML = `<div class="tui-empty-state">${escapeHtml(entryState.empty_copy || screenEmptyStateHint(screen, screen.summary))}<br>请选择左侧任务或按 F6 执行下一主流程。</div>`;
             setStatus("工作区就绪");
@@ -615,7 +621,7 @@
         els.workflowStrip.innerHTML = `
             <div class="tui-workflow-main">
                 <span>${escapeHtml(wf.name)}</span>
-                <strong>${escapeHtml(String(wf.step || "-").padStart(2, "0"))}/${escapeHtml(wf.total || "-")}</strong>
+                ${Number(wf.step) > 0 && Number(wf.total) > 0 ? `<strong>${escapeHtml(String(wf.step).padStart(2, "0"))}/${escapeHtml(wf.total)}</strong>` : ""}
                 <span>${escapeHtml(wf.label || "")}</span>
             </div>
             <div class="tui-workflow-role">${escapeHtml(wf.role || "")}</div>

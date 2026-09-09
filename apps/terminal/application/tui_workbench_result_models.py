@@ -418,7 +418,19 @@ class TuiWorkbenchResultModelMixin(
 
     def _status_label(self, status_code: int, payload: Any | None = None) -> str:
         if 200 <= int(status_code) < 300:
-            return STATUS_LABELS["OK"]
+            if isinstance(payload, dict):
+                if (
+                    payload.get("must_not_use_for_decision") is True
+                    or payload.get("blocking_reason_codes")
+                    or payload.get("blocking_reasons")
+                ):
+                    return "不可用于决策"
+                if payload.get("outcome") in {"blocked", "failed", "partial"}:
+                    return {"blocked": "已阻断", "failed": "失败", "partial": "部分完成"}[
+                        payload["outcome"]
+                    ]
+            # A successful read is not a business readiness judgement.
+            return "已读取"
         if 300 <= int(status_code) < 400:
             return STATUS_LABELS["REDIRECT"]
         if self._looks_like_password_challenge(status_code, payload):

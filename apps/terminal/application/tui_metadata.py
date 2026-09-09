@@ -211,9 +211,9 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
                     raise TuiMetadataValidationError(
                         f"Action view_model columns must be a list: {action['key']}"
                     )
-                if len(value) > 8:
+                if len(value) > (16 if key == "columns" else 8):
                     raise TuiMetadataValidationError(
-                        f"Action view_model columns cannot exceed 8: {action['key']}"
+                        f"Action view_model columns cannot exceed 16: {action['key']}"
                     )
                 for column in value:
                     if not isinstance(column, dict) or set(column) != {"key", "label"}:
@@ -440,6 +440,7 @@ def _validate_dashboard_row_actions(
             "param_map",
             "result_panel_key",
             "refresh_panel_key",
+            "visible_when",
         }
         if unknown_keys:
             names = ", ".join(sorted(unknown_keys))
@@ -447,6 +448,19 @@ def _validate_dashboard_row_actions(
                 f"Dashboard row action has unsupported keys: {screen_key}.{panel_key}.{names}"
             )
         action_key = str(descriptor["action_key"])
+        condition = descriptor.get("visible_when")
+        if condition is not None and (
+            not isinstance(condition, dict)
+            or set(condition) - {"field", "values", "negate"}
+            or condition.get("field") not in column_keys
+            or not isinstance(condition.get("values"), list)
+            or not condition["values"]
+            or any(not isinstance(value, str | int | float | bool) for value in condition["values"])
+            or not isinstance(condition.get("negate", False), bool)
+        ):
+            raise TuiMetadataValidationError(
+                f"Dashboard row action has invalid visible_when: {screen_key}.{panel_key}"
+            )
         action = action_by_key.get(action_key)
         if action is None:
             raise TuiMetadataValidationError(

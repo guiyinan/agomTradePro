@@ -75,3 +75,8 @@ pytest tests/unit/ci/test_check_current_data_contracts.py -q
 - 决策运行门的三项严格预检、候选绑定 compare-and-set 激活、激活后复验与失败自动 re-block；禁止以裸 `active` 状态写入替代该流程。
 
 受管范围应随新的决策数据面增加，只能扩展，不能静默删除。
+
+
+### 2026-09-09 Pulse 持久化快照读取
+
+重建 Pulse 快照时，按既有指标频率与 PulseConfig 阈值重新计算数据年龄。保留采集时基于发布日计算的年龄，再加上快照观测日到读取日的经过天数（日频使用工作日）；保留原始 observed_at，历史已过期标记不能重新变为可用。缺失源日期或年龄、未来源日期均阻断。回归：`test_pulse_current_rechecks_persisted_reading_age`。

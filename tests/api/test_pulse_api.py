@@ -111,7 +111,8 @@ def authenticated_client(db):
 
 
 @pytest.mark.django_db
-def test_pulse_current_api_contract(authenticated_client):
+def test_pulse_current_api_contract(authenticated_client, monkeypatch):
+    monkeypatch.setattr("apps.pulse.infrastructure.repositories.timezone.localdate", lambda: date(2026, 3, 25))
     PulseRepository().save_snapshot(_pulse_snapshot())
 
     response = authenticated_client.get("/api/pulse/current/")
@@ -331,3 +332,16 @@ def test_pulse_current_returns_explicit_empty_state(
         "data": [],
         "message": "No pulse data available",
     }
+
+
+@pytest.mark.django_db
+def test_pulse_current_rechecks_persisted_reading_age(authenticated_client, monkeypatch):
+    PulseRepository().save_snapshot(_pulse_snapshot())
+    monkeypatch.setattr("apps.pulse.infrastructure.repositories.timezone.localdate", lambda: date(2026, 9, 8))
+    response = authenticated_client.get("/api/pulse/current/")
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    data = response.json()["data"]
+    assert data["must_not_use_for_decision"] is True
+    assert data["indicators"][0]["is_stale"] is True
+    assert data["indicators"][0]["observed_at"] == "2026-03-24"

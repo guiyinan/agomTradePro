@@ -509,7 +509,7 @@
                         <h3>完整 Alpha 排名</h3>
                         <span class="card-badge">专门页面</span>
                     </div>
-                    <p class="alpha-summary-empty">Alpha 排行已从首页移除，避免账户级股票池、评分缓存和退出链路阻塞首页打开。</p>
+                    <p class="alpha-summary-empty">查看完整候选清单、评分日期、筛选理由与退出条件，请打开专门的 Alpha 排名页面。</p>
                     <div class="alpha-summary-footer">
                         <a href="{% url 'dashboard:alpha_ranking' %}?alpha_scope={{ selected_alpha_scope|default:'portfolio' }}{% if selected_portfolio_id and selected_alpha_scope != 'general' %}&portfolio_id={{ selected_portfolio_id }}{% endif %}{% if selected_alpha_pool_mode and selected_alpha_scope != 'general' %}&pool_mode={{ selected_alpha_pool_mode|urlencode }}{% endif %}&top_n=200" class="alpha-section-link">打开完整排名</a>
                     </div>
@@ -584,9 +584,9 @@
                             <div class="allocation-bar-item">
                                 <span class="bar-label">{% if asset_class == 'equity' %}权益{% elif asset_class == 'fixed_income' %}债券{% elif asset_class == 'commodity' %}商品{% elif asset_class == 'cash' %}现金{% else %}{{ asset_class }}{% endif %}</span>
                                 <div class="bar-track">
-                                    <div class="bar-fill bar-current" style="width: {{ value|floatformat:0 }}%"></div>
+                                    <div class="bar-fill bar-current" style="width: {% widthratio value 1 100 %}%"></div>
                                 </div>
-                                <span class="bar-value">{{ value|floatformat:1 }}%</span>
+                                <span class="bar-value">{% widthratio value 1 100 %}%</span>
                             </div>
                             {% endfor %}
                         </div>
