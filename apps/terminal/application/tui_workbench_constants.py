@@ -42,6 +42,22 @@ ROW_IDENTIFIER_FIELDS = {
 }
 
 FIELD_LABELS = {
+    "egress_id": "数据出口编号",
+    "fixed_egress_id": "固定或备用出口编号",
+    "allowed_egress_ids": "允许的出口顺序",
+    "rule_id": "命中规则编号",
+    "deployment_region": "执行节点区域",
+    "domain_pattern": "目标域名规则",
+    "matched_domain": "命中目标域名",
+    "target_host": "目标主机",
+    "strategy_label": "出网策略",
+    "concurrency_limit": "最大并发请求数",
+    "username_configured": "代理账号已配置",
+    "password_configured": "代理密码已配置",
+    "attempt": "本次尝试序号",
+    "attempts": "连接尝试记录",
+    "observed_ip": "观测到的出口地址",
+    "latency_ms": "耗时（毫秒）",
     "daily_spent": "今日用量（美元）",
     "monthly_spent": "本月用量（美元）",
     "approval_required": "需要审批",

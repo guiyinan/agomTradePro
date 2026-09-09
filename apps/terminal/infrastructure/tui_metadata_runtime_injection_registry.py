@@ -75,6 +75,7 @@ from .tui_metadata_runtime_injection_decision_rhythm import (
 from .tui_metadata_runtime_injection_decision_workspace import (
     RUNTIME_DECISION_WORKSPACE_ACTIONS,
 )
+from .tui_metadata_runtime_injection_egress import RUNTIME_EGRESS_ACTIONS
 from .tui_metadata_runtime_injection_equity_analytics import (
     RUNTIME_EQUITY_ANALYTICS_ACTIONS,
 )
@@ -435,7 +436,7 @@ _LEGACY_RUNTIME_METADATA_INJECTIONS: tuple[RuntimeMetadataInjectionBundle, ...] 
     ),
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_data_center_metadata",
-        actions=RUNTIME_DATA_CENTER_ACTIONS,
+        actions=RUNTIME_DATA_CENTER_ACTIONS + RUNTIME_EGRESS_ACTIONS,
         replace_existing=True,
     ),
     RuntimeMetadataInjectionBundle(

@@ -3243,6 +3243,13 @@ def test_tui_data_center_screen_returns_overview_panels(client, tui_admin_user):
         "system.health-summary",
         "data-center.status-summary",
         "data-center.provider-list",
+        "data-center.egress-endpoint-create",
+        "data-center.egress-rule-create",
+        "data-center.egress-preview",
+        "data-center.egress-diagnostics",
+        "data-center.egress-endpoints",
+        "data-center.egress-rules",
+        "",
         "",
     ]
     action_keys = [action["key"] for action in payload["actions"]]
