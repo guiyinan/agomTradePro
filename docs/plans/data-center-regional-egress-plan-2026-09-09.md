@@ -229,6 +229,20 @@ Black/isort/Ruff、架构 boundary/audit 与 active-plan registry 检查通过�
 
 本次仅提交本地配置页面和契约修复，未部署 VPS；真实 FRP 连通性和出口 IP 验收仍待部署环境完成。
 
+## MCP / SDK 配置补齐（2026-09-09）
+
+默认 MCP 能力入口已增加出口与规则的清单、详情、登记、修改启停，以及指定出口测试、路径预览和连接诊断。SDK 同步提供 11 个数据中台方法，沿用已存在的后端接口；操作顺序与参数示例见 [MCP 配置说明](../development/data-egress-mcp-configuration.md)。
+
+- 使用 owner manifest 与 native handler 注册，无需启用旧工具列表。管理员权限在 MCP 和后端分别校验。
+- 四项配置写入和两项联网测试均要求预览、显式确认和幂等键；预览阶段不会写配置或发起行情请求。确认和幂等记录只在现有 MCP 进程内有效。
+- 凭据字段不回显，预览与审计脱敏；SDK 保留省略字段、空密码、显式 false 和 null 的不同语义。诊断保留真实 outcome 和每次尝试结果。
+- SDK/MCP 注册、核心调用、权限、确认、幂等、凭据、SDK 客户端回归合计 101 passed。
+- MCP → 实际 SDK → Django API → 临时 SQLite 的持久化验收 2 passed：停用登记、确认前无写入、指定出口探测、启用顺序、规则预览、失败诊断、停用和清除凭据；后端拒绝非管理员的断言通过。网络传输使用可控结果，不连接真实行情服务。
+- MCP manifest、读写证据、确认、预览、审计、工具预算、catalog 去重、TUI bridge 和 Evidence 输出契约检查通过；能力规模按实际测量更新治理基线，默认顶层工具数不变。
+- 最终补齐 URL 审计脱敏：含查询参数、认证或片段的地址在审计中整体隐藏，实际 SDK 请求保持原值；含新增用例的 MCP/审计集合 38 passed。类型增量检查、全仓 mypy debt ceiling、Black/isort/Ruff、架构 boundary/audit、文档路由 SDK 一致性和 active-plan 检查通过。
+
+本次仍是本地实现和提交；VPS 与已运行的 MCP 进程需要部署更新后重启。真实 FRP 连接、出口 IP、行情可用性和 PostgreSQL/Redis 并发验收继续保留为部署环境待办。
+
 ## 外部依据
 
 - [frp 客户端插件](https://gofrp.org/en/docs/features/common/client-plugin/)

@@ -701,6 +701,14 @@ class AuditLogger:
                 key_lower = key.lower()
                 if any(kw in key_lower for kw in sensitive_keywords):
                     masked[key] = mask
+                elif (
+                    isinstance(value, str)
+                    and (key_lower == "url" or key_lower.endswith("_url"))
+                    and any(marker in value for marker in ("?", "@", "#"))
+                ):
+                    # URLs can carry credentials even when input validation rejects them.
+                    # Mask the whole value so malformed URLs are safe to audit as well.
+                    masked[key] = mask
                 else:
                     masked[key] = AuditLogger._mask_sensitive_params(value, mask)
             return masked

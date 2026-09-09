@@ -1,5 +1,5 @@
 {
-  "version": "2026-09-09.v73",
+  "version": "2026-09-09.v74",
   "updated_at": "2026-09-09",
   "execution_focus": {
     "unit_id": null,
@@ -1160,7 +1160,7 @@
         "status": "completed",
         "title": "Implement configurable regional market-data egress and frpc integration",
         "depends_on": [],
-        "exit_gate": "Repository routing, encrypted endpoints, provider transport isolation, bounded fault handling, staff TUI, opt-in frpc deployment and contract tests pass; preserve separate DATA-02 production acceptance. Source plan: docs/plans/data-center-regional-egress-plan-2026-09-09.md."
+        "exit_gate": "Repository routing, encrypted endpoints, provider transport isolation, bounded fault handling, staff TUI and default governed MCP/SDK configuration, opt-in frpc deployment and contract tests pass; preserve separate DATA-02 production acceptance. Source plan: docs/plans/data-center-regional-egress-plan-2026-09-09.md."
       }
     ]
   }

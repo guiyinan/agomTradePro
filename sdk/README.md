@@ -9,6 +9,11 @@ AgomTradePro SDK provides two ways to interact with the AgomTradePro system:
 1. **Python SDK** - Full-featured Python client for complete system access
 2. **MCP Server** - AI-native tools for Claude Code and other AI agents
 
+Regional data egress configuration is available through the default governed
+MCP capabilities and `client.data_center` SDK methods. See the
+[egress configuration guide](../docs/development/data-egress-mcp-configuration.md)
+for discovery, confirmation, credentials and diagnostics.
+
 ## Optional integration package
 
 Browser/TUI users and ordinary CLI callers do **not** install this package or
