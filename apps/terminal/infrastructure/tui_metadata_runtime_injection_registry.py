@@ -127,6 +127,7 @@ from .tui_metadata_runtime_injection_prompt import (
     RUNTIME_PROMPT_ACTIONS,
     RUNTIME_PROMPT_SCREEN,
 )
+from .tui_metadata_runtime_injection_qmt_bridge import RUNTIME_QMT_BRIDGE_ACTIONS
 from .tui_metadata_runtime_injection_realtime import (
     RUNTIME_REALTIME_ACTIONS,
     RUNTIME_REALTIME_GROUP,
@@ -343,6 +344,11 @@ _LEGACY_RUNTIME_METADATA_INJECTIONS: tuple[RuntimeMetadataInjectionBundle, ...] 
         coverage_key="runtime_injected_broker_execution_metadata",
         screens=RUNTIME_BROKER_EXECUTION_SCREENS,
         actions=RUNTIME_BROKER_EXECUTION_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_qmt_bridge_metadata",
+        actions=RUNTIME_QMT_BRIDGE_ACTIONS,
+        replace_existing=True,
     ),
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_realtime_metadata",
