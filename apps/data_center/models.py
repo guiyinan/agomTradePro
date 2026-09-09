@@ -18,6 +18,12 @@ from apps.data_center.infrastructure.catalog_models import (
 from apps.data_center.infrastructure.catalog_models import (
     DatasetPublicationPolicyModel as DatasetPublicationPolicyModel,
 )
+from apps.data_center.infrastructure.egress_models import (  # noqa: F401
+    EgressRequestAuditModel as EgressRequestAuditModel,
+)
+from apps.data_center.infrastructure.egress_models import (
+    EgressRoutingRuleModel as EgressRoutingRuleModel,
+)
 from apps.data_center.infrastructure.market_structure_models import (
     InvestorActorDefinitionModel as InvestorActorDefinitionModel,
 )

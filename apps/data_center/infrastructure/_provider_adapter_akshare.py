@@ -7,12 +7,14 @@ standardized data_center domain entities only.
 from __future__ import annotations
 
 import logging
+import os
 from datetime import UTC, date, datetime, timedelta
 from time import sleep
-from typing import Any
+from typing import Any, cast
 
 import requests
 
+from apps.data_center.application.egress_service import get_egress_transport
 from apps.data_center.domain.entities import (
     CapitalFlowFact,
     FinancialFact,
@@ -40,13 +42,31 @@ from apps.data_center.infrastructure._provider_adapter_base import (
     _score_market_news_sentiment,
     _valuation_period,
 )
-from apps.data_center.infrastructure.akshare_model_market_source import AkshareModelMarketSource
+from apps.data_center.infrastructure.akshare_model_market_source import (
+    AkshareModelMarketSource,
+    _EgressHistoryTransport,
+)
 from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
 from apps.data_center.infrastructure.macro_sources import AKShareAdapter
 from apps.data_center.infrastructure.sse_investor_accounts import fetch_investor_account_facts
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
+
+
+def _deployment_region() -> str:
+    """Read the explicit node-region label used by egress rules."""
+
+    return (
+        str(
+            os.environ.get("DATA_CENTER_DEPLOYMENT_REGION")
+            or os.environ.get("AGOMTRADEPRO_DEPLOYMENT_REGION")
+            or "unknown"
+        )
+        .strip()
+        .lower()
+        or "unknown"
+    )
 
 
 def _available_at_from_report_date(report_date: date | None) -> datetime | None:
@@ -72,8 +92,19 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
 
     def model_market_source(self, *, tolerance: float) -> ModelMarketDataPort:
         """Expose typed raw-price and corporate-action observations."""
+        transport = get_egress_transport()
+        history_transport = (
+            cast(_EgressHistoryTransport, transport)
+            if callable(getattr(transport, "fetch_eastmoney_history", None))
+            else None
+        )
         return AkshareModelMarketSource(
-            get_akshare_module(), source=self.provider_name(), tolerance=tolerance
+            get_akshare_module(),
+            source=self.provider_name(),
+            tolerance=tolerance,
+            transport=history_transport,
+            provider_id=self._config.id,
+            deployment_region=_deployment_region(),
         )
 
     def fetch_macro_series(

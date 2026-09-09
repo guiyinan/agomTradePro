@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Any
+from typing import Any, Protocol
 
 import pandas as pd  # type: ignore[import-untyped]
 
@@ -12,13 +12,46 @@ from core.exceptions import DataFetchError
 from shared.numeric import safe_float
 
 
+class _EgressHistoryTransport(Protocol):
+    """Minimal transport capability required for routed EastMoney history."""
+
+    def fetch_eastmoney_history(
+        self,
+        *,
+        provider_id: int,
+        deployment_region: str,
+        symbol: str,
+        start_date: date,
+        end_date: date,
+        adjust: str,
+    ) -> pd.DataFrame:
+        """Fetch one normalized EastMoney history frame."""
+        ...
+
+    def should_route_history(self, *, provider_id: int, deployment_region: str) -> bool:
+        """Return whether the persisted route owns this provider history."""
+        ...
+
+
 class AkshareModelMarketSource:
     """Normalize SDK responses before exposing any values to model consumers."""
 
-    def __init__(self, client: Any, *, source: str, tolerance: float) -> None:
+    def __init__(
+        self,
+        client: Any,
+        *,
+        source: str,
+        tolerance: float,
+        transport: _EgressHistoryTransport | None = None,
+        provider_id: int | None = None,
+        deployment_region: str = "unknown",
+    ) -> None:
         self._client = client
         self._source = source
         self._tolerance = tolerance
+        self._transport = transport
+        self._provider_id = provider_id
+        self._deployment_region = deployment_region or "unknown"
 
     def stock_history(
         self, asset_code: str, start_date: date, end_date: date
@@ -30,8 +63,10 @@ class AkshareModelMarketSource:
             "start_date": start_date.strftime("%Y%m%d"),
             "end_date": end_date.strftime("%Y%m%d"),
         }
-        raw = self._client.stock_zh_a_hist(**params, adjust="", timeout=20)
-        adjusted = self._client.stock_zh_a_hist(**params, adjust="hfq", timeout=20)
+        raw = self._history_frame(params, start_date=start_date, end_date=end_date, adjust="")
+        adjusted = self._history_frame(
+            params, start_date=start_date, end_date=end_date, adjust="hfq"
+        )
         bars = self._normalize(raw, asset_code, start_date, end_date)
         factors = {
             bar.trade_date: bar
@@ -67,6 +102,32 @@ class AkshareModelMarketSource:
                 )
             )
         return tuple(result)
+
+    def _history_frame(
+        self,
+        params: dict[str, str],
+        *,
+        start_date: date,
+        end_date: date,
+        adjust: str,
+    ) -> pd.DataFrame:
+        """Use the routed transport when configured, retaining SDK compatibility otherwise."""
+
+        if self._transport is not None and self._provider_id is not None:
+            if not self._transport.should_route_history(
+                provider_id=self._provider_id,
+                deployment_region=self._deployment_region,
+            ):
+                return self._client.stock_zh_a_hist(**params, adjust=adjust, timeout=20)
+            return self._transport.fetch_eastmoney_history(
+                provider_id=self._provider_id,
+                deployment_region=self._deployment_region,
+                symbol=params["symbol"],
+                start_date=start_date,
+                end_date=end_date,
+                adjust=adjust,
+            )
+        return self._client.stock_zh_a_hist(**params, adjust=adjust, timeout=20)
 
     def index_history(
         self, asset_code: str, start_date: date, end_date: date

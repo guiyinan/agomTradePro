@@ -16,6 +16,16 @@ from apps.config_center.domain.runtime_config import StorageCapacityObservation
 
 from .capacity_profile import StorageCapacityProfileBlockedError
 from .config_summary_service import get_config_center_summary_service
+from .egress_ports import (
+    EgressEndpoint,
+    EgressEndpointSummary,
+    create_egress_endpoint,
+    delete_egress_endpoint,
+    get_egress_endpoint,
+    get_egress_endpoint_summary,
+    list_egress_endpoints,
+    update_egress_endpoint,
+)
 from .repository_provider import (
     get_config_center_secret_repository,
     get_config_center_settings_repository,
@@ -224,5 +234,13 @@ __all__ = [
     "update_backup_delivery_settings",
     "get_system_settings_summary",
     "update_system_governance_settings",
+    "EgressEndpoint",
+    "EgressEndpointSummary",
+    "create_egress_endpoint",
+    "delete_egress_endpoint",
+    "get_egress_endpoint",
+    "get_egress_endpoint_summary",
+    "list_egress_endpoints",
+    "update_egress_endpoint",
     "StorageCapacityProfileBlockedError",
 ]

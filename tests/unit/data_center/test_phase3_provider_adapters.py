@@ -75,6 +75,9 @@ def test_tushare_unified_provider_uses_its_own_transport_configuration(monkeypat
         "token": "relay-token",
         "http_url": "https://relay.example.test/tushare/pro",
         "request_mode": "unified_relay",
+        "provider_id": 1,
+        "deployment_region": "unknown",
+        "dataset_key": "",
     }
 
 

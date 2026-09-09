@@ -10,6 +10,20 @@ class DataCenterConfig(AppConfig):
 
     def ready(self) -> None:
         import apps.data_center.interface.admin  # noqa: F401
+        from apps.data_center.application.egress_service import (
+            configure_egress_audit_writer,
+            configure_egress_rule_repository,
+            configure_egress_transport,
+        )
+        from apps.data_center.infrastructure.egress_repositories import (
+            EgressAuditRepository,
+            EgressRoutingRuleRepository,
+        )
+        from apps.data_center.infrastructure.egress_transport import EgressHttpTransport
+
+        configure_egress_rule_repository(EgressRoutingRuleRepository())
+        configure_egress_audit_writer(EgressAuditRepository())
+        configure_egress_transport(EgressHttpTransport())
         from apps.data_center.application.config_summary_service import (
             configure_data_center_config_summary_repository,
         )

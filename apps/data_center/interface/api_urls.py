@@ -7,7 +7,7 @@ Phase 1:  /providers/, /providers/<id>/, /providers/<id>/test/, /providers/statu
 Phase 2:  /assets/resolve/, /macro/series/, /prices/history/, /prices/quotes/
 """
 
-from django.urls import path
+from django.urls import include, path
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -103,6 +103,7 @@ class DataCenterApiRootView(APIView):
 
 
 urlpatterns = [
+    path("egress/", include("apps.data_center.interface.egress_api_urls")),
     path("qmt-bridge/bindings/", QmtBindingsView.as_view(), name="qmt-bridge-bindings"),
     path(
         "qmt-bridge/bindings/<uuid:binding_id>/",

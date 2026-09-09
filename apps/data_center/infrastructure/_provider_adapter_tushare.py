@@ -7,6 +7,7 @@ standardized data_center domain entities only.
 from __future__ import annotations
 
 import logging
+import os
 from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, Protocol, cast
@@ -39,6 +40,22 @@ from apps.data_center.infrastructure.tushare_model_market_source import TushareM
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
+
+
+def _deployment_region() -> str:
+    """Read the explicit node-region label used by egress rules."""
+
+    return (
+        str(
+            os.environ.get("DATA_CENTER_DEPLOYMENT_REGION")
+            or os.environ.get("AGOMTRADEPRO_DEPLOYMENT_REGION")
+            or "unknown"
+        )
+        .strip()
+        .lower()
+        or "unknown"
+    )
+
 
 _A_SHARE_BEHAVIOR_CODES = frozenset(
     {
@@ -198,7 +215,8 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
     def model_market_source(self, *, tolerance: float) -> ModelMarketDataPort:
         """Expose typed model inputs using only this configured provider's credentials."""
         return TushareModelMarketSource(
-            client_factory=self._create_pro_client, source=self.provider_name()
+            client_factory=lambda: self._create_pro_client(dataset_key="equity.price.bar"),
+            source=self.provider_name(),
         )
 
     def _configured_request_mode(self) -> str | None:
@@ -207,7 +225,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         raw_mode = (self._config.extra_config or {}).get("tushare_request_mode")
         return raw_mode.strip() if isinstance(raw_mode, str) and raw_mode.strip() else None
 
-    def _create_pro_client(self) -> _TushareProClient:
+    def _create_pro_client(self, *, dataset_key: str = "") -> _TushareProClient:
         """Build a client without leaking another provider row's transport config."""
 
         return cast(
@@ -216,6 +234,9 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 token=self._config.api_key,
                 http_url=self._config.http_url,
                 request_mode=self._configured_request_mode(),
+                provider_id=self._config.id,
+                deployment_region=_deployment_region(),
+                dataset_key=dataset_key.strip(),
             ),
         )
 
@@ -242,6 +263,8 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             token=self._config.api_key,
             http_url=self._config.http_url,
             request_mode=self._configured_request_mode(),
+            provider_id=self._config.id,
+            deployment_region=_deployment_region(),
         )
         fetch_code = "SHIBOR" if indicator_code == "CN_SHIBOR" else indicator_code
         points = _fetch_macro_points(adapter, fetch_code, start_date, end_date)

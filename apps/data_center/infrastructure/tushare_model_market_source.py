@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd  # type: ignore[import-untyped]
 
 from apps.data_center.domain.model_market_data import ModelDailyBar
-from core.exceptions import TushareError
+from core.exceptions import DataFetchError, TushareError
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
@@ -437,6 +437,16 @@ class TushareModelMarketSource:
                 return func(*args, **kwargs)
             except (PermissionError, TushareError):
                 raise
+            except DataFetchError as exc:
+                # The routed provider transport already spent its shared
+                # direct/fallback budget.  Retrying here would multiply the
+                # egress attempts and could rotate a route twice.
+                if str(getattr(exc, "code", "")).startswith("EGRESS_"):
+                    raise
+                last_error = exc
+                if attempt >= retries:
+                    break
+                time.sleep(delay_seconds * attempt)
             except Exception as exc:  # noqa: BLE001
                 if "token daily limit exceeded" in str(exc).casefold():
                     raise TushareError(

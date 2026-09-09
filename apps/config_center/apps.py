@@ -14,6 +14,9 @@ class ConfigCenterConfig(AppConfig):
             configure_config_center_summary_repository,
             get_config_center_summary_service,
         )
+        from apps.config_center.application.egress_ports import (
+            configure_egress_endpoint_repository,
+        )
         from apps.config_center.application.repository_provider import (
             ConfigCenterSecretRepository,
             configure_config_center_repositories,
@@ -30,6 +33,7 @@ class ConfigCenterConfig(AppConfig):
         from apps.config_center.infrastructure.config_summary_repository import (
             DjangoConfigCenterSummaryRepository,
         )
+        from apps.config_center.infrastructure.egress_repositories import EgressEndpointRepository
         from apps.config_center.infrastructure.repositories import (
             AlphaUniverseConfigRepository,
             ConfigCenterSettingsRepository,
@@ -61,6 +65,7 @@ class ConfigCenterConfig(AppConfig):
             alpha_universe_repository=AlphaUniverseConfigRepository(),
             secret_repository=cast(ConfigCenterSecretRepository, ConfigCenterSecretStore()),
         )
+        configure_egress_endpoint_repository(EgressEndpointRepository())
         configure_config_center_summary_repository(DjangoConfigCenterSummaryRepository())
         configure_runtime_settings_provider(get_config_center_summary_service())
         configure_config_center_runtime_port(runtime_public)

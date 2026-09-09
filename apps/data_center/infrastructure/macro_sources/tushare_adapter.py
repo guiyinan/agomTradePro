@@ -88,6 +88,9 @@ class TushareAdapter(BaseMacroAdapter):
         token: str | None = None,
         http_url: str | None = None,
         request_mode: str | None = None,
+        provider_id: int | None = None,
+        deployment_region: str = "unknown",
+        dataset_key: str = "",
     ) -> None:
         """
         Args:
@@ -99,6 +102,9 @@ class TushareAdapter(BaseMacroAdapter):
         self.token = token
         self.http_url = http_url
         self.request_mode = request_mode
+        self.provider_id = provider_id
+        self.deployment_region = deployment_region
+        self.dataset_key = dataset_key
         self._pro: _TushareProProtocol | None = None
 
     @property
@@ -106,14 +112,24 @@ class TushareAdapter(BaseMacroAdapter):
         """延迟初始化 tushare pro API"""
         if self._pro is None:
             try:
-                self._pro = cast(
-                    _TushareProProtocol,
-                    create_tushare_pro_client(
+                if self.provider_id is None:
+                    # Keep the standalone macro adapter contract compatible
+                    # with callers that do not have a persisted provider row.
+                    client = create_tushare_pro_client(
                         token=self.token,
                         http_url=self.http_url,
                         request_mode=self.request_mode,
-                    ),
-                )
+                    )
+                else:
+                    client = create_tushare_pro_client(
+                        token=self.token,
+                        http_url=self.http_url,
+                        request_mode=self.request_mode,
+                        provider_id=self.provider_id,
+                        deployment_region=self.deployment_region,
+                        dataset_key=self.dataset_key.strip(),
+                    )
+                self._pro = cast(_TushareProProtocol, client)
                 logger.info("Tushare API 初始化成功")
             except ImportError:
                 raise DataSourceUnavailableError(
