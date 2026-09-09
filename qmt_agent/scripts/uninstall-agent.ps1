@@ -13,6 +13,9 @@ if ($ResolvedRoot -eq $DriveRoot -or $ResolvedRoot.Length -lt 8) {
 if (Get-ScheduledTask -TaskName "AgomQmtAgent" -ErrorAction SilentlyContinue) {
     Unregister-ScheduledTask -TaskName "AgomQmtAgent" -Confirm:$false
 }
+if (Get-ScheduledTask -TaskName "AgomQmtMarketBridge" -ErrorAction SilentlyContinue) {
+    Unregister-ScheduledTask -TaskName "AgomQmtMarketBridge" -Confirm:$false
+}
 
 foreach ($Name in @("qmt_agent", "runtime", "cache", "secrets")) {
     $Target = Join-Path $ResolvedRoot $Name
@@ -22,7 +25,7 @@ foreach ($Name in @("qmt_agent", "runtime", "cache", "secrets")) {
 }
 
 if ($RemoveState) {
-    foreach ($Name in @("state", "logs", "config.json", "config.yaml", "STOP")) {
+    foreach ($Name in @("state", "market-state", "logs", "config.json", "config.yaml", "STOP")) {
         $Target = Join-Path $ResolvedRoot $Name
         if (Test-Path -LiteralPath $Target) {
             Remove-Item -LiteralPath $Target -Recurse -Force

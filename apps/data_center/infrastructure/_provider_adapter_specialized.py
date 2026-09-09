@@ -59,6 +59,13 @@ class QmtUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         start_date: date,
         end_date: date,
     ) -> list[PriceBar]:
+        """Read bridge facts when configured, otherwise use the local QMT gateway."""
+        if bridge_id := self._config.extra_config.get("qmt_bridge_id"):
+            from .qmt_bridge_provider import QmtBridgeProvider
+
+            return QmtBridgeProvider(str(bridge_id), self._config.id).bars(
+                asset_code, start_date, end_date
+            )
         canonical_asset_code = normalize_asset_code(asset_code, "qmt")
         bars = self._gateway().get_historical_prices(
             asset_code=canonical_asset_code,
@@ -81,6 +88,11 @@ class QmtUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         ]
 
     def fetch_quote_snapshots(self, asset_codes: list[str]) -> list[QuoteSnapshot]:
+        """Read fresh bridge facts without importing xtquant on the VPS."""
+        if bridge_id := self._config.extra_config.get("qmt_bridge_id"):
+            from .qmt_bridge_provider import QmtBridgeProvider
+
+            return QmtBridgeProvider(str(bridge_id), self._config.id).quotes(asset_codes)
         quotes = self._gateway().get_quote_snapshots(asset_codes)
         return [
             QuoteSnapshot(

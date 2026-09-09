@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import sys
 import time
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -20,6 +21,11 @@ from .state_store import AgentStateStore
 
 
 def main() -> int:
+    """Run the unified package's independently controlled market or trading worker."""
+    if "--bridge" in sys.argv[1:]:
+        from .bridge_cli import main as bridge_main
+
+        return bridge_main([arg for arg in sys.argv[1:] if arg != "--bridge"])
     parser = argparse.ArgumentParser(description="AgomTradePro QMT Agent")
     parser.add_argument("--config", required=True)
     parser.add_argument("--preflight", action="store_true")

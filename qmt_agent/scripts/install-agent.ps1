@@ -1,7 +1,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$PythonExe,
     [Parameter(Mandatory = $true)][string]$ServerUrl,
-    [Parameter(Mandatory = $true)][int]$SystemAccountId,
+    [int]$SystemAccountId = 0,
     [string]$AgentId = "qmt-home-01",
     [string]$QmtRoot = "D:\qmt",
     [string]$BrokerAccountId = "",
@@ -9,7 +9,8 @@ param(
     [string]$XtQuantWheelPath = "",
     [string]$XtQuantWheelSha256 = "",
     [switch]$RegisterTask,
-    [switch]$RunReadProbe
+    [switch]$RunReadProbe,
+    [switch]$MarketOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -20,6 +21,10 @@ $ResolvedPython = (Resolve-Path -LiteralPath $PythonExe).Path
 $ResolvedQmtRoot = (Resolve-Path -LiteralPath $QmtRoot).Path
 $ResolvedInstallRoot = [System.IO.Path]::GetFullPath($InstallRoot)
 $DriveRoot = [System.IO.Path]::GetPathRoot($ResolvedInstallRoot)
+$ConfigPath = Join-Path $ResolvedInstallRoot "config.json"
+if (-not $MarketOnly -and (Test-Path -LiteralPath $ConfigPath)) {
+    throw "Existing trading configuration found. Preserve it and use the code upgrade procedure."
+}
 
 if ($env:OS -ne "Windows_NT") {
     throw "The QMT Agent can only be installed on Windows."
@@ -30,7 +35,7 @@ if ($ResolvedInstallRoot -eq $DriveRoot -or $ResolvedInstallRoot.Length -lt 8) {
 if (-not $ServerUrl.StartsWith("https://") -and -not $ServerUrl.StartsWith("http://127.0.0.1")) {
     throw "ServerUrl must use HTTPS outside loopback tests."
 }
-if ($SystemAccountId -le 0) {
+if (-not $MarketOnly -and $SystemAccountId -le 0) {
     throw "SystemAccountId must be a positive AgomTradePro account ID."
 }
 
@@ -55,7 +60,7 @@ else {
     throw "Neither userdata_mini nor userdata exists below QmtRoot: $ResolvedQmtRoot"
 }
 
-if (-not $BrokerAccountId) {
+if (-not $MarketOnly -and -not $BrokerAccountId) {
     $UsersPath = Join-Path $StandardUserdata "users"
     $UserDirectories = @(Get-ChildItem -LiteralPath $UsersPath -Directory -ErrorAction SilentlyContinue)
     if ($UserDirectories.Count -eq 1) {
@@ -103,7 +108,12 @@ if ($ActualHash -ne $ExpectedHash.ToLowerInvariant()) {
 if ($LASTEXITCODE -ne 0) {
     throw "Failed to install the verified XtQuant wheel."
 }
-& $RuntimePython -c "import xtquant; from xtquant.xttrader import XtQuantTrader; from xtquant.xttype import StockAccount"
+if ($MarketOnly) {
+    & $RuntimePython -c "from xtquant import xtdata"
+}
+else {
+    & $RuntimePython -c "import xtquant; from xtquant.xttrader import XtQuantTrader; from xtquant.xttype import StockAccount"
+}
 if ($LASTEXITCODE -ne 0) {
     throw "XtQuant was installed but its trading modules cannot be imported."
 }
@@ -145,7 +155,9 @@ $Config = [ordered]@{
 }
 $ConfigPath = Join-Path $ResolvedInstallRoot "config.json"
 $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-[System.IO.File]::WriteAllText($ConfigPath, ($Config | ConvertTo-Json -Depth 5), $Utf8NoBom)
+if (-not $MarketOnly) {
+    [System.IO.File]::WriteAllText($ConfigPath, ($Config | ConvertTo-Json -Depth 5), $Utf8NoBom)
+}
 
 $CurrentIdentity = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
 & icacls.exe $ResolvedInstallRoot /inheritance:r /grant:r "${CurrentIdentity}:(OI)(CI)F" "SYSTEM:(OI)(CI)F" | Out-Null
@@ -155,6 +167,11 @@ if ($LASTEXITCODE -ne 0) {
 
 if ($RegisterTask) {
     $StartScript = Join-Path $PackageTarget "scripts\start-agent.ps1"
+    $TaskName = "AgomQmtAgent"
+    if ($MarketOnly) {
+        $StartScript = Join-Path $PackageTarget "scripts\start-market-bridge.ps1"
+        $TaskName = "AgomQmtMarketBridge"
+    }
     $Action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument (
         "-NoProfile -ExecutionPolicy Bypass -File `"$StartScript`" " +
         "-PythonExe `"$RuntimePython`" -InstallRoot `"$ResolvedInstallRoot`""
@@ -162,18 +179,23 @@ if ($RegisterTask) {
     $Trigger = New-ScheduledTaskTrigger -AtLogOn
     $Settings = New-ScheduledTaskSettingsSet -RestartCount 10 -RestartInterval (New-TimeSpan -Minutes 1)
     $Principal = New-ScheduledTaskPrincipal -UserId $CurrentIdentity -LogonType Interactive -RunLevel Limited
-    Register-ScheduledTask -TaskName "AgomQmtAgent" -Action $Action -Trigger $Trigger `
+    Register-ScheduledTask -TaskName $TaskName -Action $Action -Trigger $Trigger `
         -Settings $Settings -Principal $Principal `
         -Description "AgomTradePro local QMT execution Agent" -Force | Out-Null
 }
 
 Push-Location $ResolvedInstallRoot
 try {
-    & $RuntimePython -m qmt_agent.main --config $ConfigPath --preflight
+    if ($MarketOnly) {
+        & $RuntimePython -m qmt_agent.main --bridge --help
+    }
+    else {
+        & $RuntimePython -m qmt_agent.main --config $ConfigPath --preflight
+    }
     if ($LASTEXITCODE -ne 0) {
         throw "Agent preflight failed. Review the printed checks before continuing."
     }
-    if ($RunReadProbe) {
+    if ($RunReadProbe -and -not $MarketOnly) {
         $EvidencePath = Join-Path $ResolvedInstallRoot "logs\qmt-read-probe.json"
         & $RuntimePython -m qmt_agent.main --config $ConfigPath --qmt-read-probe --evidence-file $EvidencePath
         if ($LASTEXITCODE -ne 0) {
@@ -187,6 +209,10 @@ finally {
 
 $MaskedAccount = if ($BrokerAccountId.Length -gt 4) { "****" + $BrokerAccountId.Substring($BrokerAccountId.Length - 4) } else { "****" }
 Write-Host "QMT Agent installed at $ResolvedInstallRoot"
+if ($MarketOnly) {
+    Write-Host "Market worker installed. Create a pairing code in My QMT Bridge, then run start-market-bridge.ps1 -Pair."
+    exit 0
+}
 Write-Host "QMT userdata: $QmtUserdataPath"
 Write-Host "Broker account: $MaskedAccount"
 Write-Host "Dry-run remains enabled. Store the Agent token with Set-AgentToken.ps1 before starting the task."

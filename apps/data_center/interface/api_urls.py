@@ -61,6 +61,8 @@ from apps.data_center.interface.tui_views import (
     MarketThermometerTuiConfigView,
 )
 
+from .qmt_bridge_api import QmtBindingControlView, QmtBindingsView, QmtMachineView, QmtPairView
+
 
 class DataCenterApiRootView(APIView):
     """Return discoverable data-center API endpoints."""
@@ -101,6 +103,25 @@ class DataCenterApiRootView(APIView):
 
 
 urlpatterns = [
+    path("qmt-bridge/bindings/", QmtBindingsView.as_view(), name="qmt-bridge-bindings"),
+    path(
+        "qmt-bridge/bindings/<uuid:binding_id>/",
+        QmtBindingControlView.as_view(),
+        name="qmt-bridge-control",
+    ),
+    path("qmt-bridge/pair/", QmtPairView.as_view(), name="qmt-bridge-pair"),
+    path(
+        "qmt-bridge/agent/v1/plan/",
+        QmtMachineView.as_view(),
+        {"operation": "plan"},
+        name="qmt-bridge-plan",
+    ),
+    path(
+        "qmt-bridge/agent/v1/batches/",
+        QmtMachineView.as_view(),
+        {"operation": "batches"},
+        name="qmt-bridge-batches",
+    ),
     path("", DataCenterApiRootView.as_view(), name="dc-api-root"),
     path(
         "tui/governance/",

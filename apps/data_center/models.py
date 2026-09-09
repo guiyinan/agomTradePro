@@ -31,6 +31,12 @@ from apps.data_center.infrastructure.market_structure_models import (
     MarketStructureSeriesDefinitionModel as MarketStructureSeriesDefinitionModel,
 )
 from apps.data_center.infrastructure.models import *  # noqa: F401,F403
+from apps.data_center.infrastructure.qmt_bridge_models import (  # noqa: F401
+    QmtBridgeAuditModel,
+    QmtBridgeBatchModel,
+    QmtBridgeBindingModel,
+    QmtBridgeNonceModel,
+)
 from apps.data_center.infrastructure.reconciliation_models import (
     ReconciliationEvidenceModel as ReconciliationEvidenceModel,
 )

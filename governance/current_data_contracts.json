@@ -2,6 +2,40 @@
   "schema_version": 1,
   "contracts": [
     {
+      "id": "data_center.qmt_bridge_observations",
+      "surface": "Owner-bound QMT bridge ingestion and provider freshness",
+      "source_files": [
+        "apps/data_center/infrastructure/qmt_bridge_repository.py",
+        "apps/data_center/infrastructure/qmt_bridge_provider.py"
+      ],
+      "required_markers": {
+        "apps/data_center/infrastructure/qmt_bridge_repository.py": [
+          "sample.observed_at", "must_not_use_for_decision",
+          "qmt_bridge_requires_publication_validation", "freshness", "reliability"
+        ],
+        "apps/data_center/infrastructure/qmt_bridge_provider.py": [
+          "snapshot_at__gte", "snapshot_at__lte", "freshness_seconds"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "source_time_retry",
+          "test_file": "tests/integration/data_center/test_qmt_bridge.py",
+          "test_function": "test_batch_retry_preserves_observation_and_volume_contract"
+        },
+        {
+          "case": "stale_failover",
+          "test_file": "tests/integration/data_center/test_qmt_bridge.py",
+          "test_function": "test_stale_quote_does_not_become_current_or_stop_fallback"
+        },
+        {
+          "case": "future_naive_time",
+          "test_file": "tests/integration/data_center/test_qmt_bridge.py",
+          "test_function": "test_future_or_naive_source_time_is_rejected"
+        }
+      ]
+    },
+    {
       "id": "data_center.model_market_history",
       "surface": "Provider-neutral Qlib and Equity historical model inputs",
       "source_files": [
