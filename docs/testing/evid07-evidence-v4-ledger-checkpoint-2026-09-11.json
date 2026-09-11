@@ -1,0 +1,130 @@
+{
+  "schema": "agom.repository-checkpoint.v1",
+  "unit_id": "EVID-07",
+  "status": "active",
+  "recorded_at": "2026-09-10T17:23:12.842318+00:00",
+  "checkpoint": "Subject/Evidence V4 codecs, application, durable ledgers and locked facade",
+  "head": "fd56f1a4683b9500d8c0a205045b4bdf5582f715",
+  "source_sha256": {
+    "apps/account/account_owner_assignment_evidence_v4_composition.py": "84a1b006e41b050123389b6b301a058028fd57dbe991bfb7804f9b5cc28d9d8c",
+    "apps/account/domain/account_owner_assignment_evidence_v4.py": "99c547201680e64bed8fe9ba30e77da9e70c91ae2fbab29b4dc493cb43a33e7c",
+    "apps/account/application/account_owner_assignment_evidence_v4.py": "7f8be0b33124d4b34030219b0867f3114d77218afa7a66be0f545cd63695aa5a",
+    "apps/account/infrastructure/account_owner_assignment_evidence_v4_codec.py": "35bc0aabcf04af55534c0f8eb058f649d968705b07b9b981fe2f032c54b78c68",
+    "apps/account/infrastructure/account_owner_assignment_evidence_v4_record_codec.py": "23abf90e749457685075f77a73dd1f6f5f228ff7791833e98265bd8a7938aa7e",
+    "apps/account/infrastructure/account_owner_assignment_evidence_v4_models.py": "a6d5b23ff096c6d63d162c11bc98ee901e931c15462e7ca7042eee0dce9aae77",
+    "apps/account/infrastructure/account_owner_assignment_evidence_v4_repository.py": "99226d9a7aca12c0cde52caf4512821a2de0165b35ff6f39531ee51debbde789",
+    "apps/account/infrastructure/models.py": "d96fa84a00bb5499b8b1903901f8b245316b77c4cccce69dd79f439a5888cff5",
+    "apps/account/migrations/0058_account_owner_assignment_evidence_v4.py": "a04b0c192cc7dc09fdb19ab5c3050ba2e9e1b0083a8c6c8dafbf1c50d2480d6b",
+    "tests/unit/test_account_models_structure.py": "8bf86d8cdc3fa42c6fb635c9c205920884546df4ade967e9e7810bb979320eb7",
+    "governance/current_data_contracts.json": "75f1ff5697d612febbc0bc4cf448c1ed5130f665146724c20d8125fede071a19",
+    "tests/component/account/test_account_owner_assignment_evidence_v4_composition.py": "45c071cde22e4233fbdd3d3201ac640859d607fb783c00e5b1a8e9b48c0f8fd6",
+    "tests/component/account/test_account_owner_assignment_evidence_v4_migration.py": "4f46b012a61bd6c0d9768cef180283610fdc41a3938b5cb1a4f3dd1a1cc4546e",
+    "tests/component/account/test_account_owner_assignment_evidence_v4_repository.py": "a807c9172b7e90e0a08cb2e9830591b54249de5bbcc23757b866953dee9ecaff",
+    "tests/unit/account/test_account_owner_assignment_evidence_v4.py": "8160942448b31bdfdf786d9a84e5216bcb5252c510396e3b4fd98c341b70ae41",
+    "tests/unit/account/test_account_owner_assignment_evidence_v4_application.py": "81a00eb91808fc1d57e44bd516c2f9b820ee0a7060fd9eb118703dcec614afcd",
+    "tests/unit/account/test_account_owner_assignment_evidence_v4_codec.py": "ac0af450486d2f688e58ef91a5af2915c03f95694c54b55e64fe8dd5c50ed295",
+    "tests/unit/account/test_account_owner_assignment_evidence_v4_record_codec.py": "be10f7c5157c7106a3bd7f5728c0b156cabd741a9db05a884613f1bc1df1003a"
+  },
+  "legacy_diff_against_head_empty": [
+    "apps/account/domain/account_owner_assignment_evidence_v3.py",
+    "apps/account/application/account_owner_assignment_evidence_v3.py",
+    "apps/account/domain/owner_tenant_authority_v1.py",
+    "apps/account/application/owner_tenant_authority_v1.py",
+    "core/integration/owner_tenant_evidence_scope_v1.py"
+  ],
+  "raw_evidence": {
+    "var/evid07-evidence-v4-combined-unit.txt": {
+      "sha256": "fb59661fe28f7d5985c28a802ba9d2a3a308bd915463ed56fa244a662e8c9200",
+      "content": "........................................................................ [ 52%]\n................................................................         [100%]\n136 passed in 56.99s\n"
+    },
+    "var/evid07-evidence-v4-repository-postgres.txt": {
+      "sha256": "00f78e51af0ae2e4872e29fb9a29a4f4ee43022c11b0f6daf67e62f875819963",
+      "content": "Running EVID-06 tests against dedicated loopback test database.\n....                                                                     [100%]\n4 passed in 585.10s (0:09:45)\n"
+    },
+    "var/evid07-evidence-v4-policy-migration-postgres.txt": {
+      "sha256": "8e2e24d59c154ac418229f426f5cf7cd36461ce0fadc38c146013735464a286f",
+      "content": "Running EVID-06 tests against dedicated loopback test database.\n...                                                                      [100%]\n============================= slowest 5 durations =============================\n103.32s setup    tests/component/account/test_account_owner_assignment_evidence_v4_repository.py::test_committed_policy_revocation_rejects_new_approval_without_erasing_subject\n64.92s call     tests/component/account/test_account_owner_assignment_evidence_v4_repository.py::test_committed_policy_revocation_rejects_new_approval_without_erasing_subject\n54.17s setup    tests/component/account/test_account_owner_assignment_evidence_v4_repository.py::test_repeatable_read_snapshot_cannot_append_assignment\n37.36s setup    tests/component/account/test_account_owner_assignment_evidence_v4_migration.py::test_migration_0058_roundtrip_constraints_and_durable_foreign_keys\n32.65s call     tests/component/account/test_account_owner_assignment_evidence_v4_migration.py::test_migration_0058_roundtrip_constraints_and_durable_foreign_keys\n3 passed in 343.33s (0:05:43)\n"
+    },
+    "var/evid07-evidence-v4-composition-postgres.txt": {
+      "sha256": "f8a115bbb049ee8a725f116a4f048a7f51cbf5e40ff5e7d055d35d63b23edaa8",
+      "content": "Running EVID-06 tests against dedicated loopback test database.\n..                                                                       [100%]\n============================= slowest 5 durations =============================\n92.60s call     tests/component/account/test_account_owner_assignment_evidence_v4_composition.py::test_facade_outer_rollback_and_committed_policy_revocation_fail_closed\n80.27s call     tests/component/account/test_account_owner_assignment_evidence_v4_composition.py::test_facade_register_approve_replay_and_current_use_one_alias\n32.61s setup    tests/component/account/test_account_owner_assignment_evidence_v4_composition.py::test_facade_outer_rollback_and_committed_policy_revocation_fail_closed\n28.77s setup    tests/component/account/test_account_owner_assignment_evidence_v4_composition.py::test_facade_register_approve_replay_and_current_use_one_alias\n4.18s teardown tests/component/account/test_account_owner_assignment_evidence_v4_composition.py::test_facade_outer_rollback_and_committed_policy_revocation_fail_closed\n2 passed in 241.59s (0:04:01)\n"
+    },
+    "var/evid07-evidence-v4-complete-mypy.txt": {
+      "sha256": "3dcc2b03ede346698db5ad7d1699e8ab37ed54cc019fe7ec2be04295e1bb6d60",
+      "content": "Success: no issues found in 8 source files\nMypy regressions: 0 (legacy errors observed: 0)\n"
+    },
+    "var/evid07-evidence-v4-debt-final.txt": {
+      "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+      "content": "Full mypy debt ceiling passed: 0 errors in 0 files\n"
+    },
+    "var/evid07-evidence-v4-black.txt": {
+      "sha256": "5a1f0e592a2467f8122690e43d30487f146608b7e4effaffe704e87402a40674",
+      "content": "All done! \\u2728 \\U0001f370 \\u2728\n11 files would be left unchanged.\n"
+    },
+    "var/evid07-evidence-v4-isort.txt": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "content": ""
+    },
+    "var/evid07-evidence-v4-ruff.txt": {
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+      "content": "All checks passed!\n"
+    },
+    "var/evid07-evidence-v4-facade-black.txt": {
+      "sha256": "83abf4b47e6b6e216d698b30f1f030922562c86836a54764d86a0e463467807e",
+      "content": "All done! \\u2728 \\U0001f370 \\u2728\n2 files would be left unchanged.\n"
+    },
+    "var/evid07-evidence-v4-facade-isort.txt": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "content": ""
+    },
+    "var/evid07-evidence-v4-facade-ruff.txt": {
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+      "content": "All checks passed!\n"
+    },
+    "var/evid07-evidence-v4-complete-architecture.txt": {
+      "sha256": "0b214dca9f493f194d744195d93573ca0062a1845e7a45bcd1dfaadca3cf3718",
+      "content": "Architecture rules version: 2026-06-30.v8\nScan roots: apps, core, shared\nScanned files: 3072\nBoundary rules: 7\nBoundary violations: 0\n"
+    },
+    "var/evid07-evidence-v4-complete-governance.txt": {
+      "sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b",
+      "content": "Governance baseline version: 2026-09-09.v220\nGovernance violations: 0\n- governance_baseline: 0 violation(s)\n- docs_consistency: 0 violation(s)\n- docs_links: 0 violation(s)\n- governance_docs: 0 violation(s)\n- module_shape: 0 violation(s)\n- misplaced_app_config: 0 violation(s)\n- singular_dto_files: 0 violation(s)\n- architecture_ruleset: 0 violation(s)\n- module_dependency_baseline: 0 violation(s)\n- ci_governance_wiring: 0 violation(s)\n- application_third_party_imports: 0 violation(s)\n- core_integration_debt: 0 violation(s)\n- core_management_command_debt: 0 violation(s)\n- large_python_files: 0 violation(s)\n- large_file_remediation: 0 violation(s)\n"
+    },
+    "var/evid07-evidence-v4-complete-freshness.txt": {
+      "sha256": "f2ae9058295ffb2ac3661b05875439966e6ee9c93b30be1b441df1d190f5ede3",
+      "content": "Current-data freshness contracts OK: 59 surface(s)\n"
+    },
+    "var/evid07-evidence-v4-migration-drift.txt": {
+      "sha256": "52af4baedb865f02d7b94a6d8661b8af42e287061de3dcc5d920464a8f244f32",
+      "content": "INFO 2026-09-11 00:52:28,532 event_bus_initializer [trace_id=-] Event bus initialized with 18 handlers\nNo changes detected in app 'account'\n"
+    },
+    "var/evid07-evidence-v4-final-cleanup.json": {
+      "sha256": "035facfb573e3880234d90f3c239d71755c0b107dbb57afc6a8c678a9ab48827",
+      "content": "{\"database\": \"evid06_authority_test\", \"public_base_tables\": 0}\n"
+    }
+  },
+  "verified": {
+    "combined_unit_tests": 136,
+    "postgres_tests": 9,
+    "postgres_scope": "Actual local PostgreSQL append/replay, root mapping CAS, expired root occupation, default-alias sentinel, raw tamper detection, public ORM mutation rejection, outer rollback, committed policy revocation, READ COMMITTED enforcement, 0058 model operations apply/unapply/reapply, and real Register/Approve/GetCurrent application composition.",
+    "locks": "Original policy-id try advisory plus 17 sorted EXCLUSIVE NOWAIT table locks before source reads; one alias and same actor capture UOW. Contention fails closed.",
+    "codec": "Closed fields and UTC microsecond canonical values; complete evidence plus current authority envelope and durable parent FK/hash seals.",
+    "static_scope": "Final scoped mypy covers all eight production files. Full debt passed before final facade; architecture/governance include facade. No debt baseline changed."
+  },
+  "limits": [
+    "Creation graph and policy are explicit synthetic fixtures; actual local Session/User/Profile publication does not establish real authenticated creation provenance or production approval.",
+    "0058 model operations tested on actual PostgreSQL; not a complete historical migration graph acceptance.",
+    "Whole-ledger locks serialize writers; no throughput/load acceptance or private ORM/SQL bypass protection claim.",
+    "Facade consumes server-authenticated inputs; no final HTTP owner approval or production write occurred.",
+    "Current Evidence remains bounded by five-minute actor authority. Expired roots stay occupied; new authentication cannot silently renew their validity."
+  ],
+  "remaining": [
+    "server-owned policy publication bound to the authorized real admin declaration",
+    "versioned durable owner decision and owner-tenant lease lifecycle with fresh request authentication, immutable historical provenance and explicit revocation",
+    "typed owner-tenant scope preserving old V1/V3 contracts",
+    "actual authenticated account creation and complete atomic evidence graph",
+    "production prerequisites and DATA-02/EVID-01/02/AUD-03/TAR-05 exit gates"
+  ],
+  "production_changes": false,
+  "unit_exit_gate_passed": false,
+  "artifact_git_tracking": "Local docs/testing artifact remains ignored by existing user configuration; no forced staging."
+}

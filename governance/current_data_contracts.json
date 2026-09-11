@@ -2,6 +2,299 @@
   "schema_version": 1,
   "contracts": [
     {
+      "id": "account.owner_tenant_authority_v2",
+      "surface": "Owner decision temporal validity and immutable explicit revocation; not standalone authentication",
+      "source_files": [
+        "apps/account/domain/owner_tenant_authority_v2.py",
+        "apps/account/application/owner_tenant_authority_v2.py",
+        "apps/account/application/owner_tenant_authority_v2_contracts.py",
+          "apps/account/owner_tenant_authority_v2_composition.py",
+          "core/integration/owner_tenant_physical_row_v2.py",
+          "core/integration/owner_tenant_evidence_scope_v2.py",
+          "apps/research/evidence_composition.py"
+      ],
+      "required_markers": {
+        "apps/account/domain/owner_tenant_authority_v2.py": [
+          "self.assignment.is_current_at(approved_at)",
+          "self.recorded_at <= cutoff < self.valid_until",
+          "revocation.revoked_at < authority.recorded_at"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "first_approval_requires_current_assignment",
+          "test_file": "tests/unit/account/test_owner_tenant_authority_v2.py",
+          "test_function": "test_v2_root_requires_assignment_current_at_approval_and_recording"
+        },
+        {
+          "case": "owner_decision_lifetime_is_distinct_from_session",
+          "test_file": "tests/unit/account/test_owner_tenant_authority_v2.py",
+          "test_function": "test_v2_decision_may_outlive_assignment_but_never_its_policy"
+        },
+        {
+          "case": "revocation_does_not_rewrite_history_or_reactivate_expired_root",
+          "test_file": "tests/unit/account/test_owner_tenant_authority_v2.py",
+          "test_function": "test_v2_revocation_can_follow_expiry_without_retroactive_reactivation"
+        },
+        {
+          "case": "fresh_session_after_assignment_expiry_requires_durable_decision",
+          "test_file": "tests/unit/account/test_owner_tenant_authority_v2_application.py",
+          "test_function": "test_new_session_after_five_minutes_uses_durable_decision_not_expired_assignment"
+        },
+        {
+          "case": "shorter_principal_window_and_live_physical_identity",
+          "test_file": "tests/unit/account/test_owner_tenant_authority_v2_application.py",
+          "test_function": "test_reused_row_id_future_clock_and_shorter_principal_window_deny_current"
+        },
+        {
+          "case": "final_assignment_substitution_before_recording_denies_issue",
+          "test_file": "tests/unit/account/test_owner_tenant_authority_v2_application.py",
+          "test_function": "test_final_assignment_substitution_after_second_read_never_persists"
+        },
+        {
+          "case": "actual_new_session_reads_durable_owner_decision_then_revokes",
+          "test_file": "tests/component/account/test_owner_tenant_authority_v2_composition.py",
+            "test_function": "test_new_actual_session_after_assignment_expiry_reads_decision_then_revokes"
+          },
+          {
+            "case": "source_or_validity_change_during_locked_read_discards_result",
+            "test_file": "tests/unit/account/test_owner_tenant_authority_v2_locked_read.py",
+            "test_function": "test_source_change_during_read_discards_materialized_result"
+          },
+          {
+            "case": "current_authorization_is_separate_from_historical_evidence_cutoff",
+            "test_file": "tests/unit/core/test_owner_tenant_evidence_scope_v2.py",
+            "test_function": "test_historical_reads_use_current_authorization_and_exact_artifacts"
+          },
+          {
+            "case": "short_scope_expiry_before_query_denies_without_repository_access",
+            "test_file": "tests/unit/core/test_owner_tenant_evidence_scope_v2.py",
+            "test_function": "test_short_scope_expiry_before_repository_call_is_fail_closed"
+          },
+          {
+            "case": "intermediate_server_clock_rollback_never_returns_evidence",
+            "test_file": "tests/unit/core/test_owner_tenant_evidence_scope_v2_clock_regression.py",
+            "test_function": "test_intermediate_clock_rollback_cannot_escape_as_success"
+          },
+          {
+            "case": "actual_current_owner_reads_historical_evidence_and_lost_owner_denies",
+            "test_file": "tests/component/research/test_owner_tenant_evidence_scope_v2_postgres.py",
+            "test_function": "test_actual_current_owner_reads_historical_evidence_and_live_owner_loss_denies"
+          },
+        {
+          "case": "cross_app_live_read_preserves_source_clocks_and_alias",
+          "test_file": "tests/component/account/test_owner_tenant_physical_row_v2.py",
+          "test_function": "test_cross_app_reader_preserves_live_source_and_exact_alias"
+        }
+      ]
+    },
+    {
+      "id": "simulated_trading.live_account_ownership",
+      "surface": "Live physical account ownership observation within the caller transaction",
+      "source_files": [
+        "apps/simulated_trading/application/current_account_ownership.py",
+        "apps/simulated_trading/infrastructure/current_account_ownership.py",
+        "apps/simulated_trading/account_ownership_composition.py"
+      ],
+      "required_markers": {
+        "apps/simulated_trading/application/current_account_ownership.py": [
+          "self.row_created_at <= self.row_updated_at <= self.observed_at"
+        ],
+        "apps/simulated_trading/infrastructure/current_account_ownership.py": [
+          "select_for_update(nowait=True)",
+          "row_created_at=row.created_at",
+          "row_updated_at=row.updated_at",
+          "observed_at=timezone.now()",
+          "ownership read requires READ COMMITTED"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "preserve_source_timestamps_and_real_owner_state",
+          "test_file": "tests/component/account/test_current_account_ownership_postgres.py",
+          "test_function": "test_live_owner_change_missing_and_inactive_never_fall_back"
+        },
+        {
+          "case": "reject_old_snapshot_future_source_and_lock_contention",
+          "test_file": "tests/component/account/test_current_account_ownership_postgres.py",
+          "test_function": "test_transaction_isolation_source_clocks_and_lock_contention"
+        },
+        {
+          "case": "no_request_time_relabel_of_future_source",
+          "test_file": "tests/unit/test_current_account_ownership.py",
+          "test_function": "test_observation_never_relabels_future_source_or_backwards_update"
+        }
+      ]
+    },
+    {
+      "id": "account.single_owner_assignment_evidence_v4",
+      "surface": "Policy-bound Subject V4 and Evidence V4 current validity",
+      "source_files": [
+        "apps/account/domain/account_owner_assignment_evidence_v4.py",
+        "apps/account/application/account_owner_assignment_evidence_v4.py",
+        "apps/account/infrastructure/account_owner_assignment_evidence_v4_repository.py",
+        "apps/account/account_owner_assignment_evidence_v4_composition.py"
+      ],
+      "required_markers": {
+        "apps/account/domain/account_owner_assignment_evidence_v4.py": [
+          "self.requested_at <= cutoff < self.valid_until",
+          "self.receipt.is_current_at(cutoff)",
+          "self.subject.is_current_at(cutoff)"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "future_expired_revoked_sources",
+          "test_file": "tests/unit/account/test_account_owner_assignment_evidence_v4.py",
+          "test_function": "test_subject_rejects_future_expired_or_revoked_source_facts"
+        },
+        {
+          "case": "exact_current_subject_boundary",
+          "test_file": "tests/unit/account/test_account_owner_assignment_evidence_v4.py",
+          "test_function": "test_subject_current_boundary_and_exact_root_validator_are_fail_closed"
+        },
+        {
+          "case": "approval_source_clocks_and_expiry",
+          "test_file": "tests/unit/account/test_account_owner_assignment_evidence_v4.py",
+          "test_function": "test_evidence_preserves_source_clock_order_and_validity_boundaries"
+        },
+        {
+          "case": "current_approval_source_revalidation",
+          "test_file": "tests/unit/account/test_account_owner_assignment_evidence_v4_application.py",
+          "test_function": "test_current_rejects_expired_evidence_and_source_substitution"
+        },
+        {
+          "case": "expired_durable_mapping_stays_occupied",
+          "test_file": "tests/component/account/test_account_owner_assignment_evidence_v4_repository.py",
+          "test_function": "test_root_mapping_cas_and_expired_head_never_allow_second_root"
+        },
+        {
+          "case": "revoked_policy_rejects_approval",
+          "test_file": "tests/component/account/test_account_owner_assignment_evidence_v4_repository.py",
+          "test_function": "test_committed_policy_revocation_rejects_new_approval_without_erasing_subject"
+        },
+        {
+          "case": "facade_register_approve_replay_current_same_alias",
+          "test_file": "tests/component/account/test_account_owner_assignment_evidence_v4_composition.py",
+          "test_function": "test_facade_register_approve_replay_and_current_use_one_alias"
+        },
+        {
+          "case": "facade_outer_rollback_and_policy_revocation",
+          "test_file": "tests/component/account/test_account_owner_assignment_evidence_v4_composition.py",
+          "test_function": "test_facade_outer_rollback_and_committed_policy_revocation_fail_closed"
+        }
+      ]
+    },
+    {
+      "id": "account.single_owner_creation_receipt_v4",
+      "surface": "Policy-bound creation receipt v4 current and historical head resolution",
+      "source_files": [
+        "apps/account/domain/account_owner_assignment_provenance_receipt_v4.py",
+        "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+        "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v4_repository.py",
+        "apps/account/account_owner_assignment_provenance_receipt_v4_composition.py"
+      ],
+      "required_markers": {
+        "apps/account/domain/account_owner_assignment_provenance_receipt_v4.py": [
+          "self.recorded_at <= cutoff < self.valid_until",
+          "self.policy.is_current_at(cutoff)",
+          "head if head.is_current_at(cutoff) else None"
+        ],
+        "apps/account/application/account_owner_assignment_provenance_receipt_v4.py": [
+          "receipt.is_current_at(command.as_of)",
+          "self._participants.get_current(as_of=command.as_of)"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "fresh_expired_and_naive_boundary",
+          "test_file": "tests/unit/account/test_account_owner_assignment_provenance_receipt_v4.py",
+          "test_function": "test_v4_current_and_knowable_reads_fail_closed_at_policy_and_receipt_boundaries"
+        },
+        {
+          "case": "future_or_revoked_policy",
+          "test_file": "tests/unit/account/test_account_owner_assignment_provenance_receipt_v4.py",
+          "test_function": "test_v4_rejects_wrong_scope_owner_future_observation_or_expired_policy"
+        },
+        {
+          "case": "expired_head_never_falls_back",
+          "test_file": "tests/unit/account/test_account_owner_assignment_provenance_receipt_v4.py",
+          "test_function": "test_v4_root_successor_and_point_in_time_head_never_fall_back"
+        },
+        {
+          "case": "policy_actor_root_current_revalidation",
+          "test_file": "tests/unit/account/test_account_owner_assignment_provenance_receipt_v4_application.py",
+          "test_function": "test_get_current_fails_closed_after_any_live_revalidation_change"
+        },
+        {
+          "case": "closed_durable_parent_tamper",
+          "test_file": "tests/component/account/test_account_owner_assignment_provenance_receipt_v4_repository.py",
+          "test_function": "test_parent_tamper_breaks_even_unrelated_selector"
+        },
+        {
+          "case": "locked_replay_after_policy_revocation",
+          "test_file": "tests/component/account/test_receipt_v4_locked_composition.py",
+          "test_function": "test_locked_replay_rechecks_committed_policy_revocation"
+        },
+        {
+          "case": "competing_parent_row_lock_fails_closed",
+          "test_file": "tests/component/account/test_receipt_v4_parent_row_locks.py",
+          "test_function": "test_actor_and_binding_for_update_exclude_issuance_and_replay"
+        }
+      ]
+    },
+    {
+      "id": "account.single_owner_current_participants",
+      "surface": "Exact-current server-bound single-owner policy and authenticated role projection",
+      "source_files": [
+        "apps/account/application/single_owner_actor_authority.py",
+        "apps/account/domain/single_owner_authority_policy_v1.py",
+        "apps/account/infrastructure/single_owner_authority_policy_v1_repository.py",
+        "apps/account/single_owner_authority_policy_composition.py"
+      ],
+      "required_markers": {
+        "apps/account/application/single_owner_actor_authority.py": [
+          "policy.is_current_at(as_of)", "authority.recorded_at > as_of",
+          "as_of >= authority.valid_until", "self.principal.is_current_at(as_of)"
+        ],
+        "apps/account/infrastructure/single_owner_authority_policy_v1_repository.py": [
+          "not head.is_current_at(as_of)", "value.observed_at <= as_of"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "durable_policy_revocation_with_real_actor_sources",
+          "test_file": "tests/component/account/test_single_owner_policy_actor_composition.py",
+          "test_function": "test_real_actor_and_policy_read_then_revocation_rejects_the_same_binding"
+        },
+        {
+          "case": "fresh_real_admin",
+          "test_file": "tests/unit/account/test_single_owner_actor_authority.py",
+          "test_function": "test_real_admin_remains_same_staff_actor_in_both_roles"
+        },
+        {
+          "case": "revoked_policy",
+          "test_file": "tests/unit/account/test_single_owner_actor_authority.py",
+          "test_function": "test_policy_revocation_is_reread_instead_of_cached"
+        },
+        {
+          "case": "expired_principal",
+          "test_file": "tests/unit/account/test_single_owner_actor_authority.py",
+          "test_function": "test_principal_expiry_prevents_source_reads"
+        },
+        {
+          "case": "future_observation",
+          "test_file": "tests/unit/account/test_single_owner_actor_authority.py",
+          "test_function": "test_future_actor_observation_cannot_be_laundered_into_current_authority"
+        },
+        {
+          "case": "naive_time",
+          "test_file": "tests/unit/account/test_single_owner_actor_authority.py",
+          "test_function": "test_naive_observation_time_is_rejected_before_reading_sources"
+        }
+      ]
+    },
+    {
       "id": "data_center.qmt_bridge_observations",
       "surface": "Owner-bound QMT bridge ingestion and provider freshness",
       "source_files": [

@@ -1,0 +1,99 @@
+{
+  "schema": "agom.evid07.repository-checkpoint.v1",
+  "unit_id": "EVID-07",
+  "slice": "reobservation_backed_receipt_v5_and_subject_v5_durable_ledgers",
+  "status": "active",
+  "recorded_at": "2026-09-11T07:03:38.037454+00:00",
+  "owner_designation": {
+    "username": "admin",
+    "user_id": 1,
+    "authorization_source": "docs/deployment/sprint-owner-admin-authorization-2026-09-10.json",
+    "authority_granted_by_this_checkpoint": false
+  },
+  "result": {
+    "receipt_v5_ledger": "passed",
+    "subject_v5_ledger": "passed",
+    "migration": "0061 apply/reverse/reapply passed on dedicated PostgreSQL",
+    "parents": "ReceiptV5 binds exact PolicyV1, permanent BindingV2 and durable current ReobservationV1 foreign keys; SubjectV5 binds the exact ReceiptV5, BindingV2 and ReobservationV1 graph.",
+    "history": "Policy point-in-time heads use persisted_at knowability, so later-persisted backdated successors cannot rewrite an earlier ReceiptV5 parent proof.",
+    "concurrency": "ReceiptV5 acquires the PolicyV1 writer identity advisory lock before row locks; a second real PostgreSQL connection times out while the lock is held.",
+    "semantics": "inactive evidence_only; activation_available=false; must_not_execute=true"
+  },
+  "verification": {
+    "focused_unit_tests": "168 passed in 63.17s",
+    "postgres_repository": "2 passed in 512.59s",
+    "postgres_migration": "1 passed in 279.08s; model and migration sources remained unchanged after this run",
+    "postgres_cases": [
+      "ReceiptV5 root replay, successor compare-and-swap and exact historical reads",
+      "future cutoff and wrong predecessor rejection",
+      "two-connection PolicyV1 advisory identity lock exclusion",
+      "later-persisted backdated PolicyV1 successor preserves the earlier point-in-time head",
+      "ReceiptV5 parent-FK, canonical payload, scalar and record/ledger seal tamper rejection",
+      "SubjectV5 replay, exact history, parent restoration, payload tamper, append-only guards and wrong-alias rejection"
+    ],
+    "postgres_public_base_tables_after_cleanup": 0,
+    "incremental_mypy": "11 production files; 0 issues/regressions/legacy errors",
+    "full_mypy_debt": "0 errors in 0 files",
+    "architecture": {
+      "scanned_files": 3138,
+      "boundary_rules": 7,
+      "violations": 0
+    },
+    "freshness": "61 current-data surfaces passed",
+    "governance": "baseline v220 and active-plan registry v83 passed with 0 violations",
+    "migration_drift": "No changes detected in app account",
+    "format": "Black and Ruff passed",
+    "stabilization": "An earlier combined run reached four Receipt scenarios before a removed pytest fixture export caused Subject setup failure; the database was cleaned to zero tables. The final consolidated stable-source run is the only repository result counted above."
+  },
+  "source_sha256": {
+    "apps/account/domain/account_owner_assignment_provenance_receipt_v5.py": "add2c4a15d57b294807c4835aaf23a4719264f94940e59b2d6154a803cbda171",
+    "apps/account/domain/account_owner_assignment_subject_v5.py": "bc8210210f97d19db7fe22ecb4def9abd5d0579eb2c7e92aa81ca97d84ced725",
+    "apps/account/application/account_owner_assignment_provenance_receipt_v5.py": "b511410a4963e19c5528cfc98acdc9c06f95a6769ab77e769497948f6bd5c49f",
+    "apps/account/application/account_owner_assignment_subject_v5.py": "993c4973cefe6c0c13e2fc40843e5f4fd8c3cbda40596bf68593bd9d6b7f1d94",
+    "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v5_codec.py": "fd8f277d1c0b74e3e81da2d3c899de85d7a02abf6ef20c1020b197f2d1a554d1",
+    "apps/account/infrastructure/account_owner_assignment_subject_v5_codec.py": "c4b0eddc38c27b13bf666c090a2e1da36c7751cf948bb83551b377f5bd370d20",
+    "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v5_record_codec.py": "4cc1451ab979f81339dc2c5a5bc667554142b4605baa96bf37d6ccb2b8a54979",
+    "apps/account/infrastructure/account_owner_assignment_subject_v5_record_codec.py": "247c3a50a922f3bfbf0fe37552433545ed4f9b01b3a2d56744919b736b7b3f49",
+    "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v5_repository.py": "a0b74c26e264d7a16ef65aa9d0fbca980b25e964366b7ff35ad7b36f16c2e1df",
+    "apps/account/infrastructure/account_owner_assignment_subject_v5_repository.py": "7e9436f8c940a3e66d781c37c4ecad9af9b24021fddf607822b9048d31f3a8a3",
+    "apps/account/infrastructure/account_owner_assignment_v5_models.py": "9770a22490a37edac95e7e363c6d553b4e9b3e16df1861bf8d436dbc57bd0972",
+    "apps/account/infrastructure/single_owner_authority_policy_v1_repository.py": "1322eabe053b884ff5bf091d503a6a67cc8011e22466a793c9c3f31d4c9d5122",
+    "apps/account/infrastructure/models.py": "cb528ca1fb34b8a5e231283c683d80ccc391ed938e9f41d9d5dff3e075c31217",
+    "apps/account/infrastructure/models.pyi": "81847af7a6f6d6db9be6c1754726696ab7fab7e1f66a91a40af46ed9217d1c22",
+    "apps/account/migrations/0061_account_owner_assignment_v5.py": "a089093bf8ea5ff89961bba3af09f0496792079ae863bb844a8618df225cd4da",
+    "tests/unit/account/test_account_owner_assignment_provenance_receipt_v5.py": "ebc9f15f2f8d732bdd12f2c9e070ca4111e7e48da4d46f8f5d4159bfe1cb2ead",
+    "tests/unit/account/test_account_owner_assignment_subject_v5.py": "d28efae163b4dac4d60c2775763fc1f287146a4c67a04eb5dcea5d0bea33e4be",
+    "tests/unit/account/test_account_owner_assignment_provenance_receipt_v5_application.py": "919d115f750f26a0a79479115442823d87756ee0000b0e2f67c59193bc52fd8d",
+    "tests/unit/account/test_account_owner_assignment_subject_v5_application.py": "aff9370810b4eb23d1e3117982965589511ebe5bf48e10815e6aa40623441d07",
+    "tests/unit/account/test_account_owner_assignment_provenance_receipt_v5_codec.py": "d4597fb034d398395534483f33646700ab7c2cf7311fa08104861421ef5dfdab",
+    "tests/unit/account/test_account_owner_assignment_subject_v5_codec.py": "8865ee45e43785866d31c2e7dbcd5d196bc76be2af5048aaa08abccc4ab67326",
+    "tests/unit/account/test_account_owner_assignment_provenance_receipt_v5_record_codec.py": "b80155050e6881156502e39d97f3f68a19957c21e9ecb94c53b0ffd6b820555b",
+    "tests/unit/account/test_account_owner_assignment_subject_v5_record_codec.py": "292b862850b414241ab2ae9b9d19098dd28828c88b7a4f9f269dce2c84fd1b39",
+    "tests/unit/account/test_account_owner_assignment_v5_models.py": "a7fd2cc1fcf1c4bc39e4c60904d8f0e548a518fc897b74d35597281bb749f4f2",
+    "tests/unit/account/test_single_owner_policy_scope_reader.py": "d49562b54e944eb6c923a3a5b78aec7337c6484cdc06166e44ef910b5f7a9a68",
+    "tests/component/account/test_account_owner_assignment_v5_migration.py": "9ad642464d80581e9740b2b98014a62cb4cc74b29c2ec2c70fee373ebd3ebaa7",
+    "tests/component/account/test_account_owner_assignment_provenance_receipt_v5_repository.py": "165b7eaede58df957c8c237b3050ec87676e3c8d617a56f6d4b8d16c8a446baf",
+    "tests/component/account/test_account_owner_assignment_subject_v5_repository.py": "a4cca041cd2d8c9641307621996c00355862067654a7156958fe2cb1950b9bde"
+  },
+  "raw_evidence_sha256": {
+    "var/evid07-v5-ledgers-unit-final.txt": "3653979008d4fe55e1f2c0a0e9ed2c0ffdb84837eb5985871023b3f269a63dff",
+    "var/evid07-v5-ledgers-postgres-final.txt": "956b52e9d546ac2ed5c875cd8c8a31ff0387f43ddb3ef6537f87f0689e7b81f5",
+    "var/evid07-v5-ledgers-cleanup-final.txt": "035facfb573e3880234d90f3c239d71755c0b107dbb57afc6a8c678a9ab48827",
+    "var/evid07-v5-ledgers-mypy-final.txt": "6f4b7b751a9c7be4681f45c4b13e97d88f427e1aca7abb02a4665547f563f72e",
+    "var/evid07-v5-ledgers-full-debt-final.txt": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+    "var/evid07-v5-ledgers-architecture-final.txt": "896c2f906227cdef949eb549653100f1a749902521e9f7feb63e0361eeeb0e16",
+    "var/evid07-v5-ledgers-governance-final.txt": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b",
+    "var/evid07-v5-ledgers-freshness-final.txt": "0d276c65b5842d920a0df0d2ad68d4038d6602a710d28a233f69ee2343119c02",
+    "var/evid07-v5-ledgers-registry-final.txt": "b1d243a9262e1ffff0351d06700c1e9167e815bfd9bd3f6c532df43c3717d28d",
+    "var/evid07-v5-ledgers-format-final.txt": "e7152ab323cfe1fb1289f76d87b867c43626b5fe74550c3ecb5a1930e3f514ce",
+    "var/evid07-v5-ledgers-ruff-final.txt": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+    "var/evid07-v5-ledgers-migrations-check-final.txt": "fec09e1a786883f636f891525830c010fa79f139a14256a6c2285d3cd8854beb"
+  },
+  "limitations": [
+    "This is a local repository checkpoint bound to uncommitted working-tree files.",
+    "No production deployment, ConfigCenter activation, account assignment, human approval, owner-tenant authority, scope grant, or trading operation occurred.",
+    "EvidenceV5, AuthorityV3, typed scope V3, revocation and the complete authenticated PostgreSQL owner-scope graph remain pending.",
+    "The admin/user_id=1 designation identifies the intended real owner and approver but this checkpoint does not invent or execute the approval decision."
+  ],
+  "next_gate": "Define and persist EvidenceV5 against exact current SubjectV5/ReceiptV5 parents, then add AuthorityV3, typed scope V3, revocation and the complete authenticated PostgreSQL owner-scope graph without widening V4/V2 readers."
+}

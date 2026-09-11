@@ -1,0 +1,86 @@
+{
+  "schema": "agom.repository-checkpoint.v1",
+  "unit_id": "EVID-07",
+  "status": "active",
+  "recorded_at": "2026-09-10T15:40:39.004994+00:00",
+  "checkpoint": "Durable single-owner policy ledger and standalone canonical actor read composition",
+  "head": "fd56f1a4683b9500d8c0a205045b4bdf5582f715",
+  "source_sha256": {
+    "apps/account/domain/single_owner_authority_policy_v1.py": "918ef0517d35a16ea09bbb3257a763709a6c2ac3feabb0b764082a092cf01f29",
+    "apps/account/infrastructure/single_owner_authority_policy_v1_models.py": "f52fc5bcc69714d43d0c28089d72475e476262119974245eef1a16a1786ab679",
+    "apps/account/infrastructure/single_owner_authority_policy_v1_repository.py": "54d7d652fda4f7a590f1b172a066e77f29c62884b8cca4e0c6ffb9e956772743",
+    "apps/account/infrastructure/models.py": "c50b14b839bf3a5bd8a1b2e2ed15235b65ec33b015c7946092e4604b748b3c28",
+    "apps/account/migrations/0056_single_owner_authority_policy_v1.py": "edbc7f5ee496a7a25d0524892c22491c5cddbf19dfc78d24af881f25154fd538",
+    "apps/account/single_owner_authority_policy_composition.py": "f600d606361b8ccc9710428d7f811d26276213f87276cb891063df60f94fd04c",
+    "tests/unit/account/test_single_owner_authority_policy_v1.py": "fb5b81f15d8c2c5f821875a22ea3888141dc138548ddb0c94e3117997114dff9",
+    "tests/unit/test_account_models_structure.py": "ac709c0f674e15b35e1ebfacc1b1cc4273703fe5bc31e16bb9373f5a1f7860ec",
+    "tests/component/account/test_single_owner_authority_policy_v1_repository.py": "fea465559c15dc8440702ebd7ce3c777f2f21dc626e85124163b8e3f4845e706",
+    "tests/component/account/test_single_owner_policy_actor_composition.py": "8ac487dd336472d24fbeb6f281cd68f8221f95ed776422c649cf73d78167b37c",
+    "tests/component/account/test_single_owner_policy_migration.py": "b220fa69acd2b980636b53b4b528af83bbddf66b7e78fd1a72828e2a6c167cf9",
+    "governance/current_data_contracts.json": "311a00d5f27220f57a3ba56af041de5af0470847278cf05377e08d9b92c64ad8"
+  },
+  "raw_evidence": {
+    "var/evid07-policy-structure-unit.txt": {
+      "sha256": "89e37f685b3170efcf4ae8e2630207c8e662a77cf97ea91c938322f7d22b3bbe",
+      "content": "..........................................                               [100%]\n42 passed in 0.63s\n"
+    },
+    "var/evid07-policy-migration-postgres.txt": {
+      "sha256": "73afa3bea366730f0ddcef31eba5027a9a8e3d160a8e4766e53e3395df7945b0",
+      "content": "Running EVID-06 tests against dedicated loopback test database.\n.                                                                        [100%]\n1 passed in 11.16s\n"
+    },
+    "var/evid07-policy-migration-drift.txt": {
+      "sha256": "bfec64047d7ab58e108381f771290f6ae26c9980ec4e773351d645a9f7813abe",
+      "content": "INFO 2026-09-10 23:29:51,573 event_bus_initializer [trace_id=-] Event bus initialized with 18 handlers\nNo changes detected in app 'account'\n"
+    },
+    "var/evid07-durable-policy-postgres.txt": {
+      "sha256": "e8c8168202a4dd219c90be6f9028f895f8f2b20edb075b9f52529c0200d33719",
+      "content": "Running EVID-06 tests against dedicated loopback test database.\n...........                                                              [100%]\n11 passed in 177.86s (0:02:57)\n"
+    },
+    "var/evid07-durable-policy-cleanup.json": {
+      "sha256": "035facfb573e3880234d90f3c239d71755c0b107dbb57afc6a8c678a9ab48827",
+      "content": "{\"database\": \"evid06_authority_test\", \"public_base_tables\": 0}\n"
+    },
+    "var/evid07-durable-policy-mypy.txt": {
+      "sha256": "03fd710911c2d785f138604504fcf8562562a6de27768946b368de05a42dba1d",
+      "content": "Success: no issues found in 6 source files\nMypy regressions: 0 (legacy errors observed: 0)\n"
+    },
+    "var/evid07-durable-policy-debt.txt": {
+      "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+      "content": "Full mypy debt ceiling passed: 0 errors in 0 files\n"
+    },
+    "var/evid07-durable-policy-format.txt": {
+      "sha256": "520f7f8810b4142682bc657abb5a84f736ed17ba1db2b3cb5b3f750a296aa91c",
+      "content": "All done! \\u2728 \\U0001f370 \\u2728\n11 files would be left unchanged.\nAll checks passed!\nFORMAT_CHECKS_PASSED\n"
+    },
+    "var/evid07-durable-policy-architecture.txt": {
+      "sha256": "cbf413da81ed85226a29bc6697c755ee1921c2f545b8f009929274e842bbe52e",
+      "content": "Architecture rules version: 2026-06-30.v8\nScan roots: apps, core, shared\nScanned files: 3060\nBoundary rules: 7\nBoundary violations: 0\n"
+    },
+    "var/evid07-durable-policy-freshness.txt": {
+      "sha256": "3f5855a7db9f4956ee0bcbfe8b9f3a5dfabb02cc7aaef5f47aef34c60cff87f7",
+      "content": "Current-data freshness contracts OK: 58 surface(s)\n"
+    },
+    "var/evid07-durable-policy-governance.txt": {
+      "sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b",
+      "content": "Governance baseline version: 2026-09-09.v220\nGovernance violations: 0\n- governance_baseline: 0 violation(s)\n- docs_consistency: 0 violation(s)\n- docs_links: 0 violation(s)\n- governance_docs: 0 violation(s)\n- module_shape: 0 violation(s)\n- misplaced_app_config: 0 violation(s)\n- singular_dto_files: 0 violation(s)\n- architecture_ruleset: 0 violation(s)\n- module_dependency_baseline: 0 violation(s)\n- ci_governance_wiring: 0 violation(s)\n- application_third_party_imports: 0 violation(s)\n- core_integration_debt: 0 violation(s)\n- core_management_command_debt: 0 violation(s)\n- large_python_files: 0 violation(s)\n- large_file_remediation: 0 violation(s)\n"
+    }
+  },
+  "verified": {
+    "domain_and_structure_tests": 42,
+    "postgres_repository_and_composition_tests": 11,
+    "postgres_migration_test": 1,
+    "migration_scope": "Actual 0056 CreateModel forward/reverse/reapply operations and columns/constraints on an isolated PostgreSQL alias; not the full historical migration dependency chain.",
+    "actor_composition_scope": "Real persisted local Django session/User/RBAC sources plus synthetic test policy declaration; same real staff user in both roles, revoked policy rejects the previous exact binding. Standalone non-granting read, not authenticated owner-write acceptance.",
+    "full_debt_scope": "Full scan started before worker file finalization; final scoped mypy covers all production files changed in this checkpoint."
+  },
+  "remaining": [
+    "server-owned runtime policy publication bound to real authorization declaration",
+    "durable Receipt V4 writer, Subject/Evidence V4 and owner-tenant typed scope",
+    "locked same-alias authenticated canonical creation/write composition",
+    "full graph PostgreSQL rollback/replay and authenticated owner-scope workflow",
+    "production deployment and real-source prerequisites for EVID-01/02 and DATA-02"
+  ],
+  "production_changes": false,
+  "unit_exit_gate_passed": false,
+  "artifact_git_tracking": "Local ignored docs/testing artifact; user working-tree ignore rules preserved."
+}

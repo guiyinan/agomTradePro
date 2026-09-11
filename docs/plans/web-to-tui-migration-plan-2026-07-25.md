@@ -3,8 +3,8 @@
 > TUI-01/02 的候选、角色 UAT、14 日观察与回滚顺序见 [`release-blocker-closure-execution-plan-2026-08-29.md`](release-blocker-closure-execution-plan-2026-08-29.md)。
 
 > **文档日期**: 2026-07-25
-> **最后修订**: 2026-09-03
-> **状态**: 实施中；M0、M0-D、M1、M2、M3 与 M4 仓库实现已完成；当前候选 `aa7127ff4…` / release `20260901232812` 已完成绑定的三角色 10/10、108/108 UAT、cleanup 与隔离 rollback，随后一次受控 web-only restart 已使旧 retained window 作废并重置观察；当前等待重启后首个真实 retained sample、精确 14 日窗口、structured telemetry/defect、生产 registry backup 与 owner attestations，未满足前禁止清理 Classic
+> **最后修订**: 2026-09-10
+> **状态**: 实施中；M0、M0-D、M1、M2、M3 与 M4 仓库实现已完成；当前生产候选 `dba9ab2c8…` / release `20260910002501` 的监控查询接线已修复，尚无真实迁移指标首样本，14日窗口未开始。旧候选的UAT、cleanup、rollback和观察证据仅作历史；当前仍需候选绑定的UAT、structured telemetry/defect、生产registry backup及owner attestations，未满足前禁止清理Classic。
 > **适用对象**: 开发负责人 / 模块维护人 / AI 代理
 > **主范围**: 以 M0 的 195 个 Django 模板为初始基线，持续盘点 `core/templates/` 与 `apps/*/templates/`，并把适合迁移的用户任务迁入 TUI 工作台（`/tui/`）；迁移期新增的共用兼容组件也必须进入同一台账
 > **后端边界**: 默认保持业务语义不变；为补齐 TUI API 契约所需的 owner app 纵向切片允许纳入，但必须单独估算、提交和验收，不得把业务逻辑堆入 `terminal`
@@ -753,3 +753,15 @@ SHA-256=`5213277b9fcddeb2b96dc050ed52619079060395d79467b68d1616fa2a10a636`。
 ### 2026-09-09 巡检缺陷修复
 
 Classic 首页当前配置的 0–1 比例按百分比展示；Alpha 入口文案引导至专门排名页，移除实现细节；Classic 政策动作按事件审核/生效状态呈现，TUI 与 Classic 政策页同步刷新静态资源版本。路由及迁移矩阵不变，已运行模板迁移清单检查。TUI 页面整改记录见 `docs/reviews/vps-tui-page-design-audit-2026-09-08.md`。
+
+
+### 2026-09-10 当前候选查询接线修复与剩余门禁
+
+[独立修复回执](../deployment/tui02-query-wiring-repair-2026-09-10-dba9ab2c.json)绑定 dba9ab2c8 / release 20260910002501，保留11份原始材料、精确动作、备份和自动回滚记录。
+原始collector的 migration_series_count_unavailable 先由认证401触发，不能据此断言没有指标；配置修复后才观察到HTTP 200空vector。Compose配置中的美元符号转义未损坏原哈希。
+
+依据既有单所有者授权，恢复原host-only env的相同字节至当前release，权限0600；仅Caddy以no-deps/no-build/pull-never重建。第一次尝试因Mounts列表顺序误判在重建前停止，新增文件已撤回；独立复查确认实际容器/挂载未变。修正比较后第二次成功。所有原始结果保留，不覆盖失败记录。
+
+验证：HTTPS health 200、认证query 200且up=1、未认证401、非允许路径404、18规则健康；Web/Prometheus的ID、镜像、启动时间、restart count与挂载均不变。pyqlib发行包与qlib导入版本均0.9.7。decision-ready仍503、decision_runtime_blocked；没有启用运行时、改业务权限或写生产业务数据。
+
+截至2026-09-09T18:16:26.069731Z，迁移指标查询返回空vector，first_retained_sample_at/eligible_at均未绑定。TUI-02观察、当前候选UAT及最终验收未完成。后续发布脚本仍需有界修复host-only配置延续并补契约测试，当前运行修复不保证下一次release自动继承。

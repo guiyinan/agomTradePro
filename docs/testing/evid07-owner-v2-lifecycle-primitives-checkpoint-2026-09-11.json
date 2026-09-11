@@ -1,0 +1,97 @@
+{
+  "schema": "agom.repository-checkpoint.v1",
+  "unit_id": "EVID-07",
+  "status": "active",
+  "recorded_at": "2026-09-10T17:43:44.474028+00:00",
+  "checkpoint": "OwnerTenant V2 decision/revocation Domain and live physical ownership observation",
+  "head": "fd56f1a4683b9500d8c0a205045b4bdf5582f715",
+  "source_sha256": {
+    "apps/account/domain/owner_tenant_authority_v2.py": "bb0f8dbaf4e2186906e1ae680c9d1ec3a897049b4bb988bd09711318f2c027f5",
+    "apps/simulated_trading/application/current_account_ownership.py": "e96b6ebb85ff62202a4ee7080d5b65fe42a1aad412e3b42f321cf0837dbeba04",
+    "apps/simulated_trading/infrastructure/current_account_ownership.py": "36fb71f85055b07016017a914ee22367ed6bbb888fc384f88bae5056729b8d97",
+    "apps/simulated_trading/account_ownership_composition.py": "91697545c4f511fa47c930a51ea0ddffcce2f7cc5acfd6f685eed6e95504c89d",
+    "tests/unit/account/test_owner_tenant_authority_v2.py": "a5de5bbb1f938cf20b9bd33e7794877b9bac1a5c0d0970a8a99106b91d992e61",
+    "tests/unit/test_current_account_ownership.py": "fb023ad4b98fcb6dc01ec614743c4fca9f8eee3342cf8c4fb3208628725bc514",
+    "tests/component/account/test_current_account_ownership_postgres.py": "1efc53f0d27e2948f5d4a89fdd947d6ff320226268291f8b0b482a39cce9a997",
+    "governance/current_data_contracts.json": "192136f1ef2e1433ad577ad1a6fe03208b5a961104457c09618412a77af25189"
+  },
+  "legacy_diff_against_head_empty": [
+    "apps/account/domain/owner_tenant_authority_v1.py",
+    "apps/account/application/owner_tenant_authority_v1.py",
+    "apps/account/domain/account_owner_assignment_evidence_v3.py",
+    "apps/account/application/account_owner_assignment_evidence_v3.py",
+    "core/integration/owner_tenant_evidence_scope_v1.py"
+  ],
+  "raw_evidence": {
+    "var/owner-tenant-authority-v2-unit-coverage.txt": {
+      "sha256": "fa0a759b98a6de8830c0ebc238da722d4936210a534724adf05e185f08138a4b",
+      "content": "..............                                                           [100%]\n=============================== tests coverage ================================\n_______________ coverage: platform win32, python 3.13.5-final-0 _______________\n\nName                                               Stmts   Miss Branch BrPart  Cover   Missing\n----------------------------------------------------------------------------------------------\napps\\account\\domain\\owner_tenant_authority_v2.py     238      5     66      4  97.0%   69, 188, 224, 232, 445\n----------------------------------------------------------------------------------------------\nTOTAL                                                238      5     66      4  97.0%\n14 passed in 55.71s\n"
+    },
+    "var/evid07-owner-v2-combined-unit.txt": {
+      "sha256": "0014299b610e12074a01d86c458330ee40e54f0b928b616ef81e91ff71e1edad",
+      "content": "..................................................................       [100%]\n66 passed in 26.09s\n"
+    },
+    "var/evid07-live-ownership-postgres.txt": {
+      "sha256": "287e852aa5752ef0a7a93b97f420ad7809c871040f53f5a6ead17e8daec5ebaa",
+      "content": "Running EVID-06 tests against dedicated loopback test database.\n..                                                                       [100%]\n============================= slowest 5 durations =============================\n38.29s setup    tests/component/account/test_current_account_ownership_postgres.py::test_live_owner_change_missing_and_inactive_never_fall_back\n16.42s setup    tests/component/account/test_current_account_ownership_postgres.py::test_transaction_isolation_source_clocks_and_lock_contention\n8.81s teardown tests/component/account/test_current_account_ownership_postgres.py::test_live_owner_change_missing_and_inactive_never_fall_back\n4.64s call     tests/component/account/test_current_account_ownership_postgres.py::test_live_owner_change_missing_and_inactive_never_fall_back\n2.24s call     tests/component/account/test_current_account_ownership_postgres.py::test_transaction_isolation_source_clocks_and_lock_contention\n2 passed in 72.64s (0:01:12)\n"
+    },
+    "var/evid07-owner-v2-final-mypy.txt": {
+      "sha256": "3fbd8281856ab7351acb81214ce6b1c9ab4bd26e2ed26d2995c306a1aa11a800",
+      "content": "Success: no issues found in 4 source files\nMypy regressions: 0 (legacy errors observed: 0)\n"
+    },
+    "var/evid07-owner-v2-debt.txt": {
+      "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+      "content": "Full mypy debt ceiling passed: 0 errors in 0 files\n"
+    },
+    "var/evid07-owner-v2-final-format.txt": {
+      "sha256": "31fae13d2d51890945d82b6b66db28f777e2e4910a68dbc6000c5e3841c7c6aa",
+      "content": "All done! \\u2728 \\U0001f370 \\u2728\n7 files would be left unchanged.\nAll checks passed!\n"
+    },
+    "var/evid07-owner-v2-architecture.txt": {
+      "sha256": "f18cf45a1c88d826a6e06357d9b8ef9b54850d80446a5779e063ec1d6ed91dd2",
+      "content": "Architecture rules version: 2026-06-30.v8\nScan roots: apps, core, shared\nScanned files: 3076\nBoundary rules: 7\nBoundary violations: 0\n"
+    },
+    "var/evid07-owner-v2-governance.txt": {
+      "sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b",
+      "content": "Governance baseline version: 2026-09-09.v220\nGovernance violations: 0\n- governance_baseline: 0 violation(s)\n- docs_consistency: 0 violation(s)\n- docs_links: 0 violation(s)\n- governance_docs: 0 violation(s)\n- module_shape: 0 violation(s)\n- misplaced_app_config: 0 violation(s)\n- singular_dto_files: 0 violation(s)\n- architecture_ruleset: 0 violation(s)\n- module_dependency_baseline: 0 violation(s)\n- ci_governance_wiring: 0 violation(s)\n- application_third_party_imports: 0 violation(s)\n- core_integration_debt: 0 violation(s)\n- core_management_command_debt: 0 violation(s)\n- large_python_files: 0 violation(s)\n- large_file_remediation: 0 violation(s)\n"
+    },
+    "var/evid07-owner-v2-freshness.txt": {
+      "sha256": "0d276c65b5842d920a0df0d2ad68d4038d6602a710d28a233f69ee2343119c02",
+      "content": "Current-data freshness contracts OK: 61 surface(s)\n"
+    },
+    "var/evid07-owner-v2-cleanup.json": {
+      "sha256": "035facfb573e3880234d90f3c239d71755c0b107dbb57afc6a8c678a9ab48827",
+      "content": "{\"database\": \"evid06_authority_test\", \"public_base_tables\": 0}\n"
+    }
+  },
+  "verified": {
+    "combined_unit_tests": 66,
+    "domain_unit_tests": 14,
+    "domain_line_coverage": {
+      "covered": 233,
+      "statements": 238,
+      "percent": 97.89915966386555
+    },
+    "domain_branch_aware_coverage_percent": 97.0,
+    "postgres_tests": 2,
+    "postgres_scope": "Actual local User and physical account row; ownerless/inactive/missing rows, source timestamp preservation, default-alias sentinel, mandatory PostgreSQL READ COMMITTED outer transaction, actual competing row lock with retry and future source clock rejection.",
+    "domain_scope": "Independent root approved while V4/policy current; decision interval can outlive the five-minute assignment window but not policy; immutable same-owner revocation bound to exact decision and policy hashes, including revocation after expiry.",
+    "static_scope": "Final scoped mypy covers all four production files. Full debt was started before final Domain formatting; architecture/governance scanned the Domain once present. No debt baseline changed."
+  },
+  "limits": [
+    "Domain values are not authenticated human decisions or a durable current authority reader.",
+    "Live physical observation grants no authority and must be re-read within the same transaction for every request; callers must compare sealed row identity, actual owner and active state.",
+    "No owner decision writer, renewal successor, Research scope integration or real authenticated creation graph is delivered by this checkpoint.",
+    "Local synthetic account creation is not production provenance or acceptance; no deployment or production write occurred."
+  ],
+  "remaining": [
+    "OwnerTenant V2 strict codecs, source-bound authenticated application and durable decision/revocation repository",
+    "explicit reauthorization lifecycle using current real physical facts, never expired assignment renewal",
+    "reuse Research EvidenceScopeSourceV1 through V2 integration that rechecks current decision/policy, fresh authentication and live ownership on every request",
+    "server-owned declaration publication and actual authenticated account creation with the complete atomic graph",
+    "production prerequisites and full DATA-02/EVID-01/02/AUD-03/TAR-05 exit gates"
+  ],
+  "production_changes": false,
+  "unit_exit_gate_passed": false,
+  "artifact_git_tracking": "Local artifact remains ignored by existing user configuration; no forced staging."
+}

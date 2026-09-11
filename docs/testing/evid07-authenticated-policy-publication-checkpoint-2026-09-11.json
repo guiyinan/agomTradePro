@@ -1,0 +1,78 @@
+{
+  "schema": "agom.repository-checkpoint.v1",
+  "unit_id": "EVID-07",
+  "status": "active",
+  "recorded_at": "2026-09-11T02:11:02.3845408Z",
+  "checkpoint": "Authenticated server-bound single-owner policy publication API",
+  "previous_checkpoint_sha256": "219a55b50b1918369acd956a0611ce1df8aa9d267140474b83e3a8f5ef860b09",
+  "source_sha256": {
+    "apps/account/interface/single_owner_policy_api_views.py": "315c318c41d722e38175d4627d5c331bc3e5d865f06ed2eab747705b1047ab2d",
+    "apps/account/interface/api_urls.py": "a57819c34de78d5aaa2d4a4ad6dbe06bffbd048cb0e323356dc7f88d572012d8",
+    "core/integration/bound_single_owner_policy_publication.py": "4f59dc851ca561722d53270386de7ef1b2413ec90655190d046ef9a644bb97cc",
+    "apps/account/application/single_owner_policy_publication.py": "17b2986c25086b4eb13c87eb452ba12dac5d611e034e41c1ae992fb1e07f66c1",
+    "apps/account/infrastructure/single_owner_policy_authentication.py": "6bc057f5c17f6c6f81dd078f71d8390dc20822da709f4643df8d688c054b2892",
+    "tests/component/account/test_policy_publication_api_postgres.py": "d2bbb7a4bec35d47ef0151ae782f6349374f70a406f9a2e4641014fb3b0614b9"
+  },
+  "verification": {
+    "api_unit": {
+      "exit_code": 0,
+      "passed": 27,
+      "log": "var/evid07-policy-api-validation-unit.txt"
+    },
+    "incremental_mypy": {
+      "exit_code": 0,
+      "regressions": 0,
+      "log": "var/evid07-policy-api-validation-mypy.txt"
+    },
+    "full_mypy_debt_ceiling": {
+      "exit_code": 0,
+      "errors": 0,
+      "log": "var/evid07-policy-api-validation-full-debt.txt"
+    },
+    "format_and_static": {
+      "black": "passed",
+      "isort": "passed",
+      "ruff": "passed"
+    },
+    "postgres_final_api": {
+      "exit_code": 0,
+      "passed": 1,
+      "duration_seconds": 263.04,
+      "coverage": [
+        "real Session authentication and CSRF transport",
+        "exact JSON input and rejection of client authority fields",
+        "first publication and exact replay",
+        "scope conflict returns 409",
+        "authorization source removal returns 503 without a second row"
+      ],
+      "source_comparison": {
+        "files_checked": 19,
+        "changed": []
+      },
+      "cleanup": {
+        "database": "evid06_authority_test",
+        "public_base_tables": 0
+      },
+      "log": "var/evid07-policy-api-validation-postgres.txt"
+    },
+    "postgres_prior_combined_run": {
+      "exit_code": 1,
+      "passed": 1,
+      "failed": 1,
+      "finding": "The Core publication transaction passed; malformed serializer errors were not renderable by DRF. The serializer error shape was fixed before the final API run.",
+      "source_comparison": {
+        "files_checked": 19,
+        "changed": []
+      },
+      "cleanup_public_base_tables": 0,
+      "log": "var/evid07-bound-policy-postgres-final.txt"
+    }
+  },
+  "scope_limits": [
+    "This checkpoint is repository and dedicated-loopback-PostgreSQL evidence only.",
+    "Runtime ConfigCenter values in the component test are explicit fixtures, not a production configuration activation.",
+    "The endpoint publishes an inactive policy and returns authority_granted=false; it does not create assignment evidence, approval, owner-tenant authority, or execution permission.",
+    "No production request, production database write, deployment, or human business acceptance is claimed.",
+    "EVID-07, EVID-01/02, DATA-02 and the full Goal remain incomplete."
+  ]
+}

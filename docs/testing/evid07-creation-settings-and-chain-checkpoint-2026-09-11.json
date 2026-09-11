@@ -1,0 +1,90 @@
+{
+  "schema": "agom.repository-checkpoint.v1",
+  "unit_id": "EVID-07",
+  "status": "active",
+  "recorded_at": "2026-09-10T21:40:18.591783+00:00",
+  "checkpoint": "Typed creation settings, public owner stages and actual row-to-Binding chain",
+  "previous_checkpoint_sha256": "04864e0ccf04ba413b671123ad3c33eb58ae8928356a9b4f4bf650d16126b65e",
+  "source_sha256": {
+    "apps/account/application/creation_evidence_settings.py": "b99280b703612e22dee9c428bf20b86359db12732a1fc673860624c62b46dc75",
+    "core/integration/account_creation_evidence_runtime.py": "3296de43b48b8431837e84c8a1e42d9e5ed4725686ad0fcc3363884bb4895b60",
+    "apps/account/management/commands/activate_creation_evidence_settings.py": "d75554fb07b8abbd37602ed0c5a90ac915680d91a3248e3f321c2d95566b56b3",
+    "apps/config_center/application/runtime_definition_reconcile.py": "bfc448bdd2487f238f463c274f086e66d2b92839803176b48045d9d550d5907e",
+    "apps/simulated_trading/creation_composition.py": "2851c6e98b099af5cf6fb416495cd7d2146d850ebed2994fac4d753fcd7c91a5",
+    "tests/unit/account/test_creation_evidence_runtime_settings.py": "623d5412944ddf7c8df67627313b0b2f4a0c92411274294b8a1e1878dd72eaea",
+    "tests/unit/account/test_creation_evidence_settings_cli.py": "75490723f27b7b8033810422b1adb5f7ecfb0f74d29c67edce01dd7781311d22",
+    "tests/unit/simulated_trading/test_creation_composition.py": "2c81399ebfce58d53e826e30b730efa3a05835c3365a294c8603bd8a914e525b",
+    "tests/component/account/creation_chain_postgres_fixture.py": "b33be028a004bca7559fe9a4d743e2bd3e42d840029040e2f3db58e33b8520a3",
+    "tests/component/account/test_actual_creation_chain_postgres.py": "3b13e897143f792fb2d44d70157373d5073e4ff6161153fce5b9de1d65269ba2"
+  },
+  "raw_evidence": {
+    "var/evid07-creation-slice-unit.txt": {
+      "sha256": "52b5a4fbdf62d978b921111ac0498df5ee84ba8f87c18582345379a386596f89",
+      "content": "...........................................................              [100%]\n59 passed in 0.92s\n"
+    },
+    "var/evid07-actual-creation-chain-postgres.txt": {
+      "sha256": "5b63447a91813332281a8fe1e61ff50ff6fa02f7f9caac30c0a04b1b24edbb16",
+      "content": "Running EVID-06 tests against dedicated loopback test database.\n.                                                                        [100%]\n============================== warnings summary ===============================\nagomtradepro\\Lib\\site-packages\\_pytest\\config\\__init__.py:852\n  D:\\githv\\agomTradePro\\agomtradepro\\Lib\\site-packages\\_pytest\\config\\__init__.py:852: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.component.account.creation_chain_postgres_fixture\n    self.import_plugin(import_spec)\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n1 passed, 1 warning in 149.70s (0:02:29)\n"
+    },
+    "var/evid07-creation-settings-mypy-final2.txt": {
+      "sha256": "3fbd8281856ab7351acb81214ce6b1c9ab4bd26e2ed26d2995c306a1aa11a800",
+      "content": "Success: no issues found in 4 source files\nMypy regressions: 0 (legacy errors observed: 0)\n"
+    },
+    "var/evid07-creation-composition-mypy.txt": {
+      "sha256": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b",
+      "content": "Success: no issues found in 1 source file\nMypy regressions: 0 (legacy errors observed: 0)\n"
+    },
+    "var/evid07-creation-settings-debt-final2.txt": {
+      "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+      "content": "Full mypy debt ceiling passed: 0 errors in 0 files\n"
+    },
+    "var/evid07-creation-settings-architecture.txt": {
+      "sha256": "23601cffd95fd588681a93e821c88f41fc3e11429a7676f46bd52f2fb2e368a2",
+      "content": "Architecture rules version: 2026-06-30.v8\nScan roots: apps, core, shared\nScanned files: 3091\nBoundary rules: 7\nBoundary violations: 0\n"
+    },
+    "var/evid07-creation-slice-black.txt": {
+      "sha256": "7afd99d56b9d551a4158f86ec96229763c57a59d97633d0ffc486b1edf9afe9a",
+      "content": "All done! \\u2728 \\U0001f370 \\u2728\n10 files would be left unchanged.\n"
+    },
+    "var/evid07-creation-slice-isort.txt": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "content": ""
+    },
+    "var/evid07-creation-slice-ruff.txt": {
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+      "content": "All checks passed!\n"
+    },
+    "var/evid07-creation-slice-registry.txt": {
+      "sha256": "b1d243a9262e1ffff0351d06700c1e9167e815bfd9bd3f6c532df43c3717d28d",
+      "content": "active-plan-registry version=2026-09-10.v83 workstreams=9 primary=18 support=27 review=0 units=49 paths=45 violations=0\n"
+    },
+    "var/evid07-actual-creation-chain-cleanup.json": {
+      "sha256": "035facfb573e3880234d90f3c239d71755c0b107dbb57afc6a8c678a9ab48827",
+      "content": "{\"database\": \"evid06_authority_test\", \"public_base_tables\": 0}\n"
+    }
+  },
+  "verified": {
+    "unit_tests": 59,
+    "postgres_tests": 1,
+    "unit_scope": "49 settings/CLI cases and 10 public composition cases, counted once in the combined final run.",
+    "postgres_scope": "Actual Application writes of allocation, User-owned physical row, raw, source-v2, Physical-v2, allocated-v3 and Binding-v2/claim on the dedicated PostgreSQL alias. Default queries rejected. Outer rollback removes all new graph rows; subsequent commit persists one graph and leaves V1 Binding empty.",
+    "static_scope": "Five production files incremental mypy, final full debt ceiling, ten files Black/isort/Ruff, architecture 3091 files with zero violations and active registry check.",
+    "verification_sequence": "Initial configuration mypy and debt checks found five CLI arg-type errors. The command now decodes the complete object payload before consuming typed settings. Final tests and type checks supersede those errors without changing debt baselines."
+  },
+  "limits": [
+    "Requester actor and request fingerprint are explicit local test inputs, not authenticated HTTP provenance.",
+    "The PG test composes Account applications with test-local adapters; the full production orchestration facade remains to be implemented.",
+    "The explicit rollback case does not prove all failure injection, concurrent request idempotency or permanent request replay.",
+    "One pytest assertion-rewrite warning concerns the already imported fixture module, which contains no assertions; test-module assertions executed normally.",
+    "No runtime profile was activated and no production account, approval, HTTP route or trading behavior was changed."
+  ],
+  "remaining": [
+    "Account public composition and production outer transaction orchestration",
+    "Request serialization, trusted winner discovery and permanent replay",
+    "Authenticated HTTP creation and explicit owner approval/reauthorization",
+    "Production DATA-02/EVID-01/02/AUD-03/TAR-05 exit gates"
+  ],
+  "production_changes": false,
+  "unit_exit_gate_passed": false,
+  "artifact_git_tracking": "Ignored local artifact; no forced staging or ignore-rule changes."
+}

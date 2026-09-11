@@ -1,0 +1,89 @@
+{
+  "schema": "agom.repository-checkpoint.v1",
+  "unit_id": "EVID-07",
+  "status": "active",
+  "recorded_at": "2026-09-10T20:45:41.607438+00:00",
+  "checkpoint": "Source-locked current owner authorization around exact historical Research reads",
+  "head": "fd56f1a4683b9500d8c0a205045b4bdf5582f715",
+  "source_sha256": {
+    "apps/account/owner_tenant_authority_v2_composition.py": "411e0307277c6e64560716608701959a840a78c320a52586a22413f661fc1f3a",
+    "apps/research/evidence_composition.py": "14cfc8538cfd2289cf3e91480c5f27ed087f93eb8d2d45d7d08ac17b5c88d377",
+    "core/integration/owner_tenant_evidence_scope_v2.py": "6b519af7c030d0f2b38564873cebcc376b57f9d38e30262e142c267075e738cb",
+    "tests/unit/account/test_owner_tenant_authority_v2_locked_read.py": "05a352a9a703d2eba4a9258b6c88b43dd18356b05f23e260dc07581d91adeefd",
+    "tests/unit/core/test_owner_tenant_evidence_scope_v2.py": "1a4a98c007d362102415af8381d67af6f745b8bcfb5f718776f93471a903ac84",
+    "tests/unit/core/test_owner_tenant_evidence_scope_v2_clock_regression.py": "04a92c2deb1967b3d077f654598de5481e6a98161813877dc81e14e5ef24130f",
+    "tests/component/account/test_owner_tenant_authority_v2_locked_read.py": "bc155e6bb486d43377f2adf6c3f4bd89a2a64b1a1be91387d29466aae3c7fdc5",
+    "tests/component/research/test_owner_tenant_evidence_scope_v2_postgres.py": "7d4704f13087a9f2cbabc99c84ba3e755e7e6f106bed143cb6088f2a73ef051e",
+    "governance/current_data_contracts.json": "f70cbe9f4c6c8fa38c578ec3900da6c74e9f1d1d75dbec5d7a59508dee1a17b4"
+  },
+  "previous_checkpoint_sha256": "c007785690ff06def95f8a6a56365c3c2489a29593861a9948771089d142b8e3",
+  "raw_evidence": {
+    "var/evid07-owner-v2-locked-read-postgres-final.txt": {
+      "sha256": "e4f8ad5d04c393b094e044fa3ee0892a8519d7e58a00df0a9554fa7b323ecdf4",
+      "content": "Running EVID-06 tests against dedicated loopback test database.\n.                                                                        [100%]\n============================= slowest 5 durations =============================\n560.56s call     tests/component/account/test_owner_tenant_authority_v2_locked_read.py::test_callback_keeps_actual_owner_locks_until_materialized_read_returns\n82.66s setup    tests/component/account/test_owner_tenant_authority_v2_locked_read.py::test_callback_keeps_actual_owner_locks_until_materialized_read_returns\n21.43s teardown tests/component/account/test_owner_tenant_authority_v2_locked_read.py::test_callback_keeps_actual_owner_locks_until_materialized_read_returns\n1 passed in 665.17s (0:11:05)\n"
+    },
+    "var/evid07-scope-v2-postgres-final.txt": {
+      "sha256": "bd8a6063b8383d3ab82634368fcc8794da36b0bd895a68122f94edda3d1f51c7",
+      "content": "Running EVID-06 tests against dedicated loopback test database.\n.                                                                        [100%]\n============================= slowest 5 durations =============================\n781.74s call     tests/component/research/test_owner_tenant_evidence_scope_v2_postgres.py::test_actual_current_owner_reads_historical_evidence_and_live_owner_loss_denies\n212.58s setup    tests/component/research/test_owner_tenant_evidence_scope_v2_postgres.py::test_actual_current_owner_reads_historical_evidence_and_live_owner_loss_denies\n13.75s teardown tests/component/research/test_owner_tenant_evidence_scope_v2_postgres.py::test_actual_current_owner_reads_historical_evidence_and_live_owner_loss_denies\n1 passed in 1009.57s (0:16:49)\n"
+    },
+    "var/evid07-scope-v2-unit-final.txt": {
+      "sha256": "cc130a4248e1d9d07081fba800f6b49c9cb213487e3a2f7aa95c9c8dfe42484c",
+      "content": ".................................                                        [100%]\n33 passed in 213.31s (0:03:33)\n"
+    },
+    "var/evid07-scope-v2-legacy-unit-final.txt": {
+      "sha256": "8ac7ef039ebd6ea64c703909c27f06609d791e7832a2fc7d3306251fe587052c",
+      "content": "............................................                             [100%]\n44 passed in 2.14s\n"
+    },
+    "var/evid07-scope-v2-mypy-final.txt": {
+      "sha256": "d0900ac295cc2427c4d66d20eaaad347f01ab4f61ddd809745efedd2b64f4d88",
+      "content": "Success: no issues found in 3 source files\nMypy regressions: 0 (legacy errors observed: 0)\n"
+    },
+    "var/evid07-scope-v2-debt-final.txt": {
+      "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+      "content": "Full mypy debt ceiling passed: 0 errors in 0 files\n"
+    },
+    "var/evid07-scope-v2-freshness-final.txt": {
+      "sha256": "0d276c65b5842d920a0df0d2ad68d4038d6602a710d28a233f69ee2343119c02",
+      "content": "Current-data freshness contracts OK: 61 surface(s)\n"
+    },
+    "var/evid07-scope-v2-architecture-final.txt": {
+      "sha256": "f236d3789112c900147ae5ef0b3235e1f1e70fd3d41187e3b808ce785b782dae",
+      "content": "Architecture rules version: 2026-06-30.v8\nScan roots: apps, core, shared\nScanned files: 3085\nBoundary rules: 7\nBoundary violations: 0\n"
+    },
+    "var/evid07-scope-v2-governance-final.txt": {
+      "sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b",
+      "content": "Governance baseline version: 2026-09-09.v220\nGovernance violations: 0\n- governance_baseline: 0 violation(s)\n- docs_consistency: 0 violation(s)\n- docs_links: 0 violation(s)\n- governance_docs: 0 violation(s)\n- module_shape: 0 violation(s)\n- misplaced_app_config: 0 violation(s)\n- singular_dto_files: 0 violation(s)\n- architecture_ruleset: 0 violation(s)\n- module_dependency_baseline: 0 violation(s)\n- ci_governance_wiring: 0 violation(s)\n- application_third_party_imports: 0 violation(s)\n- core_integration_debt: 0 violation(s)\n- core_management_command_debt: 0 violation(s)\n- large_python_files: 0 violation(s)\n- large_file_remediation: 0 violation(s)\n"
+    },
+    "var/evid07-scope-v2-format-final.txt": {
+      "sha256": "95d494d0099efb6084793e7f05feff64a9d79c4efc6e99601a0a48c7a69a8183",
+      "content": "All done! \\u2728 \\U0001f370 \\u2728\n8 files would be left unchanged.\nAll checks passed!\n"
+    },
+    "var/evid07-scope-v2-final-cleanup.json": {
+      "sha256": "035facfb573e3880234d90f3c239d71755c0b107dbb57afc6a8c678a9ab48827",
+      "content": "{\"database\": \"evid06_authority_test\", \"public_base_tables\": 0}\n"
+    }
+  },
+  "verified": {
+    "unit_tests": 77,
+    "postgres_tests": 2,
+    "unit_scope": "New Account callback, Core scope and independent clock regression with composition guard, plus a separate non-overlapping legacy V1 Core and Research scope/provider run. Counts sum these two final root runs and do not add earlier worker or targeted reruns again.",
+    "postgres_scope": "One real two-connection Account callback test requires PostgreSQL SQLSTATE 55P03 while source locks are held and succeeds after release. One actual Session/current physical owner to public Research composition test reads persisted historical evidence on the selected alias inside the owner transaction, rejects wrong hash/future cutoff, and makes zero further Evidence queries after live user_id loss.",
+    "request_scope": "Current authorization and Evidence PIT cutoff are separate. A private request-only binding seals the decision, fresh authentication source and exact artifact. Reads are materialized within the Account callback; callback and Core final clocks reject expiry or rollback. No V1 scope ledger grants are issued or reused.",
+    "static_scope": "Three changed production files incremental mypy; full mypy debt ceiling; eight Python files formatting; architecture, freshness and governance checks.",
+    "verification_sequence": "The initial broad DatabaseError lock test was superseded by the stricter SQLSTATE test. The initial Research PG run passed before a composition-guard import correction; the final Research PG run here verifies the corrected public-port import. Initial combined units had one real import failure and five system temporary-directory permission errors. Final non-overlapping unit runs use workspace temporary directories and supersede those results. No guard whitelist or system directory permissions were relaxed."
+  },
+  "limits": [
+    "Creation provenance, owner policy and historical Research publication are explicitly synthetic local fixtures; User, Session, physical row and ledger reads use actual dedicated local PostgreSQL.",
+    "Controlled fixture clocks do not prove unfrozen-clock HTTP latency, production throughput or an end-user creation/approval workflow.",
+    "This is an internal typed composition, not a newly deployed or authenticated HTTP owner-scope surface.",
+    "No production creation, owner assignment, approval, runtime enablement or trading action occurred."
+  ],
+  "remaining": [
+    "Actual authenticated canonical creation with stable same-alias idempotency and complete rollback",
+    "Explicit owner approval and reauthorization workflow with authenticated end-to-end verification",
+    "Production DATA-02/EVID-01/02/AUD-03/TAR-05 exit gates"
+  ],
+  "production_changes": false,
+  "unit_exit_gate_passed": false,
+  "artifact_git_tracking": "Local artifact remains ignored by existing user configuration; no forced staging."
+}

@@ -1,0 +1,89 @@
+{
+  "schema": "agom.repository-checkpoint.v1",
+  "unit_id": "EVID-07",
+  "status": "active",
+  "recorded_at": "2026-09-10T15:12:15.510840+00:00",
+  "checkpoint": "Receipt V4 and strict storage codecs; existing creation UOW outer-transaction compatibility",
+  "source_sha256": {
+    "apps/account/domain/account_owner_assignment_provenance_receipt_v4.py": "66c0b81b6e9b300a68e0a75b16f76c3c224a4506de735224466b4ad1b971a97a",
+    "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v4_codec.py": "292cbf68224a2718a1b497b7c5222e92e90a814015ededa060d050b93e2cdc43",
+    "apps/account/infrastructure/single_owner_authority_policy_v1_codec.py": "873051e0b47bfcb38a3e2ff80601c15455cb25b14d96c884367fc16187a5e47b",
+    "tests/unit/account/test_account_owner_assignment_provenance_receipt_v4.py": "100da4bd4f1dc17360b0a52767771da79a39046f67a8e4eefa95d311c4ccd310",
+    "tests/unit/account/test_account_owner_assignment_provenance_receipt_v4_codec.py": "54104ffcea13e86533496249ca5a24ed234884c3170853a6f9ced0a4c300d2f5",
+    "tests/unit/account/test_single_owner_authority_policy_v1_codec.py": "b1643096d4d709939c3b00e05967c05980cf42dd7744ffd56bc66aff75c68e4b",
+    "tests/component/account/test_creation_ledger_outer_transaction.py": "f6922f2b2ead03c5f95e771437a0569ac4fcccde481f55382128f0776ca92015",
+    "governance/current_data_contracts.json": "ce6f9b89aa76964d78d5d2a00fbeb0dce2093bdad9887fd7f1a4080075575f0a"
+  },
+  "unchanged_legacy_sources": {
+    "apps/account/domain/account_owner_assignment_provenance_receipt_v3.py": "2aed7724ddd6d71c2bccc8aff56675805adaed30d587d01a25eeda7aeaa17a75",
+    "apps/account/domain/canonical_account_creation_binding_v2.py": "0899c585886e5a2021518d740a41a727b95974138a8fcb5394eaba4de2082257",
+    "apps/account/domain/allocated_physical_account_row_observation_v3.py": "55c1a4f1bab333dfc72f5f1a381c778d593ca6720d6b4c735ef327ef21be1e7f"
+  },
+  "legacy_diff_against_head_empty": true,
+  "head": "fd56f1a4683b9500d8c0a205045b4bdf5582f715",
+  "raw_evidence": {
+    "var/evid07-receipt-combined-tests.txt": {
+      "sha256": "02194851db95df503e70e5548e9e53c08784f49144ee5c12a48d2801173694f4",
+      "content": "........................................................................ [ 45%]\n........................................................................ [ 91%]\n..............                                                           [100%]\n158 passed in 3.28s\n"
+    },
+    "var/evid07-receipt-codec-tests.txt": {
+      "sha256": "51b7c7b292962306a9dfb214e868331f6c3ceed469a310331123de57fdf4a280",
+      "content": "....................................                                     [100%]\n36 passed in 1.45s\n"
+    },
+    "var/evid07-outer-uow-postgres.txt": {
+      "sha256": "4d3ab7a06937f6a3e68f6245c6979d7f670863a5eb6dd2c7f9561ec0821015a0",
+      "content": "Running EVID-06 tests against dedicated loopback test database.\n.                                                                        [100%]\n1 passed in 28.61s\n"
+    },
+    "var/evid07-outer-uow-cleanup.json": {
+      "sha256": "035facfb573e3880234d90f3c239d71755c0b107dbb57afc6a8c678a9ab48827",
+      "content": "{\"database\": \"evid06_authority_test\", \"public_base_tables\": 0}\n"
+    },
+    "var/evid07-receipt-stage-mypy.txt": {
+      "sha256": "d0900ac295cc2427c4d66d20eaaad347f01ab4f61ddd809745efedd2b64f4d88",
+      "content": "Success: no issues found in 3 source files\nMypy regressions: 0 (legacy errors observed: 0)\n"
+    },
+    "var/evid07-receipt-stage-debt.txt": {
+      "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+      "content": "Full mypy debt ceiling passed: 0 errors in 0 files\n"
+    },
+    "var/evid07-receipt-governance.txt": {
+      "sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b",
+      "content": "Governance baseline version: 2026-09-09.v220\nGovernance violations: 0\n- governance_baseline: 0 violation(s)\n- docs_consistency: 0 violation(s)\n- docs_links: 0 violation(s)\n- governance_docs: 0 violation(s)\n- module_shape: 0 violation(s)\n- misplaced_app_config: 0 violation(s)\n- singular_dto_files: 0 violation(s)\n- architecture_ruleset: 0 violation(s)\n- module_dependency_baseline: 0 violation(s)\n- ci_governance_wiring: 0 violation(s)\n- application_third_party_imports: 0 violation(s)\n- core_integration_debt: 0 violation(s)\n- core_management_command_debt: 0 violation(s)\n- large_python_files: 0 violation(s)\n- large_file_remediation: 0 violation(s)\n"
+    },
+    "var/evid07-receipt-freshness.txt": {
+      "sha256": "3f5855a7db9f4956ee0bcbfe8b9f3a5dfabb02cc7aaef5f47aef34c60cff87f7",
+      "content": "Current-data freshness contracts OK: 58 surface(s)\n"
+    },
+    "var/evid07-receipt-architecture.txt": {
+      "sha256": "420ce88adcfd69a22de78670c25e348a85ebf6e9220eba8f9c0825bf36d86bb0",
+      "content": "Architecture rules version: 2026-06-30.v8\nScan roots: apps, core, shared\nScanned files: 3057\nBoundary rules: 7\nBoundary violations: 0\n"
+    }
+  },
+  "verified": {
+    "unit_tests": {
+      "new_receipt_domain": 34,
+      "new_receipt_codec": 20,
+      "new_policy_codec": 16,
+      "existing_contracts": 88,
+      "combined_total": 158
+    },
+    "postgres_tests": 1,
+    "postgres_scope": "Actual same-alias outer commit/rollback and reuse of existing Physical-v3 and Consumption UOWs, with a temporary probe table; not full ledger append or HTTP creation acceptance.",
+    "incremental_mypy": "3 final stage production files; zero issues/regressions",
+    "full_debt_command": "passed, zero errors; full scan started before all stage files were finalized, final scoped mypy covers all 3 new production files",
+    "format": "Black/isort/Ruff 7 files passed, observed tool transcript",
+    "architecture": "3057 files; 7 rules; zero boundary violations",
+    "freshness": "58 surfaces passed",
+    "governance": "baseline v220; zero violations"
+  },
+  "remaining": [
+    "durable policy and Receipt V4 writer/repository",
+    "Subject/Evidence V4 and owner-tenant authority/scope adapters",
+    "same-alias authenticated creation/composition entry point",
+    "full PostgreSQL graph rollback, replay and current-source tests",
+    "user workflow acceptance and production prerequisites"
+  ],
+  "production_changes": false,
+  "unit_exit_gate_passed": false,
+  "artifact_git_tracking": "Local artifact; current working-tree .gitignore ignores docs/testing. No force-add or ignore rule reversal performed."
+}

@@ -442,3 +442,73 @@ Playwright 必须继续通过 `scripts/run_live_server_pytest.py` 管理 live se
 5. 确认完整 coverage 采集的 CI 时间预算和报告保存位置。
 
 满足启动条件后，先执行 T0，不直接从补零覆盖文件开始。
+
+## 2026-09-10：DATA-15 有界 Domain 分支补强
+
+用户明确要求在 DATA-12 后续补齐 task_monitor/research/signal 分支。该任务登记为 DATA-15，
+沿用当前 `dev/next-development` 工作树和单 repository focus；上述历史全仓 T0–T6 清单不是
+本轮额外范围，也不重复 DATA-12 已完成的 Nightly 恢复。
+
+范围只含这三个 Domain 的行为测试及验收证据，生产 Python 不变。先记录相同测试范围的基线，
+再覆盖真实遗漏，目标 branch=100%/80%/90%、每个 Domain line>=90%。需保留源码/测试 hash、
+完整命令、原始覆盖率统计、前后差异、格式检查和聚焦回归结果；局部报告不得称作全仓 Nightly。
+现有治理 floors 不下调。回滚仅撤回本轮新增测试和直接配套记录，不涉及生产数据或部署。
+
+状态、依赖与完成门唯一读取 `governance/active_plan_registry.json`；Luna max 负责测试切片，
+主代理负责完整审查、复验和最终回写。验证未完成前不预记通过。
+
+实质进展见[DATA-15 同源局部检查点](../testing/data15-domain-checkpoint-2026-09-10.json)：
+Task Monitor/Signal 分支达到 100%/90.36%，Research 为 74.60%，三个 Domain 行覆盖均超过 90%。
+Research 仍在补强，最终完整同范围回归尚待执行；本单元保持 active。
+
+### DATA-15 情景证据切片检查点（2026-09-10）
+
+[后续原始检查点](../testing/data15-scenario-checkpoint-2026-09-10.json)绑定上一检查点 SHA：
+主代理补历史窗口、样本唯一性、研究用途限制与 fail-closed assessment，相关回归 33 passed，
+Black/isort/Ruff 通过。Research 增加 45 个分支，当前 3799/5032=75.50%，行 12271/13544=90.60%。
+距离 80% 尚需 227 个分支；Task Monitor/Signal 结果不变。Luna 状态模型片仍在进行，最终完整
+同范围回归未执行，DATA-15 保持 active。生产前置缺项不变，本片没有新的生产查询或写入。
+
+后续[状态模型检查点](../testing/data15-state-checkpoint-2026-09-10.json)：Luna 测试片经主代理
+审查并补内部辅助函数类型，89 passed，Black/isort/Ruff 通过。Research 再增加 124 分支，
+当前 3923/5032=77.96%，行 12399/13544=91.55%，距80%尚需103分支。下一Luna片只补R4/R5
+监控；最终完整选定范围回归仍待执行，DATA-15未完成。
+
+后续[证据契约检查点](../testing/data15-evidence-checkpoint-2026-09-10.json)：主代理补样本守恒、
+指标完整性、精确输入与跨输出授权隔离，46 passed、Black/isort/Ruff通过。Research分支
+3955/5032=78.60%，行12430/13544=91.78%，距80%需71分支。Luna继续R4/R5监控，DATA-15
+保持active；最终完整回归待切片结束后执行，生产退出门无变化。
+
+独立只读复核补充：主代理的情景证据与 evidence contract 两个测试文件未发现可行动问题；
+工厂每次生成新对象，无共享状态污染或生产守卫绕过。主代理进一步核对四份覆盖率检查点的
+15 个嵌入原始工件、全部来源 hash、sidecar 与前后引用链，一致。该复核不代替最终完整回归。
+
+最终检查准备：完整 governance consistency 在 baseline 2026-09-09.v220 下为0 violations
+（含文档引用、模块形状、架构与依赖基线），原始报告 var/data15-governance-consistency.json。
+这只是本地治理检查，不代表完整CI、最终覆盖率回归或生产验收。
+
+
+### DATA-15 最终退出检查点（2026-09-10）
+
+[最终验收证据](../testing/data15-domain-closure-evidence-2026-09-10.json)保留原始前后 coverage JSON、
+JUnit、完整命令和源码 hash。固定同一选定范围，从空 coverage 数据运行，1371 passed、0 failed、
+0 error、0 skipped；不是增量并集代替完整运行，也不是全仓 Nightly。七个新增测试文件的
+Black/isort/Ruff通过，完整治理一致性0违规；生产Python和原有floors未修改。
+
+| Domain | 基线行 / 分支 | 最终行 / 分支 |
+|---|---|---|
+| task_monitor | 97.32% / 50.00% | 99.11% / 100.00% |
+| research | 89.88% / 73.53% | 92.48% / 80.15% |
+| signal | 94.71% / 87.82% | 95.73% / 90.36% |
+
+前后分母一致，基线来源文件及最终冻结源码hash均未漂移。DATA-15标记completed，repository
+focus释放为null；此前各增量检查点仅为历史过程。没有依赖齐全的后继repository unit。
+
+阶段Goal未完成：DATA-02仍缺真实actor/scope、审计profile selector和dataset-specific对账输入；
+EVID-01/02仍缺真实主体/审批与生产证据；AUD-03真实writer/recovery/archive验收未完成；
+TAR-05缺独立staging与完整运行/负载证据。TUI只读collector返回migration_series_count_unavailable，
+无首个retained sample，不启动或补造14日窗口。已有授权保留，不重复索要泛化确认。
+
+恢复条件是提供既有真实Account用户/actor、tenant/owner/scope与来源记录，配置对应审计绑定及
+数据对账合同，并指定独立staging；随后主代理重新核验精确候选、备份/停止线和动作包，串行执行。
+未提交、推送、部署或写生产数据；保留全部可审查工作树变更。

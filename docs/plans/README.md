@@ -1,8 +1,8 @@
 # 活跃计划索引
 
-> 2026-09-07：main `0e9f890e8…` 已完成 VPS code-only upgrade；health/ready=200，decision-ready=503。[部署证据](../deployment/main-vps-upgrade-2026-09-07-0e9f890e.json)。TUI 新候选为 `2/10 DENY`，DATA-02 与生产 Evidence 验收仍未完成。
+> 2026-09-10：只读核验生产已运行 `dba9ab2c8…` / release `20260910002501`；容器 image、OCI revision 与 manifest 一致。[原始证据](../deployment/sprint-successor-readonly-2026-09-10-dba9ab2c.json)。DATA-02 的真实权限来源和审计配置仍缺，生产验收未完成；旧候选的观察记录仅作历史，不继承为新版本验收。
 
-> 更新日期：2026-09-07
+> 更新日期：2026-09-10
 > 本目录只保留仍需开发、真实数据、生产验收或外部依赖闭环的计划。已完成的实施计划、阶段记录、复盘和历史证据统一放在 [`../archive/plans/`](../archive/plans/)；归档记录见 [`../archive/ARCHIVE_INDEX.md`](../archive/ARCHIVE_INDEX.md)。
 
 境内出口开发方案见 [数据中台境内出口与 frp 开发计划](data-center-regional-egress-plan-2026-09-09.md)，登记在 data-production-reliability 工作流，支撑 DATA-02；用户授权的仓库实现 DATA-14 已完成，真实出口与 DATA-02 生产验收单独保留。
@@ -25,6 +25,121 @@
 
 ## 自主 Goal 调度入口
 
+本轮路线与一周交付边界见[续跑评估](release-blocker-closure-execution-plan-2026-08-29.md#2026-09-10续跑评估与实际关键路径)：
+保留 DATA-02 → EVID-01/02 → AUD-03 → TAR-05，先交叉准备 DATA-02 必需的真实 Evidence 身份/runtime。
+主代理继续指导并验收 Luna max；应用 Goal 已在本次续跑读回 active。DATA-15 已通过本地 repository 退出门：
+[最终证据](../testing/data15-domain-closure-evidence-2026-09-10.json)记录完整选定范围1371 passed，
+task_monitor/research/signal分支100%/80.15%/90.36%，各Domain行覆盖均超过90%。
+EVID-06 已通过 repository 退出门并释放 focus，DATA-12 不重复领取。生产 Goal 尚未完成，真实输入和观察期不能替代。
+用户已充分授权继续，并明确指定 admin/user_id=1 为 owner 与人工审批账户。认证 raw-source publisher 已完成；EVID-07 正接入单所有者 policy/Receipt/owner authority，当前仓库 focus 为 EVID-07。独立本机 PG/Redis 已通过认证连接验证。
+一周按真实exit gate与阶段证据分别交付，不承诺关闭约10个unit。
+
+2026-09-11 [创建配置与实际创建链检查点](../testing/evid07-creation-settings-and-chain-checkpoint-2026-09-11.json)：
+59 项组合单测、1 项实际 PostgreSQL 创建链、五文件增量 mypy 和全量类型门禁通过。
+后续[创建编排检查点](../testing/evid07-creation-orchestration-checkpoint-2026-09-11.json)
+已验证 Account 公开组合、永久重放及双连接请求互斥：108 项联合单测、3 项实际 PostgreSQL
+编排测试通过。下一步接真实认证 HTTP 与显式审批/重新授权。尚无生产配置激活或审批，
+EVID-07 保持当前焦点。
+
+后续[真实认证与传输检查点](../testing/evid07-authenticated-creation-transport-checkpoint-2026-09-11.json)
+已验证 Session/CSRF、Token/HMAC、事务末尾失效回滚、跨 alias 重放及历史账户同名隔离：
+三次 PG 共 11 次执行（10 个独立用例）、迁移后的接口集成 11 项、SDK/MCP 57 项通过。
+HTTP/TUI/SDK 17 个生产文件增量类型、最终全量类型债务及静态检查通过，证据 SHA 为
+`7bb4078471d496449e0eb6836331b75e76010ee5535e8894e9a017df8af9574e`。
+下一步补永久创建凭据与当前物理账户重新观察的独立证据，再接服务端 policy resolver、
+真实显式 owner 审批和 Research scope；不续期旧创建 seal，不把创建 POST 当作人工审批。
+此检查点不覆盖后续重新观察原语，也不构成生产 owner/scope 赋权或 EVID-07 完成。
+
+EVID-07 最新 [durable policy 检查点](../testing/evid07-durable-policy-checkpoint-2026-09-10.json)：
+42 项 Domain/结构测试、11 项 PG 仓储/真实身份组合测试及 1 项 migration 往返测试通过；
+新增策略账本已接入 standalone read，撤销拒绝旧绑定。完整 owner 写入图和生产退出门仍未完成，
+继续以该单元为唯一仓库 focus；实现细节、剩余条件和静态检查证据见 Evidence primary plan 最新节。
+
+2026-09-11 [Receipt V4 签发与持久化检查点](../testing/evid07-authenticated-receipt-writer-checkpoint-2026-09-11.json)：
+102 项组合 unit、3 项模型结构及 7 项 PG 测试通过，包含真实双事务下撤销后的拒绝和迁移往返。
+凭证保存创建绑定、策略和认证来源三类 durable parent，重复签发重新校验当前身份。
+下一步是写入事务的锁定 composition、Subject/Evidence/owner-tenant scope 及真实创建入口；EVID-07 尚未通过完整退出门。
+
+同日[锁定签发与 Subject/Evidence Domain 检查点](../testing/evid07-locked-receipt-and-domain-checkpoint-2026-09-11.json)：
+67 项组合 unit、1 项 alias 边界与 5 项真实 PG 测试通过；签发已接入同事务来源锁定和复读，
+实际 actor/Binding 父行竞争失败后可重试，外层回滚保持原子性。V4 Domain 保留真实 staff 双角色及非执行状态。
+后续补 durable Subject/Evidence、owner-tenant scope、授权声明发布与实际认证创建整链；生产退出门仍未完成。
+
+随后完成 [Subject/Evidence V4 持久化与审批接线检查点](../testing/evid07-evidence-v4-ledger-checkpoint-2026-09-11.json)：
+136 项组合 unit、9 项实际 PG 测试通过，包含注册/审批/重放/current、策略撤销、回滚和 0058 迁移往返；
+8 个生产文件增量 mypy 与架构/治理/新鲜度检查通过。创建图仍为合成测试事实，没有生产审批或部署。
+下一片优先解决 5 分钟认证 TTL 与长期所有权续期的区别，再接 owner-tenant typed scope 和实际认证创建整链；
+不修改旧 V1/V3，也不将过期 V4 证据改为 current。EVID-07 与应用 Goal 保持 active。
+
+[OwnerTenant V2 生命周期 primitive 检查点](../testing/evid07-owner-v2-lifecycle-primitives-checkpoint-2026-09-11.json)：
+长期 decision/显式撤销 Domain 与实际账户归属读取已实现，66 项组合 unit 和 2 项 PG 测试通过；
+新 Domain 行覆盖 97.90%，最终 4 个生产文件 mypy 零问题。后续先完成严格 codec、持久决策/撤销及重新授权，
+再复用 Research scope 接线并验证真实认证创建整链；当前没有生产 owner assignment，EVID-07 仍 active。
+
+随后形成[OwnerTenant V2 Application 检查点](../testing/evid07-owner-v2-application-checkpoint-2026-09-11.json)：
+81 项组合 unit、1 项实际跨 App 账户读取 PG 测试通过，5 个生产文件最终增量 mypy 零问题。
+已补首次签发最终 V4 复读、当前新认证与实时归属校验、撤销及严格 codec；Application 仓储仍为测试替身。
+下一片实现持久 decision/revocation 账本和锁定认证 composition，再接重新授权及 scope/真实创建链；
+尚无生产写入或审批，EVID-07 与应用 Goal 继续 active。
+
+最新[OwnerTenant V2 账本检查点](../testing/evid07-owner-v2-ledger-checkpoint-2026-09-11.json)
+已验证持久 decision/revocation、0059 迁移和实际认证 composition：9 项 PostgreSQL、84 项去重 unit 通过，
+5 个生产文件增量 mypy 与全量 debt 零问题，专用库清理为零残留表。
+首轮 6 项 PG 早于最终绑定/异常细化，后续 3 项在冻结源码上验证真实 Session、实时归属与非 owner 撤销拒绝。
+下一片将 V2 当前授权与 Research 实际读取放入同一事务，并分离授权时钟和历史证据 cutoff；
+显式重新授权、真实认证创建及生产退出门仍未完成，EVID-07 保持 active。
+
+后续锁内读取入口已有 7 项 unit 和 1 项严格双连接 PG 验证通过，后者核对 SQLSTATE 55P03 及释放后重试，
+测试库零残留表。最新[Research V2 接线检查点](../testing/evid07-owner-v2-research-scope-checkpoint-2026-09-11.json)
+已验证短期请求来源绑定与双时钟：77 项新旧 unit、2 项不同范围 PG 通过（不重复计数重跑），
+其中最终实际 Account→Research PG 为 1 passed/1009.57s；类型、格式、架构及治理门禁通过。
+最新[实际创建行检查点](../testing/evid07-canonical-creation-row-checkpoint-2026-09-11.json)
+完成两处 provider alias 修补和 new-only writer：44 项单测、2 项实际 PG、类型/格式/架构/治理通过。
+已验证真实字段、停用用户拒绝和局部/外层回滚；下一步是单快照配置及完整幂等创建 composition。
+创建图仍为本地合成 fixture，继续真实创建 provenance 与显式审批，
+再回到 DATA-02/EVID-01/02 的生产退出门，之后推进 AUD-03、TAR-05；不将局部代码通过计为这些生产单元收口。
+
+最新[认证单所有者 policy 发布检查点](../testing/evid07-authenticated-policy-publication-checkpoint-2026-09-11.json)
+已验证正式 Session/CSRF JSON API、服务端 owner/scope/TTL 绑定、幂等重放、scope 冲突和来源撤销：
+27 项 API unit、最终真实 PostgreSQL 用例、增量及全量 mypy、格式和静态检查通过，测试库零残留表。
+该入口只发布 inactive policy 且明确返回 `authority_granted=false`；生产 ConfigCenter 尚未激活，也没有
+assignment、人工审批或 owner-tenant authority 写入。下一片以永久 Binding 和当前 Reobservation 新建
+ReceiptV5/SubjectV5，保持旧 V4 哈希与 reader 隔离；EVID-07 仍为 active。
+
+[Reobservation-backed V5 Domain 检查点](../testing/evid07-reobservation-backed-v5-domain-checkpoint-2026-09-11.json)
+已补齐：ReceiptV5/SubjectV5 分别达到 99.4%/93.5% line coverage，84 项 V5 测试与151项
+V4/V5兼容回归通过，全量类型、架构、格式和治理门禁通过。它仍是纯 Domain 合同；下一步先补
+durable reobservation ledger，再做 V5 persistence、EvidenceV5、AuthorityV3 与 scope V3。
+
+[Durable ownership re-observation ledger 检查点](../testing/evid07-durable-ownership-reobservation-ledger-checkpoint-2026-09-11.json)
+已完成本地有界收口：新增 Application exact/current/first-winner 合同、完整 record/ledger seals、
+append-only Django model/repository 与 `0060`，并将实际 Core raw/source/Physical-v2/re-observation
+写入置于同一外层事务。26 项聚焦测试、2 项专用 PostgreSQL 验收、全量 mypy、3129 文件架构
+扫描及 19 个冻结前序哈希均通过，测试库零残留。同一永久 Binding 可重复观测，旧 proof 在后续
+Physical successor 后仍可 historical exact 读取；它仍不授予权限。ReceiptV5/SubjectV5 持久化、
+EvidenceV5、AuthorityV3、scope V3、revocation 与完整认证图仍待完成，EVID-07 保持 active。
+
+[Reobservation-backed ReceiptV5/SubjectV5 durable ledgers 检查点](../testing/evid07-reobservation-backed-v5-ledgers-checkpoint-2026-09-11.json)
+已完成 ReceiptV5/SubjectV5 的 Application、严格 codec、record/ledger seal、append-only model/repository
+与 `0061`。稳定源码 168 项 unit、2 项专用 PostgreSQL repository 验收及既有 1 项 migration 往返通过；
+PG 同时证明两连接 Policy identity lock、`persisted_at` 点时可知性和父 FK/载荷/seal 篡改闭锁，清理后
+零残留。11 个生产文件增量 mypy、全量 debt、格式、架构、freshness 和治理均通过，证据 SHA-256 为
+`b8cff0856af0e88847b02ae14f3033a98b46ec536dc2b91c9f7b64b8fe80114c`。下一片进入 EvidenceV5，
+随后 AuthorityV3、typed scope V3、revocation 与完整认证 PostgreSQL 图；没有生产赋权或人工审批，
+EVID-07 继续 active。
+
+[EvidenceV5 durable ledger 检查点](../testing/evid07-evidence-v5-ledger-checkpoint-2026-09-11.json)
+已完成 EvidenceV5 Domain、Application、严格 codec、append-only model/repository 与 schema-only `0062`。
+冻结源码 97 项 V5 unit、109 项 V4 兼容、1 项实际 PostgreSQL repository 和 1 项 migration 往返通过；
+PG 覆盖完整 SubjectV5/actor-source 父锚、首胜重放、双 mapping head、未来 cutoff 及 payload/record seal
+篡改闭锁，清理后零残留表。7 个生产文件增量 mypy、全量 debt、架构、治理、freshness 与 registry
+均通过。下一片接 authenticated same-alias EvidenceV5 composition，再进入 AuthorityV3、typed scope V3
+和 revocation；本检查点未部署、未写生产、未创建人工审批或执行权限，EVID-07 保持 active。
+
+同日[监控查询接线修复](../deployment/tui02-query-wiring-repair-2026-09-10-dba9ab2c.json)已恢复当前release的原有host-only配置，
+仅重建Caddy；认证查询200、未认证401、非允许路径404，Web/Prometheus未变、18规则健康。
+迁移指标查询现为200空vector，仍无首样本或14日窗口；TUI-02未完成。后续发布脚本的配置延续修复另作有界部署跟进。
+
 - 仓库级自主调度合同见 [`AUTONOMOUS_GOAL.md`](../../AUTONOMOUS_GOAL.md)。它负责约束主代理/Luna
   分工、单 repository 执行锁、权限边界、验证、状态晋级和停止条件，不维护任务状态副本。
 - 每个 material checkpoint 回写对应 primary plan；每个 closure unit 完成时，必须把证据 artifact、
@@ -39,7 +154,7 @@ DATA-02 的 [财务 availability 切片](../deployment/data02-financial-availabi
 宏观 1% 配置及 provider 优先级已核实存在；其他事实的字段/单位/时间比较合同缺口见 primary plan 第 167–170 节。
 行情实际只读预检另确认审计 runtime 三项配置缺失、actor/scope authority 来源均为 0 行；须先补真实主体与绑定，详见 [预检证据](../deployment/data02-quote-audit-preflight-2026-09-07-0e9f890e.json)。
 
-`DATA-13` 已完成本地代码验收，repository focus 已释放：[来源时刻闭环证据](../testing/data13-valuation-source-time-closure-evidence-2026-09-07.json)。适配、持久化、发布引用、直接消费及 equity 反向保存保留准确 observed_at；缺失来源时间不再被抓取时间替代。60 项与 54 项聚焦回归通过，根代理另行复验 4 项来源往返与 15 项 equity 组件测试；增量类型、全量零债务、迁移、新鲜度和架构检查通过。当前没有依赖齐全的后继 repository unit；代码尚未提交或部署，已有治理/证据修改与本项回写重叠，按 Goal 合同保留工作树。DATA-02 继续等待真实审计主体/绑定、dataset-specific 对账定义与受控生产回填，DATA-03 不晋级；TUI 留样不重置。
+`DATA-13` 的[本地来源时刻闭环验收](../testing/data13-valuation-source-time-closure-evidence-2026-09-07.json)及[2026-09-08 code-only 部署](../deployment/main-vps-upgrade-2026-09-08-b79687e4.json)已完成，保留各自证据范围。当前生产已由本轮只读证据核对为 `dba9ab2c8 / 20260910002501`。DATA-02 仍需真实审计主体/绑定、dataset-specific 对账定义及受控回填；DATA-03 不晋级。DATA-15 已完成，repository focus=EVID-07，旧观察记录不自动绑定新候选。
 
 ## 生产证据自动采集纪律
 
@@ -69,11 +184,11 @@ DATA-02 的 [财务 availability 切片](../deployment/data02-financial-availabi
 |------|-----:|
 | 独立工作流 | 9 |
 | 主计划 | 18 |
-| 支撑文档、证据与矩阵 | 23 |
+| 支撑文档、证据与矩阵 | 27 |
 | 限期审查项 | 0 |
-| 注册表覆盖的活跃文件 | 41 |
+| 注册表覆盖的活跃文件 | 45 |
 | 历史未勾选细项 | 136（非执行口径） |
-| 去重后 canonical closure units | 44 |
+| 去重后 canonical closure units | 49 |
 
 “主计划”是需求和证据入口，不等于独立工程量；同一工作流下的路线图、readiness 和生产跟踪不会再重复计算成多条主线。完整文件归属、owner、状态、依赖和唯一退出门见机器注册表的 `closure_backlog`。
 
@@ -81,17 +196,30 @@ DATA-02 的 [财务 availability 切片](../deployment/data02-financial-availabi
 
 | ID | 优先级 | 状态 | Owner | 主计划 | 下一退出门 |
 |----|--------|------|-------|--------|------------|
-| `evidence-hard-gate` | P0 | production_validation | Personal Project Owner / Research / Risk / Portfolio / Broker / Account | [Evidence hard gate](evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md) | `EVID-05` repository 接线及隔离 PostgreSQL 验证完成。EVID-01/02 仍等待真实 authority/approval、候选部署和生产验收；当前 SSH 超时，决策阻断不变 |
+| `evidence-hard-gate` | P0 | active | Personal Project Owner / Research / Risk / Portfolio / Broker / Account | [Evidence hard gate](evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md) | `EVID-07` 为唯一仓库焦点，落实完整单所有者 authority/scope 链；EVID-06 已完成，EVID-01/02 仍需真实账本与生产验收 |
 | `strategy-research-production` | P0 | production_validation | Research / Data Center / Signal / Portfolio / Broker | [Completion audit](strategy-research-capability-completion-audit-2026-08-05.md)、[Roadmap](strategy-research-capability-roadmap-execution-2026-08-05.md)、[生产数据跟踪](strategy-research-production-data-closure-tracking-memo-2026-08-12.md)、[R1-R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md)、[R3-R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md)、[R5-R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) | 最终候选的 65/7/16/35 表 owner-ledger inventory 全零；R1–R8 逐项 owner/定义审核入口已就绪，审核后仍须 canonical dry-run 与独立 registration 授权，PIT/OOS、Promotion、consumer UAT 不得预签 |
-| `data-production-reliability` | P0 | production_validation | Data Center / Operational Readiness / Task Monitor | [综合清零方案](release-blocker-closure-execution-plan-2026-08-29.md)、[Canonical architecture](data-center-canonical-architecture-refactor-2026-08-02.md)、[生产可靠性](production-data-reliability-full-remediation-2026-08-01.md)、[关键测试](critical-reliability-test-closure-2026-07-22.md)、[UAT 整改](uat-remediation-2026-07-20.md) | `DATA-10/DATA-11/DATA-12=completed`。精确 Nightly `34025990248` 与 hash-verified artifact `9988878086` 证明 Research/Signal line 已回到共享 `90%` floor，9 个 branch floor 全部恢复并只上调不下调；reconciled Domain coverage P2 债务清零。生产候选在本次部署前仍为 `aa7127ff4…` / `20260901232812`，DATA-02 继续 `DENY` |
-| `system-audit-consolidation` | P0/P1 | production_validation | Personal Project Owner / Audit / Data Center / Task Monitor | [统一审计日志](system-audit-log-consolidation-plan-2026-08-13.md) | `AUD-04` repository exit 已补齐 candidate/authority 双重绑定、半开归档窗口、manifest/content/predecessor hash、append-only artifact 与 memory-only exact replay；当前 successor 生产证据为 `missing_section_count=3`（archive、recovery、重启后 TUI section 均 unavailable），下一门是 authority/profile、writer smoke 后真实 rollback/recovery 与获批 archive/restore |
-| `web-to-tui-m5` | P0 | production_validation | Personal Project Owner / Terminal / Operational Readiness | [迁移总计划](web-to-tui-migration-plan-2026-07-25.md)、[M5 readiness](web-to-tui-m5-readiness-2026-07-27.md) | 当前 `2/10 DENY`；main `0e9f890e8…` / `20260907170119` 已部署并重绑候选，旧 UAT/cleanup/rollback 不继承；已绑定真实 retained sample，精确 14 日 eligible 为 `2026-09-21T11:15:50.030000Z`；自然时间与其余新候选验收尚未完成，Classic 清理仍禁止 |
+| `data-production-reliability` | P0 | production_validation | Data Center / Operational Readiness / Task Monitor | [综合清零方案](release-blocker-closure-execution-plan-2026-08-29.md)、[Canonical architecture](data-center-canonical-architecture-refactor-2026-08-02.md)、[生产可靠性](production-data-reliability-full-remediation-2026-08-01.md)、[关键测试](critical-reliability-test-closure-2026-07-22.md)、[UAT 整改](uat-remediation-2026-07-20.md) | DATA-15 completed：完整选定范围1371 passed，分支100%/80.15%/90.36%，行覆盖率均超过90%；DATA-12保持完成。生产 dba9ab2c8 / 20260910002501 只读已核验，DATA-02 仍缺真实 actor/scope、audit runtime 和数据集对账输入。 |
+| `system-audit-consolidation` | P0/P1 | production_validation | Personal Project Owner / Audit / Data Center / Task Monitor | [统一审计日志](system-audit-log-consolidation-plan-2026-08-13.md) | `AUD-04` repository exit 已补齐 candidate/authority 双重绑定、半开归档窗口、manifest/content/predecessor hash、append-only artifact 与 memory-only exact replay；当前 successor 只读证据显示 authority 为空、audit runtime 三项缺失，空 event/outbox 不证明 writer 通过；下一门是实际 authority/profile、writer smoke，再完成同候选 migration/metrics/alerts/TUI/recovery/archive 七段证据。旧候选 missing_section_count 不沿用 |
+| `web-to-tui-m5` | P0 | production_validation | Personal Project Owner / Terminal / Operational Readiness | [迁移总计划](web-to-tui-migration-plan-2026-07-25.md)、[M5 readiness](web-to-tui-m5-readiness-2026-07-27.md) | 当前 successor `dba9ab2c8…` / `20260910002501` 已绑定，readiness 为 `2/10 DENY`；无首个有效 retained sample，eligible_at 为空，14 日观察尚无有效起点。旧候选窗口、UAT/cleanup/rollback 不继承，Classic 清理仍禁止 |
 | `terminal-agent-multi-user-runtime` | P0 | production_validation | Agent Runtime / Terminal / Task Monitor / Operational Readiness / SDK / MCP | [多用户队列与服务端 CLI 运行](terminal-agent-multi-user-runtime-plan-2026-08-18.md) | TAR-01 至 TAR-04 与 `TAR-06` repository 合同已完成；TAR-06 corrective 已把任意摘要文件冒充批准和假 Worker-ready 两条旁路封闭为 24h semantic approval、全 envelope/action binding、non-billable runtime profile 与真实 heartbeat preflight。collector 尚无真实 run，TAR-05 capacity/chaos/provider/canary/观察/退役仍须真实证明 |
 | `ai-native-release` | P1 | external_validation | Agent Runtime / Terminal | [AI-Native delivery pack](ai-native/README.md) | `TUI-01` 已完成；等待 TAR-05 后绑定同候选 staging/production 真实模型 UAT 与单一所有者验收 |
 | `qmt-live-bridge` | P2 | blocked_external | Broker Execution / 外部券商 Owner | [QMT 实盘桥](qmt-live-trading-bridge-plan.md) | Windows XtQuant Phase 0、连续仿真和受控小额实盘 |
 | `tui-usability-governance` | P1 | production_validation | Terminal | [TUI 可用性与 metadata 治理](tui-usability-and-metadata-governance-plan-2026-08-18.md) | TUX-01～05 repository gate 全部完成，当前候选 `aa7127ff4…` / `20260901232812` 已部署；production-safe UAT、cleanup matrix 与 rollback drill 已通过，剩余为 TUI-02 自然观察、结构化快照和单一 owner 最终确认 |
 
 ## 当前执行焦点
+
+`execution_focus.unit_id=EVID-07`。EVID-06 已完成，见[验收证据](../testing/evid06-authenticated-raw-publisher-closure-2026-09-10.json)：21 项新增用例、112 项既有回归及全部规定门禁通过。EVID-07 覆盖服务端单所有者策略、版本化 assignment/authority、持久化与 typed scope 消费的完整兼容链。
+[EVID-07 第一片检查点](../testing/evid07-single-owner-policy-checkpoint-2026-09-10.json)：policy/participant 组合 68 passed，增量类型及静态门禁通过；检查点落盘后全仓类型债务检查也以零错误退出。真实创建事务接线、版本化账本和 scope 消费未完成，unit 保持 active。
+[Receipt V4 检查点](../testing/evid07-single-owner-receipt-checkpoint-2026-09-10.json)：新增版本与严格 codec 的组合回归 158 passed、真实 PG UOW 1 passed，旧 V3 hash 不变；已证明可复用同 alias 外层事务。下一步接持久化与认证创建/scope 链，尚未完成用户流程或生产验收。
+EVID-03等待EVID-01/02，DATA-03等待DATA-02。DATA-12/EVID-05/DATA-13/DATA-14保持completed。
+当前生产候选`dba9ab2c8 / 20260910002501`的[只读前置证据](../deployment/sprint-successor-readonly-2026-09-10-dba9ab2c.json)
+显示actor/scope账本及审计runtime输入缺失。用户已确认owner账户；本地发布入口通过真实 PostgreSQL 和登录/CSRF/HTTP 验证，尚未部署或发布生产来源。
+[本机staging依赖](../deployment/sprint-local-staging-dependencies-2026-09-10.json)已建立并通过认证连接，应用/worker/stub与20用户任务绑定尚待完成；AUD真实运行验收未完成。
+[修复后的TUI留样核验](../testing/sprint-resume-readonly-2026-09-10.json)认证查询200、迁移指标空vector，仍无有效观察起点。保留原始时点，不重复无变化探针。
+
+### 历史焦点与依赖证据（保留原始时点）
+
+以下旧候选、SSH 连通性、部署状态与 focus=null 都是各自记录时点的事实，不作为当前环境判断。
 
 - `EVID-05=completed`；`execution_focus.unit_id=null`。Account actor capture 和 exact-current request
   reader 已接线，捕获路径保留同 alias/UOW、六表锁及默认 dry-run。扩大回归 95 passed，隔离
@@ -116,6 +244,10 @@ DATA-02 的 [财务 availability 切片](../deployment/data02-financial-availabi
 - 历史 AUD-03/DATA-02/TUI 审核包仍保留为证据入口，但 single-owner 模式已取消职责分离和第二名真人要求；同一项目所有者的 repository identity、真实 receipt、候选/依赖校验和 SHA sidecar 足够。TUI 已由 successor Day 0 checkpoint 接管动态状态；旧模板不得覆盖新候选，也不能预签 14 日终审。
 
 ## 滚动执行排期
+
+2026-09-10 的 `DATA-15` 测试主线已完成。生产侧等待真实输入后继续 DATA-02/EVID/AUD，
+其后才进入条件齐全的 TAR-05。下表既有日期是历史时间箱；新的观察起点以有效 retained sample
+为准，不能沿用旧候选的 2026-09-15 日期。
 
 下表是基于 `closure_backlog` 依赖关系的目标时间箱，不复制 unit 状态；状态、焦点和依赖仍只以机器注册表为准。前置门未通过时后续日期顺延，不允许通过伪造审批、回填观察时间或放松 fail-closed 门禁赶工。
 

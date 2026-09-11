@@ -1,14 +1,14 @@
 {
-  "version": "2026-09-09.v74",
-  "updated_at": "2026-09-09",
+  "version": "2026-09-10.v83",
+  "updated_at": "2026-09-10",
   "execution_focus": {
-    "unit_id": null,
+    "unit_id": "EVID-07",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Personal-project single-owner mode remains active, but signatures never manufacture authority rows, business definitions, retained observations, production outcomes or elapsed time. DATA-12 completed on exact commit 79f91c2e6536ffca550a3c19c03b96fcf8dcc75d with GitHub Python 3.11 Nightly run 34025990248 fully green. Hash-verified coverage artifact 9988878086 restores Research and Signal to the shared 90 percent Domain line floor and verifies every registered Agent Runtime, Audit, Data Center, Operational Readiness, Policy, Portfolio, Regime, Risk Center and Signal branch target. The last two line exceptions were removed and all nine branch floors were raised without lowering any floor; the reconciled Domain coverage debt is closed and the DATA-12 repository focus was released. The current production candidate is main b79687e46de05725c7cbea2cd135a040141ca331 / release 20260908163105 / image sha256:22661f49c8ded9b040da18e524e93dba1c24558de7a1f67a8fff2a8b63d06562. Verified code-only deployment preserves data; DATA-02 remains DENY until real data acceptance. The project owner has authorized merge, code-only deployment and cutover evidence rebinding; any new deployment must reset candidate-bound TUI-02 evidence and start a new real observation window. Authority/approval mutation, queued runtime, load/fault, live rollback and unsupported production writes remain denied. EVID-05 completed on 2026-09-07: canonical Account actor capture and exact-current request composition are verified with a dry-run-first command, 95 expanded tests, 12 isolated PostgreSQL tests and a separately repeated chronological revocation test. Source hashes and local-only evidence are bound in the EVID-05 repository closure artifact. Repository focus is released; EVID-03 remains dependency-blocked on live EVID-01/02. No source authority is fabricated and no production seeding, approval mutation, capacity change or runtime enablement occurred. DATA-13 completed locally: exact valuation source observation time is preserved through persistence, publication, direct consumers and equity mirror writes. Local source-bound evidence is docs/testing/data13-valuation-source-time-closure-evidence-2026-09-07.json. Repository focus is released. DATA-13 and the TUI speed/pagination changes were merged in PR #22 and code-only deployed on 2026-09-08; additive migrations and runtime identity were verified. Candidate-bound TUI evidence was reset for this release. No publication switch, audited refresh or decision/runtime enablement occurred. Deployment evidence: docs/deployment/main-vps-upgrade-2026-09-08-b79687e4.json. DATA-02 still requires real audit identity/runtime binding, dataset-specific comparison inputs and controlled provider backfill/reconciliation; DATA-03 remains dependency-blocked."
+    "policy": "EVID-07 is the sole repository focus: implement the verified single-owner Account assignment and owner/tenant scope compatibility gap through explicit server-owned policy and versioned sealed evidence. The user designated admin/user_id=1; this is not a missing second-human input. Preserve historical V3/V1 hashes/readers and account/tenant isolation. At most one Luna repository writer with a second read-only worker; main owns integration, serial PostgreSQL checks and governance. EVID-06/DATA-15/DATA-12 remain completed. DATA-02 production execution awaits its real prerequisites; no implicit production authority writes or runtime enablement."
   },
   "workstreams": [
     {
@@ -17,8 +17,8 @@
       "category": "strategy_research_and_evidence",
       "priority": "P0",
       "owner": "research+risk_center+portfolio+broker_execution+account",
-      "status": "production_validation",
-      "next_gate": "EVID-05 code is now deployed in main b79687e46de05725c7cbea2cd135a040141ca331 / release 20260908163105. The capture command is present and source/OCI/runtime identities match. No authority or approval was seeded. EVID-01/02 still require real canonical inputs and live acceptance; EVID-03 remains dependency-blocked. Deployment evidence: docs/deployment/main-vps-upgrade-2026-09-08-b79687e4.json.",
+      "status": "active",
+      "next_gate": "EVID-07 is the sole repository focus for explicit single-owner assignment and owner/tenant scope compatibility. EVID-06 is completed. Preserve versioned history and prove the full authenticated PostgreSQL owner-scope path; admin/user_id=1 designation is authorized and needs no second human. EVID-01/02 remain awaiting production acceptance.",
       "documents": [
         {
           "path": "docs/plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md",
@@ -88,7 +88,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "DATA-12 remains complete. Current deployed main b79687e46de05725c7cbea2cd135a040141ca331 / release 20260908163105 / image sha256:22661f49c8ded9b040da18e524e93dba1c24558de7a1f67a8fff2a8b63d06562 includes the deployed DATA-13 source-time changes. DATA-02 bounded availability repair has completed 288409 existing null rows across 189 batches in the fixed 5533-asset universe; an independent read-only process recomputed every after-image hash and verified active-scope null=0, outside-scope null=160. Only available_at derived from existing report_date changed; no intraday announcement-time claim. Quote/price/financial current publication identity/hash/member counts remain 1/23/80, and valuation publication is absent. No provider refresh, publication switch or runtime activation was performed. Evidence: docs/deployment/data02-financial-availability-scope-checkpoint-2026-09-07-0e9f890e.json. Next perform bounded quote/valuation provider backfill with preserved source observation time and dataset-scoped canonical reconciliation. Active Config Center macro failover tolerance 0.01 and provider priorities are real existing inputs, but do not define financial field/unit/time comparators. DATA-02 remains awaiting_production; DATA-03 remains dependency-blocked until the full DATA-02 exit gate passes. Quote preflight is now proven blocked before provider fetch: audit runtime mode/outbox_enabled/authority_selector are missing (mode_invalid), and current actor/scope authority ledgers both contain zero rows. Obtain real Account principal/tenant/owner inputs and a valid runtime binding before executing audited refresh; preserve source-time remediation as a separate bounded technical task. Evidence: docs/deployment/data02-quote-audit-preflight-2026-09-07-0e9f890e.json and docs/deployment/data02-audit-authority-sources-readonly-2026-09-07-0e9f890e.json. DATA-13 source-time implementation and local acceptance are complete; evidence is docs/testing/data13-valuation-source-time-closure-evidence-2026-09-07.json. The additive migration and code were deployed in the owner-authorized PR #22 release; zero pending migrations was verified. Obtain the missing real audit/canonical inputs before bounded production refresh. DATA-02 acceptance is unchanged. Deployment evidence: docs/deployment/main-vps-upgrade-2026-09-08-b79687e4.json.",
+      "next_gate": "DATA-15 completed: docs/testing/data15-domain-closure-evidence-2026-09-10.json proves 1371 selected-suite tests passed and branch targets 100/80/90 with each Domain line >=90; no production Python changes or lower floors. DATA-12/13/14 remain complete. DATA-02 remains awaiting_production on independently verified dba9ab2c8 / 20260910002501: real Account actor/scope authority, typed audit profile selector and dataset comparator inputs are missing. Preserve existing exact authorization, then bind backup/selectors/stop lines and execute bounded backfill with observation-time and canonical reconciliation evidence. DATA-03 waits for the real DATA-02 exit gate. Owner-account designation is now explicit (admin/user_id=1); remaining authority work includes deployment of the completed EVID-06 publisher and single-owner policy compatibility and real canonical scope/assignment composition, not missing owner permission.",
       "documents": [
         {
           "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
@@ -147,7 +147,7 @@
       "priority": "P0/P1",
       "owner": "audit+data_center+task_monitor",
       "status": "production_validation",
-      "next_gate": "AUD-01, AUD-02 and repository AUD-04 remain complete. Candidate aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812 has 496 applied migrations and zero pending, audit outbox/backlog/failures all zero, 563 operation logs, Prometheus target up, 17 healthy rules and zero active alerts. The candidate-bound AUD-03 recorder remains not production-ready because recovery/archive-restore and the then-missing new-candidate TUI section were not accepted; the later UAT does not manufacture those sections. Next collect a fresh candidate-bound AUD checkpoint only after canonical authority/profile inputs and an authorized writer smoke exist, then separately evidence recovery/archive replay and owner sign-off. No fault injection, archive/restore or live rollback is implied. A 2026-09-07 HTTPS observation verifies application build/manifest agreement for the same candidate, health OK, 571 operation logs and zero current outbox state counts. Write counter/latency series have no samples; current migrations, retained alerts, recovery and archive acceptance are not verified. Evidence: docs/deployment/aud03-https-readonly-observation-2026-09-07-aa7127ff.json. This does not satisfy the canonical operational recorder prerequisites. Historical database-only preparation for 0e9f890e / 20260907170119 confirms 496 applied and zero pending migrations, empty outbox and 571 operation-log rows (16 historical HTTP status >=400 rows, not a current failure rate). Evidence: docs/deployment/aud03-current-readonly-preparation-2026-09-07-0e9f890e.json. This is not a full operational acceptance envelope; writer/recovery/archive facts remain missing. The current production candidate is main b79687e46de05725c7cbea2cd135a040141ca331 / release 20260908163105 / image sha256:22661f49c8ded9b040da18e524e93dba1c24558de7a1f67a8fff2a8b63d06562; previous operational observations remain historical and are not inherited. Deployment evidence: docs/deployment/main-vps-upgrade-2026-09-08-b79687e4.json.",
+      "next_gate": "AUD-01, AUD-02 and repository AUD-04 remain complete. Current production dba9ab2c8c18b824a6ed60d90b0765e020e6908d / release 20260910002501 / image sha256:7a42abe215ba5fe80af304758c0f7cd74ee221d88867e7eedd66badbc9904706 has zero canonical audit event/outbox rows and 500 applied migration records in a read-only snapshot. The preceding public audit health observation was OK with 571 operation logs, but the public response is not candidate-bound. Runtime snapshot lacks mode/outbox_enabled/authority_selector. Obtain real canonical authority/profile inputs before writer smoke; separately evidence migration completeness, metrics/alerts, recovery, archive/restore, TUI and owner acceptance. Empty tables are not writer or recovery evidence. Prior candidate observations remain historical. Evidence: docs/deployment/sprint-successor-readonly-2026-09-10-dba9ab2c.json.",
       "documents": [
         {
           "path": "docs/plans/system-audit-log-consolidation-plan-2026-08-13.md",
@@ -162,7 +162,7 @@
       "priority": "P0",
       "owner": "terminal+operational_readiness",
       "status": "production_validation",
-      "next_gate": "Current main b79687e46de05725c7cbea2cd135a040141ca331 / release 20260908163105 / image sha256:22661f49c8ded9b040da18e524e93dba1c24558de7a1f67a8fff2a8b63d06562. Candidate replacement cleared prior UAT/cleanup/rollback/defect/telemetry/review bindings. A real retained migration sample is not yet available; the new observation time gate has not started. No previous candidate sample or synthetic zero is inherited. Natural time and remaining candidate-bound acceptance gates remain incomplete; Classic cleanup and TUI-02 final acceptance remain DENY. Read-only pending-sample evidence: docs/deployment/tui02-production-observation-pending-2026-09-08-b79687e4.json.",
+      "next_gate": "Successor dba9ab2c8c18b824a6ed60d90b0765e020e6908d / release 20260910002501 is independently identity-verified by docs/deployment/sprint-successor-readonly-2026-09-10-dba9ab2c.json. Concurrent deployment and TUI rebinding edits were preserved. Local successor readiness is DENY 2/10, commit=verified_with_snapshot and binding=true, but first_retained_sample_at and eligible_at are null. Start with a real retained sample and satisfy the existing 14-day window and candidate-bound UAT/telemetry/recovery gates; do not inherit old observations or calculate elapsed observation from deployment time. Raw checker output: docs/testing/data15-domain-checkpoint-2026-09-10.json. The candidate-bound Caddy-only query wiring repair completed (docs/deployment/tui02-query-wiring-repair-2026-09-10-dba9ab2c.json), with Web/Prometheus unchanged. The resumed authenticated query is HTTP 200 with an empty migration vector (docs/testing/sprint-resume-readonly-2026-09-10.json); no first sample or observation start is claimed. This goal performed no application deployment or browser acceptance.",
       "documents": [
         {
           "path": "docs/plans/web-to-tui-migration-plan-2026-07-25.md",
@@ -278,7 +278,7 @@
       "priority": "P1",
       "owner": "terminal",
       "status": "production_validation",
-      "next_gate": "TUI speed/pagination remediation and TUX-05 code are deployed in main b79687e46de05725c7cbea2cd135a040141ca331 / release 20260908163105 / image sha256:22661f49c8ded9b040da18e524e93dba1c24558de7a1f67a8fff2a8b63d06562. Frontend regression passes 58/58 and live Django layout passes 8/8; served JS/CSS hashes match source. Production authenticated role UAT and cold/warm/P95 performance measurements remain pending. A real retained migration sample is not yet available; the new observation time gate has not started. No previous candidate sample or synthetic zero is inherited. TUI-02 final acceptance and Classic cleanup remain DENY. Deployment evidence: docs/deployment/main-vps-upgrade-2026-09-08-b79687e4.json. Read-only pending-sample evidence: docs/deployment/tui02-production-observation-pending-2026-09-08-b79687e4.json.",
+      "next_gate": "Successor dba9ab2c8c18b824a6ed60d90b0765e020e6908d / release 20260910002501 is independently identity-verified by docs/deployment/sprint-successor-readonly-2026-09-10-dba9ab2c.json. Concurrent deployment and TUI rebinding edits were preserved. Local successor readiness is DENY 2/10, commit=verified_with_snapshot and binding=true, but first_retained_sample_at and eligible_at are null. Start with a real retained sample and satisfy the existing 14-day window and candidate-bound UAT/telemetry/recovery gates; do not inherit old observations or calculate elapsed observation from deployment time. Raw checker output: docs/testing/data15-domain-checkpoint-2026-09-10.json. This goal performed no deployment, production mutation or browser acceptance.",
       "documents": [
         {
           "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
@@ -293,7 +293,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-09-07.v55",
+    "version": "2026-09-10.v60",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -433,7 +433,9 @@
         "status": "awaiting_production",
         "title": "Close owner-scoped Evidence authority and production composition",
         "depends_on": [
-          "EVID-05"
+          "EVID-05",
+          "EVID-06",
+          "EVID-07"
         ],
         "exit_gate": "Exact user, tenant and owner authority is mandatory and fail-closed at every production Evidence read and approval composition boundary.",
         "evidence_collection": {
@@ -1161,6 +1163,45 @@
         "title": "Implement configurable regional market-data egress and frpc integration",
         "depends_on": [],
         "exit_gate": "Repository routing, encrypted endpoints, provider transport isolation, bounded fault handling, staff TUI and default governed MCP/SDK configuration, opt-in frpc deployment and contract tests pass; preserve separate DATA-02 production acceptance. Source plan: docs/plans/data-center-regional-egress-plan-2026-09-09.md."
+      },
+      {
+        "id": "DATA-15",
+        "workstream_id": "data-production-reliability",
+        "wave": 3,
+        "priority": "P2",
+        "execution_mode": "repository",
+        "status": "completed",
+        "title": "Strengthen Task Monitor, Research and Signal Domain behavioral branch coverage",
+        "depends_on": [
+          "DATA-12"
+        ],
+        "exit_gate": "Source-bound before/after branch reports from the same selected test scope verify Task Monitor >=100%, Research >=80% and Signal >=90%, each with Domain line coverage >=90%; focused behavior tests, formatting and governance checks pass without production Python changes, weakened assertions, lowered floors or repeated DATA-12 closure. Local selected-suite evidence is explicitly distinguished from full Nightly coverage. Primary/supporting plans, evidence and registry must agree."
+      },
+      {
+        "id": "EVID-06",
+        "workstream_id": "evidence-hard-gate",
+        "wave": 1,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "completed",
+        "title": "Publish raw Account authority attestations from a verified session request",
+        "depends_on": [
+          "EVID-05"
+        ],
+        "exit_gate": "An explicit CSRF-protected authenticated POST obtains identity, authentication/session validity, User and Profile facts only from the server, atomically publishes auth/user/RBAC raw roots and the derived actor source on one PostgreSQL alias, and returns exact secret-free selectors. It rejects anonymous, inactive, invalid/expired sessions, client-supplied identity or authority facts, inconsistent aliases and partial writes; no login hook, user/role mutation, scope grant or approval is created. Real PostgreSQL rollback and end-to-end HTTP tests, existing capture regressions, incremental mypy/debt, architecture, format, route and governance checks pass. Existing canonical readers remain fail-closed; this is not EVID-01/02 production acceptance."
+      },
+      {
+        "id": "EVID-07",
+        "workstream_id": "evidence-hard-gate",
+        "wave": 1,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "active",
+        "title": "Support explicit single-owner assignment and owner-tenant scope authority",
+        "depends_on": [
+          "EVID-06"
+        ],
+        "exit_gate": "A server-owned, source-bound single-owner policy permits the designated real admin to act as claimant and approver without fabricated identity or staff facts. Versioned receipt/subject/evidence, owner-tenant authority and typed scope integration preserve old V3/V1 hashes and default separation semantics. Durable exact-current reads bind the same policy, account, tenant, authentication, source clocks and canonical creation/physical facts; revoked/expired/mismatched policy or actor fails closed. PostgreSQL migration, atomic append/replay/rollback and authenticated end-to-end owner-scope tests prove the complete graph, including rejection of client-selected mode, other users/tenants and cross-version substitution. Incremental mypy/debt, format, architecture, freshness and governance pass. Local implementation does not constitute production owner assignment, human business acceptance or EVID-01/02 closure."
       }
     ]
   }

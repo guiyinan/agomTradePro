@@ -1,0 +1,252 @@
+{
+  "schema": "agom.repository-checkpoint.v1",
+  "unit_id": "EVID-07",
+  "status": "active",
+  "recorded_at": "2026-09-10T23:33:28.351076+00:00",
+  "checkpoint": "Authenticated canonical creation and TUI/SDK idempotency transport",
+  "previous_checkpoint_sha256": "aee33d47b3eb841d940be9cd3bd719fbbfc79f0955cab1982c46f9f24b9d7f68",
+  "source_sha256": {
+    "apps/account/canonical_creation_composition.py": "a1548bc23fb2aaeb05514bfcb3635809789049c6395f1371331e754592d529fa",
+    "apps/account/application/canonical_account_creation_replay.py": "bf020e5f4441bb3a79a8e4be45edf1dac8918744d606052debf6e28a7d4e1167",
+    "core/integration/canonical_account_creation.py": "e8a62aa187fed720aafc73b277c32145d5d631c8c9074b449b1ddc423afcbb19",
+    "apps/simulated_trading/creation_composition.py": "5f4b737e96bcc7e8f7bdb58c735c02b67b738afad198ce590f294abc81b14912",
+    "apps/simulated_trading/creation_transaction_composition.py": "cce7ebc454eaa1ec5c4d9a6f87007d6fd5b4d73e88ede6e4e8527e65149f0ed5",
+    "apps/simulated_trading/application/canonical_account_creation_request.py": "6177843bca3784682c797ad7fe57e3ecba255ef5f8a84570c147ae3106b917ea",
+    "apps/simulated_trading/application/canonical_account_creation_read.py": "83b6b59ead91517566b747ddff1b30bb4f82f6dcc7f2b43329778a3c4601cca1",
+    "apps/simulated_trading/infrastructure/canonical_account_creation_transaction.py": "ab77782a2921f8a2d21e90504cb812d7d2a28d661462052ee7168e682787c64d",
+    "apps/simulated_trading/infrastructure/canonical_account_creation_reader.py": "70b4db0ae5efd930169b298e83129ab0bf82bceec4d8fd7a5c960b7cc681e26d",
+    "tests/component/account/test_canonical_creation_orchestration_postgres.py": "882da0cf1ad1ad14e53cd762c9a590f353997d0e9d65f4dc58afb7a4a204ebb3",
+    "tests/component/account/test_canonical_creation_concurrency_postgres.py": "3ba0b0608d8b7a2ce35d3eb64b31e143258dc7780415f68b0b4b708fea20631b",
+    "apps/account/creation_authentication_composition.py": "2e920c66a02fcaa0423262c36f3eb068f3935f3237e9b28bdaf8be057a537254",
+    "apps/account/infrastructure/creation_authentication_transaction.py": "819fe7c748319763464b0e53efe1cbcb3e9f17fa6c5d32079e8d868b7cd153c5",
+    "apps/simulated_trading/application/canonical_account_creation_input.py": "083ebc93d89ad546f0968be1d83739f2ecbaa2f95ebd5b4905bae10316f915cd",
+    "apps/simulated_trading/interface/serializers.py": "745c5d85e0ab3fd379dad00101c86b60d4b540fd276ca7f963836e20cdaee009",
+    "apps/simulated_trading/interface/views.py": "887e30293180106e999bffcfd13cb3eab2e15d6a357d4ed373250991ce275f14",
+    "core/integration/authenticated_canonical_account_creation.py": "c1564f5f1406e8d88cbb91af5902e5ba1a60cfb2827968f60c7e1e6a33847832",
+    "tests/component/account/test_authenticated_creation_http_postgres.py": "4660dbf91ab267c6f3904c2faed46df54cb9e64c8d89252b2c433de25aad290e",
+    "tests/component/account/creation_chain_postgres_fixture.py": "b33be028a004bca7559fe9a4d743e2bd3e42d840029040e2f3db58e33b8520a3",
+    "tests/component/account/test_authenticated_creation_credentials_postgres.py": "6b9f3ee499f9ce2d4d99235e824211fb6b76b5fe383d770dcd74eddcb6c23144",
+    "apps/account/interface/authentication.py": "61c4f3d103b48d5163c24ed421858a1be180f3e7e1f6de27dd180b772137d312",
+    "apps/account/infrastructure/identity_models.py": "908d69fe0abda14b5400007e2a5830eed8e48d3258531f2a251f3b91f21e1115",
+    "apps/terminal/domain/interfaces.py": "e47f7302b0276274b90fe8615929cc55b9161585cc5f2d7bdd9fe00d27be44db",
+    "apps/terminal/application/tui_workbench.py": "f150b8849fad748f8d6b95fdd1550832a20382a2ea73bd9d4a4f89c6a2b4c403",
+    "apps/terminal/infrastructure/tui_adapters.py": "07c3f59b330255f3c455155fe38fd24584974ddacc1e8ecd04e152ae84a57b07",
+    "apps/terminal/interface/api_views.py": "1d906c6f27b6d28f50d568a896ec94da4e99be54c445f11a936cb13bd7041365",
+    "frontend/tui-workbench/src/00-runtime.js": "dc52a0b17aae5b5e0a53c29bc8b2df3c6b8078fd798910ddca6a75d48ed9c04e",
+    "frontend/tui-workbench/src/30-actions.js": "bef406308bbc75b86598c1e5540fdbc0dfbc659e3d0424771dc78a5266d97693",
+    "frontend/tui-workbench/src/50-shell.js": "e160db8b75706c725af51944724b4f21705125de2b812cf1e9d696d6778c332a",
+    "static/js/tui-workbench.js": "e71fa33eeb5fd14ea0baf11db769f05e00e8807829efa7e3092d2893a86b924a",
+    "frontend/tui-workbench/tests/workbench-browser.test.mjs": "601b31e0d57c8ef3b4d4f65c318f36a7feee31608d0e58fdae9f15fdf4eaf309",
+    "sdk/agomtradepro/client.py": "81cdb3afecb8f44d8d0b3ef065287941d796409ee0240b2867c47ce4d551b0eb",
+    "sdk/agomtradepro/modules/base.py": "f9fd991fb3dbcc6229964643c9b0ffce044f20f0b19564809cc322b39340cd70",
+    "sdk/agomtradepro/modules/account.py": "9e877d8cb7499309d2a5863662f1fbad995ea97919af4cd106ca7e4f26f36956",
+    "sdk/agomtradepro/modules/simulated_trading.py": "8bfed02f21729e3ae42b006105d0cbda799d9ebeb074319df03713c40d8f89b4",
+    "sdk/agomtradepro_mcp/tools/simulated_trading_tools.py": "9b054af53c2be546f7505fcf5d1622978422aca8d924ab07cff312a4cc97909a",
+    "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/account.py": "1df6dc0045a412a75aab8f3f315cea67bcb1a6d593d76ccaee3a8ad79719abe2",
+    "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/simulated_trading.py": "40ba801a6d17b7c568622b5f303a931e063788d787bf877b7d34d8a4a0808692",
+    "tests/integration/simulated_trading/test_account_create_api.py": "e1024068154992d0cf45fff1ab27b38a6f5963370a2c38af2fd7e3ce908943b1",
+    "tests/integration/test_unified_account_api.py": "be8cc042db1847418c7828551b79dbd5ab863775632b83a1fefffa101c805e92",
+    "tests/unit/terminal/test_tui_creation_idempotency.py": "5f4a4293e5d02aeb3e868860b507165c3c316cf94101fe4f121839b10b4be3f4",
+    "tests/component/test_tui_adapters.py": "e47d1e59b6ca2be3be87cf705b75ccd33aeac6aaf12960ed3159760f6860fadd",
+    "tests/unit/test_tui_workbench.py": "ea3a1044c1be38f60debb374cea6c6c1aef43d79239bd5a91fd263e5c57246de",
+    "sdk/tests/test_sdk/test_account_creation_idempotency.py": "5f297016ac4dede3274be0a68e4a9fb12b0241308d1eea5be6f9acc5694f646f",
+    "sdk/tests/test_sdk/test_account_unified_module.py": "af75c0b2a40c53c01e85bf10ab257f56b13a5dfd6f5b83ba6522551cf4ad2487",
+    "sdk/tests/test_mcp/test_core_registry_owner_account.py": "6f9f5abbf86bf8f4815e9b1ab2174154c317d787299d6385ca3ebd512fa39c94",
+    "sdk/tests/test_mcp/test_core_registry_owner_simulated_trading.py": "9f772089b2252753959fc8e948ce92a9de658fd04f657a8154643258f1ab9454"
+  },
+  "postgres_runs": {
+    "evid07-authenticated-http": {
+      "exit_code": 0,
+      "passed": 3,
+      "source_sha256_at_run": {
+        "apps/account/canonical_creation_composition.py": "a1548bc23fb2aaeb05514bfcb3635809789049c6395f1371331e754592d529fa",
+        "apps/account/application/canonical_account_creation_replay.py": "bf020e5f4441bb3a79a8e4be45edf1dac8918744d606052debf6e28a7d4e1167",
+        "core/integration/canonical_account_creation.py": "e8a62aa187fed720aafc73b277c32145d5d631c8c9074b449b1ddc423afcbb19",
+        "apps/simulated_trading/creation_composition.py": "5f4b737e96bcc7e8f7bdb58c735c02b67b738afad198ce590f294abc81b14912",
+        "apps/simulated_trading/creation_transaction_composition.py": "cce7ebc454eaa1ec5c4d9a6f87007d6fd5b4d73e88ede6e4e8527e65149f0ed5",
+        "apps/simulated_trading/application/canonical_account_creation_request.py": "6177843bca3784682c797ad7fe57e3ecba255ef5f8a84570c147ae3106b917ea",
+        "apps/simulated_trading/application/canonical_account_creation_read.py": "83b6b59ead91517566b747ddff1b30bb4f82f6dcc7f2b43329778a3c4601cca1",
+        "apps/simulated_trading/infrastructure/canonical_account_creation_transaction.py": "ab77782a2921f8a2d21e90504cb812d7d2a28d661462052ee7168e682787c64d",
+        "apps/simulated_trading/infrastructure/canonical_account_creation_reader.py": "70b4db0ae5efd930169b298e83129ab0bf82bceec4d8fd7a5c960b7cc681e26d",
+        "tests/component/account/test_canonical_creation_orchestration_postgres.py": "882da0cf1ad1ad14e53cd762c9a590f353997d0e9d65f4dc58afb7a4a204ebb3",
+        "tests/component/account/test_canonical_creation_concurrency_postgres.py": "3ba0b0608d8b7a2ce35d3eb64b31e143258dc7780415f68b0b4b708fea20631b",
+        "apps/account/creation_authentication_composition.py": "2e920c66a02fcaa0423262c36f3eb068f3935f3237e9b28bdaf8be057a537254",
+        "apps/account/infrastructure/creation_authentication_transaction.py": "819fe7c748319763464b0e53efe1cbcb3e9f17fa6c5d32079e8d868b7cd153c5",
+        "apps/simulated_trading/application/canonical_account_creation_input.py": "083ebc93d89ad546f0968be1d83739f2ecbaa2f95ebd5b4905bae10316f915cd",
+        "apps/simulated_trading/interface/serializers.py": "745c5d85e0ab3fd379dad00101c86b60d4b540fd276ca7f963836e20cdaee009",
+        "apps/simulated_trading/interface/views.py": "0ba312fa18860e4311b0722c4e64ed3d2ce8f7595bff1e9a63550e170f2a980c",
+        "core/integration/authenticated_canonical_account_creation.py": "c1564f5f1406e8d88cbb91af5902e5ba1a60cfb2827968f60c7e1e6a33847832",
+        "tests/component/account/test_authenticated_creation_http_postgres.py": "f5f8389c97c0d45d9edb9f1ed85efb59bb0380dd3a65844f0304a6635e30051e",
+        "tests/component/account/creation_chain_postgres_fixture.py": "b33be028a004bca7559fe9a4d743e2bd3e42d840029040e2f3db58e33b8520a3"
+      },
+      "source_comparison": {
+        "files_checked": 19,
+        "changed": []
+      },
+      "cleanup": {
+        "database": "evid06_authority_test",
+        "public_base_tables": 0
+      }
+    },
+    "evid07-credentials": {
+      "exit_code": 0,
+      "passed": 5,
+      "source_sha256_at_run": {
+        "apps/account/canonical_creation_composition.py": "a1548bc23fb2aaeb05514bfcb3635809789049c6395f1371331e754592d529fa",
+        "apps/account/application/canonical_account_creation_replay.py": "bf020e5f4441bb3a79a8e4be45edf1dac8918744d606052debf6e28a7d4e1167",
+        "core/integration/canonical_account_creation.py": "e8a62aa187fed720aafc73b277c32145d5d631c8c9074b449b1ddc423afcbb19",
+        "apps/simulated_trading/creation_composition.py": "5f4b737e96bcc7e8f7bdb58c735c02b67b738afad198ce590f294abc81b14912",
+        "apps/simulated_trading/creation_transaction_composition.py": "cce7ebc454eaa1ec5c4d9a6f87007d6fd5b4d73e88ede6e4e8527e65149f0ed5",
+        "apps/simulated_trading/application/canonical_account_creation_request.py": "6177843bca3784682c797ad7fe57e3ecba255ef5f8a84570c147ae3106b917ea",
+        "apps/simulated_trading/application/canonical_account_creation_read.py": "83b6b59ead91517566b747ddff1b30bb4f82f6dcc7f2b43329778a3c4601cca1",
+        "apps/simulated_trading/infrastructure/canonical_account_creation_transaction.py": "ab77782a2921f8a2d21e90504cb812d7d2a28d661462052ee7168e682787c64d",
+        "apps/simulated_trading/infrastructure/canonical_account_creation_reader.py": "70b4db0ae5efd930169b298e83129ab0bf82bceec4d8fd7a5c960b7cc681e26d",
+        "tests/component/account/test_canonical_creation_orchestration_postgres.py": "882da0cf1ad1ad14e53cd762c9a590f353997d0e9d65f4dc58afb7a4a204ebb3",
+        "tests/component/account/test_canonical_creation_concurrency_postgres.py": "3ba0b0608d8b7a2ce35d3eb64b31e143258dc7780415f68b0b4b708fea20631b",
+        "apps/account/creation_authentication_composition.py": "2e920c66a02fcaa0423262c36f3eb068f3935f3237e9b28bdaf8be057a537254",
+        "apps/account/infrastructure/creation_authentication_transaction.py": "819fe7c748319763464b0e53efe1cbcb3e9f17fa6c5d32079e8d868b7cd153c5",
+        "apps/simulated_trading/application/canonical_account_creation_input.py": "083ebc93d89ad546f0968be1d83739f2ecbaa2f95ebd5b4905bae10316f915cd",
+        "apps/simulated_trading/interface/serializers.py": "745c5d85e0ab3fd379dad00101c86b60d4b540fd276ca7f963836e20cdaee009",
+        "apps/simulated_trading/interface/views.py": "0ba312fa18860e4311b0722c4e64ed3d2ce8f7595bff1e9a63550e170f2a980c",
+        "core/integration/authenticated_canonical_account_creation.py": "c1564f5f1406e8d88cbb91af5902e5ba1a60cfb2827968f60c7e1e6a33847832",
+        "tests/component/account/test_authenticated_creation_http_postgres.py": "f5f8389c97c0d45d9edb9f1ed85efb59bb0380dd3a65844f0304a6635e30051e",
+        "tests/component/account/creation_chain_postgres_fixture.py": "b33be028a004bca7559fe9a4d743e2bd3e42d840029040e2f3db58e33b8520a3",
+        "tests/component/account/test_authenticated_creation_credentials_postgres.py": "6b9f3ee499f9ce2d4d99235e824211fb6b76b5fe383d770dcd74eddcb6c23144",
+        "apps/account/interface/authentication.py": "61c4f3d103b48d5163c24ed421858a1be180f3e7e1f6de27dd180b772137d312",
+        "apps/account/infrastructure/identity_models.py": "908d69fe0abda14b5400007e2a5830eed8e48d3258531f2a251f3b91f21e1115"
+      },
+      "source_comparison": {
+        "files_checked": 22,
+        "changed": []
+      },
+      "cleanup": {
+        "database": "evid06_authority_test",
+        "public_base_tables": 0
+      }
+    },
+    "evid07-creation-alias": {
+      "exit_code": 0,
+      "passed": 3,
+      "source_sha256_at_run": {
+        "apps/account/canonical_creation_composition.py": "a1548bc23fb2aaeb05514bfcb3635809789049c6395f1371331e754592d529fa",
+        "apps/account/application/canonical_account_creation_replay.py": "bf020e5f4441bb3a79a8e4be45edf1dac8918744d606052debf6e28a7d4e1167",
+        "core/integration/canonical_account_creation.py": "e8a62aa187fed720aafc73b277c32145d5d631c8c9074b449b1ddc423afcbb19",
+        "apps/simulated_trading/creation_composition.py": "5f4b737e96bcc7e8f7bdb58c735c02b67b738afad198ce590f294abc81b14912",
+        "apps/simulated_trading/creation_transaction_composition.py": "cce7ebc454eaa1ec5c4d9a6f87007d6fd5b4d73e88ede6e4e8527e65149f0ed5",
+        "apps/simulated_trading/application/canonical_account_creation_request.py": "6177843bca3784682c797ad7fe57e3ecba255ef5f8a84570c147ae3106b917ea",
+        "apps/simulated_trading/application/canonical_account_creation_read.py": "83b6b59ead91517566b747ddff1b30bb4f82f6dcc7f2b43329778a3c4601cca1",
+        "apps/simulated_trading/infrastructure/canonical_account_creation_transaction.py": "ab77782a2921f8a2d21e90504cb812d7d2a28d661462052ee7168e682787c64d",
+        "apps/simulated_trading/infrastructure/canonical_account_creation_reader.py": "70b4db0ae5efd930169b298e83129ab0bf82bceec4d8fd7a5c960b7cc681e26d",
+        "tests/component/account/test_canonical_creation_orchestration_postgres.py": "882da0cf1ad1ad14e53cd762c9a590f353997d0e9d65f4dc58afb7a4a204ebb3",
+        "tests/component/account/test_canonical_creation_concurrency_postgres.py": "3ba0b0608d8b7a2ce35d3eb64b31e143258dc7780415f68b0b4b708fea20631b",
+        "apps/account/creation_authentication_composition.py": "2e920c66a02fcaa0423262c36f3eb068f3935f3237e9b28bdaf8be057a537254",
+        "apps/account/infrastructure/creation_authentication_transaction.py": "819fe7c748319763464b0e53efe1cbcb3e9f17fa6c5d32079e8d868b7cd153c5",
+        "apps/simulated_trading/application/canonical_account_creation_input.py": "083ebc93d89ad546f0968be1d83739f2ecbaa2f95ebd5b4905bae10316f915cd",
+        "apps/simulated_trading/interface/serializers.py": "745c5d85e0ab3fd379dad00101c86b60d4b540fd276ca7f963836e20cdaee009",
+        "apps/simulated_trading/interface/views.py": "887e30293180106e999bffcfd13cb3eab2e15d6a357d4ed373250991ce275f14",
+        "core/integration/authenticated_canonical_account_creation.py": "c1564f5f1406e8d88cbb91af5902e5ba1a60cfb2827968f60c7e1e6a33847832",
+        "tests/component/account/test_authenticated_creation_http_postgres.py": "4660dbf91ab267c6f3904c2faed46df54cb9e64c8d89252b2c433de25aad290e",
+        "tests/component/account/creation_chain_postgres_fixture.py": "b33be028a004bca7559fe9a4d743e2bd3e42d840029040e2f3db58e33b8520a3",
+        "tests/component/account/test_authenticated_creation_credentials_postgres.py": "6b9f3ee499f9ce2d4d99235e824211fb6b76b5fe383d770dcd74eddcb6c23144",
+        "apps/account/interface/authentication.py": "61c4f3d103b48d5163c24ed421858a1be180f3e7e1f6de27dd180b772137d312",
+        "apps/account/infrastructure/identity_models.py": "908d69fe0abda14b5400007e2a5830eed8e48d3258531f2a251f3b91f21e1115"
+      },
+      "source_comparison": {
+        "files_checked": 22,
+        "changed": []
+      },
+      "cleanup": {
+        "database": "evid06_authority_test",
+        "public_base_tables": 0
+      }
+    }
+  },
+  "raw_evidence": {
+    "var/evid07-authenticated-http-postgres.txt": {
+      "sha256": "427d4f0a44d8112f46443899e4028515e82a21ee22733223dbd94ba5be35ffa5",
+      "content": "Running EVID-06 tests against dedicated loopback test database.\r\n...                                                                      [100%]\r\n============================== warnings summary ===============================\r\nagomtradepro\\Lib\\site-packages\\_pytest\\config\\__init__.py:852\r\n  D:\\githv\\agomTradePro\\agomtradepro\\Lib\\site-packages\\_pytest\\config\\__init__.py:852: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.component.account.creation_chain_postgres_fixture\r\n    self.import_plugin(import_spec)\r\n\r\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\r\n3 passed, 1 warning in 486.57s (0:08:06)\r\n"
+    },
+    "var/evid07-credentials-postgres.txt": {
+      "sha256": "862254cb9815c9e28b2e0215187684d8b5a9a8e6c82950b9636a541b166b8cc8",
+      "content": "Running EVID-06 tests against dedicated loopback test database.\r\n.....                                                                    [100%]\r\n============================== warnings summary ===============================\r\nagomtradepro\\Lib\\site-packages\\_pytest\\config\\__init__.py:852\r\n  D:\\githv\\agomTradePro\\agomtradepro\\Lib\\site-packages\\_pytest\\config\\__init__.py:852: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.component.account.creation_chain_postgres_fixture\r\n    self.import_plugin(import_spec)\r\n\r\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\r\n5 passed, 1 warning in 815.22s (0:13:35)\r\n"
+    },
+    "var/evid07-creation-alias-postgres.txt": {
+      "sha256": "2d1c0704d5be800ec6fe280af694b8be84d972cf6f580b665a2a1f08c07c9e0e",
+      "content": "Running EVID-06 tests against dedicated loopback test database.\r\n...                                                                      [100%]\r\n============================== warnings summary ===============================\r\nagomtradepro\\Lib\\site-packages\\_pytest\\config\\__init__.py:852\r\n  D:\\githv\\agomTradePro\\agomtradepro\\Lib\\site-packages\\_pytest\\config\\__init__.py:852: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.component.account.creation_chain_postgres_fixture\r\n    self.import_plugin(import_spec)\r\n\r\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\r\n3 passed, 2 deselected, 1 warning in 430.59s (0:07:10)\r\n"
+    },
+    "var/evid07-creation-migrated-integration.txt": {
+      "sha256": "fdd953d75a590f6744909a1218366632d25b0755aaeffac12f0c05a040566a58",
+      "content": "...........                                                              [100%]\r\n11 passed in 155.93s (0:02:35)\r\n"
+    },
+    "var/evid07-creation-http-failclosed-integration-final.txt": {
+      "sha256": "30bb89a9e99ab9171ffe01a531fa2058c55dc594c52a85146e188ec38dfafef3",
+      "content": "....                                                                     [100%]\r\n4 passed, 3 deselected in 194.03s (0:03:14)\r\n"
+    },
+    "var/evid07-creation-sdk-key-tests-final.txt": {
+      "sha256": "b7778a7bb7f8841f3d0f47f540a0e764e3b00a0d624e483fa9d12bda1f49014d",
+      "content": ".........................................................                [100%]\r\n57 passed in 3.76s\r\n"
+    },
+    "var/evid07-creation-auth-composition-unit.txt": {
+      "sha256": "fd76982e140ed0354b7019279cbe6e22990d09b7083c203131d94f5f58e53064",
+      "content": ".....                                                                    [100%]\r\n5 passed in 0.61s\r\n"
+    },
+    "var/evid07-creation-http-input-unit.txt": {
+      "sha256": "1433528a219c3ff5a480f4a828905d34ed112ad0c1c0b230a42eb46d617c49a7",
+      "content": "........................                                                 [100%]\r\n24 passed in 0.61s\r\n"
+    },
+    "var/evid07-tui-key-service-unit.txt": {
+      "sha256": "89bc20e569eb864382d4a340bfc8670e989d65cf1a9e77c14793defd5044296c",
+      "content": "....                                                                     [100%]\r\n4 passed in 0.50s\r\n"
+    },
+    "var/evid07-tui-idempotency-adapter.txt": {
+      "sha256": "4e50020dfc04d371f83dca66990ab74d6674d497c347de5dcddcd6dbb9ca57be",
+      "content": "...                                                                      [100%]\r\n3 passed in 0.38s\r\n"
+    },
+    "var/evid07-tui-runtime-fixture-final.txt": {
+      "sha256": "1fd4bc0dd236f3e59d9725d8181d5a38b16864f5716eb9673f8dd3cc9da6b27f",
+      "content": ".                                                                        [100%]\r\n1 passed in 159.23s (0:02:39)\r\n"
+    },
+    "var/evid07-http-tui-root-scoped-mypy.txt": {
+      "sha256": "6f4b7b751a9c7be4681f45c4b13e97d88f427e1aca7abb02a4665547f563f72e",
+      "content": "Success: no issues found in 11 source files\r\nMypy regressions: 0 (legacy errors observed: 0)\r\n"
+    },
+    "var/evid07-sdk-typefix-root-final.txt": {
+      "sha256": "03fd710911c2d785f138604504fcf8562562a6de27768946b368de05a42dba1d",
+      "content": "Success: no issues found in 6 source files\r\nMypy regressions: 0 (legacy errors observed: 0)\r\n"
+    },
+    "var/evid07-creation-view-copy-mypy.txt": {
+      "sha256": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b",
+      "content": "Success: no issues found in 1 source file\r\nMypy regressions: 0 (legacy errors observed: 0)\r\n"
+    },
+    "var/evid07-authenticated-creation-full-debt-final.txt": {
+      "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+      "content": "Full mypy debt ceiling passed: 0 errors in 0 files\r\n"
+    },
+    "var/evid07-authenticated-creation-architecture.txt": {
+      "sha256": "30d874d94519ee8059bcb6abe2f8586ad688918205c25aec61b2c74c3a0ad91e",
+      "content": "Architecture rules version: 2026-06-30.v8\r\nScan roots: apps, core, shared\r\nScanned files: 3103\r\nBoundary rules: 7\r\nBoundary violations: 0\r\n"
+    },
+    "var/evid07-authenticated-creation-registry.txt": {
+      "sha256": "b1d243a9262e1ffff0351d06700c1e9167e815bfd9bd3f6c532df43c3717d28d",
+      "content": "active-plan-registry version=2026-09-10.v83 workstreams=9 primary=18 support=27 review=0 units=49 paths=45 violations=0\r\n"
+    }
+  },
+  "verified": {
+    "postgres_executions": 11,
+    "unique_postgres_cases": 10,
+    "overlap": "The Session create/replay case ran twice, first canonical-only and later cross-alias.",
+    "http": "Actual Session+CSRF, Token and HMAC backends on a dedicated PostgreSQL alias; owner-scoped creation, replay/conflicts, final credential invalidation rollback and no default DB queries.",
+    "integration": "11 final tests: 4 transport fail-closed cases plus 7 retained read contracts. Four obsolete SQLite creation positive tests moved into actual PostgreSQL coverage.",
+    "sdk": "57 tests after type repair; both create methods require a stable header key and retain account-dict return compatibility.",
+    "tui": "4 application and 3 adapter tests; browser same-key retries/new-key submissions plus 2 adjacent flows passed. Full workbench had 325 passed/1 fixture failure, corrected single case passed; full suite not rerun after fixture fix.",
+    "static": "11 Root + 6 SDK scoped production files passed; view copy checked again. Black/isort/Ruff passed those scopes. Full apps/core/shared mypy debt was zero before the next reobservation slice. Architecture scanned 3103 files with 0 violations; registry v83 unchanged."
+  },
+  "limits": [
+    "Local test credentials, users, server configuration seam and isolated DB only; no production policy activation, owner assignment, human approval, deployment or runtime enablement.",
+    "Older run hashes intentionally differ after view copy and alias-test changes; each frozen run comparison was verified before further changes.",
+    "Initial fail-closed integration run used an invalid amount and is not proof of those branches; corrected valid-input runs passed.",
+    "Current owner policy resolution, explicit authenticated owner approval, Research scope factory and delayed first-assignment reobservation remain incomplete.",
+    "Next reobservation primitive is excluded from this checkpoint and its type/architecture counts.",
+    "EVID-07, EVID-01/02, DATA-02 and the full Goal are not complete."
+  ]
+}

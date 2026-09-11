@@ -1,0 +1,87 @@
+{
+  "schema": "sprint-local-checkpoint.v1",
+  "recorded_at": "2026-09-09T16:47:48.602634+00:00",
+  "repository_head": "dba9ab2c8c18b824a6ed60d90b0765e020e6908d",
+  "git_dirty": true,
+  "source_hashes": {
+    "scripts/check_web_to_tui_cutover_readiness.py": "647fafcb6518a0cac0fdee2617005c3935bec4bbe9773ccd6b96de384c860820",
+    "config/tui/migration/web_to_tui_cutover_evidence.v1.json": "29a069503f7412b0ae65e59b59178be8aabde7e422c10d4e2c6fba33886d5090",
+    "tests/unit/task_monitor/test_domain_branch_edges.py": "e77df866d804b0fb11154593061ba91c11d1d3b419fc572acff6bf95cf68ca03",
+    "apps/task_monitor/domain/entities.py": "3b05a41767eb50d3fd68e578089786e2aaa96071fdb22f49a50009312df7d743"
+  },
+  "checks": [
+    {
+      "command": "agomtradepro/Scripts/python.exe scripts/check_web_to_tui_cutover_readiness.py --json",
+      "exit_code": 0,
+      "result": {
+        "decision": "DENY",
+        "as_of": "2026-09-09",
+        "required_route_pages": 108,
+        "required_tasks": 101,
+        "gates": [
+          {
+            "key": "source_consistency",
+            "passed": true,
+            "detail": "matrix=e03916f904971f242337523252681d65ee8a34dd160ee443f7baa5315588d514; catalog=e03916f904971f242337523252681d65ee8a34dd160ee443f7baa5315588d514; evidence=e03916f904971f242337523252681d65ee8a34dd160ee443f7baa5315588d514"
+          },
+          {
+            "key": "execution_dependency",
+            "passed": true,
+            "detail": "TUI-01=completed; dependencies=TAR-03:completed"
+          },
+          {
+            "key": "stable_version_window",
+            "passed": false,
+            "detail": "version=20260908163105; commit=missing_or_source_mismatch; binding=false; released_at=2026-09-08; first_retained_sample_at=None; eligible_at=None; evaluated_at=2026-09-09 16:39:15.414039+00:00; retained_source=false; minimum_seconds=1209600; reset_source=false; reset_at=None"
+          },
+          {
+            "key": "route_task_uat",
+            "passed": false,
+            "detail": "covered=0/108; extras=0; binding=false; evidence=false"
+          },
+          {
+            "key": "route_cleanup_readiness",
+            "passed": false,
+            "detail": "covered=0/108; scope_counts=empty_state:0,error_state:0,legacy_url:0,permission:0,primary_task:0,rollback:0; scopes=false; rollback=false; rollback_matrix=false; lifecycle=true; candidate_binding=false; evidence=false"
+          },
+          {
+            "key": "blocking_defects",
+            "passed": false,
+            "detail": "window=None..None; new_p0=None; new_p1=None; open_p0=None; open_p1=None; binding=false; evidence=false; structured_snapshot=false"
+          },
+          {
+            "key": "production_telemetry",
+            "passed": false,
+            "detail": "covered=0/101; invalid=0; extras=0; duplicates=0; window_ok=false; production_evidence=false; structured_snapshot=false"
+          },
+          {
+            "key": "rollback_drill",
+            "passed": false,
+            "detail": "environment=None; binding=false; evidence=missing"
+          },
+          {
+            "key": "production_registry_backup",
+            "passed": false,
+            "detail": "evidence=false; structured_attestation=false; integrity=false; restore_verified=false"
+          },
+          {
+            "key": "cutover_approvals",
+            "passed": false,
+            "detail": "owner=missing; reviewer=missing; snapshot=false; attestations=false"
+          }
+        ]
+      },
+      "interpretation": "DENY, not an acceptance success; local evidence still targets release 20260908163105."
+    },
+    {
+      "command": "agomtradepro/Scripts/python.exe -m pytest tests/unit/task_monitor/test_domain_branch_edges.py -q --no-cov -o addopts= --junitxml=var/sprint-task-monitor-root.xml",
+      "exit_code": 0,
+      "junit_xml": "<?xml version=\"1.0\" encoding=\"utf-8\"?><testsuites name=\"pytest tests\"><testsuite name=\"pytest\" errors=\"0\" failures=\"0\" skipped=\"0\" tests=\"1\" time=\"0.424\" timestamp=\"2026-09-10T00:45:24.348958+08:00\" hostname=\"win10hv-1\"><testcase classname=\"tests.unit.task_monitor.test_domain_branch_edges\" name=\"test_non_final_failure_is_a_warning_and_statistics_are_serializable\" time=\"0.135\" /></testsuite></testsuites>",
+      "junit_sha256": "d6971ba62904c7949cbdcace9f0fcc3af1fc190e7078cc6ee4e5189d3ef0df50",
+      "passed": 1
+    }
+  ],
+  "data15_complete": false,
+  "production_acceptance_claimed": false,
+  "production_mutation_performed": false
+}

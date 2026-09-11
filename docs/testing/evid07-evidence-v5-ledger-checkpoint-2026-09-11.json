@@ -1,0 +1,109 @@
+{
+  "schema": "agomtradepro.evidence-checkpoint.v1",
+  "checkpoint_id": "evid07-evidence-v5-ledger-2026-09-11",
+  "recorded_on": "2026-09-11",
+  "canonical_unit": "EVID-07",
+  "unit_status": "active",
+  "production_claim": false,
+  "authority_granted": false,
+  "scope": {
+    "completed": [
+      "EvidenceV5 immutable Domain root over exact SubjectV5",
+      "Application approve, exact and current use cases",
+      "strict Domain and persisted-record codecs",
+      "append-only EvidenceV5 model and schema-only migration 0062",
+      "PostgreSQL first-winner repository with SubjectV5 and actor-source V3 durable parents",
+      "historical exact reads, dual mapping heads, replay and fail-closed tamper checks"
+    ],
+    "remaining": [
+      "authenticated same-alias EvidenceV5 composition",
+      "Owner/Tenant AuthorityV3 lifecycle",
+      "typed scope V3 and revocation",
+      "complete authenticated PostgreSQL owner-scope graph",
+      "production deployment, real approval receipt and production exit gates"
+    ]
+  },
+  "identity": {
+    "owner_account": "admin",
+    "owner_user_id": 1,
+    "source": "explicit user authorization in the active Goal thread"
+  },
+  "verification": {
+    "evidence_v5_unit": {
+      "result": "97 passed",
+      "artifact": "var/evid07-evidence-v5-unit-final.txt"
+    },
+    "evidence_v4_compatibility": {
+      "result": "109 passed",
+      "artifact": "var/evid07-evidence-v4-compat-final.txt"
+    },
+    "postgresql_repository": {
+      "result": "1 passed in 519.23s",
+      "database": "evid06_authority_test",
+      "artifact": "var/evid07-evidence-v5-postgres-final.txt",
+      "covered": [
+        "complete V5 durable parent graph",
+        "root append and exact replay",
+        "expired historical exact read",
+        "account and underlying mapping heads",
+        "future cutoff rejection",
+        "append-only model deletion rejection",
+        "canonical payload and record seal tamper rejection"
+      ]
+    },
+    "migration_0062": {
+      "result": "1 passed in 295.76s",
+      "covered": "two apply/unapply cycles, all named constraints and two durable foreign keys"
+    },
+    "database_cleanup": {
+      "public_base_tables": 0,
+      "artifact": "var/evid07-evidence-v5-cleanup-final.txt"
+    },
+    "domain_coverage": {
+      "statements": 184,
+      "missed_statements": 4,
+      "branches": 64,
+      "partial_branches": 4,
+      "coverage_percent": 96.8
+    },
+    "incremental_mypy": {
+      "result": "0 issues in 7 source files; 0 regressions",
+      "artifact": "var/evid07-evidence-v5-mypy-final.txt"
+    },
+    "full_mypy_debt": {
+      "result": "0 errors in 0 files",
+      "artifact": "var/evid07-evidence-v5-full-debt-final.txt"
+    },
+    "architecture": {
+      "result": "3143 files; 7 rules; 0 violations",
+      "artifact": "var/evid07-evidence-v5-architecture-final.txt"
+    },
+    "governance": {
+      "baseline": "2026-09-09.v220",
+      "violations": 0,
+      "artifact": "var/evid07-evidence-v5-governance-final.txt"
+    },
+    "freshness": {
+      "surfaces": 61,
+      "violations": 0,
+      "artifact": "var/evid07-evidence-v5-freshness-final.txt"
+    },
+    "active_registry": {
+      "version": "2026-09-10.v83",
+      "units": 49,
+      "paths": 45,
+      "violations": 0,
+      "artifact": "var/evid07-evidence-v5-registry-final.txt"
+    }
+  },
+  "production_source_sha256": {
+    "apps/account/domain/account_owner_assignment_evidence_v5.py": "9a3fea35a86e802fb1fe542858f2301df9e3c1d24b71fcca7f3f477e351ea57d",
+    "apps/account/application/account_owner_assignment_evidence_v5.py": "8f81e7e4c42f4d6c700a4a94067d3aec118f068ad59070b1f16de8086b9fe322",
+    "apps/account/infrastructure/account_owner_assignment_evidence_v5_codec.py": "79645fc68d1dfd60cff7475d0fa9a3d4e03481cb932e60ca2513ed3ffa563f2e",
+    "apps/account/infrastructure/account_owner_assignment_evidence_v5_record_codec.py": "6f31246cc02b6ea7b38cdbcadd7f64d14b67466b2ff6e2db8a3856cf820f25c8",
+    "apps/account/infrastructure/account_owner_assignment_evidence_v5_repository.py": "75aa40e3e581b36dcee6d6554d74061583d653b7bc60280fe3c0f0bb88599995",
+    "apps/account/infrastructure/account_owner_assignment_v5_models.py": "f0b8b2756f2f3e2828527d110813f68482dba0057a93623c7592739b0db1a699",
+    "apps/account/migrations/0062_account_owner_assignment_evidence_v5.py": "87475c70e814a882e11211deeabeb3884492328132a869f4ee4d4d1ecd80edfc"
+  },
+  "decision": "EvidenceV5 durable ledger slice is accepted as a repository checkpoint. EVID-07 remains active and no production authority or execution permission is asserted."
+}
