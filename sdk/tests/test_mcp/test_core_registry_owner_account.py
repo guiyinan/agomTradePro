@@ -540,10 +540,11 @@ def test_account_create_unified_account_previews_owner_scope_before_commit(
             "stop_loss_pct": 8.0,
             "commission_rate": 0.0002,
             "slippage_rate": 0.0008,
+            "idempotency_key": "idem-unified-account-create",
         },
     )
     assert "preview_only" not in calls[1][1]
-    assert "idempotency_key" not in calls[1][1]
+    assert calls[1][1]["idempotency_key"] == "idem-unified-account-create"
     assert audit_events[0]["affected_objects"]["preview_summary"] == preview["summary"]
     assert audit_events[1]["event_type"] == "confirmation_completed"
 

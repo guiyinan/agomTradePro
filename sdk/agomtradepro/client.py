@@ -7,7 +7,7 @@ AgomTradePro SDK 核心客户端
 import hashlib
 import hmac
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlencode, urljoin
 
 import requests
@@ -17,12 +17,12 @@ from urllib3.util.retry import Retry
 if TYPE_CHECKING:
     from .realtime_stream import RealtimeStream
 
+from . import exceptions as sdk_exceptions
 from .config import ClientConfig, load_config
 from .exceptions import (
     AgomTradeProAPIError,
     AuthenticationError,
     ConfigurationError,
-    raise_for_status,
 )
 from .exceptions import ConnectionError as SDKConnectionError
 from .exceptions import TimeoutError as SDKTimeoutError
@@ -220,18 +220,14 @@ class AgomTradeProClient:
     def _uses_session_auth(self) -> bool:
         return bool(
             get_request_transport() is None
-            and
-            not self._config.auth.api_token
+            and not self._config.auth.api_token
             and not self._uses_internal_auth()
             and self._config.auth.username
             and self._config.auth.password
         )
 
     def _uses_internal_auth(self) -> bool:
-        return bool(
-            self._config.auth.internal_auth_secret
-            and self._config.auth.internal_user_id
-        )
+        return bool(self._config.auth.internal_auth_secret and self._config.auth.internal_user_id)
 
     def _authenticate_with_session(self) -> None:
         """Authenticate against the Django login form when username/password is configured."""
@@ -261,9 +257,7 @@ class AgomTradeProClient:
             raise AuthenticationError(f"Session login failed: {exc}") from exc
 
         if login_response.status_code not in (302, 303):
-            raise AuthenticationError(
-                f"Session login failed: status={login_response.status_code}"
-            )
+            raise AuthenticationError(f"Session login failed: status={login_response.status_code}")
 
     def _build_request_headers(
         self,
@@ -332,7 +326,8 @@ class AgomTradeProClient:
         data: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
         files: dict[str, Any] | None = None,
-    ) -> dict:
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
         """
         发送 HTTP 请求
 
@@ -357,10 +352,21 @@ class AgomTradeProClient:
             ConnectionError: 网络连接失败
             TimeoutError: 请求超时
         """
+        if idempotency_key is not None and (
+            type(idempotency_key) is not str
+            or not idempotency_key
+            or len(idempotency_key) > 192
+            or any(character.isspace() for character in idempotency_key)
+        ):
+            raise sdk_exceptions.ValidationError(
+                "idempotency_key must be a nonempty token of at most 192 characters"
+            )
         url = f"{self._config.base_url.rstrip('/')}/{endpoint.lstrip('/')}"
 
         try:
             headers = self._build_request_headers(method, endpoint, params)
+            if idempotency_key is not None:
+                headers["Idempotency-Key"] = idempotency_key
             if files is not None:
                 headers.pop("Content-Type", None)
 
@@ -395,15 +401,15 @@ class AgomTradeProClient:
                 response_data = None
 
             # 根据状态码抛出异常
-            raise_for_status(response.status_code, response_data)
+            sdk_exceptions.raise_for_status(response.status_code, response_data)
 
             if isinstance(response_data, dict):
                 # Some AgomTradePro endpoints return wrapped payload:
                 # {"success": true, "data": {...}}.
                 if "data" in response_data and isinstance(response_data.get("success"), bool):
-                    return response_data["data"]
+                    return cast(dict[str, Any], response_data["data"])
                 return response_data
-            return response_data or {}
+            return cast(dict[str, Any], response_data or {})
 
         except requests.exceptions.Timeout:
             raise SDKTimeoutError(f"Request to {url} timed out") from None
@@ -422,7 +428,7 @@ class AgomTradeProClient:
         self,
         endpoint: str,
         params: dict[str, Any] | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         发送 GET 请求
 
@@ -441,7 +447,8 @@ class AgomTradeProClient:
         data: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
         files: dict[str, Any] | None = None,
-    ) -> dict:
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
         """
         发送 POST 请求
 
@@ -454,6 +461,15 @@ class AgomTradeProClient:
         Returns:
             响应 JSON 数据
         """
+        if idempotency_key is not None:
+            return self._request(
+                "POST",
+                endpoint,
+                data=data,
+                json=json,
+                files=files,
+                idempotency_key=idempotency_key,
+            )
         if files is not None:
             return self._request("POST", endpoint, data=data, json=json, files=files)
         return self._request("POST", endpoint, data=data, json=json)
@@ -463,7 +479,7 @@ class AgomTradeProClient:
         endpoint: str,
         data: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         发送 PUT 请求
 
@@ -482,7 +498,7 @@ class AgomTradeProClient:
         endpoint: str,
         data: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         发送 PATCH 请求
 
@@ -500,7 +516,7 @@ class AgomTradeProClient:
         self,
         endpoint: str,
         params: dict[str, Any] | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         发送 DELETE 请求
 
@@ -601,9 +617,7 @@ class AgomTradeProClient:
             self._realtime = RealtimeModule(self)
         return self._realtime
 
-    def realtime_stream(
-        self, asset_codes: list[str] | None = None
-    ) -> "RealtimeStream":
+    def realtime_stream(self, asset_codes: list[str] | None = None) -> "RealtimeStream":
         """Build an authenticated realtime WebSocket stream."""
 
         from .realtime_stream import RealtimeStream

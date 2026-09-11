@@ -48,10 +48,11 @@ def register_simulated_trading_tools(server: FastMCP) -> None:
     def create_account(
         name: str,
         initial_capital: float,
+        idempotency_key: str,
         account_type: str = "simulated",
     ) -> dict[str, Any]:
         """
-        创建统一账户。
+        创建统一账户；同一次提交的重试必须复用 idempotency_key。
         """
         client = AgomTradeProClient()
         try:
@@ -59,6 +60,7 @@ def register_simulated_trading_tools(server: FastMCP) -> None:
                 name=name,
                 initial_capital=initial_capital,
                 account_type=account_type,
+                idempotency_key=idempotency_key,
             )
         except Exception as exc:
             return {
@@ -170,6 +172,7 @@ def register_simulated_trading_tools(server: FastMCP) -> None:
         name: str,
         initial_capital: float,
         start_date: str,
+        idempotency_key: str,
     ) -> dict[str, Any]:
         """
         创建模拟账户
@@ -177,7 +180,8 @@ def register_simulated_trading_tools(server: FastMCP) -> None:
         Args:
             name: 账户名称
             initial_capital: 初始资金
-            start_date: 起始日期（ISO 格式，如 2024-01-01）
+            start_date: 兼容参数（ISO 日期），不改变服务端账户创建时间。
+            idempotency_key: 本次提交的稳定键，重试复用，新提交使用新键。
 
         Returns:
             创建的账户信息
@@ -186,7 +190,8 @@ def register_simulated_trading_tools(server: FastMCP) -> None:
             >>> account = create_simulated_account(
             ...     name="测试账户",
             ...     initial_capital=1000000.0,
-            ...     start_date="2024-01-01"
+            ...     start_date="2024-01-01",
+            ...     idempotency_key="create-test-account-1"
             ... )
         """
         client = AgomTradeProClient()
@@ -197,6 +202,7 @@ def register_simulated_trading_tools(server: FastMCP) -> None:
                 initial_capital,
                 parsed_date,
                 account_type="simulated",
+                idempotency_key=idempotency_key,
             )
         except Exception as exc:
             return {
@@ -402,4 +408,3 @@ def register_simulated_trading_tools(server: FastMCP) -> None:
             limit=limit,
             inspection_date=parsed_date,
         )
-

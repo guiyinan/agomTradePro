@@ -7,7 +7,7 @@ AgomTradePro SDK - Account 账户管理模块
 import csv
 import io
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from ..types import Portfolio, Position
 from .base import BaseModule
@@ -62,8 +62,8 @@ class AccountModule(BaseModule):
             params["account_type"] = account_type
         response = self._client.get("/api/account/accounts/", params=params)
         if isinstance(response, dict):
-            return response.get("accounts", [])
-        return response
+            return cast(list[dict[str, Any]], response.get("accounts", []))
+        return cast(list[dict[str, Any]], response)
 
     def get_account(self, account_id: int) -> dict[str, Any]:
         """
@@ -74,8 +74,8 @@ class AccountModule(BaseModule):
         """
         response = self._client.get(f"/api/account/accounts/{account_id}/")
         if isinstance(response, dict):
-            return response.get("account", response)
-        return response
+            return cast(dict[str, Any], response.get("account", response))
+        return cast(dict[str, Any], response)
 
     def create_account(
         self,
@@ -86,6 +86,8 @@ class AccountModule(BaseModule):
         stop_loss_pct: float | None = None,
         commission_rate: float = 0.0003,
         slippage_rate: float = 0.001,
+        *,
+        idempotency_key: str,
     ) -> dict[str, Any]:
         """
         创建统一账户。
@@ -94,6 +96,7 @@ class AccountModule(BaseModule):
             name: 账户名称
             initial_capital: 初始资金
             account_type: 账户类型，`real` 或 `simulated`
+            idempotency_key: 本次提交的稳定键，网络重试必须复用；新的创建使用新键。
         """
         payload: dict[str, Any] = {
             "account_name": name,
@@ -105,10 +108,12 @@ class AccountModule(BaseModule):
         }
         if stop_loss_pct is not None:
             payload["stop_loss_pct"] = stop_loss_pct
-        response = self._client.post("/api/account/accounts/", json=payload)
+        response = self._client.post(
+            "/api/account/accounts/", json=payload, idempotency_key=idempotency_key
+        )
         if isinstance(response, dict):
-            return response.get("account", response)
-        return response
+            return cast(dict[str, Any], response.get("account", response))
+        return cast(dict[str, Any], response)
 
     def get_account_positions(
         self,
@@ -125,7 +130,7 @@ class AccountModule(BaseModule):
             rows = response
         if asset_code is not None:
             rows = [row for row in rows if row.get("asset_code") == asset_code]
-        return rows
+        return cast(list[dict[str, Any]], rows)
 
     def get_account_performance(
         self,
@@ -146,8 +151,8 @@ class AccountModule(BaseModule):
             )
         response = self._client.get(f"/api/account/accounts/{account_id}/performance/")
         if isinstance(response, dict):
-            return response.get("performance", response)
-        return response
+            return cast(dict[str, Any], response.get("performance", response))
+        return cast(dict[str, Any], response)
 
     def preview_broker_trades_file(
         self,
