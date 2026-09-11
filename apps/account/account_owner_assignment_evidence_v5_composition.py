@@ -47,6 +47,7 @@ from apps.account.application.canonical_account_ownership_reobservation_v1 impor
     GetCurrentCanonicalAccountOwnershipReobservationV1,
 )
 from apps.account.application.physical_account_row_observation_v2 import (
+    ExactPhysicalSimulatedAccountRowV2Provider,
     GetCurrentPhysicalAccountRowObservationV2,
 )
 from apps.account.application.single_owner_actor_authority import (
@@ -83,9 +84,6 @@ from apps.account.infrastructure.physical_account_row_observation_v2_repository 
 )
 from apps.account.infrastructure.single_owner_authority_policy_v1_repository import (
     DjangoSingleOwnerAuthorityPolicyV1Repository,
-)
-from apps.simulated_trading.account_physical_row_v2_composition import (
-    build_account_physical_row_v2_provider,
 )
 
 _ReturnT = TypeVar("_ReturnT")
@@ -191,6 +189,7 @@ def build_account_owner_assignment_evidence_v5_facade(
     actor_source_version: str,
     actor_source_content_hash: str,
     validity_period: timedelta,
+    physical_row_provider: ExactPhysicalSimulatedAccountRowV2Provider,
     using: str = "default",
 ) -> AccountOwnerAssignmentEvidenceV5Facade:
     """Build the authenticated same-alias Evidence V5 facade.
@@ -209,6 +208,8 @@ def build_account_owner_assignment_evidence_v5_facade(
     policy_binding.__post_init__()
     if type(validity_period) is not timedelta or validity_period <= timedelta(0):
         raise ValueError("validity_period must be an exact positive timedelta")
+    if not callable(getattr(physical_row_provider, "get_exact_current", None)):
+        raise TypeError("physical_row_provider must expose get_exact_current")
 
     actors = DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository(using=alias)
     actor_reader = CanonicalAccountActorAuthorityRequestReader(
@@ -236,7 +237,7 @@ def build_account_owner_assignment_evidence_v5_facade(
     )
     physical_reader = GetCurrentPhysicalAccountRowObservationV2(
         repository=DjangoPhysicalAccountRowObservationV2Repository(using=alias),
-        row_provider=build_account_physical_row_v2_provider(using=alias),
+        row_provider=physical_row_provider,
     )
     reobservation_reader = GetCurrentCanonicalAccountOwnershipReobservationV1(
         repository=DjangoCanonicalAccountOwnershipReobservationV1Repository(using=alias),

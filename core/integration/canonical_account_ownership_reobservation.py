@@ -56,6 +56,9 @@ from apps.account.domain.canonical_account_creation_binding_v2 import (
 from apps.account.domain.canonical_account_ownership_reobservation_v1 import (
     CanonicalAccountOwnershipReobservationV1,
 )
+from apps.simulated_trading.account_physical_row_v2_composition import (
+    build_account_physical_row_v2_provider,
+)
 from apps.simulated_trading.account_reobservation_composition import (
     build_existing_account_reobserver,
 )
@@ -404,6 +407,7 @@ def reobserve_canonical_account_ownership(
         using=using,
         settings=settings,
         requester=requester,
+        physical_row_provider=build_account_physical_row_v2_provider(using=using),
     )
     owner_stages = build_simulated_account_creation_stages(using=using, settings=settings)
     reobserver = build_existing_account_reobserver(using=using, settings=settings)

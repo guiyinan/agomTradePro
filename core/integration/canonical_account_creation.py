@@ -20,6 +20,9 @@ from apps.account.domain.canonical_account_creation import CanonicalAccountCreat
 from apps.account.domain.canonical_account_creation_binding_v2 import (
     CanonicalAccountCreationBindingV2,
 )
+from apps.simulated_trading.account_physical_row_v2_composition import (
+    build_account_physical_row_v2_provider,
+)
 from apps.simulated_trading.application.canonical_account_creation_request import (
     CanonicalAccountCreationRequest,
 )
@@ -88,7 +91,10 @@ def create_canonical_account(
         actor_id=request.actor_id, user_id=request.user_id
     )
     account_stages = build_canonical_account_creation_stages(
-        using=using, settings=settings, requester=requester
+        using=using,
+        settings=settings,
+        requester=requester,
+        physical_row_provider=build_account_physical_row_v2_provider(using=using),
     )
     owner_stages = build_simulated_account_creation_stages(using=using, settings=settings)
     allocation_command = request.allocation_command()

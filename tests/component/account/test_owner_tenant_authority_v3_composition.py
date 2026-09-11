@@ -37,6 +37,9 @@ from apps.account.infrastructure.account_owner_assignment_actor_authority_source
 from apps.account.infrastructure.owner_tenant_authority_v3_repository import (
     DjangoOwnerTenantAuthorityV3Repository,
 )
+from apps.simulated_trading.account_physical_row_v2_composition import (
+    build_account_physical_row_v2_provider,
+)
 
 pytest_plugins = [
     "tests.component.account.test_owner_tenant_authority_v3_repository",
@@ -231,6 +234,7 @@ def test_builder_binds_v3_service_evidence_facade_and_sources_to_one_alias() -> 
         actor_source_version="v3",
         actor_source_content_hash="c" * 64,
         validity_period=timedelta(minutes=30),
+        physical_row_provider=build_account_physical_row_v2_provider(using=alias),
         using=alias,
     )
 
@@ -474,6 +478,7 @@ def test_opt_in_postgres_facade_issues_reads_and_revokes(
         actor_source_version=authentication.source_version,
         actor_source_content_hash=authentication.source_content_hash,
         validity_period=timedelta(hours=1),
+        physical_row_provider=build_account_physical_row_v2_provider(using=owner_alias),
         using=owner_alias,
     )
     issue = facade.issue(

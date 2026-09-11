@@ -38,6 +38,7 @@ from apps.account.application.creation_evidence_settings import (
 from apps.account.application.physical_account_row_observation_v2 import (
     CapturePhysicalAccountRowObservationV2,
     CapturePhysicalAccountRowObservationV2Command,
+    ExactPhysicalSimulatedAccountRowV2Provider,
     GetExactPhysicalAccountRowObservationV2,
     GetExactPhysicalAccountRowObservationV2Command,
     PhysicalAccountRowObservationV2,
@@ -66,9 +67,6 @@ from apps.account.infrastructure.canonical_account_creation_repository import (
 )
 from apps.account.infrastructure.physical_account_row_observation_v2_repository import (
     DjangoPhysicalAccountRowObservationV2Repository,
-)
-from apps.simulated_trading.account_physical_row_v2_composition import (
-    build_account_physical_row_v2_provider,
 )
 
 _CommandT = TypeVar("_CommandT", contravariant=True)
@@ -228,6 +226,7 @@ def build_canonical_account_creation_stages(
     using: str,
     settings: CanonicalAccountCreationEvidenceSettings,
     requester: CanonicalAccountCreationRequester,
+    physical_row_provider: ExactPhysicalSimulatedAccountRowV2Provider,
 ) -> CanonicalAccountCreationStages:
     """Build all Account creation stages for one explicit caller-owned alias.
 
@@ -245,6 +244,8 @@ def build_canonical_account_creation_stages(
     if type(requester) is not CanonicalAccountCreationRequester:
         raise TypeError("requester must be an exact CanonicalAccountCreationRequester")
     requester.__post_init__()
+    if not callable(getattr(physical_row_provider, "get_exact_final", None)):
+        raise TypeError("physical_row_provider must expose get_exact_final")
     duration = settings.as_timedelta()
 
     allocation_repository = DjangoCanonicalAccountCreationRepository(using=alias)
@@ -263,7 +264,7 @@ def build_canonical_account_creation_stages(
         validity_period=duration,
     )
     physical_operation = CapturePhysicalAccountRowObservationV2(
-        row_provider=build_account_physical_row_v2_provider(using=alias),
+        row_provider=physical_row_provider,
         repository=physical_repository,
         recorder=PhysicalAccountRowObservationV2Recorder(
             recorder_id=settings.physical_v2_recorder_service_id,

@@ -9,16 +9,6 @@ from datetime import UTC, datetime
 from typing import Protocol
 from uuid import UUID, uuid4
 
-from apps.config_center.application.public import (
-    EgressEndpointSummary,
-)
-from apps.config_center.application.public import create_egress_endpoint as _config_create_endpoint
-from apps.config_center.application.public import delete_egress_endpoint as _config_delete_endpoint
-from apps.config_center.application.public import (
-    get_egress_endpoint_summary as _config_get_endpoint_summary,
-)
-from apps.config_center.application.public import list_egress_endpoints as _config_list_endpoints
-from apps.config_center.application.public import update_egress_endpoint as _config_update_endpoint
 from apps.data_center.domain.egress_routing import (
     EgressRequestContext,
     EgressRouteDecision,
@@ -29,6 +19,16 @@ from apps.data_center.domain.egress_routing import (
     target_hostname,
 )
 from core.exceptions import DataFetchError
+from core.integration.config_center_egress import (
+    EgressEndpointSummary,
+)
+from core.integration.config_center_egress import create_egress_endpoint as _config_create_endpoint
+from core.integration.config_center_egress import delete_egress_endpoint as _config_delete_endpoint
+from core.integration.config_center_egress import (
+    get_egress_endpoint_summary as _config_get_endpoint_summary,
+)
+from core.integration.config_center_egress import list_egress_endpoints as _config_list_endpoints
+from core.integration.config_center_egress import update_egress_endpoint as _config_update_endpoint
 
 logger = logging.getLogger(__name__)
 

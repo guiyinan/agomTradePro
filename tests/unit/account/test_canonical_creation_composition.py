@@ -16,6 +16,9 @@ from apps.account.canonical_creation_composition import (
 from apps.account.domain.canonical_account_creation import (
     CanonicalAccountCreationRequester,
 )
+from apps.simulated_trading.account_physical_row_v2_composition import (
+    build_account_physical_row_v2_provider,
+)
 
 
 def _settings(**changes: object) -> CanonicalAccountCreationEvidenceSettings:
@@ -49,6 +52,7 @@ def test_factory_builds_frozen_same_alias_operations_with_explicit_recorders() -
         using="creation_test",
         settings=_settings(),
         requester=_requester(),
+        physical_row_provider=build_account_physical_row_v2_provider(),
     )
 
     assert type(stages) is CanonicalAccountCreationStages
@@ -77,6 +81,7 @@ def test_factory_rejects_invalid_alias_before_constructing_stages(using: object)
             using=using,  # type: ignore[arg-type]
             settings=_settings(),
             requester=_requester(),
+            physical_row_provider=build_account_physical_row_v2_provider(),
         )
 
 
@@ -86,12 +91,14 @@ def test_factory_rejects_wrong_snapshot_or_requester_types() -> None:
             using="creation_test",
             settings=object(),  # type: ignore[arg-type]
             requester=_requester(),
+            physical_row_provider=build_account_physical_row_v2_provider(),
         )
     with pytest.raises(TypeError, match="requester"):
         build_canonical_account_creation_stages(
             using="creation_test",
             settings=_settings(),
             requester=object(),  # type: ignore[arg-type]
+            physical_row_provider=build_account_physical_row_v2_provider(),
         )
 
 
@@ -100,6 +107,7 @@ def test_write_operation_requires_caller_owned_outer_transaction() -> None:
         using="default",
         settings=_settings(),
         requester=_requester(),
+        physical_row_provider=build_account_physical_row_v2_provider(),
     )
 
     with pytest.raises(RuntimeError, match="outer transaction"):
@@ -112,4 +120,5 @@ def test_factory_rejects_ttl_that_cannot_form_a_current_deadline() -> None:
             using="creation_test",
             settings=_settings(ttl_seconds=10**12),
             requester=_requester(),
+            physical_row_provider=build_account_physical_row_v2_provider(),
         )

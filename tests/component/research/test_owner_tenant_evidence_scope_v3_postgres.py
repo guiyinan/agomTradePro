@@ -109,6 +109,9 @@ from apps.research.infrastructure.evidence_models import (
     EvidenceTrackRecordModel,
 )
 from apps.research.infrastructure.evidence_repository import _build_evidence_store
+from apps.simulated_trading.account_physical_row_v2_composition import (
+    build_account_physical_row_v2_provider,
+)
 from core.integration import config_center_runtime
 from core.integration.canonical_account_ownership_reobservation import (
     CanonicalAccountOwnershipReobservationCommand,
@@ -124,7 +127,9 @@ from tests.component.account.test_account_actor_authority_raw_source_publisher_h
 from tests.component.account.test_account_actor_authority_raw_source_publisher_postgres import (
     _new_user,
 )
-from tests.component.account.test_authenticated_creation_http_postgres import _post
+from tests.component.account.test_authenticated_creation_http_postgres import (
+    _post,
+)
 from tests.component.account.test_authenticated_creation_http_postgres import (
     creation_http_alias as creation_http_alias,
 )
@@ -384,6 +389,7 @@ def test_authenticated_admin_materializes_owner_scope_and_denies_substitution(
             actor_source_version=actor_row.source_version,
             actor_source_content_hash=actor_row.content_hash,
             validity_period=timedelta(minutes=4),
+            physical_row_provider=build_account_physical_row_v2_provider(using=alias),
             using=alias,
         )
         evidence = evidence_facade.approve(
@@ -404,6 +410,7 @@ def test_authenticated_admin_materializes_owner_scope_and_denies_substitution(
             actor_source_version=actor_row.source_version,
             actor_source_content_hash=actor_row.content_hash,
             validity_period=timedelta(minutes=4),
+            physical_row_provider=build_account_physical_row_v2_provider(using=alias),
             using=alias,
         )
         authority = authority_facade.issue(
@@ -465,6 +472,7 @@ def test_authenticated_admin_materializes_owner_scope_and_denies_substitution(
             actor_source_version=actor_row.source_version,
             actor_source_content_hash=actor_row.content_hash,
             validity_period=timedelta(minutes=1),
+            physical_row_provider=build_account_physical_row_v2_provider(using=alias),
             using=alias,
         )
         assert other_authority.get_current(selector) is None
@@ -484,6 +492,7 @@ def test_authenticated_admin_materializes_owner_scope_and_denies_substitution(
             actor_source_version=actor_row.source_version,
             actor_source_content_hash=actor_row.content_hash,
             validity_period=timedelta(minutes=1),
+            physical_row_provider=build_account_physical_row_v2_provider(using=alias),
             using=alias,
         )
         assert mismatched_tenant.get_current(selector) is None

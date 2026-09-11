@@ -46,6 +46,9 @@ from apps.account.infrastructure.account_owner_assignment_actor_authority_source
 from apps.account.infrastructure.account_owner_assignment_evidence_v5_repository import (
     DjangoAccountOwnerAssignmentEvidenceV5Repository,
 )
+from apps.simulated_trading.account_physical_row_v2_composition import (
+    build_account_physical_row_v2_provider,
+)
 
 _AS_OF = datetime(2026, 8, 30, 11, tzinfo=UTC)
 _HASH = "a" * 64
@@ -124,6 +127,7 @@ def test_builder_binds_every_v5_reader_and_repository_to_one_alias() -> None:
         actor_source_version="v3",
         actor_source_content_hash="c" * 64,
         validity_period=timedelta(minutes=30),
+        physical_row_provider=build_account_physical_row_v2_provider(using=alias),
         using=alias,
     )
 

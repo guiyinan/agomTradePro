@@ -54,6 +54,9 @@ from apps.account.application.owner_tenant_authority_v3_contracts import (
     OwnerTenantAuthorityV3Corruption,
     OwnerTenantAuthorityV3Unavailable,
 )
+from apps.account.application.physical_account_row_observation_v2 import (
+    ExactPhysicalSimulatedAccountRowV2Provider,
+)
 from apps.account.application.single_owner_actor_authority import (
     CurrentSingleOwnerParticipantsProvider,
     SingleOwnerPolicyBinding,
@@ -299,6 +302,7 @@ def build_owner_tenant_authority_v3_facade(
     actor_source_version: str,
     actor_source_content_hash: str,
     validity_period: timedelta,
+    physical_row_provider: ExactPhysicalSimulatedAccountRowV2Provider,
     using: str = "default",
 ) -> OwnerTenantAuthorityV3Facade:
     """Build one authenticated same-alias Authority V3 facade.
@@ -344,6 +348,7 @@ def build_owner_tenant_authority_v3_facade(
         actor_source_version=actor_source_version,
         actor_source_content_hash=actor_source_content_hash,
         validity_period=validity_period,
+        physical_row_provider=physical_row_provider,
         using=alias,
     )
     service = OwnerTenantAuthorityV3Service(

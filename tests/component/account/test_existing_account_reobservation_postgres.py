@@ -28,6 +28,9 @@ from apps.account.infrastructure.canonical_account_ownership_reobservation_v1_co
 from apps.account.infrastructure.physical_account_row_observation_v2_models import (
     PhysicalAccountRowObservationV2Model,
 )
+from apps.simulated_trading.account_physical_row_v2_composition import (
+    build_account_physical_row_v2_provider,
+)
 from apps.simulated_trading.account_reobservation_composition import (
     build_existing_account_reobserver,
 )
@@ -176,6 +179,7 @@ def test_public_stages_persist_three_successors_and_roll_back_together(
         requester=CanonicalAccountCreationRequester(
             actor_id=f"django-user:{user.pk}", user_id=user.pk
         ),
+        physical_row_provider=build_account_physical_row_v2_provider(using=alias),
     )
     binding = account_stages.get_exact_binding.execute(
         GetExactCanonicalAccountCreationBindingV2Command(

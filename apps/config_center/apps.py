@@ -1,6 +1,64 @@
+from __future__ import annotations
+
+from collections.abc import Mapping
 from typing import cast
 
 from django.apps import AppConfig
+
+from core.integration.config_center_egress import (
+    ConfigCenterEgressPort,
+    EgressEndpoint,
+    EgressEndpointSummary,
+    configure_config_center_egress_port,
+)
+
+
+class _ConfigCenterEgressAdapter:
+    """Adapt Config Center application ports to the app-neutral bridge."""
+
+    def list_endpoints(self, *, include_disabled: bool = True) -> tuple[EgressEndpointSummary, ...]:
+        """List endpoint metadata without resolving credentials."""
+
+        from apps.config_center.application.egress_ports import list_egress_endpoints
+
+        return list_egress_endpoints(include_disabled=include_disabled)
+
+    def get_endpoint(self, endpoint_id: int) -> EgressEndpoint | None:
+        """Resolve one endpoint for an infrastructure transport."""
+
+        from apps.config_center.application.egress_ports import get_egress_endpoint
+
+        return get_egress_endpoint(endpoint_id)
+
+    def get_endpoint_summary(self, endpoint_id: int) -> EgressEndpointSummary | None:
+        """Read one endpoint without resolving credentials."""
+
+        from apps.config_center.application.egress_ports import get_egress_endpoint_summary
+
+        return get_egress_endpoint_summary(endpoint_id)
+
+    def create_endpoint(self, payload: Mapping[str, object]) -> EgressEndpointSummary:
+        """Create one endpoint and return its redacted projection."""
+
+        from apps.config_center.application.egress_ports import create_egress_endpoint
+
+        return create_egress_endpoint(payload)
+
+    def update_endpoint(
+        self, endpoint_id: int, payload: Mapping[str, object]
+    ) -> EgressEndpointSummary | None:
+        """Update one endpoint and return its redacted projection."""
+
+        from apps.config_center.application.egress_ports import update_egress_endpoint
+
+        return update_egress_endpoint(endpoint_id, payload)
+
+    def delete_endpoint(self, endpoint_id: int) -> bool:
+        """Delete one endpoint and its encrypted credential references."""
+
+        from apps.config_center.application.egress_ports import delete_egress_endpoint
+
+        return delete_egress_endpoint(endpoint_id)
 
 
 class ConfigCenterConfig(AppConfig):
@@ -66,6 +124,9 @@ class ConfigCenterConfig(AppConfig):
             secret_repository=cast(ConfigCenterSecretRepository, ConfigCenterSecretStore()),
         )
         configure_egress_endpoint_repository(EgressEndpointRepository())
+        configure_config_center_egress_port(
+            cast(ConfigCenterEgressPort, _ConfigCenterEgressAdapter())
+        )
         configure_config_center_summary_repository(DjangoConfigCenterSummaryRepository())
         configure_runtime_settings_provider(get_config_center_summary_service())
         configure_config_center_runtime_port(runtime_public)
