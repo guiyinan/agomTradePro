@@ -3452,6 +3452,24 @@ def test_tui_admin_config_center_runtime_action_handles_active_model_without_upd
         activate_runtime_profile_patch(
             environment="development",
             patch={
+                "account.creation_evidence.settings": {
+                    "schema_version": "account.creation_evidence.settings.v1",
+                    "ttl_seconds": 300,
+                    "allocation_recorder_service_id": "tui-test-allocation",
+                    "physical_v2_recorder_service_id": "tui-test-physical",
+                    "allocated_v3_recorder_service_id": "tui-test-root",
+                    "binding_recorder_service_id": "tui-test-binding",
+                },
+                "account.single_owner_policy.publication_settings": {
+                    "schema_version": "account.single_owner_policy.publication_settings.v1",
+                    "owner_username": tui_admin_user.username,
+                    "tenant_id": "tui-test-tenant",
+                    "owner_id": "tui-test-owner",
+                    "authorization_source_id": "tui-test-declaration",
+                    "authorization_source_version": "v1",
+                    "authorization_content_hash": "c" * 64,
+                    "ttl_seconds": 300,
+                },
                 "data_center.provider.failover_tolerance": 0.01,
                 "audit.system_event.mode": "off",
                 "audit.system_event.outbox_enabled": False,

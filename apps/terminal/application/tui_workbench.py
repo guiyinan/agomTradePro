@@ -440,9 +440,17 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
         confirmed: bool = False,
         confirmation: dict[str, Any] | None = None,
         reauth: dict[str, Any] | None = None,
+        idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         """Execute one published action and return a business-first view model."""
 
+        if idempotency_key is not None and (
+            type(idempotency_key) is not str
+            or not idempotency_key
+            or len(idempotency_key) > 192
+            or any(character.isspace() for character in idempotency_key)
+        ):
+            raise ValueError("Invalid action idempotency key")
         if self.action_executor is None:
             raise ValueError("TUI action executor is not configured")
 
@@ -510,6 +518,9 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
             executor_params = dict(request_params)
             if method != "GET" and self._requires_password(action):
                 executor_params["reauth"] = dict(reauth or {})
+            identity_options: dict[str, Any] = (
+                {"idempotency_key": idempotency_key} if idempotency_key is not None else {}
+            )
             result = self.action_executor.execute(
                 method=method,
                 endpoint=endpoint,
@@ -517,6 +528,7 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
                 body=executor_params if method != "GET" else {},
                 user=user,
                 session=session,
+                **identity_options,
             )
             status_code = int(result.get("status_code", 200))
             payload = result.get("payload")

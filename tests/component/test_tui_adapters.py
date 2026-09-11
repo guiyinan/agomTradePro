@@ -28,9 +28,18 @@ def unrendered_json_template_view(request):
     return SimpleTemplateResponse(template, content_type="application/json")
 
 
+def identity_echo_view(request):
+    import json
+
+    return JsonResponse(
+        {"key": request.headers.get("Idempotency-Key"), "body": json.loads(request.body)}
+    )
+
+
 urlpatterns = [
     path("test-session/", session_echo_view),
     path("test-unrendered-template/", unrendered_json_template_view),
+    path("test-identity/", identity_echo_view),
 ]
 
 
@@ -86,3 +95,17 @@ def test_tui_internal_action_executor_renders_template_response() -> None:
         "status_code": 200,
         "payload": {"deleted": True},
     }
+
+
+@override_settings(ROOT_URLCONF=__name__)
+def test_tui_executor_keeps_idempotency_identity_in_header() -> None:
+    result = TuiInternalActionExecutor().execute(
+        method="POST",
+        endpoint="/test-identity/",
+        params={},
+        body={"account_name": "owned"},
+        user=AnonymousUser(),
+        idempotency_key="same-submission-1",
+    )
+    assert result["status_code"] == 200
+    assert result["payload"] == {"key": "same-submission-1", "body": {"account_name": "owned"}}

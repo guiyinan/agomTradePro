@@ -52,6 +52,7 @@ class TuiInternalActionExecutor:
         body: dict[str, Any],
         user: Any,
         session: Any | None = None,
+        idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         """Execute an internal API endpoint and normalize its response."""
 
@@ -62,6 +63,8 @@ class TuiInternalActionExecutor:
             endpoint = "/" + endpoint.lstrip("/")
             request_method = getattr(self._factory, method.lower())
             request_options = {"HTTP_HOST": self._request_host()}
+            if idempotency_key is not None:
+                request_options["HTTP_IDEMPOTENCY_KEY"] = idempotency_key
             if method == "GET":
                 request = request_method(endpoint, data=params, **request_options)
             else:

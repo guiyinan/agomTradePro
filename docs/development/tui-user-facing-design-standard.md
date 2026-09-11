@@ -16,6 +16,13 @@ Every published TUI screen must optimize for user completion, not interface expo
 
 ## Required Metadata Contract
 
+Mutation transport uses a per-submission `Idempotency-Key`, separate from business fields.
+The workbench retains it across confirmation, reauthentication and an explicit retry of the
+same submission. A new form submission receives a new key. The action-run endpoint and internal
+executor forward only this named header; they do not accept arbitrary caller-supplied headers.
+Network failures and server failures offer “重试本次提交” without showing the technical key.
+This transport identity does not replace user confirmation, authentication or business authority.
+
 The executable contract lives in:
 
 - `config/tui/schema/tui_metadata.schema.v3.json`

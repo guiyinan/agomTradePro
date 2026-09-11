@@ -8,6 +8,7 @@
         homePanelBadges: {},
         lastAction: null,
         lastParams: {},
+        lastIdempotencyKey: null,
         lastRaw: null,
         lastPager: null,
         currentViewModel: null,
@@ -1464,7 +1465,7 @@
                     scheduleSlowActionState(state.pendingRequestId, action);
                 } else if (command === "retry") {
                     clearPendingRequest({ abort: true });
-                    runAction(action.key, null, { params: { ...state.lastParams } });
+                    runAction(action.key, null, { params: { ...state.lastParams }, idempotencyKey: state.lastIdempotencyKey });
                 } else if (command === "cancel") {
                     clearPendingRequest({ abort: true });
                     els.main.innerHTML = renderEmptyState("已取消当前请求。", ["你可以重试，或切换到其他入口继续。"]);

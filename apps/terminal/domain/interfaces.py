@@ -87,6 +87,7 @@ class TuiActionExecutor(Protocol):
         body: dict[str, Any],
         user: Any,
         session: Any | None = None,
+        idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         """Execute an internal API and return a serializable payload."""
         ...

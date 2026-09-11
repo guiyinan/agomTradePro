@@ -891,6 +891,20 @@
         setStatus("服务器端任务仍在运行，可稍后刷新状态");
     }
 
+    function offerActionRetry(actionKey, params, options) {
+        if (!options.idempotencyKey || !params) return;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'tui-action-submit';
+        button.dataset.actionSubmissionRetry = 'true';
+        button.textContent = '重试本次提交';
+        button.addEventListener('click', () => {
+            button.disabled = true;
+            runAction(actionKey, null, { ...options, params: { ...params } });
+        });
+        els.main.appendChild(button);
+    }
+
     async function runAction(actionKey, form, options = {}) {
         const action = currentAction(actionKey);
         if (!action) {
@@ -907,6 +921,7 @@
         }
         const controller = new AbortController();
         const requestId = startPendingRequest(controller);
+        let submittedParams = null;
         try {
             const dashboardResultPanelKey = String(options.dashboardResultPanelKey || "").trim();
             const dashboardRefreshPanelKey = String(options.dashboardRefreshPanelKey || "").trim();
@@ -914,6 +929,7 @@
             const hasDashboardRefreshTarget = Boolean(dashboardRefreshPanelKey);
             const isTargetedDashboardAction = hasDashboardResultTarget || hasDashboardRefreshTarget;
             const params = options.params ? { ...options.params } : (form ? await collectParams(form, action) : {});
+            submittedParams = params;
             if (!isLatestRequest(requestId)) {
                 return;
             }
@@ -926,6 +942,14 @@
             if (!retainedGrid) invalidateOperationContext(action, params);
             state.lastAction = actualActionKey;
             state.lastParams = params;
+            const isMutation = !['GET', 'HEAD', 'OPTIONS'].includes(String(action.method || 'GET').toUpperCase());
+            if (isMutation && !options.idempotencyKey) {
+                const suffix = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+                    ? crypto.randomUUID()
+                    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+                options.idempotencyKey = `tui-${suffix}`;
+            }
+            state.lastIdempotencyKey = isMutation ? options.idempotencyKey : null;
             state.selectedRowIndex = 0;
             setCurrentLocation(action);
             closeMenu();
@@ -950,6 +974,7 @@
             }
             const result = await fetchJson(actionRunUrl(actualActionKey), {
                 method: "POST",
+                headers: isMutation ? { 'Idempotency-Key': options.idempotencyKey } : {},
                 body: JSON.stringify(requestBody),
                 signal: controller.signal,
             });
@@ -1016,6 +1041,9 @@
             }
             if (retainedGrid) setGridUpdating(false);
             renderViewModel(result.view_model);
+            if (Number(result.response?.status_code) >= 500) {
+                offerActionRetry(actualActionKey, submittedParams, options);
+            }
             if (retainedGrid) els.main.querySelector('.tui-datagrid')?.focus({ preventScroll: true });
             markDataReady();
             renderResultInspector(result, result.view_model);
@@ -1071,6 +1099,7 @@
                 }
             } else {
                 renderBoundedApplicationError(error);
+                offerActionRetry(actualActionKey, submittedParams, options);
             }
         }
     }
