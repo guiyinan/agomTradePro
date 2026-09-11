@@ -1,0 +1,119 @@
+{
+  "schema": "agomtradepro.evidence-closure.v1",
+  "checkpoint_id": "evid07-authenticated-owner-scope-v3-closure-2026-09-12",
+  "recorded_on": "2026-09-12",
+  "canonical_unit": "EVID-07",
+  "unit_status": "completed",
+  "repository_code_head": "45dda398e1bba96522ac8071e564144cdbf08351",
+  "production_claim": false,
+  "production_owner_assignment_created": false,
+  "production_approval_created": false,
+  "execution_permission_granted": false,
+  "identity": {
+    "owner_account": "admin",
+    "owner_user_id": 1,
+    "source": "explicit user designation, exercised as a real Django User in the isolated PostgreSQL acceptance database"
+  },
+  "completed": [
+    "authenticated Session/CSRF actor-source publication from server-owned identity facts",
+    "canonical real/simulated account creation with permanent replay identity and durable physical ownership re-observation",
+    "source-bound single-owner policy plus ReceiptV5, SubjectV5 and EvidenceV5 immutable ledgers",
+    "OwnerTenant AuthorityV3 issue/current/revoke lifecycle with exact V5 parents",
+    "request-local typed Research Evidence scope V3 on one database alias",
+    "fail-closed other-user, tenant-mismatch, cross-version, client-mode and revoked-authority paths"
+  ],
+  "verification": {
+    "authenticated_postgresql_full_graph": {
+      "result": "1 passed in 3214.98s",
+      "artifact": "var/evid07-authenticated-owner-scope-v3-postgres.txt",
+      "database": "evid06_authority_test",
+      "covered": [
+        "real admin user id 1 and authenticated Session/CSRF request",
+        "raw authority roots, canonical account, permanent binding and ownership re-observation",
+        "single-owner policy, ReceiptV5, SubjectV5, EvidenceV5 and AuthorityV3",
+        "exact Research operator evidence materialization",
+        "other user and tenant rejection",
+        "V2 command and client-selected mode substitution rejection",
+        "revocation followed by denied scope read"
+      ]
+    },
+    "postgresql_cleanup": {
+      "public_base_tables": 0
+    },
+    "authority_v3_regression": {
+      "result": "64 passed, 8 skipped environment-gated PostgreSQL cases"
+    },
+    "scope_v3_unit": {
+      "result": "18 passed"
+    },
+    "evidence_repository_regression": {
+      "result": "16 passed"
+    },
+    "account_api_boundary": {
+      "result": "20 passed"
+    },
+    "sdk_mcp_creation_identity": {
+      "result": "35 passed"
+    },
+    "tui_python": {
+      "result": "332 passed before fixture repair with 1 fixture failure; repaired focused scope 8 passed"
+    },
+    "tui_browser": {
+      "result": "52 passed"
+    },
+    "domain_branch_edges": {
+      "result": "107 passed"
+    },
+    "incremental_mypy": {
+      "result": "0 regressions on every changed production slice"
+    },
+    "full_mypy_debt": {
+      "result": "0 errors in 0 files",
+      "artifact": "var/evid07-final-mypy-debt.txt"
+    },
+    "architecture": {
+      "result": "3154 files; 7 rules; 0 violations",
+      "artifact": "var/evid07-final-architecture.txt"
+    },
+    "governance": {
+      "baseline": "2026-09-09.v220",
+      "violations": 0,
+      "artifact": "var/evid07-final-governance.txt"
+    },
+    "freshness": {
+      "surfaces": 62,
+      "violations": 0,
+      "artifact": "var/evid07-final-freshness.txt"
+    },
+    "active_registry": {
+      "version": "2026-09-12.v84",
+      "units": 49,
+      "paths": 45,
+      "violations": 0,
+      "artifact": "var/evid07-final-registry.txt"
+    },
+    "repository_size": {
+      "main_nonempty_lines": 1109,
+      "limit": 1200,
+      "helper_nonempty_lines": 261
+    }
+  },
+  "production_source_sha256": {
+    "apps/account/domain/owner_tenant_authority_v3.py": "15604244862e628d15ba6cb4f048f76a8eb374ec1cde822d7ea509c8f5641212",
+    "apps/account/application/owner_tenant_authority_v3.py": "80f6be33a966c517f80ca787b7fc4fcaa8021a863ed0d83e6dc22ec0a2db9d14",
+    "apps/account/infrastructure/owner_tenant_authority_v3_repository.py": "5eb0221048dd75c919f9eda8de101c475311f25e4b05133dd8e8981995e47c53",
+    "apps/account/infrastructure/_owner_tenant_authority_v3_repository_helpers.py": "be8f6a3a37ec06c96c50d86d5fb341bba3af543eddae1c9062ebf4a5e9192f12",
+    "apps/account/owner_tenant_authority_v3_composition.py": "5d58a56ba4853b0ba2cb0a887a545ea6afdbed46b817aa59faef9c6a315acc6e",
+    "core/integration/owner_tenant_evidence_scope_v3.py": "56d2a10f97f19c7f28db0eb108a6a157e779ad08c983c652865a34f1e37a63a7",
+    "apps/research/evidence_composition.py": "14cfc8538cfd2289cf3e91480c5f27ed087f93eb8d2d45d7d08ac17b5c88d377",
+    "apps/research/infrastructure/evidence_repository.py": "74faa10cd0182d15c38e5776794fc257edfd1424c1c9d8d586b8347bebe8e42d",
+    "tests/component/research/test_owner_tenant_evidence_scope_v3_postgres.py": "91efab61775007da8188a982403564231c155347cccdcc1636a9eb05230ae937"
+  },
+  "remaining_production_sequence": [
+    "DATA-02 controlled production backfill and reconciliation using real governed inputs",
+    "EVID-01/02 candidate-bound real approval and signed production acceptance",
+    "AUD-03 production audit observation and acceptance",
+    "TAR-05 production recovery evidence and acceptance"
+  ],
+  "decision": "EVID-07 repository exit gate is satisfied. This closure creates no production owner assignment, login, approval, execution grant, source-quality waiver or observation window."
+}

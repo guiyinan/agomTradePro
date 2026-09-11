@@ -25,6 +25,13 @@
 
 ## 自主 Goal 调度入口
 
+2026-09-12：[EVID-07 repository closure](../testing/evid07-authenticated-owner-scope-v3-closure-2026-09-12.json)
+已通过真实隔离 PostgreSQL 完整图（1 passed/3214.98s）及最终类型、架构、freshness、治理门禁，
+admin/user_id=1 的服务端身份贯通到 AuthorityV3 和 Research scope V3；错误用户/tenant、跨版本、
+客户端 mode 与撤销路径均闭锁，测试库零残留。EVID-07 已完成并释放 repository focus；下一步回到
+DATA-02 生产序列，再收集 EVID-01/02、AUD-03、TAR-05 的真实生产证据。该结论不表示已写入生产
+owner/approval/权限或完成任何生产观察窗口。
+
 本轮路线与一周交付边界见[续跑评估](release-blocker-closure-execution-plan-2026-08-29.md#2026-09-10续跑评估与实际关键路径)：
 保留 DATA-02 → EVID-01/02 → AUD-03 → TAR-05，先交叉准备 DATA-02 必需的真实 Evidence 身份/runtime。
 主代理继续指导并验收 Luna max；应用 Goal 已在本次续跑读回 active。DATA-15 已通过本地 repository 退出门：

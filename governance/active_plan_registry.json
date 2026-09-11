@@ -1,14 +1,14 @@
 {
-  "version": "2026-09-10.v83",
-  "updated_at": "2026-09-10",
+  "version": "2026-09-12.v84",
+  "updated_at": "2026-09-12",
   "execution_focus": {
-    "unit_id": "EVID-07",
+    "unit_id": null,
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "EVID-07 is the sole repository focus: implement the verified single-owner Account assignment and owner/tenant scope compatibility gap through explicit server-owned policy and versioned sealed evidence. The user designated admin/user_id=1; this is not a missing second-human input. Preserve historical V3/V1 hashes/readers and account/tenant isolation. At most one Luna repository writer with a second read-only worker; main owns integration, serial PostgreSQL checks and governance. EVID-06/DATA-15/DATA-12 remain completed. DATA-02 production execution awaits its real prerequisites; no implicit production authority writes or runtime enablement."
+    "policy": "EVID-07 repository closure is complete and no dependency-ready repository unit remains. Continue the authorized production sequence with DATA-02 read-only/current-candidate preflight and only governed, reversible batches whose real inputs and authority are present; then collect EVID-01/02 production acceptance before AUD-03 and TAR-05. The admin/user_id=1 designation remains the explicit owner and human approval account, but local evidence does not fabricate a production login, approval event, data-owner waiver or observation window."
   },
   "workstreams": [
     {
@@ -18,7 +18,7 @@
       "priority": "P0",
       "owner": "research+risk_center+portfolio+broker_execution+account",
       "status": "active",
-      "next_gate": "EVID-07 is the sole repository focus for explicit single-owner assignment and owner/tenant scope compatibility. EVID-06 is completed. Preserve versioned history and prove the full authenticated PostgreSQL owner-scope path; admin/user_id=1 designation is authorized and needs no second human. EVID-01/02 remain awaiting production acceptance.",
+      "next_gate": "EVID-07 repository closure is complete. EVID-01/02 remain awaiting candidate-bound production owner approval, immutable approval/concurrency evidence and signed acceptance; admin/user_id=1 is the designated real account, while automation must not fabricate its production authentication or approval event.",
       "documents": [
         {
           "path": "docs/plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md",
@@ -1196,7 +1196,7 @@
         "wave": 1,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Support explicit single-owner assignment and owner-tenant scope authority",
         "depends_on": [
           "EVID-06"

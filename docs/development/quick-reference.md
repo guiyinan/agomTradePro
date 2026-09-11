@@ -1017,8 +1017,9 @@ Missing/invalid selectors or request key return 400; anonymous/CSRF rejection re
 conflicting identities or active scope policies return 409; unavailable or invalid evidence
 returns 503. Authentication invalidated during the transaction may return 401 and rolls back
 the publication. An expired/revoked same policy identity is not silently renewed.
-The resulting policy supplies a source for later owner assignment; explicit approval and
-owner/tenant authority issuance are separate remaining steps.
+The resulting policy supplies a source for later owner assignment. EVID-07 now provides the
+versioned V5 approval and AuthorityV3/scope implementation in repository code, while real
+production publication, approval and acceptance remain EVID-01/02 production work.
 
 ## Alpha / Screen Notes
 

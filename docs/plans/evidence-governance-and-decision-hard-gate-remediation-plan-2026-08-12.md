@@ -5357,3 +5357,23 @@ freshness surface、active registry v83 均为 0 violations。
 该片没有 authenticated same-alias composition、AuthorityV3、typed scope V3、revocation 或完整
 owner-scope PostgreSQL 图，也没有部署、生产写入、人工审批回执或权限激活。下一片先接 EvidenceV5
 composition，再按上述顺序继续；`EVID-07` 保持唯一 repository focus 和 `active`。
+
+## 2026-09-12：EVID-07 authenticated owner-scope V3 repository closure
+
+EVID-07 的 repository 退出门已完成。真实隔离 PostgreSQL 验收使用 Django `admin`/user_id=1、
+Session/CSRF 和服务端发布的身份事实，贯通 raw actor source、canonical account、永久 Binding、
+ownership re-observation、single-owner policy、ReceiptV5/SubjectV5/EvidenceV5、AuthorityV3 与
+Research request-local scope V3。最终用例 1 passed（3214.98s），同时拒绝其他用户、错误 tenant、
+V2 command 替换、客户端 `mode` 注入以及撤销后的再次读取；清理后 public base tables=0。
+
+第二次失败运行还暴露并修复了 Research Evidence repository 在非 default alias 上调用 Django
+uniqueness validation 时错误查询 default 数据库的问题。AuthorityV3 repository 随后按治理上限拆分，
+主文件从 1334 个非空行降至 1109 行；相关 64 项回归通过，8 项显式 PostgreSQL 环境用例跳过。
+最终全量 mypy debt 为 0，架构扫描 3154 文件/7 规则、治理 baseline v220、62 个 freshness surface
+和 registry v84 均无违规。闭环证据见
+[EVID-07 closure](../testing/evid07-authenticated-owner-scope-v3-closure-2026-09-12.json)，SHA-256
+`e93ea02b35817a1a590c561d56b539c302b5c5a424626d1640a759d476cf1303`。
+
+该完成状态只代表本地 repository 实现和隔离数据库验收。它没有创建生产 owner assignment、登录、
+人工审批、执行权限、数据质量豁免或观察窗口。repository focus 已释放；按既定顺序继续 DATA-02 的
+生产只读预检和具备真实输入的受控批次，再收集 EVID-01/02 的候选绑定审批证据，之后进入 AUD-03、TAR-05。

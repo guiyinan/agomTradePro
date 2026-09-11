@@ -8,10 +8,10 @@
         "apps/account/domain/owner_tenant_authority_v2.py",
         "apps/account/application/owner_tenant_authority_v2.py",
         "apps/account/application/owner_tenant_authority_v2_contracts.py",
-          "apps/account/owner_tenant_authority_v2_composition.py",
-          "core/integration/owner_tenant_physical_row_v2.py",
-          "core/integration/owner_tenant_evidence_scope_v2.py",
-          "apps/research/evidence_composition.py"
+        "apps/account/owner_tenant_authority_v2_composition.py",
+        "core/integration/owner_tenant_physical_row_v2.py",
+        "core/integration/owner_tenant_evidence_scope_v2.py",
+        "apps/research/evidence_composition.py"
       ],
       "required_markers": {
         "apps/account/domain/owner_tenant_authority_v2.py": [
@@ -54,37 +54,86 @@
         {
           "case": "actual_new_session_reads_durable_owner_decision_then_revokes",
           "test_file": "tests/component/account/test_owner_tenant_authority_v2_composition.py",
-            "test_function": "test_new_actual_session_after_assignment_expiry_reads_decision_then_revokes"
-          },
-          {
-            "case": "source_or_validity_change_during_locked_read_discards_result",
-            "test_file": "tests/unit/account/test_owner_tenant_authority_v2_locked_read.py",
-            "test_function": "test_source_change_during_read_discards_materialized_result"
-          },
-          {
-            "case": "current_authorization_is_separate_from_historical_evidence_cutoff",
-            "test_file": "tests/unit/core/test_owner_tenant_evidence_scope_v2.py",
-            "test_function": "test_historical_reads_use_current_authorization_and_exact_artifacts"
-          },
-          {
-            "case": "short_scope_expiry_before_query_denies_without_repository_access",
-            "test_file": "tests/unit/core/test_owner_tenant_evidence_scope_v2.py",
-            "test_function": "test_short_scope_expiry_before_repository_call_is_fail_closed"
-          },
-          {
-            "case": "intermediate_server_clock_rollback_never_returns_evidence",
-            "test_file": "tests/unit/core/test_owner_tenant_evidence_scope_v2_clock_regression.py",
-            "test_function": "test_intermediate_clock_rollback_cannot_escape_as_success"
-          },
-          {
-            "case": "actual_current_owner_reads_historical_evidence_and_lost_owner_denies",
-            "test_file": "tests/component/research/test_owner_tenant_evidence_scope_v2_postgres.py",
-            "test_function": "test_actual_current_owner_reads_historical_evidence_and_live_owner_loss_denies"
-          },
+          "test_function": "test_new_actual_session_after_assignment_expiry_reads_decision_then_revokes"
+        },
+        {
+          "case": "source_or_validity_change_during_locked_read_discards_result",
+          "test_file": "tests/unit/account/test_owner_tenant_authority_v2_locked_read.py",
+          "test_function": "test_source_change_during_read_discards_materialized_result"
+        },
+        {
+          "case": "current_authorization_is_separate_from_historical_evidence_cutoff",
+          "test_file": "tests/unit/core/test_owner_tenant_evidence_scope_v2.py",
+          "test_function": "test_historical_reads_use_current_authorization_and_exact_artifacts"
+        },
+        {
+          "case": "short_scope_expiry_before_query_denies_without_repository_access",
+          "test_file": "tests/unit/core/test_owner_tenant_evidence_scope_v2.py",
+          "test_function": "test_short_scope_expiry_before_repository_call_is_fail_closed"
+        },
+        {
+          "case": "intermediate_server_clock_rollback_never_returns_evidence",
+          "test_file": "tests/unit/core/test_owner_tenant_evidence_scope_v2_clock_regression.py",
+          "test_function": "test_intermediate_clock_rollback_cannot_escape_as_success"
+        },
+        {
+          "case": "actual_current_owner_reads_historical_evidence_and_lost_owner_denies",
+          "test_file": "tests/component/research/test_owner_tenant_evidence_scope_v2_postgres.py",
+          "test_function": "test_actual_current_owner_reads_historical_evidence_and_live_owner_loss_denies"
+        },
         {
           "case": "cross_app_live_read_preserves_source_clocks_and_alias",
           "test_file": "tests/component/account/test_owner_tenant_physical_row_v2.py",
           "test_function": "test_cross_app_reader_preserves_live_source_and_exact_alias"
+        }
+      ]
+    },
+    {
+      "id": "account.owner_tenant_authority_v3_evidence_scope",
+      "surface": "Evidence V5-backed exact-current owner/tenant authority and request-local Research evidence scope",
+      "source_files": [
+        "apps/account/domain/owner_tenant_authority_v3.py",
+        "apps/account/application/owner_tenant_authority_v3.py",
+        "apps/account/owner_tenant_authority_v3_composition.py",
+        "core/integration/owner_tenant_evidence_scope_v3.py",
+        "apps/research/evidence_composition.py"
+      ],
+      "required_markers": {
+        "apps/account/domain/owner_tenant_authority_v3.py": [
+          "return self.recorded_at <= cutoff < self.valid_until",
+          "return MUST_NOT_EXECUTE"
+        ],
+        "core/integration/owner_tenant_evidence_scope_v3.py": [
+          "if type(authority_command) is not GetCurrentOwnerTenantAuthorityV3Command:",
+          "if scope_ttl > MAX_SCOPE_TTL:",
+          "if artifact not in self._server_bound_artifacts:"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "v3_root_seals_exact_evidence_v5_and_remains_read_only",
+          "test_file": "tests/unit/account/test_owner_tenant_authority_v3.py",
+          "test_function": "test_v3_root_seals_exact_evidence_v5_and_is_read_only"
+        },
+        {
+          "case": "v4_or_untyped_assignment_cannot_cross_v3",
+          "test_file": "tests/unit/account/test_owner_tenant_authority_v3.py",
+          "test_function": "test_v3_rejects_v4_or_untyped_assignment_substitution"
+        },
+        {
+          "case": "exact_historical_reads_require_current_v3_authority",
+          "test_file": "tests/unit/core/test_owner_tenant_evidence_scope_v3.py",
+          "test_function": "test_current_v3_authorizes_all_exact_historical_reads"
+        },
+        {
+          "case": "request_clock_watermark_does_not_leak_between_reads",
+          "test_file": "tests/unit/core/test_owner_tenant_evidence_scope_v3.py",
+          "test_function": "test_clock_watermark_is_request_local_and_does_not_poison_the_next_read"
+        },
+        {
+          "case": "authenticated_admin_full_graph_and_rejection_paths_on_postgresql",
+          "test_file": "tests/component/research/test_owner_tenant_evidence_scope_v3_postgres.py",
+          "test_function": "test_authenticated_admin_materializes_owner_scope_and_denies_substitution"
         }
       ]
     },
@@ -254,11 +303,14 @@
       ],
       "required_markers": {
         "apps/account/application/single_owner_actor_authority.py": [
-          "policy.is_current_at(as_of)", "authority.recorded_at > as_of",
-          "as_of >= authority.valid_until", "self.principal.is_current_at(as_of)"
+          "policy.is_current_at(as_of)",
+          "authority.recorded_at > as_of",
+          "as_of >= authority.valid_until",
+          "self.principal.is_current_at(as_of)"
         ],
         "apps/account/infrastructure/single_owner_authority_policy_v1_repository.py": [
-          "not head.is_current_at(as_of)", "value.observed_at <= as_of"
+          "not head.is_current_at(as_of)",
+          "value.observed_at <= as_of"
         ]
       },
       "required_tests": [
@@ -303,11 +355,16 @@
       ],
       "required_markers": {
         "apps/data_center/infrastructure/qmt_bridge_repository.py": [
-          "sample.observed_at", "must_not_use_for_decision",
-          "qmt_bridge_requires_publication_validation", "freshness", "reliability"
+          "sample.observed_at",
+          "must_not_use_for_decision",
+          "qmt_bridge_requires_publication_validation",
+          "freshness",
+          "reliability"
         ],
         "apps/data_center/infrastructure/qmt_bridge_provider.py": [
-          "snapshot_at__gte", "snapshot_at__lte", "freshness_seconds"
+          "snapshot_at__gte",
+          "snapshot_at__lte",
+          "freshness_seconds"
         ]
       },
       "required_tests": [
@@ -363,7 +420,9 @@
     {
       "id": "alpha.qlib_prediction_source_freshness",
       "surface": "Alpha Qlib prediction cache and downstream workspace refresh",
-      "source_files": ["apps/alpha/application/tasks.py"],
+      "source_files": [
+        "apps/alpha/application/tasks.py"
+      ],
       "required_markers": {
         "apps/alpha/application/tasks.py": [
           "source_is_stale = asof_date < trade_date",
@@ -683,7 +742,11 @@
         ]
       },
       "required_tests": [
-        {"case": "persisted_age_rechecked", "test_file": "tests/api/test_pulse_api.py", "test_function": "test_pulse_current_rechecks_persisted_reading_age"},
+        {
+          "case": "persisted_age_rechecked",
+          "test_file": "tests/api/test_pulse_api.py",
+          "test_function": "test_pulse_current_rechecks_persisted_reading_age"
+        },
         {
           "case": "stale_snapshot_blocked",
           "test_file": "tests/api/test_pulse_api.py",
@@ -1341,9 +1404,9 @@
       "id": "sentiment.current",
       "surface": "Latest sentiment -> Fund, Asset Analysis, Pulse and TUI decision consumers",
       "source_files": [
-    "apps/sentiment/application/current_sentiment.py",
-    "apps/sentiment/application/repository_provider.py",
-    "apps/sentiment/application/interface_services.py",
+        "apps/sentiment/application/current_sentiment.py",
+        "apps/sentiment/application/repository_provider.py",
+        "apps/sentiment/application/interface_services.py",
         "apps/sentiment/application/pulse_facade.py",
         "apps/sentiment/interface/tui_views.py",
         "apps/pulse/infrastructure/data_provider.py",
@@ -1351,18 +1414,18 @@
         "apps/fund/application/interface_services.py"
       ],
       "required_markers": {
-    "apps/sentiment/application/current_sentiment.py": [
+        "apps/sentiment/application/current_sentiment.py": [
           "def resolve_current_sentiment(",
           "blocked_reason=\"sentiment_index_stale\"",
-      "blocked_reason=\"sentiment_data_insufficient\""
-    ],
-    "apps/sentiment/application/repository_provider.py": [
-      "SentimentNewsReadMode = Literal[\"published\", \"historical\"]",
-      "def get_market_news_for_sentiment(",
-      "mode: str = \"published\"",
-      "get_published_market_news(",
-      "if bool(payload.get(\"must_not_use_for_decision\"))"
-    ],
+          "blocked_reason=\"sentiment_data_insufficient\""
+        ],
+        "apps/sentiment/application/repository_provider.py": [
+          "SentimentNewsReadMode = Literal[\"published\", \"historical\"]",
+          "def get_market_news_for_sentiment(",
+          "mode: str = \"published\"",
+          "get_published_market_news(",
+          "if bool(payload.get(\"must_not_use_for_decision\"))"
+        ],
         "apps/sentiment/application/interface_services.py": [
           "\"must_not_use_for_decision\": current.must_not_use_for_decision"
         ],
@@ -1413,46 +1476,46 @@
           "test_file": "tests/unit/sentiment/test_pulse_facade.py",
           "test_function": "test_sentiment_pulse_series_fails_closed_when_latest_is_insufficient"
         },
-    {
-      "case": "asset_pool_cannot_neutralize_stale_sentiment",
-      "test_file": "tests/unit/asset_analysis/test_current_sentiment_safety.py",
-      "test_function": "test_asset_pool_context_does_not_score_with_stale_sentiment"
-    },
-    {
-      "case": "published_news_members_feed_sentiment",
-      "test_file": "tests/unit/sentiment/test_news_publication_contract.py",
-      "test_function": "test_current_sentiment_news_uses_publication_members"
-    },
-    {
-      "case": "missing_news_publication_blocks_sentiment",
-      "test_file": "tests/unit/sentiment/test_news_publication_contract.py",
-      "test_function": "test_current_sentiment_news_blocks_without_publication"
-    },
-    {
-      "case": "historical_news_mode_is_explicit",
-      "test_file": "tests/unit/sentiment/test_news_publication_contract.py",
-      "test_function": "test_historical_sentiment_news_requires_explicit_legacy_mode"
-    },
-    {
-      "case": "tui_market_sentiment_not_system_status",
-      "test_file": "tests/api/test_sentiment_api_edges.py",
-      "test_function": "test_sentiment_tui_overview_flattens_recent_indices"
-    },
-    {
-      "case": "tui_insufficient_sentiment_is_not_neutral_zero",
-      "test_file": "tests/api/test_sentiment_api_edges.py",
-      "test_function": "test_sentiment_tui_overview_does_not_chart_insufficient_rows_as_zero"
-    },
-    {
-      "case": "tui_missing_sentiment_component_is_a_gap",
-      "test_file": "tests/api/test_sentiment_api_edges.py",
-      "test_function": "test_sentiment_tui_overview_leaves_failed_component_as_gap"
-    },
-    {
-      "case": "tui_sentiment_summary_uses_latest_row",
-      "test_file": "tests/api/test_sentiment_api_edges.py",
-      "test_function": "test_sentiment_tui_overview_summary_uses_most_recent_row"
-    }
+        {
+          "case": "asset_pool_cannot_neutralize_stale_sentiment",
+          "test_file": "tests/unit/asset_analysis/test_current_sentiment_safety.py",
+          "test_function": "test_asset_pool_context_does_not_score_with_stale_sentiment"
+        },
+        {
+          "case": "published_news_members_feed_sentiment",
+          "test_file": "tests/unit/sentiment/test_news_publication_contract.py",
+          "test_function": "test_current_sentiment_news_uses_publication_members"
+        },
+        {
+          "case": "missing_news_publication_blocks_sentiment",
+          "test_file": "tests/unit/sentiment/test_news_publication_contract.py",
+          "test_function": "test_current_sentiment_news_blocks_without_publication"
+        },
+        {
+          "case": "historical_news_mode_is_explicit",
+          "test_file": "tests/unit/sentiment/test_news_publication_contract.py",
+          "test_function": "test_historical_sentiment_news_requires_explicit_legacy_mode"
+        },
+        {
+          "case": "tui_market_sentiment_not_system_status",
+          "test_file": "tests/api/test_sentiment_api_edges.py",
+          "test_function": "test_sentiment_tui_overview_flattens_recent_indices"
+        },
+        {
+          "case": "tui_insufficient_sentiment_is_not_neutral_zero",
+          "test_file": "tests/api/test_sentiment_api_edges.py",
+          "test_function": "test_sentiment_tui_overview_does_not_chart_insufficient_rows_as_zero"
+        },
+        {
+          "case": "tui_missing_sentiment_component_is_a_gap",
+          "test_file": "tests/api/test_sentiment_api_edges.py",
+          "test_function": "test_sentiment_tui_overview_leaves_failed_component_as_gap"
+        },
+        {
+          "case": "tui_sentiment_summary_uses_latest_row",
+          "test_file": "tests/api/test_sentiment_api_edges.py",
+          "test_function": "test_sentiment_tui_overview_summary_uses_most_recent_row"
+        }
       ]
     },
     {
@@ -2297,23 +2360,23 @@
         "sdk/agomtradepro/modules/data_center.py",
         "sdk/agomtradepro_mcp/tools/data_center_tools.py",
         "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/data_center.py",
-    "apps/alpha/infrastructure/adapters/simple_adapter.py",
-    "apps/pulse/infrastructure/data_provider.py",
-      "apps/regime/infrastructure/macro_data_provider.py",
+        "apps/alpha/infrastructure/adapters/simple_adapter.py",
+        "apps/pulse/infrastructure/data_provider.py",
+        "apps/regime/infrastructure/macro_data_provider.py",
         "apps/regime/application/use_cases.py",
         "apps/regime/application/regime_v2_use_cases.py",
-      "apps/regime/application/query_services.py",
-      "apps/regime/application/current_regime.py",
-    "apps/regime/application/orchestration.py",
-    "apps/regime/application/navigator_use_cases.py",
-    "apps/prompt/infrastructure/adapters/macro_adapter.py",
-    "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
-    "apps/strategy/infrastructure/providers.py",
-    "apps/simulated_trading/application/position_invalidation_checker.py",
-    "apps/signal/application/invalidation_checker.py",
-    "apps/signal/application/query_services.py",
-    "apps/signal/interface/views.py",
-    "apps/alpha_trigger/application/page_query_service.py"
+        "apps/regime/application/query_services.py",
+        "apps/regime/application/current_regime.py",
+        "apps/regime/application/orchestration.py",
+        "apps/regime/application/navigator_use_cases.py",
+        "apps/prompt/infrastructure/adapters/macro_adapter.py",
+        "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
+        "apps/strategy/infrastructure/providers.py",
+        "apps/simulated_trading/application/position_invalidation_checker.py",
+        "apps/signal/application/invalidation_checker.py",
+        "apps/signal/application/query_services.py",
+        "apps/signal/interface/views.py",
+        "apps/alpha_trigger/application/page_query_service.py"
       ],
       "required_markers": {
         "apps/data_center/application/public.py": [
@@ -2324,23 +2387,23 @@
           "def get_published_quote_payloads(",
           "def get_published_price_bar_series("
         ],
-    "apps/data_center/application/query_services.py": [
-      "def get_latest_macro_indicator_value(",
-      "def query_published_macro_fact_series(",
-      "def list_latest_published_macro_indicator_payloads(",
-      "def query_published_fund_nav_series(",
+        "apps/data_center/application/query_services.py": [
+          "def get_latest_macro_indicator_value(",
+          "def query_published_macro_fact_series(",
+          "def list_latest_published_macro_indicator_payloads(",
+          "def query_published_fund_nav_series(",
           "_publication_gate(\"macro.fact\"",
           "_publication_member_fact_pks(",
           "data_center_macro_fact",
           "data_center_fund_nav_fact",
           "canonical_publication_stale"
         ],
-      "apps/dashboard/application/integration_gateways.py": [
-        "get_published_macro_fact_series(indicator_code, limit=1)",
-        "get_published_quote_payloads([asset_code])",
-        "published_only=not use_pit",
-        "must_not_use_for_decision"
-      ],
+        "apps/dashboard/application/integration_gateways.py": [
+          "get_published_macro_fact_series(indicator_code, limit=1)",
+          "get_published_quote_payloads([asset_code])",
+          "published_only=not use_pit",
+          "must_not_use_for_decision"
+        ],
         "sdk/agomtradepro/modules/data_center.py": [
           "mode: str | None = \"published\"",
           "params[\"mode\"] = mode"
@@ -2369,12 +2432,12 @@
         ],
         "apps/regime/application/regime_v2_use_cases.py": [
           "published_only: bool = False",
-        "published_only=request.published_only"
-      ],
-      "apps/regime/application/query_services.py": [
-        "published_only: bool = False",
-        "published_only=published_only"
-      ],
+          "published_only=request.published_only"
+        ],
+        "apps/regime/application/query_services.py": [
+          "published_only: bool = False",
+          "published_only=published_only"
+        ],
         "apps/regime/application/current_regime.py": [
           "published_only=True"
         ],
@@ -2384,40 +2447,40 @@
         "apps/regime/application/navigator_use_cases.py": [
           "published_only=True"
         ],
-    "apps/prompt/infrastructure/adapters/macro_adapter.py": [
+        "apps/prompt/infrastructure/adapters/macro_adapter.py": [
           "published_only",
           "get_published_series",
           "if as_of_date is None",
           "sorted(indicators, key=lambda item: item.reporting_period)",
-      "key=lambda item: item.reporting_period"
-    ],
-    "apps/agent_runtime/infrastructure/context_snapshot_repository.py": [
-      "list_latest_published_macro_values(limit=500)"
-    ],
-    "apps/strategy/infrastructure/providers.py": [
-      "get_macro_indicator_value(",
-      "list_latest_published_macro_values(",
-      "Error getting published macro indicator"
-    ],
-    "apps/simulated_trading/application/position_invalidation_checker.py": [
-      "get_published_macro_fact_series(",
-      "must_not_use_for_decision",
-      "_read_published_rows"
-    ],
-    "apps/signal/application/invalidation_checker.py": [
-      "get_published_macro_fact_series(",
-      "must_not_use_for_decision",
-      "_read_published_rows"
-    ],
-    "apps/signal/application/query_services.py": [
-      "list_published_macro_indicator_summaries as get_available_indicators_for_frontend"
-    ],
-    "apps/signal/interface/views.py": [
-      "list_published_macro_indicator_summaries as get_available_indicators_for_frontend"
-    ],
-    "apps/alpha_trigger/application/page_query_service.py": [
-      "list_published_macro_indicator_summaries(limit=50)"
-    ]
+          "key=lambda item: item.reporting_period"
+        ],
+        "apps/agent_runtime/infrastructure/context_snapshot_repository.py": [
+          "list_latest_published_macro_values(limit=500)"
+        ],
+        "apps/strategy/infrastructure/providers.py": [
+          "get_macro_indicator_value(",
+          "list_latest_published_macro_values(",
+          "Error getting published macro indicator"
+        ],
+        "apps/simulated_trading/application/position_invalidation_checker.py": [
+          "get_published_macro_fact_series(",
+          "must_not_use_for_decision",
+          "_read_published_rows"
+        ],
+        "apps/signal/application/invalidation_checker.py": [
+          "get_published_macro_fact_series(",
+          "must_not_use_for_decision",
+          "_read_published_rows"
+        ],
+        "apps/signal/application/query_services.py": [
+          "list_published_macro_indicator_summaries as get_available_indicators_for_frontend"
+        ],
+        "apps/signal/interface/views.py": [
+          "list_published_macro_indicator_summaries as get_available_indicators_for_frontend"
+        ],
+        "apps/alpha_trigger/application/page_query_service.py": [
+          "list_published_macro_indicator_summaries(limit=50)"
+        ]
       },
       "required_tests": [
         {
@@ -2480,26 +2543,26 @@
           "test_file": "sdk/tests/test_sdk/test_data_center_module.py",
           "test_function": "test_data_center_module_endpoints"
         },
-    {
-      "case": "macro_rows_are_member_bound",
-      "test_file": "tests/unit/data_center/test_published_query_ports.py",
-      "test_function": "test_published_macro_facts_use_only_publication_members"
-    },
-    {
-      "case": "macro_summary_uses_published_values",
-      "test_file": "tests/unit/data_center/test_published_query_ports.py",
-      "test_function": "test_latest_published_macro_values_are_catalog_bounded_and_fail_closed"
-    },
-    {
-      "case": "macro_scalar_port_uses_publication_gate",
-      "test_file": "tests/unit/data_center/test_published_query_ports.py",
-      "test_function": "test_latest_macro_indicator_value_cannot_bypass_publication_gate"
-    },
-    {
-      "case": "agent_macro_freshness_uses_publication_gate",
-      "test_file": "tests/unit/agent_runtime/test_t5_context_snapshot_repository_contracts.py",
-      "test_function": "test_context_snapshot_extended_summaries_cover_all_supported_sources"
-    },
+        {
+          "case": "macro_rows_are_member_bound",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_published_macro_facts_use_only_publication_members"
+        },
+        {
+          "case": "macro_summary_uses_published_values",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_latest_published_macro_values_are_catalog_bounded_and_fail_closed"
+        },
+        {
+          "case": "macro_scalar_port_uses_publication_gate",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_latest_macro_indicator_value_cannot_bypass_publication_gate"
+        },
+        {
+          "case": "agent_macro_freshness_uses_publication_gate",
+          "test_file": "tests/unit/agent_runtime/test_t5_context_snapshot_repository_contracts.py",
+          "test_function": "test_context_snapshot_extended_summaries_cover_all_supported_sources"
+        },
         {
           "case": "fund_nav_rows_are_member_bound",
           "test_file": "tests/unit/data_center/test_published_query_ports.py",
@@ -2555,16 +2618,16 @@
           "test_file": "tests/unit/regime/test_current_regime_freshness.py",
           "test_function": "test_current_regime_preserves_macro_observation_and_blocks_stale_result"
         },
-      {
-        "case": "current_indicator_summary_preserves_publication_evidence",
-        "test_file": "tests/unit/data_center/test_public_current_read_ports.py",
-        "test_function": "test_published_macro_indicator_summaries_preserve_gate_and_source_observation"
-      },
-      {
-        "case": "dashboard_current_macro_gateway_forces_publication",
-        "test_file": "tests/unit/dashboard/test_t5_dashboard_use_case_edge_contracts.py",
-        "test_function": "test_dashboard_current_macro_gateway_forces_publication_members"
-      }
+        {
+          "case": "current_indicator_summary_preserves_publication_evidence",
+          "test_file": "tests/unit/data_center/test_public_current_read_ports.py",
+          "test_function": "test_published_macro_indicator_summaries_preserve_gate_and_source_observation"
+        },
+        {
+          "case": "dashboard_current_macro_gateway_forces_publication",
+          "test_file": "tests/unit/dashboard/test_t5_dashboard_use_case_edge_contracts.py",
+          "test_function": "test_dashboard_current_macro_gateway_forces_publication_members"
+        }
       ]
     },
     {
@@ -2623,7 +2686,7 @@
           "class ComprehensiveValuationRequestSerializer",
           "default=\"published\""
         ],
-          "apps/equity/interface/analysis_actions.py": [
+        "apps/equity/interface/analysis_actions.py": [
           "get_decision_publication_gate(",
           "mode = str(data[\"mode\"])",
           "equity.financial.fact",
