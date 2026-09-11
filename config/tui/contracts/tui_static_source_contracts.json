@@ -58,7 +58,7 @@
       "id": "test_tui_workbench_uses_system_cursor_and_collapsible_sidebars:003",
       "source": "tui_css",
       "relation": "not_contains",
-      "value": "cursor: pointer",
+      "value": "cursor: url(",
       "legacy_tests": [
         "test_tui_workbench_uses_system_cursor_and_collapsible_sidebars"
       ]
@@ -1273,7 +1273,7 @@
       "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:084",
       "source": "workbench_js",
       "relation": "contains",
-      "value": "function bindRenderedActionForms()",
+      "value": "function bindRenderedActionForms(root = els.actions)",
       "legacy_tests": [
         "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
       ]
@@ -3434,7 +3434,7 @@
       "id": "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout:011",
       "source": "workbench_js",
       "relation": "contains",
-      "value": "const contentFlow = desktopColumns === 1 || isOperatorHomeScreen(screen?.key)",
+      "value": "const contentFlow = true",
       "legacy_tests": [
         "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout",
         "test_tui_mcp_governance_uses_full_width_rows_for_actionable_tables"
