@@ -14,8 +14,13 @@ from urllib.parse import unquote, urlsplit
 
 import pytest
 from django.core.exceptions import ValidationError
+
+# isort 6 separates aliased django.db imports while Ruff keeps these names grouped.
+# isort: off
 from django.db import DatabaseError, connections, transaction
 from django.db import connection as default_connection
+
+# isort: on
 
 from apps.account.application.account_owner_assignment_provenance_receipt_v5 import (
     PersistedAccountOwnerAssignmentProvenanceReceiptV5,

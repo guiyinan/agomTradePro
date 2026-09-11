@@ -20,12 +20,8 @@ from apps.account.infrastructure.account_owner_assignment_evidence_v5_codec impo
     decode_account_owner_assignment_evidence_v5,
     encode_account_owner_assignment_evidence_v5,
 )
-from tests.unit.account.test_account_owner_assignment_evidence_v3 import (
-    _evidence as _v3_evidence,
-)
-from tests.unit.account.test_account_owner_assignment_evidence_v4 import (
-    _evidence as _v4_evidence,
-)
+from tests.unit.account.test_account_owner_assignment_evidence_v3 import _evidence as _v3_evidence
+from tests.unit.account.test_account_owner_assignment_evidence_v4 import _evidence as _v4_evidence
 from tests.unit.account.test_account_owner_assignment_evidence_v5 import _evidence
 
 

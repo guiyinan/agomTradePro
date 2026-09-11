@@ -23,6 +23,9 @@ from apps.account.infrastructure.account_owner_assignment_subject_v5_repository 
 from apps.account.infrastructure.account_owner_assignment_v5_models import (
     AccountOwnerAssignmentSubjectV5Model,
 )
+
+# isort 6 splits these aliases while Ruff groups imports from the same test module.
+# isort: off
 from tests.component.account.test_account_owner_assignment_provenance_receipt_v5_repository import (
     _at,
     _Clock,
@@ -34,6 +37,8 @@ from tests.component.account.test_account_owner_assignment_provenance_receipt_v5
 from tests.component.account.test_account_owner_assignment_provenance_receipt_v5_repository import (
     _table as _receipt_table,
 )
+
+# isort: on
 from tests.unit.account.test_account_owner_assignment_provenance_receipt_v5 import _receipt
 from tests.unit.account.test_account_owner_assignment_subject_v5 import _subject
 

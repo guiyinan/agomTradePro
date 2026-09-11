@@ -27,9 +27,7 @@ from apps.account.infrastructure.owner_tenant_authority_v3_codec import (
     encode_owner_tenant_authority_v3,
     encode_owner_tenant_authority_v3_revocation,
 )
-from tests.unit.account.test_account_owner_assignment_evidence_v4 import (
-    _evidence as _v4_evidence,
-)
+from tests.unit.account.test_account_owner_assignment_evidence_v4 import _evidence as _v4_evidence
 from tests.unit.account.test_owner_tenant_authority_v1 import _authority as _v1_authority
 from tests.unit.account.test_owner_tenant_authority_v2 import _authority as _v2_authority
 from tests.unit.account.test_owner_tenant_authority_v3 import (
