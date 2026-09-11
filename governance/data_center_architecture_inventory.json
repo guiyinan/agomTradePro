@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 4947,
+    "current_surface_references": 4949,
     "data_write_task_decorators": 62,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -4261,42 +4261,42 @@
       "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
     },
     {
-      "line": 98,
+      "line": 99,
       "path": "apps/account/infrastructure/owner_tenant_authority_v2_repository.py",
       "text": "\"\"\"Return an exact timezone-aware current timestamp.\"\"\""
     },
     {
-      "line": 107,
+      "line": 108,
       "path": "apps/account/infrastructure/owner_tenant_authority_v2_repository.py",
       "text": "\"\"\"Return the current timezone-aware timestamp.\"\"\""
     },
     {
-      "line": 579,
+      "line": 580,
       "path": "apps/account/infrastructure/owner_tenant_authority_v2_repository.py",
       "text": "\"owner tenant authority v2 actor parent is not current at recording\""
     },
     {
-      "line": 652,
+      "line": 653,
       "path": "apps/account/infrastructure/owner_tenant_authority_v2_repository.py",
       "text": "\"owner tenant authority v2 revocation actor is not current at event\""
     },
     {
-      "line": 93,
+      "line": 97,
       "path": "apps/account/infrastructure/owner_tenant_authority_v3_repository.py",
       "text": "\"\"\"Return an exact timezone-aware current timestamp.\"\"\""
     },
     {
-      "line": 102,
+      "line": 106,
       "path": "apps/account/infrastructure/owner_tenant_authority_v3_repository.py",
       "text": "\"\"\"Return the current timezone-aware timestamp.\"\"\""
     },
     {
-      "line": 728,
+      "line": 732,
       "path": "apps/account/infrastructure/owner_tenant_authority_v3_repository.py",
       "text": "\"owner tenant authority v3 actor parent is not current at recording\""
     },
     {
-      "line": 805,
+      "line": 809,
       "path": "apps/account/infrastructure/owner_tenant_authority_v3_repository.py",
       "text": "\"owner tenant authority v3 revocation actor is not current at event\""
     },
@@ -22226,6 +22226,81 @@
       "text": "return current"
     },
     {
+      "line": 60,
+      "path": "apps/simulated_trading/interface/_account_views.py",
+      "text": "summary=\"获取账户详情\","
+    },
+    {
+      "line": 80,
+      "path": "apps/simulated_trading/interface/_account_views.py",
+      "text": "summary=\"删除账户\","
+    },
+    {
+      "line": 97,
+      "path": "apps/simulated_trading/interface/_account_views.py",
+      "text": "summary = _delete_account_with_summary(account)"
+    },
+    {
+      "line": 101,
+      "path": "apps/simulated_trading/interface/_account_views.py",
+      "text": "**summary,"
+    },
+    {
+      "line": 102,
+      "path": "apps/simulated_trading/interface/_account_views.py",
+      "text": "\"message\": f\"账户 {summary['account_name']} 已删除\","
+    },
+    {
+      "line": 111,
+      "path": "apps/simulated_trading/interface/_account_views.py",
+      "text": "summary=\"批量删除账户\","
+    },
+    {
+      "line": 137,
+      "path": "apps/simulated_trading/interface/_account_views.py",
+      "text": "summary = _delete_account_with_summary(account)"
+    },
+    {
+      "line": 138,
+      "path": "apps/simulated_trading/interface/_account_views.py",
+      "text": "deleted_account_ids.append(summary[\"account_id\"])"
+    },
+    {
+      "line": 139,
+      "path": "apps/simulated_trading/interface/_account_views.py",
+      "text": "deleted_account_names.append(summary[\"account_name\"])"
+    },
+    {
+      "line": 37,
+      "path": "apps/simulated_trading/interface/_fee_config_views.py",
+      "text": "summary=\"获取费率配置列表\","
+    },
+    {
+      "line": 51,
+      "path": "apps/simulated_trading/interface/_portfolio_views.py",
+      "text": "summary=\"获取账户持仓列表\","
+    },
+    {
+      "line": 113,
+      "path": "apps/simulated_trading/interface/_portfolio_views.py",
+      "text": "summary=\"获取账户交易记录\","
+    },
+    {
+      "line": 234,
+      "path": "apps/simulated_trading/interface/_portfolio_views.py",
+      "text": "summary=\"获取账户绩效\","
+    },
+    {
+      "line": 239,
+      "path": "apps/simulated_trading/interface/_portfolio_views.py",
+      "text": "\"\"\"Return the account performance summary.\"\"\""
+    },
+    {
+      "line": 44,
+      "path": "apps/simulated_trading/interface/_view_helpers.py",
+      "text": "\"\"\"Delete an account and return its cascade summary.\"\"\""
+    },
+    {
       "line": 532,
       "path": "apps/simulated_trading/interface/admin.py",
       "text": "readonly_fields = [\"created_at\", \"updated_at\", \"summary\", \"checks\"]"
@@ -22291,112 +22366,47 @@
       "text": "\"\"\"Read or update the current user's account notification settings.\"\"\""
     },
     {
-      "line": 377,
+      "line": 319,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "summary=\"获取统一账户列表\","
     },
     {
-      "line": 443,
+      "line": 370,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "summary=\"创建账户\","
     },
     {
-      "line": 529,
-      "path": "apps/simulated_trading/interface/views.py",
-      "text": "summary=\"获取账户详情\","
-    },
-    {
-      "line": 558,
-      "path": "apps/simulated_trading/interface/views.py",
-      "text": "summary=\"删除账户\","
-    },
-    {
-      "line": 573,
-      "path": "apps/simulated_trading/interface/views.py",
-      "text": "summary = _delete_account_with_summary(account)"
-    },
-    {
-      "line": 577,
-      "path": "apps/simulated_trading/interface/views.py",
-      "text": "**summary,"
-    },
-    {
-      "line": 578,
-      "path": "apps/simulated_trading/interface/views.py",
-      "text": "\"message\": f\"账户 {summary['account_name']} 已删除\","
-    },
-    {
-      "line": 587,
-      "path": "apps/simulated_trading/interface/views.py",
-      "text": "summary=\"批量删除账户\","
-    },
-    {
-      "line": 612,
-      "path": "apps/simulated_trading/interface/views.py",
-      "text": "summary = _delete_account_with_summary(account)"
-    },
-    {
-      "line": 613,
-      "path": "apps/simulated_trading/interface/views.py",
-      "text": "deleted_account_ids.append(summary[\"account_id\"])"
-    },
-    {
-      "line": 614,
-      "path": "apps/simulated_trading/interface/views.py",
-      "text": "deleted_account_names.append(summary[\"account_name\"])"
-    },
-    {
-      "line": 638,
-      "path": "apps/simulated_trading/interface/views.py",
-      "text": "summary=\"获取账户持仓列表\","
-    },
-    {
-      "line": 717,
-      "path": "apps/simulated_trading/interface/views.py",
-      "text": "summary=\"获取账户交易记录\","
-    },
-    {
-      "line": 873,
-      "path": "apps/simulated_trading/interface/views.py",
-      "text": "summary=\"获取账户绩效\","
-    },
-    {
-      "line": 936,
+      "line": 433,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "summary=\"手动交易\","
     },
     {
-      "line": 1053,
-      "path": "apps/simulated_trading/interface/views.py",
-      "text": "summary=\"获取费率配置列表\","
-    },
-    {
-      "line": 1103,
+      "line": 552,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "summary=\"获取净值曲线\","
     },
     {
-      "line": 1212,
+      "line": 661,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "summary=\"执行自动交易\","
     },
     {
-      "line": 1238,
+      "line": 687,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "\"summary\": {"
     },
     {
-      "line": 1269,
+      "line": 718,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "\"summary\": {"
     },
     {
-      "line": 1286,
+      "line": 735,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "summary=\"执行账户日更巡检\","
     },
     {
-      "line": 1330,
+      "line": 779,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "summary=\"获取账户日更巡检历史\","
     },
@@ -22976,17 +22986,17 @@
       "text": "if int(summary.get(\"portfolio_count\") or 0) == 0:"
     },
     {
-      "line": 87,
+      "line": 86,
       "path": "apps/terminal/application/tui_workbench.py",
       "text": "\"agent-runtime.operator-summary\","
     },
     {
-      "line": 307,
+      "line": 310,
       "path": "apps/terminal/application/tui_workbench.py",
       "text": "\"body\": self._operator_text(screen[\"summary\"]),"
     },
     {
-      "line": 928,
+      "line": 553,
       "path": "apps/terminal/application/tui_workbench.py",
       "text": "\"\"\"Return whether an action belongs to the current user's role.\"\"\""
     },
