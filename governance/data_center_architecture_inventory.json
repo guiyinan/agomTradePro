@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 4484,
+    "current_surface_references": 4947,
     "data_write_task_decorators": 62,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -344,6 +344,96 @@
       "line": 231,
       "path": "apps/account/account_owner_assignment_evidence_v3_composition.py",
       "text": "head_reader=evidence_repository, current_reader=current"
+    },
+    {
+      "line": 87,
+      "path": "apps/account/account_owner_assignment_evidence_v4_composition.py",
+      "text": "\"\"\"Adapt the public Receipt v4 current use case to the Evidence port.\"\"\""
+    },
+    {
+      "line": 90,
+      "path": "apps/account/account_owner_assignment_evidence_v4_composition.py",
+      "text": "\"\"\"Bind the exact-current Receipt reader without exposing its repository.\"\"\""
+    },
+    {
+      "line": 131,
+      "path": "apps/account/account_owner_assignment_evidence_v4_composition.py",
+      "text": "current: GetCurrentAccountOwnerAssignmentEvidenceV4,"
+    },
+    {
+      "line": 140,
+      "path": "apps/account/account_owner_assignment_evidence_v4_composition.py",
+      "text": "self._current = current"
+    },
+    {
+      "line": 155,
+      "path": "apps/account/account_owner_assignment_evidence_v4_composition.py",
+      "text": "\"\"\"Explicitly approve or replay inactive Evidence v4 under current facts.\"\"\""
+    },
+    {
+      "line": 165,
+      "path": "apps/account/account_owner_assignment_evidence_v4_composition.py",
+      "text": "\"\"\"Read current Evidence while retaining the actor capture UOW.\"\"\""
+    },
+    {
+      "line": 168,
+      "path": "apps/account/account_owner_assignment_evidence_v4_composition.py",
+      "text": "raise TypeError(\"command must be an exact Evidence v4 current command\")"
+    },
+    {
+      "line": 278,
+      "path": "apps/account/account_owner_assignment_evidence_v4_composition.py",
+      "text": "current=GetCurrentAccountOwnerAssignmentEvidenceV4("
+    },
+    {
+      "line": 97,
+      "path": "apps/account/account_owner_assignment_evidence_v5_composition.py",
+      "text": "this facade contain only immutable ID/hash selectors.  Approval and current"
+    },
+    {
+      "line": 111,
+      "path": "apps/account/account_owner_assignment_evidence_v5_composition.py",
+      "text": "current: GetCurrentAccountOwnerAssignmentEvidenceV5,"
+    },
+    {
+      "line": 120,
+      "path": "apps/account/account_owner_assignment_evidence_v5_composition.py",
+      "text": "self._current = current"
+    },
+    {
+      "line": 125,
+      "path": "apps/account/account_owner_assignment_evidence_v5_composition.py",
+      "text": "\"\"\"Approve or replay one inactive Evidence V5 root under current facts.\"\"\""
+    },
+    {
+      "line": 135,
+      "path": "apps/account/account_owner_assignment_evidence_v5_composition.py",
+      "text": "\"\"\"Read immutable historical Evidence V5 without current authority checks.\"\"\""
+    },
+    {
+      "line": 148,
+      "path": "apps/account/account_owner_assignment_evidence_v5_composition.py",
+      "text": "raise TypeError(\"command must be an exact Evidence V5 current command\")"
+    },
+    {
+      "line": 153,
+      "path": "apps/account/account_owner_assignment_evidence_v5_composition.py",
+      "text": "\"\"\"Run one current operation under ordered source locks and actor UOW.\"\"\""
+    },
+    {
+      "line": 264,
+      "path": "apps/account/account_owner_assignment_evidence_v5_composition.py",
+      "text": "current = GetCurrentAccountOwnerAssignmentEvidenceV5("
+    },
+    {
+      "line": 275,
+      "path": "apps/account/account_owner_assignment_evidence_v5_composition.py",
+      "text": "current=current,"
+    },
+    {
+      "line": 113,
+      "path": "apps/account/account_owner_assignment_provenance_receipt_v4_composition.py",
+      "text": "\"\"\"Lock before the first current read and retain locks in any outer transaction.\"\"\""
     },
     {
       "line": 10,
@@ -696,6 +786,371 @@
       "text": "\"\"\"Return only the exact dual-head evidence with current Receipt-v3/Physical-v3.\"\"\""
     },
     {
+      "line": 116,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "raise ValueError(\"evidence authority is not an authenticated current admin\")"
+    },
+    {
+      "line": 201,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "\"\"\"Select one exact Evidence v4 that still has both current mapping heads.\"\"\""
+    },
+    {
+      "line": 209,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "\"\"\"Validate current selectors and an aware point-in-time cutoff.\"\"\""
+    },
+    {
+      "line": 218,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "\"\"\"Read one exact-current Receipt v4 from its public Application boundary.\"\"\""
+    },
+    {
+      "line": 228,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "\"\"\"Return the selected Receipt v4 only when its current source is valid.\"\"\""
+    },
+    {
+      "line": 302,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "\"\"\"Validated exact-current upstream values used to register a Subject.\"\"\""
+    },
+    {
+      "line": 326,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "\"\"\"Validate one exact-current Receipt v4 returned by a public provider.\"\"\""
+    },
+    {
+      "line": 329,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "raise AccountOwnerAssignmentUnavailable(\"exact-current Receipt v4 is unavailable\")"
+    },
+    {
+      "line": 343,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "raise AccountOwnerAssignmentUnavailable(\"Receipt v4 is not current\")"
+    },
+    {
+      "line": 355,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "\"\"\"Validate one exact-current Physical v3 observation returned by a provider.\"\"\""
+    },
+    {
+      "line": 358,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "raise AccountOwnerAssignmentUnavailable(\"exact-current Physical v3 is unavailable\")"
+    },
+    {
+      "line": 372,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "raise AccountOwnerAssignmentUnavailable(\"Physical v3 is not current\")"
+    },
+    {
+      "line": 404,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "raise AccountOwnerAssignmentUnavailable(\"current single-owner participants are unavailable\")"
+    },
+    {
+      "line": 435,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "raise AccountOwnerAssignmentUnavailable(\"current single-owner policy is unavailable\")"
+    },
+    {
+      "line": 443,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "raise AccountOwnerAssignmentUnavailable(\"current actor authority is unavailable\")"
+    },
+    {
+      "line": 445,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "raise AccountOwnerAssignmentUnavailable(\"current participant validity is unavailable\")"
+    },
+    {
+      "line": 481,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "\"\"\"Inject public exact-current source readers and a Subject repository.\"\"\""
+    },
+    {
+      "line": 511,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "current = self._read(command, cutoff)"
+    },
+    {
+      "line": 514,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "\"Subject v4 winner no longer has current sources\""
+    },
+    {
+      "line": 516,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "if current.receipt != winner.receipt or current.root != winner.physical_root:"
+    },
+    {
+      "line": 519,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "raise AccountOwnerAssignmentConflict(\"Subject v4 winner is no longer current\")"
+    },
+    {
+      "line": 622,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "\"\"\"Read a current Subject, its Receipt/Physical sources, and participants.\"\"\""
+    },
+    {
+      "line": 640,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "raise AccountOwnerAssignmentUnavailable(\"Subject v4 is not current\")"
+    },
+    {
+      "line": 710,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "\"\"\"Compare current source facts with an already persisted Evidence record.\"\"\""
+    },
+    {
+      "line": 746,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "\"\"\"Explicitly record or current-revalidate one inactive Evidence v4 root."
+    },
+    {
+      "line": 772,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "raise AccountOwnerAssignmentConflict(\"Evidence v4 winner is no longer current\")"
+    },
+    {
+      "line": 774,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "current = self._read(command, cutoff)"
+    },
+    {
+      "line": 777,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "\"Evidence v4 winner no longer has current sources\""
+    },
+    {
+      "line": 779,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "if not _matches_record(current, winner):"
+    },
+    {
+      "line": 782,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "self._repository, current.subject, cutoff"
+    },
+    {
+      "line": 868,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "\"\"\"Read immutable Evidence history without requiring current authority.\"\"\""
+    },
+    {
+      "line": 911,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "\"\"\"Inject all current source readers required for a fail-closed read.\"\"\""
+    },
+    {
+      "line": 939,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "raise AccountOwnerAssignmentCorruption(\"current Evidence v4 selector substitution\")"
+    },
+    {
+      "line": 1055,
+      "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+      "text": "\"\"\"Compare a historical/current read result with its ID/version/hash.\"\"\""
+    },
+    {
+      "line": 54,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"\"\"An exact current Subject V5 or other Evidence V5 source is unavailable.\"\"\""
+    },
+    {
+      "line": 66,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"\"\"A repository or current reader substituted invalid Evidence V5 data.\"\"\""
+    },
+    {
+      "line": 129,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "raise ValueError(\"evidence authority is not an authenticated current admin\")"
+    },
+    {
+      "line": 176,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"\"\"Select one Evidence V5 only while its complete Subject V5 graph is current.\"\"\""
+    },
+    {
+      "line": 184,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"\"\"Validate current selectors and an aware point-in-time cutoff.\"\"\""
+    },
+    {
+      "line": 193,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"\"\"Read one exact current Subject V5 through its public Application port.\"\"\""
+    },
+    {
+      "line": 198,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"\"\"Return the selected current Subject V5 or no value.\"\"\""
+    },
+    {
+      "line": 203,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"\"\"Re-read current policy, authority, and same-owner roles per cutoff.\"\"\""
+    },
+    {
+      "line": 206,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"\"\"Return exact current participant facts at ``as_of``.\"\"\""
+    },
+    {
+      "line": 274,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"\"\"Validated current Subject V5 and server-owned participant projection.\"\"\""
+    },
+    {
+      "line": 331,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"current single-owner participants are unavailable\""
+    },
+    {
+      "line": 370,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"current single-owner policy is unavailable\""
+    },
+    {
+      "line": 379,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "raise AccountOwnerAssignmentEvidenceV5Unavailable(\"current actor authority is unavailable\")"
+    },
+    {
+      "line": 382,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"current participant validity is unavailable\""
+    },
+    {
+      "line": 419,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"\"\"Read and validate one exact current Subject V5 through its Application port.\"\"\""
+    },
+    {
+      "line": 434,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"current Subject V5 is unavailable\""
+    },
+    {
+      "line": 438,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"current Subject V5 reader returned corrupt evidence\""
+    },
+    {
+      "line": 442,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"current Subject V5 is unavailable\""
+    },
+    {
+      "line": 446,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"current Subject V5 reader returned corrupt evidence\""
+    },
+    {
+      "line": 450,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "raise AccountOwnerAssignmentEvidenceV5Unavailable(\"current Subject V5 is unavailable\")"
+    },
+    {
+      "line": 456,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "raise AccountOwnerAssignmentEvidenceV5Corruption(\"current Subject V5 selector substitution\")"
+    },
+    {
+      "line": 458,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "current = subject.is_current_at(as_of)"
+    },
+    {
+      "line": 461,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"current Subject V5 cutoff is invalid\""
+    },
+    {
+      "line": 463,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "if not current:"
+    },
+    {
+      "line": 464,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "raise AccountOwnerAssignmentEvidenceV5Unavailable(\"Subject V5 is not current\")"
+    },
+    {
+      "line": 475,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"\"\"Read a registered current Subject V5 and the current participant projection.\"\"\""
+    },
+    {
+      "line": 500,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "raise AccountOwnerAssignmentEvidenceV5Corruption(\"Subject V5 current source substitution\")"
+    },
+    {
+      "line": 539,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"\"\"Explicitly approve one current Subject V5 as inactive Evidence V5.\"\"\""
+    },
+    {
+      "line": 549,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"\"\"Inject public current readers and the immutable Evidence V5 repository.\"\"\""
+    },
+    {
+      "line": 589,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"Evidence V5 winner is no longer current\""
+    },
+    {
+      "line": 592,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "current = _read_approval_inputs("
+    },
+    {
+      "line": 607,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"Evidence V5 winner no longer has current sources\""
+    },
+    {
+      "line": 609,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "if not _matches_record(current, winner):"
+    },
+    {
+      "line": 614,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "self._repository, current.subject, cutoff"
+    },
+    {
+      "line": 708,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"\"\"Read immutable historical Evidence V5 without current authority checks.\"\"\""
+    },
+    {
+      "line": 753,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"\"\"Inject every current reader required for a fail-closed read.\"\"\""
+    },
+    {
+      "line": 782,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"current Evidence V5 selector substitution\""
+    },
+    {
+      "line": 852,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"\"\"Compare a historical/current result with its ID, version, and hash.\"\"\""
+    },
+    {
+      "line": 865,
+      "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "text": "\"\"\"Compare current Subject, participants, and authority with a persisted root.\"\"\""
+    },
+    {
       "line": 129,
       "path": "apps/account/application/account_owner_assignment_mapping_v2.py",
       "text": "\"\"\"Publish only a current, staff-approved owner mapping; never a legacy default.\"\"\""
@@ -921,6 +1376,321 @@
       "text": "raise AccountOwnerAssignmentUnavailable(\"current human claimant is not eligible\")"
     },
     {
+      "line": 75,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "\"\"\"Bind one v4 receipt to the real current staff authority that issued it.\"\"\""
+    },
+    {
+      "line": 91,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "raise TypeError(\"authority must be an exact current actor authority\")"
+    },
+    {
+      "line": 111,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "raise ValueError(\"persisted v4 receipt authority is not current admin\")"
+    },
+    {
+      "line": 161,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "\"\"\"Select one expected current v4 head without granting authority.\"\"\""
+    },
+    {
+      "line": 169,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "\"\"\"Validate exact current selectors and an aware cutoff.\"\"\""
+    },
+    {
+      "line": 178,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "\"\"\"Re-read current policy and authenticated same-owner roles per cutoff.\"\"\""
+    },
+    {
+      "line": 181,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "\"\"\"Return the exact current policy, authority, and role facts at ``as_of``.\"\"\""
+    },
+    {
+      "line": 193,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "\"\"\"Return the repository's current timezone-aware clock value.\"\"\""
+    },
+    {
+      "line": 240,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "\"\"\"Issue or replay one current policy-bound owner provenance receipt.\"\"\""
+    },
+    {
+      "line": 264,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "\"\"\"Issue once with double reads and replay only after current revalidation.\"\"\""
+    },
+    {
+      "line": 382,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "\"current claimant does not own the creation allocation\""
+    },
+    {
+      "line": 450,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "current = self._read_inputs(command, cutoff)"
+    },
+    {
+      "line": 453,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "\"v4 winner no longer has current policy or actor authority\""
+    },
+    {
+      "line": 455,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "current_issuer = _server_actor(current.participants.claimant)"
+    },
+    {
+      "line": 457,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "current.participants.policy != receipt.policy"
+    },
+    {
+      "line": 458,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "or current.participants.claimant != receipt.claimant"
+    },
+    {
+      "line": 460,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "or current.participants.authority != winner.authority"
+    },
+    {
+      "line": 463,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "\"v4 winner no longer binds current actor or policy\""
+    },
+    {
+      "line": 467,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "current,"
+    },
+    {
+      "line": 476,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "current.participants.authority,"
+    },
+    {
+      "line": 480,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "\"v4 winner no longer binds current actor or policy\""
+    },
+    {
+      "line": 484,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "receipt, current.binding"
+    },
+    {
+      "line": 532,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "\"\"\"Return exact historical evidence without requiring current authority.\"\"\""
+    },
+    {
+      "line": 578,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "\"\"\"Read only the exact current head after policy, actor, root, and head re-reads.\"\"\""
+    },
+    {
+      "line": 588,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "\"\"\"Inject all current source readers required for a fail-closed read.\"\"\""
+    },
+    {
+      "line": 598,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "\"\"\"Return the exact current head only while every live source still agrees.\"\"\""
+    },
+    {
+      "line": 601,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "raise TypeError(\"command must be an exact v4 current command\")"
+    },
+    {
+      "line": 618,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "raise AccountOwnerAssignmentCorruption(\"current v4 receipt selector substitution\")"
+    },
+    {
+      "line": 639,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "raise AccountOwnerAssignmentCorruption(\"v4 current binding seal is invalid\") from error"
+    },
+    {
+      "line": 666,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "raise AccountOwnerAssignmentCorruption(\"current v4 Physical-v3 root substitution\")"
+    },
+    {
+      "line": 720,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "raise AccountOwnerAssignmentUnavailable(\"exact-current Physical-v3 is unavailable\")"
+    },
+    {
+      "line": 730,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "raise AccountOwnerAssignmentUnavailable(\"exact-current Physical-v3 is unavailable\")"
+    },
+    {
+      "line": 742,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "raise AccountOwnerAssignmentUnavailable(\"current single-owner participants are unavailable\")"
+    },
+    {
+      "line": 773,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "raise AccountOwnerAssignmentUnavailable(\"current single-owner policy is unavailable\")"
+    },
+    {
+      "line": 781,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "raise AccountOwnerAssignmentUnavailable(\"current actor authority is unavailable\")"
+    },
+    {
+      "line": 783,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "raise AccountOwnerAssignmentUnavailable(\"current participant validity is unavailable\")"
+    },
+    {
+      "line": 42,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "\"\"\"An exact V5 receipt or current parent is unavailable.\"\"\""
+    },
+    {
+      "line": 50,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "\"\"\"A repository or current reader substituted invalid V5 evidence.\"\"\""
+    },
+    {
+      "line": 169,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "\"\"\"Select one V5 receipt only while all current parents still agree.\"\"\""
+    },
+    {
+      "line": 177,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "\"\"\"Validate exact current selectors and aware cutoff.\"\"\""
+    },
+    {
+      "line": 243,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "\"\"\"Read one exact current ReobservationV1 through its public port.\"\"\""
+    },
+    {
+      "line": 248,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "\"\"\"Return the requested current ReobservationV1.\"\"\""
+    },
+    {
+      "line": 380,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "\"\"\"Inject public readers for every current source and the receipt store.\"\"\""
+    },
+    {
+      "line": 390,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "\"\"\"Return only the exact current logical V5 receipt.\"\"\""
+    },
+    {
+      "line": 393,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "raise TypeError(\"command must be an exact V5 current command\")"
+    },
+    {
+      "line": 445,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "\"\"\"Re-read the complete current policy scope and compare exact policy seals.\"\"\""
+    },
+    {
+      "line": 454,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "\"current V5 policy reader returned a substituted collection\""
+    },
+    {
+      "line": 462,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "\"current V5 policy reader returned a substituted type\""
+    },
+    {
+      "line": 472,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "\"\"\"Re-read and compare the exact current ReobservationV1.\"\"\""
+    },
+    {
+      "line": 486,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "\"current V5 ReobservationV1 type substitution\""
+    },
+    {
+      "line": 490,
+      "path": "apps/account/application/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "\"current V5 ReobservationV1 selector substitution\""
+    },
+    {
+      "line": 33,
+      "path": "apps/account/application/account_owner_assignment_subject_v5.py",
+      "text": "\"\"\"A repository or current reader substituted invalid Subject V5 evidence.\"\"\""
+    },
+    {
+      "line": 140,
+      "path": "apps/account/application/account_owner_assignment_subject_v5.py",
+      "text": "\"\"\"Select one Subject V5 only while its exact Receipt V5 remains current.\"\"\""
+    },
+    {
+      "line": 148,
+      "path": "apps/account/application/account_owner_assignment_subject_v5.py",
+      "text": "\"\"\"Validate exact current selectors and aware cutoff.\"\"\""
+    },
+    {
+      "line": 197,
+      "path": "apps/account/application/account_owner_assignment_subject_v5.py",
+      "text": "\"\"\"Read one exact Receipt V5 only while its complete parent graph is current.\"\"\""
+    },
+    {
+      "line": 202,
+      "path": "apps/account/application/account_owner_assignment_subject_v5.py",
+      "text": "\"\"\"Return the exact current Receipt V5 or no value.\"\"\""
+    },
+    {
+      "line": 296,
+      "path": "apps/account/application/account_owner_assignment_subject_v5.py",
+      "text": "\"\"\"Read Subject V5 only while its exact Receipt V5 graph is current.\"\"\""
+    },
+    {
+      "line": 304,
+      "path": "apps/account/application/account_owner_assignment_subject_v5.py",
+      "text": "\"\"\"Inject historical storage and the public current Receipt V5 reader.\"\"\""
+    },
+    {
+      "line": 312,
+      "path": "apps/account/application/account_owner_assignment_subject_v5.py",
+      "text": "\"\"\"Return only an unexpired subject with the exact current Receipt V5.\"\"\""
+    },
+    {
+      "line": 315,
+      "path": "apps/account/application/account_owner_assignment_subject_v5.py",
+      "text": "raise TypeError(\"command must be an exact Subject V5 current command\")"
+    },
+    {
+      "line": 339,
+      "path": "apps/account/application/account_owner_assignment_subject_v5.py",
+      "text": "\"current Receipt V5 reader substituted the result type\""
+    },
+    {
+      "line": 345,
+      "path": "apps/account/application/account_owner_assignment_subject_v5.py",
+      "text": "\"current Receipt V5 reader returned invalid evidence\""
+    },
+    {
+      "line": 349,
+      "path": "apps/account/application/account_owner_assignment_subject_v5.py",
+      "text": "\"current Receipt V5 reader substituted another receipt\""
+    },
+    {
       "line": 245,
       "path": "apps/account/application/account_rbac_authority_mutation_binding_v3.py",
       "text": "\"\"\"Return the exact-current raw source matching the requested hash.\"\"\""
@@ -1019,6 +1789,86 @@
       "line": 459,
       "path": "apps/account/application/canonical_account_creation.py",
       "text": "raise CanonicalAccountCreationUnavailable(\"allocation is not current-unconsumed\")"
+    },
+    {
+      "line": 142,
+      "path": "apps/account/application/canonical_account_creation_replay.py",
+      "text": "allocated-v3 current readers are intentionally absent, so a completed"
+    },
+    {
+      "line": 135,
+      "path": "apps/account/application/canonical_account_ownership_reobservation_v1.py",
+      "text": "\"\"\"Select one exact re-observation only while its physical fact is current.\"\"\""
+    },
+    {
+      "line": 143,
+      "path": "apps/account/application/canonical_account_ownership_reobservation_v1.py",
+      "text": "\"\"\"Validate the exact identity, content, and current-time selectors.\"\"\""
+    },
+    {
+      "line": 195,
+      "path": "apps/account/application/canonical_account_ownership_reobservation_v1.py",
+      "text": "\"\"\"Return the exact observation only while all upstream facts are current.\"\"\""
+    },
+    {
+      "line": 248,
+      "path": "apps/account/application/canonical_account_ownership_reobservation_v1.py",
+      "text": "\"\"\"Read exact historical evidence without applying current TTL rules.\"\"\""
+    },
+    {
+      "line": 284,
+      "path": "apps/account/application/canonical_account_ownership_reobservation_v1.py",
+      "text": "\"\"\"Read a re-observation only while its exact Physical-v2 fact is current.\"\"\""
+    },
+    {
+      "line": 292,
+      "path": "apps/account/application/canonical_account_ownership_reobservation_v1.py",
+      "text": "\"\"\"Inject historical storage and the public current-physical reader.\"\"\""
+    },
+    {
+      "line": 303,
+      "path": "apps/account/application/canonical_account_ownership_reobservation_v1.py",
+      "text": "raise TypeError(\"command must be an exact v1 current command\")"
+    },
+    {
+      "line": 315,
+      "path": "apps/account/application/canonical_account_ownership_reobservation_v1.py",
+      "text": "current = self._current_physical_reader.execute("
+    },
+    {
+      "line": 321,
+      "path": "apps/account/application/canonical_account_ownership_reobservation_v1.py",
+      "text": "if current is None:"
+    },
+    {
+      "line": 323,
+      "path": "apps/account/application/canonical_account_ownership_reobservation_v1.py",
+      "text": "if type(current) is not PhysicalAccountRowObservationV2:"
+    },
+    {
+      "line": 325,
+      "path": "apps/account/application/canonical_account_ownership_reobservation_v1.py",
+      "text": "\"current physical reader substituted the result type\""
+    },
+    {
+      "line": 328,
+      "path": "apps/account/application/canonical_account_ownership_reobservation_v1.py",
+      "text": "current.__post_init__()"
+    },
+    {
+      "line": 331,
+      "path": "apps/account/application/canonical_account_ownership_reobservation_v1.py",
+      "text": "\"current physical reader returned invalid evidence\""
+    },
+    {
+      "line": 333,
+      "path": "apps/account/application/canonical_account_ownership_reobservation_v1.py",
+      "text": "if current != exact.current_physical:"
+    },
+    {
+      "line": 335,
+      "path": "apps/account/application/canonical_account_ownership_reobservation_v1.py",
+      "text": "\"current physical reader substituted another logical head\""
     },
     {
       "line": 12,
@@ -1211,6 +2061,11 @@
       "text": "if self.freshness == \"realtime\" and self.observed_at is None:"
     },
     {
+      "line": 7,
+      "path": "apps/account/application/owner_policy_authorization_source.py",
+      "text": "configured username against the current User/Profile and a real"
+    },
+    {
       "line": 1,
       "path": "apps/account/application/owner_tenant_authority_v1.py",
       "text": "\"\"\"Approved lifecycle and exact-current reads for owner/tenant authority v1.\"\"\""
@@ -1309,6 +2164,306 @@
       "line": 678,
       "path": "apps/account/application/owner_tenant_authority_v1.py",
       "text": "\"current account owner assignment selector substitution\""
+    },
+    {
+      "line": 63,
+      "path": "apps/account/application/owner_tenant_authority_v2.py",
+      "text": "\"\"\"Approve a selected current assignment; scope, policy and clocks stay server-owned.\"\"\""
+    },
+    {
+      "line": 100,
+      "path": "apps/account/application/owner_tenant_authority_v2.py",
+      "text": "\"\"\"Read historical evidence only; this operation grants no current scope.\"\"\""
+    },
+    {
+      "line": 174,
+      "path": "apps/account/application/owner_tenant_authority_v2.py",
+      "text": "raise ValueError(\"current owner observation exceeds its exact source validity\")"
+    },
+    {
+      "line": 234,
+      "path": "apps/account/application/owner_tenant_authority_v2.py",
+      "text": "raise OwnerTenantAuthorityV2Conflict(\"decision replay is no longer current\")"
+    },
+    {
+      "line": 247,
+      "path": "apps/account/application/owner_tenant_authority_v2.py",
+      "text": "\"assignment ceased to be current before recording\""
+    },
+    {
+      "line": 279,
+      "path": "apps/account/application/owner_tenant_authority_v2.py",
+      "text": "\"\"\"Read an exact historical decision and provenance without granting current access.\"\"\""
+    },
+    {
+      "line": 384,
+      "path": "apps/account/application/owner_tenant_authority_v2.py",
+      "text": "\"\"\"Select the exact sealed winner with no current fallback.\"\"\""
+    },
+    {
+      "line": 410,
+      "path": "apps/account/application/owner_tenant_authority_v2.py",
+      "text": "\"\"\"Require exact current assignment for initial approval only.\"\"\""
+    },
+    {
+      "line": 420,
+      "path": "apps/account/application/owner_tenant_authority_v2.py",
+      "text": "raise OwnerTenantAuthorityV2Unavailable(\"current assignment is unavailable\")"
+    },
+    {
+      "line": 440,
+      "path": "apps/account/application/owner_tenant_authority_v2.py",
+      "text": "raise OwnerTenantAuthorityV2Unavailable(\"current owner participants unavailable\")"
+    },
+    {
+      "line": 556,
+      "path": "apps/account/application/owner_tenant_authority_v2.py",
+      "text": "\"\"\"Keep historical approval distinct from all current request gates.\"\"\""
+    },
+    {
+      "line": 27,
+      "path": "apps/account/application/owner_tenant_authority_v2_contracts.py",
+      "text": "\"\"\"A required current source or transaction cannot be proven.\"\"\""
+    },
+    {
+      "line": 162,
+      "path": "apps/account/application/owner_tenant_authority_v2_contracts.py",
+      "text": "\"\"\"Read the closed-current V4 graph only for initial decision approval."
+    },
+    {
+      "line": 172,
+      "path": "apps/account/application/owner_tenant_authority_v2_contracts.py",
+      "text": "\"\"\"Return the exact current assignment or fail closed.\"\"\""
+    },
+    {
+      "line": 177,
+      "path": "apps/account/application/owner_tenant_authority_v2_contracts.py",
+      "text": "\"\"\"Read durable historical V4 provenance, never reinterpret it as current.\"\"\""
+    },
+    {
+      "line": 197,
+      "path": "apps/account/application/owner_tenant_authority_v2_contracts.py",
+      "text": "Every injected current source must participate in this transaction and"
+    },
+    {
+      "line": 86,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "\"\"\"Select one current Evidence V5 for a first Authority V3 root.\"\"\""
+    },
+    {
+      "line": 119,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "\"\"\"Validate the exact current selector.\"\"\""
+    },
+    {
+      "line": 188,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "\"\"\"Keep one current Evidence V5 and participant observation comparable.\"\"\""
+    },
+    {
+      "line": 195,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "\"\"\"Orchestrate Authority V3 roots, successors, current reads, and revocations.\"\"\""
+    },
+    {
+      "line": 239,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "\"authority root winner no longer has current sources\""
+    },
+    {
+      "line": 300,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "\"authority successor winner no longer has current sources\""
+    },
+    {
+      "line": 433,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "\"\"\"Append or replay one immutable revocation with fresh current authority.\"\"\""
+    },
+    {
+      "line": 598,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "\"\"\"Read one exact current Evidence V5 through the public Application port.\"\"\""
+    },
+    {
+      "line": 610,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "raise OwnerTenantAuthorityV3Unavailable(\"current Evidence V5 is unavailable\") from error"
+    },
+    {
+      "line": 612,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "raise OwnerTenantAuthorityV3Conflict(\"current Evidence V5 conflicts\") from error"
+    },
+    {
+      "line": 614,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "raise OwnerTenantAuthorityV3Corruption(\"current Evidence V5 is corrupt\") from error"
+    },
+    {
+      "line": 616,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "raise OwnerTenantAuthorityV3Unavailable(\"current Evidence V5 is unavailable\")"
+    },
+    {
+      "line": 634,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "raise OwnerTenantAuthorityV3Unavailable(\"Evidence V5 is not current\")"
+    },
+    {
+      "line": 642,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "\"\"\"Re-read the exact current Evidence V5 sealed by one authority.\"\"\""
+    },
+    {
+      "line": 656,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "\"current Evidence V5 differs from the sealed authority assignment\""
+    },
+    {
+      "line": 665,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "\"\"\"Read current Evidence V5 and current policy/authentication at one cutoff.\"\"\""
+    },
+    {
+      "line": 671,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "\"Evidence V5 and current participant scope differ\""
+    },
+    {
+      "line": 676,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "\"\"\"Validate current policy, actor authority, roles, and finite validity.\"\"\""
+    },
+    {
+      "line": 687,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "\"current participant projection is corrupt\""
+    },
+    {
+      "line": 691,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "\"current owner/tenant policy and actor are unavailable\""
+    },
+    {
+      "line": 718,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "raise LookupError(\"current policy is unavailable\")"
+    },
+    {
+      "line": 724,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "raise LookupError(\"current owner authentication is unavailable\") from error"
+    },
+    {
+      "line": 731,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "\"current participant projection is corrupt\""
+    },
+    {
+      "line": 740,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "\"\"\"Read current policy/authentication and bind both to one Authority V3 owner.\"\"\""
+    },
+    {
+      "line": 749,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "\"current authority policy or owner actor was substituted\""
+    },
+    {
+      "line": 759,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "\"current authority actor is unavailable\""
+    },
+    {
+      "line": 788,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "\"\"\"Compare current policy/authentication facts across two re-reads.\"\"\""
+    },
+    {
+      "line": 815,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "\"\"\"Build an Authority V3 value from exact current V5 and participant facts.\"\"\""
+    },
+    {
+      "line": 855,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "current = self._repository.get_head("
+    },
+    {
+      "line": 859,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "if current is None or self._record(current) != record:"
+    },
+    {
+      "line": 867,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "\"\"\"Restore and bind a known revocation before denying current access.\"\"\""
+    },
+    {
+      "line": 891,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "\"\"\"Return a finite current observation only after two policy/auth reads.\"\"\""
+    },
+    {
+      "line": 907,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "raise OwnerTenantAuthorityV3Conflict(\"current authority sources changed\")"
+    },
+    {
+      "line": 913,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "raise OwnerTenantAuthorityV3Conflict(\"current authority sources changed\")"
+    },
+    {
+      "line": 1049,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "\"\"\"Expose current Authority V3 reads as a dedicated use case.\"\"\""
+    },
+    {
+      "line": 1060,
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "text": "\"\"\"Return one finite current Authority V3 observation.\"\"\""
+    },
+    {
+      "line": 30,
+      "path": "apps/account/application/owner_tenant_authority_v3_contracts.py",
+      "text": "\"\"\"A required current source, durable winner, or transaction is unavailable.\"\"\""
+    },
+    {
+      "line": 128,
+      "path": "apps/account/application/owner_tenant_authority_v3_contracts.py",
+      "text": "\"\"\"Read one exact-current Evidence V5 through its public Application port.\"\"\""
+    },
+    {
+      "line": 134,
+      "path": "apps/account/application/owner_tenant_authority_v3_contracts.py",
+      "text": "\"\"\"Return the selected current Evidence V5 or no value.\"\"\""
+    },
+    {
+      "line": 150,
+      "path": "apps/account/application/owner_tenant_authority_v3_contracts.py",
+      "text": "\"\"\"Read current policy and authenticated actor facts as one source projection.\"\"\""
+    },
+    {
+      "line": 153,
+      "path": "apps/account/application/owner_tenant_authority_v3_contracts.py",
+      "text": "\"\"\"Return the current policy, actor, roles, and finite validity window.\"\"\""
+    },
+    {
+      "line": 228,
+      "path": "apps/account/application/owner_tenant_authority_v3_contracts.py",
+      "text": "\"\"\"Bind an Authority V3 to one fresh current policy/authentication observation.\"\"\""
+    },
+    {
+      "line": 249,
+      "path": "apps/account/application/owner_tenant_authority_v3_contracts.py",
+      "text": "raise ValueError(\"authority is not current at the observation clock\")"
+    },
+    {
+      "line": 260,
+      "path": "apps/account/application/owner_tenant_authority_v3_contracts.py",
+      "text": "raise ValueError(\"current authority observation exceeds its source validity\")"
     },
     {
       "line": 56,
@@ -1419,6 +2574,191 @@
       "line": 28,
       "path": "apps/account/application/query_services.py",
       "text": "\"\"\"Return account summary metrics for operational diagnostics.\"\"\""
+    },
+    {
+      "line": 70,
+      "path": "apps/account/application/single_owner_actor_authority.py",
+      "text": "\"\"\"Revalidate an exact policy against its current durable source on each call.\"\"\""
+    },
+    {
+      "line": 112,
+      "path": "apps/account/application/single_owner_actor_authority.py",
+      "text": "\"\"\"Resolve both roles only while the selected policy and real admin remain current."
+    },
+    {
+      "line": 1,
+      "path": "apps/account/application/single_owner_policy_publication.py",
+      "text": "\"\"\"Publish one current source-bound single-owner policy root."
+    },
+    {
+      "line": 129,
+      "path": "apps/account/application/single_owner_policy_publication.py",
+      "text": "\"\"\"Return every current policy head for the exact scope.\"\"\""
+    },
+    {
+      "line": 191,
+      "path": "apps/account/application/single_owner_policy_publication.py",
+      "text": "\"\"\"Publish a root or return its exact current replay after revalidation."
+    },
+    {
+      "line": 229,
+      "path": "apps/account/application/single_owner_policy_publication.py",
+      "text": "current = self._current_for_scope(command, cutoff)"
+    },
+    {
+      "line": 230,
+      "path": "apps/account/application/single_owner_policy_publication.py",
+      "text": "if len(current) > 1:"
+    },
+    {
+      "line": 232,
+      "path": "apps/account/application/single_owner_policy_publication.py",
+      "text": "\"multiple current single-owner policies cover one Account scope\""
+    },
+    {
+      "line": 234,
+      "path": "apps/account/application/single_owner_policy_publication.py",
+      "text": "if current:"
+    },
+    {
+      "line": 235,
+      "path": "apps/account/application/single_owner_policy_publication.py",
+      "text": "policy = current[0]"
+    },
+    {
+      "line": 241,
+      "path": "apps/account/application/single_owner_policy_publication.py",
+      "text": "\"another current single-owner policy covers the Account scope\""
+    },
+    {
+      "line": 396,
+      "path": "apps/account/application/single_owner_policy_publication.py",
+      "text": "\"\"\"Validate every current head returned for the locked scope.\"\"\""
+    },
+    {
+      "line": 405,
+      "path": "apps/account/application/single_owner_policy_publication.py",
+      "text": "\"policy repository returned a substituted current-head collection\""
+    },
+    {
+      "line": 409,
+      "path": "apps/account/application/single_owner_policy_publication.py",
+      "text": "policy = self._sealed_policy(item, \"current single-owner policy\")"
+    },
+    {
+      "line": 415,
+      "path": "apps/account/application/single_owner_policy_publication.py",
+      "text": "\"current policy scope differs from the locked Account scope\""
+    },
+    {
+      "line": 419,
+      "path": "apps/account/application/single_owner_policy_publication.py",
+      "text": "\"repository returned an expired, revoked, or future current policy\""
+    },
+    {
+      "line": 434,
+      "path": "apps/account/application/single_owner_policy_publication.py",
+      "text": "\"\"\"Return only a full immutable replay matching current settings and TTL.\"\"\""
+    },
+    {
+      "line": 444,
+      "path": "apps/account/application/single_owner_policy_publication.py",
+      "text": "\"current single-owner policy replay TTL differs from settings\""
+    },
+    {
+      "line": 454,
+      "path": "apps/account/application/single_owner_policy_publication.py",
+      "text": "\"current single-owner policy replay differs from settings\""
+    },
+    {
+      "line": 457,
+      "path": "apps/account/application/single_owner_policy_publication.py",
+      "text": "\"current single-owner policy replay payload differs\""
+    },
+    {
+      "line": 461,
+      "path": "apps/account/application/single_owner_policy_publication.py",
+      "text": "\"current single-owner policy became non-current during replay\""
+    },
+    {
+      "line": 1,
+      "path": "apps/account/application/single_owner_policy_resolution.py",
+      "text": "\"\"\"Resolve one current single-owner policy without hiding scope collisions."
+    },
+    {
+      "line": 3,
+      "path": "apps/account/application/single_owner_policy_resolution.py",
+      "text": "This Application boundary consumes a server-owned, already current policy"
+    },
+    {
+      "line": 5,
+      "path": "apps/account/application/single_owner_policy_resolution.py",
+      "text": "tenant, or execution authority.  The reader must return every current policy"
+    },
+    {
+      "line": 28,
+      "path": "apps/account/application/single_owner_policy_resolution.py",
+      "text": "\"\"\"Read every current policy head for one exact canonical Account scope.\"\"\""
+    },
+    {
+      "line": 37,
+      "path": "apps/account/application/single_owner_policy_resolution.py",
+      "text": "\"\"\"Return all current policy heads for the supplied point in time.\"\"\""
+    },
+    {
+      "line": 86,
+      "path": "apps/account/application/single_owner_policy_resolution.py",
+      "text": "\"\"\"Resolve one exact policy binding from all current heads in one scope."
+    },
+    {
+      "line": 95,
+      "path": "apps/account/application/single_owner_policy_resolution.py",
+      "text": "\"\"\"Store the injected current-head reader without opening any store.\"\"\""
+    },
+    {
+      "line": 109,
+      "path": "apps/account/application/single_owner_policy_resolution.py",
+      "text": "\"\"\"Return the sole current policy binding, or None when none exists."
+    },
+    {
+      "line": 129,
+      "path": "apps/account/application/single_owner_policy_resolution.py",
+      "text": "\"current single-owner policy source returned a substituted collection\""
+    },
+    {
+      "line": 137,
+      "path": "apps/account/application/single_owner_policy_resolution.py",
+      "text": "\"multiple current single-owner policies cover one Account scope\""
+    },
+    {
+      "line": 147,
+      "path": "apps/account/application/single_owner_policy_resolution.py",
+      "text": "\"current single-owner policy scope or owner selector was substituted\""
+    },
+    {
+      "line": 162,
+      "path": "apps/account/application/single_owner_policy_resolution.py",
+      "text": "\"current single-owner policy could not form an exact binding\""
+    },
+    {
+      "line": 188,
+      "path": "apps/account/application/single_owner_policy_resolution.py",
+      "text": "\"\"\"Validate one complete current policy without computing missing seals.\"\"\""
+    },
+    {
+      "line": 192,
+      "path": "apps/account/application/single_owner_policy_resolution.py",
+      "text": "\"current single-owner policy source returned a substituted type\""
+    },
+    {
+      "line": 201,
+      "path": "apps/account/application/single_owner_policy_resolution.py",
+      "text": "\"current single-owner policy source returned a bad seal\""
+    },
+    {
+      "line": 205,
+      "path": "apps/account/application/single_owner_policy_resolution.py",
+      "text": "\"current single-owner policy is expired, revoked, or future\""
     },
     {
       "line": 53,
@@ -1606,6 +2946,51 @@
       "text": "\"\"\"Require this approval and its complete subject to remain current.\"\"\""
     },
     {
+      "line": 249,
+      "path": "apps/account/domain/account_owner_assignment_evidence_v4.py",
+      "text": "raise ValueError(\"subject v4 requires a current receipt and policy\")"
+    },
+    {
+      "line": 251,
+      "path": "apps/account/domain/account_owner_assignment_evidence_v4.py",
+      "text": "raise ValueError(\"subject v4 requires a current Physical v3 root\")"
+    },
+    {
+      "line": 335,
+      "path": "apps/account/domain/account_owner_assignment_evidence_v4.py",
+      "text": "\"\"\"Return whether this subject and its complete short-lived graph are current.\"\"\""
+    },
+    {
+      "line": 475,
+      "path": "apps/account/domain/account_owner_assignment_evidence_v4.py",
+      "text": "\"evidence v4 participants are not the same current staff owner\""
+    },
+    {
+      "line": 478,
+      "path": "apps/account/domain/account_owner_assignment_evidence_v4.py",
+      "text": "raise ValueError(\"evidence v4 requires a current subject when recorded\")"
+    },
+    {
+      "line": 578,
+      "path": "apps/account/domain/account_owner_assignment_evidence_v4.py",
+      "text": "\"\"\"Return whether this evidence and its complete subject remain current.\"\"\""
+    },
+    {
+      "line": 183,
+      "path": "apps/account/domain/account_owner_assignment_evidence_v5.py",
+      "text": "\"evidence v5 participants are not the same current staff owner\""
+    },
+    {
+      "line": 186,
+      "path": "apps/account/domain/account_owner_assignment_evidence_v5.py",
+      "text": "raise ValueError(\"evidence v5 requires a current subject when recorded\")"
+    },
+    {
+      "line": 292,
+      "path": "apps/account/domain/account_owner_assignment_evidence_v5.py",
+      "text": "\"\"\"Return whether this evidence and its complete subject remain current.\"\"\""
+    },
+    {
       "line": 131,
       "path": "apps/account/domain/account_owner_assignment_provenance_receipt.py",
       "text": "claimant is a current staff reviewer attesting only that the row has a legacy"
@@ -1614,6 +2999,176 @@
       "line": 169,
       "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v3.py",
       "text": "raise ValueError(\"creation root must be current when receipt is recorded\")"
+    },
+    {
+      "line": 111,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "\"\"\"Seal a staff claimant against one current single-owner policy and graph."
+    },
+    {
+      "line": 227,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "raise ValueError(\"policy must be observed and current when receipt is recorded\")"
+    },
+    {
+      "line": 229,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "raise ValueError(\"creation root must be current when receipt is recorded\")"
+    },
+    {
+      "line": 320,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "\"\"\"Return whether this receipt and its policy remain current at a cutoff.\"\"\""
+    },
+    {
+      "line": 510,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v4.py",
+      "text": "\"\"\"Return only the final visible current head; expired heads never fall back.\"\"\""
+    },
+    {
+      "line": 1,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "\"\"\"Source-bound owner provenance for a current Account re-observation."
+    },
+    {
+      "line": 4,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "uses a fresh ownership re-observation for current physical identity.  It is"
+    },
+    {
+      "line": 115,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "\"\"\"Seal one owner claimant against a current physical re-observation."
+    },
+    {
+      "line": 117,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "The nested Binding is a permanent historical identity mapping.  Current"
+    },
+    {
+      "line": 119,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "current single-owner policy.  This value records already supplied facts;"
+    },
+    {
+      "line": 163,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "\"\"\"Validate policy, permanent Binding, current re-observation, and seals.\"\"\""
+    },
+    {
+      "line": 213,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "current = self.reobservation.current_physical"
+    },
+    {
+      "line": 229,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "== current.row_user_id"
+    },
+    {
+      "line": 232,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "\"claimant, policy owner, allocation requester, and current row user must match\""
+    },
+    {
+      "line": 244,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "raise ValueError(\"policy must be observed and current when receipt is recorded\")"
+    },
+    {
+      "line": 246,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "raise ValueError(\"reobservation must be current when receipt is recorded\")"
+    },
+    {
+      "line": 248,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "raise ValueError(\"receipt cannot outlive policy or current reobservation\")"
+    },
+    {
+      "line": 332,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "\"\"\"Return whether policy, Binding, re-observation, and receipt are current.\"\"\""
+    },
+    {
+      "line": 358,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "\"\"\"Return every policy, historical graph, current row, and clock fact.\"\"\""
+    },
+    {
+      "line": 444,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "current = receipt.reobservation.current_physical"
+    },
+    {
+      "line": 475,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "current.content_hash,"
+    },
+    {
+      "line": 476,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "current.source_content_hash,"
+    },
+    {
+      "line": 477,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "current.raw_observation_content_hash,"
+    },
+    {
+      "line": 480,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "raise ValueError(\"receipt does not bind the exact Binding and current reobservation\")"
+    },
+    {
+      "line": 536,
+      "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v5.py",
+      "text": "\"\"\"Return only the final visible current v5 head; expired heads never fall back.\"\"\""
+    },
+    {
+      "line": 1,
+      "path": "apps/account/domain/account_owner_assignment_subject_v5.py",
+      "text": "\"\"\"Inactive subject evidence for a current Account ownership re-observation."
+    },
+    {
+      "line": 111,
+      "path": "apps/account/domain/account_owner_assignment_subject_v5.py",
+      "text": "\"\"\"Seal a current owner receipt, permanent Binding, and Reobservation v1.\"\"\""
+    },
+    {
+      "line": 189,
+      "path": "apps/account/domain/account_owner_assignment_subject_v5.py",
+      "text": "current = self.reobservation.current_physical"
+    },
+    {
+      "line": 220,
+      "path": "apps/account/domain/account_owner_assignment_subject_v5.py",
+      "text": "current.content_hash,"
+    },
+    {
+      "line": 221,
+      "path": "apps/account/domain/account_owner_assignment_subject_v5.py",
+      "text": "current.source_content_hash,"
+    },
+    {
+      "line": 222,
+      "path": "apps/account/domain/account_owner_assignment_subject_v5.py",
+      "text": "current.raw_observation_content_hash,"
+    },
+    {
+      "line": 232,
+      "path": "apps/account/domain/account_owner_assignment_subject_v5.py",
+      "text": "raise ValueError(\"subject v5 requires a current receipt and policy\")"
+    },
+    {
+      "line": 234,
+      "path": "apps/account/domain/account_owner_assignment_subject_v5.py",
+      "text": "raise ValueError(\"subject v5 requires a current reobservation\")"
+    },
+    {
+      "line": 327,
+      "path": "apps/account/domain/account_owner_assignment_subject_v5.py",
+      "text": "\"\"\"Return whether the complete subject and re-observation remain current.\"\"\""
     },
     {
       "line": 23,
@@ -1701,6 +3256,126 @@
       "text": "if current != expected:"
     },
     {
+      "line": 1,
+      "path": "apps/account/domain/canonical_account_ownership_reobservation_v1.py",
+      "text": "\"\"\"Current physical re-observation for a permanently bound Account creation."
+    },
+    {
+      "line": 92,
+      "path": "apps/account/domain/canonical_account_ownership_reobservation_v1.py",
+      "text": "\"\"\"Seal one current physical row against a permanent creation Binding."
+    },
+    {
+      "line": 96,
+      "path": "apps/account/domain/canonical_account_ownership_reobservation_v1.py",
+      "text": "physical observation supplies the short-lived current window, and the"
+    },
+    {
+      "line": 134,
+      "path": "apps/account/domain/canonical_account_ownership_reobservation_v1.py",
+      "text": "raise ValueError(\"recorded_at cannot precede current physical observation\")"
+    },
+    {
+      "line": 136,
+      "path": "apps/account/domain/canonical_account_ownership_reobservation_v1.py",
+      "text": "raise ValueError(\"current physical observation must be current when recorded\")"
+    },
+    {
+      "line": 138,
+      "path": "apps/account/domain/canonical_account_ownership_reobservation_v1.py",
+      "text": "raise ValueError(\"valid_until must equal current physical valid_until\")"
+    },
+    {
+      "line": 142,
+      "path": "apps/account/domain/canonical_account_ownership_reobservation_v1.py",
+      "text": "current = self.current_physical"
+    },
+    {
+      "line": 144,
+      "path": "apps/account/domain/canonical_account_ownership_reobservation_v1.py",
+      "text": "current.account_namespace != self.binding.account_namespace_claim"
+    },
+    {
+      "line": 145,
+      "path": "apps/account/domain/canonical_account_ownership_reobservation_v1.py",
+      "text": "or current.account_id != self.binding.account_id_claim"
+    },
+    {
+      "line": 147,
+      "path": "apps/account/domain/canonical_account_ownership_reobservation_v1.py",
+      "text": "raise ValueError(\"current physical canonical account scope does not match binding\")"
+    },
+    {
+      "line": 149,
+      "path": "apps/account/domain/canonical_account_ownership_reobservation_v1.py",
+      "text": "current.underlying_unified_account_namespace"
+    },
+    {
+      "line": 151,
+      "path": "apps/account/domain/canonical_account_ownership_reobservation_v1.py",
+      "text": "or current.underlying_unified_account_id"
+    },
+    {
+      "line": 154,
+      "path": "apps/account/domain/canonical_account_ownership_reobservation_v1.py",
+      "text": "raise ValueError(\"current physical underlying row scope does not match binding\")"
+    },
+    {
+      "line": 156,
+      "path": "apps/account/domain/canonical_account_ownership_reobservation_v1.py",
+      "text": "current.row_user_id != allocation.requested_row_user_id"
+    },
+    {
+      "line": 157,
+      "path": "apps/account/domain/canonical_account_ownership_reobservation_v1.py",
+      "text": "or current.row_user_id != old_physical.row_user_id"
+    },
+    {
+      "line": 159,
+      "path": "apps/account/domain/canonical_account_ownership_reobservation_v1.py",
+      "text": "raise ValueError(\"current physical row user does not match binding\")"
+    },
+    {
+      "line": 161,
+      "path": "apps/account/domain/canonical_account_ownership_reobservation_v1.py",
+      "text": "current.raw_account_type != allocation.requested_raw_account_type"
+    },
+    {
+      "line": 162,
+      "path": "apps/account/domain/canonical_account_ownership_reobservation_v1.py",
+      "text": "or current.raw_account_type != old_physical.raw_account_type"
+    },
+    {
+      "line": 164,
+      "path": "apps/account/domain/canonical_account_ownership_reobservation_v1.py",
+      "text": "raise ValueError(\"current physical raw account type does not match binding\")"
+    },
+    {
+      "line": 165,
+      "path": "apps/account/domain/canonical_account_ownership_reobservation_v1.py",
+      "text": "if current.row_created_at != old_physical.row_created_at:"
+    },
+    {
+      "line": 166,
+      "path": "apps/account/domain/canonical_account_ownership_reobservation_v1.py",
+      "text": "raise ValueError(\"current physical row_created_at does not match binding\")"
+    },
+    {
+      "line": 167,
+      "path": "apps/account/domain/canonical_account_ownership_reobservation_v1.py",
+      "text": "if current.row_updated_at < old_physical.row_updated_at:"
+    },
+    {
+      "line": 168,
+      "path": "apps/account/domain/canonical_account_ownership_reobservation_v1.py",
+      "text": "raise ValueError(\"current physical row_updated_at cannot regress\")"
+    },
+    {
+      "line": 240,
+      "path": "apps/account/domain/canonical_account_ownership_reobservation_v1.py",
+      "text": "\"\"\"Return whether this current physical fact remains usable at a PIT.\"\"\""
+    },
+    {
       "line": 182,
       "path": "apps/account/domain/interfaces.py",
       "text": "\"\"\"Update position current price and recalculate P&L.\"\"\""
@@ -1733,6 +3408,91 @@
     {
       "line": 239,
       "path": "apps/account/domain/owner_tenant_authority_v1.py",
+      "text": "raise ValueError(\"only a current active authority may receive a successor\")"
+    },
+    {
+      "line": 6,
+      "path": "apps/account/domain/owner_tenant_authority_v2.py",
+      "text": "latest selection, revocation lookup, current-policy validation, and fresh"
+    },
+    {
+      "line": 124,
+      "path": "apps/account/domain/owner_tenant_authority_v2.py",
+      "text": "assignment and policy were current at both approval and recording time."
+    },
+    {
+      "line": 127,
+      "path": "apps/account/domain/owner_tenant_authority_v2.py",
+      "text": "must revalidate durable latest, revocation, current policy, and fresh"
+    },
+    {
+      "line": 186,
+      "path": "apps/account/domain/owner_tenant_authority_v2.py",
+      "text": "raise ValueError(\"authority root requires a current assignment at both clocks\")"
+    },
+    {
+      "line": 188,
+      "path": "apps/account/domain/owner_tenant_authority_v2.py",
+      "text": "raise ValueError(\"authority root requires a current policy at both clocks\")"
+    },
+    {
+      "line": 308,
+      "path": "apps/account/domain/owner_tenant_authority_v2.py",
+      "text": "Durable latest selection, revocation, current-policy validation, and"
+    },
+    {
+      "line": 373,
+      "path": "apps/account/domain/owner_tenant_authority_v2.py",
+      "text": "event at its recorded cutoff, and still perform current-policy and fresh"
+    },
+    {
+      "line": 512,
+      "path": "apps/account/domain/owner_tenant_authority_v2.py",
+      "text": "\"\"\"Validate one active v2 root with its complete current source coverage.\"\"\""
+    },
+    {
+      "line": 6,
+      "path": "apps/account/domain/owner_tenant_authority_v3.py",
+      "text": "latest selection, revocation lookup, current-policy validation, and fresh"
+    },
+    {
+      "line": 124,
+      "path": "apps/account/domain/owner_tenant_authority_v3.py",
+      "text": "assignment and policy were current at both approval and recording time."
+    },
+    {
+      "line": 127,
+      "path": "apps/account/domain/owner_tenant_authority_v3.py",
+      "text": "must revalidate durable latest, revocation, current policy, and fresh"
+    },
+    {
+      "line": 189,
+      "path": "apps/account/domain/owner_tenant_authority_v3.py",
+      "text": "raise ValueError(\"authority root requires a current assignment at both clocks\")"
+    },
+    {
+      "line": 191,
+      "path": "apps/account/domain/owner_tenant_authority_v3.py",
+      "text": "raise ValueError(\"authority root requires a current policy at both clocks\")"
+    },
+    {
+      "line": 311,
+      "path": "apps/account/domain/owner_tenant_authority_v3.py",
+      "text": "Durable latest selection, revocation, current-policy validation, and"
+    },
+    {
+      "line": 377,
+      "path": "apps/account/domain/owner_tenant_authority_v3.py",
+      "text": "event at its recorded cutoff, and still perform current-policy and fresh"
+    },
+    {
+      "line": 516,
+      "path": "apps/account/domain/owner_tenant_authority_v3.py",
+      "text": "\"\"\"Validate one active v3 root with its complete current source coverage.\"\"\""
+    },
+    {
+      "line": 541,
+      "path": "apps/account/domain/owner_tenant_authority_v3.py",
       "text": "raise ValueError(\"only a current active authority may receive a successor\")"
     },
     {
@@ -1781,6 +3541,11 @@
       "text": "return max(0.0, (peak - current) / peak)"
     },
     {
+      "line": 252,
+      "path": "apps/account/domain/single_owner_authority_policy_v1.py",
+      "text": "raise ValueError(\"single-owner policy is not current and active\")"
+    },
+    {
       "line": 335,
       "path": "apps/account/infrastructure/account_actor_authority_raw_source_models_v3.py",
       "text": "models.Q(authority_state=\"current\", is_active=True)"
@@ -1789,6 +3554,31 @@
       "line": 414,
       "path": "apps/account/infrastructure/account_actor_authority_raw_source_models_v3.py",
       "text": "condition=models.Q(authority_state__in=(\"current\", \"revoked\")),"
+    },
+    {
+      "line": 208,
+      "path": "apps/account/infrastructure/account_actor_authority_raw_source_publisher_v3.py",
+      "text": "\"\"\"Lock and read fresh User/Profile rows after proving the current session.\"\"\""
+    },
+    {
+      "line": 322,
+      "path": "apps/account/infrastructure/account_actor_authority_raw_source_publisher_v3.py",
+      "text": "\"\"\"Return the current aware server timestamp.\"\"\""
+    },
+    {
+      "line": 540,
+      "path": "apps/account/infrastructure/account_actor_authority_raw_source_publisher_v3.py",
+      "text": "authority_state=\"current\","
+    },
+    {
+      "line": 555,
+      "path": "apps/account/infrastructure/account_actor_authority_raw_source_publisher_v3.py",
+      "text": "authority_state=\"current\","
+    },
+    {
+      "line": 577,
+      "path": "apps/account/infrastructure/account_actor_authority_raw_source_publisher_v3.py",
+      "text": "\"\"\"Ensure actor capture returned the exact roots and current request facts.\"\"\""
     },
     {
       "line": 52,
@@ -2091,6 +3881,21 @@
       "text": "return current"
     },
     {
+      "line": 81,
+      "path": "apps/account/infrastructure/account_owner_assignment_evidence_v4_repository.py",
+      "text": "\"\"\"Return the server's current time.\"\"\""
+    },
+    {
+      "line": 152,
+      "path": "apps/account/infrastructure/account_owner_assignment_evidence_v4_repository.py",
+      "text": "\"\"\"Append an exact first subject only after current durable parent validation.\"\"\""
+    },
+    {
+      "line": 91,
+      "path": "apps/account/infrastructure/account_owner_assignment_evidence_v5_repository.py",
+      "text": "\"\"\"Return the server's current time.\"\"\""
+    },
+    {
       "line": 52,
       "path": "apps/account/infrastructure/account_owner_assignment_provenance_receipt_repository.py",
       "text": "\"\"\"Return current Django time.\"\"\""
@@ -2139,6 +3944,41 @@
       "line": 238,
       "path": "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v2_repository.py",
       "text": "current = next_record"
+    },
+    {
+      "line": 68,
+      "path": "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v4_repository.py",
+      "text": "\"\"\"Return the current server time.\"\"\""
+    },
+    {
+      "line": 73,
+      "path": "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v4_repository.py",
+      "text": "\"\"\"Store immutable evidence; current authorization requires the Application reader.\"\"\""
+    },
+    {
+      "line": 143,
+      "path": "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v4_repository.py",
+      "text": "\"\"\"Return the knowable logical head, including an expired head, for current checks.\"\"\""
+    },
+    {
+      "line": 83,
+      "path": "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v5_repository.py",
+      "text": "\"\"\"Return the current server timestamp.\"\"\""
+    },
+    {
+      "line": 69,
+      "path": "apps/account/infrastructure/account_owner_assignment_subject_v5_repository.py",
+      "text": "\"\"\"Return the current server time.\"\"\""
+    },
+    {
+      "line": 74,
+      "path": "apps/account/infrastructure/account_owner_assignment_subject_v5_repository.py",
+      "text": "\"\"\"Store Subject V5 rows while leaving current authority to Application readers.\"\"\""
+    },
+    {
+      "line": 149,
+      "path": "apps/account/infrastructure/account_owner_assignment_subject_v5_repository.py",
+      "text": "\"\"\"Return exact historical evidence without applying current TTL rules.\"\"\""
     },
     {
       "line": 206,
@@ -2271,6 +4111,21 @@
       "text": "\"\"\"Acquire the exclusive maintenance lock for the current transaction."
     },
     {
+      "line": 1,
+      "path": "apps/account/infrastructure/canonical_account_ownership_reobservation_v1_codec.py",
+      "text": "\"\"\"Strict JSON boundary for inactive current ownership evidence.\"\"\""
+    },
+    {
+      "line": 96,
+      "path": "apps/account/infrastructure/canonical_account_ownership_reobservation_v1_repository.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 235,
+      "path": "apps/account/infrastructure/canonical_account_ownership_reobservation_v1_repository.py",
+      "text": "\"\"\"Return one exact historical record without TTL or current filtering.\"\"\""
+    },
+    {
       "line": 181,
       "path": "apps/account/infrastructure/classification_models.py",
       "text": "current = self.parent"
@@ -2356,6 +4211,11 @@
       "text": "\"summary\": {"
     },
     {
+      "line": 68,
+      "path": "apps/account/infrastructure/creation_authentication_transaction.py",
+      "text": "These facts authorize only the current creation request. They do not publish"
+    },
+    {
       "line": 22,
       "path": "apps/account/infrastructure/diagnostic_queries.py",
       "text": "\"\"\"Read account summary counts for operational diagnostics.\"\"\""
@@ -2399,6 +4259,46 @@
       "line": 47,
       "path": "apps/account/infrastructure/owner_tenant_authority_v1_repository.py",
       "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 98,
+      "path": "apps/account/infrastructure/owner_tenant_authority_v2_repository.py",
+      "text": "\"\"\"Return an exact timezone-aware current timestamp.\"\"\""
+    },
+    {
+      "line": 107,
+      "path": "apps/account/infrastructure/owner_tenant_authority_v2_repository.py",
+      "text": "\"\"\"Return the current timezone-aware timestamp.\"\"\""
+    },
+    {
+      "line": 579,
+      "path": "apps/account/infrastructure/owner_tenant_authority_v2_repository.py",
+      "text": "\"owner tenant authority v2 actor parent is not current at recording\""
+    },
+    {
+      "line": 652,
+      "path": "apps/account/infrastructure/owner_tenant_authority_v2_repository.py",
+      "text": "\"owner tenant authority v2 revocation actor is not current at event\""
+    },
+    {
+      "line": 93,
+      "path": "apps/account/infrastructure/owner_tenant_authority_v3_repository.py",
+      "text": "\"\"\"Return an exact timezone-aware current timestamp.\"\"\""
+    },
+    {
+      "line": 102,
+      "path": "apps/account/infrastructure/owner_tenant_authority_v3_repository.py",
+      "text": "\"\"\"Return the current timezone-aware timestamp.\"\"\""
+    },
+    {
+      "line": 728,
+      "path": "apps/account/infrastructure/owner_tenant_authority_v3_repository.py",
+      "text": "\"owner tenant authority v3 actor parent is not current at recording\""
+    },
+    {
+      "line": 805,
+      "path": "apps/account/infrastructure/owner_tenant_authority_v3_repository.py",
+      "text": "\"owner tenant authority v3 revocation actor is not current at event\""
     },
     {
       "line": 62,
@@ -2519,6 +4419,41 @@
       "line": 813,
       "path": "apps/account/infrastructure/repositories.py",
       "text": "payload[\"version\"] = (current.version + 1) if current is not None else 1"
+    },
+    {
+      "line": 138,
+      "path": "apps/account/infrastructure/single_owner_authority_policy_v1_repository.py",
+      "text": "\"\"\"Return the exact current head, never falling back to an older row.\"\"\""
+    },
+    {
+      "line": 171,
+      "path": "apps/account/infrastructure/single_owner_authority_policy_v1_repository.py",
+      "text": "\"\"\"Return every current chain head for a scope, retaining owner collisions."
+    },
+    {
+      "line": 515,
+      "path": "apps/account/infrastructure/single_owner_authority_policy_v1_repository.py",
+      "text": "current = root"
+    },
+    {
+      "line": 517,
+      "path": "apps/account/infrastructure/single_owner_authority_policy_v1_repository.py",
+      "text": "row, value = current"
+    },
+    {
+      "line": 530,
+      "path": "apps/account/infrastructure/single_owner_authority_policy_v1_repository.py",
+      "text": "current = child"
+    },
+    {
+      "line": 1,
+      "path": "apps/account/infrastructure/single_owner_policy_authentication.py",
+      "text": "\"\"\"Bind a declared policy owner to locked current Session and User facts.\"\"\""
+    },
+    {
+      "line": 41,
+      "path": "apps/account/infrastructure/single_owner_policy_authentication.py",
+      "text": "boundary additionally verifies the declaration and current administrator"
     },
     {
       "line": 87,
@@ -2739,6 +4674,66 @@
       "line": 63,
       "path": "apps/account/owner_tenant_authority_v1_composition.py",
       "text": "\"\"\"Build controlled writers; callers must supply current authenticated approval.\"\"\""
+    },
+    {
+      "line": 123,
+      "path": "apps/account/owner_tenant_authority_v2_composition.py",
+      "text": "\"\"\"Keep current authority locked through a trusted synchronous read."
+    },
+    {
+      "line": 153,
+      "path": "apps/account/owner_tenant_authority_v2_composition.py",
+      "text": "\"\"\"Approve or revalidate one immutable decision under all current sources.\"\"\""
+    },
+    {
+      "line": 159,
+      "path": "apps/account/owner_tenant_authority_v2_composition.py",
+      "text": "\"\"\"Observe current ownership through fresh authenticated source reads.\"\"\""
+    },
+    {
+      "line": 165,
+      "path": "apps/account/owner_tenant_authority_v2_composition.py",
+      "text": "\"\"\"Record an explicit immutable revocation by the current authenticated owner.\"\"\""
+    },
+    {
+      "line": 89,
+      "path": "apps/account/owner_tenant_authority_v3_composition.py",
+      "text": "\"\"\"Adapt the public Evidence V5 current facade to the V3 reader port.\"\"\""
+    },
+    {
+      "line": 100,
+      "path": "apps/account/owner_tenant_authority_v3_composition.py",
+      "text": "\"\"\"Read the selected current Evidence V5 through its public facade.\"\"\""
+    },
+    {
+      "line": 126,
+      "path": "apps/account/owner_tenant_authority_v3_composition.py",
+      "text": "Current observations are short-lived values.  ``with_current`` invokes a"
+    },
+    {
+      "line": 181,
+      "path": "apps/account/owner_tenant_authority_v3_composition.py",
+      "text": "\"\"\"Return one finite observation after current source revalidation.\"\"\""
+    },
+    {
+      "line": 200,
+      "path": "apps/account/owner_tenant_authority_v3_composition.py",
+      "text": "The callback receives only the current observation and runs inside the"
+    },
+    {
+      "line": 34,
+      "path": "apps/account/policy_publication_binding_composition.py",
+      "text": "Permanent binding knowledge does not make the old physical observation current."
+    },
+    {
+      "line": 43,
+      "path": "apps/account/single_owner_authority_policy_composition.py",
+      "text": "\"\"\"Bind both durable sources to one alias for current, non-granting role reads."
+    },
+    {
+      "line": 15,
+      "path": "apps/account/single_owner_policy_publication_composition.py",
+      "text": "\"\"\"Bind the repository and current inputs without manufacturing an identity.\"\"\""
     },
     {
       "line": 12,
@@ -9611,57 +11606,57 @@
       "text": "status=str(summary[\"status\"]),"
     },
     {
-      "line": 68,
+      "line": 70,
       "path": "apps/data_center/infrastructure/egress_transport.py",
       "text": "local current = tonumber(redis.call('GET', KEYS[1]) or '0')"
     },
     {
-      "line": 70,
+      "line": 72,
       "path": "apps/data_center/infrastructure/egress_transport.py",
       "text": "if current >= limit then return 0 end"
     },
     {
-      "line": 76,
+      "line": 78,
       "path": "apps/data_center/infrastructure/egress_transport.py",
       "text": "local current = tonumber(redis.call('GET', KEYS[1]) or '0')"
     },
     {
-      "line": 77,
+      "line": 79,
       "path": "apps/data_center/infrastructure/egress_transport.py",
       "text": "if current <= 1 then redis.call('DEL', KEYS[1]); return 0 end"
     },
     {
-      "line": 106,
+      "line": 108,
       "path": "apps/data_center/infrastructure/egress_transport.py",
       "text": "current = self._local_counts.get(key, 0)"
-    },
-    {
-      "line": 107,
-      "path": "apps/data_center/infrastructure/egress_transport.py",
-      "text": "if current >= limit:"
     },
     {
       "line": 109,
       "path": "apps/data_center/infrastructure/egress_transport.py",
+      "text": "if current >= limit:"
+    },
+    {
+      "line": 111,
+      "path": "apps/data_center/infrastructure/egress_transport.py",
       "text": "self._local_counts[key] = current + 1"
     },
     {
-      "line": 113,
+      "line": 115,
       "path": "apps/data_center/infrastructure/egress_transport.py",
       "text": "\"\"\"Return whether the latest acquire failed closed for missing Redis.\"\"\""
     },
     {
-      "line": 132,
+      "line": 134,
       "path": "apps/data_center/infrastructure/egress_transport.py",
       "text": "current = self._local_counts.get(key, 0)"
     },
     {
-      "line": 133,
+      "line": 135,
       "path": "apps/data_center/infrastructure/egress_transport.py",
       "text": "if current <= 1:"
     },
     {
-      "line": 136,
+      "line": 138,
       "path": "apps/data_center/infrastructure/egress_transport.py",
       "text": "self._local_counts[key] = current - 1"
     },
@@ -19621,6 +21616,21 @@
       "text": "return Response(summary)"
     },
     {
+      "line": 1,
+      "path": "apps/simulated_trading/account_reobservation_composition.py",
+      "text": "\"\"\"Compose current physical reads and successor observations on one database.\"\"\""
+    },
+    {
+      "line": 75,
+      "path": "apps/simulated_trading/application/account_row_reobservation.py",
+      "text": "\"\"\"Record current source facts without changing the physical database row.\"\"\""
+    },
+    {
+      "line": 153,
+      "path": "apps/simulated_trading/application/account_row_reobservation.py",
+      "text": "raise CurrentAccountOwnershipUnavailable(\"current physical account is unavailable\")"
+    },
+    {
       "line": 190,
       "path": "apps/simulated_trading/application/asset_pool_query_service.py",
       "text": "summary = self.asset_pool_repo.summarize_pool_counts(asset_type=asset_type)"
@@ -19641,6 +21651,21 @@
       "text": "\"\"\"Return whether current price satisfies optional execution bands.\"\"\""
     },
     {
+      "line": 9,
+      "path": "apps/simulated_trading/application/canonical_account_creation_read.py",
+      "text": "\"\"\"Read current rows inside the same user-serialized creation transaction.\"\"\""
+    },
+    {
+      "line": 18,
+      "path": "apps/simulated_trading/application/canonical_account_creation_read.py",
+      "text": "\"\"\"Lock and read an active row only when current owner and type match.\"\"\""
+    },
+    {
+      "line": 151,
+      "path": "apps/simulated_trading/application/canonical_account_creation_request.py",
+      "text": "\"\"\"Materialize a new row input with the caller's current server date.\"\"\""
+    },
+    {
       "line": 1,
       "path": "apps/simulated_trading/application/consumer_gateways.py",
       "text": "\"\"\"Register Simulated Trading providers with Realtime and Strategy consumers.\"\"\""
@@ -19649,6 +21674,11 @@
       "line": 5,
       "path": "apps/simulated_trading/application/consumer_gateways.py",
       "text": "from apps.realtime.application.simulated_trading_gateway import ("
+    },
+    {
+      "line": 66,
+      "path": "apps/simulated_trading/application/current_account_ownership.py",
+      "text": "\"\"\"Read current source facts; reject snapshots and calls outside a transaction.\"\"\""
     },
     {
       "line": 82,
@@ -19996,6 +22026,16 @@
       "text": "return summary"
     },
     {
+      "line": 18,
+      "path": "apps/simulated_trading/infrastructure/canonical_account_creation_reader.py",
+      "text": "\"\"\"Read exact current owner rows while the caller holds the user's lock.\"\"\""
+    },
+    {
+      "line": 70,
+      "path": "apps/simulated_trading/infrastructure/canonical_account_creation_reader.py",
+      "text": "\"\"\"Lock current physical ownership without falling back to historic rows.\"\"\""
+    },
+    {
       "line": 86,
       "path": "apps/simulated_trading/infrastructure/inspection_repository.py",
       "text": "\"summary\": report.summary,"
@@ -20236,12 +22276,12 @@
       "text": "return Response({\"success\": True, **summary})"
     },
     {
-      "line": 398,
+      "line": 459,
       "path": "apps/simulated_trading/interface/serializers.py",
       "text": "summary = serializers.DictField("
     },
     {
-      "line": 423,
+      "line": 484,
       "path": "apps/simulated_trading/interface/serializers.py",
       "text": "summary = serializers.DictField()"
     },
@@ -20251,112 +22291,112 @@
       "text": "\"\"\"Read or update the current user's account notification settings.\"\"\""
     },
     {
-      "line": 367,
+      "line": 377,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "summary=\"获取统一账户列表\","
     },
     {
-      "line": 433,
+      "line": 443,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "summary=\"创建账户\","
     },
     {
-      "line": 500,
+      "line": 529,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "summary=\"获取账户详情\","
     },
     {
-      "line": 529,
+      "line": 558,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "summary=\"删除账户\","
     },
     {
-      "line": 544,
+      "line": 573,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "summary = _delete_account_with_summary(account)"
     },
     {
-      "line": 548,
+      "line": 577,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "**summary,"
     },
     {
-      "line": 549,
+      "line": 578,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "\"message\": f\"账户 {summary['account_name']} 已删除\","
     },
     {
-      "line": 558,
+      "line": 587,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "summary=\"批量删除账户\","
     },
     {
-      "line": 583,
+      "line": 612,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "summary = _delete_account_with_summary(account)"
     },
     {
-      "line": 584,
+      "line": 613,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "deleted_account_ids.append(summary[\"account_id\"])"
     },
     {
-      "line": 585,
+      "line": 614,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "deleted_account_names.append(summary[\"account_name\"])"
     },
     {
-      "line": 609,
+      "line": 638,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "summary=\"获取账户持仓列表\","
     },
     {
-      "line": 688,
+      "line": 717,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "summary=\"获取账户交易记录\","
     },
     {
-      "line": 844,
+      "line": 873,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "summary=\"获取账户绩效\","
     },
     {
-      "line": 907,
+      "line": 936,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "summary=\"手动交易\","
     },
     {
-      "line": 1024,
+      "line": 1053,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "summary=\"获取费率配置列表\","
     },
     {
-      "line": 1074,
+      "line": 1103,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "summary=\"获取净值曲线\","
     },
     {
-      "line": 1183,
+      "line": 1212,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "summary=\"执行自动交易\","
     },
     {
-      "line": 1209,
+      "line": 1238,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "\"summary\": {"
     },
     {
-      "line": 1240,
+      "line": 1269,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "\"summary\": {"
     },
     {
-      "line": 1257,
+      "line": 1286,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "summary=\"执行账户日更巡检\","
     },
     {
-      "line": 1301,
+      "line": 1330,
       "path": "apps/simulated_trading/interface/views.py",
       "text": "summary=\"获取账户日更巡检历史\","
     },
@@ -20946,7 +22986,7 @@
       "text": "\"body\": self._operator_text(screen[\"summary\"]),"
     },
     {
-      "line": 916,
+      "line": 928,
       "path": "apps/terminal/application/tui_workbench.py",
       "text": "\"\"\"Return whether an action belongs to the current user's role.\"\"\""
     },
@@ -22061,6 +24101,51 @@
       "text": "return Regime.objects.latest('observed_at')"
     },
     {
+      "line": 102,
+      "path": "core/integration/bound_single_owner_policy_publication.py",
+      "text": "current = _current_inputs(self.environment)"
+    },
+    {
+      "line": 103,
+      "path": "core/integration/bound_single_owner_policy_publication.py",
+      "text": "return current if current == self.expected else None"
+    },
+    {
+      "line": 164,
+      "path": "core/integration/bound_single_owner_policy_publication.py",
+      "text": "raise ExternalServiceError(\"Published policy is no longer current before commit\")"
+    },
+    {
+      "line": 109,
+      "path": "core/integration/canonical_account_creation.py",
+      "text": "current = owner_stages.account_reader.read_owned("
+    },
+    {
+      "line": 114,
+      "path": "core/integration/canonical_account_creation.py",
+      "text": "if current is None:"
+    },
+    {
+      "line": 118,
+      "path": "core/integration/canonical_account_creation.py",
+      "text": "return CanonicalAccountCreationResult(account=current, binding=completed, replayed=True)"
+    },
+    {
+      "line": 1,
+      "path": "core/integration/canonical_account_ownership_reobservation.py",
+      "text": "\"\"\"Compose a current ownership re-observation from permanent creation evidence."
+    },
+    {
+      "line": 99,
+      "path": "core/integration/canonical_account_ownership_reobservation.py",
+      "text": "\"\"\"Required permanent or current ownership evidence is unavailable.\"\"\""
+    },
+    {
+      "line": 387,
+      "path": "core/integration/canonical_account_ownership_reobservation.py",
+      "text": "\"\"\"Record one current physical re-observation under a trusted user lock."
+    },
+    {
       "line": 9,
       "path": "core/integration/data_center_readiness.py",
       "text": "\"\"\"Owner facade consumed by Config Center readiness and summary screens.\"\"\""
@@ -22094,6 +24179,236 @@
       "line": 270,
       "path": "core/integration/owner_tenant_evidence_scope_v1.py",
       "text": "\"current owner/tenant observation is unavailable\""
+    },
+    {
+      "line": 1,
+      "path": "core/integration/owner_tenant_evidence_scope_v2.py",
+      "text": "\"\"\"Current Account owner authorization for request-only Research Evidence reads.\"\"\""
+    },
+    {
+      "line": 132,
+      "path": "core/integration/owner_tenant_evidence_scope_v2.py",
+      "text": "\"\"\"Account composition port retaining current source locks through a callback.\"\"\""
+    },
+    {
+      "line": 143,
+      "path": "core/integration/owner_tenant_evidence_scope_v2.py",
+      "text": "\"\"\"Run a synchronous materializing operation under current owner locks.\"\"\""
+    },
+    {
+      "line": 153,
+      "path": "core/integration/owner_tenant_evidence_scope_v2.py",
+      "text": "\"\"\"Return one timezone-aware current server timestamp.\"\"\""
+    },
+    {
+      "line": 160,
+      "path": "core/integration/owner_tenant_evidence_scope_v2.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 166,
+      "path": "core/integration/owner_tenant_evidence_scope_v2.py",
+      "text": "\"\"\"Read exact Research evidence under a current Account owner decision."
+    },
+    {
+      "line": 171,
+      "path": "core/integration/owner_tenant_evidence_scope_v2.py",
+      "text": "always established at the current server clock first."
+    },
+    {
+      "line": 360,
+      "path": "core/integration/owner_tenant_evidence_scope_v2.py",
+      "text": "def read(current: CurrentOwnerTenantAuthorityV2) -> _Result | None:"
+    },
+    {
+      "line": 362,
+      "path": "core/integration/owner_tenant_evidence_scope_v2.py",
+      "text": "request_scope = self._prepare_scope(current, artifact)"
+    },
+    {
+      "line": 367,
+      "path": "core/integration/owner_tenant_evidence_scope_v2.py",
+      "text": "raise EvidenceScopeCorruption(\"current authority clock predates request clock\")"
+    },
+    {
+      "line": 377,
+      "path": "core/integration/owner_tenant_evidence_scope_v2.py",
+      "text": "if after < before or after >= request_scope.valid_until or after >= current.valid_until:"
+    },
+    {
+      "line": 386,
+      "path": "core/integration/owner_tenant_evidence_scope_v2.py",
+      "text": "raise EvidenceScopeCorruption(\"current owner authority is corrupt\") from error"
+    },
+    {
+      "line": 406,
+      "path": "core/integration/owner_tenant_evidence_scope_v2.py",
+      "text": "current: CurrentOwnerTenantAuthorityV2,"
+    },
+    {
+      "line": 409,
+      "path": "core/integration/owner_tenant_evidence_scope_v2.py",
+      "text": "\"\"\"Validate current Account facts and return this request's short deadline.\"\"\""
+    },
+    {
+      "line": 411,
+      "path": "core/integration/owner_tenant_evidence_scope_v2.py",
+      "text": "if type(current) is not CurrentOwnerTenantAuthorityV2:"
+    },
+    {
+      "line": 412,
+      "path": "core/integration/owner_tenant_evidence_scope_v2.py",
+      "text": "raise EvidenceScopeCorruption(\"current owner authority type substitution\")"
+    },
+    {
+      "line": 414,
+      "path": "core/integration/owner_tenant_evidence_scope_v2.py",
+      "text": "current.__post_init__()"
+    },
+    {
+      "line": 416,
+      "path": "core/integration/owner_tenant_evidence_scope_v2.py",
+      "text": "raise EvidenceScopeCorruption(\"current owner authority is invalid\") from error"
+    },
+    {
+      "line": 418,
+      "path": "core/integration/owner_tenant_evidence_scope_v2.py",
+      "text": "authority = current.authority"
+    },
+    {
+      "line": 428,
+      "path": "core/integration/owner_tenant_evidence_scope_v2.py",
+      "text": "raise EvidenceScopeCorruption(\"current owner authority selector substitution\")"
+    },
+    {
+      "line": 430,
+      "path": "core/integration/owner_tenant_evidence_scope_v2.py",
+      "text": "current.valid_until,"
+    },
+    {
+      "line": 431,
+      "path": "core/integration/owner_tenant_evidence_scope_v2.py",
+      "text": "current.observed_at + self._scope_ttl,"
+    },
+    {
+      "line": 433,
+      "path": "core/integration/owner_tenant_evidence_scope_v2.py",
+      "text": "authentication = current.authentication"
+    },
+    {
+      "line": 445,
+      "path": "core/integration/owner_tenant_evidence_scope_v2.py",
+      "text": "recorded_at=current.observed_at,"
+    },
+    {
+      "line": 158,
+      "path": "core/integration/owner_tenant_evidence_scope_v3.py",
+      "text": "\"\"\"Account facade port retaining current V3 source locks through a callback.\"\"\""
+    },
+    {
+      "line": 169,
+      "path": "core/integration/owner_tenant_evidence_scope_v3.py",
+      "text": "\"\"\"Run a synchronous materializing operation under current Authority locks.\"\"\""
+    },
+    {
+      "line": 179,
+      "path": "core/integration/owner_tenant_evidence_scope_v3.py",
+      "text": "\"\"\"Return one timezone-aware current server timestamp.\"\"\""
+    },
+    {
+      "line": 186,
+      "path": "core/integration/owner_tenant_evidence_scope_v3.py",
+      "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "line": 192,
+      "path": "core/integration/owner_tenant_evidence_scope_v3.py",
+      "text": "\"\"\"Read exact Research Evidence under a current Authority V3 decision."
+    },
+    {
+      "line": 382,
+      "path": "core/integration/owner_tenant_evidence_scope_v3.py",
+      "text": "def read(current: CurrentOwnerTenantAuthorityV3) -> _Result | None:"
+    },
+    {
+      "line": 384,
+      "path": "core/integration/owner_tenant_evidence_scope_v3.py",
+      "text": "request_scope = self._prepare_scope(current, artifact)"
+    },
+    {
+      "line": 389,
+      "path": "core/integration/owner_tenant_evidence_scope_v3.py",
+      "text": "raise EvidenceScopeCorruption(\"current authority clock predates request clock\")"
+    },
+    {
+      "line": 408,
+      "path": "core/integration/owner_tenant_evidence_scope_v3.py",
+      "text": "raise EvidenceScopeCorruption(\"current owner authority is corrupt\") from error"
+    },
+    {
+      "line": 428,
+      "path": "core/integration/owner_tenant_evidence_scope_v3.py",
+      "text": "current: CurrentOwnerTenantAuthorityV3,"
+    },
+    {
+      "line": 431,
+      "path": "core/integration/owner_tenant_evidence_scope_v3.py",
+      "text": "\"\"\"Validate exact current V3 sources and calculate a short deadline.\"\"\""
+    },
+    {
+      "line": 433,
+      "path": "core/integration/owner_tenant_evidence_scope_v3.py",
+      "text": "if type(current) is not CurrentOwnerTenantAuthorityV3:"
+    },
+    {
+      "line": 434,
+      "path": "core/integration/owner_tenant_evidence_scope_v3.py",
+      "text": "raise EvidenceScopeCorruption(\"current owner authority type substitution\")"
+    },
+    {
+      "line": 436,
+      "path": "core/integration/owner_tenant_evidence_scope_v3.py",
+      "text": "current.__post_init__()"
+    },
+    {
+      "line": 438,
+      "path": "core/integration/owner_tenant_evidence_scope_v3.py",
+      "text": "raise EvidenceScopeCorruption(\"current owner authority is invalid\") from error"
+    },
+    {
+      "line": 440,
+      "path": "core/integration/owner_tenant_evidence_scope_v3.py",
+      "text": "authority = current.authority"
+    },
+    {
+      "line": 450,
+      "path": "core/integration/owner_tenant_evidence_scope_v3.py",
+      "text": "raise EvidenceScopeCorruption(\"current owner authority selector substitution\")"
+    },
+    {
+      "line": 452,
+      "path": "core/integration/owner_tenant_evidence_scope_v3.py",
+      "text": "current.valid_until,"
+    },
+    {
+      "line": 454,
+      "path": "core/integration/owner_tenant_evidence_scope_v3.py",
+      "text": "current.authentication.valid_until,"
+    },
+    {
+      "line": 455,
+      "path": "core/integration/owner_tenant_evidence_scope_v3.py",
+      "text": "current.observed_at + self._scope_ttl,"
+    },
+    {
+      "line": 457,
+      "path": "core/integration/owner_tenant_evidence_scope_v3.py",
+      "text": "authentication = current.authentication"
+    },
+    {
+      "line": 470,
+      "path": "core/integration/owner_tenant_evidence_scope_v3.py",
+      "text": "recorded_at=current.observed_at,"
     },
     {
       "line": 20,
