@@ -11,7 +11,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Protocol, TypeAlias
 
-from apps.research.application.evidence_reads import ScopedEvidenceReadFacade
+from apps.research.application.evidence_reads import (
+    EvidenceReadRepository,
+    ScopedEvidenceReadFacade,
+)
 from apps.research.application.evidence_scope import (
     EvidenceScopeAuthorizer,
     EvidenceScopeGrant,
@@ -38,6 +41,14 @@ class _UnitOfWorkBound(Protocol):
     @property
     def unit_of_work_key(self) -> str:
         """Return the server-side transaction identity."""
+
+
+class EvidenceReadPort(EvidenceReadRepository, Protocol):
+    """Public same-alias Research read port for cross-App composition roots."""
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the Django transaction identity used by every read."""
 
 
 def _django_unit_of_work_key(using: object) -> str:
@@ -98,6 +109,21 @@ def make_evidence_read_facade(*, using: str = "default") -> ScopedEvidenceReadFa
         DjangoEvidenceRepository(using=using),
         scope_authorizer=EvidenceScopeAuthorizer(_UnwiredEvidenceScopeProvider()),
     )
+
+
+def make_evidence_read_repository(*, using: str = "default") -> EvidenceReadPort:
+    """Build the public exact-read port without exposing Infrastructure to callers."""
+
+    expected_unit = _django_unit_of_work_key(using)
+    from apps.research.infrastructure.evidence_repository import DjangoEvidenceRepository
+
+    repository = DjangoEvidenceRepository(using=using)
+    _require_unit_of_work_key(
+        repository,
+        expected=expected_unit,
+        label="Evidence repository",
+    )
+    return repository
 
 
 def make_authorized_evidence_read_facade(
@@ -175,7 +201,9 @@ def make_evidence_scope_source_v1_lifecycle_repository(
 
 __all__ = [
     "OwnerScopedEvidenceReadFacade",
+    "EvidenceReadPort",
     "make_authorized_evidence_read_facade",
     "make_evidence_read_facade",
+    "make_evidence_read_repository",
     "make_evidence_scope_source_v1_lifecycle_repository",
 ]
