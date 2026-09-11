@@ -11,12 +11,28 @@ from apps.simulated_trading.infrastructure.simulated_account_row_source_v2_repos
 )
 
 
-def build_account_physical_row_v2_provider() -> ExactPhysicalSimulatedAccountRowV2Provider:
+def build_account_physical_row_v2_provider(
+    *, using: str = "default"
+) -> ExactPhysicalSimulatedAccountRowV2Provider:
     """Build the read-only source-v2 adapter consumed by Account capture."""
 
+    alias = _require_database_alias(using)
     return DjangoExactPhysicalSimulatedAccountRowV2Provider(
-        DjangoSimulatedAccountRowSourceV2Repository()
+        DjangoSimulatedAccountRowSourceV2Repository(using=alias)
     )
+
+
+def _require_database_alias(using: object) -> str:
+    """Validate and return one exact, non-whitespace Django database alias."""
+
+    if (
+        type(using) is not str
+        or not using
+        or using.strip() != using
+        or any(character.isspace() for character in using)
+    ):
+        raise ValueError("using must be an exact database alias")
+    return using
 
 
 __all__ = ["build_account_physical_row_v2_provider"]

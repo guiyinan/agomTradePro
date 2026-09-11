@@ -6,10 +6,16 @@
 - 禁止业务逻辑
 """
 
+from collections.abc import Mapping
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 from rest_framework import serializers
+
+from apps.simulated_trading.application.canonical_account_creation_input import (
+    CanonicalAccountCreationInput,
+)
+from apps.simulated_trading.domain.entities import AccountType
 
 # ============================================================================
 # 账户相关序列化器
@@ -28,7 +34,7 @@ class CreateAccountRequestSerializer(serializers.Serializer[dict[str, Any]]):
     )
     initial_capital = serializers.DecimalField(
         required=True,
-        max_digits=18,
+        max_digits=15,
         decimal_places=2,
         min_value=Decimal("1000.00"),
         help_text="初始资金（元）",
@@ -50,8 +56,55 @@ class CreateAccountRequestSerializer(serializers.Serializer[dict[str, Any]]):
         required=False, default=0.001, min_value=0.0, max_value=0.01, help_text="滑点率"
     )
     fee_config_id = serializers.IntegerField(
-        required=False, allow_null=True, help_text="费率配置ID"
+        required=False, allow_null=True, help_text="暂不支持指定费率配置，请省略或传 null"
     )
+
+    def validate_fee_config_id(self, value: int | None) -> None:
+        """Reject a configuration selector that the creation use case cannot consume."""
+
+        if value is not None:
+            raise serializers.ValidationError(
+                "暂不支持指定费率配置，请直接填写手续费率和滑点率。",
+                code="unsupported_fee_configuration",
+            )
+        return None
+
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
+        """Reject unknown fields, including caller-selected identity or authority."""
+
+        if isinstance(data, Mapping) and set(data) - set(self.fields):
+            raise serializers.ValidationError(
+                {"non_field_errors": ["创建账户请求包含不支持的字段。"]}
+            )
+        return cast(dict[str, Any], super().to_internal_value(data))
+
+    def to_creation_input(self, *, request_key: str) -> CanonicalAccountCreationInput:
+        """Narrow validated transport values into identity-free application input."""
+
+        data = self.validated_data
+        return CanonicalAccountCreationInput(
+            request_key=request_key,
+            account_name=cast(str, data["account_name"]),
+            account_type=AccountType(data["account_type"]),
+            initial_capital=float(cast(Decimal, data["initial_capital"])),
+            max_position_pct=cast(float, data["max_position_pct"]),
+            stop_loss_pct=cast(float | None, data.get("stop_loss_pct")),
+            commission_rate=cast(float, data["commission_rate"]),
+            slippage_rate=cast(float, data["slippage_rate"]),
+        )
+
+
+class AccountCreationKeySerializer(serializers.Serializer[dict[str, Any]]):
+    """Validate the independent idempotency header without rewriting its value."""
+
+    request_key = serializers.CharField(max_length=192, trim_whitespace=False)
+
+    def validate_request_key(self, value: str) -> str:
+        """Require an opaque bounded token compatible with the creation identity."""
+
+        if any(character.isspace() for character in value):
+            raise serializers.ValidationError("幂等键不能包含空白字符。")
+        return value
 
 
 class AccountResponseSerializer(serializers.Serializer[dict[str, Any]]):
@@ -79,7 +132,7 @@ class AccountResponseSerializer(serializers.Serializer[dict[str, Any]]):
     auto_trading_enabled = serializers.BooleanField()
     start_date = serializers.DateField()
     last_trade_date = serializers.DateField(allow_null=True)
-    created_at = serializers.DateTimeField()
+    created_at = serializers.DateTimeField(allow_null=True)
 
 
 class AccountListResponseSerializer(serializers.Serializer[dict[str, Any]]):
@@ -88,6 +141,14 @@ class AccountListResponseSerializer(serializers.Serializer[dict[str, Any]]):
     success = serializers.BooleanField()
     count = serializers.IntegerField()
     accounts = AccountResponseSerializer(many=True)
+
+
+class AccountCreateResponseSerializer(serializers.Serializer[dict[str, Any]]):
+    """Describe both initial creation and an idempotent replay response."""
+
+    success = serializers.BooleanField()
+    account = AccountResponseSerializer()
+    replayed = serializers.BooleanField()
 
 
 class AccountDeleteResponseSerializer(serializers.Serializer[dict[str, Any]]):

@@ -30,18 +30,28 @@ from rest_framework.views import APIView
 
 from apps.simulated_trading.application import interface_services as simulated_interface_services
 from apps.simulated_trading.application.use_cases import (
-    CreateSimulatedAccountUseCase,
     ExecuteBuyOrderUseCase,
     ExecuteSellOrderUseCase,
     GetAccountPerformanceUseCase,
     ListAccountsUseCase,
 )
 from apps.simulated_trading.domain.entities import AccountType, SimulatedAccount
-from core.exceptions import DataFetchError
+from core.exceptions import (
+    DataFetchError,
+    DataValidationError,
+    DuplicateResourceError,
+    ExternalServiceError,
+    InvalidInputError,
+)
+from core.integration.authenticated_canonical_account_creation import (
+    create_authenticated_canonical_account,
+)
 
 from .serializers import (
     AccountBatchDeleteRequestSerializer,
     AccountBatchDeleteResponseSerializer,
+    AccountCreateResponseSerializer,
+    AccountCreationKeySerializer,
     AccountDeleteResponseSerializer,
     AccountListResponseSerializer,
     AccountResponseSerializer,
@@ -433,7 +443,16 @@ class AccountListAPIView(APIView):
         summary="创建账户",
         description="创建新的统一账户，账户类型通过 account_type 指定。",
         request=CreateAccountRequestSerializer,
-        responses={200: AccountResponseSerializer},
+        parameters=[
+            OpenApiParameter(
+                name="Idempotency-Key",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.HEADER,
+                required=True,
+                description="同一次创建及网络重试复用此键；新的创建使用新键。",
+            )
+        ],
+        responses={200: AccountCreateResponseSerializer, 201: AccountCreateResponseSerializer},
     )
     def post(self, request: Request) -> Response:
         """
@@ -461,30 +480,40 @@ class AccountListAPIView(APIView):
         # 1. 验证请求
         serializer = CreateAccountRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
+        key_serializer = AccountCreationKeySerializer(
+            data={"request_key": request.headers.get("Idempotency-Key", "")}
+        )
+        key_serializer.is_valid(raise_exception=True)
 
         # 2. 执行用例
         try:
-            use_case = CreateSimulatedAccountUseCase(self.account_repo)
-            account = use_case.execute(
-                account_name=data["account_name"],
-                initial_capital=float(data["initial_capital"]),
-                account_type=AccountType(data.get("account_type", "simulated")),
-                max_position_pct=data.get("max_position_pct", 20.0),
-                stop_loss_pct=data.get("stop_loss_pct"),
-                commission_rate=data.get("commission_rate", 0.0003),
-                slippage_rate=data.get("slippage_rate", 0.001),
-                user_id=_authenticated_user_id(request),
+            result = create_authenticated_canonical_account(
+                request=request,
+                parameters=serializer.to_creation_input(
+                    request_key=cast(str, key_serializer.validated_data["request_key"])
+                ),
             )
-
-            response_data = _account_payload(account, newly_created=True)
+            response_data = _account_payload(result.account, newly_created=not result.replayed)
 
             return Response(
-                {"success": True, "account": response_data}, status=status.HTTP_201_CREATED
+                {"success": True, "account": response_data, "replayed": result.replayed},
+                status=status.HTTP_200_OK if result.replayed else status.HTTP_201_CREATED,
             )
-
-        except ValueError as e:
-            return Response({"success": False, "error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except DuplicateResourceError:
+            return Response(
+                {"success": False, "error": "创建请求与现有账户或已提交请求冲突。"},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except InvalidInputError:
+            return Response(
+                {"success": False, "error": "创建账户的输入无效。"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except (DataValidationError, ExternalServiceError):
+            return Response(
+                {"success": False, "error": "账户创建暂不可用，请稍后重试本次提交。"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
 
 class AccountDetailAPIView(APIView):

@@ -11,6 +11,9 @@ from apps.account.interface import (
     user_admin_api_views,
     views,
 )
+from apps.account.interface.account_actor_authority_raw_source_api_views import (
+    AccountActorAuthorityRawSourcePublishView,
+)
 from apps.account.interface.observer_api_views import ObserverGrantViewSet
 from apps.account.interface.performance_compat_views import (
     PortfolioBenchmarksCompatView,
@@ -28,6 +31,7 @@ from apps.account.interface.profile_api_views import (
     TradingCostConfigViewSet,
     UserSearchView,
 )
+from apps.account.interface.single_owner_policy_api_views import SingleOwnerPolicyPublishView
 from apps.account.interface.transaction_api_views import (
     BrokerTradeImportConfirmView,
     BrokerTradeImportPreviewView,
@@ -90,6 +94,16 @@ urlpatterns = [
         name="profile-password",
     ),
     path("health/", AccountHealthView.as_view(), name="health"),
+    path(
+        "authority/policy/publish/",
+        SingleOwnerPolicyPublishView.as_view(),
+        name="authority-policy-publish",
+    ),
+    path(
+        "authority/raw/publish/",
+        AccountActorAuthorityRawSourcePublishView.as_view(),
+        name="authority-raw-publish",
+    ),
     path("macro-sizing-config/", MacroSizingConfigView.as_view(), name="macro-sizing-config"),
     path("users/search/", UserSearchView.as_view(), name="user-search"),
     path("mcp/self/", mcp_api_views.MCPSelfServiceView.as_view(), name="mcp-self"),
