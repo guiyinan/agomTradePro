@@ -1,0 +1,53 @@
+{
+  "schema": "sprint-local-staging-dependencies.v1",
+  "recorded_at": "2026-09-10T11:23:46.169650+00:00",
+  "authorization": "docs/deployment/sprint-owner-admin-authorization-2026-09-10.json",
+  "state": {
+    "environment": "staging",
+    "production_resources_used": false,
+    "network": "agom-sprint-staging-20260910",
+    "network_id": "52421a02ad6a1b86902046b30b7457fa002270a2c33141c1524caca7d32a3edd",
+    "network_internal": true,
+    "postgres": {
+      "id": "4a84d061ba7b175b72651ee1641484fc9d96652ae3edc668ce9da3f2c07a0259",
+      "image": "sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777",
+      "port": "127.0.0.1:55439",
+      "database": "agom_sprint_staging",
+      "user": "agom_sprint_staging"
+    },
+    "redis": {
+      "id": "901136d2a6b1249047c6ea4eeb2a042465d26151658cdabf8f36286b7d57ca5c",
+      "image": "sha256:8b81dd37ff027bec4e516d41acfbe9fe2460070dc6d4a4570a2ac5b9d59df065",
+      "port": "127.0.0.1:63689"
+    },
+    "private_credentials_directory": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-sprint-staging-dzl397m0",
+    "credentials_in_repository": false,
+    "status": "authenticated_dependencies_verified",
+    "application_deployed": false,
+    "capacity_acceptance_claimed": false,
+    "initial_redis_failure": "Windows reserved port 56389; replaced only the newly created, never-started staging Redis container with an OS-selected available loopback port.",
+    "verification": {
+      "postgres_database": "agom_sprint_staging",
+      "postgres_user": "agom_sprint_staging",
+      "postgres_version": "PostgreSQL 16.14 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+      "postgres_public_tables": 0,
+      "redis_authenticated_ping": true,
+      "redis_keys": 0
+    },
+    "host_access_network": "agom-sprint-staging-20260910-host",
+    "network_note": "The internal backend network is retained; a dedicated bridge enables loopback-only host access. This is not an air-gapped environment.",
+    "evid06_database": {
+      "name": "evid06_authority_test",
+      "public_table_count": 0,
+      "verified_empty": true
+    }
+  },
+  "source_sha256": "b34a5bd8b8f5a7f9c409c698049887fdc6779caf83902fe55ef85fd49948661c",
+  "scope": "Dedicated local dependencies only; no application, model stub, load or production acceptance claimed.",
+  "pending": [
+    "Build and bind the exact application candidate.",
+    "Configure an isolated worker/queue, non-billable local provider stub, metrics and 20 dedicated actor credentials.",
+    "Resolve the observed single-task versus per-owner staging load contract before real 20-actor baseline."
+  ],
+  "cleanup": "Only remove the exact labelled agom-sprint-staging-20260910 containers/networks and their dedicated volumes after explicit lifecycle completion. Preserve pre-existing home-lab/dev resources. Private credentials are outside the repository."
+}

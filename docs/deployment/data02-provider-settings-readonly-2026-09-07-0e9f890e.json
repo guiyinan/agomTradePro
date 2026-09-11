@@ -1,0 +1,77 @@
+{
+  "scope": "DATA-02 candidate-bound provider configuration read-only inventory",
+  "capture": {
+    "samples": [
+      {
+        "label": "data02_provider_settings_readonly",
+        "command": "docker exec -i 0c695cfec9dd python -",
+        "input": "import os,json\nfrom pathlib import Path\nos.environ.setdefault(\"DJANGO_SETTINGS_MODULE\",\"core.settings\")\nimport django\ndjango.setup()\nfrom django.conf import settings\nfrom django.db import connection,transaction\nfrom django.utils import timezone\nfrom apps.data_center.infrastructure.models import ProviderConfigModel,DataProviderSettingsModel\nwith transaction.atomic():\n with connection.cursor() as c:\n  c.execute(\"SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY\")\n  c.execute(\"SET LOCAL statement_timeout = '15s'\")\n manifest=json.loads(Path(settings.AGOM_RELEASE_MANIFEST_PATH).read_text())\n if manifest.get(\"source_commit\")!=\"0e9f890e8185d897630fd937b5ffc220fd7830ce\" or manifest.get(\"release_tag\")!=\"20260907170119\":raise RuntimeError(\"candidate drift\")\n providers=[]\n for p in ProviderConfigModel.objects.order_by(\"priority\",\"name\"):\n  providers.append({\"id\":p.pk,\"name\":p.name,\"source_type\":p.source_type,\"is_active\":p.is_active,\"priority\":p.priority,\"has_http_url\":bool(p.http_url),\"has_api_endpoint\":bool(p.api_endpoint),\"extra_config_keys\":sorted(p.extra_config) if isinstance(p.extra_config,dict) else None})\n print(json.dumps({\"recorded_at\":timezone.now().isoformat(),\"source_commit\":manifest[\"source_commit\"],\"release_tag\":manifest[\"release_tag\"],\"providers\":providers,\"settings\":list(DataProviderSettingsModel.objects.order_by(\"id\").values(\"id\",\"default_source\",\"enable_failover\",\"failover_tolerance\")),\"read_only\":True}))\n",
+        "started_at": "2026-09-07T12:41:11.471058+00:00",
+        "finished_at": "2026-09-07T12:41:29.907330+00:00",
+        "exit_code": 0,
+        "stdout_base64": "eyJyZWNvcmRlZF9hdCI6ICIyMDI2LTA5LTA3VDEyOjQxOjI0LjkyMTQzOSswMDowMCIsICJzb3VyY2VfY29tbWl0IjogIjBlOWY4OTBlODE4NWQ4OTc2MzBmZDkzN2I1ZmZjMjIwZmQ3ODMwY2UiLCAicmVsZWFzZV90YWciOiAiMjAyNjA5MDcxNzAxMTkiLCAicHJvdmlkZXJzIjogW3siaWQiOiAyLCAibmFtZSI6ICJUdXNoYXJlIFBybyIsICJzb3VyY2VfdHlwZSI6ICJ0dXNoYXJlIiwgImlzX2FjdGl2ZSI6IHRydWUsICJwcmlvcml0eSI6IDEsICJoYXNfaHR0cF91cmwiOiB0cnVlLCAiaGFzX2FwaV9lbmRwb2ludCI6IHRydWUsICJleHRyYV9jb25maWdfa2V5cyI6IFsiaGVhbHRoX21ldHJpY3MiLCAiaGVhbHRoX21ldHJpY3NfYnlfZGF0YXNldCIsICJwcm92aWRlcl9hdmdfbGF0ZW5jeV9tcyIsICJwcm92aWRlcl9sYXN0X2Vycm9yIiwgInByb3ZpZGVyX2xhc3RfcHJvYmVfYXQiLCAicHJvdmlkZXJfbGFzdF9zdGF0dXMiLCAicHJvdmlkZXJfbGFzdF9zdWNjZXNzX2F0IiwgInByb3ZpZGVyX3N1Y2Nlc3NfY291bnQiLCAidHVzaGFyZV9yZXF1ZXN0X21vZGUiXX0sIHsiaWQiOiAzLCAibmFtZSI6ICJBS1NoYXJlIFB1YmxpYyIsICJzb3VyY2VfdHlwZSI6ICJha3NoYXJlIiwgImlzX2FjdGl2ZSI6IHRydWUsICJwcmlvcml0eSI6IDEwLCAiaGFzX2h0dHBfdXJsIjogZmFsc2UsICJoYXNfYXBpX2VuZHBvaW50IjogZmFsc2UsICJleHRyYV9jb25maWdfa2V5cyI6IFsiaGVhbHRoX21ldHJpY3MiLCAiaGVhbHRoX21ldHJpY3NfYnlfZGF0YXNldCIsICJtYW5hZ2VkX2J5IiwgInByb3ZpZGVyX2F2Z19sYXRlbmN5X21zIiwgInByb3ZpZGVyX2xhc3RfZXJyb3IiLCAicHJvdmlkZXJfbGFzdF9wcm9iZV9hdCIsICJwcm92aWRlcl9sYXN0X3N0YXR1cyIsICJwcm92aWRlcl9sYXN0X3N1Y2Nlc3NfYXQiLCAicHJvdmlkZXJfc3VjY2Vzc19jb3VudCJdfV0sICJzZXR0aW5ncyI6IFt7ImlkIjogMSwgImRlZmF1bHRfc291cmNlIjogImFrc2hhcmUiLCAiZW5hYmxlX2ZhaWxvdmVyIjogdHJ1ZSwgImZhaWxvdmVyX3RvbGVyYW5jZSI6IDAuMDF9XSwgInJlYWRfb25seSI6IHRydWV9Cg==",
+        "stdout_sha256": "87eb1399d5a1621c02f8d645744555a182dec6a03a1465fd552412fb96690455",
+        "stderr_base64": "eyJ0aW1lc3RhbXAiOiAiMjAyNi0wOS0wN1QxMjo0MToyNC4wNTM3MDZaIiwgImxldmVsIjogIklORk8iLCAibG9nZ2VyIjogImFwcHMuZXZlbnRzLmFwcGxpY2F0aW9uLmV2ZW50X2J1c19pbml0aWFsaXplciIsICJtZXNzYWdlIjogIkV2ZW50IGJ1cyBpbml0aWFsaXplZCB3aXRoIDE4IGhhbmRsZXJzIiwgIm1vZHVsZSI6ICJldmVudF9idXNfaW5pdGlhbGl6ZXIiLCAiZnVuY3Rpb24iOiAiaW5pdGlhbGl6ZSIsICJsaW5lIjogNTgsICJwcm9jZXNzIjogMjI4NzMyLCAidGhyZWFkIjogMTQwMTU2MDA1MzExMjk2LCAicmVxdWVzdF9pZCI6ICItIn0K",
+        "stderr_sha256": "cf430db6b536042f44b77d89819cfc0e312195612b89b4031a478d92fd619867"
+      }
+    ]
+  },
+  "capture_sha256": "a8c959f82c4493149ba223f4a738454367a3d4e917e9e78bcdc48e1c16c5447d",
+  "result": {
+    "recorded_at": "2026-09-07T12:41:24.921439+00:00",
+    "source_commit": "0e9f890e8185d897630fd937b5ffc220fd7830ce",
+    "release_tag": "20260907170119",
+    "providers": [
+      {
+        "id": 2,
+        "name": "Tushare Pro",
+        "source_type": "tushare",
+        "is_active": true,
+        "priority": 1,
+        "has_http_url": true,
+        "has_api_endpoint": true,
+        "extra_config_keys": [
+          "health_metrics",
+          "health_metrics_by_dataset",
+          "provider_avg_latency_ms",
+          "provider_last_error",
+          "provider_last_probe_at",
+          "provider_last_status",
+          "provider_last_success_at",
+          "provider_success_count",
+          "tushare_request_mode"
+        ]
+      },
+      {
+        "id": 3,
+        "name": "AKShare Public",
+        "source_type": "akshare",
+        "is_active": true,
+        "priority": 10,
+        "has_http_url": false,
+        "has_api_endpoint": false,
+        "extra_config_keys": [
+          "health_metrics",
+          "health_metrics_by_dataset",
+          "managed_by",
+          "provider_avg_latency_ms",
+          "provider_last_error",
+          "provider_last_probe_at",
+          "provider_last_status",
+          "provider_last_success_at",
+          "provider_success_count"
+        ]
+      }
+    ],
+    "settings": [
+      {
+        "id": 1,
+        "default_source": "akshare",
+        "enable_failover": true,
+        "failover_tolerance": 0.01
+      }
+    ],
+    "read_only": true
+  },
+  "interpretation": "Configured source preference and failover tolerance are real inputs; dataset-specific acceptance applicability still requires code/contract verification. No provider request, credential read, configuration mutation or publication switch."
+}
