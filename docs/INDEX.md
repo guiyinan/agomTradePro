@@ -163,7 +163,7 @@
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
-| [active_plan_registry.json](../governance/active_plan_registry.json) | **活跃计划与 canonical closure backlog 机器真源（工作流 / owner / 状态 / 依赖 / 唯一退出门 / 文件归属 / 限期审查）** | v41 共 40 units；当前 focus 显式为 null；TUI-02 旧观察窗已因 2026-09-02 web 重启作废，等待重启后首个真实样本及精确 14 日窗口；EVID-01/02、DATA-02、AUD-03、STRAT-01、TAR-05 保持 awaiting production，其余依赖/外部门保持 fail-closed |
+| [active_plan_registry.json](../governance/active_plan_registry.json) | **活跃计划与 canonical closure backlog 机器真源（工作流 / owner / 状态 / 依赖 / 唯一退出门 / 文件归属 / 限期审查）** | v87 共 50 units；唯一 repository focus 为 EVID-08（Authority V3 immutable graph validation）；DATA-12/15、EVID-07 已完成，EVID-01/02、DATA-02、AUD-03、STRAT-01、TAR-05 仍等待生产退出门；自然观察窗口必须绑定真实候选与样本 |
 | [release-blocker-closure-execution-plan-2026-08-29.md](plans/release-blocker-closure-execution-plan-2026-08-29.md) | **发布阻塞清零综合实施方案（DATA/AUD/EVID/STRAT/TUI/TAR/AI/QMT 顺序、授权包、回滚点和停止线）** | 执行中；DATA-01/DATA-04/05 repository exit 已完成并随当前候选部署，DB 连接样本稳定、SELECT-only dry-run 已完成；2026-09-02 09:24Z 的 Web liveness 曾出现 unhealthy/502，随后 15:38Z 受控 web-only restart 恢复 healthy；DATA-02 仍受 completed-session price、financial coverage 与 publication freshness 阻断，其余硬门保持 fail-closed |
 | [scenario-governance-and-strategy-method-quick-wins-plan-2026-08-04.md](plans/scenario-governance-and-strategy-method-quick-wins-plan-2026-08-04.md) | **情景硬编码治理、动态/参数/宏观情景、AI MCP 受控修改及策略方法 Quick Wins（M0-M6）** | 提案，待评审实施 |
 | [strategy-research-capability-completion-audit-2026-08-05.md](plans/strategy-research-capability-completion-audit-2026-08-05.md) | **策略研究 R1—R8 完成度审计、真实数据阻断与无数据开发队列** | 实施中；无 P0，剩余 P1 分批收口 |

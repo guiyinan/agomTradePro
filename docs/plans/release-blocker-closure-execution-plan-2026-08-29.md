@@ -8,6 +8,12 @@
 
 ## 2026-09-13：权威读取性能、生产复测与下一阶段范围
 
+后续 repository 工作登记为唯一 focus `EVID-08`：Authority V3 facade 的整次 `_locked` 操作接入
+已有 `validation_graph_operation`，只复用 exact immutable JSON 解码和成功的对象校验，禁止启用
+write/current/ORM snapshot 缓存。先用生命周期接线、操作退出/失败、changed payload 与 callback
+两次 current/drift rejection 测试验证语义，再比较同一 repeatable-read 代表性完整图的重复 restore
+CPU/解码/SQL。只读 restore 基准不是新写入或生产并发验收；未验证前 EVID-08 保持 active。
+
 PR #34 已通过全部 CI 并合并，生产当前绑定
 `c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc` / `20260913014501` /
 `sha256:5dd37368b64f735b7850647659ae18e07684eb7d7444d99baf0a900d087943ea`。

@@ -1,14 +1,14 @@
 {
-  "version": "2026-09-13.v86",
+  "version": "2026-09-13.v87",
   "updated_at": "2026-09-13",
   "execution_focus": {
-    "unit_id": null,
+    "unit_id": "EVID-08",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Candidate c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc / release 20260913014501 is deployed with verified backup and healthy services. Locked exact immutable read reuse was independently measured at 14.52 seconds for the complete System Audit authority reader. A second authorized one-asset DATA-02 slice stored one accepted historical quote and one canonical event/outbox pair, with a 34.09-second audit-runtime window and independent off cleanup. New Evidence/Authority write graph setup still took about 50 minutes: first bound recursive restoration work without weakening mutation/current/revocation semantics, then continue checkpointed DATA-02 coverage/publication/reconciliation, EVID-01/02 concurrency/lifecycle and signed acceptance, AUD-03 operations and TAR-05 staging/real observation. No canonical production unit is closed by this smoke or task authorization. Evidence: docs/deployment/sprint-data02-authority-performance-checkpoint-2026-09-13-c8bb9b780.json."
+    "policy": "EVID-08 is the sole repository focus: bound Authority V3 write-operation immutable decode/validation reuse with no ORM/current-state caching, preserving current-source rechecks, append/replay/successor/revocation and rollback. Profile a representative complete graph before claiming performance improvement. Production and governance DATA-02 preparation may continue within authorization; DATA-12/15 and EVID-07 remain complete and all production acceptance gates remain unchanged."
   },
   "workstreams": [
     {
@@ -1202,6 +1202,19 @@
           "EVID-06"
         ],
         "exit_gate": "A server-owned, source-bound single-owner policy permits the designated real admin to act as claimant and approver without fabricated identity or staff facts. Versioned receipt/subject/evidence, owner-tenant authority and typed scope integration preserve old V3/V1 hashes and default separation semantics. Durable exact-current reads bind the same policy, account, tenant, authentication, source clocks and canonical creation/physical facts; revoked/expired/mismatched policy or actor fails closed. PostgreSQL migration, atomic append/replay/rollback and authenticated end-to-end owner-scope tests prove the complete graph, including rejection of client-selected mode, other users/tenants and cross-version substitution. Incremental mypy/debt, format, architecture, freshness and governance pass. Local implementation does not constitute production owner assignment, human business acceptance or EVID-01/02 closure."
+      },
+      {
+        "id": "EVID-08",
+        "workstream_id": "evidence-hard-gate",
+        "wave": 1,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "active",
+        "title": "Bound Authority V3 write-operation immutable graph validation work",
+        "depends_on": [
+          "EVID-07"
+        ],
+        "exit_gate": "Authority V3 complete lifecycle operations reuse only successful exact immutable payload decoding and object validation within one operation. No write/current-state/ORM read cache is enabled; changed payloads, operation exit and failure force validation. Tests prove lifecycle wiring, independent operation isolation, fresh with_current double-read/drift rejection and rollback. Representative complete graph before/after measurements report decode/CPU/query work and limits; targeted lifecycle and graph regressions, incremental mypy/debt, formatting, architecture and governance pass. Keep production EVID-01/02 and DATA-02 acceptance separate and do not claim all write performance fixed."
       }
     ]
   }

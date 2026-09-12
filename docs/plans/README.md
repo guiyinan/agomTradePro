@@ -25,6 +25,10 @@
 
 ## 自主 Goal 调度入口
 
+2026-09-13：`EVID-08` 是唯一 repository focus，限定 Authority V3 整操作 immutable decode/validation
+复用、生命周期/失效测试与代表性图测量；不启用写路径 current/ORM cache。DATA-02 只读准备可并行，
+DATA-12/15、EVID-07 保持已完成，生产 DATA/EVID/AUD/TAR 验收状态不变。
+
 2026-09-12：[EVID-07 repository closure](../testing/evid07-authenticated-owner-scope-v3-closure-2026-09-12.json)
 已通过真实隔离 PostgreSQL 完整图（1 passed/3214.98s）及最终类型、架构、freshness、治理门禁，
 admin/user_id=1 的服务端身份贯通到 AuthorityV3 和 Research scope V3；错误用户/tenant、跨版本、
@@ -195,7 +199,7 @@ DATA-02 的 [财务 availability 切片](../deployment/data02-financial-availabi
 | 限期审查项 | 0 |
 | 注册表覆盖的活跃文件 | 45 |
 | 历史未勾选细项 | 136（非执行口径） |
-| 去重后 canonical closure units | 49 |
+| 去重后 canonical closure units | 50 |
 
 “主计划”是需求和证据入口，不等于独立工程量；同一工作流下的路线图、readiness 和生产跟踪不会再重复计算成多条主线。完整文件归属、owner、状态、依赖和唯一退出门见机器注册表的 `closure_backlog`。
 
