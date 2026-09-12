@@ -22,6 +22,7 @@ from apps.account.domain.single_owner_authority_policy_v1 import (
     SingleOwnerAuthorityPolicyV1,
     validate_single_owner_policy_successor,
 )
+from apps.account.infrastructure.immutable_read_snapshot import reuse_immutable_read
 from apps.account.infrastructure.single_owner_authority_policy_v1_codec import (
     SingleOwnerAuthorityPolicyV1CodecError,
     decode_single_owner_authority_policy_v1,
@@ -377,6 +378,7 @@ class DjangoSingleOwnerAuthorityPolicyV1Repository:
                 "single-owner policy serialization lock is unavailable"
             ) from error
 
+    @reuse_immutable_read("single-owner-policy-v1-world")
     def _restore_world(
         self,
     ) -> tuple[tuple[SingleOwnerAuthorityPolicyV1Model, SingleOwnerAuthorityPolicyV1], ...]:

@@ -69,6 +69,7 @@ from apps.account.infrastructure.canonical_account_creation_repository import (
     _restore_allocation,
     _restore_binding,
 )
+from apps.account.infrastructure.immutable_read_snapshot import reuse_immutable_read
 
 
 class CanonicalAccountCreationConsumptionClock(Protocol):
@@ -366,6 +367,7 @@ class DjangoCanonicalAccountCreationConsumptionRepository:
             raise CanonicalAccountCreationBindingV2Corruption("appended pair restore mismatch")
         return exact.binding, exact.claim
 
+    @reuse_immutable_read("canonical-creation-consumption-closed-world")
     def _closed_world(self, *, lock: bool) -> _World:
         allocation_query = CanonicalAccountCreationAllocationModel._base_manager.using(
             self._using

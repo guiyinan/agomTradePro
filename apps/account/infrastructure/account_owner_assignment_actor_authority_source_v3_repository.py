@@ -37,6 +37,7 @@ from apps.account.infrastructure.account_owner_assignment_actor_authority_source
     _activate_account_owner_assignment_actor_authority_source_v3_uow,
     _claim_account_owner_assignment_actor_authority_source_v3_insert,
 )
+from apps.account.infrastructure.immutable_read_snapshot import reuse_immutable_read
 
 
 class AccountOwnerAssignmentActorAuthoritySourceV3Clock(Protocol):
@@ -355,6 +356,7 @@ class DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository:
             )
         return anchor
 
+    @reuse_immutable_read("actor-authority-v3-closed-world")
     def _closed_world(self, *, lock: bool, permitted_empty_anchor: int | None = None) -> _World:
         """Load the closed ledger world while locking only nullable-safe row targets."""
 

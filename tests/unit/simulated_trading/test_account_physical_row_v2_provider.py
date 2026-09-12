@@ -8,6 +8,7 @@ import pytest
 
 from apps.account.application.physical_account_row_observation_v2 import (
     PhysicalAccountRowObservationV2Corruption,
+    PhysicalAccountRowObservationV2Unavailable,
 )
 from apps.simulated_trading.application.simulated_account_row_source_v2 import (
     PersistedSimulatedAccountRowSourceV2,
@@ -95,6 +96,16 @@ class _Repository:
         self.error = error
         self.winner_calls: list[tuple[str, str, datetime]] = []
         self.head_calls: list[tuple[object, ...]] = []
+        self.lock_calls = 0
+
+    @property
+    def unit_of_work_key(self) -> str:
+        return "django:default"
+
+    def lock_current_sources(self) -> None:
+        self.lock_calls += 1
+        if self.error is not None:
+            raise self.error
 
     def get_winner(
         self, *, source_id: str, source_version: str, as_of: datetime
@@ -145,6 +156,24 @@ def _read(
         underlying_unified_account_id=source.underlying_unified_account_id,
         as_of=as_of,
     )
+
+
+def test_provider_exposes_same_uow_and_delegates_current_source_lock() -> None:
+    repository = _Repository()
+    provider = DjangoExactPhysicalSimulatedAccountRowV2Provider(repository)
+
+    assert provider.unit_of_work_key == "django:default"
+    provider.lock_current_sources()
+
+    assert repository.lock_calls == 1
+
+
+def test_provider_maps_source_lock_unavailability_to_account_boundary() -> None:
+    repository = _Repository(error=SimulatedAccountRowSourceV2Unavailable("busy"))
+    provider = DjangoExactPhysicalSimulatedAccountRowV2Provider(repository)
+
+    with pytest.raises(PhysicalAccountRowObservationV2Unavailable, match="stabilized"):
+        provider.lock_current_sources()
 
 
 def test_zero_rows_returns_none_without_reading_a_logical_head() -> None:

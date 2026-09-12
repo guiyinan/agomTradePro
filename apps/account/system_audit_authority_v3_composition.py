@@ -58,7 +58,10 @@ class AccountSystemAuditOwnerTenantAuthorityV3Reader:
             _token(getattr(self, name), name)
         _digest(self.actor_content_hash, "actor_content_hash")
         _alias(self.database_alias)
-        for method in ("get_exact_final", "get_exact_current"):
+        provider_uow = getattr(self.physical_row_provider, "unit_of_work_key", None)
+        if provider_uow != f"django:{self.database_alias}":
+            raise ValueError("physical row provider must use the audit database alias")
+        for method in ("get_exact_final", "get_exact_current", "lock_current_sources"):
             if not callable(getattr(self.physical_row_provider, method, None)):
                 raise TypeError(f"physical row provider must expose {method}")
 
@@ -119,37 +122,32 @@ class AccountSystemAuditOwnerTenantAuthorityV3Reader:
         self,
         command: GetCurrentOwnerTenantAuthorityV3Command,
     ) -> OwnerTenantAuthorityV3 | None:
-        """Restore the exact winner only to bind its immutable policy selectors."""
+        """Read provisional selectors before the lock-bound canonical current read."""
 
         repository = DjangoOwnerTenantAuthorityV3Repository(using=self.database_alias)
-        with repository.atomic():
-            cutoff = repository.now()
-            record = repository.get_winner(
-                authority_id=command.authority_id,
-                authority_version=command.authority_version,
-                as_of=cutoff,
-            )
-            if record is None:
-                return None
-            if type(record) is not PersistedOwnerTenantAuthorityV3:
-                raise TypeError("owner tenant authority v3 record type substitution")
-            record.__post_init__()
-            authority = record.authority
-            if authority.content_hash != command.expected_content_hash:
-                return None
-            head = repository.get_head(authority_id=command.authority_id, as_of=cutoff)
-            if type(head) is not PersistedOwnerTenantAuthorityV3 or head.authority != authority:
-                return None
-            if (
-                not authority.is_current_at(cutoff)
-                or repository.get_revocation(
-                    authority_content_hash=authority.content_hash,
-                    as_of=cutoff,
-                )
-                is not None
-            ):
-                return None
-            return authority
+        record = repository.get_provisional_winner(
+            authority_id=command.authority_id,
+            authority_version=command.authority_version,
+            expected_content_hash=command.expected_content_hash,
+            as_of=repository.now(),
+        )
+        if record is None:
+            return None
+        if type(record) is not PersistedOwnerTenantAuthorityV3:
+            raise TypeError("owner tenant authority v3 record type substitution")
+        record.__post_init__()
+        authority = record.authority
+        if (
+            authority.authority_id,
+            authority.authority_version,
+            authority.content_hash,
+        ) != (
+            command.authority_id,
+            command.authority_version,
+            command.expected_content_hash,
+        ):
+            return None
+        return authority
 
     def _current_actor(self) -> AccountOwnerAssignmentActorAuthoritySourceV3 | None:
         """Read the exact actor selector against its immutable current source bundle."""

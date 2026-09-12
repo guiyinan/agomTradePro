@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import connections, transaction
+from django.db import DatabaseError, connections, transaction
 
 from apps.account.application.owner_tenant_authority_v3_contracts import (
     OwnerTenantAuthorityV3Conflict,
@@ -36,8 +36,20 @@ from apps.account.infrastructure.owner_tenant_authority_v3_repository import (
     DjangoOwnerTenantAuthorityV3Repository,
     lock_owner_tenant_authority_v3_sources,
 )
+from apps.simulated_trading.application.simulated_account_row_source_v2 import (
+    PersistedSimulatedAccountRowSourceV2,
+)
+from apps.simulated_trading.infrastructure.simulated_account_row_source_v2_models import (
+    SimulatedAccountRowSourceV2Model,
+)
+from apps.simulated_trading.infrastructure.simulated_account_row_source_v2_repository import (
+    DjangoSimulatedAccountRowSourceV2Repository,
+)
 from tests.component.account.test_account_owner_assignment_evidence_v5_repository import (
     _seed,
+)
+from tests.component.simulated_trading.test_simulated_account_row_source_v2_repository import (
+    _source as _simulated_source,
 )
 
 pytest_plugins = [
@@ -226,6 +238,25 @@ def test_successor_chain_cas_heads_historical_winner_and_final_head_revocation(
     repository = DjangoOwnerTenantAuthorityV3Repository(using=owner_alias)
     root = _append_owner(repository, root_record)
     successor = _successor(root)
+
+    assert (
+        repository.get_provisional_winner(
+            authority_id=root.authority.authority_id,
+            authority_version=root.authority.authority_version,
+            expected_content_hash=root.authority.content_hash,
+            as_of=root.authority.recorded_at,
+        )
+        == root
+    )
+    assert (
+        repository.get_provisional_winner(
+            authority_id=root.authority.authority_id,
+            authority_version=root.authority.authority_version,
+            expected_content_hash="f" * 64,
+            as_of=root.authority.recorded_at,
+        )
+        is None
+    )
 
     with repository.atomic():
         with pytest.raises(OwnerTenantAuthorityV3Conflict, match="selector"):
@@ -458,3 +489,56 @@ def test_competing_decision_writer_and_parent_row_lock_fail_then_retry(owner_ali
     finally:
         connections[competing].close()
         connections.databases.pop(competing)
+
+
+def test_current_source_lock_blocks_competing_simulated_successor(owner_alias):
+    """Keep cached Account projections bound to one stable simulated source head."""
+
+    connection = connections[owner_alias]
+    with connection.schema_editor() as editor:
+        editor.create_model(SimulatedAccountRowSourceV2Model)
+    root = _simulated_source()
+    successor = _simulated_source(
+        source_version="mutation-2",
+        row_updated_at=root.row_updated_at + timedelta(minutes=1),
+        observed_at=root.observed_at + timedelta(minutes=2),
+        recorded_at=root.recorded_at + timedelta(minutes=3),
+        raw_observation_supersedes_content_hash=root.raw_observation_content_hash,
+        supersedes_content_hash=root.content_hash,
+    )
+    repository = DjangoSimulatedAccountRowSourceV2Repository(using=owner_alias)
+    with repository.atomic():
+        repository.append(
+            PersistedSimulatedAccountRowSourceV2(root),
+            expected_predecessor_hash=None,
+            recorded_at=root.recorded_at,
+        )
+    competing = "evid07_owner_v3_simulated_competing"
+    connections.databases[competing] = deepcopy(connections.databases[owner_alias])
+    try:
+        other = DjangoSimulatedAccountRowSourceV2Repository(using=competing)
+        with transaction.atomic(using=owner_alias):
+            repository.lock_current_sources()
+            with transaction.atomic(using=competing):
+                with connections[competing].cursor() as cursor:
+                    cursor.execute("SET LOCAL lock_timeout = '250ms'")
+                with pytest.raises(DatabaseError):
+                    other.append(
+                        PersistedSimulatedAccountRowSourceV2(successor),
+                        expected_predecessor_hash=root.content_hash,
+                        recorded_at=successor.recorded_at,
+                    )
+        with other.atomic():
+            assert (
+                other.append(
+                    PersistedSimulatedAccountRowSourceV2(successor),
+                    expected_predecessor_hash=root.content_hash,
+                    recorded_at=successor.recorded_at,
+                ).source
+                == successor
+            )
+    finally:
+        connections[competing].close()
+        connections.databases.pop(competing)
+        with connection.schema_editor() as editor:
+            editor.delete_model(SimulatedAccountRowSourceV2Model)

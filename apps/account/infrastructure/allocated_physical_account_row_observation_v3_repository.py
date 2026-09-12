@@ -32,6 +32,7 @@ from apps.account.infrastructure.allocated_physical_account_row_observation_v3_m
     _activate_allocated_physical_account_row_observation_v3_uow,
     _claim_allocated_physical_account_row_observation_v3_insert,
 )
+from apps.account.infrastructure.immutable_read_snapshot import reuse_immutable_read
 
 
 class DjangoAllocatedPhysicalAccountRowObservationV3Unavailable(
@@ -301,6 +302,7 @@ class DjangoAllocatedPhysicalAccountRowObservationV3Repository:
             return None
         return record
 
+    @reuse_immutable_read("allocated-physical-row-v3-closed-world")
     def _closed_world(
         self,
         *,

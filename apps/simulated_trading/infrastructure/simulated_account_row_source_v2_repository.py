@@ -9,8 +9,9 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Protocol
 
-from django.db import IntegrityError, transaction
+from django.db import DatabaseError, IntegrityError, connections, transaction
 from django.utils import timezone
+from django.utils.connection import ConnectionDoesNotExist
 
 from apps.simulated_trading.application.simulated_account_row_source_v2 import (
     PersistedSimulatedAccountRowSourceV2,
@@ -75,6 +76,38 @@ class DjangoSimulatedAccountRowSourceV2Repository:
     ) -> None:
         self._using = using
         self._clock = clock or DjangoSimulatedAccountRowSourceV2Clock()
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the transaction identity used by this repository."""
+
+        return f"django:{self._using}"
+
+    def lock_current_sources(self) -> None:
+        """Stabilize the source ledger inside an active PostgreSQL transaction."""
+
+        try:
+            connection = connections[self._using]
+        except (ConnectionDoesNotExist, DatabaseError, KeyError) as error:
+            raise DjangoSimulatedAccountRowSourceV2Unavailable(
+                "simulated account-row source v2 database alias is unavailable"
+            ) from error
+        if (
+            connection.vendor != "postgresql"
+            or not connection.in_atomic_block
+            or connection.get_autocommit()
+        ):
+            raise DjangoSimulatedAccountRowSourceV2Unavailable(
+                "simulated account-row source v2 lock requires an active PostgreSQL transaction"
+            )
+        try:
+            table = connection.ops.quote_name(SimulatedAccountRowSourceV2Model._meta.db_table)
+            with connection.cursor() as cursor:
+                cursor.execute(f"LOCK TABLE {table} IN EXCLUSIVE MODE NOWAIT")
+        except DatabaseError as error:
+            raise DjangoSimulatedAccountRowSourceV2Unavailable(
+                "simulated account-row source v2 lock is unavailable"
+            ) from error
 
     @contextmanager
     def atomic(self) -> Iterator[None]:

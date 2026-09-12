@@ -76,6 +76,7 @@ from apps.account.infrastructure.canonical_account_creation_models import (
 from apps.account.infrastructure.canonical_account_ownership_reobservation_v1_models import (
     CanonicalAccountOwnershipReobservationV1Model,
 )
+from apps.account.infrastructure.immutable_read_snapshot import reuse_immutable_read
 from apps.account.infrastructure.physical_account_row_observation_v2_models import (
     PhysicalAccountRowObservationV2Model,
 )
@@ -306,6 +307,7 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
     def _lock_world(self, policy_id: str) -> None:
         lock_account_owner_assignment_evidence_v5_sources(using=self._using, policy_id=policy_id)
 
+    @reuse_immutable_read("assignment-evidence-v5-world")
     def _world(self, as_of: datetime) -> _World:
         self._postgresql()
         cutoff = _aware(as_of)

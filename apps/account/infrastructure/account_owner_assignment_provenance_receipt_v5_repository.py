@@ -63,6 +63,7 @@ from apps.account.infrastructure.canonical_account_ownership_reobservation_v1_mo
 from apps.account.infrastructure.canonical_account_ownership_reobservation_v1_repository import (
     DjangoCanonicalAccountOwnershipReobservationV1Repository,
 )
+from apps.account.infrastructure.immutable_read_snapshot import reuse_immutable_read
 from apps.account.infrastructure.single_owner_authority_policy_v1_models import (
     SingleOwnerAuthorityPolicyV1Model,
 )
@@ -572,6 +573,7 @@ class DjangoAccountOwnerAssignmentProvenanceReceiptV5Repository:
                 "ReceiptV5 ReobservationV1 parent identity substitution"
             )
 
+    @reuse_immutable_read("assignment-provenance-receipt-v5-world")
     def _world(self, as_of: datetime) -> tuple[_Row, ...]:
         """Restore every ReceiptV5 row and validate every chain before selection."""
 

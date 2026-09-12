@@ -56,6 +56,7 @@ from apps.account.application.owner_tenant_authority_v3_contracts import (
 )
 from apps.account.application.physical_account_row_observation_v2 import (
     ExactPhysicalSimulatedAccountRowV2Provider,
+    PhysicalAccountRowObservationV2Unavailable,
 )
 from apps.account.application.single_owner_actor_authority import (
     CurrentSingleOwnerParticipantsProvider,
@@ -68,12 +69,14 @@ from apps.account.domain.owner_tenant_authority_v3 import (
     OwnerTenantAuthorityV3,
     OwnerTenantAuthorityV3Revocation,
 )
+from apps.account.domain.validation_graph import validation_graph_operation
 from apps.account.infrastructure.account_actor_authority_capture_snapshot import (
     DjangoAccountActorAuthorityCaptureBundleProviderV3,
 )
 from apps.account.infrastructure.account_owner_assignment_actor_authority_source_v3_repository import (
     DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository,
 )
+from apps.account.infrastructure.immutable_read_snapshot import immutable_read_snapshot
 from apps.account.infrastructure.owner_tenant_authority_v3_repository import (
     DjangoOwnerTenantAuthorityV3Repository,
     lock_owner_tenant_authority_v3_sources,
@@ -136,6 +139,7 @@ class OwnerTenantAuthorityV3Facade:
         policy_id: str,
         actors: DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository,
         service: OwnerTenantAuthorityV3Service,
+        lock_current_physical_sources: Callable[[], None],
     ) -> None:
         """Bind one database alias and the server-owned Authority V3 service."""
 
@@ -143,6 +147,7 @@ class OwnerTenantAuthorityV3Facade:
         self._policy_id = policy_id
         self._actors = actors
         self._service = service
+        self._lock_current_physical_sources = lock_current_physical_sources
 
     @property
     def unit_of_work_key(self) -> str:
@@ -180,7 +185,12 @@ class OwnerTenantAuthorityV3Facade:
     ) -> CurrentOwnerTenantAuthorityV3 | None:
         """Return one finite observation after current source revalidation."""
 
-        return self._locked(lambda: self._service.get_current(command))
+        def read_current() -> CurrentOwnerTenantAuthorityV3 | None:
+            self._lock_current_physical_sources()
+            with immutable_read_snapshot():
+                return validation_graph_operation(self._service.get_current)(command)
+
+        return self._locked(read_current)
 
     def get_exact(
         self,
@@ -270,6 +280,7 @@ class OwnerTenantAuthorityV3Facade:
             OwnerTenantAuthorityV3Unavailable,
             AccountOwnerAssignmentUnavailable,
             AccountOwnerAssignmentActorAuthoritySourceV3Unavailable,
+            PhysicalAccountRowObservationV2Unavailable,
             DatabaseError,
             ConnectionDoesNotExist,
         ) as error:
@@ -321,6 +332,12 @@ def build_owner_tenant_authority_v3_facade(
     policy_binding.__post_init__()
     if type(validity_period) is not timedelta or validity_period <= timedelta(0):
         raise ValueError("validity_period must be an exact positive timedelta")
+    provider_uow = getattr(physical_row_provider, "unit_of_work_key", None)
+    if provider_uow != f"django:{alias}":
+        raise ValueError("physical row provider must use the authority database alias")
+    provider_locker = getattr(physical_row_provider, "lock_current_sources", None)
+    if not callable(provider_locker):
+        raise TypeError("physical row provider must expose lock_current_sources")
 
     actors = DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository(using=alias)
     actor_reader = CanonicalAccountActorAuthorityRequestReader(
@@ -363,6 +380,7 @@ def build_owner_tenant_authority_v3_facade(
         policy_id=policy_binding.policy_id,
         actors=actors,
         service=service,
+        lock_current_physical_sources=provider_locker,
     )
 
 

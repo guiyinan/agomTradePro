@@ -218,6 +218,7 @@ def _facade(
             composition.OwnerTenantAuthorityV3Service,
             service or _FakeService(events),
         ),
+        lock_current_physical_sources=lambda: events.append("lock-physical"),
     )
 
 
@@ -318,6 +319,7 @@ def test_facade_orders_v5_v3_lock_then_actor_uow_for_every_operation(
             "outer.enter",
             "lock-v5-v3",
             "actors.enter",
+            *(["lock-physical"] if expected_call == "current" else []),
             expected_call,
             "actors.exit",
             "outer.exit",

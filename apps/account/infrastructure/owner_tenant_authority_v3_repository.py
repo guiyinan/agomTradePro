@@ -75,6 +75,7 @@ from apps.account.infrastructure.account_owner_assignment_evidence_v5_repository
 from apps.account.infrastructure.account_owner_assignment_v5_models import (
     AccountOwnerAssignmentEvidenceV5Model,
 )
+from apps.account.infrastructure.immutable_read_snapshot import reuse_immutable_read
 from apps.account.infrastructure.owner_tenant_authority_v3_models import (
     _OWNER_V3_UOW,
     OwnerTenantAuthorityV3Model,
@@ -220,6 +221,48 @@ class DjangoOwnerTenantAuthorityV3Repository(OwnerTenantAuthorityV3Repository):
             and record.authority.recorded_at <= as_of
         )
         return _single(matches, "owner tenant authority v3 winner")
+
+    def get_provisional_winner(
+        self,
+        *,
+        authority_id: str,
+        authority_version: str,
+        expected_content_hash: str,
+        as_of: datetime,
+    ) -> PersistedOwnerTenantAuthorityV3 | None:
+        """Restore one exact row solely to select the lock-bound current read.
+
+        This result does not validate the closed world or confer authority. A
+        caller must use it only to discover immutable composition selectors,
+        then complete the canonical ``get_current`` read under source locks.
+        """
+
+        self._ensure_selector_token(authority_id, "authority_id")
+        self._ensure_selector_token(authority_version, "authority_version")
+        _ensure_digest(expected_content_hash, "expected_content_hash")
+        self._cutoff(as_of)
+        try:
+            rows = tuple(
+                OwnerTenantAuthorityV3Model._default_manager.using(self._using)
+                .filter(
+                    authority_id=authority_id,
+                    authority_version=authority_version,
+                    recorded_at__lte=as_of,
+                )
+                .order_by("pk")[:2]
+            )
+        except (DatabaseError, ConnectionDoesNotExist) as error:
+            raise OwnerTenantAuthorityV3Unavailable(
+                "owner tenant authority v3 provisional row cannot be read"
+            ) from error
+        if len(rows) > 1:
+            raise OwnerTenantAuthorityV3Corruption(
+                "owner tenant authority v3 provisional identity is ambiguous"
+            )
+        if not rows:
+            return None
+        record = _restore_root(rows[0])
+        return record if record.authority.content_hash == expected_content_hash else None
 
     def get_head(
         self, *, authority_id: str, as_of: datetime
@@ -602,6 +645,7 @@ class DjangoOwnerTenantAuthorityV3Repository(OwnerTenantAuthorityV3Repository):
         self._ensure_selector_token(policy_id, "policy_id")
         lock_owner_tenant_authority_v3_sources(using=self._using, policy_id=policy_id)
 
+    @reuse_immutable_read("owner-tenant-authority-v3-world")
     def _restore_world(self, as_of: datetime) -> _World:
         """Restore every root, revocation, parent, and sealed ledger field."""
 
