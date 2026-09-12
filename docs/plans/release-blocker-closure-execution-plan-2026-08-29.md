@@ -40,8 +40,16 @@ get_winner restore 耗时 `2,576.715s`、CPU `2,380.099s`、`58,492 SELECT`、DB
 曾核实后台仍存活，随后精确 PID 检查确认进程已退出；没有终止服务或重启写入。替代诊断于
 `2026-09-12T21:18:29Z` 使用独立远端目录启动，runner PID `2423267`，脚本 SHA-256 为
 `8a01a967b12554f176a5f55b73be766b87080d972863713be540869eb9529970`。
-该次仍测同快照内完整 baseline/candidate，stdout、stderr、exit code 与起止时间持久保存，
-通过同一 job handle 续查；当前没有完整结果，EVID-08 和 PR #36 均不晋级。
+该次仍测同快照内完整 baseline/candidate，stdout、stderr、exit code 与起止时间持久保存。
+实际于 `2026-09-12T22:21:35Z` 结束，exit code=0，精确 runner 已退出。
+[完整 cProfile 检查点](../deployment/sprint-evid08-complete-graph-cprofile-2026-09-13-c8bb9b780.json)
+封存同快照两个 completed stage：baseline elapsed `2,636.320s` / CPU `2,473.226s`，
+candidate elapsed `1,128.302s` / CPU `1,014.602s`；两者均 `58,492 SELECT`，
+DB client execute 分别 `174.073s` / `170.719s`。该样本 elapsed 减少 57.20%、CPU 减少 58.98%，
+只支持 read-only prerequisite 的 operation context 复用，不表示生产新写入或并发性能已通过。
+top 20 cumulative functions 不能证明准确解码数量；完整图原始 decoder / decorated validator
+计数使用独立 reviewed 诊断，前一 job terminal 后才启动，不重叠测量。该计数与真实 facade
+生命周期仍待完成，EVID-08 和 PR #36 均不晋级。
 
 同候选的[DATA-02 分数据集诊断](../deployment/sprint-data02-dataset-gap-checkpoint-2026-09-13-c8bb9b780.json)
 保留只读事务、严格预览失败和 200 资产来源预检的原始响应/脚本及 SHA：completed-session price

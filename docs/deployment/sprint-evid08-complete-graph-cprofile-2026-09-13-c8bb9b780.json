@@ -1,0 +1,508 @@
+{
+  "schema_version": "evid08.complete-graph-cprofile-checkpoint.v1",
+  "recorded_at": "2026-09-12T22:23:12.943129+00:00",
+  "unit": {
+    "id": "EVID-08",
+    "status": "active",
+    "exit_gate_complete": false
+  },
+  "production_candidate": {
+    "commit": "c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc",
+    "release": "20260913014501",
+    "identity_source": "previous standard deployment and independently verified source symlink; diagnostic output itself does not contain OCI identity"
+  },
+  "proposed_code": {
+    "commit": "40732e5f3",
+    "path": "apps/account/owner_tenant_authority_v3_composition.py",
+    "change": "Wrap facade _locked in the existing validation_graph_operation; the diagnostic applies that context manually to two exact restores in the deployed process."
+  },
+  "job": {
+    "directory": "/opt/agomtradepro/diagnostics/evid08-complete-graph-20260913-durable-01",
+    "runner_pid": 2423267,
+    "exit_code": 0,
+    "runner_started_at": "2026-09-12T21:18:29Z",
+    "runner_completed_at": "2026-09-12T22:21:35Z",
+    "script_sha256": "8a01a967b12554f176a5f55b73be766b87080d972863713be540869eb9529970",
+    "runner_absent_after_completion": true
+  },
+  "measurements": [
+    {
+      "authority_content_hash": "47d71a2f7e7aaea49a181d2db86a3375af330018a191a4e7fcf89b4f6e26acbb",
+      "authority_id": "audit-admin-owner-authority-20260912185635",
+      "cpu_seconds": 2473.225734752,
+      "cutoff": "2026-09-12T21:18:48.334075+00:00",
+      "elapsed_seconds": 2636.3203876661137,
+      "limitation": "Read-only repeated restore benchmark of a representative write-path prerequisite, not a new Authority write or concurrency acceptance; cProfile adds overhead.",
+      "operation": "two exact get_winner restores of the same complete immutable Authority V3 graph",
+      "read_mode": "same REPEATABLE READ READ ONLY snapshot",
+      "stage": "baseline_no_outer_validation_graph",
+      "statistics": {
+        "database_seconds": 174.07275446504354,
+        "queries": 58492,
+        "selects": 58492
+      },
+      "status": "completed",
+      "top_cumulative_functions": [
+        {
+          "calls": 1,
+          "cumulative_seconds": 2636.2916034480004,
+          "file": "<string>",
+          "function": "two_restores",
+          "line": 24,
+          "primitive_calls": 1,
+          "total_seconds": 3.0236000000000003e-05
+        },
+        {
+          "calls": 1,
+          "cumulative_seconds": 2636.2915565000003,
+          "file": "<string>",
+          "function": "<listcomp>",
+          "line": 25,
+          "primitive_calls": 1,
+          "total_seconds": 5.5312e-05
+        },
+        {
+          "calls": 2,
+          "cumulative_seconds": 2636.291501188,
+          "file": "/app/apps/account/infrastructure/owner_tenant_authority_v3_repository.py",
+          "function": "get_winner",
+          "line": 201,
+          "primitive_calls": 2,
+          "total_seconds": 0.000359579
+        },
+        {
+          "calls": 18090,
+          "cumulative_seconds": 2636.288226692,
+          "file": "/app/apps/account/infrastructure/immutable_read_snapshot.py",
+          "function": "wrapped",
+          "line": 49,
+          "primitive_calls": 2,
+          "total_seconds": 1.719937121
+        },
+        {
+          "calls": 2,
+          "cumulative_seconds": 2636.2881556,
+          "file": "/app/apps/account/infrastructure/owner_tenant_authority_v3_repository.py",
+          "function": "_restore_world",
+          "line": 648,
+          "primitive_calls": 2,
+          "total_seconds": 0.0031990060000000003
+        },
+        {
+          "calls": 8,
+          "cumulative_seconds": 2635.678875041,
+          "file": "/app/apps/account/infrastructure/owner_tenant_authority_v3_repository.py",
+          "function": "_root_parents",
+          "line": 729,
+          "primitive_calls": 8,
+          "total_seconds": 0.003152704
+        },
+        {
+          "calls": 8,
+          "cumulative_seconds": 2632.099129692,
+          "file": "/app/apps/account/infrastructure/account_owner_assignment_evidence_v5_repository.py",
+          "function": "get_exact_by_hash",
+          "line": 178,
+          "primitive_calls": 8,
+          "total_seconds": 0.00020721700000000002
+        },
+        {
+          "calls": 8,
+          "cumulative_seconds": 2632.0986226080004,
+          "file": "/app/apps/account/infrastructure/account_owner_assignment_evidence_v5_repository.py",
+          "function": "get_winner",
+          "line": 163,
+          "primitive_calls": 8,
+          "total_seconds": 0.006703431
+        },
+        {
+          "calls": 8,
+          "cumulative_seconds": 2632.084364911,
+          "file": "/app/apps/account/infrastructure/account_owner_assignment_evidence_v5_repository.py",
+          "function": "_world",
+          "line": 310,
+          "primitive_calls": 8,
+          "total_seconds": 0.015174268000000001
+        },
+        {
+          "calls": 64,
+          "cumulative_seconds": 2612.9942145170003,
+          "file": "/app/apps/account/infrastructure/account_owner_assignment_evidence_v5_repository.py",
+          "function": "_subject_parent",
+          "line": 398,
+          "primitive_calls": 64,
+          "total_seconds": 0.008492166
+        },
+        {
+          "calls": 64,
+          "cumulative_seconds": 2610.9061267330003,
+          "file": "/app/apps/account/infrastructure/account_owner_assignment_subject_v5_repository.py",
+          "function": "get_exact_by_hash",
+          "line": 142,
+          "primitive_calls": 64,
+          "total_seconds": 0.00302057
+        },
+        {
+          "calls": 64,
+          "cumulative_seconds": 2610.884037528,
+          "file": "/app/apps/account/infrastructure/account_owner_assignment_subject_v5_repository.py",
+          "function": "_world",
+          "line": 433,
+          "primitive_calls": 64,
+          "total_seconds": 0.006849088000000001
+        },
+        {
+          "calls": 320,
+          "cumulative_seconds": 2608.985476152,
+          "file": "/app/apps/account/infrastructure/account_owner_assignment_subject_v5_repository.py",
+          "function": "<genexpr>",
+          "line": 445,
+          "primitive_calls": 320,
+          "total_seconds": 0.0026533990000000003
+        },
+        {
+          "calls": 256,
+          "cumulative_seconds": 2608.982822753,
+          "file": "/app/apps/account/infrastructure/account_owner_assignment_subject_v5_repository.py",
+          "function": "_restore",
+          "line": 380,
+          "primitive_calls": 256,
+          "total_seconds": 0.026762871
+        },
+        {
+          "calls": 256,
+          "cumulative_seconds": 2597.9405076390003,
+          "file": "/app/apps/account/infrastructure/account_owner_assignment_subject_v5_repository.py",
+          "function": "_restore_parents",
+          "line": 320,
+          "primitive_calls": 256,
+          "total_seconds": 0.176918296
+        },
+        {
+          "calls": 1280,
+          "cumulative_seconds": 2232.359588433,
+          "file": "/app/apps/account/infrastructure/canonical_account_ownership_reobservation_v1_repository.py",
+          "function": "get_exact_by_hash",
+          "line": 227,
+          "primitive_calls": 1280,
+          "total_seconds": 0.154950961
+        },
+        {
+          "calls": 1280,
+          "cumulative_seconds": 2231.971323358,
+          "file": "/app/apps/account/infrastructure/canonical_account_ownership_reobservation_v1_repository.py",
+          "function": "_restored_records",
+          "line": 568,
+          "primitive_calls": 1280,
+          "total_seconds": 0.079341701
+        },
+        {
+          "calls": 6400,
+          "cumulative_seconds": 2222.149567511,
+          "file": "/app/apps/account/infrastructure/canonical_account_ownership_reobservation_v1_repository.py",
+          "function": "<genexpr>",
+          "line": 577,
+          "primitive_calls": 6400,
+          "total_seconds": 0.34999274500000005
+        },
+        {
+          "calls": 5120,
+          "cumulative_seconds": 2221.799574766,
+          "file": "/app/apps/account/infrastructure/canonical_account_ownership_reobservation_v1_repository.py",
+          "function": "_restore",
+          "line": 503,
+          "primitive_calls": 5120,
+          "total_seconds": 0.493406261
+        },
+        {
+          "calls": 256,
+          "cumulative_seconds": 2097.5873972580002,
+          "file": "/app/apps/account/infrastructure/account_owner_assignment_provenance_receipt_v5_repository.py",
+          "function": "get_exact_by_hash",
+          "line": 186,
+          "primitive_calls": 256,
+          "total_seconds": 0.0050230000000000006
+        }
+      ]
+    },
+    {
+      "authority_content_hash": "47d71a2f7e7aaea49a181d2db86a3375af330018a191a4e7fcf89b4f6e26acbb",
+      "authority_id": "audit-admin-owner-authority-20260912185635",
+      "cpu_seconds": 1014.601882682,
+      "cutoff": "2026-09-12T21:18:48.334075+00:00",
+      "elapsed_seconds": 1128.3024365836754,
+      "limitation": "Read-only repeated restore benchmark of a representative write-path prerequisite, not a new Authority write or concurrency acceptance; cProfile adds overhead.",
+      "operation": "two exact get_winner restores of the same complete immutable Authority V3 graph",
+      "read_mode": "same REPEATABLE READ READ ONLY snapshot",
+      "stage": "candidate_outer_validation_graph",
+      "statistics": {
+        "database_seconds": 170.7185088293627,
+        "queries": 58492,
+        "selects": 58492
+      },
+      "status": "completed",
+      "top_cumulative_functions": [
+        {
+          "calls": 1009225,
+          "cumulative_seconds": 1128.276743476,
+          "file": "/app/apps/account/domain/validation_graph.py",
+          "function": "wrapped",
+          "line": 27,
+          "primitive_calls": 1,
+          "total_seconds": 2.313580473
+        },
+        {
+          "calls": 1,
+          "cumulative_seconds": 1128.128368867,
+          "file": "<string>",
+          "function": "two_restores",
+          "line": 24,
+          "primitive_calls": 1,
+          "total_seconds": 4.9333000000000004e-05
+        },
+        {
+          "calls": 1,
+          "cumulative_seconds": 1128.1283058390002,
+          "file": "<string>",
+          "function": "<listcomp>",
+          "line": 25,
+          "primitive_calls": 1,
+          "total_seconds": 7.100200000000001e-05
+        },
+        {
+          "calls": 2,
+          "cumulative_seconds": 1128.128234837,
+          "file": "/app/apps/account/infrastructure/owner_tenant_authority_v3_repository.py",
+          "function": "get_winner",
+          "line": 201,
+          "primitive_calls": 2,
+          "total_seconds": 0.0018202910000000001
+        },
+        {
+          "calls": 18090,
+          "cumulative_seconds": 1128.1226368930002,
+          "file": "/app/apps/account/infrastructure/immutable_read_snapshot.py",
+          "function": "wrapped",
+          "line": 49,
+          "primitive_calls": 2,
+          "total_seconds": 2.038507525
+        },
+        {
+          "calls": 2,
+          "cumulative_seconds": 1128.122552626,
+          "file": "/app/apps/account/infrastructure/owner_tenant_authority_v3_repository.py",
+          "function": "_restore_world",
+          "line": 648,
+          "primitive_calls": 2,
+          "total_seconds": 0.0034103040000000003
+        },
+        {
+          "calls": 8,
+          "cumulative_seconds": 1127.72060942,
+          "file": "/app/apps/account/infrastructure/owner_tenant_authority_v3_repository.py",
+          "function": "_root_parents",
+          "line": 729,
+          "primitive_calls": 8,
+          "total_seconds": 0.0038266080000000004
+        },
+        {
+          "calls": 8,
+          "cumulative_seconds": 1124.1311251880002,
+          "file": "/app/apps/account/infrastructure/account_owner_assignment_evidence_v5_repository.py",
+          "function": "get_exact_by_hash",
+          "line": 178,
+          "primitive_calls": 8,
+          "total_seconds": 0.000216583
+        },
+        {
+          "calls": 8,
+          "cumulative_seconds": 1124.1305667670001,
+          "file": "/app/apps/account/infrastructure/account_owner_assignment_evidence_v5_repository.py",
+          "function": "get_winner",
+          "line": 163,
+          "primitive_calls": 8,
+          "total_seconds": 0.003785684
+        },
+        {
+          "calls": 8,
+          "cumulative_seconds": 1124.110913127,
+          "file": "/app/apps/account/infrastructure/account_owner_assignment_evidence_v5_repository.py",
+          "function": "_world",
+          "line": 310,
+          "primitive_calls": 8,
+          "total_seconds": 0.014349679
+        },
+        {
+          "calls": 64,
+          "cumulative_seconds": 1110.295677086,
+          "file": "/app/apps/account/infrastructure/account_owner_assignment_evidence_v5_repository.py",
+          "function": "_subject_parent",
+          "line": 398,
+          "primitive_calls": 64,
+          "total_seconds": 0.007662131000000001
+        },
+        {
+          "calls": 64,
+          "cumulative_seconds": 1109.748630731,
+          "file": "/app/apps/account/infrastructure/account_owner_assignment_subject_v5_repository.py",
+          "function": "get_exact_by_hash",
+          "line": 142,
+          "primitive_calls": 64,
+          "total_seconds": 0.00246639
+        },
+        {
+          "calls": 64,
+          "cumulative_seconds": 1109.735518293,
+          "file": "/app/apps/account/infrastructure/account_owner_assignment_subject_v5_repository.py",
+          "function": "_world",
+          "line": 433,
+          "primitive_calls": 64,
+          "total_seconds": 0.005724873
+        },
+        {
+          "calls": 320,
+          "cumulative_seconds": 1107.784195558,
+          "file": "/app/apps/account/infrastructure/account_owner_assignment_subject_v5_repository.py",
+          "function": "<genexpr>",
+          "line": 445,
+          "primitive_calls": 320,
+          "total_seconds": 0.0025452210000000003
+        },
+        {
+          "calls": 256,
+          "cumulative_seconds": 1107.781650337,
+          "file": "/app/apps/account/infrastructure/account_owner_assignment_subject_v5_repository.py",
+          "function": "_restore",
+          "line": 380,
+          "primitive_calls": 256,
+          "total_seconds": 0.021222067
+        },
+        {
+          "calls": 256,
+          "cumulative_seconds": 1106.851985126,
+          "file": "/app/apps/account/infrastructure/account_owner_assignment_subject_v5_repository.py",
+          "function": "_restore_parents",
+          "line": 320,
+          "primitive_calls": 256,
+          "total_seconds": 0.18814719100000002
+        },
+        {
+          "calls": 1280,
+          "cumulative_seconds": 987.1461025340001,
+          "file": "/app/apps/account/infrastructure/canonical_account_ownership_reobservation_v1_repository.py",
+          "function": "get_exact_by_hash",
+          "line": 227,
+          "primitive_calls": 1280,
+          "total_seconds": 0.22397212300000002
+        },
+        {
+          "calls": 1280,
+          "cumulative_seconds": 986.6779008780001,
+          "file": "/app/apps/account/infrastructure/canonical_account_ownership_reobservation_v1_repository.py",
+          "function": "_restored_records",
+          "line": 568,
+          "primitive_calls": 1280,
+          "total_seconds": 0.072261932
+        },
+        {
+          "calls": 6400,
+          "cumulative_seconds": 977.032617821,
+          "file": "/app/apps/account/infrastructure/canonical_account_ownership_reobservation_v1_repository.py",
+          "function": "<genexpr>",
+          "line": 577,
+          "primitive_calls": 6400,
+          "total_seconds": 0.35523049
+        },
+        {
+          "calls": 5120,
+          "cumulative_seconds": 976.6773873310001,
+          "file": "/app/apps/account/infrastructure/canonical_account_ownership_reobservation_v1_repository.py",
+          "function": "_restore",
+          "line": 503,
+          "primitive_calls": 5120,
+          "total_seconds": 0.446999348
+        }
+      ]
+    }
+  ],
+  "comparison": {
+    "elapsed_reduction_percent": 57.20161927729349,
+    "cpu_reduction_percent": 58.976575877181794,
+    "query_count_change": 0,
+    "decode_count": null,
+    "decode_count_status": "Top cumulative functions are not exact raw decoder counts; independently reviewed counter job is separate and not yet complete."
+  },
+  "limits": [
+    "Read-only prerequisite benchmark: two complete exact winner restores in each stage in one REPEATABLE READ READ ONLY snapshot. No new Authority issue, successor or revocation is benchmarked.",
+    "Manual outer validation context is measured; the proposed facade operation context itself is covered separately by tests, not this production diagnostic.",
+    "No immutable SQL/read snapshot cache is enabled. Current rows, parent FKs, heads and revocations are read on both calls; SQL counts remain unchanged.",
+    "cProfile adds material overhead. Stages run sequentially on a live service; elapsed time and client-side database execute time include scheduling and network effects.",
+    "Top20 cumulative functions cannot establish exact decode/cache-miss counts. Raw decoder and decorated validator counts remain pending in a separate complete-four-root diagnostic.",
+    "No production deployment of the proposed line, new write performance, concurrency acceptance, DATA-02 reconciliation or EVID-01/02 closure is claimed."
+  ],
+  "raw_artifacts": [
+    {
+      "path": "var/evid08-durable-profile-handle-20260913.json",
+      "bytes": 335,
+      "sha256": "f3b88ace2fa8924c2b07c140cf3bd5a93f830c13953662629d59f04d4816b98b",
+      "encoding": "gzip+base64",
+      "content": "H4sIAAAAAAAC/5VQW2qEMBT9F9zD4HfFJJrXbCbkccdJibkhxkIp3XvHShfQ3/PknK++u92Gd3TD/TbARwxEjR63kqDBuFZbniMjTBBN5zEc1boEI6HD268txAq+Yf08zROWNtkVt1ZtgFJxCtGuGfcW/T79N7oeOUM1JYZXNlvYzIS8mN3XWJrZn5ZxcRYrS6jVQjrKOF8eVArLH5w7OTuQQjgliSJBS6bELOkL5AtRQoPTnGktyV8j2GAwp3NMqwdcaMGUYl5Nixvg0UxA2E3GZrzNHpK5njv1fffddz/MxQJYTwEAAA=="
+    },
+    {
+      "path": "var/profile_evid08_complete_graph.py",
+      "bytes": 3179,
+      "sha256": "8a01a967b12554f176a5f55b73be766b87080d972863713be540869eb9529970",
+      "encoding": "gzip+base64",
+      "content": "H4sIAAAAAAAC/41Wy27bOhDd+ysIbSrhyoJl533hhW/rRQEjKRKjwIVhCLQ0itlIpEpScY0g/94h9bCkJkG9kEXyzIMzZ2aUSpGTKEpLXUqIIsLyQkhNKOdCU80EV6NRvRd/kyJlGTTrH0rw5r1QiFaj1GjTLIdGTwEyjWJRcg3SJ4UUMSgVGcSoAic/KH8UQbJrJGLBOcTGsk+0pFxRu6jhtChUQGOrMUhEThkPnmnGEutr9ChpsW80Dfcjgd7Y9Ru6GE8lVVqWsQlEIA4cZKSBU64jWuq9kEwfo+dZJKEQimkhj42dL/YKd0ZibQUWDf777L5Fj0YdyflfCrne6GScJSjn0DJhekyTnPGx9XLcIsbTyfRich1Ow6vzi9m505HdU7U30meXyWVIp+klXFIK9OyahldhMk12Vxd0Nrs8p+lsNpmEVzS8DukZXKZxenW9O0svYHpB493OGY0OTO+7mQmoFjmLXe9mRPBnj09JDOJSKiFdj1BFqvcKZ37VOoBfEJcaXOdhuSbr+8Xtw+Lz+uvdLfn6cLda2LfV8vtyRe6X35aL9eK/1RJfF198+yR3t6v/He9Dpau7z4sVMRyFHDCjhoCi1BiRT+HVRH36K/FMxE9dyfNWDpEiTXHvlOKAiwNmzx4nkBJ9EEgdhUegmlCZH5K0BIWim47sI+jowDCE0u2mf95d+KRDS5AKYz13nmdB6OCJikQ6r7zySCokwcLmBHP2CO7U27bWqVJgqj3LXOsIYYpg4ZNbwQF7QFK5F7SWAkysNgGs+DQnA4YZU7UiXl/tFFkJWFrNdhUZg+c0B5+0tWkkXdfZUQUZ4xBxEWG8sRiH5Yz37AbV84nrxOizAcH7Mu93BbenzuskyTY3zNGL87MEyUA5N2TiEwddRJY3K9RKjduRAgxTYreDyeuoVWN5IGn85Nbs8on6mWFbpJLmyic55Uef2BD/0h3ztQtSg+kA3Zbqej2Qlse+VCfsDaE/sNgTTRlHWryhzwZj00ZiS/6Zk/A9VBMhi2JcG/NBhn2WFa4XlEVh7hDYyynTOUy9rZaf147nvafyjzBb3f2okHETsFP0C2nsm6EVJGVeKPfFQcwjYJoqCpqlLk3anFrYeUVWpVmp9vO1LMEb/XU24qKMOqDO3OuAimqeSkQ0szWo/zuoYUOtExkdkL0mfJZRA7a0XaUxEciSx6bMW7b/4YZB2xAHD+bpNqInoBYFgrA74q2a46ASYdhYsa/55AmO84zmu4QSs3djn5twu5ltfaSi6VRQBXNzM51sP8hO70L9VP1xVKctFnmRgUncANLe2qCwzLEacHiRU58lTd0TgTW6B6LQDmn04aTPS2QdBqkd0+T7jNQ9pW9LAk2iXCRgiWTUDMbWaWoRxWmh9kIPdVStGxVULwFTAltlTjWGuI/sjgTE9ybEe8huE+/JmI2BFGToISSdnvZepQ2vYCrgJNSrABTqFMgb6WRKs9jIWXYNAEjDKC7zMkPcM+CnK7eFYeCbF8eQEt+Qh5sJUs4xQ6Reh2bdwOu9qdlD8uXMKjM1YhTZAqoU9LesDo3fxlnndtWRVdVxbHg+277agYdm/dOUxNtsBxfMjDctXe+RT2PBs6P5ugBqOkpNVrIDHu9zKp8Ma6k5xxPMrLVPDphTGBcU2wfuS/hZMvy+wEZnJjwlHA4dNlswQe/QZ/wEkqj5SPDjGApNeQz/th2K0CTBKsFC3qNjQYe5r77tDRHeT1Ul3m+evwHlbg81awwAAA=="
+    },
+    {
+      "path": "var/durable_evid08_profile.py",
+      "bytes": 4975,
+      "sha256": "94cd3ed9d3699e3afa188dad8efc41c792929e8ec54f061f2acb6d7e84a5aeb7",
+      "encoding": "gzip+base64",
+      "content": "H4sIAAAAAAAC/7VYbW/bNhD+7l/Bck0roZbseOjL0qZDtqbNhrUJ4mzAlgQEI9G2GonUSMqJkea/746U/O4kyzB/sCXy7nivzx1NKe1bri1RMhFEaaKFqQpB7EgQcc0TS9JK84tcwAZPIyXzCSm1SqvEZkqSNONDqYzNkphS2moNtCoIY4PKVlowRrKiVCCcS6ksRw7TatVrI25GeXbRvH41SjbPynhBJbdI0kg5gteGBHjF9fRlMhNbcs2L7FK1WseHhydk13EFoFKWg0JhDPapfCyCMAZKIW390zrY+/Lht32gd2wdQsdcd8Q4S7tvotoFERiOYqIRlyn89Lq9V90ftr+PUXfa+vXwJ2CnNU+iijIXVkRDzcvRlHYqq7sN7mqlYkAKnskgJNF7kkm70yLwKVQqQBbYFXM9HJ9un7tlbowAE91uJskNNRg62ia0VHlObx0RLA2FBW5lYiHHmVYyhoWA7n06/Mz+OOqzk73jT/sn7MMvx8jaUaXt8KEqrOapABNp6OSkmRaJVXoComqZL4B6FnHTobACVjvyJM/AjUDbBCDu9w9+dotBOEcRG2FZkRmTySEbgSB2KSYM9M+SSTDl3aus2kvTI78cLghIlJSgWeDW8INSJC/E7szi05m1B4f9E3renlJjluyCp4ON/jk6PD5Bz/R6NAxnjBU4f+mYJcbf+/vOpVopS+c4SwjcldLpegWP9vp9UJDYrBCqsru9ruf0Rls92ZkKygZ1akCe+djP9up9n8exuM6MNUG4uI8fzTMjyHEl8bx9rZUO6D5SQ0DIV3VBfHbvoL0E8+otkWIsNHEHEg6AUEJUuBVxnSnNxyQ6KzEFgvkaqouG+bpgTV0wVxdxOaFYkzxlFxMrTLAoEYgL0AbLqiq4uSTd16/fkuIScpNEJcH8c0AQ/10pK4L1aUpDXGnYlnmmab54MmsTiEVZ2TYR6CNQoU4/cS0SVisW1L/zwQuXI+LlxAn4VYocjE3GDMJjGTjUVmAyebJLug8L1LEoQGkXpll98hwdOCE+5gjiiQNcciFIAltWpMuhwigogxhDU5VcQnSbFXDrPBiQaEA8Rcf/RDVhPC5NPClyEkWQ0hGGmABHriYdzHGCbiLRCbkSF6Sc2BE0i6gCrJN8KCDqEAMBkLWglK7AQejpYMUX9LsnnYtMdszoTAKAgKgzOc2IM0lXGCDiSXpXgiSVRtz3yUG+fUPvWbLde7lBWgpuRAtebP0ZbRXRVnqydbCz9Xlnq/8Xeb85q9xZrnIgCPa6Pm/9GU0IUKF394jMJOYUVs86ZR+gUQppGedquEFA7wESoDC8hM0mURwncrv79McN+6UGKB6Q51vm7Ew+J2f0qec4u98GDBhkYypiW5R3KlGM/72oh3PcHdT/lDgNWN6bOtRl75z3lslCKEpUdwlgrzI7aoBNlUIyM7AlIBI3BJ9WQWkA6IJNsA3ZKi12fBhEgoBO87Fdt4GwTQLqKzo2I1j2z+GajjRVBI+MEUmW3IBO8ofSqwvqtbMAbMV6Wa4Xuf34Smfg1FrVcC21OzQZQV/deGpXveou4XrOK5mMED+lGlUlxPCeUM5c4dPrfScV446s8hxq7dk2eTd7f0ZEMlLk6RP6mJbkNdvckcoM+6kbgHxjwuYB43AqfH7E4LqsbGau/6mPfZi258aTAw5xX+lTfhYBfW8o9Dy6g+MmZMHUtbAyfcbByzmZgYmwAd/tDflBfY4yM+K9l6+Atr6MxH4hqFM4HonrNBsKAyPsRlFueMF7EYg50ZWop3Ecb+sQsFQJw6AhM+jLiciZNwWJbxek1rObS1pmxbUN8GYRp1VRmsC7og2RSyHmu70GDSAbsLLhvF1a2UH0ZsmFDmFXBc3FV+RG7Kx3u2PLFU9NUCvnzHW6rRy7eG59WfGiTudCdo7j69z0AvNdQ4SOcdvNreLROOVxcCVxFhKkOXVuEcZwigBkYPvm9nYj/DnUo/N9vY0T+bSp+remQbY9Ps/6BSwsQft6JFsY/h8LmfqBkOlr9QrvnR48PTCspRfXiYBR/yMc/EXZj6qSqavszdIRgzNZibUEzYUhWHfrbkwJw7oy/E0BVF2vmw/9aR3H81PkPXeZ4BghsrmQjh2jtAEBcHu+/G/XHgWo2GTDzXI23BPx282uqg1o9AZVVsC5tcloj8VYRHMHUlR0SSHUuS4SrH9fGghaSteAzqDOsL5X540VSPGCwkddoWhppnc5q4N1Rek7ZqQcpJf4JRBa2+4LlW3DXG/oHT1Pb+53nnKQSZ7nc9XW/NmQw0Re+1sLW2lJuq1WC/zJGAaIMXcZZwz/xWGsvo/7ltefGCsKuFvbwP/HE7b+Ae82Mo9vEwAA"
+    },
+    {
+      "path": "var/evid08-durable-started.txt",
+      "bytes": 21,
+      "sha256": "aa2bb70e93fe1ca2cd5656cb4de87362fbf5824a84a7f77abcba65b24b266b1a",
+      "encoding": "gzip+base64",
+      "content": "H4sIAAAAAAAC/zMyMDLTNbDUNTQKMTK0MrSwMrKM4gIA2rMdxRUAAAA="
+    },
+    {
+      "path": "var/evid08-durable-stdout.log",
+      "bytes": 11280,
+      "sha256": "3e24551b0a371e95cda0c186cf85da347f3e49c9b281ebece9968a38a6e1717c",
+      "encoding": "gzip+base64",
+      "content": "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"
+    },
+    {
+      "path": "var/evid08-durable-stderr.log",
+      "bytes": 310,
+      "sha256": "7b7d5f0dba0e8f8b8368a6c448e7bccd59c5b0ea568c1d655c499b028984dd3a",
+      "encoding": "gzip+base64",
+      "content": "H4sIAAAAAAAC/3WQvW7DMAyE9z6FoLk2JEG2Fe8tkKVdMmUxFFu1CSiyop8GSJB3L+UOmbKRd/eRBO80wdnEpM+e9oQKJtqK7SouDoL3XPWyq2XDOsmO9J1Qa36NLbn91+f3JqzzbEJRtPexRtulWGNtYdQJVvcvDaccB3CQQFu4IYAobo16NoX9KBmCGfLMTOQKaSFckUW7yZoQN2idst2Yl3N/shvL5hJ6Wtux4AraKKx9WEc8ANtWNhyFtASjJ+y5aGTXtlKpHReMoRXMJeOLBig2rejj7Q/f8WJeNgEAAA=="
+    },
+    {
+      "path": "var/evid08-durable-exit-code.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "encoding": "gzip+base64",
+      "content": "H4sIAAAAAAAC/zPgAgASzUp+AgAAAA=="
+    },
+    {
+      "path": "var/evid08-durable-completed.txt",
+      "bytes": 21,
+      "sha256": "d3f75990dec927269954d6517410fe6dafc1e02ca27ef49e3ff4a5c5c0ad5352",
+      "encoding": "gzip+base64",
+      "content": "H4sIAAAAAAAC/zMyMDLTNbDUNTQKMTKyMjK0MjaN4gIAS1rRWxUAAAA="
+    },
+    {
+      "path": "var/evid08-complete-graph-profile-20260913.raw.txt",
+      "bytes": 6110,
+      "sha256": "959094039ed8a2ea2c7d94181ca005b6c52960538af383cb460e23c9ef5ad5f9",
+      "encoding": "gzip+base64",
+      "content": "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"
+    }
+  ]
+}
