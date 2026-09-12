@@ -34,6 +34,23 @@ facade 重跑随后实际失败 `1 failed / 254.89s`：fixture 完整解析并�
 时点前置，不把 canonical ledger 的可恢复性视为完整 current 图，也不以 mock 当前权限绕过；
 该结果不能记为生命周期通过或未经诊断直接认作生产缺陷。
 
+进一步核对确定 historical fixture 只封存 synthetic ActorSource，没有对应 raw authentication、
+user、RBAC 父源，也没有 live SimulatedSourceV2 行；该历史图不满足完整 current Facade 前置。
+测试支持按专用 disposable alias 写入三类真实 canonical raw roots，通过既有 Capture 用例生成
+derived actor，再以 optional source 注入已有 V5/Owner seed；默认历史 fixture 保持原义。
+PhysicalV2 对应 SourceV2 由完整字段精确重建并断言 content/raw seals，通过合法 private UOW append。
+principal 时间改取真实 actor source 的 authenticated_at/valid_until，生命周期时点留有到期余量，
+显式 preflight 检查 live physical 与 current Evidence。Luna max 独立复核无 blocker；非 PG
+composition `10 passed / 1 deselected / 0.82s`、py_compile、Black/isort/Ruff、diff check 通过。
+修正后的单项真实 PG 生命周期正在执行，以上不替代其业务通过结果；EVID-08 仍 active。
+
+该次实际结束为 `1 failed / 273.03s`：真实 raw-source Capture 和合法 replay 已执行，随后
+PersistedEvidence 的既有时序检查拒绝 `approval_valid_until > actor.valid_until`。夹具的 approval
+窗口长于临时 capture TTL，不能缩短或绕过生产校验。改为从同一个 Domain Evidence fixture 的
+完整 approval deadline 推导 raw validity 与 capture TTL，并留 1 分钟余量；不会改写 Evidence
+窗口或默认历史 fixture。失败后隔离库再次验证零公共表，Black/isort/Ruff 通过，单项实际 PG
+继续重跑；生命周期通过仍未证实。
+
 首次生产完整图 cProfile 基线已返回：同一个 READ ONLY / REPEATABLE READ 快照内两次 exact
 get_winner restore 耗时 `2,576.715s`、CPU `2,380.099s`、`58,492 SELECT`、DB execute `162.046s`。
 它包含 profiler 开销；候选阶段只有 started，连接在 3,600 秒超时后失去输出，不能计算性能提升。

@@ -16,6 +16,9 @@ from apps.account.application.owner_tenant_authority_v3_contracts import (
     PersistedOwnerTenantAuthorityV3,
     PersistedOwnerTenantAuthorityV3Revocation,
 )
+from apps.account.domain.account_owner_assignment_actor_authority_source_v3 import (
+    AccountOwnerAssignmentActorAuthoritySourceV3,
+)
 from apps.account.domain.owner_tenant_authority_v3 import (
     APPROVER_ROLE,
     REVOKER_ROLE,
@@ -76,9 +79,15 @@ def owner_alias(evidence_v5_alias: str) -> Iterator[str]:
                 editor.delete_model(model)
 
 
-def _owner_seed(alias: str, monkeypatch: object) -> PersistedOwnerTenantAuthorityV3:
+def _owner_seed(
+    alias: str,
+    monkeypatch: object,
+    *,
+    actor_source: AccountOwnerAssignmentActorAuthoritySourceV3 | None = None,
+) -> PersistedOwnerTenantAuthorityV3:
+    """Persist V5 parents and select either historical or real current actor facts."""
     del monkeypatch
-    parent = _seed(alias)
+    parent = _seed(alias, actor_source=actor_source)
     assignments = DjangoAccountOwnerAssignmentEvidenceV5Repository(using=alias)
     with assignments.atomic():
         assignments.append_root(

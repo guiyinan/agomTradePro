@@ -194,7 +194,12 @@ def _authority(
     )
 
 
-def _seed(alias: str) -> PersistedAccountOwnerAssignmentEvidenceV5:
+def _seed(
+    alias: str,
+    *,
+    actor_source: AccountOwnerAssignmentActorAuthoritySourceV3 | None = None,
+) -> PersistedAccountOwnerAssignmentEvidenceV5:
+    """Persist the historical graph with an optional real current actor source."""
     clock = _Clock()
     subject = _subject()
     _seed_graph(alias, subject.receipt)
@@ -212,7 +217,7 @@ def _seed(alias: str) -> PersistedAccountOwnerAssignmentEvidenceV5:
             PersistedAccountOwnerAssignmentSubjectV5(subject),
             requested_at=subject.requested_at,
         )
-    source = _authority_source()
+    source = actor_source if actor_source is not None else _authority_source()
     actors = DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository(using=alias, clock=clock)
     with actors.atomic():
         actors.append(

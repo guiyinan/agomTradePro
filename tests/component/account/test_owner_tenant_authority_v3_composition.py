@@ -19,6 +19,7 @@ from apps.account.application.account_owner_assignment_actor_authority_v3 import
 )
 from apps.account.application.account_owner_assignment_evidence_v5 import (
     GetCurrentAccountOwnerAssignmentEvidenceV5,
+    GetCurrentAccountOwnerAssignmentEvidenceV5Command,
     GetExactAccountOwnerAssignmentEvidenceV5,
 )
 from apps.account.application.owner_tenant_authority_v3 import (
@@ -31,6 +32,9 @@ from apps.account.application.owner_tenant_authority_v3_contracts import (
     OwnerTenantAuthorityV3Unavailable,
 )
 from apps.account.application.single_owner_actor_authority import SingleOwnerPolicyBinding
+from apps.account.domain.physical_account_row_observation_v2 import (
+    PhysicalAccountRowObservationV2,
+)
 from apps.account.domain.validation_graph import reuse_validated_decode
 from apps.account.infrastructure.account_owner_assignment_actor_authority_source_v3_repository import (
     DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository,
@@ -41,6 +45,15 @@ from apps.account.infrastructure.owner_tenant_authority_v3_repository import (
 )
 from apps.simulated_trading.account_physical_row_v2_composition import (
     build_account_physical_row_v2_provider,
+)
+from apps.simulated_trading.application.simulated_account_row_source_v2 import (
+    PersistedSimulatedAccountRowSourceV2,
+)
+from apps.simulated_trading.domain.simulated_account_row_source_v2 import (
+    SimulatedAccountRowSourceV2,
+)
+from apps.simulated_trading.infrastructure.simulated_account_row_source_v2_repository import (
+    DjangoSimulatedAccountRowSourceV2Repository,
 )
 from tests.component.account.test_owner_tenant_authority_v3_repository import (
     owner_alias as owner_alias,
@@ -267,6 +280,61 @@ def _facade(
         ),
         lock_current_physical_sources=lambda: events.append("lock-physical"),
     )
+
+
+def _source_v2_for_physical(
+    physical: PhysicalAccountRowObservationV2,
+) -> SimulatedAccountRowSourceV2:
+    """Rebuild the exact source-v2 row already sealed by the V5 parent graph."""
+
+    return SimulatedAccountRowSourceV2(
+        source_id=physical.source_id,
+        source_version=physical.source_version,
+        account_namespace=physical.account_namespace,
+        account_id=physical.account_id,
+        underlying_unified_account_namespace=physical.underlying_unified_account_namespace,
+        underlying_unified_account_id=physical.underlying_unified_account_id,
+        row_user_id=physical.row_user_id,
+        raw_account_type=physical.raw_account_type,
+        is_active=physical.is_active,
+        row_created_at=physical.row_created_at,
+        row_updated_at=physical.row_updated_at,
+        is_present=physical.is_present,
+        is_tombstone=physical.is_tombstone,
+        observed_at=physical.source_observed_at,
+        recorded_at=physical.source_recorded_at,
+        source_valid_until=physical.source_valid_until,
+        ttl_valid_until=physical.source_ttl_valid_until,
+        valid_until=physical.source_effective_valid_until,
+        raw_observation_id=physical.raw_observation_id,
+        raw_observation_version=physical.raw_observation_version,
+        raw_observation_identity_hash=physical.raw_observation_identity_hash,
+        raw_observation_content_hash=physical.raw_observation_content_hash,
+        raw_observation_observed_at=physical.raw_observation_observed_at,
+        raw_observation_valid_until=physical.raw_observation_valid_until,
+        raw_observation_supersedes_content_hash=physical.raw_observation_supersedes_content_hash,
+        supersedes_content_hash=physical.source_supersedes_content_hash,
+    )
+
+
+def _append_source_v2_for_physical(
+    alias: str,
+    physical: PhysicalAccountRowObservationV2,
+) -> SimulatedAccountRowSourceV2:
+    """Populate the real provider ledger with the source sealed by Physical V2."""
+
+    source = _source_v2_for_physical(physical)
+    assert source.content_hash == physical.source_content_hash
+    assert source.raw_observation_content_hash == physical.raw_observation_content_hash
+    repository = DjangoSimulatedAccountRowSourceV2Repository(using=alias)
+    with repository.atomic():
+        persisted = repository.append(
+            PersistedSimulatedAccountRowSourceV2(source),
+            expected_predecessor_hash=None,
+            recorded_at=source.recorded_at,
+        )
+    assert persisted.source == source
+    return source
 
 
 @pytest.mark.parametrize("method_name", ["issue", "successor", "revoke"])
@@ -667,25 +735,34 @@ def test_opt_in_postgres_facade_issues_reads_and_revokes(
     """Exercise the complete authenticated facade against the disposable PG graph."""
 
     from tests.component.account.test_owner_tenant_authority_v3_repository import _owner_seed
+    from tests.support.owner_authority_current_sources import seed_current_actor_source
+    from tests.unit.account.test_account_owner_assignment_evidence_v5 import _evidence
 
-    persisted = _owner_seed(owner_alias, monkeypatch)
+    capture_at = datetime(2026, 8, 15, 14, 20, tzinfo=UTC)
+    monkeypatch.setattr("django.utils.timezone.now", lambda: capture_at)
+    actor_source = seed_current_actor_source(
+        owner_alias, capture_at, _evidence().approval_valid_until + timedelta(minutes=1)
+    )
+    persisted = _owner_seed(owner_alias, monkeypatch, actor_source=actor_source)
     authority = persisted.authority
     authentication = persisted.authentication
     policy = authority.policy
     assignment = authority.assignment
-    now = min(
-        assignment.valid_until,
-        policy.valid_until,
-        authentication.valid_until,
-    ) - timedelta(seconds=1)
+    physical = assignment.reobservation.current_physical
+    source = _append_source_v2_for_physical(owner_alias, physical)
+    now = assignment.recorded_at + timedelta(minutes=1)
+    assert now + timedelta(minutes=1) < min(
+        assignment.valid_until, policy.valid_until, authentication.valid_until
+    )
     monkeypatch.setattr("django.utils.timezone.now", lambda: now)
+    physical_provider = build_account_physical_row_v2_provider(using=owner_alias)
     facade = composition.build_owner_tenant_authority_v3_facade(
         principal=AuthenticatedAccountPrincipalV3(
             principal_id=authentication.principal_id,
             user_id=authentication.user_id,
             authentication_context_hash=authentication.authentication_context_hash,
-            authenticated_at=authentication.recorded_at,
-            valid_until=authentication.valid_until,
+            authenticated_at=actor_source.principal_authenticated_at,
+            valid_until=actor_source.principal_valid_until,
         ),
         policy_binding=SingleOwnerPolicyBinding(
             policy.policy_id,
@@ -700,9 +777,33 @@ def test_opt_in_postgres_facade_issues_reads_and_revokes(
         actor_source_version=authentication.source_version,
         actor_source_content_hash=authentication.source_content_hash,
         validity_period=timedelta(hours=1),
-        physical_row_provider=build_account_physical_row_v2_provider(using=owner_alias),
+        physical_row_provider=physical_provider,
         using=owner_alias,
     )
+    assert source.is_current_at(now)
+    current_source = physical_provider.get_exact_current(
+        source_id=physical.source_id,
+        source_version=physical.source_version,
+        expected_content_hash=physical.source_content_hash,
+        account_namespace=physical.account_namespace,
+        account_id=physical.account_id,
+        underlying_unified_account_namespace=physical.underlying_unified_account_namespace,
+        underlying_unified_account_id=physical.underlying_unified_account_id,
+        as_of=now,
+    )
+    assert current_source is not None
+    assert current_source.content_hash == physical.source_content_hash
+    assert current_source.account_id == physical.account_id
+    assert current_source.underlying_unified_account_id == physical.underlying_unified_account_id
+    current_evidence = facade._service._current_assignments._facade.get_current(
+        GetCurrentAccountOwnerAssignmentEvidenceV5Command(
+            assignment.evidence_id,
+            assignment.evidence_version,
+            assignment.content_hash,
+            now,
+        )
+    )
+    assert current_evidence == assignment
     issue = facade.issue(
         IssueOwnerTenantAuthorityV3Command(
             "composition-owner-root",
