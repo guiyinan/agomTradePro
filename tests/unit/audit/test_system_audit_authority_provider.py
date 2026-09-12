@@ -172,21 +172,21 @@ def test_reader_result_substitution_is_fail_closed() -> None:
 
 
 def test_actor_scope_identity_or_staff_mismatch_is_fail_closed() -> None:
-    assert _provider(
-        _actor(is_staff=False), _scope(), _selector()
-    ).get_current(as_of=NOW) is None
-    assert _provider(
-        _actor(), _scope(actor_id="django-user:8"), _selector()
-    ).get_current(as_of=NOW) is None
+    assert _provider(_actor(is_staff=False), _scope(), _selector()).get_current(as_of=NOW) is None
+    assert (
+        _provider(_actor(), _scope(actor_id="django-user:8"), _selector()).get_current(as_of=NOW)
+        is None
+    )
 
 
 def test_expired_or_future_authority_is_fail_closed() -> None:
-    assert _provider(
-        _actor(valid_until=NOW), _scope(), _selector()
-    ).get_current(as_of=NOW) is None
-    assert _provider(
-        _actor(recorded_at=NOW + timedelta(seconds=1)), _scope(), _selector()
-    ).get_current(as_of=NOW) is None
+    assert _provider(_actor(valid_until=NOW), _scope(), _selector()).get_current(as_of=NOW) is None
+    assert (
+        _provider(
+            _actor(recorded_at=NOW + timedelta(seconds=1)), _scope(), _selector()
+        ).get_current(as_of=NOW)
+        is None
+    )
 
 
 def test_reader_exception_is_fail_closed_without_leaking_details() -> None:
