@@ -246,6 +246,7 @@ class OwnerTenantAuthorityV3Facade:
 
         return self._locked(lambda: self._service.revoke(command))
 
+    @validation_graph_operation
     def _locked(self, operation: Callable[[], _ReturnT]) -> _ReturnT:
         """Run one operation under V5/V3 locks followed by actor capture UOW."""
 

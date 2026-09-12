@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -31,9 +31,11 @@ from apps.account.application.owner_tenant_authority_v3_contracts import (
     OwnerTenantAuthorityV3Unavailable,
 )
 from apps.account.application.single_owner_actor_authority import SingleOwnerPolicyBinding
+from apps.account.domain.validation_graph import reuse_validated_decode
 from apps.account.infrastructure.account_owner_assignment_actor_authority_source_v3_repository import (
     DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository,
 )
+from apps.account.infrastructure.immutable_read_snapshot import reuse_immutable_read
 from apps.account.infrastructure.owner_tenant_authority_v3_repository import (
     DjangoOwnerTenantAuthorityV3Repository,
 )
@@ -174,6 +176,48 @@ class _FakeService:
         return "revoked"
 
 
+class _LifecycleValidationProbeService(_FakeService):
+    """Run one validation-graph probe before each Authority lifecycle call."""
+
+    def __init__(
+        self,
+        events: list[str],
+        probe: Callable[[], None],
+        *,
+        fail: bool = False,
+    ) -> None:
+        """Bind a probe and optionally fail after it has executed."""
+
+        super().__init__(events)
+        self._probe = probe
+        self._fail = fail
+
+    def _before(self) -> None:
+        """Run the probe and optionally raise a lifecycle failure."""
+
+        self._probe()
+        if self._fail:
+            raise RuntimeError("authority lifecycle probe failure")
+
+    def issue(self, command: object) -> object:
+        """Probe the root issue route."""
+
+        self._before()
+        return super().issue(command)
+
+    def successor(self, command: object) -> object:
+        """Probe the successor route."""
+
+        self._before()
+        return super().successor(command)
+
+    def revoke(self, command: object) -> object:
+        """Probe the revocation route."""
+
+        self._before()
+        return super().revoke(command)
+
+
 @dataclass(frozen=True)
 class _AuthorityProjection:
     """Small comparable authority projection for callback contract tests."""
@@ -220,6 +264,178 @@ def _facade(
         ),
         lock_current_physical_sources=lambda: events.append("lock-physical"),
     )
+
+
+@pytest.mark.parametrize("method_name", ["issue", "successor", "revoke"])
+def test_lifecycle_validation_cache_reuses_exact_decode_only_inside_operation(
+    monkeypatch: pytest.MonkeyPatch,
+    method_name: str,
+) -> None:
+    """Reuse one exact decode during each Authority lifecycle operation only."""
+
+    events: list[str] = []
+    monkeypatch.setattr(composition, "connections", _ConnectionRegistry())
+
+    @contextmanager
+    def outer_atomic(*, using: str) -> Iterator[None]:
+        """Record the outer same-alias transaction."""
+
+        assert using == "authority-v3"
+        yield
+
+    monkeypatch.setattr(composition.transaction, "atomic", outer_atomic)
+    monkeypatch.setattr(
+        composition,
+        "lock_owner_tenant_authority_v3_sources",
+        lambda **kwargs: events.append("lock"),
+    )
+
+    calls = 0
+
+    @reuse_validated_decode("authority-v3-lifecycle-test")
+    def decode(payload: object) -> object:
+        """Count exact payload decodes for one facade operation."""
+
+        nonlocal calls
+        del payload
+        calls += 1
+        return object()
+
+    read_calls = 0
+
+    class _ReadProbe:
+        """Expose an immutable-read decorated method for write-path checks."""
+
+        @reuse_immutable_read("authority-v3-write-read-test")
+        def read(self) -> object:
+            """Count immutable reads without activating their snapshot context."""
+
+            nonlocal read_calls
+            read_calls += 1
+            return object()
+
+    reader = _ReadProbe()
+
+    def probe() -> None:
+        """Probe validation reuse and immutable-read snapshot boundaries."""
+
+        first = decode({"payload": "same"})
+        second = decode({"payload": "same"})
+        assert first is second
+        first_read = reader.read()
+        second_read = reader.read()
+        assert first_read is not second_read
+
+    facade = _facade(
+        events,
+        service=_LifecycleValidationProbeService(events, probe),
+    )
+    getattr(facade, method_name)(cast(object, object()))
+
+    assert calls == 1
+    assert read_calls == 2
+    decode({"payload": "same"})
+    assert calls == 2
+
+
+def test_lifecycle_validation_cache_is_cleared_after_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Do not reuse a validation result after a failed Authority operation."""
+
+    events: list[str] = []
+    monkeypatch.setattr(composition, "connections", _ConnectionRegistry())
+
+    @contextmanager
+    def outer_atomic(*, using: str) -> Iterator[None]:
+        """Record the outer same-alias transaction."""
+
+        assert using == "authority-v3"
+        yield
+
+    monkeypatch.setattr(composition.transaction, "atomic", outer_atomic)
+    monkeypatch.setattr(
+        composition,
+        "lock_owner_tenant_authority_v3_sources",
+        lambda **kwargs: events.append("lock"),
+    )
+
+    calls = 0
+
+    @reuse_validated_decode("authority-v3-failing-lifecycle-test")
+    def decode(payload: object) -> object:
+        """Count exact payload decodes for the failing operation."""
+
+        nonlocal calls
+        del payload
+        calls += 1
+        return object()
+
+    def probe() -> None:
+        """Decode one exact JSON tree twice before the injected failure."""
+
+        decode({"payload": "same"})
+        decode({"payload": "same"})
+
+    facade = _facade(
+        events,
+        service=_LifecycleValidationProbeService(events, probe, fail=True),
+    )
+    with pytest.raises(RuntimeError, match="probe failure"):
+        facade.issue(cast(IssueOwnerTenantAuthorityV3Command, object()))
+
+    assert calls == 1
+    decode({"payload": "same"})
+    assert calls == 2
+
+
+def test_lifecycle_validation_cache_does_not_cross_changed_payloads(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Require a second decode when an exact payload changes."""
+
+    events: list[str] = []
+    monkeypatch.setattr(composition, "connections", _ConnectionRegistry())
+
+    @contextmanager
+    def outer_atomic(*, using: str) -> Iterator[None]:
+        """Record the outer same-alias transaction."""
+
+        assert using == "authority-v3"
+        yield
+
+    monkeypatch.setattr(composition.transaction, "atomic", outer_atomic)
+    monkeypatch.setattr(
+        composition,
+        "lock_owner_tenant_authority_v3_sources",
+        lambda **kwargs: events.append("lock"),
+    )
+
+    calls = 0
+
+    @reuse_validated_decode("authority-v3-changed-payload-test")
+    def decode(payload: object) -> object:
+        """Count decodes for distinct exact JSON trees."""
+
+        nonlocal calls
+        del payload
+        calls += 1
+        return object()
+
+    def probe() -> None:
+        """Decode two different exact JSON trees."""
+
+        first = decode({"payload": "same"})
+        second = decode({"payload": "changed"})
+        assert first is not second
+
+    facade = _facade(
+        events,
+        service=_LifecycleValidationProbeService(events, probe),
+    )
+    facade.issue(cast(IssueOwnerTenantAuthorityV3Command, object()))
+
+    assert calls == 2
 
 
 def test_builder_binds_v3_service_evidence_facade_and_sources_to_one_alias() -> None:
@@ -383,6 +599,7 @@ def test_with_current_rechecks_authority_authentication_and_source_projection(
         )
         is None
     )
+    assert events == ["lock", "actors.enter", "current", "current", "actors.exit"]
 
 
 def test_facade_rolls_back_outer_context_and_rejects_non_postgresql_alias(
