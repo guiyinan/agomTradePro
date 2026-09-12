@@ -198,7 +198,7 @@ def _build_system_audit_runtime_composition(
         repository = DjangoSystemAuditOutboxRepository(using=alias)
         unit_of_work = DjangoSystemAuditOutboxUnitOfWork(repository)
         publisher = DjangoSystemAuditDeliveryReceiptPublisher(using=alias)
-        readers = build_system_audit_authority_readers(using=alias)
+        readers = build_system_audit_authority_readers(using=alias, selector=selector)
         if type(readers) is not SystemAuditAuthorityReaders:
             raise TypeError("authority reader bundle type was substituted")
         readers.__post_init__()

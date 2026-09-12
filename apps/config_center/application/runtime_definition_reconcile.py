@@ -483,7 +483,10 @@ DEFAULT_RUNTIME_DEFINITIONS: tuple[RuntimeConfigDefinition, ...] = (
         value_type=RuntimeValueType.TYPED_JSON,
         criticality=RuntimeConfigCriticality.NORMAL,
         reload_mode=RuntimeConfigReloadMode.NEXT_TASK,
-        description="Server-issued audit authority selector required by enabled audit modes.",
+        description=(
+            "Server-issued audit authority selector required by enabled audit modes; "
+            "legacy V1 uses six fields and versioned scopes add scope_schema."
+        ),
         user_impact="Binds enabled audit reads to immutable authority sources.",
     ),
 )

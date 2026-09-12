@@ -12,6 +12,12 @@ from apps.account.application.account_owner_assignment_actor_authority_source_v3
 from apps.account.application.owner_tenant_authority_v1 import (
     GetCurrentOwnerTenantAuthorityV1Command,
 )
+from apps.account.application.owner_tenant_authority_v3 import (
+    GetCurrentOwnerTenantAuthorityV3Command,
+)
+from apps.account.application.owner_tenant_authority_v3_contracts import (
+    CurrentOwnerTenantAuthorityV3,
+)
 from apps.account.domain.account_owner_assignment_actor_authority_source_v3 import (
     AccountOwnerAssignmentActorAuthoritySourceV3,
 )
@@ -20,11 +26,22 @@ from apps.account.system_audit_authority_composition import (
     AccountSystemAuditAuthorityReaders,
     build_account_system_audit_authority_readers,
 )
+from apps.account.system_audit_authority_v3_composition import (
+    AccountSystemAuditOwnerTenantAuthorityV3Reader,
+)
 from apps.audit.application.system_audit_authority_provider import (
     SystemAuditActorAuthorityFacts,
     SystemAuditActorAuthorityReader,
+    SystemAuditAuthorityBundleSelector,
     SystemAuditScopeAuthorityFacts,
     SystemAuditScopeAuthorityReader,
+)
+from apps.audit.application.system_audit_authority_schema import (
+    SYSTEM_AUDIT_SCOPE_SCHEMA_V1,
+    SYSTEM_AUDIT_SCOPE_SCHEMA_V3,
+)
+from apps.simulated_trading.account_physical_row_v2_composition import (
+    build_account_physical_row_v2_provider,
 )
 
 
@@ -44,6 +61,15 @@ class OwnerTenantAuthorityReader(Protocol):
         self, command: GetCurrentOwnerTenantAuthorityV1Command
     ) -> OwnerTenantAuthorityV1 | None:
         """Return the exact authority or ``None``."""
+
+
+class OwnerTenantAuthorityV3Reader(Protocol):
+    """Read one exact-current EVID-07 owner/tenant authority observation."""
+
+    def execute(
+        self, command: GetCurrentOwnerTenantAuthorityV3Command
+    ) -> CurrentOwnerTenantAuthorityV3 | None:
+        """Return the exact current V3 observation or ``None``."""
 
 
 class _AliasBoundActorAdapter(SystemAuditActorAuthorityReader, Protocol):
@@ -154,6 +180,62 @@ class AccountSystemAuditScopeAuthorityAdapter(SystemAuditScopeAuthorityReader):
 
 
 @dataclass(frozen=True, slots=True)
+class AccountSystemAuditScopeAuthorityV3Adapter(SystemAuditScopeAuthorityReader):
+    """Project an exact-current EVID-07 Authority V3 observation into Audit facts."""
+
+    reader: OwnerTenantAuthorityV3Reader
+    database_alias: str = "default"
+
+    def __post_init__(self) -> None:
+        """Reject an unbound or malformed V3 reader."""
+
+        if not callable(getattr(self.reader, "execute", None)):
+            raise TypeError("scope authority v3 reader must expose execute")
+        _validate_alias(self.database_alias)
+
+    def get_current(
+        self, *, source_id: str, source_version: str, expected_content_hash: str, as_of: datetime
+    ) -> SystemAuditScopeAuthorityFacts | None:
+        """Forward the exact V3 selector and project its revalidated live observation."""
+
+        observation = self.reader.execute(
+            GetCurrentOwnerTenantAuthorityV3Command(
+                source_id,
+                source_version,
+                expected_content_hash,
+            )
+        )
+        if observation is None:
+            return None
+        if type(observation) is not CurrentOwnerTenantAuthorityV3:
+            raise TypeError("owner tenant authority v3 observation type substitution")
+        observation.__post_init__()
+        authority = observation.authority
+        if (
+            authority.authority_id != source_id
+            or authority.authority_version != source_version
+            or authority.content_hash != expected_content_hash
+            or authority.status != "active"
+            or not authority.is_current_at(as_of)
+            or observation.valid_until <= as_of
+        ):
+            return None
+        return SystemAuditScopeAuthorityFacts(
+            source_id=authority.authority_id,
+            source_version=authority.authority_version,
+            content_hash=authority.content_hash,
+            actor_id=authority.actor_id,
+            user_id=authority.actor_user_id,
+            tenant_id=authority.tenant_id,
+            owner_id=authority.owner_id,
+            authority_state="active",
+            recorded_at=authority.recorded_at,
+            valid_until=observation.valid_until,
+            scope_schema=SYSTEM_AUDIT_SCOPE_SCHEMA_V3,
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class SystemAuditAuthorityReaders:
     """Typed actor/scope readers bound to one database alias."""
 
@@ -173,21 +255,43 @@ class SystemAuditAuthorityReaders:
                 raise ValueError("authority readers must share one database alias")
 
 
-def build_system_audit_authority_readers(*, using: str = "default") -> SystemAuditAuthorityReaders:
-    """Build both concrete authority adapters against one validated alias."""
+def build_system_audit_authority_readers(
+    *,
+    using: str = "default",
+    selector: SystemAuditAuthorityBundleSelector | None = None,
+) -> SystemAuditAuthorityReaders:
+    """Build explicit V1 or V3 authority adapters against one validated alias."""
 
     alias = _validate_alias(using)
+    if selector is not None:
+        if type(selector) is not SystemAuditAuthorityBundleSelector:
+            raise TypeError("authority selector type was substituted")
+        selector.__post_init__()
     readers = build_account_system_audit_authority_readers(using=alias)
     if type(readers) is not AccountSystemAuditAuthorityReaders:
         raise TypeError("Account authority reader bundle type was substituted")
     readers.__post_init__()
     if readers.database_alias != alias:
         raise ValueError("Account authority readers must share the Audit database alias")
-    return SystemAuditAuthorityReaders(
-        actor=AccountSystemAuditActorAuthorityAdapter(readers.actor, alias),
-        scope=AccountSystemAuditScopeAuthorityAdapter(readers.scope, alias),
-        database_alias=alias,
-    )
+    actor = AccountSystemAuditActorAuthorityAdapter(readers.actor, alias)
+    if selector is None or selector.scope_schema == SYSTEM_AUDIT_SCOPE_SCHEMA_V1:
+        scope: _AliasBoundScopeAdapter = AccountSystemAuditScopeAuthorityAdapter(
+            readers.scope, alias
+        )
+    elif selector.scope_schema == SYSTEM_AUDIT_SCOPE_SCHEMA_V3:
+        scope = AccountSystemAuditScopeAuthorityV3Adapter(
+            AccountSystemAuditOwnerTenantAuthorityV3Reader(
+                actor_source_id=selector.actor_source_id,
+                actor_source_version=selector.actor_source_version,
+                actor_content_hash=selector.actor_content_hash,
+                physical_row_provider=build_account_physical_row_v2_provider(using=alias),
+                database_alias=alias,
+            ),
+            alias,
+        )
+    else:
+        raise ValueError("system audit scope schema has no wired reader")
+    return SystemAuditAuthorityReaders(actor=actor, scope=scope, database_alias=alias)
 
 
 def _validate_alias(value: object) -> str:
@@ -207,6 +311,7 @@ def _validate_alias(value: object) -> str:
 __all__ = [
     "AccountSystemAuditActorAuthorityAdapter",
     "AccountSystemAuditScopeAuthorityAdapter",
+    "AccountSystemAuditScopeAuthorityV3Adapter",
     "SystemAuditAuthorityReaders",
     "build_system_audit_authority_readers",
 ]

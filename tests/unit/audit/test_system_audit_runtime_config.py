@@ -9,6 +9,9 @@ import pytest
 from apps.audit.application.system_audit_authority_provider import (
     SystemAuditAuthorityBundleSelector,
 )
+from apps.audit.application.system_audit_authority_schema import (
+    SYSTEM_AUDIT_SCOPE_SCHEMA_V3,
+)
 from apps.config_center.domain.runtime_config import (
     RuntimeConfigProfile,
     RuntimeConfigSnapshot,
@@ -166,6 +169,27 @@ def test_valid_binding_uses_one_snapshot_and_has_deterministic_issuer(
     assert len(first.issuer_id) == len("audit-config:") + 64
 
 
+def test_versioned_selector_payload_preserves_declared_scope_schema(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    profile = _profile()
+    selector = {**SELECTOR, "scope_schema": SYSTEM_AUDIT_SCOPE_SCHEMA_V3}
+    values = _values(selector=selector)
+    _install_lookups(monkeypatch, profile=profile, snapshot=_snapshot(profile, values=values))
+
+    binding = load_system_audit_runtime_config(environment="production")
+
+    assert binding.authority_selector == SystemAuditAuthorityBundleSelector(
+        actor_source_id="actor-source-41",
+        actor_source_version="v3",
+        actor_content_hash="a" * 64,
+        scope_source_id="scope-authority-41",
+        scope_source_version="v4",
+        scope_content_hash="b" * 64,
+        scope_schema=SYSTEM_AUDIT_SCOPE_SCHEMA_V3,
+    )
+
+
 def test_off_mode_allows_selector_to_be_absent_for_authority_bootstrap(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -321,6 +345,10 @@ def test_snapshot_identity_and_content_hash_are_exact(
         (_values(mode=1), "mode_invalid"),
         (_values(outbox_enabled=1), "outbox_enabled_invalid"),
         (_values(selector=[]), "authority_selector_invalid"),
+        (
+            _values(selector={**SELECTOR, "scope_schema": "account.owner_tenant_authority.v9"}),
+            "authority_selector_invalid",
+        ),
         (
             _values(
                 selector={
