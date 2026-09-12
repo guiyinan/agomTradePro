@@ -14,6 +14,7 @@ from apps.account.domain.canonical_account_creation_binding_v2 import (
 from apps.account.domain.canonical_account_creation_consumption import (
     CanonicalAccountCreationConsumptionClaim,
 )
+from apps.account.domain.validation_graph import validation_graph_operation
 from apps.account.infrastructure.canonical_account_creation_codec import (
     CanonicalAccountCreationCodecError,
     decode_canonical_account_creation_allocation,
@@ -28,6 +29,7 @@ class CanonicalAccountCreationConsumptionCodecError(ValueError):
     """A creation-consumption claim payload is malformed or non-canonical."""
 
 
+@validation_graph_operation
 def encode_canonical_account_creation_consumption_claim(
     value: CanonicalAccountCreationConsumptionClaim,
 ) -> dict[str, object]:
@@ -39,6 +41,7 @@ def encode_canonical_account_creation_consumption_claim(
     return value.to_payload()
 
 
+@validation_graph_operation
 def decode_canonical_account_creation_consumption_claim(
     payload: object,
     *,

@@ -219,6 +219,39 @@ def test_encode_requires_exact_domain_type() -> None:
         )
 
 
+@pytest.mark.parametrize("operation", ["encode", "decode"])
+def test_v2_codec_validates_the_binding_once_per_graph_operation(
+    monkeypatch: pytest.MonkeyPatch,
+    operation: str,
+) -> None:
+    """Repeated consumer references cannot multiply Binding validation work."""
+
+    claim = _claim(consumer_generation="v2")
+    payload = encode_canonical_account_creation_consumption_claim(claim)
+    original = CanonicalAccountCreationBindingV2._validate_fixed_semantics
+    validations = 0
+
+    def counted_validation(value: CanonicalAccountCreationBindingV2) -> None:
+        nonlocal validations
+        validations += 1
+        original(value)
+
+    monkeypatch.setattr(
+        CanonicalAccountCreationBindingV2,
+        "_validate_fixed_semantics",
+        counted_validation,
+    )
+    if operation == "encode":
+        encode_canonical_account_creation_consumption_claim(claim)
+    else:
+        decode_canonical_account_creation_consumption_claim(
+            payload,
+            consumer=claim.consumer,
+        )
+
+    assert validations == 1
+
+
 _CLAIM_KEYS = {
     "owner",
     "artifact_type",

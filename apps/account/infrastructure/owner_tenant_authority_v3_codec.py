@@ -12,6 +12,7 @@ from apps.account.domain.owner_tenant_authority_v3 import (
     OwnerTenantAuthorityV3,
     OwnerTenantAuthorityV3Revocation,
 )
+from apps.account.domain.validation_graph import validation_graph_operation
 from apps.account.infrastructure.account_owner_assignment_evidence_v5_codec import (
     decode_account_owner_assignment_evidence_v5,
     encode_account_owner_assignment_evidence_v5,
@@ -90,6 +91,7 @@ _REVOCATION_SEAL_FIELDS = (
 )
 
 
+@validation_graph_operation
 def encode_owner_tenant_authority_v3(
     value: OwnerTenantAuthorityV3,
 ) -> dict[str, object]:
@@ -112,6 +114,7 @@ def encode_owner_tenant_authority_v3(
         ) from error
 
 
+@validation_graph_operation
 def decode_owner_tenant_authority_v3(
     payload: object,
 ) -> OwnerTenantAuthorityV3:
@@ -158,6 +161,7 @@ def decode_owner_tenant_authority_v3(
     return authority
 
 
+@validation_graph_operation
 def encode_owner_tenant_authority_v3_revocation(
     value: OwnerTenantAuthorityV3Revocation,
 ) -> dict[str, object]:
@@ -180,6 +184,7 @@ def encode_owner_tenant_authority_v3_revocation(
         ) from error
 
 
+@validation_graph_operation
 def decode_owner_tenant_authority_v3_revocation(
     payload: object,
 ) -> OwnerTenantAuthorityV3Revocation:

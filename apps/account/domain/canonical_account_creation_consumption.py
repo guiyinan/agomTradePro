@@ -14,6 +14,10 @@ from apps.account.domain.canonical_account_creation import (
 from apps.account.domain.canonical_account_creation_binding_v2 import (
     CanonicalAccountCreationBindingV2,
 )
+from apps.account.domain.validation_graph import (
+    validate_once_per_graph,
+    validation_graph_operation,
+)
 
 CANONICAL_ACCOUNT_CREATION_CONSUMPTION_CLAIM_OWNER = "account"
 CANONICAL_ACCOUNT_CREATION_CONSUMPTION_CLAIM_ARTIFACT_TYPE = (
@@ -120,6 +124,7 @@ class CanonicalAccountCreationConsumptionClaim:
     permission: str = CANONICAL_ACCOUNT_CREATION_CONSUMPTION_CLAIM_PERMISSION
     status: str = CANONICAL_ACCOUNT_CREATION_CONSUMPTION_CLAIM_STATUS
 
+    @validate_once_per_graph
     def __post_init__(self) -> None:
         self._validate_fixed_semantics()
         _require_token(self.claim_id, "claim_id")
@@ -315,6 +320,7 @@ class CanonicalAccountCreationConsumptionClaim:
             "status": self.status,
         }
 
+    @validation_graph_operation
     def to_payload(self) -> dict[str, object]:
         """Return the canonical allocation plus exact non-recursive consumer reference."""
 

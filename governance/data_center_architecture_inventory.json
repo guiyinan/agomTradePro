@@ -3456,42 +3456,42 @@
       "text": "latest selection, revocation lookup, current-policy validation, and fresh"
     },
     {
-      "line": 124,
+      "line": 128,
       "path": "apps/account/domain/owner_tenant_authority_v3.py",
       "text": "assignment and policy were current at both approval and recording time."
     },
     {
-      "line": 127,
+      "line": 131,
       "path": "apps/account/domain/owner_tenant_authority_v3.py",
       "text": "must revalidate durable latest, revocation, current policy, and fresh"
     },
     {
-      "line": 189,
+      "line": 194,
       "path": "apps/account/domain/owner_tenant_authority_v3.py",
       "text": "raise ValueError(\"authority root requires a current assignment at both clocks\")"
     },
     {
-      "line": 191,
+      "line": 196,
       "path": "apps/account/domain/owner_tenant_authority_v3.py",
       "text": "raise ValueError(\"authority root requires a current policy at both clocks\")"
     },
     {
-      "line": 311,
+      "line": 316,
       "path": "apps/account/domain/owner_tenant_authority_v3.py",
       "text": "Durable latest selection, revocation, current-policy validation, and"
     },
     {
-      "line": 377,
+      "line": 383,
       "path": "apps/account/domain/owner_tenant_authority_v3.py",
       "text": "event at its recorded cutoff, and still perform current-policy and fresh"
     },
     {
-      "line": 516,
+      "line": 524,
       "path": "apps/account/domain/owner_tenant_authority_v3.py",
       "text": "\"\"\"Validate one active v3 root with its complete current source coverage.\"\"\""
     },
     {
-      "line": 541,
+      "line": 549,
       "path": "apps/account/domain/owner_tenant_authority_v3.py",
       "text": "raise ValueError(\"only a current active authority may receive a successor\")"
     },
