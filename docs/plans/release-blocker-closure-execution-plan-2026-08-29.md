@@ -41,6 +41,13 @@ runtime 为 off、outbox disabled、authority selector absent。这是后续恢�
 pending/due_pending 各 2，其余 0，与前述只读账本计数一致。该样本补齐当前候选的 HTTP 指标取证，
 不代替告警、恢复、admin TUI、archive/restore 或生产签收；本地采集时钟与服务器时钟不作精确同步假设。
 
+[真实 admin TUI 读取检查点](../deployment/sprint-aud03-admin-tui-read-2026-09-13-c8bb9b780.json)
+随后保留 admin/user1 的 screen、overview 和默认 health read-action 实际 HTTP 结果，均为 JSON/200，
+默认动作 outcome=success。它走既有内部认证，没有新建 credential 或执行 approval/dispatch/AI。
+健康主表只有 component/status/message/checked_at 四列；pending=2 与年龄约 20,549 秒仅在 debug raw
+数据中，不在主表。AUD-03 用户验收仍须验证首屏可见积压条数、年龄与恢复状态，不能把读取 success
+当作运营主任务已完成；浏览器视觉、告警、恢复、archive/restore 与签收仍待真实证据。
+
 PR #34 已通过全部 CI 并合并，生产当前绑定
 `c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc` / `20260913014501` /
 `sha256:5dd37368b64f735b7850647659ae18e07684eb7d7444d99baf0a900d087943ea`。
