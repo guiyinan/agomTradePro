@@ -14,6 +14,22 @@ write/current/ORM snapshot 缓存。先用生命周期接线、操作退出/失�
 两次 current/drift rejection 测试验证语义，再比较同一 repeatable-read 代表性完整图的重复 restore
 CPU/解码/SQL。只读 restore 基准不是新写入或生产并发验收；未验证前 EVID-08 保持 active。
 
+EVID-08 首次完整隔离 PostgreSQL 批次实际结束为 `6 passed / 3 failed / 3,727.20s`。
+successor 自指 predecessor 的原始 SQL 篡改已经被 `_restore_root` 的 ledger seal 校验拒绝；
+失败是测试仅接受 predecessor/successor 文案，不能据此声称生产校验被绕过。另两项分别是
+并发测试未进入 Simulated repository 的 private UOW，以及 facade fixture 未建同 alias 的
+Simulated source ledger 表。修正完整 fixture 与合法事务调用后仍须重跑真实锁竞争及生命周期；
+此前成功的纯组件测试和 CI 不代替该批次。新增 FK 交叉校验的必要性另行审查，不以推测接受代码。
+
+首次生产完整图 cProfile 基线已返回：同一个 READ ONLY / REPEATABLE READ 快照内两次 exact
+get_winner restore 耗时 `2,576.715s`、CPU `2,380.099s`、`58,492 SELECT`、DB execute `162.046s`。
+它包含 profiler 开销；候选阶段只有 started，连接在 3,600 秒超时后失去输出，不能计算性能提升。
+曾核实后台仍存活，随后精确 PID 检查确认进程已退出；没有终止服务或重启写入。替代诊断于
+`2026-09-12T21:18:29Z` 使用独立远端目录启动，runner PID `2423267`，脚本 SHA-256 为
+`8a01a967b12554f176a5f55b73be766b87080d972863713be540869eb9529970`。
+该次仍测同快照内完整 baseline/candidate，stdout、stderr、exit code 与起止时间持久保存，
+通过同一 job handle 续查；当前没有完整结果，EVID-08 和 PR #36 均不晋级。
+
 同候选的[DATA-02 分数据集诊断](../deployment/sprint-data02-dataset-gap-checkpoint-2026-09-13-c8bb9b780.json)
 保留只读事务、严格预览失败和 200 资产来源预检的原始响应/脚本及 SHA：completed-session price
 合格为 `1/5,533`，最新 valuation `5,533/5,533` 均缺 observed_at；financial 候选已有全资产覆盖，
