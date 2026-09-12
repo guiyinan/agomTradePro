@@ -7131,7 +7131,7 @@
       "text": "\"\"\"Read one exact/current immutable tenant/owner scope source.\"\"\""
     },
     {
-      "line": 528,
+      "line": 529,
       "path": "apps/audit/application/system_audit_composition.py",
       "text": "\"\"\"Injected source of current, immutable authority facts.\"\"\""
     },
