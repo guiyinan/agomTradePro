@@ -14,6 +14,15 @@ write/current/ORM snapshot 缓存。先用生命周期接线、操作退出/失�
 两次 current/drift rejection 测试验证语义，再比较同一 repeatable-read 代表性完整图的重复 restore
 CPU/解码/SQL。只读 restore 基准不是新写入或生产并发验收；未验证前 EVID-08 保持 active。
 
+同候选的[DATA-02 分数据集诊断](../deployment/sprint-data02-dataset-gap-checkpoint-2026-09-13-c8bb9b780.json)
+保留只读事务、严格预览失败和 200 资产来源预检的原始响应/脚本及 SHA：completed-session price
+合格为 `1/5,533`，最新 valuation `5,533/5,533` 均缺 observed_at；financial 候选已有全资产覆盖，
+null available_at 修复暂无 eligible 行。preview 的 ready 仅是候选覆盖，不能记为 freshness 通过。
+公共 provider 对 frozen universe 首 200 资产返回 quote/valuation 各 `200/200`、源日期均为
+2026-09-11，但新 valuation adapter 仍全缺 available_at，将被标为 available_at_unverified。
+因此 EVID-08 验证后先补实际响应首次可见时间的 source-bound 传递，再执行有界事实修复；
+禁止直接 patch 历史 observed_at/available_at 或把响应抓取时间替换为源观察时间。
+
 PR #34 已通过全部 CI 并合并，生产当前绑定
 `c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc` / `20260913014501` /
 `sha256:5dd37368b64f735b7850647659ae18e07684eb7d7444d99baf0a900d087943ea`。
