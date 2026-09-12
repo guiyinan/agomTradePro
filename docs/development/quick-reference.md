@@ -537,6 +537,18 @@ pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q
 | `/api/account/accounts/{id}/performance/` | GET | 获取当前登录用户名下账户绩效 |
 | `/api/simulated-trading/manual-trade/` | POST | 手动交易 |
 
+创建账户的 `initial_capital` 最多 15 位数字（含 2 位小数），与持久化金额字段一致。
+`fee_config_id` 尚未接入创建用例，只接受省略或 `null`；非空值返回字段校验错误，
+请使用 `commission_rate` 和 `slippage_rate` 明确指定费率。
+创建请求必须携带独立的 `Idempotency-Key`（1–192 字符，不含空白）；同一次提交的重试复用原键，
+新的创建使用新键。首次创建返回 201，成功重放返回 200，二者均包含 `success`、`account`、
+`replayed`。同键不同内容或同用户重复名称返回 409；创建证据配置不可用时返回 503，
+不会回退至旧写入路径。请求体不得指定 `user_id`、`actor_id`、权限模式或其他未知字段。
+SDK 的 `client.account.create_account(...)` 和 `client.simulated_trading.create_account(...)`
+均需显式提供关键字参数 `idempotency_key`，仍返回账户字典。TUI 自动维护本次提交标识，
+网络结果不明时使用“重试本次提交”，而不是重新发起创建。MCP 确认后的执行向账户 API
+传递原治理请求的幂等键，不另行生成一个键。
+
 ### Setup Wizard API
 
 | 端点 | 方法 | 说明 |
@@ -978,6 +990,36 @@ pip install -r requirements.txt
 - 访问 `/admin/` Django Admin 后台
 - 访问 `/api/regime/current/` 获取当前 Regime
 - 访问 `/api/realtime/health/` 检查实时数据服务状态
+
+## Single-owner policy publication (local implementation; production acceptance pending)
+
+`POST /api/account/authority/policy/publish/` uses Django Session authentication and CSRF.
+Send `Content-Type: application/json` and a non-empty `Idempotency-Key` (maximum 192
+characters, no whitespace). The body contains exactly these string fields:
+
+```json
+{
+  "binding_id": "<existing binding ID>",
+  "binding_version": "<existing binding version>",
+  "binding_content_hash": "<64-character lowercase SHA-256>"
+}
+```
+
+The server resolves the account scope from the exact permanent binding and verifies that
+its requester matches the current authenticated owner. Active Config Center keys
+`account.single_owner_policy.publication_settings` and
+`account.single_owner_policy.authorization_source` must contain matching explicit values.
+The settings command and declaration import command configure those inputs without publishing
+a policy; CLI actor labels do not supply Session authentication.
+
+Success and exact current replay return HTTP 200 with `policy` and `authority_granted: false`.
+Missing/invalid selectors or request key return 400; anonymous/CSRF rejection returns 403;
+conflicting identities or active scope policies return 409; unavailable or invalid evidence
+returns 503. Authentication invalidated during the transaction may return 401 and rolls back
+the publication. An expired/revoked same policy identity is not silently renewed.
+The resulting policy supplies a source for later owner assignment. EVID-07 now provides the
+versioned V5 approval and AuthorityV3/scope implementation in repository code, while real
+production publication, approval and acceptance remain EVID-01/02 production work.
 
 ## Alpha / Screen Notes
 

@@ -1,0 +1,34 @@
+{
+  "schema": "sprint-owner-account-authorization.v1",
+  "recorded_at": "2026-09-10T11:05:01.917705+00:00",
+  "source": {
+    "kind": "interactive_user_declaration",
+    "thread_id": "01a086fd-9e87-7fb0-a534-8d2a81b998b0",
+    "authorization_text": "需要我干什么 你能自己克服困难继续么 我给你充分授权",
+    "account_binding_question": "生产中有 4 个账户，唯一超级管理员是 admin（用户 ID 1）。是否将 admin 指定为你在本项目中的所有者和人工审批账户？",
+    "account_binding_answer": "是，使用 admin",
+    "cryptographic_signature_present": false
+  },
+  "owner_account": {
+    "username": "admin",
+    "user_id": 1,
+    "role": "project_owner_and_human_approver",
+    "binding_basis": "explicit_user_designation",
+    "current_database_observed_at": "2026-09-10T11:01:35.771165+00:00",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": true
+  },
+  "authorized_work": [
+    "Resolve technical prerequisites within the existing sprint, including bounded configuration and corrective implementation.",
+    "Prepare an isolated non-production staging environment and non-billable tests.",
+    "Prepare and execute technically validated bounded production actions with current candidate checks, backups, stop conditions and rollback."
+  ],
+  "not_claimed": [
+    "The designation alone is not a completed authentication-context or canonical authority ledger.",
+    "No successful reconciliation, production acceptance, current human login, elapsed observation period, external approval signature or paid/broker result is asserted.",
+    "Existing exact technical execution gates, account isolation and append-only contracts still apply."
+  ],
+  "production_authority_rows_written_by_this_record": false,
+  "supersedes_missing_owner_account_input_only": true
+}

@@ -1,0 +1,92 @@
+{
+  "schema": "agom.repository-checkpoint.v1",
+  "unit_id": "EVID-07",
+  "status": "active",
+  "recorded_at": "2026-09-10T18:19:05.149124+00:00",
+  "checkpoint": "OwnerTenant V2 application lifecycle, strict codecs and actual live row adapter",
+  "head": "fd56f1a4683b9500d8c0a205045b4bdf5582f715",
+  "source_sha256": {
+    "apps/account/application/owner_tenant_authority_v2.py": "2dc1e7b98bad35966c1a8e9b11c6ae2383241a1ecd0851ab11f8cb0a72e0b415",
+    "apps/account/application/owner_tenant_authority_v2_contracts.py": "fd7421d0f2970f048aca9fe8723a4c0d2149a31620580d53161d46274ca51df0",
+    "apps/account/infrastructure/owner_tenant_authority_v2_codec.py": "f3b533bd1b63472a60353eb60ddcc04006a5da9a1518a05a2e49cc6cda42650f",
+    "apps/account/infrastructure/owner_tenant_authority_v2_record_codec.py": "2606346a3bf19c63eb9519d6bcc4141761ef2c7c6ddb1c38fee2c70e2bae2678",
+    "core/integration/owner_tenant_physical_row_v2.py": "7bd276d5e77e43d389bcbb8f0f058818d2984e0035150d1c1824b48a18525bd7",
+    "tests/unit/account/test_owner_tenant_authority_v2_application.py": "c1a5f63466174f0417887700f26607667c96b11ead7197cc19d03f3539f2dbe0",
+    "tests/unit/account/test_owner_tenant_authority_v2_codec.py": "cda49166d5ea90bf7b34ee6ea25943b2059d20dc285cfddb255f5e00959ef88c",
+    "tests/unit/account/test_owner_tenant_authority_v2_record_codec.py": "22f14c7453c2a197ef790856e40455cf4f246e20312383dac223b5dd133ada61",
+    "tests/component/account/test_owner_tenant_physical_row_v2.py": "bf4ee380e472dbd5355126e24b9450c23738ca0edc086085ea9cdd1e222521ee",
+    "governance/current_data_contracts.json": "5a02faef852254ebb8baa4f4b5b72a59280b7b43825774af29ec3b52a018ac9e"
+  },
+  "legacy_diff_against_head_empty": [
+    "apps/account/domain/owner_tenant_authority_v1.py",
+    "apps/account/application/owner_tenant_authority_v1.py",
+    "apps/account/domain/account_owner_assignment_evidence_v3.py",
+    "apps/account/application/account_owner_assignment_evidence_v3.py",
+    "core/integration/owner_tenant_evidence_scope_v1.py"
+  ],
+  "domain_unchanged_from_checkpoint_sha256": "083ed9c416af611bfd564aab669b201749076bb1fdac7379756139e7b7b4e792",
+  "raw_evidence": {
+    "var/evid07-owner-v2-app-combined-unit.txt": {
+      "sha256": "e90cce5b82580b02a9ef7974943a04bc74ff51acc4f4f49e1b67b51ce6ad9699",
+      "content": "........................................................................ [ 88%]\n.........                                                                [100%]\n81 passed in 222.81s (0:03:42)\n"
+    },
+    "var/evid07-owner-v2-physical-adapter-postgres.txt": {
+      "sha256": "6db824de8f00beb4a4ab3e7902f5017d7a6efc0e4a7a8623fd193f0f818343d1",
+      "content": "Running EVID-06 tests against dedicated loopback test database.\n.                                                                        [100%]\n============================= slowest 3 durations =============================\n41.78s setup    tests/component/account/test_owner_tenant_physical_row_v2.py::test_cross_app_reader_preserves_live_source_and_exact_alias\n11.15s teardown tests/component/account/test_owner_tenant_physical_row_v2.py::test_cross_app_reader_preserves_live_source_and_exact_alias\n2.41s call     tests/component/account/test_owner_tenant_physical_row_v2.py::test_cross_app_reader_preserves_live_source_and_exact_alias\n1 passed in 55.76s\n"
+    },
+    "var/evid07-owner-v2-app-all-mypy.txt": {
+      "sha256": "b2778bab1157c8d1248033fdb64044f9f72ba7b15624dce01ac6fd930f97030f",
+      "content": "Success: no issues found in 5 source files\nMypy regressions: 0 (legacy errors observed: 0)\n"
+    },
+    "var/evid07-owner-v2-app-debt.txt": {
+      "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+      "content": "Full mypy debt ceiling passed: 0 errors in 0 files\n"
+    },
+    "var/evid07-owner-v2-app-format.txt": {
+      "sha256": "3922fd328fb1e7c544e2bad4c564f24ecbffd551dabc133a3c9e7a8336977ba1",
+      "content": "All done! \\u2728 \\U0001f370 \\u2728\n9 files would be left unchanged.\nAll checks passed!\n"
+    },
+    "var/evid07-owner-v2-app-architecture.txt": {
+      "sha256": "cf373ddfdac56ee9f3efdaa06aade0fa506f0f1e8b1471f54e54833b412015d6",
+      "content": "Architecture rules version: 2026-06-30.v8\nScan roots: apps, core, shared\nScanned files: 3081\nBoundary rules: 7\nBoundary violations: 0\n"
+    },
+    "var/evid07-owner-v2-app-governance.txt": {
+      "sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b",
+      "content": "Governance baseline version: 2026-09-09.v220\nGovernance violations: 0\n- governance_baseline: 0 violation(s)\n- docs_consistency: 0 violation(s)\n- docs_links: 0 violation(s)\n- governance_docs: 0 violation(s)\n- module_shape: 0 violation(s)\n- misplaced_app_config: 0 violation(s)\n- singular_dto_files: 0 violation(s)\n- architecture_ruleset: 0 violation(s)\n- module_dependency_baseline: 0 violation(s)\n- ci_governance_wiring: 0 violation(s)\n- application_third_party_imports: 0 violation(s)\n- core_integration_debt: 0 violation(s)\n- core_management_command_debt: 0 violation(s)\n- large_python_files: 0 violation(s)\n- large_file_remediation: 0 violation(s)\n"
+    },
+    "var/evid07-owner-v2-app-freshness.txt": {
+      "sha256": "0d276c65b5842d920a0df0d2ad68d4038d6602a710d28a233f69ee2343119c02",
+      "content": "Current-data freshness contracts OK: 61 surface(s)\n"
+    },
+    "var/evid07-owner-v2-app-cleanup.json": {
+      "sha256": "035facfb573e3880234d90f3c239d71755c0b107dbb57afc6a8c678a9ab48827",
+      "content": "{\"database\": \"evid06_authority_test\", \"public_base_tables\": 0}\n"
+    }
+  },
+  "verified": {
+    "combined_unit_tests": 81,
+    "combined_unit_seconds": 222.81,
+    "postgres_tests": 1,
+    "postgres_scope": "Actual cross-app live row adapter over local User and physical SimulatedAccount; exact same alias, retained clocks and fields, unknown namespace rejection, mandatory caller transaction and current ownerless/inactive/missing rows. This does not test a PostgreSQL owner decision repository.",
+    "application_scope": "Explicit root issue, exact historical read, fresh current observation and revocation/replay through injected ports. New principal/context/source hashes after the five-minute assignment window require a durable same-owner decision. Current request validity honors shorter participant/principal windows. Source substitutions, expiry during reads, expired root occupation and explicit revocation after decision expiry fail closed or preserve immutable history as appropriate.",
+    "codecs": "Closed root/revocation and authentication record envelopes, exact scalar types, nonempty hashes, canonical UTC microseconds and complete nested provenance roundtrip.",
+    "final_assignment_guard": "Initial issue re-reads current V4 after its second live input read and rejects loss or substitution before recording. The regression simulates loss on this third read; complete same-alias source locks remain an explicit requirement for the future durable composition.",
+    "static_scope": "Final scoped mypy covers all five production files. Full debt and architecture/governance ran during this slice; final scoped check includes the worker record codec. No debt baseline changed."
+  },
+  "limits": [
+    "Owner decision lifecycle tests use an in-memory transaction repository; durable owner decision/revocation tables, migrations and repository remain to implement.",
+    "Live adapter uses actual local PostgreSQL, but local accounts and namespace are explicit synthetic test setup, not production provenance or authenticated creation acceptance.",
+    "The service depends on a composition that locks all sources in one alias and supplies authenticated participants; no owner approval HTTP entry point or production assignment was invoked.",
+    "Explicit decision reauthorization after policy/decision expiry and Research scope V2 integration are still required; short-session read refresh alone is not full lifecycle completion."
+  ],
+  "remaining": [
+    "PostgreSQL owner decision/revocation ledgers, migration and source-bound whole-graph replay/rollback validation",
+    "locked authenticated owner service composition and complete owner-scope PostgreSQL tests",
+    "explicit reauthorization using current real physical facts without reapproving expired assignment",
+    "Research scope V2 integration, server declaration publication and actual authenticated creation graph",
+    "full production DATA-02/EVID-01/02/AUD-03/TAR-05 exit gates"
+  ],
+  "production_changes": false,
+  "unit_exit_gate_passed": false,
+  "artifact_git_tracking": "Local artifact remains ignored by existing user configuration; no forced staging."
+}

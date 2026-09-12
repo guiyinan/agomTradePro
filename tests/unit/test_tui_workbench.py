@@ -3452,6 +3452,24 @@ def test_tui_admin_config_center_runtime_action_handles_active_model_without_upd
         activate_runtime_profile_patch(
             environment="development",
             patch={
+                "account.creation_evidence.settings": {
+                    "schema_version": "account.creation_evidence.settings.v1",
+                    "ttl_seconds": 300,
+                    "allocation_recorder_service_id": "tui-test-allocation",
+                    "physical_v2_recorder_service_id": "tui-test-physical",
+                    "allocated_v3_recorder_service_id": "tui-test-root",
+                    "binding_recorder_service_id": "tui-test-binding",
+                },
+                "account.single_owner_policy.publication_settings": {
+                    "schema_version": "account.single_owner_policy.publication_settings.v1",
+                    "owner_username": tui_admin_user.username,
+                    "tenant_id": "tui-test-tenant",
+                    "owner_id": "tui-test-owner",
+                    "authorization_source_id": "tui-test-declaration",
+                    "authorization_source_version": "v1",
+                    "authorization_content_hash": "c" * 64,
+                    "ttl_seconds": 300,
+                },
                 "data_center.provider.failover_tolerance": 0.01,
                 "audit.system_event.mode": "off",
                 "audit.system_event.outbox_enabled": False,
@@ -8083,7 +8101,14 @@ def test_tui_metadata_repository_patches_policy_workbench_items_pagination():
         "offset_param": "offset",
         "limit_param": "limit",
     }
-    assert [field["key"] for field in action["fields"]] == ["search", "tab", "start_date", "end_date", "limit", "offset"]
+    assert [field["key"] for field in action["fields"]] == [
+        "search",
+        "tab",
+        "start_date",
+        "end_date",
+        "limit",
+        "offset",
+    ]
 
 
 @pytest.mark.django_db
@@ -10162,11 +10187,30 @@ def test_published_tui_write_and_admin_actions_are_gated_consistently(client, tu
 
 
 def test_audit_policy_projection_preserves_review_states_and_reasons():
-    from apps.terminal.infrastructure.tui_metadata_runtime_action_patch_alpha_policy import RUNTIME_ACTION_PATCHES_ALPHA_POLICY
+    from apps.terminal.infrastructure.tui_metadata_runtime_action_patch_alpha_policy import (
+        RUNTIME_ACTION_PATCHES_ALPHA_POLICY,
+    )
+
     service = TuiWorkbenchService(metadata_repository=FakeMetadataRepository())
-    action = {"key": "policy.workbench_items", "label": "政策队列", **RUNTIME_ACTION_PATCHES_ALPHA_POLICY["policy.workbench_items"]}
-    row = {"id": 7, "title": "审核事件", "audit_status": "approved", "gate_effective": True, "event_date": "2026-09-08", "review_notes": "证据齐全", "rollback_reason": "", "level": "P1", "gate_level": "L1"}
-    result = service._to_view_model(action=action, payload={"items": [row], "total": 1}, status_code=200)
+    action = {
+        "key": "policy.workbench_items",
+        "label": "政策队列",
+        **RUNTIME_ACTION_PATCHES_ALPHA_POLICY["policy.workbench_items"],
+    }
+    row = {
+        "id": 7,
+        "title": "审核事件",
+        "audit_status": "approved",
+        "gate_effective": True,
+        "event_date": "2026-09-08",
+        "review_notes": "证据齐全",
+        "rollback_reason": "",
+        "level": "P1",
+        "gate_level": "L1",
+    }
+    result = service._to_view_model(
+        action=action, payload={"items": [row], "total": 1}, status_code=200
+    )
     assert result["rows"][0]["review_notes"] == "证据齐全"
     assert result["rows"][0]["__raw_audit_status"] == "approved"
     assert result["rows"][0]["__raw_gate_effective"] is True
@@ -10175,34 +10219,82 @@ def test_audit_policy_projection_preserves_review_states_and_reasons():
 
 def test_audit_policy_summary_leads_with_backlog_and_overdue_status():
     service = TuiWorkbenchService(metadata_repository=FakeMetadataRepository())
-    result = service._to_view_model(action={"key": "policy.queue_summary", "label": "政策摘要"}, payload={"policy_level": "P1", "pending_review_count": 200, "sla_exceeded_count": 12}, status_code=200)
+    result = service._to_view_model(
+        action={"key": "policy.queue_summary", "label": "政策摘要"},
+        payload={"policy_level": "P1", "pending_review_count": 200, "sla_exceeded_count": 12},
+        status_code=200,
+    )
     assert result["fields"][0]["key"] == "pending_review_count"
     assert result["status"] == "存在超时待审事件"
 
 
 def test_audit_sentiment_summary_selects_latest_observation():
     service = TuiWorkbenchService(metadata_repository=FakeMetadataRepository())
-    action = {"key": "sentiment.awareness-summary", "label": "最新情绪", "view_model": {"columns": [{"key": "date", "label": "观测日期"}], "total_path": "total"}}
-    result = service._to_view_model(action=action, payload={"indices": [{"date": "2026-08-13"}, {"date": "2026-09-08"}, {"date": "2026-08-20"}]}, status_code=200)
+    action = {
+        "key": "sentiment.awareness-summary",
+        "label": "最新情绪",
+        "view_model": {"columns": [{"key": "date", "label": "观测日期"}], "total_path": "total"},
+    }
+    result = service._to_view_model(
+        action=action,
+        payload={
+            "indices": [{"date": "2026-08-13"}, {"date": "2026-09-08"}, {"date": "2026-08-20"}]
+        },
+        status_code=200,
+    )
     assert [row["date"] for row in result["rows"]] == ["2026-09-08"]
 
 
 def test_audit_blocking_reason_is_readable_in_detail():
     service = TuiWorkbenchService(metadata_repository=FakeMetadataRepository())
-    result = service._to_view_model(action={"key": "test.readiness", "label": "就绪状态", "view_model": {"kind": "detail"}}, payload={"must_not_use_for_decision": True, "blocking_reason_codes": ["approval_required"]}, status_code=200)
+    result = service._to_view_model(
+        action={"key": "test.readiness", "label": "就绪状态", "view_model": {"kind": "detail"}},
+        payload={"must_not_use_for_decision": True, "blocking_reason_codes": ["approval_required"]},
+        status_code=200,
+    )
     assert result["status"] == "不可用于决策"
-    assert any(field["key"] == "blocking_reason_codes" and field["value"] != "1 行" for field in result["fields"])
+    assert any(
+        field["key"] == "blocking_reason_codes" and field["value"] != "1 行"
+        for field in result["fields"]
+    )
 
 
-@pytest.mark.parametrize("condition", [{"field": "missing", "values": ["pending"]}, {"field": "state", "values": []}, {"field": "state", "values": [{}]}])
+@pytest.mark.parametrize(
+    "condition",
+    [
+        {"field": "missing", "values": ["pending"]},
+        {"field": "state", "values": []},
+        {"field": "state", "values": [{}]},
+    ],
+)
 def test_audit_row_condition_rejects_invalid_state_contract(condition):
     from apps.terminal.application.tui_metadata import _validate_dashboard_row_actions
+
     with pytest.raises(TuiMetadataValidationError, match="invalid visible_when"):
-        _validate_dashboard_row_actions(screen={"key": "test"}, panel={"key": "queue", "columns": [{"key": "state", "label": "状态"}], "row_actions": [{"action_key": "test.read", "label_template": "查看", "param_map": {}, "visible_when": condition}]}, action_by_key={})
+        _validate_dashboard_row_actions(
+            screen={"key": "test"},
+            panel={
+                "key": "queue",
+                "columns": [{"key": "state", "label": "状态"}],
+                "row_actions": [
+                    {
+                        "action_key": "test.read",
+                        "label_template": "查看",
+                        "param_map": {},
+                        "visible_when": condition,
+                    }
+                ],
+            },
+            action_by_key={},
+        )
 
 
 def test_audit_blocking_issue_objects_show_the_actual_reason():
     service = TuiWorkbenchService(metadata_repository=FakeMetadataRepository())
-    result = service._to_view_model(action={"key": "test.readiness", "label": "验收", "view_model": {"kind": "detail"}}, payload={"blocking_issues": [{"code": "scheduler_missing", "message": "调度未就绪"}]}, status_code=200)
+    result = service._to_view_model(
+        action={"key": "test.readiness", "label": "验收", "view_model": {"kind": "detail"}},
+        payload={"blocking_issues": [{"code": "scheduler_missing", "message": "调度未就绪"}]},
+        status_code=200,
+    )
     assert "调度未就绪" in result["fields"][0]["value"]
     assert not result["nested"]

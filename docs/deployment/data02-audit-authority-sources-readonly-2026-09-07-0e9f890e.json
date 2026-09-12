@@ -1,0 +1,36 @@
+{
+  "schema": "data02.audit_authority_inventory.v1",
+  "result": {
+    "actor_authority_rows": 0,
+    "actor_selectors": [],
+    "candidate": {
+      "image_id": "sha256:778e50018124dd4d67dbe6a607b495d2e480c1bc6ff1aed42a9f50f484331e1e",
+      "release_tag": "20260907170119",
+      "source_commit": "0e9f890e8185d897630fd937b5ffc220fd7830ce"
+    },
+    "owner_tenant_authority_rows": 0,
+    "read_only": true,
+    "recorded_at": "2026-09-07T13:06:29.098267+00:00",
+    "scope_selectors": []
+  },
+  "capture": {
+    "samples": [
+      {
+        "label": "data02_audit_authority_sources_readonly",
+        "command": "docker exec -i 0c695cfec9dd python -",
+        "input": "import os,json,hashlib\nfrom pathlib import Path\nos.environ.setdefault(\"DJANGO_SETTINGS_MODULE\",\"core.settings\")\nimport django\ndjango.setup()\nfrom django.conf import settings\nfrom django.db import connection,transaction\nfrom django.utils import timezone\nfrom apps.data_center.infrastructure.models import QuoteSnapshotModel,ProviderConfigModel\nfrom apps.data_center.infrastructure.publication_models import CanonicalPublicationModel\nfrom apps.data_center.application.query_services import list_active_stock_codes_for_backfill\nfrom apps.data_center.composition import make_system_audited_sync_quote_use_case\nwith transaction.atomic():\n with connection.cursor() as c:\n  c.execute(\"SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY\")\n  c.execute(\"SET LOCAL statement_timeout = '20s'\")\n m=json.loads(Path(settings.AGOM_RELEASE_MANIFEST_PATH).read_text())\n if m.get(\"source_commit\")!=\"0e9f890e8185d897630fd937b5ffc220fd7830ce\" or m.get(\"release_tag\")!=\"20260907170119\":raise RuntimeError(\"candidate drift\")\n codes=sorted(set(list_active_stock_codes_for_backfill()));uh=hashlib.sha256(json.dumps(codes,separators=(\",\",\":\")).encode()).hexdigest()\n if uh!=\"1579f1d52f3a58129102bfb090ed25ca2af0e56e6fe880722f7b6ae1e66c5a69\" or \"000001.SZ\" not in codes:raise RuntimeError(\"universe drift\")\n provider=ProviderConfigModel.objects.get(pk=3)\n if provider.source_type!=\"akshare\" or not provider.is_active:raise RuntimeError(\"provider drift\")\n q=QuoteSnapshotModel.objects.filter(asset_code=\"000001.SZ\").order_by(\"id\")\n if q.count()>500:raise RuntimeError(\"preflight row bound exceeded\")\n before=list(q.values())\n from apps.account.infrastructure.account_owner_assignment_actor_authority_source_v3_models import AccountOwnerAssignmentActorAuthoritySourceV3Model\n from apps.account.infrastructure.owner_tenant_authority_v1_models import OwnerTenantAuthorityV1Model\n print(json.dumps({\"recorded_at\":timezone.now().isoformat(),\"candidate\":{k:m.get(k) for k in [\"source_commit\",\"release_tag\",\"image_id\"]},\"read_only\":True,\"actor_authority_rows\":AccountOwnerAssignmentActorAuthoritySourceV3Model.objects.count(),\"owner_tenant_authority_rows\":OwnerTenantAuthorityV1Model.objects.count(),\"actor_selectors\":list(AccountOwnerAssignmentActorAuthoritySourceV3Model.objects.order_by(\"recorded_at\").values(\"source_id\",\"source_version\",\"content_hash\",\"actor_id\",\"user_id\",\"authority_state\",\"recorded_at\",\"valid_until\")[:20]),\"scope_selectors\":list(OwnerTenantAuthorityV1Model.objects.order_by(\"recorded_at\").values(\"authority_id\",\"authority_version\",\"content_hash\",\"actor_id\",\"actor_user_id\",\"tenant_id\",\"owner_id\",\"status\",\"recorded_at\",\"valid_until\")[:20])},default=str,sort_keys=True))\n",
+        "started_at": "2026-09-07T13:06:15.098375+00:00",
+        "finished_at": "2026-09-07T13:06:31.743793+00:00",
+        "exit_code": 0,
+        "stdout_base64": "eyJhY3Rvcl9hdXRob3JpdHlfcm93cyI6IDAsICJhY3Rvcl9zZWxlY3RvcnMiOiBbXSwgImNhbmRpZGF0ZSI6IHsiaW1hZ2VfaWQiOiAic2hhMjU2Ojc3OGU1MDAxODEyNGRkNGQ2N2RiZTZhNjA3YjQ5NWQyZTQ4MGMxYmM2ZmYxYWVkNDJhOWY1MGY0ODQzMzFlMWUiLCAicmVsZWFzZV90YWciOiAiMjAyNjA5MDcxNzAxMTkiLCAic291cmNlX2NvbW1pdCI6ICIwZTlmODkwZTgxODVkODk3NjMwZmQ5MzdiNWZmYzIyMGZkNzgzMGNlIn0sICJvd25lcl90ZW5hbnRfYXV0aG9yaXR5X3Jvd3MiOiAwLCAicmVhZF9vbmx5IjogdHJ1ZSwgInJlY29yZGVkX2F0IjogIjIwMjYtMDktMDdUMTM6MDY6MjkuMDk4MjY3KzAwOjAwIiwgInNjb3BlX3NlbGVjdG9ycyI6IFtdfQo=",
+        "stdout_sha256": "0adb8a5d202de6641bf62367067fa48a5b527c87f77dbf2e0543cb8e7b243314",
+        "stderr_base64": "eyJ0aW1lc3RhbXAiOiAiMjAyNi0wOS0wN1QxMzowNjoyOC41NDU0MDNaIiwgImxldmVsIjogIklORk8iLCAibG9nZ2VyIjogImFwcHMuZXZlbnRzLmFwcGxpY2F0aW9uLmV2ZW50X2J1c19pbml0aWFsaXplciIsICJtZXNzYWdlIjogIkV2ZW50IGJ1cyBpbml0aWFsaXplZCB3aXRoIDE4IGhhbmRsZXJzIiwgIm1vZHVsZSI6ICJldmVudF9idXNfaW5pdGlhbGl6ZXIiLCAiZnVuY3Rpb24iOiAiaW5pdGlhbGl6ZSIsICJsaW5lIjogNTgsICJwcm9jZXNzIjogMjI5NDIxLCAidGhyZWFkIjogMTI1OTU0MzEzMzc2NTc2LCAicmVxdWVzdF9pZCI6ICItIn0K",
+        "stderr_sha256": "78a41701cdb516e228543349df3b4fc025cbf96f44d88b1f12dd14fb81ec8999"
+      }
+    ]
+  },
+  "capture_sha256": "c3064666c7cf96c1d5fc1a216983cdde25b3d4a686c9b849f06e7aab4904fa86",
+  "next_action": "Obtain actual Account principal and owner/tenant assignment inputs; publish valid authority sources through canonical services before constructing the audit runtime selector.",
+  "authority_mutation_performed": false,
+  "goal_complete": false
+}

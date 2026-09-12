@@ -4048,3 +4048,1332 @@ EVID-05 已满足 repository exit gate，注册表晋级 completed 并释放唯�
 数据库核验。`capture_account_actor_authority --help` 在新镜像中通过，EVID-05 代码已部署。
 本次没有执行 capture 写入、authority/approval 播种或策略 Promotion；EVID-01/02 的真实输入与
 生产验收仍缺，EVID-03 继续等待依赖。部署成功不替代上述验收。
+
+
+## 2026-09-10 EVID-06：真实认证来源发布入口
+
+用户充分授权继续有界整改，并明确指定生产admin/user_id=1为项目所有者和人工审批账户；见[用户声明](../deployment/sprint-owner-admin-authorization-2026-09-10.json)。因此不再要求用户重复提供该身份。
+主代理与Luna核实：login_view仅authenticate/login；token认证仅lookup/touch；三类raw-source只有reader/repository append契约。EVID-05只消费已有selector，不会生成缺失上游。此前“只缺真实输入”的判断不完整，存在可开发的publisher缺口。
+
+EVID-06登记为唯一repository focus。新增显式authenticated POST，由真实服务端session/user/profile取得事实，使用同alias PostgreSQL事务追加三类raw root与actor source；不挂全局login hook，不接受客户端身份/角色/时间/授权字段，不播种owner/scope/approval，不变更账户角色或密码。源时间与session有效期必须保留，失败整体回滚。
+最小验收包含匿名/过期session/停用用户/越权输入/CSRF/错误alias拒绝，实际HTTP到四类ledger落库、精确回读与中途失败回滚；补existing capture回归、mypy/debt、架构、路由、格式及治理检查。生产执行另做当前候选和备份动作包，EVID-01/02不随repository完成自动晋级。
+
+同一 EVID-06 内按文件划分两个 Luna：一名负责生产实现和 PostgreSQL gateway 回归，另一名只负责独立 HTTP 测试文件；专用数据库由主代理串行运行，计划和验收仍归主代理。
+
+后续已确认的单所有者契约差异：`CurrentAccountOwnerClaimantProviderV3` 拒绝 staff/superuser，
+owner-assignment approver 校验、`OwnerTenantAuthorityV1` Domain 及数据库约束仍拒绝相同 actor/user。
+这与现行个人项目单一真人规则及本次 admin 指定不一致，不应再记为“缺第二个人”。EVID-06 只发布
+真实 actor 事实；其退出后需先形成有界、显式绑定单所有者策略的修正方案，保留已有封存证据的版本
+与历史可验证性，同步下游契约、约束和测试，再执行 owner/scope 绑定。不能以虚构第二个主体或直接
+删除全部职责分离检查绕过该差异。
+
+### EVID-06 repository 验收完成
+
+[规范化证据](../testing/evid06-authenticated-raw-publisher-closure-2026-09-10.json)
+SHA=`03b011b8dce324836b9f5eaa390aa0c05dbe9eab7336de873e5c368d113d4454` 绑定 5 个生产文件、3 个测试文件及原始检查输出。
+新增唯一用例 21 项（unit 7、真实 PostgreSQL 12、HTTP 2），既有 capture/reader/codec/command 回归 112 项通过。
+初期 fixture 的 DB blocker、provisioning signal 和 HTTP fixture 导入问题均已修复；最终 HTTP 独立复跑 2 passed/222.60s。
+测试使用实际登录、持久化 session、CSRF 和同 alias PostgreSQL；8 张 anchor/ledger 的部分追加失败全部回滚。
+测试结束后只读核验专用库 public base tables=0。HTTP 使用最小测试路由和 middleware，不能代替完整站点 browser/UAT。
+
+增量 mypy 5 文件零问题，全仓 mypy debt=0；8 文件 Black/isort/Ruff、3052 文件架构扫描、56 项 current-data、
+治理 baseline v220 及 690 条严格路由检查全部通过。注册表 v82/backlog v59 将 EVID-06 置 completed 并释放 focus。
+本地实现没有部署、生产 source 发布、owner/scope/approval 写入或 runtime enablement，EVID-01/02 仍待生产验收。
+下一步只读核对实际 V3 composition 与 legacy evidence/OwnerTenantAuthorityV1 的版本边界，再登记有界单所有者兼容整改；
+保留历史 seal/hash 和默认多人契约，不能以修改旧证据语义实现兼容。
+
+### 单所有者后续边界复核
+
+Luna 只读复核确认：当前 V3 composition 只组装 current reader，实际链为 Receipt V3 → Subject V3 → Evidence V3，
+再进入 OwnerTenantAuthority V1 与 scope issuer。Receipt/Subject 的非 staff claimant 约束、Evidence 的不同 actor/user
+约束及 OwnerTenantAuthority 的数据库 check 都属于封存语义，不能只替换 claimant provider 或使用 legacy assignment 类。
+后续候选方案是独立 single-owner Receipt/Subject/Evidence 版本和 OwnerTenantAuthority V2 typed scope adapter；
+复用 Binding V2、Physical V3 前仍须确认其完整字段契约。模式及 owner 授权选择必须由服务端提供并纳入新 seal，
+不能来自请求体；旧 V3/V1 reader、hash 与表约束维持历史行为。
+
+此为设计检查点，尚未新增实现单元或声称完成。下一次派工先缩小完整依赖图及迁移文件边界，明确旧 hash golden tests、
+同真人审批、错身份/tenant/alias、认证失效、事务回滚和新 scope 消费测试，再登记唯一 repository focus。
+这项修正比一个入口补丁大，不能据此承诺一周完成约 10 个生产单元。
+
+## 2026-09-10 EVID-07：单所有者 authority/scope 完整兼容链
+
+Goal 恢复后已读回 active；上一轮仅恢复操作未推进代码，本轮从 v82 与源文件重新核验后登记 EVID-07，
+注册表 v83/backlog v60 为唯一状态真源。此单元完整退出门包括服务端来源绑定策略、新版本 assignment/authority、
+真实 PostgreSQL 持久化与 scope 消费，不把一个 Domain policy 原语作为整体完成。
+
+按依赖顺序实现：服务端策略及严格身份契约 → Receipt/Subject/Evidence 新版封存 → owner/tenant authority 与 typed scope →
+配置/持久化/认证入口组装 → PostgreSQL 全链和旧版 golden hash 回归。先完整核查 Binding V2 与 Physical V3 的复用边界，
+不可从旧版类偷偷放宽 staff/独立主体限制；owner 配置不得硬编码 admin 或 user_id=1。
+Luna 负责有界生产实现，主代理负责集成、数据库串行验收、计划与 registry。其他 worker 只做只读证据核对。
+阶段回滚点为保持旧组合默认入口，移除新组合的启用绑定；新增账本迁移不可通过删生产证据回滚。
+生产部署、真实 owner/scope 写入与 EVID-01/02 验收仍另有精确前置；本单元不缩小 DATA-02 最终交付要求。
+
+### 上游实际入口核验
+
+已完整核对 Binding V2 / Physical V3 的字段约束：它们不含 staff/独立 approver 语义，仍可原样复用；
+最早需要新版本的是 Receipt V3。Allocation 的 requested_row_user_id 必须等于真实创建 requester.user_id，
+Physical 的 row_user_id 必须与之相同，policy 的 admin 指定不能覆盖这些账户归属事实。
+`apps/simulated_trading/infrastructure/simulated_account_evidence_pipeline.py` 明确为 Unwired；
+实际账户创建入口尚未连接 allocation → raw/source → Physical V2/V3 → Binding V2 的 canonical 写入。
+这不是“缺用户授权”，而是 EVID-07 完整账户来源链的实施依赖：须在真实创建事务内接入流水线，
+已有账户缺失的 creation provenance 不得事后补造。是否复用已有 reclaim 路径须另核对真实历史证据。
+
+### Policy / current participants 第一片检查点
+
+[源文件绑定证据](../testing/evid07-single-owner-policy-checkpoint-2026-09-10.json)记录纯 Domain policy 与
+Application exact-current participant provider。真实同一管理员保持相同 actor/user 和真实 staff 状态；
+策略、账户/tenant、认证来源均从 server binding 与注入 reader 校验，无默认 owner ID、无 scope 授予。
+未来观测提前授权已用失败测试复现并修复；组合 68 passed（新增 Domain 31、Application 19、旧 V3 18）。
+2 个生产文件增量 mypy 零问题、4 文件格式检查、3054 文件架构与治理、新鲜度 57 surfaces 通过。
+全仓 mypy debt 在检查点时仍运行，原始输出 `var/evid07-initial-debt.txt`，exec session `16580`；
+恢复时先轮询该 handle，不因无输出重启。EVID-07 保持 active，未部署、未进行生产 authority/approval 写入。
+下一片实现新版本 Receipt/Subject/Evidence，并保留本节真实创建事务接线与持久化/scope 的完整退出条件。
+
+上述不可变检查点落盘后，exec session `16580` 已实际 exit 0：`Full mypy debt ceiling passed: 0 errors in 0 files`。
+该 handle 已结束，恢复时不要重复轮询或重启；原始输出仍在上述路径。历史 artifact 的 running_at_checkpoint 保留其原始时点。
+
+### Receipt / 存储边界与创建事务续跑
+
+上一 Goal turn 已产生 policy/provider 实现、68 项通过测试与全仓类型检查证据，属于 progress。
+本次重新核验注册表与工作树后继续 EVID-07；工作树同期出现的 `.gitignore` 对 `docs/testing` 的修改保留，
+不通过回退或强制加入文件改变该设置。检查点在本地继续保存，提交交接时须区分受跟踪文件与忽略产物。
+
+真实 API 的路径已修正核对为 AccountListAPIView.post → CreateSimulatedAccountUseCase.execute →
+DjangoSimulatedAccountRepository.save；`create_account_model_for_user` 是另一页面路径，不是此 API 的 writer。
+新加的 policy strict codec 16 passed，增量 mypy 1 文件零问题，拒绝空 seal、来源/tenant 改写、bool user_id、
+非规范时间和额外键。下一版 Receipt 将复用该 codec 的完整 policy payload。
+
+主代理没有把 private UOW 推断成不可嵌套：真实 PostgreSQL 测试
+`test_creation_uows_share_outer_commit_rollback_and_remain_reusable` 为 1 passed/28.61s。
+同 alias outer atomic 内顺序进入 Physical V3 与 Consumption 的现有 atomic，临时 probe 写入先可见，
+外层失败后归零；同实例重新提交成功。测试后专用库 public base tables=0。
+原始输出 `var/evid07-outer-uow-postgres.txt` 与 `var/evid07-outer-uow-cleanup.json`。
+这只证明两类 UOW/savepoint 生命周期兼容，不冒充完整 ledger append 或 API 全链验收；当前没有证据要求
+为此新增 outer-UOW adapter。实际 ledger/current-reader 锁定仍在接线时逐项验收。
+
+### Receipt V4 组合验收检查点
+
+[本地规范化检查点](../testing/evid07-single-owner-receipt-checkpoint-2026-09-10.json)绑定本片 3 个生产文件、4 个测试文件及 freshness manifest。
+Receipt V4 封存完整 policy、policy identity/content hash 与既有 Binding V2/Physical V3 图；同一链不能切换 policy、
+tenant、owner 或账户，过期 current head 不回退。旧 V3 staff 拒绝及 literal golden hash 保持通过，旧来源文件对 HEAD diff 为空。
+组合 158 passed（本片新增 70、既有契约 88），加上 PostgreSQL UOW 1 passed。两套 codec 拒绝跨版本替换、
+修改 nested policy/actor/binding、空 seal、错误类型、额外键和非规范时刻。
+3 文件最终增量 mypy 零问题，7 文件格式、3057 文件架构、58 surfaces freshness 和全仓治理通过。
+全仓 debt 命令也已 exit 0 / zero errors；它启动早于本片全部文件定型，最后的 scoped mypy 覆盖全部 3 个新增生产文件。
+本轮所有 exec test/type handles 均已结束，不需要恢复旧进程。EVID-07 保持 active，没有新部署或生产写入。
+下一步是 durable policy/Receipt V4 writer、Subject/Evidence V4 及 typed owner-tenant scope，并在实际认证创建事务完成整链组装；
+Domain/codec 通过不替代这个完整退出门。
+
+### Durable policy 与真实 actor 读取接线
+
+应用 Goal 再次读回 active，用户指定 admin/user_id=1 的授权持续有效。EVID-07 仍为唯一 repository focus。
+本片把 policy 生命周期规则下沉至 Domain，并新增 PostgreSQL append-only ledger、模型注册及迁移 0056。
+生命周期与模型聚合器契约组合 42 passed；真实 PG 对 0056 的 CreateModel 操作完成 apply/unapply/reapply，
+1 passed/11.16s，字段和约束与运行时 Model 一致，结束后专用库 public base tables=0。
+这不是整个历史迁移依赖图的完整 migrate 验收。`makemigrations account --check --dry-run` 无漂移。
+
+新 `build_current_single_owner_participants_provider` 只组装 standalone current read，不是 authority writer。
+现有普通 actor input provider 明确拒绝调用方已持有的同 alias 写事务；后续实际创建事务必须复用
+capture-specific provider 的 actor UOW、raw-source locks 与 actor current-head CAS，不能把此读取工厂直接接入写入。
+复核定位并整改默认 alias 的模型校验、间接私有 UOW 重入及持久化时刻未纳入 ledger seal 的问题；
+最终 PG 仓储与真实 actor 组合回归仍需单独记录，不能从 migration 成功推断通过。
+
+上述待验项随后完成：[durable policy 检查点](../testing/evid07-durable-policy-checkpoint-2026-09-10.json)
+SHA-256 `05c55e5d553303553249df0b935cc7495939b3d3bc4acba1380449409d5a92b5`。
+PostgreSQL 仓储 10 项与真实 actor 组合 1 项合计 11 passed/177.86s，另有上述 migration 1 passed；
+最终专用库 public base tables=0。6 个生产文件增量 mypy 零回退，全仓 debt 命令实际 exit 0/zero errors；
+全仓扫描启动早于 worker 文件定型，最终 scoped mypy 覆盖本片全部生产文件。11 文件 Black/isort/Ruff、
+3060 文件/7 规则架构、58 surfaces freshness 与 governance v220 全部通过。
+原始输出绑定在该本地 artifact，`docs/testing` 仍按用户现有 `.gitignore` 被忽略，没有 force-add。
+
+真实组合测试使用独立本地 Django Session/User/RBAC 来源及合成测试 policy，证明相同真实 staff actor 的
+双角色读取和 policy 撤销生效；没有宣称真实授权声明发布、HTTP owner 写入或生产绑定已完成。
+尚需 server-owned policy publication、Receipt V4 持久化 writer、Subject/Evidence V4、owner-tenant typed scope，
+以及真实认证账户创建事务的锁定来源重读、完整原子写入/回滚/重放验收。EVID-07 和应用 Goal 继续 active。
+本片所有测试与类型检查 exec handles 均已结束，没有待恢复旧进程。
+
+### 2026-09-11 Receipt V4 签发用例与持久化检查点
+
+上一 Goal turn 为实际 progress；本轮继续同一 EVID-07 focus，未修改既有 V3 Domain/Application/Repository。
+V4 新增 Issue/GetExact/GetCurrent 用例及严格参与者校验；持久化 record envelope 绑定完整 receipt、
+真实 issued_by 和 `CurrentAccountActorAuthorityV3`，包含认证 context hash、actor source id/version/hash 与源时刻。
+新表通过外键绑定 durable Binding V2、policy 与 actor source，并封存全部 payload、父 FK、前驱和时刻。
+旧 first winner 可以作为历史证据回读；重复签发仍须重新校验当前 policy/actor，不能绕过撤销。
+签发最终复读使用更新后的 server cutoff，TTL 从原始 issued_at 起算，不因读取耗时延长。
+
+[规范化本地证据](../testing/evid07-authenticated-receipt-writer-checkpoint-2026-09-11.json)
+SHA-256 `d82007cdd13a35c2a9fe1794193f199be316b8a27154aba09b43755c3b1b47d3`。
+组合 unit 102 passed（本片 Application 17、record codec 26，另有 V4 Domain 和旧 V3 回归），模型聚合器 3 passed。
+PostgreSQL 首组 5 passed/368.06s，额外 default-alias 查询哨兵及公开 ORM bypass 拒绝 1 passed/90.67s，
+真实双事务 policy/receipt 并发 1 passed/74.89s，共 7 个数据库测试；最后专用库 public base tables=0。
+并发测试实际观察 receipt 等待 policy writer 的原始 policy_id advisory key；撤销提交后，receipt 重读拒绝且零行写入。
+此锁在任何 parent FOR UPDATE 之前获取，避免与 policy successor 的 FK 等待反向形成死锁。
+append 仍以完整 durable head 做 CAS，不能通过忽略“未来 head”接受回溯分叉。
+
+0057 migration 完成实际 PG CreateModel 的 apply/unapply/reapply、约束及 4 个 FK 验证；
+`makemigrations account --check --dry-run` 无漂移。这不是整个历史迁移图的全量 migrate 验收。
+6 个生产文件最终增量 mypy 零问题，full debt 命令实际 exit 0/zero errors；全仓扫描早于最终文档/格式定型，
+最终 scoped check 覆盖全部本片生产文件。10 文件 Black/isort/Ruff、3064 文件/7 规则架构、58 surfaces freshness、
+governance v220 均通过。原始输出已嵌入 artifact；当前 `.gitignore` 对 docs/testing 的忽略保持不变。
+
+PG 使用真实本地 User/Profile/Session 和 raw-source publisher、实际 canonical repository append，
+但创建 Domain 图是合成测试事实，时钟是显式固定测试时钟；不能据此声称真实账户创建接口或生产 provenance 已完成。
+尚需 server-owned policy publication、用于写入的同 alias policy/raw/actor 锁定 composition、Subject/Evidence V4、
+owner-tenant authority/typed scope 和实际认证账户创建事务整链验收。没有新增生产写入、部署、owner assignment 或审批记录。
+EVID-07 与应用 Goal 保持 active；本轮所有测试和类型检查 handles 已终止，无需恢复旧进程。
+
+### 2026-09-11 锁定签发与 Subject/Evidence V4 Domain
+
+[本地检查点](../testing/evid07-locked-receipt-and-domain-checkpoint-2026-09-11.json)
+SHA-256 `f5101377147700ae8279ab0620feb2a403dff31de1ce9e31403b7f39627d7c10`。
+新 composition 在同 alias 外层事务中先按 receipt-id、原始 policy-id 获取 try-advisory locks，
+再对 15 张证据表按确定顺序取得 EXCLUSIVE NOWAIT，随后执行真实 Issue 用例和来源复读。
+锁覆盖六张 raw、actor root/ledger、五张 creation、policy 与 receipt；普通 SELECT 可继续，
+并发写入和 SELECT FOR UPDATE 竞争时失败关闭，调用方可重试。仅 SHARE 表锁不能排除父行反向等待，
+因此这里不使用 SHARE 作为整个签发事务的稳定性保障。actor capture-specific reader 复用同一个 actor UOW；
+GetCurrent 本身不另开该 UOW，旧 Capture writer 和旧 V3 路径保持不变。
+
+真实 PG 接线 4 passed/313.47s，覆盖签发/重放、外层回滚、已提交策略撤销与隔离级别拒绝；
+另有真实 actor、Binding V2 父行 SELECT FOR UPDATE 竞争 1 passed/101.37s，
+证明拒绝后可重试，并以 default-alias 查询哨兵验证签发和重放只访问选定 alias。
+首组旧测试曾错误预期撤销重放抛 Unavailable；实际用例按既有契约抛 Conflict，修正断言后重跑通过。
+全部 PG handle 已结束，专用测试库 public base tables=0。创建图和 policy 仍为明确合成测试事实，
+身份来源来自真实本地 User/Profile/Session；这些结果不替代实际认证创建入口或生产 provenance。
+
+Luna max 新增纯 Domain Subject/Evidence V4：完整封存 Receipt V4、Policy、Binding V2、Physical V3 及源 seals，
+同一真实 staff owner 可以承担不同 claimant/approver 角色，UTC microsecond hash 独立版本化。
+产物仍 inactive/evidence_only/must_not_execute，构造 Domain 对象不构成人工审批。
+新 Domain 33 项与旧 V3、Receipt V4 Application 合并 67 passed，缺失 alias 的 typed failure 单测另 1 passed。
+两个生产文件最终增量 mypy 零问题，full debt 零错误；6 文件 Black/isort/Ruff、3066 文件架构、
+governance v220 与 59 surfaces freshness 通过。旧 V3 Domain/Application 对 HEAD diff 为空。
+
+本片未部署或写生产，也未完成 EVID-07 退出门。整表锁暂时串行化证据 writer，尚无吞吐/负载验收。
+后续仍需服务端授权声明发布、Subject/Evidence V4 编解码及 durable writer、owner-tenant authority/typed scope，
+以及实际认证账户创建的完整原子图。独立 codec worker 正在同一 EVID-07 边界继续，未纳入本检查点验收。
+应用 Goal 与 repository focus 保持 active/EVID-07。
+
+### 2026-09-11 Subject/Evidence V4 持久化与审批用例接线
+
+[本地检查点](../testing/evid07-evidence-v4-ledger-checkpoint-2026-09-11.json)
+SHA-256 `9e07ed650a6511d3a11836fc0a72181e26913ef6d4b977636a63f899f680b8c5`。
+V4 新增严格 Domain/record codec、Register/Approve/GetExact/GetCurrent 用例、Subject/Evidence
+append-only 表与 migration 0058，以及同 alias 的锁定 facade。record 封存完整 Evidence 和认证 authority，
+仓储核对 canonical payload、父 FK、身份/内容/ledger seals 和源时刻；过期 mapping 仍占用逻辑 root，
+不能通过重新注册绕过唯一归属。历史读取保留已成立的事实，当前读取仍重验策略及身份。
+
+组合 unit 136 passed/56.99s，包含新 Application、两类 codec、Domain、旧 V3 和模型结构回归。
+真实 PostgreSQL 仓储 4 passed/585.10s，撤销/隔离级别/迁移 3 passed/343.33s，
+Register→Approve→replay→current facade 2 passed/241.59s，共 9 项；最终专用库 public base tables=0。
+覆盖外层事务回滚、已提交策略撤销、过期 root CAS、篡改检测、公开 ORM 写入拒绝与 default-alias 查询哨兵。
+0058 在实际 PG 完成模型操作 apply/unapply/reapply、约束和外键检查；这不是全部历史迁移图验收。
+锁定边界使用原始 policy-id try-advisory 和 17 张表的排序 EXCLUSIVE NOWAIT，并要求 READ COMMITTED，
+避免旧快照在取得锁后仍读取撤销前状态。整表锁串行化 writer，尚无吞吐/生产负载验收。
+
+8 个生产文件最终增量 mypy 零问题；full debt 零错误，执行早于 facade 最终加入，最终 scoped check 补齐其覆盖。
+本片 11 文件及 facade 2 文件的 Black/isort/Ruff 通过；3072 文件/7 规则架构、governance v220、
+59 surfaces freshness 均通过，account migration 无漂移。旧 Evidence V3、OwnerTenant V1 和旧 typed scope
+对 HEAD diff 为空。原始输出和源文件哈希已嵌入上述 artifact，仍保留用户现有 docs/testing 忽略配置。
+
+测试的创建图与 policy 是显式合成事实，身份使用实际本地 Session/User/Profile/raw publisher。
+facade 消费服务端认证上下文，不替代最终 HTTP 认证与人工审批入口；本轮没有生产写入、部署或真实 owner 审批。
+
+后续路线先处理所有权生命周期，再完成 typed scope 与真实创建整链：现有 actor TTL 为 5 分钟，
+Receipt/Subject/Evidence 的 current validity 随之收窄；重新认证产生新 source/hash，不能刷新旧证据。
+旧 OwnerTenant V1 续期又要求 assignment current，直接照搬会导致同账户失去续期入口。
+因此 V2 需区分真实、可撤销的持久所有者决策与每次请求的新鲜认证；首次决策必须绑定当时有效的完整创建/审批事实，
+后续 lease 只能由同一稳定 actor/user/tenant/account scope、当前未撤销决策和 fresh auth 派生。
+这仍需具体 Domain 与 durable writer 验收；不得把过期 Evidence 标成 current、延长旧 hash 或捏造新审批。
+服务端授权声明发布、持久 owner decision/lease、typed scope、实际认证创建原子图和生产退出门仍未完成。
+应用 Goal 已再次读回 active；本片是 progress，EVID-07 仍为唯一 focus，未晋级单元。
+
+### OwnerTenant V2 生命周期实施边界
+
+后续 V2 使用独立显式 owner decision：首次签发在 V4 Evidence 仍 current 的窗口内，
+双读完整证据、同一 policy 与 fresh admin；decision 的有效期取显式服务端期限和 policy 上限，
+认证有效期只约束当次审批，不充当长期所有权期限。Domain 构造不能代替已认证审批操作。
+旧 Evidence current/过期规则、root occupation、V1/V3 hashes 继续保持原样。
+
+短期读权限复用 Research `EvidenceScopeSourceV1`，不再新增 lease ledger。
+新 V2 integration 每次读取都须核对持久 decision、撤销状态、当前 policy、fresh 同 owner actor/user，
+并重新观察真实账户行；单独持有旧 scope hash 不包含 decision/auth 来源，不能作为授权捷径。
+live row 必须与历史 Binding 的 row_pk、row_user_id、account type 和 created_at 精确匹配；
+updated_at 可以因正常账户活动前进，但不得覆盖历史创建事实，也不能将重新使用的主键视为旧账户。
+实时观察只证明账户当前存在及归属状态，不建立创建 provenance 或 owner decision。
+
+新 `CurrentAccountOwnershipReader` 在调用方同 alias 的 READ COMMITTED 事务内以 NOWAIT 锁住实际账户行，
+返回独立的 row_created_at、row_updated_at、observed_at 及真实 nullable user/is_active；
+缺行返回 None，非法类型、晚于读取时刻的源时间、锁竞争、非 PG 或未开启事务均失败关闭。
+后续整链必须将此端口纳入相同事务与最终复读，不允许把一次返回对象跨请求缓存成长期权力。
+
+decision root/显式撤销先实现，durable writer 和短期 scope 接线随后完成；
+decision 到期或撤销后的重新授权仍需真实 owner action、current policy 和当前物理事实，
+不能照搬 V1 的“过期 assignment 再审批”路径，也不能因本片尚未实现 successor 就宣称完整续期已交付。
+
+上述 primitive 已完成[本地检查点](../testing/evid07-owner-v2-lifecycle-primitives-checkpoint-2026-09-11.json)，
+SHA-256 `083ed9c416af611bfd564aab669b201749076bb1fdac7379756139e7b7b4e792`。
+V2 Domain 14 passed/55.71s，实际行覆盖 233/238=97.90%，含分支的报告覆盖率为 97.0%，两者不混称。
+组合旧 OwnerTenant V1、旧 scope V1、Evidence V4 与 live DTO 共 66 passed/26.09s。
+live ownership 实际 PostgreSQL 2 passed/72.64s，验证 ownerless/inactive/missing 行、源时刻不替换、
+默认 alias 哨兵、READ COMMITTED、真实竞争事务 NOWAIT 拒绝与重试；结束后专用库 public base tables=0。
+最终 4 个生产文件增量 mypy 零问题；full debt 零错误，早于 Domain 最终定型，最终 scoped check 补齐覆盖。
+7 文件 Black/isort/Ruff、3076 文件架构、governance v220、61 surfaces freshness、registry v83 零违规。
+旧 V1/V3 及 scope V1 对 HEAD diff 为空，没有生产写入或部署。
+
+当前 Domain root/撤销与 live row port 已定型；durable decision 与撤销 writer、显式重新授权、
+V2 scope integration、真实创建及生产退出门仍未完成。严格 V2 codec worker 已开始同一 EVID-07 后续切片，
+未纳入本检查点。Goal 为 active，本轮属于 progress；无需恢复旧测试进程。
+
+### 2026-09-11 OwnerTenant V2 Application 与严格存储编码检查点
+
+已形成[本地检查点](../testing/evid07-owner-v2-application-checkpoint-2026-09-11.json)，
+SHA-256 `5a118e5c618b4ada116e2cec7f24ebb2057eb1068354bd6c4ee4950f74079ca4`。
+Application 已覆盖首次签发、历史读取、当前请求重校验和显式撤销/重放；长期 decision 与当次认证期限分离。
+旧 assignment 到期后，同一真实 owner 的新认证仅能重新读取既有未撤销 decision，不能形成新的首次审批。
+当前读取核对真实账户归属、账户类型、创建时刻与更新时刻，并服从更短的 principal/participants 有效窗口。
+签发在第二次输入读取后再次确认 V4 current；失效或替换拒绝落库。来源锁必须在同 alias 外层事务结束前保持，
+最终复读不替代来源锁。独立 Luna 只读复核确认修补；新测试模拟第三次读取失效且 root 零写入。
+
+Domain 和 record codec 均使用封闭字段集合、精确类型、UTC 微秒时间、完整嵌套 provenance 和认证来源校验。
+最终组合回归 81 passed/222.81s；实际跨 App 账户读取适配器 PostgreSQL 1 passed/55.76s，专用库清理后 public base tables=0。
+5 个生产文件最终增量 mypy 零问题；9 文件 Black/isort/Ruff 与 61 surfaces freshness 通过。
+本片 full debt 零错误、3081 文件架构零违规、governance v220 零违规；这些广域检查早于最终复读修补，
+最终修补由组合回归和 scoped mypy/格式/契约检查覆盖。旧 V1/V3/scope V1 对 HEAD diff 为空，V2 Domain 与前一检查点哈希一致。
+
+本片 Application 使用内存事务仓储测试；真实 PG 仅验证实时账户适配器，不能作为 owner decision 持久化验收。
+下一片实现 decision/revocation 模型、0059 迁移、封闭父图仓储和同事务认证 composition，随后验证显式重新授权、
+Research scope V2 与真实认证创建整链。没有生产写入、部署或 owner 审批；EVID-07 尚未通过完整退出门。
+应用 Goal 再次读回 active，无需恢复工具；本片为 progress，注册表 focus 与单元状态保持不变。
+
+后续 durable ledger 切片已进入实现：Luna max 负责独立 root/revocation 模型、仓储和 0059 迁移，
+主代理负责真实 PostgreSQL 验证。两账本模型已写入工作树；主代理已补 5 项仓储场景和 1 项迁移往返用例，
+覆盖永久占位、到期撤销、历史 cutoff、父链/载荷/FK 篡改、外层回滚、默认 alias 哨兵与两连接竞争。
+独立只读复核未发现测试设计缺陷，测试文件格式/Ruff 与语法检查通过；专用库 public base tables=0。
+这些新增 PostgreSQL 用例尚未执行，仓储/迁移仍在实现，不能视为新的已验证检查点或单元退出证据。
+
+下一轮已启动上述 6 项 PostgreSQL 首轮（原始输出 `var/evid07-owner-v2-ledger-postgres.txt`）；
+运行期间进程与数据库事务均已确认存活，尚未取得通过结果，不因观察超时重启。
+主代理同步补同 alias 的 OwnerTenant V2 facade，先取得完整来源锁再进入 actor UOW 与 Application；
+新增 2 项实际 Session/publisher/physical 读取接线测试，以及 1 项其他真实管理员不得撤销原 owner 决策的测试。
+后者在 UOW 内捕获异常、正常提交外层事务后验证零撤销行，要求 root/revocation 绑定校验发生在 INSERT 前。
+独立审查确认嵌套 actor ContextVar 恢复和锁序；发现的未知 alias 与 actor source 异常映射已在 facade 修补，
+仓储同类映射仍在由 Luna 完成。新增接线及这 3 项 PG 用例尚未执行；当前无新增验收声明或生产动作。
+
+上述首轮账本/迁移 PostgreSQL 已完成：6 passed/1773.57s（约 29 分钟），原进程正常退出。
+Luna 随后已完成并冻结 selector、撤销 INSERT 前绑定校验及 actor-source 异常映射；
+主代理已串行启动 2 项实际认证接线和 1 项其他真实管理员撤销拒绝测试，输出为
+`var/evid07-owner-v2-composition-postgres.txt`，尚未取得结果。
+组合回归为 81 项生命周期/编码通过；模型结构清单漏登记 V2 导致的 1 项失败已补清单，3 项结构复测全部通过，
+去重合计 84 项，不将初次已通过的 2 项结构重复计数。最终 5 个生产文件增量 mypy、全量 mypy debt、
+9 文件格式、3084 文件/7 规则架构、61 surfaces freshness、governance v220、account migration drift 均零问题。
+账本首轮早于最后的绑定/异常细化，后续 3 项负责验证固定实现及新增拒绝路径；最终检查点尚未生成，EVID-07 保持 active。
+
+### 2026-09-11 V2 Research 接线边界复核（实现前）
+
+账本切片最终 3 项 PostgreSQL 已完成：3 passed/1344.31s；专用库 public base tables=0。
+已形成[持久账本检查点](../testing/evid07-owner-v2-ledger-checkpoint-2026-09-11.json)，
+SHA-256 `c007785690ff06def95f8a6a56365c3c2489a29593861a9948771089d142b8e3`。
+合计 9 项 PG、84 项去重 unit；先前最终静态检查及分轮验证顺序随原始日志封存。
+实际 Session/source、同 alias live physical、其他真实管理员撤销拒绝已验证；
+创建来源与 policy 仍是明确标记的本地 fixture，不能作为生产创建或人工审批证据。
+本检查点解除本片源码冻结，后续接线另行验证；EVID-07 完整退出门仍未通过。
+
+现有 `EvidenceScopeProvider.get_current_scope` 返回后，`EvidenceReadFacade` 才调用实际仓储；
+仅替换 provider 不能让 Owner V2 来源锁覆盖 Evidence 读取，存在检查与读取之间的撤销竞态。
+下一片需要 Account 公开的泛型 callback 事务入口，由 Core integration 在锁内完成实际 Research 查询；
+Account 不引入 Research 依赖，两个仓储必须使用相同数据库 alias。无当前授权时不得触碰 Evidence 仓储。
+结果须在锁内完整物化，不能返回 QuerySet、迭代器或供调用方稍后读取的 grant。
+来源锁不能阻止墙钟到期；实际查询后、返回结果前仍须验证当前授权有效，覆盖查询跨越有效期的拒绝路径。
+
+短期 scope 可以是当次请求派生的纯 DTO，不写入 V1 scope ledger，避免旧 V1 provider 仅凭持久 selector
+绕过 V2 当前校验。绑定必须封存准确 decision、当前认证来源和服务端选择的完整 ArtifactRef；
+当前观测时间与期限来自 V2 current，不能复用长期 decision 的历史 recorded_at 或扩大有效窗口。
+
+授权时钟与证据查询截止时间必须分离：当前授权下读取历史证据不代表在历史时刻获得授权。
+现有 EvidenceReadFacade 将同一个 as_of 同时传给授权与仓储，不能直接复用这一时钟耦合。
+OperatorSpec/TrackRecord 的 artifact owner 固定为 research；Envelope 使用 output_owner，
+因此统一要求所有 artifact owner 为 research 的建议尚不能采用，需保留完整 exact artifact 约束。
+这些是源码复核结论与后续实现要求，尚无 V2 Research 接线通过声明，未改变单元退出状态。
+
+后续 Account `with_current(command, operation)` 及公开 unit_of_work_key 已实现：来源锁和 actor UOW
+覆盖同步 callback 与最终 current 复读；无授权不调用 callback，查询期间到期、认证替换、
+物理字段变化、观测时钟倒退或有效窗口扩大均丢弃结果。Core 仍须负责具体 Evidence DTO 的物化与
+更短 scope TTL 的返回前检查；泛型内部接口不向外签发可复用 grant。
+首轮缺接口测试明确失败，最终 7 项 unit 通过/60.73s；1 个生产文件增量 mypy 零问题，
+61 surfaces freshness 与 3 文件格式检查通过，全量 mypy debt 零错误。
+实际 PostgreSQL 双连接 callback 来源锁测试已串行启动，原始输出为
+`var/evid07-owner-v2-locked-read-postgres.txt`，尚无通过声明。
+Luna 正在单一写入通道实现 Core V2 bridge、必要的 Research composition port 与新单测，
+Account/PG 测试文件由主代理维护；该后续切片尚未形成完整检查点。
+
+主代理又补实际跨 App PG 用例
+`tests/component/research/test_owner_tenant_evidence_scope_v2_postgres.py`：实际 Session/current owner
+经同 alias 读取真实 Research 仓储中、早于 owner decision 的历史证据；检查 SQL 发生在锁事务内，
+默认 alias 不得访问，物理账户 user_id 清空后 Evidence 查询次数不再增加。
+新用例格式检查通过，待 Core bridge 完成后串行运行，不能计作已通过测试。
+复核实际 Envelope 仓储确认 expected_content_hash 是 envelope 自身哈希；output_artifact 的原始内容哈希
+与之语义不同。V2 返回校验须比较 output 的四个身份字段加 envelope.content_hash，不能直接比较两个 ArtifactRef。
+
+Account callback 独立只读审查未发现确定性生产缺陷；泛型入口仍依赖受信任 Core 物化返回值。
+审查指出首版双连接 PG 用例捕获任意 DatabaseError 过宽，需要在原进程结束后收紧为 SQLSTATE 55P03
+并复测，之后才封存最终锁证据。保留短 lock_timeout 以限制表级锁等待，不能仅依靠行级 NOWAIT。
+
+首轮 callback 双连接 PG 正常结束：1 passed/675.52s，清理后 public base tables=0。
+主代理随即将异常断言收紧为驱动 SQLSTATE `55P03`，启动同一用例最终复测，原始输出为
+`var/evid07-owner-v2-locked-read-postgres-final.txt`；首轮通过不替代这一更精确的待验证结果。
+Core 接线首稿已审查，Luna 正修补 current authority selector 一致性、每次时钟采样边界、
+稳定脱敏异常映射及 request-local 来源绑定；Research 整合 PG 仍等待实现完成。
+
+最终锁复测已完成：1 passed/665.17s，断言驱动 SQLSTATE 55P03 后才认可竞争锁拒绝，
+callback 返回后另一连接重试成功；专用库 public base tables=0。
+Research 公开 `make_evidence_read_repository` 已加入，主代理整合 PG 测试改由该入口构造同 alias 读取端口，
+另补错误哈希和未来 evidence cutoff 零查询场景，格式检查通过；该整合用例尚未执行。
+Core 时钟采样、异常与来源绑定修补仍在最终验证，未将本轮局部通过记为 EVID-07 完整退出。
+
+### 2026-09-11 真实创建入口只读核对（后续接线依据）
+
+实际 API 创建链是 `AccountListAPIView.post` → `CreateSimulatedAccountUseCase.execute` →
+`DjangoSimulatedAccountRepository.save`。Mapper 本身未映射 user，但 save 会查询 User 并赋回，
+因此不能把 Mapper 的局部缺项描述为默认创建路径实际丢失 user_id。
+API 继承 core/settings/base.py 的 IsAuthenticated 默认权限，不能据 helper 未显式检查该属性就判定匿名可创建；
+后续 Application 入口仍需独立验证真实认证主体，不能依赖 HTTP 层作为唯一校验。
+
+已确认的缺口是仓储 User 查询、查重和写入隐式使用 default；创建用例没有回传数据库生成的完整物理时钟；
+`apps/simulated_trading/infrastructure/simulated_account_evidence_pipeline.py` 明确为 Unwired。
+后续有界接线须在同 alias 外层事务内完成 allocation、新物理行、raw/source-v2/Physical-v2、
+allocated observation V3 和 Binding V2，保存真实新增行事实及稳定幂等映射；任何阶段失败整链回滚。
+页面创建入口也需核对覆盖范围，不能让另一路新建绕过约定的 provenance。
+禁止从既有账户名称或 created_at 猜测创建关联并回填；创建 POST 不自动生成代表显式审批的 Receipt V4。
+服务端 recorder、actor 映射、指纹/幂等规则及 TTL 应沿用并核对现有配置/契约后确定，不能以测试 fixture 代替生产事实。
+该只读分析尚未实施创建链修改，也未进行生产创建或审批。
+
+### 2026-09-11 Research V2 接线组合验收（进行中）
+
+Luna 交付 19 项新单测通过/112.31s，两个生产文件增量 mypy 通过；主代理独立时钟回退用例通过/7.60s。
+实际 Account→Research PG 已启动，使用公开 Research composition 读取历史证据，尚未取得结果。
+最终 3 个生产文件增量 mypy、full debt、3085 文件架构、governance、61 surfaces freshness 与 8 文件格式检查通过。
+
+主代理新旧组合回归暴露 1 failed、71 passed、5 errors（226.76s）：
+生产 Evidence composition guard 拒绝 Core 直接导入内部 evidence_reads 协议，应改用公开 EvidenceReadPort，
+不能扩大门禁白名单。其余 5 项是默认 pytest 临时目录 WinError 5，后续以独立 workspace basetemp 复测，
+不修改用户系统临时目录权限。当前 PG 保持原进程；结束后修补导入并验证最终版本。
+已有架构/类型检查通过不能替代这一更具体的门禁，当前尚不生成接线通过检查点。
+独立 workspace basetemp 环境复测已完成：5 passed、1 deselected/0.62s；五项临时目录错误已解除，
+被排除的一项正是仍待导入修补的生产扫描，不能将这次环境复测称为全部门禁通过。
+
+首轮实际 Account→Research PostgreSQL 集成已完成：1 passed/745.98s，专用库清理后 public base tables=0。
+随后 Core 改用 Research 公开 EvidenceReadPort，并以类型别名保留既有端口名；没有扩大扫描白名单。
+该导入修补的 Black/isort/Ruff 已通过。最终新单测与 composition guard、旧 V1 回归、增量 mypy、
+full debt ceiling 及修补后实际 PG 正在复测，分别保留 `var/evid07-scope-v2-*-final.txt` 原始输出。
+首轮 PG 结果对应导入修补之前的版本；未取得最终结果前不封存完整通过检查点。
+
+修补后最终单测已完成：新 Account callback/Core V2/独立时钟回退及完整 composition guard
+33 passed/213.31s；不重叠的旧 Core V1 与 Research scope/provider 回归 44 passed/2.14s，合计 77 项。
+3 个生产文件增量 mypy 为 0 regressions，8 文件 Black/isort/Ruff 通过；full debt、最终架构及 PG 仍待结果。
+Luna 同时补两个 SimulatedTrading public provider builder 的显式数据库 alias 传递前置；
+此项不改变当前 Scope 三个生产文件，亦不表示真实创建或审批链已接通。
+
+最终 full mypy debt ceiling 已通过（0 errors / 0 files），架构 3085 files / 0 violations、
+61 surfaces freshness 与 governance 复测也全部通过。修补后的 Research PG 仍在原进程运行，
+当前未生成最终接线检查点；最终证据脚本已改为要求修补后的 PG 和两个不重叠单测日志。
+
+### 2026-09-11 真实创建接线的实施边界
+
+只读核对确认可直接复用 allocation、raw/source-v2/Physical-v2 pipeline、allocated Physical-v3 和
+Binding-v2 Application；主要新增面是 typed 实际行 writer 及跨模块 composition。
+外层使用同一 alias 的事务，各阶段自行进入各自 private UOW/savepoint；不得提前进入同一 repository
+的 private UOW 后再调用其 Application。失败必须连同新增账户、allocation、各证据及 consumption claim 回滚。
+
+实际行 writer 只接受新账户（无既有主键），使用显式 alias 查询认证用户并插入，保存后刷新数据库事实，
+按真实 pk/user_id/account_type/is_active/created_at/updated_at 与服务端 observed_at 构造 mutation。
+不得用 start_date 替代物理时钟，不得通过名称或历史时间反推既有账户的创建关联。
+请求标识与规范化参数 fingerprint 应分别定义：同一标识且同一内容才可重放，内容变更须冲突；
+不能仅按 payload 永久合并不同的合法创建请求。正式 TTL/recorder 配置接入仍待 config_center 模式核对。
+创建链仅生成身份与来源证据，不自动生成 Receipt、owner approval 或执行授权；HTTP 切换需在真实同库
+创建、精确重放、每阶段回滚和默认 alias 零查询集成通过后单独验证用户主任务。
+
+两个 public provider builder 的 alias 修补已由 Luna 冻结交付，主代理完成 diff 与 provider/repository
+传递路径审查。Luna 定向 wiring 单测 18 passed/0.49s，两生产文件增量 mypy 0 regressions、
+full debt 0 errors、Black/isort/Ruff 通过；这些单测使用 repository spy，不替代真实跨库集成。
+下一写入切片为 typed new-only actual-row writer：要求 caller-owned atomic，同 alias 新增与刷新物理行，
+局部 savepoint 保证调用方捕获错误后仍不能提交半行。暂不切换 HTTP 或发布审批证据。
+
+### 2026-09-11 当前所有者到历史 Research 读取接线检查点
+
+最终导入修补后的实际 PG 已完成：1 passed/1009.57s，专用库 public base tables=0。
+与严格 SQLSTATE 55P03 的 Account callback PG 1 项合计两个不同范围用例；不重复计数首轮/重跑。
+最终新旧单测合计 77 项，三生产文件增量 mypy、full debt、8 文件格式、架构、freshness 和治理检查通过。
+证据已封存于 `docs/testing/evid07-owner-v2-research-scope-checkpoint-2026-09-11.json`，
+SHA-256 `cfbac0050c2c4aa3fbe75a8b213129272c75b4efe9ef75d2b44db473013e36f2`。
+
+该检查点验证锁内物化读取、当前授权与历史 PIT 分离、精确 artifact/hash、时钟失效拒绝，
+以及真实 Session/物理所有权消失后零 Evidence 查询。创建 provenance、policy、历史证据发布时间仍为
+明确的本地合成 fixture；固定时钟测试不证明真实 HTTP 延迟或生产吞吐。没有部署、生产创建或审批。
+EVID-07 保持 active/exit_gate=false；接续实际创建 writer、完整同库幂等链、真实认证 HTTP 与显式审批/重新授权。
+
+实际 row writer 的主代理 PG 用例已编写并通过格式检查，尚未执行：
+`tests/component/account/test_canonical_account_creation_row_postgres.py` 使用实际 User/账户模型，
+检查默认 alias 零查询、刷新后的数据库生成日期与物理时间、外层回滚，以及 INSERT 后观测时钟失效时
+局部 savepoint 回滚（调用方捕获错误并提交外层仍无残留）。测试仅覆盖写入端口，未冒充整条 provenance 链。
+
+配置只读核对确认可复用 Runtime Config definition 注册、typed public reader 和带 actor/reason 的
+profile patch 激活入口。创建链专用 TTL/recorder 配置尚未存在；应注册并显式配置，缺失时拒绝，
+不得静默硬编码业务默认值。现有 Config Center 仓储隐式 default，非 default 创建事务应注入预先解析
+校验的 typed settings，不能在事务内跨库读取。namespace/schema/permission 等固定 Domain 契约不配置化。
+UUID 生成器属于技术实现；幂等 allocation identity 按真实 actor/user/request key 派生，fingerprint
+封存 key、payload schema 和规范化行为字段。同 key 内容变更拒绝，不同 key 不绕过同用户重名校验。
+
+实际 new-only row writer PG 已完成：2 passed/67.37s（`var/evid07-creation-row-postgres.txt`），
+两生产文件及测试源码 SHA 与启动前一致，专用库清理后 public base tables=0。
+覆盖真实生成字段、default 零查询、inactive/missing User 拒绝、外层回滚，以及 INSERT 后时钟回退
+的局部回滚；捕获异常后外层仍可正常提交且无残留。当前只读复核和 unit/静态收尾仍在进行，
+尚不封存此写入端口完整检查点，更不将其视为 allocation→Binding→审批整链完成。
+
+主代理四生产文件增量 mypy 暴露一个新增 arg-type：数值 exact-type guard 后 `float(value)`
+仍被推断为 object；已交 Luna 显式收窄，禁止抬高债务基线。当前架构 3087 files / 0 violations、
+治理 0 violations 通过，但不能据此宣告类型门禁通过。只读复核确认 inactive/clock 修补已存在，
+旧版本审查中的两项结论已撤回；INSERT 异常映射的 mock 单测继续补齐。
+后续幂等整链须明确请求级串行化或等效 first-winner 机制：既有 maintenance writer lock 是 shared，
+不能单独作为重复创建互斥证明；需要并发重放测试而不只是顺序重放。
+
+### 2026-09-11 实际新账户写入端口检查点
+
+最终四文件增量 mypy 0 regressions、full debt 0 errors/0 files，组合单测 44 passed/0.74s
+（18 alias wiring + 26 row writer，去重计数）、实际 PG 2 passed/67.37s，以及七文件格式、
+架构和治理检查通过。检查点 `docs/testing/evid07-canonical-creation-row-checkpoint-2026-09-11.json`，
+SHA-256 `04864e0ccf04ba413b671123ad3c33eb58ae8928356a9b4f4bf650d16126b65e`。
+PG 后仅有格式和 guard 后显式 typing.cast 的类型收窄；运行时数值不变，最终 unit/类型门禁验证最终源码。
+原始 mypy/full debt 的同一 arg-type 失败由最终结果取代，未修改债务基线。
+
+此片证明真实物理写入和回滚，不证明完整认证会话、allocation→Binding 并发幂等或审批。
+下一片采用单个完整配置包读取 typed creation settings，复用版本化 Config Center 激活入口，
+再组合现有 Account/SimulatedTrading 阶段；EVID-07 和应用 Goal 继续 active，不切换生产/HTTP。
+
+主代理进一步核对永久重放路径：Physical V2/V3 的 `GetExact` 最终调用包含 TTL 的 `is_knowable_at`，
+只能用于首次捕获/绑定所需的有效来源读取；Binding V2 的精确读取才只按 recorded_at 判断永久可知。
+已完成请求应从受服务端 requester/key/fingerprint 限定的 Binding winner/claim 闭图恢复映射，
+再做 exact 验证；不能因旧 Physical TTL 过期走新建分支。重试方最初可能不知道 content_hash，
+需安全的服务端 winner 发现入口，而非要求客户端猜 hash 或按名称找行。
+已有 allocation 却缺完整 Binding 的遗留/不完整状态须明确处理，不能自动回填或新建掩盖；
+正常新链任一失败应由外层事务一起回滚，不会以半完成 allocation 作为成功重放依据。
+
+单快照配置初稿已加入完整 typed JSON 包、一次读取 bridge 和显式参数激活命令；未执行数据库激活。
+主代理独立真实 Django CommandParser 测试 9 passed/0.49s，覆盖八项必填参数与 parse 后类型/字段
+传递到一次激活调用，激活仍使用替身。Luna 的 decoder/bridge/命令单测与静态检查尚待完成。
+主代理复现 `timedelta(seconds=10**12)` 可构造但与实际 UTC datetime 相加溢出，因此不能只校验
+duration 自身范围；需按实际 server cutoff 验证 deadline，并在创建消费边界拒绝不可用有效期。
+
+配置消费边界已加入 `deadline_at(cutoff)`：拒绝非精确 aware datetime，并将日期相加溢出
+转换为配置错误；Core 单次读取后和激活命令写入前均按实际 UTC 时钟验证。激活数据库异常
+输出稳定 CommandError 并抑制底层异常链。最终定向回归和类型检查仍由 Luna 执行，尚不宣告通过。
+主代理另准备 `tests/component/account/creation_chain_postgres_fixture.py`：复用受 loopback/专用库
+限制的 ownership fixture，按 FK 顺序建立八张空创建账本表（含闭图读取所需 V1 Binding），
+没有合成创建、策略或审批记录。该 fixture 的 Black/isort/Ruff 已通过，实际整链 PG 尚待实现执行。
+
+配置最终定向单测 49 passed/0.68s；首次四文件增量 mypy 检出 CLI 的五处
+`options.get()` 到 typed DTO 的 `Any | None` 参数错误，正在改为先经过完整 payload decoder
+再使用 typed settings，未抬高基线。此时配置检查点仍未通过全部门禁。
+主代理已新增 `apps/simulated_trading/creation_composition.py`，公开构造实际 row writer、raw
+writer 和 source-v2 capture，显式传递同一个 alias 与已解析的 settings，构造前验证 deadline。
+该公开入口新增 10 项单测通过（0.50s），Black/isort/Ruff 通过，单文件增量 mypy
+已完成且 0 regressions（`var/evid07-creation-composition-mypy.txt`）。
+只读复核确认八张空 ledger 表集合与 FK 建表顺序正确；独立加载该 fixture 时须同时加载
+`test_current_account_ownership_postgres` plugin。新入口和 fixture 尚未完成实际整链 PG 验证，
+仍须接 Account allocation/physical/V3/Binding、请求互斥与永久重放，再接认证 HTTP。
+
+CLI 已改为 `dict[str, object]` 完整 payload 先经 decoder，再消费 typed settings；修复后的
+单测 49 passed/0.71s，旧增量/全量检查均报告同一五处 arg-type，修复后的最终类型检查待确认。
+SimulatedTrading 公开入口只读审查未发现阻断性缺陷；当前架构检查 3091 files / 0 violations。
+主代理新增并启动 `tests/component/account/test_actual_creation_chain_postgres.py`，使用真实
+Application 依次写 allocation、实际账户行、raw、source、Physical V2、allocated V3、Binding/claim，
+测试外层回滚清空全链后重新提交。测试输出在 `var/evid07-actual-creation-chain-postgres.txt`，
+此时仍在执行，不能计作通过。这里 requester/fingerprint 是显式本地测试输入，尚未连接实际认证
+HTTP，也没有声称并发幂等或永久重放已验证；没有生产写入、配置激活或实际审批。
+
+修复后的四配置生产文件增量 mypy 已通过：`var/evid07-creation-settings-mypy-final2.txt`
+显示 0 issues / 0 regressions，原五处 CLI arg-type 已消除；与公开组合入口的单文件结果合计
+五个生产文件增量通过。全量 debt 最终结果仍待确认。PG 原进程仍在运行，专用库活动检查
+显示 active 且 blocking PID 列表为空；继续等待原进程，不因安静输出重启测试。
+
+### 2026-09-11 创建配置与实际创建链检查点
+
+最终组合单测 59 passed/0.92s，实际 PG 1 passed/149.70s，测试库清理后 0 张 public base table。
+五个生产文件增量 mypy、修复后的 full debt 0 errors/0 files、十文件格式、架构 3091/0 和
+注册表检查通过。证据封存为 `docs/testing/evid07-creation-settings-and-chain-checkpoint-2026-09-11.json`，
+SHA-256 `105a11c08a7f7cf91cea71e7f95aa409cd144c5fcf54860003e0acb98f3daada`。
+
+已验证完整单快照配置、实际账户写入到 Binding/claim 的同库 Application 链、外层回滚与重建提交。
+PG requester/fingerprint 仍是明确的本地测试输入，Account 组合尚用测试适配器；不代表认证 HTTP、
+并发请求去重、永久请求重放、审批或生产退出门通过。fixture 提前导入产生一项 assert-rewrite warning，
+该 fixture 没有断言，测试模块断言正常执行；保留原始日志。没有修改债务基线或生产配置。
+
+后续 Luna 单写者负责 Account 公开组合入口及 Application 永久 winner 发现：核对服务端 requester、
+allocation identity/version、fingerprint、账户类型与 Binding selector，已有不完整 allocation 应拒绝；
+永久重放不重新依赖已过 TTL 的 Physical V2/V3。主代理负责将实际 PG 切换到公开入口，并继续请求互斥、
+外层事务失败注入与真实认证 HTTP 接线。EVID-07/Goal 保持 active，其他生产退出门未晋级。
+
+主代理已增加 `canonical_account_creation_request.py`：显式接收已解析行为字段，不新增业务默认值；
+identity 仅由 actor/user/request key 派生，fingerprint 另封存版本和所有行为字段。相同 key 改内容
+保留 allocation/Binding identity 并改变 fingerprint，不同 key/主体相互隔离；有限数值归一化，
+服务器日期和数据库主键不进入请求身份。31 项定向单测通过（0.67s），格式通过，单文件增量
+mypy 正在执行（`var/evid07-creation-request-mypy.txt`）。这些请求值仍须由真实认证入口构造；
+DTO 不是认证证据，当前未切换 HTTP，也尚未接入请求互斥和已完成请求的永久恢复。
+
+请求 DTO 单文件增量 mypy 已完成，0 regressions。主代理继续增加公开
+`account_creation_transaction(using, user_id)` 边界：在 PostgreSQL READ COMMITTED 的外层事务内
+先锁实际 active User 行，让同用户的创建/重放串行，并覆盖不同 key 的同名检查竞争；不同用户
+不共用全局互斥。DatabaseError 退出事务后映射为已有创建不可用异常，任意 body 异常均回滚。
+三个实际 PG 用例已启动，验证严格 SQLSTATE 55P03 竞争、不同用户并行、释放后重入、实际行失败
+回滚/重试，以及缺失、inactive 和错误隔离级别拒绝。日志 `var/evid07-creation-transaction-postgres.txt`
+和两文件增量 `var/evid07-creation-transaction-mypy.txt` 均尚待结果；不能视为最终并发幂等已通过。
+
+用户事务边界实际 PG 已通过 3 项（155.41s），包含严格 SQLSTATE 55P03，同用户互斥/不同用户
+独立、释放后重入、实际写入失败回滚与重试、缺失/inactive/错误隔离级别拒绝；两生产文件
+增量 mypy 0 regressions，专用库清理 0 表。仍须在完整创建重放流程中证明并发 first-winner。
+主代理增加 owner-scoped creation reader，并扩展公开 `SimulatedAccountCreationStages.account_reader`：
+`name_exists` 保留 inactive 账户重名规则，`read_owned` 锁定当前 active 且 owner/type 精确匹配的
+物理行；异主/缺失/inactive 返回 None，不能回退到历史创建行。三生产文件增量检查与实际 PG
+正在执行（`var/evid07-creation-reader-mypy.txt` / `var/evid07-creation-reader-postgres.txt`）。
+这次对 `creation_composition.py` 的扩展发生在上一检查点之后，上一 artifact 的源码 hash 仅证明
+当时的版本；当前扩展待新验证封存。尚未变更 HTTP 或生产数据。
+
+当前 owner reader 实际 PG 已通过 1 项（50.72s），三生产文件增量 mypy 0 regressions，专用库
+清理后 0 表；验证了当前 owner/type/active 精确匹配、真实所有权转移后的旧用户拒绝，以及
+inactive 名称仍占用。请求 DTO 与扩展后组合入口的联合单测 41 passed/1.06s（31 新请求 + 10
+既有组合用例，不另重复计入历史总数）。本批全量 mypy debt 已启动，日志为
+`var/evid07-creation-request-transaction-reader-debt.txt`，尚待完成。Account 公开组合及永久 winner
+检查仍由 Luna 实施，生产编排、完整并发重放与认证 HTTP 尚未完成。
+
+本批 Root 请求/事务/reader 全量 debt 已完成，0 errors/0 files；该检查先于后续 Core 与 Luna
+Account 新实现，不替代它们的最终全量门禁。Core 编排 `core/integration/canonical_account_creation.py`
+已写入：在同一用户锁事务内先查永久 Binding，匹配当前 owner/type/active 后恢复；全无历史时
+先查同名，再执行 allocation→真实行→raw/source/Physical→root→Binding。两项实际 PG 用例已准备，
+覆盖成功/重放、内容与名称冲突、测试时钟推进超过 Physical TTL 后的永久恢复、inactive 拒绝及
+late Binding 注入失败后的全图回滚/同 key 重试；格式通过，尚未运行实际 PG，等 Account 入口定稿。
+
+HTTP 只读核对确认 `/api/account/accounts/` 与 `/api/simulated-trading/accounts/` 最终指向同一个
+AccountListAPIView；`X-Request-ID` 仅是 trace，不能充当新幂等键。接线需要独立 Idempotency-Key，
+认证 user/actor 不得来自 body。`fee_config_id` 当前完全未消费，须拒绝无效输入或实际实现后才接受；
+金额 Serializer 18 位与数据库 15 位不一致，必须对齐真实存储边界。成功实际 201，OpenAPI 却写200，
+创建响应 created_at 为 null 而 schema 未声明可空，均需同步契约。Classic 创建、provisioning signal、
+readiness 与 legacy migration 仍有其他写入口，不能视为已具有真实认证创建 provenance，不能补造历史。
+
+Account 初稿已按审查补成 core 异常体系、精确 Repository Protocol 和 winner/claim recording-time
+不晚于 cutoff 的校验。主代理统一格式后冻结本批源码，记录于
+`var/evid07-creation-orchestration-source-before.json`，已启动两项实际 Core 编排 PG；Luna 期间只补
+unit，不修改冻结生产文件。Core 单文件增量 mypy 已显示 0 regressions，全量 debt 与 PG 待完成。
+另新增 `test_canonical_creation_concurrency_postgres.py`，用两个线程/数据库连接执行相同请求，
+先观察 `pg_blocking_pids` 确认第二请求真实等待第一用户事务，再验证一份提交图与相同账户/Binding。
+并发用例格式检查通过，尚未执行；继续保持一个 PG 通道，等当前两项完成后才串行运行。
+
+当前完整全量 mypy 检出 Account facade 两处新增 attr-defined：`ConnectionDoesNotExist` 应从
+`django.utils.connection` 导入，`CanonicalAccountCreationServiceRecorder` 应从其 Domain 定义模块
+导入（Application 未显式导出）。已定位具体修补，等原 PG 进程结束再解除源码冻结，避免混淆
+实际被测版本；不抬高债务基线，也不将此前 Root 边界批次的通过结果当成本批完整通过。
+
+Core 实际整链 PG 已通过 2 项（298.46s）：创建/顺序重放、内容冲突、不同 key 同名拒绝、测试
+时钟推进超过源 TTL 后永久恢复、inactive 拒绝，以及 late Binding 失败全图回滚/同 key 重试。
+10 个被测源码 hash 与启动前一致，专用库清理 0 表。随后仅修正前述两处 import 来源，格式通过。
+已另存修复后的 `var/evid07-creation-concurrency-source-before.json`，启动一个真实双连接并发用例，
+最终 full debt 与架构检查并行；尚待结果。Luna 初版 18 单测通过，仍在补显式过期与单独 actor/user
+替换断言，不能把初版数量当作最终联合结果。生产/HTTP 未启用，本批尚未封存最终检查点。
+
+恢复执行核验：应用 Goal 工具读回为 active，无需再次设置或绕过 blocked。当前并发 PG 原进程
+已结束并返回 0：1 passed（279.07s），确认实际双连接等待后只产生一份账户/Binding 提交图。
+11 个冻结源码 hash 全部一致；专用测试库清理后 public_base_tables=0。最终全量 mypy debt
+通过（0 errors / 0 files）；架构日志扫描 3099 文件，7 条规则、0 violations。架构原进程句柄
+已不可用，此项依据持久化日志，不补称本次重新取得退出码。Luna 最终回报仍为 18 项单测通过，
+两生产文件增量 mypy 0 regressions，已补独立 actor/user、selector 和显式 TTL 过期断言。
+原始证据位于 var/evid07-creation-concurrency-postgres.txt、同前缀 source-after-check.json /
+cleanup.json 及 var/evid07-creation-orchestration-debt-final.txt / architecture.txt。
+本批最终联合证据封存、真实认证 HTTP 接入及生产退出门仍未完成，EVID-07 焦点不晋级。
+
+创建编排检查点已封存：docs/testing/evid07-creation-orchestration-checkpoint-2026-09-11.json，
+SHA-256 aee33d47b3eb841d940be9cd3bd719fbbfc79f0955cab1982c46f9f24b9d7f68。
+最终联合 108 项单测（1.39s），本批实际 Core PG 共 3 项；9 生产文件增量类型覆盖、11 冻结
+文件格式/静态检查与 v83 注册表检查均已记录。检查点显式区分顺序 PG 后两处 import 修正、
+后续 serializer 改动与尚未执行的 HTTP，不扩大本地测试证明范围。
+
+认证入口审查确认三种既有 backend。下片由 Luna 实现 credential→User/Profile 的实际认证
+事务，Root 接 Core/HTTP 和串行 PG；普通账户创建不需要新造 authority source schema，Token/
+内部签名不能冒充 Session 的 V3 authority evidence。显式 owner 审批仍需其真实证据链。
+Root 同时补创建 Serializer 的已核实边界：金额改为数据库实际 15 位/2 小数，非空 fee_config_id
+明确拒绝。新增测试先出现 4 个预期失败，修正后共 10 passed（0.49s）；导入格式已修正。
+该两文件片的增量 mypy（34683）和全量 debt（81408）仍运行，不能套用前一检查点结果。
+
+Serializer 增量 mypy 原进程已返回 0（1 source file / 0 regressions）；两文件 Black 复核、
+isort、Ruff 通过，更新后的注册表投影检查仍为 0 violations。全量 debt 原进程 81408 已确认仍在
+运行，继续读取同一进程，不因观察超时重复启动。认证事务 worker 开始下一片前须保留该范围边界。
+
+Serializer 独立边界片全量 debt 原进程 81408 已返回 0 errors / 0 files，随后解除冻结开展 HTTP
+接线。新增 identity-free CanonicalAccountCreationInput，只有认证事务返回的 requester 可绑定
+actor/user；保留原 real/simulated 自动交易行为。Core HTTP 桥读取完整配置后进入 Account 认证
+事务，再调用已验收创建链，缺配置不回退。AccountListAPIView 的两个既有 API 别名共用该桥，
+新增独立 Idempotency-Key、首次 201 / 重放 200 / 冲突 409，响应 schema 同步 replayed 与可空
+created_at；未知请求字段明确拒绝。生产未部署、未激活配置。
+
+输入 DTO/Serializer 共 24 passed（0.61s），7 文件格式/lint 通过；两生产文件增量 mypy 原进程
+90979 仍运行。Luna Account 认证事务仍在实现，因此 HTTP 新模块尚未完成导入/端到端验收。
+已准备 tests/component/account/test_authenticated_creation_http_postgres.py 三个真实 Session/
+CSRF 用例，使用显式专用 PG alias 并禁止 default SQL，尚未执行。接续必须补 Token/Internal
+实际认证验证、同步客户端幂等键与原创建 API 回归，不能把当前接线当作 HTTP 已通过。
+
+HTTP 输入片首轮增量 mypy 检出 Serializer.to_internal_value 的 no-any-return；已在 DRF 边界
+用精确 dict 返回类型 cast 收窄，不加 ignore 或抬基线。复跑原进程 7129，日志
+var/evid07-creation-http-input-mypy-final.txt；尚待终态。此前 90979 的失败不能记为通过。
+
+HTTP 认证入口已由 Root 接管落盘，Luna 转为读取当前文件进行审查。根因是此前未取得可供
+集成的实现；不将等待代理视作外部权限阻塞。当前两个认证文件不含旧草稿中的 Clock/
+SupportedAuthenticator/_connection_for，审查必须针对当前源码。Session/Token 先锁 credential，
+再锁同库 User/Profile；Internal 锁 User/Profile 后再次验签。三个后端都在退出前重新认证，
+仅生成当前创建 requester，不发布 V3 Session authority，也不生成 owner approval。
+3 个真实 Session/CSRF HTTP PG 用例已收集成功，19 文件 hash 已冻结，专用库启动前 0 表，
+串行 PG 原进程 48562 正在运行（var/evid07-authenticated-http-postgres.txt）。
+
+HTTP 输入两文件增量 mypy 复跑 7129 已通过 0 regressions。TUI 的 action-run→service→内部
+executor 已补专用幂等键参数，浏览器首次提交/确认/失败重试共用键，新提交换键；不开放任意
+header 或把 key 填进业务 body。适配器 3 passed（0.38s），真实浏览器单测 1 passed，另 2 个
+相邻确认/表单生命周期用例通过。首轮 browser 测试的新提交触发既有 250ms 防双击保护，测试
+显式等保护窗口并更改输入后通过；未降低业务断言。npm build:tui/check:tui 已通过。
+
+SDK 两个账户创建入口显式要求 idempotency_key，客户端/BaseModule 专用参数向 Header 透传，
+MCP 公开工具与治理 fallback/确认执行保留原键；保持原 account 字典返回形状。SDK client、
+账户与 MCP owner 回归 57 passed（5.57s），不是生产认证取证。SDK client 的新增 import 触发
+isort/Ruff 排序差异，已定位，待当前增量扫描后统一修正。15 文件增量 mypy 83461 和完整
+TUI workbench 回归 51883 在运行；旧创建 API 的 SQLite 正向测试、Token/Internal 实际 HTTP
+覆盖与最终 full debt/架构/证据封存仍需收口，不能套用旧检查点的通过范围。
+
+当前 15 文件增量 mypy 83461 已终态失败：29 个类型错误均位于 6 个 SDK 文件（裸 dict 与动态
+JSON 返回未收窄），不能将该门禁记为通过。Luna 已转为这 6 文件的有界修复写者，保留幂等键
+行为与返回形状，不抬基线/加 ignore；Root 保持认证 PG 冻结，SDK 不属于本次 PG 被测源码。
+另新增 TUI Application 身份透传/入口校验 4 passed（0.50s）；Account Request 边界 5 passed
+（0.61s），覆盖无 backend、ForceAuthentication 拒绝及三已知 backend 的显式 alias 传递。
+这些是边界单测，不是 Token/Internal 真实凭证证据。PG 原进程 48562 与 TUI 全包 51883 均
+已确认仍活跃；只读 PG activity 显示 active、无 blocker，继续等待原进程，不重启测试。
+PG 后需将 503 用户文案中的技术键名改为“重试本次提交”，并补剩余实际认证/旧API回归。
+
+2026-09-11 续跑核验：应用 Goal 实际状态为 active，无需调用不存在的恢复接口。
+PG 原进程 48562 已终态 exit 0：真实 Session/CSRF HTTP 3 passed（486.57s），
+1 条夹具模块预导入的 assertion rewrite warning。19 个冻结文件哈希全部未变，核对结果见
+`var/evid07-authenticated-http-source-comparison.json`；只读清理核验确认专用测试库 public
+base tables 为 0，见 `var/evid07-authenticated-http-cleanup.json`。这仅证明本地真实 Session
+创建链路，不是生产配置激活、Token/Internal 凭证验证或人工审批证据。
+
+完整 TUI 回归原进程 51883 为 325 passed、1 failed；失败源于配置激活测试夹具缺少新增的
+critical `account.creation_evidence.settings`。只补测试配置后，原单项复跑 55730 已终态
+exit 0，1 passed（159.23s），见 `var/evid07-tui-runtime-fixture-final.txt`；未放宽生产
+critical 配置规则，未声称修正后重新运行完整 326 项。SDK 六文件类型修复仍由 Luna 负责；
+在其增量检查、剩余认证用例及整体门禁完成前，不晋级 EVID-07 或宣告冲刺完成。
+
+续跑新增 `tests/component/account/test_authenticated_creation_credentials_postgres.py`：
+5 个真实 Token/HMAC HTTP 用例覆盖创建/重放、禁用 MCP profile、只读及撤销 Token 拒绝，
+以及真实创建图已写入后凭证/profile 失效时的事务末尾重验与整图回滚。凭证与 HMAC secret
+均为专用本地测试值；配置仍通过显式测试 seam 注入，不代表生产配置或人工审批。
+测试文件 Black/isort 格式化及 Ruff 检查通过；22 文件源码快照保存为
+`var/evid07-credentials-source-before.json`。PG 串行进程 79982 已启动，日志
+`var/evid07-credentials-postgres.txt`，只读 activity 确認后端 active 且无 blocker；仍在运行，
+不能预记为通过。结束后必须核对源码哈希和测试库清理结果，再解除冻结。
+
+本轮继续保留旧创建正向用例，先在其集成测试文件追加两个 URL alias 的缺键和缺配置拒绝
+回归（共 4 项），验证校验先于配置读取、配置缺失返回 503 且不退回无证据的旧账户写入。
+原进程 42978 正在执行，日志 `var/evid07-creation-http-failclosed-integration.txt`。
+旧 SQLite 正向用例仍待真实 PG 业务断言迁移和别名重放验收后清理，不能记为全文件通过。
+MCP 创建示例已补必填 idempotency_key，并说明兼容日期不改变服务端创建时间。
+
+Root 负责的 HTTP/TUI/MCP 工具 11 个生产文件增量 mypy 原进程 62028 exit 0，
+0 regressions/0 legacy errors；Black、isort、Ruff 均通过。架构原进程 43664 exit 0：
+3103 files、7 rules、0 boundary violations，日志 `var/evid07-authenticated-creation-architecture.txt`。
+注册表校验 exit 0，仍为 v83/49 units/45 paths/0 violations。完整生产类型债务原进程
+90202 仍运行，日志 `var/evid07-authenticated-creation-full-debt.txt`，不能引用旧债务结果代替。
+PG 79982、集成 42978、债务 90202 均已通过原句柄确认存活；不重复启动。
+
+完整生产类型债务 90202 已终态 exit 0：0 errors in 0 files。集成首轮 42978 已终态
+exit 1（2 failed、2 passed、3 deselected，202.87s）：新增夹具金额 100 低于既有最低值 1000，
+配置缺失用例因此提前得到 400；缺键两项同样不能凭该次 400 证明目标分支。将两组金额改为
+合法 10000 后，全 4 项原范围复跑进程 85619 已启动，日志
+`var/evid07-creation-http-failclosed-integration-final.txt`，待真实结果，不降低生产校验。
+PG 原进程 79982 仍活跃；保持其 22 文件冻结。Luna 六文件 scoped mypy 最终日志显示
+0 regressions（`var/evid07-authenticated-http-tui-sdk-mypy-final.txt`），Root 已审阅返回形状
+与类型改动；仍待 worker 交回实际测试结果和退出状态，不提前封存 SDK 验收。
+
+本轮结果：85619 exit 0，4 passed、3 deselected（194.03s）；合法输入的缺键/缺配置两类
+拒绝在两个实际路由均通过。79982 exit 0，5 passed（815.22s），仅一条夹具预导入 warning；
+真实 Token/HMAC 创建、重放、profile 禁用、只读/撤销 Token 与事务末尾失效整图回滚通过。
+22 个冻结源码哈希全部未变（`var/evid07-credentials-source-comparison.json`），专用库
+public base tables=0（`var/evid07-credentials-cleanup.json`），据此解除该轮冻结。
+
+Luna 交接确认没有活跃工具，旧 57 项并非修复后回归。Root 接手消除 client import 排序冲突
+并修正示例缩进后，实际重跑 57 passed（3.76s），日志
+`var/evid07-creation-sdk-key-tests-final.txt`；六文件 scoped mypy 67810 exit 0，0 regressions，
+Black/isort/Ruff 均通过。SDK 保持原 account 字典返回和同提交 Header 幂等键。
+
+随后将 503 用户文案改为“重试本次提交”；一文件类型复核 48375 运行中。为迁移旧正向业务
+断言，新增既有 legacy row 的同 owner 冲突/不同 owner 同名两项，保留旧行无 provenance，
+并让真实 Session 用例从 simulated-trading alias 创建、canonical alias 重放同一账户。
+串行 PG 原进程 16869 正在运行这 3 项，日志 `var/evid07-creation-alias-postgres.txt`，
+22 文件新快照 `var/evid07-creation-alias-source-before.json`；不得复用上一轮哈希或预记通过。
+
+文案文件增量 mypy 48375 已 exit 0，1 file/0 regressions；最终完整债务复核已启动原进程
+8496（`var/evid07-authenticated-creation-full-debt-final.txt`）。PG 16869 经原句柄长轮询
+仍存活，继续冻结、不重启。下步 orchestration 审查还需明确首次 owner 审批晚于创建根 TTL
+的合法路径：Receipt V4 当前要求 exact-current Physical V3，不能通过续期旧 seal 或伪造
+新创建时间绕过；是否在明确的创建及所有权确认任务中原子组装，或复用现有合法后续流程，
+须以实际契约核定。该问题未作为新增用户授权缺口，也未宣称已有解决方案。
+
+### 真实认证创建与传输检查点
+
+16869 已 exit 0：3 passed、2 deselected（430.59s），跨 alias 创建/重放及 legacy row 同名
+隔离均通过；22 文件哈希未变，专用库 public base tables=0，核验文件为
+`var/evid07-creation-alias-source-comparison.json` 与 `var/evid07-creation-alias-cleanup.json`。
+8496 已 exit 0：最终 full mypy debt 0 errors/0 files。移除已迁入真实 PG 的四个旧 SQLite
+创建正向测试后，86742 exit 0：两份完整集成文件 11 passed（155.93s）；保留所有读取合同，
+不再以 force_login/SQLite 证明 canonical 创建。金额、归属、real/simulated、同名隔离与
+409 冲突断言均在真实 PG 中验证，未恢复旧 400 契约。
+
+[不可变检查点](../testing/evid07-authenticated-creation-transport-checkpoint-2026-09-11.json)
+SHA-256：`7bb4078471d496449e0eb6836331b75e76010ee5535e8894e9a017df8af9574e`。
+含 47 个选定源码哈希、三次 PG 分别冻结的快照/核对/清理、实际日志与精确限制。三次 PG
+共 11 次执行、10 个独立用例；首次 Session case 在 alias 更新后再次验证。TUI 全包仍如实
+记录 325 passed/1 fixture failure 加修复单项通过，不改写为修正后的全包复跑。
+
+### 下一片：永久创建身份与当前物理观察分离
+
+只读审查确认首次 V4 receipt 仍要求 exact-current Allocated Physical V3，旧捕获 TTL 到期后，
+永久 Binding V2 的可重放性不能提供新的当前所有权事实；单纯增加 TTL 只推迟问题。
+下一片先新增独立 `CanonicalAccountOwnershipReobservationV1`：引用永久 Binding V2 与新鲜
+Physical V2，匹配 canonical/physical ID、原 user、类型、创建时间及不倒退的更新时间，
+只封存 evidence_only/inactive 当前事实。旧 allocation/root/hash 保持原样，既有过期根仍不
+可当 current。Luna 只写该 Domain 原语与其单测；Root 后续负责真实同 alias 重新观察、
+持久化、新赋权组合版本边界及显式认证审批。该原语本身不构成 owner/tenant/scope 授权。
+仍需 server-owned policy resolver/发布入口、Session-derived principal 接线及 Core Research
+scope factory；普通账户 POST 不自动审批，Token/Internal 创建不冒充 Session raw authority。
+
+Root 已在 SimulatedTrading 增加 `ReobserveExistingAccountRow` 与公开 composition，复用
+`CurrentAccountOwnershipReader` 的实际行锁和既有 raw successor writer。服务只追加当前
+观察，不调用账户 create/save，不改变源 created_at/updated_at；期望归属来自后续 Core
+核验的永久 binding，命令本身不是认证证明。读前匹配身份、读后核对漂移和观察有效期，
+两个 port 必须同 alias，缺少原 raw chain 时禁止补造 root。
+
+新增 22 项 unit 通过（0.60s），初始 red 为缺少新模块；Ruff 的测试 dict 形式问题已修正，
+五文件 Ruff 通过。三个生产文件 mypy 78704 exit 1：App 三个 for 循环重复使用 `value`，
+引发 7 个类型错误；待当前 PG 完成并核对冻结后分别改成 token/identity/timestamp 变量，
+不得抬基线。该类型门禁尚未通过。
+
+实际 PG 两项测试从真实 Session 创建开始，验证当前 raw 观察不会改变物理行和永久创建
+replay、外层回滚不留新观察，以及 legacy 无 raw chain 时拒绝。原进程 86605 正在运行，
+日志 `var/evid07-row-reobservation-postgres.txt`；26 文件快照
+`var/evid07-row-reobservation-source-before.json`。已确认原句柄存活、PG active 且无 blocker，
+不重启、不改冻结源码。Luna 的 Domain 原语与此 PG 切片文件隔离，仍未据此发布任何权限。
+
+### 重新观察切片验证结果与 Goal 恢复核验
+
+用户执行 `/goal resume` 后，应用 `get_goal` 返回 `active`，无需也未尝试以重建 Goal
+替代恢复。原冲刺顺序和 admin 所有者授权继续有效，EVID-07 仍未达到完整退出门。
+
+原 PG 进程 86605 已 exit 0：2 passed、1 warning（157.96s）。26 个冻结文件全部未变，
+核验见 `var/evid07-row-reobservation-source-comparison.json`；专用测试库清理后 public
+base tables=0，见 `var/evid07-row-reobservation-cleanup.json`。这两项只证明 raw successor、
+物理行不变、永久创建 replay、事务回滚和缺少历史 raw chain 时拒绝，不代表新证明已持久化。
+
+冻结解除后，仅将 Application 循环变量拆为 token/identity/source-time 变量以修复类型推断。
+最终 74343 exit 0：3 个生产文件增量 mypy 零错误、零回退，日志
+`var/evid07-row-reobservation-mypy-final.txt`；98285 exit 0：22 unit passed（0.59s），日志
+`var/evid07-row-reobservation-unit-final.txt`。PG 运行先于该变量重命名，不冒称随后再次运行。
+新 Domain 原语仍待 Luna 交接；本切片全量债务门禁、Source/Physical 后续封存、显式审批、
+policy resolver 和 Research scope 接线仍待完成，旧检查点的全量门禁不作为本切片结果。
+
+Luna 已交接并冻结 Domain 原语与单测两文件：报告新增 31 tests passed、与 Binding/Physical
+V2 联合回归 92 passed，Black/isort/Ruff 全过，单生产文件 mypy 零回退，无遗留运行句柄。
+Root 架构检查 10443 exit 0：扫描 3106 文件、零边界违规；registry v83、49 units、零违规。
+Root 合并两份新增单测的独立复核为 16492，日志
+`var/evid07-reobservation-root-combined-unit.txt`；本切片全量类型债务检查为 98402，日志
+`var/evid07-reobservation-full-debt.txt`。两者运行期间不宣称已经通过。
+
+16492 已 exit 0，Root 独立合并复核 53 passed（1.04s）。98402 全量类型债务检查仍运行，
+后续继续等待原句柄，不重启或将旧全量检查结果替代本次结果。
+
+### 重观测封存边界与事务编排
+
+98402 已 exit 0，`var/evid07-reobservation-full-debt.txt` 确认全量类型债务零错误。
+该结果覆盖上一片，不包含随后新增 codec/Core 编排。Root 新增 reobservation v1 严格 codec，
+先以缺少模块取得 red（28565 exit 1），再通过 25 项篡改/规范化/完整 roundtrip 单测
+（25497 exit 0，1.00s）；50447 单生产文件 mypy exit 0，Black/isort/Ruff 全过。
+日志分别为 `var/evid07-reobservation-codec-red.txt`、
+`var/evid07-reobservation-codec-unit.txt`、`var/evid07-reobservation-codec-mypy.txt`。
+codec 拒绝空 seal、身份替换、bool 伪装数值、未知/缺失字段、非规范时间及权限状态变化。
+Physical record codec 的本地适配 recorder 只用于解析后丢弃，不写入数据库、不代表认证。
+
+Luna 下一片限于 Core 同 alias 编排及单测：从 exact selector 读取永久 Binding，核对真实
+服务端 requester，追加 Raw → Source V2 → Physical V2，然后返回 inactive proof。
+不重新分配账户、消费 allocation 或重写旧 root。暂不增加独立 proof ledger：已有三层观察
+和 Binding 持久化，proof 的完整载荷供后续版本化显式审批 receipt 嵌套封存。待真实 PG
+成功及回滚测试通过才证明该事务链路，当前尚未据此宣称审批或 Research scope 已接通。
+
+Root 已补公共 stage 的真实 PG 兼容性测试
+`test_public_stages_persist_three_successors_and_roll_back_together`：从真实 Session 创建后的
+exact Binding 开始，追加三层观察，构造并解码 proof，检查三 ledger 计数、整体回滚、旧
+Binding/物理行不变及永久 replay。此测试暂不调用仍由 Luna 编写的新 Core，不冒称 Core
+验收。进程 83331，日志 `var/evid07-three-stage-reobservation-postgres.txt`；28 文件冻结
+快照为 `var/evid07-three-stage-reobservation-source-before.json`，等待原进程结果。
+
+83331 已 exit 0：1 passed、1 fixture rewrite warning（89.83s），证实三个公开 stage 可追加
+successor 并一同回滚。28 个冻结文件未变，见
+`var/evid07-three-stage-reobservation-source-comparison.json`；专用库清理后 public base
+tables=0，见 `var/evid07-three-stage-reobservation-cleanup.json`。源码冻结已解除。
+这次 PG 使用真实服务器时钟，但没有等待旧创建 TTL 到期；“过期根仍可重观测”的 Domain
+规则已有单测，不能以本项 PG 代替实际过期时间场景。Core 编排仍待 Luna 交接，整体审批
+及 Research scope 尚未完成，EVID-07 状态不晋级。
+
+新增 `[expired]` PG 场景（46903）将创建配置限定为测试 TTL 60 秒，随后以真实服务器时钟
+等待 root 到期，断言旧 root/Physical 不再可用而永久 Binding 仍可知，再执行三层 successor
+与回滚验证；未替换时间函数、未改旧 seal。日志
+`var/evid07-expired-reobservation-postgres.txt`，28 文件快照
+`var/evid07-expired-reobservation-source-before.json`。此进程尚待结果。
+
+只读审批边界复核确认：Receipt V4、Subject V4、Owner V2 均强制旧具体类型和 embedded
+creation root。不得把 Reobservation V1 适配成伪造的 V3；后续需独立 schema/hash 的明确
+assignment-source/authority 路径，复用锁、读取与校验机制，避免复制整条旧链。普通重观测
+仍不构成 approval。Root 已另备 Core PG 测试文件，检查 exact Binding、另一用户拒绝、
+三层事务回滚与永久 replay；待 Luna 两文件冻结且当前 PG 结束后串行执行。
+
+46903 exit 1（128.00s）：旧 root 已到期，但稍后记录的 Physical V2 尚未到期，失败在
+`assert not old.is_current_at(cutoff)`，还未执行本项重观测。28 文件未变、测试库清理为零，
+见同前缀 `source-comparison.json` / `cleanup.json`。未删除或放宽失效断言；改为真实等待
+`max(root.valid_until, physical.valid_until)`，完整覆盖两者实际失效。复跑句柄 38452，日志
+`var/evid07-expired-reobservation-final-postgres.txt`，28 文件快照
+`var/evid07-expired-reobservation-final-source-before.json`；尚未宣称通过。
+
+38452 已 exit 0：真实过期场景 1 passed、1 fixture rewrite warning（131.32s）。28 文件
+哈希未变；36208 清理核验 exit 0，专用库 public base tables=0。旧 root 与 Physical 均实际
+到期后，永久 Binding 仍可读取，三层当前观察、整体回滚及永久 replay 均通过。
+
+[重观测公开服务检查点](../testing/evid07-current-ownership-reobservation-checkpoint-2026-09-11.json)
+SHA-256：`219a55b50b1918369acd956a0611ce1df8aa9d267140474b83e3a8f5ef860b09`。
+封存 53 项 Domain/raw 单测、25 项 codec 单测、三次成功 PG 的各自源码快照/日志/清理，
+以及未隐藏的首次过期等待失败。当前选定 28 文件哈希复核一致。不包含仍未交接的 Core
+编排验收，旧全量类型门禁也不冒称覆盖新增 codec/Core。审批、policy 与 Research 接线
+仍未完成，未部署、未激活任何 owner authority。
+
+### Core 重观测编排验收进行中
+
+Root 已暂停 Luna 写入并接管 `core/integration/canonical_account_ownership_reobservation.py`
+及其单测，保留已形成实现。修正模块说明：user-row transaction 不是认证；调用方必须
+先完成真实认证。proof 使用实际最终封存时钟，而非复用较早的 Physical 记录时间。
+Root 首次单测 8529 为 7 passed/2 fixture failures：篡改夹具替换字段却保留旧 seal，未进入
+Core 就失败；重新封存测试用替代对象后，17321 为 9 passed。随后增加实际最终封存时间、
+恰好到期与过期拒绝三项；首次边界日选择错误（夹具有效至15日，13日仍有效）已纠正，
+5930 exit 0：最终 12 passed（0.80s），日志
+`var/evid07-reobservation-core-clock-unit-final.txt`，旧失败日志保留。
+
+49013 exit 0：Core 单生产文件增量 mypy 零错误/零回退。Black/isort/Ruff 通过。实际 Core
+PG 1408 运行中，日志 `var/evid07-core-reobservation-postgres.txt`，30 文件快照
+`var/evid07-core-reobservation-source-before.json`；范围为真实创建后 exact Binding 重观测、
+另一实际用户拒绝、三 ledger 整体回滚、旧 Binding/账户不变及 replay。全量类型债务
+16154 运行中，日志 `var/evid07-reobservation-core-full-debt.txt`，不提前宣称通过。
+
+58563 架构检查 exit 0：3108 文件、零边界违规；registry v83/49 units/零违规。
+1408 与 16154 原句柄仍存活；PG activity 亦确认 active、无 blocker。保持当前冻结并继续
+等待原进程，不以日志静默推断终止或启动重复测试。
+
+16154 已 exit 0：本片含 codec/Core 的全量类型债务零错误。1408 exit 1（241.24s）：Core
+首次重观测和三 ledger=2 已通过，但创建第二个测试用户时沿用 helper 默认用户名，触发
+`auth_user_username_key`，尚未走到另一用户拒绝/回滚断言。30 文件哈希未变，专用库清理
+为零。仅将第二用户设为独立测试用户名 `evid07-other-owner`，全部业务断言保留。
+复跑 93903，日志 `var/evid07-core-reobservation-final-postgres.txt`，30 文件新快照
+`var/evid07-core-reobservation-final-source-before.json`；等待原句柄。
+
+下一独立片交给 Luna：只读 server-owned policy binding resolver 与单测。仅接收服务端
+account scope/user/cutoff，从 Infra 提供的当前 policy heads 中要求唯一匹配，返回已有
+SingleOwnerPolicyBinding；空集合不授予权限，多匹配拒绝，替代scope/坏seal/过期拒绝。
+此解析器不创建 policy、不认证、不激活权限，Root 后续接同 alias repository adapter。
+
+93903 已 exit 0：Core 真实 PG 1 passed、1 fixture rewrite warning（75.42s），另一用户拒绝、
+三层整体回滚、旧 Binding/账户不变及 replay 全部通过。30 文件哈希未变、专用库 public
+base tables=0，见 `var/evid07-core-reobservation-final-source-comparison.json` 和
+`var/evid07-core-reobservation-final-cleanup.json`。Core 本片验收为 12 unit + 1 actual PG、
+scoped/full mypy 零回退/零债务、架构与registry零违规；冻结解除。该结果不声称已有生产
+审批、policy 发布或 Research scope。
+
+策略解析的 scope collision 必须跨 owner 检测：Infra 返回同一 canonical scope 的全部
+current heads，不先按 owner_user_id 筛除其他 owner；Application 要求总数唯一后，再核对
+可信用户身份。多 policy ID 或不同 owner 的同时活跃政策都不得用“选最新”解决。
+
+Root 已增加 repository `get_current_for_scope(account_namespace, account_id, as_of)`：完整
+恢复并校验 ledger，再逐 policy ID 取 PIT head；只返回当前匹配scope的head，不预先按
+用户过滤。8 项单测通过（25501 exit 0，0.51s），覆盖跨owner冲突保留、撤销/过期head
+不回退、历史cutoff、无匹配与非法输入。初始96446为方法尚不存在的red；37098增量mypy
+exit 0，Black/isort/Ruff通过。日志`var/evid07-policy-scope-reader-unit.txt`和
+`var/evid07-policy-scope-reader-mypy.txt`。旧Core全量mypy不冒称覆盖本新增method。
+
+3022 正在真实PG验证两条同scope不同owner的policy都可见，撤销一条后不恢复旧head，
+无匹配返回空集合；测试数据只是隔离库policy契约夹具，不代表真实授权来源或生产发布。
+日志`var/evid07-policy-scope-postgres.txt`，8文件快照
+`var/evid07-policy-scope-source-before.json`。上层resolver仍由Luna写入限定两文件。
+
+3022 已 exit 0：1 actual PG passed（34.49s），8冻结文件哈希未变，专用库public base
+tables=0。核验见 `var/evid07-policy-scope-source-comparison.json` 与
+`var/evid07-policy-scope-cleanup.json`。冻结解除；此结果证明读取器保留冲突供上层拒绝，
+不等于上层resolver已接通，也未创建生产policy或审批。
+
+Root 已在既有 `single_owner_authority_policy_composition.py` 添加显式 alias 工厂
+`build_current_single_owner_policy_resolver`，注入真实 scope reader；无新默认库、不打开
+数据库、不发布policy。工厂定向测试句柄80520，日志
+`var/evid07-policy-resolver-composition-unit.txt`；上层Application实现与单测仍待Luna交接，
+再执行整合类型门禁及真实PG的唯一性/冲突拒绝验收。
+
+80520 工厂单测已 exit 0：6 passed（0.56s）。Luna 已冻结交接上层resolver两文件，18 unit
+passed（0.49s）及单文件mypy零回退，格式检查通过。Root review 去除无差别 Exception
+吞错分支，保留明确Conflict及其他协议异常；相关单测已同步。Root整合77584 exit 0：
+32 passed（0.78s），日志`var/evid07-policy-resolver-root-unit.txt`；22066 exit 0：3生产
+文件增量mypy零错误/零回退，日志`var/evid07-policy-resolver-root-mypy.txt`。
+
+92744 actual PG exit 0：1 passed（58.12s）。验证无policy返回None、唯一policy精确选中、
+错用户拒绝、跨owner scope collision对双方均拒绝、撤销冲突head后恢复唯一选择。10个
+冻结文件哈希未变、专用库public base tables=0；日志/快照/核对/清理见
+`var/evid07-policy-resolver-postgres.txt`及同前缀source-before/source-comparison/cleanup。
+全量类型债务53702仍运行，日志`var/evid07-policy-resolver-full-debt.txt`；freshness/registry
+检查11098仍待结果。尚未发布生产policy、完成显式审批或接通Research scope。
+
+53702 已 exit 0：策略解析整合全量mypy零错误。11098 exit 0：61项freshness合同及registry
+v83零违规。随后开始独立的策略发布配置片，不以该旧全量结果覆盖新代码。
+
+### 发布输入配置（不发布policy/authority）
+
+新增独立关键配置 `account.single_owner_policy.publication_settings`，包含明确的指定
+用户名、tenant/owner ID、声明来源id/version/hash及TTL；不包含user_id、认证context或
+客户端mode。Luna settings两文件已冻结，38 unit及单文件mypy通过。Root加入Config Center
+definition、一次读取完整active snapshot的Core桥接及显式管理命令
+`activate_single_owner_policy_publication_settings`，只写该配置键，输出明确不发布policy/
+不授予authority。声明hash只是来源内容证据，仍需后续发布流程验证实际声明来源及当前
+认证User/Profile，不能冒充认证hash。未执行任何生产配置激活。
+
+Root整合8432 exit 0：57 passed（0.69s），含settings、bridge、CLI；53855 exit 0：4生产
+文件增量mypy零错误/零回退。定义回归7972最初7 passed/3 failures，旧测试清单漏掉此前
+creation settings与本次publication settings两个关键JSON包；补齐显式测试值及缺失关键
+配置错误清单后，45851 exit 0：10 passed（0.46s）。未放宽缺失配置拒绝语义。首次bridge
+日志虽名为runtime-red，实际11 passed（0.76s），不记作失败red证据。
+日志为`var/evid07-policy-publication-combined-unit.txt`、`var/evid07-policy-publication-root-mypy.txt`、
+`var/evid07-policy-publication-definition-unit-final.txt`。全量mypy46039运行中，日志
+`var/evid07-policy-publication-full-debt.txt`。新关键配置加入后，部署前必须提供完整显式
+active profile值；本地测试夹具不代表生产profile已更新。
+
+46039 已 exit 0：发布配置片全量mypy零错误；55338架构检查exit 0，3112文件、零违规。
+后续声明来源片开始前解除生产冻结。实际代码复核：Config Center snapshot model 是普通
+Django Model，不能只因docstring称immutable就当作防篡改证据；来源读取须每次验证原始
+字节与明确selector hash，声明内容与当前认证事实分开。
+
+现有admin指定声明原始1839字节与sidecar一致：
+`2eac70f0b933b94875647890c26485d05f7e4d988b7e6e5d8e02c1773fcfdbb9`。
+Root仅生成`var/evid07-owner-declaration-source-package.json`待导入包，source_id为
+`sprint-owner-admin-authorization`、version为`2026-09-10`，保留原始bytes的base64及hash；
+没有配置、认证或授予权限。Luna限两文件实现严格声明包parser：校验exact schema/keys、
+canonical base64/字节hash、重复JSON键、指定用户元数据和aware声明时间，只暴露声明的
+用户名/用户ID/记录时间，不将旧staff/superuser数据库观测投射成当前权限。发布流程仍需
+真实认证、当前User/Profile及配置selector匹配，未经这些检查不得发行policy。
+
+2026-09-11 来源读取接线：新增 Core
+`get_active_owner_policy_authorization_source`，每次解码原始声明包并核对发布设置的
+source ID/version/hash/username，拒绝未来声明时间、缺失包和被修改的原文字节。
+此函数只验证传入设置的来源选择器，不证明设置仍处于激活状态；发布者必须在 append 前
+复读配置与来源，并完成实际身份认证。没有写入生产配置或 authority。
+Root 来源读取单测 50831 exit 0：16 passed（0.43s）；Black、isort、Ruff 均通过。
+增量 mypy 49966 和全量 debt 29493 已启动，最近按同一 session 查询仍在运行，
+尚不能记为通过。全量输出为 `var/evid07-authorization-source-full-debt.txt`。
+来源配置定义、导入命令、真实认证的 policy 发布及后续版本化审批链仍未完成。
+
+来源读取增量 mypy 49966 已 exit 0：1 file，零错误、零回退。
+下一片已新增 `test_owner_policy_authorization_source_cli.py`，要求原始 BOM/CRLF 字节
+保持、显式 SHA-256 校验、拒绝超大/缺失文件、仅更新来源配置且不授予权限。
+63728 exit 1 的 red 证据是尚缺导入命令导致 collection ImportError，不能算业务断言验证。
+全量 debt 29493 最近复查仍运行；在该扫描结束前暂不改生产文件，避免混淆其验证范围。
+
+29493 后续 exit 0，全量 debt 零错误。解除该片冻结后，Root 增加声明导入命令
+`import_owner_policy_authorization_source`，要求 file/expected-sha256/source-id/source-version/
+environment/actor/reason；最多读取 64 KiB + 1 字节，显式验证原文 seal，仅激活来源 key。
+Config Center 来源 key 为 NORMAL typed_json，缺失由发布来源读取拒绝，避免要求所有
+无关 profile 必须携带声明；publication settings 仍是 CRITICAL。CLI actor 只是审计标签。
+未实际执行配置激活或发布 policy。
+53220 首次回归 26 passed/8 errors，错误为 Windows tmp_path PermissionError；使用工作区
+独立 basetemp 后 50675 exit 0：34 passed（0.92s），日志
+`var/evid07-source-import-unit-final.txt`。命令与测试 Black/isort/Ruff 通过。
+新片 scoped mypy 73940、全量 debt 1718 仍在运行，分别输出到
+`var/evid07-source-import-mypy.txt` 和 `var/evid07-source-import-full-debt.txt`，不能引用前片
+全量通过替代本片验证。后续仍需真实认证的 policy 发布和版本化审批链。
+
+73940 后续 exit 0：导入命令及配置定义两个生产文件增量 mypy 零错误、零回退。
+73199 exit 0：声明 decoder + runtime reader + CLI 联合 72 passed（1.58s），日志
+`var/evid07-source-combined-unit.txt`。此范围未访问生产或真实 PostgreSQL。
+实际待导入包亦已用正式 decoder 校验：原始 1839 bytes SHA-256 一致，指定 admin/1，
+只验证源内容而未激活任何 profile。1718 全量检查最近仍为 live，等待原 session 终态。
+下一发布片复核已确认：现有认证事务只承诺 creation request，不能凭其 requester DTO
+直接发行 policy；需明确发布入口的 Session 认证、当前 User/Profile 与声明一致性检查。
+policy 仓储已有 policy-id CAS 锁，但 scope collision 读取不能替代并发发布的 scope 锁。
+tenant_id/owner_id 来自显式发布设置，不能声称来自不含这两个字段的 Binding V2。
+
+1718 已 exit 0：来源导入片全量 mypy 零错误。Luna 来源 decoder 正式交接，独立48项
+单测与增量mypy通过，Root联合72项含这些用例，不重复累计。
+下一发布片 Root 新增仓储 `lock_scope`，仅限 private UOW，按带域标识的 canonical JSON
+namespace/account tuple 获取 PostgreSQL 事务锁。它仅提供排他能力，发布者仍必须锁后
+复读 scope heads 并拒绝冲突；原 append 历史链语义没有变更。
+49289 exit 0：锁边界与原reader共14 passed（0.58s）；17672 exit 0：仓储增量mypy零错误。
+真实双连接排他/释放测试58632运行中，日志`var/evid07-scope-lock-postgres.txt`；选定仓储
+与组件测试hash快照`var/evid07-scope-lock-source-before.json`，结束后还需比对及清理检查。
+新片全量21990运行中，日志`var/evid07-scope-lock-full-debt.txt`。这些运行尚不能记为通过。
+
+58632 后续 exit 0：真实 PostgreSQL 双连接范围锁测试 1 passed（159.42s），证明同scope
+第二连接在持锁期间拿不到锁，事务退出后可获得锁。仓储/组件测试两文件前后hash一致，
+见`var/evid07-scope-lock-source-comparison.json`。清理检查命令exit 0，结果保存在
+`var/evid07-scope-lock-cleanup.txt`。这不是完整policy并发发布验收：发布者尚需锁后读冲突、
+实际认证与配置重验证。21990全量mypy仍live，不将其记作已通过。
+
+21990 已 exit 0：scope lock 片全量mypy零错误。Root新增
+`apps/account/infrastructure/single_owner_policy_authentication.py`：真实Session凭据事务
+包围额外的声明来源匹配和当前User/Profile检查，事务前后检查username/ID/active/staff/
+有效admin角色及声明时间；只返回可信requester，不发布policy或审批。后续composition仍需
+真实DRF认证及当前配置/账户scope检查，不能以此单元替代完整发布验收。
+31905 exit 0：首批7单元通过；4665 exit 0：新增生产文件增量mypy零错误。
+增加未来声明与凭据失败用例后的61194仍运行，日志`var/evid07-policy-auth-unit-final.txt`。
+全量50576仍运行，日志`var/evid07-policy-auth-full-debt.txt`。真实Session/PG新入口集成尚未
+验证；单元用隔离凭据边界验证补充条件，不宣称完成真实认证验证。
+
+61194 后续 exit 0：9 passed（0.88s）。Root新增真实Session/CSRF组件测试
+`test_single_owner_policy_authentication_postgres.py`，使用本地真实登录、持久Session和生产
+认证事务，验证CSRF拒绝、已登录资格通过、最终staff失效导致写入回滚和logout拒绝。
+该测试入口仅存在测试URLconf，不代表生产policy HTTP入口已接通。
+42088运行中，日志`var/evid07-policy-auth-postgres.txt`；8文件hash快照
+`var/evid07-policy-auth-source-before.json`，结束后须比较与检查测试库清理。
+50576全量仍live。Luna已获Application publisher两文件任务，目前先写测试，待全量终态
+再写生产；Root负责真实认证、exact Binding解析及客户端幂等键的服务端映射。
+发布编排要求scope锁后双读完整settings/source并一致；首次policy不调用依赖已有policy的
+CurrentSingleOwnerParticipantsProvider，不凭空构造actor权限事实。
+
+50576 已 exit 0：身份事务片全量mypy零错误，已允许Luna写Application publisher。
+Root新增 `policy_publication_authentication_composition.py`，要求精确Session authenticator，
+委托真实身份事务，并在事务内重复成功后端的authenticate（含CSRF），不信任缓存身份。
+96127 初次unit因pytest保留参数名request发生collection错误，改candidate后77799 exit 0：
+5 passed（0.83s）；96042 exit 0：增量mypy零错误。该新composition全量检查尚待publisher
+片稳定后统一执行，不以50576替代。
+42088真实PG首轮exit 1：1 failed（304.84s），测试视图的settings属性覆盖DRF settings，
+导致FORMAT_SUFFIX_KWARG/EXCEPTION_HANDLER AttributeError；尚未达到认证业务验证。
+8文件hash比较保留在`var/evid07-policy-auth-source-comparison.json`；87860清理exit 0，
+public_base_tables=0。测试属性改为publication_settings后，14914复跑中，日志
+`var/evid07-policy-auth-postgres-final.txt`，新快照`var/evid07-policy-auth-final-source-before.json`。
+生产认证逻辑没有为该测试失败放宽。
+
+14914 后续 exit 0：真实Session/CSRF身份事务测试1 passed（67.27s），8个选定文件hash
+全部一致，`var/evid07-policy-auth-final-source-comparison.json`；清理exit 0，结果
+`var/evid07-policy-auth-final-cleanup.txt`。这证明生产身份事务在实际Session/PostgreSQL上的
+资格检查与事务回滚，不代表policy HTTP发布、完整owner authority或生产验收完成。
+Root新增 `policy_publication_binding_composition.py`，强制同alias PostgreSQL外层事务，
+精确读取BindingV2并核对allocation请求人与行用户均匹配可信requester，再返回永久绑定。
+不接受客户端直接指定owner scope，不将旧root TTL视为当前权限；tenant/owner仍由配置供给。
+63512 exit 0：5 passed（0.63s）；Black/isort/Ruff通过。77415增量mypy已exit 0、零回退，日志
+`var/evid07-policy-binding-mypy.txt`。新请求/绑定composition全量待Luna publisher稳定后统一
+执行，不能复用此前全量结果。
+
+Root新增 `single_owner_policy_publication_composition.py` 与 Core
+`bound_single_owner_policy_publication.py`：真实认证事务包围exact Binding解析、内部publisher
+与末尾绑定/配置重读。policy_id由真实user ID+幂等键派生，policy_version由规范化Binding
+ID/version/hash派生；同键换binding保留policy ID但改变版本，由持久链冲突拒绝。
+客户端命令不含user/owner/tenant/TTL或account scope。末尾还检查policy当前性，过期则回滚。
+11806首批8单元通过；补末尾过期边界后62346 exit 0：9 passed（0.72s），日志
+`var/evid07-bound-policy-unit-final.txt`。这些Core单元隔离publisher，不证明真实ledger发布。
+67471首轮两生产文件增量mypy零错误；末尾当前性改动后24470复查中，日志
+`var/evid07-bound-policy-mypy-final.txt`。Luna publisher仍在实现/完善最终时钟和来源复读，
+统一全量与真实完整发布PG尚未执行，不能将当前接线计作EVID-07退出门完成。
+
+24470后续exit 0：Core末尾当前性检查的两文件增量mypy零错误。
+Root已准备 `test_bound_policy_publication_postgres.py`：真实Session创建永久账户后调用完整
+Core与policy仓储，验证重放、不同key同scope冲突、同key换Binding冲突，以及append后
+staff资格撤销/来源缺失的整笔policy回滚。仅ConfigCenter值读取是显式fixture边界，
+该测试不宣称真实配置库或生产profile验证；尚未执行，等待Luna生产冻结。
+另将仓储append统一为scope锁→policy-id锁，防止修订/撤销绕过publisher的范围排他。
+新增显式scope锁/append隐式scope锁双模式PG用例，待统一验证；84750增量mypy已exit 0。
+Luna正在完成publisher最终时钟/来源复读与单元验证，统一全量门禁尚待执行。
+
+7140 exit 0：publisher、Core、身份/绑定composition、身份事务和scope读取/锁联合
+75 passed（2.66s），日志`var/evid07-policy-publisher-combined-unit.txt`；选定6文件
+Black/isort检查通过。Root已通知Luna生产冻结，基于当前16文件hash启动真实PG联合验证
+99849（完整创建→发布链及显式/append两模式scope锁），日志`var/evid07-bound-policy-postgres.txt`，
+快照`var/evid07-bound-policy-source-before.json`。结束后必须比较hash并检查测试库清理。
+统一全量mypy2412运行中，日志`var/evid07-policy-publisher-full-debt.txt`；尚不能记为通过。
+
+Root在生产冻结期间补 `test_single_owner_policy_api.py`：精确binding三字段、拒绝客户端
+user/owner/tenant/account/policy/TTL/status/source注入、匿名JSON403契约。
+26334 exit 1：预期red是尚无`single_owner_policy_api_views`模块的collection错误，
+不是业务断言结果；日志`var/evid07-policy-api-red.txt`。生产API与路由尚未实现。
+99849/2412复查仍live，继续原进程，不因暂时无日志重启。
+
+2412 后续exit 0：发布器/Core/composition统一全量mypy零错误。Luna正式交接两文件，
+33项publisher单元、scopedmypy/format通过，已包含Root联合75项，不重复累计。
+Root新增正式`/api/account/authority/policy/publish/`（api_urls），Session-only、JSON-only，
+只收binding三字段和显式Idempotency-Key，返回policy及authority_granted=false；环境按
+已有创建入口的服务端settings-module约定选择，不允许客户端决定alias/environment。
+69770 exit 0：API基础15项通过（0.64s）；93275初次两文件增量mypy零错误。
+复核确认已有AccountOwnerAssignment异常继承ValueError而非全局Agom异常，新增显式映射：
+冲突409，来源不可用/完整性失败503。新增真实路由解析和6类异常映射单元后84716运行中，
+日志`var/evid07-policy-api-unit-final.txt`；映射后scoped复查输出
+`var/evid07-policy-api-mypy-final.txt`。9343全量在映射补丁前启动，须待最终源码稳定后复验，
+不能以该运行替代最终API门禁。99849原PG仍运行，选定16文件保持冻结；API新增文件/路由
+不在原PG的验收范围内，后续须使用正式APIView做真实HTTP集成。
+
+84716 exit 0：API 22 passed（8.80s）；64774 exit 0：最终API两文件增量mypy零错误。
+99849终态exit 1：1 failed/2 passed（802.61s）。显式/append隐式scope双连接锁测试均通过；
+完整发布case已通过首次publish与exact replay，随后在预期scope冲突处因测试视图只捕获
+AgomTradeProException、漏接ValueError派生的AccountOwnerAssignmentConflict而失败。
+16文件hash全部一致，`var/evid07-bound-policy-source-comparison.json`；清理exit 0、表数0。
+测试视图补齐三种明确业务异常，不改生产冲突拒绝行为。新增正式APIView真实Session
+组件 `test_policy_publication_api_postgres.py`，覆盖成功/重放/409/503和客户端字段拒绝；
+ConfigCenter值仍为明确fixture边界，不是生产配置库验收。
+64466正在串行跑修复后的Core发布case与正式API case，日志
+`var/evid07-bound-policy-postgres-final.txt`；19文件快照
+`var/evid07-bound-policy-final-source-before.json`。结束后须hash比较及清理检查。
+9343已exit 0全量零错误，但因启动后曾补API异常映射，已启动最终稳定源码全量复验，日志
+`var/evid07-policy-api-full-debt-final.txt`，尚不能宣称最后一轮完成。
+
+59807 exit 0：架构扫描3122文件、7项边界规则、零违规，日志
+`var/evid07-policy-publication-final-architecture.txt`。治理registry检查exit 0：v83、49 units、
+45 paths、零违规，日志`var/evid07-policy-publication-final-registry.txt`；EVID-07仍sole focus。
+64466真实发布/API与53976最终mypy最近复查仍live，未重启。
+后续缺口只读复核：ReceiptV4期限min包含旧allocation/root/physical TTL，不能把其用于
+长时间后首次审批。新版本应封存永久Binding与当前Reobservation，保持旧V4/旧哈希读规则；
+Luna当前只读梳理receipt/subject的最小字段变化，尚未写新版本或授予任何权限。
+
+续跑核实应用 Goal 为 active；admin/User ID 1 的既有明确指定继续有效。
+53976 exit 0：上一轮完整 mypy 为零错误。64466 exit 1：1 passed/1 failed（443.10s）；
+Core 发布事务完整 case 通过，正式 API 在额外字段拒绝路径触发 DRF ValidationError
+列表无法构造 ReturnDict 的错误。19 文件哈希一致，比较记录
+`var/evid07-bound-policy-final-source-comparison.json`；清理 exit 0，public base tables 为 0。
+修复 serializer 自定义错误为字段字典，补齐错误读取和 malformed payload 的测试；
+31569 exit 0，API 27 passed，日志 `var/evid07-policy-api-validation-unit.txt`。
+修复后 scoped/full mypy 与正式 API 的单独真实 PG 回归继续运行，日志分别为
+`var/evid07-policy-api-validation-mypy.txt`、`var/evid07-policy-api-validation-full-debt.txt`、
+`var/evid07-policy-api-validation-postgres.txt`；未完成结果不计作通过。
+Luna 已获限定四文件的 ReceiptV5/SubjectV5 Domain 与单元测试任务；旧 V4 保持原语义。
+新版本用永久 Binding 与当前 Reobservation，期限允许缩短但不得超过当前 policy/proof。
+这仍是本地实现与验收，未晋级 EVID-07，也未写入生产权限或代替真实人工审批。
+
+30037 exit 0：serializer 修复后的全量 mypy debt ceiling 为零错误；69523 exit 0：
+对应生产 API 文件增量 mypy 为零回归。Black、isort、Ruff 均通过。正式 API 单独真实 PG
+回归 79332 的数据库后端仍为 active，继续等待原 handle，不以安静输出重启。
+V5 后续路线按退出门拆为：先完成 ReceiptV5/SubjectV5 的纯 Domain 与旧哈希隔离；再新增
+EvidenceV5 与 OwnerTenantAuthorityV3，不能让 V4/V2 reader 接受新版本；随后独立落 codec、
+append-only model/migration/repository、Application current/revocation、真实 Session 组合和 typed
+scope V3；最后串行执行迁移、原子 append/replay/rollback、跨版本替换拒绝及完整认证 owner-scope
+PostgreSQL 验收。每一片只在自身证据通过后进入下一片，EVID-07 保持 active。
+
+79332 exit 0：正式 policy API 的真实 Session/CSRF PostgreSQL 用例 1 passed（263.04s），
+覆盖严格输入400、首次发布200、exact replay、scope冲突409及来源撤销503。19个冻结文件
+hash全部一致，`var/evid07-policy-api-validation-source-comparison.json`；清理exit 0、表数0。
+封存 active 检查点
+`docs/testing/evid07-authenticated-policy-publication-checkpoint-2026-09-11.json`，明确 ConfigCenter
+仍为测试 fixture、未激活生产配置、未创建 assignment/approval/authority。registry v83 再检
+49 units、45 paths、零违规；该检查点不晋级 EVID-07。
+
+Luna 已交接冻结 ReceiptV5/SubjectV5 两个 Domain 与两个单测文件。Root 首轮新旧兼容复核
+17656 exit 0：125 passed（15.01s）；Root 单独 V5 复核为 58 passed，增量 mypy 两文件零回归，
+Black/isort/Ruff 通过；31135 exit 0：架构扫描3124文件、7规则、零违规。
+覆盖门禁5693 exit 1：ReceiptV5 70.6%、SubjectV5 86.6%、合计77.0%，未达到每个Domain
+line>=90%的仓库目标，因此本片不封存、不晋级。已将精确 missing branches 回派 Luna，限定只补
+两个 V5 测试文件，不得降低阈值、加 pragma、删除分支或放宽业务不变量。55808 全量 mypy
+仍在原 handle；其结果只证明当时源码，测试补齐后仍须按最终稳定源码复验。
+
+覆盖补强仅改两个测试文件，生产 Domain 未变。最终 V5 coverage 84 passed：ReceiptV5
+99.4% line、SubjectV5 93.5% line、合计97.1%；新旧兼容151 passed，V4 golden hashes及旧拒绝
+语义保持。55808 exit 0：全量 mypy debt ceiling 零错误；Black/isort/Ruff/py_compile通过。
+封存 active 检查点
+`docs/testing/evid07-reobservation-backed-v5-domain-checkpoint-2026-09-11.json`，SHA-256
+`12c1db54501bdd4d96af2e070e7823dc1c3803de7b19a66353734796d619870c`；registry v83
+再检零违规。该片只有纯 Domain 合同，尚无 durable reobservation/V5 ledger、EvidenceV5、
+AuthorityV3 或 scope V3，因此 EVID-07 不晋级。
+
+下一实现依赖已经核实：`CanonicalAccountOwnershipReobservationV1` 当前只有 Domain/codec，
+没有 durable model/repository。ReceiptV5 不能把嵌入 JSON 当作未经父项复核的闭世界事实；
+先补同 alias append-only reobservation ledger 和 exact/current parent validation，再进入
+ReceiptV5/SubjectV5 persistence、EvidenceV5 与 AuthorityV3。
+
+已将 durable reobservation ledger 作为下一有界 writer 片交给 Luna：限定 Application ledger
+contracts/use cases、Infrastructure record codec/model/repository/composition、0060 migration、模型注册
+和对应测试；禁止改 V5 Domain、旧 V4/V2、Core、policy/authority/Research/registry/docs。要求强父项
+约束、同 alias 私有 UOW、完整 record/ledger seals、first-winner replay、historical exact PIT、current
+Binding/PhysicalV2 head 复核及外层 rollback。Root 保留串行真实 PG、全量门禁与最终治理封存。
+
+该 writer 片现已完成并由 Root 修复/验收。Luna 对具体 diff 指出 record envelope 缺少 seals、
+future winner 未拒绝及异常体系未接入三项 P1；修复后 persisted contract 封存完整 Domain payload、
+identity/content、record/ledger seals，已有 winner 必须满足 `recorded_at <= cutoff`，异常接入
+`core.exceptions`。新增 append-only `CanonicalAccountOwnershipReobservationV1Model`，BindingV2 与
+PhysicalV2 均为 `PROTECT` ForeignKey，未引入 OneToOne 或 predecessor/head 语义；`0060` 精确依赖
+`0059`。repository 在同 alias 私有 UOW 中按 BindingV2→PhysicalV2→re-observation 锁定，使用现有
+闭世界 repositories 恢复父证据，并在 proof 自身 `recorded_at` 证明 PhysicalV2 当时 logical head。
+historical exact 只应用 `recorded_at <= as_of`，current Application reader 另行验证 proof TTL 与当前
+PhysicalV2 logical head，二者不混用。
+
+Core 已将 raw/source/PhysicalV2/re-observation append 置于原 `account_creation_transaction` 外层事务内。
+最终聚焦测试 26 passed（154.69s）；专用 loopback PostgreSQL 2 passed（214.97s），覆盖 `0060`
+apply/reverse/reapply、真实认证创建后的首次 durable append、exact replay、同一 Binding 的后继
+re-observation、Physical successor 后旧 proof 的 historical exact 回读、错误 requester 拒绝和四 ledger
+外层 rollback。测试库清理后 public base tables=0。7 个生产文件增量 mypy 零回归，全量 debt ceiling
+0 errors，Black/isort/Ruff 通过，架构扫描3129文件/7规则/0违规；既有 policy/auth 19文件冻结哈希
+全部未变。封存 active 检查点
+`docs/testing/evid07-durable-ownership-reobservation-ledger-checkpoint-2026-09-11.json`，SHA-256
+`fc579aa729af977c1bf8f83038f9ea081efd71d90c4cbc9b4e2392c7a680a372`。
+本片未部署、未激活 ConfigCenter、未产生 assignment/approval/authority/交易；也尚未覆盖该新 ledger
+自身双连接锁等待。下一片进入 ReceiptV5/SubjectV5 durable persistence，随后 EvidenceV5、AuthorityV3、
+scope V3、revocation 与完整认证 PostgreSQL 图；EVID-07 继续 active，不晋级生产退出门。
+
+ReceiptV5/SubjectV5 durable persistence 现已完成本地有界验收。新增 Application exact/current/first-winner
+合同、两类严格 codec 与完整 record/ledger seals、append-only 双模型/仓储及 `0061`；Receipt 将 PolicyV1、
+永久 BindingV2、durable ReobservationV1 作为 `PROTECT` 父项，Subject 将 exact Receipt/Binding/
+Reobservation 图封存，旧 V4/V2 reader 未扩宽。Luna 只读复核发现并由 Root 修复父 FK 替换漏检、错误
+alias 异常泄漏和 policy successor 点时竞态：Receipt 先取得与 Policy writer 相同的 identity advisory lock，
+所有父锁加入 id/version/identity/content selector；Policy historical head 只纳入 `persisted_at <= as_of`
+的当时可知记录，因此后来持久化的 backdated successor 不改写旧 Receipt parent proof。
+
+稳定源码聚焦 unit 168 passed（63.17s）；专用 loopback PostgreSQL repository 2 passed（512.59s），
+同一隔离 schema 覆盖 replay/successor/historical/future、第二连接 lock timeout、倒签 knowability、父 FK/
+payload/scalar/seal tamper、append-only 与错误 alias。`0061` migration apply/reverse/reapply 的既有稳定结果
+为 1 passed（279.08s），其模型/迁移源码此后未变；最终清理 public base tables=0。11 个生产文件增量
+mypy 零回退、全量 debt 0 errors，Black/Ruff、无迁移漂移、架构3138文件/7规则/0违规、61项 freshness、
+治理 baseline v220 与 registry v83 均通过。封存 active 检查点
+`docs/testing/evid07-reobservation-backed-v5-ledgers-checkpoint-2026-09-11.json`，SHA-256
+`b8cff0856af0e88847b02ae14f3033a98b46ec536dc2b91c9f7b64b8fe80114c`。
+该片未部署、未激活 ConfigCenter、未创建生产 assignment/approval/authority/scope 或交易；下一片严格
+进入 EvidenceV5，再做 AuthorityV3、typed scope V3、revocation 与完整认证 PostgreSQL 图。EVID-07
+继续作为唯一 repository focus，不晋级 EVID-01/02。
+## 2026-09-11：EVID-07 EvidenceV5 durable ledger 检查点
+
+在 ReceiptV5/SubjectV5 durable graph 之上新增 EvidenceV5 的 immutable Domain root、Application
+approve/exact/current 用例、严格 codec、record envelope、append-only Django model/repository 与
+schema-only migration `0062`。EvidenceV5 只接受 exact SubjectV5，并封印当前 single-owner policy、
+同一 staff owner 的 claimant/approver 角色、认证 actor-source V3、account/underlying 双 mapping；
+`activation_available=false`、`must_not_execute=true` 保持固定。
+
+[机器检查点](../testing/evid07-evidence-v5-ledger-checkpoint-2026-09-11.json)记录冻结源码 97 项 V5
+unit、109 项 V4 兼容、1 项实际 PostgreSQL repository 与 1 项 migration 往返。实际 PG 验证
+SubjectV5/actor-source 双父 FK、root first-winner/replay、expired historical exact、双 head、未来
+cutoff 拒绝、append-only、payload/record seal 篡改闭锁；专用测试库清理后 public base tables 为 0。
+7 个生产文件增量 mypy 和全量 debt 均为零错误，架构 3143 文件/7 条规则、治理 v220、61 个
+freshness surface、active registry v83 均为 0 violations。
+
+该片没有 authenticated same-alias composition、AuthorityV3、typed scope V3、revocation 或完整
+owner-scope PostgreSQL 图，也没有部署、生产写入、人工审批回执或权限激活。下一片先接 EvidenceV5
+composition，再按上述顺序继续；`EVID-07` 保持唯一 repository focus 和 `active`。
+
+## 2026-09-12：EVID-07 authenticated owner-scope V3 repository closure
+
+EVID-07 的 repository 退出门已完成。真实隔离 PostgreSQL 验收使用 Django `admin`/user_id=1、
+Session/CSRF 和服务端发布的身份事实，贯通 raw actor source、canonical account、永久 Binding、
+ownership re-observation、single-owner policy、ReceiptV5/SubjectV5/EvidenceV5、AuthorityV3 与
+Research request-local scope V3。最终用例 1 passed（3214.98s），同时拒绝其他用户、错误 tenant、
+V2 command 替换、客户端 `mode` 注入以及撤销后的再次读取；清理后 public base tables=0。
+
+第二次失败运行还暴露并修复了 Research Evidence repository 在非 default alias 上调用 Django
+uniqueness validation 时错误查询 default 数据库的问题。AuthorityV3 repository 随后按治理上限拆分，
+主文件从 1334 个非空行降至 1109 行；相关 64 项回归通过，8 项显式 PostgreSQL 环境用例跳过。
+最终全量 mypy debt 为 0，架构扫描 3154 文件/7 规则、治理 baseline v220、62 个 freshness surface
+和 registry v84 均无违规。闭环证据见
+[EVID-07 closure](../testing/evid07-authenticated-owner-scope-v3-closure-2026-09-12.json)，SHA-256
+`e93ea02b35817a1a590c561d56b539c302b5c5a424626d1640a759d476cf1303`。
+
+该完成状态只代表本地 repository 实现和隔离数据库验收。它没有创建生产 owner assignment、登录、
+人工审批、执行权限、数据质量豁免或观察窗口。repository focus 已释放；按既定顺序继续 DATA-02 的
+生产只读预检和具备真实输入的受控批次，再收集 EVID-01/02 的候选绑定审批证据，之后进入 AUD-03、TAR-05。

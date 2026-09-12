@@ -110,9 +110,25 @@ def test_account_runtime_definitions_are_bounded_and_typed() -> None:
         "account.user_agreement_content",
         "account.risk_warning_content",
         "account.notes",
+        "account.single_owner_policy.authorization_source",
+        "account.creation_evidence.settings",
+        "account.single_owner_policy.publication_settings",
     }
     assert all(item.owner_app == "account" for item in definitions.values())
-    assert all(item.value_type.value in {"bool", "string"} for item in definitions.values())
+    packages = {
+        "account.creation_evidence.settings",
+        "account.single_owner_policy.publication_settings",
+    }
+    assert all(definitions[key].value_type.value == "typed_json" for key in packages)
+    assert all(definitions[key].criticality.value == "critical" for key in packages)
+    source_key = "account.single_owner_policy.authorization_source"
+    assert definitions[source_key].criticality.value == "normal"
+    assert definitions[source_key].value_type.value == "typed_json"
+    assert all(
+        item.value_type.value in {"bool", "string"}
+        for key, item in definitions.items()
+        if key not in packages and key != source_key
+    )
 
 
 def test_system_audit_runtime_definitions_are_critical_and_typed() -> None:
@@ -171,6 +187,32 @@ def test_active_profile_passes_reconciled_definition_validation() -> None:
         ),
         RuntimeConfigValue(
             profile_id=profile.profile_id,
+            definition_key="account.creation_evidence.settings",
+            value_json={
+                "schema_version": "account.creation_evidence.settings.v1",
+                "ttl_seconds": 300,
+                "allocation_recorder_service_id": "test-allocation",
+                "physical_v2_recorder_service_id": "test-physical",
+                "allocated_v3_recorder_service_id": "test-root",
+                "binding_recorder_service_id": "test-binding",
+            },
+        ),
+        RuntimeConfigValue(
+            profile_id=profile.profile_id,
+            definition_key="account.single_owner_policy.publication_settings",
+            value_json={
+                "schema_version": "account.single_owner_policy.publication_settings.v1",
+                "owner_username": "test-owner",
+                "tenant_id": "test-tenant",
+                "owner_id": "test-owner",
+                "authorization_source_id": "test-declaration",
+                "authorization_source_version": "v1",
+                "authorization_content_hash": "a" * 64,
+                "ttl_seconds": 300,
+            },
+        ),
+        RuntimeConfigValue(
+            profile_id=profile.profile_id,
             definition_key="audit.system_event.mode",
             value_json="shadow",
         ),
@@ -203,7 +245,7 @@ def test_active_profile_passes_reconciled_definition_validation() -> None:
     report = service.validate_active_profile("development")
 
     assert report["valid"] is True
-    assert report["validated"] == 4
+    assert report["validated"] == 6
     assert report["errors"] == ()
 
 
@@ -231,6 +273,8 @@ def test_active_profile_reports_missing_critical_definition() -> None:
     assert report["valid"] is False
     assert report["errors"] == (
         "missing_critical_definition:data_center.provider.failover_tolerance",
+        "missing_critical_definition:account.creation_evidence.settings",
+        "missing_critical_definition:account.single_owner_policy.publication_settings",
         "missing_critical_definition:audit.system_event.mode",
         "missing_critical_definition:audit.system_event.outbox_enabled",
         "missing_critical_definition:audit.system_event.authority_selector",

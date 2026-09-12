@@ -1,0 +1,111 @@
+{
+  "schema": "agom.repository-checkpoint.v1",
+  "unit_id": "EVID-07",
+  "status": "active",
+  "recorded_at": "2026-09-10T16:12:37.832525+00:00",
+  "checkpoint": "Authenticated Receipt V4 issue/read use cases, durable three-parent ledger and record codec",
+  "head": "fd56f1a4683b9500d8c0a205045b4bdf5582f715",
+  "source_sha256": {
+    "apps/account/application/account_owner_assignment_provenance_receipt_v4.py": "6ca7590dade6a6f3bd9d22179cdc2ca94d4c441d6712459b0e7c92ebcdd803a3",
+    "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v4_models.py": "35e5394f9173158172e288340fd6949ac3a1d6421e5db74e6dd9e6ec12b33d45",
+    "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v4_repository.py": "33364c0c93684c9913a598e0a85571d77f74d42d8149b4f7460a784769f927bb",
+    "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v4_record_codec.py": "a722c3dab25478ad777c8f2c444695245e3ecd3a7b0532f47585b5e4e34e8ac9",
+    "apps/account/infrastructure/models.py": "ae273a0f76ca080f89858d6c816963c937a351b887505fd4f7fc08e1fa5b8c87",
+    "apps/account/migrations/0057_account_owner_assignment_provenance_receipt_v4.py": "cd28071f9839c6f2f13575a33f7c55db3b6d8bf18979157ee55b12936884ebb7",
+    "tests/unit/account/test_account_owner_assignment_provenance_receipt_v4_application.py": "20f322ebe7307d913da4646c6f3b711e5be5b641730dab895ad7673d83ab58aa",
+    "tests/unit/account/test_account_owner_assignment_provenance_receipt_v4_record_codec.py": "405ab21180860a3821629432c62ae218cd14c45ed4d77c767dfeb74295cb09b1",
+    "tests/component/account/test_account_owner_assignment_provenance_receipt_v4_repository.py": "f215817c61973117b4d1a263dc7f4c0de225b19b279ac6bb5df859a08b20117f",
+    "tests/unit/test_account_models_structure.py": "ec9660e27b134f253df441e2098622f3c742459f55320d4fd3bc269c918ec953",
+    "governance/current_data_contracts.json": "c33bb8a3aa0a73fc64af205c24b446ca203872323f2314b9951271954dbddb23"
+  },
+  "legacy_diff_against_head_empty": [
+    "apps/account/domain/account_owner_assignment_provenance_receipt_v3.py",
+    "apps/account/application/account_owner_assignment_provenance_receipt_v3.py",
+    "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v3_repository.py"
+  ],
+  "raw_evidence": {
+    "var/evid07-v4-writer-unit-combined.txt": {
+      "sha256": "06c86e4a82a4f273d843ff50cc32ebcd8592ec41cfb32b37ffd3286b21b82800",
+      "content": "........................................................................ [ 70%]\n..............................                                           [100%]\n102 passed in 5.20s\n"
+    },
+    "var/evid07-v4-record-codec-tests.txt": {
+      "sha256": "12f45b32cfb9f9e6cdd9d25491f9a07262a904217720f2cd57bbd8942d5bd3b0",
+      "content": "..........................                                               [100%]\n26 passed in 2.81s\n"
+    },
+    "var/evid07-v4-structure-tests.txt": {
+      "sha256": "979da8277b0a780652ca6c73d60c9fe471a054091a84e8e0956809abe8960a85",
+      "content": "...                                                                      [100%]\n3 passed in 0.47s\n"
+    },
+    "var/evid07-v4-repository-postgres.txt": {
+      "sha256": "3a5d389dcc2d75d6d55147e7801f40440cac87dfbe812739be6698063e0fa9d8",
+      "content": "Running EVID-06 tests against dedicated loopback test database.\n.....                                                                    [100%]\n5 passed in 368.06s (0:06:08)\n"
+    },
+    "var/evid07-v4-alias-guards-postgres.txt": {
+      "sha256": "73ee5c4d10c5b4f63ad2bbde58a3e7ff543720afd49d450729841a2aca126d08",
+      "content": "Running EVID-06 tests against dedicated loopback test database.\n.                                                                        [100%]\n1 passed in 90.67s (0:01:30)\n"
+    },
+    "var/evid07-v4-final-cleanup.json": {
+      "sha256": "035facfb573e3880234d90f3c239d71755c0b107dbb57afc6a8c678a9ab48827",
+      "content": "{\"database\": \"evid06_authority_test\", \"public_base_tables\": 0}\n"
+    },
+    "var/evid07-v4-writer-mypy.txt": {
+      "sha256": "03fd710911c2d785f138604504fcf8562562a6de27768946b368de05a42dba1d",
+      "content": "Success: no issues found in 6 source files\nMypy regressions: 0 (legacy errors observed: 0)\n"
+    },
+    "var/evid07-v4-writer-debt.txt": {
+      "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+      "content": "Full mypy debt ceiling passed: 0 errors in 0 files\n"
+    },
+    "var/evid07-v4-writer-format.txt": {
+      "sha256": "ce0ae10986e7d540a7fb8337db9cc9af20271bc5ec0ba3645caaf447710179cd",
+      "content": "All done! \\u2728 \\U0001f370 \\u2728\n10 files would be left unchanged.\nAll checks passed!\nFORMAT_CHECKS_PASSED\n"
+    },
+    "var/evid07-v4-writer-architecture.txt": {
+      "sha256": "a0b3233a86757e849a89c7b96c20047fac3c7e5e4dc83a100d3ac447913c7d8e",
+      "content": "Architecture rules version: 2026-06-30.v8\nScan roots: apps, core, shared\nScanned files: 3064\nBoundary rules: 7\nBoundary violations: 0\n"
+    },
+    "var/evid07-v4-writer-governance.txt": {
+      "sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b",
+      "content": "Governance baseline version: 2026-09-09.v220\nGovernance violations: 0\n- governance_baseline: 0 violation(s)\n- docs_consistency: 0 violation(s)\n- docs_links: 0 violation(s)\n- governance_docs: 0 violation(s)\n- module_shape: 0 violation(s)\n- misplaced_app_config: 0 violation(s)\n- singular_dto_files: 0 violation(s)\n- architecture_ruleset: 0 violation(s)\n- module_dependency_baseline: 0 violation(s)\n- ci_governance_wiring: 0 violation(s)\n- application_third_party_imports: 0 violation(s)\n- core_integration_debt: 0 violation(s)\n- core_management_command_debt: 0 violation(s)\n- large_python_files: 0 violation(s)\n- large_file_remediation: 0 violation(s)\n"
+    },
+    "var/evid07-v4-writer-freshness.txt": {
+      "sha256": "3f5855a7db9f4956ee0bcbfe8b9f3a5dfabb02cc7aaef5f47aef34c60cff87f7",
+      "content": "Current-data freshness contracts OK: 58 surface(s)\n"
+    },
+    "var/evid07-v4-migration-drift.txt": {
+      "sha256": "0fbee0090e45712eb54e236f9fd23b1e43708dcea167af6cd6d834e3dd5230e5",
+      "content": "INFO 2026-09-11 00:06:58,649 event_bus_initializer [trace_id=-] Event bus initialized with 18 handlers\nNo changes detected in app 'account'\n"
+    },
+    "var/evid07-v4-policy-race-postgres.txt": {
+      "sha256": "ef882fdd7685bb481d2b19a9b649a9778789cd62de2eadb7c5137ac2532e75e2",
+      "content": "Running EVID-06 tests against dedicated loopback test database.\n.                                                                        [100%]\n1 passed in 74.89s (0:01:14)\n"
+    }
+  },
+  "verified": {
+    "combined_unit_tests": 102,
+    "record_codec_tests_in_combined": 26,
+    "model_structure_tests": 3,
+    "postgres_tests": 7,
+    "postgres_scope": "Real PG repository appends for allocation/PhysicalV3/BindingV2+consumption/policy/actor/receipt, real local User/Profile/Session raw-source publisher under explicit fixed test clocks. Creation Domain facts are synthetic fixtures, not a real captured account-creation request.",
+    "postgres_cases": [
+      "parent roundtrip and exact replay",
+      "outer rollback",
+      "parent/seal tamper rejection",
+      "successor CAS and expired logical head",
+      "0057 migration forward/reverse/reapply with four FKs",
+      "default-alias query sentinel and public ORM bypass rejection"
+    ],
+    "concurrency_case": "Two actual PG transactions: receipt waits on the policy writer's original advisory key, then rejects the committed revocation with zero receipt rows.",
+    "full_debt_scope": "Full scan started before final worker formatting/docstrings; final scoped mypy covers all six production files."
+  },
+  "remaining": [
+    "server-owned policy publication bound to the real admin authorization declaration",
+    "locked same-alias policy/raw/actor current-source composition for Receipt issuance",
+    "Subject/Evidence V4, owner-tenant authority and typed scope",
+    "actual authenticated account-creation entry point and complete graph transaction",
+    "full production prerequisites and EVID-01/02 / DATA-02 exit gates"
+  ],
+  "production_changes": false,
+  "unit_exit_gate_passed": false,
+  "artifact_git_tracking": "Local docs/testing artifact ignored under the user's existing .gitignore; no forced staging."
+}

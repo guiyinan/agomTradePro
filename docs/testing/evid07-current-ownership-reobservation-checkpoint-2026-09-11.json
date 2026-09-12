@@ -1,0 +1,168 @@
+{
+  "schema": "evid07-local-current-ownership-reobservation-checkpoint.v1",
+  "recorded_at": "2026-09-11T00:10:34.021184+00:00",
+  "scope": "inactive proof and public same-alias reobservation stages; not Core or approval acceptance",
+  "production_resources_used": false,
+  "goal_complete": false,
+  "unit_evidence": [
+    {
+      "passed": 53,
+      "seconds": 1.04,
+      "scope": "31 Domain and 22 raw reobserver tests",
+      "log": {
+        "path": "var/evid07-reobservation-root-combined-unit.txt",
+        "sha256": "420472ad4e95fc3e854ff4bec1a276b89a9c138f54c95caf3f8670ef7c451ea4"
+      }
+    },
+    {
+      "passed": 25,
+      "seconds": 1.0,
+      "scope": "strict proof codec",
+      "log": {
+        "path": "var/evid07-reobservation-codec-unit.txt",
+        "sha256": "eee7bad8700648a5aae737afad1daa49cbe0a8ba26156a75bff3fc62059106d0"
+      }
+    }
+  ],
+  "postgres_runs": [
+    {
+      "scope": "actual raw successor, replay, rollback, legacy refusal",
+      "passed": 2,
+      "seconds": 157.96,
+      "exit_code": 0,
+      "files_checked": 26,
+      "public_tables_after_cleanup": 0,
+      "artifacts": [
+        {
+          "path": "var/evid07-row-reobservation-postgres.txt",
+          "sha256": "b30d8a46371e4c926ba4fb78e4afb49f3629be83778a6c94e908109522262258"
+        },
+        {
+          "path": "var/evid07-row-reobservation-source-before.json",
+          "sha256": "ffbf30f81e68fa44229b8b3efa3f613fa3feaacb72514cb377fb530bf19a9ee5"
+        },
+        {
+          "path": "var/evid07-row-reobservation-source-comparison.json",
+          "sha256": "b0c84bfa4523c00d133f54d2c22370b70a17d3b43529a964a48f6eb933d78d4e"
+        },
+        {
+          "path": "var/evid07-row-reobservation-cleanup.json",
+          "sha256": "035facfb573e3880234d90f3c239d71755c0b107dbb57afc6a8c678a9ab48827"
+        }
+      ]
+    },
+    {
+      "scope": "public Raw/Source/Physical stages and rollback",
+      "passed": 1,
+      "seconds": 89.83,
+      "exit_code": 0,
+      "files_checked": 28,
+      "public_tables_after_cleanup": 0,
+      "artifacts": [
+        {
+          "path": "var/evid07-three-stage-reobservation-postgres.txt",
+          "sha256": "80eb693379fc0610f5319dda7c5415caa58bb358f4e44d0bf6355fd645f01b4b"
+        },
+        {
+          "path": "var/evid07-three-stage-reobservation-source-before.json",
+          "sha256": "57999994ffc12bb137fee20ad4b07d3e1f2be646ea6d6705bb0790936ed5a566"
+        },
+        {
+          "path": "var/evid07-three-stage-reobservation-source-comparison.json",
+          "sha256": "bd66e5dba820a13c4acf51c82ebd6665bf629031cac6fdfc09387a295f0d735f"
+        },
+        {
+          "path": "var/evid07-three-stage-reobservation-cleanup.json",
+          "sha256": "035facfb573e3880234d90f3c239d71755c0b107dbb57afc6a8c678a9ab48827"
+        }
+      ]
+    },
+    {
+      "scope": "natural root and Physical expiry, then three-stage reobservation",
+      "passed": 1,
+      "seconds": 131.32,
+      "exit_code": 0,
+      "files_checked": 28,
+      "public_tables_after_cleanup": 0,
+      "artifacts": [
+        {
+          "path": "var/evid07-expired-reobservation-final-postgres.txt",
+          "sha256": "576d24fe28178db9a106be0735f45099a1a5cbc83008abe075b1cdf64d1468dd"
+        },
+        {
+          "path": "var/evid07-expired-reobservation-final-source-before.json",
+          "sha256": "a1aa937c25f1c84107e067c5bdaceed0486fd3cf0e6cd29eab47873de03a615c"
+        },
+        {
+          "path": "var/evid07-expired-reobservation-final-source-comparison.json",
+          "sha256": "bd66e5dba820a13c4acf51c82ebd6665bf629031cac6fdfc09387a295f0d735f"
+        },
+        {
+          "path": "var/evid07-expired-reobservation-final-cleanup.json",
+          "sha256": "035facfb573e3880234d90f3c239d71755c0b107dbb57afc6a8c678a9ab48827"
+        }
+      ]
+    }
+  ],
+  "preserved_failed_attempt": {
+    "log": {
+      "path": "var/evid07-expired-reobservation-postgres.txt",
+      "sha256": "f9066dc705ec75224f46d0e17b3cfb3287c40fa1126c603bb8c7500c36cb6bb0"
+    },
+    "reason": "root expired before the later Physical capture; test now waits for both deadlines without changing clocks or assertions"
+  },
+  "incremental_mypy": [
+    {
+      "path": "var/evid07-row-reobservation-mypy-final.txt",
+      "sha256": "d0900ac295cc2427c4d66d20eaaad347f01ab4f61ddd809745efedd2b64f4d88"
+    },
+    {
+      "path": "var/evid07-reobservation-codec-mypy.txt",
+      "sha256": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b"
+    }
+  ],
+  "earlier_full_mypy": {
+    "log": {
+      "path": "var/evid07-reobservation-full-debt.txt",
+      "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+    },
+    "limit": "zero errors before codec and Core additions; not a full current-worktree pass"
+  },
+  "current_selected_source_hashes": {
+    "apps/account/canonical_creation_composition.py": "a1548bc23fb2aaeb05514bfcb3635809789049c6395f1371331e754592d529fa",
+    "apps/account/application/canonical_account_creation_replay.py": "bf020e5f4441bb3a79a8e4be45edf1dac8918744d606052debf6e28a7d4e1167",
+    "core/integration/canonical_account_creation.py": "e8a62aa187fed720aafc73b277c32145d5d631c8c9074b449b1ddc423afcbb19",
+    "apps/simulated_trading/creation_composition.py": "5f4b737e96bcc7e8f7bdb58c735c02b67b738afad198ce590f294abc81b14912",
+    "apps/simulated_trading/creation_transaction_composition.py": "cce7ebc454eaa1ec5c4d9a6f87007d6fd5b4d73e88ede6e4e8527e65149f0ed5",
+    "apps/simulated_trading/application/canonical_account_creation_request.py": "6177843bca3784682c797ad7fe57e3ecba255ef5f8a84570c147ae3106b917ea",
+    "apps/simulated_trading/application/canonical_account_creation_read.py": "83b6b59ead91517566b747ddff1b30bb4f82f6dcc7f2b43329778a3c4601cca1",
+    "apps/simulated_trading/infrastructure/canonical_account_creation_transaction.py": "ab77782a2921f8a2d21e90504cb812d7d2a28d661462052ee7168e682787c64d",
+    "apps/simulated_trading/infrastructure/canonical_account_creation_reader.py": "70b4db0ae5efd930169b298e83129ab0bf82bceec4d8fd7a5c960b7cc681e26d",
+    "tests/component/account/test_canonical_creation_orchestration_postgres.py": "882da0cf1ad1ad14e53cd762c9a590f353997d0e9d65f4dc58afb7a4a204ebb3",
+    "tests/component/account/test_canonical_creation_concurrency_postgres.py": "3ba0b0608d8b7a2ce35d3eb64b31e143258dc7780415f68b0b4b708fea20631b",
+    "apps/account/creation_authentication_composition.py": "2e920c66a02fcaa0423262c36f3eb068f3935f3237e9b28bdaf8be057a537254",
+    "apps/account/infrastructure/creation_authentication_transaction.py": "819fe7c748319763464b0e53efe1cbcb3e9f17fa6c5d32079e8d868b7cd153c5",
+    "apps/simulated_trading/application/canonical_account_creation_input.py": "083ebc93d89ad546f0968be1d83739f2ecbaa2f95ebd5b4905bae10316f915cd",
+    "apps/simulated_trading/interface/serializers.py": "745c5d85e0ab3fd379dad00101c86b60d4b540fd276ca7f963836e20cdaee009",
+    "apps/simulated_trading/interface/views.py": "887e30293180106e999bffcfd13cb3eab2e15d6a357d4ed373250991ce275f14",
+    "core/integration/authenticated_canonical_account_creation.py": "c1564f5f1406e8d88cbb91af5902e5ba1a60cfb2827968f60c7e1e6a33847832",
+    "tests/component/account/test_authenticated_creation_http_postgres.py": "4660dbf91ab267c6f3904c2faed46df54cb9e64c8d89252b2c433de25aad290e",
+    "tests/component/account/creation_chain_postgres_fixture.py": "b33be028a004bca7559fe9a4d743e2bd3e42d840029040e2f3db58e33b8520a3",
+    "tests/component/account/test_authenticated_creation_credentials_postgres.py": "6b9f3ee499f9ce2d4d99235e824211fb6b76b5fe383d770dcd74eddcb6c23144",
+    "apps/account/interface/authentication.py": "61c4f3d103b48d5163c24ed421858a1be180f3e7e1f6de27dd180b772137d312",
+    "apps/account/infrastructure/identity_models.py": "908d69fe0abda14b5400007e2a5830eed8e48d3258531f2a251f3b91f21e1115",
+    "apps/simulated_trading/application/account_row_reobservation.py": "21cc350a4e215890a6a12f28a9d7f7c6f4c33ffcb16cc54c1213e0b77ac77029",
+    "apps/simulated_trading/account_reobservation_composition.py": "1e250b5c5d73af9b0965581164958afc6618f85b6f2d8da43a5f8a8caa44d375",
+    "apps/simulated_trading/infrastructure/simulated_account_mutation_writer.py": "5d5e43897c787ba1b6e26813984dfbceb30fb6413bf5f0e7b3d6ab6abc103a67",
+    "tests/component/account/test_existing_account_reobservation_postgres.py": "5d497684789d4dec4cf9c909a38f6aac7bdca49e8668434d24d301d0d2f485a1",
+    "apps/account/domain/canonical_account_ownership_reobservation_v1.py": "0e46e027d3877abbbeeae8ee393e296e12f6158ad44b0d84d92125bbbed18c08",
+    "apps/account/infrastructure/canonical_account_ownership_reobservation_v1_codec.py": "39ada6447e29a8f20e4c2b4615cb0947775c84589f6660b574518afccf9ea59b"
+  },
+  "limitations": [
+    "new Core orchestration and its prepared PG test remain unaccepted",
+    "proof is transient inactive evidence; no new proof ledger or approval has been published",
+    "server-owned policy resolver, explicit authenticated approval and Research scope wiring remain incomplete",
+    "no production configuration activation, deployment or authority grants",
+    "earlier PG runs apply to their own frozen snapshots, not every later test edit"
+  ]
+}

@@ -100,6 +100,7 @@ sqlite-backup-utf8.json
 /backups/vps-secrets/
 /backups/vps-postgres/
 /docs/deployment/docker命令.txt
+/docs/deployment/docker命令-远端.txt
 
 # Celery beat schedule files
 celerybeat-schedule*
@@ -143,6 +144,5 @@ docs/xiaohongshu-draft-2026-04-24.md
 /.tmp-*
 /.pytest_*/
 /backups
-/docs/deployment/docker命令-远端.txt
-/docs/deployment
+# Local deployment output belongs in artifacts/deployment/; retain deployment docs and evidence.
 /artifacts

@@ -5387,3 +5387,37 @@ DATA-13 的有界代码退出门已通过，注册表 v69 将其标为 completed
 未执行 VPS migration、provider refresh、publication 切换、生产写入或部署；本地 SQLite 通过不等于 VPS PostgreSQL 已迁移。后续部署须按已有候选、备份、迁移和 TUI 重新绑定要求进行，不为无可执行生产回填重置观察窗口。DATA-02 仍 awaiting_production；需先提供真实 Account user/principal 与 tenant/owner 来源、形成 canonical audit authority 和有效 runtime binding，并明确相应 dataset 的字段/单位/时间/容差对账合同，再按既有 action envelope 做真实 provider 回填与对账。DATA-03 继续 waiting_dependency，只有 DATA-02 全退出后才进入下一步。
 
 未自动提交：AUTONOMOUS_GOAL.md 的 Git 合同规定现有未提交修改与当前范围重叠时保留工作树；本项必要的 registry、README 和 primary plan 与本阶段既有财务、审计、TUI 证据修改重叠，未将其混入代码提交。未覆盖或暂存其他修改。应用 Goal 仍未成功：完成的是 DATA-13 本地代码项，DATA-02 的真实生产退出条件没有变化。
+
+## 2026-09-10：新候选 DATA-02 只读前置检查点
+
+后续检查点优先：[successor 原始证据](../deployment/sprint-successor-readonly-2026-09-10-dba9ab2c.json)
+独立核验当前 `dba9ab2c8c18b824a6ed60d90b0765e020e6908d` / `20260910002501` /
+`sha256:7a42abe215ba5fe80af304758c0f7cd74ee221d88867e7eedd66badbc9904706`。前后容器身份与
+manifest 一致，下述 authority/runtime/publication 缺口仍成立。下述 122373b1 采集保留为历史，
+不再作为当前动作目标；本任务未执行这次并发部署。
+
+本轮[原始采集及 SHA sidecar](../deployment/sprint-preflight-readonly-2026-09-10-122373b1.json)证实
+运行中的 `122373b180da603cc9845a8721f79c3ad681afa9` / `20260909232516`，容器镜像与 manifest
+一致。它取代旧候选作为下一次动作绑定目标，但本次未部署，未验证完整 migration/rollback 或 UAT。
+
+PostgreSQL repeatable-read/read-only 快照中 actor/scope authority 均为 0，审计 event/outbox 均为
+0，production profile v2 snapshot 的 mode/outbox_enabled/authority_selector 仍缺失。
+当前 published equity.quote.snapshot / equity.price.bar / equity.financial.fact 成员分别为
+1/23/80，equity.valuation.fact 无 published 行。500 条 migration 记录仅是已应用行数，
+不能据此声称零待迁移。原始响应与 hash 已独立重算一致。
+
+实际关键路径是先补可核验的 Account 主体、tenant/owner/scope 来源、有效 audit runtime 绑定及
+数据集字段/单位/时间/容差比较输入，再按既有授权边界串行做小批 quote/valuation 回填和对账。
+financial availability 已完成切片不重复执行；本轮未抓取 provider、写事实、切 publication、
+启用 runtime 或修改任何 authority/approval。DATA-02 保持 awaiting_production，DATA-03 保持
+waiting_dependency。路线与一周交付口径见[本轮冲刺评估](release-blocker-closure-execution-plan-2026-08-29.md)。
+
+### 2026-09-10 financial availability 范围复核
+
+在当前 `dba9ab2c8c18b824a6ed60d90b0765e020e6908d` Web 容器前后未漂移的只读事务中，
+441944 条 financial fact 中有 160 条 `available_at` 为空，分别属于 `302132.SZ` 和
+`920305.BJ`，各 80 条；两个 Asset Master 均为 inactive。因此 active-only 缺失切片为空，
+不重复执行 availability 修复，也不扩大到停用标的。前者所有缺失行的 `report_date` 等于
+`period_end`，非空日期本身不能证明披露时点。下一步仍是当前 universe 的 provider 回填和
+publication 对账；没有运行 provider、写入事实或晋级 DATA-02。
+原始 SQL、行选择器和内容哈希见[只读范围证据](../testing/data02-financial-scope-readonly-2026-09-10.json)。

@@ -1,12 +1,21 @@
 # Auto detect text files and perform LF normalization
 * text=auto
 .gitattributes text eol=lf
+docs/testing/evid07-authenticated-receipt-writer-checkpoint-2026-09-11.json text eol=lf
+docs/testing/evid07-authenticated-receipt-writer-checkpoint-2026-09-11.json.sha256 text eol=lf
+docs/testing/evid07-durable-policy-checkpoint-2026-09-10.json text eol=lf
+docs/testing/evid07-durable-policy-checkpoint-2026-09-10.json.sha256 text eol=lf
+docs/testing/evid07-single-owner-receipt-checkpoint-2026-09-10.json text eol=lf
+docs/testing/evid07-single-owner-receipt-checkpoint-2026-09-10.json.sha256 text eol=lf
 
 # Shell scripts run inside Linux containers and must remain executable by POSIX shells.
 *.sh text eol=lf
 
 # Hash-bound evidence must retain the repository bytes on every platform.
 *.sha256 text eol=lf
+docs/deployment/sprint-preflight-readonly-2026-09-10-122373b1.json text eol=lf
+docs/deployment/sprint-successor-readonly-2026-09-10-dba9ab2c.json text eol=lf
+docs/testing/sprint-local-checkpoint-2026-09-10.json text eol=lf
 docs/deployment/aud03-data02-production-review-return-template-2026-08-30-36b72d2f.json text eol=lf
 docs/deployment/aud03-operational-observation-select-only-2026-08-31-80ea002b.json text eol=lf
 docs/deployment/aud03-successor-production-readonly-checkpoint-2026-08-31-80ea002b.json text eol=lf
@@ -34,3 +43,19 @@ docs/testing/data05-financial-repository-owner-closure-evidence-2026-08-31.json 
 docs/testing/tar06-staging-collector-repository-closure-evidence-2026-08-31.json text eol=lf
 docs/testing/tar06-staging-preflight-corrective-closure-evidence-2026-08-31.json text eol=lf
 docs/testing/tui03-retained-monitoring-repository-closure-evidence-2026-08-30.json text eol=lf
+
+docs/testing/data15-domain-checkpoint-2026-09-10.json text eol=lf
+docs/testing/data15-scenario-checkpoint-2026-09-10.json text eol=lf
+docs/testing/data15-state-checkpoint-2026-09-10.json text eol=lf
+docs/testing/data15-evidence-checkpoint-2026-09-10.json text eol=lf
+docs/deployment/tui02-successor-readonly-pending-2026-09-10-dba9ab2c.json text eol=lf
+docs/testing/data15-domain-closure-evidence-2026-09-10.json text eol=lf
+docs/deployment/tui02-query-wiring-repair-2026-09-10-dba9ab2c.json text eol=lf
+docs/testing/sprint-resume-readonly-2026-09-10.json text eol=lf
+docs/deployment/sprint-owner-admin-authorization-2026-09-10.json text eol=lf
+docs/deployment/sprint-local-staging-dependencies-2026-09-10.json text eol=lf
+docs/testing/data02-financial-scope-readonly-2026-09-10.json text eol=lf
+docs/testing/evid06-authenticated-raw-publisher-closure-2026-09-10.json text eol=lf
+docs/testing/evid06-authenticated-raw-publisher-closure-2026-09-10.json.sha256 text eol=lf
+docs/testing/evid07-single-owner-policy-checkpoint-2026-09-10.json text eol=lf
+docs/testing/evid07-single-owner-policy-checkpoint-2026-09-10.json.sha256 text eol=lf

@@ -537,6 +537,7 @@ def test_trading_create_simulated_account_capability_runs_internal_preview_befor
             stop_loss_pct=10.0,
             commission_rate=0.0003,
             slippage_rate=0.001,
+            idempotency_key=None,
         ):
             captured_calls.append(
                 {
@@ -548,6 +549,7 @@ def test_trading_create_simulated_account_capability_runs_internal_preview_befor
                     "stop_loss_pct": stop_loss_pct,
                     "commission_rate": commission_rate,
                     "slippage_rate": slippage_rate,
+                    "idempotency_key": idempotency_key,
                 }
             )
             return {
@@ -593,6 +595,7 @@ def test_trading_create_simulated_account_capability_runs_internal_preview_befor
     assert resume_response["result"]["account_name"] == "Growth Lab"
     assert captured_calls[0]["name"] == "Growth Lab"
     assert captured_calls[0]["start_date"] is None
+    assert captured_calls[0]["idempotency_key"] == "idem-simulated-account-create"
     assert captured_calls[0]["account_type"] == "simulated"
     assert audit_events[0]["affected_objects"]["account_name"] == "Growth Lab"
     assert audit_events[1]["event_type"] == "confirmation_completed"

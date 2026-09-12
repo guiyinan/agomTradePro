@@ -1,0 +1,78 @@
+{
+  "schema": "agom.repository-checkpoint.v1",
+  "unit_id": "EVID-07",
+  "status": "active",
+  "recorded_at": "2026-09-10T21:11:22.851972+00:00",
+  "checkpoint": "Same-alias new-only physical account writer with actual rollback",
+  "previous_checkpoint_sha256": "cfbac0050c2c4aa3fbe75a8b213129272c75b4efe9ef75d2b44db473013e36f2",
+  "source_sha256": {
+    "apps/simulated_trading/source_v2_composition.py": "6093c75b8550b2d438ecbe7ee17f7cc8220c004dd2a67989741f5f47b56569f2",
+    "apps/simulated_trading/account_physical_row_v2_composition.py": "9748867cb98ba0ef971ee408200fe7a48023761f72bfabe2c8310c4b5d09f98f",
+    "apps/simulated_trading/application/canonical_account_creation_row.py": "0123ecb448913ca4ffca13d93f00d36091bdd06d696c1e876418cd18f716cceb",
+    "apps/simulated_trading/infrastructure/canonical_account_creation_row_writer.py": "b24d1711e06ea90e63bec2084270dddb82995d060104fed0a494e62393f3d2a7",
+    "tests/unit/simulated_trading/test_v2_composition_aliases.py": "748276d67671b51455d4e7ef44ebf2116ce828f2f38d08e44514c636a14127d7",
+    "tests/unit/simulated_trading/test_canonical_account_creation_row.py": "94629e419406725d94b0ab6e6cf72818e13d9c727a11f9736a747964ce9fa9ce",
+    "tests/component/account/test_canonical_account_creation_row_postgres.py": "2ddb1b4dc3a3e93b16b03d2ae2e3e1c18420a2d01fad8b5b223be6501af23395"
+  },
+  "raw_evidence": {
+    "var/evid07-creation-row-unit-final.txt": {
+      "sha256": "15499731246c0339b1807ca446cfab0c952fcfddabb6fa69dace02e7f672e613",
+      "content": "............................................                             [100%]\n44 passed in 0.74s\n"
+    },
+    "var/evid07-creation-row-postgres.txt": {
+      "sha256": "072431fda00f948ba3a00f8c0d6554c96fb1ad14235c7bf67f91e860d8182161",
+      "content": "Running EVID-06 tests against dedicated loopback test database.\n..                                                                       [100%]\n============================= slowest 5 durations =============================\n27.62s setup    tests/component/account/test_canonical_account_creation_row_postgres.py::test_new_row_preserves_actual_database_facts_and_outer_rollback\n24.90s setup    tests/component/account/test_canonical_account_creation_row_postgres.py::test_observation_failure_rolls_back_insert_even_when_caller_commits\n7.74s teardown tests/component/account/test_canonical_account_creation_row_postgres.py::test_observation_failure_rolls_back_insert_even_when_caller_commits\n3.01s teardown tests/component/account/test_canonical_account_creation_row_postgres.py::test_new_row_preserves_actual_database_facts_and_outer_rollback\n1.85s call     tests/component/account/test_canonical_account_creation_row_postgres.py::test_new_row_preserves_actual_database_facts_and_outer_rollback\n2 passed in 67.37s (0:01:07)\n"
+    },
+    "var/evid07-creation-row-mypy-final.txt": {
+      "sha256": "3fbd8281856ab7351acb81214ce6b1c9ab4bd26e2ed26d2995c306a1aa11a800",
+      "content": "Success: no issues found in 4 source files\nMypy regressions: 0 (legacy errors observed: 0)\n"
+    },
+    "var/evid07-creation-row-debt-final.txt": {
+      "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+      "content": "Full mypy debt ceiling passed: 0 errors in 0 files\n"
+    },
+    "var/evid07-creation-row-architecture.txt": {
+      "sha256": "31c7ffb5006ef045b8be837942ba937d666fdc155052369c33bfd95b34df09ba",
+      "content": "Architecture rules version: 2026-06-30.v8\nScan roots: apps, core, shared\nScanned files: 3087\nBoundary rules: 7\nBoundary violations: 0\n"
+    },
+    "var/evid07-creation-row-governance.txt": {
+      "sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b",
+      "content": "Governance baseline version: 2026-09-09.v220\nGovernance violations: 0\n- governance_baseline: 0 violation(s)\n- docs_consistency: 0 violation(s)\n- docs_links: 0 violation(s)\n- governance_docs: 0 violation(s)\n- module_shape: 0 violation(s)\n- misplaced_app_config: 0 violation(s)\n- singular_dto_files: 0 violation(s)\n- architecture_ruleset: 0 violation(s)\n- module_dependency_baseline: 0 violation(s)\n- ci_governance_wiring: 0 violation(s)\n- application_third_party_imports: 0 violation(s)\n- core_integration_debt: 0 violation(s)\n- core_management_command_debt: 0 violation(s)\n- large_python_files: 0 violation(s)\n- large_file_remediation: 0 violation(s)\n"
+    },
+    "var/evid07-creation-row-format.txt": {
+      "sha256": "31fae13d2d51890945d82b6b66db28f777e2e4910a68dbc6000c5e3841c7c6aa",
+      "content": "All done! \\u2728 \\U0001f370 \\u2728\n7 files would be left unchanged.\nAll checks passed!\n"
+    },
+    "var/evid07-creation-row-postgres-cleanup.json": {
+      "sha256": "035facfb573e3880234d90f3c239d71755c0b107dbb57afc6a8c678a9ab48827",
+      "content": "{\"database\": \"evid06_authority_test\", \"public_base_tables\": 0}\n"
+    },
+    "var/evid07-creation-row-postgres-source-before.json": {
+      "sha256": "af6d7f44d82ccf5fadb1162885496d852e30dbfc9c6f2d6e4b324313daf1ac04",
+      "content": "[\n  {\n    \"Path\": \"D:\\\\githv\\\\agomTradePro\\\\apps\\\\simulated_trading\\\\application\\\\canonical_account_creation_row.py\",\n    \"Hash\": \"0359D18BB919BE9904919F3174FE3F4C282A64B3C9F377AA3D75663706A59906\"\n  },\n  {\n    \"Path\": \"D:\\\\githv\\\\agomTradePro\\\\apps\\\\simulated_trading\\\\infrastructure\\\\canonical_account_creation_row_writer.py\",\n    \"Hash\": \"0C89E300D8A75EE41A3E3197A81B0192200F513245393F2934B968E6E05D183B\"\n  },\n  {\n    \"Path\": \"D:\\\\githv\\\\agomTradePro\\\\tests\\\\component\\\\account\\\\test_canonical_account_creation_row_postgres.py\",\n    \"Hash\": \"2DDB1B4DC3A3E93B16B03D2AE2E3E1C18420A2D01FAD8B5B223BE6501AF23395\"\n  }\n]\n"
+    }
+  },
+  "verified": {
+    "unit_tests": 44,
+    "postgres_tests": 2,
+    "unit_scope": "18 alias wiring cases plus 26 row writer cases; the combined final run is counted once.",
+    "postgres_scope": "Actual User and SimulatedAccount rows on the dedicated loopback PostgreSQL alias; default queries rejected, database-generated dates and timestamps refreshed, inactive/missing users denied, outer rollback and post-INSERT clock failure savepoint rollback verified even when the caller catches the error and commits.",
+    "static_scope": "Four production files incremental mypy, final full debt ceiling, seven Python files format checks, architecture and governance checks.",
+    "verification_sequence": "PostgreSQL ran with unchanged source hashes recorded in the attached pre-run snapshot. Subsequent changes were formatting and an explicit typing.cast after the existing exact numeric type guard to fix mypy's float(object) error. This cast preserves the runtime value. Final 44 units and final incremental/full mypy validate that final source. The pre-fix mypy/debt failures are superseded without changing the debt baseline."
+  },
+  "limits": [
+    "The writer receives a trusted requester user ID; it is not a complete session authentication boundary.",
+    "Alias unit tests use repository spies; actual PostgreSQL claims are limited to the separate row writer tests.",
+    "This does not yet allocate or publish the complete canonical provenance graph or prove request-level concurrent idempotency.",
+    "No HTTP route was switched and no production account, approval, runtime or trading action was created."
+  ],
+  "remaining": [
+    "Single-snapshot typed creation settings and explicit configuration entry",
+    "Public Account/SimulatedTrading composition and atomic allocation-to-Binding V2 creation",
+    "Authenticated idempotent HTTP creation and explicit owner approval/reauthorization",
+    "Production DATA-02/EVID-01/02/AUD-03/TAR-05 exit gates"
+  ],
+  "production_changes": false,
+  "unit_exit_gate_passed": false,
+  "artifact_git_tracking": "Ignored local artifact; no forced staging or ignore-rule changes."
+}

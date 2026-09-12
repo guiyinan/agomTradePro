@@ -1,0 +1,86 @@
+{
+  "schema": "agom.repository-checkpoint.v1",
+  "unit_id": "EVID-07",
+  "status": "active",
+  "recorded_at": "2026-09-11T02:44:49.4984896Z",
+  "checkpoint": "Reobservation-backed ReceiptV5 and SubjectV5 Domain contract",
+  "previous_checkpoint_sha256": "8ea203fbc88f783cedd4fe76fc6e1764df48e2a011f014f588c22e3597883e5a",
+  "source_sha256": {
+    "apps/account/domain/account_owner_assignment_provenance_receipt_v5.py": "add2c4a15d57b294807c4835aaf23a4719264f94940e59b2d6154a803cbda171",
+    "apps/account/domain/account_owner_assignment_subject_v5.py": "bc8210210f97d19db7fe22ecb4def9abd5d0579eb2c7e92aa81ca97d84ced725",
+    "tests/unit/account/test_account_owner_assignment_provenance_receipt_v5.py": "ebc9f15f2f8d732bdd12f2c9e070ca4111e7e48da4d46f8f5d4159bfe1cb2ead",
+    "tests/unit/account/test_account_owner_assignment_subject_v5.py": "d28efae163b4dac4d60c2775763fc1f287146a4c67a04eb5dcea5d0bea33e4be"
+  },
+  "contract": {
+    "receipt_schema": "account-owner-assignment-provenance-receipt.v5",
+    "subject_schema": "account-owner-assignment-subject.v5",
+    "permanent_parent": "CanonicalAccountCreationBindingV2",
+    "current_parent": "CanonicalAccountOwnershipReobservationV1",
+    "policy_parent": "SingleOwnerAuthorityPolicyV1",
+    "validity": "recorded/requested clock is before valid_until, which may be shorter than but cannot exceed the current policy and reobservation windows",
+    "state": {
+      "status": "inactive",
+      "activation_available": false,
+      "must_not_execute": true
+    },
+    "version_isolation": "V5 uses independent schema and hash domains; V4 types, readers and golden hashes are unchanged"
+  },
+  "verification": {
+    "v5_domain_unit_and_coverage": {
+      "exit_code": 0,
+      "passed": 84,
+      "receipt_v5_line_coverage_percent": 99.4,
+      "subject_v5_line_coverage_percent": 93.5,
+      "combined_coverage_percent": 97.1,
+      "log": "var/evid07-v5-domain-coverage-final.txt"
+    },
+    "v4_v5_compatibility": {
+      "exit_code": 0,
+      "passed": 151,
+      "assertions": [
+        "V4 golden identity and content hashes remain fixed",
+        "V4 continues to reject the expired creation-root scenario",
+        "V5 accepts the same permanent Binding only with a current reobservation and policy",
+        "cross-version and upstream seal substitutions fail closed"
+      ],
+      "log": "var/evid07-v5-domain-compat.txt"
+    },
+    "incremental_mypy": {
+      "exit_code": 0,
+      "production_files": 2,
+      "regressions": 0,
+      "log": "var/evid07-v5-domain-root-mypy.txt"
+    },
+    "full_mypy_debt_ceiling": {
+      "exit_code": 0,
+      "errors": 0,
+      "log": "var/evid07-v5-domain-full-debt.txt"
+    },
+    "architecture": {
+      "exit_code": 0,
+      "files": 3124,
+      "rules": 7,
+      "violations": 0,
+      "log": "var/evid07-v5-domain-architecture.txt"
+    },
+    "format_and_static": {
+      "black": "passed",
+      "isort": "passed",
+      "ruff": "passed",
+      "py_compile": "passed"
+    },
+    "governance": {
+      "registry_version": "2026-09-10.v83",
+      "units": 49,
+      "paths": 45,
+      "violations": 0,
+      "focus": "EVID-07"
+    }
+  },
+  "scope_limits": [
+    "This checkpoint covers pure Domain values and tests; it does not prove a durable reobservation ledger or V5 persistence.",
+    "EvidenceV5, OwnerTenantAuthorityV3, typed scope V3, authenticated approval and the complete PostgreSQL owner-scope graph remain unimplemented.",
+    "No production configuration, owner assignment, approval, authority, deployment or runtime permission was written.",
+    "EVID-07, EVID-01/02, DATA-02 and the full Goal remain incomplete."
+  ]
+}

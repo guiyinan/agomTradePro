@@ -1,0 +1,80 @@
+{
+  "schema": "agom.evid07.repository-checkpoint.v1",
+  "unit_id": "EVID-07",
+  "slice": "durable_canonical_account_ownership_reobservation_v1_ledger",
+  "status": "active",
+  "recorded_at": "2026-09-11T04:48:55.416847+00:00",
+  "owner_designation": {
+    "username": "admin",
+    "user_id": 1,
+    "authorization_source": "docs/deployment/sprint-owner-admin-authorization-2026-09-10.json",
+    "authority_granted_by_this_checkpoint": false
+  },
+  "result": {
+    "durable_ledger_slice": "passed",
+    "migration": "0060 apply/reverse/reapply passed on dedicated PostgreSQL",
+    "transaction": "Core raw/source/Physical-v2/re-observation writes share one outer alias transaction",
+    "history": "Exact historical reads remain available after TTL and after a later Physical-v2 successor; current reads separately require the exact Physical-v2 logical head.",
+    "repeatability": "One permanent Binding-v2 may have multiple re-observations; first-winner replay remains exact per observation id/version.",
+    "semantics": "inactive evidence_only; activation_available=false; must_not_execute=true"
+  },
+  "verification": {
+    "focused_tests": "26 passed in 154.69s",
+    "postgres": "2 passed in 214.97s",
+    "postgres_cases": [
+      "0060 apply/reverse/reapply with protected many-to-one parents",
+      "actual authenticated creation followed by durable re-observation",
+      "exact replay and same-Binding successor re-observation",
+      "historical exact read after Physical-v2 successor",
+      "wrong requester rejection",
+      "outer rollback preserves all four ledger counts"
+    ],
+    "postgres_public_base_tables_after_cleanup": 0,
+    "incremental_mypy": "7 production files; 0 issues/regressions/legacy errors",
+    "full_mypy_debt": "0 errors in 0 files",
+    "architecture": {
+      "scanned_files": 3129,
+      "boundary_rules": 7,
+      "violations": 0
+    },
+    "format": "Black, isort, and Ruff passed",
+    "frozen_predecessor_hashes": "19 checked; 19 unchanged",
+    "initial_failures": "Two migration-fixture wiring attempts failed before business execution and were corrected by creating only the true Binding-v2/Physical-v2 parents; the dedicated database was reset and verified empty before final passing runs."
+  },
+  "source_sha256": {
+    "apps/account/application/canonical_account_ownership_reobservation_v1.py": "11e2281495e04f72bba1c7d1bde172dd6f13263616dbcb6917d0452a8fee0c1b",
+    "apps/account/canonical_account_ownership_reobservation_composition.py": "076ca40874f90a8d112230823015c03d11bdf3849823e21ea7cbcfc8b2523503",
+    "apps/account/domain/canonical_account_ownership_reobservation_v1.py": "0e46e027d3877abbbeeae8ee393e296e12f6158ad44b0d84d92125bbbed18c08",
+    "apps/account/infrastructure/canonical_account_ownership_reobservation_v1_codec.py": "39ada6447e29a8f20e4c2b4615cb0947775c84589f6660b574518afccf9ea59b",
+    "apps/account/infrastructure/canonical_account_ownership_reobservation_v1_record_codec.py": "8cfcfd494ef617e2b4a2cf913f8501888c612f72c47a0cb8fa4a3ac17762b3a6",
+    "apps/account/infrastructure/canonical_account_ownership_reobservation_v1_models.py": "e1e13efe708f6b9c3517cf6fce086fbe3d625fe65455eed7e5f68f421864cd16",
+    "apps/account/infrastructure/canonical_account_ownership_reobservation_v1_repository.py": "424618a86e8c52e47b6a01e7a1cfe3938a69ea4b1c4f054c20eba247f31ff629",
+    "apps/account/infrastructure/models.py": "5d9022a0d78d4026998c56d87e711619fde513746bbfcf824daad6f19c407dbc",
+    "apps/account/infrastructure/models.pyi": "2df13283e9c5a7474b5416f8402f57fcd7cc197b96dd90bc119a5f3685b0a3d6",
+    "apps/account/migrations/0060_canonical_account_ownership_reobservation_v1.py": "c3289b0a4df713a9267155f6bd2f78f4f53c12b46ac4179b42450261de699110",
+    "core/integration/canonical_account_ownership_reobservation.py": "c075575cfe85060f9a3a13a2de1541a05842016e79446a067d92e9d40a40de48",
+    "tests/unit/account/test_canonical_account_ownership_reobservation_v1_application.py": "30d39058aae7cc4e9ff2e84383e6f28b4fa159bb77611d7449b6e9bda409f685",
+    "tests/unit/account/test_canonical_account_ownership_reobservation_v1_record_codec.py": "d52635b2817f7e75ecdf00e1b8683440566f562c9457c04e69ce62bd2fe8d15a",
+    "tests/unit/core/test_canonical_account_ownership_reobservation.py": "abd7cdd61bcc94f0d3e8f39b00270cbc03cff8b008bd7fde8d0e88c304a4c310",
+    "tests/component/account/test_canonical_account_ownership_reobservation_v1_repository.py": "6770365e6da5638a35f2f837711514aa26fb31020824af77c9eba97f0dc5c31d",
+    "tests/component/account/test_canonical_account_ownership_reobservation_v1_migration.py": "98e7aead20132acac2763e4705fccae067361f653e07ee02f6c41b0ab7af56d2",
+    "tests/component/account/test_canonical_ownership_reobservation_core_postgres.py": "1897361925fcfade81a11be8bb2b75b43ba7684c11bfae5624ad66d3a2054e35"
+  },
+  "raw_evidence_sha256": {
+    "var/evid07-durable-reobservation-focused-tests.txt": "29586f2a0509cb3318690561cacd3f4f26fc6509774f8dc7db9a0e425a87aff6",
+    "var/evid07-durable-reobservation-postgres.txt": "140fa6aaa7ee20b4f371c88046010755ab7f8849a2a65d689c32c22a6dc2caa6",
+    "var/evid07-durable-reobservation-cleanup.txt": "035facfb573e3880234d90f3c239d71755c0b107dbb57afc6a8c678a9ab48827",
+    "var/evid07-durable-reobservation-mypy.txt": "3efee26fd1f446afb5a3190aaa5fed3ebe0cf82a47b8b307a39f7e34d4080737",
+    "var/evid07-durable-reobservation-full-debt.txt": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+    "var/evid07-durable-reobservation-architecture.json": "a8f0cdbd72ee8e8b059e7baf0ce5cbe930a579f439956fd26399530427359fa0",
+    "var/evid07-durable-reobservation-format.txt": "c0fabd9b59ff26771d40a3b5023d5d3a176b9f4078b5002d6422396b4e56696d",
+    "var/evid07-durable-reobservation-frozen-hashes.json": "c96120b19923d60e83fa6a89e29b656bdc8b29b2b9cf1fe3b96d6a9613afc271"
+  },
+  "limitations": [
+    "This is a local repository checkpoint bound to uncommitted working-tree files.",
+    "No production deployment, ConfigCenter activation, account assignment, approval, authority, or trading operation occurred.",
+    "Receipt-v5 and Subject-v5 remain Domain-only; their durable ledgers, Evidence-v5, Authority-v3, scope-v3, revocation, and authenticated complete graph remain pending.",
+    "Dedicated PostgreSQL coverage does not yet include a two-connection lock-wait case for this new ledger."
+  ],
+  "next_gate": "Persist Receipt-v5 and Subject-v5 against exact durable policy, Binding-v2, and current re-observation parents without widening V4 readers; then add Evidence-v5, Authority-v3, scope-v3, revocation, and the complete authenticated PostgreSQL graph."
+}

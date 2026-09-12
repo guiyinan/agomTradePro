@@ -347,7 +347,7 @@
                 captureWorkspace();
                 state.pendingGridRestore = workspaceStates.get(state.screen.screen.key);
             }
-            await runAction(state.lastAction, null, { params: { ...state.lastParams }, preserveGrid: state.currentViewModel?.kind === 'datagrid' });
+            await runAction(state.lastAction, null, { params: { ...state.lastParams }, idempotencyKey: state.lastIdempotencyKey, preserveGrid: state.currentViewModel?.kind === 'datagrid' });
         } else if (lastAction && String(lastAction.risk) === 'ai') {
             setStatus('当前结果没有可读取的运行状态；再次执行请使用任务按钮');
         } else if (state.screen?.screen?.key) {

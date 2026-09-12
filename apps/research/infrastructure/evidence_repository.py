@@ -368,7 +368,12 @@ class _DjangoEvidenceStore(DjangoEvidenceRepository):
             raise EvidenceRepositoryConflict("evidence append requires its private atomic unit")
         model = model_type(**values)
         try:
-            model.full_clean()
+            # Django's uniqueness and constraint validation does not accept a database
+            # alias and therefore queries ``default`` even when this repository owns a
+            # different unit of work. Field validation remains local; the selected
+            # database enforces immutable uniqueness below and collision recovery reads
+            # the same alias explicitly.
+            model.full_clean(validate_unique=False, validate_constraints=False)
             with transaction.atomic(using=self._using):
                 with _claim_evidence_insert(
                     token=self._token, model_type=model_type, expected_values=values

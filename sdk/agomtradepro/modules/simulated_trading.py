@@ -5,7 +5,7 @@ AgomTradePro SDK - Simulated Trading 模拟盘交易模块
 """
 
 from datetime import date
-from typing import Any
+from typing import Any, cast
 
 from .base import BaseModule
 
@@ -58,8 +58,8 @@ class SimulatedTradingModule(BaseModule):
 
         response = self._get("accounts/", params=params)
         if isinstance(response, dict):
-            return response.get("accounts", [])
-        return response
+            return cast(list[dict[str, Any]], response.get("accounts", []))
+        return cast(list[dict[str, Any]], response)
 
     def get_account(self, account_id: int) -> dict[str, Any]:
         """
@@ -82,8 +82,8 @@ class SimulatedTradingModule(BaseModule):
         """
         response = self._get(f"accounts/{account_id}/")
         if isinstance(response, dict):
-            return response.get("account", response)
-        return response
+            return cast(dict[str, Any], response.get("account", response))
+        return cast(dict[str, Any], response)
 
     def delete_account(self, account_id: int) -> dict[str, Any]:
         """
@@ -119,6 +119,8 @@ class SimulatedTradingModule(BaseModule):
         stop_loss_pct: float | None = 10.0,
         commission_rate: float = 0.0003,
         slippage_rate: float = 0.001,
+        *,
+        idempotency_key: str,
     ) -> dict[str, Any]:
         """
         创建账户
@@ -132,6 +134,7 @@ class SimulatedTradingModule(BaseModule):
             stop_loss_pct: 止损比例
             commission_rate: 手续费率
             slippage_rate: 滑点率
+            idempotency_key: 本次提交的稳定键，网络重试必须复用；新的创建使用新键。
 
         Returns:
             创建的账户信息
@@ -145,7 +148,8 @@ class SimulatedTradingModule(BaseModule):
             >>> account = client.simulated_trading.create_account(
             ...     name="测试账户",
             ...     initial_capital=1000000.0,
-            ...     start_date=date(2024, 1, 1)
+            ...     start_date=date(2024, 1, 1),
+            ...     idempotency_key="account-create-example-1"
             ... )
             >>> print(f"账户已创建: {account['id']}")
         """
@@ -159,10 +163,10 @@ class SimulatedTradingModule(BaseModule):
             "slippage_rate": slippage_rate,
         }
 
-        response = self._post("accounts/", json=data)
+        response = self._post("accounts/", json=data, idempotency_key=idempotency_key)
         if isinstance(response, dict):
-            return response.get("account", response)
-        return response
+            return cast(dict[str, Any], response.get("account", response))
+        return cast(dict[str, Any], response)
 
     def execute_trade(
         self,
@@ -240,8 +244,8 @@ class SimulatedTradingModule(BaseModule):
             positions = response.get("positions", [])
             if asset_code is not None:
                 positions = [p for p in positions if p.get("asset_code") == asset_code]
-            return positions
-        return response
+            return cast(list[dict[str, Any]], positions)
+        return cast(list[dict[str, Any]], response)
 
     def get_performance(
         self,
@@ -268,8 +272,8 @@ class SimulatedTradingModule(BaseModule):
         """
         response = self._get(f"accounts/{account_id}/performance/")
         if isinstance(response, dict):
-            return response.get("performance", response)
-        return response
+            return cast(dict[str, Any], response.get("performance", response))
+        return cast(dict[str, Any], response)
 
     def get_trade_history(
         self,
@@ -295,7 +299,7 @@ class SimulatedTradingModule(BaseModule):
         params: dict[str, Any] = {"limit": limit}
         response = self._get(f"accounts/{account_id}/trades/", params=params)
         results = response.get("results", response)
-        return results
+        return cast(list[dict[str, Any]], results)
 
     def close_position(
         self,

@@ -1,0 +1,118 @@
+{
+  "schema": "agom.repository-checkpoint.v1",
+  "unit_id": "EVID-07",
+  "status": "active",
+  "recorded_at": "2026-09-10T22:23:45.436053+00:00",
+  "checkpoint": "Production composition, permanent replay and concurrent creation",
+  "previous_checkpoint_sha256": "105a11c08a7f7cf91cea71e7f95aa409cd144c5fcf54860003e0acb98f3daada",
+  "source_sha256": {
+    "apps/account/canonical_creation_composition.py": "a1548bc23fb2aaeb05514bfcb3635809789049c6395f1371331e754592d529fa",
+    "apps/account/application/canonical_account_creation_replay.py": "bf020e5f4441bb3a79a8e4be45edf1dac8918744d606052debf6e28a7d4e1167",
+    "core/integration/canonical_account_creation.py": "e8a62aa187fed720aafc73b277c32145d5d631c8c9074b449b1ddc423afcbb19",
+    "apps/simulated_trading/creation_composition.py": "5f4b737e96bcc7e8f7bdb58c735c02b67b738afad198ce590f294abc81b14912",
+    "apps/simulated_trading/creation_transaction_composition.py": "cce7ebc454eaa1ec5c4d9a6f87007d6fd5b4d73e88ede6e4e8527e65149f0ed5",
+    "apps/simulated_trading/application/canonical_account_creation_request.py": "6177843bca3784682c797ad7fe57e3ecba255ef5f8a84570c147ae3106b917ea",
+    "apps/simulated_trading/application/canonical_account_creation_read.py": "83b6b59ead91517566b747ddff1b30bb4f82f6dcc7f2b43329778a3c4601cca1",
+    "apps/simulated_trading/infrastructure/canonical_account_creation_transaction.py": "ab77782a2921f8a2d21e90504cb812d7d2a28d661462052ee7168e682787c64d",
+    "apps/simulated_trading/infrastructure/canonical_account_creation_reader.py": "70b4db0ae5efd930169b298e83129ab0bf82bceec4d8fd7a5c960b7cc681e26d",
+    "tests/component/account/test_canonical_creation_orchestration_postgres.py": "882da0cf1ad1ad14e53cd762c9a590f353997d0e9d65f4dc58afb7a4a204ebb3",
+    "tests/component/account/test_canonical_creation_concurrency_postgres.py": "3ba0b0608d8b7a2ce35d3eb64b31e143258dc7780415f68b0b4b708fea20631b"
+  },
+  "unit_test_sha256": {
+    "tests/unit/account/test_creation_evidence_runtime_settings.py": "623d5412944ddf7c8df67627313b0b2f4a0c92411274294b8a1e1878dd72eaea",
+    "tests/unit/account/test_creation_evidence_settings_cli.py": "75490723f27b7b8033810422b1adb5f7ecfb0f74d29c67edce01dd7781311d22",
+    "tests/unit/simulated_trading/test_creation_composition.py": "2c81399ebfce58d53e826e30b730efa3a05835c3365a294c8603bd8a914e525b",
+    "tests/unit/simulated_trading/test_canonical_account_creation_request.py": "a1d08abd8475302eb041981900bdde4a163c586ede381eb0b2053f5886e32912",
+    "tests/unit/account/test_canonical_creation_composition.py": "2abc4238a6bd6f5a5ec75b5f463862398888772ddca69626906a6c0e91363f7c",
+    "tests/unit/account/test_canonical_account_creation_replay.py": "c77fe4f5ed2bb2f9358dc651b3749b58730796e717b865ef2d5b56fc3cce93ed"
+  },
+  "raw_evidence": {
+    "var/evid07-creation-final-combined-unit.txt": {
+      "sha256": "c3dc0f17d02e998ea08a243e316b0ca2f4b8b9f917460d4722d05504f6965ad9",
+      "content": "........................................................................ [ 66%]\n....................................                                     [100%]\n108 passed in 1.39s\n"
+    },
+    "var/evid07-creation-orchestration-postgres.txt": {
+      "sha256": "ef1d76580b02a6def863f0a970d6eee4de80817315f9a5df70e7b1c49575b374",
+      "content": "Running EVID-06 tests against dedicated loopback test database.\n..                                                                       [100%]\n============================== warnings summary ===============================\nagomtradepro\\Lib\\site-packages\\_pytest\\config\\__init__.py:852\n  D:\\githv\\agomTradePro\\agomtradepro\\Lib\\site-packages\\_pytest\\config\\__init__.py:852: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.component.account.creation_chain_postgres_fixture\n    self.import_plugin(import_spec)\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n2 passed, 1 warning in 298.46s (0:04:58)\n"
+    },
+    "var/evid07-creation-concurrency-postgres.txt": {
+      "sha256": "389ba2677abb9b8fb01af6d2ea6eaa53971f3525d1f37cfedc705e112d835f31",
+      "content": "Running EVID-06 tests against dedicated loopback test database.\n.                                                                        [100%]\n============================== warnings summary ===============================\nagomtradepro\\Lib\\site-packages\\_pytest\\config\\__init__.py:852\n  D:\\githv\\agomTradePro\\agomtradepro\\Lib\\site-packages\\_pytest\\config\\__init__.py:852: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.component.account.creation_chain_postgres_fixture\n    self.import_plugin(import_spec)\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n1 passed, 1 warning in 279.07s (0:04:39)\n"
+    },
+    "var/evid07-creation-concurrency-cleanup.json": {
+      "sha256": "035facfb573e3880234d90f3c239d71755c0b107dbb57afc6a8c678a9ab48827",
+      "content": "{\"database\": \"evid06_authority_test\", \"public_base_tables\": 0}\n"
+    },
+    "var/evid07-creation-orchestration-cleanup.json": {
+      "sha256": "035facfb573e3880234d90f3c239d71755c0b107dbb57afc6a8c678a9ab48827",
+      "content": "{\"database\": \"evid06_authority_test\", \"public_base_tables\": 0}\n"
+    },
+    "var/evid07-creation-request-mypy.txt": {
+      "sha256": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b",
+      "content": "Success: no issues found in 1 source file\nMypy regressions: 0 (legacy errors observed: 0)\n"
+    },
+    "var/evid07-creation-transaction-mypy.txt": {
+      "sha256": "5ba4fad13a81b04a0a55439e46f84ebb25f1dcefaf8a0f67d0e71ba1266e2e69",
+      "content": "Success: no issues found in 2 source files\nMypy regressions: 0 (legacy errors observed: 0)\n"
+    },
+    "var/evid07-creation-reader-mypy.txt": {
+      "sha256": "d0900ac295cc2427c4d66d20eaaad347f01ab4f61ddd809745efedd2b64f4d88",
+      "content": "Success: no issues found in 3 source files\nMypy regressions: 0 (legacy errors observed: 0)\n"
+    },
+    "var/evid07-canonical-creation-facade-mypy.txt": {
+      "sha256": "5ba4fad13a81b04a0a55439e46f84ebb25f1dcefaf8a0f67d0e71ba1266e2e69",
+      "content": "Success: no issues found in 2 source files\nMypy regressions: 0 (legacy errors observed: 0)\n"
+    },
+    "var/evid07-creation-orchestration-mypy.txt": {
+      "sha256": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b",
+      "content": "Success: no issues found in 1 source file\nMypy regressions: 0 (legacy errors observed: 0)\n"
+    },
+    "var/evid07-creation-orchestration-debt-final.txt": {
+      "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+      "content": "Full mypy debt ceiling passed: 0 errors in 0 files\n"
+    },
+    "var/evid07-creation-orchestration-architecture.txt": {
+      "sha256": "ee2f362155b25c78afaecc4c2e26234a001b3a4e24dc992d539c1f47060ed46c",
+      "content": "Architecture rules version: 2026-06-30.v8\nScan roots: apps, core, shared\nScanned files: 3099\nBoundary rules: 7\nBoundary violations: 0\n"
+    },
+    "var/evid07-creation-final-black.txt": {
+      "sha256": "5a1f0e592a2467f8122690e43d30487f146608b7e4effaffe704e87402a40674",
+      "content": "All done! \\u2728 \\U0001f370 \\u2728\n11 files would be left unchanged.\n"
+    },
+    "var/evid07-creation-final-isort.txt": {
+      "sha256": "a9f58776a09b5dac438049683f24bf85764e0ff8e7455952456165c68c158627",
+      "content": "exit_code=0\n"
+    },
+    "var/evid07-creation-final-ruff.txt": {
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+      "content": "All checks passed!\n"
+    },
+    "var/evid07-creation-final-registry.txt": {
+      "sha256": "b1d243a9262e1ffff0351d06700c1e9167e815bfd9bd3f6c532df43c3717d28d",
+      "content": "active-plan-registry version=2026-09-10.v83 workstreams=9 primary=18 support=27 review=0 units=49 paths=45 violations=0\n"
+    }
+  },
+  "verified": {
+    "combined_unit_tests": 108,
+    "postgres_tests": 3,
+    "postgres_scope": "Two actual Core orchestration cases prove create/replay, conflicts, permanent Binding recovery after a simulated future cutoff, inactive-row rejection, late-stage rollback and retry. One two-connection case observes pg_blocking_pids before release and proves one committed account and evidence graph.",
+    "source_sequence": "The two sequential PG cases preceded two Account composition import-source corrections. The concurrent PG case ran after those corrections and all 11 frozen source hashes remain identical. Previous settings checkpoint source hashes are historical; the SimulatedTrading factory gained its reader afterward.",
+    "static_scope": "Nine production files covered by scoped mypy logs; final full debt is zero. Eleven frozen files pass format/lint; architecture scans 3099 files with zero violations; registry v83 has zero violations."
+  },
+  "limits": [
+    "No authenticated HTTP request was exercised by these three PostgreSQL tests; requester identities are explicit local test inputs.",
+    "Future cutoff testing is not elapsed production observation time.",
+    "The architecture process handle was unavailable on resume; its persisted result, rather than a newly observed exit code, is retained.",
+    "Pytest emits one fixture-module assertion-rewrite warning; test-module assertions execute normally.",
+    "No production deployment, runtime activation, account creation, owner approval or authority grant occurred.",
+    "Subsequent serializer boundary fixes are a separate slice and are not covered by this checkpoint's full-debt result."
+  ],
+  "remaining": [
+    "Authenticated HTTP creation across supported authentication methods",
+    "Explicit owner approval and reauthorization through the complete owner-scope graph",
+    "Production DATA-02, EVID-01/02, AUD-03 and TAR-05 exit gates"
+  ],
+  "unit_exit_gate_passed": false,
+  "production_changes": false,
+  "artifact_git_tracking": "Ignored local artifact; no forced staging or ignore-rule changes."
+}

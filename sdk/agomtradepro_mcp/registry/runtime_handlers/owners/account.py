@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
 from agomtradepro_mcp.registry.runtime_handlers.common import _call_registered_tool
 
@@ -607,15 +607,18 @@ def _internal_handler_account_create_trading_cost_config(
             ),
         }
 
-    return _call_registered_tool(
-        "create_trading_cost_config",
-        {
-            "portfolio_id": portfolio_id,
-            "commission_rate": commission_rate,
-            "min_commission": min_commission,
-            "stamp_duty_rate": stamp_duty_rate,
-            "transfer_fee_rate": transfer_fee_rate,
-        },
+    return cast(
+        dict[str, Any],
+        _call_registered_tool(
+            "create_trading_cost_config",
+            {
+                "portfolio_id": portfolio_id,
+                "commission_rate": commission_rate,
+                "min_commission": min_commission,
+                "stamp_duty_rate": stamp_duty_rate,
+                "transfer_fee_rate": transfer_fee_rate,
+            },
+        ),
     )
 
 
@@ -825,6 +828,7 @@ def _internal_handler_account_create_unified_account(
     preview_only: bool = False,
     idempotency_key: str | None = None,
 ) -> dict[str, Any]:
+    """Preview an account or preserve its governed request identity on commit."""
     from agomtradepro import AgomTradeProClient
 
     normalized_name = str(account_name).strip()
@@ -889,6 +893,8 @@ def _internal_handler_account_create_unified_account(
             ),
         }
 
+    if idempotency_key is None:
+        raise ValueError("idempotency_key is required for account creation")
     return client.account.create_account(
         name=normalized_name,
         initial_capital=normalized_initial_capital,
@@ -897,6 +903,7 @@ def _internal_handler_account_create_unified_account(
         stop_loss_pct=float(stop_loss_pct) if stop_loss_pct is not None else None,
         commission_rate=float(commission_rate),
         slippage_rate=float(slippage_rate),
+        idempotency_key=idempotency_key,
     )
 
 
@@ -947,16 +954,19 @@ def _internal_handler_account_update_trading_cost_config(
             "message": ("Preview generated. Confirm to update the selected trading cost config."),
         }
 
-    return _call_registered_tool(
-        "update_trading_cost_config",
-        {
-            "config_id": config_id,
-            "commission_rate": commission_rate,
-            "min_commission": min_commission,
-            "stamp_duty_rate": stamp_duty_rate,
-            "transfer_fee_rate": transfer_fee_rate,
-            "is_active": is_active,
-        },
+    return cast(
+        dict[str, Any],
+        _call_registered_tool(
+            "update_trading_cost_config",
+            {
+                "config_id": config_id,
+                "commission_rate": commission_rate,
+                "min_commission": min_commission,
+                "stamp_duty_rate": stamp_duty_rate,
+                "transfer_fee_rate": transfer_fee_rate,
+                "is_active": is_active,
+            },
+        ),
     )
 
 

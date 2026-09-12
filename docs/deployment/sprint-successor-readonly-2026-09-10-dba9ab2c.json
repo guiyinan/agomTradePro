@@ -1,0 +1,111 @@
+{
+  "schema": "sprint-successor-readonly.v1",
+  "recorded_at": "2026-09-09T17:02:40.562521+00:00",
+  "supersedes_current_candidate_projection_only": "docs/deployment/sprint-preflight-readonly-2026-09-10-122373b1.json",
+  "deployment_evidence": "docs/deployment/main-vps-upgrade-2026-09-10-dba9ab2c8.json",
+  "deployment_evidence_sha256": "97ef15689a868f025d7e0a33649707b8a70b95da8e1bbbec57c802d47e1507c6",
+  "production_mutation_performed": false,
+  "canonical_acceptance_claimed": false,
+  "captures": [
+    {
+      "label": "identity_before",
+      "command": "docker inspect --format '{{.Name}} {{.Config.Image}} {{.Image}} {{.State.Status}} {{index .Config.Labels \"org.opencontainers.image.revision\"}}' agomtradepro-web-1",
+      "input": null,
+      "exit_code": 0,
+      "stdout_base64": "L2Fnb210cmFkZXByby13ZWItMSBhZ29tdHJhZGVwcm8td2ViOjIwMjYwOTEwMDAyNTAxIHNoYTI1Njo3YTQyYWJlMjE1YmE1ZmU4MGFmMzA0NzU4YzBmN2NkNzRlZTIyMWQ4ODg2N2U3ZWVkZDY2YmFkYmM5OTA0NzA2IHJ1bm5pbmcgZGJhOWFiMmM4YzE4YjgyNGE2ZWQ2MGQ5MGIwNzY1ZTAyMGU2OTA4ZAo=",
+      "stdout_sha256": "d6ecce0a2ba24a2d5a867f85e6ec0c0d39d4dee5f838c7e8623f7c269b46aa96",
+      "stderr_base64": "",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "database",
+      "command": "docker exec -i agomtradepro-postgres-1 sh -c 'psql -X -qAt -v ON_ERROR_STOP=1 -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\"'",
+      "input": "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;\nSET LOCAL statement_timeout = '15s';\nSELECT json_build_object('observed_at',CURRENT_TIMESTAMP,'read_only',current_setting('transaction_read_only'),'actor_authority_rows',(SELECT count(*) FROM account_actor_authority_source_v3_ledger),'scope_authority_rows',(SELECT count(*) FROM account_owner_tenant_authority_v1),'audit_event_rows',(SELECT count(*) FROM audit_system_event),'audit_outbox_rows',(SELECT count(*) FROM audit_system_outbox),'applied_migrations',(SELECT count(*) FROM django_migrations));\nSELECT json_build_object('snapshot_id',snapshot_id,'profile_key',profile_key,'profile_version',profile_version,'snapshot_hash',snapshot_hash,'generated_at',generated_at,'mode',resolved_values->'audit.system_event.mode','outbox_enabled',resolved_values->'audit.system_event.outbox_enabled','authority_selector',resolved_values->'audit.system_event.authority_selector') FROM config_center_runtime_config_snapshot WHERE profile_key='production' ORDER BY generated_at DESC LIMIT 1;\nSELECT json_build_object('dataset_key',p.dataset_key,'publication_id',p.publication_id,'state',p.state,'publication_hash',p.publication_hash,'published_at',p.published_at,'member_count',(SELECT count(*) FROM data_center_publication_member m WHERE m.publication_id=p.publication_id)) FROM data_center_canonical_publication p WHERE p.state='published' AND p.dataset_key IN ('equity.quote.snapshot','equity.price.bar','equity.valuation.fact','equity.financial.fact') ORDER BY p.dataset_key;\nROLLBACK;\n",
+      "exit_code": 0,
+      "stdout_base64": "eyJvYnNlcnZlZF9hdCIgOiAiMjAyNi0wOS0wOVQxNzowMjo0NS4wMDUxMzIrMDA6MDAiLCAicmVhZF9vbmx5IiA6ICJvbiIsICJhY3Rvcl9hdXRob3JpdHlfcm93cyIgOiAwLCAic2NvcGVfYXV0aG9yaXR5X3Jvd3MiIDogMCwgImF1ZGl0X2V2ZW50X3Jvd3MiIDogMCwgImF1ZGl0X291dGJveF9yb3dzIiA6IDAsICJhcHBsaWVkX21pZ3JhdGlvbnMiIDogNTAwfQp7InNuYXBzaG90X2lkIiA6ICJmOTZjZWNhMS05ZmI1LTQzMjEtOTYwNC0wZDUzZGEyMmFhOWMiLCAicHJvZmlsZV9rZXkiIDogInByb2R1Y3Rpb24iLCAicHJvZmlsZV92ZXJzaW9uIiA6IDIsICJzbmFwc2hvdF9oYXNoIiA6ICJhZjE2NGMxY2EzOTU5MTYyNzZhNWZmMDk5MGQ2OTlkYmVlMjE0MWEyYTFiOWU2OWYyMjU4ZmJkZjQ0NzRkODBjIiwgImdlbmVyYXRlZF9hdCIgOiAiMjAyNi0wOC0wOVQwODozOTozMS45MTE4NzIrMDA6MDAiLCAibW9kZSIgOiBudWxsLCAib3V0Ym94X2VuYWJsZWQiIDogbnVsbCwgImF1dGhvcml0eV9zZWxlY3RvciIgOiBudWxsfQp7ImRhdGFzZXRfa2V5IiA6ICJlcXVpdHkuZmluYW5jaWFsLmZhY3QiLCAicHVibGljYXRpb25faWQiIDogImM4NzQxODEyLWNmMDEtNTEyZi04ZDFjLTkxYzBlNjU0OWY0MiIsICJzdGF0ZSIgOiAicHVibGlzaGVkIiwgInB1YmxpY2F0aW9uX2hhc2giIDogIjIwYWNkYjNmMTZiY2Q0ODQzYTVhNWNhNDhiNjc1OGY3OTFhOWI3Y2IxZWVmYjEyYTI3YjdlNDc0YWM3Njc4NWMiLCAicHVibGlzaGVkX2F0IiA6ICIyMDI2LTA4LTE1VDAyOjU0OjU5LjkwNDkwOCswMDowMCIsICJtZW1iZXJfY291bnQiIDogODB9CnsiZGF0YXNldF9rZXkiIDogImVxdWl0eS5wcmljZS5iYXIiLCAicHVibGljYXRpb25faWQiIDogIjkzYmIyMmJmLWQyZWQtNThjYS04YjE5LTcyMTdhNzQwNDFkMSIsICJzdGF0ZSIgOiAicHVibGlzaGVkIiwgInB1YmxpY2F0aW9uX2hhc2giIDogIjllZTE0MjY2YjM0MjZkOTEzMTYyZDAxZjFhMzRlYzdiMTEzYmM1MzgwZmU0NTMzZDhhMzZlNGJlNDQxMTBlMTMiLCAicHVibGlzaGVkX2F0IiA6ICIyMDI2LTA4LTI4VDE1OjE3OjUyLjMwMjI5MSswMDowMCIsICJtZW1iZXJfY291bnQiIDogMjN9CnsiZGF0YXNldF9rZXkiIDogImVxdWl0eS5xdW90ZS5zbmFwc2hvdCIsICJwdWJsaWNhdGlvbl9pZCIgOiAiMGUwMGVhMWUtMjBjZC01ZGFmLWI5MmQtNDk1NDdlNDRhYWM5IiwgInN0YXRlIiA6ICJwdWJsaXNoZWQiLCAicHVibGljYXRpb25faGFzaCIgOiAiNjM4ZTU4OTY1NGIyZTU1ZGZmOWVhY2I3NTYzOGMyMjMyMDY2YjZhNzQ0ZDJhMTRlZTMxNWM0OTNhYjc2ZTI0NyIsICJwdWJsaXNoZWRfYXQiIDogIjIwMjYtMDgtMjhUMDg6MTU6MjkuNzMwMDg5KzAwOjAwIiwgIm1lbWJlcl9jb3VudCIgOiAxfQo=",
+      "stdout_sha256": "43a605104b60aa6c0b7fad9792c2c0bb49dd60a14eaffd760033b6f3a3108105",
+      "stderr_base64": "",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "manifest",
+      "command": "docker exec agomtradepro-web-1 python -c 'import os,json;from pathlib import Path;print(Path(os.environ['\"'\"'AGOM_RELEASE_MANIFEST_PATH'\"'\"']).read_text())'",
+      "input": null,
+      "exit_code": 0,
+      "stdout_base64": "ewogICJidWlsZF9maW5pc2hlZF9hdCI6ICIyMDI2LTA5LTA5VDE2OjMzOjMyWiIsCiAgImJ1aWxkX3N0YXJ0ZWRfYXQiOiAiMjAyNi0wOS0wOVQxNjoyNTowNFoiLAogICJpbWFnZV9pZCI6ICJzaGEyNTY6N2E0MmFiZTIxNWJhNWZlODBhZjMwNDc1OGMwZjdjZDc0ZWUyMjFkODg4NjdlN2VlZGQ2NmJhZGJjOTkwNDcwNiIsCiAgImltYWdlX3RhZyI6ICJhZ29tdHJhZGVwcm8td2ViOjIwMjYwOTEwMDAyNTAxIiwKICAicmVsZWFzZV90YWciOiAiMjAyNjA5MTAwMDI1MDEiLAogICJzb3VyY2VfY29tbWl0IjogImRiYTlhYjJjOGMxOGI4MjRhNmVkNjBkOTBiMDc2NWUwMjBlNjkwOGQiLAogICJzb3VyY2VfbW9kZSI6ICJnaXQtY2xvbmUiLAogICJ2ZXJzaW9uIjogMQp9Cgo=",
+      "stdout_sha256": "039eea1ff8c3b76533bc2c6ecbb13e6dfbf3aa22c0354218641efeba95609c86",
+      "stderr_base64": "",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "identity_after",
+      "command": "docker inspect --format '{{.Name}} {{.Config.Image}} {{.Image}} {{.State.Status}} {{index .Config.Labels \"org.opencontainers.image.revision\"}}' agomtradepro-web-1",
+      "input": null,
+      "exit_code": 0,
+      "stdout_base64": "L2Fnb210cmFkZXByby13ZWItMSBhZ29tdHJhZGVwcm8td2ViOjIwMjYwOTEwMDAyNTAxIHNoYTI1Njo3YTQyYWJlMjE1YmE1ZmU4MGFmMzA0NzU4YzBmN2NkNzRlZTIyMWQ4ODg2N2U3ZWVkZDY2YmFkYmM5OTA0NzA2IHJ1bm5pbmcgZGJhOWFiMmM4YzE4YjgyNGE2ZWQ2MGQ5MGIwNzY1ZTAyMGU2OTA4ZAo=",
+      "stdout_sha256": "d6ecce0a2ba24a2d5a867f85e6ec0c0d39d4dee5f838c7e8623f7c269b46aa96",
+      "stderr_base64": "",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "candidate": {
+    "build_finished_at": "2026-09-09T16:33:32Z",
+    "build_started_at": "2026-09-09T16:25:04Z",
+    "image_id": "sha256:7a42abe215ba5fe80af304758c0f7cd74ee221d88867e7eedd66badbc9904706",
+    "image_tag": "agomtradepro-web:20260910002501",
+    "release_tag": "20260910002501",
+    "source_commit": "dba9ab2c8c18b824a6ed60d90b0765e020e6908d",
+    "source_mode": "git-clone",
+    "version": 1
+  },
+  "database_findings": [
+    {
+      "observed_at": "2026-09-09T17:02:45.005132+00:00",
+      "read_only": "on",
+      "actor_authority_rows": 0,
+      "scope_authority_rows": 0,
+      "audit_event_rows": 0,
+      "audit_outbox_rows": 0,
+      "applied_migrations": 500
+    },
+    {
+      "snapshot_id": "f96ceca1-9fb5-4321-9604-0d53da22aa9c",
+      "profile_key": "production",
+      "profile_version": 2,
+      "snapshot_hash": "af164c1ca395916276a5ff0990d699dbee2141a2a1b9e69f2258fbdf4474d80c",
+      "generated_at": "2026-08-09T08:39:31.911872+00:00",
+      "mode": null,
+      "outbox_enabled": null,
+      "authority_selector": null
+    },
+    {
+      "dataset_key": "equity.financial.fact",
+      "publication_id": "c8741812-cf01-512f-8d1c-91c0e6549f42",
+      "state": "published",
+      "publication_hash": "20acdb3f16bcd4843a5a5ca48b6758f791a9b7cb1eefb12a27b7e474ac76785c",
+      "published_at": "2026-08-15T02:54:59.904908+00:00",
+      "member_count": 80
+    },
+    {
+      "dataset_key": "equity.price.bar",
+      "publication_id": "93bb22bf-d2ed-58ca-8b19-7217a74041d1",
+      "state": "published",
+      "publication_hash": "9ee14266b3426d913162d01f1a34ec7b113bc5380fe4533d8a36e4be44110e13",
+      "published_at": "2026-08-28T15:17:52.302291+00:00",
+      "member_count": 23
+    },
+    {
+      "dataset_key": "equity.quote.snapshot",
+      "publication_id": "0e00ea1e-20cd-5daf-b92d-49547e44aac9",
+      "state": "published",
+      "publication_hash": "638e589654b2e55dff9eacb75638c2232066b6a744d2a14ee315c493ab76e247",
+      "published_at": "2026-08-28T08:15:29.730089+00:00",
+      "member_count": 1
+    }
+  ],
+  "limitations": [
+    "Applied migration count does not establish pending migration count.",
+    "No writer smoke, canonical reconciliation, recovery/archive restore, UAT or retained-window acceptance was performed.",
+    "Separate container and database observations are not one atomic system snapshot."
+  ]
+}

@@ -40,6 +40,11 @@ class DjangoSimulatedAccountMutationWriter:
         self._using = using
         self._validity_period = validity_period
 
+    @property
+    def database_alias(self) -> str:
+        """Return the owner transaction alias used by every observation append."""
+        return self._using
+
     def record_create(
         self, mutation: SimulatedAccountPhysicalRowMutation
     ) -> SimulatedAccountRawObservation:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
 from agomtradepro_mcp.registry.runtime_handlers.common import _call_registered_tool
 
@@ -104,6 +104,10 @@ def _fallback_create_simulated_account(
     slippage_rate: float = 0.001,
     idempotency_key: str | None = None,
 ) -> dict[str, Any]:
+    """Forward a governed creation identity to the canonical API unchanged."""
+
+    if idempotency_key is None:
+        raise ValueError("idempotency_key is required for account creation")
     from agomtradepro import AgomTradeProClient
 
     client = AgomTradeProClient()
@@ -116,6 +120,7 @@ def _fallback_create_simulated_account(
         stop_loss_pct=stop_loss_pct,
         commission_rate=commission_rate,
         slippage_rate=slippage_rate,
+        idempotency_key=idempotency_key,
     )
 
 
@@ -223,15 +228,18 @@ def _internal_handler_trading_submit_simulated_order(
             ),
         }
 
-    return _call_registered_tool(
-        "execute_simulated_trade",
-        {
-            "account_id": account_id,
-            "asset_code": normalized_asset_code,
-            "side": normalized_side,
-            "quantity": quantity,
-            "price": price,
-        },
+    return cast(
+        dict[str, Any],
+        _call_registered_tool(
+            "execute_simulated_trade",
+            {
+                "account_id": account_id,
+                "asset_code": normalized_asset_code,
+                "side": normalized_side,
+                "quantity": quantity,
+                "price": price,
+            },
+        ),
     )
 
 
@@ -279,12 +287,15 @@ def _internal_handler_trading_close_simulated_position(
             ),
         }
 
-    return _call_registered_tool(
-        "close_simulated_position",
-        {
-            "account_id": account_id,
-            "asset_code": normalized_asset_code,
-        },
+    return cast(
+        dict[str, Any],
+        _call_registered_tool(
+            "close_simulated_position",
+            {
+                "account_id": account_id,
+                "asset_code": normalized_asset_code,
+            },
+        ),
     )
 
 
@@ -331,12 +342,15 @@ def _internal_handler_trading_reset_simulated_account(
             ),
         }
 
-    return _call_registered_tool(
-        "reset_simulated_account",
-        {
-            "account_id": account_id,
-            "new_initial_capital": new_initial_capital,
-        },
+    return cast(
+        dict[str, Any],
+        _call_registered_tool(
+            "reset_simulated_account",
+            {
+                "account_id": account_id,
+                "new_initial_capital": new_initial_capital,
+            },
+        ),
     )
 
 
@@ -370,11 +384,14 @@ def _internal_handler_trading_delete_simulated_account(
             ),
         }
 
-    return _call_registered_tool(
-        "delete_simulated_account",
-        {
-            "account_id": account_id,
-        },
+    return cast(
+        dict[str, Any],
+        _call_registered_tool(
+            "delete_simulated_account",
+            {
+                "account_id": account_id,
+            },
+        ),
     )
 
 
@@ -449,11 +466,14 @@ def _internal_handler_trading_delete_simulated_account_batch(
             ),
         }
 
-    return _call_registered_tool(
-        "batch_delete_simulated_accounts",
-        {
-            "account_ids": normalized_account_ids,
-        },
+    return cast(
+        dict[str, Any],
+        _call_registered_tool(
+            "batch_delete_simulated_accounts",
+            {
+                "account_ids": normalized_account_ids,
+            },
+        ),
     )
 
 
@@ -467,6 +487,7 @@ def _internal_handler_trading_create_simulated_account(
     preview_only: bool = False,
     idempotency_key: str | None = None,
 ) -> dict[str, Any]:
+    """Preview creation or commit it with the caller's stable request identity."""
     from agomtradepro import AgomTradeProClient
 
     client = AgomTradeProClient()
@@ -511,6 +532,7 @@ def _internal_handler_trading_create_simulated_account(
         stop_loss_pct=stop_loss_pct,
         commission_rate=commission_rate,
         slippage_rate=slippage_rate,
+        idempotency_key=idempotency_key,
     )
 
 
@@ -567,12 +589,15 @@ def _internal_handler_trading_start_simulated_auto_trading(
             ),
         }
 
-    return _call_registered_tool(
-        "run_simulated_auto_trading",
-        {
-            "trade_date": trade_date,
-            "account_ids": normalized_account_ids or None,
-        },
+    return cast(
+        dict[str, Any],
+        _call_registered_tool(
+            "run_simulated_auto_trading",
+            {
+                "trade_date": trade_date,
+                "account_ids": normalized_account_ids or None,
+            },
+        ),
     )
 
 
@@ -613,14 +638,17 @@ def _internal_handler_trading_run_simulated_daily_inspection(
             ),
         }
 
-    return _call_registered_tool(
-        "run_simulated_daily_inspection",
-        {
-            "account_id": account_id,
-            "strategy_id": strategy_id,
-            "inspection_date": inspection_date,
-            "auto_create_proposal": auto_create_proposal,
-        },
+    return cast(
+        dict[str, Any],
+        _call_registered_tool(
+            "run_simulated_daily_inspection",
+            {
+                "account_id": account_id,
+                "strategy_id": strategy_id,
+                "inspection_date": inspection_date,
+                "auto_create_proposal": auto_create_proposal,
+            },
+        ),
     )
 
 

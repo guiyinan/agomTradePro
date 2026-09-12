@@ -3,14 +3,14 @@
     "by_category": {
       "admin_surface": 13,
       "agent_skill": 3,
-      "application_consumer": 158,
+      "application_consumer": 159,
       "beat_schedule": 59,
       "capability_runtime": 25,
       "celery_dispatch_edge": 18,
       "celery_task": 126,
       "compatibility_facade": 94,
-      "current_data_surface": 53,
-      "dynamic_import_edge": 10,
+      "current_data_surface": 62,
+      "dynamic_import_edge": 11,
       "management_command": 27,
       "management_command_edge": 56,
       "mcp_tool": 40,
@@ -18,25 +18,25 @@
       "operational_dispatch_edge": 61,
       "operational_script": 29,
       "orchestration_entry": 9,
-      "public_port": 91,
-      "rest_url": 66,
+      "public_port": 92,
+      "rest_url": 72,
       "runbook": 7,
       "runtime_config_key": 45,
       "scheduler_writer": 16,
       "script": 8,
-      "sdk": 46,
+      "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 44,
+      "test_evidence": 62,
       "workflow_step": 10
     },
     "by_status": {
-      "active_public": 721,
+      "active_public": 750,
       "adjacent_operational": 298,
-      "candidate-review": 0,
+      "candidate-review": 18,
       "compatibility": 137,
       "retired_blocked": 0
     },
-    "total": 1156
+    "total": 1203
   },
   "entries": [
     {
@@ -352,11 +352,11 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/alpha/infrastructure/qlib_builder.py:get_tushare_client:line:19",
+      "id": "application_consumer:apps/alpha/infrastructure/qlib_builder.py:get_model_market_data_port:line:19",
       "locator": "line:19",
       "path": "apps/alpha/infrastructure/qlib_builder.py",
       "status": "active_public",
-      "symbol": "get_tushare_client",
+      "symbol": "get_model_market_data_port",
       "target": ""
     },
     {
@@ -632,18 +632,8 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/equity/infrastructure/adapters.py:get_akshare_module_port:line:18",
-      "locator": "line:18",
-      "path": "apps/equity/infrastructure/adapters.py",
-      "status": "active_public",
-      "symbol": "get_akshare_module_port",
-      "target": ""
-    },
-    {
-      "category": "application_consumer",
-      "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/equity/infrastructure/adapters.py:get_asset_repository_port:line:18",
-      "locator": "line:18",
+      "id": "application_consumer:apps/equity/infrastructure/adapters.py:get_asset_repository_port:line:16",
+      "locator": "line:16",
       "path": "apps/equity/infrastructure/adapters.py",
       "status": "active_public",
       "symbol": "get_asset_repository_port",
@@ -652,8 +642,18 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/equity/infrastructure/adapters.py:get_price_bar_repository_port:line:18",
-      "locator": "line:18",
+      "id": "application_consumer:apps/equity/infrastructure/adapters.py:get_model_market_data_port:line:16",
+      "locator": "line:16",
+      "path": "apps/equity/infrastructure/adapters.py",
+      "status": "active_public",
+      "symbol": "get_model_market_data_port",
+      "target": ""
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/infrastructure/adapters.py:get_price_bar_repository_port:line:16",
+      "locator": "line:16",
       "path": "apps/equity/infrastructure/adapters.py",
       "status": "active_public",
       "symbol": "get_price_bar_repository_port",
@@ -717,6 +717,16 @@
       "path": "apps/equity/infrastructure/intraday_repository.py",
       "status": "active_public",
       "symbol": "get_published_quote_series",
+      "target": ""
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/infrastructure/market_data_repository.py:get_model_market_data_port:line:17",
+      "locator": "line:17",
+      "path": "apps/equity/infrastructure/market_data_repository.py",
+      "status": "active_public",
+      "symbol": "get_model_market_data_port",
       "target": ""
     },
     {
@@ -2682,8 +2692,8 @@
     {
       "category": "celery_dispatch_edge",
       "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
-      "id": "celery_dispatch_edge:apps/alpha/application/tasks.py:delay:line:761",
-      "locator": "line:761",
+      "id": "celery_dispatch_edge:apps/alpha/application/tasks.py:delay:line:794",
+      "locator": "line:794",
       "path": "apps/alpha/application/tasks.py",
       "status": "active_public",
       "symbol": "delay",
@@ -5011,12 +5021,72 @@
     },
     {
       "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=7",
+      "id": "current_data_surface:governance/current_data_contracts.json:account.owner_tenant_authority_v2:Owner decision temporal validity and immutable explicit revocation; not standalone authentication",
+      "locator": "Owner decision temporal validity and immutable explicit revocation; not standalone authentication",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "account.owner_tenant_authority_v2",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=5",
+      "id": "current_data_surface:governance/current_data_contracts.json:account.owner_tenant_authority_v3_evidence_scope:Evidence V5-backed exact-current owner/tenant authority and request-local Research evidence scope",
+      "locator": "Evidence V5-backed exact-current owner/tenant authority and request-local Research evidence scope",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "account.owner_tenant_authority_v3_evidence_scope",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=4",
+      "id": "current_data_surface:governance/current_data_contracts.json:account.single_owner_assignment_evidence_v4:Policy-bound Subject V4 and Evidence V4 current validity",
+      "locator": "Policy-bound Subject V4 and Evidence V4 current validity",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "account.single_owner_assignment_evidence_v4",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=4",
+      "id": "current_data_surface:governance/current_data_contracts.json:account.single_owner_creation_receipt_v4:Policy-bound creation receipt v4 current and historical head resolution",
+      "locator": "Policy-bound creation receipt v4 current and historical head resolution",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "account.single_owner_creation_receipt_v4",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=4",
+      "id": "current_data_surface:governance/current_data_contracts.json:account.single_owner_current_participants:Exact-current server-bound single-owner policy and authenticated role projection",
+      "locator": "Exact-current server-bound single-owner policy and authenticated role projection",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "account.single_owner_current_participants",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
       "evidence": "governed current-data contract; source_files=1",
       "id": "current_data_surface:governance/current_data_contracts.json:agent_runtime.current_context:Agent Runtime context snapshot current regime/policy summaries",
       "locator": "Agent Runtime context snapshot current regime/policy summaries",
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "agent_runtime.current_context",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=1",
+      "id": "current_data_surface:governance/current_data_contracts.json:alpha.qlib_prediction_source_freshness:Alpha Qlib prediction cache and downstream workspace refresh",
+      "locator": "Alpha Qlib prediction cache and downstream workspace refresh",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "alpha.qlib_prediction_source_freshness",
       "target": ""
     },
     {
@@ -5141,6 +5211,16 @@
     },
     {
       "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=1",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.model_market_history:Provider-neutral Qlib and Equity historical model inputs",
+      "locator": "Provider-neutral Qlib and Equity historical model inputs",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "data_center.model_market_history",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
       "evidence": "governed current-data contract; source_files=6",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.provider_capability_health:Provider health API + failover + strict decision readiness",
       "locator": "Provider health API + failover + strict decision readiness",
@@ -5207,6 +5287,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "data_center.publication_writer_atomicity",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=2",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.qmt_bridge_observations:Owner-bound QMT bridge ingestion and provider freshness",
+      "locator": "Owner-bound QMT bridge ingestion and provider freshness",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "data_center.qmt_bridge_observations",
       "target": ""
     },
     {
@@ -5361,7 +5451,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=2",
+      "evidence": "governed current-data contract; source_files=3",
       "id": "current_data_surface:governance/current_data_contracts.json:pulse.current:GET /api/pulse/current/",
       "locator": "GET /api/pulse/current/",
       "path": "governance/current_data_contracts.json",
@@ -5482,6 +5572,16 @@
     {
       "category": "current_data_surface",
       "evidence": "governed current-data contract; source_files=3",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.live_account_ownership:Live physical account ownership observation within the caller transaction",
+      "locator": "Live physical account ownership observation within the caller transaction",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "simulated_trading.live_account_ownership",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=3",
       "id": "current_data_surface:governance/current_data_contracts.json:strategy.execution_preview:POST /api/strategy/execution/evaluate/ display-only preview",
       "locator": "POST /api/strategy/execution/evaluate/ display-only preview",
       "path": "governance/current_data_contracts.json",
@@ -5572,8 +5672,8 @@
     {
       "category": "dynamic_import_edge",
       "evidence": "statically resolved dynamic import target",
-      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:152",
-      "locator": "line:152",
+      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:157",
+      "locator": "line:157",
       "path": "apps/data_center/infrastructure/tushare_client.py",
       "status": "adjacent_operational",
       "symbol": "import_module",
@@ -5582,8 +5682,8 @@
     {
       "category": "dynamic_import_edge",
       "evidence": "statically resolved dynamic import target",
-      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:24",
-      "locator": "line:24",
+      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:27",
+      "locator": "line:27",
       "path": "apps/data_center/infrastructure/tushare_client.py",
       "status": "adjacent_operational",
       "symbol": "import_module",
@@ -5592,8 +5692,8 @@
     {
       "category": "dynamic_import_edge",
       "evidence": "statically resolved dynamic import target",
-      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:247",
-      "locator": "line:247",
+      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:491",
+      "locator": "line:491",
       "path": "apps/data_center/infrastructure/tushare_client.py",
       "status": "adjacent_operational",
       "symbol": "import_module",
@@ -5608,6 +5708,16 @@
       "status": "adjacent_operational",
       "symbol": "import_module",
       "target": "django_celery_beat.models"
+    },
+    {
+      "category": "dynamic_import_edge",
+      "evidence": "runtime import is bounded by OWNER_MANIFEST_MODULES",
+      "id": "dynamic_import_edge:sdk/agomtradepro_mcp/registry/loader.py:import_module:line:38:data_center_egress_capabilities",
+      "locator": "line:38:data_center_egress_capabilities",
+      "path": "sdk/agomtradepro_mcp/registry/loader.py",
+      "status": "active_public",
+      "symbol": "import_module",
+      "target": "agomtradepro_mcp.registry.modules.owners.data_center_egress_capabilities"
     },
     {
       "category": "dynamic_import_edge",
@@ -8322,6 +8432,16 @@
     {
       "category": "public_port",
       "evidence": "canonical Data Center Application public port",
+      "id": "public_port:apps/data_center/application/public.py:get_model_market_data_port:",
+      "locator": "",
+      "path": "apps/data_center/application/public.py",
+      "status": "active_public",
+      "symbol": "get_model_market_data_port",
+      "target": ""
+    },
+    {
+      "category": "public_port",
+      "evidence": "canonical Data Center Application public port",
       "id": "public_port:apps/data_center/application/public.py:get_news_repository_port:",
       "locator": "",
       "path": "apps/data_center/application/public.py",
@@ -9352,6 +9472,66 @@
     {
       "category": "rest_url",
       "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:path@106:egress/",
+      "locator": "egress/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "path@106",
+      "target": "include('apps.data_center.interface.egress_api_urls')"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:qmt-bridge-batches:qmt-bridge/agent/v1/batches/",
+      "locator": "qmt-bridge/agent/v1/batches/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "qmt-bridge-batches",
+      "target": "QmtMachineView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:qmt-bridge-bindings:qmt-bridge/bindings/",
+      "locator": "qmt-bridge/bindings/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "qmt-bridge-bindings",
+      "target": "QmtBindingsView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:qmt-bridge-control:qmt-bridge/bindings/<uuid:binding_id>/",
+      "locator": "qmt-bridge/bindings/<uuid:binding_id>/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "qmt-bridge-control",
+      "target": "QmtBindingControlView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:qmt-bridge-pair:qmt-bridge/pair/",
+      "locator": "qmt-bridge/pair/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "qmt-bridge-pair",
+      "target": "QmtPairView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:qmt-bridge-plan:qmt-bridge/agent/v1/plan/",
+      "locator": "qmt-bridge/agent/v1/plan/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "qmt-bridge-plan",
+      "target": "QmtMachineView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
       "id": "rest_url:apps/data_center/interface/urls.py:dc-governance-page:governance/",
       "locator": "governance/",
       "path": "apps/data_center/interface/urls.py",
@@ -10322,12 +10502,32 @@
     {
       "category": "sdk",
       "evidence": "public SDK client property exposes the canonical Data Center module",
-      "id": "sdk:sdk/agomtradepro/client.py:AgomTradeProClient.data_center:line:750",
-      "locator": "line:750",
+      "id": "sdk:sdk/agomtradepro/client.py:AgomTradeProClient.data_center:line:764",
+      "locator": "line:764",
       "path": "sdk/agomtradepro/client.py",
       "status": "active_public",
       "symbol": "AgomTradeProClient.data_center",
       "target": "DataCenterModule"
+    },
+    {
+      "category": "sdk",
+      "evidence": "canonical SDK DataCenterModule",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.create_egress_endpoint:POST",
+      "locator": "POST",
+      "path": "sdk/agomtradepro/modules/data_center.py",
+      "status": "active_public",
+      "symbol": "DataCenterModule.create_egress_endpoint",
+      "target": "POST /api/data-center/egress/endpoints/"
+    },
+    {
+      "category": "sdk",
+      "evidence": "canonical SDK DataCenterModule",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.create_egress_rule:POST",
+      "locator": "POST",
+      "path": "sdk/agomtradepro/modules/data_center.py",
+      "status": "active_public",
+      "symbol": "DataCenterModule.create_egress_rule",
+      "target": "POST /api/data-center/egress/rules/"
     },
     {
       "category": "sdk",
@@ -10412,12 +10612,42 @@
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.diagnose_egress_route:POST",
+      "locator": "POST",
+      "path": "sdk/agomtradepro/modules/data_center.py",
+      "status": "active_public",
+      "symbol": "DataCenterModule.diagnose_egress_route",
+      "target": "POST /api/data-center/egress/diagnostics/"
+    },
+    {
+      "category": "sdk",
+      "evidence": "canonical SDK DataCenterModule",
       "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_capital_flows:GET",
       "locator": "GET",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.get_capital_flows",
       "target": "GET /api/data-center/capital-flows/"
+    },
+    {
+      "category": "sdk",
+      "evidence": "canonical SDK DataCenterModule",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_egress_endpoint:GET",
+      "locator": "GET",
+      "path": "sdk/agomtradepro/modules/data_center.py",
+      "status": "active_public",
+      "symbol": "DataCenterModule.get_egress_endpoint",
+      "target": "GET /api/data-center/f'egress/endpoints/{endpoint_id}/'"
+    },
+    {
+      "category": "sdk",
+      "evidence": "canonical SDK DataCenterModule",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.get_egress_rule:GET",
+      "locator": "GET",
+      "path": "sdk/agomtradepro/modules/data_center.py",
+      "status": "active_public",
+      "symbol": "DataCenterModule.get_egress_rule",
+      "target": "GET /api/data-center/f'egress/rules/{rule_id}/'"
     },
     {
       "category": "sdk",
@@ -10562,6 +10792,26 @@
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.list_egress_endpoints:GET",
+      "locator": "GET",
+      "path": "sdk/agomtradepro/modules/data_center.py",
+      "status": "active_public",
+      "symbol": "DataCenterModule.list_egress_endpoints",
+      "target": "GET /api/data-center/egress/endpoints/"
+    },
+    {
+      "category": "sdk",
+      "evidence": "canonical SDK DataCenterModule",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.list_egress_rules:GET",
+      "locator": "GET",
+      "path": "sdk/agomtradepro/modules/data_center.py",
+      "status": "active_public",
+      "symbol": "DataCenterModule.list_egress_rules",
+      "target": "GET /api/data-center/egress/rules/"
+    },
+    {
+      "category": "sdk",
+      "evidence": "canonical SDK DataCenterModule",
       "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.list_indicator_unit_rules:GET",
       "locator": "GET",
       "path": "sdk/agomtradepro/modules/data_center.py",
@@ -10598,6 +10848,16 @@
       "status": "active_public",
       "symbol": "DataCenterModule.list_publishers",
       "target": "GET /api/data-center/publishers/"
+    },
+    {
+      "category": "sdk",
+      "evidence": "canonical SDK DataCenterModule",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.preview_egress_route:POST",
+      "locator": "POST",
+      "path": "sdk/agomtradepro/modules/data_center.py",
+      "status": "active_public",
+      "symbol": "DataCenterModule.preview_egress_route",
+      "target": "POST /api/data-center/egress/rules/preview/"
     },
     {
       "category": "sdk",
@@ -10712,12 +10972,42 @@
     {
       "category": "sdk",
       "evidence": "canonical SDK DataCenterModule",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.test_egress_endpoint:POST",
+      "locator": "POST",
+      "path": "sdk/agomtradepro/modules/data_center.py",
+      "status": "active_public",
+      "symbol": "DataCenterModule.test_egress_endpoint",
+      "target": "POST /api/data-center/f'egress/endpoints/{endpoint_id}/test/'"
+    },
+    {
+      "category": "sdk",
+      "evidence": "canonical SDK DataCenterModule",
       "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.test_provider_connection:POST",
       "locator": "POST",
       "path": "sdk/agomtradepro/modules/data_center.py",
       "status": "active_public",
       "symbol": "DataCenterModule.test_provider_connection",
       "target": "POST /api/data-center/f'providers/{provider_id}/test/'"
+    },
+    {
+      "category": "sdk",
+      "evidence": "canonical SDK DataCenterModule",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.update_egress_endpoint:PATCH",
+      "locator": "PATCH",
+      "path": "sdk/agomtradepro/modules/data_center.py",
+      "status": "active_public",
+      "symbol": "DataCenterModule.update_egress_endpoint",
+      "target": "PATCH /api/data-center/f'egress/endpoints/{endpoint_id}/'"
+    },
+    {
+      "category": "sdk",
+      "evidence": "canonical SDK DataCenterModule",
+      "id": "sdk:sdk/agomtradepro/modules/data_center.py:DataCenterModule.update_egress_rule:PATCH",
+      "locator": "PATCH",
+      "path": "sdk/agomtradepro/modules/data_center.py",
+      "status": "active_public",
+      "symbol": "DataCenterModule.update_egress_rule",
+      "target": "PATCH /api/data-center/f'egress/rules/{rule_id}/'"
     },
     {
       "category": "sdk",
@@ -11061,12 +11351,142 @@
     },
     {
       "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/account/creation_chain_postgres_fixture.py:creation_chain_postgres_fixture:",
+      "locator": "",
+      "path": "tests/component/account/creation_chain_postgres_fixture.py",
+      "status": "candidate-review",
+      "symbol": "creation_chain_postgres_fixture",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/account/test_account_actor_authority_raw_source_publisher_postgres.py:test_account_actor_authority_raw_source_publisher_postgres:",
+      "locator": "",
+      "path": "tests/component/account/test_account_actor_authority_raw_source_publisher_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_account_actor_authority_raw_source_publisher_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
       "evidence": "reviewed Account-owned disposable PostgreSQL capture, replay, locking, revocation and rollback evidence; no production authority is issued",
       "id": "test_evidence:tests/component/account/test_actor_authority_capture_postgres.py:test_actor_authority_capture_postgres:",
       "locator": "",
       "path": "tests/component/account/test_actor_authority_capture_postgres.py",
       "status": "adjacent_operational",
       "symbol": "test_actor_authority_capture_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/account/test_actual_creation_chain_postgres.py:test_actual_creation_chain_postgres:",
+      "locator": "",
+      "path": "tests/component/account/test_actual_creation_chain_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_actual_creation_chain_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/account/test_authenticated_creation_credentials_postgres.py:test_authenticated_creation_credentials_postgres:",
+      "locator": "",
+      "path": "tests/component/account/test_authenticated_creation_credentials_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_authenticated_creation_credentials_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/account/test_authenticated_creation_http_postgres.py:test_authenticated_creation_http_postgres:",
+      "locator": "",
+      "path": "tests/component/account/test_authenticated_creation_http_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_authenticated_creation_http_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/account/test_bound_policy_publication_postgres.py:test_bound_policy_publication_postgres:",
+      "locator": "",
+      "path": "tests/component/account/test_bound_policy_publication_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_bound_policy_publication_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/account/test_canonical_account_creation_row_postgres.py:test_canonical_account_creation_row_postgres:",
+      "locator": "",
+      "path": "tests/component/account/test_canonical_account_creation_row_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_canonical_account_creation_row_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/account/test_canonical_creation_concurrency_postgres.py:test_canonical_creation_concurrency_postgres:",
+      "locator": "",
+      "path": "tests/component/account/test_canonical_creation_concurrency_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_canonical_creation_concurrency_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/account/test_canonical_creation_orchestration_postgres.py:test_canonical_creation_orchestration_postgres:",
+      "locator": "",
+      "path": "tests/component/account/test_canonical_creation_orchestration_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_canonical_creation_orchestration_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/account/test_canonical_ownership_reobservation_core_postgres.py:test_canonical_ownership_reobservation_core_postgres:",
+      "locator": "",
+      "path": "tests/component/account/test_canonical_ownership_reobservation_core_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_canonical_ownership_reobservation_core_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/account/test_creation_reader_postgres.py:test_creation_reader_postgres:",
+      "locator": "",
+      "path": "tests/component/account/test_creation_reader_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_creation_reader_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/account/test_creation_transaction_postgres.py:test_creation_transaction_postgres:",
+      "locator": "",
+      "path": "tests/component/account/test_creation_transaction_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_creation_transaction_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/account/test_current_account_ownership_postgres.py:test_current_account_ownership_postgres:",
+      "locator": "",
+      "path": "tests/component/account/test_current_account_ownership_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_current_account_ownership_postgres",
       "target": ""
     },
     {
@@ -11081,12 +11501,42 @@
     },
     {
       "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/account/test_existing_account_reobservation_postgres.py:test_existing_account_reobservation_postgres:",
+      "locator": "",
+      "path": "tests/component/account/test_existing_account_reobservation_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_existing_account_reobservation_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
       "evidence": "reviewed PostgreSQL owner-tenant authority concurrency evidence",
       "id": "test_evidence:tests/component/account/test_owner_tenant_authority_v1_postgres_concurrency.py:test_owner_tenant_authority_v1_postgres_concurrency:",
       "locator": "",
       "path": "tests/component/account/test_owner_tenant_authority_v1_postgres_concurrency.py",
       "status": "adjacent_operational",
       "symbol": "test_owner_tenant_authority_v1_postgres_concurrency",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/account/test_policy_publication_api_postgres.py:test_policy_publication_api_postgres:",
+      "locator": "",
+      "path": "tests/component/account/test_policy_publication_api_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_policy_publication_api_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/account/test_single_owner_policy_authentication_postgres.py:test_single_owner_policy_authentication_postgres:",
+      "locator": "",
+      "path": "tests/component/account/test_single_owner_policy_authentication_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_single_owner_policy_authentication_postgres",
       "target": ""
     },
     {
@@ -11147,6 +11597,26 @@
       "path": "tests/component/research/test_evidence_scope_source_v1_postgres_concurrency.py",
       "status": "adjacent_operational",
       "symbol": "test_evidence_scope_source_v1_postgres_concurrency",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/research/test_owner_tenant_evidence_scope_v2_postgres.py:test_owner_tenant_evidence_scope_v2_postgres:",
+      "locator": "",
+      "path": "tests/component/research/test_owner_tenant_evidence_scope_v2_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_owner_tenant_evidence_scope_v2_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/research/test_owner_tenant_evidence_scope_v3_postgres.py:test_owner_tenant_evidence_scope_v3_postgres:",
+      "locator": "",
+      "path": "tests/component/research/test_owner_tenant_evidence_scope_v3_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_owner_tenant_evidence_scope_v3_postgres",
       "target": ""
     },
     {
@@ -11611,7 +12081,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 91,
-    "current_data_contracts": 53,
+    "current_data_contracts": 62,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 22,
     "runtime_config_keys": 45

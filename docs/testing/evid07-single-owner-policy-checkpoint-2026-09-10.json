@@ -1,0 +1,67 @@
+{
+  "schema": "agom.repository-checkpoint.v1",
+  "recorded_at": "2026-09-10T14:53:01.198493+00:00",
+  "unit_id": "EVID-07",
+  "unit_status": "active",
+  "checkpoint": "source-bound single-owner policy and current real-admin role resolution",
+  "source_sha256": {
+    "apps/account/domain/single_owner_authority_policy_v1.py": "29b6c4e056c32799fbacb72921769e5fbb6304ed88d5cc3e87716c059d73db02",
+    "apps/account/application/single_owner_actor_authority.py": "b6f28129982a3f53da336c572be506fed50b2b75f9be14ef100011c3f908b25f",
+    "tests/unit/account/test_single_owner_authority_policy_v1.py": "bb5dee8cd31c39ed380fd455de3c8febeccb97d3a641e29921a0f4b4f261c33b",
+    "tests/unit/account/test_single_owner_actor_authority.py": "3f5b37c169f804e3a6d13d35826d55c10d07fdf77f1290c999d75026f26b0292",
+    "governance/current_data_contracts.json": "51839b398e519c52492145decaa90a7b918cd5c43e43a43365e9a01816d52c1e"
+  },
+  "raw_evidence": {
+    "var/evid07-combined-tests.txt": {
+      "sha256": "bf3a24ff0d8ef3fe31e4f027d8c776d56bc3aeacbafa72f3140605f362dfd945",
+      "content": "....................................................................     [100%]\n68 passed in 1.05s\n"
+    },
+    "var/evid07-final-slice-mypy.txt": {
+      "sha256": "5ba4fad13a81b04a0a55439e46f84ebb25f1dcefaf8a0f67d0e71ba1266e2e69",
+      "content": "Success: no issues found in 2 source files\nMypy regressions: 0 (legacy errors observed: 0)\n"
+    },
+    "var/evid07-initial-governance.txt": {
+      "sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b",
+      "content": "Governance baseline version: 2026-09-09.v220\nGovernance violations: 0\n- governance_baseline: 0 violation(s)\n- docs_consistency: 0 violation(s)\n- docs_links: 0 violation(s)\n- governance_docs: 0 violation(s)\n- module_shape: 0 violation(s)\n- misplaced_app_config: 0 violation(s)\n- singular_dto_files: 0 violation(s)\n- architecture_ruleset: 0 violation(s)\n- module_dependency_baseline: 0 violation(s)\n- ci_governance_wiring: 0 violation(s)\n- application_third_party_imports: 0 violation(s)\n- core_integration_debt: 0 violation(s)\n- core_management_command_debt: 0 violation(s)\n- large_python_files: 0 violation(s)\n- large_file_remediation: 0 violation(s)\n"
+    },
+    "var/evid07-initial-architecture.txt": {
+      "sha256": "248c6002b5c29216ce1a83d127fcc6e54ed0544dc1a90cc96edc524222cd27fe",
+      "content": "Architecture rules version: 2026-06-30.v8\nScan roots: apps, core, shared\nScanned files: 3054\nBoundary rules: 7\nBoundary violations: 0\n"
+    }
+  },
+  "verified": {
+    "tests": {
+      "new_domain": 31,
+      "new_application": 19,
+      "existing_v3": 18,
+      "total_passed": 68
+    },
+    "resolved_failure": "Future policy observation initially authorized an earlier request; explicit red test failed. is_current_at now requires observed_at <= as_of < valid_until; combined rerun passed.",
+    "incremental_mypy": "2 production files; zero issues and regressions",
+    "format": "Black/isort checks for 4 files and Ruff for all 4 passed; observed tool output, not a separate archived raw run",
+    "architecture": "3054 files; 7 boundary rules; zero violations",
+    "freshness": "57 surfaces passed; observed tool output",
+    "registry": "v83; 49 units; zero violations; EVID-07 active"
+  },
+  "pending": {
+    "full_mypy_debt": {
+      "status": "running_at_checkpoint",
+      "exec_session_id": 16580,
+      "output": "var/evid07-initial-debt.txt"
+    },
+    "remaining_implementation": [
+      "real canonical creation transaction wiring",
+      "versioned Receipt/Subject/Evidence",
+      "durable policy and authority repositories/migrations",
+      "typed owner-tenant scope adapter and authenticated composition",
+      "PostgreSQL end-to-end and historical seal compatibility acceptance"
+    ]
+  },
+  "not_claimed": [
+    "EVID-07 exit gate",
+    "production writes or deployment",
+    "human business approval",
+    "canonical ownership of an existing account merely from admin designation",
+    "EVID-01/02 or DATA-02 production acceptance"
+  ]
+}

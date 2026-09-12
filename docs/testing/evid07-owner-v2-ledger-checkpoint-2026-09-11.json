@@ -1,0 +1,94 @@
+{
+  "schema": "agom.repository-checkpoint.v1",
+  "unit_id": "EVID-07",
+  "status": "active",
+  "recorded_at": "2026-09-10T19:29:50.159598+00:00",
+  "checkpoint": "Durable OwnerTenant V2 ledgers and locked authenticated composition",
+  "head": "fd56f1a4683b9500d8c0a205045b4bdf5582f715",
+  "source_sha256": {
+    "apps/account/infrastructure/owner_tenant_authority_v2_models.py": "2b64731be642e4de4e4f182cc8f24bdb3f97a9f0e0f0b5106a456eef61589bff",
+    "apps/account/infrastructure/owner_tenant_authority_v2_repository.py": "6d38144054a226729df89227a4ddfa7e2c6cfc09d26ed0264106e577ff77a126",
+    "apps/account/infrastructure/models.py": "9146d13564343253589a2eb7f78553ba720e6d1e96c0fdaa9aaf18717d318071",
+    "apps/account/migrations/0059_owner_tenant_authority_v2.py": "01aba7b79d81dcf1fc98df8ae8a35b39b030a49c8656811eb88fd5dd0391b4ec",
+    "apps/account/owner_tenant_authority_v2_composition.py": "89497a93b36ee086b0c4056494cd3e29ee4d66321a82fcd5695c4b8d15742f83",
+    "tests/component/account/test_owner_tenant_authority_v2_repository.py": "6621010e8cefbfd0da2adafdf436651a3b388af9eeee72b00f2a3279964a270d",
+    "tests/component/account/test_owner_tenant_authority_v2_migration.py": "55c8df6b1722500e88ee5cc0504867f02f05233482d8b1e5e6d798c90363dbe3",
+    "tests/component/account/test_owner_tenant_authority_v2_composition.py": "02440fd2e71ed339fb9361b2c51253527e397047a3fc5eece9d52b5a51f0255f",
+    "tests/component/account/test_owner_tenant_authority_v2_revoke_binding.py": "7c91fde409893769b5ba4bada17023c2284a973ceb73ff9f289d8f8736453642",
+    "tests/unit/test_account_models_structure.py": "2c3c371a155fc89ceb441f9a0e30ff9e3c3b8e9c99e78355dea499b6f1075755",
+    "governance/current_data_contracts.json": "f024a881d5fc68296403ae31438ea7e85c165b050b83a334af5f4394a1d079f3"
+  },
+  "previous_checkpoint_sha256": "5a118e5c618b4ada116e2cec7f24ebb2057eb1068354bd6c4ee4950f74079ca4",
+  "raw_evidence": {
+    "var/evid07-owner-v2-ledger-postgres.txt": {
+      "sha256": "e7ecd9d8f1de5e929d83a4d597038ed42c63221b25aff2b67c84ec306b34d1ff",
+      "content": "Running EVID-06 tests against dedicated loopback test database.\n......                                                                   [100%]\n6 passed in 1773.57s (0:29:33)\n"
+    },
+    "var/evid07-owner-v2-composition-postgres.txt": {
+      "sha256": "67cd7bd70dd444ffb1901c5ad2857ca000bd7b78d2121cf2795752f3451279e1",
+      "content": "Running EVID-06 tests against dedicated loopback test database.\n...                                                                      [100%]\n============================ slowest 10 durations =============================\n590.43s call     tests/component/account/test_owner_tenant_authority_v2_composition.py::test_locked_facade_real_source_rollback_and_live_owner_recheck\n488.93s call     tests/component/account/test_owner_tenant_authority_v2_composition.py::test_new_actual_session_after_assignment_expiry_reads_decision_then_revokes\n109.63s call     tests/component/account/test_owner_tenant_authority_v2_revoke_binding.py::test_other_real_admin_cannot_leave_invalid_revocation_when_error_is_caught\n63.35s setup    tests/component/account/test_owner_tenant_authority_v2_revoke_binding.py::test_other_real_admin_cannot_leave_invalid_revocation_when_error_is_caught\n37.77s setup    tests/component/account/test_owner_tenant_authority_v2_composition.py::test_locked_facade_real_source_rollback_and_live_owner_recheck\n33.67s setup    tests/component/account/test_owner_tenant_authority_v2_composition.py::test_new_actual_session_after_assignment_expiry_reads_decision_then_revokes\n9.75s teardown tests/component/account/test_owner_tenant_authority_v2_revoke_binding.py::test_other_real_admin_cannot_leave_invalid_revocation_when_error_is_caught\n5.58s teardown tests/component/account/test_owner_tenant_authority_v2_composition.py::test_new_actual_session_after_assignment_expiry_reads_decision_then_revokes\n4.65s teardown tests/component/account/test_owner_tenant_authority_v2_composition.py::test_locked_facade_real_source_rollback_and_live_owner_recheck\n3 passed in 1344.31s (0:22:24)\n"
+    },
+    "var/evid07-owner-v2-ledger-structure-final.txt": {
+      "sha256": "af16caebb6d347db55bbb15fdb679d5bc15f7af961cc24a35cfadc879a3dc719",
+      "content": "...                                                                      [100%]\n3 passed in 0.57s\n"
+    },
+    "var/evid07-owner-v2-ledger-mypy.txt": {
+      "sha256": "b2778bab1157c8d1248033fdb64044f9f72ba7b15624dce01ac6fd930f97030f",
+      "content": "Success: no issues found in 5 source files\nMypy regressions: 0 (legacy errors observed: 0)\n"
+    },
+    "var/evid07-owner-v2-ledger-debt.txt": {
+      "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+      "content": "Full mypy debt ceiling passed: 0 errors in 0 files\n"
+    },
+    "var/evid07-owner-v2-ledger-format.txt": {
+      "sha256": "3922fd328fb1e7c544e2bad4c564f24ecbffd551dabc133a3c9e7a8336977ba1",
+      "content": "All done! \\u2728 \\U0001f370 \\u2728\n9 files would be left unchanged.\nAll checks passed!\n"
+    },
+    "var/evid07-owner-v2-ledger-architecture.txt": {
+      "sha256": "3776bfdcc33882e9266d06f8fdb9d3ab32e5cedd3e00d4c7ffcfa5799857a124",
+      "content": "Architecture rules version: 2026-06-30.v8\nScan roots: apps, core, shared\nScanned files: 3084\nBoundary rules: 7\nBoundary violations: 0\n"
+    },
+    "var/evid07-owner-v2-ledger-governance.txt": {
+      "sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b",
+      "content": "Governance baseline version: 2026-09-09.v220\nGovernance violations: 0\n- governance_baseline: 0 violation(s)\n- docs_consistency: 0 violation(s)\n- docs_links: 0 violation(s)\n- governance_docs: 0 violation(s)\n- module_shape: 0 violation(s)\n- misplaced_app_config: 0 violation(s)\n- singular_dto_files: 0 violation(s)\n- architecture_ruleset: 0 violation(s)\n- module_dependency_baseline: 0 violation(s)\n- ci_governance_wiring: 0 violation(s)\n- application_third_party_imports: 0 violation(s)\n- core_integration_debt: 0 violation(s)\n- core_management_command_debt: 0 violation(s)\n- large_python_files: 0 violation(s)\n- large_file_remediation: 0 violation(s)\n"
+    },
+    "var/evid07-owner-v2-ledger-freshness.txt": {
+      "sha256": "0d276c65b5842d920a0df0d2ad68d4038d6602a710d28a233f69ee2343119c02",
+      "content": "Current-data freshness contracts OK: 61 surface(s)\n"
+    },
+    "var/evid07-owner-v2-ledger-migration-drift.txt": {
+      "sha256": "bc08e4b9bfa1f8e4738fdcb2c3f5586f2f3d81bcad08010b413ac784f80db029",
+      "content": "INFO 2026-09-11 02:53:31,400 event_bus_initializer [trace_id=-] Event bus initialized with 18 handlers\nNo changes detected in app 'account'\n"
+    },
+    "var/evid07-owner-v2-ledger-unit.txt": {
+      "sha256": "ac82a6d2d23af2f4eb74764dbdee7077363161d892e8219c6432dfe06ef23765",
+      "content": "........................................................................ [ 85%]\n.........F..                                                             [100%]\n================================== FAILURES ===================================\n_________ test_account_model_legacy_exports_resolve_to_owner_modules __________\n\n    def test_account_model_legacy_exports_resolve_to_owner_modules() -> None:\n        \"\"\"Keep established model imports and Django registrations stable.\"\"\"\n        owner_exports: set[str] = set()\n        for module_name in OWNER_MODULES:\n            owner_module = import_module(module_name)\n            exports = set(owner_module.__all__)\n            owner_exports.update(exports)\n            for export_name in exports:\n                exported_model = getattr(models, export_name)\n                assert exported_model is getattr(owner_module, export_name)\n                assert apps.get_model(\"account\", export_name) is exported_model\n    \n>       assert owner_exports == set(models.__all__) - set(EXTERNAL_REEXPORTS)\nE       AssertionError: assert {'AccountAuth...ckModel', ...} == {'AccountAuth...ckModel', ...}\nE         \nE         Extra items in the right set:\nE         'OwnerTenantAuthorityV2RevocationModel'\nE         'OwnerTenantAuthorityV2Model'\nE         Use -v to get more diff\n\ntests\\unit\\test_account_models_structure.py:76: AssertionError\n=========================== short test summary info ===========================\nFAILED tests/unit/test_account_models_structure.py::test_account_model_legacy_exports_resolve_to_owner_modules\n1 failed, 83 passed in 271.33s (0:04:31)\n",
+      "known_failure_resolved_by": "var/evid07-owner-v2-ledger-structure-final.txt"
+    },
+    "var/evid07-owner-v2-ledger-cleanup.json": {
+      "sha256": "035facfb573e3880234d90f3c239d71755c0b107dbb57afc6a8c678a9ab48827",
+      "content": "{\"database\": \"evid06_authority_test\", \"public_base_tables\": 0}\n"
+    }
+  },
+  "verified": {
+    "postgres_tests": 9,
+    "unit_tests": 84,
+    "unit_accounting": "81 lifecycle/codec tests passed in the combined run. The same run passed two structural tests and failed the model-owner export inventory; after registering the new owner module, all three structure tests passed. Unique total is 81 + 3, not 83 + 3.",
+    "scope": "Actual dedicated local PostgreSQL over persisted V4 parent graph and actual local User/Session publisher. Root and revocation exact replay, permanent slots, historical cutoffs, complete graph restore/tamper rejection, append-only guards, same-alias outer rollback, READ COMMITTED and competing real connections, 0059 apply/reverse/reapply; actual live physical row plus fresh Session/source reads, actor corruption mapping and other-admin revocation rejection before INSERT even when the caller catches the conflict and commits.",
+    "verification_sequence": "The six ledger tests began before the final selector/pre-insert binding/actor-error and typing refinements. The subsequent three composition/revocation tests exercise the frozen implementation, including those new binding/error paths. Final static checks cover all five changed production files."
+  },
+  "limits": [
+    "Creation provenance and policy in the test fixture are explicitly synthetic local setup, not actual production creation or approval.",
+    "Fixture source clocks are controlled test clocks. The long-running component suite does not establish production throughput, latency, or an unfrozen-clock HTTP creation/approval workflow.",
+    "This slice tests an internal authenticated facade, not an HTTP approval/creation entry point or Research scope integration.",
+    "Current-read request authority still requires fresh principal/policy/live account checks through the complete composition; repository historical records alone do not authorize access.",
+    "Explicit reauthorization after expiry or revocation remains to implement."
+  ],
+  "remaining": [
+    "Explicit reauthorization, Research scope V2 and actual authenticated canonical creation graph",
+    "Production DATA-02/EVID-01/02/AUD-03/TAR-05 exit gates"
+  ],
+  "production_changes": false,
+  "unit_exit_gate_passed": false,
+  "artifact_git_tracking": "Local artifact remains ignored by existing user configuration; no forced staging."
+}

@@ -4,6 +4,26 @@
 # full-history scanning for every other finding and avoids broad path/rule
 # exemptions. The retired AgomSAAF credential locations are intentionally
 # fingerprint-bound; any reappearance at another revision remains blocking.
+# The EVID-07 / DATA-15 entries below are immutable SHA-256 source-file
+# digests embedded in test evidence, not credentials.
+b7a83dadb6db81aff0c22b3b813ad6e6da419ec8:docs/testing/data15-domain-checkpoint-2026-09-10.json:generic-api-key:204
+b7a83dadb6db81aff0c22b3b813ad6e6da419ec8:docs/testing/data15-domain-checkpoint-2026-09-10.json:generic-api-key:327
+b7a83dadb6db81aff0c22b3b813ad6e6da419ec8:docs/testing/data15-domain-closure-evidence-2026-09-10.json:generic-api-key:187
+b7a83dadb6db81aff0c22b3b813ad6e6da419ec8:docs/testing/data15-domain-closure-evidence-2026-09-10.json:generic-api-key:313
+b7a83dadb6db81aff0c22b3b813ad6e6da419ec8:docs/testing/evid07-authenticated-creation-transport-checkpoint-2026-09-11.json:generic-api-key:28
+b7a83dadb6db81aff0c22b3b813ad6e6da419ec8:docs/testing/evid07-authenticated-creation-transport-checkpoint-2026-09-11.json:generic-api-key:29
+b7a83dadb6db81aff0c22b3b813ad6e6da419ec8:docs/testing/evid07-authenticated-creation-transport-checkpoint-2026-09-11.json:generic-api-key:34
+b7a83dadb6db81aff0c22b3b813ad6e6da419ec8:docs/testing/evid07-authenticated-creation-transport-checkpoint-2026-09-11.json:generic-api-key:47
+b7a83dadb6db81aff0c22b3b813ad6e6da419ec8:docs/testing/evid07-authenticated-creation-transport-checkpoint-2026-09-11.json:generic-api-key:48
+b7a83dadb6db81aff0c22b3b813ad6e6da419ec8:docs/testing/evid07-authenticated-creation-transport-checkpoint-2026-09-11.json:generic-api-key:114
+b7a83dadb6db81aff0c22b3b813ad6e6da419ec8:docs/testing/evid07-authenticated-creation-transport-checkpoint-2026-09-11.json:generic-api-key:115
+b7a83dadb6db81aff0c22b3b813ad6e6da419ec8:docs/testing/evid07-authenticated-creation-transport-checkpoint-2026-09-11.json:generic-api-key:150
+b7a83dadb6db81aff0c22b3b813ad6e6da419ec8:docs/testing/evid07-authenticated-creation-transport-checkpoint-2026-09-11.json:generic-api-key:151
+b7a83dadb6db81aff0c22b3b813ad6e6da419ec8:docs/testing/evid07-authenticated-policy-publication-checkpoint-2026-09-11.json:generic-api-key:9
+b7a83dadb6db81aff0c22b3b813ad6e6da419ec8:docs/testing/evid07-authenticated-policy-publication-checkpoint-2026-09-11.json:generic-api-key:13
+b7a83dadb6db81aff0c22b3b813ad6e6da419ec8:docs/testing/evid07-authenticated-policy-publication-checkpoint-2026-09-11.json:generic-api-key:14
+b7a83dadb6db81aff0c22b3b813ad6e6da419ec8:docs/testing/evid07-current-ownership-reobservation-checkpoint-2026-09-11.json:generic-api-key:151
+b7a83dadb6db81aff0c22b3b813ad6e6da419ec8:docs/testing/evid07-current-ownership-reobservation-checkpoint-2026-09-11.json:generic-api-key:152
 083d8e60ab5baf3486a62c3450f865efe4a6a1cd:docs/operations/prometheus-metrics.md:generic-api-key:137
 083d8e60ab5baf3486a62c3450f865efe4a6a1cd:docs/operations/prometheus-metrics.md:generic-api-key:180
 0b91469b39a53a2d6d07ec08744b7be5be857589:docs/testing/ai-native-uat-script.md:curl-auth-header:118

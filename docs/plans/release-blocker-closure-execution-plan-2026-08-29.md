@@ -6,6 +6,123 @@
 > 原则：本文只编排既有 unit，不建立第二套状态、不降低阈值、不代签、不伪造 PIT/OOS 历史，也不把生产写入授权扩大为实盘交易授权。
 > 授权记录（2026-08-30）：用户已授权 A1–A8 动作包继续执行；每个动作仍受其前置门、精确目标、回滚点、外部环境和真实 owner/reviewer 决策约束，授权不等于验收通过。
 
+## 2026-09-10：续跑评估与实际关键路径
+
+本节承接用户要求的 `DATA-02 → EVID-01/02 → AUD-03 → TAR-05` 顺序，优先于下文历史排期。
+应用 Goal 已创建，worker 指定 `gpt-5.6-luna / max`；主代理负责派工、完整 diff 审查、最终验证和
+机器状态晋级。仅一条 repository 测试补强线，另一 Luna 只读核验生产前置，不执行生产变更。
+`DATA-12` 已于 2026-09-06 完成，不重新领取；本轮 task_monitor/research/signal 分支测试是用户
+明确要求的后续补强，历史行覆盖率恢复与新增分支覆盖不能重复计数。
+
+该补强登记为唯一 repository focus `DATA-15`，验收分支目标为 task_monitor 100%、research 80%、
+signal 90%，各 Domain 行覆盖率至少 90%。比较同一选定测试范围的前后报告；该有界目标不承诺
+消除全部理论分支，也不替代完整 Nightly 的全仓分母。只有实际报告与回归满足时才关闭 DATA-15。
+
+### 已核对的新事实
+
+后续检查点优先：并发提交 `ca11af075/404e68c0f/fd56f1a46` 记录了 successor 部署及 TUI 绑定。
+主代理保留这些变更，独立取得[successor 只读证据](../deployment/sprint-successor-readonly-2026-09-10-dba9ab2c.json)：
+当前为 `dba9ab2c8c18b824a6ed60d90b0765e020e6908d` / `20260910002501` /
+`sha256:7a42abe215ba5fe80af304758c0f7cd74ee221d88867e7eedd66badbc9904706`，前后 Docker identity
+与 manifest 一致。actor/scope=0、audit 三项配置缺失、publication 1/23/80 及 valuation 缺失仍成立。
+下列 122373b1 采集和首个本地 TUI 检查点保留为历史，不覆盖 successor。
+这三个并发提交没有改动本轮三个 Domain 或既有测试，覆盖率采集可按同源文件 hash 继续；
+旧 TUI 配置 hash 已变化，必须用新配置重新判断 TUI readiness。
+
+[生产只读证据](../deployment/sprint-preflight-readonly-2026-09-10-122373b1.json) 同时保留原始响应、
+SHA-256、SQL、命令、采集时间及局限。容器镜像与 OCI revision、容器 release manifest 和第二次
+Docker identity 读数一致：生产已是 `122373b180da603cc9845a8721f79c3ad681afa9` /
+`20260909232516` / `sha256:3f5f7a8ebe2be8120fbce2e9cfb33c1065030643f9999cea4e8fe25d413256a0`。
+这只证明所观测候选身份，不补造该版本的部署授权、UAT、回滚或完整验收。
+
+- PostgreSQL repeatable-read/read-only 查询：actor authority 与 owner/tenant authority 均为 0 行；
+  audit event/outbox 均为 0 行。500 条 applied migration 记录不等于已验证零 pending migration。
+- production snapshot 仍为 version 2，`audit.system_event.mode/outbox_enabled/authority_selector`
+  三项均缺失。没有真实 actor/scope 来源时不能构造有效 audited refresh。
+- 当前 published quote/price/financial 成员数仍为 1/23/80，valuation publication 缺失；
+  本次没有执行 provider fetch、数据修复、publication 切换或 runtime 启用。
+- 公共 HTTP health=200、decision-ready=503；audit health 返回 OK。release identity 未认证返回
+  403，ready 请求在 12 秒超时。公共请求不绑定候选；单次超时不证明持续宕机。
+- 不继承旧候选的 TUI/TAR/AUD 观察结论。新候选的首个有效 retained sample 和完整窗口尚未核验，
+  不能从部署日期或旧排期直接算出验收日期。
+
+### 调整后的交付顺序
+
+主线顺序保持，但 `DATA-02` 的审计身份/runtime 是实际前置，因此先与 `EVID-01` 输入准备交叉，
+不能等 DATA-02 全部结束才开始找身份。已有有界生产整改授权继续有效；缺少真实输入与缺少授权
+分别记录，不重复请求泛化确认。
+
+| 时间箱 | 主要交付 | 进入下一步的条件 |
+|---|---|---|
+| D1 | 当前候选绑定；真实 Account 主体/tenant/owner/scope、runtime selector 与数据集比较合同清单；覆盖率前后基线 | 来源可核验，缺项明确，不生成虚构权威记录 |
+| D1–D2 | DATA-02 有界 quote/valuation 回填、逐批 checkpoint、source-time 和 canonical 对账 | 身份/runtime/比较规则/精确目标/停止线/恢复点齐全；partial/stale/超差不晋级 |
+| D2–D3 | EVID-01/02 的真实主体接入、append-only/current-head、撤销及 PostgreSQL 并发证据 | 真实 owner 决定和来源齐全，生产验收与隔离数据库测试分别取证 |
+| D3–D4 | AUD-03 当前候选 writer/metrics/alert、恢复、archive/restore 与业务操作验收 | 不以空 outbox 或无指标样本代替真实 writer/recovery 结果 |
+| D4–D7 | TAR-05 独立 staging envelope、专用 Worker、非计费 provider、阶梯负载和恢复准备；满足前置才执行 | 真实 staging/身份/资源及动作边界齐全；完整观察期自然经过后才能收口 |
+| 并行 | task_monitor/research/signal 实际遗漏分支的行为测试、聚焦回归、来源绑定覆盖率报告 | 不降低现有门槛，不修改生产逻辑来追求比例，不把局部报告当全仓 Nightly |
+
+D1 从相应动作的技术前置齐全后起算。当前登记的 DATA-03、EVID-03、STRAT-02/03、AI-01 仍按
+各自依赖解锁；QMT 保留外部阻塞，不计入本轮内部开发完成条件。
+
+一周可作为有界实现和阶段证据的预算，不能承诺关闭约 10 个 canonical unit。DATA-02/EVID/AUD
+的真实输入、TAR 的 staging 和 14 日观察、策略 PIT/OOS 样本都影响关键路径。周末分别报告
+`exit gate 完成 / 阶段证据完成 / 真实输入或时间未满足`，不以拆分工作包凑 unit 完成数。
+
+### 一次性真实输入清单
+
+| 输入 | 现有入口与精确约束 | 缺失时的下一动作 |
+|---|---|---|
+| Account 主体与范围 | 真实 user/actor、tenant、owner/scope 与上游 assignment 来源；`capture_account_actor_authority` 默认 dry-run，不能代替 owner/tenant root | 提供既有记录/输入文件位置，先校验来源和 exact-current 链 |
+| 审批角色身份 | OwnerTenantAuthority Domain/Application 与 DB `acct_own_ten_auth_actor_ck` 均要求 claimant/approver 的 actor、user ID 不同 | 同一真人可承担角色，但不能把一个 user ID 同时填进两端；两个实际角色账户仍须真实来源。若业务要求单账户流程，应先有界审查并同步修改契约，不能直接绕过约束 |
+| Audit runtime | active profile 中 mode=`off/shadow/required`、outbox_enabled=bool、authority_selector 六字段：actor/scope 各自的 source_id/version/content_hash | 先有真实当前来源，再通过 Config Center typed profile patch/activation 接入；哈希不能自造，定义初始化不填实际值 |
+| 数据集对账 | quote/price/valuation/financial 各自 source/operator、字段、单位、源观察时间及治理容差 | 从既有 catalog/rule/owner 来源解析；宏观 1% 不自动成为其他数据集比较合同 |
+| EVID/AUD 验收 | 实际 approval/current-head/撤销来源，PG 并发结果；当前候选 migration/outbox/metrics/alerts/tui/recovery/archive 七段事实 | 现有 recorder 是离线外部输入验证器；其成功不表示已经抓取生产事实或执行恢复 |
+| TAR staging | 非生产 URL、不可变 candidate/runtime/workload、完整 SLO query map、有效精确 preflight、20 个 actor credential 引用和 Prometheus credential 引用；独立 Worker/queue、prefetch=1、non_billable_stub、MCP disabled | 先 validation-only，再在既有动作边界和真实环境齐全后执行；不把 production VPS 标成 staging，凭证不得写进计划或聊天 |
+
+最小代码入口已存在：DATA-02 `repair_active_a_share_current_facts` 的 execute/operator/source/batch-size
+及 1..500 批次约束；EVID `capture_account_actor_authority`；AUD
+`record_aud03_operational_observation_evidence.py`；TAR `run_terminal_runtime_staging_baseline.py`。
+本次只读审查未证明这些入口缺实现，不以新增一套 collector 替代缺失真实输入。具体执行仍先核对
+相应命令帮助、候选及当前输入 schema，不将本表当可直接执行的生产授权回执。
+
+### 本轮恢复点与验收边界
+
+当前只读取证无生产回滚动作。测试与文档可按本轮 diff 单独撤回，不涉及数据库或部署回退。
+原始工件及其 sidecar 已重新计算校验；active-plan checker 在本轮修改前通过。覆盖率测试结果、
+最终治理检查和精确下一步由后续 material checkpoint 补充，未执行的检查不记为通过。
+
+首个[本地检查点](../testing/sprint-local-checkpoint-2026-09-10.json)：主代理独立运行 Task Monitor
+新增行为测试，1 passed；这不满足整个 DATA-15 覆盖率退出门。TUI readiness 命令 exit=0，
+但业务结果为 2/10 DENY，仍绑定 `20260908163105` 且 first_retained_sample_at/eligible_at 均为空；
+不能把工具正常退出记为 TUI 验收通过。DATA-15 登记后的 active-plan checker 为 47 units、
+45 paths、0 violations；生产证据 raw hash 与 sidecar 再次核对一致。
+
+### DATA-15 实质进展检查点（2026-09-10）
+
+[同源局部覆盖率检查点](../testing/data15-domain-checkpoint-2026-09-10.json)保存前后 JSON、JUnit、
+240 个源码/测试文件 hash 和采集限制。基线分两批共 1264 passed，新增 Task Monitor/Signal
+9 passed，Research 第一片及关联测试 50 passed；另一次主代理聚焦回归 62 passed。
+
+| Domain | 基线行 / 分支 | 当前增量行 / 分支 | 状态 |
+|---|---|---|---|
+| task_monitor | 97.32% / 50.00% | 99.11% / 100.00% | 局部目标已达到 |
+| research | 89.88% / 73.53% | 90.27% / 74.60% | 距 80% 尚需 272 个分支 |
+| signal | 94.71% / 87.82% | 95.73% / 90.36% | 局部目标已达到 |
+
+该检查点采用保留基线后追加覆盖率的并集；最终完整相同选定范围回归尚未执行，不能称作 Nightly
+或 DATA-15 完成。Luna 下一片仅补 state model 的公开行为分支，主代理复核后再测实际增量。
+生产 Python 和现有覆盖率 floors 未修改，无生产写入。
+
+successor TUI readiness 重新运行后依然 DENY（2/10），已绑定 `20260910002501`，
+commit=verified_with_snapshot、binding=true，但 first_retained_sample_at/eligible_at 均为空。
+14 日窗口尚无有效起点；不继承旧候选观察，也不从部署日期计算收口日。原始结果封存在上述检查点。
+
+后续独立复核：检查点 sidecar、9 份嵌入原始工件 SHA、240 个来源文件 SHA 和三模块分子/分母
+全部一致。计划索引工作流表中遗留的旧 TUI eligible 时间、SSH 超时及 AUD 旧候选 section 计数
+已按 successor 的已知事实修正；未新采集生产状态，未据此晋级任何生产单元。
+最终完整回归命令已固定三个单元测试目录、两组 Task Monitor 组件及七个跨模块文件；仍等待
+Research 测试切片完成和审查，再从空 coverage 数据执行。
+
 ## 0. 2026-09-06：单一所有者内测冲刺提案
 
 用户明确系统尚未正式对外，要求按单一所有者项目重新评估发布范围与门槛。本节登记执行提案，
@@ -726,3 +843,78 @@ watchdog 已由 `scripts/package-for-vps.ps1` 纳入部署包，但原
 同时校验 `TUI-02=active` 与 `5/10 DENY` 的当前状态投影。这样候选或状态切换时若只更新机器真源
 而遗漏人读计划或索引，测试会 fail-closed；本 slice 仅验证静态投影，不改变 registry 状态、生产
 候选、VPS、TUI-02 观察窗口或任何生产门禁。
+
+### DATA-15 情景证据切片检查点（2026-09-10）
+
+[后续原始检查点](../testing/data15-scenario-checkpoint-2026-09-10.json)绑定上一检查点 SHA：
+主代理补历史窗口、样本唯一性、研究用途限制与 fail-closed assessment，相关回归 33 passed，
+Black/isort/Ruff 通过。Research 增加 45 个分支，当前 3799/5032=75.50%，行 12271/13544=90.60%。
+距离 80% 尚需 227 个分支；Task Monitor/Signal 结果不变。Luna 状态模型片仍在进行，最终完整
+同范围回归未执行，DATA-15 保持 active。生产前置缺项不变，本片没有新的生产查询或写入。
+
+后续[状态模型检查点](../testing/data15-state-checkpoint-2026-09-10.json)：Luna 测试片经主代理
+审查并补内部辅助函数类型，89 passed，Black/isort/Ruff 通过。Research 再增加 124 分支，
+当前 3923/5032=77.96%，行 12399/13544=91.55%，距80%尚需103分支。下一Luna片只补R4/R5
+监控；最终完整选定范围回归仍待执行，DATA-15未完成。
+
+后续[证据契约检查点](../testing/data15-evidence-checkpoint-2026-09-10.json)：主代理补样本守恒、
+指标完整性、精确输入与跨输出授权隔离，46 passed、Black/isort/Ruff通过。Research分支
+3955/5032=78.60%，行12430/13544=91.78%，距80%需71分支。Luna继续R4/R5监控，DATA-15
+保持active；最终完整回归待切片结束后执行，生产退出门无变化。
+
+### successor 留样通道实查（2026-09-10）
+
+主代理复用现有只读 collector，仅重绑预期候选三项常量，返回 exit=2、
+`migration_series_count_unavailable`。原始源码/输出见[留样缺项证据](../deployment/tui02-successor-readonly-pending-2026-09-10-dba9ab2c.json)。
+该 blocked 输出不含原始容器/查询 metadata，不冒充新的完整候选身份回执；前述 successor
+身份取证单独保留。无有效首个样本，不能开始14日窗口；未发业务请求制造指标，未修改生产。
+
+
+### DATA-15 最终退出检查点（2026-09-10）
+
+[最终验收证据](../testing/data15-domain-closure-evidence-2026-09-10.json)保留原始前后 coverage JSON、
+JUnit、完整命令和源码 hash。固定同一选定范围，从空 coverage 数据运行，1371 passed、0 failed、
+0 error、0 skipped；不是增量并集代替完整运行，也不是全仓 Nightly。七个新增测试文件的
+Black/isort/Ruff通过，完整治理一致性0违规；生产Python和原有floors未修改。
+
+| Domain | 基线行 / 分支 | 最终行 / 分支 |
+|---|---|---|
+| task_monitor | 97.32% / 50.00% | 99.11% / 100.00% |
+| research | 89.88% / 73.53% | 92.48% / 80.15% |
+| signal | 94.71% / 87.82% | 95.73% / 90.36% |
+
+前后分母一致，基线来源文件及最终冻结源码hash均未漂移。DATA-15标记completed，repository
+focus释放为null；此前各增量检查点仅为历史过程。没有依赖齐全的后继repository unit。
+
+阶段Goal未完成：DATA-02仍缺真实actor/scope、审计profile selector和dataset-specific对账输入；
+EVID-01/02仍缺真实主体/审批与生产证据；AUD-03真实writer/recovery/archive验收未完成；
+TAR-05缺独立staging与完整运行/负载证据。TUI只读collector返回migration_series_count_unavailable，
+无首个retained sample，不启动或补造14日窗口。已有授权保留，不重复索要泛化确认。
+
+恢复条件是提供既有真实Account用户/actor、tenant/owner/scope与来源记录，配置对应审计绑定及
+数据对账合同，并指定独立staging；随后主代理重新核验精确候选、备份/停止线和动作包，串行执行。
+未提交、推送、部署或写生产数据；保留全部可审查工作树变更。
+
+
+### 2026-09-10 当前候选查询接线修复与剩余门禁
+
+[独立修复回执](../deployment/tui02-query-wiring-repair-2026-09-10-dba9ab2c.json)绑定 dba9ab2c8 / release 20260910002501，保留11份原始材料、精确动作、备份和自动回滚记录。
+原始collector的 migration_series_count_unavailable 先由认证401触发，不能据此断言没有指标；配置修复后才观察到HTTP 200空vector。Compose配置中的美元符号转义未损坏原哈希。
+
+依据既有单所有者授权，恢复原host-only env的相同字节至当前release，权限0600；仅Caddy以no-deps/no-build/pull-never重建。第一次尝试因Mounts列表顺序误判在重建前停止，新增文件已撤回；独立复查确认实际容器/挂载未变。修正比较后第二次成功。所有原始结果保留，不覆盖失败记录。
+
+验证：HTTPS health 200、认证query 200且up=1、未认证401、非允许路径404、18规则健康；Web/Prometheus的ID、镜像、启动时间、restart count与挂载均不变。pyqlib发行包与qlib导入版本均0.9.7。decision-ready仍503、decision_runtime_blocked；没有启用运行时、改业务权限或写生产业务数据。
+
+截至2026-09-09T18:16:26.069731Z，迁移指标查询返回空vector，first_retained_sample_at/eligible_at均未绑定。TUI-02观察、当前候选UAT及最终验收未完成。后续发布脚本仍需有界修复host-only配置延续并补契约测试，当前运行修复不保证下一次release自动继承。
+
+
+本轮最终检查：active-plan-registry v78为0违规，完整governance consistency基线v220为0违规，Web-to-TUI inventory通过，git diff --check通过，修复证据及11份嵌入原始材料的SHA均验证一致。Luna max完成最终只读交叉复核。生产Python未变，未提交或推送。
+
+Goal因连续多轮相同真实输入缺项转为blocked，而非complete：需要既有Account用户/actor、tenant/owner/scope及其权威来源记录、对应审计profile selector和逐数据集对账合同，以及独立staging目标和凭据引用。现有所有者授权继续有效，恢复时不重复请求泛化审批。未完成的canonical生产退出门、真实UAT与观察时间不晋级；后续部署脚本配置延续为单独有界开发跟进，不在本轮追加无边界仓库单元。
+
+
+### 2026-09-10 Goal恢复核验（10:45 UTC）
+
+上一轮为有效进展：DATA-15验收和Caddy接线修复完成。本轮恢复后的阻塞审计重新计为第1轮，Goal保持active，尚未完成。
+[当前只读证据](../testing/sprint-resume-readonly-2026-09-10.json)确认候选和容器稳定，认证查询200、up=1、18规则健康，迁移指标仍为空；数据库只读事务确认actor/scope均0、审计runtime字段仍缺。未发生产写入或生成指标。
+注册表v79补齐上一轮Caddy修复投影，不晋级任何生产unit；DATA-02/EVID/AUD真实输入与TAR独立staging仍是恢复条件。原1371项测试证据保留，未因纯投影更新重复运行。

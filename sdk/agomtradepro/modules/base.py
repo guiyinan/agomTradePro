@@ -28,7 +28,7 @@ class BaseModule:
         self._client = client
         self._prefix = prefix.rstrip("/")
 
-    def _get(self, endpoint: str, params: dict[str, Any] | None = None) -> dict:
+    def _get(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         """
         发送 GET 请求
 
@@ -48,7 +48,8 @@ class BaseModule:
         data: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
         files: dict[str, Any] | None = None,
-    ) -> dict:
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
         """
         发送 POST 请求
 
@@ -62,6 +63,14 @@ class BaseModule:
             响应 JSON 数据
         """
         url = f"{self._prefix}/{endpoint.lstrip('/')}"
+        if idempotency_key is not None:
+            return self._client.post(
+                url,
+                data=data,
+                json=json,
+                files=files,
+                idempotency_key=idempotency_key,
+            )
         if files is not None:
             return self._client.post(url, data=data, json=json, files=files)
         return self._client.post(url, data=data, json=json)
@@ -71,7 +80,7 @@ class BaseModule:
         endpoint: str,
         data: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         发送 PUT 请求
 
@@ -91,7 +100,7 @@ class BaseModule:
         endpoint: str,
         data: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         发送 PATCH 请求
 
@@ -106,7 +115,7 @@ class BaseModule:
         url = f"{self._prefix}/{endpoint.lstrip('/')}"
         return self._client.patch(url, data=data, json=json)
 
-    def _delete(self, endpoint: str, params: dict[str, Any] | None = None) -> dict:
+    def _delete(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         """
         发送 DELETE 请求
 

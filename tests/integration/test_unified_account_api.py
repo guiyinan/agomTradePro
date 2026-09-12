@@ -47,22 +47,6 @@ def accounts(user):
     return real_account, simulated_account
 
 
-def test_create_account_accepts_account_type_real(client):
-    resp = client.post(
-        "/api/simulated-trading/accounts/",
-        data={
-            "account_name": "真实账户C",
-            "account_type": "real",
-            "initial_capital": "200000.00",
-        },
-        format="json",
-    )
-    assert resp.status_code == status.HTTP_201_CREATED
-    body = resp.json()
-    assert body["success"] is True
-    assert body["account"]["account_type"] == "real"
-
-
 def test_list_accounts_can_filter_by_account_type(client, accounts):
     resp = client.get("/api/simulated-trading/accounts/", {"account_type": "real"})
     assert resp.status_code == status.HTTP_200_OK

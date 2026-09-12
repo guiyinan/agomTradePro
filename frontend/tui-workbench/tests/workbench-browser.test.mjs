@@ -8,6 +8,42 @@ import test from "node:test";
 import { chromium } from "playwright";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+
+test("mutation identity survives confirmation and network retry but changes for a new submission", async () => {
+    const { browser, page } = await openHarness(
+        "https://app.test/?screen=test.grid&action=test.edit&code=identity-code",
+        { waitForInitialRows: false },
+    );
+    const keys = [];
+    let failedOnce = false;
+    try {
+        await page.route('**/actions/test.edit/run/', async route => {
+            keys.push(route.request().headers()['idempotency-key']);
+            if (route.request().postDataJSON().confirmed && !failedOnce) {
+                failedOnce = true;
+                await route.abort('failed');
+                return;
+            }
+            await route.fallback();
+        });
+        const form = page.locator('form[data-action-ui-key="test.edit"]');
+        await form.locator('.tui-action-submit').click();
+        await page.locator('[data-confirm-action]').click();
+        await page.locator('[data-action-submission-retry]').click();
+        await page.waitForFunction(() => document.querySelector('[data-workbench-status]')?.textContent === '操作完成');
+        assert.equal(keys.length, 3);
+        assert.ok(keys[0]);
+        assert.equal(new Set(keys).size, 1);
+        await form.locator('[name="code"]').fill('next-submission');
+        await delay(500); // A new user submission follows the existing double-click guard.
+        await form.locator('.tui-action-submit').click();
+        await page.locator('[data-cancel-action]').click();
+        assert.equal(keys.length, 4);
+        assert.notEqual(keys[3], keys[0]);
+    } finally {
+        await browser.close();
+    }
+});
 const bundlePath = resolve(root, "static/js/tui-workbench.js");
 const cssPath = resolve(root, "static/css/tui-workbench.css");
 

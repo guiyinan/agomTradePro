@@ -1,0 +1,418 @@
+{
+  "schema": "data02.financial_scope_readonly.v1",
+  "recorded_at": "2026-09-10T11:59:52.072401+00:00",
+  "candidate_commit": "dba9ab2c8c18b824a6ed60d90b0765e020e6908d",
+  "expected_web_container": "f886e47ff0143db2df8ebc6ce447955abd4445c4838affddc307505c6b3c7092",
+  "findings": {
+    "persisted_financial_rows": 441944,
+    "missing_available_at": 160,
+    "affected_assets": [
+      {
+        "code": "302132.SZ",
+        "name": "中航成飞",
+        "asset_type": "stock",
+        "exchange": "SZSE",
+        "is_active": false
+      },
+      {
+        "code": "920305.BJ",
+        "name": "*ST云创",
+        "asset_type": "stock",
+        "exchange": "BSE",
+        "is_active": false
+      }
+    ],
+    "active_only_missing_slice_empty": true,
+    "period_end_equal_report_date_rows_for_302132_SZ": 80,
+    "source_date_semantics_verified": false
+  },
+  "decision": "Do not execute this availability repair slice: all missing rows belong to inactive assets, and one asset's report dates equal period ends. Continue active-universe provider/publication reconciliation.",
+  "limits": [
+    "This receipt does not freeze or validate the governed universe configuration.",
+    "SQL repairable is only a null/date predicate, not proof of actual disclosure time.",
+    "No provider call, production write, backup, reconciliation acceptance or DATA-02 closure is claimed."
+  ],
+  "artifacts": [
+    {
+      "path": "var/data02-financial-slice-readonly.json",
+      "sha256": "177b8a03b758ee350d767db6b0335ab60aeec7601c5f4021a8c814098c1c3209",
+      "receipt": {
+        "observed_at": "2026-09-10T11:57:45.827253+00:00",
+        "read_only": true,
+        "candidate_unchanged": true,
+        "exit_code": 0,
+        "command": [
+          "docker",
+          "exec",
+          "-i",
+          "agomtradepro-postgres-1",
+          "sh",
+          "-c",
+          "psql -X -qAt -v ON_ERROR_STOP=1 -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""
+        ],
+        "sql": "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;\nSET LOCAL statement_timeout = '15s';\nSELECT json_build_object('scope','all_persisted_financial_facts_not_frozen_active_universe','read_only',current_setting('transaction_read_only'),'observed_at',CURRENT_TIMESTAMP,'rows',count(*),'missing_available_at',count(*) FILTER (WHERE available_at IS NULL),'repairable',count(*) FILTER (WHERE available_at IS NULL AND report_date IS NOT NULL AND report_date <= CURRENT_DATE),'unresolved',count(*) FILTER (WHERE available_at IS NULL AND report_date IS NULL),'future_report',count(*) FILTER (WHERE report_date>CURRENT_DATE),'future_available_at',count(*) FILTER (WHERE available_at>CURRENT_TIMESTAMP)) FROM data_center_financial_fact;\nSELECT json_build_object('asset_code',asset_code,'rows',count(*),'oldest_report',min(report_date),'newest_report',max(report_date),'sources',array_agg(DISTINCT source)) FROM data_center_financial_fact WHERE available_at IS NULL AND report_date IS NOT NULL AND report_date<=CURRENT_DATE GROUP BY asset_code ORDER BY count(*),asset_code LIMIT 10;\nROLLBACK;\n",
+        "findings": [
+          {
+            "scope": "all_persisted_financial_facts_not_frozen_active_universe",
+            "read_only": "on",
+            "observed_at": "2026-09-10T11:57:44.874287+00:00",
+            "rows": 441944,
+            "missing_available_at": 160,
+            "repairable": 160,
+            "unresolved": 0,
+            "future_report": 0,
+            "future_available_at": 0
+          },
+          {
+            "asset_code": "302132.SZ",
+            "rows": 80,
+            "oldest_report": "2024-06-30",
+            "newest_report": "2026-03-31",
+            "sources": [
+              "akshare"
+            ]
+          },
+          {
+            "asset_code": "920305.BJ",
+            "rows": 80,
+            "oldest_report": "2024-08-28",
+            "newest_report": "2026-04-29",
+            "sources": [
+              "akshare"
+            ]
+          }
+        ],
+        "error": null,
+        "production_rows_written": 0,
+        "execution_authorized_by_this_probe": false
+      }
+    },
+    {
+      "path": "var/data02-financial-dates-readonly.json",
+      "sha256": "0e1b792dc6b03883f88a01b01f9181218cdb67fedbcc7fa2c782499afd4fb30d",
+      "receipt": {
+        "observed_at": "2026-09-10T11:59:04.525379+00:00",
+        "read_only": true,
+        "candidate_unchanged": true,
+        "exit_code": 0,
+        "command": [
+          "docker",
+          "exec",
+          "-i",
+          "agomtradepro-postgres-1",
+          "sh",
+          "-c",
+          "psql -X -qAt -v ON_ERROR_STOP=1 -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""
+        ],
+        "sql": "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;\nSET LOCAL statement_timeout = '15s';\nSELECT json_build_object('code',code,'name',name,'asset_type',asset_type,'exchange',exchange,'is_active',is_active) FROM data_center_asset_master WHERE code IN ('302132.SZ','920305.BJ');\nSELECT json_build_object('asset_code',asset_code,'period_end',period_end,'report_date',report_date,'row_count',count(*),'row_ids',array_agg(id ORDER BY id)) FROM data_center_financial_fact WHERE asset_code IN ('302132.SZ','920305.BJ') AND available_at IS NULL GROUP BY asset_code,period_end,report_date ORDER BY asset_code,period_end;\nROLLBACK;\n",
+        "findings": [
+          {
+            "code": "302132.SZ",
+            "name": "中航成飞",
+            "asset_type": "stock",
+            "exchange": "SZSE",
+            "is_active": false
+          },
+          {
+            "code": "920305.BJ",
+            "name": "*ST云创",
+            "asset_type": "stock",
+            "exchange": "BSE",
+            "is_active": false
+          },
+          {
+            "asset_code": "302132.SZ",
+            "period_end": "2024-06-30",
+            "report_date": "2024-06-30",
+            "row_count": 10,
+            "row_ids": [
+              10421,
+              10422,
+              10423,
+              10424,
+              10425,
+              10426,
+              10427,
+              10428,
+              10429,
+              10430
+            ]
+          },
+          {
+            "asset_code": "302132.SZ",
+            "period_end": "2024-09-30",
+            "report_date": "2024-09-30",
+            "row_count": 10,
+            "row_ids": [
+              10411,
+              10412,
+              10413,
+              10414,
+              10415,
+              10416,
+              10417,
+              10418,
+              10419,
+              10420
+            ]
+          },
+          {
+            "asset_code": "302132.SZ",
+            "period_end": "2024-12-31",
+            "report_date": "2024-12-31",
+            "row_count": 10,
+            "row_ids": [
+              10401,
+              10402,
+              10403,
+              10404,
+              10405,
+              10406,
+              10407,
+              10408,
+              10409,
+              10410
+            ]
+          },
+          {
+            "asset_code": "302132.SZ",
+            "period_end": "2025-03-31",
+            "report_date": "2025-03-31",
+            "row_count": 10,
+            "row_ids": [
+              10391,
+              10392,
+              10393,
+              10394,
+              10395,
+              10396,
+              10397,
+              10398,
+              10399,
+              10400
+            ]
+          },
+          {
+            "asset_code": "302132.SZ",
+            "period_end": "2025-06-30",
+            "report_date": "2025-06-30",
+            "row_count": 10,
+            "row_ids": [
+              10381,
+              10382,
+              10383,
+              10384,
+              10385,
+              10386,
+              10387,
+              10388,
+              10389,
+              10390
+            ]
+          },
+          {
+            "asset_code": "302132.SZ",
+            "period_end": "2025-09-30",
+            "report_date": "2025-09-30",
+            "row_count": 10,
+            "row_ids": [
+              10371,
+              10372,
+              10373,
+              10374,
+              10375,
+              10376,
+              10377,
+              10378,
+              10379,
+              10380
+            ]
+          },
+          {
+            "asset_code": "302132.SZ",
+            "period_end": "2025-12-31",
+            "report_date": "2025-12-31",
+            "row_count": 10,
+            "row_ids": [
+              10361,
+              10362,
+              10363,
+              10364,
+              10365,
+              10366,
+              10367,
+              10368,
+              10369,
+              10370
+            ]
+          },
+          {
+            "asset_code": "302132.SZ",
+            "period_end": "2026-03-31",
+            "report_date": "2026-03-31",
+            "row_count": 10,
+            "row_ids": [
+              10351,
+              10352,
+              10353,
+              10354,
+              10355,
+              10356,
+              10357,
+              10358,
+              10359,
+              10360
+            ]
+          },
+          {
+            "asset_code": "920305.BJ",
+            "period_end": "2024-06-30",
+            "report_date": "2024-08-28",
+            "row_count": 10,
+            "row_ids": [
+              454050,
+              454051,
+              454052,
+              454053,
+              454054,
+              454055,
+              454056,
+              454057,
+              454058,
+              454059
+            ]
+          },
+          {
+            "asset_code": "920305.BJ",
+            "period_end": "2024-09-30",
+            "report_date": "2024-10-29",
+            "row_count": 10,
+            "row_ids": [
+              454040,
+              454041,
+              454042,
+              454043,
+              454044,
+              454045,
+              454046,
+              454047,
+              454048,
+              454049
+            ]
+          },
+          {
+            "asset_code": "920305.BJ",
+            "period_end": "2024-12-31",
+            "report_date": "2025-04-29",
+            "row_count": 10,
+            "row_ids": [
+              454030,
+              454031,
+              454032,
+              454033,
+              454034,
+              454035,
+              454036,
+              454037,
+              454038,
+              454039
+            ]
+          },
+          {
+            "asset_code": "920305.BJ",
+            "period_end": "2025-03-31",
+            "report_date": "2025-04-29",
+            "row_count": 10,
+            "row_ids": [
+              454020,
+              454021,
+              454022,
+              454023,
+              454024,
+              454025,
+              454026,
+              454027,
+              454028,
+              454029
+            ]
+          },
+          {
+            "asset_code": "920305.BJ",
+            "period_end": "2025-06-30",
+            "report_date": "2025-08-22",
+            "row_count": 10,
+            "row_ids": [
+              454010,
+              454011,
+              454012,
+              454013,
+              454014,
+              454015,
+              454016,
+              454017,
+              454018,
+              454019
+            ]
+          },
+          {
+            "asset_code": "920305.BJ",
+            "period_end": "2025-09-30",
+            "report_date": "2025-10-28",
+            "row_count": 10,
+            "row_ids": [
+              454000,
+              454001,
+              454002,
+              454003,
+              454004,
+              454005,
+              454006,
+              454007,
+              454008,
+              454009
+            ]
+          },
+          {
+            "asset_code": "920305.BJ",
+            "period_end": "2025-12-31",
+            "report_date": "2026-04-29",
+            "row_count": 10,
+            "row_ids": [
+              453990,
+              453991,
+              453992,
+              453993,
+              453994,
+              453995,
+              453996,
+              453997,
+              453998,
+              453999
+            ]
+          },
+          {
+            "asset_code": "920305.BJ",
+            "period_end": "2026-03-31",
+            "report_date": "2026-04-29",
+            "row_count": 10,
+            "row_ids": [
+              453980,
+              453981,
+              453982,
+              453983,
+              453984,
+              453985,
+              453986,
+              453987,
+              453988,
+              453989
+            ]
+          }
+        ],
+        "error": null,
+        "production_rows_written": 0,
+        "execution_authorized_by_this_probe": false
+      }
+    }
+  ]
+}

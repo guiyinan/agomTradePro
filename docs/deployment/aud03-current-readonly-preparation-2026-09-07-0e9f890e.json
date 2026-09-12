@@ -1,0 +1,70 @@
+{
+  "schema": "aud03-current-readonly-preparation.v1",
+  "candidate": {
+    "build_finished_at": "2026-09-07T09:10:19Z",
+    "build_started_at": "2026-09-07T09:01:22Z",
+    "image_id": "sha256:778e50018124dd4d67dbe6a607b495d2e480c1bc6ff1aed42a9f50f484331e1e",
+    "image_tag": "agomtradepro-web:20260907170119",
+    "release_tag": "20260907170119",
+    "source_commit": "0e9f890e8185d897630fd937b5ffc220fd7830ce",
+    "source_mode": "git-clone",
+    "version": 1
+  },
+  "production_write_performed": false,
+  "operational_acceptance_passed": false,
+  "scope": "Current database migration ledger and audit counts only; not the full AUD-03 operational recorder envelope.",
+  "observed": {
+    "applied_count": 496,
+    "applied_migrations_sha256": "15010659e4136933a61fd90cfe8a04d8306ecb2fb59227c2b13b48bfefe547b0",
+    "archive_restore": "not_executed",
+    "manifest": {
+      "build_finished_at": "2026-09-07T09:10:19Z",
+      "build_started_at": "2026-09-07T09:01:22Z",
+      "image_id": "sha256:778e50018124dd4d67dbe6a607b495d2e480c1bc6ff1aed42a9f50f484331e1e",
+      "image_tag": "agomtradepro-web:20260907170119",
+      "release_tag": "20260907170119",
+      "source_commit": "0e9f890e8185d897630fd937b5ffc220fd7830ce",
+      "source_mode": "git-clone",
+      "version": 1
+    },
+    "operation_logs": {
+      "count": 571,
+      "http_failure_count": 16
+    },
+    "outbox": {
+      "due_pending_count": 0,
+      "oldest_backlog_at": null,
+      "oldest_claimed_at": null,
+      "status_counts": [],
+      "total": 0
+    },
+    "pending": [],
+    "recovery_drill": "not_executed",
+    "transaction": [
+      "2026-09-07 11:46:37.405685+00:00",
+      "on"
+    ]
+  },
+  "limits": [
+    "HTTP status >=400 count is historical operation-log rows, not a current incident rate",
+    "Zero outbox rows do not prove dispatch, recovery, duplicate prevention or replay",
+    "Applied migration ledger and empty pending plan do not establish a historical failed-migration count",
+    "No recovery drill, archive restore, authority creation or writer smoke executed"
+  ],
+  "raw_capture": {
+    "samples": [
+      {
+        "label": "aud03_current_readonly",
+        "command": "docker exec -i -e PGOPTIONS='-c default_transaction_read_only=on -c statement_timeout=60000' 0c695cfec9dd python -",
+        "input": "import os,json,hashlib\nfrom datetime import datetime,UTC\nfrom pathlib import Path\nos.environ.setdefault(\"DJANGO_SETTINGS_MODULE\",\"core.settings\")\nimport django\ndjango.setup()\nfrom django.conf import settings\nfrom django.db import connection,transaction\nfrom django.db.models import Count,Min,Q\nfrom django.db.migrations.executor import MigrationExecutor\nfrom apps.audit.infrastructure.system_audit_outbox_models import SystemAuditOutboxModel\nfrom apps.audit.infrastructure.models import OperationLogModel\nwith transaction.atomic():\n with connection.cursor() as c:\n  c.execute(\"SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY\")\n  c.execute(\"SELECT transaction_timestamp(),current_setting('transaction_read_only')\")\n  tx=c.fetchone()\n executor=MigrationExecutor(connection)\n applied=sorted(executor.loader.applied_migrations)\n pending=[{'app':m.app_label,'name':m.name,'backwards':back} for m,back in executor.migration_plan(executor.loader.graph.leaf_nodes())]\n qs=SystemAuditOutboxModel.objects.all()\n outbox={'total':qs.count(),'status_counts':list(qs.values('status').annotate(count=Count('outbox_id'))),'due_pending_count':qs.filter(status='pending',available_at__lte=tx[0]).count(),'oldest_backlog_at':qs.filter(status__in=['pending','failed']).aggregate(at=Min('created_at'))['at'],'oldest_claimed_at':qs.filter(status='claimed').aggregate(at=Min('claimed_at'))['at']}\n logs=OperationLogModel.objects.aggregate(count=Count('id'),http_failure_count=Count('id',filter=Q(response_status__gte=400)))\n print(json.dumps({'manifest':json.loads(Path(settings.AGOM_RELEASE_MANIFEST_PATH).read_text()),'transaction':tx,'applied_count':len(applied),'pending':pending,'applied_migrations_sha256':hashlib.sha256(json.dumps(applied,separators=(',',':')).encode()).hexdigest(),'outbox':outbox,'operation_logs':logs,'recovery_drill':'not_executed','archive_restore':'not_executed'},default=str,sort_keys=True))\n",
+        "started_at": "2026-09-07T11:46:25.022265+00:00",
+        "finished_at": "2026-09-07T11:46:41.450375+00:00",
+        "exit_code": 0,
+        "stdout_base64": "eyJhcHBsaWVkX2NvdW50IjogNDk2LCAiYXBwbGllZF9taWdyYXRpb25zX3NoYTI1NiI6ICIxNTAxMDY1OWU0MTM2OTMzYTYxZmQ5MGNmZThhMDRkODMwNmVjYjJmYjU5MjI3YzJiMTNiNDhiZmVmZTU0N2IwIiwgImFyY2hpdmVfcmVzdG9yZSI6ICJub3RfZXhlY3V0ZWQiLCAibWFuaWZlc3QiOiB7ImJ1aWxkX2ZpbmlzaGVkX2F0IjogIjIwMjYtMDktMDdUMDk6MTA6MTlaIiwgImJ1aWxkX3N0YXJ0ZWRfYXQiOiAiMjAyNi0wOS0wN1QwOTowMToyMloiLCAiaW1hZ2VfaWQiOiAic2hhMjU2Ojc3OGU1MDAxODEyNGRkNGQ2N2RiZTZhNjA3YjQ5NWQyZTQ4MGMxYmM2ZmYxYWVkNDJhOWY1MGY0ODQzMzFlMWUiLCAiaW1hZ2VfdGFnIjogImFnb210cmFkZXByby13ZWI6MjAyNjA5MDcxNzAxMTkiLCAicmVsZWFzZV90YWciOiAiMjAyNjA5MDcxNzAxMTkiLCAic291cmNlX2NvbW1pdCI6ICIwZTlmODkwZTgxODVkODk3NjMwZmQ5MzdiNWZmYzIyMGZkNzgzMGNlIiwgInNvdXJjZV9tb2RlIjogImdpdC1jbG9uZSIsICJ2ZXJzaW9uIjogMX0sICJvcGVyYXRpb25fbG9ncyI6IHsiY291bnQiOiA1NzEsICJodHRwX2ZhaWx1cmVfY291bnQiOiAxNn0sICJvdXRib3giOiB7ImR1ZV9wZW5kaW5nX2NvdW50IjogMCwgIm9sZGVzdF9iYWNrbG9nX2F0IjogbnVsbCwgIm9sZGVzdF9jbGFpbWVkX2F0IjogbnVsbCwgInN0YXR1c19jb3VudHMiOiBbXSwgInRvdGFsIjogMH0sICJwZW5kaW5nIjogW10sICJyZWNvdmVyeV9kcmlsbCI6ICJub3RfZXhlY3V0ZWQiLCAidHJhbnNhY3Rpb24iOiBbIjIwMjYtMDktMDcgMTE6NDY6MzcuNDA1Njg1KzAwOjAwIiwgIm9uIl19Cg==",
+        "stdout_sha256": "0b1833391c1654cbcc23a00ef04543e52c0b2b54115e341837752d8e6aee3253",
+        "stderr_base64": "eyJ0aW1lc3RhbXAiOiAiMjAyNi0wOS0wN1QxMTo0NjozNy4wNjAzODdaIiwgImxldmVsIjogIklORk8iLCAibG9nZ2VyIjogImFwcHMuZXZlbnRzLmFwcGxpY2F0aW9uLmV2ZW50X2J1c19pbml0aWFsaXplciIsICJtZXNzYWdlIjogIkV2ZW50IGJ1cyBpbml0aWFsaXplZCB3aXRoIDE4IGhhbmRsZXJzIiwgIm1vZHVsZSI6ICJldmVudF9idXNfaW5pdGlhbGl6ZXIiLCAiZnVuY3Rpb24iOiAiaW5pdGlhbGl6ZSIsICJsaW5lIjogNTgsICJwcm9jZXNzIjogMjI3NTM3LCAidGhyZWFkIjogMTI4NzY5MTc0NzA0OTYwLCAicmVxdWVzdF9pZCI6ICItIn0K",
+        "stderr_sha256": "f9dbf6f28c278b5eb8056779f64784a285eb327f3e58249c3724b22a2b1e9430"
+      }
+    ]
+  }
+}

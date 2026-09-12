@@ -17,6 +17,26 @@ _TEST_AUDIT_AUTHORITY_SELECTOR: dict[str, object] = {
     "scope_content_hash": "b" * 64,
 }
 
+_TEST_ACCOUNT_CREATION_EVIDENCE_SETTINGS: dict[str, object] = {
+    "schema_version": "account.creation_evidence.settings.v1",
+    "ttl_seconds": 300,
+    "allocation_recorder_service_id": "account-test-allocation-recorder-v1",
+    "physical_v2_recorder_service_id": "account-test-physical-v2-recorder-v1",
+    "allocated_v3_recorder_service_id": "account-test-allocated-v3-recorder-v1",
+    "binding_recorder_service_id": "account-test-binding-recorder-v1",
+}
+
+_TEST_SINGLE_OWNER_POLICY_PUBLICATION_SETTINGS: dict[str, object] = {
+    "schema_version": "account.single_owner_policy.publication_settings.v1",
+    "owner_username": "account-test-owner",
+    "tenant_id": "account-test-tenant",
+    "owner_id": "account-test-owner-id",
+    "authorization_source_id": "account-test-owner-declaration",
+    "authorization_source_version": "v1",
+    "authorization_content_hash": "c" * 64,
+    "ttl_seconds": 300,
+}
+
 
 def configure_critical_runtime() -> None:
     """Seed explicit fail-closed audit values for an isolated test database."""
@@ -30,6 +50,10 @@ def configure_critical_runtime() -> None:
             "audit.system_event.mode": "off",
             "audit.system_event.outbox_enabled": False,
             "audit.system_event.authority_selector": _TEST_AUDIT_AUTHORITY_SELECTOR,
+            "account.creation_evidence.settings": (_TEST_ACCOUNT_CREATION_EVIDENCE_SETTINGS),
+            "account.single_owner_policy.publication_settings": (
+                _TEST_SINGLE_OWNER_POLICY_PUBLICATION_SETTINGS
+            ),
         },
         actor="test-runtime-bootstrap",
         reason="seed complete critical runtime values for account tests",

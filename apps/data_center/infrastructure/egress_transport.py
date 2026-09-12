@@ -17,8 +17,6 @@ import requests
 from django.conf import settings
 from django.core.cache import cache
 
-from apps.config_center.application.public import get_egress_endpoint
-from apps.config_center.domain.egress import EgressEndpoint
 from apps.data_center.application.egress_service import EgressTransportResult, preview_route
 from apps.data_center.domain.egress_routing import (
     EgressRequestContext,
@@ -28,6 +26,10 @@ from apps.data_center.domain.egress_routing import (
 from apps.data_center.infrastructure.egress_target import (
     PreparedPublicTarget,
     prepare_public_target,
+)
+from core.integration.config_center_egress import (
+    EgressEndpoint,
+    get_egress_endpoint,
 )
 
 logger = logging.getLogger(__name__)

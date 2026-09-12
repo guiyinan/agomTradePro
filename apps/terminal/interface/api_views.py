@@ -715,6 +715,13 @@ class TuiWorkbenchActionRunView(APIView):
     def post(self, request: Request, action_key: str) -> Response:
         """Run a published safe action for the current user."""
 
+        idempotency_key = request.headers.get("Idempotency-Key")
+        if idempotency_key is not None and (
+            not idempotency_key
+            or len(idempotency_key) > 192
+            or any(character.isspace() for character in idempotency_key)
+        ):
+            return Response({"error": "提交标识无效。"}, status=status.HTTP_400_BAD_REQUEST)
         service = TuiWorkbenchService(
             metadata_repository=get_tui_metadata_repository(),
             action_executor=get_tui_action_executor(),
@@ -745,6 +752,7 @@ class TuiWorkbenchActionRunView(APIView):
                     request.data.get("confirmation") if isinstance(request.data, dict) else None
                 ),
                 reauth=request.data.get("reauth") if isinstance(request.data, dict) else None,
+                idempotency_key=idempotency_key,
             )
         except KeyError:
             return Response(

@@ -82,6 +82,7 @@ class TestAccountModuleUnifiedAliases:
                 name="真实账户",
                 initial_capital=100000,
                 account_type="real",
+                idempotency_key="account-test-1",
             )
 
         assert account["account_type"] == "real"
@@ -89,6 +90,7 @@ class TestAccountModuleUnifiedAliases:
         payload = mock_post.call_args.kwargs["json"]
         assert payload["account_type"] == "real"
         assert mock_post.call_args.args[0] == "/api/account/accounts/"
+        assert mock_post.call_args.kwargs["idempotency_key"] == "account-test-1"
 
     def test_get_account_performance_uses_basic_endpoint_without_dates(self):
         client = AgomTradeProClient(base_url="http://test.com", api_token="token")

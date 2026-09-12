@@ -1,0 +1,93 @@
+{
+  "schema": "agom.repository-checkpoint.v1",
+  "unit_id": "EVID-07",
+  "status": "active",
+  "recorded_at": "2026-09-10T16:37:20.033546+00:00",
+  "checkpoint": "Locked Receipt V4 issuance and pure Domain Subject/Evidence V4",
+  "head": "fd56f1a4683b9500d8c0a205045b4bdf5582f715",
+  "source_sha256": {
+    "apps/account/account_owner_assignment_provenance_receipt_v4_composition.py": "c52db501296f18935a19daf4753edc91947fa940aef4fc6ad8e1734bf106ad68",
+    "apps/account/domain/account_owner_assignment_evidence_v4.py": "99c547201680e64bed8fe9ba30e77da9e70c91ae2fbab29b4dc493cb43a33e7c",
+    "tests/unit/account/test_account_owner_assignment_evidence_v4.py": "8160942448b31bdfdf786d9a84e5216bcb5252c510396e3b4fd98c341b70ae41",
+    "tests/unit/account/test_receipt_v4_composition_boundary.py": "8ef7173c22f30d78ab86832b2a6ffd57e485aa9911c7b0d53e922c1da8367e58",
+    "tests/component/account/test_receipt_v4_locked_composition.py": "0fd4b70da8435d04fc9dea07f86a89f3698bc5c67db56c9d7d8387958d870669",
+    "tests/component/account/test_receipt_v4_parent_row_locks.py": "640cbc9fba0accabee621671b1053de6b6298ab763e6e84955ad4e793eee5fe0",
+    "governance/current_data_contracts.json": "02b4ed2ce6468d14c61b6a4f3c9d9269e542421e364f70772c86b42ed2749fb1"
+  },
+  "legacy_diff_against_head_empty": [
+    "apps/account/domain/account_owner_assignment_evidence_v3.py",
+    "apps/account/application/account_owner_assignment_evidence_v3.py",
+    "apps/account/domain/account_owner_assignment_provenance_receipt_v3.py"
+  ],
+  "raw_evidence": {
+    "var/evid07-subject-evidence-v4-combined.txt": {
+      "sha256": "8eb9002cd96d26bc960b2d8062b55b5d7efe84dcc7389a825e9a3ef00ba51435",
+      "content": "...................................................................      [100%]\n67 passed in 10.11s\n"
+    },
+    "var/evid07-locked-composition-boundary-unit-final.txt": {
+      "sha256": "773d5ae9b1ba699af0b8aa56d30953f3f75b84e7c76c61a77a882ed1a595f171",
+      "content": ".                                                                        [100%]\n1 passed in 0.68s\n"
+    },
+    "var/evid07-locked-composition-final-postgres.txt": {
+      "sha256": "905bd7a68cd5e8848745002c6b2c4b5459afeda70b00d459260a969d9dfb6b01",
+      "content": "Running EVID-06 tests against dedicated loopback test database.\n....                                                                     [100%]\n4 passed in 313.47s (0:05:13)\n"
+    },
+    "var/evid07-locked-parent-rows-postgres.txt": {
+      "sha256": "c56420cf46c4868f9b3a84645e70f8ba6f03aa82bb78cba0fa7b3083d5a555e7",
+      "content": "Running EVID-06 tests against dedicated loopback test database.\n.                                                                        [100%]\n1 passed in 101.37s (0:01:41)\n"
+    },
+    "var/evid07-locked-and-domain-final-mypy.txt": {
+      "sha256": "5ba4fad13a81b04a0a55439e46f84ebb25f1dcefaf8a0f67d0e71ba1266e2e69",
+      "content": "Success: no issues found in 2 source files\nMypy regressions: 0 (legacy errors observed: 0)\n"
+    },
+    "var/evid07-locked-composition-debt.txt": {
+      "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+      "content": "Full mypy debt ceiling passed: 0 errors in 0 files\n"
+    },
+    "var/evid07-locked-and-domain-format.txt": {
+      "sha256": "cc63c73f0804a850e236ce84622ad023abc66b507473599a0e81d63a513f04c6",
+      "content": "All done! \\u2728 \\U0001f370 \\u2728\n6 files would be left unchanged.\nAll checks passed!\n"
+    },
+    "var/evid07-locked-composition-architecture.txt": {
+      "sha256": "4011f5ea1baa16240e5e39fd5d637dbb12ebe41642a5e27d8692d9800fbcdd64",
+      "content": "Architecture rules version: 2026-06-30.v8\nScan roots: apps, core, shared\nScanned files: 3066\nBoundary rules: 7\nBoundary violations: 0\n"
+    },
+    "var/evid07-locked-composition-governance.txt": {
+      "sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b",
+      "content": "Governance baseline version: 2026-09-09.v220\nGovernance violations: 0\n- governance_baseline: 0 violation(s)\n- docs_consistency: 0 violation(s)\n- docs_links: 0 violation(s)\n- governance_docs: 0 violation(s)\n- module_shape: 0 violation(s)\n- misplaced_app_config: 0 violation(s)\n- singular_dto_files: 0 violation(s)\n- architecture_ruleset: 0 violation(s)\n- module_dependency_baseline: 0 violation(s)\n- ci_governance_wiring: 0 violation(s)\n- application_third_party_imports: 0 violation(s)\n- core_integration_debt: 0 violation(s)\n- core_management_command_debt: 0 violation(s)\n- large_python_files: 0 violation(s)\n- large_file_remediation: 0 violation(s)\n"
+    },
+    "var/evid07-locked-and-domain-freshness.txt": {
+      "sha256": "f2ae9058295ffb2ac3661b05875439966e6ee9c93b30be1b441df1d190f5ede3",
+      "content": "Current-data freshness contracts OK: 59 surface(s)\n"
+    },
+    "var/evid07-locked-and-domain-cleanup.json": {
+      "sha256": "035facfb573e3880234d90f3c239d71755c0b107dbb57afc6a8c678a9ab48827",
+      "content": "{\"database\": \"evid06_authority_test\", \"public_base_tables\": 0}\n"
+    }
+  },
+  "verified": {
+    "combined_unit_tests": 67,
+    "composition_boundary_unit_tests": 1,
+    "postgres_tests": 5,
+    "postgres_scope": "Real local User/Profile/Session raw publication and persisted creation fixtures; real locked Issue use case, replay, policy revocation, outer rollback, isolation rejection, competing receipt ROW SHARE and actual actor/binding SELECT FOR UPDATE. Default-alias query sentinel during issue and replay.",
+    "lock_strategy": "Receipt-id then original policy-id try-advisory locks; deterministic EXCLUSIVE NOWAIT on 15 closed-world evidence tables before any source reads. Ordinary reads remain allowed. Contention fails closed and callers may retry. Actor input provider uses the same actor repository UOW within the same database transaction.",
+    "domain": "Same real staff owner in distinct claimant/approver roles, sealed policy and complete Receipt/Binding/Physical graph; UTC microsecond canonical hashes, inactive evidence only and no execution grant.",
+    "static_scope": "Final scoped mypy covers both production files. Full debt and architecture/governance were run during this slice; the separate codec worker may be adding files beyond this checkpoint scope."
+  },
+  "limits": [
+    "Creation facts and policy are explicit synthetic test fixtures, not actual captured authenticated account creation or production provenance.",
+    "Whole-ledger EXCLUSIVE locks serialize writers; no throughput or production load acceptance claimed.",
+    "Current actor reads revalidate canonical raw ledgers; actual request authentication and live source publication remain responsibilities of the final authenticated entry point.",
+    "Pure Domain approval-shaped evidence does not establish a real human approval."
+  ],
+  "remaining": [
+    "server-owned policy publication bound to the real admin authorization declaration",
+    "Subject/Evidence V4 codec, application orchestration and durable ledgers",
+    "owner-tenant authority version and typed scope",
+    "actual authenticated account creation and complete atomic evidence graph",
+    "production prerequisites and DATA-02/EVID-01/02/AUD-03/TAR-05 exits"
+  ],
+  "production_changes": false,
+  "unit_exit_gate_passed": false,
+  "artifact_git_tracking": "Local docs/testing artifact ignored by existing user .gitignore; no forced staging."
+}

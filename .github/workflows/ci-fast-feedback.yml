@@ -159,7 +159,10 @@ jobs:
   incremental-quality:
     name: Incremental quality gates
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Large cross-app PRs run each changed Domain package in isolation so one
+    # app cannot hide another app's coverage. Account's complete unit scope can
+    # exceed an hour under coverage instrumentation while remaining healthy.
+    timeout-minutes: 90
     needs: detect-tests
     steps:
       - name: Checkout

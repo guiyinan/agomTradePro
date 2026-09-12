@@ -1,0 +1,37 @@
+{
+  "scope": "DATA-02 effective Config Center provider runtime read-only inventory",
+  "capture": {
+    "samples": [
+      {
+        "label": "data02_effective_provider_runtime_readonly",
+        "command": "docker exec -i 0c695cfec9dd python -",
+        "input": "import os,json\nfrom pathlib import Path\nos.environ.setdefault(\"DJANGO_SETTINGS_MODULE\",\"core.settings\")\nimport django\ndjango.setup()\nfrom django.conf import settings\nfrom django.db import connection,transaction\nfrom django.utils import timezone\nfrom apps.data_center.infrastructure.models import ProviderConfigModel,DataProviderSettingsModel\nwith transaction.atomic():\n with connection.cursor() as c:\n  c.execute(\"SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY\")\n  c.execute(\"SET LOCAL statement_timeout = '15s'\")\n manifest=json.loads(Path(settings.AGOM_RELEASE_MANIFEST_PATH).read_text())\n if manifest.get(\"source_commit\")!=\"0e9f890e8185d897630fd937b5ffc220fd7830ce\" or manifest.get(\"release_tag\")!=\"20260907170119\":raise RuntimeError(\"candidate drift\")\n from apps.data_center.application.interface_services import load_provider_settings_payload\n print(json.dumps({\"recorded_at\":timezone.now().isoformat(),\"source_commit\":manifest[\"source_commit\"],\"release_tag\":manifest[\"release_tag\"],\"settings_module\":os.environ.get(\"DJANGO_SETTINGS_MODULE\"),\"effective_settings\":load_provider_settings_payload(),\"read_only\":True}))\n",
+        "started_at": "2026-09-07T12:44:23.977141+00:00",
+        "finished_at": "2026-09-07T12:44:40.907062+00:00",
+        "exit_code": 0,
+        "stdout_base64": "eyJyZWNvcmRlZF9hdCI6ICIyMDI2LTA5LTA3VDEyOjQ0OjM4LjcwNjQwNCswMDowMCIsICJzb3VyY2VfY29tbWl0IjogIjBlOWY4OTBlODE4NWQ4OTc2MzBmZDkzN2I1ZmZjMjIwZmQ3ODMwY2UiLCAicmVsZWFzZV90YWciOiAiMjAyNjA5MDcxNzAxMTkiLCAic2V0dGluZ3NfbW9kdWxlIjogImNvcmUuc2V0dGluZ3MucHJvZHVjdGlvbiIsICJlZmZlY3RpdmVfc2V0dGluZ3MiOiB7ImRlZmF1bHRfc291cmNlIjogImFrc2hhcmUiLCAiZW5hYmxlX2ZhaWxvdmVyIjogdHJ1ZSwgImZhaWxvdmVyX3RvbGVyYW5jZSI6IDAuMDEsICJzdGF0dXMiOiAiYWN0aXZlIiwgInNvdXJjZSI6ICJjb25maWdfY2VudGVyX3J1bnRpbWVfcHJvZmlsZSIsICJtdXN0X25vdF91c2VfZm9yX2RlY2lzaW9uIjogZmFsc2UsICJibG9ja2VkX3JlYXNvbiI6ICIifSwgInJlYWRfb25seSI6IHRydWV9Cg==",
+        "stdout_sha256": "1f268e0e8933b401f8966510f018e162ec43b4a4dbc8c894a951e190f0846c34",
+        "stderr_base64": "eyJ0aW1lc3RhbXAiOiAiMjAyNi0wOS0wN1QxMjo0NDozOC4zMDc0NTBaIiwgImxldmVsIjogIklORk8iLCAibG9nZ2VyIjogImFwcHMuZXZlbnRzLmFwcGxpY2F0aW9uLmV2ZW50X2J1c19pbml0aWFsaXplciIsICJtZXNzYWdlIjogIkV2ZW50IGJ1cyBpbml0aWFsaXplZCB3aXRoIDE4IGhhbmRsZXJzIiwgIm1vZHVsZSI6ICJldmVudF9idXNfaW5pdGlhbGl6ZXIiLCAiZnVuY3Rpb24iOiAiaW5pdGlhbGl6ZSIsICJsaW5lIjogNTgsICJwcm9jZXNzIjogMjI4ODQwLCAidGhyZWFkIjogMTIzODEzNDYzNjUxMTM2LCAicmVxdWVzdF9pZCI6ICItIn0K",
+        "stderr_sha256": "c8b1213afc8f851ec147bc16694de831ffa9b19e6e72df9a792df0baf13f3bbf"
+      }
+    ]
+  },
+  "capture_sha256": "2235ab0fad3d30579d0e715a8329c8b73d8533441d0f90fa75d89d60af93777c",
+  "result": {
+    "recorded_at": "2026-09-07T12:44:38.706404+00:00",
+    "source_commit": "0e9f890e8185d897630fd937b5ffc220fd7830ce",
+    "release_tag": "20260907170119",
+    "settings_module": "core.settings.production",
+    "effective_settings": {
+      "default_source": "akshare",
+      "enable_failover": true,
+      "failover_tolerance": 0.01,
+      "status": "active",
+      "source": "config_center_runtime_profile",
+      "must_not_use_for_decision": false,
+      "blocked_reason": ""
+    },
+    "read_only": true
+  },
+  "interpretation": "Effective runtime values are active; this does not by itself prove per-dataset canonical reconciliation acceptance."
+}

@@ -1,0 +1,298 @@
+{
+  "schema": "sprint-preflight-readonly.v1",
+  "recorded_at": "2026-09-09T16:36:34.338401+00:00",
+  "units": [
+    "DATA-02",
+    "EVID-01",
+    "EVID-02",
+    "AUD-03",
+    "TAR-05"
+  ],
+  "candidate": {
+    "build_finished_at": "2026-09-09T15:34:59Z",
+    "build_started_at": "2026-09-09T15:25:19Z",
+    "image_id": "sha256:3f5f7a8ebe2be8120fbce2e9cfb33c1065030643f9999cea4e8fe25d413256a0",
+    "image_tag": "agomtradepro-web:20260909232516",
+    "release_tag": "20260909232516",
+    "source_commit": "122373b180da603cc9845a8721f79c3ad681afa9",
+    "source_mode": "git-clone",
+    "version": 1
+  },
+  "identity_verified_by": [
+    "docker inspected image and OCI revision",
+    "container release manifest",
+    "second identical Docker identity observation"
+  ],
+  "findings": {
+    "database": {
+      "observed_at": "2026-09-09T16:34:40.473081+00:00",
+      "read_only": "on",
+      "actor_authority_rows": 0,
+      "scope_authority_rows": 0,
+      "audit_event_rows": 0,
+      "audit_outbox_rows": 0,
+      "applied_migrations": 500
+    },
+    "audit_runtime_snapshot": {
+      "snapshot_id": "f96ceca1-9fb5-4321-9604-0d53da22aa9c",
+      "profile_key": "production",
+      "profile_version": 2,
+      "snapshot_hash": "af164c1ca395916276a5ff0990d699dbee2141a2a1b9e69f2258fbdf4474d80c",
+      "generated_at": "2026-08-09T08:39:31.911872+00:00",
+      "mode": null,
+      "outbox_enabled": null,
+      "authority_selector": null
+    },
+    "published_equity_datasets": [
+      {
+        "dataset_key": "equity.financial.fact",
+        "publication_id": "c8741812-cf01-512f-8d1c-91c0e6549f42",
+        "state": "published",
+        "publication_hash": "20acdb3f16bcd4843a5a5ca48b6758f791a9b7cb1eefb12a27b7e474ac76785c",
+        "published_at": "2026-08-15T02:54:59.904908+00:00",
+        "member_count": 80
+      },
+      {
+        "dataset_key": "equity.price.bar",
+        "publication_id": "93bb22bf-d2ed-58ca-8b19-7217a74041d1",
+        "state": "published",
+        "publication_hash": "9ee14266b3426d913162d01f1a34ec7b113bc5380fe4533d8a36e4be44110e13",
+        "published_at": "2026-08-28T15:17:52.302291+00:00",
+        "member_count": 23
+      },
+      {
+        "dataset_key": "equity.quote.snapshot",
+        "publication_id": "0e00ea1e-20cd-5daf-b92d-49547e44aac9",
+        "state": "published",
+        "publication_hash": "638e589654b2e55dff9eacb75638c2232066b6a744d2a14ee315c493ab76e247",
+        "published_at": "2026-08-28T08:15:29.730089+00:00",
+        "member_count": 1
+      }
+    ],
+    "valuation_published": false
+  },
+  "limitations": [
+    "Separate observations are not one atomic application/database snapshot.",
+    "Public HTTP requests were not authenticated or bound to a candidate. Release identity HTTP returned 403; ready request timed out after 12 seconds.",
+    "500 applied migrations is a row count, not a pending-migration check.",
+    "The first publication query used market.* keys and returned no rows; only the later equity.* query supports dataset findings.",
+    "No full canonical reconciliation, provider fetch, writer smoke, recovery/archive restore, staging capacity or TUI retained-window acceptance was performed."
+  ],
+  "production_mutation_performed": false,
+  "authority_or_approval_created": false,
+  "exit_gate_complete": false,
+  "captures": {
+    "http": {
+      "schema": "sprint-http-readonly.v1",
+      "observations": [
+        {
+          "url": "https://demo.agomtrade.pro/api/operational-readiness/release-identity/",
+          "observed_at": "2026-09-09T16:31:47.816359+00:00",
+          "status": 403,
+          "raw_sha256": "c65bef74297615126656a101e44c654a66e04c61d4936c40643db8ce487152bd",
+          "raw_base64": "eyJlcnJvciI6Iui6q+S7veiupOivgeS/oeaBr+acquaPkOS+m+OAgiIsImNvZGUiOiJBUElfRVJST1IifQ==",
+          "content_type": "application/json",
+          "parsed": {
+            "error": "身份认证信息未提供。",
+            "code": "API_ERROR"
+          }
+        },
+        {
+          "url": "https://demo.agomtrade.pro/api/health/",
+          "observed_at": "2026-09-09T16:31:50.751430+00:00",
+          "status": 200,
+          "raw_sha256": "4aa9166a12892567a28b6b195b4127fd6d216855dac9faa19464175cadf0fc2b",
+          "raw_base64": "eyJzdGF0dXMiOiJvayIsInRpbWVzdGFtcCI6IjIwMjYtMDktMDlUMTY6MzE6NTMuMDI1NjQ4KzAwOjAwIn0=",
+          "content_type": "application/json",
+          "parsed": {
+            "status": "ok",
+            "timestamp": "2026-09-09T16:31:53.025648+00:00"
+          }
+        },
+        {
+          "url": "https://demo.agomtrade.pro/api/ready/",
+          "observed_at": "2026-09-09T16:31:52.776117+00:00",
+          "error_type": "TimeoutError"
+        },
+        {
+          "url": "https://demo.agomtrade.pro/api/decision-ready/",
+          "observed_at": "2026-09-09T16:32:06.089285+00:00",
+          "status": 503,
+          "raw_sha256": "5a5fffcc062782c2dbcbccba4b5bbaa9fc67e11be51ddbf416600f0a90790529",
+          "raw_base64": "eyJzdGF0dXMiOiAiYmxvY2tlZCIsICJ0aW1lc3RhbXAiOiAiMjAyNi0wOS0wOVQxNjozMjowOC4yNjQwODIrMDA6MDAiLCAibXVzdF9ub3RfdXNlX2Zvcl9kZWNpc2lvbiI6IHRydWUsICJjaGVja3MiOiB7InJ1bnRpbWVfc3RhdGUiOiB7InN0YXR1cyI6ICJibG9ja2VkIiwgInJlYXNvbiI6ICJNQ1AgYXVkaXQgZXZpZGVuY2Ugd3JpdGUgZmFpbGVkIGR1cmluZyBmaW5hbCBhY2NlcHRhbmNlIiwgImNoYW5nZWRfYXQiOiAiMjAyNi0wOC0yOVQxODoxNDowNi43OTk5MzIrMDA6MDAiLCAiY2hhbmdlZF9ieSI6ICJjb2RleC5kYXRhMDEuc3dpdGNoYmFjayIsICJyZWxlYXNlX3JlZiI6ICIzZTA4YTNiM2E3YjZjY2QzMzg5OGU1YmIyYzUwNzQzMDBiMWE0OTI4IiwgImV4cGVjdGVkX3Jlc3VtZV9hdCI6IG51bGwsICJtdXN0X25vdF91c2VfZm9yX2RlY2lzaW9uIjogdHJ1ZSwgImJsb2NrX3JlYXNvbl9jb2RlIjogImRlY2lzaW9uX3J1bnRpbWVfYmxvY2tlZCIsICJydW50aW1lX3N0YXR1cyI6ICJibG9ja2VkIn0sICJjb3JlX2NvdmVyYWdlIjogeyJzdGF0dXMiOiAiYmxvY2tlZCIsICJtdXN0X25vdF91c2VfZm9yX2RlY2lzaW9uIjogdHJ1ZSwgImJsb2NrX3JlYXNvbl9jb2RlIjogImRlY2lzaW9uX3JlYWRpbmVzc19ibG9ja2VkIiwgImJsb2NrZWRfYnkiOiAiZGVjaXNpb25fcnVudGltZV9ibG9ja2VkIn0sICJwcm92aWRlcl9jYXBhYmlsaXRpZXMiOiB7InN0YXR1cyI6ICJibG9ja2VkIiwgIm11c3Rfbm90X3VzZV9mb3JfZGVjaXNpb24iOiB0cnVlLCAiYmxvY2tfcmVhc29uX2NvZGUiOiAiZGVjaXNpb25fcmVhZGluZXNzX2Jsb2NrZWQiLCAiYmxvY2tlZF9ieSI6ICJkZWNpc2lvbl9ydW50aW1lX2Jsb2NrZWQifSwgImRlY2lzaW9uX2RhdGEiOiB7InN0YXR1cyI6ICJibG9ja2VkIiwgIm11c3Rfbm90X3VzZV9mb3JfZGVjaXNpb24iOiB0cnVlLCAiYmxvY2tfcmVhc29uX2NvZGUiOiAiZGVjaXNpb25fcmVhZGluZXNzX2Jsb2NrZWQiLCAiYmxvY2tlZF9ieSI6ICJkZWNpc2lvbl9ydW50aW1lX2Jsb2NrZWQifX19",
+          "content_type": "application/json",
+          "parsed": {
+            "status": "blocked",
+            "timestamp": "2026-09-09T16:32:08.264082+00:00",
+            "must_not_use_for_decision": true,
+            "checks": {
+              "runtime_state": {
+                "status": "blocked",
+                "reason": "MCP audit evidence write failed during final acceptance",
+                "changed_at": "2026-08-29T18:14:06.799932+00:00",
+                "changed_by": "codex.data01.switchback",
+                "release_ref": "3e08a3b3a7b6ccd33898e5bb2c5074300b1a4928",
+                "expected_resume_at": null,
+                "must_not_use_for_decision": true,
+                "block_reason_code": "decision_runtime_blocked",
+                "runtime_status": "blocked"
+              },
+              "core_coverage": {
+                "status": "blocked",
+                "must_not_use_for_decision": true,
+                "block_reason_code": "decision_readiness_blocked",
+                "blocked_by": "decision_runtime_blocked"
+              },
+              "provider_capabilities": {
+                "status": "blocked",
+                "must_not_use_for_decision": true,
+                "block_reason_code": "decision_readiness_blocked",
+                "blocked_by": "decision_runtime_blocked"
+              },
+              "decision_data": {
+                "status": "blocked",
+                "must_not_use_for_decision": true,
+                "block_reason_code": "decision_readiness_blocked",
+                "blocked_by": "decision_runtime_blocked"
+              }
+            }
+          }
+        },
+        {
+          "url": "https://demo.agomtrade.pro/api/audit/health/",
+          "observed_at": "2026-09-09T16:32:09.250193+00:00",
+          "status": 200,
+          "raw_sha256": "36df88686546a16c4173b729162cbedb3e7238dd2df157b02ab8e61a69027340",
+          "raw_base64": "eyJvdmVyYWxsX3N0YXR1cyI6Ik9LIiwiY2hlY2tzIjpbeyJjb21wb25lbnQiOiJhdWRpdF9mYWlsdXJlX2NvdW50ZXIiLCJzdGF0dXMiOiJPSyIsIm1lc3NhZ2UiOiJObyBhdWRpdCBmYWlsdXJlcyByZWNvcmRlZCIsImRldGFpbHMiOnsidG90YWxfZmFpbHVyZXMiOjAsImJ5X2NvbXBvbmVudCI6e30sIndhcm5pbmdfdGhyZXNob2xkIjoxMCwiZXJyb3JfdGhyZXNob2xkIjo1MH0sImNoZWNrZWRfYXQiOiIyMDI2LTA5LTA5VDE2OjMyOjExLjg4OTE0NSswMDowMCJ9LHsiY29tcG9uZW50IjoiYXVkaXRfZGF0YWJhc2VfY29ubmVjdGlvbiIsInN0YXR1cyI6Ik9LIiwibWVzc2FnZSI6IkRhdGFiYXNlIGNvbm5lY3Rpb24gaXMgaGVhbHRoeSIsImRldGFpbHMiOnsicHJvYmUiOiJwYXNzZWQifSwiY2hlY2tlZF9hdCI6IjIwMjYtMDktMDlUMTY6MzI6MTEuOTQ2MTg4KzAwOjAwIn0seyJjb21wb25lbnQiOiJhdWRpdF90YWJsZXNfYWNjZXNzaWJsZSIsInN0YXR1cyI6Ik9LIiwibWVzc2FnZSI6IkF1ZGl0IHRhYmxlcyBhcmUgYWNjZXNzaWJsZSIsImRldGFpbHMiOnsicHJvYmUiOiJwYXNzZWQifSwiY2hlY2tlZF9hdCI6IjIwMjYtMDktMDlUMTY6MzI6MTIuMDM3NjI1KzAwOjAwIn0seyJjb21wb25lbnQiOiJhdWRpdF9vdXRib3hfYmFja2xvZyIsInN0YXR1cyI6Ik9LIiwibWVzc2FnZSI6IkF1ZGl0IG91dGJveCBiYWNrbG9nIGlzIGhlYWx0aHkiLCJkZXRhaWxzIjp7ImFzX29mIjoiMjAyNi0wOS0wOVQxNjozMjoxMi4wMzc2NTQrMDA6MDAiLCJwZW5kaW5nX2NvdW50IjowLCJkdWVfcGVuZGluZ19jb3VudCI6MCwiY2xhaW1lZF9jb3VudCI6MCwiZXhwaXJlZF9jbGFpbWVkX2NvdW50IjowLCJmYWlsZWRfY291bnQiOjAsImRlbGl2ZXJlZF9jb3VudCI6MCwib2xkZXN0X2JhY2tsb2dfYWdlX3NlY29uZHMiOm51bGwsIm9sZGVzdF9jbGFpbWVkX2FnZV9zZWNvbmRzIjpudWxsfSwiY2hlY2tlZF9hdCI6IjIwMjYtMDktMDlUMTY6MzI6MTIuMDM3NjU0KzAwOjAwIn1dLCJtZXRyaWNzIjp7ImF2YWlsYWJsZSI6dHJ1ZSwidG90YWxfb3BlcmF0aW9uX2xvZ3MiOjU3MSwidG90YWxfZmFpbHVyZXMiOjAsImZhaWx1cmVfcmF0ZSI6MC4wLCJmYWlsdXJlc19ieV9jb21wb25lbnQiOnt9fSwiZ2VuZXJhdGVkX2F0IjoiMjAyNi0wOS0wOVQxNjozMjoxMi4wNzcwMjQrMDA6MDAifQ==",
+          "content_type": "application/json",
+          "parsed": {
+            "overall_status": "OK",
+            "checks": [
+              {
+                "component": "audit_failure_counter",
+                "status": "OK",
+                "message": "No audit failures recorded",
+                "details": {
+                  "total_failures": 0,
+                  "by_component": {},
+                  "warning_threshold": 10,
+                  "error_threshold": 50
+                },
+                "checked_at": "2026-09-09T16:32:11.889145+00:00"
+              },
+              {
+                "component": "audit_database_connection",
+                "status": "OK",
+                "message": "Database connection is healthy",
+                "details": {
+                  "probe": "passed"
+                },
+                "checked_at": "2026-09-09T16:32:11.946188+00:00"
+              },
+              {
+                "component": "audit_tables_accessible",
+                "status": "OK",
+                "message": "Audit tables are accessible",
+                "details": {
+                  "probe": "passed"
+                },
+                "checked_at": "2026-09-09T16:32:12.037625+00:00"
+              },
+              {
+                "component": "audit_outbox_backlog",
+                "status": "OK",
+                "message": "Audit outbox backlog is healthy",
+                "details": {
+                  "as_of": "2026-09-09T16:32:12.037654+00:00",
+                  "pending_count": 0,
+                  "due_pending_count": 0,
+                  "claimed_count": 0,
+                  "expired_claimed_count": 0,
+                  "failed_count": 0,
+                  "delivered_count": 0,
+                  "oldest_backlog_age_seconds": null,
+                  "oldest_claimed_age_seconds": null
+                },
+                "checked_at": "2026-09-09T16:32:12.037654+00:00"
+              }
+            ],
+            "metrics": {
+              "available": true,
+              "total_operation_logs": 571,
+              "total_failures": 0,
+              "failure_rate": 0.0,
+              "failures_by_component": {}
+            },
+            "generated_at": "2026-09-09T16:32:12.077024+00:00"
+          }
+        }
+      ],
+      "production_mutation_performed": false,
+      "canonical_acceptance_claimed": false
+    },
+    "ssh": {
+      "schema": "sprint-ssh-readonly.v1",
+      "observed_at": "2026-09-09T16:33:00.298142+00:00",
+      "production_mutation_performed": false,
+      "command": "docker inspect --format '{{.Name}} {{.Config.Image}} {{.Image}} {{.State.Status}} {{index .Config.Labels \"org.opencontainers.image.revision\"}}' agomtradepro-web-1",
+      "exit_code": 0,
+      "stdout": "/agomtradepro-web-1 agomtradepro-web:20260909232516 sha256:3f5f7a8ebe2be8120fbce2e9cfb33c1065030643f9999cea4e8fe25d413256a0 running 122373b180da603cc9845a8721f79c3ad681afa9\n",
+      "stdout_sha256": "c64f60e030f371c068c58dbf491af242871f78c6e11cb6a504c13dae1bc07e23",
+      "stderr": ""
+    },
+    "db": {
+      "schema": "sprint-database-readonly.v1",
+      "observed_at": "2026-09-09T16:34:38.193452+00:00",
+      "sql": "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;\nSET LOCAL statement_timeout = '15s';\nSELECT json_build_object('observed_at',CURRENT_TIMESTAMP,'read_only',current_setting('transaction_read_only'),'actor_authority_rows',(SELECT count(*) FROM account_actor_authority_source_v3_ledger),'scope_authority_rows',(SELECT count(*) FROM account_owner_tenant_authority_v1),'audit_event_rows',(SELECT count(*) FROM audit_system_event),'audit_outbox_rows',(SELECT count(*) FROM audit_system_outbox),'applied_migrations',(SELECT count(*) FROM django_migrations));\nSELECT json_build_object('snapshot_id',snapshot_id,'profile_key',profile_key,'profile_version',profile_version,'snapshot_hash',snapshot_hash,'generated_at',generated_at,'mode',resolved_values->'audit.system_event.mode','outbox_enabled',resolved_values->'audit.system_event.outbox_enabled','authority_selector',resolved_values->'audit.system_event.authority_selector') FROM config_center_runtime_config_snapshot WHERE profile_key='production' ORDER BY generated_at DESC LIMIT 1;\nSELECT json_build_object('dataset_key',p.dataset_key,'publication_id',p.publication_id,'state',p.state,'publication_hash',p.publication_hash,'published_at',p.published_at,'member_count',(SELECT count(*) FROM data_center_publication_member m WHERE m.publication_id=p.publication_id)) FROM data_center_canonical_publication p ORDER BY published_at DESC NULLS LAST LIMIT 12;\nROLLBACK;\n",
+      "production_mutation_performed": false,
+      "command": "docker exec -i agomtradepro-postgres-1 sh -c 'psql -X -qAt -v ON_ERROR_STOP=1 -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\"'",
+      "exit_code": 0,
+      "stdout_base64": "eyJvYnNlcnZlZF9hdCIgOiAiMjAyNi0wOS0wOVQxNjozNDo0MC40NzMwODErMDA6MDAiLCAicmVhZF9vbmx5IiA6ICJvbiIsICJhY3Rvcl9hdXRob3JpdHlfcm93cyIgOiAwLCAic2NvcGVfYXV0aG9yaXR5X3Jvd3MiIDogMCwgImF1ZGl0X2V2ZW50X3Jvd3MiIDogMCwgImF1ZGl0X291dGJveF9yb3dzIiA6IDAsICJhcHBsaWVkX21pZ3JhdGlvbnMiIDogNTAwfQp7InNuYXBzaG90X2lkIiA6ICJmOTZjZWNhMS05ZmI1LTQzMjEtOTYwNC0wZDUzZGEyMmFhOWMiLCAicHJvZmlsZV9rZXkiIDogInByb2R1Y3Rpb24iLCAicHJvZmlsZV92ZXJzaW9uIiA6IDIsICJzbmFwc2hvdF9oYXNoIiA6ICJhZjE2NGMxY2EzOTU5MTYyNzZhNWZmMDk5MGQ2OTlkYmVlMjE0MWEyYTFiOWU2OWYyMjU4ZmJkZjQ0NzRkODBjIiwgImdlbmVyYXRlZF9hdCIgOiAiMjAyNi0wOC0wOVQwODozOTozMS45MTE4NzIrMDA6MDAiLCAibW9kZSIgOiBudWxsLCAib3V0Ym94X2VuYWJsZWQiIDogbnVsbCwgImF1dGhvcml0eV9zZWxlY3RvciIgOiBudWxsfQp7ImRhdGFzZXRfa2V5IiA6ICJtYXJrZXQubmV3cyIsICJwdWJsaWNhdGlvbl9pZCIgOiAiOTUxYjI4MDEtNDdjNi01MjRlLWJjM2MtMjM5YzcxY2RmZGNiIiwgInN0YXRlIiA6ICJwdWJsaXNoZWQiLCAicHVibGljYXRpb25faGFzaCIgOiAiYzliNTQ1N2JjNDM1ODA2MDZhYzM0MTViODgwNTA1MmNiNjgwN2M1NzczYmZkNDY0ZTU5OWVjMmE5YzdiNGNmMSIsICJwdWJsaXNoZWRfYXQiIDogIjIwMjYtMDktMDlUMTA6MTU6MDYuNzAzNDkyKzAwOjAwIiwgIm1lbWJlcl9jb3VudCIgOiAxMn0KeyJkYXRhc2V0X2tleSIgOiAibWFya2V0Lm5ld3MiLCAicHVibGljYXRpb25faWQiIDogIjBjNDdlOWQzLTU3YTQtNTA5Mi04ZjQ5LTMyMWEyOGM1ZmFlZiIsICJzdGF0ZSIgOiAic3VwZXJzZWRlZCIsICJwdWJsaWNhdGlvbl9oYXNoIiA6ICJiMmVlYWViZTU3ODg4YmJlYzliOGM5MmUzZDJkMmU4MTY2NTA0NDQxNGJhODQ0OTRhMzBjNzgzYWVhMTBmZTQ0IiwgInB1Ymxpc2hlZF9hdCIgOiAiMjAyNi0wOS0wOVQwNzoxNzo0OC42ODU1NDQrMDA6MDAiLCAibWVtYmVyX2NvdW50IiA6IDExfQp7ImRhdGFzZXRfa2V5IiA6ICJtYXJrZXQubmV3cyIsICJwdWJsaWNhdGlvbl9pZCIgOiAiODc2MzBlZGItNDY3Yy01MGE3LTgxM2QtMzE2MGFmNzNlN2RiIiwgInN0YXRlIiA6ICJzdXBlcnNlZGVkIiwgInB1YmxpY2F0aW9uX2hhc2giIDogImVjYzIyZmY3OWQzOGQwZjkyZGI1MGYwNzkwNDViZDBhYzRjZmI4NzRiNTgyNjBkNWM5MTA1ODI0YmRmMTRmODEiLCAicHVibGlzaGVkX2F0IiA6ICIyMDI2LTA5LTA3VDA2OjE1OjAzLjMzODY5OSswMDowMCIsICJtZW1iZXJfY291bnQiIDogMTAwfQp7ImRhdGFzZXRfa2V5IiA6ICJtYXJrZXQubmV3cyIsICJwdWJsaWNhdGlvbl9pZCIgOiAiMWQ3NjliM2QtZmIxNi01MzJjLWFhY2QtNjA4MDdlYzI5MzBhIiwgInN0YXRlIiA6ICJzdXBlcnNlZGVkIiwgInB1YmxpY2F0aW9uX2hhc2giIDogIjhiMzRmNWI0NzM4ZmZhMDk3NDNmMjZkNGE4MjdhYzk1MjAxNGEwZjVjMmI5YTExODAzNzQ3NDdhMzgwZGI3ZjciLCAicHVibGlzaGVkX2F0IiA6ICIyMDI2LTA5LTA3VDAzOjE1OjEwLjg4NTE1MiswMDowMCIsICJtZW1iZXJfY291bnQiIDogMTAwfQp7ImRhdGFzZXRfa2V5IiA6ICJtYXJrZXQubmV3cyIsICJwdWJsaWNhdGlvbl9pZCIgOiAiZjExNzFiMGEtNTU0MC01N2ZkLTkzMGUtMDYyNzU1ZTk4YTQyIiwgInN0YXRlIiA6ICJzdXBlcnNlZGVkIiwgInB1YmxpY2F0aW9uX2hhc2giIDogImJkYzYxYTA4Y2NkMzY4NWFmNTcxMzcyZjE5MjhmYzRlYTgxMGJmMGQzNjg2NTI0NDNlNjc5MjFmODA2ZjI3MDIiLCAicHVibGlzaGVkX2F0IiA6ICIyMDI2LTA5LTA3VDAyOjE1OjA3LjgyNDA5NCswMDowMCIsICJtZW1iZXJfY291bnQiIDogMTAwfQp7ImRhdGFzZXRfa2V5IiA6ICJtYXJrZXQubmV3cyIsICJwdWJsaWNhdGlvbl9pZCIgOiAiZjMwZDQ1M2EtNWVmMi01NzI2LWEzNjAtOGVmOGJiYWJmNWE0IiwgInN0YXRlIiA6ICJzdXBlcnNlZGVkIiwgInB1YmxpY2F0aW9uX2hhc2giIDogIjQ0Njk2ZDZkNzc0NjhhNDJiMzE1YjlmMWU0OGYxZmM0Y2M4NWFkYzhmZGI3NWQ0NGIwMzViYzI5MjAyNWE5MGUiLCAicHVibGlzaGVkX2F0IiA6ICIyMDI2LTA5LTA3VDAxOjE1OjExLjMwNDg0KzAwOjAwIiwgIm1lbWJlcl9jb3VudCIgOiAxMDB9CnsiZGF0YXNldF9rZXkiIDogIm1hcmtldC5uZXdzIiwgInB1YmxpY2F0aW9uX2lkIiA6ICI4OGFjYzE3NS1jZTEyLTVhMDAtYmU4OS0xN2Q0Nzk4YjRiYmYiLCAic3RhdGUiIDogInN1cGVyc2VkZWQiLCAicHVibGljYXRpb25faGFzaCIgOiAiY2U2Zjc0N2M2YzhiODBiYzgxNDdhZGZjZTc1MDcxOGEzYzZjNjY4MzdjMTZkYTNhMDI2YjEyM2VjYjdmYjgwMyIsICJwdWJsaXNoZWRfYXQiIDogIjIwMjYtMDktMDRUMTU6MTU6MTkuNjU5MzA1KzAwOjAwIiwgIm1lbWJlcl9jb3VudCIgOiAxMDB9CnsiZGF0YXNldF9rZXkiIDogIm1hcmtldC5uZXdzIiwgInB1YmxpY2F0aW9uX2lkIiA6ICIxODNiZDljYy0zYTFiLTU2OTItYTEyZS0yMDUwMzg0MTFmMDAiLCAic3RhdGUiIDogInN1cGVyc2VkZWQiLCAicHVibGljYXRpb25faGFzaCIgOiAiNWExNzRlZDIxNzMwMzY4MmNkMTllZDVmYzNmMDA2Yzk3MmQ3MGU4MGJhYTY5YzFjMGI5YTRhN2YxOTI5NjY4OCIsICJwdWJsaXNoZWRfYXQiIDogIjIwMjYtMDktMDRUMDM6MTU6MjAuMzA3NTE3KzAwOjAwIiwgIm1lbWJlcl9jb3VudCIgOiAxMDB9CnsiZGF0YXNldF9rZXkiIDogIm1hcmtldC5uZXdzIiwgInB1YmxpY2F0aW9uX2lkIiA6ICJjMjk5OTZkZS1kZWE4LTVjZGMtYWVlNy02YWU2MzIzZTk3ZjkiLCAic3RhdGUiIDogInN1cGVyc2VkZWQiLCAicHVibGljYXRpb25faGFzaCIgOiAiOTYzOTAyOTFhYzE5NzFjZmU3MmU5NjY4ZDdlMDg5MWZhMzM4MTdjYWM4NWM4ZGZmYWVkNjljYTgyMWJmZDJkZiIsICJwdWJsaXNoZWRfYXQiIDogIjIwMjYtMDktMDRUMDE6MTU6MTAuMzc3MzUxKzAwOjAwIiwgIm1lbWJlcl9jb3VudCIgOiAxMDB9CnsiZGF0YXNldF9rZXkiIDogIm1hcmtldC5uZXdzIiwgInB1YmxpY2F0aW9uX2lkIiA6ICIxYmM2MDAzZS0xMzJhLTUwZmItYWZkNS1hYWVlOThmYjA2MTIiLCAic3RhdGUiIDogInN1cGVyc2VkZWQiLCAicHVibGljYXRpb25faGFzaCIgOiAiOGYyMDYwN2NmMzE3Mzg5YWRmNmNmNzcxMjk1ZTk5MWMzYzEwOTllOTVmYTEyM2Q2ZjY0NjMxOTViMzRlMzZmYiIsICJwdWJsaXNoZWRfYXQiIDogIjIwMjYtMDktMDNUMTU6Mzc6NDguNzk0NDU5KzAwOjAwIiwgIm1lbWJlcl9jb3VudCIgOiAxMDB9CnsiZGF0YXNldF9rZXkiIDogIm1hcmtldC5uZXdzIiwgInB1YmxpY2F0aW9uX2lkIiA6ICI2NjdiMzMzYy05MjVkLTU4OGQtODQ0ZS03NzliMzQwNTZkMjgiLCAic3RhdGUiIDogInN1cGVyc2VkZWQiLCAicHVibGljYXRpb25faGFzaCIgOiAiZDVkMGEzYTFlMzhkNTk1M2U4YTYxYmQ2MmE2NTIxNTE0YTAzYjVkNWI0YzE1OTVjNjJlNTg1YTdmNDI3MWY1NSIsICJwdWJsaXNoZWRfYXQiIDogIjIwMjYtMDktMDNUMDM6MTU6MDkuOTQ4OTY5KzAwOjAwIiwgIm1lbWJlcl9jb3VudCIgOiAxMDB9CnsiZGF0YXNldF9rZXkiIDogIm1hcmtldC5uZXdzIiwgInB1YmxpY2F0aW9uX2lkIiA6ICJjOWUxNjY3OS03YTg1LTUyMWYtOTNlYy1jMWViNWYzYTRmZjIiLCAic3RhdGUiIDogInN1cGVyc2VkZWQiLCAicHVibGljYXRpb25faGFzaCIgOiAiNmZiMTEwYTQzMmExYzI1NDllNGRiY2ExYjkwZWQ2ZTUyNjhkYjQxODdiYjNjNjBiZjM1YWRhN2EwYWI5ZjU1NSIsICJwdWJsaXNoZWRfYXQiIDogIjIwMjYtMDktMDNUMDI6MTU6MDYuMTI5MzE0KzAwOjAwIiwgIm1lbWJlcl9jb3VudCIgOiAxMDB9Cg==",
+      "stdout_sha256": "b8e856e91f0558a264032595fda275cf1e4a66970a7a3c8a3620a7c73e013bc3",
+      "stderr": ""
+    },
+    "candidate-data": {
+      "schema": "sprint-candidate-data-readonly.v1",
+      "observed_at": "2026-09-09T16:35:13.523524+00:00",
+      "sql": "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;\nSET LOCAL statement_timeout = '15s';\nSELECT json_build_object('dataset_key',p.dataset_key,'publication_id',p.publication_id,'state',p.state,'publication_hash',p.publication_hash,'published_at',p.published_at,'member_count',(SELECT count(*) FROM data_center_publication_member m WHERE m.publication_id=p.publication_id)) FROM data_center_canonical_publication p WHERE p.state='published' AND p.dataset_key IN ('market.quote','market.price','market.valuation','market.financial') ORDER BY p.dataset_key;\nROLLBACK;\n",
+      "production_mutation_performed": false,
+      "captures": [
+        {
+          "label": "manifest",
+          "command": "docker exec agomtradepro-web-1 python -c 'import os,json;from pathlib import Path;p=os.environ.get('\"'\"'AGOM_RELEASE_MANIFEST_PATH'\"'\"');print(json.dumps({'\"'\"'manifest_env_present'\"'\"':bool(p),'\"'\"'manifest'\"'\"':json.loads(Path(p).read_text()) if p else None}))'",
+          "exit_code": 0,
+          "stdout_base64": "eyJtYW5pZmVzdF9lbnZfcHJlc2VudCI6IHRydWUsICJtYW5pZmVzdCI6IHsiYnVpbGRfZmluaXNoZWRfYXQiOiAiMjAyNi0wOS0wOVQxNTozNDo1OVoiLCAiYnVpbGRfc3RhcnRlZF9hdCI6ICIyMDI2LTA5LTA5VDE1OjI1OjE5WiIsICJpbWFnZV9pZCI6ICJzaGEyNTY6M2Y1ZjdhOGViZTJiZTgxMjBmYmNlMmU5Y2ZiMzNjMTA2NTAzMDY0M2Y5OTk5Y2VhNGU4ZmUyNWQ0MTMyNTZhMCIsICJpbWFnZV90YWciOiAiYWdvbXRyYWRlcHJvLXdlYjoyMDI2MDkwOTIzMjUxNiIsICJyZWxlYXNlX3RhZyI6ICIyMDI2MDkwOTIzMjUxNiIsICJzb3VyY2VfY29tbWl0IjogIjEyMjM3M2IxODBkYTYwM2NjOTg0NWE4NzIxZjc5YzNhZDY4MWFmYTkiLCAic291cmNlX21vZGUiOiAiZ2l0LWNsb25lIiwgInZlcnNpb24iOiAxfX0K",
+          "stdout_sha256": "23f616c01956f25fad885f6218f927d2c97c91088d80f836a40ebd25429f3ef8",
+          "stderr": ""
+        },
+        {
+          "label": "publication",
+          "command": "docker exec -i agomtradepro-postgres-1 sh -c 'psql -X -qAt -v ON_ERROR_STOP=1 -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\"'",
+          "exit_code": 0,
+          "stdout_base64": "",
+          "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr": ""
+        },
+        {
+          "label": "identity_after",
+          "command": "docker inspect --format '{{.Name}} {{.Config.Image}} {{.Image}} {{.State.Status}} {{index .Config.Labels \"org.opencontainers.image.revision\"}}' agomtradepro-web-1",
+          "exit_code": 0,
+          "stdout_base64": "L2Fnb210cmFkZXByby13ZWItMSBhZ29tdHJhZGVwcm8td2ViOjIwMjYwOTA5MjMyNTE2IHNoYTI1NjozZjVmN2E4ZWJlMmJlODEyMGZiY2UyZTljZmIzM2MxMDY1MDMwNjQzZjk5OTljZWE0ZThmZTI1ZDQxMzI1NmEwIHJ1bm5pbmcgMTIyMzczYjE4MGRhNjAzY2M5ODQ1YTg3MjFmNzljM2FkNjgxYWZhOQo=",
+          "stdout_sha256": "c64f60e030f371c068c58dbf491af242871f78c6e11cb6a504c13dae1bc07e23",
+          "stderr": ""
+        }
+      ]
+    },
+    "publication": {
+      "schema": "sprint-publication-readonly.v1",
+      "observed_at": "2026-09-09T16:36:01.703721+00:00",
+      "sql": "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;\nSET LOCAL statement_timeout = '15s';\nSELECT json_build_object('dataset_key',p.dataset_key,'publication_id',p.publication_id,'state',p.state,'publication_hash',p.publication_hash,'published_at',p.published_at,'member_count',(SELECT count(*) FROM data_center_publication_member m WHERE m.publication_id=p.publication_id)) FROM data_center_canonical_publication p WHERE p.state='published' AND p.dataset_key IN ('equity.quote.snapshot','equity.price.bar','equity.valuation.fact','equity.financial.fact') ORDER BY p.dataset_key;\nROLLBACK;\n",
+      "command": "docker exec -i agomtradepro-postgres-1 sh -c 'psql -X -qAt -v ON_ERROR_STOP=1 -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\"'",
+      "production_mutation_performed": false,
+      "exit_code": 0,
+      "stdout_base64": "eyJkYXRhc2V0X2tleSIgOiAiZXF1aXR5LmZpbmFuY2lhbC5mYWN0IiwgInB1YmxpY2F0aW9uX2lkIiA6ICJjODc0MTgxMi1jZjAxLTUxMmYtOGQxYy05MWMwZTY1NDlmNDIiLCAic3RhdGUiIDogInB1Ymxpc2hlZCIsICJwdWJsaWNhdGlvbl9oYXNoIiA6ICIyMGFjZGIzZjE2YmNkNDg0M2E1YTVjYTQ4YjY3NThmNzkxYTliN2NiMWVlZmIxMmEyN2I3ZTQ3NGFjNzY3ODVjIiwgInB1Ymxpc2hlZF9hdCIgOiAiMjAyNi0wOC0xNVQwMjo1NDo1OS45MDQ5MDgrMDA6MDAiLCAibWVtYmVyX2NvdW50IiA6IDgwfQp7ImRhdGFzZXRfa2V5IiA6ICJlcXVpdHkucHJpY2UuYmFyIiwgInB1YmxpY2F0aW9uX2lkIiA6ICI5M2JiMjJiZi1kMmVkLTU4Y2EtOGIxOS03MjE3YTc0MDQxZDEiLCAic3RhdGUiIDogInB1Ymxpc2hlZCIsICJwdWJsaWNhdGlvbl9oYXNoIiA6ICI5ZWUxNDI2NmIzNDI2ZDkxMzE2MmQwMWYxYTM0ZWM3YjExM2JjNTM4MGZlNDUzM2Q4YTM2ZTRiZTQ0MTEwZTEzIiwgInB1Ymxpc2hlZF9hdCIgOiAiMjAyNi0wOC0yOFQxNToxNzo1Mi4zMDIyOTErMDA6MDAiLCAibWVtYmVyX2NvdW50IiA6IDIzfQp7ImRhdGFzZXRfa2V5IiA6ICJlcXVpdHkucXVvdGUuc25hcHNob3QiLCAicHVibGljYXRpb25faWQiIDogIjBlMDBlYTFlLTIwY2QtNWRhZi1iOTJkLTQ5NTQ3ZTQ0YWFjOSIsICJzdGF0ZSIgOiAicHVibGlzaGVkIiwgInB1YmxpY2F0aW9uX2hhc2giIDogIjYzOGU1ODk2NTRiMmU1NWRmZjllYWNiNzU2MzhjMjIzMjA2NmI2YTc0NGQyYTE0ZWUzMTVjNDkzYWI3NmUyNDciLCAicHVibGlzaGVkX2F0IiA6ICIyMDI2LTA4LTI4VDA4OjE1OjI5LjczMDA4OSswMDowMCIsICJtZW1iZXJfY291bnQiIDogMX0K",
+      "stdout_sha256": "293a18cd597c0dcaae68b302c0a7782c4909d40a3dbf2076048b0fa292b69212",
+      "stderr": ""
+    }
+  }
+}

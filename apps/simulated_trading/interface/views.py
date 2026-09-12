@@ -1,10 +1,12 @@
-"""
-模拟盘交易模块 Interface 层视图
+"""模拟盘交易模块 Interface 层视图兼容导出面。
 
 遵循四层架构规范：
 - Interface 层只做输入验证和输出格式化
 - 禁止业务逻辑
 - 包含 API 视图（DRF）
+
+账户生命周期 API 和共享输入/输出辅助函数分别由同层私有模块负责；本
+模块保留原有页面、API 类和辅助函数的稳定导入路径。
 """
 
 from __future__ import annotations
@@ -23,40 +25,59 @@ from django.views.decorators.http import require_http_methods
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
-from rest_framework.exceptions import NotAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.simulated_trading.application import interface_services as simulated_interface_services
 from apps.simulated_trading.application.use_cases import (
-    CreateSimulatedAccountUseCase,
     ExecuteBuyOrderUseCase,
     ExecuteSellOrderUseCase,
-    GetAccountPerformanceUseCase,
     ListAccountsUseCase,
 )
-from apps.simulated_trading.domain.entities import AccountType, SimulatedAccount
-from core.exceptions import DataFetchError
+from apps.simulated_trading.domain.entities import AccountType
+from core.exceptions import (
+    DataFetchError,
+    DataValidationError,
+    DuplicateResourceError,
+    ExternalServiceError,
+    InvalidInputError,
+)
+from core.integration.authenticated_canonical_account_creation import (
+    create_authenticated_canonical_account,
+)
 
+from ._account_views import (
+    AccountBatchDeleteAPIView,
+    AccountDetailAPIView,
+)
+from ._fee_config_views import FeeConfigListAPIView
+from ._portfolio_views import (
+    PerformanceAPIView,
+    PositionListAPIView,
+    TradeListAPIView,
+)
+from ._view_helpers import (
+    AccountModelProtocol,
+    _account_payload,
+    _authenticated_user_id,
+    _delete_account_with_summary,
+    _get_owned_account_or_response,
+    _parse_iso_date,
+    _parse_positive_int,
+)
 from .serializers import (
-    AccountBatchDeleteRequestSerializer,
-    AccountBatchDeleteResponseSerializer,
-    AccountDeleteResponseSerializer,
+    AccountCreateResponseSerializer,
+    AccountCreationKeySerializer,
     AccountListResponseSerializer,
-    AccountResponseSerializer,
     AutoTradingRunRequestSerializer,
     AutoTradingRunResponseSerializer,
     CreateAccountRequestSerializer,
     DailyInspectionReportListResponseSerializer,
     DailyInspectionRunRequestSerializer,
     EquityCurveResponseSerializer,
-    FeeConfigListResponseSerializer,
     ManualTradeRequestSerializer,
     ManualTradeResponseSerializer,
-    PerformanceResponseSerializer,
-    PositionListResponseSerializer,
-    TradeListResponseSerializer,
 )
 
 ViewMethodT = TypeVar("ViewMethodT", bound=Callable[..., Any])
@@ -71,103 +92,34 @@ class ExtendSchemaProtocol(Protocol):
 typed_extend_schema = cast(ExtendSchemaProtocol, extend_schema)
 
 
-class AccountModelProtocol(Protocol):
-    """Minimal persisted account contract needed by the HTTP interface."""
-
-    id: int
-
-
-def _get_owned_account_or_response(
-    request: Request, account_id: int, action: str = "访问"
-) -> AccountModelProtocol | Response:
-    """Return owned account model or an error response."""
-    result = simulated_interface_services.get_account_access(
-        user=request.user,
-        account_id=account_id,
-        action=action,
-    )
-    if not result.allowed:
-        return Response(
-            {"success": False, "error": result.error},
-            status=result.status_code,
-        )
-
-    return cast(AccountModelProtocol, result.account)
-
-
-def _delete_account_with_summary(
-    account: AccountModelProtocol,
-) -> dict[str, Any]:
-    """Delete the account and provide small cascade stats for feedback."""
-    return simulated_interface_services.delete_account_with_summary(account.id) or {}
-
-
-def _parse_iso_date(raw_value: str, *, field_name: str) -> date:
-    """Parse ISO date params from query strings and request bodies."""
-    try:
-        return date.fromisoformat(raw_value)
-    except (TypeError, ValueError) as exc:
-        raise ValueError(f"{field_name} 必须是 YYYY-MM-DD 格式日期") from exc
-
-
-def _parse_positive_int(raw_value: str | int | None, *, field_name: str, default: int) -> int:
-    """Parse positive integer params used by list endpoints."""
-    if raw_value is None or raw_value == "":
-        return default
-
-    try:
-        value = int(raw_value)
-    except (TypeError, ValueError) as exc:
-        raise ValueError(f"{field_name} 必须是整数") from exc
-
-    if value <= 0:
-        raise ValueError(f"{field_name} 必须大于 0")
-
-    return value
-
-
-def _authenticated_user_id(request: Request) -> int:
-    """Return a persisted authenticated user ID or fail closed."""
-
-    user_id = getattr(request.user, "id", None)
-    if user_id is None:
-        raise NotAuthenticated("请先登录后再操作账户")
-    return int(user_id)
-
-
-def _account_payload(account: SimulatedAccount, *, newly_created: bool = False) -> dict[str, Any]:
-    """Serialize the canonical account fields shared by public endpoints."""
-
-    created_at = getattr(account, "created_at", None)
-    return {
-        "account_id": account.account_id,
-        "account_name": account.account_name,
-        "account_type": account.account_type.value,
-        "initial_capital": str(account.initial_capital),
-        "current_cash": str(account.current_cash),
-        "current_market_value": str(account.current_market_value),
-        "total_value": str(account.total_value),
-        "total_return": None if newly_created else account.total_return,
-        "annual_return": None if newly_created else account.annual_return,
-        "max_drawdown": None if newly_created else account.max_drawdown,
-        "sharpe_ratio": None if newly_created else account.sharpe_ratio,
-        "win_rate": None if newly_created else account.win_rate,
-        "max_position_pct": account.max_position_pct,
-        "stop_loss_pct": account.stop_loss_pct,
-        "commission_rate": account.commission_rate,
-        "slippage_rate": account.slippage_rate,
-        "total_trades": account.total_trades,
-        "winning_trades": account.winning_trades,
-        "is_active": account.is_active,
-        "auto_trading_enabled": account.auto_trading_enabled,
-        "start_date": account.start_date.isoformat(),
-        "last_trade_date": (
-            None
-            if newly_created or account.last_trade_date is None
-            else account.last_trade_date.isoformat()
-        ),
-        "created_at": (None if newly_created or created_at is None else created_at.isoformat()),
-    }
+__all__ = [
+    "AccountModelProtocol",
+    "AccountBatchDeleteAPIView",
+    "AccountDetailAPIView",
+    "AccountListAPIView",
+    "AutoTradingAPIView",
+    "DailyInspectionReportListAPIView",
+    "DailyInspectionRunAPIView",
+    "EquityCurveAPIView",
+    "FeeConfigListAPIView",
+    "ManualTradeAPIView",
+    "PerformanceAPIView",
+    "PositionListAPIView",
+    "TradeListAPIView",
+    "account_detail_page",
+    "dashboard_page",
+    "my_account_detail_page",
+    "my_accounts_page",
+    "my_inspection_notify_page",
+    "my_positions_page",
+    "my_trades_page",
+    "_account_payload",
+    "_authenticated_user_id",
+    "_delete_account_with_summary",
+    "_get_owned_account_or_response",
+    "_parse_iso_date",
+    "_parse_positive_int",
+]
 
 
 # ============================================================================
@@ -383,22 +335,8 @@ class AccountListAPIView(APIView):
         responses={200: AccountListResponseSerializer},
     )
     def get(self, request: Request) -> Response:
-        """
-        GET /api/simulated-trading/accounts/
+        """Return the authenticated user's accounts with optional filters."""
 
-        获取账户列表
-
-        Query Parameters:
-        - active_only: true/false（默认 true）
-        - account_type: real/simulated（可选）
-
-        Response:
-        {
-            "success": true,
-            "count": 2,
-            "accounts": [...]
-        }
-        """
         if not request.user or not request.user.is_authenticated:
             return Response(
                 {"success": False, "error": "请先登录后再查看账户列表"},
@@ -426,472 +364,60 @@ class AccountListAPIView(APIView):
             accounts = [account for account in accounts if account.account_type == account_type]
 
         account_list = [_account_payload(account) for account in accounts]
-
         return Response({"success": True, "count": len(account_list), "accounts": account_list})
 
     @typed_extend_schema(
         summary="创建账户",
         description="创建新的统一账户，账户类型通过 account_type 指定。",
         request=CreateAccountRequestSerializer,
-        responses={200: AccountResponseSerializer},
-    )
-    def post(self, request: Request) -> Response:
-        """
-        POST /api/simulated-trading/accounts/
-
-        创建账户
-
-        Request Body:
-        {
-            "account_name": "测试账户1",
-            "account_type": "simulated",
-            "initial_capital": 100000.00,
-            "max_position_pct": 20.0,
-            "stop_loss_pct": 10.0,
-            "commission_rate": 0.0003,
-            "slippage_rate": 0.001
-        }
-
-        Response:
-        {
-            "success": true,
-            "account": {...}
-        }
-        """
-        # 1. 验证请求
-        serializer = CreateAccountRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-
-        # 2. 执行用例
-        try:
-            use_case = CreateSimulatedAccountUseCase(self.account_repo)
-            account = use_case.execute(
-                account_name=data["account_name"],
-                initial_capital=float(data["initial_capital"]),
-                account_type=AccountType(data.get("account_type", "simulated")),
-                max_position_pct=data.get("max_position_pct", 20.0),
-                stop_loss_pct=data.get("stop_loss_pct"),
-                commission_rate=data.get("commission_rate", 0.0003),
-                slippage_rate=data.get("slippage_rate", 0.001),
-                user_id=_authenticated_user_id(request),
-            )
-
-            response_data = _account_payload(account, newly_created=True)
-
-            return Response(
-                {"success": True, "account": response_data}, status=status.HTTP_201_CREATED
-            )
-
-        except ValueError as e:
-            return Response({"success": False, "error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-
-class AccountDetailAPIView(APIView):
-    """账户详情 API"""
-
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        self.account_repo = simulated_interface_services.get_account_repository()
-        self.position_repo = simulated_interface_services.get_position_repository()
-        self.trade_repo = simulated_interface_services.get_trade_repository()
-
-    @typed_extend_schema(
-        summary="获取账户详情",
-        description="获取单个账户的完整信息",
-        responses={200: AccountResponseSerializer},
-    )
-    def get(self, request: Request, account_id: int) -> Response:
-        """
-        GET /api/simulated-trading/accounts/{id}/
-
-        获取账户详情
-
-        Response:
-        {
-            "success": true,
-            "account": {...}
-        }
-        """
-        account_model = _get_owned_account_or_response(request, account_id, action="查看")
-        if isinstance(account_model, Response):
-            return account_model
-
-        account = self.account_repo.get_by_id(account_id)
-        if not account:
-            return Response(
-                {"success": False, "error": f"账户不存在: {account_id}"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        return Response({"success": True, "account": _account_payload(account)})
-
-    @typed_extend_schema(
-        summary="删除账户",
-        description="删除当前用户拥有的单个模拟/实仓账户，并级联删除关联持仓、交易与巡检记录。",
-        responses={200: AccountDeleteResponseSerializer},
-    )
-    def delete(self, request: Request, account_id: int) -> Response:
-        if not request.user or not request.user.is_authenticated:
-            return Response(
-                {"success": False, "error": "请先登录后再执行删除操作"},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
-
-        account = _get_owned_account_or_response(request, account_id, action="删除")
-        if isinstance(account, Response):
-            return account
-
-        summary = _delete_account_with_summary(account)
-        return Response(
-            {
-                "success": True,
-                **summary,
-                "message": f"账户 {summary['account_name']} 已删除",
-            }
-        )
-
-
-class AccountBatchDeleteAPIView(APIView):
-    """账户批量删除 API"""
-
-    @typed_extend_schema(
-        summary="批量删除账户",
-        description="批量删除当前用户拥有的账户，并返回逐项失败原因。",
-        request=AccountBatchDeleteRequestSerializer,
-        responses={200: AccountBatchDeleteResponseSerializer},
-    )
-    def post(self, request: Request) -> Response:
-        if not request.user or not request.user.is_authenticated:
-            return Response(
-                {"success": False, "error": "请先登录后再执行删除操作"},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
-
-        serializer = AccountBatchDeleteRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        deleted_account_ids = []
-        deleted_account_names = []
-        failed = []
-
-        for account_id in serializer.validated_data["account_ids"]:
-            account = _get_owned_account_or_response(request, account_id, action="删除")
-            if isinstance(account, Response):
-                failed.append({"account_id": account_id, "error": account.data.get("error")})
-                continue
-
-            summary = _delete_account_with_summary(account)
-            deleted_account_ids.append(summary["account_id"])
-            deleted_account_names.append(summary["account_name"])
-
-        return Response(
-            {
-                "success": True,
-                "requested_count": len(serializer.validated_data["account_ids"]),
-                "deleted_count": len(deleted_account_ids),
-                "deleted_account_ids": deleted_account_ids,
-                "deleted_account_names": deleted_account_names,
-                "failed": failed,
-                "message": f"已删除 {len(deleted_account_ids)} 个账户",
-            }
-        )
-
-
-class PositionListAPIView(APIView):
-    """持仓列表 API"""
-
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        self.account_repo = simulated_interface_services.get_account_repository()
-        self.position_repo = simulated_interface_services.get_position_repository()
-
-    @typed_extend_schema(
-        summary="获取账户持仓列表",
-        description="获取指定账户的所有持仓",
-        responses={200: PositionListResponseSerializer},
-    )
-    def get(self, request: Request, account_id: int) -> Response:
-        """
-        GET /api/simulated-trading/accounts/{id}/positions/
-
-        获取账户持仓列表
-
-        Response:
-        {
-            "success": true,
-            "account_id": 1,
-            "account_name": "测试账户1",
-            "total_positions": 3,
-            "total_market_value": "50000.00",
-            "positions": [...]
-        }
-        """
-        account_model = _get_owned_account_or_response(request, account_id, action="查看")
-        if isinstance(account_model, Response):
-            return account_model
-
-        account = self.account_repo.get_by_id(account_id)
-        if not account:
-            return Response(
-                {"success": False, "error": f"账户不存在: {account_id}"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        positions = self.position_repo.get_by_account(account_id)
-
-        # 序列化持仓
-        position_list = []
-        for pos in positions:
-            position_list.append(
-                {
-                    "position_id": getattr(pos, "position_id", None),
-                    "account_id": pos.account_id,
-                    "asset_code": pos.asset_code,
-                    "asset_name": pos.asset_name,
-                    "asset_type": pos.asset_type,
-                    "quantity": pos.quantity,
-                    "available_quantity": pos.available_quantity,
-                    "avg_cost": str(pos.avg_cost),
-                    "total_cost": str(pos.total_cost),
-                    "current_price": str(pos.current_price),
-                    "market_value": str(pos.market_value),
-                    "unrealized_pnl": str(pos.unrealized_pnl),
-                    "unrealized_pnl_pct": pos.unrealized_pnl_pct,
-                    "first_buy_date": pos.first_buy_date.isoformat(),
-                    "last_update_date": pos.last_update_date.isoformat(),
-                    "signal_id": pos.signal_id,
-                    "entry_reason": pos.entry_reason,
-                }
-            )
-
-        return Response(
-            {
-                "success": True,
-                "account_id": account_id,
-                "account_name": account.account_name,
-                "total_positions": len(position_list),
-                "total_market_value": str(account.current_market_value),
-                "positions": position_list,
-            }
-        )
-
-
-class TradeListAPIView(APIView):
-    """交易记录列表 API"""
-
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        self.account_repo = simulated_interface_services.get_account_repository()
-        self.trade_repo = simulated_interface_services.get_trade_repository()
-
-    @typed_extend_schema(
-        summary="获取账户交易记录",
-        description="获取指定账户的交易记录（支持过滤）",
         parameters=[
             OpenApiParameter(
-                name="start_date", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY
-            ),
-            OpenApiParameter(
-                name="end_date", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY
-            ),
-            OpenApiParameter(
-                name="asset_code", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY
-            ),
-            OpenApiParameter(name="action", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY),
+                name="Idempotency-Key",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.HEADER,
+                required=True,
+                description="同一次创建及网络重试复用此键；新的创建使用新键。",
+            )
         ],
-        responses={200: TradeListResponseSerializer},
+        responses={200: AccountCreateResponseSerializer, 201: AccountCreateResponseSerializer},
     )
-    def get(self, request: Request, account_id: int) -> Response:
-        """
-        GET /api/simulated-trading/accounts/{id}/trades/
+    def post(self, request: Request) -> Response:
+        """Create an account through the authenticated canonical creation bridge."""
 
-        获取交易记录列表
-
-        Query Parameters:
-        - start_date: 开始日期（可选）
-        - end_date: 结束日期（可选）
-        - asset_code: 资产代码（可选）
-        - action: 买入/卖出（可选）
-
-        Response:
-        {
-            "success": true,
-            "account_id": 1,
-            "account_name": "测试账户1",
-            "total_trades": 25,
-            "total_buy_count": 15,
-            "total_sell_count": 10,
-            "total_realized_pnl": "5000.00",
-            "trades": [...]
-        }
-        """
-        account_model = _get_owned_account_or_response(request, account_id, action="查看")
-        if isinstance(account_model, Response):
-            return account_model
-
-        account = self.account_repo.get_by_id(account_id)
-        if not account:
-            return Response(
-                {"success": False, "error": f"账户不存在: {account_id}"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        # 获取所有交易记录
-        all_trades = self.trade_repo.get_by_account(account_id)
-
-        # 应用过滤
-        start_date = request.query_params.get("start_date")
-        end_date = request.query_params.get("end_date")
-        asset_code = request.query_params.get("asset_code")
-        action = request.query_params.get("action")
-        try:
-            limit = _parse_positive_int(
-                request.query_params.get("limit"), field_name="limit", default=100
-            )
-            parsed_start_date = (
-                _parse_iso_date(start_date, field_name="start_date") if start_date else None
-            )
-            parsed_end_date = _parse_iso_date(end_date, field_name="end_date") if end_date else None
-        except ValueError as exc:
-            return Response(
-                {"success": False, "error": str(exc)},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        if parsed_start_date and parsed_end_date and parsed_start_date > parsed_end_date:
-            return Response(
-                {"success": False, "error": "start_date 不能晚于 end_date"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        filtered_trades = []
-        for trade in all_trades:
-            # 日期过滤
-            if parsed_start_date and trade.execution_date < parsed_start_date:
-                continue
-            if parsed_end_date and trade.execution_date > parsed_end_date:
-                continue
-
-            # 资产过滤
-            if asset_code and trade.asset_code != asset_code:
-                continue
-
-            # 方向过滤
-            if action and trade.action.value != action:
-                continue
-
-            filtered_trades.append(trade)
-
-        # 统计
-        buy_count = sum(1 for t in filtered_trades if t.action.value == "buy")
-        sell_count = sum(1 for t in filtered_trades if t.action.value == "sell")
-        total_pnl = sum(t.realized_pnl or 0 for t in filtered_trades)
-
-        # 序列化
-        trade_list = []
-        for trade in filtered_trades[:limit]:
-            trade_list.append(
-                {
-                    "trade_id": trade.trade_id,
-                    "account_id": trade.account_id,
-                    "asset_code": trade.asset_code,
-                    "asset_name": trade.asset_name,
-                    "asset_type": trade.asset_type,
-                    "action": trade.action.value,
-                    "quantity": trade.quantity,
-                    "price": str(trade.price),
-                    "amount": str(trade.amount),
-                    "commission": str(trade.commission),
-                    "slippage": str(trade.slippage),
-                    "total_cost": str(trade.total_cost),
-                    "realized_pnl": (
-                        str(trade.realized_pnl) if trade.realized_pnl is not None else None
-                    ),
-                    "realized_pnl_pct": trade.realized_pnl_pct,
-                    "reason": trade.reason,
-                    "signal_id": trade.signal_id,
-                    "order_date": trade.order_date.isoformat(),
-                    "execution_date": trade.execution_date.isoformat(),
-                    "execution_time": trade.execution_time.isoformat(),
-                    "status": trade.status.value,
-                }
-            )
-
-        return Response(
-            {
-                "success": True,
-                "account_id": account_id,
-                "account_name": account.account_name,
-                "total_trades": len(filtered_trades),
-                "total_buy_count": buy_count,
-                "total_sell_count": sell_count,
-                "total_realized_pnl": str(total_pnl),
-                "trades": trade_list,
-            }
+        serializer = CreateAccountRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        key_serializer = AccountCreationKeySerializer(
+            data={"request_key": request.headers.get("Idempotency-Key", "")}
         )
-
-
-class PerformanceAPIView(APIView):
-    """绩效分析 API"""
-
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        self.account_repo = simulated_interface_services.get_account_repository()
-        self.position_repo = simulated_interface_services.get_position_repository()
-        self.trade_repo = simulated_interface_services.get_trade_repository()
-
-    @typed_extend_schema(
-        summary="获取账户绩效",
-        description="获取账户的完整绩效分析",
-        responses={200: PerformanceResponseSerializer},
-    )
-    def get(self, request: Request, account_id: int) -> Response:
-        """
-        GET /api/simulated-trading/accounts/{id}/performance/
-
-        获取账户绩效
-
-        Response:
-        {
-            "success": true,
-            "account": {...},
-            "total_positions": 3,
-            "total_trades": 25,
-            "winning_trades": 15,
-            "win_rate": 60.0,
-            "performance": {
-                "total_return": 10.5,
-                "annual_return": 12.3,
-                "max_drawdown": 5.2,
-                "sharpe_ratio": 1.8,
-                "win_rate": 60.0
-            }
-        }
-        """
-        account_model = _get_owned_account_or_response(request, account_id, action="查看")
-        if isinstance(account_model, Response):
-            return account_model
-
-        use_case = GetAccountPerformanceUseCase(
-            self.account_repo, self.position_repo, self.trade_repo
-        )
+        key_serializer.is_valid(raise_exception=True)
 
         try:
-            result = use_case.execute(account_id)
-            return Response(
-                {
-                    "success": True,
-                    "account": _account_payload(result["account"]),
-                    "total_positions": result["total_positions"],
-                    "total_trades": result["total_trades"],
-                    "winning_trades": result["winning_trades"],
-                    "win_rate": result["win_rate"],
-                    "performance": result["performance"],
-                }
+            result = create_authenticated_canonical_account(
+                request=request,
+                parameters=serializer.to_creation_input(
+                    request_key=cast(str, key_serializer.validated_data["request_key"])
+                ),
             )
-
-        except ValueError as e:
-            return Response({"success": False, "error": str(e)}, status=status.HTTP_404_NOT_FOUND)
+            response_data = _account_payload(result.account, newly_created=not result.replayed)
+            return Response(
+                {"success": True, "account": response_data, "replayed": result.replayed},
+                status=status.HTTP_200_OK if result.replayed else status.HTTP_201_CREATED,
+            )
+        except DuplicateResourceError:
+            return Response(
+                {"success": False, "error": "创建请求与现有账户或已提交请求冲突。"},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except InvalidInputError:
+            return Response(
+                {"success": False, "error": "创建账户的输入无效。"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except (DataValidationError, ExternalServiceError):
+            return Response(
+                {"success": False, "error": "账户创建暂不可用，请稍后重试本次提交。"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
 
 class ManualTradeAPIView(APIView):
@@ -1011,54 +537,6 @@ class ManualTradeAPIView(APIView):
 
         except ValueError as e:
             return Response({"success": False, "error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-
-class FeeConfigListAPIView(APIView):
-    """费率配置列表 API"""
-
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        self.fee_config_repo = simulated_interface_services.get_fee_config_repository()
-
-    @typed_extend_schema(
-        summary="获取费率配置列表",
-        description="获取所有费率配置",
-        responses={200: FeeConfigListResponseSerializer},
-    )
-    def get(self, request: Request) -> Response:
-        """
-        GET /api/simulated-trading/fee-configs/
-
-        获取费率配置列表
-
-        Response:
-        {
-            "success": true,
-            "count": 6,
-            "configs": [...]
-        }
-        """
-        configs = self.fee_config_repo.get_all_configs()
-
-        config_list = []
-        for config in configs:
-            config_list.append(
-                {
-                    "config_id": config.config_id,
-                    "config_name": config.config_name,
-                    "asset_type": config.asset_type,
-                    "commission_rate_buy": config.commission_rate_buy,
-                    "commission_rate_sell": config.commission_rate_sell,
-                    "min_commission": config.min_commission,
-                    "stamp_duty_rate": config.stamp_duty_rate,
-                    "transfer_fee_rate": config.transfer_fee_rate,
-                    "min_transfer_fee": config.min_transfer_fee,
-                    "slippage_rate": config.slippage_rate,
-                    "description": config.description,
-                }
-            )
-
-        return Response({"success": True, "count": len(config_list), "configs": config_list})
 
 
 class EquityCurveAPIView(APIView):
