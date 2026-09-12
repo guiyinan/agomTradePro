@@ -20,6 +20,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 
+from apps.audit.application.system_audit_authority_schema import (
+    SYSTEM_AUDIT_SCOPE_SCHEMA_V1,
+    SYSTEM_AUDIT_SCOPE_SCHEMA_V2,
+    SYSTEM_AUDIT_SCOPE_SCHEMA_V3,
+    SYSTEM_AUDIT_SCOPE_SCHEMAS,
+    validate_system_audit_scope_schema,
+)
 from apps.audit.application.system_audit_composition import (
     SystemAuditAuthorityProvider,
     SystemAuditAuthoritySnapshot,
@@ -58,7 +65,9 @@ class SystemAuditAuthorityBundleSelector:
 
     The selector carries no mutable request state.  Its child content hashes
     become part of the derived bundle identity, so a reader cannot substitute
-    another immutable version with the same source ID and version.
+    another immutable version with the same source ID and version.  The
+    six-field V1 form keeps its historical digest; newer scope schemas are
+    included in a versioned digest.
     """
 
     actor_source_id: str
@@ -67,6 +76,7 @@ class SystemAuditAuthorityBundleSelector:
     scope_source_id: str
     scope_source_version: str
     scope_content_hash: str
+    scope_schema: str = SYSTEM_AUDIT_SCOPE_SCHEMA_V1
 
     def __post_init__(self) -> None:
         for name, value in (
@@ -78,11 +88,12 @@ class SystemAuditAuthorityBundleSelector:
             _token(value, name)
         _digest(self.actor_content_hash, "actor_content_hash")
         _digest(self.scope_content_hash, "scope_content_hash")
+        validate_system_audit_scope_schema(self.scope_schema)
 
     def canonical_key(self) -> str:
         """Return a stable digest for this exact two-ledger selection."""
 
-        payload = {
+        payload: dict[str, str] = {
             "actor_content_hash": self.actor_content_hash,
             "actor_source_id": self.actor_source_id,
             "actor_source_version": self.actor_source_version,
@@ -90,8 +101,15 @@ class SystemAuditAuthorityBundleSelector:
             "scope_source_id": self.scope_source_id,
             "scope_source_version": self.scope_source_version,
         }
+        if self.scope_schema != SYSTEM_AUDIT_SCOPE_SCHEMA_V1:
+            payload["scope_schema"] = self.scope_schema
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
-        return hashlib.sha256(b"audit.system-authority-bundle.v1\0" + encoded).hexdigest()
+        digest_domain = (
+            b"audit.system-authority-bundle.v1\0"
+            if self.scope_schema == SYSTEM_AUDIT_SCOPE_SCHEMA_V1
+            else b"audit.system-authority-bundle.v2\0"
+        )
+        return hashlib.sha256(digest_domain + encoded).hexdigest()
 
     def authority_source_id(self) -> str:
         """Return the provider-issued authority source identity for this bundle."""
@@ -101,7 +119,8 @@ class SystemAuditAuthorityBundleSelector:
     def authority_source_version(self) -> str:
         """Return the provider-issued authority source version for this bundle."""
 
-        return f"v1-{self.canonical_key()[:32]}"
+        selector_version = "v1" if self.scope_schema == SYSTEM_AUDIT_SCOPE_SCHEMA_V1 else "v2"
+        return f"{selector_version}-{self.canonical_key()[:32]}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,6 +175,7 @@ class SystemAuditScopeAuthorityFacts:
     authority_state: str
     recorded_at: datetime
     valid_until: datetime
+    scope_schema: str = SYSTEM_AUDIT_SCOPE_SCHEMA_V1
 
     def __post_init__(self) -> None:
         for name, value in (
@@ -168,6 +188,7 @@ class SystemAuditScopeAuthorityFacts:
         ):
             _token(value, name)
         _digest(self.content_hash, "content_hash")
+        validate_system_audit_scope_schema(self.scope_schema)
         if type(self.user_id) is not int or self.user_id <= 0:
             raise ValueError("user_id must be a positive integer")
         if self.authority_state not in {"active", "revoked"}:
@@ -307,6 +328,7 @@ class ExactScopedSystemAuditAuthorityProvider(SystemAuditAuthorityProvider):
                     authority_state="active",
                     recorded_at=recorded_at,
                     valid_until=valid_until,
+                    scope_schema=selector.scope_schema,
                 ),
                 is_authenticated=actor.is_authenticated,
                 is_staff=actor.is_staff,
@@ -314,6 +336,7 @@ class ExactScopedSystemAuditAuthorityProvider(SystemAuditAuthorityProvider):
                 authority_state="active",
                 recorded_at=recorded_at,
                 valid_until=valid_until,
+                scope_schema=selector.scope_schema,
             )
         except Exception:
             # Database/RBAC/provider errors are intentionally opaque here.
@@ -341,18 +364,25 @@ def _matches_scope(
         value.source_id,
         value.source_version,
         value.content_hash,
+        value.scope_schema,
     ) == (
         selector.scope_source_id,
         selector.scope_source_version,
         selector.scope_content_hash,
+        selector.scope_schema,
     )
 
 
 __all__ = [
     "ExactScopedSystemAuditAuthorityProvider",
+    "SYSTEM_AUDIT_SCOPE_SCHEMA_V1",
+    "SYSTEM_AUDIT_SCOPE_SCHEMA_V2",
+    "SYSTEM_AUDIT_SCOPE_SCHEMA_V3",
+    "SYSTEM_AUDIT_SCOPE_SCHEMAS",
     "SystemAuditActorAuthorityFacts",
     "SystemAuditActorAuthorityReader",
     "SystemAuditAuthorityBundleSelector",
     "SystemAuditScopeAuthorityFacts",
     "SystemAuditScopeAuthorityReader",
+    "validate_system_audit_scope_schema",
 ]

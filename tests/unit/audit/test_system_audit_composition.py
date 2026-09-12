@@ -9,6 +9,10 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from apps.audit.application.system_audit_authority_schema import (
+    SYSTEM_AUDIT_SCOPE_SCHEMA_V1,
+    SYSTEM_AUDIT_SCOPE_SCHEMA_V3,
+)
 from apps.audit.application.system_audit_composition import (
     CanonicalSystemAuditPublisherPreflight,
     CanonicalSystemAuditPublishReceipt,
@@ -39,6 +43,7 @@ def _authority(**changes: object) -> SystemAuditAuthoritySnapshot:
         "authority_state": "active",
         "recorded_at": NOW - timedelta(minutes=5),
         "valid_until": NOW + timedelta(minutes=5),
+        "scope_schema": SYSTEM_AUDIT_SCOPE_SCHEMA_V1,
     }
     values.update(changes)
     values["authority_content_hash"] = system_audit_authority_content_hash(
@@ -54,6 +59,7 @@ def _authority(**changes: object) -> SystemAuditAuthoritySnapshot:
         authority_state=values["authority_state"],
         recorded_at=values["recorded_at"],
         valid_until=values["valid_until"],
+        scope_schema=values["scope_schema"],
     )
     return SystemAuditAuthoritySnapshot(**values)
 
@@ -131,6 +137,18 @@ def test_authority_provider_is_the_only_source_for_reader_context() -> None:
         ),
         True,
     )
+
+
+def test_versioned_scope_schema_is_bound_to_authority_snapshot_hash() -> None:
+    legacy = _authority()
+    versioned = _authority(scope_schema=SYSTEM_AUDIT_SCOPE_SCHEMA_V3)
+
+    assert versioned.authority_content_hash != legacy.authority_content_hash
+    versioned.validate_integrity()
+
+    substituted = replace(versioned, scope_schema=SYSTEM_AUDIT_SCOPE_SCHEMA_V1)
+    with pytest.raises(ValueError, match="content hash mismatch"):
+        substituted.validate_integrity()
 
 
 @pytest.mark.parametrize(

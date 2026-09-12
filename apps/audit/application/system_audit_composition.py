@@ -16,6 +16,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Mapping, Protocol, cast
 
+from apps.audit.application.system_audit_authority_schema import (
+    SYSTEM_AUDIT_SCOPE_SCHEMA_V1,
+    validate_system_audit_scope_schema,
+)
 from apps.audit.application.system_audit_query import SystemAuditReaderContext
 from apps.audit.domain.system_audit_event import JSONValue, SystemAuditEvent
 
@@ -74,13 +78,16 @@ def system_audit_authority_content_hash(
     authority_state: str,
     recorded_at: datetime,
     valid_until: datetime,
+    scope_schema: str = SYSTEM_AUDIT_SCOPE_SCHEMA_V1,
 ) -> str:
     """Return the canonical digest for one provider-issued authority snapshot.
 
     The digest binds every non-secret fact that the composition boundary uses
     for staff/user and tenant/owner scope.  It is not an authentication
     provider and does not create authority; it only lets the boundary reject
-    a snapshot whose scope fields were substituted after issuance.
+    a snapshot whose scope fields were substituted after issuance.  The V1
+    form intentionally keeps the historical payload and digest domain;
+    versioned scope schemas are included in the successor digest.
     """
 
     for name, value in (
@@ -103,8 +110,9 @@ def system_audit_authority_content_hash(
         raise ValueError("user_id must be a positive integer")
     if not isinstance(is_authenticated, bool) or not isinstance(is_staff, bool):
         raise TypeError("authority flags must be bools")
+    validate_system_audit_scope_schema(scope_schema)
 
-    payload: Mapping[str, JSONValue] = {
+    payload: dict[str, JSONValue] = {
         "source_id": source_id,
         "source_version": source_version,
         "actor_id": actor_id,
@@ -118,9 +126,14 @@ def system_audit_authority_content_hash(
         "recorded_at": recorded_at.isoformat(),
         "valid_until": valid_until.isoformat(),
     }
-    return hashlib.sha256(
-        b"audit.system-audit-authority.v1\0" + _canonical_bytes(payload)
-    ).hexdigest()
+    if scope_schema != SYSTEM_AUDIT_SCOPE_SCHEMA_V1:
+        payload["scope_schema"] = scope_schema
+    digest_domain = (
+        b"audit.system-audit-authority.v1\0"
+        if scope_schema == SYSTEM_AUDIT_SCOPE_SCHEMA_V1
+        else b"audit.system-audit-authority.v2\0"
+    )
+    return hashlib.sha256(digest_domain + _canonical_bytes(payload)).hexdigest()
 
 
 def _exact_payload_equal(left: object, right: object) -> bool:
@@ -443,6 +456,7 @@ class SystemAuditAuthoritySnapshot:
     authority_state: str
     recorded_at: datetime
     valid_until: datetime
+    scope_schema: str = SYSTEM_AUDIT_SCOPE_SCHEMA_V1
 
     def __post_init__(self) -> None:
         for name, value in (
@@ -455,6 +469,7 @@ class SystemAuditAuthoritySnapshot:
             ("authority_state", self.authority_state),
         ):
             _require_token(value, name)
+        validate_system_audit_scope_schema(self.scope_schema)
         if not isinstance(self.user_id, int) or isinstance(self.user_id, bool) or self.user_id <= 0:
             raise ValueError("user_id must be a positive integer")
         if not isinstance(self.is_authenticated, bool) or not isinstance(self.is_staff, bool):
@@ -483,6 +498,7 @@ class SystemAuditAuthoritySnapshot:
             authority_state=self.authority_state,
             recorded_at=self.recorded_at,
             valid_until=self.valid_until,
+            scope_schema=self.scope_schema,
         )
         if expected != self.authority_content_hash:
             raise ValueError("authority snapshot content hash mismatch")
@@ -579,6 +595,7 @@ __all__ = [
     "SystemAuditAuthoritySnapshot",
     "SystemAuditCompositionUnavailable",
     "SystemAuditPublisherContractViolation",
+    "SYSTEM_AUDIT_SCOPE_SCHEMA_V1",
     "system_audit_authority_content_hash",
     "get_system_audit_reader_context",
     "inspect_canonical_system_audit_publisher",

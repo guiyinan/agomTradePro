@@ -5,10 +5,13 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from typing import TypedDict, TypeGuard
+from typing import TypeAlias, TypedDict, TypeGuard
 
 from apps.audit.application.system_audit_authority_provider import (
     SystemAuditAuthorityBundleSelector,
+)
+from apps.audit.application.system_audit_authority_schema import (
+    SYSTEM_AUDIT_SCOPE_SCHEMA_V1,
 )
 from apps.config_center.application.runtime_public import (
     get_active_runtime_profile,
@@ -21,13 +24,22 @@ from apps.config_center.domain.runtime_config import (
 )
 
 
-class _AuthoritySelectorPayload(TypedDict):
+class _LegacyAuthoritySelectorPayload(TypedDict):
     actor_source_id: str
     actor_source_version: str
     actor_content_hash: str
     scope_source_id: str
     scope_source_version: str
     scope_content_hash: str
+
+
+class _VersionedAuthoritySelectorPayload(_LegacyAuthoritySelectorPayload):
+    scope_schema: str
+
+
+_AuthoritySelectorPayload: TypeAlias = (
+    _LegacyAuthoritySelectorPayload | _VersionedAuthoritySelectorPayload
+)
 
 
 class SystemAuditRuntimeConfigurationUnavailable(RuntimeError):
@@ -134,17 +146,29 @@ def load_system_audit_runtime_config(*, environment: str) -> SystemAuditRuntimeC
             if mode != "off":
                 raise SystemAuditRuntimeConfigurationUnavailable("authority_selector_invalid")
         else:
-            if not _is_selector_payload(selector_raw):
-                raise SystemAuditRuntimeConfigurationUnavailable("authority_selector_invalid")
             try:
-                selector = SystemAuditAuthorityBundleSelector(
-                    actor_source_id=selector_raw["actor_source_id"],
-                    actor_source_version=selector_raw["actor_source_version"],
-                    actor_content_hash=selector_raw["actor_content_hash"],
-                    scope_source_id=selector_raw["scope_source_id"],
-                    scope_source_version=selector_raw["scope_source_version"],
-                    scope_content_hash=selector_raw["scope_content_hash"],
-                )
+                if _is_versioned_selector_payload(selector_raw):
+                    selector = SystemAuditAuthorityBundleSelector(
+                        actor_source_id=selector_raw["actor_source_id"],
+                        actor_source_version=selector_raw["actor_source_version"],
+                        actor_content_hash=selector_raw["actor_content_hash"],
+                        scope_source_id=selector_raw["scope_source_id"],
+                        scope_source_version=selector_raw["scope_source_version"],
+                        scope_content_hash=selector_raw["scope_content_hash"],
+                        scope_schema=selector_raw["scope_schema"],
+                    )
+                elif _is_legacy_selector_payload(selector_raw):
+                    selector = SystemAuditAuthorityBundleSelector(
+                        actor_source_id=selector_raw["actor_source_id"],
+                        actor_source_version=selector_raw["actor_source_version"],
+                        actor_content_hash=selector_raw["actor_content_hash"],
+                        scope_source_id=selector_raw["scope_source_id"],
+                        scope_source_version=selector_raw["scope_source_version"],
+                        scope_content_hash=selector_raw["scope_content_hash"],
+                        scope_schema=SYSTEM_AUDIT_SCOPE_SCHEMA_V1,
+                    )
+                else:
+                    raise TypeError("authority selector payload shape")
             except (TypeError, ValueError):
                 raise SystemAuditRuntimeConfigurationUnavailable(
                     "authority_selector_invalid"
@@ -194,7 +218,13 @@ __all__ = [
 
 
 def _is_selector_payload(value: object) -> TypeGuard[_AuthoritySelectorPayload]:
-    """Narrow dynamic JSON to the exact six-string selector schema."""
+    """Narrow dynamic JSON to the legacy or versioned selector schema."""
+
+    return _is_legacy_selector_payload(value) or _is_versioned_selector_payload(value)
+
+
+def _is_legacy_selector_payload(value: object) -> TypeGuard[_LegacyAuthoritySelectorPayload]:
+    """Narrow dynamic JSON to the explicit legacy six-string selector."""
 
     return (
         type(value) is dict
@@ -206,6 +236,27 @@ def _is_selector_payload(value: object) -> TypeGuard[_AuthoritySelectorPayload]:
             "scope_source_id",
             "scope_source_version",
             "scope_content_hash",
+        }
+        and all(type(key) is str and type(item) is str for key, item in value.items())
+    )
+
+
+def _is_versioned_selector_payload(
+    value: object,
+) -> TypeGuard[_VersionedAuthoritySelectorPayload]:
+    """Narrow dynamic JSON to the schema-aware seven-string selector."""
+
+    return (
+        type(value) is dict
+        and set(value)
+        == {
+            "actor_source_id",
+            "actor_source_version",
+            "actor_content_hash",
+            "scope_source_id",
+            "scope_source_version",
+            "scope_content_hash",
+            "scope_schema",
         }
         and all(type(key) is str and type(item) is str for key, item in value.items())
     )
