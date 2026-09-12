@@ -74,6 +74,17 @@ top 20 cumulative functions 不能证明准确解码数量；完整图原始 dec
 计数使用独立 reviewed 诊断，前一 job terminal 后才启动，不重叠测量。该计数与真实 facade
 生命周期仍待完成，EVID-08 和 PR #36 均不晋级。
 
+[独立完整图解码计数检查点](../deployment/sprint-evid08-complete-graph-decode-work-2026-09-13-c8bb9b780.json)
+实际于 `2026-09-12T22:49:53Z` terminal exit=0，精确 runner `2453471` 已退出。
+每个 stage 的两次 exact restore 均断言同一快照全部 4 个 `(PK, content_hash)`，未启用 SQL snapshot
+缓存。已加载且有装饰器的 raw decoder 原函数调用为 baseline `329,320` / candidate `40`，
+decorated object validator 为 `1,838,056` / `29,864`；两者均 `58,492 SELECT`。
+该独立样本 elapsed 减少 51.35%、CPU 减少 55.70%，包含 counter wrapper 与顺序测量影响。
+它只统计显式列出的已加载 decorated functions/class attributes 原函数入口，不能称所有
+Python/JSON 调用或所有未装饰 validator 的总量，也不是新写入/并发验收。checkpoint 封存并
+逐份核验 9 份实际 raw/instrument artifacts；它与 cProfile 的不同 cutoff/开销不合成单一样本。
+代表性完整图测量前置已形成，真实生命周期仍待通过；EVID-08 保持 active。
+
 同候选的[DATA-02 分数据集诊断](../deployment/sprint-data02-dataset-gap-checkpoint-2026-09-13-c8bb9b780.json)
 保留只读事务、严格预览失败和 200 资产来源预检的原始响应/脚本及 SHA：completed-session price
 合格为 `1/5,533`，最新 valuation `5,533/5,533` 均缺 observed_at；financial 候选已有全资产覆盖，
