@@ -166,6 +166,21 @@ def test_valid_binding_uses_one_snapshot_and_has_deterministic_issuer(
     assert len(first.issuer_id) == len("audit-config:") + 64
 
 
+def test_off_mode_allows_selector_to_be_absent_for_authority_bootstrap(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    profile = _profile()
+    values = _values(mode="off", outbox_enabled=False)
+    values.pop("audit.system_event.authority_selector")
+    _install_lookups(monkeypatch, profile=profile, snapshot=_snapshot(profile, values=values))
+
+    binding = load_system_audit_runtime_config(environment="production")
+
+    assert binding.mode == "off"
+    assert binding.outbox_enabled is False
+    assert binding.authority_selector is None
+
+
 def test_missing_profile_stops_before_snapshot_lookup(monkeypatch: pytest.MonkeyPatch) -> None:
     profile_calls, snapshot_calls = _install_lookups(
         monkeypatch,
@@ -384,5 +399,10 @@ def test_binding_revalidates_its_immutable_identity(
             binding,
             authority_selector=cast(SystemAuditAuthorityBundleSelector, object()),
         )
+    with pytest.raises(TypeError, match="selector"):
+        replace(binding, authority_selector=None)
+
+    disabled = replace(binding, mode="off", outbox_enabled=False, authority_selector=None)
+    assert disabled.authority_selector is None
 
     assert isinstance(binding, SystemAuditRuntimeConfigBinding)

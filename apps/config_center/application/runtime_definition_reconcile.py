@@ -481,10 +481,10 @@ DEFAULT_RUNTIME_DEFINITIONS: tuple[RuntimeConfigDefinition, ...] = (
         namespace="audit",
         owner_app="audit",
         value_type=RuntimeValueType.TYPED_JSON,
-        criticality=RuntimeConfigCriticality.CRITICAL,
+        criticality=RuntimeConfigCriticality.NORMAL,
         reload_mode=RuntimeConfigReloadMode.NEXT_TASK,
-        description="Server-issued audit authority selector.",
-        user_impact="Binds audit reads to immutable authority sources.",
+        description="Server-issued audit authority selector required by enabled audit modes.",
+        user_impact="Binds enabled audit reads to immutable authority sources.",
     ),
 )
 

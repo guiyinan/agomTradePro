@@ -52,6 +52,7 @@ from apps.audit.application.data_validation_audit import (
 )
 from apps.audit.application.system_audit_authority_provider import (
     ExactScopedSystemAuditAuthorityProvider,
+    SystemAuditAuthorityBundleSelector,
 )
 from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
 from apps.audit.application.system_audit_outbox_dispatcher import DispatchSystemAuditOutboxUseCase
@@ -185,6 +186,12 @@ def _build_system_audit_runtime_composition(
             "system audit outbox is disabled",
             reason_code="audit_outbox_disabled",
         )
+    selector = binding.authority_selector
+    if type(selector) is not SystemAuditAuthorityBundleSelector:
+        raise SystemAuditCompositionUnavailable(
+            "system audit runtime configuration is unavailable",
+            reason_code="runtime_configuration_invalid",
+        )
 
     try:
         coordinator = DjangoSystemAuditEventOutboxCoordinator(using=alias)
@@ -200,11 +207,11 @@ def _build_system_audit_runtime_composition(
         authority_provider = ExactScopedSystemAuditAuthorityProvider(
             actor_reader=readers.actor,
             scope_reader=readers.scope,
-            selector=binding.authority_selector,
+            selector=selector,
         )
         authority_bundle = ServerIssuedSystemAuditAuthorityBundle(
             provider=authority_provider,
-            selector=binding.authority_selector,
+            selector=selector,
             issuer_id=binding.issuer_id,
         )
         return inspect_system_audit_runtime_composition(

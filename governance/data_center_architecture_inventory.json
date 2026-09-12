@@ -7336,17 +7336,17 @@
       "text": "\"\"\"Return the current timezone-aware timestamp.\"\"\""
     },
     {
-      "line": 89,
+      "line": 90,
       "path": "apps/audit/infrastructure/system_audit_outbox_runtime.py",
       "text": "\"\"\"Validate the exact current authority at the dispatch cutoff.\"\"\""
     },
     {
-      "line": 96,
+      "line": 97,
       "path": "apps/audit/infrastructure/system_audit_outbox_runtime.py",
       "text": "\"\"\"Resolve the current event scope from the inspected authority bundle.\"\"\""
     },
     {
-      "line": 101,
+      "line": 102,
       "path": "apps/audit/infrastructure/system_audit_outbox_runtime.py",
       "text": "\"\"\"Return the exact current scope at the event persistence cutoff.\"\"\""
     },

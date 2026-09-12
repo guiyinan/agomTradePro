@@ -131,7 +131,7 @@ def test_account_runtime_definitions_are_bounded_and_typed() -> None:
     )
 
 
-def test_system_audit_runtime_definitions_are_critical_and_typed() -> None:
+def test_system_audit_runtime_definitions_support_disabled_bootstrap_and_enabled_reads() -> None:
     definitions = {
         item.key: item for item in DEFAULT_RUNTIME_DEFINITIONS if item.namespace == "audit"
     }
@@ -142,7 +142,9 @@ def test_system_audit_runtime_definitions_are_critical_and_typed() -> None:
         "audit.system_event.authority_selector",
     }
     assert all(item.owner_app == "audit" for item in definitions.values())
-    assert all(item.criticality.value == "critical" for item in definitions.values())
+    assert definitions["audit.system_event.mode"].criticality.value == "critical"
+    assert definitions["audit.system_event.outbox_enabled"].criticality.value == "critical"
+    assert definitions["audit.system_event.authority_selector"].criticality.value == "normal"
     assert all(item.reload_mode.value == "next_task" for item in definitions.values())
     assert definitions["audit.system_event.mode"].value_type.value == "enum"
     assert definitions["audit.system_event.mode"].constraints == {
@@ -277,7 +279,6 @@ def test_active_profile_reports_missing_critical_definition() -> None:
         "missing_critical_definition:account.single_owner_policy.publication_settings",
         "missing_critical_definition:audit.system_event.mode",
         "missing_critical_definition:audit.system_event.outbox_enabled",
-        "missing_critical_definition:audit.system_event.authority_selector",
     )
 
 

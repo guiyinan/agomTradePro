@@ -65,12 +65,17 @@ def _selector() -> SystemAuditAuthorityBundleSelector:
 
 
 def _binding(
-    *, mode: str = "required", outbox_enabled: bool = True
+    *,
+    mode: str = "required",
+    outbox_enabled: bool = True,
+    authority_selector: SystemAuditAuthorityBundleSelector | None = None,
 ) -> SystemAuditRuntimeConfigBinding:
     return SystemAuditRuntimeConfigBinding(
         mode=mode,
         outbox_enabled=outbox_enabled,
-        authority_selector=_selector(),
+        authority_selector=(
+            _selector() if authority_selector is None and mode != "off" else authority_selector
+        ),
         issuer_id="audit-config:" + "c" * 64,
         snapshot_id="audit-snapshot-7",
         snapshot_hash="d" * 64,
