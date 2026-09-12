@@ -19,7 +19,11 @@ successor 自指 predecessor 的原始 SQL 篡改已经被 `_restore_root` 的 l
 失败是测试仅接受 predecessor/successor 文案，不能据此声称生产校验被绕过。另两项分别是
 并发测试未进入 Simulated repository 的 private UOW，以及 facade fixture 未建同 alias 的
 Simulated source ledger 表。修正完整 fixture 与合法事务调用后仍须重跑真实锁竞争及生命周期；
-此前成功的纯组件测试和 CI 不代替该批次。新增 FK 交叉校验的必要性另行审查，不以推测接受代码。
+此前成功的纯组件测试和 CI 不代替该批次。完整 helpers 复核及 Luna max 独立复核确认，
+既有 `_validate_root_slots` 已覆盖物理 predecessor 到 canonical supersedes 的交叉校验，
+重算非秘密 seal 也不能绕过它；删除重复生产补丁和镜像测试，仅保留 fixture、合法 UOW、
+准确拒绝点与真实锁 SQLSTATE `55P03` 断言的修正。相关单元 59 项与非 PG composition 10 项通过，
+修正后的三项失败 selector 已作为一个隔离 PostgreSQL 批次重跑；结果仍待完成。
 
 首次生产完整图 cProfile 基线已返回：同一个 READ ONLY / REPEATABLE READ 快照内两次 exact
 get_winner restore 耗时 `2,576.715s`、CPU `2,380.099s`、`58,492 SELECT`、DB execute `162.046s`。
