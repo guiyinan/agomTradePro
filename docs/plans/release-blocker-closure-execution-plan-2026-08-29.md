@@ -78,6 +78,17 @@ policy 初始化真源为 publication_policies.json，经 initialize_data_center
 禁止修改同一个版本身份来掩盖策略修订。保留既有 observed_at、历史事实和 Publication hash 身份，
 不得只填 source 字段而让旧 unverified current 继续可决策。EVID-08 验证完成前不启动该 repository 包。
 
+Luna max 只读复核补充下一包的时间和身份边界：valuation publication 的 `as_of=max(observed_at)`
+是源数据边界，response 完成时间作为 witnessed availability 可以晚于它；应检查
+`available_at <= fetched_at <= published_at`，current 再检查实际查询知识时点。完整快照可用边界
+取成员 availability 的 max；缺失值不能用 min/oldest 混过。历史 `get_as_of` 已使用
+`published_at <= 历史查询时点`，保留该可知性门。其他实体的 vendor published_at 语义不同，
+不能直接复用或反转其时间规则。typed reference/member 需保留对应 availability 与原始证据。
+现有 digest/UUID 只绑定 member refs，policy_version 未参与幂等身份；下一包须以覆盖决策字段的
+稳定 policy content identity/hash，加 policy version 进入新的 versioned publication encoding，
+并同步 quality/replay 等重算调用方。旧 publication 保留原 hash 编码，不静默重解释；初始化
+不得以同版本 upsert 改写策略意义。上述仍是已核实的设计前置，未实施或完成生产修复。
+
 补充的[估值 availability enforcement 检查点](../deployment/sprint-data02-valuation-availability-gap-2026-09-13-c8bb9b780.json)
 纠正一个必须区分的边界：`available_at_unverified` 被投影为 degraded，并不表示 publication/current
 已硬性阻断。现有纯 Application 测试与本地 fresh 控制复现实验均允许该成员发布，并返回
