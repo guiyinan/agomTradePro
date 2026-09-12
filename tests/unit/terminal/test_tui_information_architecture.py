@@ -312,7 +312,7 @@ def test_macro_overview_publishes_independent_sentiment_panels() -> None:
     screen = next(item for item in payload["screens"] if item["key"] == "macro-regime.overview")
     panels = {item["key"]: item for item in screen["dashboard_panels"]}
 
-    assert panels["sentiment-status"]["title"] == "A股市场情绪（当日）"
+    assert panels["sentiment-status"]["title"] == "A股市场情绪（最新观测）"
     assert panels["sentiment-status"]["kind"] == "datagrid"
     assert panels["sentiment-status"]["action_key"] == "sentiment.awareness-summary"
     assert panels["sentiment-status"]["user_priority"] == "p1"
