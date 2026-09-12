@@ -1,9 +1,11 @@
 # AgomTradePro 文档索引
 
+> 2026-09-12：生产已部署 `ee872a51bb09…` / release `20260912213853`；DATA-02 一资产受控同步已证明 accepted quote 与 canonical event/outbox 同事务写入，独立后检确认 audit runtime 关闭。全量 DATA-02、EVID-01/02、AUD-03 与 TAR-05 仍按各自退出门推进。[生产检查点](deployment/sprint-data02-audited-quote-checkpoint-2026-09-12-ee872a51.json)。
+
 > 2026-09-07：main `0e9f890e8…` 已完成 VPS code-only upgrade；health/ready=200，decision-ready=503。[部署证据](deployment/main-vps-upgrade-2026-09-07-0e9f890e.json)。TUI 新候选为 `2/10 DENY`，DATA-02 与生产 Evidence 验收仍未完成。
 
 > **AgomTradePro 0.8.0** - 个人投研平台
-> **最后更新**: 2026-09-07
+> **最后更新**: 2026-09-12
 > **项目状态**: 生产验证进行中；关键决策与执行门禁仍 fail-closed
 > **版本管理**: [VERSION.md](VERSION.md)
 
