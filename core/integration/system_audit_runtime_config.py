@@ -46,7 +46,7 @@ class SystemAuditRuntimeConfigBinding:
 
     mode: str
     outbox_enabled: bool
-    authority_selector: SystemAuditAuthorityBundleSelector
+    authority_selector: SystemAuditAuthorityBundleSelector | None
     issuer_id: str
     snapshot_id: str
     snapshot_hash: str
@@ -64,9 +64,13 @@ class SystemAuditRuntimeConfigBinding:
             or type(self.outbox_enabled) is not bool
         ):
             raise ValueError("invalid audit runtime mode or outbox flag")
-        if type(self.authority_selector) is not SystemAuditAuthorityBundleSelector:
+        if self.authority_selector is None:
+            if self.mode != "off":
+                raise TypeError("authority selector is required while audit runtime is enabled")
+        elif type(self.authority_selector) is SystemAuditAuthorityBundleSelector:
+            self.authority_selector.__post_init__()
+        else:
             raise TypeError("authority selector type substitution")
-        self.authority_selector.__post_init__()
         for value in (self.issuer_id, self.snapshot_id, self.profile_id, self.profile_key):
             if not _is_canonical_token(value, maximum=192):
                 raise ValueError("runtime binding identity must be canonical")
@@ -125,19 +129,26 @@ def load_system_audit_runtime_config(*, environment: str) -> SystemAuditRuntimeC
             raise SystemAuditRuntimeConfigurationUnavailable("mode_invalid")
         if type(enabled) is not bool:
             raise SystemAuditRuntimeConfigurationUnavailable("outbox_enabled_invalid")
-        if not _is_selector_payload(selector_raw):
-            raise SystemAuditRuntimeConfigurationUnavailable("authority_selector_invalid")
-        try:
-            selector = SystemAuditAuthorityBundleSelector(
-                actor_source_id=selector_raw["actor_source_id"],
-                actor_source_version=selector_raw["actor_source_version"],
-                actor_content_hash=selector_raw["actor_content_hash"],
-                scope_source_id=selector_raw["scope_source_id"],
-                scope_source_version=selector_raw["scope_source_version"],
-                scope_content_hash=selector_raw["scope_content_hash"],
-            )
-        except (TypeError, ValueError):
-            raise SystemAuditRuntimeConfigurationUnavailable("authority_selector_invalid") from None
+        selector: SystemAuditAuthorityBundleSelector | None = None
+        if selector_raw is None:
+            if mode != "off":
+                raise SystemAuditRuntimeConfigurationUnavailable("authority_selector_invalid")
+        else:
+            if not _is_selector_payload(selector_raw):
+                raise SystemAuditRuntimeConfigurationUnavailable("authority_selector_invalid")
+            try:
+                selector = SystemAuditAuthorityBundleSelector(
+                    actor_source_id=selector_raw["actor_source_id"],
+                    actor_source_version=selector_raw["actor_source_version"],
+                    actor_content_hash=selector_raw["actor_content_hash"],
+                    scope_source_id=selector_raw["scope_source_id"],
+                    scope_source_version=selector_raw["scope_source_version"],
+                    scope_content_hash=selector_raw["scope_content_hash"],
+                )
+            except (TypeError, ValueError):
+                raise SystemAuditRuntimeConfigurationUnavailable(
+                    "authority_selector_invalid"
+                ) from None
         issuer_id = (
             "audit-config:"
             + hashlib.sha256(
