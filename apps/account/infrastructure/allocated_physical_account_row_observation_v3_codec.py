@@ -19,6 +19,7 @@ from apps.account.domain.allocated_physical_account_row_observation_v3 import (
 from apps.account.domain.physical_account_row_observation_v2 import (
     PhysicalAccountRowObservationV2,
 )
+from apps.account.domain.validation_graph import reuse_validated_decode
 from apps.account.infrastructure.canonical_account_creation_codec import (
     CanonicalAccountCreationCodecError,
     decode_canonical_account_creation_allocation,
@@ -79,6 +80,7 @@ def encode_allocated_physical_account_row_observation_v3_record(
     }
 
 
+@reuse_validated_decode("allocated-physical-account-row-observation-v3-record")
 def decode_allocated_physical_account_row_observation_v3_record(
     payload: object,
 ) -> PersistedAllocatedPhysicalAccountRowObservationV3:

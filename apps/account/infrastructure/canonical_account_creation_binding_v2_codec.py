@@ -20,6 +20,7 @@ from apps.account.domain.canonical_account_creation_binding_v2 import (
 from apps.account.domain.physical_account_row_observation_v2 import (
     PhysicalAccountRowObservationV2,
 )
+from apps.account.domain.validation_graph import reuse_validated_decode
 from apps.account.infrastructure.canonical_account_creation_codec import (
     CanonicalAccountCreationCodecError,
     decode_canonical_account_creation_allocation,
@@ -51,6 +52,7 @@ def encode_canonical_account_creation_binding_v2(
     return value.to_payload()
 
 
+@reuse_validated_decode("canonical-account-creation-binding-v2")
 def decode_canonical_account_creation_binding_v2(
     payload: object,
 ) -> CanonicalAccountCreationBindingV2:

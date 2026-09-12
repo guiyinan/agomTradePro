@@ -5,6 +5,7 @@ from typing import cast
 from apps.account.application.canonical_account_ownership_reobservation_v1 import (
     PersistedCanonicalAccountOwnershipReobservationV1,
 )
+from apps.account.domain.validation_graph import reuse_validated_decode
 from apps.account.infrastructure.canonical_account_ownership_reobservation_v1_codec import (
     decode_canonical_account_ownership_reobservation_v1,
     encode_canonical_account_ownership_reobservation_v1,
@@ -41,6 +42,7 @@ def encode_canonical_account_ownership_reobservation_v1_record(
         ) from error
 
 
+@reuse_validated_decode("canonical-account-ownership-reobservation-v1-record")
 def decode_canonical_account_ownership_reobservation_v1_record(
     payload: object,
 ) -> PersistedCanonicalAccountOwnershipReobservationV1:

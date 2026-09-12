@@ -17,6 +17,7 @@ from apps.account.application.account_owner_assignment_evidence_v5 import (
 from apps.account.domain.physical_account_row_observation_v2 import (
     PhysicalAccountRowObservationV2,
 )
+from apps.account.domain.validation_graph import validation_graph_operation
 from apps.account.infrastructure.account_owner_assignment_evidence_v4_record_codec import (
     encode_account_owner_assignment_evidence_v4_record,
 )
@@ -229,7 +230,7 @@ def test_encoder_revalidates_mutated_frozen_authority_and_evidence() -> None:
     ("operation", "expected_validations"),
     [
         ("encode", 2),
-        ("decode", 36),
+        ("decode", 12),
     ],
 )
 def test_record_codec_bounds_repeated_physical_graph_validation(
@@ -267,6 +268,26 @@ def test_record_codec_bounds_repeated_physical_graph_validation(
 
     with pytest.raises(AccountOwnerAssignmentEvidenceV5RecordCodecError):
         encode_account_owner_assignment_evidence_v5_record(record)
+
+
+def test_record_decoder_reuses_equal_validated_payload_within_one_operation() -> None:
+    """Repository double reads share one immutable decoded Evidence V5 graph."""
+
+    payload = encode_account_owner_assignment_evidence_v5_record(_record())
+
+    @validation_graph_operation
+    def decode_twice() -> tuple[
+        PersistedAccountOwnerAssignmentEvidenceV5,
+        PersistedAccountOwnerAssignmentEvidenceV5,
+    ]:
+        return (
+            decode_account_owner_assignment_evidence_v5_record(deepcopy(payload)),
+            decode_account_owner_assignment_evidence_v5_record(deepcopy(payload)),
+        )
+
+    first, second = decode_twice()
+
+    assert first is second
 
 
 def test_encoder_requires_exact_persisted_record_type() -> None:

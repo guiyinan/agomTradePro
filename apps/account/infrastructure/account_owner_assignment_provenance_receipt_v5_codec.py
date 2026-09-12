@@ -9,7 +9,10 @@ from apps.account.domain.account_owner_assignment_evidence import AccountOwnerAs
 from apps.account.domain.account_owner_assignment_provenance_receipt_v5 import (
     AccountOwnerAssignmentProvenanceReceiptV5,
 )
-from apps.account.domain.validation_graph import validation_graph_operation
+from apps.account.domain.validation_graph import (
+    reuse_validated_decode,
+    validation_graph_operation,
+)
 from apps.account.infrastructure.canonical_account_creation_binding_v2_codec import (
     decode_canonical_account_creation_binding_v2,
 )
@@ -202,6 +205,7 @@ def encode_account_owner_assignment_provenance_receipt_v5(
 
 
 @validation_graph_operation
+@reuse_validated_decode("account-owner-assignment-provenance-receipt-v5")
 def decode_account_owner_assignment_provenance_receipt_v5(
     payload: object,
 ) -> AccountOwnerAssignmentProvenanceReceiptV5:
