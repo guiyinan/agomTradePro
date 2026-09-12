@@ -15,7 +15,7 @@ _validated_nodes: ContextVar[dict[int, object] | None] = ContextVar(
     "account_validated_nodes",
     default=None,
 )
-_decoded_values: ContextVar[dict[tuple[str, str], object] | None] = ContextVar(
+_decoded_values: ContextVar[dict[tuple[str, object, str], object] | None] = ContextVar(
     "account_decoded_values",
     default=None,
 )
@@ -27,7 +27,7 @@ def validation_graph_operation(function: Callable[_P, _R]) -> Callable[_P, _R]:
     @wraps(function)
     def wrapped(*args: _P.args, **kwargs: _P.kwargs) -> _R:
         node_token: Token[dict[int, object] | None] | None = None
-        decode_token: Token[dict[tuple[str, str], object] | None] | None = None
+        decode_token: Token[dict[tuple[str, object, str], object] | None] | None = None
         if _validated_nodes.get() is None:
             node_token = _validated_nodes.set({})
         if _decoded_values.get() is None:
@@ -60,7 +60,7 @@ def reuse_validated_decode(
             signature = _exact_json_signature(payload)
             if signature is None:
                 return function(payload)
-            key = (namespace, signature)
+            key = (namespace, function, signature)
             cached = current.get(key, _MISSING)
             if cached is not _MISSING:
                 return cast(_T, cached)
@@ -94,13 +94,25 @@ def _exact_json_signature(value: object) -> str | None:
 
 
 def _is_exact_json_value(value: object) -> bool:
-    if value is None or type(value) in (str, int, float, bool):
-        return True
-    if type(value) is list:
-        return all(_is_exact_json_value(item) for item in value)
-    if type(value) is dict:
-        return all(type(key) is str and _is_exact_json_value(item) for key, item in value.items())
-    return False
+    pending: list[tuple[object, int]] = [(value, 0)]
+    visited = 0
+    while pending:
+        current, depth = pending.pop()
+        visited += 1
+        if visited > 100_000 or depth > 128:
+            return False
+        if current is None or type(current) in (str, int, float, bool):
+            continue
+        if type(current) is list:
+            pending.extend((item, depth + 1) for item in current)
+            continue
+        if type(current) is dict:
+            if any(type(key) is not str for key in current):
+                return False
+            pending.extend((item, depth + 1) for item in current.values())
+            continue
+        return False
+    return True
 
 
 def validate_once_per_graph(function: Callable[[_T], None]) -> Callable[[_T], None]:

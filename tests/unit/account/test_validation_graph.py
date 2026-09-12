@@ -70,3 +70,46 @@ def test_decode_cache_does_not_escape_operation_scope() -> None:
 
     assert first is not second
     assert calls == 2
+
+
+@pytest.mark.parametrize("shape", ["deep", "cycle"])
+def test_noncacheable_container_shape_reaches_original_decoder(shape: str) -> None:
+    """Cache inspection stays bounded for deep and cyclic hostile containers."""
+
+    root: list[object] = []
+    cursor = root
+    if shape == "deep":
+        for _ in range(1_100):
+            child: list[object] = []
+            cursor.append(child)
+            cursor = child
+    else:
+        cursor.append(root)
+    calls = 0
+
+    @reuse_validated_decode("test-hostile-container")
+    def decode(payload: object) -> object:
+        nonlocal calls
+        calls += 1
+        return payload
+
+    assert decode(root) is root
+    assert calls == 1
+
+
+def test_equal_namespaces_cannot_cross_decoder_types() -> None:
+    """Function identity isolates independently declared decoder namespaces."""
+
+    @reuse_validated_decode("test-shared-name")
+    def decode_text(payload: object) -> str:
+        return "text"
+
+    @reuse_validated_decode("test-shared-name")
+    def decode_number(payload: object) -> int:
+        return 7
+
+    @validation_graph_operation
+    def decode_both() -> tuple[str, int]:
+        return decode_text({"same": True}), decode_number({"same": True})
+
+    assert decode_both() == ("text", 7)
