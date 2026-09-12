@@ -36,6 +36,11 @@ payload_hash。该实验不宣称实际历史生产 Publication 当前 fresh，�
 runtime 为 off、outbox disabled、authority selector absent。这是后续恢复起点，不是已开启 worker 的
 异常，也不证明恢复时长、无重无丢、HTTP metrics、alerts、TUI 或 archive/restore。AUD-03 状态不变。
 
+随后[真实 HTTPS metrics 检查点](../deployment/sprint-aud03-http-metrics-2026-09-13-c8bb9b780.json)
+在 20:46Z 记录健康与 metrics 均为 200，七个 outbox gauge 仅使用 owner=audit 低基数标签；
+pending/due_pending 各 2，其余 0，与前述只读账本计数一致。该样本补齐当前候选的 HTTP 指标取证，
+不代替告警、恢复、admin TUI、archive/restore 或生产签收；本地采集时钟与服务器时钟不作精确同步假设。
+
 PR #34 已通过全部 CI 并合并，生产当前绑定
 `c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc` / `20260913014501` /
 `sha256:5dd37368b64f735b7850647659ae18e07684eb7d7444d99baf0a900d087943ea`。
