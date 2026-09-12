@@ -23,6 +23,19 @@ null available_at 修复暂无 eligible 行。preview 的 ready 仅是候选覆�
 因此 EVID-08 验证后先补实际响应首次可见时间的 source-bound 传递，再执行有界事实修复；
 禁止直接 patch 历史 observed_at/available_at 或把响应抓取时间替换为源观察时间。
 
+补充的[估值 availability enforcement 检查点](../deployment/sprint-data02-valuation-availability-gap-2026-09-13-c8bb9b780.json)
+纠正一个必须区分的边界：`available_at_unverified` 被投影为 degraded，并不表示 publication/current
+已硬性阻断。现有纯 Application 测试与本地 fresh 控制复现实验均允许该成员发布，并返回
+`must_not_use_for_decision=false`；生产只读策略查询也确认 required evidence 仅有 source、observed_at、
+payload_hash。该实验不宣称实际历史生产 Publication 当前 fresh，也没有创建或切换生产 Publication。
+下一 repository 包必须在实际响应时间/hash 传递之外，证明 batch publish、current rebuild、幂等返回及
+旧 current member 的缺失 availability 均 fail closed，再领取 DATA-02 Publication 修复批次。
+
+[AUD-03 只读 backlog 起点](../deployment/sprint-aud03-backlog-readonly-2026-09-13-c8bb9b780.json)
+在 2026-09-12 20:41:34Z 记录两条 due pending、零 claimed/delivered/failed，最旧事件年龄约 19,571 秒；
+runtime 为 off、outbox disabled、authority selector absent。这是后续恢复起点，不是已开启 worker 的
+异常，也不证明恢复时长、无重无丢、HTTP metrics、alerts、TUI 或 archive/restore。AUD-03 状态不变。
+
 PR #34 已通过全部 CI 并合并，生产当前绑定
 `c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc` / `20260913014501` /
 `sha256:5dd37368b64f735b7850647659ae18e07684eb7d7444d99baf0a900d087943ea`。

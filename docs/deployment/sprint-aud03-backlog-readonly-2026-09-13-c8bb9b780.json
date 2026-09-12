@@ -1,0 +1,83 @@
+{
+  "schema": "agom.aud03.readonly-backlog-checkpoint.v1",
+  "recorded_at": "2026-09-12T20:43:01.659941+00:00",
+  "candidate": {
+    "commit": "c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc",
+    "release_tag": "20260913014501",
+    "identity_source": "existing standard deployment checkpoint and independently checked source symlink; the query response does not itself carry OCI identity"
+  },
+  "unit": {
+    "id": "AUD-03",
+    "status": "awaiting_production"
+  },
+  "observation": {
+    "active_valuation_policies": [
+      {
+        "contract_version": "1.0",
+        "dataset_key": "equity.valuation.fact",
+        "minimum_coverage_ratio": 0.99,
+        "required_evidence": [
+          "source",
+          "observed_at",
+          "payload_hash"
+        ],
+        "schema_version": "1.0"
+      }
+    ],
+    "limitations": [
+      "No dispatch, claim, lease renewal, migration, recovery, archive, restore or runtime activation.",
+      "A backlog snapshot does not prove HTTP metrics, alerts, TUI, event replay or production acceptance.",
+      "No process-local metrics are substituted for production HTTP scrape evidence."
+    ],
+    "observed_at": "2026-09-12T20:41:34.625775+00:00",
+    "oldest_backlog_age_seconds": 19571.254483,
+    "operation": "AUD-03 read-only backlog and DATA-02 valuation policy prerequisites",
+    "outbox_snapshot": {
+      "as_of": "2026-09-12 20:41:34.625775+00:00",
+      "claimed_count": 0,
+      "delivered_count": 0,
+      "due_pending_count": 2,
+      "expired_claimed_count": 0,
+      "failed_count": 0,
+      "oldest_backlog_at": "2026-09-12 15:15:23.371292+00:00",
+      "oldest_claimed_at": null,
+      "pending_count": 2
+    },
+    "runtime": {
+      "mode": "off",
+      "outbox_enabled": false,
+      "selector_is_none": true,
+      "snapshot_hash": "2a41fca7121a7a0bf5133970363db33c26436cd45bb55636f53c37a81b25d0a1",
+      "snapshot_id": "83cf6ce4-25d5-4507-b052-20185c7f291a"
+    },
+    "system_event_count": 2,
+    "transaction_mode": "REPEATABLE READ READ ONLY"
+  },
+  "raw_response": {
+    "path": "var/aud03-readonly-prerequisites-success-20260913.raw.txt",
+    "sha256": "92a6412d1c5c404c4e64f0daf8b0ea0cbb8311647c3724848b23e8e38f055c58",
+    "encoding": "utf-8",
+    "content": "{\"timestamp\": \"2026-09-12T20:41:33.753887Z\", \"level\": \"INFO\", \"logger\": \"apps.events.application.event_bus_initializer\", \"message\": \"Event bus initialized with 18 handlers\", \"module\": \"event_bus_initializer\", \"function\": \"initialize\", \"line\": 58, \"process\": 4814, \"thread\": 125415000245056, \"request_id\": \"-\"}\r\n555 objects imported automatically (use -v 2 for details).\r\n\r\n{\"active_valuation_policies\": [{\"contract_version\": \"1.0\", \"dataset_key\": \"equity.valuation.fact\", \"minimum_coverage_ratio\": 0.99, \"required_evidence\": [\"source\", \"observed_at\", \"payload_hash\"], \"schema_version\": \"1.0\"}], \"limitations\": [\"No dispatch, claim, lease renewal, migration, recovery, archive, restore or runtime activation.\", \"A backlog snapshot does not prove HTTP metrics, alerts, TUI, event replay or production acceptance.\", \"No process-local metrics are substituted for production HTTP scrape evidence.\"], \"observed_at\": \"2026-09-12T20:41:34.625775+00:00\", \"oldest_backlog_age_seconds\": 19571.254483, \"operation\": \"AUD-03 read-only backlog and DATA-02 valuation policy prerequisites\", \"outbox_snapshot\": {\"as_of\": \"2026-09-12 20:41:34.625775+00:00\", \"claimed_count\": 0, \"delivered_count\": 0, \"due_pending_count\": 2, \"expired_claimed_count\": 0, \"failed_count\": 0, \"oldest_backlog_at\": \"2026-09-12 15:15:23.371292+00:00\", \"oldest_claimed_at\": null, \"pending_count\": 2}, \"runtime\": {\"mode\": \"off\", \"outbox_enabled\": false, \"selector_is_none\": true, \"snapshot_hash\": \"2a41fca7121a7a0bf5133970363db33c26436cd45bb55636f53c37a81b25d0a1\", \"snapshot_id\": \"83cf6ce4-25d5-4507-b052-20185c7f291a\"}, \"system_event_count\": 2, \"transaction_mode\": \"REPEATABLE READ READ ONLY\"}\r\n"
+  },
+  "instrumentation": {
+    "path": "var/inspect_aud03_readonly_prerequisites.py",
+    "sha256": "16e06ab372ebf38c1affb3727fd8c2f6dc971d5e031f7f26b7bcfefe1387206b",
+    "encoding": "utf-8",
+    "content": "from __future__ import annotations\n\nimport json\nfrom dataclasses import asdict\n\nfrom django.db import connection, transaction\nfrom django.utils import timezone\n\nfrom apps.audit.application.system_audit_outbox_observability import (\n    GetSystemAuditOutboxBacklogCommand,\n    GetSystemAuditOutboxBacklogUseCase,\n)\nfrom apps.audit.infrastructure.system_audit_outbox_repository import DjangoSystemAuditOutboxRepository\nfrom apps.audit.infrastructure.system_audit_models import SystemAuditEventModel\nfrom apps.data_center.infrastructure.catalog_models import DatasetPublicationPolicyModel\nfrom core.integration.system_audit_runtime_config import load_system_audit_runtime_config\n\nwith transaction.atomic():\n    with connection.cursor() as cursor:\n        cursor.execute(\"SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY\")\n        cursor.execute(\"SET LOCAL statement_timeout = '15s'\")\n        cursor.execute(\"SET LOCAL lock_timeout = '3s'\")\n    observed_at = timezone.now()\n    backlog = GetSystemAuditOutboxBacklogUseCase(DjangoSystemAuditOutboxRepository()).execute(\n        GetSystemAuditOutboxBacklogCommand(as_of=observed_at)\n    )\n    runtime = load_system_audit_runtime_config(environment=\"production\")\n    policies = list(DatasetPublicationPolicyModel.objects.filter(\n        dataset_key=\"equity.valuation.fact\", active=True\n    ).values(\"dataset_key\", \"contract_version\", \"schema_version\", \"minimum_coverage_ratio\", \"required_evidence\"))\n    result = {\n        \"operation\": \"AUD-03 read-only backlog and DATA-02 valuation policy prerequisites\",\n        \"observed_at\": observed_at.isoformat(),\n        \"transaction_mode\": \"REPEATABLE READ READ ONLY\",\n        \"outbox_snapshot\": asdict(backlog),\n        \"oldest_backlog_age_seconds\": backlog.oldest_backlog_age_seconds,\n        \"system_event_count\": SystemAuditEventModel.objects.count(),\n        \"runtime\": {\n            \"mode\": runtime.mode,\n            \"outbox_enabled\": runtime.outbox_enabled,\n            \"selector_is_none\": runtime.authority_selector is None,\n            \"snapshot_id\": runtime.snapshot_id,\n            \"snapshot_hash\": runtime.snapshot_hash,\n        },\n        \"active_valuation_policies\": policies,\n        \"limitations\": [\n            \"No dispatch, claim, lease renewal, migration, recovery, archive, restore or runtime activation.\",\n            \"A backlog snapshot does not prove HTTP metrics, alerts, TUI, event replay or production acceptance.\",\n            \"No process-local metrics are substituted for production HTTP scrape evidence.\",\n        ],\n    }\nprint(json.dumps(result, default=str, sort_keys=True))\n"
+  },
+  "failed_probe": {
+    "response": {
+      "path": "var/aud03-readonly-prerequisites-20260913.raw.txt",
+      "sha256": "0aed04d5a32ae2406a3fcc2939de9e6db8d0db66fe2d6a5fdc5397d01afe5323",
+      "encoding": "utf-8",
+      "content": "{\"timestamp\": \"2026-09-12T20:40:29.634556Z\", \"level\": \"INFO\", \"logger\": \"apps.events.application.event_bus_initializer\", \"message\": \"Event bus initialized with 18 handlers\", \"module\": \"event_bus_initializer\", \"function\": \"initialize\", \"line\": 58, \"process\": 4772, \"thread\": 125345952297792, \"request_id\": \"-\"}\r\n555 objects imported automatically (use -v 2 for details).\r\n\r\nTraceback (most recent call last):\r\n  File \"/app/manage.py\", line 22, in <module>\r\n    main()\r\n  File \"/app/manage.py\", line 18, in main\r\n    execute_from_command_line(sys.argv)\r\n  File \"/usr/local/lib/python3.11/site-packages/django/core/management/__init__.py\", line 442, in execute_from_command_line\r\n    utility.execute()\r\n  File \"/usr/local/lib/python3.11/site-packages/django/core/management/__init__.py\", line 436, in execute\r\n    self.fetch_command(subcommand).run_from_argv(self.argv)\r\n  File \"/usr/local/lib/python3.11/site-packages/django/core/management/base.py\", line 420, in run_from_argv\r\n    self.execute(*args, **cmd_options)\r\n  File \"/usr/local/lib/python3.11/site-packages/django/core/management/base.py\", line 464, in execute\r\n    output = self.handle(*args, **options)\r\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\r\n  File \"/usr/local/lib/python3.11/site-packages/django/core/management/commands/shell.py\", line 257, in handle\r\n    exec(sys.stdin.read(), {**globals(), **self.get_namespace(**options)})\r\n  File \"<string>\", line 41, in <module>\r\nAttributeError: 'SystemAuditRuntimeConfigBinding' object has no attribute 'scope_selector'\r\n"
+    },
+    "reason": "Collector used nonexistent scope_selector instead of authority_selector; read-only transaction rolled back. Corrected collector reran successfully. No dispatch or runtime mutation occurred."
+  },
+  "interpretation": [
+    "Two due pending outbox rows and zero delivered/claimed/failed rows were observed with runtime off and outbox disabled. This is a recovery starting snapshot, not an unexpected enabled-worker failure.",
+    "The oldest pending event is 19571.254483 seconds old at the actual observation time. No synthetic recovery duration, duplicate/loss count, metrics, alert, TUI or archive integrity is inferred.",
+    "The source-bound valuation policy lacks required availability evidence. Source capture alone cannot establish decision-safety enforcement.",
+    "AUD-03 stays awaiting_production; full recovery, HTTP observability, archive/restore, rollback and candidate-bound operational sign-off remain required."
+  ]
+}

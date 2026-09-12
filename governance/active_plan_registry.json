@@ -1,5 +1,5 @@
 {
-  "version": "2026-09-13.v87",
+  "version": "2026-09-13.v88",
   "updated_at": "2026-09-13",
   "execution_focus": {
     "unit_id": "EVID-08",
@@ -88,7 +88,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "DATA-12/13/14/15 remain complete. Candidate c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc / release 20260913014501 is deployed with backup and healthy services. One additional accepted historical 000001.SZ quote and canonical event/outbox pair were stored with publish_current=false; the audit-runtime window was 34.09 seconds and independent cleanup verified off. Complete authority read is 14.52 seconds, while new governance write setup remains about 50 minutes. DATA-02 remains awaiting_production: exact 5533-asset quote/valuation coverage, completed-session distribution, financial report-date repair, four immutable publication identities and canonical tolerance reconciliation remain. Bound write restoration before broader batches; DATA-03 waits for the full exit gate. Evidence: docs/deployment/sprint-data02-authority-performance-checkpoint-2026-09-13-c8bb9b780.json.",
+      "next_gate": "DATA-12/13/14/15 remain complete. Candidate c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc / release 20260913014501 is deployed with backup and healthy services. One additional accepted historical 000001.SZ quote and canonical event/outbox pair were stored with publish_current=false; the audit-runtime window was 34.09 seconds and independent cleanup verified off. Complete authority read is 14.52 seconds, while new governance write setup remains about 50 minutes. DATA-02 remains awaiting_production: exact 5533-asset quote/valuation coverage, completed-session distribution, financial report-date repair, four immutable publication identities and canonical tolerance reconciliation remain. Bound write restoration before broader batches; DATA-03 waits for the full exit gate. Evidence: docs/deployment/sprint-data02-authority-performance-checkpoint-2026-09-13-c8bb9b780.json. New source preflight has exact first-200 quote/valuation coverage, but valuation available_at is missing. The local Application diagnostic proves available_at_unverified does not automatically hard-block publication or a fresh current read; production policy required evidence lacks availability. After EVID-08, implement source-bound response completion/hash propagation plus explicit batch/rebuild/idempotent/old-current availability enforcement before Publication repair. Evidence: docs/deployment/sprint-data02-valuation-availability-gap-2026-09-13-c8bb9b780.json.",
       "documents": [
         {
           "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
@@ -147,7 +147,7 @@
       "priority": "P0/P1",
       "owner": "audit+data_center+task_monitor",
       "status": "production_validation",
-      "next_gate": "AUD-01, AUD-02 and repository AUD-04 remain complete. Candidate c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc / release 20260913014501 has a second real same-UOW data.fetch.completed success event and matching pending outbox committed with one accepted quote, followed by independent runtime-off cleanup. AUD-03 remains awaiting_production: backlog recovery duration, duplicate/loss counts, bounded metrics/alerts, admin TUI, archive/restore, rollback and owner/reviewer sign-off remain. Pending one-row smoke does not prove delivery or recovery. Evidence: docs/deployment/sprint-data02-authority-performance-checkpoint-2026-09-13-c8bb9b780.json.",
+      "next_gate": "AUD-01, AUD-02 and repository AUD-04 remain complete. Candidate c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc / release 20260913014501 has a second real same-UOW data.fetch.completed success event and matching pending outbox committed with one accepted quote, followed by independent runtime-off cleanup. AUD-03 remains awaiting_production: backlog recovery duration, duplicate/loss counts, bounded metrics/alerts, admin TUI, archive/restore, rollback and owner/reviewer sign-off remain. Pending one-row smoke does not prove delivery or recovery. Evidence: docs/deployment/sprint-data02-authority-performance-checkpoint-2026-09-13-c8bb9b780.json. Read-only observation at 2026-09-12T20:41:34.625775Z confirms two due pending rows, zero claimed/delivered/failed and oldest backlog age 19571.254483 seconds, with runtime off/outbox disabled/selector absent. This is the recovery starting snapshot, not enabled-worker failure or recovery acceptance. Evidence: docs/deployment/sprint-aud03-backlog-readonly-2026-09-13-c8bb9b780.json.",
       "documents": [
         {
           "path": "docs/plans/system-audit-log-consolidation-plan-2026-08-13.md",
