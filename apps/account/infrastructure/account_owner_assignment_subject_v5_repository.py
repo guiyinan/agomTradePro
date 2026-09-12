@@ -60,6 +60,7 @@ from apps.account.infrastructure.canonical_account_ownership_reobservation_v1_mo
 from apps.account.infrastructure.canonical_account_ownership_reobservation_v1_repository import (
     DjangoCanonicalAccountOwnershipReobservationV1Repository,
 )
+from apps.account.infrastructure.immutable_read_snapshot import reuse_immutable_read
 
 
 class AccountOwnerAssignmentSubjectV5Clock(Protocol):
@@ -429,6 +430,7 @@ class DjangoAccountOwnerAssignmentSubjectV5Repository:
                 "persisted Subject V5 row is invalid"
             ) from error
 
+    @reuse_immutable_read("assignment-subject-v5-world")
     def _world(self, as_of: datetime) -> tuple[
         tuple[AccountOwnerAssignmentSubjectV5Model, PersistedAccountOwnerAssignmentSubjectV5],
         ...,

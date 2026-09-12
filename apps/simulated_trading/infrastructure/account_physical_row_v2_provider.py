@@ -7,6 +7,7 @@ from datetime import datetime
 from apps.account.application.physical_account_row_observation_v2 import (
     ExactPhysicalSimulatedAccountRowV2,
     PhysicalAccountRowObservationV2Corruption,
+    PhysicalAccountRowObservationV2Unavailable,
 )
 from apps.simulated_trading.application.simulated_account_row_source_v2 import (
     PersistedSimulatedAccountRowSourceV2,
@@ -24,6 +25,22 @@ class DjangoExactPhysicalSimulatedAccountRowV2Provider:
 
     def __init__(self, repository: SimulatedAccountRowSourceV2Repository) -> None:
         self._repository = repository
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the repository transaction identity."""
+
+        return self._repository.unit_of_work_key
+
+    def lock_current_sources(self) -> None:
+        """Stabilize the provider-owned source ledger for a current read."""
+
+        try:
+            self._repository.lock_current_sources()
+        except SimulatedAccountRowSourceV2Unavailable as error:
+            raise PhysicalAccountRowObservationV2Unavailable(
+                "source-v2 ledger cannot be stabilized"
+            ) from error
 
     def get_exact_final(
         self,

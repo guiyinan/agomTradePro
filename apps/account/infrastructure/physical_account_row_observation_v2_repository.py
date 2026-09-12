@@ -23,6 +23,7 @@ from apps.account.domain.physical_account_row_observation_v2 import (
     PhysicalAccountRowObservationV2,
     validate_physical_account_row_observation_v2_successor,
 )
+from apps.account.infrastructure.immutable_read_snapshot import reuse_immutable_read
 from apps.account.infrastructure.physical_account_row_observation_v2_codec import (
     PhysicalAccountRowObservationV2CodecError,
     decode_physical_account_row_observation_v2_record,
@@ -294,6 +295,7 @@ class DjangoPhysicalAccountRowObservationV2Repository:
         )
         return _restore_full_chain(chain) if chain else None
 
+    @reuse_immutable_read("physical-account-row-v2-visible-records")
     def _visible_records(
         self,
         *,

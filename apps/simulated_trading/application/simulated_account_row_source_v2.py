@@ -209,6 +209,17 @@ class ExactRawSimulatedAccountObservationV2Provider(Protocol):
 class SimulatedAccountRowSourceV2Repository(Protocol):
     """Independent first-winner v2 store with exact PIT and head reads."""
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the persistence transaction identity used by this repository."""
+
+        ...
+
+    def lock_current_sources(self) -> None:
+        """Stabilize current source rows in the active persistence transaction."""
+
+        ...
+
     def atomic(self) -> AbstractContextManager[None]: ...
 
     def now(self) -> datetime: ...

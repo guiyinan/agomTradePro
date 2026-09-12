@@ -304,6 +304,17 @@ class GetCurrentPhysicalAccountRowObservationV2Command:
 class ExactPhysicalSimulatedAccountRowV2Provider(Protocol):
     """Owner provider separating final evidence from live decision reads."""
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the persistence transaction identity used by this provider."""
+
+        ...
+
+    def lock_current_sources(self) -> None:
+        """Stabilize provider-owned current source rows in the active transaction."""
+
+        ...
+
     def get_exact_final(
         self,
         *,
