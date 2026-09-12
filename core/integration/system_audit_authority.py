@@ -12,6 +12,12 @@ from apps.account.application.account_owner_assignment_actor_authority_source_v3
 from apps.account.application.owner_tenant_authority_v1 import (
     GetCurrentOwnerTenantAuthorityV1Command,
 )
+from apps.account.application.owner_tenant_authority_v3 import (
+    GetCurrentOwnerTenantAuthorityV3Command,
+)
+from apps.account.application.owner_tenant_authority_v3_contracts import (
+    CurrentOwnerTenantAuthorityV3,
+)
 from apps.account.domain.account_owner_assignment_actor_authority_source_v3 import (
     AccountOwnerAssignmentActorAuthoritySourceV3,
 )
@@ -25,6 +31,9 @@ from apps.audit.application.system_audit_authority_provider import (
     SystemAuditActorAuthorityReader,
     SystemAuditScopeAuthorityFacts,
     SystemAuditScopeAuthorityReader,
+)
+from apps.audit.application.system_audit_authority_schema import (
+    SYSTEM_AUDIT_SCOPE_SCHEMA_V3,
 )
 
 
@@ -44,6 +53,15 @@ class OwnerTenantAuthorityReader(Protocol):
         self, command: GetCurrentOwnerTenantAuthorityV1Command
     ) -> OwnerTenantAuthorityV1 | None:
         """Return the exact authority or ``None``."""
+
+
+class OwnerTenantAuthorityV3Reader(Protocol):
+    """Read one exact-current EVID-07 owner/tenant authority observation."""
+
+    def execute(
+        self, command: GetCurrentOwnerTenantAuthorityV3Command
+    ) -> CurrentOwnerTenantAuthorityV3 | None:
+        """Return the exact current V3 observation or ``None``."""
 
 
 class _AliasBoundActorAdapter(SystemAuditActorAuthorityReader, Protocol):
@@ -154,6 +172,62 @@ class AccountSystemAuditScopeAuthorityAdapter(SystemAuditScopeAuthorityReader):
 
 
 @dataclass(frozen=True, slots=True)
+class AccountSystemAuditScopeAuthorityV3Adapter(SystemAuditScopeAuthorityReader):
+    """Project an exact-current EVID-07 Authority V3 observation into Audit facts."""
+
+    reader: OwnerTenantAuthorityV3Reader
+    database_alias: str = "default"
+
+    def __post_init__(self) -> None:
+        """Reject an unbound or malformed V3 reader."""
+
+        if not callable(getattr(self.reader, "execute", None)):
+            raise TypeError("scope authority v3 reader must expose execute")
+        _validate_alias(self.database_alias)
+
+    def get_current(
+        self, *, source_id: str, source_version: str, expected_content_hash: str, as_of: datetime
+    ) -> SystemAuditScopeAuthorityFacts | None:
+        """Forward the exact V3 selector and project its revalidated live observation."""
+
+        observation = self.reader.execute(
+            GetCurrentOwnerTenantAuthorityV3Command(
+                source_id,
+                source_version,
+                expected_content_hash,
+            )
+        )
+        if observation is None:
+            return None
+        if type(observation) is not CurrentOwnerTenantAuthorityV3:
+            raise TypeError("owner tenant authority v3 observation type substitution")
+        observation.__post_init__()
+        authority = observation.authority
+        if (
+            authority.authority_id != source_id
+            or authority.authority_version != source_version
+            or authority.content_hash != expected_content_hash
+            or authority.status != "active"
+            or not authority.is_current_at(as_of)
+            or observation.valid_until <= as_of
+        ):
+            return None
+        return SystemAuditScopeAuthorityFacts(
+            source_id=authority.authority_id,
+            source_version=authority.authority_version,
+            content_hash=authority.content_hash,
+            actor_id=authority.actor_id,
+            user_id=authority.actor_user_id,
+            tenant_id=authority.tenant_id,
+            owner_id=authority.owner_id,
+            authority_state="active",
+            recorded_at=authority.recorded_at,
+            valid_until=observation.valid_until,
+            scope_schema=SYSTEM_AUDIT_SCOPE_SCHEMA_V3,
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class SystemAuditAuthorityReaders:
     """Typed actor/scope readers bound to one database alias."""
 
@@ -207,6 +281,7 @@ def _validate_alias(value: object) -> str:
 __all__ = [
     "AccountSystemAuditActorAuthorityAdapter",
     "AccountSystemAuditScopeAuthorityAdapter",
+    "AccountSystemAuditScopeAuthorityV3Adapter",
     "SystemAuditAuthorityReaders",
     "build_system_audit_authority_readers",
 ]

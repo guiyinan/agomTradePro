@@ -12,6 +12,12 @@ from apps.account.application.account_owner_assignment_actor_authority_source_v3
 from apps.account.application.owner_tenant_authority_v1 import (
     GetCurrentOwnerTenantAuthorityV1Command,
 )
+from apps.account.application.owner_tenant_authority_v3 import (
+    GetCurrentOwnerTenantAuthorityV3Command,
+)
+from apps.account.application.owner_tenant_authority_v3_contracts import (
+    CurrentOwnerTenantAuthorityV3,
+)
 from apps.account.domain.account_owner_assignment_actor_authority_source_v3 import (
     AccountOwnerAssignmentActorAuthoritySourceV3,
     root_claim_hash_for_actor_authority_source_v3,
@@ -27,8 +33,13 @@ from core.integration import system_audit_authority as authority_module
 from core.integration.system_audit_authority import (
     AccountSystemAuditActorAuthorityAdapter,
     AccountSystemAuditScopeAuthorityAdapter,
+    AccountSystemAuditScopeAuthorityV3Adapter,
     SystemAuditAuthorityReaders,
     build_system_audit_authority_readers,
+)
+from tests.unit.account.test_owner_tenant_authority_v3 import _authority as _authority_v3
+from tests.unit.account.test_owner_tenant_authority_v3_application import (
+    _authority_source as _authority_source_v3,
 )
 
 NOW = datetime(2026, 8, 26, 12, 0, tzinfo=UTC)
@@ -135,6 +146,38 @@ class FakeScopeReader:
     ) -> OwnerTenantAuthorityV1 | None:
         self.command = command
         return self.value
+
+
+@dataclass
+class FakeScopeV3Reader:
+    value: CurrentOwnerTenantAuthorityV3 | None
+    command: GetCurrentOwnerTenantAuthorityV3Command | None = field(default=None, init=False)
+
+    def execute(
+        self, command: GetCurrentOwnerTenantAuthorityV3Command
+    ) -> CurrentOwnerTenantAuthorityV3 | None:
+        self.command = command
+        return self.value
+
+
+def _scope_observation_v3() -> CurrentOwnerTenantAuthorityV3:
+    authority = _authority_v3()
+    observed_at = authority.recorded_at + timedelta(microseconds=1)
+    valid_until = min(
+        authority.valid_until,
+        authority.assignment.valid_until,
+        authority.policy.valid_until,
+    )
+    authentication = _authority_source_v3(
+        authority.assignment,
+        valid_until=valid_until,
+    )
+    return CurrentOwnerTenantAuthorityV3(
+        authority=authority,
+        authentication=authentication,
+        observed_at=observed_at,
+        valid_until=valid_until,
+    )
 
 
 def test_actor_adapter_forwards_exact_selector_and_projects_all_facts() -> None:
@@ -281,6 +324,79 @@ def test_scope_adapter_rejects_type_substitution() -> None:
         AccountSystemAuditScopeAuthorityAdapter(reader).get_current(
             source_id="scope-authority-41",
             source_version="v4",
+            expected_content_hash="a" * 64,
+            as_of=NOW,
+        )
+
+
+def test_scope_v3_adapter_forwards_exact_selector_and_projects_live_observation() -> None:
+    observation = _scope_observation_v3()
+    authority = observation.authority
+    reader = FakeScopeV3Reader(observation)
+    as_of = authority.recorded_at + timedelta(microseconds=1)
+
+    facts = AccountSystemAuditScopeAuthorityV3Adapter(reader).get_current(
+        source_id=authority.authority_id,
+        source_version=authority.authority_version,
+        expected_content_hash=authority.content_hash,
+        as_of=as_of,
+    )
+
+    assert reader.command == GetCurrentOwnerTenantAuthorityV3Command(
+        authority.authority_id,
+        authority.authority_version,
+        authority.content_hash,
+    )
+    assert facts is not None
+    assert (
+        facts.source_id,
+        facts.source_version,
+        facts.content_hash,
+        facts.actor_id,
+        facts.user_id,
+        facts.tenant_id,
+        facts.owner_id,
+        facts.authority_state,
+        facts.recorded_at,
+        facts.valid_until,
+        facts.scope_schema,
+    ) == (
+        authority.authority_id,
+        authority.authority_version,
+        authority.content_hash,
+        authority.actor_id,
+        authority.actor_user_id,
+        authority.tenant_id,
+        authority.owner_id,
+        "active",
+        authority.recorded_at,
+        observation.valid_until,
+        "account.owner_tenant_authority.v3",
+    )
+
+
+def test_scope_v3_adapter_returns_none_for_absent_or_expired_observation() -> None:
+    observation = _scope_observation_v3()
+    authority = observation.authority
+    for value in (None, observation):
+        as_of = authority.recorded_at if value is None else observation.valid_until
+        assert (
+            AccountSystemAuditScopeAuthorityV3Adapter(FakeScopeV3Reader(value)).get_current(
+                source_id=authority.authority_id,
+                source_version=authority.authority_version,
+                expected_content_hash=authority.content_hash,
+                as_of=as_of,
+            )
+            is None
+        )
+
+
+def test_scope_v3_adapter_rejects_observation_type_substitution() -> None:
+    reader = FakeScopeV3Reader(cast(CurrentOwnerTenantAuthorityV3, object()))
+    with pytest.raises(TypeError, match="v3 observation type substitution"):
+        AccountSystemAuditScopeAuthorityV3Adapter(reader).get_current(
+            source_id="scope-authority-v3",
+            source_version="v3.1",
             expected_content_hash="a" * 64,
             as_of=NOW,
         )
