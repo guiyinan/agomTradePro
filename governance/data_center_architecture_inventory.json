@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 4949,
+    "current_surface_references": 4954,
     "data_write_task_decorators": 62,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -4736,6 +4736,16 @@
       "text": "\"\"\"Bind the repository and current inputs without manufacturing an identity.\"\"\""
     },
     {
+      "line": 46,
+      "path": "apps/account/system_audit_authority_v3_composition.py",
+      "text": "\"\"\"Rebuild a V3 current facade from immutable actor and authority selectors.\"\"\""
+    },
+    {
+      "line": 155,
+      "path": "apps/account/system_audit_authority_v3_composition.py",
+      "text": "\"\"\"Read the exact actor selector against its immutable current source bundle.\"\"\""
+    },
+    {
       "line": 12,
       "path": "apps/agent_runtime/application/config_summary_service.py",
       "text": "\"\"\"Return operator queue and attention summary.\"\"\""
@@ -7111,17 +7121,17 @@
       "text": "if current.recorded_at < previous.recorded_at:"
     },
     {
-      "line": 182,
+      "line": 203,
       "path": "apps/audit/application/system_audit_authority_provider.py",
       "text": "\"\"\"Read one exact/current Account actor-authority source.\"\"\""
     },
     {
-      "line": 196,
+      "line": 217,
       "path": "apps/audit/application/system_audit_authority_provider.py",
       "text": "\"\"\"Read one exact/current immutable tenant/owner scope source.\"\"\""
     },
     {
-      "line": 512,
+      "line": 528,
       "path": "apps/audit/application/system_audit_composition.py",
       "text": "\"\"\"Injected source of current, immutable authority facts.\"\"\""
     },
@@ -24501,29 +24511,44 @@
       "text": "raise RuntimeError(\"current sentiment resolver is not wired\")"
     },
     {
-      "line": 32,
+      "line": 49,
       "path": "core/integration/system_audit_authority.py",
       "text": "\"\"\"Read one exact-current Account actor authority source.\"\"\""
     },
     {
-      "line": 41,
+      "line": 58,
       "path": "core/integration/system_audit_authority.py",
       "text": "\"\"\"Read one exact-current owner/tenant authority source.\"\"\""
     },
     {
-      "line": 82,
+      "line": 67,
+      "path": "core/integration/system_audit_authority.py",
+      "text": "\"\"\"Read one exact-current EVID-07 owner/tenant authority observation.\"\"\""
+    },
+    {
+      "line": 72,
+      "path": "core/integration/system_audit_authority.py",
+      "text": "\"\"\"Return the exact current V3 observation or ``None``.\"\"\""
+    },
+    {
+      "line": 108,
       "path": "core/integration/system_audit_authority.py",
       "text": "\"\"\"Forward the exact selector and project only a valid current source.\"\"\""
     },
     {
-      "line": 94,
+      "line": 120,
       "path": "core/integration/system_audit_authority.py",
       "text": "if source.authority_state != \"current\" or not source.is_temporally_current_at(as_of):"
     },
     {
-      "line": 128,
+      "line": 154,
       "path": "core/integration/system_audit_authority.py",
       "text": "\"\"\"Forward the exact selector and project only a valid current authority.\"\"\""
+    },
+    {
+      "line": 184,
+      "path": "core/integration/system_audit_authority.py",
+      "text": "\"\"\"Project an exact-current EVID-07 Authority V3 observation into Audit facts.\"\"\""
     },
     {
       "line": 72,
