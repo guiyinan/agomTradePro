@@ -12,6 +12,7 @@ from apps.account.application.owner_tenant_authority_v3_contracts import (
     PersistedOwnerTenantAuthorityV3,
     PersistedOwnerTenantAuthorityV3Revocation,
 )
+from apps.account.domain.validation_graph import validation_graph_operation
 from apps.account.infrastructure.owner_tenant_authority_v3_codec import (
     decode_owner_tenant_authority_v3,
     decode_owner_tenant_authority_v3_revocation,
@@ -44,6 +45,7 @@ _AUTHORITY_RECORD_KEYS = {"authority", "authentication"}
 _REVOCATION_RECORD_KEYS = {"revocation", "authentication"}
 
 
+@validation_graph_operation
 def encode_owner_tenant_authority_v3_record(
     value: PersistedOwnerTenantAuthorityV3,
 ) -> dict[str, object]:
@@ -67,6 +69,7 @@ def encode_owner_tenant_authority_v3_record(
         ) from error
 
 
+@validation_graph_operation
 def decode_owner_tenant_authority_v3_record(
     payload: object,
 ) -> PersistedOwnerTenantAuthorityV3:
@@ -91,6 +94,7 @@ def decode_owner_tenant_authority_v3_record(
     return value
 
 
+@validation_graph_operation
 def encode_owner_tenant_authority_v3_revocation_record(
     value: PersistedOwnerTenantAuthorityV3Revocation,
 ) -> dict[str, object]:
@@ -114,6 +118,7 @@ def encode_owner_tenant_authority_v3_revocation_record(
         ) from error
 
 
+@validation_graph_operation
 def decode_owner_tenant_authority_v3_revocation_record(
     payload: object,
 ) -> PersistedOwnerTenantAuthorityV3Revocation:
