@@ -51,6 +51,12 @@ PersistedEvidence 的既有时序检查拒绝 `approval_valid_until > actor.vali
 窗口或默认历史 fixture。失败后隔离库再次验证零公共表，Black/isort/Ruff 通过，单项实际 PG
 继续重跑；生命周期通过仍未证实。
 
+该次随后实际结束 `1 failed / 218.68s`，PersistedEvidence 的完整有效期绑定已通过，
+assignment append 按既有 `recorded_at <= now` 门拒绝：测试时钟仍停在更早的 Capture 时点。
+在 Capture 真实落账后，将 fixture clock 前移到 Evidence recorded_at+1 分钟再持久化后续图，
+保留事件原始时间与生产时序检查；失败后隔离库零公共表。Black/Ruff 通过，单项实际 PG
+正在继续执行，不用历史 ledger 可恢复性、pure Domain current 或 CI 替代它的完成结果。
+
 首次生产完整图 cProfile 基线已返回：同一个 READ ONLY / REPEATABLE READ 快照内两次 exact
 get_winner restore 耗时 `2,576.715s`、CPU `2,380.099s`、`58,492 SELECT`、DB execute `162.046s`。
 它包含 profiler 开销；候选阶段只有 started，连接在 3,600 秒超时后失去输出，不能计算性能提升。

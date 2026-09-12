@@ -743,6 +743,9 @@ def test_opt_in_postgres_facade_issues_reads_and_revokes(
     actor_source = seed_current_actor_source(
         owner_alias, capture_at, _evidence().approval_valid_until + timedelta(minutes=1)
     )
+    # Advance the test clock before persisting the later Evidence approval.
+    seed_now = _evidence().recorded_at + timedelta(minutes=1)
+    monkeypatch.setattr("django.utils.timezone.now", lambda: seed_now)
     persisted = _owner_seed(owner_alias, monkeypatch, actor_source=actor_source)
     authority = persisted.authority
     authentication = persisted.authentication
