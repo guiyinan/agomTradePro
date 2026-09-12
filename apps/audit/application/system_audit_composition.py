@@ -12,9 +12,10 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Mapping, Protocol, cast
+from typing import Protocol, cast
 
 from apps.audit.application.system_audit_authority_schema import (
     SYSTEM_AUDIT_SCOPE_SCHEMA_V1,
@@ -168,7 +169,7 @@ def _exact_payload_equal(left: object, right: object) -> bool:
         right_sequence = cast(list[object] | tuple[object, ...], right)
         return len(left_sequence) == len(right_sequence) and all(
             _exact_payload_equal(left_item, right_item)
-            for left_item, right_item in zip(left_sequence, right_sequence)
+            for left_item, right_item in zip(left_sequence, right_sequence, strict=True)
         )
     if left is None or isinstance(left, (str, bool, int, float)):
         return left == right
@@ -218,7 +219,7 @@ class CanonicalSystemAuditPublishReceipt:
         sink_id: str | None = None,
         delivery_id: str | None = None,
         published_at: datetime | None = None,
-    ) -> "CanonicalSystemAuditPublishReceipt":
+    ) -> CanonicalSystemAuditPublishReceipt:
         """Build an exact receipt, optionally without delivery proof.
 
         Omitting the delivery arguments is useful for constructing a negative
@@ -347,7 +348,7 @@ class CanonicalSystemAuditPublishReceipt:
 class CanonicalSystemAuditPublisher(Protocol):
     """Future durable publisher port; generic or memory sinks do not qualify."""
 
-    def preflight(self) -> "CanonicalSystemAuditPublisherPreflight":
+    def preflight(self) -> CanonicalSystemAuditPublisherPreflight:
         """Return an explicit durable-sink capability attestation."""
 
     def publish(self, event: SystemAuditEvent) -> CanonicalSystemAuditPublishReceipt:
