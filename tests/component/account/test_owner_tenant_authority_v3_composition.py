@@ -42,6 +42,9 @@ from apps.account.infrastructure.owner_tenant_authority_v3_repository import (
 from apps.simulated_trading.account_physical_row_v2_composition import (
     build_account_physical_row_v2_provider,
 )
+from tests.component.account.test_owner_tenant_authority_v3_repository import (
+    owner_alias as owner_alias,
+)
 
 pytest_plugins = [
     "tests.component.account.test_owner_tenant_authority_v3_repository",

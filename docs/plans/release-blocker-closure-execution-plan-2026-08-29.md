@@ -23,7 +23,11 @@ Simulated source ledger 表。修正完整 fixture 与合法事务调用后仍�
 既有 `_validate_root_slots` 已覆盖物理 predecessor 到 canonical supersedes 的交叉校验，
 重算非秘密 seal 也不能绕过它；删除重复生产补丁和镜像测试，仅保留 fixture、合法 UOW、
 准确拒绝点与真实锁 SQLSTATE `55P03` 断言的修正。相关单元 59 项与非 PG composition 10 项通过，
-修正后的三项失败 selector 已作为一个隔离 PostgreSQL 批次重跑；结果仍待完成。
+修正后的三项 selector 批次结束为 `2 passed / 1 setup error / 751.42s`：实际源锁竞争和
+predecessor 篡改拒绝均通过，facade 在 mixed-node 选取下未发现 owner_alias fixture，
+没有进入业务测试体。该批次后隔离库再次确认零公共表。composition 显式导出同一个 fixture，
+主代理复验 mixed 三项 `--setup-plan` 成功解析完整依赖，`no tests ran / 0.61s`；该命令仅验证
+fixture 可见性，不算 PostgreSQL 业务验证。剩余 facade 生命周期已单独重跑，结果仍待完成。
 
 首次生产完整图 cProfile 基线已返回：同一个 READ ONLY / REPEATABLE READ 快照内两次 exact
 get_winner restore 耗时 `2,576.715s`、CPU `2,380.099s`、`58,492 SELECT`、DB execute `162.046s`。
