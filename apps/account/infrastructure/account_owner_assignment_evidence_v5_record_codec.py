@@ -11,6 +11,7 @@ from apps.account.application.account_owner_assignment_actor_authority_v3 import
 from apps.account.application.account_owner_assignment_evidence_v5 import (
     PersistedAccountOwnerAssignmentEvidenceV5,
 )
+from apps.account.domain.validation_graph import validation_graph_operation
 from apps.account.infrastructure.account_owner_assignment_evidence_v5_codec import (
     decode_account_owner_assignment_evidence_v5,
     encode_account_owner_assignment_evidence_v5,
@@ -165,6 +166,7 @@ def _decode_authority(payload: object) -> CurrentAccountActorAuthorityV3:
     )
 
 
+@validation_graph_operation
 def encode_account_owner_assignment_evidence_v5_record(
     value: PersistedAccountOwnerAssignmentEvidenceV5,
 ) -> dict[str, object]:
@@ -186,6 +188,7 @@ def encode_account_owner_assignment_evidence_v5_record(
         ) from error
 
 
+@validation_graph_operation
 def decode_account_owner_assignment_evidence_v5_record(
     payload: object,
 ) -> PersistedAccountOwnerAssignmentEvidenceV5:

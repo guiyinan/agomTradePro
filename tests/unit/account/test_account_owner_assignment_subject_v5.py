@@ -324,6 +324,7 @@ def test_v5_subject_domain_imports_do_not_cross_into_frameworks_or_v4() -> None:
         "apps.account.domain.canonical_account_creation_binding_v2",
         "apps.account.domain.canonical_account_ownership_reobservation_v1",
         "apps.account.domain.single_owner_authority_policy_v1",
+        "apps.account.domain.validation_graph",
         "dataclasses",
         "datetime",
         "hashlib",

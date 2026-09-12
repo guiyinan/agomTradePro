@@ -25,6 +25,10 @@ from apps.account.domain.canonical_account_ownership_reobservation_v1 import (
 from apps.account.domain.single_owner_authority_policy_v1 import (
     SingleOwnerAuthorityPolicyV1,
 )
+from apps.account.domain.validation_graph import (
+    validate_once_per_graph,
+    validation_graph_operation,
+)
 
 ACCOUNT_OWNER_ASSIGNMENT_PROVENANCE_RECEIPT_V5_OWNER = "account"
 ACCOUNT_OWNER_ASSIGNMENT_PROVENANCE_RECEIPT_V5_ARTIFACT_TYPE = (
@@ -159,6 +163,7 @@ class AccountOwnerAssignmentProvenanceReceiptV5:
     status: str = ACCOUNT_OWNER_ASSIGNMENT_PROVENANCE_RECEIPT_V5_STATUS
     blocker_codes: tuple[str, ...] = ACCOUNT_OWNER_ASSIGNMENT_PROVENANCE_RECEIPT_V5_BLOCKERS
 
+    @validate_once_per_graph
     def __post_init__(self) -> None:
         """Validate policy, permanent Binding, current re-observation, and seals."""
 
@@ -396,6 +401,7 @@ class AccountOwnerAssignmentProvenanceReceiptV5:
             "blocker_codes": list(self.blocker_codes),
         }
 
+    @validation_graph_operation
     def to_payload(self) -> dict[str, object]:
         """Return and revalidate the complete inactive v5 receipt payload."""
 

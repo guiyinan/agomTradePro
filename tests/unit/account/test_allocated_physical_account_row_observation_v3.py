@@ -275,6 +275,7 @@ def test_domain_module_has_only_standard_library_and_same_app_imports() -> None:
         "__future__",
         "apps.account.domain.canonical_account_creation",
         "apps.account.domain.physical_account_row_observation_v2",
+        "apps.account.domain.validation_graph",
         "dataclasses",
         "datetime",
         "hashlib",

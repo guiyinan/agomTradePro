@@ -609,6 +609,7 @@ def test_v5_domain_module_has_only_stdlib_and_account_domain_imports() -> None:
         "apps.account.domain.canonical_account_creation_binding_v2",
         "apps.account.domain.canonical_account_ownership_reobservation_v1",
         "apps.account.domain.single_owner_authority_policy_v1",
+        "apps.account.domain.validation_graph",
         "dataclasses",
         "datetime",
         "hashlib",

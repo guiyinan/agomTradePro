@@ -15,6 +15,10 @@ from datetime import UTC, datetime
 from apps.account.domain.account_owner_assignment_evidence import (
     AccountOwnerAssignmentActor,
 )
+from apps.account.domain.validation_graph import (
+    validate_once_per_graph,
+    validation_graph_operation,
+)
 
 OWNER = "account"
 ARTIFACT_TYPE = "single_owner_authority_policy_v1"
@@ -108,6 +112,7 @@ class SingleOwnerAuthorityPolicyV1:
     artifact_type: str = ARTIFACT_TYPE
     mode: str = MODE
 
+    @validate_once_per_graph
     def __post_init__(self) -> None:
         """Validate fixed semantics, identity, clocks, and canonical hashes."""
 
@@ -215,6 +220,7 @@ class SingleOwnerAuthorityPolicyV1:
         cutoff = _aware(as_of, "as_of")
         return self.status == ACTIVE_STATUS and self.observed_at <= cutoff < self.valid_until
 
+    @validation_graph_operation
     def to_payload(self) -> dict[str, object]:
         """Return the complete canonical JSON-compatible policy payload."""
 

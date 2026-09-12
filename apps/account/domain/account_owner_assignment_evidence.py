@@ -7,6 +7,11 @@ import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from apps.account.domain.validation_graph import (
+    validate_once_per_graph,
+    validation_graph_operation,
+)
+
 ACCOUNT_OWNER_ASSIGNMENT_OWNER = "account"
 ACCOUNT_OWNER_ASSIGNMENT_ARTIFACT_TYPE = "account_owner_assignment_evidence"
 ACCOUNT_OWNER_ASSIGNMENT_SCHEMA = "account-owner-assignment-evidence.v1"
@@ -82,6 +87,7 @@ class AccountOwnerAssignmentActor:
     kind: str = "human"
     is_staff: bool = False
 
+    @validate_once_per_graph
     def __post_init__(self) -> None:
         _require_token(self.actor_id, "actor_id")
         if type(self.user_id) is not int or self.user_id <= 0:
@@ -92,6 +98,7 @@ class AccountOwnerAssignmentActor:
         if type(self.is_staff) is not bool:
             raise TypeError("actor is_staff must be an exact boolean")
 
+    @validation_graph_operation
     def to_payload(self) -> dict[str, object]:
         """Return the exact authenticated actor identity."""
 
@@ -144,6 +151,7 @@ class AccountOwnerAssignmentEvidence:
     status: str = ACCOUNT_OWNER_ASSIGNMENT_STATUS
     blocker_codes: tuple[str, ...] = ACCOUNT_OWNER_ASSIGNMENT_BLOCKERS
 
+    @validate_once_per_graph
     def __post_init__(self) -> None:
         self._validate_fixed_semantics()
         for field_name in (
@@ -327,6 +335,7 @@ class AccountOwnerAssignmentEvidence:
             "blocker_codes": list(self.blocker_codes),
         }
 
+    @validation_graph_operation
     def to_payload(self) -> dict[str, object]:
         """Return the canonical inactive Account owner evidence payload."""
 

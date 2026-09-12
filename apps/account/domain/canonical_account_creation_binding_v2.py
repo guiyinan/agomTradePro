@@ -14,6 +14,10 @@ from apps.account.domain.canonical_account_creation import (
     CanonicalAccountCreationAllocation,
     CanonicalAccountCreationServiceRecorder,
 )
+from apps.account.domain.validation_graph import (
+    validate_once_per_graph,
+    validation_graph_operation,
+)
 
 CANONICAL_ACCOUNT_CREATION_BINDING_V2_OWNER = "account"
 CANONICAL_ACCOUNT_CREATION_BINDING_V2_ARTIFACT_TYPE = "canonical_account_creation_binding_v2"
@@ -108,6 +112,7 @@ class CanonicalAccountCreationBindingV2:
     binding_state: str = CANONICAL_ACCOUNT_CREATION_BINDING_V2_BINDING_STATE
     owner_assignment_state: str = CANONICAL_ACCOUNT_CREATION_BINDING_V2_OWNER_ASSIGNMENT_STATE
 
+    @validate_once_per_graph
     def __post_init__(self) -> None:
         self._validate_fixed_semantics()
         _require_token(self.binding_id, "binding_id")
@@ -350,6 +355,7 @@ class CanonicalAccountCreationBindingV2:
             "owner_assignment_state": self.owner_assignment_state,
         }
 
+    @validation_graph_operation
     def to_payload(self) -> dict[str, object]:
         """Return and revalidate the complete durable binding evidence."""
 

@@ -7,6 +7,7 @@ from typing import cast
 from apps.account.application.account_owner_assignment_provenance_receipt_v5 import (
     PersistedAccountOwnerAssignmentProvenanceReceiptV5,
 )
+from apps.account.domain.validation_graph import validation_graph_operation
 from apps.account.infrastructure.account_owner_assignment_provenance_receipt_v5_codec import (
     decode_account_owner_assignment_provenance_receipt_v5,
     encode_account_owner_assignment_provenance_receipt_v5,
@@ -19,6 +20,7 @@ class AccountOwnerAssignmentProvenanceReceiptV5RecordCodecError(ValueError):
     """A persisted ReceiptV5 envelope has invalid shape or seals."""
 
 
+@validation_graph_operation
 def encode_account_owner_assignment_provenance_receipt_v5_record(
     value: PersistedAccountOwnerAssignmentProvenanceReceiptV5,
 ) -> dict[str, object]:
@@ -41,6 +43,7 @@ def encode_account_owner_assignment_provenance_receipt_v5_record(
         ) from error
 
 
+@validation_graph_operation
 def decode_account_owner_assignment_provenance_receipt_v5_record(
     payload: object,
 ) -> PersistedAccountOwnerAssignmentProvenanceReceiptV5:
