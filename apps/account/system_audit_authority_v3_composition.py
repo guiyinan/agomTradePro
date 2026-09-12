@@ -27,11 +27,11 @@ from apps.account.domain.account_owner_assignment_actor_authority_source_v3 impo
     AccountOwnerAssignmentActorAuthoritySourceV3,
 )
 from apps.account.domain.owner_tenant_authority_v3 import OwnerTenantAuthorityV3
-from apps.account.infrastructure.account_owner_assignment_actor_authority_bundle_provider import (
-    DjangoAccountActorAuthorityInputBundleProviderV3,
-)
 from apps.account.infrastructure.account_owner_assignment_actor_authority_source_v3_repository import (
     DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository,
+)
+from apps.account.infrastructure.account_system_audit_actor_authority_bundle_provider import (
+    DjangoAccountSystemAuditActorAuthorityBundleProviderV3,
 )
 from apps.account.infrastructure.owner_tenant_authority_v3_repository import (
     DjangoOwnerTenantAuthorityV3Repository,
@@ -158,7 +158,7 @@ class AccountSystemAuditOwnerTenantAuthorityV3Reader:
             using=self.database_alias
         )
         reader = GetCurrentAccountOwnerAssignmentActorAuthoritySourceV3(
-            input_bundle_provider=DjangoAccountActorAuthorityInputBundleProviderV3(
+            input_bundle_provider=DjangoAccountSystemAuditActorAuthorityBundleProviderV3(
                 using=self.database_alias
             ),
             repository=repository,

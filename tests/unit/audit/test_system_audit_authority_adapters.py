@@ -455,7 +455,9 @@ def test_builder_wires_every_reader_to_the_same_alias(monkeypatch: pytest.Monkey
         return scope_reader
 
     monkeypatch.setattr(
-        authority_module, "DjangoAccountActorAuthorityInputBundleProviderV3", build_bundle
+        authority_module,
+        "DjangoAccountSystemAuditActorAuthorityBundleProviderV3",
+        build_bundle,
     )
     monkeypatch.setattr(
         authority_module,
