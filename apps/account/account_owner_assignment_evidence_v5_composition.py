@@ -57,6 +57,7 @@ from apps.account.application.single_owner_actor_authority import (
 from apps.account.domain.account_owner_assignment_evidence_v5 import (
     AccountOwnerAssignmentEvidenceV5,
 )
+from apps.account.domain.validation_graph import validation_graph_operation
 from apps.account.infrastructure.account_actor_authority_capture_snapshot import (
     DjangoAccountActorAuthorityCaptureBundleProviderV3,
 )
@@ -149,6 +150,7 @@ class AccountOwnerAssignmentEvidenceV5Facade:
         command.__post_init__()
         return self._locked(lambda: self._current.execute(command))
 
+    @validation_graph_operation
     def _locked(self, operation: Callable[[], _ReturnT]) -> _ReturnT:
         """Run one current operation under ordered source locks and actor UOW."""
 

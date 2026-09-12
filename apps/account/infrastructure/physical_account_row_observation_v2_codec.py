@@ -12,6 +12,7 @@ from apps.account.application.physical_account_row_observation_v2 import (
 from apps.account.domain.physical_account_row_observation_v2 import (
     PhysicalAccountRowObservationV2,
 )
+from apps.account.domain.validation_graph import reuse_validated_decode
 
 
 class PhysicalAccountRowObservationV2CodecError(ValueError):
@@ -42,6 +43,7 @@ def encode_physical_account_row_observation_v2_record(
     }
 
 
+@reuse_validated_decode("physical-account-row-observation-v2-record")
 def decode_physical_account_row_observation_v2_record(
     payload: object,
 ) -> PersistedPhysicalAccountRowObservationV2:

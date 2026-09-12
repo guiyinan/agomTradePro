@@ -10,6 +10,7 @@ from apps.account.domain.canonical_account_ownership_reobservation_v1 import (
     CanonicalAccountOwnershipReobservationV1,
 )
 from apps.account.domain.physical_account_row_observation_v2 import PhysicalAccountRowObservationV2
+from apps.account.domain.validation_graph import reuse_validated_decode
 from apps.account.infrastructure.canonical_account_creation_binding_v2_codec import (
     decode_canonical_account_creation_binding_v2,
 )
@@ -114,6 +115,7 @@ def encode_canonical_account_ownership_reobservation_v1(
     return value.to_payload()
 
 
+@reuse_validated_decode("canonical-account-ownership-reobservation-v1")
 def decode_canonical_account_ownership_reobservation_v1(
     payload: object,
 ) -> CanonicalAccountOwnershipReobservationV1:

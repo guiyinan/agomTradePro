@@ -7,7 +7,10 @@ from typing import cast
 from apps.account.application.account_owner_assignment_subject_v5 import (
     PersistedAccountOwnerAssignmentSubjectV5,
 )
-from apps.account.domain.validation_graph import validation_graph_operation
+from apps.account.domain.validation_graph import (
+    reuse_validated_decode,
+    validation_graph_operation,
+)
 from apps.account.infrastructure.account_owner_assignment_subject_v5_codec import (
     decode_account_owner_assignment_subject_v5,
     encode_account_owner_assignment_subject_v5,
@@ -73,6 +76,7 @@ def encode_account_owner_assignment_subject_v5_record(
 
 
 @validation_graph_operation
+@reuse_validated_decode("account-owner-assignment-subject-v5-record")
 def decode_account_owner_assignment_subject_v5_record(
     payload: object,
 ) -> PersistedAccountOwnerAssignmentSubjectV5:

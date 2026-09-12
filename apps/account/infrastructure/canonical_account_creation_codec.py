@@ -18,6 +18,7 @@ from apps.account.domain.canonical_account_creation import (
 from apps.account.domain.physical_account_row_observation_v2 import (
     PhysicalAccountRowObservationV2,
 )
+from apps.account.domain.validation_graph import reuse_validated_decode
 from apps.account.infrastructure.physical_account_row_observation_v2_codec import (
     PhysicalAccountRowObservationV2CodecError,
     decode_physical_account_row_observation_v2_record,
@@ -50,6 +51,7 @@ def encode_canonical_account_creation_allocation(
     }
 
 
+@reuse_validated_decode("canonical-account-creation-allocation")
 def decode_canonical_account_creation_allocation(
     payload: object,
 ) -> CanonicalAccountCreationAllocation:
@@ -127,6 +129,7 @@ def encode_canonical_account_creation_binding(
     }
 
 
+@reuse_validated_decode("canonical-account-creation-binding-v1")
 def decode_canonical_account_creation_binding(
     payload: object,
 ) -> CanonicalAccountCreationBinding:
