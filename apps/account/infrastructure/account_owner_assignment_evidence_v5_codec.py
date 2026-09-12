@@ -11,6 +11,7 @@ from apps.account.domain.account_owner_assignment_evidence import (
 from apps.account.domain.account_owner_assignment_evidence_v5 import (
     AccountOwnerAssignmentEvidenceV5,
 )
+from apps.account.domain.validation_graph import validation_graph_operation
 from apps.account.infrastructure.account_owner_assignment_subject_v5_codec import (
     AccountOwnerAssignmentSubjectV5CodecError,
     decode_account_owner_assignment_subject_v5,
@@ -51,6 +52,7 @@ _EVIDENCE_KEYS = {
 _ACTOR_KEYS = {"actor_id", "user_id", "role", "kind", "is_staff"}
 
 
+@validation_graph_operation
 def encode_account_owner_assignment_evidence_v5(
     value: AccountOwnerAssignmentEvidenceV5,
 ) -> dict[str, object]:
@@ -69,6 +71,7 @@ def encode_account_owner_assignment_evidence_v5(
         raise AccountOwnerAssignmentEvidenceV5CodecError("evidence v5 cannot be encoded") from error
 
 
+@validation_graph_operation
 def decode_account_owner_assignment_evidence_v5(
     payload: object,
 ) -> AccountOwnerAssignmentEvidenceV5:

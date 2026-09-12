@@ -470,6 +470,11 @@ class PhysicalAccountRowObservationV2:
         """Return the complete canonical Account v2 observation."""
 
         PhysicalAccountRowObservationV2.__post_init__(self)
+        return self._validated_payload()
+
+    def _validated_payload(self) -> dict[str, object]:
+        """Serialize after a containing graph has validated this exact value."""
+
         return {
             **self._content_payload(),
             "identity_hash": self.identity_hash,

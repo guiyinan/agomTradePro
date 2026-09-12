@@ -14,6 +14,9 @@ from apps.account.application.account_owner_assignment_actor_authority_v3 import
 from apps.account.application.account_owner_assignment_evidence_v5 import (
     PersistedAccountOwnerAssignmentEvidenceV5,
 )
+from apps.account.domain.physical_account_row_observation_v2 import (
+    PhysicalAccountRowObservationV2,
+)
 from apps.account.infrastructure.account_owner_assignment_evidence_v4_record_codec import (
     encode_account_owner_assignment_evidence_v4_record,
 )
@@ -220,6 +223,44 @@ def test_encoder_revalidates_mutated_frozen_authority_and_evidence() -> None:
 
     with pytest.raises(AccountOwnerAssignmentEvidenceV5RecordCodecError):
         encode_account_owner_assignment_evidence_v5_record(record)
+
+
+@pytest.mark.parametrize(
+    ("operation", "expected_validations"),
+    [
+        ("encode", 2),
+        ("decode", 36),
+    ],
+)
+def test_record_codec_bounds_repeated_physical_graph_validation(
+    monkeypatch: pytest.MonkeyPatch,
+    operation: str,
+    expected_validations: int,
+) -> None:
+    """One codec traversal cannot multiply physical validation without bound."""
+
+    record = _record()
+    payload = encode_account_owner_assignment_evidence_v5_record(record)
+    original = PhysicalAccountRowObservationV2._validate_fixed_semantics
+    validations = 0
+
+    def counted_validation(value: PhysicalAccountRowObservationV2) -> None:
+        nonlocal validations
+        validations += 1
+        original(value)
+
+    monkeypatch.setattr(
+        PhysicalAccountRowObservationV2,
+        "_validate_fixed_semantics",
+        counted_validation,
+    )
+
+    if operation == "encode":
+        encode_account_owner_assignment_evidence_v5_record(record)
+    else:
+        decode_account_owner_assignment_evidence_v5_record(payload)
+
+    assert validations == expected_validations
 
     record = _record()
     object.__setattr__(record.evidence, "identity_hash", "0" * 64)

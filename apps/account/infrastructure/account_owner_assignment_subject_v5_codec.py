@@ -8,6 +8,7 @@ from typing import cast
 from apps.account.domain.account_owner_assignment_subject_v5 import (
     AccountOwnerAssignmentSubjectV5,
 )
+from apps.account.domain.validation_graph import validation_graph_operation
 from apps.account.infrastructure.account_owner_assignment_provenance_receipt_v5_codec import (
     decode_account_owner_assignment_provenance_receipt_v5,
 )
@@ -128,6 +129,7 @@ def _blockers(value: object) -> tuple[str, ...]:
     return tuple(_text(item) for item in value)
 
 
+@validation_graph_operation
 def encode_account_owner_assignment_subject_v5(
     subject: AccountOwnerAssignmentSubjectV5,
 ) -> dict[str, object]:
@@ -145,6 +147,7 @@ def encode_account_owner_assignment_subject_v5(
         raise AccountOwnerAssignmentSubjectV5CodecError("subject cannot be encoded") from error
 
 
+@validation_graph_operation
 def decode_account_owner_assignment_subject_v5(
     payload: object,
 ) -> AccountOwnerAssignmentSubjectV5:

@@ -9,6 +9,7 @@ from apps.account.domain.account_owner_assignment_evidence import AccountOwnerAs
 from apps.account.domain.account_owner_assignment_provenance_receipt_v5 import (
     AccountOwnerAssignmentProvenanceReceiptV5,
 )
+from apps.account.domain.validation_graph import validation_graph_operation
 from apps.account.infrastructure.canonical_account_creation_binding_v2_codec import (
     decode_canonical_account_creation_binding_v2,
 )
@@ -180,6 +181,7 @@ def _blockers(value: object) -> tuple[str, ...]:
     return tuple(_text(item) for item in value)
 
 
+@validation_graph_operation
 def encode_account_owner_assignment_provenance_receipt_v5(
     receipt: AccountOwnerAssignmentProvenanceReceiptV5,
 ) -> dict[str, object]:
@@ -199,6 +201,7 @@ def encode_account_owner_assignment_provenance_receipt_v5(
         ) from error
 
 
+@validation_graph_operation
 def decode_account_owner_assignment_provenance_receipt_v5(
     payload: object,
 ) -> AccountOwnerAssignmentProvenanceReceiptV5:

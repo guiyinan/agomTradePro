@@ -19,6 +19,10 @@ from apps.account.domain.canonical_account_creation_binding_v2 import (
 from apps.account.domain.physical_account_row_observation_v2 import (
     PhysicalAccountRowObservationV2,
 )
+from apps.account.domain.validation_graph import (
+    validate_once_per_graph,
+    validation_graph_operation,
+)
 
 CANONICAL_ACCOUNT_OWNERSHIP_REOBSERVATION_V1_OWNER = "account"
 CANONICAL_ACCOUNT_OWNERSHIP_REOBSERVATION_V1_ARTIFACT_TYPE = (
@@ -111,6 +115,7 @@ class CanonicalAccountOwnershipReobservationV1:
     permission: str = CANONICAL_ACCOUNT_OWNERSHIP_REOBSERVATION_V1_PERMISSION
     status: str = CANONICAL_ACCOUNT_OWNERSHIP_REOBSERVATION_V1_STATUS
 
+    @validate_once_per_graph
     def __post_init__(self) -> None:
         """Validate fixed semantics, source identity, clocks, and both seals."""
 
@@ -264,7 +269,7 @@ class CanonicalAccountOwnershipReobservationV1:
         return {
             **self._identity_payload(),
             "binding": self.binding.to_payload(),
-            "current_physical": self.current_physical.to_payload(),
+            "current_physical": self.current_physical._validated_payload(),
             "recorded_at": _utc_text(self.recorded_at),
             "valid_until": _utc_text(self.valid_until),
             "identity_hash": self.identity_hash,
@@ -272,6 +277,7 @@ class CanonicalAccountOwnershipReobservationV1:
             "status": self.status,
         }
 
+    @validation_graph_operation
     def to_payload(self) -> dict[str, object]:
         """Return and revalidate the complete inactive evidence payload."""
 

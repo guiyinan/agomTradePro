@@ -14,6 +14,10 @@ from apps.account.domain.physical_account_row_observation_v2 import (
     PhysicalAccountRowObservationV2,
     validate_physical_account_row_observation_v2_root,
 )
+from apps.account.domain.validation_graph import (
+    validate_once_per_graph,
+    validation_graph_operation,
+)
 
 ALLOCATED_PHYSICAL_ACCOUNT_ROW_OBSERVATION_V3_OWNER = "account"
 ALLOCATED_PHYSICAL_ACCOUNT_ROW_OBSERVATION_V3_ARTIFACT_TYPE = (
@@ -96,6 +100,7 @@ class AllocatedPhysicalAccountRowObservationV3:
     permission: str = ALLOCATED_PHYSICAL_ACCOUNT_ROW_OBSERVATION_V3_PERMISSION
     status: str = ALLOCATED_PHYSICAL_ACCOUNT_ROW_OBSERVATION_V3_STATUS
 
+    @validate_once_per_graph
     def __post_init__(self) -> None:
         self._validate_fixed_semantics()
         _require_token(self.observation_id, "observation_id")
@@ -107,7 +112,7 @@ class AllocatedPhysicalAccountRowObservationV3:
 
         allocation_payload = self._allocation_payload()
         validate_physical_account_row_observation_v2_root(self.physical_observation)
-        physical_payload = self.physical_observation.to_payload()
+        physical_payload = self.physical_observation._validated_payload()
         physical = self.physical_observation
         if not physical.is_active or not physical.is_present or physical.is_tombstone:
             raise ValueError("a live physical root is required")
@@ -259,6 +264,7 @@ class AllocatedPhysicalAccountRowObservationV3:
             "status": self.status,
         }
 
+    @validation_graph_operation
     def to_payload(self) -> dict[str, object]:
         """Return and revalidate the complete nested creation-root payload."""
 
@@ -266,7 +272,7 @@ class AllocatedPhysicalAccountRowObservationV3:
         return {
             **self._content_payload(
                 allocation_payload=self._allocation_payload(),
-                physical_payload=self.physical_observation.to_payload(),
+                physical_payload=self.physical_observation._validated_payload(),
             ),
             "identity_hash": self.identity_hash,
             "content_hash": self.content_hash,

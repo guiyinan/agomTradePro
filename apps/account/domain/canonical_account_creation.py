@@ -10,6 +10,10 @@ from datetime import UTC, datetime
 from apps.account.domain.physical_account_row_observation_v2 import (
     PhysicalAccountRowObservationV2,
 )
+from apps.account.domain.validation_graph import (
+    validate_once_per_graph,
+    validation_graph_operation,
+)
 
 
 def _token(value: object, field_name: str) -> str:
@@ -73,6 +77,7 @@ class CanonicalAccountCreationRequester:
     kind: str = "human"
     is_authenticated: bool = True
 
+    @validate_once_per_graph
     def __post_init__(self) -> None:
         _token(self.actor_id, "actor_id")
         _positive_int(self.user_id, "user_id")
@@ -83,6 +88,7 @@ class CanonicalAccountCreationRequester:
         ):
             raise ValueError("requester must be an authenticated human account_creator")
 
+    @validation_graph_operation
     def to_payload(self) -> dict[str, object]:
         """Return the canonical requester payload."""
 
@@ -105,6 +111,7 @@ class CanonicalAccountCreationServiceRecorder:
     kind: str = "service"
     is_automated: bool = True
 
+    @validate_once_per_graph
     def __post_init__(self) -> None:
         _token(self.service_id, "service_id")
         if self.role not in {
@@ -115,6 +122,7 @@ class CanonicalAccountCreationServiceRecorder:
         if (self.kind, self.is_automated) != ("service", True):
             raise ValueError("service recorder must be automated")
 
+    @validation_graph_operation
     def to_payload(self) -> dict[str, object]:
         """Return the canonical recorder payload."""
 
@@ -155,6 +163,7 @@ class CanonicalAccountCreationAllocation:
     permission: str = "identity_allocation_only"
     status: str = "inactive"
 
+    @validate_once_per_graph
     def __post_init__(self) -> None:
         if (
             self.owner,
@@ -222,6 +231,7 @@ class CanonicalAccountCreationAllocation:
             "schema": self.schema,
         }
 
+    @validation_graph_operation
     def to_payload(self) -> dict[str, object]:
         """Return and revalidate the complete canonical allocation payload."""
 
@@ -288,6 +298,7 @@ class CanonicalAccountCreationBinding:
     binding_state: str = "pending_owner_approval"
     owner_assignment_state: str = "unknown"
 
+    @validate_once_per_graph
     def __post_init__(self) -> None:
         if (
             self.owner,
@@ -415,6 +426,7 @@ class CanonicalAccountCreationBinding:
             "valid_until": _utc_text(self.valid_until),
         }
 
+    @validation_graph_operation
     def to_payload(self) -> dict[str, object]:
         """Return and revalidate the complete canonical binding payload."""
 
