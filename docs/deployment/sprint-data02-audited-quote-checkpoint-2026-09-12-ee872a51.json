@@ -1,0 +1,193 @@
+{
+  "schema_version": "sprint-data02-audited-quote-checkpoint.v1",
+  "recorded_at": "2026-09-12T15:37:21Z",
+  "candidate": {
+    "commit": "ee872a51bb0967e3d822ec0d436991f4f2329c4c",
+    "release_tag": "20260912213853",
+    "image_id": "sha256:470c4fcac0a032dd3a57f79e5d9dbee1942bc2a2ab6d892cd3f15f35ea35934d",
+    "source_mode": "git-clone",
+    "runtime_match": true,
+    "pull_request": "https://github.com/guiyinan/agomTradePro/pull/32"
+  },
+  "deployment": {
+    "result": "success",
+    "database_backup": "/opt/agomtradepro/backups/database/postgres-20260912-161139.dump",
+    "backup_manifest": "/opt/agomtradepro/backups/meta/manifest-20260912-161139.txt",
+    "health_http_status": 200,
+    "tls": "valid",
+    "django_deploy_check": "pass",
+    "migration_state": "no_pending_migrations",
+    "canonical_data_center_schema": "pass",
+    "tui_metadata_registry": "pass",
+    "qlib_identity": "pyqlib=0.9.7; wrong_qlib=absent",
+    "celery_worker": "running",
+    "celery_beat": "running",
+    "celery_ping_nodes": 1
+  },
+  "change": {
+    "commit": "526822bd3a1087225914ee567aeabe6166e19f77",
+    "summary": "Bind System Audit actor authority reads to the active same-alias PostgreSQL READ COMMITTED write transaction using deterministic SHARE NOWAIT locks over the six raw authority ledgers.",
+    "local_validation": {
+      "focused_unit_tests": "82 passed",
+      "component_tests": "2 passed, 7 skipped because the local database was not PostgreSQL",
+      "black": "pass",
+      "isort": "pass",
+      "ruff": "pass",
+      "incremental_mypy": "0 regressions",
+      "mypy_debt": 0,
+      "architecture_boundary_violations": 0,
+      "architecture_audit_violations": 0
+    },
+    "ci": "all required GitHub checks passed on Python 3.11 and 3.13 before merge"
+  },
+  "authorization": {
+    "designated_owner_and_approval_account": "admin",
+    "django_user_id": 1,
+    "production_deployment_and_controlled_test_authorized": true,
+    "source": "explicit user instructions in the active Codex task",
+    "cryptographic_owner_signature_present": false,
+    "independent_reviewer_signature_present": false
+  },
+  "controlled_attempts": [
+    {
+      "account_id": 629,
+      "result": "rolled_back",
+      "reason": "An existing Evidence V5 mapping already had a root; the attempted duplicate root was rejected before runtime activation.",
+      "postcheck": "chain counts unchanged and audit runtime remained off"
+    },
+    {
+      "account_id": 630,
+      "result": "rolled_back",
+      "reason": "A four-minute Evidence V5 test window expired during production current-state revalidation before Authority V3 issuance.",
+      "postcheck": "governance transaction rolled back and audit runtime remained off"
+    },
+    {
+      "account_id": 630,
+      "result": "success",
+      "run_suffix": "20260912144245",
+      "request": {
+        "provider_id": 3,
+        "asset_codes": [
+          "000001.SZ"
+        ],
+        "publish_current": false
+      },
+      "binding": {
+        "binding_id": "create-binding-055f992bcd5b22390135ccf34db616c8522202565baa10081f92d922e0908faa",
+        "binding_version": "v1",
+        "content_hash": "5041b040a1b63c13cec6280cfac7bedc7db45bea164b74a559068e347e26eeb4"
+      },
+      "actor": {
+        "source_id": "data02-extended-actor-20260912144245",
+        "source_version": "v1",
+        "content_hash": "46395173b0e149c3a1953b5f4b89892a0a261e57809c4142336f0b5f7a2381f3",
+        "valid_until": "2026-09-12T15:42:48.685574Z"
+      },
+      "evidence": {
+        "evidence_id": "audit-admin-owner-evidence-20260912144245",
+        "evidence_version": "v5.1",
+        "content_hash": "c9dfec05e7bca00d567ba7517ae40e3ff471618ad87073b8f4957147f11eda62",
+        "valid_until": "2026-09-12T15:33:04.083514Z"
+      },
+      "authority": {
+        "authority_id": "audit-admin-owner-authority-20260912144245",
+        "authority_version": "v3.1",
+        "content_hash": "584dd04ec11bb1ff40284916a977725286fd40763841403c99fc2402ab82a1ae",
+        "tenant_id": "agomtradepro-production",
+        "owner_id": "django-user:1",
+        "valid_until": "2026-09-12T15:35:52.627001Z"
+      },
+      "runtime_activation": {
+        "profile_version": 10,
+        "snapshot_id": "3658e151-388f-4ddb-95df-8bede0a056be",
+        "snapshot_hash": "a5c918e8dbff6b07d9aa83e90741e1158beeeee3a3f64cea2c5f8ed61207d738",
+        "mode": "shadow",
+        "outbox_enabled": true
+      },
+      "sync_result": {
+        "status": "success",
+        "stored_count": 1,
+        "provider_name": "AKShare Public",
+        "ingested_run_id": "9dd814aa-23e7-4337-8493-d20bd9e808f9",
+        "run_id": "78af7b94-8b72-49e8-a24d-1bb2b4f35c95"
+      },
+      "quote": {
+        "asset_code": "000001.SZ",
+        "current_price": "11.7400",
+        "snapshot_at": "2026-09-11T07:34:54Z",
+        "fetched_at": "2026-09-12T15:15:23.297425Z",
+        "source": "akshare",
+        "quality_status": "accepted"
+      },
+      "audit_event": {
+        "event_id": "data-fetch-15a77573d22da234e0a3a06d74646413cbb20237313465a6",
+        "event_version": "1",
+        "event_type": "data.fetch.completed",
+        "outcome": "success",
+        "stream_id": "data.fetch:equity.quote.snapshot",
+        "sequence_no": 1,
+        "identity_hash": "cd59a1da2e8d5f1bc1d30d3a33b955544d268f26daaab86e9d466f33909b5091",
+        "content_hash": "4578d12341161a66c803032bd629715e9bf128716c60003c09e46fae2a7c3168",
+        "recorded_at": "2026-09-12T15:15:23.371292Z"
+      },
+      "outbox": {
+        "outbox_id": "9f3f3075-41b6-46f6-b166-41cdf197df7c",
+        "status": "pending",
+        "attempt_count": 0,
+        "payload_hash": "4578d12341161a66c803032bd629715e9bf128716c60003c09e46fae2a7c3168"
+      }
+    }
+  ],
+  "independent_postcheck": {
+    "observed_at": "2026-09-12T15:37:21Z",
+    "governance_chain_counts": {
+      "reobservation": 2,
+      "receipt": 2,
+      "subject": 2,
+      "evidence": 2,
+      "authority": 2
+    },
+    "audit_event_count_in_window": 1,
+    "outbox_count_in_window": 1,
+    "runtime": {
+      "mode": "off",
+      "outbox_enabled": false,
+      "selector_present": false,
+      "snapshot_id": "2db23c6f-be25-484f-8d06-3a712c702489",
+      "snapshot_hash": "2a41fca7121a7a0bf5133970363db33c26436cd45bb55636f53c37a81b25d0a1"
+    }
+  },
+  "performance_observation": {
+    "event_recorded_at": "2026-09-12T15:15:23.371292Z",
+    "result_envelope_observed_at": "2026-09-12T15:36:17.725115Z",
+    "elapsed_seconds": 1254.353823,
+    "interpretation": "The governed write completed successfully, but post-write result inspection and immutable graph decoding took about 20.9 minutes. This is a measured production performance issue and not a DATA-02 acceptance failure for the one-asset slice."
+  },
+  "unit_assessment": {
+    "DATA-02": {
+      "status": "awaiting_production",
+      "progress": "The one-asset audited quote write path and same-UOW event/outbox path are proven on the deployed candidate.",
+      "missing": "Exact 5,533-asset quote/valuation coverage, completed-session observation distribution, financial report-date repair, four publication identities and canonical tolerance reconciliation remain."
+    },
+    "EVID-01": {
+      "status": "awaiting_production",
+      "progress": "A real admin/user_id=1 actor, owner-scoped Evidence V5 root and Authority V3 root were composed and consumed by production System Audit.",
+      "missing": "Candidate-bound acceptance package and independent owner/reviewer signatures remain."
+    },
+    "EVID-02": {
+      "status": "awaiting_production",
+      "progress": "Append-only root creation, duplicate-root rejection and transaction rollback were observed.",
+      "missing": "Repeatable PostgreSQL first-winner concurrency, successor, current-head, revocation and signed approval evidence remain."
+    },
+    "AUD-03": {
+      "status": "awaiting_production",
+      "progress": "One real canonical event/outbox write and runtime cleanup are proven.",
+      "missing": "Backlog recovery, bounded metrics and alerts, admin TUI, archive/restore, rollback rehearsal and production sign-off remain."
+    },
+    "TAR-05": {
+      "status": "awaiting_production",
+      "progress": "No capacity or runtime acceptance was claimed.",
+      "missing": "Approved staging envelope, dedicated Worker, 1/5/10/20 load, chaos/recovery, provider/MCP, rollback, natural observation window and signatures remain."
+    }
+  }
+}

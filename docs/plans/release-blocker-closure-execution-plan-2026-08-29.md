@@ -6,6 +6,33 @@
 > 原则：本文只编排既有 unit，不建立第二套状态、不降低阈值、不代签、不伪造 PIT/OOS 历史，也不把生产写入授权扩大为实盘交易授权。
 > 授权记录（2026-08-30）：用户已授权 A1–A8 动作包继续执行；每个动作仍受其前置门、精确目标、回滚点、外部环境和真实 owner/reviewer 决策约束，授权不等于验收通过。
 
+## 2026-09-12：DATA-02 单资产审计写入与候选重绑定检查点
+
+PR #32 已在全部 CI 通过后合并，生产部署绑定
+`ee872a51bb0967e3d822ec0d436991f4f2329c4c` / `20260912213853` /
+`sha256:470c4fcac0a032dd3a57f79e5d9dbee1942bc2a2ab6d892cd3f15f35ea35934d`。
+标准部署流程先生成 PostgreSQL/Redis 备份，再完成 migration、Data Center schema、TUI metadata、
+Qlib、HTTPS/TLS、Celery 和容器健康检查。完整候选与备份事实见
+[生产检查点](../deployment/sprint-data02-audited-quote-checkpoint-2026-09-12-ee872a51.json)。
+
+用户已明确把 `admin/user_id=1` 指定为本项目 owner 与人工审批账户，并授权本次部署和生产受控测试。
+测试通过正式账户创建、raw authority publisher、Evidence V5 和 OwnerTenantAuthority V3 入口建立
+独立账户 630 的真实治理图；随后仅对 `000001.SZ` 执行 `publish_current=false` 的一资产 quote 同步。
+生产结果为 `stored_count=1`，quote 的 `quality_status=accepted`，同一写事务记录一条
+`data.fetch.completed/outcome=success` 事件及一条 payload hash 相同的 pending outbox。独立后检确认
+两套治理图各自唯一，审计 runtime 已恢复 `mode=off`、outbox disabled、selector absent。
+
+两个失败路径也按事实保留：账户 629 的重复 Evidence V5 root 被唯一约束拒绝；账户 630 首次四分钟
+有效期在完整当前态复核期间到期，Authority V3 fail closed。两次治理事务均回滚，runtime 未遗留开启。
+最终成功批次使用 50 分钟受控窗口。事件写入到结果 envelope 观察相隔约 20.9 分钟，显示不可变证据图
+的写后读取/解码仍是扩大批次前必须处理的性能问题；该耗时不改写已经成功提交的一资产原子写事实。
+
+本检查点不关闭 canonical unit。`DATA-02` 仍缺 5,533 资产 quote/valuation 覆盖、完成交易日分布、
+financial report-date 修复、四个 publication identity 与 canonical 容差对账；`EVID-01/02` 仍缺
+PostgreSQL first-winner 并发、successor/current-head/revocation、rollback 汇总及独立 owner/reviewer
+签收；`AUD-03` 仍缺 backlog recovery、metrics/alerts、admin TUI、archive/restore 和生产签字；
+`TAR-05` 的 staging、容量、chaos、恢复与自然观察窗口未启动。
+
 ## 2026-09-10：续跑评估与实际关键路径
 
 本节承接用户要求的 `DATA-02 → EVID-01/02 → AUD-03 → TAR-05` 顺序，优先于下文历史排期。
