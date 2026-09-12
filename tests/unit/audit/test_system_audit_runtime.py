@@ -232,8 +232,11 @@ def _install_successful_components(
         assert environment == binding.environment
         return binding
 
-    def build_readers(*, using: str) -> SystemAuditAuthorityReaders:
+    def build_readers(
+        *, using: str, selector: SystemAuditAuthorityBundleSelector
+    ) -> SystemAuditAuthorityReaders:
         assert using == alias
+        assert selector is binding.authority_selector
         return readers
 
     monkeypatch.setattr(runtime, "load_system_audit_runtime_config", load_binding)

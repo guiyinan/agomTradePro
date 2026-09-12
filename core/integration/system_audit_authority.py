@@ -26,14 +26,22 @@ from apps.account.system_audit_authority_composition import (
     AccountSystemAuditAuthorityReaders,
     build_account_system_audit_authority_readers,
 )
+from apps.account.system_audit_authority_v3_composition import (
+    AccountSystemAuditOwnerTenantAuthorityV3Reader,
+)
 from apps.audit.application.system_audit_authority_provider import (
     SystemAuditActorAuthorityFacts,
     SystemAuditActorAuthorityReader,
+    SystemAuditAuthorityBundleSelector,
     SystemAuditScopeAuthorityFacts,
     SystemAuditScopeAuthorityReader,
 )
 from apps.audit.application.system_audit_authority_schema import (
+    SYSTEM_AUDIT_SCOPE_SCHEMA_V1,
     SYSTEM_AUDIT_SCOPE_SCHEMA_V3,
+)
+from apps.simulated_trading.account_physical_row_v2_composition import (
+    build_account_physical_row_v2_provider,
 )
 
 
@@ -247,21 +255,43 @@ class SystemAuditAuthorityReaders:
                 raise ValueError("authority readers must share one database alias")
 
 
-def build_system_audit_authority_readers(*, using: str = "default") -> SystemAuditAuthorityReaders:
-    """Build both concrete authority adapters against one validated alias."""
+def build_system_audit_authority_readers(
+    *,
+    using: str = "default",
+    selector: SystemAuditAuthorityBundleSelector | None = None,
+) -> SystemAuditAuthorityReaders:
+    """Build explicit V1 or V3 authority adapters against one validated alias."""
 
     alias = _validate_alias(using)
+    if selector is not None:
+        if type(selector) is not SystemAuditAuthorityBundleSelector:
+            raise TypeError("authority selector type was substituted")
+        selector.__post_init__()
     readers = build_account_system_audit_authority_readers(using=alias)
     if type(readers) is not AccountSystemAuditAuthorityReaders:
         raise TypeError("Account authority reader bundle type was substituted")
     readers.__post_init__()
     if readers.database_alias != alias:
         raise ValueError("Account authority readers must share the Audit database alias")
-    return SystemAuditAuthorityReaders(
-        actor=AccountSystemAuditActorAuthorityAdapter(readers.actor, alias),
-        scope=AccountSystemAuditScopeAuthorityAdapter(readers.scope, alias),
-        database_alias=alias,
-    )
+    actor = AccountSystemAuditActorAuthorityAdapter(readers.actor, alias)
+    if selector is None or selector.scope_schema == SYSTEM_AUDIT_SCOPE_SCHEMA_V1:
+        scope: _AliasBoundScopeAdapter = AccountSystemAuditScopeAuthorityAdapter(
+            readers.scope, alias
+        )
+    elif selector.scope_schema == SYSTEM_AUDIT_SCOPE_SCHEMA_V3:
+        scope = AccountSystemAuditScopeAuthorityV3Adapter(
+            AccountSystemAuditOwnerTenantAuthorityV3Reader(
+                actor_source_id=selector.actor_source_id,
+                actor_source_version=selector.actor_source_version,
+                actor_content_hash=selector.actor_content_hash,
+                physical_row_provider=build_account_physical_row_v2_provider(using=alias),
+                database_alias=alias,
+            ),
+            alias,
+        )
+    else:
+        raise ValueError("system audit scope schema has no wired reader")
+    return SystemAuditAuthorityReaders(actor=actor, scope=scope, database_alias=alias)
 
 
 def _validate_alias(value: object) -> str:

@@ -29,6 +29,13 @@ from apps.account.domain.owner_tenant_authority_v1 import OwnerTenantAuthorityV1
 from apps.account.system_audit_authority_composition import (
     AccountSystemAuditAuthorityReaders,
 )
+from apps.audit.application.system_audit_authority_provider import (
+    SystemAuditAuthorityBundleSelector,
+)
+from apps.audit.application.system_audit_authority_schema import (
+    SYSTEM_AUDIT_SCOPE_SCHEMA_V2,
+    SYSTEM_AUDIT_SCOPE_SCHEMA_V3,
+)
 from core.integration import system_audit_authority as authority_module
 from core.integration.system_audit_authority import (
     AccountSystemAuditActorAuthorityAdapter,
@@ -471,6 +478,85 @@ def test_builder_wires_every_reader_to_the_same_alias(monkeypatch: pytest.Monkey
     assert readers.database_alias == "audit-db"
     assert readers.actor.database_alias == "audit-db"
     assert readers.scope.database_alias == "audit-db"
+
+
+def test_builder_selects_v3_scope_reader_without_legacy_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    actor_reader = FakeActorReader(None)
+    legacy_scope_reader = FakeScopeReader(None)
+    account_readers = AccountSystemAuditAuthorityReaders(
+        actor=cast(object, actor_reader),
+        scope=cast(object, legacy_scope_reader),
+        database_alias="audit-db",
+    )
+    physical_provider = object()
+    v3_reader = FakeScopeV3Reader(None)
+    calls: list[dict[str, object]] = []
+
+    monkeypatch.setattr(
+        authority_module,
+        "build_account_system_audit_authority_readers",
+        lambda *, using: account_readers,
+    )
+    monkeypatch.setattr(
+        authority_module,
+        "build_account_physical_row_v2_provider",
+        lambda *, using: physical_provider,
+    )
+
+    def build_v3_reader(**kwargs: object) -> FakeScopeV3Reader:
+        calls.append(kwargs)
+        return v3_reader
+
+    monkeypatch.setattr(
+        authority_module,
+        "AccountSystemAuditOwnerTenantAuthorityV3Reader",
+        build_v3_reader,
+    )
+    selector = SystemAuditAuthorityBundleSelector(
+        actor_source_id="actor-source-v3",
+        actor_source_version="v3.1",
+        actor_content_hash="a" * 64,
+        scope_source_id="scope-source-v3",
+        scope_source_version="v3.1",
+        scope_content_hash="b" * 64,
+        scope_schema=SYSTEM_AUDIT_SCOPE_SCHEMA_V3,
+    )
+
+    readers = build_system_audit_authority_readers(
+        using="audit-db",
+        selector=selector,
+    )
+
+    assert readers.actor.reader is actor_reader
+    assert isinstance(readers.scope, AccountSystemAuditScopeAuthorityV3Adapter)
+    assert readers.scope.reader is v3_reader
+    assert calls == [
+        {
+            "actor_source_id": selector.actor_source_id,
+            "actor_source_version": selector.actor_source_version,
+            "actor_content_hash": selector.actor_content_hash,
+            "physical_row_provider": physical_provider,
+            "database_alias": "audit-db",
+        }
+    ]
+    assert legacy_scope_reader.command is None
+
+
+def test_builder_rejects_unimplemented_v2_scope_without_fallback() -> None:
+    selector = SystemAuditAuthorityBundleSelector(
+        actor_source_id="actor-source-v3",
+        actor_source_version="v3.1",
+        actor_content_hash="a" * 64,
+        scope_source_id="scope-source-v2",
+        scope_source_version="v2.1",
+        scope_content_hash="b" * 64,
+        scope_schema=SYSTEM_AUDIT_SCOPE_SCHEMA_V2,
+    )
+
+    with pytest.raises(ValueError, match="scope schema"):
+        build_system_audit_authority_readers(selector=selector)
 
 
 def test_account_bundle_rejects_malformed_alias_and_reader_substitution() -> None:

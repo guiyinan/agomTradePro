@@ -147,8 +147,11 @@ def _install_inputs(
         assert environment == "production"
         return binding
 
-    def build_readers(*, using: str) -> SystemAuditAuthorityReaders:
+    def build_readers(
+        *, using: str, selector: SystemAuditAuthorityBundleSelector
+    ) -> SystemAuditAuthorityReaders:
         assert using == "default"
+        assert selector is binding.authority_selector
         return readers
 
     monkeypatch.setattr(runtime, "load_system_audit_runtime_config", load_binding)
