@@ -29,6 +29,11 @@ predecessor 篡改拒绝均通过，facade 在 mixed-node 选取下未发现 own
 主代理复验 mixed 三项 `--setup-plan` 成功解析完整依赖，`no tests ran / 0.61s`；该命令仅验证
 fixture 可见性，不算 PostgreSQL 业务验证。剩余 facade 生命周期已单独重跑，结果仍待完成。
 
+facade 重跑随后实际失败 `1 failed / 254.89s`：fixture 完整解析并进入 issue，当前 Evidence V5
+端口返回 None，Owner 层据此 fail closed。继续核对 fixture 的 live physical source、actor 与
+时点前置，不把 canonical ledger 的可恢复性视为完整 current 图，也不以 mock 当前权限绕过；
+该结果不能记为生命周期通过或未经诊断直接认作生产缺陷。
+
 首次生产完整图 cProfile 基线已返回：同一个 READ ONLY / REPEATABLE READ 快照内两次 exact
 get_winner restore 耗时 `2,576.715s`、CPU `2,380.099s`、`58,492 SELECT`、DB execute `162.046s`。
 它包含 profiler 开销；候选阶段只有 started，连接在 3,600 秒超时后失去输出，不能计算性能提升。
@@ -46,6 +51,24 @@ null available_at 修复暂无 eligible 行。preview 的 ready 仅是候选覆�
 2026-09-11，但新 valuation adapter 仍全缺 available_at，将被标为 available_at_unverified。
 因此 EVID-08 验证后先补实际响应首次可见时间的 source-bound 传递，再执行有界事实修复；
 禁止直接 patch 历史 observed_at/available_at 或把响应抓取时间替换为源观察时间。
+
+随后[完整冻结资产池来源预检](../deployment/sprint-data02-full-source-preflight-2026-09-13-c8bb9b780.json)
+补齐源读取范围：第一次受控预算耗尽前保留 4,200 个代码的完整批次，offset=4,200 的续查补齐
+其余 1,333 个。两次独立只读快照的 universe SHA 与 completed session 相同，合并 quote 和
+valuation 均精确覆盖 `5,533/5,533`、无重复或缺口，源观察日期全为 2026-09-11。
+全部估值 available_at、raw_payload_hash 仍缺失；源读取覆盖不等于已写入事实库或形成 Publication。
+checkpoint 封存 16 份实际输出/脚本/handle，验证 112 份响应体：56 份 HTTP 502、56 份 HTTP 200；
+配置 quote 路径由 Eastmoney 失败后回退 Tencent，全部返回事实的 source 为 tencent。
+保留实际 response.content bytes 的 hash、压缩原文及接收时间，不伪装成已进入 Domain 的单资产
+raw hash 或全局首次发布时间。该预检没有财务修复、runtime 开启、Publication 切换或容差对账，
+也不证明 failover 一致性、实时 quote freshness 或 DATA-02 退出门；机器状态保持不变。
+
+下一有界开发包必须同时覆盖四条链：source Snapshot/adapter 传递 witnessed completion 与明确
+scope 的 raw evidence；catalog inputs 版本化 policy 的 required_evidence；batch/rebuild/幂等及
+generic publish 的统一 typed fail-closed 检查；旧 current 的 active policy 与成员证据检查。
+policy 初始化真源为 publication_policies.json，经 initialize_data_center_catalog 同步落库，
+禁止修改同一个版本身份来掩盖策略修订。保留既有 observed_at、历史事实和 Publication hash 身份，
+不得只填 source 字段而让旧 unverified current 继续可决策。EVID-08 验证完成前不启动该 repository 包。
 
 补充的[估值 availability enforcement 检查点](../deployment/sprint-data02-valuation-availability-gap-2026-09-13-c8bb9b780.json)
 纠正一个必须区分的边界：`available_at_unverified` 被投影为 degraded，并不表示 publication/current
