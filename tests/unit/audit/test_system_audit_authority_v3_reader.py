@@ -125,7 +125,9 @@ def test_v3_reader_derives_facade_inputs_only_from_exact_immutable_sources(
         lambda **kwargs: _ActorRepository(),
     )
     monkeypatch.setattr(
-        module, "DjangoAccountActorAuthorityInputBundleProviderV3", lambda **kwargs: object()
+        module,
+        "DjangoAccountSystemAuditActorAuthorityBundleProviderV3",
+        lambda **kwargs: object(),
     )
     monkeypatch.setattr(
         module, "GetCurrentAccountOwnerAssignmentActorAuthoritySourceV3", _ActorReader

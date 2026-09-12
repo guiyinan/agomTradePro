@@ -8,11 +8,11 @@ from apps.account.application.account_owner_assignment_actor_authority_source_v3
     GetCurrentAccountOwnerAssignmentActorAuthoritySourceV3,
 )
 from apps.account.application.owner_tenant_authority_v1 import GetCurrentOwnerTenantAuthorityV1
-from apps.account.infrastructure.account_owner_assignment_actor_authority_bundle_provider import (
-    DjangoAccountActorAuthorityInputBundleProviderV3,
-)
 from apps.account.infrastructure.account_owner_assignment_actor_authority_source_v3_repository import (
     DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository,
+)
+from apps.account.infrastructure.account_system_audit_actor_authority_bundle_provider import (
+    DjangoAccountSystemAuditActorAuthorityBundleProviderV3,
 )
 from apps.account.owner_tenant_authority_v1_composition import (
     build_owner_tenant_authority_v1_reader,
@@ -43,7 +43,7 @@ def build_account_system_audit_authority_readers(
 
     alias = _validate_alias(using)
     actor = GetCurrentAccountOwnerAssignmentActorAuthoritySourceV3(
-        input_bundle_provider=DjangoAccountActorAuthorityInputBundleProviderV3(using=alias),
+        input_bundle_provider=DjangoAccountSystemAuditActorAuthorityBundleProviderV3(using=alias),
         repository=DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository(using=alias),
     )
     return AccountSystemAuditAuthorityReaders(
