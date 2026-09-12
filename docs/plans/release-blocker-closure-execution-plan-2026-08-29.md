@@ -6,6 +6,44 @@
 > 原则：本文只编排既有 unit，不建立第二套状态、不降低阈值、不代签、不伪造 PIT/OOS 历史，也不把生产写入授权扩大为实盘交易授权。
 > 授权记录（2026-08-30）：用户已授权 A1–A8 动作包继续执行；每个动作仍受其前置门、精确目标、回滚点、外部环境和真实 owner/reviewer 决策约束，授权不等于验收通过。
 
+## 2026-09-13：权威读取性能、生产复测与下一阶段范围
+
+PR #34 已通过全部 CI 并合并，生产当前绑定
+`c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc` / `20260913014501` /
+`sha256:5dd37368b64f735b7850647659ae18e07684eb7d7444d99baf0a900d087943ea`。
+部署前备份、迁移/schema、Django、TUI、Qlib、TLS、Celery 和容器健康均通过。
+[生产性能检查点](../deployment/sprint-data02-authority-performance-checkpoint-2026-09-13-c8bb9b780.json)
+记录候选、生产操作事实、计时、独立查询与限制；它是任务观测摘要，不是独立签署验收报告。
+
+已完成的有界实现是读路径 exact immutable read 复用：只有 `get_current` 的同 alias Account
+ledger 锁和 Simulated physical source 锁全部获取后才开启；provisional row 只发现 composition
+selector，完整 canonical current/head/revocation 校验仍决定权限。写路径及 `with_current` callback
+不启用缓存。Luna max 在补齐跨 App 物理来源锁后复核无 blocker。
+
+账户 631 的真实新图完成后，生产再次仅同步 `000001.SZ`、`publish_current=false`：新增一条
+accepted quote、一条 success canonical event 和一条相同 payload hash 的 pending outbox。
+权威预检 13.57 秒、quote 同步 19.29 秒、runtime 开关窗口 34.09 秒；event recorded_at 到结果
+envelope 观测为 12.30 秒。独立完整 reader 读取为 14.52 秒、1,824 SELECT、DB execute 4.53 秒。
+此前内层 get_winner 在三个 root 上为 118–125 秒、7,946 SELECT；新测量覆盖完整 reader 和四个
+root，不能据此计算同工作负载的精确百分比。独立清理确认 off、outbox disabled、selector absent。
+quote 源观察时间为 2026-09-11，周末 accepted 存储不表示 fresh/current 决策资格，未切换 Publication。
+
+剩余目标明确分开：新建 Evidence V5 + Authority V3 图在 runtime 开启前仍花约 50 分钟。只读 PG
+活动显示 ClientRead/idle in transaction，下一步先定位 Python restore/闭世界递归验证的重复工作。
+首次远端脚本超过本地 1,800 秒 timeout 后继续持锁，已精确终止旧进程组使事务回滚；重试完成，
+本地 ignored helper 增加显式有界 timeout。各写阶段精确时间未留存，不补造分钟分解。
+
+| 下一工作包 | 完成标准与回归范围 | 风险与恢复点 |
+|---|---|---|
+| 写图性能定位及最小实现 | 先保留真实锁、mutation 与 exact-current 语义，测量重复 restore；补 successor/revocation/rollback、跨来源变化及并发测试；生产 Python 通过类型/架构门 | 不把读缓存直接扩到写路径；代码可独立回退，生产图保持 append-only |
+| DATA-02 有界批次 | frozen 5,533 资产覆盖、完成交易日分布、financial report-date、四 Publication identity 与 canonical 容差对账全部满足 | partial/stale/超差停止并保留 checkpoint；不得把单资产 smoke 记成全量完成 |
+| EVID-01/02 → AUD-03 | 真实 PG first-winner/lifecycle 与 candidate-bound 签收；再做 recovery/metrics/alerts/admin TUI/archive/restore | 本次一条 pending outbox 不证明 delivery 或恢复验收 |
+| TAR-05 | 独立 staging、专用 Worker、真实负载/恢复证据与自然观察窗口 | 当前生产 VPS 不改名为 staging；时间门未满足不晋级 |
+
+本阶段部署回退点为此前 release `20260912213853`，数据库恢复点为标准部署生成的
+`postgres-20260912-200207.dump`；本轮没有执行恢复。DATA-12/15 不重复领取。
+DATA-02、EVID-01/02、AUD-03、TAR-05 仍为 `awaiting_production`，Goal 继续 active。
+
 ## 2026-09-12：DATA-02 单资产审计写入与候选重绑定检查点
 
 PR #32 已在全部 CI 通过后合并，生产部署绑定

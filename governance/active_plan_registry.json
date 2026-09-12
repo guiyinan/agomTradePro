@@ -1,6 +1,6 @@
 {
-  "version": "2026-09-12.v85",
-  "updated_at": "2026-09-12",
+  "version": "2026-09-13.v86",
+  "updated_at": "2026-09-13",
   "execution_focus": {
     "unit_id": null,
     "allowed_parallel_execution_modes": [
@@ -8,7 +8,7 @@
       "external",
       "governance"
     ],
-    "policy": "Candidate ee872a51bb0967e3d822ec0d436991f4f2329c4c / release 20260912213853 is deployed with a verified backup and healthy services. The authorized one-asset DATA-02 slice created a real admin/user_id=1 Evidence V5 and Authority V3 graph, stored one accepted quote and atomically recorded one canonical event/outbox row; independent cleanup verified audit runtime off. Continue DATA-02 with bounded coverage/publication/reconciliation batches, collect the remaining EVID-01/02 concurrency, lifecycle and signed acceptance evidence, then proceed to AUD-03 and TAR-05. Do not treat this slice, elapsed processing time or task-session authorization as full data-owner waiver, independent reviewer signature or observation-window completion."
+    "policy": "Candidate c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc / release 20260913014501 is deployed with verified backup and healthy services. Locked exact immutable read reuse was independently measured at 14.52 seconds for the complete System Audit authority reader. A second authorized one-asset DATA-02 slice stored one accepted historical quote and one canonical event/outbox pair, with a 34.09-second audit-runtime window and independent off cleanup. New Evidence/Authority write graph setup still took about 50 minutes: first bound recursive restoration work without weakening mutation/current/revocation semantics, then continue checkpointed DATA-02 coverage/publication/reconciliation, EVID-01/02 concurrency/lifecycle and signed acceptance, AUD-03 operations and TAR-05 staging/real observation. No canonical production unit is closed by this smoke or task authorization. Evidence: docs/deployment/sprint-data02-authority-performance-checkpoint-2026-09-13-c8bb9b780.json."
   },
   "workstreams": [
     {
@@ -18,7 +18,7 @@
       "priority": "P0",
       "owner": "research+risk_center+portfolio+broker_execution+account",
       "status": "active",
-      "next_gate": "Candidate ee872a51bb0967e3d822ec0d436991f4f2329c4c / release 20260912213853 now has a real admin/user_id=1 actor, Evidence V5 root and OwnerTenantAuthority V3 root consumed by the production System Audit path. Duplicate-root rejection and transaction rollback were also observed. EVID-01/02 remain awaiting_production: capture repeatable PostgreSQL first-winner concurrency, successor/current-head/revocation/rollback evidence and an independently signed candidate-bound acceptance package. The active task authorization is not a cryptographic owner/reviewer signature. Evidence: docs/deployment/sprint-data02-audited-quote-checkpoint-2026-09-12-ee872a51.json.",
+      "next_gate": "Candidate c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc / release 20260913014501 consumed a second real admin/user_id=1 Evidence V5 / Authority V3 graph in the production System Audit path. Locked complete authority read is now 14.52 seconds, but write graph setup remains about 50 minutes and needs bounded restoration work before scaling. EVID-01/02 remain awaiting_production: repeatable PostgreSQL first-winner concurrency, successor/current-head/revocation/rollback and independently signed candidate-bound acceptance are still required. Task authorization is not a cryptographic owner/reviewer signature. Evidence: docs/deployment/sprint-data02-authority-performance-checkpoint-2026-09-13-c8bb9b780.json.",
       "documents": [
         {
           "path": "docs/plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md",
@@ -88,7 +88,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "DATA-12/13/14/15 remain complete. Candidate ee872a51bb0967e3d822ec0d436991f4f2329c4c / release 20260912213853 is deployed with a verified backup and healthy services. An authorized one-asset DATA-02 slice for 000001.SZ stored one accepted AKShare quote with source observation time and atomically wrote one data.fetch.completed event plus one outbox row under exact admin/user_id=1 authority; independent cleanup verified runtime off. DATA-02 remains awaiting_production because exact 5,533-asset quote/valuation coverage, completed-session distribution, financial report-date repair, four immutable publication identities and canonical tolerance reconciliation remain. Post-write result inspection took about 20.9 minutes and must be addressed before broadening batches. DATA-03 waits for the full DATA-02 exit gate. Evidence: docs/deployment/sprint-data02-audited-quote-checkpoint-2026-09-12-ee872a51.json.",
+      "next_gate": "DATA-12/13/14/15 remain complete. Candidate c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc / release 20260913014501 is deployed with backup and healthy services. One additional accepted historical 000001.SZ quote and canonical event/outbox pair were stored with publish_current=false; the audit-runtime window was 34.09 seconds and independent cleanup verified off. Complete authority read is 14.52 seconds, while new governance write setup remains about 50 minutes. DATA-02 remains awaiting_production: exact 5533-asset quote/valuation coverage, completed-session distribution, financial report-date repair, four immutable publication identities and canonical tolerance reconciliation remain. Bound write restoration before broader batches; DATA-03 waits for the full exit gate. Evidence: docs/deployment/sprint-data02-authority-performance-checkpoint-2026-09-13-c8bb9b780.json.",
       "documents": [
         {
           "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
@@ -147,7 +147,7 @@
       "priority": "P0/P1",
       "owner": "audit+data_center+task_monitor",
       "status": "production_validation",
-      "next_gate": "AUD-01, AUD-02 and repository AUD-04 remain complete. Candidate ee872a51bb0967e3d822ec0d436991f4f2329c4c / release 20260912213853 / image sha256:470c4fcac0a032dd3a57f79e5d9dbee1942bc2a2ab6d892cd3f15f35ea35934d has a real same-UOW writer smoke: one successful data.fetch.completed event and one matching pending outbox row were committed with an accepted quote, followed by independent audit-runtime-off cleanup. AUD-03 remains awaiting_production; next collect backlog recovery duration, duplicate/loss counts, bounded metrics and alerts, admin TUI, archive/restore, rollback rehearsal and owner/reviewer sign-off. The one-row smoke is not recovery or archive acceptance. Evidence: docs/deployment/sprint-data02-audited-quote-checkpoint-2026-09-12-ee872a51.json.",
+      "next_gate": "AUD-01, AUD-02 and repository AUD-04 remain complete. Candidate c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc / release 20260913014501 has a second real same-UOW data.fetch.completed success event and matching pending outbox committed with one accepted quote, followed by independent runtime-off cleanup. AUD-03 remains awaiting_production: backlog recovery duration, duplicate/loss counts, bounded metrics/alerts, admin TUI, archive/restore, rollback and owner/reviewer sign-off remain. Pending one-row smoke does not prove delivery or recovery. Evidence: docs/deployment/sprint-data02-authority-performance-checkpoint-2026-09-13-c8bb9b780.json.",
       "documents": [
         {
           "path": "docs/plans/system-audit-log-consolidation-plan-2026-08-13.md",

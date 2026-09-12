@@ -1,8 +1,8 @@
 # 活跃计划索引
 
-> 2026-09-10：只读核验生产已运行 `dba9ab2c8…` / release `20260910002501`；容器 image、OCI revision 与 manifest 一致。[原始证据](../deployment/sprint-successor-readonly-2026-09-10-dba9ab2c.json)。DATA-02 的真实权限来源和审计配置仍缺，生产验收未完成；旧候选的观察记录仅作历史，不继承为新版本验收。
+> 2026-09-13：生产已部署 `c8bb9b780bcd…` / release `20260913014501`，完整权威读取 14.52 秒；单资产审计同步新增 quote/event/outbox 各一条，独立清理确认 runtime 关闭。写图创建仍约 50 分钟；DATA-02、EVID-01/02、AUD-03、TAR-05 生产验收尚未完成。[生产性能检查点](../deployment/sprint-data02-authority-performance-checkpoint-2026-09-13-c8bb9b780.json)。
 
-> 更新日期：2026-09-10
+> 更新日期：2026-09-13
 > 本目录只保留仍需开发、真实数据、生产验收或外部依赖闭环的计划。已完成的实施计划、阶段记录、复盘和历史证据统一放在 [`../archive/plans/`](../archive/plans/)；归档记录见 [`../archive/ARCHIVE_INDEX.md`](../archive/ARCHIVE_INDEX.md)。
 
 境内出口开发方案见 [数据中台境内出口与 frp 开发计划](data-center-regional-egress-plan-2026-09-09.md)，登记在 data-production-reliability 工作流，支撑 DATA-02；用户授权的仓库实现 DATA-14 已完成，真实出口与 DATA-02 生产验收单独保留。

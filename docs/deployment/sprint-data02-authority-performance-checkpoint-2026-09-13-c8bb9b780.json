@@ -1,0 +1,241 @@
+{
+  "schema_version": "sprint-data02-authority-performance-checkpoint.v1",
+  "recorded_at": "2026-09-12T19:52:59.998609Z",
+  "candidate": {
+    "commit": "c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc",
+    "release_tag": "20260913014501",
+    "image_id": "sha256:5dd37368b64f735b7850647659ae18e07684eb7d7444d99baf0a900d087943ea",
+    "source_mode": "git-clone",
+    "runtime_match": true,
+    "pull_request": "https://github.com/guiyinan/agomTradePro/pull/34",
+    "identity_source": "standard deployment report and independent release identity checks; the controlled-test APP_GIT_COMMIT field was empty and is not used as identity evidence"
+  },
+  "deployment": {
+    "result": "success",
+    "build_started_at": "2026-09-12T17:45:04Z",
+    "build_finished_at": "2026-09-12T18:02:05Z",
+    "database_backup": "/opt/agomtradepro/backups/database/postgres-20260912-200207.dump",
+    "backup_manifest": "/opt/agomtradepro/backups/meta/manifest-20260912-200207.txt",
+    "report": "dist/remote-build-reports/remote-build-report-20260913014501.json in the clean deployment worktree",
+    "health_http_status": 200,
+    "tls": "valid",
+    "django_deploy_check": "pass",
+    "asgi_conn_max_age": 0,
+    "migration_state": "no_pending_migrations",
+    "canonical_data_center_schema": "pass",
+    "tui_metadata_registry_entries": 33,
+    "qlib_identity": "pyqlib=0.9.7; wrong_qlib=absent",
+    "celery_worker": "running",
+    "celery_beat": "running",
+    "celery_ping_nodes": 1,
+    "secrets_resources_and_aggregate_health": "pass",
+    "database_restore_performed": false
+  },
+  "change": {
+    "commits": [
+      "eee606aab12cd8faa85ace3a0755ff73f50fe1ef",
+      "1b33e2ce695d483da7234f4f053455b74c43b6fc"
+    ],
+    "summary": "Reuse exact immutable authority graph reads only inside locked read-only get_current composition, after same-alias Account ledger and physical Simulated source protection. Provisional row decoding discovers composition selectors; canonical current validation remains authoritative. Writes and with_current callbacks do not activate the cache.",
+    "review": "Luna max final review found no blocker after cross-App physical source lock coverage was added.",
+    "validation": {
+      "account_unit_before_final_lock_addition": "2432 passed",
+      "audit_data_unit_before_final_lock_addition": "478 passed",
+      "focused_after_final_lock_addition": "21 passed, 9 skipped",
+      "simulated_audit_composition_after_final_lock_addition": "345 passed, 1 skipped",
+      "component_before_final_lock_addition": "6 passed, 11 skipped",
+      "skip_reason": "local PostgreSQL opt-in component environment unavailable; a competing physical-source successor test was added but its local component execution was skipped",
+      "incremental_mypy_production_files": 16,
+      "incremental_mypy_regressions": 0,
+      "full_mypy_debt": 0,
+      "architecture_delta_and_full_violations": 0,
+      "black_isort_ruff_diff_and_generated_inventory": "pass",
+      "deployment_tui_js_preflight": "64 passed",
+      "github_ci": "all checks passed before merge, including Python 3.11/3.13, no-DB TDD, quality, consistency, MCP, architecture and security"
+    }
+  },
+  "authorization": {
+    "designated_owner_and_approval_account": "admin",
+    "django_user_id": 1,
+    "production_deployment_and_controlled_test_authorized": true,
+    "source": "explicit user instructions in the active Codex task",
+    "cryptographic_owner_signature_present": false,
+    "independent_reviewer_signature_present": false
+  },
+  "controlled_attempts": [
+    {
+      "account_id": 630,
+      "result": "rolled_back",
+      "reason": "Existing Evidence V5 mapping already had a root; rejected before runtime activation.",
+      "runtime_postcheck": "off"
+    },
+    {
+      "account_id": 631,
+      "result": "terminated_and_rolled_back",
+      "reason": "Local SSH helper reached its fixed 1800-second timeout while the remote governance transaction continued. Independent process inspection identified and terminated only the stale managed-shell process group so its transaction and locks were released.",
+      "stale_host_process_ids": [2339752, 2339733, 2339717],
+      "postcheck": "stale process group absent; audit runtime remained off before retry activation",
+      "instrumentation_followup": "ignored local remote-script helper supports an explicit bounded timeout; the subsequent retry used 7200 seconds"
+    }
+  ],
+  "successful_slice": {
+    "run_suffix": "20260912185635",
+    "account_id": 631,
+    "account_name": "admin_DATA02审计执行_20260912182256",
+    "account_name_source": "independent database query; the retry script printed a stale hardcoded account-name label",
+    "request": {
+      "provider_id": 3,
+      "asset_codes": ["000001.SZ"],
+      "publish_current": false
+    },
+    "binding": {
+      "id": "create-binding-202f8ba4572f508716fb6194369241ad38796a99f77635894e71bed78fe5014c",
+      "version": "v1",
+      "content_hash": "276e24fa6ec12384e6bfde684b9a1e3b596b95d672f9aa4975f01951c24a723c",
+      "account_claim": "2d71379de2db4f419325b44d71d97791"
+    },
+    "actor": {
+      "source_id": "data02-extended-actor-20260912185635",
+      "version": "v1",
+      "content_hash": "2adaddd9abf0c58fe271cf3cb58e140878d8b3f03e84f53a06229afcf1279d62",
+      "valid_until": "2026-09-13T19:00:27.880884Z"
+    },
+    "evidence": {
+      "id": "audit-admin-owner-evidence-20260912185635",
+      "version": "v5.1",
+      "content_hash": "86dbb13164b2ee98537cee58d0f825232dc7f30dc991865597072d9fa6809e4b",
+      "valid_until": "2026-09-13T18:01:06.641982Z"
+    },
+    "authority": {
+      "id": "audit-admin-owner-authority-20260912185635",
+      "version": "v3.1",
+      "content_hash": "47d71a2f7e7aaea49a181d2db86a3375af330018a191a4e7fcf89b4f6e26acbb",
+      "valid_until": "2026-09-13T18:11:14.891812Z",
+      "actor_id": "django-user:1",
+      "actor_user_id": 1,
+      "owner_id": "django-user:1",
+      "tenant_id": "agomtradepro-production",
+      "must_not_execute": true
+    },
+    "runtime_activation": {
+      "profile_id": "e28d82fd-2a8e-42cd-97f0-2526c6880a8e",
+      "profile_version": 12,
+      "snapshot_id": "cbe7eadf-8371-4922-9a20-c7b9c2e3e65e",
+      "snapshot_hash": "26d97d56e5209040759e3d0b3df4d149fe454afe9574a3e3fe8784a0ea1d779c"
+    },
+    "before": {
+      "observed_at": "2026-09-12T19:51:12.705178Z",
+      "quote_rows": 3,
+      "event_rows": 1,
+      "outbox_rows": 1
+    },
+    "result": {
+      "outcome": "success",
+      "stored_count": 1,
+      "provider": "AKShare Public",
+      "ingested_run_id": "596dab05-95b4-4632-84f0-9a38a0f84e51",
+      "run_id": "cc2c3895-1eae-48fd-a24c-9cdf18320f81",
+      "publication_id": null,
+      "publication_version": null,
+      "publication_hash": null,
+      "provider_failover": "Eastmoney endpoints failed with 502/disconnect; Tencent fallback returned the single quote"
+    },
+    "event": {
+      "id": "data-fetch-bc47efb33be5890720d0a979df47fe736463c6e3ab7d2eb7",
+      "version": 1,
+      "type": "data.fetch.completed",
+      "outcome": "success",
+      "recorded_at": "2026-09-12T19:51:19.750505Z",
+      "stream_key": "data.fetch:equity.quote.snapshot",
+      "sequence": 2,
+      "predecessor_hash": "4578d12341161a66c803032bd629715e9bf128716c60003c09e46fae2a7c3168",
+      "identity_hash": "80c5d79b5b4f763b4325dcf327b837bc470aa3c620c619c3b204a2256de59617",
+      "payload_hash": "6ca534e31ab27b6346890b0b2b5804017d5bf3876ebc0bef82f24a8f94d7473b"
+    },
+    "outbox": {
+      "id": "41d40dd2-b496-4224-9bbc-c52f71878054",
+      "status": "pending",
+      "attempts": 0,
+      "payload_hash": "6ca534e31ab27b6346890b0b2b5804017d5bf3876ebc0bef82f24a8f94d7473b",
+      "created_at": "2026-09-12T19:51:19.750505Z"
+    },
+    "quote": {
+      "asset_code": "000001.SZ",
+      "price": "11.7400",
+      "snapshot_at": "2026-09-11T08:14:54Z",
+      "fetched_at": "2026-09-12T19:51:19.677512Z",
+      "quality_status": "accepted",
+      "source": "akshare",
+      "raw_payload_hash": "",
+      "decision_freshness_claim": false
+    },
+    "after": {
+      "observed_at": "2026-09-12T19:51:32.046690Z",
+      "quote_rows": 4,
+      "event_rows": 2,
+      "outbox_rows": 2
+    },
+    "timings_seconds": {
+      "authority_preflight": 13.57180711440742,
+      "quote_sync": 19.285314917564392,
+      "runtime_activation": 0.8672851445153356,
+      "cleanup": 0.2970862640067935,
+      "controlled_runtime_window": 34.09384420979768,
+      "event_recorded_at_to_result_envelope_observed_at": 12.296185
+    }
+  },
+  "performance": {
+    "baseline": {
+      "operation": "DjangoOwnerTenantAuthorityV3Repository.get_winner (inner repository operation)",
+      "root_count": 3,
+      "elapsed_seconds_range": [117.942, 125.429],
+      "select_queries": 7946,
+      "database_execute_seconds": 18.870,
+      "validation_graph_decode_cache_only_two_reads_select_queries": 15892
+    },
+    "deployed_independent_read": {
+      "operation": "AccountSystemAuditOwnerTenantAuthorityV3Reader.execute (complete reader)",
+      "root_count": 4,
+      "observed_at": "2026-09-12T19:52:59.998609Z",
+      "elapsed_seconds": 14.517150948755443,
+      "total_queries": 1863,
+      "select_queries": 1824,
+      "database_execute_seconds": 4.5342356860637665,
+      "current": true,
+      "actor_user_id": 1,
+      "authority_content_hash": "47d71a2f7e7aaea49a181d2db86a3375af330018a191a4e7fcf89b4f6e26acbb"
+    },
+    "comparison_limit": "Baseline measured an inner operation on three roots; deployed measurement covers the complete reader on four roots. These are not an identical workload percentage benchmark.",
+    "remaining_write_bottleneck": "New Evidence V5 plus Authority V3 graph setup took about 50 minutes before runtime activation. Individual write-phase timestamps were not captured precisely. Read-only PostgreSQL activity at 2026-09-12T19:27:31Z showed idle in transaction / ClientRead, indicating Python work between SQL rather than a database lock wait. Write restoration and recursive closed-world validation need a separate bounded investigation."
+  },
+  "independent_cleanup": {
+    "profile_id": "a4d2a34f-5b0b-422d-895e-cba06c86fa34",
+    "profile_version": 13,
+    "snapshot_id": "83cf6ce4-25d5-4507-b052-20185c7f291a",
+    "snapshot_hash": "2a41fca7121a7a0bf5133970363db33c26436cd45bb55636f53c37a81b25d0a1",
+    "mode": "off",
+    "outbox_enabled": false,
+    "authority_selector": null,
+    "independent_postcheck": "pass"
+  },
+  "limitations": [
+    "This is a sanitized task-observed receipt, not an independently signed acceptance report. Local helper output was not retained as an immutable raw transcript.",
+    "The quote is a historical weekend observation; accepted storage does not imply fresh/current decision eligibility. No Publication was switched.",
+    "One pending outbox row does not prove delivery, backlog recovery, zero loss/duplicates or archive/restore acceptance.",
+    "Read performance improved; write graph setup remains slow. No write-path cache was activated.",
+    "Local skipped PostgreSQL race tests are not replaced by this single production smoke."
+  ],
+  "canonical_units": {
+    "DATA-02": "awaiting_production",
+    "EVID-01": "awaiting_production",
+    "EVID-02": "awaiting_production",
+    "AUD-03": "awaiting_production",
+    "TAR-05": "awaiting_production"
+  },
+  "next_steps": [
+    "Profile and bound immutable write-graph restoration without caching across mutation or weakening exact-current validation.",
+    "Complete DATA-02 frozen 5533-asset coverage, completed-session distribution, financial report-date repair, four immutable Publication identities and canonical tolerance reconciliation in bounded checkpointed batches.",
+    "Collect repeatable PostgreSQL first-winner concurrency, successor/current-head/revocation/rollback evidence and candidate-bound owner/reviewer acceptance for EVID-01/02.",
+    "Then complete AUD-03 operational recovery, metrics/alerts, admin TUI, archive/restore and acceptance; prepare TAR-05 separate staging and let real observation windows elapse."
+  ]
+}
