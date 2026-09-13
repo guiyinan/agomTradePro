@@ -16,6 +16,11 @@ from apps.data_center.infrastructure.financial_availability_repository import (
 )
 from apps.data_center.infrastructure.models import FinancialFactModel
 
+from .financial_fact_write_guard import (
+    FinancialFactProvenanceConflictError,
+    bulk_upsert_financial_facts,
+    source_evidence_from_model,
+)
 from .financial_source_policy import requires_verified_financial_source_evidence
 from .publication_fact_evidence import publication_fact_reference_for_dataset
 
@@ -37,6 +42,7 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
             available_at=m.available_at,
             fetched_at=m.fetched_at,
             extra=m.extra or {},
+            source_evidence=source_evidence_from_model(m),
         )
 
     def get_facts(
@@ -73,31 +79,9 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
         return None
 
     def bulk_upsert(self, facts: list[FinancialFact]) -> int:
-        if not facts:
-            return 0
-        models = [
-            FinancialFactModel(
-                asset_code=fact.asset_code,
-                period_end=fact.period_end,
-                period_type=fact.period_type.value,
-                metric_code=fact.metric_code,
-                value=fact.value,
-                unit=fact.unit,
-                source=fact.source,
-                report_date=fact.report_date,
-                available_at=fact.available_at,
-                extra=fact.extra,
-            )
-            for fact in facts
-        ]
-        FinancialFactModel._default_manager.bulk_create(
-            models,
-            batch_size=1_000,
-            update_conflicts=True,
-            update_fields=["value", "unit", "report_date", "available_at", "extra"],
-            unique_fields=["asset_code", "period_end", "period_type", "metric_code", "source"],
-        )
-        return len(models)
+        """Persist facts without allowing stale source evidence to follow new values."""
+
+        return bulk_upsert_financial_facts(facts)
 
     def list_publication_candidates(
         self, facts: Sequence[FinancialFact]
@@ -182,4 +166,4 @@ def _financial_publication_reference(
     )
 
 
-__all__ = ["FinancialFactRepository"]
+__all__ = ["FinancialFactProvenanceConflictError", "FinancialFactRepository"]

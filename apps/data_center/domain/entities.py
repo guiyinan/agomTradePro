@@ -24,6 +24,7 @@ from apps.data_center.domain.enums import (
     PriceAdjustment,
     ProviderHealthStatus,
 )
+from apps.data_center.domain.financial_source_evidence import FinancialFactSourceEvidence
 
 # ---------------------------------------------------------------------------
 # Provider configuration value objects
@@ -581,8 +582,11 @@ class FinancialFact:
     available_at: datetime | None = None
     fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     extra: dict[str, Any] = field(default_factory=dict)
+    source_evidence: FinancialFactSourceEvidence | None = None
 
     def __post_init__(self) -> None:
+        """Validate the fact and preserve optional source evidence as typed data."""
+
         if not self.asset_code or not self.metric_code:
             raise ValueError("FinancialFact fields cannot be empty")
         if (
@@ -595,8 +599,14 @@ class FinancialFact:
             self.available_at.tzinfo is None or self.available_at.utcoffset() is None
         ):
             raise ValueError("FinancialFact.available_at must be timezone-aware")
+        if self.source_evidence is not None and not isinstance(
+            self.source_evidence, FinancialFactSourceEvidence
+        ):
+            raise ValueError("FinancialFact.source_evidence must be typed source evidence")
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize the fact without inferring missing source timestamps."""
+
         return {
             "asset_code": self.asset_code,
             "period_end": self.period_end.isoformat(),
@@ -609,6 +619,9 @@ class FinancialFact:
             "available_at": self.available_at.isoformat() if self.available_at else None,
             "fetched_at": self.fetched_at.isoformat(),
             "extra": self.extra,
+            "source_evidence": (
+                self.source_evidence.to_dict() if self.source_evidence is not None else None
+            ),
         }
 
 

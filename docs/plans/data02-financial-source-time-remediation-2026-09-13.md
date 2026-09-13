@@ -19,8 +19,10 @@ period_end 是财政期末，不能作为
 公告时间、PIT 可用时间或历史修复输入。
 
 FinancialFactModel 已有 announced_at 和 available_at 两个独立的 DateTime 列，
-但 Domain FinancialFact 没有 announced_at，repository、兼容 gateway 和 Equity
-FinancialData 也没有把它贯通。现阶段最小安全决定如下：
+但最初审查时（原 6760 实现）的 Domain FinancialFact 没有 announced_at，
+repository、兼容 gateway 和 Equity FinancialData 也没有把它贯通；当前候选已通过
+source_evidence bridge 保留 Domain↔ORM 的三个 core 字段。response bytes、scope、
+completion 和 availability 仍未贯通。现阶段最小安全决定如下：
 
 1. 保留 period_end 的财政期末语义。
 2. 贯通一个 typed 的源公告时刻字段（优先使用已有模型 announced_at），并显式
@@ -41,8 +43,8 @@ FinancialData 也没有把它贯通。现阶段最小安全决定如下：
 | 真源 | 当前事实 | 影响 |
 | --- | --- | --- |
 | [FinancialFactModel](../../apps/data_center/infrastructure/models.py:828) | period_end、report_date 是 DateField；announced_at、available_at 是可空 DateTimeField。report_date 的 help text 仍称 published date。 | 模型有目标存储列，但 report_date 名称和历史使用方式不足以表达精确时间。 |
-| [Domain FinancialFact](../../apps/data_center/domain/entities.py:570) | 只有 report_date: date、available_at 和 fetched_at，没有 announced_at；to_dict() 也不输出它。 | announced_at 在 ORM → Domain 边界丢失。 |
-| [FinancialFactRepository](../../apps/data_center/infrastructure/financial_fact_repository.py:24) | _from_model 只读取 report_date/available_at；bulk_upsert 只写入并更新这两个字段和 extra。 | 即使模型有 announced_at，当前 sync 也不能保存或回读。 |
+| [Domain FinancialFact](../../apps/data_center/domain/entities.py:570) | 最初审查时（原 6760 实现）只有 report_date: date、available_at 和 fetched_at，没有 announced_at；当前候选通过 source_evidence bridge 增加三个 core 字段的 typed 往返。 | 原 ORM → Domain 边界会丢失 announced_at；当前候选保留 announced_at/source_record_id/raw_payload_hash，但不声称覆盖 response bytes/scope/completion/availability。 |
+| [FinancialFactRepository](../../apps/data_center/infrastructure/financial_fact_repository.py:24) | 最初审查时（原 6760 实现）_from_model 只读取 report_date/available_at；当前候选通过 source_evidence bridge 读写三个 core 字段，bulk_upsert 仍独立处理 available_at/extra。 | 原 sync 不能保存或回读 announced_at；当前候选完成三字段 carrier，严格 policy3 所需的 response lineage 仍未实现。 |
 | [_safe_date](../../apps/data_center/infrastructure/_provider_adapter_base.py:134) | datetime 调 .date()；字符串只取前 10 位。 | 2026-03-31 15:30:00 会变成 2026-03-31；源日内精度不可逆。 |
 | [Tushare financial adapter](../../apps/data_center/infrastructure/_provider_adapter_tushare.py:174) | ann_date/announced_date 经 _safe_date 进入 report_date；当前候选已删除午夜 helper，native 与 compatibility 均保持 available_at=None。compatibility 仍只有 period-like report_date。 | 已阻止新合成；尚无 exact source evidence，也未修复历史时间。 |
 | [AKShare financial adapter](../../apps/data_center/infrastructure/_provider_adapter_akshare.py) | REPORT_DATE/报告期进入 period_end；NOTICE_DATE/公告日期/公告日进入 report_date，当前候选保持 available_at=None。 | 已停止合成午夜；公告日内精度和原始财务响应证据仍需贯通。 |
@@ -365,3 +367,51 @@ record ID，只有 `SECUCODE`、`SECURITY_CODE`、`ORG_CODE` 资产/组织标识
 PDF 头部和正文把 `000001`、平安银行、SZSE、公告编号 `2024-017` 与 2023 年度报告摘要绑定到报告期末 `2023-12-31`。文档类别是 `annual_report_summary`；`GB0101` 是年度报告全文类别码，本次摘要没有被冒称为 `GB0101` 全文。正文单位标签为“人民币百万元”“元/股”“%”及分配表中的“元”，没有做单位转换。URL 路径中的 `2024-03-15` 只保留为托管路径日期；PDF 没有可核验的带时区发布瞬时，故 `announced_at`、`available_at` 和 source timezone 仍为 `None`。
 
 `1219306483` 仅是从 PDF URL basename 保留的不透明 CNINFO 文档句柄，不是机器财务行 ID；文档本身没有行级 financial `source_record_id`。前述 EastMoney financial fact 样本与此官方公告文档之间没有共同、可验证的 row-level 绑定，公告编号/文档句柄不能单独填充 EastMoney 行的 `source_record_id` 或精确可用时间。因此本封存仍是 DATA-02 Stage 0 identity evidence，不构成 Fin3 接受、历史回填、publication 激活或现有财务行修复。
+
+## 13. 2026-09-14 隔离 PostgreSQL repository 往返证据
+
+先前 41 项 SQLite 受影响回归只证明本地 SQLite/ORM 的 carrier、stale-witness
+和写入计数语义，不能当作 PostgreSQL 或生产数据库证明。随后使用独立的本地
+Docker PostgreSQL 16.14（loopback 映射 `127.0.0.1:55439`、数据库
+`evid06_authority_test`）运行一次正式 opt-in component pytest；driver 通过既有
+`var/evid09-private-pg.owner.lock` 互斥，数据库前后均为 0 个 public base table、
+0 个 other client backend，最终锁已释放。driver 和 JUnit 保存在私有工件
+`var/data02-financial-pg-roundtrip-20260913T203049.741789Z/`，receipt 的
+`pytest_exit_code` 为 0，JUnit 为 7 tests/0 failures/0 errors/0 skipped，SHA-256 为
+`c87097ceb6bba8164b060c11998ffd0de7a732472bee1b2a09056bf1638dadd4`（1629 bytes）。
+
+上一份 PG 两用例已以同一 `FinancialFactModel.value` 的 direct-float 写入验证
+`12.34525` 的 PostgreSQL 存储 oracle。本次正式测试重跑该边界，并追加实际仓库
+writer-vs-direct-ORM 持久化及 replay=0 的五个 tie 输入：`+12.03125`、
+`-12.03125`、`12.34505`、`12.34525`、`12.34535`；每个 expected value 都来自
+同 backend 的 direct ORM writer，不由 formatter 或文字常量推导。正式测试也验证
+repository 首写返回 1、`announced_at`/`source_record_id`/`raw_payload_hash`
+往返保真、同一事实重放返回 0 且 `fetched_at` 不变。另一个 case 验证已有 witness
+的值变化会在同一批次阻断，原受保护行保持不变且新行不残留。源码和正式测试的
+before/after SHA 完全一致；这证明了本次隔离 PostgreSQL repository 行为，不证明
+供应商原始响应、scope/completion、`available_at` 或生产全量数据已具备。
+
+本组 `FinancialFactSourceEvidence` 仅承载已有的三个 typed core 字段：真实
+`announced_at`、`source_record_id` 和 `raw_payload_hash`。它没有引入原始 response
+bytes/hash 的 batch scope、response completion sidecar 或 `available_at` 的来源
+证明；`is_complete` 只能表示这三个字段形状完整，不能表述严格 financial policy3
+来源验收。date-only provider 输入仍保持未知时刻和 `available_at=None`，不得用
+`fetched_at`、`report_date`、normalized row hash 或自然键补齐。该隔离测试没有生产
+写入、历史修复、供应商网络请求或 policy 激活。
+
+
+## 14. 2026-09-14 候选验证封存与剩余门
+
+主代理随后完成受影响的完整 SQLite 回归：56 passed，0 failures/errors/skipped，
+JUnit 总耗时 244.923 秒。正式隔离 PostgreSQL 的 7 项结果与该 SQLite 批次
+分别封存，不能相加为 63 个独立业务场景。
+
+[候选验证封存](../testing/data02-financial-source-carrier-validation-2026-09-14.json)
+及其 `.sha256` 绑定 12 份原始工件，包括两个 backend 的 JUnit、PG 前后
+数据库与源码记录、runner，以及先前各次 driver receipt。封存同时记录实际测试
+源码 raw SHA 与 Git LF 标准化 SHA，避免将换行转换误认为业务源码变化。
+
+本候选尚未部署；没有改变模型列、执行 migration、历史 backfill、供应商获取或
+生产 publication 激活。后续仍须取得可核验的 response bytes、scope、completion、
+row identity 和精确来源时间，并独立验证 availability；三字段 carrier 的
+完整形状和本组顺序回归均不能替代 DATA-02 生产退出门或并发验收。

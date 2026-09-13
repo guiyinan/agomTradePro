@@ -1,0 +1,442 @@
+{
+  "schema": "data02.financial-source-carrier-candidate-validation.v1",
+  "recorded_at": "2026-09-13T20:35:23.302634+00:00",
+  "unit_id": "DATA-02",
+  "status": "candidate_validated_not_deployed",
+  "production_accepted": false,
+  "candidate_branch": "dev/fix-data02-financial-response-provenance",
+  "source_witnesses": {
+    "apps/data_center/domain/entities.py": {
+      "actual_tested_raw_sha256": "521a226d7814c72c6c858d0bc55dd49659cc4c0b187de25efd2a51ca4717f2d2",
+      "lf_normalized_sha256": "d7bf49ef762f1f96480005ca6019fdba3226e6455923721f65f28d2c6d50f27e"
+    },
+    "apps/data_center/domain/financial_source_evidence.py": {
+      "actual_tested_raw_sha256": "27227597ae5fbe5543daceddb4d0b746bb4c3e14e10793f43cbdf30339ddd0d1",
+      "lf_normalized_sha256": "27227597ae5fbe5543daceddb4d0b746bb4c3e14e10793f43cbdf30339ddd0d1"
+    },
+    "apps/data_center/infrastructure/financial_fact_repository.py": {
+      "actual_tested_raw_sha256": "8e88332d8b561158382106c40c9fd4ec2ba4dc5fe504fec53d6f5dcbd4311fe9",
+      "lf_normalized_sha256": "30f1741db75c0b961d18f7bc02105d241967d165aad892c1f16e3c66e571b619"
+    },
+    "apps/data_center/infrastructure/financial_fact_write_guard.py": {
+      "actual_tested_raw_sha256": "8ee5ab9370e562c1bf90ce2b3d442070834ba45b537bafd4a95fe5d9ae4c2e02",
+      "lf_normalized_sha256": "8ee5ab9370e562c1bf90ce2b3d442070834ba45b537bafd4a95fe5d9ae4c2e02"
+    },
+    "tests/component/data_center/test_financial_fact_repository_postgres_provenance.py": {
+      "actual_tested_raw_sha256": "883b8280ce064443d8dc93a5faf08d08d1bde870acd010be08783f778588857f",
+      "lf_normalized_sha256": "883b8280ce064443d8dc93a5faf08d08d1bde870acd010be08783f778588857f"
+    }
+  },
+  "sqlite_affected": {
+    "counts": {
+      "tests": 56,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "sha256": "724fb4b9e28883785f5a081d22c3b0a63ff27a6f1e396e27a7a85e5e5dfb19e7",
+    "bytes": 11073,
+    "cases": [
+      {
+        "classname": "tests.component.data_center.test_core_fact_bulk_upserts",
+        "name": "test_price_bulk_upsert_updates_conflicts_in_one_statement"
+      },
+      {
+        "classname": "tests.component.data_center.test_core_fact_bulk_upserts",
+        "name": "test_financial_and_valuation_bulk_upserts_update_natural_keys"
+      },
+      {
+        "classname": "tests.component.data_center.test_core_fact_bulk_upserts",
+        "name": "test_financial_fact_repository_honors_as_of_end_date"
+      },
+      {
+        "classname": "tests.component.data_center.test_financial_fact_repository_provenance",
+        "name": "test_repository_round_trips_existing_source_fields"
+      },
+      {
+        "classname": "tests.component.data_center.test_financial_fact_repository_provenance",
+        "name": "test_stale_witness_blocks_entire_batch_before_any_dml"
+      },
+      {
+        "classname": "tests.component.data_center.test_financial_fact_repository_provenance",
+        "name": "test_same_raw_hash_cannot_prove_changed_normalized_value"
+      },
+      {
+        "classname": "tests.component.data_center.test_financial_fact_repository_provenance",
+        "name": "test_complete_source_replacement_updates_fact_and_source_fields_atomically"
+      },
+      {
+        "classname": "tests.component.data_center.test_financial_fact_repository_provenance",
+        "name": "test_partial_replacement_evidence_is_blocked_without_clearing_old_fields"
+      },
+      {
+        "classname": "tests.component.data_center.test_financial_fact_repository_provenance",
+        "name": "test_existing_batch_locks_and_updates_with_bounded_query_count"
+      },
+      {
+        "classname": "tests.component.data_center.test_financial_fact_repository_provenance",
+        "name": "test_decimalfield_storage_normalization_allows_precise_first_insert_and_replay"
+      },
+      {
+        "classname": "tests.component.data_center.test_financial_fact_repository_provenance",
+        "name": "test_decimalfield_float_ties_follow_model_conversion_on_insert_and_replay[12.03125-sqlite_storage0-postgresql_storage0]"
+      },
+      {
+        "classname": "tests.component.data_center.test_financial_fact_repository_provenance",
+        "name": "test_decimalfield_float_ties_follow_model_conversion_on_insert_and_replay[-12.03125-sqlite_storage1-postgresql_storage1]"
+      },
+      {
+        "classname": "tests.component.data_center.test_financial_fact_repository_provenance",
+        "name": "test_decimalfield_float_ties_follow_model_conversion_on_insert_and_replay[12.34505-sqlite_storage2-postgresql_storage2]"
+      },
+      {
+        "classname": "tests.component.data_center.test_financial_fact_repository_provenance",
+        "name": "test_decimalfield_float_ties_follow_model_conversion_on_insert_and_replay[12.34525-sqlite_storage3-postgresql_storage3]"
+      },
+      {
+        "classname": "tests.component.data_center.test_financial_fact_repository_provenance",
+        "name": "test_decimalfield_float_ties_follow_model_conversion_on_insert_and_replay[12.34535-sqlite_storage4-postgresql_storage4]"
+      },
+      {
+        "classname": "tests.component.data_center.test_financial_fact_repository_provenance",
+        "name": "test_mixed_batch_counts_only_changed_rows_and_preserves_noop_row"
+      },
+      {
+        "classname": "tests.component.data_center.test_financial_source_current_boundary",
+        "name": "test_current_financial_source_survives_persisted_member_replay"
+      },
+      {
+        "classname": "tests.component.data_center.test_financial_source_current_boundary",
+        "name": "test_current_financial_missing_source_proof_never_mutates_history[source-time]"
+      },
+      {
+        "classname": "tests.component.data_center.test_financial_source_current_boundary",
+        "name": "test_current_financial_missing_source_proof_never_mutates_history[source-id]"
+      },
+      {
+        "classname": "tests.component.data_center.test_financial_source_current_boundary",
+        "name": "test_current_financial_missing_source_proof_never_mutates_history[original-hash]"
+      },
+      {
+        "classname": "tests.component.data_center.test_financial_source_current_boundary",
+        "name": "test_current_financial_missing_source_proof_never_mutates_history[original-scope]"
+      },
+      {
+        "classname": "tests.component.data_center.test_financial_source_current_boundary",
+        "name": "test_current_financial_missing_source_proof_never_mutates_history[old-midnight]"
+      },
+      {
+        "classname": "tests.component.data_center.test_financial_source_provenance",
+        "name": "test_policy3_uses_original_source_fields_through_member_store"
+      },
+      {
+        "classname": "tests.component.data_center.test_financial_source_provenance",
+        "name": "test_policy3_rejects_persisted_synthetic_financial_evidence"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_publication_sync",
+        "name": "test_financial_repository_candidate_requires_available_at_and_preserves_evidence"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_publication_sync",
+        "name": "test_financial_publication_uses_available_at_and_exact_members"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_publication_sync",
+        "name": "test_financial_publication_is_idempotent_for_same_snapshot"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_publication_sync",
+        "name": "test_financial_publication_fails_closed_below_coverage_policy"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_publication_sync",
+        "name": "test_financial_publication_blocks_when_available_at_is_missing"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_publication_sync",
+        "name": "test_financial_publication_rejects_future_available_at"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_publication_sync",
+        "name": "test_sync_financial_use_case_invokes_publication_after_fact_write"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_source_evidence",
+        "name": "test_financial_source_evidence_round_trips_existing_source_fields"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_source_evidence",
+        "name": "test_partial_source_evidence_never_invents_availability_or_announcement"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_source_evidence",
+        "name": "test_financial_source_evidence_rejects_naive_announcement"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_source_evidence_validation",
+        "name": "test_financial_source_completeness_requires_all_valid_field_shapes[None-record-1-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-False]"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_source_evidence_validation",
+        "name": "test_financial_source_completeness_requires_all_valid_field_shapes[announced_at1-None-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-False]"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_source_evidence_validation",
+        "name": "test_financial_source_completeness_requires_all_valid_field_shapes[announced_at2--aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-False]"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_source_evidence_validation",
+        "name": "test_financial_source_completeness_requires_all_valid_field_shapes[announced_at3-record-1-None-False]"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_source_evidence_validation",
+        "name": "test_financial_source_completeness_requires_all_valid_field_shapes[announced_at4-record-1--False]"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_source_evidence_validation",
+        "name": "test_financial_source_completeness_requires_all_valid_field_shapes[announced_at5-record-1-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-False]"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_source_evidence_validation",
+        "name": "test_financial_source_completeness_requires_all_valid_field_shapes[announced_at6-record-1-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA-False]"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_source_evidence_validation",
+        "name": "test_financial_source_completeness_requires_all_valid_field_shapes[announced_at7-record-1-gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg-False]"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_source_evidence_validation",
+        "name": "test_financial_source_completeness_requires_all_valid_field_shapes[announced_at8-record-1-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-True]"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_source_evidence_validation",
+        "name": "test_financial_source_identifiers_reject_padded_or_non_text_values[ padded-source_record_id]"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_source_evidence_validation",
+        "name": "test_financial_source_identifiers_reject_padded_or_non_text_values[ padded-raw_payload_hash]"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_source_evidence_validation",
+        "name": "test_financial_source_identifiers_reject_padded_or_non_text_values[padded -source_record_id]"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_source_evidence_validation",
+        "name": "test_financial_source_identifiers_reject_padded_or_non_text_values[padded -raw_payload_hash]"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_source_evidence_validation",
+        "name": "test_financial_source_identifiers_reject_padded_or_non_text_values[17-source_record_id]"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_source_evidence_validation",
+        "name": "test_financial_source_identifiers_reject_padded_or_non_text_values[17-raw_payload_hash]"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_source_provenance",
+        "name": "test_policy3_accepts_only_original_financial_source_evidence"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_source_provenance",
+        "name": "test_policy3_rejects_missing_source_record_id_without_natural_key_fallback"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_source_provenance",
+        "name": "test_policy3_rejects_missing_raw_hash_without_normalized_row_fallback"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_source_provenance",
+        "name": "test_policy3_rejects_announcement_after_source_availability"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_source_provenance",
+        "name": "test_policy2_keeps_normalized_fallback_for_legacy_rows"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_sync_write_counts",
+        "name": "test_sync_financial_reports_actual_repository_write_count[0-noop-noop]"
+      },
+      {
+        "classname": "tests.unit.data_center.test_financial_sync_write_counts",
+        "name": "test_sync_financial_reports_actual_repository_write_count[1-success-ok]"
+      }
+    ]
+  },
+  "isolated_postgresql": {
+    "junit": {
+      "counts": {
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "sha256": "c87097ceb6bba8164b060c11998ffd0de7a732472bee1b2a09056bf1638dadd4",
+      "bytes": 1629,
+      "cases": [
+        {
+          "classname": "tests.component.data_center.test_financial_fact_repository_postgres_provenance",
+          "name": "test_financial_repository_round_trip_and_replay_count_on_postgresql"
+        },
+        {
+          "classname": "tests.component.data_center.test_financial_fact_repository_postgres_provenance",
+          "name": "test_repository_float_ties_match_direct_postgresql_writer[positive_12_03125]"
+        },
+        {
+          "classname": "tests.component.data_center.test_financial_fact_repository_postgres_provenance",
+          "name": "test_repository_float_ties_match_direct_postgresql_writer[negative_12_03125]"
+        },
+        {
+          "classname": "tests.component.data_center.test_financial_fact_repository_postgres_provenance",
+          "name": "test_repository_float_ties_match_direct_postgresql_writer[positive_12_34505]"
+        },
+        {
+          "classname": "tests.component.data_center.test_financial_fact_repository_postgres_provenance",
+          "name": "test_repository_float_ties_match_direct_postgresql_writer[positive_12_34525]"
+        },
+        {
+          "classname": "tests.component.data_center.test_financial_fact_repository_postgres_provenance",
+          "name": "test_repository_float_ties_match_direct_postgresql_writer[positive_12_34535]"
+        },
+        {
+          "classname": "tests.component.data_center.test_financial_fact_repository_postgres_provenance",
+          "name": "test_financial_repository_stale_witness_rolls_back_postgresql_batch"
+        }
+      ]
+    },
+    "before": {
+      "completed_at_utc": "2026-09-13T20:31:01.461751Z",
+      "database": "evid06_authority_test",
+      "other_client_backends": 0,
+      "public_base_tables": 0,
+      "read_only": true,
+      "server_address": "172.24.0.2/32",
+      "server_port": 5432,
+      "server_version": "16.14",
+      "started_at_utc": "2026-09-13T20:30:50.079577Z"
+    },
+    "after": {
+      "completed_at_utc": "2026-09-13T20:31:59.479165Z",
+      "database": "evid06_authority_test",
+      "other_client_backends": 0,
+      "public_base_tables": 0,
+      "read_only": true,
+      "server_address": "172.24.0.2/32",
+      "server_port": 5432,
+      "server_version": "16.14",
+      "started_at_utc": "2026-09-13T20:31:55.516119Z"
+    },
+    "lock_released": true,
+    "schema_scope": [
+      "data_center_financial_fact"
+    ]
+  },
+  "limits": [
+    "Synthetic local fixtures; no vendor fetch, production DML, historical repair or publication activation.",
+    "Seven PostgreSQL cases and 56 SQLite cases are separate backend runs, not 63 unique business scenarios.",
+    "Previous private runs and their first failed driver receipt remain distinct original artifacts.",
+    "The carrier preserves three existing fields only; completeness does not prove response scope/completion, source lineage or availability.",
+    "Unknown announcement/availability remains unknown; existing financial production evidence gaps and exit gates are not closed.",
+    "No PostgreSQL concurrency or unique-key race acceptance is asserted by these seven sequential cases.",
+    "Raw source witness SHA includes local line endings; LF SHA binds the same source after Git text normalization."
+  ],
+  "original_artifact_count": 12,
+  "original_artifacts": [
+    {
+      "workspace": "root_worktree",
+      "path": "var/data02-financial-pg-roundtrip-20260913T203049.741789Z/after.json",
+      "bytes": 313,
+      "sha256": "f029f09cc049893bb2092e071ca430f00613f262230343663c6fc710cd8be970",
+      "encoding": "gzip+base64",
+      "exact_bytes": "H4sIAAAAAAAC/4WQMY7DIBBFe5/Cot6wgA2RfY6t0qAxjBS0rLFgHCmKcvdgJ1LSbTHN/+/9Ym5N2zKX/paIhN4C2ZUcG1umhDIHMRxk96PE2MlRD7w/DtLoE/vaJA8EExTcYLwEL4yFlc4pB7pawkJPLNEZs3Ux4Ex2AveLsy/VEXu7rFMMzm47ts5FfFcZwds0x2tNKK+4hwXzpc6B9xnLxjJ5VFz1XHD13Sn2CS0pUyV036nPuF4Jad5dw2X/cgjyfw/QXEsj5XBizb15AKBizFI5AQAA"
+    },
+    {
+      "workspace": "root_worktree",
+      "path": "var/data02-financial-pg-roundtrip-20260913T203049.741789Z/before.json",
+      "bytes": 313,
+      "sha256": "07f00be876d4ef1481235bd40788b3742997280e288ce22b6f672671bfaabeac",
+      "encoding": "gzip+base64",
+      "exact_bytes": "H4sIAAAAAAAC/32QO27DMBBEe51CYB0zS+pDWOdI5WZBkQuYCCMK5MqAYfjuoZQAcZVim5n3pthH07bCpa81EpNHy7ixE1MrNOjxBOeT6j40TJ2aQMl+VGZQF/G2S96ynW2hHaZb8DCi3fiacuA7MhX+wRJfKaOLgRbG2bpPWnypDhztus0xONx3sM5F+qsyWY9pifeacN7oCAvlW52z3mcqOyuU0VL3EqR+77R4hdaUuRJD3+nXuF4JaTncUar+12Gb/30ATANIMOfBmItons03LhA3TTkBAAA="
+    },
+    {
+      "workspace": "root_worktree",
+      "path": "var/data02-financial-pg-roundtrip-20260913T203049.741789Z/pytest-junit.xml",
+      "bytes": 1629,
+      "sha256": "c87097ceb6bba8164b060c11998ffd0de7a732472bee1b2a09056bf1638dadd4",
+      "encoding": "gzip+base64",
+      "exact_bytes": "H4sIAAAAAAAC/9VUy27bMBD8FYHXwgwfkmIbUfITvRXFgqFWNhGKVEjarv++lNQ4LJBzC5843MfsDBbYp5dfo63OGKLxriOcMlKh07437tCRUxo2W/Ly/JQwpngy+amcGrEj03UOVUucFPm/0pkqBB9iRzLroIw9BVw/8c1ME/YLXno78piRmXvlloqdXH8xqXHqiGCi3bDdhtffWb2XfM8l3QrWPjbf2HbPMsnRx7SOvhjH2fG84X9kaRWx0lbFuOaXcVT7cfIOXaK9Sgp0RhjonIPBOOW0URYGpRMEnHw0yYcrZJAO2QJMwZ9xrkJSfbIWnUVT8CfXQwpmApVBzlh1BZ2jCby7cb7bD/98R3nbkOrhn+svSgfrVYJkcvGokj5CbwJmtk+5cAl53+HH0mLOCFwAk1w0P29GaF3Lu/Hh8KC+9iEo293nPmTdsNJHI9p79VHso6aNrO/Vhyz3wdl/2ceXdyqfWotwMclhjPlqWRvhVem30tLrbPVDfktFs8p/uJ3/Esfn30QBT/ldBgAA"
+    },
+    {
+      "workspace": "root_worktree",
+      "path": "var/data02-financial-pg-roundtrip-20260913T203049.741789Z/receipt.json",
+      "bytes": 2854,
+      "sha256": "9f76a41ad91f9e5c87fa0fae1ff4f132c69de9e72b72d9b417e4025853bc7728",
+      "encoding": "gzip+base64",
+      "exact_bytes": "H4sIAAAAAAAC/+1WyW4bORC95yuEPo8krk3S53zAHHJyNGhwKVo9bjUbbMqJEeTfp9jabANGMnMbwAcJYLOWx1evWPzxabVqbCyQm7vVD1zg0qfDNECB0NnSHYvHnYYR1q6JWVP+hZE7Tu+k2QhlaCvvmz9ObsEW6+wM1Rye+kDazh7LPuW+PHcF5nIxTGUPufNDD2PpnPWPMIYZvch5fzq6ofddjdVhyAFebmawoUvj8IzfSj7C+fMM+QmD2hAyzNW+oYptmNiQDdty1rw2m1IuaCMFZ6838Df3aVz82w0VV79i868IkRtJW0rNfYM+P6tj4yCmDP+SWUI3oqVK0g9mKyHkTpINUUYq9YLZ36Pkatbt01xxNUNKUyXmzfYFNuI2yw7knHI97de/lnXsx37e/7IlJGGsNafCNX8fx77ciu+ey8I3bZm51MOWfQ31ZPNuV8EQtsZMdvS9HdbTwzqn4xhK7qd1zUbMkosTYTZKUKXN/W431bBlvSTbfD8MV2L3lsm2RvdaEaM8uNY5q2krHGmJR6UaHWMgAZRVnAnFHAB1zBJDZOsibbkOWHZxY31I/rHLMAByFl7IpBmhfEv5sZt9muDEs7fD6jPaQ15dSF8t6locppzC0RdUBMab0zF7mLvjKWq0w3wKezpbB9/70vkU4KLWZvZ7ONhruq+3Puk8ah/1dqWxi9aXeoRTIU+5uhM73Zubz07TvH0RZRvSwfbjFhd96WHeTLU5GsmoxToHpanwivnWa6kDcV5KpMu00ngvPHFUqwBMQgzMSuqtUFRFFq498166G/Yz2qpwGD2c8zPFmJJGWZDRQRVtsB5CcAJBKIFlFp4DFUCxb3gU3LsQOeHchID1pu/m78eY7YxV9eWYYfuaQyzUlOa+pPx8xqFBa85Z0E7ixSc114yS1gviTQwCPHNWBC8jSCIieMlDG2VAMIJTGsH8RxzfsMmhezjaHK5AQFpnuCIgW+api4Z4YI4HIRhRRHOBUKSTXDmL0KypoIKxIDwDci0I3tYHzFJFt61/87be2GlEVK/wLap8lx28TebygLLuUOVPUK0ulUO+nGYawZFWCKybDt5wK6ONBBWkA3UBsF2tD4QSB0QrzaNSqC+tpYq3Vnyt47eD5kPIH0L+nwl5eY+8nCm/8TI4z8HLI7S6lOPyRpnsXIfJ8rVOppJhmUuf73a7h77sn3Y7+5AOX7IN8GdO6/PwxbMiSzOsbwduPv389A+u3W3BJgsAAA=="
+    },
+    {
+      "workspace": "root_worktree",
+      "path": "var/data02-financial-pg-roundtrip-20260913T203049.741789Z/source-sha256-after.json",
+      "bytes": 674,
+      "sha256": "0f0911a985efe350a959271690b1e0565f913ab4202da64fcc4909140051d55b",
+      "encoding": "gzip+base64",
+      "exact_bytes": "H4sIAAAAAAAC/53SzYobMQwH8HueIuS8NP6QxnJfZpAleRloZgaPs2VZ+u51IC3tYXvoxdjI8P8h6eN0Pl9434+rcudZbO3WrrrdeFmv47H0xY4v+/vl6/mCwXMIkybyICnIJISkrgiiKuQJswiIK56SWkCrGhi9MCSfatBweflXWF1WXmXhb/Ox3ZvYbG+L2ir2TA8phIQ5sWEthghRWUy1wCAkmEoBiebBvEs5VohStEYXY1ZVp/6T9GWtjY/e7tLvzf5QVJY+N9u3Y+lbe38qyIhiDEoFJ++RIgXvJgEnuSqYhMKggtXQQTXBqFNFHRSI3lfL/6X43pZu8+udm/5mGHLJMTnDKYgvNTuxUKICBJccRRgQLBhT4QHj/CBpZgMJ5p6jqFu7jYxuR78+juMq223f1mH6S/eozZ92Zh6X/trsmPe2vdnj16+ZjV4VCjRobgIYEyOVHBkrVzc2h9QXNUqORZ13xRwlijWlsVdEmOrl9OP0E6PT8SKiAgAA"
+    },
+    {
+      "workspace": "root_worktree",
+      "path": "var/data02-financial-pg-roundtrip-20260913T203049.741789Z/source-sha256-before.json",
+      "bytes": 674,
+      "sha256": "0f0911a985efe350a959271690b1e0565f913ab4202da64fcc4909140051d55b",
+      "encoding": "gzip+base64",
+      "exact_bytes": "H4sIAAAAAAAC/53SzYobMQwH8HueIuS8NP6QxnJfZpAleRloZgaPs2VZ+u51IC3tYXvoxdjI8P8h6eN0Pl9434+rcudZbO3WrrrdeFmv47H0xY4v+/vl6/mCwXMIkybyICnIJISkrgiiKuQJswiIK56SWkCrGhi9MCSfatBweflXWF1WXmXhb/Ox3ZvYbG+L2ir2TA8phIQ5sWEthghRWUy1wCAkmEoBiebBvEs5VohStEYXY1ZVp/6T9GWtjY/e7tLvzf5QVJY+N9u3Y+lbe38qyIhiDEoFJ++RIgXvJgEnuSqYhMKggtXQQTXBqFNFHRSI3lfL/6X43pZu8+udm/5mGHLJMTnDKYgvNTuxUKICBJccRRgQLBhT4QHj/CBpZgMJ5p6jqFu7jYxuR78+juMq223f1mH6S/eozZ92Zh6X/trsmPe2vdnj16+ZjV4VCjRobgIYEyOVHBkrVzc2h9QXNUqORZ13xRwlijWlsVdEmOrl9OP0E6PT8SKiAgAA"
+    },
+    {
+      "workspace": "candidate_worktree",
+      "path": "var/data02-root-affected-56-final-20260914.xml",
+      "bytes": 11073,
+      "sha256": "724fb4b9e28883785f5a081d22c3b0a63ff27a6f1e396e27a7a85e5e5dfb19e7",
+      "encoding": "gzip+base64",
+      "exact_bytes": "H4sIAAAAAAAC/+1aS3PiOBD+KxTXLTN+QTJTk5nayx73NLdUSiXkBmuRJUeSIeyv35ZtQAaGmdkQs04thwSsh7/u/tQv+/PXl0KM1qANV/JhHE3C8QgkUxmXy4dxZRfB/fjrl88WjDUVx38jSQt4GJdbd2lUXx97451h3Eprpc3DGHddUC4qDc0Ps+JlCVn9vV77MJ7O8Ct3i+M0nXyMk+ansbQo8VoYz4LwYxCl38L0Uzz9FMWTZDZLZ9PfwvtPIW6TK2Obm2+4jMJ8HUQtMEYNjJigxjTj9Q0nTBWlkiDtJKOWEobfQE/cGGFKA1lQZsm8EitSlQY0ijk6LCel5gz8YfyH+4DBxXIhOLOGcEnwBgQlsFDg9gf54gkiH48+vB2+BZdUMk4FoTIjayoqatHCnQUtZCKprTTOXMHW7DCGkzANe0JYz9NQKsOt0luSK4mkIdQQtSCA8B1KD1g0/ffAvn/XUqs1uEHowPRmaFUhGKt5aQi8cGPxjBCjKo1MWHAQWUd79z2CRIoJIBtuJRhD5kKxFUKUlqMV5tSynMxh4UxC5ZZkhfBwTvtUpsGvRNMNyanJCaNSKtvMJSyncgkZQdMXVPC/oWGtb/fwY49Q3V4C8HS0BsYVgrL6HO+Per2VO18dEhBqVcEZFWLrkzbqEXxJtXXTfdCw5hl6diC8ZQhqGBmTqwqFFUC1Y7MS2SmVo7BH6PuD1fC2obLT8U7pDjOZu6OIAjxXgFsx/GU9wHHcI+AMGEfG1lrDg6g0XcKexY3TRSqojcENcKpxNNG4jss6bDjRajN1yJLcSoCFUNQSyx27lYNNCpWBcFGtTRIwpp1if8RwHCZRPA3Ms+Du1DSKCAO8u11i2H8W+2tPvvsZnKTBd0SNzoga+aJGswEaNUmn4bGk8RlJ446k8TAlPbFpckbSpCNpOkxJk2NJ0zOSpk+3il8Ff0Hn3kSA2rljKijFdp8kaOdOnVDoUlHANSpBKlW661dKYA+Q29jOKq1dGK0jD9XbbrLQDp6sMpVecwevdDYxFrEXUMxBn/r85O52aAtujJfMolUw85aARCJFZeuwm3PHiu1jMyVwsJ8Gi55nT1evJ94cu9J8ietE4JJnH3+aDAu/YarskCe6H4YAIgsKnkm+zO31XeMBwNmMXgnOtgmpDALaafKo7rA5VqjLfOdhHGi4elL5czA1/AWuBXJwe2YrbQ6WM2+vXUni13g/okIl+UV8ZTVHCE3ejfdk3+k5eDEIy9CM140QDc8VlswYWtaUCzrHmpraozhzBnOc9IPZn1bz4AQmvLj42tjfr+DCGyDEMhM1hYyy9YFTuqn+8balyZVfroVx/+hcN9Jg3auMSzTA5U8MGV0Xbw2JbwywbeJscpBdO6NeW591Y4S7M76obOVaSx7I3pC5C95cPBXE3QXz3rVaubTLW0wXuHuTgW4073QUXw2y9YoH53BWe0ezfq2h+KYYdw2jY4RNIERtgsvBWxNzLBy2GISI699VknWa2zfUZstHSTHj7guba1K64IEEuwxz10+sO7SHQCNEswNp+0c5LcE8/olhONDAlM6CKKCv/AR/UGE6CdcwtLAzYYYeJQpqnfyvCmrj4C3UkAxNDcnhgNTUeAeWTQ8ivQdxpldzYe9BG7ODNn5/5ec9HN+7gzqWr/y8B3bcXzHcf9NVVxvpjbThpluOMmvTZmeYaGbuuR0mjxJTcgsvtnnMax5HzVCwf97q1EG6nbrwbkiSuAfdJd0KRTNy3LO7GUN/SZJmZHTZJoOSZPg2ie4umiNKBiLERUvMriPED7qUlDEod8+W9k3VC3Vo3wB3Je1Rk3pv+P0LHN4rXGSB4WZO2eoNmP2LcPdv+uxhHl7u0WpzFmnSK1K/S9A2iNoN/F7HG8TSi/hitCOUxlfXTlV1I1XAkrJt/RT0qqpzzbS6NdY+dL3UanMNdPcOIWW26vbTvR0ew8A9l63/PP3HoUaBqdAfGBOo1dNpd//D/hVX/7v58g9qNs7aQSsAAA=="
+    },
+    {
+      "workspace": "root_worktree",
+      "path": "var/data02_financial_pg_roundtrip.py",
+      "bytes": 18248,
+      "sha256": "30d5681bb333ffab3c084f9de34cd858c37c9f2abe167a6fd5d6f8c1df218e3d",
+      "encoding": "gzip+base64",
+      "exact_bytes": "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"
+    },
+    {
+      "workspace": "root_worktree",
+      "path": "var/data02-financial-pg-roundtrip-20260913T201028.664731Z/receipt.json",
+      "bytes": 555,
+      "sha256": "d3c6c459adcec9dd1d9ff6acf97131e0253376c86b5b1d053ba1a5f705ae782a",
+      "encoding": "gzip+base64",
+      "exact_bytes": "H4sIAAAAAAAC/41QTU/DMAy971dUPVPUdVvZeh53hHaCoihL3TVqFleJM5gQ/x2nHV87cfR7tt/H+yxJ0kaS3EsPaZWkcNJNXgoZqEOn6SwIPKU3v9dEhwzxrkEc9lL1V/SALtKr1XKxGRlwDp1n6Jknnh+DJX2E+winDL2MW6222nfQCEkikIoCRV6UWb7J5otdkVfzvCrWt2W5Kdarp0nToOqFAwOs2/BFK42HkbFAr+h64RUOMJlV0iRbPgCXfDlP0Jrz9Gpw2ARFGi0/9BicAi/C9dvhHPsQ8KZJKGziZxuMGTmvOjjKb8VL2FiLUGAJnOCI0iotjWilop/ok5zwXKCBP3oMOfpHJ8u7fHnphE8oxLbTVmrD/kc0lkEOxiq2VV0fNHWnupYHPO6cbODBYRat5kXG8Qe0HjKu5ATRMaSzj9kntv0NMysCAAA="
+    },
+    {
+      "workspace": "root_worktree",
+      "path": "var/data02-financial-pg-roundtrip-20260913T201135.714213Z/receipt.json",
+      "bytes": 3071,
+      "sha256": "434149914b955b653790920af40826ffc29001bea4c362f60b3600352411ee7f",
+      "encoding": "gzip+base64",
+      "exact_bytes": "H4sIAAAAAAAC/+1WyW4bORC95yuMPo8k7ovP+YA55JRo0CgWi1ZP5O4Gm3JiBPPvQ7Zk2Q5gJDNnC9CBzVoeX9Vj8ceHm5sOUqHc3d78qIu6xOl+PlKh2EPpTwXrTieYMBvmN1x+EuyWm1vttkLo+vvc/XF2i1AgwELNnB6GyEwPp3KY8lAe+0JLeTKcyoFyj8eBxtIHwK80xqV6scv+fArHAfsWq68hj/RyMxPEfhqPj/VbySe6fF4oP9SgEGOmpdl33IqtUFu2FTsputdm85RLtdFKitcb9b8M07j6my1XV78C+VeE6C133Bn/uas+/zTHLlCaMv0nZsWtVFsplPbmndlGCL+V1V4KK9kLZn+PkqtZf5iWhqs7TtPciPlp+wl2xe3XHcp5yu20X/5a12kYh+Xwa0kooZQ7F677+zQO5bn44bGsfGv9RM0M5dAiPUDe7xsWJjY1EYw4wHEz323ydBpjycO8acmYX1NxLvXWciW4/Lzfzy1q2ay5tt/vj1deDyC0adEBjbGRYwrBMAlIWkRjFaFIwacAxrEkDTiUOhIqb5MwXjBEGZNMVj2Tfpzwa5/pSJWy+KJLupHKtyl/7RecZjrTjHC8+VjtKd88cX6zNtfqMOcpnrDUhqjxlumUkZb+dI6a4Licw57P1tP3ofQ4RXpq1m7BA93DNd2XZ5n0WFu/ttuVxj4BlnaEcx3PufozO/1PFx/M87J7EWUXp3sYxl1dDGWgZTs3bXRacBDCROu4QivQoNMusoBax6i80R5RIQvc2UhCU4oCNEdQlldu41Uyb6V7xn5B2xqcRqRLfmGFsNpbIJ0CtZ6NtaoxBlVBWGVCUCiJK+LMepmUxFAryaT0MUYW+Zv5hzFlWGpVsZwy7V5zWAs1T8tQpvx4weHIOSlFdEEbzrWTTnBmUDH0Kbb+CqAi6kSaqUSoZTRJxwpGSc4T+f+J41vVOPV3J8jxCoQ0BC8tI20E8pA8QxJBRqUEs8xJVaHooKUNUKGBb6CiB1IoiF0LMufhAWrs1nW7KsrdWZMvmmm+66+aXM0uCMgzHo1BCZxcvau0S9Eg9w5jInA2mVArUMWlCYIAYDIkSp5qraoy4vU2bCGXXRsT01i5eMXKqoU3a9JXST1Q23xqEwNcgBPGSaYUD9wgaKGSdM4qC5hsrE1svCJgWkUvebKopEVIRrV+ftb9a9H8PNTeVfOumnfVvK2a9aH1clr+zpNnnfDcs8tTorqU0/r4mmFpY3L92mZuybRO3I+3+/3dUA4P+z3cTfefMkT6M0+by7OiTtlKzkKb5wN3H/758C/6KvyX/wsAAA=="
+    },
+    {
+      "workspace": "root_worktree",
+      "path": "var/data02-financial-pg-roundtrip-20260913T202445.537464Z/receipt.json",
+      "bytes": 3072,
+      "sha256": "2ec4ec9004f30a6c60a15a7bc22d4fb1918e4396713d6c66e440c9a710738ab1",
+      "encoding": "gzip+base64",
+      "exact_bytes": "H4sIAAAAAAAC/+1WyY7bOBC95ysMncc298XnfMAccup4IJDFYlvTbkmgaCeNIP8+pLx2A40kc+6DDVCs5fFVPRZ/fFosGhczpmaz+FEWZQnD87jHjKF1uT1kKDsNI0wtiV1S/oWRDTMbrlbCKkvsQ/PXyS247LybsJrjsQtEte6Qd0Pq8kubccoXwyHvMLWw77DPrXfwhH2Yihc5748Hv++grbHaEnKP95sJXWiHfv9SvuV0wPPnCdOxBHUhJJyqfUM1WzGxIiu25qx5bTYOKRcbKTh7vVF+Uzf0s79aUXH1yy79ghAmV8ZIK/RDU3x+VsfGYxwS/hGzckPoSmmuDP9gthIiNqLaK6nYHbO/R8nVrN0NU8XV7IdhrMS82b7ALrjtvIMpDame9us/8zp2fTftfikJSY0i9FS45t9D3+Vb8f1LnvmmXIpLPVze1VBHl7bbCoawZcnkeujcfjk+LtNw6ENO3bis2YidczEh5EpyLZR42G7HGjYv52Sr78/7K7E7x6Sa+aEeheSMC1DMKxqBR1QqWOkJpeAxeBkkKUc3oG2wYLWkzLFgTfmjcGN9P8BTm3CPhbNw1yZNj/nbkJ7aCYYRTzyD2y8+F3tMiwvpi7m7ZocxDeEAuXREiTcNhwQ4tYdT1Oj20yns6Wwtfu9yC0PAS7c2E+zw2V3Tfb3ppIXS+6XfrjS20UGuRzgV8pSrPbHTvrn53DhO67so6zA8u65fl0WXO5xWYxVHIxl1jKmgDRWgGSgw0gTiQcoQyq0oLYAA4qnRAZnEGJiTFJzQVEcWrpp5L90N+xlt7XDsAc/5mWZMS6sdyuixNm1wgCF4UUCUtvBeAEcqkBJteRQcfIiccG5DCCTQd/N3fUxuKlWFfEi4fs1hKdQ4TF0e0ssZh0FjOGfBeKkolYYbRokCQcDGIBCYdyKAjFiaKyJIHlSUoYARnNKI9n/i+FZEju3jwaVwBYLSecs1wXJNAPXREkDmeRCCEU0MFwWK9EU03hVozlZQwToUwJBcCzKm7uhK7Np16yLK9UmTd800PrZXTc5mZwTaaOk4Go7C+0K7kqCMZcp6y4RlkcUCHZyNJFJFhLIFQQDhrXUUozYXBDXktK5zYugLF69YmbXwbk3aIqkj1s1LmyhXVGxYmSRECOqpAieZiNwYLbSDqENpYmUFOiJFsJxGDYJrcFGJ2s833b8Wzdup9qGaD9V8qOZ91cwvrftp+TtvntOEF+T8ligu+TC/vkY31TE5f60zNyecJ+7nzXb72OXdcbt1j8Pzl+QC/p2G5flZUaZsIWfC5e3Azaefn/4DSvhEvwAMAAA="
+    },
+    {
+      "workspace": "root_worktree",
+      "path": "var/data02-financial-pg-roundtrip-20260913T201135.714213Z/pytest-junit.xml",
+      "bytes": 552,
+      "sha256": "ac667d1cfbb603ace52d674ec2fb9fba680f36a8c35dec497f26920cc3df3f74",
+      "encoding": "gzip+base64",
+      "exact_bytes": "H4sIAAAAAAAC/7VR0XLCIBD8lQyvnUQgmkbH6E/0nbkSVEYEyhGtf98zsU76AX1ib3fv2IPt/vviiqtJaIPvmKg4K4zXobf+2LEhH8qW7XfbbDDjYOkoPFxMx+L9QRUjz2b6H5lGpRQSdoymHsC6IZmpwLON0fQjHns7JgnZR6+s22rdPEvMcInEcdmUfF2K5QdfboTcrERVr9arun3j7YbTlFPAPN19s17w07UUz1wa0BTaAeKkXyFVPWTgUh2sB68tOBWPKoXB9znZqKbsk/uBZ75kYkCbQ7pPfjU2AAFSHNyVJjar4BX58pH2/XKvxWRTieadFYv/DUZv5oy62ewNInU7h+oT9HkWieqsT7/BhKzqmo+5Fq+fnGPc/QCqEaGeKAIAAA=="
+    }
+  ]
+}
