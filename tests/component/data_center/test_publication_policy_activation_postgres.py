@@ -522,10 +522,13 @@ def test_execute_activates_exact_four_p2_heads_and_preserves_six_legacy_heads(
 
     assert result["mode"] == "execute"
     assert result["activated"] is True
-    assert set(active_identities) == set(expected_identities)
+    assert active_identities == expected_identities
     assert result_identities == expected_identities
     assert {key for key in active_identities if key in targets} == targets
-    assert all(active_identities[key].startswith("p2:2:") for key in targets)
+    assert active_identities["equity.financial.fact"].startswith("p2:3:")
+    assert all(
+        active_identities[key].startswith("p2:2:") for key in targets - {"equity.financial.fact"}
+    )
     assert len(active_rows) == 10
     assert DatasetPublicationPolicyModel.objects.count() == 14
     for dataset_key in sorted(set(expected_identities) - targets):
