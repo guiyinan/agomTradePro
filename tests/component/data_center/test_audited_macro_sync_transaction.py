@@ -7,6 +7,7 @@ from collections.abc import Iterator
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
+from django.utils import timezone
 
 from apps.audit.application.data_decision_read_audit import (
     AppendDataDecisionReadAuditObservationUseCase,
@@ -138,6 +139,13 @@ def _schema(django_db_blocker: object) -> Iterator[None]:
     with django_db_blocker.unblock():  # type: ignore[attr-defined]
         with isolated_schema(SCHEMA_MODELS):
             yield
+
+
+@pytest.fixture(autouse=True)
+def _freeze_orm_clock(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep ORM auto timestamps at the same controlled instant as the sync clock."""
+
+    monkeypatch.setattr(timezone, "now", lambda: NOW)
 
 
 class _Provider:

@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from datetime import UTC, date, datetime
+from uuid import uuid4
 
 import pytest
+from django.utils import timezone
 
 from apps.audit.application.data_fetch_audit import (
     AppendDataFetchAuditObservationUseCase,
@@ -27,7 +29,13 @@ from apps.audit.infrastructure.system_audit_outbox_models import SystemAuditOutb
 from apps.data_center.application.dtos import SyncPriceRequest
 from apps.data_center.application.publication_quality import RecordPublicationQualityUseCase
 from apps.data_center.application.publication_sync import PublishPriceBarBatchUseCase
+from apps.data_center.application.publication_utils import (
+    member_reference,
+    publication_hash,
+    publication_member_from_reference,
+)
 from apps.data_center.application.sync_use_cases import SyncPriceUseCase
+from apps.data_center.domain.control_plane import PublicationState
 from apps.data_center.domain.entities import PriceBar
 from apps.data_center.domain.enums import DataCapability, PriceAdjustment
 from apps.data_center.infrastructure.audited_sync_runtime import (
@@ -86,6 +94,13 @@ def _schema(django_db_blocker: object) -> Iterator[None]:
     with django_db_blocker.unblock():  # type: ignore[attr-defined]
         with isolated_schema(SCHEMA_MODELS):
             yield
+
+
+@pytest.fixture(autouse=True)
+def _freeze_orm_clock(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep ORM auto timestamps at the same controlled instant as the sync clock."""
+
+    monkeypatch.setattr(timezone, "now", lambda: NOW)
 
 
 class _Provider:
@@ -355,36 +370,216 @@ def test_failure_after_audit_append_rolls_back_every_transaction_participant() -
     assert provider.extra_config == {}
 
 
-def test_degraded_member_commits_exact_quality_transition_and_outbox() -> None:
+def test_error_quality_blocks_publication_but_commits_fetch_evidence() -> None:
     use_case, provider_id = _build_use_case(
         _canonical_writer(),
         degraded_quality=True,
     )
 
-    result = use_case.execute(_request(provider_id))
+    with pytest.raises(ValueError, match="publication evidence quality is not publishable"):
+        use_case.execute(_request(provider_id))
 
-    publication = CanonicalPublicationModel._default_manager.get()
+    identity = SyncExecutionIdentityModel._default_manager.get()
+    fact = PriceBarModel._default_manager.get()
+    raw_audit = RawAuditModel._default_manager.get()
+    fetch_event = SystemAuditEventModel._default_manager.get(event_type="data.fetch.completed")
+    blocked_event = SystemAuditEventModel._default_manager.get(
+        event_type="data.publication.blocked"
+    )
+    fetch_outbox = SystemAuditOutboxModel._default_manager.get(event_id=fetch_event.event_id)
+    blocked_outbox = SystemAuditOutboxModel._default_manager.get(event_id=blocked_event.event_id)
+    assert fact.quality_status == "error"
+    assert str(fact.ingested_run_id) == str(identity.ingested_run_id)
+    assert str(raw_audit.run_id) == str(identity.run_id)
+    assert str(raw_audit.ingested_run_id) == str(identity.ingested_run_id)
+    assert raw_audit.status == "ok"
+    assert raw_audit.row_count == 1
+    assert fetch_event.outcome == "success"
+    assert fetch_event.correlations["run_id"] == str(identity.run_id)
+    assert fetch_event.correlations["ingested_run_id"] == str(identity.ingested_run_id)
+    assert fetch_event.resource_id == str(raw_audit.pk)
+    assert fetch_event.evidence_refs[0]["content_hash"] == raw_audit.content_hash
+    assert fetch_outbox.payload_hash == fetch_event.content_hash
+    assert blocked_event.outcome == "blocked"
+    assert blocked_event.severity == "critical"
+    assert blocked_event.detail_schema == "data.publication.blocked.v1"
+    assert blocked_event.detail["blocked_reason"] == "publication_policy_rejected"
+    assert blocked_event.detail["error_class"] == "ValueError"
+    assert blocked_event.correlations["run_id"] == str(identity.run_id)
+    assert blocked_event.correlations["ingested_run_id"] == str(identity.ingested_run_id)
+    assert blocked_event.evidence_refs == [
+        {
+            "owner": "data_center",
+            "artifact_type": "raw_audit",
+            "artifact_id": str(raw_audit.pk),
+            "artifact_version": "1",
+            "content_hash": raw_audit.content_hash,
+        }
+    ]
+    assert blocked_outbox.payload_hash == blocked_event.content_hash
+    assert SyncExecutionIdentityModel._default_manager.count() == 1
+    assert RawAuditModel._default_manager.count() == 1
+    assert CanonicalPublicationModel._default_manager.count() == 0
+    assert PublicationMemberModel._default_manager.count() == 0
+    assert CoverageSnapshotModel._default_manager.count() == 0
+    assert not SystemAuditEventModel._default_manager.filter(
+        event_type="data.publication.published"
+    ).exists()
+    assert not SystemAuditEventModel._default_manager.filter(
+        event_type="data.quality.changed"
+    ).exists()
+    assert SystemAuditEventModel._default_manager.count() == 2
+    assert SystemAuditOutboxModel._default_manager.count() == 2
+    provider = ProviderConfigModel._default_manager.get(pk=provider_id)
+    assert provider.extra_config["provider_last_status"] == "healthy"
+    assert provider.extra_config["provider_last_error"] == ""
+    health = provider.extra_config["health_metrics"]["historical_price"]
+    assert health["last_status"] == "healthy"
+    assert health["last_output_count"] == 1
+    assert health["consecutive_failures"] == 0
+
+
+def test_legacy_unreliable_publication_records_warning_and_blocks_current_decision() -> None:
+    """Historical error-quality publications can be audited but never serve decisions."""
+
+    _seed_contracts()
+    fact = PriceBarModel._default_manager.create(
+        asset_code="000001.SZ",
+        bar_date=BAR_DATE,
+        freq="1d",
+        adjustment=PriceAdjustment.NONE.value,
+        open=10.0,
+        high=11.0,
+        low=9.5,
+        close=10.5,
+        source="tushare",
+        source_record_id="legacy-price-1",
+        raw_payload_hash="a" * 64,
+        quality_status="error",
+        revision_number=1,
+    )
+    reference = PriceBarRepository().list_publication_candidates(
+        [
+            PriceBar(
+                asset_code=fact.asset_code,
+                bar_date=fact.bar_date,
+                freq=fact.freq,
+                adjustment=PriceAdjustment(fact.adjustment),
+                open=float(fact.open),
+                high=float(fact.high),
+                low=float(fact.low),
+                close=float(fact.close),
+                source=fact.source,
+                fetched_at=fact.fetched_at,
+            )
+        ]
+    )[0]
+    publication_id = str(uuid4())
+    member = publication_member_from_reference(
+        reference,
+        member_id=str(uuid4()),
+        publication_id=publication_id,
+        dataset_key="equity.price.bar",
+    )
+    publication_digest = publication_hash((member_reference(member),))
+    persisted_member = PublicationMemberModel._default_manager.create(
+        member_id=member.member_id,
+        publication_id=publication_id,
+        dataset_key=member.dataset_key,
+        natural_key=member.natural_key,
+        source=member.source,
+        source_record_id=member.source_record_id,
+        fact_table=member.fact_table,
+        fact_pk=member.fact_pk,
+        observed_at=member.observed_at,
+        raw_payload_hash=member.raw_payload_hash,
+        quality_status=member.quality_status,
+        revision_number=member.revision_number,
+        available_at=member.available_at,
+        fetched_at=member.fetched_at,
+        source_published_at=member.source_published_at,
+        raw_payload_scope=member.raw_payload_scope,
+        fact_content_hash=member.fact_content_hash,
+    )
+    publication = CanonicalPublicationModel._default_manager.create(
+        publication_id=publication_id,
+        dataset_key="equity.price.bar",
+        publication_key="current",
+        policy_version="1.0:1.0",
+        state=PublicationState.PUBLISHED.value,
+        selected_source="provider-main",
+        publication_hash=publication_digest,
+        member_count=1,
+        conflict_count=0,
+        coverage_requested_count=1,
+        coverage_eligible_count=1,
+        coverage_selected_count=1,
+        coverage_missing_count=0,
+        coverage_conflict_count=0,
+        as_of=reference.observed_at,
+        published_at=NOW,
+        must_not_use_for_decision=False,
+        created_by="legacy-fixture",
+    )
+    CoverageSnapshotModel._default_manager.create(
+        coverage_id=str(uuid4()),
+        publication_id=publication_id,
+        requested_count=1,
+        eligible_count=1,
+        selected_count=1,
+        missing_count=0,
+        conflict_count=0,
+        generated_at=NOW,
+    )
+
+    observation = RecordPublicationQualityUseCase(
+        publication_reader=CanonicalPublicationRepository(),
+        quality_writer=_canonical_quality_writer(),
+        clock=_Clock(),
+    ).execute(
+        publication_id=publication_id,
+        run_id=str(uuid4()),
+        ingested_run_id=str(uuid4()),
+        provider_key="provider-main",
+    )
+
     quality_event = SystemAuditEventModel._default_manager.get(event_type="data.quality.changed")
     quality_outbox = SystemAuditOutboxModel._default_manager.get(event_id=quality_event.event_id)
-    assert result.publication_id == str(publication.publication_id)
+    assert observation.quality_state == "degraded"
+    assert observation.quality_status_counts[0].status == "degraded"
+    assert observation.quality_status_counts[0].count == 1
+    assert fact.quality_status == "error"
+    assert persisted_member.quality_status == "error"
+    assert persisted_member.fact_content_hash == member.fact_content_hash
+    assert publication.publication_hash == publication_digest
     assert quality_event.outcome == "detected"
     assert quality_event.severity == "warning"
-    assert quality_event.publication_id == str(publication.publication_id)
-    assert quality_event.correlations["evidence_ref"] == str(publication.publication_id)
+    assert quality_event.publication_id == publication_id
+    assert quality_event.correlations["evidence_ref"] == publication_id
     assert quality_event.detail["quality_state"] == "degraded"
     assert quality_event.detail["quality_status_counts"] == [{"status": "degraded", "count": 1}]
     assert quality_event.evidence_refs == [
         {
             "owner": "data_center",
             "artifact_type": "canonical_publication",
-            "artifact_id": str(publication.publication_id),
+            "artifact_id": publication_id,
             "artifact_version": publication.policy_version,
-            "content_hash": publication.publication_hash,
+            "content_hash": publication_digest,
         }
     ]
     assert quality_outbox.payload_hash == quality_event.content_hash
-    assert SystemAuditEventModel._default_manager.count() == 3
-    assert SystemAuditOutboxModel._default_manager.count() == 3
+    assert SystemAuditEventModel._default_manager.count() == 1
+    assert SystemAuditOutboxModel._default_manager.count() == 1
+
+    from apps.data_center.application import query_services
+
+    current_gate = query_services.get_current_publication_gate(
+        "equity.price.bar",
+        "current",
+    )
+    assert current_gate is not None
+    assert current_gate["must_not_use_for_decision"] is True
+    assert current_gate["blocked_reason"] == "publication_member_evidence_missing"
 
 
 def test_quality_writer_failure_rolls_back_fact_publication_events_and_outboxes() -> None:
