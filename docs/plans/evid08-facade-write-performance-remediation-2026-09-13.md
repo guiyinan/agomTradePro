@@ -14,8 +14,11 @@
 > `with_current` 两个独立 phase 与外层缓存暂停；源码冻结综合回归实际 142 passed、
 > 9 个 opt-in skipped，六个生产文件增量 mypy 为零，全仓 mypy 债务为零，文件增长
 > 门禁通过。`1e309dc28` 单独更新静态读取面投影，未提高债务基线。
-> 剩余架构/治理门禁、三次同源隔离 PostgreSQL 物理解码/CPU/SQL 测量和优化部署
-> 复测仍待完成；上述 skipped 不计为 PostgreSQL 通过，EVID-09 保持 active。
+> 源码冻结的 17 项完整静态/架构/治理门禁全部通过；五份原始回归/门禁记录与
+> 16 个执行源码哈希封存于
+> [读取阶段代码验证](../testing/evid09-read-phase-code-validation-2026-09-13.json)。
+> 三次同源隔离 PostgreSQL 物理解码/CPU/SQL 测量和优化部署复测仍待完成；
+> 上述 skipped 不计为 PostgreSQL 通过，EVID-09 保持 active。
 > [完整物理解码诊断封存](../testing/evid09-facade-physical-decode-diagnostic-2026-09-13.json)
 > 保留原测量failed、绿色JUnit和独立清理/release；五个后验源码canonical LF哈希
 > 与Git一致，三个raw差异仅CRLF，仍不补签原运行期间的source snapshot一致性。
