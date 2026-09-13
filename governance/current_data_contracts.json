@@ -3849,6 +3849,11 @@
           "test_function": "test_sync_financial_use_case_invokes_publication_after_fact_write"
         },
         {
+          "case": "financial_sync_reports_actual_repository_write_count",
+          "test_file": "tests/unit/data_center/test_financial_sync_write_counts.py",
+          "test_function": "test_sync_financial_reports_actual_repository_write_count"
+        },
+        {
           "case": "macro_publication_members_and_as_of",
           "test_file": "tests/unit/data_center/test_macro_publication_sync.py",
           "test_function": "test_macro_publication_uses_source_published_at_and_exact_member"
@@ -4290,6 +4295,8 @@
         "apps/data_center/infrastructure/valuation_fact_repository.py",
         "apps/data_center/infrastructure/financial_availability_repository.py",
         "apps/data_center/infrastructure/financial_fact_repository.py",
+        "apps/data_center/domain/financial_source_evidence.py",
+        "apps/data_center/infrastructure/financial_fact_write_guard.py",
         "apps/data_center/application/core_data_backfill.py",
         "apps/data_center/infrastructure/publication_fact_identity.py",
         "apps/data_center/infrastructure/publication_fact_legacy_payload.py",
@@ -4354,7 +4361,21 @@
           "def list_current_publication_candidates(",
           "available_at__isnull=False",
           "publication_fact_reference_for_dataset",
-          "require_verified_source_evidence=require_verified_source_evidence"
+          "require_verified_source_evidence=require_verified_source_evidence",
+          "source_evidence=source_evidence_from_model(m)",
+          "return bulk_upsert_financial_facts(facts)"
+        ],
+        "apps/data_center/domain/financial_source_evidence.py": [
+          "class FinancialFactSourceEvidence:",
+          "def is_complete(",
+          "no timestamp is inferred from it."
+        ],
+        "apps/data_center/infrastructure/financial_fact_write_guard.py": [
+          "def bulk_upsert_financial_facts(",
+          "_lock_rows_by_natural_key",
+          "select_for_update()",
+          "bulk_update(",
+          "_model_decimal_storage"
         ],
         "apps/data_center/application/core_data_backfill.py": [
           "rebuild_current_publications",
@@ -4504,6 +4525,31 @@
           "case": "financial_current_source_gaps_no_history_dml",
           "test_file": "tests/component/data_center/test_financial_source_current_boundary.py",
           "test_function": "test_current_financial_missing_source_proof_never_mutates_history"
+        },
+        {
+          "case": "financial_source_fields_round_trip",
+          "test_file": "tests/component/data_center/test_financial_fact_repository_provenance.py",
+          "test_function": "test_repository_round_trips_existing_source_fields"
+        },
+        {
+          "case": "financial_source_fields_typed_boundary",
+          "test_file": "tests/unit/data_center/test_financial_source_evidence.py",
+          "test_function": "test_financial_source_evidence_round_trips_existing_source_fields"
+        },
+        {
+          "case": "financial_stale_witness_batch_is_atomic",
+          "test_file": "tests/component/data_center/test_financial_fact_repository_provenance.py",
+          "test_function": "test_stale_witness_blocks_entire_batch_before_any_dml"
+        },
+        {
+          "case": "financial_existing_batch_query_bound",
+          "test_file": "tests/component/data_center/test_financial_fact_repository_provenance.py",
+          "test_function": "test_existing_batch_locks_and_updates_with_bounded_query_count"
+        },
+        {
+          "case": "financial_decimal_storage_round_trip",
+          "test_file": "tests/component/data_center/test_financial_fact_repository_provenance.py",
+          "test_function": "test_decimalfield_storage_normalization_allows_precise_first_insert_and_replay"
         },
         {
           "case": "source_publication_before_availability",

@@ -11086,22 +11086,22 @@
       "text": "raise ValueError(\"current DataEnvelope requires publication_id\")"
     },
     {
-      "line": 176,
+      "line": 177,
       "path": "apps/data_center/domain/entities.py",
       "text": "summary: str"
     },
     {
-      "line": 184,
+      "line": 185,
       "path": "apps/data_center/domain/entities.py",
       "text": "\"summary\": self.summary,"
     },
     {
-      "line": 734,
+      "line": 747,
       "path": "apps/data_center/domain/entities.py",
       "text": "summary: str = \"\""
     },
     {
-      "line": 749,
+      "line": 762,
       "path": "apps/data_center/domain/entities.py",
       "text": "\"summary\": self.summary,"
     },
@@ -11931,7 +11931,7 @@
       "text": "summary = models.TextField(blank=True)"
     },
     {
-      "line": 138,
+      "line": 122,
       "path": "apps/data_center/infrastructure/financial_fact_repository.py",
       "text": "\"\"\"Select every metric from each asset's latest evidence-safe period.\"\"\""
     },

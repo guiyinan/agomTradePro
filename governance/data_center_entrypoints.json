@@ -26,17 +26,17 @@
       "script": 8,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 64,
+      "test_evidence": 65,
       "workflow_step": 10
     },
     "by_status": {
       "active_public": 751,
       "adjacent_operational": 298,
-      "candidate-review": 20,
+      "candidate-review": 21,
       "compatibility": 137,
       "retired_blocked": 0
     },
-    "total": 1206
+    "total": 1207
   },
   "entries": [
     {
@@ -5171,7 +5171,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=15",
+      "evidence": "governed current-data contract; source_files=17",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.core_current_publication_rebuild:Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "locator": "Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "path": "governance/current_data_contracts.json",
@@ -11587,6 +11587,16 @@
       "path": "tests/component/data_center/test_archive_repository.py",
       "status": "active_public",
       "symbol": "test_archive_repository",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/data_center/test_financial_fact_repository_postgres_provenance.py:test_financial_fact_repository_postgres_provenance:",
+      "locator": "",
+      "path": "tests/component/data_center/test_financial_fact_repository_postgres_provenance.py",
+      "status": "candidate-review",
+      "symbol": "test_financial_fact_repository_postgres_provenance",
       "target": ""
     },
     {
