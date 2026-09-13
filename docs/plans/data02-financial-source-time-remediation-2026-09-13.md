@@ -299,7 +299,9 @@ publication_policy_changed 门阻断。金融 ORM 来源边界已分类提交 `5
 `990a4876e` 在两字段均存在时补顺序检查，等时及旧策略缺字段兼容保留。
 真实RED为1 failed/2 passed，修复后专项3 passed、完整证据文件20 passed；
 受影响发布/current随后155 passed，官方Domain选定范围2939 passed、聚合行覆盖率
-94.18%。最终追加版本的静态检查仍在执行。这证明字段边界与校验行为，
+94.18%；最终追加版本16项静态门禁全部通过，增量mypy53生产文件无新增错误，
+全量债务仍为零。[追加来源顺序证据](../testing/data16-domain-source-chronology-validation-2026-09-13.json)
+绑定该源码；精确最终推送候选CI及生产升级/激活仍未完成。这证明字段边界与校验行为，
 不证明生产原始响应 bytes、精确来源时刻或可用 current 已齐备。
 新候选必须重新绑定准确 Git 字节和真实
 生产 preflight，不能继续使用旧 policy2 的 candidate SHA。

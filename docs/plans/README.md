@@ -37,7 +37,10 @@
 全量债务为零；[来源校验阶段证据](../testing/data16-financial-source-validation-2026-09-13.json)
 绑定该阶段源码。追加集中Domain公告/可用时间顺序规则已提交 `990a4876e`，真实RED
 1 failed/2 passed，修复后专项3 passed、完整证据文件20 passed；随后受影响发布/current
-155 passed、官方Domain选定范围2939 passed，聚合行覆盖率94.18%。最终静态检查仍在执行。
+155 passed、官方Domain选定范围2939 passed，聚合行覆盖率94.18%；最终16项静态门禁
+全部通过，包括53生产文件增量mypy和零全量债务。
+[追加来源顺序证据](../testing/data16-domain-source-chronology-validation-2026-09-13.json)
+绑定该生产源码。精确最终推送候选CI及生产升级/激活仍未完成。
 新候选的实际PG精确激活1 passed，独立只读检查零表残留；生产尚未部署或激活。
 Facade完整PG物理解码测量正在冻结夹具上执行，实际计数尚未返回。
 应用 Goal 本轮工具读回 `active`。
