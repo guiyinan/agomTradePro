@@ -1,6 +1,6 @@
 {
-  "version": "2026-09-13.v101",
-  "updated_at": "2026-09-13",
+  "version": "2026-09-14.v102",
+  "updated_at": "2026-09-14",
   "execution_focus": {
     "unit_id": "EVID-09",
     "allowed_parallel_execution_modes": [
@@ -8,7 +8,7 @@
       "external",
       "governance"
     ],
-    "policy": "EVID-09 is the sole repository focus: typed locked read phases, Source V2 exact immutable read reuse, fresh append/CAS and independent with_current callback observations, followed by source-bound isolated measurements and compatible standard deployment/lifecycle retest. DATA-16 is completed with sealed repository tests and genuine 303248196 deployment/four-head activation; strict financial source blocking remains. DATA-02/EVID-01/02/AUD-03/TAR-05 may collect independent production/external evidence without weakening their exits. DATA-12/15 and EVID-08 stay completed."
+    "policy": "EVID-09 remains the sole repository focus. Typed locked read phases and three source-consistent isolated PostgreSQL measurements are completed; compatible standard code-only deployment now runs 6760c9aa with preserved strict Publication heads, Catalog and four durable Authority roots. Genuine new-scope configured-validity production lifecycle remains required. DATA-02 preparatory provenance changes stay isolated and do not change unit status or production acceptance. DATA-02/EVID-01/02/AUD-03/TAR-05 may collect independent production/external evidence without weakening exits; DATA-12/15 and EVID-08 remain completed."
   },
   "workstreams": [
     {
@@ -18,7 +18,7 @@
       "priority": "P0",
       "owner": "research+risk_center+portfolio+broker_execution+account",
       "status": "active",
-      "next_gate": "Production source 3032481969f93f08e8e4d14bfed3d7631e53a752 / release source-20260913212011 is deployed and healthy; admin/user 1 V3 current succeeds after strict four-policy activation in 14.6834 s, independent four committed roots/zero revocations remain unchanged. Historical b18 existing-root replay 2677.79 s and cancelled exit130 lifecycle remain failed-to-complete production evidence. A new disposable full Facade PostgreSQL JUnit passes once in 5312.682 s: test-call probe has 6284 physical stdlib JSON decodes, 7002 SQL (6741 SELECT/261 non-SELECT), client execute 4660.126 s. Runner source-snapshot equality guard is false, so the measurement receipt remains failed and cannot prove a source-frozen benchmark or configured 30-minute lifecycle pass. EVID-09 is the sole repository focus for bounded lock/read phases and fresh mutation/callback checks; implementation and optimized deployment are not complete. At least three source-consistent isolated representative measurements and genuine configured-validity production retest remain required, followed by EVID-01/02 concurrency/successor/revocation/rollback and independent signed acceptance.",
+      "next_gate": "Optimized Main 6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b / source-20260914021633 is actually deployed through the standard code-only PreserveDataCenterCatalog process, terminal exit0, TLS200/healthy restart0 and15 Git/release/live hash matches. Exact reviewed70547a550 head had30 completed SUCCESS checks and PR39 merged. Independent before/after reads preserve14 complete policy rows,10 active policy identities including financial3 and price/quote/valuation2, three complete Catalog rowsets, existing published-current metadata and four root canonical payload fingerprints/zero revocations. A new153184066-byte PostgreSQL dump has verified exact SHA and actual UTC stat binding; both compatible images are pinned but rollback not exercised. Three complete source-consistent isolated PostgreSQL measurements on e9835fb58 each pass with5893 unchanged sources, physical stdlib JSON chain2091, SQL2619 and complete Domain witnesses; these serial synthetic one-root fixtures do not prove production concurrency or four-root workload parity. Real expired admin1 current read at2026-09-13T18:32:42Z returnsNone with1170 queries/zeroDML, correctly after both old deadlines; it is not the configured write lifecycle or a paired optimization percentage. A separately timed real historical Facade get_exact at18:43:50Z returns the original admin selector/hash with1150queries/zeroDML; historical readability does not revive current authority. EVID-09 remains active for a genuine authenticated fresh-scope30m lifecycle with55m actual parent coverage, bounded rollback and independent admin historical exact/ledger recovery. Historical failed source-snapshot pilot and cancelled lifecycle remain excluded. DATA-02/EVID-01/02/AUD-03/TAR-05 exits and human signed acceptance remain separate. See docs/deployment/evid09-standard-deployment-preservation-2026-09-14.json.",
       "documents": [
         {
           "path": "docs/plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md",
