@@ -43,6 +43,20 @@ price/quote/financial 策略保留这个兼容键并额外要求 `fact_content_h
 响应完成 UTC 只证明本系统此时已获得响应，不能作为供应商最早披露时间，也不得覆盖
 vendor `observed_at`。未部署候选策略与代码前，不宣称生产 DATA-02 缺口已修复。
 
+冻结成员的 natural key、source、source record、观测时间、兼容 payload hash、quality 和
+revision 必须与实际事实行独立相符；持有正确行 SHA 也不能伪造这些身份字段。当前返回的
+Publication 必须绑定请求的 dataset 与 publication key，否则以
+`publication_scope_mismatch` 阻断。p2 的 selected source 来自所选事实的实际 vendor 集合，
+不能使用逻辑 provider 名称替代 failover 后的来源。
+
+完整 current 查询在同一数据库边界内读取元数据、策略、成员与事实。PostgreSQL 外层采用
+repeatable-read/read-only；已有 repeatable-read 或 serializable 复用父快照。可写
+read-committed 父事务先锁 dataset contract、相关 asset master/alias 或 indicator catalog，
+再按 fact → policy → publication → member 顺序获取 SHARE 表锁，保护更新与缺失行插入。
+每次锁等待不超过原调用方更严格的预算或 5 秒；最多 7 个锁，总等待上限 35 秒。超时或
+deadlock 回滚嵌套 savepoint 并明确失败，锁持有至父事务结束。只读 read-committed 无法
+提供完整快照时失败关闭；这些约束不改变历史查询访问。
+
 ## 版本化登记内容
 
 每个当前数据面必须在 manifest 中登记：
@@ -80,7 +94,7 @@ QMT 整体桥登记为 `data_center.qmt_bridge_observations`：源时间在重�
 
 ## 现有受管数据面
 
-当前 manifest 登记 53 个数据面，覆盖：
+受管数据面数量以当前 manifest 为准，覆盖：
 
 - Realtime 市场概况、轮询副作用、板块表现与缓存榜单；
 - Data Center 最新报价、统一价格、日线收盘/基金净值 failover 与市场温度计；

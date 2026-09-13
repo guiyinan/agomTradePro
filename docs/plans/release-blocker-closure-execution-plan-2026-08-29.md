@@ -22,6 +22,13 @@ generic/batch/rebuild/idempotent 发布前与 current 读取时的 typed fail-cl
 绕过校验；缺证据一律阻断，不通过历史回填虚构时间或哈希。回滚点为本分支起点
 main b18b18029f90af4b23693426a1f489af44ffe2b2；新增 schema 采用扩展方式保留旧编码。
 
+该 main commit 是代码起点，不是 p2 激活后的无条件回滚目标。旧代码不理解新的 policy/member
+证据；部署先完成 additive migration、候选代码健康与 current 阻断验证，再单独执行有范围与
+预期 active identity 的策略激活。warm deployment 的 Catalog 初始化步骤可能跳过，不能据此
+声称已激活，也不能为激活四个策略重写现有 contract、binding 和 owner 配置。p2 使用后优先
+回到已验证的 p2 兼容候选；若必须回到旧代码，先验证决策读取明确阻断及既有 current/history
+的兼容处置，不能只恢复镜像或缩窄字段就宣称安全。不得逆迁移删除已产生的新证据。
+
 EVID-08 标准备份/code-only 部署与真实 admin 的显式回滚 Facade 事务复测继续并行；它们不
 关闭 DATA-02 的全 universe 四数据集、财务可用时间、来源一致性及生产决策验收。
 DATA-12/15 已完成，不重复执行已收口覆盖率主线。未完成项仍由机器 registry 唯一维护。
