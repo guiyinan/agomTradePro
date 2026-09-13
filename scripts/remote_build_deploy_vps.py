@@ -1196,6 +1196,7 @@ ENABLE_RSSHUB="${ENABLE_RSSHUB:-1}"
 ENABLE_CELERY="${ENABLE_CELERY:-0}"
 SKIP_PREDEPLOY_BACKUP="${SKIP_PREDEPLOY_BACKUP:-0}"
 AUTO_ROLLBACK="${AUTO_ROLLBACK:-1}"
+PRESERVE_DATA_CENTER_CATALOG="${PRESERVE_DATA_CENTER_CATALOG:-0}"
 
 command -v docker >/dev/null 2>&1 || { echo "[ERROR] docker is required" >&2; exit 1; }
 if docker compose version >/dev/null 2>&1; then
@@ -1856,9 +1857,13 @@ if ! compose run --rm --no-deps web python manage.py verify_canonical_schema --j
   exit 1
 fi
 
-if ! compose run --rm --no-deps web python manage.py initialize_data_center_catalog; then
-  echo "[ERROR] Data Center runtime catalog synchronization failed" >&2
-  exit 1
+if [ "$PRESERVE_DATA_CENTER_CATALOG" = "1" ]; then
+  echo "[INFO] Preserving existing Data Center runtime catalog (explicit opt-in)"
+else
+  if ! compose run --rm --no-deps web python manage.py initialize_data_center_catalog; then
+    echo "[ERROR] Data Center runtime catalog synchronization failed" >&2
+    exit 1
+  fi
 fi
 
 if ! compose run --rm --no-deps web python manage.py check --deploy; then
@@ -2130,6 +2135,12 @@ def main() -> int:
         "--action", choices=["fresh", "upgrade"], default=os.environ.get("AGOM_VPS_ACTION", "fresh")
     )
     ap.add_argument("--include-sqlite", action="store_true", default=False)
+    ap.add_argument(
+        "--preserve-data-center-catalog",
+        action="store_true",
+        default=False,
+        help="Skip Data Center runtime catalog synchronization and preserve the existing VPS catalog",
+    )
     ap.add_argument("--wipe-docker", action="store_true", default=False)
     ap.add_argument("--wipe-volumes", action="store_true", default=False)
     ap.add_argument("--skip-predeploy-backup", action="store_true", default=False)
@@ -2480,6 +2491,7 @@ def main() -> int:
                 "ENABLE_CELERY": _bool_env(enable_celery),
                 "SKIP_PREDEPLOY_BACKUP": _bool_env(args.skip_predeploy_backup),
                 "AUTO_ROLLBACK": _bool_env(not args.disable_auto_rollback),
+                "PRESERVE_DATA_CENTER_CATALOG": _bool_env(args.preserve_data_center_catalog),
                 "AGOMTRADEPRO_BOOTSTRAP_WITH_DECISION_REPAIR": _bool_env(
                     args.bootstrap_decision_repair
                 ),
