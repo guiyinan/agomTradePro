@@ -24,8 +24,10 @@ main b18b18029f90af4b23693426a1f489af44ffe2b2；新增 schema 采用扩展方式
 
 该 main commit 是代码起点，不是 p2 激活后的无条件回滚目标。旧代码不理解新的 policy/member
 证据；部署先完成 additive migration、候选代码健康与 current 阻断验证，再单独执行有范围与
-预期 active identity 的策略激活。warm deployment 的 Catalog 初始化步骤可能跳过，不能据此
-声称已激活，也不能为激活四个策略重写现有 contract、binding 和 owner 配置。p2 使用后优先
+预期 active identity 和完整决策内容的策略激活。现有标准部署无条件执行
+`initialize_data_center_catalog`；warm cold-start 的 19 项 skip 不是跳过该命令。此次代码部署
+须显式保留现有 Catalog，并在健康验收后单独激活四个策略，不能为此重写现有 contract、
+binding 和 owner 配置。p2 使用后优先
 回到已验证的 p2 兼容候选；若必须回到旧代码，先验证决策读取明确阻断及既有 current/history
 的兼容处置，不能只恢复镜像或缩窄字段就宣称安全。不得逆迁移删除已产生的新证据。
 
@@ -216,6 +218,37 @@ migration 前置未发现 active 唯一约束冲突，不是已迁移或已激�
 由 Luna max 负责事实身份与性能方案，主代理负责整合、最终检查和分类提交；完整门禁通过后
 再合并及部署 DATA-16，随后执行 DATA-02 的真实来源修复和冻结 universe 验收。
 DATA-02、EVID-01/02、AUD-03、TAR-05 的生产退出状态保持未完成。
+
+#### 2026-09-13 核心修复最终回归（10:02 UTC）
+
+[DATA-16 核心回归回执](../testing/data16-publication-evidence-closure-2026-09-13.json)
+封存 45 个生产文件及对应测试的 canonical LF 源码哈希、25 份原始材料和逐份 SHA。
+独立 SQLite 测试库启用真实 migration，完整选定范围为 1,708 passed /0 failed /0 error /
+0 skipped，286.06 秒；另有 consumer/API/SDK 契约 112 passed、真实 schema migration 3 passed。
+首轮整合的 22 个失败和 29 个 Windows 临时目录权限错误保留原始报告；夹具修复与独立
+临时目录复测均通过。没有用局部成功替代完整选定范围，也不是全仓 Nightly。
+
+最终真实 PostgreSQL 的 9 个不同场景全部通过：首批 8 passed，另 1 项在建立独立连接时
+超时，尚未进入锁断言；精确 selector 复测 1 passed，307.42 秒。原失败报告保留，不写成
+单批 9 passed。三项新增测试真实验证 contract、asset master、asset alias 缺失行的 INSERT
+phantom 被 SHARE 锁阻止至父事务结束。两批结束后独立只读确认专用库 public 基表为 0，
+最后核验时间 `2026-09-13T09:46:03.327804Z`；未使用生产资源。
+
+发布证据/写入校验已分类提交 `3bf8b086b`，current 完整快照与质量/replay 哈希适配提交
+`ac78c35d3`，均已推送开发分支。45 文件增量 mypy=0、全量债务=0、生产格式检查通过；
+32 个测试文件 Black/isort/Ruff 通过，current 62 surface、catalog、Celery、架构及治理门通过。
+DATA-16 仍是唯一 repository focus，补齐 policy-only activation 与标准部署保留 Catalog 的
+操作护栏后再提交候选；这两个边界另留测试回执，不修改上述已验证发布/读取核心。
+
+策略只读预检在 `2026-09-13T09:31:31.112213Z` 记录 10 个 legacy active policy 和三份完整
+contract/binding/owner 行集指纹。旧 identity `1.0:1.0` 不包含决策字段，激活必须同时核对
+完整内容指纹；候选 SHA、四目标和六个非目标内容均需精确比较。部署先保留 Catalog，
+健康验收后单事务激活四目标，任何差异整体回滚。旧 Publication 不被重写，激活后旧
+current 预期以 `publication_policy_changed` 阻断；additive schema 不做逆迁移。
+
+DATA-02 生产验收仍未完成，财务真实披露/可用时间、原始响应证明、全冻结资产池四个
+Publication 与跨来源容差对账必须在实际部署和真实来源修复后取证。Facade 全生命周期
+性能、物理解码次数和部署写入复测仍待后续有界实现；其余 EVID/AUD/TAR 退出门不晋级。
 
 [AUD-03 只读 backlog 起点](../deployment/sprint-aud03-backlog-readonly-2026-09-13-c8bb9b780.json)
 在 2026-09-12 20:41:34Z 记录两条 due pending、零 claimed/delivered/failed，最旧事件年龄约 19,571 秒；
