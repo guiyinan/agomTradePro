@@ -1,7 +1,8 @@
 # Authority V3 Facade 写路径性能整改方案（EVID-09，2026-09-13）
 
 > 当前状态：DATA-16 已完成仓库退出并实际部署、激活四个严格策略头；
-> 后续有界性能工作登记为唯一 repository focus EVID-09；优化接线已实施，尚未部署。
+> 后续有界性能工作登记为唯一 repository focus EVID-09；优化接线与标准部署已完成，
+> 新作用域的真实 configured-validity 生产生命周期仍待验收。
 > 已完成的 EVID-08 不重新打开；本文保留其历史诊断，后续状态以机器注册表为准。
 >
 > 实际模型设置：`gpt-5.6-luna / max`。
@@ -22,16 +23,20 @@
 > 各轮独立 PostgreSQL 前后检查均为零表、零其他连接，协调进程已释放测量锁。
 > [三轮测量封存](../testing/evid09-three-isolated-postgres-measurements-2026-09-13.json)
 > 与 [原始工件归档](../testing/evid09-three-isolated-postgres-originals-2026-09-13.json)
-> 保留真实 probe/fixture 范围及失败 witness pilot；优化部署与真实生产生命周期仍待完成。
+> 保留真实 probe/fixture 范围及失败 witness pilot；优化部署已实际完成，真实生产生命周期仍待完成。
 > 上述 skipped 不计为 PostgreSQL 通过，EVID-09 保持 active。
 > [完整物理解码诊断封存](../testing/evid09-facade-physical-decode-diagnostic-2026-09-13.json)
 > 保留原测量failed、绿色JUnit和独立清理/release；五个后验源码canonical LF哈希
 > 与Git一致，三个raw差异仅CRLF，仍不补签原运行期间的source snapshot一致性。
 >
-> 当前生产：`3032481969f93f08e8e4d14bfed3d7631e53a752` / release `20260913212011`。
-> 实际固定的兼容回滚镜像为 `agomtradepro-data16-compatible-rollback:20260913212011`，
-> image `sha256:b94983e0ebdc96d32ea7590c697e9652bf34bf3d554a5fd0b4d54d2f00861447`；
-> 新回滚点尚未演练，严格 Publication 策略不得回退。[部署/激活证据](../deployment/data16-standard-deployment-and-policy-activation-2026-09-13.json)。
+> 当前生产：`6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b` / release `20260914021633`。
+> 新兼容回滚镜像已实际固定为 `agomtradepro-evid09-compatible-rollback:20260914021633`，
+> image `sha256:f5647b6d4a17c81963a41dd4d66dee70ccfc4b18e881b368db4b89dda7bf86fd`；
+> 旧 DATA-16 兼容镜像 `agomtradepro-data16-compatible-rollback:20260913212011` /
+> `sha256:b94983e0ebdc96d32ea7590c697e9652bf34bf3d554a5fd0b4d54d2f00861447` 仍在。
+> 两个回滚点均未在本轮演练，严格 Publication 策略不得回退。
+> [本轮部署及独立保护证据](../deployment/evid09-standard-deployment-preservation-2026-09-14.json)；
+> [历史 DATA-16 部署/激活证据](../deployment/data16-standard-deployment-and-policy-activation-2026-09-13.json)。
 > 历史 Account 行为基线为 `b18b18029f90af4b23693426a1f489af44ffe2b2`。
 > 该提交只在 `OwnerTenantAuthorityV3Facade._locked` 外层加入已有的
 > `validation_graph_operation`；后续 Account 性能改动须能独立恢复该行为。整应用镜像
@@ -407,3 +412,42 @@ source/actor/policy/assignment 窗口与完整绑定，不能延长旧字段、�
 生命周期及五十五分钟父来源窗口；旧 sealed extended actor 只有在新鲜 live 校验、
 原 principal tuple 和真实剩余窗口全部满足时才可条件复用。旧永久 V5 mapping 的
 root-only 约束仍保留，临时新 scope 的回滚不能恢复旧映射，也不关闭 DATA-02/EVID-01/02。
+
+## 12. 标准优化部署与独立保护核验（2026-09-14）
+
+本节更新上一节的部署待办；保留之前各次失败诊断及实际测量范围。PR39 的真实审查
+head `70547a550e18fdef3e2d71a51cf61bb4731b4504` 已取得 30 项 completed/SUCCESS，
+合并 Main `6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b`。标准
+`scripts/deploy-vps.ps1 -Upgrade -GitBranch main -PreserveDataCenterCatalog` 在 clean
+Main 工作树执行，原进程实际 terminal exit 0；未带 SQLite restore、wipe、跳过备份或
+关闭 rollback 参数。最终 verify 的 TLS、容器、schema、TUI、Qlib、worker/beat 等检查
+均实际 OK。独立 SSH RejectPolicy 核验取得新 release/image/CID，15 项关键文件的
+Git、release 和运行容器 SHA 全部一致，HTTPS 200、healthy、restart 0。
+
+独立 before/after repeatable-read/read-only 观察证明：14 条 policy 完整行集、10 个
+active policy identity、三组完整 Catalog 行集及已有 published-current metadata 保持
+一致。四个 Authority durable root 的主键、content hash 和 canonical payload SHA
+逐项一致，revocation 前后均为零。本轮未再次激活 policy，也未发布新 current；保留
+metadata 不表示旧 Publication 已可用于决策。严格 financial3 与另外三个 policy2
+头仍在，DATA-02 来源可用时刻和原始哈希的生产验收没有因此完成。
+
+新 PostgreSQL dump 实际为 153,184,066 bytes，独立远端 SHA 与原始 manifest 一致。
+实际 UTC stat 为 dump `18:24:27Z`、manifest `18:24:30Z`，位于本次 build finish
+`18:23:34Z` 之后、新 after identity 之前；标准输出记录备份先于 schema migration。
+manifest 本身没有 release identity，报告也没有 `include_sqlite` 字段，行为绑定来自
+真实命令、报告 source/image/release、文件 stat/SHA 和独立观察。没有下载或恢复 dump。
+迁移前独立观察确认现有 PostgreSQL migration marker；实际只走 schema migration。
+
+实际 `18:32:42Z` 的 admin1 原 selector current 读取用时 10.187 秒、1,170 queries、
+零业务 DML，返回 `None`；此时已经超过旧 assignment `18:01:06Z` 和 Authority
+`18:11:14Z` 两个真实边界。该结果证明到期拒绝，不能与旧未到期读计算配对优化比例，
+不能代替新认证写生命周期。随后 `18:43:50Z` 的真实 Facade `get_exact` 另行返回原始
+admin selector/hash，用时 6.837 秒、1,150 queries、零业务 DML；四个 payload 的保存
+指纹与该历史操作分别记录。历史可读不表示已到期 Authority 当前重新有效。
+
+新 `agomtradepro-evid09-compatible-rollback:20260914021633` 已实际 pin 至 f564 镜像，
+旧 DATA-16 b949 兼容 tag 仍独立验证存在；本轮没有演练 rollback。通用部署 wrapper
+的 verify 异常、host-key 和 legacy restore 分支仍需另组 hardening，不把本次明确成功的
+检查与未触发分支混用。[原始报告与 24 份逐字节工件封存](../deployment/evid09-standard-deployment-preservation-2026-09-14.json)
+记录范围与限制；EVID-09 继续 active，剩余重点为新 scope 的真实 30m 配置生命周期、
+55m 实际父来源窗口、25m+5m 限时回滚及独立 admin 历史 exact/ledger recovery。
