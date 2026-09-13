@@ -1,0 +1,129 @@
+{
+  "schema": "agom.data02.valuation-availability-enforcement-gap.v1",
+  "recorded_at": "2026-09-12T20:43:02.340518+00:00",
+  "candidate": {
+    "commit": "c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc",
+    "release_tag": "20260913014501"
+  },
+  "unit": {
+    "id": "DATA-02",
+    "status": "awaiting_production"
+  },
+  "existing_contract": {
+    "path": "var/data02-availability-gap-existing-contract-20260913.xml",
+    "sha256": "ee488ebe8122fe8050c3433bd57e78be1e358c9f68fd41f3719df9e24b6374d2",
+    "encoding": "utf-8",
+    "content": "<?xml version=\"1.0\" encoding=\"utf-8\"?><testsuites name=\"pytest tests\"><testsuite name=\"pytest\" errors=\"0\" failures=\"0\" skipped=\"0\" tests=\"1\" time=\"0.429\" timestamp=\"2026-09-13T04:38:43.627265+08:00\" hostname=\"win10hv-1\"><testcase classname=\"tests.unit.data_center.test_valuation_publication_sync\" name=\"test_valuation_publication_uses_source_observed_at_and_exact_members\" time=\"0.120\" /></testsuite></testsuites>"
+  },
+  "local_diagnostic": {
+    "path": "var/data02-existing-availability-gap-result-20260913.json",
+    "sha256": "2b04ccaac439165da2b36f2788e6759090eaa371c258e31bde8f805a3e6ec312",
+    "encoding": "utf-8",
+    "content": "{\r\n  \"observation\": \"existing unsafe local Application contract, not production publication mutation\",\r\n  \"member_quality_status\": \"available_at_unverified\",\r\n  \"fact_available_at\": null,\r\n  \"publication_must_not_use_for_decision\": false,\r\n  \"current_gate\": {\r\n    \"publication_id\": \"37db73bf-cf61-5215-a2b8-f4af4ceaa52e\",\r\n    \"dataset_key\": \"equity.valuation.fact\",\r\n    \"publication_key\": \"current\",\r\n    \"published_at\": \"2026-08-04T12:00:00+00:00\",\r\n    \"as_of\": \"2026-08-03T08:14:36+00:00\",\r\n    \"must_not_use_for_decision\": false,\r\n    \"blocked_reason\": \"\",\r\n    \"observed_at\": \"2026-08-03T08:14:36+00:00\",\r\n    \"age_seconds\": 99924.0,\r\n    \"max_age_seconds\": 172800,\r\n    \"freshness_status\": \"fresh\"\r\n  },\r\n  \"control\": \"explicit fake 172800-second freshness policy keeps the historical fixture fresh\",\r\n  \"required_next_action\": \"Source availability capture and fail-closed publication/current policy enforcement before DATA-02 publication.\"\r\n}\r\n"
+  },
+  "local_diagnostic_junit": {
+    "path": "var/data02-existing-availability-gap-junit-20260913.xml",
+    "sha256": "b7f470746f0b38d93ba84f5e6a331e55304737b5160687f7984632d683ab4ec4",
+    "encoding": "utf-8",
+    "content": "<?xml version=\"1.0\" encoding=\"utf-8\"?><testsuites name=\"pytest tests\"><testsuite name=\"pytest\" errors=\"0\" failures=\"0\" skipped=\"0\" tests=\"1\" time=\"0.293\" timestamp=\"2026-09-13T04:40:36.022268+08:00\" hostname=\"win10hv-1\"><testcase classname=\"var.test_data02_existing_availability_gap\" name=\"test_observe_existing_publication_and_current_availability_gap\" time=\"0.083\" /></testsuite></testsuites>"
+  },
+  "local_instrumentation": {
+    "path": "var/test_data02_existing_availability_gap.py",
+    "sha256": "ce0a95461342f5cbda4ad21416e0a869d052cbc354cf452c30c20ab4a2a5ad79",
+    "encoding": "utf-8",
+    "content": "\"\"\"Observe the existing unsafe contract; this is not a passing safety test.\"\"\"\n\nimport json\nfrom pathlib import Path\nfrom runpy import run_path\nfrom types import SimpleNamespace\n\nfrom apps.data_center.application import query_services\n\n\ndef test_observe_existing_publication_and_current_availability_gap(monkeypatch):\n    fixture = run_path(\"tests/unit/data_center/test_valuation_publication_sync.py\")\n    repository = fixture[\"_PublicationRepository\"]()\n    use_case = fixture[\"PublishValuationBatchUseCase\"](\n        fact_repository=fixture[\"_CandidateRepository\"]([fixture[\"_reference\"]()]),\n        publication_repository=repository,\n        policy_repository=fixture[\"_PolicyRepository\"](),\n    )\n    publication = use_case.execute(\n        [fixture[\"_fact\"]()],\n        provider_name=\"provider-main\",\n        published_at=fixture[\"PUBLISHED_AT\"],\n    )\n    assert publication is not None\n    assert repository.published[0][1][0].quality_status == \"available_at_unverified\"\n    assert publication.must_not_use_for_decision is False\n    repository.get_oldest_member_observed_at = lambda _identity: fixture[\"OBSERVED_AT\"]\n    monkeypatch.setattr(query_services, \"get_canonical_publication_repository\", lambda: repository)\n    monkeypatch.setattr(query_services, \"get_dataset_contract_repository\", lambda: SimpleNamespace(\n        get_active=lambda _dataset: SimpleNamespace(freshness_seconds=172800)\n    ))\n    gate = query_services._publication_gate(\n        \"equity.valuation.fact\", \"current\", now=fixture[\"PUBLISHED_AT\"]\n    )\n    assert gate is not None\n    assert gate[\"freshness_status\"] == \"fresh\"\n    assert gate[\"must_not_use_for_decision\"] is False\n    Path(\"var/data02-existing-availability-gap-result-20260913.json\").write_text(json.dumps({\n        \"observation\": \"existing unsafe local Application contract, not production publication mutation\",\n        \"member_quality_status\": repository.published[0][1][0].quality_status,\n        \"fact_available_at\": fixture[\"_fact\"]().available_at,\n        \"publication_must_not_use_for_decision\": publication.must_not_use_for_decision,\n        \"current_gate\": gate,\n        \"control\": \"explicit fake 172800-second freshness policy keeps the historical fixture fresh\",\n        \"required_next_action\": \"Source availability capture and fail-closed publication/current policy enforcement before DATA-02 publication.\",\n    }, indent=2) + \"\\n\", encoding=\"utf-8\")\n"
+  },
+  "source_manifest": {
+    "apps/data_center/application/valuation_publication.py": {
+      "worktree_sha256": "b1ba3a0d535c6dfbdefa4f43138ffee905d9f77c38f09d9557b5e1ab4b32748c",
+      "candidate_git_sha256": "3e36081f2c72ad5c8cdf2e585e754f80872e7a34a011beca6fa7feddb0d492a5",
+      "byte_identical": false,
+      "identical_after_crlf_to_lf_only": true
+    },
+    "apps/data_center/application/current_publication_rebuild.py": {
+      "worktree_sha256": "c06c5ad07d25157cb36fdfc4df434999dc54d106d60cf3d16ba7de88712bef43",
+      "candidate_git_sha256": "bff92c3dd167f6a06520169ad5bd57d0200972234cba78ca2a03dcfe5d7586c6",
+      "byte_identical": false,
+      "identical_after_crlf_to_lf_only": true
+    },
+    "apps/data_center/application/query_services.py": {
+      "worktree_sha256": "fb84abefe251bff6e79ab1898246dd0c03fb51d3cc8f22177b8a076c8cbcd889",
+      "candidate_git_sha256": "c1d340dd6e0f71b7f3e1224a1d7dddb31116c6b5836caa0a22cce142d38f5201",
+      "byte_identical": false,
+      "identical_after_crlf_to_lf_only": true
+    },
+    "apps/data_center/application/control_plane.py": {
+      "worktree_sha256": "28cae265c13693ae858c6a1cd43f8661db14c3dbaed96758db78cb7034dfa85e",
+      "candidate_git_sha256": "30b033249a7832a1aa626a591668f640e5501c51647ee1b142baa46411a718ef",
+      "byte_identical": false,
+      "identical_after_crlf_to_lf_only": true
+    },
+    "apps/data_center/application/publication_quality.py": {
+      "worktree_sha256": "9fee697f6feacc90ecd1471b9c64c0c0b096bfaec27f7d5ecc869921d026dad0",
+      "candidate_git_sha256": "9fee697f6feacc90ecd1471b9c64c0c0b096bfaec27f7d5ecc869921d026dad0",
+      "byte_identical": true,
+      "identical_after_crlf_to_lf_only": true
+    },
+    "apps/data_center/infrastructure/valuation_fact_repository.py": {
+      "worktree_sha256": "05f12f1509cf835f3596ff429b94dbdcd1a72a6e61f76460f012ebb49a4b47fe",
+      "candidate_git_sha256": "fc379f0aca12572bdd1f9527fd3b01e1018b8802251de79d47106fde44ea2014",
+      "byte_identical": false,
+      "identical_after_crlf_to_lf_only": true
+    },
+    "apps/data_center/infrastructure/market_gateway_entities.py": {
+      "worktree_sha256": "7ba068be76165f5b6fd7eebcbdc6c2a66cc363dd9d3320a6145a8b2dfb1dab96",
+      "candidate_git_sha256": "db282f3cd4948f001338d27b5fb9da7aed9dd3cf34ffd061d825099b5c4b6503",
+      "byte_identical": false,
+      "identical_after_crlf_to_lf_only": true
+    },
+    "apps/data_center/infrastructure/gateways/tencent_gateway.py": {
+      "worktree_sha256": "81cbf5d0df1bcd90d6253e980882142ccdd6e47f3ccc7a66af235fb3462b89bd",
+      "candidate_git_sha256": "4652ba0480ca9f16d3b055b0ba362362c4a4dcbfbf80dd9106073a2774bf7bc9",
+      "byte_identical": false,
+      "identical_after_crlf_to_lf_only": true
+    },
+    "apps/data_center/infrastructure/_provider_adapter_akshare.py": {
+      "worktree_sha256": "4202aae23b74b5e569b51edef7e272d075b551dcb6ae461a3c92f7def381eb44",
+      "candidate_git_sha256": "9b7e2cbc905fb76431b1f1416ca72d41e2af911492207500950a1554c21ac7c8",
+      "byte_identical": false,
+      "identical_after_crlf_to_lf_only": true
+    },
+    "apps/data_center/domain/contracts.py": {
+      "worktree_sha256": "6b4528b6296a502f625da62a06e6bc4207497d884e1e040a315e842f75c34bf9",
+      "candidate_git_sha256": "c6ac350b55ae406aa8f31331181881c6429486bf7141a1d36b2c4b0293d7e8d7",
+      "byte_identical": false,
+      "identical_after_crlf_to_lf_only": true
+    },
+    "tests/unit/data_center/test_valuation_publication_sync.py": {
+      "worktree_sha256": "c28236bb9fd26f86bed85d9df9344d43c9b9dfdb8aae13fab06fa040a22fd898",
+      "candidate_git_sha256": "c656daa65fa46388d69189ffc73b9da08313461f767b235fdcf4daffb022c4c9",
+      "byte_identical": false,
+      "identical_after_crlf_to_lf_only": true
+    }
+  },
+  "production_policy_evidence": {
+    "path": "docs/deployment/sprint-aud03-backlog-readonly-2026-09-13-c8bb9b780.json",
+    "sha256": "2be0c48c0f782821f7ee80639d1147693a7f1c50259bc1221c261a69530228c7",
+    "active_valuation_policies": [
+      {
+        "contract_version": "1.0",
+        "dataset_key": "equity.valuation.fact",
+        "minimum_coverage_ratio": 0.99,
+        "required_evidence": [
+          "source",
+          "observed_at",
+          "payload_hash"
+        ],
+        "schema_version": "1.0"
+      }
+    ]
+  },
+  "interpretation": [
+    "The existing unit test explicitly publishes available_at_unverified members. The additional local diagnostic confirms publication.must_not_use_for_decision=False and a fresh current gate with the same false decision flag.",
+    "The local fresh control uses an explicit fake 172800-second policy. It demonstrates missing availability enforcement, not that the actual historical production Publication is fresh or currently usable.",
+    "Degraded quality is an observability classification, not proof of hard publication/current rejection. No production Publication was created or switched by this diagnostic.",
+    "Tencent response completion time should conservatively establish local first-known available_at/fetched_at and exact response.content SHA; source observed_at must remain unchanged. Existing history must not be backfilled from val_date or fetch defaults.",
+    "Before the DATA-02 Publication repair, require a separate tested fail-closed policy path across batch publish, current rebuild, idempotent return and old current members; source capture alone does not close this gate.",
+    "EVID-08 remains the sole repository focus while its real PostgreSQL regression and representative benchmark finish. No source or policy production code was edited by this evidence collection."
+  ]
+}

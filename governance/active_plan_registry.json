@@ -1,5 +1,5 @@
 {
-  "version": "2026-09-13.v86",
+  "version": "2026-09-13.v92",
   "updated_at": "2026-09-13",
   "execution_focus": {
     "unit_id": null,
@@ -8,7 +8,7 @@
       "external",
       "governance"
     ],
-    "policy": "Candidate c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc / release 20260913014501 is deployed with verified backup and healthy services. Locked exact immutable read reuse was independently measured at 14.52 seconds for the complete System Audit authority reader. A second authorized one-asset DATA-02 slice stored one accepted historical quote and one canonical event/outbox pair, with a 34.09-second audit-runtime window and independent off cleanup. New Evidence/Authority write graph setup still took about 50 minutes: first bound recursive restoration work without weakening mutation/current/revocation semantics, then continue checkpointed DATA-02 coverage/publication/reconciliation, EVID-01/02 concurrency/lifecycle and signed acceptance, AUD-03 operations and TAR-05 staging/real observation. No canonical production unit is closed by this smoke or task authorization. Evidence: docs/deployment/sprint-data02-authority-performance-checkpoint-2026-09-13-c8bb9b780.json."
+    "policy": "EVID-08 repository exit gate is complete with real PostgreSQL Facade lifecycle, source-race rejection, isolated validation/drift/rollback regressions, complete graph paired CPU/decoder/query evidence and static/governance/CI gates. Production EVID-01/02 and DATA-02 acceptance remain separate. Next bounded repository prerequisite is source-bound availability and versioned Publication policy/hash/current enforcement; register its full scope before implementation. DATA-12/15 and EVID-07 remain completed."
   },
   "workstreams": [
     {
@@ -88,7 +88,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "DATA-12/13/14/15 remain complete. Candidate c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc / release 20260913014501 is deployed with backup and healthy services. One additional accepted historical 000001.SZ quote and canonical event/outbox pair were stored with publish_current=false; the audit-runtime window was 34.09 seconds and independent cleanup verified off. Complete authority read is 14.52 seconds, while new governance write setup remains about 50 minutes. DATA-02 remains awaiting_production: exact 5533-asset quote/valuation coverage, completed-session distribution, financial report-date repair, four immutable publication identities and canonical tolerance reconciliation remain. Bound write restoration before broader batches; DATA-03 waits for the full exit gate. Evidence: docs/deployment/sprint-data02-authority-performance-checkpoint-2026-09-13-c8bb9b780.json.",
+      "next_gate": "DATA-12/13/14/15 remain complete. Candidate c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc / release 20260913014501 is deployed with backup and healthy services. One additional accepted historical 000001.SZ quote and canonical event/outbox pair were stored with publish_current=false; the audit-runtime window was 34.09 seconds and independent cleanup verified off. Complete authority read is 14.52 seconds, while new governance write setup remains about 50 minutes. DATA-02 remains awaiting_production: exact 5533-asset quote/valuation coverage, completed-session distribution, financial report-date repair, four immutable publication identities and canonical tolerance reconciliation remain. Bound write restoration before broader batches; DATA-03 waits for the full exit gate. Evidence: docs/deployment/sprint-data02-authority-performance-checkpoint-2026-09-13-c8bb9b780.json. Full frozen-universe public source preflight now has exact quote/valuation coverage5533/5533, all source observations2026-09-11, across two separately guarded read-only snapshots with the same asserted universe hash. First4200 assets were retained before actual diagnostic budget exhaustion; the remaining1333 completed in a resumed offset probe. All5533 valuation values still lack available_at and raw_payload_hash. The checkpoint verifies112 retained public response bodies (56 HTTP502 failures and56 HTTP200 successes), with configured quotes falling back from Eastmoney to Tencent. This is source preflight only: stored fact coverage, financial report-date repair, four Publication IDs and canonical tolerance reconciliation are unchanged. After EVID08, propagate real response completion and clearly scoped raw evidence, version the DB policy inputs, and enforce availability across batch/rebuild/idempotent/old-current paths before Publication repair. Evidence: docs/deployment/sprint-data02-full-source-preflight-2026-09-13-c8bb9b780.json.",
       "documents": [
         {
           "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
@@ -147,7 +147,7 @@
       "priority": "P0/P1",
       "owner": "audit+data_center+task_monitor",
       "status": "production_validation",
-      "next_gate": "AUD-01, AUD-02 and repository AUD-04 remain complete. Candidate c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc / release 20260913014501 has a second real same-UOW data.fetch.completed success event and matching pending outbox committed with one accepted quote, followed by independent runtime-off cleanup. AUD-03 remains awaiting_production: backlog recovery duration, duplicate/loss counts, bounded metrics/alerts, admin TUI, archive/restore, rollback and owner/reviewer sign-off remain. Pending one-row smoke does not prove delivery or recovery. Evidence: docs/deployment/sprint-data02-authority-performance-checkpoint-2026-09-13-c8bb9b780.json.",
+      "next_gate": "AUD-01, AUD-02 and repository AUD-04 remain complete. Candidate c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc / release 20260913014501 has a second real same-UOW data.fetch.completed success event and matching pending outbox committed with one accepted quote, followed by independent runtime-off cleanup. AUD-03 remains awaiting_production: backlog recovery duration, duplicate/loss counts, bounded metrics/alerts, admin TUI, archive/restore, rollback and owner/reviewer sign-off remain. Pending one-row smoke does not prove delivery or recovery. Evidence: docs/deployment/sprint-data02-authority-performance-checkpoint-2026-09-13-c8bb9b780.json. Read-only observation at 2026-09-12T20:41:34.625775Z confirms two due pending rows, zero claimed/delivered/failed and oldest backlog age 19571.254483 seconds, with runtime off/outbox disabled/selector absent. This is the recovery starting snapshot, not enabled-worker failure or recovery acceptance. Evidence: docs/deployment/sprint-aud03-backlog-readonly-2026-09-13-c8bb9b780.json. Actual HTTPS health/metrics both returned 200 at 20:46Z; seven owner=audit outbox gauges match the read-only ledger counts. Current-candidate bounded HTTP metrics evidence is collected; alerts, recovery, admin TUI, archive/restore, rollback and operational sign-off remain unverified. Evidence: docs/deployment/sprint-aud03-http-metrics-2026-09-13-c8bb9b780.json. Actual admin/user1 TUI screen/overview and verified default GET/read action returned JSON/200 and success. Main health view-model columns omit pending count/age, which appear only in debug raw data; browser/P0 backlog/recovery primary-task acceptance remains unproven. Evidence: docs/deployment/sprint-aud03-admin-tui-read-2026-09-13-c8bb9b780.json.",
       "documents": [
         {
           "path": "docs/plans/system-audit-log-consolidation-plan-2026-08-13.md",
@@ -1202,6 +1202,19 @@
           "EVID-06"
         ],
         "exit_gate": "A server-owned, source-bound single-owner policy permits the designated real admin to act as claimant and approver without fabricated identity or staff facts. Versioned receipt/subject/evidence, owner-tenant authority and typed scope integration preserve old V3/V1 hashes and default separation semantics. Durable exact-current reads bind the same policy, account, tenant, authentication, source clocks and canonical creation/physical facts; revoked/expired/mismatched policy or actor fails closed. PostgreSQL migration, atomic append/replay/rollback and authenticated end-to-end owner-scope tests prove the complete graph, including rejection of client-selected mode, other users/tenants and cross-version substitution. Incremental mypy/debt, format, architecture, freshness and governance pass. Local implementation does not constitute production owner assignment, human business acceptance or EVID-01/02 closure."
+      },
+      {
+        "id": "EVID-08",
+        "workstream_id": "evidence-hard-gate",
+        "wave": 1,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "completed",
+        "title": "Bound Authority V3 write-operation immutable graph validation work",
+        "depends_on": [
+          "EVID-07"
+        ],
+        "exit_gate": "Authority V3 complete lifecycle operations reuse only successful exact immutable payload decoding and object validation within one operation. No write/current-state/ORM read cache is enabled; changed payloads, operation exit and failure force validation. Tests prove lifecycle wiring, independent operation isolation, fresh with_current double-read/drift rejection and rollback. Representative complete graph before/after measurements report decode/CPU/query work and limits; targeted lifecycle and graph regressions, incremental mypy/debt, formatting, architecture and governance pass. Keep production EVID-01/02 and DATA-02 acceptance separate and do not claim all write performance fixed."
       }
     ]
   }

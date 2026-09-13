@@ -8,6 +8,167 @@
 
 ## 2026-09-13：权威读取性能、生产复测与下一阶段范围
 
+后续 repository 工作登记为唯一 focus `EVID-08`：Authority V3 facade 的整次 `_locked` 操作接入
+已有 `validation_graph_operation`，只复用 exact immutable JSON 解码和成功的对象校验，禁止启用
+write/current/ORM snapshot 缓存。先用生命周期接线、操作退出/失败、changed payload 与 callback
+两次 current/drift rejection 测试验证语义，再比较同一 repeatable-read 代表性完整图的重复 restore
+CPU/解码/SQL。只读 restore 基准不是新写入或生产并发验收；未验证前 EVID-08 保持 active。
+
+EVID-08 首次完整隔离 PostgreSQL 批次实际结束为 `6 passed / 3 failed / 3,727.20s`。
+successor 自指 predecessor 的原始 SQL 篡改已经被 `_restore_root` 的 ledger seal 校验拒绝；
+失败是测试仅接受 predecessor/successor 文案，不能据此声称生产校验被绕过。另两项分别是
+并发测试未进入 Simulated repository 的 private UOW，以及 facade fixture 未建同 alias 的
+Simulated source ledger 表。修正完整 fixture 与合法事务调用后仍须重跑真实锁竞争及生命周期；
+此前成功的纯组件测试和 CI 不代替该批次。完整 helpers 复核及 Luna max 独立复核确认，
+既有 `_validate_root_slots` 已覆盖物理 predecessor 到 canonical supersedes 的交叉校验，
+重算非秘密 seal 也不能绕过它；删除重复生产补丁和镜像测试，仅保留 fixture、合法 UOW、
+准确拒绝点与真实锁 SQLSTATE `55P03` 断言的修正。相关单元 59 项与非 PG composition 10 项通过，
+修正后的三项 selector 批次结束为 `2 passed / 1 setup error / 751.42s`：实际源锁竞争和
+predecessor 篡改拒绝均通过，facade 在 mixed-node 选取下未发现 owner_alias fixture，
+没有进入业务测试体。该批次后隔离库再次确认零公共表。composition 显式导出同一个 fixture，
+主代理复验 mixed 三项 `--setup-plan` 成功解析完整依赖，`no tests ran / 0.61s`；该命令仅验证
+fixture 可见性，不算 PostgreSQL 业务验证。剩余 facade 生命周期已单独重跑，结果仍待完成。
+
+facade 重跑随后实际失败 `1 failed / 254.89s`：fixture 完整解析并进入 issue，当前 Evidence V5
+端口返回 None，Owner 层据此 fail closed。继续核对 fixture 的 live physical source、actor 与
+时点前置，不把 canonical ledger 的可恢复性视为完整 current 图，也不以 mock 当前权限绕过；
+该结果不能记为生命周期通过或未经诊断直接认作生产缺陷。
+
+进一步核对确定 historical fixture 只封存 synthetic ActorSource，没有对应 raw authentication、
+user、RBAC 父源，也没有 live SimulatedSourceV2 行；该历史图不满足完整 current Facade 前置。
+测试支持按专用 disposable alias 写入三类真实 canonical raw roots，通过既有 Capture 用例生成
+derived actor，再以 optional source 注入已有 V5/Owner seed；默认历史 fixture 保持原义。
+PhysicalV2 对应 SourceV2 由完整字段精确重建并断言 content/raw seals，通过合法 private UOW append。
+principal 时间改取真实 actor source 的 authenticated_at/valid_until，生命周期时点留有到期余量，
+显式 preflight 检查 live physical 与 current Evidence。Luna max 独立复核无 blocker；非 PG
+composition `10 passed / 1 deselected / 0.82s`、py_compile、Black/isort/Ruff、diff check 通过。
+修正后的单项真实 PG 生命周期正在执行，以上不替代其业务通过结果；EVID-08 仍 active。
+
+该次实际结束为 `1 failed / 273.03s`：真实 raw-source Capture 和合法 replay 已执行，随后
+PersistedEvidence 的既有时序检查拒绝 `approval_valid_until > actor.valid_until`。夹具的 approval
+窗口长于临时 capture TTL，不能缩短或绕过生产校验。改为从同一个 Domain Evidence fixture 的
+完整 approval deadline 推导 raw validity 与 capture TTL，并留 1 分钟余量；不会改写 Evidence
+窗口或默认历史 fixture。失败后隔离库再次验证零公共表，Black/isort/Ruff 通过，单项实际 PG
+继续重跑；生命周期通过仍未证实。
+
+该次随后实际结束 `1 failed / 218.68s`，PersistedEvidence 的完整有效期绑定已通过，
+assignment append 按既有 `recorded_at <= now` 门拒绝：测试时钟仍停在更早的 Capture 时点。
+在 Capture 真实落账后，将 fixture clock 前移到 Evidence recorded_at+1 分钟再持久化后续图，
+保留事件原始时间与生产时序检查；失败后隔离库零公共表。Black/Ruff 通过，单项实际 PG
+正在继续执行，不用历史 ledger 可恢复性、pure Domain current 或 CI 替代它的完成结果。
+
+该次实际结束 `1 failed / 247.33s`：完整 Capture、approval deadline 和 assignment persistence
+时序均已通过，测试随后误读 `EvidenceV5.reobservation`；完整定义的路径为
+`EvidenceV5.subject.reobservation.current_physical`。只修正测试属性访问。主代理按实际 Domain
+fixture 预检 SourceV2 content/identity/raw hashes、Source/Evidence current 与 current command，
+全部通过，未执行 fixture seed；Black/Ruff 和 diff check 通过。失败批次后的隔离库已验证零表。
+本次重跑前额外 host cleanup 连接发生 timeout；容器实际接受连接，随后唯一测试连接正在创建
+专用 ledger 表，未重启数据库或另起重复测试。单项真实生命周期继续执行，尚未宣称通过。
+
+首次生产完整图 cProfile 基线已返回：同一个 READ ONLY / REPEATABLE READ 快照内两次 exact
+get_winner restore 耗时 `2,576.715s`、CPU `2,380.099s`、`58,492 SELECT`、DB execute `162.046s`。
+它包含 profiler 开销；候选阶段只有 started，连接在 3,600 秒超时后失去输出，不能计算性能提升。
+曾核实后台仍存活，随后精确 PID 检查确认进程已退出；没有终止服务或重启写入。替代诊断于
+`2026-09-12T21:18:29Z` 使用独立远端目录启动，runner PID `2423267`，脚本 SHA-256 为
+`8a01a967b12554f176a5f55b73be766b87080d972863713be540869eb9529970`。
+该次仍测同快照内完整 baseline/candidate，stdout、stderr、exit code 与起止时间持久保存。
+实际于 `2026-09-12T22:21:35Z` 结束，exit code=0，精确 runner 已退出。
+[完整 cProfile 检查点](../deployment/sprint-evid08-complete-graph-cprofile-2026-09-13-c8bb9b780.json)
+封存同快照两个 completed stage：baseline elapsed `2,636.320s` / CPU `2,473.226s`，
+candidate elapsed `1,128.302s` / CPU `1,014.602s`；两者均 `58,492 SELECT`，
+DB client execute 分别 `174.073s` / `170.719s`。该样本 elapsed 减少 57.20%、CPU 减少 58.98%，
+只支持 read-only prerequisite 的 operation context 复用，不表示生产新写入或并发性能已通过。
+top 20 cumulative functions 不能证明准确解码数量；完整图原始 decoder / decorated validator
+计数使用独立 reviewed 诊断，前一 job terminal 后才启动，不重叠测量。该计数与真实 facade
+生命周期仍待完成，EVID-08 和 PR #36 均不晋级。
+
+[独立完整图解码计数检查点](../deployment/sprint-evid08-complete-graph-decode-work-2026-09-13-c8bb9b780.json)
+实际于 `2026-09-12T22:49:53Z` terminal exit=0，精确 runner `2453471` 已退出。
+每个 stage 的两次 exact restore 均断言同一快照全部 4 个 `(PK, content_hash)`，未启用 SQL snapshot
+缓存。已加载且有装饰器的 raw decoder 原函数调用为 baseline `329,320` / candidate `40`，
+decorated object validator 为 `1,838,056` / `29,864`；两者均 `58,492 SELECT`。
+该独立样本 elapsed 减少 51.35%、CPU 减少 55.70%，包含 counter wrapper 与顺序测量影响。
+它只统计显式列出的已加载 decorated functions/class attributes 原函数入口，不能称所有
+Python/JSON 调用或所有未装饰 validator 的总量，也不是新写入/并发验收。checkpoint 封存并
+逐份核验 9 份实际 raw/instrument artifacts；它与 cProfile 的不同 cutoff/开销不合成单一样本。
+代表性完整图测量前置已形成，真实生命周期仍待通过；EVID-08 保持 active。
+
+随后真实 Facade 生命周期完整结束：`1 passed / 1,716.17s`，进程 exit=0，隔离库清理后公共表=0。
+真实 raw roots/Capture、live SourceV2、current Evidence 与 issue/current/with_current/revoke/exact
+均执行通过。[生命周期检查点](../testing/evid08-authority-validation-lifecycle-2026-09-13.json)
+封存 7 份独立批次 XML 和实际静态/治理/清理材料，共 16 份嵌入证据逐字节核验；原始
+`6 passed/3 failed`、修正 `2 passed/1 setup error` 和单项失败仍分别保留，不拼成一批九绿。
+[仓库退出证据](../testing/evid08-authority-validation-repository-closure-2026-09-13.json)绑定
+代码 head `7d2138b7df8af975a693f6233fffdb07ecd57f2e`、生产 Git blob SHA、两份已封存完整图样本及
+最新 10 项非 PG composition、增量 mypy/debt=0、四个 fixture/support 格式检查、单行架构/audit=0、
+全治理=0 和该 head 全部 CI success。`EVID-08=completed`，registry v92 释放 repository focus。
+此处仅完成仓库退出门；优化尚未部署，生产写入/并发性能和 DATA-02/EVID-01/02 不晋级。
+后续按已有 VPS 授权进行标准备份、code-only 部署及真实 admin Facade 事务复测，显式回滚测试写入，
+核对 Owner V3 headers/payloads 与原 current 恢复；序列号前进不伪装成全库无变化。
+
+同候选的[DATA-02 分数据集诊断](../deployment/sprint-data02-dataset-gap-checkpoint-2026-09-13-c8bb9b780.json)
+保留只读事务、严格预览失败和 200 资产来源预检的原始响应/脚本及 SHA：completed-session price
+合格为 `1/5,533`，最新 valuation `5,533/5,533` 均缺 observed_at；financial 候选已有全资产覆盖，
+null available_at 修复暂无 eligible 行。preview 的 ready 仅是候选覆盖，不能记为 freshness 通过。
+公共 provider 对 frozen universe 首 200 资产返回 quote/valuation 各 `200/200`、源日期均为
+2026-09-11，但新 valuation adapter 仍全缺 available_at，将被标为 available_at_unverified。
+因此 EVID-08 验证后先补实际响应首次可见时间的 source-bound 传递，再执行有界事实修复；
+禁止直接 patch 历史 observed_at/available_at 或把响应抓取时间替换为源观察时间。
+
+随后[完整冻结资产池来源预检](../deployment/sprint-data02-full-source-preflight-2026-09-13-c8bb9b780.json)
+补齐源读取范围：第一次受控预算耗尽前保留 4,200 个代码的完整批次，offset=4,200 的续查补齐
+其余 1,333 个。两次独立只读快照的 universe SHA 与 completed session 相同，合并 quote 和
+valuation 均精确覆盖 `5,533/5,533`、无重复或缺口，源观察日期全为 2026-09-11。
+全部估值 available_at、raw_payload_hash 仍缺失；源读取覆盖不等于已写入事实库或形成 Publication。
+checkpoint 封存 16 份实际输出/脚本/handle，验证 112 份响应体：56 份 HTTP 502、56 份 HTTP 200；
+配置 quote 路径由 Eastmoney 失败后回退 Tencent，全部返回事实的 source 为 tencent。
+保留实际 response.content bytes 的 hash、压缩原文及接收时间，不伪装成已进入 Domain 的单资产
+raw hash 或全局首次发布时间。该预检没有财务修复、runtime 开启、Publication 切换或容差对账，
+也不证明 failover 一致性、实时 quote freshness 或 DATA-02 退出门；机器状态保持不变。
+
+下一有界开发包必须同时覆盖四条链：source Snapshot/adapter 传递 witnessed completion 与明确
+scope 的 raw evidence；catalog inputs 版本化 policy 的 required_evidence；batch/rebuild/幂等及
+generic publish 的统一 typed fail-closed 检查；旧 current 的 active policy 与成员证据检查。
+policy 初始化真源为 publication_policies.json，经 initialize_data_center_catalog 同步落库，
+禁止修改同一个版本身份来掩盖策略修订。保留既有 observed_at、历史事实和 Publication hash 身份，
+不得只填 source 字段而让旧 unverified current 继续可决策。EVID-08 验证完成前不启动该 repository 包。
+
+Luna max 只读复核补充下一包的时间和身份边界：valuation publication 的 `as_of=max(observed_at)`
+是源数据边界，response 完成时间作为 witnessed availability 可以晚于它；应检查
+`available_at <= fetched_at <= published_at`，current 再检查实际查询知识时点。完整快照可用边界
+取成员 availability 的 max；缺失值不能用 min/oldest 混过。历史 `get_as_of` 已使用
+`published_at <= 历史查询时点`，保留该可知性门。其他实体的 vendor published_at 语义不同，
+不能直接复用或反转其时间规则。typed reference/member 需保留对应 availability 与原始证据。
+现有 digest/UUID 只绑定 member refs，policy_version 未参与幂等身份；下一包须以覆盖决策字段的
+稳定 policy content identity/hash，加 policy version 进入新的 versioned publication encoding，
+并同步 quality/replay 等重算调用方。旧 publication 保留原 hash 编码，不静默重解释；初始化
+不得以同版本 upsert 改写策略意义。上述仍是已核实的设计前置，未实施或完成生产修复。
+
+补充的[估值 availability enforcement 检查点](../deployment/sprint-data02-valuation-availability-gap-2026-09-13-c8bb9b780.json)
+纠正一个必须区分的边界：`available_at_unverified` 被投影为 degraded，并不表示 publication/current
+已硬性阻断。现有纯 Application 测试与本地 fresh 控制复现实验均允许该成员发布，并返回
+`must_not_use_for_decision=false`；生产只读策略查询也确认 required evidence 仅有 source、observed_at、
+payload_hash。该实验不宣称实际历史生产 Publication 当前 fresh，也没有创建或切换生产 Publication。
+下一 repository 包必须在实际响应时间/hash 传递之外，证明 batch publish、current rebuild、幂等返回及
+旧 current member 的缺失 availability 均 fail closed，再领取 DATA-02 Publication 修复批次。
+
+[AUD-03 只读 backlog 起点](../deployment/sprint-aud03-backlog-readonly-2026-09-13-c8bb9b780.json)
+在 2026-09-12 20:41:34Z 记录两条 due pending、零 claimed/delivered/failed，最旧事件年龄约 19,571 秒；
+runtime 为 off、outbox disabled、authority selector absent。这是后续恢复起点，不是已开启 worker 的
+异常，也不证明恢复时长、无重无丢、HTTP metrics、alerts、TUI 或 archive/restore。AUD-03 状态不变。
+
+随后[真实 HTTPS metrics 检查点](../deployment/sprint-aud03-http-metrics-2026-09-13-c8bb9b780.json)
+在 20:46Z 记录健康与 metrics 均为 200，七个 outbox gauge 仅使用 owner=audit 低基数标签；
+pending/due_pending 各 2，其余 0，与前述只读账本计数一致。该样本补齐当前候选的 HTTP 指标取证，
+不代替告警、恢复、admin TUI、archive/restore 或生产签收；本地采集时钟与服务器时钟不作精确同步假设。
+
+[真实 admin TUI 读取检查点](../deployment/sprint-aud03-admin-tui-read-2026-09-13-c8bb9b780.json)
+随后保留 admin/user1 的 screen、overview 和默认 health read-action 实际 HTTP 结果，均为 JSON/200，
+默认动作 outcome=success。它走既有内部认证，没有新建 credential 或执行 approval/dispatch/AI。
+健康主表只有 component/status/message/checked_at 四列；pending=2 与年龄约 20,549 秒仅在 debug raw
+数据中，不在主表。AUD-03 用户验收仍须验证首屏可见积压条数、年龄与恢复状态，不能把读取 success
+当作运营主任务已完成；浏览器视觉、告警、恢复、archive/restore 与签收仍待真实证据。
+
 PR #34 已通过全部 CI 并合并，生产当前绑定
 `c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc` / `20260913014501` /
 `sha256:5dd37368b64f735b7850647659ae18e07684eb7d7444d99baf0a900d087943ea`。

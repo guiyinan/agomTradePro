@@ -1,0 +1,289 @@
+{
+  "schema_version": "evid08.complete-graph-original-invocation-checkpoint.v1",
+  "recorded_at": "2026-09-12T22:54:49.906152+00:00",
+  "unit": {
+    "id": "EVID-08",
+    "status": "active",
+    "exit_gate_complete": false
+  },
+  "production_candidate": {
+    "commit": "c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc",
+    "release": "20260913014501",
+    "identity_source": "Previous standard deployment and independent source symlink verification; counter output does not carry OCI identity."
+  },
+  "proposed_code": {
+    "commit": "40732e5f3",
+    "path": "apps/account/owner_tenant_authority_v3_composition.py",
+    "change": "Outer validation_graph_operation on facade _locked; diagnostic manually applies the same existing context to two complete exact restores."
+  },
+  "job": {
+    "directory": "/opt/agomtradepro/diagnostics/evid08-decode-work-20260913-durable-01",
+    "runner_pid": 2453471,
+    "exit_code": 0,
+    "runner_started_at": "2026-09-12T22:22:26Z",
+    "runner_completed_at": "2026-09-12T22:49:53Z",
+    "script_sha256": "b48fa2af89e4f366f3a82425d796b7652469327422e2905d2bfde4421a87fcec",
+    "runner_absent_after_completion": true
+  },
+  "measurements": [
+    {
+      "authority_content_hash": "47d71a2f7e7aaea49a181d2db86a3375af330018a191a4e7fcf89b4f6e26acbb",
+      "authority_id": "audit-admin-owner-authority-20260912185635",
+      "complete_root_headers": [
+        [
+          1,
+          "50d570281ddaab2e0f49a5e2240a07f3d3f681ae068f2810f02f77bb8a51efaa"
+        ],
+        [
+          2,
+          "c6431aa9f724519e047b75a3ef292a953a288215c87127cf1a5b9d76fbcb061c"
+        ],
+        [
+          3,
+          "584dd04ec11bb1ff40284916a977725286fd40763841403c99fc2402ab82a1ae"
+        ],
+        [
+          4,
+          "47d71a2f7e7aaea49a181d2db86a3375af330018a191a4e7fcf89b4f6e26acbb"
+        ]
+      ],
+      "complete_world_restores": 2,
+      "cpu_seconds": 990.90452578,
+      "cutoff": "2026-09-12T22:22:42.871310+00:00",
+      "elapsed_seconds": 1095.4942525615916,
+      "instrumented_functions": [
+        "raw_decode:apps.account.infrastructure.allocated_physical_account_row_observation_v3_codec.decode_allocated_physical_account_row_observation_v3_record",
+        "raw_decode:apps.account.infrastructure.canonical_account_creation_binding_v2_codec.decode_canonical_account_creation_binding_v2",
+        "raw_decode:apps.account.infrastructure.canonical_account_creation_codec.decode_canonical_account_creation_allocation",
+        "raw_decode:apps.account.infrastructure.canonical_account_creation_codec.decode_canonical_account_creation_binding",
+        "raw_decode:apps.account.infrastructure.canonical_account_ownership_reobservation_v1_codec.decode_canonical_account_ownership_reobservation_v1",
+        "raw_decode:apps.account.infrastructure.canonical_account_ownership_reobservation_v1_record_codec.decode_canonical_account_ownership_reobservation_v1_record",
+        "raw_decode:apps.account.infrastructure.physical_account_row_observation_v2_codec.decode_physical_account_row_observation_v2_record",
+        "raw_object_validation:apps.account.domain.account_owner_assignment_evidence.AccountOwnerAssignmentActor.__post_init__",
+        "raw_object_validation:apps.account.domain.account_owner_assignment_evidence.AccountOwnerAssignmentEvidence.__post_init__",
+        "raw_object_validation:apps.account.domain.account_owner_assignment_evidence_v5.AccountOwnerAssignmentEvidenceV5.__post_init__",
+        "raw_object_validation:apps.account.domain.account_owner_assignment_provenance_receipt_v5.AccountOwnerAssignmentProvenanceReceiptV5.__post_init__",
+        "raw_object_validation:apps.account.domain.account_owner_assignment_subject_v5.AccountOwnerAssignmentSubjectV5.__post_init__",
+        "raw_object_validation:apps.account.domain.allocated_physical_account_row_observation_v3.AllocatedPhysicalAccountRowObservationV3.__post_init__",
+        "raw_object_validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationAllocation.__post_init__",
+        "raw_object_validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationBinding.__post_init__",
+        "raw_object_validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationRequester.__post_init__",
+        "raw_object_validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationServiceRecorder.__post_init__",
+        "raw_object_validation:apps.account.domain.canonical_account_creation_binding_v2.CanonicalAccountCreationBindingV2.__post_init__",
+        "raw_object_validation:apps.account.domain.canonical_account_creation_consumption.CanonicalAccountCreationConsumptionClaim.__post_init__",
+        "raw_object_validation:apps.account.domain.canonical_account_ownership_reobservation_v1.CanonicalAccountOwnershipReobservationV1.__post_init__",
+        "raw_object_validation:apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3.__post_init__",
+        "raw_object_validation:apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3Revocation.__post_init__",
+        "raw_object_validation:apps.account.domain.single_owner_authority_policy_v1.SingleOwnerAuthorityPolicyV1.__post_init__"
+      ],
+      "limits": [
+        "Same complete graph, two exact restores per stage, same REPEATABLE READ READ ONLY snapshot.",
+        "Only raw originals behind already-loaded Account immutable cache decorators and class attributes are counted; not undecorated validators, all JSON or nested Python calls.",
+        "SELECT counts identify that SQL first word only; database_seconds is client execute wall time. One root-header preflight SELECT is outside the two-restore counters.",
+        "Counter wrapper overhead remains; this is not a new write, current-state cache or production concurrency acceptance."
+      ],
+      "original_function_invocations": {
+        "raw_decode:apps.account.infrastructure.allocated_physical_account_row_observation_v3_codec.decode_allocated_physical_account_row_observation_v3_record": 25600,
+        "raw_decode:apps.account.infrastructure.canonical_account_creation_binding_v2_codec.decode_canonical_account_creation_binding_v2": 33096,
+        "raw_decode:apps.account.infrastructure.canonical_account_creation_codec.decode_canonical_account_creation_allocation": 109896,
+        "raw_decode:apps.account.infrastructure.canonical_account_ownership_reobservation_v1_codec.decode_canonical_account_ownership_reobservation_v1": 7496,
+        "raw_decode:apps.account.infrastructure.canonical_account_ownership_reobservation_v1_record_codec.decode_canonical_account_ownership_reobservation_v1_record": 5120,
+        "raw_decode:apps.account.infrastructure.physical_account_row_observation_v2_codec.decode_physical_account_row_observation_v2_record": 148112,
+        "raw_object_validation:apps.account.domain.account_owner_assignment_evidence.AccountOwnerAssignmentActor.__post_init__": 4744,
+        "raw_object_validation:apps.account.domain.account_owner_assignment_evidence_v5.AccountOwnerAssignmentEvidenceV5.__post_init__": 80,
+        "raw_object_validation:apps.account.domain.account_owner_assignment_provenance_receipt_v5.AccountOwnerAssignmentProvenanceReceiptV5.__post_init__": 4624,
+        "raw_object_validation:apps.account.domain.account_owner_assignment_subject_v5.AccountOwnerAssignmentSubjectV5.__post_init__": 464,
+        "raw_object_validation:apps.account.domain.allocated_physical_account_row_observation_v3.AllocatedPhysicalAccountRowObservationV3.__post_init__": 214672,
+        "raw_object_validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationAllocation.__post_init__": 393872,
+        "raw_object_validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationRequester.__post_init__": 393872,
+        "raw_object_validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationServiceRecorder.__post_init__": 557344,
+        "raw_object_validation:apps.account.domain.canonical_account_creation_binding_v2.CanonicalAccountCreationBindingV2.__post_init__": 163472,
+        "raw_object_validation:apps.account.domain.canonical_account_creation_consumption.CanonicalAccountCreationConsumptionClaim.__post_init__": 51200,
+        "raw_object_validation:apps.account.domain.canonical_account_ownership_reobservation_v1.CanonicalAccountOwnershipReobservationV1.__post_init__": 35472,
+        "raw_object_validation:apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3.__post_init__": 16,
+        "raw_object_validation:apps.account.domain.single_owner_authority_policy_v1.SingleOwnerAuthorityPolicyV1.__post_init__": 18224
+      },
+      "stage": "baseline_no_outer_validation_graph",
+      "statistics": {
+        "database_seconds": 141.61172345187515,
+        "queries": 58492,
+        "selects": 58492
+      },
+      "status": "completed"
+    },
+    {
+      "authority_content_hash": "47d71a2f7e7aaea49a181d2db86a3375af330018a191a4e7fcf89b4f6e26acbb",
+      "authority_id": "audit-admin-owner-authority-20260912185635",
+      "complete_root_headers": [
+        [
+          1,
+          "50d570281ddaab2e0f49a5e2240a07f3d3f681ae068f2810f02f77bb8a51efaa"
+        ],
+        [
+          2,
+          "c6431aa9f724519e047b75a3ef292a953a288215c87127cf1a5b9d76fbcb061c"
+        ],
+        [
+          3,
+          "584dd04ec11bb1ff40284916a977725286fd40763841403c99fc2402ab82a1ae"
+        ],
+        [
+          4,
+          "47d71a2f7e7aaea49a181d2db86a3375af330018a191a4e7fcf89b4f6e26acbb"
+        ]
+      ],
+      "complete_world_restores": 2,
+      "cpu_seconds": 438.973494213,
+      "cutoff": "2026-09-12T22:22:42.871310+00:00",
+      "elapsed_seconds": 532.928614567034,
+      "instrumented_functions": [
+        "raw_decode:apps.account.infrastructure.allocated_physical_account_row_observation_v3_codec.decode_allocated_physical_account_row_observation_v3_record",
+        "raw_decode:apps.account.infrastructure.canonical_account_creation_binding_v2_codec.decode_canonical_account_creation_binding_v2",
+        "raw_decode:apps.account.infrastructure.canonical_account_creation_codec.decode_canonical_account_creation_allocation",
+        "raw_decode:apps.account.infrastructure.canonical_account_creation_codec.decode_canonical_account_creation_binding",
+        "raw_decode:apps.account.infrastructure.canonical_account_ownership_reobservation_v1_codec.decode_canonical_account_ownership_reobservation_v1",
+        "raw_decode:apps.account.infrastructure.canonical_account_ownership_reobservation_v1_record_codec.decode_canonical_account_ownership_reobservation_v1_record",
+        "raw_decode:apps.account.infrastructure.physical_account_row_observation_v2_codec.decode_physical_account_row_observation_v2_record",
+        "raw_object_validation:apps.account.domain.account_owner_assignment_evidence.AccountOwnerAssignmentActor.__post_init__",
+        "raw_object_validation:apps.account.domain.account_owner_assignment_evidence.AccountOwnerAssignmentEvidence.__post_init__",
+        "raw_object_validation:apps.account.domain.account_owner_assignment_evidence_v5.AccountOwnerAssignmentEvidenceV5.__post_init__",
+        "raw_object_validation:apps.account.domain.account_owner_assignment_provenance_receipt_v5.AccountOwnerAssignmentProvenanceReceiptV5.__post_init__",
+        "raw_object_validation:apps.account.domain.account_owner_assignment_subject_v5.AccountOwnerAssignmentSubjectV5.__post_init__",
+        "raw_object_validation:apps.account.domain.allocated_physical_account_row_observation_v3.AllocatedPhysicalAccountRowObservationV3.__post_init__",
+        "raw_object_validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationAllocation.__post_init__",
+        "raw_object_validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationBinding.__post_init__",
+        "raw_object_validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationRequester.__post_init__",
+        "raw_object_validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationServiceRecorder.__post_init__",
+        "raw_object_validation:apps.account.domain.canonical_account_creation_binding_v2.CanonicalAccountCreationBindingV2.__post_init__",
+        "raw_object_validation:apps.account.domain.canonical_account_creation_consumption.CanonicalAccountCreationConsumptionClaim.__post_init__",
+        "raw_object_validation:apps.account.domain.canonical_account_ownership_reobservation_v1.CanonicalAccountOwnershipReobservationV1.__post_init__",
+        "raw_object_validation:apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3.__post_init__",
+        "raw_object_validation:apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3Revocation.__post_init__",
+        "raw_object_validation:apps.account.domain.single_owner_authority_policy_v1.SingleOwnerAuthorityPolicyV1.__post_init__"
+      ],
+      "limits": [
+        "Same complete graph, two exact restores per stage, same REPEATABLE READ READ ONLY snapshot.",
+        "Only raw originals behind already-loaded Account immutable cache decorators and class attributes are counted; not undecorated validators, all JSON or nested Python calls.",
+        "SELECT counts identify that SQL first word only; database_seconds is client execute wall time. One root-header preflight SELECT is outside the two-restore counters.",
+        "Counter wrapper overhead remains; this is not a new write, current-state cache or production concurrency acceptance."
+      ],
+      "original_function_invocations": {
+        "raw_decode:apps.account.infrastructure.allocated_physical_account_row_observation_v3_codec.decode_allocated_physical_account_row_observation_v3_record": 4,
+        "raw_decode:apps.account.infrastructure.canonical_account_creation_binding_v2_codec.decode_canonical_account_creation_binding_v2": 4,
+        "raw_decode:apps.account.infrastructure.canonical_account_creation_codec.decode_canonical_account_creation_allocation": 4,
+        "raw_decode:apps.account.infrastructure.canonical_account_ownership_reobservation_v1_codec.decode_canonical_account_ownership_reobservation_v1": 4,
+        "raw_decode:apps.account.infrastructure.canonical_account_ownership_reobservation_v1_record_codec.decode_canonical_account_ownership_reobservation_v1_record": 4,
+        "raw_decode:apps.account.infrastructure.physical_account_row_observation_v2_codec.decode_physical_account_row_observation_v2_record": 20,
+        "raw_object_validation:apps.account.domain.account_owner_assignment_evidence.AccountOwnerAssignmentActor.__post_init__": 40,
+        "raw_object_validation:apps.account.domain.account_owner_assignment_evidence_v5.AccountOwnerAssignmentEvidenceV5.__post_init__": 4,
+        "raw_object_validation:apps.account.domain.account_owner_assignment_provenance_receipt_v5.AccountOwnerAssignmentProvenanceReceiptV5.__post_init__": 4,
+        "raw_object_validation:apps.account.domain.account_owner_assignment_subject_v5.AccountOwnerAssignmentSubjectV5.__post_init__": 4,
+        "raw_object_validation:apps.account.domain.allocated_physical_account_row_observation_v3.AllocatedPhysicalAccountRowObservationV3.__post_init__": 8,
+        "raw_object_validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationAllocation.__post_init__": 4,
+        "raw_object_validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationRequester.__post_init__": 4,
+        "raw_object_validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationServiceRecorder.__post_init__": 8,
+        "raw_object_validation:apps.account.domain.canonical_account_creation_binding_v2.CanonicalAccountCreationBindingV2.__post_init__": 4,
+        "raw_object_validation:apps.account.domain.canonical_account_creation_consumption.CanonicalAccountCreationConsumptionClaim.__post_init__": 25600,
+        "raw_object_validation:apps.account.domain.canonical_account_ownership_reobservation_v1.CanonicalAccountOwnershipReobservationV1.__post_init__": 4,
+        "raw_object_validation:apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3.__post_init__": 8,
+        "raw_object_validation:apps.account.domain.single_owner_authority_policy_v1.SingleOwnerAuthorityPolicyV1.__post_init__": 4172
+      },
+      "stage": "candidate_outer_validation_graph",
+      "statistics": {
+        "database_seconds": 131.34219412133098,
+        "queries": 58492,
+        "selects": 58492
+      },
+      "status": "completed"
+    }
+  ],
+  "comparison": {
+    "baseline_original_invocations": {
+      "raw_decode": 329320,
+      "raw_object_validation": 1838056
+    },
+    "candidate_original_invocations": {
+      "raw_decode": 40,
+      "raw_object_validation": 29864
+    },
+    "elapsed_reduction_percent": 51.352678179653765,
+    "cpu_reduction_percent": 55.69971851047326,
+    "query_count_change": 0
+  },
+  "limits": [
+    "Same complete graph, two exact restores per stage, same REPEATABLE READ READ ONLY snapshot.",
+    "Only raw originals behind already-loaded Account immutable cache decorators and class attributes are counted; not undecorated validators, all JSON or nested Python calls.",
+    "SELECT counts identify that SQL first word only; database_seconds is client execute wall time. One root-header preflight SELECT is outside the two-restore counters.",
+    "Counter wrapper overhead remains; this is not a new write, current-state cache or production concurrency acceptance.",
+    "Invocation counts cover only the explicitly enumerated already-loaded decorated Account functions/class attributes; absent keys are zero calls, not evidence that every decoder/validator is decorated.",
+    "The shim increments on entry to the original function. Counts represent original invocations, not all Python/JSON calls or a separately traced success/failure classification.",
+    "Both stages share identical shim identities/cache keys and one snapshot. Every exact winner call verifies all four restored root headers; no immutable read/SQL snapshot cache is enabled.",
+    "Sequential live-service timing and wrapper overhead remain. This is not a new write, facade transaction benchmark, concurrency or production acceptance; required lifecycle verification remains separate.",
+    "The independent cProfile comparison has a different cutoff/overhead and is not combined into one timing sample with this counter."
+  ],
+  "raw_artifacts": [
+    {
+      "path": "var/evid08-durable-decode-work-handle-20260913.json",
+      "bytes": 329,
+      "sha256": "ff9bec8c01e24b927d91cc83205eeefbc43be69b7aec0a9f798076b97c07fa91",
+      "encoding": "gzip+base64",
+      "content": "H4sIAAAAAAAC/5VQS26EMAzdI3EHxLoIMCHAXCYysUPTMjEKYUZV1bu3FPUA3b6v3vvMs6Io32Qub0XJD0/NWBFbIa6eEt8raEA3U9tVdEScV66atnz59ZCPbJPEj9NZy5ZqXOSeIhJvUWryuATZk7d7/a/ceITA0WyefoJB9Z0a2ovZbfRbMvsrQq/P1lmNDgHdOLFyndauwxEU9DRMeh50D0pPHQwKgGFqeoLZESsFLY6Ds2z/GhnJSFjPJSkefKGbrKsPi0n+znIkQ8K7CZKMxWB5Nddnpz7PvvLsG5IuIeRJAQAA"
+    },
+    {
+      "path": "var/profile_evid08_decode_work.py",
+      "bytes": 7783,
+      "sha256": "b48fa2af89e4f366f3a82425d796b7652469327422e2905d2bfde4421a87fcec",
+      "encoding": "gzip+base64",
+      "content": "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"
+    },
+    {
+      "path": "var/durable_evid08_decode_work.py",
+      "bytes": 5200,
+      "sha256": "0155d061c02acaf1ce8788640cc760d57fe0f144c0dee181c6c3be8e000f5c92",
+      "encoding": "gzip+base64",
+      "content": "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"
+    },
+    {
+      "path": "var/evid08-decode-work-durable-runner-pid.txt",
+      "bytes": 8,
+      "sha256": "087fc94a42f5c0c917a2baac1e139aa6a09a8db51555f4b02d74f59b0e7aebc7",
+      "encoding": "gzip+base64",
+      "content": "H4sIAAAAAAAC/zMyMTU2MTfkAgAvLDU0CAAAAA=="
+    },
+    {
+      "path": "var/evid08-decode-work-durable-started.txt",
+      "bytes": 21,
+      "sha256": "b96dd23f2f60c0ff020aed06d3a9009df84be5ae853c3bd1eab086c5067fcafe",
+      "encoding": "gzip+base64",
+      "content": "H4sIAAAAAAAC/zMyMDLTNbDUNTQKMTKyAiGzKC4A2fG/ZxUAAAA="
+    },
+    {
+      "path": "var/evid08-decode-work-durable-stdout.log",
+      "bytes": 14269,
+      "sha256": "7f5f1f93c872b91cf391fa6063cac6fe401481c38dcf27e07071c097a3803973",
+      "encoding": "gzip+base64",
+      "content": "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"
+    },
+    {
+      "path": "var/evid08-decode-work-durable-stderr.log",
+      "bytes": 310,
+      "sha256": "163787c8a5a9b4751a8f16434d9b19b8f3881f787a96ec40e0cd55aee568bfc0",
+      "encoding": "gzip+base64",
+      "content": "H4sIAAAAAAAC/3WQuw7CMAxFd74iykyr5tEH7CCxwMLEUoU2tJZCWpIUJBD/jlMGJqQM9r332FZeNMBV+6CuI10TyjNeJNkqYfzI+RqfZGkhpCizE10SavRdm5jb7beHWRi6TruoqHH0Kdo2+BRrA40KMNivVJ8nX4OFAMrAEwFEcatXnY7sJmYIZsgv05IHhJ6wivTKtkY7P0NDO5mZ+Tv3Mtkmbo6hnzUfCzaieYX16IYGD8C2YmKFQuidVi32TFRlxkUhZZ6XUqLl9G3CL6oh2jSh78UHkz6kSzYBAAA="
+    },
+    {
+      "path": "var/evid08-decode-work-durable-exit-code.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "encoding": "gzip+base64",
+      "content": "H4sIAAAAAAAC/zPgAgASzUp+AgAAAA=="
+    },
+    {
+      "path": "var/evid08-decode-work-durable-completed.txt",
+      "bytes": 21,
+      "sha256": "906a4b9bf17b8bf6f6fbbb92e13e01e80684dcf704aff5e8540cb79bf10aba40",
+      "encoding": "gzip+base64",
+      "content": "H4sIAAAAAAAC/zMyMDLTNbDUNTQKMTKyMrG0MjWO4gIAcs609RUAAAA="
+    }
+  ]
+}
