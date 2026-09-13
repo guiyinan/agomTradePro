@@ -329,3 +329,29 @@ financial policy3 的 publication_policy_changed 不会直接使 Account authori
 失效。实际 Account current/expiry/ledger 指纹仍须单独复核，不能以调用链审查代替。
 收紧来源策略后，默认回滚保持该策略及明确blocked状态，选择兼容的 DATA-16 代码；
 不能为了恢复有数据的页面自动重新激活缺乏来源保证的旧 financial policy。
+
+## 11. 2026-09-13 本地单标的真实原始响应样本
+
+2026-09-13 的 Stage 0 供应商响应采集在本地 PC 完成，不是 VPS 请求；采集器没有数据库
+读取、摄入或生产写入。scope 来自独立的生产只读查询，绑定 AKShare provider id 3、
+单一 A 股 `000001.SZ`；scope
+原始 SHA-256 为 `7697fb91f3f321111f79bcfa03fb4dc78b995ed553cc59f7df42e7374008071a`。
+
+采集实际发出 1 次供应商 GET，无 retry、failover 或第二请求；HTTP 状态为 200，请求
+参数 `ps=200` 是 SDK 分页大小，供应商响应实际包含 122 个报告行，并未声称服务端只返回
+一个报告期。未经改写的 `requests.Response.content` body 为 388061 bytes，SHA-256 为
+`6a56f4ccbaa203e689f62a1f14033ed8a61a0c0a842afda03a6c27e5b1054578`，原始 body 保持
+在私有 var 工件中，未写入仓库；[只含元数据的封存工件](../deployment/data02-financial-single-source-raw-sample-2026-09-13.json)
+及其 `.sha256` sidecar 只绑定这些摘要。
+
+body 中 122 行的 `SECUCODE` 全部为 `000001.SZ`。`NOTICE_DATE` 有 119 个无时区午夜
+文本和 3 个 `null`；`REPORT_DATE` 的 122 个值均为无时区午夜文本。样本没有行级
+record ID，只有 `SECUCODE`、`SECURITY_CODE`、`ORG_CODE` 资产/组织标识；
+`SECURITY_TYPE_CODE` 是分类码。供应商字段形状不能证明精确时区、来源公告瞬时或
+独立 source record identity，因此 `announced_at` 和 `available_at` 仍为 `None`。
+
+响应完成时间 `2026-09-13T13:45:24.729792Z` 只表示系统已取得该响应，是系统获取上界，
+不能合成为供应商首次披露时间或可用时间。第一次 CLI 尝试在请求前发生 ModuleNotFound，
+没有保留原始日志，故不为其伪造 receipt。该样本证明了单次供应商 response bytes 的
+可复核 hash 和资产绑定，不构成 DATA-02 生产修复、历史回填、publication 激活或决策
+可用性证明。
