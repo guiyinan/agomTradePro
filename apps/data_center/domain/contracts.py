@@ -13,11 +13,28 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Generic, TypeVar
+from typing import Final, Generic, TypeVar
 
 from shared.domain.reliability import ReliabilityContract, ReliabilityStatus
 
+from .publication_policy_identity import publication_policy_content_hash
+
 T = TypeVar("T")
+
+KNOWN_PUBLICATION_EVIDENCE_KEYS: Final[frozenset[str]] = frozenset(
+    {
+        "source",
+        "observed_at",
+        "payload_hash",
+        "raw_payload_hash",
+        "source_record_id",
+        "available_at",
+        "fetched_at",
+        "published_at",
+        "raw_payload_scope",
+        "fact_content_hash",
+    }
+)
 
 
 class FetchOutcome(str, Enum):
@@ -424,14 +441,53 @@ class PublicationPolicy:
     conflict_action: str
     required_evidence: tuple[str, ...]
     retention_days: int
+    policy_version: str = "legacy"
+
+    @property
+    def uses_versioned_evidence(self) -> bool:
+        """Return whether this policy requires the complete evidence encoding."""
+
+        return self.policy_version != "legacy"
+
+    @property
+    def content_hash(self) -> str:
+        """Bind all policy decision fields to one canonical content identity."""
+
+        return publication_policy_content_hash(self)
+
+    @property
+    def identity(self) -> str:
+        """Preserve legacy identity and bind new versions to exact policy content."""
+
+        prefix = f"{self.dataset.contract_version}:{self.dataset.schema_version}"
+        if not self.uses_versioned_evidence:
+            return prefix
+        return f"p2:{self.policy_version}:{self.content_hash}"
 
     def __post_init__(self) -> None:
+        if (
+            not self.policy_version
+            or len(self.policy_version) > 40
+            or ":" in self.policy_version
+            or any(character.isspace() for character in self.policy_version)
+        ):
+            raise ValueError("PublicationPolicy.policy_version must be a bounded token")
         if not 0.0 <= self.minimum_coverage_ratio <= 1.0:
             raise ValueError("PublicationPolicy.minimum_coverage_ratio must be in [0, 1]")
         if self.conflict_action not in {"block", "quarantine", "prefer_governed_source"}:
             raise ValueError("PublicationPolicy.conflict_action is not supported")
         if not self.required_evidence:
             raise ValueError("PublicationPolicy.required_evidence cannot be empty")
+        if any(type(key) is not str or not key.strip() for key in self.required_evidence):
+            raise ValueError("PublicationPolicy.required_evidence keys must be non-empty strings")
+        unknown_keys = set(self.required_evidence) - KNOWN_PUBLICATION_EVIDENCE_KEYS
+        if unknown_keys:
+            raise ValueError(
+                "PublicationPolicy.required_evidence contains unknown keys: "
+                + ",".join(sorted(unknown_keys))
+            )
+        if len(set(self.required_evidence)) != len(self.required_evidence):
+            raise ValueError("PublicationPolicy.required_evidence cannot contain duplicate keys")
         if self.retention_days <= 0:
             raise ValueError("PublicationPolicy.retention_days must be positive")
 
@@ -444,6 +500,7 @@ __all__ = [
     "DatasetKey",
     "FetchOutcome",
     "FetchResult",
+    "KNOWN_PUBLICATION_EVIDENCE_KEYS",
     "NaturalKey",
     "ObservationTime",
     "PublicationDecision",
