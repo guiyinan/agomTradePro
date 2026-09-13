@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 5019,
+    "current_surface_references": 5023,
     "data_write_task_decorators": 62,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -2246,182 +2246,182 @@
       "text": "Every injected current source must participate in this transaction and"
     },
     {
-      "line": 86,
+      "line": 88,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "\"\"\"Select one current Evidence V5 for a first Authority V3 root.\"\"\""
     },
     {
-      "line": 119,
+      "line": 121,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "\"\"\"Validate the exact current selector.\"\"\""
     },
     {
-      "line": 188,
+      "line": 190,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "\"\"\"Keep one current Evidence V5 and participant observation comparable.\"\"\""
     },
     {
-      "line": 195,
+      "line": 197,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "\"\"\"Orchestrate Authority V3 roots, successors, current reads, and revocations.\"\"\""
     },
     {
-      "line": 239,
+      "line": 253,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "\"authority root winner no longer has current sources\""
     },
     {
-      "line": 300,
+      "line": 324,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "\"authority successor winner no longer has current sources\""
     },
     {
-      "line": 433,
+      "line": 464,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "\"\"\"Append or replay one immutable revocation with fresh current authority.\"\"\""
     },
     {
-      "line": 598,
+      "line": 635,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "\"\"\"Read one exact current Evidence V5 through the public Application port.\"\"\""
     },
     {
-      "line": 610,
+      "line": 647,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "raise OwnerTenantAuthorityV3Unavailable(\"current Evidence V5 is unavailable\") from error"
     },
     {
-      "line": 612,
+      "line": 649,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "raise OwnerTenantAuthorityV3Conflict(\"current Evidence V5 conflicts\") from error"
     },
     {
-      "line": 614,
+      "line": 651,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "raise OwnerTenantAuthorityV3Corruption(\"current Evidence V5 is corrupt\") from error"
     },
     {
-      "line": 616,
+      "line": 653,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "raise OwnerTenantAuthorityV3Unavailable(\"current Evidence V5 is unavailable\")"
     },
     {
-      "line": 634,
+      "line": 671,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "raise OwnerTenantAuthorityV3Unavailable(\"Evidence V5 is not current\")"
     },
     {
-      "line": 642,
+      "line": 679,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "\"\"\"Re-read the exact current Evidence V5 sealed by one authority.\"\"\""
     },
     {
-      "line": 656,
+      "line": 693,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "\"current Evidence V5 differs from the sealed authority assignment\""
     },
     {
-      "line": 665,
+      "line": 702,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "\"\"\"Read current Evidence V5 and current policy/authentication at one cutoff.\"\"\""
     },
     {
-      "line": 671,
+      "line": 708,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "\"Evidence V5 and current participant scope differ\""
     },
     {
-      "line": 676,
+      "line": 713,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "\"\"\"Validate current policy, actor authority, roles, and finite validity.\"\"\""
     },
     {
-      "line": 687,
+      "line": 724,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "\"current participant projection is corrupt\""
     },
     {
-      "line": 691,
+      "line": 728,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "\"current owner/tenant policy and actor are unavailable\""
     },
     {
-      "line": 718,
+      "line": 755,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "raise LookupError(\"current policy is unavailable\")"
     },
     {
-      "line": 724,
+      "line": 761,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "raise LookupError(\"current owner authentication is unavailable\") from error"
     },
     {
-      "line": 731,
+      "line": 768,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "\"current participant projection is corrupt\""
     },
     {
-      "line": 740,
+      "line": 777,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "\"\"\"Read current policy/authentication and bind both to one Authority V3 owner.\"\"\""
     },
     {
-      "line": 749,
+      "line": 786,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "\"current authority policy or owner actor was substituted\""
     },
     {
-      "line": 759,
+      "line": 796,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "\"current authority actor is unavailable\""
     },
     {
-      "line": 788,
+      "line": 825,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "\"\"\"Compare current policy/authentication facts across two re-reads.\"\"\""
     },
     {
-      "line": 815,
+      "line": 852,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "\"\"\"Build an Authority V3 value from exact current V5 and participant facts.\"\"\""
     },
     {
-      "line": 855,
+      "line": 892,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "current = self._repository.get_head("
     },
     {
-      "line": 859,
+      "line": 896,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "if current is None or self._record(current) != record:"
     },
     {
-      "line": 867,
+      "line": 904,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "\"\"\"Restore and bind a known revocation before denying current access.\"\"\""
     },
     {
-      "line": 891,
+      "line": 928,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "\"\"\"Return a finite current observation only after two policy/auth reads.\"\"\""
     },
     {
-      "line": 907,
+      "line": 944,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "raise OwnerTenantAuthorityV3Conflict(\"current authority sources changed\")"
     },
     {
-      "line": 913,
+      "line": 950,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "raise OwnerTenantAuthorityV3Conflict(\"current authority sources changed\")"
     },
     {
-      "line": 1049,
+      "line": 1086,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "\"\"\"Expose current Authority V3 reads as a dedicated use case.\"\"\""
     },
     {
-      "line": 1060,
+      "line": 1097,
       "path": "apps/account/application/owner_tenant_authority_v3.py",
       "text": "\"\"\"Return one finite current Authority V3 observation.\"\"\""
     },
@@ -2451,17 +2451,17 @@
       "text": "\"\"\"Return the current policy, actor, roles, and finite validity window.\"\"\""
     },
     {
-      "line": 228,
+      "line": 236,
       "path": "apps/account/application/owner_tenant_authority_v3_contracts.py",
       "text": "\"\"\"Bind an Authority V3 to one fresh current policy/authentication observation.\"\"\""
     },
     {
-      "line": 249,
+      "line": 257,
       "path": "apps/account/application/owner_tenant_authority_v3_contracts.py",
       "text": "raise ValueError(\"authority is not current at the observation clock\")"
     },
     {
-      "line": 260,
+      "line": 268,
       "path": "apps/account/application/owner_tenant_authority_v3_contracts.py",
       "text": "raise ValueError(\"current authority observation exceeds its source validity\")"
     },
@@ -4331,26 +4331,6 @@
       "text": "summary=model.summary,"
     },
     {
-      "line": 51,
-      "path": "apps/account/infrastructure/immutable_read_snapshot.py",
-      "text": "current = _immutable_reads.get()"
-    },
-    {
-      "line": 52,
-      "path": "apps/account/infrastructure/immutable_read_snapshot.py",
-      "text": "if current is None or not args:"
-    },
-    {
-      "line": 62,
-      "path": "apps/account/infrastructure/immutable_read_snapshot.py",
-      "text": "cached = current.get(key, _MISSING)"
-    },
-    {
-      "line": 66,
-      "path": "apps/account/infrastructure/immutable_read_snapshot.py",
-      "text": "current[key] = value"
-    },
-    {
       "line": 183,
       "path": "apps/account/infrastructure/market_price_service.py",
       "text": "trade_date.isoformat() if trade_date is not None else \"latest\","
@@ -4801,29 +4781,34 @@
       "text": "\"\"\"Record an explicit immutable revocation by the current authenticated owner.\"\"\""
     },
     {
-      "line": 92,
+      "line": 95,
       "path": "apps/account/owner_tenant_authority_v3_composition.py",
       "text": "\"\"\"Adapt the public Evidence V5 current facade to the V3 reader port.\"\"\""
     },
     {
-      "line": 103,
+      "line": 106,
       "path": "apps/account/owner_tenant_authority_v3_composition.py",
       "text": "\"\"\"Read the selected current Evidence V5 through its public facade.\"\"\""
     },
     {
-      "line": 129,
+      "line": 132,
       "path": "apps/account/owner_tenant_authority_v3_composition.py",
       "text": "Current observations are short-lived values.  ``with_current`` invokes a"
     },
     {
-      "line": 186,
+      "line": 199,
       "path": "apps/account/owner_tenant_authority_v3_composition.py",
       "text": "\"\"\"Return one finite observation after current source revalidation.\"\"\""
     },
     {
-      "line": 210,
+      "line": 221,
       "path": "apps/account/owner_tenant_authority_v3_composition.py",
       "text": "The callback receives only the current observation and runs inside the"
+    },
+    {
+      "line": 311,
+      "path": "apps/account/owner_tenant_authority_v3_composition.py",
+      "text": "\"\"\"Run one current-Evidence operation after its physical source lock.\"\"\""
     },
     {
       "line": 34,
@@ -22506,57 +22491,57 @@
       "text": "return current"
     },
     {
-      "line": 61,
+      "line": 62,
       "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
       "text": "\"\"\"Return current Django time.\"\"\""
     },
     {
-      "line": 158,
+      "line": 159,
       "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
       "text": "current = self._current_head(source, as_of=recorded_at, lock=True)"
     },
     {
-      "line": 159,
+      "line": 160,
       "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
       "text": "actual_predecessor = current.source.content_hash if current is not None else None"
     },
     {
-      "line": 164,
+      "line": 165,
       "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
       "text": "if current is not None:"
     },
     {
-      "line": 167,
+      "line": 168,
       "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
       "text": "current.source,"
     },
     {
-      "line": 694,
+      "line": 696,
       "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
       "text": "current = roots[0]"
     },
     {
-      "line": 695,
+      "line": 697,
       "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
       "text": "while current.source.content_hash not in visited:"
     },
     {
-      "line": 696,
+      "line": 698,
       "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
       "text": "visited.add(current.source.content_hash)"
     },
     {
-      "line": 697,
+      "line": 699,
       "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
       "text": "successor = successor_by_predecessor.get(current.source.content_hash)"
     },
     {
-      "line": 700,
+      "line": 702,
       "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
       "text": "current = successor"
     },
     {
-      "line": 703,
+      "line": 705,
       "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
       "text": "return current"
     },
@@ -25354,6 +25339,41 @@
       "line": 14,
       "path": "shared/domain/reliability.py",
       "text": "\"\"\"Supported reliability states for current-data surfaces.\"\"\""
+    },
+    {
+      "line": 44,
+      "path": "shared/infrastructure/immutable_read_snapshot.py",
+      "text": "current: dict[tuple[object, ...], object] = {}"
+    },
+    {
+      "line": 45,
+      "path": "shared/infrastructure/immutable_read_snapshot.py",
+      "text": "token = _immutable_reads.set(current)"
+    },
+    {
+      "line": 49,
+      "path": "shared/infrastructure/immutable_read_snapshot.py",
+      "text": "current.clear()"
+    },
+    {
+      "line": 80,
+      "path": "shared/infrastructure/immutable_read_snapshot.py",
+      "text": "current = _immutable_reads.get()"
+    },
+    {
+      "line": 81,
+      "path": "shared/infrastructure/immutable_read_snapshot.py",
+      "text": "if current is None or not args:"
+    },
+    {
+      "line": 91,
+      "path": "shared/infrastructure/immutable_read_snapshot.py",
+      "text": "cached = current.get(key, _MISSING)"
+    },
+    {
+      "line": 95,
+      "path": "shared/infrastructure/immutable_read_snapshot.py",
+      "text": "current[key] = value"
     },
     {
       "line": 43,
