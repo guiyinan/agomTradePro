@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from typing import Final
 from uuid import UUID
 
 from django.db import models
@@ -14,7 +16,12 @@ from django.db import models
 from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.market_time import cn_market_date_start_utc
 
+from .models import FinancialFactModel
 from .publication_fact_identity import build_publication_fact_identity
+
+_RAW_PAYLOAD_SCOPES: Final[frozenset[str]] = frozenset(
+    {"batch_response_body", "record_response_body"}
+)
 
 
 class _FactJSONEncoder(json.JSONEncoder):
@@ -70,14 +77,87 @@ class StoredFactEvidence:
     source_published_at: datetime | None = None
 
 
-def stored_fact_evidence(row: models.Model) -> StoredFactEvidence:
+@dataclass(frozen=True, slots=True)
+class FinancialSourceEvidence:
+    """Original source witness required by the financial policy3 boundary."""
+
+    announced_at: datetime
+    available_at: datetime
+    fetched_at: datetime
+    source_record_id: str
+    raw_payload_hash: str
+    raw_payload_scope: str
+
+
+def require_financial_source_evidence(row: FinancialFactModel) -> FinancialSourceEvidence:
+    """Read source timestamps and response metadata without normalized fallbacks."""
+
+    announced_at = _source_datetime(getattr(row, "announced_at", None), "announced_at")
+    available_at = _source_datetime(getattr(row, "available_at", None), "available_at")
+    fetched_at = _source_datetime(getattr(row, "fetched_at", None), "fetched_at")
+    if announced_at > available_at:
+        raise ValueError("financial source announced_at is after available_at")
+    if available_at > fetched_at:
+        raise ValueError("financial source available_at is after fetched_at")
+
+    source_record_id = getattr(row, "source_record_id", "")
+    if not isinstance(source_record_id, str) or not source_record_id.strip():
+        raise ValueError("financial source source_record_id is required")
+    raw_payload_hash = getattr(row, "raw_payload_hash", "")
+    if not isinstance(raw_payload_hash, str) or not _is_sha256(raw_payload_hash):
+        raise ValueError("financial source raw_payload_hash must be lowercase SHA-256")
+    extra: object = getattr(row, "extra", None)
+    raw_payload_scope: object = (
+        extra.get("raw_payload_scope", "") if isinstance(extra, Mapping) else ""
+    )
+    if not isinstance(raw_payload_scope, str) or raw_payload_scope not in _RAW_PAYLOAD_SCOPES:
+        raise ValueError("financial source raw_payload_scope is not supported")
+    return FinancialSourceEvidence(
+        announced_at=announced_at,
+        available_at=available_at,
+        fetched_at=fetched_at,
+        source_record_id=source_record_id,
+        raw_payload_hash=raw_payload_hash,
+        raw_payload_scope=raw_payload_scope,
+    )
+
+
+def _is_sha256(value: str) -> bool:
+    """Return whether a value is one exact lowercase SHA-256 digest."""
+
+    return len(value) == 64 and all(character in "0123456789abcdef" for character in value)
+
+
+def _source_datetime(value: object, field_name: str) -> datetime:
+    """Require one aware source timestamp and narrow it from the ORM boundary."""
+
+    if not isinstance(value, datetime):
+        raise ValueError(f"financial source {field_name} is required")
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError(f"financial source {field_name} must be timezone-aware")
+    return value
+
+
+def stored_fact_evidence(
+    row: models.Model,
+    *,
+    require_verified_source_evidence: bool = False,
+) -> StoredFactEvidence:
     """Narrow dynamic ORM timestamps and JSON scope before returning immutable evidence."""
 
     available: object = getattr(row, "available_at", None)
     fetched: object = getattr(row, "fetched_at", None)
     source_published: object = getattr(row, "published_at", None)
     extra: object = getattr(row, "extra", None)
-    scope: object = extra.get("raw_payload_scope", "") if isinstance(extra, dict) else ""
+    scope: object = extra.get("raw_payload_scope", "") if isinstance(extra, Mapping) else ""
+    if require_verified_source_evidence:
+        if not isinstance(row, FinancialFactModel):
+            raise ValueError("verified source evidence is only defined for financial facts")
+        source_evidence = require_financial_source_evidence(row)
+        available = source_evidence.available_at
+        fetched = source_evidence.fetched_at
+        source_published = source_evidence.announced_at
+        scope = source_evidence.raw_payload_scope
     for name, value in (("available_at", available), ("fetched_at", fetched)):
         if value is not None and not isinstance(value, datetime):
             raise ValueError(f"Canonical fact {name} must be datetime or None")
@@ -106,6 +186,7 @@ def publication_fact_reference(
     source_record_id: str | None = None,
     revision_number: int | None = None,
     quality_status: str | None = None,
+    require_verified_source_evidence: bool = False,
 ) -> PublicationFactReference:
     """Attach exact row evidence while preserving a source or normalized fallback hash.
 
@@ -127,7 +208,15 @@ def publication_fact_reference(
         raise ValueError("Canonical fact source evidence must be text")
     if not isinstance(revision, int) or isinstance(revision, bool):
         raise ValueError("Canonical fact revision must be an integer")
-    evidence = stored_fact_evidence(row)
+    evidence = stored_fact_evidence(
+        row,
+        require_verified_source_evidence=require_verified_source_evidence,
+    )
+    if require_verified_source_evidence:
+        if not isinstance(row, FinancialFactModel):
+            raise ValueError("verified source evidence is only defined for financial facts")
+        record = stored_record
+        raw_hash = getattr(row, "raw_payload_hash", "")
     return PublicationFactReference(
         natural_key=natural_key,
         source=source if isinstance(source, str) else "",
@@ -152,6 +241,7 @@ def publication_fact_reference_for_dataset(
     row: models.Model,
     *,
     dataset_key: str,
+    require_verified_source_evidence: bool = False,
 ) -> PublicationFactReference:
     """Build a reference from the canonical rule for a normalized dataset."""
 
@@ -164,4 +254,16 @@ def publication_fact_reference_for_dataset(
         legacy_payload_hash=identity.raw_payload_hash,
         quality_status=identity.quality_status,
         revision_number=identity.revision_number,
+        require_verified_source_evidence=require_verified_source_evidence,
     )
+
+
+__all__ = [
+    "FinancialSourceEvidence",
+    "StoredFactEvidence",
+    "canonical_fact_content_hash",
+    "publication_fact_reference",
+    "publication_fact_reference_for_dataset",
+    "require_financial_source_evidence",
+    "stored_fact_evidence",
+]

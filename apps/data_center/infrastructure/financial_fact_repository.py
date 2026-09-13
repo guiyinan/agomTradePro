@@ -16,6 +16,7 @@ from apps.data_center.infrastructure.financial_availability_repository import (
 )
 from apps.data_center.infrastructure.models import FinancialFactModel
 
+from .financial_source_policy import requires_verified_financial_source_evidence
 from .publication_fact_evidence import publication_fact_reference_for_dataset
 
 
@@ -105,6 +106,7 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
 
         references: list[PublicationFactReference] = []
         seen_fact_pks: set[str] = set()
+        require_verified = requires_verified_financial_source_evidence()
         for fact in facts:
             row = (
                 FinancialFactModel._default_manager.filter(
@@ -126,7 +128,7 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
                 continue
             fact_pk = str(row.pk)
             seen_fact_pks.add(fact_pk)
-            references.append(_financial_publication_reference(row))
+            references.append(_financial_publication_reference(row, require_verified))
         return references
 
     def list_current_publication_candidates(
@@ -137,6 +139,7 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
 
         if not asset_codes:
             return []
+        require_verified = requires_verified_financial_source_evidence()
         latest_available_period = (
             FinancialFactModel._default_manager.filter(
                 asset_code=OuterRef("asset_code"),
@@ -162,11 +165,11 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
             period_end=Subquery(latest_available_period),
             pk=Subquery(latest_metric_row),
         ).order_by("asset_code", "period_type", "metric_code")
-        return [_financial_publication_reference(row) for row in rows]
+        return [_financial_publication_reference(row, require_verified) for row in rows]
 
 
 def _financial_publication_reference(
-    row: FinancialFactModel,
+    row: FinancialFactModel, require_verified_source_evidence: bool = False
 ) -> PublicationFactReference:
     """Convert one evidence-safe financial row to a publication reference."""
 
@@ -175,6 +178,7 @@ def _financial_publication_reference(
     return publication_fact_reference_for_dataset(
         row,
         dataset_key="equity.financial.fact",
+        require_verified_source_evidence=require_verified_source_evidence,
     )
 
 

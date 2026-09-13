@@ -110,7 +110,13 @@ def _member_provenance_matches_row(member: PublicationMember, row: models.Model)
 
     try:
         identity = build_publication_fact_identity(member.dataset_key, row)
-        evidence = stored_fact_evidence(row)
+        evidence = stored_fact_evidence(
+            row,
+            require_verified_source_evidence=(
+                member.dataset_key == "equity.financial.fact"
+                and member.source_published_at is not None
+            ),
+        )
     except (AttributeError, TypeError, ValueError):
         return False
     if (
