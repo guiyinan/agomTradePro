@@ -1,0 +1,23 @@
+{
+  "recorded_at": "2026-09-13T12:01:06.678997+00:00",
+  "read_only": true,
+  "counts": {
+    "total": 441944,
+    "available_at_missing": 160,
+    "announced_at_missing": 441944,
+    "original_raw_hash_missing_or_invalid": 441944,
+    "source_record_id_missing": 441944,
+    "raw_scope_missing_or_unsupported": 441944,
+    "availability_present_without_source_announcement": 441784,
+    "announcement_after_availability": 0,
+    "structurally_complete_source_evidence": 0
+  },
+  "statement_timeout_seconds": 20,
+  "lock_timeout_seconds": 5,
+  "limits": [
+    "Structural stored-field inventory only; no source raw body replay, field authenticity, synthetic-midnight classification, candidate usability, repair or publication is claimed."
+  ],
+  "container_id": "64424b4c6b8237d052a93c808976d7041931d6cda994629d52af11549a45e6e6",
+  "source_commit": "b18b18029f90af4b23693426a1f489af44ffe2b2",
+  "production_rows_modified": 0
+}

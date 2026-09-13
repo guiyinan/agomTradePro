@@ -292,3 +292,11 @@ dataset 配置不变。manifest 回归先红（1 failed），随后与已有不�
 publication_policy_changed 门阻断。实际金融 ORM 来源适配、真实响应与精确时间
 反例正在实施，不能以配置测试代替完成。新候选必须重新绑定准确 Git 字节和真实
 生产 preflight，不能继续使用旧 policy2 的 candidate SHA。
+
+2026-09-13T12:01:06.678997Z 实际生产只读聚合盘点：441944条金融事实，
+available_at缺失160条；announced_at、原始raw hash、source_record_id和支持的
+raw scope均缺失441944条；441784条有available_at却无source announcement。
+结构上完整的来源凭证为0。记录仅证明存储字段缺口，不能据此将非空时间都分类为
+旧Cast合成值，也不能证明原始供应商时间或current可用性；未修改任何生产行。
+[实际只读证据](../deployment/data02-financial-provenance-readonly-2026-09-13.json)。
+下一阶段只对经盘点冻结的决策当前universe做有界重新采集，不全表重写历史数据。
