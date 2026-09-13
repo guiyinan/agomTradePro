@@ -154,6 +154,14 @@ class CurrentOwnerTenantAuthorityParticipantsReader(Protocol):
         ...
 
 
+class OwnerTenantAuthorityV3ReadPhase(Protocol):
+    """Provide one short-lived, caller-stabilized immutable read phase."""
+
+    def __call__(self) -> AbstractContextManager[None]:
+        """Return a fresh phase context whose cache ends before mutation or callback."""
+        ...
+
+
 class OwnerTenantAuthorityV3Repository(Protocol):
     """Persist Authority V3 roots, successors, and one revocation per root."""
 
@@ -267,6 +275,7 @@ __all__ = [
     "HistoricalOwnerAssignmentEvidenceV5Reader",
     "OwnerTenantAuthorityV3Conflict",
     "OwnerTenantAuthorityV3Corruption",
+    "OwnerTenantAuthorityV3ReadPhase",
     "OwnerTenantAuthorityV3Repository",
     "OwnerTenantAuthorityV3Unavailable",
     "PersistedOwnerTenantAuthorityV3",

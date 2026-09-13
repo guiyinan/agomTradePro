@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -22,6 +23,7 @@ from apps.account.application.owner_tenant_authority_v3_contracts import (
     HistoricalOwnerAssignmentEvidenceV5Reader,
     OwnerTenantAuthorityV3Conflict,
     OwnerTenantAuthorityV3Corruption,
+    OwnerTenantAuthorityV3ReadPhase,
     OwnerTenantAuthorityV3Repository,
     OwnerTenantAuthorityV3Unavailable,
     PersistedOwnerTenantAuthorityV3,
@@ -202,8 +204,16 @@ class OwnerTenantAuthorityV3Service:
         historical_assignments: HistoricalOwnerAssignmentEvidenceV5Reader,
         participants: CurrentOwnerTenantAuthorityParticipantsReader,
         validity_period: timedelta,
+        read_phase: OwnerTenantAuthorityV3ReadPhase | None = None,
     ) -> None:
-        """Bind public Evidence V5 readers and one server-owned repository boundary."""
+        """Bind public readers, the repository boundary, and one read-phase factory.
+
+        ``read_phase`` is deliberately an Application protocol.  The
+        composition root supplies the infrastructure context that starts one
+        fresh immutable phase after all source locks have been acquired.  A
+        null context keeps direct unit use correct while making the cache an
+        explicit production composition decision.
+        """
 
         if type(validity_period) is not timedelta or validity_period <= timedelta(0):
             raise ValueError("validity_period must be an exact positive timedelta")
@@ -213,11 +223,14 @@ class OwnerTenantAuthorityV3Service:
             raise TypeError("historical_assignments must expose execute")
         if not callable(getattr(participants, "get_current", None)):
             raise TypeError("participants must expose get_current")
+        if read_phase is not None and not callable(read_phase):
+            raise TypeError("read_phase must return a context manager")
         self._repository = repository
         self._current_assignments = current_assignments
         self._historical_assignments = historical_assignments
         self._participants = participants
         self._validity_period = validity_period
+        self._read_phase = read_phase if read_phase is not None else nullcontext
 
     def issue(self, command: IssueOwnerTenantAuthorityV3Command) -> OwnerTenantAuthorityV3:
         """Issue or replay one first-winner active Authority V3 root."""
@@ -226,45 +239,50 @@ class OwnerTenantAuthorityV3Service:
             raise TypeError("command must be exact IssueOwnerTenantAuthorityV3Command")
         command.__post_init__()
         with self._repository.atomic():
-            cutoff = self._now()
-            winner = self._winner(command.authority_id, command.authority_version, cutoff)
-            if winner is not None:
-                checked = winner.authority
-                if not self._root_matches(checked, command):
-                    raise OwnerTenantAuthorityV3Conflict(
-                        "authority root identity has another winner"
+            with self._read_phase():
+                cutoff = self._now()
+                winner = self._winner(command.authority_id, command.authority_version, cutoff)
+                if winner is not None:
+                    checked = winner.authority
+                    if not self._root_matches(checked, command):
+                        raise OwnerTenantAuthorityV3Conflict(
+                            "authority root identity has another winner"
+                        )
+                    if self._current(winner, cutoff) is None:
+                        raise OwnerTenantAuthorityV3Conflict(
+                            "authority root winner no longer has current sources"
+                        )
+                    return checked
+                self._empty_slots(
+                    command.authority_id,
+                    command.expected_assignment_evidence_content_hash,
+                    cutoff,
+                )
+                first = self._inputs(command, cutoff)
+                recorded_at = self._now()
+                if recorded_at < cutoff:
+                    raise OwnerTenantAuthorityV3Corruption(
+                        "authority repository clock moved backwards"
                     )
-                if self._current(winner, cutoff) is None:
-                    raise OwnerTenantAuthorityV3Conflict(
-                        "authority root winner no longer has current sources"
-                    )
-                return checked
-            self._empty_slots(
-                command.authority_id, command.expected_assignment_evidence_content_hash, cutoff
-            )
-            first = self._inputs(command, cutoff)
-            recorded_at = self._now()
-            if recorded_at < cutoff:
-                raise OwnerTenantAuthorityV3Corruption("authority repository clock moved backwards")
-            second = self._inputs(command, recorded_at)
-            if not self._same_inputs(first, second):
-                raise OwnerTenantAuthorityV3Conflict("authority approval inputs changed")
-            candidate = self._candidate(
-                authority_id=command.authority_id,
-                authority_version=command.authority_version,
-                assignment=second.assignment,
-                participants=second.participants,
-                approved_at=cutoff,
-                recorded_at=recorded_at,
-                predecessor_hash=None,
-            )
-            try:
-                validate_owner_tenant_authority_v3_root(candidate)
-            except (TypeError, ValueError) as error:
-                raise OwnerTenantAuthorityV3Corruption(
-                    "authority root candidate is invalid"
-                ) from error
-            record = PersistedOwnerTenantAuthorityV3(candidate, second.participants.authority)
+                second = self._inputs(command, recorded_at)
+                if not self._same_inputs(first, second):
+                    raise OwnerTenantAuthorityV3Conflict("authority approval inputs changed")
+                candidate = self._candidate(
+                    authority_id=command.authority_id,
+                    authority_version=command.authority_version,
+                    assignment=second.assignment,
+                    participants=second.participants,
+                    approved_at=cutoff,
+                    recorded_at=recorded_at,
+                    predecessor_hash=None,
+                )
+                try:
+                    validate_owner_tenant_authority_v3_root(candidate)
+                except (TypeError, ValueError) as error:
+                    raise OwnerTenantAuthorityV3Corruption(
+                        "authority root candidate is invalid"
+                    ) from error
+                record = PersistedOwnerTenantAuthorityV3(candidate, second.participants.authority)
             persisted = self._repository.append(
                 record,
                 expected_predecessor_hash=None,
@@ -285,101 +303,108 @@ class OwnerTenantAuthorityV3Service:
             raise TypeError("command must be exact SupersedeOwnerTenantAuthorityV3Command")
         command.__post_init__()
         with self._repository.atomic():
-            cutoff = self._now()
-            if command.authority_version == command.predecessor_version:
-                raise OwnerTenantAuthorityV3Conflict("authority successor version must advance")
-            winner = self._winner(command.authority_id, command.authority_version, cutoff)
-            if winner is not None:
-                checked = winner.authority
-                if not self._successor_matches(checked, command):
-                    raise OwnerTenantAuthorityV3Conflict(
-                        "authority successor identity has another winner"
-                    )
-                if self._current(winner, cutoff) is None:
-                    raise OwnerTenantAuthorityV3Conflict(
-                        "authority successor winner no longer has current sources"
-                    )
-                return checked
-            predecessor_record = self._repository.get_head(
-                authority_id=command.authority_id,
-                as_of=cutoff,
-            )
-            if predecessor_record is None:
-                raise OwnerTenantAuthorityV3Unavailable("authority predecessor is unavailable")
-            predecessor = self._record(predecessor_record).authority
-            if (
-                predecessor.authority_version != command.predecessor_version
-                or predecessor.content_hash != command.expected_predecessor_content_hash
+
+            def prepare_successor() -> (
+                OwnerTenantAuthorityV3 | tuple[PersistedOwnerTenantAuthorityV3, str, datetime]
             ):
-                raise OwnerTenantAuthorityV3Conflict("authority predecessor changed")
-            first = self._inputs(
-                IssueOwnerTenantAuthorityV3Command(
-                    command.authority_id,
-                    command.authority_version,
-                    command.assignment_evidence_id,
-                    command.assignment_evidence_version,
-                    command.expected_assignment_evidence_content_hash,
-                ),
-                cutoff,
-            )
-            if (
-                first.assignment != predecessor.assignment
-                or first.participants.policy != predecessor.policy
-            ):
-                raise OwnerTenantAuthorityV3Conflict("authority successor source scope changed")
-            recorded_at = self._now()
-            if recorded_at < cutoff:
-                raise OwnerTenantAuthorityV3Corruption("authority repository clock moved backwards")
-            if recorded_at <= predecessor.recorded_at:
-                raise OwnerTenantAuthorityV3Conflict(
-                    "authority successor recording clock must advance"
+                """Read and validate one successor before leaving the phase."""
+
+                cutoff = self._now()
+                if command.authority_version == command.predecessor_version:
+                    raise OwnerTenantAuthorityV3Conflict("authority successor version must advance")
+                winner = self._winner(command.authority_id, command.authority_version, cutoff)
+                if winner is not None:
+                    checked = winner.authority
+                    if not self._successor_matches(checked, command):
+                        raise OwnerTenantAuthorityV3Conflict(
+                            "authority successor identity has another winner"
+                        )
+                    if self._current(winner, cutoff) is None:
+                        raise OwnerTenantAuthorityV3Conflict(
+                            "authority successor winner no longer has current sources"
+                        )
+                    return checked
+                predecessor_record = self._repository.get_head(
+                    authority_id=command.authority_id,
+                    as_of=cutoff,
                 )
-            second = self._inputs(
-                IssueOwnerTenantAuthorityV3Command(
+                if predecessor_record is None:
+                    raise OwnerTenantAuthorityV3Unavailable("authority predecessor is unavailable")
+                predecessor = self._record(predecessor_record).authority
+                if (
+                    predecessor.authority_version != command.predecessor_version
+                    or predecessor.content_hash != command.expected_predecessor_content_hash
+                ):
+                    raise OwnerTenantAuthorityV3Conflict("authority predecessor changed")
+                issue_command = IssueOwnerTenantAuthorityV3Command(
                     command.authority_id,
                     command.authority_version,
                     command.assignment_evidence_id,
                     command.assignment_evidence_version,
                     command.expected_assignment_evidence_content_hash,
-                ),
-                recorded_at,
-            )
-            if not self._same_inputs(first, second):
-                raise OwnerTenantAuthorityV3Conflict("authority successor inputs changed")
-            if (
-                second.assignment != predecessor.assignment
-                or second.participants.policy != predecessor.policy
-            ):
-                raise OwnerTenantAuthorityV3Conflict("authority successor source scope changed")
-            latest_record = self._repository.get_head(
-                authority_id=command.authority_id,
-                as_of=recorded_at,
-            )
-            if latest_record is None or self._record(latest_record).authority != predecessor:
-                raise OwnerTenantAuthorityV3Conflict("authority predecessor changed")
-            candidate = self._candidate(
-                authority_id=command.authority_id,
-                authority_version=command.authority_version,
-                assignment=second.assignment,
-                participants=second.participants,
-                approved_at=cutoff,
-                recorded_at=recorded_at,
-                predecessor_hash=predecessor.content_hash,
-            )
-            try:
-                validate_owner_tenant_authority_v3_successor(predecessor, candidate)
-            except ValueError as error:
-                raise OwnerTenantAuthorityV3Conflict(
-                    "authority successor does not satisfy predecessor chain"
-                ) from error
-            record = PersistedOwnerTenantAuthorityV3(candidate, second.participants.authority)
+                )
+                first = self._inputs(issue_command, cutoff)
+                if (
+                    first.assignment != predecessor.assignment
+                    or first.participants.policy != predecessor.policy
+                ):
+                    raise OwnerTenantAuthorityV3Conflict("authority successor source scope changed")
+                recorded_at = self._now()
+                if recorded_at < cutoff:
+                    raise OwnerTenantAuthorityV3Corruption(
+                        "authority repository clock moved backwards"
+                    )
+                if recorded_at <= predecessor.recorded_at:
+                    raise OwnerTenantAuthorityV3Conflict(
+                        "authority successor recording clock must advance"
+                    )
+                second = self._inputs(issue_command, recorded_at)
+                if not self._same_inputs(first, second):
+                    raise OwnerTenantAuthorityV3Conflict("authority successor inputs changed")
+                if (
+                    second.assignment != predecessor.assignment
+                    or second.participants.policy != predecessor.policy
+                ):
+                    raise OwnerTenantAuthorityV3Conflict("authority successor source scope changed")
+                latest_record = self._repository.get_head(
+                    authority_id=command.authority_id,
+                    as_of=recorded_at,
+                )
+                if latest_record is None or self._record(latest_record).authority != predecessor:
+                    raise OwnerTenantAuthorityV3Conflict("authority predecessor changed")
+                candidate = self._candidate(
+                    authority_id=command.authority_id,
+                    authority_version=command.authority_version,
+                    assignment=second.assignment,
+                    participants=second.participants,
+                    approved_at=cutoff,
+                    recorded_at=recorded_at,
+                    predecessor_hash=predecessor.content_hash,
+                )
+                try:
+                    validate_owner_tenant_authority_v3_successor(predecessor, candidate)
+                except ValueError as error:
+                    raise OwnerTenantAuthorityV3Conflict(
+                        "authority successor does not satisfy predecessor chain"
+                    ) from error
+                record = PersistedOwnerTenantAuthorityV3(
+                    candidate,
+                    second.participants.authority,
+                )
+                return record, predecessor.content_hash, recorded_at
+
+            with self._read_phase():
+                prepared = prepare_successor()
+            if isinstance(prepared, OwnerTenantAuthorityV3):
+                return prepared
+            record, predecessor_hash, recorded_at = prepared
             persisted = self._repository.append(
                 record,
-                expected_predecessor_hash=predecessor.content_hash,
+                expected_predecessor_hash=predecessor_hash,
                 recorded_at=recorded_at,
             )
             checked = self._record(persisted).authority
-            if checked != candidate:
+            if checked != record.authority:
                 raise OwnerTenantAuthorityV3Conflict("authority successor winner differs")
             return checked
 
@@ -401,14 +426,19 @@ class OwnerTenantAuthorityV3Service:
             raise TypeError("command must be exact GetExactOwnerTenantAuthorityV3Command")
         command.__post_init__()
         with self._repository.atomic():
-            record = self._winner(command.authority_id, command.authority_version, command.as_of)
-            if record is None:
-                return None
-            authority = record.authority
-            if authority.content_hash != command.expected_content_hash:
-                raise OwnerTenantAuthorityV3Conflict("authority content hash differs")
-            self._history(authority)
-            return authority if authority.is_knowable_at(command.as_of) else None
+            with self._read_phase():
+                record = self._winner(
+                    command.authority_id,
+                    command.authority_version,
+                    command.as_of,
+                )
+                if record is None:
+                    return None
+                authority = record.authority
+                if authority.content_hash != command.expected_content_hash:
+                    raise OwnerTenantAuthorityV3Conflict("authority content hash differs")
+                self._history(authority)
+                return authority if authority.is_knowable_at(command.as_of) else None
 
     def get_current(
         self,
@@ -420,11 +450,12 @@ class OwnerTenantAuthorityV3Service:
             raise TypeError("command must be exact GetCurrentOwnerTenantAuthorityV3Command")
         command.__post_init__()
         with self._repository.atomic():
-            cutoff = self._now()
-            record = self._selected(command, cutoff)
-            if record is None:
-                return None
-            return self._current(record, cutoff)
+            with self._read_phase():
+                cutoff = self._now()
+                record = self._selected(command, cutoff)
+                if record is None:
+                    return None
+                return self._current(record, cutoff)
 
     def revoke(
         self,
@@ -436,41 +467,47 @@ class OwnerTenantAuthorityV3Service:
             raise TypeError("command must be exact RevokeOwnerTenantAuthorityV3Command")
         command.__post_init__()
         with self._repository.atomic():
-            cutoff = self._now()
-            record = self._selected(command, cutoff)
-            if record is None:
-                raise OwnerTenantAuthorityV3Unavailable("exact authority is unavailable")
-            authority = record.authority
-            self._history(authority)
-            first = self._authority_participants(authority, cutoff)
-            second_cutoff = self._now()
-            second = self._authority_participants(authority, second_cutoff)
-            if not self._same_participants(first, second):
-                raise OwnerTenantAuthorityV3Conflict("authentication changed during revocation")
-            recorded_at = self._now()
-            if recorded_at < cutoff:
-                raise OwnerTenantAuthorityV3Corruption("authority repository clock moved backwards")
-            self._heads(record, recorded_at)
-            existing = self._revocation(authority, recorded_at)
-            if existing is not None:
-                if existing.revocation.reason != command.reason:
-                    raise OwnerTenantAuthorityV3Conflict("revocation replay changed reason")
-                return existing.revocation
-            revocation = OwnerTenantAuthorityV3Revocation(
-                authority_content_hash=authority.content_hash,
-                policy_content_hash=authority.policy.content_hash,
-                revoked_by=self._actor(second.authority, REVOKER_ROLE),
-                revoked_at=cutoff,
-                recorded_at=recorded_at,
-                reason=command.reason,
-            )
-            try:
-                validate_owner_tenant_authority_v3_revocation(authority, revocation)
-            except (TypeError, ValueError) as error:
-                raise OwnerTenantAuthorityV3Corruption(
-                    "authority revocation candidate is invalid"
-                ) from error
-            candidate = PersistedOwnerTenantAuthorityV3Revocation(revocation, second.authority)
+            with self._read_phase():
+                cutoff = self._now()
+                record = self._selected(command, cutoff)
+                if record is None:
+                    raise OwnerTenantAuthorityV3Unavailable("exact authority is unavailable")
+                authority = record.authority
+                self._history(authority)
+                first = self._authority_participants(authority, cutoff)
+                second_cutoff = self._now()
+                second = self._authority_participants(authority, second_cutoff)
+                if not self._same_participants(first, second):
+                    raise OwnerTenantAuthorityV3Conflict("authentication changed during revocation")
+                recorded_at = self._now()
+                if recorded_at < cutoff:
+                    raise OwnerTenantAuthorityV3Corruption(
+                        "authority repository clock moved backwards"
+                    )
+                self._heads(record, recorded_at)
+                existing = self._revocation(authority, recorded_at)
+                if existing is not None:
+                    if existing.revocation.reason != command.reason:
+                        raise OwnerTenantAuthorityV3Conflict("revocation replay changed reason")
+                    return existing.revocation
+                revocation = OwnerTenantAuthorityV3Revocation(
+                    authority_content_hash=authority.content_hash,
+                    policy_content_hash=authority.policy.content_hash,
+                    revoked_by=self._actor(second.authority, REVOKER_ROLE),
+                    revoked_at=cutoff,
+                    recorded_at=recorded_at,
+                    reason=command.reason,
+                )
+                try:
+                    validate_owner_tenant_authority_v3_revocation(authority, revocation)
+                except (TypeError, ValueError) as error:
+                    raise OwnerTenantAuthorityV3Corruption(
+                        "authority revocation candidate is invalid"
+                    ) from error
+                candidate = PersistedOwnerTenantAuthorityV3Revocation(
+                    revocation,
+                    second.authority,
+                )
             persisted = self._repository.append_revocation(
                 candidate,
                 expected_authority_content_hash=authority.content_hash,
