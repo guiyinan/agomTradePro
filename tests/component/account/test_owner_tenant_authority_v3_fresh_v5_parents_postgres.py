@@ -5,13 +5,20 @@ from __future__ import annotations
 import json
 import os
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager
+from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from time import perf_counter, process_time
+from typing import Protocol, cast
+from urllib.parse import unquote, urlsplit
 
 import pytest
-from django.db import connections, transaction
+from django.contrib.auth.models import Group, Permission, User
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.sessions.models import Session
+from django.db import connections, models, transaction
+from django.db.backends.base.base import BaseDatabaseWrapper
 
 from apps.account.account_owner_assignment_evidence_v5_composition import (
     build_account_owner_assignment_evidence_v5_facade,
@@ -38,6 +45,18 @@ from apps.account.application.owner_tenant_authority_v3 import (
     RevokeOwnerTenantAuthorityV3Command,
 )
 from apps.account.application.single_owner_actor_authority import SingleOwnerPolicyBinding
+from apps.account.infrastructure.account_actor_authority_raw_source_models_v3 import (
+    AccountAuthenticationContextSourceV3AnchorModel,
+    AccountAuthenticationContextSourceV3Model,
+    AccountRbacAuthoritySourceV3AnchorModel,
+    AccountRbacAuthoritySourceV3Model,
+    AccountUserAuthoritySourceV3AnchorModel,
+    AccountUserAuthoritySourceV3Model,
+)
+from apps.account.infrastructure.account_owner_assignment_actor_authority_source_v3_models import (
+    AccountOwnerAssignmentActorAuthoritySourceV3Model,
+    AccountOwnerAssignmentActorAuthoritySourceV3RootLockModel,
+)
 from apps.account.infrastructure.account_owner_assignment_provenance_receipt_v5_repository import (
     DjangoAccountOwnerAssignmentProvenanceReceiptV5Repository,
 )
@@ -49,11 +68,39 @@ from apps.account.infrastructure.account_owner_assignment_v5_models import (
     AccountOwnerAssignmentProvenanceReceiptV5Model,
     AccountOwnerAssignmentSubjectV5Model,
 )
+from apps.account.infrastructure.allocated_physical_account_row_observation_v3_models import (
+    AllocatedPhysicalAccountRowObservationV3Model,
+)
+from apps.account.infrastructure.canonical_account_creation_consumption_models import (
+    CanonicalAccountCreationBindingV2Model,
+    CanonicalAccountCreationConsumptionClaimModel,
+)
+from apps.account.infrastructure.canonical_account_creation_models import (
+    CanonicalAccountCreationAllocationModel,
+    CanonicalAccountCreationBindingModel,
+)
+from apps.account.infrastructure.canonical_account_ownership_reobservation_v1_models import (
+    CanonicalAccountOwnershipReobservationV1Model,
+)
+from apps.account.infrastructure.identity_models import AccountProfileModel
+from apps.account.infrastructure.owner_tenant_authority_v3_models import (
+    OwnerTenantAuthorityV3Model,
+    OwnerTenantAuthorityV3RevocationModel,
+)
+from apps.account.infrastructure.physical_account_row_observation_v2_models import (
+    PhysicalAccountRowObservationV2Model,
+)
+from apps.account.infrastructure.single_owner_authority_policy_v1_models import (
+    SingleOwnerAuthorityPolicyV1Model,
+)
 from apps.account.owner_tenant_authority_v3_composition import (
     build_owner_tenant_authority_v3_facade,
 )
 from apps.simulated_trading.account_physical_row_v2_composition import (
     build_account_physical_row_v2_provider,
+)
+from apps.simulated_trading.infrastructure.simulated_account_row_source_v2_models import (
+    SimulatedAccountRowSourceV2Model,
 )
 from shared.infrastructure.immutable_read_snapshot import immutable_read_snapshot
 from tests.component.account.test_account_owner_assignment_provenance_receipt_v5_repository import (
@@ -67,6 +114,179 @@ from tests.unit.account.test_account_owner_assignment_evidence_v5 import _eviden
 from tests.unit.account.test_account_owner_assignment_subject_v5 import _subject
 
 pytest_plugins = ["tests.component.account.test_owner_tenant_authority_v3_repository"]
+
+PG_ALIAS = "evid06_authority_test"
+
+_AUTH_MODELS: tuple[type[models.Model], ...] = (
+    ContentType,
+    Permission,
+    Group,
+    User,
+    Session,
+    AccountProfileModel,
+    AccountAuthenticationContextSourceV3AnchorModel,
+    AccountAuthenticationContextSourceV3Model,
+    AccountUserAuthoritySourceV3AnchorModel,
+    AccountUserAuthoritySourceV3Model,
+    AccountRbacAuthoritySourceV3AnchorModel,
+    AccountRbacAuthoritySourceV3Model,
+    AccountOwnerAssignmentActorAuthoritySourceV3RootLockModel,
+    AccountOwnerAssignmentActorAuthoritySourceV3Model,
+)
+
+_V5_MODELS: tuple[type[models.Model], ...] = (
+    CanonicalAccountCreationAllocationModel,
+    AllocatedPhysicalAccountRowObservationV3Model,
+    CanonicalAccountCreationConsumptionClaimModel,
+    CanonicalAccountCreationBindingModel,
+    CanonicalAccountCreationBindingV2Model,
+    PhysicalAccountRowObservationV2Model,
+    CanonicalAccountOwnershipReobservationV1Model,
+    SingleOwnerAuthorityPolicyV1Model,
+    AccountOwnerAssignmentProvenanceReceiptV5Model,
+    AccountOwnerAssignmentSubjectV5Model,
+    AccountOwnerAssignmentEvidenceV5Model,
+)
+
+_OWNER_MODELS: tuple[type[models.Model], ...] = (
+    OwnerTenantAuthorityV3Model,
+    OwnerTenantAuthorityV3RevocationModel,
+    SimulatedAccountRowSourceV2Model,
+)
+
+_SCHEMA_MODELS = _AUTH_MODELS + _V5_MODELS + _OWNER_MODELS
+
+
+class _DjangoDbBlocker(Protocol):
+    def unblock(self) -> AbstractContextManager[None]:
+        """Allow the fixture to create its isolated schema."""
+
+
+def _collect_create_sql(
+    connection: BaseDatabaseWrapper,
+) -> tuple[str, ...]:
+    """Collect model DDL without executing any per-model database request."""
+
+    editor = connection.schema_editor(collect_sql=True, atomic=False)
+    with editor:
+        for model in _SCHEMA_MODELS:
+            editor.create_model(model)
+    raw_statements: object = getattr(editor, "collected_sql", None)
+    if not isinstance(raw_statements, list):
+        raise RuntimeError("schema editor did not expose collected PostgreSQL DDL")
+    statements: list[str] = []
+    for statement in raw_statements:
+        if not isinstance(statement, str) or not statement.strip():
+            raise RuntimeError("schema editor returned invalid PostgreSQL DDL")
+        statements.append(statement)
+    if not statements:
+        raise RuntimeError("schema editor returned no PostgreSQL DDL")
+    return tuple(statements)
+
+
+def _owned_table_names(connection: BaseDatabaseWrapper) -> tuple[str, ...]:
+    """Return every model and auto-created M2M table in drop dependency order."""
+
+    names: list[str] = []
+    seen: set[str] = set()
+    for model in reversed(_SCHEMA_MODELS):
+        for field in model._meta.local_many_to_many:
+            through = field.remote_field.through
+            if not through._meta.auto_created:
+                continue
+            table_name = through._meta.db_table
+            if table_name not in seen:
+                names.append(table_name)
+                seen.add(table_name)
+        table_name = model._meta.db_table
+        if table_name not in seen:
+            names.append(table_name)
+            seen.add(table_name)
+    return tuple(names)
+
+
+def _collect_drop_sql(connection: BaseDatabaseWrapper) -> tuple[str, ...]:
+    """Build reverse-order DROP statements without Django's implicit CASCADE."""
+
+    return tuple(
+        f"DROP TABLE {connection.ops.quote_name(table_name)};"
+        for table_name in _owned_table_names(connection)
+    )
+
+
+def _execute_schema_batch(
+    connection: BaseDatabaseWrapper,
+    statements: tuple[str, ...],
+) -> None:
+    """Execute one quoted PostgreSQL DDL batch inside a rollbackable transaction."""
+
+    if not statements:
+        raise RuntimeError("empty PostgreSQL schema batch")
+    batch = "SET LOCAL lock_timeout = '5s';\nSET LOCAL statement_timeout = '30s';\n"
+    batch += "\n".join(statements)
+    with transaction.atomic(using=connection.alias):
+        with connection.cursor() as cursor:
+            cursor.execute(batch)
+
+
+@pytest.fixture(name="owner_alias")
+def owner_alias(
+    django_db_blocker: _DjangoDbBlocker,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[str]:
+    """Create the complete V5 parent graph in one disposable PostgreSQL DDL batch."""
+
+    if os.environ.get("AGOM_EVID06_POSTGRES_TEST") != "1":
+        pytest.skip("set AGOM_EVID06_POSTGRES_TEST=1 for the disposable EVID-06 test")
+    monkeypatch.setenv("AGOMTRADEPRO_DISABLE_USER_PROVISIONING_SIGNALS", "1")
+    database_url = os.environ.get("AGOM_EVID06_POSTGRES_TEST_DATABASE_URL", "").strip()
+    parsed = urlsplit(database_url)
+    database_name = unquote(parsed.path.removeprefix("/"))
+    if parsed.scheme not in {"postgres", "postgresql"}:
+        raise RuntimeError("EVID-06 PostgreSQL tests require a PostgreSQL URL")
+    if parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
+        raise RuntimeError("EVID-06 PostgreSQL tests require a loopback host")
+    if database_name != PG_ALIAS or not parsed.username:
+        raise RuntimeError("EVID-06 PostgreSQL tests require the dedicated test database")
+    if PG_ALIAS in connections.databases:
+        raise RuntimeError(f"refusing preexisting database alias: {PG_ALIAS}")
+    try:
+        port = parsed.port
+    except ValueError as error:
+        raise RuntimeError("EVID-06 PostgreSQL test URL has an invalid port") from error
+    database_settings = cast(dict[str, object], deepcopy(connections["default"].settings_dict))
+    database_settings.update(
+        {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": database_name,
+            "USER": unquote(parsed.username),
+            "PASSWORD": unquote(parsed.password or ""),
+            "HOST": parsed.hostname,
+            "PORT": str(port or 5432),
+            "CONN_MAX_AGE": 0,
+            "OPTIONS": {},
+        }
+    )
+    connections.databases[PG_ALIAS] = database_settings  # type: ignore[assignment]
+    connection = connections[PG_ALIAS]
+    try:
+        with django_db_blocker.unblock():
+            if connection.vendor != "postgresql":
+                raise RuntimeError("EVID-06 alias did not resolve to PostgreSQL")
+            if connection.introspection.table_names():
+                raise RuntimeError("refusing a non-empty dedicated EVID-06 database")
+            _execute_schema_batch(connection, _collect_create_sql(connection))
+            try:
+                expected_tables = set(_owned_table_names(connection))
+                actual_tables = set(connection.introspection.table_names())
+                if actual_tables != expected_tables:
+                    raise RuntimeError("batched V5 schema does not match the owned model tables")
+                yield PG_ALIAS
+            finally:
+                _execute_schema_batch(connection, _collect_drop_sql(connection))
+    finally:
+        connection.close()
+        connections.databases.pop(PG_ALIAS, None)
 
 
 @contextmanager
