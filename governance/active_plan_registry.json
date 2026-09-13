@@ -1,14 +1,14 @@
 {
-  "version": "2026-09-13.v92",
+  "version": "2026-09-13.v93",
   "updated_at": "2026-09-13",
   "execution_focus": {
-    "unit_id": null,
+    "unit_id": "DATA-16",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "EVID-08 repository exit gate is complete with real PostgreSQL Facade lifecycle, source-race rejection, isolated validation/drift/rollback regressions, complete graph paired CPU/decoder/query evidence and static/governance/CI gates. Production EVID-01/02 and DATA-02 acceptance remain separate. Next bounded repository prerequisite is source-bound availability and versioned Publication policy/hash/current enforcement; register its full scope before implementation. DATA-12/15 and EVID-07 remain completed."
+    "policy": "DATA-16 is the sole repository focus: source-witnessed availability and exact raw-response hash, immutable versioned Publication policy/evidence identity, required-evidence checks before generic/batch/rebuild/idempotent publication, and current-member/policy/knowledge-cutoff fail-closed enforcement. Preserve legacy hashes and historical access; never invent source times or repair historical evidence. EVID-08 deployment and explicit-rollback production Facade verification may proceed independently. DATA-02/EVID-01/02/AUD-03/TAR-05 production exits remain unchanged; DATA-12/15 remain completed."
   },
   "workstreams": [
     {
@@ -1215,6 +1215,20 @@
           "EVID-07"
         ],
         "exit_gate": "Authority V3 complete lifecycle operations reuse only successful exact immutable payload decoding and object validation within one operation. No write/current-state/ORM read cache is enabled; changed payloads, operation exit and failure force validation. Tests prove lifecycle wiring, independent operation isolation, fresh with_current double-read/drift rejection and rollback. Representative complete graph before/after measurements report decode/CPU/query work and limits; targeted lifecycle and graph regressions, incremental mypy/debt, formatting, architecture and governance pass. Keep production EVID-01/02 and DATA-02 acceptance separate and do not claim all write performance fixed."
+      },
+      {
+        "id": "DATA-16",
+        "workstream_id": "data-production-reliability",
+        "wave": 2,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "active",
+        "title": "Bind source availability and versioned Publication evidence",
+        "depends_on": [
+          "DATA-05",
+          "EVID-08"
+        ],
+        "exit_gate": "Transport records actual response-body completion UTC and SHA-256 of exact response bytes with explicit shared batch scope; adapter preserves vendor observed_at and carries evidence into stored facts and frozen members. Active policy has immutable version/content identity covering every decision field; new Publication encoding binds that identity and exact member evidence while legacy encoding and historical reads remain unchanged. Typed centralized required-evidence validation rejects unknown, missing, unverified, future or inconsistent evidence before any generic/batch/rebuild/idempotent publish. Current reads reject active-policy drift, member/fact drift and unavailable knowledge at the requested cutoff. Meaningful transport, roundtrip, policy immutability/hash, replay/idempotence/current and legacy golden regressions, incremental mypy/debt, formatting, current-data/catalog/architecture/governance gates pass. No historical source-time/hash synthesis or production DATA-02 acceptance inferred."
       }
     ]
   }

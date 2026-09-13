@@ -6,6 +6,26 @@
 > 原则：本文只编排既有 unit，不建立第二套状态、不降低阈值、不代签、不伪造 PIT/OOS 历史，也不把生产写入授权扩大为实盘交易授权。
 > 授权记录（2026-08-30）：用户已授权 A1–A8 动作包继续执行；每个动作仍受其前置门、精确目标、回滚点、外部环境和真实 owner/reviewer 决策约束，授权不等于验收通过。
 
+## 2026-09-13：DATA-16 来源证据与发布身份修复范围
+
+EVID-08 仓库退出后，下一项唯一 repository focus 登记为 DATA-16，作为 DATA-02 的代码前置。
+它覆盖四段同一契约：Tencent HTTP 原始响应完成时间和 exact bytes SHA-256；适配器到事实及
+冻结 member 的证据保真；不可重写的 policy 版本与覆盖所有决策字段的新 Publication 编码；
+generic/batch/rebuild/idempotent 发布前与 current 读取时的 typed fail-closed 校验。
+响应完成时间只证明本系统此时已取得该响应，不代表供应商最早披露时间；批量响应哈希明确
+标为共享 batch scope，不将数值规范化哈希冒充原始 HTTP body 哈希，也不覆盖 observed_at。
+
+完成标准以 registry 的 DATA-16 exit_gate 为准。先补有意义的缺口回归，再实现上述完整链路，
+保持 legacy Publication 哈希及历史查询原义，并检查所有哈希重算、重建、质量与 replay 引用方。
+增量 mypy/debt、格式、新鲜度/catalog、架构和治理门全部通过后才进入候选部署。
+风险为旧事实原始证据未知、可变 fact 行污染既有 member、同版本 policy 重写及幂等早返回
+绕过校验；缺证据一律阻断，不通过历史回填虚构时间或哈希。回滚点为本分支起点
+main b18b18029f90af4b23693426a1f489af44ffe2b2；新增 schema 采用扩展方式保留旧编码。
+
+EVID-08 标准备份/code-only 部署与真实 admin 的显式回滚 Facade 事务复测继续并行；它们不
+关闭 DATA-02 的全 universe 四数据集、财务可用时间、来源一致性及生产决策验收。
+DATA-12/15 已完成，不重复执行已收口覆盖率主线。未完成项仍由机器 registry 唯一维护。
+
 ## 2026-09-13：权威读取性能、生产复测与下一阶段范围
 
 后续 repository 工作登记为唯一 focus `EVID-08`：Authority V3 facade 的整次 `_locked` 操作接入
