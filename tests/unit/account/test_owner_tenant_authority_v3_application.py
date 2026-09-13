@@ -34,6 +34,7 @@ from apps.account.application.owner_tenant_authority_v3 import (
 from apps.account.application.owner_tenant_authority_v3_contracts import (
     OwnerTenantAuthorityV3Conflict,
     OwnerTenantAuthorityV3Corruption,
+    OwnerTenantAuthorityV3ReadPhase,
     OwnerTenantAuthorityV3Repository,
     PersistedOwnerTenantAuthorityV3,
     PersistedOwnerTenantAuthorityV3Revocation,
@@ -141,6 +142,7 @@ class _Repository:
         self.revocation: PersistedOwnerTenantAuthorityV3Revocation | None = None
         self.append_count = 0
         self.revocation_append_count = 0
+        self.events: list[str] = []
 
     @contextmanager
     def atomic(self) -> Iterator[None]:
@@ -241,6 +243,7 @@ class _Repository:
     ) -> PersistedOwnerTenantAuthorityV3:
         """Append a root or CAS successor and return its exact first winner."""
 
+        self.events.append("append")
         authority = record.authority
         assert authority.recorded_at == recorded_at
         key = (authority.authority_id, authority.authority_version)
@@ -266,6 +269,7 @@ class _Repository:
     ) -> PersistedOwnerTenantAuthorityV3Revocation:
         """Append the one immutable revocation first winner."""
 
+        self.events.append("append-revocation")
         assert self.head is not None
         assert self.head.authority.content_hash == expected_authority_content_hash
         assert record.revocation.recorded_at == recorded_at
@@ -287,7 +291,10 @@ class _World:
         self.participants_reader = _ParticipantsReader(self.assignment)
 
     def service(
-        self, *, validity_period: timedelta = timedelta(hours=2)
+        self,
+        *,
+        validity_period: timedelta = timedelta(hours=2),
+        read_phase: OwnerTenantAuthorityV3ReadPhase | None = None,
     ) -> OwnerTenantAuthorityV3Service:
         """Build the V3 service from only public Application reader contracts."""
 
@@ -297,6 +304,7 @@ class _World:
             historical_assignments=cast(object, self.evidence_reader),
             participants=cast(object, self.participants_reader),
             validity_period=validity_period,
+            read_phase=read_phase,
         )
 
     def issue_command(self, version: str = "v3.1") -> IssueOwnerTenantAuthorityV3Command:
@@ -311,6 +319,23 @@ class _World:
         )
 
 
+class _ReadPhaseProbe:
+    """Record phase lifetime so append boundaries can be asserted."""
+
+    def __init__(self, events: list[str]) -> None:
+        self.events = events
+
+    @contextmanager
+    def __call__(self) -> Iterator[None]:
+        """Record one independent phase context."""
+
+        self.events.append("phase.enter")
+        try:
+            yield
+        finally:
+            self.events.append("phase.exit")
+
+
 def _current_command(authority: OwnerTenantAuthorityV3) -> GetCurrentOwnerTenantAuthorityV3Command:
     """Build one exact current Authority V3 selector."""
 
@@ -319,6 +344,48 @@ def _current_command(authority: OwnerTenantAuthorityV3) -> GetCurrentOwnerTenant
         authority.authority_version,
         authority.content_hash,
     )
+
+
+def test_read_phase_ends_before_root_and_revocation_append() -> None:
+    """Keep immutable read caches outside both append boundaries."""
+
+    world = _World()
+    events: list[str] = []
+    world.repository.events = events
+    service = world.service(read_phase=_ReadPhaseProbe(events))
+
+    authority = service.issue(world.issue_command())
+    assert events == ["phase.enter", "phase.exit", "append"]
+
+    events.clear()
+    successor_cutoff = authority.recorded_at + timedelta(microseconds=1)
+    world.repository.clocks = [successor_cutoff, successor_cutoff + timedelta(microseconds=1)]
+    successor = service.successor(
+        SupersedeOwnerTenantAuthorityV3Command(
+            authority.authority_id,
+            "phase-successor",
+            authority.authority_version,
+            authority.content_hash,
+            authority.assignment_evidence_id,
+            authority.assignment_evidence_version,
+            authority.assignment_evidence_content_hash,
+        )
+    )
+    assert successor.authority_version == "phase-successor"
+    assert events == ["phase.enter", "phase.exit", "append"]
+
+    events.clear()
+    revoke_at = successor.valid_until + timedelta(seconds=1)
+    world.repository.clocks = [revoke_at, revoke_at + timedelta(microseconds=1), revoke_at]
+    service.revoke(
+        RevokeOwnerTenantAuthorityV3Command(
+            successor.authority_id,
+            successor.authority_version,
+            successor.content_hash,
+            "phase-boundary",
+        )
+    )
+    assert events == ["phase.enter", "phase.exit", "append-revocation"]
 
 
 def test_issue_replay_and_exact_use_public_evidence_v5_contracts() -> None:

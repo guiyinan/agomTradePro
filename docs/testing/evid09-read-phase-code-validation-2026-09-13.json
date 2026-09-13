@@ -1,0 +1,309 @@
+{
+  "schema_version": "evid09.read-phase-code-validation.v1",
+  "sealed_at": "2026-09-13T14:48:29.488236+00:00",
+  "unit_id": "EVID-09",
+  "unit_status": "active",
+  "classification": "frozen repository code validation; not a physical PostgreSQL benchmark or production acceptance",
+  "candidate_commit_verified_after_runs": "1a617b87bfc0e8afe8a230e851873995f0f5bfaa",
+  "binding_limit": "Original gate receipts bind executed canonical-LF file bytes. Candidate Git blob equality is verified at sealing; no execution-time Git HEAD receipt is fabricated.",
+  "source_bindings": [
+    {
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "canonical_lf_sha256": "bb6e7f7ef1af6d3555eb5154f9844a891c96988c9f1271b26f83d1f3878e53d2",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "apps/account/application/owner_tenant_authority_v3_contracts.py",
+      "canonical_lf_sha256": "438fb79ba80e40a1f937aeda9ed61256073b1e97d060f1d059428aff63bd0de9",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "apps/account/infrastructure/immutable_read_snapshot.py",
+      "canonical_lf_sha256": "d642081a0995f8e43c978c4a1ad12cede274363cd70616349923fe55ab12e8ab",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "apps/account/owner_tenant_authority_v3_composition.py",
+      "canonical_lf_sha256": "9984c650e7eecace78c1c96f961d849d55e680a7c8d18361dc3085712fd466f8",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
+      "canonical_lf_sha256": "1ef2c9a578b1037cae3ffa3052f53b50f6dea9f042bba101f9c181055a328611",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "shared/infrastructure/immutable_read_snapshot.py",
+      "canonical_lf_sha256": "d63c0b4d5146d8693614a3acd137ffdd04d9882173468c627855e00721bab03c",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "tests/component/account/test_owner_tenant_authority_v3_composition.py",
+      "canonical_lf_sha256": "e9f138964153b7abf3edf5796af60cd5460e6ae36a1ebf114c2275e19aa56764",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "tests/component/account/test_owner_tenant_authority_v3_repository.py",
+      "canonical_lf_sha256": "ae0f3dddf4064560624375d1df784333169ae13836b731445edef7caeff82f7a",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "tests/component/simulated_trading/test_simulated_account_row_source_v2_repository.py",
+      "canonical_lf_sha256": "1896246c2ab22fad9e28348875ab580050766c4a0d43e870c85fa5b2b645c85a",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "tests/unit/account/test_immutable_read_snapshot.py",
+      "canonical_lf_sha256": "1845ba1e8e9c7660b74dd31fe36b8994aaa515830851592f99cd2774253560e0",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "tests/unit/account/test_owner_tenant_authority_v3.py",
+      "canonical_lf_sha256": "e31a9e0b90b71437ef53e66a62575f609f4ba9d0c2ae12be589af8e2aeb38be3",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "tests/unit/account/test_owner_tenant_authority_v3_application.py",
+      "canonical_lf_sha256": "586bceb758c1f76fa413366f669622bbcbb6823c6a7a5e39edb947e5d97fcb56",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "tests/unit/account/test_owner_tenant_authority_v3_codec.py",
+      "canonical_lf_sha256": "59e357c2fbb18219bab220c0ecf14d7eb6b4ae7b26486db275646176413b6e9f",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "tests/unit/account/test_owner_tenant_authority_v3_record_codec.py",
+      "canonical_lf_sha256": "817bb314caf6cf7ddcf281117758f563b2574926ddae98c32dcf822d95d1fe8e",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "tests/unit/simulated_trading/test_simulated_account_row_source_v2.py",
+      "canonical_lf_sha256": "4910b4790af0da1151247aef421d98439c4b5e038286cc99519c3a046873c087",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "tests/unit/simulated_trading/test_simulated_account_row_source_v2_application.py",
+      "canonical_lf_sha256": "c076f20ff3857084f2fe6f97ec380cc9f4716d039d155ee5dfb2966c30d3798c",
+      "equals_candidate_git_blob": true
+    }
+  ],
+  "selected_regression": {
+    "tests": 151,
+    "passed": 142,
+    "skipped": 9,
+    "failures_or_errors": 0,
+    "source_unchanged": true,
+    "postgresql_skips_are_acceptance": false
+  },
+  "final_static_gates": [
+    {
+      "command": [
+        "-m",
+        "black",
+        "--check",
+        "apps/account/application/owner_tenant_authority_v3.py",
+        "apps/account/application/owner_tenant_authority_v3_contracts.py",
+        "apps/account/infrastructure/immutable_read_snapshot.py",
+        "apps/account/owner_tenant_authority_v3_composition.py",
+        "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
+        "shared/infrastructure/immutable_read_snapshot.py",
+        "tests/component/account/test_owner_tenant_authority_v3_composition.py",
+        "tests/component/simulated_trading/test_simulated_account_row_source_v2_repository.py",
+        "tests/unit/account/test_immutable_read_snapshot.py",
+        "tests/unit/account/test_owner_tenant_authority_v3_application.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "-m",
+        "isort",
+        "--check-only",
+        "apps/account/application/owner_tenant_authority_v3.py",
+        "apps/account/application/owner_tenant_authority_v3_contracts.py",
+        "apps/account/infrastructure/immutable_read_snapshot.py",
+        "apps/account/owner_tenant_authority_v3_composition.py",
+        "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
+        "shared/infrastructure/immutable_read_snapshot.py",
+        "tests/component/account/test_owner_tenant_authority_v3_composition.py",
+        "tests/component/simulated_trading/test_simulated_account_row_source_v2_repository.py",
+        "tests/unit/account/test_immutable_read_snapshot.py",
+        "tests/unit/account/test_owner_tenant_authority_v3_application.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "-m",
+        "ruff",
+        "check",
+        "apps/account/application/owner_tenant_authority_v3.py",
+        "apps/account/application/owner_tenant_authority_v3_contracts.py",
+        "apps/account/infrastructure/immutable_read_snapshot.py",
+        "apps/account/owner_tenant_authority_v3_composition.py",
+        "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
+        "shared/infrastructure/immutable_read_snapshot.py",
+        "tests/component/account/test_owner_tenant_authority_v3_composition.py",
+        "tests/component/simulated_trading/test_simulated_account_row_source_v2_repository.py",
+        "tests/unit/account/test_immutable_read_snapshot.py",
+        "tests/unit/account/test_owner_tenant_authority_v3_application.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "scripts/check_mypy_regression.py",
+        "apps/account/application/owner_tenant_authority_v3.py",
+        "apps/account/application/owner_tenant_authority_v3_contracts.py",
+        "apps/account/infrastructure/immutable_read_snapshot.py",
+        "apps/account/owner_tenant_authority_v3_composition.py",
+        "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
+        "shared/infrastructure/immutable_read_snapshot.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "scripts/check_mypy_debt_ceiling.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "scripts/data_center_architecture_inventory.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "scripts/data_center_entrypoint_inventory.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "scripts/verify_architecture.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "scripts/check_current_data_contracts.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "scripts/check_celery_task_contracts.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "scripts/check_audit_event_contracts.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "scripts/check_active_plan_registry.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "scripts/check_data_center_catalog_contracts.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "scripts/check_data_center_provider_credentials.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "scripts/check_data_center_legacy_entrypoints.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "scripts/check_business_configuration_hardcodes.py",
+        "--mode",
+        "full"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "scripts/check_governance_consistency.py",
+        "--baseline",
+        "governance/governance_baseline.json"
+      ],
+      "exit_code": 0
+    }
+  ],
+  "file_growth_gate": {
+    "command": [
+      "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+      "-X",
+      "utf8",
+      "scripts/check_changed_python_file_size.py",
+      "--base",
+      "df9376c36",
+      "--head",
+      "1a617b87bfc0e8afe8a230e851873995f0f5bfaa"
+    ],
+    "exit_code": 0,
+    "actual_stdout": "Python file-size growth guard passed for 6 changed production files (limit: 1000).\n",
+    "actual_stderr": ""
+  },
+  "production_writes": false,
+  "optimized_deployment_performed": false,
+  "pending": [
+    "At least three complete source-consistent isolated PostgreSQL representative measurements with physical decode, wrapper, CPU and SQL scopes separated",
+    "Compatible standard deployment with preserved catalog and verified backup",
+    "Real configured production validity lifecycle and independent recovery",
+    "DATA-02 genuine source availability/announcement chronology and full production acceptance"
+  ],
+  "original_artifacts": [
+    {
+      "path": "var/evid09-frozen-selected-regression-20260913.json",
+      "bytes": 3579,
+      "sha256": "3538f9be0fc221e4ab1c4348f04ee3db0f30d893d3a21115b3146ae7a5dbe33e",
+      "encoding": "gzip+base64",
+      "original_bytes": "H4sIAAAAAAAC/7VXy24cNxC8G/A/GLomK/H9EOBbPiBAfAiQDQZNslvaYHdmPTMrWzHy76mRbEl2JMey5BvJWTarX1W9H16+ePXqaJppnLl1NB+dvjoyyoSVyitt32h3av2pycdRBR3tT0qdKnX089WlOuz2W37wWjj1+jjEmHT48tqO+oYbfyx7nPxyul6fbebzi/Wazobdm5Ea/zoO17t52e2X3W913Oznab3eX87nQ3/M7/naJEysfr9ZHmZJt+eH2+XuZgkDPM0322UznRz6zXxCtQ6Hfj5ZjrrNbneYqWy5G5laN/W0n86H+Xh/+b9Xh3c9j93MPfVzRwfgHTfzZXdhO9rvt5tK8wYePMXQ01CMXIexdXVoXJ9m6QETS3EMPfePsIML0+b+uDza2shXxobx8gHvps3usKWleJcC2/Rn1xZvjz8+1I3Du24aDmPl7sJ8Q/a+z/DXXP5OqPeHYPX2drlq0+sLGo8bzaRDJxvEsW5oe7Xadtev8DzjyenOrZEPE69auXP01+L6+9329YOtjHfWa77YNBCEjMPf3K8m3nIFfhg8G3maENPVwiEqa3sMY0eL+T+vSYPfb+arUgNtqOujj55upZvOyfiALx8+AkKWpptKuZOyk692EyislMBRIosmCc1677l47Z3k5BylrGsOOaWaRZuoiwmSbNNiU0zsbTM3IXk8AnjXI791nj5icTZJiblQUuwUack2EjfK3IKGvyraojnHpoIS3ZTPziQSCbY01Tjfj+WbGxAIMryuwSuOzJUqx1SXAEgOuiWXG6ITkqJYU9PJ4rBalXzURpoL4Q4LI0Ejt5NNLyNN83io82Hkk6/QKx5vwVZVXPPahZZChn1HlmrTNoq0plxDJgxEyYVUg4kJcJSKRhcqytb73X8kBGdU0qRy9pLY2ZoRAkeamjaVG5voLGC2RRyDdTkbK+w9FW04Ufkcwn/b+Aswj2to4NMspmbyMRWtbKzEVoSs8ka8LV6hhJmyKGdKIa1QQVUnrQDQmhS0fooALs8n52GXE+caQ1AlutasFrahpJwdEaF30lIT2mcjOddmYnTGW1Qvq+cTUYDxKZTKJXrUqMQg5LS1KMIQcjDwv6K1k7E1UCTPFk1UsovsW45SC9jjSUIMAGw1WlOVjDhoZ8Eh3nIIFIyPXkBq4grlpqoh1qawT5lQVNgVmwrbZxRzoEk6lmK1q+CxKrG1KiZprSMCJB4UAVQum9AacU7VGvwgGdOyB50ho88xECxZyWx9rEZK0ehVkFkxRlXFVbRrkUsojjiCSF0KrZjog8OcGZA8MHGWZx4qljSBum3KeAEtEqmI5SY+5oBAqdq8Q2UGNFJAYRfRiKABKtYZxRwA7HkHEwAiVmJba+JUcOiLYFA8yEKTmJy1VoeMgrHg1xKRUOfBO7L0uiBhEunHDTcAVxVaySiBwvmokhMjDP6PXG1SFTLoog5N2dw02BfdJMXkEKADzUbU1fMOSIsoZg1RiFmRqEZae20cVFGc0ZADZ3N1BTJgEwgO+LLXuVpSkIgIOUnxxw5ZV6QIvnEBXY5KF2qZTbIupQhV8Ekpj4gGaIhqznKKqiYv5IspSD7WdDX0/PPZhHPo6zn1Z7z8ZYJY8PVHvDsvY9PbbbdjmiAgO/iBnwhtp0+/GYcGcUE+u3coQJ4+fX754p+XL/4FpqZoo/sNAAA="
+    },
+    {
+      "path": "var/evid09-frozen-selected-regression-20260913.log",
+      "bytes": 276,
+      "sha256": "b89ac9dadd47f1d376b41875b951f6468a3aa7525fc30d6d636570b4347d0c06",
+      "encoding": "gzip+base64",
+      "original_bytes": "H4sIAAAAAAAC/9PTow5QiFYwMVeN5eVCES3WK4YCcgy0NEUyUIFiEG1oYAAy0NDESKEgsbg4NUVHwVKhODuzoCA1RSEzT8HUQM/cpJiXCwDp7EJwFAEAAA=="
+    },
+    {
+      "path": "var/evid09-frozen-selected-regression-20260913.xml",
+      "bytes": 29271,
+      "sha256": "09b39b42dda59b8d589913c21cb3b2fbc456843d3ca6da9c659db9052da0a027",
+      "encoding": "gzip+base64",
+      "original_bytes": "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"
+    },
+    {
+      "path": "var/evid09-frozen-final-static-20260913.json",
+      "bytes": 6876,
+      "sha256": "e76fc9a7a9f7229456208ada21009cad0c57f1b5fa6e546381750be03e102555",
+      "encoding": "gzip+base64",
+      "original_bytes": "H4sIAAAAAAAC/+1Y227bOBB9L9B/CPK6dcL7Jd+xb4tCGJJDR1tZMigqWaPov+/IcVs7l25zcbAPDoLAHoqcw5lzzgT6+vHD2dn5WKFUTA3U86uzc8GEWTC/4PJPrq6kpd8L5Tz9/MHYFWPnn7ab4rBad/jUNuWuOLsQ3kshD7aNw1QiNl1uxmsQ2tDWr/MCLcF6PV5CjMPU10v60rURajv0l8Ntj6Wp2ENfG5jq9VDaumlu5MV6M6cOwaDNFjOHbJLUWmPQXKvsnVLgPI/eeOeiz1xYHoTJTiaepbMOtUziDtqLEDRx6GuBWMcdFiVdDtYHcAwVA569tIAJPCbD6b7MysDR28QMyzwx7ZVwkLORIbGE/nEsbZ8LjLVMsU4FL9vVaqoQOmwKQmrGHtbj9VB3EJJRgjkOzHudHSoZvXVRAYfERcSEwippZEyWGW6k8l7IjFpD4AIdhMch/KoEq/UwtnOhdgg8FT4azdAiRohI6eceZG94csonapBxDGx0iTtJwSiZ05aLnJSh7hwiGNvV1MHMNKp0avvl/XL8fGAHtinDbbNj2o2gIm3xDWWzw8cxi+hBWxc4kzYCypxBMi2ylkEzYhGCz0yJEIAzamLkjjMqkRTOcP4DH3G4YHpue2RkQSXNlUnOeLq/AgkxcWlzTompRGQV3EplXDTCOioXY1bwAIHJ+CN5xbGOl9vq9zgTdtepOd48p11IwpDOG8Xp9hZClpiytt6QnFhMWhmGhmpkgGPInKsohNXIPYA21qgnET3s3Bbb8/tF4IQyUUAQIkPyKJxUzlnirHaMaWaNIYazpCQ6y6LTGXQQwShNn+EewKlv71Xr1x3jTmniATr0kRKxYFVKkmeqSCBjVEB14NrNHObai+x9TMJaJbQkwSP7z/RPN2vPhHZgtDMhYrCaNJWtyaC4lCQaY6hGxNdIbuiEjAYsaJTkO8Erizp5m2Mgw52xfDsw46mP19AvMdH5RGK8W1yXIRGhKXOT2w5HWvzrVU79Vi77Sod8nbsd05le7Crzvs93XSs4Tl3da9Zuut5N7BX06efSNrpYfc+7/Ro6iF8OIotFvMZ7sVcR4C1J8AZEeD0Zjk2Il5Fif/PbjIpfnfgmVv8wwbOs+ne2/7bVfj/r849Tz/GftlJNEpKE2F3026cXqawdh1IfU9li6LvNSWonqZ2k9kZSK1POB4HTNDtJ7CSxV0lsjKVdzwWbpdSsNusNwV/Sv57jU1Q6qet/ra6j0yNhoNOw7eiex0uYoAJl6Su1BEq8bitur960/Q1Fd5U6fm76WzbroaWWvUPmGyxt3hxc+Ng9jVMpdK3m7tL7WjtqVuywbJoK45f3SwpTopNw7uI7Jo21vcFm3UE/O2tLIt4cO+c+gclfoRuW73fh/eTrMty0aUZBJkahFrp3zd/hEuJmT8RHzx6mse1pes71zu1yKtvx1pCLp/n4B0NssVjNWfdDeeq6o2JcDuQzNOVo9hDKkSiJfdw8RBZgRHL5Q3Q/N1/unfP90Yu/x6H/XfB777r23lDe0tTdvqLMRBb8+IEe+xdgNgJt3BoAAA=="
+    },
+    {
+      "path": "var/evid09-frozen-final-static-20260913.log",
+      "bytes": 7542,
+      "sha256": "1ff7d007a075141c167c6eccaf5d83a578459c60f8d4cddce39e54a7a89ca1ad",
+      "encoding": "gzip+base64",
+      "original_bytes": "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"
+    }
+  ]
+}

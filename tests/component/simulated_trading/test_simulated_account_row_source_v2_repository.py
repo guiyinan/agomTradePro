@@ -10,7 +10,9 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.db import connection
 from django.db.migrations.state import ModelState, ProjectState
+from django.test.utils import CaptureQueriesContext
 
+from apps.account.infrastructure.immutable_read_snapshot import immutable_read_snapshot
 from apps.simulated_trading.application.simulated_account_row_source_v2 import (
     PersistedSimulatedAccountRowSourceV2,
 )
@@ -222,3 +224,91 @@ def test_0023_migration_is_zero_seed_and_matches_live_model() -> None:
     assert [value.deconstruct() for value in migrated.options["constraints"]] == [
         value.deconstruct() for value in live.options["constraints"]
     ]
+
+
+def test_same_phase_source_selectors_reuse_one_complete_ledger_read() -> None:
+    source = _source()
+    repository = DjangoSimulatedAccountRowSourceV2Repository(clock=_Clock())
+    record = _append(repository, source)
+    with CaptureQueriesContext(connection) as queries, immutable_read_snapshot():
+        assert (
+            repository.get_winner(
+                source_id=source.source_id, source_version=source.source_version, as_of=NOW
+            )
+            == record
+        )
+        assert (
+            repository.get_exact_by_hash(
+                source_id=source.source_id,
+                source_version=source.source_version,
+                expected_content_hash=source.content_hash,
+                as_of=NOW,
+            )
+            == record
+        )
+    selects = [
+        query
+        for query in queries
+        if query["sql"].lstrip().upper().startswith("SELECT")
+        and "simulated_account_row_source_v2_ledger" in query["sql"]
+    ]
+    assert len(selects) == 1
+
+
+def test_source_read_reuse_keeps_cutoff_instance_and_phase_isolation() -> None:
+    source = _source()
+    repository = DjangoSimulatedAccountRowSourceV2Repository(clock=_Clock())
+    other_repository = DjangoSimulatedAccountRowSourceV2Repository(clock=_Clock())
+    record = _append(repository, source)
+    with CaptureQueriesContext(connection) as queries:
+        with immutable_read_snapshot():
+            for reader, cutoff in (
+                (repository, NOW),
+                (repository, NOW),
+                (repository, NOW + timedelta(microseconds=1)),
+                (other_repository, NOW),
+            ):
+                assert (
+                    reader.get_winner(
+                        source_id=source.source_id,
+                        source_version=source.source_version,
+                        as_of=cutoff,
+                    )
+                    == record
+                )
+        with immutable_read_snapshot():
+            assert (
+                repository.get_winner(
+                    source_id=source.source_id, source_version=source.source_version, as_of=NOW
+                )
+                == record
+            )
+    selects = [
+        query
+        for query in queries
+        if query["sql"].lstrip().upper().startswith("SELECT")
+        and "simulated_account_row_source_v2_ledger" in query["sql"]
+    ]
+    assert len(selects) == 4
+
+
+def test_source_corruption_is_rechecked_after_phase_exit() -> None:
+    source = _source()
+    repository = DjangoSimulatedAccountRowSourceV2Repository(clock=_Clock())
+    record = _append(repository, source)
+    with immutable_read_snapshot():
+        assert (
+            repository.get_winner(
+                source_id=source.source_id, source_version=source.source_version, as_of=NOW
+            )
+            == record
+        )
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "UPDATE simulated_account_row_source_v2_ledger SET raw_binding_seal = %s",
+            ["b" * 64],
+        )
+    with immutable_read_snapshot(), pytest.raises(DjangoSimulatedAccountRowSourceV2Corruption):
+        repository.get_winner(
+            source_id=source.source_id, source_version=source.source_version, as_of=NOW
+        )

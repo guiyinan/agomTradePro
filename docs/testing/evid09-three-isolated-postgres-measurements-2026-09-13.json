@@ -1,0 +1,1075 @@
+{
+  "schema_version": "evid09.three-isolated-postgres-measurements.v1",
+  "sealed_at": "2026-09-13T17:51:07.623985+00:00",
+  "unit_id": "EVID-09",
+  "unit_status": "active",
+  "classification": "three genuine source-bound isolated PostgreSQL representative measurements",
+  "executed_candidate_commit": "e9835fb5814bc73f27ee559f2184ff5f407a1e3d",
+  "private_review_original_sha256": "957436db3d5f0411d7525508a16b3a0071399b8ba15eb197d9a9aadddce76f73",
+  "completed_three_source_consistent_cycles": true,
+  "fixed_source_path_count": 5893,
+  "current_raw_and_lf_sources_reverified_before_sealing": true,
+  "code_validation_seal_sha256": "724c01518cad172b349ce4cc407a3222eaadfc85ed5c44e514f9dd366cc249c5",
+  "validated_code_bindings": [
+    {
+      "path": "apps/account/application/owner_tenant_authority_v3.py",
+      "canonical_lf_sha256": "bb6e7f7ef1af6d3555eb5154f9844a891c96988c9f1271b26f83d1f3878e53d2",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "apps/account/application/owner_tenant_authority_v3_contracts.py",
+      "canonical_lf_sha256": "438fb79ba80e40a1f937aeda9ed61256073b1e97d060f1d059428aff63bd0de9",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "apps/account/infrastructure/immutable_read_snapshot.py",
+      "canonical_lf_sha256": "d642081a0995f8e43c978c4a1ad12cede274363cd70616349923fe55ab12e8ab",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "apps/account/owner_tenant_authority_v3_composition.py",
+      "canonical_lf_sha256": "9984c650e7eecace78c1c96f961d849d55e680a7c8d18361dc3085712fd466f8",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
+      "canonical_lf_sha256": "1ef2c9a578b1037cae3ffa3052f53b50f6dea9f042bba101f9c181055a328611",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "shared/infrastructure/immutable_read_snapshot.py",
+      "canonical_lf_sha256": "d63c0b4d5146d8693614a3acd137ffdd04d9882173468c627855e00721bab03c",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "tests/component/account/test_owner_tenant_authority_v3_composition.py",
+      "canonical_lf_sha256": "e9f138964153b7abf3edf5796af60cd5460e6ae36a1ebf114c2275e19aa56764",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "tests/component/account/test_owner_tenant_authority_v3_repository.py",
+      "canonical_lf_sha256": "ae0f3dddf4064560624375d1df784333169ae13836b731445edef7caeff82f7a",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "tests/component/simulated_trading/test_simulated_account_row_source_v2_repository.py",
+      "canonical_lf_sha256": "1896246c2ab22fad9e28348875ab580050766c4a0d43e870c85fa5b2b645c85a",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "tests/unit/account/test_immutable_read_snapshot.py",
+      "canonical_lf_sha256": "1845ba1e8e9c7660b74dd31fe36b8994aaa515830851592f99cd2774253560e0",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "tests/unit/account/test_owner_tenant_authority_v3.py",
+      "canonical_lf_sha256": "e31a9e0b90b71437ef53e66a62575f609f4ba9d0c2ae12be589af8e2aeb38be3",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "tests/unit/account/test_owner_tenant_authority_v3_application.py",
+      "canonical_lf_sha256": "586bceb758c1f76fa413366f669622bbcbb6823c6a7a5e39edb947e5d97fcb56",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "tests/unit/account/test_owner_tenant_authority_v3_codec.py",
+      "canonical_lf_sha256": "59e357c2fbb18219bab220c0ecf14d7eb6b4ae7b26486db275646176413b6e9f",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "tests/unit/account/test_owner_tenant_authority_v3_record_codec.py",
+      "canonical_lf_sha256": "817bb314caf6cf7ddcf281117758f563b2574926ddae98c32dcf822d95d1fe8e",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "tests/unit/simulated_trading/test_simulated_account_row_source_v2.py",
+      "canonical_lf_sha256": "4910b4790af0da1151247aef421d98439c4b5e038286cc99519c3a046873c087",
+      "equals_candidate_git_blob": true
+    },
+    {
+      "path": "tests/unit/simulated_trading/test_simulated_account_row_source_v2_application.py",
+      "canonical_lf_sha256": "c076f20ff3857084f2fe6f97ec380cc9f4716d039d155ee5dfb2966c30d3798c",
+      "equals_candidate_git_blob": true
+    }
+  ],
+  "private_source_identity": [
+    [
+      "var/evid08_physical_decode_probe.py",
+      "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3"
+    ],
+    [
+      "var/evid08_measure_full_current_physical.py",
+      "6419968f533c99a3764d8ef0a37c3cf1af2f23ddbc6dd4ffc0e64e1fe9025867"
+    ],
+    [
+      "var/evid09_measure_full_current.py",
+      "e058889c47ff4d4c2939761aa90d92ca3d741d798fa03463d27d688e170c80e8"
+    ],
+    [
+      "var/evid09_run_full_current_private_pg.py",
+      "bbf887ad2b14dd4652334abfba4fdfe08fb75aa4bc29594f780f843c96f1d9bb"
+    ]
+  ],
+  "cycles": [
+    {
+      "cycle": 1,
+      "original_receipt_sha256": "3c8d541f6a57c921d3483c1e037c6439c92ab7eba2f48540bba1eafc0a468473",
+      "started_at": "2026-09-13T16:38:43.949938Z",
+      "ended_at": "2026-09-13T17:03:34.419738Z",
+      "junit": {
+        "errors": 0,
+        "failures": 0,
+        "passed": 1,
+        "single_green": true,
+        "skipped": 0,
+        "testcase_nodeids": [
+          "tests.component.account.test_owner_tenant_authority_v3_composition::test_opt_in_postgres_facade_issues_reads_and_revokes"
+        ],
+        "tests": 1
+      },
+      "overall_pytest_including_fixture_wall_seconds": 1484.7521683999803,
+      "overall_pytest_including_fixture_caller_cpu_seconds": 26.296875,
+      "test_call_wall_seconds": 925.2141206000233,
+      "test_call_caller_cpu_seconds": 11.765625,
+      "physical_stdlib_json_chain": {
+        "physical_json_decode_calls": 2091,
+        "physical_json_decode_seconds": 0.2626071977429092,
+        "physical_json_decode_errors": 0,
+        "json_load_calls": 0,
+        "json_loads_calls": 2091,
+        "decoder_decode_calls": 2091,
+        "decoder_raw_decode_calls": 2091
+      },
+      "decorated_original_calls": {
+        "decode:apps.account.infrastructure.allocated_physical_account_row_observation_v3_codec.decode_allocated_physical_account_row_observation_v3_record": 40,
+        "decode:apps.account.infrastructure.canonical_account_creation_binding_v2_codec.decode_canonical_account_creation_binding_v2": 78,
+        "decode:apps.account.infrastructure.canonical_account_creation_codec.decode_canonical_account_creation_allocation": 175,
+        "decode:apps.account.infrastructure.canonical_account_ownership_reobservation_v1_codec.decode_canonical_account_ownership_reobservation_v1": 47,
+        "decode:apps.account.infrastructure.canonical_account_ownership_reobservation_v1_record_codec.decode_canonical_account_ownership_reobservation_v1_record": 22,
+        "decode:apps.account.infrastructure.physical_account_row_observation_v2_codec.decode_physical_account_row_observation_v2_record": 205,
+        "validation:apps.account.domain.account_owner_assignment_evidence.AccountOwnerAssignmentActor.__post_init__": 217,
+        "validation:apps.account.domain.account_owner_assignment_evidence_v5.AccountOwnerAssignmentEvidenceV5.__post_init__": 18,
+        "validation:apps.account.domain.account_owner_assignment_provenance_receipt_v5.AccountOwnerAssignmentProvenanceReceiptV5.__post_init__": 82,
+        "validation:apps.account.domain.account_owner_assignment_subject_v5.AccountOwnerAssignmentSubjectV5.__post_init__": 39,
+        "validation:apps.account.domain.allocated_physical_account_row_observation_v3.AllocatedPhysicalAccountRowObservationV3.__post_init__": 439,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationAllocation.__post_init__": 668,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationRequester.__post_init__": 672,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationServiceRecorder.__post_init__": 1031,
+        "validation:apps.account.domain.canonical_account_creation_binding_v2.CanonicalAccountCreationBindingV2.__post_init__": 359,
+        "validation:apps.account.domain.canonical_account_creation_consumption.CanonicalAccountCreationConsumptionClaim.__post_init__": 216,
+        "validation:apps.account.domain.canonical_account_ownership_reobservation_v1.CanonicalAccountOwnershipReobservationV1.__post_init__": 192,
+        "validation:apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3.__post_init__": 13,
+        "validation:apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3Revocation.__post_init__": 5,
+        "validation:apps.account.domain.single_owner_authority_policy_v1.SingleOwnerAuthorityPolicyV1.__post_init__": 196
+      },
+      "decorated_cache_hits": {
+        "decode:apps.account.infrastructure.allocated_physical_account_row_observation_v3_codec.decode_allocated_physical_account_row_observation_v3_record": 143,
+        "decode:apps.account.infrastructure.canonical_account_creation_binding_v2_codec.decode_canonical_account_creation_binding_v2": 198,
+        "decode:apps.account.infrastructure.canonical_account_creation_codec.decode_canonical_account_creation_allocation": 385,
+        "decode:apps.account.infrastructure.canonical_account_ownership_reobservation_v1_codec.decode_canonical_account_ownership_reobservation_v1": 23,
+        "decode:apps.account.infrastructure.canonical_account_ownership_reobservation_v1_record_codec.decode_canonical_account_ownership_reobservation_v1_record": 88,
+        "decode:apps.account.infrastructure.physical_account_row_observation_v2_codec.decode_physical_account_row_observation_v2_record": 107,
+        "validation:apps.account.domain.account_owner_assignment_evidence.AccountOwnerAssignmentActor.__post_init__": 356,
+        "validation:apps.account.domain.account_owner_assignment_evidence_v5.AccountOwnerAssignmentEvidenceV5.__post_init__": 330,
+        "validation:apps.account.domain.account_owner_assignment_provenance_receipt_v5.AccountOwnerAssignmentProvenanceReceiptV5.__post_init__": 952,
+        "validation:apps.account.domain.account_owner_assignment_subject_v5.AccountOwnerAssignmentSubjectV5.__post_init__": 468,
+        "validation:apps.account.domain.allocated_physical_account_row_observation_v3.AllocatedPhysicalAccountRowObservationV3.__post_init__": 3178,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationAllocation.__post_init__": 15690,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationRequester.__post_init__": 8824,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationServiceRecorder.__post_init__": 12053,
+        "validation:apps.account.domain.canonical_account_creation_binding_v2.CanonicalAccountCreationBindingV2.__post_init__": 4160,
+        "validation:apps.account.domain.canonical_account_creation_consumption.CanonicalAccountCreationConsumptionClaim.__post_init__": 694,
+        "validation:apps.account.domain.canonical_account_ownership_reobservation_v1.CanonicalAccountOwnershipReobservationV1.__post_init__": 2207,
+        "validation:apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3.__post_init__": 109,
+        "validation:apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3Revocation.__post_init__": 39,
+        "validation:apps.account.domain.single_owner_authority_policy_v1.SingleOwnerAuthorityPolicyV1.__post_init__": 1631
+      },
+      "decorated_cache_misses": {
+        "decode:apps.account.infrastructure.allocated_physical_account_row_observation_v3_codec.decode_allocated_physical_account_row_observation_v3_record": 40,
+        "decode:apps.account.infrastructure.canonical_account_creation_binding_v2_codec.decode_canonical_account_creation_binding_v2": 78,
+        "decode:apps.account.infrastructure.canonical_account_creation_codec.decode_canonical_account_creation_allocation": 175,
+        "decode:apps.account.infrastructure.canonical_account_ownership_reobservation_v1_codec.decode_canonical_account_ownership_reobservation_v1": 47,
+        "decode:apps.account.infrastructure.canonical_account_ownership_reobservation_v1_record_codec.decode_canonical_account_ownership_reobservation_v1_record": 22,
+        "decode:apps.account.infrastructure.physical_account_row_observation_v2_codec.decode_physical_account_row_observation_v2_record": 205,
+        "validation:apps.account.domain.account_owner_assignment_evidence.AccountOwnerAssignmentActor.__post_init__": 217,
+        "validation:apps.account.domain.account_owner_assignment_evidence_v5.AccountOwnerAssignmentEvidenceV5.__post_init__": 18,
+        "validation:apps.account.domain.account_owner_assignment_provenance_receipt_v5.AccountOwnerAssignmentProvenanceReceiptV5.__post_init__": 82,
+        "validation:apps.account.domain.account_owner_assignment_subject_v5.AccountOwnerAssignmentSubjectV5.__post_init__": 39,
+        "validation:apps.account.domain.allocated_physical_account_row_observation_v3.AllocatedPhysicalAccountRowObservationV3.__post_init__": 439,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationAllocation.__post_init__": 668,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationRequester.__post_init__": 672,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationServiceRecorder.__post_init__": 1031,
+        "validation:apps.account.domain.canonical_account_creation_binding_v2.CanonicalAccountCreationBindingV2.__post_init__": 359,
+        "validation:apps.account.domain.canonical_account_creation_consumption.CanonicalAccountCreationConsumptionClaim.__post_init__": 216,
+        "validation:apps.account.domain.canonical_account_ownership_reobservation_v1.CanonicalAccountOwnershipReobservationV1.__post_init__": 192,
+        "validation:apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3.__post_init__": 13,
+        "validation:apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3Revocation.__post_init__": 5,
+        "validation:apps.account.domain.single_owner_authority_policy_v1.SingleOwnerAuthorityPolicyV1.__post_init__": 196
+      },
+      "sql": {
+        "aggregate": {
+          "by_first_keyword": {
+            "<OTHER>": 242,
+            "INSERT": 21,
+            "SELECT": 2356
+          },
+          "client_execute_seconds": 903.9396106002387,
+          "execute_errors": 0,
+          "many_calls": 0,
+          "non_select": 263,
+          "select": 2356,
+          "total": 2619
+        },
+        "by_alias": {
+          "evid06_authority_test": {
+            "by_first_keyword": {
+              "<OTHER>": 242,
+              "INSERT": 21,
+              "SELECT": 2356
+            },
+            "client_execute_seconds": 903.9396106002387,
+            "execute_errors": 0,
+            "many_calls": 0,
+            "non_select": 263,
+            "select": 2356,
+            "total": 2619
+          }
+        },
+        "install_failures": {},
+        "installed_aliases": [
+          "default",
+          "evid06_authority_test"
+        ],
+        "scope": "pytest runtest_call execute wrappers only"
+      },
+      "source2_cache": {
+        "binding": "apps.simulated_trading.infrastructure.simulated_account_row_source_v2_repository.DjangoSimulatedAccountRowSourceV2Repository._visible_records",
+        "coverage_note": null,
+        "coverage_status": "restored",
+        "limits": [
+          "Cache hit/miss is inferred from whether the decorated function callback ran.",
+          "Only the loaded SourceV2 repository class binding is patched; pre-bound aliases and other implementations are outside coverage.",
+          "Cutoff, instance and lock fields are metadata summaries; payloads and source identifiers are never retained."
+        ],
+        "namespace": "simulated-account-row-source-v2-visible-records",
+        "phases": {
+          "facade_test_call": {
+            "cache_hit_count": 18,
+            "cache_miss_count": 9,
+            "cutoffs": [
+              "2026-08-05T12:00:00Z",
+              "2026-08-15T14:41:00Z"
+            ],
+            "instances": [
+              "apps.simulated_trading.infrastructure.simulated_account_row_source_v2_repository.DjangoSimulatedAccountRowSourceV2Repository@267cd18a8c0",
+              "apps.simulated_trading.infrastructure.simulated_account_row_source_v2_repository.DjangoSimulatedAccountRowSourceV2Repository@267cd18bc40"
+            ],
+            "lock_values": [
+              "False",
+              "True"
+            ],
+            "namespaces": [
+              "simulated-account-row-source-v2-visible-records"
+            ],
+            "original_function_call_count": 9,
+            "unique_entry_count": 1,
+            "wrapper_entry_count": 27,
+            "wrapper_error_count": 0,
+            "wrapper_exit_count": 27
+          }
+        }
+      },
+      "domain_header_witness": {
+        "limits": [
+          "Witness values come from the unchanged target test frame at return and include selected scalar header fields only.",
+          "Nested payloads, ORM rows and secrets are not serialized; canonical_header_sha256 is a hash of the selected scalar header.",
+          "A partial witness never upgrades a measurement to complete; it must be investigated with the original test artifact."
+        ],
+        "missing": [],
+        "records": {
+          "actor_source": {
+            "canonical_header_sha256": "385bcfb0e8016cc4eb3c939507f846d60b41fc3c1096860a0f41b9034cf411df",
+            "field_count": 9,
+            "fields": {
+              "content_hash": "3bbd4b92012305258fb69bb45233850e189839344664b94f874f1f38bff088e5",
+              "identity_hash": "d2834996ca01c0d74d8ada6b0c412d306881f0c7f69ac80759f9f2fa1eccb5b2",
+              "principal_id": "principal-42",
+              "recorded_at": "2026-08-15T14:20:00Z",
+              "source_id": "account-authority-source",
+              "source_valid_until": "2026-08-15T15:31:00Z",
+              "source_version": "v3",
+              "user_id": 42,
+              "valid_until": "2026-08-15T15:31:00Z"
+            },
+            "type": "apps.account.domain.account_owner_assignment_actor_authority_source_v3.AccountOwnerAssignmentActorAuthoritySourceV3"
+          },
+          "evidence_v5": {
+            "canonical_header_sha256": "4a60caa10720fbaef03107f43304a1f93e57c721d51eca21bdfdd75dde476389",
+            "field_count": 5,
+            "fields": {
+              "content_hash": "9aa88c1a21d9c16231db2c2e2d96dbddd437209167237bda0f6654fbec9305bf",
+              "evidence_id": "ownership-evidence-v5-7",
+              "evidence_version": "v5.1",
+              "recorded_at": "2026-08-15T14:40:00Z",
+              "valid_until": "2026-08-15T15:00:00Z"
+            },
+            "type": "apps.account.domain.account_owner_assignment_evidence_v5.AccountOwnerAssignmentEvidenceV5"
+          },
+          "issued_authority_v3": {
+            "canonical_header_sha256": "f5d0dc4091d082adf2e99eae19db1b2c591e9120f50ca6629df69442faac9bcb",
+            "field_count": 8,
+            "fields": {
+              "assignment_evidence_content_hash": "9aa88c1a21d9c16231db2c2e2d96dbddd437209167237bda0f6654fbec9305bf",
+              "assignment_evidence_id": "ownership-evidence-v5-7",
+              "assignment_evidence_version": "v5.1",
+              "authority_id": "composition-owner-root",
+              "authority_version": "v3.1",
+              "content_hash": "6ddc76e3120bc376f5f08e8fb48bf6f7cd74f7feebd6ef62dd55d23d449dc898",
+              "recorded_at": "2026-08-15T14:41:00Z",
+              "valid_until": "2026-08-15T15:41:00Z"
+            },
+            "type": "apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3"
+          },
+          "physical_source_v2": {
+            "canonical_header_sha256": "a42f8c08f9b8365a25a0345465821ff5501c48a3fed227295309999020712900",
+            "field_count": 16,
+            "fields": {
+              "account_id": "acct-0007",
+              "account_namespace": "account",
+              "content_hash": "5a076872b317515361467f8a76332ab778237e4f590cf3d6c2e3459b41731c42",
+              "identity_hash": "4016e86566523e4ba01ee703a40bc51c88ec2bb3841861dbaf8ea237589592d4",
+              "raw_observation_content_hash": "13cda2e49cfc8e867e8a10069ce533a72bea816421f9553d5382758b51f063be",
+              "raw_observation_id": "simulated-account-row-7",
+              "raw_observation_identity_hash": "d60c2f5c317a17ac8028094cfdd2ce828ec61cfe924534a8a76d00899cb33d31",
+              "raw_observation_version": "event-v1",
+              "recorded_at": "2026-08-05T12:00:00Z",
+              "source_id": "simulated-account-row-7",
+              "source_valid_until": "2026-08-30T12:00:00Z",
+              "source_version": "event-v1",
+              "ttl_valid_until": "2026-08-30T12:00:00Z",
+              "underlying_unified_account_id": 7,
+              "underlying_unified_account_namespace": "simulated-account-row",
+              "valid_until": "2026-08-30T12:00:00Z"
+            },
+            "type": "apps.simulated_trading.domain.simulated_account_row_source_v2.SimulatedAccountRowSourceV2"
+          },
+          "policy": {
+            "canonical_header_sha256": "548917aece9d6329735c19ed13a9fedca4ed4be0360a35a915d66d1d4bc13471",
+            "field_count": 8,
+            "fields": {
+              "account_id": "acct-0007",
+              "account_namespace": "account",
+              "content_hash": "3db882aaf045d75411389b093b2872b2ce937e80c2b46aa7bc1d7d23c86f1c3a",
+              "owner_id": "owner-a",
+              "policy_id": "personal-project",
+              "policy_version": "1",
+              "tenant_id": "tenant-a",
+              "valid_until": "2026-08-30T12:00:00Z"
+            },
+            "type": "apps.account.domain.single_owner_authority_policy_v1.SingleOwnerAuthorityPolicyV1"
+          }
+        },
+        "status": "complete",
+        "trace_installed": true,
+        "trace_restored": true
+      },
+      "loaded_module_added": [
+        {
+          "module": "tests.support.owner_authority_current_sources",
+          "path": "tests/support/owner_authority_current_sources.py"
+        }
+      ],
+      "loaded_module_removed": [],
+      "fixed_sources_stable": true,
+      "independent_empty_database_before": {
+        "started_at": "2026-09-13T16:38:29.856788+00:00",
+        "completed_at": "2026-09-13T16:38:33.432284+00:00",
+        "database": "evid06_authority_test",
+        "public_base_tables": 0,
+        "other_client_backends": 0,
+        "server_version": "16.14",
+        "server_address": "172.24.0.2/32",
+        "server_port": 5432,
+        "read_only": true,
+        "outside_measurement_probe": true
+      },
+      "independent_empty_database_after": {
+        "started_at": "2026-09-13T17:03:36.671246+00:00",
+        "completed_at": "2026-09-13T17:03:47.265378+00:00",
+        "database": "evid06_authority_test",
+        "public_base_tables": 0,
+        "other_client_backends": 0,
+        "server_version": "16.14",
+        "server_address": "172.24.0.2/32",
+        "server_port": 5432,
+        "read_only": true,
+        "outside_measurement_probe": true
+      },
+      "transport_shim": {
+        "calls": 1,
+        "parameters": {
+          "connect_timeout": 30,
+          "gssencmode": "disable",
+          "sslmode": "disable"
+        },
+        "restored": true,
+        "target": "django.db.backends.postgresql.base.DatabaseWrapper.get_connection_params",
+        "target_alias": "evid06_authority_test",
+        "target_calls": 1
+      }
+    },
+    {
+      "cycle": 2,
+      "original_receipt_sha256": "ddeabb63c7f016450ea665c80721995ccb918b099dabaabedf7e7b31b4db3044",
+      "started_at": "2026-09-13T17:04:12.584388Z",
+      "ended_at": "2026-09-13T17:25:45.089779Z",
+      "junit": {
+        "errors": 0,
+        "failures": 0,
+        "passed": 1,
+        "single_green": true,
+        "skipped": 0,
+        "testcase_nodeids": [
+          "tests.component.account.test_owner_tenant_authority_v3_composition::test_opt_in_postgres_facade_issues_reads_and_revokes"
+        ],
+        "tests": 1
+      },
+      "overall_pytest_including_fixture_wall_seconds": 1284.7863878000062,
+      "overall_pytest_including_fixture_caller_cpu_seconds": 27.125,
+      "test_call_wall_seconds": 732.5635142999236,
+      "test_call_caller_cpu_seconds": 12.328125,
+      "physical_stdlib_json_chain": {
+        "physical_json_decode_calls": 2091,
+        "physical_json_decode_seconds": 0.25075169932097197,
+        "physical_json_decode_errors": 0,
+        "json_load_calls": 0,
+        "json_loads_calls": 2091,
+        "decoder_decode_calls": 2091,
+        "decoder_raw_decode_calls": 2091
+      },
+      "decorated_original_calls": {
+        "decode:apps.account.infrastructure.allocated_physical_account_row_observation_v3_codec.decode_allocated_physical_account_row_observation_v3_record": 40,
+        "decode:apps.account.infrastructure.canonical_account_creation_binding_v2_codec.decode_canonical_account_creation_binding_v2": 78,
+        "decode:apps.account.infrastructure.canonical_account_creation_codec.decode_canonical_account_creation_allocation": 175,
+        "decode:apps.account.infrastructure.canonical_account_ownership_reobservation_v1_codec.decode_canonical_account_ownership_reobservation_v1": 47,
+        "decode:apps.account.infrastructure.canonical_account_ownership_reobservation_v1_record_codec.decode_canonical_account_ownership_reobservation_v1_record": 22,
+        "decode:apps.account.infrastructure.physical_account_row_observation_v2_codec.decode_physical_account_row_observation_v2_record": 205,
+        "validation:apps.account.domain.account_owner_assignment_evidence.AccountOwnerAssignmentActor.__post_init__": 217,
+        "validation:apps.account.domain.account_owner_assignment_evidence_v5.AccountOwnerAssignmentEvidenceV5.__post_init__": 18,
+        "validation:apps.account.domain.account_owner_assignment_provenance_receipt_v5.AccountOwnerAssignmentProvenanceReceiptV5.__post_init__": 82,
+        "validation:apps.account.domain.account_owner_assignment_subject_v5.AccountOwnerAssignmentSubjectV5.__post_init__": 39,
+        "validation:apps.account.domain.allocated_physical_account_row_observation_v3.AllocatedPhysicalAccountRowObservationV3.__post_init__": 439,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationAllocation.__post_init__": 668,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationRequester.__post_init__": 672,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationServiceRecorder.__post_init__": 1031,
+        "validation:apps.account.domain.canonical_account_creation_binding_v2.CanonicalAccountCreationBindingV2.__post_init__": 359,
+        "validation:apps.account.domain.canonical_account_creation_consumption.CanonicalAccountCreationConsumptionClaim.__post_init__": 216,
+        "validation:apps.account.domain.canonical_account_ownership_reobservation_v1.CanonicalAccountOwnershipReobservationV1.__post_init__": 192,
+        "validation:apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3.__post_init__": 13,
+        "validation:apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3Revocation.__post_init__": 5,
+        "validation:apps.account.domain.single_owner_authority_policy_v1.SingleOwnerAuthorityPolicyV1.__post_init__": 196
+      },
+      "decorated_cache_hits": {
+        "decode:apps.account.infrastructure.allocated_physical_account_row_observation_v3_codec.decode_allocated_physical_account_row_observation_v3_record": 143,
+        "decode:apps.account.infrastructure.canonical_account_creation_binding_v2_codec.decode_canonical_account_creation_binding_v2": 198,
+        "decode:apps.account.infrastructure.canonical_account_creation_codec.decode_canonical_account_creation_allocation": 385,
+        "decode:apps.account.infrastructure.canonical_account_ownership_reobservation_v1_codec.decode_canonical_account_ownership_reobservation_v1": 23,
+        "decode:apps.account.infrastructure.canonical_account_ownership_reobservation_v1_record_codec.decode_canonical_account_ownership_reobservation_v1_record": 88,
+        "decode:apps.account.infrastructure.physical_account_row_observation_v2_codec.decode_physical_account_row_observation_v2_record": 107,
+        "validation:apps.account.domain.account_owner_assignment_evidence.AccountOwnerAssignmentActor.__post_init__": 356,
+        "validation:apps.account.domain.account_owner_assignment_evidence_v5.AccountOwnerAssignmentEvidenceV5.__post_init__": 330,
+        "validation:apps.account.domain.account_owner_assignment_provenance_receipt_v5.AccountOwnerAssignmentProvenanceReceiptV5.__post_init__": 952,
+        "validation:apps.account.domain.account_owner_assignment_subject_v5.AccountOwnerAssignmentSubjectV5.__post_init__": 468,
+        "validation:apps.account.domain.allocated_physical_account_row_observation_v3.AllocatedPhysicalAccountRowObservationV3.__post_init__": 3178,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationAllocation.__post_init__": 15690,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationRequester.__post_init__": 8824,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationServiceRecorder.__post_init__": 12053,
+        "validation:apps.account.domain.canonical_account_creation_binding_v2.CanonicalAccountCreationBindingV2.__post_init__": 4160,
+        "validation:apps.account.domain.canonical_account_creation_consumption.CanonicalAccountCreationConsumptionClaim.__post_init__": 694,
+        "validation:apps.account.domain.canonical_account_ownership_reobservation_v1.CanonicalAccountOwnershipReobservationV1.__post_init__": 2207,
+        "validation:apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3.__post_init__": 109,
+        "validation:apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3Revocation.__post_init__": 39,
+        "validation:apps.account.domain.single_owner_authority_policy_v1.SingleOwnerAuthorityPolicyV1.__post_init__": 1631
+      },
+      "decorated_cache_misses": {
+        "decode:apps.account.infrastructure.allocated_physical_account_row_observation_v3_codec.decode_allocated_physical_account_row_observation_v3_record": 40,
+        "decode:apps.account.infrastructure.canonical_account_creation_binding_v2_codec.decode_canonical_account_creation_binding_v2": 78,
+        "decode:apps.account.infrastructure.canonical_account_creation_codec.decode_canonical_account_creation_allocation": 175,
+        "decode:apps.account.infrastructure.canonical_account_ownership_reobservation_v1_codec.decode_canonical_account_ownership_reobservation_v1": 47,
+        "decode:apps.account.infrastructure.canonical_account_ownership_reobservation_v1_record_codec.decode_canonical_account_ownership_reobservation_v1_record": 22,
+        "decode:apps.account.infrastructure.physical_account_row_observation_v2_codec.decode_physical_account_row_observation_v2_record": 205,
+        "validation:apps.account.domain.account_owner_assignment_evidence.AccountOwnerAssignmentActor.__post_init__": 217,
+        "validation:apps.account.domain.account_owner_assignment_evidence_v5.AccountOwnerAssignmentEvidenceV5.__post_init__": 18,
+        "validation:apps.account.domain.account_owner_assignment_provenance_receipt_v5.AccountOwnerAssignmentProvenanceReceiptV5.__post_init__": 82,
+        "validation:apps.account.domain.account_owner_assignment_subject_v5.AccountOwnerAssignmentSubjectV5.__post_init__": 39,
+        "validation:apps.account.domain.allocated_physical_account_row_observation_v3.AllocatedPhysicalAccountRowObservationV3.__post_init__": 439,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationAllocation.__post_init__": 668,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationRequester.__post_init__": 672,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationServiceRecorder.__post_init__": 1031,
+        "validation:apps.account.domain.canonical_account_creation_binding_v2.CanonicalAccountCreationBindingV2.__post_init__": 359,
+        "validation:apps.account.domain.canonical_account_creation_consumption.CanonicalAccountCreationConsumptionClaim.__post_init__": 216,
+        "validation:apps.account.domain.canonical_account_ownership_reobservation_v1.CanonicalAccountOwnershipReobservationV1.__post_init__": 192,
+        "validation:apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3.__post_init__": 13,
+        "validation:apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3Revocation.__post_init__": 5,
+        "validation:apps.account.domain.single_owner_authority_policy_v1.SingleOwnerAuthorityPolicyV1.__post_init__": 196
+      },
+      "sql": {
+        "aggregate": {
+          "by_first_keyword": {
+            "<OTHER>": 242,
+            "INSERT": 21,
+            "SELECT": 2356
+          },
+          "client_execute_seconds": 715.2948790017981,
+          "execute_errors": 0,
+          "many_calls": 0,
+          "non_select": 263,
+          "select": 2356,
+          "total": 2619
+        },
+        "by_alias": {
+          "evid06_authority_test": {
+            "by_first_keyword": {
+              "<OTHER>": 242,
+              "INSERT": 21,
+              "SELECT": 2356
+            },
+            "client_execute_seconds": 715.2948790017981,
+            "execute_errors": 0,
+            "many_calls": 0,
+            "non_select": 263,
+            "select": 2356,
+            "total": 2619
+          }
+        },
+        "install_failures": {},
+        "installed_aliases": [
+          "default",
+          "evid06_authority_test"
+        ],
+        "scope": "pytest runtest_call execute wrappers only"
+      },
+      "source2_cache": {
+        "binding": "apps.simulated_trading.infrastructure.simulated_account_row_source_v2_repository.DjangoSimulatedAccountRowSourceV2Repository._visible_records",
+        "coverage_note": null,
+        "coverage_status": "restored",
+        "limits": [
+          "Cache hit/miss is inferred from whether the decorated function callback ran.",
+          "Only the loaded SourceV2 repository class binding is patched; pre-bound aliases and other implementations are outside coverage.",
+          "Cutoff, instance and lock fields are metadata summaries; payloads and source identifiers are never retained."
+        ],
+        "namespace": "simulated-account-row-source-v2-visible-records",
+        "phases": {
+          "facade_test_call": {
+            "cache_hit_count": 18,
+            "cache_miss_count": 9,
+            "cutoffs": [
+              "2026-08-05T12:00:00Z",
+              "2026-08-15T14:41:00Z"
+            ],
+            "instances": [
+              "apps.simulated_trading.infrastructure.simulated_account_row_source_v2_repository.DjangoSimulatedAccountRowSourceV2Repository@19d794c7220",
+              "apps.simulated_trading.infrastructure.simulated_account_row_source_v2_repository.DjangoSimulatedAccountRowSourceV2Repository@19d79549240"
+            ],
+            "lock_values": [
+              "False",
+              "True"
+            ],
+            "namespaces": [
+              "simulated-account-row-source-v2-visible-records"
+            ],
+            "original_function_call_count": 9,
+            "unique_entry_count": 1,
+            "wrapper_entry_count": 27,
+            "wrapper_error_count": 0,
+            "wrapper_exit_count": 27
+          }
+        }
+      },
+      "domain_header_witness": {
+        "limits": [
+          "Witness values come from the unchanged target test frame at return and include selected scalar header fields only.",
+          "Nested payloads, ORM rows and secrets are not serialized; canonical_header_sha256 is a hash of the selected scalar header.",
+          "A partial witness never upgrades a measurement to complete; it must be investigated with the original test artifact."
+        ],
+        "missing": [],
+        "records": {
+          "actor_source": {
+            "canonical_header_sha256": "385bcfb0e8016cc4eb3c939507f846d60b41fc3c1096860a0f41b9034cf411df",
+            "field_count": 9,
+            "fields": {
+              "content_hash": "3bbd4b92012305258fb69bb45233850e189839344664b94f874f1f38bff088e5",
+              "identity_hash": "d2834996ca01c0d74d8ada6b0c412d306881f0c7f69ac80759f9f2fa1eccb5b2",
+              "principal_id": "principal-42",
+              "recorded_at": "2026-08-15T14:20:00Z",
+              "source_id": "account-authority-source",
+              "source_valid_until": "2026-08-15T15:31:00Z",
+              "source_version": "v3",
+              "user_id": 42,
+              "valid_until": "2026-08-15T15:31:00Z"
+            },
+            "type": "apps.account.domain.account_owner_assignment_actor_authority_source_v3.AccountOwnerAssignmentActorAuthoritySourceV3"
+          },
+          "evidence_v5": {
+            "canonical_header_sha256": "4a60caa10720fbaef03107f43304a1f93e57c721d51eca21bdfdd75dde476389",
+            "field_count": 5,
+            "fields": {
+              "content_hash": "9aa88c1a21d9c16231db2c2e2d96dbddd437209167237bda0f6654fbec9305bf",
+              "evidence_id": "ownership-evidence-v5-7",
+              "evidence_version": "v5.1",
+              "recorded_at": "2026-08-15T14:40:00Z",
+              "valid_until": "2026-08-15T15:00:00Z"
+            },
+            "type": "apps.account.domain.account_owner_assignment_evidence_v5.AccountOwnerAssignmentEvidenceV5"
+          },
+          "issued_authority_v3": {
+            "canonical_header_sha256": "f5d0dc4091d082adf2e99eae19db1b2c591e9120f50ca6629df69442faac9bcb",
+            "field_count": 8,
+            "fields": {
+              "assignment_evidence_content_hash": "9aa88c1a21d9c16231db2c2e2d96dbddd437209167237bda0f6654fbec9305bf",
+              "assignment_evidence_id": "ownership-evidence-v5-7",
+              "assignment_evidence_version": "v5.1",
+              "authority_id": "composition-owner-root",
+              "authority_version": "v3.1",
+              "content_hash": "6ddc76e3120bc376f5f08e8fb48bf6f7cd74f7feebd6ef62dd55d23d449dc898",
+              "recorded_at": "2026-08-15T14:41:00Z",
+              "valid_until": "2026-08-15T15:41:00Z"
+            },
+            "type": "apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3"
+          },
+          "physical_source_v2": {
+            "canonical_header_sha256": "a42f8c08f9b8365a25a0345465821ff5501c48a3fed227295309999020712900",
+            "field_count": 16,
+            "fields": {
+              "account_id": "acct-0007",
+              "account_namespace": "account",
+              "content_hash": "5a076872b317515361467f8a76332ab778237e4f590cf3d6c2e3459b41731c42",
+              "identity_hash": "4016e86566523e4ba01ee703a40bc51c88ec2bb3841861dbaf8ea237589592d4",
+              "raw_observation_content_hash": "13cda2e49cfc8e867e8a10069ce533a72bea816421f9553d5382758b51f063be",
+              "raw_observation_id": "simulated-account-row-7",
+              "raw_observation_identity_hash": "d60c2f5c317a17ac8028094cfdd2ce828ec61cfe924534a8a76d00899cb33d31",
+              "raw_observation_version": "event-v1",
+              "recorded_at": "2026-08-05T12:00:00Z",
+              "source_id": "simulated-account-row-7",
+              "source_valid_until": "2026-08-30T12:00:00Z",
+              "source_version": "event-v1",
+              "ttl_valid_until": "2026-08-30T12:00:00Z",
+              "underlying_unified_account_id": 7,
+              "underlying_unified_account_namespace": "simulated-account-row",
+              "valid_until": "2026-08-30T12:00:00Z"
+            },
+            "type": "apps.simulated_trading.domain.simulated_account_row_source_v2.SimulatedAccountRowSourceV2"
+          },
+          "policy": {
+            "canonical_header_sha256": "548917aece9d6329735c19ed13a9fedca4ed4be0360a35a915d66d1d4bc13471",
+            "field_count": 8,
+            "fields": {
+              "account_id": "acct-0007",
+              "account_namespace": "account",
+              "content_hash": "3db882aaf045d75411389b093b2872b2ce937e80c2b46aa7bc1d7d23c86f1c3a",
+              "owner_id": "owner-a",
+              "policy_id": "personal-project",
+              "policy_version": "1",
+              "tenant_id": "tenant-a",
+              "valid_until": "2026-08-30T12:00:00Z"
+            },
+            "type": "apps.account.domain.single_owner_authority_policy_v1.SingleOwnerAuthorityPolicyV1"
+          }
+        },
+        "status": "complete",
+        "trace_installed": true,
+        "trace_restored": true
+      },
+      "loaded_module_added": [
+        {
+          "module": "tests.support.owner_authority_current_sources",
+          "path": "tests/support/owner_authority_current_sources.py"
+        }
+      ],
+      "loaded_module_removed": [],
+      "fixed_sources_stable": true,
+      "independent_empty_database_before": {
+        "started_at": "2026-09-13T17:03:47.455287+00:00",
+        "completed_at": "2026-09-13T17:04:01.405531+00:00",
+        "database": "evid06_authority_test",
+        "public_base_tables": 0,
+        "other_client_backends": 0,
+        "server_version": "16.14",
+        "server_address": "172.24.0.2/32",
+        "server_port": 5432,
+        "read_only": true,
+        "outside_measurement_probe": true
+      },
+      "independent_empty_database_after": {
+        "started_at": "2026-09-13T17:25:47.238513+00:00",
+        "completed_at": "2026-09-13T17:26:00.695879+00:00",
+        "database": "evid06_authority_test",
+        "public_base_tables": 0,
+        "other_client_backends": 0,
+        "server_version": "16.14",
+        "server_address": "172.24.0.2/32",
+        "server_port": 5432,
+        "read_only": true,
+        "outside_measurement_probe": true
+      },
+      "transport_shim": {
+        "calls": 1,
+        "parameters": {
+          "connect_timeout": 30,
+          "gssencmode": "disable",
+          "sslmode": "disable"
+        },
+        "restored": true,
+        "target": "django.db.backends.postgresql.base.DatabaseWrapper.get_connection_params",
+        "target_alias": "evid06_authority_test",
+        "target_calls": 1
+      }
+    },
+    {
+      "cycle": 3,
+      "original_receipt_sha256": "3d2f1b5b54ab01dc7a0e6191eb17d6416e1f88b112ec620d8c1fb987ced58a7e",
+      "started_at": "2026-09-13T17:26:13.410709Z",
+      "ended_at": "2026-09-13T17:45:57.057138Z",
+      "junit": {
+        "errors": 0,
+        "failures": 0,
+        "passed": 1,
+        "single_green": true,
+        "skipped": 0,
+        "testcase_nodeids": [
+          "tests.component.account.test_owner_tenant_authority_v3_composition::test_opt_in_postgres_facade_issues_reads_and_revokes"
+        ],
+        "tests": 1
+      },
+      "overall_pytest_including_fixture_wall_seconds": 1151.4381031999364,
+      "overall_pytest_including_fixture_caller_cpu_seconds": 25.71875,
+      "test_call_wall_seconds": 670.3544042999856,
+      "test_call_caller_cpu_seconds": 12.125,
+      "physical_stdlib_json_chain": {
+        "physical_json_decode_calls": 2091,
+        "physical_json_decode_seconds": 0.24768509762361646,
+        "physical_json_decode_errors": 0,
+        "json_load_calls": 0,
+        "json_loads_calls": 2091,
+        "decoder_decode_calls": 2091,
+        "decoder_raw_decode_calls": 2091
+      },
+      "decorated_original_calls": {
+        "decode:apps.account.infrastructure.allocated_physical_account_row_observation_v3_codec.decode_allocated_physical_account_row_observation_v3_record": 40,
+        "decode:apps.account.infrastructure.canonical_account_creation_binding_v2_codec.decode_canonical_account_creation_binding_v2": 78,
+        "decode:apps.account.infrastructure.canonical_account_creation_codec.decode_canonical_account_creation_allocation": 175,
+        "decode:apps.account.infrastructure.canonical_account_ownership_reobservation_v1_codec.decode_canonical_account_ownership_reobservation_v1": 47,
+        "decode:apps.account.infrastructure.canonical_account_ownership_reobservation_v1_record_codec.decode_canonical_account_ownership_reobservation_v1_record": 22,
+        "decode:apps.account.infrastructure.physical_account_row_observation_v2_codec.decode_physical_account_row_observation_v2_record": 205,
+        "validation:apps.account.domain.account_owner_assignment_evidence.AccountOwnerAssignmentActor.__post_init__": 217,
+        "validation:apps.account.domain.account_owner_assignment_evidence_v5.AccountOwnerAssignmentEvidenceV5.__post_init__": 18,
+        "validation:apps.account.domain.account_owner_assignment_provenance_receipt_v5.AccountOwnerAssignmentProvenanceReceiptV5.__post_init__": 82,
+        "validation:apps.account.domain.account_owner_assignment_subject_v5.AccountOwnerAssignmentSubjectV5.__post_init__": 39,
+        "validation:apps.account.domain.allocated_physical_account_row_observation_v3.AllocatedPhysicalAccountRowObservationV3.__post_init__": 439,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationAllocation.__post_init__": 668,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationRequester.__post_init__": 672,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationServiceRecorder.__post_init__": 1031,
+        "validation:apps.account.domain.canonical_account_creation_binding_v2.CanonicalAccountCreationBindingV2.__post_init__": 359,
+        "validation:apps.account.domain.canonical_account_creation_consumption.CanonicalAccountCreationConsumptionClaim.__post_init__": 216,
+        "validation:apps.account.domain.canonical_account_ownership_reobservation_v1.CanonicalAccountOwnershipReobservationV1.__post_init__": 192,
+        "validation:apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3.__post_init__": 13,
+        "validation:apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3Revocation.__post_init__": 5,
+        "validation:apps.account.domain.single_owner_authority_policy_v1.SingleOwnerAuthorityPolicyV1.__post_init__": 196
+      },
+      "decorated_cache_hits": {
+        "decode:apps.account.infrastructure.allocated_physical_account_row_observation_v3_codec.decode_allocated_physical_account_row_observation_v3_record": 143,
+        "decode:apps.account.infrastructure.canonical_account_creation_binding_v2_codec.decode_canonical_account_creation_binding_v2": 198,
+        "decode:apps.account.infrastructure.canonical_account_creation_codec.decode_canonical_account_creation_allocation": 385,
+        "decode:apps.account.infrastructure.canonical_account_ownership_reobservation_v1_codec.decode_canonical_account_ownership_reobservation_v1": 23,
+        "decode:apps.account.infrastructure.canonical_account_ownership_reobservation_v1_record_codec.decode_canonical_account_ownership_reobservation_v1_record": 88,
+        "decode:apps.account.infrastructure.physical_account_row_observation_v2_codec.decode_physical_account_row_observation_v2_record": 107,
+        "validation:apps.account.domain.account_owner_assignment_evidence.AccountOwnerAssignmentActor.__post_init__": 356,
+        "validation:apps.account.domain.account_owner_assignment_evidence_v5.AccountOwnerAssignmentEvidenceV5.__post_init__": 330,
+        "validation:apps.account.domain.account_owner_assignment_provenance_receipt_v5.AccountOwnerAssignmentProvenanceReceiptV5.__post_init__": 952,
+        "validation:apps.account.domain.account_owner_assignment_subject_v5.AccountOwnerAssignmentSubjectV5.__post_init__": 468,
+        "validation:apps.account.domain.allocated_physical_account_row_observation_v3.AllocatedPhysicalAccountRowObservationV3.__post_init__": 3178,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationAllocation.__post_init__": 15690,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationRequester.__post_init__": 8824,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationServiceRecorder.__post_init__": 12053,
+        "validation:apps.account.domain.canonical_account_creation_binding_v2.CanonicalAccountCreationBindingV2.__post_init__": 4160,
+        "validation:apps.account.domain.canonical_account_creation_consumption.CanonicalAccountCreationConsumptionClaim.__post_init__": 694,
+        "validation:apps.account.domain.canonical_account_ownership_reobservation_v1.CanonicalAccountOwnershipReobservationV1.__post_init__": 2207,
+        "validation:apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3.__post_init__": 109,
+        "validation:apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3Revocation.__post_init__": 39,
+        "validation:apps.account.domain.single_owner_authority_policy_v1.SingleOwnerAuthorityPolicyV1.__post_init__": 1631
+      },
+      "decorated_cache_misses": {
+        "decode:apps.account.infrastructure.allocated_physical_account_row_observation_v3_codec.decode_allocated_physical_account_row_observation_v3_record": 40,
+        "decode:apps.account.infrastructure.canonical_account_creation_binding_v2_codec.decode_canonical_account_creation_binding_v2": 78,
+        "decode:apps.account.infrastructure.canonical_account_creation_codec.decode_canonical_account_creation_allocation": 175,
+        "decode:apps.account.infrastructure.canonical_account_ownership_reobservation_v1_codec.decode_canonical_account_ownership_reobservation_v1": 47,
+        "decode:apps.account.infrastructure.canonical_account_ownership_reobservation_v1_record_codec.decode_canonical_account_ownership_reobservation_v1_record": 22,
+        "decode:apps.account.infrastructure.physical_account_row_observation_v2_codec.decode_physical_account_row_observation_v2_record": 205,
+        "validation:apps.account.domain.account_owner_assignment_evidence.AccountOwnerAssignmentActor.__post_init__": 217,
+        "validation:apps.account.domain.account_owner_assignment_evidence_v5.AccountOwnerAssignmentEvidenceV5.__post_init__": 18,
+        "validation:apps.account.domain.account_owner_assignment_provenance_receipt_v5.AccountOwnerAssignmentProvenanceReceiptV5.__post_init__": 82,
+        "validation:apps.account.domain.account_owner_assignment_subject_v5.AccountOwnerAssignmentSubjectV5.__post_init__": 39,
+        "validation:apps.account.domain.allocated_physical_account_row_observation_v3.AllocatedPhysicalAccountRowObservationV3.__post_init__": 439,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationAllocation.__post_init__": 668,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationRequester.__post_init__": 672,
+        "validation:apps.account.domain.canonical_account_creation.CanonicalAccountCreationServiceRecorder.__post_init__": 1031,
+        "validation:apps.account.domain.canonical_account_creation_binding_v2.CanonicalAccountCreationBindingV2.__post_init__": 359,
+        "validation:apps.account.domain.canonical_account_creation_consumption.CanonicalAccountCreationConsumptionClaim.__post_init__": 216,
+        "validation:apps.account.domain.canonical_account_ownership_reobservation_v1.CanonicalAccountOwnershipReobservationV1.__post_init__": 192,
+        "validation:apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3.__post_init__": 13,
+        "validation:apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3Revocation.__post_init__": 5,
+        "validation:apps.account.domain.single_owner_authority_policy_v1.SingleOwnerAuthorityPolicyV1.__post_init__": 196
+      },
+      "sql": {
+        "aggregate": {
+          "by_first_keyword": {
+            "<OTHER>": 242,
+            "INSERT": 21,
+            "SELECT": 2356
+          },
+          "client_execute_seconds": 647.944078302593,
+          "execute_errors": 0,
+          "many_calls": 0,
+          "non_select": 263,
+          "select": 2356,
+          "total": 2619
+        },
+        "by_alias": {
+          "evid06_authority_test": {
+            "by_first_keyword": {
+              "<OTHER>": 242,
+              "INSERT": 21,
+              "SELECT": 2356
+            },
+            "client_execute_seconds": 647.944078302593,
+            "execute_errors": 0,
+            "many_calls": 0,
+            "non_select": 263,
+            "select": 2356,
+            "total": 2619
+          }
+        },
+        "install_failures": {},
+        "installed_aliases": [
+          "default",
+          "evid06_authority_test"
+        ],
+        "scope": "pytest runtest_call execute wrappers only"
+      },
+      "source2_cache": {
+        "binding": "apps.simulated_trading.infrastructure.simulated_account_row_source_v2_repository.DjangoSimulatedAccountRowSourceV2Repository._visible_records",
+        "coverage_note": null,
+        "coverage_status": "restored",
+        "limits": [
+          "Cache hit/miss is inferred from whether the decorated function callback ran.",
+          "Only the loaded SourceV2 repository class binding is patched; pre-bound aliases and other implementations are outside coverage.",
+          "Cutoff, instance and lock fields are metadata summaries; payloads and source identifiers are never retained."
+        ],
+        "namespace": "simulated-account-row-source-v2-visible-records",
+        "phases": {
+          "facade_test_call": {
+            "cache_hit_count": 18,
+            "cache_miss_count": 9,
+            "cutoffs": [
+              "2026-08-05T12:00:00Z",
+              "2026-08-15T14:41:00Z"
+            ],
+            "instances": [
+              "apps.simulated_trading.infrastructure.simulated_account_row_source_v2_repository.DjangoSimulatedAccountRowSourceV2Repository@222b1e91ff0"
+            ],
+            "lock_values": [
+              "False",
+              "True"
+            ],
+            "namespaces": [
+              "simulated-account-row-source-v2-visible-records"
+            ],
+            "original_function_call_count": 9,
+            "unique_entry_count": 1,
+            "wrapper_entry_count": 27,
+            "wrapper_error_count": 0,
+            "wrapper_exit_count": 27
+          }
+        }
+      },
+      "domain_header_witness": {
+        "limits": [
+          "Witness values come from the unchanged target test frame at return and include selected scalar header fields only.",
+          "Nested payloads, ORM rows and secrets are not serialized; canonical_header_sha256 is a hash of the selected scalar header.",
+          "A partial witness never upgrades a measurement to complete; it must be investigated with the original test artifact."
+        ],
+        "missing": [],
+        "records": {
+          "actor_source": {
+            "canonical_header_sha256": "385bcfb0e8016cc4eb3c939507f846d60b41fc3c1096860a0f41b9034cf411df",
+            "field_count": 9,
+            "fields": {
+              "content_hash": "3bbd4b92012305258fb69bb45233850e189839344664b94f874f1f38bff088e5",
+              "identity_hash": "d2834996ca01c0d74d8ada6b0c412d306881f0c7f69ac80759f9f2fa1eccb5b2",
+              "principal_id": "principal-42",
+              "recorded_at": "2026-08-15T14:20:00Z",
+              "source_id": "account-authority-source",
+              "source_valid_until": "2026-08-15T15:31:00Z",
+              "source_version": "v3",
+              "user_id": 42,
+              "valid_until": "2026-08-15T15:31:00Z"
+            },
+            "type": "apps.account.domain.account_owner_assignment_actor_authority_source_v3.AccountOwnerAssignmentActorAuthoritySourceV3"
+          },
+          "evidence_v5": {
+            "canonical_header_sha256": "4a60caa10720fbaef03107f43304a1f93e57c721d51eca21bdfdd75dde476389",
+            "field_count": 5,
+            "fields": {
+              "content_hash": "9aa88c1a21d9c16231db2c2e2d96dbddd437209167237bda0f6654fbec9305bf",
+              "evidence_id": "ownership-evidence-v5-7",
+              "evidence_version": "v5.1",
+              "recorded_at": "2026-08-15T14:40:00Z",
+              "valid_until": "2026-08-15T15:00:00Z"
+            },
+            "type": "apps.account.domain.account_owner_assignment_evidence_v5.AccountOwnerAssignmentEvidenceV5"
+          },
+          "issued_authority_v3": {
+            "canonical_header_sha256": "f5d0dc4091d082adf2e99eae19db1b2c591e9120f50ca6629df69442faac9bcb",
+            "field_count": 8,
+            "fields": {
+              "assignment_evidence_content_hash": "9aa88c1a21d9c16231db2c2e2d96dbddd437209167237bda0f6654fbec9305bf",
+              "assignment_evidence_id": "ownership-evidence-v5-7",
+              "assignment_evidence_version": "v5.1",
+              "authority_id": "composition-owner-root",
+              "authority_version": "v3.1",
+              "content_hash": "6ddc76e3120bc376f5f08e8fb48bf6f7cd74f7feebd6ef62dd55d23d449dc898",
+              "recorded_at": "2026-08-15T14:41:00Z",
+              "valid_until": "2026-08-15T15:41:00Z"
+            },
+            "type": "apps.account.domain.owner_tenant_authority_v3.OwnerTenantAuthorityV3"
+          },
+          "physical_source_v2": {
+            "canonical_header_sha256": "a42f8c08f9b8365a25a0345465821ff5501c48a3fed227295309999020712900",
+            "field_count": 16,
+            "fields": {
+              "account_id": "acct-0007",
+              "account_namespace": "account",
+              "content_hash": "5a076872b317515361467f8a76332ab778237e4f590cf3d6c2e3459b41731c42",
+              "identity_hash": "4016e86566523e4ba01ee703a40bc51c88ec2bb3841861dbaf8ea237589592d4",
+              "raw_observation_content_hash": "13cda2e49cfc8e867e8a10069ce533a72bea816421f9553d5382758b51f063be",
+              "raw_observation_id": "simulated-account-row-7",
+              "raw_observation_identity_hash": "d60c2f5c317a17ac8028094cfdd2ce828ec61cfe924534a8a76d00899cb33d31",
+              "raw_observation_version": "event-v1",
+              "recorded_at": "2026-08-05T12:00:00Z",
+              "source_id": "simulated-account-row-7",
+              "source_valid_until": "2026-08-30T12:00:00Z",
+              "source_version": "event-v1",
+              "ttl_valid_until": "2026-08-30T12:00:00Z",
+              "underlying_unified_account_id": 7,
+              "underlying_unified_account_namespace": "simulated-account-row",
+              "valid_until": "2026-08-30T12:00:00Z"
+            },
+            "type": "apps.simulated_trading.domain.simulated_account_row_source_v2.SimulatedAccountRowSourceV2"
+          },
+          "policy": {
+            "canonical_header_sha256": "548917aece9d6329735c19ed13a9fedca4ed4be0360a35a915d66d1d4bc13471",
+            "field_count": 8,
+            "fields": {
+              "account_id": "acct-0007",
+              "account_namespace": "account",
+              "content_hash": "3db882aaf045d75411389b093b2872b2ce937e80c2b46aa7bc1d7d23c86f1c3a",
+              "owner_id": "owner-a",
+              "policy_id": "personal-project",
+              "policy_version": "1",
+              "tenant_id": "tenant-a",
+              "valid_until": "2026-08-30T12:00:00Z"
+            },
+            "type": "apps.account.domain.single_owner_authority_policy_v1.SingleOwnerAuthorityPolicyV1"
+          }
+        },
+        "status": "complete",
+        "trace_installed": true,
+        "trace_restored": true
+      },
+      "loaded_module_added": [
+        {
+          "module": "tests.support.owner_authority_current_sources",
+          "path": "tests/support/owner_authority_current_sources.py"
+        }
+      ],
+      "loaded_module_removed": [],
+      "fixed_sources_stable": true,
+      "independent_empty_database_before": {
+        "started_at": "2026-09-13T17:26:00.903212+00:00",
+        "completed_at": "2026-09-13T17:26:03.187851+00:00",
+        "database": "evid06_authority_test",
+        "public_base_tables": 0,
+        "other_client_backends": 0,
+        "server_version": "16.14",
+        "server_address": "172.24.0.2/32",
+        "server_port": 5432,
+        "read_only": true,
+        "outside_measurement_probe": true
+      },
+      "independent_empty_database_after": {
+        "started_at": "2026-09-13T17:45:59.097878+00:00",
+        "completed_at": "2026-09-13T17:46:00.368037+00:00",
+        "database": "evid06_authority_test",
+        "public_base_tables": 0,
+        "other_client_backends": 0,
+        "server_version": "16.14",
+        "server_address": "172.24.0.2/32",
+        "server_port": 5432,
+        "read_only": true,
+        "outside_measurement_probe": true
+      },
+      "transport_shim": {
+        "calls": 1,
+        "parameters": {
+          "connect_timeout": 30,
+          "gssencmode": "disable",
+          "sslmode": "disable"
+        },
+        "restored": true,
+        "target": "django.db.backends.postgresql.base.DatabaseWrapper.get_connection_params",
+        "target_alias": "evid06_authority_test",
+        "target_calls": 1
+      }
+    }
+  ],
+  "original_artifact_bundle": {
+    "path": "docs/testing/evid09-three-isolated-postgres-originals-2026-09-13.json",
+    "bytes": 21027523,
+    "sha256": "53285099f1a97218c18b46174ba3ccafef61403ede8e83819e9ecf6feb538963",
+    "artifact_count": 58
+  },
+  "excluded_failed_witness_pilot": {
+    "receipt_sha256": "33b62a2adf91d2c7ef71bd33827dab8b38c57f32b3a4d0d1d78be656309c52f2",
+    "status": "failed",
+    "pytest_exit_code": 0,
+    "completed_witness": false,
+    "included_in_three_passed_measurements": false,
+    "used_as_paired_cpu_baseline": false,
+    "diagnosed_boundary": "CPython 3.13 FrameLocalsProxy is not dict; private witness tracer now copies frame locals."
+  },
+  "limits": [
+    "Pytest overall wall/CPU includes fixture creation and cleanup; test-call wall/CPU is separate.",
+    "SQL execute duration is client elapsed time, not PostgreSQL server CPU.",
+    "Physical stdlib JSON chains are counted once; wrapper entries are a separate mechanism.",
+    "The actual original isolated fixture clock and one-hour validity are unchanged; no production 30-minute lifecycle is claimed.",
+    "The isolated case does not cover successor or issue replay; the controlled production case remains required.",
+    "The fixed isolated case seeds current actor/Evidence V5/physical parents, issues one Authority V3 root and revokes it; it is not a four-committed-V3-root workload parity benchmark.",
+    "No percentage improvement is inferred from the earlier source-binding-failed diagnostic.",
+    "No DATA-02 source-time completion, production publication, human approval, or independent signature is claimed.",
+    "Selected test uses fixture principal42 and synthetic UTC cutoffs, not the production admin1 identity.",
+    "Fixture setup/teardown is outside the test-call physical/SQL probe. Stdlib layer counters are the same chains and are not additive.",
+    "Three execution durations vary with local Docker/transport wait; they do not prove paired optimization percentages.",
+    "Source file snapshots remain identical despite the recorded lazy module addition; no missing runtime snapshot is reconstructed.",
+    "The earlier witness pilot remains failed even with its green JUnit; original bytes are retained separately."
+  ],
+  "optimized_production_deployment_performed": false,
+  "configured_validity_production_lifecycle_passed": false,
+  "production_resources_used": false,
+  "human_signature_complete": false,
+  "data02_acceptance_complete": false,
+  "pending": [
+    "Exact final review head CI and standard catalog-preserving code-only deployment with verified backup/compatible rollback",
+    "Genuine current-source configured-validity production lifecycle and independent admin/ledger recovery",
+    "DATA-02 original-response hash chain and real source announcement/availability with production acceptance"
+  ]
+}

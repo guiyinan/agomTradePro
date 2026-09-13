@@ -78,3 +78,97 @@ def test_failed_read_is_not_cached() -> None:
         assert read(repository) == "ok"
 
     assert calls == 2
+
+
+def test_account_and_shared_entry_points_use_the_same_active_context() -> None:
+    from shared.infrastructure.immutable_read_snapshot import (
+        immutable_read_snapshot as shared_snapshot,
+    )
+    from shared.infrastructure.immutable_read_snapshot import (
+        reuse_immutable_read as shared_decorator,
+    )
+
+    assert shared_snapshot is immutable_read_snapshot
+    assert shared_decorator is reuse_immutable_read
+    reader = _Reader()
+    cutoff = datetime(2026, 9, 13, tzinfo=UTC)
+    with shared_snapshot():
+        first = reader.read(as_of=cutoff)
+        with immutable_read_snapshot():
+            assert reader.read(as_of=cutoff) is first
+    assert reader.calls == 1
+    assert reader.read(as_of=cutoff) is not first
+
+
+def test_exact_lock_mode_and_exception_exit_do_not_share_results() -> None:
+    class LockedReader:
+        @reuse_immutable_read("test-locked-ledger")
+        def read(self, *, lock: bool) -> object:
+            return object()
+
+    reader = LockedReader()
+    with pytest.raises(RuntimeError, match="phase failed"):
+        with immutable_read_snapshot():
+            unlocked = reader.read(lock=False)
+            locked = reader.read(lock=True)
+            assert locked is not unlocked
+            assert reader.read(lock=True) is locked
+            raise RuntimeError("phase failed")
+    with immutable_read_snapshot():
+        assert reader.read(lock=True) is not locked
+        assert reader.read(lock=False) is not unlocked
+
+
+def test_isolated_phase_does_not_join_an_enclosing_snapshot() -> None:
+    from shared.infrastructure.immutable_read_snapshot import isolated_immutable_read_snapshot
+
+    reader = _Reader()
+    cutoff = datetime(2026, 9, 13, tzinfo=UTC)
+    with immutable_read_snapshot():
+        enclosing = reader.read(as_of=cutoff)
+        with isolated_immutable_read_snapshot():
+            first_phase = reader.read(as_of=cutoff)
+            assert first_phase is not enclosing
+            assert reader.read(as_of=cutoff) is first_phase
+        with isolated_immutable_read_snapshot():
+            assert reader.read(as_of=cutoff) is not first_phase
+        assert reader.read(as_of=cutoff) is enclosing
+    assert reader.calls == 3
+
+
+def test_suspension_disables_callback_reuse_and_invalidates_enclosing_cache() -> None:
+    from shared.infrastructure.immutable_read_snapshot import (
+        isolated_immutable_read_snapshot,
+        suspend_immutable_read_reuse,
+    )
+
+    reader = _Reader()
+    cutoff = datetime(2026, 9, 13, tzinfo=UTC)
+    with immutable_read_snapshot():
+        enclosing = reader.read(as_of=cutoff)
+        with suspend_immutable_read_reuse():
+            callback_first = reader.read(as_of=cutoff)
+            assert reader.read(as_of=cutoff) is not callback_first
+            with isolated_immutable_read_snapshot():
+                phase = reader.read(as_of=cutoff)
+                assert reader.read(as_of=cutoff) is phase
+            assert reader.read(as_of=cutoff) is not phase
+        resumed = reader.read(as_of=cutoff)
+        assert resumed is not enclosing
+        assert reader.read(as_of=cutoff) is resumed
+    assert reader.calls == 6
+
+
+def test_suspension_failure_also_invalidates_enclosing_cache() -> None:
+    from shared.infrastructure.immutable_read_snapshot import suspend_immutable_read_reuse
+
+    reader = _Reader()
+    cutoff = datetime(2026, 9, 13, tzinfo=UTC)
+    with immutable_read_snapshot():
+        enclosing = reader.read(as_of=cutoff)
+        with pytest.raises(RuntimeError, match="mutation failed"):
+            with suspend_immutable_read_reuse():
+                reader.read(as_of=cutoff)
+                raise RuntimeError("mutation failed")
+        assert reader.read(as_of=cutoff) is not enclosing
+    assert reader.calls == 3

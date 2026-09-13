@@ -76,13 +76,16 @@ from apps.account.infrastructure.account_actor_authority_capture_snapshot import
 from apps.account.infrastructure.account_owner_assignment_actor_authority_source_v3_repository import (
     DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository,
 )
-from apps.account.infrastructure.immutable_read_snapshot import immutable_read_snapshot
 from apps.account.infrastructure.owner_tenant_authority_v3_repository import (
     DjangoOwnerTenantAuthorityV3Repository,
     lock_owner_tenant_authority_v3_sources,
 )
 from apps.account.infrastructure.single_owner_authority_policy_v1_repository import (
     DjangoSingleOwnerAuthorityPolicyV1Repository,
+)
+from shared.infrastructure.immutable_read_snapshot import (
+    isolated_immutable_read_snapshot,
+    suspend_immutable_read_reuse,
 )
 
 _ReturnT = TypeVar("_ReturnT")
@@ -161,7 +164,9 @@ class OwnerTenantAuthorityV3Facade:
     ) -> OwnerTenantAuthorityV3:
         """Issue or replay one immutable Authority V3 root."""
 
-        return self._locked(lambda: self._service.issue(command))
+        return self._locked(
+            lambda: self._with_current_physical_source_lock(lambda: self._service.issue(command))
+        )
 
     def supersede(
         self,
@@ -169,7 +174,11 @@ class OwnerTenantAuthorityV3Facade:
     ) -> OwnerTenantAuthorityV3:
         """Append or replay one immutable Authority V3 successor."""
 
-        return self._locked(lambda: self._service.supersede(command))
+        return self._locked(
+            lambda: self._with_current_physical_source_lock(
+                lambda: self._service.supersede(command)
+            )
+        )
 
     def successor(
         self,
@@ -177,7 +186,11 @@ class OwnerTenantAuthorityV3Facade:
     ) -> OwnerTenantAuthorityV3:
         """Expose the explicit successor spelling for the same lifecycle step."""
 
-        return self._locked(lambda: self._service.successor(command))
+        return self._locked(
+            lambda: self._with_current_physical_source_lock(
+                lambda: self._service.successor(command)
+            )
+        )
 
     def get_current(
         self,
@@ -186,11 +199,9 @@ class OwnerTenantAuthorityV3Facade:
         """Return one finite observation after current source revalidation."""
 
         def read_current() -> CurrentOwnerTenantAuthorityV3 | None:
-            self._lock_current_physical_sources()
-            with immutable_read_snapshot():
-                return validation_graph_operation(self._service.get_current)(command)
+            return self._service.get_current(command)
 
-        return self._locked(read_current)
+        return self._locked(lambda: self._with_current_physical_source_lock(read_current))
 
     def get_exact(
         self,
@@ -217,6 +228,7 @@ class OwnerTenantAuthorityV3Facade:
             raise TypeError("operation must be callable")
 
         def read_current() -> _ReturnT | None:
+            self._lock_current_physical_sources()
             initial = self._service.get_current(command)
             if initial is None:
                 return None
@@ -252,13 +264,14 @@ class OwnerTenantAuthorityV3Facade:
 
         self._ensure_postgresql()
         try:
-            with transaction.atomic(using=self._using):
-                lock_owner_tenant_authority_v3_sources(
-                    using=self._using,
-                    policy_id=self._policy_id,
-                )
-                with self._actors.atomic():
-                    return operation()
+            with suspend_immutable_read_reuse():
+                with transaction.atomic(using=self._using):
+                    lock_owner_tenant_authority_v3_sources(
+                        using=self._using,
+                        policy_id=self._policy_id,
+                    )
+                    with self._actors.atomic():
+                        return operation()
         except (
             OwnerTenantAuthorityV3Corruption,
             AccountOwnerAssignmentCorruption,
@@ -290,6 +303,15 @@ class OwnerTenantAuthorityV3Facade:
             raise OwnerTenantAuthorityV3Unavailable(
                 "owner authority source transaction unavailable"
             ) from error
+
+    def _with_current_physical_source_lock(
+        self,
+        operation: Callable[[], _ReturnT],
+    ) -> _ReturnT:
+        """Run one current-Evidence operation after its physical source lock."""
+
+        self._lock_current_physical_sources()
+        return operation()
 
     def _ensure_postgresql(self) -> None:
         """Reject a missing or non-PostgreSQL alias before opening a UOW."""
@@ -375,6 +397,7 @@ def build_owner_tenant_authority_v3_facade(
         historical_assignments=_HistoricalAssignmentV5Reader(evidence),
         participants=participants,
         validity_period=validity_period,
+        read_phase=isolated_immutable_read_snapshot,
     )
     return OwnerTenantAuthorityV3Facade(
         using=alias,

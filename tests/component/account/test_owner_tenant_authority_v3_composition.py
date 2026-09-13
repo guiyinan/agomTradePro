@@ -39,7 +39,10 @@ from apps.account.domain.validation_graph import reuse_validated_decode
 from apps.account.infrastructure.account_owner_assignment_actor_authority_source_v3_repository import (
     DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository,
 )
-from apps.account.infrastructure.immutable_read_snapshot import reuse_immutable_read
+from apps.account.infrastructure.immutable_read_snapshot import (
+    immutable_read_snapshot,
+    reuse_immutable_read,
+)
 from apps.account.infrastructure.owner_tenant_authority_v3_repository import (
     DjangoOwnerTenantAuthorityV3Repository,
 )
@@ -190,6 +193,26 @@ class _FakeService:
         del command
         self._events.append("revoke")
         return "revoked"
+
+
+class _PhaseAwareFakeService(_FakeService):
+    """Run each fake current read inside the injected phase boundary."""
+
+    def __init__(
+        self,
+        events: list[str],
+        phase: Callable[[], AbstractContextManager[None]],
+    ) -> None:
+        """Bind the phase factory used to model the Application contract."""
+
+        super().__init__(events)
+        self._phase = phase
+
+    def get_current(self, command: object) -> object:
+        """Expose one independently scoped current read."""
+
+        with self._phase():
+            return super().get_current(command)
 
 
 class _LifecycleValidationProbeService(_FakeService):
@@ -534,6 +557,7 @@ def test_builder_binds_v3_service_evidence_facade_and_sources_to_one_alias() -> 
     service = facade._service
     assert isinstance(service._repository, DjangoOwnerTenantAuthorityV3Repository)
     assert service._repository._using == alias
+    assert service._read_phase is composition.isolated_immutable_read_snapshot
     assert service._current_assignments._facade._using == alias
     assert service._historical_assignments._facade._using == alias
     assert isinstance(
@@ -587,6 +611,7 @@ def test_facade_orders_v5_v3_lock_then_actor_uow_for_every_operation(
         "outer.enter",
         "lock-v5-v3",
         "actors.enter",
+        "lock-physical",
         "issue",
         "actors.exit",
         "outer.exit",
@@ -606,7 +631,7 @@ def test_facade_orders_v5_v3_lock_then_actor_uow_for_every_operation(
             "outer.enter",
             "lock-v5-v3",
             "actors.enter",
-            *(["lock-physical"] if expected_call == "current" else []),
+            *(["lock-physical"] if expected_call in {"supersede", "successor", "current"} else []),
             expected_call,
             "actors.exit",
             "outer.exit",
@@ -640,20 +665,51 @@ def test_with_current_rechecks_authority_authentication_and_source_projection(
     authentication = _AuthenticationProjection()
     initial = _CurrentProjection(now, valid_until, authority, authentication)
     final = _CurrentProjection(now + timedelta(seconds=1), valid_until, authority, authentication)
-    service = _FakeService(events)
+
+    @contextmanager
+    def phase() -> Iterator[None]:
+        """Record and isolate one actual immutable read phase."""
+
+        events.append("phase.enter")
+        try:
+            with composition.isolated_immutable_read_snapshot():
+                yield
+        finally:
+            events.append("phase.exit")
+
+    service = _PhaseAwareFakeService(
+        events,
+        phase,
+    )
     service.current_values = [initial, final]
     facade = _facade(events, service=service)
 
-    result = facade.with_current(
-        cast(GetCurrentOwnerTenantAuthorityV3Command, object()),
-        lambda observation: (
-            observation.authority.account_id
-            if hasattr(observation.authority, "account_id")
-            else "materialized-read"
-        ),
-    )
+    with immutable_read_snapshot():
+        result = facade.with_current(
+            cast(GetCurrentOwnerTenantAuthorityV3Command, object()),
+            lambda observation: (
+                events.append("callback")
+                or (
+                    observation.authority.account_id
+                    if hasattr(observation.authority, "account_id")
+                    else "materialized-read"
+                )
+            ),
+        )
     assert result == "materialized-read"
-    assert events == ["lock", "actors.enter", "current", "current", "actors.exit"]
+    assert events == [
+        "lock",
+        "actors.enter",
+        "lock-physical",
+        "phase.enter",
+        "current",
+        "phase.exit",
+        "callback",
+        "phase.enter",
+        "current",
+        "phase.exit",
+        "actors.exit",
+    ]
 
     events.clear()
     drifted = _CurrentProjection(
@@ -670,7 +726,18 @@ def test_with_current_rechecks_authority_authentication_and_source_projection(
         )
         is None
     )
-    assert events == ["lock", "actors.enter", "current", "current", "actors.exit"]
+    assert events == [
+        "lock",
+        "actors.enter",
+        "lock-physical",
+        "phase.enter",
+        "current",
+        "phase.exit",
+        "phase.enter",
+        "current",
+        "phase.exit",
+        "actors.exit",
+    ]
 
 
 def test_facade_rolls_back_outer_context_and_rejects_non_postgresql_alias(
@@ -705,6 +772,7 @@ def test_facade_rolls_back_outer_context_and_rejects_non_postgresql_alias(
         "outer.enter",
         "lock",
         "actors.enter",
+        "lock-physical",
         "current",
         "actors.rollback",
         "actors.exit",

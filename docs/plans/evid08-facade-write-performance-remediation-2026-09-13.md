@@ -1,10 +1,32 @@
 # Authority V3 Facade 写路径性能整改方案（EVID-09，2026-09-13）
 
 > 当前状态：DATA-16 已完成仓库退出并实际部署、激活四个严格策略头；
-> 后续有界性能工作登记为唯一 repository focus EVID-09，尚未实施或部署优化。
+> 后续有界性能工作登记为唯一 repository focus EVID-09；优化接线已实施，尚未部署。
 > 已完成的 EVID-08 不重新打开；本文保留其历史诊断，后续状态以机器注册表为准。
 >
 > 实际模型设置：`gpt-5.6-luna / max`。
+
+> EVID-09 实施进展：`75e033b4e` 将通用机制移至shared并让SourceV2纯读复用，
+> 原Account入口保持同函数对象；真实数据库语义RED为SELECT2而期望1，修复后13 passed。
+> `6b1e63303` 追加强制独立read phase和mutation/callback期间缓存暂停；包含外层
+> active snapshot的16项回归通过，新增helper增量mypy及格式/Ruff通过。
+> `58077d980` 完成 typed Application read-phase 注入、锁后读取、append/CAS 前退出、
+> `with_current` 两个独立 phase 与外层缓存暂停；源码冻结综合回归实际 142 passed、
+> 9 个 opt-in skipped，六个生产文件增量 mypy 为零，全仓 mypy 债务为零，文件增长
+> 门禁通过。`1e309dc28` 单独更新静态读取面投影，未提高债务基线。
+> 源码冻结的 17 项完整静态/架构/治理门禁全部通过；五份原始回归/门禁记录与
+> 16 个执行源码哈希封存于
+> [读取阶段代码验证](../testing/evid09-read-phase-code-validation-2026-09-13.json)。
+> 三次同源隔离 PostgreSQL 测量已在 `e9835fb58` 实际完成，三轮 exit 0，
+> 5893 个源文件前后及跨轮 raw/LF 哈希一致，五项 Domain header witness 完整，
+> 各轮独立 PostgreSQL 前后检查均为零表、零其他连接，协调进程已释放测量锁。
+> [三轮测量封存](../testing/evid09-three-isolated-postgres-measurements-2026-09-13.json)
+> 与 [原始工件归档](../testing/evid09-three-isolated-postgres-originals-2026-09-13.json)
+> 保留真实 probe/fixture 范围及失败 witness pilot；优化部署与真实生产生命周期仍待完成。
+> 上述 skipped 不计为 PostgreSQL 通过，EVID-09 保持 active。
+> [完整物理解码诊断封存](../testing/evid09-facade-physical-decode-diagnostic-2026-09-13.json)
+> 保留原测量failed、绿色JUnit和独立清理/release；五个后验源码canonical LF哈希
+> 与Git一致，三个raw差异仅CRLF，仍不补签原运行期间的source snapshot一致性。
 >
 > 当前生产：`3032481969f93f08e8e4d14bfed3d7631e53a752` / release `20260913212011`。
 > 实际固定的兼容回滚镜像为 `agomtradepro-data16-compatible-rollback:20260913212011`，
@@ -187,6 +209,10 @@ mutable cache，也不包括绕过父图、只读 header 或降低验证强度�
 5. 所有 phase cache 都是 ContextVar operation-local state，不能变成 module/global/
    process-lifetime cache；不得放宽 repository object/cutoff 的 key 隔离。cache 不得
    把不同 alias、不同 cutoff、`lock=True`/`lock=False` 结果合并。
+   既有 `immutable_read_snapshot` 嵌套时共用外层结果，所以新phase使用
+   `isolated_immutable_read_snapshot` 强制独立；Facade完整操作在
+   `suspend_immutable_read_reuse` 内隔离caller缓存。暂停期间仅纯读phase可开启复用，
+   callback、append/CAS无缓存；暂停进入和退出均清空外层结果，失败也不恢复旧结果。
 6. 保持现有 `100,000` JSON node、depth `128`、exact raw payload/hash、FK/seal、
    availability、clock monotonicity、source lock、append-only、current validity 与
    异常映射。失败或 `None` 的读取不能跨 phase 保留。
@@ -336,3 +362,48 @@ Infrastructure snapshot，严格在锁后和 mutation/callback 两侧切断缓�
 仍然恢复并校验所有 rows、原始 payload/hash、parent FK、时钟和可用性；真实生产
 write/replay、部署和 rollback lifecycle 继续沿用用户的部署与测试授权，但必须生成新 artifact，不能从本次
 只读诊断或 exit 130 推断通过。
+
+## 9. 三轮同源隔离测量（已完成，生产复测待完成）
+
+真实执行候选为 `e9835fb5814bc73f27ee559f2184ff5f407a1e3d`。三轮协调进程
+在 `2026-09-13T17:46:00Z` 返回第三轮 passed，最终 exit 0，确认三轮完成和测量锁
+释放。每轮均使用同一原始 opt-in PostgreSQL test node、新进程和空白独立夹具；
+没有改动原始合成 UTC cutoff 或一小时 fixture validity，没有连接生产。
+
+| 范围 | 第一轮 | 第二轮 | 第三轮 |
+| --- | ---: | ---: | ---: |
+| 整体 pytest wall（含夹具准备与清理，秒） | 1484.752168 | 1284.786388 | 1151.438103 |
+| 实际 runtest_call wall（秒） | 925.214121 | 732.563514 | 670.354404 |
+| 实际 runtest_call caller CPU（秒） | 11.765625 | 12.328125 | 12.125000 |
+| stdlib 物理 JSON 解码链数 | 2091 | 2091 | 2091 |
+| stdlib 物理 JSON 解码耗时（秒） | 0.262607 | 0.250752 | 0.247685 |
+| SQL execute 总数 / SELECT | 2619 / 2356 | 2619 / 2356 | 2619 / 2356 |
+| SQL client execute wall（秒） | 903.939611 | 715.294879 | 647.944078 |
+| Source V2 wrapper / original / hit | 27 / 9 / 18 | 27 / 9 / 18 | 27 / 9 / 18 |
+
+每轮 JUnit 为一个 passed、零 failure/error/skip；probe、Source V2 binding 与 Domain
+trace 均恢复。非 SELECT 的 263 次为 INSERT 21、first-token OTHER 242，OTHER 不能
+直接解释为精确 SQL 类型。`loads/decode/raw_decode` 各 2091 是同一链路，不能相加；
+decorated wrapper 与 caller CPU、SQL client wall 分别保留，后者不是数据库服务器 CPU。
+相同计数下的 wall 变化包含本地 Docker/传输等待差异，不计算配对优化比例。
+
+5893 个原始源文件快照前后及跨三轮一致，并在封存前逐个复验当前 raw/LF 字节；
+16 个代码验证绑定与原始 code seal 相符。记录的 lazy loaded-module 添加不等于源文件
+漂移，其文件已包含在原始完整源快照。原始 51 份三轮/协调/工具工件、私有 review、
+builder 后执行源、失败 pilot 及 stdlib/noflag 支撑记录共 58 份逐字节归档，不补造
+执行期间快照。此前 witness pilot 因 CPython 3.13 FrameLocalsProxy 不属于 dict，
+未采得完整见证；原 receipt 保持 failed，绿色 JUnit 不能将其升级。私有 tracer 修复
+仅复制 frame locals 并保留/恢复先前 trace，原始 RED/GREEN 控制证据另行保留。
+
+该固定 node 使用 fixture principal42，播种 actor/Evidence V5/physical parents 后只新增
+一个 Authority V3 root 并撤销；没有 issue replay 或 successor，也不是生产四个 committed
+V3 root 的等价负载。三轮结果满足同源代表性隔离测量这一项，不替代标准部署、真实
+来源有效期内的生产 lifecycle、独立 admin/ledger recovery 或签署验收。
+
+部署仍须在最终审查 head 的 CI 通过后，通过标准 code-only Upgrade 保留 Catalog、
+四个严格 Publication heads，验证新备份及兼容回滚点。新生产 case 需重新读取真实
+source/actor/policy/assignment 窗口与完整绑定，不能延长旧字段、降低门槛或用日期
+代替 UTC instant。public actor publisher 的五分钟有效期无法满足拟议三十分钟 Authority
+生命周期及五十五分钟父来源窗口；旧 sealed extended actor 只有在新鲜 live 校验、
+原 principal tuple 和真实剩余窗口全部满足时才可条件复用。旧永久 V5 mapping 的
+root-only 约束仍保留，临时新 scope 的回滚不能恢复旧映射，也不关闭 DATA-02/EVID-01/02。
