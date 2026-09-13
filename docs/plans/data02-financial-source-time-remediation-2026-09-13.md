@@ -355,3 +355,13 @@ record ID，只有 `SECUCODE`、`SECURITY_CODE`、`ORG_CODE` 资产/组织标识
 没有保留原始日志，故不为其伪造 receipt。该样本证明了单次供应商 response bytes 的
 可复核 hash 和资产绑定，不构成 DATA-02 生产修复、历史回填、publication 激活或决策
 可用性证明。
+
+## 12. 2026-09-13 CNINFO official single-document evidence
+
+本次官方契约核验使用公开 primary 来源：[CNINFO 信息披露页](https://www.cninfo.com.cn/new/commonUrl?url=disclosure/list/notice)、[CNINFO `000001` 年度报告摘要](https://static.cninfo.com.cn/finalpage/2024-03-15/1219306483.PDF)、[深交所上市公司公告页](https://www.szse.cn/disclosure/notice/company/)、[深交所上市公司自律监管指南第 1 号——业务办理](https://docs.static.szse.cn/www/disclosure/notice/general/W020230804631480613363.pdf)、[深交所《上市公司公告电子化规范》等标准公告](https://www.szse.cn/lawrules/csrcrules/notice/t20240802_608465.html)、[JR/T 0021.1—2023 公告分类标准](https://www.sse.com.cn/lawandrules/regulations/csrcannoun/c/10751844/files/c231e94e119145c2ba0c44ecd84dc713.pdf) 和 [JR/T 0021.8—2023 定期报告标准](https://www.sse.com.cn/lawandrules/regulations/csrcannoun/c/10751844/files/7b4b5425e6754b1eb03e13d8e12eea88.pdf)。这些来源支持公告文档身份、公告编号和定期报告类别的核对；标准中的正式公告日期仍为日期粒度，没有给出可直接映射到 UTC 的精确瞬时、时区或首次公开事件语义。
+
+已在本地 PC 对 CNINFO 静态 PDF 发起单次真实 `GET`：HTTP 200、TLS 校验开启、无认证、无代理、无重定向、无重试，取得的 `requests.Response.content` 原始字节为 744555 bytes，SHA-256 为 `90932b0d8a08835f0fa8365b2e06464aec99aa69dd2f1d9d741946aeb2b88993`，系统完成获取时间为 `2026-09-13T14:43:43.386766Z`。这次完成时间只是系统获取上界，不是供应商首次披露时间。原始 PDF 保留在私有 var 工件中；receipt 的原始字节 SHA-256 为 `697bde279518ef4ce4f786c5ac7ab331eaa001a09d0be045eed5e37dd3ceef08`，其 exact bytes 以 gzip+base64 形式封存在[官方单文档 metadata seal](../deployment/data02-official-announcement-single-document-2026-09-13.json)中，仓库不附 PDF、原始 body 或提取文本。
+
+PDF 头部和正文把 `000001`、平安银行、SZSE、公告编号 `2024-017` 与 2023 年度报告摘要绑定到报告期末 `2023-12-31`。文档类别是 `annual_report_summary`；`GB0101` 是年度报告全文类别码，本次摘要没有被冒称为 `GB0101` 全文。正文单位标签为“人民币百万元”“元/股”“%”及分配表中的“元”，没有做单位转换。URL 路径中的 `2024-03-15` 只保留为托管路径日期；PDF 没有可核验的带时区发布瞬时，故 `announced_at`、`available_at` 和 source timezone 仍为 `None`。
+
+`1219306483` 仅是从 PDF URL basename 保留的不透明 CNINFO 文档句柄，不是机器财务行 ID；文档本身没有行级 financial `source_record_id`。前述 EastMoney financial fact 样本与此官方公告文档之间没有共同、可验证的 row-level 绑定，公告编号/文档句柄不能单独填充 EastMoney 行的 `source_record_id` 或精确可用时间。因此本封存仍是 DATA-02 Stage 0 identity evidence，不构成 Fin3 接受、历史回填、publication 激活或现有财务行修复。
