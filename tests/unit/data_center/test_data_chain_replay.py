@@ -62,7 +62,7 @@ from apps.data_center.application.data_chain_replay import (
     ReplayMemberPersistenceEvidence,
     ReplayUnavailable,
 )
-from apps.data_center.application.publication_utils import publication_hash
+from apps.data_center.application.publication_utils import member_reference, publication_hash
 from apps.data_center.domain.control_plane import (
     CanonicalPublication,
     CoverageSnapshot,
@@ -122,6 +122,7 @@ PUBLICATION_HASH = publication_hash(
         ),
     )
 )
+P2_POLICY_IDENTITY = "p2:price-v2:" + "f" * 64
 
 
 def _fetch_event() -> SystemAuditEvent:
@@ -255,13 +256,17 @@ def _exhausted_failover_events() -> tuple[SystemAuditEvent, SystemAuditEvent]:
     return started, exhausted
 
 
-def _publication_event(*, publication_hash_value: str = PUBLICATION_HASH) -> SystemAuditEvent:
+def _publication_event(
+    *,
+    publication_hash_value: str = PUBLICATION_HASH,
+    publication_version: str = "1.0:1.0",
+) -> SystemAuditEvent:
     return build_data_publication_audit_event(
         DataPublicationAuditObservation(
             dataset_key="equity.price.bar",
             publication_key="current",
             publication_id=PUBLICATION_ID,
-            publication_version="1.0:1.0",
+            publication_version=publication_version,
             publication_hash=publication_hash_value,
             provider_key="provider-main",
             run_id=RUN_ID,
@@ -283,13 +288,17 @@ def _publication_event(*, publication_hash_value: str = PUBLICATION_HASH) -> Sys
     )
 
 
-def _decision_read_event(*, publication_hash_value: str = PUBLICATION_HASH) -> SystemAuditEvent:
+def _decision_read_event(
+    *,
+    publication_hash_value: str = PUBLICATION_HASH,
+    publication_version: str = "1.0:1.0",
+) -> SystemAuditEvent:
     return build_data_decision_read_audit_event(
         DataDecisionReadAuditObservation(
             dataset_key="equity.price.bar",
             publication_key="current",
             publication_id=PUBLICATION_ID,
-            publication_version="1.0:1.0",
+            publication_version=publication_version,
             publication_hash=publication_hash_value,
             provider_key="provider-main",
             run_id=RUN_ID,
@@ -439,15 +448,19 @@ def _raw_audit() -> RawAudit:
     return replace(_RAW_AUDIT, content_hash=RAW_HASH)
 
 
-def _publication() -> CanonicalPublication:
+def _publication(
+    *,
+    publication_version: str = "1.0:1.0",
+    publication_hash_value: str = PUBLICATION_HASH,
+) -> CanonicalPublication:
     return CanonicalPublication(
         publication_id=PUBLICATION_ID,
         dataset_key="equity.price.bar",
         publication_key="current",
-        policy_version="1.0:1.0",
+        policy_version=publication_version,
         state=PublicationState.PUBLISHED,
         selected_source="provider-main",
-        publication_hash=PUBLICATION_HASH,
+        publication_hash=publication_hash_value,
         coverage=CoverageSnapshot(
             coverage_id="coverage-1",
             publication_id=PUBLICATION_ID,
@@ -508,6 +521,69 @@ def _member() -> PublicationMember:
         observed_at=NOW,
         raw_payload_hash=RAW_HASH,
     )
+
+
+def test_replay_keeps_legacy_v1_hash_when_frozen_metadata_is_added() -> None:
+    """Historical v1 replay keeps its original bytes while members gain metadata."""
+
+    enriched_member = replace(
+        _member(),
+        available_at=NOW + timedelta(seconds=1),
+        fetched_at=NOW + timedelta(seconds=2),
+        source_published_at=NOW,
+        raw_payload_scope="record_response_body",
+        fact_content_hash="a" * 64,
+    )
+    events = (
+        _fetch_event(),
+        _publication_event(),
+        _decision_read_event(),
+    )
+
+    result = _use_case(events, members=[enriched_member]).execute(_command())
+
+    assert result.publication_version == "1.0:1.0"
+    assert result.publication_hash == PUBLICATION_HASH
+    assert publication_hash((member_reference(enriched_member),)) == PUBLICATION_HASH
+
+
+def test_replay_selects_policy_bound_v2_hash_and_restores_all_member_metadata() -> None:
+    """New p2 replay authenticates the complete frozen member evidence envelope."""
+
+    enriched_member = replace(
+        _member(),
+        available_at=NOW + timedelta(seconds=1),
+        fetched_at=NOW + timedelta(seconds=2),
+        source_published_at=NOW,
+        raw_payload_scope="record_response_body",
+        fact_content_hash="a" * 64,
+    )
+    p2_hash = publication_hash(
+        (member_reference(enriched_member),),
+        policy_identity=P2_POLICY_IDENTITY,
+    )
+    publication = _publication(
+        publication_version=P2_POLICY_IDENTITY,
+        publication_hash_value=p2_hash,
+    )
+    events = (
+        _fetch_event(),
+        _publication_event(
+            publication_hash_value=p2_hash,
+            publication_version=P2_POLICY_IDENTITY,
+        ),
+        _decision_read_event(
+            publication_hash_value=p2_hash,
+            publication_version=P2_POLICY_IDENTITY,
+        ),
+    )
+
+    result = _use_case(events, publication=publication, members=[enriched_member]).execute(
+        _command()
+    )
+
+    assert result.publication_version == P2_POLICY_IDENTITY
+    assert result.publication_hash == p2_hash
 
 
 class _CorrelationRepository:

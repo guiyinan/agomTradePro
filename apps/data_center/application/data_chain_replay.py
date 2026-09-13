@@ -13,7 +13,7 @@ from apps.data_center.application.publication_quality import (
     PublicationQualityProjection,
     project_publication_quality,
 )
-from apps.data_center.application.publication_utils import publication_hash
+from apps.data_center.application.publication_utils import member_reference, publication_hash
 from apps.data_center.domain.control_plane import (
     CanonicalPublication,
     PublicationFactReference,
@@ -236,20 +236,8 @@ def _validate_failover(events: tuple[SystemAuditEvent, ...]) -> None:
 def _member_reference(member: PublicationMember) -> PublicationFactReference:
     """Restore the canonical hash input for one publication member."""
 
-    if member.observed_at is None:
-        raise ReplayCorruption()
     try:
-        return PublicationFactReference(
-            natural_key=member.natural_key,
-            source=member.source,
-            source_record_id=member.source_record_id,
-            fact_table=member.fact_table,
-            fact_pk=member.fact_pk,
-            observed_at=member.observed_at,
-            raw_payload_hash=member.raw_payload_hash,
-            quality_status=member.quality_status,
-            revision_number=member.revision_number,
-        )
+        return member_reference(member)
     except (TypeError, ValueError) as error:
         raise ReplayCorruption() from error
 
@@ -634,7 +622,14 @@ class ReplayDataChainUseCase:
         ):
             raise ReplayCorruption()
         references = tuple(_member_reference(member) for member in members)
-        if publication_hash(references) != publication.publication_hash:
+        policy_identity = (
+            publication.policy_version if publication.policy_version.startswith("p2:") else None
+        )
+        try:
+            snapshot_hash = publication_hash(references, policy_identity=policy_identity)
+        except (TypeError, ValueError) as error:
+            raise ReplayCorruption() from error
+        if snapshot_hash != publication.publication_hash:
             raise ReplayCorruption()
         try:
             quality_projection = project_publication_quality(publication, members)
