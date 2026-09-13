@@ -751,7 +751,7 @@ def test_opt_in_postgres_facade_issues_reads_and_revokes(
     authentication = persisted.authentication
     policy = authority.policy
     assignment = authority.assignment
-    physical = assignment.reobservation.current_physical
+    physical = assignment.subject.reobservation.current_physical
     source = _append_source_v2_for_physical(owner_alias, physical)
     now = assignment.recorded_at + timedelta(minutes=1)
     assert now + timedelta(minutes=1) < min(

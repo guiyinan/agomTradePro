@@ -57,6 +57,14 @@ assignment append 按既有 `recorded_at <= now` 门拒绝：测试时钟仍停�
 保留事件原始时间与生产时序检查；失败后隔离库零公共表。Black/Ruff 通过，单项实际 PG
 正在继续执行，不用历史 ledger 可恢复性、pure Domain current 或 CI 替代它的完成结果。
 
+该次实际结束 `1 failed / 247.33s`：完整 Capture、approval deadline 和 assignment persistence
+时序均已通过，测试随后误读 `EvidenceV5.reobservation`；完整定义的路径为
+`EvidenceV5.subject.reobservation.current_physical`。只修正测试属性访问。主代理按实际 Domain
+fixture 预检 SourceV2 content/identity/raw hashes、Source/Evidence current 与 current command，
+全部通过，未执行 fixture seed；Black/Ruff 和 diff check 通过。失败批次后的隔离库已验证零表。
+本次重跑前额外 host cleanup 连接发生 timeout；容器实际接受连接，随后唯一测试连接正在创建
+专用 ledger 表，未重启数据库或另起重复测试。单项真实生命周期继续执行，尚未宣称通过。
+
 首次生产完整图 cProfile 基线已返回：同一个 READ ONLY / REPEATABLE READ 快照内两次 exact
 get_winner restore 耗时 `2,576.715s`、CPU `2,380.099s`、`58,492 SELECT`、DB execute `162.046s`。
 它包含 profiler 开销；候选阶段只有 started，连接在 3,600 秒超时后失去输出，不能计算性能提升。
