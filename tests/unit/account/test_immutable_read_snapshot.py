@@ -78,3 +78,42 @@ def test_failed_read_is_not_cached() -> None:
         assert read(repository) == "ok"
 
     assert calls == 2
+
+
+def test_account_and_shared_entry_points_use_the_same_active_context() -> None:
+    from shared.infrastructure.immutable_read_snapshot import (
+        immutable_read_snapshot as shared_snapshot,
+    )
+    from shared.infrastructure.immutable_read_snapshot import (
+        reuse_immutable_read as shared_decorator,
+    )
+
+    assert shared_snapshot is immutable_read_snapshot
+    assert shared_decorator is reuse_immutable_read
+    reader = _Reader()
+    cutoff = datetime(2026, 9, 13, tzinfo=UTC)
+    with shared_snapshot():
+        first = reader.read(as_of=cutoff)
+        with immutable_read_snapshot():
+            assert reader.read(as_of=cutoff) is first
+    assert reader.calls == 1
+    assert reader.read(as_of=cutoff) is not first
+
+
+def test_exact_lock_mode_and_exception_exit_do_not_share_results() -> None:
+    class LockedReader:
+        @reuse_immutable_read("test-locked-ledger")
+        def read(self, *, lock: bool) -> object:
+            return object()
+
+    reader = LockedReader()
+    with pytest.raises(RuntimeError, match="phase failed"):
+        with immutable_read_snapshot():
+            unlocked = reader.read(lock=False)
+            locked = reader.read(lock=True)
+            assert locked is not unlocked
+            assert reader.read(lock=True) is locked
+            raise RuntimeError("phase failed")
+    with immutable_read_snapshot():
+        assert reader.read(lock=True) is not locked
+        assert reader.read(lock=False) is not unlocked

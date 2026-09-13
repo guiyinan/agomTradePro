@@ -34,6 +34,7 @@ from apps.simulated_trading.infrastructure.simulated_account_row_source_v2_model
     _activate_simulated_account_row_source_v2_uow,
     _claim_simulated_account_row_source_v2_insert,
 )
+from shared.infrastructure.immutable_read_snapshot import reuse_immutable_read
 
 
 class DjangoSimulatedAccountRowSourceV2Unavailable(SimulatedAccountRowSourceV2Unavailable):
@@ -306,6 +307,7 @@ class DjangoSimulatedAccountRowSourceV2Repository:
         )
         return _restore_full_chain(chain) if chain else None
 
+    @reuse_immutable_read("simulated-account-row-source-v2-visible-records")
     def _visible_records(
         self,
         *,
