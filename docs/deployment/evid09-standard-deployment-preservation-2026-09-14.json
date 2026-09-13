@@ -1,6 +1,6 @@
 {
   "schema": "evid09.actual-standard-deployment-preservation.v1",
-  "recorded_at": "2026-09-13T18:39:36.270663+00:00",
+  "recorded_at": "2026-09-13T18:59:17.889816+00:00",
   "unit_id": "EVID-09",
   "status": "active",
   "deployment": {
@@ -559,5 +559,7 @@
     "collector_source_sha256": "f49364b88026367c900450fee994cc00a9616848edd6886091cd7a6e290a6634",
     "remote_observation_code_sha256": "6dbde92928a4bf0aeb954e1f1b77eff42477302724175d5016c6560519a51452",
     "collector_finished_at": "2026-09-13T18:43:58.671106+00:00"
-  }
+  },
+  "initial_document_recorded_at": "2026-09-13T18:39:36.270663+00:00",
+  "chronology_note": "Initial document creation UTC is retained separately. recorded_at is genuine final sealing UTC after the subsequently added historical Facade observation; all original observation bytes and timestamps remain unchanged."
 }
