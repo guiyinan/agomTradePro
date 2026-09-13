@@ -1,21 +1,23 @@
 # EVID-08 Facade 写路径性能整改方案（2026-09-13 草案）
 
-> 状态：只读诊断与实施方案草案。本文对应的工作没有连接生产、没有部署、没有改动
-> Account 源码或测试、没有写入账本、没有提交。当前工作树的 DATA-16 变更属于另一条主线。
+> 状态：方案已登记提交，性能实现尚未执行。方案审查没有连接生产、部署、改动
+> Account 源码或测试、写入账本；引用的生产测量由既有诊断提供。DATA-16 属于另一条主线。
 >
 > 实际模型设置：`gpt-5.6-luna / max`。
 >
 > 基线与回滚点：生产已部署 `b18b18029f90af4b23693426a1f489af44ffe2b2`。
 > 该提交只在 `OwnerTenantAuthorityV3Facade._locked` 外层加入已有的
-> `validation_graph_operation`；本文提出的后续实现必须能够独立回退到该提交。
+> `validation_graph_operation`；后续 Account 性能改动须能独立恢复该行为。整应用镜像
+> 回滚必须兼容当时已激活的 Publication policy/evidence，不能据此自动部署旧 b18 镜像。
 
 ## 1. 结论
 
 `b18` 已经证明了同一对象图内的解码与对象校验可以复用，但它没有减少 SQL。独立完整图
 诊断的两次 `get_winner` restore 在保持相同 PostgreSQL 快照、相同 `58,492 SELECT` 的
 前提下，candidate 的 elapsed/CPU 从 `2,636.320s/2,473.226s` 降到
-`1,128.302s/1,014.602s`；raw decode 从 `329,320` 降到 `40`，对象校验从
-`1,838,056` 降到 `29,864`。这属于 CPU/解码收益，不能作为写入性能通过。
+`1,128.302s/1,014.602s`；已登记的解码包装器调用从 `329,320` 降到 `40`，装饰器对象
+校验调用从 `1,838,056` 降到 `29,864`。计数只覆盖列出的包装器，未测全部物理 JSON
+解码次数；这属于该诊断的 CPU/成功校验复用收益，不能作为写入性能通过。
 
 真实 `issue_existing_root_replay` 的结果为 `2,677.7866s` elapsed、`2,180.4248s`
 CPU、`245,223 SELECT`、`245,262` total query、`717.1529s` database execute。
@@ -44,7 +46,7 @@ SQL 仍超出可接受范围，再进入共享 graph read context 的第二阶�
 | 生产已部署 facade transaction job，`verify_evid08_deployed_facade_transaction.py`，`issue_existing_root_replay` | `2,677.7866s` elapsed；`2,180.4248s` CPU；`245,223 SELECT`；`245,262` total query；`717.1529s` DB execute | 真实生产写回放很慢，SQL 与 Python 图恢复均需单独定位 | 摘要没有逐 phase SQL fingerprint，不能把所有 query 精确归因到某个 repository |
 | `AccountSystemAuditOwnerTenantAuthorityV3Reader.execute` 的当前只读实测 | `14.66s`、`1,863 queries` | 已有 `get_current` 锁后 snapshot 读路径明显小于写回放 | 与四 roots 写回放不是同一 workload，不能直接计算优化百分比 |
 | [完整图 cProfile 检查点](../deployment/sprint-evid08-complete-graph-cprofile-2026-09-13-c8bb9b780.json) | 同一 READ ONLY/REPEATABLE READ 快照内两次完整 restore；baseline `2,636.320s/2,473.226s/58,492 SELECT`；candidate `1,128.302s/1,014.602s/58,492 SELECT` | `validation_graph_operation` 显著降低 CPU，SQL 不变 | 不是新 issue/successor/revoke，也不是并发验收；cProfile 有额外开销 |
-| [完整图解码计数检查点](../deployment/sprint-evid08-complete-graph-decode-work-2026-09-13-c8bb9b780.json) | raw decode `329,320→40`；decorated object validation `1,838,056→29,864`；两阶段均 `58,492 SELECT` | 解码/成功校验复用效果与 SQL 变化明确分离 | 只计数显式列出的 decorated function，不能称全部 Python/JSON/validator 调用 |
+| [完整图解码计数检查点](../deployment/sprint-evid08-complete-graph-decode-work-2026-09-13-c8bb9b780.json) | 已登记解码包装器调用 `329,320→40`；decorated object validation `1,838,056→29,864`；两阶段均 `58,492 SELECT` | 列出的包装器/成功校验复用效果与 SQL 变化明确分离 | 未测全部物理 JSON 解码，只计数显式列出的 decorated function，不能称全部 Python/JSON/validator 调用 |
 | 独立 rollback 核验（父代理回传的实际结果） | `2026-09-13T04:40:25.814398Z`；`4 roots / 0 revocations`；原 canonical SHA 与 rollback 后相同 | rollback 后 canonical ledger 指纹没有漂移 | 这是独立 rollback 完整性事实，不是新 candidate 写性能通过 |
 | 真实 rollback lifecycle job | validity 仅 30 分钟，完整 write/replay 无法在窗口内完成，已取消，exit `130` | 该运行不能作为通过或失败的业务结果 | 不得从 exit 130 推导 latency、query budget 或 lifecycle correctness |
 
@@ -298,10 +300,11 @@ Stage 3 完成标准是同一候选下功能生命周期、query/CPU/DB 指标�
 | phase cache 占用过多内存 | cache 只存在单次 phase ContextVar；记录 unique key/entry 上限，超出预算时停止复用而继续正确读取，不能返回陈旧值 |
 
 候选出现 correctness、hash、clock、availability、callback revalidation、query count
-或资源占用回归时，停止生产复测并代码回退到
-`b18b18029f90af4b23693426a1f489af44ffe2b2`。回退是 code-only 选择，不删除或修复任何
-append-only production ledger；保留失败候选与 rollback artifact 供审计。本文阶段不
-创建迁移，因此不需要用 schema rollback 掩盖代码回退。
+或资源占用回归时，停止生产复测并恢复 b18 的 Account 行为。整应用镜像必须回退到
+已验证、且兼容当前 Publication policy/evidence 的候选；DATA-16 p2 激活后不能自动
+回退到旧 b18 镜像。回退是 code-only 选择，不删除或修复任何 append-only production
+ledger；保留失败候选与 rollback artifact 供审计。本文性能阶段不创建迁移，不能通过
+逆迁移 DATA-16 additive schema 掩盖代码回退。
 
 ## 8. 本草案的范围结论
 

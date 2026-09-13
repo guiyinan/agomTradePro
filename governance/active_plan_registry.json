@@ -1,5 +1,5 @@
 {
-  "version": "2026-09-13.v95",
+  "version": "2026-09-13.v97",
   "updated_at": "2026-09-13",
   "execution_focus": {
     "unit_id": "DATA-16",
@@ -92,7 +92,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "DATA-12/13/14/15 remain complete. Production source b18b18029f90af4b23693426a1f489af44ffe2b2 / release source-20260913102723 remains the deployed candidate. DATA-16 source witness and policy slices, full immutable evidence/writes (3bf8b086b), and current snapshot/quality/replay (ac78c35d3) are pushed. Core scoped regression is 1708 passed /0 failed /0 error /0 skipped, consumer contracts 112 passed, actual migrations 3 passed. All nine distinct actual PostgreSQL cases passed across an eight-pass batch and the exact one-case connection timeout retry; original failure retained and independent cleanup verified zero public base tables. Evidence: docs/testing/data16-publication-evidence-closure-2026-09-13.json. DATA-16 remains the sole repository focus while completing policy-only expected-content activation and standard deployment Catalog preservation. Legacy identity alone does not bind policy decision content. No p2 policy is deployed or activated yet. Next finish operational boundary tests and candidate PR checks, deploy additive schema/code preserving runtime Catalog, verify health, then separately activate exact target policies within one expected-content transaction without rewriting contracts/bindings/owners or existing Publications. DATA-02 awaits actual full 5533-asset quote/valuation storage, genuine financial source availability, four immutable Publication identities and canonical tolerance reconciliation. Historical source preflight and rolled-back Facade stages do not close acceptance.",
+      "next_gate": "DATA-12/13/14/15 remain complete; DATA-16 is the sole repository focus. Production b18b18029f90af4b23693426a1f489af44ffe2b2 remains deployed. Verified extension source f5a7e2d9a has 2031 passed /16 PG opt-in skipped in the complete selected integration, 2930 passed in the official data_center Domain selection with aggregate LINE coverage 94.17%, zero incremental/full mypy debt, and four real PostgreSQL activation cases passed with independently verified public tables=0. Checkpoint docs/testing/data16-activation-and-integration-checkpoint-2026-09-13.json retains initial fixture/seed/transport failures. The prior nine current-snapshot PG cases retain their eight-pass batch plus exact one-case retry evidence; two backfill and one retention PG cases were not run in this packet. Subsequent audit found historical synthesized financial midnight availability can pass policy2 via normalized-row hash and natural-key fallbacks. Commit 6d0d74316 requires immutable financial policy3 source publication time, source record and original raw hash/scope; nine other policy rows are unchanged. Nineteen candidate/version/activation tests pass, but financial ORM source-provenance enforcement is still being implemented and requires fresh affected-source validation. The genuine readonly policy3 candidate observation at 2026-09-13T11:51:17.441133Z binds candidate SHA516adb5bf60908cec4fc0f0132a80884e7699f9b9b15d089293445d59067089c and unchanged three Catalog rowsets; no production DML. Next freeze the source-proof fix, complete CI, deploy additive schema/code through standard backup/rollback upgrade preserving runtime Catalog, verify compatible image and health, recapture exact preflight, preview then atomically activate four candidate policy heads. Old Publications and archived policy content must not be rewritten; old financial current remains blocked until genuine source-safe evidence exists. Facade physical decode baseline is being prepared separately; phase optimization and deployment are not complete. DATA-02 still requires actual full 5533-asset quote/valuation storage, genuine financial source availability/raw evidence, four immutable Publication identities and canonical tolerance reconciliation.",
       "documents": [
         {
           "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
@@ -140,6 +140,10 @@
         },
         {
           "path": "docs/plans/datahubco-rds-binding-2026-09-09.md",
+          "role": "supporting"
+        },
+        {
+          "path": "docs/plans/data02-financial-source-time-remediation-2026-09-13.md",
           "role": "supporting"
         }
       ]

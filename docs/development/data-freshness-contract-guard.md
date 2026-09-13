@@ -81,6 +81,12 @@ deadlock 回滚嵌套 savepoint 并明确失败，锁持有至父事务结束。
 
 ## 新数据面接入清单
 
+财务公告日或报告期不能合成精确源可用时间。Tushare/AKShare 的 date-only financial
+结果保留日期且 `available_at=None`；历史 calendar backfill 的 Application 和直接
+Repository 写入口发布 `FINANCIAL_SOURCE_TIMESTAMP_REQUIRED`，不修改事实行。
+只读盘点中任一 missing/unresolved availability 均不可执行，完整抓取计数也不能
+使发布主流程绕过该阻断。精确公告时间、原始响应哈希和历史来源修复另行验收。
+
 QMT 整体桥登记为 `data_center.qmt_bridge_observations`：源时间在重试时保持不变，VPS 仅接收授权标的，stale 快照不能截断备用源；批次落库不等同于全 universe current Publication 激活。
 
 新增任何当前数据读取时，按顺序完成：

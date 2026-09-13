@@ -3617,10 +3617,10 @@
           "publication_fact_reference_for_dataset"
         ],
         "apps/data_center/infrastructure/_provider_adapter_tushare.py": [
-          "available_at=_available_at_from_report_date(report_date)"
+          "available_at=None"
         ],
         "apps/data_center/infrastructure/_provider_adapter_akshare.py": [
-          "available_at=_available_at_from_report_date(report_date)"
+          "available_at=None"
         ],
         "apps/data_center/infrastructure/price_bar_repository.py": [
           "def list_publication_candidates(",
@@ -4301,7 +4301,10 @@
           "CompletedSessionPriceBarUseCase",
           "completed-session quote coverage is incomplete or invalid",
           "realtime-quote provider batch incomplete",
-          "published_at=publication_at"
+          "published_at=publication_at",
+          "FINANCIAL_SOURCE_TIMESTAMP_REQUIRED",
+          "self.missing_row_count == 0",
+          "and self.unresolved_row_count == 0"
         ],
         "apps/data_center/application/current_publication_rebuild.py": [
           "def preview(",
@@ -4341,7 +4344,9 @@
         "apps/data_center/infrastructure/financial_availability_repository.py": [
           "def preview_availability_backfill(",
           "def backfill_available_at_from_report_date(",
-          "report_date__lte=recorded_at.date()"
+          "report_date__lte=recorded_at.date()",
+          "FINANCIAL_SOURCE_TIMESTAMP_REQUIRED",
+          "raise InvalidInputError("
         ],
         "apps/data_center/infrastructure/financial_fact_repository.py": [
           "def list_current_publication_candidates(",
@@ -4405,9 +4410,9 @@
           "test_function": "test_financial_selector_uses_latest_available_period_and_one_source_per_metric"
         },
         {
-          "case": "financial_source_date_availability_repair",
+          "case": "financial_calendar_date_backfill_blocked",
           "test_file": "tests/component/data_center/test_current_publication_candidate_repositories.py",
-          "test_function": "test_financial_availability_backfill_uses_only_persisted_report_date"
+          "test_function": "test_financial_calendar_date_backfill_is_blocked_without_changing_history"
         },
         {
           "case": "completed_session_price_materialization",
@@ -4428,6 +4433,16 @@
           "case": "publication_failure_keeps_backfill_open",
           "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
           "test_function": "test_backfill_batch_blocks_and_keeps_checkpoint_open_when_publication_fails"
+        },
+        {
+          "case": "financial_unknown_source_time_blocked",
+          "test_file": "tests/unit/data_center/test_current_fact_remediation.py",
+          "test_function": "test_financial_unknown_date_is_blocked_without_calling_writer"
+        },
+        {
+          "case": "financial_missing_source_time_blocks_core_publication",
+          "test_file": "tests/unit/data_center/test_current_fact_remediation.py",
+          "test_function": "test_core_refresh_blocks_publication_when_financial_source_time_is_missing"
         }
       ]
     },

@@ -25,9 +25,17 @@
 
 ## 自主 Goal 调度入口
 
-2026-09-13：`EVID-08` 是唯一 repository focus，限定 Authority V3 整操作 immutable decode/validation
-复用、生命周期/失效测试与代表性图测量；不启用写路径 current/ORM cache。DATA-02 只读准备可并行，
-DATA-12/15、EVID-07 保持已完成，生产 DATA/EVID/AUD/TAR 验收状态不变。
+2026-09-13 当前：`DATA-16` 是唯一 repository focus，版本化 publication evidence、
+稳定 current snapshot 的核心及部署保护已分类提交。扩展冻结版本的完整选定回归为
+2031 passed /16 PG opt-in skipped，Domain 聚合行覆盖率94.17%（2930 passed），
+实际 PostgreSQL 策略激活4 passed且独立检查零表残留；
+[阶段证据](../testing/data16-activation-and-integration-checkpoint-2026-09-13.json)
+绑定该阶段源码，不代表随后 financial 来源修复已验证。历史合成 available_at
+可能通过 policy2，当前追加不可变 financial policy3 原始来源要求并补实际 ORM guard；
+新候选尚未部署或激活。应用 Goal 本轮工具读回 `active`。
+[财务来源时间整改路线](data02-financial-source-time-remediation-2026-09-13.md)已登记，
+须先取得真实来源字段精度与契约；Facade phase 性能实现仍待 DATA-16 解除代码前置。
+DATA-12/15、EVID-07/08 保持既有完成状态，DATA/EVID/AUD/TAR 生产验收状态不变。
 
 2026-09-12：[EVID-07 repository closure](../testing/evid07-authenticated-owner-scope-v3-closure-2026-09-12.json)
 已通过真实隔离 PostgreSQL 完整图（1 passed/3214.98s）及最终类型、架构、freshness、治理门禁，
