@@ -5,6 +5,15 @@
 > 已完成的 EVID-08 不重新打开；本文保留其历史诊断，后续状态以机器注册表为准。
 >
 > 实际模型设置：`gpt-5.6-luna / max`。
+
+> EVID-09 实施进展：`75e033b4e` 将通用机制移至shared并让SourceV2纯读复用，
+> 原Account入口保持同函数对象；真实数据库语义RED为SELECT2而期望1，修复后13 passed。
+> `6b1e63303` 追加强制独立read phase和mutation/callback期间缓存暂停；包含外层
+> active snapshot的16项回归通过，新增helper增量mypy及格式/Ruff通过。
+> Facade/Application接线正在实施，尚未冻结综合验证或部署，EVID-09保持active。
+> [完整物理解码诊断封存](../testing/evid09-facade-physical-decode-diagnostic-2026-09-13.json)
+> 保留原测量failed、绿色JUnit和独立清理/release；五个后验源码canonical LF哈希
+> 与Git一致，三个raw差异仅CRLF，仍不补签原运行期间的source snapshot一致性。
 >
 > 当前生产：`3032481969f93f08e8e4d14bfed3d7631e53a752` / release `20260913212011`。
 > 实际固定的兼容回滚镜像为 `agomtradepro-data16-compatible-rollback:20260913212011`，
@@ -187,6 +196,10 @@ mutable cache，也不包括绕过父图、只读 header 或降低验证强度�
 5. 所有 phase cache 都是 ContextVar operation-local state，不能变成 module/global/
    process-lifetime cache；不得放宽 repository object/cutoff 的 key 隔离。cache 不得
    把不同 alias、不同 cutoff、`lock=True`/`lock=False` 结果合并。
+   既有 `immutable_read_snapshot` 嵌套时共用外层结果，所以新phase使用
+   `isolated_immutable_read_snapshot` 强制独立；Facade完整操作在
+   `suspend_immutable_read_reuse` 内隔离caller缓存。暂停期间仅纯读phase可开启复用，
+   callback、append/CAS无缓存；暂停进入和退出均清空外层结果，失败也不恢复旧结果。
 6. 保持现有 `100,000` JSON node、depth `128`、exact raw payload/hash、FK/seal、
    availability、clock monotonicity、source lock、append-only、current validity 与
    异常映射。失败或 `None` 的读取不能跨 phase 保留。
