@@ -289,8 +289,19 @@ announced_at 为空、raw hash/scope 和 source_record_id 缺失时仍可能通�
 source_record_id、published_at、raw_payload_hash、raw_payload_scope；其余九个
 dataset 配置不变。manifest 回归先红（1 failed），随后与已有不可变策略版本
 回归共5 passed。旧 policy2 及历史行不改写；激活新 identity 后旧 current 由现有
-publication_policy_changed 门阻断。实际金融 ORM 来源适配、真实响应与精确时间
-反例正在实施，不能以配置测试代替完成。新候选必须重新绑定准确 Git 字节和真实
+publication_policy_changed 门阻断。金融 ORM 来源边界已分类提交 `52abce5a2`，
+严格读取持久化 announced_at/available_at/fetched_at、source record、raw hash/scope，
+拒绝缺失及时间逆序；旧 policy2 的历史编码保持原有语义。来源和实际 current 读取到
+持久化 member 回放的专项最终回归13 passed，53个生产文件增量mypy无新增错误，
+全量mypy债务为零；该阶段完整选定集成2045 passed /16 PG opt-in skipped，
+[来源校验阶段证据](../testing/data16-financial-source-validation-2026-09-13.json)绑定
+`52abce5a2`。独立审查随后发现纯Domain集中校验未检查公告晚于可用时间；
+`990a4876e` 在两字段均存在时补顺序检查，等时及旧策略缺字段兼容保留。
+真实RED为1 failed/2 passed，修复后专项3 passed、完整证据文件20 passed；
+受影响发布/current随后155 passed，官方Domain选定范围2939 passed、聚合行覆盖率
+94.18%。最终追加版本的静态检查仍在执行。这证明字段边界与校验行为，
+不证明生产原始响应 bytes、精确来源时刻或可用 current 已齐备。
+新候选必须重新绑定准确 Git 字节和真实
 生产 preflight，不能继续使用旧 policy2 的 candidate SHA。
 
 2026-09-13T12:01:06.678997Z 实际生产只读聚合盘点：441944条金融事实，
@@ -300,3 +311,19 @@ raw scope均缺失441944条；441784条有available_at却无source announcement�
 旧Cast合成值，也不能证明原始供应商时间或current可用性；未修改任何生产行。
 [实际只读证据](../deployment/data02-financial-provenance-readonly-2026-09-13.json)。
 下一阶段只对经盘点冻结的决策当前universe做有界重新采集，不全表重写历史数据。
+
+后续 DATA-02 历史决策边界另有只读确认的代码缺口：factor adapter
+`_get_factor_from_data_center` 调用 `get_financial_facts(..., as_of=trade_date)`，
+但该参数经 public_published_queries/query_services 传给 Repository 的 `end` 后，
+仅用于 `period_end__lte=end`，没有校验源公告或真实 available_at 的知识截止。
+因此财政期末早于回测日不能证明该日已获知报告；此处是代码路径审查，尚未运行
+生产或回测反例。下一阶段在 factor 的历史决策入口补精确知识截止与缺证据阻断，
+用“期末已到、公告未到”以及 date-only/unknown 来源反例证明无后视偏差；raw 历史
+资料读取保留兼容性，不在 DATA-16 中改写既有历史接口语义。
+
+独立只读调用链审查确认 Account AuthorityV3/SourceV2 只恢复 Account 与
+simulated_trading 物理账户账本，未依赖 Data Center current publication；因此
+financial policy3 的 publication_policy_changed 不会直接使 Account authority
+失效。实际 Account current/expiry/ledger 指纹仍须单独复核，不能以调用链审查代替。
+收紧来源策略后，默认回滚保持该策略及明确blocked状态，选择兼容的 DATA-16 代码；
+不能为了恢复有数据的页面自动重新激活缺乏来源保证的旧 financial policy。

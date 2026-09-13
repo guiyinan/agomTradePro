@@ -11946,7 +11946,7 @@
       "text": "summary = models.TextField(blank=True)"
     },
     {
-      "line": 136,
+      "line": 138,
       "path": "apps/data_center/infrastructure/financial_fact_repository.py",
       "text": "\"\"\"Select every metric from each asset's latest evidence-safe period.\"\"\""
     },

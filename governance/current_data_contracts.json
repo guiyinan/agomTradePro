@@ -4293,7 +4293,9 @@
         "apps/data_center/application/core_data_backfill.py",
         "apps/data_center/infrastructure/publication_fact_identity.py",
         "apps/data_center/infrastructure/publication_fact_legacy_payload.py",
-        "apps/data_center/infrastructure/publication_fact_evidence.py"
+        "apps/data_center/infrastructure/publication_fact_evidence.py",
+        "apps/data_center/infrastructure/financial_source_policy.py",
+        "apps/data_center/domain/publication_evidence.py"
       ],
       "required_markers": {
         "apps/data_center/application/current_fact_remediation.py": [
@@ -4351,7 +4353,8 @@
         "apps/data_center/infrastructure/financial_fact_repository.py": [
           "def list_current_publication_candidates(",
           "available_at__isnull=False",
-          "publication_fact_reference_for_dataset"
+          "publication_fact_reference_for_dataset",
+          "require_verified_source_evidence=require_verified_source_evidence"
         ],
         "apps/data_center/application/core_data_backfill.py": [
           "rebuild_current_publications",
@@ -4375,7 +4378,20 @@
           "publication_fact_reference_for_dataset",
           "identity.natural_key",
           "identity.observed_at",
-          "identity.raw_payload_hash"
+          "identity.raw_payload_hash",
+          "require_financial_source_evidence",
+          "announced_at > available_at",
+          "available_at > fetched_at",
+          "raw_payload_scope not in _RAW_PAYLOAD_SCOPES",
+          "source_published = source_evidence.announced_at"
+        ],
+        "apps/data_center/infrastructure/financial_source_policy.py": [
+          "requires_verified_financial_source_evidence",
+          "_FINANCIAL_SOURCE_EVIDENCE_KEYS.issubset(policy.required_evidence)"
+        ],
+        "apps/data_center/domain/publication_evidence.py": [
+          "view.source_published_at > view.available_at",
+          "publication evidence source_published_at is after available_at"
         ]
       },
       "required_tests": [
@@ -4443,6 +4459,66 @@
           "case": "financial_missing_source_time_blocks_core_publication",
           "test_file": "tests/unit/data_center/test_current_fact_remediation.py",
           "test_function": "test_core_refresh_blocks_publication_when_financial_source_time_is_missing"
+        },
+        {
+          "case": "financial_original_source_fields",
+          "test_file": "tests/unit/data_center/test_financial_source_provenance.py",
+          "test_function": "test_policy3_accepts_only_original_financial_source_evidence"
+        },
+        {
+          "case": "financial_source_record_no_natural_key_fallback",
+          "test_file": "tests/unit/data_center/test_financial_source_provenance.py",
+          "test_function": "test_policy3_rejects_missing_source_record_id_without_natural_key_fallback"
+        },
+        {
+          "case": "financial_raw_hash_no_normalized_fallback",
+          "test_file": "tests/unit/data_center/test_financial_source_provenance.py",
+          "test_function": "test_policy3_rejects_missing_raw_hash_without_normalized_row_fallback"
+        },
+        {
+          "case": "financial_source_chronology",
+          "test_file": "tests/unit/data_center/test_financial_source_provenance.py",
+          "test_function": "test_policy3_rejects_announcement_after_source_availability"
+        },
+        {
+          "case": "financial_legacy_policy2_encoding_preserved",
+          "test_file": "tests/unit/data_center/test_financial_source_provenance.py",
+          "test_function": "test_policy2_keeps_normalized_fallback_for_legacy_rows"
+        },
+        {
+          "case": "financial_persisted_original_source_member",
+          "test_file": "tests/component/data_center/test_financial_source_provenance.py",
+          "test_function": "test_policy3_uses_original_source_fields_through_member_store"
+        },
+        {
+          "case": "financial_synthetic_persisted_source_rejected",
+          "test_file": "tests/component/data_center/test_financial_source_provenance.py",
+          "test_function": "test_policy3_rejects_persisted_synthetic_financial_evidence"
+        },
+        {
+          "case": "financial_current_persisted_member_replay",
+          "test_file": "tests/component/data_center/test_financial_source_current_boundary.py",
+          "test_function": "test_current_financial_source_survives_persisted_member_replay"
+        },
+        {
+          "case": "financial_current_source_gaps_no_history_dml",
+          "test_file": "tests/component/data_center/test_financial_source_current_boundary.py",
+          "test_function": "test_current_financial_missing_source_proof_never_mutates_history"
+        },
+        {
+          "case": "source_publication_before_availability",
+          "test_file": "tests/unit/data_center/test_publication_evidence.py",
+          "test_function": "test_source_published_at_after_available_at_is_rejected"
+        },
+        {
+          "case": "source_publication_equal_availability",
+          "test_file": "tests/unit/data_center/test_publication_evidence.py",
+          "test_function": "test_source_published_at_equal_to_available_at_is_valid"
+        },
+        {
+          "case": "optional_source_chronology_legacy_compatibility",
+          "test_file": "tests/unit/data_center/test_publication_evidence.py",
+          "test_function": "test_missing_chronology_fields_preserves_policy2_and_legacy_compatibility"
         }
       ]
     },

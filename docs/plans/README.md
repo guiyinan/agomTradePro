@@ -31,8 +31,16 @@
 实际 PostgreSQL 策略激活4 passed且独立检查零表残留；
 [阶段证据](../testing/data16-activation-and-integration-checkpoint-2026-09-13.json)
 绑定该阶段源码，不代表随后 financial 来源修复已验证。历史合成 available_at
-可能通过 policy2，当前追加不可变 financial policy3 原始来源要求并补实际 ORM guard；
-新候选尚未部署或激活。应用 Goal 本轮工具读回 `active`。
+可能通过 policy2，当前追加不可变 financial policy3 原始来源要求。
+实际 ORM 来源 guard 与 current/member 回放已分类提交 `52abce5a2`：专项13 passed，
+该阶段完整选定集成2045 passed /16 PG opt-in skipped、53生产文件增量mypy无新增错误、
+全量债务为零；[来源校验阶段证据](../testing/data16-financial-source-validation-2026-09-13.json)
+绑定该阶段源码。追加集中Domain公告/可用时间顺序规则已提交 `990a4876e`，真实RED
+1 failed/2 passed，修复后专项3 passed、完整证据文件20 passed；随后受影响发布/current
+155 passed、官方Domain选定范围2939 passed，聚合行覆盖率94.18%。最终静态检查仍在执行。
+新候选的实际PG精确激活1 passed，独立只读检查零表残留；生产尚未部署或激活。
+Facade完整PG物理解码测量正在冻结夹具上执行，实际计数尚未返回。
+应用 Goal 本轮工具读回 `active`。
 [财务来源时间整改路线](data02-financial-source-time-remediation-2026-09-13.md)已登记，
 须先取得真实来源字段精度与契约；Facade phase 性能实现仍待 DATA-16 解除代码前置。
 DATA-12/15、EVID-07/08 保持既有完成状态，DATA/EVID/AUD/TAR 生产验收状态不变。
