@@ -451,3 +451,35 @@ admin selector/hash，用时 6.837 秒、1,150 queries、零业务 DML；四个 
 检查与未触发分支混用。[原始报告与 24 份逐字节工件封存](../deployment/evid09-standard-deployment-preservation-2026-09-14.json)
 记录范围与限制；EVID-09 继续 active，剩余重点为新 scope 的真实 30m 配置生命周期、
 55m 实际父来源窗口、25m+5m 限时回滚及独立 admin 历史 exact/ledger recovery。
+
+## 13. 新完整父链复测失败与独立恢复（2026-09-14）
+
+标准优化部署仍为 Main `6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b`，没有因后续
+DATA-02 候选合并而重新部署。本阶段临时新 scope 的 Case5/Case6 均在重新观测入口
+因 immutable chain conflict 失败，实际 child exit 1、已回收。Case6 的失败阶段为
+19 次 SQL、零 INSERT；不能据此声称移除重复 append 已解决唯一根因。修正为保留
+原物理 observation_id、采用新的 reobservation version 后，Case7 的重新观测通过。
+失败原件分别封存在 [Case5](../testing/evid09-case5-failed-lifecycle-recovery-2026-09-14.json)
+和 [Case6](../testing/evid09-case6-failed-lifecycle-recovery-2026-09-14.json)，各含 21 份逐字节原件。
+
+Case7 实际 parent 打开于 `2026-09-13T21:28:57.252384Z`，来源窗口门、account binding、
+policy、reobservation、Receipt V5、Subject V5 均通过。Receipt 和 Subject 阶段分别用时
+21.695365 秒、47.835364 秒。Evidence V5 在 `21:53:57.630540Z` 因既定 25 分钟硬看门狗
+失败；该阶段 wall 1423.344873 秒、caller CPU 1195.771646 秒，SQL 125181 次，其中
+SELECT 125161、INSERT 1，client execute wall 324.246511 秒。CPU 与 SQL wall 的统计
+边界不同，不能相加成总耗时，也不是 PostgreSQL 服务端 CPU。一个 INSERT 不表示
+Evidence 写生命周期成功；本轮没有到达 Authority V3 issue/replay/successor/revoke 验收。
+
+内部回滚读取 `21:53:57.638099Z` 至 `21:54:15.070236Z` 通过，supervisor 实际回收 child、
+exit 1、没有触发外层 35 分钟超时。随后独立的新观察与原 before 逐项对比，8 项检查
+全部通过：19 个账本完整行集、四个旧 root、旧 admin current/exact 以及 15 项运行
+源码保持不变，独立 after 零业务 DML 且强制 rollback。[Case7 原始封存](../testing/evid09-case7-failed-lifecycle-recovery-2026-09-14.json)
+包含 24 份逐字节原件与 sidecar。覆盖范围排除 auth.User、django_session、日志、指标、
+sequence 及无关业务表；独立恢复不等于完整生命周期或人工验收。
+
+固定 PostgreSQL node 的三轮结果仍成立，但其播种 V5 父链、单一 V3 root 不等价于本轮
+完整新父链及既有全账本负载。下一阶段先验证 V5 完整账本读取的重复恢复边界，在原
+READ COMMITTED、确定性来源锁、精确 cutoff 双读及 DML 后新观察下优化；保留 canonical
+payload/hash、真实来源时钟和失败阻断。不得抬高时间预算、延长旧证据或将读取缓存跨越
+写入。代码检查和隔离完整父链回归通过后，使用标准部署重新冻结 runtime，再进行同范围
+生产复测。EVID-09 继续 active，DATA-02/EVID-01/02 的退出门未改变。
