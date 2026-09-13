@@ -323,9 +323,14 @@ def test_execute_preserves_catalog_and_existing_current_publication(
             "dataset_key", "policy_version"
         )
     }
-    assert {key for key, version in active.items() if version == "2"} == set(
+    assert {key for key, version in active.items() if version != "legacy"} == set(
         activation_inputs["targets"]
     )
+    assert active["equity.financial.fact"] == "3"
+    assert {
+        active[key]
+        for key in ("equity.price.bar", "equity.quote.snapshot", "equity.valuation.fact")
+    } == {"2"}
     assert len(active) == 10
     assert DatasetPublicationPolicyModel.objects.count() == 14
     assert _catalog_baseline() == {
