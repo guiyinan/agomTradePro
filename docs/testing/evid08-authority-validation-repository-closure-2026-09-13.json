@@ -1,0 +1,61 @@
+{
+  "schema": "evid08.repository-closure.v1",
+  "recorded_at": "2026-09-13T02:06:59.217129+00:00",
+  "unit": {
+    "id": "EVID-08",
+    "status": "completed",
+    "repository_exit_gate_complete": true
+  },
+  "repository_code_head": "7d2138b7df8af975a693f6233fffdb07ecd57f2e",
+  "production_code": {
+    "path": "apps/account/owner_tenant_authority_v3_composition.py",
+    "git_blob_sha256": "eaa72ceb2cf7c6bd6e62c58901d9189e17a83167bb4b2a4d4178eaa6e35167ab",
+    "worktree_sha256": "eaa72ceb2cf7c6bd6e62c58901d9189e17a83167bb4b2a4d4178eaa6e35167ab",
+    "change": "One added validation_graph_operation decorator on the complete _locked operation."
+  },
+  "verified_checkpoints": [
+    {
+      "path": "docs/testing/evid08-authority-validation-lifecycle-2026-09-13.json",
+      "sha256": "3fab3205854471e5a8863b99cc15ed0bef6a9b4ba208c5a6de1d2b1df4dd0648",
+      "embedded_artifacts_verified": 16
+    },
+    {
+      "path": "docs/deployment/sprint-evid08-complete-graph-cprofile-2026-09-13-c8bb9b780.json",
+      "sha256": "dfe139ccf04d1a9da2ce4fe8c8cf52ae4d310b8e5d30193ec13a6a4a19934c4b",
+      "embedded_artifacts_verified": 9
+    },
+    {
+      "path": "docs/deployment/sprint-evid08-complete-graph-decode-work-2026-09-13-c8bb9b780.json",
+      "sha256": "ed40520ca3787045b383c775868d454374eddb533e7317391febb882f93018b1",
+      "embedded_artifacts_verified": 9
+    }
+  ],
+  "verification": {
+    "postgres_facade": "1 passed / 1716.17s; complete real raw/current source graph and issue/current/with_current/revoke/exact",
+    "cleanup": {
+      "database": "evid06_authority_test",
+      "public_base_tables": 0
+    },
+    "nonpg_composition": "10 passed /1 deselected /0.89s",
+    "related_graph_regressions": {
+      "result": "59 passed /3.38s",
+      "prior_terminal_session_id": 52146,
+      "provenance": "Previous terminal tool execution in this session history; no standalone stdout log claimed. Production code has not changed since that graph run."
+    },
+    "mypy": "Incremental 1 production file:0 regressions; full debt:0 errors (terminal session71143)",
+    "format": "Black/isort/Ruff on all four changed fixture/support files passed (terminal command exit0).",
+    "architecture": "One production file/line; boundary and structural audit0 violations.",
+    "governance": "Registry v91 and full consistency baseline v220:0 violations (terminal session72382).",
+    "ci": {
+      "head": "7d2138b7df8af975a693f6233fffdb07ecd57f2e",
+      "all_reported_checks_success": true,
+      "artifact": "var/evid08-final-ci-head.json"
+    }
+  },
+  "limits": [
+    "Historical PG batches remain separate: original6passed3failed, corrected2passed1setupError, finalFacade1passed; no single nine-green batch claimed.",
+    "Complete graph CPU/decoder/query measurements are read-only prerequisite samples with independent cutoffs and instrumentation overhead.",
+    "No deployment or production new-write/concurrency performance acceptance is inferred.",
+    "EVID-01/02, DATA-02, AUD-03 and TAR-05 production exit gates remain unchanged."
+  ]
+}

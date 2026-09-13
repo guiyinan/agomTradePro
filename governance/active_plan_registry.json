@@ -1,14 +1,14 @@
 {
-  "version": "2026-09-13.v91",
+  "version": "2026-09-13.v92",
   "updated_at": "2026-09-13",
   "execution_focus": {
-    "unit_id": "EVID-08",
+    "unit_id": null,
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "EVID-08 is the sole repository focus: bound Authority V3 write-operation immutable decode/validation reuse with no ORM/current-state caching, preserving current-source rechecks, append/replay/successor/revocation and rollback. Profile a representative complete graph before claiming performance improvement. Production and governance DATA-02 preparation may continue within authorization; DATA-12/15 and EVID-07 remain complete and all production acceptance gates remain unchanged."
+    "policy": "EVID-08 repository exit gate is complete with real PostgreSQL Facade lifecycle, source-race rejection, isolated validation/drift/rollback regressions, complete graph paired CPU/decoder/query evidence and static/governance/CI gates. Production EVID-01/02 and DATA-02 acceptance remain separate. Next bounded repository prerequisite is source-bound availability and versioned Publication policy/hash/current enforcement; register its full scope before implementation. DATA-12/15 and EVID-07 remain completed."
   },
   "workstreams": [
     {
@@ -1209,7 +1209,7 @@
         "wave": 1,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Bound Authority V3 write-operation immutable graph validation work",
         "depends_on": [
           "EVID-07"

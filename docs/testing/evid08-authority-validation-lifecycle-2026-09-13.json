@@ -1,0 +1,345 @@
+{
+  "schema_version": "evid08.authority-validation-lifecycle-checkpoint.v1",
+  "recorded_at": "2026-09-13T02:06:00.388643+00:00",
+  "unit": {
+    "id": "EVID-08",
+    "status": "active",
+    "lifecycle_final_physical_test_passed": true,
+    "exit_gate_complete": false
+  },
+  "production_binding": {
+    "source_path": "apps/account/owner_tenant_authority_v3_composition.py",
+    "source_sha256": "eaa72ceb2cf7c6bd6e62c58901d9189e17a83167bb4b2a4d4178eaa6e35167ab",
+    "git_head": "7d2138b7df8af975a693f6233fffdb07ecd57f2e",
+    "decorator": "@validation_graph_operation",
+    "decorator_line": 249,
+    "production_source_clean_against_head": true,
+    "new_write_or_deployment_claim": false
+  },
+  "postgres_lifecycle": {
+    "original_nine_test_batch": {
+      "shape": {
+        "tests": 9,
+        "passed": 6,
+        "failures": 3,
+        "errors": 0,
+        "skipped": 0
+      },
+      "failed_cases_retained": [
+        {
+          "classname": "tests.component.account.test_owner_tenant_authority_v3_repository",
+          "name": "test_closed_world_rejects_successor_predecessor_substitution",
+          "time": "286.092",
+          "status": "failure",
+          "message": "AssertionError: Regex pattern did not match.\n  Expected regex: 'predecessor|successor'\n  Actual message: 'owner tenant authority v3 stored field ledger_seal is substituted'\nowner_alias = 'evid06_authority_test'\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000015C20BB6F50>\n\n    def test_closed_world_rejects_successor_predecessor_substitution(owner_alias, monkeypatch):\n        \"\"\"Reject a self-linked successor before a forged chain can become a head.\"\"\"\n    \n        root = _owner_seed(owner_alias, monkeypatch)\n        repository = DjangoOwnerTenantAuthorityV3Repository(using=owner_alias)\n        _append_owner(repository, root)\n        successor = _successor(root)\n        _append_owner(repository, successor)\n        successor_row = OwnerTenantAuthorityV3Model.objects.using(owner_alias).get(\n            content_hash=successor.authority.content_hash\n        )\n        table = OwnerTenantAuthorityV3Model._meta.db_table\n    \n        with transaction.atomic(using=owner_alias):\n            with connections[owner_alias].cursor() as cursor:\n                cursor.execute(\n                    f'UPDATE \"{table}\" SET predecessor_id = %s WHERE id = %s',\n                    [successor_row.pk, successor_row.pk],\n                )\n            with pytest.raises(OwnerTenantAuthorityV3Corruption, match=\"predecessor|successor\"):\n>               repository.get_head(\n                    authority_id=root.authority.authority_id,\n                    as_of=successor.authority.recorded_at,\n                )\n\ntests\\component\\account\\test_owner_tenant_authority_v3_repository.py:424: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\napps\\account\\infrastructure\\owner_tenant_authority_v3_repository.py:277: in get_head\n    for item in self._restore_world(as_of).roots\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^\napps\\account\\infrastructure\\immutable_read_snapshot.py:53: in wrapped\n    return function(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\napp…"
+        },
+        {
+          "classname": "tests.component.account.test_owner_tenant_authority_v3_repository",
+          "name": "test_current_source_lock_blocks_competing_simulated_successor",
+          "time": "166.203",
+          "status": "failure",
+          "message": "apps.simulated_trading.infrastructure.simulated_account_row_source_v2_repository.DjangoSimulatedAccountRowSourceV2Conflict: source append requires an active private unit of work\nowner_alias = 'evid06_authority_test'\n\n>   ???\n\ntests\\component\\account\\test_owner_tenant_authority_v3_repository.py:526: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\napps\\simulated_trading\\infrastructure\\simulated_account_row_source_v2_repository.py:139: in append\n    token = _active_token()\n            ^^^^^^^^^^^^^^^\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n\n    def _active_token() -> object:\n        token = _ACTIVE_SIMULATED_ACCOUNT_ROW_SOURCE_V2_UOW.get()\n        if token is None:\n>           raise DjangoSimulatedAccountRowSourceV2Conflict(\n                \"source append requires an active private unit of work\"\n            )\nE           apps.simulated_trading.infrastructure.simulated_account_row_source_v2_repository.DjangoSimulatedAccountRowSourceV2Conflict: source append requires an active private unit of work\n\napps\\simulated_trading\\infrastructure\\simulated_account_row_source_v2_repository.py:417: DjangoSimulatedAccountRowSourceV2Conflict"
+        },
+        {
+          "classname": "tests.component.account.test_owner_tenant_authority_v3_composition",
+          "name": "test_opt_in_postgres_facade_issues_reads_and_revokes",
+          "time": "297.381",
+          "status": "failure",
+          "message": "apps.account.application.owner_tenant_authority_v3_contracts.OwnerTenantAuthorityV3Unavailable: current Evidence V5 is unavailable\nself = <django.db.backends.utils.CursorWrapper object at 0x0000015C21F04A70>\nsql = 'SELECT \"simulated_account_row_source_v2_ledger\".\"id\", \"simulated_account_row_source_v2_ledger\".\"owner\", \"simulated_ac...ORDER BY \"simulated_account_row_source_v2_ledger\".\"recorded_at\" ASC, \"simulated_account_row_source_v2_ledger\".\"id\" ASC'\nparams = ()\nignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='evid06_authority_test'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x0000015C21F04A70>})\n\n    def _execute(self, sql, params, *ignored_wrapper_args):\n        # Raise a warning during app initialization (stored_app_configs is only\n        # ever set during testing).\n        if not apps.ready and not apps.stored_app_configs:\n            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)\n        self.db.validate_no_broken_transaction()\n        with self.db.wrap_database_errors:\n            if params is None:\n                # params default might be backend specific.\n                return self.cursor.execute(sql)\n            else:\n>               return self.cursor.execute(sql, params)\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nagomtradepro\\Lib\\site-packages\\django\\db\\backends\\utils.py:105: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n\nself = <django.db.backends.postgresql.base.Cursor [closed] [IDLE] (host=127.0.0.1 port=55439 user=agom_sprint_staging database=evid06_authority_test) at 0x15c20b93410>\nquery = 'SELECT \"simulated_account_row_source_v2_ledger\".\"id\", \"simulated_account_row_source_v2_ledger\".\"owner\", \"simulated_ac...ORDER BY \"simulated_account_row_source_v2_ledger\".\"recorded_at\" ASC, \"simulated_account_row_source_v2_ledger\".\"id\" ASC'\nparams = ()\n\n    def execute(\n        self,\n        query: Query,\n        params: Params | …"
+        }
+      ],
+      "raw_artifact": "var/evid08-postgres-regression-20260913.xml"
+    },
+    "corrected_three_test_batch": {
+      "shape": {
+        "tests": 3,
+        "passed": 2,
+        "failures": 0,
+        "errors": 1,
+        "skipped": 0
+      },
+      "setup_errors_retained": [
+        {
+          "classname": "tests.component.account.test_owner_tenant_authority_v3_composition",
+          "name": "test_opt_in_postgres_facade_issues_reads_and_revokes",
+          "time": "0.002",
+          "status": "setup_error",
+          "message": "failed on setup with \"file D:\\githv\\agomTradePro\\tests\\component\\account\\test_owner_tenant_authority_v3_composition.py, line 656\n  @pytest.mark.skipif(\n      os.environ.get(\"AGOM_EVID06_POSTGRES_TEST\") != \"1\",\n      reason=\"opt-in disposable PostgreSQL Authority V3 composition test\",\n  )\n  def test_opt_in_postgres_facade_issues_reads_and_revokes(\nE       fixture 'owner_alias' not found\n>       available fixtures: _artifacts_recorder, _class_scoped_runner, _dj_autoclear_mailbox, _django_clear_site_cache, _django_db_helper, _django_db_marker, _django_set_urlconf, _django_setup_unittest, _fail_for_invalid_template_variable, _function_scoped_runner, _live_server_helper, _module_scoped_runner, _package_scoped_runner, _pin_akshare_seam_modules_before_patching, _pw_artifacts_folder, _reset_data_center_provider_registry, _session_faker, _session_scoped_runner, _template_string_if_invalid_marker, _verify_url, active_decision_runtime, admin_client, admin_user, alpha_cache_data, anyio_backend, anyio_backend_name, anyio_backend_options, async_client, async_rf, authenticated_client, base_url, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, connect_options, context, cov, db, delete_output_dir, device, django_assert_max_num_queries, django_assert_num_queries, django_capture_on_commit_callbacks, django_db_blocker, django_db_createdb, django_db_keepdb, django_db_modify_db_settings, django_db_modify_db_settings_parallel_suffix, django_db_modify_db_settings_tox_suffix, django_db_modify_db_settings_xdist_suffix, django_db_reset_sequences, django_db_serialized_rollback, django_db_setup, django_db_use_migrations, django_mail_dnsname, django_mail_patch_dns, django_test_environment, django_user_model, django_username_field, doctest_namespace, event_loop_policy, evid06_alias, evidence_v5_alias, faker, free_tcp_port, free_tcp_port_factory, free_udp_p…"
+        }
+      ],
+      "raw_artifact": "var/evid08-postgres-corrected-regression-20260913.xml"
+    },
+    "individual_runs": [
+      {
+        "path": "var/evid08-postgres-facade-corrected-20260913.xml",
+        "sha256": "f66cf384516354173bf5e405534c3b8831906d35e38a0e342137740167c9b415",
+        "bytes": 6379,
+        "tests": 1,
+        "passed": 0,
+        "failures": 1,
+        "errors": 0,
+        "skipped": 0,
+        "testcases": [
+          {
+            "classname": "tests.component.account.test_owner_tenant_authority_v3_composition",
+            "name": "test_opt_in_postgres_facade_issues_reads_and_revokes",
+            "time": "253.271",
+            "status": "failure",
+            "message": "apps.account.application.owner_tenant_authority_v3_contracts.OwnerTenantAuthorityV3Unavailable: current Evidence V5 is unavailable\nowner_alias = 'evid06_authority_test'\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001D41C6675C0>\n\n    @pytest.mark.skipif(\n        os.environ.get(\"AGOM_EVID06_POSTGRES_TEST\") != \"1\",\n        reason=\"opt-in disposable PostgreSQL Authority V3 composition test\",\n    )\n    def test_opt_in_postgres_facade_issues_reads_and_revokes(\n        owner_alias: str,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        \"\"\"Exercise the complete authenticated facade against the disposable PG graph.\"\"\"\n    \n        from tests.component.account.test_owner_tenant_authority_v3_repository import _owner_seed\n    \n        persisted = _owner_seed(owner_alias, monkeypatch)\n        authority = persisted.authority\n        authentication = persisted.authentication\n        policy = authority.policy\n        assignment = authority.assignment\n        now = min(\n            assignment.valid_until,\n            policy.valid_until,\n            authentication.valid_until,\n        ) - timedelta(seconds=1)\n        monkeypatch.setattr(\"django.utils.timezone.now\", lambda: now)\n        facade = composition.build_owner_tenant_authority_v3_facade(\n            principal=AuthenticatedAccountPrincipalV3(\n                principal_id=authentication.principal_id,\n                user_id=authentication.user_id,\n                authentication_context_hash=authentication.authentication_context_hash,\n                authenticated_at=authentication.recorded_at,\n                valid_until=authentication.valid_until,\n            ),\n            policy_binding=SingleOwnerPolicyBinding(\n                policy.policy_id,\n                policy.policy_version,\n                policy.content_hash,\n                policy.tenant_id,\n                policy.owner_id,\n                policy.account_namespace,\n                policy.account_id,\n            ),\n            actor…"
+          }
+        ]
+      },
+      {
+        "path": "var/evid08-postgres-full-current-clock-20260913.xml",
+        "sha256": "775b3e8e60a62820ef1886070d74591ba08b39c9804bec6821a662f0b494dc46",
+        "bytes": 867,
+        "tests": 1,
+        "passed": 0,
+        "failures": 1,
+        "errors": 0,
+        "skipped": 0,
+        "testcases": [
+          {
+            "classname": "tests.component.account.test_owner_tenant_authority_v3_composition",
+            "name": "test_opt_in_postgres_facade_issues_reads_and_revokes",
+            "time": "246.060",
+            "status": "failure",
+            "message": "AttributeError: 'AccountOwnerAssignmentEvidenceV5' object has no attribute 'reobservation'\ntests\\component\\account\\test_owner_tenant_authority_v3_composition.py:754: in test_opt_in_postgres_facade_issues_reads_and_revokes\n    physical = assignment.reobservation.current_physical\n               ^^^^^^^^^^^^^^^^^^^^^^^^\nE   AttributeError: 'AccountOwnerAssignmentEvidenceV5' object has no attribute 'reobservation'"
+          }
+        ]
+      },
+      {
+        "path": "var/evid08-postgres-full-current-fixture-20260913.xml",
+        "sha256": "f42173210c7e1a67da8a3c761bd30b5b1c9db377dde6174e5bfdfb518890034e",
+        "bytes": 1569,
+        "tests": 1,
+        "passed": 0,
+        "failures": 1,
+        "errors": 0,
+        "skipped": 0,
+        "testcases": [
+          {
+            "classname": "tests.component.account.test_owner_tenant_authority_v3_composition",
+            "name": "test_opt_in_postgres_facade_issues_reads_and_revokes",
+            "time": "271.607",
+            "status": "failure",
+            "message": "ValueError: approval validity exceeds approval authority validity\ntests\\component\\account\\test_owner_tenant_authority_v3_composition.py:743: in test_opt_in_postgres_facade_issues_reads_and_revokes\n    persisted = _owner_seed(owner_alias, monkeypatch, actor_source=actor_source)\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntests\\component\\account\\test_owner_tenant_authority_v3_repository.py:90: in _owner_seed\n    parent = _seed(alias, actor_source=actor_source)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntests\\component\\account\\test_account_owner_assignment_evidence_v5_repository.py:228: in _seed\n    return PersistedAccountOwnerAssignmentEvidenceV5(_evidence(subject), _authority(source))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n<string>:5: in __init__\n    ???\napps\\account\\application\\account_owner_assignment_evidence_v5.py:133: in __post_init__\n    raise ValueError(\"approval validity exceeds approval authority validity\")\nE   ValueError: approval validity exceeds approval authority validity"
+          }
+        ]
+      },
+      {
+        "path": "var/evid08-postgres-full-current-window-20260913.xml",
+        "sha256": "1176510be8fcbc2dcb0f98aa6f1b545e621031515be3f18a9d9e47524fdb642d",
+        "bytes": 1526,
+        "tests": 1,
+        "passed": 0,
+        "failures": 1,
+        "errors": 0,
+        "skipped": 0,
+        "testcases": [
+          {
+            "classname": "tests.component.account.test_owner_tenant_authority_v3_composition",
+            "name": "test_opt_in_postgres_facade_issues_reads_and_revokes",
+            "time": "217.370",
+            "status": "failure",
+            "message": "apps.account.application.account_owner_assignment_evidence_v5.AccountOwnerAssignmentEvidenceV5Corruption: assignment persistence clock differs\ntests\\component\\account\\test_owner_tenant_authority_v3_composition.py:746: in test_opt_in_postgres_facade_issues_reads_and_revokes\n    persisted = _owner_seed(owner_alias, monkeypatch, actor_source=actor_source)\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntests\\component\\account\\test_owner_tenant_authority_v3_repository.py:93: in _owner_seed\n    assignments.append_root(\napps\\account\\infrastructure\\account_owner_assignment_evidence_v5_repository.py:250: in append_root\n    self._require_append_clock(recorded_at, evidence.recorded_at)\napps\\account\\infrastructure\\account_owner_assignment_evidence_v5_repository.py:305: in _require_append_clock\n    raise AccountOwnerAssignmentEvidenceV5Corruption(\"assignment persistence clock differs\")\nE   apps.account.application.account_owner_assignment_evidence_v5.AccountOwnerAssignmentEvidenceV5Corruption: assignment persistence clock differs"
+          }
+        ]
+      },
+      {
+        "path": "var/evid08-postgres-full-current-physical-20260913.xml",
+        "sha256": "04082e1674c9695bb5fddba5825b731fbcd71adfba5a853ec88cb5deea3fea88",
+        "bytes": 415,
+        "tests": 1,
+        "passed": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "testcases": [
+          {
+            "classname": "tests.component.account.test_owner_tenant_authority_v3_composition",
+            "name": "test_opt_in_postgres_facade_issues_reads_and_revokes",
+            "time": "1715.214",
+            "status": "passed",
+            "message": ""
+          }
+        ]
+      }
+    ],
+    "final_physical_gate": {
+      "path": "var/evid08-postgres-full-current-physical-20260913.xml",
+      "tests": 1,
+      "passed": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "required_shape": "1 passed / 0 failed / 0 error / 0 skipped"
+    }
+  },
+  "supporting_evidence": {
+    "static": {
+      "label": "static",
+      "artifacts": [
+        {
+          "path": "var/evid08-final-gate-observations.json",
+          "bytes": 1940,
+          "sha256": "77e6ca9cbff8d70ec67afa031a522dfdb3276f7f1d3a39bdf1bac48777029dd5",
+          "encoding": "gzip+base64",
+          "content": "H4sIAAAAAAAC/41VTW/jNhC951fM6tQCtiPLcWyvT8UCCxRIiza7tyIQaHJos6FIlaScGIv9732U5HxgE2BPEkDOzHtv3gy/XRAVUR64EcVHKvhoVLmeJe/tNHDsbJr6XeRwFMl4F2fHeTHJEYFbH03y4VQfWKgculLVfLHerZReC71ZLcX1ZqGvq8VCa6125YqlWq50xUOCNvgjO+Ek59hb7xMFlj6oSF5T4tAYJyxlIDQAiVtKBxNJG8uEr0OIICna1AVW5IPZ9yGfbn6nmJTvEj6BRTMbKjan9oRa3/CfKXOMYFSbjH01n18tJsPBuXTNjybV0qsMsBwPgVp1MktRZxixhnDynnOOfwrRtvFSSOk7ly79g+NQp0wx1aJLB+BLp/q4QMqm1w5JZkB0N6YeZGZVA3jbpT7jl05K4PwIrmAcOwZ7ZFdkHM0p+i5I7vUoJlT8AX6Qah8GZogq6RfLeyFPxCH4AGXHGjj6NYd87qylrAsp3iWSbKxxe2pFjP2lcxzKlX2dWNwB7fdeT+1DI8DNqVoZrd+R9mq9WCxHijsr5H39I9HiN8BQ3vEHsOrb++A7q2jHZFkn6pw8CLdnNXQy26/T+r1EfUviSOLDOSJDHLr1FJcD/vR0NN727t7Sp9ubz0N8ds+DCC7L4Z09PVVG93bGoSh+msz9Tb/M37uthbGwa49Vqd4EsKy0LFzXkvTOcW8vSqbJpgYMoVGCBrUvM42R4Yy+5nEYM58nAoMJA7BLiBYRAxIHD+nO0hkN7USSh1nx1Mo9ZjGch/HNAakW6+pnBkQA/ZHr1gpXw4sGE5iHrqjK6npabqbzxey4mW9pgxaH+2E+44Tma2qDaUQ4TahaAXPb+pAmtCzRfJNw42qJjqYD/srnjsXnrriIWuzkq2rlZnasqnL7Kia7Wdi8VXINqCFF4j3GE+5+UkQEeTAJvUCzeos779r9O+pUi+ufE+dV0pCMhlwZ71GEy2HzTnWOnr68Ofs3elf8uIDGoSvGkbnE7AilwAczzBPa5UUBQSmbA0J3ORm8JjrY7qUc5Tl3T7F+bOybkPrT6cvllW++u7yKeTmOILqL9RLZgg73q6ucrTcvtLamQYvzwhuS3TJg/uVjwir78vcN+GiWJ8zIBHmUye1STyOT2T2Lggut9acG/j+/GiQCU+RWBMRtMSOufz2M01huSHRgSHzm8fXAhM7F1K/B57SmaS3nrL1mSN0IA+kSriPfNCtOvuUgRhB4yAQexy2cDGX+6zKeYYfF7DthAp64mNC5x9ziOO4YgLi7+H7xP2NXSVeUBwAA"
+        },
+        {
+          "path": "var/evid08-final-black.txt",
+          "bytes": 70,
+          "sha256": "90afbae9f65b3b1f75455b4bfd9ff640958e637fb12d60e8cdb00f4d4515cdd2",
+          "encoding": "gzip+base64",
+          "content": "H4sIAAAAAAAC/3PMyVFIyc9LVVSIKTUyN7JQiAk1MDAwTDM2N4CK8HKZKKRl5qQWK5Tnl+akKCSlKuSkppUolOYlZyTmpaem6PFyAQA8P5k7RgAAAA=="
+        },
+        {
+          "path": "var/evid08-final-ruff.txt",
+          "bytes": 20,
+          "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+          "encoding": "gzip+base64",
+          "content": "H4sIAAAAAAAC/3PMyVFIzkhNzi5WKEgsLk5NUeTlAgAD5AxjFAAAAA=="
+        },
+        {
+          "path": "var/evid08-final-architecture.json",
+          "bytes": 21065,
+          "sha256": "b627175f3048383a41c02354d4f2f25da5049a1548ae2b02b45428d76cbabedc",
+          "encoding": "gzip+base64",
+          "content": "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"
+        },
+        {
+          "path": "var/evid08-final-nonpg-composition.xml",
+          "bytes": 2073,
+          "sha256": "aad4fc71f4e310ca0861f015362255af9181279d22cfbdf2c2034171a8b8da62",
+          "encoding": "gzip+base64",
+          "content": "H4sIAAAAAAAC/9WVwW7bMAyGX8XwdUhqN22aFk37ErsNA8HITK1GET1RcuK3H+Vki4fdm/YkiiKpT/Qv6/n1uHdFT0Es+3VZz6uyIG+4sf5tXaa4na3K15fnSBIlWR0Kj3tal92QXcXoLyfr/yxrqRA4yLrUqlu0LgU6TWRnu46a0R5zdets2pxczR/uH04Tibjv1uVtdbucVY+zevG9eny6Wz3Vq/nqoV5Uy2/V6qnSzJYlnrY+WF9XbT+rz1gGhQrjUOS0Pm43N7zv2JOPczSGk47ZD3zwFCCSRx8BU2w52DhAv4AxQWzUNpXFpRI4uyUzGEfQo7MN5gAwaFqCQElIgI5oIjSkTSVg7wawXmy2Owpj/A8rkujn5fz1YlkWN1+HX5IxJMJhcoaquv1SZwjU844+3QGsgPoxUAO4jVr3fI8+G2fD2mbPEUxgUeYW/Zsydzg4xkaugrtJ1jWas7G+kRwoFHprCKjXb+/V2KJBVQH6BoRTUBFDZBWIupzF61CfmTgoulLf51jHZgexJQ+qYw6Q+ABbHUn/3MNFxFPe+qN4Dza2YFIIWkvvm4rB7GSSmi1dsuYkl0uvoQv8TuZq4OdGB3ZOYIPaYU75hhn2kY5xJA2UCbOyPWiR+KYv2C/3vzpWHwU98f9pY4uZD/o7vYR7tB7aGDvI6jiSSWPkRrdsMAxT5MWIfPP36Z7a8vIbipfb/xkIAAA="
+        },
+        {
+          "path": "var/evid08-final-ci-head.json",
+          "bytes": 9242,
+          "sha256": "8401ce72e6b1d2dc632dc2f2258cd55a2669a0fdbf3dfd05fdba548ed8e65a1b",
+          "encoding": "gzip+base64",
+          "content": "H4sIAAAAAAAC/82ZXU/bMBiF7/crrF6BtFJ/xk7uWMumSQMqynbBNE1u4rQZadI5zlCF+O9zWjYCYysjlY1U9SKJ7PjRec977Fz35komZyo9zZJe1OMJRkRMeZIKmYacySAkaYAJSdM0mUKu4oTxFKve615lpKmr4VzFl2dlntfLXvT5uvf1q1ktVSEXyo62uVkX9um4XCxzZVRyaOwNDHHQh2EfkXOIIiIiFlysHyrivK6ysrDPTD4Oh0eTib2cKCOzvPqoc3t5bsyyigaDWWbm9fTAjjuY1dkqK2QxkLNyca5losa6HMjY2IGqga7tH6GcIIhCEsLBt3I6QJAEjAQhQ5jYGW7fN5crpfuzWuoE7JEDhPY369R/fW+IL36jaBZ8ejz+cHR+NLIXr0p9mebl1clm7EMdzzOjYlNrBT40E4F3zUS9m9fPpBZGCDqhJjDC96hhzFEnasgbNQojhNxojeIHWiO0Re2k7CfSyKmsFDgfjUBV23XuTm7D9+CtrAx4q1QylfFlF5kx7kZmiJH7MoNCdAUGnQOzCmOuFAbxAzcj4R2wuHnfHSrKTp9VRhXxCqxRPJ9Qoyo3koL8fg1aL8P/Swi6J2SLDjNXHRE90FDI7wi9kUWSGTAsEwUmsSx2J6eJimudmdVm2C5NMHAkpYA8lBLsAAq6B8V8ZSwe/j0tkO1pgXjNWNRTxiKMdaIG/VET1uI9aQ3TlntVRtfrZfVlbauzr9Wy1OYlZ3phf770RoPO5LxqDgtPuZ7iluZGqlkWMMpmySoul1sj6saW3WZ64WoT9GemR5x2gOUhzzdZLPCU53E7zx8Px2BW/lDaDhYrsG4G1UvM9w0x7inf84B1JeYj79uOKTzlfdLeEY2UffVkvaJPdV4oLadZ/jt8bnMy1+Hfdktv4Z/QHVFzvROgNIKBj07JGcRh67T1fRFrtVCFkTn4Xss1sJm0vWAbMUrcH+pYaF5OwThiot0xnw2NQC8xg3pyNcxamcwWjlamWtcN2LMz5EpeVvsv7jDDWRd4xM8o7c7LtZMFEeWenIygVjJbl0t6Wy5gb7wy87IAT/oUQrgPL3N1ZvaIl5GdYEPCi5sFvtyMtrAVywVoJY7DZoP+Aq0MEV9WBrvCcu1jPILCl49R8YSC3H7cSKEPH2PQl49RvBNsG0dxfZ5BkA8fE7Y6CbyXMu6KB0zqxULq1b+B/TpYcPrdBGMfRiYIE4HoSAuFz6T15ebVT7A6kFMaJAAA"
+        },
+        {
+          "path": "var/evid08-final-required-checks.txt",
+          "bytes": 2309,
+          "sha256": "6004409237bbcc187e6a036c09717a9a7ae495b352955ca2691740fcfdb62fdd",
+          "encoding": "gzip+base64",
+          "content": "H4sIAAAAAAAC/72VzW7jIBSF185TsEwXU3O5YOzu+qORZlEpUkfdE8w4bgxODa7ktx+aSSunUX8ku7NhyaePc8/lSrmyDuS6LQ2508olO+V9AhYyn2xC2PmLNK3qsOnX57q1adXXQ+2US1XV2t+dKs2qa1OlQ906n3Z9PJBLBAo5zTB9aNcpUMwEZgXkjCaLq3d4DCfyCizgiCegkMnixuyMK43TA7nvG2c6ta6bOgwjOH6DKvL/gz61RsaSxU/lA/ljTLlWekuWqyFsWkfwHODsH1hYkU+1BjG2liByiV9A5xboVGvO6BgtKEKRLH453RlrXFANeezV/q0rFYx/cUb5Dc78C+Dp031izIr42LfXK1K1T6aLl2hDql51pX+t1GRbKunxXMtMfAblk00pO55ohjHbOxOfOPh9d8gy3twYtfWHkeL5/A3m/BMosNm7y0TcWHpj9PawHiwWs2eYPy+IEYRZXsyeGTxn1qjBdD/280GWow0AdrIVg2MgYxLeBwo+PSr6RpDhKQ9fBYHPbohCfEhk8zvKGKLbWTL6yS77+H0fmDh/6yh+SOTzV45H4l+WJuvyBQkAAA=="
+        }
+      ],
+      "generator_check": "required, non-empty, exact bytes sealed; semantic pass status remains in the supplied transcript"
+    },
+    "governance": {
+      "label": "governance",
+      "artifacts": [
+        {
+          "path": "var/evid08-final-gate-observations.json",
+          "bytes": 1940,
+          "sha256": "77e6ca9cbff8d70ec67afa031a522dfdb3276f7f1d3a39bdf1bac48777029dd5",
+          "encoding": "gzip+base64",
+          "content": "H4sIAAAAAAAC/41VTW/jNhC951fM6tQCtiPLcWyvT8UCCxRIiza7tyIQaHJos6FIlaScGIv9732U5HxgE2BPEkDOzHtv3gy/XRAVUR64EcVHKvhoVLmeJe/tNHDsbJr6XeRwFMl4F2fHeTHJEYFbH03y4VQfWKgculLVfLHerZReC71ZLcX1ZqGvq8VCa6125YqlWq50xUOCNvgjO+Ek59hb7xMFlj6oSF5T4tAYJyxlIDQAiVtKBxNJG8uEr0OIICna1AVW5IPZ9yGfbn6nmJTvEj6BRTMbKjan9oRa3/CfKXOMYFSbjH01n18tJsPBuXTNjybV0qsMsBwPgVp1MktRZxixhnDynnOOfwrRtvFSSOk7ly79g+NQp0wx1aJLB+BLp/q4QMqm1w5JZkB0N6YeZGZVA3jbpT7jl05K4PwIrmAcOwZ7ZFdkHM0p+i5I7vUoJlT8AX6Qah8GZogq6RfLeyFPxCH4AGXHGjj6NYd87qylrAsp3iWSbKxxe2pFjP2lcxzKlX2dWNwB7fdeT+1DI8DNqVoZrd+R9mq9WCxHijsr5H39I9HiN8BQ3vEHsOrb++A7q2jHZFkn6pw8CLdnNXQy26/T+r1EfUviSOLDOSJDHLr1FJcD/vR0NN727t7Sp9ubz0N8ds+DCC7L4Z09PVVG93bGoSh+msz9Tb/M37uthbGwa49Vqd4EsKy0LFzXkvTOcW8vSqbJpgYMoVGCBrUvM42R4Yy+5nEYM58nAoMJA7BLiBYRAxIHD+nO0hkN7USSh1nx1Mo9ZjGch/HNAakW6+pnBkQA/ZHr1gpXw4sGE5iHrqjK6npabqbzxey4mW9pgxaH+2E+44Tma2qDaUQ4TahaAXPb+pAmtCzRfJNw42qJjqYD/srnjsXnrriIWuzkq2rlZnasqnL7Kia7Wdi8VXINqCFF4j3GE+5+UkQEeTAJvUCzeos779r9O+pUi+ufE+dV0pCMhlwZ71GEy2HzTnWOnr68Ofs3elf8uIDGoSvGkbnE7AilwAczzBPa5UUBQSmbA0J3ORm8JjrY7qUc5Tl3T7F+bOybkPrT6cvllW++u7yKeTmOILqL9RLZgg73q6ucrTcvtLamQYvzwhuS3TJg/uVjwir78vcN+GiWJ8zIBHmUye1STyOT2T2Lggut9acG/j+/GiQCU+RWBMRtMSOufz2M01huSHRgSHzm8fXAhM7F1K/B57SmaS3nrL1mSN0IA+kSriPfNCtOvuUgRhB4yAQexy2cDGX+6zKeYYfF7DthAp64mNC5x9ziOO4YgLi7+H7xP2NXSVeUBwAA"
+        }
+      ],
+      "generator_check": "required, non-empty, exact bytes sealed; semantic pass status remains in the supplied transcript"
+    },
+    "cleanup": {
+      "label": "cleanup",
+      "artifacts": [
+        {
+          "path": "var/evid08-final-pg-cleanup.json",
+          "bytes": 64,
+          "sha256": "035facfb573e3880234d90f3c239d71755c0b107dbb57afc6a8c678a9ab48827",
+          "encoding": "gzip+base64",
+          "content": "H4sIAAAAAAAC/6tWSkksSUxKLE5VslJQSi3LTDEwi08sLcnIL8osqYwvSS0uUdJRUCooTcrJTI4HqYsHKs9JLQYqN6jl5QIAOLlj1EAAAAA="
+        }
+      ],
+      "generator_check": "required, non-empty, exact bytes sealed; semantic pass status remains in the supplied transcript"
+    }
+  },
+  "linked_read_only_samples": [
+    {
+      "path": "docs/deployment/sprint-evid08-complete-graph-cprofile-2026-09-13-c8bb9b780.json",
+      "sha256": "dfe139ccf04d1a9da2ce4fe8c8cf52ae4d310b8e5d30193ec13a6a4a19934c4b",
+      "sidecar": "docs/deployment/sprint-evid08-complete-graph-cprofile-2026-09-13-c8bb9b780.json.sha256",
+      "scope": "read-only complete-graph sample; not lifecycle, write or production acceptance",
+      "schema_version": "evid08.complete-graph-cprofile-checkpoint.v1",
+      "exit_code": 0,
+      "exit_gate_complete": false
+    },
+    {
+      "path": "docs/deployment/sprint-evid08-complete-graph-decode-work-2026-09-13-c8bb9b780.json",
+      "sha256": "ed40520ca3787045b383c775868d454374eddb533e7317391febb882f93018b1",
+      "sidecar": "docs/deployment/sprint-evid08-complete-graph-decode-work-2026-09-13-c8bb9b780.json.sha256",
+      "scope": "read-only complete-graph sample; not lifecycle, write or production acceptance",
+      "schema_version": "evid08.complete-graph-original-invocation-checkpoint.v1",
+      "exit_code": 0,
+      "exit_gate_complete": false
+    }
+  ],
+  "raw_xml_artifacts": [
+    {
+      "path": "var/evid08-postgres-regression-20260913.xml",
+      "bytes": 26674,
+      "sha256": "68a5855ac7ee9d0d54cac72f89b28882ad0ea0fb38b1869c4480376b35352bc9",
+      "encoding": "gzip+base64",
+      "content": "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"
+    },
+    {
+      "path": "var/evid08-postgres-corrected-regression-20260913.xml",
+      "bytes": 6332,
+      "sha256": "04b976834dc97f7ed4ba4802dd29062620f937bac25ae63cffe42dbee9e7b98b",
+      "encoding": "gzip+base64",
+      "content": "H4sIAAAAAAAC/+1YW2/bNhR+D5D/wHlA02KOKydNmqZJuwINigEb2i1BX5aBoCnKZi2RKkn5sl+/71CSZTvZVgRr9+IAMcnvkIfnzmNfvF4UOZsp57U1l73hIOkxZaRNtRlf9qqQHZ71Xr+6CMoHX2kMzIhCXfbKJUEs4r01+gYZrJyzzoNvj2VC55VTWOAKP9VlqdI4j2cve8eYaTr7/GQ4OHoxrJc+iKK87B0lR6eHyYvD4fFNcnJ+dHz+7HRwdpqcJWc/JGfnCbhMrA/13XNthslkdjhs5JLCKyZz4X1Nj/cNpC1Ka5QJAyGlrTASzu3cKMeDMsIELqowsU6HJZ8dc6dK63WwbtljHSMuK+fAhXtbOal4buWUj+jTc7pCBRiSe11UuQgq5b6SUnlvXavt0Sls/vyox55+E2lz6yHF3Lo8xZ5PSgbfycRLp1LVzH018kGHKiAwWmGfnb0YnJwl/7Ww8QCkjTetSWvLwLXhoIUxIodnQopUce19hZVTIvVcGFJkZqfKt1ImgyQ5gvNj8DHEkBdjwBSAKmXWMK9CVbK5DhP26HNlw8sMFPb2/HYMaHYrxra4cbjpg7O3UaXblUq3jUq3X67SoFz2Wa6NYqcnp4++HyYvGfuxTpBBIdx0QMmgs8cNif6sHygz0w6Hxyo8roV88+79L/zq409vk1P+4f31zbvfrq75zdX1TU1+wr67bNQZ1kN/jSOM5ZHgNQF2PdSGpdpDRjGC7h9qE1//+jN706rBPh6zNTVinm4yftKMqcrYQxxWq3xVS8gyvQgoEOygtqrItfAHzNjAMlg8jXsfjUOjEBMz+DMK3xz054wLFzQuDXSZtC5Vrs94DFDupUXF4a4yJqLpJ/KYlbkSjhfgNbKLCAsztryGobniUsiJ6ijpiE9UXjY8WogcuQ4hxHjlcmlNtgFWJa+MDmQt4BSSPEOyaTODvilCqSipUPCZcJqUo02VkeSAOxrkeqbA06F6dyIVNq1ydWdvKeQUWXAXh7vE1E+EI1aiaM57PlKQS+FckBOUMNo6XzNvZvPauLA7VE1FEFwiPxQVETvTIII01j44RD9Ye3pgoHBtpXa9Lc5Kf5yjwqmzlWlWFoa6OluSdfsMspARULR05AdGVANASAtoJnMNmdpV5em8yMuJqJ0axQZiltryESykTLq15FSOtjGEOS7zgP3SyO6WuHJwOJUCQFrGmt/SR6iWtdgjZ+dRmGbC5UTAAvkaYGHLBYqKG/sOrYVpV2FZbq14LhAsk+ZUE7hSlFnaDCNtBDkEi9yO4+iXvh3XqEGpmhBzp8B7RuK2mkA6g6ejM0QjLk1mfZaO8K9yBT/aKpQV4kM7gmZaQqAmG8BYuQC/LripCv65gl+V3ybfRyL5kPAcDkeBKjTeNZHn5J1uD3IyPsMkdgdJ1CC4ZLSOTZUqNxHkAEUYZohtesD9P1ORJQ4CqByPZoZq9C+7g1182cYFKnS4Z2udc17BLkaqDeFgM410+ZOSytY22SSjAq0DyAle6LETjSMbCtVDnhpfB9w6GAsCkVZwrPzNc1XE8GgIlG+kFsX1GkQ8eaZVjqBMrYzHCfOoUbhMzaidyq0t8Y7kWi4J0ikevfgi1CvSm89OWqgpK5lTigdJB13YWtJbRO1QA1fpxq522e3S6N8mzha6KuIi0w4VcRHnczWaahxtsm2VzWsFuc/IWoj++Kq0+dMU525ppmoZLdpnRs35Ko0MgtxGNk0CYRP2tFW8ZVBigc9cLOdOjyc4WPcV9OxopPfnXI9aD9QPIlVnPBRhuQJWrftdEr4acBFQiUdVUBGdC2cwQYnz6MvzWEHValEI6WxTVNsK34raZRIay3hnv+4Z6qpMUxRvXmlERSjKRuF21vkFSCwm9biGO2G8iA+lQOginytTUa/bxcMW0J1tCF1MbAHdTjTO0IbrO90I9rOD5kvR4WHbkbDfCSAF/jhAF+MYPdPUgeJ5KAY1D/r4iq3nOTWdsWvrvfp2be7+3v09LuH3NLi9v+1te7GtxffHfnu06WR7D29ia15P6OPBnev+3he2rft7u55117PuetZdz7rrWXc9665n3fWs/1vPutGKPKRh3d/b3/vKrerF0/ir7auLp+3vy800unt97l/9BXYT/f+8GAAA"
+    },
+    {
+      "path": "var/evid08-postgres-facade-corrected-20260913.xml",
+      "bytes": 6379,
+      "sha256": "f66cf384516354173bf5e405534c3b8831906d35e38a0e342137740167c9b415",
+      "encoding": "gzip+base64",
+      "content": "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"
+    },
+    {
+      "path": "var/evid08-postgres-full-current-clock-20260913.xml",
+      "bytes": 867,
+      "sha256": "775b3e8e60a62820ef1886070d74591ba08b39c9804bec6821a662f0b494dc46",
+      "encoding": "gzip+base64",
+      "content": "H4sIAAAAAAAC/7VTTW/bMAy9F+h/EHTJYYgqJ3HSGnGKHHLeZdgpmMDISqw2lgxRdpt/P/ojbXoYMAwYLyL5TOo90lo/v1dn1pqA1rucJ0JyZpz2hXWnnDfxOH3kz5t1NBixsXQwB5XJeX3pUqzP8xv8C0ytQvABc05dj2DPTTAUJJzhq61rU/RAX9tno+1qZ4uVmKWrIcQIVU05OVtO5dM0mf+QyyxdZKkUKzlfpE/f5GMmqUvpMQ53v1mXyLKdJiMvDWiYPgPigPf3Ce2r2jvjogCtfUNnl1f+zZmgonHgooImlj7YeFHtXPUFaCPNibPPTsrXUVmnCIsnkqeOoKEwyiI2FAUDBSpwBXmtfzX4qXIp5FISx3EwjMQinAjaxhjsoYlm100vY5PtwPB7x22LaE+uIuK71ha0KvMznTB/eDE6shJoP57BtQGbBOMPaEILHe8J3/Ti9x/i96P4/d+LF/UlW9EGmHXsXwZwf8fI6vKCVsOZ5Qw+FIkvbIVuQqCsun47VN7Yrz/Y/d2O0P83xvXDuLPN+uH6h41u/whufdz8BoVCEiRjAwAA"
+    },
+    {
+      "path": "var/evid08-postgres-full-current-fixture-20260913.xml",
+      "bytes": 1569,
+      "sha256": "f42173210c7e1a67da8a3c761bd30b5b1c9db377dde6174e5bfdfb518890034e",
+      "encoding": "gzip+base64",
+      "content": "H4sIAAAAAAAC/61UTW/iMBC9I/EfrBwqqoU0IXymBNQD593DqidUy+sM4CWxI9tJy7/fSeLysSdE64s9M/abeS+ZWaw+8oxUoI1QMvFCP/AISK5SIXeJV9rtYOatlgsLxppS4EYkyyHximPtIo3fu4hfhRFKa6VN4iHqloms1IBG6BFzEEUBaRNo3jZeK+q3w+nQnw+daSzLC/QFw8kgmA/C6HcwiaNpHEZ+MA9Go/BHMIsDRNkrY9vc70KGwb4ahK4uzgwQnjFj2niTz+cqL5QEaX3GuSpxr/1UvUvQ1IJk0lJW2r3Swh5pFdHmgREWdfLIGYmqwlIhKcbsDunRLeMsBSqMKdHSwFJDmUzxVKkDmDPL0J8EU6zRCUOQrGE7DL2yrIR1rVxMWFFoVTH8RCwTKZZC4IMDpOYcOVV5uuMtG46bE8eN47i5naNfHOPpKIqJkOQent0OwVXUP5axkJKEuLwGq++1RyyXmT7JlTzAsWCW7/uEcavwkio1h+TSeGwRL9fbF1e3c6dOGhqZlD7WMs2DRqULfo4804hZM284O7Y3E/weEs5wxWETiJ3M8RaFSqTY6UCr8X98hsNZS+hMRYMttSS/Pj/nS4v6swZ9OWGuHeTruHeC75nyz1/g9rFPzhr2HONrym/fvbqdh8w+G6txmD3s7HM8bnnhfywspW3y1WrV7WAzmZNuaGSCs7oLNrfIV2sWRpHDrhvkKoFmAgfQual73n1NjWKtEe7L02Hx5CbOcvH0OR/dsRnhl2ez/AfTt19EIQYAAA=="
+    },
+    {
+      "path": "var/evid08-postgres-full-current-window-20260913.xml",
+      "bytes": 1526,
+      "sha256": "1176510be8fcbc2dcb0f98aa6f1b545e621031515be3f18a9d9e47524fdb642d",
+      "encoding": "gzip+base64",
+      "content": "H4sIAAAAAAAC/81UPW/bMBDdA/g/EJoc1FYkK7IdwXIQFJm7FJmMEgR1sglLpEpSSv3ve6RkWy06GGmHciHvg3fvHu+4ef5RV6QDbYSSeRCHUUBAclUIuc+D1pbzdfC83Vgw1rQCNyJZDXnQnJyKeH0wsv9ixlBaK23yAKOWTFStBhTigJijaBoovMHf9Vor3N1FvA6XcdqLxrK6QV20WM6jp3mcfI2W2WOSoU+cROt08SlaZxFGOShj+9zvQsbRoZvHAy7ODBBeMWN6u88XclU3SoK0IeNctbg7PVXvEjS1IJm0lLX2oLSwJ9ol1F8wwiJPAblGoqqxVEiKNrvH8mjJOCuACmNalDSwwlAmCzx16gjmWuUqTFYRYhyIIVisYXs0saYxF1QoVIIzl/asG0BiQWIvayyBQicKfDWgXRq+9E5fnM/LxeV18HhLPyut28bFy8g1BGlcCxjrfJAsxY+kEGWJymDrCdtdCNsNMHa3ExY2p2z1uMyIkOQjpE3uCK4zxILkZMhrAIrpQEclmJmRWskjnBpm+WFGGLcKnVSrOeRj4b6POF7f/nJN7j7IkwZPk9InR9NT4lka1ddDvT6VcT0Bjhyl7HRy59rlkkvIUjNjdcst9tTulo75DcAijTyCUZIegYGqDNH5eys00MHsW2WqgStdQEGZnZFz6HCkvf/nMJMo7Yn6E6AesGYCJ//2eZgGN80D1vLqHuS/mtLNw/CNbDcP509vOPp/eXw2259Elsjw9gUAAA=="
+    },
+    {
+      "path": "var/evid08-postgres-full-current-physical-20260913.xml",
+      "bytes": 415,
+      "sha256": "04082e1674c9695bb5fddba5825b731fbcd71adfba5a853ec88cb5deea3fea88",
+      "encoding": "gzip+base64",
+      "content": "H4sIAAAAAAAC/1VQ0W6DMAz8lSivEzSBAqUq7U/sPYqCKVFLgmJD179fgGljTz7fyXe2L7ev4clmCGi9a7hMBWfgjG+tuzd8oi458dv1QoCEk42FOT1Aw8f3QrGV5zv9nxytQvABGx5dO22fU4CtwYcdR2hXvM7G6IjsMisrWabiWG09kh7GhmciKxNRJzL/FPU5L89FneZFJbPyQ5zOItr0HmkLf1knRT8n8mcxoxGYeWrETV8DU+OH0TtwlGpj/BTrwiv/chAUgdOOlJ6o98HSW825WgfQUnwUZ39Oyo+krFNRo3u8T3Xa6BaURZxiF0C3qLRrI5r9A3B3ZpFm8sjZ4Xo5/D5wj/H6DWEYCdyfAQAA"
+    }
+  ],
+  "generator": {
+    "path": "var/record_evid08_lifecycle_checkpoint.py",
+    "sha256": "1afa0a8d50185a906c62066ac610940f0e39576fe518c3af69b7a1b03ad61655",
+    "writes_only_after_all_inputs_pass": true
+  },
+  "limits": [
+    "The original nine-test 6-pass/3-fail result and corrected 2-pass/1-setup-error result are retained as separate historical batches; they are not combined into a nine-green claim.",
+    "The final physical XML is the only lifecycle pass gate. No production deployment, durable new write, write-path performance, concurrency acceptance or VPS acceptance is claimed.",
+    "The two linked complete-graph checkpoints are read-only prerequisite samples with their own sealed raw artifacts; they do not prove this lifecycle test.",
+    "Supporting static, governance and cleanup artifacts are preserved exactly; their semantic result remains the result printed by each supplied original transcript.",
+    "This checkpoint does not close EVID-01, EVID-02, DATA-02 or the repository EVID-08 exit gate."
+  ]
+}

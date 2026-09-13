@@ -93,6 +93,19 @@ Python/JSON 调用或所有未装饰 validator 的总量，也不是新写入/�
 逐份核验 9 份实际 raw/instrument artifacts；它与 cProfile 的不同 cutoff/开销不合成单一样本。
 代表性完整图测量前置已形成，真实生命周期仍待通过；EVID-08 保持 active。
 
+随后真实 Facade 生命周期完整结束：`1 passed / 1,716.17s`，进程 exit=0，隔离库清理后公共表=0。
+真实 raw roots/Capture、live SourceV2、current Evidence 与 issue/current/with_current/revoke/exact
+均执行通过。[生命周期检查点](../testing/evid08-authority-validation-lifecycle-2026-09-13.json)
+封存 7 份独立批次 XML 和实际静态/治理/清理材料，共 16 份嵌入证据逐字节核验；原始
+`6 passed/3 failed`、修正 `2 passed/1 setup error` 和单项失败仍分别保留，不拼成一批九绿。
+[仓库退出证据](../testing/evid08-authority-validation-repository-closure-2026-09-13.json)绑定
+代码 head `7d2138b7df8af975a693f6233fffdb07ecd57f2e`、生产 Git blob SHA、两份已封存完整图样本及
+最新 10 项非 PG composition、增量 mypy/debt=0、四个 fixture/support 格式检查、单行架构/audit=0、
+全治理=0 和该 head 全部 CI success。`EVID-08=completed`，registry v92 释放 repository focus。
+此处仅完成仓库退出门；优化尚未部署，生产写入/并发性能和 DATA-02/EVID-01/02 不晋级。
+后续按已有 VPS 授权进行标准备份、code-only 部署及真实 admin Facade 事务复测，显式回滚测试写入，
+核对 Owner V3 headers/payloads 与原 current 恢复；序列号前进不伪装成全库无变化。
+
 同候选的[DATA-02 分数据集诊断](../deployment/sprint-data02-dataset-gap-checkpoint-2026-09-13-c8bb9b780.json)
 保留只读事务、严格预览失败和 200 资产来源预检的原始响应/脚本及 SHA：completed-session price
 合格为 `1/5,533`，最新 valuation `5,533/5,533` 均缺 observed_at；financial 候选已有全资产覆盖，
