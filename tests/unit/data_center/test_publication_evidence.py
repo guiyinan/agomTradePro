@@ -69,6 +69,42 @@ def test_versioned_policy_requires_typed_evidence_and_normalized_hash() -> None:
         )
 
 
+def test_source_published_at_after_available_at_is_rejected() -> None:
+    """A source cannot be published after the system says it was available."""
+
+    with pytest.raises(ValueError, match="source_published_at is after available_at"):
+        validate_publication_evidence(
+            _policy(),
+            [_reference(source_published_at=AVAILABLE + timedelta(seconds=1))],
+            published_at=NOW,
+        )
+
+
+def test_source_published_at_equal_to_available_at_is_valid() -> None:
+    """The source and availability timestamps may share the same instant."""
+
+    validate_publication_evidence(
+        _policy(),
+        [_reference(source_published_at=AVAILABLE)],
+        published_at=NOW,
+    )
+
+
+def test_missing_chronology_fields_preserves_policy2_and_legacy_compatibility() -> None:
+    """The ordering rule applies only when both optional timestamps exist."""
+
+    validate_publication_evidence(
+        _policy(),
+        [_reference(source_published_at=None)],
+        published_at=NOW,
+    )
+    validate_publication_evidence(
+        _policy(version="legacy", evidence=("source", "published_at")),
+        [_reference(available_at=None)],
+        published_at=NOW,
+    )
+
+
 @pytest.mark.parametrize(
     ("field", "value", "message"),
     [

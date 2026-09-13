@@ -126,7 +126,7 @@ def _validate_timestamps(
     published_at: datetime,
     knowledge_cutoff: datetime | None,
 ) -> None:
-    """Validate chronology without imposing a global observed/available order."""
+    """Validate publication chronology and source availability ordering."""
 
     for field_name, value in (
         ("observed_at", view.observed_at),
@@ -140,6 +140,12 @@ def _validate_timestamps(
                 raise ValueError(f"publication evidence {field_name} is after publication")
             if knowledge_cutoff is not None and value > knowledge_cutoff:
                 raise ValueError(f"publication evidence {field_name} exceeds knowledge cutoff")
+    if (
+        view.source_published_at is not None
+        and view.available_at is not None
+        and view.source_published_at > view.available_at
+    ):
+        raise ValueError("publication evidence source_published_at is after available_at")
     if view.observed_at is not None and view.fetched_at is not None:
         if view.observed_at > view.fetched_at:
             raise ValueError("publication evidence observed_at is after fetched_at")
