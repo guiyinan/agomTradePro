@@ -1,0 +1,117 @@
+{
+  "schema": "data02.financial-carrier-review-and-merge.v1",
+  "recorded_at": "2026-09-13T21:19:50.547720+00:00",
+  "status": "candidate_merged_not_deployed",
+  "pull_request": "https://github.com/guiyinan/agomTradePro/pull/42",
+  "reviewed_head": "242df9aada34fe3c0e57e1506cf4d38a140b186b",
+  "actual_merge_commit": "9390637ca72ef221b76179e62faaac8d2b552d7c",
+  "actual_merged_at": "2026-09-13T21:16:11Z",
+  "checks": {
+    "total": 30,
+    "completed_success": 30
+  },
+  "candidate_validation_path": "docs/testing/data02-financial-source-carrier-validation-2026-09-14.json",
+  "candidate_validation_sha256": "89596b963bbe5ae549584a16dc3f20f26efc0b1e8bb8fae4b89588b9fb3365e1",
+  "original_count": 14,
+  "originals": [
+    {
+      "workspace_relative_path": "var/data02-actual-pr42-20260913T211602927714Z/local-head-stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exact_original_gzip_base64": "H4sIAAAAAAAC/wMAAAAAAAAAAAA="
+    },
+    {
+      "workspace_relative_path": "var/data02-actual-pr42-20260913T211602927714Z/local-head-stdout.bin",
+      "bytes": 41,
+      "sha256": "1842f7686af438ba26c7e10206070a93aa2408c2ed21b1f98cf077a21a6ad15b",
+      "exact_original_gzip_base64": "H4sIAAAAAAAC/wXBNwEAIAwAsB813RQ5nf4lkJBQ74voYNnhgtE7qGC10uyBAolueT4qMCMOKQAAAA=="
+    },
+    {
+      "workspace_relative_path": "var/data02-actual-pr42-20260913T211602927714Z/local-status-stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exact_original_gzip_base64": "H4sIAAAAAAAC/wMAAAAAAAAAAAA="
+    },
+    {
+      "workspace_relative_path": "var/data02-actual-pr42-20260913T211602927714Z/local-status-stdout.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exact_original_gzip_base64": "H4sIAAAAAAAC/wMAAAAAAAAAAAA="
+    },
+    {
+      "workspace_relative_path": "var/data02-actual-pr42-20260913T211602927714Z/merge-stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exact_original_gzip_base64": "H4sIAAAAAAAC/wMAAAAAAAAAAAA="
+    },
+    {
+      "workspace_relative_path": "var/data02-actual-pr42-20260913T211602927714Z/merge-stdout.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exact_original_gzip_base64": "H4sIAAAAAAAC/wMAAAAAAAAAAAA="
+    },
+    {
+      "workspace_relative_path": "var/data02-actual-pr42-20260913T211602927714Z/pr-after-stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exact_original_gzip_base64": "H4sIAAAAAAAC/wMAAAAAAAAAAAA="
+    },
+    {
+      "workspace_relative_path": "var/data02-actual-pr42-20260913T211602927714Z/pr-after-stdout.bin",
+      "bytes": 186,
+      "sha256": "d5c57c1769688e64efc8c0a8a846f6d380a09f4c641143fd365a356a927e0133",
+      "exact_original_gzip_base64": "H4sIAAAAAAAC/y2NuQoCMRBAez9jahcyk2uTTlSsRBAru0ky0S2ioLES/90D+3c84Sxc9lJ3U4EIZKjUwFxYmyo6K7Fe0CqXqyl6ZDQq4egSzKHJ7STLa2tTh/iE688POiinfWZPUokweYc+iKPKzHkslKyl4jO8/oGy6N+tIjeoMKA+EEZ0EfH4WVweLckNoqE53Dt3+aDb9X6zXsFr9gZY1RMuugAAAA=="
+    },
+    {
+      "workspace_relative_path": "var/data02-actual-pr42-20260913T211602927714Z/pr-before-stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exact_original_gzip_base64": "H4sIAAAAAAAC/wMAAAAAAAAAAAA="
+    },
+    {
+      "workspace_relative_path": "var/data02-actual-pr42-20260913T211602927714Z/pr-before-stdout.bin",
+      "bytes": 9305,
+      "sha256": "7c721c82e445c8df023666b8634d111d7b287bcc3d79a66afea089ec216fd35c",
+      "exact_original_gzip_base64": "H4sIAAAAAAAC/82ZXY/aOBSG7/dXWLmaSkPxtxPfTWFaVWpnUJnuRVeryiQG0gkJ6zitUNX/vg7MljCrdihJY26QcIJ9/HDOe944X4OZKvU7Pb9RKx3IYKXSPLgMllolbvA2TdwYpjiZR0olitC5JjHUTGjEII/nNCGhQhTOUMhn7ndpOTZqbgNpTaUvg7xazbQJJMWXQWmVrVe4nVzfBLuvVTla6vj+XZFl1TqQf30NPn60m7XOd7HsLlZ1PHGxWmfa6uTK1gFBzAcwGiByh5GETDL6YXtTHmdVmRa5u2f6fjS6nk7dcKKtSrPyvcnc8NLadSmHw0Vql9XsuZt3uKjSTZqrfKgWxerOqERPTDFUsXUTlUNTuQ9CRYgFomGIh5+K2RBBIiLMMIWcuxUe4s3URpvBolImARfkOULPdvs0P4ibSgY/fEdRb/j27eTN9d312A1+Kcz9PCu+PPwvVyZeplbHtjIavKkXAq/qhYJvlydTo7gXagRR0aSGwhC1okZDf9SERKyfXIswOsw1Tsme2k0xSJRVdfGCu/EYlJXb58/BMQn5seBGr8FLVVrwUutkpuL704FxycKe0oyzgzSLII1aAXOZJvoHJvoCRkN+qGYkZGgPLK7j7U7ARm75tLQ6jzdgi+J0QqEkfaUUih4pF+a/SOh4seqQEJcI9tURo0OVQk2VeqHyJLVgVCQaTGOVd5dOUx1XJrWb3bRtQNG+1Ik+UicSnQ7q+KzqDBQUfjwWiQj6sVsgZ+2xHDVfHksQ0Yba8Z3vdzhTgn35eQr31Er3ELPd1kBVrjoHRq8LY5/MN+yTHBa+PH1I2pLzm3PefD1jDXJjXW8LWO28ZBkX66c9PenforpVkSdPjyA+GZYfP88l9uXnI9GwGG9HE7AoPmvjJos12DaD8iz9Pe+rFv/v791wS2K/kGLdEWP95dhjvw8j1CxIF3qy3dGfVZZro2Zp9t18npv5d9Qib+a/K2rH51s31NB/Laf3ThkKhhvu7HUeG73SuVUZ+KdSW2AL5XrBUx0T9d8EEJSUe+mYjHCMOoAGhRebIXydYvBGprnCMdqW27oBF26FTKv78tkZ6hlkfvQsjCLcmlffZxoIS8J8KRmhe17bcpk/lAu4mGzsssjBEa9C3IMy9KFlSPjSsuaJfgtsMPSiZtSXmrHGqXW+XoGG47iqH9DPUcq4N2sWtoPVuyMjknnTsYgdUZDkLHUMSwh96ZgQnWCDkY/zjL5Oyg51TGAI0aEr2xcPmFarlTKbnwNzoePe35tg4kPIBIE8bE3rVCX7+9sf/wLIxwp8WSQAAA=="
+    },
+    {
+      "workspace_relative_path": "var/data02-actual-pr42-20260913T211602927714Z/ready-stderr.bin",
+      "bytes": 74,
+      "sha256": "31e58a9559a1c3caed5c94b67dddce435c20bdc5fa06d27771cb7cf6b8349ede",
+      "exact_original_gzip_base64": "H4sIAAAAAAAC/3s0Z7JCQGlOjkJRamFpanGJQnppZmVmXmKefmJ6fm5IUWJKakBRvrKJkUJmsUJuYlF2aopCYrGCUlFqYkqlQlp+EVBjWWZquRIXAFalgn5KAAAA"
+    },
+    {
+      "workspace_relative_path": "var/data02-actual-pr42-20260913T211602927714Z/ready-stdout.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exact_original_gzip_base64": "H4sIAAAAAAAC/wMAAAAAAAAAAAA="
+    },
+    {
+      "workspace_relative_path": "var/data02-actual-pr42-20260913T211602927714Z/receipt.json",
+      "bytes": 2736,
+      "sha256": "e741e56784d78b234737e6215fcc597fa7f7d1e5c5549ef13319e13664d15b23",
+      "exact_original_gzip_base64": "H4sIAAAAAAAC/+VWS4/bNhC+768wfI0d8P3YW5AE6Ckpgp5SFMJwOFyrlSWDktIsgvz3UJKTtfPYpDWCLdCLQA75jTjfR87Mu6vVat0PkAeKFQzr69VaMGG2zG+5/E3wa26umXjshfWOP2LsmrH1ZsLQ2wPhBNoRxBmmREweIIJUiSQy0pa4ZgaTitIBVyxwZ8ICx26/hzb2Bfl7ma9W7+ZvWWlhT5O/pkNotrP3zcc1yDfjntrhDjabb+rh054yzfRme4Dc06nxl+dPnq2P0z/uHOIwQlPR23oKnX2y90PsxqHqdyC0mU7DnRLJGmcgKekCCIMlOiaYYZaBlwBCMYeCouCBJ+8wMWtBcDAQuQ7rU9eU84lrkoGhUsK7hBy58pBCUui8Nyn4QqsFUpyUUT54qRCU197zYJ0WwWm9RPV+cx+NReFh7P8pkZ+himW7PXQZqYG6vYDMiyN+KDIPeRsodZm+z+TulLZDPp29qenv07kS5xT/2XftqaUd94Hypu6fZUjDZnoSryi9rOMmQE9l+KIcbzOJtXzH/umO8K9XXdOMhwtksmgFRydIKY0uJiakMSY4I1XknEcbhLMBUUbrwZSXQcCcJxTcpCg1PphMuTB0e5FE5x4Wjf6T911y0g681h44SgSKGr0KxsYYkVRRQbAQUSdgJgprLcdgMRUVpfIU6X4i95RvLrvr5x6+ctm/2FBMMOBuzvzbqUyc56QfLjP/z/RUEgTlh8hOS/o5yU2zsPHJsAyeLkL+e1HKvdYWuTXeOEdGUUKHDBw4ZZIpyjNgvlBpFOdKlvxjNEhtoHQuxLiUP1+Uq2Nchc8ujjjUXVtFOjTdLU0NUoKmp6X3mbJzhd3YTjHLOeg1NE017Oo83Fbzel/1IyL1fRqbsmvI4wKeea6OVagc/uWvz18sLVWcqsPdyhlinC7AR7KxNF51nNwsGi3w4+Ji+lYryPnrL3dXx1daAF56ZqRFsIKSKK2QNdx6MiIBQKkhImgtol1KwzrVbd3v7vmbeGyN9VYdG8+r91cfAM7f6mywCgAA"
+    },
+    {
+      "workspace_relative_path": "var/finalize_data02_carrier_pr.py",
+      "bytes": 4138,
+      "sha256": "a037b9c6b288917cf6d12b3f99160a1ea7ac05e19286f43d0065b62e406600bd",
+      "exact_original_gzip_base64": "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"
+    }
+  ],
+  "independent_review_reported_to_root": {
+    "source_head": "6550d4f4c56ac43dfccff46b303f2142e2d0b511",
+    "result": "bounded sequential change can merge; production code, formal test and validation seal unchanged through final reviewed head",
+    "risk": "Reversed concurrent missing-key inserts may cause a PostgreSQL unique-index deadlock; transaction fails and rolls back without automatic recovery. PG7 is sequential, not concurrency acceptance.",
+    "human_signed": false,
+    "scope": "Root summary of received independent read-only review; not a fabricated signed approval artifact"
+  },
+  "production_deployed": false,
+  "production_accepted": false,
+  "unit_exit_changed": false,
+  "limits": [
+    "Code review and exact successful checks only; no new vendor response, source scope/completion or availability proof.",
+    "No model-column change, migration, historical backfill, production write or Publication activation.",
+    "DATA-02 production and PostgreSQL concurrency exits remain open; EVID-09 lifecycle and human acceptance remain separate."
+  ]
+}
