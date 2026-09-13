@@ -17,7 +17,12 @@
 > 源码冻结的 17 项完整静态/架构/治理门禁全部通过；五份原始回归/门禁记录与
 > 16 个执行源码哈希封存于
 > [读取阶段代码验证](../testing/evid09-read-phase-code-validation-2026-09-13.json)。
-> 三次同源隔离 PostgreSQL 物理解码/CPU/SQL 测量和优化部署复测仍待完成；
+> 三次同源隔离 PostgreSQL 测量已在 `e9835fb58` 实际完成，三轮 exit 0，
+> 5893 个源文件前后及跨轮 raw/LF 哈希一致，五项 Domain header witness 完整，
+> 各轮独立 PostgreSQL 前后检查均为零表、零其他连接，协调进程已释放测量锁。
+> [三轮测量封存](../testing/evid09-three-isolated-postgres-measurements-2026-09-13.json)
+> 与 [原始工件归档](../testing/evid09-three-isolated-postgres-originals-2026-09-13.json)
+> 保留真实 probe/fixture 范围及失败 witness pilot；优化部署与真实生产生命周期仍待完成。
 > 上述 skipped 不计为 PostgreSQL 通过，EVID-09 保持 active。
 > [完整物理解码诊断封存](../testing/evid09-facade-physical-decode-diagnostic-2026-09-13.json)
 > 保留原测量failed、绿色JUnit和独立清理/release；五个后验源码canonical LF哈希
@@ -357,3 +362,48 @@ Infrastructure snapshot，严格在锁后和 mutation/callback 两侧切断缓�
 仍然恢复并校验所有 rows、原始 payload/hash、parent FK、时钟和可用性；真实生产
 write/replay、部署和 rollback lifecycle 继续沿用用户的部署与测试授权，但必须生成新 artifact，不能从本次
 只读诊断或 exit 130 推断通过。
+
+## 9. 三轮同源隔离测量（已完成，生产复测待完成）
+
+真实执行候选为 `e9835fb5814bc73f27ee559f2184ff5f407a1e3d`。三轮协调进程
+在 `2026-09-13T17:46:00Z` 返回第三轮 passed，最终 exit 0，确认三轮完成和测量锁
+释放。每轮均使用同一原始 opt-in PostgreSQL test node、新进程和空白独立夹具；
+没有改动原始合成 UTC cutoff 或一小时 fixture validity，没有连接生产。
+
+| 范围 | 第一轮 | 第二轮 | 第三轮 |
+| --- | ---: | ---: | ---: |
+| 整体 pytest wall（含夹具准备与清理，秒） | 1484.752168 | 1284.786388 | 1151.438103 |
+| 实际 runtest_call wall（秒） | 925.214121 | 732.563514 | 670.354404 |
+| 实际 runtest_call caller CPU（秒） | 11.765625 | 12.328125 | 12.125000 |
+| stdlib 物理 JSON 解码链数 | 2091 | 2091 | 2091 |
+| stdlib 物理 JSON 解码耗时（秒） | 0.262607 | 0.250752 | 0.247685 |
+| SQL execute 总数 / SELECT | 2619 / 2356 | 2619 / 2356 | 2619 / 2356 |
+| SQL client execute wall（秒） | 903.939611 | 715.294879 | 647.944078 |
+| Source V2 wrapper / original / hit | 27 / 9 / 18 | 27 / 9 / 18 | 27 / 9 / 18 |
+
+每轮 JUnit 为一个 passed、零 failure/error/skip；probe、Source V2 binding 与 Domain
+trace 均恢复。非 SELECT 的 263 次为 INSERT 21、first-token OTHER 242，OTHER 不能
+直接解释为精确 SQL 类型。`loads/decode/raw_decode` 各 2091 是同一链路，不能相加；
+decorated wrapper 与 caller CPU、SQL client wall 分别保留，后者不是数据库服务器 CPU。
+相同计数下的 wall 变化包含本地 Docker/传输等待差异，不计算配对优化比例。
+
+5893 个原始源文件快照前后及跨三轮一致，并在封存前逐个复验当前 raw/LF 字节；
+16 个代码验证绑定与原始 code seal 相符。记录的 lazy loaded-module 添加不等于源文件
+漂移，其文件已包含在原始完整源快照。原始 51 份三轮/协调/工具工件、私有 review、
+builder 后执行源、失败 pilot 及 stdlib/noflag 支撑记录共 58 份逐字节归档，不补造
+执行期间快照。此前 witness pilot 因 CPython 3.13 FrameLocalsProxy 不属于 dict，
+未采得完整见证；原 receipt 保持 failed，绿色 JUnit 不能将其升级。私有 tracer 修复
+仅复制 frame locals 并保留/恢复先前 trace，原始 RED/GREEN 控制证据另行保留。
+
+该固定 node 使用 fixture principal42，播种 actor/Evidence V5/physical parents 后只新增
+一个 Authority V3 root 并撤销；没有 issue replay 或 successor，也不是生产四个 committed
+V3 root 的等价负载。三轮结果满足同源代表性隔离测量这一项，不替代标准部署、真实
+来源有效期内的生产 lifecycle、独立 admin/ledger recovery 或签署验收。
+
+部署仍须在最终审查 head 的 CI 通过后，通过标准 code-only Upgrade 保留 Catalog、
+四个严格 Publication heads，验证新备份及兼容回滚点。新生产 case 需重新读取真实
+source/actor/policy/assignment 窗口与完整绑定，不能延长旧字段、降低门槛或用日期
+代替 UTC instant。public actor publisher 的五分钟有效期无法满足拟议三十分钟 Authority
+生命周期及五十五分钟父来源窗口；旧 sealed extended actor 只有在新鲜 live 校验、
+原 principal tuple 和真实剩余窗口全部满足时才可条件复用。旧永久 V5 mapping 的
+root-only 约束仍保留，临时新 scope 的回滚不能恢复旧映射，也不关闭 DATA-02/EVID-01/02。
