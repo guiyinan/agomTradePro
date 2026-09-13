@@ -1,7 +1,7 @@
 # Authority V3 Facade 写路径性能整改方案（EVID-09，2026-09-13）
 
 > 当前状态：DATA-16 已完成仓库退出并实际部署、激活四个严格策略头；
-> 后续有界性能工作登记为唯一 repository focus EVID-09，尚未实施或部署优化。
+> 后续有界性能工作登记为唯一 repository focus EVID-09；优化接线已实施，尚未部署。
 > 已完成的 EVID-08 不重新打开；本文保留其历史诊断，后续状态以机器注册表为准。
 >
 > 实际模型设置：`gpt-5.6-luna / max`。
@@ -10,7 +10,12 @@
 > 原Account入口保持同函数对象；真实数据库语义RED为SELECT2而期望1，修复后13 passed。
 > `6b1e63303` 追加强制独立read phase和mutation/callback期间缓存暂停；包含外层
 > active snapshot的16项回归通过，新增helper增量mypy及格式/Ruff通过。
-> Facade/Application接线正在实施，尚未冻结综合验证或部署，EVID-09保持active。
+> `58077d980` 完成 typed Application read-phase 注入、锁后读取、append/CAS 前退出、
+> `with_current` 两个独立 phase 与外层缓存暂停；源码冻结综合回归实际 142 passed、
+> 9 个 opt-in skipped，六个生产文件增量 mypy 为零，全仓 mypy 债务为零，文件增长
+> 门禁通过。`1e309dc28` 单独更新静态读取面投影，未提高债务基线。
+> 剩余架构/治理门禁、三次同源隔离 PostgreSQL 物理解码/CPU/SQL 测量和优化部署
+> 复测仍待完成；上述 skipped 不计为 PostgreSQL 通过，EVID-09 保持 active。
 > [完整物理解码诊断封存](../testing/evid09-facade-physical-decode-diagnostic-2026-09-13.json)
 > 保留原测量failed、绿色JUnit和独立清理/release；五个后验源码canonical LF哈希
 > 与Git一致，三个raw差异仅CRLF，仍不补签原运行期间的source snapshot一致性。
