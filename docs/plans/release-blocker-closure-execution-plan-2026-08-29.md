@@ -6,6 +6,35 @@
 > 原则：本文只编排既有 unit，不建立第二套状态、不降低阈值、不代签、不伪造 PIT/OOS 历史，也不把生产写入授权扩大为实盘交易授权。
 > 授权记录（2026-08-30）：用户已授权 A1–A8 动作包继续执行；每个动作仍受其前置门、精确目标、回滚点、外部环境和真实 owner/reviewer 决策约束，授权不等于验收通过。
 
+## 2026-09-13：DATA-16 来源证据与发布身份修复范围
+
+EVID-08 仓库退出后，下一项唯一 repository focus 登记为 DATA-16，作为 DATA-02 的代码前置。
+它覆盖四段同一契约：Tencent HTTP 原始响应完成时间和 exact bytes SHA-256；适配器到事实及
+冻结 member 的证据保真；不可重写的 policy 版本与覆盖所有决策字段的新 Publication 编码；
+generic/batch/rebuild/idempotent 发布前与 current 读取时的 typed fail-closed 校验。
+响应完成时间只证明本系统此时已取得该响应，不代表供应商最早披露时间；批量响应哈希明确
+标为共享 batch scope，不将数值规范化哈希冒充原始 HTTP body 哈希，也不覆盖 observed_at。
+
+完成标准以 registry 的 DATA-16 exit_gate 为准。先补有意义的缺口回归，再实现上述完整链路，
+保持 legacy Publication 哈希及历史查询原义，并检查所有哈希重算、重建、质量与 replay 引用方。
+增量 mypy/debt、格式、新鲜度/catalog、架构和治理门全部通过后才进入候选部署。
+风险为旧事实原始证据未知、可变 fact 行污染既有 member、同版本 policy 重写及幂等早返回
+绕过校验；缺证据一律阻断，不通过历史回填虚构时间或哈希。回滚点为本分支起点
+main b18b18029f90af4b23693426a1f489af44ffe2b2；新增 schema 采用扩展方式保留旧编码。
+
+该 main commit 是代码起点，不是 p2 激活后的无条件回滚目标。旧代码不理解新的 policy/member
+证据；部署先完成 additive migration、候选代码健康与 current 阻断验证，再单独执行有范围与
+预期 active identity 和完整决策内容的策略激活。现有标准部署无条件执行
+`initialize_data_center_catalog`；warm cold-start 的 19 项 skip 不是跳过该命令。此次代码部署
+须显式保留现有 Catalog，并在健康验收后单独激活四个策略，不能为此重写现有 contract、
+binding 和 owner 配置。p2 使用后优先
+回到已验证的 p2 兼容候选；若必须回到旧代码，先验证决策读取明确阻断及既有 current/history
+的兼容处置，不能只恢复镜像或缩窄字段就宣称安全。不得逆迁移删除已产生的新证据。
+
+EVID-08 标准备份/code-only 部署与真实 admin 的显式回滚 Facade 事务复测继续并行；它们不
+关闭 DATA-02 的全 universe 四数据集、财务可用时间、来源一致性及生产决策验收。
+DATA-12/15 已完成，不重复执行已收口覆盖率主线。未完成项仍由机器 registry 唯一维护。
+
 ## 2026-09-13：权威读取性能、生产复测与下一阶段范围
 
 后续 repository 工作登记为唯一 focus `EVID-08`：Authority V3 facade 的整次 `_locked` 操作接入
@@ -151,6 +180,75 @@ Luna max 只读复核补充下一包的时间和身份边界：valuation publica
 payload_hash。该实验不宣称实际历史生产 Publication 当前 fresh，也没有创建或切换生产 Publication。
 下一 repository 包必须在实际响应时间/hash 传递之外，证明 batch publish、current rebuild、幂等返回及
 旧 current member 的缺失 availability 均 fail closed，再领取 DATA-02 Publication 修复批次。
+
+#### 2026-09-13 部署复测与 DATA-16 分类检查点
+
+EVID-08 已经由 PR #36 合并为 `b18b18029f90af4b23693426a1f489af44ffe2b2`，
+标准 code-only 部署终态为 0；数据库备份校验通过，没有恢复数据库。
+[部署与取消测试证据](../deployment/evid08-standard-deployment-and-cancelled-lifecycle-2026-09-13.json)
+封存 22 份原始材料及逐份 SHA-256。部署后的真实 current 预检完成：14.66 秒、1,824 SELECT；
+existing-root issue replay 完成：2,677.79 秒、245,223 SELECT。后续 successor 尚未完成，
+完整生命周期测试因配置的 30 分钟有效期不足以覆盖实测耗时而精确 SIGINT 取消，终态 130。
+不是完整写入验收通过，也不将此前只读闭图的 CPU 改善外推到生产全生命周期。
+
+独立核验在 `2026-09-13T04:40:25.814398Z` 确认 4 条 root、0 条 revocation 的提交记录
+content hash 和规范化载荷指纹与中断前一致。随后原始 admin/user_id=1 的 current 在
+`2026-09-13T04:43:43.415448Z` 恢复成功，耗时 13.10 秒；TLS health 200。
+保留 PostgreSQL sequence 可能因回滚前分配而前进的限制。
+
+DATA-16 是唯一 active repository focus。source witness 切片 `6853db9d4` 已分类提交，
+44 项 transport/adapter 回归通过；策略版本切片 `7d2b874f4` 已分类提交，21 项测试通过，
+包含真实 migration 保留 legacy 策略内容的检查。6 个生产文件增量 mypy 为 0，全量债务为 0，
+Black/isort/Ruff 通过；contracts 中两处未修改的历史 UP042 使用显式命令排除，不抬基线。
+current-data 契约检查通过，实际登记 62 个 surface。四个候选 p2 策略仅更新仓库投影，
+尚未部署、初始化或改变生产 active policy。
+
+生产 migration 只读预检在 `2026-09-13T04:54:37.296777Z` 完成：10 个 active policy，
+无同 dataset 多 active；2,227 条 CanonicalPublication 的最大既有 policy identity 长度
+为 7，own-version 列尚不存在，0076..0078 尚未应用。该结果仅证明当前 additive
+migration 前置未发现 active 唯一约束冲突，不是已迁移或已激活候选策略。
+
+冻结证据、批量发布和 current 快照切片仍在整合。真实 PostgreSQL 回归第一份完整报告为
+4 failed /2 passed；三个失败是专用夹具遗漏 AssetMaster/AssetAlias，另一个是相同范围和
+内容的新 ID 触发现有幂等唯一约束。修正夹具后的完整复测为 6 passed /903.35 秒，终态 0；
+独立只读核验在 `2026-09-13T04:57:50.333885Z` 确认专用数据库 public 基表为 0。
+该运行验证当时的快照和发布锁代码；后续完整身份/元数据防护及夹具复用修改仍需最终复测。
+审查新增的收口要求包括：事实行 SHA 完整绑定 member 身份/质量/版本、p2 publication ID
+元数据不可重写、selected source 与实际成员一致、repository/current 重验 coverage/conflict。
+由 Luna max 负责事实身份与性能方案，主代理负责整合、最终检查和分类提交；完整门禁通过后
+再合并及部署 DATA-16，随后执行 DATA-02 的真实来源修复和冻结 universe 验收。
+DATA-02、EVID-01/02、AUD-03、TAR-05 的生产退出状态保持未完成。
+
+#### 2026-09-13 核心修复最终回归（10:02 UTC）
+
+[DATA-16 核心回归回执](../testing/data16-publication-evidence-closure-2026-09-13.json)
+封存 45 个生产文件及对应测试的 canonical LF 源码哈希、25 份原始材料和逐份 SHA。
+独立 SQLite 测试库启用真实 migration，完整选定范围为 1,708 passed /0 failed /0 error /
+0 skipped，286.06 秒；另有 consumer/API/SDK 契约 112 passed、真实 schema migration 3 passed。
+首轮整合的 22 个失败和 29 个 Windows 临时目录权限错误保留原始报告；夹具修复与独立
+临时目录复测均通过。没有用局部成功替代完整选定范围，也不是全仓 Nightly。
+
+最终真实 PostgreSQL 的 9 个不同场景全部通过：首批 8 passed，另 1 项在建立独立连接时
+超时，尚未进入锁断言；精确 selector 复测 1 passed，307.42 秒。原失败报告保留，不写成
+单批 9 passed。三项新增测试真实验证 contract、asset master、asset alias 缺失行的 INSERT
+phantom 被 SHARE 锁阻止至父事务结束。两批结束后独立只读确认专用库 public 基表为 0，
+最后核验时间 `2026-09-13T09:46:03.327804Z`；未使用生产资源。
+
+发布证据/写入校验已分类提交 `3bf8b086b`，current 完整快照与质量/replay 哈希适配提交
+`ac78c35d3`，均已推送开发分支。45 文件增量 mypy=0、全量债务=0、生产格式检查通过；
+32 个测试文件 Black/isort/Ruff 通过，current 62 surface、catalog、Celery、架构及治理门通过。
+DATA-16 仍是唯一 repository focus，补齐 policy-only activation 与标准部署保留 Catalog 的
+操作护栏后再提交候选；这两个边界另留测试回执，不修改上述已验证发布/读取核心。
+
+策略只读预检在 `2026-09-13T09:31:31.112213Z` 记录 10 个 legacy active policy 和三份完整
+contract/binding/owner 行集指纹。旧 identity `1.0:1.0` 不包含决策字段，激活必须同时核对
+完整内容指纹；候选 SHA、四目标和六个非目标内容均需精确比较。部署先保留 Catalog，
+健康验收后单事务激活四目标，任何差异整体回滚。旧 Publication 不被重写，激活后旧
+current 预期以 `publication_policy_changed` 阻断；additive schema 不做逆迁移。
+
+DATA-02 生产验收仍未完成，财务真实披露/可用时间、原始响应证明、全冻结资产池四个
+Publication 与跨来源容差对账必须在实际部署和真实来源修复后取证。Facade 全生命周期
+性能、物理解码次数和部署写入复测仍待后续有界实现；其余 EVID/AUD/TAR 退出门不晋级。
 
 [AUD-03 只读 backlog 起点](../deployment/sprint-aud03-backlog-readonly-2026-09-13-c8bb9b780.json)
 在 2026-09-12 20:41:34Z 记录两条 due pending、零 claimed/delivered/failed，最旧事件年龄约 19,571 秒；

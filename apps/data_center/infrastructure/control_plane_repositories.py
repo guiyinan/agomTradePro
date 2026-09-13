@@ -11,6 +11,7 @@ from uuid import UUID, uuid4
 from django.db import IntegrityError, models, transaction
 from django.db.models import Q
 
+from apps.data_center.application.publication_utils import member_reference, publication_hash
 from apps.data_center.application.sync_identity import SyncExecutionIdentity
 from apps.data_center.domain.control_plane import (
     CanonicalPublication,
@@ -21,6 +22,10 @@ from apps.data_center.domain.control_plane import (
     SyncBatch,
     SyncCheckpoint,
     SyncRun,
+)
+from apps.data_center.domain.publication_evidence import validate_publication_evidence
+from apps.data_center.domain.publication_snapshot_policy import (
+    validate_publication_snapshot_policy,
 )
 
 from .fact_and_operational_models import (
@@ -34,12 +39,17 @@ from .models import (
     SyncExecutionIdentityModel,
     SyncRunModel,
 )
+from .publication_member_store import (
+    add_immutable_publication_member,
+    publication_fact_content_hashes,
+)
 from .publication_models import (
     CanonicalPublicationModel,
     CoverageSnapshotModel,
     PublicationMemberModel,
     PublicationRollbackModel,
 )
+from .publication_policy_repository import PublicationPolicyRepository
 
 
 def _uuid(value: str) -> UUID:
@@ -377,6 +387,7 @@ class CanonicalPublicationRepository:
 
         return "django:default"
 
+    @transaction.atomic
     def save(self, publication: CanonicalPublication) -> CanonicalPublication:
         """Save a publication and its immutable coverage snapshot atomically.
 
@@ -385,7 +396,18 @@ class CanonicalPublicationRepository:
         calls this method after the member count has been verified.
         """
 
-        if publication.state is PublicationState.PUBLISHED:
+        if publication.policy_version.startswith("p2:"):
+            if publication.state is PublicationState.PUBLISHED:
+                members = tuple(self.list_members(publication.publication_id))
+                self._validate_publish_batch(publication, members)
+                self._validate_versioned_publication(publication, members, lock_rows=True)
+            else:
+                policy = PublicationPolicyRepository().get_locked_active(publication.dataset_key)
+                if policy is None or policy.identity != publication.policy_version:
+                    raise ValueError("Publication active policy changed before publication commit")
+                validate_publication_snapshot_policy(policy, publication)
+            self._assert_versioned_publication_identity(publication)
+        elif publication.state is PublicationState.PUBLISHED:
             persisted_count = PublicationMemberModel._default_manager.filter(
                 publication_id=_uuid(publication.publication_id)
             ).count()
@@ -423,16 +445,29 @@ class CanonicalPublicationRepository:
                 "run_id": _uuid(publication.run_id) if publication.run_id else None,
             },
         )
+        coverage_id = _uuid(publication.coverage.coverage_id)
+        generated_at = publication.coverage.generated_at
+        if publication.policy_version.startswith("p2:"):
+            existing_coverage = CoverageSnapshotModel._default_manager.filter(
+                publication_id=model.publication_id
+            ).first()
+            if existing_coverage is not None:
+                # ``CanonicalPublicationModel.to_domain`` normalizes the
+                # coverage id/time for reads.  Preserve the stored p2 row on
+                # an exact replay so that this read normalization cannot
+                # rewrite immutable coverage provenance.
+                coverage_id = existing_coverage.coverage_id
+                generated_at = existing_coverage.generated_at
         CoverageSnapshotModel._default_manager.update_or_create(
             publication_id=model.publication_id,
             defaults={
-                "coverage_id": _uuid(publication.coverage.coverage_id),
+                "coverage_id": coverage_id,
                 "requested_count": publication.coverage.requested_count,
                 "eligible_count": publication.coverage.eligible_count,
                 "selected_count": publication.coverage.selected_count,
                 "missing_count": publication.coverage.missing_count,
                 "conflict_count": publication.coverage.conflict_count,
-                "generated_at": publication.coverage.generated_at,
+                "generated_at": generated_at,
             },
         )
         return model.to_domain()
@@ -450,6 +485,10 @@ class CanonicalPublicationRepository:
             raise ValueError("Published publication requires an explicit as_of boundary")
         if publication.as_of > now:
             raise ValueError("Publication as_of cannot be later than published_at")
+        if publication.policy_version.startswith("p2:"):
+            members = tuple(self.list_members(publication.publication_id))
+            self._validate_versioned_publication(publication, members, lock_rows=True)
+            self._assert_versioned_publication_identity(publication)
         self._ensure_publish_time_is_monotonic(publication)
         if publication.coverage.publication_id != publication.publication_id:
             raise ValueError("Publication coverage must reference the same publication")
@@ -502,6 +541,9 @@ class CanonicalPublicationRepository:
         """
 
         self._validate_publish_batch(publication, members)
+        if publication.policy_version.startswith("p2:"):
+            self._validate_versioned_publication(publication, members, lock_rows=True)
+            self._assert_versioned_publication_identity(publication)
         self._ensure_publish_time_is_monotonic(publication)
         publication_id = _uuid(publication.publication_id)
         expected_keys = {member.natural_key for member in members}
@@ -540,6 +582,105 @@ class CanonicalPublicationRepository:
             superseded_at=now,
         )
         return self._save_unchecked(publication)
+
+    @staticmethod
+    def _validate_versioned_publication(
+        publication: CanonicalPublication,
+        members: tuple[PublicationMember, ...],
+        *,
+        lock_rows: bool,
+    ) -> None:
+        """Validate one p2 snapshot against its locked policy and fact rows."""
+
+        fact_hashes = publication_fact_content_hashes(members, lock_rows=lock_rows)
+        if any(
+            fact_hashes.get((member.fact_table, member.fact_pk)) != member.fact_content_hash
+            for member in members
+        ):
+            raise ValueError("Publication frozen evidence does not match its canonical facts")
+        policy = PublicationPolicyRepository().get_locked_active(publication.dataset_key)
+        if policy is None or policy.identity != publication.policy_version:
+            raise ValueError("Publication active policy changed before publication commit")
+        validate_publication_snapshot_policy(policy, publication, members=members)
+        if publication.published_at is None:
+            raise ValueError("Published publication requires published_at")
+        validate_publication_evidence(policy, members, published_at=publication.published_at)
+        references = [
+            member_reference(member)
+            for member in sorted(members, key=lambda item: item.natural_key)
+        ]
+        if (
+            publication_hash(references, policy_identity=policy.identity)
+            != publication.publication_hash
+        ):
+            raise ValueError("Publication versioned evidence hash mismatch")
+
+    @staticmethod
+    def _assert_versioned_publication_identity(publication: CanonicalPublication) -> None:
+        """Reject p2 rewrites while allowing a byte-identical lifecycle replay."""
+
+        publication_id = _uuid(publication.publication_id)
+        existing = (
+            CanonicalPublicationModel._default_manager.select_for_update()
+            .filter(publication_id=publication_id)
+            .first()
+        )
+        if existing is None:
+            return
+        expected = {
+            "dataset_key": publication.dataset_key,
+            "publication_key": publication.publication_key,
+            "policy_version": publication.policy_version,
+            "selected_source": publication.selected_source,
+            "publication_hash": publication.publication_hash,
+            "member_count": publication.member_count,
+            "conflict_count": publication.conflict_count,
+            "coverage_requested_count": publication.coverage.requested_count,
+            "coverage_eligible_count": publication.coverage.eligible_count,
+            "coverage_selected_count": publication.coverage.selected_count,
+            "coverage_missing_count": publication.coverage.missing_count,
+            "coverage_conflict_count": publication.coverage.conflict_count,
+            "as_of": publication.as_of,
+            "published_at": publication.published_at,
+            "must_not_use_for_decision": publication.must_not_use_for_decision,
+            "blocked_reason": publication.blocked_reason,
+            "created_by": publication.created_by,
+            "run_id": _uuid(publication.run_id) if publication.run_id else None,
+        }
+        if any(getattr(existing, field_name) != value for field_name, value in expected.items()):
+            raise ValueError("Versioned publication identity is immutable")
+
+        coverage = (
+            CoverageSnapshotModel._default_manager.select_for_update()
+            .filter(publication_id=publication_id)
+            .first()
+        )
+        if coverage is None:
+            raise ValueError("Versioned publication coverage identity is missing")
+        coverage_values = {
+            "requested_count": publication.coverage.requested_count,
+            "eligible_count": publication.coverage.eligible_count,
+            "selected_count": publication.coverage.selected_count,
+            "missing_count": publication.coverage.missing_count,
+            "conflict_count": publication.coverage.conflict_count,
+        }
+        if any(
+            getattr(coverage, field_name) != value for field_name, value in coverage_values.items()
+        ):
+            raise ValueError("Versioned publication identity is immutable")
+        if str(publication.coverage.coverage_id) not in {
+            str(coverage.coverage_id),
+            str(publication_id),
+        }:
+            raise ValueError("Versioned publication identity is immutable")
+        generated_at = publication.coverage.generated_at
+        allowed_generated_at = {coverage.generated_at}
+        if existing.published_at is not None:
+            allowed_generated_at.add(existing.published_at)
+        else:
+            allowed_generated_at.add(existing.created_at)
+        if generated_at not in allowed_generated_at:
+            raise ValueError("Versioned publication identity is immutable")
 
     @staticmethod
     def _validate_publish_batch(
@@ -844,25 +985,16 @@ class CanonicalPublicationRepository:
         return model.to_domain() if model is not None else None
 
     def add_member(self, member: PublicationMember) -> PublicationMember:
-        """Add one selected fact reference idempotently."""
+        """Append or replay exact immutable member content."""
 
-        model, _ = PublicationMemberModel._default_manager.update_or_create(
-            publication_id=_uuid(member.publication_id),
-            natural_key=member.natural_key,
-            defaults={
-                "member_id": _uuid(member.member_id),
-                "dataset_key": member.dataset_key,
-                "source": member.source,
-                "source_record_id": member.source_record_id,
-                "fact_table": member.fact_table,
-                "fact_pk": member.fact_pk,
-                "observed_at": member.observed_at,
-                "raw_payload_hash": member.raw_payload_hash,
-                "quality_status": member.quality_status,
-                "revision_number": member.revision_number,
-            },
-        )
-        return model.to_domain()
+        return add_immutable_publication_member(member)
+
+    def get_fact_content_hashes(
+        self, members: tuple[PublicationMember, ...]
+    ) -> dict[tuple[str, str], str]:
+        """Return exact normalized hashes from whitelisted persisted facts."""
+
+        return publication_fact_content_hashes(members)
 
     def list_members(self, publication_id: str) -> list[PublicationMember]:
         """Return selected members in deterministic natural-key order."""

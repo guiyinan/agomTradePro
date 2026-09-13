@@ -48,6 +48,16 @@ class _Publications:
         self.writes.append((publication, members))
         return publication
 
+    def list_members(self, publication_id):
+        return next(
+            (
+                members
+                for publication, members in self.writes
+                if publication.publication_id == publication_id
+            ),
+            (),
+        )
+
 
 def _fact(asset_code: str) -> SectorMembershipFact:
     return SectorMembershipFact(

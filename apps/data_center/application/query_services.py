@@ -7,6 +7,9 @@ from collections.abc import Sequence
 from datetime import UTC, date, datetime
 from typing import Any
 
+from apps.data_center.application.current_publication_evidence import (
+    current_publication_evidence_blocked_reason,
+)
 from apps.data_center.application.query_use_cases import latest_completed_cn_market_session
 from apps.data_center.composition import (
     get_asset_repository,
@@ -23,6 +26,7 @@ from apps.data_center.composition import (
     get_news_repository,
     get_price_bar_repository,
     get_provider_config_repository,
+    get_publication_policy_repository,
     get_quote_snapshot_repository,
     get_sector_membership_repository,
     get_valuation_fact_repository,
@@ -30,6 +34,8 @@ from apps.data_center.composition import (
 from apps.data_center.domain.entities import CapitalFlowFact
 from apps.data_center.domain.enums import AssetType, MarketExchange
 from apps.data_center.domain.market_time import cn_market_date_from_observation
+from apps.data_center.publication_read_composition import publication_snapshot
+from core.exceptions import DataFetchError
 
 A_SHARE_BEHAVIOR_INDICATORS: dict[str, str] = {
     "up_count": "CN_A_ADVANCE_COUNT",
@@ -207,6 +213,7 @@ def query_macro_fact_series(
     return [fact.to_dict() for fact in facts]
 
 
+@publication_snapshot("macro.fact")
 def query_published_macro_fact_series(
     indicator_code: str,
     *,
@@ -249,6 +256,7 @@ def query_published_macro_fact_series(
     }
 
 
+@publication_snapshot("fund.nav")
 def query_published_fund_nav_series(
     fund_code: str,
     *,
@@ -288,13 +296,14 @@ def query_published_fund_nav_series(
     return {"rows": [fact.to_dict() for fact in facts], **gate}
 
 
+@publication_snapshot()
 def _publication_gate(
     dataset_key: str,
     publication_key: str,
     *,
     now: datetime | None = None,
 ) -> dict[str, object] | None:
-    """Return publication metadata after validating source observation freshness."""
+    """Validate active policy, frozen evidence, mutable facts and source freshness."""
 
     repository = get_canonical_publication_repository()
     publication = repository.get_current(dataset_key, publication_key)
@@ -310,28 +319,42 @@ def _publication_gate(
         "must_not_use_for_decision": publication.must_not_use_for_decision,
         "blocked_reason": publication.blocked_reason,
     }
-    member_observation_reader = getattr(repository, "get_oldest_member_observed_at", None)
-    if callable(member_observation_reader):
-        contract = get_dataset_contract_repository().get_active(dataset_key)
-        max_age_seconds = getattr(contract, "freshness_seconds", None)
-        if contract is None or max_age_seconds is None:
-            gate.update(
-                must_not_use_for_decision=True,
-                blocked_reason="publication_freshness_policy_missing",
-                freshness_status="unverified",
-            )
-            return gate
-        oldest_observed_at = member_observation_reader(publication.publication_id)
-        if oldest_observed_at is None:
-            gate.update(
-                must_not_use_for_decision=True,
-                blocked_reason="publication_observation_missing",
-                freshness_status="missing",
-            )
-            return gate
-    else:
-        max_age_seconds = None
-        oldest_observed_at = getattr(publication, "as_of", None) or publication.published_at
+    if publication.dataset_key != dataset_key or publication.publication_key != publication_key:
+        gate.update(
+            must_not_use_for_decision=True,
+            blocked_reason="publication_scope_mismatch",
+            freshness_status="unverified",
+        )
+        return gate
+    reference = now or datetime.now(UTC)
+    try:
+        members = tuple(repository.list_members(publication.publication_id))
+        evidence_reason = current_publication_evidence_blocked_reason(
+            publication,
+            policy=get_publication_policy_repository().get_active(dataset_key),
+            members=members,
+            fact_content_hashes=repository.get_fact_content_hashes(members),
+            knowledge_cutoff=reference,
+        )
+    except (DataFetchError, TypeError, ValueError):
+        evidence_reason = "publication_member_snapshot_invalid"
+    if evidence_reason is not None:
+        gate.update(
+            must_not_use_for_decision=True,
+            blocked_reason=evidence_reason,
+            freshness_status="unverified",
+        )
+        return gate
+    contract = get_dataset_contract_repository().get_active(dataset_key)
+    max_age_seconds = contract.freshness_seconds if contract is not None else None
+    if max_age_seconds is None:
+        gate.update(
+            must_not_use_for_decision=True,
+            blocked_reason="publication_freshness_policy_missing",
+            freshness_status="unverified",
+        )
+        return gate
+    oldest_observed_at = repository.get_oldest_member_observed_at(publication.publication_id)
 
     # ``as_of`` is the publication's knowledge boundary.  A publication can
     # otherwise look fresh when a member was re-indexed or its ingestion
@@ -363,9 +386,6 @@ def _publication_gate(
         )
         return gate
     observed_at_utc = oldest_observed_at.astimezone(UTC)
-    reference = now or datetime.now(UTC)
-    if reference.tzinfo is None or reference.utcoffset() is None:
-        reference = reference.replace(tzinfo=UTC)
     age_seconds = max((reference.astimezone(UTC) - observed_at_utc).total_seconds(), 0.0)
     gate["observed_at"] = observed_at_utc.isoformat()
     gate["age_seconds"] = age_seconds
@@ -518,6 +538,7 @@ def _bounded_end_date(requested: date | None, publication_as_of: date | None) ->
     return min(requested, publication_as_of)
 
 
+@publication_snapshot("equity.quote.snapshot")
 def query_published_quote_payloads(
     asset_codes: list[str],
     *,
@@ -544,6 +565,7 @@ def query_published_quote_payloads(
     }
 
 
+@publication_snapshot("equity.price.bar")
 def query_published_price_bar_series(
     asset_code: str,
     *,
@@ -580,6 +602,7 @@ def query_published_price_bar_series(
     }
 
 
+@publication_snapshot("equity.quote.snapshot")
 def query_published_quote_series(
     asset_code: str,
     *,
@@ -619,6 +642,7 @@ def query_published_quote_series(
     return {"rows": [quote.to_dict() for quote in rows], **gate}
 
 
+@publication_snapshot("equity.financial.fact")
 def query_published_financial_facts(
     asset_code: str,
     *,
@@ -647,6 +671,7 @@ def query_published_financial_facts(
     }
 
 
+@publication_snapshot("equity.valuation.fact")
 def query_published_valuation_facts(
     asset_code: str,
     *,
@@ -677,6 +702,7 @@ def query_published_valuation_facts(
     }
 
 
+@publication_snapshot("sector.membership")
 def query_published_sector_memberships(
     sector_code: str,
     *,
@@ -703,6 +729,7 @@ def query_published_sector_memberships(
     return {"rows": [row.to_dict() for row in rows], **gate}
 
 
+@publication_snapshot("market.news")
 def query_published_market_news(
     *,
     asset_code: str | None = None,
@@ -747,6 +774,7 @@ def query_published_market_news(
     return {"rows": [row.to_dict() for row in rows], **gate}
 
 
+@publication_snapshot("market.capital_flow")
 def query_published_capital_flow_series(
     asset_code: str,
     *,
@@ -901,6 +929,7 @@ def get_latest_a_share_behavior_payload(
     }
 
 
+@publication_snapshot("macro.fact")
 def query_published_a_share_behavior_payload(
     *,
     now: datetime | None = None,

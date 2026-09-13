@@ -777,10 +777,24 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 float_market_cap=snapshot.float_market_cap,
                 source=snapshot.source,
                 observed_at=snapshot.observed_at,
+                available_at=snapshot.available_at,
+                fetched_at=snapshot.fetched_at or datetime.now(UTC),
+                source_record_id=snapshot.source_record_id,
+                raw_payload_hash=snapshot.raw_payload_hash,
                 extra=self._provider_extra(
                     {
                         "actual_source": snapshot.source,
                         "observation_contract": "tencent_quote_batch",
+                        **(
+                            {
+                                "availability_basis": "response_completed_utc",
+                                "raw_payload_scope": snapshot.raw_payload_scope,
+                            }
+                            if snapshot.available_at is not None
+                            and snapshot.raw_payload_hash
+                            and snapshot.raw_payload_scope
+                            else {}
+                        ),
                     }
                 ),
             )

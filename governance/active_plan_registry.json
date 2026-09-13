@@ -1,14 +1,14 @@
 {
-  "version": "2026-09-13.v92",
+  "version": "2026-09-13.v95",
   "updated_at": "2026-09-13",
   "execution_focus": {
-    "unit_id": null,
+    "unit_id": "DATA-16",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "EVID-08 repository exit gate is complete with real PostgreSQL Facade lifecycle, source-race rejection, isolated validation/drift/rollback regressions, complete graph paired CPU/decoder/query evidence and static/governance/CI gates. Production EVID-01/02 and DATA-02 acceptance remain separate. Next bounded repository prerequisite is source-bound availability and versioned Publication policy/hash/current enforcement; register its full scope before implementation. DATA-12/15 and EVID-07 remain completed."
+    "policy": "DATA-16 is the sole repository focus: source-witnessed availability and exact raw-response hash, immutable versioned Publication policy/evidence identity, required-evidence checks before generic/batch/rebuild/idempotent publication, and current-member/policy/knowledge-cutoff fail-closed enforcement. Preserve legacy hashes and historical access; never invent source times or repair historical evidence. EVID-08 deployment and explicit-rollback production Facade verification may proceed independently. DATA-02/EVID-01/02/AUD-03/TAR-05 production exits remain unchanged; DATA-12/15 remain completed."
   },
   "workstreams": [
     {
@@ -18,7 +18,7 @@
       "priority": "P0",
       "owner": "research+risk_center+portfolio+broker_execution+account",
       "status": "active",
-      "next_gate": "Candidate c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc / release 20260913014501 consumed a second real admin/user_id=1 Evidence V5 / Authority V3 graph in the production System Audit path. Locked complete authority read is now 14.52 seconds, but write graph setup remains about 50 minutes and needs bounded restoration work before scaling. EVID-01/02 remain awaiting_production: repeatable PostgreSQL first-winner concurrency, successor/current-head/revocation/rollback and independently signed candidate-bound acceptance are still required. Task authorization is not a cryptographic owner/reviewer signature. Evidence: docs/deployment/sprint-data02-authority-performance-checkpoint-2026-09-13-c8bb9b780.json.",
+      "next_gate": "Production source b18b18029f90af4b23693426a1f489af44ffe2b2 / release source-20260913102723 is deployed and healthy. Current preflight completed in 14.66 s; existing-root replay completed in 2677.79 s with 245,223 SELECT. The configured 30-minute validity cannot cover the complete lifecycle: exact test was SIGINT cancelled, terminal 130, successor incomplete. Independent committed ledger fingerprints restored 4 roots /0 revocations and original admin/user 1 current restored in 13.10 s. Checkpoint: docs/deployment/evid08-standard-deployment-and-cancelled-lifecycle-2026-09-13.json. Read-phase performance remediation is planned only; DATA-16 remains the sole repository focus. EVID-01/02 production concurrency, successor/current/revocation/rollback and independently signed acceptance remain required.",
       "documents": [
         {
           "path": "docs/plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md",
@@ -31,6 +31,10 @@
         {
           "path": "docs/plans/research-integrity-m0-inventory-2026-07-22.md",
           "role": "evidence"
+        },
+        {
+          "path": "docs/plans/evid08-facade-write-performance-remediation-2026-09-13.md",
+          "role": "supporting"
         }
       ]
     },
@@ -88,7 +92,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "DATA-12/13/14/15 remain complete. Candidate c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc / release 20260913014501 is deployed with backup and healthy services. One additional accepted historical 000001.SZ quote and canonical event/outbox pair were stored with publish_current=false; the audit-runtime window was 34.09 seconds and independent cleanup verified off. Complete authority read is 14.52 seconds, while new governance write setup remains about 50 minutes. DATA-02 remains awaiting_production: exact 5533-asset quote/valuation coverage, completed-session distribution, financial report-date repair, four immutable publication identities and canonical tolerance reconciliation remain. Bound write restoration before broader batches; DATA-03 waits for the full exit gate. Evidence: docs/deployment/sprint-data02-authority-performance-checkpoint-2026-09-13-c8bb9b780.json. Full frozen-universe public source preflight now has exact quote/valuation coverage5533/5533, all source observations2026-09-11, across two separately guarded read-only snapshots with the same asserted universe hash. First4200 assets were retained before actual diagnostic budget exhaustion; the remaining1333 completed in a resumed offset probe. All5533 valuation values still lack available_at and raw_payload_hash. The checkpoint verifies112 retained public response bodies (56 HTTP502 failures and56 HTTP200 successes), with configured quotes falling back from Eastmoney to Tencent. This is source preflight only: stored fact coverage, financial report-date repair, four Publication IDs and canonical tolerance reconciliation are unchanged. After EVID08, propagate real response completion and clearly scoped raw evidence, version the DB policy inputs, and enforce availability across batch/rebuild/idempotent/old-current paths before Publication repair. Evidence: docs/deployment/sprint-data02-full-source-preflight-2026-09-13-c8bb9b780.json.",
+      "next_gate": "DATA-12/13/14/15 remain complete. Production source b18b18029f90af4b23693426a1f489af44ffe2b2 / release source-20260913102723 remains the deployed candidate. DATA-16 source witness and policy slices, full immutable evidence/writes (3bf8b086b), and current snapshot/quality/replay (ac78c35d3) are pushed. Core scoped regression is 1708 passed /0 failed /0 error /0 skipped, consumer contracts 112 passed, actual migrations 3 passed. All nine distinct actual PostgreSQL cases passed across an eight-pass batch and the exact one-case connection timeout retry; original failure retained and independent cleanup verified zero public base tables. Evidence: docs/testing/data16-publication-evidence-closure-2026-09-13.json. DATA-16 remains the sole repository focus while completing policy-only expected-content activation and standard deployment Catalog preservation. Legacy identity alone does not bind policy decision content. No p2 policy is deployed or activated yet. Next finish operational boundary tests and candidate PR checks, deploy additive schema/code preserving runtime Catalog, verify health, then separately activate exact target policies within one expected-content transaction without rewriting contracts/bindings/owners or existing Publications. DATA-02 awaits actual full 5533-asset quote/valuation storage, genuine financial source availability, four immutable Publication identities and canonical tolerance reconciliation. Historical source preflight and rolled-back Facade stages do not close acceptance.",
       "documents": [
         {
           "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
@@ -1215,6 +1219,20 @@
           "EVID-07"
         ],
         "exit_gate": "Authority V3 complete lifecycle operations reuse only successful exact immutable payload decoding and object validation within one operation. No write/current-state/ORM read cache is enabled; changed payloads, operation exit and failure force validation. Tests prove lifecycle wiring, independent operation isolation, fresh with_current double-read/drift rejection and rollback. Representative complete graph before/after measurements report decode/CPU/query work and limits; targeted lifecycle and graph regressions, incremental mypy/debt, formatting, architecture and governance pass. Keep production EVID-01/02 and DATA-02 acceptance separate and do not claim all write performance fixed."
+      },
+      {
+        "id": "DATA-16",
+        "workstream_id": "data-production-reliability",
+        "wave": 2,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "active",
+        "title": "Bind source availability and versioned Publication evidence",
+        "depends_on": [
+          "DATA-05",
+          "EVID-08"
+        ],
+        "exit_gate": "Transport records actual response-body completion UTC and SHA-256 of exact response bytes with explicit shared batch scope; adapter preserves vendor observed_at and carries evidence into stored facts and frozen members. Active policy has immutable version/content identity covering every decision field; new Publication encoding binds that identity and exact member evidence while legacy encoding and historical reads remain unchanged. Typed centralized required-evidence validation rejects unknown, missing, unverified, future or inconsistent evidence before any generic/batch/rebuild/idempotent publish. Current reads reject active-policy drift, member/fact drift and unavailable knowledge at the requested cutoff. Meaningful transport, roundtrip, policy immutability/hash, replay/idempotence/current and legacy golden regressions, incremental mypy/debt, formatting, current-data/catalog/architecture/governance gates pass. No historical source-time/hash synthesis or production DATA-02 acceptance inferred."
       }
     ]
   }

@@ -3078,7 +3078,12 @@
         "apps/data_center/interface/api_views.py",
         "apps/data_center/interface/publication_guards.py",
         "sdk/agomtradepro/modules/data_center.py",
-        "apps/equity/research_snapshot_composition.py"
+        "apps/equity/research_snapshot_composition.py",
+        "apps/data_center/application/current_publication_evidence.py",
+        "apps/data_center/application/query_services.py",
+        "apps/data_center/publication_read_composition.py",
+        "apps/data_center/infrastructure/publication_read_snapshot.py",
+        "apps/data_center/domain/publication_snapshot_policy.py"
       ],
       "required_markers": {
         "apps/data_center/interface/api_views.py": [
@@ -3100,6 +3105,32 @@
           "get_published_price_bar_series",
           "get_published_financial_facts",
           "get_published_valuation_facts"
+        ],
+        "apps/data_center/application/current_publication_evidence.py": [
+          "publication_policy_changed",
+          "publication_member_fact_changed",
+          "publication_knowledge_unavailable"
+        ],
+        "apps/data_center/application/query_services.py": [
+          "current_publication_evidence_blocked_reason",
+          "publication_snapshot"
+        ],
+        "apps/data_center/publication_read_composition.py": [
+          "consistent_publication_read"
+        ],
+        "apps/data_center/infrastructure/publication_read_snapshot.py": [
+          "REPEATABLE READ READ ONLY",
+          "IN SHARE MODE",
+          "data_center_dataset_contract",
+          "data_center_asset_master",
+          "data_center_asset_alias",
+          "data_center_indicator_catalog",
+          "*metadata_tables"
+        ],
+        "apps/data_center/domain/publication_snapshot_policy.py": [
+          "validate_publication_snapshot_policy",
+          "publication_selected_source_summary",
+          "canonical-multi-source"
         ]
       },
       "required_tests": [
@@ -3127,6 +3158,71 @@
           "case": "equity_application_blocked_gate_metadata_is_not_evidence",
           "test_file": "tests/unit/equity/test_research_snapshot_use_case.py",
           "test_function": "test_core_section_fail_closed_for_publication_freshness_and_empty_evidence"
+        },
+        {
+          "case": "complete_frozen_current_fact",
+          "test_file": "tests/component/data_center/test_current_publication_evidence_gate.py",
+          "test_function": "test_current_port_serves_exact_fact_only_with_complete_frozen_evidence"
+        },
+        {
+          "case": "fact_drift_blocks_without_history_rewrite",
+          "test_file": "tests/component/data_center/test_current_publication_evidence_gate.py",
+          "test_function": "test_current_port_blocks_fact_drift_without_rewriting_frozen_history"
+        },
+        {
+          "case": "policy_upgrade_blocks_current",
+          "test_file": "tests/component/data_center/test_current_publication_evidence_gate.py",
+          "test_function": "test_current_port_blocks_policy_upgrade_until_publication_is_rebuilt"
+        },
+        {
+          "case": "real_pg_consistent_gate_and_rows",
+          "test_file": "tests/component/data_center/test_publication_read_snapshot_postgres.py",
+          "test_function": "test_outer_read_only_snapshot_keeps_gate_and_rows_consistent_after_concurrent_commit"
+        },
+        {
+          "case": "real_pg_nested_unit_of_work_lock",
+          "test_file": "tests/component/data_center/test_publication_read_snapshot_postgres.py",
+          "test_function": "test_nested_read_committed_locks_remain_until_outer_unit_of_work_ends"
+        },
+        {
+          "case": "all_nine_dataset_metadata_dependencies_locked",
+          "test_file": "tests/unit/data_center/test_publication_read_snapshot.py",
+          "test_function": "test_nested_read_committed_protects_all_query_metadata_dependencies"
+        },
+        {
+          "case": "real_pg_contract_insert_phantom_blocked",
+          "test_file": "tests/component/data_center/test_publication_read_snapshot_postgres.py",
+          "test_function": "test_nested_read_committed_locks_dataset_contract_insert_until_outer_unit_of_work_ends"
+        },
+        {
+          "case": "real_pg_asset_master_insert_phantom_blocked",
+          "test_file": "tests/component/data_center/test_publication_read_snapshot_postgres.py",
+          "test_function": "test_nested_read_committed_locks_asset_master_insert_until_outer_unit_of_work_ends"
+        },
+        {
+          "case": "real_pg_asset_alias_insert_phantom_blocked",
+          "test_file": "tests/component/data_center/test_publication_read_snapshot_postgres.py",
+          "test_function": "test_nested_read_committed_locks_asset_alias_insert_until_outer_unit_of_work_ends"
+        },
+        {
+          "case": "real_pg_forged_frozen_provenance",
+          "test_file": "tests/component/data_center/test_publication_read_snapshot_postgres.py",
+          "test_function": "test_forged_frozen_provenance_with_real_row_digest_never_replaces_current"
+        },
+        {
+          "case": "current_policy_dataset_mismatch",
+          "test_file": "tests/component/data_center/test_versioned_publication_integrity.py",
+          "test_function": "test_current_gate_rejects_policy_dataset_mismatch_without_changing_v1_hash"
+        },
+        {
+          "case": "requested_dataset_scope_mismatch_blocked",
+          "test_file": "tests/component/data_center/test_current_publication_evidence_gate.py",
+          "test_function": "test_current_gate_rejects_repository_publication_outside_requested_scope"
+        },
+        {
+          "case": "requested_publication_key_scope_mismatch_blocked",
+          "test_file": "tests/component/data_center/test_current_publication_evidence_gate.py",
+          "test_function": "test_current_gate_rejects_repository_publication_outside_requested_scope"
         }
       ]
     },
@@ -3391,7 +3487,16 @@
         "apps/data_center/infrastructure/_provider_adapter_tushare.py",
         "apps/data_center/infrastructure/_provider_adapter_akshare.py",
         "apps/data_center/infrastructure/price_bar_repository.py",
-        "apps/data_center/infrastructure/quote_snapshot_repository.py"
+        "apps/data_center/infrastructure/quote_snapshot_repository.py",
+        "apps/data_center/domain/publication_evidence.py",
+        "apps/data_center/domain/publication_policy_identity.py",
+        "apps/data_center/infrastructure/publication_policy_repository.py",
+        "apps/data_center/infrastructure/publication_member_store.py",
+        "apps/data_center/infrastructure/publication_fact_evidence.py",
+        "apps/data_center/application/publication_idempotence.py",
+        "apps/data_center/domain/publication_snapshot_policy.py",
+        "apps/data_center/infrastructure/publication_fact_identity.py",
+        "apps/data_center/infrastructure/publication_fact_legacy_payload.py"
       ],
       "required_markers": {
         "apps/data_center/domain/entities.py": [
@@ -3426,7 +3531,7 @@
           "class PublishCapitalFlowBatchUseCase:",
           "class PublishFinancialBatchUseCase:",
           "class PublishFundNavBatchUseCase:",
-          "publication_hash = _publication_hash(references)",
+          "publication_hash = _publication_hash(",
           "missing_count=requested_count - len(references)",
           "as_of = max(reference.observed_at for reference in references)",
           "capital-flow observation cannot be later than publication time",
@@ -3444,7 +3549,7 @@
         "apps/data_center/application/valuation_publication.py": [
           "class ValuationPublicationCandidateRepositoryProtocol(Protocol):",
           "class PublishValuationBatchUseCase:",
-          "publication_digest = _publication_hash(references)",
+          "publication_digest = _publication_hash(",
           "valuation observation cannot be later than publication time"
         ],
         "apps/data_center/application/macro_publication.py": [
@@ -3489,34 +3594,27 @@
         ],
         "apps/data_center/infrastructure/market_breadth_repositories.py": [
           "def list_publication_candidates(",
-          "observed_at=cn_market_date_start_utc(row.flow_date)",
-          "row.raw_payload_hash",
-          "observed_at=cn_market_date_start_utc(row.effective_date)",
-          "row.raw_payload_hash or _sector_membership_payload_hash(row)"
+          "publication_fact_reference_for_dataset"
         ],
         "apps/data_center/infrastructure/financial_fact_repository.py": [
           "def list_publication_candidates(",
           "available_at=m.available_at",
           "if row.available_at is None",
-          "observed_at=row.available_at",
-          "row.raw_payload_hash or _financial_payload_hash(row)"
+          "publication_fact_reference_for_dataset"
         ],
         "apps/data_center/infrastructure/fund_nav_repository.py": [
           "def list_publication_candidates(",
-          "observed_at=cn_market_date_start_utc(row.nav_date)",
-          "row.raw_payload_hash or _fund_nav_payload_hash(row)"
+          "publication_fact_reference_for_dataset"
         ],
         "apps/data_center/infrastructure/valuation_fact_repository.py": [
           "def list_publication_candidates(",
           "valuation publication candidate requires observed_at",
-          "observed_at=row.observed_at",
-          "available_at_unverified",
-          "valuation available_at cannot be in the future"
+          "valuation available_at cannot be in the future",
+          "publication_fact_reference_for_dataset"
         ],
         "apps/data_center/infrastructure/macro_fact_storage_repository.py": [
           "def list_publication_candidates(",
-          "observed_at=cn_market_date_start_utc(row.published_at)",
-          "row.raw_payload_hash or _macro_payload_hash(row)"
+          "publication_fact_reference_for_dataset"
         ],
         "apps/data_center/infrastructure/_provider_adapter_tushare.py": [
           "available_at=_available_at_from_report_date(report_date)"
@@ -3526,13 +3624,72 @@
         ],
         "apps/data_center/infrastructure/price_bar_repository.py": [
           "def list_publication_candidates(",
-          "observed_at=cn_market_date_start_utc(row.bar_date)",
-          "row.raw_payload_hash or _price_bar_payload_hash(row)"
+          "publication_fact_reference_for_dataset"
         ],
         "apps/data_center/infrastructure/quote_snapshot_repository.py": [
           "def list_publication_candidates(",
+          "publication_fact_reference_for_dataset"
+        ],
+        "apps/data_center/domain/publication_evidence.py": [
+          "validate_publication_evidence",
+          "knowledge_cutoff",
+          "raw_payload_scope"
+        ],
+        "apps/data_center/domain/publication_policy_identity.py": [
+          "policy_version",
+          "required_evidence",
+          "retention_days"
+        ],
+        "apps/data_center/infrastructure/publication_policy_repository.py": [
+          "version content is immutable",
+          "get_locked_active"
+        ],
+        "apps/data_center/infrastructure/publication_member_store.py": [
+          "_member_provenance_matches_row",
+          "select_for_update",
+          "content is immutable"
+        ],
+        "apps/data_center/infrastructure/publication_fact_evidence.py": [
+          "canonical-fact-row-v1",
+          "allow_nan=False",
+          "publication_fact_reference_for_dataset",
+          "identity.natural_key",
+          "identity.observed_at",
+          "identity.raw_payload_hash"
+        ],
+        "apps/data_center/application/publication_idempotence.py": [
+          "publication_replay_matches",
+          "frozen member hash mismatch"
+        ],
+        "apps/data_center/domain/publication_snapshot_policy.py": [
+          "validate_publication_snapshot_policy",
+          "publication_selected_source_summary",
+          "canonical-multi-source"
+        ],
+        "apps/data_center/infrastructure/publication_fact_identity.py": [
+          "build_publication_fact_identity",
+          "publication_fact_model_registry",
+          "revision_number=row.revision_number + 1",
+          "observed_at=cn_market_date_start_utc(row.flow_date)",
+          "row.raw_payload_hash",
+          "observed_at=cn_market_date_start_utc(row.effective_date)",
+          "or sector_membership_payload_hash(row)",
+          "observed_at=row.available_at",
+          "row.raw_payload_hash or financial_payload_hash(row)",
+          "observed_at=cn_market_date_start_utc(row.nav_date)",
+          "row.raw_payload_hash or fund_nav_payload_hash(row)",
+          "observed_at=row.observed_at",
+          "available_at_unverified",
+          "observed_at=cn_market_date_start_utc(row.published_at)",
+          "row.raw_payload_hash or macro_payload_hash(row)",
+          "observed_at=cn_market_date_start_utc(row.bar_date)",
+          "row.raw_payload_hash or price_bar_payload_hash(row)",
           "observed_at=row.snapshot_at",
-          "row.raw_payload_hash or _quote_payload_hash(row)"
+          "row.raw_payload_hash or quote_snapshot_payload_hash(row)"
+        ],
+        "apps/data_center/infrastructure/publication_fact_legacy_payload.py": [
+          "ensure_ascii=False, sort_keys=True",
+          "hashlib.sha256(encoded).hexdigest()"
         ]
       },
       "required_tests": [
@@ -3562,9 +3719,9 @@
           "test_function": "test_news_sync_publication_is_idempotent_for_same_member_snapshot"
         },
         {
-          "case": "news_sync_publication_repairs_memberless_same_hash",
+          "case": "news_sync_rejects_memberless_same_hash_without_rewriting_history",
           "test_file": "tests/unit/data_center/test_news_publication_sync.py",
-          "test_function": "test_news_sync_repairs_memberless_same_hash_publication"
+          "test_function": "test_news_sync_rejects_memberless_same_hash_publication"
         },
         {
           "case": "news_sync_publication_coverage_fail_closed",
@@ -3739,7 +3896,7 @@
         {
           "case": "valuation_publication_idempotency",
           "test_file": "tests/unit/data_center/test_valuation_publication_sync.py",
-          "test_function": "test_valuation_publication_is_idempotent_for_same_snapshot"
+          "test_function": "test_valuation_publication_is_idempotent_for_identical_valid_snapshot"
         },
         {
           "case": "valuation_publication_coverage_fail_closed",
@@ -3810,6 +3967,126 @@
           "case": "sector_candidate_effective_date_boundary",
           "test_file": "tests/unit/data_center/test_sector_membership_publication_sync.py",
           "test_function": "test_sector_repository_candidate_preserves_effective_date_observation"
+        },
+        {
+          "case": "p2_actual_vendor_after_fallback",
+          "test_file": "tests/unit/data_center/test_valuation_publication_sync.py",
+          "test_function": "test_publication_tracks_actual_fallback_source_under_versioned_policy"
+        },
+        {
+          "case": "p2_mixed_vendor_summary",
+          "test_file": "tests/unit/data_center/test_valuation_publication_sync.py",
+          "test_function": "test_versioned_publication_summarizes_all_selected_vendor_sources"
+        },
+        {
+          "case": "generic_p2_source_forgery_rejected_before_write",
+          "test_file": "tests/unit/data_center/test_control_plane_publication_evidence.py",
+          "test_function": "test_generic_p2_publish_rejects_forged_selected_source_before_repository"
+        },
+        {
+          "case": "p2_exact_same_id_replay",
+          "test_file": "tests/component/data_center/test_versioned_publication_integrity.py",
+          "test_function": "test_p2_same_id_exact_replay_is_idempotent"
+        },
+        {
+          "case": "p2_same_id_metadata_immutable",
+          "test_file": "tests/component/data_center/test_versioned_publication_integrity.py",
+          "test_function": "test_p2_same_id_metadata_rewrite_is_rejected_and_history_unchanged"
+        },
+        {
+          "case": "p2_direct_entry_coverage_enforced",
+          "test_file": "tests/component/data_center/test_versioned_publication_integrity.py",
+          "test_function": "test_direct_p2_entry_points_apply_coverage_policy"
+        },
+        {
+          "case": "empty_scope_uses_canonical_fallback_identity",
+          "test_file": "tests/component/data_center/test_publication_member_fact_identity.py",
+          "test_function": "test_valid_member_with_empty_scope_binds_fallback_identity_and_row_hash"
+        },
+        {
+          "case": "real_row_sha_rejects_forged_natural_key",
+          "test_file": "tests/component/data_center/test_publication_member_fact_identity.py",
+          "test_function": "test_real_row_hash_cannot_authorize_forged_frozen_identity"
+        },
+        {
+          "case": "real_row_sha_rejects_forged_observed_at",
+          "test_file": "tests/component/data_center/test_publication_member_fact_identity.py",
+          "test_function": "test_real_row_hash_cannot_authorize_forged_frozen_identity"
+        },
+        {
+          "case": "real_row_sha_rejects_forged_quality_status",
+          "test_file": "tests/component/data_center/test_publication_member_fact_identity.py",
+          "test_function": "test_real_row_hash_cannot_authorize_forged_frozen_identity"
+        },
+        {
+          "case": "real_row_sha_rejects_forged_revision_number",
+          "test_file": "tests/component/data_center/test_publication_member_fact_identity.py",
+          "test_function": "test_real_row_hash_cannot_authorize_forged_frozen_identity"
+        },
+        {
+          "case": "real_row_sha_rejects_forged_source_record_id",
+          "test_file": "tests/component/data_center/test_publication_member_fact_identity.py",
+          "test_function": "test_real_row_hash_cannot_authorize_forged_frozen_identity"
+        },
+        {
+          "case": "real_row_sha_rejects_forged_raw_payload_hash",
+          "test_file": "tests/component/data_center/test_publication_member_fact_identity.py",
+          "test_function": "test_real_row_hash_cannot_authorize_forged_frozen_identity"
+        },
+        {
+          "case": "canonical_positive_primary_key_resolves_fact",
+          "test_file": "tests/component/data_center/test_publication_member_fact_identity.py",
+          "test_function": "test_canonical_positive_primary_key_is_accepted"
+        },
+        {
+          "case": "rejected_quality_cannot_be_laundered_as_accepted",
+          "test_file": "tests/component/data_center/test_publication_member_fact_identity.py",
+          "test_function": "test_rejected_valuation_quality_cannot_be_laundered_as_accepted"
+        },
+        {
+          "case": "macro_zero_revision_freezes_as_one",
+          "test_file": "tests/component/data_center/test_publication_member_fact_identity.py",
+          "test_function": "test_macro_zero_based_row_revision_is_frozen_as_one"
+        },
+        {
+          "case": "leading_zero_primary_key_rejected",
+          "test_file": "tests/component/data_center/test_publication_member_fact_identity.py",
+          "test_function": "test_malformed_primary_key_fails_closed_before_fact_lookup"
+        },
+        {
+          "case": "unicode_digit_primary_key_rejected",
+          "test_file": "tests/component/data_center/test_publication_member_fact_identity.py",
+          "test_function": "test_malformed_primary_key_fails_closed_before_fact_lookup"
+        },
+        {
+          "case": "negative_primary_key_rejected",
+          "test_file": "tests/component/data_center/test_publication_member_fact_identity.py",
+          "test_function": "test_malformed_primary_key_fails_closed_before_fact_lookup"
+        },
+        {
+          "case": "nondecimal_primary_key_rejected",
+          "test_file": "tests/component/data_center/test_publication_member_fact_identity.py",
+          "test_function": "test_malformed_primary_key_fails_closed_before_fact_lookup"
+        },
+        {
+          "case": "signed_64_overflow_primary_key_rejected",
+          "test_file": "tests/component/data_center/test_publication_member_fact_identity.py",
+          "test_function": "test_malformed_primary_key_fails_closed_before_fact_lookup"
+        },
+        {
+          "case": "additive_evidence_schema_preserves_unknown_legacy_fields",
+          "test_file": "tests/unit/data_center/test_publication_evidence_migration.py",
+          "test_function": "test_forward_evidence_migrations_preserve_legacy_rows_and_default_new_fields"
+        },
+        {
+          "case": "no_p2_write_schema_rollback_preserves_legacy_rows",
+          "test_file": "tests/unit/data_center/test_publication_evidence_migration.py",
+          "test_function": "test_reverse_evidence_migrations_restore_legacy_schema_without_rewriting_rows"
+        },
+        {
+          "case": "legacy_fallback_payload_hash_goldens",
+          "test_file": "tests/component/data_center/test_publication_member_fact_identity.py",
+          "test_function": "test_legacy_fallback_payload_hashes_are_byte_compatible"
         }
       ]
     },
@@ -4013,7 +4290,10 @@
         "apps/data_center/infrastructure/valuation_fact_repository.py",
         "apps/data_center/infrastructure/financial_availability_repository.py",
         "apps/data_center/infrastructure/financial_fact_repository.py",
-        "apps/data_center/application/core_data_backfill.py"
+        "apps/data_center/application/core_data_backfill.py",
+        "apps/data_center/infrastructure/publication_fact_identity.py",
+        "apps/data_center/infrastructure/publication_fact_legacy_payload.py",
+        "apps/data_center/infrastructure/publication_fact_evidence.py"
       ],
       "required_markers": {
         "apps/data_center/application/current_fact_remediation.py": [
@@ -4045,18 +4325,18 @@
           "def list_current_publication_candidates(",
           "freq=\"1d\"",
           "adjustment=PriceAdjustment.NONE.value",
-          "cn_market_date_start_utc(row.bar_date)"
+          "publication_fact_reference_for_dataset"
         ],
         "apps/data_center/infrastructure/quote_snapshot_repository.py": [
           "def list_latest_for_asset_codes(",
           "def list_current_publication_candidates(",
-          "observed_at=row.snapshot_at"
+          "publication_fact_reference_for_dataset"
         ],
         "apps/data_center/infrastructure/valuation_fact_repository.py": [
           "def list_current_publication_candidates(",
           "valuation publication candidate requires observed_at",
-          "observed_at=row.observed_at",
-          "valuation available_at cannot be in the future"
+          "valuation available_at cannot be in the future",
+          "publication_fact_reference_for_dataset"
         ],
         "apps/data_center/infrastructure/financial_availability_repository.py": [
           "def preview_availability_backfill(",
@@ -4066,12 +4346,31 @@
         "apps/data_center/infrastructure/financial_fact_repository.py": [
           "def list_current_publication_candidates(",
           "available_at__isnull=False",
-          "observed_at=row.available_at"
+          "publication_fact_reference_for_dataset"
         ],
         "apps/data_center/application/core_data_backfill.py": [
           "rebuild_current_publications",
           "current_publication_rebuild_failed",
           "checkpoint = {**checkpoint, \"complete\": False}"
+        ],
+        "apps/data_center/infrastructure/publication_fact_identity.py": [
+          "build_publication_fact_identity",
+          "publication_fact_model_registry",
+          "revision_number=row.revision_number + 1",
+          "observed_at=row.available_at",
+          "observed_at=row.observed_at",
+          "cn_market_date_start_utc(row.bar_date)",
+          "observed_at=row.snapshot_at"
+        ],
+        "apps/data_center/infrastructure/publication_fact_legacy_payload.py": [
+          "ensure_ascii=False, sort_keys=True",
+          "hashlib.sha256(encoded).hexdigest()"
+        ],
+        "apps/data_center/infrastructure/publication_fact_evidence.py": [
+          "publication_fact_reference_for_dataset",
+          "identity.natural_key",
+          "identity.observed_at",
+          "identity.raw_payload_hash"
         ]
       },
       "required_tests": [

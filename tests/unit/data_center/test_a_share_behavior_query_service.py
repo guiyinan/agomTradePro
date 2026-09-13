@@ -5,13 +5,101 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
+import pytest
+
+from apps.data_center.application import query_services
+from apps.data_center.application.publication_utils import member_reference, publication_hash
 from apps.data_center.application.query_services import (
     A_SHARE_BEHAVIOR_INDICATORS,
     get_latest_a_share_behavior_payload,
     query_published_a_share_behavior_payload,
 )
+from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
+from apps.data_center.domain.control_plane import (
+    CanonicalPublication,
+    CoverageSnapshot,
+    PublicationMember,
+    PublicationState,
+)
 from apps.data_center.domain.entities import MacroFact
 from apps.data_center.domain.enums import DataQualityStatus
+
+pytestmark = pytest.mark.django_db
+
+
+def _macro_policy() -> PublicationPolicy:
+    """Return the legacy policy identity used by the composite test scope."""
+
+    return PublicationPolicy(
+        dataset=DatasetKey("macro.fact", "1.0", "1.0"),
+        minimum_coverage_ratio=1.0,
+        allow_partial=False,
+        conflict_action="block",
+        required_evidence=("source", "observed_at", "published_at", "payload_hash"),
+        retention_days=3650,
+    )
+
+
+class _DatasetContractRepository:
+    """Provide a freshness window for the synthetic current publication."""
+
+    def get_active(self, _dataset_key: str) -> SimpleNamespace:
+        """Return the contract field consumed by the current-read gate."""
+
+        return SimpleNamespace(freshness_seconds=3650 * 86_400)
+
+
+def _member(*, publication_id: str, publication_key: str) -> PublicationMember:
+    """Build one complete typed member for a composite component publication."""
+
+    observed_at = datetime(2026, 7, 30, 8, 0, tzinfo=UTC)
+    return PublicationMember(
+        member_id=f"member-{publication_id}",
+        publication_id=publication_id,
+        dataset_key="macro.fact",
+        natural_key=f"macro:{publication_key}",
+        source="test",
+        source_record_id=f"record-{publication_id}",
+        fact_table="data_center_macro_fact",
+        fact_pk=publication_key,
+        observed_at=observed_at,
+        raw_payload_hash="a" * 64,
+        quality_status="accepted",
+        revision_number=1,
+        available_at=observed_at,
+        fetched_at=observed_at,
+        source_published_at=observed_at,
+        fact_content_hash="b" * 64,
+    )
+
+
+def _publication(publication_key: str, publication_id: str) -> CanonicalPublication:
+    """Build a canonical publication whose hash matches its member snapshot."""
+
+    member = _member(publication_id=publication_id, publication_key=publication_key)
+    published_at = member.observed_at
+    assert published_at is not None
+    return CanonicalPublication(
+        publication_id=publication_id,
+        dataset_key="macro.fact",
+        publication_key=publication_key,
+        policy_version=_macro_policy().identity,
+        state=PublicationState.PUBLISHED,
+        selected_source="test",
+        publication_hash=publication_hash((member_reference(member),)),
+        coverage=CoverageSnapshot(
+            coverage_id=publication_id,
+            publication_id=publication_id,
+            requested_count=1,
+            eligible_count=1,
+            selected_count=1,
+            generated_at=published_at,
+        ),
+        member_count=1,
+        as_of=published_at,
+        published_at=published_at,
+        created_by="test",
+    )
 
 
 class _Repository:
@@ -34,17 +122,68 @@ class _Publication:
 class _PublicationRepository:
     def __init__(self, missing: set[str] | None = None) -> None:
         self.missing = missing or set()
+        self._members: dict[str, tuple[PublicationMember, ...]] = {}
+        self._fact_hashes: dict[tuple[str, str], str] = {}
 
-    def get_current(self, dataset_key: str, publication_key: str) -> _Publication | None:
+    def get_current(self, dataset_key: str, publication_key: str) -> CanonicalPublication | None:
         assert dataset_key == "macro.fact"
         if publication_key in self.missing:
             return None
-        return _Publication(f"publication-{publication_key}")
+        publication = _publication(publication_key, f"publication-{publication_key}")
+        member = _member(
+            publication_id=publication.publication_id,
+            publication_key=publication_key,
+        )
+        self._members[publication.publication_id] = (member,)
+        self._fact_hashes[(member.fact_table, member.fact_pk)] = member.fact_content_hash
+        return publication
+
+    def list_members(self, publication_id: str) -> list[PublicationMember]:
+        """Return the member snapshot selected by the requested publication."""
+
+        return list(self._members.get(publication_id, ()))
+
+    def get_fact_content_hashes(
+        self, members: tuple[PublicationMember, ...]
+    ) -> dict[tuple[str, str], str]:
+        """Return independently stored normalized fact hashes."""
+
+        return {
+            (member.fact_table, member.fact_pk): self._fact_hashes[
+                (member.fact_table, member.fact_pk)
+            ]
+            for member in members
+        }
+
+    def get_oldest_member_observed_at(self, publication_id: str) -> datetime | None:
+        """Return the oldest observed timestamp in the selected member set."""
+
+        members = self._members.get(publication_id, ())
+        return min(
+            (member.observed_at for member in members if member.observed_at is not None),
+            default=None,
+        )
 
 
 class _StalePublicationRepository(_PublicationRepository):
     def get_oldest_member_observed_at(self, _publication_id: str) -> datetime:
         return datetime(2025, 7, 1, tzinfo=UTC)
+
+
+@pytest.fixture(autouse=True)
+def _governed_query_dependencies(monkeypatch) -> None:
+    """Supply typed policy and contract dependencies for every publication gate."""
+
+    monkeypatch.setattr(
+        query_services,
+        "get_publication_policy_repository",
+        lambda: SimpleNamespace(get_active=lambda _dataset_key: _macro_policy()),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_dataset_contract_repository",
+        lambda: _DatasetContractRepository(),
+    )
 
 
 def _fact(indicator_code: str, observed_at: date, value: float) -> MacroFact:

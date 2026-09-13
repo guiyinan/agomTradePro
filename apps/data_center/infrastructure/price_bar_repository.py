@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from collections.abc import Sequence
 from datetime import date
 
@@ -12,9 +10,10 @@ from django.db.models import OuterRef, Subquery
 from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import PriceBar
 from apps.data_center.domain.enums import PriceAdjustment
-from apps.data_center.domain.market_time import cn_market_date_start_utc
 from apps.data_center.infrastructure._repository_helpers import _resolve_asset_code_candidates
 from apps.data_center.infrastructure.models import PriceBarModel
+
+from .publication_fact_evidence import publication_fact_reference_for_dataset
 
 
 class PriceBarRepository:
@@ -179,41 +178,10 @@ class PriceBarRepository:
 def _price_bar_publication_reference(row: PriceBarModel) -> PublicationFactReference:
     """Convert one exact price row to immutable publication evidence."""
 
-    natural_key = (
-        f"{row.asset_code}:{row.bar_date.isoformat()}:{row.freq}:" f"{row.adjustment}:{row.source}"
+    return publication_fact_reference_for_dataset(
+        row,
+        dataset_key="equity.price.bar",
     )
-    return PublicationFactReference(
-        natural_key=natural_key,
-        source=row.source,
-        source_record_id=row.source_record_id or natural_key,
-        fact_table="data_center_price_bar",
-        fact_pk=str(row.pk),
-        observed_at=cn_market_date_start_utc(row.bar_date),
-        raw_payload_hash=row.raw_payload_hash or _price_bar_payload_hash(row),
-        quality_status=row.quality_status,
-        revision_number=row.revision_number,
-    )
-
-
-def _price_bar_payload_hash(row: PriceBarModel) -> str:
-    """Return deterministic evidence for one persisted price bar."""
-
-    payload = {
-        "asset_code": row.asset_code,
-        "bar_date": row.bar_date.isoformat(),
-        "freq": row.freq,
-        "adjustment": row.adjustment,
-        "open": str(row.open),
-        "high": str(row.high),
-        "low": str(row.low),
-        "close": str(row.close),
-        "volume": str(row.volume) if row.volume is not None else None,
-        "amount": str(row.amount) if row.amount is not None else None,
-        "source": row.source,
-    }
-    return hashlib.sha256(
-        json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
-    ).hexdigest()
 
 
 __all__ = ["PriceBarRepository"]

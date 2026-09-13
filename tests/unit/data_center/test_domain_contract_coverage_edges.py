@@ -280,11 +280,12 @@ def test_catalog_contracts_reject_invalid_governance_metadata() -> None:
         with pytest.raises(ValueError):
             replace(binding, **overrides)
 
-    policy = PublicationPolicy(DATASET, 1.0, False, "block", ("checksum",), 30)
+    policy = PublicationPolicy(DATASET, 1.0, False, "block", ("payload_hash",), 30)
     for overrides in (
         {"minimum_coverage_ratio": 1.1},
         {"conflict_action": "ignore"},
         {"required_evidence": ()},
+        {"required_evidence": ("checksum",)},
         {"retention_days": 0},
     ):
         with pytest.raises(ValueError):

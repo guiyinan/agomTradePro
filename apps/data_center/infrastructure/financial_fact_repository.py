@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from collections.abc import Sequence
 from datetime import date
 
@@ -17,6 +15,8 @@ from apps.data_center.infrastructure.financial_availability_repository import (
     FinancialAvailabilityRepositoryMixin,
 )
 from apps.data_center.infrastructure.models import FinancialFactModel
+
+from .publication_fact_evidence import publication_fact_reference_for_dataset
 
 
 class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
@@ -172,40 +172,10 @@ def _financial_publication_reference(
 
     if row.available_at is None:
         raise ValueError("financial publication candidate requires available_at")
-    natural_key = (
-        f"{row.asset_code}:{row.period_end.isoformat()}:{row.period_type}:"
-        f"{row.metric_code}:{row.source}"
+    return publication_fact_reference_for_dataset(
+        row,
+        dataset_key="equity.financial.fact",
     )
-    return PublicationFactReference(
-        natural_key=natural_key,
-        source=row.source,
-        source_record_id=row.source_record_id or natural_key,
-        fact_table="data_center_financial_fact",
-        fact_pk=str(row.pk),
-        observed_at=row.available_at,
-        raw_payload_hash=row.raw_payload_hash or _financial_payload_hash(row),
-        quality_status=row.quality_status,
-        revision_number=row.revision_number,
-    )
-
-
-def _financial_payload_hash(row: FinancialFactModel) -> str:
-    """Return deterministic evidence for one persisted financial fact."""
-
-    payload = {
-        "asset_code": row.asset_code,
-        "period_end": row.period_end.isoformat(),
-        "period_type": row.period_type,
-        "metric_code": row.metric_code,
-        "value": str(row.value),
-        "unit": row.unit,
-        "source": row.source,
-        "report_date": row.report_date.isoformat() if row.report_date else None,
-        "available_at": row.available_at.isoformat() if row.available_at else None,
-    }
-    return hashlib.sha256(
-        json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
-    ).hexdigest()
 
 
 __all__ = ["FinancialFactRepository"]

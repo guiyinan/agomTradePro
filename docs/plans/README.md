@@ -1,6 +1,6 @@
 # 活跃计划索引
 
-> 2026-09-13：生产已部署 `c8bb9b780bcd…` / release `20260913014501`，完整权威读取 14.52 秒；单资产审计同步新增 quote/event/outbox 各一条，独立清理确认 runtime 关闭。写图创建仍约 50 分钟；DATA-02、EVID-01/02、AUD-03、TAR-05 生产验收尚未完成。[生产性能检查点](../deployment/sprint-data02-authority-performance-checkpoint-2026-09-13-c8bb9b780.json)。
+> 2026-09-13：生产已部署 `b18b18029f90…` / release `20260913102723`；真实 current 预检 14.66 秒，existing-root replay 2,677.79 秒。完整生命周期因有效期不足取消（exit 130），独立核验回滚及原 admin current 恢复。[部署与回滚证据](../deployment/evid08-standard-deployment-and-cancelled-lifecycle-2026-09-13.json)。DATA-16 是唯一仓库焦点；Luna max 的[写路径性能方案](evid08-facade-write-performance-remediation-2026-09-13.md)尚未实施。DATA-02、EVID-01/02、AUD-03、TAR-05 生产验收未完成。
 
 > 更新日期：2026-09-13
 > 本目录只保留仍需开发、真实数据、生产验收或外部依赖闭环的计划。已完成的实施计划、阶段记录、复盘和历史证据统一放在 [`../archive/plans/`](../archive/plans/)；归档记录见 [`../archive/ARCHIVE_INDEX.md`](../archive/ARCHIVE_INDEX.md)。

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from apps.data_center.application.publication_utils import publication_hash
+from apps.data_center.application.publication_utils import member_reference, publication_hash
 from apps.data_center.domain.control_plane import (
     PublicationFactReference,
     PublicationMember,
@@ -252,7 +252,13 @@ class DjangoMarketStructurePublicationGate:
         ):
             raise ValueError("market-structure governance publication coverage was tampered")
         references = tuple(self._reference(member) for member in members)
-        if publication_hash(references) != publication.publication_hash:
+        policy_identity = (
+            publication.policy_version if publication.policy_version.startswith("p2:") else None
+        )
+        if (
+            publication_hash(references, policy_identity=policy_identity)
+            != publication.publication_hash
+        ):
             raise ValueError("market-structure governance publication hash mismatch")
         matches = tuple(member for member in members if member.natural_key == natural_key)
         if len(matches) != 1:
@@ -288,19 +294,7 @@ class DjangoMarketStructurePublicationGate:
 
     @staticmethod
     def _reference(member: PublicationMember) -> PublicationFactReference:
-        if member.observed_at is None:
-            raise ValueError("market-structure governance member lacks observed_at")
-        return PublicationFactReference(
-            natural_key=member.natural_key,
-            source=member.source,
-            source_record_id=member.source_record_id,
-            fact_table=member.fact_table,
-            fact_pk=member.fact_pk,
-            observed_at=member.observed_at,
-            raw_payload_hash=member.raw_payload_hash,
-            quality_status=member.quality_status,
-            revision_number=member.revision_number,
-        )
+        return member_reference(member)
 
 
 __all__ = [

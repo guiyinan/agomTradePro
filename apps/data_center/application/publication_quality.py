@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Final, Protocol
 
-from apps.data_center.application.publication_utils import publication_hash
+from apps.data_center.application.publication_utils import member_reference, publication_hash
 from apps.data_center.application.sync_transaction import (
     DataCenterSyncClock,
     DataQualityAuditWriter,
@@ -139,19 +139,7 @@ class PublicationQualityReader(Protocol):
 def _member_reference(member: PublicationMember) -> PublicationFactReference:
     """Restore one canonical publication-hash input from its persisted member."""
 
-    if member.observed_at is None:
-        raise ValueError("published member requires observed_at")
-    return PublicationFactReference(
-        natural_key=member.natural_key,
-        source=member.source,
-        source_record_id=member.source_record_id,
-        fact_table=member.fact_table,
-        fact_pk=member.fact_pk,
-        observed_at=member.observed_at,
-        raw_payload_hash=member.raw_payload_hash,
-        quality_status=member.quality_status,
-        revision_number=member.revision_number,
-    )
+    return member_reference(member)
 
 
 def project_publication_quality(
@@ -191,7 +179,13 @@ def project_publication_quality(
 
     ordered_members = tuple(sorted(member_snapshot, key=lambda member: member.natural_key))
     references = tuple(_member_reference(member) for member in ordered_members)
-    if publication_hash(references) != publication.publication_hash:
+    policy_identity = (
+        publication.policy_version if publication.policy_version.startswith("p2:") else None
+    )
+    if (
+        publication_hash(references, policy_identity=policy_identity)
+        != publication.publication_hash
+    ):
         raise ValueError("member snapshot hash differs from publication.publication_hash")
 
     counts: Counter[DataQualityState] = Counter()

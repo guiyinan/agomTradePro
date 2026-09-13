@@ -23,7 +23,7 @@ class CanonicalPublicationModel(models.Model):
     publication_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     dataset_key = models.CharField(max_length=160, db_index=True)
     publication_key = models.CharField(max_length=300)
-    policy_version = models.CharField(max_length=80)
+    policy_version = models.CharField(max_length=128)
     state = models.CharField(
         max_length=20, choices=STATE_CHOICES, default=PublicationState.CANDIDATE.value
     )
@@ -122,6 +122,11 @@ class PublicationMemberModel(models.Model):
     raw_payload_hash = models.CharField(max_length=128, blank=True)
     quality_status = models.CharField(max_length=40, default="accepted")
     revision_number = models.PositiveIntegerField(default=1)
+    available_at = models.DateTimeField(null=True, blank=True)
+    fetched_at = models.DateTimeField(null=True, blank=True)
+    source_published_at = models.DateTimeField(null=True, blank=True)
+    raw_payload_scope = models.CharField(max_length=40, blank=True)
+    fact_content_hash = models.CharField(max_length=64, blank=True)
 
     class Meta:
         db_table = "data_center_publication_member"
@@ -150,6 +155,11 @@ class PublicationMemberModel(models.Model):
             raw_payload_hash=self.raw_payload_hash,
             quality_status=self.quality_status,
             revision_number=self.revision_number,
+            available_at=self.available_at,
+            fetched_at=self.fetched_at,
+            source_published_at=self.source_published_at,
+            raw_payload_scope=self.raw_payload_scope,
+            fact_content_hash=self.fact_content_hash,
         )
 
 

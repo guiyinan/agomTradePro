@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from collections.abc import Sequence
 from datetime import UTC, date, datetime
 
@@ -13,6 +11,8 @@ from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import ValuationFact
 from apps.data_center.infrastructure._repository_helpers import _resolve_asset_code_candidates
 from apps.data_center.infrastructure.models import ValuationFactModel
+
+from .publication_fact_evidence import publication_fact_reference_for_dataset
 
 
 class ValuationFactRepository:
@@ -221,42 +221,10 @@ def _valuation_publication_reference(
         raise ValueError("valuation fetched_at must be timezone-aware")
     if row.fetched_at < row.observed_at:
         raise ValueError("valuation fetched_at cannot precede observed_at")
-    natural_key = f"{row.asset_code}:{row.val_date.isoformat()}:{row.source}"
-    return PublicationFactReference(
-        natural_key=natural_key,
-        source=row.source,
-        source_record_id=row.source_record_id or natural_key,
-        fact_table="data_center_valuation_fact",
-        fact_pk=str(row.pk),
-        observed_at=row.observed_at,
-        raw_payload_hash=row.raw_payload_hash or _valuation_payload_hash(row),
-        quality_status=(
-            row.quality_status if row.available_at is not None else "available_at_unverified"
-        ),
-        revision_number=row.revision_number,
+    return publication_fact_reference_for_dataset(
+        row,
+        dataset_key="equity.valuation.fact",
     )
-
-
-def _valuation_payload_hash(row: ValuationFactModel) -> str:
-    """Return deterministic evidence for one persisted valuation fact."""
-
-    payload = {
-        "asset_code": row.asset_code,
-        "val_date": row.val_date.isoformat(),
-        "pe_ttm": str(row.pe_ttm) if row.pe_ttm is not None else None,
-        "pe_static": str(row.pe_static) if row.pe_static is not None else None,
-        "pb": str(row.pb) if row.pb is not None else None,
-        "ps_ttm": str(row.ps_ttm) if row.ps_ttm is not None else None,
-        "market_cap": str(row.market_cap) if row.market_cap is not None else None,
-        "float_market_cap": str(row.float_market_cap) if row.float_market_cap is not None else None,
-        "dv_ratio": str(row.dv_ratio) if row.dv_ratio is not None else None,
-        "source": row.source,
-        "observed_at": row.observed_at.isoformat() if row.observed_at else None,
-        "available_at": row.available_at.isoformat() if row.available_at else None,
-    }
-    return hashlib.sha256(
-        json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
-    ).hexdigest()
 
 
 __all__ = ["ValuationFactRepository"]
