@@ -234,6 +234,37 @@ def test_tushare_unified_provider_adapter_builds_typed_financial_facts(monkeypat
     assert by_metric["revenue"].extra["provider_name"] == "tushare-main"
 
 
+@pytest.mark.parametrize("announcement_date", ["20260331", "2026-03-31"])
+def test_tushare_native_financial_date_does_not_invent_availability(
+    monkeypatch: pytest.MonkeyPatch, announcement_date: str
+) -> None:
+    """Keep the announcement day distinct from an exact PIT source instant."""
+
+    class _FakePro:
+        def fina_indicator(self, *, ts_code: str, limit: int) -> pd.DataFrame:
+            assert ts_code == "001979.SZ"
+            assert limit == 8
+            return pd.DataFrame(
+                [{"end_date": "20251231", "ann_date": announcement_date, "roe": 0.73}]
+            )
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure._provider_adapter_tushare.build_tushare_financial_gateway",
+        lambda **kwargs: None,
+    )
+    adapter = TushareUnifiedProviderAdapter(_config("tushare", "tushare-main"))
+    monkeypatch.setattr(adapter, "_create_pro_client", lambda: _FakePro())
+
+    facts = adapter.fetch_financials("001979.SZ", periods=8)
+
+    assert len(facts) == 1
+    assert facts[0].period_end == date(2025, 12, 31)
+    assert facts[0].report_date == date(2026, 3, 31)
+    assert facts[0].metric_code == "roe"
+    assert facts[0].value == 0.73
+    assert facts[0].available_at is None
+
+
 def test_tushare_unified_provider_adapter_fetches_etf_net_flow_from_size_delta(monkeypatch):
     class _FakePro:
         def trade_cal(self, exchange, start_date, end_date):
@@ -759,8 +790,9 @@ def test_akshare_unified_provider_adapter_fetches_financial_facts(monkeypatch):
     assert by_metric["revenue"].available_at is None
 
 
-def test_akshare_financials_preserve_partial_metrics_and_notice_date(monkeypatch):
-    """Missing ratios must not erase valid facts or create synthetic zeroes."""
+@pytest.mark.parametrize("notice_date", ["2026-03-31", "2026-03-31 00:00:00"])
+def test_akshare_financials_preserve_partial_metrics_and_notice_date(monkeypatch, notice_date):
+    """Preserve calendar evidence without inventing an intraday availability."""
 
     class _FakeAkshare:
         def stock_financial_analysis_indicator_em(self, symbol, indicator):
@@ -768,7 +800,7 @@ def test_akshare_financials_preserve_partial_metrics_and_notice_date(monkeypatch
                 [
                     {
                         "REPORT_DATE": "2025-12-31 00:00:00",
-                        "NOTICE_DATE": "2026-03-31 00:00:00",
+                        "NOTICE_DATE": notice_date,
                         "TOTALOPERATEREVE": 1_000_000.0,
                     }
                 ]
@@ -785,7 +817,7 @@ def test_akshare_financials_preserve_partial_metrics_and_notice_date(monkeypatch
     assert [(fact.metric_code, fact.value) for fact in facts] == [("revenue", 1_000_000.0)]
     assert facts[0].period_end == date(2025, 12, 31)
     assert facts[0].report_date == date(2026, 3, 31)
-    assert facts[0].available_at == datetime(2026, 3, 31, tzinfo=UTC)
+    assert facts[0].available_at is None
     assert "derived_from" not in facts[0].extra
 
 

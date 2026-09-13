@@ -17,6 +17,7 @@ from apps.data_center.application.current_fact_remediation import (
     FinancialAvailabilityBackfillUseCase,
 )
 from apps.data_center.domain.entities import QuoteSnapshot
+from core.exceptions import InvalidInputError
 
 STARTED_AT = datetime(2026, 8, 30, 1, 0, tzinfo=UTC)
 COMPLETED_AT = STARTED_AT + timedelta(minutes=5)
@@ -75,12 +76,13 @@ def _availability_preview(
     eligible: int = 2,
     future_reports: int = 0,
     future_availability: int = 0,
+    unresolved: int = 0,
 ) -> FinancialAvailabilityBackfillPreview:
     return FinancialAvailabilityBackfillPreview(
         missing_row_count=missing,
         eligible_row_count=eligible,
         eligible_asset_count=1 if eligible else 0,
-        unresolved_row_count=0,
+        unresolved_row_count=unresolved,
         future_report_date_count=future_reports,
         future_available_at_count=future_availability,
         oldest_report_date=date(2026, 3, 31),
@@ -88,7 +90,7 @@ def _availability_preview(
     )
 
 
-def test_financial_availability_repair_is_exact_and_idempotent() -> None:
+def test_financial_date_only_availability_is_blocked_without_calling_writer() -> None:
     repository = _FinancialRepository(
         _availability_preview(),
         _availability_preview(missing=0, eligible=0),
@@ -98,18 +100,58 @@ def test_financial_availability_repair_is_exact_and_idempotent() -> None:
         transaction=_transaction,
     )
 
-    result = use_case.execute(
-        asset_codes=["000001.SZ"],
-        recorded_at=STARTED_AT,
-    )
+    with pytest.raises(InvalidInputError, match="verified source timestamp"):
+        use_case.execute(asset_codes=["000001.SZ"], recorded_at=STARTED_AT)
 
-    assert result.updated_row_count == 2
-    assert result.after.eligible_row_count == 0
-    assert repository.updated == 1
+    assert repository.updated == 0
+    assert repository.previews[0].eligible_row_count == 0
+
+
+def test_financial_availability_noop_does_not_call_a_calendar_date_writer() -> None:
+    before = _availability_preview(missing=0, eligible=0)
+    repository = _FinancialRepository(before, before)
+    use_case = FinancialAvailabilityBackfillUseCase(repository=repository, transaction=_transaction)
+
+    result = use_case.execute(asset_codes=["000001.SZ"], recorded_at=STARTED_AT)
+
+    assert result.updated_row_count == 0
+    assert result.before == result.after == before
+    assert repository.updated == 0
+
+
+def test_financial_availability_noop_rejects_inventory_drift() -> None:
+    repository = _FinancialRepository(
+        _availability_preview(missing=0, eligible=0),
+        _availability_preview(missing=1, eligible=0),
+    )
+    use_case = FinancialAvailabilityBackfillUseCase(repository=repository, transaction=_transaction)
+
+    with pytest.raises(ValueError, match="count drifted"):
+        use_case.execute(asset_codes=["000001.SZ"], recorded_at=STARTED_AT)
+    assert repository.updated == 0
+
+
+def test_financial_calendar_preview_does_not_advertise_executable_backfill() -> None:
+    preview = _availability_preview()
+
+    assert preview.safe_to_execute is False
+    assert preview.to_dict()["safe_to_execute"] is False
+
+
+def test_financial_unknown_date_is_blocked_without_calling_writer() -> None:
+    preview = _availability_preview(missing=1, eligible=0, unresolved=1)
+    repository = _FinancialRepository(preview, preview)
+    use_case = FinancialAvailabilityBackfillUseCase(repository=repository, transaction=_transaction)
+
+    with pytest.raises(InvalidInputError, match="verified source timestamp"):
+        use_case.execute(asset_codes=["000001.SZ"], recorded_at=STARTED_AT)
+
+    assert preview.safe_to_execute is False
+    assert repository.updated == 0
 
 
 def test_financial_availability_repair_rejects_future_evidence() -> None:
-    before = _availability_preview(future_reports=1)
+    before = _availability_preview(missing=0, eligible=0, future_reports=1)
     repository = _FinancialRepository(before, before)
     use_case = FinancialAvailabilityBackfillUseCase(
         repository=repository,
@@ -211,13 +253,12 @@ class _SyncUseCase:
 class _FinancialAvailability:
     def preview(self, **kwargs):
         del kwargs
-        return _availability_preview()
+        return _availability_preview(missing=0, eligible=0)
 
     def execute(self, **kwargs):
         del kwargs
-        before = _availability_preview()
-        after = _availability_preview(missing=0, eligible=0)
-        return FinancialAvailabilityBackfillResult(2, before, after)
+        before = _availability_preview(missing=0, eligible=0)
+        return FinancialAvailabilityBackfillResult(0, before, before)
 
 
 class _CompletedPrices:
@@ -274,6 +315,37 @@ def test_core_refresh_batches_then_publishes_at_completion_time() -> None:
     assert result.valuation_stored_count == 2
     assert len(quote_sync.requests) == 1
     assert publications.execute_kwargs["published_at"] == COMPLETED_AT
+
+
+def test_core_refresh_blocks_publication_when_financial_source_time_is_missing() -> None:
+    repository = _FinancialRepository(_availability_preview(), _availability_preview())
+    publications = _Publications()
+    use_case = CoreCurrentFactRefreshUseCase(
+        provider_id=7,
+        quote_sync_factory=lambda: _SyncUseCase(SimpleNamespace(stored_count=2)),
+        price_sync_factory=lambda: _SyncUseCase(SimpleNamespace(stored_count=1)),
+        valuation_sync_factory=lambda: _SyncUseCase(
+            SimpleNamespace(stored_count=2, succeeded_asset_codes=["000001.SZ", "600000.SH"])
+        ),
+        financial_sync_factory=lambda: _SyncUseCase(SimpleNamespace(stored_count=4)),
+        financial_availability=FinancialAvailabilityBackfillUseCase(
+            repository=repository, transaction=_transaction
+        ),
+        completed_session_prices=_CompletedPrices(),
+        publications=publications,
+        clock=lambda: COMPLETED_AT,
+    )
+
+    with pytest.raises(InvalidInputError, match="verified source timestamp"):
+        use_case.execute(
+            asset_codes=["000001.SZ", "600000.SH"],
+            session_date=SESSION_DATE,
+            recorded_at=STARTED_AT,
+            batch_size=2,
+        )
+
+    assert repository.updated == 0
+    assert publications.execute_kwargs is None
 
 
 def test_core_refresh_stops_before_publication_on_incomplete_quote_batch() -> None:

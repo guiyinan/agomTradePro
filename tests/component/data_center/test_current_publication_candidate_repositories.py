@@ -22,6 +22,7 @@ from apps.data_center.infrastructure.quote_snapshot_repository import (
 from apps.data_center.infrastructure.valuation_fact_repository import (
     ValuationFactRepository,
 )
+from core.exceptions import InvalidInputError
 
 AVAILABLE_AT = datetime(2026, 8, 20, 9, 0, tzinfo=UTC)
 
@@ -200,7 +201,7 @@ def test_financial_selector_uses_latest_available_period_and_one_source_per_metr
 
 
 @pytest.mark.django_db
-def test_financial_availability_backfill_uses_only_persisted_report_date() -> None:
+def test_financial_calendar_date_backfill_is_blocked_without_changing_history() -> None:
     eligible = FinancialFactModel.objects.create(
         asset_code="000001.SZ",
         period_end=date(2026, 6, 30),
@@ -227,15 +228,17 @@ def test_financial_availability_backfill_uses_only_persisted_report_date() -> No
         asset_codes=("000001.SZ", "600000.SH"),
         recorded_at=datetime(2026, 8, 30, tzinfo=UTC),
     )
-    updated = repository.backfill_available_at_from_report_date(
-        asset_codes=("000001.SZ", "600000.SH"),
-        recorded_at=datetime(2026, 8, 30, tzinfo=UTC),
-    )
+    before = list(FinancialFactModel.objects.order_by("pk").values())
+    with pytest.raises(InvalidInputError, match="verified source timestamp"):
+        repository.backfill_available_at_from_report_date(
+            asset_codes=("000001.SZ", "600000.SH"),
+            recorded_at=datetime(2026, 8, 30, tzinfo=UTC),
+        )
 
     eligible.refresh_from_db()
     assert preview.missing_row_count == 2
     assert preview.eligible_row_count == 1
     assert preview.unresolved_row_count == 1
-    assert updated == 1
-    assert eligible.available_at is not None
-    assert eligible.available_at.date() == date(2026, 8, 15)
+    assert preview.safe_to_execute is False
+    assert eligible.available_at is None
+    assert list(FinancialFactModel.objects.order_by("pk").values()) == before

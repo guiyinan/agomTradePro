@@ -69,14 +69,6 @@ def _deployment_region() -> str:
     )
 
 
-def _available_at_from_report_date(report_date: date | None) -> datetime | None:
-    """Convert an AKShare notice/report date into an explicit availability instant."""
-
-    if report_date is None:
-        return None
-    return datetime.combine(report_date, datetime.min.time(), tzinfo=UTC)
-
-
 _A_SHARE_BEHAVIOR_CODES = frozenset(
     {
         "CN_A_ADVANCE_COUNT",
@@ -682,7 +674,9 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                         unit=unit,
                         source=self.provider_source(),
                         report_date=report_date,
-                        available_at=_available_at_from_report_date(report_date),
+                        # This adapter has only a calendar announcement date;
+                        # it cannot establish an exact intraday availability.
+                        available_at=None,
                         extra=self._provider_extra(
                             {"derived_from": derived_metrics[metric_code]}
                             if metric_code in derived_metrics

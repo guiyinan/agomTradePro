@@ -11,6 +11,7 @@ from typing import Protocol
 from zoneinfo import ZoneInfo
 
 from apps.data_center.domain.entities import PriceBar, QuoteSnapshot
+from core.exceptions import InvalidInputError
 
 from .current_publication_rebuild import (
     CoreCurrentPublicationPreview,
@@ -29,7 +30,7 @@ _EVIDENCE_ASSET_CODE_LIMIT = 20
 
 @dataclass(frozen=True)
 class FinancialAvailabilityBackfillPreview:
-    """Bounded evidence for facts whose source report date can restore availability."""
+    """Read-only calendar inventory; a date cannot prove exact availability."""
 
     missing_row_count: int
     eligible_row_count: int
@@ -42,9 +43,15 @@ class FinancialAvailabilityBackfillPreview:
 
     @property
     def safe_to_execute(self) -> bool:
-        """Return whether source evidence contains no future boundary."""
+        """Allow a no-write inventory only when source availability is complete."""
 
-        return self.future_report_date_count == 0 and self.future_available_at_count == 0
+        return (
+            self.missing_row_count == 0
+            and self.eligible_row_count == 0
+            and self.unresolved_row_count == 0
+            and self.future_report_date_count == 0
+            and self.future_available_at_count == 0
+        )
 
     def to_dict(self) -> dict[str, object]:
         """Return stable JSON-safe repair evidence."""
@@ -83,7 +90,7 @@ class FinancialAvailabilityBackfillRepositoryProtocol(Protocol):
         asset_codes: tuple[str, ...],
         recorded_at: datetime,
     ) -> int:
-        """Set only missing availability from an existing source report date."""
+        """Reject the legacy date-only write; genuine timestamps need a source contract."""
 
 
 @dataclass(frozen=True)
@@ -105,7 +112,7 @@ class FinancialAvailabilityBackfillResult:
 
 
 class FinancialAvailabilityBackfillUseCase:
-    """Atomically restore availability from source-provided report dates."""
+    """Inventory missing availability while blocking date-only historical writes."""
 
     def __init__(
         self,
@@ -122,7 +129,7 @@ class FinancialAvailabilityBackfillUseCase:
         asset_codes: Sequence[str],
         recorded_at: datetime,
     ) -> FinancialAvailabilityBackfillPreview:
-        """Return repairable and unresolved counts without writing facts."""
+        """Return calendar and unresolved counts without approving date-only writes."""
 
         normalized_codes = _normalize_asset_codes(asset_codes)
         _require_aware(recorded_at, "recorded_at")
@@ -137,7 +144,7 @@ class FinancialAvailabilityBackfillUseCase:
         asset_codes: Sequence[str],
         recorded_at: datetime,
     ) -> FinancialAvailabilityBackfillResult:
-        """Repair eligible rows or roll back on evidence/count drift."""
+        """Return a stable no-op or reject missing verified source timestamps."""
 
         normalized_codes = _normalize_asset_codes(asset_codes)
         _require_aware(recorded_at, "recorded_at")
@@ -146,22 +153,28 @@ class FinancialAvailabilityBackfillUseCase:
                 asset_codes=normalized_codes,
                 recorded_at=recorded_at,
             )
+            if (
+                before.missing_row_count > 0
+                or before.eligible_row_count > 0
+                or before.unresolved_row_count > 0
+            ):
+                raise InvalidInputError(
+                    "financial availability requires a verified source timestamp; "
+                    "calendar-date backfill is disabled",
+                    code="FINANCIAL_SOURCE_TIMESTAMP_REQUIRED",
+                )
             if not before.safe_to_execute:
                 raise ValueError("financial availability evidence contains a future boundary")
-            updated = self._repository.backfill_available_at_from_report_date(
-                asset_codes=normalized_codes,
-                recorded_at=recorded_at,
-            )
             after = self._repository.preview_availability_backfill(
                 asset_codes=normalized_codes,
                 recorded_at=recorded_at,
             )
-            if updated != before.eligible_row_count or after.eligible_row_count != 0:
+            if before != after:
                 raise ValueError("financial availability backfill count drifted")
             if not after.safe_to_execute:
                 raise ValueError("financial availability backfill produced a future boundary")
         return FinancialAvailabilityBackfillResult(
-            updated_row_count=updated,
+            updated_row_count=0,
             before=before,
             after=after,
         )
