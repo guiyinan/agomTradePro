@@ -37,6 +37,35 @@ def immutable_read_snapshot() -> Iterator[None]:
             _immutable_reads.reset(token)
 
 
+@contextmanager
+def isolated_immutable_read_snapshot() -> Iterator[None]:
+    """Start a fresh caller-stabilized read phase, including when nested."""
+
+    current: dict[tuple[object, ...], object] = {}
+    token = _immutable_reads.set(current)
+    try:
+        yield
+    finally:
+        current.clear()
+        _immutable_reads.reset(token)
+
+
+@contextmanager
+def suspend_immutable_read_reuse() -> Iterator[None]:
+    """Disable reuse across mutation and discard enclosing cached observations."""
+
+    enclosing = _immutable_reads.get()
+    if enclosing is not None:
+        enclosing.clear()
+    token = _immutable_reads.set(None)
+    try:
+        yield
+    finally:
+        if enclosing is not None:
+            enclosing.clear()
+        _immutable_reads.reset(token)
+
+
 def reuse_immutable_read(
     namespace: str,
 ) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]:
@@ -89,4 +118,9 @@ def _exact_hashable_signature(
     return key
 
 
-__all__ = ["immutable_read_snapshot", "reuse_immutable_read"]
+__all__ = [
+    "immutable_read_snapshot",
+    "isolated_immutable_read_snapshot",
+    "reuse_immutable_read",
+    "suspend_immutable_read_reuse",
+]
