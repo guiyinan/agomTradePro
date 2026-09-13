@@ -1,0 +1,126 @@
+{
+  "schema": "data02.official_announcement_single_document_metadata.v1",
+  "sealed_at_utc": "2026-09-13T14:55:38.994930Z",
+  "unit": "DATA-02",
+  "capture_context": {
+    "execution_location": "local_pc",
+    "vps_request": false,
+    "database_read": false,
+    "database_write": false,
+    "production_data_modified": false,
+    "request_count": 1,
+    "request_method": "GET",
+    "request_authentication": "none",
+    "tls_verify": true,
+    "allow_redirects": false,
+    "retry_total": 0,
+    "proxy_from_environment": false,
+    "timeout_seconds": 15,
+    "maximum_response_bytes": 16777216
+  },
+  "official_primary_sources": [
+    {
+      "name": "CNINFO disclosure page",
+      "url": "https://www.cninfo.com.cn/new/commonUrl?url=disclosure/list/notice",
+      "evidence_scope": "official SZSE disclosure search entry; no published time-unit or timezone contract claimed"
+    },
+    {
+      "name": "CNINFO captured official document",
+      "url": "https://static.cninfo.com.cn/finalpage/2024-03-15/1219306483.PDF",
+      "evidence_scope": "document identity and report-period evidence"
+    },
+    {
+      "name": "SZSE company announcement page",
+      "url": "https://www.szse.cn/disclosure/notice/company/",
+      "evidence_scope": "official public announcement search entry"
+    },
+    {
+      "name": "JR/T 0021.1 official standard",
+      "url": "https://www.sse.com.cn/lawandrules/regulations/csrcannoun/c/10751844/files/c231e94e119145c2ba0c44ecd84dc713.pdf",
+      "evidence_scope": "announcement identity and formal publication-date field are date-level"
+    },
+    {
+      "name": "JR/T 0021.8 official standard",
+      "url": "https://www.sse.com.cn/lawandrules/regulations/csrcannoun/c/10751844/files/7b4b5425e6754b1eb03e13d8e12eea88.pdf",
+      "evidence_scope": "periodic-report category codes, including GB0101 annual full report"
+    }
+  ],
+  "source_artifact": {
+    "symbol": "000001.SZ",
+    "venue": "SZSE",
+    "document_kind": "annual_report_summary",
+    "document_url": "https://static.cninfo.com.cn/finalpage/2024-03-15/1219306483.PDF",
+    "opaque_document_id": "1219306483",
+    "opaque_document_id_basis": "PDF URL basename; opaque platform/document handle only",
+    "receipt_private_path": "var/data02-cninfo-000001-annual-summary-20260913/receipt.json",
+    "receipt_sha256": "697bde279518ef4ce4f786c5ac7ab331eaa001a09d0be045eed5e37dd3ceef08",
+    "receipt_size_bytes": 1176,
+    "receipt_encoding": "gzip+base64 of exact private receipt.json bytes",
+    "receipt_gzip_sha256": "448b6128eed0c610a357f955b6f529b68d58afbd4f64978c1dc50fbdf3b3b893",
+    "receipt_gzip_size_bytes": 576,
+    "receipt_gzip_base64": "H4sIAAAAAAAC/7VSTW/bMAy9F+h/KHxuHFn+iJ3zul2HtadeBFqiF2G25OkjrVf0v09yHSftgO00nyySj3x8jy/XVzc3ieUHHCDZ3yQCHBCa6q6TXELPQCntFccBlWMGnhiH0XmD6TFLbmesQRBMq34KcGc83i4d9Ygh8hJf8T0Nre7jBBK/LL1/fMOH3BGVj7XJ/eP93RoVmvt56g+pRMwGKj4wMjhq45j1wwBm+rNczsUZzZqcVEWdJ7Hg9cT1p0frLngN6A56Rny5e1ibeTNTPTg32v12ax04yVOupOp0yvUQfredVNCP8B23lNBiQ/JNVm7PY9Ovnz6v/Vxv2RGN7N6JFBLQ9/oprCSkQe5syHbQ2zVt0JmJOe0g8iGn8Gj088Q6oweG6iiNVnHzj2Dw7hDCkgfyWsV9lFZ45iQH1D4IiVwrEUdn5Sk3wLMc/BCI2VEri6ydHM4l1W63o1l1JnhZwKz2hs9WLkrb9NtSEWRTLrK8sCPoahwKBo55xyMsSFltSLPJ8oes2Bf5vqBpQxua1Y/rub31u7ytYI+3jGsRo5SQ/2Xj6hPrdDQOxUfNlyWZm+brT2Ac+8WA7Si6tZOVv86i7oqiLFft7QFoWUVwQ5qctkTUQOo6LzvSQZ1XZUsxUKsKQN40AFUjBO0y0YhdkTVFBdjStq6bJl+ntVqEc5H94sx7Q9JWqveVbwz+CkgXlhdmBj3HHv9lZ57mdbWrqpOd4QIDcJ5jPedobej5en31G7CSXO2YBAAA",
+    "review_private_path": "var/data02-cninfo-000001-annual-summary-20260913/review.json",
+    "review_sha256": "951b11c90574c978b69585b4331369a06073f8dca670fd8f7e239be646487047"
+  },
+  "response": {
+    "http_status_code": 200,
+    "content_type": "application/pdf",
+    "size_bytes": 744555,
+    "sha256": "90932b0d8a08835f0fa8365b2e06464aec99aa69dd2f1d9d741946aeb2b88993",
+    "acquisition_started_at_utc": "2026-09-13T14:43:42.929218Z",
+    "acquisition_completed_at_utc": "2026-09-13T14:43:43.386766Z",
+    "content_source": "requests.Response.content exact bytes",
+    "raw_body_private_path": "var/data02-cninfo-000001-annual-summary-20260913/response.content.bin",
+    "raw_body_in_repository": false
+  },
+  "identity_assertions": {
+    "security_code": "000001",
+    "issuer": "Ping An Bank (平安银行)",
+    "venue": "SZSE",
+    "announcement_number": "2024-017",
+    "title_assertion": "2023 annual report summary",
+    "report_category": "annual_report_summary",
+    "standard_full_report_code": "GB0101",
+    "standard_full_report_code_applied_to_this_summary": false,
+    "report_period_end": "2023-12-31",
+    "unit_labels_observed": [
+      "人民币百万元",
+      "元/股",
+      "%",
+      "元"
+    ],
+    "unit_conversion_performed": false,
+    "row_level_financial_record_id": null,
+    "cninfo_opaque_document_id_is_machine_row_id": false,
+    "joint_binding_to_eastmoney_financial_fact": false,
+    "identity_status": "document_identity_and_period_evidence_only"
+  },
+  "time_boundary": {
+    "url_path_date": "2024-03-15",
+    "url_path_date_precision": "calendar_date_only",
+    "url_path_date_promoted_to_announced_at": false,
+    "document_publication_instant": null,
+    "source_timezone": null,
+    "announced_at": null,
+    "available_at": null,
+    "acquisition_completed_at_is_system_upper_bound_only": true,
+    "timezone_and_instant_gap": "open"
+  },
+  "verification": {
+    "body_sha256_matches_receipt": true,
+    "body_sha256_matches_private_sidecar": true,
+    "body_size_matches_receipt": true,
+    "review_identity_and_period_facts_read": true,
+    "raw_pdf_attached_to_repository": false,
+    "raw_pdf_text_attached_to_repository": false,
+    "raw_body_attached_to_repository": false,
+    "metadata_only_seal": true
+  },
+  "data02_boundary": {
+    "fin3_acceptance": false,
+    "historical_backfill": false,
+    "publication_or_decision_activation": false,
+    "existing_financial_rows_repaired": false,
+    "remaining_gap": "official document identity is not jointly bound to an EastMoney financial fact row; source publication instant, timezone, and available_at remain unproven"
+  }
+}
