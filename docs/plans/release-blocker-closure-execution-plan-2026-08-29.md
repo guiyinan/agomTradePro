@@ -172,6 +172,44 @@ payload_hash。该实验不宣称实际历史生产 Publication 当前 fresh，�
 下一 repository 包必须在实际响应时间/hash 传递之外，证明 batch publish、current rebuild、幂等返回及
 旧 current member 的缺失 availability 均 fail closed，再领取 DATA-02 Publication 修复批次。
 
+#### 2026-09-13 部署复测与 DATA-16 分类检查点
+
+EVID-08 已经由 PR #36 合并为 `b18b18029f90af4b23693426a1f489af44ffe2b2`，
+标准 code-only 部署终态为 0；数据库备份校验通过，没有恢复数据库。
+[部署与取消测试证据](../deployment/evid08-standard-deployment-and-cancelled-lifecycle-2026-09-13.json)
+封存 22 份原始材料及逐份 SHA-256。部署后的真实 current 预检完成：14.66 秒、1,824 SELECT；
+existing-root issue replay 完成：2,677.79 秒、245,223 SELECT。后续 successor 尚未完成，
+完整生命周期测试因配置的 30 分钟有效期不足以覆盖实测耗时而精确 SIGINT 取消，终态 130。
+不是完整写入验收通过，也不将此前只读闭图的 CPU 改善外推到生产全生命周期。
+
+独立核验在 `2026-09-13T04:40:25.814398Z` 确认 4 条 root、0 条 revocation 的提交记录
+content hash 和规范化载荷指纹与中断前一致。随后原始 admin/user_id=1 的 current 在
+`2026-09-13T04:43:43.415448Z` 恢复成功，耗时 13.10 秒；TLS health 200。
+保留 PostgreSQL sequence 可能因回滚前分配而前进的限制。
+
+DATA-16 是唯一 active repository focus。source witness 切片 `6853db9d4` 已分类提交，
+44 项 transport/adapter 回归通过；策略版本切片 `7d2b874f4` 已分类提交，21 项测试通过，
+包含真实 migration 保留 legacy 策略内容的检查。6 个生产文件增量 mypy 为 0，全量债务为 0，
+Black/isort/Ruff 通过；contracts 中两处未修改的历史 UP042 使用显式命令排除，不抬基线。
+current-data 契约检查通过，实际登记 62 个 surface。四个候选 p2 策略仅更新仓库投影，
+尚未部署、初始化或改变生产 active policy。
+
+生产 migration 只读预检在 `2026-09-13T04:54:37.296777Z` 完成：10 个 active policy，
+无同 dataset 多 active；2,227 条 CanonicalPublication 的最大既有 policy identity 长度
+为 7，own-version 列尚不存在，0076..0078 尚未应用。该结果仅证明当前 additive
+migration 前置未发现 active 唯一约束冲突，不是已迁移或已激活候选策略。
+
+冻结证据、批量发布和 current 快照切片仍在整合。真实 PostgreSQL 回归第一份完整报告为
+4 failed /2 passed；三个失败是专用夹具遗漏 AssetMaster/AssetAlias，另一个是相同范围和
+内容的新 ID 触发现有幂等唯一约束。修正夹具后的完整复测为 6 passed /903.35 秒，终态 0；
+独立只读核验在 `2026-09-13T04:57:50.333885Z` 确认专用数据库 public 基表为 0。
+该运行验证当时的快照和发布锁代码；后续完整身份/元数据防护及夹具复用修改仍需最终复测。
+审查新增的收口要求包括：事实行 SHA 完整绑定 member 身份/质量/版本、p2 publication ID
+元数据不可重写、selected source 与实际成员一致、repository/current 重验 coverage/conflict。
+由 Luna max 负责事实身份与性能方案，主代理负责整合、最终检查和分类提交；完整门禁通过后
+再合并及部署 DATA-16，随后执行 DATA-02 的真实来源修复和冻结 universe 验收。
+DATA-02、EVID-01/02、AUD-03、TAR-05 的生产退出状态保持未完成。
+
 [AUD-03 只读 backlog 起点](../deployment/sprint-aud03-backlog-readonly-2026-09-13-c8bb9b780.json)
 在 2026-09-12 20:41:34Z 记录两条 due pending、零 claimed/delivered/failed，最旧事件年龄约 19,571 秒；
 runtime 为 off、outbox disabled、authority selector absent。这是后续恢复起点，不是已开启 worker 的

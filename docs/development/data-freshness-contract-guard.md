@@ -27,6 +27,22 @@ Alpha Qlib 推理缓存必须按 `asof_date` 核对请求交易日；旧源日�
 
 日频 A 股 price/valuation 的自然小时预算到期后，只允许在所有 Publication member 都精确绑定最近已收盘交易日时标记为 `latest_completed_session`；这不会改变源观测时间，也不适用于实时 quote。全市场 current Publication 必须按冻结 universe 原子发布，单标的或中间批次同步只写 fact，不得缩小既有 current member 集合。
 
+## DATA-16 版本化证据边界
+
+候选策略具有独立 `policy_version`，不可用同一版本改写决策字段；新的 `p2` 身份绑定
+完整策略内容，Publication v2 同时绑定该身份和冻结成员证据。历史 v1 hash 字节与历史
+查询语义保留。当前读取必须重新核对 active policy、完整 member 集合、实际事实行
+内容、观测及可用时间和查询知识截止点，缺失或漂移发布稳定阻断原因。
+
+`fact_content_hash` 是所有持久化事实字段的规范化行 SHA-256，不证明供应商原始响应。
+兼容证据键 `payload_hash` 使用既有持久化哈希或原规范化 payload 回退规则；候选
+price/quote/financial 策略保留这个兼容键并额外要求 `fact_content_hash`，不能据此声称
+原始 HTTP body 留存已齐全。valuation 候选策略另行明确要求 `raw_payload_hash`、
+`raw_payload_scope` 和 `source_record_id`；仅真实响应 bytes 的哈希和明确 body scope
+可作为原始响应证据。共享 batch body 哈希不表示每个资产有独立响应体。
+响应完成 UTC 只证明本系统此时已获得响应，不能作为供应商最早披露时间，也不得覆盖
+vendor `observed_at`。未部署候选策略与代码前，不宣称生产 DATA-02 缺口已修复。
+
 ## 版本化登记内容
 
 每个当前数据面必须在 manifest 中登记：

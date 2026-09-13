@@ -1,5 +1,5 @@
 {
-  "version": "2026-09-13.v93",
+  "version": "2026-09-13.v94",
   "updated_at": "2026-09-13",
   "execution_focus": {
     "unit_id": "DATA-16",
@@ -18,7 +18,7 @@
       "priority": "P0",
       "owner": "research+risk_center+portfolio+broker_execution+account",
       "status": "active",
-      "next_gate": "Candidate c8bb9b780bcd5181066aa4f8b8a4b331b8ac19cc / release 20260913014501 consumed a second real admin/user_id=1 Evidence V5 / Authority V3 graph in the production System Audit path. Locked complete authority read is now 14.52 seconds, but write graph setup remains about 50 minutes and needs bounded restoration work before scaling. EVID-01/02 remain awaiting_production: repeatable PostgreSQL first-winner concurrency, successor/current-head/revocation/rollback and independently signed candidate-bound acceptance are still required. Task authorization is not a cryptographic owner/reviewer signature. Evidence: docs/deployment/sprint-data02-authority-performance-checkpoint-2026-09-13-c8bb9b780.json.",
+      "next_gate": "Production source b18b18029f90af4b23693426a1f489af44ffe2b2 / release source-20260913102723 is deployed and healthy. Current preflight completed in 14.66 s; existing-root replay completed in 2677.79 s with 245,223 SELECT. The configured 30-minute validity cannot cover the complete lifecycle: exact test was SIGINT cancelled, terminal 130, successor incomplete. Independent committed ledger fingerprints restored 4 roots /0 revocations and original admin/user 1 current restored in 13.10 s. Checkpoint: docs/deployment/evid08-standard-deployment-and-cancelled-lifecycle-2026-09-13.json. Read-phase performance remediation is planned only; DATA-16 remains the sole repository focus. EVID-01/02 production concurrency, successor/current/revocation/rollback and independently signed acceptance remain required.",
       "documents": [
         {
           "path": "docs/plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md",
@@ -31,6 +31,10 @@
         {
           "path": "docs/plans/research-integrity-m0-inventory-2026-07-22.md",
           "role": "evidence"
+        },
+        {
+          "path": "docs/plans/evid08-facade-write-performance-remediation-2026-09-13.md",
+          "role": "supporting"
         }
       ]
     },
