@@ -30,8 +30,9 @@ EVID-09须先修复后续测量的原始前后snapshot留存与解释，再取�
 Source V2不能直接新增对Account Infrastructure的依赖，否则可能形成App循环。
 通用无业务immutable-read机制可下沉到shared Infrastructure并保留Account原入口兼容，
 或通过typed组合边界注入；必须保持单一ContextVar及原namespace/实例/精确参数key，
-不能通过跨App反向依赖或放宽key获得命中。Account composition既有1003行超过增长预算，
-增加接线前先抽取明确职责，不抬门禁预算。
+不能通过跨App反向依赖或放宽key获得命中。实际 Account composition 为405行/348非空行，
+Application service 为1096行/964非空行；后者接近1000非空行增长门。新增职责应按实际
+增长检查决定是否抽取，不抬门禁预算，也不按误记的文件规模重构无关职责。
 
 `b18` 已经证明了同一对象图内的解码与对象校验可以复用，但它没有减少 SQL。独立完整图
 诊断的两次 `get_winner` restore 在保持相同 PostgreSQL 快照、相同 `58,492 SELECT` 的
