@@ -12,7 +12,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Final, Generic, TypeVar
 
 from shared.domain.reliability import ReliabilityContract, ReliabilityStatus
@@ -37,7 +37,21 @@ KNOWN_PUBLICATION_EVIDENCE_KEYS: Final[frozenset[str]] = frozenset(
 )
 
 
-class FetchOutcome(str, Enum):
+class _LegacyRenderedStrEnum(StrEnum):
+    """Preserve existing enum display strings and formatting on Python 3.11+."""
+
+    def __str__(self) -> str:
+        """Return the class-qualified display used by the original str/Enum types."""
+
+        return f"{type(self).__name__}.{self.name}"
+
+    def __format__(self, format_spec: str) -> str:
+        """Format the legacy display rather than silently switching to the value."""
+
+        return format(str(self), format_spec)
+
+
+class FetchOutcome(_LegacyRenderedStrEnum):
     """Outcome of a provider fetch before persistence or publication."""
 
     SUCCESS = "success"
@@ -47,7 +61,7 @@ class FetchOutcome(str, Enum):
     FAILED = "failed"
 
 
-class PublicationState(str, Enum):
+class PublicationState(_LegacyRenderedStrEnum):
     """Lifecycle state of a canonical dataset publication."""
 
     DRAFT = "draft"

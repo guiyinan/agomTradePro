@@ -10,6 +10,18 @@ from typing import Any
 from apps.data_center.application.current_publication_evidence import (
     current_publication_evidence_blocked_reason,
 )
+from apps.data_center.application.publication_query_bounds import (
+    blocked_publication_members_result as _blocked_publication_members_result,
+)
+from apps.data_center.application.publication_query_bounds import (
+    blocked_publication_result as _blocked_publication_result,
+)
+from apps.data_center.application.publication_query_bounds import (
+    bounded_end_date as _bounded_end_date,
+)
+from apps.data_center.application.publication_query_bounds import (
+    publication_as_of_datetime as _publication_as_of_datetime,
+)
 from apps.data_center.application.query_use_cases import latest_completed_cn_market_session
 from apps.data_center.composition import (
     get_asset_repository,
@@ -410,25 +422,6 @@ def get_current_publication_gate(
     return _publication_gate(dataset_key, publication_key)
 
 
-def _blocked_publication_result(
-    gate: dict[str, object] | None = None,
-) -> dict[str, object]:
-    """Return the stable fail-closed shape for an absent or stale publication."""
-
-    result: dict[str, object] = {
-        "rows": [],
-        "publication_id": None,
-        "published_at": None,
-        "must_not_use_for_decision": True,
-        "blocked_reason": "canonical_publication_missing",
-    }
-    if gate is not None:
-        result.update(gate)
-    result["rows"] = []
-    result["must_not_use_for_decision"] = True
-    return result
-
-
 def get_publication_member_fact_pks(
     publication_id: str,
     *,
@@ -492,50 +485,11 @@ def _publication_member_fact_pks(
     )
 
 
-def _blocked_publication_members_result(
-    gate: dict[str, object],
-    *,
-    reason: str = "canonical_publication_members_missing",
-) -> dict[str, object]:
-    """Return a stable blocked envelope when selected members are unusable."""
-
-    result = _blocked_publication_result(gate)
-    result["blocked_reason"] = reason
-    return result
-
-
-def _publication_as_of_datetime(gate: dict[str, object]) -> datetime | None:
-    """Parse a publication knowledge boundary for current-row upper bounds."""
-
-    raw_as_of = gate.get("as_of")
-    if isinstance(raw_as_of, datetime):
-        return raw_as_of
-    if not isinstance(raw_as_of, str) or not raw_as_of.strip():
-        return None
-    try:
-        parsed = datetime.fromisoformat(raw_as_of)
-    except ValueError:
-        return None
-    if parsed.tzinfo is None or parsed.utcoffset() is None:
-        return None
-    return parsed
-
-
 def _publication_as_of_date(gate: dict[str, object]) -> date | None:
     """Return the China-market date of a publication knowledge boundary."""
 
     as_of = _publication_as_of_datetime(gate)
     return cn_market_date_from_observation(as_of) if as_of is not None else None
-
-
-def _bounded_end_date(requested: date | None, publication_as_of: date | None) -> date | None:
-    """Limit a current-data query to the publication's knowledge boundary."""
-
-    if publication_as_of is None:
-        return requested
-    if requested is None:
-        return publication_as_of
-    return min(requested, publication_as_of)
 
 
 @publication_snapshot("equity.quote.snapshot")
