@@ -425,3 +425,21 @@ savepoint winner 的实际计数成立。缺失 natural key 无法预锁；反�
 候选 CI 发现 architecture 与 entrypoint 自动生成清单过期；按现有生成器刷新
 投影并保留既有治理状态，不增加 mypy 债务或放宽退出门。最终合并仍以对应
 提交的完整 CI 成功为准。
+
+## 15. 2026-09-14 实际代码审查与合并
+
+最终审查提交 `242df9aada34fe3c0e57e1506cf4d38a140b186b` 的完整 30 项检查
+均实际 completed/SUCCESS。PR42 在 `2026-09-13T21:16:11Z` 合并为 Main
+`9390637ca72ef221b76179e62faaac8d2b552d7c`；候选与合并提交的 Git tree
+一致。原始 ready、match-head merge、检查前后 JSON、stdout/stderr 和执行
+receipt 共 13 份工件，连同 helper 源码共 14 份 exact bytes 封存在
+[代码审查与合并记录](../testing/data02-carrier-review-and-merge-2026-09-14.json)
+及其 SHA sidecar 中。独立代理的只读审查结论仅按收到的报告摘要记录，
+没有伪造人工签名或生产批准工件。
+
+这关闭候选代码的审查/合并待办，没有部署该财务候选。VPS 仍运行 EVID-09
+优化来源 `6760c9aa`；真实响应、scope/completion、行身份、精确可用时间、
+并发和 DATA-02 生产退出门保持未完成。下一隔离切片先实现 typed raw-response
+捕获边界与 mock 测试，暂不接入 provider、写入或发布；date-only 来源保持
+`announced_at=None`、`available_at=None`，缺失真实行 ID 时不把 partial hash
+附到已有事实 witness，也不能以系统获取完成时间替代供应商披露或可用时间。
