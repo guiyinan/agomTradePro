@@ -334,6 +334,7 @@ class EgressHttpTransport:
         The request and response scopes are caller declarations for a later
         provider parser.  This method records no row identity, announcement
         time, availability time, or persisted fact evidence.
+        Identity encoding is requested by default; encoded responses fail closed.
         """
 
         del request_id
@@ -343,6 +344,9 @@ class EgressHttpTransport:
             return _financial_scope_error_result()
         if request_scope.dataset_key != context.dataset_key:
             return _financial_scope_error_result()
+        financial_headers = dict(headers or {})
+        if not any(key.lower() == "accept-encoding" for key in financial_headers):
+            financial_headers["Accept-Encoding"] = "identity"
         result, payload = self._request_once(
             context,
             egress_id=egress_id,
@@ -350,7 +354,7 @@ class EgressHttpTransport:
             method=method,
             params=params,
             json_body=json_body,
-            headers=headers,
+            headers=financial_headers,
             expect_json=True,
             max_response_bytes=self._max_response_bytes,
             financial_request_scope=request_scope,

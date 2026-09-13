@@ -194,6 +194,40 @@ def test_financial_response_captures_exact_body_once_and_keeps_scope_declared(
     assert session.trust_env is False
     assert session.calls[0][1]["allow_redirects"] is False
     assert session.calls[0][1]["stream"] is True
+    assert session.calls[0][1]["headers"]["Accept-Encoding"] == "identity"
+
+
+@pytest.mark.parametrize("encoding", ["identity", "gzip"])
+def test_financial_response_preserves_explicit_encoding_declaration(
+    monkeypatch: pytest.MonkeyPatch, encoding: str
+) -> None:
+    """Explicit caller negotiation is preserved regardless of header casing."""
+
+    response = _Response(b'{"value":1}')
+    session, releases = _install_transport_doubles(monkeypatch, response)
+    request_scope, response_scope = _scopes()
+    headers = {"accept-encoding": encoding}
+    result, captured = transport_module.EgressHttpTransport(
+        max_attempts=1
+    ).request_financial_response(
+        _context(),
+        egress_id=None,
+        request_id=uuid4(),
+        attempt=1,
+        method="GET",
+        params=None,
+        json_body=None,
+        headers=headers,
+        request_scope=request_scope,
+        response_scope=response_scope,
+    )
+    assert result.outcome == "success"
+    assert captured is not None
+    sent_headers = session.calls[0][1]["headers"]
+    assert sent_headers["accept-encoding"] == encoding
+    assert "Accept-Encoding" not in sent_headers
+    assert headers == {"accept-encoding": encoding}
+    assert response.closed and session.closed and len(releases) == 1
 
 
 def test_financial_scope_mismatch_blocks_before_acquiring_http_slot(monkeypatch) -> None:
