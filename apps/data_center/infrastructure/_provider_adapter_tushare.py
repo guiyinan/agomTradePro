@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import os
 from collections.abc import Callable
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Any, Protocol, cast
 
 from apps.data_center.domain.entities import (
@@ -171,14 +171,6 @@ def _optional_nonnegative_float(value: object) -> float | None:
     return parsed
 
 
-def _available_at_from_report_date(report_date: date | None) -> datetime | None:
-    """Convert the provider's announcement date into an explicit availability instant."""
-
-    if report_date is None:
-        return None
-    return datetime.combine(report_date, datetime.min.time(), tzinfo=UTC)
-
-
 def _financial_fact_builder(
     *,
     asset_code: str,
@@ -193,6 +185,8 @@ def _financial_fact_builder(
     period_type = _to_period_type(report_type)
 
     def build(metric_code: str, value: float, unit: str) -> FinancialFact:
+        """Keep date-only announcement evidence unavailable for intraday decisions."""
+
         return FinancialFact(
             asset_code=asset_code,
             period_end=period_end,
@@ -202,7 +196,7 @@ def _financial_fact_builder(
             unit=unit,
             source=source,
             report_date=report_date,
-            available_at=_available_at_from_report_date(report_date),
+            available_at=None,
             extra=extra,
         )
 

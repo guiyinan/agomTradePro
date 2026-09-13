@@ -13,13 +13,15 @@ from apps.data_center.domain.control_plane import (
     CanonicalPublication,
     CoverageSnapshot,
     PublicationFactReference,
-    PublicationMember,
     PublicationState,
 )
 from apps.data_center.domain.protocols import PublicationPolicyRepositoryProtocol
+from apps.data_center.domain.publication_evidence import validate_publication_evidence
+from apps.data_center.domain.publication_snapshot_policy import publication_selected_source_summary
 
 from .control_plane import CanonicalPublicationRepositoryPort, PublishCanonicalDatasetUseCase
-from .publication_utils import publication_hash
+from .publication_idempotence import publication_replay_matches
+from .publication_utils import publication_hash, publication_member_from_reference
 
 _EVIDENCE_ASSET_CODE_LIMIT = 20
 
@@ -168,27 +170,23 @@ class CurrentPublicationRebuildUseCase:
         ):
             raise ValueError("Current publication requires payload_hash evidence")
 
-        digest = publication_hash(selection.references)
+        validate_publication_evidence(policy, selection.references, published_at=published_at)
+        digest = publication_hash(
+            selection.references,
+            policy_identity=policy.identity if policy.uses_versioned_evidence else None,
+        )
         current = self._publications.get_current(
             self.dataset.dataset_key,
             self.publication_key,
         )
-        if current is not None and current.publication_hash == digest:
-            persisted_members = self._publications.list_members(current.publication_id)
-            expected_references = {
-                (reference.natural_key, reference.fact_table, reference.fact_pk)
-                for reference in selection.references
-            }
-            persisted_references = {
-                (member.natural_key, member.fact_table, member.fact_pk)
-                for member in persisted_members
-            }
-            if (
-                current.member_count == len(selection.references)
-                and len(persisted_members) == len(selection.references)
-                and persisted_references == expected_references
-            ):
-                return current
+        if current is not None and publication_replay_matches(
+            policy,
+            current,
+            selection.references,
+            self._publications.list_members(current.publication_id),
+            knowledge_cutoff=published_at,
+        ):
+            return current
 
         publication_id = str(
             uuid5(
@@ -197,36 +195,21 @@ class CurrentPublicationRebuildUseCase:
             )
         )
         members = tuple(
-            PublicationMember(
-                member_id=str(
-                    uuid5(
-                        uuid5(NAMESPACE_URL, publication_id),
-                        reference.natural_key,
-                    )
-                ),
+            publication_member_from_reference(
+                reference,
+                member_id=str(uuid5(uuid5(NAMESPACE_URL, publication_id), reference.natural_key)),
                 publication_id=publication_id,
                 dataset_key=self.dataset.dataset_key,
-                natural_key=reference.natural_key,
-                source=reference.source,
-                source_record_id=reference.source_record_id,
-                fact_table=reference.fact_table,
-                fact_pk=reference.fact_pk,
-                observed_at=reference.observed_at,
-                raw_payload_hash=reference.raw_payload_hash,
-                quality_status=reference.quality_status,
-                revision_number=reference.revision_number,
             )
             for reference in selection.references
         )
         as_of = max(reference.observed_at for reference in selection.references)
-        source_summary = ",".join(sorted({reference.source for reference in selection.references}))
-        if len(source_summary) > 100:
-            source_summary = "canonical-multi-source"
+        source_summary = publication_selected_source_summary(selection.references)
         publication = CanonicalPublication(
             publication_id=publication_id,
             dataset_key=self.dataset.dataset_key,
             publication_key=self.publication_key,
-            policy_version=f"{policy.dataset.contract_version}:{policy.dataset.schema_version}",
+            policy_version=policy.identity,
             state=PublicationState.PUBLISHED,
             selected_source=source_summary,
             publication_hash=digest,

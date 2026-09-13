@@ -4,17 +4,17 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from django.db.models import Count, DateTimeField, Max, Min, Q
-from django.db.models.functions import Cast
+from django.db.models import Count, Max, Min, Q
 
 from apps.data_center.application.current_fact_remediation import (
     FinancialAvailabilityBackfillPreview,
 )
 from apps.data_center.infrastructure.models import FinancialFactModel
+from core.exceptions import InvalidInputError
 
 
 class FinancialAvailabilityRepositoryMixin:
-    """Provide source-date availability preview and repair operations."""
+    """Provide calendar inventory while refusing fabricated historical timestamps."""
 
     def preview_availability_backfill(
         self,
@@ -64,14 +64,13 @@ class FinancialAvailabilityRepositoryMixin:
         asset_codes: tuple[str, ...],
         recorded_at: datetime,
     ) -> int:
-        """Restore only null availability using the persisted source report date."""
+        """Reject date-only historical writes even when called outside Application."""
 
-        return FinancialFactModel._default_manager.filter(
-            asset_code__in=asset_codes,
-            available_at__isnull=True,
-            report_date__isnull=False,
-            report_date__lte=recorded_at.date(),
-        ).update(available_at=Cast("report_date", output_field=DateTimeField()))
+        raise InvalidInputError(
+            "financial availability requires a verified source timestamp; "
+            "calendar-date backfill is disabled",
+            code="FINANCIAL_SOURCE_TIMESTAMP_REQUIRED",
+        )
 
 
 __all__ = ["FinancialAvailabilityRepositoryMixin"]

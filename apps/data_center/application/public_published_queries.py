@@ -41,6 +41,7 @@ from apps.data_center.composition import (
     get_provider_config_repository,
 )
 from apps.data_center.domain.entities import MacroFact
+from apps.data_center.publication_read_composition import publication_snapshot
 
 
 def get_current_publication_freshness_gate(
@@ -52,6 +53,7 @@ def get_current_publication_freshness_gate(
     return get_current_publication_gate(dataset_key, publication_key)
 
 
+@publication_snapshot()
 def get_decision_publication_gate(
     dataset_key: str,
     publication_key: str = "current",
@@ -485,6 +487,7 @@ def get_price_bar_series(
     )
 
 
+@publication_snapshot()
 def get_current_publication(
     dataset_key: str,
     publication_key: str,
@@ -494,7 +497,7 @@ def get_current_publication(
     publication = get_canonical_publication_repository().get_current(dataset_key, publication_key)
     if publication is None:
         return None
-    return {
+    result: dict[str, object] = {
         "publication_id": publication.publication_id,
         "dataset_key": publication.dataset_key,
         "publication_key": publication.publication_key,
@@ -515,6 +518,16 @@ def get_current_publication(
         "must_not_use_for_decision": publication.must_not_use_for_decision,
         "blocked_reason": publication.blocked_reason,
     }
+    gate = get_current_publication_freshness_gate(dataset_key, publication_key)
+    if gate is None:
+        result.update(
+            must_not_use_for_decision=True,
+            blocked_reason="publication_member_snapshot_invalid",
+            freshness_status="unverified",
+        )
+    else:
+        result.update(gate)
+    return result
 
 
 def get_publication_as_of(

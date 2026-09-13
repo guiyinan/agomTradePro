@@ -10,15 +10,14 @@ from apps.data_center.domain.contracts import (
     DataOwnerRegistration,
     DatasetContract,
     ProviderBinding,
-    PublicationPolicy,
 )
 
 from .catalog_models import (
     DataOwnerRegistrationModel,
     DatasetContractModel,
     DatasetProviderBindingModel,
-    DatasetPublicationPolicyModel,
 )
+from .publication_policy_repository import PublicationPolicyRepository
 
 
 class DatasetContractRepository:
@@ -130,64 +129,6 @@ class ProviderBindingRepository:
             for binding in entries:
                 self.save(binding)
         return len(entries)
-
-
-class PublicationPolicyRepository:
-    """Repository for active dataset publication policies."""
-
-    @property
-    def unit_of_work_key(self) -> str:
-        """Return the fixed transaction identity used by this repository."""
-
-        return "django:default"
-
-    def list_active(self, dataset_key: str | None = None) -> list[PublicationPolicy]:
-        """Return active policies in deterministic dataset order."""
-
-        queryset = DatasetPublicationPolicyModel._default_manager.filter(active=True)
-        if dataset_key is not None:
-            queryset = queryset.filter(dataset_key=dataset_key.strip())
-        return [row.to_domain() for row in queryset.order_by("dataset_key", "-updated_at", "-id")]
-
-    def get_active(self, dataset_key: str) -> PublicationPolicy | None:
-        """Return the newest active policy for one dataset."""
-
-        row = (
-            DatasetPublicationPolicyModel._default_manager.filter(
-                dataset_key=dataset_key.strip(), active=True
-            )
-            .order_by("-updated_at", "-id")
-            .first()
-        )
-        return row.to_domain() if row is not None else None
-
-    def save(self, policy: PublicationPolicy) -> PublicationPolicy:
-        """Upsert a policy and supersede older versions for its dataset."""
-
-        with transaction.atomic():
-            DatasetPublicationPolicyModel._default_manager.filter(
-                dataset_key=policy.dataset.value,
-                active=True,
-            ).exclude(
-                contract_version=policy.dataset.contract_version,
-                schema_version=policy.dataset.schema_version,
-            ).update(
-                active=False
-            )
-            row, _created = DatasetPublicationPolicyModel._default_manager.update_or_create(
-                dataset_key=policy.dataset.value,
-                contract_version=policy.dataset.contract_version,
-                schema_version=policy.dataset.schema_version,
-                defaults={
-                    "minimum_coverage_ratio": policy.minimum_coverage_ratio,
-                    "allow_partial": policy.allow_partial,
-                    "conflict_action": policy.conflict_action,
-                    "required_evidence": list(policy.required_evidence),
-                    "retention_days": policy.retention_days,
-                    "active": True,
-                },
-            )
-        return row.to_domain()
 
 
 class DataOwnerRegistryRepository:

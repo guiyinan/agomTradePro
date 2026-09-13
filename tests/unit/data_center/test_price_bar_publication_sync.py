@@ -61,6 +61,16 @@ class _PublicationRepository:
         self.published.append((publication, members))
         return publication
 
+    def list_members(self, publication_id):
+        return next(
+            (
+                members
+                for publication, members in self.published
+                if publication.publication_id == publication_id
+            ),
+            (),
+        )
+
 
 def _bar(asset_code: str = "000001.SZ", bar_date: date = BAR_DATE) -> PriceBar:
     return PriceBar(

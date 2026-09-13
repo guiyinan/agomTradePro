@@ -69,12 +69,24 @@ class PublicationFactReference:
     raw_payload_hash: str = ""
     quality_status: str = "accepted"
     revision_number: int = 1
+    available_at: datetime | None = None
+    fetched_at: datetime | None = None
+    source_published_at: datetime | None = None
+    raw_payload_scope: str = ""
+    fact_content_hash: str = ""
 
     def __post_init__(self) -> None:
         for name in ("natural_key", "source", "source_record_id", "fact_table", "fact_pk"):
             if not getattr(self, name).strip():
                 raise ValueError(f"PublicationFactReference.{name} cannot be empty")
         _require_aware(self.observed_at, "PublicationFactReference.observed_at")
+        for field_name, value in (
+            ("available_at", self.available_at),
+            ("fetched_at", self.fetched_at),
+            ("source_published_at", self.source_published_at),
+        ):
+            if value is not None:
+                _require_aware(value, f"PublicationFactReference.{field_name}")
         if self.revision_number < 1:
             raise ValueError("PublicationFactReference.revision_number must be positive")
 
@@ -413,6 +425,11 @@ class PublicationMember:
     raw_payload_hash: str = ""
     quality_status: str = "accepted"
     revision_number: int = 1
+    available_at: datetime | None = None
+    fetched_at: datetime | None = None
+    source_published_at: datetime | None = None
+    raw_payload_scope: str = ""
+    fact_content_hash: str = ""
 
     def __post_init__(self) -> None:
         for name in (
@@ -429,6 +446,13 @@ class PublicationMember:
                 raise ValueError(f"PublicationMember.{name} cannot be empty")
         if self.observed_at is not None:
             _require_aware(self.observed_at, "PublicationMember.observed_at")
+        for field_name, value in (
+            ("available_at", self.available_at),
+            ("fetched_at", self.fetched_at),
+            ("source_published_at", self.source_published_at),
+        ):
+            if value is not None:
+                _require_aware(value, f"PublicationMember.{field_name}")
         if self.revision_number < 1:
             raise ValueError("PublicationMember.revision_number must be positive")
 

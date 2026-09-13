@@ -11,7 +11,7 @@
       "compatibility_facade": 94,
       "current_data_surface": 62,
       "dynamic_import_edge": 11,
-      "management_command": 27,
+      "management_command": 28,
       "management_command_edge": 56,
       "mcp_tool": 40,
       "migration_evidence": 14,
@@ -26,17 +26,17 @@
       "script": 8,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 62,
+      "test_evidence": 64,
       "workflow_step": 10
     },
     "by_status": {
-      "active_public": 750,
+      "active_public": 751,
       "adjacent_operational": 298,
-      "candidate-review": 18,
+      "candidate-review": 20,
       "compatibility": 137,
       "retired_blocked": 0
     },
-    "total": 1203
+    "total": 1206
   },
   "entries": [
     {
@@ -5171,7 +5171,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=10",
+      "evidence": "governed current-data contract; source_files=15",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.core_current_publication_rebuild:Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "locator": "Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "path": "governance/current_data_contracts.json",
@@ -5241,7 +5241,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=4",
+      "evidence": "governed current-data contract; source_files=9",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.publication_gated_reads:Data Center API/SDK and Equity Application publication-gated decision reads",
       "locator": "Data Center API/SDK and Equity Application publication-gated decision reads",
       "path": "governance/current_data_contracts.json",
@@ -5281,7 +5281,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=25",
+      "evidence": "governed current-data contract; source_files=34",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.publication_writer_atomicity:Canonical publication writer and member snapshot commit",
       "locator": "Canonical publication writer and member snapshot commit",
       "path": "governance/current_data_contracts.json",
@@ -5777,6 +5777,16 @@
       "path": "apps/audit/management/commands/validate_high_frequency_indicators.py",
       "status": "adjacent_operational",
       "symbol": "validate_high_frequency_indicators",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "Data Center-owned Django command",
+      "id": "management_command:apps/data_center/management/commands/activate_publication_policies.py:activate_publication_policies:",
+      "locator": "",
+      "path": "apps/data_center/management/commands/activate_publication_policies.py",
+      "status": "active_public",
+      "symbol": "activate_publication_policies",
       "target": ""
     },
     {
@@ -8052,8 +8062,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:init_macro_indicator_governance:line:1908",
-      "locator": "line:1908",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:init_macro_indicator_governance:line:1913",
+      "locator": "line:1913",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "init_macro_indicator_governance",
@@ -8062,8 +8072,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:initialize_data_center_catalog:line:1859",
-      "locator": "line:1859",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:initialize_data_center_catalog:line:1863",
+      "locator": "line:1863",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "initialize_data_center_catalog",
@@ -8072,8 +8082,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:normalize_macro_fact_units:line:1908",
-      "locator": "line:1908",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:normalize_macro_fact_units:line:1913",
+      "locator": "line:1913",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "normalize_macro_fact_units",
@@ -8082,8 +8092,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:verify_canonical_schema:line:1854",
-      "locator": "line:1854",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:verify_canonical_schema:line:1855",
+      "locator": "line:1855",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "verify_canonical_schema",
@@ -11577,6 +11587,26 @@
       "path": "tests/component/data_center/test_archive_repository.py",
       "status": "active_public",
       "symbol": "test_archive_repository",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/data_center/test_publication_policy_activation_postgres.py:test_publication_policy_activation_postgres:",
+      "locator": "",
+      "path": "tests/component/data_center/test_publication_policy_activation_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_publication_policy_activation_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/data_center/test_publication_read_snapshot_postgres.py:test_publication_read_snapshot_postgres:",
+      "locator": "",
+      "path": "tests/component/data_center/test_publication_read_snapshot_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_publication_read_snapshot_postgres",
       "target": ""
     },
     {

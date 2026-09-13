@@ -288,6 +288,40 @@ def test_remote_deploy_blocks_release_on_macro_governance_drift() -> None:
     )
 
 
+def test_data_center_catalog_preservation_is_explicit_and_after_schema_verify() -> None:
+    """The opt-in preserve flag skips only catalog sync after schema validation."""
+
+    repository_root = Path(__file__).resolve().parents[2]
+    remote_source = (repository_root / "scripts" / "remote_build_deploy_vps.py").read_text(
+        encoding="utf-8"
+    )
+    remote_script = remote_build_deploy_vps._build_remote_deploy_script()
+    wrapper = (repository_root / "scripts" / "deploy-vps.ps1").read_text(encoding="utf-8")
+
+    preserve_assignment = 'PRESERVE_DATA_CENTER_CATALOG="${PRESERVE_DATA_CENTER_CATALOG:-0}"'
+    preserve_branch = 'if [ "$PRESERVE_DATA_CENTER_CATALOG" = "1" ]; then'
+    catalog_sync = "python manage.py initialize_data_center_catalog"
+
+    assert '"--preserve-data-center-catalog"' in remote_source
+    assert (
+        '"PRESERVE_DATA_CENTER_CATALOG": _bool_env(args.preserve_data_center_catalog)'
+        in remote_source
+    )
+    assert preserve_assignment in remote_script
+    assert preserve_branch in remote_script
+    assert "Preserving existing Data Center runtime catalog" in remote_script
+    assert catalog_sync in remote_script
+    assert remote_script.index("verify_canonical_schema --json") < remote_script.index(
+        preserve_branch
+    )
+    assert remote_script.index(preserve_branch) < remote_script.index(catalog_sync)
+    assert remote_script.index(catalog_sync) < remote_script.index(
+        "python manage.py check --deploy"
+    )
+    assert "[switch]$PreserveDataCenterCatalog" in wrapper
+    assert "'--preserve-data-center-catalog'" in wrapper
+
+
 def test_remote_deploy_publishes_canonical_https_origin_and_validates_tls() -> None:
     script = remote_build_deploy_vps._build_remote_deploy_script()
 

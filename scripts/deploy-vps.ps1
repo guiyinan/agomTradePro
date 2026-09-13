@@ -5,17 +5,19 @@
     Reads all config from environment variables, creates a temp password file,
     calls the remote build/deploy script, and cleans up.
     Celery is enabled by default. Use -DisableCelery to opt out.
-    Supports optional flags: -IncludeSqlite, -DisableCelery, -Upgrade,
-    -BuildTimeoutSeconds.
+    Supports optional flags: -IncludeSqlite, -PreserveDataCenterCatalog,
+    -DisableCelery, -Upgrade, -BuildTimeoutSeconds.
 .EXAMPLE
     .\scripts\deploy-vps.ps1
     .\scripts\deploy-vps.ps1 -DisableCelery
     .\scripts\deploy-vps.ps1 -IncludeSqlite
+    .\scripts\deploy-vps.ps1 -PreserveDataCenterCatalog
     .\scripts\deploy-vps.ps1 -Upgrade
     .\scripts\deploy-vps.ps1 -BuildTimeoutSeconds 5400
 #>
 param(
     [switch]$IncludeSqlite,
+    [switch]$PreserveDataCenterCatalog,
     [switch]$EnableCelery,
     [switch]$DisableCelery,
     [switch]$Upgrade,
@@ -79,6 +81,7 @@ Write-Info "Action:     $Action"
 Write-Info "Branch:     $GitBranch"
 Write-Info "HTTP Port:  $(if ($null -ne $HttpPort) { $HttpPort } else { 'auto' })"
 Write-Info "SQLite:     $(if ($IncludeSqlite) { 'YES (overwrite DB and use source encryption key)' } else { 'No (preserve remote data)' })"
+Write-Info "Data Center catalog: $(if ($PreserveDataCenterCatalog) { 'Preserved (explicit)' } else { 'Synchronized (default)' })"
 Write-Info "Celery:     $(if ($UseCelery) { 'Enabled (default)' } else { 'Disabled' })"
 Write-Info "Build timeout: $BuildTimeoutSeconds seconds"
 Write-Info "Pre-deploy backup: $(if ($SkipPreDeployBackup) { 'Skipped (emergency)' } else { 'Required' })"
@@ -141,6 +144,7 @@ try {
 
     if ($null -ne $HttpPort) { $pyArgs += @('--http-port', $HttpPort) }
     if ($IncludeSqlite) { $pyArgs += '--include-sqlite' }
+    if ($PreserveDataCenterCatalog) { $pyArgs += '--preserve-data-center-catalog' }
     if ($UseCelery)  { $pyArgs += '--enable-celery' } else { $pyArgs += '--disable-celery' }
     if ($BootstrapDecisionRepair) { $pyArgs += '--bootstrap-decision-repair' }
     if ($DecisionAssetCodes) { $pyArgs += @('--decision-asset-codes', $DecisionAssetCodes) }

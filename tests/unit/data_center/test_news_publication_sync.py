@@ -60,6 +60,16 @@ class _PublicationRepository:
         self.published.append((publication, members))
         return publication
 
+    def list_members(self, publication_id):
+        return next(
+            (
+                members
+                for publication, members in self.published
+                if publication.publication_id == publication_id
+            ),
+            (),
+        )
+
 
 def _policy() -> PublicationPolicy:
     return PublicationPolicy(
@@ -139,7 +149,7 @@ def test_news_sync_publication_is_idempotent_for_same_member_snapshot() -> None:
     assert len(repository.published) == 1
 
 
-def test_news_sync_repairs_memberless_same_hash_publication() -> None:
+def test_news_sync_rejects_memberless_same_hash_publication() -> None:
     articles = [_article("n1", datetime(2026, 8, 3, 10, tzinfo=UTC))]
     repository = _PublicationRepository()
     use_case = PublishNewsBatchUseCase(
@@ -151,17 +161,11 @@ def test_news_sync_repairs_memberless_same_hash_publication() -> None:
 
     first = use_case.execute(articles, provider_name="provider-main", published_at=NOW)
     assert first is not None
-    repository.current = SimpleNamespace(
-        publication_id=first.publication_id,
-        publication_hash=first.publication_hash,
-        member_count=0,
-    )
-
-    repaired = use_case.execute(articles, provider_name="provider-main", published_at=NOW)
-
-    assert repaired is not None
-    assert repaired.member_count == 1
-    assert len(repository.published) == 2
+    repository.published = [(first, ())]
+    with pytest.raises(ValueError, match="incomplete"):
+        use_case.execute(articles, provider_name="provider-main", published_at=NOW)
+    assert repository.current is first
+    assert repository.published == [(first, ())]
 
 
 def test_news_sync_publication_fails_closed_below_coverage_policy() -> None:

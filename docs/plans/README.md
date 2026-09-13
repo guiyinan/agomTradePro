@@ -1,6 +1,6 @@
 # 活跃计划索引
 
-> 2026-09-13：生产已部署 `c8bb9b780bcd…` / release `20260913014501`，完整权威读取 14.52 秒；单资产审计同步新增 quote/event/outbox 各一条，独立清理确认 runtime 关闭。写图创建仍约 50 分钟；DATA-02、EVID-01/02、AUD-03、TAR-05 生产验收尚未完成。[生产性能检查点](../deployment/sprint-data02-authority-performance-checkpoint-2026-09-13-c8bb9b780.json)。
+> 2026-09-13：生产已部署 `b18b18029f90…` / release `20260913102723`；真实 current 预检 14.66 秒，existing-root replay 2,677.79 秒。完整生命周期因有效期不足取消（exit 130），独立核验回滚及原 admin current 恢复。[部署与回滚证据](../deployment/evid08-standard-deployment-and-cancelled-lifecycle-2026-09-13.json)。DATA-16 是唯一仓库焦点；Luna max 的[写路径性能方案](evid08-facade-write-performance-remediation-2026-09-13.md)尚未实施。DATA-02、EVID-01/02、AUD-03、TAR-05 生产验收未完成。
 
 > 更新日期：2026-09-13
 > 本目录只保留仍需开发、真实数据、生产验收或外部依赖闭环的计划。已完成的实施计划、阶段记录、复盘和历史证据统一放在 [`../archive/plans/`](../archive/plans/)；归档记录见 [`../archive/ARCHIVE_INDEX.md`](../archive/ARCHIVE_INDEX.md)。
@@ -25,9 +25,28 @@
 
 ## 自主 Goal 调度入口
 
-2026-09-13：`EVID-08` 是唯一 repository focus，限定 Authority V3 整操作 immutable decode/validation
-复用、生命周期/失效测试与代表性图测量；不启用写路径 current/ORM cache。DATA-02 只读准备可并行，
-DATA-12/15、EVID-07 保持已完成，生产 DATA/EVID/AUD/TAR 验收状态不变。
+2026-09-13 当前：`DATA-16` 是唯一 repository focus，版本化 publication evidence、
+稳定 current snapshot 的核心及部署保护已分类提交。扩展冻结版本的完整选定回归为
+2031 passed /16 PG opt-in skipped，Domain 聚合行覆盖率94.17%（2930 passed），
+实际 PostgreSQL 策略激活4 passed且独立检查零表残留；
+[阶段证据](../testing/data16-activation-and-integration-checkpoint-2026-09-13.json)
+绑定该阶段源码，不代表随后 financial 来源修复已验证。历史合成 available_at
+可能通过 policy2，当前追加不可变 financial policy3 原始来源要求。
+实际 ORM 来源 guard 与 current/member 回放已分类提交 `52abce5a2`：专项13 passed，
+该阶段完整选定集成2045 passed /16 PG opt-in skipped、53生产文件增量mypy无新增错误、
+全量债务为零；[来源校验阶段证据](../testing/data16-financial-source-validation-2026-09-13.json)
+绑定该阶段源码。追加集中Domain公告/可用时间顺序规则已提交 `990a4876e`，真实RED
+1 failed/2 passed，修复后专项3 passed、完整证据文件20 passed；随后受影响发布/current
+155 passed、官方Domain选定范围2939 passed，聚合行覆盖率94.18%；最终16项静态门禁
+全部通过，包括53生产文件增量mypy和零全量债务。
+[追加来源顺序证据](../testing/data16-domain-source-chronology-validation-2026-09-13.json)
+绑定该生产源码。精确最终推送候选CI及生产升级/激活仍未完成。
+新候选的实际PG精确激活1 passed，独立只读检查零表残留；生产尚未部署或激活。
+Facade完整PG物理解码测量正在冻结夹具上执行，实际计数尚未返回。
+应用 Goal 本轮工具读回 `active`。
+[财务来源时间整改路线](data02-financial-source-time-remediation-2026-09-13.md)已登记，
+须先取得真实来源字段精度与契约；Facade phase 性能实现仍待 DATA-16 解除代码前置。
+DATA-12/15、EVID-07/08 保持既有完成状态，DATA/EVID/AUD/TAR 生产验收状态不变。
 
 2026-09-12：[EVID-07 repository closure](../testing/evid07-authenticated-owner-scope-v3-closure-2026-09-12.json)
 已通过真实隔离 PostgreSQL 完整图（1 passed/3214.98s）及最终类型、架构、freshness、治理门禁，

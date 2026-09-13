@@ -234,6 +234,37 @@ def test_tushare_unified_provider_adapter_builds_typed_financial_facts(monkeypat
     assert by_metric["revenue"].extra["provider_name"] == "tushare-main"
 
 
+@pytest.mark.parametrize("announcement_date", ["20260331", "2026-03-31"])
+def test_tushare_native_financial_date_does_not_invent_availability(
+    monkeypatch: pytest.MonkeyPatch, announcement_date: str
+) -> None:
+    """Keep the announcement day distinct from an exact PIT source instant."""
+
+    class _FakePro:
+        def fina_indicator(self, *, ts_code: str, limit: int) -> pd.DataFrame:
+            assert ts_code == "001979.SZ"
+            assert limit == 8
+            return pd.DataFrame(
+                [{"end_date": "20251231", "ann_date": announcement_date, "roe": 0.73}]
+            )
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure._provider_adapter_tushare.build_tushare_financial_gateway",
+        lambda **kwargs: None,
+    )
+    adapter = TushareUnifiedProviderAdapter(_config("tushare", "tushare-main"))
+    monkeypatch.setattr(adapter, "_create_pro_client", lambda: _FakePro())
+
+    facts = adapter.fetch_financials("001979.SZ", periods=8)
+
+    assert len(facts) == 1
+    assert facts[0].period_end == date(2025, 12, 31)
+    assert facts[0].report_date == date(2026, 3, 31)
+    assert facts[0].metric_code == "roe"
+    assert facts[0].value == 0.73
+    assert facts[0].available_at is None
+
+
 def test_tushare_unified_provider_adapter_fetches_etf_net_flow_from_size_delta(monkeypatch):
     class _FakePro:
         def trade_cal(self, exchange, start_date, end_date):
@@ -627,8 +658,51 @@ def test_akshare_current_valuation_batch_preserves_tencent_provenance(monkeypatc
     assert facts[0].val_date == date(2026, 7, 31)
     assert facts[0].observed_at == datetime(2026, 7, 31, 15, 0, tzinfo=UTC)
     assert facts[0].available_at is None
+    assert facts[0].raw_payload_hash == ""
+    assert facts[0].source_record_id == ""
+    assert "availability_basis" not in facts[0].extra
+    assert "raw_payload_scope" not in facts[0].extra
     assert facts[0].extra["actual_source"] == "tencent"
     assert facts[0].extra["provider_name"] == "AKShare Public"
+
+
+def test_akshare_current_valuation_batch_propagates_transport_evidence(monkeypatch):
+    from apps.data_center.infrastructure.market_gateway_entities import ValuationSnapshot
+
+    witnessed_at = datetime(2026, 7, 31, 8, 15, tzinfo=UTC)
+    raw_payload_hash = "a" * 64
+    source_record_id = f"tencent:quote_batch:000001.SZ:{raw_payload_hash}"
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.tencent_gateway.TencentGateway.get_valuation_snapshots",
+        lambda _self, _codes: [
+            ValuationSnapshot(
+                stock_code="000001.SZ",
+                observed_at=datetime(2026, 7, 31, 8, 14, 36, tzinfo=UTC),
+                pe_ttm=5.24,
+                pb=0.49,
+                market_cap=225_691_000_000.0,
+                float_market_cap=225_687_000_000.0,
+                source="tencent",
+                available_at=witnessed_at,
+                fetched_at=witnessed_at,
+                raw_payload_hash=raw_payload_hash,
+                source_record_id=source_record_id,
+                raw_payload_scope="batch_response_body",
+            )
+        ],
+    )
+
+    facts = AkshareUnifiedProviderAdapter(
+        _config("akshare", "AKShare Public")
+    ).fetch_current_valuations(["000001.SZ"], date(2026, 7, 31))
+
+    assert len(facts) == 1
+    assert facts[0].available_at == witnessed_at
+    assert facts[0].fetched_at == witnessed_at
+    assert facts[0].raw_payload_hash == raw_payload_hash
+    assert facts[0].source_record_id == source_record_id
+    assert facts[0].extra["availability_basis"] == "response_completed_utc"
+    assert facts[0].extra["raw_payload_scope"] == "batch_response_body"
 
 
 def test_akshare_current_valuation_batch_chunks_tencent_requests(monkeypatch):
@@ -716,8 +790,9 @@ def test_akshare_unified_provider_adapter_fetches_financial_facts(monkeypatch):
     assert by_metric["revenue"].available_at is None
 
 
-def test_akshare_financials_preserve_partial_metrics_and_notice_date(monkeypatch):
-    """Missing ratios must not erase valid facts or create synthetic zeroes."""
+@pytest.mark.parametrize("notice_date", ["2026-03-31", "2026-03-31 00:00:00"])
+def test_akshare_financials_preserve_partial_metrics_and_notice_date(monkeypatch, notice_date):
+    """Preserve calendar evidence without inventing an intraday availability."""
 
     class _FakeAkshare:
         def stock_financial_analysis_indicator_em(self, symbol, indicator):
@@ -725,7 +800,7 @@ def test_akshare_financials_preserve_partial_metrics_and_notice_date(monkeypatch
                 [
                     {
                         "REPORT_DATE": "2025-12-31 00:00:00",
-                        "NOTICE_DATE": "2026-03-31 00:00:00",
+                        "NOTICE_DATE": notice_date,
                         "TOTALOPERATEREVE": 1_000_000.0,
                     }
                 ]
@@ -742,7 +817,7 @@ def test_akshare_financials_preserve_partial_metrics_and_notice_date(monkeypatch
     assert [(fact.metric_code, fact.value) for fact in facts] == [("revenue", 1_000_000.0)]
     assert facts[0].period_end == date(2025, 12, 31)
     assert facts[0].report_date == date(2026, 3, 31)
-    assert facts[0].available_at == datetime(2026, 3, 31, tzinfo=UTC)
+    assert facts[0].available_at is None
     assert "derived_from" not in facts[0].extra
 
 

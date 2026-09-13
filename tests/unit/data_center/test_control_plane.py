@@ -489,7 +489,9 @@ def test_publish_use_case_rejects_duplicate_member_snapshot() -> None:
         conflict_action="block",
         required_evidence=("raw_payload_hash",),
         retention_days=7,
+        policy_version="2",
     )
+    publication = replace(publication, policy_version=policy.identity)
     with pytest.raises(ValueError, match="unique natural_key"):
         PublishCanonicalDatasetUseCase(_Repository()).execute(
             publication,

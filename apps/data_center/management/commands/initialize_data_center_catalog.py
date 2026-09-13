@@ -220,6 +220,9 @@ def _load_policies(
         evidence = row.get("required_evidence")
         if not isinstance(evidence, list) or not evidence:
             raise CommandError(f"{context} requires evidence keys")
+        policy_version = row.get("policy_version", "legacy")
+        if not isinstance(policy_version, str):
+            raise CommandError(f"{context}.policy_version must be text")
         result.append(
             PublicationPolicy(
                 dataset=contract.key,
@@ -231,6 +234,7 @@ def _load_policies(
                 conflict_action=_required_text(row, "conflict_action", context),
                 required_evidence=tuple(str(item) for item in evidence),
                 retention_days=_as_int(row.get("retention_days", 0), f"{context}.retention_days"),
+                policy_version=policy_version,
             )
         )
     return result

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -14,7 +15,7 @@ from apps.data_center.application.publication_quality import (
     RecordPublicationQualityUseCase,
     project_publication_quality,
 )
-from apps.data_center.application.publication_utils import publication_hash
+from apps.data_center.application.publication_utils import member_reference, publication_hash
 from apps.data_center.domain.control_plane import (
     CanonicalPublication,
     CoverageSnapshot,
@@ -24,6 +25,7 @@ from apps.data_center.domain.control_plane import (
 )
 
 NOW = datetime(2026, 8, 27, 12, 0, tzinfo=UTC)
+P2_POLICY_IDENTITY = "p2:quality-v2:" + "f" * 64
 
 
 def _publication_and_members(
@@ -137,6 +139,53 @@ def test_projection_rejects_empty_members_and_recomputes_exact_identity() -> Non
     )
     with pytest.raises((TypeError, ValueError)):
         project_publication_quality(publication, ())
+
+
+def test_quality_preserves_legacy_v1_hash_when_members_gain_frozen_metadata() -> None:
+    """Legacy publication bytes remain stable after evidence metadata is persisted."""
+
+    publication, members = _publication_and_members(("verified",))
+    enriched_member = replace(
+        members[0],
+        available_at=NOW + timedelta(seconds=1),
+        fetched_at=NOW + timedelta(seconds=2),
+        source_published_at=NOW,
+        raw_payload_scope="record_response_body",
+        fact_content_hash="a" * 64,
+    )
+
+    projection = project_publication_quality(publication, (enriched_member,))
+
+    assert projection.publication_hash == publication.publication_hash
+    assert publication_hash((member_reference(enriched_member),)) == publication.publication_hash
+
+
+def test_quality_selects_policy_bound_v2_hash_for_frozen_member_metadata() -> None:
+    """A p2 publication verifies the self-describing hash with all evidence fields."""
+
+    legacy_publication, members = _publication_and_members(("verified",))
+    enriched_member = replace(
+        members[0],
+        available_at=NOW + timedelta(seconds=1),
+        fetched_at=NOW + timedelta(seconds=2),
+        source_published_at=NOW,
+        raw_payload_scope="record_response_body",
+        fact_content_hash="a" * 64,
+    )
+    p2_hash = publication_hash(
+        (member_reference(enriched_member),),
+        policy_identity=P2_POLICY_IDENTITY,
+    )
+    publication = replace(
+        legacy_publication,
+        policy_version=P2_POLICY_IDENTITY,
+        publication_hash=p2_hash,
+    )
+
+    projection = project_publication_quality(publication, (enriched_member,))
+
+    assert projection.publication_version == P2_POLICY_IDENTITY
+    assert projection.publication_hash == p2_hash
 
 
 class _PublicationReader:

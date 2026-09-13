@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from collections.abc import Sequence
 from datetime import date
 
@@ -11,7 +9,6 @@ from django.db.models import Q
 
 from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import CapitalFlowFact, SectorMembershipFact
-from apps.data_center.domain.market_time import cn_market_date_start_utc
 from apps.data_center.infrastructure._market_breadth_helpers import (
     validate_date_range as _validate_date_range,
 )
@@ -25,6 +22,8 @@ from apps.data_center.infrastructure._repository_helpers import (
     _resolve_asset_code_candidates,
 )
 from apps.data_center.infrastructure.models import CapitalFlowFactModel, SectorMembershipFactModel
+
+from .publication_fact_evidence import publication_fact_reference_for_dataset
 
 
 class SectorMembershipRepository:
@@ -124,18 +123,10 @@ class SectorMembershipRepository:
                 continue
             fact_pk = str(row.pk)
             seen_fact_pks.add(fact_pk)
-            natural_key = f"{row.asset_code}:{row.sector_code}:{row.effective_date.isoformat()}"
             references.append(
-                PublicationFactReference(
-                    natural_key=natural_key,
-                    source=row.source,
-                    source_record_id=row.source_record_id or natural_key,
-                    fact_table="data_center_sector_membership",
-                    fact_pk=fact_pk,
-                    observed_at=cn_market_date_start_utc(row.effective_date),
-                    raw_payload_hash=row.raw_payload_hash or _sector_membership_payload_hash(row),
-                    quality_status=row.quality_status,
-                    revision_number=row.revision_number,
+                publication_fact_reference_for_dataset(
+                    row,
+                    dataset_key="sector.membership",
                 )
             )
         return references
@@ -245,58 +236,13 @@ class CapitalFlowRepository:
                 continue
             fact_pk = str(row.pk)
             seen_fact_pks.add(fact_pk)
-            natural_key = f"{row.asset_code}:{row.flow_date.isoformat()}:{row.source}"
-            payload_hash = row.raw_payload_hash or _capital_flow_payload_hash(row)
             references.append(
-                PublicationFactReference(
-                    natural_key=natural_key,
-                    source=row.source,
-                    source_record_id=row.source_record_id or natural_key,
-                    fact_table="data_center_capital_flow_fact",
-                    fact_pk=fact_pk,
-                    observed_at=cn_market_date_start_utc(row.flow_date),
-                    raw_payload_hash=payload_hash,
-                    quality_status=row.quality_status,
-                    revision_number=row.revision_number,
+                publication_fact_reference_for_dataset(
+                    row,
+                    dataset_key="market.capital_flow",
                 )
             )
         return references
-
-
-def _capital_flow_payload_hash(row: CapitalFlowFactModel) -> str:
-    """Return deterministic evidence for one persisted capital-flow row."""
-
-    payload = {
-        "asset_code": row.asset_code,
-        "flow_date": row.flow_date.isoformat(),
-        "main_net": str(row.main_net) if row.main_net is not None else None,
-        "retail_net": str(row.retail_net) if row.retail_net is not None else None,
-        "super_large_net": str(row.super_large_net) if row.super_large_net is not None else None,
-        "large_net": str(row.large_net) if row.large_net is not None else None,
-        "medium_net": str(row.medium_net) if row.medium_net is not None else None,
-        "small_net": str(row.small_net) if row.small_net is not None else None,
-        "source": row.source,
-    }
-    return hashlib.sha256(
-        json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
-    ).hexdigest()
-
-
-def _sector_membership_payload_hash(row: SectorMembershipFactModel) -> str:
-    """Return deterministic evidence for one persisted membership row."""
-
-    payload = {
-        "asset_code": row.asset_code,
-        "sector_code": row.sector_code,
-        "sector_name": row.sector_name,
-        "effective_date": row.effective_date.isoformat(),
-        "expiry_date": row.expiry_date.isoformat() if row.expiry_date else None,
-        "weight": str(row.weight) if row.weight is not None else None,
-        "source": row.source,
-    }
-    return hashlib.sha256(
-        json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
-    ).hexdigest()
 
 
 __all__ = ["CapitalFlowRepository", "SectorMembershipRepository"]

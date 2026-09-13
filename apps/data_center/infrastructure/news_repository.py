@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from collections.abc import Sequence
 from datetime import date
 from typing import Any, cast
@@ -26,6 +24,9 @@ from apps.data_center.infrastructure._repository_helpers import (
     _resolve_asset_code_candidates,
 )
 from apps.data_center.infrastructure.models import NewsFactModel
+
+from .publication_fact_evidence import publication_fact_reference_for_dataset
+from .publication_fact_identity import canonical_news_payload_hash
 
 
 class NewsRepository:
@@ -144,26 +145,10 @@ class NewsRepository:
                 continue
             fact_pk = str(row.pk)
             seen_fact_pks.add(fact_pk)
-            payload_hash = row.raw_payload_hash or _news_payload_hash(
-                asset_code=row.asset_code,
-                title=row.title,
-                summary=row.summary,
-                url=row.url,
-                published_at=row.published_at,
-                source=row.source,
-                external_id=row.external_id,
-            )
             references.append(
-                PublicationFactReference(
-                    natural_key=f"{row.source}:{row.external_id}",
-                    source=row.source,
-                    source_record_id=row.source_record_id or row.external_id,
-                    fact_table="data_center_news_fact",
-                    fact_pk=fact_pk,
-                    observed_at=row.published_at,
-                    raw_payload_hash=payload_hash,
-                    quality_status=row.quality_status,
-                    revision_number=row.revision_number,
+                publication_fact_reference_for_dataset(
+                    row,
+                    dataset_key="market.news",
                 )
             )
         return references
@@ -212,38 +197,12 @@ class NewsRepository:
         return metrics
 
 
-def _news_payload_hash(
-    *,
-    asset_code: str,
-    title: str,
-    summary: str,
-    url: str,
-    published_at: Any,
-    source: str,
-    external_id: str,
-) -> str:
-    """Return a deterministic digest for publication evidence."""
-
-    payload = {
-        "asset_code": asset_code,
-        "title": title,
-        "summary": summary,
-        "url": url,
-        "published_at": str(published_at),
-        "source": source,
-        "external_id": external_id,
-    }
-    return hashlib.sha256(
-        json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
-    ).hexdigest()
-
-
 def _stable_news_external_id(article: NewsFact) -> str:
     """Use provider id when present, otherwise a content-derived id."""
 
     if article.external_id.strip():
         return article.external_id.strip()
-    return "content-" + _news_payload_hash(
+    return "content-" + canonical_news_payload_hash(
         asset_code=article.asset_code,
         title=article.title,
         summary=article.summary,

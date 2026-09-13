@@ -244,7 +244,12 @@ class HistoricalPriceBar:
 
 @dataclass(frozen=True)
 class ValuationSnapshot:
-    """Current valuation fields observed with a market quote timestamp."""
+    """Current valuation fields with optional transport provenance.
+
+    ``observed_at`` is the vendor-provided quote time.  The optional transport
+    fields describe when this process completed receiving a response and the
+    exact response-body evidence; they must never replace ``observed_at``.
+    """
 
     stock_code: str
     observed_at: datetime
@@ -253,12 +258,23 @@ class ValuationSnapshot:
     market_cap: float | None = None
     float_market_cap: float | None = None
     source: str = ""
+    available_at: datetime | None = None
+    fetched_at: datetime | None = None
+    raw_payload_hash: str = ""
+    source_record_id: str = ""
+    raw_payload_scope: str = ""
 
     def __post_init__(self) -> None:
         if not self.stock_code:
             raise ValueError("stock_code 不能为空")
         if self.observed_at.utcoffset() is None:
             raise ValueError("observed_at 必须包含时区")
+        for field_name, value in (
+            ("available_at", self.available_at),
+            ("fetched_at", self.fetched_at),
+        ):
+            if value is not None and value.utcoffset() is None:
+                raise ValueError(f"{field_name} 必须包含时区")
 
 
 @dataclass(frozen=True)

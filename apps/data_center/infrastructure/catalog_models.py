@@ -161,6 +161,7 @@ class DatasetPublicationPolicyModel(models.Model):
     dataset_key = models.CharField(max_length=160, db_index=True)
     contract_version = models.CharField(max_length=40)
     schema_version = models.CharField(max_length=40)
+    policy_version = models.CharField(max_length=40, default="legacy")
     minimum_coverage_ratio = models.FloatField()
     allow_partial = models.BooleanField(default=False)
     conflict_action = models.CharField(max_length=40)
@@ -175,8 +176,13 @@ class DatasetPublicationPolicyModel(models.Model):
         ordering = ["dataset_key", "contract_version", "schema_version"]
         constraints = [
             models.UniqueConstraint(
-                fields=["dataset_key", "contract_version", "schema_version"],
+                fields=["dataset_key", "contract_version", "schema_version", "policy_version"],
                 name="dc_dataset_policy_version_unique",
+            ),
+            models.UniqueConstraint(
+                fields=["dataset_key"],
+                condition=models.Q(active=True),
+                name="dc_dataset_policy_active_unique",
             ),
             models.CheckConstraint(
                 condition=models.Q(minimum_coverage_ratio__gte=0.0)
@@ -199,6 +205,7 @@ class DatasetPublicationPolicyModel(models.Model):
             conflict_action=self.conflict_action,
             required_evidence=tuple(str(item) for item in evidence),
             retention_days=int(self.retention_days),
+            policy_version=self.policy_version,
         )
 
 
