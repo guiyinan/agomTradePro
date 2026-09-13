@@ -49,6 +49,7 @@ from apps.account.application.canonical_account_ownership_reobservation_v1 impor
 from apps.account.application.physical_account_row_observation_v2 import (
     ExactPhysicalSimulatedAccountRowV2Provider,
     GetCurrentPhysicalAccountRowObservationV2,
+    PhysicalAccountRowObservationV2Unavailable,
 )
 from apps.account.application.single_owner_actor_authority import (
     CurrentSingleOwnerParticipantsProvider,
@@ -86,6 +87,10 @@ from apps.account.infrastructure.physical_account_row_observation_v2_repository 
 from apps.account.infrastructure.single_owner_authority_policy_v1_repository import (
     DjangoSingleOwnerAuthorityPolicyV1Repository,
 )
+from shared.infrastructure.immutable_read_snapshot import (
+    isolated_immutable_read_snapshot,
+    suspend_immutable_read_reuse,
+)
 
 _ReturnT = TypeVar("_ReturnT")
 
@@ -110,8 +115,9 @@ class AccountOwnerAssignmentEvidenceV5Facade:
         approve: ApproveAccountOwnerAssignmentEvidenceV5,
         exact: GetExactAccountOwnerAssignmentEvidenceV5,
         current: GetCurrentAccountOwnerAssignmentEvidenceV5,
+        physical_row_provider: ExactPhysicalSimulatedAccountRowV2Provider,
     ) -> None:
-        """Bind one alias and the server-owned V5 Application use cases."""
+        """Bind one alias, source provider, and server-owned V5 use cases."""
 
         self._using = using
         self._policy_id = policy_id
@@ -119,6 +125,7 @@ class AccountOwnerAssignmentEvidenceV5Facade:
         self._approve = approve
         self._exact = exact
         self._current = current
+        self._physical_row_provider = physical_row_provider
 
     def approve(
         self, command: ApproveAccountOwnerAssignmentEvidenceV5Command
@@ -156,14 +163,16 @@ class AccountOwnerAssignmentEvidenceV5Facade:
 
         self._ensure_postgresql()
         try:
-            with transaction.atomic(using=self._using):
-                lock_account_owner_assignment_evidence_v5_sources(
-                    using=self._using,
-                    policy_id=self._policy_id,
-                )
-                with self._actors.atomic():
-                    return operation()
-        except DatabaseError as error:
+            with suspend_immutable_read_reuse():
+                with transaction.atomic(using=self._using):
+                    lock_account_owner_assignment_evidence_v5_sources(
+                        using=self._using,
+                        policy_id=self._policy_id,
+                    )
+                    self._physical_row_provider.lock_current_sources()
+                    with self._actors.atomic():
+                        return operation()
+        except (DatabaseError, PhysicalAccountRowObservationV2Unavailable) as error:
             raise AccountOwnerAssignmentEvidenceV5Unavailable(
                 "Evidence V5 write transaction is unavailable"
             ) from error
@@ -212,6 +221,12 @@ def build_account_owner_assignment_evidence_v5_facade(
         raise ValueError("validity_period must be an exact positive timedelta")
     if not callable(getattr(physical_row_provider, "get_exact_current", None)):
         raise TypeError("physical_row_provider must expose get_exact_current")
+    provider_uow = getattr(physical_row_provider, "unit_of_work_key", None)
+    if provider_uow != f"django:{alias}":
+        raise ValueError("physical row provider must use the Evidence V5 database alias")
+    provider_locker = getattr(physical_row_provider, "lock_current_sources", None)
+    if not callable(provider_locker):
+        raise TypeError("physical row provider must expose lock_current_sources")
 
     actors = DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository(using=alias)
     actor_reader = CanonicalAccountActorAuthorityRequestReader(
@@ -255,18 +270,23 @@ def build_account_owner_assignment_evidence_v5_facade(
         repository=DjangoAccountOwnerAssignmentSubjectV5Repository(using=alias),
         current_receipt_reader=receipt_reader,
     )
-    evidence_repository = DjangoAccountOwnerAssignmentEvidenceV5Repository(using=alias)
+    evidence_repository = DjangoAccountOwnerAssignmentEvidenceV5Repository(
+        using=alias,
+        read_phase=isolated_immutable_read_snapshot,
+    )
     approve = ApproveAccountOwnerAssignmentEvidenceV5(
         subject_reader=subject_reader,
         participants_reader=participants,
         repository=evidence_repository,
         validity_period=validity_period,
+        read_phase=isolated_immutable_read_snapshot,
     )
     exact = GetExactAccountOwnerAssignmentEvidenceV5(evidence_repository)
     current = GetCurrentAccountOwnerAssignmentEvidenceV5(
         subject_reader=subject_reader,
         participants_reader=participants,
         repository=evidence_repository,
+        read_phase=isolated_immutable_read_snapshot,
     )
     return AccountOwnerAssignmentEvidenceV5Facade(
         using=alias,
@@ -275,6 +295,7 @@ def build_account_owner_assignment_evidence_v5_facade(
         approve=approve,
         exact=exact,
         current=current,
+        physical_row_provider=physical_row_provider,
     )
 
 

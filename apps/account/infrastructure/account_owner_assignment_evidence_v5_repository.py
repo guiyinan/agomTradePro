@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol, TypeVar
@@ -28,6 +28,9 @@ from apps.account.application.account_owner_assignment_evidence_v5 import (
     AccountOwnerAssignmentEvidenceV5Corruption,
     AccountOwnerAssignmentEvidenceV5Unavailable,
     PersistedAccountOwnerAssignmentEvidenceV5,
+)
+from apps.account.application.account_owner_assignment_evidence_v5_read_phases import (
+    AccountOwnerAssignmentEvidenceV5ReadPhase,
 )
 from apps.account.application.account_owner_assignment_subject_v5 import (
     AccountOwnerAssignmentSubjectV5Conflict,
@@ -83,6 +86,7 @@ from apps.account.infrastructure.physical_account_row_observation_v2_models impo
 from apps.account.infrastructure.single_owner_authority_policy_v1_models import (
     SingleOwnerAuthorityPolicyV1Model,
 )
+from shared.infrastructure.immutable_read_snapshot import suspend_immutable_read_reuse
 
 
 class AccountOwnerAssignmentEvidenceV5Clock(Protocol):
@@ -110,13 +114,20 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
     """Restore all stored evidence and parents before selecting or appending a root."""
 
     def __init__(
-        self, *, using: str = "default", clock: AccountOwnerAssignmentEvidenceV5Clock | None = None
+        self,
+        *,
+        using: str = "default",
+        clock: AccountOwnerAssignmentEvidenceV5Clock | None = None,
+        read_phase: AccountOwnerAssignmentEvidenceV5ReadPhase | None = None,
     ) -> None:
-        """Bind the complete graph to one database alias and optional test clock."""
+        """Bind the graph to one alias, clock, and optional isolated read phase."""
         if type(using) is not str or not using or using.strip() != using:
             raise ValueError("using must be an exact database alias")
+        if read_phase is not None and not callable(read_phase):
+            raise TypeError("read_phase must return a context manager")
         self._using = using
         self._clock = clock
+        self._read_phase = read_phase if read_phase is not None else nullcontext
         self._uow: object | None = None
         self._subjects = DjangoAccountOwnerAssignmentSubjectV5Repository(using=using, clock=clock)
         self._actors = DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository(
@@ -151,12 +162,13 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
     ) -> AccountOwnerAssignmentSubjectV5 | None:
         """Return the exact subject first winner knowable by the cutoff."""
         _selectors(subject_id, subject_version)
+        cutoff = self._read_cutoff(as_of)
         return _single(
             tuple(
                 value
-                for _, value in self._world(as_of).subjects
+                for _, value in self._world(cutoff).subjects
                 if (value.subject_id, value.subject_version) == (subject_id, subject_version)
-                and value.requested_at <= as_of
+                and value.requested_at <= cutoff
             )
         )
 
@@ -165,13 +177,14 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
     ) -> PersistedAccountOwnerAssignmentEvidenceV5 | None:
         """Return the immutable evidence first winner after full-world verification."""
         _selectors(evidence_id, evidence_version)
+        cutoff = self._read_cutoff(as_of)
         return _single(
             tuple(
                 record
-                for _, record in self._world(as_of).evidence
+                for _, record in self._world(cutoff).evidence
                 if (record.evidence.evidence_id, record.evidence.evidence_version)
                 == (evidence_id, evidence_version)
-                and record.evidence.recorded_at <= as_of
+                and record.evidence.recorded_at <= cutoff
             )
         )
 
@@ -199,11 +212,12 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
     ) -> PersistedAccountOwnerAssignmentEvidenceV5 | None:
         """Return the account root even if expired; never make an expired slot reusable."""
         _selectors(account_namespace, account_id)
+        cutoff = self._read_cutoff(as_of)
         return _single(
             tuple(
                 record
-                for _, record in self._world(as_of).evidence
-                if record.evidence.recorded_at <= as_of
+                for _, record in self._world(cutoff).evidence
+                if record.evidence.recorded_at <= cutoff
                 and (
                     record.evidence.subject.binding.account_namespace_claim,
                     record.evidence.subject.binding.account_id_claim,
@@ -223,11 +237,12 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
         _selectors(underlying_unified_account_namespace)
         if type(underlying_unified_account_id) is not int or underlying_unified_account_id <= 0:
             raise ValueError("underlying account id must be a positive integer")
+        cutoff = self._read_cutoff(as_of)
         return _single(
             tuple(
                 record
-                for _, record in self._world(as_of).evidence
-                if record.evidence.recorded_at <= as_of
+                for _, record in self._world(cutoff).evidence
+                if record.evidence.recorded_at <= cutoff
                 and (
                     record.evidence.subject.binding.underlying_unified_account_namespace_claim,
                     record.evidence.subject.binding.underlying_unified_account_id_claim,
@@ -235,6 +250,17 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
                 == (underlying_unified_account_namespace, underlying_unified_account_id)
             )
         )
+
+    def _read_cutoff(self, as_of: datetime) -> datetime:
+        """Validate a read cutoff even when the phase cache returns a world."""
+
+        self._postgresql()
+        cutoff = _aware(as_of)
+        if cutoff > self.now():
+            raise AccountOwnerAssignmentEvidenceV5Unavailable(
+                "future assignment Evidence V5 as_of is forbidden"
+            )
+        return cutoff
 
     def append_root(
         self,
@@ -251,36 +277,39 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
         if expected_account_head_hash is not None or expected_underlying_head_hash is not None:
             raise AccountOwnerAssignmentEvidenceV5Conflict("assignment evidence v5 is root-only")
         self._lock_world(evidence.policy.policy_id)
-        world = self._world(recorded_at)
-        subjects = tuple(row for row, value in world.subjects if value == evidence.subject)
-        if len(subjects) != 1:
-            raise AccountOwnerAssignmentEvidenceV5Conflict(
-                "evidence requires its exact registered subject"
+        with self._read_phase():
+            world = self._world(recorded_at)
+            subjects = tuple(row for row, value in world.subjects if value == evidence.subject)
+            if len(subjects) != 1:
+                raise AccountOwnerAssignmentEvidenceV5Conflict(
+                    "evidence requires its exact registered subject"
+                )
+            anchors = tuple(
+                value
+                for row, value in world.evidence
+                if (value.evidence.evidence_id, value.evidence.evidence_version)
+                == (evidence.evidence_id, evidence.evidence_version)
+                or _fk(row, "subject_id") == subjects[0].pk
+                or value.evidence.account_claim_hash == evidence.account_claim_hash
+                or value.evidence.underlying_claim_hash == evidence.underlying_claim_hash
             )
-        anchors = tuple(
-            value
-            for row, value in world.evidence
-            if (value.evidence.evidence_id, value.evidence.evidence_version)
-            == (evidence.evidence_id, evidence.evidence_version)
-            or _fk(row, "subject_id") == subjects[0].pk
-            or value.evidence.account_claim_hash == evidence.account_claim_hash
-            or value.evidence.underlying_claim_hash == evidence.underlying_claim_hash
-        )
-        if anchors:
-            if anchors == (checked,):
-                return checked
-            raise AccountOwnerAssignmentEvidenceV5Conflict("assignment mapping root is occupied")
-        self._subject_parent(evidence.subject, evidence.recorded_at)
-        actor_pk = self._authority_parent(checked)
-        self._insert(
-            AccountOwnerAssignmentEvidenceV5Model,
-            _evidence_values(checked, subjects[0].pk, actor_pk),
-        )
-        restored = self.get_winner(
-            evidence_id=evidence.evidence_id,
-            evidence_version=evidence.evidence_version,
-            as_of=recorded_at,
-        )
+            if anchors:
+                if anchors == (checked,):
+                    return checked
+                raise AccountOwnerAssignmentEvidenceV5Conflict(
+                    "assignment mapping root is occupied"
+                )
+            self._subject_parent(evidence.subject, evidence.recorded_at)
+            actor_pk = self._authority_parent(checked)
+            values = _evidence_values(checked, subjects[0].pk, actor_pk)
+        with suspend_immutable_read_reuse():
+            self._insert(AccountOwnerAssignmentEvidenceV5Model, values)
+        with self._read_phase():
+            restored = self.get_winner(
+                evidence_id=evidence.evidence_id,
+                evidence_version=evidence.evidence_version,
+                as_of=recorded_at,
+            )
         if restored != checked:
             raise AccountOwnerAssignmentEvidenceV5Corruption("evidence append restore differs")
         return restored

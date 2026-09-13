@@ -37,6 +37,7 @@ from apps.account.application.canonical_account_ownership_reobservation_v1 impor
     GetCurrentCanonicalAccountOwnershipReobservationV1,
 )
 from apps.account.application.physical_account_row_observation_v2 import (
+    ExactPhysicalSimulatedAccountRowV2Provider,
     GetCurrentPhysicalAccountRowObservationV2,
 )
 from apps.account.application.single_owner_actor_authority import SingleOwnerPolicyBinding
@@ -143,6 +144,9 @@ def test_builder_binds_every_v5_reader_and_repository_to_one_alias() -> None:
     assert isinstance(facade._exact, GetExactAccountOwnerAssignmentEvidenceV5)
     assert isinstance(facade._current, GetCurrentAccountOwnerAssignmentEvidenceV5)
     assert isinstance(facade._approve._repository, DjangoAccountOwnerAssignmentEvidenceV5Repository)
+    assert facade._approve._read_phase is composition.isolated_immutable_read_snapshot
+    assert facade._current._read_phase is composition.isolated_immutable_read_snapshot
+    assert facade._approve._repository._read_phase is composition.isolated_immutable_read_snapshot
 
     participants = facade._approve._participants
     assert participants.policies._using == alias
@@ -211,6 +215,20 @@ class _FakeActors:
         return _record_context(self._events, "actors")
 
 
+class _FakePhysicalProvider:
+    """Record the provider lock without opening a database connection."""
+
+    unit_of_work_key = "django:evidence-v5"
+
+    def __init__(self, events: list[str]) -> None:
+        self._events = events
+
+    def lock_current_sources(self) -> None:
+        """Record the required same-alias source lock."""
+
+        self._events.append("physical")
+
+
 class _FakeUseCase:
     """Record one Application call and return its configured result."""
 
@@ -250,6 +268,7 @@ def test_facade_orders_outer_transaction_lock_actor_uow_and_leaves_exact_unlocke
     monkeypatch.setattr(
         composition, "lock_account_owner_assignment_evidence_v5_sources", lock_sources
     )
+    provider = _FakePhysicalProvider(events)
 
     facade = composition.AccountOwnerAssignmentEvidenceV5Facade(
         using="evidence-v5",
@@ -270,12 +289,14 @@ def test_facade_orders_outer_transaction_lock_actor_uow_and_leaves_exact_unlocke
             GetCurrentAccountOwnerAssignmentEvidenceV5,
             _FakeUseCase(events, "current", "current"),
         ),
+        physical_row_provider=cast(ExactPhysicalSimulatedAccountRowV2Provider, provider),
     )
 
     assert facade.approve(_approve_command()) == "approved"
     assert events == [
         "outer.enter",
         "lock",
+        "physical",
         "actors.enter",
         "approve",
         "actors.exit",
@@ -287,6 +308,7 @@ def test_facade_orders_outer_transaction_lock_actor_uow_and_leaves_exact_unlocke
     assert events == [
         "outer.enter",
         "lock",
+        "physical",
         "actors.enter",
         "current",
         "actors.exit",
@@ -310,6 +332,7 @@ def test_facade_rejects_non_postgresql_alias_before_opening_transaction(
         "lock_account_owner_assignment_evidence_v5_sources",
         lambda **kwargs: events.append("lock"),
     )
+    provider = _FakePhysicalProvider(events)
     facade = composition.AccountOwnerAssignmentEvidenceV5Facade(
         using="evidence-v5",
         policy_id="policy-42",
@@ -329,6 +352,7 @@ def test_facade_rejects_non_postgresql_alias_before_opening_transaction(
             GetCurrentAccountOwnerAssignmentEvidenceV5,
             _FakeUseCase(events, "current"),
         ),
+        physical_row_provider=cast(ExactPhysicalSimulatedAccountRowV2Provider, provider),
     )
 
     with pytest.raises(AccountOwnerAssignmentEvidenceV5Unavailable, match="PostgreSQL"):
