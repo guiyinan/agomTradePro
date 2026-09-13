@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import re
 from datetime import UTC, date, datetime
@@ -23,6 +24,8 @@ from shared.numeric import safe_float
 logger = logging.getLogger(__name__)
 
 _SUPPORTED = {DataCapability.HISTORICAL_PRICE, DataCapability.REALTIME_QUOTE}
+_VALUATION_RAW_PAYLOAD_SCOPE = "batch_response_body"
+_SOURCE_RECORD_ID_MAX_LENGTH = 200
 
 
 def _request_error_is_permission_denied(exc: requests.RequestException) -> bool:
@@ -102,9 +105,16 @@ class TencentGateway(MarketGatewayProtocol):
                 timeout=self._timeout,
             )
             response.raise_for_status()
+            raw_body = response.content
         except requests.RequestException:
             logger.exception("Tencent 批量估值获取失败: %s", ",".join(asset_codes))
             return []
+
+        available_at: datetime | None = None
+        raw_payload_hash = ""
+        if isinstance(raw_body, bytes):
+            available_at = datetime.now(UTC)
+            raw_payload_hash = hashlib.sha256(raw_body).hexdigest()
 
         requested_by_symbol = {symbol: code for code, symbol in symbols_by_code.items()}
         snapshots: list[ValuationSnapshot] = []
@@ -112,7 +122,19 @@ class TencentGateway(MarketGatewayProtocol):
             requested_code = requested_by_symbol.get(match.group(1))
             if requested_code is None:
                 continue
-            snapshot = self._parse_valuation_fields(requested_code, match.group(2).split("~"))
+            canonical_code = normalize_asset_code(requested_code, "tencent")
+            snapshot = self._parse_valuation_fields(
+                requested_code,
+                match.group(2).split("~"),
+                available_at=available_at,
+                fetched_at=available_at,
+                raw_payload_hash=raw_payload_hash,
+                source_record_id=_valuation_source_record_id(
+                    canonical_code,
+                    raw_payload_hash,
+                ),
+                raw_payload_scope=(_VALUATION_RAW_PAYLOAD_SCOPE if raw_payload_hash else ""),
+            )
             if snapshot is not None:
                 snapshots.append(snapshot)
         return snapshots
@@ -262,7 +284,15 @@ class TencentGateway(MarketGatewayProtocol):
     def _parse_valuation_fields(
         asset_code: str,
         fields: list[str],
+        *,
+        available_at: datetime | None = None,
+        fetched_at: datetime | None = None,
+        raw_payload_hash: str = "",
+        source_record_id: str = "",
+        raw_payload_scope: str = "",
     ) -> ValuationSnapshot | None:
+        """Parse one quote row and optionally attach transport evidence."""
+
         if len(fields) <= 46:
             return None
         observed_at = _parse_tencent_quote_time(fields[30])
@@ -284,7 +314,23 @@ class TencentGateway(MarketGatewayProtocol):
                 float_market_cap * 100_000_000 if float_market_cap is not None else None
             ),
             source="tencent",
+            available_at=available_at,
+            fetched_at=fetched_at,
+            raw_payload_hash=raw_payload_hash,
+            source_record_id=source_record_id,
+            raw_payload_scope=raw_payload_scope,
         )
+
+
+def _valuation_source_record_id(stock_code: str, raw_payload_hash: str) -> str:
+    """Build a bounded per-asset identifier for one Tencent response body."""
+
+    if not raw_payload_hash:
+        return ""
+    source_record_id = f"tencent:quote_batch:{stock_code}:{raw_payload_hash}"
+    if len(source_record_id) > _SOURCE_RECORD_ID_MAX_LENGTH:
+        return ""
+    return source_record_id
 
 
 def _safe_decimal(value: object) -> Decimal | None:

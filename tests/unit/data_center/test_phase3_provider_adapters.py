@@ -627,8 +627,51 @@ def test_akshare_current_valuation_batch_preserves_tencent_provenance(monkeypatc
     assert facts[0].val_date == date(2026, 7, 31)
     assert facts[0].observed_at == datetime(2026, 7, 31, 15, 0, tzinfo=UTC)
     assert facts[0].available_at is None
+    assert facts[0].raw_payload_hash == ""
+    assert facts[0].source_record_id == ""
+    assert "availability_basis" not in facts[0].extra
+    assert "raw_payload_scope" not in facts[0].extra
     assert facts[0].extra["actual_source"] == "tencent"
     assert facts[0].extra["provider_name"] == "AKShare Public"
+
+
+def test_akshare_current_valuation_batch_propagates_transport_evidence(monkeypatch):
+    from apps.data_center.infrastructure.market_gateway_entities import ValuationSnapshot
+
+    witnessed_at = datetime(2026, 7, 31, 8, 15, tzinfo=UTC)
+    raw_payload_hash = "a" * 64
+    source_record_id = f"tencent:quote_batch:000001.SZ:{raw_payload_hash}"
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.tencent_gateway.TencentGateway.get_valuation_snapshots",
+        lambda _self, _codes: [
+            ValuationSnapshot(
+                stock_code="000001.SZ",
+                observed_at=datetime(2026, 7, 31, 8, 14, 36, tzinfo=UTC),
+                pe_ttm=5.24,
+                pb=0.49,
+                market_cap=225_691_000_000.0,
+                float_market_cap=225_687_000_000.0,
+                source="tencent",
+                available_at=witnessed_at,
+                fetched_at=witnessed_at,
+                raw_payload_hash=raw_payload_hash,
+                source_record_id=source_record_id,
+                raw_payload_scope="batch_response_body",
+            )
+        ],
+    )
+
+    facts = AkshareUnifiedProviderAdapter(
+        _config("akshare", "AKShare Public")
+    ).fetch_current_valuations(["000001.SZ"], date(2026, 7, 31))
+
+    assert len(facts) == 1
+    assert facts[0].available_at == witnessed_at
+    assert facts[0].fetched_at == witnessed_at
+    assert facts[0].raw_payload_hash == raw_payload_hash
+    assert facts[0].source_record_id == source_record_id
+    assert facts[0].extra["availability_basis"] == "response_completed_utc"
+    assert facts[0].extra["raw_payload_scope"] == "batch_response_body"
 
 
 def test_akshare_current_valuation_batch_chunks_tencent_requests(monkeypatch):
