@@ -1,6 +1,6 @@
 # AgomTradePro 文档索引
 
-> 2026-09-13：生产已部署 `b18b18029f90…` / release `20260913102723`，TLS health 200；真实 current 预检 14.66 秒，existing-root replay 2,677.79 秒。完整生命周期因 30 分钟有效期不足而取消（exit 130）；独立核验 4 roots /0 revocations 指纹不变及原 admin current 恢复。[部署与回滚证据](deployment/evid08-standard-deployment-and-cancelled-lifecycle-2026-09-13.json)。DATA-16 是唯一仓库焦点，DATA-02、EVID-01/02、AUD-03、TAR-05 生产验收尚未完成。
+> 2026-09-13：生产已部署 `3032481969f9…` / release `20260913212011`，TLS health200；真实四策略头激活完成，六legacy保留，旧current严格阻断，admin/user1 current14.68秒及四根/零撤销独立核验通过。[部署/激活证据](deployment/data16-standard-deployment-and-policy-activation-2026-09-13.json)。DATA-16 repository completed，EVID-09 是唯一仓库焦点；真实PG Facade JUnit1 passed/5312.68秒，但probe源码快照门失败，优化及生产30分钟复测尚未完成。DATA-02、EVID-01/02、AUD-03、TAR-05生产验收尚未完成。
 
 > 2026-09-07：main `0e9f890e8…` 已完成 VPS code-only upgrade；health/ready=200，decision-ready=503。[部署证据](deployment/main-vps-upgrade-2026-09-07-0e9f890e.json)。TUI 新候选为 `2/10 DENY`，DATA-02 与生产 Evidence 验收仍未完成。
 

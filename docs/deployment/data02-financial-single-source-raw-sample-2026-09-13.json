@@ -1,0 +1,179 @@
+{
+  "capture": {
+    "asset_scope": {
+      "asset_code": "000001.SZ",
+      "count": 1
+    },
+    "mode": "execute_network",
+    "provider": "akshare",
+    "provider_id": 3,
+    "receipt_file": "var/data02-single-source-financial-raw-capture-20260913/receipt.json",
+    "receipt_sha256": "283770fa57dd27b9c3cce0eda0135e888f7d2413c939b5a3a7f9507d7aba4a43",
+    "request": {
+      "count": 1,
+      "endpoint_host": "datacenter.eastmoney.com",
+      "endpoint_path": "/securities/api/data/get",
+      "failover": false,
+      "http_status_code": 200,
+      "method": "GET",
+      "params": {
+        "client": "PC",
+        "filter": "(SECUCODE=\"000001.SZ\")",
+        "p": "1",
+        "ps": "200",
+        "quoteColumns": "",
+        "source": "HSF10",
+        "sr": "-1",
+        "st": "REPORT_DATE",
+        "sty": "APP_F10_MAINFINADATA",
+        "type": "RPT_F10_FINANCE_MAINFINADATA"
+      },
+      "period_limit_note": "SDK first-page request may return multiple report periods; original body is not truncated.",
+      "ps_page_size": 200,
+      "ps_single_period_limit_applied": false,
+      "retry_count": 0
+    },
+    "response": {
+      "body_embedded_in_repository": false,
+      "body_file_private": "var/data02-single-source-financial-raw-capture-20260913/response.content.bin",
+      "completed_utc": "2026-09-13T13:45:24.729792Z",
+      "content_bytes_source": "requests.Response.content",
+      "raw_payload_hash": "6a56f4ccbaa203e689f62a1f14033ed8a61a0c0a842afda03a6c27e5b1054578",
+      "raw_payload_scope": "batch_response_body",
+      "row_count": 122,
+      "sha256": "6a56f4ccbaa203e689f62a1f14033ed8a61a0c0a842afda03a6c27e5b1054578",
+      "size_bytes": 388061
+    },
+    "schema": "data02.financial_raw_response_capture.v1",
+    "sdk": {
+      "function_module": "akshare.stock_fundamental.stock_finance_sina",
+      "function_source_sha256": "f8d1d9ef3bc4c4fe6b337023a5c06b2cc6f5f94a63555ef99bba22e6e3a77be4",
+      "package": "akshare",
+      "version": "1.18.22"
+    },
+    "security": {
+      "authenticated_request_logged": false,
+      "body_secret_scan": "passed",
+      "request_token_exposed": false,
+      "secret_headers_exposed": false
+    }
+  },
+  "capture_context": {
+    "database_ingestion": false,
+    "database_read": false,
+    "database_write": false,
+    "execution_location": "local_pc",
+    "production_write": false,
+    "vps_request": false
+  },
+  "initial_cli_attempt": {
+    "interpretation": "operator context only; this metadata does not claim an independently replayable log receipt",
+    "network_request_performed": false,
+    "original_log_retained": false,
+    "receipt_fabricated": false,
+    "reported_result": "ModuleNotFound before the network request"
+  },
+  "metadata_encoding": "json",
+  "production_boundary": {
+    "data02_production_fix": false,
+    "historical_backfill": false,
+    "publication_or_decision_activation": false,
+    "vendor_body_bytes_written_to_repository": false,
+    "vendor_body_retained_private": true
+  },
+  "recorded_at": "2026-09-13T13:48:56.251678Z",
+  "schema": "data02.financial.single_source_raw_sample.v1",
+  "scope": {
+    "asset": {
+      "asset_type": "stock",
+      "code": "000001.SZ",
+      "exchange": "SZSE",
+      "is_active": true
+    },
+    "collector_finished_at": "2026-09-13T13:30:11.833765+00:00",
+    "external_provider_request_performed_before_capture": false,
+    "file": "var/data02-single-source-capture-scope-20260913.json",
+    "production_writes_before_capture": false,
+    "provider": {
+      "has_api_override": false,
+      "has_http_override": false,
+      "id": 3,
+      "is_active": true,
+      "priority": 10,
+      "source_type": "akshare"
+    },
+    "read_only": "on",
+    "recorded_at": "2026-09-13T13:30:12.538436+00:00",
+    "sha256": "7697fb91f3f321111f79bcfa03fb4dc78b995ed553cc59f7df42e7374008071a"
+  },
+  "source_evidence_boundary": {
+    "announced_at": null,
+    "available_at": null,
+    "raw_hash_does_not_prove_source_record_id_or_precise_availability": true,
+    "raw_hash_proves_exact_response_bytes": true,
+    "response_completed_utc_role": "system_fetch_upper_bound_only",
+    "source_record_id": null,
+    "source_time_precision": "unverified",
+    "timezone_established": false
+  },
+  "status": "stage0_evidence_only",
+  "unit": "DATA-02",
+  "verification": {
+    "private_review_file": "var/data02-single-source-financial-raw-capture-review-20260913.json",
+    "private_review_sha256": "48dac65917ccbc13c5c101741ff941de5aec71e9dfe0c135109148945d182c03",
+    "receipt_body_sha256_matches_bytes": true,
+    "receipt_body_size_matches_bytes": true,
+    "record_identity": {
+      "asset_or_org_identifier_fields": [
+        "ORG_CODE",
+        "SECUCODE",
+        "SECURITY_CODE"
+      ],
+      "classification_code_fields": [
+        "SECURITY_TYPE_CODE"
+      ],
+      "conclusion": "sample result.data has no row-level record ID; observed codes identify the asset or organization",
+      "row_record_id_fields": [],
+      "usable_source_record_id": false
+    },
+    "result_data_asset_binding": {
+      "all_rows_match": true,
+      "expected": "000001.SZ",
+      "field": "SECUCODE",
+      "matching_rows": 122,
+      "mismatching_rows": 0,
+      "unique_value_count": 1
+    },
+    "result_data_row_count": 122,
+    "scope_sha256_matches_receipt": true,
+    "source_fields": {
+      "NOTICE_DATE": {
+        "empty_string_count": 0,
+        "field": "NOTICE_DATE",
+        "midnight_datetime_count": 119,
+        "missing_key_count": 0,
+        "non_midnight_datetime_count": 0,
+        "null_value_count": 3,
+        "row_count": 122,
+        "timezone_suffix_count": 0,
+        "value_shapes": {
+          "datetime_text_without_timezone": 119,
+          "null": 3
+        }
+      },
+      "REPORT_DATE": {
+        "empty_string_count": 0,
+        "field": "REPORT_DATE",
+        "midnight_datetime_count": 122,
+        "missing_key_count": 0,
+        "non_midnight_datetime_count": 0,
+        "null_value_count": 0,
+        "row_count": 122,
+        "timezone_suffix_count": 0,
+        "value_shapes": {
+          "datetime_text_without_timezone": 122
+        }
+      }
+    }
+  }
+}
