@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from collections.abc import Sequence
 from datetime import date
 
@@ -11,8 +9,9 @@ from django.db.models import Max
 
 from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import FundNavFact
-from apps.data_center.domain.market_time import cn_market_date_start_utc
 from apps.data_center.infrastructure.models import FundNavFactModel
+
+from .publication_fact_evidence import publication_fact_reference_for_dataset
 
 
 class FundNavRepository:
@@ -95,37 +94,13 @@ class FundNavRepository:
                 continue
             fact_pk = str(row.pk)
             seen_fact_pks.add(fact_pk)
-            natural_key = f"{row.fund_code}:{row.nav_date.isoformat()}:{row.source}"
             references.append(
-                PublicationFactReference(
-                    natural_key=natural_key,
-                    source=row.source,
-                    source_record_id=row.source_record_id or natural_key,
-                    fact_table="data_center_fund_nav_fact",
-                    fact_pk=fact_pk,
-                    observed_at=cn_market_date_start_utc(row.nav_date),
-                    raw_payload_hash=row.raw_payload_hash or _fund_nav_payload_hash(row),
-                    quality_status=row.quality_status,
-                    revision_number=row.revision_number,
+                publication_fact_reference_for_dataset(
+                    row,
+                    dataset_key="fund.nav",
                 )
             )
         return references
-
-
-def _fund_nav_payload_hash(row: FundNavFactModel) -> str:
-    """Return deterministic evidence for one persisted NAV fact."""
-
-    payload = {
-        "fund_code": row.fund_code,
-        "nav_date": row.nav_date.isoformat(),
-        "nav": str(row.nav),
-        "acc_nav": str(row.acc_nav) if row.acc_nav is not None else None,
-        "daily_return": str(row.daily_return) if row.daily_return is not None else None,
-        "source": row.source,
-    }
-    return hashlib.sha256(
-        json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
-    ).hexdigest()
 
 
 __all__ = ["FundNavRepository"]

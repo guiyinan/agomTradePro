@@ -13,7 +13,6 @@ from apps.data_center.domain.control_plane import (
     CanonicalPublication,
     CoverageSnapshot,
     PublicationFactReference,
-    PublicationMember,
     PublicationState,
 )
 from apps.data_center.domain.entities import (
@@ -29,8 +28,11 @@ from apps.data_center.domain.protocols import (
     DatasetContractRepositoryProtocol,
     PublicationPolicyRepositoryProtocol,
 )
+from apps.data_center.domain.publication_evidence import validate_publication_evidence
+from apps.data_center.domain.publication_snapshot_policy import publication_selected_source_summary
 
 from .control_plane import CanonicalPublicationRepositoryPort, PublishCanonicalDatasetUseCase
+from .publication_idempotence import publication_replay_matches
 from .publication_sync_market import (
     PriceBarPublicationCandidateRepositoryProtocol,
     PublishPriceBarBatchUseCase,
@@ -40,6 +42,7 @@ from .publication_sync_market import (
     SectorMembershipPublicationCandidateRepositoryProtocol,
 )
 from .publication_utils import publication_hash as _publication_hash
+from .publication_utils import publication_member_from_reference
 from .valuation_publication import (
     PublishValuationBatchUseCase,
     ValuationPublicationCandidateRepositoryProtocol,
@@ -141,24 +144,19 @@ class PublishNewsBatchUseCase:
         if as_of > publish_time:
             raise ValueError("news observation cannot be later than publication time")
 
-        publication_hash = _publication_hash(references)
+        validate_publication_evidence(policy, references, published_at=publish_time)
+        publication_hash = _publication_hash(
+            references, policy_identity=policy.identity if policy.uses_versioned_evidence else None
+        )
         current = self._publications.get_current(self.dataset_key, normalized_key)
-        if current is not None and current.publication_hash == publication_hash:
-            member_count_matches = current.member_count == len(references)
-            member_reader = getattr(self._publications, "list_members", None)
-            if member_count_matches and callable(member_reader):
-                persisted_members = member_reader(current.publication_id)
-                expected_keys = {reference.natural_key for reference in references}
-                member_count_matches = (
-                    len(persisted_members) == len(references)
-                    and {member.natural_key for member in persisted_members} == expected_keys
-                )
-            if member_count_matches:
-                # A repository without a member-read port is a compatibility
-                # fake; the canonical hash/count pair is sufficient for its
-                # idempotency assertion. Real repositories expose members and
-                # only take this path after verifying the complete snapshot.
-                return current
+        if current is not None and publication_replay_matches(
+            policy,
+            current,
+            references,
+            self._publications.list_members(current.publication_id),
+            knowledge_cutoff=publish_time,
+        ):
+            return current
             # A legacy/memberless row with the same content hash is repaired
             # through the atomic writer instead of being treated as success.
 
@@ -169,19 +167,11 @@ class PublishNewsBatchUseCase:
             )
         )
         members = tuple(
-            PublicationMember(
+            publication_member_from_reference(
+                reference,
                 member_id=str(uuid5(uuid5(NAMESPACE_URL, publication_id), reference.natural_key)),
                 publication_id=publication_id,
                 dataset_key=self.dataset_key,
-                natural_key=reference.natural_key,
-                source=reference.source,
-                source_record_id=reference.source_record_id,
-                fact_table=reference.fact_table,
-                fact_pk=reference.fact_pk,
-                observed_at=reference.observed_at,
-                raw_payload_hash=reference.raw_payload_hash,
-                quality_status=reference.quality_status,
-                revision_number=reference.revision_number,
             )
             for reference in references
         )
@@ -200,9 +190,13 @@ class PublishNewsBatchUseCase:
             publication_id=publication_id,
             dataset_key=self.dataset_key,
             publication_key=normalized_key,
-            policy_version=f"{policy.dataset.contract_version}:{policy.dataset.schema_version}",
+            policy_version=policy.identity,
             state=PublicationState.PUBLISHED,
-            selected_source=provider,
+            selected_source=(
+                publication_selected_source_summary(references)
+                if policy.uses_versioned_evidence
+                else provider
+            ),
             publication_hash=publication_hash,
             coverage=coverage,
             member_count=len(members),
@@ -301,20 +295,19 @@ class PublishCapitalFlowBatchUseCase:
         if as_of > publish_time:
             raise ValueError("capital-flow observation cannot be later than publication time")
 
-        publication_hash = _publication_hash(references)
+        validate_publication_evidence(policy, references, published_at=publish_time)
+        publication_hash = _publication_hash(
+            references, policy_identity=policy.identity if policy.uses_versioned_evidence else None
+        )
         current = self._publications.get_current(self.dataset_key, normalized_key)
-        if current is not None and current.publication_hash == publication_hash:
-            member_count_matches = current.member_count == len(references)
-            member_reader = getattr(self._publications, "list_members", None)
-            if member_count_matches and callable(member_reader):
-                persisted_members = member_reader(current.publication_id)
-                expected_keys = {reference.natural_key for reference in references}
-                member_count_matches = (
-                    len(persisted_members) == len(references)
-                    and {member.natural_key for member in persisted_members} == expected_keys
-                )
-            if member_count_matches:
-                return current
+        if current is not None and publication_replay_matches(
+            policy,
+            current,
+            references,
+            self._publications.list_members(current.publication_id),
+            knowledge_cutoff=publish_time,
+        ):
+            return current
 
         publication_id = str(
             uuid5(
@@ -323,19 +316,11 @@ class PublishCapitalFlowBatchUseCase:
             )
         )
         members = tuple(
-            PublicationMember(
+            publication_member_from_reference(
+                reference,
                 member_id=str(uuid5(uuid5(NAMESPACE_URL, publication_id), reference.natural_key)),
                 publication_id=publication_id,
                 dataset_key=self.dataset_key,
-                natural_key=reference.natural_key,
-                source=reference.source,
-                source_record_id=reference.source_record_id,
-                fact_table=reference.fact_table,
-                fact_pk=reference.fact_pk,
-                observed_at=reference.observed_at,
-                raw_payload_hash=reference.raw_payload_hash,
-                quality_status=reference.quality_status,
-                revision_number=reference.revision_number,
             )
             for reference in references
         )
@@ -344,9 +329,13 @@ class PublishCapitalFlowBatchUseCase:
             publication_id=publication_id,
             dataset_key=self.dataset_key,
             publication_key=normalized_key,
-            policy_version=f"{policy.dataset.contract_version}:{policy.dataset.schema_version}",
+            policy_version=policy.identity,
             state=PublicationState.PUBLISHED,
-            selected_source=provider,
+            selected_source=(
+                publication_selected_source_summary(references)
+                if policy.uses_versioned_evidence
+                else provider
+            ),
             publication_hash=publication_hash,
             coverage=CoverageSnapshot(
                 coverage_id=str(uuid5(NAMESPACE_URL, f"coverage:{publication_id}")),
@@ -450,20 +439,19 @@ class PublishFundNavBatchUseCase:
         if as_of > publish_time:
             raise ValueError("fund NAV observation cannot be later than publication time")
 
-        publication_hash = _publication_hash(references)
+        validate_publication_evidence(policy, references, published_at=publish_time)
+        publication_hash = _publication_hash(
+            references, policy_identity=policy.identity if policy.uses_versioned_evidence else None
+        )
         current = self._publications.get_current(self.dataset_key, normalized_key)
-        if current is not None and current.publication_hash == publication_hash:
-            member_count_matches = current.member_count == len(references)
-            member_reader = getattr(self._publications, "list_members", None)
-            if member_count_matches and callable(member_reader):
-                persisted_members = member_reader(current.publication_id)
-                expected_keys = {reference.natural_key for reference in references}
-                member_count_matches = (
-                    len(persisted_members) == len(references)
-                    and {member.natural_key for member in persisted_members} == expected_keys
-                )
-            if member_count_matches:
-                return current
+        if current is not None and publication_replay_matches(
+            policy,
+            current,
+            references,
+            self._publications.list_members(current.publication_id),
+            knowledge_cutoff=publish_time,
+        ):
+            return current
 
         publication_id = str(
             uuid5(
@@ -472,19 +460,11 @@ class PublishFundNavBatchUseCase:
             )
         )
         members = tuple(
-            PublicationMember(
+            publication_member_from_reference(
+                reference,
                 member_id=str(uuid5(uuid5(NAMESPACE_URL, publication_id), reference.natural_key)),
                 publication_id=publication_id,
                 dataset_key=self.dataset_key,
-                natural_key=reference.natural_key,
-                source=reference.source,
-                source_record_id=reference.source_record_id,
-                fact_table=reference.fact_table,
-                fact_pk=reference.fact_pk,
-                observed_at=reference.observed_at,
-                raw_payload_hash=reference.raw_payload_hash,
-                quality_status=reference.quality_status,
-                revision_number=reference.revision_number,
             )
             for reference in references
         )
@@ -493,9 +473,13 @@ class PublishFundNavBatchUseCase:
             publication_id=publication_id,
             dataset_key=self.dataset_key,
             publication_key=normalized_key,
-            policy_version=f"{policy.dataset.contract_version}:{policy.dataset.schema_version}",
+            policy_version=policy.identity,
             state=PublicationState.PUBLISHED,
-            selected_source=provider,
+            selected_source=(
+                publication_selected_source_summary(references)
+                if policy.uses_versioned_evidence
+                else provider
+            ),
             publication_hash=publication_hash,
             coverage=CoverageSnapshot(
                 coverage_id=str(uuid5(NAMESPACE_URL, f"coverage:{publication_id}")),
@@ -601,20 +585,19 @@ class PublishFinancialBatchUseCase:
         if as_of > publish_time:
             raise ValueError("financial availability cannot be later than publication time")
 
-        publication_hash = _publication_hash(references)
+        validate_publication_evidence(policy, references, published_at=publish_time)
+        publication_hash = _publication_hash(
+            references, policy_identity=policy.identity if policy.uses_versioned_evidence else None
+        )
         current = self._publications.get_current(self.dataset_key, normalized_key)
-        if current is not None and current.publication_hash == publication_hash:
-            member_count_matches = current.member_count == len(references)
-            member_reader = getattr(self._publications, "list_members", None)
-            if member_count_matches and callable(member_reader):
-                persisted_members = member_reader(current.publication_id)
-                expected_keys = {reference.natural_key for reference in references}
-                member_count_matches = (
-                    len(persisted_members) == len(references)
-                    and {member.natural_key for member in persisted_members} == expected_keys
-                )
-            if member_count_matches:
-                return current
+        if current is not None and publication_replay_matches(
+            policy,
+            current,
+            references,
+            self._publications.list_members(current.publication_id),
+            knowledge_cutoff=publish_time,
+        ):
+            return current
 
         publication_id = str(
             uuid5(
@@ -623,19 +606,11 @@ class PublishFinancialBatchUseCase:
             )
         )
         members = tuple(
-            PublicationMember(
+            publication_member_from_reference(
+                reference,
                 member_id=str(uuid5(uuid5(NAMESPACE_URL, publication_id), reference.natural_key)),
                 publication_id=publication_id,
                 dataset_key=self.dataset_key,
-                natural_key=reference.natural_key,
-                source=reference.source,
-                source_record_id=reference.source_record_id,
-                fact_table=reference.fact_table,
-                fact_pk=reference.fact_pk,
-                observed_at=reference.observed_at,
-                raw_payload_hash=reference.raw_payload_hash,
-                quality_status=reference.quality_status,
-                revision_number=reference.revision_number,
             )
             for reference in references
         )
@@ -643,9 +618,13 @@ class PublishFinancialBatchUseCase:
             publication_id=publication_id,
             dataset_key=self.dataset_key,
             publication_key=normalized_key,
-            policy_version=f"{policy.dataset.contract_version}:{policy.dataset.schema_version}",
+            policy_version=policy.identity,
             state=PublicationState.PUBLISHED,
-            selected_source=provider,
+            selected_source=(
+                publication_selected_source_summary(references)
+                if policy.uses_versioned_evidence
+                else provider
+            ),
             publication_hash=publication_hash,
             coverage=CoverageSnapshot(
                 coverage_id=str(uuid5(NAMESPACE_URL, f"coverage:{publication_id}")),

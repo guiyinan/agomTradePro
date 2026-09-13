@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from typing import Protocol
 from uuid import uuid4
 
+from apps.data_center.application.publication_utils import member_reference, publication_hash
 from apps.data_center.application.sync_transaction import (
     DataCenterSyncClock,
     DataCenterSyncUnitOfWork,
@@ -24,6 +25,8 @@ from apps.data_center.domain.control_plane import (
     SyncCheckpoint,
     SyncRun,
 )
+from apps.data_center.domain.publication_evidence import validate_publication_evidence
+from apps.data_center.domain.publication_snapshot_policy import validate_publication_snapshot_policy
 from core.integration.data_center_audit import (
     AuditOutcome,
     DataPublicationRollbackAuditObservation,
@@ -76,6 +79,11 @@ class CanonicalPublicationRepositoryPort(Protocol):
     def add_member(self, member: PublicationMember) -> PublicationMember: ...
 
     def list_members(self, publication_id: str) -> list[PublicationMember]: ...
+
+    def get_fact_content_hashes(
+        self, members: tuple[PublicationMember, ...]
+    ) -> dict[tuple[str, str], str]:
+        """Return exact normalized hashes for the referenced current fact rows."""
 
     def get_by_id(self, publication_id: str) -> CanonicalPublication | None:
         """Return one exact publication identity or ``None``."""
@@ -186,6 +194,8 @@ class PublishCanonicalDatasetUseCase:
 
         if publication.dataset_key != policy.dataset.value:
             raise ValueError("Publication dataset_key does not match policy")
+        if publication.policy_version != policy.identity:
+            raise ValueError("Publication policy identity does not match active policy")
         if publication.coverage.coverage_ratio < policy.minimum_coverage_ratio:
             raise ValueError("Publication coverage is below policy threshold")
         if publication.conflict_count > 0 and policy.conflict_action == "block":
@@ -225,6 +235,22 @@ class PublishCanonicalDatasetUseCase:
                 raise ValueError("Publication member observed_at exceeds publication as_of")
         if publication.state is not PublicationState.PUBLISHED:
             raise ValueError("Publication must be in published state before committing")
+        validate_publication_evidence(
+            policy,
+            members,
+            published_at=publication.published_at,
+        )
+        if policy.uses_versioned_evidence:
+            validate_publication_snapshot_policy(policy, publication, members=members)
+            references = tuple(
+                member_reference(member)
+                for member in sorted(members, key=lambda item: item.natural_key)
+            )
+            if (
+                publication_hash(references, policy_identity=policy.identity)
+                != publication.publication_hash
+            ):
+                raise ValueError("Publication member evidence hash mismatch")
         return self._repository.publish_with_members(publication, tuple(members))
 
 

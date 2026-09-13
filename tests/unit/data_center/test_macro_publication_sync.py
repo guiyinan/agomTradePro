@@ -65,6 +65,16 @@ class _PublicationRepository:
         self.published.append((publication, members))
         return publication
 
+    def list_members(self, publication_id):
+        return next(
+            (
+                members
+                for publication, members in self.published
+                if publication.publication_id == publication_id
+            ),
+            (),
+        )
+
 
 def _fact(indicator_code: str = "CN_CPI") -> MacroFact:
     return MacroFact(
@@ -88,6 +98,8 @@ def _reference(indicator_code: str = "CN_CPI", fact_pk: str = "101") -> Publicat
         fact_table="data_center_macro_fact",
         fact_pk=fact_pk,
         observed_at=datetime(2026, 7, 31, tzinfo=UTC),
+        source_published_at=datetime(2026, 7, 31, tzinfo=UTC),
+        fetched_at=PUBLISH_TIME,
         raw_payload_hash="a" * 64,
     )
 

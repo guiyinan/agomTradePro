@@ -52,6 +52,16 @@ class _PublicationRepository:
         self.published.append((publication, members))
         return publication
 
+    def list_members(self, publication_id):
+        return next(
+            (
+                members
+                for publication, members in self.published
+                if publication.publication_id == publication_id
+            ),
+            (),
+        )
+
 
 def _fact(
     asset_code: str = "000001.SZ",
@@ -85,6 +95,8 @@ def _reference(
         fact_table="data_center_financial_fact",
         fact_pk=fact_pk,
         observed_at=observed_at,
+        available_at=observed_at,
+        fetched_at=PUBLISHED_AT,
         raw_payload_hash="a" * 64,
     )
 

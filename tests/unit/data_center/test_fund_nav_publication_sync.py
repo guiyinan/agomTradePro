@@ -47,6 +47,16 @@ class _PublicationRepository:
         self.published.append((publication, members))
         return publication
 
+    def list_members(self, publication_id):
+        return next(
+            (
+                members
+                for publication, members in self.published
+                if publication.publication_id == publication_id
+            ),
+            (),
+        )
+
 
 def _fact(fund_code: str, nav_date: date) -> FundNavFact:
     return FundNavFact(

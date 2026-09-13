@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -13,13 +11,14 @@ from django.db.models import Q
 from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import MacroFact
 from apps.data_center.domain.enums import DataQualityStatus
-from apps.data_center.domain.market_time import cn_market_date_start_utc
 from apps.data_center.infrastructure.macro_fact_selection import (
     configured_macro_source,
     select_macro_fact_series,
 )
 from apps.data_center.infrastructure.models import IndicatorCatalogModel, MacroFactModel
 from apps.data_center.infrastructure.orm_retry import retry_macro_fact_upsert
+
+from .publication_fact_evidence import publication_fact_reference_for_dataset
 
 
 @dataclass
@@ -251,45 +250,13 @@ class MacroFactRepository:
                 continue
             fact_pk = str(row.pk)
             seen_fact_pks.add(fact_pk)
-            natural_key = (
-                f"{row.indicator_code}:{row.reporting_period.isoformat()}:{row.source}:"
-                f"{row.revision_number}"
-            )
             references.append(
-                PublicationFactReference(
-                    natural_key=natural_key,
-                    source=row.source,
-                    source_record_id=row.source_record_id or natural_key,
-                    fact_table="data_center_macro_fact",
-                    fact_pk=fact_pk,
-                    observed_at=cn_market_date_start_utc(row.published_at),
-                    raw_payload_hash=row.raw_payload_hash or _macro_payload_hash(row),
-                    quality_status=row.quality_status,
-                    # Macro facts use a zero-based source revision for their
-                    # natural key. Publication lineage is one-based, where 1
-                    # means the first published version of that exact fact.
-                    revision_number=row.revision_number + 1,
+                publication_fact_reference_for_dataset(
+                    row,
+                    dataset_key="macro.fact",
                 )
             )
         return references
-
-
-def _macro_payload_hash(row: MacroFactModel) -> str:
-    """Return deterministic evidence for one persisted macro fact."""
-
-    payload = {
-        "indicator_code": row.indicator_code,
-        "reporting_period": row.reporting_period.isoformat(),
-        "value": str(row.value),
-        "unit": row.unit,
-        "source": row.source,
-        "revision_number": row.revision_number,
-        "published_at": row.published_at.isoformat() if row.published_at else None,
-        "quality": row.quality,
-    }
-    return hashlib.sha256(
-        json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
-    ).hexdigest()
 
 
 __all__ = ["MacroFactRepository"]

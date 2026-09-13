@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from collections.abc import Sequence
 from datetime import date
 
@@ -13,6 +11,8 @@ from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import QuoteSnapshot
 from apps.data_center.infrastructure._repository_helpers import _resolve_asset_code_candidates
 from apps.data_center.infrastructure.models import QuoteSnapshotModel
+
+from .publication_fact_evidence import publication_fact_reference_for_dataset
 
 
 class QuoteSnapshotRepository:
@@ -127,18 +127,10 @@ class QuoteSnapshotRepository:
                 continue
             fact_pk = str(row.pk)
             seen_fact_pks.add(fact_pk)
-            natural_key = f"{row.asset_code}:{row.snapshot_at.isoformat()}:{row.source}"
             references.append(
-                PublicationFactReference(
-                    natural_key=natural_key,
-                    source=row.source,
-                    source_record_id=row.source_record_id or natural_key,
-                    fact_table="data_center_quote_snapshot",
-                    fact_pk=fact_pk,
-                    observed_at=row.snapshot_at,
-                    raw_payload_hash=row.raw_payload_hash or _quote_payload_hash(row),
-                    quality_status=row.quality_status,
-                    revision_number=row.revision_number,
+                publication_fact_reference_for_dataset(
+                    row,
+                    dataset_key="equity.quote.snapshot",
                 )
             )
         return references
@@ -170,28 +162,6 @@ class QuoteSnapshotRepository:
 
         quotes = self.list_latest_for_asset_codes(asset_codes)
         return self.list_publication_candidates(quotes)
-
-
-def _quote_payload_hash(row: QuoteSnapshotModel) -> str:
-    """Return deterministic evidence for one persisted quote snapshot."""
-
-    payload = {
-        "asset_code": row.asset_code,
-        "snapshot_at": row.snapshot_at.isoformat(),
-        "current_price": str(row.current_price),
-        "open": str(row.open) if row.open is not None else None,
-        "high": str(row.high) if row.high is not None else None,
-        "low": str(row.low) if row.low is not None else None,
-        "prev_close": str(row.prev_close) if row.prev_close is not None else None,
-        "volume": str(row.volume) if row.volume is not None else None,
-        "amount": str(row.amount) if row.amount is not None else None,
-        "bid": str(row.bid) if row.bid is not None else None,
-        "ask": str(row.ask) if row.ask is not None else None,
-        "source": row.source,
-    }
-    return hashlib.sha256(
-        json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
-    ).hexdigest()
 
 
 __all__ = ["QuoteSnapshotRepository"]
