@@ -443,3 +443,31 @@ receipt 共 13 份工件，连同 helper 源码共 14 份 exact bytes 封存在
 捕获边界与 mock 测试，暂不接入 provider、写入或发布；date-only 来源保持
 `announced_at=None`、`available_at=None`，缺失真实行 ID 时不把 partial hash
 附到已有事实 witness，也不能以系统获取完成时间替代供应商披露或可用时间。
+
+## 16. 2026-09-14 独立原始响应捕获边界
+
+在 latest Main `282d0abfc564b94c86e3d48970e8c8c6f484d9a1` 的独立开发分支新增两个
+生产模块及一个测试模块。Domain 只定义 typed request/response scope、body scope、
+SHA-256、字节数和 aware UTC completion；Infrastructure 注入已经路由的 response、
+decoder 与 clock，不自行创建 HTTP session 或选择供应商出口。读取仅发生一次，
+stream EOF 后立即取完成时间，再拼接、计算原始字节 digest，并将同一 bytes 交给 decoder。
+
+response scope 明确标记为 caller_declared，不冒称已从 body 验证出的行覆盖或独立
+financial source_record_id。identity/未声明编码以外的响应拒绝接受，避免把透明解压后的
+字节数与 wire Content-Length 混用；大小超限、无效/冲突长度头、截断、非 2xx、读取或
+解析失败均不返回成功证据。严格 JSON decoder 拒绝重复 key、NaN/Infinity，用 Decimal
+保留有限指数数值，之后仍须由供应商专用 parser 完成类型收窄与业务校验。
+
+Luna 与主代理分别执行同一冻结源的 50 项定向测试，均零 failure/error/skip；不能合计为
+100 个独立场景。主代理实际 coverage JSON 的 Domain 行覆盖为 98/99（98.9899%），
+分支为 45/46（97.8261%）；98.6207% 是 statement+branch 的合并数值。Black、isort、
+Ruff、两生产文件增量 mypy 与 full debt ceiling 均实际 exit 0，mypy 债务仍为零。
+增量架构扫描实际覆盖两生产文件、502 新增行并通过。一次不支持 `--staged` 参数的
+调用以 usage exit 2 失败，其原件保留；随后使用支持的 working-tree diff 调用通过，
+未重跑已通过检查。[候选验证封存](../testing/data02-response-capture-candidate-validation-2026-09-14.json)
+及其 sidecar 保存 20 份 exact originals、冻结源 raw/Git LF hash 和分别计算的覆盖率。
+
+该切片尚未接入 provider/egress 调用、sync、model、write guard 或 Publication，没有
+发起供应商请求、持久化、迁移或生产写入。也未将 partial transport digest 附到既有
+FinancialFactSourceEvidence，保留后续完整 witness 的替换能力。ANN/available 的来源
+瞬时及行身份仍须独立建立，系统响应完成时间只证明获取上界；DATA-02 生产退出门未改变。

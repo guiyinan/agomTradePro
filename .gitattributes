@@ -68,3 +68,5 @@ docs/deployment/evid09-standard-deployment-preservation-2026-09-14.json.sha256 t
 docs/testing/data02-financial-source-carrier-validation-2026-09-14.json text eol=lf
 docs/testing/data02-carrier-review-and-merge-2026-09-14.json text eol=lf
 docs/testing/data02-carrier-review-and-merge-2026-09-14.json.sha256 text eol=lf
+docs/testing/data02-response-capture-candidate-validation-2026-09-14.json text eol=lf
+docs/testing/data02-response-capture-candidate-validation-2026-09-14.json.sha256 text eol=lf
