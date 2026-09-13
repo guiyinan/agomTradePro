@@ -415,3 +415,13 @@ JUnit 总耗时 244.923 秒。正式隔离 PostgreSQL 的 7 项结果与该 SQLi
 生产 publication 激活。后续仍须取得可核验的 response bytes、scope、completion、
 row identity 和精确来源时间，并独立验证 availability；三字段 carrier 的
 完整形状和本组顺序回归均不能替代 DATA-02 生产退出门或并发验收。
+
+候选独立审查确认顺序写入、Decimal 存储归一化、整批 stale witness 阻断及
+savepoint winner 的实际计数成立。缺失 natural key 无法预锁；反序并发插入可能
+触发 PostgreSQL unique-index deadlock，当前事务会失败回滚，尚无自动恢复或
+真实双事务验收。该门须独立补统一插入顺序和并发测试，不能将本组 PG7 宣称为
+并发通过。
+
+候选 CI 发现 architecture 与 entrypoint 自动生成清单过期；按现有生成器刷新
+投影并保留既有治理状态，不增加 mypy 债务或放宽退出门。最终合并仍以对应
+提交的完整 CI 成功为准。
