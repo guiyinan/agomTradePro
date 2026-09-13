@@ -12,6 +12,7 @@ import pytest
 
 from apps.data_center.domain.entities import PriceBar
 from apps.data_center.domain.enums import PriceAdjustment
+from apps.data_center.domain.model_market_data import ModelDailyBar
 from apps.equity.infrastructure import adapters as adapter_module
 from apps.equity.infrastructure.adapters import (
     MarketDataRepositoryAdapter,
@@ -44,17 +45,46 @@ def _stock_pool_adapter() -> StockPoolRepositoryAdapter:
     return adapter
 
 
-def _price_bar(code: str = "600000.SH", close: float = 10.0) -> PriceBar:
+def _price_bar(
+    code: str = "600000.SH",
+    close: float = 10.0,
+    *,
+    bar_date: date = date(2026, 7, 1),
+    source: str = "test",
+    volume: float | None = None,
+) -> PriceBar:
     return PriceBar(
         asset_code=code,
-        bar_date=date(2026, 7, 1),
+        bar_date=bar_date,
         open=close,
         high=close,
         low=close,
         close=close,
         freq="1d",
         adjustment=PriceAdjustment.NONE,
-        source="test",
+        source=source,
+        volume=volume,
+    )
+
+
+def _model_index_bar(
+    index_code: str,
+    trade_date: date,
+    close: float,
+    *,
+    source: str = "test-route",
+) -> ModelDailyBar:
+    return ModelDailyBar(
+        asset_code=index_code,
+        trade_date=trade_date,
+        open=close,
+        high=close,
+        low=close,
+        close=close,
+        volume=100.0,
+        change_percent=0.0,
+        adjustment_factor=None,
+        source=source,
     )
 
 
@@ -193,79 +223,143 @@ def test_regime_adapter_delegates_repository_calls() -> None:
     assert adapter.get_snapshot_by_date(date(2026, 1, 1)) == "snapshot"
 
 
-def test_market_symbol_and_dataframe_normalization_contracts() -> None:
-    assert MarketDataRepositoryAdapter._to_akshare_symbol("000300.SH") == "sh000300"
-    assert MarketDataRepositoryAdapter._to_akshare_symbol("399001.SZ") == "sz399001"
-    assert MarketDataRepositoryAdapter._to_akshare_symbol("UNKNOWN") is None
-    assert MarketDataRepositoryAdapter._to_raw_index_code("000300.SH") == "000300"
-    assert MarketDataRepositoryAdapter._extract_index_points(pd.DataFrame()) == []
-    assert (
-        MarketDataRepositoryAdapter._extract_index_points(pd.DataFrame({"date": ["2026-01-01"]}))
-        == []
-    )
-
-    frame = pd.DataFrame(
-        {
-            "日期": ["2026-01-02", "bad", "2026-01-01", "2026-01-01"],
-            "收盘价": [102, 100, -1, 101],
-        }
-    )
-    assert MarketDataRepositoryAdapter._extract_index_points(frame) == [
-        (date(2026, 1, 1), 101.0),
-        (date(2026, 1, 2), 102.0),
-    ]
-
-
-def test_market_local_load_persistence_and_empty_persistence() -> None:
+def test_market_index_returns_use_injected_repository_without_remote_hydration(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     repository = MagicMock()
     repository.get_bars.return_value = [
-        _price_bar(close=12),
+        _price_bar(
+            code="000300.SH",
+            close=110.0,
+            bar_date=date(2026, 1, 2),
+        ),
+        _price_bar(
+            code="000300.SH",
+            close=100.0,
+            bar_date=date(2026, 1, 1),
+        ),
     ]
+    monkeypatch.setattr(
+        adapter_module,
+        "get_model_market_data_port",
+        lambda: pytest.fail("hydrate=False must not request a remote port"),
+    )
     adapter = _market_adapter(repository)
 
-    assert adapter._load_local_index_points(
+    assert adapter.get_index_daily_returns(
         "000300.SH",
         date(2026, 1, 1),
         date(2026, 1, 2),
-    ) == [(date(2026, 7, 1), 12.0)]
-
-    adapter._persist_index_points("000300.SH", [], "source")
-    repository.bulk_upsert.assert_not_called()
-    adapter._persist_index_points(
+        hydrate=False,
+    ) == {date(2026, 1, 2): pytest.approx(0.1)}
+    repository.get_bars.assert_called_once_with(
         "000300.SH",
-        [(date(2026, 1, 1), 100.0)],
-        "source",
+        start=date(2026, 1, 1),
+        end=date(2026, 1, 2),
+        limit=5000,
     )
-    persisted = repository.bulk_upsert.call_args.args[0]
-    assert persisted[0].asset_code == "000300.SH"
-    assert persisted[0].adjustment is PriceAdjustment.NONE
+    repository.bulk_upsert.assert_not_called()
 
 
-def test_remote_index_load_skips_errors_and_empty_frames(
+def test_market_index_returns_use_data_center_failover_and_persist_normalized_bars(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    provider = SimpleNamespace(
-        stock_zh_index_daily_em=lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("down")),
-        stock_zh_index_daily=lambda **_kwargs: pd.DataFrame({"date": [], "close": []}),
-        stock_zh_index_daily_tx=lambda **_kwargs: pd.DataFrame(
-            {"date": ["2025-12-31"], "close": [100]}
-        ),
-        index_zh_a_hist=lambda **_kwargs: pd.DataFrame({"x": [1]}),
-    )
-    monkeypatch.setattr(adapter_module, "get_akshare_module", lambda: provider)
-    adapter = _market_adapter()
-    persist = MagicMock()
-    monkeypatch.setattr(adapter, "_persist_index_points", persist)
+    from apps.data_center.infrastructure.model_market_wiring import build_model_market_service
 
-    assert (
-        adapter._load_remote_index_points(
-            "000300.SH",
-            date(2026, 1, 1),
-            date(2026, 1, 2),
-        )
-        == []
+    index_code = "000300.SH"
+    start_date, end_date = date(2026, 1, 1), date(2026, 1, 2)
+    rows = (
+        _model_index_bar(index_code, start_date, 100.0),
+        _model_index_bar(index_code, end_date, 110.0),
     )
-    persist.assert_not_called()
+    repository = MagicMock()
+    repository.get_bars.side_effect = [
+        [],
+        [
+            _price_bar(
+                code=index_code,
+                close=100.0,
+                bar_date=start_date,
+                source="backup-route",
+                volume=100.0,
+            ),
+            _price_bar(
+                code=index_code,
+                close=110.0,
+                bar_date=end_date,
+                source="backup-route",
+                volume=100.0,
+            ),
+        ],
+    ]
+    primary_index_history = MagicMock(side_effect=RuntimeError("primary down"))
+    backup_index_history = MagicMock(return_value=rows)
+    primary = SimpleNamespace(
+        provider_name=lambda: "primary-route",
+        provider_source=lambda: "tushare",
+        model_market_source=lambda **_kwargs: primary,
+        stock_history=lambda *_args: (),
+        index_history=primary_index_history,
+        trade_days=lambda *_args: (start_date, end_date),
+        index_members=lambda *_args: (),
+    )
+    backup = SimpleNamespace(
+        provider_name=lambda: "backup-route",
+        provider_source=lambda: "akshare",
+        model_market_source=lambda **_kwargs: backup,
+        stock_history=lambda *_args: (),
+        index_history=backup_index_history,
+        trade_days=lambda *_args: (start_date, end_date),
+        index_members=lambda *_args: (),
+    )
+    registry = SimpleNamespace(get_providers=lambda _capability: [primary, backup])
+    port = build_model_market_service(
+        registry,
+        repository,
+        {
+            "status": "active",
+            "enable_failover": True,
+            "default_source": "failover",
+            "failover_tolerance": 0.01,
+        },
+    )
+    monkeypatch.setattr(adapter_module, "get_model_market_data_port", lambda: port)
+    adapter = _market_adapter(repository)
+
+    assert adapter.get_index_daily_returns(index_code, start_date, end_date) == {
+        end_date: pytest.approx(0.1)
+    }
+    primary_index_history.assert_called_once_with(index_code, start_date, end_date)
+    backup_index_history.assert_called_once_with(index_code, start_date, end_date)
+    persisted = repository.bulk_upsert.call_args.args[0]
+    assert [bar.asset_code for bar in persisted] == [index_code, index_code]
+    assert [bar.bar_date for bar in persisted] == [start_date, end_date]
+    assert all(bar.adjustment is PriceAdjustment.NONE for bar in persisted)
+
+
+@pytest.mark.parametrize(
+    "remote_error",
+    [None, RuntimeError("model market unavailable")],
+    ids=["empty", "error"],
+)
+def test_market_remote_index_empty_or_error_fails_closed_without_consumer_persistence(
+    monkeypatch: pytest.MonkeyPatch,
+    remote_error: RuntimeError | None,
+) -> None:
+    index_code = "000300.SH"
+    start_date, end_date = date(2026, 1, 1), date(2026, 1, 2)
+    repository = MagicMock()
+    repository.get_bars.return_value = []
+    remote_port = MagicMock()
+    remote_port.index_history.return_value = ()
+    if remote_error is not None:
+        remote_port.index_history.side_effect = remote_error
+    monkeypatch.setattr(adapter_module, "get_model_market_data_port", lambda: remote_port)
+    adapter = _market_adapter(repository)
+
+    assert adapter.get_index_daily_returns(index_code, start_date, end_date) == {}
+    remote_port.index_history.assert_called_once_with(index_code, start_date, end_date)
+    repository.bulk_upsert.assert_not_called()
 
 
 def test_index_returns_hydration_controls_and_exception_isolation(
