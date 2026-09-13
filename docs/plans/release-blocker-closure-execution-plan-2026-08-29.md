@@ -8,6 +8,23 @@
 
 ## 2026-09-13：DATA-16 来源证据与发布身份修复范围
 
+当前进展：DATA-16 repository exit 已完成，PR37最终review head `300a67733` 的八条CI
+终态成功，合并 `303248196` 与其同树。该merge已实际标准code-only部署至
+`source-20260913212011`，保留Catalog、扩展迁移及验证备份；真实preflight/preview后
+激活Financial3及Price/Quote/Valuation2，六legacy未变。旧current严格阻断，admin/user1
+current及四根/零撤销独立复验通过。[部署/激活封存](../deployment/data16-standard-deployment-and-policy-activation-2026-09-13.json)
+不代表新current、全量来源修复或DATA-02生产验收。以下范围说明保留实现/兼容约束。
+
+唯一repository focus转为EVID-09，按[锁后read phase方案](evid08-facade-write-performance-remediation-2026-09-13.md)
+实施纯读复用、append/CAS fresh边界和callback前后独立读取。真实PG Facade1 passed/
+5312.68秒，但测量source快照门失败，不能作为冻结性能基准或生产30分钟生命周期通过；
+后续须三次一致的隔离完整测量，再标准兼容部署复测。历史EVID-08已完成，不重复收口。
+
+Financial本地单标的真实response body已取得：388061字节/122报告行，原始SHA可验证，
+公告字段119个无TZ午夜文本+3null、无行级recordID；[样本元数据封存](../deployment/data02-financial-single-source-raw-sample-2026-09-13.json)
+不构成VPS摄入或available_at修复。DATA-02仍需真实财务来源、5533标的四数据集及
+四Publication/容差对账；DATA-02→EVID-01/02→AUD-03→TAR-05生产顺序不变。
+
 EVID-08 仓库退出后，下一项唯一 repository focus 登记为 DATA-16，作为 DATA-02 的代码前置。
 它覆盖四段同一契约：Tencent HTTP 原始响应完成时间和 exact bytes SHA-256；适配器到事实及
 冻结 member 的证据保真；不可重写的 policy 版本与覆盖所有决策字段的新 Publication 编码；

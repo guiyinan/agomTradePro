@@ -1,16 +1,37 @@
-# EVID-08 Facade 写路径性能整改方案（2026-09-13 草案）
+# Authority V3 Facade 写路径性能整改方案（EVID-09，2026-09-13）
 
-> 状态：方案已登记提交，性能实现尚未执行。方案审查没有连接生产、部署、改动
-> Account 源码或测试、写入账本；引用的生产测量由既有诊断提供。DATA-16 属于另一条主线。
+> 当前状态：DATA-16 已完成仓库退出并实际部署、激活四个严格策略头；
+> 后续有界性能工作登记为唯一 repository focus EVID-09，尚未实施或部署优化。
+> 已完成的 EVID-08 不重新打开；本文保留其历史诊断，后续状态以机器注册表为准。
 >
 > 实际模型设置：`gpt-5.6-luna / max`。
 >
-> 基线与回滚点：生产已部署 `b18b18029f90af4b23693426a1f489af44ffe2b2`。
+> 当前生产：`3032481969f93f08e8e4d14bfed3d7631e53a752` / release `20260913212011`。
+> 实际固定的兼容回滚镜像为 `agomtradepro-data16-compatible-rollback:20260913212011`，
+> image `sha256:b94983e0ebdc96d32ea7590c697e9652bf34bf3d554a5fd0b4d54d2f00861447`；
+> 新回滚点尚未演练，严格 Publication 策略不得回退。[部署/激活证据](../deployment/data16-standard-deployment-and-policy-activation-2026-09-13.json)。
+> 历史 Account 行为基线为 `b18b18029f90af4b23693426a1f489af44ffe2b2`。
 > 该提交只在 `OwnerTenantAuthorityV3Facade._locked` 外层加入已有的
 > `validation_graph_operation`；后续 Account 性能改动须能独立恢复该行为。整应用镜像
 > 回滚必须兼容当时已激活的 Publication policy/evidence，不能据此自动部署旧 b18 镜像。
 
 ## 1. 结论
+
+2026-09-13 新增真实隔离 PostgreSQL Facade 测量：JUnit 1 passed/5312.682秒，
+`runtest_call` 探针范围4686.704秒；stdlib物理解码6284次/0.700012秒，SQL7002次
+（SELECT6741、非SELECT261），client execute4660.126秒。`json.loads/decode/raw_decode`
+各6284为同一链路的层计数，不能相加；wrapper105834/original5344/cache hit100490
+与物理解码也不能混用。探针不覆盖fixture setup/teardown、预绑定别名、第三方或driver解码。
+测量runner的loaded-source snapshot equality=false，原receipt保持failed；尚不能证明
+完整冻结基准通过。唯一目标JUnit绿色及独立public base tables=0清理事实分别保留。
+这一运行与旧1716秒/生产四root工作负载、资源和探针条件不同，不计算优化比例。
+EVID-09须先修复后续测量的原始前后snapshot留存与解释，再取得三次完整一致测量。
+
+Source V2不能直接新增对Account Infrastructure的依赖，否则可能形成App循环。
+通用无业务immutable-read机制可下沉到shared Infrastructure并保留Account原入口兼容，
+或通过typed组合边界注入；必须保持单一ContextVar及原namespace/实例/精确参数key，
+不能通过跨App反向依赖或放宽key获得命中。Account composition既有1003行超过增长预算，
+增加接线前先抽取明确职责，不抬门禁预算。
 
 `b18` 已经证明了同一对象图内的解码与对象校验可以复用，但它没有减少 SQL。独立完整图
 诊断的两次 `get_winner` restore 在保持相同 PostgreSQL 快照、相同 `58,492 SELECT` 的
