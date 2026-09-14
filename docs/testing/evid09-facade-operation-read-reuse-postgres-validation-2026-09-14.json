@@ -1,0 +1,714 @@
+{
+  "schema": "evid09.facade-operation-read-reuse-postgres-validation.v1",
+  "status": "passed",
+  "sealed_at_utc": "2026-09-14T09:32:01.060366+00:00",
+  "source_commit": "26c60bfba5ae726d2a53fa68036274ea9802ab03",
+  "merged_main_commit": "f121000df1276472f172a93c16961fa74f433192",
+  "source_file_count": 5922,
+  "scopes": [
+    {
+      "operator_version": "V8",
+      "target_nodeid": "tests/component/account/test_owner_tenant_authority_v3_fresh_v5_parents_postgres.py::test_opt_in_postgres_facade_creates_v5_parents_and_rolls_back",
+      "receipt_schema_as_recorded": "evid09.vps-isolated-fresh-v5-pg-v7.v1",
+      "actual_child_exit": 0,
+      "junit": {
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "source_snapshot": {
+        "before_after_equal": true,
+        "file_count": 5922,
+        "roots": [
+          "apps",
+          "core",
+          "shared",
+          "tests"
+        ],
+        "source_after": {
+          "bytes": 3049811,
+          "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-18480-1789377086\\source-after.json",
+          "sha256": "53c6ed1f5cd53ad8a331585a557d5630c84805811b6c6f14ee2cf4f302a7bb52"
+        },
+        "source_before": {
+          "bytes": 3049811,
+          "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-18480-1789377086\\source-before.json",
+          "sha256": "53c6ed1f5cd53ad8a331585a557d5630c84805811b6c6f14ee2cf4f302a7bb52"
+        },
+        "source_paths": {
+          "bytes": 342668,
+          "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-18480-1789377086\\source-paths.json",
+          "sha256": "425726458e1663a77b4c8f63bff98086b0c9b85534e59f25ba98be8c1711e9ba"
+        }
+      },
+      "postgres_before": {
+        "backend_pid": 92,
+        "client_count": 0,
+        "database": "evid06_authority_test",
+        "lock_timeout_seconds": 5,
+        "observed_at_utc": "2026-09-14T09:11:26.039Z",
+        "public_table_count": 0,
+        "read_only_transaction": true,
+        "role": "evid09_v5_facade_reuse_20260914_0906",
+        "server_address": "172.19.0.2",
+        "server_port": 5432,
+        "server_version": "16.15",
+        "statement_timeout_seconds": 15
+      },
+      "postgres_after": {
+        "backend_pid": 109,
+        "client_count": 0,
+        "database": "evid06_authority_test",
+        "lock_timeout_seconds": 5,
+        "observed_at_utc": "2026-09-14T09:16:19.306Z",
+        "public_table_count": 0,
+        "read_only_transaction": true,
+        "role": "evid09_v5_facade_reuse_20260914_0906",
+        "server_address": "172.19.0.2",
+        "server_port": 5432,
+        "server_version": "16.15",
+        "statement_timeout_seconds": 15
+      },
+      "physical_decode": {
+        "json_load_calls": 0,
+        "json_loads_calls": 1117,
+        "decoder_decode_calls": 1117,
+        "decoder_raw_decode_calls": 1117,
+        "physical_json_decode_calls": 1117,
+        "physical_json_decode_errors": 0,
+        "physical_json_decode_seconds": 0.14357179845683277
+      },
+      "sql": {
+        "by_first_keyword": {
+          "<OTHER>": 219,
+          "INSERT": 21,
+          "SELECT": 1331,
+          "SET": 2
+        },
+        "client_execute_seconds": 234.24866939894855,
+        "execute_errors": 0,
+        "many_calls": 0,
+        "non_select": 242,
+        "select": 1331,
+        "total": 1573
+      },
+      "test_call_wall_seconds": 241.6216009000782,
+      "test_call_cpu_seconds": 7.84375,
+      "full_pytest_wall_seconds": 262.38536029995885,
+      "operator_wall_seconds": 303.4668077999959,
+      "original_junit_utf8": "<?xml version=\"1.0\" encoding=\"utf-8\"?><testsuites name=\"pytest tests\"><testsuite name=\"pytest\" errors=\"0\" failures=\"0\" skipped=\"0\" tests=\"1\" time=\"249.201\" timestamp=\"2026-09-14T17:11:48.951475+08:00\" hostname=\"win10hv-1\"><testcase classname=\"tests.component.account.test_owner_tenant_authority_v3_fresh_v5_parents_postgres\" name=\"test_opt_in_postgres_facade_creates_v5_parents_and_rolls_back\" time=\"248.619\" /></testsuite></testsuites>",
+      "six_fresh_parent_stages": [
+        {
+          "caller_cpu_seconds": 0.390625,
+          "completed": true,
+          "finished_at_utc": "2026-09-14T09:12:10.912861+00:00",
+          "name": "raw_and_actor",
+          "sql_client_execute_seconds": 16.149818700389005,
+          "sql_counts": {
+            "INSERT": 8,
+            "LOCK": 3,
+            "RELEASE": 16,
+            "SAVEPOINT": 16,
+            "SELECT": 64,
+            "SHOW": 3
+          },
+          "started_at_utc": "2026-09-14T09:11:54.395500+00:00",
+          "wall_seconds": 16.51736380008515
+        },
+        {
+          "caller_cpu_seconds": 0.5,
+          "completed": true,
+          "finished_at_utc": "2026-09-14T09:12:24.146551+00:00",
+          "name": "upstream_ledger_creation",
+          "sql_client_execute_seconds": 12.85086000035517,
+          "sql_counts": {
+            "INSERT": 8,
+            "RELEASE": 14,
+            "SAVEPOINT": 14,
+            "SELECT": 49
+          },
+          "started_at_utc": "2026-09-14T09:12:10.913007+00:00",
+          "wall_seconds": 13.233547599986196
+        },
+        {
+          "caller_cpu_seconds": 0.40625,
+          "completed": true,
+          "finished_at_utc": "2026-09-14T09:12:32.054591+00:00",
+          "name": "receipt_v5_creation",
+          "sql_client_execute_seconds": 7.072099500568584,
+          "sql_counts": {
+            "INSERT": 1,
+            "RELEASE": 2,
+            "SAVEPOINT": 2,
+            "SELECT": 44
+          },
+          "started_at_utc": "2026-09-14T09:12:24.585547+00:00",
+          "wall_seconds": 7.469042400014587
+        },
+        {
+          "caller_cpu_seconds": 0.8125,
+          "completed": true,
+          "finished_at_utc": "2026-09-14T09:12:44.256190+00:00",
+          "name": "subject_v5_creation",
+          "sql_client_execute_seconds": 11.458747500088066,
+          "sql_counts": {
+            "INSERT": 1,
+            "RELEASE": 2,
+            "SAVEPOINT": 2,
+            "SELECT": 75
+          },
+          "started_at_utc": "2026-09-14T09:12:32.054661+00:00",
+          "wall_seconds": 12.201534499996342
+        },
+        {
+          "caller_cpu_seconds": 2.109375,
+          "completed": true,
+          "finished_at_utc": "2026-09-14T09:13:48.839158+00:00",
+          "name": "evidence_v5_approval",
+          "sql_client_execute_seconds": 62.529932099045254,
+          "sql_counts": {
+            "INSERT": 1,
+            "LOCK": 8,
+            "RELEASE": 6,
+            "SAVEPOINT": 6,
+            "SELECT": 405,
+            "SHOW": 6
+          },
+          "started_at_utc": "2026-09-14T09:12:44.257096+00:00",
+          "wall_seconds": 64.58207049989142
+        },
+        {
+          "caller_cpu_seconds": 3.515625,
+          "completed": true,
+          "finished_at_utc": "2026-09-14T09:15:50.536378+00:00",
+          "name": "authority_issue_and_revoke",
+          "sql_client_execute_seconds": 118.39902210130822,
+          "sql_counts": {
+            "INSERT": 2,
+            "LOCK": 45,
+            "RELEASE": 22,
+            "SAVEPOINT": 22,
+            "SELECT": 657,
+            "SHOW": 30
+          },
+          "started_at_utc": "2026-09-14T09:13:48.981239+00:00",
+          "wall_seconds": 121.55514680000488
+        }
+      ]
+    },
+    {
+      "operator_version": "V9",
+      "target_nodeid": "tests/component/account/test_owner_tenant_authority_v3_composition.py::test_opt_in_postgres_facade_issues_reads_and_revokes",
+      "receipt_schema_as_recorded": "evid09.vps-isolated-fresh-v5-pg-v7.v1",
+      "actual_child_exit": 0,
+      "junit": {
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "source_snapshot": {
+        "before_after_equal": true,
+        "file_count": 5922,
+        "roots": [
+          "apps",
+          "core",
+          "shared",
+          "tests"
+        ],
+        "source_after": {
+          "bytes": 3049811,
+          "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-7700-1789377544\\source-after.json",
+          "sha256": "53c6ed1f5cd53ad8a331585a557d5630c84805811b6c6f14ee2cf4f302a7bb52"
+        },
+        "source_before": {
+          "bytes": 3049811,
+          "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-7700-1789377544\\source-before.json",
+          "sha256": "53c6ed1f5cd53ad8a331585a557d5630c84805811b6c6f14ee2cf4f302a7bb52"
+        },
+        "source_paths": {
+          "bytes": 342668,
+          "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-7700-1789377544\\source-paths.json",
+          "sha256": "425726458e1663a77b4c8f63bff98086b0c9b85534e59f25ba98be8c1711e9ba"
+        }
+      },
+      "postgres_before": {
+        "backend_pid": 118,
+        "client_count": 0,
+        "database": "evid06_authority_test",
+        "lock_timeout_seconds": 5,
+        "observed_at_utc": "2026-09-14T09:19:04.567Z",
+        "public_table_count": 0,
+        "read_only_transaction": true,
+        "role": "evid09_v5_facade_reuse_20260914_0906",
+        "server_address": "172.19.0.2",
+        "server_port": 5432,
+        "server_version": "16.15",
+        "statement_timeout_seconds": 15
+      },
+      "postgres_after": {
+        "backend_pid": 149,
+        "client_count": 0,
+        "database": "evid06_authority_test",
+        "lock_timeout_seconds": 5,
+        "observed_at_utc": "2026-09-14T09:28:47.696Z",
+        "public_table_count": 0,
+        "read_only_transaction": true,
+        "role": "evid09_v5_facade_reuse_20260914_0906",
+        "server_address": "172.19.0.2",
+        "server_port": 5432,
+        "server_version": "16.15",
+        "statement_timeout_seconds": 15
+      },
+      "physical_decode": {
+        "json_load_calls": 0,
+        "json_loads_calls": 2270,
+        "decoder_decode_calls": 2270,
+        "decoder_raw_decode_calls": 2270,
+        "physical_json_decode_calls": 2270,
+        "physical_json_decode_errors": 0,
+        "physical_json_decode_seconds": 0.29971859662327915
+      },
+      "sql": {
+        "by_first_keyword": {
+          "<OTHER>": 434,
+          "INSERT": 22,
+          "SELECT": 2636
+        },
+        "client_execute_seconds": 464.0286014024168,
+        "execute_errors": 0,
+        "many_calls": 0,
+        "non_select": 456,
+        "select": 2636,
+        "total": 3092
+      },
+      "test_call_wall_seconds": 483.04607959999703,
+      "test_call_cpu_seconds": 14.84375,
+      "full_pytest_wall_seconds": 551.9469600000884,
+      "operator_wall_seconds": 594.2716499998933,
+      "original_junit_utf8": "<?xml version=\"1.0\" encoding=\"utf-8\"?><testsuites name=\"pytest tests\"><testsuite name=\"pytest\" errors=\"0\" failures=\"0\" skipped=\"0\" tests=\"1\" time=\"537.991\" timestamp=\"2026-09-14T17:19:30.106752+08:00\" hostname=\"win10hv-1\"><testcase classname=\"tests.component.account.test_owner_tenant_authority_v3_composition\" name=\"test_opt_in_postgres_facade_issues_reads_and_revokes\" time=\"537.446\" /></testsuite></testsuites>",
+      "six_fresh_parent_stages": null
+    }
+  ],
+  "owned_closure": {
+    "status": "reaped_measurement_closed_and_owned_resources_removed",
+    "started_at_utc": "2026-09-14T09:29:26.248923+00:00",
+    "original_ready_sha256": "69bab1c078ba86625fe1d8bcbfaecf13b4061edbfc05c5c6db0b697dd6c8a35b",
+    "measurement_receipt_sha256": "1fc8b95273d1470bea4d95dadd7d52e34f4fa347c5a0cd6360bafae1e6f2e377",
+    "container_id": "a9725d93c30ce787c1fa5f8442a98a914cab7178b2d788434ef1ad42fca8572a",
+    "network_id": "3dcfb3d614e2eb5389c1e9dd96000a0745bbc5380d5a244fe53fb03b330162b2",
+    "production_resources_used": false,
+    "child_reaped": true,
+    "ssh_forward_closed": true,
+    "commands": [
+      {
+        "label": "before",
+        "actual_exit": 0,
+        "observed_at_utc": "2026-09-14T09:29:30.120548+00:00",
+        "streams": {
+          "stdout": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-96nmvwnq\\evid09-v5-facade-reuse-20260914-0906\\closure-20260914T092926248863Z-before-stdout.utf8",
+            "bytes": 5988,
+            "sha256": "e8f456f09957ad35ac430a6a3ca8999823da9ab36397548e71bc81210dc70399",
+            "representation": "boundary-decoded-utf8-text"
+          },
+          "stderr": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-96nmvwnq\\evid09-v5-facade-reuse-20260914-0906\\closure-20260914T092926248863Z-before-stderr.utf8",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "representation": "boundary-decoded-utf8-text"
+          }
+        }
+      },
+      {
+        "label": "network-before",
+        "actual_exit": 0,
+        "observed_at_utc": "2026-09-14T09:29:30.785229+00:00",
+        "streams": {
+          "stdout": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-96nmvwnq\\evid09-v5-facade-reuse-20260914-0906\\closure-20260914T092926248863Z-network-before-stdout.utf8",
+            "bytes": 1218,
+            "sha256": "a9da3a7d74e62470aa019598d3f59b3887e36a4c1a0a2beae49c176ee59f5b3a",
+            "representation": "boundary-decoded-utf8-text"
+          },
+          "stderr": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-96nmvwnq\\evid09-v5-facade-reuse-20260914-0906\\closure-20260914T092926248863Z-network-before-stderr.utf8",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "representation": "boundary-decoded-utf8-text"
+          }
+        }
+      },
+      {
+        "label": "zero",
+        "actual_exit": 0,
+        "observed_at_utc": "2026-09-14T09:29:31.544949+00:00",
+        "streams": {
+          "stdout": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-96nmvwnq\\evid09-v5-facade-reuse-20260914-0906\\closure-20260914T092926248863Z-zero-stdout.utf8",
+            "bytes": 7,
+            "sha256": "89ce52afdb65b82d5269f92936bef98fbfd8fbadb232644561641699473127b8",
+            "representation": "boundary-decoded-utf8-text"
+          },
+          "stderr": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-96nmvwnq\\evid09-v5-facade-reuse-20260914-0906\\closure-20260914T092926248863Z-zero-stderr.utf8",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "representation": "boundary-decoded-utf8-text"
+          }
+        }
+      },
+      {
+        "label": "stop",
+        "actual_exit": 0,
+        "observed_at_utc": "2026-09-14T09:29:32.513816+00:00",
+        "streams": {
+          "stdout": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-96nmvwnq\\evid09-v5-facade-reuse-20260914-0906\\closure-20260914T092926248863Z-stop-stdout.utf8",
+            "bytes": 120,
+            "sha256": "c8f80f319167989ea032428db55d96adfdc941d5cbc90872deee0b17b6e2583b",
+            "representation": "boundary-decoded-utf8-text"
+          },
+          "stderr": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-96nmvwnq\\evid09-v5-facade-reuse-20260914-0906\\closure-20260914T092926248863Z-stop-stderr.utf8",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "representation": "boundary-decoded-utf8-text"
+          }
+        }
+      },
+      {
+        "label": "closed",
+        "actual_exit": 0,
+        "observed_at_utc": "2026-09-14T09:29:33.232934+00:00",
+        "streams": {
+          "stdout": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-96nmvwnq\\evid09-v5-facade-reuse-20260914-0906\\closure-20260914T092926248863Z-closed-stdout.utf8",
+            "bytes": 5787,
+            "sha256": "4f6ed366e3bc69711f3f998a8a49d5b4bd167ebac924fb729099f9539df98e21",
+            "representation": "boundary-decoded-utf8-text"
+          },
+          "stderr": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-96nmvwnq\\evid09-v5-facade-reuse-20260914-0906\\closure-20260914T092926248863Z-closed-stderr.utf8",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "representation": "boundary-decoded-utf8-text"
+          }
+        }
+      },
+      {
+        "label": "remove",
+        "actual_exit": 0,
+        "observed_at_utc": "2026-09-14T09:29:33.993924+00:00",
+        "streams": {
+          "stdout": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-96nmvwnq\\evid09-v5-facade-reuse-20260914-0906\\closure-20260914T092926248863Z-remove-stdout.utf8",
+            "bytes": 65,
+            "sha256": "f67b29de64e7e3f7cfab2dd8d198f2f0d91563e3116326792a6d6199b1cdf93a",
+            "representation": "boundary-decoded-utf8-text"
+          },
+          "stderr": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-96nmvwnq\\evid09-v5-facade-reuse-20260914-0906\\closure-20260914T092926248863Z-remove-stderr.utf8",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "representation": "boundary-decoded-utf8-text"
+          }
+        }
+      },
+      {
+        "label": "network-after",
+        "actual_exit": 0,
+        "observed_at_utc": "2026-09-14T09:29:34.651268+00:00",
+        "streams": {
+          "stdout": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-96nmvwnq\\evid09-v5-facade-reuse-20260914-0906\\closure-20260914T092926248863Z-network-after-stdout.utf8",
+            "bytes": 941,
+            "sha256": "1ad34fa18526e977370b7597f4d7e74dc279520c72cae79266e68f61419df564",
+            "representation": "boundary-decoded-utf8-text"
+          },
+          "stderr": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-96nmvwnq\\evid09-v5-facade-reuse-20260914-0906\\closure-20260914T092926248863Z-network-after-stderr.utf8",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "representation": "boundary-decoded-utf8-text"
+          }
+        }
+      },
+      {
+        "label": "remove-network",
+        "actual_exit": 0,
+        "observed_at_utc": "2026-09-14T09:29:35.424133+00:00",
+        "streams": {
+          "stdout": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-96nmvwnq\\evid09-v5-facade-reuse-20260914-0906\\closure-20260914T092926248863Z-remove-network-stdout.utf8",
+            "bytes": 65,
+            "sha256": "c13fb6de3df93ec4fa760c7e3faaa4ee2b972be73c62e4faaf8ecf46241813ab",
+            "representation": "boundary-decoded-utf8-text"
+          },
+          "stderr": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-96nmvwnq\\evid09-v5-facade-reuse-20260914-0906\\closure-20260914T092926248863Z-remove-network-stderr.utf8",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "representation": "boundary-decoded-utf8-text"
+          }
+        }
+      },
+      {
+        "label": "remove-remote-dir",
+        "actual_exit": 0,
+        "observed_at_utc": "2026-09-14T09:29:36.062737+00:00",
+        "streams": {
+          "stdout": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-96nmvwnq\\evid09-v5-facade-reuse-20260914-0906\\closure-20260914T092926248863Z-remove-remote-dir-stdout.utf8",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "representation": "boundary-decoded-utf8-text"
+          },
+          "stderr": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-96nmvwnq\\evid09-v5-facade-reuse-20260914-0906\\closure-20260914T092926248863Z-remove-remote-dir-stderr.utf8",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "representation": "boundary-decoded-utf8-text"
+          }
+        }
+      }
+    ],
+    "zero_state": {
+      "public_table_count": 0,
+      "client_count": 0,
+      "transaction_read_only": true,
+      "container_id": "a9725d93c30ce787c1fa5f8442a98a914cab7178b2d788434ef1ad42fca8572a",
+      "image_id": "sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685",
+      "statement_timeout_seconds": 15,
+      "lock_timeout_seconds": 5,
+      "observed_at_utc": "2026-09-14T09:29:31.547966+00:00"
+    },
+    "closed_state": {
+      "Status": "exited",
+      "Running": false,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 0,
+      "ExitCode": 0,
+      "Error": "",
+      "StartedAt": "2026-09-14T09:09:18.456092271Z",
+      "FinishedAt": "2026-09-14T09:29:33.204142901Z"
+    },
+    "closed_network_settings": {
+      "evid09-v5-net-facade-reuse-20260914-0906": {
+        "IPAMConfig": null,
+        "Links": null,
+        "Aliases": null,
+        "DriverOpts": null,
+        "GwPriority": 0,
+        "NetworkID": "3dcfb3d614e2eb5389c1e9dd96000a0745bbc5380d5a244fe53fb03b330162b2",
+        "EndpointID": "",
+        "Gateway": "",
+        "IPAddress": "",
+        "MacAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "DNSNames": [
+          "evid09-v5-pg-facade-reuse-20260914-0906",
+          "a9725d93c30c"
+        ]
+      }
+    },
+    "container_closed_at_utc": "2026-09-14T09:29:33.235804+00:00",
+    "local_postgres_password_removed": true,
+    "finished_at_utc": "2026-09-14T09:29:36.066592+00:00"
+  },
+  "original_artifact_count": 35,
+  "original_artifacts": [
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\facade-full-parent-postgres-v8-measurement-20260914.json",
+      "bytes": 23499,
+      "sha256": "21230501c92fe4e800b2ce20af3c6b90bcdac3e1f5a6475d5f45647d273404cd"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-18480-1789377086\\run-result.json",
+      "bytes": 11797339,
+      "sha256": "adc682c7a1f909ade9d9ae6135f0ee55a890462b18434796495e67d5431c1193"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-18480-1789377086\\junit.xml",
+      "bytes": 436,
+      "sha256": "17ef72d125b9ecb3450d17321c4e0b6f955ab52a5b88f4cd09ef3350a84e8ca7"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-18480-1789377086\\source-paths.json",
+      "bytes": 342668,
+      "sha256": "425726458e1663a77b4c8f63bff98086b0c9b85534e59f25ba98be8c1711e9ba"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-18480-1789377086\\source-before.json",
+      "bytes": 3049811,
+      "sha256": "53c6ed1f5cd53ad8a331585a557d5630c84805811b6c6f14ee2cf4f302a7bb52"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-18480-1789377086\\source-after.json",
+      "bytes": 3049811,
+      "sha256": "53c6ed1f5cd53ad8a331585a557d5630c84805811b6c6f14ee2cf4f302a7bb52"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-18480-1789377086\\private-tools-before.json",
+      "bytes": 1207,
+      "sha256": "8d0dd92f1535e51a5647e34d9ebc2ee31cdf4ead989dd6e5566f0f39d75af779"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-18480-1789377086\\private-tools-after.json",
+      "bytes": 1207,
+      "sha256": "8d0dd92f1535e51a5647e34d9ebc2ee31cdf4ead989dd6e5566f0f39d75af779"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-18480-1789377086\\stdout.raw",
+      "bytes": 110,
+      "sha256": "f5061731e9b0b24d2b18dc9d4d2b190e29b0d77c7c4daa21487049ad8978ba0c"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-18480-1789377086\\stderr.raw",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-96nmvwnq\\evid09-v5-facade-reuse-20260914-0906\\evid09-v5-child-facade-reuse-20260914-0906-18480-1789377086039979300\\child-stdout.bin",
+      "bytes": 545,
+      "sha256": "73a5a2cba168456d7c905b3f6b30f9e67a5606cc731d951adabbcaf164633029"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-96nmvwnq\\evid09-v5-facade-reuse-20260914-0906\\evid09-v5-child-facade-reuse-20260914-0906-18480-1789377086039979300\\child-stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-18480-1789377086\\fresh-parent-result.json",
+      "bytes": 3530,
+      "sha256": "9a4fd4b7ed9f2e5e97910caddba97f92ee846e82f430141156605de168015a3b"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\facade-successor-postgres-v9-measurement-20260914.json",
+      "bytes": 23430,
+      "sha256": "1fc8b95273d1470bea4d95dadd7d52e34f4fa347c5a0cd6360bafae1e6f2e377"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-7700-1789377544\\run-result.json",
+      "bytes": 11792465,
+      "sha256": "b27decce8ffc2c11a1851e626b92f81c890ac449ff557ba64d14d46c913021be"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-7700-1789377544\\junit.xml",
+      "bytes": 413,
+      "sha256": "d6ad922ea1bcfc7b3bb3d29883aaa634ce2b65ed2f3e927b6524f8b018fbd7a9"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-7700-1789377544\\source-paths.json",
+      "bytes": 342668,
+      "sha256": "425726458e1663a77b4c8f63bff98086b0c9b85534e59f25ba98be8c1711e9ba"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-7700-1789377544\\source-before.json",
+      "bytes": 3049811,
+      "sha256": "53c6ed1f5cd53ad8a331585a557d5630c84805811b6c6f14ee2cf4f302a7bb52"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-7700-1789377544\\source-after.json",
+      "bytes": 3049811,
+      "sha256": "53c6ed1f5cd53ad8a331585a557d5630c84805811b6c6f14ee2cf4f302a7bb52"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-7700-1789377544\\private-tools-before.json",
+      "bytes": 1207,
+      "sha256": "8d0dd92f1535e51a5647e34d9ebc2ee31cdf4ead989dd6e5566f0f39d75af779"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-7700-1789377544\\private-tools-after.json",
+      "bytes": 1207,
+      "sha256": "8d0dd92f1535e51a5647e34d9ebc2ee31cdf4ead989dd6e5566f0f39d75af779"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-7700-1789377544\\stdout.raw",
+      "bytes": 110,
+      "sha256": "0347cb5b1ca9a6c98110eb7dbf9fec97c989448e4baf873bf81a307ca568dfd0"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-7700-1789377544\\stderr.raw",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-96nmvwnq\\evid09-v5-facade-reuse-20260914-0906\\evid09-v5-child-facade-reuse-20260914-0906-7700-1789377544567481600\\child-stdout.bin",
+      "bytes": 518,
+      "sha256": "703006a067936a7eb1d937ef3ca272f2b28f9ecb465e7d75831a2e68e620259f"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-96nmvwnq\\evid09-v5-facade-reuse-20260914-0906\\evid09-v5-child-facade-reuse-20260914-0906-7700-1789377544567481600\\child-stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\facade-reuse-v4-measurement-owned-closure-20260914T092926248863Z.json",
+      "bytes": 10563,
+      "sha256": "e23fc75501e77df3b383bcd22b3c7bc8a35e537c9b9fc78bcde9a053d73a1fe7"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\facade-reuse-independent-process-closure-20260914T0929Z.json",
+      "bytes": 188,
+      "sha256": "129b49131b79c21c85f857a64b6abf22cfb884da230a0869bada0926d145f399"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\facade-reuse-isolated-pg-root-create-receipt-20260914T090907074359Z.json",
+      "bytes": 1446,
+      "sha256": "87584f44d5c0c8e448c03ae6067180259d3dd7e57d85037c6afa3a18c4161ef4"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\facade-reuse-isolated-pg-root-created-20260914T090907074359Z.json",
+      "bytes": 10326,
+      "sha256": "69bab1c078ba86625fe1d8bcbfaecf13b4061edbfc05c5c6db0b697dd6c8a35b"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\run_facade_full_parent_postgres_v8.py",
+      "bytes": 90822,
+      "sha256": "ece082613554111230c14899033194ef33b9a3ec6c797ef1974a6d203ec39f34"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\run_facade_successor_postgres_v9.py",
+      "bytes": 90212,
+      "sha256": "906eddbe512e848dc51a118aee31200395ac86d5f7ab06c523bab3f189dc77ad"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\root_create_facade_isolated_pg_v4.py",
+      "bytes": 4295,
+      "sha256": "cd35a67ca0afc0ee1e755c57093420cfaeba479d22f95487f2f5492f60242709"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\root_close_facade_isolated_pg_v4.py",
+      "bytes": 10030,
+      "sha256": "7bd23452dc03d1922a6371b741d3c64fdd7e552cff2806ceb68c4eef39e0c843"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\facade-full-parent-ready-adapter-v8-20260914.json",
+      "bytes": 12869,
+      "sha256": "92aace32c35ff7cd225740875b62c6a6c0e1ca0b7dd3a8bf8631f304f0fdaa02"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\facade-successor-ready-adapter-v9-20260914.json",
+      "bytes": 12332,
+      "sha256": "378fc4d3b1371eb1f8e5dcc4097cf0011bb7f0b0b700ab53766f93d20b7a104c"
+    }
+  ],
+  "production_resources_used": false,
+  "production_lifecycle_accepted": false,
+  "unit_exit_changed": false,
+  "limits": [
+    "V8 is the six-stage fresh-parent fixture, not successor/replay acceptance. V9 independently proves the existing composition seed lifecycle, including successor/replay. Both are synthetic PG workloads with frozen test clocks, not real production owner approval or production-scale historical roots.",
+    "Operators are identified by their V8/V9 filenames, hashes and target nodeids. Their inherited receipt schema still says V7; original receipts are preserved unchanged.",
+    "One loads/decode/raw_decode parser chain counts as one physical parse. Counters exclude pytest fixture setup/teardown; full pytest/operator walls include wider work. CPU and wall are separate and SQL elapsed is client execute time.",
+    "The two scope counts are not summed or averaged. No paired production percentage, latency distribution, decision native time, historical raw hash repair or EVID-09 promotion is inferred.",
+    "Large originals are retained locally by size/SHA rather than embedded. Standard deployment and fresh production rollback lifecycle remain separate acceptance gates."
+  ]
+}
