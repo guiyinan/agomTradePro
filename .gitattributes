@@ -92,3 +92,7 @@ docs/testing/research-state-controlled-branch-increment-2026-09-14.json text eol
 docs/testing/research-whole-domain-current-coverage-2026-09-14.json text eol=lf
 docs/testing/evid09-facade-operation-read-reuse-postgres-validation-2026-09-14.json text eol=lf
 docs/testing/evid09-facade-operation-read-reuse-postgres-validation-2026-09-14.json.sha256 text eol=lf
+docs/deployment/evid09-standard-deployment-preservation-facade-reuse-v5-2026-09-14.json text eol=lf
+docs/deployment/evid09-standard-deployment-preservation-facade-reuse-v5-2026-09-14.json.sha256 text eol=lf
+docs/deployment/evid09-passing-facade-reuse-lifecycle-2026-09-14.json text eol=lf
+docs/deployment/evid09-passing-facade-reuse-lifecycle-2026-09-14.json.sha256 text eol=lf

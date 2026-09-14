@@ -1,0 +1,1942 @@
+{
+  "schema": "evid09.passing-production-facade-lifecycle.v1",
+  "recorded_at_utc": "2026-09-14T10:08:00.956367+00:00",
+  "unit": "EVID-09",
+  "status": "active",
+  "production_lifecycle_passed": true,
+  "signed_acceptance": false,
+  "source_commit": "f121000df1276472f172a93c16961fa74f433192",
+  "release_id": "source-20260914173239",
+  "image_digest": "sha256:b288b16a77e32bc41da5ab130997948b66b7adbb114600831eb61663f5bc4640",
+  "run_id": "024248d0dbb94b35b767668574a40357",
+  "deployment_seal_sha256": "8f3ec2840e0c5dcc7729f5856c8cb0de6afa0a8261c5a5a7d358e40ea7db4e93",
+  "active_lifecycle_watchdog_seconds": 1500,
+  "supervisor": {
+    "started_at": "2026-09-14T09:55:45.120000+00:00",
+    "child_pid": 69437,
+    "supervisor_pid": 69431,
+    "direct_child_deadline_seconds": 2100,
+    "prototype_sha256": "35a5f8e53672b47343a429be484f6d1d75e5babfbce05e851a3226d6e7a725e4",
+    "output_directory": "/app/var/evid09-fresh-prepared-20260914T095407072240Z/var/case-20260914T095539002049Z",
+    "timed_out": false,
+    "actual_child_exit": 0,
+    "finished_at": "2026-09-14T10:03:23.024311+00:00",
+    "child_reaped": true,
+    "original_stdout_sha256": "55e698e1a1b7c20d03cf85c41c8aeb4fa0d7ee7a8a584d8415757cfcb75fcb49",
+    "original_stderr_sha256": "b6f120b58f8e7c8b61b48b74f61a118bb242eef2065b67e42d11fb4cf2b00692"
+  },
+  "capture": {
+    "actual_exit": 0,
+    "local_child_reaped": true,
+    "capture_complete": true,
+    "source_stable": true
+  },
+  "stages": [
+    {
+      "stage": "authenticated_session",
+      "status": "passed",
+      "scope": "outside_parent",
+      "started_at": "2026-09-14T09:55:56.129221Z",
+      "finished_at": "2026-09-14T09:55:56.150772Z",
+      "wall_seconds": 0.021592047065496445,
+      "cpu_seconds": 0.02157411900000028,
+      "sql": {
+        "by_first_keyword": {},
+        "non_select": 0,
+        "seconds": 0.0,
+        "select": 0,
+        "total": 0
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 0,
+            "decoder_raw_decode_calls": 0,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 0,
+            "json_loads_calls": 0,
+            "physical_json_decode_calls": 0,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 0.0,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "authenticated_session",
+          "phase": "outside_parent"
+        }
+      ]
+    },
+    {
+      "stage": "parent_open",
+      "status": "passed",
+      "scope": "parent",
+      "started_at": "2026-09-14T09:55:56.151829Z",
+      "finished_at": "2026-09-14T09:55:56.154183Z",
+      "wall_seconds": 0.0024054888635873795,
+      "cpu_seconds": 0.001328349999999645,
+      "sql": {
+        "by_first_keyword": {
+          "SET": 2,
+          "SHOW": 2
+        },
+        "non_select": 4,
+        "seconds": 0.0018448252230882645,
+        "select": 0,
+        "total": 4
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 0,
+            "decoder_raw_decode_calls": 0,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 0,
+            "json_loads_calls": 0,
+            "physical_json_decode_calls": 0,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 0.0,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "parent_open",
+          "phase": "parent"
+        }
+      ]
+    },
+    {
+      "stage": "fresh_raw_publication",
+      "status": "passed",
+      "scope": "parent",
+      "started_at": "2026-09-14T09:55:56.233325Z",
+      "finished_at": "2026-09-14T09:55:57.588297Z",
+      "wall_seconds": 1.3549850219860673,
+      "cpu_seconds": 1.0854305020000012,
+      "sql": {
+        "by_first_keyword": {
+          "INSERT": 8,
+          "LOCK": 3,
+          "RELEASE": 17,
+          "SAVEPOINT": 17,
+          "SELECT": 70,
+          "SHOW": 3
+        },
+        "non_select": 48,
+        "seconds": 0.3417718019336462,
+        "select": 70,
+        "total": 118
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 631,
+            "decoder_raw_decode_calls": 631,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 0,
+            "json_loads_calls": 631,
+            "physical_json_decode_calls": 631,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 0.025414276868104935,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "fresh_raw_publication",
+          "phase": "parent"
+        }
+      ]
+    },
+    {
+      "stage": "fresh_actor_capture",
+      "status": "passed",
+      "scope": "parent",
+      "started_at": "2026-09-14T09:55:57.589260Z",
+      "finished_at": "2026-09-14T09:55:58.487880Z",
+      "wall_seconds": 0.8986377995461226,
+      "cpu_seconds": 0.7843777379999999,
+      "sql": {
+        "by_first_keyword": {
+          "INSERT": 2,
+          "LOCK": 3,
+          "RELEASE": 4,
+          "SAVEPOINT": 4,
+          "SELECT": 46,
+          "SHOW": 3
+        },
+        "non_select": 16,
+        "seconds": 0.15240137837827206,
+        "select": 46,
+        "total": 62
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 485,
+            "decoder_raw_decode_calls": 485,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 0,
+            "json_loads_calls": 485,
+            "physical_json_decode_calls": 485,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 0.018838846124708652,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "fresh_actor_capture",
+          "phase": "parent"
+        }
+      ]
+    },
+    {
+      "stage": "source_window_gate",
+      "status": "passed",
+      "scope": "parent",
+      "started_at": "2026-09-14T09:55:58.488737Z",
+      "finished_at": "2026-09-14T09:55:58.489045Z",
+      "wall_seconds": 0.0003186538815498352,
+      "cpu_seconds": 0.00031893799999949124,
+      "sql": {
+        "by_first_keyword": {},
+        "non_select": 0,
+        "seconds": 0.0,
+        "select": 0,
+        "total": 0
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 0,
+            "decoder_raw_decode_calls": 0,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 0,
+            "json_loads_calls": 0,
+            "physical_json_decode_calls": 0,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 0.0,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "source_window_gate",
+          "phase": "parent"
+        }
+      ]
+    },
+    {
+      "stage": "fresh_account_binding",
+      "status": "passed",
+      "scope": "parent",
+      "started_at": "2026-09-14T09:55:58.589118Z",
+      "finished_at": "2026-09-14T09:56:00.915167Z",
+      "wall_seconds": 2.326106104068458,
+      "cpu_seconds": 1.9182703720000003,
+      "sql": {
+        "by_first_keyword": {
+          "INSERT": 8,
+          "RELEASE": 15,
+          "SAVEPOINT": 15,
+          "SELECT": 124,
+          "SHOW": 3
+        },
+        "non_select": 41,
+        "seconds": 0.5169911831617355,
+        "select": 124,
+        "total": 165
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 495,
+            "decoder_raw_decode_calls": 495,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 1,
+            "json_loads_calls": 495,
+            "physical_json_decode_calls": 495,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 0.031015515327453613,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "fresh_account_binding",
+          "phase": "parent"
+        }
+      ]
+    },
+    {
+      "stage": "fresh_policy_publication",
+      "status": "passed",
+      "scope": "parent",
+      "started_at": "2026-09-14T09:56:00.916049Z",
+      "finished_at": "2026-09-14T09:56:01.360393Z",
+      "wall_seconds": 0.4443687563762069,
+      "cpu_seconds": 0.34155343099999946,
+      "sql": {
+        "by_first_keyword": {
+          "INSERT": 1,
+          "RELEASE": 3,
+          "SAVEPOINT": 3,
+          "SELECT": 69,
+          "SHOW": 1
+        },
+        "non_select": 8,
+        "seconds": 0.15514855831861496,
+        "select": 69,
+        "total": 77
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 178,
+            "decoder_raw_decode_calls": 178,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 1,
+            "json_loads_calls": 178,
+            "physical_json_decode_calls": 178,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 0.012684129178524017,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "fresh_policy_publication",
+          "phase": "parent"
+        }
+      ]
+    },
+    {
+      "stage": "fresh_reobservation",
+      "status": "passed",
+      "scope": "parent",
+      "started_at": "2026-09-14T09:56:01.570311Z",
+      "finished_at": "2026-09-14T09:56:03.835439Z",
+      "wall_seconds": 2.26515263132751,
+      "cpu_seconds": 1.9808116699999996,
+      "sql": {
+        "by_first_keyword": {
+          "INSERT": 4,
+          "RELEASE": 9,
+          "SAVEPOINT": 9,
+          "SELECT": 86,
+          "SHOW": 3
+        },
+        "non_select": 25,
+        "seconds": 0.3598782457411289,
+        "select": 86,
+        "total": 111
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 482,
+            "decoder_raw_decode_calls": 482,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 0,
+            "json_loads_calls": 482,
+            "physical_json_decode_calls": 482,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 0.02847910299897194,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "fresh_reobservation",
+          "phase": "parent"
+        }
+      ]
+    },
+    {
+      "stage": "fresh_receipt_v5",
+      "status": "passed",
+      "scope": "parent",
+      "started_at": "2026-09-14T09:56:03.836464Z",
+      "finished_at": "2026-09-14T09:56:26.999080Z",
+      "wall_seconds": 23.162642801180482,
+      "cpu_seconds": 20.996847322999997,
+      "sql": {
+        "by_first_keyword": {
+          "INSERT": 1,
+          "RELEASE": 2,
+          "SAVEPOINT": 2,
+          "SELECT": 996
+        },
+        "non_select": 5,
+        "seconds": 2.9868288123980165,
+        "select": 996,
+        "total": 1001
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 4391,
+            "decoder_raw_decode_calls": 4391,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 0,
+            "json_loads_calls": 4391,
+            "physical_json_decode_calls": 4391,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 0.3259285008534789,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "fresh_receipt_v5",
+          "phase": "parent"
+        }
+      ]
+    },
+    {
+      "stage": "fresh_subject_v5",
+      "status": "passed",
+      "scope": "parent",
+      "started_at": "2026-09-14T09:56:27.000684Z",
+      "finished_at": "2026-09-14T09:57:08.984718Z",
+      "wall_seconds": 41.984061900526285,
+      "cpu_seconds": 38.244700073,
+      "sql": {
+        "by_first_keyword": {
+          "INSERT": 1,
+          "RELEASE": 2,
+          "SAVEPOINT": 2,
+          "SELECT": 1967
+        },
+        "non_select": 5,
+        "seconds": 4.809225912205875,
+        "select": 1967,
+        "total": 1972
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 8749,
+            "decoder_raw_decode_calls": 8749,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 0,
+            "json_loads_calls": 8749,
+            "physical_json_decode_calls": 8749,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 0.6006320081651211,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "fresh_subject_v5",
+          "phase": "parent"
+        }
+      ]
+    },
+    {
+      "stage": "fresh_evidence_v5",
+      "status": "passed",
+      "scope": "parent",
+      "started_at": "2026-09-14T09:57:08.987026Z",
+      "finished_at": "2026-09-14T09:57:33.870099Z",
+      "wall_seconds": 24.88309056404978,
+      "cpu_seconds": 18.069149711999998,
+      "sql": {
+        "by_first_keyword": {
+          "INSERT": 1,
+          "LOCK": 5,
+          "RELEASE": 4,
+          "SAVEPOINT": 4,
+          "SELECT": 4114,
+          "SHOW": 4
+        },
+        "non_select": 18,
+        "seconds": 9.288885923102498,
+        "select": 4114,
+        "total": 4132
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 7601,
+            "decoder_raw_decode_calls": 7601,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 0,
+            "json_loads_calls": 7601,
+            "physical_json_decode_calls": 7601,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 0.9713197825476527,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "fresh_evidence_v5",
+          "phase": "parent"
+        }
+      ]
+    },
+    {
+      "stage": "authority_issue",
+      "status": "passed",
+      "scope": "parent",
+      "started_at": "2026-09-14T09:57:33.905171Z",
+      "finished_at": "2026-09-14T09:58:13.461005Z",
+      "wall_seconds": 39.55587605852634,
+      "cpu_seconds": 28.63656325299999,
+      "sql": {
+        "by_first_keyword": {
+          "INSERT": 1,
+          "LOCK": 15,
+          "RELEASE": 6,
+          "SAVEPOINT": 6,
+          "SELECT": 6304,
+          "SHOW": 10
+        },
+        "non_select": 38,
+        "seconds": 14.696891264989972,
+        "select": 6304,
+        "total": 6342
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 11818,
+            "decoder_raw_decode_calls": 11818,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 0,
+            "json_loads_calls": 11818,
+            "physical_json_decode_calls": 11818,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 1.5732738710939884,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "authority_issue",
+          "phase": "parent"
+        }
+      ]
+    },
+    {
+      "stage": "authority_issue_replay",
+      "status": "passed",
+      "scope": "parent",
+      "started_at": "2026-09-14T09:58:13.463624Z",
+      "finished_at": "2026-09-14T09:58:24.190097Z",
+      "wall_seconds": 10.726511092856526,
+      "cpu_seconds": 8.011284880000005,
+      "sql": {
+        "by_first_keyword": {
+          "LOCK": 15,
+          "RELEASE": 6,
+          "SAVEPOINT": 6,
+          "SELECT": 1634,
+          "SHOW": 10
+        },
+        "non_select": 37,
+        "seconds": 3.6538792783394456,
+        "select": 1634,
+        "total": 1671
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 3467,
+            "decoder_raw_decode_calls": 3467,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 0,
+            "json_loads_calls": 3467,
+            "physical_json_decode_calls": 3467,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 0.451912684366107,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "authority_issue_replay",
+          "phase": "parent"
+        }
+      ]
+    },
+    {
+      "stage": "authority_current",
+      "status": "passed",
+      "scope": "parent",
+      "started_at": "2026-09-14T09:58:24.191273Z",
+      "finished_at": "2026-09-14T09:58:34.776267Z",
+      "wall_seconds": 10.585029507987201,
+      "cpu_seconds": 7.840414963000001,
+      "sql": {
+        "by_first_keyword": {
+          "LOCK": 15,
+          "RELEASE": 6,
+          "SAVEPOINT": 6,
+          "SELECT": 1634,
+          "SHOW": 10
+        },
+        "non_select": 37,
+        "seconds": 3.583838957361877,
+        "select": 1634,
+        "total": 1671
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 3467,
+            "decoder_raw_decode_calls": 3467,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 0,
+            "json_loads_calls": 3467,
+            "physical_json_decode_calls": 3467,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 0.4274526434019208,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "authority_current",
+          "phase": "parent"
+        }
+      ]
+    },
+    {
+      "stage": "authority_with_current",
+      "status": "passed",
+      "scope": "parent",
+      "started_at": "2026-09-14T09:58:34.777911Z",
+      "finished_at": "2026-09-14T09:58:55.733576Z",
+      "wall_seconds": 20.955706851556897,
+      "cpu_seconds": 15.55067884799999,
+      "sql": {
+        "by_first_keyword": {
+          "LOCK": 26,
+          "RELEASE": 10,
+          "SAVEPOINT": 10,
+          "SELECT": 3267,
+          "SHOW": 18
+        },
+        "non_select": 64,
+        "seconds": 7.141807810403407,
+        "select": 3267,
+        "total": 3331
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 6934,
+            "decoder_raw_decode_calls": 6934,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 0,
+            "json_loads_calls": 6934,
+            "physical_json_decode_calls": 6934,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 0.9005124540999532,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "authority_with_current",
+          "phase": "parent"
+        }
+      ]
+    },
+    {
+      "stage": "authority_exact",
+      "status": "passed",
+      "scope": "parent",
+      "started_at": "2026-09-14T09:58:55.735817Z",
+      "finished_at": "2026-09-14T09:59:02.056926Z",
+      "wall_seconds": 6.321150050498545,
+      "cpu_seconds": 4.6104385769999965,
+      "sql": {
+        "by_first_keyword": {
+          "LOCK": 3,
+          "RELEASE": 3,
+          "SAVEPOINT": 3,
+          "SELECT": 1052,
+          "SHOW": 2
+        },
+        "non_select": 11,
+        "seconds": 2.3232500525191426,
+        "select": 1052,
+        "total": 1063
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 1867,
+            "decoder_raw_decode_calls": 1867,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 0,
+            "json_loads_calls": 1867,
+            "physical_json_decode_calls": 1867,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 0.2728335056453943,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "authority_exact",
+          "phase": "parent"
+        }
+      ]
+    },
+    {
+      "stage": "authority_successor",
+      "status": "passed",
+      "scope": "parent",
+      "started_at": "2026-09-14T09:59:02.058271Z",
+      "finished_at": "2026-09-14T09:59:48.094121Z",
+      "wall_seconds": 46.03589299414307,
+      "cpu_seconds": 33.85011914099999,
+      "sql": {
+        "by_first_keyword": {
+          "INSERT": 1,
+          "LOCK": 15,
+          "RELEASE": 6,
+          "SAVEPOINT": 6,
+          "SELECT": 7316,
+          "SHOW": 10
+        },
+        "non_select": 38,
+        "seconds": 16.64456090796739,
+        "select": 7316,
+        "total": 7354
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 13642,
+            "decoder_raw_decode_calls": 13642,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 0,
+            "json_loads_calls": 13642,
+            "physical_json_decode_calls": 13642,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 2.8243048265576363,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "authority_successor",
+          "phase": "parent"
+        }
+      ]
+    },
+    {
+      "stage": "authority_successor_replay",
+      "status": "passed",
+      "scope": "parent",
+      "started_at": "2026-09-14T09:59:48.095756Z",
+      "finished_at": "2026-09-14T09:59:59.348754Z",
+      "wall_seconds": 11.253040994517505,
+      "cpu_seconds": 8.327619545000005,
+      "sql": {
+        "by_first_keyword": {
+          "LOCK": 15,
+          "RELEASE": 6,
+          "SAVEPOINT": 6,
+          "SELECT": 1657,
+          "SHOW": 10
+        },
+        "non_select": 37,
+        "seconds": 3.951749602332711,
+        "select": 1657,
+        "total": 1694
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 3515,
+            "decoder_raw_decode_calls": 3515,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 0,
+            "json_loads_calls": 3515,
+            "physical_json_decode_calls": 3515,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 0.4594985144212842,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "authority_successor_replay",
+          "phase": "parent"
+        }
+      ]
+    },
+    {
+      "stage": "authority_successor_current",
+      "status": "passed",
+      "scope": "parent",
+      "started_at": "2026-09-14T09:59:59.349874Z",
+      "finished_at": "2026-09-14T10:00:29.968238Z",
+      "wall_seconds": 30.61841006204486,
+      "cpu_seconds": 15.293702233999994,
+      "sql": {
+        "by_first_keyword": {
+          "LOCK": 15,
+          "RELEASE": 6,
+          "SAVEPOINT": 6,
+          "SELECT": 1657,
+          "SHOW": 10
+        },
+        "non_select": 37,
+        "seconds": 17.754245984368026,
+        "select": 1657,
+        "total": 1694
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 3515,
+            "decoder_raw_decode_calls": 3515,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 0,
+            "json_loads_calls": 3515,
+            "physical_json_decode_calls": 3515,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 0.818702258169651,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "authority_successor_current",
+          "phase": "parent"
+        }
+      ]
+    },
+    {
+      "stage": "authority_successor_with_current",
+      "status": "passed",
+      "scope": "parent",
+      "started_at": "2026-09-14T10:00:29.970294Z",
+      "finished_at": "2026-09-14T10:00:57.298448Z",
+      "wall_seconds": 27.328193375840783,
+      "cpu_seconds": 20.019945810000024,
+      "sql": {
+        "by_first_keyword": {
+          "LOCK": 26,
+          "RELEASE": 10,
+          "SAVEPOINT": 10,
+          "SELECT": 3313,
+          "SHOW": 18
+        },
+        "non_select": 64,
+        "seconds": 10.115309676155448,
+        "select": 3313,
+        "total": 3377
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 7030,
+            "decoder_raw_decode_calls": 7030,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 0,
+            "json_loads_calls": 7030,
+            "physical_json_decode_calls": 7030,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 1.1330447075888515,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "authority_successor_with_current",
+          "phase": "parent"
+        }
+      ]
+    },
+    {
+      "stage": "authority_revoke",
+      "status": "passed",
+      "scope": "parent",
+      "started_at": "2026-09-14T10:00:57.300545Z",
+      "finished_at": "2026-09-14T10:02:39.217181Z",
+      "wall_seconds": 101.91667122207582,
+      "cpu_seconds": 72.30584201600001,
+      "sql": {
+        "by_first_keyword": {
+          "INSERT": 1,
+          "LOCK": 8,
+          "RELEASE": 4,
+          "SAVEPOINT": 4,
+          "SELECT": 12817,
+          "SHOW": 6
+        },
+        "non_select": 23,
+        "seconds": 40.77390424348414,
+        "select": 12817,
+        "total": 12840
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 23361,
+            "decoder_raw_decode_calls": 23361,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 0,
+            "json_loads_calls": 23361,
+            "physical_json_decode_calls": 23361,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 3.907044993713498,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "authority_revoke",
+          "phase": "parent"
+        }
+      ]
+    },
+    {
+      "stage": "authority_revoke_replay",
+      "status": "passed",
+      "scope": "parent",
+      "started_at": "2026-09-14T10:02:39.219608Z",
+      "finished_at": "2026-09-14T10:02:49.986481Z",
+      "wall_seconds": 10.76690507400781,
+      "cpu_seconds": 7.624049132000039,
+      "sql": {
+        "by_first_keyword": {
+          "LOCK": 5,
+          "RELEASE": 3,
+          "SAVEPOINT": 3,
+          "SELECT": 1118,
+          "SHOW": 4
+        },
+        "non_select": 15,
+        "seconds": 4.24124179314822,
+        "select": 1118,
+        "total": 1133
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 2179,
+            "decoder_raw_decode_calls": 2179,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 0,
+            "json_loads_calls": 2179,
+            "physical_json_decode_calls": 2179,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 0.4152443502098322,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "authority_revoke_replay",
+          "phase": "parent"
+        }
+      ]
+    },
+    {
+      "stage": "authority_revoked_current",
+      "status": "passed",
+      "scope": "parent",
+      "started_at": "2026-09-14T10:02:49.988740Z",
+      "finished_at": "2026-09-14T10:02:58.279333Z",
+      "wall_seconds": 8.290623031556606,
+      "cpu_seconds": 5.94924428500002,
+      "sql": {
+        "by_first_keyword": {
+          "LOCK": 4,
+          "RELEASE": 3,
+          "SAVEPOINT": 3,
+          "SELECT": 1073,
+          "SHOW": 2
+        },
+        "non_select": 12,
+        "seconds": 3.2459326703101397,
+        "select": 1073,
+        "total": 1085
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 1913,
+            "decoder_raw_decode_calls": 1913,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 0,
+            "json_loads_calls": 1913,
+            "physical_json_decode_calls": 1913,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 0.35030086524784565,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "authority_revoked_current",
+          "phase": "parent"
+        }
+      ]
+    },
+    {
+      "stage": "authority_exact_after_revoke",
+      "status": "passed",
+      "scope": "parent",
+      "started_at": "2026-09-14T10:02:58.280344Z",
+      "finished_at": "2026-09-14T10:03:08.261427Z",
+      "wall_seconds": 9.981127416715026,
+      "cpu_seconds": 7.164739595000015,
+      "sql": {
+        "by_first_keyword": {
+          "LOCK": 3,
+          "RELEASE": 3,
+          "SAVEPOINT": 3,
+          "SELECT": 1073,
+          "SHOW": 2
+        },
+        "non_select": 11,
+        "seconds": 3.927888506092131,
+        "select": 1073,
+        "total": 1084
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 1913,
+            "decoder_raw_decode_calls": 1913,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 0,
+            "json_loads_calls": 1913,
+            "physical_json_decode_calls": 1913,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 0.36433726642280817,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "authority_exact_after_revoke",
+          "phase": "parent"
+        }
+      ]
+    },
+    {
+      "stage": "rollback_sentinel",
+      "status": "passed",
+      "scope": "parent",
+      "started_at": "2026-09-14T10:03:08.264113Z",
+      "finished_at": "2026-09-14T10:03:08.264843Z",
+      "wall_seconds": 0.0007538720965385437,
+      "cpu_seconds": 0.000752572000010332,
+      "sql": {
+        "by_first_keyword": {},
+        "non_select": 0,
+        "seconds": 0.0,
+        "select": 0,
+        "total": 0
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 0,
+            "decoder_raw_decode_calls": 0,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 0,
+            "json_loads_calls": 0,
+            "physical_json_decode_calls": 0,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 0.0,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "rollback_sentinel",
+          "phase": "parent"
+        }
+      ]
+    },
+    {
+      "stage": "outer_rollback_complete",
+      "status": "passed",
+      "scope": "rollback",
+      "started_at": "2026-09-14T10:03:08.274453Z",
+      "finished_at": "2026-09-14T10:03:08.274887Z",
+      "wall_seconds": 0.00045528635382652283,
+      "cpu_seconds": 0.00045400099998005317,
+      "sql": {
+        "by_first_keyword": {},
+        "non_select": 0,
+        "seconds": 0.0,
+        "select": 0,
+        "total": 0
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 0,
+            "decoder_raw_decode_calls": 0,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 0,
+            "json_loads_calls": 0,
+            "physical_json_decode_calls": 0,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 0.0,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "outer_rollback_complete",
+          "phase": "rollback"
+        }
+      ]
+    },
+    {
+      "stage": "after_rollback_read",
+      "status": "passed",
+      "scope": "after_rollback",
+      "started_at": "2026-09-14T10:03:08.278411Z",
+      "finished_at": "2026-09-14T10:03:18.818019Z",
+      "wall_seconds": 10.539640638045967,
+      "cpu_seconds": 7.4295854019999865,
+      "sql": {
+        "by_first_keyword": {
+          "LOCK": 7,
+          "RELEASE": 6,
+          "SAVEPOINT": 6,
+          "SELECT": 1227,
+          "SET": 2,
+          "SHOW": 6
+        },
+        "non_select": 27,
+        "seconds": 4.230793263763189,
+        "select": 1227,
+        "total": 1254
+      },
+      "error_type": null,
+      "physical_decode_probe_source_sha256": "855ceb949c62d4d664e35ab48e6ea85f4e40667f9e4b8ed9bb20f9c5f99cd7a3",
+      "physical_decode_scopes": [
+        {
+          "counters": {
+            "decoder_decode_calls": 2160,
+            "decoder_raw_decode_calls": 2160,
+            "decorated_cache_hits": {},
+            "decorated_cache_misses": {},
+            "decorated_original_calls": {},
+            "decorated_original_errors": {},
+            "decorated_wrapper_calls": {},
+            "decorated_wrapper_errors": {},
+            "json_load_calls": 0,
+            "json_loads_calls": 2160,
+            "physical_json_decode_calls": 2160,
+            "physical_json_decode_errors": 0,
+            "physical_json_decode_seconds": 0.40418263617902994,
+            "sql_by_first_keyword": {},
+            "sql_non_select": 0,
+            "sql_seconds": 0.0,
+            "sql_select": 0,
+            "sql_total": 0
+          },
+          "operation": "after_rollback_read",
+          "phase": "after_rollback"
+        }
+      ]
+    }
+  ],
+  "stage_count": 27,
+  "rollback": {
+    "connection_was_reopened": true,
+    "new_scope_absent": {
+      "account": true,
+      "account_raw": true,
+      "account_source": true,
+      "actor": true,
+      "allocated": true,
+      "allocation": true,
+      "authority_root": true,
+      "authority_successor": true,
+      "binding": true,
+      "consumption_claim": true,
+      "evidence": true,
+      "physical": true,
+      "policy": true,
+      "raw_actor": true,
+      "raw_authentication": true,
+      "raw_rbac": true,
+      "raw_user": true,
+      "receipt": true,
+      "reobservation": true,
+      "revocation": true,
+      "subject": true
+    },
+    "old_roots": {
+      "all_unchanged": true,
+      "baseline_fingerprint_matches": true,
+      "current_reader_checks": [
+        {
+          "authority_id": "evid07-admin-owner-authority",
+          "checked": false,
+          "matches": null,
+          "reason": "physical fingerprint and counters only",
+          "status": "not_checked"
+        },
+        {
+          "authority_id": "audit-admin-owner-authority-20260912120907",
+          "checked": false,
+          "matches": null,
+          "reason": "physical fingerprint and counters only",
+          "status": "not_checked"
+        },
+        {
+          "authority_id": "audit-admin-owner-authority-20260912144245",
+          "checked": false,
+          "matches": null,
+          "reason": "physical fingerprint and counters only",
+          "status": "not_checked"
+        },
+        {
+          "actual_status": "none",
+          "authority_id": "audit-admin-owner-authority-20260912185635",
+          "checked": true,
+          "current_content_hash": null,
+          "expected_content_hash": "47d71a2f7e7aaea49a181d2db86a3375af330018a191a4e7fcf89b4f6e26acbb",
+          "expected_status": "none",
+          "expired_at_observation": true,
+          "historical_exact": true,
+          "historical_exact_content_hash": "47d71a2f7e7aaea49a181d2db86a3375af330018a191a4e7fcf89b4f6e26acbb",
+          "matches": true,
+          "observed_at": "2026-09-14T10:03:08.619312Z",
+          "reader_scope": "one server-owned old selector"
+        }
+      ],
+      "observed": [
+        {
+          "authority_id": "evid07-admin-owner-authority",
+          "canonical_payload_sha256": "fe3e22005e91f73963c7d4d120b47fbd7443d671064af396bce74ec7a5155db8",
+          "content_hash": "50d570281ddaab2e0f49a5e2240a07f3d3f681ae068f2810f02f77bb8a51efaa",
+          "exact": true,
+          "matches": true,
+          "pk": 1,
+          "revocation_count": 0,
+          "root_count": 1,
+          "successor_count": 0,
+          "valid_until": "2026-09-12T05:23:13.222533Z",
+          "valid_until_matches": true
+        },
+        {
+          "authority_id": "audit-admin-owner-authority-20260912120907",
+          "canonical_payload_sha256": "304b89963ca8857dbd630ab3cef781e2183f0374579dab107e9accae5b726dc7",
+          "content_hash": "c6431aa9f724519e047b75a3ef292a953a288215c87127cf1a5b9d76fbcb061c",
+          "exact": true,
+          "matches": true,
+          "pk": 2,
+          "revocation_count": 0,
+          "root_count": 1,
+          "successor_count": 0,
+          "valid_until": "2026-09-12T12:59:53.687878Z",
+          "valid_until_matches": true
+        },
+        {
+          "authority_id": "audit-admin-owner-authority-20260912144245",
+          "canonical_payload_sha256": "fce6f9080e5e475d421ad33c47f7ebe9c3f81f619ec44c09e7cf0baa4497eb90",
+          "content_hash": "584dd04ec11bb1ff40284916a977725286fd40763841403c99fc2402ab82a1ae",
+          "exact": true,
+          "matches": true,
+          "pk": 3,
+          "revocation_count": 0,
+          "root_count": 1,
+          "successor_count": 0,
+          "valid_until": "2026-09-12T15:35:52.627001Z",
+          "valid_until_matches": true
+        },
+        {
+          "authority_id": "audit-admin-owner-authority-20260912185635",
+          "canonical_payload_sha256": "980094a93a63c1c05455eb8eae5b8cb71a32c0bed4fecd1af2878221a8f8987b",
+          "content_hash": "47d71a2f7e7aaea49a181d2db86a3375af330018a191a4e7fcf89b4f6e26acbb",
+          "exact": true,
+          "matches": true,
+          "pk": 4,
+          "revocation_count": 0,
+          "root_count": 1,
+          "successor_count": 0,
+          "valid_until": "2026-09-13T18:11:14.891812Z",
+          "valid_until_matches": true
+        }
+      ]
+    },
+    "verified": true
+  },
+  "session_side_effects": {
+    "cookie_names": [
+      "csrftoken",
+      "sessionid"
+    ],
+    "login_succeeded": true,
+    "rows_are_not_described_as_rolled_back": true,
+    "scope": "outside_parent_transaction",
+    "session_key_sha256": "0d4f69f9807442cc7f2b082c87f333cdaab8128be10ff30ae5826301e2245c86",
+    "user_id": 1
+  },
+  "independent_recovery": {
+    "checks": {
+      "nineteen_full_row_ledgers_unchanged": true,
+      "four_bound_roots_unchanged": true,
+      "current_and_exact_observations_unchanged": true,
+      "baseline_fingerprint_unchanged": true,
+      "scope_exclusions_unchanged": true,
+      "observations_bracket_actual_reaped_child": true
+    },
+    "verified_critical_paths": [
+      "apps/account/account_owner_assignment_evidence_v5_composition.py",
+      "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "apps/account/application/account_owner_assignment_evidence_v5_read_phases.py",
+      "apps/account/application/owner_tenant_authority_v3.py",
+      "apps/account/application/owner_tenant_authority_v3_contracts.py",
+      "apps/account/infrastructure/account_owner_assignment_evidence_v5_repository.py",
+      "apps/account/infrastructure/immutable_read_snapshot.py",
+      "apps/account/infrastructure/owner_tenant_authority_v3_read_context.py",
+      "apps/account/owner_tenant_authority_v3_composition.py",
+      "apps/config_center/application/runtime_public.py",
+      "apps/data_center/application/current_publication_evidence.py",
+      "apps/data_center/application/egress_service.py",
+      "apps/data_center/application/financial_response_artifact.py",
+      "apps/data_center/application/query_services.py",
+      "apps/data_center/domain/entities.py",
+      "apps/data_center/domain/financial_response_artifact.py",
+      "apps/data_center/domain/financial_response_evidence.py",
+      "apps/data_center/domain/financial_source_evidence.py",
+      "apps/data_center/domain/publication_evidence.py",
+      "apps/data_center/financial_response_artifact_composition.py",
+      "apps/data_center/infrastructure/_provider_adapter_tushare.py",
+      "apps/data_center/infrastructure/egress_transport.py",
+      "apps/data_center/infrastructure/financial_fact_repository.py",
+      "apps/data_center/infrastructure/financial_fact_write_guard.py",
+      "apps/data_center/infrastructure/financial_response_artifact_config.py",
+      "apps/data_center/infrastructure/financial_response_artifact_repository.py",
+      "apps/data_center/infrastructure/financial_response_body_store.py",
+      "apps/data_center/infrastructure/financial_response_capture.py",
+      "apps/data_center/infrastructure/financial_source_policy.py",
+      "apps/data_center/infrastructure/gateways/tencent_gateway.py",
+      "apps/data_center/infrastructure/provider_state_repositories.py",
+      "apps/data_center/infrastructure/publication_fact_evidence.py",
+      "apps/data_center/infrastructure/publication_member_store.py",
+      "apps/data_center/infrastructure/tushare_client.py",
+      "apps/data_center/management/commands/initialize_financial_response_artifact.py",
+      "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
+      "core/integration/config_center_runtime.py",
+      "docker/docker-compose.vps.yml",
+      "governance/publication_policies.json",
+      "shared/infrastructure/immutable_read_snapshot.py"
+    ],
+    "unchanged_ledgers": 19,
+    "case_actual_child_exit": 0,
+    "excludes": [
+      "auth.User",
+      "django_session",
+      "logs",
+      "metrics",
+      "sequences",
+      "unrelated business tables"
+    ],
+    "independent_recovery_verified": true,
+    "lifecycle_accepted": false,
+    "recorded_at_utc": "2026-09-14T10:04:59.555404+00:00",
+    "deployment_seal_sha256": "8f3ec2840e0c5dcc7729f5856c8cb0de6afa0a8261c5a5a7d358e40ea7db4e93",
+    "input_sha256": {
+      "before": "2a29b4ff0cf6a2335252d77e98a7ff2266a020765938f3fa1f340c19d25d064f",
+      "after": "91de97fad2506dc1518fc726711add2527efb0a8d5cb2dfda68fbd689cbd568d",
+      "operator": "c8f6b972b7d99642b16c387ea8d746e79f7f958c3cba1113d0605fc939e18955",
+      "supervisor": "499430699c0bf840c42d2b7ea6d918d77016689dd3dd40121d6584216e47a1d0"
+    },
+    "binder_sha256": "13f30d7d92c0cd6a01a31b05dead4efb3dac22ef1669a6743038b28820cb5a72",
+    "limits": [
+      "Independent recovery of the listed scope only; no lifecycle, human or financial-source acceptance."
+    ]
+  },
+  "original_artifact_count": 71,
+  "original_artifacts": [
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-fresh-case8-v7-sjyt2upb\\collector-capture-20260914T095538735127Z\\stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-fresh-case8-v7-sjyt2upb\\collector-capture-20260914T095538735127Z\\stdout.bin",
+      "bytes": 922,
+      "sha256": "323916535686a8b5972c3c7a77b782a633715eb7fc4489fd5cc5858872900f4c"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-o25hgiu_\\evid09-v5-v5-root-v3-20260914-031444\\collector-capture-20260914T095406488735Z\\stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-o25hgiu_\\evid09-v5-v5-root-v3-20260914-031444\\collector-capture-20260914T095406488735Z\\stdout.bin",
+      "bytes": 200,
+      "sha256": "679500e2f3ca315cfbdf6cd2389738fd43d1d32fe588f26007c4e92def6a1ddb"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-o25hgiu_\\evid09-v5-v5-root-v3-20260914-031444\\collector-capture-20260914T100342691209Z\\stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-o25hgiu_\\evid09-v5-v5-root-v3-20260914-031444\\collector-capture-20260914T100342691209Z\\stdout.bin",
+      "bytes": 200,
+      "sha256": "6abc89dbd78c07bfcdab26d776d88f7edf3fc6ab29f03a37ed2c73e82ddea1cc"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\artifact-fetch-stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\artifact-fetch-stdout.bin",
+      "bytes": 467760,
+      "sha256": "9df42839636810035d5865d6370111f9260f5f3bf58094a4e1722bb301c983f2"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\operator-receipt.json",
+      "bytes": 17370,
+      "sha256": "c8f6b972b7d99642b16c387ea8d746e79f7f958c3cba1113d0605fc939e18955"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\child-stderr.txt",
+      "bytes": 311,
+      "sha256": "b6f120b58f8e7c8b61b48b74f61a118bb242eef2065b67e42d11fb4cf2b00692"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\child-stdout.txt",
+      "bytes": 4843,
+      "sha256": "55e698e1a1b7c20d03cf85c41c8aeb4fa0d7ee7a8a584d8415757cfcb75fcb49"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\remote_old_root_baseline.json",
+      "bytes": 49386,
+      "sha256": "ceb024ce97a548594d6cd40c73882791ffdeb911ddc74061c73a1d313f72f6bc"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\remote_runtime_proof.json",
+      "bytes": 548,
+      "sha256": "38a6328b98cb074270935c3a1f74b4226b32813e0309c3ab5e0911a5ae7c9fdd"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\remote_source_proof.json",
+      "bytes": 4067,
+      "sha256": "4224f2ab60865b01b4f3bb299d5540c9739752eaf44f1f09d3c8888825db8136"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\supervisor-final.json",
+      "bytes": 662,
+      "sha256": "499430699c0bf840c42d2b7ea6d918d77016689dd3dd40121d6584216e47a1d0"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\supervisor-started.json",
+      "bytes": 367,
+      "sha256": "2d88f2067e12a9f1b1661ba8b2290505a6d1a28f16384f717e571444fc8f2174"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\01-authenticated_session.json",
+      "bytes": 3509,
+      "sha256": "3d0a057a167ad8a44fdef497ca46468debcc0db7853f92ce4bca9d211e098ec7"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\02-parent_open.json",
+      "bytes": 3558,
+      "sha256": "19bbcf694e638f0013020495392b3d3f7ab68d542ef9bd8bd70bd5b3af99e5b1"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\03-fresh_raw_publication.json",
+      "bytes": 5186,
+      "sha256": "7d3f90e6e52edaba5c1e2052a36b12e30f85cdf04c41aebee84a3a3e9d3b9a56"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\04-fresh_actor_capture.json",
+      "bytes": 5133,
+      "sha256": "0912667671fcb9e3f71c4e45410618cadde86fd7bf237d6382bc57dc0f8472bf"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\05-source_window_gate.json",
+      "bytes": 3457,
+      "sha256": "7f8402dd0a89dee5b7def94b724bfd0f1b30ebdd5d1acd93d580b3a4deac72a7"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\06-fresh_account_binding.json",
+      "bytes": 3779,
+      "sha256": "815b2e32e9937f382ff30dd17574b8fbbd26b94bbbc15c7da5b664a23ae98581"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\07-fresh_policy_publication.json",
+      "bytes": 4085,
+      "sha256": "e82704532ba1a5ceea60b3a4d4fe980829e8fb78e3d2e5ff28ab83d3372e04a1"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\08-fresh_reobservation.json",
+      "bytes": 3868,
+      "sha256": "8f2f73610f93b8bc6158737f0ddc7617e46b4da3c8a3a61d879a4a04a4a986e6"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\09-fresh_receipt_v5.json",
+      "bytes": 3855,
+      "sha256": "e529d23ae4a2cb3ab2dc0e348fb37516871499a51512139b6f4525155d333881"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\10-fresh_subject_v5.json",
+      "bytes": 3707,
+      "sha256": "57784e27982ccbb3217140c7700b6ce8c1f8791878c4b399ece74e6224d1731b"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\11-fresh_evidence_v5.json",
+      "bytes": 3825,
+      "sha256": "77ad6fea5bf0b5057915cfb7416b8ab0ba1b16f8f534e745e6336d15bef89e17"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\12-authority_issue.json",
+      "bytes": 4674,
+      "sha256": "12cf20977ac6af9c096252dd26fe1927259552baaa6d3e4b065e837a3adc4a30"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\13-authority_issue_replay.json",
+      "bytes": 3536,
+      "sha256": "0b82c1862377c0a16fe70fe55701a388556e736b3c9d27a825f9ef4db42de3a9"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\14-authority_current.json",
+      "bytes": 3509,
+      "sha256": "636681b2a07604459cc4011642f83d2900cde0641310f2cc3256e363d829140b"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\15-authority_with_current.json",
+      "bytes": 3545,
+      "sha256": "679304a0f9f8ad491f78985e0afb2b6baf7aea678be878b2943812e81281c87f"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\16-authority_exact.json",
+      "bytes": 3504,
+      "sha256": "aff0274de0f7158f5a2d32faf65a9b767384fc84946b355e3ab53a64ea89b6dc"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\17-authority_successor.json",
+      "bytes": 4604,
+      "sha256": "c9fffbcae7464d9ab57141c1686039309a1430f30ef21549f0b299d9a6a4d1a1"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\18-authority_successor_replay.json",
+      "bytes": 3548,
+      "sha256": "e3a6561a241a8d9503c2b5720768ed3839db0b5651c794c53a395199d8ce660a"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\19-authority_successor_current.json",
+      "bytes": 3539,
+      "sha256": "9176ce1eb4af89b5d91de405009b7cec58ac5d9949120dc6d3b11282b757b68b"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\20-authority_successor_with_current.json",
+      "bytes": 3577,
+      "sha256": "f8acc02242916ffedafc5d6479d06a1a8c8268220df91dadad61d0b4901d5643"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\21-authority_revoke.json",
+      "bytes": 4062,
+      "sha256": "1fc69e5e19ed6df84e08ad47053de3863c6e2b4571b0fb086c3a10f4224b92d7"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\22-authority_revoke_replay.json",
+      "bytes": 3536,
+      "sha256": "93b851a9295506bbbdf8d9126fd22dac9265f9146a020cb2a0d4aabdaaf0b1dd"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\23-authority_revoked_current.json",
+      "bytes": 3464,
+      "sha256": "e951a06624285ac271fd4b5d5c107e9d8600f6f9cb6489ae6227778f3fd295f1"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\24-authority_exact_after_revoke.json",
+      "bytes": 3542,
+      "sha256": "20980bb1f715e7ba3c62c08586bd2b1d016d4afee0ec4d32b4648d72d59fbf2f"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\25-rollback_sentinel.json",
+      "bytes": 3227,
+      "sha256": "46a3772cf7a5d634f55a489c5ca426eb3a530cc3edf3198333785588dc6e35c2"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\26-outer_rollback_complete.json",
+      "bytes": 3270,
+      "sha256": "e62e9f6377136422c063922dd635c3eeb330551131b687b4065e699f739d5b22"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\27-after_rollback_read.json",
+      "bytes": 7951,
+      "sha256": "d8ed7f60e4378745b20c3b748aa5b6411d7b8abb50961b2e60387d3163b2f5db"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\run-result.json",
+      "bytes": 6073,
+      "sha256": "fdcf2877866cfc3c4dc6800f70a69bb40ba273ed1b4d38963b47c46848198091"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\case-20260914T095539002049Z\\run-start.json",
+      "bytes": 379,
+      "sha256": "a8913fdfa72cf9c5e223109c474b78afef545d23ea580bfa55244fdc7f10dd66"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\remote-originals\\var\\evid09_fresh_scope_rollback_lifecycle_v7.py",
+      "bytes": 175434,
+      "sha256": "35a5f8e53672b47343a429be484f6d1d75e5babfbce05e851a3226d6e7a725e4"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\transport-stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v7-20260914T095539002049Z\\transport-stdout.bin",
+      "bytes": 705,
+      "sha256": "c858189a404d66fc84c7bf735876e69bccbb591c37398f279e30c218a75e0b5a"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v7-20260914T095407072240Z\\actual-prepare-receipt.json",
+      "bytes": 26987,
+      "sha256": "d8599b54905b8767d7cd5b70f665e6647808111079382ea045bf3daf2dd7f5c7"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v7-20260914T095407072240Z\\actual-stderr.bin",
+      "bytes": 311,
+      "sha256": "44c5a5e4ba2ab52eeec798a3c89d5dd70d0c6dd3f7747e36b2b20c2fa343dca5"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v7-20260914T095407072240Z\\actual-stdout.bin",
+      "bytes": 109643,
+      "sha256": "0d1085685d57d4e5c7d1246110ad7fa068d2a2d24c6b64b8631a5be5bc8041d5"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v7-20260914T095407072240Z\\manifest.json",
+      "bytes": 178737,
+      "sha256": "2a29b4ff0cf6a2335252d77e98a7ff2266a020765938f3fa1f340c19d25d064f"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v7-20260914T095407072240Z\\remote_old_root_baseline.json",
+      "bytes": 49386,
+      "sha256": "ceb024ce97a548594d6cd40c73882791ffdeb911ddc74061c73a1d313f72f6bc"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v7-20260914T095407072240Z\\remote_runtime_proof.json",
+      "bytes": 548,
+      "sha256": "38a6328b98cb074270935c3a1f74b4226b32813e0309c3ab5e0911a5ae7c9fdd"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v7-20260914T095407072240Z\\remote_source_proof.json",
+      "bytes": 4067,
+      "sha256": "4224f2ab60865b01b4f3bb299d5540c9739752eaf44f1f09d3c8888825db8136"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v7-20260914T100342964726Z\\actual-prepare-receipt.json",
+      "bytes": 26987,
+      "sha256": "001bc7057d662cd242e05dd0241a77ba9c5507188c08ffc9a126574c283cade2"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v7-20260914T100342964726Z\\actual-stderr.bin",
+      "bytes": 311,
+      "sha256": "43f87ca3605f395b3642525f7bbe4b0bf949df01d8573a00f9dffe6505caa75a"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v7-20260914T100342964726Z\\actual-stdout.bin",
+      "bytes": 109643,
+      "sha256": "4c043da01a3731e031143b57c215efc346b0a488afafb3a716362ffbdd29edd9"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v7-20260914T100342964726Z\\manifest.json",
+      "bytes": 178737,
+      "sha256": "91de97fad2506dc1518fc726711add2527efb0a8d5cb2dfda68fbd689cbd568d"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v7-20260914T100342964726Z\\remote_old_root_baseline.json",
+      "bytes": 49386,
+      "sha256": "e069319a1c7e24e2e258433a70d912858f07334feda84505fe08683fcc7ab901"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v7-20260914T100342964726Z\\remote_runtime_proof.json",
+      "bytes": 548,
+      "sha256": "5aae5e9066e50f81cd836a9f55949d505cd1cf2e3a87c7127a13b94189d1a329"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v7-20260914T100342964726Z\\remote_source_proof.json",
+      "bytes": 4067,
+      "sha256": "8576b35c5e39a250cc1f9de8c1c84e61cd7aae835873523db1f9ee3a3d7bc53d"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-independent-recovery-v7-20260914T100459555436Z.json",
+      "bytes": 4013,
+      "sha256": "7708feaf08a83d874e79615f48cea9219f5561250790f6fe06c998c5f5ba8afd"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09_fresh_scope_rollback_lifecycle_v7.py",
+      "bytes": 175434,
+      "sha256": "35a5f8e53672b47343a429be484f6d1d75e5babfbce05e851a3226d6e7a725e4"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09_versioned_deployment_proof_loader_v3.py",
+      "bytes": 27131,
+      "sha256": "2c7c56bd09b7409ea0ef28658a3efecaaa7ab01d32348e926147627e93814182"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\fresh-case8-v7-collector-capture-20260914T095538735127Z.json",
+      "bytes": 6172,
+      "sha256": "8751838b4188dfb8963e6831bd95bb9036d44c78eede9e186b657cb708c675c3"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\root_prepare_evid09_fresh_scope_proofs_v7.py",
+      "bytes": 61173,
+      "sha256": "13f30d7d92c0cd6a01a31b05dead4efb3dac22ef1669a6743038b28820cb5a72"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\run_evid09_fresh_scope_production_v7.py",
+      "bytes": 23495,
+      "sha256": "fca2b3b81f6dbe07b0fe6b10018855d2c6ec8957151c15c151d9d57bdb464219"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\source-bound-collector-capture-20260914T095406488735Z.json",
+      "bytes": 5755,
+      "sha256": "1c7a5d068305e63a4ca4927572a48c0e915eb194f2b7e95e684c836ee1de76a1"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\source-bound-collector-capture-20260914T100342691209Z.json",
+      "bytes": 5755,
+      "sha256": "279e2fb26cae75ee6b72e49d4d5cc48dfc72942777c39440f171dcfbe6349bde"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\verify_evid09_lifecycle_recovery_v7.py",
+      "bytes": 9952,
+      "sha256": "9b14331b37689953b540bd67f309151ab7227c7760ed4b63e153ab7767d171d3"
+    }
+  ],
+  "limits": [
+    "All 27 stages passed under unchanged 1500-second lifecycle and 2100-second child deadlines.",
+    "Physical parser chains count once; loads/decode/raw_decode layer counts are diagnostics and are not added together.",
+    "Independent recovery validates the stated nineteen complete ledgers, four roots and bound current/exact observations.",
+    "Login/session rows occur outside the parent transaction; logs, metrics, sequences and unrelated tables remain excluded.",
+    "The independent recovery original intentionally does not claim lifecycle acceptance; it is preserved unchanged.",
+    "This production execution does not provide a third final-source isolated PostgreSQL measurement or close EVID-09 by itself.",
+    "No DATA-02 availability/native identity/raw-hash backfill, financial approval, human signature, AUD-03 or TAR-05 exit is inferred.",
+    "Previous failed production results remain preserved; different runs are not converted into a causal speedup percentage."
+  ]
+}

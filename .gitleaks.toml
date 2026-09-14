@@ -35,3 +35,10 @@ description = "Allow the exact DATA-01 migration identifier misclassified as an 
 condition = "AND"
 stopwords = ['''0068_evaluation_actual_ledgers''']
 paths = ['''^docs/deployment/data01-isolated-restore/[0-9a-f]{2}/[0-9a-f]{64}\.json$''']
+
+[[rules.allowlists]]
+description = "Allow the exact verified Case8 session fingerprint, never a session credential"
+condition = "AND"
+regexTarget = "line"
+regexes = ['''^\s*"session_key_sha256"\s*:\s*"0d4f69f9807442cc7f2b082c87f333cdaab8128be10ff30ae5826301e2245c86",?\s*$''']
+paths = ['''^docs/deployment/evid09-passing-facade-reuse-lifecycle-2026-09-14\.json$''']
