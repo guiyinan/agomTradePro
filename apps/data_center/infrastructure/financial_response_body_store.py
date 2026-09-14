@@ -7,6 +7,7 @@ import json
 import os
 import stat
 import struct
+import sys
 from collections.abc import Mapping
 from datetime import date, datetime
 from pathlib import Path
@@ -780,18 +781,18 @@ def _reject_symlink_components(path: Path) -> None:
 def _is_windows_reparse_point(path: Path) -> bool:
     """Reject Windows junctions as well as ordinary symbolic links."""
 
-    if os.name != "nt":
-        return False
-    try:
-        attributes = path.lstat().st_file_attributes
-    except FileNotFoundError:
-        return False
-    except OSError as exc:
-        raise FinancialResponseArtifactError(
-            "金融响应原件路径无法检查。",
-            code="FINANCIAL_RESPONSE_ARTIFACT_LOCATION_INVALID",
-        ) from exc
-    return bool(attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT)
+    if sys.platform == "win32":
+        try:
+            attributes = path.lstat().st_file_attributes
+        except FileNotFoundError:
+            return False
+        except OSError as exc:
+            raise FinancialResponseArtifactError(
+                "金融响应原件路径无法检查。",
+                code="FINANCIAL_RESPONSE_ARTIFACT_LOCATION_INVALID",
+            ) from exc
+        return bool(attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT)
+    return False
 
 
 def _cleanup_partial(path: Path) -> None:
@@ -816,20 +817,22 @@ def _publish_no_replace(source: Path, target: Path) -> None:
 def _move_file_windows_no_replace(source: Path, target: Path) -> None:
     """Use Windows MoveFileEx write-through semantics without overwrite."""
 
-    move_file_ex = ctypes.WinDLL("kernel32", use_last_error=True).MoveFileExW
-    move_file_ex.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_uint32]
-    move_file_ex.restype = ctypes.c_int
-    moved = move_file_ex(
-        str(source),
-        str(target),
-        _MOVEFILE_WRITE_THROUGH,
-    )
-    if moved:
-        return
-    error_code = ctypes.get_last_error()
-    if error_code in {_ERROR_FILE_EXISTS, _ERROR_ALREADY_EXISTS}:
-        raise FileExistsError(error_code, "artifact target exists", str(target))
-    raise OSError(error_code, "artifact atomic publish failed", str(target))
+    if sys.platform == "win32":
+        move_file_ex = ctypes.WinDLL("kernel32", use_last_error=True).MoveFileExW
+        move_file_ex.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_uint32]
+        move_file_ex.restype = ctypes.c_int
+        moved = move_file_ex(
+            str(source),
+            str(target),
+            _MOVEFILE_WRITE_THROUGH,
+        )
+        if moved:
+            return
+        error_code = ctypes.get_last_error()
+        if error_code in {_ERROR_FILE_EXISTS, _ERROR_ALREADY_EXISTS}:
+            raise FileExistsError(error_code, "artifact target exists", str(target))
+        raise OSError(error_code, "artifact atomic publish failed", str(target))
+    raise OSError("Windows artifact publication is unavailable on this platform")
 
 
 def _sync_directory(path: Path) -> None:

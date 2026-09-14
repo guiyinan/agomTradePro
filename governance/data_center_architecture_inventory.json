@@ -11936,17 +11936,17 @@
       "text": "\"\"\"Select every metric from each asset's latest evidence-safe period.\"\"\""
     },
     {
-      "line": 768,
+      "line": 769,
       "path": "apps/data_center/infrastructure/financial_response_body_store.py",
       "text": "current = Path(absolute.anchor) if absolute.anchor else Path()"
     },
     {
-      "line": 772,
+      "line": 773,
       "path": "apps/data_center/infrastructure/financial_response_body_store.py",
       "text": "current /= part"
     },
     {
-      "line": 773,
+      "line": 774,
       "path": "apps/data_center/infrastructure/financial_response_body_store.py",
       "text": "if current.is_symlink() or _is_windows_reparse_point(current):"
     },
