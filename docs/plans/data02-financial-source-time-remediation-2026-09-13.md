@@ -616,3 +616,37 @@ CI 待观察状态，旧 37 份与平台 29 份封存仍按各自历史源码和
 捕获、内存保留与加密不可变存储基础已进入 Main，但尚未接入生产 provider、
 RawAudit/FinancialFact/Publication，也未部署该 Main。精确来源 available_at、
 native financial row identity、历史原始哈希及 DATA-02 生产退出门仍未完成。
+
+## 23. 2026-09-14 生产接线激活与真实供应商拒绝
+
+原始响应留存接线已通过 [PR55](https://github.com/guiyinan/agomTradePro/pull/55)
+进入 Main，并随实际 Source `f121000df1276472f172a93c16961fa74f433192` 标准部署。
+本轮使用实际 `admin`（user ID 1）的现有有效 Token 进行真实管理接口调用，
+未生成替代身份或新 Token。唯一规则 id 1 限定 provider 2、财务数据集与既有
+HTTPS 域名，使用 direct/priority 100；规则区域为 `*`，请求如实保留运行值
+`unknown`。修正错误的 preview 区域后，GET 与 preview 均实际返回 200。
+
+独立 Fernet secret reference `config_center.data02.financial-response-artifact-key`
+已存入既有 secrets 服务并验证可解析。生产 profile 的 5 项配置实际激活，
+目录 `/app/var/data02-financial-response-artifacts` 创建并验证可写，key version
+为 v1，上限为 8 MiB。密钥未输出；引用前缀遵循现有 Config Center 校验约束。
+
+实际 adapter → configured handler → egress 的财务请求被供应商拒绝；随后一次
+被动诊断保持原校验及异常行为，观察到供应商 code 2003，具体含义仍为 unknown。
+两次出站审计均为 attempt 1 / rule 1 / transport success，分别 674.982 与
+858.186 毫秒。这些 success 只表示传输完成，两次业务均为
+`TUSHARE_PROVIDER_REJECTED`，不能据此记录成功财务原件或生产通过。
+
+诊断仅在内存中观察到 62 字节响应的 SHA 与真实 EOF UTC；原始字节未持久化，
+不能独立回放。观察窗口内 financial RawAudit 为 0，没有 FinancialFact 写入。
+首次脚本的错误模型导入发生在供应商调用前；其失败原件保留，不计为实际请求。
+请求 v2 原件的顶层 executed=false 标签与 attempted=true/实际审计行不一致，
+按实际调用分类，未覆盖原始回执。
+
+[生产验证封存](../deployment/data02-financial-response-runtime-validation-2026-09-14.json)
+及 LF sidecar 绑定 40 份原始工件。技术配置激活通过，供应商业务验收阻断；
+机器登记继续为 `awaiting_production`，未调整退出门或签署状态。response scope
+仍为解码前 caller_declared、row_count 0、无 period coverage；capture UUID 不是
+原生财务行身份，EOF 不能替代公告或 available_at。下一步先定位供应商实际拒绝
+原因并验证合法修复或受控后备源，再完成成功 FRA1/RawAudit 回放、精确源时间、
+原生行身份与规范容差对账。历史 441,944 条数据的原始哈希和时间缺口未回填。
