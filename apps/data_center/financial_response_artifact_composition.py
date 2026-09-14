@@ -23,6 +23,8 @@ from apps.data_center.infrastructure.financial_response_artifact_repository impo
 )
 from core.exceptions import TushareError
 
+_PROVIDER_REJECTION_CODE = "TUSHARE_PROVIDER_REJECTED"
+
 FINANCIAL_DATASET_KEY = "equity.financial.fact"
 FINANCIAL_API_NAME = "fina_indicator"
 
@@ -105,7 +107,22 @@ class _ConfiguredTushareFinancialResponseHandler:
             response_scope=response_scope,
             max_attempts=2,
         )
-        _validate_financial_payload(captured.payload)
+        try:
+            _validate_financial_payload(captured.payload)
+        except TushareError as exc:
+            if exc.code == _PROVIDER_REJECTION_CODE and _is_provider_rejection_payload(
+                captured.payload
+            ):
+                self._repository.retain_rejected(
+                    capture_id=request_id,
+                    evidence=captured.evidence,
+                    body=captured.raw_body,
+                    provider_name=self._provider_name,
+                    request_params={"api_name": api_name, "params": request_params},
+                    failure_code=_PROVIDER_REJECTION_CODE,
+                    provider_id=self._provider_id,
+                )
+            raise
         self._repository.retain(
             capture_id=request_id,
             evidence=captured.evidence,
@@ -187,6 +204,15 @@ def _validate_financial_payload(payload: object) -> None:
         or not all(isinstance(item, list) and len(item) == len(fields) for item in items)
     ):
         raise TushareError("Tushare financial table is invalid", code="TUSHARE_INVALID_PAYLOAD")
+
+
+def _is_provider_rejection_payload(payload: object) -> bool:
+    """Return whether a validated capture contains an explicit non-zero code."""
+
+    if not isinstance(payload, Mapping):
+        return False
+    code = payload.get("code")
+    return isinstance(code, int) and not isinstance(code, bool) and code != 0
 
 
 __all__ = [
