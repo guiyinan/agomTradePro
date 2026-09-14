@@ -11,7 +11,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from time import perf_counter, process_time
 from typing import Protocol, cast
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qsl, unquote, urlsplit
 
 import pytest
 from django.contrib.auth.models import Group, Permission, User
@@ -116,6 +116,78 @@ from tests.unit.account.test_account_owner_assignment_subject_v5 import _subject
 pytest_plugins = ["tests.component.account.test_owner_tenant_authority_v3_repository"]
 
 PG_ALIAS = "evid06_authority_test"
+
+_FIXED_POSTGRES_OPTIONS: dict[str, object] = {
+    "connect_timeout": 30,
+    "sslmode": "disable",
+    "gssencmode": "disable",
+}
+
+
+def _validate_fixed_transport_query(query: str) -> None:
+    """Reject unapproved or repeated PostgreSQL transport query parameters."""
+
+    try:
+        pairs = parse_qsl(query, keep_blank_values=True, strict_parsing=True)
+    except ValueError as error:
+        raise RuntimeError("EVID-06 PostgreSQL URL has an invalid query") from error
+    seen: set[str] = set()
+    for key, value in pairs:
+        if key in seen:
+            raise RuntimeError("EVID-06 PostgreSQL URL repeats a transport parameter")
+        expected = _FIXED_POSTGRES_OPTIONS.get(key)
+        if expected is None:
+            raise RuntimeError("EVID-06 PostgreSQL URL contains an unsupported parameter")
+        if value != str(expected):
+            raise RuntimeError("EVID-06 PostgreSQL URL has a non-fixed transport value")
+        seen.add(key)
+
+
+def _build_postgres_alias_settings(database_url: str) -> dict[str, object]:
+    """Validate the private URL and build a fixed, loopback-only Django alias.
+
+    The URL may contain each known transport parameter once for compatibility
+    with the private credential wrapper.  Their values are validated but never
+    forwarded; the returned ``OPTIONS`` is always the fixed local-test map.
+    Missing query parameters are filled by that same fixed map.  No URL query
+    can select a host, service, driver option, or other connection behavior.
+    """
+
+    raw_url = database_url.strip()
+    if not raw_url:
+        raise RuntimeError("EVID-06 PostgreSQL URL is required")
+    try:
+        parsed = urlsplit(raw_url)
+        hostname = (parsed.hostname or "").lower()
+        port = parsed.port if parsed.port is not None else 5432
+    except ValueError as error:
+        raise RuntimeError("EVID-06 PostgreSQL URL is invalid") from error
+    if parsed.scheme.lower() not in {"postgres", "postgresql"}:
+        raise RuntimeError("EVID-06 PostgreSQL tests require a PostgreSQL URL")
+    if hostname not in {"127.0.0.1", "localhost", "::1"}:
+        raise RuntimeError("EVID-06 PostgreSQL tests require a loopback host")
+    database_name = unquote(parsed.path.removeprefix("/"))
+    if database_name != PG_ALIAS or not parsed.username:
+        raise RuntimeError("EVID-06 PostgreSQL tests require the dedicated test database")
+    if parsed.fragment:
+        raise RuntimeError("EVID-06 PostgreSQL URL does not allow a fragment")
+    if not 1 <= port <= 65535:
+        raise RuntimeError("EVID-06 PostgreSQL URL has an invalid port")
+    username = unquote(parsed.username)
+    if not username:
+        raise RuntimeError("EVID-06 PostgreSQL URL requires a database user")
+    _validate_fixed_transport_query(parsed.query)
+    return {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": database_name,
+        "USER": username,
+        "PASSWORD": unquote(parsed.password or ""),
+        "HOST": hostname,
+        "PORT": str(port),
+        "CONN_MAX_AGE": 0,
+        "OPTIONS": dict(_FIXED_POSTGRES_OPTIONS),
+    }
+
 
 _AUTH_MODELS: tuple[type[models.Model], ...] = (
     ContentType,
@@ -240,33 +312,10 @@ def owner_alias(
         pytest.skip("set AGOM_EVID06_POSTGRES_TEST=1 for the disposable EVID-06 test")
     monkeypatch.setenv("AGOMTRADEPRO_DISABLE_USER_PROVISIONING_SIGNALS", "1")
     database_url = os.environ.get("AGOM_EVID06_POSTGRES_TEST_DATABASE_URL", "").strip()
-    parsed = urlsplit(database_url)
-    database_name = unquote(parsed.path.removeprefix("/"))
-    if parsed.scheme not in {"postgres", "postgresql"}:
-        raise RuntimeError("EVID-06 PostgreSQL tests require a PostgreSQL URL")
-    if parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
-        raise RuntimeError("EVID-06 PostgreSQL tests require a loopback host")
-    if database_name != PG_ALIAS or not parsed.username:
-        raise RuntimeError("EVID-06 PostgreSQL tests require the dedicated test database")
     if PG_ALIAS in connections.databases:
         raise RuntimeError(f"refusing preexisting database alias: {PG_ALIAS}")
-    try:
-        port = parsed.port
-    except ValueError as error:
-        raise RuntimeError("EVID-06 PostgreSQL test URL has an invalid port") from error
     database_settings = cast(dict[str, object], deepcopy(connections["default"].settings_dict))
-    database_settings.update(
-        {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": database_name,
-            "USER": unquote(parsed.username),
-            "PASSWORD": unquote(parsed.password or ""),
-            "HOST": parsed.hostname,
-            "PORT": str(port or 5432),
-            "CONN_MAX_AGE": 0,
-            "OPTIONS": {},
-        }
-    )
+    database_settings.update(_build_postgres_alias_settings(database_url))
     connections.databases[PG_ALIAS] = database_settings  # type: ignore[assignment]
     connection = connections[PG_ALIAS]
     try:
