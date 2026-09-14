@@ -1,11 +1,11 @@
 {
   "schema": "research.whole-domain.current-after-r2.v1",
   "status": "passed",
-  "sealed_at_utc": "2026-09-14T14:38:57.208509Z",
+  "sealed_at_utc": "2026-09-14T14:46:51.006817Z",
   "repository": {
     "worktree": "D:\\githv\\agomTradePro-research-reminders-r2-promotion-branches",
     "branch": "dev/test-research-reminders-r2-promotion-boundaries",
-    "measurement_head": "007203ed2cf62336e2e847357045ed64f585cd15",
+    "measurement_head": "dfaab3dcae18776102b7f93841cc2df13fdcfee0",
     "git_oid_semantics": "40-character Git object IDs, not SHA-256 values"
   },
   "scope": {
@@ -51,7 +51,7 @@
       "sha256": "38cd9ba625639a9ff652e98ffa1ec9652c06b6ae70f568aec7b763db10fbea64"
     },
     "independent_review": {
-      "path": "var/root-research-whole-r2-independent-review-v2-20260914.json",
+      "path": "D:/githv/agomTradePro/var/root-research-whole-r2-independent-review-v2-20260914.json",
       "bytes": 4228,
       "sha256": "c400d3cb634dbcc68edb2fd9c66d5aa79362a568df56b1d205ec362ed01dac11",
       "status": "passed",
@@ -1270,7 +1270,7 @@
       "sha256": "4167c6bd6a67f690537e35669d279b4e33fd271a2aeb9c9006052424ecedbe08"
     },
     {
-      "path": "var/root-research-whole-r2-independent-review-v2-20260914.json",
+      "path": "D:/githv/agomTradePro/var/root-research-whole-r2-independent-review-v2-20260914.json",
       "bytes": 4228,
       "sha256": "c400d3cb634dbcc68edb2fd9c66d5aa79362a568df56b1d205ec362ed01dac11",
       "status": "passed",
