@@ -586,3 +586,20 @@ merge 纳入本分支，未回退其他主线。
 Publication 绑定。文件和数据库没有共同事务，也不声称防御具有目录写权限的恶意
 并发目录替换。本候选没有 PostgreSQL 或 VPS 验收，没有修复历史原始哈希或精确
 ANN/availability/native row identity，DATA-02 生产退出门及人工签署状态保持不变。
+
+## 21. 2026-09-14 Linux 平台类型门禁修复
+
+候选提交 `e08a3dd1683a049bd67f8514d14de55513593a90` 的 CI 有两项重复的
+Incremental Quality 失败，实际 Linux/Python 3.11 类型检查报告四个 Windows API
+属性错误。代码提交 `62810df75` 将完整 Windows 实现放入 mypy 可识别的
+`sys.platform == "win32"` 分支，没有增加 ignore 或抬高债务基线。
+
+修复后主代理再次实际通过 Black、isort、Ruff、33 项回归、三个生产文件增量 mypy
+及 full debt ceiling；Domain 行 58/58、分支 20/20。独立 Linux/Python 3.11 类型
+投影也实际 exit 0，但其执行环境仍是 Windows，不替代 Linux 运行时测试。
+实际增量架构扫描覆盖一个生产文件、29 新增行且零违规；生成清单只更新三处行号。
+
+[平台验证封存](../testing/data02-original-financial-body-store-platform-validation-2026-09-14.json)
+及 sidecar 保留 29 份 exact originals，分别标识旧 CI 失败与新源码本地门禁。
+第 20 节原封存保持不变，继续描述其历史源码。新 head 的 CI 尚待实际观察；本次
+验证不形成 provider 接入、历史原始哈希修复、精确 available_at 或生产验收证明。
