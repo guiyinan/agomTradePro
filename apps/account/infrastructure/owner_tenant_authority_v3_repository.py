@@ -138,19 +138,41 @@ class DjangoOwnerTenantAuthorityV3Repository(OwnerTenantAuthorityV3Repository):
         self,
         using: str = "default",
         clock: OwnerTenantAuthorityV3Clock | None = None,
+        assignments: DjangoAccountOwnerAssignmentEvidenceV5Repository | None = None,
+        policies: DjangoSingleOwnerAuthorityPolicyV1Repository | None = None,
+        actors: DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository | None = None,
     ) -> None:
-        """Bind all decision and parent queries to one named database alias."""
+        """Bind decision and parent queries to one alias and shared graph readers."""
 
         if type(using) is not str or not using or using.strip() != using:
             raise ValueError("owner tenant authority v3 database alias is invalid")
+        for repository, name in (
+            (assignments, "assignments"),
+            (policies, "policies"),
+            (actors, "actors"),
+        ):
+            if repository is not None and getattr(repository, "_using", using) != using:
+                raise ValueError(f"{name} must use the Authority V3 database alias")
         self._using = using
         self._clock = clock or DjangoOwnerTenantAuthorityV3Clock()
         self._token = object()
         self._uow: object | None = None
         self._active = False
-        self._assignments = DjangoAccountOwnerAssignmentEvidenceV5Repository(using=using)
-        self._policies = DjangoSingleOwnerAuthorityPolicyV1Repository(using=using)
-        self._actors = DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository(using=using)
+        self._assignments = (
+            assignments
+            if assignments is not None
+            else DjangoAccountOwnerAssignmentEvidenceV5Repository(using=using)
+        )
+        self._policies = (
+            policies
+            if policies is not None
+            else DjangoSingleOwnerAuthorityPolicyV1Repository(using=using)
+        )
+        self._actors = (
+            actors
+            if actors is not None
+            else DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository(using=using)
+        )
 
     @property
     def unit_of_work_key(self) -> str:

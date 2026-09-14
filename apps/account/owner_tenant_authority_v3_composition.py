@@ -76,6 +76,9 @@ from apps.account.infrastructure.account_actor_authority_capture_snapshot import
 from apps.account.infrastructure.account_owner_assignment_actor_authority_source_v3_repository import (
     DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository,
 )
+from apps.account.infrastructure.owner_tenant_authority_v3_read_context import (
+    OwnerTenantAuthorityV3OperationReadContext,
+)
 from apps.account.infrastructure.owner_tenant_authority_v3_repository import (
     DjangoOwnerTenantAuthorityV3Repository,
     lock_owner_tenant_authority_v3_sources,
@@ -83,10 +86,7 @@ from apps.account.infrastructure.owner_tenant_authority_v3_repository import (
 from apps.account.infrastructure.single_owner_authority_policy_v1_repository import (
     DjangoSingleOwnerAuthorityPolicyV1Repository,
 )
-from shared.infrastructure.immutable_read_snapshot import (
-    isolated_immutable_read_snapshot,
-    suspend_immutable_read_reuse,
-)
+from shared.infrastructure.immutable_read_snapshot import suspend_immutable_read_reuse
 
 _ReturnT = TypeVar("_ReturnT")
 
@@ -362,6 +362,10 @@ def build_owner_tenant_authority_v3_facade(
     if not callable(provider_locker):
         raise TypeError("physical row provider must expose lock_current_sources")
 
+    read_context = OwnerTenantAuthorityV3OperationReadContext(
+        using=alias,
+        connection_provider=lambda: connections[alias].connection,
+    )
     actors = DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository(using=alias)
     actor_reader = CanonicalAccountActorAuthorityRequestReader(
         current_reader=GetCurrentAccountOwnerAssignmentActorAuthoritySourceV3(
@@ -375,10 +379,11 @@ def build_owner_tenant_authority_v3_facade(
         source_version=actor_source_version,
         expected_content_hash=actor_source_content_hash,
     )
+    policies = DjangoSingleOwnerAuthorityPolicyV1Repository(using=alias)
     participants = CurrentSingleOwnerParticipantsProvider(
         principal=principal,
         binding=policy_binding,
-        policies=DjangoSingleOwnerAuthorityPolicyV1Repository(using=alias),
+        policies=policies,
         actors=actor_reader,
     )
     evidence = build_account_owner_assignment_evidence_v5_facade(
@@ -390,14 +395,24 @@ def build_owner_tenant_authority_v3_facade(
         validity_period=validity_period,
         physical_row_provider=physical_row_provider,
         using=alias,
+        actors=actors,
+        policies=policies,
+        read_context=read_context,
     )
+    if evidence._repository is None:
+        raise RuntimeError("Evidence V5 composition did not expose its shared repository")
     service = OwnerTenantAuthorityV3Service(
-        repository=DjangoOwnerTenantAuthorityV3Repository(using=alias),
+        repository=DjangoOwnerTenantAuthorityV3Repository(
+            using=alias,
+            assignments=evidence._repository,
+            policies=policies,
+            actors=actors,
+        ),
         current_assignments=_CurrentAssignmentV5Reader(evidence),
         historical_assignments=_HistoricalAssignmentV5Reader(evidence),
         participants=participants,
         validity_period=validity_period,
-        read_phase=isolated_immutable_read_snapshot,
+        read_phase=read_context.phase,
     )
     return OwnerTenantAuthorityV3Facade(
         using=alias,
