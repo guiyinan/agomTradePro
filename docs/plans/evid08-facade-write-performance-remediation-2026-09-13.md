@@ -483,3 +483,28 @@ READ COMMITTED、确定性来源锁、精确 cutoff 双读及 DML 后新观察�
 payload/hash、真实来源时钟和失败阻断。不得抬高时间预算、延长旧证据或将读取缓存跨越
 写入。代码检查和隔离完整父链回归通过后，使用标准部署重新冻结 runtime，再进行同范围
 生产复测。EVID-09 继续 active，DATA-02/EVID-01/02 的退出门未改变。
+
+## 14. V5 读取边界修复与完整夹具待验（2026-09-14）
+
+V5 Application 的 approval/current 必须进入 Repository 提供的新读取阶段，默认配置及
+显式 nullcontext 均不能绕过它。Infrastructure 仅复用同一个 Repository 所有者的阶段，
+入口先暂停旧阶段并隔离新阶段；来源锁、精确 cutoff 双读及写入后重新观察保持有效。
+主代理独立验证格式、增量 mypy、债务上限及架构增量全部通过，相关回归为 15 passed、
+零 failure/error/skip；另行 owner application 回归为 10 passed。上述测试不替代真实
+PostgreSQL 完整父链测试或生产生命周期。
+
+完整夹具包含 31 张物理表。冻结夹具的离线 PostgreSQL 编译实际生成 281 条 DDL；此前
+审查中的 116 条是估计错误，不能作为执行证据。真实 PostgreSQL 新尝试在建表 setup
+发生 statement timeout，JUnit 为一个 error，pytest exit 1，监督器回收 child。没有进入
+业务测量阶段，没有可接受的新解码计数。旧私有解析器对叶子 error 元素使用布尔判断，
+错误摘要误报零 error；整体尝试仍为 failed。新版本解析器应同时核对原始 JUnit 和
+pytest exit，不改写旧失败原件。
+
+同一冻结 DDL 的独立 Socket 回滚诊断也超时，诊断自身的 after 查询未成功；随后另行
+只读检查实际 exit 0，确认该隔离数据库零 public 表、零其他客户端、read_only=on。
+该观察只证明清理后的状态，不证明夹具通过，也不与 TCP 或生产性能统计混用。
+本阶段同步重新生成架构及入口清单，修复 CI 的确定性清单陈旧；未提高治理债务基线。
+
+下一步为定位建表超时、在严格源版本绑定下完成真实完整夹具及物理解码测量，再进行
+标准保数据部署、新 runtime 封存和生产复测。V5 候选仍未部署，EVID-09 保持 active；
+DATA-02 原始响应持久化、真实可用时间及来源身份的生产退出门仍待验证。
