@@ -27,6 +27,36 @@ BODY = b'{"rows":[{"REPORT_DATE":"2026-06-30","value":"1"}]}'
 COMPLETED_AT = datetime(2026, 9, 14, 8, 30, 0, 123456, tzinfo=UTC)
 
 
+def test_capture_retains_exact_body_after_mutable_payload_changes() -> None:
+    """The response original survives parsing independently of mutable output."""
+
+    body = b'{ "rows": [ {"value": "1"} ] }\n'
+    response = _Response(body=body, headers={"Content-Length": str(len(body))})
+    parser_body: list[bytes] = []
+
+    def decode(raw: bytes) -> dict[str, list[str]]:
+        """Return a mutable projection while recording the actual parser input."""
+
+        parser_body.append(raw)
+        return {"values": ["1"]}
+
+    captured = capture_financial_response(
+        response,
+        request_scope=_request_scope(),
+        response_scope=_response_scope(),
+        decode=decode,
+        clock=lambda: COMPLETED_AT,
+        max_bytes=1024,
+    )
+    captured.payload["values"].append("changed")
+
+    assert response.reads == 1
+    assert captured.raw_body is parser_body[0]
+    assert captured.raw_body == body
+    assert raw_body_sha256(captured.raw_body) == captured.evidence.body_sha256
+    assert len(captured.raw_body) == captured.evidence.body_size_bytes
+
+
 @dataclass
 class _Response:
     """Small injected response double with observable single-read behavior."""
