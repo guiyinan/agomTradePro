@@ -1,0 +1,426 @@
+{
+  "schema": "research.r1-forecast-promotion.controlled-branch-increment.v1",
+  "sealed_at_utc": "2026-09-14T11:48:27.410790Z",
+  "status": "passed",
+  "scope": {
+    "source_paths": [
+      "apps/research/domain/r1_forecast_promotion_decision.py"
+    ],
+    "source_file_count": 1,
+    "baseline_tests": [
+      "tests/unit/research/test_r1_forecast_promotion.py",
+      "tests/unit/research/test_r1_forecast_promotion_application.py",
+      "tests/unit/research/test_r1_forecast_promotion_codec.py",
+      "tests/unit/research/test_r1_forecast_promotion_lifecycle.py",
+      "tests/unit/research/test_r1_forecast_promotion_lifecycle_application.py"
+    ],
+    "final_tests": [
+      "tests/unit/research/test_r1_forecast_promotion.py",
+      "tests/unit/research/test_r1_forecast_promotion_application.py",
+      "tests/unit/research/test_r1_forecast_promotion_codec.py",
+      "tests/unit/research/test_r1_forecast_promotion_lifecycle.py",
+      "tests/unit/research/test_r1_forecast_promotion_lifecycle_application.py",
+      "tests/unit/research/test_r1_forecast_promotion_decision_missing_boundaries.py"
+    ],
+    "new_test_count": 7,
+    "full_research_claim": false,
+    "production_acceptance": false,
+    "database": "none; pure Domain/Application contract tests",
+    "network_or_vps_or_postgres_used": false
+  },
+  "repository": {
+    "worktree": "D:\\githv\\agomTradePro-research-r1-forecast-promotion-branches",
+    "branch": "dev/test-research-r1-forecast-promotion-boundaries",
+    "base_head": "a2113eaa050bf6a103e8e6c9013bc5540eaac2e4",
+    "test_commit": "a696f382cd19b59ee81fd412062de6bcc68bac2c",
+    "measurement_head": "a696f382cd19b59ee81fd412062de6bcc68bac2c",
+    "tracked_tree_status": ""
+  },
+  "command": {
+    "baseline": "-X utf8 -m pytest -o addopts= tests/unit/research/test_r1_forecast_promotion.py tests/unit/research/test_r1_forecast_promotion_application.py tests/unit/research/test_r1_forecast_promotion_codec.py tests/unit/research/test_r1_forecast_promotion_lifecycle.py tests/unit/research/test_r1_forecast_promotion_lifecycle_application.py --cov=apps.research.domain.r1_forecast_promotion_decision --cov-branch --cov-report=json:var\\r1-fp-baseline-20260914T192821319/coverage.json --cov-report=xml:var\\r1-fp-baseline-20260914T192821319/coverage.xml --junitxml=var\\r1-fp-baseline-20260914T192821319/junit.xml -q",
+    "final": "-X utf8 -m pytest -o addopts= tests/unit/research/test_r1_forecast_promotion.py tests/unit/research/test_r1_forecast_promotion_application.py tests/unit/research/test_r1_forecast_promotion_codec.py tests/unit/research/test_r1_forecast_promotion_lifecycle.py tests/unit/research/test_r1_forecast_promotion_lifecycle_application.py tests/unit/research/test_r1_forecast_promotion_decision_missing_boundaries.py --cov=apps.research.domain.r1_forecast_promotion_decision --cov-branch --cov-report=json:var\\r1-fp-final-v2-20260914T194722515/coverage.json --cov-report=xml:var\\r1-fp-final-v2-20260914T194722515/coverage.xml --junitxml=var\\r1-fp-final-v2-20260914T194722515/junit.xml -q",
+    "working_directory": "D:\\githv\\agomTradePro-research-r1-forecast-promotion-branches"
+  },
+  "environment": {
+    "python": "3.13.5 | packaged by Anaconda, Inc. | (main, Jun 12 2025, 16:37:03) [MSC v.1929 64 bit (AMD64)]",
+    "python_executable": "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "platform": "Windows-10-10.0.19045-SP0",
+    "pytest": "9.0.2",
+    "coverage": "7.13.1"
+  },
+  "artifacts": {
+    "baseline": {
+      "directory": "var/r1-fp-baseline-20260914T192821319",
+      "artifacts": [
+        {
+          "path": "var/r1-fp-baseline-20260914T192821319/receipt.json",
+          "bytes": 1254,
+          "sha256": "b2138ce9ddf7b0bcc80616dbfcd1a777fd62068f7154aa2b71c20aff1aa7ae3b"
+        },
+        {
+          "path": "var/r1-fp-baseline-20260914T192821319/stdout.txt",
+          "bytes": 429,
+          "sha256": "c7a459559b473e9789f178955087150a51df639d4cd2fed70e4d07928062dde3"
+        },
+        {
+          "path": "var/r1-fp-baseline-20260914T192821319/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "var/r1-fp-baseline-20260914T192821319/junit.xml",
+          "bytes": 7992,
+          "sha256": "653b8bb214f5d2182dae2e0a99e063b8a2a1591693604a0bca3b428da07dc90a"
+        },
+        {
+          "path": "var/r1-fp-baseline-20260914T192821319/coverage.json",
+          "bytes": 34590,
+          "sha256": "faa3b861ca2671fce45bfb186d0ec5133a442e71f5962dff950581d5c91fea87"
+        },
+        {
+          "path": "var/r1-fp-baseline-20260914T192821319/coverage.xml",
+          "bytes": 19492,
+          "sha256": "c3a5f48648b174c583b1a5cd5e38e2fa226fc3bc88945692d41eeed28c2165c5"
+        }
+      ],
+      "coverage": {
+        "covered_lines": 346,
+        "num_statements": 394,
+        "percent_covered": 82.38636363636364,
+        "percent_covered_display": "82.4",
+        "missing_lines": 48,
+        "excluded_lines": 0,
+        "percent_statements_covered": 87.81725888324873,
+        "percent_statements_covered_display": "87.8",
+        "num_branches": 134,
+        "num_partial_branches": 43,
+        "covered_branches": 89,
+        "missing_branches": 45,
+        "percent_branches_covered": 66.41791044776119,
+        "percent_branches_covered_display": "66.4"
+      },
+      "junit": {
+        "tests": 48,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "final": {
+      "directory": "var/r1-fp-final-v2-20260914T194722515",
+      "artifacts": [
+        {
+          "path": "var/r1-fp-final-v2-20260914T194722515/receipt.json",
+          "bytes": 1485,
+          "sha256": "19dd18c30ee60b8f9de0c4f744fff9ea6028f5c787c5e0c41255e0a54c4d0b42"
+        },
+        {
+          "path": "var/r1-fp-final-v2-20260914T194722515/command.txt",
+          "bytes": 680,
+          "sha256": "79dcc963c5a9e3a50f887fdfff6313d436f47f0d4a85e01227e283c05a5ec65f"
+        },
+        {
+          "path": "var/r1-fp-final-v2-20260914T194722515/stdout.txt",
+          "bytes": 429,
+          "sha256": "387de10d42a92d80830fb771d85754fa5a302f4d81a40c4dd2077eff4e0dd9b8"
+        },
+        {
+          "path": "var/r1-fp-final-v2-20260914T194722515/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "var/r1-fp-final-v2-20260914T194722515/junit.xml",
+          "bytes": 9306,
+          "sha256": "0127ff1d3a3287e8ace884b8d6d94e65b00639027fb8719ded80cbe746d2fe12"
+        },
+        {
+          "path": "var/r1-fp-final-v2-20260914T194722515/coverage.json",
+          "bytes": 34423,
+          "sha256": "98538f8a8712a66010d55b205c838cde4a105765c2bfeff677e8dcdf82af00ca"
+        },
+        {
+          "path": "var/r1-fp-final-v2-20260914T194722515/coverage.xml",
+          "bytes": 18636,
+          "sha256": "a7d12e04a7df72b4d669c96a67cbbf3ccc786ae92d921e01cfbf6c043b1848e1"
+        },
+        {
+          "path": "var/r1-fp-final-v2-20260914T194722515/.coverage",
+          "bytes": 90112,
+          "sha256": "6be0540e79f1995139f2da12b0eec94d07c93fa38c2ed60c87ffbafaafd5542d"
+        }
+      ],
+      "coverage": {
+        "covered_lines": 389,
+        "num_statements": 394,
+        "percent_covered": 98.10606060606061,
+        "percent_covered_display": "98.1",
+        "missing_lines": 5,
+        "excluded_lines": 0,
+        "percent_statements_covered": 98.73096446700508,
+        "percent_statements_covered_display": "98.7",
+        "num_branches": 134,
+        "num_partial_branches": 5,
+        "covered_branches": 129,
+        "missing_branches": 5,
+        "percent_branches_covered": 96.26865671641791,
+        "percent_branches_covered_display": "96.3"
+      },
+      "junit": {
+        "tests": 55,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "preserved_failed_setup": {
+      "directory": "var/r1-fp-baseline-20260914T192602076",
+      "reason": "Initial command-array construction split coverage destinations; pytest exit 4 with no tests. It is retained and excluded from the passed baseline."
+    },
+    "candidate_test": {
+      "path": "tests/unit/research/test_r1_forecast_promotion_decision_missing_boundaries.py",
+      "bytes": 9578,
+      "sha256": "e4383abcf4abb1f4a435c681dca3530af25de4af68c8a243ffc565846dad7fc6",
+      "git_blob_oid": "fcba973a556f844a37c7f148efa08cfa3f5f8d02"
+    },
+    "preserved_prior_final_run": {
+      "path": "var/r1-fp-final-20260914T194114321",
+      "reason": "Equivalent pre-commit final candidate; retained, while final-v2 binds the committed test bytes."
+    }
+  },
+  "source_bindings": [
+    {
+      "path": "apps/research/domain/r1_forecast_promotion_decision.py",
+      "bytes": 43012,
+      "raw_sha256_before": "901591e94ffafd3a9baacfe8a6ea7eda0b3e7926c57262f8d0737d2f7852a0ef",
+      "raw_sha256_after": "901591e94ffafd3a9baacfe8a6ea7eda0b3e7926c57262f8d0737d2f7852a0ef",
+      "canonical_lf_sha256_before": "65cf46292c931de5b824edb2fec8689da41c1e15037a24c545605854387dec4f",
+      "canonical_lf_sha256_after": "65cf46292c931de5b824edb2fec8689da41c1e15037a24c545605854387dec4f",
+      "git_blob_oid_before": "e4cce2238597fe8d48e8cd75d1174251075b8d7c",
+      "git_blob_oid_after": "e4cce2238597fe8d48e8cd75d1174251075b8d7c",
+      "unchanged": true
+    }
+  ],
+  "coverage_delta": {
+    "baseline": {
+      "covered_branches": 89,
+      "num_branches": 134,
+      "missing_branches": 45,
+      "branch_coverage_percent": 66.41791044776119,
+      "covered_lines": 346,
+      "num_statements": 394,
+      "statement_coverage_percent": 87.81725888324873,
+      "combined_coverage_percent": 82.38636363636364
+    },
+    "final": {
+      "covered_branches": 129,
+      "num_branches": 134,
+      "missing_branches": 5,
+      "branch_coverage_percent": 96.26865671641791,
+      "covered_lines": 389,
+      "num_statements": 394,
+      "statement_coverage_percent": 98.73096446700508,
+      "combined_coverage_percent": 98.10606060606061
+    },
+    "newly_covered_arcs": [
+      [
+        45,
+        46
+      ],
+      [
+        50,
+        51
+      ],
+      [
+        55,
+        56
+      ],
+      [
+        60,
+        61
+      ],
+      [
+        65,
+        66
+      ],
+      [
+        174,
+        175
+      ],
+      [
+        182,
+        183
+      ],
+      [
+        185,
+        186
+      ],
+      [
+        191,
+        192
+      ],
+      [
+        314,
+        315
+      ],
+      [
+        319,
+        323
+      ],
+      [
+        328,
+        333
+      ],
+      [
+        343,
+        344
+      ],
+      [
+        433,
+        -429
+      ],
+      [
+        433,
+        434
+      ],
+      [
+        448,
+        449
+      ],
+      [
+        451,
+        452
+      ],
+      [
+        454,
+        455
+      ],
+      [
+        458,
+        459
+      ],
+      [
+        460,
+        461
+      ],
+      [
+        485,
+        486
+      ],
+      [
+        487,
+        488
+      ],
+      [
+        489,
+        490
+      ],
+      [
+        496,
+        497
+      ],
+      [
+        522,
+        523
+      ],
+      [
+        524,
+        525
+      ],
+      [
+        527,
+        528
+      ],
+      [
+        529,
+        530
+      ],
+      [
+        546,
+        547
+      ],
+      [
+        548,
+        549
+      ],
+      [
+        745,
+        746
+      ],
+      [
+        749,
+        762
+      ],
+      [
+        763,
+        768
+      ],
+      [
+        769,
+        774
+      ],
+      [
+        781,
+        782
+      ],
+      [
+        816,
+        817
+      ],
+      [
+        818,
+        824
+      ],
+      [
+        825,
+        826
+      ],
+      [
+        853,
+        858
+      ],
+      [
+        859,
+        860
+      ]
+    ],
+    "newly_covered_arc_count": 40,
+    "new_missing_arcs": [],
+    "remaining_missing_arcs": [
+      [
+        128,
+        129
+      ],
+      [
+        131,
+        137
+      ],
+      [
+        138,
+        142
+      ],
+      [
+        308,
+        313
+      ],
+      [
+        883,
+        884
+      ]
+    ],
+    "remaining_missing_arc_explanations": {
+      "128->129": "Empty forecast evidence is rejected upstream by the exact Equity artifact/result construction.",
+      "131->137": "A valid Equity artifact/result carries one semantic forecast scope; cross-scope forecasts are an upstream invariant violation.",
+      "138->142": "A valid Equity trial binds its actual manifest to paired actual facts; a cross-scope manifest is rejected upstream.",
+      "308->313": "R1PromotionScope itself requires the research/r1/valuation authority, so a valid nested scope cannot substitute another authority.",
+      "883->884": "ForecastBaselineTrialResult.__post_init__ rejects non-research flags before the R1 factory can receive such a result."
+    },
+    "unique_arcs_no_loss": true
+  },
+  "limitations": [
+    "This is a selected R1 Domain/Application unit scope, not the whole Research package and not production acceptance.",
+    "No object.__new__, provider, database, PostgreSQL, VPS, or network path was used.",
+    "The five remaining arcs require an invalid or impossible upstream Equity result/nested scope under current immutable constructors; they remain explicitly uncovered.",
+    "Coverage.py percent_covered is the tool aggregate; statement and branch percentages are reported separately above."
+  ]
+}
