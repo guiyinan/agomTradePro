@@ -631,3 +631,30 @@ Root 复核发现首次候选只绑定持久 Django wrapper：底层 connection 
 冻结最终生产源码后，Root 五个生产文件增量 mypy 零回归、全生产债务检查 0 错误，
 Black/isort/Ruff、diff 检查及 62 个 current-data surfaces 契约通过；独立只读审核无 P0/P1。
 可信 composition 的实例/alias 绑定已核对，手工注入与共享 actor UOW token 约束仍为后续加强项。
+
+## 18. Read reuse 真实 PostgreSQL 两组验证（2026-09-14）
+
+PR59 已合并为 Main `f121000df1276472f172a93c16961fa74f433192`，最终候选
+`26c60bfba5ae726d2a53fa68036274ea9802ab03` 的 30 项 CI 全部通过。此前本地
+定向包中的真实 PG opt-in skip 已由两次独立目标的实际执行补足：V8 fresh-parent
+测试与 V9 composition successor/replay 测试各 1 passed，均无失败、错误或跳过。
+两组使用同一个新建隔离 PostgreSQL 16.15，执行前后各自为零用户表、零客户端；
+每组 5,922 文件源码快照及 17 个边界文件均保持一致。
+
+V8 实际 test-call wall 为 241.622 秒，SQL 1,573 次、物理解码链 1,117 次；它
+覆盖六个 fresh-parent 阶段，不能作为 successor/replay 验收。V9 实际 test-call
+wall 为 483.046 秒，SQL 3,092 次、物理解码链 2,270 次，覆盖 issue/replay、
+current/with_current、successor/replay 和 revoke/exact。两组解码错误均为零；
+计数按一次 loads→decode→raw_decode 物理链记录，不把三个 parser 层重复相加。
+这些独立目标不合计、不平均，也不与旧环境换算生产性能提升百分比。
+
+[实际测量与清理证据](../testing/evid09-facade-operation-read-reuse-postgres-validation-2026-09-14.json)
+保留原件引用及两个原始 JUnit。两次 child 均已 reaped，relay 均关闭；随后独立
+核对本地进程与 55441 listener 均为零，按所有权校验删除此次隔离容器、网络和
+临时凭据。早期测量时容器尚在运行的原始 cleanup witness 未被改写。
+
+优化 Main 的标准保数据升级正在执行，已独立取得升级前 identity、四个历史 root、
+catalog 和 policy 全量基线。部署后仍须核对 40 个 Git/release/live 关键文件、
+新备份、历史 exact 及全量保留结果，再运行同源生产生命周期并逐阶段记录物理解码。
+本节不声称生产生命周期已通过；DATA-02 可用时间和原生来源身份缺口、EVID-09
+以及人工验收退出门保持未完成。
