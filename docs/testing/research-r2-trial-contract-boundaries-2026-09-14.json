@@ -1,0 +1,451 @@
+{
+  "schema": "research.r2-trial-contract.controlled-branch-increment.v1",
+  "sealed_at_utc": "2026-09-14T11:06:01.727462Z",
+  "status": "passed",
+  "scope": {
+    "source_paths": [
+      "apps/research/domain/r2_market_structure_trial_contracts.py"
+    ],
+    "source_file_count": 1,
+    "baseline_tests": [
+      "tests/unit/research/test_r2_market_structure_trial_monitoring.py",
+      "tests/unit/research/test_r2_market_structure_trial_policy_registry.py",
+      "tests/unit/research/test_r2_market_structure_research_control_preflight.py",
+      "tests/unit/research/test_domain_branch_followup.py"
+    ],
+    "final_tests": [
+      "tests/unit/research/test_r2_market_structure_trial_monitoring.py",
+      "tests/unit/research/test_r2_market_structure_trial_policy_registry.py",
+      "tests/unit/research/test_r2_market_structure_research_control_preflight.py",
+      "tests/unit/research/test_domain_branch_followup.py",
+      "tests/unit/research/test_r2_market_structure_trial_contract_missing_boundaries.py"
+    ],
+    "new_test_count": 6,
+    "full_research_claim": false,
+    "production_acceptance": false
+  },
+  "repository": {
+    "worktree": "D:\\githv\\agomTradePro-research-r2-trial-contract-branches",
+    "branch": "dev/test-research-r2-trial-contract-branches",
+    "base_head": "b069a70a6d6f842439de9601304fbea30f6e5b89",
+    "test_commit": "cf02d79d1d4cb2fb4e8b23ed581779cbfef2b1b4",
+    "measurement_head": "cf02d79d1d4cb2fb4e8b23ed581779cbfef2b1b4",
+    "tracked_tree_status": ""
+  },
+  "command": {
+    "baseline": "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe -X utf8 -m pytest tests/unit/research/test_r2_market_structure_trial_monitoring.py tests/unit/research/test_r2_market_structure_trial_policy_registry.py tests/unit/research/test_r2_market_structure_research_control_preflight.py tests/unit/research/test_domain_branch_followup.py -q -o addopts= --cov=apps.research.domain.r2_market_structure_trial_contracts --cov-branch --cov-report=json:D:\\githv\\agomTradePro-research-r2-trial-contract-branches\\var\\r2-trial-contracts-baseline-20260914T105238586Z\\coverage.json --cov-report=xml:D:\\githv\\agomTradePro-research-r2-trial-contract-branches\\var\\r2-trial-contracts-baseline-20260914T105238586Z\\coverage.xml --junitxml=D:\\githv\\agomTradePro-research-r2-trial-contract-branches\\var\\r2-trial-contracts-baseline-20260914T105238586Z\\junit.xml",
+    "final": "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe -X utf8 -m pytest tests/unit/research/test_r2_market_structure_trial_monitoring.py tests/unit/research/test_r2_market_structure_trial_policy_registry.py tests/unit/research/test_r2_market_structure_research_control_preflight.py tests/unit/research/test_domain_branch_followup.py tests/unit/research/test_r2_market_structure_trial_contract_missing_boundaries.py -q -o addopts= --cov=apps.research.domain.r2_market_structure_trial_contracts --cov-branch --cov-report=json:D:\\githv\\agomTradePro-research-r2-trial-contract-branches\\var\\r2-trial-contracts-final-v2-20260914T110338454Z\\coverage.json --cov-report=xml:D:\\githv\\agomTradePro-research-r2-trial-contract-branches\\var\\r2-trial-contracts-final-v2-20260914T110338454Z\\coverage.xml --junitxml=D:\\githv\\agomTradePro-research-r2-trial-contract-branches\\var\\r2-trial-contracts-final-v2-20260914T110338454Z\\junit.xml",
+    "working_directory": "D:\\githv\\agomTradePro-research-r2-trial-contract-branches"
+  },
+  "environment": {
+    "python": "3.13.5 | packaged by Anaconda, Inc. | (main, Jun 12 2025, 16:37:03) [MSC v.1929 64 bit (AMD64)]",
+    "python_executable": "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "platform": "Windows-10-10.0.19045-SP0",
+    "pytest": "9.0.2",
+    "coverage": "7.13.1",
+    "database": "none; selected tests exercised pure Domain contracts",
+    "network": false,
+    "postgres": false,
+    "vps": false
+  },
+  "artifacts": {
+    "baseline": {
+      "artifacts": [
+        {
+          "path": "var/r2-trial-contracts-baseline-20260914T105238586Z/receipt.json",
+          "bytes": 2078,
+          "sha256": "55ad693369cd52aa98720f28f9e571234c10e4b0229d93a85e0c0eb7847ab923"
+        },
+        {
+          "path": "var/r2-trial-contracts-baseline-20260914T105238586Z/command.txt",
+          "bytes": 838,
+          "sha256": "2992e4a6e6717a0c8d201bceacb4dbc678eea8e672e6fc3f885b3634e391bacc"
+        },
+        {
+          "path": "var/r2-trial-contracts-baseline-20260914T105238586Z/stdout.txt",
+          "bytes": 574,
+          "sha256": "b89937af2c82d01ab6d02077e156d4234fe9abe025baec241c57a4cd5f551841"
+        },
+        {
+          "path": "var/r2-trial-contracts-baseline-20260914T105238586Z/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "var/r2-trial-contracts-baseline-20260914T105238586Z/junit.xml",
+          "bytes": 12072,
+          "sha256": "53517a742eb8fcdd7de129e76348369f6f7a3af289e19f73e99402acde1f3764"
+        },
+        {
+          "path": "var/r2-trial-contracts-baseline-20260914T105238586Z/coverage.json",
+          "bytes": 52311,
+          "sha256": "aa20883e6359e6d1af042d74e89f3a2bbabefe87f0cc9ab9f0b0a47625f170a5"
+        },
+        {
+          "path": "var/r2-trial-contracts-baseline-20260914T105238586Z/coverage.xml",
+          "bytes": 23828,
+          "sha256": "517b3b1c83578e6e343ecdcde38b68270578e83faec90d9b99d57750e2cefb00"
+        },
+        {
+          "path": "var/r2-trial-contracts-baseline-20260914T105238586Z/.coverage",
+          "bytes": 86016,
+          "sha256": "f2e09384fdb3d44ef35feaff05dcc123ea23b0ca0cf0e116656c542bf68c4b11"
+        }
+      ],
+      "coverage": {
+        "covered_lines": 447,
+        "num_statements": 498,
+        "percent_covered": 84.16149068322981,
+        "percent_covered_display": "84.2",
+        "missing_lines": 51,
+        "excluded_lines": 0,
+        "percent_statements_covered": 89.75903614457832,
+        "percent_statements_covered_display": "89.8",
+        "num_branches": 146,
+        "num_partial_branches": 51,
+        "covered_branches": 95,
+        "missing_branches": 51,
+        "percent_branches_covered": 65.06849315068493,
+        "percent_branches_covered_display": "65.1"
+      },
+      "junit": {
+        "testcase_count": 68,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "final": {
+      "artifacts": [
+        {
+          "path": "var/r2-trial-contracts-final-v2-20260914T110338454Z/receipt.json",
+          "bytes": 2246,
+          "sha256": "d0a280d74978a57238e26e0a65587306ad7a0d772b046d914d53a704097e0d1a"
+        },
+        {
+          "path": "var/r2-trial-contracts-final-v2-20260914T110338454Z/command.txt",
+          "bytes": 920,
+          "sha256": "8cb99ee5868bff2a4986b4e4b8629b5e5705c4b15e387228144fb1fe0f7ff07e"
+        },
+        {
+          "path": "var/r2-trial-contracts-final-v2-20260914T110338454Z/stdout.txt",
+          "bytes": 655,
+          "sha256": "720de41689eba443f5a89f558ce6c7caef2a38a77b1d19782dee34e43b2ca8ff"
+        },
+        {
+          "path": "var/r2-trial-contracts-final-v2-20260914T110338454Z/stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "var/r2-trial-contracts-final-v2-20260914T110338454Z/junit.xml",
+          "bytes": 13192,
+          "sha256": "c3ebcfaf9779894551f762918e67f00f717d45ef92ef88be209bd4996f20d289"
+        },
+        {
+          "path": "var/r2-trial-contracts-final-v2-20260914T110338454Z/coverage.json",
+          "bytes": 52051,
+          "sha256": "91313cc6d155aed5c4e2e0806b6de477c76eaf0ab4f2d950816e992dcc7dcc36"
+        },
+        {
+          "path": "var/r2-trial-contracts-final-v2-20260914T110338454Z/coverage.xml",
+          "bytes": 23167,
+          "sha256": "c782c0e4ca3591729d7624655ee32fac45c8f3b82b61e87171f5699472bedd93"
+        },
+        {
+          "path": "var/r2-trial-contracts-final-v2-20260914T110338454Z/.coverage",
+          "bytes": 90112,
+          "sha256": "dfd7d837a1048c8b85fb5c0ffa6d82f08f18134a94753a09f35481889b0157ea"
+        }
+      ],
+      "coverage": {
+        "covered_lines": 477,
+        "num_statements": 498,
+        "percent_covered": 93.47826086956522,
+        "percent_covered_display": "93.5",
+        "missing_lines": 21,
+        "excluded_lines": 0,
+        "percent_statements_covered": 95.78313253012048,
+        "percent_statements_covered_display": "95.8",
+        "num_branches": 146,
+        "num_partial_branches": 21,
+        "covered_branches": 125,
+        "missing_branches": 21,
+        "percent_branches_covered": 85.61643835616438,
+        "percent_branches_covered_display": "85.6"
+      },
+      "junit": {
+        "testcase_count": 74,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "preserved_prior_final_run": {
+      "path": "var/r2-trial-contracts-final-20260914T105809091Z",
+      "reason": "Preserved before import-only formatting cleanup; not used as the final binding."
+    },
+    "candidate_test": {
+      "path": "tests/unit/research/test_r2_market_structure_trial_contract_missing_boundaries.py",
+      "bytes": 8112,
+      "sha256": "3f9e86b3f8283117e61734806af8f874230da66ddc261776974162246d540205"
+    }
+  },
+  "source_bindings": [
+    {
+      "path": "apps/research/domain/r2_market_structure_trial_contracts.py",
+      "bytes": 45940,
+      "raw_sha256_before": "bae30eb1cfe46b684e9680bdc60cd4a82e9bcfdb637585354c342394647e3a45",
+      "raw_sha256_after": "bae30eb1cfe46b684e9680bdc60cd4a82e9bcfdb637585354c342394647e3a45",
+      "canonical_lf_sha256_before": "41d25df7681ba47ee55ceae8f63d703b8408f4ed6f0bb9d146ef07772252f04f",
+      "canonical_lf_sha256_after": "41d25df7681ba47ee55ceae8f63d703b8408f4ed6f0bb9d146ef07772252f04f",
+      "git_blob_oid_before": "0c499e1777c2741efda38c46016766fef0a5ff2a",
+      "git_blob_oid_after": "0c499e1777c2741efda38c46016766fef0a5ff2a",
+      "unchanged": true
+    }
+  ],
+  "coverage_delta": {
+    "baseline": {
+      "covered_branches": 95,
+      "num_branches": 146,
+      "missing_branches": 51,
+      "branch_coverage_percent": 65.06849315068493,
+      "covered_lines": 447,
+      "num_statements": 498
+    },
+    "final": {
+      "covered_branches": 125,
+      "num_branches": 146,
+      "missing_branches": 21,
+      "branch_coverage_percent": 85.61643835616438,
+      "covered_lines": 477,
+      "num_statements": 498
+    },
+    "newly_covered_arcs": [
+      [
+        29,
+        30
+      ],
+      [
+        34,
+        35
+      ],
+      [
+        100,
+        101
+      ],
+      [
+        328,
+        329
+      ],
+      [
+        368,
+        369
+      ],
+      [
+        371,
+        372
+      ],
+      [
+        415,
+        416
+      ],
+      [
+        445,
+        446
+      ],
+      [
+        450,
+        451
+      ],
+      [
+        452,
+        462
+      ],
+      [
+        506,
+        507
+      ],
+      [
+        510,
+        511
+      ],
+      [
+        539,
+        540
+      ],
+      [
+        542,
+        543
+      ],
+      [
+        558,
+        562
+      ],
+      [
+        600,
+        601
+      ],
+      [
+        606,
+        607
+      ],
+      [
+        862,
+        863
+      ],
+      [
+        871,
+        872
+      ],
+      [
+        874,
+        879
+      ],
+      [
+        880,
+        885
+      ],
+      [
+        949,
+        950
+      ],
+      [
+        951,
+        952
+      ],
+      [
+        956,
+        957
+      ],
+      [
+        958,
+        968
+      ],
+      [
+        970,
+        976
+      ],
+      [
+        1025,
+        1026
+      ],
+      [
+        1030,
+        1031
+      ],
+      [
+        1040,
+        1041
+      ],
+      [
+        1042,
+        1043
+      ]
+    ],
+    "newly_covered_arc_count": 30,
+    "new_missing_arcs": []
+  },
+  "remaining_path_notes": [
+    {
+      "arcs": [
+        [
+          569,
+          571
+        ]
+      ],
+      "meaning": "The AT_MOST return branch is protected by the preceding direction guard and was intentionally not reached by constructing an invalid frozen object."
+    },
+    {
+      "arcs": [
+        [
+          116,
+          121
+        ],
+        [
+          653,
+          654
+        ],
+        [
+          658,
+          659
+        ],
+        [
+          660,
+          664
+        ],
+        [
+          665,
+          666
+        ],
+        [
+          676,
+          677
+        ],
+        [
+          692,
+          693
+        ],
+        [
+          696,
+          697
+        ],
+        [
+          699,
+          700
+        ],
+        [
+          701,
+          702
+        ],
+        [
+          704,
+          705
+        ],
+        [
+          709,
+          710
+        ],
+        [
+          711,
+          712
+        ],
+        [
+          715,
+          727
+        ],
+        [
+          729,
+          732
+        ],
+        [
+          733,
+          734
+        ],
+        [
+          751,
+          752
+        ],
+        [
+          753,
+          757
+        ],
+        [
+          775,
+          776
+        ],
+        [
+          782,
+          783
+        ]
+      ],
+      "meaning": "Remaining R2 contract guards were not claimed closed in this bounded slice."
+    }
+  ],
+  "limitations": [
+    "This seal covers one R2 Domain contract file and the listed local unit tests; it is not a whole Research coverage result.",
+    "The 85.6164% value is branch coverage for this one selected file, not a Research-wide percentage.",
+    "No production, PostgreSQL, VPS, deployment, network, or promotion acceptance was performed.",
+    "The test cases use the existing synthetic R2 scenario builder only to exercise immutable contract validation; they do not attest production readiness."
+  ]
+}
