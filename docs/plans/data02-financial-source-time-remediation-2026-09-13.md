@@ -603,3 +603,16 @@ Incremental Quality 失败，实际 Linux/Python 3.11 类型检查报告四个 W
 及 sidecar 保留 29 份 exact originals，分别标识旧 CI 失败与新源码本地门禁。
 第 20 节原封存保持不变，继续描述其历史源码。新 head 的 CI 尚待实际观察；本次
 验证不形成 provider 接入、历史原始哈希修复、精确 available_at 或生产验收证明。
+
+## 22. 2026-09-14 原始响应存储候选合并
+
+[PR50](https://github.com/guiyinan/agomTradePro/pull/50) 的实际审查 head
+`00e10915e21991df86e4f11a116062c977876263` 已取得 30 项 completed/SUCCESS，
+包括 Linux/Python 3.11 与 3.13 的实际 CI。主代理在再次核对 clean candidate、
+四个冻结文件 Git LF SHA 和全绿 CI 后，使用 match-head 合并；实际 Main merge
+commit 为 `fc5f9211c11d8814b6ae2d4b1a6f6cc292b9a622`。本节更新上一节当时的
+CI 待观察状态，旧 37 份与平台 29 份封存仍按各自历史源码和实际检查范围保留。
+
+捕获、内存保留与加密不可变存储基础已进入 Main，但尚未接入生产 provider、
+RawAudit/FinancialFact/Publication，也未部署该 Main。精确来源 available_at、
+native financial row identity、历史原始哈希及 DATA-02 生产退出门仍未完成。
