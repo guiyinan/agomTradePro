@@ -1,0 +1,695 @@
+{
+  "schema": "evid09.third-final-candidate-pg-validation.v1",
+  "status": "passed",
+  "sealed_at_utc": "2026-09-14T11:15:43.403722+00:00",
+  "source_commit": "26c60bfba5ae726d2a53fa68036274ea9802ab03",
+  "merged_main_commit": "f121000df1276472f172a93c16961fa74f433192",
+  "final_candidate_measurement_count": 3,
+  "source_file_count_per_snapshot": 5922,
+  "all_six_original_source_snapshots_sha256": "53c6ed1f5cd53ad8a331585a557d5630c84805811b6c6f14ee2cf4f302a7bb52",
+  "previous_two_scope_seal_sha256": "9a34bd7bacba5fbd4da2a2ca295dc226a14ad29a51f9eed301e032eb4e3d75e8",
+  "third_target_nodeid": "tests/component/account/test_owner_tenant_authority_v3_composition.py::test_opt_in_postgres_facade_issues_reads_and_revokes",
+  "third_actual_child_exit": 0,
+  "third_child_reaped": true,
+  "third_child_deadline_seconds": 1800,
+  "third_raw_junit_utf8": "<?xml version=\"1.0\" encoding=\"utf-8\"?><testsuites name=\"pytest tests\"><testsuite name=\"pytest\" errors=\"0\" failures=\"0\" skipped=\"0\" tests=\"1\" time=\"750.225\" timestamp=\"2026-09-14T18:43:44.376152+08:00\" hostname=\"win10hv-1\"><testcase classname=\"tests.component.account.test_owner_tenant_authority_v3_composition\" name=\"test_opt_in_postgres_facade_issues_reads_and_revokes\" time=\"749.697\" /></testsuite></testsuites>",
+  "third_sql": {
+    "by_first_keyword": {
+      "<OTHER>": 434,
+      "INSERT": 22,
+      "SELECT": 2636
+    },
+    "client_execute_seconds": 651.7696584997466,
+    "execute_errors": 0,
+    "many_calls": 0,
+    "non_select": 456,
+    "select": 2636,
+    "total": 3092
+  },
+  "third_test_call_wall_seconds": 671.6722925000358,
+  "third_test_call_cpu_seconds": 15.25,
+  "third_full_pytest_wall_seconds": 768.3303805999458,
+  "third_full_pytest_cpu_seconds": 29.53125,
+  "third_operator_wall_seconds": 811.0984686999582,
+  "third_physical_decode": {
+    "json_load_calls": 0,
+    "json_loads_calls": 2270,
+    "decoder_decode_calls": 2270,
+    "decoder_raw_decode_calls": 2270,
+    "physical_json_decode_calls": 2270,
+    "physical_json_decode_errors": 0,
+    "physical_json_decode_seconds": 0.3065863997908309
+  },
+  "third_postgres_before": {
+    "backend_pid": 93,
+    "client_count": 0,
+    "database": "evid06_authority_test",
+    "lock_timeout_seconds": 5,
+    "observed_at_utc": "2026-09-14T10:43:15.831Z",
+    "public_table_count": 0,
+    "read_only_transaction": true,
+    "role": "evid09_v5_facade_third_r2_20260914",
+    "server_address": "172.19.0.2",
+    "server_port": 5432,
+    "server_version": "16.15",
+    "statement_timeout_seconds": 15
+  },
+  "third_postgres_after": {
+    "backend_pid": 135,
+    "client_count": 0,
+    "database": "evid06_authority_test",
+    "lock_timeout_seconds": 5,
+    "observed_at_utc": "2026-09-14T10:56:33.795Z",
+    "public_table_count": 0,
+    "read_only_transaction": true,
+    "role": "evid09_v5_facade_third_r2_20260914",
+    "server_address": "172.19.0.2",
+    "server_port": 5432,
+    "server_version": "16.15",
+    "statement_timeout_seconds": 15
+  },
+  "third_owned_closure": {
+    "status": "reaped_measurement_closed_and_owned_resources_removed",
+    "started_at_utc": "2026-09-14T11:00:50.708845+00:00",
+    "original_ready_sha256": "6a78a71783b4da5a2ae1928df1a8609cc9f220e2bd56b5c9ab2ceb5d912a8134",
+    "measurement_receipt_sha256": "ba02599ea0700d304662864c4493989338b202d55ac207d67526562dc07d8618",
+    "container_id": "483abe5753e6a4991c1d4a7a2ab55f81a9770fff02f95e3f997811c955fbea91",
+    "network_id": "e01b8004ba3e38ba9a35bbaa26aed510fc9843736da8e351b0acdf6cd18bf3e0",
+    "production_resources_used": false,
+    "child_reaped": true,
+    "ssh_forward_closed": true,
+    "commands": [
+      {
+        "label": "before",
+        "actual_exit": 0,
+        "observed_at_utc": "2026-09-14T11:00:53.489208+00:00",
+        "streams": {
+          "stdout": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-before-stdout.utf8",
+            "bytes": 5973,
+            "sha256": "e8e1f9eaf355543e6ba49f7419dd21213bc6a42eb0dc4d005531527a7db19d68",
+            "representation": "boundary-decoded-utf8-text"
+          },
+          "stderr": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-before-stderr.utf8",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "representation": "boundary-decoded-utf8-text"
+          }
+        }
+      },
+      {
+        "label": "network-before",
+        "actual_exit": 0,
+        "observed_at_utc": "2026-09-14T11:00:53.803446+00:00",
+        "streams": {
+          "stdout": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-network-before-stdout.utf8",
+            "bytes": 1213,
+            "sha256": "f552d98b2c928aac79788562ebb10832fe6499753010ec095067bc3e0cbef585",
+            "representation": "boundary-decoded-utf8-text"
+          },
+          "stderr": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-network-before-stderr.utf8",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "representation": "boundary-decoded-utf8-text"
+          }
+        }
+      },
+      {
+        "label": "zero",
+        "actual_exit": 0,
+        "observed_at_utc": "2026-09-14T11:00:54.230143+00:00",
+        "streams": {
+          "stdout": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-zero-stdout.utf8",
+            "bytes": 7,
+            "sha256": "89ce52afdb65b82d5269f92936bef98fbfd8fbadb232644561641699473127b8",
+            "representation": "boundary-decoded-utf8-text"
+          },
+          "stderr": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-zero-stderr.utf8",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "representation": "boundary-decoded-utf8-text"
+          }
+        }
+      },
+      {
+        "label": "stop",
+        "actual_exit": 0,
+        "observed_at_utc": "2026-09-14T11:00:54.874708+00:00",
+        "streams": {
+          "stdout": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-stop-stdout.utf8",
+            "bytes": 120,
+            "sha256": "f23c75949a6360d05119303f1983d8d61b17260bfc65a07ee64fa1b5fc9811a3",
+            "representation": "boundary-decoded-utf8-text"
+          },
+          "stderr": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-stop-stderr.utf8",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "representation": "boundary-decoded-utf8-text"
+          }
+        }
+      },
+      {
+        "label": "closed",
+        "actual_exit": 0,
+        "observed_at_utc": "2026-09-14T11:00:55.186078+00:00",
+        "streams": {
+          "stdout": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-closed-stdout.utf8",
+            "bytes": 5772,
+            "sha256": "d369d3bc5e922d09c87d0ecd72cec5842781217058548fa368f3b9c3807ed1e5",
+            "representation": "boundary-decoded-utf8-text"
+          },
+          "stderr": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-closed-stderr.utf8",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "representation": "boundary-decoded-utf8-text"
+          }
+        }
+      },
+      {
+        "label": "remove",
+        "actual_exit": 0,
+        "observed_at_utc": "2026-09-14T11:00:55.551614+00:00",
+        "streams": {
+          "stdout": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-remove-stdout.utf8",
+            "bytes": 65,
+            "sha256": "b14f85fcc60635f8b4cddaa8580c48ec1ccf560d9af59a8bb4f18cd11731c871",
+            "representation": "boundary-decoded-utf8-text"
+          },
+          "stderr": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-remove-stderr.utf8",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "representation": "boundary-decoded-utf8-text"
+          }
+        }
+      },
+      {
+        "label": "network-after",
+        "actual_exit": 0,
+        "observed_at_utc": "2026-09-14T11:00:55.869715+00:00",
+        "streams": {
+          "stdout": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-network-after-stdout.utf8",
+            "bytes": 938,
+            "sha256": "96e4fba10944497d90dd540763df861c7e65d56f8d025fe1fc60748247ab91f8",
+            "representation": "boundary-decoded-utf8-text"
+          },
+          "stderr": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-network-after-stderr.utf8",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "representation": "boundary-decoded-utf8-text"
+          }
+        }
+      },
+      {
+        "label": "remove-network",
+        "actual_exit": 0,
+        "observed_at_utc": "2026-09-14T11:00:56.289149+00:00",
+        "streams": {
+          "stdout": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-remove-network-stdout.utf8",
+            "bytes": 65,
+            "sha256": "17a04bc98928f46aa50e5a1a3fbd2aa70e52aa180d8fdf38a6cf43ddd5613c99",
+            "representation": "boundary-decoded-utf8-text"
+          },
+          "stderr": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-remove-network-stderr.utf8",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "representation": "boundary-decoded-utf8-text"
+          }
+        }
+      },
+      {
+        "label": "remove-remote-dir",
+        "actual_exit": 0,
+        "observed_at_utc": "2026-09-14T11:00:56.635952+00:00",
+        "streams": {
+          "stdout": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-remove-remote-dir-stdout.utf8",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "representation": "boundary-decoded-utf8-text"
+          },
+          "stderr": {
+            "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-remove-remote-dir-stderr.utf8",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "representation": "boundary-decoded-utf8-text"
+          }
+        }
+      }
+    ],
+    "zero_state": {
+      "public_table_count": 0,
+      "client_count": 0,
+      "transaction_read_only": true,
+      "container_id": "483abe5753e6a4991c1d4a7a2ab55f81a9770fff02f95e3f997811c955fbea91",
+      "image_id": "sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685",
+      "statement_timeout_seconds": 15,
+      "lock_timeout_seconds": 5,
+      "observed_at_utc": "2026-09-14T11:00:54.230920+00:00"
+    },
+    "closed_state": {
+      "Status": "exited",
+      "Running": false,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 0,
+      "ExitCode": 0,
+      "Error": "",
+      "StartedAt": "2026-09-14T10:40:29.445615911Z",
+      "FinishedAt": "2026-09-14T11:00:55.675108805Z"
+    },
+    "closed_network_settings": {
+      "evid09-v5-net-facade-third-r2-20260914": {
+        "IPAMConfig": null,
+        "Links": null,
+        "Aliases": null,
+        "DriverOpts": null,
+        "GwPriority": 0,
+        "NetworkID": "e01b8004ba3e38ba9a35bbaa26aed510fc9843736da8e351b0acdf6cd18bf3e0",
+        "EndpointID": "",
+        "Gateway": "",
+        "IPAddress": "",
+        "MacAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "DNSNames": [
+          "evid09-v5-pg-facade-third-r2-20260914",
+          "483abe5753e6"
+        ]
+      }
+    },
+    "container_closed_at_utc": "2026-09-14T11:00:55.187769+00:00",
+    "local_postgres_password_removed": true,
+    "finished_at_utc": "2026-09-14T11:00:56.640632+00:00"
+  },
+  "original_artifact_count": 76,
+  "original_artifacts": [
+    {
+      "path": "D:\\githv\\agomTradePro-facade-final-acceptance-20260914\\docs\\testing\\evid09-facade-operation-read-reuse-postgres-validation-2026-09-14.json",
+      "bytes": 32585,
+      "sha256": "9a34bd7bacba5fbd4da2a2ca295dc226a14ad29a51f9eed301e032eb4e3d75e8"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\facade-full-parent-postgres-v8-measurement-20260914.json",
+      "bytes": 23499,
+      "sha256": "21230501c92fe4e800b2ce20af3c6b90bcdac3e1f5a6475d5f45647d273404cd"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-18480-1789377086\\run-result.json",
+      "bytes": 11797339,
+      "sha256": "adc682c7a1f909ade9d9ae6135f0ee55a890462b18434796495e67d5431c1193"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-18480-1789377086\\junit.xml",
+      "bytes": 436,
+      "sha256": "17ef72d125b9ecb3450d17321c4e0b6f955ab52a5b88f4cd09ef3350a84e8ca7"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-18480-1789377086\\source-paths.json",
+      "bytes": 342668,
+      "sha256": "425726458e1663a77b4c8f63bff98086b0c9b85534e59f25ba98be8c1711e9ba"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-18480-1789377086\\source-before.json",
+      "bytes": 3049811,
+      "sha256": "53c6ed1f5cd53ad8a331585a557d5630c84805811b6c6f14ee2cf4f302a7bb52"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-18480-1789377086\\source-after.json",
+      "bytes": 3049811,
+      "sha256": "53c6ed1f5cd53ad8a331585a557d5630c84805811b6c6f14ee2cf4f302a7bb52"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-18480-1789377086\\private-tools-before.json",
+      "bytes": 1207,
+      "sha256": "8d0dd92f1535e51a5647e34d9ebc2ee31cdf4ead989dd6e5566f0f39d75af779"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-18480-1789377086\\private-tools-after.json",
+      "bytes": 1207,
+      "sha256": "8d0dd92f1535e51a5647e34d9ebc2ee31cdf4ead989dd6e5566f0f39d75af779"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-18480-1789377086\\stdout.raw",
+      "bytes": 110,
+      "sha256": "f5061731e9b0b24d2b18dc9d4d2b190e29b0d77c7c4daa21487049ad8978ba0c"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-18480-1789377086\\stderr.raw",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-96nmvwnq\\evid09-v5-facade-reuse-20260914-0906\\evid09-v5-child-facade-reuse-20260914-0906-18480-1789377086039979300\\child-stdout.bin",
+      "bytes": 545,
+      "sha256": "73a5a2cba168456d7c905b3f6b30f9e67a5606cc731d951adabbcaf164633029"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-96nmvwnq\\evid09-v5-facade-reuse-20260914-0906\\evid09-v5-child-facade-reuse-20260914-0906-18480-1789377086039979300\\child-stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-18480-1789377086\\fresh-parent-result.json",
+      "bytes": 3530,
+      "sha256": "9a4fd4b7ed9f2e5e97910caddba97f92ee846e82f430141156605de168015a3b"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\facade-successor-postgres-v9-measurement-20260914.json",
+      "bytes": 23430,
+      "sha256": "1fc8b95273d1470bea4d95dadd7d52e34f4fa347c5a0cd6360bafae1e6f2e377"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-7700-1789377544\\run-result.json",
+      "bytes": 11792465,
+      "sha256": "b27decce8ffc2c11a1851e626b92f81c890ac449ff557ba64d14d46c913021be"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-7700-1789377544\\junit.xml",
+      "bytes": 413,
+      "sha256": "d6ad922ea1bcfc7b3bb3d29883aaa634ce2b65ed2f3e927b6524f8b018fbd7a9"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-7700-1789377544\\source-paths.json",
+      "bytes": 342668,
+      "sha256": "425726458e1663a77b4c8f63bff98086b0c9b85534e59f25ba98be8c1711e9ba"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-7700-1789377544\\source-before.json",
+      "bytes": 3049811,
+      "sha256": "53c6ed1f5cd53ad8a331585a557d5630c84805811b6c6f14ee2cf4f302a7bb52"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-7700-1789377544\\source-after.json",
+      "bytes": 3049811,
+      "sha256": "53c6ed1f5cd53ad8a331585a557d5630c84805811b6c6f14ee2cf4f302a7bb52"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-7700-1789377544\\private-tools-before.json",
+      "bytes": 1207,
+      "sha256": "8d0dd92f1535e51a5647e34d9ebc2ee31cdf4ead989dd6e5566f0f39d75af779"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-7700-1789377544\\private-tools-after.json",
+      "bytes": 1207,
+      "sha256": "8d0dd92f1535e51a5647e34d9ebc2ee31cdf4ead989dd6e5566f0f39d75af779"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-7700-1789377544\\stdout.raw",
+      "bytes": 110,
+      "sha256": "0347cb5b1ca9a6c98110eb7dbf9fec97c989448e4baf873bf81a307ca568dfd0"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-reuse-20260914-0906-7700-1789377544\\stderr.raw",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-96nmvwnq\\evid09-v5-facade-reuse-20260914-0906\\evid09-v5-child-facade-reuse-20260914-0906-7700-1789377544567481600\\child-stdout.bin",
+      "bytes": 518,
+      "sha256": "703006a067936a7eb1d937ef3ca272f2b28f9ecb465e7d75831a2e68e620259f"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-96nmvwnq\\evid09-v5-facade-reuse-20260914-0906\\evid09-v5-child-facade-reuse-20260914-0906-7700-1789377544567481600\\child-stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\facade-reuse-v4-measurement-owned-closure-20260914T092926248863Z.json",
+      "bytes": 10563,
+      "sha256": "e23fc75501e77df3b383bcd22b3c7bc8a35e537c9b9fc78bcde9a053d73a1fe7"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\facade-reuse-independent-process-closure-20260914T0929Z.json",
+      "bytes": 188,
+      "sha256": "129b49131b79c21c85f857a64b6abf22cfb884da230a0869bada0926d145f399"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\facade-reuse-isolated-pg-root-create-receipt-20260914T090907074359Z.json",
+      "bytes": 1446,
+      "sha256": "87584f44d5c0c8e448c03ae6067180259d3dd7e57d85037c6afa3a18c4161ef4"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\facade-reuse-isolated-pg-root-created-20260914T090907074359Z.json",
+      "bytes": 10326,
+      "sha256": "69bab1c078ba86625fe1d8bcbfaecf13b4061edbfc05c5c6db0b697dd6c8a35b"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\run_facade_full_parent_postgres_v8.py",
+      "bytes": 90822,
+      "sha256": "ece082613554111230c14899033194ef33b9a3ec6c797ef1974a6d203ec39f34"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\run_facade_successor_postgres_v9.py",
+      "bytes": 90212,
+      "sha256": "906eddbe512e848dc51a118aee31200395ac86d5f7ab06c523bab3f189dc77ad"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\root_create_facade_isolated_pg_v4.py",
+      "bytes": 4295,
+      "sha256": "cd35a67ca0afc0ee1e755c57093420cfaeba479d22f95487f2f5492f60242709"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\root_close_facade_isolated_pg_v4.py",
+      "bytes": 10030,
+      "sha256": "7bd23452dc03d1922a6371b741d3c64fdd7e552cff2806ceb68c4eef39e0c843"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\facade-full-parent-ready-adapter-v8-20260914.json",
+      "bytes": 12869,
+      "sha256": "92aace32c35ff7cd225740875b62c6a6c0e1ca0b7dd3a8bf8631f304f0fdaa02"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\facade-successor-ready-adapter-v9-20260914.json",
+      "bytes": 12332,
+      "sha256": "378fc4d3b1371eb1f8e5dcc4097cf0011bb7f0b0b700ab53766f93d20b7a104c"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-third-r2-20260914-19820-1789382595\\source-before.json",
+      "bytes": 3049811,
+      "sha256": "53c6ed1f5cd53ad8a331585a557d5630c84805811b6c6f14ee2cf4f302a7bb52"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-third-r2-20260914-19820-1789382595\\source-after.json",
+      "bytes": 3049811,
+      "sha256": "53c6ed1f5cd53ad8a331585a557d5630c84805811b6c6f14ee2cf4f302a7bb52"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-third-r2-20260914-19820-1789382595\\junit.xml",
+      "bytes": 413,
+      "sha256": "4e84e6fecdb096b3d1d56b553eaff06e42bfdf3024cd2b9c9f51eb415ed63878"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-third-r2-20260914-19820-1789382595\\loaded-modules-after.json",
+      "bytes": 1073268,
+      "sha256": "697a2eac49d8e1f38568798895466383c30b010821bbf25137fba695d23887af"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-third-r2-20260914-19820-1789382595\\loaded-modules-before.json",
+      "bytes": 1072582,
+      "sha256": "fbe7373fadfad232ff62370359edec1b8a1449f8602e77b5910482e5d873b7d9"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-third-r2-20260914-19820-1789382595\\private-tools-after.json",
+      "bytes": 1207,
+      "sha256": "8d0dd92f1535e51a5647e34d9ebc2ee31cdf4ead989dd6e5566f0f39d75af779"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-third-r2-20260914-19820-1789382595\\private-tools-before.json",
+      "bytes": 1207,
+      "sha256": "8d0dd92f1535e51a5647e34d9ebc2ee31cdf4ead989dd6e5566f0f39d75af779"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-third-r2-20260914-19820-1789382595\\run-result.json",
+      "bytes": 11792450,
+      "sha256": "8692c8c2765f559c13a10b72a4fc86a0b50cee333db01d8c5ee2abea0a1a3160"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-third-r2-20260914-19820-1789382595\\source-paths.json",
+      "bytes": 342668,
+      "sha256": "425726458e1663a77b4c8f63bff98086b0c9b85534e59f25ba98be8c1711e9ba"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-third-r2-20260914-19820-1789382595\\stderr.raw",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro-facade-operation-read-reuse\\var\\evid09-v5-measure-facade-third-r2-20260914-19820-1789382595\\stdout.raw",
+      "bytes": 110,
+      "sha256": "99d58f83a454b892ec695250574af94b10d665f34d723e29cde35321a55f7712"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\facade-third-r2-20260914-measurement-receipt.json",
+      "bytes": 23654,
+      "sha256": "ba02599ea0700d304662864c4493989338b202d55ac207d67526562dc07d8618"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\facade-third-r2-v4-measurement-owned-closure-20260914T110050708802Z.json",
+      "bytes": 10667,
+      "sha256": "f94b9def41bfbcd6df7c15123a546b884d02c4bda3fbfe42072a738ddb937626"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\facade-third-r2-20260914-plan.json",
+      "bytes": 8664,
+      "sha256": "2fdb83e732ba22465237f8565e4e5241d9bb53ef8e8812856b37f09eebf24520"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\facade-third-r2-20260914-ready-manifest.json",
+      "bytes": 10277,
+      "sha256": "6a78a71783b4da5a2ae1928df1a8609cc9f220e2bd56b5c9ab2ceb5d912a8134"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\facade-third-r2-20260914-ready-adapter.json",
+      "bytes": 12263,
+      "sha256": "920084071cb548e8bfadc3b04ad97fb2e1ef5a72303c2305718510aa1dfa5c1c"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\run_facade_successor_postgres_v9_final_third_retry.py",
+      "bytes": 90414,
+      "sha256": "7c8c567130e758961c1b705cb37f1b7aae9f5b940d8b0cfda214e224eb293458"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\root_close_facade_third_r2.py",
+      "bytes": 10012,
+      "sha256": "9ccf1bed018115a0b9dea472ab67c4c4eddd494e8fdcb2b80cb51bbabb3dbf7f"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\facade-final-third-20260914-1006-measurement-receipt.json",
+      "bytes": 24208,
+      "sha256": "a66cbb54dc4a98933a8daf60f6c31401b982f313ee667ee10250694fac89d6e3"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\facade-final-third-v4-measurement-owned-closure-20260914T103210580599Z.json",
+      "bytes": 10971,
+      "sha256": "3b1477391968e2cff3df667b688b23091bbc373c3ce21b4d45738d786c160193"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-before-stdout.utf8",
+      "bytes": 5973,
+      "sha256": "e8e1f9eaf355543e6ba49f7419dd21213bc6a42eb0dc4d005531527a7db19d68"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-before-stderr.utf8",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-network-before-stdout.utf8",
+      "bytes": 1213,
+      "sha256": "f552d98b2c928aac79788562ebb10832fe6499753010ec095067bc3e0cbef585"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-network-before-stderr.utf8",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-zero-stdout.utf8",
+      "bytes": 7,
+      "sha256": "89ce52afdb65b82d5269f92936bef98fbfd8fbadb232644561641699473127b8"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-zero-stderr.utf8",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-stop-stdout.utf8",
+      "bytes": 120,
+      "sha256": "f23c75949a6360d05119303f1983d8d61b17260bfc65a07ee64fa1b5fc9811a3"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-stop-stderr.utf8",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-closed-stdout.utf8",
+      "bytes": 5772,
+      "sha256": "d369d3bc5e922d09c87d0ecd72cec5842781217058548fa368f3b9c3807ed1e5"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-closed-stderr.utf8",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-remove-stdout.utf8",
+      "bytes": 65,
+      "sha256": "b14f85fcc60635f8b4cddaa8580c48ec1ccf560d9af59a8bb4f18cd11731c871"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-remove-stderr.utf8",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-network-after-stdout.utf8",
+      "bytes": 938,
+      "sha256": "96e4fba10944497d90dd540763df861c7e65d56f8d025fe1fc60748247ab91f8"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-network-after-stderr.utf8",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-remove-network-stdout.utf8",
+      "bytes": 65,
+      "sha256": "17a04bc98928f46aa50e5a1a3fbd2aa70e52aa180d8fdf38a6cf43ddd5613c99"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-remove-network-stderr.utf8",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-remove-remote-dir-stdout.utf8",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\closure-20260914T110050708802Z-remove-remote-dir-stderr.utf8",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\evid09-v5-child-facade-third-r2-20260914-19820-1789382595832294900\\child-stdout.bin",
+      "bytes": 518,
+      "sha256": "76662c661c8bb4c37ac1e144aab73dfa0786bed3bfae2f3baa5b75bcd4e5ac77"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-facade-third-r2-20260914-private\\evid09-v5-facade-third-r2-20260914\\evid09-v5-child-facade-third-r2-20260914-19820-1789382595832294900\\child-stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "signed_acceptance": false,
+  "unit_exit_changed": false,
+  "limits": [
+    "The final-candidate pair contains one six-stage fresh-parent fixture and one composition-seed successor lifecycle; the third repeats the latter on a newly owned isolated PostgreSQL instance.",
+    "All three raw JUnit files are strict single-pass/no-skip. Six full 5922-source original snapshots match byte-for-byte, including raw/LF/Git bindings.",
+    "A failed startup pilot is retained and excluded from the three passes; its Anaconda interpreter lacked playwright. Its original owned cleanup is separate.",
+    "Physical loads/decode/raw_decode layer counters are not added. Test call and whole pytest CPU/wall are kept separate; no paired production percentage or concurrency claim is made.",
+    "This seal does not replace standard production deployment, genuine lifecycle recovery, DATA-02 provenance, EVID/AUD/TAR acceptance or human signed approval."
+  ]
+}
