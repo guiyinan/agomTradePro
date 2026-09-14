@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -20,6 +20,7 @@ from apps.research.domain.r4_promotion_monitoring import (
     R4MonitoringMetricObservation,
     R4MonitoringPeriodEntry,
     R4MonitoringThreshold,
+    R4MonitoringThresholdDirection,
     evaluate_r4_promotion_monitoring,
 )
 from apps.research.domain.r4_promotion_monitoring_contracts import (
@@ -254,6 +255,76 @@ def test_policy_and_metric_contracts_reject_unbound_or_invalid_configuration() -
         )
     with pytest.raises(ValueError, match="count must be positive"):
         replace(policy.thresholds[0], retirement_review_consecutive_breaches=0)
+
+
+def test_low_level_contract_guards_reject_bad_token_hash_clock_and_period() -> None:
+    _, calendar, _, _ = _case()
+
+    with pytest.raises(ValueError, match="bounded non-blank token"):
+        R4MonitoringMetricObservation(
+            metric_key=R4MonitoringMetricKey.RELATIVE_NET_RETURN,
+            unit=" ",
+            value=Decimal("0"),
+        )
+    with pytest.raises(ValueError, match="SHA-256 digest"):
+        R4MonitoringPeriodEntry(
+            period_id="not-a-digest",
+            period_start=calendar.valid_from,
+            period_end=calendar.valid_from + timedelta(hours=1),
+        )
+    with pytest.raises(ValueError, match="timezone-aware"):
+        R4MonitoringPeriodEntry(
+            period_id="a" * 64,
+            period_start=datetime(2026, 1, 1),
+            period_end=datetime(2026, 1, 2),
+        )
+    with pytest.raises(ValueError, match="period must be non-empty"):
+        derive_r4_monitoring_period_id(
+            calendar_id=calendar.calendar_id,
+            calendar_version=calendar.calendar_version,
+            period_start=calendar.valid_from,
+            period_end=calendar.valid_from,
+        )
+
+
+def test_threshold_restore_revalidation_rejects_invalid_key_and_changed_value() -> None:
+    _, _, policy, _ = _case()
+
+    with pytest.raises(ValueError, match="threshold metric_key is invalid"):
+        R4MonitoringThreshold(
+            metric_key="unknown",
+            unit="ratio",
+            direction=R4MonitoringThresholdDirection.AT_LEAST,
+            breach_threshold=Decimal("0"),
+            retirement_review_consecutive_breaches=2,
+        )
+
+    class _NonEqualText(str):
+        def __eq__(self, other: object) -> bool:
+            return False
+
+        def __ne__(self, other: object) -> bool:
+            return True
+
+    altered_threshold = policy.thresholds[0]
+    object.__setattr__(altered_threshold, "unit", _NonEqualText(altered_threshold.unit))
+    with pytest.raises(ValueError, match="validation changed its value"):
+        policy.validated_copy()
+
+
+def test_policy_rejects_a_restored_threshold_tuple_that_cannot_round_trip() -> None:
+    _, _, policy, _ = _case()
+
+    class _NonEqualThresholds(tuple):
+        def __eq__(self, other: object) -> bool:
+            return False
+
+        def __ne__(self, other: object) -> bool:
+            return True
+
+    object.__setattr__(policy, "thresholds", _NonEqualThresholds(policy.thresholds))
+    with pytest.raises(ValueError, match="thresholds failed validation"):
+        policy.__post_init__()
 
 
 def test_observation_contract_rejects_future_clock_identity_and_decision_flags() -> None:
