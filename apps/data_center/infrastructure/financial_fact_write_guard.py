@@ -124,9 +124,10 @@ def _insert_new_batch(facts: list[FinancialFact]) -> int:
 
     if not facts:
         return 0
+    ordered_facts = sorted(facts, key=_financial_natural_key)
     with transaction.atomic():
         created = FinancialFactModel._default_manager.bulk_create(
-            [_model_from_fact(fact) for fact in facts], batch_size=1_000
+            [_model_from_fact(fact) for fact in ordered_facts], batch_size=1_000
         )
     return len(created)
 
