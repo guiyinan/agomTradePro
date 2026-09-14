@@ -1,5 +1,5 @@
 {
-  "version": "2026-09-14.v102",
+  "version": "2026-09-14.v103",
   "updated_at": "2026-09-14",
   "execution_focus": {
     "unit_id": "EVID-09",
@@ -94,6 +94,10 @@
       "status": "production_validation",
       "next_gate": "DATA-12/13/14/15 and DATA-16 repository exits are completed. Final source 990a4876e is bound by the separate core, activation/integration, financial source-guard and Domain chronology seals; follow-up affected tests 155 pass, Domain selection 2939 pass with aggregate LINE coverage94.18%, all16 static/type/debt/architecture/current/Catalog/governance checks pass. Exact pushed review head300a67733 has eight completed/success CI workflows and identical tree to merged/deployed303248196. Standard backup/code-only upgrade preserving runtime Catalog applied additive schema; all10 critical source/live hashes match Git, TLS health200, healthyrestart0. Genuine post-upgrade preflight and preview precede atomic four-head activation: Financial policy3, Price/Quote/Valuation policy2, six unchanged legacy heads,14 total policy rows; three full Catalog rowsets and existing published-current identity metadata stay unchanged. Old Financial/Price/Quote current is blocked for publication_policy_changed; Valuation has no canonical current; News remains blocked for missing member evidence. Compatible strict-policy image is actually pinned but rollback not exercised. New sealed deployment evidence docs/deployment/data16-standard-deployment-and-policy-activation-2026-09-13.json does not close DATA-02. One local PC financial reference response is genuine388061 bytes/122 reportrows with exact bodySHA but no verified precise announcement/timezone/rowrecordID, no production ingestion or available_at repair. Historical financial source structure remains0/441944 complete; fiscal-period-only raw factor cutoff remains a separate documented lookahead boundary. EVID-09 now owns repository performance work. DATA-02 still requires authentic financial source time/raw evidence, actual5533-asset four-dataset storage, four immutable current Publication identities and canonical tolerance reconciliation; EVID/AUD/TAR production acceptance is unchanged.",
       "documents": [
+        {
+          "path": "docs/plans/data02-provider-artifact-adoption-2026-09-14.md",
+          "role": "supporting"
+        },
         {
           "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
           "role": "primary"
