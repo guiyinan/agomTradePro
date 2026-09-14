@@ -11871,57 +11871,57 @@
       "text": "status=str(summary[\"status\"]),"
     },
     {
-      "line": 70,
+      "line": 82,
       "path": "apps/data_center/infrastructure/egress_transport.py",
       "text": "local current = tonumber(redis.call('GET', KEYS[1]) or '0')"
     },
     {
-      "line": 72,
+      "line": 84,
       "path": "apps/data_center/infrastructure/egress_transport.py",
       "text": "if current >= limit then return 0 end"
     },
     {
-      "line": 78,
+      "line": 90,
       "path": "apps/data_center/infrastructure/egress_transport.py",
       "text": "local current = tonumber(redis.call('GET', KEYS[1]) or '0')"
     },
     {
-      "line": 79,
+      "line": 91,
       "path": "apps/data_center/infrastructure/egress_transport.py",
       "text": "if current <= 1 then redis.call('DEL', KEYS[1]); return 0 end"
     },
     {
-      "line": 108,
+      "line": 120,
       "path": "apps/data_center/infrastructure/egress_transport.py",
       "text": "current = self._local_counts.get(key, 0)"
     },
     {
-      "line": 109,
+      "line": 121,
       "path": "apps/data_center/infrastructure/egress_transport.py",
       "text": "if current >= limit:"
     },
     {
-      "line": 111,
+      "line": 123,
       "path": "apps/data_center/infrastructure/egress_transport.py",
       "text": "self._local_counts[key] = current + 1"
     },
     {
-      "line": 115,
+      "line": 127,
       "path": "apps/data_center/infrastructure/egress_transport.py",
       "text": "\"\"\"Return whether the latest acquire failed closed for missing Redis.\"\"\""
     },
     {
-      "line": 134,
+      "line": 146,
       "path": "apps/data_center/infrastructure/egress_transport.py",
       "text": "current = self._local_counts.get(key, 0)"
     },
     {
-      "line": 135,
+      "line": 147,
       "path": "apps/data_center/infrastructure/egress_transport.py",
       "text": "if current <= 1:"
     },
     {
-      "line": 138,
+      "line": 150,
       "path": "apps/data_center/infrastructure/egress_transport.py",
       "text": "self._local_counts[key] = current - 1"
     },
