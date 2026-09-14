@@ -3,7 +3,7 @@
 > 当前状态：DATA-16 已完成仓库退出并实际部署、激活四个严格策略头；
 > 后续有界性能工作登记为唯一 repository focus EVID-09；优化接线与标准部署已完成，
 > 新作用域的真实 configured-validity 生产生命周期已通过 27 阶段与独立恢复复核；
-> 最终候选已通过两次真实隔离 PostgreSQL 测量，第三次完整测量仍待完成。
+> 最终候选已通过三次真实隔离 PostgreSQL 测量；兼容镜像回滚尚未演练，EVID-09 保持 active。
 > 已完成的 EVID-08 不重新打开；本文保留其历史诊断，后续状态以机器注册表为准。
 >
 > 实际模型设置：`gpt-5.6-luna / max`。
@@ -692,3 +692,31 @@ current/exact、baseline fingerprint、exclusions，以及观测时间包围真�
 代表性 isolated PostgreSQL 测量；该测量继续推进。历史 Source194 失败原件保持原状，
 不将不同 run 换算为因果性能提升百分比。DATA-02 可用时间、原生身份、原始哈希
 生产验收与 EVID-01/02、AUD-03、TAR-05 退出门保持独立且未完成。
+
+
+## 20. 第三组最终候选 PostgreSQL 测量与剩余退出门（2026-09-14）
+
+第三组使用新的隔离 PostgreSQL 16.15 和项目虚拟环境，最终候选仍为
+`26c60bfba5ae726d2a53fa68036274ea9802ab03`。实际 JUnit 为 1 passed，
+无失败、错误或跳过；三组共六份 5,922 文件 source snapshot 字节一致。
+Raw 与 canonical LF 的校验保留原始 Windows 换行事实，不要求历史 raw Git
+blob ID 等于后来规范化的 LF blob ID；canonical LF 的全文件 Git 校验一致。
+
+本次 test-call wall 为 671.672 秒、CPU 15.25 秒；完整 pytest wall 为
+768.330 秒、CPU 29.53125 秒，两种范围分别记录。物理解码链 2,270 次，
+loads/decode/raw_decode 各 2,270，错误为零；SQL 3,092 次，其中 SELECT
+2,636、INSERT 22、OTHER 434，client execute 为 651.770 秒。
+不重复相加 parser 层，不据不同环境的独立运行计算生产性能提升百分比。
+
+[第三组原件封存](../testing/evid09-third-final-candidate-pg-validation-2026-09-14.json)
+SHA 为 `d40fd88fc18f656c9ab18a81e9c7f7137ccb602c13442190a0839fe3aa0fa039`，
+独立审核 76/76 引用通过。正式 owned closure 九条命令均退出 0，child 已回收、
+relay 关闭、PG 零表/零其他客户端；此次容器、网络与临时凭据均按所有权删除。
+较早使用错误系统 Python 的失败 pilot 和其清理原件保持原状，不计入通过数量。
+
+三次隔离测量和第 19 节真实生产生命周期现已完成。兼容镜像 rollback 尚未
+实际演练，应用事务 rollback 与独立 ledger 恢复不能替代它；EVID-09 继续 active。
+退出复核须按原 canonical exit gate 验证受控兼容回滚，不能用历史 seal 中的
+active 状态或未提供人工签名反向推导新的门槛。DATA-02 两次真实供应商请求
+返回 code 2003、含义未知；原始成功响应可重放、精确源可用时间、原生身份及
+历史缺口仍未通过生产验收，EVID-01/02、AUD-03、TAR-05 保持独立。
