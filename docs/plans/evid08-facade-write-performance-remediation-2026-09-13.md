@@ -518,3 +518,10 @@ SHA 一致。此轮显式关闭 PostgreSQL opt-in，不把配置测试称为真�
 新增最小建表诊断在 BEFORE 只读观察阶段 40 秒超时，未发送 CREATE；该失败进一步
 表明阻断不限于完整 DDL。生产 VPS 的另行只读容量及镜像观察成功，真实生产源码仍为
 6760 版本；完全独立的临时 PostgreSQL 环境正在准备，尚未启动、部署或取得验收结果。
+
+修正连接配置后的真实 V3 driver 尝试仍失败：冻结 head f2aa0eff7，实际测量 child exit 3、
+pytest exit 1，原始 JUnit 为一项 error，没有业务阶段文件。after TCP observer 在连接
+阶段超时；监督器已回收 child、释放 owner lock，5909 个 Python 文件 finally 快照与
+before 完全一致。随后独立 Socket 只读查询 exit 0，取得零表、零其他客户端、read_only=on。
+配置修正未被证明解决超时，也没有新的可接受解码计数。当前 head 的四项 CI 失败均
+定位到新增配置测试后的入口清单陈旧，继续按生成器同步，不改治理基线或放宽门禁。
