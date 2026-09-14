@@ -47,6 +47,14 @@ calibration → R2 trial promotion。task_monitor 与 signal 已有合格实际�
 
 ## 尚需真实来源的输入
 
+State 与 R4 补测已分别通过独立审核和 CI，并合并。环境修复后的全 Research 实际重测为
+1014 passed、exit 0，63 个 Domain 文件前后 SHA 一致。真实行覆盖为
+12602/13546（93.031%），分支覆盖为 4101/5032（81.498%）；89.907% 是两者组合值，
+不能称为行覆盖。达到 90% 分支覆盖还需至少 428 条，下一切片补 R7 monitoring 与 contracts。
+完整当前覆盖证据见
+[`research-whole-domain-current-coverage-2026-09-14.json`](../testing/research-whole-domain-current-coverage-2026-09-14.json)。
+两次环境失败原件继续保留，不将切片新增分支数直接累加为全 Research 增量。
+
 生产 inventory 中没有 `equity.financial.fact` 出网规则。现有 provider 行上的凭据存在性
 不证明解密、令牌、网络或供应商权限有效；配置和请求须按实际值验证，禁止生成假凭据。
 公告日期或响应 EOF 时间不能成为精确 available_at，capture UUID 不能成为供应商原生行 ID。

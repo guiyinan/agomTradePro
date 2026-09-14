@@ -91,3 +91,6 @@ docs/testing/data02-financial-insert-concurrency-validation-2026-09-14.json.sha2
 docs/testing/research-state-controlled-branch-increment-2026-09-14.json text eol=lf
 docs/testing/research-r7-monitoring-controlled-branch-increment-2026-09-14.json text eol=lf
 docs/testing/research-r7-monitoring-controlled-branch-increment-2026-09-14.json.sha256 text eol=lf
+docs/testing/research-whole-domain-current-coverage-2026-09-14.json text eol=lf
+docs/testing/evid09-facade-operation-read-reuse-postgres-validation-2026-09-14.json text eol=lf
+docs/testing/evid09-facade-operation-read-reuse-postgres-validation-2026-09-14.json.sha256 text eol=lf

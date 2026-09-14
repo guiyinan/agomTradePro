@@ -27,6 +27,7 @@ from apps.account.application.owner_tenant_authority_v3 import (
     GetExactOwnerTenantAuthorityV3Command,
     IssueOwnerTenantAuthorityV3Command,
     RevokeOwnerTenantAuthorityV3Command,
+    SupersedeOwnerTenantAuthorityV3Command,
 )
 from apps.account.application.owner_tenant_authority_v3_contracts import (
     OwnerTenantAuthorityV3Unavailable,
@@ -58,6 +59,7 @@ from apps.simulated_trading.domain.simulated_account_row_source_v2 import (
 from apps.simulated_trading.infrastructure.simulated_account_row_source_v2_repository import (
     DjangoSimulatedAccountRowSourceV2Repository,
 )
+from shared.infrastructure.immutable_read_snapshot import isolated_immutable_read_snapshot
 from tests.component.account.test_owner_tenant_authority_v3_repository import (
     owner_alias as owner_alias,
 )
@@ -557,7 +559,10 @@ def test_builder_binds_v3_service_evidence_facade_and_sources_to_one_alias() -> 
     service = facade._service
     assert isinstance(service._repository, DjangoOwnerTenantAuthorityV3Repository)
     assert service._repository._using == alias
-    assert service._read_phase is composition.isolated_immutable_read_snapshot
+    assert (
+        getattr(service._read_phase, "__self__", None)
+        is service._current_assignments._facade._read_context
+    )
     assert service._current_assignments._facade._using == alias
     assert service._historical_assignments._facade._using == alias
     assert isinstance(
@@ -672,7 +677,7 @@ def test_with_current_rechecks_authority_authentication_and_source_projection(
 
         events.append("phase.enter")
         try:
-            with composition.isolated_immutable_read_snapshot():
+            with isolated_immutable_read_snapshot():
                 yield
         finally:
             events.append("phase.exit")
@@ -895,15 +900,51 @@ def test_opt_in_postgres_facade_issues_reads_and_revokes(
         facade.with_current(selector, lambda value: value.authority.content_hash)
         == issue.content_hash
     )
+    assert (
+        facade.issue(
+            IssueOwnerTenantAuthorityV3Command(
+                "composition-owner-root",
+                "v3.1",
+                assignment.evidence_id,
+                assignment.evidence_version,
+                assignment.content_hash,
+            )
+        )
+        == issue
+    )
+    successor_now = now + timedelta(seconds=1)
+    monkeypatch.setattr("django.utils.timezone.now", lambda: successor_now)
+    successor_command = SupersedeOwnerTenantAuthorityV3Command(
+        "composition-owner-root",
+        "v3.2",
+        issue.authority_version,
+        issue.content_hash,
+        assignment.evidence_id,
+        assignment.evidence_version,
+        assignment.content_hash,
+    )
+    successor = facade.successor(successor_command)
+    assert successor.supersedes_content_hash == issue.content_hash
+    assert facade.successor(successor_command) == successor
+    successor_selector = GetCurrentOwnerTenantAuthorityV3Command(
+        successor.authority_id,
+        successor.authority_version,
+        successor.content_hash,
+    )
+    assert facade.get_current(successor_selector) is not None
+    assert (
+        facade.with_current(successor_selector, lambda value: value.authority.authority_version)
+        == successor.authority_version
+    )
     facade.revoke(
         RevokeOwnerTenantAuthorityV3Command(
-            issue.authority_id,
-            issue.authority_version,
-            issue.content_hash,
+            successor.authority_id,
+            successor.authority_version,
+            successor.content_hash,
             "composition-test",
         )
     )
-    assert facade.get_current(selector) is None
+    assert facade.get_current(successor_selector) is None
     historical = facade.get_exact(
         GetExactOwnerTenantAuthorityV3Command(
             issue.authority_id,

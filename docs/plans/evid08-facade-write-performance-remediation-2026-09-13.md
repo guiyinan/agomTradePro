@@ -595,3 +595,66 @@ PR49 已在最终候选 `e1ae4022ea5b0a60be41ef5e1e0b837d277fe5a8` 的 30 项 CI
 DATA-02 的加密原始响应持久化基础已合并，但 provider 到原件、审计及事实元数据
 的接入、可信可用时间和原生来源身份仍未完成。代码部署不能回填或证明这些历史
 数据缺口，DATA-02/EVID-01/02 与人工验收退出门不变，EVID-09 继续 active。
+
+## 17. Authority V3 composition-owned read reuse candidate（2026-09-14）
+
+本切片只收敛一次 Authority V3 operation 内的读取图。Account composition root
+现在构造一个绑定同一数据库 alias 与底层物理 connection 的短生命周期 read context，
+并把同一个 Evidence V5、actor、policy、subject repository graph 注入 V3/V5
+facades。V5 repository 只有在这个 context 的当前 phase、alias 和 connection
+仍完全一致时复用 immutable-read cache；直接使用或连接变化时仍建立独立 fresh
+phase。exact cutoff 仍是缓存调用参数的一部分，不能跨 cutoff 或 phase 复用。
+
+该候选保留 Authority V3 的全量 world/FK/head/revocation 校验、来源锁、两次
+`with_current` `get_current` 及 callback 后 fresh re-read；append/revoke 发生在
+read phase 退出后，因此不会继承写入前的缓存。没有修改 schema、锁顺序、超时或
+业务 validity budget，也没有把缓存提升为进程级或跨 callback 状态。
+
+新增的纯 context/graph identity regression 覆盖 exact cutoff、phase 隔离、嵌套
+V5 facade 不清空外层 phase，以及 composition 共享 repository graph。既有
+Authority V3 component 与 Application lifecycle tests 继续覆盖 successor/replay、
+callback 后复核和 current source revalidation。当前结果只证明本地契约和回归行为；
+尚未取得生产规模 PostgreSQL 的 query/wall 性能复测，必须由后续同源环境重新测量。
+
+Root 复核发现首次候选只绑定持久 Django wrapper：底层 connection 更换时身份仍不变。
+新增测试实际先失败后修正为 native connection；无底层连接不能进入可复用 phase，
+正常 phase 退出前再次核对物理身份，发生变化则抛识别型错误并清理 ContextVar。
+修正后 context 单测 5 passed，四文件定向回归 31 passed、1 skipped。
+该 skipped 是显式启用的真实 PostgreSQL lifecycle/successor/replay 测试，尚未执行；
+本地 Application 测试不替代它，也不证明生产 query/wall 或物理解码收益。
+
+另一个先失败的 Root 回归证实首次 nested V5 候选直接返回而未执行来源锁。
+已删除该提前返回：嵌套调用仍进入数据库事务并执行原 ordered source locks 和 physical row locks；
+仅当前 phase 与共享 actor UOW 均已活跃时复用缓存/actor UOW，避免嵌套 UOW 冲突。
+单测明确核对两次嵌套调用均执行来源锁、物理锁及事务，且 exact read 只执行一次。
+最终同一定向包实际 31 passed、1 个真实 PG opt-in skipped；生产规模复测仍待完成。
+冻结最终生产源码后，Root 五个生产文件增量 mypy 零回归、全生产债务检查 0 错误，
+Black/isort/Ruff、diff 检查及 62 个 current-data surfaces 契约通过；独立只读审核无 P0/P1。
+可信 composition 的实例/alias 绑定已核对，手工注入与共享 actor UOW token 约束仍为后续加强项。
+
+## 18. Read reuse 真实 PostgreSQL 两组验证（2026-09-14）
+
+PR59 已合并为 Main `f121000df1276472f172a93c16961fa74f433192`，最终候选
+`26c60bfba5ae726d2a53fa68036274ea9802ab03` 的 30 项 CI 全部通过。此前本地
+定向包中的真实 PG opt-in skip 已由两次独立目标的实际执行补足：V8 fresh-parent
+测试与 V9 composition successor/replay 测试各 1 passed，均无失败、错误或跳过。
+两组使用同一个新建隔离 PostgreSQL 16.15，执行前后各自为零用户表、零客户端；
+每组 5,922 文件源码快照及 17 个边界文件均保持一致。
+
+V8 实际 test-call wall 为 241.622 秒，SQL 1,573 次、物理解码链 1,117 次；它
+覆盖六个 fresh-parent 阶段，不能作为 successor/replay 验收。V9 实际 test-call
+wall 为 483.046 秒，SQL 3,092 次、物理解码链 2,270 次，覆盖 issue/replay、
+current/with_current、successor/replay 和 revoke/exact。两组解码错误均为零；
+计数按一次 loads→decode→raw_decode 物理链记录，不把三个 parser 层重复相加。
+这些独立目标不合计、不平均，也不与旧环境换算生产性能提升百分比。
+
+[实际测量与清理证据](../testing/evid09-facade-operation-read-reuse-postgres-validation-2026-09-14.json)
+保留原件引用及两个原始 JUnit。两次 child 均已 reaped，relay 均关闭；随后独立
+核对本地进程与 55441 listener 均为零，按所有权校验删除此次隔离容器、网络和
+临时凭据。早期测量时容器尚在运行的原始 cleanup witness 未被改写。
+
+优化 Main 的标准保数据升级正在执行，已独立取得升级前 identity、四个历史 root、
+catalog 和 policy 全量基线。部署后仍须核对 40 个 Git/release/live 关键文件、
+新备份、历史 exact 及全量保留结果，再运行同源生产生命周期并逐阶段记录物理解码。
+本节不声称生产生命周期已通过；DATA-02 可用时间和原生来源身份缺口、EVID-09
+以及人工验收退出门保持未完成。
