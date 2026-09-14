@@ -73,3 +73,17 @@ rejections. No native availability/announcement timestamp or source-row identity
 is inferred. Concurrent uniqueness is not claimed. Production deployment and a
 new source-bound failure-artifact validation remain pending; DATA-02 stays
 awaiting production acceptance.
+
+## 25. 2026-09-14 留存补丁部署与 DNS 阻断
+
+PR68 全部 30 项 CI 通过，Source ba1605 已标准代码部署并返回 0。HTTPS 200，41 个关键文件 Git/release/live 一致；14 条策略、3 组 catalog、4 组 current 元数据、Authority 根/撤销记录、runtime/加密 secret 行均保全。采集器原范围只有根/撤销记录，不能称 19 组账本 before/after 已验证；完整 19 组 after 已补采，before 仍待独立 backup-derived 比较。
+
+两次启动失败原件保留。修正 Compose 路径及 Django 初始化顺序后，实际只读 preflight 通过，对应失败窗口 egress 为 0。随后一次方法调用遭 EGRESS_DNS_TIMEOUT，原异常重抛，无响应原件及成功/失败财务审计候选；未将网络阻断当作 FRA1 留存通过。后续先诊断 DNS，确认恢复后有目的复测。
+
+[生产验证封存](../deployment/data02-rejected-response-production-validation-2026-09-14.json)绑定 21 份原始工件。精确 available_at、native identity、历史 raw hash、历史 62 字节回放、完整账本保全及 DATA02 生产退出门仍未完成，注册状态和签署未改变。
+
+## 26. 2026-09-14 DNS 恢复后的真实拒绝响应复测
+
+容器 DNS 恢复至 116.218 ms 后，保留原 DNS 阻断工件并执行一次真实方法调用。实际 transport attempt 为 1；供应商仍返回 2003，原 TUSHARE_PROVIDER_REJECTED 异常重抛。新拒绝响应 62 B 已落盘，RawAudit 38591 为 failure/error/row_count=0；原始 body SHA 与解密 SHA 一致，真实 Fernet 和 FRA1 magic 校验通过。未写财务 Fact。
+
+[真实复测封存](../deployment/data02-rejected-response-production-retest-2026-09-14.json)绑定新的响应原件和执行收据。新的响应即便 SHA 与历史 62 B 一致，也不能使历史内存原件变为可回放。response_completed_at 不等于 available_at；native identity、精确可用时间、历史 raw hash、成功财务验收和完整 19 组账本部署保全仍未完成，DATA02 状态和签署不变。
