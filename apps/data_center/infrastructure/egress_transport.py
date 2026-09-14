@@ -23,9 +23,21 @@ from apps.data_center.domain.egress_routing import (
     EgressRoutingError,
     target_hostname,
 )
+from apps.data_center.domain.financial_response_evidence import (
+    FinancialRequestScope,
+    FinancialResponseBodyScope,
+    FinancialResponseScope,
+)
 from apps.data_center.infrastructure.egress_target import (
     PreparedPublicTarget,
     prepare_public_target,
+)
+from apps.data_center.infrastructure.financial_response_capture import (
+    CapturedFinancialResponse,
+    FinancialResponseCaptureError,
+    RawFinancialResponseProtocol,
+    capture_financial_response,
+    decode_json_bytes,
 )
 from core.integration.config_center_egress import (
     EgressEndpoint,
@@ -303,6 +315,53 @@ class EgressHttpTransport:
             max_response_bytes=self._max_response_bytes,
         )
 
+    def request_financial_response(
+        self,
+        context: EgressRequestContext,
+        *,
+        egress_id: int | None,
+        request_id: UUID,
+        attempt: int,
+        method: str,
+        params: Mapping[str, object] | None,
+        json_body: Mapping[str, object] | None,
+        headers: Mapping[str, str] | None,
+        request_scope: FinancialRequestScope,
+        response_scope: FinancialResponseScope,
+    ) -> tuple[EgressTransportResult, CapturedFinancialResponse[object] | None]:
+        """Capture one routed financial JSON response without changing providers.
+
+        The request and response scopes are caller declarations for a later
+        provider parser.  This method records no row identity, announcement
+        time, availability time, or persisted fact evidence.
+        Identity encoding is requested by default; encoded responses fail closed.
+        """
+
+        del request_id
+        if not isinstance(request_scope, FinancialRequestScope) or not isinstance(
+            response_scope, FinancialResponseScope
+        ):
+            return _financial_scope_error_result()
+        if request_scope.dataset_key != context.dataset_key:
+            return _financial_scope_error_result()
+        financial_headers = dict(headers or {})
+        if not any(key.lower() == "accept-encoding" for key in financial_headers):
+            financial_headers["Accept-Encoding"] = "identity"
+        result, payload = self._request_once(
+            context,
+            egress_id=egress_id,
+            attempt=attempt,
+            method=method,
+            params=params,
+            json_body=json_body,
+            headers=financial_headers,
+            expect_json=True,
+            max_response_bytes=self._max_response_bytes,
+            financial_request_scope=request_scope,
+            financial_response_scope=response_scope,
+        )
+        return result, cast(CapturedFinancialResponse[object] | None, payload)
+
     def should_route_history(self, *, provider_id: int, deployment_region: str) -> bool:
         """Return whether an explicit rule owns EastMoney history transport."""
 
@@ -376,6 +435,8 @@ class EgressHttpTransport:
         expect_json: bool = True,
         max_response_bytes: int = 4 * 1024 * 1024,
         allow_disabled_endpoint: bool = False,
+        financial_request_scope: FinancialRequestScope | None = None,
+        financial_response_scope: FinancialResponseScope | None = None,
     ) -> tuple[EgressTransportResult, object | None]:
         """Perform one request after target, circuit, and concurrency checks."""
 
@@ -390,6 +451,8 @@ class EgressHttpTransport:
                 ),
                 None,
             )
+        if (financial_request_scope is None) != (financial_response_scope is None):
+            return _financial_scope_error_result()
         try:
             target = _validate_public_target(context.target_url)
         except EgressRoutingError as exc:
@@ -532,6 +595,30 @@ class EgressHttpTransport:
                     ),
                     None,
                 )
+            if financial_request_scope is not None and financial_response_scope is not None:
+                try:
+                    captured = capture_financial_response(
+                        cast(RawFinancialResponseProtocol, response),
+                        request_scope=financial_request_scope,
+                        response_scope=financial_response_scope,
+                        body_scope=FinancialResponseBodyScope.BATCH,
+                        decode=decode_json_bytes,
+                        max_bytes=max_response_bytes,
+                    )
+                except (FinancialResponseCaptureError, AttributeError, TypeError, ValueError):
+                    return _financial_capture_error_result(
+                        started, status_code=response.status_code
+                    )
+                _shared_state.success(state_key)
+                return (
+                    EgressTransportResult(
+                        outcome="success",
+                        status_code=response.status_code,
+                        latency_ms=round((time.monotonic() - started) * 1000, 3),
+                        retryable=False,
+                    ),
+                    captured,
+                )
             payload = (
                 _read_bounded_json(response, max_bytes=max_response_bytes) if expect_json else None
             )
@@ -640,6 +727,40 @@ def _request_error_result(
             message=message,
             latency_ms=round((time.monotonic() - started) * 1000, 3),
             retryable=retryable,
+        ),
+        None,
+    )
+
+
+def _financial_scope_error_result() -> (
+    tuple[EgressTransportResult, CapturedFinancialResponse[object] | None]
+):
+    """Reject an invalid or cross-dataset caller declaration before HTTP."""
+
+    return (
+        EgressTransportResult(
+            outcome="blocked",
+            error_code="EGRESS_FINANCIAL_SCOPE_INVALID",
+            message="金融响应范围未通过安全校验。",
+            retryable=False,
+        ),
+        None,
+    )
+
+
+def _financial_capture_error_result(
+    started: float, *, status_code: int | None
+) -> tuple[EgressTransportResult, CapturedFinancialResponse[object] | None]:
+    """Project every capture failure to one stable, redacted egress result."""
+
+    return (
+        EgressTransportResult(
+            outcome="failed",
+            error_code="EGRESS_FINANCIAL_RESPONSE_CAPTURE_FAILED",
+            message="金融响应证据捕获失败。",
+            status_code=status_code,
+            latency_ms=round((time.monotonic() - started) * 1000, 3),
+            retryable=False,
         ),
         None,
     )

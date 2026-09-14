@@ -1,0 +1,242 @@
+{
+  "schema": "data02.egress-financial-response-candidate.v1",
+  "created_at_utc": "2026-09-13T23:43:33.798858+00:00",
+  "status": "candidate_validated_not_deployed",
+  "candidate_source_commit": "e7c160f7da7317fb3364b925b05e51bb8b80dd63",
+  "source_files": {
+    "apps/data_center/infrastructure/egress_transport.py": {
+      "raw_sha256": "50e39c95d888647c114f6f43eb9b385206b110bad504b8a98141ca206e43b3cf",
+      "head_git_lf_sha256": "49f0488f28b2280c21ca48b777a5972d19fb75dea53f2ac34821b56596a030da",
+      "raw_bytes": 32116,
+      "head_git_lf_bytes": 31280
+    },
+    "tests/unit/data_center/test_egress_financial_response_capture.py": {
+      "raw_sha256": "a0b1a24ba5c4cff9c7d3d92fc7ee28c545502ec3f72b080885437ccbc3e5bd10",
+      "head_git_lf_sha256": "a0b1a24ba5c4cff9c7d3d92fc7ee28c545502ec3f72b080885437ccbc3e5bd10",
+      "raw_bytes": 10968,
+      "head_git_lf_bytes": 10968
+    }
+  },
+  "root_final_junit": {
+    "tests": 90,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "agent_initial_junit": {
+    "tests": 65,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "identity_red_junit": {
+    "tests": 1,
+    "failures": 1,
+    "errors": 0,
+    "skipped": 0
+  },
+  "identity_green_junit": {
+    "tests": 12,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "supported_root_checks": [
+    {
+      "name": "black",
+      "actual_exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "42952929f98ff284b84ffc33f5fca4e517620f9b2ceb3fca1375e504affa8195"
+    },
+    {
+      "name": "isort",
+      "actual_exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "ruff",
+      "actual_exit": 0,
+      "stdout_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "pytest",
+      "actual_exit": 0,
+      "stdout_sha256": "82ac13fc550cbdcc73acfa195404bc8e425559814b793c97475b0171f2e8cbfb",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "incremental-mypy",
+      "actual_exit": 0,
+      "stdout_sha256": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "debt-ceiling",
+      "actual_exit": 0,
+      "stdout_sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "architecture-delta",
+      "actual_exit": 0,
+      "stdout_sha256": "db47464b59995d9dc3b5d6c87374406ac18135224a13df5b9eb386a73fa1d5bd",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "original_artifact_count": 20,
+  "original_artifacts": [
+    {
+      "path": "var/data02-egress-identity-green.xml",
+      "bytes": 2641,
+      "sha256": "2cc1118e9a1ba0e664b0558f4e06aa3b39bce1ce080737bd0c24d475ece11c57",
+      "encoding": "gzip+base64",
+      "original_bytes": "H4sIAAAAAAAC/91WTW/bMAz9K4YPu2x2ZbtNuqxpbzv21FsxCIzMxFpkSRXprOmw/z4lTvOBFj0uSwADpkiJfM98knxz99yaZIGBtLPjtMhFmqBVrtZ2Nk47nmbX6d3tDSMxdTq+EgstjlO/XLmStT/dix+EY6oQXKBxGrNOQZsuYD+gufYe67W9XhtLl9HUq8UiHwjRD4ih9eO0FOUgE1+z4vJBDEeViE8+vCoqUX0W16PV5MYR96V/aVuIZpEVG1gKCBNlgKiPr8vlndWc18AgFVrGkK/cEmcRIMmptmCVBiPj0DtLKBV4jujTZJfkg2kk8RkUy4mrl9JZhRJsLeeIniQp51HWGCEFrHeci2GRJhdHwOyjhWGxBu2NVjrm3ChgAxM4iuNR17Gq5uWPHWYhyv8b8+xF+yPi7XvdamqBVSMnxqk5yQlOXYiSUE+dDivEDbOXZBzvI/23athE4/SfqJg2yo3nguQANqYILI1uNR/vY75CfD1IZNw/kiDW0C9YS+tsQA5LmJh+uymDYDv/+PvTU+f42wJMh705uof7P1mDUMdzT2TfwRAeqKQ6VWLFl7e+cku1eIfqyfaw2NIqz6qDW1rVO7QGp0/r8jxFePWWVnkG3RpkD6E7ZNVfTBfbX759m27/AoqM2DZRCgAA"
+    },
+    {
+      "path": "var/data02-egress-identity-red.xml",
+      "bytes": 2520,
+      "sha256": "607cff07bd69b4bc7fe73138ddef69927c76f68ac71ac4afe454c903f6a945c6",
+      "encoding": "gzip+base64",
+      "original_bytes": "H4sIAAAAAAAC/61W32/bNhB+D5D/geBDY2OxSsm27Lhxii31MHRYN2zZU5IRtHiOtUikKlJJ3CL/+46UHNlJnKbA+CKKvPvuB7878vj9XZ6RGyhNqtWUhgGjBFSiZaquprSyi96Yvj85tmCsqVL8ECVymNJi5ZaIX6cb+1vbCFWWujRTiqgLkWZVCfgTUmKu06IA6Te8rl+1qdONAjY8qn+MFXmBKyyKe+yoFw7O2GgSHU3CMOizo8Eg+oGNJwwxltrY2vJtqkK2vOmFjVeJMECSTBhT73trQaVSG0hhBU9AWSgDt8zhCv0zfJEqoZJUZBx/C60M8EQUFp2npAV5QcxwuBOJ5XMtV1yrBLhQkl8DFIabRBfAJaBLJch1zCyI4jF63CSJYOhGXOHGr7CauRxOyMGPSQKF7c2a0zmgJ7lW17AqhE2WZEreZPYdrxMfbOwEv/n5H15Kz/+FxBJhCbtjbkSnsw8/9U9H44i9ubLv9vf29wgOCQvyvwXZqTHd2PDrsF7tkp4zTD5pBZNWkFJ6tgSiMeBUYTrsUktSAhpWhhhbphjFx79+/0SKrDLEe0JKcdtz3hC4SSWSGAJEqSFbYC8wJfODrxRjqDJLJ1/pjcgqoJMQBozd3x+00uugUYP/2cw7DqLbyhg8KyyeQxTOANlmnHCqkLtZxm0pFKqVlktdzTMwnc0UPOB3N01+rlzmfQ5bifrfQfuJ6WyozGGhS7eHjAZHqEDp287fZ6fdx9HXIR+S5gylw2vmG6fkRut4rmWVQTDzxfGLtcXZequTizsurIW8wAoOu4cvO98aeOKXWGAR7g7AixgDpW0iCHRlE51jzFNCTYWVYQzdJYsnYSvDsWy8fMTYE8mHfKTY4LT1bNwpFDzwy3PfLEU0jB3yoxRSMeyzUT9hfSli6A9jNmbxaNEXrM8WMp6LuWDDOJFRlIQJDCCWYdwfM1jEcgjRYDSmTzL2Cm/SL8Dnrgs4jzJQj+naqDeccU1j+gxWW+06LzKwIPGgG2l/WK/wZ4sMzputhVcBbHN/upNQOyGs5hJ7Rad7Trd1+VyY1NBLz6AESxXKtivvBi7EKtNCOq22gZCHDkI+QJLmIutQ30to9/7+OVZ6PwK8LkvuTPujCncLJpk2NTfPyupp1E0D+paY48K6RXWft7hGsmXlrkN148B+Fpl5wajz/5xdnoeX5xTn+hZvCpmWeM247H6fPjZ2EHmtVsfg74ZvKy5BSHzDUJw+uiabE3Z0sKld0e0SxfHP9479vVmj+sLl7C5S/9S4cE+Ni42nxsXrnhpBsZqER6PJg5Hjt83j4OT47fph00z9y2tzbk7+AwxG3XDYCQAA"
+    },
+    {
+      "path": "var/data02-egress-root-regression-20260913T233422502854Z/black-stderr.bin",
+      "bytes": 58,
+      "sha256": "42952929f98ff284b84ffc33f5fca4e517620f9b2ceb3fca1375e504affa8195",
+      "encoding": "gzip+base64",
+      "original_bytes": "H4sIAAAAAAAC/3PMyVFIyc9LVVR4NGeFwof5vRtADF4uI4W0zJzUYoXy/NKcFIWkVIWc1LQShdK85IzEvPTUFD1eLgBO19jEOgAAAA=="
+    },
+    {
+      "path": "var/data02-egress-root-regression-20260913T233422502854Z/black-stdout.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "encoding": "gzip+base64",
+      "original_bytes": "H4sIAAAAAAAC/wMAAAAAAAAAAAA="
+    },
+    {
+      "path": "var/data02-egress-root-regression-20260913T233422502854Z/isort-stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "encoding": "gzip+base64",
+      "original_bytes": "H4sIAAAAAAAC/wMAAAAAAAAAAAA="
+    },
+    {
+      "path": "var/data02-egress-root-regression-20260913T233422502854Z/isort-stdout.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "encoding": "gzip+base64",
+      "original_bytes": "H4sIAAAAAAAC/wMAAAAAAAAAAAA="
+    },
+    {
+      "path": "var/data02-egress-root-regression-20260913T233422502854Z/junit.xml",
+      "bytes": 15071,
+      "sha256": "dff1367d437828032888bf80c5406b3ee858c57669a649aa666def5f62769030",
+      "encoding": "gzip+base64",
+      "original_bytes": "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"
+    },
+    {
+      "path": "var/data02-egress-root-regression-20260913T233422502854Z/pytest-stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "encoding": "gzip+base64",
+      "original_bytes": "H4sIAAAAAAAC/wMAAAAAAAAAAAA="
+    },
+    {
+      "path": "var/data02-egress-root-regression-20260913T233422502854Z/pytest-stdout.bin",
+      "bytes": 182,
+      "sha256": "82ac13fc550cbdcc73acfa195404bc8e425559814b793c97475b0171f2e8cbfb",
+      "encoding": "gzip+base64",
+      "original_bytes": "H4sIAAAAAAAC/9PTow5QiFawMFCN5eXCIkUeiDY0ABtoaaBQkFhcnJqikJmnYKhnYlzMywUAicr+VbYAAAA="
+    },
+    {
+      "path": "var/data02-egress-root-regression-20260913T233422502854Z/receipt.json",
+      "bytes": 1820,
+      "sha256": "613b5bb831242cd87fc0eb6498f1b8ae2816aa8849cc6c58772e4dbdddbadf3e",
+      "encoding": "gzip+base64",
+      "original_bytes": "H4sIAAAAAAAC/+1UTW/UMBC9I/EfVrlSuv6M7f0d3BCKxuMZGrpNotiRqKr+d+zuVmwPFVKRgAOnyDPx83vP4/fw/t1u1+UCZcvdYdctkDOl7upUnrcVaYjE80q1+9CqtQ7LkvcJCgxIU6F1P068Qi7rhmVbaU9fV8p5KCtMeZnXcr3cN2wrSAcMNnnve+NQSsM9G00xRO2tEn2UUkRIVpjoIXhpJEItk9FRI59Y1fML5ZL32zSWFyxaeTifzeMEE45wHOpymadMA8LS2J3JgIgSlIlg0SBzQJd0CorRESmP1lgrFKFmp6LwwntrtEOMqMnGJEXXuDyefML57g6m1Az8fKJ4dqr2Jrhr1nXxCHj7rKB5WK2q7Oj7WGpb/GzkkuatDPkGlO3bTtJRoDEqeEaJ0gTgyAZ9CD3HoIxyQEaS6U2IQRsEE2wIMrpqafTWdi+waV0vsCuqVUEFruCsfLXdMKPWbLnikJWuV4JDVEhR15LUzlK9HmAGL4PtTtCPV6/JHnO9/39O9m9j/0r2ujG/SbVXUVMPPYogwLpeyKRUqPOfVPM/KOnr8GmZIllw0Vkj6tAGkLaPhqX/q6qX+/YE36gbUFaF9dVhTIhOAzLUCTM1C9CTUdbalgjRBY3BGWejkE6yIo+R45/Q3T5fTi9+WedUw26cp5YvTzGZh60l52HHcMx0+u1by6iL4HwKrroOz1Z0DOOxhlK+sKer7Of1RSXfjsvyBC4uYuccz8A1/P6n86vpXA8b8w2lAcqwFWzwSqj+owgfpf6k9EGbg+mvlVOqDx+EOIi2vd72DzTvqvMcBwAA"
+    },
+    {
+      "path": "var/data02-egress-root-regression-20260913T233422502854Z/ruff-stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "encoding": "gzip+base64",
+      "original_bytes": "H4sIAAAAAAAC/wMAAAAAAAAAAAA="
+    },
+    {
+      "path": "var/data02-egress-root-regression-20260913T233422502854Z/ruff-stdout.bin",
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "encoding": "gzip+base64",
+      "original_bytes": "H4sIAAAAAAAC/3PMyVFIzkhNzi5WKEgsLk5NUeQCAJI/hpsTAAAA"
+    },
+    {
+      "path": "var/data02-egress-root-type-gates-20260913T233422593425Z/architecture-delta-stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "encoding": "gzip+base64",
+      "original_bytes": "H4sIAAAAAAAC/wMAAAAAAAAAAAA="
+    },
+    {
+      "path": "var/data02-egress-root-type-gates-20260913T233422593425Z/architecture-delta-stdout.bin",
+      "bytes": 20927,
+      "sha256": "db47464b59995d9dc3b5d6c87374406ac18135224a13df5b9eb386a73fa1d5bd",
+      "encoding": "gzip+base64",
+      "original_bytes": "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"
+    },
+    {
+      "path": "var/data02-egress-root-type-gates-20260913T233422593425Z/debt-ceiling-stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "encoding": "gzip+base64",
+      "original_bytes": "H4sIAAAAAAAC/wMAAAAAAAAAAAA="
+    },
+    {
+      "path": "var/data02-egress-root-type-gates-20260913T233422593425Z/debt-ceiling-stdout.bin",
+      "bytes": 52,
+      "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+      "encoding": "gzip+base64",
+      "original_bytes": "H4sIAAAAAAAC/3MrzclRyK0sqFRISU0qUUhOzczJzEtXKEgsLk5NsVIwUEgtKsovKlbIzAOy0zJzUot5uQBhse7WNAAAAA=="
+    },
+    {
+      "path": "var/data02-egress-root-type-gates-20260913T233422593425Z/incremental-mypy-stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "encoding": "gzip+base64",
+      "original_bytes": "H4sIAAAAAAAC/wMAAAAAAAAAAAA="
+    },
+    {
+      "path": "var/data02-egress-root-type-gates-20260913T233422593425Z/incremental-mypy-stdout.bin",
+      "bytes": 92,
+      "sha256": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b",
+      "encoding": "gzip+base64",
+      "original_bytes": "H4sIAAAAAAAC/w3LMQ6AIBBE0Z6EO0ypnbbewcoTKAyEhLBmN5hwe6n/+1cPgWYHmqCYdRqS9BZRGnaYdA1EKpXeneMdUGadvkibz4alMt9hgKqiBnmM+jHOtHr3AyPDljpcAAAA"
+    },
+    {
+      "path": "var/data02-egress-root-type-gates-20260913T233422593425Z/receipt.json",
+      "bytes": 1067,
+      "sha256": "a2af2a1e1e39f97fa4d7fb8ebc3e9537f423e1c3eff45cccf3a44ebde2224bd4",
+      "encoding": "gzip+base64",
+      "original_bytes": "H4sIAAAAAAAC/8VTy4pTQRDdC/5DuFsn0o/qR+U73ImEerW5mGSGezvgMPjvdiYDKuhmEF0VXVV96tTp009v32w209qpX9Zpt5keaF1Np7tb+v6yiO3XA4WU92ztfrFrU3IWUTBprTVDEe+h5QbRGDnWFFxm7x2TJgdcCasHLzTSBpGjtBd4OZh8uU79eD1uNk+3MCpnOj0Pms+y2MnOnY7b0+PD4+3icwtJv9Bxb1/nPjrdj8La9f7SX0hfQXzGHDNawTR4xCRZKmgtWgO5JiiZiguZgHNTKsUqFUMeS1ob7Tz9gm3L8hO2RXYCELA28eIBqXEDqYi5MQYIhQy8QQZkjCAEmBA9l6ES15SmG/S3uz8poMZ9KzYf5/PnV22v1rKk7DmWEAoUx6KEbkiQnGKNRagm1QjUIqhLVjRTC9S01UTs/+v2tMhh7jaWXWyrduz0Og0YyiDBY/gwLapETjpcUGIBcJnE1/HQIQD5qC0x2rDxcEVs5DWx/gsNruHT774dtW7LX/x1bT7P68F0T31/6XJFDsP+W4dbHz+EuAO/c+l9rFBSeOfczrnBcfD7DjuWh0ErBAAA"
+    },
+    {
+      "path": "candidate-worktree/var/data02-egress-response-final.xml",
+      "bytes": 11248,
+      "sha256": "b117d704920dbe239abcf8a9278b6f9215c06787628a6ae424546521fd652dcf",
+      "encoding": "gzip+base64",
+      "original_bytes": "H4sIAAAAAAAC/92aS3PbNhCA/4pGh15aKiT18KNRcuvRp5yqdDAQsRIRkwCNhyy70//eBShSVCxnYjuGKXs8EsEH8O0S2F3s6uPnbVkMNqA0l2I+TEbxcAAik4yL9XxozSo6H37+9NGANtpy/BoIWsJ8WN25UwN/fti5fnAZu1JKKj0fYq8ryguroG7oa15VwPyxf3Y+nE3xkLuHk1HaNLShZTUfpnE6i+KLKJl8ic8u8X+cjs5m57Oz9Pf4/DLGTnKpTT30LRdJnG+iZIeVUQ2DrKBa19f9cCMruBkxaijJQBhQI3eawBoBNVlxQUXGaUGwWUmhgWS0Mkg/HOw7+cFtmsCWZoYsJbsjUmRAqGDkGqDSRGeyAsIAkRSwRuZ4lF6Mh4MP4ZhrjpLrkposJ8tCZteaLGElFeJmN5YrnAMkN6YiupBmTxrHaVDS3VW8/RtkRu+0inOWGEUFdqEMKXjJe4DYTHKC75ZoimPwe2BESKHAqDu6LOqpkBVAha0W//52Y6X5c0MLC/Xh5RW9+i/KgTJck3H0Fy00/NMV7OxUBUv+eHgubUVNjog6O1lRW7HSI2Klpy/W+H2KNXmfYk3fp1iz6Iuyv0KqnxRHwY1137XnbLyRFUZZbVAKhhjCxVF6USm54chI3ONRLxHdEBoMRiV30aCijAHrJScOi5QYkUK0fenfgYDjXs6VJWVfhTvqJysoLlkdbUVxP5deFzG0gdhdPMSk5ZKvrbQaZzFGrXQNC2/Q9KECkz6hJQdokz6hpf3V2vgA7bxPaJP+LoNpf9Fmb4AGzhu4nEHHzN1VaOSkwkPE4yuOLfwomF74zbDOaTqdRUKaiEaMr7G/N1i/zwHH8I8sXbLorUz1y6CjpPfI+z5lWRXgvCU1UTejdn45ji/j+O8TFcWv1Mkpw09DxnrPhO/EX9GVFHACyF1T/5C5v+bF8y59Vrbtx10JiE9v6yxrTnXug2/eSWo7yxcsBGsyB47kEKHJVTOoyxVvgkS4Juh2CSXftBTuOXyltOD31OBuxN8S7K0JHFDbLHMZmvbGHZ8C6uccxcsV2p7FOE7CxdFPIpvEATeWTyKbxgF3bE2FyFc6fMjR5avNCV7dLQLHGkxp2uBw5VE0nPCou1aljfkL5ixarenclYW8EeuqC/GMsiKjBsLpy1uoNvn5MzqavfLr42hEvcGq0dSRnZBUe015PS6w83C7iudCcoEDcBPQWT5bnbBGJ7GB6Bhy0ktkZquCu3Z0DSeg4bb5tqiVjwo24Osm3GBQuMUOsG9SYEvR4iCamr5q6FLvPVxoUlpsL4HQW1eLsSYL5tl8gFuXgFATOKG48UUfAa6m3wRQ0Knu7wo+4Qw2ThoiRYHBuLTKR+8l5QLnmDUarfXD+L6Dlk5fO2BxQxo0GPg68XmcR80vdh6LDBbre151F8G4h4wMVgXqPdxafRzRapyfbkSCL90VFpydJgWItcmDrVUuNrgOWEtXD/+o+sK55ieChcyRPRGtTpjWN4VLaDwR8qtdrZLEfwYsfSDcCk2zccvhwUo4JK9NecMekLD1Zag6TV3L5dR22xMCctXo0W3Dv8sQvOj3D61nOhbmA9WmRP9+R64LLlBxayFd9kRWjhWlwqd54fTqsz4vrxj9EGrvRJuIyVnndLslt9zk6M/8JPNGTyylFWwXPL2yrpqhdlkT2g3pml1lEJBKSWYzP4t8yRg53D4NzX8hNSLstcT4QQBy8etZdF5vXY0LPxT4WhSqQ2BktN3XwOnKeGUxbzBwWQj90PR/aH+R2z3Wn/4Hck5sN/ArAAA="
+    }
+  ],
+  "boundaries": [
+    "The optional method requests identity encoding by default, preserves explicit caller negotiation, validates the routed dataset before HTTP, and consumes the response body once through the existing TLS/allowlist/timeout/circuit/concurrency/cleanup path.",
+    "Request and response scopes are caller declarations. The method returns parsed payload plus BATCH SHA, byte count and EOF UTC; raw body bytes are not retained in this DTO or persisted.",
+    "The agent's initial 65 tests precede the identity-header change; final root 90 tests include those scenarios. These are repeated and expanded runs, not 155 unique scenarios.",
+    "The expected red failure is the missing default Accept-Encoding; no independent red stdout/stderr files were retained or fabricated.",
+    "No provider, Application, RawAudit, FinancialFact or policy3 adopts this method yet; no historical announcement/availability/native-row-ID repair, PostgreSQL test, VPS deployment or production acceptance is claimed."
+  ],
+  "production_deployed": false,
+  "production_accepted": false,
+  "unit_exit_changed": false,
+  "human_signed": false
+}
