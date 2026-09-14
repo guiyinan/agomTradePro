@@ -18,6 +18,7 @@ docs/deployment/evid09-standard-deployment-preservation-main194-2026-09-14.json 
 docs/deployment/evid09-failed-main194-facade-lifecycle-2026-09-14.json text eol=lf
 docs/testing/data02-original-financial-body-store-platform-validation-2026-09-14.json text eol=lf
 docs/testing/evid09-failed-vps-isolated-test-creation-2026-09-14.json text eol=lf
+docs/testing/research-r4-controlled-branch-increment-2026-09-14.json text eol=lf
 docs/deployment/sprint-preflight-readonly-2026-09-10-122373b1.json text eol=lf
 docs/deployment/sprint-successor-readonly-2026-09-10-dba9ab2c.json text eol=lf
 docs/testing/sprint-local-checkpoint-2026-09-10.json text eol=lf
