@@ -45,6 +45,17 @@ calibration → R2 trial promotion。task_monitor 与 signal 已有合格实际�
 全 Domain 基线为 4033/5032 分支（80.147%），达到 90% 至少需 496 个额外分支。
 每个切片保留同源前后覆盖，合并后再测全 Research，禁止将切片比例直接写成全模块结果。
 
+R1 forecast promotion decision 的有界切片已完成。它只覆盖
+`apps/research/domain/r1_forecast_promotion_decision.py` 及列明的 Research
+unit scopes；生产 Domain 文件、provider、持久化、策略和生产验收均未改变。
+最终 55 tests exit 0，目标文件分支覆盖从 89/134 提升至 129/134，关闭 40
+个 baseline missing arcs；statement coverage 为 389/394。五条剩余 arcs
+仍是当前不可变 Equity 构造器在上游排除的空 forecast、跨 scope、错误 authority
+或非 research 输入路径，未用 `object.__new__` 等方式伪造对象。该切片的完整
+原件和 hash 见 [R1 seal](../testing/research-r1-forecast-promotion-controlled-branch-increment-2026-09-14.json)。
+它是独立测试证据，不能加算为全 Research 90% 或生产 readiness；测试提交可单独
+回滚而不影响运行时。
+
 ## 尚需真实来源的输入
 
 State 与 R4 补测已分别通过独立审核和 CI，并合并。环境修复后的全 Research 实际重测为
@@ -65,6 +76,19 @@ combined 值为 `90.559%`；分支 90% 门槛需要 `4529/5032`，当前还差 3
 这次全量结果更新当前分支事实，但仍不是生产验收，也不把 R7 选定切片的增量
 与旧 1014 或全 Research 分支分母重复相加。完整原件与 14 项引用见
 [当前全量封存](../testing/research-whole-domain-current-coverage-r7-full-2026-09-14.json)。
+
+在保留上述历史原件且不将 R1/R2 窄切片增量相加的前提下，HEAD
+`e68150f509daa47b54702dd4a3a6cb5e0c31e816` 的最新完整本地 SQLite 测量为
+`1048 passed`、exit 0；JUnit 为 1048 tests、0 failures、0 errors、0 skipped，
+用时 444.647 秒（runner wall 469.508 秒）。63 个 Research Domain 文件的 raw、
+canonical LF、Git blob OID 与 Git 内容 SHA before/after 均一致。covered
+lines/statements 为 `12736/13546 = 94.0204%`，branches 为
+`4231/5032 = 84.0819%`，coverage.py combined 值为 `91.3285%`；分支 90%
+门槛需要 `4529/5032`，当前还差 298 条。完整原始 stdout/stderr、JUnit、coverage、
+63-file source snapshots 与独立复核见
+[`R1 后当前全量封存`](../testing/research-whole-domain-current-after-r1-2026-09-14.json)。
+该结果仍是本地 Research unit 取证，不是 PostgreSQL、VPS、供应商或生产验收，
+也不宣称将窄切片的分支数叠加到全量结果。
 
 生产 inventory 中没有 `equity.financial.fact` 出网规则。现有 provider 行上的凭据存在性
 不证明解密、令牌、网络或供应商权限有效；配置和请求须按实际值验证，禁止生成假凭据。
