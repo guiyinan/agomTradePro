@@ -1,0 +1,140 @@
+{
+  "schema": "data02.rejected-financial-response-production-retest.v1",
+  "sealed_at_utc": "2026-09-14T14:27:07.334792+00:00",
+  "status": "rejected_response_retention_verified",
+  "source_revision": "ba1605fa229b8ae8c59114af158cdf58b8f144fa",
+  "container_id": "e07a1f3e0739c84d8deff89fc4e9a93a8e7de0f35f05abc03bb8b88c812f5b22",
+  "image_id": "sha256:d407e93e685f99e4b0442f717b54796cb43ec8d2428f6d5430638157d4d81c1e",
+  "production_identity_unchanged": true,
+  "actual_exit": 0,
+  "provider_method_invocations": 1,
+  "transport_attempts_observed": 1,
+  "original_business_exception_rethrown": true,
+  "business_exception_code": "TUSHARE_PROVIDER_REJECTED",
+  "vendor_response_code": 2003,
+  "artifact": {
+    "audit": {
+      "raw_audit_id": "38591",
+      "content_hash": "33b3e89b56cb678aaca407d41694de70d68578cc02d890a6ed92f52a4e95e8e6",
+      "capability": "financial_response_failure",
+      "status": "error",
+      "error_code": "TUSHARE_PROVIDER_REJECTED",
+      "fetched_at": "2026-09-14T14:25:27.335567+00:00",
+      "row_count": 0,
+      "payload_size_bytes": 62,
+      "request_params_hash": "bd28298facb77288649521e821dc43c277a3d92b1bb7ab5216fec3cdce40c16c"
+    },
+    "egress": {
+      "request_id": "4a516de7-720a-4c64-8451-758bcb1e695f",
+      "attempt_count": 1,
+      "attempts": [
+        {
+          "provider_id": 2,
+          "dataset_key": "equity.financial.fact",
+          "target_host": "quantdata888.duckdns.org",
+          "deployment_region": "unknown",
+          "rule_id": 1,
+          "egress_id": null,
+          "attempt": 1,
+          "outcome": "success",
+          "error_code": null,
+          "latency_ms": 3156.998,
+          "created_at": "2026-09-14T14:25:27.353377+00:00"
+        }
+      ],
+      "single_transport_attempt_observed": true
+    },
+    "reference": {
+      "capture_id": "4a516de7-720a-4c64-8451-758bcb1e695f",
+      "location": "financial-response:///v1/4a516de7-720a-4c64-8451-758bcb1e695f.frb",
+      "format_version": "financial-response-body-fernet-v1",
+      "encryption_algorithm": "fernet-aes128cbc-hmacsha256",
+      "encryption_key_version": "v1",
+      "body_sha256": "35ba26f87d91ef9dc82fca593ad117b3ed293089ce1fae9d2fd0b5f12fa8825c",
+      "body_size_bytes": 62,
+      "response_completed_at": "2026-09-14T14:25:27.335567+00:00",
+      "request_scope": {
+        "provider_name": "Tushare Pro",
+        "dataset_key": "equity.financial.fact",
+        "asset_code": "000001.SZ",
+        "period_limit": 1
+      },
+      "response_scope": {
+        "asset_codes": [
+          "000001.SZ"
+        ],
+        "period_ends": [],
+        "row_count": 0
+      },
+      "response_scope_basis": "caller_declared",
+      "body_scope": "batch_response_body"
+    },
+    "decrypted_body_sha256": "35ba26f87d91ef9dc82fca593ad117b3ed293089ce1fae9d2fd0b5f12fa8825c",
+    "decrypted_body_size_bytes": 62,
+    "vendor_response_code": 2003,
+    "vendor_payload_decode": "object",
+    "disk": {
+      "path": "/app/var/data02-financial-response-artifacts/v1/4a516de7-720a-4c64-8451-758bcb1e695f.frb",
+      "encrypted_bytes": 1272,
+      "encrypted_sha256": "45c860cc1e184b8a6747a7892aeb3ec2d0c4f051f7536644287320671a535bc5",
+      "fernet_verified": true,
+      "fra1_plaintext_magic_verified": true
+    },
+    "audit_link_verified": true,
+    "failure_audit": true,
+    "native_source_record_id": null,
+    "announcement_at": null,
+    "available_at": null
+  },
+  "response_body_retention_passed": true,
+  "financial_fact_written": false,
+  "historical_repair_performed": false,
+  "data02_unit_exit_passed": false,
+  "signed_acceptance": false,
+  "prior_dns_failed_observation_preserved": true,
+  "limits": [
+    "This fresh rejected response is replayable; the earlier memory-only 62-byte response remains unreplayable despite matching raw SHA.",
+    "Response completion time is not financial availability or announcement time.",
+    "Native row identity, precise availability, historical raw hashes and successful financial production acceptance remain unresolved.",
+    "No route, timeout, key or permission change was made by this retest.",
+    "Full 19-ledger deployment preservation remains unproven; the separately collected after snapshot is not a before comparison.",
+    "Remote command stdout/stderr are recorded by byte count and SHA in the original operator receipt, rather than retained here as complete binary streams."
+  ],
+  "artifacts": [
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-reviewed-rollback-operator-capture-20260914T142508198263Z.json",
+      "bytes": 1692,
+      "sha256": "cab1eb31c3986aeec5fddd67ae11500519d64e0533125a736c78ce95f17e65cd"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-financial-rejected-response-20260914T142509360612Z-32f978ecd4b04ff8acf82b0de156e564.json",
+      "bytes": 9196,
+      "sha256": "7c3c9743a4ef21a7af26b3d1b790bc8b970a5a6367e700ba4b629fdb8dfd3cc5"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-egress-dns-20260914T142349243499Z-628ba82a548a4b1f980bb4b699202c16.json",
+      "bytes": 6976,
+      "sha256": "80fc1baa91e0215c05aa668671c5cc083cca530eb11c87b70c351978cf560249"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\root_data02_verify_rejected_financial_response_operator_v4_20260914.py",
+      "bytes": 32160,
+      "sha256": "1040aabc6f863b421e041a3d9648982317384d6c60e32797f7af62e057715482"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-reviewed-rollback-operator-capture-20260914T142348225400Z.json",
+      "bytes": 1772,
+      "sha256": "a22a6e5d9ac97afda0a2686c460580d4c448929a8f44533eaf746e9c4f212978"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-reviewed-rollback-capture-ku1xb6ts\\stdout.bin",
+      "bytes": 414,
+      "sha256": "6ab3c305afc1b8b929d25c44f43c160243f5aedcea9097a03aa4cfc165ffb346"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-reviewed-rollback-capture-ku1xb6ts\\stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

@@ -1,0 +1,159 @@
+{
+  "schema": "data02.rejected-response-deployment-validation.v1",
+  "sealed_at_utc": "2026-09-14T14:18:51.820744+00:00",
+  "status": "deployment_passed_request_dns_blocked",
+  "source_before": "f121000df1276472f172a93c16961fa74f433192",
+  "source_after": "ba1605fa229b8ae8c59114af158cdf58b8f144fa",
+  "container_after": "e07a1f3e0739c84d8deff89fc4e9a93a8e7de0f35f05abc03bb8b88c812f5b22",
+  "image_after": "sha256:d407e93e685f99e4b0442f717b54796cb43ec8d2428f6d5430638157d4d81c1e",
+  "deployment": {
+    "actual_exit": 0,
+    "https_health": 200,
+    "critical_git_release_live_matches": 41,
+    "root_and_revocation_rows_preserved": true,
+    "publication_policy_rows_preserved": 14,
+    "catalog_rowsets_preserved": 3,
+    "published_current_metadata_preserved": 4,
+    "runtime_profile_and_encrypted_secret_rows_preserved": true
+  },
+  "full_ledger_scope": {
+    "after_snapshot_ledgers": 19,
+    "before_rpc_snapshot_ledgers": null,
+    "full_19_deployment_preservation_proven": false,
+    "limitation": "Before collector measures Authority roots/revocations only; full 19-ledger preservation needs a separately verified backup-derived before comparison."
+  },
+  "actual_request": {
+    "provider_method_invocations": 1,
+    "business_exception_code": "EGRESS_DNS_TIMEOUT",
+    "original_exception_rethrown": true,
+    "failure_audit_candidates": 0,
+    "success_audit_candidates": 0,
+    "response_body_retention_passed": false,
+    "http_attempt_count_verified_by_this_seal": false
+  },
+  "failed_preparation_attempts_preserved": 2,
+  "preflight": {
+    "configuration_ready": true,
+    "provider_method_invocations": 0,
+    "egress_attempts_since_failed_preparation": 0,
+    "read_only_show": "on"
+  },
+  "limits": [
+    "No response bytes, EOF, raw SHA or FRA1 replay from the DNS-blocked request.",
+    "Historical 62-byte response cannot be reconstructed.",
+    "Native row identity, precise availability and historical raw hashes remain unresolved.",
+    "Remote backup verified; ongoing local download is not classified as verified.",
+    "6760 inventory predecessor only derives candidate file scope; actual measured deployment is f121 to ba1605.",
+    "Full 19-ledger before RPC snapshot was not collected.",
+    "No production database restore, backfill, route/key/permission change or business signature."
+  ],
+  "data02_unit_exit_passed": false,
+  "signed_acceptance": false,
+  "artifacts": [
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-actual-preflight-20260914T140316706357Z.json",
+      "bytes": 924,
+      "sha256": "6f27cad1be70acf831af451aac42252a9f5d71c0201c698ae44799aa207c11b3"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-financial-rejected-response-20260914T135749994897Z-1789bf6658c841d381b089bb7968d10b.json",
+      "bytes": 2541,
+      "sha256": "d5fe0b8fb68c3243119d59d5af6c85b5e906f2f555a65db20480299276a527cc"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-financial-rejected-response-20260914T140056992690Z-72ad9d97dda34fbea5f1a9d7166818e9.json",
+      "bytes": 5296,
+      "sha256": "f14cebf7ec6c9d40795839f55b5368cca7e600454778c7e1eb959bcc64e16be3"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-financial-rejected-response-20260914T140417105128Z-197ae66268a44d6fad0c0d68f8a15101.json",
+      "bytes": 6317,
+      "sha256": "7006580b73729435a1faf54c2fb7addf2926cf19f6c0e82de8e15e9b5e4a58d0"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-pr68-after-profile-preservation-20260914T135629760020Z.json",
+      "bytes": 2429,
+      "sha256": "210dd10fd0a42c5ade234ee895591aa12450382bf1f105629a96675d9a12050c"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-pr68-after-profile-preservation-20260914T141625836577Z.json",
+      "bytes": 40158,
+      "sha256": "96cc60045255a6f8fcf42c4a6125dde5c9a944359579499c482806c9636de703"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-pr68-before-profile-preservation-20260914T133923619690Z.json",
+      "bytes": 2429,
+      "sha256": "d1ff00805e508ae05140e85204fd36071c8c997456ed083b6a50d15fe09ba611"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-facade-standard-deployment-capture-20260914T133722327676Z.json",
+      "bytes": 1931,
+      "sha256": "d2c40f9013599718985d4cd4899987744a40f254f52376d396b9d06cd32eef1c"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-remote-backup-independent-20260914T141312859016Z.json",
+      "bytes": 524,
+      "sha256": "6d6ab0c6226da26a08b6f038858740135147cb127257d123ac546a9810e0c969"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-reviewed-rollback-operator-capture-20260914T133533649801Z.json",
+      "bytes": 1455,
+      "sha256": "fbd0c9897ca9b645f36b2877eba7b08771751b00a3616e64d1cc0310c8cf251f"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-reviewed-rollback-operator-capture-20260914T135609967218Z.json",
+      "bytes": 1454,
+      "sha256": "6f69c33e6368c66f2440c26260519858debca1179f2a7cc377e68f5b0ef6d9d4"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-reviewed-rollback-operator-capture-20260914T135749206706Z.json",
+      "bytes": 1694,
+      "sha256": "5b56a9e4ed6feee9c005c12668b2dc9bf18a3879fec6f3c40f0ef48d317a467e"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-reviewed-rollback-operator-capture-20260914T140056233883Z.json",
+      "bytes": 1693,
+      "sha256": "bbc5fcf5ac94b99c9fc24bd018d6c69cd8fecfd237dd7b2f9c128d5226d816ca"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-reviewed-rollback-operator-capture-20260914T140416274488Z.json",
+      "bytes": 1694,
+      "sha256": "f9e8717bad9eea00f1cb762001627f528d7e38678db6ee48468549ccdd3d366a"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-v5-deployment-20260914T133351442350Z-after-identity.json",
+      "bytes": 12413,
+      "sha256": "6c3280e271c43661ade7b6e3756b192cc8f7bb6cb134de4814b165ce1d738cc8"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-v5-deployment-20260914T133351442350Z-after-runtime-preservation.json",
+      "bytes": 10351,
+      "sha256": "2dc01fa458143ea0be00533d269f7e446f21c3b2006d7ad7f5813f015dfc7047"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-v5-deployment-20260914T133351442350Z-authority-ledgers-after-deployment.json",
+      "bytes": 1047,
+      "sha256": "0e6cf7f4efbf4770ab436eb4032860bdbcb3d8d70e09af5d77e3ab91b4f6d394"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-v5-deployment-20260914T133351442350Z-authority-ledgers-before.json",
+      "bytes": 1037,
+      "sha256": "b3040b7d0f28ddb057281775de18e7a0f2a7a2095bb2d198954f7be4fb85b398"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-v5-deployment-20260914T133351442350Z-before-identity.json",
+      "bytes": 12219,
+      "sha256": "5bc3f6feb3b788a65645ebe6416d30e971334a34e973c9ae6f703c4b201e1b86"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-v5-deployment-20260914T133351442350Z-before-runtime-preservation.json",
+      "bytes": 10352,
+      "sha256": "a5be9448055d39de983e0cca9b952e9b1a6604929c978ad3b01280f0a3ea3126"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\root-pr68-merged-head-ci-20260914.json",
+      "bytes": 9324,
+      "sha256": "df3107d62ef34788b66d0c8f9913ddb903c622d0839c85541f0544658b4bd8ca"
+    }
+  ]
+}
