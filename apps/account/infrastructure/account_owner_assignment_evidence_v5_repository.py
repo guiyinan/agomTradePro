@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Iterator
-from contextlib import contextmanager, nullcontext
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol, TypeVar
@@ -30,7 +30,8 @@ from apps.account.application.account_owner_assignment_evidence_v5 import (
     PersistedAccountOwnerAssignmentEvidenceV5,
 )
 from apps.account.application.account_owner_assignment_evidence_v5_read_phases import (
-    AccountOwnerAssignmentEvidenceV5ReadPhase,
+    _bind_evidence_v5_read_phase_owner,
+    _current_evidence_v5_read_phase_owner,
 )
 from apps.account.application.account_owner_assignment_subject_v5 import (
     AccountOwnerAssignmentSubjectV5Conflict,
@@ -86,7 +87,10 @@ from apps.account.infrastructure.physical_account_row_observation_v2_models impo
 from apps.account.infrastructure.single_owner_authority_policy_v1_models import (
     SingleOwnerAuthorityPolicyV1Model,
 )
-from shared.infrastructure.immutable_read_snapshot import suspend_immutable_read_reuse
+from shared.infrastructure.immutable_read_snapshot import (
+    isolated_immutable_read_snapshot,
+    suspend_immutable_read_reuse,
+)
 
 
 class AccountOwnerAssignmentEvidenceV5Clock(Protocol):
@@ -118,21 +122,36 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
         *,
         using: str = "default",
         clock: AccountOwnerAssignmentEvidenceV5Clock | None = None,
-        read_phase: AccountOwnerAssignmentEvidenceV5ReadPhase | None = None,
     ) -> None:
-        """Bind the graph to one alias, clock, and optional isolated read phase."""
+        """Bind the graph to one alias and optional test clock."""
         if type(using) is not str or not using or using.strip() != using:
             raise ValueError("using must be an exact database alias")
-        if read_phase is not None and not callable(read_phase):
-            raise TypeError("read_phase must return a context manager")
         self._using = using
         self._clock = clock
-        self._read_phase = read_phase if read_phase is not None else nullcontext
         self._uow: object | None = None
         self._subjects = DjangoAccountOwnerAssignmentSubjectV5Repository(using=using, clock=clock)
         self._actors = DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository(
             using=using, clock=clock
         )
+
+    @contextmanager
+    def read_phase(self) -> Iterator[None]:
+        """Provide a fresh repository-owned cache for one application read group."""
+
+        with suspend_immutable_read_reuse():
+            with isolated_immutable_read_snapshot():
+                with _bind_evidence_v5_read_phase_owner(self):
+                    yield
+
+    @contextmanager
+    def _getter_phase(self) -> Iterator[None]:
+        """Reuse this repository's active phase or create a fresh fallback phase."""
+
+        if _current_evidence_v5_read_phase_owner() is self:
+            yield
+            return
+        with self.read_phase():
+            yield
 
     @contextmanager
     def atomic(self) -> Iterator[None]:
@@ -162,31 +181,33 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
     ) -> AccountOwnerAssignmentSubjectV5 | None:
         """Return the exact subject first winner knowable by the cutoff."""
         _selectors(subject_id, subject_version)
-        cutoff = self._read_cutoff(as_of)
-        return _single(
-            tuple(
-                value
-                for _, value in self._world(cutoff).subjects
-                if (value.subject_id, value.subject_version) == (subject_id, subject_version)
-                and value.requested_at <= cutoff
+        with self._getter_phase():
+            cutoff = self._read_cutoff(as_of)
+            return _single(
+                tuple(
+                    value
+                    for _, value in self._world(cutoff).subjects
+                    if (value.subject_id, value.subject_version) == (subject_id, subject_version)
+                    and value.requested_at <= cutoff
+                )
             )
-        )
 
     def get_winner(
         self, *, evidence_id: str, evidence_version: str, as_of: datetime
     ) -> PersistedAccountOwnerAssignmentEvidenceV5 | None:
         """Return the immutable evidence first winner after full-world verification."""
         _selectors(evidence_id, evidence_version)
-        cutoff = self._read_cutoff(as_of)
-        return _single(
-            tuple(
-                record
-                for _, record in self._world(cutoff).evidence
-                if (record.evidence.evidence_id, record.evidence.evidence_version)
-                == (evidence_id, evidence_version)
-                and record.evidence.recorded_at <= cutoff
+        with self._getter_phase():
+            cutoff = self._read_cutoff(as_of)
+            return _single(
+                tuple(
+                    record
+                    for _, record in self._world(cutoff).evidence
+                    if (record.evidence.evidence_id, record.evidence.evidence_version)
+                    == (evidence_id, evidence_version)
+                    and record.evidence.recorded_at <= cutoff
+                )
             )
-        )
 
     def get_exact_by_hash(
         self,
@@ -198,33 +219,35 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
     ) -> PersistedAccountOwnerAssignmentEvidenceV5 | None:
         """Return only the selected historical evidence seal."""
         _digest(expected_content_hash)
-        record = self.get_winner(
-            evidence_id=evidence_id, evidence_version=evidence_version, as_of=as_of
-        )
-        return (
-            record
-            if record is not None and record.evidence.content_hash == expected_content_hash
-            else None
-        )
+        with self._getter_phase():
+            record = self.get_winner(
+                evidence_id=evidence_id, evidence_version=evidence_version, as_of=as_of
+            )
+            return (
+                record
+                if record is not None and record.evidence.content_hash == expected_content_hash
+                else None
+            )
 
     def get_account_head(
         self, *, account_namespace: str, account_id: str, as_of: datetime
     ) -> PersistedAccountOwnerAssignmentEvidenceV5 | None:
         """Return the account root even if expired; never make an expired slot reusable."""
         _selectors(account_namespace, account_id)
-        cutoff = self._read_cutoff(as_of)
-        return _single(
-            tuple(
-                record
-                for _, record in self._world(cutoff).evidence
-                if record.evidence.recorded_at <= cutoff
-                and (
-                    record.evidence.subject.binding.account_namespace_claim,
-                    record.evidence.subject.binding.account_id_claim,
+        with self._getter_phase():
+            cutoff = self._read_cutoff(as_of)
+            return _single(
+                tuple(
+                    record
+                    for _, record in self._world(cutoff).evidence
+                    if record.evidence.recorded_at <= cutoff
+                    and (
+                        record.evidence.subject.binding.account_namespace_claim,
+                        record.evidence.subject.binding.account_id_claim,
+                    )
+                    == (account_namespace, account_id)
                 )
-                == (account_namespace, account_id)
             )
-        )
 
     def get_underlying_head(
         self,
@@ -237,19 +260,20 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
         _selectors(underlying_unified_account_namespace)
         if type(underlying_unified_account_id) is not int or underlying_unified_account_id <= 0:
             raise ValueError("underlying account id must be a positive integer")
-        cutoff = self._read_cutoff(as_of)
-        return _single(
-            tuple(
-                record
-                for _, record in self._world(cutoff).evidence
-                if record.evidence.recorded_at <= cutoff
-                and (
-                    record.evidence.subject.binding.underlying_unified_account_namespace_claim,
-                    record.evidence.subject.binding.underlying_unified_account_id_claim,
+        with self._getter_phase():
+            cutoff = self._read_cutoff(as_of)
+            return _single(
+                tuple(
+                    record
+                    for _, record in self._world(cutoff).evidence
+                    if record.evidence.recorded_at <= cutoff
+                    and (
+                        record.evidence.subject.binding.underlying_unified_account_namespace_claim,
+                        record.evidence.subject.binding.underlying_unified_account_id_claim,
+                    )
+                    == (underlying_unified_account_namespace, underlying_unified_account_id)
                 )
-                == (underlying_unified_account_namespace, underlying_unified_account_id)
             )
-        )
 
     def _read_cutoff(self, as_of: datetime) -> datetime:
         """Validate a read cutoff even when the phase cache returns a world."""
@@ -277,7 +301,7 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
         if expected_account_head_hash is not None or expected_underlying_head_hash is not None:
             raise AccountOwnerAssignmentEvidenceV5Conflict("assignment evidence v5 is root-only")
         self._lock_world(evidence.policy.policy_id)
-        with self._read_phase():
+        with self.read_phase():
             world = self._world(recorded_at)
             subjects = tuple(row for row, value in world.subjects if value == evidence.subject)
             if len(subjects) != 1:
@@ -304,7 +328,7 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
             values = _evidence_values(checked, subjects[0].pk, actor_pk)
         with suspend_immutable_read_reuse():
             self._insert(AccountOwnerAssignmentEvidenceV5Model, values)
-        with self._read_phase():
+        with self.read_phase():
             restored = self.get_winner(
                 evidence_id=evidence.evidence_id,
                 evidence_version=evidence.evidence_version,

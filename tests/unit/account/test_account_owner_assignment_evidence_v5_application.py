@@ -138,6 +138,11 @@ class _Repository:
 
         return nullcontext()
 
+    def read_phase(self) -> AbstractContextManager[None]:
+        """Return a no-op repository-owned phase for this in-memory double."""
+
+        return nullcontext()
+
     def now(self) -> datetime:
         """Return the next deterministic repository clock."""
 

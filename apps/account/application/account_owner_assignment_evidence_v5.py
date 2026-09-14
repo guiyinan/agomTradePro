@@ -213,6 +213,10 @@ class CurrentSingleOwnerParticipantsReader(Protocol):
 class AccountOwnerAssignmentEvidenceV5Repository(Protocol):
     """Persist Subject V5 and root Evidence V5 with first-winner/CAS semantics."""
 
+    def read_phase(self) -> AbstractContextManager[None]:
+        """Return the repository-owned fresh read phase for one source group."""
+        ...
+
     def atomic(self) -> AbstractContextManager[None]:
         """Open the repository unit of work for one approval or replay."""
         ...
@@ -573,88 +577,92 @@ class ApproveAccountOwnerAssignmentEvidenceV5:
             )
         command.__post_init__()
         with self._repository.atomic():
-            with self._read_phase():
-                cutoff = _clock(self._repository.now())
-                winner = _record(
-                    self._repository.get_winner(
-                        evidence_id=command.evidence_id,
-                        evidence_version=command.evidence_version,
-                        as_of=cutoff,
+            with self._repository.read_phase():
+                with self._read_phase():
+                    cutoff = _clock(self._repository.now())
+                    winner = _record(
+                        self._repository.get_winner(
+                            evidence_id=command.evidence_id,
+                            evidence_version=command.evidence_version,
+                            as_of=cutoff,
+                        )
                     )
-                )
-                if winner is not None:
-                    evidence = winner.evidence
-                    if evidence.recorded_at > cutoff:
-                        raise AccountOwnerAssignmentEvidenceV5Corruption(
-                            "repository returned future Evidence V5"
-                        )
-                    if not _evidence_matches(evidence, command):
-                        raise AccountOwnerAssignmentEvidenceV5Conflict(
-                            "Evidence V5 identity has another winner"
-                        )
-                    if not evidence.is_current_at(cutoff):
-                        raise AccountOwnerAssignmentEvidenceV5Conflict(
-                            "Evidence V5 winner is no longer current"
-                        )
-                    try:
-                        current = _read_approval_inputs(
+                    if winner is not None:
+                        evidence = winner.evidence
+                        if evidence.recorded_at > cutoff:
+                            raise AccountOwnerAssignmentEvidenceV5Corruption(
+                                "repository returned future Evidence V5"
+                            )
+                        if not _evidence_matches(evidence, command):
+                            raise AccountOwnerAssignmentEvidenceV5Conflict(
+                                "Evidence V5 identity has another winner"
+                            )
+                        if not evidence.is_current_at(cutoff):
+                            raise AccountOwnerAssignmentEvidenceV5Conflict(
+                                "Evidence V5 winner is no longer current"
+                            )
+                        try:
+                            current = _read_approval_inputs(
+                                self._repository,
+                                self._subjects,
+                                self._participants,
+                                ApproveAccountOwnerAssignmentEvidenceV5Command(
+                                    evidence_id=evidence.evidence_id,
+                                    evidence_version=evidence.evidence_version,
+                                    subject_id=evidence.subject.subject_id,
+                                    subject_version=evidence.subject.subject_version,
+                                    expected_subject_content_hash=evidence.subject.content_hash,
+                                ),
+                                cutoff,
+                            )
+                            if not _matches_record(current, winner):
+                                raise AccountOwnerAssignmentEvidenceV5Conflict(
+                                    "Evidence V5 winner source changed"
+                                )
+                            account_head, underlying_head = _read_heads(
+                                self._repository, current.subject, cutoff
+                            )
+                            if account_head != winner or underlying_head != winner:
+                                raise AccountOwnerAssignmentEvidenceV5Conflict(
+                                    "Evidence V5 winner mapping heads changed"
+                                )
+                        except AccountOwnerAssignmentEvidenceV5Unavailable as error:
+                            raise AccountOwnerAssignmentEvidenceV5Conflict(
+                                "Evidence V5 winner no longer has current sources"
+                            ) from error
+                    else:
+                        first = _read_approval_inputs(
                             self._repository,
                             self._subjects,
                             self._participants,
-                            ApproveAccountOwnerAssignmentEvidenceV5Command(
-                                evidence_id=evidence.evidence_id,
-                                evidence_version=evidence.evidence_version,
-                                subject_id=evidence.subject.subject_id,
-                                subject_version=evidence.subject.subject_version,
-                                expected_subject_content_hash=evidence.subject.content_hash,
-                            ),
+                            command,
                             cutoff,
                         )
-                        if not _matches_record(current, winner):
-                            raise AccountOwnerAssignmentEvidenceV5Conflict(
-                                "Evidence V5 winner source changed"
-                            )
-                        account_head, underlying_head = _read_heads(
-                            self._repository, current.subject, cutoff
-                        )
-                        if account_head != winner or underlying_head != winner:
-                            raise AccountOwnerAssignmentEvidenceV5Conflict(
-                                "Evidence V5 winner mapping heads changed"
-                            )
-                    except AccountOwnerAssignmentEvidenceV5Unavailable as error:
-                        raise AccountOwnerAssignmentEvidenceV5Conflict(
-                            "Evidence V5 winner no longer has current sources"
-                        ) from error
-                else:
-                    first = _read_approval_inputs(
-                        self._repository,
-                        self._subjects,
-                        self._participants,
-                        command,
-                        cutoff,
-                    )
-                    _require_empty_heads(*_read_heads(self._repository, first.subject, cutoff))
+                        _require_empty_heads(*_read_heads(self._repository, first.subject, cutoff))
             if winner is not None:
                 return evidence
             try:
-                with self._read_phase():
-                    recorded_at = _clock(self._repository.now())
-                    if recorded_at < cutoff:
-                        raise AccountOwnerAssignmentEvidenceV5Corruption(
-                            "repository clock moved backwards"
+                with self._repository.read_phase():
+                    with self._read_phase():
+                        recorded_at = _clock(self._repository.now())
+                        if recorded_at < cutoff:
+                            raise AccountOwnerAssignmentEvidenceV5Corruption(
+                                "repository clock moved backwards"
+                            )
+                        final = _read_approval_inputs(
+                            self._repository,
+                            self._subjects,
+                            self._participants,
+                            command,
+                            recorded_at,
                         )
-                    final = _read_approval_inputs(
-                        self._repository,
-                        self._subjects,
-                        self._participants,
-                        command,
-                        recorded_at,
-                    )
-                    if not _same_approval_inputs(first, final):
-                        raise AccountOwnerAssignmentEvidenceV5Conflict(
-                            "Evidence V5 sources changed during approval"
+                        if not _same_approval_inputs(first, final):
+                            raise AccountOwnerAssignmentEvidenceV5Conflict(
+                                "Evidence V5 sources changed during approval"
+                            )
+                        _require_empty_heads(
+                            *_read_heads(self._repository, final.subject, recorded_at)
                         )
-                    _require_empty_heads(*_read_heads(self._repository, final.subject, recorded_at))
             except AccountOwnerAssignmentEvidenceV5Unavailable as error:
                 raise AccountOwnerAssignmentEvidenceV5Conflict(
                     "Evidence V5 sources changed during approval"
@@ -782,51 +790,52 @@ class GetCurrentAccountOwnerAssignmentEvidenceV5:
                 "command must be an exact GetCurrentAccountOwnerAssignmentEvidenceV5Command"
             )
         command.__post_init__()
-        with self._read_phase():
-            record = _record(
-                self._repository.get_exact_by_hash(
-                    evidence_id=command.evidence_id,
-                    evidence_version=command.evidence_version,
-                    expected_content_hash=command.expected_content_hash,
-                    as_of=command.as_of,
+        with self._repository.read_phase():
+            with self._read_phase():
+                record = _record(
+                    self._repository.get_exact_by_hash(
+                        evidence_id=command.evidence_id,
+                        evidence_version=command.evidence_version,
+                        expected_content_hash=command.expected_content_hash,
+                        as_of=command.as_of,
+                    )
                 )
-            )
-            if record is None:
-                return None
-            evidence = record.evidence
-            if not _evidence_selector_matches(evidence, command):
-                raise AccountOwnerAssignmentEvidenceV5Corruption(
-                    "current Evidence V5 selector substitution"
+                if record is None:
+                    return None
+                evidence = record.evidence
+                if not _evidence_selector_matches(evidence, command):
+                    raise AccountOwnerAssignmentEvidenceV5Corruption(
+                        "current Evidence V5 selector substitution"
+                    )
+                if not evidence.is_current_at(command.as_of):
+                    return None
+                approval = ApproveAccountOwnerAssignmentEvidenceV5Command(
+                    evidence_id=evidence.evidence_id,
+                    evidence_version=evidence.evidence_version,
+                    subject_id=evidence.subject.subject_id,
+                    subject_version=evidence.subject.subject_version,
+                    expected_subject_content_hash=evidence.subject.content_hash,
                 )
-            if not evidence.is_current_at(command.as_of):
-                return None
-            approval = ApproveAccountOwnerAssignmentEvidenceV5Command(
-                evidence_id=evidence.evidence_id,
-                evidence_version=evidence.evidence_version,
-                subject_id=evidence.subject.subject_id,
-                subject_version=evidence.subject.subject_version,
-                expected_subject_content_hash=evidence.subject.content_hash,
-            )
-            try:
-                inputs = _read_approval_inputs(
-                    self._repository,
-                    self._subjects,
-                    self._participants,
-                    approval,
-                    command.as_of,
+                try:
+                    inputs = _read_approval_inputs(
+                        self._repository,
+                        self._subjects,
+                        self._participants,
+                        approval,
+                        command.as_of,
+                    )
+                except AccountOwnerAssignmentEvidenceV5Unavailable:
+                    return None
+                if not _matches_record(inputs, record):
+                    return None
+                account_head, underlying_head = _read_heads(
+                    self._repository, evidence.subject, command.as_of
                 )
-            except AccountOwnerAssignmentEvidenceV5Unavailable:
-                return None
-            if not _matches_record(inputs, record):
-                return None
-            account_head, underlying_head = _read_heads(
-                self._repository, evidence.subject, command.as_of
-            )
-            if account_head is None or underlying_head is None:
-                return None
-            if account_head != record or underlying_head != record:
-                return None
-            return evidence
+                if account_head is None or underlying_head is None:
+                    return None
+                if account_head != record or underlying_head != record:
+                    return None
+                return evidence
 
 
 def _clock(value: object) -> datetime:

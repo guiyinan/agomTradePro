@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from contextlib import AbstractContextManager, contextmanager
+from contextlib import AbstractContextManager, contextmanager, nullcontext
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import cast
@@ -144,9 +144,9 @@ def test_builder_binds_every_v5_reader_and_repository_to_one_alias() -> None:
     assert isinstance(facade._exact, GetExactAccountOwnerAssignmentEvidenceV5)
     assert isinstance(facade._current, GetCurrentAccountOwnerAssignmentEvidenceV5)
     assert isinstance(facade._approve._repository, DjangoAccountOwnerAssignmentEvidenceV5Repository)
-    assert facade._approve._read_phase is composition.isolated_immutable_read_snapshot
-    assert facade._current._read_phase is composition.isolated_immutable_read_snapshot
-    assert facade._approve._repository._read_phase is composition.isolated_immutable_read_snapshot
+    assert facade._approve._read_phase is nullcontext
+    assert facade._current._read_phase is nullcontext
+    assert callable(facade._approve._repository.read_phase)
 
     participants = facade._approve._participants
     assert participants.policies._using == alias

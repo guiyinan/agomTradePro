@@ -88,7 +88,6 @@ from apps.account.infrastructure.single_owner_authority_policy_v1_repository imp
     DjangoSingleOwnerAuthorityPolicyV1Repository,
 )
 from shared.infrastructure.immutable_read_snapshot import (
-    isolated_immutable_read_snapshot,
     suspend_immutable_read_reuse,
 )
 
@@ -272,21 +271,18 @@ def build_account_owner_assignment_evidence_v5_facade(
     )
     evidence_repository = DjangoAccountOwnerAssignmentEvidenceV5Repository(
         using=alias,
-        read_phase=isolated_immutable_read_snapshot,
     )
     approve = ApproveAccountOwnerAssignmentEvidenceV5(
         subject_reader=subject_reader,
         participants_reader=participants,
         repository=evidence_repository,
         validity_period=validity_period,
-        read_phase=isolated_immutable_read_snapshot,
     )
     exact = GetExactAccountOwnerAssignmentEvidenceV5(evidence_repository)
     current = GetCurrentAccountOwnerAssignmentEvidenceV5(
         subject_reader=subject_reader,
         participants_reader=participants,
         repository=evidence_repository,
-        read_phase=isolated_immutable_read_snapshot,
     )
     return AccountOwnerAssignmentEvidenceV5Facade(
         using=alias,
