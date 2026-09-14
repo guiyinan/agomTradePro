@@ -7,17 +7,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from apps.config_center.application.public import (
-    get_runtime_config_value,
-    resolve_config_secret,
-)
-from apps.config_center.application.runtime_public import get_active_runtime_secret_ref
-from apps.config_center.domain.runtime_config import (
-    RuntimeConfigCriticality,
-    RuntimeConfigDefinition,
-    RuntimeConfigReloadMode,
-    RuntimeValueType,
-)
 from apps.data_center.domain.entities import ProviderConfig
 from apps.data_center.infrastructure.financial_response_artifact_repository import (
     FinancialResponseArtifactRepository,
@@ -27,6 +16,12 @@ from apps.data_center.infrastructure.financial_response_body_store import (
     FinancialResponseBodyStore,
 )
 from apps.data_center.infrastructure.provider_state_repositories import RawAuditRepository
+from core.integration.config_center_runtime import (
+    RuntimeConfigDefinitionSpec,
+    get_active_runtime_secret_ref,
+    get_active_runtime_value,
+)
+from core.integration.config_secret_store import resolve_config_secret
 
 ARTIFACT_ENABLED_KEY = "data_center.financial_response_artifact.enabled"
 ARTIFACT_ROOT_KEY = "data_center.financial_response_artifact.root"
@@ -46,58 +41,64 @@ class FinancialResponseArtifactRuntimeConfig:
     max_body_bytes: int
 
 
-def financial_response_artifact_definitions() -> tuple[RuntimeConfigDefinition, ...]:
+def financial_response_artifact_definitions() -> tuple[RuntimeConfigDefinitionSpec, ...]:
     """Return registry definitions without supplying operational defaults."""
 
     return (
-        RuntimeConfigDefinition(
+        RuntimeConfigDefinitionSpec(
             key=ARTIFACT_ENABLED_KEY,
             namespace="data_center.financial_response_artifact",
             owner_app="data_center",
-            value_type=RuntimeValueType.BOOL,
-            criticality=RuntimeConfigCriticality.CRITICAL,
-            reload_mode=RuntimeConfigReloadMode.RESTART_REQUIRED,
+            value_type="bool",
+            criticality="critical",
+            reload_mode="restart_required",
             description="Explicitly enable encrypted financial response retention.",
         ),
-        RuntimeConfigDefinition(
+        RuntimeConfigDefinitionSpec(
             key=ARTIFACT_ROOT_KEY,
             namespace="data_center.financial_response_artifact",
             owner_app="data_center",
-            value_type=RuntimeValueType.STRING,
-            criticality=RuntimeConfigCriticality.CRITICAL,
-            reload_mode=RuntimeConfigReloadMode.RESTART_REQUIRED,
+            value_type="string",
+            criticality="critical",
+            reload_mode="restart_required",
             description="Explicit mounted root for encrypted financial response artifacts.",
         ),
-        RuntimeConfigDefinition(
+        RuntimeConfigDefinitionSpec(
             key=ARTIFACT_ENCRYPTION_KEY,
             namespace="data_center.financial_response_artifact",
             owner_app="data_center",
-            value_type=RuntimeValueType.STRING,
-            criticality=RuntimeConfigCriticality.CRITICAL,
-            reload_mode=RuntimeConfigReloadMode.RESTART_REQUIRED,
+            value_type="string",
+            criticality="critical",
+            reload_mode="restart_required",
             secret=True,
             description="Config Center secret reference for the Fernet key.",
         ),
-        RuntimeConfigDefinition(
+        RuntimeConfigDefinitionSpec(
             key=ARTIFACT_KEY_VERSION_KEY,
             namespace="data_center.financial_response_artifact",
             owner_app="data_center",
-            value_type=RuntimeValueType.STRING,
-            criticality=RuntimeConfigCriticality.CRITICAL,
-            reload_mode=RuntimeConfigReloadMode.RESTART_REQUIRED,
+            value_type="string",
+            criticality="critical",
+            reload_mode="restart_required",
             description="Operator supplied encryption key version.",
         ),
-        RuntimeConfigDefinition(
+        RuntimeConfigDefinitionSpec(
             key=ARTIFACT_MAX_BODY_BYTES_KEY,
             namespace="data_center.financial_response_artifact",
             owner_app="data_center",
-            value_type=RuntimeValueType.BYTES,
-            criticality=RuntimeConfigCriticality.CRITICAL,
-            reload_mode=RuntimeConfigReloadMode.RESTART_REQUIRED,
-            constraints={"minimum": 1},
+            value_type="bytes",
+            criticality="critical",
+            reload_mode="restart_required",
+            minimum=1,
             description="Explicit maximum captured response body size in bytes.",
         ),
     )
+
+
+def get_runtime_config_value(definition_key: str, *, environment: str) -> object | None:
+    """Read an explicit environment through the existing owner bridge."""
+
+    return get_active_runtime_value(environment=environment, definition_key=definition_key)
 
 
 def resolve_financial_response_artifact_config(

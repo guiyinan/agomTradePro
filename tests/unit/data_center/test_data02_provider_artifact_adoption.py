@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import shutil
-import tempfile
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime
@@ -260,14 +258,10 @@ def _store(tmp_path: Path) -> FinancialResponseBodyStore:
 
 
 @pytest.fixture
-def artifact_tmp_path() -> Path:
-    """Use an owned repository-local scratch directory instead of shared temp."""
+def artifact_tmp_path(tmp_path: Path) -> Path:
+    """Use pytest-owned scratch storage without requiring a repository var tree."""
 
-    path = Path(tempfile.mkdtemp(prefix="data02-artifact-", dir="var"))
-    try:
-        yield path
-    finally:
-        shutil.rmtree(path, ignore_errors=True)
+    return tmp_path
 
 
 def _provider() -> ProviderConfig:

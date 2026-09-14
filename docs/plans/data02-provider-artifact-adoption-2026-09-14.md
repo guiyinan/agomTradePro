@@ -27,10 +27,16 @@ encryption_key、encryption_key_version、max_body_bytes。还须登记该 provi
 
 ## 验证与剩余
 
-Root 回归实际 161 passed，覆盖 adoption、既有 provider adapters、strict capture、body store、
-financial egress capture、execution contracts 和 Tushare transport。Black、isort、Ruff 检查通过。
-九个改动生产文件的增量 mypy 为零回归；全生产类型债务检查为 0 错误、0 文件。
+Root 最终回归实际 175 passed，覆盖 adoption、既有 provider adapters、strict capture、body store、
+financial egress capture、execution contracts、Tushare transport 和 Config Center owner 桥。
+Black、isort、Ruff 检查通过。九个接入文件及随后四个配置边界修正文件分别通过增量 mypy
+（累计 11 个生产文件），均为零回归；修正后全生产类型债务检查为 0 错误、0 文件。
 新鲜度契约检查（62 surfaces）与 Celery 契约检查（91 tasks）通过，未修改债务基线。
+
+CI 首轮发现新增 App 直接依赖超出既有依赖预算、夹具依赖未跟踪 var 目录、入口清单及计划登记缺失。
+配置定义通过标准库 metadata DTO 交给 Config Center owner 校验整批后保存；读取、secret ref、
+secret resolve 和激活均经已有中立桥。依赖图恢复原有 206 条边、零循环，未增加治理预算。
+夹具改用 pytest-owned tmp_path；入口清单由脚本重新生成，计划只新增 supporting 登记，未晋级单元。
 
 尚未执行本阶段代码的 VPS 部署、真实供应商响应保存及生产验收。
 响应范围保持 caller-declared，row_count/period_ends 的零值不代表完成原生行覆盖验证。

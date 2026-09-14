@@ -8,11 +8,35 @@ root instead of importing Config Center application modules directly.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Protocol
+from dataclasses import dataclass
+from typing import Literal, Protocol
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeConfigDefinitionSpec:
+    """App-neutral scalar configuration metadata supplied to the owner."""
+
+    key: str
+    namespace: str
+    owner_app: str
+    value_type: Literal["bool", "int", "string", "bytes"]
+    criticality: Literal["bootstrap", "critical", "normal", "experimental"] = "normal"
+    reload_mode: Literal["immediate", "next_task", "restart_required"] = "next_task"
+    secret: bool = False
+    description: str = ""
+    minimum: int | None = None
 
 
 class ConfigCenterRuntimeReadPort(Protocol):
-    """Read-only Config Center contract used by runtime consumers."""
+    """Config Center-owned runtime operations used by registered consumers."""
+
+    def get_active_runtime_secret_ref(self, *, environment: str, definition_key: str) -> str | None:
+        """Read a secret reference without returning secret material."""
+
+    def register_runtime_definitions(
+        self, specifications: tuple[RuntimeConfigDefinitionSpec, ...]
+    ) -> tuple[str, ...]:
+        """Validate and persist definition metadata through the owner."""
 
     def get_active_runtime_value(
         self,
@@ -62,6 +86,26 @@ def get_active_runtime_value(
         environment=environment,
         definition_key=definition_key,
     )
+
+
+def get_active_runtime_secret_ref(*, environment: str, definition_key: str) -> str | None:
+    """Read an owner-validated secret ref, returning None before registration."""
+
+    if _provider is None:
+        return None
+    return _provider.get_active_runtime_secret_ref(
+        environment=environment, definition_key=definition_key
+    )
+
+
+def register_runtime_definitions(
+    definitions: tuple[RuntimeConfigDefinitionSpec, ...],
+) -> tuple[str, ...]:
+    """Persist supplied metadata only through the configured owner facade."""
+
+    if _provider is None:
+        raise RuntimeError("config_center_runtime_port_unconfigured")
+    return _provider.register_runtime_definitions(definitions)
 
 
 def evaluate_storage_pressure(
@@ -117,6 +161,7 @@ def activate_runtime_profile_patch(
     environment: str,
     patch: Mapping[str, object],
     bootstrap_values: Mapping[str, object] | None,
+    secret_ref_patch: Mapping[str, str] | None = None,
     actor: str,
     reason: str,
 ) -> dict[str, object]:
@@ -127,13 +172,16 @@ def activate_runtime_profile_patch(
     callback = getattr(_provider, "activate_runtime_profile_patch_payload", None)
     if not callable(callback):
         raise RuntimeError("config_center_runtime_write_port_unconfigured")
-    result = callback(
-        environment=environment,
-        patch=patch,
-        bootstrap_values=bootstrap_values,
-        actor=actor,
-        reason=reason,
-    )
+    options: dict[str, object] = {
+        "environment": environment,
+        "patch": patch,
+        "bootstrap_values": bootstrap_values,
+        "actor": actor,
+        "reason": reason,
+    }
+    if secret_ref_patch is not None:
+        options["secret_ref_patch"] = secret_ref_patch
+    result = callback(**options)
     if not isinstance(result, dict):
         raise TypeError("Config Center runtime write port returned an invalid payload")
     return dict(result)
@@ -141,9 +189,12 @@ def activate_runtime_profile_patch(
 
 __all__ = [
     "ConfigCenterRuntimeReadPort",
+    "RuntimeConfigDefinitionSpec",
     "activate_runtime_profile_patch",
     "collect_storage_capacity_profile",
     "configure_config_center_runtime_port",
     "evaluate_storage_pressure",
     "get_active_runtime_value",
+    "get_active_runtime_secret_ref",
+    "register_runtime_definitions",
 ]

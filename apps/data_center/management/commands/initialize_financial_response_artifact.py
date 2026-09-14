@@ -4,10 +4,6 @@ from __future__ import annotations
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 
-from apps.config_center.application.runtime_public import activate_runtime_profile_patch
-from apps.config_center.infrastructure.runtime_config_repositories import (
-    RuntimeConfigDefinitionRepository,
-)
 from apps.data_center.infrastructure.financial_response_artifact_config import (
     ARTIFACT_ENABLED_KEY,
     ARTIFACT_ENCRYPTION_KEY,
@@ -15,6 +11,10 @@ from apps.data_center.infrastructure.financial_response_artifact_config import (
     ARTIFACT_MAX_BODY_BYTES_KEY,
     ARTIFACT_ROOT_KEY,
     financial_response_artifact_definitions,
+)
+from core.integration.config_center_runtime import (
+    activate_runtime_profile_patch,
+    register_runtime_definitions,
 )
 
 
@@ -77,10 +77,11 @@ class Command(BaseCommand):
             raise CommandError("activation input is unavailable")
         patch, secret_ref_patch, environment, actor, reason = activation
         try:
-            profile, snapshot = activate_runtime_profile_patch(
+            evidence = activate_runtime_profile_patch(
                 environment=environment,
                 patch=patch,
                 secret_ref_patch=secret_ref_patch,
+                bootstrap_values=None,
                 actor=actor,
                 reason=reason,
             )
@@ -88,8 +89,8 @@ class Command(BaseCommand):
             raise CommandError("financial response artifact activation failed") from exc
         self.stdout.write(
             self.style.SUCCESS(
-                f"Activated runtime profile {profile.profile_key} v{profile.version}; "
-                f"snapshot={snapshot.snapshot_hash}"
+                f"Activated runtime profile {evidence['profile_key']} "
+                f"v{evidence['profile_version']}; snapshot={evidence['snapshot_hash']}"
             )
         )
 
@@ -97,11 +98,7 @@ class Command(BaseCommand):
     def _register_definitions() -> tuple[str, ...]:
         """Persist the stable definitions through Config Center's repository port."""
 
-        repository = RuntimeConfigDefinitionRepository()
-        return tuple(
-            repository.save(definition).key
-            for definition in financial_response_artifact_definitions()
-        )
+        return register_runtime_definitions(financial_response_artifact_definitions())
 
     @staticmethod
     def _activation_input(
