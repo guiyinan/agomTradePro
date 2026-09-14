@@ -89,9 +89,13 @@ docs/testing/evid09-case7-failed-lifecycle-recovery-2026-09-14.json.sha256 text 
 docs/testing/data02-financial-insert-concurrency-validation-2026-09-14.json text eol=lf
 docs/testing/data02-financial-insert-concurrency-validation-2026-09-14.json.sha256 text eol=lf
 docs/testing/research-state-controlled-branch-increment-2026-09-14.json text eol=lf
+docs/testing/research-r7-monitoring-controlled-branch-increment-2026-09-14.json text eol=lf
+docs/testing/research-r7-monitoring-controlled-branch-increment-2026-09-14.json.sha256 text eol=lf
 docs/testing/research-whole-domain-current-coverage-2026-09-14.json text eol=lf
 docs/testing/evid09-facade-operation-read-reuse-postgres-validation-2026-09-14.json text eol=lf
 docs/testing/evid09-facade-operation-read-reuse-postgres-validation-2026-09-14.json.sha256 text eol=lf
+docs/testing/research-whole-domain-current-coverage-r7-full-2026-09-14.json text eol=lf
+docs/testing/research-whole-domain-current-coverage-r7-full-2026-09-14.json.sha256 text eol=lf
 docs/deployment/evid09-standard-deployment-preservation-facade-reuse-v5-2026-09-14.json text eol=lf
 docs/deployment/evid09-standard-deployment-preservation-facade-reuse-v5-2026-09-14.json.sha256 text eol=lf
 docs/deployment/evid09-passing-facade-reuse-lifecycle-2026-09-14.json text eol=lf
