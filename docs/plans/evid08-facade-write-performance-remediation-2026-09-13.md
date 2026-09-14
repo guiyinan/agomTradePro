@@ -2,7 +2,8 @@
 
 > 当前状态：DATA-16 已完成仓库退出并实际部署、激活四个严格策略头；
 > 后续有界性能工作登记为唯一 repository focus EVID-09；优化接线与标准部署已完成，
-> 新作用域的真实 configured-validity 生产生命周期仍待验收。
+> 新作用域的真实 configured-validity 生产生命周期已通过 27 阶段与独立恢复复核；
+> 最终候选已通过两次真实隔离 PostgreSQL 测量，第三次完整测量仍待完成。
 > 已完成的 EVID-08 不重新打开；本文保留其历史诊断，后续状态以机器注册表为准。
 >
 > 实际模型设置：`gpt-5.6-luna / max`。
@@ -29,7 +30,10 @@
 > 保留原测量failed、绿色JUnit和独立清理/release；五个后验源码canonical LF哈希
 > 与Git一致，三个raw差异仅CRLF，仍不补签原运行期间的source snapshot一致性。
 >
-> 当前生产：`6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b` / release `20260914021633`。
+> 当前生产：`f121000df1276472f172a93c16961fa74f433192` / release `source-20260914173239`。
+> [当前部署保护证据](../deployment/evid09-standard-deployment-preservation-facade-reuse-v5-2026-09-14.json)
+> 与 [27 阶段生产复测](../deployment/evid09-passing-facade-reuse-lifecycle-2026-09-14.json)
+> 已经独立核验；以下回滚镜像信息保留其历史状态，不表示本次已演练回滚。
 > 新兼容回滚镜像已实际固定为 `agomtradepro-evid09-compatible-rollback:20260914021633`，
 > image `sha256:f5647b6d4a17c81963a41dd4d66dee70ccfc4b18e881b368db4b89dda7bf86fd`；
 > 旧 DATA-16 兼容镜像 `agomtradepro-data16-compatible-rollback:20260913212011` /
