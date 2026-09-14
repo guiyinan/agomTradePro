@@ -554,3 +554,44 @@ manifest；未启动业务 pytest、测量 child 或 SSH relay，也没有实际
 关于宿主机访问 bridge 容器端口的说明，仍须通过真实连接验证。完成 driver 清单
 绑定、原始失败工件保存、子进程回收和实际六阶段 rollback 门后，再评估合并与
 标准部署。既有生产 runtime 仍为 `6760c9aa...`，未形成新优化部署或配对性能结论。
+
+## 16. 完整 PostgreSQL 父链通过与标准升级进行中（2026-09-14）
+
+本节更新当前结果，保留第 14、15 节各次失败的原始范围。VPS 独立 PostgreSQL
+16.15 的 V6 实测绑定候选 `f32287ec969001a2da36a74a54f1d855b59e2700`，严格
+JUnit 为一个通过的目标测试，零 error/failure/skip，pytest 与测量 child exit 均为 0。
+六个业务阶段全部完成，5,909 个源码文件和 1,568 个已加载文件的前后快照逐字节一致。
+
+物理解码链实际为 2,144 次，耗时 0.277757 秒；loads/decode/raw_decode 是同一链的
+三个入口观测，不能相加。pytest runtest_call 范围内 SQL 为 2,608 次，其中 SELECT 2,356、
+INSERT 21；client SQL wall 705.500381 秒，完整 pytest 调用 wall 742.809449 秒、caller CPU
+25.468750 秒。Evidence approval 阶段 wall 148.066760 秒，测量 child wall
+839.477001 秒。SQL 与物理解码计数不包含 fixture setup/teardown；wall duration 按各自
+边界记录，caller CPU 不是 PostgreSQL 服务端 CPU，
+也不能与旧播种夹具或失败的生产 Case7 计算配对优化比例。
+
+外层 rollback 后，独立只读观察确认零 public 表、零其他客户端、read_only=on，
+SQL 15 秒、lock 5 秒。V6 relay close 存在晚接收 worker 的竞态，原工具的 cleanup
+eligible=false 保留；主代理另行确认三个所属进程消失、55440 无监听，再按同一
+CID/image/owner/network 身份检查关闭状态并删除该临时容器、网络及其专属密码，
+实际清理 exit 0。V7 的离线修正不作为另一轮实测。
+
+[主代理复核及原件引用](../testing/evid09-v5-postgres-full-parent-validation-2026-09-14.json)
+与 sidecar 记录 15 份原件引用，包含四份压缩封存的小原件；大型测量、源码快照及
+私有流保留路径、字节数和 SHA，未宣称全部原件公开嵌入。独立关闭证据补足 V6 的
+关闭竞态，不改写原始工具、失败报告或既有 pending-review 封存。
+
+PR49 已在最终候选 `e1ae4022ea5b0a60be41ef5e1e0b837d277fe5a8` 的 30 项 CI 全部
+通过后合并，Main 为 `194183454fdef541a728ccce7e0a1520fe5ac860`。九个测量源码与
+冻结候选一致；合并 Main 增加的四个原件存储源码/测试文件另有回归，合并后实际
+58 passed，增量 mypy 与全量债务上限均零错误，没有提高基线。5,909 文件快照属于
+冻结测量候选，不能当作合并后 Main 的全树快照。
+
+标准保数据升级正在运行，目标 Main 194183；升级前实际 runtime 为 6760，新的
+28 项关键文件清单中 20 项存在、8 项缺失，四个旧 authority root 已独立读取。
+部署成功仍须核对新 runtime、全部 Git/release/live 哈希、备份及历史 exact，并执行
+新 scope 的生产限时生命周期与独立恢复；本节不声称生产验收已经完成。
+
+DATA-02 的加密原始响应持久化基础已合并，但 provider 到原件、审计及事实元数据
+的接入、可信可用时间和原生来源身份仍未完成。代码部署不能回填或证明这些历史
+数据缺口，DATA-02/EVID-01/02 与人工验收退出门不变，EVID-09 继续 active。

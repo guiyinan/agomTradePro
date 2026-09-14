@@ -1,0 +1,202 @@
+{
+  "schema": "evid09.actual-v5-postgres-root-review.v1",
+  "status": "isolated_business_measurement_and_owned_cleanup_verified",
+  "root_reviewed_at_utc": "2026-09-14T04:41:10.965711+00:00",
+  "measured_source_commit": "f32287ec969001a2da36a74a54f1d855b59e2700",
+  "reviewed_candidate_commit": "e1ae4022ea5b0a60be41ef5e1e0b837d277fe5a8",
+  "actual_main_merge_commit": "194183454fdef541a728ccce7e0a1520fe5ac860",
+  "pr_url": "https://github.com/guiyinan/agomTradePro/pull/49",
+  "actual_ci_successes": 30,
+  "integration_tests_passed": 58,
+  "incremental_mypy_regressions": 0,
+  "full_mypy_debt_errors": 0,
+  "physical_and_source_evidence": {
+    "decoder_decode_calls": 2144,
+    "decoder_raw_decode_calls": 2144,
+    "decorated_cache_hits_total": 44862,
+    "decorated_cache_misses_total": 3199,
+    "decorated_original_calls_total": 3199,
+    "decorated_wrapper_calls_total": 48061,
+    "json_loads_calls": 2144,
+    "junit": {
+      "errors": 0,
+      "failures": 0,
+      "single_green": true,
+      "skipped": 0,
+      "target_matches": true,
+      "tests": 1
+    },
+    "loaded_module_count": 1568,
+    "physical_json_decode_calls": 2144,
+    "physical_json_decode_errors": 0,
+    "physical_json_decode_seconds": 0.27775709447450936,
+    "scope_count": 1,
+    "source_file_count": 5909,
+    "sql_client_execute_seconds": 705.5003809970804,
+    "sql_non_select": 252,
+    "sql_select": 2356,
+    "sql_total": 2608,
+    "stage_count": 6,
+    "stage_names": [
+      "raw_and_actor",
+      "upstream_ledger_creation",
+      "receipt_v5_creation",
+      "subject_v5_creation",
+      "evidence_v5_approval",
+      "authority_issue_and_revoke"
+    ]
+  },
+  "cleanup_evidence": {
+    "independent_port_listener_absent": true,
+    "independent_processes_absent": true,
+    "owned_container_status": "exited",
+    "owned_status": "reaped_measurement_closed_and_owned_resources_removed",
+    "owned_zero_state": {
+      "client_count": 0,
+      "container_id": "496e51e743eef64b827eb2d9bc973c66ca2b82148586b6f1938913bb8fb62446",
+      "image_id": "sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685",
+      "lock_timeout_seconds": 5,
+      "public_table_count": 0,
+      "statement_timeout_seconds": 15,
+      "transaction_read_only": true
+    }
+  },
+  "closure_witnesses": {
+    "independent_process_port": {
+      "bytes": 417,
+      "classification": "independent process-and-port closure witness",
+      "embedded": true,
+      "encoding": "gzip+base64",
+      "gzip_bytes": 279,
+      "gzip_sha256": "d19fb9248466503b65433e8913e850444a592847f9f7f5596068c77dcab54ce9",
+      "path": "var/vps-v6-independent-process-closure-20260914T0405Z.json",
+      "sha256": "52170a5d0642f323d1ed0a70d3cfde6729159403db2ac3b21d4d8ea8cb9e475c"
+    },
+    "owned_container": {
+      "bytes": 10563,
+      "classification": "owned container cleanup witness; command-bearing original",
+      "content_policy": "private_path_and_sha_only",
+      "embedded": false,
+      "path": "var/vps-isolated-v3-measurement-owned-closure-20260914T040415942396Z.json",
+      "sha256": "832eb5890e2be53acde00bc64f644ea959a1e01648ad7c0fe4426590b814f20f"
+    }
+  },
+  "known_limits": [
+    "The V6 receipt has zero relay errors and closed flags, while its close implementation predates the V7 latest-worker/pair-empty close fix; the independent process-and-port witness is retained separately as the post-run closure evidence.",
+    "V7 was prepared offline only and has no executed-node result in this seal.",
+    "This is a disposable EVID09 measurement record, not production acceptance, DATA-02 acceptance, or a human signature.",
+    "The physical probe reports one scoped standard-library decode chain; SQL and physical counters are recorded as separate measurements and are not added across layers.",
+    "Command-bearing run and cleanup originals remain private path/SHA references; no raw stream, DSN, password, header, or request body is embedded."
+  ],
+  "original_seals": [
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-v6-measurement-seal-v2-20260914.json",
+      "bytes": 11675,
+      "sha256": "e7fc0c408b1fe71a03ccdf315b780891d68730aced87e333697e8befb067d241",
+      "encoding": "gzip+base64",
+      "gzip_base64": "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"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-v6-measurement-originals-v2-20260914.json",
+      "bytes": 13378,
+      "sha256": "caa9c98a16029bbfde26a71212ca7eeeb4652a72a372421f6fab028ad91b53a0",
+      "encoding": "gzip+base64",
+      "gzip_base64": "H4sIAAAAAAAC/+V72a7jyJXtu78iUa90mvPkxn0gKZEUB3EexFsXBQ5BcZ4nqdH/3jyZVa5yd1WWL2CjG/YBDo8UIZIRe8Xea62gzr//4dOn7+JpKfM4XX5I+7VbvvvzJ+KPv2yez5b/ezZ8+vTvX45nV/JawEczhuMo/cefWtMmnucyL9N4Kfvu7P4u7duhAQvIPvnUpxbE8zqBFnTLpwmkoByW734+t++Ws+OHJJ4BRXycKxPzjfv6I8AQmjq4mRhaAkgUEItEkOACMSvud8AGb+reIfFtQDn+/ej0Z60hNel4OJqTzMWzWDWr3pkOoQctlJlTz7XAv1L6/YI4oiIOAkzjHl7ngEqE+WHT9GwjkNbG645DokGK7HCvqQscPPFl6NkHGY53P3a0Gx2+sFdyTA0VRjDJh9BzysdGjgfJ0iYpH9oNF3SjPfBlPsrJNzM0go2mXZJxOehVRq1hxeA1B0hFkDSZEbWRtSIDUVJg1kqSydZOTOLDRFQ2OPCVvkz5Heui1JzL5qHf9jcbOE5MeUGniZccnbooj9WWCQy07TGIrKvOXiTexHI7gKqq0o87mdGtwKgvDdaIjml2kb6uGcRg7TvYUBOFEcVuygUeofssUkteJqyb3SOzcy9zQcf3iINK0lkQGeBsHMcupCX7zCZJFtLglairEgAkgv24G7B2jtBR2UQqdSTjuMSN2hYXYR+V5K3VHlhNw7H80AXt8WI8/SaoPa2qPMT4vOShLP1+KEiwBzVL0VVWcZkYl76Z0PvFz27Iu7EjpYu8AVj8A32kOz8GvMRjVh9ca9vqnkTR71aul73c3UpB1WTVeVz8OCHRO0TQMlSQrh2i7nB0wc6SgcncqdBCHtjr4YvuNkxkgCqq+erqS4EaU9ijbFAmRx+6KQEIiz7ax5LU7WHDIJsqvDk0iaXZsV1lwdyxB9u972XUk54yPN9Ycu193noYN6Wq60NOyc46jDdnK8HDEZJolBDHcOfo+W4fFwYJIGrYUGjmGP/u74scegi8lG1wd5kp3KF8pMm1lZ+Qq+biFBFnVAcYQ2mCPABSq4l1nw9StY2NXgq4fYOiLLrhfgUVw2zCQI/Jrk9sHN3JMe/yAWXuhKL7CPWuZGRe+BmRx1KpEdHHjdcgL7HhvQxHCSUujIb+bUOlgKgtFbkgqV+DpAuFZj50rcSM/IGSIjeSSyKsEm4Gyttc9xvsYAbqYjpj0bjVYQ8hefd3Bq1Y3hNUCSWYslhuT3036n6VL7UruU8XCyrkoblVZ9CteuXG92537c3YMZtNx5x0Lo6ZEg3nB+hWoSXdPcJJtTz9goeXsFtVfQXY8Wx2XTBZmIO29ytCa23FIpPdByS+6OzIyrt6mYrZ0/drmb1p2CXlRS+R1KJpGqbjCnWAs4RqFixJpr+canYqeYoLpoaheUinID5EdD0SHIJYDotIE9x2Migl1bsFzb0oG1+p5isp3Ch6furiva4ZSRAiPVZqvuRupJ+835h25WMTloRu2DtpoYzeyegQEZ0Igrm77TRqAMU0stwDrM09Xthrwjoam1uD/tk8hDY3Rv3l2QJgLsRxdLHRVtwOvVrrgpBR0xGeHK027zq5HRf5yyhKiYN0ephT1JrMYZxhFDO48845N2BVCRcy8+yu7yvwyWhMGOOpNthEqRQeEWQXZ8uYFJdgPCtXfMPi6lno3rN+wnZwtPfSu3hOd2mWi8Fz0xq+Oz16zhsvqJ5R8EnIBkiGdk8slFGzDi0cVd2+JcvFwla9ZkQ5VRxBicO8Fm5N9GL6QJiz6uKLLFHrSDAjTZs5uu7P80xe2pbc4fsb6/A4eyLE1bk/KIZ8cdXl/PUOrSivlSQ8HkFS4OLTe0X84xUJmEMw3BChHNXy8vtRMLiOoNklMJPQk9ypJXBEyHT/Pd+msXz0fBSmF//Jv5GjVVfMggc4IGk+qWTNJw0Pp5PYgsdikFMTtYwD6UbnQWssdehCW3YsHuAKKbhK2qYwurNMGo0tPUpD+rpO9vveSbF2EwrzUCTxtqa8yzRdIvNF6HiJWZcK9zIpmxWsRlLuloqhC9rcctvGV/XZMx1SdzY60zMgr9FltCQ0q1ZKJLvspCs1vDiyMTBjZL2cVF1xlBpU95y2zrqzXyx2U7WeaePDreSaFNbxtoIt3EXR+B0eicshHktejgmS+xGLDfp4KOpU0nXZPEcuoYGySrCZba9dSwMKvfW05lu8aj7SFO9NnKoWX5nrNtvGGup7gCsJ2VeuyZTOSpdEWKNzFYyOFiXbyizl273cQ8wStfChMYBgsUoPYm3Xe1/AHvvFddwoJnW2ffIxEHqzvNZVGihyMhels9zUx0t+1fpJVEpKujCK0y7nLPZmCDooEamZvcVfOu96y08eyBwZAewb9+VhM62003l/PqrVybcjFuP4fUcs4RnaWpOOGF8NniRPJrmbPuBgGOlejzsNzwA6q7qPy+Uc55ij08XzOZ4FHhUy8aIju3aS3NH2o9yzJQSWS5Ps0gCGy3lLeHybhlbLiKjmvqs0xa5SFKlguhNhGLUUULc3cYoPpXgJqBWK91KZt4fW7YxfmCGPMywn59JTpywCjmjLowYJw1YpYZ4oe64/jaMCyCiF+4aFMMOik0dQYTFjsFcVVBTIdJqtJs55b8dsaWK7djYeEiDmVhtdyJBXDYpNI/uq6qf0uMc9qRb9gLD2Me9F+Tpqp5Tihrea6BFJt5S9ZfZkX+gtfAXvB2w9vRWZ/TD0WQnn8O5+9xYr3vKLVY6B02tUXai3VNqDTn3eBhsadc6mLbnMb1fL31dqPViXT+oekpmaNtPqEekGlDG+Eqmkep6vJEB6ktycSZqgW4HowcG6H7paGm4vTL4BnMDzeJFl7L5wQUp1umx3gJbezpVWn6n7UiyiptVYkJpnfaltKPBq+3qfh/GRCPyxiPl1EwusnGzTVUkdXMheChCcUVz8ZQoKGrzlzQknfEeiJnHTQikHXRDUxFcCPbB3695XmW9CAvHqJWiYlfPa4RAHpTg7/MvAItyOTU2LXolrWAwtLiWFsRH88IcZQwhCqJK0aRADNZxVXrbuSaE68+IVawBaZTQaSZB1Ydu3jC9HsX7qY1gdrXOVG+95F8XE9wYhLpEoGZV4RER6W29skuWMO0SbyLzXuYdCodOy7PVet7bQUip4bLGSKdC7OmBhF6FqGx3fQIltPPl2C5vpDq+UddCJeSVeCUXqm2vF7ywPmzqd3x4KpMedvB4XBZptiCKSVWGOLoMt8lQ7+yuxDtKwsWu2un31WNp+Srmjo3atbgQTqcim6t010R5BWd9l7w1wewhzLBuITntGuJ48w3tSoABf1CGHEoyI3ct1dR5uqcGQFsce5WMC7II1L0PDLgbjwFy23XqqcaGez6bQfLgiayzCY7ljd+x1SHBlZKyspZW8orUUog+ho+545uaTkvhj+0q1J7Suw0suYVSitqIxDdKCA0rsHKT0sOehVvPF4kjp1lVy4WRq3D/XWrnT3XGjovjukkqScjMkBU0lrYkVLJcqUl/6dTnEWoWA4r/RUx4hrqWPJm+SlmVSz/AIUg5RXuYTuokBc7u65CVSIDqcLXbhjX7hliCVrv0CyzdLFA6xaotIfnpYeG+dPPecUdAb/WWV5aEi3KNGoUZOb+z2zMU11A32dkbtcnspmva6hcRFkGQfaaZnNLA32sOSp9apGpaG86Bamy2eLCA8KvSkGzLq3hynzFHBw7zGElI/4MThb6oP36RTT6PmIHb63S1XPnoaaTtLgqWWsf6MuL21fAW1xTYaAkwbLwGGKmYU3Rv72Ra6ds13tz3tmZtBtxJJ9tq9p/f6YsmhRuonuYxwYMhKr3h9ScQXDmnAfjv0PSy2/qWk+f2h+On5AgvuSOps5rWqmB5+yjV7YQKaeU5M44x+F0jvMG5oSaVfVjHspWOwTro8JOUieI+HOHFvSlKFsnrdbK+ynuMh6y9XsZfLavg2asHPJmXK1KUdO9oErnkXteVTZeKf61SDrkmkr7bnX+/PoN7kLuEFSaUeQ2c9OSzWOOV61pxrHZMH6miH1tfACdvpfYMraSZKRjpg+60RhWvses1i2K7PhMApl94x/Cs69DKCl4F19SVfaQtSc5tcbUtYqw1GHi0FIh0jDHdEFkkTMWfvjWruBVyo2sE1pjDvOyiCMLsYobw4cCl5cixquB5em07Xpv5JvAPrrCgG8FwwrKSIxKp79QbPlAtvVzTGtpFseMOCQh8Kr21HiQP0TuUb9GY3G+W0boEngrtFJGA3iMkrfQP4a+V2h6VzlsFF5WxHAWc1bwxeCOc2fLzPeVukMXgiN1Ug6ZyC+CKZZjjETUc8P9cQvBDiEYQvWvn1vXjFzVP3btCeVDOcIIa8xS8WPgkHljHc0E7KeXN0sNrrBWrYXMBY4nTXt+JmvCSf4+i+4gyzam/lU0v1G9/dn12ONEIWXvvdfjvce7aG2i8fS7eePkiaNpl1afp9aCO9ZOZQsYI/ar1HPh4pdSVEfmlr9g7RNWm4xzMfq5I2npwV20pfe63XxYrtIUR6vYndRW/jtD4TnbmmMyVawakOiNNd0ENAderbQLTh1IKCCK3sKqYkLd+oBULPJcBjHOhID888YIkh3dOJMZGX9b3VSbeg2am6LebBbPHImNH7RUBX7nRL1oItnkxn3RgpmPNAqvsi6DNjCPLqkk9bvCwu1FDaRINOf5vZ6+5nSJo0VnQreAohxMcOH2fp0rDoDgq1TmPaspZoF5cgo9dai8kMvOlQe5jR6QNWZQWGC8PoXEyTh5BC4s8wNrP3+NZbd0rc4I3p0kAO3zBzfUeXTnj4wc5xP+/ngDYBWQay7/78aZlW8HN7l/ZZ2T0/dnie73KAftzw+csHPhp/+Gl/CcdZ9q975iLGSOrj7ITAMoxCkpwgKCTL2ZxhAZogCQ5ilswxjGaYDKPJmGGxGMEQJGdZkJEYGgME0Dge/3zLIV6Kjytu8QRvw/y5nPsmXkD2eSM/T32/fP7FztVnDDlvyqKEi+AEQaAMSaMkHv2pmvvu5yv+PMqcplIszuNzUCggcZzKUYpJcDwj8SxLEBbPUCTNYpI+s+yEnsXRNM6ZE+8YJXKayL77csn/+OOv77/hJE7+Tdtvc3l8npf4CT59tPXd1z24eW3+9i04JggdDE7sQuDoXX7J+5FLh/FeaX3DHxpn3XQpja4POr72peFBtypGRkXRDC+xYJYq7LRRb2wQPASBcZSDTaUYarMuml5s3ilYtr5kE6NoI4PClM3Nt+TVQqsIRP2UnLQISterqbd9I+Tm6W3P8eU8W50QeypyxShw6tucqanchRDV0dVr68zUltXIRnsfS+qgONJsCCcCLptV7S+jqfCF/aZNAckPSBMOCo353pl2lb8h1thW0eNpXjTlFgx+YDGD0zKVtDj+haOsnjXBeO0jrcBxhKaXWrqHWYu7FTcGU9upvgwr1pEp4L6GTBBHNFTQq72VYA5eMWM+UxZZXyWN0dmFxJTschqUd91uVOz3YR6/wnOpbbxkjcYVMXRE0eh3KQ3Xu6+kkStopDANt51QjfContfxHbqe81gqr+wVHKVNgsGTdV6Cl+08Ouqoi0xDGV/ctsvyTpQM0djycKNp3mYPoNP7gAsq2yIU9vSqW/eGgdGXam49hniPCLkWmlBC/OQAu5sxPYOSVQ6vsHdqUtyDK0pEVvv1kuGw3O+eiHGrhL74dpQyXfSHfjY5d+feT1iS0X3B0ycEpwmo+/vwNpMkfeMbnDUaNbyi5yvvW+AZWP/yML4ejE25XbzLLYTejIIFhn0QS5RKXUXDq9kU2Oy0TUojXRYmOFG0WennScFkcEcRkPcYsSGENxlNSACHE8rmMM4KKkroRO/npQlBYMLT3LhTCpPdE3NiNoZ0SRkWyrkJzDhjMFoOTFySs2FveaKBwqkk29XU69xQbwCUdLvzQa5KHWZByWVOjzxzs+7KSJ1XoLQ0yP0rbwhOjXdyZqLdWUeXApB19EadOuywqJmFx9YVgRR7nA4usbBizq3HEZ4DdGp1jFEpdUt3oEa8rtNLFCvPm9Y5Qs9PU8+ca/vhkg/AMRvCMK4DBO4k89mpAm+QnDawvIcnzrJdt47BU2texUGki4tqIWzDd9upd+yQddydVOlyF417rRb+ePAw5zGbC64Un8y7yxQG5+Utr7uMqHaI5yLE2vfmBB682qrXXjwXBVlerMRmRfuOOWBo/Zik0t55auOUelsfjVOhdhyJGDh3byCDJ1cYIpr0gnVaPoqmmjQal8oMWt+5oJ/9/nDacDS3a89MAzE9Sa0dWotPbgf3ZMscKgeKJnKiw8766PvQu4ZElxg11bacumkaVxRkyzjrpWQytaBShE5OW/6KWLXPLSTseI6njterVxqvQjwubmJdtN8+Jsd2RD04SYah7jJtY3is2lOyW0qoB2H2ZDvFOC7aTlNjB1r/8HnZ8m+CYjuREN1eq4Y0u2M392W3VPGFYJccz24zW00dHi28nZFR5awZDTyUgm48DvEhN5bhZp7e4u9OlSiC/SZVEgmWsESSo9hJMQiVpoBAUZyk4xykRJqfr3CcTrE8w5g8ocns5MiUxU4iPQeWx8ivUOXlz99//yyXYvv++/jZt+4UZ8Cc+s9gKzOE/UKcIM4+D8U55Pn7709m/f77n/t+5NO/8OuG/4VWPyM4evLqZ5RAqfNIM+w5OoKlvv8+P/mq+DzE0wcLf+Wu32RdAHKEOU/EEIbKGSTFiBQDCQpiBsExOiZRPANUmjMxlRIZgmVURp8CLcPynMHT0/9+m3UJnPoG6c4nZA34/JwA6D4pXlf+7RSL+tYLoy46f2HEdAuFWZ1usWDBV3cbKeTYrenRLMAiDXbqr9MQB1l3v9ynjoLNNBDemeroSfeMFfJQNO81sSpe1BBUXmkWvBvKGZBW3F3HmFcZW3x+JvPGgF9AVg2g90Qsoxzt65eW1EI7ROcBO+IZ9zlQiy0UyUAfJzr2zRuFEX7ryLFRl6eIVxF8Ipqq8/2XH/mPQGbawa0VNWGKDbegBqGcvIddXOuvdWuXVnw3w60pH4jdL8uDtYWLIa45/5SbnjqLTcX2gksTqAs//felwYjtkZPX14t6CMbe59fA0WkoncXHBRnhU8haD+H0zreGx9nFXqCLrvM809PVJpNsqDCE0cBmAccL7Z6GcnWO+TpZ/Bnr//P3Tj+MQX8r+/LsNEIZlccsldB5QhBkjBNMQtFkSqJMwpJohpAZARCWYnCQUAjNEHhKpVQMGJxh8/8V2Vet50L+09E2v5ZuCU6m4KweecrkOcHQpwAnmBwQFEqAFGMRBE9Tmk0w8tS3Z705NTDAkxRgeZyheUwlv5Nu33zEXHYZGMB5OBXtMPUpmOfPcXdOvp+WT2nTf0z1014u3dnxtyci9pGIV507RBapGA67sb223yKNqkY08iP+VtVycb+uZUlNUIii9qI40NrJq/nAYcmL1BqfLMKSB9NrdtpBLUMp31bEmnJ5iRM8cC0Ie4FQL3QT7sRHQjusHNUDO1YBK46C3CtRn+57a0v+NRGFQ8anoLQd1Pddxdl8bOCwy/VS1Vf6fq/uVj4HgSDilnhXd4rj+WtwEOKO+eIDJenkiS7RNfVWZfYFj3eGsQCad37W9qyr7zrdfAfOKU9WrDvQiZLmO+638DusEtlrBD4Ky6ydJDFcxsEbsREGLiqnEzyHTy5vSPYpypnG0oiZw9djxAICLfQ9wAmpSypqSBh5TFn+/paA1qsEBXGgYPD6VXD/AA7E6N+kwOxUggmLEQxBUSSCnzWewHHAsOh5IJFzzcckizEEffpIOidJlkIoJqXpLI0TkkgB+9tucaM+/2INfv5pDf649H7hFwmE/G2feBpTGjlNOEIRWI5jpy0EGRLTSHaK1ZOraIxFSZZA8CzB4hRPPog8Y04+SxMWEGcl+TGFzuP/+/LljV/hJdCA9MevYvRT+Sy7uJk/zacG+JT305k75Xaa3k8fcfv0FY6PuH+52ARycNJuCn7ou+b1w9/wxRAUpUmGQb7Fk/naNJ/TdZq+eNG1+9GP/ttfRnI61fYjkxMQT+dQ/jLo/57FQ9+U6evjoj+e+8MHSD+cJ3+sgC+D/tWllp8RAP8bqus5/d+TNASIY4Kk0IwFOH2yCUORKY6eSxalsAQgWE6RgI0pkkHRszdPsZNkWARDEZAn2Lmsf2cj4Syy31Q1JHtO74z19Po09+uUgk8f4fpUdtvZ2E+vf0JQvs7z88cI5t+EJUaSUzVTLHrKSvpEKKZPimMoIkeIs7JgLJsgCErmKYmgJy2meEYnCEkjZ5nB2Bih8N+BBSEwFsf+v3BJwJnO4F8Bma8z/e2MiWkM+xAlSUaSpzDBifzUITFAsZRBmTONiFOTxGhCJfhZ7LHkrLcxc4aTZlEWOev+3x+aOF/A9K+AzJeJ/g8Bg57nsNi3gEFJivkRmKY/Y5J9avtsbf4lUufrhD9/nfD8eymEkejpUfATJwIDBI6RgDz/INQZQJbJMII8+5nTYiP5aVuQlKYAjZ13BvRpvQGNg38YUv/8mfRfgPp2Rv2DccKQbzmwn/TaL7/fu/T9KS7/BfLpx2F//jLh30snJkOyjMVylMRPhNCYpAj6rHanpEtSDAAcTbP81HkZy7BZRgGSpD4gw9mMJuOcptl/EEz//Mn01yh9O5f+wSAhJIV/A6V+784q9xH4uOxOVNIGxN06/LSD8W//Y67ovz8cxf/queiXgf+q6yU+nCuGs9Rvu18Gx0BCnhwPTi9D4nGaAQRJ0lNGUwTx8TyXjVGAnKgycUanSA4IAqNOfZUwKJFjSP7tmFPktzhmXrJ+/fjfh6/PSn/hP4uyyT6dfcP68bD0Rwv8zyjavkTgT1O8/8bmHvnxdP3ECAdEhlDo6ShPiPBTmQFA4Shg8ZxEqBxgOH5KtfTsYhMmY07dlqDY7+QD8m1kwDT9iyNzRuC3kAF4gqRnJrBMnqIpSrBxnuREyrAs9WWv67SkgEABQRFs8rHxGhNnIrFoQjMkljAk+V/3jOa0AG38wwam+UcEvg7/Tz/VmM8fqH2OpzP+G/jThn33h//4w38CviMIlkI0AAA="
+    }
+  ],
+  "original_embedded_artifact_count": 4,
+  "private_original_references": [
+    {
+      "bytes": 11758806,
+      "classification": "full-current run result; private command-bearing original",
+      "content_policy": "private_path_and_sha_only",
+      "embedded": false,
+      "path": "D:\\githv\\agomTradePro-evid09-v5-read-phases\\var\\evid09-v5-measure-v5-root-v3-20260914-031444-14164-1789357496\\run-result.json",
+      "sha256": "4eaa4561d9e37d6f865c31284162be02f65e9a65811d6ffc2a3490210efb27f9"
+    },
+    {
+      "bytes": 341736,
+      "classification": "5909-entry source path inventory",
+      "content_policy": "private_path_and_sha_only",
+      "embedded": false,
+      "path": "D:\\githv\\agomTradePro-evid09-v5-read-phases\\var\\evid09-v5-measure-v5-root-v3-20260914-031444-14164-1789357496\\source-paths.json",
+      "sha256": "a0bd2869127a7aa4a7934864f043e8299b0015fc5017a9c3d7b0570f9f29a063"
+    },
+    {
+      "bytes": 3042932,
+      "classification": "5909-entry source before inventory",
+      "content_policy": "private_path_and_sha_only",
+      "embedded": false,
+      "path": "D:\\githv\\agomTradePro-evid09-v5-read-phases\\var\\evid09-v5-measure-v5-root-v3-20260914-031444-14164-1789357496\\source-before.json",
+      "sha256": "4a722d2fcbd558ff34f3ccae12c8189e3479ba1b6b30682bd0aa890979190cab"
+    },
+    {
+      "bytes": 3042932,
+      "classification": "5909-entry source after inventory",
+      "content_policy": "private_path_and_sha_only",
+      "embedded": false,
+      "path": "D:\\githv\\agomTradePro-evid09-v5-read-phases\\var\\evid09-v5-measure-v5-root-v3-20260914-031444-14164-1789357496\\source-after.json",
+      "sha256": "4a722d2fcbd558ff34f3ccae12c8189e3479ba1b6b30682bd0aa890979190cab"
+    },
+    {
+      "bytes": 1068922,
+      "classification": "1568-entry loaded module before inventory",
+      "content_policy": "private_path_and_sha_only",
+      "embedded": false,
+      "path": "D:\\githv\\agomTradePro-evid09-v5-read-phases\\var\\evid09-v5-measure-v5-root-v3-20260914-031444-14164-1789357496\\loaded-modules-before.json",
+      "sha256": "251c513bd542e4325e5e430656898d24551c886f0fb600c76e72314e7572e73e"
+    },
+    {
+      "bytes": 1068922,
+      "classification": "1568-entry loaded module after inventory",
+      "content_policy": "private_path_and_sha_only",
+      "embedded": false,
+      "path": "D:\\githv\\agomTradePro-evid09-v5-read-phases\\var\\evid09-v5-measure-v5-root-v3-20260914-031444-14164-1789357496\\loaded-modules-after.json",
+      "sha256": "251c513bd542e4325e5e430656898d24551c886f0fb600c76e72314e7572e73e"
+    },
+    {
+      "bytes": 1207,
+      "classification": "private measurement tools before inventory",
+      "content_policy": "private_path_and_sha_only",
+      "embedded": false,
+      "path": "D:\\githv\\agomTradePro-evid09-v5-read-phases\\var\\evid09-v5-measure-v5-root-v3-20260914-031444-14164-1789357496\\private-tools-before.json",
+      "sha256": "8d0dd92f1535e51a5647e34d9ebc2ee31cdf4ead989dd6e5566f0f39d75af779"
+    },
+    {
+      "bytes": 1207,
+      "classification": "private measurement tools after inventory",
+      "content_policy": "private_path_and_sha_only",
+      "embedded": false,
+      "path": "D:\\githv\\agomTradePro-evid09-v5-read-phases\\var\\evid09-v5-measure-v5-root-v3-20260914-031444-14164-1789357496\\private-tools-after.json",
+      "sha256": "8d0dd92f1535e51a5647e34d9ebc2ee31cdf4ead989dd6e5566f0f39d75af779"
+    },
+    {
+      "bytes": 10563,
+      "classification": "owned container cleanup witness; command-bearing original",
+      "content_policy": "private_path_and_sha_only",
+      "embedded": false,
+      "path": "var/vps-isolated-v3-measurement-owned-closure-20260914T040415942396Z.json",
+      "sha256": "832eb5890e2be53acde00bc64f644ea959a1e01648ad7c0fe4426590b814f20f"
+    },
+    {
+      "bytes": 652,
+      "classification": "stdout_complete; private child output reference",
+      "content_policy": "private_path_and_sha_only",
+      "embedded": false,
+      "path": "D:\\githv\\agomTradePro-evid09-v5-read-phases\\var\\evid09-v5-measure-v5-root-v3-20260914-031444-14164-1789357496\\stdout.raw",
+      "sha256": "b355f9f88323e4d061efb3ac382bee631e93f506fe233d0acac39b8d8bd0b129"
+    },
+    {
+      "bytes": 0,
+      "classification": "stderr_complete; private child output reference",
+      "content_policy": "private_path_and_sha_only",
+      "embedded": false,
+      "path": "D:\\githv\\agomTradePro-evid09-v5-read-phases\\var\\evid09-v5-measure-v5-root-v3-20260914-031444-14164-1789357496\\stderr.raw",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "production_lifecycle_accepted": false,
+  "data02_acceptance_complete": false,
+  "human_signature_complete": false,
+  "unit_exit_changed": false
+}
