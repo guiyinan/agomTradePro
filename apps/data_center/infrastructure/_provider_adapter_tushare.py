@@ -26,6 +26,9 @@ from apps.data_center.domain.enums import (
 )
 from apps.data_center.domain.model_market_data import ModelMarketDataPort
 from apps.data_center.domain.rules import normalize_asset_code
+from apps.data_center.financial_response_artifact_composition import (
+    build_tushare_financial_response_handler,
+)
 from apps.data_center.infrastructure._provider_adapter_base import (
     BaseUnifiedProviderAdapter,
     _ensure_aware,
@@ -222,6 +225,12 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
     def _create_pro_client(self, *, dataset_key: str = "") -> _TushareProClient:
         """Build a client without leaking another provider row's transport config."""
 
+        normalized_dataset_key = dataset_key.strip()
+        financial_handler = (
+            build_tushare_financial_response_handler(self._config)
+            if normalized_dataset_key == "equity.financial.fact"
+            else None
+        )
         return cast(
             _TushareProClient,
             create_tushare_pro_client(
@@ -230,7 +239,8 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 request_mode=self._configured_request_mode(),
                 provider_id=self._config.id,
                 deployment_region=_deployment_region(),
-                dataset_key=dataset_key.strip(),
+                dataset_key=normalized_dataset_key,
+                financial_response_handler=financial_handler,
             ),
         )
 
@@ -753,7 +763,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     if value is not None:
                         compatibility_facts.append(build_fact(metric_code, value, unit))
             return compatibility_facts
-        pro = self._create_pro_client()
+        pro = self._create_pro_client(dataset_key="equity.financial.fact")
         frame = pro.fina_indicator(
             ts_code=normalize_asset_code(asset_code, "tushare"),
             limit=max(periods, 1),
