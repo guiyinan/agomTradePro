@@ -472,6 +472,37 @@ Ruff、两生产文件增量 mypy 与 full debt ceiling 均实际 exit 0，mypy 
 FinancialFactSourceEvidence，保留后续完整 witness 的替换能力。ANN/available 的来源
 瞬时及行身份仍须独立建立，系统响应完成时间只证明获取上界；DATA-02 生产退出门未改变。
 
+## 17. 新键插入顺序与真实 PostgreSQL 并发验证（2026-09-14）
+
+基于 Main `e5585a471ad4e28cd8e2e52289a11d2b8b85b966`，功能提交
+`9c3abad278555cec287ed6588eceeec39abf5e13` 只修改 financial write guard 的新键插入顺序，
+并新增 opt-in PostgreSQL 并发测试。插入前按既有五字段 natural key 排序，保留全批次 stale
+witness 校验、确定性旧行锁、atomic/savepoint、冲突 winner 重读、实际存储计数与 replay=0；
+没有增加 retry、ignore_conflicts 或业务 timeout。
+
+主代理真实运行 PostgreSQL 16.14：两个独立后端 PID `1205/1206` 同时提交反序重叠批次，
+实际 guard SQL 存储计数为 `[0, 2]`，最终两行，新增并发测试 1 passed、零 failure/error/skip。
+测试 child wall 为 52.2862 秒，不是数据库服务器 CPU 或生产性能提升值。既有 PostgreSQL
+provenance/数值回归另有 7 passed，定向 unit 10 passed；三组场景与 backend 分别记录。
+Black/isort/Ruff、生产文件增量 mypy、full debt ceiling、增量架构检查均 actual exit 0。
+DATA-02 entrypoint 投影更新为 1208，仅增加一个 candidate-review test_evidence；
+active_public=751、adjacent_operational=298、compatibility=137 不变，单元退出状态不变。
+
+通过批次已校验固定 staging Docker CID、loopback 端口与实际 PG 地址绑定、前后源码与运行
+身份不变、public 普通/分区表=0、其他 client backend=0、public routine identity 不变及 owner
+lock 释放。此前三次失败分别是 CIDR 地址格式比较、只读 statement timeout、夹具建连超时；
+原始 failed receipts 保留，未计为通过。失败清理的 stdlib control 只证明失败记录保留、
+foreign lock 不删除及未回收 child 不冒称已回收，不是 PG 证明。没有声明旧死锁的确定性复现。
+
+[并发候选验证封存](../testing/data02-financial-insert-concurrency-validation-2026-09-14.json)
+及 sidecar 保存 47 份公开 exact originals 和 changed source raw/Git LF hash。一次失败连接的
+JUnit 与 stdout 含私有 staging 凭据，仅公开两份原件的大小与 SHA，内容留在本地私有记录中；
+未将脱敏副本冒充原件，未发布旧封存。既有序列 runner
+将 child stdout/stderr 丢弃，封存仅保留实际存在的原始 JUnit、source 与清理 receipts，不补造日志。
+本切片尚未部署，没有修复历史 ANN/available/native row ID 或发布 policy3 current；DATA-02
+生产验收仍未收口。响应捕获切片已由 PR #45 在全部 30 项检查通过后合入 Main，仍未接入实际
+provider 或持久化完整行 witness；后续 Egress 接入独立推进。
+
 ## 18. 2026-09-14 Egress 响应捕获候选
 
 新增显式可选的 `request_financial_response` 入口，在现有 Egress 的出口、TLS、
