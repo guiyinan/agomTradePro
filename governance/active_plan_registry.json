@@ -1,5 +1,5 @@
 {
-  "version": "2026-09-14.v102",
+  "version": "2026-09-14.v103",
   "updated_at": "2026-09-14",
   "execution_focus": {
     "unit_id": "EVID-09",
@@ -20,6 +20,10 @@
       "status": "active",
       "next_gate": "Optimized Main 6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b / source-20260914021633 is actually deployed through the standard code-only PreserveDataCenterCatalog process, terminal exit0, TLS200/healthy restart0 and15 Git/release/live hash matches. Exact reviewed70547a550 head had30 completed SUCCESS checks and PR39 merged. Independent before/after reads preserve14 complete policy rows,10 active policy identities including financial3 and price/quote/valuation2, three complete Catalog rowsets, existing published-current metadata and four root canonical payload fingerprints/zero revocations. A new153184066-byte PostgreSQL dump has verified exact SHA and actual UTC stat binding; both compatible images are pinned but rollback not exercised. Three complete source-consistent isolated PostgreSQL measurements on e9835fb58 each pass with5893 unchanged sources, physical stdlib JSON chain2091, SQL2619 and complete Domain witnesses; these serial synthetic one-root fixtures do not prove production concurrency or four-root workload parity. Real expired admin1 current read at2026-09-13T18:32:42Z returnsNone with1170 queries/zeroDML, correctly after both old deadlines; it is not the configured write lifecycle or a paired optimization percentage. A separately timed real historical Facade get_exact at18:43:50Z returns the original admin selector/hash with1150queries/zeroDML; historical readability does not revive current authority. EVID-09 remains active for a genuine authenticated fresh-scope30m lifecycle with55m actual parent coverage, bounded rollback and independent admin historical exact/ledger recovery. Historical failed source-snapshot pilot and cancelled lifecycle remain excluded. DATA-02/EVID-01/02/AUD-03/TAR-05 exits and human signed acceptance remain separate. See docs/deployment/evid09-standard-deployment-preservation-2026-09-14.json.",
       "documents": [
+        {
+          "path": "docs/plans/data-evidence-audit-runtime-sprint-route-2026-09-14.md",
+          "role": "supporting"
+        },
         {
           "path": "docs/plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md",
           "role": "primary"
