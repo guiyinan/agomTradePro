@@ -554,3 +554,65 @@ source-before 快照。较早失败尝试的 source snapshots 未被重命名为
 引用及实际 provider 的行覆盖校验。没有 RawAudit/FinancialFact/Publication 接入、
 native row identity、精确 ANN/availability、PostgreSQL 或 VPS 证明。DATA-02
 可用时间、历史原始哈希和生产验收继续保持未完成。
+
+## 20. 2026-09-14 原始响应加密存储候选
+
+独立代码提交 `d8a351a42` 新增 typed artifact/reference、Application 存储 Protocol、
+显式配置的 Fernet 文件存储及契约测试。加密封装共同认证 allowlist 元数据和原始
+bytes；读取后重新核对原始 SHA、大小及不可变引用。相同 capture identity 的完全一致
+重放复用原件，元数据漂移拒绝；不同 identity 可以独立保存相同 body。原子发布不覆盖
+已有原件，只清理本操作的 partial。Windows 使用 write-through、不覆盖的发布操作，
+并拒绝现存符号链接和 junction；读取设有限上限，文件在 stat 后增长也会阻断。
+
+主代理最终冻结回归为 33 tests、0 failures/errors/skipped；Domain 行覆盖为 58/58，
+分支为 20/20，分别为 100%。Black、isort、Ruff、三个生产文件增量 mypy 和 full debt
+ceiling 均实际 exit 0。独立增量架构扫描实际覆盖三个生产文件、1,015 新增行且零违规。
+较早使用符号 `HEAD` 的扫描实际为零 changed files，不计为有效架构验证。六项普通
+public-read 损坏元数据反例先失败，再通过，保证解析异常转为稳定的 corruption 原因。
+较早 27 项回归与最终 33 项有重叠，不合计为额外独立场景。
+
+最新 Main 集成后，architecture 与 entrypoint 生成器分别实际写出 5,028 个 current
+surface references 与 1,208 个 entrypoints；数量及内容以生成的机器清单为准，
+未修改治理单元状态或退出门。
+
+[候选验证封存](../testing/data02-original-financial-body-store-validation-2026-09-14.json)
+及 sidecar 保存 37 份 exact originals、冻结源码 raw/Git LF hash 和独立覆盖率数据。
+六项先红 JUnit 没有单独同期源码快照或捕获的 stdout/stderr，未补造这些原件；其文件名
+中的日期样式文本仅为标识，不作为实测执行时间。Main 已合并的财务写入排序通过正常
+merge 纳入本分支，未回退其他主线。
+
+该存储必须由调用方注入独立密钥、key reference/version、目录和大小上限；尚未完成
+生产 secrets/composition wiring、实际 provider 原件保留或 RawAudit/FinancialFact/
+Publication 绑定。文件和数据库没有共同事务，也不声称防御具有目录写权限的恶意
+并发目录替换。本候选没有 PostgreSQL 或 VPS 验收，没有修复历史原始哈希或精确
+ANN/availability/native row identity，DATA-02 生产退出门及人工签署状态保持不变。
+
+## 21. 2026-09-14 Linux 平台类型门禁修复
+
+候选提交 `e08a3dd1683a049bd67f8514d14de55513593a90` 的 CI 有两项重复的
+Incremental Quality 失败，实际 Linux/Python 3.11 类型检查报告四个 Windows API
+属性错误。代码提交 `62810df75` 将完整 Windows 实现放入 mypy 可识别的
+`sys.platform == "win32"` 分支，没有增加 ignore 或抬高债务基线。
+
+修复后主代理再次实际通过 Black、isort、Ruff、33 项回归、三个生产文件增量 mypy
+及 full debt ceiling；Domain 行 58/58、分支 20/20。独立 Linux/Python 3.11 类型
+投影也实际 exit 0，但其执行环境仍是 Windows，不替代 Linux 运行时测试。
+实际增量架构扫描覆盖一个生产文件、29 新增行且零违规；生成清单只更新三处行号。
+
+[平台验证封存](../testing/data02-original-financial-body-store-platform-validation-2026-09-14.json)
+及 sidecar 保留 29 份 exact originals，分别标识旧 CI 失败与新源码本地门禁。
+第 20 节原封存保持不变，继续描述其历史源码。新 head 的 CI 尚待实际观察；本次
+验证不形成 provider 接入、历史原始哈希修复、精确 available_at 或生产验收证明。
+
+## 22. 2026-09-14 原始响应存储候选合并
+
+[PR50](https://github.com/guiyinan/agomTradePro/pull/50) 的实际审查 head
+`00e10915e21991df86e4f11a116062c977876263` 已取得 30 项 completed/SUCCESS，
+包括 Linux/Python 3.11 与 3.13 的实际 CI。主代理在再次核对 clean candidate、
+四个冻结文件 Git LF SHA 和全绿 CI 后，使用 match-head 合并；实际 Main merge
+commit 为 `fc5f9211c11d8814b6ae2d4b1a6f6cc292b9a622`。本节更新上一节当时的
+CI 待观察状态，旧 37 份与平台 29 份封存仍按各自历史源码和实际检查范围保留。
+
+捕获、内存保留与加密不可变存储基础已进入 Main，但尚未接入生产 provider、
+RawAudit/FinancialFact/Publication，也未部署该 Main。精确来源 available_at、
+native financial row identity、历史原始哈希及 DATA-02 生产退出门仍未完成。
