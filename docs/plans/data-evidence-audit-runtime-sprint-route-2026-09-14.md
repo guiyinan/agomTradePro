@@ -61,6 +61,24 @@ unit scopes；生产 Domain 文件、provider、持久化、策略和生产验�
 它是独立测试证据，不能加算为全 Research 90% 或生产 readiness；测试提交可单独
 回滚而不影响运行时。
 
+### Scenario reminder / R2 promotion boundary slice
+
+R2 reminder 与 market-structure promotion 的有界 Domain slice 已完成。测试提交为
+`f122eef16b767411a5f7aa2983c5a73fce0d64e8`，测量基于合并 DATA-02 后的
+`ba1605fa229b8ae8c59114af158cdf58b8f144fa`；生产 Domain 源文件未改变。
+
+- baseline 为 14 tests；final 为 26 tests，exit 0，failures/errors/skips 均为 0。
+- `scenario_review_reminders.py` 分支从 `104/148` 提升到 `145/148`，新增唯一 41 arcs。
+- `r2_market_structure_promotion.py` 分支从 `66/108` 提升到 `104/108`，新增唯一 38 arcs。
+- 合计新增唯一 79 arcs，baseline arcs 无丢失；剩余未覆盖分支保留在封存 JSON，未用非法 Domain 对象补齐。
+- 这组结果只代表两个 Domain 文件的受控本地单元范围，不能加算为全 Research 结果、90% 门或生产验收。
+
+完整 JUnit、coverage、命令、源绑定与独立复核引用见
+[Scenario reminder / R2 promotion seal](../testing/research-reminders-r2-promotion-controlled-branch-increment-2026-09-14.json)。
+基线 `receipt.json` 与 `command.txt` 未保留，封存明确列出缺证；基线合并 stdout/stderr、JUnit、coverage
+和 final 原件仍保留。源快照的 before 是 Git LF reference，after 是 Windows working-tree
+raw；两者 raw 不同但 canonical LF 相同，因此不宣称同期 raw-before 等价。
+
 ## 尚需真实来源的输入
 
 State 与 R4 补测已分别通过独立审核和 CI，并合并。环境修复后的全 Research 实际重测为
@@ -94,6 +112,21 @@ lines/statements 为 `12736/13546 = 94.0204%`，branches 为
 [`R1 后当前全量封存`](../testing/research-whole-domain-current-after-r1-2026-09-14.json)。
 该结果仍是本地 Research unit 取证，不是 PostgreSQL、VPS、供应商或生产验收，
 也不宣称将窄切片的分支数叠加到全量结果。
+
+在保留上述 1048-pass 历史原件且不将 R1/R2 窄切片增量重复相加的前提下，HEAD
+`007203ed2cf62336e2e847357045ed64f585cd15` 的最新完整本地 SQLite 测量为
+`1060 passed`、exit 0；JUnit 为 1060 tests、0 failures、0 errors、0 skipped，
+测试进程用时 `720.476780` 秒，进程树 CPU 观测为 `402.09375` 秒。63 个 Research
+Domain 文件的同期 working-tree raw、canonical LF、Git blob OID 与 Git 内容 SHA
+before/after 均一致。covered lines/statements 为 `12814/13546 = 94.5962%`，
+branches 为 `4310/5032 = 85.6518%`；coverage.py combined 值为 `92.1735%`。
+分支 90% 门槛需要 `4529/5032`，当前还差 219 条。完整原始 stdout/stderr、JUnit、
+coverage、63-file source snapshots、校正后的 coverage 语义和独立复核引用见
+[`R2 后当前全量封存`](../testing/research-whole-domain-current-after-r2-2026-09-14.json)。
+原始 receipt 中 `statement_coverage_percent=92.2` 的字段标签错误已保留并由派生解释
+记录纠正；92.1735% 是 combined 值，不能称为 statement coverage。该结果仍是本地
+Research unit 取证，不是 PostgreSQL、VPS、供应商或生产验收，也不将历史 1048 或窄切片
+新增分支重复加入当前分母。
 
 生产 inventory 中没有 `equity.financial.fact` 出网规则。现有 provider 行上的凭据存在性
 不证明解密、令牌、网络或供应商权限有效；配置和请求须按实际值验证，禁止生成假凭据。
