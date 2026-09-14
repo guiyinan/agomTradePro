@@ -1,0 +1,929 @@
+{
+  "schema": "evid09.failed-production-facade-lifecycle.v1",
+  "recorded_at_utc": "2026-09-14T07:03:58.422804+00:00",
+  "unit": "EVID-09",
+  "status": "active",
+  "lifecycle_accepted": false,
+  "source_commit": "194183454fdef541a728ccce7e0a1520fe5ac860",
+  "release_id": "source-20260914123135",
+  "image_digest": "sha256:2ec2969ba92f2d2f9c13520c29257890dd951f3aae79f6c63b7cb886cb1c6a4e",
+  "run_id": "617e594d0c704299b3ddc2f9316deab5",
+  "deployment_seal_sha256": "7ed729b4d9dc4ffa5ad10fa4dcd92a6819a2cbde4ec32d3faed8c17ba3a7c13d",
+  "failure_reason": "WatchdogExpired: active lifecycle hard watchdog elapsed",
+  "active_lifecycle_watchdog_seconds": 1500,
+  "supervisor": {
+    "started_at": "2026-09-14T06:33:16.983330+00:00",
+    "child_pid": 63220,
+    "supervisor_pid": 63214,
+    "direct_child_deadline_seconds": 2100,
+    "prototype_sha256": "bd4e7046bc53da9767fa83aaaf42040781038f597faea02e053548801870ce57",
+    "output_directory": "/app/var/evid09-fresh-prepared-20260914T063135879582Z/var/case-20260914T063310673780Z",
+    "timed_out": false,
+    "actual_child_exit": 1,
+    "finished_at": "2026-09-14T06:59:03.678004+00:00",
+    "child_reaped": true,
+    "original_stdout_sha256": "65af4a47cab864cbe04461e881a99d8f70da630ff8b193ff6f4455e28f47029b",
+    "original_stderr_sha256": "3d10b28788b4c59a7b56ac4dc643e2d4a4f6ba48a74c09ee2e95e709dfa437ac"
+  },
+  "capture": {
+    "actual_exit": 1,
+    "local_child_reaped": true,
+    "capture_complete": true,
+    "source_stable": true
+  },
+  "stages": [
+    {
+      "stage": "authenticated_session",
+      "status": "passed",
+      "started_at": "2026-09-14T06:33:28.217330Z",
+      "finished_at": "2026-09-14T06:33:28.217505Z",
+      "wall_seconds": 0.00020167510956525803,
+      "cpu_seconds": 0.00017586999999963382,
+      "sql": {
+        "by_first_keyword": {},
+        "non_select": 0,
+        "seconds": 0.0,
+        "select": 0,
+        "total": 0
+      },
+      "error_type": null,
+      "error_message": null
+    },
+    {
+      "stage": "parent_open",
+      "status": "passed",
+      "started_at": "2026-09-14T06:33:28.218499Z",
+      "finished_at": "2026-09-14T06:33:28.219810Z",
+      "wall_seconds": 0.0013268394395709038,
+      "cpu_seconds": 0.0008190170000013097,
+      "sql": {
+        "by_first_keyword": {
+          "SET": 2,
+          "SHOW": 2
+        },
+        "non_select": 4,
+        "seconds": 0.0010627545416355133,
+        "select": 0,
+        "total": 4
+      },
+      "error_type": null,
+      "error_message": null
+    },
+    {
+      "stage": "fresh_raw_publication",
+      "status": "passed",
+      "started_at": "2026-09-14T06:33:28.288667Z",
+      "finished_at": "2026-09-14T06:33:29.625504Z",
+      "wall_seconds": 1.336847866885364,
+      "cpu_seconds": 1.0621277409999994,
+      "sql": {
+        "by_first_keyword": {
+          "INSERT": 8,
+          "LOCK": 3,
+          "RELEASE": 17,
+          "SAVEPOINT": 17,
+          "SELECT": 70,
+          "SHOW": 3
+        },
+        "non_select": 48,
+        "seconds": 0.3372684055939317,
+        "select": 70,
+        "total": 118
+      },
+      "error_type": null,
+      "error_message": null
+    },
+    {
+      "stage": "fresh_actor_capture",
+      "status": "passed",
+      "started_at": "2026-09-14T06:33:29.626181Z",
+      "finished_at": "2026-09-14T06:33:30.502301Z",
+      "wall_seconds": 0.8761394722387195,
+      "cpu_seconds": 0.7696520339999999,
+      "sql": {
+        "by_first_keyword": {
+          "INSERT": 2,
+          "LOCK": 3,
+          "RELEASE": 4,
+          "SAVEPOINT": 4,
+          "SELECT": 46,
+          "SHOW": 3
+        },
+        "non_select": 16,
+        "seconds": 0.1444130940362811,
+        "select": 46,
+        "total": 62
+      },
+      "error_type": null,
+      "error_message": null
+    },
+    {
+      "stage": "source_window_gate",
+      "status": "passed",
+      "started_at": "2026-09-14T06:33:30.503054Z",
+      "finished_at": "2026-09-14T06:33:30.503147Z",
+      "wall_seconds": 0.00010377354919910431,
+      "cpu_seconds": 0.00010371499999983769,
+      "sql": {
+        "by_first_keyword": {},
+        "non_select": 0,
+        "seconds": 0.0,
+        "select": 0,
+        "total": 0
+      },
+      "error_type": null,
+      "error_message": null
+    },
+    {
+      "stage": "fresh_account_binding",
+      "status": "passed",
+      "started_at": "2026-09-14T06:33:30.619159Z",
+      "finished_at": "2026-09-14T06:33:33.036654Z",
+      "wall_seconds": 2.4175188485533,
+      "cpu_seconds": 1.9179326650000004,
+      "sql": {
+        "by_first_keyword": {
+          "INSERT": 8,
+          "RELEASE": 15,
+          "SAVEPOINT": 15,
+          "SELECT": 124,
+          "SHOW": 3
+        },
+        "non_select": 41,
+        "seconds": 0.555738627910614,
+        "select": 124,
+        "total": 165
+      },
+      "error_type": null,
+      "error_message": null
+    },
+    {
+      "stage": "fresh_policy_publication",
+      "status": "passed",
+      "started_at": "2026-09-14T06:33:33.037334Z",
+      "finished_at": "2026-09-14T06:33:33.432302Z",
+      "wall_seconds": 0.3949904041364789,
+      "cpu_seconds": 0.3033592150000004,
+      "sql": {
+        "by_first_keyword": {
+          "INSERT": 1,
+          "RELEASE": 3,
+          "SAVEPOINT": 3,
+          "SELECT": 69,
+          "SHOW": 1
+        },
+        "non_select": 8,
+        "seconds": 0.12441072706133127,
+        "select": 69,
+        "total": 77
+      },
+      "error_type": null,
+      "error_message": null
+    },
+    {
+      "stage": "fresh_reobservation",
+      "status": "passed",
+      "started_at": "2026-09-14T06:33:33.509268Z",
+      "finished_at": "2026-09-14T06:33:35.472907Z",
+      "wall_seconds": 1.9636625554412603,
+      "cpu_seconds": 1.765555184,
+      "sql": {
+        "by_first_keyword": {
+          "INSERT": 4,
+          "RELEASE": 9,
+          "SAVEPOINT": 9,
+          "SELECT": 86,
+          "SHOW": 3
+        },
+        "non_select": 25,
+        "seconds": 0.2636301750317216,
+        "select": 86,
+        "total": 111
+      },
+      "error_type": null,
+      "error_message": null
+    },
+    {
+      "stage": "fresh_receipt_v5",
+      "status": "passed",
+      "started_at": "2026-09-14T06:33:35.473626Z",
+      "finished_at": "2026-09-14T06:33:57.111047Z",
+      "wall_seconds": 21.637459576129913,
+      "cpu_seconds": 19.803496105,
+      "sql": {
+        "by_first_keyword": {
+          "INSERT": 1,
+          "RELEASE": 2,
+          "SAVEPOINT": 2,
+          "SELECT": 996
+        },
+        "non_select": 5,
+        "seconds": 2.474880376830697,
+        "select": 996,
+        "total": 1001
+      },
+      "error_type": null,
+      "error_message": null
+    },
+    {
+      "stage": "fresh_subject_v5",
+      "status": "passed",
+      "started_at": "2026-09-14T06:33:57.112730Z",
+      "finished_at": "2026-09-14T06:34:40.272198Z",
+      "wall_seconds": 43.15948232077062,
+      "cpu_seconds": 39.510758847,
+      "sql": {
+        "by_first_keyword": {
+          "INSERT": 1,
+          "RELEASE": 2,
+          "SAVEPOINT": 2,
+          "SELECT": 1967
+        },
+        "non_select": 5,
+        "seconds": 4.8867178885266185,
+        "select": 1967,
+        "total": 1972
+      },
+      "error_type": null,
+      "error_message": null
+    },
+    {
+      "stage": "fresh_evidence_v5",
+      "status": "passed",
+      "started_at": "2026-09-14T06:34:40.273342Z",
+      "finished_at": "2026-09-14T06:35:11.965501Z",
+      "wall_seconds": 31.692182562313974,
+      "cpu_seconds": 22.816355279000007,
+      "sql": {
+        "by_first_keyword": {
+          "INSERT": 1,
+          "LOCK": 5,
+          "RELEASE": 4,
+          "SAVEPOINT": 4,
+          "SELECT": 4890,
+          "SHOW": 4
+        },
+        "non_select": 18,
+        "seconds": 12.126445004716516,
+        "select": 4890,
+        "total": 4908
+      },
+      "error_type": null,
+      "error_message": null
+    },
+    {
+      "stage": "authority_issue",
+      "status": "passed",
+      "started_at": "2026-09-14T06:35:11.989816Z",
+      "finished_at": "2026-09-14T06:36:30.710825Z",
+      "wall_seconds": 78.7210394302383,
+      "cpu_seconds": 56.78001734499999,
+      "sql": {
+        "by_first_keyword": {
+          "INSERT": 1,
+          "LOCK": 15,
+          "RELEASE": 8,
+          "SAVEPOINT": 8,
+          "SELECT": 11870,
+          "SHOW": 10
+        },
+        "non_select": 42,
+        "seconds": 30.510034288279712,
+        "select": 11870,
+        "total": 11912
+      },
+      "error_type": null,
+      "error_message": null
+    },
+    {
+      "stage": "authority_issue_replay",
+      "status": "passed",
+      "started_at": "2026-09-14T06:36:30.712745Z",
+      "finished_at": "2026-09-14T06:39:07.142355Z",
+      "wall_seconds": 156.42966063134372,
+      "cpu_seconds": 113.23720848800002,
+      "sql": {
+        "by_first_keyword": {
+          "LOCK": 15,
+          "RELEASE": 9,
+          "SAVEPOINT": 9,
+          "SELECT": 25038,
+          "SHOW": 10
+        },
+        "non_select": 43,
+        "seconds": 59.37769460212439,
+        "select": 25038,
+        "total": 25081
+      },
+      "error_type": null,
+      "error_message": null
+    },
+    {
+      "stage": "authority_current",
+      "status": "passed",
+      "started_at": "2026-09-14T06:39:07.144738Z",
+      "finished_at": "2026-09-14T06:41:47.514399Z",
+      "wall_seconds": 160.36969783343375,
+      "cpu_seconds": 115.81353056799998,
+      "sql": {
+        "by_first_keyword": {
+          "LOCK": 15,
+          "RELEASE": 9,
+          "SAVEPOINT": 9,
+          "SELECT": 25038,
+          "SHOW": 10
+        },
+        "non_select": 43,
+        "seconds": 61.75518270675093,
+        "select": 25038,
+        "total": 25081
+      },
+      "error_type": null,
+      "error_message": null
+    },
+    {
+      "stage": "authority_with_current",
+      "status": "passed",
+      "started_at": "2026-09-14T06:41:47.516197Z",
+      "finished_at": "2026-09-14T06:47:02.546215Z",
+      "wall_seconds": 315.03006303403527,
+      "cpu_seconds": 228.20169135100002,
+      "sql": {
+        "by_first_keyword": {
+          "LOCK": 26,
+          "RELEASE": 16,
+          "SAVEPOINT": 16,
+          "SELECT": 50075,
+          "SHOW": 18
+        },
+        "non_select": 76,
+        "seconds": 119.2448077853769,
+        "select": 50075,
+        "total": 50151
+      },
+      "error_type": null,
+      "error_message": null
+    },
+    {
+      "stage": "authority_exact",
+      "status": "passed",
+      "started_at": "2026-09-14T06:47:02.548216Z",
+      "finished_at": "2026-09-14T06:47:36.540246Z",
+      "wall_seconds": 33.99206195957959,
+      "cpu_seconds": 24.504120910000097,
+      "sql": {
+        "by_first_keyword": {
+          "LOCK": 3,
+          "RELEASE": 3,
+          "SAVEPOINT": 3,
+          "SELECT": 5823,
+          "SHOW": 2
+        },
+        "non_select": 11,
+        "seconds": 12.86369545571506,
+        "select": 5823,
+        "total": 5834
+      },
+      "error_type": null,
+      "error_message": null
+    },
+    {
+      "stage": "authority_successor",
+      "status": "passed",
+      "started_at": "2026-09-14T06:47:36.542134Z",
+      "finished_at": "2026-09-14T06:49:27.494954Z",
+      "wall_seconds": 110.95285668876022,
+      "cpu_seconds": 80.28568685100004,
+      "sql": {
+        "by_first_keyword": {
+          "INSERT": 1,
+          "LOCK": 15,
+          "RELEASE": 8,
+          "SAVEPOINT": 8,
+          "SELECT": 18673,
+          "SHOW": 10
+        },
+        "non_select": 42,
+        "seconds": 41.911268594674766,
+        "select": 18673,
+        "total": 18715
+      },
+      "error_type": null,
+      "error_message": null
+    },
+    {
+      "stage": "authority_successor_replay",
+      "status": "passed",
+      "started_at": "2026-09-14T06:49:27.496498Z",
+      "finished_at": "2026-09-14T06:52:30.694393Z",
+      "wall_seconds": 183.1979301534593,
+      "cpu_seconds": 132.17948809400002,
+      "sql": {
+        "by_first_keyword": {
+          "LOCK": 15,
+          "RELEASE": 9,
+          "SAVEPOINT": 9,
+          "SELECT": 28922,
+          "SHOW": 10
+        },
+        "non_select": 43,
+        "seconds": 70.19206009432673,
+        "select": 28922,
+        "total": 28965
+      },
+      "error_type": null,
+      "error_message": null
+    },
+    {
+      "stage": "authority_successor_current",
+      "status": "passed",
+      "started_at": "2026-09-14T06:52:30.696238Z",
+      "finished_at": "2026-09-14T06:55:28.441003Z",
+      "wall_seconds": 177.7448068028316,
+      "cpu_seconds": 128.687810281,
+      "sql": {
+        "by_first_keyword": {
+          "LOCK": 15,
+          "RELEASE": 9,
+          "SAVEPOINT": 9,
+          "SELECT": 28922,
+          "SHOW": 10
+        },
+        "non_select": 43,
+        "seconds": 67.23270550649613,
+        "select": 28922,
+        "total": 28965
+      },
+      "error_type": null,
+      "error_message": null
+    },
+    {
+      "stage": "authority_successor_with_current",
+      "status": "failed",
+      "started_at": "2026-09-14T06:55:28.442781Z",
+      "finished_at": "2026-09-14T06:58:28.238126Z",
+      "wall_seconds": 179.79535711277276,
+      "cpu_seconds": 129.92735692100007,
+      "sql": {
+        "by_first_keyword": {
+          "LOCK": 15,
+          "RELEASE": 10,
+          "ROLLBACK": 3,
+          "SAVEPOINT": 10,
+          "SELECT": 29029,
+          "SHOW": 10
+        },
+        "non_select": 48,
+        "seconds": 67.95164529979229,
+        "select": 29029,
+        "total": 29077
+      },
+      "error_type": "WatchdogExpired",
+      "error_message": "active lifecycle hard watchdog elapsed"
+    },
+    {
+      "stage": "after_rollback_read",
+      "status": "passed",
+      "started_at": "2026-09-14T06:58:28.243681Z",
+      "finished_at": "2026-09-14T06:59:00.356297Z",
+      "wall_seconds": 32.11264962796122,
+      "cpu_seconds": 23.341937719000043,
+      "sql": {
+        "by_first_keyword": {
+          "LOCK": 7,
+          "RELEASE": 6,
+          "SAVEPOINT": 6,
+          "SELECT": 5461,
+          "SET": 2,
+          "SHOW": 6
+        },
+        "non_select": 27,
+        "seconds": 11.891395427286625,
+        "select": 5461,
+        "total": 5488
+      },
+      "error_type": null,
+      "error_message": null
+    }
+  ],
+  "independent_recovery": {
+    "checks": {
+      "nineteen_full_row_ledgers_unchanged": true,
+      "four_bound_roots_unchanged": true,
+      "current_and_exact_observations_unchanged": true,
+      "baseline_fingerprint_unchanged": true,
+      "scope_exclusions_unchanged": true,
+      "observations_bracket_actual_reaped_child": true
+    },
+    "verified_critical_paths": [
+      "apps/account/account_owner_assignment_evidence_v5_composition.py",
+      "apps/account/application/account_owner_assignment_evidence_v5.py",
+      "apps/account/application/account_owner_assignment_evidence_v5_read_phases.py",
+      "apps/account/application/owner_tenant_authority_v3.py",
+      "apps/account/application/owner_tenant_authority_v3_contracts.py",
+      "apps/account/infrastructure/account_owner_assignment_evidence_v5_repository.py",
+      "apps/account/infrastructure/immutable_read_snapshot.py",
+      "apps/account/owner_tenant_authority_v3_composition.py",
+      "apps/data_center/application/current_publication_evidence.py",
+      "apps/data_center/application/financial_response_artifact.py",
+      "apps/data_center/application/query_services.py",
+      "apps/data_center/domain/entities.py",
+      "apps/data_center/domain/financial_response_artifact.py",
+      "apps/data_center/domain/financial_response_evidence.py",
+      "apps/data_center/domain/financial_source_evidence.py",
+      "apps/data_center/domain/publication_evidence.py",
+      "apps/data_center/infrastructure/egress_transport.py",
+      "apps/data_center/infrastructure/financial_fact_repository.py",
+      "apps/data_center/infrastructure/financial_fact_write_guard.py",
+      "apps/data_center/infrastructure/financial_response_body_store.py",
+      "apps/data_center/infrastructure/financial_response_capture.py",
+      "apps/data_center/infrastructure/financial_source_policy.py",
+      "apps/data_center/infrastructure/gateways/tencent_gateway.py",
+      "apps/data_center/infrastructure/publication_fact_evidence.py",
+      "apps/data_center/infrastructure/publication_member_store.py",
+      "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
+      "governance/publication_policies.json",
+      "shared/infrastructure/immutable_read_snapshot.py"
+    ],
+    "unchanged_ledgers": 19,
+    "case_actual_child_exit": 1,
+    "excludes": [
+      "auth.User",
+      "django_session",
+      "logs",
+      "metrics",
+      "sequences",
+      "unrelated business tables"
+    ],
+    "independent_recovery_verified": true,
+    "lifecycle_accepted": false,
+    "recorded_at_utc": "2026-09-14T07:01:41.519669+00:00",
+    "deployment_seal_sha256": "7ed729b4d9dc4ffa5ad10fa4dcd92a6819a2cbde4ec32d3faed8c17ba3a7c13d",
+    "input_sha256": {
+      "before": "edc8ba35255af3a37d3f3184950029a5372791a56143dc799b8a25d839048c2f",
+      "after": "06315b3f982eda4185ffe1056b36f2089ae1250c292b08c9d3f70762f84fcd48",
+      "operator": "95c0e736fb1dd2ca58ccd7d50dd5f440a1bcdc3bb23956e00209c80c1a514481",
+      "supervisor": "ac052893dc87a9efaeeec5fff34b8b585f4a9fc9b9f9cf3c93ab879a5fff0c72"
+    },
+    "binder_sha256": "59112c73fbe7083d428c6db45b5c7a81549b9a8b9ac72631081e76feb8366ac6",
+    "limits": [
+      "Independent recovery of the listed scope only; no lifecycle, human or financial-source acceptance."
+    ]
+  },
+  "original_artifact_count": 69,
+  "original_artifacts": [
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-o25hgiu_\\evid09-v5-v5-root-v3-20260914-031444\\collector-capture-20260914T063134853721Z\\stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-o25hgiu_\\evid09-v5-v5-root-v3-20260914-031444\\collector-capture-20260914T063134853721Z\\stdout.bin",
+      "bytes": 200,
+      "sha256": "65a0a59d4edfda2ef34c20da96764e41b9e2104603bd53ec044c6826cc7c41cc"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-o25hgiu_\\evid09-v5-v5-root-v3-20260914-031444\\collector-capture-20260914T063310372800Z\\stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-o25hgiu_\\evid09-v5-v5-root-v3-20260914-031444\\collector-capture-20260914T063310372800Z\\stdout.bin",
+      "bytes": 922,
+      "sha256": "a39aa934c740f497b78919af374b954d0b4efb9053fe611007a2fc0288e10347"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-o25hgiu_\\evid09-v5-v5-root-v3-20260914-031444\\collector-capture-20260914T065958316560Z\\stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-o25hgiu_\\evid09-v5-v5-root-v3-20260914-031444\\collector-capture-20260914T065958316560Z\\stdout.bin",
+      "bytes": 200,
+      "sha256": "e5c17e1649911b74fddb51d8fb84c2f9356fd503faeeb71f83cd322cc6d80e3b"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-o25hgiu_\\evid09-v5-v5-root-v3-20260914-031444\\collector-capture-20260914T070140651915Z\\stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-vps-isolated-v5-o25hgiu_\\evid09-v5-v5-root-v3-20260914-031444\\collector-capture-20260914T070140651915Z\\stdout.bin",
+      "bytes": 134,
+      "sha256": "7cd021b0dca21a30bb470e76bb1a048e2314ea5b4e4d0228d87e409de479c5c9"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\artifact-fetch-stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\artifact-fetch-stdout.bin",
+      "bytes": 291369,
+      "sha256": "fb668c207b80943070b29ca7ccb460915fa30b7d6def0a4ef94f2531ab941ced"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\operator-receipt.json",
+      "bytes": 13317,
+      "sha256": "95c0e736fb1dd2ca58ccd7d50dd5f440a1bcdc3bb23956e00209c80c1a514481"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\child-stderr.txt",
+      "bytes": 311,
+      "sha256": "3d10b28788b4c59a7b56ac4dc643e2d4a4f6ba48a74c09ee2e95e709dfa437ac"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\child-stdout.txt",
+      "bytes": 4645,
+      "sha256": "65af4a47cab864cbe04461e881a99d8f70da630ff8b193ff6f4455e28f47029b"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\remote_old_root_baseline.json",
+      "bytes": 49386,
+      "sha256": "33e8f0f984213bd41042bb3fd8a8415f719f18dea2d3f260fe1da5396e09a945"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\remote_runtime_proof.json",
+      "bytes": 548,
+      "sha256": "536ae221988e65d9f83835347c19c9d1e239c7d68be337557d8b12fe60aad2e2"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\remote_source_proof.json",
+      "bytes": 4067,
+      "sha256": "aab2b74204a64fc208172ee8c594a4f4270ba32de34197165a3f3a4c31780511"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\supervisor-final.json",
+      "bytes": 662,
+      "sha256": "ac052893dc87a9efaeeec5fff34b8b585f4a9fc9b9f9cf3c93ab879a5fff0c72"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\supervisor-started.json",
+      "bytes": 367,
+      "sha256": "14997221e235a6f27d1cb58aac02d64487cca6d31c6830c71c7f749d2d6f180b"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\var\\case-20260914T063310673780Z\\01-authenticated_session.json",
+      "bytes": 1225,
+      "sha256": "221c83a80a4476837ae7f60ceee683f54f3d68f922f9ce8c2fbd1242e88ab955"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\var\\case-20260914T063310673780Z\\02-parent_open.json",
+      "bytes": 1298,
+      "sha256": "413b73b4a5ec7f023dda006267525282db84a16f7298b96b7dc7a1de3be74666"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\var\\case-20260914T063310673780Z\\03-fresh_raw_publication.json",
+      "bytes": 2882,
+      "sha256": "b63e2f04a4950fc15aa0a44ff20c2f6ff12682c9f131fc69d8d5bb8f105ca005"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\var\\case-20260914T063310673780Z\\04-fresh_actor_capture.json",
+      "bytes": 2832,
+      "sha256": "db05b3aafc3f312cf02a34126375e054fcaf106439499483442f1b8e1dc6abba"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\var\\case-20260914T063310673780Z\\05-source_window_gate.json",
+      "bytes": 1181,
+      "sha256": "14fb5c26cd652a14cdc5c675ce4025c1f76d6b771ab4ad4eb940e521ab300278"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\var\\case-20260914T063310673780Z\\06-fresh_account_binding.json",
+      "bytes": 1472,
+      "sha256": "98d9b8292f5dd61a17f0848e5bc79b58dab2107a660bd31ced4d9f677254d1fe"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\var\\case-20260914T063310673780Z\\07-fresh_policy_publication.json",
+      "bytes": 1773,
+      "sha256": "0fcb907ccc5c34889129d6d46d962c063a01c1d8cebb7993f378a4f8444d12ba"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\var\\case-20260914T063310673780Z\\08-fresh_reobservation.json",
+      "bytes": 1565,
+      "sha256": "2ed1fc28937ad66e24c03e7b01627a155d8ae4eae7ed06756961139aa35deee1"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\var\\case-20260914T063310673780Z\\09-fresh_receipt_v5.json",
+      "bytes": 1553,
+      "sha256": "7fefd99e4a4da2350e695d74b6b81701d8754a40f26bafe844bda369925c3bc6"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\var\\case-20260914T063310673780Z\\10-fresh_subject_v5.json",
+      "bytes": 1411,
+      "sha256": "357177985cb4fecb2a000af85f0a878863e7aff71bfd9b291dd776c87aa796ef"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\var\\case-20260914T063310673780Z\\11-fresh_evidence_v5.json",
+      "bytes": 1529,
+      "sha256": "1a23c2725a70acb2e3d68dafbf7b28f0cbd0af0cdc5181ace62b0b4e6337673c"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\var\\case-20260914T063310673780Z\\12-authority_issue.json",
+      "bytes": 2379,
+      "sha256": "9f785d1ff7771ace3f35acba9c7a54b56901e3a0251a19788e907de58ee801d9"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\var\\case-20260914T063310673780Z\\13-authority_issue_replay.json",
+      "bytes": 1232,
+      "sha256": "96ab6b7182a03133f0d8a97a438478ca3d51329366337ef12d8244ee8d9bfc48"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\var\\case-20260914T063310673780Z\\14-authority_current.json",
+      "bytes": 1215,
+      "sha256": "acf8fcb849a6db8060c62d651e6af62fa23f3b141184e28ab766d1ae9d91a253"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\var\\case-20260914T063310673780Z\\15-authority_with_current.json",
+      "bytes": 1242,
+      "sha256": "3430bf8d09855e233b4ce5c5adaa96fa9494adc64fe036bda0d37cccfe0b7a50"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\var\\case-20260914T063310673780Z\\16-authority_exact.json",
+      "bytes": 1210,
+      "sha256": "71a286c61986019f88165d4f20ca8a02d9d9e50ce98718cd9f28e9505323e7a6"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\var\\case-20260914T063310673780Z\\17-authority_successor.json",
+      "bytes": 2304,
+      "sha256": "c583471ebaf3ef44cba5ef77d1a13e68389bf1cc33b1c2ef2c8cccfae582f8db"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\var\\case-20260914T063310673780Z\\18-authority_successor_replay.json",
+      "bytes": 1235,
+      "sha256": "bf5f6a26a5d15a392d794b7fe29bcae17b00b59cf088d427b227c11c77aa7af4"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\var\\case-20260914T063310673780Z\\19-authority_successor_current.json",
+      "bytes": 1219,
+      "sha256": "c6e1afd6b572f76ca1639b91083490d878a96781a0e0487932064ddc5f4e40eb"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\var\\case-20260914T063310673780Z\\20-authority_successor_with_current.json",
+      "bytes": 1191,
+      "sha256": "94144e36d6ba8376d37ab92fb47157ec062bacfe470b1abe905a1fa94ae0c8dd"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\var\\case-20260914T063310673780Z\\21-after_rollback_read.json",
+      "bytes": 5640,
+      "sha256": "c927653afdc4f0eb4d0a9241f4144c709df7bab66093a3e4e362f5ec7b9e19c1"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\var\\case-20260914T063310673780Z\\run-result.json",
+      "bytes": 5851,
+      "sha256": "5e5fb4d11c42b4d72333c014e360507e91a0a93380a99c6803883af4155414e0"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\var\\case-20260914T063310673780Z\\run-start.json",
+      "bytes": 379,
+      "sha256": "dfbac9b73c6da2357c545dacd824159dc552b906401aa63c9b28d763497fa4b7"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\remote-originals\\var\\evid09_fresh_scope_rollback_lifecycle.py",
+      "bytes": 113345,
+      "sha256": "bd4e7046bc53da9767fa83aaaf42040781038f597faea02e053548801870ce57"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\transport-stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-production-operator-v6-20260914T063310673780Z\\transport-stdout.bin",
+      "bytes": 705,
+      "sha256": "febb9fef5ebbfcf6bb1db72867b4cfbcb9012334e8a8c42c8c7f1b4311e12975"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v6-20260914T063135879582Z\\actual-prepare-receipt.json",
+      "bytes": 19671,
+      "sha256": "553902cf6f83b0f89d5ca0508aff0465c53f64170c53c47c3193dbf07f5cf864"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v6-20260914T063135879582Z\\actual-stderr.bin",
+      "bytes": 311,
+      "sha256": "2c14bea66542f58a316bd153907d65207d70265503e88371f36f8c68a8176610"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v6-20260914T063135879582Z\\actual-stdout.bin",
+      "bytes": 103455,
+      "sha256": "ea141f6a9f4004bd8385ad5e91bdba0c7e6fead6e777fea76f4dae3df5d06355"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v6-20260914T063135879582Z\\independent-prepare-v6-audit.json",
+      "bytes": 2240,
+      "sha256": "6d4d54884140f9df3734cf39b403eaf1e1a02ef7cf247d9a552ce1caaad54b9e"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v6-20260914T063135879582Z\\manifest.json",
+      "bytes": 164801,
+      "sha256": "edc8ba35255af3a37d3f3184950029a5372791a56143dc799b8a25d839048c2f"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v6-20260914T063135879582Z\\remote_old_root_baseline.json",
+      "bytes": 49386,
+      "sha256": "33e8f0f984213bd41042bb3fd8a8415f719f18dea2d3f260fe1da5396e09a945"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v6-20260914T063135879582Z\\remote_runtime_proof.json",
+      "bytes": 548,
+      "sha256": "536ae221988e65d9f83835347c19c9d1e239c7d68be337557d8b12fe60aad2e2"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v6-20260914T063135879582Z\\remote_source_proof.json",
+      "bytes": 4067,
+      "sha256": "aab2b74204a64fc208172ee8c594a4f4270ba32de34197165a3f3a4c31780511"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v6-20260914T065958638052Z\\actual-prepare-receipt.json",
+      "bytes": 19671,
+      "sha256": "0cbaa5eef9306b803bd199cf8dd30479fd68b2d0f9ac44e302c7a709697eb75f"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v6-20260914T065958638052Z\\actual-stderr.bin",
+      "bytes": 311,
+      "sha256": "f740db777d3c5d586cd7a878f4a11e78fcf363771c0bdde52e85118e6b50bc31"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v6-20260914T065958638052Z\\actual-stdout.bin",
+      "bytes": 103455,
+      "sha256": "e692f54f1baa153825b6b287c3e4ca75a9e8cc3f295cd061d14e24599a4ce559"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v6-20260914T065958638052Z\\manifest.json",
+      "bytes": 164801,
+      "sha256": "06315b3f982eda4185ffe1056b36f2089ae1250c292b08c9d3f70762f84fcd48"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v6-20260914T065958638052Z\\remote_old_root_baseline.json",
+      "bytes": 49386,
+      "sha256": "79ac2115fc451544df5e4b969cd2e5f2323cda20edeaad8727b118d8dad05c82"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v6-20260914T065958638052Z\\remote_runtime_proof.json",
+      "bytes": 548,
+      "sha256": "8e3a481867e5a5a8257589130ccea77c282d2621175bcee9ee6579909533cc09"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-fresh-proof-prepare-v6-20260914T065958638052Z\\remote_source_proof.json",
+      "bytes": 4067,
+      "sha256": "ea5a0c71e43e6987950a4c230323b129f2ac946196e5611756683f484fd4df6a"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-independent-recovery-v6-20260914T070141519703Z.json",
+      "bytes": 3222,
+      "sha256": "e72bc6aea81d3f5eb582f93f7f2c1fdc1d49eac5f100bc08ee77ebb9d145989e"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09_fresh_scope_rollback_lifecycle.py",
+      "bytes": 113345,
+      "sha256": "bd4e7046bc53da9767fa83aaaf42040781038f597faea02e053548801870ce57"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09_versioned_deployment_proof_loader_v3.py",
+      "bytes": 27131,
+      "sha256": "2c7c56bd09b7409ea0ef28658a3efecaaa7ab01d32348e926147627e93814182"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\fresh-case8-v6-collector-capture-20260914T063310372800Z.json",
+      "bytes": 5224,
+      "sha256": "e954c666200b705c14c0abd95506d6ab5bcec0cd7cf2f14b160d162b77dc9180"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\root_prepare_evid09_fresh_scope_proofs_v6.py",
+      "bytes": 61167,
+      "sha256": "59112c73fbe7083d428c6db45b5c7a81549b9a8b9ac72631081e76feb8366ac6"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\run_evid09_fresh_scope_production_v6.py",
+      "bytes": 23486,
+      "sha256": "00ea64c2f293b4602216cde5f9bf71883294c9427ccdbe0b297baf204b7c13c2"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\source-bound-collector-capture-20260914T063134853721Z.json",
+      "bytes": 4728,
+      "sha256": "2819af0e3c2bfff5f8b07c86838bc27823ac4104ff60a842a948128b259b449c"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\source-bound-collector-capture-20260914T065958316560Z.json",
+      "bytes": 4728,
+      "sha256": "0cf1f6d12e456da5e5b428535cc9318fb01c4a6724864011cbdadb1340eae646"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\source-bound-collector-capture-20260914T070140651915Z.json",
+      "bytes": 5854,
+      "sha256": "58cd2c39883dd72a28173d544c34dda5ccf32b9eaf1823c0a875be7ab0ff03bc"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\verify_evid09_lifecycle_recovery_v6.py",
+      "bytes": 9952,
+      "sha256": "31c1d75eb2478a3ea3ccc50d3c264b29d389376b0b89504b0cae9c2786d45591"
+    }
+  ],
+  "limits": [
+    "Stages 1 through 19 passed; stage 20 failed; rollback read passed.",
+    "Recovery is limited to the stated 19 ledgers, four roots and bound observations.",
+    "User/session rows, logs, metrics, sequences and unrelated tables are excluded.",
+    "No successful lifecycle, financial-source, human or DATA-02 production acceptance.",
+    "SQL counts and CPU are actual stage measurements; production physical decode counts were not collected.",
+    "The 1500-second lifecycle and 2100-second child deadlines were not increased."
+  ]
+}
