@@ -8,12 +8,15 @@ from __future__ import annotations
 
 import os
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import partial
 from importlib import import_module
 from typing import Any, Protocol, cast
 from urllib.parse import urlsplit
+from uuid import UUID, uuid4
 
+from apps.data_center.domain.egress_routing import EgressRequestContext
 from core.exceptions import TushareError
 from shared.config.secrets import get_secrets
 from shared.config.tushare import (
@@ -40,6 +43,24 @@ class _TushareDataApi(Protocol):
     """Private URL field exposed by Tushare's untyped DataApi client."""
 
     _DataApi__http_url: str
+
+
+class TushareFinancialResponseHandler(Protocol):
+    """Application supplied handler for the opt-in financial raw capture."""
+
+    def __call__(
+        self,
+        *,
+        request_id: UUID,
+        context: EgressRequestContext,
+        method: str,
+        params: Mapping[str, object] | None,
+        json_body: Mapping[str, object] | None,
+        headers: Mapping[str, str] | None,
+        api_name: str,
+    ) -> object:
+        """Capture, retain, and return one financial response payload."""
+        ...
 
 
 class TushareRelayAuthorizationError(PermissionError):
@@ -170,6 +191,7 @@ class _UnifiedRelayClient:
         provider_id: int | None = None,
         deployment_region: str = "unknown",
         dataset_key: str = "",
+        financial_response_handler: TushareFinancialResponseHandler | None = None,
     ) -> None:
         self._token = token
         self._http_url = http_url
@@ -177,6 +199,7 @@ class _UnifiedRelayClient:
         self._provider_id = provider_id
         self._deployment_region = deployment_region.strip() or "unknown"
         self._dataset_key = dataset_key.strip()
+        self._financial_response_handler = financial_response_handler
         self._session = _create_requests_session()
         self._session.headers.update({"X-API-Key": token})
         self._session.trust_env = False
@@ -211,6 +234,11 @@ class _UnifiedRelayClient:
                 method="POST",
                 api_name=api_name,
                 json_body=request_body,
+            )
+        elif self._requires_financial_response_capture(api_name):
+            raise TushareError(
+                "Financial raw capture requires an explicit egress route",
+                code="TUSHARE_FINANCIAL_ARTIFACT_ROUTE_REQUIRED",
             )
         else:
             response = self._session.post(
@@ -297,6 +325,17 @@ class _UnifiedRelayClient:
             target_url=target_url,
             deployment_region=self._deployment_region,
         )
+        handler = self._financial_response_handler
+        if handler is not None and api_name == "fina_indicator":
+            return handler(
+                request_id=uuid4(),
+                context=context,
+                method=method,
+                params=params,
+                json_body=json_body,
+                headers={"X-API-Key": self._token},
+                api_name=api_name,
+            )
         payload = execute_provider_request(
             context,
             method=method,
@@ -306,6 +345,11 @@ class _UnifiedRelayClient:
             max_attempts=2,
         )
         return payload
+
+    def _requires_financial_response_capture(self, api_name: str) -> bool:
+        """Return whether this client must refuse an unrouted financial read."""
+
+        return self._financial_response_handler is not None and api_name == "fina_indicator"
 
     def __getattr__(self, api_name: str) -> Any:
         """Expose Tushare endpoint names through the standard dynamic API."""
@@ -332,6 +376,11 @@ class _RestPathClient(_UnifiedRelayClient):
                 method="GET",
                 api_name=api_name,
                 params=query_params,
+            )
+        elif self._requires_financial_response_capture(api_name):
+            raise TushareError(
+                "Financial raw capture requires an explicit egress route",
+                code="TUSHARE_FINANCIAL_ARTIFACT_ROUTE_REQUIRED",
             )
         else:
             response = self._session.get(
@@ -399,6 +448,7 @@ class _RoutedSdkClient(_UnifiedRelayClient):
         deployment_region: str,
         dataset_key: str,
         legacy_bypass_url: str | None = None,
+        financial_response_handler: TushareFinancialResponseHandler | None = None,
     ) -> None:
         super().__init__(
             token=token,
@@ -406,6 +456,7 @@ class _RoutedSdkClient(_UnifiedRelayClient):
             provider_id=provider_id,
             deployment_region=deployment_region,
             dataset_key=dataset_key,
+            financial_response_handler=financial_response_handler,
         )
         self._sdk_client = sdk_client
         self._legacy_bypass_url = legacy_bypass_url
@@ -416,6 +467,11 @@ class _RoutedSdkClient(_UnifiedRelayClient):
             raise ValueError("Tushare API name has invalid format")
         target_url = self._http_url.rstrip("/") + "/" + api_name
         if not self._should_use_egress(target_url, api_name=api_name):
+            if self._requires_financial_response_capture(api_name):
+                raise TushareError(
+                    "Financial raw capture requires an explicit egress route",
+                    code="TUSHARE_FINANCIAL_ARTIFACT_ROUTE_REQUIRED",
+                )
             _append_custom_endpoint_to_no_proxy(self._legacy_bypass_url)
             return cast(Any, self._sdk_client).query(api_name, fields=fields, **params)
         payload = self._request_through_egress(
@@ -456,6 +512,7 @@ def create_tushare_pro_client(
     provider_id: int | None = None,
     deployment_region: str = "unknown",
     dataset_key: str = "",
+    financial_response_handler: TushareFinancialResponseHandler | None = None,
 ) -> object:
     """Create a configured Tushare Pro client inside the Data Center boundary."""
 
@@ -483,6 +540,7 @@ def create_tushare_pro_client(
             provider_id=provider_id,
             deployment_region=deployment_region,
             dataset_key=dataset_key,
+            financial_response_handler=financial_response_handler,
         )
 
     if provider_id is None:
@@ -506,10 +564,12 @@ def create_tushare_pro_client(
         provider_id=provider_id,
         deployment_region=deployment_region,
         dataset_key=dataset_key,
+        financial_response_handler=financial_response_handler,
     )
 
 
 __all__ = [
+    "TushareFinancialResponseHandler",
     "TushareRelayAuthorizationError",
     "TushareRuntimeSettings",
     "configure_tushare_pro_client",

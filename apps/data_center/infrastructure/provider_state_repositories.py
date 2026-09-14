@@ -225,6 +225,21 @@ class RawAuditRepository:
         )
         return self._from_model(m)
 
+    def find_by_artifact_capture_id(self, capture_id: UUID) -> RawAudit | None:
+        """Find one financial audit row bound to an artifact capture UUID."""
+
+        if not isinstance(capture_id, UUID):
+            raise ValueError("capture_id must be a UUID")
+        model = (
+            RawAuditModel.objects.filter(
+                capability="financial",
+                extra__financial_response_artifact__capture_id=str(capture_id),
+            )
+            .order_by("-fetched_at", "-pk")
+            .first()
+        )
+        return self._from_model(model) if model is not None else None
+
     def get_by_id(self, raw_audit_id: str) -> RawAudit | None:
         """Return one exact raw-audit row without selector substitution."""
 

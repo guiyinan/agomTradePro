@@ -11,7 +11,7 @@
       "compatibility_facade": 94,
       "current_data_surface": 62,
       "dynamic_import_edge": 11,
-      "management_command": 28,
+      "management_command": 29,
       "management_command_edge": 56,
       "mcp_tool": 40,
       "migration_evidence": 14,
@@ -30,13 +30,13 @@
       "workflow_step": 10
     },
     "by_status": {
-      "active_public": 751,
+      "active_public": 752,
       "adjacent_operational": 298,
       "candidate-review": 24,
       "compatibility": 137,
       "retired_blocked": 0
     },
-    "total": 1210
+    "total": 1211
   },
   "entries": [
     {
@@ -5672,8 +5672,8 @@
     {
       "category": "dynamic_import_edge",
       "evidence": "statically resolved dynamic import target",
-      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:157",
-      "locator": "line:157",
+      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:178",
+      "locator": "line:178",
       "path": "apps/data_center/infrastructure/tushare_client.py",
       "status": "adjacent_operational",
       "symbol": "import_module",
@@ -5682,8 +5682,8 @@
     {
       "category": "dynamic_import_edge",
       "evidence": "statically resolved dynamic import target",
-      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:27",
-      "locator": "line:27",
+      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:30",
+      "locator": "line:30",
       "path": "apps/data_center/infrastructure/tushare_client.py",
       "status": "adjacent_operational",
       "symbol": "import_module",
@@ -5692,8 +5692,8 @@
     {
       "category": "dynamic_import_edge",
       "evidence": "statically resolved dynamic import target",
-      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:491",
-      "locator": "line:491",
+      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:549",
+      "locator": "line:549",
       "path": "apps/data_center/infrastructure/tushare_client.py",
       "status": "adjacent_operational",
       "symbol": "import_module",
@@ -5867,6 +5867,16 @@
       "path": "apps/data_center/management/commands/initialize_data_center_catalog.py",
       "status": "active_public",
       "symbol": "initialize_data_center_catalog",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "Data Center-owned Django command",
+      "id": "management_command:apps/data_center/management/commands/initialize_financial_response_artifact.py:initialize_financial_response_artifact:",
+      "locator": "",
+      "path": "apps/data_center/management/commands/initialize_financial_response_artifact.py",
+      "status": "active_public",
+      "symbol": "initialize_financial_response_artifact",
       "target": ""
     },
     {

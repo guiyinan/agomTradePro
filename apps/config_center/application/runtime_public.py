@@ -20,13 +20,17 @@ from apps.config_center.application.runtime_repository_provider import (
 )
 from apps.config_center.application.storage_budget import StoragePressureGuard
 from apps.config_center.domain.runtime_config import (
+    RuntimeConfigCriticality,
     RuntimeConfigDefinition,
     RuntimeConfigProfile,
+    RuntimeConfigReloadMode,
     RuntimeConfigSnapshot,
     RuntimeConfigValue,
+    RuntimeValueType,
     StorageBudgetPolicy,
     StorageCapacityObservation,
 )
+from core.integration.config_center_runtime import RuntimeConfigDefinitionSpec
 
 _QLIB_RUNTIME_FIELDS: tuple[tuple[str, str, type[object]], ...] = (
     ("enabled", "alpha.qlib.enabled", bool),
@@ -79,6 +83,29 @@ _BACKUP_RUNTIME_FIELDS: tuple[tuple[str, str, type[object]], ...] = (
     ("backup_smtp_password_ref", "backup.smtp_password", str),
 )
 _BACKUP_SECRET_DEFINITION_KEYS = frozenset({"backup.archive_password", "backup.smtp_password"})
+
+
+def register_runtime_definitions(
+    specifications: tuple[RuntimeConfigDefinitionSpec, ...],
+) -> tuple[str, ...]:
+    """Convert consumer metadata to validated owner entities before any write."""
+
+    definitions = tuple(
+        RuntimeConfigDefinition(
+            key=spec.key,
+            namespace=spec.namespace,
+            owner_app=spec.owner_app,
+            value_type=RuntimeValueType(spec.value_type),
+            criticality=RuntimeConfigCriticality(spec.criticality),
+            reload_mode=RuntimeConfigReloadMode(spec.reload_mode),
+            secret=spec.secret,
+            description=spec.description,
+            constraints={} if spec.minimum is None else {"minimum": spec.minimum},
+        )
+        for spec in specifications
+    )
+    repository = get_runtime_definition_repository()
+    return tuple(repository.save(definition).key for definition in definitions)
 
 
 def validate_runtime_values(values: tuple[RuntimeConfigValue, ...]) -> dict[str, object]:
@@ -592,6 +619,7 @@ def get_latest_storage_capacity_observation(
 
 
 __all__ = [
+    "register_runtime_definitions",
     "activate_runtime_profile",
     "activate_runtime_profile_patch",
     "activate_runtime_profile_patch_payload",
