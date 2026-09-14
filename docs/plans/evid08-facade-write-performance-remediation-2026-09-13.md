@@ -483,3 +483,32 @@ READ COMMITTED、确定性来源锁、精确 cutoff 双读及 DML 后新观察�
 payload/hash、真实来源时钟和失败阻断。不得抬高时间预算、延长旧证据或将读取缓存跨越
 写入。代码检查和隔离完整父链回归通过后，使用标准部署重新冻结 runtime，再进行同范围
 生产复测。EVID-09 继续 active，DATA-02/EVID-01/02 的退出门未改变。
+
+## 15. VPS 隔离夹具环境创建失败与定界清理（2026-09-14）
+
+本节保留后续完整父链夹具整改阶段的第 14 节编号。V5 候选冻结于
+`f32287ec969001a2da36a74a54f1d855b59e2700`，其真实 PostgreSQL 完整父链
+仍未取得成功结果。换用新 VPS cohort 的本地计划绑定九个源码文件；完整源码的
+5,909 文件测量属于另一独立边界，不能以九文件清单代替。
+
+主代理实际创建一次临时环境，独立 internal bridge、独立角色、tmpfs 数据目录、
+1 CPU、768 MiB 容器上限，并要求现有服务保留 2 GiB 可用内存。创建后的实际
+Docker `NetworkSettings.Ports["5432/tcp"]` 为 null，虽然 HostConfig 记录了
+127.0.0.1 发布请求，仍未分配端口。因此 v2 创建验收 actual exit 2，没有 ready
+manifest；未启动业务 pytest、测量 child 或 SSH relay，也没有实际解码计数。
+
+失败后独立 SSH 观察确认同一 CID/image/owner labels/network：零业务表、零其他
+连接，`transaction_read_only=on`，SQL 15 秒、lock 5 秒。随后只关闭该临时 CID，
+再核对相同身份、restart 0 和 closed 状态，删除该 CID、无其他容器的独立 network、
+空的远端凭据目录及该次本地 PostgreSQL 密码；八个清理阶段实际 exit 0。
+
+[失败及清理封存](../testing/evid09-failed-vps-isolated-test-creation-2026-09-14.json)
+与 sidecar 保存 29 份工件。本地 subprocess stdout/stderr 是原始 binary；SSH
+边界流按实际 decoded UTF-8 text 标识，不声称另行捕获了原始 channel binary。
+旧 v1/v2 工具和失败记录不改写。没有操作生产 compose、数据库或 catalog。
+
+下一版保持内部网络，使用实际同一容器的 network/IP/5432 作为 SSH direct-tcpip
+目标，避免依赖 host publish；该路线依据 [Docker networking 文档](https://docs.docker.com/engine/network/)
+关于宿主机访问 bridge 容器端口的说明，仍须通过真实连接验证。完成 driver 清单
+绑定、原始失败工件保存、子进程回收和实际六阶段 rollback 门后，再评估合并与
+标准部署。既有生产 runtime 仍为 `6760c9aa...`，未形成新优化部署或配对性能结论。
