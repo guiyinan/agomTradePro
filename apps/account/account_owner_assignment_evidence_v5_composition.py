@@ -10,6 +10,7 @@ authenticate requests, register an owner, or grant execution authority.
 from __future__ import annotations
 
 from collections.abc import Callable
+from contextlib import nullcontext
 from datetime import timedelta
 from typing import TypeVar
 
@@ -81,6 +82,9 @@ from apps.account.infrastructure.canonical_account_creation_consumption_reposito
 from apps.account.infrastructure.canonical_account_ownership_reobservation_v1_repository import (
     DjangoCanonicalAccountOwnershipReobservationV1Repository,
 )
+from apps.account.infrastructure.owner_tenant_authority_v3_read_context import (
+    OwnerTenantAuthorityV3OperationReadContext,
+)
 from apps.account.infrastructure.physical_account_row_observation_v2_repository import (
     DjangoPhysicalAccountRowObservationV2Repository,
 )
@@ -115,12 +119,18 @@ class AccountOwnerAssignmentEvidenceV5Facade:
         exact: GetExactAccountOwnerAssignmentEvidenceV5,
         current: GetCurrentAccountOwnerAssignmentEvidenceV5,
         physical_row_provider: ExactPhysicalSimulatedAccountRowV2Provider,
+        repository: DjangoAccountOwnerAssignmentEvidenceV5Repository | None = None,
+        policies: DjangoSingleOwnerAuthorityPolicyV1Repository | None = None,
+        read_context: OwnerTenantAuthorityV3OperationReadContext | None = None,
     ) -> None:
-        """Bind one alias, source provider, and server-owned V5 use cases."""
+        """Bind one alias, shared graph repositories, and V5 use cases."""
 
         self._using = using
         self._policy_id = policy_id
         self._actors = actors
+        self._repository = repository
+        self._policies = policies
+        self._read_context = read_context
         self._approve = approve
         self._exact = exact
         self._current = current
@@ -161,15 +171,21 @@ class AccountOwnerAssignmentEvidenceV5Facade:
         """Run one current operation under ordered source locks and actor UOW."""
 
         self._ensure_postgresql()
+        reuse_owned_phase = (
+            self._repository is not None
+            and self._read_context is not None
+            and self._read_context.is_active(self._using)
+            and self._actors._uow is not None
+        )
         try:
-            with suspend_immutable_read_reuse():
+            with nullcontext() if reuse_owned_phase else suspend_immutable_read_reuse():
                 with transaction.atomic(using=self._using):
                     lock_account_owner_assignment_evidence_v5_sources(
                         using=self._using,
                         policy_id=self._policy_id,
                     )
                     self._physical_row_provider.lock_current_sources()
-                    with self._actors.atomic():
+                    with nullcontext() if reuse_owned_phase else self._actors.atomic():
                         return operation()
         except (DatabaseError, PhysicalAccountRowObservationV2Unavailable) as error:
             raise AccountOwnerAssignmentEvidenceV5Unavailable(
@@ -201,6 +217,9 @@ def build_account_owner_assignment_evidence_v5_facade(
     validity_period: timedelta,
     physical_row_provider: ExactPhysicalSimulatedAccountRowV2Provider,
     using: str = "default",
+    actors: DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository | None = None,
+    policies: DjangoSingleOwnerAuthorityPolicyV1Repository | None = None,
+    read_context: OwnerTenantAuthorityV3OperationReadContext | None = None,
 ) -> AccountOwnerAssignmentEvidenceV5Facade:
     """Build the authenticated same-alias Evidence V5 facade.
 
@@ -227,7 +246,13 @@ def build_account_owner_assignment_evidence_v5_facade(
     if not callable(provider_locker):
         raise TypeError("physical row provider must expose lock_current_sources")
 
-    actors = DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository(using=alias)
+    actors = (
+        actors
+        if actors is not None
+        else DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository(using=alias)
+    )
+    if getattr(actors, "_using", alias) != alias:
+        raise ValueError("actors must use the Evidence V5 database alias")
     actor_reader = CanonicalAccountActorAuthorityRequestReader(
         current_reader=GetCurrentAccountOwnerAssignmentActorAuthoritySourceV3(
             input_bundle_provider=DjangoAccountActorAuthorityCaptureBundleProviderV3(
@@ -240,7 +265,13 @@ def build_account_owner_assignment_evidence_v5_facade(
         source_version=actor_source_version,
         expected_content_hash=actor_source_content_hash,
     )
-    policies = DjangoSingleOwnerAuthorityPolicyV1Repository(using=alias)
+    policies = (
+        policies
+        if policies is not None
+        else DjangoSingleOwnerAuthorityPolicyV1Repository(using=alias)
+    )
+    if getattr(policies, "_using", alias) != alias:
+        raise ValueError("policies must use the Evidence V5 database alias")
     participants = CurrentSingleOwnerParticipantsProvider(
         principal=principal,
         binding=policy_binding,
@@ -265,12 +296,16 @@ def build_account_owner_assignment_evidence_v5_facade(
         policy_reader=policies,
         reobservation_reader=reobservation_reader,
     )
+    subjects = DjangoAccountOwnerAssignmentSubjectV5Repository(using=alias)
     subject_reader = GetCurrentAccountOwnerAssignmentSubjectV5(
-        repository=DjangoAccountOwnerAssignmentSubjectV5Repository(using=alias),
+        repository=subjects,
         current_receipt_reader=receipt_reader,
     )
     evidence_repository = DjangoAccountOwnerAssignmentEvidenceV5Repository(
         using=alias,
+        subjects=subjects,
+        actors=actors,
+        read_context=read_context,
     )
     approve = ApproveAccountOwnerAssignmentEvidenceV5(
         subject_reader=subject_reader,
@@ -292,6 +327,9 @@ def build_account_owner_assignment_evidence_v5_facade(
         exact=exact,
         current=current,
         physical_row_provider=physical_row_provider,
+        repository=evidence_repository,
+        policies=policies,
+        read_context=read_context,
     )
 
 

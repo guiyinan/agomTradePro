@@ -595,3 +595,39 @@ PR49 已在最终候选 `e1ae4022ea5b0a60be41ef5e1e0b837d277fe5a8` 的 30 项 CI
 DATA-02 的加密原始响应持久化基础已合并，但 provider 到原件、审计及事实元数据
 的接入、可信可用时间和原生来源身份仍未完成。代码部署不能回填或证明这些历史
 数据缺口，DATA-02/EVID-01/02 与人工验收退出门不变，EVID-09 继续 active。
+
+## 17. Authority V3 composition-owned read reuse candidate（2026-09-14）
+
+本切片只收敛一次 Authority V3 operation 内的读取图。Account composition root
+现在构造一个绑定同一数据库 alias 与底层物理 connection 的短生命周期 read context，
+并把同一个 Evidence V5、actor、policy、subject repository graph 注入 V3/V5
+facades。V5 repository 只有在这个 context 的当前 phase、alias 和 connection
+仍完全一致时复用 immutable-read cache；直接使用或连接变化时仍建立独立 fresh
+phase。exact cutoff 仍是缓存调用参数的一部分，不能跨 cutoff 或 phase 复用。
+
+该候选保留 Authority V3 的全量 world/FK/head/revocation 校验、来源锁、两次
+`with_current` `get_current` 及 callback 后 fresh re-read；append/revoke 发生在
+read phase 退出后，因此不会继承写入前的缓存。没有修改 schema、锁顺序、超时或
+业务 validity budget，也没有把缓存提升为进程级或跨 callback 状态。
+
+新增的纯 context/graph identity regression 覆盖 exact cutoff、phase 隔离、嵌套
+V5 facade 不清空外层 phase，以及 composition 共享 repository graph。既有
+Authority V3 component 与 Application lifecycle tests 继续覆盖 successor/replay、
+callback 后复核和 current source revalidation。当前结果只证明本地契约和回归行为；
+尚未取得生产规模 PostgreSQL 的 query/wall 性能复测，必须由后续同源环境重新测量。
+
+Root 复核发现首次候选只绑定持久 Django wrapper：底层 connection 更换时身份仍不变。
+新增测试实际先失败后修正为 native connection；无底层连接不能进入可复用 phase，
+正常 phase 退出前再次核对物理身份，发生变化则抛识别型错误并清理 ContextVar。
+修正后 context 单测 5 passed，四文件定向回归 31 passed、1 skipped。
+该 skipped 是显式启用的真实 PostgreSQL lifecycle/successor/replay 测试，尚未执行；
+本地 Application 测试不替代它，也不证明生产 query/wall 或物理解码收益。
+
+另一个先失败的 Root 回归证实首次 nested V5 候选直接返回而未执行来源锁。
+已删除该提前返回：嵌套调用仍进入数据库事务并执行原 ordered source locks 和 physical row locks；
+仅当前 phase 与共享 actor UOW 均已活跃时复用缓存/actor UOW，避免嵌套 UOW 冲突。
+单测明确核对两次嵌套调用均执行来源锁、物理锁及事务，且 exact read 只执行一次。
+最终同一定向包实际 31 passed、1 个真实 PG opt-in skipped；生产规模复测仍待完成。
+冻结最终生产源码后，Root 五个生产文件增量 mypy 零回归、全生产债务检查 0 错误，
+Black/isort/Ruff、diff 检查及 62 个 current-data surfaces 契约通过；独立只读审核无 P0/P1。
+可信 composition 的实例/alias 绑定已核对，手工注入与共享 actor UOW token 约束仍为后续加强项。
