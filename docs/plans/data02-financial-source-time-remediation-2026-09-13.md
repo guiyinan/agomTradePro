@@ -471,3 +471,29 @@ Ruff、两生产文件增量 mypy 与 full debt ceiling 均实际 exit 0，mypy 
 发起供应商请求、持久化、迁移或生产写入。也未将 partial transport digest 附到既有
 FinancialFactSourceEvidence，保留后续完整 witness 的替换能力。ANN/available 的来源
 瞬时及行身份仍须独立建立，系统响应完成时间只证明获取上界；DATA-02 生产退出门未改变。
+
+## 18. 2026-09-14 Egress 响应捕获候选
+
+新增显式可选的 `request_financial_response` 入口，在现有 Egress 的出口、TLS、
+allowlist、限流、熔断和资源释放边界内调用原始响应捕获器。请求 scope 的 dataset
+必须与 Egress context 一致，验证发生于 HTTP 请求前；旧 request/request_payload
+入口保持兼容。新入口默认请求 identity encoding，保留调用方显式的 encoding header，
+实际压缩响应仍按捕获契约阻断。失败返回稳定、脱敏的原因，不返回部分成功凭证。
+
+代码分别提交 `23018b665` 与 `e7c160f7da7317fb3364b925b05e51bb8b80dd63`。
+主代理最终受影响回归为 90 tests、0 failures/errors/skipped；Black、isort、Ruff、
+生产文件增量 mypy、全量债务门禁及增量架构检查均实际 exit 0。
+identity header 反例先红 1 项，修复后该测试文件 12 项通过；Luna 的初始 65 项
+发生于 identity 修复前，不能与最终 90 项相加为独立场景。
+entrypoint 和 architecture 生成器分别验证 1207 与 5025 项，治理规模和退出门不变。
+
+[候选验证封存](../testing/data02-egress-financial-response-validation-2026-09-14.json)
+及其 SHA sidecar 保存 20 份 exact originals、源码 raw/Git LF hash、最终回归与
+类型门禁，以及单独标识的初始和先红后绿 JUnit。未保留的先红 stdout/stderr
+没有重构为原始工件。
+
+返回 DTO 仅保留解析后的 payload、原始 body SHA/大小和 EOF UTC，不保留原始
+body bytes；RawAudit 的原件持久化仍须单独实现。scope 为 caller_declared batch，
+不证明 native financial row identity、ANN 或 available_at。本候选没有接入 provider、
+Application、FinancialFact 写入或 Publication，也没有供应商请求、PostgreSQL 验收
+或 VPS 部署。DATA-02 可用时间、原始响应持久化及生产退出门保持未完成。
