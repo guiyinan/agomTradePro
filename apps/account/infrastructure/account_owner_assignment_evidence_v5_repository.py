@@ -81,6 +81,10 @@ from apps.account.infrastructure.canonical_account_ownership_reobservation_v1_mo
     CanonicalAccountOwnershipReobservationV1Model,
 )
 from apps.account.infrastructure.immutable_read_snapshot import reuse_immutable_read
+from apps.account.infrastructure.owner_tenant_authority_v3_read_context import (
+    OwnerTenantAuthorityV3OperationReadContext,
+    _is_active_for,
+)
 from apps.account.infrastructure.physical_account_row_observation_v2_models import (
     PhysicalAccountRowObservationV2Model,
 )
@@ -122,22 +126,42 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
         *,
         using: str = "default",
         clock: AccountOwnerAssignmentEvidenceV5Clock | None = None,
+        subjects: DjangoAccountOwnerAssignmentSubjectV5Repository | None = None,
+        actors: DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository | None = None,
+        read_context: OwnerTenantAuthorityV3OperationReadContext | None = None,
     ) -> None:
-        """Bind the graph to one alias and optional test clock."""
+        """Bind the graph to one alias, shared parents, and an optional read context."""
         if type(using) is not str or not using or using.strip() != using:
             raise ValueError("using must be an exact database alias")
+        if subjects is not None and getattr(subjects, "_using", using) != using:
+            raise ValueError("subjects must use the evidence database alias")
+        if actors is not None and getattr(actors, "_using", using) != using:
+            raise ValueError("actors must use the evidence database alias")
         self._using = using
         self._clock = clock
+        self._read_context = read_context
         self._uow: object | None = None
-        self._subjects = DjangoAccountOwnerAssignmentSubjectV5Repository(using=using, clock=clock)
-        self._actors = DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository(
-            using=using, clock=clock
+        self._subjects = (
+            subjects
+            if subjects is not None
+            else DjangoAccountOwnerAssignmentSubjectV5Repository(using=using, clock=clock)
+        )
+        self._actors = (
+            actors
+            if actors is not None
+            else DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository(
+                using=using, clock=clock
+            )
         )
 
     @contextmanager
     def read_phase(self) -> Iterator[None]:
         """Provide a fresh repository-owned cache for one application read group."""
 
+        if _is_active_for(self._using, self._read_context):
+            with _bind_evidence_v5_read_phase_owner(self):
+                yield
+            return
         with suspend_immutable_read_reuse():
             with isolated_immutable_read_snapshot():
                 with _bind_evidence_v5_read_phase_owner(self):
