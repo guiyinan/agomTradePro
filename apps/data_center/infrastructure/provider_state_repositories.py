@@ -10,6 +10,11 @@ from apps.data_center.domain.entities import (
     RawAudit,
     raw_audit_content_hash,
 )
+from apps.data_center.domain.financial_response_failure import (
+    FINANCIAL_RESPONSE_FAILURE_CAPABILITY,
+    FINANCIAL_RESPONSE_FAILURE_LINK_KEY,
+    FINANCIAL_RESPONSE_FAILURE_STATUS,
+)
 from apps.data_center.infrastructure.models import (
     ProductionCoverageUniverseConfigModel,
     ProviderConfigModel,
@@ -234,6 +239,33 @@ class RawAuditRepository:
             RawAuditModel.objects.filter(
                 capability="financial",
                 extra__financial_response_artifact__capture_id=str(capture_id),
+            )
+            .order_by("-fetched_at", "-pk")
+            .first()
+        )
+        return self._from_model(model) if model is not None else None
+
+    def log_failure(self, audit: RawAudit) -> RawAudit:
+        """Persist one provider-rejection audit under its dedicated capability."""
+
+        if (
+            audit.capability != FINANCIAL_RESPONSE_FAILURE_CAPABILITY
+            or audit.status != FINANCIAL_RESPONSE_FAILURE_STATUS
+        ):
+            raise ValueError("financial response failure audit outcome is invalid")
+        if FINANCIAL_RESPONSE_FAILURE_LINK_KEY not in audit.extra:
+            raise ValueError("financial response failure audit link is missing")
+        return self.log(audit)
+
+    def find_by_failure_capture_id(self, capture_id: UUID) -> RawAudit | None:
+        """Find one provider-rejection audit row bound to a capture UUID."""
+
+        if not isinstance(capture_id, UUID):
+            raise ValueError("capture_id must be a UUID")
+        model = (
+            RawAuditModel.objects.filter(
+                capability=FINANCIAL_RESPONSE_FAILURE_CAPABILITY,
+                extra__financial_response_failure_artifact__capture_id=str(capture_id),
             )
             .order_by("-fetched_at", "-pk")
             .first()

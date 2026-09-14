@@ -17,14 +17,17 @@ from apps.data_center.application import egress_service
 from apps.data_center.application.financial_response_artifact import (
     FinancialResponseArtifactAuditError,
     FinancialResponseArtifactAuditLookupError,
+    FinancialResponseArtifactOutcomeConflictError,
+    FinancialResponseFailureAuditError,
     RetainFinancialResponseArtifactUseCase,
+    RetainFinancialResponseFailureUseCase,
 )
 from apps.data_center.domain.egress_routing import (
     EgressRequestContext,
     EgressRouteDecision,
     EgressStrategy,
 )
-from apps.data_center.domain.entities import ProviderConfig, RawAudit
+from apps.data_center.domain.entities import ProviderConfig, RawAudit, raw_audit_content_hash
 from apps.data_center.domain.financial_response_evidence import (
     FinancialRequestScope,
     FinancialResponseEvidence,
@@ -48,6 +51,7 @@ from apps.data_center.infrastructure.financial_response_artifact_config import (
 )
 from apps.data_center.infrastructure.financial_response_artifact_repository import (
     FinancialResponseArtifactRepository,
+    failure_reference_from_audit,
     reference_from_audit,
 )
 from apps.data_center.infrastructure.financial_response_body_store import (
@@ -65,6 +69,7 @@ from apps.data_center.management.commands.initialize_financial_response_artifact
 from core.exceptions import TushareError
 
 BODY = b'{"code":0,"data":{"fields":["ts_code"],"items":[["000001.SZ"]]}}'
+SYNTHETIC_REJECTED_BODY = b'{"code":2003,"msg":"synthetic provider rejection"}'
 FINANCIAL_BODY = (
     b'{"code":0,"data":{"fields":["end_date","ann_date","roe"],'
     b'"items":[["2025-12-31","2026-03-30",12.5]]}}'
@@ -95,6 +100,25 @@ class _AuditRepository:
         expected = str(capture_id)
         for row in self.rows:
             link = row.extra.get("financial_response_artifact")
+            if isinstance(link, dict) and link.get("capture_id") == expected:
+                return row
+        return None
+
+    def log_failure(self, audit: RawAudit) -> RawAudit:
+        """Append one failure audit row or simulate a durable audit failure."""
+
+        if self.fail_log:
+            raise OSError("simulated audit failure")
+        persisted = replace(audit, raw_audit_id=str(len(self.rows) + 1))
+        self.rows.append(persisted)
+        return persisted
+
+    def find_by_failure_capture_id(self, capture_id: UUID) -> RawAudit | None:
+        """Find the one failure row whose link contains the requested capture UUID."""
+
+        expected = str(capture_id)
+        for row in self.rows:
+            link = row.extra.get("financial_response_failure_artifact")
             if isinstance(link, dict) and link.get("capture_id") == expected:
                 return row
         return None
@@ -217,11 +241,17 @@ class _RetentionRepository:
 
     def __init__(self) -> None:
         self.calls: list[dict[str, object]] = []
+        self.failure_calls: list[dict[str, object]] = []
 
     def retain(self, **kwargs: object) -> None:
         """Record only the typed retention arguments supplied by the handler."""
 
         self.calls.append(kwargs)
+
+    def retain_rejected(self, **kwargs: object) -> None:
+        """Record only the typed failure-retention arguments supplied by the handler."""
+
+        self.failure_calls.append(kwargs)
 
 
 def _evidence(body: bytes = BODY) -> FinancialResponseEvidence:
@@ -334,6 +364,61 @@ def test_retention_replay_is_idempotent_and_conflict_is_immutable(
     assert replay.reference == first.reference
     assert replay.audit == first.audit
     assert len(audits.rows) == 1
+    audits.rows[0] = replace(audits.rows[0], run_id="foreign-run")
+    with pytest.raises(ValueError):
+        use_case.execute(
+            capture_id=CAPTURE_ID,
+            evidence=_evidence(),
+            body=BODY,
+            provider_name="Tushare Pro",
+            request_params={"params": {"ts_code": "000001.SZ"}},
+            provider_id=7,
+        )
+    audits.rows[0] = replace(audits.rows[0], run_id="")
+    audits.rows[0] = replace(audits.rows[0], ingested_run_id="foreign-ingested-run")
+    with pytest.raises(ValueError):
+        use_case.execute(
+            capture_id=CAPTURE_ID,
+            evidence=_evidence(),
+            body=BODY,
+            provider_name="Tushare Pro",
+            request_params={"params": {"ts_code": "000001.SZ"}},
+            provider_id=7,
+        )
+    audits.rows[0] = replace(audits.rows[0], ingested_run_id="")
+    audits.rows[0] = replace(audits.rows[0], content_hash="f" * 64)
+    with pytest.raises(ValueError):
+        use_case.execute(
+            capture_id=CAPTURE_ID,
+            evidence=_evidence(),
+            body=BODY,
+            provider_name="Tushare Pro",
+            request_params={"params": {"ts_code": "000001.SZ"}},
+            provider_id=7,
+        )
+    audits.rows[0] = replace(audits.rows[0], content_hash=raw_audit_content_hash(audits.rows[0]))
+    assert (
+        use_case.execute(
+            capture_id=CAPTURE_ID,
+            evidence=_evidence(),
+            body=BODY,
+            provider_name="Tushare Pro",
+            request_params={"params": {"ts_code": "000001.SZ"}},
+            provider_id=7,
+        ).audit
+        == audits.rows[0]
+    )
+    audits.rows[0] = replace(audits.rows[0], content_hash="")
+    audits.rows[0] = replace(audits.rows[0], error_message="corrupted success audit")
+    with pytest.raises(ValueError):
+        use_case.execute(
+            capture_id=CAPTURE_ID,
+            evidence=_evidence(),
+            body=BODY,
+            provider_name="Tushare Pro",
+            request_params={"params": {"ts_code": "000001.SZ"}},
+            provider_id=7,
+        )
 
     changed_body = BODY + b"\n"
     with pytest.raises(FinancialResponseArtifactConflictError):
@@ -346,6 +431,281 @@ def test_retention_replay_is_idempotent_and_conflict_is_immutable(
             provider_id=7,
         )
     assert len(audits.rows) == 1
+
+
+def test_failure_retention_encrypts_exact_body_with_separate_error_link(
+    artifact_tmp_path: Path,
+) -> None:
+    """A rejected body is replayable without becoming a successful raw audit."""
+
+    audits = _AuditRepository()
+    store = _store(artifact_tmp_path)
+    evidence = _evidence(SYNTHETIC_REJECTED_BODY)
+    result = RetainFinancialResponseFailureUseCase(store, audits).execute(
+        capture_id=CAPTURE_ID,
+        evidence=evidence,
+        body=SYNTHETIC_REJECTED_BODY,
+        provider_name="Tushare Pro",
+        request_params={"api_name": "fina_indicator", "params": {"ts_code": "000001.SZ"}},
+        failure_code="TUSHARE_PROVIDER_REJECTED",
+        provider_id=7,
+    )
+
+    assert result.audit.capability == "financial_response_failure"
+    assert result.audit.status == "error"
+    assert result.audit.error_message == "TUSHARE_PROVIDER_REJECTED"
+    assert result.audit.parser_version == "financial-response-failure.v1"
+    assert result.audit.response_payload_hash == ""
+    assert result.audit.row_count == 0
+    assert result.audit.extra["financial_response_failure_artifact"]["failure_code"] == (
+        "TUSHARE_PROVIDER_REJECTED"
+    )
+    assert failure_reference_from_audit(result.audit) == result.reference
+    assert audits.find_by_artifact_capture_id(CAPTURE_ID) is None
+    failure_repo = FinancialResponseArtifactRepository(
+        store,
+        audits,
+        failure_audit_repository=audits,
+    )
+    assert failure_repo.inspect_rejected_orphan(result.reference).is_orphan is False
+    audits.rows[0] = replace(audits.rows[0], error_message="CORRUPTED_FAILURE")
+    assert failure_repo.inspect_rejected_orphan(result.reference).is_orphan is True
+    audits.rows[0] = replace(audits.rows[0], error_message="TUSHARE_PROVIDER_REJECTED")
+    audits.rows[0] = replace(audits.rows[0], status="ok")
+    assert failure_repo.inspect_rejected_orphan(result.reference).is_orphan is True
+    encrypted = next(artifact_tmp_path.rglob("*.frb")).read_bytes()
+    assert SYNTHETIC_REJECTED_BODY not in encrypted
+    assert "synthetic provider rejection" not in repr(result.audit)
+
+
+def test_failure_replay_rejects_changed_metadata_and_body(
+    artifact_tmp_path: Path,
+) -> None:
+    """A failure capture remains immutable across code, request, and body changes."""
+
+    audits = _AuditRepository()
+    store = _store(artifact_tmp_path)
+    use_case = RetainFinancialResponseFailureUseCase(store, audits)
+    evidence = _evidence(SYNTHETIC_REJECTED_BODY)
+    params = {"api_name": "fina_indicator", "params": {"ts_code": "000001.SZ"}}
+    first = use_case.execute(
+        capture_id=CAPTURE_ID,
+        evidence=evidence,
+        body=SYNTHETIC_REJECTED_BODY,
+        provider_name="Tushare Pro",
+        request_params=params,
+        failure_code="TUSHARE_PROVIDER_REJECTED",
+        provider_id=7,
+    )
+    replay = use_case.execute(
+        capture_id=CAPTURE_ID,
+        evidence=evidence,
+        body=SYNTHETIC_REJECTED_BODY,
+        provider_name="Tushare Pro",
+        request_params=dict(params),
+        failure_code="TUSHARE_PROVIDER_REJECTED",
+        provider_id=7,
+    )
+    assert replay == first
+
+    audits.rows[0] = replace(audits.rows[0], error_message="CORRUPTED_FAILURE")
+    with pytest.raises(FinancialResponseArtifactOutcomeConflictError):
+        use_case.execute(
+            capture_id=CAPTURE_ID,
+            evidence=evidence,
+            body=SYNTHETIC_REJECTED_BODY,
+            provider_name="Tushare Pro",
+            request_params=params,
+            failure_code="TUSHARE_PROVIDER_REJECTED",
+            provider_id=7,
+        )
+    audits.rows[0] = replace(audits.rows[0], error_message="TUSHARE_PROVIDER_REJECTED")
+
+    with pytest.raises(FinancialResponseArtifactOutcomeConflictError):
+        use_case.execute(
+            capture_id=CAPTURE_ID,
+            evidence=evidence,
+            body=SYNTHETIC_REJECTED_BODY,
+            provider_name="Tushare Pro",
+            request_params={**params, "limit": 1},
+            failure_code="TUSHARE_PROVIDER_REJECTED",
+            provider_id=7,
+        )
+    with pytest.raises(FinancialResponseArtifactOutcomeConflictError):
+        use_case.execute(
+            capture_id=CAPTURE_ID,
+            evidence=evidence,
+            body=SYNTHETIC_REJECTED_BODY,
+            provider_name="Tushare Pro",
+            request_params=params,
+            failure_code="TUSHARE_INVALID_PAYLOAD",
+            provider_id=7,
+        )
+    audits.rows[0] = replace(audits.rows[0], error_message="TUSHARE_PROVIDER_REJECTED")
+    audits.rows[0] = replace(audits.rows[0], run_id="foreign-run")
+    with pytest.raises(FinancialResponseArtifactOutcomeConflictError):
+        use_case.execute(
+            capture_id=CAPTURE_ID,
+            evidence=evidence,
+            body=SYNTHETIC_REJECTED_BODY,
+            provider_name="Tushare Pro",
+            request_params=params,
+            failure_code="TUSHARE_PROVIDER_REJECTED",
+            provider_id=7,
+        )
+    audits.rows[0] = replace(audits.rows[0], run_id="")
+    audits.rows[0] = replace(audits.rows[0], ingested_run_id="foreign-ingested-run")
+    with pytest.raises(FinancialResponseArtifactOutcomeConflictError):
+        use_case.execute(
+            capture_id=CAPTURE_ID,
+            evidence=evidence,
+            body=SYNTHETIC_REJECTED_BODY,
+            provider_name="Tushare Pro",
+            request_params=params,
+            failure_code="TUSHARE_PROVIDER_REJECTED",
+            provider_id=7,
+        )
+    audits.rows[0] = replace(audits.rows[0], ingested_run_id="")
+    audits.rows[0] = replace(audits.rows[0], content_hash="f" * 64)
+    with pytest.raises(FinancialResponseArtifactOutcomeConflictError):
+        use_case.execute(
+            capture_id=CAPTURE_ID,
+            evidence=evidence,
+            body=SYNTHETIC_REJECTED_BODY,
+            provider_name="Tushare Pro",
+            request_params=params,
+            failure_code="TUSHARE_PROVIDER_REJECTED",
+            provider_id=7,
+        )
+    audits.rows[0] = replace(audits.rows[0], content_hash=raw_audit_content_hash(audits.rows[0]))
+    assert (
+        use_case.execute(
+            capture_id=CAPTURE_ID,
+            evidence=evidence,
+            body=SYNTHETIC_REJECTED_BODY,
+            provider_name="Tushare Pro",
+            request_params=params,
+            failure_code="TUSHARE_PROVIDER_REJECTED",
+            provider_id=7,
+        ).audit
+        == audits.rows[0]
+    )
+    changed_body = SYNTHETIC_REJECTED_BODY + b"\n"
+    with pytest.raises(FinancialResponseArtifactConflictError):
+        use_case.execute(
+            capture_id=CAPTURE_ID,
+            evidence=_evidence(changed_body),
+            body=changed_body,
+            provider_name="Tushare Pro",
+            request_params=params,
+            failure_code="TUSHARE_PROVIDER_REJECTED",
+            provider_id=7,
+        )
+    assert len(audits.rows) == 1
+    assert store.read(first.reference) == SYNTHETIC_REJECTED_BODY
+
+
+def test_failure_audit_error_returns_opaque_reference_for_reconciliation(
+    artifact_tmp_path: Path,
+) -> None:
+    """A failure-audit append error leaves an identifiable encrypted orphan."""
+
+    store = _store(artifact_tmp_path)
+    audits = _AuditRepository(fail_log=True)
+    with pytest.raises(FinancialResponseFailureAuditError) as caught:
+        RetainFinancialResponseFailureUseCase(store, audits).execute(
+            capture_id=CAPTURE_ID,
+            evidence=_evidence(SYNTHETIC_REJECTED_BODY),
+            body=SYNTHETIC_REJECTED_BODY,
+            provider_name="Tushare Pro",
+            request_params={"params": {"ts_code": "000001.SZ"}},
+            failure_code="TUSHARE_PROVIDER_REJECTED",
+            provider_id=7,
+        )
+
+    orphan = FinancialResponseArtifactRepository(
+        store,
+        audits,
+        failure_audit_repository=audits,
+    ).inspect_rejected_orphan(caught.value.reference)
+    assert orphan.is_orphan is True
+    assert orphan.body_verified is True
+    assert caught.value.details["body_sha256"] == caught.value.reference.body_sha256
+    assert caught.value.details["failure_code"] == "TUSHARE_PROVIDER_REJECTED"
+    assert SYNTHETIC_REJECTED_BODY.decode() not in str(caught.value)
+
+    recovered_audits = _AuditRepository()
+    RetainFinancialResponseFailureUseCase(store, recovered_audits).execute(
+        capture_id=CAPTURE_ID,
+        evidence=_evidence(SYNTHETIC_REJECTED_BODY),
+        body=SYNTHETIC_REJECTED_BODY,
+        provider_name="Tushare Pro",
+        request_params={"params": {"ts_code": "000001.SZ"}},
+        failure_code="TUSHARE_PROVIDER_REJECTED",
+        provider_id=7,
+    )
+    assert (
+        FinancialResponseArtifactRepository(
+            store,
+            recovered_audits,
+            failure_audit_repository=recovered_audits,
+        )
+        .inspect_rejected_orphan(caught.value.reference)
+        .is_orphan
+        is False
+    )
+
+
+def test_success_and_failure_capture_outcomes_cannot_share_uuid(
+    artifact_tmp_path: Path,
+) -> None:
+    """A capture UUID cannot be promoted from one outcome to the other."""
+
+    audits = _AuditRepository()
+    store = _store(artifact_tmp_path)
+    repository = FinancialResponseArtifactRepository(
+        store,
+        audits,
+        failure_audit_repository=audits,
+    )
+    repository.retain(
+        capture_id=CAPTURE_ID,
+        evidence=_evidence(),
+        body=BODY,
+        provider_name="Tushare Pro",
+        request_params={"params": {"ts_code": "000001.SZ"}},
+        provider_id=7,
+    )
+    with pytest.raises(FinancialResponseArtifactOutcomeConflictError):
+        repository.retain_rejected(
+            capture_id=CAPTURE_ID,
+            evidence=_evidence(SYNTHETIC_REJECTED_BODY),
+            body=SYNTHETIC_REJECTED_BODY,
+            provider_name="Tushare Pro",
+            request_params={"params": {"ts_code": "000001.SZ"}},
+            failure_code="TUSHARE_PROVIDER_REJECTED",
+            provider_id=7,
+        )
+
+    failure_id = UUID("20000000-0000-4000-8000-000000000004")
+    repository.retain_rejected(
+        capture_id=failure_id,
+        evidence=_evidence(SYNTHETIC_REJECTED_BODY),
+        body=SYNTHETIC_REJECTED_BODY,
+        provider_name="Tushare Pro",
+        request_params={"params": {"ts_code": "000001.SZ"}},
+        failure_code="TUSHARE_PROVIDER_REJECTED",
+        provider_id=7,
+    )
+    with pytest.raises(FinancialResponseArtifactOutcomeConflictError):
+        repository.retain(
+            capture_id=failure_id,
+            evidence=_evidence(SYNTHETIC_REJECTED_BODY),
+            body=SYNTHETIC_REJECTED_BODY,
+            provider_name="Tushare Pro",
+            request_params={"params": {"ts_code": "000001.SZ"}},
+            provider_id=7,
+        )
 
 
 def test_audit_failure_returns_opaque_reference_for_orphan_reconciliation(
@@ -522,7 +882,7 @@ def test_tushare_handler_retains_capture_without_token_or_source_inference(
 def test_tushare_handler_rejects_provider_business_failure_before_audit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """An HTTP-success response with a non-zero provider code is not audited."""
+    """A captured provider rejection gets failure evidence without success audit."""
 
     repository = _RetentionRepository()
     handler = _ConfiguredTushareFinancialResponseHandler(
@@ -530,9 +890,9 @@ def test_tushare_handler_rejects_provider_business_failure_before_audit(
         cast(FinancialResponseArtifactRepository, repository),
     )
     captured = _Captured(
-        payload={"code": 401, "msg": "provider rejected"},
-        evidence=_evidence(),
-        raw_body=BODY,
+        payload={"code": 2003, "msg": "synthetic provider rejection"},
+        evidence=_evidence(SYNTHETIC_REJECTED_BODY),
+        raw_body=SYNTHETIC_REJECTED_BODY,
     )
 
     def execute(_context: EgressRequestContext, **_kwargs: object) -> _Captured:
@@ -564,6 +924,10 @@ def test_tushare_handler_rejects_provider_business_failure_before_audit(
 
     assert caught.value.code == "TUSHARE_PROVIDER_REJECTED"
     assert repository.calls == []
+    assert len(repository.failure_calls) == 1
+    assert repository.failure_calls[0]["capture_id"] == CAPTURE_ID
+    assert repository.failure_calls[0]["failure_code"] == "TUSHARE_PROVIDER_REJECTED"
+    assert repository.failure_calls[0]["body"] == SYNTHETIC_REJECTED_BODY
 
 
 def test_tushare_adapter_client_egress_capture_store_and_audit_chain(
@@ -697,6 +1061,8 @@ def test_reference_from_audit_requires_the_versioned_link_schema() -> None:
     )
     with pytest.raises(ValueError):
         reference_from_audit(audit)
+    with pytest.raises(ValueError):
+        reference_from_audit(replace(audit, status="error"))
 
 
 def test_activation_validates_all_options_before_registering_definitions(
@@ -779,5 +1145,58 @@ def test_raw_audit_artifact_lookup_uses_one_json_selector_query(
     assert manager.filters == {
         "capability": "financial",
         "extra__financial_response_artifact__capture_id": str(CAPTURE_ID),
+    }
+    assert query.ordering == ("-fetched_at", "-pk")
+
+
+def test_raw_audit_failure_lookup_uses_dedicated_json_selector_query(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Failure replay lookup remains separate from successful artifact rows."""
+
+    expected = object()
+
+    class _Query:
+        def __init__(self) -> None:
+            self.ordering: tuple[str, ...] = ()
+
+        def order_by(self, *fields: str) -> _Query:
+            self.ordering = fields
+            return self
+
+        def first(self) -> object:
+            return object()
+
+        def __iter__(self) -> Iterable[object]:
+            raise AssertionError("failure lookup must not iterate all audit rows")
+
+    class _Manager:
+        def __init__(self, query: _Query) -> None:
+            self.query = query
+            self.filters: dict[str, object] = {}
+
+        def filter(self, **filters: object) -> _Query:
+            self.filters = filters
+            return self.query
+
+    query = _Query()
+    manager = _Manager(query)
+
+    class _RawAuditModelModule:
+        objects = manager
+
+    monkeypatch.setattr(provider_state_repositories, "RawAuditModel", _RawAuditModelModule)
+    monkeypatch.setattr(
+        RawAuditRepository,
+        "_from_model",
+        staticmethod(lambda _model: expected),
+    )
+
+    result = RawAuditRepository().find_by_failure_capture_id(CAPTURE_ID)
+
+    assert result is expected
+    assert manager.filters == {
+        "capability": "financial_response_failure",
+        "extra__financial_response_failure_artifact__capture_id": str(CAPTURE_ID),
     }
     assert query.ordering == ("-fetched_at", "-pk")

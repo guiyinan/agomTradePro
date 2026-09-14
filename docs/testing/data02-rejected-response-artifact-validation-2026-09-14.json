@@ -1,0 +1,148 @@
+{
+  "schema": "data02.rejected-response-artifact.code-validation.v1",
+  "sealed_at_utc": "2026-09-14T12:49:28.773970+00:00",
+  "status": "passed_local_validation",
+  "source_base_head": "a2113eaa050bf6a103e8e6c9013bc5540eaac2e4",
+  "sources": [
+    {
+      "path": "apps/data_center/domain/financial_response_failure.py",
+      "bytes": 2615,
+      "raw_sha256": "643f2f836c26c6f4270d5980ef65ca65e398a3243fc45b7fc09e1345453d6ceb",
+      "canonical_lf_sha256": "643f2f836c26c6f4270d5980ef65ca65e398a3243fc45b7fc09e1345453d6ceb"
+    },
+    {
+      "path": "apps/data_center/application/financial_response_artifact.py",
+      "bytes": 19890,
+      "raw_sha256": "2127d5e1e20f612acd18ae28fae0fc6df8cfd9fb65a7dba259df1e134b39ae89",
+      "canonical_lf_sha256": "122e2a42194b146ba6f73a4b452cfb42631630674cd206a542acaed3fa3ac452"
+    },
+    {
+      "path": "apps/data_center/financial_response_artifact_composition.py",
+      "bytes": 8415,
+      "raw_sha256": "4d701e293c5e7f38bc7ca99cb4083a02f88f20a56f5841efa173c57ace39794d",
+      "canonical_lf_sha256": "bb9fd6c62de9d9996d2a5e105b95fbb2752e3a3066d68f0b954a737813463109"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_response_artifact_config.py",
+      "bytes": 10914,
+      "raw_sha256": "e73fdb49a2a5153842dc6768bc9f2f69c5274f9535b72d99276a691c9d472b04",
+      "canonical_lf_sha256": "67b2fcd5d64fda51cb8ac10717d630439bd5ebc9aa82dc1611ab9a5e8386ff00"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_response_artifact_repository.py",
+      "bytes": 11579,
+      "raw_sha256": "9def5278fcc30065f2447f2d357804ea5a4847cc905d92222fcc81a55f2820d3",
+      "canonical_lf_sha256": "12900ff5063640e0a1e7ac366a42db16b29f91a99f8a07c47778107ef33cb190"
+    },
+    {
+      "path": "apps/data_center/infrastructure/provider_state_repositories.py",
+      "bytes": 11670,
+      "raw_sha256": "7e9f2c5693889836af1bbe7c1beb17acfb952362d3dbe7e92209f6d0cdf4bccc",
+      "canonical_lf_sha256": "3908b42564e4b39fbe72aa0698251bab84db98012b27a3a88b95353f55478f66"
+    },
+    {
+      "path": "tests/unit/data_center/test_data02_provider_artifact_adoption.py",
+      "bytes": 44242,
+      "raw_sha256": "ff0942e40f4fa1cbc64209242b8e6fb650b646b518792cfa1b56b76e430cb85a",
+      "canonical_lf_sha256": "a04254b2857d28d4c8e155bc107fe4365f6504146da623b88a5ba32d1b3e6c06"
+    }
+  ],
+  "behavior": {
+    "complete_provider_rejected_body_encrypted": true,
+    "failure_capability": "financial_response_failure",
+    "failure_link_schema": "financial-response-failure-link.v1",
+    "failure_code": "TUSHARE_PROVIDER_REJECTED",
+    "success_audit_or_financial_fact_created_for_rejection": false,
+    "body_hash_scope": "exact complete captured response bytes",
+    "response_completed_at_scope": "captured response EOF only; never native announcement or availability",
+    "sequential_idempotence_and_conflict_checks": true,
+    "failure_orphan_follow_up": true,
+    "legacy_success_audit_port_supported": true
+  },
+  "validation": {
+    "pytest": {
+      "command": "python -m pytest tests/unit/data_center/test_data02_provider_artifact_adoption.py tests/unit/data_center/test_egress_financial_response_capture.py tests/unit/data_center/test_financial_response_body_store.py tests/unit/data_center/test_financial_response_capture.py -q --disable-warnings --maxfail=1 -o addopts= --no-cov --basetemp=<basetemp> --junitxml=<junit.xml>",
+      "actual_exit": 0,
+      "junit": {
+        "tests": 117,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "originals": [
+        {
+          "path": "D:\\githv\\agomTradePro-data02-rejected-response-artifacts\\var\\data02-rejected-response-artifacts-validation-20260914T-final3\\receipt.json",
+          "bytes": 3400,
+          "sha256": "add1497fbe24280cb7b7ea947f5342e04d7f3ae8495c6ae073a939be9038b812"
+        },
+        {
+          "path": "D:\\githv\\agomTradePro-data02-rejected-response-artifacts\\var\\data02-rejected-response-artifacts-validation-20260914T-final3\\pytest.stdout.txt",
+          "bytes": 342,
+          "sha256": "8f99a740924431bbce3049044769cd072bc563b8e2a6a94b9c53382ced6769bc"
+        },
+        {
+          "path": "D:\\githv\\agomTradePro-data02-rejected-response-artifacts\\var\\data02-rejected-response-artifacts-validation-20260914T-final3\\pytest.stderr.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "D:\\githv\\agomTradePro-data02-rejected-response-artifacts\\var\\data02-rejected-response-artifacts-validation-20260914T-final3\\junit.xml",
+          "bytes": 20596,
+          "sha256": "cc872318cd17644b47fca45ce7c7d7ad6ba27cc615dcb512cad7a6cf8fb05a50"
+        }
+      ],
+      "frozen_source_before_after_matches_current": true
+    },
+    "static_checks": {
+      "production_file_count": 6,
+      "incremental_mypy_regressions": 0,
+      "full_mypy_debt_errors": 0,
+      "black": "passed",
+      "isort": "passed",
+      "ruff": "passed",
+      "compileall": "passed",
+      "diff_check": "passed",
+      "provenance": "Actual agent handoff after running these checks on the frozen patch; raw static command streams were not separately archived.",
+      "raw_static_command_streams_embedded": false
+    }
+  },
+  "earlier_unsuccessful_attempts": [
+    {
+      "receipt": {
+        "path": "D:\\githv\\agomTradePro-data02-rejected-response-artifacts\\var\\data02-rejected-response-artifacts-validation-20260914T-final\\receipt.json",
+        "bytes": 3375,
+        "sha256": "9237d8809d92c9df6973d83e5aebb3bec8d32985f5899faa5aa36b866a0fa3fe"
+      },
+      "actual_exit": 1,
+      "accepted_measurement": false,
+      "reason": "Earlier unsuccessful local test attempts; original receipts and streams preserved."
+    },
+    {
+      "receipt": {
+        "path": "D:\\githv\\agomTradePro-data02-rejected-response-artifacts\\var\\data02-rejected-response-artifacts-validation-20260914T-final-retry\\receipt.json",
+        "bytes": 3416,
+        "sha256": "6bc4aeddbbef4c640f4f1d6e221d11bbca19aaaf221298afbf9619e484df2f99"
+      },
+      "actual_exit": 1,
+      "accepted_measurement": false,
+      "reason": "Earlier unsuccessful local test attempts; original receipts and streams preserved."
+    },
+    {
+      "receipt": {
+        "path": "D:\\githv\\agomTradePro-data02-rejected-response-artifacts\\var\\data02-rejected-response-artifacts-validation-20260914T-final-retry2\\receipt.json",
+        "bytes": 3419,
+        "sha256": "51f47cd10b51c5a95d05f893069becc47863c6a63c54ebe5b8d7f6b1c975db85"
+      },
+      "actual_exit": 1,
+      "accepted_measurement": false,
+      "reason": "Earlier unsuccessful local test attempts; original receipts and streams preserved."
+    }
+  ],
+  "limits": [
+    "Only explicitly enabled financial-response capture retains complete business-rejected responses. Existing incomplete/oversized/non-JSON or invalid-table transport behavior is unchanged.",
+    "All HTTP provider payloads used by these local tests are explicit synthetic fixtures; the historical actual 62-byte code-2003 response was not reconstructed or replayed.",
+    "Sequential replay was tested; concurrent cross-outcome uniqueness is not claimed.",
+    "No PostgreSQL, production deployment or supplier request was executed by this validation.",
+    "Native announcement/availability timestamps, original source-row identity and historical raw hashes remain unresolved; DATA-02 stays awaiting production acceptance."
+  ]
+}

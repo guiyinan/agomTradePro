@@ -182,7 +182,12 @@ def build_financial_response_artifact_repository(
         encryption_key_version=runtime.encryption_key_version,
         max_body_bytes=runtime.max_body_bytes,
     )
-    return FinancialResponseArtifactRepository(store, RawAuditRepository())
+    audit_repository = RawAuditRepository()
+    return FinancialResponseArtifactRepository(
+        store,
+        audit_repository,
+        failure_audit_repository=audit_repository,
+    )
 
 
 def _environment(environment: str | None) -> str:
