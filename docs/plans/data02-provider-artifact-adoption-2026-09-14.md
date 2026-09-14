@@ -48,3 +48,28 @@ secret resolve 和激活均经已有中立桥。依赖图恢复原有 206 条边
 文件与数据库不能跨事务原子提交，审计失败后须按原件引用核对孤儿状态。
 生产启用前需核验持久化挂载、有效密钥引用、HTTPS provider 与出网规则。
 可通过配置禁用返回旧路径；禁止清除原件、回填历史时间或修改既有 canonical fact 哈希。
+
+## 24. Rejected response artifact follow-up (2026-09-14)
+
+The explicitly enabled financial handler now retains a complete provider-rejected
+response under a separate `financial_response_failure` audit capability and
+`financial-response-failure-link.v1` link. It preserves encrypted exact bytes,
+the response EOF timestamp and a stable business rejection code, then raises the
+original provider error. It does not create successful financial audits or facts.
+Sequential replay checks full request/audit metadata, validates supplied audit
+hashes, rejects success/failure UUID conflicts and supports failure-only orphan
+follow-up. Existing success-only audit ports remain compatible.
+
+The frozen four-module local regression passed 117 tests with no failures,
+errors or skips. Six production files passed incremental mypy with zero
+regressions and the full debt ceiling at zero; Black, isort, Ruff and compile
+checks passed. Exact pytest originals, source hashes, earlier failed attempts and
+static-check provenance are recorded in
+`docs/testing/data02-rejected-response-artifact-validation-2026-09-14.json`.
+
+The fixture rejection bodies are synthetic. The previous real 62-byte supplier
+code-2003 response remains unreplayable; this patch only fixes future complete
+rejections. No native availability/announcement timestamp or source-row identity
+is inferred. Concurrent uniqueness is not claimed. Production deployment and a
+new source-bound failure-artifact validation remain pending; DATA-02 stays
+awaiting production acceptance.
