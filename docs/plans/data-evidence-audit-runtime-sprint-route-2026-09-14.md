@@ -113,6 +113,21 @@ lines/statements 为 `12736/13546 = 94.0204%`，branches 为
 该结果仍是本地 Research unit 取证，不是 PostgreSQL、VPS、供应商或生产验收，
 也不宣称将窄切片的分支数叠加到全量结果。
 
+在保留上述 1048-pass 历史原件且不将 R1/R2 窄切片增量重复相加的前提下，HEAD
+`007203ed2cf62336e2e847357045ed64f585cd15` 的最新完整本地 SQLite 测量为
+`1060 passed`、exit 0；JUnit 为 1060 tests、0 failures、0 errors、0 skipped，
+测试进程用时 `720.476780` 秒，进程树 CPU 观测为 `402.09375` 秒。63 个 Research
+Domain 文件的同期 working-tree raw、canonical LF、Git blob OID 与 Git 内容 SHA
+before/after 均一致。covered lines/statements 为 `12814/13546 = 94.5962%`，
+branches 为 `4310/5032 = 85.6518%`；coverage.py combined 值为 `92.1735%`。
+分支 90% 门槛需要 `4529/5032`，当前还差 219 条。完整原始 stdout/stderr、JUnit、
+coverage、63-file source snapshots、校正后的 coverage 语义和独立复核引用见
+[`R2 后当前全量封存`](../testing/research-whole-domain-current-after-r2-2026-09-14.json)。
+原始 receipt 中 `statement_coverage_percent=92.2` 的字段标签错误已保留并由派生解释
+记录纠正；92.1735% 是 combined 值，不能称为 statement coverage。该结果仍是本地
+Research unit 取证，不是 PostgreSQL、VPS、供应商或生产验收，也不将历史 1048 或窄切片
+新增分支重复加入当前分母。
+
 生产 inventory 中没有 `equity.financial.fact` 出网规则。现有 provider 行上的凭据存在性
 不证明解密、令牌、网络或供应商权限有效；配置和请求须按实际值验证，禁止生成假凭据。
 公告日期或响应 EOF 时间不能成为精确 available_at，capture UUID 不能成为供应商原生行 ID。
