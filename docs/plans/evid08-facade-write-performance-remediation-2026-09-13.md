@@ -658,3 +658,33 @@ catalog 和 policy 全量基线。部署后仍须核对 40 个 Git/release/live 
 新备份、历史 exact 及全量保留结果，再运行同源生产生命周期并逐阶段记录物理解码。
 本节不声称生产生命周期已通过；DATA-02 可用时间和原生来源身份缺口、EVID-09
 以及人工验收退出门保持未完成。
+
+## 19. 优化版标准部署与生产生命周期复测（2026-09-14）
+
+标准升级实际退出 0，运行 Source 为 `f121000df1276472f172a93c16961fa74f433192`。
+新容器 healthy、restart 0、HTTPS 200；40 个关键文件逐项核对 Git/release/live。
+Qlib identity 为 pyqlib 0.9.7、wrong_qlib absent。实际 PostgreSQL 备份
+153,285,973 字节，SHA `1afae21c08c5d54f56ae09ed1af4abf384194c2cb08ecc5fb598bde9dcc92fc3`，
+原始终端行序证明备份先于 migration marker，不重构未公布的 migration 开始时间。
+四个历史 root、零 revocation、10 条 active policy 完整字段、14 条 policy 全字段
+指纹、三组 catalog 指纹与四条 current metadata 均与此次实际升级前基线一致。
+[标准部署原件封存](../deployment/evid09-standard-deployment-preservation-facade-reuse-v5-2026-09-14.json)
+经独立只读审查通过；完整 14 行政策由原 collector 哈希，snapshot 不逐行嵌入。
+
+同源生产 scope 生命周期实际 27 阶段全部 passed，child 退出 0 并已 reaped，
+没有触发超时。1500 秒 lifecycle 与 2100 秒 child deadline 均未增加。
+current 为 10.585 秒、1671 SQL、3467 条物理解码链；with_current 为 20.956 秒、
+3331 SQL、6934 条解码链；此前失败的 successor with_current 本次为 27.328 秒、
+3377 SQL、7030 条解码链。27 阶段解码错误总数为零；各 parser 层不重复相加。
+
+独立 after snapshot 的六项恢复检查全部通过：19 个完整 ledger、四个 bound root、
+current/exact、baseline fingerprint、exclusions，以及观测时间包围真实已 reaped child。
+21 项临时 scope 行均不存在，旧 admin current 仍为 None，历史 exact 保持原记录。
+登录/session 位于外层事务之外，不声称它们或日志、序列和无关表全部回滚。
+[生产复测与独立恢复](../deployment/evid09-passing-facade-reuse-lifecycle-2026-09-14.json)
+保留 71 份原件引用；独立 recovery 原件的 lifecycle acceptance=false 不被改写。
+
+这次生产执行完成优化部署复测，不替代 EVID-09 要求的第三组最终一致 Source 的
+代表性 isolated PostgreSQL 测量；该测量继续推进。历史 Source194 失败原件保持原状，
+不将不同 run 换算为因果性能提升百分比。DATA-02 可用时间、原生身份、原始哈希
+生产验收与 EVID-01/02、AUD-03、TAR-05 退出门保持独立且未完成。
