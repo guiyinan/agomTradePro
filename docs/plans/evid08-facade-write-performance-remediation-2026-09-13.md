@@ -508,3 +508,13 @@ pytest exit，不改写旧失败原件。
 下一步为定位建表超时、在严格源版本绑定下完成真实完整夹具及物理解码测量，再进行
 标准保数据部署、新 runtime 封存和生产复测。V5 候选仍未部署，EVID-09 保持 active；
 DATA-02 原始响应持久化、真实可用时间及来源身份的生产退出门仍待验证。
+
+夹具连接配置的独立修正已通过主代理复核：专用 alias 创建前固定
+connect_timeout=30、sslmode=disable、gssencmode=disable；URL query 仅校验这些固定值，
+重复、未知及非固定参数均拒绝，不允许 host/service/options 改写连接。新增 10 项离线
+配置契约与现有 15 项 V5 回归一起实际通过，零 failure/error/skip，格式检查及前后两文件
+SHA 一致。此轮显式关闭 PostgreSQL opt-in，不把配置测试称为真实夹具通过。
+
+新增最小建表诊断在 BEFORE 只读观察阶段 40 秒超时，未发送 CREATE；该失败进一步
+表明阻断不限于完整 DDL。生产 VPS 的另行只读容量及镜像观察成功，真实生产源码仍为
+6760 版本；完全独立的临时 PostgreSQL 环境正在准备，尚未启动、部署或取得验收结果。
