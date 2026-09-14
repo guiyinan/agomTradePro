@@ -87,3 +87,4 @@ docs/testing/evid09-case7-failed-lifecycle-recovery-2026-09-14.json text eol=lf
 docs/testing/evid09-case7-failed-lifecycle-recovery-2026-09-14.json.sha256 text eol=lf
 docs/testing/data02-financial-insert-concurrency-validation-2026-09-14.json text eol=lf
 docs/testing/data02-financial-insert-concurrency-validation-2026-09-14.json.sha256 text eol=lf
+docs/testing/research-state-controlled-branch-increment-2026-09-14.json text eol=lf
