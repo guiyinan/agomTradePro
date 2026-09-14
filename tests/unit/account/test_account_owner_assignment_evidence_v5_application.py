@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import ast
-from contextlib import AbstractContextManager, nullcontext
+from collections.abc import Iterator
+from contextlib import AbstractContextManager, contextmanager, nullcontext
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -30,6 +31,9 @@ from apps.account.application.account_owner_assignment_evidence_v5 import (
     GetExactAccountOwnerAssignmentEvidenceV5Command,
     PersistedAccountOwnerAssignmentEvidenceV5,
 )
+from apps.account.application.account_owner_assignment_evidence_v5_read_phases import (
+    AccountOwnerAssignmentEvidenceV5ReadPhase,
+)
 from apps.account.application.account_owner_assignment_subject_v5 import (
     GetCurrentAccountOwnerAssignmentSubjectV5Command,
 )
@@ -41,6 +45,11 @@ from apps.account.domain.account_owner_assignment_evidence import (
 )
 from apps.account.domain.account_owner_assignment_subject_v5 import (
     AccountOwnerAssignmentSubjectV5,
+)
+from shared.infrastructure.immutable_read_snapshot import (
+    immutable_read_snapshot,
+    isolated_immutable_read_snapshot,
+    reuse_immutable_read,
 )
 from tests.unit.account.test_account_owner_assignment_provenance_receipt_v4_application import (
     _authority,
@@ -126,6 +135,11 @@ class _Repository:
 
     def atomic(self) -> AbstractContextManager[None]:
         """Return a no-op unit of work for the Application contract."""
+
+        return nullcontext()
+
+    def read_phase(self) -> AbstractContextManager[None]:
+        """Return a no-op repository-owned phase for this in-memory double."""
 
         return nullcontext()
 
@@ -219,6 +233,49 @@ class _Repository:
         return self.winner
 
 
+class _CachedRepository(_Repository):
+    """Apply the shared read decorator to prove phase isolation from callers."""
+
+    @reuse_immutable_read("unit-evidence-v5-subject")
+    def get_subject_winner(
+        self,
+        *,
+        subject_id: str,
+        subject_version: str,
+        as_of: datetime,
+    ) -> AccountOwnerAssignmentSubjectV5 | None:
+        """Return the fake subject through the operation cache."""
+
+        return super().get_subject_winner(
+            subject_id=subject_id,
+            subject_version=subject_version,
+            as_of=as_of,
+        )
+
+
+class _ReadPhaseRecorder:
+    """Record every application phase boundary without touching a database."""
+
+    def __init__(self) -> None:
+        self.events: list[str] = []
+
+    def __call__(self) -> AbstractContextManager[None]:
+        """Return one independently recorded phase context."""
+
+        phase_number = sum(event.endswith(".enter") for event in self.events) + 1
+        return self._phase(phase_number)
+
+    @contextmanager
+    def _phase(self, phase_number: int) -> Iterator[None]:
+        """Record entry and exit for one phase."""
+
+        self.events.append(f"phase-{phase_number}.enter")
+        try:
+            yield
+        finally:
+            self.events.append(f"phase-{phase_number}.exit")
+
+
 def _approve_command(
     subject: AccountOwnerAssignmentSubjectV5,
 ) -> ApproveAccountOwnerAssignmentEvidenceV5Command:
@@ -239,6 +296,7 @@ def _use_case(
     *,
     subject_values: list[object | None] | None = None,
     participant_values: list[object | None] | None = None,
+    read_phase: AccountOwnerAssignmentEvidenceV5ReadPhase | None = None,
 ) -> ApproveAccountOwnerAssignmentEvidenceV5:
     """Build the approval use case with controlled current readers."""
 
@@ -258,6 +316,7 @@ def _use_case(
         ),
         repository=cast(AccountOwnerAssignmentEvidenceV5Repository, repository),
         validity_period=timedelta(days=2),
+        read_phase=read_phase,
     )
 
 
@@ -274,14 +333,63 @@ def test_approve_binds_subject_v5_authority_and_replays_first_winner() -> None:
     assert repository.append_root_calls == 1
 
     repository.clocks = [_at(15, 14, 45)]
+    phases = _ReadPhaseRecorder()
     replay = _use_case(
         repository,
         subject,
         subject_values=[subject],
         participant_values=[_participants(subject, observed_at=_at(15, 14, 45))],
+        read_phase=phases,
     ).execute(_approve_command(subject))
     assert replay == evidence
     assert repository.append_root_calls == 1
+    assert phases.events == ["phase-1.enter", "phase-1.exit"]
+
+
+def test_approve_separates_first_and_final_reads_into_fresh_phases() -> None:
+    """Keep each complete source observation in its own phase cache."""
+
+    subject = _subject()
+    repository = _Repository(_at(15, 14, 35), _at(15, 14, 40))
+    repository.subject = subject
+    phases = _ReadPhaseRecorder()
+
+    evidence = _use_case(repository, subject, read_phase=phases).execute(_approve_command(subject))
+
+    assert evidence.subject == subject
+    assert phases.events == [
+        "phase-1.enter",
+        "phase-1.exit",
+        "phase-2.enter",
+        "phase-2.exit",
+    ]
+
+
+def test_approve_isolated_phase_does_not_reuse_callers_negative_subject_cache() -> None:
+    """A caller's cached absence cannot hide a source that becomes readable."""
+
+    subject = _subject()
+    repository = _CachedRepository(_at(15, 14, 35), _at(15, 14, 40))
+    with immutable_read_snapshot():
+        assert (
+            repository.get_subject_winner(
+                subject_id=subject.subject_id,
+                subject_version=subject.subject_version,
+                as_of=_at(15, 14, 35),
+            )
+            is None
+        )
+        repository.subject = subject
+        assert (
+            _use_case(
+                repository,
+                subject,
+                read_phase=isolated_immutable_read_snapshot,
+            )
+            .execute(_approve_command(subject))
+            .subject
+            == subject
+        )
 
 
 def test_approve_rejects_final_subject_or_participant_drift_before_append() -> None:
@@ -355,6 +463,7 @@ def test_exact_is_historical_while_current_requires_both_mapping_heads() -> None
             _ParticipantsReader([_participants(subject, observed_at=_at(15, 14, 45))]),
         ),
         repository=cast(AccountOwnerAssignmentEvidenceV5Repository, repository),
+        read_phase=(phases := _ReadPhaseRecorder()),
     )
     command = GetCurrentAccountOwnerAssignmentEvidenceV5Command(
         evidence.evidence_id,
@@ -363,6 +472,7 @@ def test_exact_is_historical_while_current_requires_both_mapping_heads() -> None
         _at(15, 14, 45),
     )
     assert current.execute(command) == evidence
+    assert phases.events == ["phase-1.enter", "phase-1.exit"]
     repository.underlying_head = None
     assert current.execute(command) is None
     assert repository.account_head == record

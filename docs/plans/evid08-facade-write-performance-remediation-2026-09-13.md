@@ -484,6 +484,48 @@ payload/hash、真实来源时钟和失败阻断。不得抬高时间预算、�
 写入。代码检查和隔离完整父链回归通过后，使用标准部署重新冻结 runtime，再进行同范围
 生产复测。EVID-09 继续 active，DATA-02/EVID-01/02 的退出门未改变。
 
+## 14. V5 读取边界修复与完整夹具待验（2026-09-14）
+
+V5 Application 的 approval/current 必须进入 Repository 提供的新读取阶段，默认配置及
+显式 nullcontext 均不能绕过它。Infrastructure 仅复用同一个 Repository 所有者的阶段，
+入口先暂停旧阶段并隔离新阶段；来源锁、精确 cutoff 双读及写入后重新观察保持有效。
+主代理独立验证格式、增量 mypy、债务上限及架构增量全部通过，相关回归为 15 passed、
+零 failure/error/skip；另行 owner application 回归为 10 passed。上述测试不替代真实
+PostgreSQL 完整父链测试或生产生命周期。
+
+完整夹具包含 31 张物理表。冻结夹具的离线 PostgreSQL 编译实际生成 281 条 DDL；此前
+审查中的 116 条是估计错误，不能作为执行证据。真实 PostgreSQL 新尝试在建表 setup
+发生 statement timeout，JUnit 为一个 error，pytest exit 1，监督器回收 child。没有进入
+业务测量阶段，没有可接受的新解码计数。旧私有解析器对叶子 error 元素使用布尔判断，
+错误摘要误报零 error；整体尝试仍为 failed。新版本解析器应同时核对原始 JUnit 和
+pytest exit，不改写旧失败原件。
+
+同一冻结 DDL 的独立 Socket 回滚诊断也超时，诊断自身的 after 查询未成功；随后另行
+只读检查实际 exit 0，确认该隔离数据库零 public 表、零其他客户端、read_only=on。
+该观察只证明清理后的状态，不证明夹具通过，也不与 TCP 或生产性能统计混用。
+本阶段同步重新生成架构及入口清单，修复 CI 的确定性清单陈旧；未提高治理债务基线。
+
+下一步为定位建表超时、在严格源版本绑定下完成真实完整夹具及物理解码测量，再进行
+标准保数据部署、新 runtime 封存和生产复测。V5 候选仍未部署，EVID-09 保持 active；
+DATA-02 原始响应持久化、真实可用时间及来源身份的生产退出门仍待验证。
+
+夹具连接配置的独立修正已通过主代理复核：专用 alias 创建前固定
+connect_timeout=30、sslmode=disable、gssencmode=disable；URL query 仅校验这些固定值，
+重复、未知及非固定参数均拒绝，不允许 host/service/options 改写连接。新增 10 项离线
+配置契约与现有 15 项 V5 回归一起实际通过，零 failure/error/skip，格式检查及前后两文件
+SHA 一致。此轮显式关闭 PostgreSQL opt-in，不把配置测试称为真实夹具通过。
+
+新增最小建表诊断在 BEFORE 只读观察阶段 40 秒超时，未发送 CREATE；该失败进一步
+表明阻断不限于完整 DDL。生产 VPS 的另行只读容量及镜像观察成功，真实生产源码仍为
+6760 版本；完全独立的临时 PostgreSQL 环境正在准备，尚未启动、部署或取得验收结果。
+
+修正连接配置后的真实 V3 driver 尝试仍失败：冻结 head f2aa0eff7，实际测量 child exit 3、
+pytest exit 1，原始 JUnit 为一项 error，没有业务阶段文件。after TCP observer 在连接
+阶段超时；监督器已回收 child、释放 owner lock，5909 个 Python 文件 finally 快照与
+before 完全一致。随后独立 Socket 只读查询 exit 0，取得零表、零其他客户端、read_only=on。
+配置修正未被证明解决超时，也没有新的可接受解码计数。当前 head 的四项 CI 失败均
+定位到新增配置测试后的入口清单陈旧，继续按生成器同步，不改治理基线或放宽门禁。
+
 ## 15. VPS 隔离夹具环境创建失败与定界清理（2026-09-14）
 
 本节保留后续完整父链夹具整改阶段的第 14 节编号。V5 候选冻结于

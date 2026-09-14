@@ -26,17 +26,17 @@
       "script": 8,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 66,
+      "test_evidence": 68,
       "workflow_step": 10
     },
     "by_status": {
       "active_public": 751,
       "adjacent_operational": 298,
-      "candidate-review": 22,
+      "candidate-review": 24,
       "compatibility": 137,
       "retired_blocked": 0
     },
-    "total": 1208
+    "total": 1210
   },
   "entries": [
     {
@@ -11532,6 +11532,16 @@
     {
       "category": "test_evidence",
       "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/account/test_owner_tenant_authority_v3_fresh_v5_parents_postgres.py:test_owner_tenant_authority_v3_fresh_v5_parents_postgres:",
+      "locator": "",
+      "path": "tests/component/account/test_owner_tenant_authority_v3_fresh_v5_parents_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_owner_tenant_authority_v3_fresh_v5_parents_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
       "id": "test_evidence:tests/component/account/test_policy_publication_api_postgres.py:test_policy_publication_api_postgres:",
       "locator": "",
       "path": "tests/component/account/test_policy_publication_api_postgres.py",
@@ -11757,6 +11767,16 @@
       "path": "tests/unit/account/test_celery_task_outcome_contracts.py",
       "status": "active_public",
       "symbol": "test_celery_task_outcome_contracts",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/unit/account/test_fresh_v5_postgres_connection_options.py:test_fresh_v5_postgres_connection_options:",
+      "locator": "",
+      "path": "tests/unit/account/test_fresh_v5_postgres_connection_options.py",
+      "status": "candidate-review",
+      "symbol": "test_fresh_v5_postgres_connection_options",
       "target": ""
     },
     {
