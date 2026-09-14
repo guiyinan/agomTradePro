@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Generic, NoReturn, Protocol, TypeVar, cast
@@ -74,10 +74,11 @@ def _utc_now() -> datetime:
 
 @dataclass(frozen=True, slots=True)
 class CapturedFinancialResponse(Generic[PayloadT]):
-    """Parsed payload paired with evidence for the exact response bytes."""
+    """Parsed payload and evidence paired with the retained original buffer."""
 
     payload: PayloadT
     evidence: FinancialResponseEvidence
+    raw_body: bytes = field(repr=False)
 
 
 def capture_financial_response(
@@ -131,7 +132,7 @@ def capture_financial_response(
         raise FinancialResponseCaptureError(
             "金融响应内容无法解析。", code="FINANCIAL_RESPONSE_DECODE_FAILED"
         ) from exc
-    return CapturedFinancialResponse(payload=payload, evidence=evidence)
+    return CapturedFinancialResponse(payload=payload, evidence=evidence, raw_body=body)
 
 
 def decode_json_bytes(body: bytes) -> object:

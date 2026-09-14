@@ -528,3 +528,29 @@ body bytes；RawAudit 的原件持久化仍须单独实现。scope 为 caller_de
 不证明 native financial row identity、ANN 或 available_at。本候选没有接入 provider、
 Application、FinancialFact 写入或 Publication，也没有供应商请求、PostgreSQL 验收
 或 VPS 部署。DATA-02 可用时间、原始响应持久化及生产退出门保持未完成。
+
+## 19. 2026-09-14 捕获后保留原始字节
+
+独立代码提交 `00f66332688705ae5c5bb5abaf60d312eaa58336` 为捕获 DTO 增加
+不可变 `raw_body`，直接保留传给 decoder 的同一份 buffer，不复制或再次计算哈希。
+有意义的反例验证：解析后的 mutable payload 被修改后，原始 bytes、大小和 SHA
+仍与解析器输入一致。仓库内调用均经过捕获工厂；外部直接构造该公开 DTO 的代码
+现在须提供 `raw_body`，这是构造签名的兼容性变化。
+
+普通 pytest 最终受影响回归为 91 tests、0 failures/errors/skipped；Black、isort、
+Ruff、生产文件增量 mypy、full debt ceiling、增量架构检查共七项均 actual exit 0。
+单项普通 green 是该批次中的重复场景，不能合计为 92 个独立场景。
+独立代码复审确认同一 buffer、不可变 bytes 和仓库内调用方兼容性。
+
+[候选验证封存](../testing/data02-retained-financial-response-body-validation-2026-09-14.json)
+及 sidecar 保存 41 份 exact originals 和 raw/Git LF source hash。两次先前启动尝试
+在 120 秒内超时，首次格式检查失败于 isort，均保留原始失败工件且不计为通过。
+预先启动的诊断使用 `-S` 后显式 `site.main()`，实际得到缺少 `raw_body` 的一项
+AttributeError 反例；它是单独标识的诊断，不是普通最终门禁，且没有独立的同期
+source-before 快照。较早失败尝试的 source snapshots 未被重命名为该诊断的快照。
+没有放宽超时预算，也没有据此声称定位了所有启动等待原因。
+
+原始 bytes 目前仅随 DTO 保留在内存中；下一阶段仍须完成原件持久化、不可变存储
+引用及实际 provider 的行覆盖校验。没有 RawAudit/FinancialFact/Publication 接入、
+native row identity、精确 ANN/availability、PostgreSQL 或 VPS 证明。DATA-02
+可用时间、历史原始哈希和生产验收继续保持未完成。
