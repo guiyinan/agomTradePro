@@ -55,6 +55,17 @@ State 与 R4 补测已分别通过独立审核和 CI，并合并。环境修复�
 [`research-whole-domain-current-coverage-2026-09-14.json`](../testing/research-whole-domain-current-coverage-2026-09-14.json)。
 两次环境失败原件继续保留，不将切片新增分支数直接累加为全 Research 增量。
 
+在保留上述 1014-pass 历史原件和指标的前提下，合并 origin/main 后以 HEAD
+`8aaf20eb8abe7ce7b26c3420d3bc985b958ec6cf` 完成一次新的完整
+`tests/unit/research/` 本地 SQLite 分支测量：`1035 passed`、exit 0，JUnit 为
+1035 tests、0 failures、0 errors、0 skipped，63 个 Research Domain 文件的 raw、
+canonical LF 与 Git blob before/after 均一致。covered lines/statements 为
+`12663/13546 = 93.481%`，branches 为 `4161/5032 = 82.691%`，coverage.py
+combined 值为 `90.559%`；分支 90% 门槛需要 `4529/5032`，当前还差 368 条。
+这次全量结果更新当前分支事实，但仍不是生产验收，也不把 R7 选定切片的增量
+与旧 1014 或全 Research 分支分母重复相加。完整原件与 14 项引用见
+[当前全量封存](../testing/research-whole-domain-current-coverage-r7-full-2026-09-14.json)。
+
 生产 inventory 中没有 `equity.financial.fact` 出网规则。现有 provider 行上的凭据存在性
 不证明解密、令牌、网络或供应商权限有效；配置和请求须按实际值验证，禁止生成假凭据。
 公告日期或响应 EOF 时间不能成为精确 available_at，capture UUID 不能成为供应商原生行 ID。
