@@ -61,6 +61,24 @@ unit scopes；生产 Domain 文件、provider、持久化、策略和生产验�
 它是独立测试证据，不能加算为全 Research 90% 或生产 readiness；测试提交可单独
 回滚而不影响运行时。
 
+### Scenario reminder / R2 promotion boundary slice
+
+R2 reminder 与 market-structure promotion 的有界 Domain slice 已完成。测试提交为
+`f122eef16b767411a5f7aa2983c5a73fce0d64e8`，测量基于合并 DATA-02 后的
+`ba1605fa229b8ae8c59114af158cdf58b8f144fa`；生产 Domain 源文件未改变。
+
+- baseline 为 14 tests；final 为 26 tests，exit 0，failures/errors/skips 均为 0。
+- `scenario_review_reminders.py` 分支从 `104/148` 提升到 `145/148`，新增唯一 41 arcs。
+- `r2_market_structure_promotion.py` 分支从 `66/108` 提升到 `104/108`，新增唯一 38 arcs。
+- 合计新增唯一 79 arcs，baseline arcs 无丢失；剩余未覆盖分支保留在封存 JSON，未用非法 Domain 对象补齐。
+- 这组结果只代表两个 Domain 文件的受控本地单元范围，不能加算为全 Research 结果、90% 门或生产验收。
+
+完整 JUnit、coverage、命令、源绑定与独立复核引用见
+[Scenario reminder / R2 promotion seal](../testing/research-reminders-r2-promotion-controlled-branch-increment-2026-09-14.json)。
+基线 `receipt.json` 与 `command.txt` 未保留，封存明确列出缺证；基线合并 stdout/stderr、JUnit、coverage
+和 final 原件仍保留。源快照的 before 是 Git LF reference，after 是 Windows working-tree
+raw；两者 raw 不同但 canonical LF 相同，因此不宣称同期 raw-before 等价。
+
 ## 尚需真实来源的输入
 
 State 与 R4 补测已分别通过独立审核和 CI，并合并。环境修复后的全 Research 实际重测为
