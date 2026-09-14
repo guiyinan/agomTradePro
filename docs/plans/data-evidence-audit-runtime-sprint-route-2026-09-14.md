@@ -53,6 +53,11 @@ unit scopes；生产 Domain 文件、provider、持久化、策略和生产验�
 仍是当前不可变 Equity 构造器在上游排除的空 forecast、跨 scope、错误 authority
 或非 research 输入路径，未用 `object.__new__` 等方式伪造对象。该切片的完整
 原件和 hash 见 [R1 seal](../testing/research-r1-forecast-promotion-controlled-branch-increment-2026-09-14.json)。
+原 sidecar `8a790ab6d3732411cbb4b4c15302cddd77a9839d6edcd2a9345a9805a8b9927b`
+对应旧 Windows CRLF 工作副本；发布后的 `text eol=lf` 文件与 Git 内容 hash 为
+`058e072f50fc2fd51cc53e026bf6449c89e5f581e635d859024a3eb065d33b3a`，两者内容
+语义相同，旧 raw 原件保留在 var 取证目录。R2 发布 LF sidecar 为
+`0a191fb4e7c7d3ff09cffc60867414a83f865b461602b56edddd1f8390e1480d`。
 它是独立测试证据，不能加算为全 Research 90% 或生产 readiness；测试提交可单独
 回滚而不影响运行时。
 
