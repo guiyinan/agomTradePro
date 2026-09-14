@@ -1,5 +1,5 @@
 {
-  "version": "2026-09-14.v102",
+  "version": "2026-09-14.v103",
   "updated_at": "2026-09-14",
   "execution_focus": {
     "unit_id": "EVID-09",
@@ -8,7 +8,7 @@
       "external",
       "governance"
     ],
-    "policy": "EVID-09 remains the sole repository focus. Typed locked read phases and three source-consistent isolated PostgreSQL measurements are completed; compatible standard code-only deployment now runs 6760c9aa with preserved strict Publication heads, Catalog and four durable Authority roots. Genuine new-scope configured-validity production lifecycle remains required. DATA-02 preparatory provenance changes stay isolated and do not change unit status or production acceptance. DATA-02/EVID-01/02/AUD-03/TAR-05 may collect independent production/external evidence without weakening exits; DATA-12/15 and EVID-08 remain completed."
+    "policy": "EVID-09 remains the sole repository focus. Standard code-only deployment of Main194 is completed with candidate-bound preservation evidence. The fresh configured production lifecycle failed at the unchanged hard watchdog; independent recovery passed without lifecycle acceptance. Operation-scoped shared reading is under regression. DATA-02 retention implementation remains isolated in PR55 pending CI and deployment; DATA-02/EVID-01/02/AUD-03/TAR-05 production/external evidence may progress without weakening exits. DATA-12/15 and EVID-08 remain completed."
   },
   "workstreams": [
     {
@@ -18,8 +18,12 @@
       "priority": "P0",
       "owner": "research+risk_center+portfolio+broker_execution+account",
       "status": "active",
-      "next_gate": "Optimized Main 6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b / source-20260914021633 is actually deployed through the standard code-only PreserveDataCenterCatalog process, terminal exit0, TLS200/healthy restart0 and15 Git/release/live hash matches. Exact reviewed70547a550 head had30 completed SUCCESS checks and PR39 merged. Independent before/after reads preserve14 complete policy rows,10 active policy identities including financial3 and price/quote/valuation2, three complete Catalog rowsets, existing published-current metadata and four root canonical payload fingerprints/zero revocations. A new153184066-byte PostgreSQL dump has verified exact SHA and actual UTC stat binding; both compatible images are pinned but rollback not exercised. Three complete source-consistent isolated PostgreSQL measurements on e9835fb58 each pass with5893 unchanged sources, physical stdlib JSON chain2091, SQL2619 and complete Domain witnesses; these serial synthetic one-root fixtures do not prove production concurrency or four-root workload parity. Real expired admin1 current read at2026-09-13T18:32:42Z returnsNone with1170 queries/zeroDML, correctly after both old deadlines; it is not the configured write lifecycle or a paired optimization percentage. A separately timed real historical Facade get_exact at18:43:50Z returns the original admin selector/hash with1150queries/zeroDML; historical readability does not revive current authority. EVID-09 remains active for a genuine authenticated fresh-scope30m lifecycle with55m actual parent coverage, bounded rollback and independent admin historical exact/ledger recovery. Historical failed source-snapshot pilot and cancelled lifecycle remain excluded. DATA-02/EVID-01/02/AUD-03/TAR-05 exits and human signed acceptance remain separate. See docs/deployment/evid09-standard-deployment-preservation-2026-09-14.json.",
+      "next_gate": "Production source 194183454fdef541a728ccce7e0a1520fe5ac860 / source-20260914123135 was deployed through standard code-only PreserveDataCenterCatalog, actual exit0. The sealed actual deployment has 22 original references, 28 Git/release/live source identities, a verified 153124405-byte pre-migration PostgreSQL backup, and four preserved Authority roots with zero revocations. Catalog metadata before this deployment is not independently verified by that seal. Legacy direct historical exact remains readable and expired current returns None; neither proves non-null fresh current. A full-parent isolated PostgreSQL16.15 test passed with 2144 physical decoder chains and 2608 call-period SQL queries, but its synthetic graph excludes production successor/replay scale. Actual fresh Case8 child exit1: first19 lifecycle stages passed, successor with_current hit the original25m hard watchdog, and rollback read passed. Independent recovery exit0 verified six checks including all19 Authority-chain rowsets, four roots and old current/exact, with auth sessions excluded from the outer transaction. Lifecycle acceptance remains false. Next finish operation-scoped read reuse without removing the two callback reads, graph/FK/head/revocation checks or changing budgets, then perform real PostgreSQL and new-candidate production lifecycle/recovery validation. See docs/deployment/evid09-main194-rollout-validation-2026-09-14.md and the two Main194 deployment/recovery seals; historical seals remain available. EVID-09 remains active and human signed acceptance is separate.",
       "documents": [
+        {
+          "path": "docs/plans/data-evidence-audit-runtime-sprint-route-2026-09-14.md",
+          "role": "supporting"
+        },
         {
           "path": "docs/plans/evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md",
           "role": "primary"
@@ -94,6 +98,10 @@
       "status": "production_validation",
       "next_gate": "DATA-12/13/14/15 and DATA-16 repository exits are completed. Final source 990a4876e is bound by the separate core, activation/integration, financial source-guard and Domain chronology seals; follow-up affected tests 155 pass, Domain selection 2939 pass with aggregate LINE coverage94.18%, all16 static/type/debt/architecture/current/Catalog/governance checks pass. Exact pushed review head300a67733 has eight completed/success CI workflows and identical tree to merged/deployed303248196. Standard backup/code-only upgrade preserving runtime Catalog applied additive schema; all10 critical source/live hashes match Git, TLS health200, healthyrestart0. Genuine post-upgrade preflight and preview precede atomic four-head activation: Financial policy3, Price/Quote/Valuation policy2, six unchanged legacy heads,14 total policy rows; three full Catalog rowsets and existing published-current identity metadata stay unchanged. Old Financial/Price/Quote current is blocked for publication_policy_changed; Valuation has no canonical current; News remains blocked for missing member evidence. Compatible strict-policy image is actually pinned but rollback not exercised. New sealed deployment evidence docs/deployment/data16-standard-deployment-and-policy-activation-2026-09-13.json does not close DATA-02. One local PC financial reference response is genuine388061 bytes/122 reportrows with exact bodySHA but no verified precise announcement/timezone/rowrecordID, no production ingestion or available_at repair. Historical financial source structure remains0/441944 complete; fiscal-period-only raw factor cutoff remains a separate documented lookahead boundary. EVID-09 now owns repository performance work. DATA-02 still requires authentic financial source time/raw evidence, actual5533-asset four-dataset storage, four immutable current Publication identities and canonical tolerance reconciliation; EVID/AUD/TAR production acceptance is unchanged.",
       "documents": [
+        {
+          "path": "docs/plans/data02-provider-artifact-adoption-2026-09-14.md",
+          "role": "supporting"
+        },
         {
           "path": "docs/plans/data-center-canonical-architecture-refactor-2026-08-02.md",
           "role": "primary"

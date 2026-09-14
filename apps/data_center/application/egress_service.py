@@ -18,6 +18,11 @@ from apps.data_center.domain.egress_routing import (
     resolve_egress_route,
     target_hostname,
 )
+from apps.data_center.domain.financial_response_evidence import (
+    FinancialRequestScope,
+    FinancialResponseEvidence,
+    FinancialResponseScope,
+)
 from core.exceptions import DataFetchError
 from core.integration.config_center_egress import (
     EgressEndpointSummary,
@@ -127,6 +132,42 @@ class EgressTransportProtocol(Protocol):
         expect_json: bool,
     ) -> tuple[EgressTransportResult, object | None]:
         """Return one bounded provider response at the external JSON boundary."""
+        ...
+
+    def request_financial_response(
+        self,
+        context: EgressRequestContext,
+        *,
+        egress_id: int | None,
+        request_id: UUID,
+        attempt: int,
+        method: str,
+        params: Mapping[str, object] | None,
+        json_body: Mapping[str, object] | None,
+        headers: Mapping[str, str] | None,
+        request_scope: FinancialRequestScope,
+        response_scope: FinancialResponseScope,
+    ) -> tuple[EgressTransportResult, FinancialResponseCaptureProtocol | None]:
+        """Return one response whose exact bytes were captured before decoding."""
+        ...
+
+
+class FinancialResponseCaptureProtocol(Protocol):
+    """Typed transport projection for an exact financial response capture."""
+
+    @property
+    def payload(self) -> object:
+        """Return the decoded provider payload without allowing mutation."""
+        ...
+
+    @property
+    def evidence(self) -> FinancialResponseEvidence:
+        """Return the immutable transport evidence projection."""
+        ...
+
+    @property
+    def raw_body(self) -> bytes:
+        """Return the exact captured bytes without allowing replacement."""
         ...
 
 
@@ -333,6 +374,81 @@ def execute_provider_request(
             break
     raise DataFetchError(
         last.message or "出网请求失败。", code=last.error_code or "EGRESS_TRANSPORT_FAILED"
+    )
+
+
+def execute_financial_response_request(
+    context: EgressRequestContext,
+    *,
+    request_id: UUID,
+    method: str,
+    params: Mapping[str, object] | None,
+    json_body: Mapping[str, object] | None,
+    headers: Mapping[str, str] | None,
+    request_scope: FinancialRequestScope,
+    response_scope: FinancialResponseScope,
+    max_attempts: int = 2,
+) -> FinancialResponseCaptureProtocol:
+    """Run one allowlisted financial request and retain its raw-body capture.
+
+    Financial callers must use an explicit persisted route.  The transport
+    captures and validates the exact response bytes before returning a parsed
+    payload; this application port never falls back to a direct HTTP client or
+    invents row-level announcement and availability metadata.
+    """
+
+    if not isinstance(request_id, UUID):
+        raise EgressRoutingError("financial request_id must be a UUID")
+    if not isinstance(request_scope, FinancialRequestScope) or not isinstance(
+        response_scope, FinancialResponseScope
+    ):
+        raise EgressRoutingError("financial response scopes must be typed")
+    if (
+        isinstance(max_attempts, bool)
+        or not isinstance(max_attempts, int)
+        or not 1 <= max_attempts <= 2
+    ):
+        raise EgressRoutingError("max_attempts must be one or two")
+    if method not in {"GET", "POST"}:
+        raise EgressRoutingError("unsupported provider read method")
+    transport = _transport
+    if transport is None:
+        raise DataFetchError("出网传输尚未配置。", code="EGRESS_TRANSPORT_UNAVAILABLE")
+    route = preview_route(context)
+    if route.rule_id is None:
+        raise DataFetchError("金融请求没有已登记出网规则。", code="EGRESS_FINANCIAL_ROUTE_REQUIRED")
+    last = EgressTransportResult(
+        outcome="blocked",
+        error_code="EGRESS_FINANCIAL_RESPONSE_CAPTURE_FAILED",
+        message="金融响应证据捕获失败。",
+    )
+    for attempt_number, egress_id in enumerate(route.candidates[:max_attempts], start=1):
+        result, captured = transport.request_financial_response(
+            context,
+            egress_id=egress_id,
+            request_id=request_id,
+            attempt=attempt_number,
+            method=method,
+            params=params,
+            json_body=json_body,
+            headers=headers,
+            request_scope=request_scope,
+            response_scope=response_scope,
+        )
+        _record_attempt(
+            context,
+            route,
+            request_id,
+            _diagnostic_attempt(result, attempt_number, egress_id),
+        )
+        if result.outcome == "success" and captured is not None:
+            return captured
+        last = result
+        if not result.retryable:
+            break
+    raise DataFetchError(
+        last.message or "金融响应证据捕获失败。",
+        code=last.error_code or "EGRESS_FINANCIAL_RESPONSE_CAPTURE_FAILED",
     )
 
 
@@ -670,7 +786,9 @@ __all__ = [
     "create_rule",
     "delete_endpoint",
     "diagnose_route",
+    "execute_financial_response_request",
     "execute_provider_request",
+    "FinancialResponseCaptureProtocol",
     "get_egress_transport",
     "list_endpoints",
     "list_rules",

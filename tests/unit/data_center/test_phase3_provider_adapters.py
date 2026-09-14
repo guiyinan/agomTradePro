@@ -78,6 +78,7 @@ def test_tushare_unified_provider_uses_its_own_transport_configuration(monkeypat
         "provider_id": 1,
         "deployment_region": "unknown",
         "dataset_key": "",
+        "financial_response_handler": None,
     }
 
 
@@ -253,7 +254,7 @@ def test_tushare_native_financial_date_does_not_invent_availability(
         lambda **kwargs: None,
     )
     adapter = TushareUnifiedProviderAdapter(_config("tushare", "tushare-main"))
-    monkeypatch.setattr(adapter, "_create_pro_client", lambda: _FakePro())
+    monkeypatch.setattr(adapter, "_create_pro_client", lambda **kwargs: _FakePro())
 
     facts = adapter.fetch_financials("001979.SZ", periods=8)
 
