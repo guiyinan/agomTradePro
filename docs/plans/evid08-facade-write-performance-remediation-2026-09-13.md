@@ -563,10 +563,11 @@ JUnit 为一个通过的目标测试，零 error/failure/skip，pytest 与测量
 六个业务阶段全部完成，5,909 个源码文件和 1,568 个已加载文件的前后快照逐字节一致。
 
 物理解码链实际为 2,144 次，耗时 0.277757 秒；loads/decode/raw_decode 是同一链的
-三个入口观测，不能相加。pytest call 范围内 SQL 为 2,608 次，其中 SELECT 2,356、
-INSERT 21；client SQL wall 705.500381 秒，call wall 742.809449 秒、caller CPU
+三个入口观测，不能相加。pytest runtest_call 范围内 SQL 为 2,608 次，其中 SELECT 2,356、
+INSERT 21；client SQL wall 705.500381 秒，完整 pytest 调用 wall 742.809449 秒、caller CPU
 25.468750 秒。Evidence approval 阶段 wall 148.066760 秒，测量 child wall
-839.477001 秒。上述边界不包含 fixture setup/teardown，不是 PostgreSQL 服务端 CPU，
+839.477001 秒。SQL 与物理解码计数不包含 fixture setup/teardown；wall duration 按各自
+边界记录，caller CPU 不是 PostgreSQL 服务端 CPU，
 也不能与旧播种夹具或失败的生产 Case7 计算配对优化比例。
 
 外层 rollback 后，独立只读观察确认零 public 表、零其他客户端、read_only=on，
