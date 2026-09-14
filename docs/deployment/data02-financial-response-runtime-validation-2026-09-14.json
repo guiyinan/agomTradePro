@@ -1,0 +1,324 @@
+{
+  "schema": "data02.financial-response-runtime-validation.v1",
+  "sealed_at_utc": "2026-09-14T11:04:27.196510+00:00",
+  "unit": "DATA-02",
+  "unit_status": "awaiting_production",
+  "signed_acceptance": false,
+  "technical_activation": "passed",
+  "vendor_business_acceptance": "blocked",
+  "production_source_commit": "f121000df1276472f172a93c16961fa74f433192",
+  "container_id": "0ee347f448d1b331f46e1babcc62cef2bdc8f8dbe8182c216fb7c2f5d6947fd9",
+  "image_digest": "sha256:b288b16a77e32bc41da5ab130997948b66b7adbb114600831eb61663f5bc4640",
+  "route": {
+    "rule_id": 1,
+    "provider_id": 2,
+    "dataset_key": "equity.financial.fact",
+    "domain_pattern": "quantdata888.duckdns.org",
+    "rule_deployment_region": "*",
+    "actual_request_region": "unknown",
+    "strategy": "direct",
+    "priority": 100
+  },
+  "artifact_config": {
+    "environment": "production",
+    "registered_definitions": 5,
+    "enabled_and_resolved": true,
+    "root": "/app/var/data02-financial-response-artifacts",
+    "root_created_and_writable": true,
+    "secret_ref": "config_center.data02.financial-response-artifact-key",
+    "key_version": "v1",
+    "max_body_bytes": 8388608,
+    "profile_snapshot_sha256": "020c2fa60645b2caabfa908c020a0542ce162ca893f74208b29f2f12ac9713d0"
+  },
+  "request": {
+    "announcement_instant_inferred": false,
+    "announcement_precision": "date_only_or_absent",
+    "availability_inferred": false,
+    "database_write_attempted": true,
+    "database_write_reason": "egress attempt audit, RawAudit artifact link, and token last_used_at may be written",
+    "error_code": "TUSHARE_PROVIDER_REJECTED",
+    "error_type": "TushareError",
+    "financial_fact_write_attempted": false,
+    "provider_request_attempted": true,
+    "provider_request_succeeded": false,
+    "request": {
+      "api_name": "fina_indicator",
+      "asset_code": "000001.SZ",
+      "dataset_key": "equity.financial.fact",
+      "limit": 1,
+      "period": "20231231",
+      "provider_id": 2,
+      "route_context_region": "unknown"
+    },
+    "status": "blocked"
+  },
+  "diagnostic_response_metadata": {
+    "capture_observed": true,
+    "handler_error_code": "TUSHARE_PROVIDER_REJECTED",
+    "handler_error_type": "TushareError",
+    "handler_outcome": "blocked",
+    "payload_code": 2003,
+    "payload_code_type": "int",
+    "payload_message_category": "unknown",
+    "raw_body_sha256": "35ba26f87d91ef9dc82fca593ad117b3ed293089ce1fae9d2fd0b5f12fa8825c",
+    "raw_body_size_bytes": 62,
+    "request_scope": {
+      "asset_code": "000001.SZ",
+      "dataset_key": "equity.financial.fact",
+      "period_limit": 1,
+      "provider_name": "Tushare Pro"
+    },
+    "response_completed_at": "2026-09-14T10:58:14.922958+00:00",
+    "response_completed_at_aware_utc": true,
+    "response_scope": {
+      "asset_codes": [
+        "000001.SZ"
+      ],
+      "period_ends": [],
+      "row_count": 0
+    },
+    "response_scope_basis": "caller_declared"
+  },
+  "actual_egress_audits": [
+    {
+      "attempt": 1,
+      "created_at": "2026-09-14T10:58:14.948479+00:00",
+      "deployment_region": "unknown",
+      "egress_id": null,
+      "error_code": "",
+      "latency_ms": 858.186,
+      "outcome": "success",
+      "pk": 2,
+      "request_id": "6a0d48f7-daa8-4536-ba31-e61bec09a66e",
+      "rule_id": 1
+    },
+    {
+      "attempt": 1,
+      "created_at": "2026-09-14T10:47:42.449431+00:00",
+      "deployment_region": "unknown",
+      "egress_id": null,
+      "error_code": "",
+      "latency_ms": 674.982,
+      "outcome": "success",
+      "pk": 1,
+      "request_id": "9d538d2e-de6d-4fe8-8f44-de3a61357c08",
+      "rule_id": 1
+    }
+  ],
+  "financial_raw_audit_count_in_observed_window": 0,
+  "original_artifact_count": 40,
+  "original_artifacts": [
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-financial-activation-artifact-config-resolve-20260914T103628360983Z.json",
+      "bytes": 3451,
+      "sha256": "c2f8be7cd150b5249085cd838c6351613a5c6d7de78dc410c7315cc13efad1b5"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-financial-activation-artifact-profile-20260914T103512709648Z.json",
+      "bytes": 3662,
+      "sha256": "6d4a034b127c7cbc39742b55e441fade82feedb058b57261013d80f7d31156c7"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-financial-activation-artifact-root-prepare-20260914T103743115430Z.json",
+      "bytes": 3371,
+      "sha256": "09f8bad7413233070ecb163b6052fb3c4075cf9ad91e3afc1efcfdb40fd450da"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-financial-activation-artifact-secret-20260914T103411445209Z.json",
+      "bytes": 3080,
+      "sha256": "d415c36d5d3275b27a268ce4cec795b8798bdc897a05d72d2694f8b95a7add47"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-financial-activation-egress-observation-v2-20260914T105927047893Z.json",
+      "bytes": 3004,
+      "sha256": "6400703215639a6c31d2eff1500820248ac466a53e0b9e5bcc4ad7fe884f2713"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-financial-activation-handler-request-20260914T104508143059Z.json",
+      "bytes": 4048,
+      "sha256": "6fbc26af11e6728e2cdfddf66a6bd26199c10a4afaf61ad6e713f29180b545e6"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-financial-activation-handler-request-v2-20260914T104726030599Z.json",
+      "bytes": 4118,
+      "sha256": "86f279b39cb8aeb47cc8db5d2a9ff7c779ab3344860dcbadd0d776f32e251831"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-financial-activation-provider-diagnostic-20260914T105816314745Z.json",
+      "bytes": 3570,
+      "sha256": "d5898b031f4c363310a9e1a5713fd41881005837885242b247703f26c3248f74"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-financial-activation-route-db-read-20260914T102303686485Z.json",
+      "bytes": 3027,
+      "sha256": "04b67764cab5db558df87c7281584b7da3347eeecc154ae5e9438237f7795b2f"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-financial-activation-route-verify-unknown-20260914T103244688353Z.json",
+      "bytes": 3418,
+      "sha256": "b2f7015737fa22620a53879d2a9b83b63639aac32c06fe17a0151cecc6757e36"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T102247652478Z-6956-00\\0000-activation_route_db_read-stdout.bin",
+      "bytes": 254,
+      "sha256": "551b51a4d546dc2c99b1e1b796e43e44df14071399f88fcceaa2a10eb4bed381"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T102247652478Z-6956-00\\0001-activation_route_db_read-stderr.bin",
+      "bytes": 311,
+      "sha256": "2e99b47c5aca5ab620c6e9fc21dc45c92b7aa52fe881810765b949a5834c1a8f"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T102247652478Z-6956-00\\streams.index.jsonl",
+      "bytes": 1029,
+      "sha256": "7d31551bd33322fafdfed91e34cc7c73efa10065924e9befb3ae6d06d78d539f"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T103244688716Z-9452-00\\0000-activation_route_verify_unknown-stdout.bin",
+      "bytes": 351,
+      "sha256": "454595a361d9d181ca530d43add6085e968ad6e67d90e06e57786e8340e809bb"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T103244688716Z-9452-00\\0001-activation_route_verify_unknown-stderr.bin",
+      "bytes": 311,
+      "sha256": "1d4e5fd5b28e9f8b0b1b8a33fc59fad3c9765d968e720be01550dcae46f84097"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T103244688716Z-9452-00\\streams.index.jsonl",
+      "bytes": 1057,
+      "sha256": "d5985e904fc4768e09450b541d2c587a95d8e21e2484a1a1eab4428cd9ef747f"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T103411445490Z-19172-00\\0000-activation_artifact_secret-stdout.bin",
+      "bytes": 261,
+      "sha256": "3802a0b9d5bf5d34a150837e328b87c69d7638fe56ab5dc0efc56e0185c8c870"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T103411445490Z-19172-00\\0001-activation_artifact_secret-stderr.bin",
+      "bytes": 311,
+      "sha256": "085e7cbf61feb9c6f51a94fc97ec1f9ef4a05e34cb9b81a0133a3322488b8006"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T103411445490Z-19172-00\\streams.index.jsonl",
+      "bytes": 1039,
+      "sha256": "cc1e321a8023ce706713c102eb67e44063723bb61b8f8f30ef5ee5a1797070aa"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T103512710003Z-22028-00\\0000-activation_artifact_profile-stdout.bin",
+      "bytes": 438,
+      "sha256": "d349f9721a2fa9499cb2d334bb29915f6ed87edaa8cdee52049623fd9489f140"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T103512710003Z-22028-00\\0001-activation_artifact_profile-stderr.bin",
+      "bytes": 311,
+      "sha256": "76aa9a383d6933a5a6c2e112419de5399386412aa541e6c650631dd8c9c109e5"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T103512710003Z-22028-00\\streams.index.jsonl",
+      "bytes": 1043,
+      "sha256": "84bc24360b6f1cb1ad1d70d8c3ba47a70849538bb82a3ed4b76b12569532d831"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T103628361289Z-11984-00\\0000-activation_artifact_config_resolve-stdout.bin",
+      "bytes": 614,
+      "sha256": "b217bea51ebdb72b944be64b240a4651817a99e7bdf104946c9d481dae0b9b40"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T103628361289Z-11984-00\\0001-activation_artifact_config_resolve-stderr.bin",
+      "bytes": 311,
+      "sha256": "95e4c5d8447e4183fedfabbfcdebbde0d0ac351e42f4d8ae637f4a1f5f7ac83a"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T103628361289Z-11984-00\\streams.index.jsonl",
+      "bytes": 1071,
+      "sha256": "bae9daa9d34bc315eb244e3b69b72a12efe0313a6a8449da0ee3c7ecb99a08a0"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T103743115781Z-25492-00\\0000-activation_artifact_root_prepare-stdout.bin",
+      "bytes": 419,
+      "sha256": "673a508b5789d0b6473117307860059f97be33771828e2793f2753e504a9ecab"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T103743115781Z-25492-00\\0001-activation_artifact_root_prepare-stderr.bin",
+      "bytes": 311,
+      "sha256": "0fbb366ce98014875710d22710c440c661aefecabec80a57bc2082a436691932"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T103743115781Z-25492-00\\streams.index.jsonl",
+      "bytes": 1063,
+      "sha256": "931f0003f0c082b66727ae19bdc238898a81978f0dd1dafec0d0d0f15442e718"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T104508143559Z-23508-00\\0000-activation_handler_request-stdout.bin",
+      "bytes": 626,
+      "sha256": "a03e52f3b71ca9be3360c47c5373b6eaf7c462913631bd6eedaf87b1205fd06b"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T104508143559Z-23508-00\\0001-activation_handler_request-stderr.bin",
+      "bytes": 311,
+      "sha256": "110d1f8006b99350a3104e7a9b8749d77be61fcb964267e8264cae2de1351137"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T104508143559Z-23508-00\\streams.index.jsonl",
+      "bytes": 1040,
+      "sha256": "5b67ea8a62d3dae09073355d6dd98f23d8c8d2c605fa3a32c2bf20ad8313d951"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T104726031082Z-21712-00\\0000-activation_handler_request_v2-stdout.bin",
+      "bytes": 673,
+      "sha256": "e598cc92b4c3cad72b6626c038d9297329cc5d3cc96b7da8328c4a41cf57e7b5"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T104726031082Z-21712-00\\0001-activation_handler_request_v2-stderr.bin",
+      "bytes": 311,
+      "sha256": "89ba92ec371355f001154a732c53a955c41d48041c79e2ebb54b6a0bdbcfb2ea"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T104726031082Z-21712-00\\streams.index.jsonl",
+      "bytes": 1052,
+      "sha256": "5bc73ac10f121b691f702628ba388bd9cef611246aacc552dc4ab967fb2d7548"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T105759279477Z-24420-00\\0000-financial_provider_diagnostic-stdout.bin",
+      "bytes": 1260,
+      "sha256": "8a39e3ee1ce7e6db03667851c36039e1af52d2bee2faf56331794934e84066d7"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T105759279477Z-24420-00\\0001-financial_provider_diagnostic-stderr.bin",
+      "bytes": 311,
+      "sha256": "b151f7368fdf22e8c22174dcfdd5ab2fb5dfb6d2642148596ad54c75c9837124"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T105759279477Z-24420-00\\streams.index.jsonl",
+      "bytes": 1054,
+      "sha256": "32b0bca535f19d3818a97c4d87a38ee1fb02a1ae80b6276647a1889e94bb4b27"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T105911637069Z-3928-00\\0000-financial_egress_observation_v2-stdout.bin",
+      "bytes": 737,
+      "sha256": "d76cc510643c02ce3fbe9489664633ceea3a2b90a519f706eee6d5085b4e3bdc"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T105911637069Z-3928-00\\0001-financial_egress_observation_v2-stderr.bin",
+      "bytes": 311,
+      "sha256": "d5b0c3027ed918f436318022bfb687317f0623ae4d190a7daa3d8cd1d667d3d6"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-vps-provider-config-inventory-private-20260914T105911637069Z-3928-00\\streams.index.jsonl",
+      "bytes": 1059,
+      "sha256": "97b2998409559ae11d6f1825ab54dec65aefbc2a8212ddf6754d083ba7661fbc"
+    }
+  ],
+  "limits": [
+    "Technical activation and HTTP transport success do not establish vendor business success; both real calls were rejected.",
+    "The first script failed before a vendor call because its diagnostic model import was wrong; that original is retained and excluded from actual call counts.",
+    "The v2 request original mislabeled top-level provider_request_executed=false; its attempted=true observation and actual egress row prove execution. Original bytes are preserved unchanged.",
+    "Code2003 is observed; its meaning remains unknown. No permission, token or rate-limit diagnosis is inferred.",
+    "The diagnostic body SHA, length and EOF are capture observations; the failed 62-byte body was not persisted and cannot be independently replayed.",
+    "Response scope remains predecode caller_declared with row_count0 and no period coverage; capture UUID is not a native vendor row identity.",
+    "No successful FRA1/RawAudit replay, precise source availability, native row identity, historical hash repair, FinancialFact write or Publication acceptance is established.",
+    "EOF completion is transport time and must not be substituted for vendor announcement or available_at. DATA-02 and later EVID/AUD/TAR exits remain separate.",
+    "Secrets and bodies are not embedded. Only explicitly retained local originals are referenced by exact size and SHA256.",
+    "The supplementary early route DB receipt has no independent source/container identity fields; identity-bound later API and egress receipts corroborate rule1 and request scope."
+  ]
+}
