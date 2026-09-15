@@ -39,7 +39,7 @@
 
 ## 自主 Goal 调度入口
 
-2026-09-15 当前：`DATA-16/EVID-09=completed`，`execution_focus.unit_id=null`；EVID-03 仍等待 EVID-01/02，因此没有 dependency-ready repository successor。
+2026-09-15 当前：`DATA-16=completed`、`EVID-09=active`，`execution_focus.unit_id=EVID-09`；EVID-03 仍等待 EVID-01/02。EVID-09 的旧候选隔离技术演练不能替代现行候选的生产 live rollback／前进恢复退出证据。
 DATA-16 四份源码绑定证据保持原样：核心发布链路、版本化策略激活集成、Financial ORM
 来源严格校验及最终Domain公告/可用时间顺序校验。最终受影响155 passed、官方Domain
 选定2939 passed，聚合行覆盖率94.18%，16项静态门禁包括53生产文件增量mypy和全量零债务通过。
@@ -49,12 +49,12 @@ DATA-16 四份源码绑定证据保持原样：核心发布链路、版本化策
 指纹及既有published-current identity metadata保持原样。旧Financial/Price/Quote current因策略
 变化阻断，Valuation无canonical current；admin/user1 current复验14.68秒，四根/零撤销未变。
 [部署/激活证据](../deployment/data16-standard-deployment-and-policy-activation-2026-09-13.json)
-保留27份原始工件。后续 EVID-09 已完成 typed locked read phase、append/CAS fresh 边界、
+保留27份原始工件。EVID-09 的实现已完成 typed locked read phase、append/CAS fresh 边界、
 三次最终候选同源 PostgreSQL 测量、标准保数据部署和 27 阶段真实生产生命周期；早期失败
 receipt 原样保留，不计为成功证据。2026-09-15 的隔离兼容回滚按
 `ba1605fa2/d407e93e → 6760c9aa/f5647b6d → ba1605fa2/d407e93e` 完成，19 组账本 rowset、
 typed current/exact 与 DATA-02 runtime profile 三阶段一致，生产 CID/健康/restart 未变，专属
-容器、volume、network 和临时凭据均清理。EVID-08 继续保持 completed，不重复计算。
+容器、volume、network 和临时凭据均清理；这只构成旧候选隔离演练证据，未触达现行生产流量，EVID-09 保持 active。EVID-08 继续保持 completed，不重复计算。
 
 [财务来源时间整改路线](data02-financial-source-time-remediation-2026-09-13.md)保留独立生产缺口：
 本地一次真实响应388061字节/122报告行已验证原始bodySHA；119个公告午夜文本无时区、
