@@ -2,7 +2,7 @@
 
 > 2026-09-13：生产已部署 `3032481969f9…` / release `20260913212011`，TLS health200；真实四策略头激活完成，六legacy保留，旧current严格阻断，admin/user1 current14.68秒及四根/零撤销独立核验通过。[部署/激活证据](deployment/data16-standard-deployment-and-policy-activation-2026-09-13.json)。DATA-16 repository completed，EVID-09 是唯一仓库焦点；真实PG Facade JUnit1 passed/5312.68秒，但probe源码快照门失败，优化及生产30分钟复测尚未完成。DATA-02、EVID-01/02、AUD-03、TAR-05生产验收尚未完成。
 
-> 2026-09-07：main `0e9f890e8…` 已完成 VPS code-only upgrade；health/ready=200，decision-ready=503。[部署证据](deployment/main-vps-upgrade-2026-09-07-0e9f890e.json)。TUI 新候选为 `2/10 DENY`，DATA-02 与生产 Evidence 验收仍未完成。
+> 2026-09-15：main `891c40c57…` 已完成 VPS code-only upgrade；health/ready=200，decision-ready=503。[部署证据](deployment/main-vps-upgrade-2026-09-15-891c40c57.json)。TUI 候选已重绑并重置为 `2/10 DENY`，尚无首个 retained sample；DATA-02 与生产 Evidence 验收仍未完成。
 
 > **AgomTradePro 0.8.0** - 个人投研平台
 > **最后更新**: 2026-09-12
@@ -174,7 +174,7 @@
 | [web-to-tui-m2-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m2-consolidated-evidence-2026-07-26.md) | **Web → TUI M2 合并证据（W1-W20，15 份原始 wave 记录与 SHA-256 清单）** | ✅ M2 已完成并归档 |
 | [web-to-tui-m3-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m3-consolidated-evidence-2026-07-26.md) | **Web → TUI M3 合并证据（W21-W42，22 份原始 wave 记录与 SHA-256 清单）** | ✅ M3 已完成并归档 |
 | [web-to-tui-m4-consolidated-evidence-2026-07-26.md](archive/plans/web-to-tui-m4-consolidated-evidence-2026-07-26.md) | **Web → TUI M4 合并证据（W43-W51，9 份原始 wave 记录与 SHA-256 清单）** | ✅ M4 已完成并归档 |
-| [web-to-tui-m5-readiness-2026-07-27.md](plans/web-to-tui-m5-readiness-2026-07-27.md) | **Web → TUI M5 Readiness（14 日兼容期、UAT、telemetry 与回滚演练门禁）** | 当前 `2/10 DENY`；main `0e9f890e8…` / `20260907170119` 已部署并重绑候选，旧 UAT/cleanup/rollback 不继承；已绑定真实 retained sample，精确 14 日 eligible 为 `2026-09-21T11:15:50.030000Z`；自然时间与其余新候选验收尚未完成，Classic 清理仍禁止 |
+| [web-to-tui-m5-readiness-2026-07-27.md](plans/web-to-tui-m5-readiness-2026-07-27.md) | **Web → TUI M5 Readiness（14 日兼容期、UAT、telemetry 与回滚演练门禁）** | 当前 `2/10 DENY`；main `891c40c57…` / `20260915110952` 已部署并重绑候选，旧 UAT/cleanup/rollback 不继承；first retained sample 与精确 14 日 eligible 均未绑定，需从新候选真实样本重新起算；其余新候选验收尚未完成，Classic 清理仍禁止 |
 | [web-to-tui-m5-production-preflight-2026-07-28.md](plans/web-to-tui-m5-production-preflight-2026-07-28.md) | **Web → TUI M5 生产 Preflight（只读健康、release/commit 与候选差异核查）** | 历史只读记录；不代表 2026-08-13 当前线上版本，不计入 cutover gate |
 | [web-to-tui-m5-production-preflight-2026-08-13.md](plans/web-to-tui-m5-production-preflight-2026-08-13.md) | **Web → TUI M5 生产 Preflight（公开探针 + release/OCI 核对）** | 历史只读候选记录：`20260816223921` / `443658d33159`；当前运行候选以最新 deployment evidence 与 registry 绑定为准。M5 仍 DENY，角色化 UAT、观察窗口和写后审计待补 |
 | [web-to-tui-m5-rollback-drill-evidence-2026-07-27.md](plans/web-to-tui-m5-rollback-drill-evidence-2026-07-27.md) | **Web → TUI M5 回滚演练（隔离 reverse/restore、旧 graph 兼容与 registry 回滚发布）** | 历史记录不再算当前闸门；candidate-bound 本地演练已修复，最终候选/生产备份恢复待验 |

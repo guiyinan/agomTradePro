@@ -136,8 +136,8 @@ def test_current_candidate_identity_is_consistent_across_registry_and_evidence()
         "TUI-02=active" in plans_row
     ), "docs/plans/README.md current M5 projection is missing TUI-02 active status"
     assert (
-        "5/10 DENY" in docs_row
-    ), "docs/INDEX.md current M5 readiness projection is missing 5/10 DENY status"
+        "2/10 DENY" in docs_row
+    ), "docs/INDEX.md current M5 readiness projection is missing 2/10 DENY status"
     readiness_current = _latest_section_for_candidate(
         readiness,
         heading_level=3,

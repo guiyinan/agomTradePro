@@ -1,6 +1,6 @@
 {
-  "version": "2026-09-14.v104",
-  "updated_at": "2026-09-14",
+  "version": "2026-09-15.v105",
+  "updated_at": "2026-09-15",
   "execution_focus": {
     "unit_id": "EVID-09",
     "allowed_parallel_execution_modes": [
@@ -178,7 +178,7 @@
       "priority": "P0",
       "owner": "terminal+operational_readiness",
       "status": "production_validation",
-      "next_gate": "Successor dba9ab2c8c18b824a6ed60d90b0765e020e6908d / release 20260910002501 is independently identity-verified by docs/deployment/sprint-successor-readonly-2026-09-10-dba9ab2c.json. Concurrent deployment and TUI rebinding edits were preserved. Local successor readiness is DENY 2/10, commit=verified_with_snapshot and binding=true, but first_retained_sample_at and eligible_at are null. Start with a real retained sample and satisfy the existing 14-day window and candidate-bound UAT/telemetry/recovery gates; do not inherit old observations or calculate elapsed observation from deployment time. Raw checker output: docs/testing/data15-domain-checkpoint-2026-09-10.json. The candidate-bound Caddy-only query wiring repair completed (docs/deployment/tui02-query-wiring-repair-2026-09-10-dba9ab2c.json), with Web/Prometheus unchanged. The resumed authenticated query is HTTP 200 with an empty migration vector (docs/testing/sprint-resume-readonly-2026-09-10.json); no first sample or observation start is claimed. This goal performed no application deployment or browser acceptance.",
+      "next_gate": "Production candidate 891c40c5769897931b2b513e92df6f9ba72631ea / release 20260915110952 / image sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d is identity-verified by docs/deployment/main-vps-upgrade-2026-09-15-891c40c57.json and bound by docs/deployment/tui02-candidate-rebind-2026-09-15-891c40c57.json. Canonical readiness is DENY 2/10: source and dependency pass; first_retained_sample_at and eligible_at are null, and prior UAT/cleanup/rollback/telemetry/defects/backup/review/approvals were not inherited. Prometheus target up, 18 healthy rules and 21d/4GB persistent volume are observed, but host-only query env is missing from this and previous release; authenticated HTTPS query and first real retained sample remain unverified. Restore the protected query path under a bounded configuration repair, then bind actual post-restart sample and calculate exact 14-day eligible instant. Supplemental Nightly 34923321145 on stale dev/next-development@9ed2677e1 ended failure in PostgreSQL current-data contract and full unit tests; no pass is claimed.",
       "documents": [
         {
           "path": "docs/plans/web-to-tui-migration-plan-2026-07-25.md",
@@ -294,7 +294,7 @@
       "priority": "P1",
       "owner": "terminal",
       "status": "production_validation",
-      "next_gate": "Successor dba9ab2c8c18b824a6ed60d90b0765e020e6908d / release 20260910002501 is independently identity-verified by docs/deployment/sprint-successor-readonly-2026-09-10-dba9ab2c.json. Concurrent deployment and TUI rebinding edits were preserved. Local successor readiness is DENY 2/10, commit=verified_with_snapshot and binding=true, but first_retained_sample_at and eligible_at are null. Start with a real retained sample and satisfy the existing 14-day window and candidate-bound UAT/telemetry/recovery gates; do not inherit old observations or calculate elapsed observation from deployment time. Raw checker output: docs/testing/data15-domain-checkpoint-2026-09-10.json. This goal performed no deployment, production mutation or browser acceptance.",
+      "next_gate": "Production candidate 891c40c5769897931b2b513e92df6f9ba72631ea / release 20260915110952 is deployed and canonically rebound at DENY 2/10. Source and execution dependency gates pass; all candidate-bound UAT, cleanup, rollback, telemetry, defect, backup/review and approval evidence awaits the new candidate. First collect and bind the real post-restart retained sample; do not infer elapsed observation from the nominal 2026-09-15..2026-09-29 dates or inherit superseded dba9ab2c8 evidence.",
       "documents": [
         {
           "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
