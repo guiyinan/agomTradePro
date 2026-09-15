@@ -6,7 +6,8 @@
 > Calendar：`strat.r7.cn-monthly-forecast-cohort / 1.0.0`
 > Scope：`strat.r7.owner-approved-scenario-revisions / 1.0.0`
 > Qualification：`strat.r7.calibration-analogy-path-qualification / 1.0.0`
-> 状态：`READY_FOR_OWNER_ATTESTATION`
+> 状态：`OWNER_ATTESTED_PENDING_DRY_RUN`
+> Owner attestation：`APPROVE-STRAT-20260915-01`（2026-09-15；非语义状态更新）
 > 拟议 `valid_from`：`2026-09-01T00:00:00+08:00`
 > 拟议 `valid_until`：`2027-08-31T23:59:59+08:00`
 

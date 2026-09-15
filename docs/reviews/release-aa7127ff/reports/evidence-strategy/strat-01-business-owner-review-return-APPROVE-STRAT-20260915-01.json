@@ -1,0 +1,634 @@
+{
+  "schema": "strat-01-business-owner-review-return.v1",
+  "template_only": false,
+  "instructions": {
+    "copy_to_new_final_file": true,
+    "set_template_only_false_only_after_review": true,
+    "null_means_not_reviewed_or_not_approved": true,
+    "decision_values": [
+      "APPROVE",
+      "REJECT",
+      "DEFER"
+    ],
+    "decision_required_per_capability": true,
+    "business_documents_must_be_attached_and_hashed": true,
+    "canonical_hashes_are_computed_by_dry_run_not_invented_by_reviewer": true,
+    "final_file_requires_sha256_sidecar": true,
+    "secrets_forbidden": true
+  },
+  "decision_id": "APPROVE-STRAT-20260915-01",
+  "issued_at": "2026-09-15T10:00:40Z",
+  "expires_at": "2027-08-31T23:59:59+08:00",
+  "candidate": {
+    "commit": "fe0fc33bc78390c15244025f176cfd6ed31550e8",
+    "release_id": null,
+    "image_id": null,
+    "database_alias": "default"
+  },
+  "source_preflight": {
+    "path": "docs/deployment/strat-01-owner-ledger-readonly-recheck-2026-09-02-aa7127ff.json",
+    "sha256": "e69eb665fae0b84ecd57eb39e93395931087d227cee619d09eda7c9d6235214d"
+  },
+  "current_state_acknowledgement": {
+    "research_r1_to_r8_owner_rows_are_zero_seed": true,
+    "portfolio_r4_r5_r8_owner_rows_are_zero_seed": true,
+    "data_center_facts_cannot_be_promoted_into_owner_definitions": true,
+    "no_pit_oos_promotion_or_consumer_evidence_exists_yet": true,
+    "strategy_execution_remains_forbidden": true
+  },
+  "governance_parties": {
+    "research_governance_owner": {
+      "legal_name": null,
+      "production_account_id": null,
+      "role": "project_owner / strategy_research_business_owner",
+      "organization": null,
+      "receipt_reference": "docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json",
+      "receipt_sha256": "f675c44647764c93292f223fc94a0f7ac3d5c89a1ad651d2d12a6ba1918300e1",
+      "decision": "APPROVE"
+    },
+    "independent_reviewer": {
+      "legal_name": null,
+      "production_account_id": null,
+      "role": "project_owner / strategy_research_business_owner",
+      "organization": null,
+      "receipt_reference": "docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json",
+      "receipt_sha256": "f675c44647764c93292f223fc94a0f7ac3d5c89a1ad651d2d12a6ba1918300e1",
+      "decision": "APPROVE"
+    },
+    "separation_of_duties": {
+      "governance_owner_and_reviewer_are_distinct_people": false,
+      "governance_owner_and_reviewer_are_distinct_production_accounts": false,
+      "verified_by": "docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json",
+      "verified_at": "2026-09-15T10:00:40Z"
+    }
+  },
+  "capability_decisions": [
+    {
+      "capability_id": "R1",
+      "capability_name": "Forecast Baseline",
+      "decision": "APPROVE",
+      "business_owner": {
+        "legal_name": null,
+        "production_account_id": null,
+        "role": "project_owner / strategy_research_business_owner",
+        "organization": null,
+        "receipt_reference": "docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json",
+        "receipt_sha256": "f675c44647764c93292f223fc94a0f7ac3d5c89a1ad651d2d12a6ba1918300e1"
+      },
+      "definition": {
+        "id": "strat.r1.forecast-baseline",
+        "version": "1.0.0",
+        "document_reference": "docs/business/strategy-research/strat-01/r1-forecast-baseline.md",
+        "document_sha256": "cc66ace96f61022b5eabdef55728ffdd699ea0986af039ab802a76998b562a74",
+        "canonical_content_hash_after_dry_run": null
+      },
+      "policy": {
+        "id": "strat.r1.forecast-baseline.policy",
+        "version": "1.0.0",
+        "decision_rules_reference": "docs/business/strategy-research/strat-01/r1-forecast-baseline.md",
+        "decision_rules_sha256": "cc66ace96f61022b5eabdef55728ffdd699ea0986af039ab802a76998b562a74"
+      },
+      "calendar": {
+        "id": "strat.r1.cn-quarterly-reporting",
+        "version": "1.0.0",
+        "timezone": "Asia/Shanghai",
+        "cutoff_semantics": "自然季度（period end 03-31/06-30/09-30/12-31）；forecast origin 为最近一期定期报告 canonical available_at 后首个交易日 16:30；只允许 available_at <= forecast_origin_at 且 manifest 未过期的版本（文档 §5）"
+      },
+      "scope": {
+        "id": "strat.r1.cn-a-share-operating-model-pilot",
+        "version": "1.0.0",
+        "universe_reference": "r1-forecast-baseline.md §3：中国 A 股单一 owner-approved 行业 pilot（首版优先连锁餐饮/门店型消费语义）；具体公司名单由 scope registry 在 selection 前冻结并哈希",
+        "universe_sha256": null
+      },
+      "sample_window": {
+        "minimum_duration": "36 个连续自然月",
+        "minimum_periods": "12 个连续季度",
+        "minimum_samples": "每个 metric 至少 12 个完整配对样本；五项核心 metric 合计至少 60 格",
+        "minimum_coverage": "0.95"
+      },
+      "qualification": {
+        "id": "strat.r1.paired-forecast-qualification",
+        "version": "1.0.0",
+        "thresholds_reference": "r1-forecast-baseline.md §9：revenue MAPE≤0.15、gross_margin MAE≤0.03、operating_profit/net_profit_attributable MAPE≤0.25、operating_cash_flow MAPE≤0.30，且相对 benchmark 最小改善 0.03（gross_margin 0.005）；全部 metric 同时通过",
+        "thresholds_sha256": "cc66ace96f61022b5eabdef55728ffdd699ea0986af039ab802a76998b562a74",
+        "falsification_conditions": "文档 §10 七项：核心 metric 连续 2 季超最大误差；coverage<0.95；重述致收入/归母净利润变化>5%；门店/同店/毛利率连续 2 季出 base 区间；模板/单位/calendar/source/scope 未版本化变化；未来事实进入历史输入；经营现金流连续 2 季与利润背离且无已签署解释"
+      },
+      "business_semantics": {
+        "benchmark": "seasonal_naive（selection 前登记，同窗口同数据可见性）；external_consensus 仅附加观察",
+        "cost": "not_applicable：预测准确性研究，不形成交易；数据许可与采集成本入运维预算（文档 §7）",
+        "liquidity": "not_applicable：同上（文档 §7）",
+        "label": "observed_fact / human_assumption / model_inference × base / bull / bear；禁止把规则分数写成概率（文档 §11）",
+        "invalidation_conditions": "§10 任一证伪条件触发即停止向下游提供 active candidate 并生成 owner review",
+        "retirement_conditions": "连续 2 个已完成 monitoring period 触发 §10 性能条件时要求人工 RETIRE",
+        "rollback_conditions": "仅回到同 scope lifecycle 的 stack[-2] 并重验 source/calendar/valid_until/完整 trial；无合格旧版本时保持无 active R1 forecast"
+      },
+      "valid_from": "2026-09-01T00:00:00+08:00",
+      "valid_until": "2027-08-31T23:59:59+08:00",
+      "review_notes": "owner 于 2026-09-15 在交互式会话中声明批准（单一所有者模式，receipt PERSONAL-OWNER-80EA002B-20260830-01）；自动化作为 delegated executor 逐字提取字段并核验 sidecar。2026-09-15 仅将状态头由 READY_FOR_OWNER_ATTESTATION 改为 OWNER_ATTESTED_PENDING_DRY_RUN，属 README §6 允许的非语义变更，已重新生成全部 sidecar。universe_sha256 为 null：具体成员名单按定义在 selection 前由 registry 冻结并哈希，当前不存在可引用文件。canonical_content_hash_after_dry_run 为 null：canonical dry-run 尚未执行，hash 不得由审核人填写。 实际 valid_from 按包 README §6 取 owner attestation 与 append-only registration 较晚者；registration 未授权前本定义为已批准语义、未登记状态。"
+    },
+    {
+      "capability_id": "R2",
+      "capability_name": "Market Structure",
+      "decision": "APPROVE",
+      "business_owner": {
+        "legal_name": null,
+        "production_account_id": null,
+        "role": "project_owner / strategy_research_business_owner",
+        "organization": null,
+        "receipt_reference": "docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json",
+        "receipt_sha256": "f675c44647764c93292f223fc94a0f7ac3d5c89a1ad651d2d12a6ba1918300e1"
+      },
+      "definition": {
+        "id": "strat.r2.market-structure",
+        "version": "1.0.0",
+        "document_reference": "docs/business/strategy-research/strat-01/r2-market-structure.md",
+        "document_sha256": "6b4555369e6b0f6a773d2be4f95d6212e0822fc36d570677a87c16f592792ad2",
+        "canonical_content_hash_after_dry_run": null
+      },
+      "policy": {
+        "id": "strat.r2.explanatory-trial.policy",
+        "version": "1.0.0",
+        "decision_rules_reference": "docs/business/strategy-research/strat-01/r2-market-structure.md",
+        "decision_rules_sha256": "6b4555369e6b0f6a773d2be4f95d6212e0822fc36d570677a87c16f592792ad2"
+      },
+      "calendar": {
+        "id": "strat.r2.cn-monthly-market-structure",
+        "version": "1.0.0",
+        "timezone": "Asia/Shanghai",
+        "cutoff_semantics": "月度自然月半开区间，月末最后交易日结束；cutoff 为次月第 5 个交易日 18:00；晚到数据进入下一 revision（文档 §5）"
+      },
+      "scope": {
+        "id": "strat.r2.cn-a-share-investor-structure",
+        "version": "1.0.0",
+        "universe_reference": "r2-market-structure.md §4：中国 A 股及境内交易、以 A 股为主要底层的 ETF；owner-approved 资产组须有 revision 与 PIT membership",
+        "universe_sha256": null
+      },
+      "sample_window": {
+        "minimum_duration": "72 个连续自然月",
+        "minimum_periods": "72 个非重叠月度 period；恰好 2 个完整互不重叠且 selection 前定义的 market cycle，每个至少 24 个月",
+        "minimum_samples": "每个 series×period 至少 1 个 canonical observation；每个 actor 至少 72 个 period 值；每 trial 至少 4 类 actor 且至少 2 类 direct measure",
+        "minimum_coverage": "0.90（membership coverage，每 series×period）"
+      },
+      "qualification": {
+        "id": "strat.r2.two-cycle-explanatory",
+        "version": "1.0.0",
+        "thresholds_reference": "r2-market-structure.md §8：coverage_ratio≥0.90、stability_score≥0.70、incremental_explanatory_power(delta_r2)≥0.02，两个 cycle 分别通过；holm-v1 adjusted p-value≤0.05",
+        "thresholds_sha256": "6b4555369e6b0f6a773d2be4f95d6212e0822fc36d570677a87c16f592792ad2",
+        "falsification_conditions": "文档 §9 八项：任一 cycle delta_r2<0.02 或 adj p>0.05；仅样本内改善；proxy 与 direct 长期冲突不可解释；membership coverage<0.90 或事后缩小分母；flow/stock/holding_change/transaction_net_flow 混用；taxonomy/calendar/asset group/revision policy 未升版改变；available_at 前被历史查询读到；label drift/license 失效/口径改变"
+      },
+      "business_semantics": {
+        "benchmark": "仅含同期市场收益、已实现波动、成交额变化和月度固定效应的基准模型；候选在相同样本上加预注册 actor-series 特征（文档 §7）",
+        "cost": "not_applicable_to_descriptive_trial（文档 §7，不得填零冒充已评估）",
+        "liquidity": "not_applicable_to_descriptive_trial（文档 §7）",
+        "label": "descriptive / explanatory / research_only 固定标签（文档 §8）",
+        "invalidation_conditions": "§9 任一证伪条件；PIT 泄漏、owner/hash 错配、Publication 被替换或 family 不完整立即 BLOCKED（§10）",
+        "retirement_conditions": "任一最新 period breach 记 BREACHED；同一 metric 连续 3 个完整 period breach 或 label drift 要求人工 retirement review",
+        "rollback_conditions": "仅回到同 taxonomy/calendar/scope lifecycle 的 stack[-2]；旧版本须仍有有效 Publication、完整两个 cycle 和未过期 evidence"
+      },
+      "valid_from": "2026-09-01T00:00:00+08:00",
+      "valid_until": "2027-08-31T23:59:59+08:00",
+      "review_notes": "owner 于 2026-09-15 在交互式会话中声明批准（单一所有者模式，receipt PERSONAL-OWNER-80EA002B-20260830-01）；自动化作为 delegated executor 逐字提取字段并核验 sidecar。2026-09-15 仅将状态头由 READY_FOR_OWNER_ATTESTATION 改为 OWNER_ATTESTED_PENDING_DRY_RUN，属 README §6 允许的非语义变更，已重新生成全部 sidecar。universe_sha256 为 null：具体成员名单按定义在 selection 前由 registry 冻结并哈希，当前不存在可引用文件。canonical_content_hash_after_dry_run 为 null：canonical dry-run 尚未执行，hash 不得由审核人填写。 实际 valid_from 按包 README §6 取 owner attestation 与 append-only registration 较晚者；registration 未授权前本定义为已批准语义、未登记状态。"
+    },
+    {
+      "capability_id": "R3",
+      "capability_name": "Macro Factor",
+      "decision": "APPROVE",
+      "business_owner": {
+        "legal_name": null,
+        "production_account_id": null,
+        "role": "project_owner / strategy_research_business_owner",
+        "organization": null,
+        "receipt_reference": "docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json",
+        "receipt_sha256": "f675c44647764c93292f223fc94a0f7ac3d5c89a1ad651d2d12a6ba1918300e1"
+      },
+      "definition": {
+        "id": "strat.r3.macro-factor-nowcast",
+        "version": "1.0.0",
+        "document_reference": "docs/business/strategy-research/strat-01/r3-macro-factor.md",
+        "document_sha256": "8fd1597872854aa30f58b9c87669e039d66d7d25b8b5e7f47036a44634d702be",
+        "canonical_content_hash_after_dry_run": null
+      },
+      "policy": {
+        "id": "strat.r3.nested-temporal-research.policy",
+        "version": "1.0.0",
+        "decision_rules_reference": "docs/business/strategy-research/strat-01/r3-macro-factor.md",
+        "decision_rules_sha256": "8fd1597872854aa30f58b9c87669e039d66d7d25b8b5e7f47036a44634d702be"
+      },
+      "calendar": {
+        "id": "strat.r3.cn-trading-and-release-calendar",
+        "version": "1.0.0",
+        "timezone": "Asia/Shanghai",
+        "cutoff_semantics": "日频研究 cutoff 每交易日 16:30；宏观 release 以官方发布时间或 owner-approved publication lag 为 available time（文档 §4）"
+      },
+      "scope": {
+        "id": "strat.r3.cn-macro-target-proxy-universe",
+        "version": "1.0.0",
+        "universe_reference": "r3-macro-factor.md §3：growth/inflation/rates/credit/liquidity/fx 六类 target；proxy 须有连续 PIT 价格、明确交易日历、成本模型和流动性证据；具体代码由 universe registry 在 selection 前冻结",
+        "universe_sha256": null
+      },
+      "sample_window": {
+        "minimum_duration": "8 个连续自然年",
+        "minimum_periods": "walk-forward 至少 5 个严格时序递增 fold；training 首 fold ≥5 年、validation 每 fold ≥126 交易日、OOS 合计 ≥504 交易日、embargo ≥5 交易日",
+        "minimum_samples": "每个 target 至少 2,000 个完整交易日 row",
+        "minimum_coverage": "0.98（target、全部入选 proxy 与 calendar membership）"
+      },
+      "qualification": {
+        "id": "strat.r3.oos-factor-qualification",
+        "version": "1.0.0",
+        "thresholds_reference": "r3-macro-factor.md §8：OOS MSE 相对 historical_mean 与 fixed_fmp 各改善≥5%；聚合 OOS R²≥0.02；fold 正向改善占比≥0.70；方向稳定率≥0.70；coverage≥0.98；成本后 improvement 仍为正",
+        "thresholds_sha256": "8fd1597872854aa30f58b9c87669e039d66d7d25b8b5e7f47036a44634d702be",
+        "falsification_conditions": "文档 §9 八项：连续 3 个月滚动 OOS improvement 对任一强制 benchmark 不为正；6 个月滚动 OOS R²≤0；方向稳定率<0.60；成本后不优或 turnover/cost graph 不完整；target/proxy/roll policy/calendar/unit 未升版改变；PIT coverage<0.98 或未来 vintage/label 泄漏；current/forward 复用历史 OOS label row；违反 5% participation 或长期失配"
+      },
+      "business_semantics": {
+        "benchmark": "historical_mean 与 fixed_fmp 两个强制同窗 benchmark，候选须同时优于两者（文档 §5）",
+        "cost": "Portfolio canonical cost model：bid-ask、手续费、滑点、市场冲击、期货换月和资金成本；报告 gross/cost/net/turnover，缺任一成本成员即 BLOCKED（文档 §6）",
+        "liquidity": "有效价格/成交覆盖≥0.98；拟模拟交易≤当日可交易 notional 5%；期货 roll window 内用登记规则；stale/停牌/无报价不以零收益填充（文档 §6）",
+        "label": "训练/OOS row 必须含 target label；current/forward inference row 必须无 label/value（文档 §4）",
+        "invalidation_conditions": "任一 chronology/PIT/hash 破坏立即 BLOCKED（§10）；§9 证伪条件",
+        "retirement_conditions": "性能证伪连续 3 个 monitoring period 要求人工 retirement review；owner RETIRE 后停止发布该 factor version 并保留完整 artifact/lifecycle",
+        "rollback_conditions": "仅回到同 target/universe/split/cost scope 的 stack[-2]，重验 PIT source/calendar/Promotion/monitoring/有效期"
+      },
+      "valid_from": "2026-09-01T00:00:00+08:00",
+      "valid_until": "2027-08-31T23:59:59+08:00",
+      "review_notes": "owner 于 2026-09-15 在交互式会话中声明批准（单一所有者模式，receipt PERSONAL-OWNER-80EA002B-20260830-01）；自动化作为 delegated executor 逐字提取字段并核验 sidecar。2026-09-15 仅将状态头由 READY_FOR_OWNER_ATTESTATION 改为 OWNER_ATTESTED_PENDING_DRY_RUN，属 README §6 允许的非语义变更，已重新生成全部 sidecar。universe_sha256 为 null：具体成员名单按定义在 selection 前由 registry 冻结并哈希，当前不存在可引用文件。canonical_content_hash_after_dry_run 为 null：canonical dry-run 尚未执行，hash 不得由审核人填写。 实际 valid_from 按包 README §6 取 owner attestation 与 append-only registration 较晚者；registration 未授权前本定义为已批准语义、未登记状态。"
+    },
+    {
+      "capability_id": "R4",
+      "capability_name": "Risk/Allocation",
+      "decision": "APPROVE",
+      "business_owner": {
+        "legal_name": null,
+        "production_account_id": null,
+        "role": "project_owner / strategy_research_business_owner",
+        "organization": null,
+        "receipt_reference": "docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json",
+        "receipt_sha256": "f675c44647764c93292f223fc94a0f7ac3d5c89a1ad651d2d12a6ba1918300e1"
+      },
+      "definition": {
+        "id": "strat.r4.macro-risk-allocation",
+        "version": "1.0.0",
+        "document_reference": "docs/business/strategy-research/strat-01/r4-risk-allocation.md",
+        "document_sha256": "8e5221890ddac6d3003dc4f7526190f8b2a700d29cda1e485cfa56cf4c31da74",
+        "canonical_content_hash_after_dry_run": null
+      },
+      "policy": {
+        "id": "strat.r4.three-method-oos.policy",
+        "version": "1.0.0",
+        "decision_rules_reference": "docs/business/strategy-research/strat-01/r4-risk-allocation.md",
+        "decision_rules_sha256": "8e5221890ddac6d3003dc4f7526190f8b2a700d29cda1e485cfa56cf4c31da74"
+      },
+      "calendar": {
+        "id": "strat.r4.cn-monthly-formation",
+        "version": "1.0.0",
+        "timezone": "Asia/Shanghai",
+        "cutoff_semantics": "月度 formation / 月度 OOS holding；formation cutoff 月末最后交易日 16:30，调仓下一交易日可执行窗口生效（文档 §4）"
+      },
+      "scope": {
+        "id": "strat.r4.multi-asset-macro-risk",
+        "version": "1.0.0",
+        "universe_reference": "r4-risk-allocation.md §3：人民币计价、个人多资产组合可合法持有且有完整 canonical return/cost/liquidity history 的资产代理（A 股宽基/风格、国债或债券基金、黄金、商品、现金类）；由 Portfolio universe policy 在 selection 前冻结",
+        "universe_sha256": null
+      },
+      "sample_window": {
+        "minimum_duration": "60 个连续自然月",
+        "minimum_periods": "60 个完整月度 OOS period；walk-forward 至少 12 fold",
+        "minimum_samples": "regime-covered folds ≥75% 且四类经济 Regime 至少覆盖 3 类；每 fold 至少 4 个可投资资产",
+        "minimum_coverage": "0.98（input/return coverage）"
+      },
+      "qualification": {
+        "id": "strat.r4.macro-risk-parity-qualification",
+        "version": "1.0.0",
+        "thresholds_reference": "r4-risk-allocation.md §8：相对最佳 reference 成本后净收益≥0；回撤增加≤0.02；波动增加≤0；成本增加≤0.0025；≥12 fold；regime coverage≥0.75；风险贡献 identity 误差≤0.0001",
+        "thresholds_sha256": "8e5221890ddac6d3003dc4f7526190f8b2a700d29cda1e485cfa56cf4c31da74",
+        "falsification_conditions": "文档 §10 七项：风险贡献和不等于组合风险或不可复算；同窗成本后不再优于或持平 reference；drawdown/volatility/cost/turnover/liquidity/capacity 超门槛；active R3 Promotion 失效/退休/替换或 label set 改变；universe/weights/constraint/Regime 与 formation snapshot 不一致；label/data drift 超阈值；OOS path 或未来宏观 revision/covariance 泄漏"
+      },
+      "business_semantics": {
+        "benchmark": "equal_weight 与 asset_risk_parity 两个同窗 reference；三方法共享完全相同的 snapshot/universe/window/exposure/covariance/cost/constraint（文档 §2、§7）",
+        "cost": "Portfolio canonical one-way cost 按实际交易方向和 notional 计一次；单次 turnover≤0.50；单次 expected cost≤净值 0.005（文档 §6）",
+        "liquidity": "单资产交易≤owner liquidity policy 的 5% 可交易 notional；组合容量 utilization≤0.80（文档 §6）",
+        "label": "沿用 R3 宏观因子标签与四类经济 Regime 标签；方法标签 equal_weight/asset_risk_parity/macro_factor_risk_parity；无收益概率标签",
+        "invalidation_conditions": "owner/hash/PIT/R3 依赖破坏立即 BLOCKED（§11）；§10 证伪条件",
+        "retirement_conditions": "性能门槛连续 2 期 breach 进入人工 review；RETIRE 后 Risk Center、Portfolio preview 等 consumer 停止读取该 active version",
+        "rollback_conditions": "仅回到同 universe/factor/split/cost scope 的 stack[-2]，重验 R3 Promotion、完整 input graph 和 monitoring freshness；无合格旧版本时回到规则化现有组合流程"
+      },
+      "valid_from": "2026-09-01T00:00:00+08:00",
+      "valid_until": "2027-08-31T23:59:59+08:00",
+      "review_notes": "owner 于 2026-09-15 在交互式会话中声明批准（单一所有者模式，receipt PERSONAL-OWNER-80EA002B-20260830-01）；自动化作为 delegated executor 逐字提取字段并核验 sidecar。2026-09-15 仅将状态头由 READY_FOR_OWNER_ATTESTATION 改为 OWNER_ATTESTED_PENDING_DRY_RUN，属 README §6 允许的非语义变更，已重新生成全部 sidecar。universe_sha256 为 null：具体成员名单按定义在 selection 前由 registry 冻结并哈希，当前不存在可引用文件。canonical_content_hash_after_dry_run 为 null：canonical dry-run 尚未执行，hash 不得由审核人填写。 实际 valid_from 按包 README §6 取 owner attestation 与 append-only registration 较晚者；registration 未授权前本定义为已批准语义、未登记状态。"
+    },
+    {
+      "capability_id": "R5",
+      "capability_name": "Relative Value",
+      "decision": "APPROVE",
+      "business_owner": {
+        "legal_name": null,
+        "production_account_id": null,
+        "role": "project_owner / strategy_research_business_owner",
+        "organization": null,
+        "receipt_reference": "docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json",
+        "receipt_sha256": "f675c44647764c93292f223fc94a0f7ac3d5c89a1ad651d2d12a6ba1918300e1"
+      },
+      "definition": {
+        "id": "strat.r5.fixed-income-relative-value",
+        "version": "1.0.0",
+        "document_reference": "docs/business/strategy-research/strat-01/r5-relative-value.md",
+        "document_sha256": "7ce2db41a3645bb7730d2c9d44d24fba823233fa52a0ea25d8fbcf02aff92663",
+        "canonical_content_hash_after_dry_run": null
+      },
+      "policy": {
+        "id": "strat.r5.paired-oos-relative-value.policy",
+        "version": "1.0.0",
+        "decision_rules_reference": "docs/business/strategy-research/strat-01/r5-relative-value.md",
+        "decision_rules_sha256": "7ce2db41a3645bb7730d2c9d44d24fba823233fa52a0ea25d8fbcf02aff92663"
+      },
+      "calendar": {
+        "id": "strat.r5.cn-fixed-income-daily",
+        "version": "1.0.0",
+        "timezone": "Asia/Shanghai",
+        "cutoff_semantics": "交易日形成；formation cutoff 每个中国银行间/交易所共同交易日 17:00；最早可执行观察窗口 T+1；cutoff 后报价/成交/曲线 revision 不计入当日 formation（文档 §4）"
+      },
+      "scope": {
+        "id": "strat.r5.cny-cash-bond-relative-value",
+        "version": "1.0.0",
+        "universe_reference": "r5-relative-value.md §3：人民币固定利率现券（记账式国债、政策性金融债、可验证信用估值的 AAA 信用债）；排除浮息/可转债/ABS/永续/含权/违约重组/境外/跨币种/衍生品",
+        "universe_sha256": null
+      },
+      "sample_window": {
+        "minimum_duration": "5 个连续自然年",
+        "minimum_periods": "24 个完整月度 paired OOS period",
+        "minimum_samples": "1,000 个 PIT daily observation；24 个 complete observation；每个比较组至少 5 只有效债券",
+        "minimum_coverage": "0.95（universe/price/outcome coverage，分母为预注册完整候选集合）"
+      },
+      "qualification": {
+        "id": "strat.r5.relative-value-qualification",
+        "version": "1.0.0",
+        "thresholds_reference": "r5-relative-value.md §8：minimum_observation_count=24；coverage≥0.95；年化成本后 excess_net_return≥0.01；drawdown 增加≤0.02；round trip 总成本≤0.005；liquidity breach=0；capacity≤0.80；realized credit loss=0",
+        "thresholds_sha256": "7ce2db41a3645bb7730d2c9d44d24fba823233fa52a0ea25d8fbcf02aff92663",
+        "falsification_conditions": "文档 §10 六项：价格/YTM/duration/convexity/DV01/CS01/现金流不能在容差内复算；曲线/评级/cohort/成本/流动性/容量/借券/结算证据缺失、过期、未来可见或 hash 不一致；成本后超额/drawdown/coverage/liquidity/capacity/credit loss 未达门槛；组合不再 duration/DV01 neutral 或 candidate 与 benchmark universe/window 不同；条款/评级协议/curve role/税收/会计口径语义变化；事后信用事件、当前成分或最终修订价格泄漏到 formation"
+      },
+      "business_semantics": {
+        "benchmark": "duration_dv01_neutral_carry_hold（同 universe/formation/holding window）；无法构造时用预注册 no_trade_current_holdings 且整个 trial 不变（文档 §6）",
+        "cost": "按实际腿和方向 once-only：bid-ask、手续费、税费、冲击、融资、借券、settlement cost；每个 round trip 总 target cost rate≤0.005（文档 §6）",
+        "liquidity": "每腿 planned notional≤formation 时可交易 notional 5%；组合 peak capacity utilization≤0.80；无 shortability 的空头腿/流动性 breach/无法结算直接不可行（文档 §6）",
+        "label": "仅 relative_value_candidate / benchmark / blocked / qualified_for_review 四种研究角色；不是买入/卖出标签（文档 §10）",
+        "invalidation_conditions": "§10 证伪条件；信用损失、owner/hash/PIT 破坏或不可结算事件立即 BLOCKED（§9）",
+        "retirement_conditions": "任一指标连续 2 个完整 period breach 进入人工 retirement review；owner RETIRE 后停止 active publication，保留完整 result/outcome/decision/lifecycle",
+        "rollback_conditions": "仅回到同 currency/universe/split/cost/liquidity scope 的 stack[-2]，重验所有 Publication、现金流、外部对账和 freshness；无合格旧版本回到 no_trade_current_holdings"
+      },
+      "valid_from": "2026-09-01T00:00:00+08:00",
+      "valid_until": "2027-08-31T23:59:59+08:00",
+      "review_notes": "owner 于 2026-09-15 在交互式会话中声明批准（单一所有者模式，receipt PERSONAL-OWNER-80EA002B-20260830-01）；自动化作为 delegated executor 逐字提取字段并核验 sidecar。2026-09-15 仅将状态头由 READY_FOR_OWNER_ATTESTATION 改为 OWNER_ATTESTED_PENDING_DRY_RUN，属 README §6 允许的非语义变更，已重新生成全部 sidecar。universe_sha256 为 null：具体成员名单按定义在 selection 前由 registry 冻结并哈希，当前不存在可引用文件。canonical_content_hash_after_dry_run 为 null：canonical dry-run 尚未执行，hash 不得由审核人填写。 实际 valid_from 按包 README §6 取 owner attestation 与 append-only registration 较晚者；registration 未授权前本定义为已批准语义、未登记状态。"
+    },
+    {
+      "capability_id": "R6",
+      "capability_name": "State Model",
+      "decision": "APPROVE",
+      "business_owner": {
+        "legal_name": null,
+        "production_account_id": null,
+        "role": "project_owner / strategy_research_business_owner",
+        "organization": null,
+        "receipt_reference": "docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json",
+        "receipt_sha256": "f675c44647764c93292f223fc94a0f7ac3d5c89a1ad651d2d12a6ba1918300e1"
+      },
+      "definition": {
+        "id": "strat.r6.advanced-state-model",
+        "version": "1.0.0",
+        "document_reference": "docs/business/strategy-research/strat-01/r6-state-model.md",
+        "document_sha256": "26185bafb80190591737d4f8f1b433bf239b934f023d4ef92a8f961e63d028bd",
+        "canonical_content_hash_after_dry_run": null
+      },
+      "policy": {
+        "id": "strat.r6.simple-baseline-first.policy",
+        "version": "1.0.0",
+        "decision_rules_reference": "docs/business/strategy-research/strat-01/r6-state-model.md",
+        "decision_rules_sha256": "26185bafb80190591737d4f8f1b433bf239b934f023d4ef92a8f961e63d028bd"
+      },
+      "calendar": {
+        "id": "strat.r6.cn-macro-monthly",
+        "version": "1.0.0",
+        "timezone": "Asia/Shanghai",
+        "cutoff_semantics": "月度；cutoff 为当月最后一个已完成宏观 release batch 的次日 18:00；cutoff 前未发布指标沿用上一可知 vintage 或标记缺失（文档 §4）"
+      },
+      "scope": {
+        "id": "strat.r6.four-state-policy-reaction",
+        "version": "1.0.0",
+        "universe_reference": "r6-state-model.md §3：经 Publication/PIT 约束的增长、通胀、利率、信用、流动性、汇率和人工 Policy 档位事实；四标签 Recovery/Overheat/Stagflation/Deflation 在 selection 前冻结",
+        "universe_sha256": null
+      },
+      "sample_window": {
+        "minimum_duration": "10 个连续自然年 PIT history",
+        "minimum_periods": "120 个完整月度 observation；initial training 72 个月、validation 24 个月、sealed OOS 24 个月；rolling/expanding OOS ≥4 fold",
+        "minimum_samples": "每个 state 的 resolved OOS observation ≥12；policy-reaction complete observation ≥60",
+        "minimum_coverage": "0.98（input/label coverage）"
+      },
+      "qualification": {
+        "id": "strat.r6.comparative-state-model-qualification",
+        "version": "1.0.0",
+        "thresholds_reference": "r6-state-model.md §7：transition_accuracy≥0.60 且相对改善≥+0.05；log_loss≤0.90 且降低≥0.05；calibration_error≤0.10 且降低≥0.02；duration_mae≤2.00 且降低≥0.25 个月；decision_loss_utility≤0.02 且降低≥0.005；complexity≤20 effective parameters；label_stability≥0.80 且+0.05。§8 政策反应：样本≥60、adjusted R²≥0.25、三项诊断 p≥0.05、condition number≤100",
+        "thresholds_sha256": "26185bafb80190591737d4f8f1b433bf239b934f023d4ef92a8f961e63d028bd",
+        "falsification_conditions": "文档 §11：simple baseline shortfall 不再成立；七项资格或政策诊断失败；label 无法稳定对齐；未来 revision 泄漏；transition/duration/probability 不能复算；artifact/parameter/PIT/owner hash 不一致；OOS window 被重新选择"
+      },
+      "business_semantics": {
+        "benchmark": "canonical-regime-growth-inflation-momentum simple baseline（同 PIT/label/window/loss）；可另列 climatology 但不取代（文档 §9）",
+        "cost": "not_applicable_to_state_qualification；影子组合须让 candidate 与 baseline 共用另行批准的 cost/liquidity policy 且只用于比较（文档 §9）",
+        "liquidity": "not_applicable_to_state_qualification（同上）",
+        "label": "Recovery / Overheat / Stagflation / Deflation 四个稳定经济标签；latent state 用预注册 assignment/alignment method 映射并 permutation-invariant 评估（文档 §3）",
+        "invalidation_conditions": "§11 证伪条件；label identity/hash 漂移、PIT 泄漏、artifact 替换或 probability 不守恒立即 BLOCKED（§10）",
+        "retirement_conditions": "任一指标连续 2 期 breach 触发人工 retirement review；owner RETIRE 后停止发布该 research candidate，保留 artifact/assessment/monitoring/lifecycle",
+        "rollback_conditions": "仅回到同 baseline/PIT/label/methodology/threshold scope 的 stack[-2]，并重验 simple-baseline shortfall 仍为 PROVEN；无合格旧版本仅停止高级模型，canonical Regime 继续按既有规则运行"
+      },
+      "valid_from": "2026-09-01T00:00:00+08:00",
+      "valid_until": "2027-08-31T23:59:59+08:00",
+      "review_notes": "owner 于 2026-09-15 在交互式会话中声明批准（单一所有者模式，receipt PERSONAL-OWNER-80EA002B-20260830-01）；自动化作为 delegated executor 逐字提取字段并核验 sidecar。2026-09-15 仅将状态头由 READY_FOR_OWNER_ATTESTATION 改为 OWNER_ATTESTED_PENDING_DRY_RUN，属 README §6 允许的非语义变更，已重新生成全部 sidecar。universe_sha256 为 null：具体成员名单按定义在 selection 前由 registry 冻结并哈希，当前不存在可引用文件。canonical_content_hash_after_dry_run 为 null：canonical dry-run 尚未执行，hash 不得由审核人填写。 实际 valid_from 按包 README §6 取 owner attestation 与 append-only registration 较晚者；registration 未授权前本定义为已批准语义、未登记状态。"
+    },
+    {
+      "capability_id": "R7",
+      "capability_name": "Scenario Research",
+      "decision": "APPROVE",
+      "business_owner": {
+        "legal_name": null,
+        "production_account_id": null,
+        "role": "project_owner / strategy_research_business_owner",
+        "organization": null,
+        "receipt_reference": "docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json",
+        "receipt_sha256": "f675c44647764c93292f223fc94a0f7ac3d5c89a1ad651d2d12a6ba1918300e1"
+      },
+      "definition": {
+        "id": "strat.r7.scenario-probability-research",
+        "version": "1.0.0",
+        "document_reference": "docs/business/strategy-research/strat-01/r7-scenario-research.md",
+        "document_sha256": "74700ba7e2b1ecd5719242db2ff83b6d87eca397a7df2e9cc9a1f0ae922de623",
+        "canonical_content_hash_after_dry_run": null
+      },
+      "policy": {
+        "id": "strat.r7.forecast-realization-sample.policy",
+        "version": "1.0.0",
+        "decision_rules_reference": "docs/business/strategy-research/strat-01/r7-scenario-research.md",
+        "decision_rules_sha256": "74700ba7e2b1ecd5719242db2ff83b6d87eca397a7df2e9cc9a1f0ae922de623"
+      },
+      "calendar": {
+        "id": "strat.r7.cn-monthly-forecast-cohort",
+        "version": "1.0.0",
+        "timezone": "Asia/Shanghai",
+        "cutoff_semantics": "月度 forecast cohort；cutoff 每月最后一个工作日 18:00；horizon 90 个自然日；censoring lag 30 个自然日（文档 §4）"
+      },
+      "scope": {
+        "id": "strat.r7.owner-approved-scenario-revisions",
+        "version": "1.0.0",
+        "universe_reference": "r7-scenario-research.md §3：owner-approved 不可变 scenario revision（standalone 恰好 1 个；scenario-set ≥2 个且同 forecast group 内互斥穷尽、概率和为 1）",
+        "universe_sha256": null
+      },
+      "sample_window": {
+        "minimum_duration": "3 个连续自然年 sample history",
+        "minimum_periods": "multi-period path 为 6 个连续月度 period（path_horizon_periods=6）",
+        "minimum_samples": "minimum_forecasts_per_revision=30；minimum_resolved_outcomes_per_revision=24；binary realized/not-realized 各≥10；multiclass ≥24 个完整 forecast group 且每 class ≥5；historical analogies ≥10；path probability observations ≥20",
+        "minimum_coverage": "0.80（minimum_outcome_coverage，分母含 invalidated/censored/缺 outcome 行）"
+      },
+      "qualification": {
+        "id": "strat.r7.calibration-analogy-path-qualification",
+        "version": "1.0.0",
+        "thresholds_reference": "r7-scenario-research.md §7：subjective Brier≤0.24、calibration error≤0.10、coverage≥0.80；model Brier≤0.22 且不高于 subjective 与 primary benchmark、calibration error≤0.10、coverage 与 subjective denominator exact match；analogy ≥10 个独立 PIT candidate；path ≥20 observation、6 期连续、probability sum 容差内",
+        "thresholds_sha256": "74700ba7e2b1ecd5719242db2ff83b6d87eca397a7df2e9cc9a1f0ae922de623",
+        "falsification_conditions": "文档 §8 八项：realization rule 不再客观可判定或 set 不再互斥穷尽；source/Promotion/PIT/horizon/censoring 无法精确绑定；outcome 事后主观补写或证据超龄；probability sum 超容差、样本不足、coverage<0.80；subjective Brier>0.24 或 model Brier>0.22/劣于比较对象；analogy 使用当时不可知 feature 或按结果筛选；path index 不连续、shock 与 transition horizon 不一致或遗漏初始 state；revision/outcome/evidence hash 不解释变化"
+      },
+      "business_semantics": {
+        "benchmark": "binary primary 为 forecast cutoff 前由历史 resolved rows 得到的 PIT climatology；multiclass secondary 为同 set 等概率分布；prediction 前冻结（文档 §6）",
+        "cost": "not_applicable_to_research_evidence（文档 §6，不能用 0 伪装已评估）",
+        "liquidity": "not_applicable_to_research_evidence（同上）",
+        "label": "subjective probability 与 model probability 分栏保存；三结果家族 probability_calibration / historical_analogy / multi_period_path 相互独立（文档 §2、§3）",
+        "invalidation_conditions": "§8 证伪条件；owner/hash、probability source、scenario set 或 outcome integrity 破坏立即 BLOCKED（§9）",
+        "retirement_conditions": "任一完整 cohort breach 进入人工 review；连续 2 个 cohort breach 要求 owner retirement decision；可按 family 分别 RETIRE",
+        "rollback_conditions": "仅回到同 scenario/scope/policy/horizon/censoring family 的 stack[-2]，重验 sample window、outcome validity 和 monitoring freshness；无合格旧版本停止发布该 research result"
+      },
+      "valid_from": "2026-09-01T00:00:00+08:00",
+      "valid_until": "2027-08-31T23:59:59+08:00",
+      "review_notes": "owner 于 2026-09-15 在交互式会话中声明批准（单一所有者模式，receipt PERSONAL-OWNER-80EA002B-20260830-01）；自动化作为 delegated executor 逐字提取字段并核验 sidecar。2026-09-15 仅将状态头由 READY_FOR_OWNER_ATTESTATION 改为 OWNER_ATTESTED_PENDING_DRY_RUN，属 README §6 允许的非语义变更，已重新生成全部 sidecar。universe_sha256 为 null：具体成员名单按定义在 selection 前由 registry 冻结并哈希，当前不存在可引用文件。canonical_content_hash_after_dry_run 为 null：canonical dry-run 尚未执行，hash 不得由审核人填写。 实际 valid_from 按包 README §6 取 owner attestation 与 append-only registration 较晚者；registration 未授权前本定义为已批准语义、未登记状态。"
+    },
+    {
+      "capability_id": "R8",
+      "capability_name": "Optimization Monitoring",
+      "decision": "APPROVE",
+      "business_owner": {
+        "legal_name": null,
+        "production_account_id": null,
+        "role": "project_owner / strategy_research_business_owner",
+        "organization": null,
+        "receipt_reference": "docs/deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json",
+        "receipt_sha256": "f675c44647764c93292f223fc94a0f7ac3d5c89a1ad651d2d12a6ba1918300e1"
+      },
+      "definition": {
+        "id": "strat.r8.governed-multi-asset-optimization",
+        "version": "1.0.0",
+        "document_reference": "docs/business/strategy-research/strat-01/r8-optimization-monitoring.md",
+        "document_sha256": "cd4faf4853ee329dfe694f0145762f7a5694b160f174cac4fc2381a3aafa820b",
+        "canonical_content_hash_after_dry_run": null
+      },
+      "policy": {
+        "id": "strat.r8.four-candidate-oos.policy",
+        "version": "1.0.0",
+        "decision_rules_reference": "docs/business/strategy-research/strat-01/r8-optimization-monitoring.md",
+        "decision_rules_sha256": "cd4faf4853ee329dfe694f0145762f7a5694b160f174cac4fc2381a3aafa820b"
+      },
+      "calendar": {
+        "id": "strat.r8.cn-monthly-portfolio-cycle",
+        "version": "1.0.0",
+        "timezone": "Asia/Shanghai",
+        "cutoff_semantics": "月度 formation/holding/monitoring；formation cutoff 月末最后交易日 16:30；候选权重最早下一交易日可执行窗口生效（文档 §4）"
+      },
+      "scope": {
+        "id": "strat.r8.rmb-long-only-multi-asset",
+        "version": "1.0.0",
+        "universe_reference": "r8-optimization-monitoring.md §3：人民币计价、long-only、fully-invested 个人多资产研究组合（A 股、场内 ETF、人民币债券或债券基金、黄金/商品 ETF、现金类）；universe 由 Portfolio owner 在每个 formation cutoff 前冻结",
+        "universe_sha256": null
+      },
+      "sample_window": {
+        "minimum_duration": "36 个连续月度 paired OOS period",
+        "minimum_periods": "36 个 complete four-candidate comparison；真实 Portfolio/Broker feedback 至少 12 个连续月度 period",
+        "minimum_samples": "每个 period 至少 4 个可投资资产且至少覆盖 3 类资产",
+        "minimum_coverage": "1.00（canonical input coverage 与 constraint/reconciliation coverage）"
+      },
+      "qualification": {
+        "id": "strat.r8.optimization-monitoring-qualification",
+        "version": "1.0.0",
+        "thresholds_reference": "r8-optimization-monitoring.md §9：deterministic_search 须达 local_stationary；相对 current 成本后净收益≥0；回撤增加≤0 且 absolute max drawdown≤0.15；波动增加≤0；月 turnover≤0.25；rebalance 总成本≤0.005；adverse slippage≤0.002；liquidity/capacity≤0.80；constraint/reconciliation breach=0；minimum cash≥0.05",
+        "thresholds_sha256": "cd4faf4853ee329dfe694f0145762f7a5694b160f174cac4fc2381a3aafa820b",
+        "falsification_conditions": "文档 §11 七项：canonical snapshot/universe/13 类 payload/R3-R5 Promotion 不完整、过期、冲突或 hash 不一致；covariance 非 PSD、错位或守恒失败；四候选不完整或 target 未达 local_stationary；OOS 净收益/drawdown/volatility/turnover/cost/slippage/liquidity/capacity 未达门槛；任一交易/现金/manual/scenario/drawdown/macro risk constraint breach；Broker fill 与 Portfolio 无法 reconciliation；label/data drift 超限或未来 return/volume/fill 泄漏"
+      },
+      "business_semantics": {
+        "benchmark": "current_configuration 为 primary benchmark；equal_weight 与 asset_risk_parity 为 required references；四候选共享同一 return path/cost/liquidity/settlement/scenario/drawdown/execution feedback（文档 §7）",
+        "cost": "按真实调仓方向 once-only：费用、税费、bid-ask、冲击、滑点、融资/结算；报告 gross objective/turnover/cost/net；current benchmark 也计真实成本（文档 §7）",
+        "liquidity": "formation 时可知的可交易 notional；单资产 planned trade≤tradable notional 5%；liquidity/capacity utilization≤0.80；不足时保留 blocker 和原分母（文档 §6、§7）",
+        "label": "仅四个 CandidateKind（current_configuration/equal_weight/asset_risk_parity/deterministic_search）；selected 仅表示预注册 objective 下的确定性排序赢家（文档 §11）",
+        "invalidation_conditions": "§11 证伪条件；constraint/reconciliation、owner/hash、Promotion 或 input integrity 破坏立即 BLOCKED（§10）",
+        "retirement_conditions": "任一指标连续 2 期 breach 输出 RETIREMENT_REVIEW_REQUIRED；automatic_retirement=false；owner RETIRE 后 consumer 停止读取，保留 input receipt/result/monitoring/lifecycle",
+        "rollback_conditions": "仅回到同 snapshot/universe/objective/constraint/cost/upstream-Promotion scope 的 stack[-2]，重验当前 input graph 与 11 项 monitoring freshness；无合格旧版本回到人工管理的 current_configuration"
+      },
+      "valid_from": "2026-09-01T00:00:00+08:00",
+      "valid_until": "2027-08-31T23:59:59+08:00",
+      "review_notes": "owner 于 2026-09-15 在交互式会话中声明批准（单一所有者模式，receipt PERSONAL-OWNER-80EA002B-20260830-01）；自动化作为 delegated executor 逐字提取字段并核验 sidecar。2026-09-15 仅将状态头由 READY_FOR_OWNER_ATTESTATION 改为 OWNER_ATTESTED_PENDING_DRY_RUN，属 README §6 允许的非语义变更，已重新生成全部 sidecar。universe_sha256 为 null：具体成员名单按定义在 selection 前由 registry 冻结并哈希，当前不存在可引用文件。canonical_content_hash_after_dry_run 为 null：canonical dry-run 尚未执行，hash 不得由审核人填写。 实际 valid_from 按包 README §6 取 owner attestation 与 append-only registration 较晚者；registration 未授权前本定义为已批准语义、未登记状态。"
+    }
+  ],
+  "phase_2_append_only_registration": {
+    "decision": "DEFER",
+    "depends_on": "all selected capability decisions and canonical dry-run",
+    "authorization_valid_from": null,
+    "authorization_expires_at": null,
+    "dry_run_report_reference": null,
+    "dry_run_report_sha256": null,
+    "approved_capability_ids": [],
+    "exact_command_or_admin_workflow_reference": null,
+    "expected_row_plan_reference": null,
+    "expected_row_plan_sha256": null,
+    "current_head_and_overlap_check_passed": null,
+    "append_only_and_no_overwrite_acknowledged": null,
+    "stop_conditions": [],
+    "successor_revocation_or_rollback_plan_reference": null,
+    "authorization_receipt_reference": null,
+    "authorization_receipt_sha256": null,
+    "does_not_authorize": [
+      "pit_or_oos_backfill",
+      "synthetic_history",
+      "promotion",
+      "consumer_uat",
+      "strategy_execution",
+      "threshold_reduction"
+    ],
+    "review_notes": "canonical dry-run 尚未执行，schema/SHA-256/有效期/scope overlap/current head 的系统级校验未完成；按模板规则本阶段保持 DEFER。next_action: 由系统执行 canonical dry-run 生成 canonical content hash 后，owner 另行批准 append-only registration。"
+  },
+  "post_registration_acceptance": {
+    "must_be_issued_after_real_registration": true,
+    "cannot_be_presigned": true,
+    "required_evidence": [
+      "exact_registered_rows_and_canonical_hashes",
+      "current_head_overlap_and_fork_checks",
+      "owner_source_receipts",
+      "read_only_capability_readiness_inventory",
+      "zero_unapproved_rows",
+      "owner_and_independent_reviewer_signoff"
+    ],
+    "decision": null,
+    "receipt_reference": null,
+    "receipt_sha256": null
+  },
+  "future_history_promotion_and_consumer_review": {
+    "not_part_of_current_review": true,
+    "cannot_be_presigned": true,
+    "still_required": [
+      "real_pit_and_oos_windows",
+      "canonical_receipts_and_lineage",
+      "assessment_and_monitoring",
+      "manual_promotion_or_activation",
+      "consumer_uat",
+      "rollback_acceptance"
+    ],
+    "decision": null
+  },
+  "final_current_stage_decision": "APPROVE",
+  "attestation": {
+    "signing_system": "interactive_owner_declaration（2026-09-15 Kimi Code CLI 会话，owner 声明“八份业务定义已编制完成 owner签署批准 帮我批准一下”）；自动化按 PERSONAL-OWNER-80EA002B-20260830-01 作为 delegated executor 生成并核验；cryptographic_signature_present=false（与 receipt 一致）；single_owner_personal_project 模式下 separation-of-duties 由 owner receipt 取代",
+    "signed_document_reference": "docs/reviews/release-aa7127ff/reports/evidence-strategy/strat-01-business-owner-review-return-APPROVE-STRAT-20260915-01.json",
+    "signed_document_sha256": null,
+    "signed_at": "2026-09-15T10:00:40Z",
+    "signature_binds_final_json_sha256": false
+  }
+}

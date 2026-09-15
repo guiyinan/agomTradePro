@@ -1,12 +1,13 @@
 # STRAT-01 R1–R8 业务定义包
 
 > 包版本：`strat-01-business-definition-pack.v1.0.0`
-> 完成状态：`READY_FOR_OWNER_ATTESTATION`
+> 完成状态：`OWNER_ATTESTED_PENDING_DRY_RUN`
 > 编制日期：`2026-09-01`
 > 业务 owner：`阿狗涅夫`（用户声明的项目 owner 展示名）
 > owner 身份：`agomtradepro-personal-project-owner`
 > owner receipt：[`personal-project-single-owner-authorization-2026-08-30-80ea002b.json`](../../../deployment/personal-project-single-owner-authorization-2026-08-30-80ea002b.json)
-> 生效边界：本文档包完成不等于 owner 已签署、生产已登记或 capability 已晋级。
+> Owner attestation：`APPROVE-STRAT-20260915-01`（2026-09-15；非语义状态更新，决定报告见 `docs/reviews/release-aa7127ff/reports/evidence-strategy/`）
+> 生效边界：owner 已于 2026-09-15 批准 R1–R8 业务语义；canonical dry-run、append-only registration、生产写、Promotion 与 consumer UAT 均未授权，全部输出仍保持 `research_only` / `must_not_use_for_decision` / `must_not_execute`。
 
 ## 1. 包目的
 
