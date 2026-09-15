@@ -1692,3 +1692,25 @@ Web watchdog 合同，但 watcher 尚未安装或在 VPS 执行。随后仅执�
 [`tui02-production-observation-reset-2026-09-02-aa7127ff.json`](tui02-production-observation-reset-2026-09-02-aa7127ff.json)
 已绑定候选与旧 checkpoint 的 canonical SHA。因而旧 retained sample 仅保留为历史，当前生产 readiness、
 决策门和容量/故障/恢复门禁仍保持 `DENY` / fail-closed，不能把本地修复或 CI 绿灯当作生产恢复证据。
+
+## 2026-09-15 当前候选部署与观测（`891c40c57` / `20260915110952`）
+
+`main@891c40c5769897931b2b513e92df6f9ba72631ea` 已经 code-only upgrade 部署为 release
+`20260915110952`，image
+`sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d`。
+[部署证据](main-vps-upgrade-2026-09-15-891c40c57.json)和已提交的
+[preflight](web-to-tui-deployment-preflight-20260915110952.json)共同证明 source/OCI/manifest 完全一致、
+HTTPS health/ready=200、TLS 有效、Web/Prometheus/PostgreSQL/Redis healthy、Celery worker/beat 运行。
+decision-ready=503 且 `must_not_use_for_decision=true`，无生产数据库 restore、SQLite 覆盖或实盘交易。
+
+完整 `web-to-tui-candidate-binding.v1` 为 candidate version `20260915110952`、candidate commit
+`891c40c5769897931b2b513e92df6f9ba72631ea`、matrix SHA
+`e03916f904971f242337523252681d65ee8a34dd160ee443f7baa5315588d514`、graph SHA
+`a846ba1485b2337f4b5283ecb2bc9ceda6356daabd508f6b1fa635153f28517f`、schema `tui-metadata.v3`、
+runtime version `0.2.0`、runtime build `agomtui-runtime-0.2.0+ccfdeff0fdd3`、runtime manifest SHA
+`5a238ef207e3b5766e4427ba919509ccd67f22a16f418fedfc72564e25f72237`。
+[重绑定证据](tui02-candidate-rebind-2026-09-15-891c40c57.json)记录 starter dry-run 与 `--replace --write`
+均通过，新候选 `2/10 DENY`。旧候选 UAT/cleanup/rollback/telemetry/defect/backup/review/approval 不继承；
+first retained sample 和 exact eligible instant 仍为 null，候选日期不能替代 14 日真实观察。
+只读后验确认 Prometheus target up、18 rules 全健康、21d/4GB 与持久卷；未认证 HTTPS query 返回 401。
+但当前与前一 release 的 host-only query env 均缺，认证查询未验收，不声明 retained migration sample。

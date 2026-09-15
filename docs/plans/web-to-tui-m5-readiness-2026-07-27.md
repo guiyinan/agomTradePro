@@ -1138,3 +1138,27 @@ catalog 的 `101` 个必需 task key 已全部出现，另有 `9` 个非必需 k
 [`closure-prebinding-baseline-2026-09-03-aa7127ff.json`](../deployment/closure-prebinding-baseline-2026-09-03-aa7127ff.json)。
 M5 继续 `DENY`：在真实 role-owner 对精确的当前部署候选确认之前不请求绑定授权；候选不一致时即使收到
 旧候选确认也不得执行 `--replace`。
+
+### 2026-09-15 当前候选部署复核（`891c40c57` / `20260915110952`）
+
+owner 已授权将 `main@891c40c5769897931b2b513e92df6f9ba72631ea` code-only upgrade 部署为
+release `20260915110952` / image
+`sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d`。部署、OCI、manifest、
+HTTPS health/ready、TLS、PostgreSQL schema、TUI registry、Celery 与 Qlib 均通过验证；decision-ready
+仍严格返回 503 blocked。[deployment preflight](../deployment/web-to-tui-deployment-preflight-20260915110952.json)
+已先独立提交，随后 canonical starter dry-run 与 `--replace --write` 均成功。
+
+[候选重绑定证据](../deployment/tui02-candidate-rebind-2026-09-15-891c40c57.json)记录真实 `2/10 DENY`。
+完整 `web-to-tui-candidate-binding.v1` 为 candidate version=`20260915110952`、candidate commit=
+`891c40c5769897931b2b513e92df6f9ba72631ea`、matrix SHA=
+`e03916f904971f242337523252681d65ee8a34dd160ee443f7baa5315588d514`、
+graph SHA=`a846ba1485b2337f4b5283ecb2bc9ceda6356daabd508f6b1fa635153f28517f`、schema=`tui-metadata.v3`、
+runtime version=`0.2.0`、runtime build=`agomtui-runtime-0.2.0+ccfdeff0fdd3`、runtime manifest SHA=
+`5a238ef207e3b5766e4427ba919509ccd67f22a16f418fedfc72564e25f72237`。
+旧候选全部 UAT/cleanup/rollback/telemetry/defect/review/approval 未继承；新候选尚无 retained sample，
+所以 `first_retained_sample_at` 与 `eligible_at` 均为 null。下一门是只读采集部署后首个真实样本并绑定
+精确 14 日窗口；候选日期 `2026-09-15..2026-09-29` 不能代替真实时间门。
+只读后验：Prometheus target up，18 rules 无 unhealthy，持久卷和 `21d/4GB` 保留设置存在；
+未认证 HTTPS query 为 401，但新 release 与紧邻前一个 release 的 host-only query env 均缺失。
+因此 protected authenticated query 仍未验收、first retained sample 为 null。追加 Nightly
+`34923321145` 终态 failure（PostgreSQL current-data contract/full unit），不写成成功或放宽门禁。

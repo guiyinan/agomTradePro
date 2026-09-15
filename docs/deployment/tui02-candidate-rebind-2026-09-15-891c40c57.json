@@ -1,0 +1,101 @@
+{
+  "version": "tui02-candidate-rebind-checkpoint.v1",
+  "recorded_at": "2026-09-15T03:29:46.760791+00:00",
+  "environment": "production",
+  "scope": "repository observation binding to the verified deployed candidate; no production acceptance or retained telemetry claimed",
+  "candidate": {
+    "stable_version": "20260915110952",
+    "candidate_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "released_at": "2026-09-15",
+    "observation_end": "2026-09-29",
+    "binding": {
+      "version": "web-to-tui-candidate-binding.v1",
+      "candidate_version": "20260915110952",
+      "candidate_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+      "matrix_sha256": "e03916f904971f242337523252681d65ee8a34dd160ee443f7baa5315588d514",
+      "graph_sha256": "a846ba1485b2337f4b5283ecb2bc9ceda6356daabd508f6b1fa635153f28517f",
+      "schema_version": "tui-metadata.v3",
+      "runtime_version": "0.2.0",
+      "runtime_build_id": "agomtui-runtime-0.2.0+ccfdeff0fdd3",
+      "runtime_manifest_sha256": "5a238ef207e3b5766e4427ba919509ccd67f22a16f418fedfc72564e25f72237"
+    },
+    "deployment_preflight": {
+      "version": "web-to-tui-production-deployment-preflight.v1",
+      "evidence": "docs/deployment/web-to-tui-deployment-preflight-20260915110952.json",
+      "evidence_sha256": "120f7e0719ecc76e65c235e4c0fd7a6ff172bca56fa2540542e70e755ba9ce13",
+      "release_id": "20260915110952",
+      "source_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+      "deployed_at": "2026-09-15T03:22:24.378025+00:00",
+      "image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d",
+      "oci_revision": "891c40c5769897931b2b513e92df6f9ba72631ea",
+      "health_checked_at": "2026-09-15T03:27:16.728179+00:00",
+      "health_response_sha256": "219acf13f925983fe670c7ce1a39d303fcf239c06feab17e4a77cc64b64e8576",
+      "readiness_response_sha256": "3d7cccf3e1f7540fab3f8b76852e1ffe14bf116b3de20367730c5bf8d66e96b6",
+      "verified_at": "2026-09-15T03:27:18.000578+00:00"
+    }
+  },
+  "superseded_candidate": {
+    "source_commit": "dba9ab2c8c18b824a6ed60d90b0765e020e6908d",
+    "release_id": "20260910002501",
+    "historical_artifacts_preserved": true
+  },
+  "execution": {
+    "source": "agent-observed CLI exit results, not a raw console transcript",
+    "command": "python scripts/start_web_to_tui_observation.py --deployment-attestation docs/deployment/web-to-tui-deployment-preflight-20260915110952.json --replace",
+    "dry_run_exit_code": 0,
+    "write_command_additional_argument": "--write",
+    "write_exit_code": 0
+  },
+  "cutover_evidence_path": "config/tui/migration/web_to_tui_cutover_evidence.v1.json",
+  "cutover_evidence_sha256": "2b8584331b5be047ff593a9e0bb5b08104699b6c8d98bb08b821bd6a31ab8466",
+  "readiness": {
+    "decision": "DENY",
+    "as_of": "2026-09-15",
+    "passed_gate_count": 2,
+    "required_gate_count": 10,
+    "required_route_pages": 108,
+    "required_tasks": 101,
+    "gates": {
+      "source_consistency": true,
+      "execution_dependency": true,
+      "stable_version_window": false,
+      "route_task_uat": false,
+      "route_cleanup_readiness": false,
+      "blocking_defects": false,
+      "production_telemetry": false,
+      "rollback_drill": false,
+      "production_registry_backup": false,
+      "cutover_approvals": false
+    }
+  },
+  "first_retained_sample_at": null,
+  "retained_window_eligible_at": null,
+  "post_rebind_read_only_monitoring": {
+    "checked_after": "2026-09-15T03:29:46.760791+00:00",
+    "prometheus_target": "http://web:8000/metrics/",
+    "prometheus_target_health": "up",
+    "rule_count": 18,
+    "unhealthy_rule_count": 0,
+    "retention_time": "21d",
+    "retention_size": "4GB",
+    "persistent_volume": "agomtradepro_prometheus_data",
+    "unauthenticated_https_query_status": 401,
+    "authenticated_https_query_verified": false,
+    "current_release_host_only_query_env": "missing",
+    "previous_release_host_only_query_env": "missing",
+    "last_known_host_only_query_env": "source-20260910002501",
+    "first_sample_verified": false
+  },
+  "supplemental_nightly_final": {
+    "run_id": 34923321145,
+    "head_sha": "9ed2677e184baf4f2521f1dd1cef33002eabf979",
+    "conclusion": "failure",
+    "failed_steps": [
+      "nightly/Run Unit Tests (full)",
+      "Critical Reliability (PostgreSQL)/Run current-data contract manifest on PostgreSQL"
+    ]
+  },
+  "candidate_dates_are_not_proof_of_elapsed_observation": true,
+  "old_candidate_uat_cleanup_rollback_and_approvals_carried_forward": false,
+  "classic_cleanup_allowed": false
+}

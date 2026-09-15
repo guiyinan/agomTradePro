@@ -26,6 +26,12 @@
 
 > 这个区域按天维护，优先记录最近 1-7 天内对外可见、值得关注的变化。
 
+### 2026-09-15
+
+- DATA-12 的 Domain 覆盖率债务已由 26 文件测试增量和覆盖率基线收口；[精确 closure Nightly](https://github.com/guiyinan/agomTradePro/actions/runs/34092074895) 通过，Research/Signal line exception 与九项 branch 恢复目标均关闭。
+- 最新 `main@891c40c57` 已完成 [VPS code-only upgrade](docs/deployment/main-vps-upgrade-2026-09-15-891c40c57.json)：公开 HTTPS health/ready 正常，PostgreSQL 数据卷保留；决策入口仍因数据新鲜度和持久决策门而阻断，不能用于投资决定。
+- Web→TUI 生产候选重新绑定到 release `20260915110952`，当前 [readiness](docs/plans/web-to-tui-m5-readiness-2026-07-27.md) 为 `2/10 DENY`；14 日观察、当前候选 UAT 和验收尚未完成。追加 Nightly 在旧开发分支上失败，受保护的监控认证查询仍待恢复并验证，不能把代码覆盖率收口等同于生产放行。
+
 ### 2026-08-22
 
 - Terminal Agent 多用户运行时完成 `TAR-01` 至 `TAR-04` 仓库合同收口：Web只负责持久接单，PostgreSQL保存任务/幂等/事件真源，专用Worker负责Agent执行，SDK、MCP与TUI通过有界状态/事件接口消费结果

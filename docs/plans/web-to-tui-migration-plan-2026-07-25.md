@@ -765,3 +765,40 @@ Classic 首页当前配置的 0–1 比例按百分比展示；Alpha 入口文�
 验证：HTTPS health 200、认证query 200且up=1、未认证401、非允许路径404、18规则健康；Web/Prometheus的ID、镜像、启动时间、restart count与挂载均不变。pyqlib发行包与qlib导入版本均0.9.7。decision-ready仍503、decision_runtime_blocked；没有启用运行时、改业务权限或写生产业务数据。
 
 截至2026-09-09T18:16:26.069731Z，迁移指标查询返回空vector，first_retained_sample_at/eligible_at均未绑定。TUI-02观察、当前候选UAT及最终验收未完成。后续发布脚本仍需有界修复host-only配置延续并补契约测试，当前运行修复不保证下一次release自动继承。
+
+## 18. 2026-09-15 当前候选部署与观测重绑定
+
+DATA-12 的 26 文件实现提交 `df52ac606` 和覆盖率/治理收口提交 `1e02caf5d` 已在 2026-09-06
+进入 `dev/next-development` 与 `main`；closure commit 对应的 Nightly run `34092074895` 成功。本次
+owner 授权后的补充 Nightly run `34923321145` 绑定旧分支头 `9ed2677e1`，其 PostgreSQL job 在
+`current-data contract manifest` 失败；该结果保留为失败，不用于本次生产通过声明。
+
+`main@891c40c5769897931b2b513e92df6f9ba72631ea` 已以 code-only upgrade 部署为 release
+`20260915110952` / image
+`sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d`。
+[部署证据](../deployment/main-vps-upgrade-2026-09-15-891c40c57.json)记录 source/OCI/manifest 一致、
+health/ready=200、TLS 有效、Web/Prometheus/PostgreSQL/Redis 健康、Celery worker/beat 运行、
+`pyqlib=0.9.7` 且错误的 `qlib` distribution 缺失。部署前 PostgreSQL 备份 SHA-256 为
+`0a1210ab4a5e3bd0d8cc2630ce6d3f3c421ab1c28d8b53c00fcc90ed16f7250a`；未执行 restore、
+SQLite 覆盖、decision repair 或全局 Docker cleanup。decision-ready 仍为 503 blocked，过期行情仍
+`must_not_use_for_decision=true`。
+
+deployment preflight 提交后，canonical observation starter 的 dry-run 与 `--replace --write` 均通过。
+[重绑定证据](../deployment/tui02-candidate-rebind-2026-09-15-891c40c57.json)记录 candidate、matrix、graph、
+runtime manifest、release 与 OCI 的完整绑定；`config/tui/migration/web_to_tui_cutover_evidence.v1.json`
+已重置到新候选。readiness 当前为 `2/10 DENY`：只有 source consistency 与 execution dependency 通过；
+`web-to-tui-candidate-binding.v1` 的 candidate version=`20260915110952`、candidate commit=
+`891c40c5769897931b2b513e92df6f9ba72631ea`、matrix SHA=
+`e03916f904971f242337523252681d65ee8a34dd160ee443f7baa5315588d514`、
+graph SHA=`a846ba1485b2337f4b5283ecb2bc9ceda6356daabd508f6b1fa635153f28517f`、schema=`tui-metadata.v3`、
+runtime version=`0.2.0`、runtime build=`agomtui-runtime-0.2.0+ccfdeff0fdd3`、runtime manifest SHA=
+`5a238ef207e3b5766e4427ba919509ccd67f22a16f418fedfc72564e25f72237`。
+旧候选的 UAT、cleanup、rollback、telemetry、defect、backup/review 与 approvals 均未继承。
+`2026-09-15..2026-09-29` 只是部署日期投影，不证明任何观察时长。下一动作是从重启后的 Prometheus
+retained source 取得首个真实 sample，核验 target/rules/retention/storage/authenticated query 后再计算
+精确 14 日 eligible instant；此前不得生成 final snapshots、签发 approvals 或执行 Classic cleanup。
+追加 Nightly `34923321145` 已以 failure 结束，另有 full unit tests 失败；它绑定落后分支头，不能代替
+当前 main 的测试结论。只读生产检查确认 target `web:8000/metrics/` up、18 rules 全健康、
+retention `21d/4GB`、volume `agomtradepro_prometheus_data` 持久；未认证 HTTPS query 为 401，但当前与
+上一 release 均缺 host-only query env（最后已知文件在 `20260910002501`），认证查询尚未验证。
+不能据此声明首个 retained migration sample 或启动真实 14 日窗口。

@@ -1,0 +1,120 @@
+{
+  "version": "main-vps-code-only-upgrade-evidence.v1",
+  "recorded_at": "2026-09-15T03:27:18.000578+00:00",
+  "environment": "production",
+  "source_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+  "release_id": "20260915110952",
+  "image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d",
+  "deployment": {
+    "mode": "code-only",
+    "action": "upgrade",
+    "command": "scripts/deploy-vps.ps1 -Upgrade -GitBranch main",
+    "deployment_exit_code": 0,
+    "verification_exit_code": 0,
+    "celery_enabled": true,
+    "volumes_preserved": true,
+    "global_docker_cleanup": false,
+    "auto_rollback_enabled": true,
+    "decision_repair_requested": false,
+    "backup_restore_performed": false
+  },
+  "build_deploy_report": {
+    "local_path": "dist/remote-build-reports/remote-build-report-20260915110952.json",
+    "release_dir": "/opt/agomtradepro/releases/source-20260915110952",
+    "source_mode": "git-clone",
+    "build_started_at": "2026-09-15T03:09:53Z",
+    "build_finished_at": "2026-09-15T03:16:27Z",
+    "runtime_match": true,
+    "must_not_trust_for_release": false,
+    "deployed": true
+  },
+  "fresh_backup": {
+    "remote_path": "/opt/agomtradepro/backups/database/postgres-20260915-051628.dump",
+    "bytes": 154912289,
+    "sha256": "0a1210ab4a5e3bd0d8cc2630ce6d3f3c421ab1c28d8b53c00fcc90ed16f7250a",
+    "created_at": "2026-09-15T03:17:29.806160981+00:00",
+    "restore_performed": false,
+    "downloaded": false
+  },
+  "live_verification": {
+    "database_vendor": "postgresql",
+    "database_migrations": "no_changes",
+    "canonical_data_center_schema": "ok",
+    "pyqlib": "0.9.7",
+    "qlib_path": "/usr/local/lib/python3.11/site-packages/qlib/__init__.py",
+    "wrong_qlib_distribution": false,
+    "source_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "oci_revision": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d",
+    "web_started_at": "2026-09-15T03:22:24.378025837+00:00",
+    "prometheus_started_at": "2026-09-15T03:22:35.155106351+00:00",
+    "caddy_started_at": "2026-09-15T03:22:40.956981678+00:00",
+    "base_url": "https://demo.agomtrade.pro",
+    "caddy_site": "demo.agomtrade.pro",
+    "tls_certificate_valid": true,
+    "health": {
+      "http_status": 200,
+      "status": "ok",
+      "response_sha256": "219acf13f925983fe670c7ce1a39d303fcf239c06feab17e4a77cc64b64e8576"
+    },
+    "readiness": {
+      "http_status": 200,
+      "status": "ok",
+      "response_sha256": "3d7cccf3e1f7540fab3f8b76852e1ffe14bf116b3de20367730c5bf8d66e96b6"
+    },
+    "decision_readiness": {
+      "http_status": 503,
+      "status": "blocked",
+      "must_not_use_for_decision": true,
+      "block_reason_code": "decision_runtime_blocked",
+      "response_sha256": "749bc34ac21541657fadc737c1513ced3414c17e870f143cfea31cd89b6b1db1"
+    },
+    "tui": {
+      "http_status": 200,
+      "response_sha256": "bb951124e42a4d9ddfce2f414b4fae94cf51a4be4b547120df8e58cb74529370"
+    },
+    "data_freshness": {
+      "status": "warning",
+      "must_not_use_for_decision": true,
+      "quote_snapshot_at": {
+        "510300.SH": "2026-08-28T08:14:46+00:00",
+        "000300.SH": "2026-08-28T08:14:14+00:00"
+      }
+    },
+    "containers": {
+      "web": "healthy",
+      "prometheus": "healthy",
+      "postgres": "healthy",
+      "redis": "healthy",
+      "celery_worker": "running",
+      "celery_beat": "running",
+      "caddy": "running"
+    },
+    "verified_at": "2026-09-15T03:27:18.000578+00:00"
+  },
+  "ci_context": {
+    "data12_closure_nightly": {
+      "run_id": 34092074895,
+      "head_sha": "1e02caf5dd9bd6b060c17748e35d740789e63861",
+      "conclusion": "success"
+    },
+    "requested_retest": {
+      "run_id": 34923321145,
+      "head_sha": "9ed2677e184baf4f2521f1dd1cef33002eabf979",
+      "status_at_recording": "in_progress",
+      "postgres_job_observation": "failed_current_data_contract_manifest"
+    },
+    "main_push_checks": {
+      "head_sha": "891c40c5769897931b2b513e92df6f9ba72631ea",
+      "architecture_layer_guard": "success",
+      "ci_fast_feedback": "success",
+      "consistency_check": "success",
+      "security_scan": "success"
+    }
+  },
+  "limitations": [
+    "The requested supplemental Nightly run was still in progress when this deployment evidence was recorded; its PostgreSQL job had failed at the current-data contract manifest and is not represented as passing.",
+    "Decision readiness remains blocked and all stale decision data remains marked must_not_use_for_decision.",
+    "This record proves deployment identity and health only; it does not complete the Web-to-TUI retained observation, UAT, telemetry, defect, backup-attestation, review, or approval gates."
+  ]
+}
