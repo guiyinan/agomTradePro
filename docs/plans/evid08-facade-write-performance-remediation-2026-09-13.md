@@ -720,3 +720,15 @@ relay 关闭、PG 零表/零其他客户端；此次容器、网络与临时凭�
 active 状态或未提供人工签名反向推导新的门槛。DATA-02 两次真实供应商请求
 返回 code 2003、含义未知；原始成功响应可重放、精确源可用时间、原生身份及
 历史缺口仍未通过生产验收，EVID-01/02、AUD-03、TAR-05 保持独立。
+
+## 21. 2026-09-14 兼容回滚夹具两次真实失败
+
+当前 BA/D407 标准部署和 Facade 生产生命周期已验证，兼容回滚仍未通过。修正夹具两阶段事务后，第一次执行在旧 194 镜像检查阶段停止，未创建临时资源；只读 inventory 确认保留的优化前兼容 Source 6760/image f564，后续演练绑定该真实镜像。第二次恢复、部署检查、迁移检查和 health 通过，Stage A 真实 physical source LOCK 因 scratch 角色权限不足返回 SQLSTATE 42501，业务 DML 为 0，事务回滚并关闭连接。10 份失败原始流 SFTP bytes/SHA 已核对，独立清理确认临时资源和 private 目录全不存在，生产 BA/D407 identity 保持。
+
+[失败证据封存](../deployment/evid09-compatible-rollback-fixture-failures-2026-09-14.json)保留两次原件；后续只补 public.simulated_account_row_source_v2_ledger 的 scratch UPDATE 锁权限，不修改生产角色、15s/5s 预算或有效期。完整 19 组账本部署保全仍待真正 backup-derived before 对照，不能将失败当通过。本地新备份 153542945 B/SHA3e93 已完整独立核对，与远端一致，备份验证不等于应用回滚验收。
+
+## 22. 2026-09-15 兼容镜像隔离回滚通过与 EVID-09 退出
+
+V9 仅为 scratch 角色补齐 22 张来源锁表的 `UPDATE` 锁权限，生产角色、有效期、15 秒 statement timeout 和 5 秒 lock timeout 未改变。离线控制全部通过后，使用已核验备份 `153532742 bytes / 8bc8ed47…` 在专属 PostgreSQL 16.15 副本实际完成 `ba1605fa2/d407e93e → 6760c9aa/f5647b6d → ba1605fa2/d407e93e` 三阶段演练；每阶段 HTTPS health、Django deploy check、migration check-only、typed Facade current/historical exact 均通过。Stage A 禁止业务 DML 为零，Stage B 为新 backend 的 repeatable-read/read-only；19 组账本 rowset、策略/Catalog 基线和 DATA-02 runtime profile 三阶段一致。
+
+[独立技术复核](../deployment/evid09-compatible-rollback-rehearsal-2026-09-15.json)绑定原始 `328314 bytes / eae558bf…`，实际进程 exit 0。生产 CID、source/image、healthy、restart 0 前后完全一致；没有生产切流、生产数据库 restore 或 provider 请求。本次专属容器、volume、network 和临时凭据均按拥有权清理。至此 EVID-09 的代码、三次最终候选 PostgreSQL 测量、标准部署、真实 production lifecycle/独立恢复及兼容回滚证据全部满足，EVID-09 可标记 completed；EVID-01/02、DATA-02、AUD-03、TAR-05、TUI-02 及人工签署继续独立 fail-closed。
