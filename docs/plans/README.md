@@ -14,6 +14,8 @@
 
 > 2026-09-13：生产已部署 `3032481969f9…` / release `20260913212011`，四个严格策略头已激活，六个 legacy 头保留，admin/user1 current 与四条权威根独立核验通过。[真实部署/激活证据](../deployment/data16-standard-deployment-and-policy-activation-2026-09-13.json)。DATA-16 仓库退出门已完成；唯一仓库焦点转为 EVID-09，由 Luna max 实施[锁后读取阶段性能方案](evid08-facade-write-performance-remediation-2026-09-13.md)。DATA-02、EVID-01/02、AUD-03、TAR-05 生产验收未完成。
 
+> 2026-09-15：旧候选兼容镜像的[本机隔离回滚复核](../deployment/evid09-compatible-rollback-rehearsal-2026-09-15.json)通过，生产身份未变。此结果只能证明列明的隔离技术兼容，不能替代现行 `891c40c57` 候选的生产 live rollback／前进恢复；EVID-09 保持 active、生产门禁 DENY。
+
 > 更新日期：2026-09-15
 > 本目录只保留仍需开发、真实数据、生产验收或外部依赖闭环的计划。已完成的实施计划、阶段记录、复盘和历史证据统一放在 [`../archive/plans/`](../archive/plans/)；归档记录见 [`../archive/ARCHIVE_INDEX.md`](../archive/ARCHIVE_INDEX.md)。
 
@@ -37,7 +39,7 @@
 
 ## 自主 Goal 调度入口
 
-2026-09-13 当前：`DATA-16=completed`，`EVID-09` 是唯一 repository focus。
+2026-09-15 当前：`DATA-16/EVID-09=completed`，`execution_focus.unit_id=null`；EVID-03 仍等待 EVID-01/02，因此没有 dependency-ready repository successor。
 DATA-16 四份源码绑定证据保持原样：核心发布链路、版本化策略激活集成、Financial ORM
 来源严格校验及最终Domain公告/可用时间顺序校验。最终受影响155 passed、官方Domain
 选定2939 passed，聚合行覆盖率94.18%，16项静态门禁包括53生产文件增量mypy和全量零债务通过。
@@ -47,14 +49,12 @@ DATA-16 四份源码绑定证据保持原样：核心发布链路、版本化策
 指纹及既有published-current identity metadata保持原样。旧Financial/Price/Quote current因策略
 变化阻断，Valuation无canonical current；admin/user1 current复验14.68秒，四根/零撤销未变。
 [部署/激活证据](../deployment/data16-standard-deployment-and-policy-activation-2026-09-13.json)
-保留27份原始工件；已固定兼容镜像回滚标签，尚未演练该新回滚点。
-
-完整真实隔离PG Facade用例1 passed/5312.682秒，测试体实际物理解码6284次/0.700秒、
-SQL7002次（SELECT6741、非SELECT261）/客户端执行4660.126秒；测量器source snapshot
-一致性门失败，原receipt保留failed，不能作为完整冻结基准或生产30分钟生命周期通过。
-EVID-09先实现typed lock后read phase与append/CAS fresh边界、callback前后独立复验，
-补三次源码一致的代表性完整PG测量，再标准部署及真实有效期内生命周期复测。
-EVID-08既有退出保持completed，不重复计算。性能阶段不能放宽TTL或缓存key。
+保留27份原始工件。后续 EVID-09 已完成 typed locked read phase、append/CAS fresh 边界、
+三次最终候选同源 PostgreSQL 测量、标准保数据部署和 27 阶段真实生产生命周期；早期失败
+receipt 原样保留，不计为成功证据。2026-09-15 的隔离兼容回滚按
+`ba1605fa2/d407e93e → 6760c9aa/f5647b6d → ba1605fa2/d407e93e` 完成，19 组账本 rowset、
+typed current/exact 与 DATA-02 runtime profile 三阶段一致，生产 CID/健康/restart 未变，专属
+容器、volume、network 和临时凭据均清理。EVID-08 继续保持 completed，不重复计算。
 
 [财务来源时间整改路线](data02-financial-source-time-remediation-2026-09-13.md)保留独立生产缺口：
 本地一次真实响应388061字节/122报告行已验证原始bodySHA；119个公告午夜文本无时区、

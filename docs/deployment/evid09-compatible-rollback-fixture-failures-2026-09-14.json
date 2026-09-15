@@ -1,0 +1,205 @@
+{
+  "schema": "evid09.compatible-rollback-fixture-failure-evidence.v1",
+  "sealed_at_utc": "2026-09-14T15:14:09.704591+00:00",
+  "status": "failed_runs_preserved_and_cleaned",
+  "source_revision": "ba1605fa229b8ae8c59114af158cdf58b8f144fa",
+  "image_id": "sha256:d407e93e685f99e4b0442f717b54796cb43ec8d2428f6d5430638157d4d81c1e",
+  "runs": [
+    {
+      "run_id": "3f6ad4d533ae407ca17bece21fa5ff26",
+      "actual_exit": 1,
+      "failure": "old_194_image_inspection_failed_before_resource_setup",
+      "completed_code_switch_phases": 0,
+      "independent_owned_resources_absent": true,
+      "production_identity_unchanged": true
+    },
+    {
+      "run_id": "27f64de0f6e3409c8d00e2d5b1691d03",
+      "actual_exit": 1,
+      "failure": "physical_source_exclusive_lock_insufficient_privilege",
+      "failure_stage": "facade_get_current",
+      "cause_chain": [
+        {
+          "type": "OwnerTenantAuthorityV3Unavailable",
+          "sqlstate": null
+        },
+        {
+          "type": "PhysicalAccountRowObservationV2Unavailable",
+          "sqlstate": null
+        },
+        {
+          "type": "DjangoSimulatedAccountRowSourceV2Unavailable",
+          "sqlstate": null
+        },
+        {
+          "type": "ProgrammingError",
+          "sqlstate": null
+        },
+        {
+          "type": "InsufficientPrivilege",
+          "sqlstate": "42501"
+        }
+      ],
+      "completed_code_switch_phases": 0,
+      "business_dml": 0,
+      "transaction_rolled_back": true,
+      "connection_closed": true,
+      "independent_owned_resources_absent": true,
+      "owned_private_directory_absent": true,
+      "production_identity_unchanged": true
+    }
+  ],
+  "next_fixture_fix": {
+    "scope": "scratch_role_only",
+    "additional_update_table": "public.simulated_account_row_source_v2_ledger",
+    "statement_timeout_seconds": 15,
+    "lock_timeout_seconds": 5,
+    "transaction_contract": "Stage A RC/RW; fresh Stage B RR/RO"
+  },
+  "completed_local_backup_verification": {
+    "bytes": 153542945,
+    "sha256": "3e93e589f50f07b74b4ea6517e4242b1a229663a80589d6d52a975e35ce0aeaf",
+    "independent_remote_local_match": true
+  },
+  "compatible_rollback_passed": false,
+  "full_19_deployment_preservation_proven": false,
+  "signed_acceptance": false,
+  "limits": [
+    "No completed typed Facade phase or full 19-ledger backup-derived before comparison from these runs.",
+    "Existing failed run originals are unchanged.",
+    "No production database restore, role change, route change, key regeneration or traffic cutover.",
+    "The fresh local backup verifies archive recovery material and does not establish application rollback acceptance."
+  ],
+  "artifacts": [
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-reviewed-rollback-operator-capture-20260914T145240455340Z.json",
+      "bytes": 1785,
+      "sha256": "d4226c822e4afae706832a5921a3b2d37b9d1a29ea3bae34f81d8b1bfdb59e14"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-isolated-code-rollback-v3-original-3f6ad4d533ae407ca17bece21fa5ff26.json",
+      "bytes": 4970,
+      "sha256": "846b43f0342a3f8ed207590670aa7f31b302ddecdc83d74bdfd6664a9e3be929"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-independent-isolated-cleanup-3f6ad4d533ae407ca17bece21fa5ff26.json",
+      "bytes": 1001,
+      "sha256": "ee96072c7f68a3903ac8eecc2d7cca9841f4b8528429671fb0ebdb9214ef5fc3"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-compatible-rollback-image-inventory-20260914T145356613429Z.json",
+      "bytes": 1455,
+      "sha256": "72282bcf28d85bb6bd15025e98206c919ae286e2e3a46256e3098a974eda02f9"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-reviewed-rollback-operator-capture-20260914T145614100150Z.json",
+      "bytes": 1779,
+      "sha256": "3de8dbdfe3be4a6252e42b5ee42b3f3595bf501296f815b0f5d72fdc01fb92ed"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-isolated-code-rollback-v8-original-27f64de0f6e3409c8d00e2d5b1691d03.json",
+      "bytes": 24681,
+      "sha256": "dd82202c609c9082ad6be19d508cf0048abc5013db8696881b2f8def564d0cf7"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-independent-isolated-cleanup-27f64de0f6e3409c8d00e2d5b1691d03.json",
+      "bytes": 1001,
+      "sha256": "3f363f53a05b04d8a5744f3527b18715cb1d976af31ab01309ec1930c22b9d19"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-owned-private-directory-cleanup-27f64de0f6e3409c8d00e2d5b1691d03.json",
+      "bytes": 754,
+      "sha256": "4079a502c84b8267e71c2efe76d949ca9ed9527ff231b0f43dd98659d5c6ab85"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\evid09-rollback-v8-failure-independent-review-20260914.json",
+      "bytes": 8863,
+      "sha256": "fa20fa51aa8914197ac3c8f9c16693a5dd862de82520307a6aa9a5cb23646d97"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\root-current-backup-local-independent-review-20260914.json",
+      "bytes": 1312,
+      "sha256": "edd1e24031097e648dc2c3bd6b65b5d23c152dab4a9bf942ffc5eb7bbbf364f5"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\data02-pr68-predeploy-backup-independent-20260914T142816365908Z.json",
+      "bytes": 523,
+      "sha256": "4415f8bd1bf7de917a1e32792b140764c0c11d55796e34981c173a5e538273f5"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\root_execute_isolated_code_rollback_v7_frozen_20260914.py",
+      "bytes": 38187,
+      "sha256": "fa09b499ac4de38fb8a74b866053d56e0118442fa6ee0899e47cc79a6d6b8948"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\root_execute_isolated_code_rollback_v8_20260914.py",
+      "bytes": 38187,
+      "sha256": "e470198c9d5002f39835b7bb76ba995e3ec4f8b5b7573ae7dbabebb8fceea174"
+    },
+    {
+      "path": "D:\\githv\\agomTradePro\\var\\root_evid09_rollback_scratch_app_reader_v7.py",
+      "bytes": 33270,
+      "sha256": "06f553cbcfd28c496a81c2a867958f30dd841d2ad165e9e9a10881d79a32b04d"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-reviewed-rollback-capture-nor52jx7\\stdout.bin",
+      "bytes": 4389,
+      "sha256": "55a4c56fd759fcfc0cf57048df4fbec699f2c7c4ac081c49ef713252b8d5720a"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-reviewed-rollback-capture-nor52jx7\\stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-evid09-rollback-27f64de0f6e3409c8d00e2d5b1691d03-5339g6j5\\0000-stdout.bin",
+      "bytes": 39,
+      "sha256": "7c926b87e40b26ec6ffb4c78f403571ac977ece539b51f52b4a58a6943d143ea"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-evid09-rollback-27f64de0f6e3409c8d00e2d5b1691d03-5339g6j5\\0001-stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-evid09-rollback-27f64de0f6e3409c8d00e2d5b1691d03-5339g6j5\\0002-stdout.bin",
+      "bytes": 39,
+      "sha256": "7c926b87e40b26ec6ffb4c78f403571ac977ece539b51f52b4a58a6943d143ea"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-evid09-rollback-27f64de0f6e3409c8d00e2d5b1691d03-5339g6j5\\0003-stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-evid09-rollback-27f64de0f6e3409c8d00e2d5b1691d03-5339g6j5\\0004-stdout.bin",
+      "bytes": 39,
+      "sha256": "7c926b87e40b26ec6ffb4c78f403571ac977ece539b51f52b4a58a6943d143ea"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-evid09-rollback-27f64de0f6e3409c8d00e2d5b1691d03-5339g6j5\\0005-stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-evid09-rollback-27f64de0f6e3409c8d00e2d5b1691d03-5339g6j5\\0006-stdout.bin",
+      "bytes": 49,
+      "sha256": "f18ee442b4cf890ac7577d29803f90a1d9c7e41b2d22bb807c482e8e2ec952a8"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-evid09-rollback-27f64de0f6e3409c8d00e2d5b1691d03-5339g6j5\\0007-stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-evid09-rollback-27f64de0f6e3409c8d00e2d5b1691d03-5339g6j5\\0008-stdout.bin",
+      "bytes": 879,
+      "sha256": "2eaa423ecc7455b094d1dc467477f3bae91f293aa8bb09751948b9f3964f335a"
+    },
+    {
+      "path": "C:\\Users\\muku\\AppData\\Local\\Temp\\agom-evid09-rollback-27f64de0f6e3409c8d00e2d5b1691d03-5339g6j5\\0009-stderr.bin",
+      "bytes": 309,
+      "sha256": "54ae663540a7e0ac84c465eb9b5b255d2bf44e0940f3d89d6be154ec66d6d24e"
+    }
+  ]
+}

@@ -118,3 +118,8 @@ docs/deployment/data02-rejected-response-production-validation-2026-09-14.json.s
 
 docs/deployment/data02-rejected-response-production-retest-2026-09-14.json text eol=lf
 docs/deployment/data02-rejected-response-production-retest-2026-09-14.json.sha256 text eol=lf
+
+docs/deployment/evid09-compatible-rollback-fixture-failures-2026-09-14.json text eol=lf
+docs/deployment/evid09-compatible-rollback-fixture-failures-2026-09-14.json.sha256 text eol=lf
+docs/deployment/evid09-compatible-rollback-rehearsal-2026-09-15.json text eol=lf
+docs/deployment/evid09-compatible-rollback-rehearsal-2026-09-15.json.sha256 text eol=lf

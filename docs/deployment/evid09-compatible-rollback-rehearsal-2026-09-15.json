@@ -1,0 +1,71 @@
+{
+  "schema": "evid09.compatible-rollback-rehearsal-review.v1",
+  "recorded_at_utc": "2026-09-15T02:50:00+00:00",
+  "unit_id": "EVID-09",
+  "status": "passed",
+  "source_revision": "ba1605fa229b8ae8c59114af158cdf58b8f144fa",
+  "current_image": "sha256:d407e93e685f99e4b0442f717b54796cb43ec8d2428f6d5430638157d4d81c1e",
+  "previous_compatible_source_revision": "6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b",
+  "previous_compatible_image": "sha256:f5647b6d4a17c81963a41dd4d66dee70ccfc4b18e881b368db4b89dda7bf86fd",
+  "rehearsal": {
+    "run_id": "8f976041726b4689871657d56939878f",
+    "started_at_utc": "2026-09-15T02:37:58.599384+00:00",
+    "finished_at_utc": "2026-09-15T02:49:50.380782+00:00",
+    "actual_exit": 0,
+    "technical_status": "technical_code_switch_passed",
+    "source_path": "var/evid09-isolated-code-rollback-v9-original-8f976041726b4689871657d56939878f.json",
+    "source_bytes": 328314,
+    "source_sha256": "eae558bf01e6d434947f30210e1d78307ad6f9ee40c2ac82dadd5bfd346d7071",
+    "operator_source_sha256": "836e1b8b2ed20f73482a2792ef4e83baea635f565d2a84ee04bbe657a936c70a",
+    "helper_source_sha256": "06f553cbcfd28c496a81c2a867958f30dd841d2ad165e9e9a10881d79a32b04d",
+    "selector_sha256": "1839e5b080b80024cdc981ad6d2fe144dbe8d938556c3a4500d6ad85c417d61b"
+  },
+  "scratch_database": {
+    "backup_path": "/opt/agomtradepro/backups/database/postgres-20260914-154649.dump",
+    "backup_bytes": 153532742,
+    "backup_sha256": "8bc8ed47b7a31ed053d8969f8f43c84b15b3ec68e4d9c3f40e83f8d093996d87",
+    "restore_exit": 0,
+    "restore_stderr_bytes": 0,
+    "postgres_image": "sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685",
+    "postgres_version": "16.15"
+  },
+  "phase_review": {
+    "sequence": [
+      "current_before",
+      "rollback_previous",
+      "current_restored"
+    ],
+    "all_health_200": true,
+    "all_deployment_checks_passed": true,
+    "all_migration_checks_passed": true,
+    "typed_facade_current_and_historical_exact_verified_in_all_phases": true,
+    "all_stage_a_forbidden_dml_zero": true,
+    "all_stage_b_repeatable_read_read_only": true,
+    "all_nineteen_ledger_rowsets_identical": true,
+    "data02_runtime_profile_ready_in_all_phases": true,
+    "validity_dates_modified": false
+  },
+  "safety_review": {
+    "production_cutover_performed": false,
+    "production_database_restore_performed": false,
+    "provider_request_performed": false,
+    "production_identity_unchanged": true,
+    "production_container_id": "e07a1f3e0739c84d8deff89fc4e9a93a8e7de0f35f05abc03bb8b88c812f5b22",
+    "production_health_before_and_after": "healthy",
+    "production_restart_count_before_and_after": 0,
+    "owned_cleanup_verified": true,
+    "temporary_secret_files_removed": true,
+    "reader_failures": 0
+  },
+  "decision": {
+    "independent_technical_review_passed": true,
+    "compatible_rollback_gate_passed": true,
+    "evid09_exit_evidence_complete": true,
+    "signed_acceptance_inferred": false
+  },
+  "limits": [
+    "This is an isolated current-to-compatible-previous-to-current rehearsal against a restored scratch database, not a production traffic cutover or production database restore.",
+    "The review covers the nineteen explicitly named authority/account ledger rowsets, policy and catalog baselines, DATA-02 runtime profile, and typed Facade current/exact behavior; unrelated business tables remain outside the asserted scope.",
+    "EVID-01/02, DATA-02, AUD-03, TAR-05, TUI-02 and any human signed acceptance remain independent and incomplete."
+  ]
+}
