@@ -1,0 +1,48 @@
+{
+  "version": "evid09.serialized-forward-recovery-contract.v1",
+  "recorded_at_utc": "2026-09-15T18:47:55Z",
+  "candidate": {
+    "current_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "current_release_id": "20260915110952",
+    "target_commit": "6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b"
+  },
+  "previous_risk": "When the operator's FIFO writer fails, its independent manual recovery may run after five seconds while the original target shell's EXIT trap is also recreating the same Web. The old forward_recover function had no cross-process serialization or post-lock already-current recheck.",
+  "failing_first": "The lock-contract test failed against the old shell because it did not open the retained current release manifest read-only as a shared lock inode.",
+  "implemented_contract": {
+    "shared_read_only_lock_inode": "/opt/agomtradepro/releases/source-20260915110952/.agom-release-manifest.json",
+    "lock": "flock -x -w 30 on a read-only file descriptor in a trap-free subshell; the descriptor closes on all exits",
+    "already_current_recheck_inside_lock": true,
+    "automatic_exit_trap_and_independent_manual_recovery_use_same_function": true,
+    "pre_action_dry_run_requires_flock_available": true,
+    "isolated_two_process_result": "Two concurrent Bash recovery callers returned exact FORWARD_RECOVERED events, only one mocked Web recreate occurred, and the other returned already_current=true.",
+    "web_only_compose_scope_unchanged": true,
+    "production_fifo_timeout_seconds_unchanged": 180,
+    "tui02_nonempty_raw_observation_guard_unchanged": true
+  },
+  "source_sha256": {
+    "web_only_shell": "1de708cf36b4ea8562be38744166f3232ce18dd97db190a5f2c3ed7cd1cbb1d0",
+    "operator": "01e061bbb29d27044fb583f378199b8474ce0c9dec5e9e800089b060aa4ad663",
+    "shell_tests": "feba62d971e3fba0c64709d94b5bc0d1085e2b1ca623269a61fb254c7c60d080"
+  },
+  "verification": {
+    "complete_evid09_focused_regressions": "67 passed",
+    "isolated_concurrent_bash_recovery": "pass; one mocked Web recreation for two callers",
+    "bash_n": "pass",
+    "black": "pass",
+    "isort": "pass",
+    "ruff": "pass",
+    "incremental_mypy": "pass; 0 regressions",
+    "full_mypy_debt_ceiling": "pass; 0 errors in 0 files",
+    "active_plan_registry": "pass; version 2026-09-15.v126, violations 0",
+    "governance_consistency": "pass; violations 0",
+    "git_diff_check": "pass"
+  },
+  "production_boundary": {
+    "live_web_image_switch_performed": false,
+    "production_forward_recovery_performed": false,
+    "tui02_observation_reset_performed": false,
+    "isolated_mock_is_not_live_recovery_evidence": true,
+    "evid09_exit_gate_satisfied": false,
+    "decision": "CODE_RECOVERY_SERIALIZATION_PASS_LIVE_DENY"
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "version": "evid09.interactive-recovery-fallback-contract.v1",
+  "recorded_at_utc": "2026-09-15T19:02:01Z",
+  "candidate": {
+    "current_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "current_release_id": "20260915110952",
+    "target_commit": "6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b"
+  },
+  "failing_first": {
+    "interactive_nonzero": "old operator denied without invoking independent recovery",
+    "interactive_missing_docker_event": "old operator denied without invoking independent recovery",
+    "interactive_wrong_image_event": "old operator denied without invoking independent recovery",
+    "both_paths_unverified": "old operator did not attempt the manual path after an interactive nonzero result"
+  },
+  "implemented_contract": {
+    "interactive_verified_only_when": "remote exit code is 0 and stdout contains exactly one healthy FORWARD_RECOVERED event for the sealed current image ID",
+    "fallback_condition": "an exception, nonzero exit, missing/multiple recovery event or wrong current-image identity invokes the independently callable manual forward recovery once",
+    "manual_verified_only_when": "manual exit code is 0 and its unique healthy exact current-image event passes the same verification",
+    "post_recovery_validation_unchanged": "Docker start ordering, separate recovery-period image/manifest bracket, eight read-only rowsets, News/Authority, protected TLS/new up and fresh overall preflight must still pass",
+    "both_paths_unverified_decision": "DENY; no recovered claim",
+    "target_stopline_failure_after_verified_manual_recovery": "structured DENY_TARGET_PERIOD_RECOVERED_CURRENT at exit 1 with recovery_path=independent_manual",
+    "successful_report_identifies_recovery_path": true,
+    "shared_shell_read_only_lock_and_tui02_raw_guard_unchanged": true
+  },
+  "source_sha256": {
+    "operator": "8cb3f335b0b746b06458f954a226ad124b3f6aa944b68575d8e06e9f0ddb06dc",
+    "web_only_shell": "1de708cf36b4ea8562be38744166f3232ce18dd97db190a5f2c3ed7cd1cbb1d0",
+    "operator_tests": "f2963a3356c88b6c4eeb8a9aa14342c373316343d58b3bdf487db1a6a912202f"
+  },
+  "verification": {
+    "operator_tests": "20 passed",
+    "complete_evid09_focused_regressions": "73 passed",
+    "black": "pass",
+    "isort": "pass",
+    "ruff": "pass",
+    "incremental_mypy": "pass; 0 regressions",
+    "full_mypy_debt_ceiling": "pass; 0 errors in 0 files",
+    "active_plan_registry": "pass; version 2026-09-15.v128, violations 0",
+    "governance_consistency": "pass; violations 0",
+    "git_diff_check": "pass"
+  },
+  "production_boundary": {
+    "live_web_image_switch_performed": false,
+    "production_forward_recovery_performed": false,
+    "tui02_observation_reset_performed": false,
+    "isolated_mock_is_not_live_recovery_evidence": true,
+    "evid09_exit_gate_satisfied": false,
+    "decision": "CODE_RECOVERY_FALLBACK_PASS_LIVE_DENY"
+  }
+}

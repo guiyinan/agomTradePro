@@ -1,0 +1,47 @@
+{
+  "version": "evid09.web-interval-docker-identity-bracket.v1",
+  "recorded_at_utc": "2026-09-15T18:34:32Z",
+  "candidate": {
+    "current_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "current_release_id": "20260915110952",
+    "target_commit": "6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b"
+  },
+  "failing_first": {
+    "target_period_test": "FAILED: DID NOT RAISE RecoveredIntervalDenied when Docker Web image changed during target stop-line collection",
+    "post_recovery_test": "FAILED: DID NOT RAISE WebOnlyActionError when Docker Web image changed during recovery stop-line collection"
+  },
+  "implemented_contract": {
+    "probe_operations": ["docker inspect agomtradepro-web-1", "docker exec agomtradepro-web-1 sha256sum /run/agomtradepro/release-manifest.json"],
+    "emitted_fields_only": ["image_id", "started_at_utc", "status", "health", "release_manifest_sha256", "observed_at_utc", "decision"],
+    "target_and_recovery_periods": "A source-hash-bound read-only Docker sample brackets each period's preservation and protected HTTPS/up collection. Both samples must match that period's exact image ID, Docker started_at, mounted release manifest SHA, healthy/running status and temporal sequence; a Web change during collection is DENY.",
+    "existing_tui02_raw_observation_guard_unchanged": true,
+    "production_shell_180_second_recovery_timeout_unchanged": true
+  },
+  "source_sha256": {
+    "identity_probe": "c1b102bfe4155b26e6dc752dc958fb6520c849b02ac062a28e58a6e4371c56b2",
+    "operator": "68a6d2536351a0d8e9ead97f10a61475d9b41cea773d4e7f1f383ddf9972c5e8",
+    "identity_probe_tests": "6b2964608a4e7f82cb68cdfbbb52d744e912dad5a3847b50d74e510ca048b899",
+    "operator_tests": "301369b97fdba6eb66dd19a72b8a7ee3b8510fc25774b7219aa2f9acc5ce0a04"
+  },
+  "verification": {
+    "operator_and_probe_tests": "19 passed",
+    "complete_evid09_focused_regressions": "65 passed",
+    "black": "pass",
+    "isort": "pass",
+    "ruff": "pass",
+    "incremental_mypy": "pass; 0 regressions",
+    "full_mypy_debt_ceiling": "pass; 0 errors in 0 files",
+    "active_plan_registry": "pass; version 2026-09-15.v125, violations 0",
+    "governance_consistency": "pass; violations 0",
+    "git_diff_check": "pass"
+  },
+  "production_boundary": {
+    "tui02_retained_checkpoint": "docs/deployment/tui02-production-observation-checkpoint-2026-09-15-891c40c57.json",
+    "live_web_image_switch_performed": false,
+    "production_forward_recovery_performed": false,
+    "tui02_observation_reset_performed": false,
+    "isolated_mock_is_not_live_rollback_evidence": true,
+    "evid09_exit_gate_satisfied": false,
+    "decision": "CODE_IDENTITY_BRACKET_PASS_LIVE_DENY"
+  }
+}

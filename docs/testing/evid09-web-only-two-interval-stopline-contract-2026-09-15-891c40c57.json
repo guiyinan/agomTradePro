@@ -1,0 +1,59 @@
+{
+  "version": "evid09.web-only-two-interval-stopline-contract.v1",
+  "recorded_at_utc": "2026-09-15T18:20:15Z",
+  "candidate": {
+    "current_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "current_release_id": "20260915110952",
+    "target_commit": "6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b"
+  },
+  "correction": {
+    "previously_unproven": [
+      "The post-recovery preflight could accept an up scrape sampled during the target-image interval rather than after the recovered Web started_at.",
+      "The target-period preservation report did not require its observation time, exact candidate/target commits, News identity, immutable Authority root check, read-only transaction and complete eight-rowset labels.",
+      "A failed target stop line triggered forward recovery but did not validate a separate post-recovery ledger/HTTPS stop line before reporting failure."
+    ],
+    "now_verified_by_code_and_isolated_tests": [
+      "Both target and forward-recovery intervals require their own read-only eight-rowset preservation with exact News and Authority identity plus observation time after that interval's Web started_at.",
+      "Both intervals require authenticated TLS and a fresh web:8000 up=1 sample after their own Web started_at; a prior interval's up sample is rejected.",
+      "Recovery Docker started_at must be later than a known target started_at; an invalid target stop line still verifies current-image recovery, post-recovery ledger/TLS and the fresh diagnostic gate before emitting a DENY recovery checkpoint at exit code 1.",
+      "A nonempty raw TUI-02 migration vector still denies the live action before any Web switch."
+    ]
+  },
+  "source_sha256": {
+    "operator": "d6b97df7782b2ab89e90af2fb73be32014884731b0617bc9faf359d9eb57b6d6",
+    "web_only_shell": "8c4463ecca43f0e7e01f2da7b1f9f9246447b705687f7cb379a2c16eb5429723",
+    "operator_tests": "45f803cacaaa348419d67864b04851304e4fe609b724750d619d98486034cfce",
+    "shell_tests": "00d287b26892f265195715a6c2be6cb92a2a59932d4a7c72e8b74f2d196cda90"
+  },
+  "verification": {
+    "failing_first_operator_tests": "3 failures before the two-interval correction: missing recovery stop report, old target up accepted after recovery, and preservation observed before target start accepted.",
+    "operator_orchestration_tests": "12 passed",
+    "isolated_bash_shell_tests": "6 passed",
+    "complete_evid09_focused_regressions": "58 passed",
+    "mock_fifo_timeout_seconds": 10,
+    "production_fifo_timeout_seconds_unchanged": 180,
+    "black": "pass",
+    "isort": "pass",
+    "ruff": "pass",
+    "incremental_mypy": "pass; 0 regressions",
+    "full_mypy_debt_ceiling": "pass; 0 errors",
+    "git_diff_check": "pass"
+  },
+  "production_boundary": {
+    "tui02_retained_checkpoint": "docs/deployment/tui02-production-observation-checkpoint-2026-09-15-891c40c57.json",
+    "tui02_checkpoint_sha256": "c77af8a8f7cefb79c00770edcc0ba63c7275f5884ffac24e1d5ceb7df3e4adac",
+    "live_web_image_switch_performed": false,
+    "production_forward_recovery_performed": false,
+    "tui02_observation_reset_performed": false,
+    "code_and_mock_success_is_not_live_rollback_evidence": true,
+    "evid09_exit_gate_satisfied": false,
+    "decision": "CODE_STOPLINE_HARDENING_PASS_LIVE_DENY"
+  },
+  "side_effects": {
+    "deployment": false,
+    "database_restore": false,
+    "web_restart": false,
+    "production_business_write": false,
+    "candidate_change": false
+  }
+}
