@@ -1,0 +1,146 @@
+{
+  "schema": "evid09.current-candidate-preservation-readonly.v1",
+  "recorded_at_utc": "2026-09-15T05:20:12Z",
+  "unit_id": "EVID-09",
+  "status": "active",
+  "candidate": {
+    "source_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "release_directory": "/opt/agomtradepro/releases/source-20260915110952",
+    "web_container_id": "31a390fbd513fa972ff2b3f8bb58e8fe38df1032c530cd998e58c95262603c8d",
+    "image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d",
+    "web_state": "running",
+    "web_health": "healthy"
+  },
+  "collection_boundary": {
+    "remote_method": "SSH candidate verification, then stdin-only docker exec -i python manage.py shell",
+    "database_alias": "default",
+    "transaction_read_only": "on",
+    "transaction_isolation": "repeatable read",
+    "statement_timeout_seconds": 35,
+    "business_dml_performed": false,
+    "remote_diagnostic_file_written": false,
+    "live_rollback_or_restore_performed": false
+  },
+  "committed_authority": {
+    "snapshot_at_utc": "2026-09-15T05:12:22.329101Z",
+    "root_count": 4,
+    "revocation_count": 0,
+    "all_four_root_content_and_canonical_payload_fingerprints_match_20260914_baseline": true,
+    "revocations_match_20260914_baseline": true,
+    "collector_source_sha256": "954669ee1e7daa735e96b6cfd9ab4d83d729ea7562e6bfbe44bd78d45770bf52",
+    "raw_stdout_sha256": "e7546beb8f731a8ee1b800bc3a3b78f3a685f630924a859c84590e15589056a7"
+  },
+  "publication_policy": {
+    "row_count": 14,
+    "historical_all_persisted_fields_sha256": "385c53000e1f5427b58fc7fca83c1140449fb5717784e7790737aa2842420531",
+    "current_all_persisted_fields_sha256": "4ca33fe511515df604962fc26d8ade83e0bd74afdbf2ec41459a4d19e177f424",
+    "full_rowset_hash_unchanged": false,
+    "active_policy_count": 10,
+    "all_active_semantic_rows_match_20260914_baseline": true,
+    "all_active_policy_identities_match_20260914_baseline": true,
+    "four_strict_p2_policy_identities_match": true,
+    "updated_at_days_observed": ["2026-09-13", "2026-09-15"],
+    "semantic_comparison_at_utc": "2026-09-15T05:17:11.551959Z",
+    "semantic_collector_source_sha256": "bfc5d12328fed8b0861ca059f79969988be06cf403a482a477b49c29e8b8ab36",
+    "semantic_raw_stdout_sha256": "3eef3c90f6185849e399978940cc5a195a05d43f40578454bcb1ffb76fb1c93e"
+  },
+  "catalog": {
+    "all_persisted_fields_unchanged": false,
+    "row_counts": {"contracts": 10, "bindings": 15, "owners": 10},
+    "historical_rowset_sha256": {
+      "contracts": "39482319e41f5c8739f6fc15c3eda7358ac154d328886a505db20db25e4aaa25",
+      "bindings": "d5fe6cd93dc3e8f37a9feb11375dd26c79a5c6a9bdb3abd49db2aae6d4955632",
+      "owners": "a52221699e2642f1ecc45fccc0500e732cdc83324e9c88b7abb9431fa954be8c"
+    },
+    "current_rowset_sha256": {
+      "contracts": "11b027bb66024c07336c13c05f7eb888315e36526cc838fc1894efcc4c9eb60f",
+      "bindings": "f95584d1007e62ad324abea7c8434335f2aee7c9954d92c18fa19cb309aa12c7",
+      "owners": "b2b8ba8e9e257c2d53654b7b5bf7026878e8472d5eb2991ade01b2c66424c28a"
+    },
+    "all_three_domain_rows_match_current_reviewed_projection": true,
+    "reviewed_projection_git_diff_f121000_to_891c40c57_exit_code": 0,
+    "all_three_updated_at_day": "2026-09-15",
+    "semantic_comparison_at_utc": "2026-09-15T05:19:42.060064Z",
+    "semantic_collector_source_sha256": "2bb1bc7748fcf74ce91cb3c4e44621809056e28493d9bb2f66c610c709c271cc",
+    "semantic_raw_stdout_sha256": "038702aa15e2f8dc727de11c7e4750b003814495ef1827f8e8c6085ea76ec469"
+  },
+  "current_publication_metadata": {
+    "unchanged_for": ["equity.financial.fact", "equity.price.bar", "equity.quote.snapshot"],
+    "changed_for": ["market.news"],
+    "market_news_previous_publication_id": "76cdce17-3dff-5978-9315-cf6efb4cf2a7",
+    "market_news_current_publication_id": "584dfaa8-6f2b-596d-8866-4e5f1b2daa01",
+    "market_news_current_publication_hash": "c71a4f36417f881883c11594f5e9b6cd2084f146dd17655d3822a43a29663e8f",
+    "market_news_current_published_at_utc": "2026-09-15T03:00:32.070557Z",
+    "current_metadata_match_20260914_baseline": false,
+    "usable_for_decision_claim": false
+  },
+  "verified_existing_backup": {
+    "remote_path": "/opt/agomtradepro/backups/database/postgres-20260915-051628.dump",
+    "bytes": 154912289,
+    "sha256": "0a1210ab4a5e3bd0d8cc2630ce6d3f3c421ab1c28d8b53c00fcc90ed16f7250a",
+    "sha_and_size_match_deployment_evidence": true,
+    "deployment_evidence_created_at_utc": "2026-09-15T03:17:29.806160981Z",
+    "observed_at_utc": "2026-09-15T05:18:13.233741Z",
+    "backup_created_after_market_news_current": true,
+    "remote_output_sha256": "c77312f96571e316f14beff88c44c013dc65284927b8530cec0be80180f4dbde",
+    "restore_verified": false
+  },
+  "compatible_target_source_screen": {
+    "target_source_commit": "6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b",
+    "target_image_id_from_prior_candidate_binding": "sha256:f5647b6d4a17c81963a41dd4d66dee70ccfc4b18e881b368db4b89dda7bf86fd",
+    "target_image_reinspect_at_utc": "2026-09-15T05:33:26.042969Z",
+    "target_image_present_on_vps": true,
+    "target_image_reinspect_id_and_oci_revision_match": true,
+    "current_source_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "git_diff_exit_code": 0,
+    "unchanged_scopes": [
+      "apps/data_center/migrations",
+      "apps/account/migrations",
+      "apps/config_center/migrations",
+      "apps/data_center/infrastructure/publication_models.py",
+      "apps/data_center/infrastructure/publication_policy_repository.py",
+      "apps/data_center/application/current_publication_evidence.py",
+      "apps/data_center/infrastructure/publication_read_snapshot.py",
+      "governance/dataset_contracts.json",
+      "governance/provider_bindings.json",
+      "governance/data_ownership_contracts.json",
+      "governance/publication_policies.json"
+    ],
+    "interpretation": "No schema-migration or selected Publication read/policy/projection source drift is visible across target and current source commits. This is a bounded static screen, not an isolated restored-backup runtime proof, not an OCI execution test and not authorization for live rollback.",
+    "isolated_runtime_compatibility_verified": false
+  },
+  "optimized_lifecycle_source_continuity": {
+    "audited_at_utc": "2026-09-15T06:09:42Z",
+    "passing_lifecycle_source_commit": "f121000df1276472f172a93c16961fa74f433192",
+    "current_deployed_source_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "git_diff_exit_code": 0,
+    "exact_checked_scopes": [
+      "apps/account",
+      "apps/simulated_trading",
+      "shared/infrastructure/immutable_read_snapshot.py",
+      "tests/component/account",
+      "tests/component/simulated_trading",
+      "tests/unit/account/test_immutable_read_snapshot.py",
+      "tests/unit/account/test_owner_tenant_authority_v3.py",
+      "tests/unit/account/test_owner_tenant_authority_v3_application.py",
+      "tests/unit/simulated_trading/test_simulated_account_row_source_v2.py"
+    ],
+    "interpretation": "The optimized Authority/Source V2 lifecycle implementation in the listed scopes is source-identical across f121000 and current 891c40c57. The 2026-09-14 genuine 27-stage lifecycle retains its source relevance; it is not a newly executed current-candidate production lifecycle or compatible image rollback proof."
+  },
+  "interpretation": {
+    "all_persisted_field_hash_drift_is_not_silent_preservation": true,
+    "observed_updated_at_changes_are_consistent_with_catalog_sync_and_policy_reactivation": true,
+    "timestamp_only_explanation_for_every_persisted_field_is_not_proven": true,
+    "active_policy_semantics_and_identities_preserved": true,
+    "catalog_domain_values_match_unchanged_reviewed_projection": true,
+    "new_market_news_current_must_be_preserved_by_any_future_code_only_rollback": true,
+    "compatible_live_image_rollback_exercised": false,
+    "evid09_exit_gate_complete": false
+  },
+  "next_gate": "Before a live compatible-image rollback exercise, bind exact current/target/forward-recovery images, recheck current Authority/policy/Catalog/current head state and backup, prove the target's strict-policy and new market.news-current compatibility, quantify TUI-02 observation reset, define stop/recovery lines and obtain exact live rollback authorization. No database restore, data deletion, rollback or approval is inferred from this read-only checkpoint.",
+  "references": [
+    "docs/deployment/evid09-standard-deployment-preservation-2026-09-14.json",
+    "docs/deployment/evid09-rollback-binding-checkpoint-2026-09-15.json",
+    "docs/deployment/main-vps-upgrade-2026-09-15-891c40c57.json"
+  ]
+}

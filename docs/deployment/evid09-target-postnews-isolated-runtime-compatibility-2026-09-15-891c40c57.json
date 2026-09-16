@@ -1,0 +1,122 @@
+{
+  "schema": "evid09.target-postnews-isolated-runtime-compatibility.v1",
+  "recorded_at_utc": "2026-09-15T12:39:22Z",
+  "unit_id": "EVID-09",
+  "current_production_source_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+  "target_source_commit": "6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b",
+  "owner_authorization": {
+    "isolated_restore": "Exact local container evid09-compat-pg-891c40c57-20260915 and database evid09_compat_891c40c57 approved in this task on 2026-09-15",
+    "docker_desktop_restart": "Owner explicitly allowed one local Docker Desktop restart in this task on 2026-09-15",
+    "production_restore_or_live_rollback_authorized": false
+  },
+  "desktop_recovery": {
+    "restart_command": "docker desktop restart --timeout 180",
+    "restart_command_exit_code": 1,
+    "restart_command_terminal_reason": "Docker Desktop was still starting when the management command deadline expired",
+    "subsequent_authoritative_status": "running",
+    "subsequent_session_id": "94e664c1-a09b-4725-af94-a2d724610249",
+    "transient_wsl_distro_list_timeout_observed": true,
+    "later_wsl_distro_list_exit_code": 0,
+    "pre_restart_image_inspect_terminal_reason": "Docker connection EOF during the approved restart; not evidence of image incompatibility",
+    "second_restart_or_wsl_shutdown_performed": false
+  },
+  "exact_local_clone": {
+    "postgres_container": "evid09-compat-pg-891c40c57-20260915",
+    "postgres_container_id": "d6061297e12cc8f4c6236254a3516533d40f9dcf0a4341e8e39a96b1d00058e2",
+    "database": "evid09_compat_891c40c57",
+    "network_mode": "none",
+    "published_ports": {},
+    "owned_volume": "evid09-compat-pg-891c40c57-20260915-pgdata",
+    "verified_dump_sha256": "0a1210ab4a5e3bd0d8cc2630ce6d3f3c421ab1c28d8b53c00fcc90ed16f7250a",
+    "verified_dump_bytes": 154912289,
+    "restore_was_not_repeated": true
+  },
+  "target_app_isolation": {
+    "temporary_container": "evid09-compat-app-891c40c57-20260915",
+    "temporary_container_id": "efdc99dfaf2e5b0b2e484d88733fc3a4a75c88bc046a6857be83742607310a34",
+    "image_tag": "agomtradepro-evid09-compatible-rollback:20260914021633",
+    "image_id": "sha256:f5647b6d4a17c81963a41dd4d66dee70ccfc4b18e881b368db4b89dda7bf86fd",
+    "oci_revision": "6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b",
+    "network_mode": "container:d6061297e12cc8f4c6236254a3516533d40f9dcf0a4341e8e39a96b1d00058e2",
+    "read_only_root": true,
+    "tmpfs": ["/tmp", "/app/logs"],
+    "published_ports": {},
+    "persistent_mounts": [],
+    "django_settings_module": "core.settings.production",
+    "database_url_target": "postgresql://postgres@127.0.0.1:5432/evid09_compat_891c40c57",
+    "postgres_session_default_transaction_read_only": "on",
+    "secret_key": "ephemeral locally generated value, not copied from production and not printed",
+    "redis": "unreachable loopback placeholder; no external service connected",
+    "paid_model_or_broker_calls_performed": false
+  },
+  "target_runtime_checks": {
+    "django_setup": {"command_summary": "target-image python django.setup() with 30-second faulthandler snapshots", "completion_marker": "django_setup_done", "exit_code": 0},
+    "django_system": {"command": "python manage.py check --deploy", "exit_code": 0, "warnings": ["security.W004: local isolated settings do not set SECURE_HSTS_SECONDS"], "silenced_warning_count": 1},
+    "django_migrations": {"command": "python manage.py migrate --check --noinput", "exit_code": 0, "database_session_default_transaction_read_only": "on", "migration_dml_performed": false},
+    "application_published_reader": {"command_summary": "target-image get_active for four strict policies, get_current_publication('market.news','current'), get_published_market_news(limit=50)", "exit_code": 0}
+  },
+  "strict_policy_reader": {
+    "all_four_active": true,
+    "all_four_semantics_match_governance_publication_policies_projection": true,
+    "all_four_immutable_identities_match_2026_09_14_preservation_checkpoint": true,
+    "identities": {
+      "equity.price.bar": "p2:2:7d3cfd1ce7b06b620f10fdf4a5caf1469e33c552851099bec7c60ab41120f858",
+      "equity.quote.snapshot": "p2:2:e668228b18d1ccf0d4ead3f6b2e8268fa1acca05c9863a66f2131b4b1796e814",
+      "equity.financial.fact": "p2:3:971dd7442efce7fa0afb7279aff25af6f8a4c61a7a4989357aadfe23c450d6ec",
+      "equity.valuation.fact": "p2:2:9e8d5b74aafb6e903b16f45d3a8f9085253fc4f7a8701bfaaea5f3cf7e602bca"
+    }
+  },
+  "market_news_current_reader": {
+    "publication_id": "584dfaa8-6f2b-596d-8866-4e5f1b2daa01",
+    "publication_hash": "c71a4f36417f881883c11594f5e9b6cd2084f146dd17655d3822a43a29663e8f",
+    "state": "published",
+    "published_at_utc": "2026-09-15T03:00:32.070557Z",
+    "as_of_utc": "2026-09-15T00:00:00Z",
+    "oldest_member_observed_at_utc": "2026-09-14T00:00:00Z",
+    "coverage": {"requested": 11, "eligible": 11, "selected": 11, "missing": 0, "conflict": 0},
+    "freshness_status_at_reader_sample": "fresh",
+    "must_not_use_for_decision_at_reader_sample": false,
+    "blocked_reason_at_reader_sample": "",
+    "published_query_selected_row_count": 11,
+    "reader_sample_age_seconds": 131499.503312,
+    "metadata_matches_existing_local_restore_and_current_candidate_readonly_checkpoint": true,
+    "freshness_claim_valid_only_at_actual_reader_sample": true
+  },
+  "read_after_clone_checks": {
+    "transaction_boundary": "REPEATABLE READ READ ONLY",
+    "public_tables": 561,
+    "django_migrations": 511,
+    "publication_policy_rows": 14,
+    "active_publication_policy_rows": 10,
+    "owner_tenant_authority_v3_roots": 4,
+    "owner_tenant_authority_v3_revocations": 0,
+    "market_news_current_publication_id_and_hash_match_reader": true
+  },
+  "final_local_state": {
+    "temporary_app_container_stopped_and_removed": true,
+    "temporary_app_container_had_no_persistent_mounts": true,
+    "postgres_container_status": "exited",
+    "postgres_container_retained": true,
+    "owned_database_volume_retained": true,
+    "verified_dump_retained": true,
+    "pinned_target_image_retained": true
+  },
+  "production_boundary": {
+    "production_database_restore": false,
+    "production_live_rollback": false,
+    "production_container_recreated": false,
+    "production_original_target_tag_repaired": false,
+    "production_protected_query_env_written": false,
+    "tui_observation_reset": false,
+    "production_cutover_evidence_modified": false
+  },
+  "interpretation": "The enumerated target OCI image checks naturally exit 0 against the exact owner-authorized post-News local clone, including strict policy semantics and current News selected rows. This removes the prior local Django/runtime compatibility unknown. It is not a live rollback or forward-recovery exercise, does not grant production restore authority, and does not satisfy the full EVID-09 exit gate. The original target web tag and protected-query env remain absent on the VPS; candidate-safe stop/recovery lines, TUI observation-reset impact and exact live authorization still require separate action.",
+  "evid09_exit_gate_complete": false,
+  "references": [
+    "docs/deployment/evid09-local-isolated-postnews-restore-2026-09-15-891c40c57.json",
+    "docs/deployment/evid09-current-target-forward-binding-preflight-2026-09-15-891c40c57.json",
+    "docs/deployment/evid09-target-release-compose-preflight-deny-2026-09-15-891c40c57.json",
+    "docs/deployment/evid09-standard-deployment-preservation-2026-09-14.json",
+    "governance/publication_policies.json"
+  ]
+}

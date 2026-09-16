@@ -1,0 +1,78 @@
+{
+  "version": "data02.current-source-time-by-provider-readonly.v1",
+  "recorded_at_utc": "2026-09-15T20:16:21Z",
+  "unit_id": "DATA-02",
+  "environment": "production",
+  "candidate": {
+    "commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "release_id": "20260915110952",
+    "web_image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d",
+    "web_image_and_started_at_same_before_after_each_probe": true
+  },
+  "classification": {
+    "observed_at_utc": "2026-09-15T20:14:07.758539Z",
+    "source_sha256": "8248626afad3ba22dff8e2d6af7c2382179ad1b4f2fd8f878d256a7e1d1c9e07",
+    "method": "trusted-host-key SSH; server Django ORM inside PGOPTIONS default_transaction_read_only=on and REPEATABLE READ READ ONLY",
+    "active_a_share_universe_count": 5533,
+    "financial_by_source": [
+      {
+        "source": "akshare",
+        "rows": 487464,
+        "missing_available_at_rows": 381858,
+        "missing_announced_at_rows": 487464,
+        "raw_payload_hash_present_rows": 0,
+        "source_record_id_present_rows": 0,
+        "non_null_available_at_rows": 105606,
+        "non_null_available_at_provenance_accepted": false
+      }
+    ],
+    "latest_valuation_by_source": [
+      {"source": "AKShare Public", "rows": 59, "missing_observed_at_rows": 59, "missing_available_at_rows": 59},
+      {"source": "akshare", "rows": 1, "missing_observed_at_rows": 1, "missing_available_at_rows": 1},
+      {"source": "tencent", "rows": 5473, "missing_observed_at_rows": 5473, "missing_available_at_rows": 5473}
+    ],
+    "raw_asset_rows_emitted": false
+  },
+  "source_contract": {
+    "akshare_adapter_path": "apps/data_center/infrastructure/_provider_adapter_akshare.py",
+    "akshare_adapter_sha256": "d6ca94d73b76e3ffd54f667f8e4125814c10ae12ee5c59e209bd743d7f177f84",
+    "tushare_adapter_path": "apps/data_center/infrastructure/_provider_adapter_tushare.py",
+    "tushare_adapter_sha256": "526223c1e9a0a0f5ed9fd498a2333cfde5670b061a73f74d28c97884bbf33791",
+    "financial_adapters_preserve_calendar_only_announcement_as_available_at_null": true,
+    "tencent_gateway_path": "apps/data_center/infrastructure/gateways/tencent_gateway.py",
+    "tencent_gateway_sha256": "23408f83d5b7f91dbf524afadc55507d2e1959d952394b8e7d449f26d0044b53",
+    "tencent_current_batch_observed_at_basis": "provider quote field 30 parsed into an aware observation instant",
+    "tencent_current_batch_available_at_basis": "response body completed UTC with raw-body hash/scope",
+    "valuation_repository_path": "apps/data_center/infrastructure/valuation_fact_repository.py",
+    "valuation_repository_sha256": "f3ccf5eaf560e358cd955157ca65505049c91dbccca5f87078ce0eb9a63aa3cc",
+    "valuation_upsert_refreshes_observed_at_available_at_and_raw_identity_on_natural_key_conflict": true
+  },
+  "one_asset_public_tencent_probe": {
+    "observed_at_utc": "2026-09-15T20:15:42.755752Z",
+    "source_sha256": "2ca21009aa8b687237fcf5d1a6844a6850fcd37b81332e431d00dc857bca9a46",
+    "requested_asset_count": 1,
+    "selected_asset_code_sha256": "de7f5dc2fb0ab759dd3a45f77324e4e9348a9895df9685db29f2fd774914ef65",
+    "snapshot_count": 1,
+    "source": "tencent",
+    "provider_observed_at_utc": "2026-09-15T08:14:54Z",
+    "response_available_at_utc": "2026-09-15T20:15:42.739938Z",
+    "fetched_at_utc": "2026-09-15T20:15:42.739938Z",
+    "raw_payload_hash_present": true,
+    "raw_payload_scope": "batch_response_body",
+    "source_record_id_present": true,
+    "raw_price_or_payload_emitted": false,
+    "provider_request_count": 1,
+    "entire_5533_asset_provider_coverage_proven": false
+  },
+  "boundary": {
+    "production_fact_or_audit_write": false,
+    "publication_switch": false,
+    "financial_date_only_backfill": false,
+    "provider_observation_time_substituted_with_fetch_time": false,
+    "aud_loader_snapshot_hash_blocker_resolved": false,
+    "data02_exit_gate_satisfied": false,
+    "decision_gate_change_authorized": false,
+    "next_gate": "Correct the independent ConfigCenter secret/public snapshot-hash loader blocker under the unique repository focus, then run a bounded real-source valuation refresh with before/after identity and tolerance reports. Financial availability requires a verified exact source-availability contract or owner-reviewed policy; AKShare/Tushare calendar report_date and legacy non-null available_at without source identity are insufficient. Do not generalize one Tencent response to 5,533 assets or publish incomplete heads."
+  },
+  "decision": "ONE_SOURCE_TIME_PROBE_PASSED_FULL_DATA02_DENY"
+}

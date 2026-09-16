@@ -1,0 +1,137 @@
+{
+  "version": "tui02-production-retained-observation-checkpoint.v1",
+  "environment": "production",
+  "checked_at": "2026-09-15T17:50:08.968663Z",
+  "collection_mode": "read_only",
+  "candidate": {
+    "expected": {
+      "commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+      "release_id": "20260915110952",
+      "image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d"
+    },
+    "observed": {
+      "commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+      "release_id": "20260915110952",
+      "image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d",
+      "release_target": "/opt/agomtradepro/releases/source-20260915110952",
+      "manifest_sha256": "b0b58b749ef1488695bb32e158f5d2ead8d83c90d5c5050e1e69d3f5a88b6bb6",
+      "web_started_at_utc": "2026-09-15T03:22:24.378025Z",
+      "web_restart_count": 0
+    },
+    "candidate_drift": false,
+    "deployment_evidence": "docs/deployment/web-to-tui-deployment-preflight-20260915110952.json",
+    "deployment_evidence_canonical_sha256": "120f7e0719ecc76e65c235e4c0fd7a6ff172bca56fa2540542e70e755ba9ce13"
+  },
+  "retained_monitoring": {
+    "prometheus": {
+      "image_id": "sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996",
+      "started_at_utc": "2026-09-15T03:22:35.155106Z",
+      "restart_count": 0,
+      "unexpected_restart_since_first_sample": false,
+      "runtime_start_time_utc": "2026-09-15T03:22:35.868617416Z",
+      "reload_config_success": true,
+      "corruption_count": 0
+    },
+    "persistent_volume": {
+      "name": "agomtradepro_prometheus_data",
+      "driver": "local",
+      "mounted_at": "/prometheus",
+      "host_mountpoint_present": true,
+      "ok": true
+    },
+    "retention": {
+      "configured_time": "3w",
+      "configured_size": "4GiB",
+      "admin_api_enabled": false,
+      "remote_write_receiver_enabled": false,
+      "ok": true
+    },
+    "target": {
+      "count": 1,
+      "job": "agomtradepro",
+      "instance": "web:8000",
+      "health": "up",
+      "last_error_empty": true,
+      "scrape_url": "http://web:8000/metrics/",
+      "ok": true
+    },
+    "rules": {
+      "group_count": 2,
+      "rule_count": 18,
+      "unhealthy_count": 0,
+      "m5_rule_names": [
+        "WebToTuiErrorRateRegression",
+        "WebToTuiLegacyEntryRatioHigh",
+        "web_to_tui:entry_samples_14d",
+        "web_to_tui:execution_error_ratio_14d",
+        "web_to_tui:legacy_entry_ratio_14d",
+        "web_to_tui:task_request_error_ratio_14d",
+        "web_to_tui:task_request_samples_14d"
+      ],
+      "ok": true
+    }
+  },
+  "protected_query": {
+    "origin": "https://demo.agomtrade.pro",
+    "route": "/internal/prometheus/api/v1/query",
+    "unauthenticated_http_status": 401,
+    "authenticated_http_status": 200,
+    "authenticated_web_up": 1,
+    "authenticated_up_sample_at_utc": "2026-09-15T17:50:05.060000Z",
+    "health_http_status": 200,
+    "ready_http_status": 200,
+    "decision_ready_http_status": 503,
+    "credential_owner_root_and_mode_0600": true,
+    "credential_values_exposed": false,
+    "ok": true
+  },
+  "observation": {
+    "raw_metric": "web_to_tui_migration_events_total",
+    "source_query": "timestamp(web_to_tui_migration_events_total) from current Web started_at, step 60s; exclude pre-Web lookback",
+    "source_query_observed_at_utc": "2026-09-15T17:46:38.346061Z",
+    "candidate_bound_source_series_count": 4,
+    "candidate_source_evaluations": 584,
+    "first_retained_raw_sample_at": "2026-09-15T15:21:04.672000Z",
+    "last_retained_raw_sample_at": "2026-09-15T17:46:04.726000Z",
+    "minimum_observation_seconds": 1209600,
+    "earliest_full_14d_telemetry_at": "2026-09-29T15:21:04.672000Z",
+    "elapsed_complete": false,
+    "historical_backfill_used": false,
+    "synthetic_zero_used": false,
+    "window_reset_required": false,
+    "status": "in_progress"
+  },
+  "source_sha256": {
+    "retained_source_probe": "9a52edc4b9c6a07618f8707f2d86558e528a8d5976c6b9d836b5e195e51fc58f",
+    "monitoring_probe": "27d64baf272230f6f84446d9fb6a9387d92d5204170341ed1b5803d0e3897947"
+  },
+  "gate": {
+    "candidate_unchanged": true,
+    "prometheus_unexpected_restart": false,
+    "target_ok": true,
+    "rules_ok": true,
+    "retention_ok": true,
+    "storage_ok": true,
+    "protected_query_ok": true,
+    "window_reset_required": false,
+    "tui02_final_authorized": false,
+    "decision": "DENY_FINAL_WINDOW_IN_PROGRESS"
+  },
+  "boundary": {
+    "decision_gate_cleared": false,
+    "data_coverage_gate_cleared": false,
+    "final_telemetry_created": false,
+    "final_cutover_approved": false,
+    "classic_cleanup_authorized": false,
+    "next_gate": "Keep this exact candidate and monitoring source stable through 2026-09-29T15:21:04.672000Z, then collect genuine structured defect, 101-task telemetry, post-window protected registry backup/attestation and role-bound review evidence."
+  },
+  "side_effects": {
+    "remote_write": false,
+    "deployment": false,
+    "restart": false,
+    "configuration_change": false,
+    "backup": false,
+    "load_test": false,
+    "business_request": false
+  }
+}

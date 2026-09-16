@@ -1,0 +1,76 @@
+{
+  "schema": "evid09.fresh-readonly-transition-gates.v1",
+  "recorded_at_utc": "2026-09-15T16:30:53Z",
+  "unit_id": "EVID-09",
+  "production_candidate": {
+    "commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "release": "20260915110952",
+    "web_image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d"
+  },
+  "target": {
+    "commit": "6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b",
+    "release": "20260914021633",
+    "web_image_id": "sha256:f5647b6d4a17c81963a41dd4d66dee70ccfc4b18e881b368db4b89dda7bf86fd"
+  },
+  "collectors": {
+    "production_preservation": {
+      "source": "scripts/evid09_production_preservation_probe.py",
+      "source_sha256": "9695e1a22028be32a5e67330fd410602f54f3b113875039f03474943cfe11f5c",
+      "observed_at_utc": "2026-09-15T16:28:58.173315Z",
+      "transaction": "REPEATABLE READ READ ONLY; ROLLBACK",
+      "explicit_expected_news": {
+        "publication_id": "5713bdc5-0810-54ea-a043-119e724d773d",
+        "publication_hash": "aed230f1d3c4e6b322e9533f594421badabe1f52fa513580ef217d2089725375",
+        "member_count": 12,
+        "source_evidence": "docs/deployment/evid09-target-new-news-production-readonly-compatibility-2026-09-15-891c40c57.json"
+      },
+      "expected_counts_match": true,
+      "four_immutable_authority_root_hashes_match": true,
+      "news_identity_match": true,
+      "all_eight_rowset_sha256_match_previous_pre_post_probe": true,
+      "raw_row_values_emitted": false,
+      "business_dml_performed": false,
+      "exit_code": 0,
+      "decision": "PASS_READ_ONLY"
+    },
+    "protected_https": {
+      "source": "scripts/evid09_protected_https_stop_probe.py",
+      "source_sha256": "e1ee4a1449190718b9f225071e6b98d2b0722a7893c006de8ca90ff847abbb87",
+      "observed_at_utc": "2026-09-15T16:29:02.755521Z",
+      "default_tls_trust": true,
+      "root_only_client_secret_values_transferred_or_emitted": false,
+      "protected_query_unauthenticated_status": 401,
+      "protected_query_authenticated_status": 200,
+      "retained_agomtradepro_web_up": {
+        "sample_at_utc": "2026-09-15T16:28:58.759000Z",
+        "value": 1
+      },
+      "health_db_ready_status": 200,
+      "decision_ready_status": 503,
+      "decision_gate_cleared": false,
+      "exit_code": 0,
+      "decision": "PASS_READ_ONLY"
+    },
+    "compose_web_semantics": {
+      "source": "scripts/evid09_compose_web_transition_preflight.py",
+      "source_sha256": "ee156b274240567d7f77f1e9e819c1b2fcc04740489c39429d58030ae1e4c882",
+      "normalized_current_and_target_web_config_sha256": "0819d4dc97ff7408ad0319a767fc05f67f289ccd59cfe44bd122c3e1f48d68cb",
+      "only_image_tag_and_read_only_release_manifest_source_normalized": true,
+      "normalized_difference_paths": [],
+      "all_startup_mutation_flags_disabled": true,
+      "compose_values_and_secrets_emitted": false,
+      "exit_code": 0,
+      "decision": "PASS_READ_ONLY"
+    }
+  },
+  "source_execution": "Final formatted repository collectors streamed via known-host-key-enforced SSH stdin; no collector source installed on VPS",
+  "temporary_readonly_samples_expire_on_news_or_candidate_or_config_drift": true,
+  "fresh_recheck_required_immediately_before_any_live_switch": true,
+  "live_web_switch_performed": false,
+  "forward_recovery_performed": false,
+  "current_symlink_changed": false,
+  "tui02_observation_reset_or_rebind_performed": false,
+  "evid09_exit_gate_complete": false,
+  "decision": "READONLY_TECHNICAL_GATES_PASS_LIVE_IMAGE_EXERCISE_DENY",
+  "remaining_gate": "Implement and test an exact bounded independent Web-only live switch and deterministic forward-recovery entry that invokes these collectors freshly rather than trusting caller-set booleans; bind a real TUI-02 reset/rebind and stop-line package to the actual action. This read-only checkpoint is not a rollback drill or production lifecycle acceptance."
+}

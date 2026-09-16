@@ -1,0 +1,101 @@
+{
+  "version": "aud03-config-snapshot-hash-scope-readonly.v1",
+  "recorded_at": "2026-09-15T04:52:30Z",
+  "environment": "production",
+  "candidate": {
+    "source_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "release_id": "20260915110952",
+    "web_image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d"
+  },
+  "collection": {
+    "mode": "repeatable_read_read_only_and_https_get",
+    "sql_statement_timeout": "15s",
+    "sql_lock_timeout": "3s",
+    "production_write_performed": false,
+    "outbox_dispatch_performed": false,
+    "runtime_profile_mutation_performed": false,
+    "secret_value_emitted": false
+  },
+  "runtime_loader": {
+    "result": "blocked",
+    "reason_code": "snapshot_hash_mismatch",
+    "profile_version": 14,
+    "profile_id": "567b1d32-bb4d-4414-ba03-7892b5f8ba51",
+    "profile_activated_at": "2026-09-14T10:35:30.914928+00:00",
+    "snapshot_id": "80197ca1-aea0-4eab-a73f-2880f3595218",
+    "snapshot_generated_at": "2026-09-14T10:35:31.281961+00:00",
+    "stored_snapshot_hash": "020c2fa60645b2caabfa908c020a0542ce162ca893f74208b29f2f12ac9713d0",
+    "persisted_public_projection_hash": "a36a9b7dcf76ee7bfc492edafadca71b4b268dae363ac1f250c60986982b4775",
+    "full_profile_value_projection_hash": "020c2fa60645b2caabfa908c020a0542ce162ca893f74208b29f2f12ac9713d0",
+    "stored_matches_full_profile_values": true,
+    "stored_matches_persisted_public_values": false,
+    "profile_value_count": 47,
+    "persisted_public_value_count": 46,
+    "secret_ref_key_names_only": [
+      "data_center.financial_response_artifact.encryption_key"
+    ],
+    "raw_snapshot_mode": "off",
+    "raw_snapshot_outbox_enabled": false,
+    "raw_snapshot_selector_is_none": true,
+    "raw_values_are_runtime_accepted": false
+  },
+  "prior_valid_snapshot": {
+    "profile_version": 13,
+    "snapshot_id": "83cf6ce4-25d5-4507-b052-20185c7f291a",
+    "generated_at": "2026-09-12T19:51:32.338450+00:00",
+    "stored_and_recomputed_hash": "2a41fca7121a7a0bf5133970363db33c26436cd45bb55636f53c37a81b25d0a1",
+    "status": "superseded_not_fallback_authority"
+  },
+  "outbox_select": {
+    "observed_at": "2026-09-15T04:44:55.127166+00:00",
+    "transaction_mode": "REPEATABLE READ READ ONLY",
+    "pending_count": 2,
+    "due_pending_count": 2,
+    "claimed_count": 0,
+    "delivered_count": 0,
+    "failed_count": 0,
+    "expired_claimed_count": 0,
+    "oldest_backlog_at": "2026-09-12T15:15:23.371292+00:00",
+    "oldest_backlog_age_seconds": 221371.755874,
+    "system_event_count": 2,
+    "raw_stdout_sha256": "e3f0a2ea8d105e2b750a4ca32d9138239c0c07f7fb7775b42cd06502cd4d86db"
+  },
+  "bounded_https_metrics": {
+    "completed_at": "2026-09-15T04:47:14.068325+00:00",
+    "path": "/metrics/",
+    "status_code": 200,
+    "content_type": "text/plain; version=1.0.0; charset=utf-8",
+    "body_bytes": 47130,
+    "body_sha256": "8ffafebabbaf2e767e3a105e86144f158c88dd426f84ea7971027168330e4c1e",
+    "owner_audit": {
+      "pending": 2,
+      "due_pending": 2,
+      "claimed": 0,
+      "expired_claimed": 0,
+      "failed": 0,
+      "delivered": 0,
+      "oldest_age_seconds": 221510.414601
+    }
+  },
+  "source_contract": {
+    "config_center_activation_full_hash_and_public_snapshot_path": "apps/config_center/application/runtime_config.py:271,314",
+    "config_center_activation_source_sha256": "2fdd8f997f71e083c92c89f36c4bb1af4b2313357561668b5809a932ffb7180a",
+    "audit_loader_recomputes_persisted_projection_path": "core/integration/system_audit_runtime_config.py:135",
+    "audit_loader_source_sha256": "d7b3f8b208cc619b150c1c6e6ed17f42c005aca7f9b80ebada78113c27aedf23",
+    "financial_secret_definition_path": "apps/data_center/infrastructure/financial_response_artifact_config.py:73",
+    "financial_definition_source_sha256": "836a94aad75d29ec5b77c8081bc0fd216dc7691360daa47ff27ef63cccd9e12d",
+    "historical_migration_public_hash_path": "apps/config_center/migrations/0015_materialize_remaining_runtime_groups.py:258",
+    "historical_migration_source_sha256": "c9fd2bfffeb054402e5cad5149f6e67e7f389f64a0356b573ab8b0c26476a3ec"
+  },
+  "interpretation": "The activation/full-profile versus persisted/public-snapshot hash scope mismatch is sufficient to explain the AUD loader denial. The two pending rows and their age are actual current-candidate SELECT and HTTP metric facts, not recovery or delivery acceptance. Profile v13 is superseded and cannot be silently used as a fallback.",
+  "exit_state": {
+    "aud03": "awaiting_production",
+    "admin_tui_acceptance": "unverified_on_current_candidate",
+    "alerts_window": "unverified",
+    "archive_restore": "unverified",
+    "recovery": "not_started",
+    "rollback": "unverified",
+    "owner_signoff": "not_collected"
+  },
+  "next_gate": "Implement an isolated Config Center hash/public-projection contract regression and safe corrective profile activation under the sole repository focus after EVID-09; do not edit the active snapshot hash in place, expose the secret ref, use superseded v13 as fallback, or activate AUD dispatch before the loader and bounded recovery checks pass."
+}

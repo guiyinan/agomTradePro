@@ -1,0 +1,96 @@
+{
+  "schema": "evid09-current-target-forward-binding-preflight.v1",
+  "recorded_at_utc": "2026-09-15T10:35:52Z",
+  "unit_id": "EVID-09",
+  "environment": "production",
+  "collection_mode": "password_ssh_read_only_using_existing_vps_environment",
+  "current": {
+    "source_path": "/opt/agomtradepro/releases/source-20260915110952",
+    "git_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "release_tag": "20260915110952",
+    "manifest_mode": "0444",
+    "manifest_bytes": 379,
+    "manifest_sha256": "b0b58b749ef1488695bb32e158f5d2ead8d83c90d5c5050e1e69d3f5a88b6bb6",
+    "manifest_image_tag": "agomtradepro-web:20260915110952",
+    "manifest_image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d",
+    "image_oci_revision": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "image_tag_retained": true,
+    "web_container": "agomtradepro-web-1",
+    "web_status": "running",
+    "web_restart_count": 0,
+    "web_started_at_utc": "2026-09-15T03:22:24.378025837Z"
+  },
+  "target": {
+    "source_path": "/opt/agomtradepro/releases/source-20260914021633",
+    "source_commit": "6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b",
+    "release_tag": "20260914021633",
+    "manifest_mode": "0444",
+    "manifest_bytes": 379,
+    "manifest_sha256": "b5fcfa71f5635fa95e8d24b4822894e5f4ce4bf0b4c99ee8e3fa5be5cd154167",
+    "manifest_image_tag": "agomtradepro-web:20260914021633",
+    "manifest_image_id": "sha256:f5647b6d4a17c81963a41dd4d66dee70ccfc4b18e881b368db4b89dda7bf86fd",
+    "image_oci_revision": "6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b",
+    "manifest_image_tag_retained": false,
+    "retained_compatible_alias": "agomtradepro-evid09-compatible-rollback:20260914021633",
+    "alias_image_id_matches_manifest": true,
+    "alias_oci_revision_matches_manifest": true,
+    "target_image_runtime_on_new_restored_clone_verified": false
+  },
+  "forward_recovery": {
+    "source_path": "/opt/agomtradepro/releases/source-20260915110952",
+    "release_tag": "20260915110952",
+    "source_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "retained_image_tag": "agomtradepro-web:20260915110952",
+    "image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d",
+    "image_oci_revision": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "same_retained_image_as_current": true,
+    "forward_recovery_exercised": false
+  },
+  "preservation_and_observation": {
+    "existing_post_news_dump_sha256": "0a1210ab4a5e3bd0d8cc2630ce6d3f3c421ab1c28d8b53c00fcc90ed16f7250a",
+    "existing_dump_restore_scope": "owner_approved_local_clone_only",
+    "local_clone_restore_exited_zero": true,
+    "local_clone_contains_new_market_news_current": true,
+    "current_tui_candidate_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "current_tui_readiness": "2/10 DENY",
+    "current_tui_first_retained_sample_at": null,
+    "current_tui_eligible_at": null,
+    "target_switch_would_change_candidate_oci": true,
+    "old_tui_candidate_evidence_may_be_carried_forward": false,
+    "target_release_protected_query_env_verified": false
+  },
+  "pre_live_stop_lines": [
+    "Do not switch images while the target's Django system, migration-only and new market.news Published Query checks lack natural passing exits against the exact restored post-News clone.",
+    "Do not use the target release manifest's absent agomtradepro-web:20260914021633 tag without an exact ID-checked alias/retag action envelope; the retained EVID-09 alias alone does not prove compose rollback readiness.",
+    "Before any live action, recheck current/target/forward image IDs and OCI revisions, both immutable manifests, dump SHA and current Authority/policy/Catalog/new News preservation baselines; any drift stops the action.",
+    "A live target switch would invalidate the current TUI candidate binding. Do not inherit its gates or any elapsed observation; protected HTTPS query, health/ready and fail-closed decision readiness must be reverified for the target before a new observation can begin.",
+    "No production database restore, business DML, live image switch, rollback or forward recovery is authorized by the local-clone restore approval. A separate exact live action and stop/recovery envelope remains required."
+  ],
+  "image_trio_identifiers_bound": true,
+  "target_manifest_tag_gap_closed": false,
+  "local_target_django_compatibility_verified": false,
+  "live_rollback_authorized": false,
+  "live_rollback_exercised": false,
+  "forward_recovery_exercised": false,
+  "production_mutation_performed": false,
+  "decision": "IMAGE_TRIO_IDENTIFIERS_BOUND_LIVE_DENY",
+  "next_action": "Resolve the target manifest tag gap within a separately authorized exact action envelope and obtain natural target-image Django/migration/News-current compatibility results on the owner-approved restored clone; only then bind health, TUI reset and stop/recovery steps for precise live authorization.",
+  "references": [
+    {
+      "path": "docs/deployment/evid09-local-isolated-postnews-restore-2026-09-15-891c40c57.json",
+      "sha256": "8cf54d0af36f9e95dbf6aa47d4bb18d72b518963b5217f1cb69f5d0874fe4a59"
+    },
+    {
+      "path": "docs/deployment/tui02-candidate-rebind-2026-09-15-891c40c57.json",
+      "sha256": "abd594a43a38a20ea012e328d90b4816216381675cbd083ca86d99bb6cfd8b46"
+    },
+    {
+      "path": "docs/deployment/evid09-current-candidate-preservation-readonly-2026-09-15-891c40c57.json",
+      "sha256": "70b6b92a3d24206454489a76adc1de86d921519cbcd367df2c9713246e52aba6"
+    },
+    {
+      "path": "docs/deployment/evid09-rollback-binding-checkpoint-2026-09-15.json",
+      "sha256": "ab5a2b1ba7072134af04ad91874c0526713ade137510d6d7dcb35f731b21cc34"
+    }
+  ]
+}

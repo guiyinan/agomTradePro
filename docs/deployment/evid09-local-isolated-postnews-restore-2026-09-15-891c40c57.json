@@ -1,0 +1,131 @@
+{
+  "schema": "evid09.local-isolated-postnews-restore.v1",
+  "recorded_at_utc": "2026-09-15T07:34:38Z",
+  "finalized_at_utc": "2026-09-15T09:14:00Z",
+  "unit_id": "EVID-09",
+  "current_production_source_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+  "authorization": {
+    "source": "2026-09-15 owner message in this task",
+    "exact_container": "evid09-compat-pg-891c40c57-20260915",
+    "exact_database": "evid09_compat_891c40c57",
+    "scope": "Restore the verified existing dump only into this owner's local one-time container/database for isolated compatibility validation",
+    "production_restore_or_live_rollback_authorized": false
+  },
+  "archive": {
+    "remote_retained_path": "/opt/agomtradepro/backups/database/postgres-20260915-051628.dump",
+    "local_path": "D:/githv/agomTradePro-deploy-aa7127ff4-clean/backups/evid09-compatible-preflight-20260915-891c40c57/postgres-20260915-051628.dump",
+    "bytes": 154912289,
+    "sha256": "0a1210ab4a5e3bd0d8cc2630ce6d3f3c421ab1c28d8b53c00fcc90ed16f7250a",
+    "local_sidecar_match": true,
+    "remote_local_manifest_sha256": "a143a55fbeee2d5feca97978d104a64b392503755874633628904b1e9021f564",
+    "toc_entries": 7569,
+    "new_remote_dump_created": false,
+    "remote_pruning_performed": false
+  },
+  "local_isolation": {
+    "container_id": "d6061297e12cc8f4c6236254a3516533d40f9dcf0a4341e8e39a96b1d00058e2",
+    "postgres_tool_image_id": "sha256:33f923b05f64ca54ac4401c01126a6b92afe839a0aa0a52bc5aeb5cc958e5f20",
+    "database_name": "evid09_compat_891c40c57",
+    "owned_volume_name": "evid09-compat-pg-891c40c57-20260915-pgdata",
+    "owned_scope_label": "local-disposable-891c40c57",
+    "network_mode": "none",
+    "port_bindings": {},
+    "archive_mount_read_only": true,
+    "initial_public_table_count": 0,
+    "production_credentials_copied_to_container": false,
+    "production_database_targeted": false
+  },
+  "restore": {
+    "command": "docker exec <exact-container> pg_restore -U postgres -d <exact-database> --no-owner --no-acl --exit-on-error /archive/postgres-20260915-051628.dump",
+    "exit_code": 0,
+    "archive_target_database_match": true,
+    "public_table_count": 561,
+    "django_migrations_count": 511,
+    "restore_verified": true
+  },
+  "post_restore_read_only_checks": {
+    "transaction_boundary": "REPEATABLE READ READ ONLY",
+    "owner_tenant_authority_v3_root_count": 4,
+    "owner_tenant_authority_v3_revocation_count": 0,
+    "root_content_hashes_match_20260914_baseline": true,
+    "root_content_hashes": [
+      "47d71a2f7e7aaea49a181d2db86a3375af330018a191a4e7fcf89b4f6e26acbb",
+      "50d570281ddaab2e0f49a5e2240a07f3d3f681ae068f2810f02f77bb8a51efaa",
+      "584dd04ec11bb1ff40284916a977725286fd40763841403c99fc2402ab82a1ae",
+      "c6431aa9f724519e047b75a3ef292a953a288215c87127cf1a5b9d76fbcb061c"
+    ],
+    "publication_policy_rows": 14,
+    "publication_policy_active_rows": 10,
+    "strict_scope_active_policy_rows": 4,
+    "catalog_row_counts": {
+      "dataset_contract": 10,
+      "provider_binding": 15,
+      "owner_registration": 10
+    },
+    "four_published_current_heads_count": 4,
+    "market_news_current": {
+      "publication_id": "584dfaa8-6f2b-596d-8866-4e5f1b2daa01",
+      "publication_hash": "c71a4f36417f881883c11594f5e9b6cd2084f146dd17655d3822a43a29663e8f",
+      "published_at_utc": "2026-09-15T03:00:32.070557Z",
+      "state": "published",
+      "member_count": 11,
+      "metadata_matches_current_production_read_only_checkpoint": true
+    }
+  },
+  "compatible_image_runtime": {
+    "target_tag": "agomtradepro-evid09-compatible-rollback:20260914021633",
+    "target_image_id": "sha256:f5647b6d4a17c81963a41dd4d66dee70ccfc4b18e881b368db4b89dda7bf86fd",
+    "target_oci_revision": "6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b",
+    "first_import_failure": "Local docker image load CLI was stopped before its exit gate; Docker Desktop reported missing snapshots for this target image. The incomplete local tag was removed after verifying no container used it.",
+    "second_import_status": "completed",
+    "remote_save_exit_code": 0,
+    "second_import_exit_code": 0,
+    "compressed_stream_bytes": 669004513,
+    "compressed_stream_sha256": "4f22afb9dbfb0131f2dca8cc0067927ae6d4c630ac74b0becd1ccf12e8642192",
+    "expanded_stream_bytes": 672463872,
+    "gzip_trailer_complete": true,
+    "local_image_id_and_oci_revision_match": true,
+    "local_app_runtime_container_id": "de5a90faf615eeb3beba19d96d05fd07e2139189ff6e39f6459fbc2eefe159ff",
+    "local_app_runtime_network_mode": "container:d6061297e12cc8f4c6236254a3516533d40f9dcf0a4341e8e39a96b1d00058e2",
+    "local_app_runtime_read_only_root": true,
+    "local_app_runtime_tmpfs": ["/tmp", "/app/logs"],
+    "local_app_runtime_port_bindings": {},
+    "python_smoke_output": "Python 3.11.16",
+    "clone_pg_isready_exit_code": 0,
+    "clone_default_transaction_read_only": "on",
+    "first_django_check_failure": "Read-only root prevented production logging handler initialization at /app/logs/celery-beat-13.log; the task-only app container was rebuilt with /app/logs tmpfs.",
+    "second_django_check_status": "interrupted_after_bounded_local_wait_without_final_result",
+    "second_django_check_observed_elapsed_minutes_at_last_ps": 55,
+    "isolated_django_check_exit_code": null,
+    "isolated_django_migration_check_status": "interrupted_after_bounded_local_wait_without_final_result",
+    "isolated_django_migration_check_exit_code": null,
+    "isolated_current_read_status": "interrupted_after_bounded_local_wait_without_final_result",
+    "isolated_current_read_exit_code": null,
+    "runtime_compatibility_verified": false
+  },
+  "local_final_state": {
+    "final_repeatable_read_read_only_check": "evid09_compat_891c40c57|authority_roots=4|revocations=0|active_policies=10|new_news_current_exact_match=1",
+    "postgres_container_status": "exited",
+    "restored_database_volume_retained": true,
+    "restored_database_volume_name": "evid09-compat-pg-891c40c57-20260915-pgdata",
+    "postgres_container_retained": true,
+    "local_app_test_container_removed": true,
+    "local_pinned_compatible_image_retained": true,
+    "original_local_dump_retained": true,
+    "remote_dump_retained": true,
+    "restore_recoverable_by_restarting_exact_owned_postgres_container": true
+  },
+  "production_boundary": {
+    "live_rollback_performed": false,
+    "production_database_restore_performed": false,
+    "production_container_restarted": false,
+    "business_dml_on_production": false,
+    "tui_observation_reset_performed": false
+  },
+  "interpretation": "The existing post-News dump restores cleanly to the exact local isolated database and preserves the current Authority/policy/Catalog/News metadata. The pinned target OCI image was imported with both save/load exit 0, started Python and reached the clone through isolated loopback under a read-only DB session; full Django system/migration/Published Query compatibility did not converge within the bounded local run and has no passing exit code. This is not a production restore, decision readiness, live-image rollback, or EVID-09 exit gate.",
+  "evid09_exit_gate_complete": false,
+  "references": [
+    "docs/deployment/evid09-existing-backup-local-isolation-preflight-2026-09-15-891c40c57.json",
+    "docs/deployment/evid09-current-candidate-preservation-readonly-2026-09-15-891c40c57.json"
+  ]
+}

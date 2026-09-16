@@ -1,0 +1,45 @@
+{
+  "version": "evid09-rollback-binding-checkpoint.v1",
+  "recorded_at": "2026-09-15T04:07:57Z",
+  "environment": "production",
+  "collection_mode": "ssh_read_only",
+  "current_web": {
+    "container": "agomtradepro-web-1",
+    "state": "running",
+    "restart_count": 0,
+    "started_at": "2026-09-15T03:22:24.378025837Z",
+    "image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d",
+    "oci_revision": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "release_id": "20260915110952"
+  },
+  "historical_optimized_image": {
+    "source_commit": "f121000df1276472f172a93c16961fa74f433192",
+    "historical_image_id": "sha256:b288b16a77e32bc41da5ab130997948b66b7adbb114600831eb61663f5bc4640",
+    "docker_image_inspect_result": "no_such_image"
+  },
+  "retained_compatible_rollback": {
+    "tag": "agomtradepro-evid09-compatible-rollback:20260914021633",
+    "image_id": "sha256:f5647b6d4a17c81963a41dd4d66dee70ccfc4b18e881b368db4b89dda7bf86fd",
+    "oci_revision": "6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b"
+  },
+  "immediate_previous_web": {
+    "tag": "agomtradepro-web:20260914213944",
+    "image_id": "sha256:d407e93e685f99e4b0442f717b54796cb43ec8d2428f6d5430638157d4d81c1e",
+    "oci_revision": "ba1605fa229b8ae8c59114af158cdf58b8f144fa"
+  },
+  "checks": {
+    "command_types": [
+      "docker image inspect --format",
+      "docker images --no-trunc --format",
+      "docker image inspect",
+      "docker inspect"
+    ],
+    "historical_preoptimized_image_id": "sha256:2ec2969ba92f2d2f9c13520c29257890dd951f3aae79f6c63b7cb886cb1c6a4e",
+    "historical_preoptimized_image_inspect_result": "no_such_image",
+    "production_mutation_performed": false,
+    "live_rollback_performed": false,
+    "database_restore_performed": false
+  },
+  "decision": "DEFER_LIVE_ROLLBACK",
+  "next_gate": "Bind an exact current-to-target rollback and forward-recovery image/release pair, recheck retained PostgreSQL backup and preservation baselines, TUI observation reset impact, health/stop lines and owner authorization before any controlled live exercise. The retained 6760c9aa tag does not itself prove a safe rollback from the newer 891c40c57 runtime."
+}

@@ -1,0 +1,55 @@
+{
+  "schema": "evid09.target-prerequisites-repair.v1",
+  "recorded_at_utc": "2026-09-15T15:34:28Z",
+  "unit_id": "EVID-09",
+  "authorization_source": "Project owner message in this task: 授权你做, referring to the EVID-09 postcompat DENY and target tag/query configuration gaps",
+  "production_collection": {
+    "mode": "Known-host-key-enforced SSH; repository script streamed over stdin; no source deployment",
+    "exact_action_entry": "scripts/evid09-controlled-image-exercise.sh",
+    "remote_bash_syntax_exit_code": 0
+  },
+  "before": {
+    "dry_run_exit_code": 1,
+    "current_target_forward_manifest_image_backup_env_and_running_web_binding": "PASS",
+    "target_original_tag": "MISSING",
+    "target_host_only_protected_query_env": "MISSING"
+  },
+  "action": {
+    "scope": "Retag exact retained compatible alias to the immutable target manifest tag; copy only the current host-only protected-query env into the target release with mode 0600",
+    "target_release": "20260914021633",
+    "target_source_commit": "6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b",
+    "target_image_id": "sha256:f5647b6d4a17c81963a41dd4d66dee70ccfc4b18e881b368db4b89dda7bf86fd",
+    "retag_and_env_repair_exit_code": 0,
+    "image_id_and_oci_verified_before_and_after_retag": true,
+    "query_env_mode": "0600",
+    "query_env_bytes_or_contents_recorded": false,
+    "current_target_query_env_byte_comparison": "MATCH",
+    "credential_values_printed": false
+  },
+  "after": {
+    "target_compose_config_quiet_exit_code": 0,
+    "target_query_source_sha_comparison": "MATCH",
+    "fresh_remote_dry_run_exit_code": 0,
+    "post_repair_public_tls_statuses_in_probe_order": {
+      "/api/health/": 200,
+      "/api/health/db/": 200,
+      "/api/ready/": 200,
+      "/api/decision-ready/": 503,
+      "/internal/prometheus/api/v1/query?query=up (unauthenticated)": 401
+    },
+    "public_tls_probe_exact_response_time_collected": false,
+    "target_original_tag": "PASS",
+    "target_host_only_protected_query_env": "PASS",
+    "web_container_switched_or_recreated": false,
+    "current_release_symlink_changed": false,
+    "production_database_restore_or_business_dml": false,
+    "tui02_candidate_rebound_or_observation_reset": false,
+    "fresh_https_protected_query_after_action_collected": false,
+    "fresh_authority_policy_catalog_news_baseline_collected": false,
+    "forward_recovery_exercised": false
+  },
+  "decision": "PREREQUISITES_REPAIRED_LIVE_EXERCISE_DENY",
+  "reason": "Target tag and host-only query env are repaired, but current preservation and stop-line samples, bounded web-switch/forward-recovery steps, and target candidate TUI-02 rebind evidence are not yet bound. The independent runner explicitly disables live switching until those real gates exist.",
+  "evid09_exit_gate_complete": false,
+  "historical_deny_evidence_retained": "docs/deployment/evid09-postcompat-live-image-action-preflight-deny-2026-09-15-891c40c57.json"
+}

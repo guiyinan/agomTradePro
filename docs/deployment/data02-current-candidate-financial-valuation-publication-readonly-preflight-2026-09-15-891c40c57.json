@@ -1,0 +1,97 @@
+{
+  "version": "data02.current-candidate-financial-valuation-publication-readonly-preflight.v1",
+  "unit_id": "DATA-02",
+  "environment": "production",
+  "candidate": {
+    "commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "release_id": "20260915110952",
+    "web_image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d",
+    "mounted_manifest_sha256": "b0b58b749ef1488695bb32e158f5d2ead8d83c90d5c5050e1e69d3f5a88b6bb6",
+    "web_image_and_started_at_same_before_after_each_probe": true
+  },
+  "collection": {
+    "method": "trusted-host-key SSH; read-only PostgreSQL transaction and PGOPTIONS default_transaction_read_only=on",
+    "business_dml_performed": false,
+    "provider_fetch_performed": false,
+    "publication_switch_performed": false,
+    "raw_asset_rows_or_credentials_emitted": false
+  },
+  "full_coordinator_dry_run": {
+    "command": "python manage.py repair_active_a_share_current_facts (no --execute)",
+    "pgoptions": "default_transaction_read_only=on; statement_timeout=90000; lock_timeout=3000",
+    "exit_code": 1,
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderr_sha256": "7040bfc95ad3b56630bd64bf987bcbfb4d3656eb61b88e75592f1ec2a92229f9",
+    "failure_reason": "valuation publication candidate requires observed_at",
+    "finished_at_utc": null,
+    "preview_report_produced": false
+  },
+  "financial_availability_preview": {
+    "observed_at_utc": "2026-09-15T19:32:25.517320Z",
+    "source_sha256": "1a31cb77d6e1ee35f12133145a64ec7e5cf7fdcc8e88daadd26c912118a25b9d",
+    "stdout_sha256": "9adda4c2449afc68be651d73fe46abe01f859fdccf615ddd0d2cac511a028ac1",
+    "universe_count": 5533,
+    "universe_sha256": "1579f1d52f3a58129102bfb090ed25ca2af0e56e6fe880722f7b6ae1e66c5a69",
+    "financial_fact_asset_count": 5533,
+    "missing_available_at_row_count": 381858,
+    "calendar_eligible_row_count": 381858,
+    "calendar_eligible_asset_count": 4788,
+    "unresolved_report_date_row_count": 0,
+    "future_report_date_row_count": 0,
+    "future_available_at_row_count": 0,
+    "oldest_report_date": "2023-06-30",
+    "newest_report_date": "2026-08-31",
+    "safe_to_execute": false,
+    "date_only_backfill_authorized": false
+  },
+  "valuation_latest_candidate_probe": {
+    "observed_at_utc": "2026-09-15T19:34:47.073908Z",
+    "source_sha256": "0c54a7b599d5a09a4d59760c4c31ab451b45052db8ea1e38b0a37f38fe65e677",
+    "selected_asset_count": 5533,
+    "missing_observed_at_asset_count": 5533,
+    "missing_available_at_asset_count": 5533,
+    "selection_matches_repository_latest_order": true,
+    "current_publication_query_state_used": "current",
+    "current_state_query_is_not_canonical": true
+  },
+  "canonical_published_head_probe": {
+    "observed_at_utc": "2026-09-15T19:35:37.977397Z",
+    "sql_sha256": "ca159476dfb423688ea566b2b559f3c98bcbb5720197bd55615cd0e26fb7a25b",
+    "canonical_state": "published",
+    "heads": [
+      {
+        "dataset_key": "equity.quote.snapshot",
+        "publication_id": "0e00ea1e-20cd-5daf-b92d-49547e44aac9",
+        "publication_hash": "638e589654b2e55dff9eacb75638c2232066b6a744d2a14ee315c493ab76e247",
+        "member_count": 1,
+        "published_at_utc": "2026-08-28T08:15:29.730089Z"
+      },
+      {
+        "dataset_key": "equity.price.bar",
+        "publication_id": "93bb22bf-d2ed-58ca-8b19-7217a74041d1",
+        "publication_hash": "9ee14266b3426d913162d01f1a34ec7b113bc5380fe4533d8a36e4be44110e13",
+        "member_count": 23,
+        "published_at_utc": "2026-08-28T15:17:52.302291Z"
+      },
+      {
+        "dataset_key": "equity.financial.fact",
+        "publication_id": "c8741812-cf01-512f-8d1c-91c0e6549f42",
+        "publication_hash": "20acdb3f16bcd4843a5a5ca48b6758f791a9b7cb1eefb12a27b7e474ac76785c",
+        "member_count": 80,
+        "published_at_utc": "2026-08-15T02:54:59.904908Z"
+      }
+    ],
+    "valuation_published_head_count": 0,
+    "four_dataset_publication_identity_complete": false,
+    "full_universe_reconciliation_proven": false
+  },
+  "interpretation": {
+    "calendar_eligibility_is_not_source_observation_time": true,
+    "historical_or_stale_heads_are_not_decision_ready": true,
+    "next_gate": "Obtain verified provider source observation/availability timestamps for valuation and financial facts, resolve the separate ConfigCenter snapshot-hash AUD loader blocker under the sole repository focus, then retry the read-only coordinator preflight and authorized bounded production refresh/reconciliation. Preserve exact publication IDs/hashes and source times; no date-only timestamp synthesis or tolerance waiver.",
+    "data02_exit_gate_satisfied": false,
+    "data03_eligible": false,
+    "decision_gate_change_authorized": false
+  },
+  "decision": "DENY_SOURCE_TIME_AND_PUBLICATION_GAPS"
+}

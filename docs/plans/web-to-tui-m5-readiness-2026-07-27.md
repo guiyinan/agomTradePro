@@ -1162,3 +1162,80 @@ runtime version=`0.2.0`、runtime build=`agomtui-runtime-0.2.0+ccfdeff0fdd3`、r
 未认证 HTTPS query 为 401，但新 release 与紧邻前一个 release 的 host-only query env 均缺失。
 因此 protected authenticated query 仍未验收、first retained sample 为 null。追加 Nightly
 `34923321145` 终态 failure（PostgreSQL current-data contract/full unit），不写成成功或放宽门禁。
+
+### 2026-09-15 受保护 HTTPS 查询修复与首样本边界
+
+上一节“host-only query env 缺失”是部署后的原始 preflight，不再描述当前 Caddy 状态。
+[有界修复原件](../deployment/tui02-protected-query-repair-2026-09-15-891c40c57.json)
+记录旧 release 的 600/125 字节 bcrypt 配置，仅在当前 `891c40c57` release 生成新的
+root-only 口令及 600/127 字节 hash env，`docker compose config` 通过后仅重建 Caddy；
+实际 started_at 为 `2026-09-15T04:25:06.751047819Z`。web 与 Prometheus 均未重建、
+各自 healthy/restart 0，候选 source/release/image 不变，HTTPS health/ready=200、
+decision-ready=503。旧凭据文件没有被删除或改写；新口令字节未进入仓库/报告。
+
+未认证查询稳定 401；真实 root-only 凭据走 TLS 认证查询为 200/success，原始 `up`
+在 `2026-09-15T04:26:01.729Z` 返回 `agomtradepro`/`web:8000`/值 1。
+这证明 protected query 与目标采集，不是 TUI-02 所需的迁移事件首样本。受控查询
+`web_to_tui_migration_events_total` 仍为空；`web_to_tui:entry_samples_14d` 的 126 条
+规则结果可能携带旧候选历史，未得到新候选原始序列绑定，不用来启动观察。
+`first_retained_sample_at` 与 `eligible_at` 继续 null，readiness 仍 `2/10 DENY`。
+下一步只在真实认证用户任务产生新原始序列后，按登记的只读 collector 验证并绑定
+第一份实际留存样本，随后从该真实 UTC 精确加 14 日。不得补零、提前生成终审快照
+或把 Caddy 修复时刻当作迁移观察起点。
+当前 hash env 位于 release-local 路径，两个最近旧 release 曾缺失；这项修复未改部署脚本，
+不证明下一次代码部署会自动保留查询凭据。任何后续部署必须先核验 host-only env、
+protected query 与实际候选漂移/窗口重置，不把本 checkpoint 跨 release 复用。
+
+### 2026-09-15 本候选真实原始首样本（尚待完整监控 checkpoint）
+
+上一节在 `04:29Z` 附近的原始空 vector 是**当时**的真实值，不应
+继续外推。`17:17:34Z` 受保护 HTTPS 原始
+`web_to_tui_migration_events_total` 查询已返回 4 条非空序列；
+只读 range 对 `timestamp(raw_metric)` 从当前健康 Web
+`started_at=2026-09-15T03:22:24.378025Z` 开始，过滤旧候选 lookback，
+找到真实首次留存 source sample
+`2026-09-15T15:21:04.672000Z`，精确 14 日门为
+`2026-09-29T15:21:04.672000Z`。该探针并未回填、制造零值、
+生成 final telemetry 或重启服务。[时点原件](../deployment/evid09-tui02-retained-observation-live-action-deny-2026-09-15-891c40c57.json)
+同时记录 EVID-09 Web-only live 演练因窗口已开始而拒绝切换。
+
+这只确认原始 source **已出现**。新的 `891c40c57` retained
+checkpoint 尚需同一候选下最新 target/rules、3w/4GiB retention、
+持久卷、Prometheus restart、受保护 HTTPS 与 health 全项只读复核；
+在核验并调用 canonical retained binder 前，cutover evidence 的
+`first_retained_sample_at`/`eligible_at` 仍为 null，readiness 仍 DENY。
+不得将此 source 探针或旧 recording rule 自动认作已绑定窗口。
+若保持候选稳定，后续观察应以这个真实 UTC 样本及完整监控 checkpoint
+为起点；不能把先前候选观察、UAT、cleanup 或 rollback 继承过来。
+
+### 2026-09-15 真实监控全项复核与 canonical retained binding
+
+上一节“尚待完整监控 checkpoint”只描述 `17:21Z` 时点；后续
+`17:50:08.968663Z` 的最终源码只读复核已经通过。现行 Web 的
+image ID、OCI revision、原始 tag、current release、host/mounted manifest
+SHA 均精确绑定 `891c40c57` / `20260915110952`；Web started_at
+`03:22:24Z` 早于真实首样本。Prometheus 使用固定 digest，
+started_at `03:22:35Z` 也早于首样本，restart=0；持久卷
+`agomtradepro_prometheus_data` 已挂载。target 唯一且 healthy/up，
+2 个 group 共 18 条规则全部健康、7 条 M5 必需规则在场；运行时
+retention 为 `3w/4GiB`、admin API 与 remote-write receiver 均关闭，
+reload 成功、corruption=0。受保护 TLS 查询未认证 401、认证 200，
+新鲜 `web:8000 up=1`；health/ready 200、decision-ready 503。
+只读来源复采仍找到相同首次原始 source sample
+`2026-09-15T15:21:04.672000Z`，不是旧 recording rule。
+
+[本候选 retained checkpoint](../deployment/tui02-production-observation-checkpoint-2026-09-15-891c40c57.json)
+和同名 SHA sidecar 固定候选、两份最终源码 SHA、监控门禁与真实来源。
+canonical binder 先 dry-run，再 `--write-evidence`，两次均通过；
+`config/tui/migration/web_to_tui_cutover_evidence.v1.json` 现已绑定
+checkpoint SHA `c77af8a8…3e4adac`、首样本与精确 eligible instant
+`2026-09-29T15:21:04.672000Z`。先前候选的 UAT、cleanup、rollback、
+defect、telemetry、backup/review/approval 未继承；这些字段仍空。
+
+readiness 重算仍为 `2/10 DENY`：`stable_version_window` 有合法来源
+但尚未自然经过 14 日，另外 7 个门禁也未验收。当前 calendar
+observation day 为 0；在 eligible instant 前只低频只读核验候选
+漂移、target/rules/retention/storage/TLS、Prometheus reset，不生成
+final telemetry、defect、backup attestation 或 sign-off。不为 EVID-09
+镜像演练重置本窗口；若候选或 Prometheus 真正改变，必须按实际事件
+重新绑定，而不能延用此 checkpoint。

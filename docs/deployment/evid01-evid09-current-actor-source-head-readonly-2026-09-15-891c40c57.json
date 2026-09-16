@@ -1,0 +1,56 @@
+{
+  "version": "evid01-evid09.current-actor-source-head-readonly.v1",
+  "recorded_at_utc": "2026-09-15T20:16:21Z",
+  "units": ["EVID-01", "EVID-09"],
+  "environment": "production",
+  "candidate": {
+    "commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "release_id": "20260915110952",
+    "web_image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d",
+    "web_image_started_restart_status_health_same_before_after": true
+  },
+  "collection": {
+    "method": "trusted-host-key SSH; PostgreSQL REPEATABLE READ READ ONLY; ROLLBACK",
+    "observed_at_utc": "2026-09-15T20:10:53.492240Z",
+    "sql_sha256": "a3a9bc84d69a2ff4d2826b7615f2b99ef86fe0b697dbb9f3db29221e5a66a3c4",
+    "table": "account_actor_authority_source_v3_ledger",
+    "raw_user_or_source_ids_emitted": false,
+    "raw_payload_emitted": false,
+    "business_dml_performed": false
+  },
+  "source_heads": {
+    "ledger_rows": 30,
+    "logical_heads": 30,
+    "current_state_heads": 30,
+    "temporally_current_heads": 0,
+    "authenticated_active_temporally_current_heads": 0,
+    "root_versions": 30,
+    "max_recorded_at_utc": "2026-09-12T19:00:28.423098Z",
+    "max_valid_until_utc": "2026-09-13T19:00:27.880884Z",
+    "distinct_user_count": 1,
+    "cryptographic_seals_recomputed": false,
+    "exact_application_current_reader_run": false
+  },
+  "real_capture_entry": {
+    "view_path": "apps/account/interface/account_actor_authority_raw_source_api_views.py",
+    "view_sha256": "dd0ca9ae1a0e2dc27ec915461180ec333ce61df4afbbabc4e0cb11023965aaa1",
+    "route_suffix": "authority/raw/publish/",
+    "method": "POST",
+    "authentication": "SessionAuthentication with CSRF and IsAuthenticated",
+    "request_body": "empty JSON object only; no client identity, role, authority or time fields",
+    "server_derived_session_and_user_proof_required": true,
+    "current_authenticated_session_and_owner_receipt_collected": false,
+    "production_capture_post_performed": false
+  },
+  "interpretation": {
+    "logical_head_is_not_temporal_current": true,
+    "old_v3_source_reusable_as_current_authority": false,
+    "no_current_source_proven_in_this_snapshot": true,
+    "no_valid_session_exists_globally_claimed": false,
+    "next_gate": "Use a genuinely authenticated and current server session, owner/account policy and exact action preflight to capture a new V3 source through the server-owned endpoint; then candidate-bind configured-validity AuthorityV3/EvidenceV5 lifecycle and independent recovery. Never extend the 30 expired heads, select client authority facts or fabricate owner approval.",
+    "evid01_exit_gate_satisfied": false,
+    "evid09_exit_gate_satisfied": false,
+    "decision_gate_change_authorized": false
+  },
+  "decision": "DENY_CURRENT_ACTOR_SOURCE_EXPIRED"
+}

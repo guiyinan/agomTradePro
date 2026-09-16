@@ -1,0 +1,76 @@
+{
+  "schema": "evid09-target-release-compose-preflight.v1",
+  "recorded_at_utc": "2026-09-15T10:53:25Z",
+  "unit_id": "EVID-09",
+  "environment": "production",
+  "collection_mode": "ssh_read_only_compose_config_and_file_metadata",
+  "current_candidate_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+  "current_release": "20260915110952",
+  "target_release": "20260914021633",
+  "target_source_commit": "6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b",
+  "target_image_id": "sha256:f5647b6d4a17c81963a41dd4d66dee70ccfc4b18e881b368db4b89dda7bf86fd",
+  "target_release_compose": {
+    "release_path": "/opt/agomtradepro/releases/source-20260914021633",
+    "deploy_env_web_image": "agomtradepro-web:20260914021633",
+    "compose_config_images_exit_code": 0,
+    "expected_original_web_tag_occurrences": 4,
+    "expected_original_web_tag": "agomtradepro-web:20260914021633",
+    "original_web_tag_retained": false,
+    "retained_compatible_alias": "agomtradepro-evid09-compatible-rollback:20260914021633",
+    "alias_image_id_matches_target_manifest": true,
+    "compose_uses_compatible_alias": false,
+    "compose_config_is_an_execution_or_image_availability_test": false
+  },
+  "current_release_provenance_verifier": {
+    "script": "scripts/remote_build_deploy_vps.py",
+    "production_script_sha256": "90aa99614ea70dd8c5eadda01ca64aa9d76732ce6eba4610bfd7623e81a393a9",
+    "local_canonical_lf_script_sha256": "90aa99614ea70dd8c5eadda01ca64aa9d76732ce6eba4610bfd7623e81a393a9",
+    "local_windows_crlf_raw_sha256": "f58214126482b90c0fe16dd07149f437474e66bafd54a950a2a9153d4027990e",
+    "local_script_git_diff_from_current_candidate_exit_code": 0,
+    "requires_original_web_tag_equal_to_manifest_tag": true,
+    "requires_docker_image_inspect_original_tag_and_matching_id_oci_before_mutation": true,
+    "entire_deployment_verifier_executed": false,
+    "inference": "Because the target manifest and deploy/.env require agomtradepro-web:20260914021633 while that original tag is missing, the current immutable release provenance check would reject this target before deployment mutation. The compatible alias cannot satisfy that exact-tag check without a separate ID-verified tag action."
+  },
+  "protected_query_host_env": {
+    "target_path": "/opt/agomtradepro/releases/source-20260914021633/deploy/prometheus-query.env",
+    "target_stat_exit_code": 1,
+    "target_status": "missing",
+    "current_path": "/opt/agomtradepro/releases/source-20260915110952/deploy/prometheus-query.env",
+    "current_stat_exit_code": 0,
+    "current_mode": "0600",
+    "current_bytes": 127,
+    "target_authenticated_https_query_verified": false,
+    "current_release_query_acceptance_cannot_be_inherited_by_target": true,
+    "credential_content_collected_or_disclosed": false
+  },
+  "required_before_any_live_switch": [
+    "Natural passing target-image Django system, migration-only and new market.news Published Query results against the exact owner-approved restored post-News clone remain missing.",
+    "The missing target original image tag needs a separate exact-ID checked action envelope; neither --env-file override nor the retained compatible alias may bypass the immutable manifest verifier.",
+    "The target release's missing host-only query env requires a separate secret-safe restoration/verification step and protected TLS query acceptance; do not carry the current release's acceptance across OCI drift.",
+    "Revalidate Authority/policy/Catalog/new News and dump preservation, current/target/forward image IDs, health/ready and fail-closed decision gate, TUI candidate reset, stop/recovery steps and exact owner live authorization."
+  ],
+  "retag_executed": false,
+  "target_release_env_written": false,
+  "container_switch_executed": false,
+  "live_rollback_executed": false,
+  "database_restore_executed": false,
+  "production_mutation_performed": false,
+  "decision": "CANONICAL_TARGET_RELEASE_PREFLIGHT_DENY",
+  "evid09_exit_gate_complete": false,
+  "next_action": "Keep EVID-09 active. First obtain real target-image restored-clone runtime results without narrowing the Django scope; then prepare separately authorized exact original-tag and protected-query host-env actions, followed by full live stop/recovery and TUI-reset preflight.",
+  "references": [
+    {
+      "path": "docs/deployment/evid09-current-target-forward-binding-preflight-2026-09-15-891c40c57.json",
+      "sha256": "6d8caf5d3c0c1ea6a31ba311c7b4aeb4558614aa2e41c53cd0d5ddbd17984830"
+    },
+    {
+      "path": "docs/deployment/evid09-local-isolated-postnews-restore-2026-09-15-891c40c57.json",
+      "sha256": "8cf54d0af36f9e95dbf6aa47d4bb18d72b518963b5217f1cb69f5d0874fe4a59"
+    },
+    {
+      "path": "docs/deployment/tui02-protected-query-repair-2026-09-15-891c40c57.json",
+      "sha256": "a59491773b30be205aa3a8657b3c78bafec73629f325fd045826b4e8b9353b0c"
+    }
+  ]
+}

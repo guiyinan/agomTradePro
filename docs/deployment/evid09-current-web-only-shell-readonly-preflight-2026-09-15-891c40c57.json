@@ -1,0 +1,42 @@
+{
+  "version": "evid09.current-web-only-shell-readonly-preflight.v1",
+  "recorded_at_utc": "2026-09-15T18:54:27Z",
+  "candidate": {
+    "current_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "current_release_id": "20260915110952",
+    "target_commit": "6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b",
+    "target_release_id": "20260914021633"
+  },
+  "raw_remote_result": {
+    "schema": "evid09.web-only-shell-live-readonly-preflight.v1",
+    "observed_at_utc": "2026-09-15T18:53:59.960098Z",
+    "source_sha256": "1de708cf36b4ea8562be38744166f3232ce18dd97db190a5f2c3ed7cd1cbb1d0",
+    "remote_command": "bash -s -- --dry-run",
+    "remote_exit_code": 0,
+    "stdout_marker": "DRY_RUN_ONLY exact images/manifests/backup/query env/Compose/current Web checked; no container changed",
+    "decision": "PASS_READ_ONLY"
+  },
+  "source_bound_interpretation": {
+    "trusted_host_key_used": true,
+    "ssh_source_streamed_over_stdin": true,
+    "shell_source_sha256_matches_operator_pin": true,
+    "flock_executable_available": "inferred from the pinned dry-run shell path: command -v flock must pass before DRY_RUN_ONLY",
+    "current_release_manifest_seal": "inferred from pinned require_current_static: non-symlink 0444 manifest with exact SHA must pass before DRY_RUN_ONLY; the recovery-only read-only flock open was not executed",
+    "exact_current_and_target_image_manifest_backup_query_env_compose_binding": "PASS at the raw observed_at instant; not a future guarantee",
+    "running_current_web_identity_and_health": "PASS at the raw observed_at instant; not a TUI-02 14-day observation gate"
+  },
+  "limits": {
+    "actual_cross_process_vps_lock_contention_exercised": false,
+    "target_web_interval_executed": false,
+    "production_forward_recovery_executed": false,
+    "tui02_candidate_reset_or_rebind_executed": false,
+    "evid09_exit_gate_satisfied": false,
+    "decision": "REMOTE_DRY_RUN_PASS_LIVE_DENY"
+  },
+  "side_effects": {
+    "container_recreated_by_this_check": false,
+    "database_restore": false,
+    "business_dml": false,
+    "production_cutover_evidence_changed": false
+  }
+}

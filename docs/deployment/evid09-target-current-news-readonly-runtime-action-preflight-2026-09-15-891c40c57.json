@@ -1,0 +1,56 @@
+{
+  "schema": "evid09.target-current-news-readonly-runtime-action-preflight.v1",
+  "recorded_at_utc": "2026-09-15T15:52:31Z",
+  "unit_id": "EVID-09",
+  "authorization_source": "Project owner in this task authorized EVID-09 remediation; action is a bounded diagnostic below live switch scope",
+  "current_candidate": {
+    "source_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "release_tag": "20260915110952",
+    "running_web": "healthy",
+    "exact_current_target_forward_backup_dry_run_exit_code": 0
+  },
+  "target": {
+    "source_commit": "6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b",
+    "image_tag": "agomtradepro-web:20260914021633",
+    "image_id": "sha256:f5647b6d4a17c81963a41dd4d66dee70ccfc4b18e881b368db4b89dda7bf86fd",
+    "manifest_and_oci_match": true,
+    "database_url_secret_key_and_encryption_key_match_current": true,
+    "secret_values_collected_or_printed": false
+  },
+  "red_reason": {
+    "prior_local_clone_news_publication_id": "584dfaa8-6f2b-596d-8866-4e5f1b2daa01",
+    "prior_local_clone_news_member_count": 11,
+    "current_production_news_publication_id": "5713bdc5-0810-54ea-a043-119e724d773d",
+    "current_production_news_publication_hash": "aed230f1d3c4e6b322e9533f594421badabe1f52fa513580ef217d2089725375",
+    "current_production_news_member_count": 12,
+    "production_snapshot_observed_at_utc": "2026-09-15T15:48:06.366727Z",
+    "production_preservation_probe_decision": "DENY_DRIFT",
+    "immutable_authority_root_content_hashes_match": true,
+    "current_news_compatibility_with_target_image_proven": false
+  },
+  "proposed_probe": {
+    "container_name": "evid09-target-current-db-readonly-891c40c57-20260915",
+    "source_script": "scripts/evid09_target_current_db_readonly_runtime.py",
+    "target_image_only": true,
+    "network": "container:agomtradepro-web-1",
+    "published_ports": 0,
+    "business_persistent_mounts": 0,
+    "root_filesystem_read_only": true,
+    "tmpfs_only": ["/tmp", "/app/logs"],
+    "security": ["no-new-privileges", "cap-drop ALL", "pids-limit 128"],
+    "postgresql_default_transaction_read_only": "on via PGOPTIONS",
+    "query_snapshot": "REPEATABLE READ READ ONLY; forced rollback",
+    "checks": ["four active strict policies present", "new News current ID/hash/12 coverage", "Published Query selected rows or explicit fail-closed blocked state"],
+    "secret_contents_or_news_article_rows_emitted": false
+  },
+  "stop_lines": [
+    "If exact target/current/backup binding or secret-key equality drifts, do not start the container.",
+    "If PostgreSQL default READ ONLY or transaction isolation is not confirmed, do not issue Application reads.",
+    "If News head changes after the snapshot, return DENY without assuming the old 11-member clone represents current production.",
+    "Do not mount business volumes, publish ports, connect to a paid model or broker, recreate Web/Caddy, move current or reset TUI.",
+    "On exit, verify the temporary container is gone and production Web/current binding, health and decision gate are unchanged."
+  ],
+  "decision": "ALLOW_ONE_ISOLATED_READ_ONLY_TARGET_RUNTIME_PROBE_ONLY",
+  "live_image_switch_authorized_by_this_preflight": false,
+  "database_restore_authorized_by_this_preflight": false
+}

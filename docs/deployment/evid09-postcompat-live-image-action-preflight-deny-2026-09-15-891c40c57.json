@@ -1,0 +1,126 @@
+{
+  "schema": "evid09.postcompat-live-image-action-preflight.v1",
+  "recorded_at_utc": "2026-09-15T12:52:00Z",
+  "unit_id": "EVID-09",
+  "decision": "DENY_BEFORE_LIVE_IMAGE_ACTION",
+  "production_collection": {
+    "observed_at_utc": "2026-09-15T12:46:25.480498Z",
+    "mode": "SSH with existing environment, known-host-key enforced, read-only commands only",
+    "ssh_host_key_fingerprint_hex": "eb9ad05d5d565e59e83e41c23c57bd99",
+    "production_mutation_performed": false
+  },
+  "current_and_forward_recovery": {
+    "current_symlink": "/opt/agomtradepro/releases/source-20260915110952",
+    "source_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "release_tag": "20260915110952",
+    "immutable_manifest_sha256": "b0b58b749ef1488695bb32e158f5d2ead8d83c90d5c5050e1e69d3f5a88b6bb6",
+    "immutable_manifest_mode": "0444",
+    "immutable_manifest_bytes": 379,
+    "original_image_tag": "agomtradepro-web:20260915110952",
+    "original_image_tag_inspect_exit_code": 0,
+    "image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d",
+    "image_oci_revision": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "web_container": "agomtradepro-web-1",
+    "web_state": "running",
+    "web_restart_count": 0,
+    "web_started_at_utc": "2026-09-15T03:22:24.378025837Z",
+    "original_forward_image_retained": true,
+    "forward_recovery_exercised": false,
+    "host_only_query_env_mode": "0600",
+    "host_only_query_env_bytes": 127
+  },
+  "compatible_target": {
+    "source_path": "/opt/agomtradepro/releases/source-20260914021633",
+    "source_commit": "6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b",
+    "release_tag": "20260914021633",
+    "immutable_manifest_sha256": "b5fcfa71f5635fa95e8d24b4822894e5f4ce4bf0b4c99ee8e3fa5be5cd154167",
+    "immutable_manifest_mode": "0444",
+    "immutable_manifest_bytes": 379,
+    "required_original_image_tag": "agomtradepro-web:20260914021633",
+    "required_original_image_tag_inspect_exit_code": 1,
+    "retained_alias": "agomtradepro-evid09-compatible-rollback:20260914021633",
+    "alias_inspect_exit_code": 0,
+    "alias_image_id": "sha256:f5647b6d4a17c81963a41dd4d66dee70ccfc4b18e881b368db4b89dda7bf86fd",
+    "alias_oci_revision": "6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b",
+    "alias_identity_matches_target_manifest": true,
+    "target_host_only_query_env_stat_exit_code": 1,
+    "target_host_only_query_env_status": "missing",
+    "post_news_local_clone_runtime_checks_natural_exit_zero": true,
+    "local_clone_runtime_evidence": "docs/deployment/evid09-target-postnews-isolated-runtime-compatibility-2026-09-15-891c40c57.json"
+  },
+  "preservation": {
+    "retained_post_news_dump_sha256": "0a1210ab4a5e3bd0d8cc2630ce6d3f3c421ab1c28d8b53c00fcc90ed16f7250a",
+    "remote_sha256_read_exit_code": 0,
+    "latest_local_clone_restore_and_read_after_verified": true,
+    "fresh_production_authority_policy_catalog_news_full_baseline_before_live_action": false
+  },
+  "external_https_stop_line_probe": {
+    "https_client_trust_handshake_succeeded": true,
+    "exact_response_time_utc_collected": false,
+    "endpoints": {
+      "/api/health/": {"http_status": 200, "body_status": "ok", "body_sha256": "6d25ea3062174025b4bb5acaff9b6a327c17428683addd059f63255ba0e9bc70"},
+      "/api/health/db/": {"http_status": 200, "body_status": "ok", "body_sha256": "169b317834d3f4907347ad44e3eb8223b2120b9422d0eeea36a48da5132b5f05"},
+      "/api/ready/": {"http_status": 200, "body_status": "ok", "body_sha256": "42edc8be6dbfabefa775186a25a25963d877472db6a9dd0a30844f9b952af0ee"},
+      "/api/decision-ready/": {"http_status": 503, "body_status": "blocked", "body_sha256": "63d78319f52170b229eb9ea66a0dbea706065dd00be4aca6b0662134638e0f1f"}
+    },
+    "decision_gate_must_remain_fail_closed_during_any_exercise": true
+  },
+  "tui02_candidate_cost": {
+    "current_candidate_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "current_candidate_version": "20260915110952",
+    "readiness": "2/10 DENY",
+    "first_retained_sample_at": null,
+    "eligible_at": null,
+    "nominal_observation_end": "2026-09-29",
+    "target_switch_changes_actual_oci_candidate": true,
+    "old_candidate_uat_cleanup_rollback_or_observation_may_be_carried_forward": false,
+    "credited_retained_observation_time_currently_proven": false,
+    "replacement_candidate_observation_end_can_be_assigned_without_new_real_samples": false,
+    "live_switch_requires_explicit_owner_acceptance_of_rebinding_and_reset": true
+  },
+  "manual_runner_source_audit": {
+    "canonical_script": "scripts/remote_build_deploy_vps.py",
+    "source_diff_current_candidate_to_workspace_exit_code": 0,
+    "script_action_choices": ["fresh", "upgrade"],
+    "standalone_manual_rollback_action_available": false,
+    "automatic_failure_rollback_only": true,
+    "automatic_failure_rollback_uses_compose_down_remove_orphans": true,
+    "automatic_failure_rollback_runs_tui_registry_publish": true,
+    "automatic_failure_rollback_approved_as_manual_evid09_exercise": false,
+    "target_current_compose_and_caddy_source_diff_exit_code": 0,
+    "target_compose_original_image_tag_references": 4,
+    "exact_target_compose_source_config_is_image_availability_or_live_switch_proof": false
+  },
+  "remaining_pre_live_conditions": [
+    "Implement and test a dedicated fail-closed controlled image-exercise runner with dry-run default and exact current/target/forward identity checks; do not repurpose the fresh/upgrade or automatic failure rollback path.",
+    "Bind an owner-approved production action for the missing original target web tag that verifies alias image ID and OCI before and after retag; do not bypass the immutable manifest verifier.",
+    "Bind an owner-approved secret-safe target host-only protected-query env source and verify mode, compose/TLS acceptance without printing credentials.",
+    "Decide the exact service switch scope and quantify TUI-02 candidate reset/re-attestation; do not inherit prior observation or UAT.",
+    "Immediately before action, recheck current/target/forward manifests/images, backup, Authority/Policy/Catalog/new-News preservation, health/db/ready and decision 503 blocked stop line.",
+    "Define bounded stop and forward-recovery steps that preserve PostgreSQL and production business data; collect actual rollback and forward exit evidence.",
+    "Obtain separate exact owner authorization for production retag/env mutation and controlled live image exercise, including accepted downtime and TUI reset cost."
+  ],
+  "owner_authorization_boundary": {
+    "local_docker_desktop_restart_and_exact_clone_restore_approved": true,
+    "production_original_tag_repair_approved": false,
+    "production_target_query_env_write_approved": false,
+    "production_live_image_switch_approved": false,
+    "production_database_restore_approved": false
+  },
+  "actions_not_performed": [
+    "production retag or host-only env write",
+    "production container switch or symlink cutover",
+    "live rollback or forward recovery",
+    "database restore, business DML or deletion",
+    "TUI candidate reset or fake observation",
+    "paid model call or real trade"
+  ],
+  "evid09_exit_gate_complete": false,
+  "next_repository_work": "EVID-09 dedicated fail-closed controlled image-exercise preflight/runner and focused tests, then renewed production dry-run and exact owner live authorization; keep all production mutation DENY meanwhile",
+  "references": [
+    "docs/deployment/evid09-target-postnews-isolated-runtime-compatibility-2026-09-15-891c40c57.json",
+    "docs/deployment/evid09-current-target-forward-binding-preflight-2026-09-15-891c40c57.json",
+    "docs/deployment/evid09-target-release-compose-preflight-deny-2026-09-15-891c40c57.json",
+    "docs/deployment/tui02-candidate-rebind-2026-09-15-891c40c57.json"
+  ]
+}

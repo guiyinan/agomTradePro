@@ -727,8 +727,116 @@ active 状态或未提供人工签名反向推导新的门槛。DATA-02 两次�
 
 [失败证据封存](../deployment/evid09-compatible-rollback-fixture-failures-2026-09-14.json)保留两次原件；后续只补 public.simulated_account_row_source_v2_ledger 的 scratch UPDATE 锁权限，不修改生产角色、15s/5s 预算或有效期。完整 19 组账本部署保全仍待真正 backup-derived before 对照，不能将失败当通过。本地新备份 153542945 B/SHA3e93 已完整独立核对，与远端一致，备份验证不等于应用回滚验收。
 
-## 22. 2026-09-15 兼容镜像隔离回滚通过与 EVID-09 退出
+## 22. 2026-09-15 兼容镜像隔离回滚通过（旧候选隔离范围）
 
 V9 仅为 scratch 角色补齐 22 张来源锁表的 `UPDATE` 锁权限，生产角色、有效期、15 秒 statement timeout 和 5 秒 lock timeout 未改变。离线控制全部通过后，使用已核验备份 `153532742 bytes / 8bc8ed47…` 在专属 PostgreSQL 16.15 副本实际完成 `ba1605fa2/d407e93e → 6760c9aa/f5647b6d → ba1605fa2/d407e93e` 三阶段演练；每阶段 HTTPS health、Django deploy check、migration check-only、typed Facade current/historical exact 均通过。Stage A 禁止业务 DML 为零，Stage B 为新 backend 的 repeatable-read/read-only；19 组账本 rowset、策略/Catalog 基线和 DATA-02 runtime profile 三阶段一致。
 
-[独立技术复核](../deployment/evid09-compatible-rollback-rehearsal-2026-09-15.json)绑定原始 `328314 bytes / eae558bf…`，实际进程 exit 0。生产 CID、source/image、healthy、restart 0 前后完全一致；没有生产切流、生产数据库 restore 或 provider 请求。本次专属容器、volume、network 和临时凭据均按拥有权清理。至此 EVID-09 的代码、三次最终候选 PostgreSQL 测量、标准部署、真实 production lifecycle/独立恢复及兼容回滚证据全部满足，EVID-09 可标记 completed；EVID-01/02、DATA-02、AUD-03、TAR-05、TUI-02 及人工签署继续独立 fail-closed。
+[独立技术复核](../deployment/evid09-compatible-rollback-rehearsal-2026-09-15.json)绑定原始 `328314 bytes / eae558bf…`，实际进程 exit 0。生产 CID、source/image、healthy、restart 0 前后完全一致；没有生产切流、生产数据库 restore 或 provider 请求。本次专属容器、volume、network 和临时凭据均按拥有权清理。这是旧 BA 候选的 scratch 技术演练，不含现行 891c40c57 的生产切流或前进恢复；EVID-09 现行 exit gate 未满足，保持 active。EVID-01/02、DATA-02、AUD-03、TAR-05、TUI-02 及人工签署继续独立 fail-closed。
+
+## 23. 新部署后的 EVID-09 回滚镜像边界（2026-09-15）
+
+现行 web 经只读 container inspect 为 `891c40c57` / `20260915110952`、运行中且
+restart 0。优化候选 `f121000` 的历史运行镜像 ID 现不可 inspect；保留的 EVID-09
+兼容回滚标签仍存在，但 OCI revision 是更早的 `6760c9aa`。直接上一版 web 镜像
+revision 为 `ba1605fa`，亦不是 `f121000`。原有生命周期、隔离 PG 测量与恢复原件
+仍有效于它们各自冻结的候选，不替代当前镜像回滚演练。
+
+精确输出见 [只读绑定检查点](../deployment/evid09-rollback-binding-checkpoint-2026-09-15.json)。
+本次没有启动 live rollback、数据库 restore、生产重启或历史观察回填。EVID-09 保持
+`active`；先明确 `891c40c57` 的目标/前进恢复镜像、备份/保留基线、停止线和 TUI-02
+观察重置代价，再核验该精确动作的授权，不把旧标签当成现成的安全回滚证明。
+
+## 24. 当前候选保护基线的只读复核（2026-09-15）
+
+[候选绑定的只读保护基线](../deployment/evid09-current-candidate-preservation-readonly-2026-09-15-891c40c57.json)
+证明当前 web 的四条 committed Authority 根/零撤销仍与旧指纹逐项一致。
+all-persisted policy/Catalog rowset SHA 发生漂移，不能沿用“全部字段 unchanged”；
+不过 10 条活动 policy 的业务字段与 immutable identity 均等于 2026-09-14
+基线，三组 Catalog Domain 值等于 reviewed projection，相关 governance manifests
+从 f121000 至 891c40c57 未改。同步/重激活的 updated_at 更新能解释
+摘要变化的一部分，不自动证明每个存储字段都只有时间戳变化。
+
+Financial/Price/Quote 三条旧 current 元数据未变，但 News 于 03:00 UTC
+发布了新 current；03:17 UTC 的现有备份已核对大小与 SHA，未做 restore。
+兼容目标、forward recovery、strict policy/新 News current 兼容性、TUI-02
+观察重置和精确 live rollback 授权仍缺。没有执行 rollback，EVID-09
+exit gate 未满足；下一步不可把旧版本四项 current 恒等断言原样套到现行生产。
+
+兼容目标 6760c9aa 与现行 891c40c57 在三组 migration 目录、选定
+Publication read/model/policy 文件及四份治理投影上的静态 diff 为零；
+它不替代包含新 News current 的隔离库运行或受控回滚验收。
+
+## 25. 本机现有备份入口就绪，restore 等待目标确认（2026-09-15）
+
+[隔离入口 preflight](../deployment/evid09-existing-backup-local-isolation-preflight-2026-09-15-891c40c57.json)
+证明只下载现有 post-News 生产归档，无新建/清理 VPS 备份。
+154912289 bytes、SHA 0a1210ab…f7250a、远端/本机 pg_restore --list
+manifest SHA a143a55f…9021f564 均匹配，TOC 7569 项；本机 Docker
+PostgreSQL 16 工具镜像可用。任务专用 disposable 容器/数据库目标不存在，
+但备份技能要求 owner 明确确认该精确 restore 目标，故尚未 restore 或做
+兼容镜像 runtime 测试。EVID-09 exit gate 仍未满足，生产不变。
+
+只读补审一份历史 v9 原件：上一候选 ba1605fa 的旧克隆库中，
+ba1605fa/6760c9aa/ba1605fa 三阶段 technical code switch、
+health 与 typed reader 通过且 owned cleanup 完整；原报告仍将
+compatible_rollback_gate_passed 置 false。它不涉及本次 891c40c57
+或新 News current，不能替代待确认的本机 restore 与新候选实测。
+
+f121000 至 891c40c57 的优化生命周期 Account/Source V2/shared snapshot
+及所列测试源码精确 diff 为零。历史 27 阶段真实生命周期仍与现行实现
+同源，但旧候选时间/DB 状态不自动继承；当前缺口仍是新 dump 隔离
+兼容证明和受控 live image rollback。
+
+## 26. 已核验 post-News dump 的本机隔离 restore（2026-09-15）
+
+owner 已显式确认精确的一次性本机 PG 容器/数据库。
+[结构化 restore 检查点](../deployment/evid09-local-isolated-postnews-restore-2026-09-15-891c40c57.json)
+记录 dump SHA 再核、无网络/零端口/只读归档、空目标库及
+`pg_restore --exit-on-error` 退出 0。克隆库 561 张 public 表、511 条
+迁移；四根/零撤销、14/10 policy、Catalog 10/15/10，以及今日新
+`market.news` current 的 ID/hash/时间均与候选保护基线一致。
+
+目标 `6760c9aa` OCI 镜像经完整重导返回远端 save 0/本机 load 0；
+首次中断导入留下本机 missing snapshot，已清理该损坏本机标签，
+不能把那次 ID inspect 当运行时通过。新镜像已实际启动并通过本机
+PG loopback，app 根文件系统只读而日志使用 tmpfs，DB 会话默认为
+read-only。Django check、migration check、News Published Query 分别
+在约 55/46/35 分钟本机窗口内活跃但未返回最终结果；任务 app 容器
+随后停止并移除，故没有自然通过退出码，目标 Django runtime 兼容
+保持未验证。PG 容器已停止，专用卷与原 dump 保留；停前再次只读核验
+四根/零撤销、10 活动策略、新 News current 精确一致。
+本机 restore 不等于生产 live rollback。EVID-09 保持 active，
+TUI 观察重置、镜像恢复绑定与 live 授权缺口不变。
+
+## 27. 现行／目标／前进恢复身份与 manifest tag 缺口（2026-09-15）
+
+新的[三元组只读 preflight](../deployment/evid09-current-target-forward-binding-preflight-2026-09-15-891c40c57.json)
+把 production current `891c40c57` / `20260915110952` / `554f816b…c164d`
+与目标 `6760c9aa` / `20260914021633` / `f5647b6d…a7bf86fd`、
+前进恢复的现行 immutable image tag 精确绑定。两份 release manifest 均
+mode 0444/379 字节并有 SHA；web running/restart 0，当前原始 image tag
+留存。目标 manifest 所指的原始 web tag 已不存在，只有 EVID-09 兼容别名
+指向同一 ID/OCI。身份绑定不是 Compose 可直接执行的回滚：精确 retag/
+override、目标新 clone Django 兼容结果、TUI-02 候选重置和 protected query、
+真实 stop/recovery check 及 owner 的 live action 授权尚缺。
+
+本机又以单一目标 Python 进程运行约一小时，停在 `django.setup()` 前后
+的启动路径，没有 `django_setup_done`、News 读结果或自然退出码；该进程
+随后随本轮 task-only app 容器停止，不记为失败的目标兼容测试，也不记为
+通过。克隆 PG 容器停止、卷和原 dump 保留。EVID-09 继续 active，
+生产容器/数据库/观察窗口均未被本检查点修改。
+
+## 28. 目标旧 release 的执行前 DENY（2026-09-15）
+
+[只读 Compose/provenance preflight](../deployment/evid09-target-release-compose-preflight-deny-2026-09-15-891c40c57.json)
+证明目标 `deploy/.env` 与 Compose 四处镜像引用均要求已缺失的原始
+`agomtradepro-web:20260914021633` 标签；别名虽同 image ID，却不会由
+Compose 自动采用。当前 production verifier 脚本的 LF SHA 与本地
+canonical LF SHA 一致，并在 mutation 前检查原始 tag 的 ID/OCI；
+整个 verifier 未执行，标准目标 preflight 的 fail-closed 是由真实源码
+和缺失标签作出的明确推断。目标 release 的 host-only
+`prometheus-query.env` 也缺失，现行 release 文件仅以 stat 检得
+0600/127 字节，不收集凭据。目标 protected query 和 TUI-02 观察
+不能继承现行验收。没有 retag、env 写入、镜像切换或数据库动作；
+EVID-09 的目标 clone Django 结果、精确 live action 与 stop/recovery
+仍为退出门硬缺口。

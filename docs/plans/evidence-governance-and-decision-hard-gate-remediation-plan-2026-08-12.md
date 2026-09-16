@@ -5377,3 +5377,762 @@ uniqueness validation 时错误查询 default 数据库的问题。AuthorityV3 r
 该完成状态只代表本地 repository 实现和隔离数据库验收。它没有创建生产 owner assignment、登录、
 人工审批、执行权限、数据质量豁免或观察窗口。repository focus 已释放；按既定顺序继续 DATA-02 的
 生产只读预检和具备真实输入的受控批次，再收集 EVID-01/02 的候选绑定审批证据，之后进入 AUD-03、TAR-05。
+
+## 2026-09-15：EVID-09 生产候选与镜像回滚绑定复核
+
+EVID-09 的三组隔离 PostgreSQL 测量、`f121000` 上的 27 阶段真实生命周期及独立六项恢复证据，
+仍按 [实施记录](evid08-facade-write-performance-remediation-2026-09-13.md#20-第三组最终候选-postgresql-测量与剩余退出门)
+与既有原件保留，不改写原观察时间。2026-09-15 的 DATA-12 代码升级后，实际生产 web
+为 `891c40c57` / `20260915110952`、镜像
+`sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d`；
+容器 `running`、restart 0。`main@188bad8d6` 的后续文档合并不是另一部署。
+
+[只读镜像绑定检查点](../deployment/evid09-rollback-binding-checkpoint-2026-09-15.json)
+确认历史优化镜像 ID `sha256:b288b16a…` 和旧 pre-optimized ID `sha256:2ec2969b…`
+已不可在该主机 inspect；保留的 EVID-09 兼容回滚标签指向 `6760c9aa` 的
+`sha256:f5647b6d…`，直接上一版 web 标签则指向 `ba1605fa` 的 `sha256:d407e93e…`。
+因此历史 seal 的“两个兼容镜像 pinned”不能当作当前 `891c40c57 → f121000` 的可执行
+回滚计划，也不能从标签存在推导 `891c40c57 → 6760c9aa` 对现有数据安全。
+
+本轮只执行 SSH `docker image inspect` / `docker images` / `docker inspect`；未改生产、未回滚、
+未 restore、未重启。EVID-09 继续 `active`，唯一 repository focus 不变。下一步在任何 live exercise
+前绑定精确现行/目标/恢复镜像与 release、核对备份及 Authority/Publication/Catalog 保留基线、
+健康和停止线、TUI-02 观察重置影响与单一所有者对该 live rollback 的精确授权；无法满足时
+保持 DEFER。DATA-02、EVID-01/02、AUD-03、TAR-05 的独立退出门不因本检查点改变。
+
+## 2026-09-15：EVID-09 当前候选保护基线与新 current 漂移
+
+在现行 891c40c57 / 20260915110952 healthy web 上，远端确认 current symlink、
+Git commit、web image/container 后，使用 stdin-only docker exec 在
+REPEATABLE READ READ ONLY PostgreSQL 快照复用旧指纹算法。四条 Authority 根
+的 content hash 与 canonical payload hash、零撤销均逐项等于 2026-09-14
+生产基线。14 条 Publication policy 与三组 Catalog 的 all-persisted-fields SHA
+则不相等；10 条活动 policy 的业务字段及 identity 精确等于旧基线，三组 Catalog
+Domain 值等于当前 reviewed projection，且四份治理投影在 f121000 → 891c40c57
+间的 Git diff 为零。观察到 updated_at 更新至 2026-09-15，符合同步/重激活
+路径；但仅凭这一点不得把全部字段摘要漂移称为“无变化”。
+
+四个 published-current 元数据中，Financial/Price/Quote identity 未变，
+market.news 已于 2026-09-15T03:00:32Z 真正发布新 current
+584dfaa8-6f2b-596d-8866-4e5f1b2daa01，不能套用 2026-09-14 的
+四项恒等基线。现有生产备份 postgres-20260915-051628.dump 的
+154912289 bytes 与 SHA 0a1210ab…f7250a 已再度只读核验，创建时间在
+News 新 current 之后；它未做 restore 验证。精确来源、摘要、差异与停止线见
+[当前候选只读保护基线](../deployment/evid09-current-candidate-preservation-readonly-2026-09-15-891c40c57.json)。
+
+本次没有业务 DML、远端诊断脚本落盘、容器重启、live rollback 或 database restore。
+EVID-09 保持唯一 repository focus 且仍 active：先证明兼容目标镜像对四条
+严格 policy 与新增 News current 的实际可读/可恢复性，绑定现行/目标/前进恢复
+镜像和 TUI-02 重置代价、停止/恢复线及精确授权，之后才可考虑受控 live
+exercise。该基线不能关闭 DATA-02/EVID-01/02/AUD-03/TAR-05 的生产门。
+
+作为静态筛查，兼容目标 6760c9aa 与当前 891c40c57 的 Account/Data
+Center/Config Center migration 目录、选定 Publication model/read/policy
+文件及四份 Catalog/Policy 治理投影，精确 git diff --exit-code 为 0。
+这只排除了所列范围的源码/迁移漂移；并未在含今日 News current 的隔离
+恢复库上运行目标镜像，也不构成 live rollback 的授权或通过证据。
+
+## 2026-09-15：EVID-09 现有备份的本机隔离验证入口
+
+按 backup-vps-postgres 的 download-latest 只下载了已经存在的
+postgres-20260915-051628.dump；VPS 没有创建新 dump、prune 或 restore。
+本机文件位于 Git 忽略的任务专用目录，大小 154912289 bytes，SHA-256
+0a1210ab…f7250a 与远端、同名 sidecar 和部署证据一致。远端与本机 PostgreSQL 16
+的 pg_restore --list manifest SHA 同为 a143a55f…9021f564，TOC 有 7569 项。
+[下载和隔离入口证据](../deployment/evid09-existing-backup-local-isolation-preflight-2026-09-15-891c40c57.json)
+记录了操作边界与目标。Docker Desktop 已在本机启动；拟用的唯一一次性目标
+为容器 evid09-compat-pg-891c40c57-20260915、库
+evid09_compat_891c40c57，两个目标当前均不存在。
+
+备份技能明确要求 owner 在 restore 前确认精确目标，因此这轮仅做归档下载、
+hash/manifest 读取和目标不存在的 preflight，不执行本机或生产数据库 restore。
+收到 owner 对上述一次性本机目标的显式确认后，才能在隔离库上验证兼容源码/
+镜像读取四项严格 policy、四条根和今日 News current；即使隔离验证通过，
+live image rollback 仍需另外绑定现行/目标/前进恢复与真实停止线。
+EVID-09 维持 active，仓库唯一焦点不变。
+
+同一 preflight 还只读审计了未纳入现行候选判断的历史 v9 隔离原件：
+2026-09-15 02:37–02:49 UTC，在上一候选 ba1605fa 的旧 dump 克隆库中，
+ba1605fa → 6760c9aa → ba1605fa 三阶段技术切换、HTTP health 200、
+deployment/migration check 0 与 typed application reader 均真实通过，
+生产身份未变、owned cleanup 已核验。原件 SHA eae558bf…d7071，
+但原报告的 compatible_rollback_gate_passed 明确为 false。此技术
+演练可以指导新候选的测试操作，不证明 891c40c57 的今日 News current
+兼容，也不能跳过新 dump 的隔离验证或 owner 对本机 restore 目标的确认。
+
+最后独立核对 f121000 已通过 27 阶段真实生命周期的优化代码到现行
+891c40c57：Account、Simulated Trading Source V2、共享 immutable read
+snapshot 及所列聚焦测试范围的 git diff --exit-code 为 0。
+[当前候选保护基线原件](../deployment/evid09-current-candidate-preservation-readonly-2026-09-15-891c40c57.json)
+记录了精确范围。这保留旧生命周期的 source relevance，避免仅因 DATA-12
+后续部署就误判 EVID-09 实现源码漂移；但不生成新的现行候选生产运行时间，
+也不补兼容镜像 rollback 退出证据。
+
+## 2026-09-15：EVID-09 精确获批的本机 post-News 归档 restore
+
+项目所有者在本任务中明确确认仅将已核验 dump 恢复至本机一次性容器
+`evid09-compat-pg-891c40c57-20260915` 的库
+`evid09_compat_891c40c57`。执行前重新核对本机 SHA-256
+`0a1210ab…f7250a`、sidecar、容器/卷不存在及目标库 public 表为零。
+PostgreSQL 16 容器以 `network=none`、零端口和只读归档挂载运行；
+`pg_restore --no-owner --no-acl --exit-on-error` 的真实退出码为 0，
+只写入该精确克隆库。写后在 `REPEATABLE READ READ ONLY` 中得到
+561 张 public 表、511 条 Django migrations、四条 committed Authority 根/
+零撤销、14 条 policy（10 活动）、三组 Catalog 10/15/10；
+四条已发布 current 中的新 `market.news` ID/hash/03:00:32Z 与现行
+生产只读检查点精确匹配。结构化来源与非生产边界见
+[本机隔离 restore 检查点](../deployment/evid09-local-isolated-postnews-restore-2026-09-15-891c40c57.json)。
+
+现有兼容镜像 `6760c9aa` 已以只读 SSH 流完整重导至本机，远端
+`docker save`、本机 `docker image load` 均退出 0；首次中断导入造成
+本机 missing snapshot 的失败已单独保留，损坏标签只在本机删除。
+镜像可启动 Python，app 容器只读根加日志 tmpfs，共享隔离 PostgreSQL
+容器的无网络 loopback，`default_transaction_read_only=on` 已核实。
+完整 Django system check、`migrate --check` 及新 News current 的
+Published Query 分别持续约 55/46/35 分钟，进程活跃但无最终结果；
+达到本机有界等待线后，仅停止任务 app 容器，三个命令没有自然通过
+退出码，不宣称目标 Django runtime 兼容。停前再次 READ ONLY 核对
+四根/零撤销、10 活动策略与新 News current 精确匹配；app 临时容器
+已移除，PG 容器已停止，专用卷与原 dump 均保留，可恢复复核。
+生产没有 restore、重启、业务 DML、live rollback 或 TUI 观察重置；
+EVID-09 继续 active，受控 live rollback 的镜像三元组、停线、TUI 代价
+和精确授权仍独立缺失。结构化检查点附同名 SHA-256 sidecar。
+
+## 2026-09-15：EVID-09 当前／目标／前进恢复镜像只读绑定
+
+本轮以既有 VPS 用户／密码环境建立只读 SSH，会话没有执行部署脚本或生产写入。
+2026-09-15T10:34:02Z 复核 production current symlink 指向
+`source-20260915110952`，Git/manifest/运行中 web/OCI 均为
+`891c40c57` / release `20260915110952` / image
+`sha256:554f816b…c164d`；web 为 running、restart 0。当前 379 字节
+manifest mode 0444、SHA-256 `b0b58b74…8b6bb6`，原始
+`agomtradepro-web:20260915110952` 标签仍指向同一 image ID，故该
+留存镜像和 release 可作为**前进恢复身份**绑定，但恢复动作尚未演练。
+
+目标 `source-20260914021633` 的 379 字节 immutable manifest 仍在，
+SHA-256 `b5fcfa71…54167`，记录 `6760c9aa` / image
+`sha256:f5647b6d…dda7bf86fd`。其原始 `agomtradepro-web:20260914021633`
+标签已消失；仅保留的 `agomtradepro-evid09-compatible-rollback:20260914021633`
+别名与 manifest 的 image ID/OCI 精确相等。因此三方**身份**已绑定，
+但目标 manifest tag 尚不能直接由 Compose 解析；任何 retag/切换必须进入
+另行批准且精确核验 ID 的 live action envelope，不能由只读 preflight 代做。
+[三元组 preflight 原件](../deployment/evid09-current-target-forward-binding-preflight-2026-09-15-891c40c57.json)
+及 sidecar 记录远端 manifest hash、镜像标签/ID、停止线和无生产 mutation。
+
+目标镜像在 owner 批准的 post-News 本机 clone 上的 Django system、迁移只读
+检查和 `market.news` Published Query 仍缺自然通过退出码。上一轮单进程
+`django.setup()` 约一小时也未收敛，任务 app 容器已移除；PG 容器停止，
+已恢复的专用卷与原 dump 保留。目标技术兼容不能由 source diff、历史旧 dump
+技术切换或当前镜像身份推定。TUI-02 当前 `2/10 DENY`、首样本/eligible 为 null；
+切到旧 OCI 必然造成候选漂移，所有旧候选门和观察不得继承，旧 release 的
+host-only protected query env 亦未核验。先取得目标镜像对新 clone 的真实应用
+读结果、解决目标 tag 缺口、再做最新数据/备份/health/TUI 停线核对并取得
+精确 live 授权；任何条件缺失保持 DENY。未执行 live rollback、前进恢复、
+数据库 restore、生产重启或业务 DML，EVID-09 仍 active。
+
+## 2026-09-15：EVID-09 目标 release 的只读 Compose／provenance DENY
+
+沿用只读 SSH，在精确 `source-20260914021633` 上读取 `WEB_IMAGE` 并运行
+`docker compose ... config --images`：dry-run 退出 0，却在四处解析出
+`agomtradepro-web:20260914021633`，没有采用保留的兼容别名。前一三元组
+检查点已确认该原始标签不可 inspect；Compose 配置能展开不等于镜像可用。
+当前候选发布脚本 `scripts/remote_build_deploy_vps.py` 的 production SHA 与
+本地 canonical LF SHA 同为 `90aa9961…393a9`，本地原始 CRLF 字节 SHA
+`f5821412…27990e` 的差别仅是换行；`891c40c57→HEAD` 源码 diff=0。
+该真实脚本在任何 deployment mutation 前强制要求 manifest 的
+`agomtradepro-web:<release>` 原始标签可 inspect 且 ID/OCI 精确匹配。
+本轮**未执行整个 verifier**；由已缺失标签与源码契约推断，当前标准
+目标 release preflight 会在 mutation 前 fail-closed，不能靠别名或
+`--env-file` override 跳过。
+
+另以 `stat` 只读核对：目标旧 release 的
+`deploy/prometheus-query.env` 不存在，现行 release 的同名 host-only env
+为 mode 0600、127 字节；没有读取或输出凭据。这说明旧 OCI 目标不能
+继承现行 TUI-02 protected HTTPS query 验收，任何 live 切换前须独立
+恢复并重新核验目标 release 的 host-only 配置。精确 command status、
+source/hash、停止线与无 mutation 见
+[目标 release DENY 原件](../deployment/evid09-target-release-compose-preflight-deny-2026-09-15-891c40c57.json)
+及 SHA sidecar。EVID-09 仍 active，目标 post-News clone 上的 Django/
+migration/News 自然通过仍缺；retag、env 写入、live rollback、生产 restore、
+TUI 观察重置均未执行。下一步先取得不缩小范围的真实目标运行时结果，
+再准备需另行精确授权的原始 tag 与 query-env 操作包。
+
+## 2026-09-15：EVID-09 目标 OCI 在 post-News 本机 clone 上的运行时兼容实证
+
+owner 本任务内明确允许重启本机 Docker Desktop。管理命令
+`docker desktop restart --timeout 180` 因启动窗口到期退出 1；该超时不是引擎
+终态，随后 WSL distro 列举退出 0，Desktop 的新管理会话进入 `running`。
+重启时旧只读镜像 inspect 的 EOF 只表示连接中断。目标本机 OCI 镜像
+`sha256:f5647b6d…dda7bf86fd` / revision `6760c9aa`、精确 PG 容器、
+专用卷与 dump 重新 inspect/hash 均与先前已核验身份一致；没有再运行 restore。
+
+只启动一个任务 app 容器，使用 `core.settings.production` 与本机临时生成密钥，
+根目录只读、`/tmp` 和 `/app/logs` tmpfs、零端口、共享已获批 PG 容器的
+无外网 loopback。app 到 `evid09_compat_891c40c57` 的真实 PostgreSQL 会话
+显示 `default_transaction_read_only=on`。先用 30 秒 faulthandler 栈快照
+测量目标 `django.setup()`；快照从 Daphne/Twisted、业务模型等模块导入
+持续移动，最终打印完成标记并自然退出 0，不再把导入耗时误判为库锁。
+随后独立 `python manage.py check --deploy` 退出 0（一项本机 HSTS
+`security.W004` 警告、一项既有 silenced warning），
+`python manage.py migrate --check --noinput` 退出 0，且 app DB 会话仍只读。
+
+最后目标镜像的 Application 读进程也自然退出 0：四条严格 active policy
+的业务字段与 `governance/publication_policies.json` 精确一致，四个 immutable
+`p2` identity 与 2026-09-14 preservation 原件逐个一致；
+`market.news/current` 的 ID `584dfaa8…daa01`、hash `c71a4f36…63e8f`、
+冻结覆盖 `11/11` 与现行候选及克隆复核匹配。真实读时 gate 为 `fresh`、
+`must_not_use_for_decision=false`，Published Query 返回 11 条成员；此 freshness
+只声明在实际读样本时成立，不把它外推成后续日期的决策授权。读后
+`REPEATABLE READ READ ONLY` 再得 561 表、511 migrations、14/10 policy、
+四根/零撤销及相同 News ID/hash。任务 app 无持久挂载，已停止移除；原 PG
+容器已安全停止，专用卷、原 dump 和兼容镜像继续保留，可复核。
+[本机目标运行时兼容检查点](../deployment/evid09-target-postnews-isolated-runtime-compatibility-2026-09-15-891c40c57.json)
+及 SHA sidecar 给出逐项自然 exit、读值、只读边界与最终状态，明确取代上文
+“目标 Django runtime 尚无自然结果”的时点性缺口。
+
+这只解除 **post-News clone 上目标 OCI 的列明技术兼容未知**，不等于生产
+live rollback / 前进恢复、DATA-02 决策 readiness 或 EVID-09 完整 exit。
+目标 release 的原始 `agomtradepro-web:20260914021633` tag 与 host-only
+protected-query env 在 VPS 上仍缺；标准 Compose/provenance 前置继续 DENY。
+下一个门是最新只读再绑现行/目标/前进恢复三元组、备份及
+Authority/Policy/Catalog/News preservation 基线，量化 TUI-02 现行 `2/10
+DENY` 观察重置代价，形成精确 retag/query-env/停线/恢复动作包并取得
+owner 对 **live image rollback** 的另行授权；技术条件或授权缺一均不切换。
+本轮没有生产 retag/env 写入、container 重建、database restore、live rollback、
+TUI 观察重置或交易。EVID-09 仍是唯一 repository focus、状态 `active`。
+
+## 2026-09-15：post-compat 生产动作前检仍 DENY
+
+本机目标 runtime 自然通过后，再以已信任 host key 的只读 SSH 复核真实
+生产绑定：现行仍是 `891c40c57` / `20260915110952`，运行 Web
+image ID `sha256:554f816b…38c164d` 与 OCI revision 精确一致；
+现行 `agomtradepro-web:20260915110952` 留存，作为前进恢复身份，
+但前进恢复**尚未实际演练**。目标 `6760c9aa` / `20260914021633`
+的 immutable manifest 与兼容别名同 ID/OCI；要求的原始
+`agomtradepro-web:20260914021633` 仍不可 inspect，目标 release 的
+host-only `deploy/prometheus-query.env` 仍不存在。现行 env 仅核验
+0600/127 字节，未读取凭据。post-News dump 的远端 SHA 再核退出 0。
+
+受信任公网 HTTPS 的四个只读停止线本轮为 health/db/ready `200 ok`、
+decision-ready `503 blocked`，不是决策门解锁。TUI-02 现行候选仍
+`2/10 DENY`、`first_retained_sample_at=null`、`eligible_at=null`；
+`2026-09-29` 只属于现行名义观察终点，换旧 OCI 后不可继承旧 UAT、
+cleanup、rollback 或观察，也不能凭空给替代候选指定 14 日终点。
+
+源码核验还发现独立手动动作入口缺失：
+`scripts/remote_build_deploy_vps.py` 仅提供 `fresh/upgrade`，内置
+`rollback_deployment()` 是部署失败 trap，包含
+`docker compose down --remove-orphans` 和 TUI registry 发布，不是
+这次 EVID-09 可直接调用的受控 live image exercise。现行/目标
+Compose 与 Caddyfile 源码 diff=0，也不自动修复 tag/env 缺口。
+[post-compat 动作前检 DENY 原件](../deployment/evid09-postcompat-live-image-action-preflight-deny-2026-09-15-891c40c57.json)
+及同名 SHA sidecar 固定此次命令事实和授权边界。
+
+因此下一项安全仓库工作是独立、默认 dry-run、fail-closed 的受控镜像
+演练入口及聚焦测试；在完成最新只读 preservation/backup/stop-line
+复核和精确 owner 对生产 retag、query-env、服务切换、可接受停机及
+TUI-02 候选重绑/重计时的另行授权前，不执行 live action。
+不得借本机 Docker 重启许可或 clone restore 许可推导生产权限。
+本次没有生产 retag、env 写入、Web 切换、数据库 restore、TUI reset
+或真实 rollback/forward recovery；EVID-09 exit 仍 false。
+
+## 2026-09-15：owner 授权后目标标签与受保护查询配置的有界修复
+
+本轮新增独立入口 `scripts/evid09-controlled-image-exercise.sh`，默认
+`--dry-run`，逐项核验现行 symlink、现行/目标不可变 manifest 的 SHA/0444/
+身份、现行及目标兼容 alias 的 image ID/OCI、运行中 Web、现行查询文件
+和留存 post-News dump SHA；原始目标 tag 或目标查询文件缺失则返回 DENY。
+四项聚焦源契约测试和远端 `bash -n` 通过。未复用标准发布脚本的
+`fresh/upgrade` 或其 `compose down --remove-orphans` 自动回退。
+
+按本任务项目 owner 的授权，受信任 host key 的生产 dry-run 首次退出 1，
+准确指出两项缺失；仅执行 `--repair-prerequisites`：先核对专用 alias 的
+目标 ID/OCI，再复原 manifest 要求的原始 web tag 并重核身份；从现行
+release 复制 host-only protected-query env 到目标 release，安装为 0600，
+仅用 byte comparison 验证同源，不输出凭据。目标 Compose `config --quiet`
+退出 0，后续远端 dry-run 退出 0；没有重建 Web/Caddy、移动 current、
+restore PostgreSQL、业务 DML 或重置 TUI。新[修复检查点](../deployment/evid09-target-prerequisites-repair-2026-09-15-891c40c57.json)
+及 SHA sidecar 是这次有界生产 mutation 的原件；上节 DENY 是修复前的
+真实时点结论，保留不改写。
+
+**live image exercise 仍 DENY。** 入口的 `--exercise` 分支在缺少真正
+新鲜的 Authority/Policy/Catalog/News 保全、TLS/health/decision 503 停线、
+受控 Web 切换与前进恢复实证绑定时显式拒绝，不把环境准备误称为完整
+手动 rollback。TUI-02 仍绑定现行 OCI；一旦真的切换目标，旧观察和
+UAT 不得继承，应重绑并重新取得真实首样本。EVID-09 保持 active，
+生产数据库、交易与决策门禁都没有被本轮放行。
+
+## 2026-09-15：目标镜像对新 News head 的生产只读隔离兼容
+
+目标原始 tag/query env 已修复后，新的 `scripts/evid09_production_preservation_probe.py`
+通过受信任 host key 的 SSH 流式运行于 VPS 主机，在 PostgreSQL 单次
+`REPEATABLE READ READ ONLY` 事务中采集八组全字段 rowset 的 SHA/行数，
+不传输或输出原行。首检在 `2026-09-15T15:48:06Z` 正确返回 `DENY_DRIFT`：
+四根 Authority 的原 content hash 仍匹配、revocation 为 0、policy 14、
+Catalog 10/15/10 不变，但 `market.news/current` 已于
+`2026-09-15T06:15:10.4892Z` 发布新 ID `5713bdc5…773d`、hash
+`aed230f1…5375` 和 12 个冻结成员。此前 post-News 本机 clone 仍是旧
+ID `584dfaa8…aa01` / 11 成员，不能再充当生产新 head 的兼容证明。
+
+为此形成[只读运行时动作前检](../deployment/evid09-target-current-news-readonly-runtime-action-preflight-2026-09-15-891c40c57.json)：
+当前/目标/前进镜像和 dump 的远端 dry-run 再次退出 0，目标/现行 release
+的 `DATABASE_URL`、`SECRET_KEY`、加密 key 仅经 SHA 比较同源；现行 Web
+healthy。仅在目标精确 OCI 的临时容器中运行
+`scripts/evid09_target_current_db_readonly_runtime.py`，共享现行 Web 的
+network namespace，但零发布端口、无业务卷/镜像声明卷、只读根目录、
+tmpfs 日志、已知外部 token 覆盖为空，并以 `PGOPTIONS` 强制 libpq
+默认只读。首次探针在 Django `dictConfig` 前退出 1：镜像用户 UID/GID
+1000 对 root 拥有的 `/app/logs` tmpfs 无写权限。只调整**探针 tmpfs
+属主**后，目标应用进程自然退出 0；DB 会话确认为默认只读、外层
+repeatable-read/read-only 并在结束时 rollback。四项严格策略存在；
+Application `get_current_publication` 精确读得新 ID/hash/12 coverage，
+`get_published_market_news(limit=50)` 实际返回 12 条，本次读取为 `fresh`、
+`must_not_use_for_decision=false`。该 freshness 只对
+`2026-09-15T16:05:06.094210Z` 样本有效，不外推到未来 News 版本。
+
+前后两份八组 rowset SHA 在 `15:48:06Z` 与 `16:05:49Z` 精确相等，
+Authority 4/0、policy 14、Catalog 10/15/10、新 News head/12 成员保留；
+临时容器已自动移除，现行 Web 仍 running/healthy 且 image ID/symlink
+未变。HTTPS health/db/ready 仍 `200`、decision-ready 仍 `503`、
+protected query 未认证仍 `401`；本轮未重新采集认证查询 200。
+[生产新 News 只读兼容原件](../deployment/evid09-target-new-news-production-readonly-compatibility-2026-09-15-891c40c57.json)
+及 SHA sidecar 明确隔离边界、两次失败与真实最终结果。
+
+这关闭**目标 OCI 对本次新 News current 的生产只读 Application 兼容未知**，
+不构成 live image rollback、前进恢复、TUI-02 重新绑定或 EVID-09 完整
+exit。独立镜像入口的 `--exercise` 仍 fail-closed；下一步必须实现并测试
+有界 Web 切换/前进恢复、动作前再查新 News 与保全/TLS 停止线，明确
+TUI-02 candidate reset 的真实事件与留样起点，且不得继承旧观察。
+没有生产 restore、业务 DML、Web/Caddy 重建、current symlink cutover、
+交易或付费模型调用；EVID-09 保持唯一 repository focus、active。
+
+## 2026-09-15：新 News 绑定保全、认证 HTTPS 与 Web Compose 语义前检
+
+先把保全探针从固定 11 成员本机 clone 预期改为**显式三元组绑定**：
+News publication ID、publication hash、member_count 必须同时给出且格式
+合法；旧默认仍 fail-closed。六项聚焦测试验证新 head 精确匹配才通过、
+旧默认和成员数漂移均拒绝。此次三元组来自上节目标 OCI 的生产只读兼容
+原件，而非自动取一个“latest”来放行。最终格式化源码经已知 host key
+的 SSH stdin 流式复采，`2026-09-15T16:28:58.173315Z` PostgreSQL 单次
+`REPEATABLE READ READ ONLY; ROLLBACK` 得到 Authority 四根、零撤销、
+14 policy、Catalog 10/15/10 与当前 News/12，八组 rowset SHA 全部和
+上次前后基线一致，退出 0；下一次 News 自然推进即要求新目标 OCI 兼容
+证明和新鲜采样，不能沿用此次 PASS。
+
+新增独立受保护 HTTPS 停线探针只在 VPS 内存中读取 root-only 0600 的
+`PROMETHEUS_QUERY_USER/PASSWORD`，不在进程参数、输出或本机文件中
+放凭据，并使用默认 TLS 信任。`2026-09-15T16:29:02.755521Z` 的实际
+未认证 query `401`、认证 `200/success`、留存 `web:8000 up=1`，
+health/db/ready `200`、decision-ready `503`，退出 0；决策门没有清除。
+
+新增 Web Compose 语义前检在 VPS 上分别只读渲染现行/目标的 Web 配置，
+只规范化**镜像 tag 和只读 release manifest 挂载源**。两份规范化配置
+SHA 同为 `0819d4dc…d68cb`，差异路径为空，七项启动时写入开关全为
+`0`；未输出 Compose scalar 或 secret，没有改变容器。三项聚焦测试
+验证其他环境值、卷或启动时写入开关漂移会 DENY。
+[最终只读转场门禁原件](../deployment/evid09-fresh-readonly-transition-gates-2026-09-15-891c40c57.json)
+及 SHA sidecar 固定上述源码 SHA、真实观察时间和仍未动作的边界。
+
+这只关闭动作前的**本次**保全、认证 HTTPS 和 Web 配置隐含漂移未知；
+它不是独立可执行的 live Web-only switch/forward recovery，也没有
+重新绑定 TUI-02。现有 `--exercise` 继续显式 DENY，不信任调用方自设
+的“已验证”布尔量。下一步需让独立 runner 自己紧邻动作复采这些门禁，
+仅重建 Web、证明目标与前进恢复的实际运行身份/停线，记录真实两次
+Web started_at 和 TUI-02 重绑/reset，不继承首样本或旧 UAT；无法证明
+完整自动恢复就不开始切换。EVID-09 exit 仍 false。
+
+## 2026-09-15：Web-only 前进恢复入口就绪，真实 TUI-02 样本阻止 live 演练
+
+`scripts/evid09_live_image_preflight.py --dry-run` 于
+`2026-09-15T17:28:31.992984Z` 再次只读 PASS：当前/目标精确镜像、
+八组保全 SHA、新 News ID/hash/12 成员、目标 OCI 临时只读 Application、
+Compose Web 语义、受保护 HTTPS 和 decision-ready 503 停线均无漂移。
+这仍只是**动作前**通过，不是 rollback 验收。
+
+独立 `scripts/evid09_web_only_image_exercise.sh` 已实现目标 Web-only
+短时切换与现行镜像前进恢复，两个入口分别是 `--internal-exercise`
+和 `--forward-recover`；只使用 `docker compose ... up -d --no-deps
+--no-build --force-recreate web`，不重建 Caddy/PostgreSQL、移动 current
+或 restore 数据库。独立 runner `scripts/evid09_web_only_action.py`
+紧邻动作复采门禁、记录目标与恢复后的 Docker started_at、目标期间
+八组保全及 TLS/up 停线，并使用与 shell stdin 分开的 root-only FIFO
+下达前进恢复指令。EXIT trap 在超时/故障时恢复原镜像；FIFO 清理失败
+也返回非零。隔离 Bash mock 和编排聚焦测试通过，**没有在生产执行**
+切换或前进恢复；不能把代码就绪写成真实演练通过。
+
+关键的新生产事实是原始迁移指标于 `17:17:34Z` 已有 4 条非空
+候选相关序列；只读 `timestamp(raw_metric)` range 从现行 Web
+`started_at=2026-09-15T03:22:24.378025Z` 排除旧 lookback 后，
+首次真实留存 source sample 为 `2026-09-15T15:21:04.672000Z`，
+完整 14 日最早到 `2026-09-29T15:21:04.672000Z`。
+[原始样本与 live DENY 原件](../deployment/evid09-tui02-retained-observation-live-action-deny-2026-09-15-891c40c57.json)
+及 SHA sidecar 保留两次真实探针时间。runner 已新增最终原始 vector
+必须为 0 的硬检查；当前非空时即使传入 Web 中断/reset 接受标志也
+不能开始切换。这样不以本次广义 owner 授权摧毁刚开始的 TUI-02
+真实窗口。
+
+TUI-02 尚未完成本候选 target/rules/retention/volume/restart 的最新
+全项复核，因此本次只读 source 探针**不是** canonical retained
+checkpoint，cutover evidence 的 `retained_observation` 仍为 null。
+下一动作是只读复核监控门禁并绑定真实首样本、保护现行候选到精确
+eligible instant。若未来确需 EVID-09 live 镜像演练，必须另行明确
+接受重置这段窗口并按登记 collector 真实重绑；在此之前 EVID-09
+维持 `active`、live DENY，旧 `--exercise` 入口也仍 DENY。
+
+## 2026-09-15：TUI-02 真实窗口完成技术绑定，EVID live 门继续拒绝重置
+
+前节 `retained_observation=null` 是原始样本刚发现时的时点状态。
+随后最终源码的只读 TUI-02 监控探针在 `17:50:08.968663Z`
+证明当前 Web 的 OCI/manifest 不变、Prometheus 固定 digest 且
+自首样本前启动、restart=0、target up、18 条规则健康、
+`3w/4GiB` 和持久卷正常、受保护 TLS 查询 401/200，
+health/ready 200、decision-ready 503。复采的 raw source 仍精确
+始于 `2026-09-15T15:21:04.672000Z`。
+[TUI-02 canonical checkpoint](../deployment/tui02-production-observation-checkpoint-2026-09-15-891c40c57.json)
+和 SHA sidecar 经 binder dry-run/写入均通过，cutover evidence
+现绑定首样本与 `2026-09-29T15:21:04.672000Z` eligible instant。
+readiness仍 `2/10 DENY`，并未提前验收14日、UAT或终审证据。
+
+这项技术绑定提高了 EVID-09 live 演练的机会成本：目标镜像短时
+切换也会改变候选并使当前留样失效。独立动作 runner 的原始 vector
+非空 DENY 继续有效；现不启动生产切换、自动恢复或 observation
+reset。EVID-09 的 shell/runner 代码测试通过而生产 live 证据仍缺，
+保持唯一 repository focus 和 active；后续只能在不破坏本窗口的
+其他 EVID-09 切片推进，或等到窗口完成后另作精确动作选择。
+
+## 2026-09-15：Web-only 两段停止线 fail-closed 收紧
+
+在不切换生产候选的 EVID-09 仓库切片中，先补三个失败用例，暴露原
+编排可能接受**目标期的 `up` 样本作为恢复期新 scrape**、接受
+早于目标 Web started_at 的保全报告，以及没有独立的恢复期账本/
+HTTPS 原件。随后收紧 `scripts/evid09_web_only_action.py`：目标期
+与前进恢复期各自要求八组 rowset 标签/行数/SHA、News ID/hash/
+成员数、Authority 四根、候选与目标 commit、`REPEATABLE READ
+READ ONLY; ROLLBACK`、零原行/DML，且保全和受保护 TLS 观察时间
+不得早于**该期** Web started_at。两期 `web:8000 up=1` 样本也
+必须各自不早于该期启动，旧样本不可跨期复用。恢复 Docker started_at
+必须晚于已确认的目标 Web started_at。
+
+目标期停止线失败时仍尝试原镜像前进恢复；只有恢复事件、独立恢复
+期保全/TLS 和新鲜通用前检均真实通过，operator 才以退出码 1
+输出 `DENY_TARGET_PERIOD_RECOVERED_CURRENT` 结构化检查点，
+不把失败的目标期写成 live 成功。恢复期证据若自身不通过，只返回
+DENY，不宣称已恢复。隔离 Bash mock 的 2 秒短测试预算在 WSL
+启动竞态下出现一次预期 FIFO 超时，测试预算改为 10 秒并复测；
+生产脚本的 180 秒超时与 EXIT trap 没有放宽。
+
+[两段停止线代码检查点](../testing/evid09-web-only-two-interval-stopline-contract-2026-09-15-891c40c57.json)
+及 SHA sidecar 固定 operator/shell/测试源码 hash、先红后绿和
+58/58 完整 EVID-09 聚焦回归；Black/isort/Ruff、增量 mypy 与
+全量零债务均通过。此证据只关闭**代码/隔离 mock** 的两段验证
+缺口，绝不是生产 live rollback。TUI-02 当前原始观察已绑定，
+Web-only live 入口继续在非空 raw vector 下拒绝；没有生产 Web
+切换、数据库 restore、观察重置或签发新的 EVID/TUI approval。
+EVID-09 保持 `active` 与唯一仓库焦点；后续 live 证据仍需真实
+目标/恢复两段运行身份、保全、TLS 和 TUI reset/rebind 的精确动作。
+
+## 2026-09-15：目标/恢复期 Docker Web 身份只读夹取
+
+上一检查点虽把八组保全、受保护 HTTPS 与 `up` sample 绑定到
+各期 Web `started_at`，却不能证明**探针运行中** Web 仍是该期
+镜像：远端 shell 的 180 秒 EXIT 自动恢复可能与保全/HTTPS 采集
+重叠。先补目标期和恢复期两例失败测试，旧编排均错误接受变更
+镜像；再实现 `scripts/evid09_web_interval_identity_probe.py`，经
+SSH stdin 只读执行 `docker inspect` 与容器内 manifest 的
+`sha256sum`，只输出 image ID、Docker started_at、运行/健康状态、
+挂载 manifest SHA 和采样时间，不输出 inspect JSON 或环境值。
+
+`scripts/evid09_web_only_action.py` 现以精确源码 SHA 封住新探针，
+目标与恢复各在保全/HTTPS 之前、之后夹取一次。四次样本必须
+匹配该期 image ID、started_at、manifest SHA、healthy/running
+及前后时间顺序；期间发生自动恢复或其他 Web 变更即 DENY，不会
+把恢复镜像的报告误记为目标期。原始 TUI-02 非空 vector 前门和
+生产 180 秒恢复超时没有放宽。
+
+[代码/隔离检查点](../testing/evid09-web-interval-docker-identity-bracket-2026-09-15-891c40c57.json)
+及 SHA sidecar 固定失败先行与源码 hash；新增 7 项聚焦测试，
+完整 EVID-09 回归 65/65、Black/isort/Ruff、增量 mypy 均通过。
+本检查点没有在生产执行目标切换或前进恢复；Docker 身份探针
+仍未在真实目标期验证。TUI-02 的现行 retained 窗口保持不变，
+EVID-09 `active`、exit false、无候选重绑/观察 reset/交易/数据库
+restore。后续 live 动作必须在不摧毁当前窗口的独立精确决策后
+才可能发生，不能以隔离 mock 代替真实两期取证。
+
+## 2026-09-15：自动 EXIT 与独立手动前进恢复串行化
+
+Web-only operator 的 FIFO 写入异常会在五秒后尝试独立
+`--forward-recover`，但原目标 shell 的 EXIT trap 同时可能在恢复
+相同 Web。此前 `forward_recover()` 没有跨进程锁，也没有恢复动作
+之后重查原镜像是否已健康；两路 `compose up --force-recreate web`
+可能互相争用。先新增失败的锁契约测试，再将唯一
+`forward_recover()` 改为在已校验的现行 release **0444 不变
+manifest inode** 上打开只读 fd 9，以 `flock -x -w 30` 串行。
+锁在 trap-free 子 shell 中持有并在所有退出路径关闭，不创建
+锁文件或改写 manifest。独立入口移除锁外的“已是现行 Web”
+捷径；两路都在锁内重新查 exact image ID、running/healthy、
+挂载 manifest SHA 与 current symlink，已有健康原镜像则输出
+`already_current=true` 而不再次重建。
+
+新增隔离 Bash 双进程并发测试：两路恢复各返回
+`FORWARD_RECOVERED`，mock Web 只被重建一次，另一条在锁内
+返回 already-current。完整 EVID-09 聚焦回归 67/67，`bash -n`、
+Black/isort/Ruff 和增量 mypy 通过；生产 180 秒 FIFO 恢复时限、
+仅 Web Compose 范围与 TUI-02 非空原始样本拒绝门均未放宽。
+[串行恢复代码检查点](../testing/evid09-serialized-forward-recovery-contract-2026-09-15-891c40c57.json)
+及 SHA sidecar 保留源码 hash 和隔离结果。现行 Web 没有执行
+目标切换或恢复，锁在 VPS 的真实动作入口未验证；EVID-09
+继续 `active`，TUI-02 retained 窗口未重置。无生产 restore、业务
+DML、交易、候选重绑或 live rollback 声明。
+
+## 2026-09-15：现行 VPS 新恢复 shell 的真实只读动作前检
+
+用受信任 host key 的 SSH stdin 流式发送本地源码 SHA
+`1de708cf…ed7cd1cbb1d0`，在现行 VPS 只运行
+`bash -s -- --dry-run`。`2026-09-15T18:53:59.960098Z` 的
+原始结果 exit 0，唯一 stdout marker 为 `DRY_RUN_ONLY exact
+images/manifests/backup/query env/Compose/current Web checked; no
+container changed`。按该**精确封存源码**的控制流，marker 之前
+必须通过 `command -v flock`、现行/目标 image ID 与 OCI revision、
+两份 0444 release manifest SHA、既有 dump SHA、0600 同源
+protected query env、Compose quiet config，以及现行 Web image/
+healthy/挂载 manifest；这些是该时点的新鲜条件，不保证日后
+不会漂移。dry-run 并未打开 recovery-only 的只读锁 fd，
+更没有让两路真实 VPS 进程竞争该锁。
+
+[真实只读 preflight 原件](../deployment/evid09-current-web-only-shell-readonly-preflight-2026-09-15-891c40c57.json)
+及 SHA sidecar 保留原始状态/时间/源码绑定与未验证边界。
+本次没有 Web recreate、数据库 restore、业务 DML、生产
+cutover 改写或 TUI-02 reset。EVID-09 仍 `active`、exit false；
+现行 raw 观察非空时 live 入口继续 DENY。恢复串行代码的
+本地模拟与这次真实只读 dry-run，合起来也不能替代生产
+目标/恢复两段镜像身份、保全、TLS 和实际 TUI 重绑取证。
+
+## 2026-09-15：交互恢复无证明时强制走独立入口
+
+现行 `scripts/evid09_web_only_action.py` 先前只在 FIFO/SSH
+恢复函数**抛异常**时调用独立 `--forward-recover`。如果原
+目标 shell 返回非零、退出 0 却缺 `FORWARD_RECOVERED`，或
+报告了错误 image ID，operator 直接 DENY，未尝试已有的
+独立恢复入口；即使 EXIT trap 自己恢复成功但外层退出非零，
+也失去第二条可验证取证路径。先补上述三类及“两路均失败”
+的失败用例，旧编排四项均失败。
+
+新 `_verified_forward_recovery` 只接受退出 0、**唯一**健康
+且镜像 ID 与封存现行 tag 一致的 Docker 事件。交互路径
+异常、非零、无/多事件或身份不符时，必须调用独立入口
+一次并以同一合同核验；独立入口亦无证明则只返回 DENY，
+不宣称已恢复。报告写明 `recovery_path=interactive` 或
+`independent_manual`，但两期 stopline 与恢复后的全量
+fresh preflight、镜像启动顺序、八组保全/TLS/new up 的
+硬门一项也没有放宽。目标期已失败而独立恢复真实通过
+时仍以 exit 1 输出 `DENY_TARGET_PERIOD_RECOVERED_CURRENT`。
+
+[失败先行与代码检查点](../testing/evid09-interactive-recovery-fallback-contract-2026-09-15-891c40c57.json)
+及 SHA sidecar 固定新 operator/test hash、20 项编排与
+73 项完整 EVID 聚焦回归；Black/isort/Ruff、增量 mypy
+通过。此前[生产 shell 只读前检](../deployment/evid09-current-web-only-shell-readonly-preflight-2026-09-15-891c40c57.json)
+仅检验未改变的 shell，不能替代这个 operator 的生产
+目标/恢复演练。当前 TUI-02 raw vector 非空继续拒绝 live
+切换；无 Web recreate、生产恢复、候选 reset、DB restore、
+业务 DML 或交易。EVID-09 `active`、exit false。
+
+## 2026-09-15：当前候选 EVID-01/02 新旧台账只读再绑定
+
+按 `EVID-01/02.auto_collect` 在当前 `891c40c57` / release
+`20260915110952` 上只作受信任 SSH 与 PostgreSQL 单次
+`REPEATABLE READ READ ONLY; ROLLBACK` 盘点。EVID-01 的
+精确 33 表清单由现有 V1–V5 Account/Research 模型的
+`db_table` 定义核对；Account 0050–0063 共 14 项迁移已
+应用，Web 的 image ID、started_at、挂载 manifest SHA 和
+current release 在事务前后不变。只返回各表 count，不输出
+原行、密钥或 subject payload。
+
+真正的新候选事实与历史 0055/13 表 zero-seed 不同：
+`account_owner_tenant_authority_v3_ledger=4`、revocation=0；
+ReceiptV5/SubjectV5/EvidenceV5 各 4 行，canonical BindingV2/
+ReobservationV1 各 4，PhysicalV2 observation 为 8；旧
+V1/V2 owner authority 与 V1–V4 owner-assignment 账本仍
+为 0。actor-source V3 ledger/root-lock 为 30，context/user/
+RBAC source V3 相关表为 19。**四行 V3/V5 只证明持久化行
+存在**，不能单凭 count 宣称 exact authenticated user/tenant/
+owner composition、root/receipt 真实 provenance、current-head
+seal、production writer/rollback 或 Evidence decision-ready。
+
+EVID-02 另在当前 Web image/started_at 前后不变的只读
+事务中查三表：operator spec、spec approval、activated
+operator spec 均为 0；本轮没有收集自然人 approval 或
+first-winner/successor/rollback 结果。两份原始样本时间分别为
+`19:11:44.126933Z` 与 `19:12:36.787425Z`，SQL SHA、
+精确计数、候选和 fail-closed 解释固化在
+[当前候选 EVID-01/02 只读盘点](../deployment/evid01-evid02-current-candidate-ledger-readonly-inventory-2026-09-15-891c40c57.json)
+及 SHA sidecar。旧 EVID-01 离线 recorder 只覆盖到 0055，
+不能拿它的旧结论代替新 V3/V5 exact-reader 验收。
+
+下一安全 EVID-01 读门是核对这四个 V3/V5 root 的不可变
+identity、来源和当前 head，并在有真实 owner/provenance
+输入后执行候选绑定的 authenticated exact/current composition；
+EVID-02 的 operator/approval/activation 与 PostgreSQL
+竞争/恢复证据仍须真实形成。同一项目 owner 可履行治理角色，
+但本盘点不生成其 receipt。EVID-01/02 均保持
+`awaiting_production`；EVID-09 仍是唯一仓库焦点，TUI-02
+观察、DATA-02/AUD 阻断和 decision 503 均未因计数改变。
+无 authority/approval 创建、业务 DML、生产 restore、Web
+切换或候选重绑。
+
+## 2026-09-15：EVID-01 当前 V3/V5 head 与来源链只读红项
+
+对同一 `891c40c57` / release `20260915110952`，再次在
+`REPEATABLE READ READ ONLY; ROLLBACK` 中检查四条 AuthorityV3
+root 的 EvidenceV5、SubjectV5、ReceiptV5、policy 与 actor-source
+父链。候选 Web image ID/started_at 在两次事务前后不变；不输出
+用户/账户原值或 payload。四条父链完整、引用哈希及账户/owner/
+tenant 关联匹配，四条均无 successor/revocation；这里只检查
+seal 格式，**未重算密码学 seal，也未运行 authenticated facade**。
+
+时效是明确红项：2026-09-15T19:21:47.921543Z 的 PostgreSQL
+源时钟下，AuthorityV3、EvidenceV5、ReceiptV5、actor-source V3
+各自 current 数均为 `0/4`，四条 root 当前 head 为 `0/4`；
+policy 为 `4/4`。四条 root 最迟在 2026-09-13T18:11:14.891812Z
+失效，EvidenceV5 最迟 2026-09-13T18:01:06.641982Z，
+receipt 与 actor-source 最迟 2026-09-13T19:00:27.880884Z。
+actor-source 四条由自动化 recorder 记录，这是来源类别观察，
+不是 owner approval 成立或伪造的证明。历史行存在不能替代
+当前授权，不得延长旧时间戳或用旧 head 开 decision gate。
+
+[当前 head 只读前检](../deployment/evid01-current-candidate-v3-v5-head-readonly-preflight-2026-09-15-891c40c57.json)
+及 SHA sidecar 固定 SQL SHA、源时钟与聚合结果。EVID-01
+继续 `awaiting_production`；下一门是取得真实 server-authenticated
+owner/actor/provenance 输入及已授权的 configured-validity
+V3/V5 生命周期，然后运行当前候选 exact/current composition 与
+PostgreSQL 验收。EVID-02 三张 operator/approval/activation 表的
+独立退出门未变；EVID-09 仍是唯一仓库焦点，当前 TUI-02
+14 日留样不可被 live 镜像切换继承。本次没有 root/approval
+写入、Web 重建、DB restore、业务 DML 或候选 reset。
+
+## 2026-09-15：EVID-09 独立前进恢复锁只读前检
+
+当前 EVID-09 Web-only shell 的 live `--forward-recover`
+会在必要时执行 `docker compose ... --force-recreate web`，
+不能当作生产只读锁检查；默认 `--dry-run` 又未打开恢复锁。
+因此在唯一 EVID-09 repository focus 内增加
+`--forward-recover-dry-run`：与 EXIT trap/手动恢复复用
+同一 0444 release manifest inode 上的 read-only fd 9
+和 `flock -x -w 30`，锁内重新核验现行 image/OCI、manifest、
+`current` 指向及 healthy Web/mounted manifest/started_at；
+在 owner live token 前退出，不执行 Compose up 或恢复。
+operator 仍用固定 SHA 拒绝替换源码，已精确更新 shell
+SHA，未移除校验。
+
+失败先行新测试 2 项、初次完整聚焦回归 18 项 source-hash
+drift 均如实保留并修复；隔离并发测试的后台 subshell
+过早继承 parent EXIT 清理 trap 的偶发失败也在测试夹具
+中隔离。最终 12 个 EVID-09 测试文件 **75/75 通过**，
+增量 mypy 0 regressions、全量 mypy debt 0，Black/isort/
+Ruff 和 Bash 语法通过。未修改 AuthorityV3 业务有效期。
+
+以受信任 SSH stdin 运行本地未部署源码的只读模式，
+当前 VPS 自然退出 0、输出
+`FORWARD_RECOVERY_LOCK_DRY_RUN`；前后 Web image ID、
+started_at、restart=0、running/healthy 与 `current`
+指向均不变。这只验证当前候选的恢复锁/身份前置，
+**没有**在 VPS 做并发锁竞争、目标镜像 interval、手动或
+EXIT forward recovery，也没有部署新 shell。
+[真实锁只读前检](../deployment/evid09-current-forward-recovery-lock-readonly-preflight-2026-09-15-891c40c57.json)
+及 SHA sidecar 固定 shell/operator/test 摘要与结果。
+当前 TUI-02 非空原始留样继续禁止 live Web 切换；
+EVID-09 `active`、exit false，不能凭锁检查迁移到下一
+repository focus。无生产 Web recreate、观察 reset、
+DB restore、业务 DML、交易或提交。
+
+## 2026-09-15：EVID-09 真实 VPS manifest flock 竞争只读检查点
+
+接上一只读锁前检，在当前 `891c40c57` 的同一 0444
+release manifest inode `2049:6094709` 上，以受信任 SSH
+只打开两个 read-only fd。holder 于
+`20:02:04.379813665Z` 对 fd 8 取得 exclusive advisory
+`flock`，20 秒有界持有后在
+`20:02:24.391655051Z` 自然释放；contender 在
+`20:02:05.023194019Z` 对同一 inode 的 fd 7 作
+`flock -n`，确切返回 `1=busy`。随后流式执行固定 SHA
+的 `--forward-recover-dry-run`，自然退出 0、耗时
+`20.025s`，输出仅为只读锁检查 marker；不把这个墙钟
+时长冒充精确锁等待时长。holder/contender inode 一致、
+source SHA 不变；Web image/start/restart=0/status/health
+及 `current` symlink 前后相同。
+
+首次本地 collector 因 Paramiko `readline` 返回 str 而
+误作 bytes 解码，**没有**形成有效结果；该次 holder
+句柄丢失后先在 `20:01:23.794500941Z` 对同一 inode
+作 nonblocking 检查得 `0=free`，再开始这次有界检查，
+不从本地错误推断远端完成。新
+[VPS flock 竞争原件](../deployment/evid09-current-forward-recovery-flock-contention-readonly-2026-09-15-891c40c57.json)
+及 SHA sidecar 固定源时间、两个 inode、退出码、
+Web 身份夹取和失败边界。
+
+这关闭的是 **VPS advisory-lock 竞争前置**，并非
+目标/恢复镜像期间的真实停止线、configured-validity
+AuthorityV3 生命周期、TUI-02 重绑或 EVID-09 完整
+exit gate。TUI-02 的现行留样未重置，当前非空 raw
+vector 仍拒绝 live 切换；EVID-09 `active` 且唯一
+repository focus 不变。无 Compose recreate、manifest
+字节写入、DB restore、业务 DML、交易、部署或提交。
+
+## 2026-09-15：EVID-01/09 当前 actor-source V3 head 时效只读红项
+
+对当前 `891c40c57` 以 `REPEATABLE READ READ ONLY;
+ROLLBACK` 查询 Account actor-source V3 精确表，
+Web image/start/restart/status/health 事务前后不变。
+`30` 条持久化 source 均为逻辑 head 且
+`authority_state=current`，但截至 PostgreSQL 源时钟
+`2026-09-15T20:10:53.492240Z`，**现行时效 head 为
+`0/30`**，认证/active 且四组 valid-until 皆未来的
+head 亦为 `0/30`。最后 recorded_at 为
+`2026-09-12T19:00:28.423098Z`、最大 valid_until 为
+`2026-09-13T19:00:27.880884Z`；来源只有一名持久化
+user 的历史链，但不输出 user/source ID 或 payload。
+逻辑链末端不得当作当前 owner 身份或授权。
+
+[actor-source 当前 head 原件](../deployment/evid01-evid09-current-actor-source-head-readonly-2026-09-15-891c40c57.json)
+与 SHA sidecar 固定 SQL SHA、源时间和汇总。现有
+`authority/raw/publish/` 是 `SessionAuthentication` +
+CSRF 的 server-owned POST，仅接受空 JSON；它会真正
+写入 raw source，不能以旧 source ID、客户端身份字段或
+owner 的泛化授权代替当前有效会话。这里**没有**调查或
+借用生产 session key、没有执行 capture POST、没有创建
+新的 owner/tenant authority。EVID-09 configured-validity
+生产生命周期和 EVID-01 exact-current acceptance 仍须真实
+会话、源时钟、owner/account policy 及精确动作前检形成；
+EVID-09 active/唯一 repository focus，EVID-01
+awaiting_production。TUI-02 现行候选及 raw 留样未被重置。
+
+## 2026-09-15：EVID-09 直接 shell 的 TUI-02 原始留样停止线
+
+旧[动作前检](../deployment/evid09-postcompat-live-image-action-preflight-deny-2026-09-15-891c40c57.json)
+是修复前时点：目标原始 tag、host-only query env 与独立手动入口后来均已
+有界修复/实现，不应把该 DENY 当作当前缺口。当前唯一 Web-only operator 已在
+live 入口前拒绝非空 raw vector；但其下层 shell 的 `--internal-exercise` 此前只
+验证可由调用者设置的环境标志，直接调用可能绕过 operator 的原始留样保护。
+在 EVID-09 唯一 repository focus 内补了 shell 自身的受保护 HTTPS 精确
+`web_to_tui_migration_events_total` 即时向量检查：root-only 0600 credential
+结构、HTTP 200、成功的 vector 类型与逐项 metric identity 全部符合，且结果
+**零行**才允许切换；任何非空或查询不可用均在 `NEED_RECOVERY=1`、FIFO
+创建和目标 Web Compose up 之前 DENY，不输出 secret/series 内容。新增
+`--raw-observation-dry-run` 允许不带 live token 的同一停止线只读检查；手动
+`--forward-recover` 与带 manifest flock 的恢复锁入口不变。operator 固定的
+shell SHA 已更新为 `b34780230e8f984ea0a9644e332c3edefe95c8352e90a01f5b7c669d6a3705d6`。
+
+受信任 known-host-key SSH stdin-only 只读模式在当前 `891c40c57` / release
+`20260915110952` 于 `2026-09-15T20:27:52.052239Z` 退出 `1 DENY`；独立
+原始源探针在 `20:28:11.836663Z` 读取认证 HTTPS 200 与精确 raw vector
+**4** 行。Web image/start/restart/health、现行 symlink 和 manifest SHA
+前后完全相同。原始 query values/labels 和凭据均未输出；没有提供 live token。
+[直接 shell 停止线原件](../deployment/evid09-direct-shell-raw-observation-stopline-readonly-2026-09-15-891c40c57.json)
+与 SHA sidecar 固定两个来源、源时刻、脚本 hash、实际 DENY 和身份夹取。
+
+这仅关闭直接 shell 绕过观察停止线的代码风险，不是 live target/forward
+recovery 证据。现行 TUI-02 自首样本 `2026-09-15T15:21:04.672000Z`
+起的窗口不重置、不继承给旧 OCI；精确 14 日 eligible instant 仍为
+`2026-09-29T15:21:04.672000Z`。EVID-09 configured-validity V3
+当前有效 source head 仍为 `0/30`，新会话/真实 policy/源时钟与独立恢复
+尚缺；EVID-09 active/唯一 repository focus、exit false，不提交、不部署，
+不执行 live rollback、DB restore、业务 DML 或候选重绑定。

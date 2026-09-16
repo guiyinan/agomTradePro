@@ -1482,3 +1482,104 @@ content-addressed evidence 为
 `django_migrations` ledger/sequence bookkeeping，并由后续 classification artifact 证明 business tables、
 migration name set 与 canonical schema 一致。它仍只证明历史 DATA-01 演练，不证明当前 M5 候选、当前
 RPO 或 DATA-02 backfill 已通过。
+
+## 2026-09-15：DATA-02 当前候选 audited quote 工厂只读阻断
+
+在当前生产代码候选 `891c40c5769897931b2b513e92df6f9ba72631ea`、release
+`20260915110952` 上，只构造 `make_system_audited_sync_quote_use_case`，并把 PostgreSQL
+事务设为 `REPEATABLE READ READ ONLY`。工厂在审计 runtime loader 的
+`snapshot_hash_mismatch` 处 fail-closed，尚未进入 provider fetch、事实写入或 current
+publication。候选、只读边界及输出摘要见
+[`data02-audited-quote-construction-readonly-2026-09-15-891c40c57.json`](../deployment/data02-audited-quote-construction-readonly-2026-09-15-891c40c57.json)；
+哈希范围根因的独立只读证据见
+[`aud03-config-snapshot-hash-scope-readonly-2026-09-15-891c40c57.json`](../deployment/aud03-config-snapshot-hash-scope-readonly-2026-09-15-891c40c57.json)。
+
+这不改变历史供应商 `2003` 拒绝事实，也不证明 5,533 标的历史回填、四项
+publication identity、source time 或 canonical tolerance 已完成。`DATA-02` 维持
+`awaiting_production`，`DATA-03` 仍受其依赖阻断。当前仓库唯一执行焦点仍为
+`EVID-09`；释放该焦点后，应先用 failing-first 回归修复 ConfigCenter 的 secret/public
+snapshot hash 契约并按真实部署路径验收，再重试 DATA-02 preflight。不得手改不可变
+snapshot seal、泄露 secret、回退至 superseded profile 或绕过审计门。
+
+## 2026-09-15：DATA-02 当前候选 financial/valuation/publication 只读红项
+
+在同一 `891c40c57` / release `20260915110952` 的运行中 Web 上，
+按 DATA-02 `auto_collect` 仅执行 `PGOPTIONS` 默认只读的
+dry-run/精确 ORM 汇总与 PostgreSQL `REPEATABLE READ READ ONLY;
+ROLLBACK`。每个探针前后 Web image ID/started_at 不变，
+金融预览所读 mounted manifest SHA 与现行 cutover 一致；
+无 provider fetch、业务 DML 或 publication switch。
+
+完整 `repair_active_a_share_current_facts` 不带 `--execute`
+的预览退出 `1`，没有生成协调器报告，终端阻断为
+`valuation publication candidate requires observed_at`。
+为避免该失败掩盖独立问题，另运行单一金融 Application
+preview：当前 5,533 标的均有 financial fact，
+`available_at` 缺失 **381,858 行/4,788 标的**；
+381,858 行虽有非未来 `report_date`，但日历日期不能
+证明来源可用时刻，`safe_to_execute=false`，不得按日期
+补造 `available_at`。最新 valuation 选择严格复用仓库排序，
+5,533/5,533 候选同时缺 `observed_at` 与 `available_at`。
+
+按 Domain 正确的 `state=published` 查询四个 core 数据集：
+quote/price/financial 各有一条旧 head，成员分别为
+`1/23/80`；valuation 无 published head。三条 head 的
+原始 `publication_id/hash/published_at` 和时间点、查询
+源码/SQL SHA 在
+[当前候选只读原件](../deployment/data02-current-candidate-financial-valuation-publication-readonly-preflight-2026-09-15-891c40c57.json)
+及 SHA sidecar。中途以错误的 `state=current` 作空集查询
+已在原件明确标为非 canonical，未据此宣称零 publication。
+旧 head 的 `must_not_use_for_decision=false` 字段也不等于
+当前 5,533 全域 fresh/decision-ready。
+
+DATA-02 仍 `awaiting_production`、DATA-03 仍受依赖阻断；
+下一真实门是取得估值及金融事实的可验证 source
+observation/availability 时间，按唯一 repository focus 修复
+独立 AUD snapshot-hash loader 阻断后重试完整只读预检，
+再依既有有界授权分批 refresh 与四类 immutable publication
+对账。不得用 fetched/计算时间替代来源时间、抬容差或
+启用决策面。EVID-09 焦点及 TUI-02 当前留样不变。
+
+## 2026-09-15：DATA-02 按 provider 来源时间分类与单标的外部只读样本
+
+同一 `891c40c57` 下，以现行 5,533 A 股 universe、
+`PGOPTIONS` 默认只读及 `REPEATABLE READ READ ONLY`
+汇总。`487,464` 条 financial fact 全来自 `akshare`：
+`381,858` 条缺 `available_at`，全部
+`announced_at` 为空，全部 `raw_payload_hash` 与
+`source_record_id` 为空。其余 `105,606` 条虽已有
+非空 `available_at`，本取证没有其精确来源身份，
+**不能**据此接受历史有效性。AKShare/Tushare 财务
+适配器在仅有公告日时明确保留 `available_at=None`，
+因此原有 date-only backfill 被拒绝是正确 fail-closed，
+不能用 `report_date`、fetched/计算时刻补造来源时刻。
+
+最新 5,533 条 valuation 候选按仓库排序：`tencent`
+5,473、`AKShare Public` 59、`akshare` 1；三组的
+`observed_at/available_at` 全为空。当前 Tencent 批量
+gateway 源码从报价 payload field 30 解析供应商
+`observed_at`，将 raw response 完成 UTC 独立作为
+`available_at` 并保留 body hash/scope；ValuationFact
+repository natural-key upsert 会更新两时间与 raw 身份。
+这说明旧 `tencent` 行的空时刻不能由其 source 名称
+自动证明新刷新可行。
+
+仅对一个由真实 universe 选出的标的作一次 Tencent
+公共 GET，不存库、不发布、不输出价格或代码明文。
+自然取得 1 条 snapshot：供应商报价时刻
+`2026-09-15T08:14:54Z`、响应完成
+`2026-09-15T20:15:42.739938Z`，raw body hash 与
+source record ID 存在，scope=`batch_response_body`。
+这只证明单标的 provider path/时间分离，不证明
+5,533 标的批次、历史价/财报、新 publication 或
+fresh decision 全部通过。候选 Web 身份前后不变。
+
+[当前来源分类及单标的原件](../deployment/data02-current-source-time-by-provider-readonly-2026-09-15-891c40c57.json)
+与 SHA sidecar 记录真实时间、源码/探针 SHA 和边界。
+DATA-02 仍 awaiting_production；下一门先在唯一仓库
+焦点许可下修复 AUD ConfigCenter snapshot-hash loader，
+再对真实可用 provider 做有界 preflight、写前后身份/
+容差对账和四类 publication。financial availability
+另需精确来源可用时刻或真实 owner 审定的数据契约；
+单标的估值样本不能替代该输入。无事实/审计写入、
+publication switch、TUI reset 或决策门变更。

@@ -1,5 +1,14 @@
 # 活跃计划索引
 
+> 2026-09-15 EVID-09 直接 shell 原始留样停止线：旧 postcompat DENY 的
+> 原始 tag、query env 与手动恢复缺口已另行有界修复，但下层 live shell 此前
+> 可绕过 operator 的 raw-vector 检查。现在下层也在目标 Web 切换前独立
+> 验证受保护即时向量必须为零，另有无 live token 的只读检查模式。
+> [当前 VPS 停止线原件](../deployment/evid09-direct-shell-raw-observation-stopline-readonly-2026-09-15-891c40c57.json)
+> 记录认证 HTTPS raw vector 4、shell DENY 和 Web/current/manifest
+> 身份前后不变；没有 live 镜像切换或恢复验收。TUI-02 的现行留样不重置，
+> EVID-09 仍 active/唯一仓库焦点、exit false。
+
 > 2026-09-15：DATA-12 的 26 文件实现提交 `df52ac606` 与收口提交 `1e02caf5d` 早已进入
 > `origin/dev/next-development` 和 `main`；精确 closure Nightly `34092074895` 为成功。本次按 owner
 > 授权将 `main@891c40c57` 以 code-only upgrade 部署为 release `20260915110952`，PostgreSQL/Redis/
@@ -10,7 +19,202 @@
 > [重绑定证据](../deployment/tui02-candidate-rebind-2026-09-15-891c40c57.json)。追加 Nightly
 > `34923321145` 在旧 `dev/next-development@9ed2677e1` 上终态 failure（PostgreSQL current-data contract
 > 与 full unit tests），不能冒充本次成功。Prometheus target up、18 rules 健康、21d/4GB 与 volume 正常；
-> 当前 release 缺 host-only query env，HTTPS 认证查询未验收，真实首样本仍为 null。
+> 部署后初始 release 缺 host-only query env；随后按有界 action 仅重建 Caddy，
+> [protected query 修复原件](../deployment/tui02-protected-query-repair-2026-09-15-891c40c57.json)
+> 验证未认证 401、认证 TLS 200/success、`up{job="agomtradepro"}=1`。原始迁移事件
+> 向量仍为空，14 日 rule 历史向量不能绑定新候选；业务首样本/eligible_at 仍为 null，
+> TUI-02 仍 `2/10 DENY`。修复 env 只绑定当前 release；下一次部署的自动保留未验收。
+
+> 2026-09-15 AUD-03 当前候选只读红项：active Config Center profile v14
+> 的 snapshot hash 按 47 项完整值（含一项 secret ref）计算，却只持久化 46 项公开值；
+> AUD loader 正确返回 `snapshot_hash_mismatch`。实际 outbox 仍 2 due pending、
+> 0 delivered，`/metrics/` 七条 audit gauge 与 SELECT 一致。见
+> [AUD 哈希范围检查点](../deployment/aud03-config-snapshot-hash-scope-readonly-2026-09-15-891c40c57.json)。
+> `AUD-03` 继续 awaiting_production，不能原地改 hash、回退到 superseded profile 或启用 dispatch。
+
+> 2026-09-15 DATA-02 同候选 `READ ONLY` audited quote 工厂构造在上述
+> `snapshot_hash_mismatch` 处 fail-closed，尚未触发 provider fetch、审计/事实写入或
+> current publication。[DATA-02 构造预检原件](../deployment/data02-audited-quote-construction-readonly-2026-09-15-891c40c57.json)
+> 不代表历史供应商 `2003` 拒绝已解决，也不代表 5,533 标的四类回填已完成。
+> `DATA-02=awaiting_production`、`DATA-03=waiting_dependency`；EVID-09 仍是唯一仓库焦点。
+
+> 2026-09-15 [DATA-02 当前候选 financial/valuation/publication 只读原件](../deployment/data02-current-candidate-financial-valuation-publication-readonly-preflight-2026-09-15-891c40c57.json)
+> 与 SHA sidecar：独立金融预览见 5,533 标的均有事实行，
+> 但 `available_at` 缺 381,858 行/4,788 标的；日历报告日期
+> 不是来源可用时刻。最新 valuation 5,533/5,533 缺
+> `observed_at` 和 `available_at`，完整 dry-run 在缺
+> `observed_at` 处退出 1。正确 `published` 状态下 quote/
+> price/financial head 成员仅 1/23/80，valuation 无 head。
+> DATA-02/AUD 决策门仍 DENY；无 provider fetch、回填、
+> publication switch 或 TUI 候选重置。
+
+> 2026-09-15 [DATA-02 来源分类与单标的 Tencent 只读原件](../deployment/data02-current-source-time-by-provider-readonly-2026-09-15-891c40c57.json)
+> 与 SHA sidecar：487,464 条 financial fact 全来自
+> `akshare`，381,858 条缺 `available_at`，全部缺
+> `announced_at`/raw hash/source record。最新 valuation
+> 5,533/5,533 缺 `observed_at/available_at`；但一条
+> 真实 Tencent 公共响应可分别给出供应商报价时间与
+> response-completed 时间及 raw hash。单标的探针
+> 不证明全域刷新；财报公告日仍不能补造成可用时刻。
+> DATA-02/AUD 保持 DENY，无事实写入或 publication。
+
+> 2026-09-15 EVID-09 只读三元组进展：现行 `891c40c57` 的 immutable release
+> manifest、运行中 web 与原始 image tag 一致，故同一现行标签可绑定为尚未演练的
+> forward-recovery 身份；目标 `6760c9aa` 的 immutable manifest 仍在，但其原始
+> web tag 已消失，仅专用兼容别名匹配同一 image ID/OCI。见
+> [三元组 preflight](../deployment/evid09-current-target-forward-binding-preflight-2026-09-15-891c40c57.json)。
+> 身份已绑定不等于 rollback 可执行：目标 Django 对新增 News 的自然通过结果、
+> 目标 tag 处置、TUI 重置／protected query、stop/recovery 和精确 live 授权仍缺。
+> 单进程隔离 Django 启动约一小时也未收敛；EVID-09 继续 `active`、live DENY。
+
+> 2026-09-15 EVID-09 执行前 dry-run 进一步确定硬缺口：目标旧 release
+> 的 Compose 四处仍解析已缺失的原始 web tag，当前生产 provenance verifier
+> 在 mutation 前必须 inspect 该精确 tag；专用兼容别名不会自动替代。
+> 目标 release 的 host-only protected query env 也不存在，当前 release
+> 的文件仅以 stat 确认为 0600/127 字节，凭据内容未收集。见
+> [目标 release DENY 原件](../deployment/evid09-target-release-compose-preflight-deny-2026-09-15-891c40c57.json)。
+> 未 retag、未写 env、未运行完整 verifier 或 live rollback；目标 Django
+> 对新 News clone 的实际兼容结果仍缺，EVID-09 保持 `active`。
+
+> 2026-09-15 EVID-09 后续 owner 授权修复了目标旧 release 的原始 web tag
+> 与 host-only protected-query env：精确 alias ID/OCI 前后匹配，env 与现行
+> 同源且为 0600，目标 Compose quiet config 与远端新 dry-run 均退出 0。
+> [有界修复原件](../deployment/evid09-target-prerequisites-repair-2026-09-15-891c40c57.json)。
+> 上段 DENY 保留为修复前时点事实；没有切换 Web/Caddy、重置 TUI、restore DB
+> 或演练前进恢复。独立入口的 live 分支仍 fail-closed；EVID-09 active，
+> TUI-02 现行候选未变，后续真正换 OCI 必须重新绑定与采样。
+
+> 2026-09-15 EVID-09 新生产 News head 已自然更新至 12 个冻结成员，
+> 旧 11 成员 clone 不再代表现行 DB。新[生产只读隔离兼容原件](../deployment/evid09-target-new-news-production-readonly-compatibility-2026-09-15-891c40c57.json)
+> 证明目标精确 OCI 在零端口/无业务卷/只读 DB 的临时容器中自然读通
+> 四项严格策略与当前 News ID/hash/12 rows；八组保全 rowset SHA 前后
+> 不变，现行 Web/current 不变，HTTPS health/db/ready `200`、decision
+> `503`。初次 root-owned 日志 tmpfs 导致的 Django setup 失败保留为
+> 失败事实，只调整探针 tmpfs UID/GID 后成功。live Web switch/forward
+> recovery 与 TUI-02 重绑尚未执行，EVID-09 仍 active、live DENY。
+
+> 2026-09-15 EVID-09 [新鲜只读转场门禁](../deployment/evid09-fresh-readonly-transition-gates-2026-09-15-891c40c57.json)
+> 及 SHA sidecar：最终源码的生产保全探针显式绑定目标 OCI 已读通的
+> 12 成员 News ID/hash，Authority/Policy/Catalog/News 八组 rowset 与
+> 前后原件一致；受保护 HTTPS query 实测未认证 401、认证 TLS 200、
+> `web:8000 up=1`，health/db/ready 200、decision-ready 503；现行/目标
+> Web Compose 在仅规范化镜像和只读 manifest 来源后 SHA 完全相同、
+> 零其他差异、七项启动写入开关全关闭。所有探针只读，现行 Web 未切换。
+> 这些样本不是 live rollback/forward recovery，也不能自动沿用到后来
+> News head；独立手动 runner 与真实 TUI-02 reset/rebind 仍缺，EVID-09
+> 保持 active、`--exercise` DENY。
+
+> 2026-09-15 后续状态更新：[真实原始样本与 live DENY 原件](../deployment/evid09-tui02-retained-observation-live-action-deny-2026-09-15-891c40c57.json)
+> 的受保护 TLS 查询于 `17:17:34Z` 得到 4 条非空原始迁移序列；
+> 从当前 Web 启动后筛得首次留存 source 样本 `15:21:04.672Z`，
+> 完整 14 日最早为 `2026-09-29T15:21:04.672Z`。上节“独立 runner
+> 缺失”已被 Web-only shell、FIFO 分离控制及自动/独立前进恢复代码
+> 关闭，44 项 EVID 聚焦测试通过，`17:28:31Z` 新鲜只读动作前门仍 PASS。
+> 但没有生产 live 切换或 recovery 事实；runner 新增原始 vector
+> 非空即拒绝切换，保护刚启动的 TUI-02 窗口。最新监控全项尚未
+> 复核，canonical retained checkpoint 尚未绑定，TUI-02 和 EVID-09
+> 均仍 DENY/active；旧时点“原始空 vector”不再描述当前状态。
+
+> 2026-09-15 后续 material checkpoint：[TUI-02 生产 retained 原件](../deployment/tui02-production-observation-checkpoint-2026-09-15-891c40c57.json)
+> 和 SHA sidecar：最终源码只读复核当前 OCI/manifest、Prometheus
+> 无首样本后重启、唯一 target up、18 条健康规则、`3w/4GiB` 持久卷、
+> 受保护 TLS 401/200 与 decision-ready 503；raw source 复采首样本
+> 仍为 `2026-09-15T15:21:04.672000Z`。canonical binder dry-run/
+> 写入均通过，cutover evidence 已绑定 checkpoint SHA 与精确
+> `2026-09-29T15:21:04.672000Z` eligible instant。自然14日尚未满，
+> UAT/cleanup/rollback/telemetry/defect/backup/review/approval 均未继承；
+> readiness仍 `2/10 DENY`。EVID-09 live 演练仍受非空原始样本门禁
+> 拒绝，未重置观察、切换Web、提交或部署。
+
+> 2026-09-15 EVID-09 仓库检查点：[两段停止线契约](../testing/evid09-web-only-two-interval-stopline-contract-2026-09-15-891c40c57.json)
+> 与 SHA sidecar。先红后绿证明旧编排可错用目标期 `up` 为恢复期
+> 新 scrape、接受早于目标启动的保全报告；新编排要求目标/恢复
+> 各自的八组账本/News/Authority/只读事务、受保护 TLS 与新鲜
+> `up` 样本均绑定各自 Web started_at。目标停止线失败但原镜像
+> 已经独立验证恢复时仅以 exit 1 输出 DENY 恢复检查点。58 项
+> EVID 聚焦回归、Black/isort/Ruff、增量与全量 mypy 通过；
+> 生产 180 秒 FIFO 超时未改变。代码 mock 验证不是 live 演练，
+> 当前 TUI-02 非空 raw vector 继续拒绝 Web 切换，EVID-09
+> 仍 active、无 exit 或探针提交。
+
+> 2026-09-15 EVID-09 进一步的[Web 时段镜像身份夹取检查点](../testing/evid09-web-interval-docker-identity-bracket-2026-09-15-891c40c57.json)
+> 与 SHA sidecar：先红后绿的目标/恢复两例证明仅靠 sample 时间
+> 会漏掉采集期间的 Web 镜像变更。只读 Docker 探针现于两期
+> 保全/HTTPS 取证前后各查精确 image ID、started_at、挂载
+> manifest SHA 和 healthy/running；任何漂移 DENY。65 项 EVID
+> 聚焦回归与格式/增量类型通过。此为代码和隔离 mock 证据，
+> 不是生产 live 切换；TUI-02 非空观察仍禁止切换，EVID-09 active。
+
+> 2026-09-15 EVID-09 的[串行前进恢复检查点](../testing/evid09-serialized-forward-recovery-contract-2026-09-15-891c40c57.json)
+> 与 SHA sidecar：FIFO 故障时独立手动恢复与 shell EXIT trap
+> 原可并发重建同一个 Web。现在两路共用现行不可变 manifest
+> 的只读文件锁，锁内确认原镜像已健康则不二次重建；隔离 Bash
+> 双进程仅发生一次 mock recreate，67 项 EVID 回归通过。
+> 未执行 VPS live recovery；TUI-02 当前留样继续禁止换候选，
+> EVID-09 active、无生产退出证据。
+
+> 2026-09-15 EVID-09 [现行 VPS Web-only shell 只读前检](../deployment/evid09-current-web-only-shell-readonly-preflight-2026-09-15-891c40c57.json)
+> 与 SHA sidecar：精确源码经受信任 SSH stdin 发至 VPS 的
+> `--dry-run` 实际退出 0，封存源码要求 `flock`、镜像/
+> manifest、备份、query env、Compose 与当前 healthy Web
+> 均通过才会输出 marker。它没有执行只读 fd 的生产锁竞争，
+> 更未进行 Web 切换/恢复或重置 TUI-02 留样；EVID-09
+> active，live 门继续 DENY。
+
+> 2026-09-15 EVID-09 [交互恢复 fallback 代码检查点](../testing/evid09-interactive-recovery-fallback-contract-2026-09-15-891c40c57.json)
+> 与 SHA sidecar：旧 operator 对“返回非零/缺事件/错误镜像”
+> 直接 DENY，未调用独立恢复。先红后绿后，上述无证明情形
+> 都必须串行试一次手动前进恢复，并重新验健康原镜像及恢复
+> 期账本/TLS；两路无证明仍 DENY。73 项 EVID 回归通过。
+> 这不是生产恢复实证；TUI-02 raw 留样非空继续拒绝换 Web，
+> EVID-09 唯一仓库焦点不变。
+
+> 2026-09-15 [当前候选 EVID-01/02 只读台账原件](../deployment/evid01-evid02-current-candidate-ledger-readonly-inventory-2026-09-15-891c40c57.json)
+> 与 SHA sidecar：`891c40c57` 的 Account 0050–0063 已应用；
+> 33 张选定 V1–V5 台账只读快照首次在本候选确认 V3
+> owner authority 4 行、Receipt/Subject/EvidenceV5 各 4 行，
+> 不再可引用旧 0055/13 表“全部零播种”；另三张 EVID-02
+> operator/approval/activation 表仍全为 0。行数不是
+> authenticated exact-reader、真实 owner receipt 或人审批准。
+> EVID-01/02 仍 awaiting_production，EVID-09 仓库焦点不变；
+> 未创建 root、approval、交易或打开 decision gate。
+
+> 2026-09-15 [EVID-09 独立前进恢复锁只读前检](../deployment/evid09-current-forward-recovery-lock-readonly-preflight-2026-09-15-891c40c57.json)
+> 与 SHA sidecar：新增 `--forward-recover-dry-run` 只打开
+> 与 EXIT/手动恢复共用的 manifest `flock` 并在锁内重查
+> healthy 现行 Web，不带 live token、不执行 Compose up。
+> 本地 75/75 EVID 聚焦回归及类型/格式/语法检查通过；
+> VPS stdin-only 模式退出 0，Web image/start/restart/status/
+> health 和 current symlink 前后不变。没有并发锁竞争或
+> live forward recovery 实证，TUI-02 留样保持，EVID-09
+> 仍 active/唯一仓库焦点。
+
+> 2026-09-15 [EVID-09 VPS manifest flock 竞争只读原件](../deployment/evid09-current-forward-recovery-flock-contention-readonly-2026-09-15-891c40c57.json)
+> 与 SHA sidecar：holder 对 0444 manifest 的只读 fd
+> 有界持锁 20 秒；同 inode contender 在 holder 存活时
+> `flock -n` 返回 busy，源码绑定的恢复锁 dry-run 于
+> holder 释放后退出 0。Web image/start/restart/status/
+> health 与 current symlink 前后不变。首次本地取证的
+> 解码错误未作生产结论，先证实旧锁已释放才重试。
+> 此前“VPS 锁竞争未验”的缺口已关，但 live target/
+> recovery 和 EVID-09 exit 仍 DENY，TUI 留样未重置。
+
+> 2026-09-15 [EVID-01/09 actor-source V3 当前 head 只读原件](../deployment/evid01-evid09-current-actor-source-head-readonly-2026-09-15-891c40c57.json)
+> 与 SHA sidecar：30 条逻辑 head 均已过期，当前时效
+> head `0/30`；不得拿 `authority_state=current` 或旧
+> source ID 做新 configured-validity 生命周期。下一步
+> 必须是真实 Session+CSRF、server-owned 空 JSON raw
+> capture 的精确前检及 owner/account policy；本轮未
+> 使用 session key、创建 authority 或改变 TUI 留样。
+
+> 2026-09-15 [EVID-01 当前 V3/V5 head 只读前检](../deployment/evid01-current-candidate-v3-v5-head-readonly-preflight-2026-09-15-891c40c57.json)
+> 与 SHA sidecar：四条 AuthorityV3 的父链/哈希引用匹配，
+> 但当前 head `0/4`；root、EvidenceV5、receipt 与 actor-source
+> 均已过期，只有 policy `4/4` 仍有效。未重算 seal 或运行
+> authenticated facade，历史行不可当现行授权。EVID-01
+> 保持 awaiting_production；需真实当前输入与已授权的
+> configured-validity 生命周期后再做 exact/current 验收。
+> EVID-09 仓库焦点和 TUI-02 留样不变，无生产写入或切换。
 
 > 2026-09-13：生产已部署 `3032481969f9…` / release `20260913212011`，四个严格策略头已激活，六个 legacy 头保留，admin/user1 current 与四条权威根独立核验通过。[真实部署/激活证据](../deployment/data16-standard-deployment-and-policy-activation-2026-09-13.json)。DATA-16 仓库退出门已完成；唯一仓库焦点转为 EVID-09，由 Luna max 实施[锁后读取阶段性能方案](evid08-facade-write-performance-remediation-2026-09-13.md)。DATA-02、EVID-01/02、AUD-03、TAR-05 生产验收未完成。
 
@@ -39,7 +243,7 @@
 
 ## 自主 Goal 调度入口
 
-2026-09-15 当前：`DATA-16=completed`、`EVID-09=active`，`execution_focus.unit_id=EVID-09`；EVID-03 仍等待 EVID-01/02。EVID-09 的旧候选隔离技术演练不能替代现行候选的生产 live rollback／前进恢复退出证据。
+2026-09-15 当前：`DATA-16=completed`、`EVID-09=active`，`execution_focus.unit_id=EVID-09`，生产仍绑定 `891c40c57` / `20260915110952`。旧候选[隔离回滚复核](../deployment/evid09-compatible-rollback-rehearsal-2026-09-15.json)、[post-News 本机 clone 兼容](../deployment/evid09-target-postnews-isolated-runtime-compatibility-2026-09-15-891c40c57.json)与新[12 成员 News 的生产只读目标镜像兼容](../deployment/evid09-target-new-news-production-readonly-compatibility-2026-09-15-891c40c57.json)各自只证明对应范围，均非 live rollback/前进恢复。目标原始 web tag/query env 已有界修复；旧[动作前检 DENY](../deployment/evid09-postcompat-live-image-action-preflight-deny-2026-09-15-891c40c57.json)保留为修复前时点事实。独立 Web-only runner 已通过聚焦测试，但真实 TUI-02 原始样本非空，禁止当前 live 切换；[canonical retained checkpoint](../deployment/tui02-production-observation-checkpoint-2026-09-15-891c40c57.json)已绑定首样本与 `2026-09-29T15:21:04.672000Z` eligible instant，TUI-02 readiness仍 `2/10 DENY`，旧候选证据不可继承。EVID-03 仍等待 EVID-01/02。
 DATA-16 四份源码绑定证据保持原样：核心发布链路、版本化策略激活集成、Financial ORM
 来源严格校验及最终Domain公告/可用时间顺序校验。最终受影响155 passed、官方Domain
 选定2939 passed，聚合行覆盖率94.18%，16项静态门禁包括53生产文件增量mypy和全量零债务通过。
@@ -240,11 +444,11 @@ DATA-02 的 [财务 availability 切片](../deployment/data02-financial-availabi
 
 | ID | 优先级 | 状态 | Owner | 主计划 | 下一退出门 |
 |----|--------|------|-------|--------|------------|
-| `evidence-hard-gate` | P0 | active | Personal Project Owner / Research / Risk / Portfolio / Broker / Account | [Evidence hard gate](evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md) | `EVID-07` 为唯一仓库焦点，落实完整单所有者 authority/scope 链；EVID-06 已完成，EVID-01/02 仍需真实账本与生产验收 |
+| `evidence-hard-gate` | P0 | active | Personal Project Owner / Research / Risk / Portfolio / Broker / Account | [Evidence hard gate](evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md) | `EVID-09` 为唯一仓库焦点；隔离 PG 三次测量和历史真实生命周期已过，[当前候选只读保护基线](../deployment/evid09-current-candidate-preservation-readonly-2026-09-15-891c40c57.json)核实 Authority 根与活动策略语义，发现全字段摘要及 News current 漂移；现有 post-News dump 的本机隔离入口已完成远端/本地 SHA 和 PG16 manifest 验证，disposable restore 目标待 owner 明确确认；兼容镜像 runtime/live rollback 证明仍缺。EVID-01/02 另待真实账本与生产验收 |
 | `strategy-research-production` | P0 | production_validation | Research / Data Center / Signal / Portfolio / Broker | [Completion audit](strategy-research-capability-completion-audit-2026-08-05.md)、[Roadmap](strategy-research-capability-roadmap-execution-2026-08-05.md)、[生产数据跟踪](strategy-research-production-data-closure-tracking-memo-2026-08-12.md)、[R1-R2](strategy-research-r1-r2-readiness-plan-2026-08-05.md)、[R3-R4](macro-factor-r3-r4-readiness-and-staged-delivery-2026-08-05.md)、[R5-R8](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) | 最终候选的 65/7/16/35 表 owner-ledger inventory 全零；R1–R8 逐项 owner/定义审核入口已就绪，审核后仍须 canonical dry-run 与独立 registration 授权，PIT/OOS、Promotion、consumer UAT 不得预签 |
-| `data-production-reliability` | P0 | production_validation | Data Center / Operational Readiness / Task Monitor | [综合清零方案](release-blocker-closure-execution-plan-2026-08-29.md)、[Canonical architecture](data-center-canonical-architecture-refactor-2026-08-02.md)、[生产可靠性](production-data-reliability-full-remediation-2026-08-01.md)、[关键测试](critical-reliability-test-closure-2026-07-22.md)、[UAT 整改](uat-remediation-2026-07-20.md) | DATA-15 completed：完整选定范围1371 passed，分支100%/80.15%/90.36%，行覆盖率均超过90%；DATA-12保持完成。生产 891c40c57 / 20260915110952 已核验，DATA-02 仍缺真实 actor/scope、audit runtime 和数据集对账输入。 |
-| `system-audit-consolidation` | P0/P1 | production_validation | Personal Project Owner / Audit / Data Center / Task Monitor | [统一审计日志](system-audit-log-consolidation-plan-2026-08-13.md) | `AUD-04` repository exit 已补齐 candidate/authority 双重绑定、半开归档窗口、manifest/content/predecessor hash、append-only artifact 与 memory-only exact replay；当前 successor 只读证据显示 authority 为空、audit runtime 三项缺失，空 event/outbox 不证明 writer 通过；下一门是实际 authority/profile、writer smoke，再完成同候选 migration/metrics/alerts/TUI/recovery/archive 七段证据。旧候选 missing_section_count 不沿用 |
-| `web-to-tui-m5` | P0 | production_validation | Personal Project Owner / Terminal / Operational Readiness | [迁移总计划](web-to-tui-migration-plan-2026-07-25.md)、[M5 readiness](web-to-tui-m5-readiness-2026-07-27.md) | `TUI-02=active`；当前 successor `891c40c57…` / `20260915110952` 已绑定，readiness 为 `2/10 DENY`；无首个有效 retained sample，eligible_at 为空，14 日观察尚无有效起点。旧候选窗口、UAT/cleanup/rollback 不继承，Classic 清理仍禁止 |
+| `data-production-reliability` | P0 | production_validation | Data Center / Operational Readiness / Task Monitor | [综合清零方案](release-blocker-closure-execution-plan-2026-08-29.md)、[Canonical architecture](data-center-canonical-architecture-refactor-2026-08-02.md)、[生产可靠性](production-data-reliability-full-remediation-2026-08-01.md)、[关键测试](critical-reliability-test-closure-2026-07-22.md)、[UAT 整改](uat-remediation-2026-07-20.md) | DATA-15 completed：完整选定范围1371 passed，分支100%/80.15%/90.36%，行覆盖率均超过90%；DATA-12保持完成。生产 891c40c57 / 20260915110952 的 [DATA-02 只读构造预检](../deployment/data02-audited-quote-construction-readonly-2026-09-15-891c40c57.json) 在 audit runtime `snapshot_hash_mismatch` 处 fail-closed，provider 尚未调用；真实 actor/scope、审计快照修复和数据集对账/回填仍缺。 |
+| `system-audit-consolidation` | P0/P1 | production_validation | Personal Project Owner / Audit / Data Center / Task Monitor | [统一审计日志](system-audit-log-consolidation-plan-2026-08-13.md) | `AUD-04` repository exit 保持完成；当前 `891c40c57` 的 AUD loader 因 active v14 完整值 hash 与非 secret snapshot hash 范围不一致而 fail-closed，账本仍 2 due pending / 0 delivered，公开七条 gauge 一致。`AUD-03=awaiting_production`；先有界修复 Config Center hash 合同并安全晋级真实 profile，再做同候选 writer/recovery/alerts/admin TUI/archive/rollback 与 owner 验收。旧候选空队列、UAT 与 missing_section_count 不继承 |
+| `web-to-tui-m5` | P0 | production_validation | Personal Project Owner / Terminal / Operational Readiness | [迁移总计划](web-to-tui-migration-plan-2026-07-25.md)、[M5 readiness](web-to-tui-m5-readiness-2026-07-27.md) | `TUI-02=active`；当前 successor `891c40c57…` / `20260915110952` 已绑定，readiness 为 `2/10 DENY`；受保护 HTTPS query 认证已验证，但新候选原始迁移事件向量仍空，eligible_at 为空，14 日观察尚无有效起点。旧候选窗口、UAT/cleanup/rollback 不继承，Classic 清理仍禁止 |
 | `terminal-agent-multi-user-runtime` | P0 | production_validation | Agent Runtime / Terminal / Task Monitor / Operational Readiness / SDK / MCP | [多用户队列与服务端 CLI 运行](terminal-agent-multi-user-runtime-plan-2026-08-18.md) | TAR-01 至 TAR-04 与 `TAR-06` repository 合同已完成；TAR-06 corrective 已把任意摘要文件冒充批准和假 Worker-ready 两条旁路封闭为 24h semantic approval、全 envelope/action binding、non-billable runtime profile 与真实 heartbeat preflight。collector 尚无真实 run，TAR-05 capacity/chaos/provider/canary/观察/退役仍须真实证明 |
 | `ai-native-release` | P1 | external_validation | Agent Runtime / Terminal | [AI-Native delivery pack](ai-native/README.md) | `TUI-01` 已完成；等待 TAR-05 后绑定同候选 staging/production 真实模型 UAT 与单一所有者验收 |
 | `qmt-live-bridge` | P2 | blocked_external | Broker Execution / 外部券商 Owner | [QMT 实盘桥](qmt-live-trading-bridge-plan.md) | Windows XtQuant Phase 0、连续仿真和受控小额实盘 |
@@ -1040,3 +1244,17 @@ EVID-03等待EVID-01/02，DATA-03等待DATA-02。DATA-12/EVID-05/DATA-13/DATA-14
 | 2026-09-04 | P1 repository corrective active | `DATA-10` reviewed runtime-manifest projection | 精确提交 `e4095270…` 的 run [`33820056980`](https://github.com/guiyinan/agomTradePro/actions/runs/33820056980) 中 PostgreSQL job 完整成功，主 job 的 current-data、Celery、full mypy、frontend 均成功；full unit=`13,868 passed / 1 failed / 1 skipped`，唯一失败是 `tui_metadata_repository.py` 的 reviewed manifest digest 未刷新。canonical `npm run build:tui` 已更新 manifest source digest/build identity，`npm run check:tui` 与 manifest focused test `1 passed` | 后续 Nightly 阶段因 unit 非零而按设计跳过，不据此宣称 integration/final gate 通过；未部署、未重启、未改变生产候选或观察时间。DATA-10 继续 active，等待 manifest-inclusive 精确最终提交的 Python 3.11 Nightly 全绿 |
 | 2026-09-05 | P1 repository corrective active | `DATA-10` current-checkout binding fail-closed | 精确提交 `1d91884a…` 的 run [`33895590645`](https://github.com/guiyinan/agomTradePro/actions/runs/33895590645) 中 PostgreSQL job 完整成功，主 job 通过 current-data、Celery、full mypy 与 frontend；full unit=`13,868 passed / 1 failed / 1 skipped`。唯一失败是 checked-in readiness test 仍期待旧部署候选 binding 等于当前 runtime manifest。测试现验证 UAT/cleanup/rollback evidence 与 `108/108` coverage 仍在，但当前 checkout 的三个 gate 必须 `binding=false`；readiness 整文件 `37 passed`、合并聚焦包 `39 passed`，TUI/格式/治理/文档一致性门禁全绿，issue #3 保持 P2 | 未改 production cutover evidence；生产 `aa7127ff4…` / `20260901232812` 及历史 `5/10 DENY` 记录不变。DATA-10 继续 active，等待本修复精确提交的 GitHub Python 3.11 Nightly 全绿；未合并 main、未部署 |
 | 2026-09-05 | P1 repository closure | `DATA-10` denominator reconciliation 与精确 Nightly exit | 提交 `d5f5e8696…` 的 run `33938041618` 已让所有测试层通过并首次暴露 12 个 Domain / 14 项旧 coverage floor 违规；用其 commit-bound、`git_dirty=false`、内部 hash 全匹配的 artifact 重建 44 个 Domain branch floors，并以 per-Domain override 保留全局 line minimum `90.0%`。精确提交 `907cb9770…` 的 run [`33948479845`](https://github.com/guiyinan/agomTradePro/actions/runs/33948479845) 中主 job 和 PostgreSQL job 完整 success，coverage ratchet、Architecture Audit、Playwright 及全部测试层通过；[closure evidence](../testing/data10-nightly-reliability-closure-evidence-2026-09-05.json) SHA=`1c67938e…6c6447` | `DATA-10=completed`、`execution_focus=null`；4 个 line exception 与 10 个 branch 恢复目标保留为 P2。未改 production cutover evidence、候选或 migration，未合并 main、未部署、未读写生产，成功后未重复触发 Nightly |
+
+## 2026-09-15 material checkpoints
+
+EVID-09 的[只读回滚绑定原件](../deployment/evid09-rollback-binding-checkpoint-2026-09-15.json)证明现行生产已是 `891c40c57`，历史 `f121000` 镜像 ID 不在主机；兼容回滚标签为更早的 `6760c9aa`，所以 EVID-09 仍 active，必须先重绑现行/目标/恢复镜像、备份和停止线。TUI-02 的[受保护查询修复原件](../deployment/tui02-protected-query-repair-2026-09-15-891c40c57.json)证明仅重建 Caddy 后 TLS 认证查询 200、未认证 401、目标 `up=1`，但原始迁移事件向量仍空，readiness 仍 `2/10 DENY`、首样本与 eligible_at 仍 null。AUD-03 的[候选只读哈希范围原件](../deployment/aud03-config-snapshot-hash-scope-readonly-2026-09-15-891c40c57.json)证明 v14 full47/public46 的 hash-scope mismatch、两条 due pending 未恢复。DATA-02 的[同候选只读工厂预检](../deployment/data02-audited-quote-construction-readonly-2026-09-15-891c40c57.json)因此在 supplier 调用前受阻，四类 backfill/publication 未完成。前述四份原件均有 SHA sidecar；AUD-03/DATA-02 状态保持 awaiting_production。未回填观察、未创建 final telemetry/approval、未运行 live rollback；active-plan v114、governance 和 focused 门禁结果以本轮复核为准。 EVID-09 新增的[当前候选保护基线](../deployment/evid09-current-candidate-preservation-readonly-2026-09-15-891c40c57.json)另有 SHA sidecar：四根不变，10 条活动策略业务字段/identity 保留，Catalog Domain 值与未变治理投影一致，但 all-persisted rowset SHA 已漂移且 News current 已于 03:00Z 换新；03:17Z 现有备份 SHA/size 再核通过，本机隔离 restore 已通过；生产 restore 与兼容镜像 live rollback 均未验证。 [现有备份本机入口](../deployment/evid09-existing-backup-local-isolation-preflight-2026-09-15-891c40c57.json)仅下载旧 dump 并匹配远端/本地 SHA 与 PG16 manifest（TOC 7569）；该 preflight 当时记录目标不存在；owner 后已精确确认并完成本机隔离 restore，EVID-09 仍 active。 同一 preflight 只读补审旧 v9 技术切换原件：ba1605fa/6760c9aa/ba1605fa 三阶段与 typed reader 通过、生产不变/清理完整，但原 gate=false 且不覆盖今日候选；本机 restore 目标确认已收到，旧原件仍不能替代新候选运行时证明。 f121000→891c40c57 的优化生命周期源码范围精确 diff0，旧 27 阶段 source relevance 保留，但不产生新候选运行时间或 rollback 通过结论。
+
+项目所有者在 2026-09-15 精确批准将已核验的 post-News dump 只恢复到本机 `evid09-compat-pg-891c40c57-20260915` / `evid09_compat_891c40c57`。[隔离 restore 检查点](../deployment/evid09-local-isolated-postnews-restore-2026-09-15-891c40c57.json)记录 SHA 再核、无网络/零端口、`pg_restore` 退出 0、克隆库 561 表/511 migrations/四根零撤销/14–10 policy/Catalog 10–15–10/新 News current ID/hash 精确匹配。兼容目标 OCI 镜像已完整重导到本机（远端 save/本机 load 均 0）；首次中断导入的 missing snapshot 是失败事实，只清理损坏本机标签。新镜像已运行 Python、连通克隆 PG，Django check、migration check 与 Published Query 在约 55/46/35 分钟的本机窗口内活跃但未自然收敛，任务 app 容器已停止并移除，因此目标 Django runtime 兼容仍未验证；PG 容器已停止、专用卷与原 dump 保留。本机 restore 不授予生产 restore/live rollback，EVID-09 保持 active；TUI-02 观察重置、镜像三元组/停线及精确 live 授权缺口不变；检查点已有 SHA-256 sidecar。
+
+[后续只读三元组原件](../deployment/evid09-current-target-forward-binding-preflight-2026-09-15-891c40c57.json)及 SHA sidecar 将现行／目标／前进恢复 image ID、OCI、release、两份 0444 manifest 和现行留存 image tag 精确绑定；目标 manifest 的原始 web tag 缺失，专用兼容别名虽同 ID/OCI，却不能自行替代 live retag/Compose action。单进程 Django 启动约一小时仍无自然结果；TUI-02 `2/10 DENY` 的现行候选若切换 OCI 必须重置，旧 release protected query env 尚未核验。只消除了“缺少三方身份”这个 preflight 缺口，没有解除目标 runtime、tag、stop/recovery 或精确 live 授权的硬阻断；EVID-09 仍 active，不创建探针提交。
+
+[目标 release 的后续只读 DENY 原件](../deployment/evid09-target-release-compose-preflight-deny-2026-09-15-891c40c57.json)及 SHA sidecar 把原始 tag 缺失从身份屏查推进到真实 Compose/provenance 合同：目标 `.env` 和四处 Compose image 均要求原始标签，现行发布脚本的 VPS SHA 与本地 canonical LF SHA 相等、mutation 前 exact-tag inspect 必须成功。目标 host-only protected query env 也确实缺失；当前文件仅 stat 为 0600/127 字节。完整 verifier 未执行，标准目标 preflight fail-closed 是来源与事实的推断，不是 live 回滚结果。先取得目标新 clone Django 自然通过，再处理需精确授权的 tag/env 操作、TUI reset 和 stop/recovery；EVID-09 仍 active，未改生产。
+
+owner 后明确允许重启本机 Docker Desktop；管理命令的 180 秒启动等待退出 1，但 Desktop/WSL 自行恢复到 `running`，不是镜像失败。[目标 post-News 本机运行时兼容原件](../deployment/evid09-target-postnews-isolated-runtime-compatibility-2026-09-15-891c40c57.json)及 SHA sidecar 记录精确 OCI/克隆绑定、只读 app 会话和自然退出结果：`django.setup()`、`check --deploy`、`migrate --check --noinput`、四条严格 policy Application reader 与 `market.news/current` Published Query 均 exit 0；四个 immutable identity 与旧 preservation 原件精确相同，News ID/hash 及 11 条冻结成员匹配，实际样本时 gate 为 fresh/可读。读后 clone 仍为 561 表、511 migrations、14/10 policy、四根零撤销，News current ID/hash 未变；无持久挂载的临时 app 已移除，原 PG 容器停止，卷/dump/目标镜像保留。上述真实结果取代前段“目标 Django runtime 未验证”的旧时点结论，但只关闭本机技术兼容缺口；目标 VPS 原始 web tag、host-only protected query env、TUI-02 观察重置影响、停线/前进恢复及精确 live 授权仍缺。标准目标 preflight 与 EVID-09 完整 exit 继续 DENY，未 retag、部署、生产 restore/live rollback 或改 cutover evidence；注册表 v117 仍保持 EVID-09 唯一 repository focus、active。
+
+[post-compat 生产动作前检](../deployment/evid09-postcompat-live-image-action-preflight-deny-2026-09-15-891c40c57.json)及 SHA sidecar 固定现行 `891c40c57` 的 Web/manifest/前进镜像留存、目标 `6760c9aa` 的同 ID/OCI 兼容别名及缺失原始 tag/env、dump SHA 再核、公网 health/db/ready `200` 与 decision `503 blocked`。现行 TUI-02 仍 `2/10 DENY`，首样本/eligible 为 null，旧 OCI 切换会重绑且不得继承观察。标准发布脚本只有 `fresh/upgrade`，其失败 trap 会 compose down 与发布 registry，不能充当独立手动 rollback。注册表 v118 因此将下一项安全工作收敛为默认 dry-run 的 fail-closed 镜像演练入口及测试；目标 tag/env 写入与 live 切换须另行精确 owner 授权，EVID-09 仍 active，没有生产 mutation。

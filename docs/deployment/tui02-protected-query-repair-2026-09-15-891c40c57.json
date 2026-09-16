@@ -1,0 +1,94 @@
+{
+  "version": "tui02-protected-query-repair-checkpoint.v1",
+  "recorded_at": "2026-09-15T04:29:37Z",
+  "environment": "production",
+  "candidate": {
+    "source_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "release_id": "20260915110952",
+    "web_image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d",
+    "release_path": "/opt/agomtradepro/releases/source-20260915110952"
+  },
+  "preflight": {
+    "current_release_query_env": "missing",
+    "historical_query_env": {
+      "path": "/opt/agomtradepro/releases/source-20260910002501/deploy/prometheus-query.env",
+      "mode": "600",
+      "bytes": 125,
+      "sha256": "42584802c4ec755c0f55800c167f2b18626184f71cb72f2bae1792c090ead4ca",
+      "contains_bcrypt_hash": true,
+      "plaintext_password_present_in_historical_env": false
+    },
+    "caddy_query_environment": "missing",
+    "protected_https_query_unauthenticated_status": 401,
+    "https_health_status": 200,
+    "https_ready_status": 200,
+    "prometheus_health": "healthy",
+    "root_filesystem_available_kib": 76285352,
+    "current_caddyfile_validation": "Valid configuration"
+  },
+  "action": {
+    "kind": "host_only_query_credential_repair",
+    "scope": "current-release env file and Caddy-only recreate",
+    "query_env": {
+      "path": "/opt/agomtradepro/releases/source-20260915110952/deploy/prometheus-query.env",
+      "mode": "600",
+      "bytes": 127,
+      "sha256": "4176fe57b0be2f307109082aa1b53e752defc28f0a8c44436fa4bee874b94383",
+      "bcrypt_cost": 14,
+      "value_quoted_literal": true
+    },
+    "client_secret": {
+      "path": "/opt/agomtradepro/prometheus-query-client.secret",
+      "mode": "600",
+      "bytes": 103,
+      "root_only": true,
+      "secret_bytes_recorded": false
+    },
+    "compose_config_exit_code": 0,
+    "caddy_only_recreate_exit_code": 0,
+    "caddy_started_at": "2026-09-15T04:25:06.751047819Z",
+    "web_recreated": false,
+    "prometheus_recreated": false,
+    "database_restore_performed": false,
+    "volume_wipe_performed": false,
+    "decision_gate_changed": false
+  },
+  "postcheck": {
+    "caddy_state": "running",
+    "caddy_restart_count": 0,
+    "container_bcrypt_hash_matches_root_only_client_secret": true,
+    "protected_https_query_unauthenticated_status": 401,
+    "protected_https_query_authenticated_status": 200,
+    "prometheus_query_status": "success",
+    "retained_target_sample": {
+      "metric": "up",
+      "job": "agomtradepro",
+      "instance": "web:8000",
+      "sample_at": "2026-09-15T04:26:01.729000+00:00",
+      "value": 1
+    },
+    "raw_migration_event_vector_count": 0,
+    "recording_rule_entry_vector_count": 126,
+    "recording_rule_is_candidate_bound": false,
+    "https_health_status": 200,
+    "https_ready_status": 200,
+    "https_decision_ready_status": 503,
+    "web_health": "healthy",
+    "prometheus_health": "healthy",
+    "web_revision_unchanged": true,
+    "web_restart_count": 0
+  },
+  "observation": {
+    "first_candidate_bound_migration_sample_at": null,
+    "eligible_at": null,
+    "final_telemetry_created": false,
+    "approval_created": false
+  },
+  "durability_limit": {
+    "hash_env_is_release_local": true,
+    "future_deployment_preservation_verified": false,
+    "future_deployment_requires_query_env_preflight": true,
+    "basis": "The two most recent releases lacked the host-only env; this action only repaired the currently bound release and did not change repository deployment code."
+  },
+  "next_gate": "Wait for a genuine authenticated TUI or Classic user task to emit a new web_to_tui_migration_events_total series. Query and bind the first retained candidate-bound source sample; exclude historical 14-day recording-rule vectors and do not infer elapsed observation from the up target sample."
+}

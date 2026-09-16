@@ -1788,3 +1788,34 @@ SHA-256=`2ac5fcfc4c7756281931da42024d57085fc8034138585e3be4a47c1ec9b95fec`。没
 
 当前候选的 audited quote factory 在 provider fetch 前即因 mode_invalid 阻断：production active snapshot 缺 mode/outbox_enabled/authority_selector，且 actor authority 与 owner/tenant authority 来源表实际均为 0 行。
 [配置诊断](../deployment/data02-quote-audit-preflight-2026-09-07-0e9f890e.json) 与 [来源清单](../deployment/data02-audit-authority-sources-readonly-2026-09-07-0e9f890e.json) 保留原始只读证据。未执行 writer smoke、authority 写入或配置发布；这也说明空 outbox 不能证明审计 writer 可用。恢复路径先解决实际主体、owner/tenant scope 和 Config Center 绑定，不能改用 noop writer。
+
+## 2026-09-15：AUD-03 当前候选配置哈希范围与 backlog 只读检查点
+
+新部署候选 `891c40c57` / `20260915110952` 上，原 AUD-03 只读脚本在
+`REPEATABLE READ READ ONLY` 事务内加载审计 runtime 时，被
+`SystemAuditRuntimeConfigurationUnavailable(snapshot_hash_mismatch)` 正确阻断。
+[候选绑定原件](../deployment/aud03-config-snapshot-hash-scope-readonly-2026-09-15-891c40c57.json)
+和 SHA sidecar 保留 profile/snapshot 身份、哈希、账本 SELECT、公开 `/metrics/` 原始 body
+SHA 以及四处源码 SHA；未输出任何 secret ref 值。
+
+生产 active profile v14 于 `2026-09-14T10:35:30.914928Z` 激活。snapshot 持久化
+46 项非 secret 值，其重新计算 SHA 为 `a36a9b7d…`；存储的 snapshot SHA
+`020c2fa6…` 则精确匹配 profile 的 47 项完整值投影，其中仅新增的财务原件
+`encryption_key` 是 secret ref。前一版 v13 的存储与公开投影 hash 一致，但 v13
+已 superseded，不能静默作为当前 authority。源码合同显示 Config Center 激活用
+完整投影算 hash，再只持久化非 secret snapshot；审计 reader 用持久化投影重算并拒绝。
+这是充分解释当前 denial 的 hash-scope 缺陷，不是允许原地改写 hash 或公开 secret 的理由。
+
+独立只读账本实测 `2026-09-15T04:44:55.127166Z`：pending/due 均 2，
+claimed/delivered/failed 均 0；最老行仍在 `2026-09-12T15:15:23.371292Z`，
+当时 backlog 年龄 221371.755874 秒。候选 HTTPS `/metrics/` 200，七条
+`owner=audit` gauge 对应 pending/due 2、其他 0、oldest age 221510.414601 秒；
+它们只证明未恢复的当前队列及监控读出，不证明恢复时长、告警窗口、无重复/丢失
+或 admin TUI 主任务验收。raw snapshot 的 mode=off/outbox=false 不具备 loader 认可，
+不可把它当成有效 runtime binding。
+
+AUD-03 仍 `awaiting_production`。先在唯一 repository focus 规则允许时实施有界
+Config Center secret/public hash 合同修复与失败先行回归，再以受控、不可原地改写的
+profile 晋级重验 loader；随后才考虑 writer smoke、recovery、archive/restore、
+rollback 和真实单一 owner 终审。本次没有配置 mutation、dispatch、fault、
+migration、archive、restore 或生产数据写入；EVID-09 保持唯一仓库焦点。

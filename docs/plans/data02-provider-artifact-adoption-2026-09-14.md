@@ -87,3 +87,14 @@ PR68 全部 30 项 CI 通过，Source ba1605 已标准代码部署并返回 0。
 容器 DNS 恢复至 116.218 ms 后，保留原 DNS 阻断工件并执行一次真实方法调用。实际 transport attempt 为 1；供应商仍返回 2003，原 TUSHARE_PROVIDER_REJECTED 异常重抛。新拒绝响应 62 B 已落盘，RawAudit 38591 为 failure/error/row_count=0；原始 body SHA 与解密 SHA 一致，真实 Fernet 和 FRA1 magic 校验通过。未写财务 Fact。
 
 [真实复测封存](../deployment/data02-rejected-response-production-retest-2026-09-14.json)绑定新的响应原件和执行收据。新的响应即便 SHA 与历史 62 B 一致，也不能使历史内存原件变为可回放。response_completed_at 不等于 available_at；native identity、精确可用时间、历史 raw hash、成功财务验收和完整 19 组账本部署保全仍未完成，DATA02 状态和签署不变。
+
+## 27. 2026-09-15 新候选审计构造 preflight
+
+当前生产 `891c40c57` 候选的 `READ ONLY` 工厂构造在审计配置快照
+`snapshot_hash_mismatch` 处被阻断；还未调用供应商，也未写入审计、事实或发布。
+[只读构造证据](../deployment/data02-audited-quote-construction-readonly-2026-09-15-891c40c57.json)
+与 [AUD 哈希范围证据](../deployment/aud03-config-snapshot-hash-scope-readonly-2026-09-15-891c40c57.json)
+分别绑定实际执行和根因。此结论不能覆盖前述真实 `2003` 响应，更不能替代
+5,533 标的回填或四份 immutable publication identity；`DATA-02` 继续
+`awaiting_production`。仓库唯一执行焦点仍为 `EVID-09`，ConfigCenter 契约修复须待
+焦点释放后另立隔离 slice，并以新快照/真实部署重新验证，不修改历史 seal。

@@ -1,0 +1,69 @@
+{
+  "version": "evid09.current-forward-recovery-flock-contention-readonly.v1",
+  "recorded_at_utc": "2026-09-15T20:02:45Z",
+  "unit_id": "EVID-09",
+  "environment": "production",
+  "candidate": {
+    "commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "release_id": "20260915110952",
+    "web_image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d",
+    "web_started_at_utc": "2026-09-15T03:22:24.378025837Z",
+    "web_restart_count": 0,
+    "web_status": "running",
+    "web_health": "healthy",
+    "web_image_start_restart_status_health_same_before_after": true,
+    "current_release_symlink_same_before_after": true
+  },
+  "source": {
+    "shell_path": "scripts/evid09_web_only_image_exercise.sh",
+    "shell_sha256": "7d01ab095a4c2ecd8a6d204e7a956552b2d8ee53716dbbc68bd2096d8c0cc83c",
+    "operator_pinned_shell_sha256_matches": true,
+    "shell_installed_on_vps": false,
+    "execution_method": "trusted-host-key SSH stdin-only bash source"
+  },
+  "previous_collection_error": {
+    "error": "Local Paramiko stdout readline returned str while the collector attempted bytes.decode; the first holder handle was lost before a valid contention report formed.",
+    "same_inode_nonblocking_check_at_utc": "2026-09-15T20:01:23.794500941Z",
+    "same_inode_nonblocking_check_rc": 0,
+    "conclusion": "No holder lock was live when the bounded second collection started; no result from the failed local attempt is used as evidence."
+  },
+  "bounded_contention": {
+    "manifest_path": "/opt/agomtradepro/releases/source-20260915110952/.agom-release-manifest.json",
+    "inode_device_and_number": "2049:6094709",
+    "holder_fd": 8,
+    "holder_open_mode": "read_only",
+    "holder_lock_mode": "exclusive_advisory_flock",
+    "holder_acquired_at_utc": "2026-09-15T20:02:04.379813665Z",
+    "holder_released_at_utc": "2026-09-15T20:02:24.391655051Z",
+    "holder_exit_code": 0,
+    "holder_bounded_sleep_seconds": 20,
+    "contender_fd": 7,
+    "contender_open_mode": "read_only",
+    "contender_probe_at_utc": "2026-09-15T20:02:05.023194019Z",
+    "contender_inode_device_and_number": "2049:6094709",
+    "contender_nonblocking_flock_rc_while_holder_live": 1,
+    "contender_probe_process_exit_code": 0,
+    "source_bound_recovery_lock_dry_run_exit_code": 0,
+    "source_bound_recovery_lock_dry_run_elapsed_seconds": 20.025,
+    "source_bound_recovery_lock_dry_run_marker": "FORWARD_RECOVERY_LOCK_DRY_RUN",
+    "source_bound_recovery_lock_dry_run_stdout_sha256": "2061e9e22da4a7f09081538ea9747d50dc8caa8d53039540b8f29174755f4163",
+    "source_bound_recovery_lock_dry_run_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "lock_contention_on_vps_verified": true,
+    "exact_wait_duration_proven": false
+  },
+  "boundary": {
+    "manifest_bytes_written": false,
+    "docker_compose_up_or_web_recreate": false,
+    "live_target_image_interval": false,
+    "live_manual_or_exit_forward_recovery": false,
+    "production_database_restore_or_business_dml": false,
+    "tui02_observation_reset_or_candidate_rebind": false,
+    "configured_validity_authority_lifecycle_verified": false,
+    "evid09_exit_gate_satisfied": false,
+    "decision": "PASS_VPS_READONLY_FLOCK_CONTENTION_LIVE_DENY"
+  },
+  "prior_checkpoint": {
+    "path": "docs/deployment/evid09-current-forward-recovery-lock-readonly-preflight-2026-09-15-891c40c57.json",
+    "sha256": "61db6cdeef0e02c51000e167c1a4d35dffe72717dd33682b5026fb8b6e45ea22"
+  }
+}

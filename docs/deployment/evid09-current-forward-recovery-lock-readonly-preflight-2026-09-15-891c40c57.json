@@ -1,0 +1,67 @@
+{
+  "version": "evid09.current-forward-recovery-lock-readonly-preflight.v1",
+  "recorded_at_utc": "2026-09-15T19:54:18Z",
+  "remote_observed_at_utc": null,
+  "unit_id": "EVID-09",
+  "environment": "production",
+  "candidate": {
+    "commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "release_id": "20260915110952",
+    "web_image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d",
+    "web_started_at_utc": "2026-09-15T03:22:24.378025837Z",
+    "web_restart_count": 0,
+    "web_status": "running",
+    "web_health": "healthy"
+  },
+  "source": {
+    "shell_path": "scripts/evid09_web_only_image_exercise.sh",
+    "shell_sha256": "7d01ab095a4c2ecd8a6d204e7a956552b2d8ee53716dbbc68bd2096d8c0cc83c",
+    "operator_path": "scripts/evid09_web_only_action.py",
+    "operator_sha256": "bb241e8ecf16504ecf947b7c4333d7fb3d8dfbc16f5f25479ee2145c1464ae8b",
+    "operator_pinned_shell_sha256": "7d01ab095a4c2ecd8a6d204e7a956552b2d8ee53716dbbc68bd2096d8c0cc83c",
+    "test_path": "tests/unit/test_evid09_web_only_image_exercise.py",
+    "test_sha256": "948522798ad471486504194fe1f410a132f288e1e14d1532e9d6dd490ee6151d",
+    "deployment_performed": false,
+    "shell_installed_on_vps": false
+  },
+  "remote_readonly_action": {
+    "method": "trusted-host-key SSH stdin-only bash -s -- --forward-recover-dry-run",
+    "mode": "--forward-recover-dry-run",
+    "exit_code": 0,
+    "stdout_sha256": "2061e9e22da4a7f09081538ea9747d50dc8caa8d53039540b8f29174755f4163",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_marker": "FORWARD_RECOVERY_LOCK_DRY_RUN",
+    "same_manifest_inode_flock_acquired": true,
+    "current_manifest_and_image_rechecked_inside_lock": true,
+    "web_image_started_restart_status_health_same_before_after": true,
+    "current_release_symlink_same_before_after": true,
+    "owner_live_action_token_required": false,
+    "compose_web_recreate_executed": false,
+    "forward_recovery_executed": false,
+    "business_dml_or_database_restore": false
+  },
+  "validation": {
+    "failing_first_new_tests": "2 failed before implementation: unsupported mode and absent source contract",
+    "initial_full_focused_failure": "18 source-hash-drift failures while operator still pinned the previous shell SHA; pin was updated without weakening validation",
+    "focused_evid09_test_files": 12,
+    "focused_tests_passed": 75,
+    "focused_tests_failed": 0,
+    "isolated_concurrency_test_cleanup": "Background mock processes no longer inherit a parent EXIT cleanup trap before both waits complete; a failing intermediate run was retained as a test harness failure, not live recovery evidence",
+    "incremental_mypy_regressions": 0,
+    "full_mypy_debt_errors": 0,
+    "black_check": "pass",
+    "isort_check": "pass",
+    "ruff_check": "pass",
+    "bash_syntax_check": "pass"
+  },
+  "boundary": {
+    "recovery_lock_prerequisite_verified_at_this_timepoint": true,
+    "lock_contention_on_vps_verified": false,
+    "live_target_web_interval_verified": false,
+    "live_manual_or_exit_forward_recovery_verified": false,
+    "configured_validity_authority_lifecycle_verified": false,
+    "tui02_candidate_reset_or_rebind_performed": false,
+    "evid09_exit_gate_satisfied": false,
+    "decision": "PASS_RECOVERY_LOCK_READONLY_PREREQUISITE_LIVE_DENY"
+  }
+}

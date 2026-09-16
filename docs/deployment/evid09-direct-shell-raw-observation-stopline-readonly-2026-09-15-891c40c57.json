@@ -1,0 +1,54 @@
+{
+  "schema": "evid09.direct-shell-raw-observation-stopline-readonly.v1",
+  "unit_id": "EVID-09",
+  "decision": "DENY_LIVE_WEB_SWITCH_WHILE_TUI02_RAW_OBSERVATION_EXISTS",
+  "current_candidate": {
+    "source_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "release_tag": "20260915110952",
+    "current_symlink": "/opt/agomtradepro/releases/source-20260915110952",
+    "web_image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d",
+    "web_started_at_utc": "2026-09-15T03:22:24.378025837Z",
+    "web_restart_count": 0,
+    "web_health": "healthy",
+    "current_manifest_sha256": "b0b58b749ef1488695bb32e158f5d2ead8d83c90d5c5050e1e69d3f5a88b6bb6"
+  },
+  "shell": {
+    "source": "scripts/evid09_web_only_image_exercise.sh",
+    "source_sha256": "b34780230e8f984ea0a9644e332c3edefe95c8352e90a01f5b7c669d6a3705d6",
+    "source_bound_operator": "scripts/evid09_web_only_action.py",
+    "mode": "--raw-observation-dry-run",
+    "source_streamed_over_trusted_known_host_key_ssh_stdin": true,
+    "owner_live_token_supplied": false,
+    "exit_code": 1,
+    "stdout": "",
+    "stderr": "DENY: active TUI-02 raw observation or query unavailable",
+    "observed_at_utc": "2026-09-15T20:27:52.052239Z",
+    "web_identity_before_after_exact_match": true,
+    "current_symlink_before_after_exact_match": true,
+    "manifest_sha_before_after_exact_match": true
+  },
+  "independent_exact_raw_probe": {
+    "source": "scripts/evid09_tui02_raw_observation_preflight.py",
+    "source_sha256": "878206cf3b9882db695a4cbb3f76ba3b5e8430feb9184b448d352e8ca1ef15af",
+    "observed_at_utc": "2026-09-15T20:28:11.836663Z",
+    "authenticated_https_status": 200,
+    "query_metric": "web_to_tui_migration_events_total",
+    "query_kind": "exact raw instant vector; no recording rule",
+    "raw_vector_count": 4,
+    "exit_code": 1,
+    "decision": "DENY_RAW_SAMPLE_OR_QUERY",
+    "raw_series_values_or_labels_emitted": false,
+    "secret_values_emitted": false
+  },
+  "scope": {
+    "direct_live_shell_now_checks_raw_source_before_needing_recovery_or_recreating_target_web": true,
+    "manual_forward_recovery_entry_unchanged": true,
+    "production_compose_recreate_or_switch_performed": false,
+    "production_business_or_database_mutation_performed": false,
+    "tui02_candidate_reset_or_observation_rewrite_performed": false,
+    "actual_target_or_forward_recovery_interval_proven": false,
+    "configured_validity_authority_lifecycle_proven": false,
+    "evid09_exit_gate_complete": false
+  },
+  "next_action": "Retain the current 891c40c57 TUI-02 observation; do not invoke any live Web switch while the exact raw source is nonempty. EVID-09 remains active until separate genuine configured-validity lifecycle, recovery and production evidence meet its exit gate."
+}

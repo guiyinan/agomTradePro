@@ -1,0 +1,76 @@
+{
+  "schema": "evid09.existing-backup-local-isolation-preflight.v1",
+  "recorded_at_utc": "2026-09-15T05:55:09Z",
+  "unit_id": "EVID-09",
+  "status": "active",
+  "candidate_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+  "release": "20260915110952",
+  "operation": {
+    "entrypoint": "scripts/backup-vps-postgres.ps1 -DownloadLatest -OutputDir <task-specific ignored workspace directory>",
+    "created_new_remote_backup": false,
+    "pruned_remote_backups": false,
+    "production_restore_performed": false,
+    "local_restore_performed": false,
+    "remote_archive_retained": true,
+    "backup_script_exit_code": 0
+  },
+  "verified_archive": {
+    "remote_path": "/opt/agomtradepro/backups/database/postgres-20260915-051628.dump",
+    "local_path": "D:/githv/agomTradePro-deploy-aa7127ff4-clean/backups/evid09-compatible-preflight-20260915-891c40c57/postgres-20260915-051628.dump",
+    "local_sha256_sidecar_path": "D:/githv/agomTradePro-deploy-aa7127ff4-clean/backups/evid09-compatible-preflight-20260915-891c40c57/postgres-20260915-051628.dump.sha256",
+    "local_directory_git_ignored": true,
+    "remote_bytes": 154912289,
+    "local_bytes": 154912289,
+    "remote_sha256": "0a1210ab4a5e3bd0d8cc2630ce6d3f3c421ab1c28d8b53c00fcc90ed16f7250a",
+    "local_sha256": "0a1210ab4a5e3bd0d8cc2630ce6d3f3c421ab1c28d8b53c00fcc90ed16f7250a",
+    "size_and_sha256_match": true,
+    "atomic_partial_promoted_only_after_hash_match": true,
+    "remote_local_pg_restore_manifest_sha256": "a143a55fbeee2d5feca97978d104a64b392503755874633628904b1e9021f564",
+    "remote_local_pg_restore_manifest_match": true,
+    "archive_toc_entries": 7569,
+    "local_manifest_method": "docker run --rm --network none --read-only --user 999:999 -v <local archive directory>:/archive:ro postgres:16 pg_restore --list",
+    "local_postgres_tool_image_id": "sha256:33f923b05f64ca54ac4401c01126a6b92afe839a0aa0a52bc5aeb5cc958e5f20",
+    "local_manifest_verified": true
+  },
+  "proposed_isolated_restore_target": {
+    "host": "the owner's local Docker Desktop only",
+    "container_name": "evid09-compat-pg-891c40c57-20260915",
+    "database_name": "evid09_compat_891c40c57",
+    "container_currently_exists": false,
+    "volume_currently_exists": false,
+    "production_database_or_container_targeted": false,
+    "created_or_restored": false,
+    "approval_status": "awaiting_explicit_owner_target_confirmation"
+  },
+  "historical_disposable_code_switch_audit": {
+    "audited_at_utc": "2026-09-15T06:03:18Z",
+    "original_report_path": "D:/githv/agomTradePro/var/evid09-isolated-code-rollback-v9-original-8f976041726b4689871657d56939878f.json",
+    "original_report_bytes": 328314,
+    "original_report_sha256": "eae558bf01e6d434947f30210e1d78307ad6f9ee40c2ac82dadd5bfd346d7071",
+    "actual_started_at": "2026-09-15T10:37:58.599384+08:00",
+    "actual_finished_at": "2026-09-15T10:49:50.380782+08:00",
+    "original_status": "technical_code_switch_passed",
+    "stages": [
+      {"stage": "current_before", "source_revision": "ba1605fa229b8ae8c59114af158cdf58b8f144fa", "image_id": "sha256:d407e93e685f99e4b0442f717b54796cb43ec8d2428f6d5430638157d4d81c1e", "status": "passed", "health_status_code": 200, "deployment_check_exit": 0, "migration_check_only_exit": 0},
+      {"stage": "rollback_previous", "source_revision": "6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b", "image_id": "sha256:f5647b6d4a17c81963a41dd4d66dee70ccfc4b18e881b368db4b89dda7bf86fd", "status": "passed", "health_status_code": 200, "deployment_check_exit": 0, "migration_check_only_exit": 0},
+      {"stage": "current_restored", "source_revision": "ba1605fa229b8ae8c59114af158cdf58b8f144fa", "image_id": "sha256:d407e93e685f99e4b0442f717b54796cb43ec8d2428f6d5430638157d4d81c1e", "status": "passed", "health_status_code": 200, "deployment_check_exit": 0, "migration_check_only_exit": 0}
+    ],
+    "historical_backup_path": "/opt/agomtradepro/backups/database/postgres-20260914-154649.dump",
+    "historical_backup_bytes": 153532742,
+    "historical_backup_sha256": "8bc8ed47b7a31ed053d8969f8f43c84b15b3ec68e4d9c3f40e83f8d093996d87",
+    "typed_application_reader_verified": true,
+    "code_switch_phases_passed": true,
+    "production_identity_unchanged": true,
+    "owned_cleanup_verified": true,
+    "original_compatible_rollback_gate_passed": false,
+    "current_891c40c57_backup_or_news_current_used": false,
+    "interpretation": "A useful technical rehearsal against the prior ba1605fa candidate and older clone, not a current 891c40c57 restored-backup test or completion of the compatible rollback gate."
+  },
+  "stop_line": "The backup-vps-postgres skill requires an explicit owner request and confirmation of the exact restore target before any restore. No local or production database restore, new production backup, deletion or live image rollback may be inferred from successful download and pg_restore --list.",
+  "next_gate": "After explicit owner confirmation of the named disposable local Docker container/database, run a bounded isolated restore with exact backup sidecar/candidate binding and prove 6760c9aa compatible target read behavior for the four strict policy identities, four committed Authority roots and the new 2026-09-15 market.news current. Preserve current production, then decide whether a separate exact live rollback authorization envelope is warranted.",
+  "references": [
+    "docs/deployment/main-vps-upgrade-2026-09-15-891c40c57.json",
+    "docs/deployment/evid09-current-candidate-preservation-readonly-2026-09-15-891c40c57.json",
+    "docs/deployment/evid09-rollback-binding-checkpoint-2026-09-15.json"
+  ]
+}

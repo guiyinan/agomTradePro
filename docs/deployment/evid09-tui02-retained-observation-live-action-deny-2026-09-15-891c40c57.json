@@ -1,0 +1,60 @@
+{
+  "version": "evid09-tui02-retained-observation-live-action-deny.v1",
+  "environment": "production",
+  "candidate": {
+    "commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "release_id": "20260915110952",
+    "web_image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d",
+    "web_started_at_utc": "2026-09-15T03:22:24.378025Z",
+    "web_health": "healthy"
+  },
+  "raw_instant_probe": {
+    "observed_at_utc": "2026-09-15T17:17:34.633056Z",
+    "exact_metric": "web_to_tui_migration_events_total",
+    "authenticated_https_status": 200,
+    "raw_vector_count": 4,
+    "decision": "DENY_RAW_SAMPLE_OR_QUERY"
+  },
+  "retained_source_probe": {
+    "observed_at_utc": "2026-09-15T17:21:53.250072Z",
+    "query": "timestamp(web_to_tui_migration_events_total) from current Web started_at, step 60s",
+    "candidate_bound_source_series_count": 4,
+    "candidate_source_evaluations": 484,
+    "first_retained_raw_sample_at_utc": "2026-09-15T15:21:04.672000Z",
+    "last_retained_raw_sample_at_utc": "2026-09-15T17:21:04.672000Z",
+    "earliest_full_14d_telemetry_at_utc": "2026-09-29T15:21:04.672000Z",
+    "historical_backfill_used": false,
+    "synthetic_zero_used": false,
+    "candidate_observation_bound_to_cutover_evidence": false
+  },
+  "evid09_action": {
+    "fresh_read_only_gate_last_pass_at_utc": "2026-09-15T17:28:31.992984Z",
+    "fresh_read_only_gate_decision": "PASS_PRE_ACTION_ONLY",
+    "web_only_switch_and_independent_forward_recovery_entry_implemented": true,
+    "shell_source_sha256": "8c4463ecca43f0e7e01f2da7b1f9f9246447b705687f7cb379a2c16eb5429723",
+    "operator_source_sha256": "9b0964072128b0bb95dbd77cdf2e91cfcc2faaa60f41086c46a6b39d89ae324d",
+    "operator_requires_empty_exact_raw_vector_before_live_action": true,
+    "live_web_switch_performed": false,
+    "forward_recovery_performed": false,
+    "tui02_reset_performed": false,
+    "decision": "DENY_LIVE_SWITCH_PROTECT_RETAINED_TUI02_WINDOW"
+  },
+  "source_sha256": {
+    "raw_instant_probe": "878206cf3b9882db695a4cbb3f76ba3b5e8430feb9184b448d352e8ca1ef15af",
+    "retained_source_probe": "9a52edc4b9c6a07618f8707f2d86558e528a8d5976c6b9d836b5e195e51fc58f"
+  },
+  "tui02_monitoring_checkpoint": {
+    "fresh_target_rules_retention_volume_restart_gates_all_verified": false,
+    "new_candidate_checkpoint_created": false,
+    "new_candidate_binding_written": false,
+    "next_action": "Reverify all TUI-02 retained monitoring gates read-only and bind the genuine first raw sample; keep the current candidate stable through the exact 14-day eligible instant. Do not infer a valid window from an old recording rule."
+  },
+  "side_effects": {
+    "deployment": false,
+    "web_restart": false,
+    "database_restore": false,
+    "business_dml": false,
+    "current_symlink_change": false,
+    "decision_gate_clear": false
+  }
+}

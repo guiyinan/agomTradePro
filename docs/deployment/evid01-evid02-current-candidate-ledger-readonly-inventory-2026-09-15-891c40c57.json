@@ -1,0 +1,93 @@
+{
+  "version": "evid01-evid02.current-candidate-ledger-readonly-inventory.v1",
+  "recorded_at_utc": "2026-09-15T19:12:58Z",
+  "candidate": {
+    "commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "release_id": "20260915110952",
+    "web_image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d"
+  },
+  "evid01_raw_readonly_capture": {
+    "schema": "evid01.current-candidate-ledger-readonly-inventory.v1",
+    "observed_at_utc": "2026-09-15T19:11:44.126933Z",
+    "web_started_at_utc": "2026-09-15T03:22:24.378025837Z",
+    "mounted_manifest_sha256": "b0b58b749ef1488695bb32e158f5d2ead8d83c90d5c5050e1e69d3f5a88b6bb6",
+    "release_path": "/opt/agomtradepro/releases/source-20260915110952",
+    "web_identity_same_before_after": true,
+    "transaction": "REPEATABLE READ READ ONLY; ROLLBACK",
+    "database_schema": "public",
+    "account_migrations_0050_0063_applied_count": 14,
+    "sql_sha256": "b968a078e8505ce528f08e6d97776975439fa70d45a359862e95debb6e607c40",
+    "table_counts": {
+      "account_auth_context_source_v3_anchor": 19,
+      "account_auth_context_source_v3_ledger": 19,
+      "account_user_authority_source_v3_anchor": 19,
+      "account_user_authority_source_v3_ledger": 19,
+      "account_rbac_authority_source_v3_anchor": 19,
+      "account_rbac_authority_source_v3_ledger": 19,
+      "account_actor_authority_source_v3_root_lock": 30,
+      "account_actor_authority_source_v3_ledger": 30,
+      "research_evidence_scope_source_v1": 0,
+      "account_owner_assignment_subject_v3_ledger": 0,
+      "account_owner_assignment_evidence_v3_ledger": 0,
+      "account_owner_assignment_provenance_receipt_v3_ledger": 0,
+      "account_owner_tenant_authority_v1": 0,
+      "account_owner_tenant_authority_v2_ledger": 0,
+      "account_owner_tenant_authority_v2_revocation_ledger": 0,
+      "account_owner_tenant_authority_v3_ledger": 4,
+      "account_owner_tenant_authority_v3_revocation_ledger": 0,
+      "account_owner_assignment_provenance_receipt_v5_ledger": 4,
+      "account_owner_assignment_subject_v5_ledger": 4,
+      "account_owner_assignment_evidence_v5_ledger": 4,
+      "canonical_account_creation_binding_v2_ledger": 4,
+      "account_physical_row_observation_v2_ledger": 8,
+      "canonical_account_ownership_reobservation_v1_ledger": 4,
+      "account_single_owner_authority_policy_v1": 4,
+      "account_owner_assignment_subject_v2_ledger": 0,
+      "account_owner_assignment_evidence_v2_ledger": 0,
+      "account_owner_assignment_provenance_receipt_v2_ledger": 0,
+      "account_owner_assignment_subject_v4_ledger": 0,
+      "account_owner_assignment_evidence_v4_ledger": 0,
+      "account_owner_assignment_provenance_receipt_v4_ledger": 0,
+      "account_owner_assignment_subject": 0,
+      "account_owner_assignment_evidence": 0,
+      "account_owner_assignment_provenance_receipt_ledger": 0
+    },
+    "exact_table_count": 33,
+    "raw_row_values_emitted": false,
+    "business_dml_performed": false,
+    "decision": "PASS_READ_ONLY_INVENTORY"
+  },
+  "evid02_raw_readonly_capture": {
+    "schema": "evid02.current-candidate-head-ledger-readonly-inventory.v1",
+    "observed_at_utc": "2026-09-15T19:12:36.787425Z",
+    "web_started_at_utc": "2026-09-15T03:22:24.378025837Z",
+    "web_identity_same_before_after": true,
+    "transaction": "REPEATABLE READ READ ONLY; ROLLBACK",
+    "sql_sha256": "60821df51bec8e92e8a3370cff63fac3b9fd303a7ad672a049e025bc9b0abc24",
+    "table_counts": {
+      "research_evidence_operator_spec": 0,
+      "research_evidence_operator_spec_approval": 0,
+      "research_activated_evidence_operator_spec": 0
+    },
+    "human_approval_status_in_this_capture": "not_collected",
+    "raw_row_values_emitted": false,
+    "business_dml_performed": false,
+    "decision": "PASS_READ_ONLY_INVENTORY"
+  },
+  "interpretation": {
+    "historical_zero_seed_report_not_transferable": "The older EVID-01 0055/13-table inventory does not cover today's AuthorityV3 and EvidenceV5. Current production has four V3 roots and four each of ReceiptV5, SubjectV5 and EvidenceV5; legacy owner-assignment V1-V4 rows in this exact selection remain zero.",
+    "evid01_authority_ready": "unverified: row counts do not prove exact authenticated user/tenant/owner reader, root provenance, current-head seal, approval receipt or write/rollback acceptance",
+    "evid02_approval_ready": false,
+    "evid02_blocker": "operator spec, approval and activation ledgers are zero in this capture; human approval and PostgreSQL first-winner/successor/rollback evidence were not collected",
+    "decision_gate_change_authorized": false
+  },
+  "boundary": {
+    "production_owner_or_authority_created": false,
+    "production_approval_created": false,
+    "business_dml": false,
+    "runtime_enabled": false,
+    "evid01_exit_gate_satisfied": false,
+    "evid02_exit_gate_satisfied": false,
+    "decision": "CURRENT_V3_V5_ROWS_PRESENT_APPROVAL_EMPTY_EXITS_DENY"
+  }
+}

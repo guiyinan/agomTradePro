@@ -1,0 +1,61 @@
+{
+  "version": "evid01.current-candidate-v3-v5-head-readonly-preflight.v1",
+  "unit_id": "EVID-01",
+  "environment": "production",
+  "candidate": {
+    "commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "release_id": "20260915110952",
+    "web_image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d",
+    "web_image_and_started_at_same_before_after": true
+  },
+  "collection": {
+    "method": "trusted-host-key SSH; PostgreSQL REPEATABLE READ READ ONLY; ROLLBACK",
+    "first_observed_at_utc": "2026-09-15T19:21:19.152277Z",
+    "first_sql_sha256": "e93ae3383cc5e5248d40fb3ca273ee863ae987eb41ef6e1790dd5b6ab95cfabc",
+    "second_observed_at_utc": "2026-09-15T19:21:47.921543Z",
+    "second_sql_sha256": "b0d5378a7d2e02f3c7bcead0f0232c43ab54a8384070415433b82303c625a0d4",
+    "raw_identity_or_payload_emitted": false,
+    "business_dml_performed": false
+  },
+  "root_graph": {
+    "root_count": 4,
+    "no_successor_count": 4,
+    "unrevoked_count": 4,
+    "current_head_count": 0,
+    "complete_parent_chain_count": 4,
+    "exact_hash_link_count": 4,
+    "exact_parent_id_link_count": 4,
+    "same_account_owner_tenant_count": 4,
+    "seal_shape_count": 4,
+    "distinct_actor_user_count": 1,
+    "actor_authenticated_active_count_at_record": 4,
+    "actor_human_recorder_count": 0,
+    "actor_automated_recorder_count": 4,
+    "cryptographic_seals_recomputed": false,
+    "exact_authenticated_composition_run": false
+  },
+  "temporal": {
+    "root_current_count": 0,
+    "evidence_v5_current_count": 0,
+    "receipt_v5_current_count": 0,
+    "policy_current_count": 4,
+    "actor_source_v3_current_count": 0,
+    "all_parent_temporal_current_count": 0,
+    "root_valid_until_min_utc": "2026-09-12T05:23:13.222533Z",
+    "root_valid_until_max_utc": "2026-09-13T18:11:14.891812Z",
+    "evidence_v5_valid_until_max_utc": "2026-09-13T18:01:06.641982Z",
+    "receipt_v5_valid_until_max_utc": "2026-09-13T19:00:27.880884Z",
+    "actor_source_v3_valid_until_max_utc": "2026-09-13T19:00:27.880884Z",
+    "policy_valid_until_max_utc": "2027-09-12T18:23:04.344562Z"
+  },
+  "interpretation": {
+    "historical_rows_present": true,
+    "current_authority_proven": false,
+    "reason": "All four AuthorityV3 roots and their EvidenceV5, ReceiptV5 and actor-source parents expired before this capture; matching parent references and hash/seal shape cannot create a current authenticated grant. Recorder automation is only a provenance observation, not proof of owner approval or fabrication.",
+    "next_gate": "Collect genuine current server-authenticated owner/actor/provenance inputs and an authorized, configured-validity AuthorityV3/EvidenceV5 lifecycle; then run candidate-bound exact/current composition and PostgreSQL acceptance. Never extend old timestamps or synthesize approvals."
+  },
+  "decision": "DENY_CURRENT_AUTHORITY_EXPIRED",
+  "evid01_exit_gate_satisfied": false,
+  "decision_gate_change_authorized": false,
+  "production_authority_or_approval_created": false
+}

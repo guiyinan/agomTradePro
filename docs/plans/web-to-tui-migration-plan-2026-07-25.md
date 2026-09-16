@@ -3,8 +3,8 @@
 > TUI-01/02 的候选、角色 UAT、14 日观察与回滚顺序见 [`release-blocker-closure-execution-plan-2026-08-29.md`](release-blocker-closure-execution-plan-2026-08-29.md)。
 
 > **文档日期**: 2026-07-25
-> **最后修订**: 2026-09-10
-> **状态**: 实施中；M0、M0-D、M1、M2、M3 与 M4 仓库实现已完成；当前生产候选 `dba9ab2c8…` / release `20260910002501` 的监控查询接线已修复，尚无真实迁移指标首样本，14日窗口未开始。旧候选的UAT、cleanup、rollback和观察证据仅作历史；当前仍需候选绑定的UAT、structured telemetry/defect、生产registry backup及owner attestations，未满足前禁止清理Classic。
+> **最后修订**: 2026-09-15
+> **状态**: 实施中；M0、M0-D、M1、M2、M3 与 M4 仓库实现已完成。当前生产候选 `891c40c57` / release `20260915110952` 的真实原始首样本与留存监控 checkpoint 已绑定，精确14日eligible instant 为 `2026-09-29T15:21:04.672000Z`；readiness仍 `2/10 DENY`。旧候选UAT、cleanup、rollback和观察证据仅作历史；当前仍需新候选角色UAT、structured telemetry/defect、生产registry backup和owner attestations，未满足前禁止清理Classic。
 > **适用对象**: 开发负责人 / 模块维护人 / AI 代理
 > **主范围**: 以 M0 的 195 个 Django 模板为初始基线，持续盘点 `core/templates/` 与 `apps/*/templates/`，并把适合迁移的用户任务迁入 TUI 工作台（`/tui/`）；迁移期新增的共用兼容组件也必须进入同一台账
 > **后端边界**: 默认保持业务语义不变；为补齐 TUI API 契约所需的 owner app 纵向切片允许纳入，但必须单独估算、提交和验收，不得把业务逻辑堆入 `terminal`
@@ -802,3 +802,41 @@ retained source 取得首个真实 sample，核验 target/rules/retention/storag
 retention `21d/4GB`、volume `agomtradepro_prometheus_data` 持久；未认证 HTTPS query 为 401，但当前与
 上一 release 均缺 host-only query env（最后已知文件在 `20260910002501`），认证查询尚未验证。
 不能据此声明首个 retained migration sample 或启动真实 14 日窗口。
+
+### 2026-09-15 host-only 监控查询修复检查点
+
+此前缺失的当前 release 查询凭据已在单一所有者有界生产整改范围内修复。
+[TUI-02 认证查询原件](../deployment/tui02-protected-query-repair-2026-09-15-891c40c57.json)
+绑定 `891c40c57` / `20260915110952`：只新建 root-only 客户端密钥和当前 release
+hash env，compose 配置检查通过后仅重建 Caddy，未部署新 web、未改 PostgreSQL、
+Prometheus 卷、路由或决策门。HTTPS 未认证查询 401，认证查询 200/success，
+`up{job="agomtradepro"}` 留存目标为 `web:8000`/1；health/ready=200、decision-ready=503。
+
+这项修复只清掉“受保护查询不可验证”的技术阻塞。真实
+`web_to_tui_migration_events_total` 原始序列仍为 0 条，14 日 recording rule 的
+历史向量不能充作新候选业务首样本；当前 `first_retained_sample_at`、`eligible_at`
+仍为 null，`2/10 DENY` 不变。等待真实认证用户任务产生新原始样本后再绑定
+候选留存窗口；旧候选 UAT/cleanup/rollback/签署仍不继承。
+hash env 只落在当前 release；下一次部署是否自动延续未验证，必须重新做 host-only
+配置与 protected query preflight，不能把这份修复凭据跨候选沿用。
+
+### 2026-09-15 原始首样本及留存监控绑定
+
+上节原始序列为 0 是 `04:29Z` 前后的时点值，不再描述当前生产。
+受保护 TLS 原始 vector 于 `17:17Z` 已有四条新候选序列；从当前
+Web started_at 开始的 `timestamp(raw_metric)` range 复采确认首次
+留存 source sample 为 `2026-09-15T15:21:04.672000Z`。
+最终源码只读检查复核现行 OCI/manifest、Prometheus 无首样本后
+重启、唯一 target up、18 条健康规则、`3w/4GiB` 与持久卷、
+受保护查询 401/200 和 health/ready 200、decision-ready 503。
+[规范化 checkpoint](../deployment/tui02-production-observation-checkpoint-2026-09-15-891c40c57.json)
+经 canonical binder dry-run 和写入验证，cutover evidence 的
+retained-observation 已绑定 checkpoint SHA、真实样本和
+`2026-09-29T15:21:04.672000Z` 精确 eligible instant。
+
+这是 TUI-02 的观察起点检查点，不是14日已满或 cutover 批准；
+readiness仍 `2/10 DENY`。候选旧 UAT/cleanup/rollback/defect/
+telemetry/approval未继承，Classic cleanup继续禁止。EVID-09
+Web-only live 演练的代码入口虽已准备，当前非空原始序列使其
+fail-closed；任何实际镜像切换都需另有真实 reset/rebind，不能沿用
+当前窗口。

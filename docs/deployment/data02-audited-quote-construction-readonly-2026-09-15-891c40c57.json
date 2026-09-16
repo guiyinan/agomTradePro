@@ -1,0 +1,44 @@
+{
+  "version": "data02-audited-quote-construction-readonly.v1",
+  "recorded_at": "2026-09-15T04:59:04Z",
+  "environment": "production",
+  "candidate": {
+    "manifest_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "manifest_release": "20260915110952",
+    "web_image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d"
+  },
+  "preflight": {
+    "operation": "make_system_audited_sync_quote_use_case(environment=production,publish_current=False)",
+    "transaction": "REPEATABLE READ READ ONLY",
+    "sql_statement_timeout": "20s",
+    "sql_lock_timeout": "3s",
+    "construction": "blocked",
+    "exception_type": "SystemAuditCompositionUnavailable",
+    "reason_code": "snapshot_hash_mismatch",
+    "raw_stdout_sha256": "abffa7e24d4998ae826c27b1b30a5722bb7f5211893e61b1d2b0ef023ffbee88",
+    "provider_fetch_performed": false,
+    "publication_performed": false,
+    "write_performed": false
+  },
+  "upstream_config_center": {
+    "audit_readonly_checkpoint": "docs/deployment/aud03-config-snapshot-hash-scope-readonly-2026-09-15-891c40c57.json",
+    "active_profile_version": 14,
+    "stored_full_profile_hash": "020c2fa60645b2caabfa908c020a0542ce162ca893f74208b29f2f12ac9713d0",
+    "persisted_public_snapshot_hash": "a36a9b7dcf76ee7bfc492edafadca71b4b268dae363ac1f250c60986982b4775",
+    "secret_ref_value_emitted": false
+  },
+  "source_contract": {
+    "data_center_factory_path": "apps/data_center/composition.py:1087",
+    "data_center_factory_source_sha256": "8d79fdaab138d4f3f2a2029d8cca697d669d8a1119b3fdeca7c708dffc987aa7",
+    "audit_composition_exception_path": "apps/audit/application/system_audit_composition.py:44",
+    "audit_composition_source_sha256": "24cb8d74156335be6c556197883d447c3c9c194ca613ed396fa3b41bae6001b8"
+  },
+  "interpretation": "The currently bound audited quote use-case cannot be constructed before provider fetch because the AUD runtime loader rejects the active secret/public snapshot hash scope. This does not establish the meaning of historical vendor code2003, source availability, quote coverage, successful backfill, or any Publication identity.",
+  "exit_state": {
+    "data02": "awaiting_production",
+    "data03": "dependency_blocked",
+    "four_current_publication_identities": "unavailable",
+    "universe_backfill_reconciliation": "unverified"
+  },
+  "next_gate": "After EVID-09 releases the sole repository focus, fix the Config Center secret/public snapshot hash contract with failing-first tests and a safe new profile; re-run this exact read-only audited construction preflight, then independently validate actual supplier responses, source observation/availability time, 5,533-asset four-dataset storage, publication identities and governed canonical reconciliation before any DATA-02 exit claim."
+}
