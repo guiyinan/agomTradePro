@@ -1,0 +1,71 @@
+{
+  "version": "tui02-production-observation-reset.v1",
+  "environment": "production",
+  "collection_mode": "read_only",
+  "checked_at": "2026-09-16T07:27:33.524836Z",
+  "candidate": {
+    "expected": {
+      "commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+      "release_id": "20260915110952",
+      "image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d"
+    },
+    "observed": {
+      "commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+      "release_id": "20260915110952",
+      "image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d"
+    },
+    "candidate_drift": false
+  },
+  "reset": {
+    "reason_code": "evid09_authorized_web_only_rehearsal",
+    "reset_at": "2026-09-16T07:22:46.290749534Z",
+    "web_container_id": "a1381f8d679b84f0c136422dd88839d9d19f0775752c45be1d4e84cf5131739e",
+    "web_started_at": "2026-09-16T07:22:46.290749534Z",
+    "web_status": "running",
+    "web_health": "healthy",
+    "web_restart_count": 0,
+    "prometheus_restart_count": 0,
+    "prometheus_unexpected_restart": false
+  },
+  "public_probes": {
+    "origin": "https://demo.agomtrade.pro",
+    "health": {
+      "observed_at": "2026-09-16T07:27:33.524836Z",
+      "http_status": 200,
+      "body_bytes": 62
+    },
+    "ready": {
+      "observed_at": "2026-09-16T07:27:33.524836Z",
+      "http_status": 200,
+      "body_bytes": 16932
+    },
+    "decision_ready": {
+      "observed_at": "2026-09-16T07:27:33.524836Z",
+      "http_status": 503,
+      "must_not_use_for_decision": true
+    }
+  },
+  "previous_observation": {
+    "checkpoint": "docs/deployment/tui02-production-observation-checkpoint-2026-09-15-891c40c57.json",
+    "checkpoint_sha256": "c77af8a8f7cefb79c00770edcc0ba63c7275f5884ffac24e1d5ceb7df3e4adac",
+    "previous_web_started_at": "2026-09-15T03:22:24.378025Z",
+    "first_retained_sample_at": "2026-09-15T15:21:04.672000Z",
+    "eligible_at": "2026-09-29T15:21:04.672000Z"
+  },
+  "observation": {
+    "window_reset_required": true,
+    "new_sample_required": true,
+    "post_reset_sample_observed": false
+  },
+  "production_claim": false,
+  "production_ready": false,
+  "runtime_enablement": "not_authorized",
+  "side_effects": {
+    "remote_restart": true,
+    "remote_deploy": false,
+    "remote_database_write": false,
+    "remote_configuration_change": false,
+    "load_or_chaos_test": false,
+    "authority_or_approval_mutation": false
+  }
+}

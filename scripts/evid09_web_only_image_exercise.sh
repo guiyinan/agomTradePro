@@ -22,6 +22,8 @@ CURRENT_MANIFEST_SHA=b0b58b749ef1488695bb32e158f5d2ead8d83c90d5c5050e1e69d3f5a88
 TARGET_MANIFEST_SHA=b5fcfa71f5635fa95e8d24b4822894e5f4ce4bf0b4c99ee8e3fa5be5cd154167
 BACKUP="$ROOT/backups/database/postgres-20260915-051628.dump"
 BACKUP_SHA=0a1210ab4a5e3bd0d8cc2630ce6d3f3c421ab1c28d8b53c00fcc90ed16f7250a
+TUI_CHECKPOINT_SHA=c77af8a8f7cefb79c00770edcc0ba63c7275f5884ffac24e1d5ceb7df3e4adac
+TUI_INVALIDATION_TOKEN=EVID09-TUI02-C77AF8A8-RESET-20260916
 NEED_RECOVERY=0
 CONTROL_DIR=
 CONTROL_FIFO=
@@ -110,10 +112,22 @@ try:
         if not isinstance(row, dict) or not isinstance(row.get('metric'), dict) or row['metric'].get('__name__') != metric_name:
             raise ValueError('protected query metric')
     if rows:
-        raise ValueError('active raw observation')
+        raise SystemExit(3)
 except (OSError, ValueError, urllib.error.URLError):
     raise SystemExit(1) from None
 PY
+}
+raw_observation_action_gate() {
+  local status
+  if raw_observation_empty; then
+    return 0
+  else
+    status="$?"
+  fi
+  [[ "$status" == 3 ]] || return 1
+  [[ "${EVID09_TUI_RESET_ACCEPTED:-}" == true ]] || return 1
+  [[ "${EVID09_TUI_CHECKPOINT_SHA256:-}" == "$TUI_CHECKPOINT_SHA" ]] || return 1
+  [[ "${EVID09_TUI_INVALIDATION_TOKEN:-}" == "$TUI_INVALIDATION_TOKEN" ]] || return 1
 }
 web_image() { docker inspect agomtradepro-web-1 --format '{{.Image}}' 2>/dev/null || true; }
 web_health() { docker inspect agomtradepro-web-1 --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null || true; }
@@ -221,7 +235,7 @@ fi
 [[ "${EVID09_TUI_RESET_ACCEPTED:-}" == true ]] || deny "TUI-02 reset not accepted"
 [[ "${EVID09_DOWNTIME_ACCEPTED:-}" == true ]] || deny "bounded Web interruption not accepted"
 [[ "$(web_image)" == "$CURRENT_ID" && "$(web_health)" == healthy && "$(web_manifest_sha)" == "$CURRENT_MANIFEST_SHA" ]] || deny "current Web binding drift"
-raw_observation_empty || deny "active TUI-02 raw observation or query unavailable"
+raw_observation_action_gate || deny "active TUI-02 observation invalidation not exactly authorized or query unavailable"
 
 NEED_RECOVERY=1
 trap exit_recover EXIT

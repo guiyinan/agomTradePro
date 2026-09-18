@@ -121,7 +121,7 @@ def test_repository_active_plan_registry_is_closed_world() -> None:
     assert report.primary_plan_count == 18
     assert report.supporting_document_count == 31
     assert report.review_queue_count == 0
-    assert report.closure_unit_count == 52
+    assert report.closure_unit_count == 53
     assert report.registered_path_count == report.active_path_count == 49
 
 

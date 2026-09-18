@@ -26,9 +26,14 @@ from typing import Protocol
 from scripts import evid09_live_image_preflight as gate
 
 SCRIPT = gate.ROOT / "scripts/evid09_web_only_image_exercise.sh"
-SCRIPT_SHA256 = "b34780230e8f984ea0a9644e332c3edefe95c8352e90a01f5b7c669d6a3705d6"
+SCRIPT_SHA256 = "b931522caa433ae440da3d131958261fd9e543215420d1164a7a68931fc8a553"
 RAW_PROBE = gate.ROOT / "scripts/evid09_tui02_raw_observation_preflight.py"
 RAW_PROBE_SHA256 = "878206cf3b9882db695a4cbb3f76ba3b5e8430feb9184b448d352e8ca1ef15af"
+TUI_CHECKPOINT = (
+    gate.ROOT / "docs/deployment/tui02-production-observation-checkpoint-2026-09-15-891c40c57.json"
+)
+TUI_CHECKPOINT_SHA256 = "c77af8a8f7cefb79c00770edcc0ba63c7275f5884ffac24e1d5ceb7df3e4adac"
+TUI_INVALIDATION_TOKEN = "EVID09-TUI02-C77AF8A8-RESET-20260916"
 INTERVAL_IDENTITY_PROBE = gate.ROOT / "scripts/evid09_web_interval_identity_probe.py"
 INTERVAL_IDENTITY_PROBE_SHA256 = "c1b102bfe4155b26e6dc752dc958fb6520c849b02ac062a28e58a6e4371c56b2"
 MANIFEST_SHA256_BY_PERIOD = {
@@ -83,6 +88,9 @@ class ActionSession(gate.RemoteStreamer, Protocol):
     def manual_recover(self, source: str) -> gate.RemoteResult:
         """Run the independently callable original-image forward recovery."""
 
+    def refresh_transport(self) -> None:
+        """Reopen SSH transport before the redundant post-action gate."""
+
 
 def _source() -> str:
     """Reject action shell source drift from the reviewed dry-run version."""
@@ -93,20 +101,67 @@ def _source() -> str:
     return raw.decode("utf-8")
 
 
-def _deny_active_tui_observation(session: ActionSession) -> None:
-    """Protect a genuine raw TUI-02 sample before any candidate-changing action."""
+def _tui_observation_invalidation(
+    session: ActionSession, *, accept_active_invalidation: bool
+) -> dict[str, object]:
+    """Bind any active raw sample to the exact retained checkpoint before reset."""
 
     raw = RAW_PROBE.read_bytes()
     if hashlib.sha256(raw).hexdigest() != RAW_PROBE_SHA256:
         raise WebOnlyActionError("TUI-02 raw-observation probe source hash drift")
-    result = session.stream("python3 -", raw.decode("utf-8"), timeout=45)
-    report = gate._report(result, "TUI-02 raw observation")
+    checkpoint = gate._read_sealed_json(TUI_CHECKPOINT)
+    checkpoint_sha = hashlib.sha256(TUI_CHECKPOINT.read_bytes()).hexdigest()
+    if checkpoint_sha != TUI_CHECKPOINT_SHA256:
+        raise WebOnlyActionError("TUI-02 retained checkpoint source drift")
+    production = gate._object(gate._read_sealed_json(gate.CHECKPOINT)["production_candidate"])
+    candidate = gate._object(checkpoint.get("candidate"))
+    expected = gate._object(candidate.get("expected"))
+    observation = gate._object(checkpoint.get("observation"))
     if (
-        report.get("decision") != "PASS_NO_RAW_SAMPLE"
-        or report.get("authenticated_https_status") != 200
-        or report.get("raw_vector_count") != 0
+        checkpoint.get("version") != "tui02-production-retained-observation-checkpoint.v1"
+        or expected.get("commit") != production.get("commit")
+        or expected.get("image_id") != production.get("web_image_id")
+        or candidate.get("candidate_drift") is not False
+        or observation.get("window_reset_required") is not False
+        or not isinstance(observation.get("first_retained_raw_sample_at"), str)
     ):
+        raise WebOnlyActionError("TUI-02 retained checkpoint candidate binding drift")
+    result = session.stream("python3 -", raw.decode("utf-8"), timeout=45)
+    lines = result.stdout.strip().splitlines()
+    if len(lines) != 1:
+        raise WebOnlyActionError("TUI-02 raw observation report not exactly one line")
+    try:
+        report = gate._object(json.loads(lines[0]))
+    except json.JSONDecodeError as exc:
+        raise WebOnlyActionError("TUI-02 raw observation report is not JSON") from exc
+    count = report.get("raw_vector_count")
+    common_valid = (
+        report.get("authenticated_https_status") == 200
+        and report.get("raw_series_values_or_labels_emitted") is False
+        and report.get("secret_values_emitted") is False
+        and isinstance(count, int)
+        and not isinstance(count, bool)
+    )
+    empty = result.exit_code == 0 and report.get("decision") == "PASS_NO_RAW_SAMPLE" and count == 0
+    active = (
+        result.exit_code == 1
+        and report.get("decision") == "DENY_RAW_SAMPLE_OR_QUERY"
+        and isinstance(count, int)
+        and count > 0
+    )
+    if not common_valid or (not empty and not active):
+        raise WebOnlyActionError("TUI-02 raw observation query or report unavailable")
+    if active and not accept_active_invalidation:
         raise WebOnlyActionError("active TUI-02 raw observation protects the current Web image")
+    return {
+        "checkpoint": TUI_CHECKPOINT.relative_to(gate.ROOT).as_posix(),
+        "checkpoint_sha256": checkpoint_sha,
+        "first_retained_sample_at": observation["first_retained_raw_sample_at"],
+        "raw_probe_observed_at_utc": report.get("observed_at_utc"),
+        "raw_vector_count": count,
+        "active_observation_invalidation_accepted": active,
+        "raw_series_values_or_labels_emitted": False,
+    }
 
 
 def _identity(line: str, pattern: re.Pattern[str], expected_image: str) -> WebIdentity:
@@ -150,6 +205,38 @@ def _sample_interval_identity(session: ActionSession, web: WebIdentity, *, perio
     ):
         raise WebOnlyActionError(f"{period} Docker Web identity drift")
     return observed
+
+
+def _target_https_report(session: ActionSession, source: str, *, period: str) -> dict[str, object]:
+    """Parse safe public status metadata before denying a nonzero probe."""
+
+    result = session.stream("python3 -", source, timeout=90)
+    if result.exit_code == 0:
+        return gate._report(result, "target interval HTTPS")
+    lines = result.stdout.strip().splitlines()
+    if len(lines) == 1:
+        try:
+            report = gate._object(json.loads(lines[0]))
+        except json.JSONDecodeError:
+            report = {}
+        if report:
+            safe = {
+                "period": period,
+                "decision": report.get("decision"),
+                "https_statuses": report.get("https_statuses"),
+                "protected_query_unauthenticated_status": report.get(
+                    "protected_query_unauthenticated_status"
+                ),
+                "protected_query_authenticated_status": report.get(
+                    "protected_query_authenticated_status"
+                ),
+                "retained_up_target_present": report.get("retained_up_target") is not None,
+            }
+            raise WebOnlyActionError(
+                "target interval HTTPS natural exit not zero: "
+                + json.dumps(safe, sort_keys=True, separators=(",", ":"))
+            )
+    raise WebOnlyActionError("target interval HTTPS natural exit not zero without safe report")
 
 
 def _target_business_stop_lines(
@@ -217,15 +304,20 @@ def _target_business_stop_lines(
         or preservation_at < identity_before
     ):
         raise WebOnlyActionError(f"{period} preservation identity, time or decision drift")
-    https = gate._report(
-        session.stream(
-            "python3 -", gate.PROBE_SOURCES["https"].read_text(encoding="utf-8"), timeout=90
-        ),
-        "target interval HTTPS",
-    )
+    https_source = gate.PROBE_SOURCES["https"].read_text(encoding="utf-8")
+    https = _target_https_report(session, https_source, period=period)
     up = gate._object(https.get("retained_up_target"))
     up_at = gate._utc(up.get("sample_at_utc"), f"{period} up")
     https_at = gate._utc(https.get("observed_at_utc"), f"{period} HTTPS")
+    if period == "target-period":
+        for _attempt in range(3):
+            if up_at >= web.started_at_utc:
+                break
+            time.sleep(10)
+            https = _target_https_report(session, https_source, period=period)
+            up = gate._object(https.get("retained_up_target"))
+            up_at = gate._utc(up.get("sample_at_utc"), f"{period} up")
+            https_at = gate._utc(https.get("observed_at_utc"), f"{period} HTTPS")
     if (
         https.get("decision") != "PASS_READ_ONLY"
         or https.get("base_url") != "https://demo.agomtrade.pro"
@@ -263,15 +355,27 @@ def _target_business_stop_lines(
 
 
 def exercise_once(
-    session: ActionSession, *, accept_interruption: bool, accept_tui_reset: bool
+    session: ActionSession,
+    *,
+    accept_interruption: bool,
+    accept_tui_reset: bool,
+    accept_active_tui_observation_invalidation: bool | None = None,
 ) -> dict[str, object]:
     """Run one bounded target interval, always recovering the current Web."""
 
+    active_invalidation_accepted = (
+        accept_tui_reset
+        if accept_active_tui_observation_invalidation is None
+        else accept_active_tui_observation_invalidation
+    )
     if not accept_interruption or not accept_tui_reset:
         raise WebOnlyActionError("bounded interruption and TUI-02 reset must be accepted")
     source = _source()
     pre = gate.collect_preflight(session)
-    _deny_active_tui_observation(session)
+    tui_invalidation = _tui_observation_invalidation(
+        session,
+        accept_active_invalidation=active_invalidation_accepted,
+    )
     digest = hashlib.sha256(
         json.dumps(pre, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
@@ -315,7 +419,15 @@ def exercise_once(
     post_recovery_stops = _target_business_stop_lines(
         session, recovered, checkpoint, news_evidence, period="post-recovery"
     )
-    post = gate.collect_preflight(session)
+    session.refresh_transport()
+    try:
+        post = gate.collect_preflight(session)
+    except gate.LiveImagePreflightError:
+        # A just-recreated Web can race one retained Prometheus scrape. Core
+        # target/recovery stop lines above remain single-shot and fail closed;
+        # only the redundant post-action read-only gate gets one bounded retry.
+        time.sleep(5)
+        post = gate.collect_preflight(session)
     if target_failure is not None:
         raise RecoveredIntervalDenied(
             {
@@ -330,6 +442,8 @@ def exercise_once(
                     else None
                 ),
                 "target_stop_lines_verified": False,
+                "target_failure_type": type(target_failure).__name__,
+                "target_failure_reason": str(target_failure),
                 "forward_recovered_web": {
                     "image_id": recovered.image_id,
                     "started_at_utc": recovered.started_at_utc.isoformat(),
@@ -337,6 +451,7 @@ def exercise_once(
                 "recovery_path": recovery_path,
                 "post_recovery_stop_lines": post_recovery_stops,
                 "post_action_gate": post,
+                "invalidated_tui02_observation": tui_invalidation,
                 "tui02_candidate_reset_required": True,
                 "tui02_candidate_reset_performed": False,
                 "decision": "DENY_TARGET_PERIOD_RECOVERED_CURRENT",
@@ -360,6 +475,7 @@ def exercise_once(
         "recovery_path": recovery_path,
         "post_action_gate": post,
         "post_recovery_stop_lines": post_recovery_stops,
+        "invalidated_tui02_observation": tui_invalidation,
         "current_symlink_changed": False,
         "database_restore_performed": False,
         "other_compose_services_recreated": False,
@@ -376,8 +492,13 @@ def main() -> int:
     parser.add_argument("--exercise", action="store_true")
     parser.add_argument("--accept-web-interruption", action="store_true")
     parser.add_argument("--accept-tui-reset", action="store_true")
+    parser.add_argument("--accept-active-tui-observation-invalidation", action="store_true")
     args = parser.parse_args()
-    if not args.exercise and (args.accept_web_interruption or args.accept_tui_reset):
+    if not args.exercise and (
+        args.accept_web_interruption
+        or args.accept_tui_reset
+        or args.accept_active_tui_observation_invalidation
+    ):
         parser.error("acceptance flags apply only to --exercise")
     try:
         paramiko = importlib.import_module("paramiko")
@@ -395,6 +516,19 @@ def main() -> int:
         )
 
         class Session:
+            def _connect(self) -> None:
+                """Open one known-host-key-enforced owner transport."""
+
+                client.connect(
+                    os.environ["AGOM_VPS_HOST"],
+                    port=int(os.environ["AGOM_VPS_PORT"]),
+                    username=os.environ["AGOM_VPS_USER"],
+                    password=os.environ["AGOM_VPS_PASS"],
+                    timeout=15,
+                    look_for_keys=False,
+                    allow_agent=False,
+                )
+
             def stream(self, command: str, source: str, timeout: int = 120) -> gate.RemoteResult:
                 """Stream exact source and retain no remote stderr/credentials."""
 
@@ -406,13 +540,22 @@ def main() -> int:
                 status = stdout.channel.recv_exit_status()
                 return gate.RemoteResult(status, output)
 
+            def refresh_transport(self) -> None:
+                """Discard the long exercise transport before final read-only checks."""
+
+                client.close()
+                self._connect()
+
             def begin_interval(self, source: str, preflight_digest: str) -> IntervalHandle:
                 """End source stdin before awaiting a separate FIFO instruction."""
 
                 command = (
                     f"EVID09_OWNER_ACTION_TOKEN={OWNER_TOKEN} "
                     f"EVID09_INTERNAL_GATE_SHA256={preflight_digest} "
-                    "EVID09_TUI_RESET_ACCEPTED=true EVID09_DOWNTIME_ACCEPTED=true "
+                    "EVID09_TUI_RESET_ACCEPTED=true "
+                    f"EVID09_TUI_CHECKPOINT_SHA256={TUI_CHECKPOINT_SHA256} "
+                    f"EVID09_TUI_INVALIDATION_TOKEN={TUI_INVALIDATION_TOKEN} "
+                    "EVID09_DOWNTIME_ACCEPTED=true "
                     "bash -s -- --internal-exercise"
                 )
                 stdin, stdout, _stderr = client.exec_command(command, timeout=200)
@@ -472,6 +615,9 @@ def main() -> int:
                     session,
                     accept_interruption=args.accept_web_interruption,
                     accept_tui_reset=args.accept_tui_reset,
+                    accept_active_tui_observation_invalidation=(
+                        args.accept_active_tui_observation_invalidation
+                    ),
                 )
                 if args.exercise
                 else gate.collect_preflight(session)
@@ -481,7 +627,10 @@ def main() -> int:
     except RecoveredIntervalDenied as exc:
         print(json.dumps(exc.report, sort_keys=True, separators=(",", ":")))
         return 1
-    except (OSError, KeyError, ValueError, WebOnlyActionError, gate.LiveImagePreflightError) as exc:
+    except WebOnlyActionError as exc:
+        print(f"DENY: WebOnlyActionError: {exc}", file=sys.stderr)
+        return 1
+    except (OSError, KeyError, ValueError, gate.LiveImagePreflightError) as exc:
         print(f"DENY: {type(exc).__name__}", file=sys.stderr)
         return 1
     print(json.dumps(report, sort_keys=True, separators=(",", ":")))

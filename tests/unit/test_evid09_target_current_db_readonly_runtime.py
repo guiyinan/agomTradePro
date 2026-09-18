@@ -23,9 +23,13 @@ def test_target_current_read_requires_readonly_before_public_ports() -> None:
 def test_target_runtime_binds_new_real_news_and_sanitizes_errors() -> None:
     source = SCRIPT.read_text(encoding="utf-8")
 
-    assert "5713bdc5-0810-54ea-a043-119e724d773d" in source
-    assert "aed230f1d3c4e6b322e9533f594421badabe1f52fa513580ef217d2089725375" in source
-    assert "EXPECTED_MEMBER_COUNT = 12" in source
+    assert 'parser.add_argument("--expected-news-id", required=True)' in source
+    assert 'parser.add_argument("--expected-news-hash", required=True)' in source
+    assert 'parser.add_argument("--expected-news-member-count", required=True, type=int)' in source
+    assert "arguments = _arguments()" in source
+    assert "arguments.expected_news_id" in source
+    assert "arguments.expected_news_hash" in source
+    assert "arguments.expected_news_member_count" in source
     assert "sys.excepthook = _safe_excepthook" in source
     assert "print(json.dumps(report" in source
     assert "print(str(exc)" not in source

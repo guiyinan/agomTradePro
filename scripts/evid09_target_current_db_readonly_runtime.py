@@ -7,17 +7,16 @@ setup; the explicit PostgreSQL snapshot is rolled back after the read.
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
+import re
 import sys
 import traceback
 from datetime import UTC, datetime
 from pathlib import Path
 from types import TracebackType
 
-EXPECTED_NEWS_ID = "5713bdc5-0810-54ea-a043-119e724d773d"
-EXPECTED_NEWS_HASH = "aed230f1d3c4e6b322e9533f594421badabe1f52fa513580ef217d2089725375"
-EXPECTED_MEMBER_COUNT = 12
 STRICT_DATASETS = (
     "equity.price.bar",
     "equity.quote.snapshot",
@@ -42,9 +41,31 @@ def _safe_excepthook(
 sys.excepthook = _safe_excepthook
 
 
+def _arguments() -> argparse.Namespace:
+    """Require one explicitly pinned News identity before Django setup."""
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--expected-news-id", required=True)
+    parser.add_argument("--expected-news-hash", required=True)
+    parser.add_argument("--expected-news-member-count", required=True, type=int)
+    arguments = parser.parse_args()
+    if (
+        re.fullmatch(
+            r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+            arguments.expected_news_id,
+        )
+        is None
+        or re.fullmatch(r"[0-9a-f]{64}", arguments.expected_news_hash) is None
+        or arguments.expected_news_member_count < 1
+    ):
+        parser.error("exact valid News identity fields are required")
+    return arguments
+
+
 def main() -> int:
     """Verify policy and News public ports in a rollback-only DB snapshot."""
 
+    arguments = _arguments()
     stage = "startup_guard"
     try:
         if "default_transaction_read_only=on" not in os.environ.get("PGOPTIONS", ""):
@@ -94,12 +115,14 @@ def main() -> int:
             selected_count = coverage.get("selected_count") if isinstance(coverage, dict) else None
             publication_identity_match = (
                 current is not None
-                and current.get("publication_id") == EXPECTED_NEWS_ID
-                and current.get("publication_hash") == EXPECTED_NEWS_HASH
-                and selected_count == EXPECTED_MEMBER_COUNT
+                and current.get("publication_id") == arguments.expected_news_id
+                and current.get("publication_hash") == arguments.expected_news_hash
+                and selected_count == arguments.expected_news_member_count
             )
             blocked = bool(published.get("must_not_use_for_decision"))
-            selected_rows_match = selected_rows == EXPECTED_MEMBER_COUNT if not blocked else True
+            selected_rows_match = (
+                selected_rows == arguments.expected_news_member_count if not blocked else True
+            )
             report = {
                 "schema": "evid09.target-current-db-readonly-runtime.v1",
                 "observed_at_utc": datetime.now(UTC).isoformat().replace("+00:00", "Z"),

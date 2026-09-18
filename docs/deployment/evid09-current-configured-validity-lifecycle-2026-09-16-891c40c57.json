@@ -1,0 +1,35 @@
+{
+  "schema": "evid09.current-configured-validity-lifecycle.v1",
+  "recorded_at_utc": "2026-09-16T06:24:51.948554Z",
+  "unit_id": "EVID-09",
+  "candidate": {
+    "commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "release": "source-20260915110952",
+    "image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d"
+  },
+  "server_derived_actor_source": {
+    "authenticated_session_owner": "admin",
+    "client_selected_identity_or_authority_fields": false,
+    "observed_at_utc": "2026-09-16T06:15:55.169416Z",
+    "valid_until_utc": "2026-09-16T06:20:55.524621Z",
+    "source_material_copied_to_repository": false
+  },
+  "operator": {
+    "started_at_utc": "2026-09-16T06:16:29.596541Z",
+    "finished_at_utc": "2026-09-16T06:24:51.948554Z",
+    "transport_exit_code": 0,
+    "stage_count": 27,
+    "automatic_retry": false,
+    "rollback_verified": true,
+    "lifecycle_result_sha256": "0238302d717a822844be364b343616e1372760fa512c4b48597c9b01c891979a",
+    "operator_receipt_sha256": "abbed89588bd448494f7d2546a8d96d2baab76deb03ae92cd7f3d2c53882e40f",
+    "proof_manifest_sha256": "5e08aacaf4618224f3032ce7c64746d50b605a92a99d59b133b66a8b6c7fcbe6"
+  },
+  "runtime_identity_unchanged_before_after": true,
+  "configured_validity_issue_successor_revoke_and_recovery_measured": true,
+  "private_raw_proof_material_excluded_from_repository": true,
+  "business_data_delete_performed": false,
+  "database_restore_performed": false,
+  "trade_or_paid_call_performed": false,
+  "decision": "PASS_CONFIGURED_VALIDITY_LIFECYCLE_ROLLBACK_VERIFIED"
+}

@@ -1,5 +1,19 @@
 # 活跃计划索引
 
+> 2026-09-16 material transition：EVID-09 已完成。当前 owner 会话发布的 server-derived
+> actor source 驱动 27 阶段 configured-validity 生命周期，自然退出 0 且 rollback verified；
+> [脱敏原件](../deployment/evid09-current-configured-validity-lifecycle-2026-09-16-891c40c57.json)
+> 不包含会话密钥或台账原值。生产 Web-only 目标/交互式前进恢复的两段镜像身份、八组
+> rowset、News、TLS/health、受保护 query 和各自新 scrape 均通过；
+> [实演原件](../deployment/evid09-web-only-live-image-exercise-2026-09-16-891c40c57.json)。
+> current symlink、数据库和非 Web 服务未改变。TUI-02 已按最后恢复时间真实 reset，旧
+> checkpoint 保留；新[checkpoint](../deployment/tui02-production-observation-checkpoint-2026-09-16-891c40c57.json)
+> 绑定首样本 `2026-09-16T07:31:34.667000Z` 与 eligible
+> `2026-09-30T07:31:34.667000Z`，readiness 仍 `2/10 DENY`。唯一 repository
+> 执行焦点现为 `AUD-05`：先以失败测试修复 Config Center secret/public snapshot hash-scope
+> contract，并提供 fail-closed 的新 profile 激活路径；生产激活需另行授权并验证。`DATA-02`
+> 仍是该前置完成后的下一条生产主线；EVID-01/02、AUD-03、TUI-02、TAR-05 均未连带完成。
+
 > 2026-09-15 EVID-09 直接 shell 原始留样停止线：旧 postcompat DENY 的
 > 原始 tag、query env 与手动恢复缺口已另行有界修复，但下层 live shell 此前
 > 可绕过 operator 的 raw-vector 检查。现在下层也在目标 Web 切换前独立

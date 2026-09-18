@@ -108,7 +108,7 @@ def test_success_report_never_claims_final_authorization(
     monkeypatch.setattr(
         probe,
         "_candidate",
-        lambda web: {
+        lambda web, **kwargs: {
             "commit": probe.COMMIT,
             "release_id": "20260915110952",
             "image_id": probe.IMAGE,
@@ -116,7 +116,9 @@ def test_success_report_never_claims_final_authorization(
         },
     )
     monkeypatch.setattr(
-        probe, "_prometheus", lambda prom: ("http://172.20.0.2:9090", {"restart_count": 0})
+        probe,
+        "_prometheus",
+        lambda prom, **kwargs: ("http://172.20.0.2:9090", {"restart_count": 0}),
     )
     monkeypatch.setattr(
         probe, "_monitoring", lambda base: {"target_up": True, "rules_unhealthy_count": 0}

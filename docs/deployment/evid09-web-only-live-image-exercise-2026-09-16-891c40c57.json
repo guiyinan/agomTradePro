@@ -1,0 +1,70 @@
+{
+  "schema": "evid09.web-only-live-image-exercise.v1",
+  "observed_at_utc": "2026-09-16T07:23:44.266497Z",
+  "production_candidate": {
+    "commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "release": "20260915110952",
+    "image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d"
+  },
+  "target": {
+    "commit": "6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b",
+    "release": "20260914021633",
+    "image_id": "sha256:f5647b6d4a17c81963a41dd4d66dee70ccfc4b18e881b368db4b89dda7bf86fd"
+  },
+  "pre_action_gate": {
+    "validated_at_utc": "2026-09-16T07:21:59.026445Z",
+    "decision": "PASS_PRE_ACTION_ONLY",
+    "current_news_id": "bf93797b-aa90-544d-845b-b99dfb10119f",
+    "current_news_hash": "630f5c8d21ab80c899054eeafbe8d25e246e19f71681db62daf048e1ad0dd7d0",
+    "current_news_members": 12,
+    "eight_business_rowset_sha256_match": true,
+    "protected_https_stop_lines": true,
+    "compose_semantic_identity": true,
+    "target_application_readonly_compatibility": true
+  },
+  "prior_tui02_observation": {
+    "checkpoint": "docs/deployment/tui02-production-observation-checkpoint-2026-09-15-891c40c57.json",
+    "checkpoint_sha256": "c77af8a8f7cefb79c00770edcc0ba63c7275f5884ffac24e1d5ceb7df3e4adac",
+    "first_retained_sample_at": "2026-09-15T15:21:04.672000Z",
+    "raw_probe_observed_at_utc": "2026-09-16T07:22:00.137889Z",
+    "raw_vector_count_at_final_pre_action_probe": 0,
+    "window_invalidation_accepted": true
+  },
+  "target_period": {
+    "web_started_at_utc": "2026-09-16T07:22:09.796282Z",
+    "preservation_observed_at_utc": "2026-09-16T07:22:27.843722Z",
+    "protected_https_observed_at_utc": "2026-09-16T07:22:39.420103Z",
+    "retained_web_up_sample_at_utc": "2026-09-16T07:22:28.553000Z",
+    "identity_before_observed_at_utc": "2026-09-16T07:22:26.749465Z",
+    "identity_after_observed_at_utc": "2026-09-16T07:22:40.326160Z",
+    "all_eight_rowset_sha256_match": true,
+    "decision_gate_still_blocked": true
+  },
+  "forward_recovery": {
+    "path": "interactive",
+    "web_started_at_utc": "2026-09-16T07:22:46.290749Z",
+    "preservation_observed_at_utc": "2026-09-16T07:23:07.703345Z",
+    "protected_https_observed_at_utc": "2026-09-16T07:23:16.103598Z",
+    "retained_web_up_sample_at_utc": "2026-09-16T07:23:08.455000Z",
+    "identity_before_observed_at_utc": "2026-09-16T07:23:06.738078Z",
+    "identity_after_observed_at_utc": "2026-09-16T07:23:17.553469Z",
+    "all_eight_rowset_sha256_match": true,
+    "decision_gate_still_blocked": true
+  },
+  "post_action_gate": {
+    "validated_at_utc": "2026-09-16T07:23:44.266300Z",
+    "decision": "PASS_PRE_ACTION_ONLY",
+    "eight_business_rowset_sha256_match": true,
+    "protected_https_stop_lines": true,
+    "compose_semantic_identity": true,
+    "target_application_readonly_compatibility": true
+  },
+  "current_symlink_changed": false,
+  "database_restore_performed": false,
+  "other_compose_services_recreated": false,
+  "paid_model_invocation_performed": false,
+  "trade_performed": false,
+  "tui02_candidate_reset_required": true,
+  "tui02_candidate_reset_performed": false,
+  "decision": "LIVE_WEB_ONLY_RECOVERED_TUI_RESET_PENDING"
+}

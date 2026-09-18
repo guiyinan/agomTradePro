@@ -7,7 +7,7 @@
     "stable_version": "20260915110952",
     "candidate_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
     "released_at": "2026-09-15",
-    "observation_end": "2026-09-29",
+    "observation_end": "2026-09-30",
     "binding": {
       "version": "web-to-tui-candidate-binding.v1",
       "candidate_version": "20260915110952",
@@ -35,11 +35,11 @@
     },
     "retained_observation": {
       "version": "web-to-tui-retained-observation-binding.v1",
-      "evidence": "docs/deployment/tui02-production-observation-checkpoint-2026-09-15-891c40c57.json",
-      "evidence_sha256": "c77af8a8f7cefb79c00770edcc0ba63c7275f5884ffac24e1d5ceb7df3e4adac",
-      "first_retained_sample_at": "2026-09-15T15:21:04.672000Z",
+      "evidence": "docs/deployment/tui02-production-observation-checkpoint-2026-09-16-891c40c57.json",
+      "evidence_sha256": "1437c2d317e111eb5c50af0d06656ddfc7cc8e453f07c70ba446e4d5715c3598",
+      "first_retained_sample_at": "2026-09-16T07:31:34.667000Z",
       "minimum_observation_seconds": 1209600,
-      "eligible_at": "2026-09-29T15:21:04.672000Z"
+      "eligible_at": "2026-09-30T07:31:34.667000Z"
     }
   },
   "cleanup": {

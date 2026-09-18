@@ -6136,3 +6136,35 @@ recovery 证据。现行 TUI-02 自首样本 `2026-09-15T15:21:04.672000Z`
 当前有效 source head 仍为 `0/30`，新会话/真实 policy/源时钟与独立恢复
 尚缺；EVID-09 active/唯一 repository focus、exit false，不提交、不部署，
 不执行 live rollback、DB restore、业务 DML 或候选重绑定。
+
+## 2026-09-16：EVID-09 configured-validity 与 Web-only 生产退出
+
+在当前生产候选 `891c40c57` / `20260915110952` 上，真实 owner 的既有
+authenticated Django session 仅以空 JSON 发布服务器派生 actor source；没有客户端
+选择 identity、authority 或有效期。随后配置有效期生命周期按固定候选、镜像和 release
+运行 27 个阶段，自然退出 0，外层 rollback 已验证，运行容器身份前后不变；未删除业务
+数据、未 restore 数据库、未交易或调用付费模型。仓库只保留脱敏摘要与完整私有证明的
+SHA，不复制会话或台账原值：[configured-validity 原件](../deployment/evid09-current-configured-validity-lifecycle-2026-09-16-891c40c57.json)。
+
+当前 News 自然更新后，目标旧 OCI 先在生产数据库只读容器中重新验证 12 成员、四项严格
+策略和 fresh/current 契约；新[只读转场门](../deployment/evid09-fresh-readonly-transition-gates-2026-09-16-891c40c57.json)
+显式绑定 News ID/hash/count、八组 rowset、Compose 语义、TLS/health、受保护 query 和目标
+Application 读取。Web-only 实演随后仅重建 Web：目标期从
+`2026-09-16T07:22:09.796282Z` 开始，当前镜像通过交互式 forward recovery 于
+`07:22:46.290749Z` 恢复。两期均由 image/start/manifest 前后夹取，并分别通过八组
+rowset 保全、News identity、decision 503、TLS/health、认证 query 及各自启动后的新
+`up=1` scrape。[实演原件](../deployment/evid09-web-only-live-image-exercise-2026-09-16-891c40c57.json)
+确认 current symlink 未改，数据库未 restore，其他 Compose 服务未重建。
+
+此前几次 fail-closed 尝试均真实恢复当前 Web，并暴露/修复前置事件多输出、长 SSH transport
+和 scrape 时序问题；它们未被冒充为成功。最终成功后，TUI-02 旧 checkpoint 保留，按真实
+最后恢复时间生成 reset artifact，再用真实 owner 访问一次 `/tui/` 产生非交易 entry 样本。
+新 checkpoint 首样本为 `2026-09-16T07:31:34.667000Z`，精确 14 日 eligible instant 为
+`2026-09-30T07:31:34.667000Z`。EVID-09 的仓库、configured-validity、admin/ledger rollback
+和 Web-only recovery 退出门均已形成，状态改为 `completed`；EVID-01/02、DATA-02、AUD-03、
+TUI-02 与 TAR-05 不因本单元完成而放行。
+
+EVID-09 释放 repository lock 后，机器治理将新发现的 Config Center full-profile/public-snapshot
+hash-scope 缺陷登记为唯一 repository 单元 `AUD-05`。该单元只负责失败优先的合同修复与
+fail-closed corrective-profile activation 路径；不得原地改写 v14、回退到已 supersede 的 v13，
+也不得把仓库完成等同于生产 profile 激活、Audit recovery 或 DATA-02 回填授权。

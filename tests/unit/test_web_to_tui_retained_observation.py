@@ -330,6 +330,25 @@ def test_restart_reset_is_idempotent_after_binding(tmp_path: Path) -> None:
     assert second == first
 
 
+def test_authorized_evid09_web_only_rehearsal_is_a_supported_reset_reason(
+    tmp_path: Path,
+) -> None:
+    checkpoint = _write_checkpoint(tmp_path)
+    artifact_payload = _reset_artifact(checkpoint)
+    artifact_payload["reset"]["reason_code"] = "evid09_authorized_web_only_rehearsal"
+    artifact = tmp_path / "reset.json"
+    artifact.write_text(json.dumps(artifact_payload), encoding="utf-8")
+
+    prepared = retained.bind_observation_reset(
+        _evidence_with_retained_checkpoint(checkpoint),
+        reset_artifact_path=artifact,
+        root=tmp_path,
+    )
+
+    marker = retained.validate_observation_reset(prepared["candidate"], root=tmp_path)
+    assert marker.reason_code == "evid09_authorized_web_only_rehearsal"
+
+
 def test_restart_reset_rejects_artifact_with_wrong_previous_checkpoint(tmp_path: Path) -> None:
     """A reset cannot silently detach from the retained source it invalidates."""
 

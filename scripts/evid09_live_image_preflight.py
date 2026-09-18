@@ -22,11 +22,11 @@ from typing import Protocol, cast
 
 ROOT = Path(__file__).resolve().parents[1]
 CHECKPOINT = (
-    ROOT / "docs/deployment/evid09-fresh-readonly-transition-gates-2026-09-15-891c40c57.json"
+    ROOT / "docs/deployment/evid09-fresh-readonly-transition-gates-2026-09-16-891c40c57.json"
 )
 NEWS_EVIDENCE = (
     ROOT
-    / "docs/deployment/evid09-target-new-news-production-readonly-compatibility-2026-09-15-891c40c57.json"
+    / "docs/deployment/evid09-target-new-news-production-readonly-compatibility-2026-09-16-891c40c57.json"
 )
 CONTROL_SCRIPT = ROOT / "scripts/evid09-controlled-image-exercise.sh"
 PROBE_SOURCES = {
@@ -37,7 +37,7 @@ PROBE_SOURCES = {
 }
 TARGET_TAG = "agomtradepro-web:20260914021633"
 CONTROL_SOURCE_SHA256 = "e170839c122740b5442eaca6fa27eb9f46f0ed9a01ddd60cc9bee496533b4c83"
-TARGET_RUNTIME_SOURCE_SHA256 = "1e09c73183dbc087762e572c2c383c3799df99c2a2bc2aae4c1d60989302040e"
+TARGET_RUNTIME_SOURCE_SHA256 = "8385938b0096d8267628c584dac02aa26f70db378c65885274cf8a113022d724"
 TARGET_RUNTIME_COMMAND = (
     "docker run --rm -i --name evid09-target-current-db-readonly-preflight-891c40c57 "
     "--network container:agomtradepro-web-1 --read-only "
@@ -300,7 +300,15 @@ def collect_preflight(streamer: RemoteStreamer) -> dict[str, object]:
         "preservation": command,
         "https": "python3 -",
         "compose": "python3 -",
-        "target_runtime": TARGET_RUNTIME_COMMAND,
+        "target_runtime": (
+            TARGET_RUNTIME_COMMAND
+            + " --expected-news-id "
+            + str(binding["publication_id"])
+            + " --expected-news-hash "
+            + str(binding["publication_hash"])
+            + " --expected-news-member-count "
+            + str(binding["member_count"])
+        ),
     }
     reports = {
         name: _report(

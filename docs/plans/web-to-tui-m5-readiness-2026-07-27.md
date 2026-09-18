@@ -1239,3 +1239,18 @@ observation day 为 0；在 eligible instant 前只低频只读核验候选
 final telemetry、defect、backup attestation 或 sign-off。不为 EVID-09
 镜像演练重置本窗口；若候选或 Prometheus 真正改变，必须按实际事件
 重新绑定，而不能延用此 checkpoint。
+
+## 2026-09-16 Web-only 演练后的 M5 新窗口
+
+owner 后续明确接受 EVID-09 Web-only 演练造成窗口失效，因此上节 checkpoint 现只作
+历史原件保留。[reset artifact](../deployment/tui02-production-observation-reset-2026-09-16-891c40c57.json)
+按最终 forward recovery 的真实 Web started_at
+`2026-09-16T07:22:46.290749Z` 失效旧窗口；Prometheus 容器未重启。
+真实 owner 会话仅打开一次 `/tui/`，未执行 action。受保护 raw source range 随后取得
+首样本 `2026-09-16T07:31:34.667000Z`，新[canonical checkpoint](../deployment/tui02-production-observation-checkpoint-2026-09-16-891c40c57.json)
+已通过 binder dry-run/write 并写入 cutover evidence，精确 eligible instant 更新为
+`2026-09-30T07:31:34.667000Z`。
+
+当前 readiness 重算仍为 `2/10 DENY`，calendar observation day 仍为 0。到新 eligible
+instant 前仅允许低频只读候选/Prometheus/存储/TLS/drift/reset 检查，不生成 final
+telemetry、defect、backup attestation、approval，也不执行 Classic cleanup。

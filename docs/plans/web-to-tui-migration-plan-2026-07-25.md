@@ -840,3 +840,26 @@ telemetry/approval未继承，Classic cleanup继续禁止。EVID-09
 Web-only live 演练的代码入口虽已准备，当前非空原始序列使其
 fail-closed；任何实际镜像切换都需另有真实 reset/rebind，不能沿用
 当前窗口。
+
+### 2026-09-16 EVID-09 演练后的真实 reset/rebind
+
+owner 明确接受 EVID-09 Web-only 演练使既有观察失效。旧
+[`2026-09-15` checkpoint](../deployment/tui02-production-observation-checkpoint-2026-09-15-891c40c57.json)
+未删除或改写；[reset artifact](../deployment/tui02-production-observation-reset-2026-09-16-891c40c57.json)
+绑定成功 forward recovery 后当前 Web 的真实 started_at
+`2026-09-16T07:22:46.290749Z`、容器身份、Prometheus 无重启及
+health/ready 200、decision-ready 503。canonical reset binder 的 dry-run 与写入均通过。
+
+同一真实 owner 会话随后仅打开一次 `/tui/`，没有执行 action、交易或付费调用。受保护
+raw range query 在 Prometheus 抓取后取得首个 post-reset source sample
+`2026-09-16T07:31:34.667000Z`；四个 bounded task series 的时间戳均来自真实 raw counter，
+未回填历史或合成零值。新[retained checkpoint](../deployment/tui02-production-observation-checkpoint-2026-09-16-891c40c57.json)
+同时验证当前 OCI/manifest、Prometheus 无首样本后重启、唯一 target up、18 条健康规则、
+`3w/4GiB` 持久卷、认证查询 200/未认证 401、TLS health/ready 200 与 decision 503。
+canonical retained binder 已写入新 SHA，精确 eligible instant 为
+`2026-09-30T07:31:34.667000Z`。
+
+readiness 仍为 `2/10 DENY`：自然 14 日尚未完成，当前候选的 108 路由 UAT、cleanup、
+rollback、structured defects、101-task telemetry、post-window backup/review 与 attestations
+仍为空。到 eligible instant 前只作低频只读 drift/reset 观察；不得提前生成 final evidence、
+执行 Classic cleanup 或继承旧窗口。

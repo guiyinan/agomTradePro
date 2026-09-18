@@ -22,7 +22,12 @@ RESET_VERSION = "tui02-production-observation-reset.v1"
 MINIMUM_OBSERVATION_SECONDS = 14 * 24 * 60 * 60
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 CONTAINER_ID_PATTERN = re.compile(r"^[0-9a-f]{64}$")
-RESET_REASON_CODES = frozenset({"controlled_web_restart_after_liveness_incident"})
+RESET_REASON_CODES = frozenset(
+    {
+        "controlled_web_restart_after_liveness_incident",
+        "evid09_authorized_web_only_rehearsal",
+    }
+)
 
 
 class RetainedObservationError(RuntimeError):

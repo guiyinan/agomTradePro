@@ -137,13 +137,14 @@ class FakeSession:
         self.manual_recovery_wrong_image = manual_recovery_wrong_image
         self.manual_recovery_requests = 0
         self.begin_requests = 0
+        self.transport_refreshes = 0
 
     def stream(self, command: str, source: str, timeout: int = 120) -> gate.RemoteResult:
         """Return only fake read-only PostgreSQL or HTTPS reports."""
 
         if "raw-observation-preflight" in source:
             return gate.RemoteResult(
-                0,
+                0 if self.raw_count == 0 else 1,
                 json.dumps(
                     {
                         "decision": (
@@ -153,6 +154,9 @@ class FakeSession:
                         ),
                         "authenticated_https_status": 200,
                         "raw_vector_count": self.raw_count,
+                        "raw_series_values_or_labels_emitted": False,
+                        "secret_values_emitted": False,
+                        "observed_at_utc": self.now.isoformat(),
                     }
                 ),
             )
@@ -238,6 +242,11 @@ class FakeSession:
         self.handle.recovered = True
         return _recovery(self.now)
 
+    def refresh_transport(self) -> None:
+        """Record the production transport-refresh boundary."""
+
+        self.transport_refreshes += 1
+
 
 def _preflight(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
@@ -262,10 +271,40 @@ def test_exact_target_period_recovers_original_and_marks_tui_reset_pending(
     assert session.begin_requests == 1
     assert session.handle.recovery_requests == 1
     assert session.manual_recovery_requests == 0
+    assert session.transport_refreshes == 1
     assert report["decision"] == "LIVE_WEB_ONLY_RECOVERED_TUI_RESET_PENDING"
     assert report["post_recovery_stop_lines"]["all_eight_rowset_sha256_match"] is True
     assert report["tui02_candidate_reset_required"] is True
     assert report["tui02_candidate_reset_performed"] is False
+
+
+def test_post_action_preflight_gets_one_bounded_retry_after_recovery(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = 0
+
+    def transient_post(session: object) -> dict[str, object]:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise gate.LiveImagePreflightError("retained scrape race")
+        return {
+            "decision": "PASS_PRE_ACTION_ONLY",
+            "production_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+            "target_commit": "6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b",
+        }
+
+    monkeypatch.setattr(gate, "collect_preflight", transient_post)
+    monkeypatch.setattr(action.time, "sleep", lambda seconds: None)
+
+    report = action.exercise_once(
+        FakeSession(datetime.now(UTC)),
+        accept_interruption=True,
+        accept_tui_reset=True,
+    )
+
+    assert calls == 3
+    assert report["decision"] == "LIVE_WEB_ONLY_RECOVERED_TUI_RESET_PENDING"
 
 
 def test_target_https_failure_still_sends_forward_recovery(
@@ -279,6 +318,8 @@ def test_target_https_failure_still_sends_forward_recovery(
     assert session.handle.recovery_requests == 1
     assert "protected HTTPS" in str(caught.value.__cause__)
     assert caught.value.report["decision"] == "DENY_TARGET_PERIOD_RECOVERED_CURRENT"
+    assert caught.value.report["target_failure_type"] == "WebOnlyActionError"
+    assert "protected HTTPS" in caught.value.report["target_failure_reason"]
     assert caught.value.report["post_recovery_stop_lines"]["all_eight_rowset_sha256_match"] is True
 
 
@@ -358,9 +399,33 @@ def test_existing_tui_raw_sample_denies_before_web_interval(
     session = FakeSession(datetime.now(UTC), raw_count=4)
 
     with pytest.raises(action.WebOnlyActionError, match="active TUI-02 raw observation"):
-        action.exercise_once(session, accept_interruption=True, accept_tui_reset=True)
+        action.exercise_once(
+            session,
+            accept_interruption=True,
+            accept_tui_reset=True,
+            accept_active_tui_observation_invalidation=False,
+        )
     assert session.begin_requests == 0
     assert session.handle.recovery_requests == 0
+
+
+def test_authorized_existing_tui_raw_sample_is_bound_before_web_interval(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _preflight(monkeypatch)
+    session = FakeSession(datetime.now(UTC), raw_count=4)
+
+    report = action.exercise_once(
+        session,
+        accept_interruption=True,
+        accept_tui_reset=True,
+        accept_active_tui_observation_invalidation=True,
+    )
+
+    invalidated = cast(dict[str, object], report["invalidated_tui02_observation"])
+    assert invalidated["raw_vector_count"] == 4
+    assert invalidated["active_observation_invalidation_accepted"] is True
+    assert invalidated["checkpoint_sha256"] == action.TUI_CHECKPOINT_SHA256
 
 
 def test_recovery_period_rejects_up_sample_from_target_interval(

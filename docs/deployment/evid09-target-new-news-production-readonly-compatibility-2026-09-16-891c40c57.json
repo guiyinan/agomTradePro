@@ -1,0 +1,87 @@
+{
+  "schema": "evid09.target-new-news-production-readonly-compatibility.v1",
+  "recorded_at_utc": "2026-09-16T06:37:30Z",
+  "unit_id": "EVID-09",
+  "production_candidate": {
+    "source_commit": "891c40c5769897931b2b513e92df6f9ba72631ea",
+    "release_tag": "20260915110952",
+    "running_web_image_id": "sha256:554f816b6dd2a7155742d3260f1df3eab94864de7aec47c0e67ad5d5738c164d",
+    "current_release_symlink_unchanged": true,
+    "web_running_healthy_after": true
+  },
+  "target_image": {
+    "source_commit": "6760c9aa1607c55e9ae0fd0bcb5435ca32080b0b",
+    "original_tag": "agomtradepro-web:20260914021633",
+    "image_id": "sha256:f5647b6d4a17c81963a41dd4d66dee70ccfc4b18e881b368db4b89dda7bf86fd",
+    "target_and_current_database_url_secret_key_encryption_key_sha_match": true,
+    "secret_values_printed": false
+  },
+  "new_current_news": {
+    "publication_id": "bf93797b-aa90-544d-845b-b99dfb10119f",
+    "publication_hash": "630f5c8d21ab80c899054eeafbe8d25e246e19f71681db62daf048e1ad0dd7d0",
+    "published_at_utc": "2026-09-16T02:15:04.049101Z",
+    "member_count": 12,
+    "prior_sealed_news_identity_superseded": true
+  },
+  "read_only_preservation": {
+    "collector_source": "scripts/evid09_production_preservation_probe.py",
+    "postgresql_transaction": "REPEATABLE READ READ ONLY; ROLLBACK",
+    "observed_at_utc": "2026-09-16T06:27:58.048579Z",
+    "four_immutable_authority_root_content_hashes_match_baseline": true,
+    "all_eight_exact_rowsets_collected": true,
+    "rowsets": {
+      "authority_roots": {"count": 4, "sha256": "946d9c0d7d29cfd4756fea7e9968bfc60b53766c6b6df27c3d3bc7d0b3527757"},
+      "authority_revocations": {"count": 0, "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"},
+      "publication_policies": {"count": 14, "sha256": "084bed87def17c0b0bc7b43f4f0e722ef941ba9f7ff99330448642dda6e9eaf7"},
+      "dataset_contracts": {"count": 10, "sha256": "99d5949a3551426d83e5c950e3b4473740c58aef158e84cd4befbdcbe0db37c5"},
+      "provider_bindings": {"count": 15, "sha256": "ac84597e936b77955a11c49f8cf6f4fdbb18de2c2e3eb2a143be049260cca904"},
+      "owner_registrations": {"count": 10, "sha256": "e40504455e639d7da66fbc1b7890b31ae8e8d595c304b45e0c8f24628659c1b2"},
+      "news_current": {"count": 1, "sha256": "b4298b61dfc8b144372512ca03c195e21931ceacbf8479ba23e34a185193dfea"},
+      "news_current_members": {"count": 12, "sha256": "b85ab79e537c61613b3d6b659c3a55be02f55249637b1f5c96eac035956993b5"}
+    },
+    "raw_row_values_transferred_or_emitted": false,
+    "business_dml_performed": false
+  },
+  "isolated_target_runtime": {
+    "observed_at_utc": "2026-09-16T06:36:37.779891Z",
+    "source_script": "scripts/evid09_target_current_db_readonly_runtime.py",
+    "root_filesystem_read_only": true,
+    "business_persistent_mounts": 0,
+    "published_ports": 0,
+    "postgresql_default_transaction_read_only_confirmed": true,
+    "postgresql_repeatable_read_read_only_and_rollback_confirmed": true,
+    "four_strict_publication_policies_present": true,
+    "new_news_id_hash_and_selected_count_match": true,
+    "published_query_selected_rows": 12,
+    "published_query_freshness_status_at_sample": "fresh",
+    "published_query_must_not_use_for_decision_at_sample": false,
+    "natural_exit_code": 0,
+    "temporary_container_removed_after_exit": true,
+    "sample_result_not_extrapolated_to_later_news_heads": true
+  },
+  "post_https_stop_lines": {
+    "observed_at_utc": "2026-09-16T06:28:08Z",
+    "/api/health/": 200,
+    "/api/health/db/": 200,
+    "/api/ready/": 200,
+    "/api/decision-ready/": 503,
+    "/internal/prometheus/api/v1/query?query=up (unauthenticated)": 401,
+    "/internal/prometheus/api/v1/query?query=up (authenticated)": 200,
+    "retained_web_up": 1,
+    "decision_gate_cleared": false
+  },
+  "actions_not_performed": [
+    "Web/Caddy recreation",
+    "current symlink cutover",
+    "live image rollback",
+    "forward recovery",
+    "PostgreSQL restore",
+    "business DML",
+    "TUI-02 candidate reset",
+    "paid model invocation",
+    "real trade"
+  ],
+  "decision": "TARGET_CURRENT_NEWS_READONLY_COMPATIBLE_LIVE_IMAGE_EXERCISE_DENY",
+  "remaining_gate": "Run a fresh source-bound preflight immediately before the explicitly authorized Web-only exercise, then preserve and rebind the invalidated TUI-02 window.",
+  "evid09_exit_gate_complete": false
+}

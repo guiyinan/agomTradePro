@@ -11,6 +11,7 @@ import base64
 import hashlib
 import ipaddress
 import json
+import os
 import stat
 import subprocess
 import sys
@@ -98,12 +99,14 @@ def _state(container: dict[str, object]) -> dict[str, object]:
     return state
 
 
-def _candidate(web: dict[str, object]) -> dict[str, object]:
+def _candidate(
+    web: dict[str, object], *, first_sample: datetime = FIRST_SAMPLE
+) -> dict[str, object]:
     state = _state(web)
     restart_count = web.get("RestartCount")
     if not isinstance(restart_count, int) or restart_count < 0:
         raise MonitoringProbeError("Web restart count unavailable")
-    if web.get("Image") != IMAGE or _utc(state.get("StartedAt")) >= FIRST_SAMPLE:
+    if web.get("Image") != IMAGE or _utc(state.get("StartedAt")) >= first_sample:
         raise MonitoringProbeError("Web candidate changed after first sample")
     config = _object(web.get("Config"))
     if config.get("Image") != "agomtradepro-web:20260915110952":
@@ -143,7 +146,9 @@ def _candidate(web: dict[str, object]) -> dict[str, object]:
     }
 
 
-def _prometheus(prom: dict[str, object]) -> tuple[str, dict[str, object]]:
+def _prometheus(
+    prom: dict[str, object], *, first_sample: datetime = FIRST_SAMPLE
+) -> tuple[str, dict[str, object]]:
     state = _state(prom)
     if (
         prom.get("Image") != PROM_IMAGE
@@ -153,7 +158,7 @@ def _prometheus(prom: dict[str, object]) -> tuple[str, dict[str, object]]:
     restart_count = prom.get("RestartCount")
     if not isinstance(restart_count, int) or restart_count < 0:
         raise MonitoringProbeError("Prometheus restart count unavailable")
-    if _utc(state.get("StartedAt")) >= FIRST_SAMPLE:
+    if _utc(state.get("StartedAt")) >= first_sample:
         raise MonitoringProbeError("Prometheus restarted after first sample")
     mounts = _list(prom.get("Mounts"))
     volumes = [
@@ -347,8 +352,12 @@ def main() -> int:
     """Publish only a read-only candidate-bound monitoring verdict."""
 
     try:
-        web = _candidate(_inspect("agomtradepro-web-1"))
-        prom_base, prom = _prometheus(_inspect("agomtradepro-prometheus-1"))
+        raw_first_sample = os.environ.get("EVID09_TUI02_FIRST_SAMPLE_AT", "").strip()
+        first_sample = _utc(raw_first_sample) if raw_first_sample else FIRST_SAMPLE
+        web = _candidate(_inspect("agomtradepro-web-1"), first_sample=first_sample)
+        prom_base, prom = _prometheus(
+            _inspect("agomtradepro-prometheus-1"), first_sample=first_sample
+        )
         monitoring = _monitoring(prom_base)
         protected = _protected_query(_utc(web["web_started_at_utc"]))
         report = {
@@ -358,7 +367,7 @@ def main() -> int:
             "prometheus": prom,
             "monitoring": monitoring,
             "protected_query": protected,
-            "first_retained_raw_sample_at_utc": FIRST_SAMPLE.isoformat().replace("+00:00", "Z"),
+            "first_retained_raw_sample_at_utc": first_sample.isoformat().replace("+00:00", "Z"),
             "candidate_drift": False,
             "prometheus_unexpected_restart": False,
             "side_effects_performed": False,

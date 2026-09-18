@@ -53,15 +53,20 @@ def test_default_is_dry_run_and_live_requires_fresh_operator_gate() -> None:
     assert '[[ "${EVID09_DOWNTIME_ACCEPTED:-}" == true ]]' in source
 
 
-def test_direct_live_shell_denies_existing_raw_tui_observation_before_switch() -> None:
+def test_live_shell_requires_exact_active_observation_invalidation_before_switch() -> None:
     source = SCRIPT.read_text(encoding="utf-8")
     live = source.split("# The operator-side entry sets this only after it ran", 1)[1]
 
     assert (
-        'raw_observation_empty || deny "active TUI-02 raw observation or query unavailable"' in live
+        'raw_observation_action_gate || deny "active TUI-02 observation invalidation not exactly authorized or query unavailable"'
+        in live
     )
-    assert live.index("raw_observation_empty || deny") < live.index("NEED_RECOVERY=1")
-    assert live.index("raw_observation_empty || deny") < live.index('compose_web "$TARGET" up')
+    assert live.index("raw_observation_action_gate || deny") < live.index("NEED_RECOVERY=1")
+    assert live.index("raw_observation_action_gate || deny") < live.index(
+        'compose_web "$TARGET" up'
+    )
+    assert '[[ "${EVID09_TUI_CHECKPOINT_SHA256:-}" == "$TUI_CHECKPOINT_SHA" ]]' in source
+    assert '[[ "${EVID09_TUI_INVALIDATION_TOKEN:-}" == "$TUI_INVALIDATION_TOKEN" ]]' in source
     assert "web_to_tui_migration_events_total" in source
     assert "https://demo.agomtrade.pro/internal/prometheus/api/v1/query?" in source
     assert "PROMETHEUS_QUERY_PASSWORD" in source
@@ -87,7 +92,7 @@ def test_isolated_direct_shell_denies_nonempty_raw_vector_without_recreate() -> 
     source = _isolated_source()
     source = source.replace(
         "raw_observation_empty() { :; }",
-        "raw_observation_empty() { echo RAW_NONEMPTY_MARKER; return 1; }",
+        "raw_observation_empty() { echo RAW_NONEMPTY_MARKER; return 3; }",
     )
     result = subprocess.run(
         [bash, "-s", "--", "--internal-exercise"],
@@ -99,7 +104,7 @@ def test_isolated_direct_shell_denies_nonempty_raw_vector_without_recreate() -> 
     assert result.returncode != 0
     assert "RAW_NONEMPTY_MARKER" in result.stdout.decode("utf-8")
     assert "TARGET_READY" not in result.stdout.decode("utf-8")
-    assert "active TUI-02 raw observation" in result.stderr.decode("utf-8")
+    assert "active TUI-02 observation invalidation" in result.stderr.decode("utf-8")
 
 
 def test_interactive_target_interval_always_has_forward_recovery_trap() -> None:
