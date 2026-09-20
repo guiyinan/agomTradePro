@@ -1,0 +1,469 @@
+{
+  "schema": "production-closure-baseline-revalidation.v1",
+  "sealed_at_utc": "2026-09-20T15:15:04.794598+00:00",
+  "status": "blocked_production_exits_not_promoted",
+  "source_commit": "439468482f457884db17da47d7566a5aac295842",
+  "release_tag": "20260920184626",
+  "production_readonly": {
+    "schema": "production-closure-readonly.v1",
+    "started_at": "2026-09-20T15:10:01.326828+00:00",
+    "production_mutations_performed": false,
+    "identity": {
+      "exit_code": 0,
+      "source_sha256": "6dc6a88ebc6f187a1faa8274b0d266c7aff9942fcab332ade8b62374f09cb0e2",
+      "stdout_sha256": "6948b4b8f878e7000cb9aa9980edc3398d516008b895a0d5a389097cc9ce4397",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "result": {
+        "containers": [
+          {
+            "health": "healthy",
+            "image_id": "sha256:ad885af0fbb5904f389cbe469403fd758901e0f4b62e88e0c8dab34e52315d71",
+            "name": "agomtradepro-web-1",
+            "restart_count": 0,
+            "started_at": "2026-09-20T11:07:43.394733155Z",
+            "status": "running"
+          },
+          {
+            "health": "healthy",
+            "image_id": "sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996",
+            "name": "agomtradepro-prometheus-1",
+            "restart_count": 0,
+            "started_at": "2026-09-20T11:07:59.353500085Z",
+            "status": "running"
+          },
+          {
+            "available": false,
+            "name": "agomtradepro-worker-1"
+          },
+          {
+            "available": false,
+            "name": "agomtradepro-beat-1"
+          }
+        ],
+        "current_release_path": "/opt/agomtradepro/releases/source-20260920184626",
+        "https": {
+          "/api/decision-ready/": {
+            "body_bytes": 1029,
+            "body_sha256": "e842b1caeac01aa71696bfd7d43bcb949f875d64be77f45f7c916001e1ad4dbf",
+            "content_type": "application/json",
+            "status": 503
+          },
+          "/api/health/": {
+            "body_bytes": 62,
+            "body_sha256": "8e100e8a4d3c1093588432dc0ba89f9d75b3464ff87bac078440131e681bbc2c",
+            "content_type": "application/json",
+            "status": 200
+          },
+          "/api/ready/": {
+            "body_bytes": 16061,
+            "body_sha256": "50a8aab2a3b946799463b113a3f353d3613aa88e94b299f50260f77a5c3a7841",
+            "content_type": "application/json",
+            "status": 200
+          }
+        },
+        "mutations_performed": false,
+        "observed_at": "2026-09-20T15:10:06.347615+00:00"
+      }
+    },
+    "retained_monitor": {
+      "exit_code": 1,
+      "source_sha256": "b128a680cabf32e4b41f6a483ac1d594c38b240601f11e611dee152374e4bbe3",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "9b05e38f526cbcf87615f43812261036c054f64ee0664e91d2706d6103930437",
+      "verdict": "DENY: Web candidate changed after first sample"
+    },
+    "completed_at": "2026-09-20T15:10:16.369932+00:00"
+  },
+  "runtime_repeatable_read_read_only": {
+    "active_profile_count": 1,
+    "observed_at": "2026-09-20T15:13:17.387769+00:00",
+    "profiles": [
+      {
+        "audit_loader": {
+          "accepted": true,
+          "authority_present": false,
+          "mode": "off",
+          "outbox_enabled": false
+        },
+        "environment": "production",
+        "full_content_hash": "dc83050d3979e37c96f7540e176a6ae5917812ac73984b7bc58481836b6fe1ca",
+        "profile_id": "3500f37a-be7d-43fb-802f-752240db44b3",
+        "profile_key": "production",
+        "public_count": 47,
+        "public_hash_valid": true,
+        "snapshot_hash": "4ecfa6032188a4867fb7d006ddfacafff0749d20e3b440bb19a50312d1ae51d0",
+        "snapshot_id": "7e39b4cf-b3e8-4f19-8cca-5a9b13e04789",
+        "version": 17
+      }
+    ],
+    "secret_values_emitted": false,
+    "transaction": "REPEATABLE READ READ ONLY"
+  },
+  "local_tui_require_allow": {
+    "exit_code": 1,
+    "result": {
+      "decision": "DENY",
+      "as_of": "2026-09-20",
+      "required_route_pages": 108,
+      "required_tasks": 101,
+      "gates": [
+        {
+          "key": "source_consistency",
+          "passed": true,
+          "detail": "matrix=e03916f904971f242337523252681d65ee8a34dd160ee443f7baa5315588d514; catalog=e03916f904971f242337523252681d65ee8a34dd160ee443f7baa5315588d514; evidence=e03916f904971f242337523252681d65ee8a34dd160ee443f7baa5315588d514"
+        },
+        {
+          "key": "execution_dependency",
+          "passed": true,
+          "detail": "TUI-01=completed; dependencies=TAR-03:completed"
+        },
+        {
+          "key": "stable_version_window",
+          "passed": false,
+          "detail": "version=20260915110952; commit=missing_or_source_mismatch; binding=false; released_at=2026-09-15; first_retained_sample_at=2026-09-16 07:31:34.667000+00:00; eligible_at=2026-09-30 07:31:34.667000+00:00; evaluated_at=2026-09-20 15:09:01.164532+00:00; retained_source=true; minimum_seconds=1209600; reset_source=false; reset_at=None"
+        },
+        {
+          "key": "route_task_uat",
+          "passed": false,
+          "detail": "covered=0/108; extras=0; binding=false; evidence=false"
+        },
+        {
+          "key": "route_cleanup_readiness",
+          "passed": false,
+          "detail": "covered=0/108; scope_counts=empty_state:0,error_state:0,legacy_url:0,permission:0,primary_task:0,rollback:0; scopes=false; rollback=false; rollback_matrix=false; lifecycle=true; candidate_binding=false; evidence=false"
+        },
+        {
+          "key": "blocking_defects",
+          "passed": false,
+          "detail": "window=None..None; new_p0=None; new_p1=None; open_p0=None; open_p1=None; binding=false; evidence=false; structured_snapshot=false"
+        },
+        {
+          "key": "production_telemetry",
+          "passed": false,
+          "detail": "covered=0/101; invalid=0; extras=0; duplicates=0; window_ok=false; production_evidence=false; structured_snapshot=false"
+        },
+        {
+          "key": "rollback_drill",
+          "passed": false,
+          "detail": "environment=None; binding=false; evidence=missing"
+        },
+        {
+          "key": "production_registry_backup",
+          "passed": false,
+          "detail": "evidence=false; structured_attestation=false; integrity=false; restore_verified=false"
+        },
+        {
+          "key": "cutover_approvals",
+          "passed": false,
+          "detail": "owner=missing; reviewer=missing; snapshot=false; attestations=false"
+        }
+      ]
+    }
+  },
+  "prior_20260919_verified_artifacts": [
+    {
+      "path": "backups/vps-postgres/market-recovery-evidence-20260919/full-market-audit-snapshot-repair.json",
+      "sha256": "d650d69637b5d00861ca731672d8e3770979de589938dcbb13b459db88284dc8",
+      "bytes": 172,
+      "manifest_hash_verified": true,
+      "payload": {
+        "profile_id": "3500f37a-be7d-43fb-802f-752240db44b3",
+        "version": 17,
+        "snapshot_hash_valid": true,
+        "audit_mode": "off",
+        "outbox_enabled": false,
+        "authority_present": false
+      }
+    },
+    {
+      "path": "backups/vps-postgres/market-recovery-evidence-20260919/market-publication-full-5565-result.json",
+      "sha256": "1ca27d9e0e9b95420b3152e423895adc07200dc3e767dfd00d86847d518b6d96",
+      "bytes": 1076,
+      "manifest_hash_verified": true,
+      "payload": {
+        "published_count": 16695,
+        "publication_ids": [
+          "3eaed0e5-a907-5c82-b641-8d0d2b712c87",
+          "51023424-e9b0-590b-9d93-1606be338887",
+          "fc52e7dc-5254-5445-9a81-3d287fe33111"
+        ],
+        "datasets": [
+          {
+            "dataset_key": "equity.quote.snapshot",
+            "publication_id": "3eaed0e5-a907-5c82-b641-8d0d2b712c87",
+            "publication_hash": "9728e85abc154047595547b2fe07e152e7a169ef1046c7be699686a79c74f48e",
+            "member_count": 5565,
+            "as_of": "2026-09-18T08:15:00+00:00",
+            "published_at": "2026-09-19T12:07:18.593157+00:00"
+          },
+          {
+            "dataset_key": "equity.price.bar",
+            "publication_id": "51023424-e9b0-590b-9d93-1606be338887",
+            "publication_hash": "168cd5ac86cb71ccf20594fb1033a18aee8b828224f874591d8ea5ac7493760f",
+            "member_count": 5565,
+            "as_of": "2026-09-17T16:00:00+00:00",
+            "published_at": "2026-09-19T12:07:18.593157+00:00"
+          },
+          {
+            "dataset_key": "equity.valuation.fact",
+            "publication_id": "fc52e7dc-5254-5445-9a81-3d287fe33111",
+            "publication_hash": "3d0d25adf61cdf2280597174650c7fd2bd85f38e3832b7b40223af376ef65d43",
+            "member_count": 5565,
+            "as_of": "2026-09-18T08:15:00+00:00",
+            "published_at": "2026-09-19T12:07:18.593157+00:00"
+          }
+        ]
+      }
+    },
+    {
+      "path": "backups/vps-postgres/market-recovery-evidence-20260919/full-market-financial-root-causes.json",
+      "sha256": "1fe9735c2185feed14606121729838fe00f31a0218c762c3722a7519f33d4ba6",
+      "bytes": 453,
+      "manifest_hash_verified": true,
+      "payload": {
+        "policy_identity": "p2:3:971dd7442efce7fa0afb7279aff25af6f8a4c61a7a4989357aadfe23c450d6ec",
+        "required_evidence": [
+          "source",
+          "observed_at",
+          "available_at",
+          "fetched_at",
+          "payload_hash",
+          "fact_content_hash",
+          "source_record_id",
+          "published_at",
+          "raw_payload_hash",
+          "raw_payload_scope"
+        ],
+        "publication_policy": "1.0:1.0",
+        "publication_member_count": 80,
+        "counts": [
+          {
+            "source": "akshare",
+            "rows": 487624,
+            "assets": 5535,
+            "available": 105606,
+            "announced": 0
+          }
+        ]
+      }
+    },
+    {
+      "path": "backups/vps-postgres/market-recovery-evidence-20260919/full-market-audit-queued-task-verification.json",
+      "sha256": "37cbc911dfe5c7399c1f1b0f5e5eb7907acf1989bfcd5dfd56a6c1f25251145f",
+      "bytes": 823,
+      "manifest_hash_verified": true,
+      "payload": {
+        "task_id": "09e717e4-ecb0-4833-b6d8-c59a78c89cc4",
+        "state": "SUCCESS",
+        "result": {
+          "outcome": "blocked",
+          "success": false,
+          "requested": 0,
+          "succeeded": 0,
+          "failed": 0,
+          "stored": 0,
+          "blocked_reason": "system_audit_audit_runtime_disabled",
+          "must_not_use_for_decision": true
+        },
+        "notice": {
+          "title": "行情自动发布异常",
+          "code": "system_audit_unavailable",
+          "message": "全市场行情自动发布被审计配置或服务身份阻断。请修复审计配置并绑定有效的任务身份；现有行情日期仍以页面标注为准。",
+          "attempted_at": "2026-09-19T14:24:02.820443+00:00",
+          "level": "warning"
+        },
+        "rendered_alert": true
+      }
+    }
+  ],
+  "strat01_owner_document_verification": {
+    "report": {
+      "path": "docs/reviews/release-aa7127ff/reports/evidence-strategy/strat-01-business-owner-review-return-APPROVE-STRAT-20260915-01.json",
+      "sha256": "df0d0d42edbd7839c3c4a0e7ac87b7a7b0b0b775929f46750ef7c55599b81598",
+      "bytes": 50150,
+      "git_lf_sha256": "fce6dda8d874f28a339508ee4b64bdd8fcc0055ca6d989ed6e20efc282d6f03b",
+      "raw_matches_sidecar": false,
+      "git_lf_matches_sidecar": true,
+      "working_tree_canonical_lf_matches_git": true
+    },
+    "verification_scope": "Git LF bytes match sidecars; Windows CRLF raw SHA differs and is retained explicitly",
+    "decision_id": "APPROVE-STRAT-20260915-01",
+    "capabilities": [
+      {
+        "capability_id": "R1",
+        "decision": "APPROVE",
+        "path": "docs/business/strategy-research/strat-01/r1-forecast-baseline.md",
+        "sha256": "38dd90199240776ad2c73b558bad10654d349f2ee5bf52296f1090176b3630a7",
+        "bytes": 8836,
+        "git_lf_sha256": "cc66ace96f61022b5eabdef55728ffdd699ea0986af039ab802a76998b562a74",
+        "raw_matches_sidecar": false,
+        "git_lf_matches_sidecar": true,
+        "working_tree_canonical_lf_matches_git": true
+      },
+      {
+        "capability_id": "R2",
+        "decision": "APPROVE",
+        "path": "docs/business/strategy-research/strat-01/r2-market-structure.md",
+        "sha256": "05936027d3d7842351e5406ef37f8e5a2d1fbca27212254fcaa8e91319f96a36",
+        "bytes": 7591,
+        "git_lf_sha256": "6b4555369e6b0f6a773d2be4f95d6212e0822fc36d570677a87c16f592792ad2",
+        "raw_matches_sidecar": false,
+        "git_lf_matches_sidecar": true,
+        "working_tree_canonical_lf_matches_git": true
+      },
+      {
+        "capability_id": "R3",
+        "decision": "APPROVE",
+        "path": "docs/business/strategy-research/strat-01/r3-macro-factor.md",
+        "sha256": "a0daefa016d68ffd1e51b7c78253b00a4542d3129c1ae7eade2886fd506917de",
+        "bytes": 7321,
+        "git_lf_sha256": "8fd1597872854aa30f58b9c87669e039d66d7d25b8b5e7f47036a44634d702be",
+        "raw_matches_sidecar": false,
+        "git_lf_matches_sidecar": true,
+        "working_tree_canonical_lf_matches_git": true
+      },
+      {
+        "capability_id": "R4",
+        "decision": "APPROVE",
+        "path": "docs/business/strategy-research/strat-01/r4-risk-allocation.md",
+        "sha256": "f4c74eedc4be9eb744d343b9f719d0d4639853116e857bb58887e140f4b94651",
+        "bytes": 7448,
+        "git_lf_sha256": "8e5221890ddac6d3003dc4f7526190f8b2a700d29cda1e485cfa56cf4c31da74",
+        "raw_matches_sidecar": false,
+        "git_lf_matches_sidecar": true,
+        "working_tree_canonical_lf_matches_git": true
+      },
+      {
+        "capability_id": "R5",
+        "decision": "APPROVE",
+        "path": "docs/business/strategy-research/strat-01/r5-relative-value.md",
+        "sha256": "5dc374defcd6e02aa9ae1185cd7a88ce9a26d505a027a87cf1f743bf99ae123a",
+        "bytes": 9181,
+        "git_lf_sha256": "7ce2db41a3645bb7730d2c9d44d24fba823233fa52a0ea25d8fbcf02aff92663",
+        "raw_matches_sidecar": false,
+        "git_lf_matches_sidecar": true,
+        "working_tree_canonical_lf_matches_git": true
+      },
+      {
+        "capability_id": "R6",
+        "decision": "APPROVE",
+        "path": "docs/business/strategy-research/strat-01/r6-state-model.md",
+        "sha256": "afa8d514c73a7bbee46dc77687badd0b87f3371c4cfce7e918c0c97b0c3f3139",
+        "bytes": 9184,
+        "git_lf_sha256": "26185bafb80190591737d4f8f1b433bf239b934f023d4ef92a8f961e63d028bd",
+        "raw_matches_sidecar": false,
+        "git_lf_matches_sidecar": true,
+        "working_tree_canonical_lf_matches_git": true
+      },
+      {
+        "capability_id": "R7",
+        "decision": "APPROVE",
+        "path": "docs/business/strategy-research/strat-01/r7-scenario-research.md",
+        "sha256": "298033012f2a23c3e84787e02ec35acbcf3bb902d33bb20dad10a14a3290704c",
+        "bytes": 9368,
+        "git_lf_sha256": "74700ba7e2b1ecd5719242db2ff83b6d87eca397a7df2e9cc9a1f0ae922de623",
+        "raw_matches_sidecar": false,
+        "git_lf_matches_sidecar": true,
+        "working_tree_canonical_lf_matches_git": true
+      },
+      {
+        "capability_id": "R8",
+        "decision": "APPROVE",
+        "path": "docs/business/strategy-research/strat-01/r8-optimization-monitoring.md",
+        "sha256": "7a74f8ba1179f91fa43154dfae7ae706aca7b44eb271b5ccbf417f5bfb3c2a5f",
+        "bytes": 10555,
+        "git_lf_sha256": "cd4faf4853ee329dfe694f0145762f7a5694b160f174cac4fc2381a3aafa820b",
+        "raw_matches_sidecar": false,
+        "git_lf_matches_sidecar": true,
+        "working_tree_canonical_lf_matches_git": true
+      }
+    ],
+    "canonical_dry_run_performed": false,
+    "production_registration_performed": false
+  },
+  "raw_artifacts": [
+    {
+      "path": "var/validation/production-closure-2026-09-20/collect_readonly.py",
+      "sha256": "8631db3c5831f554c2965f34a1de4a12f40ee639452fb0eb35eaf8c16b950fac",
+      "bytes": 3633
+    },
+    {
+      "path": "var/validation/production-closure-2026-09-20/collect_runtime.py",
+      "sha256": "0cbc1ae59abedde24a8667a6a19a7c41a80f605b09251eaa813c415db4869dd4",
+      "bytes": 1617
+    },
+    {
+      "path": "var/validation/production-closure-2026-09-20/runtime_probe.py",
+      "sha256": "42c99dcd173653c87490ec23ff8784cb97cc3982a483a91455b8dbbe6270017d",
+      "bytes": 2200
+    },
+    {
+      "path": "var/validation/production-closure-2026-09-20/production-readonly.json",
+      "sha256": "54489b7c6b28639f612c56f3e5ae9daa4d46a51c42c5967470396ae9b0790f5d",
+      "bytes": 2708
+    },
+    {
+      "path": "var/validation/production-closure-2026-09-20/identity.stdout",
+      "sha256": "6948b4b8f878e7000cb9aa9980edc3398d516008b895a0d5a389097cc9ce4397",
+      "bytes": 1280
+    },
+    {
+      "path": "var/validation/production-closure-2026-09-20/retained_monitor.stderr",
+      "sha256": "9b05e38f526cbcf87615f43812261036c054f64ee0664e91d2706d6103930437",
+      "bytes": 47
+    },
+    {
+      "path": "var/validation/production-closure-2026-09-20/manifest.stdout",
+      "sha256": "da62ed9e9fba4299ed9fec57b3ca09788e81b519948a2a88bce99d9f631acf62",
+      "bytes": 352
+    },
+    {
+      "path": "var/validation/production-closure-2026-09-20/runtime.stdout",
+      "sha256": "1040c0de496c31a8ecc7ec6b998728326509ec0faeb119b8012be442bdec9364",
+      "bytes": 678
+    },
+    {
+      "path": "var/validation/production-closure-2026-09-20/tui-readiness-before.json",
+      "sha256": "6042fca923cd984b0d783f4936fcec61b1bc66578af69b35f4725c4b8f93eb39",
+      "bytes": 2405
+    },
+    {
+      "path": "var/validation/production-closure-2026-09-20/registry-before.log",
+      "sha256": "be987472b9df0464b2ba5bb05df1a9125c3d4b98dbd5395df8283802db5f12f3",
+      "bytes": 122
+    },
+    {
+      "path": "var/validation/production-closure-2026-09-20/governance-before.log",
+      "sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b",
+      "bytes": 668
+    }
+  ],
+  "interpretation": {
+    "AUD-05": "The snapshot-only fix already exists in baseline commit 439468482 and production v17. Full profile/revision identity remains distinct from the public snapshot hash. Repository corrective activation/immutability/atomicity remains active until fresh test and review evidence passes.",
+    "DATA-02": "Historical 5533 scope is superseded by the 20260919 verified 5565 scope. Three publications exist in that capture; financial provenance and four-publication acceptance remain incomplete. Current v17 loader accepts mode=off, outbox=false, no authority selector. No provider fetch or production backfill was performed in this run.",
+    "EVID-01/02": "No new genuine owner/root/reviewer input or production concurrency acceptance was supplied in this run; historical zero/current counts are not claimed as a fresh inventory.",
+    "AUD-03": "Audit loader acceptance in off mode is not writer, recovery, archive/restore, alert or owner sign-off acceptance.",
+    "STRAT-01": "Eight owner-approved document hashes and receipt sidecar verified. Scope members/current canonical heads and canonical dry-run are not verified; no registration or PIT/OOS claim.",
+    "TUI-02": "Actual deployed candidate and Web/Prometheus starts differ from retained 20260916 binding. Old eligible instant 20260930T073134.667Z is invalid for current candidate. Keep DENY pending official candidate/reset/rebind and a real first sample. Do not use container start as first sample or infer a replacement completion date.",
+    "TAR-05": "Independent staging target and owner capacity inputs are absent from this task. No load, chaos or capacity change was performed; preserve production inline concurrency=1.",
+    "Research": "4310/5032 is historical whole-Domain branch evidence; no new coverage claim in this checkpoint. T7 can proceed only after sole repository focus AUD-05 closes.",
+    "QMT": "Broker permission remains external; no broker/trade action performed."
+  },
+  "automation": {
+    "id": "agomtradepro",
+    "action": "updated_existing_daily_0900_heartbeat",
+    "reason": "replace stale candidate/date assumption with verified drift and official rebind prerequisite",
+    "duplicate_created": false
+  },
+  "production_mutations_performed": false,
+  "not_proven": [
+    "continuous observation",
+    "new TUI candidate binding",
+    "provider reconciliation",
+    "financial exact provenance",
+    "real business approval",
+    "PostgreSQL concurrency acceptance",
+    "staging capacity",
+    "decision readiness"
+  ]
+}

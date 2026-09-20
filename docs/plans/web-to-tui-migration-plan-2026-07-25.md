@@ -869,3 +869,19 @@ rollback、structured defects、101-task telemetry、post-window backup/review �
 `dashboard.alpha-ranking` / `research.signals` 概览与现存 Classic Alpha 表格同步展示推理更新错误及评分日期。沿用既有动作、面板和迁移分类，不新增 Classic 任务；不改变观察窗口及清理批准条件。空结果和旧缓存均须保留错误提示。
 
 2026-09-19 Alpha 兼容页缺陷修复：完整排名页补显已有 no_buy_reason_summary，展示实际信号门槛和行情发布/成交量阻断原因；复用现有任务与 TUI 数据，不新增 Classic 主任务。
+
+
+## 2026-09-20：当前生产候选与 retained window 漂移
+
+[只读封存](../deployment/production-closure-baseline-revalidation-2026-09-20.json)证明生产已为
+`439468482f457884db17da47d7566a5aac295842` / `20260920184626`，Web 与 Prometheus
+在 09-20 11:07 UTC 后启动。旧 probe 显式指定 09-16 首样本后退出 1：
+`DENY: Web candidate changed after first sample`。旧 09-30 eligible_at 已不适用于当前候选。
+本地 `--require-allow` 为 2/10 DENY；没有删除 A/B Classic 模板，没有制造 telemetry 或审批。
+
+恢复条件是先按 [官方绑定指南](../deployment/M5_OBSERVATION_BINDING_GUIDE.md)生成新的
+deployment attestation、干净树 candidate binding 和真实 retained checkpoint；新 eligible_at
+只能由真实首样本加 14 日取得，不能从容器启动时刻推定。旧 artifact 保留为历史，registry
+明确记录失效。现有每日 09:00 heartbeat 已更新为先核验新候选和重绑前置，不重复创建计划任务。
+后续仍需 structured defects、101-task telemetry、post-window backup、role-bound owner 双角色
+attestation 以及 `--require-allow=ALLOW`。详见 [本轮执行记录](../reviews/production-closure-2026-09-20.md)。

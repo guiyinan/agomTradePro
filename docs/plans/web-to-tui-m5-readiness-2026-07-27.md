@@ -1254,3 +1254,19 @@ owner 后续明确接受 EVID-09 Web-only 演练造成窗口失效，因此上�
 当前 readiness 重算仍为 `2/10 DENY`，calendar observation day 仍为 0。到新 eligible
 instant 前仅允许低频只读候选/Prometheus/存储/TLS/drift/reset 检查，不生成 final
 telemetry、defect、backup attestation、approval，也不执行 Classic cleanup。
+
+
+## 2026-09-20：当前生产候选与 retained window 漂移
+
+[只读封存](../deployment/production-closure-baseline-revalidation-2026-09-20.json)证明生产已为
+`439468482f457884db17da47d7566a5aac295842` / `20260920184626`，Web 与 Prometheus
+在 09-20 11:07 UTC 后启动。旧 probe 显式指定 09-16 首样本后退出 1：
+`DENY: Web candidate changed after first sample`。旧 09-30 eligible_at 已不适用于当前候选。
+本地 `--require-allow` 为 2/10 DENY；没有删除 A/B Classic 模板，没有制造 telemetry 或审批。
+
+恢复条件是先按 [官方绑定指南](../deployment/M5_OBSERVATION_BINDING_GUIDE.md)生成新的
+deployment attestation、干净树 candidate binding 和真实 retained checkpoint；新 eligible_at
+只能由真实首样本加 14 日取得，不能从容器启动时刻推定。旧 artifact 保留为历史，registry
+明确记录失效。现有每日 09:00 heartbeat 已更新为先核验新候选和重绑前置，不重复创建计划任务。
+后续仍需 structured defects、101-task telemetry、post-window backup、role-bound owner 双角色
+attestation 以及 `--require-allow=ALLOW`。详见 [本轮执行记录](../reviews/production-closure-2026-09-20.md)。

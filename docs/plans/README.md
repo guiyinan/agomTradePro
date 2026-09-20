@@ -1,5 +1,15 @@
 # 活跃计划索引
 
+> 2026-09-20 当前基线重验：[封存证据](../deployment/production-closure-baseline-revalidation-2026-09-20.json)
+> 绑定实际生产 `439468482` / `20260920184626`，health/ready=200、decision-ready=503。
+> v17 public snapshot 哈希和 Audit loader 已通过，但 audit off/outbox false/selector 缺失仍阻断发布。
+> 09-19 原件范围已是 5,565，不能沿用旧 5,533 作为当前分母。AUD-05 仍是唯一仓库焦点，
+> 补原子 corrective activation 与完整 hash-scope 回归后再验收。
+> **TUI 旧候选与 Web/Prometheus 留样窗口已漂移，09-30 不再是有效 eligible 日期**；
+> 现有每日观察任务已更新，下一门是官方 candidate/reset/rebind 与真实首样本，继续 DENY，禁止 Classic 清理。
+> TAR-05 因独立 staging 输入缺失转为 blocked_external；其他生产单元没有晋级。
+> [分项执行与恢复条件](../reviews/production-closure-2026-09-20.md)。下列旧日期记录保留为历史。
+
 > 2026-09-16 material transition：EVID-09 已完成。当前 owner 会话发布的 server-derived
 > actor source 驱动 27 阶段 configured-validity 生命周期，自然退出 0 且 rollback verified；
 > [脱敏原件](../deployment/evid09-current-configured-validity-lifecycle-2026-09-16-891c40c57.json)

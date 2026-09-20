@@ -142,3 +142,20 @@ TAR 观察期只累计真实经过时间，不以模拟天数提前验收。
 原件文件与数据库不能跨事务原子提交；审计失败保留原件引用并核对孤儿，不自动删除。
 原件配置禁用可恢复旧 provider 路径。代码部署沿用标准备份及自动回滚，不恢复数据库、不清除
 catalog 或旧原件。Facade 回归失败则保持当前生产候选及既有 fail-closed 策略，不晋级单元。
+
+
+## 2026-09-20：生产收口任务包重新核对
+
+当前实读生产为 `439468482` / `20260920184626`，v17 public snapshot 与 Audit loader 已通过，
+但 audit off/outbox false/selector 缺失仍阻断发布；历史 v14 snapshot mismatch 不再作为当前原因。
+09-19 校验原件范围已为 5,565；财报来源证据与四 Publication 对账仍未完成。
+R1–R8 owner 批准文件的 Git LF 哈希均通过，canonical dry-run/registration 未完成。
+
+AUD-05 保持唯一代码焦点直至原子 corrective activation、immutable successor/rollback 和测试证据
+完成。DATA-02 → EVID-01/02 → AUD-03 的生产退出顺序不变；真实 authority 输入准备与数据前置
+可交叉，但不得用 fixture 填业务主体。独立 staging 缺失使 TAR-05 转为 blocked_external，
+维持 inline 并发=1。TUI 实际 candidate/Web/Prometheus 漂移使旧 09-30 时间门失效，需真实重新绑定。
+Research 4310/5032 是历史全量分支基线，AUD-05 释放后才能另起测试主线并重测，不重复累计旧切片。
+
+[脱敏实读封存](../deployment/production-closure-baseline-revalidation-2026-09-20.json)与
+[分项恢复条件](../reviews/production-closure-2026-09-20.md)保留本轮范围、无生产写入事实和未验收风险。
