@@ -166,3 +166,21 @@ Research 4310/5032 是历史全量分支基线，AUD-05 释放后才能另起测
 AUD-05 已完成并释放唯一仓库焦点；[完整源码绑定证据](../testing/aud05-repository-closure-2026-09-20.json)记录 SQLite 154 passed/2 PG-only skips、独立 PostgreSQL 8 passed、双 mypy 0、实际架构差异与治理检查。runtime Domain 行覆盖 99.2063%、分支 98.9130%；保留四条既有 Ruff UP042 提示，新增诊断为零。初始红灯原始日志不足和 retrospective 回放分类已明确，不冒充生产验收。
 
 生产 v17 的 hash/loader 已有效，但 audit off/outbox false/真实 authority 缺失仍阻断 DATA-02/AUD-03；生产写入、部署、回填、owner 审批与时间观察没有连带完成。独立 Research ≥90% 分支测试线需另行登记，不能重开已 completed 的 DATA-15 或改低原验收线。
+
+
+## 2026-09-21：DATA-17 / Research 全 Domain 分支覆盖率 ≥90%
+
+AUD-05 在 `dea925d83` 完成后，本条独立测试主线成为唯一 repository focus；不依赖尚未完成的
+生产主体输入，不启动后续生产动作，也不重开原 floor 为 80% 的 completed DATA-15。
+
+- 目标：同源完整 `tests/unit/research/` before/after，`apps/research/domain/` 分支和行覆盖率均 ≥90%。
+- 当前准备：历史 4310/5032=85.6518% 的 63 个 Domain 文件 canonical LF SHA 与当前全部一致；
+  仍须重测当前完整测试集，不将历史结果或窄切片增量相加。
+- 执行：先冻结完整 before 范围及 source fingerprints；根据实际缺口分配 R7 monitoring/contracts
+  等互不重叠测试切片；补有业务含义的输入边界、拒绝理由、状态转移和输出合同断言。
+- 范围：只增加/调整本条测试及治理证据；不改生产 Domain，不加 exclude/pragma，不降低分母或
+  原断言。遇到真实产品缺陷另行记录，不以改测量口径规避。
+- 完成标准：完整 after 回归通过，coverage/JUnit/原始日志与相同 Domain SHA 绑定，行/分支百分比
+  独立计算，格式和治理检查、独立复核通过；持久封存后 DATA-17 才能 completed。
+- 风险/回滚：局部测试增益不足时继续按真实缺口补齐；本分支只涉及测试/文档，回滚点是 AUD-05
+  closure commit。此结果不证明真实 PIT/OOS、生产 PostgreSQL、provider 或交易验收。

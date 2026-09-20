@@ -1,5 +1,8 @@
 # 活跃计划索引
 
+> 2026-09-21 新焦点：DATA-17（用户 T7），仅补 Research 全 Domain 行/分支覆盖率 ≥90% 的行为测试。
+> 先做完整同源 before/after，不叠加历史切片；AUD-05 已 completed，DATA-15 不重开，生产退出状态不变。
+
 > 2026-09-21：AUD-05 已由 active → completed，[源码绑定封存](../testing/aud05-repository-closure-2026-09-20.json)
 > 记录 SQLite 154 passed/2 PG-only skips、隔离 PostgreSQL 8 passed、双 mypy 0 和实际架构差异 0 违规。
 > 此次只完成仓库前置；生产数据/真实主体/运营演练未晋级。Research ≥90% 分支覆盖率将另起有界主线，

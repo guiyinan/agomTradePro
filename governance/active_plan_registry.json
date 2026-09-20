@@ -1,14 +1,14 @@
 {
-  "version": "2026-09-21.v139",
+  "version": "2026-09-21.v140",
   "updated_at": "2026-09-21",
   "execution_focus": {
-    "unit_id": null,
+    "unit_id": "DATA-17",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "AUD-05 repository closure is complete with source-bound evidence at docs/testing/aud05-repository-closure-2026-09-20.json. No active repository unit is hidden; the user-requested independent Research >=90% whole-Domain branch line will be registered separately before execution, preserving completed DATA-15 and its original floor. DATA-02 remains the next production line, blocked by genuine audited service identity/scope and financial provenance/four-publication reconciliation. EVID-01/02, AUD-03 and TAR-05 still need real inputs/acceptance. TUI-02 old candidate/window is invalid and current protected retained query returned HTTP 401; restore authenticated 200 and real sample before official rebind and 14 days. No production activation, deployment, provider request, restore, cleanup or trade follows from this repository completion."
+    "policy": "DATA-17 is the sole repository focus after AUD-05 closure at dea925d83. It is the independent user-requested T7 whole Research Domain >=90% branch coverage test-only line; DATA-15 remains completed under its original floor. No Research production source changes or coverage exclusions are authorized by this test scope. DATA-02 is still the next production line with real identity/provenance gates; EVID-01/02, AUD-03, STRAT, TUI-02 and TAR-05 exits do not follow from local test coverage. Preserve verified production v17/off/selector facts, current retained query 401 and no valid inherited Sep30 window."
   },
   "workstreams": [
     {
@@ -96,7 +96,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "AUD-05 repository prerequisite is completed; DATA-02 remains awaiting_production. Current 439468482 / 20260920184626 has v17 public hash valid and Audit loader accepted, but audit mode off/outbox false/authority selector absent. The verified 2026-09-19 evidence has a 5565-asset universe and three publications; financial provenance and four-publication reconciliation remain incomplete. Resume only with genuine service identity/account/tenant scope, exact candidate-bound audited preflight and authorized bounded batches. Keep source observations, frozen complete denominator and governed tolerances; no fabricated time, waiver, restore or bypass. AUD-05 repository evidence: docs/testing/aud05-repository-closure-2026-09-20.json. Evidence: docs/deployment/production-closure-baseline-revalidation-2026-09-20.json; execution record: docs/reviews/production-closure-2026-09-20.md",
+      "next_gate": "Repository focus DATA-17 now measures and raises the independent whole Research Domain branch floor to >=90%, with unchanged production sources and no historical slice summation. AUD-05 repository prerequisite is completed; DATA-02 remains awaiting_production. Current 439468482 / 20260920184626 has v17 public hash valid and Audit loader accepted, but audit mode off/outbox false/authority selector absent. The verified 2026-09-19 evidence has a 5565-asset universe and three publications; financial provenance and four-publication reconciliation remain incomplete. Resume only with genuine service identity/account/tenant scope, exact candidate-bound audited preflight and authorized bounded batches. Keep source observations, frozen complete denominator and governed tolerances; no fabricated time, waiver, restore or bypass. AUD-05 repository evidence: docs/testing/aud05-repository-closure-2026-09-20.json. Evidence: docs/deployment/production-closure-baseline-revalidation-2026-09-20.json; execution record: docs/reviews/production-closure-2026-09-20.md",
       "documents": [
         {
           "path": "docs/plans/data02-provider-artifact-adoption-2026-09-14.md",
@@ -1284,6 +1284,20 @@
           "EVID-09"
         ],
         "exit_gate": "Failing-first tests reproduce the v14 full-profile versus persisted public-snapshot hash mismatch without exposing secret values. Config Center activation and Audit runtime loading share one explicit canonical public-projection hash contract; secret-bearing definitions remain available only through governed secret resolution and never enter public snapshots or logs. A fail-closed corrective-profile activation path creates a new immutable version, verifies predecessor/successor and rollback semantics, refuses in-place v14 edits and refuses fallback to superseded v13. Focused Config Center/Audit regressions, migration checks where applicable, incremental mypy/debt, formatting, architecture and governance gates pass. No production profile activation, outbox dispatch, DATA-02 provider fetch/backfill, database restore, business-data deletion, trade or paid call is inferred from repository completion. Repository closure verified on 2026-09-21 (Asia/Shanghai): source-bound SQLite 154 passed/2 PostgreSQL-only skips, isolated PostgreSQL 8 passed/0 skips, runtime Domain lines 250/252 and branches 91/92, incremental/full mypy zero, migration drift none, actual 8-file/874-added-line architecture delta zero, current-data/governance pass. Ruff has zero new diagnostics with four unchanged UP042 notices retained; original red raw-log limitation and retrospective classification are explicit. Evidence: docs/testing/aud05-repository-closure-2026-09-20.json"
+      },
+      {
+        "id": "DATA-17",
+        "workstream_id": "data-production-reliability",
+        "wave": 3,
+        "priority": "P2",
+        "execution_mode": "repository",
+        "status": "active",
+        "title": "Raise whole Research Domain behavioral branch coverage to at least 90 percent",
+        "depends_on": [
+          "AUD-05",
+          "DATA-15"
+        ],
+        "exit_gate": "The full tests/unit/research scope has source-bound before/after measurements against unchanged apps/research/domain source, with branch coverage >=90% and line coverage >=90%. Add meaningful behavioral boundary tests, including R7 monitoring/contracts slices as indicated by actual gaps; never shrink the denominator, add coverage exclusions, weaken existing assertions, or sum historical slice gains. Test-only changes, full local regression, formatting, governance and independent review pass with durable raw coverage/JUnit/log evidence. Do not reopen completed DATA-15 or claim PostgreSQL, vendor, strategy registration or production acceptance."
       }
     ]
   }
