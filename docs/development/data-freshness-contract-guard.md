@@ -67,6 +67,12 @@ AUD-05 的 `config_center.active_public_snapshot_integrity` 约束当前配置�
 身份），public snapshot hash 仅覆盖公开投影；两者不得混用。配置 corrective activation 经
 原子写入端口创建新 successor；该配置完整性门不替代市场数据 freshness 或真实 authority 验收。
 
+2026-09-21 复核补强：secret 引用读取、active 配置验证和 patch 继承必须将完整持久值重算后
+与 profile.content_hash 比较，并拒绝重复键或跨 profile 值。事务提交前锁定并再次核对旧值，
+不能把已改动、缺失或额外插入的旧值重新封为合法 successor。最终写入端还核对新值完整哈希、
+revision 前后哈希和 public projection/snapshot 一致性。多 active profile 或同 profile/version
+多 snapshot 读取均失败关闭，不依靠排序选取一条；历史数据不随代码修复而改写。
+
 每个当前数据面必须在 manifest 中登记：
 
 - `id`：稳定、唯一的契约标识；

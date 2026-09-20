@@ -4880,7 +4880,7 @@
     },
     {
       "id": "config_center.active_public_snapshot_integrity",
-      "surface": "Current runtime public values and governed secret references require the exact active profile and canonical public snapshot integrity; full profile identity remains separate",
+      "surface": "Current runtime public values require exact active profile/public snapshot integrity; secret reads, active validation and successor inheritance additionally verify persisted values against the separate full profile hash, including inside the activation transaction",
       "source_files": [
         "apps/config_center/domain/runtime_config.py",
         "apps/config_center/application/runtime_config.py",
@@ -4892,11 +4892,14 @@
         "apps/config_center/domain/runtime_config.py": [
           "def project_public_runtime_values(",
           "def hash_public_runtime_projection(",
-          "def hash_runtime_profile_values("
+          "def hash_runtime_profile_values(",
+          "def verify_runtime_profile_values("
         ],
         "apps/config_center/application/runtime_public.py": [
           "def _get_current_runtime_snapshot(",
-          "hash_public_runtime_projection(public_values)"
+          "hash_public_runtime_projection(public_values)",
+          "verify_runtime_profile_values(profile, tuple(values))",
+          "verify_runtime_profile_values(active, tuple(existing_values))"
         ],
         "apps/config_center/application/runtime_config.py": [
           "runtime config atomic activation is not configured",
@@ -4906,7 +4909,8 @@
         "apps/config_center/infrastructure/runtime_config_repositories.py": [
           "class RuntimeConfigActivationUnitOfWork:",
           "select_for_update()",
-          "runtime profile predecessor drifted"
+          "runtime profile predecessor drifted",
+          "verify_runtime_profile_values(previous, previous_values)"
         ],
         "core/integration/system_audit_runtime_config.py": [
           "hash_public_runtime_projection(snapshot.resolved_values)",
@@ -4953,6 +4957,41 @@
           "case": "postgres_successor_has_one_environment_winner",
           "test_file": "tests/component/config_center/test_aud05_atomic_activation.py",
           "test_function": "test_postgresql_successor_race_has_one_first_winner"
+        },
+        {
+          "case": "secret_reads_reject_full_profile_value_drift",
+          "test_file": "tests/unit/config_center/test_runtime_profile_integrity_review.py",
+          "test_function": "test_secret_read_rejects_full_profile_value_drift"
+        },
+        {
+          "case": "preview_and_execute_cannot_reseal_corrupt_predecessors",
+          "test_file": "tests/unit/config_center/test_runtime_profile_integrity_review.py",
+          "test_function": "test_patch_refuses_to_reseal_corrupt_predecessor"
+        },
+        {
+          "case": "active_validation_reports_full_profile_hash_drift",
+          "test_file": "tests/unit/config_center/test_runtime_profile_integrity_review.py",
+          "test_function": "test_active_validation_reports_full_profile_hash_drift"
+        },
+        {
+          "case": "locked_predecessor_values_are_reverified_before_successor_writes",
+          "test_file": "tests/component/config_center/test_aud05_atomic_activation.py",
+          "test_function": "test_activation_rechecks_locked_predecessor_value_hash"
+        },
+        {
+          "case": "final_activation_boundary_rejects_inconsistent_candidate_graph",
+          "test_file": "tests/component/config_center/test_aud05_atomic_activation.py",
+          "test_function": "test_activation_rejects_inconsistent_candidate_graph"
+        },
+        {
+          "case": "ambiguous_active_profile_read_is_blocked",
+          "test_file": "tests/component/config_center/test_aud05_atomic_activation.py",
+          "test_function": "test_active_reader_rejects_multiple_active_profiles"
+        },
+        {
+          "case": "ambiguous_snapshot_read_is_blocked",
+          "test_file": "tests/component/config_center/test_aud05_atomic_activation.py",
+          "test_function": "test_snapshot_reader_rejects_multiple_snapshots_for_one_profile_version"
         }
       ]
     }

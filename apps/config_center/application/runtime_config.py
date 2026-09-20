@@ -18,6 +18,7 @@ from apps.config_center.domain.runtime_config import (
     hash_public_runtime_projection,
     hash_runtime_profile_values,
     project_public_runtime_values,
+    verify_runtime_profile_values,
 )
 
 
@@ -147,6 +148,10 @@ class RuntimeConfigService:
         errors = list(cast(tuple[str, ...], validation["errors"]))
         if any(value.profile_id != profile.profile_id for value in values):
             errors.append("profile_id_mismatch")
+        try:
+            verify_runtime_profile_values(profile, values)
+        except (TypeError, ValueError):
+            errors.append("runtime profile full hash does not match persisted values")
         definitions = {item.key: item for item in self._definitions.list_all()}
         supplied = {value.definition_key for value in values}
         errors.extend(
@@ -330,6 +335,13 @@ class RuntimeConfigService:
                 != previous_snapshot.snapshot_hash
             ):
                 raise ValueError("active runtime profile snapshot is unavailable or invalid")
+        previous_values = (
+            tuple(self._values.list_for_profile(previous.profile_id))
+            if previous is not None
+            else ()
+        )
+        if previous is not None:
+            verify_runtime_profile_values(previous, previous_values)
         active_profile = replace(
             profile,
             status=RuntimeProfileStatus.ACTIVE,
@@ -348,7 +360,7 @@ class RuntimeConfigService:
             before_projection=(
                 {
                     item.definition_key: item.value_json
-                    for item in self._values.list_for_profile(previous.profile_id)
+                    for item in previous_values
                     if item.definition_key in definitions
                     and not definitions[item.definition_key].secret
                 }

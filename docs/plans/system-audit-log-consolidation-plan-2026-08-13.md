@@ -1853,3 +1853,19 @@ writer/recovery/archive/告警验收分别记账。本轮没有生产配置激�
 AUD-05 已完成并释放唯一仓库焦点；[完整源码绑定证据](../testing/aud05-repository-closure-2026-09-20.json)记录 SQLite 154 passed/2 PG-only skips、独立 PostgreSQL 8 passed、双 mypy 0、实际架构差异与治理检查。runtime Domain 行覆盖 99.2063%、分支 98.9130%；保留四条既有 Ruff UP042 提示，新增诊断为零。初始红灯原始日志不足和 retrospective 回放分类已明确，不冒充生产验收。
 
 生产 v17 的 hash/loader 已有效，但 audit off/outbox false/真实 authority 缺失仍阻断 DATA-02/AUD-03；生产写入、部署、回填、owner 审批与时间观察没有连带完成。独立 Research ≥90% 分支测试线需另行登记，不能重开已 completed 的 DATA-15 或改低原验收线。
+
+## AUD-05 代码复核补强（2026-09-21）
+
+复核修复了完整配置值被修改、缺行或重复后仍可能用于密钥引用读取及后继配置继承的问题。
+Domain 统一验证 profile 身份与完整值哈希；激活事务在锁定旧值后重复验证，并核对候选完整哈希、
+revision 前后哈希及公共投影。存在多个 active profile 或同版本多个 snapshot 时拒绝读取。
+corrective 命令支持仅含 secret_ref_patch 的 envelope，拒绝未知字段，并将 JSON/文件错误转为 CommandError。
+
+真实先失败测试日志已保留；最终 SQLite 184 passed、2 PG-only skips，隔离 PostgreSQL 18 passed、0 skips。
+runtime Domain 行覆盖 261/263（99.2395%）、分支 99/100（99%）；双 mypy 0、Black/isort 通过，
+Ruff 无新增诊断（四条历史 UP042 保留），无迁移变化。架构检查分别覆盖完整性改动 4 文件/72 新增行
+和命令提交 1 文件/39 新增行，均无 boundary/audit 违规。current-data、registry/governance 通过。
+
+Luna max 独立复核通过，原始日志、源码哈希、JUnit 和覆盖率见[复核封存](../testing/config-center-review-fixes-2026-09-21.json)。
+registry v141 → v142；AUD-05 保持 completed，生产状态及 DATA-17 不变。仅完成仓库修复，未部署或访问生产。
+PostgreSQL 为隔离 Config Center 测试设置，不能替代生产恢复或全应用 migration 验收。

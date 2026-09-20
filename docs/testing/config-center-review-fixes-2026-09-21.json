@@ -1,0 +1,566 @@
+{
+  "schema": "config-center-review-fixes.v1",
+  "status": "verified",
+  "sealed_at_utc": "2026-09-20T17:41:14.261783+00:00",
+  "base_commit": "e779bf439",
+  "head_before_integrity_commit": "336e578cb247a98a0686bee91be5358ffbbf9e60",
+  "command_fix_commit": "336e578cb",
+  "scope": "AUD-05 repository follow-up only; no production writes or deployment; Research closure unchanged",
+  "fixes": [
+    "Verify full persisted value identity/hash before secret reads, active validation, patch preview/inheritance and direct activation.",
+    "Lock and reverify predecessor values before successor writes; verify candidate full hash, revision hashes and public projection consistency.",
+    "Reject multiple active profiles and multiple snapshots for one profile version instead of selecting one by order.",
+    "Parse secret-only envelopes, reject unknown envelope fields, and translate JSON/file errors into CommandError."
+  ],
+  "source_bindings": {
+    "apps/config_center/domain/runtime_config.py": {
+      "raw_sha256": "42740a83a4c19666515fc258a0451650b76045676bc3d3f3d182e68295a55325",
+      "canonical_lf_sha256": "f9ac1561c2f0bbe6a29cddea14f7141899174b9d964bd2aab1a0d3e7bbf91fd5"
+    },
+    "apps/config_center/application/runtime_config.py": {
+      "raw_sha256": "2935d38e4cec2d117a7cfb134c0c52f9aae152adb087e7faf3dd57eccd3ba34d",
+      "canonical_lf_sha256": "38876e572500e27dd72e0283a061709ac6dad4a95b1105a2a0cb7bd4e6803657"
+    },
+    "apps/config_center/application/runtime_public.py": {
+      "raw_sha256": "264c4d0e679be479bea8919a3a662e71ea5563a60b9ad693746e309b3a7f55e7",
+      "canonical_lf_sha256": "1c911bf8f8f3e8253700593e77fb89705129b9482609c02f2f7e9c5b9606824c"
+    },
+    "apps/config_center/infrastructure/runtime_config_repositories.py": {
+      "raw_sha256": "a66b9c28f1ebd2f7616fdd137c36f482509780b4048d1aaf7900a7e49818a321",
+      "canonical_lf_sha256": "f85e5a0f00b5bb7d7c66caa4c27a5963dff41954fc296408a7425ee20686e86a"
+    },
+    "apps/config_center/management/commands/activate_runtime_profile_corrective.py": {
+      "raw_sha256": "4b4e076bdb8be44113be96e32c718a1f9151ab5186ff2deab081d6d203199c57",
+      "canonical_lf_sha256": "4b4e076bdb8be44113be96e32c718a1f9151ab5186ff2deab081d6d203199c57"
+    },
+    "tests/unit/config_center/test_runtime_profile_integrity_review.py": {
+      "raw_sha256": "89236312ed1edaded2c8b4d979e54a91f1a4c81d3b2d070dce2cc6045c6e35b7",
+      "canonical_lf_sha256": "89236312ed1edaded2c8b4d979e54a91f1a4c81d3b2d070dce2cc6045c6e35b7"
+    },
+    "tests/unit/config_center/test_corrective_command_input.py": {
+      "raw_sha256": "b51631cdaaedcf0c25c58122cd25efa816b1580420a7536eaf7339ec8d23cbd6",
+      "canonical_lf_sha256": "b51631cdaaedcf0c25c58122cd25efa816b1580420a7536eaf7339ec8d23cbd6"
+    },
+    "tests/unit/config_center/test_aud05_hash_scope_and_activation.py": {
+      "raw_sha256": "b7194cf241f3d2484916a1ea591dc20f1f55771bf80f586d38b5799f282bbafc",
+      "canonical_lf_sha256": "b7194cf241f3d2484916a1ea591dc20f1f55771bf80f586d38b5799f282bbafc"
+    },
+    "tests/unit/config_center/test_runtime_definition_reconcile.py": {
+      "raw_sha256": "f6363458e58917b4bd96b63c1751b323ef7c32c6f2cc24dd7bc86a0ae69f164f",
+      "canonical_lf_sha256": "7a2b67ea47b6dc96d56984410f35d545a05750fed7e5ab823abaa924f246f6ef"
+    },
+    "tests/component/config_center/test_aud05_atomic_activation.py": {
+      "raw_sha256": "8bda85c9bcbdb4cb544ad7db03a6fc1504e3e40e43f5aa8f29026c0cc75d0685",
+      "canonical_lf_sha256": "8bda85c9bcbdb4cb544ad7db03a6fc1504e3e40e43f5aa8f29026c0cc75d0685"
+    }
+  },
+  "junit": {
+    "sqlite": {
+      "tests": 186,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 2
+    },
+    "postgres": {
+      "tests": 18,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "domain_coverage": {
+    "covered_lines": 261,
+    "num_statements": 263,
+    "percent_covered": 99.17355371900827,
+    "percent_covered_display": "99.2",
+    "missing_lines": 2,
+    "excluded_lines": 0,
+    "num_branches": 100,
+    "num_partial_branches": 1,
+    "covered_branches": 99,
+    "missing_branches": 1,
+    "line_percent": 99.23954372623574,
+    "branch_percent": 99.0
+  },
+  "gates": [
+    {
+      "name": "black",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-m",
+        "black",
+        "--check",
+        "apps/config_center/domain/runtime_config.py",
+        "apps/config_center/application/runtime_config.py",
+        "apps/config_center/application/runtime_public.py",
+        "apps/config_center/infrastructure/runtime_config_repositories.py",
+        "apps/config_center/management/commands/activate_runtime_profile_corrective.py",
+        "tests/unit/config_center/test_runtime_profile_integrity_review.py",
+        "tests/unit/config_center/test_corrective_command_input.py",
+        "tests/unit/config_center/test_aud05_hash_scope_and_activation.py",
+        "tests/unit/config_center/test_runtime_definition_reconcile.py",
+        "tests/component/config_center/test_aud05_atomic_activation.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.829,
+      "log_sha256": "a38d5779f6d57722af4731738654f46ae1545b6893ccec3c91b6464d040d7684"
+    },
+    {
+      "name": "isort",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-m",
+        "isort",
+        "--check-only",
+        "apps/config_center/domain/runtime_config.py",
+        "apps/config_center/application/runtime_config.py",
+        "apps/config_center/application/runtime_public.py",
+        "apps/config_center/infrastructure/runtime_config_repositories.py",
+        "apps/config_center/management/commands/activate_runtime_profile_corrective.py",
+        "tests/unit/config_center/test_runtime_profile_integrity_review.py",
+        "tests/unit/config_center/test_corrective_command_input.py",
+        "tests/unit/config_center/test_aud05_hash_scope_and_activation.py",
+        "tests/unit/config_center/test_runtime_definition_reconcile.py",
+        "tests/component/config_center/test_aud05_atomic_activation.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.451,
+      "log_sha256": "169f24774e13a79b6341d6c41c58f159e180701e87e9028aa70afdf8712b6fbb"
+    },
+    {
+      "name": "ruff-delta",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "D:\\githv\\agomTradePro\\var\\validation\\config-review-2026-09-21\\check_ruff_delta.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 4.687,
+      "log_sha256": "d020444d9ce3209aa7640e0a2b758acc7db89db6323b46a28195bca4563b1dcc"
+    },
+    {
+      "name": "mypy-regression",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "scripts/check_mypy_regression.py",
+        "apps/config_center/domain/runtime_config.py",
+        "apps/config_center/application/runtime_config.py",
+        "apps/config_center/application/runtime_public.py",
+        "apps/config_center/infrastructure/runtime_config_repositories.py",
+        "apps/config_center/management/commands/activate_runtime_profile_corrective.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 79.355,
+      "log_sha256": "80cbd57ce559d0c36e777241a540e569982570b18bb46767f4b5c5503dc51002"
+    },
+    {
+      "name": "mypy-debt-ceiling",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "scripts/check_mypy_debt_ceiling.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 212.69,
+      "log_sha256": "b0e25513c7048181aff65a9cbf84d2da13af3b2e718a6da3e1ef722267690367"
+    },
+    {
+      "name": "config-audit-sqlite",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "-m",
+        "pytest",
+        "tests/unit/config_center",
+        "tests/unit/audit/test_system_audit_runtime_config.py",
+        "tests/component/config_center/test_aud05_atomic_activation.py",
+        "-q",
+        "-o",
+        "addopts=",
+        "--nomigrations",
+        "--basetemp=D:\\githv\\agomTradePro\\var\\validation\\config-review-2026-09-21\\final\\sqlite-temp",
+        "--junitxml=D:\\githv\\agomTradePro\\var\\validation\\config-review-2026-09-21\\final\\sqlite.junit.xml",
+        "--cov=apps.config_center.domain.runtime_config",
+        "--cov-branch",
+        "--cov-report=json:D:\\githv\\agomTradePro\\var\\validation\\config-review-2026-09-21\\final\\coverage.json",
+        "--cov-report=term-missing"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 68.787,
+      "log_sha256": "93704852063fceb2104e5ccb6f0ff798b85eac837cc011a07a3119dea8d10648"
+    },
+    {
+      "name": "migrations",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "manage.py",
+        "makemigrations",
+        "config_center",
+        "--check",
+        "--dry-run"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 19.174,
+      "log_sha256": "af2a58c2a3d05ea3d4431dedf070405505497d5cfd8e5e1a74c8eaf7fe8dbd99"
+    },
+    {
+      "name": "current-data",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "scripts/check_current_data_contracts.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 18.912,
+      "log_sha256": "c774e415f966ca887601c6d7be92ab20f2958e430ce61b71bf0d81eeac033e4b"
+    },
+    {
+      "name": "architecture",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "scripts/check_architecture_delta.py",
+        "--include-audit",
+        "--fail-on-audit-violations"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 38.935,
+      "log_sha256": "207d7c51b70a92f53da3a65a19ad08498bbc2e8c2c1c5822588619c25a167c26"
+    },
+    {
+      "name": "registry",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "scripts/check_active_plan_registry.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.213,
+      "log_sha256": "f0a675b7e1ffe6545474679ae2685577819d2e7a9e8dd4978c547a413a0694b2"
+    },
+    {
+      "name": "governance",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "scripts/check_governance_consistency.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 16.277,
+      "log_sha256": "4397e5f07215e140d8ab62eb4e96b311e030040c057e4f08825f849ccc81308d"
+    },
+    {
+      "name": "diff-check",
+      "command": [
+        "git",
+        "diff",
+        "--check",
+        "HEAD"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.084,
+      "log_sha256": "b667a3dff3c1c50dddfb4759c110dec2324f79a3cf1417de7860bc951fdec5d8"
+    }
+  ],
+  "postgres": {
+    "started_at_utc": "2026-09-20T17:29:41.203317+00:00",
+    "command": [
+      "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+      "-X",
+      "utf8",
+      "-m",
+      "pytest",
+      "tests/component/config_center/test_aud05_atomic_activation.py",
+      "--confcutdir=tests/component/config_center",
+      "--nomigrations",
+      "-q",
+      "-o",
+      "addopts=",
+      "--basetemp=D:\\githv\\agomTradePro\\var\\validation\\config-review-2026-09-21\\final\\postgres-temp",
+      "--junitxml=D:\\githv\\agomTradePro\\var\\validation\\config-review-2026-09-21\\final\\postgres.junit.xml"
+    ],
+    "postgres_version": "PostgreSQL 16.14 (Debian 16.14-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+    "production_access": false,
+    "container_id": "f549d90fa33c065c7a54c8515e97847e447571ef2612eb35a3bf45f14d55d42c",
+    "image": "sha256:33f923b05f64ca54ac4401c01126a6b92afe839a0aa0a52bc5aeb5cc958e5f20",
+    "exit_code": 0,
+    "log_sha256": "be11f5b86a263700d2d612c062e88e9ed9c271abc2862428cdb7f7b787303e28",
+    "finished_at_utc": "2026-09-20T17:37:28.658170+00:00",
+    "source_unchanged": true
+  },
+  "final_governance_gates": [
+    {
+      "name": "registry",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "scripts/check_active_plan_registry.py"
+      ],
+      "exit_code": 0,
+      "log_sha256": "9a6530dcd4854585a0e1643d0f2255a1f9d6bb11a403369ca12cfade59990045"
+    },
+    {
+      "name": "governance",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "scripts/check_governance_consistency.py"
+      ],
+      "exit_code": 0,
+      "log_sha256": "4397e5f07215e140d8ab62eb4e96b311e030040c057e4f08825f849ccc81308d"
+    },
+    {
+      "name": "current-data",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "scripts/check_current_data_contracts.py"
+      ],
+      "exit_code": 0,
+      "log_sha256": "c774e415f966ca887601c6d7be92ab20f2958e430ce61b71bf0d81eeac033e4b"
+    },
+    {
+      "name": "diff-check",
+      "command": [
+        "git",
+        "diff",
+        "--check",
+        "HEAD"
+      ],
+      "exit_code": 0,
+      "log_sha256": "409bc5c35a2526b3f843f7c5bcc933927a0056e1b7e22e89a2a0f78645e7e49b"
+    }
+  ],
+  "local_postgres_cleanup": {
+    "removed": true,
+    "volumes": "owned anonymous volumes removed",
+    "output": "f549d90fa33c065c7a54c8515e97847e447571ef2612eb35a3bf45f14d55d42c",
+    "completed_at_utc": "2026-09-20T17:38:40.3448958Z",
+    "container_id": "f549d90fa33c065c7a54c8515e97847e447571ef2612eb35a3bf45f14d55d42c"
+  },
+  "architecture_scope": {
+    "integrity_working_tree": "4 production files, 72 added lines; zero boundary/audit violations",
+    "command_commit": "e779bf439..336e578cb: 1 production file, 39 added lines; zero boundary/audit violations; final/command-architecture.log"
+  },
+  "red_evidence": {
+    "full_integrity": "12 failed, 2 passed before implementation",
+    "active_validation": "1 failed before implementation",
+    "locked_predecessor": "3 failed before implementation",
+    "candidate_and_ambiguity": "7 failed before implementation",
+    "command": "4 failed before implementation"
+  },
+  "independent_review": {
+    "reviewer": "GPT-5.6 Luna max (/root/aud05_luna)",
+    "result": "pass",
+    "scope": "Final Domain/Application/Infrastructure diff; candidate graph, locked predecessor values, ambiguous reads, transaction rollback and existing PostgreSQL race logic. Root separately reviewed command parser and frozen test source.",
+    "non_blocking_limits": [
+      "Low-level UoW optional predecessor snapshot remains optional; official Application service always supplies its captured snapshot.",
+      "No production multi-database router is configured; generalized multi-alias support was not introduced."
+    ]
+  },
+  "limitations": [
+    "SQLite includes two explicitly PostgreSQL-only skips; PostgreSQL component run has zero skips.",
+    "PostgreSQL uses isolated Config Center test settings and does not prove production lifecycle, full-app migrations or restore acceptance.",
+    "First ordinary postgres:16 container did not finish initialization in the observed interval; its log is excluded from acceptance. Final run used the pinned previously validated image.",
+    "First broad unit attempt hit the system pytest temporary directory permission error; final runs use dedicated workspace basetemp paths.",
+    "Four historical Domain UP042 diagnostics remain; Ruff delta has zero new diagnostics."
+  ],
+  "archive": {
+    "path": "docs/testing/config-center-review-fixes-2026-09-21-raw.zip",
+    "sha256": "91c47ef00a9747015c10d1ed20d0d7fdff87db6558fd50eec1106d785a62f50e",
+    "members": {
+      "attempts/check_ruff_delta.py": {
+        "bytes": 2030,
+        "sha256": "23045f1d8d06c744e10a1e50d1ab3063f34013610bb12816b2f4cd534a4d1fb2"
+      },
+      "attempts/component-red.log": {
+        "bytes": 5559,
+        "sha256": "aeac1c847d56c3a82e81ab8fd11fb5b1d6793bb83406db2ed6a826cdb696171c"
+      },
+      "attempts/finish_validation.py": {
+        "bytes": 1191,
+        "sha256": "4cec0c0356ecc113e061d2a8ff54fef1a725242cd5aa4c36dfbeb33e56a38fee"
+      },
+      "attempts/first-regression.log": {
+        "bytes": 5988,
+        "sha256": "da4c3448cb938a55424120d820f52854c4c7fb72d62277fa32216cd48c9ad0a5"
+      },
+      "attempts/graph-red.log": {
+        "bytes": 9611,
+        "sha256": "d31293fece03d26bf0e125a3a5c87bb794b076b395d5ee262d5adafdbbc72012"
+      },
+      "attempts/integrity-first-green.log": {
+        "bytes": 22480,
+        "sha256": "14df575f150243b237b862f065391f890596598bdafa6414bbe95ce34ac48996"
+      },
+      "attempts/integrity-red.log": {
+        "bytes": 15221,
+        "sha256": "e0b191725c91ac68c2880eeabf92994cb7f18a3979526ab87c66962599a895a9"
+      },
+      "attempts/postgres-initialization-excluded.log": {
+        "bytes": 1526,
+        "sha256": "619112ec6e1f9d2afcc7d5b5c23adb5ad5564e46d1d140b5d79a3e54eb73dad1"
+      },
+      "attempts/run_final.py": {
+        "bytes": 4058,
+        "sha256": "582d88f06a79217b079bf63f5470d533a1032097a2d5a01536524b775201d577"
+      },
+      "attempts/run_postgres.py": {
+        "bytes": 2224,
+        "sha256": "2e188825baf8c21b38144d6fca456b3a1fe4af9ecb49c9b0276ed2dc79adf9fc"
+      },
+      "attempts/seal.py": {
+        "bytes": 6264,
+        "sha256": "1f7eef161f2787a4c34a48f0f9455ec518753d77a53c9824f89c5e5596b927d1"
+      },
+      "attempts/validation-red.log": {
+        "bytes": 1011,
+        "sha256": "d744057a787aa44494fd6016e66d2abd56aba4b46880bfa2866f450bee35239d"
+      },
+      "attempts/verify_staged.py": {
+        "bytes": 1755,
+        "sha256": "aff03ee45b759e5586e2fefb52640402405c6711090a8c0ceaf0cf0e14220fc1"
+      },
+      "command/green.exit": {
+        "bytes": 3,
+        "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+      },
+      "command/green.stdout-stderr.log": {
+        "bytes": 100,
+        "sha256": "97ed6cc61b68dfa1003450c038e89b54a99dc7f9cd02032906095451cb2304cb"
+      },
+      "command/mypy-debt-ceiling.exit": {
+        "bytes": 3,
+        "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+      },
+      "command/mypy-debt-ceiling.stdout-stderr.log": {
+        "bytes": 52,
+        "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+      },
+      "command/mypy-regression.exit": {
+        "bytes": 3,
+        "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+      },
+      "command/mypy-regression.stdout-stderr.log": {
+        "bytes": 92,
+        "sha256": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b"
+      },
+      "command/red.exit": {
+        "bytes": 3,
+        "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04"
+      },
+      "command/red.stdout-stderr.log": {
+        "bytes": 9403,
+        "sha256": "3ea4b24a937e7c23a0fb11af167275af2ba933dce4bcbc51b59da9651bc19afd"
+      },
+      "command/regression.exit": {
+        "bytes": 3,
+        "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+      },
+      "command/regression.stdout-stderr.log": {
+        "bytes": 101,
+        "sha256": "b41cd7ca4fcc8cbcca21901fad6414e8f2210d22d6dff9857b1688be36267cb8"
+      },
+      "final/architecture.log": {
+        "bytes": 308,
+        "sha256": "207d7c51b70a92f53da3a65a19ad08498bbc2e8c2c1c5822588619c25a167c26"
+      },
+      "final/black.log": {
+        "bytes": 87,
+        "sha256": "a38d5779f6d57722af4731738654f46ae1545b6893ccec3c91b6464d040d7684"
+      },
+      "final/command-architecture.log": {
+        "bytes": 287,
+        "sha256": "1ad41738a677c1093f82cd8068661f7b98d89511210405ab2f66880bf49750b1"
+      },
+      "final/config-audit-sqlite.log": {
+        "bytes": 1125,
+        "sha256": "93704852063fceb2104e5ccb6f0ff798b85eac837cc011a07a3119dea8d10648"
+      },
+      "final/coverage.json": {
+        "bytes": 18886,
+        "sha256": "bc4fd3c824a152f14645039043ac91aec286262d9881e008a2ec0158deac2ceb"
+      },
+      "final/current-data.log": {
+        "bytes": 68,
+        "sha256": "c774e415f966ca887601c6d7be92ab20f2958e430ce61b71bf0d81eeac033e4b"
+      },
+      "final/diff-check.log": {
+        "bytes": 1172,
+        "sha256": "b667a3dff3c1c50dddfb4759c110dec2324f79a3cf1417de7860bc951fdec5d8"
+      },
+      "final/documentation-first-diff-check.log": {
+        "bytes": 1442,
+        "sha256": "d6f26b56ce65858a0b50574ced6bcb011e99012c6db242977965ee1f3cb73d27"
+      },
+      "final/followup-current-data.log": {
+        "bytes": 68,
+        "sha256": "c774e415f966ca887601c6d7be92ab20f2958e430ce61b71bf0d81eeac033e4b"
+      },
+      "final/followup-diff-check.log": {
+        "bytes": 1417,
+        "sha256": "409bc5c35a2526b3f843f7c5bcc933927a0056e1b7e22e89a2a0f78645e7e49b"
+      },
+      "final/followup-governance.log": {
+        "bytes": 684,
+        "sha256": "4397e5f07215e140d8ab62eb4e96b311e030040c057e4f08825f849ccc81308d"
+      },
+      "final/followup-registry.log": {
+        "bytes": 138,
+        "sha256": "9a6530dcd4854585a0e1643d0f2255a1f9d6bb11a403369ca12cfade59990045"
+      },
+      "final/gates.json": {
+        "bytes": 12228,
+        "sha256": "7b32aec3bd21e2d72b6dab8479c07eeddbfc011e2ae10c031753fdc1f0c96a87"
+      },
+      "final/governance-followup.json": {
+        "bytes": 1102,
+        "sha256": "c2ba72d784ad11ba642a3f6680dcf3aeca5dcf09f640dc6d2c1b51a539d453db"
+      },
+      "final/governance.log": {
+        "bytes": 684,
+        "sha256": "4397e5f07215e140d8ab62eb4e96b311e030040c057e4f08825f849ccc81308d"
+      },
+      "final/isort.log": {
+        "bytes": 16,
+        "sha256": "169f24774e13a79b6341d6c41c58f159e180701e87e9028aa70afdf8712b6fbb"
+      },
+      "final/migrations.log": {
+        "bytes": 60,
+        "sha256": "af2a58c2a3d05ea3d4431dedf070405505497d5cfd8e5e1a74c8eaf7fe8dbd99"
+      },
+      "final/mypy-debt-ceiling.log": {
+        "bytes": 68,
+        "sha256": "b0e25513c7048181aff65a9cbf84d2da13af3b2e718a6da3e1ef722267690367"
+      },
+      "final/mypy-regression.log": {
+        "bytes": 109,
+        "sha256": "80cbd57ce559d0c36e777241a540e569982570b18bb46767f4b5c5503dc51002"
+      },
+      "final/postgres-cleanup.json": {
+        "bytes": 297,
+        "sha256": "bd8e5f105b6df98683507b9169d77e6ed9457d6c0cd8d3044ba7c4db189f9798"
+      },
+      "final/postgres.json": {
+        "bytes": 6472,
+        "sha256": "cc15de54601f8a0ad7630866ca7315d11eb1a10b93ae6278bebb33979bee1dd7"
+      },
+      "final/postgres.junit.xml": {
+        "bytes": 3371,
+        "sha256": "bfb62d203720fff19b38f0063bfa54d13234d300db7beadef850c7f0dd79988c"
+      },
+      "final/postgres.log": {
+        "bytes": 241,
+        "sha256": "be11f5b86a263700d2d612c062e88e9ed9c271abc2862428cdb7f7b787303e28"
+      },
+      "final/registry.log": {
+        "bytes": 138,
+        "sha256": "f0a675b7e1ffe6545474679ae2685577819d2e7a9e8dd4978c547a413a0694b2"
+      },
+      "final/ruff-delta.json": {
+        "bytes": 12851,
+        "sha256": "4060783ac0d4b16ec04df8921500eb2a980429210755463d13d04c8e7a028ba9"
+      },
+      "final/ruff-delta.log": {
+        "bytes": 148,
+        "sha256": "d020444d9ce3209aa7640e0a2b758acc7db89db6323b46a28195bca4563b1dcc"
+      },
+      "final/sqlite.junit.xml": {
+        "bytes": 31992,
+        "sha256": "f2f66f76d4ad907a22705d8d15150e170a420f98dcad5825f2fed809fc709ed1"
+      }
+    }
+  }
+}

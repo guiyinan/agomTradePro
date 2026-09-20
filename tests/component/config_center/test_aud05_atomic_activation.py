@@ -387,6 +387,105 @@ def _require_aud05_postgresql() -> None:
         pytest.fail("AUD-05 concurrency database identity mismatch")
 
 
+@pytest.mark.parametrize("corruption", ["changed", "missing", "added"])
+def test_activation_rechecks_locked_predecessor_value_hash(corruption: str) -> None:
+    """Raw row drift after an application read cannot be blessed as a successor."""
+
+    previous, previous_values, previous_revision, previous_snapshot = _candidate()
+    uow = RuntimeConfigActivationUnitOfWork()
+    uow.activate(
+        profile=previous,
+        values=previous_values,
+        revision=previous_revision,
+        snapshot=previous_snapshot,
+        expected_previous_profile=None,
+        expected_previous_snapshot=None,
+    )
+    if corruption == "changed":
+        RuntimeConfigValueModel._default_manager.filter(profile_id=previous.profile_id).update(
+            value_json=99
+        )
+    elif corruption == "missing":
+        RuntimeConfigValueModel._default_manager.filter(profile_id=previous.profile_id).delete()
+    else:
+        RuntimeConfigValueModel._default_manager.create(
+            profile_id=previous.profile_id, definition_key="aud05.unapproved", value_json=99
+        )
+    before = _graph_fingerprint()
+    profile, values, revision, snapshot = _candidate(previous, value=2)
+
+    with pytest.raises(ValueError, match="runtime profile full hash"):
+        uow.activate(
+            profile=profile,
+            values=values,
+            revision=revision,
+            snapshot=snapshot,
+            expected_previous_profile=previous,
+            expected_previous_snapshot=previous_snapshot,
+        )
+
+    assert _graph_fingerprint() == before
+
+
+@pytest.mark.parametrize(
+    "corruption",
+    ["profile_hash", "revision_hash", "revision_projection", "snapshot_projection", "before_hash"],
+)
+def test_activation_rejects_inconsistent_candidate_graph(corruption: str) -> None:
+    """The final persistence boundary rejects mismatched candidate evidence."""
+
+    profile, values, revision, snapshot = _candidate()
+    if corruption == "profile_hash":
+        profile = replace(profile, content_hash="0" * 64)
+    elif corruption == "revision_hash":
+        revision = replace(revision, after_hash="0" * 64)
+    elif corruption == "revision_projection":
+        revision = replace(revision, after_projection={"aud05.value": 9})
+    elif corruption == "snapshot_projection":
+        snapshot = _snapshot(profile, value=9)
+        revision = replace(revision, after_projection=snapshot.resolved_values)
+    else:
+        revision = replace(revision, before_hash="unexpected-predecessor")
+    before = _graph_fingerprint()
+
+    with pytest.raises(
+        ValueError, match="runtime (profile full hash|revision|snapshot public projection)"
+    ):
+        RuntimeConfigActivationUnitOfWork().activate(
+            profile=profile,
+            values=values,
+            revision=revision,
+            snapshot=snapshot,
+            expected_previous_profile=None,
+            expected_previous_snapshot=None,
+        )
+
+    assert _graph_fingerprint() == before
+
+
+def test_active_reader_rejects_multiple_active_profiles() -> None:
+    """Two active identities in one environment cannot be resolved by sorting."""
+
+    repository = RuntimeConfigProfileRepository()
+    repository.save(_profile(profile_key="first"))
+    repository.save(_profile(profile_key="second"))
+
+    with pytest.raises(RuntimeError, match="multiple active runtime profiles"):
+        repository.get_active("production")
+
+
+def test_snapshot_reader_rejects_multiple_snapshots_for_one_profile_version() -> None:
+    """Different hashes do not make duplicate snapshots for a profile valid."""
+
+    profile = _profile()
+    repository = RuntimeConfigSnapshotRepository()
+    repository.save(_snapshot(profile, value=1))
+    repository.save(_snapshot(profile, value=2))
+
+    with pytest.raises(RuntimeError, match="multiple runtime snapshots"):
+        repository.get_latest(profile.profile_key)
+
+
 def _race_activation(
     barrier: Barrier,
     profile: RuntimeConfigProfile,

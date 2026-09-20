@@ -16,6 +16,7 @@ from apps.config_center.domain.runtime_config import (
     RuntimeConfigValue,
     StorageBudgetPolicy,
     hash_public_runtime_projection,
+    verify_runtime_profile_values,
 )
 
 from .models import (
@@ -114,15 +115,15 @@ class RuntimeConfigProfileRepository:
     def get_active(self, environment: str) -> RuntimeConfigProfile | None:
         """Return the active profile for one environment."""
 
-        model = (
+        models = list(
             RuntimeConfigProfileModel._default_manager.filter(
                 environment=environment,
                 status="active",
-            )
-            .order_by("-version")
-            .first()
+            ).order_by("-version")[:2]
         )
-        return model.to_domain() if model is not None else None
+        if len(models) > 1:
+            raise RuntimeError("multiple active runtime profiles require reconciliation")
+        return models[0].to_domain() if models else None
 
 
 class RuntimeConfigValueRepository:
@@ -221,7 +222,16 @@ class RuntimeConfigSnapshotRepository:
             .order_by("-generated_at")
             .first()
         )
-        return model.to_domain() if model is not None else None
+        if model is None:
+            return None
+        identities = list(
+            RuntimeConfigSnapshotModel._default_manager.filter(
+                profile_id=model.profile_id, profile_version=model.profile_version
+            ).values_list("snapshot_id", flat=True)[:2]
+        )
+        if len(identities) != 1:
+            raise RuntimeError("multiple runtime snapshots require reconciliation")
+        return model.to_domain()
 
 
 class RuntimeConfigActivationUnitOfWork:
@@ -255,6 +265,16 @@ class RuntimeConfigActivationUnitOfWork:
             raise ValueError("runtime snapshot profile identity mismatch")
         if any(value.profile_id != profile.profile_id for value in values):
             raise ValueError("runtime profile value profile_id mismatch")
+        verify_runtime_profile_values(profile, values)
+        if revision.after_hash != profile.content_hash:
+            raise ValueError("runtime revision after hash mismatch")
+        if revision.after_projection != snapshot.resolved_values:
+            raise ValueError("runtime revision public projection mismatch")
+        public_values = {
+            value.definition_key: value.value_json for value in values if not value.secret_ref
+        }
+        if public_values != snapshot.resolved_values:
+            raise ValueError("runtime snapshot public projection does not match values")
         if hash_public_runtime_projection(snapshot.resolved_values) != snapshot.snapshot_hash:
             raise ValueError("runtime snapshot public hash mismatch")
 
@@ -271,6 +291,8 @@ class RuntimeConfigActivationUnitOfWork:
             previous = previous_model.to_domain() if previous_model is not None else None
             if not _same_predecessor(previous, expected_previous_profile):
                 raise ValueError("runtime profile predecessor drifted")
+            if revision.before_hash != (previous.content_hash if previous is not None else ""):
+                raise ValueError("runtime revision before hash mismatch")
             previous_snapshots = (
                 list(
                     RuntimeConfigSnapshotModel._default_manager.select_for_update()
@@ -292,6 +314,14 @@ class RuntimeConfigActivationUnitOfWork:
                 previous_snapshots[0].to_domain(), expected_previous_snapshot
             ):
                 raise ValueError("runtime profile snapshot predecessor drifted")
+            if previous is not None:
+                previous_values = tuple(
+                    model.to_domain()
+                    for model in RuntimeConfigValueModel._default_manager.select_for_update()
+                    .filter(profile_id=_uuid(previous.profile_id))
+                    .order_by("definition_key")
+                )
+                verify_runtime_profile_values(previous, previous_values)
             if RuntimeConfigProfileModel._default_manager.filter(
                 profile_id=_uuid(profile.profile_id)
             ).exists():

@@ -254,6 +254,24 @@ def hash_runtime_profile_values(values: Mapping[str, object]) -> str:
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
+def verify_runtime_profile_values(
+    profile: RuntimeConfigProfile,
+    values: tuple[RuntimeConfigValue, ...],
+) -> dict[str, object]:
+    """Verify exact persisted values against the full profile identity hash."""
+
+    resolved: dict[str, object] = {}
+    for value in values:
+        if value.profile_id != profile.profile_id:
+            raise ValueError("runtime profile value identity mismatch")
+        if value.definition_key in resolved:
+            raise ValueError("runtime profile values contain duplicate definitions")
+        resolved[value.definition_key] = value.secret_ref if value.secret_ref else value.value_json
+    if hash_runtime_profile_values(resolved) != profile.content_hash:
+        raise ValueError("runtime profile full hash does not match persisted values")
+    return resolved
+
+
 def project_public_runtime_values(
     values: Mapping[str, object],
     definitions: Mapping[str, RuntimeConfigDefinition],

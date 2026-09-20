@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 from io import StringIO
 
@@ -16,6 +17,7 @@ from apps.config_center.domain.runtime_config import (
     RuntimeConfigProfile,
     RuntimeConfigValue,
     RuntimeProfileStatus,
+    hash_runtime_profile_values,
 )
 from apps.config_center.management.commands import initialize_runtime_definitions
 
@@ -236,6 +238,12 @@ def test_active_profile_passes_reconciled_definition_validation() -> None:
             },
         ),
     ]
+    profile = replace(
+        profile,
+        content_hash=hash_runtime_profile_values(
+            {value.definition_key: value.value_json for value in values}
+        ),
+    )
     service = RuntimeConfigService(
         _DefinitionRepositoryWithDefaults(),
         _ProfileRepository(profile),
@@ -258,7 +266,7 @@ def test_active_profile_reports_missing_critical_definition() -> None:
         environment="development",
         version=1,
         status=RuntimeProfileStatus.ACTIVE,
-        content_hash="hash",
+        content_hash=hash_runtime_profile_values({}),
         created_at=NOW,
         activated_at=NOW,
     )

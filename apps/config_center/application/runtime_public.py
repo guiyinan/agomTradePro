@@ -31,6 +31,7 @@ from apps.config_center.domain.runtime_config import (
     StorageCapacityObservation,
     hash_public_runtime_projection,
     project_public_runtime_values,
+    verify_runtime_profile_values,
 )
 from core.integration.config_center_runtime import RuntimeConfigDefinitionSpec
 
@@ -175,7 +176,8 @@ def get_active_runtime_secret_ref(*, environment: str, definition_key: str) -> s
         return None
     try:
         values = get_runtime_value_repository().list_for_profile(profile.profile_id)
-    except RuntimeError:
+        verify_runtime_profile_values(profile, tuple(values))
+    except (RuntimeError, TypeError, ValueError):
         return None
     for value in values:
         if value.definition_key == normalized_key and value.secret_ref.strip():
@@ -441,6 +443,8 @@ def _prepare_runtime_profile_patch(
     existing_values = (
         value_repository.list_for_profile(active.profile_id) if active is not None else []
     )
+    if active is not None:
+        verify_runtime_profile_values(active, tuple(existing_values))
     existing_by_key = {value.definition_key: value for value in existing_values}
     compatibility = dict(bootstrap_values or {})
     compatibility_secret_refs = {

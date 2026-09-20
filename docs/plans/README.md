@@ -1,5 +1,9 @@
 # 活跃计划索引
 
+> 2026-09-21 AUD-05 复核补强：完整值哈希、事务候选绑定、歧义读取及 corrective 命令输入已修复。
+> SQLite 184 passed/2 PG-only skips、隔离 PostgreSQL 18 passed；[原始证据与源码绑定](../testing/config-center-review-fixes-2026-09-21.json)。
+> registry v142，AUD-05 保持 completed；生产状态未晋级。
+
 > 2026-09-21：DATA-17（用户 T7）已 completed，完整 Research Domain 分支 90.9380%、行 96.5820%，1158 tests passed。
 > [完整同源 before/after 封存](../testing/research-domain-90-closure-2026-09-21.json)绑定原始日志、覆盖率与源码；63 个 Domain 文件和原有测试未变。
 > AUD-05/DATA-17 均收口，当前无 repository focus；DATA-15 不重开，生产退出状态不变。以下较早日期内容保留为历史。

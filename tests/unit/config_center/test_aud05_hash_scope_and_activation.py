@@ -298,7 +298,9 @@ def test_corrective_preview_is_read_only_and_binds_approved_hashes(
         environment="production",
         version=14,
         status=RuntimeProfileStatus.ACTIVE,
-        content_hash="approved-full-hash",
+        content_hash=hash_runtime_profile_values(
+            {"audit.mode": "off", "provider.key": "secret://provider/v14"}
+        ),
         created_at=NOW,
         activated_at=NOW,
     )
@@ -374,7 +376,9 @@ def test_hash_bound_execute_does_not_reconcile_catalog(
     profile = replace(
         _profile(version=14),
         status=RuntimeProfileStatus.ACTIVE,
-        content_hash="approved-full-hash",
+        content_hash=hash_runtime_profile_values(
+            {"audit.mode": "off", "provider.key": "secret://provider/v14"}
+        ),
         activated_at=NOW,
     )
     snapshot_values = {"audit.mode": "off"}
