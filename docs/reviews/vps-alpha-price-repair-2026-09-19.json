@@ -1,0 +1,134 @@
+{
+  "marker": "legacy-units-20260919-v2",
+  "fetched_before": "2026-09-19T02:47:00+00:00",
+  "rules": [
+    {
+      "source": "akshare",
+      "asset_type": "stock",
+      "expected": 22724,
+      "volume_factor": "100",
+      "amount_factor": "1",
+      "adjustment": "forward",
+      "evidence": "docs/reviews/vps-alpha-auto-refresh-2026-09-19.md; legacy gateway implementation and production cohort audit before 2026-09-19 backup"
+    },
+    {
+      "source": "akshare",
+      "asset_type": "etf",
+      "expected": 29,
+      "volume_factor": "100",
+      "amount_factor": "1",
+      "adjustment": "forward",
+      "evidence": "docs/reviews/vps-alpha-auto-refresh-2026-09-19.md; legacy gateway implementation and production cohort audit before 2026-09-19 backup"
+    },
+    {
+      "source": "eastmoney",
+      "asset_type": "etf",
+      "expected": 30,
+      "volume_factor": "100",
+      "amount_factor": "1",
+      "adjustment": "forward",
+      "evidence": "docs/reviews/vps-alpha-auto-refresh-2026-09-19.md; legacy gateway implementation and production cohort audit before 2026-09-19 backup"
+    },
+    {
+      "source": "sina",
+      "asset_type": "stock",
+      "expected": 138425,
+      "volume_factor": "1",
+      "amount_factor": "1",
+      "adjustment": "forward",
+      "evidence": "docs/reviews/vps-alpha-auto-refresh-2026-09-19.md; legacy gateway implementation and production cohort audit before 2026-09-19 backup"
+    },
+    {
+      "source": "tencent",
+      "asset_type": "stock",
+      "expected": 2561294,
+      "volume_factor": "100",
+      "amount_factor": "1",
+      "adjustment": "forward",
+      "evidence": "docs/reviews/vps-alpha-auto-refresh-2026-09-19.md; legacy gateway implementation and production cohort audit before 2026-09-19 backup"
+    },
+    {
+      "source": "tencent",
+      "asset_type": "etf",
+      "expected": 29,
+      "volume_factor": "100",
+      "amount_factor": "1",
+      "adjustment": "forward",
+      "evidence": "docs/reviews/vps-alpha-auto-refresh-2026-09-19.md; legacy gateway implementation and production cohort audit before 2026-09-19 backup"
+    },
+    {
+      "source": "tencent",
+      "asset_type": "unregistered",
+      "expected": 30,
+      "volume_factor": "100",
+      "amount_factor": "1",
+      "adjustment": "none",
+      "evidence": "docs/reviews/vps-alpha-auto-refresh-2026-09-19.md; legacy gateway implementation and production cohort audit before 2026-09-19 backup"
+    },
+    {
+      "source": "tushare",
+      "asset_type": "stock",
+      "expected": 47776,
+      "volume_factor": "100",
+      "amount_factor": "1000",
+      "adjustment": "none",
+      "evidence": "docs/reviews/vps-alpha-auto-refresh-2026-09-19.md; legacy gateway implementation and production cohort audit before 2026-09-19 backup",
+      "amount_presence": "present"
+    },
+    {
+      "source": "tushare",
+      "asset_type": "etf",
+      "expected": 2172,
+      "volume_factor": "100",
+      "amount_factor": "1000",
+      "adjustment": "none",
+      "evidence": "docs/reviews/vps-alpha-auto-refresh-2026-09-19.md; legacy gateway implementation and production cohort audit before 2026-09-19 backup"
+    },
+    {
+      "source": "tushare",
+      "asset_type": "bond",
+      "expected": 362,
+      "volume_factor": "100",
+      "amount_factor": "1000",
+      "adjustment": "none",
+      "evidence": "docs/reviews/vps-alpha-auto-refresh-2026-09-19.md; legacy gateway implementation and production cohort audit before 2026-09-19 backup"
+    },
+    {
+      "source": "tushare",
+      "asset_type": "futures",
+      "expected": 724,
+      "volume_factor": "100",
+      "amount_factor": "1000",
+      "adjustment": "none",
+      "evidence": "docs/reviews/vps-alpha-auto-refresh-2026-09-19.md; legacy gateway implementation and production cohort audit before 2026-09-19 backup"
+    },
+    {
+      "source": "tushare",
+      "asset_type": "other",
+      "expected": 362,
+      "volume_factor": "100",
+      "amount_factor": "1000",
+      "adjustment": "none",
+      "evidence": "docs/reviews/vps-alpha-auto-refresh-2026-09-19.md; legacy gateway implementation and production cohort audit before 2026-09-19 backup"
+    },
+    {
+      "source": "tushare",
+      "asset_type": "unregistered",
+      "expected": 180,
+      "volume_factor": "100",
+      "amount_factor": "1000",
+      "adjustment": "none",
+      "evidence": "docs/reviews/vps-alpha-auto-refresh-2026-09-19.md; legacy gateway implementation and production cohort audit before 2026-09-19 backup"
+    },
+    {
+      "source": "tushare",
+      "asset_type": "stock",
+      "expected": 10020,
+      "volume_factor": "100",
+      "amount_factor": "1",
+      "adjustment": "forward",
+      "evidence": "Pre-5492cf23f adapter relabelled Tencent fallback as tushare; all 9980 overlapping null-amount rows match Tencent OHLC exactly; direct Tushare daily supplies amount.",
+      "amount_presence": "missing"
+    }
+  ]
+}
