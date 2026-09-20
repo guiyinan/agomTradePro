@@ -389,3 +389,5 @@ research. Source dates and decision gates remain unchanged.
 ## Alpha 更新异常呈现（2026-09-19）
 
 Alpha 清单将最近一次相关推理的业务失败投影到现有 `business_summary` / `blocking_reason` 契约，包含真实评分日、目标日及尝试时间。dashboard 面板同样展示阻断原因，不能因空表或旧缓存而隐藏。任务异常只映射为安全用户文案，不呈现原始 traceback、凭据或其他组合的信息；新的成功评分清除旧失败。测试见 `tests/unit/dashboard/test_alpha_refresh_notice.py` 及浏览器 `dashboard displays blocking evidence` 用例。
+
+2026-09-20：Dashboard 概览投影与数值格式化拆入 `TuiDashboardResultMixin`，由原 specialized mixin 继承，保持结果协议与现有调用入口不变。
