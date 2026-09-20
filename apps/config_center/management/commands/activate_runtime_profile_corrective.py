@@ -13,6 +13,15 @@ from apps.config_center.application.runtime_public import (
     preview_runtime_profile_patch,
 )
 
+_PATCH_ENVELOPE_FIELDS: frozenset[str] = frozenset(
+    {
+        "patch",
+        "secret_ref_patch",
+        "bootstrap_values",
+        "bootstrap_secret_refs",
+    }
+)
+
 
 class _PatchArguments(TypedDict):
     """Typed application arguments narrowed from management-command options."""
@@ -81,23 +90,23 @@ class Command(BaseCommand):
                     + ", ".join(missing)
                 )
 
-        patch, secret_ref_patch, bootstrap_values, bootstrap_secret_refs = _read_patch_file(
-            str(options["patch_file"])
-        )
-        common: _PatchArguments = {
-            "environment": str(options["environment"]),
-            "patch": patch,
-            "secret_ref_patch": secret_ref_patch,
-            "bootstrap_values": bootstrap_values,
-            "bootstrap_secret_refs": bootstrap_secret_refs,
-            "actor": str(options["actor"]),
-            "reason": str(options["reason"]),
-            "expected_active_profile_id": expected_profile_id,
-            "expected_active_profile_version": expected_profile_version,
-            "expected_active_profile_hash": expected_profile_hash,
-            "expected_active_snapshot_hash": expected_snapshot_hash,
-        }
         try:
+            patch, secret_ref_patch, bootstrap_values, bootstrap_secret_refs = _read_patch_file(
+                str(options["patch_file"])
+            )
+            common: _PatchArguments = {
+                "environment": str(options["environment"]),
+                "patch": patch,
+                "secret_ref_patch": secret_ref_patch,
+                "bootstrap_values": bootstrap_values,
+                "bootstrap_secret_refs": bootstrap_secret_refs,
+                "actor": str(options["actor"]),
+                "reason": str(options["reason"]),
+                "expected_active_profile_id": expected_profile_id,
+                "expected_active_profile_version": expected_profile_version,
+                "expected_active_profile_hash": expected_profile_hash,
+                "expected_active_snapshot_hash": expected_snapshot_hash,
+            }
             if execute:
                 payload = {
                     "mode": "execute",
@@ -111,7 +120,9 @@ class Command(BaseCommand):
                     "mode": "dry_run",
                     "preview": preview_runtime_profile_patch(**common),
                 }
-        except (RuntimeError, TypeError, ValueError, OSError, json.JSONDecodeError) as exc:
+        except CommandError:
+            raise
+        except (RuntimeError, TypeError, ValueError, OSError, UnicodeError) as exc:
             raise CommandError(str(exc)) from exc
 
         self.stdout.write(
@@ -138,7 +149,17 @@ def _read_patch_file(
     raw: Any = json.loads(Path(filename).read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
         raise CommandError("Patch file must contain a JSON object")
-    patch_raw: Any = raw.get("patch", raw)
+
+    envelope_fields = set(raw).intersection(_PATCH_ENVELOPE_FIELDS)
+    if envelope_fields:
+        unknown_fields = sorted(set(raw).difference(_PATCH_ENVELOPE_FIELDS))
+        if unknown_fields:
+            raise CommandError(
+                "Patch envelope contains unknown fields: " + ", ".join(unknown_fields)
+            )
+        patch_raw: Any = raw.get("patch", {})
+    else:
+        patch_raw = raw
     patch = _object_mapping(patch_raw, "patch")
     secret_ref_patch = _string_mapping(raw.get("secret_ref_patch", {}), "secret_ref_patch")
     bootstrap_values = _object_mapping(raw.get("bootstrap_values", {}), "bootstrap_values")
