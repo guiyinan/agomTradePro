@@ -29,6 +29,8 @@ from apps.config_center.domain.runtime_config import (
     RuntimeValueType,
     StorageBudgetPolicy,
     StorageCapacityObservation,
+    hash_public_runtime_projection,
+    project_public_runtime_values,
 )
 from core.integration.config_center_runtime import RuntimeConfigDefinitionSpec
 
@@ -148,13 +150,8 @@ def get_active_runtime_value(*, environment: str, definition_key: str) -> object
         return None
     if profile is None:
         return None
-    try:
-        snapshot = get_latest_runtime_snapshot(profile.profile_key)
-    except RuntimeError:
-        return None
+    snapshot = _get_current_runtime_snapshot(profile)
     if snapshot is None:
-        return None
-    if snapshot.profile_id != profile.profile_id or snapshot.profile_version != profile.version:
         return None
     return snapshot.resolved_values.get(normalized_key)
 
@@ -173,13 +170,8 @@ def get_active_runtime_secret_ref(*, environment: str, definition_key: str) -> s
         return None
     if profile is None:
         return None
-    try:
-        snapshot = get_latest_runtime_snapshot(profile.profile_key)
-    except RuntimeError:
-        return None
+    snapshot = _get_current_runtime_snapshot(profile)
     if snapshot is None:
-        return None
-    if snapshot.profile_id != profile.profile_id or snapshot.profile_version != profile.version:
         return None
     try:
         values = get_runtime_value_repository().list_for_profile(profile.profile_id)
@@ -189,6 +181,34 @@ def get_active_runtime_secret_ref(*, environment: str, definition_key: str) -> s
         if value.definition_key == normalized_key and value.secret_ref.strip():
             return value.secret_ref.strip()
     return None
+
+
+def _get_current_runtime_snapshot(
+    profile: RuntimeConfigProfile,
+) -> RuntimeConfigSnapshot | None:
+    """Read one identity-matched, hash-verified public snapshot."""
+
+    try:
+        snapshot = get_latest_runtime_snapshot(profile.profile_key)
+    except RuntimeError:
+        return None
+    if snapshot is None:
+        return None
+    if (snapshot.profile_id, snapshot.profile_version) != (profile.profile_id, profile.version):
+        return None
+    try:
+        definitions = {
+            definition.key: definition
+            for definition in get_runtime_definition_repository().list_all()
+        }
+        public_values = project_public_runtime_values(snapshot.resolved_values, definitions)
+        if public_values != snapshot.resolved_values:
+            return None
+        if hash_public_runtime_projection(public_values) != snapshot.snapshot_hash:
+            return None
+    except (RuntimeError, TypeError, ValueError):
+        return None
+    return snapshot
 
 
 def activate_runtime_profile_patch(
@@ -201,6 +221,10 @@ def activate_runtime_profile_patch(
     actor: str,
     reason: str,
     release_ref: str = "",
+    expected_active_profile_id: str | None = None,
+    expected_active_profile_version: int | None = None,
+    expected_active_profile_hash: str | None = None,
+    expected_active_snapshot_hash: str | None = None,
 ) -> tuple[RuntimeConfigProfile, RuntimeConfigSnapshot]:
     """Activate one forward runtime-profile revision from a typed patch.
 
@@ -209,6 +233,147 @@ def activate_runtime_profile_patch(
     a legacy-to-typed import explicit and auditable rather than a runtime
     fallback. The caller's patch always wins over carried values.
     """
+
+    normalized_environment, normalized_actor, normalized_reason = _normalize_patch_request(
+        environment=environment,
+        actor=actor,
+        reason=reason,
+    )
+    active, next_profile, next_values, approved_snapshot = _prepare_runtime_profile_patch(
+        environment=normalized_environment,
+        patch=patch,
+        secret_ref_patch=secret_ref_patch,
+        bootstrap_values=bootstrap_values,
+        bootstrap_secret_refs=bootstrap_secret_refs,
+        actor=normalized_actor,
+        expected_active_profile_id=expected_active_profile_id,
+        expected_active_profile_version=expected_active_profile_version,
+        expected_active_profile_hash=expected_active_profile_hash,
+        expected_active_snapshot_hash=expected_active_snapshot_hash,
+    )
+    del active
+    # Definition reconciliation is a write.  A hash-bound corrective execution
+    # must use the already approved catalog and cannot mutate it outside the
+    # profile transaction.  Unbound bootstrap remains explicitly reconcilable.
+    if expected_active_profile_hash is None or expected_active_snapshot_hash is None:
+        reconcile_runtime_definitions()
+    return get_runtime_config_service().activate(
+        next_profile,
+        tuple(next_values),
+        actor=normalized_actor,
+        reason=normalized_reason,
+        release_ref=release_ref,
+        legacy_correction=(
+            (expected_active_profile_hash, expected_active_snapshot_hash)
+            if expected_active_profile_hash is not None
+            and expected_active_snapshot_hash is not None
+            else None
+        ),
+        expected_previous_snapshot=approved_snapshot,
+    )
+
+
+def activate_runtime_profile_patch_payload(
+    *,
+    environment: str,
+    patch: Mapping[str, object],
+    secret_ref_patch: Mapping[str, str] | None = None,
+    bootstrap_values: Mapping[str, object] | None = None,
+    bootstrap_secret_refs: Mapping[str, str] | None = None,
+    actor: str,
+    reason: str,
+    release_ref: str = "",
+    expected_active_profile_id: str | None = None,
+    expected_active_profile_version: int | None = None,
+    expected_active_profile_hash: str | None = None,
+    expected_active_snapshot_hash: str | None = None,
+) -> dict[str, object]:
+    """Activate a typed patch and return non-secret revision evidence."""
+
+    profile, snapshot = activate_runtime_profile_patch(
+        environment=environment,
+        patch=patch,
+        secret_ref_patch=secret_ref_patch,
+        bootstrap_values=bootstrap_values,
+        bootstrap_secret_refs=bootstrap_secret_refs,
+        actor=actor,
+        reason=reason,
+        release_ref=release_ref,
+        expected_active_profile_id=expected_active_profile_id,
+        expected_active_profile_version=expected_active_profile_version,
+        expected_active_profile_hash=expected_active_profile_hash,
+        expected_active_snapshot_hash=expected_active_snapshot_hash,
+    )
+    return {
+        "profile_id": profile.profile_id,
+        "profile_key": profile.profile_key,
+        "profile_version": profile.version,
+        "snapshot_id": snapshot.snapshot_id,
+        "snapshot_hash": snapshot.snapshot_hash,
+        "changed_keys": tuple(sorted(set(patch) | set(secret_ref_patch or {}))),
+    }
+
+
+def preview_runtime_profile_patch(
+    *,
+    environment: str,
+    patch: Mapping[str, object],
+    secret_ref_patch: Mapping[str, str] | None = None,
+    bootstrap_values: Mapping[str, object] | None = None,
+    bootstrap_secret_refs: Mapping[str, str] | None = None,
+    actor: str,
+    reason: str,
+    expected_active_profile_id: str | None = None,
+    expected_active_profile_version: int | None = None,
+    expected_active_profile_hash: str | None = None,
+    expected_active_snapshot_hash: str | None = None,
+) -> dict[str, object]:
+    """Preview a corrective successor without writing profile or snapshot rows."""
+
+    normalized_environment, normalized_actor, normalized_reason = _normalize_patch_request(
+        environment=environment,
+        actor=actor,
+        reason=reason,
+    )
+    active, next_profile, next_values, _approved_snapshot = _prepare_runtime_profile_patch(
+        environment=normalized_environment,
+        patch=patch,
+        secret_ref_patch=secret_ref_patch,
+        bootstrap_values=bootstrap_values,
+        bootstrap_secret_refs=bootstrap_secret_refs,
+        actor=normalized_actor,
+        expected_active_profile_id=expected_active_profile_id,
+        expected_active_profile_version=expected_active_profile_version,
+        expected_active_profile_hash=expected_active_profile_hash,
+        expected_active_snapshot_hash=expected_active_snapshot_hash,
+    )
+    preview = preview_runtime_profile(next_profile, next_values)
+    return {
+        "environment": normalized_environment,
+        "actor": normalized_actor,
+        "reason": normalized_reason,
+        "before_profile_id": active.profile_id if active is not None else None,
+        "before_profile_version": active.version if active is not None else None,
+        "after_profile_id": next_profile.profile_id,
+        "after_profile_version": next_profile.version,
+        "based_on_profile": next_profile.based_on_profile or None,
+        "full_profile_hash": preview["after_hash"],
+        "changed_keys": preview["changed_keys"],
+        "secret_definition_keys": tuple(
+            sorted(value.definition_key for value in next_values if value.secret_ref)
+        ),
+        "valid": preview["valid"],
+        "errors": preview["errors"],
+    }
+
+
+def _normalize_patch_request(
+    *,
+    environment: str,
+    actor: str,
+    reason: str,
+) -> tuple[str, str, str]:
+    """Normalize and require the identities used by corrective activation."""
 
     normalized_environment = str(environment or "").strip()
     normalized_actor = str(actor or "").strip()
@@ -219,10 +384,60 @@ def activate_runtime_profile_patch(
         raise ValueError("Runtime profile actor is required")
     if not normalized_reason:
         raise ValueError("Runtime profile change reason is required")
+    return normalized_environment, normalized_actor, normalized_reason
 
-    reconcile_runtime_definitions()
+
+def _prepare_runtime_profile_patch(
+    *,
+    environment: str,
+    patch: Mapping[str, object],
+    secret_ref_patch: Mapping[str, str] | None,
+    bootstrap_values: Mapping[str, object] | None,
+    bootstrap_secret_refs: Mapping[str, str] | None,
+    actor: str,
+    expected_active_profile_id: str | None,
+    expected_active_profile_version: int | None,
+    expected_active_profile_hash: str | None,
+    expected_active_snapshot_hash: str | None,
+) -> tuple[
+    RuntimeConfigProfile | None,
+    RuntimeConfigProfile,
+    tuple[RuntimeConfigValue, ...],
+    RuntimeConfigSnapshot | None,
+]:
+    """Build a complete successor candidate from the current active profile."""
+
     value_repository = get_runtime_value_repository()
-    active = get_active_runtime_profile(normalized_environment)
+    active = get_active_runtime_profile(environment)
+    if expected_active_profile_id is not None and (
+        active is None or active.profile_id != expected_active_profile_id
+    ):
+        raise ValueError("expected active runtime profile does not match")
+    if expected_active_profile_version is not None and (
+        active is None or active.version != expected_active_profile_version
+    ):
+        raise ValueError("expected active runtime profile version does not match")
+    if expected_active_profile_hash is not None and (
+        active is None or active.content_hash != expected_active_profile_hash
+    ):
+        raise ValueError("expected active runtime profile hash does not match")
+    approved_snapshot = (
+        get_latest_runtime_snapshot(active.profile_key) if active is not None else None
+    )
+    if active is not None and (
+        approved_snapshot is None
+        or (
+            approved_snapshot.profile_id,
+            approved_snapshot.profile_version,
+        )
+        != (active.profile_id, active.version)
+    ):
+        raise ValueError("active runtime profile snapshot is unavailable or invalid")
+    if expected_active_snapshot_hash is not None and (
+        approved_snapshot is None
+        or approved_snapshot.snapshot_hash != expected_active_snapshot_hash
+    ):
+        raise ValueError("expected active runtime snapshot hash does not match")
     existing_values = (
         value_repository.list_for_profile(active.profile_id) if active is not None else []
     )
@@ -302,51 +517,14 @@ def activate_runtime_profile_patch(
 
     next_profile = RuntimeConfigProfile(
         profile_id=profile_id,
-        profile_key=active.profile_key if active is not None else normalized_environment,
-        environment=normalized_environment,
+        profile_key=active.profile_key if active is not None else environment,
+        environment=environment,
         version=active.version + 1 if active is not None else 1,
         based_on_profile=active.profile_id if active is not None else "",
-        created_by=normalized_actor,
+        created_by=actor,
         created_at=datetime.now(UTC),
     )
-    return activate_runtime_profile(
-        next_profile,
-        tuple(next_values),
-        actor=normalized_actor,
-        reason=normalized_reason,
-        release_ref=release_ref,
-    )
-
-
-def activate_runtime_profile_patch_payload(
-    *,
-    environment: str,
-    patch: Mapping[str, object],
-    secret_ref_patch: Mapping[str, str] | None = None,
-    bootstrap_values: Mapping[str, object] | None = None,
-    bootstrap_secret_refs: Mapping[str, str] | None = None,
-    actor: str,
-    reason: str,
-) -> dict[str, object]:
-    """Activate a typed patch and return non-secret revision evidence."""
-
-    profile, snapshot = activate_runtime_profile_patch(
-        environment=environment,
-        patch=patch,
-        secret_ref_patch=secret_ref_patch,
-        bootstrap_values=bootstrap_values,
-        bootstrap_secret_refs=bootstrap_secret_refs,
-        actor=actor,
-        reason=reason,
-    )
-    return {
-        "profile_id": profile.profile_id,
-        "profile_key": profile.profile_key,
-        "profile_version": profile.version,
-        "snapshot_id": snapshot.snapshot_id,
-        "snapshot_hash": snapshot.snapshot_hash,
-        "changed_keys": tuple(sorted(set(patch) | set(secret_ref_patch or {}))),
-    }
+    return active, next_profile, tuple(next_values), approved_snapshot
 
 
 def get_active_qlib_runtime_config(environment: str) -> dict[str, object] | None:

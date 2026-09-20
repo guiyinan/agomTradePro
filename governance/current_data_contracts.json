@@ -4877,6 +4877,84 @@
           "test_function": "test_repository_failure_is_redacted_from_payload_and_log"
         }
       ]
+    },
+    {
+      "id": "config_center.active_public_snapshot_integrity",
+      "surface": "Current runtime public values and governed secret references require the exact active profile and canonical public snapshot integrity; full profile identity remains separate",
+      "source_files": [
+        "apps/config_center/domain/runtime_config.py",
+        "apps/config_center/application/runtime_config.py",
+        "apps/config_center/application/runtime_public.py",
+        "apps/config_center/infrastructure/runtime_config_repositories.py",
+        "core/integration/system_audit_runtime_config.py"
+      ],
+      "required_markers": {
+        "apps/config_center/domain/runtime_config.py": [
+          "def project_public_runtime_values(",
+          "def hash_public_runtime_projection(",
+          "def hash_runtime_profile_values("
+        ],
+        "apps/config_center/application/runtime_public.py": [
+          "def _get_current_runtime_snapshot(",
+          "hash_public_runtime_projection(public_values)"
+        ],
+        "apps/config_center/application/runtime_config.py": [
+          "runtime config atomic activation is not configured",
+          "public_snapshot_hash",
+          "full_profile_hash"
+        ],
+        "apps/config_center/infrastructure/runtime_config_repositories.py": [
+          "class RuntimeConfigActivationUnitOfWork:",
+          "select_for_update()",
+          "runtime profile predecessor drifted"
+        ],
+        "core/integration/system_audit_runtime_config.py": [
+          "hash_public_runtime_projection(snapshot.resolved_values)",
+          "snapshot_hash_mismatch"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "full_and_public_hash_scopes_remain_distinct_without_secret_projection",
+          "test_file": "tests/unit/config_center/test_aud05_hash_scope_and_activation.py",
+          "test_function": "test_aud05_reproduces_full_profile_vs_public_snapshot_hash_mismatch_without_secret_values"
+        },
+        {
+          "case": "current_getter_fails_closed_on_public_snapshot_hash_drift",
+          "test_file": "tests/unit/config_center/test_aud05_hash_scope_and_activation.py",
+          "test_function": "test_public_getter_rejects_snapshot_hash_drift"
+        },
+        {
+          "case": "corrective_successor_rejects_in_place_and_superseded_fallback",
+          "test_file": "tests/unit/config_center/test_aud05_hash_scope_and_activation.py",
+          "test_function": "test_corrective_activation_requires_exact_new_successor_and_rejects_in_place_or_v13"
+        },
+        {
+          "case": "rollback_is_a_new_forward_identity",
+          "test_file": "tests/unit/config_center/test_aud05_hash_scope_and_activation.py",
+          "test_function": "test_rollback_publishes_fresh_successor_profile_and_value_ids"
+        },
+        {
+          "case": "bound_legacy_hash_correction_appends_successor",
+          "test_file": "tests/unit/config_center/test_aud05_hash_scope_and_activation.py",
+          "test_function": "test_hash_scope_correction_appends_successor_for_exact_legacy_snapshot"
+        },
+        {
+          "case": "failed_insert_restores_entire_predecessor_graph",
+          "test_file": "tests/component/config_center/test_aud05_atomic_activation.py",
+          "test_function": "test_activation_rolls_back_predecessor_and_all_rows_on_late_insert_failure"
+        },
+        {
+          "case": "postgres_bootstrap_has_one_environment_winner",
+          "test_file": "tests/component/config_center/test_aud05_atomic_activation.py",
+          "test_function": "test_postgresql_bootstrap_race_has_one_first_winner"
+        },
+        {
+          "case": "postgres_successor_has_one_environment_winner",
+          "test_file": "tests/component/config_center/test_aud05_atomic_activation.py",
+          "test_function": "test_postgresql_successor_race_has_one_first_winner"
+        }
+      ]
     }
   ]
 }

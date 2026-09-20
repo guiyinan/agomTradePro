@@ -1,14 +1,14 @@
 {
-  "version": "2026-09-20.v138",
-  "updated_at": "2026-09-20",
+  "version": "2026-09-21.v139",
+  "updated_at": "2026-09-21",
   "execution_focus": {
-    "unit_id": "AUD-05",
+    "unit_id": null,
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "AUD-05 remains the sole repository focus until its immutable corrective activation, public snapshot hash contract and evidence gates pass. The 2026-09-20 read-only checkpoint binds production source 439468482f457884db17da47d7566a5aac295842 / release 20260920184626. Active v17 already has a valid public snapshot and accepted Audit loader, but mode=off/outbox=false/no authority selector; do not repeat the historical v14 diagnosis as current. DATA-02 is the next production line after this repository prerequisite and an exact authorized audited batch preflight with real service identity/scope; the verified 2026-09-19 universe is now 5565, not historical 5533. EVID-01/02, AUD-03 and TAR-05 retain real input and acceptance gates. TUI-02 old candidate/window drift is confirmed; the old 2026-09-30 eligible instant is invalid until official rebind from a real first sample. No production exit is promoted. No database restore, business-data deletion, paid provider/model call or trade is authorized by this checkpoint. Evidence: docs/deployment/production-closure-baseline-revalidation-2026-09-20.json"
+    "policy": "AUD-05 repository closure is complete with source-bound evidence at docs/testing/aud05-repository-closure-2026-09-20.json. No active repository unit is hidden; the user-requested independent Research >=90% whole-Domain branch line will be registered separately before execution, preserving completed DATA-15 and its original floor. DATA-02 remains the next production line, blocked by genuine audited service identity/scope and financial provenance/four-publication reconciliation. EVID-01/02, AUD-03 and TAR-05 still need real inputs/acceptance. TUI-02 old candidate/window is invalid and current protected retained query returned HTTP 401; restore authenticated 200 and real sample before official rebind and 14 days. No production activation, deployment, provider request, restore, cleanup or trade follows from this repository completion."
   },
   "workstreams": [
     {
@@ -96,7 +96,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "DATA-02 remains awaiting_production after sole repository prerequisite AUD-05. Current 439468482 / 20260920184626 has v17 public hash valid and Audit loader accepted, but audit mode off/outbox false/authority selector absent. The verified 2026-09-19 evidence has a 5565-asset universe and three publications; financial provenance and four-publication reconciliation remain incomplete. Resume only with genuine service identity/account/tenant scope, exact candidate-bound audited preflight and authorized bounded batches. Keep source observations, frozen complete denominator and governed tolerances; no fabricated time, waiver, restore or bypass. Evidence: docs/deployment/production-closure-baseline-revalidation-2026-09-20.json; execution record: docs/reviews/production-closure-2026-09-20.md",
+      "next_gate": "AUD-05 repository prerequisite is completed; DATA-02 remains awaiting_production. Current 439468482 / 20260920184626 has v17 public hash valid and Audit loader accepted, but audit mode off/outbox false/authority selector absent. The verified 2026-09-19 evidence has a 5565-asset universe and three publications; financial provenance and four-publication reconciliation remain incomplete. Resume only with genuine service identity/account/tenant scope, exact candidate-bound audited preflight and authorized bounded batches. Keep source observations, frozen complete denominator and governed tolerances; no fabricated time, waiver, restore or bypass. AUD-05 repository evidence: docs/testing/aud05-repository-closure-2026-09-20.json. Evidence: docs/deployment/production-closure-baseline-revalidation-2026-09-20.json; execution record: docs/reviews/production-closure-2026-09-20.md",
       "documents": [
         {
           "path": "docs/plans/data02-provider-artifact-adoption-2026-09-14.md",
@@ -163,7 +163,7 @@
       "priority": "P0/P1",
       "owner": "audit+data_center+task_monitor",
       "status": "production_validation",
-      "next_gate": "AUD-01/02/04 and EVID-09 remain completed; AUD-05 still active pending repository tests and independent review. 2026-09-20 READ ONLY production v17 loader accepts its public hash; full profile/revision hash intentionally has a separate scope. Audit mode off/outbox false/no selector is the actual current production block. AUD-03 stays awaiting_production for real writer, backlog recovery, archive/restore, alerts, rollback and owner/reviewer acceptance. Historical v14 mismatch and old two-row backlog remain historical, not today's acceptance. Evidence: docs/deployment/production-closure-baseline-revalidation-2026-09-20.json; execution record: docs/reviews/production-closure-2026-09-20.md",
+      "next_gate": "AUD-01/02/04/05 and EVID-09 are repository-complete. AUD-05 has immutable atomic corrective activation and separate full/public hash contracts, verified locally with real isolated PostgreSQL; evidence: docs/testing/aud05-repository-closure-2026-09-20.json. Production read-only v17 already has valid public hash/Audit loader, but mode off/outbox false/no authority selector remains. AUD-03 stays awaiting_production for genuine writer, recovery, archive/restore, alert and owner/reviewer acceptance. No production profile or dispatch was changed.",
       "documents": [
         {
           "path": "docs/plans/system-audit-log-consolidation-plan-2026-08-13.md",
@@ -1277,13 +1277,13 @@
         "wave": 2,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Repair Config Center public snapshot hash scope",
         "depends_on": [
           "AUD-04",
           "EVID-09"
         ],
-        "exit_gate": "Failing-first tests reproduce the v14 full-profile versus persisted public-snapshot hash mismatch without exposing secret values. Config Center activation and Audit runtime loading share one explicit canonical public-projection hash contract; secret-bearing definitions remain available only through governed secret resolution and never enter public snapshots or logs. A fail-closed corrective-profile activation path creates a new immutable version, verifies predecessor/successor and rollback semantics, refuses in-place v14 edits and refuses fallback to superseded v13. Focused Config Center/Audit regressions, migration checks where applicable, incremental mypy/debt, formatting, architecture and governance gates pass. No production profile activation, outbox dispatch, DATA-02 provider fetch/backfill, database restore, business-data deletion, trade or paid call is inferred from repository completion."
+        "exit_gate": "Failing-first tests reproduce the v14 full-profile versus persisted public-snapshot hash mismatch without exposing secret values. Config Center activation and Audit runtime loading share one explicit canonical public-projection hash contract; secret-bearing definitions remain available only through governed secret resolution and never enter public snapshots or logs. A fail-closed corrective-profile activation path creates a new immutable version, verifies predecessor/successor and rollback semantics, refuses in-place v14 edits and refuses fallback to superseded v13. Focused Config Center/Audit regressions, migration checks where applicable, incremental mypy/debt, formatting, architecture and governance gates pass. No production profile activation, outbox dispatch, DATA-02 provider fetch/backfill, database restore, business-data deletion, trade or paid call is inferred from repository completion. Repository closure verified on 2026-09-21 (Asia/Shanghai): source-bound SQLite 154 passed/2 PostgreSQL-only skips, isolated PostgreSQL 8 passed/0 skips, runtime Domain lines 250/252 and branches 91/92, incremental/full mypy zero, migration drift none, actual 8-file/874-added-line architecture delta zero, current-data/governance pass. Ruff has zero new diagnostics with four unchanged UP042 notices retained; original red raw-log limitation and retrospective classification are explicit. Evidence: docs/testing/aud05-repository-closure-2026-09-20.json"
       }
     ]
   }

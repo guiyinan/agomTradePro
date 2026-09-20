@@ -27,7 +27,7 @@ governance consistency 各项 0 violations。空的本地 `agomtradepro` 目录�
 
 | 项目 | 本轮事实与下一步 | 未完成条件 |
 | --- | --- | --- |
-| T0 / AUD-05 | 核实 09-19 snapshot-only 修复已存在；补完整 public hash 合同、不可原地改写和原子 corrective activation 的失败回归 | 代码、事务回滚/漂移测试、类型/架构/治理检查及独立复核通过后才标记 completed |
+| T0 / AUD-05 | **completed**：分离 full/public hash，拒绝损坏公共快照，精确绑定旧记录、原子追加 successor，验证回滚历史 scope/hash；[源码绑定证据](../testing/aud05-repository-closure-2026-09-20.json) | 仅仓库收口；未部署或激活生产配置，未替代 AUD-03 生产验收 |
 | T1 / DATA-02 | 保留 v17 loader 有效但 audit off 的实际事实；先完成 AUD-05，再绑定真实服务身份/账户/租户与审计配置，形成精确候选和批次预检 | 本任务尚未收到长期服务身份及范围；财报原生披露/可用时间、四 Publication、逐字段容差对账未通过。不得伪造 identity 或放宽 1% failover 规则 |
 | T2 / EVID-01/02 | 可准备真实 owner/root/reviewer 输入，执行仍按上游和生产 envelope；历史零行/过期计数不冒充本轮盘点 | 新 current authority、真实审批与 PG 并发验收未收到；需主体及范围输入，不能以测试 fixture 替代 |
 | T3 / AUD-03 | loader 能接受 off 配置不构成 writer 验收 | writer、recovery、archive/restore、告警、owner/reviewer 签署仍缺，依赖未通过时不启动生产演练 |
@@ -57,3 +57,11 @@ superseded v13。失败保持旧 active 和完整历史；后续生产 action �
 
 使用已核实的当前 image/source 对只读 collector 作内存参数替换后，受保护的 HTTPS range query 实际返回 **401**；没有取得可接受的新首样本。凭据仅在 VPS 内使用，未回传或修改。
 因此还须恢复受保护查询的凭据/认证路径并得到真实 HTTP 200 样本，再执行官方绑定；不能以容器启动时间推算新的 14 日到期日。证据：`docs/deployment/production-closure-retained-source-denial-2026-09-20.json`。
+
+## AUD-05 仓库收口（2026-09-21 本地时间）
+
+SQLite 154 passed、2 个 PG-only tests skipped；独立 PostgreSQL 16.14 八项全部通过且无 skips。源码前后 SHA 一致。runtime Domain 行覆盖 250/252=99.2063%，分支 91/92=98.9130%；combined 99.1279%，三者不混用。
+
+增量 mypy 和全量债务门禁均 0，Black/isort 通过，Ruff 新增诊断 0（保留四条既有 UP042 Enum 提示）；migration check 无变更。架构检查实际覆盖 8 个改动生产文件和 874 新增行，boundary/audit 均 0；早先零文件对比已明确排除。63 current-data surfaces 和治理检查通过。
+
+初始 failing-first run 仅保留代理摘要，后补 raw baseline replay 如实标为 retrospective；没有伪造原始红灯日志或时间。PG 仅为本地隔离 Config Center 模型的事务/并发测试，不是生产 PG 或全应用 migration 验收。完整日志、JUnit、覆盖率、运行配方、失败尝试说明与独立复核已嵌入封存 JSON。

@@ -54,7 +54,7 @@ class _Profiles:
         return next(
             (
                 item
-                for item in self.saved
+                for item in reversed(self.saved)
                 if item.environment == environment and item.status is RuntimeProfileStatus.ACTIVE
             ),
             None,
@@ -88,6 +88,34 @@ class _Snapshots:
 
     def get_latest(self, profile_key: str):  # type: ignore[no-untyped-def]
         return self.saved[-1] if self.saved else None
+
+
+class _Activation:
+    """Explicit in-memory atomic adapter for application service tests."""
+
+    def __init__(self, profiles, values, revisions, snapshots) -> None:  # type: ignore[no-untyped-def]
+        self.profiles = profiles
+        self.values = values
+        self.revisions = revisions
+        self.snapshots = snapshots
+
+    def activate(
+        self,
+        *,
+        profile,
+        values,
+        revision,
+        snapshot,
+        expected_previous_profile,
+        expected_previous_snapshot,
+    ):  # type: ignore[no-untyped-def]
+        del expected_previous_profile, expected_previous_snapshot
+        saved_profile = self.profiles.save(profile)
+        for value in values:
+            self.values.save(value)
+        self.revisions.save(revision)
+        saved_snapshot = self.snapshots.save(snapshot)
+        return saved_profile, saved_snapshot
 
 
 class _Budget:
@@ -127,7 +155,15 @@ def test_runtime_profile_activation_produces_snapshot_hash() -> None:
     profiles = _Profiles()
     values = _Values()
     snapshots = _Snapshots()
-    service = RuntimeConfigService(definitions, profiles, values, _Revisions(), snapshots)
+    revisions = _Revisions()
+    service = RuntimeConfigService(
+        definitions,
+        profiles,
+        values,
+        revisions,
+        snapshots,
+        _Activation(profiles, values, revisions, snapshots),
+    )
     profile = RuntimeConfigProfile(
         profile_id=str(uuid4()),
         profile_key="production-90g",
@@ -171,7 +207,15 @@ def test_public_snapshot_hash_is_verifiable_without_exposing_secret_refs() -> No
         ]
     )
     profiles, values, snapshots = _Profiles(), _Values(), _Snapshots()
-    service = RuntimeConfigService(definitions, profiles, values, _Revisions(), snapshots)
+    revisions = _Revisions()
+    service = RuntimeConfigService(
+        definitions,
+        profiles,
+        values,
+        revisions,
+        snapshots,
+        _Activation(profiles, values, revisions, snapshots),
+    )
     results = []
     for version in [1, 2]:
         profile = RuntimeConfigProfile(
@@ -179,6 +223,7 @@ def test_public_snapshot_hash_is_verifiable_without_exposing_secret_refs() -> No
             profile_key="production",
             environment="production",
             version=version,
+            based_on_profile=(results[-1][0].profile_id if results else ""),
         )
         results.append(
             service.activate(
@@ -197,7 +242,7 @@ def test_public_snapshot_hash_is_verifiable_without_exposing_secret_refs() -> No
                 reason="secret rotation",
             )
         )
-    for profile, snapshot in results:
+    for _profile, snapshot in results:
         assert snapshot.resolved_values == {"audit.mode": "off"}
         assert snapshot.snapshot_hash == RuntimeConfigSnapshot.hash_values(snapshot.resolved_values)
         assert "secret://" not in str(snapshot)
@@ -250,7 +295,16 @@ def test_runtime_profile_rollback_advances_version() -> None:
     definitions = _Definitions([definition])
     profiles = _Profiles()
     values = _Values()
-    service = RuntimeConfigService(definitions, profiles, values, _Revisions(), _Snapshots())
+    revisions = _Revisions()
+    snapshots = _Snapshots()
+    service = RuntimeConfigService(
+        definitions,
+        profiles,
+        values,
+        revisions,
+        snapshots,
+        _Activation(profiles, values, revisions, snapshots),
+    )
     first = RuntimeConfigProfile(
         profile_id=str(uuid4()),
         profile_key="production",
@@ -266,9 +320,11 @@ def test_runtime_profile_rollback_advances_version() -> None:
     service.activate(first, (first_value,), actor="pytest", reason="initial")
     rollback_target = RuntimeConfigProfile(
         profile_id=str(uuid4()),
-        profile_key="production-previous",
+        profile_key="production",
         environment="production",
         version=1,
+        status=RuntimeProfileStatus.SUPERSEDED,
+        content_hash=RuntimeConfigSnapshot.hash_values({"storage.capacity.bytes": 512}),
         created_at=NOW,
     )
     rollback_value = RuntimeConfigValue(
@@ -276,6 +332,8 @@ def test_runtime_profile_rollback_advances_version() -> None:
         definition_key=definition.key,
         value_json=512,
     )
+    profiles.save(rollback_target)
+    values.save(rollback_value)
 
     rolled_back, _snapshot = service.rollback(
         rollback_target,

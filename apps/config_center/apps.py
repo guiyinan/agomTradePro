@@ -99,6 +99,7 @@ class ConfigCenterConfig(AppConfig):
             QlibTrainingRunRepository,
         )
         from apps.config_center.infrastructure.runtime_config_repositories import (
+            RuntimeConfigActivationUnitOfWork,
             RuntimeConfigDefinitionRepository,
             RuntimeConfigProfileRepository,
             RuntimeConfigRevisionRepository,
@@ -139,6 +140,7 @@ class ConfigCenterConfig(AppConfig):
             values=RuntimeConfigValueRepository(),
             revisions=RuntimeConfigRevisionRepository(),
             snapshots=RuntimeConfigSnapshotRepository(),
+            activation=RuntimeConfigActivationUnitOfWork(),
             storage_budget=StorageBudgetPolicyRepository(),
             capacity_observations=StorageCapacityObservationRepository(),
             capacity_observer=StorageCapacityObserver(),

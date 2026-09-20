@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
@@ -229,11 +230,48 @@ class RuntimeConfigSnapshot:
             raise ValueError("RuntimeConfigSnapshot.generated_at must be timezone-aware")
 
     @staticmethod
-    def hash_values(values: dict[str, Any]) -> str:
-        """Return a deterministic hash for a resolved, JSON-safe projection."""
+    def hash_values(values: Mapping[str, object]) -> str:
+        """Return the legacy name for the canonical full-value hash."""
 
-        serialized = json.dumps(values, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-        return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+        return hash_runtime_profile_values(values)
+
+    @staticmethod
+    def hash_public_values(values: Mapping[str, object]) -> str:
+        """Return the canonical hash for a persisted public projection."""
+
+        return hash_public_runtime_projection(values)
+
+
+def hash_runtime_profile_values(values: Mapping[str, object]) -> str:
+    """Hash all validated profile values, including stable secret references.
+
+    This is the profile/revision identity scope.  It must never be used for a
+    public snapshot because secret-bearing definitions are intentionally absent
+    from that snapshot.
+    """
+
+    serialized = json.dumps(values, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def project_public_runtime_values(
+    values: Mapping[str, object],
+    definitions: Mapping[str, RuntimeConfigDefinition],
+) -> dict[str, object]:
+    """Build the canonical non-secret projection persisted in runtime snapshots."""
+
+    unknown_keys = sorted(set(values) - set(definitions))
+    if unknown_keys:
+        raise ValueError(
+            "runtime public projection contains unknown definitions: " + ", ".join(unknown_keys)
+        )
+    return {key: value for key, value in values.items() if not definitions[key].secret}
+
+
+def hash_public_runtime_projection(values: Mapping[str, object]) -> str:
+    """Hash the exact public projection shared by Config Center and readers."""
+
+    return hash_runtime_profile_values(values)
 
 
 @dataclass(frozen=True)
@@ -329,6 +367,9 @@ class StorageCapacityObservation:
 
 
 __all__ = [
+    "hash_public_runtime_projection",
+    "hash_runtime_profile_values",
+    "project_public_runtime_values",
     "RuntimeConfigCriticality",
     "RuntimeConfigDefinition",
     "RuntimeConfigProfile",

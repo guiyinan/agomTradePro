@@ -6,9 +6,12 @@ import pytest
 
 from apps.config_center.application import runtime_public
 from apps.config_center.domain.runtime_config import (
+    RuntimeConfigDefinition,
     RuntimeConfigProfile,
     RuntimeConfigSnapshot,
     RuntimeProfileStatus,
+    RuntimeValueType,
+    hash_public_runtime_projection,
 )
 
 NOW = datetime(2026, 8, 3, 12, 0, tzinfo=UTC)
@@ -28,21 +31,44 @@ def _profile(*, version: int = 1) -> RuntimeConfigProfile:
 
 
 def _snapshot(*, profile_id: str = "profile-1", version: int = 1) -> RuntimeConfigSnapshot:
+    resolved_values = {"data_center.provider.failover_tolerance": 0.025}
     return RuntimeConfigSnapshot(
         snapshot_id="snapshot-1",
         profile_id=profile_id,
         profile_key="data-center-development",
         profile_version=version,
-        snapshot_hash="snapshot-hash",
-        resolved_values={"data_center.provider.failover_tolerance": 0.025},
+        snapshot_hash=hash_public_runtime_projection(resolved_values),
+        resolved_values=resolved_values,
         generated_at=NOW,
     )
+
+
+def _public_definition_repository() -> object:
+    """Provide the definition seam required for public snapshot verification."""
+
+    definition = RuntimeConfigDefinition(
+        key="data_center.provider.failover_tolerance",
+        namespace="data_center",
+        owner_app="data_center",
+        value_type=RuntimeValueType.PERCENTAGE,
+    )
+
+    class _Repository:
+        def list_all(self) -> list[RuntimeConfigDefinition]:
+            return [definition]
+
+    return _Repository()
 
 
 def test_active_runtime_value_requires_profile_snapshot_identity_match(monkeypatch) -> None:
     profile = _profile(version=2)
     snapshot = _snapshot(version=2)
     monkeypatch.setattr(runtime_public, "get_active_runtime_profile", lambda _environment: profile)
+    monkeypatch.setattr(
+        runtime_public,
+        "get_runtime_definition_repository",
+        _public_definition_repository,
+    )
     monkeypatch.setattr(
         runtime_public,
         "get_latest_runtime_snapshot",
@@ -70,6 +96,11 @@ def test_active_runtime_value_fails_closed_for_stale_snapshot(
     profile = _profile(version=2)
     snapshot = _snapshot(profile_id=snapshot_profile_id, version=snapshot_version)
     monkeypatch.setattr(runtime_public, "get_active_runtime_profile", lambda _environment: profile)
+    monkeypatch.setattr(
+        runtime_public,
+        "get_runtime_definition_repository",
+        _public_definition_repository,
+    )
     monkeypatch.setattr(
         runtime_public,
         "get_latest_runtime_snapshot",

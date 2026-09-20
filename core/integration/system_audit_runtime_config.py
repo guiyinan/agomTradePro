@@ -21,6 +21,7 @@ from apps.config_center.domain.runtime_config import (
     RuntimeConfigProfile,
     RuntimeConfigSnapshot,
     RuntimeProfileStatus,
+    hash_public_runtime_projection,
 )
 
 
@@ -131,7 +132,7 @@ def load_system_audit_runtime_config(*, environment: str) -> SystemAuditRuntimeC
             c not in "0123456789abcdef" for c in snapshot.snapshot_hash
         ):
             raise SystemAuditRuntimeConfigurationUnavailable("snapshot_hash_invalid")
-        if RuntimeConfigSnapshot.hash_values(snapshot.resolved_values) != snapshot.snapshot_hash:
+        if hash_public_runtime_projection(snapshot.resolved_values) != snapshot.snapshot_hash:
             raise SystemAuditRuntimeConfigurationUnavailable("snapshot_hash_mismatch")
         values = snapshot.resolved_values
         mode = values.get("audit.system_event.mode")

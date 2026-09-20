@@ -61,6 +61,12 @@ deadlock 回滚嵌套 savepoint 并明确失败，锁持有至父事务结束。
 
 ## 版本化登记内容
 
+AUD-05 的 `config_center.active_public_snapshot_integrity` 约束当前配置读取：公开值与 secret ref
+读取均须匹配 active profile 和有效的 canonical public snapshot hash，篡改/陈旧快照失败关闭，
+不能回退为 superseded v13。full profile/revision hash 继续绑定完整已验证配置（含 secret ref
+身份），public snapshot hash 仅覆盖公开投影；两者不得混用。配置 corrective activation 经
+原子写入端口创建新 successor；该配置完整性门不替代市场数据 freshness 或真实 authority 验收。
+
 每个当前数据面必须在 manifest 中登记：
 
 - `id`：稳定、唯一的契约标识；

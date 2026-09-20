@@ -9,6 +9,7 @@ from apps.config_center.application.capacity_profile import (
     StorageCapacityProfileService,
 )
 from apps.config_center.application.runtime_config import (
+    RuntimeConfigActivationRepositoryPort,
     RuntimeConfigDefinitionRepositoryPort,
     RuntimeConfigProfileRepositoryPort,
     RuntimeConfigRevisionRepositoryPort,
@@ -35,6 +36,7 @@ def configure_runtime_config_services(
     values: RuntimeConfigValueRepositoryPort,
     revisions: RuntimeConfigRevisionRepositoryPort,
     snapshots: RuntimeConfigSnapshotRepositoryPort,
+    activation: RuntimeConfigActivationRepositoryPort | None = None,
     storage_budget: StorageBudgetRepositoryPort,
     capacity_observations: StorageCapacityObservationRepositoryProtocol,
     capacity_observer: StorageCapacityObserverProtocol,
@@ -47,7 +49,14 @@ def configure_runtime_config_services(
     _runtime_definition_repository = definitions
     _runtime_profile_repository = profiles
     _runtime_value_repository = values
-    _runtime_service = RuntimeConfigService(definitions, profiles, values, revisions, snapshots)
+    _runtime_service = RuntimeConfigService(
+        definitions,
+        profiles,
+        values,
+        revisions,
+        snapshots,
+        activation,
+    )
     _storage_budget_service = StorageBudgetQueryService(storage_budget)
     _capacity_observation_service = StorageCapacityObservationService(capacity_observations)
     _capacity_profile_service = StorageCapacityProfileService(

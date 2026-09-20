@@ -15,6 +15,9 @@ from apps.config_center.domain.runtime_config import (
     RuntimeConfigValue,
     RuntimeProfileStatus,
     StorageBudgetPolicy,
+    hash_public_runtime_projection,
+    hash_runtime_profile_values,
+    project_public_runtime_values,
 )
 
 
@@ -60,6 +63,22 @@ class RuntimeConfigSnapshotRepositoryPort(Protocol):
     def get_latest(self, profile_key: str) -> RuntimeConfigSnapshot | None: ...
 
 
+class RuntimeConfigActivationRepositoryPort(Protocol):
+    """Atomic persistence port for one immutable profile successor."""
+
+    def activate(
+        self,
+        *,
+        profile: RuntimeConfigProfile,
+        values: tuple[RuntimeConfigValue, ...],
+        revision: RuntimeConfigRevision,
+        snapshot: RuntimeConfigSnapshot,
+        expected_previous_profile: RuntimeConfigProfile | None,
+        expected_previous_snapshot: RuntimeConfigSnapshot | None,
+    ) -> tuple[RuntimeConfigProfile, RuntimeConfigSnapshot]:
+        """Persist a successor and all evidence in one locked transaction."""
+
+
 class StorageBudgetRepositoryPort(Protocol):
     """Persistence port for the active storage policy."""
 
@@ -78,12 +97,14 @@ class RuntimeConfigService:
         values: RuntimeConfigValueRepositoryPort,
         revisions: RuntimeConfigRevisionRepositoryPort,
         snapshots: RuntimeConfigSnapshotRepositoryPort,
+        activation: RuntimeConfigActivationRepositoryPort | None = None,
     ) -> None:
         self._definitions = definitions
         self._profiles = profiles
         self._values = values
         self._revisions = revisions
         self._snapshots = snapshots
+        self._activation = activation
 
     def get_active_profile(self, environment: str) -> RuntimeConfigProfile | None:
         """Return the active typed profile for an environment."""
@@ -230,6 +251,8 @@ class RuntimeConfigService:
         actor: str,
         reason: str,
         release_ref: str = "",
+        legacy_correction: tuple[str, str] | None = None,
+        expected_previous_snapshot: RuntimeConfigSnapshot | None = None,
     ) -> tuple[RuntimeConfigProfile, RuntimeConfigSnapshot]:
         """Validate and atomically publish a profile plus resolved snapshot."""
 
@@ -237,6 +260,9 @@ class RuntimeConfigService:
             raise ValueError("Runtime profile environment is required")
         if any(value.profile_id != profile.profile_id for value in values):
             raise ValueError("Runtime profile value profile_id mismatch")
+        existing_profile = self._profiles.get(profile.profile_id)
+        if existing_profile is not None:
+            raise ValueError("runtime profile identities are immutable")
         preview = self.preview(profile, values)
         validation = {
             "valid": preview["valid"],
@@ -248,10 +274,6 @@ class RuntimeConfigService:
             raise ValueError("Runtime profile validation failed: " + "; ".join(errors))
         definitions = {item.key: item for item in self._definitions.list_all()}
         previous = self._profiles.get_active(profile.environment)
-        if previous is not None and profile.version <= previous.version:
-            raise ValueError(
-                f"Runtime profile version must advance beyond active version {previous.version}"
-            )
         supplied = {item.definition_key for item in values}
         missing_critical = [
             definition.key
@@ -268,24 +290,60 @@ class RuntimeConfigService:
             item.definition_key: item.secret_ref if item.secret_ref else item.value_json
             for item in values
         }
-        snapshot_hash = RuntimeConfigSnapshot.hash_values(resolved)
+        full_profile_hash = hash_runtime_profile_values(resolved)
+        public_projection = project_public_runtime_values(resolved, definitions)
+        public_snapshot_hash = hash_public_runtime_projection(public_projection)
+        if previous is None:
+            if profile.based_on_profile:
+                raise ValueError("runtime profile predecessor is unavailable")
+        else:
+            if profile.environment != previous.environment:
+                raise ValueError("runtime profile environment cannot change across successors")
+            if profile.profile_key != previous.profile_key:
+                raise ValueError("runtime profile key cannot change across successors")
+            if profile.version != previous.version + 1:
+                raise ValueError("runtime profile successor version must be exact")
+            if profile.based_on_profile != previous.profile_id:
+                raise ValueError("runtime profile predecessor does not match active profile")
+        previous_snapshot = (
+            expected_previous_snapshot
+            if expected_previous_snapshot is not None
+            else (
+                self._snapshots.get_latest(previous.profile_key) if previous is not None else None
+            )
+        )
+        if previous is not None:
+            if previous_snapshot is None or (
+                previous_snapshot.profile_id,
+                previous_snapshot.profile_version,
+            ) != (previous.profile_id, previous.version):
+                raise ValueError("active runtime profile snapshot is unavailable or invalid")
+            legacy_correction_matches = (
+                legacy_correction is not None
+                and previous.content_hash == legacy_correction[0]
+                and previous_snapshot.snapshot_hash == legacy_correction[1]
+            )
+            if legacy_correction is not None and not legacy_correction_matches:
+                raise ValueError("legacy correction envelope does not match active profile")
+            if not legacy_correction_matches and (
+                hash_public_runtime_projection(previous_snapshot.resolved_values)
+                != previous_snapshot.snapshot_hash
+            ):
+                raise ValueError("active runtime profile snapshot is unavailable or invalid")
         active_profile = replace(
             profile,
             status=RuntimeProfileStatus.ACTIVE,
-            content_hash=snapshot_hash,
+            content_hash=full_profile_hash,
             activated_by=actor,
             activated_at=datetime.now(UTC),
             change_reason=reason,
             release_ref=release_ref,
         )
-        saved_profile = self._profiles.save(active_profile)
-        for value in values:
-            self._values.save(value)
         revision = RuntimeConfigRevision(
             revision_id=str(uuid4()),
             profile_id=profile.profile_id,
             before_hash=previous.content_hash if previous is not None else "",
-            after_hash=snapshot_hash,
+            after_hash=full_profile_hash,
             changed_keys=tuple(sorted(resolved)),
             before_projection=(
                 {
@@ -297,30 +355,38 @@ class RuntimeConfigService:
                 if previous is not None
                 else {}
             ),
-            after_projection={
-                key: value for key, value in resolved.items() if not definitions[key].secret
-            },
+            after_projection=public_projection,
             actor=actor,
             reason=reason,
             release_ref=release_ref,
+            validation_evidence={
+                "hash_contract": "runtime-public-projection-v1",
+                "full_profile_hash": full_profile_hash,
+                "public_projection_hash": public_snapshot_hash,
+                "predecessor_profile_id": previous.profile_id if previous is not None else None,
+                "successor_profile_id": active_profile.profile_id,
+            },
         )
-        self._revisions.save(revision)
         snapshot = RuntimeConfigSnapshot(
             snapshot_id=str(uuid4()),
-            profile_id=saved_profile.profile_id,
-            profile_key=saved_profile.profile_key,
-            profile_version=saved_profile.version,
-            snapshot_hash=RuntimeConfigSnapshot.hash_values(
-                {key: value for key, value in resolved.items() if not definitions[key].secret}
-            ),
-            resolved_values={
-                key: value for key, value in resolved.items() if not definitions[key].secret
-            },
-            effective_from=saved_profile.activated_at,
+            profile_id=active_profile.profile_id,
+            profile_key=active_profile.profile_key,
+            profile_version=active_profile.version,
+            snapshot_hash=public_snapshot_hash,
+            resolved_values=public_projection,
+            effective_from=active_profile.activated_at,
             validation_report={"valid": True, "validated": validation["validated"]},
         )
-        saved_snapshot = self._snapshots.save(snapshot)
-        return saved_profile, saved_snapshot
+        if self._activation is None:
+            raise RuntimeError("runtime config atomic activation is not configured")
+        return self._activation.activate(
+            profile=active_profile,
+            values=values,
+            revision=revision,
+            snapshot=snapshot,
+            expected_previous_profile=previous,
+            expected_previous_snapshot=previous_snapshot,
+        )
 
     def rollback(
         self,
@@ -334,15 +400,55 @@ class RuntimeConfigService:
         """Activate a previously validated profile as a new forward revision."""
 
         active = self._profiles.get_active(profile.environment)
-        next_version = max(profile.version, (active.version + 1) if active is not None else 1)
+        if active is None:
+            raise ValueError("cannot rollback without an active runtime profile")
+        source = self._profiles.get(profile.profile_id)
+        if source is None or source.status is not RuntimeProfileStatus.SUPERSEDED:
+            raise ValueError("rollback source profile is unavailable or not superseded")
+        if (
+            source.profile_key,
+            source.environment,
+            source.version,
+            source.content_hash,
+        ) != (
+            profile.profile_key,
+            profile.environment,
+            profile.version,
+            profile.content_hash,
+        ):
+            raise ValueError("rollback source profile identity drifted")
+        if source.profile_key != active.profile_key or source.environment != active.environment:
+            raise ValueError("rollback source profile scope mismatch")
+        if any(value.profile_id != source.profile_id for value in values):
+            raise ValueError("rollback source value profile_id mismatch")
+        source_values = {
+            value.definition_key: value.secret_ref if value.secret_ref else value.value_json
+            for value in values
+        }
+        if hash_runtime_profile_values(source_values) != source.content_hash:
+            raise ValueError("rollback source profile hash mismatch")
+        next_profile_id = str(uuid4())
         target = replace(
-            profile,
-            version=next_version,
-            based_on_profile=active.profile_id if active is not None else profile.based_on_profile,
+            source,
+            profile_id=next_profile_id,
+            profile_key=active.profile_key,
+            environment=active.environment,
+            version=active.version + 1,
+            based_on_profile=active.profile_id,
             status=RuntimeProfileStatus.DRAFT,
+            content_hash="",
+            activated_by="",
             activated_at=None,
+            created_at=datetime.now(UTC),
         )
-        return self.activate(target, values, actor=actor, reason=reason, release_ref=release_ref)
+        target_values = tuple(replace(value, profile_id=next_profile_id) for value in values)
+        return self.activate(
+            target,
+            target_values,
+            actor=actor,
+            reason=reason,
+            release_ref=release_ref,
+        )
 
 
 class StorageBudgetQueryService:
@@ -367,6 +473,7 @@ class StorageBudgetQueryService:
 
 __all__ = [
     "RuntimeConfigDefinitionRepositoryPort",
+    "RuntimeConfigActivationRepositoryPort",
     "RuntimeConfigProfileRepositoryPort",
     "RuntimeConfigRevisionRepositoryPort",
     "RuntimeConfigService",

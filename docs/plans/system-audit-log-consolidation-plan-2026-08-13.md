@@ -1819,3 +1819,37 @@ Config Center secret/public hash 合同修复与失败先行回归，再以受�
 profile 晋级重验 loader；随后才考虑 writer smoke、recovery、archive/restore、
 rollback 和真实单一 owner 终审。本次没有配置 mutation、dispatch、fault、
 migration、archive、restore 或生产数据写入；EVID-09 保持唯一仓库焦点。
+
+
+## 2026-09-20 基线：AUD-05 不可变纠正路径
+
+本轮生产只读核验已确认 v17 的 public snapshot 哈希有效，Audit loader 接受；当前实际阻断为
+mode=off、outbox=false 和缺少真实 authority selector。09-15 的 v14 错误仅保留为历史回归案例，
+不能再当作当前生产诊断。完整事实见 [生产收口执行记录](../reviews/production-closure-2026-09-20.md)。
+
+仓库合同保留两种不同范围：profile/revision 的 full hash 绑定全部经过校验的值及 secret refs；
+snapshot 的 public hash 仅绑定非 secret 投影。secret 轮换会改变 full hash，而没有公开配置变化时
+public hash 可以保持不变。公共读路径拒绝错误哈希、错配版本和混入 secret 的快照，不回退旧版本。
+
+`activate_runtime_profile_corrective` 默认执行只读 dry-run。输入为已审阅的 patch JSON 和真实
+actor/reason；需要执行时必须显式提供 `--execute`，并同时给出 `--expected-profile-id`、
+`--expected-profile-version`、`--expected-profile-hash` 和 `--expected-snapshot-hash`。
+最后两者分别是旧 active profile 的完整哈希和旧 snapshot **实际存储**的哈希；不能把重新计算的
+public hash 冒充历史快照的存储哈希。检查结果本身不构成业务 owner/authority 批准。
+
+纠正执行复用已登记的 definition catalog，不在 profile 事务外 reconcile；普通 bootstrap 的显式
+reconcile 行为保留。新 successor 必须同环境、同 profile_key、version 恰好加一，绑定旧 active
+identity 与已读取的 snapshot identity/hash/payload；PostgreSQL 按 environment 串行化首次激活，
+并在同一事务中锁定旧 profile/snapshot、追加 profile/value/revision/snapshot，失败保持旧状态。
+旧快照 hash-scope 错误只有在精确绑定的纠正路径才能以新版本修复，不允许原地编辑。
+
+rollback 读取真实已登记的 superseded source，核对 scope 和完整内容哈希，随后生成新的 profile
+和 values 身份；它不把旧记录重新设为 active。仓库和隔离 PostgreSQL 检查仍与 AUD-03 的真实
+writer/recovery/archive/告警验收分别记账。本轮没有生产配置激活、outbox dispatch 或部署。
+
+
+### 2026-09-21：AUD-05 repository exit
+
+AUD-05 已完成并释放唯一仓库焦点；[完整源码绑定证据](../testing/aud05-repository-closure-2026-09-20.json)记录 SQLite 154 passed/2 PG-only skips、独立 PostgreSQL 8 passed、双 mypy 0、实际架构差异与治理检查。runtime Domain 行覆盖 99.2063%、分支 98.9130%；保留四条既有 Ruff UP042 提示，新增诊断为零。初始红灯原始日志不足和 retrospective 回放分类已明确，不冒充生产验收。
+
+生产 v17 的 hash/loader 已有效，但 audit off/outbox false/真实 authority 缺失仍阻断 DATA-02/AUD-03；生产写入、部署、回填、owner 审批与时间观察没有连带完成。独立 Research ≥90% 分支测试线需另行登记，不能重开已 completed 的 DATA-15 或改低原验收线。

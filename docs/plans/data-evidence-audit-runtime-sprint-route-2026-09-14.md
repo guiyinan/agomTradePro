@@ -159,3 +159,10 @@ Research 4310/5032 是历史全量分支基线，AUD-05 释放后才能另起测
 
 [脱敏实读封存](../deployment/production-closure-baseline-revalidation-2026-09-20.json)与
 [分项恢复条件](../reviews/production-closure-2026-09-20.md)保留本轮范围、无生产写入事实和未验收风险。
+
+
+### 2026-09-21：AUD-05 repository exit
+
+AUD-05 已完成并释放唯一仓库焦点；[完整源码绑定证据](../testing/aud05-repository-closure-2026-09-20.json)记录 SQLite 154 passed/2 PG-only skips、独立 PostgreSQL 8 passed、双 mypy 0、实际架构差异与治理检查。runtime Domain 行覆盖 99.2063%、分支 98.9130%；保留四条既有 Ruff UP042 提示，新增诊断为零。初始红灯原始日志不足和 retrospective 回放分类已明确，不冒充生产验收。
+
+生产 v17 的 hash/loader 已有效，但 audit off/outbox false/真实 authority 缺失仍阻断 DATA-02/AUD-03；生产写入、部署、回填、owner 审批与时间观察没有连带完成。独立 Research ≥90% 分支测试线需另行登记，不能重开已 completed 的 DATA-15 或改低原验收线。

@@ -1,5 +1,10 @@
 # 活跃计划索引
 
+> 2026-09-21：AUD-05 已由 active → completed，[源码绑定封存](../testing/aud05-repository-closure-2026-09-20.json)
+> 记录 SQLite 154 passed/2 PG-only skips、隔离 PostgreSQL 8 passed、双 mypy 0 和实际架构差异 0 违规。
+> 此次只完成仓库前置；生产数据/真实主体/运营演练未晋级。Research ≥90% 分支覆盖率将另起有界主线，
+> 不重开已完成的 DATA-15。TUI 旧窗口失效，当前认证查询 401，仍保持 DENY。下列日期内容保留为历史。
+
 > 2026-09-20 当前基线重验：[封存证据](../deployment/production-closure-baseline-revalidation-2026-09-20.json)
 > 绑定实际生产 `439468482` / `20260920184626`，health/ready=200、decision-ready=503。
 > v17 public snapshot 哈希和 Audit loader 已通过，但 audit off/outbox false/selector 缺失仍阻断发布。
