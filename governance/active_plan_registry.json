@@ -1,14 +1,14 @@
 {
-  "version": "2026-09-21.v140",
+  "version": "2026-09-21.v141",
   "updated_at": "2026-09-21",
   "execution_focus": {
-    "unit_id": "DATA-17",
+    "unit_id": null,
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "DATA-17 is the sole repository focus after AUD-05 closure at dea925d83. It is the independent user-requested T7 whole Research Domain >=90% branch coverage test-only line; DATA-15 remains completed under its original floor. No Research production source changes or coverage exclusions are authorized by this test scope. DATA-02 is still the next production line with real identity/provenance gates; EVID-01/02, AUD-03, STRAT, TUI-02 and TAR-05 exits do not follow from local test coverage. Preserve verified production v17/off/selector facts, current retained query 401 and no valid inherited Sep30 window."
+    "policy": "AUD-05 and DATA-17 repository closure are completed with durable source-bound evidence. No active repository unit is hidden. DATA-02 remains the next production line, pending genuine audited service identity/account/tenant scope and financial provenance/four-Publication reconciliation. EVID-01/02 and AUD-03 require real authority and production acceptance; STRAT-01 requires actual frozen scope membership/canonical dry-run and registration. TAR-05 remains blocked_external until independent staging inputs exist, and production inline concurrency stays 1. TUI-02 old candidate/window is invalid and protected retained query returned 401; obtain authenticated 200 and a real sample before official rebind and 14 days. No production activation, deployment, backfill, approval, cleanup or trade follows from test closure. DATA-17 evidence: docs/testing/research-domain-90-closure-2026-09-21.json"
   },
   "workstreams": [
     {
@@ -96,7 +96,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "Repository focus DATA-17 now measures and raises the independent whole Research Domain branch floor to >=90%, with unchanged production sources and no historical slice summation. AUD-05 repository prerequisite is completed; DATA-02 remains awaiting_production. Current 439468482 / 20260920184626 has v17 public hash valid and Audit loader accepted, but audit mode off/outbox false/authority selector absent. The verified 2026-09-19 evidence has a 5565-asset universe and three publications; financial provenance and four-publication reconciliation remain incomplete. Resume only with genuine service identity/account/tenant scope, exact candidate-bound audited preflight and authorized bounded batches. Keep source observations, frozen complete denominator and governed tolerances; no fabricated time, waiver, restore or bypass. AUD-05 repository evidence: docs/testing/aud05-repository-closure-2026-09-20.json. Evidence: docs/deployment/production-closure-baseline-revalidation-2026-09-20.json; execution record: docs/reviews/production-closure-2026-09-20.md",
+      "next_gate": "DATA-17 whole Research Domain test closure completed: 4576/5032=90.9380% branches; 13083/13546=96.5820% lines; 1158 passed, no skips. Evidence: docs/testing/research-domain-90-closure-2026-09-21.json. No production sources changed or historical slice gains summed. AUD-05 repository prerequisite is completed; DATA-02 remains awaiting_production. Current 439468482 / 20260920184626 has v17 public hash valid and Audit loader accepted, but audit mode off/outbox false/authority selector absent. The verified 2026-09-19 evidence has a 5565-asset universe and three publications; financial provenance and four-publication reconciliation remain incomplete. Resume only with genuine service identity/account/tenant scope, exact candidate-bound audited preflight and authorized bounded batches. Keep source observations, frozen complete denominator and governed tolerances; no fabricated time, waiver, restore or bypass. AUD-05 repository evidence: docs/testing/aud05-repository-closure-2026-09-20.json. Evidence: docs/deployment/production-closure-baseline-revalidation-2026-09-20.json; execution record: docs/reviews/production-closure-2026-09-20.md",
       "documents": [
         {
           "path": "docs/plans/data02-provider-artifact-adoption-2026-09-14.md",
@@ -1291,13 +1291,13 @@
         "wave": 3,
         "priority": "P2",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Raise whole Research Domain behavioral branch coverage to at least 90 percent",
         "depends_on": [
           "AUD-05",
           "DATA-15"
         ],
-        "exit_gate": "The full tests/unit/research scope has source-bound before/after measurements against unchanged apps/research/domain source, with branch coverage >=90% and line coverage >=90%. Add meaningful behavioral boundary tests, including R7 monitoring/contracts slices as indicated by actual gaps; never shrink the denominator, add coverage exclusions, weaken existing assertions, or sum historical slice gains. Test-only changes, full local regression, formatting, governance and independent review pass with durable raw coverage/JUnit/log evidence. Do not reopen completed DATA-15 or claim PostgreSQL, vendor, strategy registration or production acceptance."
+        "exit_gate": "The full tests/unit/research scope has source-bound before/after measurements against unchanged apps/research/domain source, with branch coverage >=90% and line coverage >=90%. Add meaningful behavioral boundary tests, including R7 monitoring/contracts slices as indicated by actual gaps; never shrink the denominator, add coverage exclusions, weaken existing assertions, or sum historical slice gains. Test-only changes, full local regression, formatting, governance and independent review pass with durable raw coverage/JUnit/log evidence. Do not reopen completed DATA-15 or claim PostgreSQL, vendor, strategy registration or production acceptance. Verified 2026-09-21: 4576/5032=90.9380% branches; 13083/13546=96.5820% lines; 1158 passed, no skips; baseline 4310/5032 branches and 1060 tests; unchanged 63 Domain files and original 130 test files, denominator 5032 and two existing exclusions unchanged. Evidence: docs/testing/research-domain-90-closure-2026-09-21.json"
       }
     ]
   }

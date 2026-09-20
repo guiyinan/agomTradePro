@@ -184,3 +184,20 @@ AUD-05 在 `dea925d83` 完成后，本条独立测试主线成为唯一 reposito
   独立计算，格式和治理检查、独立复核通过；持久封存后 DATA-17 才能 completed。
 - 风险/回滚：局部测试增益不足时继续按真实缺口补齐；本分支只涉及测试/文档，回滚点是 AUD-05
   closure commit。此结果不证明真实 PIT/OOS、生产 PostgreSQL、provider 或交易验收。
+
+
+### 2026-09-21：DATA-17 completed
+
+完整同源 before 为 1060 passed、分支 4310/5032=85.6518%、行 12814/13546=94.5962%；
+after 为 1158 passed（0 failed/error/skipped）、分支 4576/5032=90.9380%、
+行 13083/13546=96.5820%。新增覆盖 266 条分支；不是历史切片百分比相加。
+
+新增三份 R4、R7、状态/场景行为测试；63 个 Domain 文件和原有 130 个测试文件保持原样，
+分母与两个已有排除行未变。公开构造/恢复入口验证拒绝理由、时点、绑定和合法状态转移，
+独立交叉复核通过；Black/isort/Ruff、current-data 与治理门禁均通过。
+原首轮 after 因导入格式冲突主动终止，原记录作为 excluded 保存；正式结果来自修正后冻结源码的完整复测。
+
+[封存清单](../testing/research-domain-90-closure-2026-09-21.json)与
+[原始证据包](../testing/research-domain-90-closure-2026-09-21-raw.zip)保存日志、JUnit、coverage JSON、
+源码绑定、复核及门禁。DATA-17 active → completed，释放唯一 repository focus；DATA-15 状态不变。
+本地 SQLite 单元结果不等于 Nightly、生产 PostgreSQL、供应商、PIT/OOS 或生产登记验收；未修改生产 Python。

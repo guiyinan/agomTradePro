@@ -1,0 +1,700 @@
+{
+  "schema": "research-domain-90-repository-closure.v1",
+  "sealed_at_utc": "2026-09-20T17:04:42.981139+00:00",
+  "unit_id": "DATA-17",
+  "outcome": "completed",
+  "git_head_before_closure_commit": "0b1c922e79d793d26b8bd6a8dca36a90c73d5492",
+  "scope": "Full tests/unit/research against unchanged apps/research/domain; local SQLite only",
+  "measurement_runtime": {
+    "python_version": "3.13.5",
+    "coverage_version": "7.10.7",
+    "coverage_format": 3
+  },
+  "before": {
+    "coverage": {
+      "covered_lines": 12814,
+      "num_statements": 13546,
+      "percent_covered": 92.17353859403596,
+      "percent_covered_display": "92.2",
+      "missing_lines": 732,
+      "excluded_lines": 2,
+      "num_branches": 5032,
+      "num_partial_branches": 718,
+      "covered_branches": 4310,
+      "missing_branches": 722,
+      "line_percent": 94.59619075741917,
+      "branch_percent": 85.65182829888712
+    },
+    "junit": {
+      "tests": 1060,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "elapsed_seconds": 258.989
+  },
+  "after": {
+    "coverage": {
+      "covered_lines": 13083,
+      "num_statements": 13546,
+      "percent_covered": 95.05328883625793,
+      "percent_covered_display": "95.1",
+      "missing_lines": 463,
+      "excluded_lines": 2,
+      "num_branches": 5032,
+      "num_partial_branches": 454,
+      "covered_branches": 4576,
+      "missing_branches": 456,
+      "line_percent": 96.58201683153699,
+      "branch_percent": 90.93799682034977
+    },
+    "junit": {
+      "tests": 1158,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "elapsed_seconds": 209.377
+  },
+  "new_covered_branches": 266,
+  "domain_sources": {
+    "apps/research/domain/__init__.py": {
+      "bytes": 148,
+      "raw_sha256": "b4568677b7442dde181c3f5542f4c80da32701e6f8d8e404eab4892b0666ef9f",
+      "canonical_lf_sha256": "067b4e894417ae202909134da5118d06b4aa77ae2e5b0dad70206525d20f50f7"
+    },
+    "apps/research/domain/advanced_state_model.py": {
+      "bytes": 45144,
+      "raw_sha256": "ba457a225177374ffc16b44e7b9b2309bb1b3167ed5c0257b35c02801491e0d2",
+      "canonical_lf_sha256": "80e30efc8346677d5ac74a25a8f75a6354c9e3b6140cb2c090bc4c6b50e1dc63"
+    },
+    "apps/research/domain/capability_readiness.py": {
+      "bytes": 21389,
+      "raw_sha256": "6b7bb34f70665f8b52b6342ecb3210e41ee9ded077d273c89436e9653ea822a5",
+      "canonical_lf_sha256": "d60ce21d7f26bf64fc5267de130b84e717fac9b73318cb4253dca0c4f2f0b63f"
+    },
+    "apps/research/domain/contracts.py": {
+      "bytes": 3539,
+      "raw_sha256": "f627d6458c7dc9e33253d83ba4db538a08417516f0a2e6b354a7db063b321ae7",
+      "canonical_lf_sha256": "bf6468f1d9a462df463ce2524192a69b00b04fa1fc4036cd5bdbdae0462387e4"
+    },
+    "apps/research/domain/evidence_contracts.py": {
+      "bytes": 31788,
+      "raw_sha256": "9040011fe5da82d540975c4275a20131b6476d78d3936e6382b07cd6a16a935d",
+      "canonical_lf_sha256": "a4e5818399915c249db4fa5feba564784a0f3c42354e3943169a34504e8b8a1c"
+    },
+    "apps/research/domain/evidence_operator_spec_lifecycle.py": {
+      "bytes": 13219,
+      "raw_sha256": "341a7b8527930c9ec329b50a7f2352b334fa963db6b0cdd3e7a7a38d0f265890",
+      "canonical_lf_sha256": "65150171ae87f6a46d016c8d5c18cfbba71d00640c3040c3445ddd7a5bbaeab7"
+    },
+    "apps/research/domain/evidence_scope_source_v1.py": {
+      "bytes": 13670,
+      "raw_sha256": "16292dbcd3a1bc719ccfe501827d416aa299508d756c27627a61eb9c24e6b2a7",
+      "canonical_lf_sha256": "16292dbcd3a1bc719ccfe501827d416aa299508d756c27627a61eb9c24e6b2a7"
+    },
+    "apps/research/domain/r1_forecast_promotion.py": {
+      "bytes": 406,
+      "raw_sha256": "1d9cc9a3f6dfb920b9519b77146ab0c07e70d0faa866d751ac08bad89b313779",
+      "canonical_lf_sha256": "46e4426deb3600ff8dba860fa9a92c446c8fd18882be5b5e125db1ac63b17df9"
+    },
+    "apps/research/domain/r1_forecast_promotion_decision.py": {
+      "bytes": 43012,
+      "raw_sha256": "901591e94ffafd3a9baacfe8a6ea7eda0b3e7926c57262f8d0737d2f7852a0ef",
+      "canonical_lf_sha256": "65cf46292c931de5b824edb2fec8689da41c1e15037a24c545605854387dec4f"
+    },
+    "apps/research/domain/r1_forecast_promotion_decision_hashing.py": {
+      "bytes": 12396,
+      "raw_sha256": "68a345b83d5b8ac7ac7e6c77fa34842f80ce1ad23431175a9a578193f706b3ea",
+      "canonical_lf_sha256": "21e37be19cc3c9a1fb3ba4be3de31f08fa49ac39ab40a289a85e54742dc21ebb"
+    },
+    "apps/research/domain/r1_forecast_promotion_lifecycle.py": {
+      "bytes": 28537,
+      "raw_sha256": "ff781ff274f8291e3bab28b79d0f02e2bf378918fbcc6389ff77ed4872ba244b",
+      "canonical_lf_sha256": "d7bceb5a0a53be6987ae2cd956744c9610a303d3924bde25d050f6a926c0d52c"
+    },
+    "apps/research/domain/r1_forecast_trial_evidence.py": {
+      "bytes": 15145,
+      "raw_sha256": "19b3daff6dce098e618fce904dda8297269caee547eb288df4bbe7b8fb2bd619",
+      "canonical_lf_sha256": "502de68811d942e39450622d9e6a4e752840779d3b461c76aa767505f6abef81"
+    },
+    "apps/research/domain/r2_market_structure_promotion.py": {
+      "bytes": 45060,
+      "raw_sha256": "e06de8ad7a2a1b3fa479ebeff9f714da6938cc6be2f2a73ec421f289c126c78b",
+      "canonical_lf_sha256": "2bc0973b8cea494c4efab48ba36b42c57276b2ad0d975fecd1ac8b8544d49c33"
+    },
+    "apps/research/domain/r2_market_structure_trial_contracts.py": {
+      "bytes": 45940,
+      "raw_sha256": "bae30eb1cfe46b684e9680bdc60cd4a82e9bcfdb637585354c342394647e3a45",
+      "canonical_lf_sha256": "41d25df7681ba47ee55ceae8f63d703b8408f4ed6f0bb9d146ef07772252f04f"
+    },
+    "apps/research/domain/r2_market_structure_trial_evaluation.py": {
+      "bytes": 53068,
+      "raw_sha256": "a7b839b3aae95092173b98c8904605dbe0ab57a842b9ff20a8ecc4347acfa499",
+      "canonical_lf_sha256": "ad3d66d4ac78821f6733b68d6a667789931a3c8677637c342d933bbbb8327beb"
+    },
+    "apps/research/domain/r2_market_structure_trial_monitoring.py": {
+      "bytes": 2908,
+      "raw_sha256": "a69498909ad3dd5ed027ca0d32179f0aec9913da8f2a619c00dc6798d2063a27",
+      "canonical_lf_sha256": "8aaeaf8b5421763767b2188572c0e7cf2d941021a1487327f192f2fe8a0bd829"
+    },
+    "apps/research/domain/r2_market_structure_trial_policy_registry.py": {
+      "bytes": 4074,
+      "raw_sha256": "acf911db4fd022381fbd96e373a5cd4e09969b03dac99ea9197987fde40fe772",
+      "canonical_lf_sha256": "5c95ef11cf357a0393bccae5ee70dd2f9648a61667c7748b8a934af393767723"
+    },
+    "apps/research/domain/r3_macro_factor_runner_spec.py": {
+      "bytes": 4702,
+      "raw_sha256": "526c1c0735a430f387b6f4da9474024ca94b6fb27d93079ac799862ad4aef32e",
+      "canonical_lf_sha256": "4f199cfcdeb445be51188ec9d021fc92f213efe2b1a6acc11d677872089a7ade"
+    },
+    "apps/research/domain/r4_promotion_decision.py": {
+      "bytes": 23053,
+      "raw_sha256": "02bb3be6d834aabb33703d935dbd7b09630a13450521b7e19f6c110e371667a3",
+      "canonical_lf_sha256": "b887151b0a1251ce248bd081ed83458d19589c1ce4d2a8226642a72148c26e13"
+    },
+    "apps/research/domain/r4_promotion_evidence.py": {
+      "bytes": 20125,
+      "raw_sha256": "9d9672a4ad897c7f17e7c49f12020fcb9bbebe1c3f9b2251fb9fba271dc136ea",
+      "canonical_lf_sha256": "dcf798555267508d508bcb3123448b93ecef85a74ed1e12654f73a40deb9d276"
+    },
+    "apps/research/domain/r4_promotion_lifecycle.py": {
+      "bytes": 26642,
+      "raw_sha256": "5b39f8cb119a2b1a06c74a91c3c08b3bd1c81f7e365fe21c63d65f9865434038",
+      "canonical_lf_sha256": "7cbcae81c6c48f2ec106ae0c524c9f194ac7bb153d726088d9ca6fa4f72cbf30"
+    },
+    "apps/research/domain/r4_promotion_monitoring.py": {
+      "bytes": 36749,
+      "raw_sha256": "752d8a1b81f5256cd84760280234729b8045fce1dc5086e57dffb2f8ac9a6cdd",
+      "canonical_lf_sha256": "a8efa3ebe65a7b81da579ae269742666a1f456b1a18fe86b0e8a4a687949a4a8"
+    },
+    "apps/research/domain/r4_promotion_monitoring_contracts.py": {
+      "bytes": 29737,
+      "raw_sha256": "d01db3ac8a258b07cf880945da6a2d045ae156a30cc70d2e3eb713e3a4790b14",
+      "canonical_lf_sha256": "0a486823a62e6beaa42ddc7ed5a1c11c99e22f1831fe85595ef0bb509dbe75bf"
+    },
+    "apps/research/domain/r4_promotion_monitoring_owner_registry.py": {
+      "bytes": 13115,
+      "raw_sha256": "72265a8c55207a14651f2448ca427b71c93c2103b1212c233e86e1dc253e121b",
+      "canonical_lf_sha256": "602e304a94c2c929665acfddc9346f42c40488d333fe15022291f3abfd2f2b20"
+    },
+    "apps/research/domain/r4_promotion_record_seal.py": {
+      "bytes": 13086,
+      "raw_sha256": "fd0d1a6056102b1b320da1b924a666161705e7a5568b05de818bca7ea25e7d89",
+      "canonical_lf_sha256": "9dc549102ffc7ffd654995fa49f35dafb06dbb6b91351f7a824653b10596d220"
+    },
+    "apps/research/domain/r4_promotion_scope_policy.py": {
+      "bytes": 21180,
+      "raw_sha256": "5c0b5afa4eb71478d180171fccffdd4a57980b96b2245538f4b63ef415b5a94f",
+      "canonical_lf_sha256": "72f563ac8ca445c8cbf1ff350aa1d3e2e2daaead08433e17646ebb07554323df"
+    },
+    "apps/research/domain/r4_promotion_trial.py": {
+      "bytes": 13145,
+      "raw_sha256": "ff0d94214dd3c40c97fd8755bcbf96b65b0fcf14aca111c6d096ab2549d58726",
+      "canonical_lf_sha256": "7917b7c19aa6bce6ebb4a14bd69d40d475c1bf898bc6b6c0e1f4d351f0aa19fb"
+    },
+    "apps/research/domain/r5_monitoring_owner_registry.py": {
+      "bytes": 8655,
+      "raw_sha256": "dbbe2c4b417f478f6fe2c5cd3359044acfa1afc6b9352ab00f67fed40b07cd0b",
+      "canonical_lf_sha256": "ae4363fa5dbbbe44e6245af446bafacef70cdfb15e354bf237771e47fbb05c5c"
+    },
+    "apps/research/domain/r5_relative_value_monitoring.py": {
+      "bytes": 31304,
+      "raw_sha256": "ef8b52a2d16fc4c05fa534515d8c16064953cda5efc19a1625bb5048b95c674e",
+      "canonical_lf_sha256": "424c99ead25cc8d68e615ae31dd8d566f929c8c550a87650f01c67185e96b27e"
+    },
+    "apps/research/domain/r5_relative_value_monitoring_contracts.py": {
+      "bytes": 2056,
+      "raw_sha256": "5c392b841040b4757db8c26e6ad04a554a6b6a92fe9e43e3740ee6bbc6d1edf8",
+      "canonical_lf_sha256": "06b4f17ceb2d622bbd078af4aa8c1aab0994acffccccf30cd76e909bef5be65c"
+    },
+    "apps/research/domain/r5_relative_value_monitoring_facts.py": {
+      "bytes": 474,
+      "raw_sha256": "84b85b6f2fe44fc73bf782a13cce77665986a4374f135759332ed4a6b652bc9d",
+      "canonical_lf_sha256": "e93c2e2ad49468c841ec4921b25aea1a15892da7b86df9ce26b6903953e679a1"
+    },
+    "apps/research/domain/r5_relative_value_monitoring_owners.py": {
+      "bytes": 277,
+      "raw_sha256": "01603d448e6ecb8bd203998110f24d9bd8a4def35bada62d6275bda0551badc5",
+      "canonical_lf_sha256": "4b182ce33b5cfedf30a866f2ce9b64e0fa3f00b3cf20754a79c29dec763f9682"
+    },
+    "apps/research/domain/r5_relative_value_portfolio_outcome.py": {
+      "bytes": 278,
+      "raw_sha256": "622620ca47706918e564892a6b5901e268310e36871349d2b0708ede3a865629",
+      "canonical_lf_sha256": "c9900dbf02bc6c59831abb3352119c5df1e24b3d3478ef0b9de0b254f8b68ac3"
+    },
+    "apps/research/domain/r5_relative_value_promotion_decision.py": {
+      "bytes": 23840,
+      "raw_sha256": "5f23b8951854e3c95564cf95dd099b917e0eaca4538c88f86b8e51223b5cf8ca",
+      "canonical_lf_sha256": "c3f002764e05a17a73e5260693828294f2130f0e6a206eb45dcbc536434982ec"
+    },
+    "apps/research/domain/r5_relative_value_promotion_lifecycle.py": {
+      "bytes": 30021,
+      "raw_sha256": "b5bd811019cb72cf63cb02d62f2aecb0f405a656a00a8f7b024ffa7e8b23436e",
+      "canonical_lf_sha256": "b3242ce3a7719ea2383b51ddf2a57a62be43cb2dca788ede4ad9e7d53e81905f"
+    },
+    "apps/research/domain/r5_relative_value_promotion_policy.py": {
+      "bytes": 22605,
+      "raw_sha256": "32785b29dabd3c6c38930c057a203f23069bd56907865977d3356be7b7032f29",
+      "canonical_lf_sha256": "567edb2be1875c5d1a4b396ff8f40dd4a6897e1d62f1c450b2f4c97b7caa306e"
+    },
+    "apps/research/domain/r5_relative_value_promotion_record.py": {
+      "bytes": 333,
+      "raw_sha256": "6d19945e5d5350b99a7079b34fef717c9f1d14b9f9f28ae3c58d9fbf74274611",
+      "canonical_lf_sha256": "3275ebe957c8b55eed3ee6e12daf773b6bcafd1afc918bac76192ab86ef20720"
+    },
+    "apps/research/domain/r5_relative_value_promotion_trial.py": {
+      "bytes": 22325,
+      "raw_sha256": "f7a9936a43e326425fc0a204c2f78f6da346ff80331bd169d6c3f5f15dd70e3b",
+      "canonical_lf_sha256": "21999d49469250a189c6a7f3e0b4797f8ca08a24022d64991932ddf8b0b80522"
+    },
+    "apps/research/domain/r6_scope_qualification_registry.py": {
+      "bytes": 11602,
+      "raw_sha256": "a7ab77f79c9765506bb208f91328669286742c73564aa2879e5802e49de73db0",
+      "canonical_lf_sha256": "1f2069f92f459fac5a7f07afc1a6e4c123e361ff2fef407e125207104d4a9b96"
+    },
+    "apps/research/domain/r7_analogy_path_owner.py": {
+      "bytes": 34777,
+      "raw_sha256": "26bfa1aebf49b719badc25dbb8a815ed9a2dbe5763a4fa0db9c4a271b64c394b",
+      "canonical_lf_sha256": "4e7fee75099c1534f7cfbc3bffdaeb71144e48156928c3d56ab72ba7fde36d49"
+    },
+    "apps/research/domain/r7_path_owner.py": {
+      "bytes": 43209,
+      "raw_sha256": "b6dbfe76e7418dcbd313abcb5d47b28773953f0713573ea0d70fa09c4c3b37aa",
+      "canonical_lf_sha256": "44c6c9ce32f64fec916dd0c2422564b341dccc0cf9a4f0a687f26b39fdc42d7e"
+    },
+    "apps/research/domain/r7_post_promotion_monitoring.py": {
+      "bytes": 44061,
+      "raw_sha256": "80f2ae67580c87079d69c638efacdbb932e1633ffa97c4533779d91d1a5ee0f8",
+      "canonical_lf_sha256": "f131095fdfaab0b397816db43c6a58b6e7ec30ffe8b31719b1be561d5c25a205"
+    },
+    "apps/research/domain/r7_post_promotion_monitoring_contracts.py": {
+      "bytes": 33998,
+      "raw_sha256": "11acabbb7866ba4b04eee7d5f0f25a9fc0eb5da4b34dfdebfe630bb3749f99d6",
+      "canonical_lf_sha256": "ae875b52457e917c9ef59268afc5d5666cd45ee39106e1c3ada0e25810440acd"
+    },
+    "apps/research/domain/r7_research_result_lifecycle.py": {
+      "bytes": 18893,
+      "raw_sha256": "987e1e5bc27949bb2cde24178a5e4f17a01f4df4966834cb28204104ccff6a5f",
+      "canonical_lf_sha256": "c4d9be12bc5001578915b298e1ce200c2474d96e8ae79d389a26e2399e57aeb0"
+    },
+    "apps/research/domain/r7_research_result_persistence.py": {
+      "bytes": 19708,
+      "raw_sha256": "3197dbdd750c5092590a17ebc618da60fb2eb9c201b54007c18f0758381c525c",
+      "canonical_lf_sha256": "c5008564fd5ca8aec34b8afa259f85ebaf8a7933e4f3e0442f8a361ecb8d7516"
+    },
+    "apps/research/domain/r7_result_family_lifecycle.py": {
+      "bytes": 51789,
+      "raw_sha256": "6aa3cf5267daab0767bed2050a0799da8b5bc7f5ebb4086fee2abd8ba5557ef2",
+      "canonical_lf_sha256": "69fa8972acf552793d5975e7112a7dc8d537c94a706a40d8c042055f61c10cba"
+    },
+    "apps/research/domain/r7_sample_policy.py": {
+      "bytes": 14798,
+      "raw_sha256": "8fefa6bea8dc9f2861c9f5cd20c452e32e0c47498eee269970fb0dd3cb1c5eed",
+      "canonical_lf_sha256": "be250eb47b9d3b1ae9c0af9c0d5b9fd8b97069b9585fd867aaa7b599a64b2310"
+    },
+    "apps/research/domain/r8_monitoring_policy_registry.py": {
+      "bytes": 10522,
+      "raw_sha256": "3b5f6ffb0cc206d4ff2efd1c6ab916c5316150471ffc18f7927dd3eb4e645063",
+      "canonical_lf_sha256": "a6642210969b1d86223613bc57d2c47686ff97215e2f6ed286e020db264254f5"
+    },
+    "apps/research/domain/scenario_probability_calibration.py": {
+      "bytes": 23498,
+      "raw_sha256": "1cf383c8cec46b0ce4e2899fd1528089ddfbb0bd9379572ad7d7b3ece1b72f3b",
+      "canonical_lf_sha256": "b42dac9d975b3336cadbdd1031b589e1a1dbc02bbb55bcc5f55dededa613c8a3"
+    },
+    "apps/research/domain/scenario_probability_contracts.py": {
+      "bytes": 38388,
+      "raw_sha256": "17a750642d1d4cdde03a4536952d1c85478cfa0cf80b067e5a35f3511edff3b7",
+      "canonical_lf_sha256": "e017eb886218345fb1fdeffc98ae564069e6fbc855bfad771bbe8dd5c1be6e1e"
+    },
+    "apps/research/domain/scenario_research_evidence.py": {
+      "bytes": 41838,
+      "raw_sha256": "f6b76a45c384f95ad705bfe370b7b66ee18e1074681cb696d3552df51bf0f253",
+      "canonical_lf_sha256": "017e03458e8428013289ae38fe65d84e9311d2420cfb2dd2dba0aa0bef9a6f0e"
+    },
+    "apps/research/domain/scenario_research_evidence_validation.py": {
+      "bytes": 10779,
+      "raw_sha256": "620c86f7cf7067748eb8598a90c106f626cf0406a50c392186153b21088de6a1",
+      "canonical_lf_sha256": "3bd5941b2644ca0f56945c91de930bd5801ed97d42eb475e3d3266eb3ba85994"
+    },
+    "apps/research/domain/scenario_research_hashing.py": {
+      "bytes": 1859,
+      "raw_sha256": "129c8f8c4094ef40c7b3424f5a1d7ea269de1b69333a59f3951e203d94fe01e9",
+      "canonical_lf_sha256": "30f60f4e0a22754eae4a9a07922fdd975443d56b045521ffd10e4c34b5c6bb8b"
+    },
+    "apps/research/domain/scenario_review_intent.py": {
+      "bytes": 6810,
+      "raw_sha256": "b0e841b09945b371718e68e9875efd4afa975eb505be309e3ff7dae3ccf4ffe7",
+      "canonical_lf_sha256": "65d0c40c14a18fbfc6fd5c9a1dac04baa675782b9dbf0148c16e7e51861ac8a9"
+    },
+    "apps/research/domain/scenario_review_reminders.py": {
+      "bytes": 41770,
+      "raw_sha256": "851d8a9d24da49b7a29f4bbab1588170813e401e4da672458807751649da79d5",
+      "canonical_lf_sha256": "4986483cf33eb1d55e8cd97ec6dc644883a3af5f681bafd06e8aed719f0b9ad5"
+    },
+    "apps/research/domain/state_model_activation.py": {
+      "bytes": 40212,
+      "raw_sha256": "b63e29783a6e9bce2bc151fd661b5d98471e41f6dbda9e626e91293b7bd31f4b",
+      "canonical_lf_sha256": "f769dc450fc41437b8bdbe92c0bdd53d26e7daf7e957e5added2163037f2de9b"
+    },
+    "apps/research/domain/state_model_baseline.py": {
+      "bytes": 20601,
+      "raw_sha256": "666f33dce28883fed586ada9ca75c377ef3182a2a24b80d3910f913725314014",
+      "canonical_lf_sha256": "cf4e15c2db6f5b3c8de46716f57838d40d6719b88172e3a48225e2ccdb816735"
+    },
+    "apps/research/domain/state_model_monitoring.py": {
+      "bytes": 54390,
+      "raw_sha256": "8122bd1d58535f354288ed3aa19ea0f2558691a5ae1c5b217894f59b49c0344c",
+      "canonical_lf_sha256": "88697dc8f22feb2dc318ab75e47d4e572b15ce5171f5291602f2af57efc925ea"
+    },
+    "apps/research/domain/state_model_qualification.py": {
+      "bytes": 1902,
+      "raw_sha256": "a79a20137099e455138a7811cacc6ae62c0c1dce0492e83a0eae10e64e94ae13",
+      "canonical_lf_sha256": "3cc3386706d45a12e236502fdd60da19f811dde22fea12f56ce9f5b6af1e4da0"
+    },
+    "apps/research/domain/state_model_qualification_contracts.py": {
+      "bytes": 44305,
+      "raw_sha256": "c529d5f055e4929bb615c0a08d27086148ebb936d8d7cb01429b1a8064034417",
+      "canonical_lf_sha256": "6c19d944d52c18796e36918e5920fac531dd462039b97e1f17f0a45dacd7ce4e"
+    },
+    "apps/research/domain/state_model_qualification_evaluation.py": {
+      "bytes": 41130,
+      "raw_sha256": "ca00090da0f02a3d9aeaf94419a516aa00cddbe3dd862e75181dc5157eb30447",
+      "canonical_lf_sha256": "681f9e66c960f4153ab61eefb009fda9233b943900118540727b07c16155da71"
+    },
+    "apps/research/domain/state_model_qualification_lifecycle.py": {
+      "bytes": 14794,
+      "raw_sha256": "00d01b3942fe4a3ad952e21d1ba4fc4a9de0ffbadd5b4c20d7b286a32307a707",
+      "canonical_lf_sha256": "0be9ccb7fad98e3571389aeaed799c0cc93a5df4df793844a6a5693b7cf3e729"
+    },
+    "apps/research/domain/statistics.py": {
+      "bytes": 1759,
+      "raw_sha256": "fe1f396a8dcddb59775c253e343d9729409e884d9af8c8b6d2aa0cc7958aa656",
+      "canonical_lf_sha256": "b0646de39359a618b7d5698c3386fb19ed6b3c51553648e4805012f50b5263b5"
+    }
+  },
+  "existing_test_files_unchanged": 130,
+  "new_test_sources": {
+    "tests/unit/research/test_data17_r4_promotion_boundaries.py": {
+      "bytes": 43392,
+      "raw_sha256": "e75743b7fc77b29514486a68448828050503ccb077e516667afe0e16d071dde1",
+      "canonical_lf_sha256": "e75743b7fc77b29514486a68448828050503ccb077e516667afe0e16d071dde1"
+    },
+    "tests/unit/research/test_data17_r7_lifecycle_boundaries.py": {
+      "bytes": 37317,
+      "raw_sha256": "2a3dc6c93e717be2f8a9571c19aad62b3568505939538d8af04c6aa12d9784c5",
+      "canonical_lf_sha256": "2a3dc6c93e717be2f8a9571c19aad62b3568505939538d8af04c6aa12d9784c5"
+    },
+    "tests/unit/research/test_data17_state_scenario_boundaries.py": {
+      "bytes": 50564,
+      "raw_sha256": "e00d963b76ffe69fb75af92f2dc7c1df4b975a50f564252a3b88fa10cdf58348",
+      "canonical_lf_sha256": "e00d963b76ffe69fb75af92f2dc7c1df4b975a50f564252a3b88fa10cdf58348"
+    }
+  },
+  "governance_and_document_bindings": {
+    "governance/active_plan_registry.json": {
+      "raw_sha256": "134f35f04d895e6bc32983b5022185456ae22c97490d1146592e75db34a65abe",
+      "canonical_lf_sha256": "c0b37814e130a97a9a8449a83dab8cef989ca6f9996f3abc26551864f0a62ecd"
+    },
+    "docs/plans/README.md": {
+      "raw_sha256": "77766d75d1afd7cf39009f3c98678f4ee6bddf9983e13ed2ed3d1e9842c9a944",
+      "canonical_lf_sha256": "ba5edf65d3a9f340cbba5977bbbf96d73b19332bc1125d1e4849a203aad205f1"
+    },
+    "docs/plans/data-evidence-audit-runtime-sprint-route-2026-09-14.md": {
+      "raw_sha256": "a6b2b695a59a074349b22fd18951ce0e321cfebbb3ccda592c9019e0db729725",
+      "canonical_lf_sha256": "2a4e28962c6fba0b900bcbe584b210fe4258322f4a9e0cea513cc56bbc0fc041"
+    },
+    "docs/reviews/production-closure-2026-09-20.md": {
+      "raw_sha256": "f3456de9d73b5e583f6c3514c8bd600a738f7db0948c5fd178a615c94352f9b4",
+      "canonical_lf_sha256": "982f9750cc0d12f3a917c2c538c9e56b3ee56b18d5d723ebd10ea46290e6c34d"
+    },
+    ".gitattributes": {
+      "raw_sha256": "4bc0777c80bb0bed061ac698c69253e34e8f0593c0872a7dc0fd14d0050b3cab",
+      "canonical_lf_sha256": "adcb1e58e807ec78dbe04921a9aeabb48641e0e65f86abde31d93833cbe16504"
+    }
+  },
+  "gates": [
+    {
+      "name": "black",
+      "started_at_utc": "2026-09-20T17:03:05.966687+00:00",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-m",
+        "black",
+        "--check",
+        "tests/unit/research/test_data17_r4_promotion_boundaries.py",
+        "tests/unit/research/test_data17_r7_lifecycle_boundaries.py",
+        "tests/unit/research/test_data17_state_scenario_boundaries.py"
+      ],
+      "exit_code": 0,
+      "log_member": "gates/black.log",
+      "log_sha256": "e7febf74535e77e2e29fff7da672539d8b7860a8bf0ff4383bbf6865e1f30454"
+    },
+    {
+      "name": "isort",
+      "started_at_utc": "2026-09-20T17:03:06.800064+00:00",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-m",
+        "isort",
+        "--check-only",
+        "tests/unit/research/test_data17_r4_promotion_boundaries.py",
+        "tests/unit/research/test_data17_r7_lifecycle_boundaries.py",
+        "tests/unit/research/test_data17_state_scenario_boundaries.py"
+      ],
+      "exit_code": 0,
+      "log_member": "gates/isort.log",
+      "log_sha256": "169f24774e13a79b6341d6c41c58f159e180701e87e9028aa70afdf8712b6fbb"
+    },
+    {
+      "name": "ruff",
+      "started_at_utc": "2026-09-20T17:03:07.362447+00:00",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-m",
+        "ruff",
+        "check",
+        "tests/unit/research/test_data17_r4_promotion_boundaries.py",
+        "tests/unit/research/test_data17_r7_lifecycle_boundaries.py",
+        "tests/unit/research/test_data17_state_scenario_boundaries.py"
+      ],
+      "exit_code": 0,
+      "log_member": "gates/ruff.log",
+      "log_sha256": "f78434f0f81a8fed2240a7879eda40bd74cab1d54c181ba11eef299ac4baee47"
+    },
+    {
+      "name": "current-data",
+      "started_at_utc": "2026-09-20T17:03:07.559736+00:00",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "scripts/check_current_data_contracts.py"
+      ],
+      "exit_code": 0,
+      "log_member": "gates/current-data.log",
+      "log_sha256": "c774e415f966ca887601c6d7be92ab20f2958e430ce61b71bf0d81eeac033e4b"
+    },
+    {
+      "name": "registry",
+      "started_at_utc": "2026-09-20T17:04:12.161758+00:00",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "scripts/check_active_plan_registry.py"
+      ],
+      "exit_code": 0,
+      "log_member": "gates/registry.log",
+      "log_sha256": "f0a675b7e1ffe6545474679ae2685577819d2e7a9e8dd4978c547a413a0694b2"
+    },
+    {
+      "name": "governance",
+      "started_at_utc": "2026-09-20T17:03:26.431649+00:00",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "scripts/check_governance_consistency.py",
+        "--baseline",
+        "governance/governance_baseline.json",
+        "--format",
+        "text"
+      ],
+      "exit_code": 0,
+      "log_member": "gates/governance.log",
+      "log_sha256": "4397e5f07215e140d8ab62eb4e96b311e030040c057e4f08825f849ccc81308d"
+    },
+    {
+      "name": "diff-check",
+      "started_at_utc": "2026-09-20T17:03:43.527088+00:00",
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "log_member": "gates/diff-check.log",
+      "log_sha256": "3f2b1a46377d26b3432c929f3a5bf6ac425c467774b4bdc7286d72f35aef3a7f"
+    }
+  ],
+  "independent_review": {
+    "outcome": "pass",
+    "review_mode": "Cross-author read-only review by GPT-5.6 Luna max, with root review and gate verification",
+    "reviews": [
+      {
+        "reviewer": "/root/aud05_luna",
+        "author": "/root/research_r4_luna",
+        "file": "tests/unit/research/test_data17_r4_promotion_boundaries.py",
+        "sha256": "e75743b7fc77b29514486a68448828050503ccb077e516667afe0e16d071dde1",
+        "outcome": "pass",
+        "findings": "No blocking issues. Public construction/replacement rejection assertions match Domain error contracts; valid promote/promote/rollback/retire sequence asserts resulting active identity and retired state. No frozen-object bypass or private replay forcing."
+      },
+      {
+        "reviewer": "/root/research_r4_luna",
+        "author": "/root/aud05_luna",
+        "file": "tests/unit/research/test_data17_r7_lifecycle_boundaries.py",
+        "sha256": "2a3dc6c93e717be2f8a9571c19aad62b3568505939538d8af04c6aa12d9784c5",
+        "outcome": "pass",
+        "findings": "No blocking issues. No constructor bypass/manual post-init, skip/xfail, Protocol ellipsis execution or new exclusions. The private family hash helper only builds a valid cross-family fixture; it is not used to force unreachable guards. Final helper import alias resolves Black/isort/Ruff compatibility without behavior changes."
+      },
+      {
+        "reviewer": "/root/research_r4_luna",
+        "author": "/root/aud05_review",
+        "file": "tests/unit/research/test_data17_state_scenario_boundaries.py",
+        "sha256": "e00d963b76ffe69fb75af92f2dc7c1df4b975a50f564252a3b88fa10cdf58348",
+        "outcome": "pass",
+        "findings": "No blocking issues. Public constructor/restore/evaluation paths assert specific rejection reasons and business outcomes. Removed initial frozen-object mutation, broad type-ignore and unreachable private-guard attempts before final acceptance."
+      }
+    ],
+    "root_review": {
+      "outcome": "pass",
+      "corrections_required_and_completed": [
+        "Removed initial R7 and state/scenario frozen-object mutation/manual post-init attempts; final tests exercise valid public construction, restore or evaluation paths.",
+        "Removed a nonexistent wildcard import and broad type ignores in the initial state/scenario draft.",
+        "Initial R4 coverage used file paths as module selectors and collected no data; it is not accepted coverage evidence. Corrected module selection produced raw coverage; whole-suite before/after remains authoritative.",
+        "Resolved final R7 isort/Ruff import grouping conflict, excluded the interrupted pre-format after attempt, and restarted the complete frozen-source after measurement.",
+        "R4 author's final prose labeled 98.5% as branch coverage. Raw focused data is 344/354 branches = 97.1751412429%; 98.5% is combined coverage. The whole-scope report computes line and branch ratios independently from raw counts."
+      ],
+      "scope_limits": "Peer focused results and per-slice gains are supporting only; they do not replace final full Research unit regression or establish production acceptance."
+    }
+  },
+  "excluded_attempts": [
+    {
+      "path_in_archive": "excluded/after-interrupted-import-format",
+      "reason": "Stopped the verified local pytest process after final import-format validation exposed an isort/Ruff conflict. Final frozen-source full after run was restarted; the interrupted run supplies no accepted coverage or passing-test claim."
+    }
+  ],
+  "archive": {
+    "path": "docs/testing/research-domain-90-closure-2026-09-21-raw.zip",
+    "bytes": 373521,
+    "sha256": "22b9abf2ea2bb830b6b3a76afc47bfd7fe0537dc172da76c72a39101f6c6b1d4",
+    "members": {
+      "after/coverage.json": {
+        "bytes": 993095,
+        "sha256": "55a7d2b8bb24b91117c532620a2ded88a5a539eb80e06de5bd7cce30ace11259"
+      },
+      "after/junit.xml": {
+        "bytes": 198861,
+        "sha256": "069fbc8c06f01a49bd4bb888aaf23cb5331e292872735923e5d4aef44a80b947"
+      },
+      "after/measurement.json": {
+        "bytes": 113112,
+        "sha256": "e782fe1872337e330cc2080bfa4d62c27b285e42862ea4c8f6f41107b0c3016d"
+      },
+      "after/pytest.log": {
+        "bytes": 11262,
+        "sha256": "b62aa9e41d199fb269a4fd0156b06e167c85797dde9b8e0408484796137dc0ff"
+      },
+      "before/coverage.json": {
+        "bytes": 993482,
+        "sha256": "62e7b17c6f9c24e95f5faef8ddc792da41096ebb3b7a82246c47f5971d1dd77a"
+      },
+      "before/junit.xml": {
+        "bytes": 180653,
+        "sha256": "d12961e2ee61ded21c8b378f66e14f500948a8bf70d82f2a7d4178c2a46c1c51"
+      },
+      "before/measurement.json": {
+        "bytes": 111396,
+        "sha256": "3b52720fcaa00865cc6aeeb309ec863481305b45535f4a9a0029b6ffa3305526"
+      },
+      "before/pytest.log": {
+        "bytes": 12462,
+        "sha256": "07329e8a8f3a41dd27da648cb7c5eec6c2b1a485cd93bd9b67c38e6d291101c2"
+      },
+      "excluded/after-interrupted-import-format/measurement.json": {
+        "bytes": 112700,
+        "sha256": "9f0366ec8b76cca7ad427bcf9d86973cd4a74b6447063ed8075538404074faa6"
+      },
+      "excluded/after-interrupted-import-format/pytest.log": {
+        "bytes": 680,
+        "sha256": "77c2a0583e3200426fa206ef93f5340cf2af6e843a01dac58cfa149895970fe5"
+      },
+      "gates.json": {
+        "bytes": 3357,
+        "sha256": "d5baf2598e780874583dcbbcf3dfd17543afa393743e22cb30939223ec95cc10"
+      },
+      "gates/black.log": {
+        "bytes": 86,
+        "sha256": "e7febf74535e77e2e29fff7da672539d8b7860a8bf0ff4383bbf6865e1f30454"
+      },
+      "gates/current-data.log": {
+        "bytes": 68,
+        "sha256": "c774e415f966ca887601c6d7be92ab20f2958e430ce61b71bf0d81eeac033e4b"
+      },
+      "gates/diff-check.log": {
+        "bytes": 281,
+        "sha256": "3f2b1a46377d26b3432c929f3a5bf6ac425c467774b4bdc7286d72f35aef3a7f"
+      },
+      "gates/governance.log": {
+        "bytes": 684,
+        "sha256": "4397e5f07215e140d8ab62eb4e96b311e030040c057e4f08825f849ccc81308d"
+      },
+      "gates/isort.log": {
+        "bytes": 16,
+        "sha256": "169f24774e13a79b6341d6c41c58f159e180701e87e9028aa70afdf8712b6fbb"
+      },
+      "gates/registry.log": {
+        "bytes": 138,
+        "sha256": "f0a675b7e1ffe6545474679ae2685577819d2e7a9e8dd4978c547a413a0694b2"
+      },
+      "gates/ruff.log": {
+        "bytes": 35,
+        "sha256": "f78434f0f81a8fed2240a7879eda40bd74cab1d54c181ba11eef299ac4baee47"
+      },
+      "independent-review.json": {
+        "bytes": 3065,
+        "sha256": "d497b46d71306009792b2e776707401b8690c4c141a569779c73e967cd8a1067"
+      },
+      "measure_whole.py": {
+        "bytes": 3158,
+        "sha256": "3dd0a67d44c3e136756a50c290238aaa8b97b66cf919f019404add5aea950917"
+      },
+      "run_gates.py": {
+        "bytes": 1701,
+        "sha256": "65b09858e7387026a98b63bfa671e0f325b2a9931d323b66f184144be7ebe3d8"
+      },
+      "seal_evidence.py": {
+        "bytes": 6636,
+        "sha256": "8d955e83b9554e01a623f5a785cb8dd3aa8a046847520da278c1e2ef8bab849b"
+      },
+      "sources/tests/unit/research/test_data17_r4_promotion_boundaries.py": {
+        "bytes": 43392,
+        "sha256": "e75743b7fc77b29514486a68448828050503ccb077e516667afe0e16d071dde1"
+      },
+      "sources/tests/unit/research/test_data17_r7_lifecycle_boundaries.py": {
+        "bytes": 37317,
+        "sha256": "2a3dc6c93e717be2f8a9571c19aad62b3568505939538d8af04c6aa12d9784c5"
+      },
+      "sources/tests/unit/research/test_data17_state_scenario_boundaries.py": {
+        "bytes": 50564,
+        "sha256": "e00d963b76ffe69fb75af92f2dc7c1df4b975a50f564252a3b88fa10cdf58348"
+      },
+      "supporting/agent-aud05-final/focused.stdout-stderr.log": {
+        "bytes": 101,
+        "sha256": "96637d15d6e916a7c01fc562a6db2ef1c72c92666ad11b15aed077a2d234e989"
+      },
+      "supporting/data17-luna-final.log": {
+        "bytes": 10865,
+        "sha256": "eb698f57c1c50949887eedf2c6fa84cdcd9597baa930ea9268d5533eb2af6727"
+      },
+      "supporting/peer-focused-final.log": {
+        "bytes": 101,
+        "sha256": "5a7ccbeb226a54e466a957deeff8921a7ef743d6fd3d628d8a193ade03ddfd35"
+      },
+      "supporting/r4/coverage-focused-final.json": {
+        "bytes": 74716,
+        "sha256": "f9b4c5ff3f0dc0b08b9426d7404e153614fce65e26c3f1864c6ddd47807acbfd"
+      },
+      "supporting/r4/junit-focused-final.xml": {
+        "bytes": 17294,
+        "sha256": "5199d2ab57362e107e4746d0532e17f78661b0e4c69ded32c6fb987938747bf0"
+      },
+      "supporting/r4/stdout-focused-final.log": {
+        "bytes": 2244,
+        "sha256": "f06921991355379adbac2e07c7ce98540e2023230032823efcbbdd03e717d813"
+      }
+    }
+  },
+  "limitations": [
+    "No production Python changes; incremental mypy/debt gates are not required for these test-only changes.",
+    "No PostgreSQL, VPS, vendor, strategy registration, PIT/OOS or production acceptance is inferred.",
+    "Existing two excluded lines are unchanged; no new exclusions or denominator reduction.",
+    "This is the complete local Research unit scope, not all repository tests or a Nightly CI result."
+  ]
+}

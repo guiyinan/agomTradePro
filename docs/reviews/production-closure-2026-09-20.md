@@ -34,7 +34,7 @@ governance consistency 各项 0 violations。空的本地 `agomtradepro` 目录�
 | T4 / STRAT-01/02 | `APPROVE-STRAT-20260915-01` 与 R1–R8 八份批准定义的 Git LF 内容哈希通过；Windows CRLF raw 差异单列，未重写批准文件 | canonical dry-run、精确 scope/current-head、append-only registration 未完成；PIT/OOS 时间不得压缩 |
 | T5 / TUI-02 | 实测部署/容器已漂移；旧探针返回 DENY。已有每日 09:00 heartbeat 已更新为先按官方 collector 重绑 | **旧 09-30 eligible_at 不再适用于当前候选**。须先获得新 deployment attestation 和真实首样本，再累计 14 日；structured defects、101-task telemetry、backup、双角色 attestation、ALLOW 仍缺 |
 | T6 / TAR-05 | 未执行负载、chaos 或生产并发变更；维持 inline 并发=1 的治理要求 | 独立 staging 地址/身份、资源/查询图、非付费 provider 和 owner 容量决定未提供；随后才可跑 1/5/10/20 负载与 14 日真实 telemetry |
-| T7 / Research | 历史全 Domain 分支基线 4310/5032（85.6518%），达到 90% 至少 4529 条 | AUD-05 唯一仓库焦点释放后另起测试主线；同源全量 before/after 测量，不累加历史切片 |
+| T7 / Research | **DATA-17 completed**：完整同源分支 4576/5032（90.9380%），1158 passed；[原始证据](../testing/research-domain-90-closure-2026-09-21.json) | 仅本地完整 Research unit 范围；未改生产 Domain，未宣称 Nightly/PG/生产验收 |
 | QMT / 下游 | QMT 等券商权限；DATA-03/EVID-03/STRAT-03/AI-01 按 registry 依赖保留未完成 | 权限未提供，未发订单；上游完成只解锁执行，不自动宣称下游 completed |
 
 ## TUI 漂移证据与回滚边界
@@ -65,3 +65,15 @@ SQLite 154 passed、2 个 PG-only tests skipped；独立 PostgreSQL 16.14 八项
 增量 mypy 和全量债务门禁均 0，Black/isort 通过，Ruff 新增诊断 0（保留四条既有 UP042 Enum 提示）；migration check 无变更。架构检查实际覆盖 8 个改动生产文件和 874 新增行，boundary/audit 均 0；早先零文件对比已明确排除。63 current-data surfaces 和治理检查通过。
 
 初始 failing-first run 仅保留代理摘要，后补 raw baseline replay 如实标为 retrospective；没有伪造原始红灯日志或时间。PG 仅为本地隔离 Config Center 模型的事务/并发测试，不是生产 PG 或全应用 migration 验收。完整日志、JUnit、覆盖率、运行配方、失败尝试说明与独立复核已嵌入封存 JSON。
+
+
+## DATA-17 / T7 完整 Research 仓库收口（2026-09-21）
+
+独立分支 `dev/test-research-domain-branch-coverage` 新增三份行为测试。完整 before/after 从
+1060 → 1158 tests passed；分支从 4310/5032 → 4576/5032（90.9380%），
+行覆盖 13083/13546（96.5820%）。63 个 Domain 源文件、原有 130 个测试文件
+及既有排除行均未变。独立复核与 Black/isort/Ruff、current-data、registry/governance 通过。
+
+DATA-17 active → completed，DATA-15 未重开，其他生产状态没有自动晋级。完整日志、JUnit、coverage JSON、
+源码哈希、复核与主动终止的非验收测量均保存在[封存清单](../testing/research-domain-90-closure-2026-09-21.json)
+引用的原始 ZIP。未修改生产 Python，因此本条没有增量 mypy 适用文件；AUD-05 的生产 Python 门禁已单独验证。
