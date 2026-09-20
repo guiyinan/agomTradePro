@@ -863,3 +863,9 @@ readiness 仍为 `2/10 DENY`：自然 14 日尚未完成，当前候选的 108 �
 rollback、structured defects、101-task telemetry、post-window backup/review 与 attestations
 仍为空。到 eligible instant 前只作低频只读 drift/reset 观察；不得提前生成 final evidence、
 执行 Classic cleanup 或继承旧窗口。
+
+### 2026-09-19 Alpha 更新错误提示缺陷修复
+
+`dashboard.alpha-ranking` / `research.signals` 概览与现存 Classic Alpha 表格同步展示推理更新错误及评分日期。沿用既有动作、面板和迁移分类，不新增 Classic 任务；不改变观察窗口及清理批准条件。空结果和旧缓存均须保留错误提示。
+
+2026-09-19 Alpha 兼容页缺陷修复：完整排名页补显已有 no_buy_reason_summary，展示实际信号门槛和行情发布/成交量阻断原因；复用现有任务与 TUI 数据，不新增 Classic 主任务。

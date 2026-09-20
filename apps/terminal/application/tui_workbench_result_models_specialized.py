@@ -54,6 +54,27 @@ class TuiWorkbenchSpecializedResultMixin:
         request_params: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
         action_key = str(action.get("key") or "")
+        if action_key == "dashboard.alpha-ranking" and isinstance(payload, dict):
+            meta = self._mapping(payload.get("meta"))
+            notice = self._mapping(meta.get("refresh_notice"))
+            if notice:
+                rows = payload.get("items")
+                result = self._datagrid_model(
+                    action,
+                    rows if isinstance(rows, list) else [],
+                    status_code,
+                    envelope=payload,
+                    request_params=request_params,
+                )
+                result["business_summary"] = (
+                    f"Alpha 自动更新异常。当前评分日期：{meta.get('effective_asof_date') or meta.get('cache_date') or '暂无可用评分'}；"
+                    f"目标日期：{meta.get('requested_trade_date') or '未知'}；"
+                    f"最近尝试：{notice.get('attempted_at') or '未知'}。"
+                )
+                result["blocking_reason"] = str(
+                    notice.get("message") or "推理更新失败，请检查任务记录。"
+                )
+                return result
         if action_key in {
             "data-center.egress-preview",
             "data-center.egress-endpoint-test",

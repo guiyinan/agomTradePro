@@ -579,6 +579,17 @@
     }
 
     function renderDashboardPanelBody(panel, viewModel) {
+        const blocker = String(viewModel?.blocking_reason || "").trim();
+        const notice = blocker
+            ? `<div class="tui-empty-state" role="alert" data-panel-blocking-notice>
+                <strong>${escapeHtml(viewModel.business_summary || "当前任务存在阻断")}</strong>
+                <p>${escapeHtml(blocker)}</p>
+               </div>`
+            : "";
+        return notice + renderDashboardPanelContent(panel, viewModel);
+    }
+
+    function renderDashboardPanelContent(panel, viewModel) {
         if (!viewModel) {
             return renderPanelPlaceholder(panel, panel.empty_message || "暂无可显示数据。");
         }

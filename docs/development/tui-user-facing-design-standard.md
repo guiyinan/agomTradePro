@@ -385,3 +385,7 @@ research. Source dates and decision gates remain unchanged.
 - `presentation=secret` 对独立凭证和含凭证的完整接入包同样生效，且不依赖 action 是否声明结果语义；正文默认隐藏，复制保留完整内容。
 - HTTP 成功只表示数据已读取；业务阻断、待审积压与超时必须分别呈现。详情展示嵌套标量与阻断原因，剩余详情按需展开。
 - 验证依据见 `docs/reviews/vps-tui-page-design-audit-2026-09-08.md` 及其中修复验收记录。
+
+## Alpha 更新异常呈现（2026-09-19）
+
+Alpha 清单将最近一次相关推理的业务失败投影到现有 `business_summary` / `blocking_reason` 契约，包含真实评分日、目标日及尝试时间。dashboard 面板同样展示阻断原因，不能因空表或旧缓存而隐藏。任务异常只映射为安全用户文案，不呈现原始 traceback、凭据或其他组合的信息；新的成功评分清除旧失败。测试见 `tests/unit/dashboard/test_alpha_refresh_notice.py` 及浏览器 `dashboard displays blocking evidence` 用例。

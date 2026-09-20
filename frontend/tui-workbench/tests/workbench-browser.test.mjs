@@ -47,6 +47,32 @@ test("mutation identity survives confirmation and network retry but changes for 
 const bundlePath = resolve(root, "static/js/tui-workbench.js");
 const cssPath = resolve(root, "static/css/tui-workbench.css");
 
+for (const empty of [false, true]) {
+    test(`dashboard displays blocking evidence with ${empty ? "empty" : "cached"} rows`, async () => {
+        const summaryScreen = structuredClone(dashboardScreen);
+        summaryScreen.actions = [action("test.list")];
+        summaryScreen.screen.dashboard_panels = [{ key: "alpha", title: "Alpha", kind: "datagrid", action_key: "test.list", user_priority: "p0", presentation_semantic: "primary_list" }];
+        const { browser, page } = await openHarness("https://app.test/?screen=test.dashboard", { dashboardScreen: summaryScreen, waitForInitialRows: false });
+        try {
+            await page.route("**/actions/test.list/run/", async route => {
+                const result = listResult();
+                result.view_model.business_summary = "Alpha 自动更新异常。评分日期 2026-09-04";
+                result.view_model.blocking_reason = "行情口径不一致 <script>unsafe</script>";
+                if (empty) result.view_model.rows = [];
+                await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(result) });
+            });
+            await page.reload();
+            await page.addStyleTag({ path: cssPath });
+            await page.addScriptTag({ path: bundlePath });
+            const notice = page.locator("[data-panel-blocking-notice]");
+            await notice.waitFor({ state: "visible" });
+            assert.match(await notice.innerText(), /2026-09-04/);
+            assert.match(await notice.innerText(), /行情口径不一致/);
+            assert.equal(await notice.locator("script").count(), 0);
+        } finally { await browser.close(); }
+    });
+}
+
 test("UX summary full-list entry returns to the overview", async () => {
     const summaryScreen = structuredClone(dashboardScreen);
     summaryScreen.actions = [action('test.list')];
