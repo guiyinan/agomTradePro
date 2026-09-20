@@ -1,5 +1,5 @@
 {
-  "version": "2026-09-20.v137",
+  "version": "2026-09-20.v138",
   "updated_at": "2026-09-20",
   "execution_focus": {
     "unit_id": "AUD-05",
@@ -178,7 +178,7 @@
       "priority": "P0",
       "owner": "terminal+operational_readiness",
       "status": "production_validation",
-      "next_gate": "TUI-02 remains active but BLOCKED by verified candidate/monitoring drift. At 2026-09-20T15:10:06Z current release is 20260920184626 / source 439468482; Web image ad885af0fbb5904f389cbe469403fd758901e0f4b62e88e0c8dab34e52315d71 started 11:07:43Z and Prometheus started 11:07:59Z. Old monitoring probe returns DENY: Web candidate changed after first sample. Old 2026-09-30T07:31:34.667Z is invalid for this candidate. Recovery requires official deployment attestation, clean-tree candidate rebind and actual new retained sample plus 14 days; current artifact remains historical. Then collect structured defects, 101-task telemetry, backup/review and genuine role-bound owner attestations; --require-allow must ALLOW before Classic cleanup. Existing daily heartbeat was updated, no duplicate created. Evidence: docs/deployment/production-closure-baseline-revalidation-2026-09-20.json; execution record: docs/reviews/production-closure-2026-09-20.md",
+      "next_gate": "TUI-02 remains active but BLOCKED by verified candidate/monitoring drift. At 2026-09-20T15:10:06Z current release is 20260920184626 / source 439468482; Web image ad885af0fbb5904f389cbe469403fd758901e0f4b62e88e0c8dab34e52315d71 started 11:07:43Z and Prometheus started 11:07:59Z. Old monitoring probe returns DENY: Web candidate changed after first sample. Old 2026-09-30T07:31:34.667Z is invalid for this candidate. Recovery requires official deployment attestation, clean-tree candidate rebind and actual new retained sample plus 14 days; current artifact remains historical. Then collect structured defects, 101-task telemetry, backup/review and genuine role-bound owner attestations; --require-allow must ALLOW before Classic cleanup. Existing daily heartbeat was updated, no duplicate created. Evidence: docs/deployment/production-closure-baseline-revalidation-2026-09-20.json; execution record: docs/reviews/production-closure-2026-09-20.md Current-candidate retained source read-only query returned HTTP 401 on 2026-09-20; no accepted first sample or new eligibility instant. Restore governed protected-query authentication and prove HTTP 200 plus real candidate-bound source before official rebind. Evidence: docs/deployment/production-closure-retained-source-denial-2026-09-20.json",
       "documents": [
         {
           "path": "docs/plans/web-to-tui-migration-plan-2026-07-25.md",
@@ -294,7 +294,7 @@
       "priority": "P1",
       "owner": "terminal",
       "status": "production_validation",
-      "next_gate": "Previously completed usability units remain completed. TUI-02 current candidate/window drift is verified on 2026-09-20; do not inherit the 2026-09-16 first sample or 2026-09-30 eligible instant. Official candidate and retained-source rebind, a real 14-day window and all current-candidate UAT/defect/telemetry/backup/review/approval gates are required. Readiness remains DENY and no A/B Classic template may be removed. Evidence: docs/deployment/production-closure-baseline-revalidation-2026-09-20.json; execution record: docs/reviews/production-closure-2026-09-20.md",
+      "next_gate": "Previously completed usability units remain completed. TUI-02 current candidate/window drift is verified on 2026-09-20; do not inherit the 2026-09-16 first sample or 2026-09-30 eligible instant. Official candidate and retained-source rebind, a real 14-day window and all current-candidate UAT/defect/telemetry/backup/review/approval gates are required. Readiness remains DENY and no A/B Classic template may be removed. Evidence: docs/deployment/production-closure-baseline-revalidation-2026-09-20.json; execution record: docs/reviews/production-closure-2026-09-20.md Current-candidate retained source read-only query returned HTTP 401 on 2026-09-20; no accepted first sample or new eligibility instant. Restore governed protected-query authentication and prove HTTP 200 plus real candidate-bound source before official rebind. Evidence: docs/deployment/production-closure-retained-source-denial-2026-09-20.json",
       "documents": [
         {
           "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
@@ -985,7 +985,8 @@
           "auto_collect": [
             "Calculate observation day, candidate drift and reset conditions; verify the retained target, rules, bounded storage and authenticated query path without manufacturing historical values.",
             "After the latest retained checkpoint reaches its exact eligible instant, collect the structured blocking-defect and 101-item telemetry snapshots, export and dry-run verify the post-window registry backup, then derive gate status.",
-            "2026-09-20 current release/image and Web/Prometheus starts drifted; old probe explicitly DENY. Old 2026-09-30 eligible date is invalid. Recovery: official current-candidate deployment attestation, clean-tree rebind, real retained first sample, 14 days, then all structured acceptance gates. No early cleanup. Evidence: docs/deployment/production-closure-baseline-revalidation-2026-09-20.json"
+            "2026-09-20 current release/image and Web/Prometheus starts drifted; old probe explicitly DENY. Old 2026-09-30 eligible date is invalid. Recovery: official current-candidate deployment attestation, clean-tree rebind, real retained first sample, 14 days, then all structured acceptance gates. No early cleanup. Evidence: docs/deployment/production-closure-baseline-revalidation-2026-09-20.json",
+            "Current-candidate retained source read-only query returned HTTP 401 on 2026-09-20; no accepted first sample or new eligibility instant. Restore governed protected-query authentication and prove HTTP 200 plus real candidate-bound source before official rebind. Evidence: docs/deployment/production-closure-retained-source-denial-2026-09-20.json"
           ],
           "authorization_required": [
             "Execute cleanup waves, alter routes/assets or perform live rollback."

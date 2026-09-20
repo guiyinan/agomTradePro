@@ -1,0 +1,13 @@
+{
+  "exit_code": 1,
+  "source_sha256": "7f3786a991362c704e4c5e06cd691091ef99ec11ac2ea9831d8eea8bcb744a7e",
+  "production_mutations": false,
+  "binding_performed": false,
+  "error": "DENY: RetainedSourceError: protected source range HTTPS status 401",
+  "schema": "production-closure-retained-source-denial.v1",
+  "collection_completed_at": "2026-09-20T15:43:36.895009+00:00",
+  "candidate_source": "439468482f457884db17da47d7566a5aac295842",
+  "candidate_image": "sha256:ad885af0fbb5904f389cbe469403fd758901e0f4b62e88e0c8dab34e52315d71",
+  "scope": "Verified host SSH read-only collector; existing root-only credential used remotely, no credential bytes returned; protected HTTPS query returned 401. No first sample or eligibility instant was accepted.",
+  "recovery": "Restore the governed protected query credential/path and verify HTTP 200 plus actual candidate-bound retained source. Then official deployment/candidate/checkpoint binding and a real 14-day window; no Classic cleanup before ALLOW."
+}

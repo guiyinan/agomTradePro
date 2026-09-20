@@ -126,3 +126,5 @@ docs/deployment/evid09-compatible-rollback-rehearsal-2026-09-15.json.sha256 text
 
 docs/deployment/production-closure-baseline-revalidation-2026-09-20.json text eol=lf
 docs/testing/aud05-repository-closure-2026-09-20.json text eol=lf
+
+docs/deployment/production-closure-retained-source-denial-2026-09-20.json text eol=lf

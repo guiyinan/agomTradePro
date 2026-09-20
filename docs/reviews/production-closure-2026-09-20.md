@@ -52,3 +52,8 @@ started_at=`2026-09-20T11:07:59.353500085Z`。旧 probe 显式传入
 代码修复与生产部署分开验收；配置修复必须产生新 successor，不能编辑历史 v14/v17 或回退为
 superseded v13。失败保持旧 active 和完整历史；后续生产 action 只按候选、输入、停止线和
 具体恢复点执行。本轮没有数据库恢复、业务数据删除、付费模型调用或交易。
+
+## 当前 retained source 补查
+
+使用已核实的当前 image/source 对只读 collector 作内存参数替换后，受保护的 HTTPS range query 实际返回 **401**；没有取得可接受的新首样本。凭据仅在 VPS 内使用，未回传或修改。
+因此还须恢复受保护查询的凭据/认证路径并得到真实 HTTP 200 样本，再执行官方绑定；不能以容器启动时间推算新的 14 日到期日。证据：`docs/deployment/production-closure-retained-source-denial-2026-09-20.json`。
