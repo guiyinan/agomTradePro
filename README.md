@@ -26,10 +26,17 @@
 
 > 这个区域按天维护，优先记录最近 1-7 天内对外可见、值得关注的变化。
 
+### 2026-09-20
+
+- Alpha 数据链补齐历史成交量单位与复权校验、全市场报价和估值分批更新、Qlib 并发锁及停牌证据检查；明确的数据阻断会停止后续推理派发，保留真实观测日期和阻断原因。
+- Alpha 页面与 TUI 工作台展示后台更新失败、数据缺口及实际数据日期，旧缓存或空结果也能看到提示；成交量缺失和信号强度不足会明确呈现。
+- [VPS 恢复验证](docs/reviews/vps-full-market-recovery-2026-09-19.md)：9 月 18 日报价、估值各覆盖 5,565 只股票，模型输入覆盖 5,553 只可交易股票和 12 只有证据的全天停牌股票；6 个账户手动推理全部成功，共生成 180 条有限评分，无旧缓存回退。30 个候选的上下文读取从 141.12 秒降至 9.06 秒，成交量覆盖 30/30，保留完整发布证据校验。
+- 自动恢复尚未验收：审计运行配置与服务身份、财报源时间和发布覆盖仍存在阻断；下一自然定时推理周期计划于 9 月 21 日验证。手动推理成功不代表决策数据或自动更新已全部恢复。
+
 ### 2026-09-15
 
 - DATA-12 的 Domain 覆盖率债务已由 26 文件测试增量和覆盖率基线收口；[精确 closure Nightly](https://github.com/guiyinan/agomTradePro/actions/runs/34092074895) 通过，Research/Signal line exception 与九项 branch 恢复目标均关闭。
-- 最新 `main@891c40c57` 已完成 [VPS code-only upgrade](docs/deployment/main-vps-upgrade-2026-09-15-891c40c57.json)：公开 HTTPS health/ready 正常，PostgreSQL 数据卷保留；决策入口仍因数据新鲜度和持久决策门而阻断，不能用于投资决定。
+- 9 月 15 日的 `main@891c40c57` 已完成 [VPS code-only upgrade](docs/deployment/main-vps-upgrade-2026-09-15-891c40c57.json)：公开 HTTPS health/ready 正常，PostgreSQL 数据卷保留；决策入口仍因数据新鲜度和持久决策门而阻断，不能用于投资决定。
 - Web→TUI 生产候选重新绑定到 release `20260915110952`，当前 [readiness](docs/plans/web-to-tui-m5-readiness-2026-07-27.md) 为 `2/10 DENY`；14 日观察、当前候选 UAT 和验收尚未完成。追加 Nightly 在旧开发分支上失败，受保护的监控认证查询仍待恢复并验证，不能把代码覆盖率收口等同于生产放行。
 
 ### 2026-08-22

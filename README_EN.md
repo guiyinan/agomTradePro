@@ -26,6 +26,13 @@
 
 > This section is maintained day by day and should focus on user-visible changes from the last 1-7 days.
 
+### 2026-09-20
+
+- The Alpha data chain now validates historical volume units and price adjustments, refreshes full-market quotes and valuations in batches, and checks Qlib concurrency and trading-suspension evidence. Explicit data blocks stop downstream inference dispatch while preserving source dates and stable reasons.
+- Alpha pages and the TUI workbench show background refresh failures, missing data, and actual source dates even when results are cached or empty. Missing volume and insufficient signal strength are surfaced explicitly.
+- [VPS recovery verification](docs/reviews/vps-full-market-recovery-2026-09-19.md): September 18 quotes and valuations each cover 5,565 stocks; model inputs account for 5,553 tradable stocks and 12 verified full-day suspensions. All six manually triggered account inference jobs succeeded, producing 180 finite scores without cache fallback. Context reads for 30 candidates improved from 141.12 to 9.06 seconds, with volume available for all 30 and full publication integrity checks retained.
+- Automatic recovery remains unverified: audit runtime configuration and service identity, financial source timestamps, and publication coverage still block parts of the flow. The next natural scheduled inference cycle is due for verification on September 21. Successful manual inference does not establish complete recovery of decision data or automatic refresh.
+
 ### 2026-08-12
 
 - The July 30–August 12 cycle was a substantial governance and capability build-out: Git records **616 commits across 2,076 changed files**, spanning data reliability, configuration and secrets, research evidence, portfolio research, runtime safety, CI, and documentation; the items below summarize the actual workstreams rather than only the final cleanup commits
