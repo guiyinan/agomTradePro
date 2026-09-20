@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 
 import requests
 
+from apps.data_center.domain.enums import PriceAdjustment
 from apps.data_center.domain.rules import normalize_asset_code
 from apps.data_center.infrastructure.market_gateway_entities import (
     HistoricalPriceBar,
@@ -19,6 +20,7 @@ from apps.data_center.infrastructure.market_gateway_entities import (
 )
 from apps.data_center.infrastructure.market_gateway_enums import DataCapability
 from apps.data_center.infrastructure.market_gateway_protocol import MarketGatewayProtocol
+from apps.data_center.infrastructure.tencent_history_units import history_volume_multiplier
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
@@ -144,7 +146,12 @@ class TencentGateway(MarketGatewayProtocol):
         asset_code: str,
         start_date: str,
         end_date: str,
+        *,
+        price_adjustment: PriceAdjustment = PriceAdjustment.FORWARD,
     ) -> list[HistoricalPriceBar]:
+        """Return explicit adjustment and volume normalized using configured source units."""
+        if price_adjustment not in {PriceAdjustment.NONE, PriceAdjustment.FORWARD}:
+            raise ValueError("Tencent history supports none or forward adjustment")
         if self._socket_blocked:
             return []
 
@@ -153,10 +160,11 @@ class TencentGateway(MarketGatewayProtocol):
             return []
 
         try:
+            adjustment_query = "qfq" if price_adjustment == PriceAdjustment.FORWARD else ""
             response = requests.get(
                 self._URL,
                 params={
-                    "param": f"{symbol},day,{self._to_query_date(start_date)},{self._to_query_date(end_date)},1000,qfq"
+                    "param": f"{symbol},day,{self._to_query_date(start_date)},{self._to_query_date(end_date)},1000,{adjustment_query}"
                 },
                 headers={
                     "Referer": "https://gu.qq.com/",
@@ -178,9 +186,12 @@ class TencentGateway(MarketGatewayProtocol):
             return []
 
         data = (payload.get("data") or {}).get(symbol) or {}
-        rows = data.get("qfqday") or data.get("day") or []
+        adjusted_rows = data.get("qfqday") if price_adjustment == PriceAdjustment.FORWARD else None
+        rows = adjusted_rows or data.get("day") or []
+        adjustment = PriceAdjustment.FORWARD if adjusted_rows else PriceAdjustment.NONE
         bars: list[HistoricalPriceBar] = []
         canonical_code = normalize_asset_code(asset_code, "tencent")
+        multiplier = history_volume_multiplier(canonical_code) if rows else 1.0
 
         for row in rows:
             if not isinstance(row, list) or len(row) < 6:
@@ -194,9 +205,14 @@ class TencentGateway(MarketGatewayProtocol):
                         close=float(row[2]),
                         high=float(row[3]),
                         low=float(row[4]),
-                        volume=int(float(row[5])),
+                        volume=(
+                            int(value * multiplier)
+                            if (value := safe_float(row[5])) is not None
+                            else None
+                        ),
                         amount=float(row[6]) if len(row) > 6 and row[6] not in (None, "") else None,
                         source=self.provider_name(),
+                        adjustment=adjustment,
                     )
                 )
             except (TypeError, ValueError):
@@ -249,6 +265,7 @@ class TencentGateway(MarketGatewayProtocol):
 
     @staticmethod
     def _parse_quote_fields(asset_code: str, fields: list[str]) -> QuoteSnapshot | None:
+        """Normalize source shares/lots with the same configured board rules as daily bars."""
         if len(fields) < 35:
             return None
         price = _safe_decimal(fields[3])
@@ -265,12 +282,19 @@ class TencentGateway(MarketGatewayProtocol):
             if amount_in_ten_thousand is not None:
                 amount = amount_in_ten_thousand * Decimal("10000")
 
+        canonical_code = normalize_asset_code(asset_code, "tencent")
+        raw_volume = safe_float(fields[36] if len(fields) > 36 else fields[6])
+        volume = (
+            int(raw_volume * history_volume_multiplier(canonical_code))
+            if raw_volume is not None
+            else None
+        )
         return QuoteSnapshot(
-            stock_code=normalize_asset_code(asset_code, "tencent"),
+            stock_code=canonical_code,
             price=price,
             change=_safe_decimal(fields[31] if len(fields) > 31 else None),
             change_pct=safe_float(fields[32] if len(fields) > 32 else None),
-            volume=_safe_int(fields[36] if len(fields) > 36 else fields[6]),
+            volume=volume,
             amount=amount,
             high=_safe_decimal(fields[33] if len(fields) > 33 else None),
             low=_safe_decimal(fields[34] if len(fields) > 34 else None),

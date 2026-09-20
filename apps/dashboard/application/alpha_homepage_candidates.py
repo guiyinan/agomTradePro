@@ -216,6 +216,8 @@ class AlphaCandidateMixin:
         market_temperature_factor = market_temperature_factor or 0.0
 
         reliability_reasons: list[str] = []
+        if stock_context.get("must_not_use_for_decision"):
+            reliability_reasons.extend(self._publication_unavailable_reasons(stock_context))
         metadata_blocked_reason = str(meta.get("blocked_reason") or "").strip()
         if bool(meta.get("must_not_use_for_decision", False)):
             reliability_reasons.append(metadata_blocked_reason or "Alpha 结果未通过可靠性校验。")
@@ -256,6 +258,14 @@ class AlphaCandidateMixin:
             daily_trade_count=0,
             target_regime=None,
         )
+        signal_threshold = self._finite_float(
+            getattr(self.decision_engine, "signal_threshold", None), minimum=0.0, maximum=1.0
+        )
+        if "SIGNAL_WEAK" in decision_codes and signal_threshold is not None:
+            decision_text = (
+                f"信号强度不足：Alpha 评分 {score_value:.4f}，按当前规则映射为 "
+                f"{signal_strength:.4f}，低于门槛 {signal_threshold:.4f}。"
+            )
 
         suggested_notional = 0.0
         suggested_quantity = 0.0
@@ -274,6 +284,7 @@ class AlphaCandidateMixin:
                 (suggested_notional / account_equity * 100) if account_equity else 0.0
             )
 
+        volume = self._finite_float(stock_context.get("volume"), minimum=0.0)
         passed, violations, warnings, details = self.risk_gate.check(
             symbol=code,
             side="buy",
@@ -283,8 +294,26 @@ class AlphaCandidateMixin:
             current_position_value=current_position_value,
             daily_trade_count=0,
             daily_pnl_pct=0.0,
-            avg_volume=float(stock_context.get("volume") or 0.0) or None,
+            avg_volume=volume,
         )
+        if volume is None:
+            liquidity_reason = self._liquidity_unavailable_reason(stock_context)
+            passed = False
+            violations.append(liquidity_reason)
+            warnings = [
+                warning for warning in warnings if warning != "无法获取成交量数据，跳过流动性检查"
+            ]
+            reliability_reasons.append(liquidity_reason)
+            details["liquidity_check"] = {
+                "status": "blocked",
+                "blocked_reason": "liquidity_data_unavailable",
+                "volume": None,
+            }
+        elif isinstance(details.get("liquidity_check"), dict):
+            details["liquidity_check"].update(
+                source=stock_context.get("volume_source"),
+                observed_at=stock_context.get("volume_observed_at"),
+            )
         new_position_temperature_block = (
             market_temperature_blocks_new_position and current_position_value <= 0
         )
@@ -292,9 +321,7 @@ class AlphaCandidateMixin:
         stage = "top_ranked"
         gate_status = "blocked"
         reliability_blocked = bool(reliability_reasons)
-        reliability_blocked_reason = metadata_blocked_reason or "；".join(
-            dict.fromkeys(reliability_reasons)
-        )
+        reliability_blocked_reason = "；".join(dict.fromkeys(reliability_reasons))
 
         if pending_request is not None:
             stage = "pending"
@@ -396,7 +423,8 @@ class AlphaCandidateMixin:
         if action == "deny":
             no_buy_reasons.append({"code": "DECISION_DENY", "text": decision_text})
         for violation in violations:
-            no_buy_reasons.append({"code": "RISK_BLOCK", "text": violation})
+            if violation not in reliability_reasons:
+                no_buy_reasons.append({"code": "RISK_BLOCK", "text": violation})
         for warning in warnings:
             no_buy_reasons.append({"code": "RISK_WARN", "text": warning})
         if suggested_position_pct <= 0:
@@ -404,12 +432,18 @@ class AlphaCandidateMixin:
                 {"code": "NO_POSITION_SIZE", "text": "当前账户上下文未形成正向建议仓位。"}
             )
 
+        strength_invalidation = (
+            f"映射信号强度低于 {signal_threshold:.4f}"
+            if signal_threshold is not None
+            else "未达到策略信号强度门槛"
+        )
         invalidation_rule = {
-            "summary": f"若跌出 Top {max(rank + 5, 10)}、政策/风控转差或评分跌破 0.55，则当前候选失效。",
+            "summary": f"若跌出 Top {max(rank + 5, 10)}、政策/风控转差或{strength_invalidation}，则当前候选失效。",
             "conditions": [
                 f"Alpha 评分跌出 Top {max(rank + 5, 10)}",
                 "政策闸门提升至 L2/L3",
                 "预交易风控由通过变为阻断",
+                strength_invalidation,
                 "当前候选进入待执行队列或被 workflow 显式否决",
             ],
         }
@@ -539,8 +573,50 @@ class AlphaCandidateMixin:
                 "decision_action": action,
                 "decision_codes": decision_codes,
                 "decision_text": decision_text,
+                "signal_strength": signal_strength,
+                "signal_threshold": signal_threshold,
+                "signal_strength_mapping": "(alpha_score + 1) / 2",
             },
         }
+
+    @staticmethod
+    def _publication_unavailable_reasons(stock_context: dict[str, Any]) -> list[str]:
+        """Identify the blocked dataset using safe, actionable presentation text."""
+        gates = stock_context.get("publication_gates")
+        explanations = {
+            "publication_policy_changed": "发布规则已变更，需重新校验并发布",
+            "canonical_publication_missing": "尚未完成有效发布",
+            "canonical_publication_stale": "已过期，需更新并重新发布",
+            "canonical_publication_members_missing": "缺少该标的数据",
+            "publication_member_evidence_missing": "缺少来源时间或来源证据",
+            "publication_member_fact_changed": "源数据已变更，需重新校验并发布",
+            "publication_member_snapshot_invalid": "发布完整性校验未通过",
+            "missing_source_observation": "缺少源观测时间",
+        }
+        reasons: list[str] = []
+        if isinstance(gates, dict):
+            for dataset, label in (("price", "行情"), ("financial", "财报"), ("valuation", "估值")):
+                gate = gates.get(dataset)
+                if not isinstance(gate, dict) or not gate.get("must_not_use_for_decision"):
+                    continue
+                detail = explanations.get(str(gate.get("blocked_reason")), "未通过发布校验")
+                reasons.append(f"{label}{detail}，当前候选仅供研究。")
+        return reasons or ["行情或基本面数据尚未通过发布校验，当前候选仅供研究。"]
+
+    @staticmethod
+    def _liquidity_unavailable_reason(stock_context: dict[str, Any]) -> str:
+        """Explain absent published volume without exposing raw provider errors."""
+        gates = stock_context.get("publication_gates")
+        price_gate = gates.get("price") if isinstance(gates, dict) else None
+        code = price_gate.get("blocked_reason") if isinstance(price_gate, dict) else None
+        explanations = {
+            "publication_policy_changed": "行情发布规则已变更，需重新校验并发布",
+            "canonical_publication_missing": "行情尚未完成有效发布",
+            "canonical_publication_stale": "已发布行情过期，需更新并重新发布",
+            "canonical_publication_members_missing": "已发布行情缺少该标的数据",
+        }
+        detail = explanations.get(str(code), "缺少通过校验的成交量数据")
+        return f"流动性检查未通过：{detail}，当前候选暂不可执行。"
 
     def _build_factor_basis(self, factors: dict[str, Any]) -> list[str]:
         basis: list[str] = []

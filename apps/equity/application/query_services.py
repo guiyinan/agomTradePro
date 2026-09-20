@@ -7,9 +7,7 @@ from datetime import date, datetime
 from typing import Any
 
 from apps.data_center.application.public import (
-    get_published_financial_facts,
-    get_published_price_bar_series,
-    get_published_valuation_facts,
+    get_published_equity_context_payloads,
 )
 from apps.equity.application.repository_provider import (
     get_equity_asset_master_query_repository,
@@ -247,35 +245,24 @@ def get_published_stock_context_map(
 
     requested_codes = list(dict.fromkeys(normalized_codes))
     master_map = get_equity_stock_repository().get_stock_master_rows(requested_codes)
+    payloads = get_published_equity_context_payloads(
+        [
+            str(master_map.get(code, {}).get("asset_code") or code).upper()
+            for code in requested_codes
+        ],
+        publication_key=publication_key,
+        include_price=include_price,
+        include_financial=include_financial,
+        include_valuation=include_valuation,
+    )
     context: dict[str, dict[str, Any]] = {}
     for requested_code in requested_codes:
         master = master_map.get(requested_code, {})
         asset_code = str(master.get("asset_code") or requested_code).upper()
-        price_payload: object = {}
-        if include_price:
-            price_payload = get_published_price_bar_series(
-                asset_code,
-                publication_key=publication_key,
-                limit=1,
-            )
-        financial_payload: object = (
-            get_published_financial_facts(
-                asset_code,
-                publication_key=publication_key,
-                limit=100,
-            )
-            if include_financial
-            else {}
-        )
-        valuation_payload: object = (
-            get_published_valuation_facts(
-                asset_code,
-                publication_key=publication_key,
-                limit=1,
-            )
-            if include_valuation
-            else {}
-        )
+        selected_payloads = payloads.get(asset_code, {})
+        price_payload: object = selected_payloads.get("price", {})
+        financial_payload: object = selected_payloads.get("financial", {})
+        valuation_payload: object = selected_payloads.get("valuation", {})
         gates: dict[str, dict[str, object]] = {}
         if include_financial:
             gates["financial"] = _payload_gate(financial_payload)

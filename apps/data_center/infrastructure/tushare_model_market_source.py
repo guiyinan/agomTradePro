@@ -30,6 +30,7 @@ class _TushareProClient(Protocol):
     def daily(self, **kwargs: object) -> Any: ...
     def adj_factor(self, **kwargs: object) -> Any: ...
     def index_daily(self, **kwargs: object) -> Any: ...
+    def suspend_d(self, **kwargs: object) -> Any: ...
 
 
 def _normalize_tushare_code(raw_code: object) -> str | None:
@@ -51,6 +52,7 @@ class TushareModelMarketSource:
         self._client_factory = client_factory
         self._fetch_workers = 1
         self._source = source
+        self._prepared: dict[tuple[str, date, date], tuple[ModelDailyBar, ...]] = {}
 
     @property
     def _pro(self) -> _TushareProClient:
@@ -64,6 +66,9 @@ class TushareModelMarketSource:
         self, asset_code: str, start_date: date, end_date: date
     ) -> tuple[ModelDailyBar, ...]:
         """Fetch matched raw daily prices and corporate-action factors."""
+        key = (asset_code, start_date, end_date)
+        if key in self._prepared:
+            return self._prepared[key]
         daily = self._fetch_stock_daily([asset_code], start_date, end_date)
         if daily.empty:
             return ()
@@ -74,6 +79,143 @@ class TushareModelMarketSource:
             how="left",
         )
         return self._rows(frame, volume_multiplier=100.0)
+
+    def prepare_stock_history(
+        self, asset_codes: tuple[str, ...], start_date: date, end_date: date
+    ) -> None:
+        """Batch comma-separated symbols below the provider row limit for an exact window."""
+        if start_date > end_date or any(
+            _normalize_tushare_code(code) != code for code in asset_codes
+        ):
+            raise ValueError("Invalid history preparation scope")
+        self._prepared.clear()
+        if len(asset_codes) > max(200, (end_date - start_date).days):
+            if self._prepare_by_session(asset_codes, start_date, end_date):
+                return
+        # Calendar days bound trading rows conservatively; retain headroom below 6000 rows.
+        batch_size = max(1, min(50, 4800 // ((end_date - start_date).days + 1)))
+        codes = tuple(sorted(set(asset_codes)))
+        for offset in range(0, len(codes), batch_size):
+            batch = codes[offset : offset + batch_size]
+            params = {
+                "ts_code": ",".join(batch),
+                "start_date": start_date.strftime("%Y%m%d"),
+                "end_date": end_date.strftime("%Y%m%d"),
+            }
+            daily = self._call_with_retry(
+                self._pro.daily,
+                ts_code=params["ts_code"],
+                start_date=params["start_date"],
+                end_date=params["end_date"],
+            )
+            factors = self._call_with_retry(
+                self._pro.adj_factor,
+                ts_code=params["ts_code"],
+                start_date=params["start_date"],
+                end_date=params["end_date"],
+            )
+            if daily is None or factors is None:
+                continue
+            if len(daily) >= 4800 or len(factors) >= 4800:
+                continue  # Fall back to per-symbol requests when completeness is uncertain.
+            required = {"ts_code", "trade_date", "adj_factor"}
+            if not required.issubset(factors.columns) or "ts_code" not in daily.columns:
+                continue
+            factor_frame = factors.copy()
+            factor_frame["trade_date"] = pd.to_datetime(
+                factor_frame["trade_date"], format="%Y%m%d", errors="coerce"
+            )
+            factor_frame["adj_factor"] = pd.to_numeric(factor_frame["adj_factor"], errors="coerce")
+            if factor_frame.duplicated(["ts_code", "trade_date"]).any():
+                continue
+            for code in batch:
+                normalized = self._normalize_daily_frame(
+                    daily.loc[daily["ts_code"] == code],
+                    requested_code=code,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+                if normalized.empty:
+                    continue  # Empty batch members need an individual request before failover.
+                joined = normalized.merge(
+                    factor_frame.loc[factor_frame["ts_code"] == code, list(required)],
+                    on=["ts_code", "trade_date"],
+                    how="left",
+                    validate="many_to_one",
+                )
+                self._prepared[(code, start_date, end_date)] = self._rows(
+                    joined, volume_multiplier=100.0
+                )
+            logger.info(
+                "Model history prepared: source=%s assets=%d/%d",
+                self._source,
+                offset + len(batch),
+                len(codes),
+            )
+
+    def _prepare_by_session(
+        self, asset_codes: tuple[str, ...], start_date: date, end_date: date
+    ) -> bool:
+        """Use bounded daily market snapshots when a scope is wider than its time window."""
+        days = self.trade_days(start_date, end_date)
+        if not days:
+            return False
+        client = self._pro
+
+        def fetch(day: date) -> tuple[PandasDataFrame, PandasDataFrame]:
+            daily = self._call_with_retry(client.daily, trade_date=day.strftime("%Y%m%d"))
+            factors = self._call_with_retry(client.adj_factor, trade_date=day.strftime("%Y%m%d"))
+            return daily, factors
+
+        daily_frames: list[PandasDataFrame] = []
+        factor_frames: list[PandasDataFrame] = []
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            for day, (daily, factors) in zip(days, executor.map(fetch, days), strict=True):
+                if (
+                    daily is None
+                    or factors is None
+                    or daily.empty
+                    or factors.empty
+                    or len(daily) >= 6000
+                    or len(factors) >= 6000
+                    or not {"ts_code", "trade_date"}.issubset(daily.columns)
+                    or not {"ts_code", "trade_date", "adj_factor"}.issubset(factors.columns)
+                ):
+                    return False
+                # Reject an endpoint that ignored the single-session parameter.
+                if any(str(value) != day.strftime("%Y%m%d") for value in daily["trade_date"]):
+                    return False
+                if any(str(value) != day.strftime("%Y%m%d") for value in factors["trade_date"]):
+                    return False
+                daily_frames.append(daily.loc[daily["ts_code"].isin(asset_codes)])
+                factor_frames.append(factors.loc[factors["ts_code"].isin(asset_codes)])
+                logger.info("Model market session prepared: %s %s", self._source, day)
+        daily_frame = pd.concat(daily_frames, ignore_index=True)
+        factor_frame = pd.concat(factor_frames, ignore_index=True)
+        if factor_frame.duplicated(["ts_code", "trade_date"]).any():
+            return False
+        factor_frame["trade_date"] = pd.to_datetime(
+            factor_frame["trade_date"], format="%Y%m%d", errors="coerce"
+        )
+        factor_frame["adj_factor"] = pd.to_numeric(factor_frame["adj_factor"], errors="coerce")
+        factor_groups = dict(iter(factor_frame.groupby("ts_code")))
+        for code, frame in daily_frame.groupby("ts_code"):
+            normalized = self._normalize_daily_frame(
+                frame, requested_code=str(code), start_date=start_date, end_date=end_date
+            )
+            factors = factor_groups.get(code)
+            if normalized.empty or factors is None:
+                continue
+            joined = normalized.merge(
+                factors[["ts_code", "trade_date", "adj_factor"]],
+                on=["ts_code", "trade_date"],
+                how="left",
+                validate="many_to_one",
+            )
+            self._prepared[(str(code), start_date, end_date)] = self._rows(
+                joined, volume_multiplier=100.0
+            )
+        return True
 
     def index_history(
         self, asset_code: str, start_date: date, end_date: date
@@ -86,6 +228,32 @@ class TushareModelMarketSource:
     def trade_days(self, start_date: date, end_date: date) -> tuple[date, ...]:
         """Read the exchange calendar without manufacturing weekdays."""
         return tuple(sorted(set(self._fetch_trade_days(start_date, end_date))))
+
+    def suspended_days(self, asset_code: str, start_date: date, end_date: date) -> tuple[date, ...]:
+        """Accept only explicit full-day S records; intraday halts do not explain gaps."""
+        frame = self._call_with_retry(
+            self._pro.suspend_d,
+            ts_code=asset_code,
+            start_date=start_date.strftime("%Y%m%d"),
+            end_date=end_date.strftime("%Y%m%d"),
+            suspend_type="S",
+        )
+        if frame is None or frame.empty:
+            return ()
+        required = {"ts_code", "trade_date", "suspend_type", "suspend_timing"}
+        if not required.issubset(frame.columns):
+            return ()
+        days: set[date] = set()
+        for row in frame.to_dict("records"):
+            if row["ts_code"] != asset_code or row["suspend_type"] != "S":
+                continue
+            timing = row["suspend_timing"]
+            if timing is not None and not pd.isna(timing) and str(timing).strip():
+                continue
+            observed = pd.to_datetime(row["trade_date"], format="%Y%m%d", errors="coerce")
+            if pd.notna(observed) and start_date <= observed.date() <= end_date:
+                days.add(observed.date())
+        return tuple(sorted(days))
 
     def index_members(self, index_code: str, target_date: date) -> tuple[str, ...]:
         """Read the latest effective snapshot, never a future constituent list."""

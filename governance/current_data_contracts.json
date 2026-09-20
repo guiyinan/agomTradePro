@@ -389,14 +389,25 @@
       "id": "data_center.model_market_history",
       "surface": "Provider-neutral Qlib and Equity historical model inputs",
       "source_files": [
-        "apps/data_center/application/model_market_data.py"
+        "apps/data_center/application/model_market_data.py",
+        "apps/data_center/infrastructure/market_gateway_entities.py",
+        "apps/data_center/infrastructure/alpha_price_coverage_sync.py",
+        "apps/data_center/domain/model_market_data.py",
+        "apps/data_center/infrastructure/tushare_model_market_source.py",
+        "apps/alpha/infrastructure/qlib_builder.py",
+        "apps/alpha/infrastructure/qlib_prediction_runtime.py",
+        "apps/data_center/infrastructure/tencent_history_units.py",
+        "apps/data_center/infrastructure/model_market_wiring.py",
+        "apps/alpha/infrastructure/qlib_runtime_lock.py",
+        "apps/alpha/infrastructure/qlib_scope_evidence.py"
       ],
       "required_markers": {
         "apps/data_center/application/model_market_data.py": [
           "MODEL_MARKET_STALE",
           "MODEL_MARKET_UNVERIFIED_FAILOVER",
           "MODEL_MARKET_SOURCE_CONFLICT",
-          "row.trade_date"
+          "row.trade_date",
+          "MODEL_MARKET_SUSPENDED"
         ]
       },
       "required_tests": [
@@ -414,6 +425,111 @@
           "case": "consumers_do_not_route_vendors",
           "test_file": "tests/unit/data_center/test_model_market_data.py",
           "test_function": "test_model_consumers_cannot_obtain_vendor_sdks_or_choose_market_sources"
+        },
+        {
+          "case": "adjustment_and_units",
+          "test_file": "tests/unit/data_center/test_history_adjustment_contract.py",
+          "test_function": "test_tencent_history_retains_basis_and_canonical_volume"
+        },
+        {
+          "case": "raw_reference_only",
+          "test_file": "tests/unit/data_center/test_history_adjustment_contract.py",
+          "test_function": "test_model_reference_excludes_forward_adjusted_history"
+        },
+        {
+          "case": "fallback_adjustment",
+          "test_file": "tests/unit/data_center/test_history_adjustment_contract.py",
+          "test_function": "test_tushare_fallback_preserves_adjustment_in_canonical_adapter"
+        },
+        {
+          "case": "raw_reference_never_accepts_adjusted_response",
+          "test_file": "tests/unit/data_center/test_history_adjustment_contract.py",
+          "test_function": "test_explicit_raw_history_never_substitutes_adjusted_rows"
+        },
+        {
+          "case": "verified_full_day_suspension",
+          "test_file": "tests/unit/data_center/test_model_market_data.py",
+          "test_function": "test_verified_full_day_suspension_stores_history_without_advancing_observation"
+        },
+        {
+          "case": "suspension_gap_fail_closed",
+          "test_file": "tests/unit/data_center/test_model_market_data.py",
+          "test_function": "test_incomplete_suspension_evidence_remains_stale"
+        },
+        {
+          "case": "suspended_instrument_no_fabrication",
+          "test_file": "tests/component/test_qlib_builder.py",
+          "test_function": "test_verified_suspension_excludes_current_instrument_without_fabricated_bars"
+        },
+        {
+          "case": "prediction_current_membership",
+          "test_file": "tests/unit/alpha/test_qlib_runtime_contracts.py",
+          "test_function": "test_qlib_prediction_filters_instruments_at_actual_prediction_date"
+        },
+        {
+          "case": "configured_star_volume",
+          "test_file": "tests/unit/data_center/test_history_adjustment_contract.py",
+          "test_function": "test_tencent_star_history_is_already_shares"
+        },
+        {
+          "case": "missing_units_fail_closed",
+          "test_file": "tests/unit/data_center/test_tencent_history_units.py",
+          "test_function": "test_missing_or_invalid_unit_rules_fail_closed"
+        },
+        {
+          "case": "missing_volume_is_not_zero",
+          "test_file": "tests/unit/data_center/test_history_adjustment_contract.py",
+          "test_function": "test_missing_volume_is_not_fabricated_as_zero_reference"
+        },
+        {
+          "case": "idempotent_feature_scaling",
+          "test_file": "tests/component/test_qlib_builder.py",
+          "test_function": "test_repeated_qlib_refresh_does_not_compound_corporate_actions"
+        },
+        {
+          "case": "corrupt_feature_no_calendar_advance",
+          "test_file": "tests/component/test_qlib_builder.py",
+          "test_function": "test_corrupt_qlib_factors_block_before_calendar_advances"
+        },
+        {
+          "case": "float32_overflow_fail_closed",
+          "test_file": "tests/component/test_qlib_builder.py",
+          "test_function": "test_qlib_feature_float32_overflow_is_rejected"
+        },
+        {
+          "case": "batch_transport_equivalent",
+          "test_file": "tests/unit/data_center/test_model_history_preparation.py",
+          "test_function": "test_prepared_multi_symbol_history_reduces_requests_and_preserves_units"
+        },
+        {
+          "case": "batch_failover_gate_retained",
+          "test_file": "tests/unit/data_center/test_model_history_preparation.py",
+          "test_function": "test_prepared_data_still_runs_cross_source_consistency_before_storage"
+        },
+        {
+          "case": "batch_row_limit",
+          "test_file": "tests/unit/data_center/test_model_history_preparation.py",
+          "test_function": "test_preparation_batches_bound_calendar_day_rows"
+        },
+        {
+          "case": "missing_batch_member_fallback",
+          "test_file": "tests/unit/data_center/test_model_history_preparation.py",
+          "test_function": "test_missing_batch_member_uses_individual_request"
+        },
+        {
+          "case": "shared_features_lock",
+          "test_file": "tests/unit/alpha/test_qlib_runtime_lock.py",
+          "test_function": "test_runtime_lock_rejects_overlap_and_releases_on_error"
+        },
+        {
+          "case": "suspension_scope_binding",
+          "test_file": "tests/unit/alpha/test_qlib_scope_evidence.py",
+          "test_function": "test_evidence_is_date_and_scope_bound"
+        },
+        {
+          "case": "wide_market_preparation",
+          "test_file": "tests/unit/data_center/test_model_history_preparation.py",
+          "test_function": "test_wide_scope_prefetches_by_session_and_retains_exact_stock_windows"
         }
       ]
     },
@@ -421,15 +537,21 @@
       "id": "alpha.qlib_prediction_source_freshness",
       "surface": "Alpha Qlib prediction cache and downstream workspace refresh",
       "source_files": [
-        "apps/alpha/application/tasks.py"
+        "apps/alpha/application/tasks.py",
+        "apps/alpha/application/daily_inference_orchestration.py",
+        "apps/alpha/application/task_outcome_contracts.py"
       ],
       "required_markers": {
         "apps/alpha/application/tasks.py": [
           "source_is_stale = asof_date < trade_date",
-          "qlib_source_data_stale",
           "must_not_use_for_decision",
           "TUSHARE_DAILY_QUOTA_EXHAUSTED",
-          "MODEL_MARKET_"
+          "MODEL_MARKET_",
+          "stale_prediction_metadata()"
+        ],
+        "apps/alpha/application/task_outcome_contracts.py": [
+          "qlib_source_data_stale",
+          "must_not_use_for_decision"
         ]
       },
       "required_tests": [
@@ -447,6 +569,11 @@
           "case": "fresh_source_refreshes_workspace",
           "test_file": "apps/alpha/tests/test_tasks_prediction.py",
           "test_function": "test_qlib_predict_scores_refreshes_general_runtime_data_before_prediction"
+        },
+        {
+          "case": "scheduled_refresh_block_stops_fanout",
+          "test_file": "tests/unit/alpha/test_daily_inference_refresh_blocking.py",
+          "test_function": "test_daily_refresh_block_does_not_queue_predictions"
         }
       ]
     },
@@ -888,7 +1015,8 @@
         "apps/decision_rhythm/application/advisor_providers.py",
         "apps/terminal/application/tui_operator_services.py",
         "apps/operational_readiness/application/status_services.py",
-        "apps/operational_readiness/application/monitor_service.py"
+        "apps/operational_readiness/application/monitor_service.py",
+        "apps/data_center/application/published_equity_context.py"
       ],
       "required_markers": {
         "apps/data_center/application/public_published_queries.py": [
@@ -951,6 +1079,21 @@
           "case": "operational_readiness_coverage_public_port",
           "test_file": "tests/unit/operational_readiness/test_data_center_public_ports.py",
           "test_function": "test_coverage_readiness_uses_public_port"
+        },
+        {
+          "case": "price_freshness_scoped_with_global_integrity",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_asset_price_freshness_does_not_inherit_another_stocks_suspension"
+        },
+        {
+          "case": "batch_complete_proof_once_and_next_call_revalidates",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_batch_validates_whole_market_once_and_rechecks_next_call"
+        },
+        {
+          "case": "batch_asset_freshness_remains_isolated",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_batch_prices_preserve_each_assets_source_freshness"
         }
       ]
     },
@@ -1357,7 +1500,9 @@
       "source_files": [
         "apps/dashboard/application/beta_market_summary.py",
         "apps/dashboard/application/interface_services.py",
-        "apps/dashboard/interface/tui_views.py"
+        "apps/dashboard/interface/tui_views.py",
+        "apps/dashboard/application/alpha_refresh_notice.py",
+        "apps/dashboard/application/alpha_homepage_runtime.py"
       ],
       "required_markers": {
         "apps/dashboard/application/beta_market_summary.py": [
@@ -1397,6 +1542,26 @@
           "case": "tui_api_exposes_decision_blockers",
           "test_file": "tests/api/test_dashboard_api_edges.py",
           "test_function": "test_dashboard_beta_market_summary_exposes_decision_blockers"
+        },
+        {
+          "case": "alpha_refresh_business_failure_visible",
+          "test_file": "tests/unit/dashboard/test_alpha_refresh_notice.py",
+          "test_function": "test_business_block_even_with_celery_success_and_no_secret_leak"
+        },
+        {
+          "case": "alpha_refresh_scope_isolation",
+          "test_file": "tests/unit/dashboard/test_alpha_refresh_notice.py",
+          "test_function": "test_scope_isolation_and_latest_success_clears_old_failure"
+        },
+        {
+          "case": "alpha_refresh_empty_and_cached_tui",
+          "test_file": "tests/unit/dashboard/test_alpha_refresh_notice.py",
+          "test_function": "test_tui_notice_survives_empty_and_cached_results"
+        },
+        {
+          "case": "market_publication_block_independent_of_prediction",
+          "test_file": "tests/unit/dashboard/test_alpha_refresh_notice.py",
+          "test_function": "test_prediction_success_does_not_hide_independent_market_block"
         }
       ]
     },
@@ -2079,6 +2244,11 @@
           "case": "read_path_has_no_snapshot_write",
           "test_file": "tests/unit/test_realtime_akshare_provider.py",
           "test_function": "test_akshare_price_provider_falls_back_to_direct_quote_for_single_asset"
+        },
+        {
+          "case": "configured_quote_volume_units",
+          "test_file": "tests/unit/data_center/test_tencent_gateway.py",
+          "test_function": "test_tencent_quote_volume_uses_configured_canonical_share_units"
         }
       ]
     },
@@ -2376,7 +2546,8 @@
         "apps/signal/application/invalidation_checker.py",
         "apps/signal/application/query_services.py",
         "apps/signal/interface/views.py",
-        "apps/alpha_trigger/application/page_query_service.py"
+        "apps/alpha_trigger/application/page_query_service.py",
+        "apps/data_center/application/publication_query_bounds.py"
       ],
       "required_markers": {
         "apps/data_center/application/public.py": [
@@ -2396,7 +2567,7 @@
           "_publication_member_fact_pks(",
           "data_center_macro_fact",
           "data_center_fund_nav_fact",
-          "canonical_publication_stale"
+          "_publication_freshness_gate("
         ],
         "apps/dashboard/application/integration_gateways.py": [
           "get_published_macro_fact_series(indicator_code, limit=1)",
@@ -2480,6 +2651,10 @@
         ],
         "apps/alpha_trigger/application/page_query_service.py": [
           "list_published_macro_indicator_summaries(limit=50)"
+        ],
+        "apps/data_center/application/publication_query_bounds.py": [
+          "canonical_publication_stale",
+          "must_not_use_for_decision"
         ]
       },
       "required_tests": [
@@ -2647,7 +2822,8 @@
         "apps/equity/interface/pool_actions.py",
         "sdk/agomtradepro/modules/equity.py",
         "sdk/agomtradepro_mcp/tools/equity_tools.py",
-        "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py"
+        "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py",
+        "apps/data_center/application/publication_query_bounds.py"
       ],
       "required_markers": {
         "apps/data_center/domain/market_time.py": [
@@ -2663,7 +2839,7 @@
           "equity.valuation.fact",
           "def _publication_member_fact_pks(",
           "fact_pks=member_pks",
-          "canonical_publication_stale"
+          "_publication_freshness_gate("
         ],
         "apps/data_center/application/public_published_queries.py": [
           "def get_published_financial_facts(",
@@ -2745,6 +2921,10 @@
           "def _fallback_equity_compute_analysis(",
           "mode: str = \"published\"",
           "publication_key: str | None = None"
+        ],
+        "apps/data_center/application/publication_query_bounds.py": [
+          "canonical_publication_stale",
+          "must_not_use_for_decision"
         ]
       },
       "required_tests": [
@@ -3235,18 +3415,17 @@
         "apps/dashboard/application/integration_gateways.py",
         "apps/dashboard/infrastructure/repositories.py",
         "apps/alpha/application/ai_filter.py",
-        "apps/alpha/interface/views.py"
+        "apps/alpha/interface/views.py",
+        "apps/dashboard/application/alpha_homepage_candidates.py"
       ],
       "required_markers": {
         "apps/equity/application/query_services.py": [
           "def get_stock_context_map(",
           "get_published_stock_context_map(normalized_codes)",
           "def get_published_stock_context_map(",
-          "get_published_price_bar_series(",
-          "get_published_financial_facts(",
-          "get_published_valuation_facts(",
           "must_not_use_for_decision",
-          "publication_gates"
+          "publication_gates",
+          "get_published_equity_context_payloads("
         ],
         "apps/equity/infrastructure/stock_info_repository.py": [
           "def get_stock_master_rows(",
@@ -3301,6 +3480,31 @@
           "case": "stock_info_requires_asset_master",
           "test_file": "apps/equity/tests/test_stock_context_repository.py",
           "test_function": "test_stock_info_does_not_infer_asset_master_from_unpublished_market_facts"
+        },
+        {
+          "case": "alpha_missing_volume_blocks",
+          "test_file": "tests/unit/dashboard/test_alpha_candidate_liquidity.py",
+          "test_function": "test_unavailable_volume_blocks_alpha_instead_of_skipping_liquidity"
+        },
+        {
+          "case": "alpha_zero_volume_is_real",
+          "test_file": "tests/unit/dashboard/test_alpha_candidate_liquidity.py",
+          "test_function": "test_zero_volume_is_insufficient_liquidity_not_missing_data"
+        },
+        {
+          "case": "alpha_context_gate_applied",
+          "test_file": "tests/unit/dashboard/test_alpha_candidate_liquidity.py",
+          "test_function": "test_publication_block_is_explained_and_kept_even_with_numeric_context"
+        },
+        {
+          "case": "alpha_volume_observation_preserved",
+          "test_file": "tests/unit/dashboard/test_alpha_candidate_liquidity.py",
+          "test_function": "test_context_preserves_zero_missing_and_volume_provenance"
+        },
+        {
+          "case": "alpha_names_blocked_dataset_with_available_volume",
+          "test_file": "tests/unit/dashboard/test_alpha_candidate_liquidity.py",
+          "test_function": "test_alpha_page_names_financial_block_even_when_volume_is_available"
         }
       ]
     },

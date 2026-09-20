@@ -3,9 +3,18 @@ from decimal import Decimal
 from hashlib import sha256
 from unittest.mock import MagicMock, patch
 
+import pytest
 import requests
 
 from apps.data_center.infrastructure.gateways.tencent_gateway import TencentGateway
+
+
+@pytest.fixture(autouse=True)
+def configured_tencent_history_units(monkeypatch):
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.tencent_history_units.get_runtime_config_value",
+        lambda key: '{"*": 100, "688.SH": 1, "689.SH": 1}',
+    )
 
 
 def test_tencent_gateway_parses_stock_history_rows():
@@ -228,3 +237,24 @@ def test_tencent_gateway_skips_follow_up_requests_after_permission_denied():
     assert first == []
     assert second == []
     mocked_get.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "code,raw,expected",
+    [
+        ("300750.SZ", "380713", 38071300),
+        ("688012.SH", "20605046", 20605046),
+        ("920002.BJ", "7873", 787300),
+        ("601059.SH", "0", 0),
+        ("300750.SZ", "", None),
+    ],
+)
+def test_tencent_quote_volume_uses_configured_canonical_share_units(code, raw, expected):
+    fields = [""] * 48
+    fields[3] = "10"
+    fields[30] = "20260918161412"
+    fields[36] = raw
+    quote = TencentGateway._parse_quote_fields(code, fields)
+    assert quote is not None
+    assert quote.volume == expected
+    assert quote.observed_at == datetime(2026, 9, 18, 8, 14, 12, tzinfo=UTC)

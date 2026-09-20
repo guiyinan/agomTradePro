@@ -9,6 +9,8 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
+from apps.data_center.domain.enums import PriceAdjustment
+
 
 @dataclass(frozen=True)
 class QuoteSnapshot:
@@ -208,7 +210,7 @@ class TechnicalSnapshot:
 class HistoricalPriceBar:
     """历史价格 K 线
 
-    标准化的 OHLCV 数据，适用于股票、ETF、指数等各类资产。
+    标准化的 OHLCV 数据；成交量为股/份、成交额为元，复权口径显式保留。
     """
 
     asset_code: str
@@ -220,6 +222,7 @@ class HistoricalPriceBar:
     volume: int | None = None
     amount: float | None = None
     source: str = ""
+    adjustment: PriceAdjustment = PriceAdjustment.NONE
 
     def __post_init__(self) -> None:
         if not self.asset_code:
@@ -239,6 +242,7 @@ class HistoricalPriceBar:
             "volume": self.volume,
             "amount": self.amount,
             "source": self.source,
+            "adjustment": self.adjustment.value,
         }
 
 

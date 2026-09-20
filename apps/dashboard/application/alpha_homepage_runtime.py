@@ -9,6 +9,7 @@ from typing import Any, Protocol
 
 from apps.alpha.application.pool_resolver import ResolvedAlphaPool
 from apps.alpha.domain.entities import AlphaPoolScope, AlphaResult
+from apps.dashboard.application.alpha_refresh_notice import get_refresh_notice
 from core.integration.runtime_imports import get_celery_health_checker, record_pending_task
 
 logger = logging.getLogger(__name__)
@@ -622,5 +623,12 @@ class AlphaRuntimeMixin:
                 scope=scope,
                 metadata={**metadata, **meta},
             )
+        )
+        meta["refresh_notice"] = get_refresh_notice(
+            portfolio_id=scope.portfolio_id,
+            request_failed=bool(meta["auto_refresh_error"]),
+            universe_id=(
+                "csi300" if meta["alpha_scope"] == ALPHA_SCOPE_GENERAL else scope.universe_id
+            ),
         )
         return meta

@@ -25,6 +25,7 @@ def _summary() -> SimpleNamespace:
         stock_count=2,
         universe_count=1,
         warning_messages=("one delayed quote",),
+        suspended_codes=("600001.SH",),
     )
 
 
@@ -106,6 +107,7 @@ def test_runtime_refresh_service_handles_disabled_empty_and_successful_scopes(
     )
     assert universe_result["status"] == "success"
     assert universe_result["warning_messages"] == ["one delayed quote"]
+    assert universe_result["suspended_codes"] == ["600001.SH"]
     assert code_result["status"] == "success"
     assert code_result["stock_count"] == 2
     assert ("codes", ["000001.SZ", "600000.SH"]) in calls

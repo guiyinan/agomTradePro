@@ -13,11 +13,17 @@ from typing import Any
 
 import numpy as np
 
+from apps.alpha.infrastructure.qlib_runtime_lock import qlib_runtime_lock
+from apps.alpha.infrastructure.qlib_scope_evidence import write_scope_evidence
 from apps.alpha.infrastructure.scientific_runtime import get_pandas
 from apps.config_center.application import interface_services as config_center_services
 from apps.config_center.domain.entities import AlphaUniverseConfig
 from apps.data_center.application.public import get_model_market_data_port
-from apps.data_center.domain.model_market_data import ModelDailyBar, ModelMarketDataPort
+from apps.data_center.domain.model_market_data import (
+    ModelDailyBar,
+    ModelHistoryPreparationPort,
+    ModelMarketDataPort,
+)
 from core.exceptions import DataFetchError
 
 logger = logging.getLogger(__name__)
@@ -42,6 +48,7 @@ class QlibBuildSummary:
     stock_count: int
     universe_count: int
     warning_messages: tuple[str, ...] = ()
+    suspended_codes: tuple[str, ...] = ()
 
 
 def inspect_latest_trade_date(provider_uri: str) -> date | None:
@@ -159,6 +166,7 @@ class DataCenterQlibBuilder:
         self._provider_uri = Path(provider_uri).expanduser()
         self._data_port = data_port if data_port is not None else get_model_market_data_port()
         self._history_cache: dict[tuple[str, date, date], tuple[ModelDailyBar, ...]] = {}
+        self._suspended_codes: dict[str, date] = {}
         self._fetch_workers = fetch_workers
         self._calendar_path = _calendar_path(self._provider_uri)
         self._instrument_dir = self._provider_uri / "instruments"
@@ -244,7 +252,25 @@ class DataCenterQlibBuilder:
         index_codes: Iterable[str],
     ) -> QlibBuildSummary:
         """Build qlib data for already-resolved universe members."""
+        with qlib_runtime_lock(self._provider_uri):
+            return self._build_locked_members(
+                target_date=target_date,
+                universe_members=universe_members,
+                lookback_days=lookback_days,
+                index_codes=index_codes,
+            )
+
+    def _build_locked_members(
+        self,
+        *,
+        target_date: date,
+        universe_members: dict[str, list[str]],
+        lookback_days: int,
+        index_codes: Iterable[str],
+    ) -> QlibBuildSummary:
+        """Keep feature writes and completed-scope evidence in one exclusive operation."""
         self._history_cache.clear()
+        self._suspended_codes.clear()
         latest_before = inspect_latest_trade_date(str(self._provider_uri))
         requested_start_date = target_date - timedelta(days=max(lookback_days, 90))
 
@@ -252,8 +278,16 @@ class DataCenterQlibBuilder:
         if not stock_codes:
             raise RuntimeError("数据中台未返回股票池成分股")
 
+        if isinstance(self._data_port, ModelHistoryPreparationPort):
+            self._data_port.prepare_stock_history(
+                tuple(stock_codes), requested_start_date, target_date
+            )
         stock_daily = self._fetch_stock_daily(stock_codes, requested_start_date, target_date)
         if stock_daily.empty:
+            if self._suspended_codes:
+                raise DataFetchError(
+                    "All requested instruments are suspended", code="MODEL_MARKET_SUSPENDED"
+                )
             raise RuntimeError("未获取到股票日线，无法构建 Qlib 数据")
 
         effective_target_date = stock_daily["trade_date"].max().date()
@@ -292,6 +326,10 @@ class DataCenterQlibBuilder:
             code: self._fetch_index_daily(code, requested_start_date, effective_target_date)
             for code in sorted(set(index_codes))
         }
+        # Reject corrupt existing scaling before advancing the shared calendar.
+        for code in [*stock_codes, *index_frames]:
+            if code not in self._suspended_codes:
+                self._read_existing_factor_scale(code)
         self._ensure_layout()
         calendar_days_written = self._upsert_calendar(trade_days)
         calendar_values = _read_calendar_values(self._calendar_path)
@@ -323,8 +361,17 @@ class DataCenterQlibBuilder:
             effective_target_date=effective_target_date,
         )
         latest_after = inspect_latest_trade_date(str(self._provider_uri))
+        if effective_target_date == target_date:
+            write_scope_evidence(
+                self._provider_uri, target_date, stock_codes, self._suspended_codes
+            )
 
         warnings: list[str] = []
+        if self._suspended_codes:
+            warnings.append(
+                "以下股票已核实全天停牌，未生成当期行情或评分："
+                + ", ".join(sorted(self._suspended_codes))
+            )
         if effective_target_date < target_date:
             warnings.append(
                 f"数据中台最新可用日线仅到 {effective_target_date.isoformat()}，"
@@ -339,9 +386,10 @@ class DataCenterQlibBuilder:
             calendar_days_written=calendar_days_written,
             instrument_files_written=instrument_files_written,
             feature_series_written=feature_series_written,
-            stock_count=len(stock_codes),
+            stock_count=len(stock_codes) - len(self._suspended_codes),
             universe_count=len(universe_members),
             warning_messages=tuple(warnings),
+            suspended_codes=tuple(sorted(self._suspended_codes)),
         )
 
     def _ensure_layout(self) -> None:
@@ -480,7 +528,23 @@ class DataCenterQlibBuilder:
         self, stock_codes: list[str], start_date: date, end_date: date
     ) -> PandasDataFrame:
         def fetch_one(code: str) -> PandasDataFrame:
-            return self._daily_frame(self._stock_rows(code, start_date, end_date))
+            try:
+                return self._daily_frame(self._stock_rows(code, start_date, end_date))
+            except DataFetchError as exc:
+                if exc.code != "MODEL_MARKET_SUSPENDED":
+                    raise
+                last_observed = exc.details.get("last_observed_date")
+                through = exc.details.get("suspended_through")
+                if (
+                    exc.details.get("asset_code") != code
+                    or not isinstance(last_observed, str)
+                    or not isinstance(through, str)
+                    or date.fromisoformat(through) > end_date
+                    or date.fromisoformat(last_observed) >= date.fromisoformat(through)
+                ):
+                    raise
+                self._suspended_codes[code] = date.fromisoformat(last_observed)
+                return pd.DataFrame()
 
         frames = self._fetch_stock_frames(stock_codes, fetch_one)
         return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
@@ -490,6 +554,8 @@ class DataCenterQlibBuilder:
     ) -> PandasDataFrame:
         records: list[dict[str, object]] = []
         for code in stock_codes:
+            if code in self._suspended_codes:
+                continue
             covering = next(
                 (
                     rows
@@ -578,24 +644,15 @@ class DataCenterQlibBuilder:
         if factor_series.notna().sum() == 0:
             return 0
 
-        existing_scale = self._resolve_existing_stock_scale(ts_code, frame)
-        if existing_scale is None:
+        base_denominator = self._resolve_existing_stock_denominator(
+            ts_code, frame, scale_reference_adj_map.get(ts_code)
+        )
+        if base_denominator is None:
             latest_adj_factor = float(factor_series.dropna().iloc[-1])
             if not math.isfinite(latest_adj_factor) or latest_adj_factor <= 0:
                 return 0
             scale_values = factor_series / latest_adj_factor
         else:
-            if not math.isfinite(existing_scale) or existing_scale <= 0:
-                return 0
-            reference_adj = scale_reference_adj_map.get(ts_code)
-            if reference_adj is None:
-                overlap_mask = factor_series.notna()
-                if overlap_mask.sum() == 0:
-                    return 0
-                reference_adj = float(factor_series.loc[overlap_mask].iloc[0])
-            if not math.isfinite(reference_adj) or reference_adj <= 0:
-                return 0
-            base_denominator = reference_adj / existing_scale
             if not math.isfinite(base_denominator) or base_denominator <= 0:
                 return 0
             scale_values = factor_series / base_denominator
@@ -719,6 +776,10 @@ class DataCenterQlibBuilder:
         elif post_process is not None:
             raw_values = post_process(raw_values, scale_values)
         raw_values = np.where(np.isfinite(raw_values), raw_values, np.nan)
+        if np.any(np.abs(raw_values[np.isfinite(raw_values)]) > np.finfo(np.float32).max):
+            raise DataFetchError(
+                "Qlib feature exceeds float32 range", code="MODEL_MARKET_LOCAL_FEATURE_INVALID"
+            )
         values[relative_index] = raw_values.astype(np.float32)
         return values
 
@@ -743,15 +804,23 @@ class DataCenterQlibBuilder:
         coverage = stock_daily.groupby("ts_code")["trade_date"].agg(["min", "max"]).reset_index()
         coverage["min"] = coverage["min"].dt.date
         coverage["max"] = coverage["max"].dt.date
-        coverage_map = {
-            row.ts_code: (row.min, max(row.max, effective_target_date))
-            for row in coverage.itertuples(index=False)
-        }
+        coverage_map = {row.ts_code: (row.min, row.max) for row in coverage.itertuples(index=False)}
 
         all_instruments = self._read_instrument_ranges("all")
         for universe, members in universe_members.items():
             ranges = self._read_instrument_ranges(universe)
             for member in members:
+                if member in self._suspended_codes:
+                    symbol = normalize_qlib_symbol(member)
+                    last_observed = self._suspended_codes[member]
+                    for target_ranges in (ranges, all_instruments):
+                        if symbol in target_ranges:
+                            first, last = target_ranges[symbol]
+                            if first <= last_observed:
+                                target_ranges[symbol] = (first, min(last, last_observed))
+                            else:
+                                target_ranges.pop(symbol)
+                    continue
                 if member not in coverage_map:
                     continue
                 start_day, end_day = coverage_map[member]
@@ -795,15 +864,40 @@ class DataCenterQlibBuilder:
                 start_day, end_day = ranges[symbol]
                 fp.write(f"{symbol}\t{start_day.isoformat()}\t{end_day.isoformat()}\n")
 
-    def _resolve_existing_stock_scale(
+    def _resolve_existing_stock_denominator(
         self,
         ts_code: str,
         frame: PandasDataFrame,
+        reference_adj: float | None,
     ) -> float | None:
         existing_scale = self._read_existing_factor_scale(ts_code)
         if existing_scale is None:
             return None
-        return existing_scale
+        # Pair raw adjustment and stored scale on the SAME observation date.
+        # Prefer the latest overlap to avoid round-tripping an early float32
+        # fraction through a different day's corporate-action adjustment.
+        factor_path = self._features_dir / normalize_feature_symbol(ts_code) / "factor.day.bin"
+        raw = np.fromfile(factor_path, dtype="<f")
+        first_index = int(raw[0])
+        calendar = {
+            day: index for index, day in enumerate(_read_calendar_values(self._calendar_path))
+        }
+        valid_adj = pd.to_numeric(frame["adj_factor"], errors="coerce")
+        valid_frame = frame.loc[np.isfinite(valid_adj) & (valid_adj > 0)]
+        for row in valid_frame.iloc[::-1].itertuples(index=False):
+            position = calendar.get(row.trade_date.date())
+            if position is None:
+                continue
+            offset = position - first_index + 1
+            if 1 <= offset < len(raw) and math.isfinite(float(raw[offset])):
+                return float(row.adj_factor) / float(raw[offset])
+        if reference_adj is not None and math.isfinite(reference_adj) and reference_adj > 0:
+            return reference_adj / existing_scale
+        raise DataFetchError(
+            "Qlib factor data has no matching adjustment anchor",
+            code="MODEL_MARKET_LOCAL_FEATURE_INVALID",
+            details={"asset_code": ts_code},
+        )
 
     def _read_existing_factor_scale(self, ts_code: str) -> float | None:
         factor_path = self._features_dir / normalize_feature_symbol(ts_code) / "factor.day.bin"
@@ -816,6 +910,12 @@ class DataCenterQlibBuilder:
         non_nan = factor_values[~np.isnan(factor_values)]
         if non_nan.size == 0:
             return None
+        if not np.isfinite(non_nan).all() or np.any(non_nan <= 0):
+            raise DataFetchError(
+                "Existing Qlib factor data is invalid",
+                code="MODEL_MARKET_LOCAL_FEATURE_INVALID",
+                details={"asset_code": ts_code},
+            )
         return float(non_nan[-1])
 
     @staticmethod

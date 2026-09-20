@@ -644,3 +644,96 @@ def test_index_fetch_failure_does_not_advance_qlib_calendar(tmp_path: Path):
         )
     assert inspect_latest_trade_date(str(provider_uri)) is None
     assert not (provider_uri / "features").exists()
+
+
+def test_verified_suspension_excludes_current_instrument_without_fabricated_bars(tmp_path: Path):
+    from core.exceptions import DataFetchError
+
+    class Port(TushareModelMarketSource):
+        def stock_history(self, code, start, end):
+            if code == "600001.SH":
+                raise DataFetchError(
+                    "suspended",
+                    code="MODEL_MARKET_SUSPENDED",
+                    details={
+                        "asset_code": code,
+                        "last_observed_date": "2026-04-01",
+                        "suspended_through": "2026-04-03",
+                    },
+                )
+            return super().stock_history(code, start, end)
+
+    builder = TushareQlibBuilder(str(tmp_path), data_port=Port(_MockTushareProClient()))
+    builder._ensure_layout()
+    for market in ("test", "all"):
+        builder._write_instrument_ranges(market, {"SH600001": (date(2025, 1, 1), date(2026, 4, 3))})
+    summary = builder._build_recent_data_for_members(
+        target_date=date(2026, 4, 3),
+        universe_members={"test": ["600000.SH", "600001.SH"]},
+        lookback_days=90,
+        index_codes=(),
+    )
+    assert summary.stock_count == 1
+    assert summary.suspended_codes == ("600001.SH",)
+    assert "600001.SH" in summary.warning_messages[0]
+    assert summary.latest_local_date_after == date(2026, 4, 3)
+    assert not (tmp_path / "features" / "sh600001").exists()
+    for market in ("test", "all"):
+        assert builder._read_instrument_ranges(market)["SH600001"][1] == date(2026, 4, 1)
+
+
+def test_unverified_stale_stock_still_blocks_whole_build(tmp_path: Path):
+    from core.exceptions import DataFetchError
+
+    class Port(TushareModelMarketSource):
+        def stock_history(self, *args):
+            raise DataFetchError("stale", code="MODEL_MARKET_STALE")
+
+    builder = TushareQlibBuilder(str(tmp_path), data_port=Port(_MockTushareProClient()))
+    with pytest.raises(DataFetchError) as caught:
+        builder.build_recent_data_for_codes(target_date=date(2026, 4, 3), stock_codes=["600000.SH"])
+    assert caught.value.code == "MODEL_MARKET_STALE"
+    assert inspect_latest_trade_date(str(tmp_path)) is None
+
+
+def test_repeated_qlib_refresh_does_not_compound_corporate_actions(tmp_path: Path):
+    class CorporateActionClient(_MockTushareProClient):
+        def adj_factor(self, ts_code, start_date, end_date):
+            frame = super().adj_factor(ts_code, start_date, end_date)
+            frame["adj_factor"] = [16.5345, 17.9832, 50.3901]
+            return frame
+
+    builder = TushareQlibBuilder(
+        str(tmp_path), data_port=TushareModelMarketSource(CorporateActionClient())
+    )
+    builder.build_recent_data_for_codes(target_date=date(2026, 4, 3), stock_codes=["600000.SH"])
+    original = {path: path.read_bytes() for path in (tmp_path / "features").rglob("*.bin")}
+    for _ in range(3):
+        builder.build_recent_data_for_codes(target_date=date(2026, 4, 3), stock_codes=["600000.SH"])
+        assert {path: path.read_bytes() for path in original} == original
+
+
+def test_corrupt_qlib_factors_block_before_calendar_advances(tmp_path: Path):
+    from core.exceptions import DataFetchError
+
+    builder = TushareQlibBuilder(
+        str(tmp_path), data_port=TushareModelMarketSource(_MockTushareProClient())
+    )
+    builder._ensure_layout()
+    builder._upsert_calendar([date(2026, 3, 31)])
+    feature_dir = tmp_path / "features" / "sh600000"
+    feature_dir.mkdir()
+    np.array([0, float("inf")], dtype="<f").tofile(feature_dir / "factor.day.bin")
+    with pytest.raises(DataFetchError) as caught:
+        builder.build_recent_data_for_codes(target_date=date(2026, 4, 3), stock_codes=["600000.SH"])
+    assert caught.value.code == "MODEL_MARKET_LOCAL_FEATURE_INVALID"
+    assert inspect_latest_trade_date(str(tmp_path)) == date(2026, 3, 31)
+
+
+def test_qlib_feature_float32_overflow_is_rejected():
+    from core.exceptions import DataFetchError
+
+    frame = pd.DataFrame({"calendar_idx": [0], "scale": [1e38], "close": [100.0]})
+    with pytest.raises(DataFetchError) as caught:
+        TushareQlibBuilder._build_feature_array(frame, "close", scale_column="scale")
+    assert caught.value.code == "MODEL_MARKET_LOCAL_FEATURE_INVALID"

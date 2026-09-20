@@ -16,6 +16,7 @@ from celery import shared_task
 from django.core.cache import cache
 from django.utils import timezone
 
+from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
 from apps.data_center.composition import (
     get_archive_coverage_gateway,
     get_raw_landing_repository,
@@ -33,6 +34,7 @@ from apps.data_center.domain.control_plane import (
     SyncRun,
     SyncRunStatus,
 )
+from apps.data_center.domain.market_time import cn_market_date_from_observation
 from core.integration.config_center_runtime import evaluate_storage_pressure
 from shared.domain.task_outcomes import TaskBusinessOutcome
 from shared.infrastructure.operational_alert_registry import record_operational_alert
@@ -68,6 +70,109 @@ logger = logging.getLogger(__name__)
 DECISION_QUOTE_DEGRADED_STREAK_KEY = "task_monitor:decision_quote_degraded_streak:v1"
 BACKFILL_DATASET_KEY = "equity.core.backfill"
 BACKFILL_TASK_NAME = "celery.backfill_a_share_core"
+
+
+@shared_task(name="data_center.refresh_full_market_publications", time_limit=1800, soft_time_limit=1700)  # type: ignore[misc]
+def refresh_full_market_publications_task(
+    source: str = "akshare", batch_size: int = 100
+) -> dict[str, object]:
+    """Refresh all active market quotes and valuations without waiting for financial filings."""
+    from .dtos import SyncQuoteRequest
+    from .market_publication_refresh import (
+        MarketPublicationRefreshPorts,
+        refresh_market_price_inputs,
+        refresh_market_publications,
+    )
+    from .public import get_model_market_data_port
+
+    if not isinstance(source, str) or source not in {"akshare", "tushare"}:
+        return _full_market_input_failure("unsupported_market_source")
+    if (
+        isinstance(batch_size, bool)
+        or not isinstance(batch_size, int)
+        or not 1 <= batch_size <= 200
+    ):
+        return _full_market_input_failure("invalid_batch_size")
+    provider_id = get_active_provider_id_by_source(source)
+    if provider_id is None:
+        return _full_market_input_failure("market_provider_unavailable")
+    try:
+        quotes = make_backfill_sync_quote_use_case()
+    except SystemAuditCompositionUnavailable as exc:
+        return {
+            **_full_market_input_failure(f"system_audit_{exc.reason_code}"),
+            "outcome": "blocked",
+            "must_not_use_for_decision": True,
+        }
+    valuations = make_backfill_sync_current_valuation_batch_use_case()
+    publications = make_core_current_publication_rebuild_use_case(
+        created_by="celery.full_market_refresh",
+        dataset_keys=("equity.quote.snapshot", "equity.valuation.fact", "equity.price.bar"),
+    )
+    target_date = latest_completed_cn_market_session(timezone.now())
+    if target_date is None:
+        return {
+            "outcome": "blocked",
+            "success": False,
+            "requested": 0,
+            "succeeded": 0,
+            "failed": 0,
+            "stored": 0,
+            "blocked_reason": "market_calendar_unavailable",
+        }
+
+    price_evidence: dict[str, object] = {}
+
+    def publish_complete_session(codes: list[str]) -> int:
+        preview = publications.preview(asset_codes=codes)
+        current_snapshots = tuple(
+            dataset for dataset in preview.datasets if dataset.dataset_key != "equity.price.bar"
+        )
+        if len(current_snapshots) != 2 or any(
+            not dataset.ready
+            or dataset.oldest_observed_at is None
+            or cn_market_date_from_observation(dataset.oldest_observed_at) != target_date
+            or dataset.newest_observed_at is None
+            or cn_market_date_from_observation(dataset.newest_observed_at) != target_date
+            for dataset in current_snapshots
+        ):
+            raise ValueError("Market publication observations do not match the completed session")
+        suspended = refresh_market_price_inputs(get_model_market_data_port(), codes, target_date)
+        price_evidence.update(
+            price_scope_verified=len(codes),
+            price_target_date=target_date.isoformat(),
+            suspended_codes=list(suspended),
+        )
+        return publications.execute(asset_codes=codes).published_count
+
+    result = refresh_market_publications(
+        as_of_date=target_date,
+        batch_size=batch_size,
+        ports=MarketPublicationRefreshPorts(
+            list_codes=list_active_stock_codes_for_backfill,
+            sync_quotes=lambda codes: quotes.execute(
+                SyncQuoteRequest(provider_id, codes)
+            ).stored_count,
+            sync_valuations=lambda codes, day: valuations.execute(
+                provider_id=provider_id, asset_codes=codes, as_of_date=day
+            ).stored_count,
+            publish=publish_complete_session,
+        ),
+    )
+    return {**result, **price_evidence}
+
+
+def _full_market_input_failure(reason: str) -> dict[str, object]:
+    """Publish a stable zero-write failure before any market fetch."""
+    return {
+        "outcome": "failed",
+        "success": False,
+        "requested": 0,
+        "succeeded": 0,
+        "failed": 0,
+        "stored": 0,
+        "blocked_reason": reason,
+    }
 
 
 def _backfill_idempotency_key(

@@ -1,8 +1,37 @@
 from __future__ import annotations
 
 from datetime import date
+from types import SimpleNamespace
+
+import pytest
 
 from apps.equity.application import query_services
+
+
+@pytest.fixture(autouse=True)
+def _batch_port(monkeypatch):
+    readers = SimpleNamespace()
+
+    def batch(codes, **options):
+        return {
+            code: {
+                name: getattr(readers, method)(code)
+                for name, method in (
+                    ("price", "get_published_price_bar_series"),
+                    ("financial", "get_published_financial_facts"),
+                    ("valuation", "get_published_valuation_facts"),
+                )
+                if options.get(f"include_{name}", True)
+            }
+            for code in codes
+        }
+
+    monkeypatch.setattr(query_services, "get_published_equity_context_payloads", batch)
+    monkeypatch.setattr(query_services, "_test_readers", readers, raising=False)
+
+
+def _patch_reader(monkeypatch, module, name, reader):
+    monkeypatch.setattr(module._test_readers, name, reader, raising=False)
 
 
 class _StockRepository:
@@ -50,7 +79,8 @@ def test_published_stock_context_aggregates_same_financial_period(monkeypatch) -
         "get_equity_stock_repository",
         lambda: _StockRepository(),
     )
-    monkeypatch.setattr(
+    _patch_reader(
+        monkeypatch,
         query_services,
         "get_published_price_bar_series",
         lambda *args, **kwargs: {
@@ -65,7 +95,8 @@ def test_published_stock_context_aggregates_same_financial_period(monkeypatch) -
             **_fresh_gate(),
         },
     )
-    monkeypatch.setattr(
+    _patch_reader(
+        monkeypatch,
         query_services,
         "get_published_financial_facts",
         lambda *args, **kwargs: {
@@ -92,7 +123,8 @@ def test_published_stock_context_aggregates_same_financial_period(monkeypatch) -
             **_fresh_gate(),
         },
     )
-    monkeypatch.setattr(
+    _patch_reader(
+        monkeypatch,
         query_services,
         "get_published_valuation_facts",
         lambda *args, **kwargs: {
@@ -132,17 +164,20 @@ def test_published_stock_context_drops_stale_rows_and_preserves_block_reason(mon
         "must_not_use_for_decision": True,
         "blocked_reason": "canonical_publication_stale",
     }
-    monkeypatch.setattr(
+    _patch_reader(
+        monkeypatch,
         query_services,
         "get_published_price_bar_series",
         lambda *args, **kwargs: {"rows": [{"timestamp": "2026-01-01", "close": 1}], **stale_gate},
     )
-    monkeypatch.setattr(
+    _patch_reader(
+        monkeypatch,
         query_services,
         "get_published_financial_facts",
         lambda *args, **kwargs: {"rows": [{"metric_code": "roe", "value": 99}], **stale_gate},
     )
-    monkeypatch.setattr(
+    _patch_reader(
+        monkeypatch,
         query_services,
         "get_published_valuation_facts",
         lambda *args, **kwargs: {"rows": [{"val_date": "2026-01-01", "pe_ttm": 1}], **stale_gate},
@@ -167,7 +202,8 @@ def test_published_stock_context_blocks_valuation_without_source_observation(mon
         "get_equity_stock_repository",
         lambda: _StockRepository(),
     )
-    monkeypatch.setattr(
+    _patch_reader(
+        monkeypatch,
         query_services,
         "get_published_valuation_facts",
         lambda *args, **kwargs: {
@@ -204,17 +240,20 @@ def test_published_stock_context_blocks_missing_member_rows(monkeypatch) -> None
         "get_equity_stock_repository",
         lambda: _StockRepository(),
     )
-    monkeypatch.setattr(
+    _patch_reader(
+        monkeypatch,
         query_services,
         "get_published_price_bar_series",
         lambda *args, **kwargs: {"rows": [], **_fresh_gate()},
     )
-    monkeypatch.setattr(
+    _patch_reader(
+        monkeypatch,
         query_services,
         "get_published_financial_facts",
         lambda *args, **kwargs: {"rows": [], **_fresh_gate()},
     )
-    monkeypatch.setattr(
+    _patch_reader(
+        monkeypatch,
         query_services,
         "get_published_valuation_facts",
         lambda *args, **kwargs: {"rows": [], **_fresh_gate()},
@@ -236,7 +275,8 @@ def test_published_stock_context_can_select_only_price_publication(monkeypatch) 
         "get_equity_stock_repository",
         lambda: _StockRepository(),
     )
-    monkeypatch.setattr(
+    _patch_reader(
+        monkeypatch,
         query_services,
         "get_published_price_bar_series",
         lambda *args, **kwargs: {
@@ -251,12 +291,14 @@ def test_published_stock_context_can_select_only_price_publication(monkeypatch) 
     def _unexpected_valuation_call(*args, **kwargs):
         raise AssertionError("valuation publication should not be queried")
 
-    monkeypatch.setattr(
+    _patch_reader(
+        monkeypatch,
         query_services,
         "get_published_financial_facts",
         _unexpected_financial_call,
     )
-    monkeypatch.setattr(
+    _patch_reader(
+        monkeypatch,
         query_services,
         "get_published_valuation_facts",
         _unexpected_valuation_call,

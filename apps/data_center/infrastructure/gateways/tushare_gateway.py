@@ -414,8 +414,12 @@ class TushareGateway(MarketGatewayProtocol):
                             high=high_price,
                             low=low_price,
                             close=close_price,
-                            volume=_safe_int(row.get("vol")),
-                            amount=amount,
+                            volume=(
+                                int(value * 100)
+                                if (value := safe_float(row.get("vol"))) is not None
+                                else None
+                            ),
+                            amount=amount * 1000 if amount is not None else None,
                             source="tushare",
                         )
                     )

@@ -22,7 +22,6 @@ from apps.data_center.domain.entities import (
 )
 from apps.data_center.domain.enums import (
     DataQualityStatus,
-    PriceAdjustment,
 )
 from apps.data_center.domain.model_market_data import ModelMarketDataPort
 from apps.data_center.domain.rules import normalize_asset_code
@@ -594,6 +593,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         start_date: date,
         end_date: date,
     ) -> list[PriceBar]:
+        """Preserve adjustment and canonical units, including gateway fallback bars."""
         from apps.data_center.infrastructure.gateways.tushare_gateway import TushareGateway
 
         gateway = TushareGateway(
@@ -619,7 +619,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 volume=float(bar.volume) if bar.volume is not None else None,
                 amount=bar.amount,
                 source=str(getattr(bar, "source", "") or self.provider_source()).strip(),
-                adjustment=PriceAdjustment.NONE,
+                adjustment=bar.adjustment,
             )
             for bar in bars
         ]

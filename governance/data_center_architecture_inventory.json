@@ -44,8 +44,8 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 5028,
-    "data_write_task_decorators": 62,
+    "current_surface_references": 5043,
+    "data_write_task_decorators": 63,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
     "legacy_fact_references": 0,
@@ -6391,67 +6391,77 @@
       "text": "\"warning_messages\": list(summary.warning_messages),"
     },
     {
-      "line": 272,
+      "line": 241,
+      "path": "apps/alpha/application/ops_services.py",
+      "text": "\"suspended_codes\": list(summary.suspended_codes),"
+    },
+    {
+      "line": 273,
       "path": "apps/alpha/application/ops_services.py",
       "text": "summary = TushareQlibBuilder(provider_uri).build_recent_data_for_codes("
     },
     {
-      "line": 282,
+      "line": 283,
       "path": "apps/alpha/application/ops_services.py",
       "text": "\"requested_target_date\": summary.requested_target_date.isoformat(),"
     },
     {
-      "line": 283,
+      "line": 284,
       "path": "apps/alpha/application/ops_services.py",
       "text": "\"effective_target_date\": _to_iso(summary.effective_target_date),"
     },
     {
-      "line": 284,
+      "line": 285,
       "path": "apps/alpha/application/ops_services.py",
       "text": "\"latest_local_date_before\": _to_iso(summary.latest_local_date_before),"
     },
     {
-      "line": 285,
+      "line": 286,
       "path": "apps/alpha/application/ops_services.py",
       "text": "\"latest_local_date_after\": _to_iso(summary.latest_local_date_after),"
     },
     {
-      "line": 286,
+      "line": 287,
       "path": "apps/alpha/application/ops_services.py",
       "text": "\"calendar_days_written\": summary.calendar_days_written,"
     },
     {
-      "line": 287,
+      "line": 288,
       "path": "apps/alpha/application/ops_services.py",
       "text": "\"instrument_files_written\": summary.instrument_files_written,"
     },
     {
-      "line": 288,
+      "line": 289,
       "path": "apps/alpha/application/ops_services.py",
       "text": "\"feature_series_written\": summary.feature_series_written,"
     },
     {
-      "line": 289,
+      "line": 290,
       "path": "apps/alpha/application/ops_services.py",
       "text": "\"stock_count\": summary.stock_count,"
     },
     {
-      "line": 290,
+      "line": 291,
       "path": "apps/alpha/application/ops_services.py",
       "text": "\"warning_messages\": list(summary.warning_messages),"
     },
     {
-      "line": 443,
+      "line": 292,
+      "path": "apps/alpha/application/ops_services.py",
+      "text": "\"suspended_codes\": list(summary.suspended_codes),"
+    },
+    {
+      "line": 445,
       "path": "apps/alpha/application/ops_services.py",
       "text": "\"Failed to inspect qlib latest local date\","
     },
     {
-      "line": 474,
+      "line": 476,
       "path": "apps/alpha/application/ops_services.py",
       "text": "if \"summary\" in result and isinstance(result[\"summary\"], dict):"
     },
     {
-      "line": 475,
+      "line": 477,
       "path": "apps/alpha/application/ops_services.py",
       "text": "return result[\"summary\"]"
     },
@@ -6471,52 +6481,52 @@
       "text": "\"\"\"Map an authoritative refresh summary into the task outcome vocabulary.\"\"\""
     },
     {
-      "line": 958,
+      "line": 956,
       "path": "apps/alpha/application/tasks.py",
       "text": "summary = _refresh_qlib_runtime_data("
     },
     {
-      "line": 972,
+      "line": 970,
       "path": "apps/alpha/application/tasks.py",
       "text": "summary_status = str(summary.get(\"status\") or \"failed\")"
     },
     {
-      "line": 973,
+      "line": 971,
       "path": "apps/alpha/application/tasks.py",
       "text": "raw_count = summary.get(\"universe_count\", 1)"
     },
     {
-      "line": 978,
+      "line": 976,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"summary\": summary,"
     },
     {
-      "line": 1058,
+      "line": 1056,
       "path": "apps/alpha/application/tasks.py",
       "text": "summary = _refresh_qlib_runtime_data_for_codes("
     },
     {
-      "line": 1073,
+      "line": 1071,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"summary\": {"
     },
     {
-      "line": 1086,
+      "line": 1084,
       "path": "apps/alpha/application/tasks.py",
       "text": "summary_status = str(summary.get(\"status\") or \"failed\")"
     },
     {
-      "line": 1087,
+      "line": 1085,
       "path": "apps/alpha/application/tasks.py",
       "text": "raw_stored_count = summary.get(\"stock_count\", 0)"
     },
     {
-      "line": 1096,
+      "line": 1094,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"summary\": {"
     },
     {
-      "line": 1097,
+      "line": 1095,
       "path": "apps/alpha/application/tasks.py",
       "text": "**summary,"
     },
@@ -6566,34 +6576,44 @@
       "text": "return summary"
     },
     {
-      "line": 33,
+      "line": 39,
       "path": "apps/alpha/infrastructure/qlib_builder.py",
       "text": "\"\"\"Summary for a qlib data build run.\"\"\""
     },
     {
-      "line": 48,
+      "line": 55,
       "path": "apps/alpha/infrastructure/qlib_builder.py",
       "text": "\"\"\"Inspect the latest local qlib trade date from the day calendar file.\"\"\""
     },
     {
-      "line": 262,
+      "line": 296,
       "path": "apps/alpha/infrastructure/qlib_builder.py",
       "text": "\"Qlib builder requested %s but latest available stock date is %s\","
     },
     {
-      "line": 102,
+      "line": 119,
       "path": "apps/alpha/infrastructure/qlib_prediction_runtime.py",
       "text": "\"\"\"Forward-fill the latest qlib cache into today's active model slot when fresh inference fails.\"\"\""
     },
     {
-      "line": 185,
+      "line": 202,
       "path": "apps/alpha/infrastructure/qlib_prediction_runtime.py",
       "text": "\"\"\"Find a broader qlib cache row and trim it to the current scoped instrument set.\"\"\""
     },
     {
-      "line": 236,
+      "line": 253,
       "path": "apps/alpha/infrastructure/qlib_prediction_runtime.py",
       "text": "\"\"\"Extract the latest score series from a supported Qlib prediction value.\"\"\""
+    },
+    {
+      "line": 367,
+      "path": "apps/alpha/infrastructure/qlib_prediction_runtime.py",
+      "text": "current = set("
+    },
+    {
+      "line": 375,
+      "path": "apps/alpha/infrastructure/qlib_prediction_runtime.py",
+      "text": "missing = set(stock_list) - current"
     },
     {
       "line": 239,
@@ -9206,17 +9226,17 @@
       "text": "\"\"\"Atomically consume the current token and reject replay/expiry.\"\"\""
     },
     {
-      "line": 408,
+      "line": 441,
       "path": "apps/dashboard/application/alpha_homepage_candidates.py",
-      "text": "\"summary\": f\"若跌出 Top {max(rank + 5, 10)}、政策/风控转差或评分跌破 0.55，则当前候选失效。\","
+      "text": "\"summary\": f\"若跌出 Top {max(rank + 5, 10)}、政策/风控转差或{strength_invalidation}，则当前候选失效。\","
     },
     {
-      "line": 529,
+      "line": 563,
       "path": "apps/dashboard/application/alpha_homepage_candidates.py",
       "text": "\"invalidation_summary\": invalidation_rule[\"summary\"],"
     },
     {
-      "line": 615,
+      "line": 691,
       "path": "apps/dashboard/application/alpha_homepage_candidates.py",
       "text": "\"summary\": \"若执行失败或审批撤回，该待执行请求失效。\","
     },
@@ -9234,6 +9254,11 @@
       "line": 534,
       "path": "apps/dashboard/application/alpha_homepage_exit_watch.py",
       "text": "getattr(current, \"updated_at\", None) or getattr(current, \"created_at\", None)"
+    },
+    {
+      "line": 63,
+      "path": "apps/dashboard/application/alpha_refresh_notice.py",
+      "text": "\"\"\"Describe the latest relevant completed attempt without exposing raw exceptions.\"\"\""
     },
     {
       "line": 1,
@@ -9541,7 +9566,7 @@
       "text": "\"summary\": advice.summary,"
     },
     {
-      "line": 607,
+      "line": 618,
       "path": "apps/dashboard/infrastructure/repositories.py",
       "text": "\"\"\"Return the latest macro indicator value for one code.\"\"\""
     },
@@ -9651,7 +9676,7 @@
       "text": "\"alpha_exit_entry_watch_summary\": alpha_exit_entry_panel[\"summary\"],"
     },
     {
-      "line": 2421,
+      "line": 2427,
       "path": "apps/dashboard/tests/test_alpha_views.py",
       "text": "assert context[\"summary\"] == {"
     },
@@ -10046,6 +10071,16 @@
       "text": "return current"
     },
     {
+      "line": 20,
+      "path": "apps/data_center/application/market_publication_refresh.py",
+      "text": "\"\"\"Refresh raw price facts and verify every current member before publication.\"\"\""
+    },
+    {
+      "line": 30,
+      "path": "apps/data_center/application/market_publication_refresh.py",
+      "text": "\"Current price observations missing\", code=\"MODEL_MARKET_STALE\""
+    },
+    {
       "line": 182,
       "path": "apps/data_center/application/market_thermometer_calculate.py",
       "text": "\"\"\"Return the current payload enriched with threshold source metadata.\"\"\""
@@ -10161,6 +10196,26 @@
       "text": "\"unit\": latest.unit,"
     },
     {
+      "line": 152,
+      "path": "apps/data_center/application/model_market_data.py",
+      "text": "latest = max(row.trade_date for row in rows)"
+    },
+    {
+      "line": 153,
+      "path": "apps/data_center/application/model_market_data.py",
+      "text": "missing = {day for day in calendar if day > latest}"
+    },
+    {
+      "line": 167,
+      "path": "apps/data_center/application/model_market_data.py",
+      "text": "\"last_observed_date\": latest.isoformat(),"
+    },
+    {
+      "line": 194,
+      "path": "apps/data_center/application/model_market_data.py",
+      "text": "\"No current observation: verified full-day suspension\","
+    },
+    {
       "line": 65,
       "path": "apps/data_center/application/on_demand.py",
       "text": "\"\"\"Small quality summary attached to on-demand Data Center reads.\"\"\""
@@ -10266,32 +10321,32 @@
       "text": "return plain DTO-shaped values for the current migration bridge; new callers"
     },
     {
-      "line": 366,
+      "line": 369,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Return the macro governance summary through the public port.\"\"\""
     },
     {
-      "line": 499,
+      "line": 502,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical macro values for a bounded consumer snapshot.\"\"\""
     },
     {
-      "line": 569,
+      "line": 572,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read fresh, member-bound macro values for current-facing consumers.\"\"\""
     },
     {
-      "line": 578,
+      "line": 581,
       "path": "apps/data_center/application/public.py",
       "text": "maintenance screens.  Current-facing pages use this port so a non-empty"
     },
     {
-      "line": 579,
+      "line": 582,
       "path": "apps/data_center/application/public.py",
       "text": "raw latest fact cannot be presented as a usable indicator value."
     },
     {
-      "line": 729,
+      "line": 732,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
@@ -10791,127 +10846,132 @@
       "text": "\"summary\": article.summary,"
     },
     {
+      "line": 88,
+      "path": "apps/data_center/application/published_equity_context.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
       "line": 84,
       "path": "apps/data_center/application/qmt_bridge.py",
       "text": "\"\"\"Return only the current user's bridge bindings.\"\"\""
     },
     {
-      "line": 61,
+      "line": 64,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return data-center summary counts for operational diagnostics.\"\"\""
     },
     {
-      "line": 141,
+      "line": 144,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest canonical quote payloads, preserving source observation time.\"\"\""
     },
     {
-      "line": 168,
+      "line": 171,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return a current macro value only when its Publication gate passes.\"\"\""
     },
     {
-      "line": 239,
+      "line": 242,
       "path": "apps/data_center/application/query_services.py",
       "text": "This explicit current-data port prevents a non-empty, unpublished, or"
     },
     {
-      "line": 275,
+      "line": 278,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 280,
+      "line": 283,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read fund NAV facts only from the selected current publication members.\"\"\""
     },
     {
-      "line": 420,
+      "line": 407,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return a freshness-validated gate for one current publication.\"\"\""
     },
     {
-      "line": 499,
+      "line": 486,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 526,
+      "line": 513,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 563,
+      "line": 550,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 567,
+      "line": 554,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read quote snapshots only from the selected current publication members.\"\"\""
     },
     {
-      "line": 604,
+      "line": 591,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 606,
+      "line": 593,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read financial facts only after the current financial publication gate.\"\"\""
     },
     {
-      "line": 634,
+      "line": 621,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 636,
+      "line": 623,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read valuation facts only after the current valuation publication gate.\"\"\""
     },
     {
-      "line": 664,
+      "line": 651,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 692,
+      "line": 679,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 738,
+      "line": 725,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 832,
+      "line": 819,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest A-share behavior values with an explicit freshness contract.\"\"\""
     },
     {
-      "line": 891,
+      "line": 878,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read current market breadth only after every component is published."
     },
     {
-      "line": 981,
+      "line": 968,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest macro indicator payloads for cache warmup.\"\"\""
     },
     {
-      "line": 994,
+      "line": 981,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return only fresh, member-bound macro values for current consumers."
     },
     {
-      "line": 996,
+      "line": 983,
       "path": "apps/data_center/application/query_services.py",
       "text": "The cache-warmup helper above intentionally reads the latest canonical fact"
     },
     {
-      "line": 997,
+      "line": 984,
       "path": "apps/data_center/application/query_services.py",
       "text": "for deployment warming and maintenance.  Current/ops consumers must not"
     },
@@ -11036,12 +11096,12 @@
       "text": "publication_key = \"current\""
     },
     {
-      "line": 143,
+      "line": 248,
       "path": "apps/data_center/application/tasks.py",
       "text": "Current domain sync DTOs expose ``stored_count`` only, so the durable"
     },
     {
-      "line": 790,
+      "line": 895,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Check current filesystem pressure before another mutating batch.\"\"\""
     },
@@ -11076,7 +11136,7 @@
       "text": "return current"
     },
     {
-      "line": 1094,
+      "line": 1046,
       "path": "apps/data_center/composition.py",
       "text": "\"\"\"Compose the canonical same-UOW realtime-quote sync writer.\"\"\""
     },
@@ -11166,17 +11226,17 @@
       "text": "\"\"\"Fetch market-wide ETF net flow from the latest ETF spot snapshot.\"\"\""
     },
     {
-      "line": 753,
+      "line": 755,
       "path": "apps/data_center/infrastructure/_provider_adapter_akshare.py",
       "text": "\"\"\"Fetch current valuation coverage through Tencent's batch quote contract.\"\"\""
     },
     {
-      "line": 823,
+      "line": 825,
       "path": "apps/data_center/infrastructure/_provider_adapter_akshare.py",
       "text": "summary=article.content,"
     },
     {
-      "line": 841,
+      "line": 843,
       "path": "apps/data_center/infrastructure/_provider_adapter_akshare.py",
       "text": "summary=article.content,"
     },
@@ -11966,87 +12026,87 @@
       "text": "value = FundNavFactModel._default_manager.aggregate(latest=Max(\"nav_date\"))[\"latest\"]"
     },
     {
-      "line": 93,
+      "line": 94,
       "path": "apps/data_center/infrastructure/gateways/akshare_eastmoney_gateway.py",
       "text": "current: BaseException | None = exc"
-    },
-    {
-      "line": 95,
-      "path": "apps/data_center/infrastructure/gateways/akshare_eastmoney_gateway.py",
-      "text": "while current is not None and id(current) not in visited:"
     },
     {
       "line": 96,
       "path": "apps/data_center/infrastructure/gateways/akshare_eastmoney_gateway.py",
-      "text": "visited.add(id(current))"
+      "text": "while current is not None and id(current) not in visited:"
     },
     {
       "line": 97,
       "path": "apps/data_center/infrastructure/gateways/akshare_eastmoney_gateway.py",
+      "text": "visited.add(id(current))"
+    },
+    {
+      "line": 98,
+      "path": "apps/data_center/infrastructure/gateways/akshare_eastmoney_gateway.py",
       "text": "if isinstance(current, PermissionError):"
     },
     {
-      "line": 99,
+      "line": 100,
       "path": "apps/data_center/infrastructure/gateways/akshare_eastmoney_gateway.py",
       "text": "if any(marker in str(current) for marker in markers):"
     },
     {
-      "line": 101,
+      "line": 102,
       "path": "apps/data_center/infrastructure/gateways/akshare_eastmoney_gateway.py",
       "text": "current = current.__cause__ or current.__context__"
     },
     {
-      "line": 335,
+      "line": 336,
       "path": "apps/data_center/infrastructure/gateways/akshare_eastmoney_gateway.py",
       "text": "summary = str(row.get(\"summary\") or \"\").strip()"
     },
     {
-      "line": 338,
+      "line": 339,
       "path": "apps/data_center/infrastructure/gateways/akshare_eastmoney_gateway.py",
       "text": "if not summary:"
     },
     {
-      "line": 345,
+      "line": 346,
       "path": "apps/data_center/infrastructure/gateways/akshare_eastmoney_gateway.py",
       "text": "title=f\"{tag}: {summary[:40]}\","
     },
     {
-      "line": 346,
+      "line": 347,
       "path": "apps/data_center/infrastructure/gateways/akshare_eastmoney_gateway.py",
       "text": "content=summary,"
     },
     {
-      "line": 35,
+      "line": 37,
       "path": "apps/data_center/infrastructure/gateways/tencent_gateway.py",
       "text": "current: BaseException | None = exc"
     },
     {
-      "line": 37,
+      "line": 39,
       "path": "apps/data_center/infrastructure/gateways/tencent_gateway.py",
       "text": "while current is not None and id(current) not in visited:"
     },
     {
-      "line": 38,
+      "line": 40,
       "path": "apps/data_center/infrastructure/gateways/tencent_gateway.py",
       "text": "visited.add(id(current))"
     },
     {
-      "line": 39,
+      "line": 41,
       "path": "apps/data_center/infrastructure/gateways/tencent_gateway.py",
       "text": "if isinstance(current, PermissionError):"
     },
     {
-      "line": 41,
+      "line": 43,
       "path": "apps/data_center/infrastructure/gateways/tencent_gateway.py",
       "text": "if any(marker in str(current) for marker in markers):"
     },
     {
-      "line": 43,
+      "line": 45,
       "path": "apps/data_center/infrastructure/gateways/tencent_gateway.py",
       "text": "current = current.__cause__ or current.__context__"
     },
     {
-      "line": 92,
+      "line": 94,
       "path": "apps/data_center/infrastructure/gateways/tencent_gateway.py",
       "text": "\"\"\"Fetch current PE/PB and market-cap fields in one Tencent quote request.\"\"\""
     },
@@ -12251,7 +12311,7 @@
       "text": "an old flow into a current observation."
     },
     {
-      "line": 247,
+      "line": 251,
       "path": "apps/data_center/infrastructure/market_gateway_entities.py",
       "text": "\"\"\"Current valuation fields with optional transport provenance."
     },
@@ -12446,12 +12506,12 @@
       "text": "\"\"\"Return SSE MDATE query months, allowing current-year publication lag.\"\"\""
     },
     {
-      "line": 91,
+      "line": 259,
       "path": "apps/data_center/infrastructure/tushare_model_market_source.py",
       "text": "\"\"\"Read the latest effective snapshot, never a future constituent list.\"\"\""
     },
     {
-      "line": 164,
+      "line": 332,
       "path": "apps/data_center/infrastructure/tushare_model_market_source.py",
       "text": "\"\"\"Fetch the latest effective constituents for one configured index.\"\"\""
     },
@@ -12716,6 +12776,11 @@
       "text": "return {\"status\": \"skipped\", \"message\": \"No realtime quote provider is available.\"}"
     },
     {
+      "line": 52,
+      "path": "apps/data_center/management/commands/setup_full_market_publications.py",
+      "text": "name=\"full-market-current-publications\","
+    },
+    {
       "line": 24,
       "path": "apps/data_center/provider_runtime.py",
       "text": "\"\"\"Replace the registry only after current active providers build successfully.\"\"\""
@@ -12729,6 +12794,16 @@
       "line": 27,
       "path": "apps/data_center/publication_read_composition.py",
       "text": "raise ValueError(\"A current publication read requires a dataset key\")"
+    },
+    {
+      "line": 1,
+      "path": "apps/data_center/publication_rebuild_composition.py",
+      "text": "\"\"\"Composition of the atomic current-publication rebuild workflow.\"\"\""
+    },
+    {
+      "line": 72,
+      "path": "apps/data_center/publication_rebuild_composition.py",
+      "text": "raise ValueError(\"Invalid current-publication dataset selection\")"
     },
     {
       "line": 50,
@@ -13131,77 +13206,77 @@
       "text": "\"summary\": plan.summary,"
     },
     {
-      "line": 43,
+      "line": 41,
       "path": "apps/equity/application/query_services.py",
       "text": "\"\"\"Return current stock context through the publication-gated query port.\"\"\""
     },
     {
-      "line": 161,
+      "line": 159,
       "path": "apps/equity/application/query_services.py",
       "text": "latest = rows[-1]"
     },
     {
-      "line": 163,
+      "line": 161,
       "path": "apps/equity/application/query_services.py",
       "text": "\"trade_date\": _context_date(latest.get(\"timestamp\")),"
     },
     {
-      "line": 164,
+      "line": 162,
       "path": "apps/equity/application/query_services.py",
       "text": "\"close\": safe_float(latest.get(\"close\"), default=None),"
     },
     {
-      "line": 165,
+      "line": 163,
       "path": "apps/equity/application/query_services.py",
       "text": "\"volume\": safe_float(latest.get(\"volume\"), default=None),"
     },
     {
-      "line": 175,
+      "line": 173,
       "path": "apps/equity/application/query_services.py",
       "text": "latest = rows[-1]"
     },
     {
-      "line": 176,
+      "line": 174,
       "path": "apps/equity/application/query_services.py",
       "text": "pe_value = latest.get(\"pe_ttm\")"
     },
     {
-      "line": 178,
+      "line": 176,
       "path": "apps/equity/application/query_services.py",
       "text": "\"valuation_trade_date\": _context_date(latest.get(\"val_date\")),"
     },
     {
-      "line": 180,
+      "line": 178,
       "path": "apps/equity/application/query_services.py",
       "text": "pe_value if pe_value is not None else latest.get(\"pe_static\"),"
     },
     {
-      "line": 183,
+      "line": 181,
       "path": "apps/equity/application/query_services.py",
       "text": "\"pb\": safe_float(latest.get(\"pb\"), default=None),"
     },
     {
-      "line": 184,
+      "line": 182,
       "path": "apps/equity/application/query_services.py",
       "text": "\"ps\": safe_float(latest.get(\"ps_ttm\"), default=None),"
     },
     {
-      "line": 185,
+      "line": 183,
       "path": "apps/equity/application/query_services.py",
       "text": "\"dividend_yield\": safe_float(latest.get(\"dv_ratio\"), default=None),"
     },
     {
-      "line": 187,
+      "line": 185,
       "path": "apps/equity/application/query_services.py",
       "text": "source_updated_at = latest.get(\"observed_at\")"
     },
     {
-      "line": 190,
+      "line": 188,
       "path": "apps/equity/application/query_services.py",
       "text": "fetched_at = latest.get(\"fetched_at\")"
     },
     {
-      "line": 230,
+      "line": 228,
       "path": "apps/equity/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
@@ -23521,152 +23596,152 @@
       "text": "return current"
     },
     {
-      "line": 90,
+      "line": 111,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "if action_key == \"sentiment.awareness-summary\" and isinstance(payload, dict):"
     },
     {
-      "line": 92,
+      "line": 113,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "latest = sorted(rows, key=lambda row: str(row.get(\"date\") or \"\"), reverse=True)[:1]"
     },
     {
-      "line": 94,
+      "line": 115,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "action, latest, status_code, {**payload, \"total\": len(latest)}"
     },
     {
-      "line": 124,
+      "line": 145,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "action_key == \"regime.current\""
     },
     {
-      "line": 126,
+      "line": 147,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "and isinstance(payload.get(\"summary\"), dict)"
     },
     {
-      "line": 129,
+      "line": 150,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "if action_key == \"dashboard.overview-summary\" and isinstance(payload, dict):"
     },
     {
-      "line": 139,
+      "line": 160,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "\"\"\"Project the command overview into a concise investor-facing summary.\"\"\""
     },
     {
-      "line": 141,
+      "line": 162,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "summary = self._mapping(payload.get(\"summary\"))"
     },
     {
-      "line": 142,
+      "line": 163,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "regime = self._display_value(summary.get(\"current_regime\"))"
     },
     {
-      "line": 143,
+      "line": 164,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "invested_ratio = self._dashboard_percentage(summary.get(\"invested_ratio_percent\"))"
     },
     {
-      "line": 144,
+      "line": 165,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "active_signals = self._dashboard_count(summary.get(\"active_signal_count\"))"
     },
     {
-      "line": 145,
+      "line": 166,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "pending_reviews = self._dashboard_count(summary.get(\"pending_review_count\"))"
     },
     {
-      "line": 152,
+      "line": 173,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "str(summary.get(\"regime_data_health\") or \"unknown\").strip().lower(),"
     },
     {
-      "line": 164,
+      "line": 185,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "\"value\": self._dashboard_percentage(summary.get(\"regime_confidence_percent\")),"
     },
     {
-      "line": 169,
+      "line": 190,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "\"value\": self._dashboard_money(summary.get(\"total_assets\")),"
     },
     {
-      "line": 174,
+      "line": 195,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "\"value\": self._dashboard_money(summary.get(\"total_return\")),"
     },
     {
-      "line": 179,
+      "line": 200,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "\"value\": self._dashboard_percentage(summary.get(\"total_return_percent\")),"
     },
     {
-      "line": 184,
+      "line": 205,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "\"value\": self._dashboard_money(summary.get(\"cash_balance\")),"
     },
     {
-      "line": 189,
+      "line": 210,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "\"value\": self._dashboard_money(summary.get(\"invested_value\")),"
     },
     {
-      "line": 255,
+      "line": 276,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "summary = self._mapping(payload.get(\"summary\"))"
     },
     {
-      "line": 257,
+      "line": 278,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "regime = self._display_value(summary.get(\"quadrant\") or \"Unknown\")"
     },
     {
-      "line": 258,
+      "line": 279,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "confidence = self._display_value(summary.get(\"confidence_percent\"))"
     },
     {
-      "line": 259,
+      "line": 280,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "growth_trend = self._regime_trend_label(summary.get(\"growth_trend\"))"
     },
     {
-      "line": 260,
+      "line": 281,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "inflation_trend = self._regime_trend_label(summary.get(\"inflation_trend\"))"
     },
     {
-      "line": 262,
+      "line": 283,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "raw_warnings = summary.get(\"warnings\")"
     },
     {
-      "line": 268,
+      "line": 289,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "error = self._operator_text(summary.get(\"error\") or \"\")"
     },
     {
-      "line": 283,
+      "line": 304,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "\"value\": self._display_value(summary.get(\"growth_level\")),"
     },
     {
-      "line": 288,
+      "line": 309,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "\"value\": self._display_value(summary.get(\"inflation_level\")),"
     },
     {
-      "line": 293,
+      "line": 314,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "\"value\": self._display_value(summary.get(\"source\")),"
     },
     {
-      "line": 298,
+      "line": 319,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "\"value\": self._display_value(summary.get(\"as_of_date\")),"
     },
@@ -25508,37 +25583,42 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 268,
+      "line": 75,
+      "path": "apps/data_center/application/tasks.py",
+      "text": "@shared_task(name=\"data_center.refresh_full_market_publications\", time_limit=1800, soft_time_limit=1700)  # type: ignore[misc]"
+    },
+    {
+      "line": 373,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 300,
+      "line": 405,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 382,
+      "line": 487,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 611,
+      "line": 716,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 648,
+      "line": 753,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 721,
+      "line": 826,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 784,
+      "line": 889,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },

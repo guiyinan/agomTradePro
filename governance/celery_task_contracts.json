@@ -1459,6 +1459,11 @@
         "partial_failure": {
           "test_file": "tests/unit/alpha/test_qlib_task_outcome_contracts.py",
           "test_function": "test_qlib_predict_scores_reports_partial_when_degraded_cache_is_reused"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/alpha/test_qlib_task_outcome_contracts.py",
+          "test_function": "test_incomplete_prediction_scope_is_blocked_without_cache_reuse",
+          "coverage_note": "Incomplete scoped model data publishes blocked and never reuses or stores a partial-scope cache"
         }
       }
     },
@@ -1511,6 +1516,10 @@
         "partial_failure": {
           "test_file": "tests/unit/alpha/test_qlib_task_outcome_contracts.py",
           "test_function": "test_qlib_daily_inference_reports_partial_refresh_failure"
+        },
+        "blocked": {
+          "test_file": "tests/unit/alpha/test_daily_inference_refresh_blocking.py",
+          "test_function": "test_daily_refresh_block_does_not_queue_predictions"
         }
       }
     },
@@ -1524,8 +1533,8 @@
           "test_function": "test_qlib_daily_scoped_inference_reports_blocked_and_success"
         },
         "blocked": {
-          "test_file": "tests/unit/alpha/test_qlib_task_outcome_contracts.py",
-          "test_function": "test_qlib_daily_scoped_inference_reports_blocked_and_success"
+          "test_file": "tests/unit/alpha/test_daily_inference_refresh_blocking.py",
+          "test_function": "test_daily_refresh_block_does_not_queue_predictions"
         }
       }
     },
@@ -1537,6 +1546,10 @@
         "all_success": {
           "test_file": "tests/unit/alpha/test_qlib_task_outcome_contracts.py",
           "test_function": "test_qlib_refresh_runtime_data_task_normalizes_summary"
+        },
+        "complete_failure": {
+          "test_file": "tests/component/test_qlib_builder.py",
+          "test_function": "test_unverified_stale_stock_still_blocks_whole_build"
         }
       }
     },
@@ -1705,6 +1718,37 @@
         "complete_failure": {
           "test_file": "tests/unit/signal/test_task_delivery_edges.py",
           "test_function": "test_daily_summary_fails_when_notification_is_not_delivered"
+        }
+      }
+    },
+    {
+      "task_path": "apps.data_center.application.tasks.refresh_full_market_publications_task",
+      "source_file": "apps/data_center/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_task_invalid_input_returns_failure_without_provider_access"
+        },
+        "all_success": {
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_complete_market_refresh_publishes_full_scope_once"
+        },
+        "partial_failure": {
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_partial_market_refresh_keeps_previous_publication"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_empty_scope_is_not_success"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_empty_scope_is_not_success"
+        },
+        "blocked": {
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_task_calendar_unavailable_is_blocked"
         }
       }
     }

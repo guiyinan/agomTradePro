@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Protocol
 
@@ -116,20 +116,35 @@ class AShareUniverseSyncService:
         skipped_count = 0
 
         for row in rows:
-            code = self._canonicalize_a_share_code(str(row.get("code") or ""))
+            raw_code = str(row.get("code") or "").strip()
+            code = self._canonicalize_a_share_code(raw_code)
+            if not code and raw_code.isascii() and raw_code.isdigit():
+                known = self._asset_repo.get_by_code(raw_code.zfill(6))
+                if known is not None and known.asset_type is AssetType.STOCK:
+                    code = self._canonicalize_a_share_code(known.code)
             name = str(row.get("name") or "").strip()
             if not code or not name or self._looks_delisted(name):
                 skipped_count += 1
                 continue
-            asset = AssetMaster(
-                code=code,
-                name=name,
-                short_name=name,
-                asset_type=AssetType.STOCK,
-                exchange=self._infer_exchange(code),
-                is_active=True,
-                extra={"universe_source": source},
-            )
+            existing = self._asset_repo.get_by_code(code)
+            if existing is not None:
+                asset = replace(
+                    existing,
+                    name=name,
+                    short_name=name,
+                    is_active=True,
+                    extra={**existing.extra, "universe_source": source},
+                )
+            else:
+                asset = AssetMaster(
+                    code=code,
+                    name=name,
+                    short_name=name,
+                    asset_type=AssetType.STOCK,
+                    exchange=self._infer_exchange(code),
+                    is_active=True,
+                    extra={"universe_source": source},
+                )
 
             def upsert_asset(asset_to_save: AssetMaster = asset) -> AssetMaster:
                 return self._asset_repo.upsert(asset_to_save)
@@ -164,17 +179,30 @@ class AShareUniverseSyncService:
 
     @staticmethod
     def _canonicalize_a_share_code(raw_code: str) -> str:
+        """Preserve source exchange identifiers instead of re-inferring known suffixes."""
         base = str(raw_code or "").strip().upper()
         if not base:
             return ""
         if "." in base:
-            base = base.split(".", 1)[0]
+            symbol, suffix = base.rsplit(".", 1)
+            if (
+                suffix in {"SH", "SZ", "BJ"}
+                and symbol.isascii()
+                and symbol.isdigit()
+                and len(symbol) <= 6
+            ):
+                return f"{symbol.zfill(6)}.{suffix}"
+            return ""
         if base.startswith("SH") or base.startswith("SZ") or base.startswith("BJ"):
             prefix = base[:2]
             symbol = base[2:]
+            if not symbol.isascii() or not symbol.isdigit() or len(symbol) > 6:
+                return ""
             suffix = {"SH": "SH", "SZ": "SZ", "BJ": "BJ"}[prefix]
             return f"{symbol.zfill(6)}.{suffix}"
         symbol = base.zfill(6)
+        if not symbol.isascii() or not symbol.isdigit() or len(symbol) != 6:
+            return ""
         if symbol.startswith(("600", "601", "603", "605", "688", "689", "900")):
             return f"{symbol}.SH"
         if symbol.startswith(("000", "001", "002", "003", "200", "300", "301")):

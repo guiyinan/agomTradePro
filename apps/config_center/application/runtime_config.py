@@ -310,7 +310,9 @@ class RuntimeConfigService:
             profile_id=saved_profile.profile_id,
             profile_key=saved_profile.profile_key,
             profile_version=saved_profile.version,
-            snapshot_hash=snapshot_hash,
+            snapshot_hash=RuntimeConfigSnapshot.hash_values(
+                {key: value for key, value in resolved.items() if not definitions[key].secret}
+            ),
             resolved_values={
                 key: value for key, value in resolved.items() if not definitions[key].secret
             },

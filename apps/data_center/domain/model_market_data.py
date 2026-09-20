@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 
 @dataclass(frozen=True)
@@ -22,6 +22,26 @@ class ModelDailyBar:
     adjustment_factor: float | None
     source: str
     amount: float | None = None
+
+
+@runtime_checkable
+class ModelHistoryPreparationPort(Protocol):
+    """Optional bounded prefetch that preserves the per-asset history contract."""
+
+    def prepare_stock_history(
+        self, asset_codes: tuple[str, ...], start_date: date, end_date: date
+    ) -> None:
+        """Prepare exact-window inputs without publishing or changing routing semantics."""
+        ...
+
+
+@runtime_checkable
+class ModelSuspensionPort(Protocol):
+    """Optional evidence for full-day suspensions, never inferred from missing bars."""
+
+    def suspended_days(self, asset_code: str, start_date: date, end_date: date) -> tuple[date, ...]:
+        """Return explicitly observed full-day suspension dates for this asset."""
+        ...
 
 
 class ModelMarketDataPort(Protocol):

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
@@ -26,6 +27,202 @@ pytestmark = pytest.mark.django_db
 
 
 _DEFAULT_OLDEST = object()
+
+
+@pytest.mark.parametrize("tamper_other", [False, True])
+def test_batch_validates_whole_market_once_and_rechecks_next_call(monkeypatch, tamper_other):
+    from unittest.mock import Mock
+
+    from apps.data_center.application.published_equity_context import (
+        get_published_equity_context_payloads,
+    )
+
+    monkeypatch.setattr(
+        "apps.data_center.application.published_equity_context.get_canonical_publication_repository",
+        lambda: query_services.get_canonical_publication_repository(),
+    )
+    reference = datetime.now(UTC)
+    member = _member(
+        publication_id="batch-prices", dataset_key="equity.price.bar", observed_at=reference
+    )
+    other = replace(member, member_id="other", natural_key="600001.SH:price", fact_pk="2")
+    members = (member, other)
+    publication = _publication(
+        dataset_key="equity.price.bar",
+        publication_id="batch-prices",
+        as_of=reference,
+        published_at=reference,
+    )
+    publication = replace(
+        publication,
+        member_count=2,
+        publication_hash=publication_hash(tuple(member_reference(m) for m in members)),
+        coverage=replace(
+            publication.coverage, requested_count=2, eligible_count=2, selected_count=2
+        ),
+    )
+    hashes = {(m.fact_table, m.fact_pk): m.fact_content_hash for m in members}
+    hash_reader = Mock(side_effect=lambda _: dict(hashes))
+    repository = SimpleNamespace(
+        get_current=lambda *_: publication,
+        list_members=lambda _: members,
+        get_fact_content_hashes=hash_reader,
+        get_oldest_member_observed_at=lambda _: reference,
+    )
+    monkeypatch.setattr(query_services, "get_canonical_publication_repository", lambda: repository)
+    facts = Mock(side_effect=lambda **kw: [{"asset_code": kw["asset_code"], "volume": 123}])
+    monkeypatch.setattr(query_services, "fetch_price_bar_payloads", facts)
+    payload = get_published_equity_context_payloads(
+        ["600000.SH", "600001.SH"], include_financial=False, include_valuation=False
+    )
+    assert hash_reader.call_count == 1
+    assert facts.call_count == 2
+    assert facts.call_args_list[0].kwargs["fact_pks"] == ["1"]
+    assert facts.call_args_list[1].kwargs["fact_pks"] == ["2"]
+    assert not payload["600000.SH"]["price"]["must_not_use_for_decision"]
+    if tamper_other:
+        hashes[(other.fact_table, other.fact_pk)] = "c" * 64
+    payload = get_published_equity_context_payloads(
+        ["600000.SH"], include_financial=False, include_valuation=False
+    )
+    assert hash_reader.call_count == 2
+    assert payload["600000.SH"]["price"]["must_not_use_for_decision"] is tamper_other
+    assert facts.call_count == (2 if tamper_other else 3)
+
+
+def test_batch_prices_preserve_each_assets_source_freshness(monkeypatch):
+    from datetime import timedelta
+
+    from apps.data_center.application.published_equity_context import (
+        get_published_equity_context_payloads,
+    )
+
+    monkeypatch.setattr(
+        "apps.data_center.application.published_equity_context.get_canonical_publication_repository",
+        lambda: query_services.get_canonical_publication_repository(),
+    )
+    now = datetime.now(UTC)
+    fresh = _member(publication_id="batch-prices", dataset_key="equity.price.bar", observed_at=now)
+    stale = replace(
+        fresh,
+        member_id="stale",
+        natural_key="600001.SH:price",
+        fact_pk="2",
+        observed_at=now - timedelta(days=100),
+    )
+    members = (fresh, stale)
+    publication = _publication(
+        dataset_key="equity.price.bar", publication_id="batch-prices", as_of=now, published_at=now
+    )
+    publication = replace(
+        publication,
+        member_count=2,
+        publication_hash=publication_hash(tuple(member_reference(m) for m in members)),
+        coverage=replace(
+            publication.coverage, requested_count=2, eligible_count=2, selected_count=2
+        ),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_canonical_publication_repository",
+        lambda: SimpleNamespace(
+            get_current=lambda *_: publication,
+            list_members=lambda _: members,
+            get_fact_content_hashes=lambda _: {
+                (m.fact_table, m.fact_pk): m.fact_content_hash for m in members
+            },
+            get_oldest_member_observed_at=lambda _: stale.observed_at,
+        ),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_dataset_contract_repository",
+        lambda: SimpleNamespace(get_active=lambda _: SimpleNamespace(freshness_seconds=172800)),
+    )
+    monkeypatch.setattr(query_services, "fetch_price_bar_payloads", lambda **_: [{"volume": 123}])
+    result = get_published_equity_context_payloads(
+        ["600000.SH", "600001.SH", "600002.SH"], include_financial=False, include_valuation=False
+    )
+    assert not result["600000.SH"]["price"]["must_not_use_for_decision"]
+    assert result["600001.SH"]["price"]["blocked_reason"] == "canonical_publication_stale"
+    assert result["600002.SH"]["price"]["blocked_reason"] == "canonical_publication_members_missing"
+    assert not result["600001.SH"]["price"]["rows"]
+
+
+def test_asset_price_freshness_does_not_inherit_another_stocks_suspension(monkeypatch):
+    fresh_time = datetime(2026, 9, 18, 7, tzinfo=UTC)
+    stale_time = datetime(2026, 8, 28, 7, tzinfo=UTC)
+    now = datetime(2026, 9, 19, 7, tzinfo=UTC)
+    fresh = _member(publication_id="prices", dataset_key="equity.price.bar", observed_at=fresh_time)
+    stale = replace(
+        _member(
+            publication_id="prices",
+            dataset_key="equity.price.bar",
+            fact_pk="2",
+            observed_at=stale_time,
+        ),
+        natural_key="000016.SZ:price",
+    )
+    members = tuple(sorted((fresh, stale), key=lambda member: member.natural_key))
+    publication = _publication(
+        dataset_key="equity.price.bar",
+        publication_id="prices",
+        as_of=fresh_time,
+        published_at=fresh_time,
+    )
+    publication = replace(
+        publication,
+        member_count=2,
+        publication_hash=publication_hash(tuple(member_reference(member) for member in members)),
+        coverage=replace(
+            publication.coverage, requested_count=2, eligible_count=2, selected_count=2
+        ),
+    )
+    hashes = {(member.fact_table, member.fact_pk): member.fact_content_hash for member in members}
+    monkeypatch.setattr(
+        query_services,
+        "get_canonical_publication_repository",
+        lambda: SimpleNamespace(
+            get_current=lambda *_: publication,
+            list_members=lambda _: members,
+            get_fact_content_hashes=lambda _: hashes,
+            get_oldest_member_observed_at=lambda _: stale_time,
+        ),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_dataset_contract_repository",
+        lambda: SimpleNamespace(get_active=lambda _: SimpleNamespace(freshness_seconds=172800)),
+    )
+    assert query_services._publication_gate("equity.price.bar", "current", now=now)[
+        "must_not_use_for_decision"
+    ]
+    fresh_gate = query_services._publication_gate(
+        "equity.price.bar", "current", now=now, asset_code="600000.SH"
+    )
+    assert not fresh_gate["must_not_use_for_decision"], fresh_gate
+    assert fresh_gate["observed_at"] == fresh_time.isoformat()
+    assert fresh_gate["freshness_scope"] == "asset"
+    assert (
+        query_services._publication_gate(
+            "equity.price.bar", "current", now=now, asset_code="000016.SZ"
+        )["blocked_reason"]
+        == "canonical_publication_stale"
+    )
+    assert (
+        query_services._publication_gate(
+            "equity.price.bar", "current", now=now, asset_code="999999.SZ"
+        )["blocked_reason"]
+        == "canonical_publication_members_missing"
+    )
+    hashes[(stale.fact_table, stale.fact_pk)] = "c" * 64
+    tampered = query_services._publication_gate(
+        "equity.price.bar", "current", now=now, asset_code="600000.SH"
+    )
+    assert tampered["must_not_use_for_decision"]
+    assert tampered["freshness_status"] == "unverified"
+
+
 _RAISE_OLDEST = object()
 _DATASET_FACT_TABLES: dict[str, str] = {
     "macro.fact": "data_center_macro_fact",
@@ -114,7 +311,7 @@ def _member(
         member_id=f"member-{publication_id}-{fact_pk}",
         publication_id=publication_id,
         dataset_key=dataset_key,
-        natural_key=f"test:{dataset_key}:{fact_pk}",
+        natural_key=f"{'600000.SH' if dataset_key == 'equity.price.bar' else 'test'}:{dataset_key}:{fact_pk}",
         source="test",
         source_record_id=f"record-{publication_id}-{fact_pk}",
         fact_table=_DATASET_FACT_TABLES[dataset_key],

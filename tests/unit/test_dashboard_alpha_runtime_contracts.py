@@ -62,7 +62,10 @@ def test_readiness_ignores_invalid_staleness_values(invalid_age: object) -> None
     assert fields["is_stale"] is False
 
 
-def test_build_meta_tolerates_non_mapping_metadata_and_notice() -> None:
+def test_build_meta_tolerates_non_mapping_metadata_and_notice(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "apps.dashboard.application.alpha_homepage_runtime.get_refresh_notice", lambda **kwargs: {}
+    )
     """Dynamic provider metadata is narrowed before nested field access."""
 
     result = _result(metadata="not-an-object")

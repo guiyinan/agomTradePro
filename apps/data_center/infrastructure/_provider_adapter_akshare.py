@@ -499,6 +499,7 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         start_date: date,
         end_date: date,
     ) -> list[PriceBar]:
+        """Preserve gateway adjustment and canonical units in stored price history."""
         from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
             AKShareEastMoneyGateway,
         )
@@ -521,6 +522,7 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 volume=float(bar.volume) if bar.volume is not None else None,
                 amount=bar.amount,
                 source=str(getattr(bar, "source", "") or self.provider_source()).strip(),
+                adjustment=bar.adjustment,
             )
             for bar in bars
         ]

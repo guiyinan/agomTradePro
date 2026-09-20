@@ -65,6 +65,9 @@ class _Model:
 
 
 def _install_fake_qlib(monkeypatch) -> None:
+    from contextlib import nullcontext
+
+    monkeypatch.setattr(prediction_runtime, "qlib_runtime_lock", lambda *_, **kwargs: nullcontext())
     qlib = ModuleType("qlib")
     qlib.__version__ = "test"
     qlib.init = lambda **kwargs: None
@@ -401,6 +404,73 @@ def test_qlib_prediction_drops_nonfinite_scores_and_deduplicates_codes(
             "universe_id": "csi300",
         }
     ]
+
+
+@pytest.mark.parametrize("scoped", [False, True, "verified_suspension"])
+def test_qlib_prediction_filters_instruments_at_actual_prediction_date(
+    monkeypatch, tmp_path, scoped
+):
+    _install_fake_qlib(monkeypatch)
+    model_path = tmp_path / "model.pkl"
+    model_path.write_bytes(b"placeholder")
+    resolved = []
+    received = []
+
+    def resolve(data_api, universe_id, start_time, end_time):
+        resolved.append((universe_id, start_time, end_time))
+        return ["SZ000001"]
+
+    def predict(dataset):
+        received.extend(dataset.handler.kwargs["instruments"])
+        return pd.Series([0.4], index=["SZ000001"])
+
+    monkeypatch.setattr(
+        prediction_runtime,
+        "_get_runtime_qlib_config",
+        lambda: {"enabled": True, "provider_uri": ".", "region": "CN"},
+    )
+    monkeypatch.setattr(prediction_runtime, "_install_qlib_pandas_compat", lambda: None)
+    monkeypatch.setattr(prediction_runtime, "_resolve_qlib_model_path", lambda *args: model_path)
+    monkeypatch.setattr(prediction_runtime, "_resolve_qlib_stock_list", resolve)
+    monkeypatch.setattr(
+        prediction_runtime.pickle, "load", lambda file: SimpleNamespace(predict=predict)
+    )
+    monkeypatch.setattr(
+        prediction_runtime,
+        "_resolve_qlib_handler_class",
+        lambda _: _Handler,
+    )
+    if scoped == "verified_suspension":
+        monkeypatch.setattr(
+            prediction_runtime,
+            "read_scope_suspensions",
+            lambda *_: {"000002.SZ": "2026-07-23"},
+        )
+
+    def execute():
+        return prediction_runtime._execute_qlib_prediction(
+            active_model=SimpleNamespace(feature_set_id="alpha158"),
+            universe_id="csi300",
+            trade_date=date(2026, 7, 24),
+            top_n=10,
+            pool_scope=(
+                SimpleNamespace(instrument_codes=["000001.SZ", "000002.SZ"]) if scoped else None
+            ),
+            outdated_reason_builder=lambda _: None,
+        )
+
+    if scoped is True:
+        from core.exceptions import DataFetchError
+
+        with pytest.raises(DataFetchError) as caught:
+            execute()
+        assert caught.value.code == "MODEL_MARKET_SCOPE_INCOMPLETE"
+        assert received == []
+        return
+    scores = execute()
+    assert resolved == [("all" if scoped else "csi300", "2026-07-24", "2026-07-24")]
+    assert received == ["SZ000001"]
+    assert [row["code"] for row in scores] == ["000001.SZ"]
 
 
 def test_qlib_prediction_batches_large_scopes(monkeypatch, tmp_path) -> None:

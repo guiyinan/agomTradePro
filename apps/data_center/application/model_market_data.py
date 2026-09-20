@@ -10,7 +10,12 @@ from datetime import date
 from threading import Lock
 from typing import TypeVar
 
-from apps.data_center.domain.model_market_data import ModelDailyBar, ModelMarketDataPort
+from apps.data_center.domain.model_market_data import (
+    ModelDailyBar,
+    ModelHistoryPreparationPort,
+    ModelMarketDataPort,
+    ModelSuspensionPort,
+)
 from core.exceptions import DataFetchError, TushareError
 
 logger = logging.getLogger(__name__)
@@ -54,6 +59,23 @@ class ModelMarketDataService:
     ) -> tuple[ModelDailyBar, ...]:
         """Read raw prices and factors together; stale results continue failover."""
         return self._history(asset_code, start_date, end_date, is_index=False)
+
+    def prepare_stock_history(
+        self, asset_codes: tuple[str, ...], start_date: date, end_date: date
+    ) -> None:
+        """Warm the preferred route while retaining per-asset failover and validation."""
+        for route in self._routes:
+            if route.name in self._disabled:
+                continue
+            if isinstance(route.port, ModelHistoryPreparationPort):
+                try:
+                    route.port.prepare_stock_history(asset_codes, start_date, end_date)
+                except DataFetchError as exc:
+                    self._disable_quota(route, exc)
+                    logger.warning("Model history prefetch rejected: %s", exc.code)
+                except (OSError, RuntimeError, TypeError, ValueError) as exc:
+                    logger.warning("Model history prefetch unavailable: %s", type(exc).__name__)
+            return
 
     def index_history(
         self, asset_code: str, start_date: date, end_date: date
@@ -108,6 +130,8 @@ class ModelMarketDataService:
             raise ValueError("History start_date must not exceed end_date")
         reference: tuple[ModelDailyBar, ...] = ()
         last_error: DataFetchError | None = None
+        suspended: dict[str, str] | None = None
+        suspension_conflict: DataFetchError | None = None
         for index, route in enumerate(self._routes):
             if route.name in self._disabled:
                 last_error = self._disabled[route.name]
@@ -124,6 +148,28 @@ class ModelMarketDataService:
                     last_error = DataFetchError(
                         "Source observations are stale", code="MODEL_MARKET_STALE"
                     )
+                    if not is_index and isinstance(route.port, ModelSuspensionPort):
+                        latest = max(row.trade_date for row in rows)
+                        missing = {day for day in calendar if day > latest}
+                        evidence = set(
+                            route.port.suspended_days(asset_code, min(missing), end_date)
+                        )
+                        if missing <= evidence:
+                            persisted = self._reference_history(asset_code, start_date, end_date)
+                            if (
+                                index
+                                or route.requires_reference
+                                or any(row.source != rows[0].source for row in persisted)
+                            ):
+                                self._check_consistency(persisted, rows)
+                            suspended = {
+                                "asset_code": asset_code,
+                                "last_observed_date": latest.isoformat(),
+                                "suspended_through": max(calendar).isoformat(),
+                                "source": rows[0].source,
+                            }
+                            if self._store_history is not None:
+                                self._store_history(rows)
                     continue
                 persisted_reference = self._reference_history(asset_code, start_date, end_date)
                 source_changed = any(row.source != rows[0].source for row in persisted_reference)
@@ -137,10 +183,20 @@ class ModelMarketDataService:
                 raise
             except DataFetchError as exc:
                 last_error = exc
+                if exc.code in {"MODEL_MARKET_SOURCE_CONFLICT", "MODEL_MARKET_INVALID"}:
+                    suspension_conflict = exc
                 self._disable_quota(route, exc)
                 logger.warning("Model market route %s rejected: %s", route.name, exc.code)
             except Exception as exc:
                 logger.warning("Model market route %s failed: %s", route.name, type(exc).__name__)
+        if suspended is not None and suspension_conflict is None:
+            raise DataFetchError(
+                "No current observation: verified full-day suspension",
+                code="MODEL_MARKET_SUSPENDED",
+                details=suspended,
+            )
+        if suspension_conflict is not None:
+            raise suspension_conflict
         raise last_error or DataFetchError(
             "No model market history available", code="MODEL_MARKET_UNAVAILABLE"
         )

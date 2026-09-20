@@ -19,6 +19,15 @@ from apps.task_monitor.application.repository_provider import get_task_record_re
 from apps.task_monitor.domain.entities import TaskStatus
 
 
+@pytest.fixture(autouse=True)
+def isolate_refresh_notice_task_history(monkeypatch):
+    """Keep query unit tests independent of task-monitor persistence."""
+    monkeypatch.setattr(
+        "apps.dashboard.application.alpha_refresh_notice.list_task_executions",
+        lambda *args, **kwargs: [],
+    )
+
+
 def _make_alpha_pool_scope(
     *,
     pool_mode: str,
@@ -788,6 +797,7 @@ def test_alpha_homepage_meta_marks_general_scope_as_research_only():
     query = object.__new__(AlphaHomepageQuery)
     scope = SimpleNamespace(
         scope_hash="general-scope",
+        portfolio_id=None,
         display_label="通用 Alpha 研究池",
         pool_mode="general",
         pool_size=1,

@@ -18,8 +18,6 @@ from apps.data_center.application.current_fact_remediation import (
 )
 from apps.data_center.application.current_publication_rebuild import (
     CoreCurrentPublicationRebuildUseCase,
-    CurrentPublicationDataset,
-    CurrentPublicationRebuildUseCase,
 )
 from apps.data_center.application.current_valuation_sync import (
     SyncCurrentValuationBatchUseCase,
@@ -589,58 +587,12 @@ def get_canonical_publication_repository() -> CanonicalPublicationRepository:
 def make_core_current_publication_rebuild_use_case(
     *,
     created_by: str = "ops.current_publication_rebuild",
+    dataset_keys: tuple[str, ...] | None = None,
 ) -> CoreCurrentPublicationRebuildUseCase:
     """Compose the atomic active-universe publication rebuild workflow."""
+    from apps.data_center.publication_rebuild_composition import build_current_publication_rebuild
 
-    publication_repository = CanonicalPublicationRepository()
-    policy_repository = PublicationPolicyRepository()
-    specifications = (
-        (
-            CurrentPublicationDataset(
-                dataset_key="equity.quote.snapshot",
-                fact_table="data_center_quote_snapshot",
-                created_by=created_by,
-            ),
-            QuoteSnapshotRepository(),
-        ),
-        (
-            CurrentPublicationDataset(
-                dataset_key="equity.price.bar",
-                fact_table="data_center_price_bar",
-                created_by=created_by,
-            ),
-            PriceBarRepository(),
-        ),
-        (
-            CurrentPublicationDataset(
-                dataset_key="equity.valuation.fact",
-                fact_table="data_center_valuation_fact",
-                created_by=created_by,
-            ),
-            ValuationFactRepository(),
-        ),
-        (
-            CurrentPublicationDataset(
-                dataset_key="equity.financial.fact",
-                fact_table="data_center_financial_fact",
-                created_by=created_by,
-            ),
-            FinancialFactRepository(),
-        ),
-    )
-    rebuilders = tuple(
-        CurrentPublicationRebuildUseCase(
-            dataset=dataset,
-            candidate_repository=repository,
-            publication_repository=publication_repository,
-            policy_repository=policy_repository,
-        )
-        for dataset, repository in specifications
-    )
-    return CoreCurrentPublicationRebuildUseCase(
-        rebuilders=rebuilders,
-        transaction=transaction.atomic,
-    )
+    return build_current_publication_rebuild(created_by=created_by, dataset_keys=dataset_keys)
 
 
 def make_core_current_fact_refresh_use_case(

@@ -132,3 +132,28 @@ __all__ = [
     "scoped_work_outcome",
     "task_outcome_fields",
 ]
+
+
+def blocked_prediction_result(
+    *, reason: str, trade_date: str, universe_id: str
+) -> dict[str, object]:
+    """Report blocked model inputs without reusing a cached prediction."""
+    return {
+        "status": "blocked",
+        "reason": reason,
+        "blocked_reason": reason,
+        "must_not_use_for_decision": True,
+        "trade_date": trade_date,
+        "universe_id": universe_id,
+        **task_outcome_fields("blocked", 1, 0, 1, 0),
+    }
+
+
+def stale_prediction_metadata() -> dict[str, object]:
+    """Mark scores computed from an older source date as decision-ineligible."""
+    return {
+        "freshness": "stale",
+        "reliability": "degraded",
+        "must_not_use_for_decision": True,
+        "blocked_reason": "qlib_source_data_stale",
+    }

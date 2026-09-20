@@ -9,6 +9,7 @@ from typing import Any
 
 from apps.alpha.application import task_outcome_contracts as _outcomes
 from apps.alpha.domain.entities import AlphaPoolScope, normalize_stock_code
+from core.exceptions import ConfigurationError, DataFetchError
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,25 @@ QueuePrediction = Callable[..., Any]
 RepositoryFactory = Callable[[], Any]
 TradeDateResolver = Callable[[], date]
 CacheFreshnessChecker = Callable[[Any | None, date], bool]
+
+
+def _refresh_failure(exc: Exception) -> dict[str, object]:
+    if isinstance(exc, (DataFetchError, ConfigurationError)) and (
+        exc.code == "TUSHARE_DAILY_QUOTA_EXHAUSTED" or exc.code.startswith("MODEL_MARKET_")
+    ):
+        return {"status": "blocked", "reason": exc.code.lower(), "error_code": exc.code}
+    return {"status": "failed", "error": str(exc)}
+
+
+def _refresh_block_result(refresh: dict[str, Any], requested: int) -> dict[str, object]:
+    reason = str(refresh.get("blocked_reason") or refresh.get("reason") or "qlib_refresh_blocked")
+    return {
+        "status": "blocked",
+        "reason": reason,
+        "blocked_reason": reason,
+        "must_not_use_for_decision": True,
+        **_outcomes.task_outcome_fields("blocked", requested, 0, requested, 0),
+    }
 
 
 def run_daily_inference(
@@ -43,10 +63,18 @@ def run_daily_inference(
                 lookback_days=lookback_days,
             )
         except Exception as exc:
-            logger.error("Qlib 每日数据刷新失败，继续尝试推理: %s", exc, exc_info=True)
-            refresh_result = {"status": "failed", "error": str(exc)}
+            refresh_result = _refresh_failure(exc)
+            logger.warning("Qlib daily refresh did not complete: %s", refresh_result["status"])
 
     normalized_trade_date = trade_date_obj.isoformat()
+    if refresh_result.get("status") == "blocked":
+        return {
+            "universe_id": universe_id,
+            "trade_date": normalized_trade_date,
+            "top_n": top_n,
+            "refresh_result": refresh_result,
+            **_refresh_block_result(refresh_result, requested=2),
+        }
     try:
         result = queue_prediction(universe_id, normalized_trade_date, top_n)
     except Exception as exc:
@@ -196,15 +224,30 @@ def run_scoped_inference(
         except Exception as exc:
             failed_count += 1
             logger.error(
-                "Qlib scoped data refresh failed, continue queueing inference: %s",
-                exc,
-                exc_info=True,
+                "Qlib scoped data refresh failed: %s",
+                type(exc).__name__,
             )
             refresh_result = {
-                "status": "failed",
-                "error": str(exc),
+                **_refresh_failure(exc),
                 "stock_count": len(scoped_codes),
             }
+
+    if refresh_result.get("status") == "blocked":
+        return {
+            "trade_date": target_trade_date.isoformat(),
+            "top_n": top_n,
+            "portfolio_count": len(portfolio_refs),
+            "scope_count": len(seen_scope_keys),
+            "scoped_stock_count": len(scoped_codes),
+            "refresh_result": refresh_result,
+            "queued_count": 0,
+            "queued": [],
+            "fresh_cache_count": fresh_cache_count,
+            "skipped_count": len(skipped),
+            "skipped": skipped,
+            "failed_count": failed_count,
+            **_refresh_block_result(refresh_result, requested=len(resolved_scopes) + 1),
+        }
 
     for ref, scope in resolved_scopes:
         try:

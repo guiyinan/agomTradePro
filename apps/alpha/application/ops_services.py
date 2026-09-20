@@ -238,6 +238,7 @@ class QlibRuntimeDataRefreshService:
             "stock_count": summary.stock_count,
             "universe_count": summary.universe_count,
             "warning_messages": list(summary.warning_messages),
+            "suspended_codes": list(summary.suspended_codes),
         }
 
     def refresh_codes(
@@ -288,6 +289,7 @@ class QlibRuntimeDataRefreshService:
             "feature_series_written": summary.feature_series_written,
             "stock_count": summary.stock_count,
             "warning_messages": list(summary.warning_messages),
+            "suspended_codes": list(summary.suspended_codes),
         }
 
 

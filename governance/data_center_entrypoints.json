@@ -3,15 +3,15 @@
     "by_category": {
       "admin_surface": 13,
       "agent_skill": 3,
-      "application_consumer": 159,
+      "application_consumer": 160,
       "beat_schedule": 59,
       "capability_runtime": 25,
       "celery_dispatch_edge": 18,
-      "celery_task": 126,
+      "celery_task": 127,
       "compatibility_facade": 94,
       "current_data_surface": 62,
-      "dynamic_import_edge": 11,
-      "management_command": 29,
+      "dynamic_import_edge": 12,
+      "management_command": 32,
       "management_command_edge": 56,
       "mcp_tool": 40,
       "migration_evidence": 14,
@@ -22,21 +22,21 @@
       "rest_url": 72,
       "runbook": 7,
       "runtime_config_key": 45,
-      "scheduler_writer": 16,
-      "script": 8,
+      "scheduler_writer": 17,
+      "script": 9,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 68,
+      "test_evidence": 70,
       "workflow_step": 10
     },
     "by_status": {
-      "active_public": 752,
-      "adjacent_operational": 298,
-      "candidate-review": 24,
+      "active_public": 758,
+      "adjacent_operational": 299,
+      "candidate-review": 27,
       "compatibility": 137,
       "retired_blocked": 0
     },
-    "total": 1211
+    "total": 1221
   },
   "entries": [
     {
@@ -352,8 +352,8 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/alpha/infrastructure/qlib_builder.py:get_model_market_data_port:line:19",
-      "locator": "line:19",
+      "id": "application_consumer:apps/alpha/infrastructure/qlib_builder.py:get_model_market_data_port:line:21",
+      "locator": "line:21",
       "path": "apps/alpha/infrastructure/qlib_builder.py",
       "status": "active_public",
       "symbol": "get_model_market_data_port",
@@ -562,31 +562,11 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/equity/application/query_services.py:get_published_financial_facts:line:9",
+      "id": "application_consumer:apps/equity/application/query_services.py:get_published_equity_context_payloads:line:9",
       "locator": "line:9",
       "path": "apps/equity/application/query_services.py",
       "status": "active_public",
-      "symbol": "get_published_financial_facts",
-      "target": ""
-    },
-    {
-      "category": "application_consumer",
-      "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/equity/application/query_services.py:get_published_price_bar_series:line:9",
-      "locator": "line:9",
-      "path": "apps/equity/application/query_services.py",
-      "status": "active_public",
-      "symbol": "get_published_price_bar_series",
-      "target": ""
-    },
-    {
-      "category": "application_consumer",
-      "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/equity/application/query_services.py:get_published_valuation_facts:line:9",
-      "locator": "line:9",
-      "path": "apps/equity/application/query_services.py",
-      "status": "active_public",
-      "symbol": "get_published_valuation_facts",
+      "symbol": "get_published_equity_context_payloads",
       "target": ""
     },
     {
@@ -1790,6 +1770,36 @@
       "target": ""
     },
     {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:scripts/evid09_target_current_db_readonly_runtime.py:get_active_publication_policy:line:85",
+      "locator": "line:85",
+      "path": "scripts/evid09_target_current_db_readonly_runtime.py",
+      "status": "active_public",
+      "symbol": "get_active_publication_policy",
+      "target": ""
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:scripts/evid09_target_current_db_readonly_runtime.py:get_current_publication:line:85",
+      "locator": "line:85",
+      "path": "scripts/evid09_target_current_db_readonly_runtime.py",
+      "status": "active_public",
+      "symbol": "get_current_publication",
+      "target": ""
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:scripts/evid09_target_current_db_readonly_runtime.py:get_published_market_news:line:85",
+      "locator": "line:85",
+      "path": "scripts/evid09_target_current_db_readonly_runtime.py",
+      "status": "active_public",
+      "symbol": "get_published_market_news",
+      "target": ""
+    },
+    {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/celery_schedule.py:audit_decision_readiness_task:decision-readiness-fail-closed-audit",
@@ -2692,8 +2702,8 @@
     {
       "category": "celery_dispatch_edge",
       "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
-      "id": "celery_dispatch_edge:apps/alpha/application/tasks.py:delay:line:794",
-      "locator": "line:794",
+      "id": "celery_dispatch_edge:apps/alpha/application/tasks.py:delay:line:792",
+      "locator": "line:792",
       "path": "apps/alpha/application/tasks.py",
       "status": "active_public",
       "symbol": "delay",
@@ -2722,8 +2732,8 @@
     {
       "category": "celery_dispatch_edge",
       "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
-      "id": "celery_dispatch_edge:apps/dashboard/application/alpha_homepage_runtime.py:delay:line:236",
-      "locator": "line:236",
+      "id": "celery_dispatch_edge:apps/dashboard/application/alpha_homepage_runtime.py:delay:line:237",
+      "locator": "line:237",
       "path": "apps/dashboard/application/alpha_homepage_runtime.py",
       "status": "active_public",
       "symbol": "delay",
@@ -3288,6 +3298,16 @@
       "status": "active_public",
       "symbol": "refresh_decision_quote_snapshots_task",
       "target": "apps.data_center.application.tasks.refresh_decision_quote_snapshots_task"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "governance/celery_task_contracts.json",
+      "id": "celery_task:apps/data_center/application/tasks.py:refresh_full_market_publications_task:data_center.refresh_full_market_publications",
+      "locator": "data_center.refresh_full_market_publications",
+      "path": "apps/data_center/application/tasks.py",
+      "status": "active_public",
+      "symbol": "refresh_full_market_publications_task",
+      "target": "data_center.refresh_full_market_publications"
     },
     {
       "category": "celery_task",
@@ -5081,7 +5101,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=1",
+      "evidence": "governed current-data contract; source_files=3",
       "id": "current_data_surface:governance/current_data_contracts.json:alpha.qlib_prediction_source_freshness:Alpha Qlib prediction cache and downstream workspace refresh",
       "locator": "Alpha Qlib prediction cache and downstream workspace refresh",
       "path": "governance/current_data_contracts.json",
@@ -5141,7 +5161,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=3",
+      "evidence": "governed current-data contract; source_files=5",
       "id": "current_data_surface:governance/current_data_contracts.json:dashboard.beta_alpha_workbench.current:TUI Beta market conclusion before Alpha stock selection",
       "locator": "TUI Beta market conclusion before Alpha stock selection",
       "path": "governance/current_data_contracts.json",
@@ -5211,7 +5231,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=1",
+      "evidence": "governed current-data contract; source_files=11",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.model_market_history:Provider-neutral Qlib and Equity historical model inputs",
       "locator": "Provider-neutral Qlib and Equity historical model inputs",
       "path": "governance/current_data_contracts.json",
@@ -5231,7 +5251,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=6",
+      "evidence": "governed current-data contract; source_files=7",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.public_current_read_ports:Cross-app current decision-readiness and coverage Public Ports",
       "locator": "Cross-app current decision-readiness and coverage Public Ports",
       "path": "governance/current_data_contracts.json",
@@ -5251,7 +5271,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=24",
+      "evidence": "governed current-data contract; source_files=25",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.publication_only_d2_d3:Current quote and macro consumers use Data Center publication-only ports",
       "locator": "Current quote and macro consumers use Data Center publication-only ports",
       "path": "governance/current_data_contracts.json",
@@ -5261,7 +5281,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=14",
+      "evidence": "governed current-data contract; source_files=15",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.publication_only_d4_d5:Current financial and valuation reads use Data Center publication-only ports",
       "locator": "Current financial and valuation reads use Data Center publication-only ports",
       "path": "governance/current_data_contracts.json",
@@ -5381,7 +5401,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=6",
+      "evidence": "governed current-data contract; source_files=7",
       "id": "current_data_surface:governance/current_data_contracts.json:equity.published_stock_context:Dashboard Alpha and Alpha AI stock context",
       "locator": "Dashboard Alpha and Alpha AI stock context",
       "path": "governance/current_data_contracts.json",
@@ -5711,6 +5731,16 @@
     },
     {
       "category": "dynamic_import_edge",
+      "evidence": "statically resolved dynamic import target",
+      "id": "dynamic_import_edge:apps/data_center/management/commands/setup_full_market_publications.py:import_module:line:13",
+      "locator": "line:13",
+      "path": "apps/data_center/management/commands/setup_full_market_publications.py",
+      "status": "adjacent_operational",
+      "symbol": "import_module",
+      "target": "django_celery_beat.models"
+    },
+    {
+      "category": "dynamic_import_edge",
       "evidence": "runtime import is bounded by OWNER_MANIFEST_MODULES",
       "id": "dynamic_import_edge:sdk/agomtradepro_mcp/registry/loader.py:import_module:line:38:data_center_egress_capabilities",
       "locator": "line:38:data_center_egress_capabilities",
@@ -5842,6 +5872,16 @@
     {
       "category": "management_command",
       "evidence": "Data Center-owned Django command",
+      "id": "management_command:apps/data_center/management/commands/configure_tencent_history_units.py:configure_tencent_history_units:",
+      "locator": "",
+      "path": "apps/data_center/management/commands/configure_tencent_history_units.py",
+      "status": "active_public",
+      "symbol": "configure_tencent_history_units",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "Data Center-owned Django command",
       "id": "management_command:apps/data_center/management/commands/import_investor_accounts.py:import_investor_accounts:",
       "locator": "",
       "path": "apps/data_center/management/commands/import_investor_accounts.py",
@@ -5942,11 +5982,31 @@
     {
       "category": "management_command",
       "evidence": "Data Center-owned Django command",
+      "id": "management_command:apps/data_center/management/commands/repair_legacy_price_units.py:repair_legacy_price_units:",
+      "locator": "",
+      "path": "apps/data_center/management/commands/repair_legacy_price_units.py",
+      "status": "active_public",
+      "symbol": "repair_legacy_price_units",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "Data Center-owned Django command",
       "id": "management_command:apps/data_center/management/commands/setup_decision_quote_refresh.py:setup_decision_quote_refresh:",
       "locator": "",
       "path": "apps/data_center/management/commands/setup_decision_quote_refresh.py",
       "status": "active_public",
       "symbol": "setup_decision_quote_refresh",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "Data Center-owned Django command",
+      "id": "management_command:apps/data_center/management/commands/setup_full_market_publications.py:setup_full_market_publications:",
+      "locator": "",
+      "path": "apps/data_center/management/commands/setup_full_market_publications.py",
+      "status": "active_public",
+      "symbol": "setup_full_market_publications",
       "target": ""
     },
     {
@@ -10342,6 +10402,16 @@
     {
       "category": "scheduler_writer",
       "evidence": "database-backed Beat schedule writer at line 51",
+      "id": "scheduler_writer:apps/data_center/management/commands/setup_full_market_publications.py:PeriodicTask:full-market-current-publications",
+      "locator": "full-market-current-publications",
+      "path": "apps/data_center/management/commands/setup_full_market_publications.py",
+      "status": "active_public",
+      "symbol": "PeriodicTask",
+      "target": "data_center.refresh_full_market_publications"
+    },
+    {
+      "category": "scheduler_writer",
+      "evidence": "database-backed Beat schedule writer at line 51",
       "id": "scheduler_writer:apps/decision_rhythm/management/commands/setup_workspace_snapshot_refresh.py:PeriodicTask:decision-workspace-nightly-snapshot-refresh",
       "locator": "decision-workspace-nightly-snapshot-refresh",
       "path": "apps/decision_rhythm/management/commands/setup_workspace_snapshot_refresh.py",
@@ -10446,6 +10516,16 @@
       "locator": "",
       "path": "scripts/check_data_center_runtime_catalog.py",
       "status": "active_public",
+      "symbol": "__main__",
+      "target": ""
+    },
+    {
+      "category": "script",
+      "evidence": "static Data Center reference; explicit owner review required",
+      "id": "script:scripts/evid09_target_current_db_readonly_runtime.py:__main__:",
+      "locator": "",
+      "path": "scripts/evid09_target_current_db_readonly_runtime.py",
+      "status": "candidate-review",
       "symbol": "__main__",
       "target": ""
     },
@@ -12021,6 +12101,26 @@
     },
     {
       "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/unit/test_evid09_controlled_image_exercise.py:test_evid09_controlled_image_exercise:",
+      "locator": "",
+      "path": "tests/unit/test_evid09_controlled_image_exercise.py",
+      "status": "candidate-review",
+      "symbol": "test_evid09_controlled_image_exercise",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/unit/test_evid09_web_only_image_exercise.py:test_evid09_web_only_image_exercise:",
+      "locator": "",
+      "path": "tests/unit/test_evid09_web_only_image_exercise.py",
+      "status": "candidate-review",
+      "symbol": "test_evid09_web_only_image_exercise",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
       "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
       "id": "test_evidence:tests/unit/test_evid_02_postgres_evidence.py:test_evid_02_postgres_evidence:",
       "locator": "",
@@ -12160,7 +12260,7 @@
     "retired_blocked": "known unsafe or obsolete operational path retained only as blocked evidence"
   },
   "source_contract_counts": {
-    "celery_tasks": 91,
+    "celery_tasks": 92,
     "current_data_contracts": 62,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 22,

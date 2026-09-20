@@ -18,6 +18,7 @@ from decimal import Decimal, InvalidOperation
 import pandas as pd  # type: ignore[import-untyped]
 import requests
 
+from apps.data_center.domain.enums import PriceAdjustment
 from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
 from apps.data_center.infrastructure.market_gateway_entities import (
     CapitalFlowSnapshot,
@@ -588,6 +589,7 @@ class AKShareEastMoneyGateway(MarketGatewayProtocol):
             start_date,
             end_date,
             "sina",
+            adjustment=PriceAdjustment.FORWARD,
         )
         if bars:
             logger.info("新浪北交所历史 K 线获取成功: %s 获取 %d 条", normalized, len(bars))
@@ -664,9 +666,14 @@ class AKShareEastMoneyGateway(MarketGatewayProtocol):
                         close=float(fields[2]),
                         high=float(fields[3]),
                         low=float(fields[4]),
-                        volume=int(float(fields[5])),
+                        volume=(
+                            int(value * 100)
+                            if (value := safe_float(fields[5])) is not None
+                            else None
+                        ),
                         amount=float(fields[6]),
                         source="eastmoney",
+                        adjustment=PriceAdjustment.FORWARD,
                     )
                 )
             except (TypeError, ValueError):
@@ -714,9 +721,14 @@ class AKShareEastMoneyGateway(MarketGatewayProtocol):
                         high=float(row.get("最高", 0)),
                         low=float(row.get("最低", 0)),
                         close=float(row.get("收盘", 0)),
-                        volume=_safe_int(row.get("成交量")),
+                        volume=(
+                            int(value * 100)
+                            if (value := safe_float(row.get("成交量"))) is not None
+                            else None
+                        ),
                         amount=safe_float(row.get("成交额")),
                         source=source,
+                        adjustment=PriceAdjustment.FORWARD,
                     )
                 )
             except (ValueError, TypeError):
@@ -730,6 +742,8 @@ class AKShareEastMoneyGateway(MarketGatewayProtocol):
         start_date: str,
         end_date: str,
         source: str,
+        *,
+        adjustment: PriceAdjustment = PriceAdjustment.NONE,
     ) -> list[HistoricalPriceBar]:
         """解析英文列名 DataFrame（stock_zh_index_daily）"""
         date_col = "date"
@@ -755,6 +769,7 @@ class AKShareEastMoneyGateway(MarketGatewayProtocol):
                         close=float(row.get("close", 0)),
                         volume=_safe_int(row.get("volume")),
                         source=source,
+                        adjustment=adjustment,
                     )
                 )
             except (ValueError, TypeError):

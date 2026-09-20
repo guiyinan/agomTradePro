@@ -225,6 +225,7 @@ class DashboardAlphaContextRepository:
         *,
         persist_names: bool = True,
     ) -> dict[str, dict[str, Any]]:
+        """Load published context, preserving missing values and volume observation time."""
         if not codes:
             return {}
 
@@ -252,6 +253,10 @@ class DashboardAlphaContextRepository:
         context: dict[str, dict[str, Any]] = {}
         for code in codes:
             latest_daily = local_context.get(code, {})
+            quote = quote_context.get(code, {})
+            quote_volume = safe_float(quote.get("volume"))
+            daily_volume = safe_float(latest_daily.get("volume"))
+            volume = quote_volume if quote_volume is not None else daily_volume
             info: dict[str, Any] = {
                 "name": str(latest_daily.get("name") or ""),
                 "sector": str(latest_daily.get("sector") or ""),
@@ -272,10 +277,16 @@ class DashboardAlphaContextRepository:
                         or latest_daily.get("close")
                         or 0.0
                     ),
-                    "volume": float(
-                        quote_context.get(code, {}).get("volume")
-                        or latest_daily.get("volume")
-                        or 0.0
+                    "volume": volume,
+                    "volume_source": (
+                        quote.get("source", "")
+                        if quote_volume is not None
+                        else "published_daily" if daily_volume is not None else ""
+                    ),
+                    "volume_observed_at": (
+                        quote.get("snapshot_at")
+                        if quote_volume is not None
+                        else _optional_isoformat(latest_daily.get("trade_date"))
                     ),
                     "trade_date": _optional_isoformat(latest_daily.get("trade_date")),
                     "report_date": _optional_isoformat(latest_daily.get("report_date")),

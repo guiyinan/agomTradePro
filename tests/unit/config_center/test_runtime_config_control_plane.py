@@ -18,6 +18,7 @@ from apps.config_center.domain.runtime_config import (
     RuntimeConfigCriticality,
     RuntimeConfigDefinition,
     RuntimeConfigProfile,
+    RuntimeConfigSnapshot,
     RuntimeConfigValue,
     RuntimeProfileStatus,
     RuntimeValueType,
@@ -149,6 +150,59 @@ def test_runtime_profile_activation_produces_snapshot_hash() -> None:
     assert saved.status is RuntimeProfileStatus.ACTIVE
     assert saved.content_hash == snapshot.snapshot_hash
     assert snapshot.resolved_values[definition.key] == 90 * 1024**3
+
+
+def test_public_snapshot_hash_is_verifiable_without_exposing_secret_refs() -> None:
+    definitions = _Definitions(
+        [
+            RuntimeConfigDefinition(
+                key="audit.mode",
+                namespace="audit",
+                owner_app="audit",
+                value_type=RuntimeValueType.STRING,
+            ),
+            RuntimeConfigDefinition(
+                key="provider.key",
+                namespace="provider",
+                owner_app="data_center",
+                value_type=RuntimeValueType.STRING,
+                secret=True,
+            ),
+        ]
+    )
+    profiles, values, snapshots = _Profiles(), _Values(), _Snapshots()
+    service = RuntimeConfigService(definitions, profiles, values, _Revisions(), snapshots)
+    results = []
+    for version in [1, 2]:
+        profile = RuntimeConfigProfile(
+            profile_id=str(uuid4()),
+            profile_key="production",
+            environment="production",
+            version=version,
+        )
+        results.append(
+            service.activate(
+                profile,
+                (
+                    RuntimeConfigValue(
+                        profile_id=profile.profile_id, definition_key="audit.mode", value_json="off"
+                    ),
+                    RuntimeConfigValue(
+                        profile_id=profile.profile_id,
+                        definition_key="provider.key",
+                        secret_ref=f"secret://provider/version-{version}",
+                    ),
+                ),
+                actor="pytest",
+                reason="secret rotation",
+            )
+        )
+    for profile, snapshot in results:
+        assert snapshot.resolved_values == {"audit.mode": "off"}
+        assert snapshot.snapshot_hash == RuntimeConfigSnapshot.hash_values(snapshot.resolved_values)
+        assert "secret://" not in str(snapshot)
+    assert results[0][0].content_hash != results[1][0].content_hash
+    assert results[0][1].snapshot_hash == results[1][1].snapshot_hash
 
 
 def test_runtime_profile_preview_reports_impact_without_persisting() -> None:

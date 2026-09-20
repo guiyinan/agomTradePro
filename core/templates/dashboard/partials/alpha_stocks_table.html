@@ -10,6 +10,15 @@
         </div>
     </div>
 
+    {% if alpha_meta.refresh_notice %}
+    <div class="alpha-banner alpha-banner-warning" role="alert">
+        <strong>{{ alpha_meta.refresh_notice.title }}</strong>
+        <span>{{ alpha_meta.refresh_notice.message }}</span>
+        <span>最近尝试 {{ alpha_meta.refresh_notice.attempted_at|default:"未知" }}</span>
+        <span>当前评分日期 {% firstof alpha_meta.effective_asof_date alpha_meta.cache_date "暂无可用评分" %}；目标日期 {{ alpha_meta.requested_trade_date|default:"未知" }}。旧评分不会作为本次更新成功的结果。</span>
+    </div>
+    {% endif %}
+
     {% if alpha_scope == "general" %}
     <div class="alpha-banner alpha-banner-info">
         <strong>通用 Alpha 仅供研究排名</strong>

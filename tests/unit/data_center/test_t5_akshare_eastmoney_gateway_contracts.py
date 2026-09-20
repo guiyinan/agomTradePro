@@ -608,7 +608,7 @@ def test_bar_parsers_filter_dates_skip_bad_rows_and_require_date_columns() -> No
     cn_bars = gateway._parse_em_cn_bars(cn, "A", "test")
     assert len(cn_bars) == 1
     assert cn_bars[0].trade_date == date(2026, 7, 1)
-    assert cn_bars[0].volume == 12
+    assert cn_bars[0].volume == 1290
     assert cn_bars[0].amount == 100.5
 
     en = pd.DataFrame(

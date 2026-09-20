@@ -102,6 +102,107 @@ def test_all_stale_sources_block_without_advancing_source_date():
     assert caught.value.code == "MODEL_MARKET_STALE"
 
 
+def test_verified_full_day_suspension_stores_history_without_advancing_observation():
+    class Suspended(Source):
+        def suspended_days(self, *args):
+            return (D2,)
+
+    stored = []
+    with pytest.raises(DataFetchError) as caught:
+        service(Source(), Suspended((bar(),)), reference=(bar(),), stored=stored).stock_history(
+            "600000.SH", D1, D2
+        )
+    assert caught.value.code == "MODEL_MARKET_SUSPENDED"
+    assert caught.value.details["last_observed_date"] == D1.isoformat()
+    assert caught.value.details["suspended_through"] == D2.isoformat()
+    assert stored == [bar()]
+    assert stored[0].trade_date == D1
+
+
+@pytest.mark.parametrize("evidence", [(), (D1,)])
+def test_incomplete_suspension_evidence_remains_stale(evidence):
+    class Suspended(Source):
+        def suspended_days(self, *args):
+            return evidence
+
+    with pytest.raises(DataFetchError) as caught:
+        service(Source(), Suspended((bar(),)), reference=(bar(),)).stock_history(
+            "600000.SH", D1, D2
+        )
+    assert caught.value.code == "MODEL_MARKET_STALE"
+
+
+def test_confirmed_suspension_survives_backup_quota_failure():
+    class Suspended(Source):
+        def suspended_days(self, *args):
+            return (D2,)
+
+    backup = Source(error=TushareError("quota", code="TUSHARE_DAILY_QUOTA_EXHAUSTED"))
+    with pytest.raises(DataFetchError) as caught:
+        service(Suspended((bar(),)), backup).stock_history("600000.SH", D1, D2)
+    assert caught.value.code == "MODEL_MARKET_SUSPENDED"
+    assert caught.value.details["last_observed_date"] == D1.isoformat()
+
+
+def test_suspension_does_not_hide_price_conflict_or_stop_fresh_failover():
+    class Suspended(Source):
+        def suspended_days(self, *args):
+            return (D2,)
+
+    with pytest.raises(DataFetchError) as caught:
+        service(Source(), Suspended((bar(close=11),)), reference=(bar(),)).stock_history(
+            "600000.SH", D1, D2
+        )
+    assert caught.value.code == "MODEL_MARKET_SOURCE_CONFLICT"
+    fresh = Source((bar(), bar(D2)))
+    assert (
+        service(Suspended((bar(),)), fresh).stock_history("600000.SH", D1, D2)[-1].trade_date == D2
+    )
+
+
+def test_tushare_suspension_normalization_rejects_intraday_other_assets_and_resumption():
+    from apps.data_center.infrastructure.tushare_model_market_source import TushareModelMarketSource
+
+    class Client:
+        def suspend_d(self, **kwargs):
+            return pd.DataFrame(
+                [
+                    {
+                        "ts_code": "600000.SH",
+                        "trade_date": "20260908",
+                        "suspend_type": "S",
+                        "suspend_timing": None,
+                    },
+                    {
+                        "ts_code": "600000.SH",
+                        "trade_date": "20260907",
+                        "suspend_type": "S",
+                        "suspend_timing": "09:30-10:00",
+                    },
+                    {
+                        "ts_code": "600001.SH",
+                        "trade_date": "20260907",
+                        "suspend_type": "S",
+                        "suspend_timing": None,
+                    },
+                    {
+                        "ts_code": "600000.SH",
+                        "trade_date": "20260907",
+                        "suspend_type": "R",
+                        "suspend_timing": None,
+                    },
+                    {
+                        "ts_code": "600000.SH",
+                        "trade_date": "invalid",
+                        "suspend_type": "S",
+                        "suspend_timing": None,
+                    },
+                ]
+            )
+
+    assert TushareModelMarketSource(Client()).suspended_days("600000.SH", D1, D2) == (D2,)
+
+
 def test_factor_absolute_scale_can_differ_but_relative_adjustments_must_match():
     port = service(Source(), Source())
     port._check_consistency((bar(), bar(D2, factor=4)), (bar(factor=20), bar(D2, factor=40)))

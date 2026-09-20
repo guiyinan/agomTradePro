@@ -111,6 +111,33 @@ def test_qlib_predict_scores_reports_partial_when_degraded_cache_is_reused(monke
     )
 
 
+def test_incomplete_prediction_scope_is_blocked_without_cache_reuse(monkeypatch) -> None:
+    from core.exceptions import DataFetchError
+
+    monkeypatch.setattr(tasks, "_get_runtime_qlib_config", lambda: {"enabled": True})
+    monkeypatch.setattr(tasks, "_require_usable_qlib_runtime", lambda config: None)
+    monkeypatch.setattr(
+        tasks,
+        "get_qlib_model_registry_repository",
+        lambda: SimpleNamespace(get_active_model=lambda: SimpleNamespace(artifact_hash="model")),
+    )
+    monkeypatch.setattr(tasks, "_get_qlib_data_latest_date", lambda: TRADE_DATE)
+
+    def reject(**kwargs):
+        raise DataFetchError("incomplete scope", code="MODEL_MARKET_SCOPE_INCOMPLETE")
+
+    monkeypatch.setattr(tasks, "_execute_qlib_prediction", reject)
+    monkeypatch.setattr(
+        tasks, "_reuse_latest_qlib_cache", lambda **kwargs: pytest.fail("cache reuse")
+    )
+    monkeypatch.setattr(tasks, "_upsert_qlib_cache", lambda **kwargs: pytest.fail("cache write"))
+    result = tasks.qlib_predict_scores.run("csi300", TRADE_DATE.isoformat(), 10)
+    assert result["outcome"] == "blocked"
+    assert result["blocked_reason"] == "model_market_scope_incomplete"
+    assert result["stored"] == 0
+    assert result["must_not_use_for_decision"] is True
+
+
 def test_qlib_train_model_reports_registry_write(monkeypatch, tmp_path: Path) -> None:
     """Successful training reports its authoritative registry write."""
     registry_calls: list[dict[str, Any]] = []

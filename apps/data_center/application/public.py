@@ -21,6 +21,9 @@ from apps.data_center.application.public_protocols import (
     AlphaPriceCoverageSyncProtocol,
     MacroProjectionRepositoryProtocol,
 )
+from apps.data_center.application.published_equity_context import (
+    get_published_equity_context_payloads,
+)
 from apps.data_center.application.query_services import (
     get_latest_macro_indicator_value,
     get_publication_member_fact_pks,
@@ -1019,6 +1022,7 @@ __all__ = [
     "get_published_market_news",
     "get_published_capital_flow_series",
     "get_published_financial_facts",
+    "get_published_equity_context_payloads",
     "get_published_latest_quote_payload",
     "get_published_fund_nav_series",
     "sync_fund_nav_from_active_provider",

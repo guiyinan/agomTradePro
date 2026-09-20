@@ -8,12 +8,50 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 
 from apps.alpha.infrastructure.models import AlphaScoreCacheModel
+from apps.data_center.domain.enums import PriceAdjustment
 from apps.data_center.infrastructure.alpha_price_coverage_sync import (
     AlphaPriceCoverageSyncService,
 )
 from apps.data_center.infrastructure.market_gateway_entities import HistoricalPriceBar
 from apps.data_center.infrastructure.market_gateway_protocol import MarketGatewayProtocol
 from apps.data_center.infrastructure.models import AssetMasterModel, PriceBarModel
+
+
+@pytest.mark.django_db
+def test_adjusted_alpha_sync_preserves_raw_model_reference(mocker):
+    """Replacing adjusted history cannot delete the raw failover reference."""
+    day = date(2026, 9, 18)
+    raw = PriceBarModel.objects.create(
+        asset_code="000001.SZ",
+        bar_date=day,
+        open=12,
+        high=13,
+        low=11,
+        close=12,
+        source="tushare",
+        adjustment="none",
+    )
+    adjusted = HistoricalPriceBar(
+        "000001.SZ",
+        day,
+        10,
+        11,
+        9,
+        10,
+        source="tencent",
+        adjustment=PriceAdjustment.FORWARD,
+    )
+    backfill = mocker.Mock()
+    backfill.backfill_codes.return_value = SimpleNamespace(unresolved_codes=[])
+    gateway = mocker.Mock(spec=MarketGatewayProtocol)
+    gateway.get_historical_prices.return_value = [adjusted]
+    report = AlphaPriceCoverageSyncService(
+        backfill_service=backfill,
+        gateways=[gateway],
+    ).sync_codes(codes=["000001.SZ"], start_date=day, end_date=day)
+    assert report.total_bars == 1
+    assert PriceBarModel.objects.filter(pk=raw.pk, adjustment="none", close=12).exists()
+    assert PriceBarModel.objects.filter(source="tencent", adjustment="forward", close=10).exists()
 
 
 @pytest.mark.django_db

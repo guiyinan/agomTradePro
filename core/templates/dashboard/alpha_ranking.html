@@ -21,6 +21,15 @@
         </div>
     </div>
 
+    {% if alpha_meta.refresh_notice %}
+    <div role="alert" style="border: 1px solid #e0b94f; background: #fff3cd; color: #664d03; padding: 14px 16px; margin-bottom: 18px;">
+        <strong>{{ alpha_meta.refresh_notice.title }}</strong>
+        <p>{{ alpha_meta.refresh_notice.message }}</p>
+        <p>最近尝试 {{ alpha_meta.refresh_notice.attempted_at|default:"未知" }}；当前评分日期 {% firstof alpha_meta.effective_asof_date alpha_meta.cache_date "暂无可用评分" %}；目标日期 {{ alpha_meta.requested_trade_date|default:"未知" }}。</p>
+        <span>旧评分不会作为本次更新成功的结果。</span>
+    </div>
+    {% endif %}
+
     <div style="border: 1px solid #dbe7f5; border-radius: 14px; background: #f8fbff; padding: 14px 16px; margin-bottom: 16px;">
         <strong>排名说明</strong>
         <p style="margin: 8px 0 0 0; color: #556274;">
@@ -137,12 +146,13 @@
                         <a href="{{ stock.decision_workspace_url }}">在 Workflow 中查看</a>
                     </td>
                 </tr>
-                {% if stock.buy_reason_summary or stock.invalidation_summary %}
+                {% if stock.buy_reason_summary or stock.no_buy_reason_summary or stock.invalidation_summary %}
                 <tr>
                     <td colspan="9" style="padding:10px 12px 14px 12px; border-bottom:1px solid #eef3f8; color:#556274; font-size:13px;">
                         {% if stock.buy_reason_summary %}<span>推荐依据：{{ stock.buy_reason_summary }}</span>{% endif %}
                         {% if stock.buy_reason_summary and stock.invalidation_summary %}<span style="margin: 0 8px;">|</span>{% endif %}
                         {% if stock.invalidation_summary %}<span>证伪：{{ stock.invalidation_summary }}</span>{% endif %}
+                        {% if stock.no_buy_reason_summary %}<div role="note" style="margin-top:6px; color:#92400e;">暂不可执行原因：{{ stock.no_buy_reason_summary }}</div>{% endif %}
                     </td>
                 </tr>
                 {% endif %}

@@ -26,7 +26,10 @@ from apps.alpha.infrastructure.qlib_runtime_init import (
     _resolve_qlib_model_path,
     _resolve_qlib_stock_list,
 )
+from apps.alpha.infrastructure.qlib_runtime_lock import qlib_runtime_lock
+from apps.alpha.infrastructure.qlib_scope_evidence import read_scope_suspensions
 from apps.alpha.infrastructure.scientific_runtime import get_pandas
+from core.exceptions import DataFetchError
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +64,20 @@ def _upsert_qlib_cache(
     pool_scope: Any = None,
 ) -> tuple[Any, bool]:
     """Persist a qlib cache row for the active model."""
+    metadata = dict(metrics_snapshot or {})
+    if pool_scope is not None and status == "available":
+        suspended = read_scope_suspensions(
+            str(_get_runtime_qlib_config()["provider_uri"]),
+            asof_date,
+            list(pool_scope.instrument_codes),
+        )
+        if suspended:
+            metadata.update(
+                verified_suspended_codes=sorted(suspended),
+                suspended_last_observed=suspended,
+                requested_instrument_count=len(pool_scope.instrument_codes),
+                eligible_instrument_count=len(pool_scope.instrument_codes) - len(suspended),
+            )
     return get_alpha_score_cache_repository().upsert_qlib_cache(
         universe_id=universe_id,
         trade_date=trade_date,
@@ -70,7 +87,7 @@ def _upsert_qlib_cache(
         status=status,
         metrics_snapshot=cast(
             dict[str, Any] | None,
-            _make_json_safe(metrics_snapshot),
+            _make_json_safe(metadata),
         ),
         pool_scope=pool_scope,
     )
@@ -259,6 +276,35 @@ def _execute_qlib_prediction(
     pool_scope: Any = None,
     outdated_reason_builder: Callable[[date], str | None] | None = None,
 ) -> list[QlibScorePayload]:
+    """Read one coherent feature generation, excluding simultaneous builds."""
+    if isinstance(top_n, bool) or not 1 <= top_n <= 5000:
+        raise ValueError("top_n must be between 1 and 5000")
+    config = _get_runtime_qlib_config()
+    if not config.get("enabled"):
+        raise RuntimeError("Qlib 未启用，无法执行实时预测")
+    _require_usable_qlib_runtime(config)
+    with qlib_runtime_lock(str(config["provider_uri"]), read_only=True):
+        return _execute_qlib_prediction_locked(
+            active_model,
+            universe_id,
+            trade_date,
+            top_n,
+            pool_scope,
+            outdated_reason_builder,
+            runtime_config=config,
+        )
+
+
+def _execute_qlib_prediction_locked(
+    active_model: Any,
+    universe_id: str,
+    trade_date: date,
+    top_n: int,
+    pool_scope: Any = None,
+    outdated_reason_builder: Callable[[date], str | None] | None = None,
+    *,
+    runtime_config: dict[str, Any] | None = None,
+) -> list[QlibScorePayload]:
     """
     执行 Qlib 预测
 
@@ -286,7 +332,7 @@ def _execute_qlib_prediction(
         from qlib.data.dataset import DatasetH
 
         # 获取 Qlib 配置（优先从数据库读取）
-        qlib_config = _get_runtime_qlib_config()
+        qlib_config = runtime_config if runtime_config is not None else _get_runtime_qlib_config()
 
         if not qlib_config.get("enabled"):
             raise RuntimeError("Qlib 未启用，无法执行实时预测")
@@ -318,11 +364,40 @@ def _execute_qlib_prediction(
 
         if pool_scope is not None and getattr(pool_scope, "instrument_codes", None):
             stock_list = _normalize_qlib_instrument_list(list(pool_scope.instrument_codes))
+            current = set(
+                _resolve_qlib_stock_list(
+                    D,
+                    universe_id="all",
+                    start_time=trade_date.isoformat(),
+                    end_time=trade_date.isoformat(),
+                )
+            )
+            missing = set(stock_list) - current
+            verified_suspensions = read_scope_suspensions(
+                provider_uri,
+                trade_date,
+                [normalize_stock_code(code) or code for code in stock_list],
+            )
+            excluded = {
+                code
+                for code in missing
+                if (normalize_stock_code(code) or code) in verified_suspensions
+            }
+            missing -= excluded
+            if missing:
+                raise DataFetchError(
+                    "Scoped Qlib data does not cover the requested prediction date",
+                    code="MODEL_MARKET_SCOPE_INCOMPLETE",
+                    details={"requested": len(stock_list), "missing": len(missing)},
+                )
+            if excluded:
+                logger.warning("Qlib verified full-day suspension exclusions: %s", sorted(excluded))
+                stock_list = [code for code in stock_list if code not in excluded]
         else:
             stock_list = _resolve_qlib_stock_list(
                 D,
                 universe_id=universe_id,
-                start_time=f"{trade_date.year - 1}-01-01",
+                start_time=trade_date.isoformat(),
                 end_time=trade_date.isoformat(),
             )
         if not stock_list:
@@ -409,6 +484,8 @@ def _execute_qlib_prediction(
             logger.error(f"数据处理器或预测失败: {handler_error}", exc_info=True)
             raise RuntimeError(f"Qlib 预测失败: {handler_error}") from handler_error
 
+    except DataFetchError:
+        raise
     except ImportError as e:
         logger.error(f"Qlib 未安装，无法进行预测: {e}")
         raise RuntimeError("Qlib 未安装。请安装 qlib: pip install pyqlib") from e

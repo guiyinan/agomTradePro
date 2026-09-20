@@ -2,6 +2,8 @@
 
 ## 目标
 
+2026-09-19 补充：模型原始行情参考必须排除前复权/后复权记录；网关复权标记和成交量单位应传递至 canonical 存储，不能以 none 默认值掩盖调整口径。Alpha 定时入口遇到明确数据阻断应停止投递子推理。旧库错标记录不随代码自动改写。
+
 所有带有 `current`、`latest`、`realtime`、`summary` 语义的数据面，都必须证明“源数据仍在允许的新鲜度窗口内”，不能仅因为数据库查询返回了最新一行就宣称数据当前可用。
 
 机器真源为 `governance/current_data_contracts.json`，自动检查入口为：
@@ -127,3 +129,41 @@ QMT 整体桥登记为 `data_center.qmt_bridge_observations`：源时间在重�
 ### 2026-09-09 模型历史行情中台路由
 
 Qlib/Equity 的历史行情统一经过中台：旧观测继续尝试后续源，无重叠参考或超过配置容差时阻断；保留原始日期与不复权口径。详见 [本地改造与边界](../plans/model-market-data-center-routing-2026-09-09.md)。证据登记在 `data_center.model_market_history`。
+
+## 2026-09-19 全天停牌与模型数据缺失的区别
+
+模型行情仍先尝试 fresh failover；所有尾部缺失交易日只有在同一提供方的显式全天停牌记录逐日覆盖、且原始行情跨源一致性通过时，才发布 `MODEL_MARKET_SUSPENDED`。日内停牌、复牌记录、空响应、日期或资产不匹配不能豁免 stale。已校验的历史日线可按真实日期落库，不能改成当期或合成价格。后续备用源额度耗尽不推翻已验证停牌，但价格/成交量冲突仍阻断。Qlib 构建将已核验标的单列于 `suspended_codes` 和警告，限制 instrument 终日到真实末日，并仅在整个构建成功后原子写入绑定目标日与完整请求范围的停牌证据。账户推理只允许该证据解释当日缺席成分，未知缺失仍以 MODEL_MARKET_SCOPE_INCOMPLETE 阻断；缓存另存停牌清单、末次观测和请求/可推理数量，不能为停牌股票生成评分。未知滞后和指数 stale 仍整批阻断。
+
+字段依据：[Tushare 每日停复牌](https://tushare.pro/document/2?doc_id=214)。
+
+原始行情参考还必须保留缺失成交量的语义：volume=None 的 close-only 记录不能经 or 0 转成可比较的 OHLCV 参考，必须排除；真实 volume=0 继续参与严格比较。无其他可用参考时仍以 MODEL_MARKET_UNVERIFIED_FAILOVER 阻断。
+
+Qlib 复权缩放必须使用相同观测日的已有 factor 与 incoming adj_factor 配对；重复刷新须保持二进制特征不变。已有 factor 出现非有限值或非正值时，在推进日历前以 MODEL_MARKET_LOCAL_FEATURE_INVALID 阻断；特征超出 float32 范围禁止落盘。已损坏数据需先备份、隔离再重建，不得复用无穷值。
+
+Alpha 候选须消费 stock context 的发布阻断标志，不能仅检查评分缓存。缺失成交量保持 None 并阻断候选可执行性；真实 0 参与低流动性判断，不能回退成其他来源的正成交量。输出保留成交量来源和原观测时间，不能以请求时间代替。信号不足提示列示原 Alpha 分、当前映射值和实际策略门槛，证伪条件使用同一信号强度口径，不再混用固定原始评分 0.55。
+
+2026-09-19 全市场恢复补充：腾讯快照成交量复用已配置并经跨源验证的板块手/股规则，禁止快照与日线量纲不同。模型行情可按代码批量预取，但缓存精确绑定起止日期；每次请求按自然日上界限制潜在返回行数，疑似截断、缺失成员和不支持批量时保留逐股请求。批量缓存不绕过逐股新鲜度、停牌证据或跨源 1% 一致性校验。
+
+宽范围历史按真实交易日历逐日批取全市场 daily/adj_factor，最多 4 个并发请求链，检测 6000 行截断及忽略 trade_date 的响应后回退。股票小范围仍按代码批取。北交所快照与日行情可能有大宗交易口径差异；恢复核验须用真实大宗记录对账，不能放宽 1% 容差。源的原始成交量和日期保留在归档中。
+
+共享 Qlib 目录增加跨进程读写锁：构建独占、推理共享读取，冲突发布 `MODEL_MARKET_REFRESH_BUSY`，不得读取半写入特征。停牌证据仍绑定构建成功后的完整范围和目标交易日。
+
+Alpha 页面独立读取全市场发布任务的业务 outcome。评分推理成功不能清除尚未恢复的行情发布错误；成功发布才清除该路径的旧错误。未知异常仅显示固定提示，不回显凭据或原始异常。
+
+股票全集同步保留源提供的合法交易所后缀；裸代码不在既有前缀规则中时，仅可从资产主数据解析，不能猜测新板块规则或误停用已知在市股票。
+
+单股 published price 查询先校验全 Publication 的现行策略、范围、成员和所有源内容哈希，再仅按该股票选中成员的最旧观测评估时效，并保留 publication.as_of 上界。全市场 gate 仍反映全集最旧日期；单股返回 freshness_scope=asset。其他股票停牌不得让当期有效股票丢失成交量；目标股票过期、缺成员或任意成员被篡改仍阻断。
+
+
+### 批量股票上下文（2026-09-19）
+
+`get_published_equity_context_payloads` 按数据集创建一致性读取快照。在该快照内，
+全量 policy、member、fact hash 证据只验证一次，再按股票选择成员主键读取事实。
+价格 freshness 仍按股票计算，整体完整性核验必须覆盖请求范围之外的所有发布成员；
+财务和估值保留原有全局 freshness 规则。证明只在本次函数调用内有效，不存入跨请求
+缓存，不在下一次读取复用。缺成员、篡改、缺策略和过期数据仍返回明确阻断。
+
+回归：`test_batch_validates_whole_market_once_and_rechecks_next_call`、
+`test_batch_prices_preserve_each_assets_source_freshness`。
+
+2026-09-20 合并前维护：观测时效计算统一放在 `publication_query_bounds.publication_freshness_gate`，单股与批量读取共享同一规则；全市场 Publication 的装配移至 `publication_rebuild_composition`，原 composition 工厂入口保持兼容。

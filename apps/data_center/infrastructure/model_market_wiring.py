@@ -75,14 +75,14 @@ def build_model_market_service(
                 high=bar.high,
                 low=bar.low,
                 close=bar.close,
-                volume=bar.volume or 0.0,
+                volume=bar.volume,
                 change_percent=0.0,
                 adjustment_factor=None,
                 source=bar.source,
                 amount=bar.amount,
             )
             for bar in repository.get_bars(asset_code, start=start, end=end, limit=5000)
-            if bar.adjustment == PriceAdjustment.NONE and bar.source
+            if bar.adjustment == PriceAdjustment.NONE and bar.source and bar.volume is not None
         )
 
     def store_history(rows: tuple[ModelDailyBar, ...]) -> None:

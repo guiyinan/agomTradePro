@@ -5,6 +5,10 @@
 
 ## 目标
 
+2026-09-19 全市场刷新：`refresh_full_market_publications_task` 冻结有效 A 股范围，分批执行带审计的 quote/valuation fact-only 同步。全部批次成功且快照、估值源日期等于最近完成交易日后，才原子发布整个 quote/valuation/price 范围；独立财报缺少可用时间不再阻止市场数据发布。日线保留停牌股票真实末次观测，不填充价格，发布成功不表示所有成员可用于决策。计数单位为同步/发布操作，`stored` 为报价/估值事实行（不含日线补录量），部分同步或发布失败必须为 partial/failed，禁止发布中间批次。生产定时在推理前刷新快照并经过中台补录/校验当日日线后发布；`price_scope_verified` 和 `suspended_codes` 单独记录验证范围。
+
+2026-09-19 Alpha 定时入口：额度耗尽、模型行情契约阻断和刷新返回 blocked 时，父任务直接发布 blocked、零写入并停止投递子推理，避免各组合重复刷新。普通瞬时异常仍保留既有推理重试路径。详见 [排查记录](../reviews/vps-alpha-auto-refresh-2026-09-19.md)。
+
 2026-09-09 Alpha 额度耗尽处理：Qlib builder 遇到 `token daily limit exceeded`
 立即抛出 `TUSHARE_DAILY_QUOTA_EXHAUSTED`，停止未开始的并发请求；推理任务发布
 `blocked`、`stored=0`，不重试推理或改写缓存。若其他刷新失败导致使用旧交易日，
@@ -122,3 +126,11 @@ python scripts/check_celery_task_contracts.py \
 ### 2026-09-09 Qlib 中台数据阻断
 
 `qlib_predict_scores` 的 blocked 用例同时覆盖额度耗尽和 `MODEL_MARKET_*`（过期、切源冲突、参考不足、配置缺失）；均必须 `stored=0`，不得执行预测或写评分缓存。复用 manifest 中该任务的 blocked 用例并参数化测试；详细边界见 [模型行情中台改造](../plans/model-market-data-center-routing-2026-09-09.md)。
+
+2026-09-19 停牌恢复：刷新 summary 发布 suspended_codes 与 warning_messages，stock_count 只计实际构建标的。有逐日全天停牌证据的标的不产生合成行情或评分；未知滞后仍阻断，不能以停牌分支吞掉其他 DataFetchError。
+
+2026-09-19：qlib_predict_scores 执行预测遇到 MODEL_MARKET_* 数据质量/范围错误时，发布 blocked、requested=1/succeeded=0/failed=1/stored=0 和稳定 blocked_reason，禁止进入旧缓存复用分支。账户 scope 缺少目标日模型数据不得静默缩小范围。
+
+2026-09-19：`data_center.refresh_full_market_publications` 冻结有效 A 股全集，按批刷新报价与估值事实；任何批次不完整均保留原 Publication。全部事实齐备且源观测日匹配最近完成交易日后才发布报价、估值、日线全集。停牌日线保留实际日期，财报发布仍独立校验。`setup_full_market_publications` 幂等配置工作日 16:30（项目时区）的 Beat 任务，可用参数调整或禁用。审计配置/服务身份不可用时，在任何行情请求和写入前返回 `outcome=blocked`、`stored=0` 及稳定原因；不得以关闭审计、空 writer 或临时管理员身份作为恢复措施。
+
+2026-09-20 合并前维护：Alpha 的数据阻断结果和旧源评分标记由 `task_outcome_contracts` 统一生成，任务入口及原有 outcome、计数和阻断原因保持不变。

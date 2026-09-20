@@ -119,6 +119,7 @@ from apps.alpha.application.trade_dates import resolve_recent_closed_trade_date
 from apps.alpha.application.workspace_sync import sync_default_workspace_after_alpha_update
 from apps.alpha.domain.entities import AlphaPoolScope
 from apps.config_center.application.repository_provider import get_qlib_training_run_repository
+from core.exceptions import DataFetchError
 from shared.infrastructure.celery_typing import BoundTask, typed_shared_task
 
 __all__ = [
@@ -437,6 +438,10 @@ def qlib_predict_scores(
                 pool_scope=pool_scope,
             )
         except Exception as exc:
+            if isinstance(exc, DataFetchError) and exc.code.startswith("MODEL_MARKET_"):
+                return _outcomes.blocked_prediction_result(
+                    reason=exc.code.lower(), trade_date=intended_trade_date, universe_id=universe_id
+                )
             fallback_result = _reuse_latest_qlib_cache(
                 active_model=active_model,
                 universe_id=pool_scope.universe_id if pool_scope else universe_id,
@@ -487,14 +492,7 @@ def qlib_predict_scores(
 
         source_is_stale = asof_date < trade_date
         if source_is_stale:
-            execution_metadata.update(
-                {
-                    "freshness": "stale",
-                    "reliability": "degraded",
-                    "must_not_use_for_decision": True,
-                    "blocked_reason": "qlib_source_data_stale",
-                }
-            )
+            execution_metadata.update(_outcomes.stale_prediction_metadata())
 
         # 4. 写入缓存
         cache, created = _upsert_qlib_cache(

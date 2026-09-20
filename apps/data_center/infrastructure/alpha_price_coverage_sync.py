@@ -163,7 +163,9 @@ class AlphaPriceCoverageSyncService:
                 empty_codes.append(code)
                 continue
             with transaction.atomic():
-                self._replace_managed_bars(code, start_date, end_date)
+                self._replace_managed_bars(
+                    code, start_date, end_date, adjustments={bar.adjustment for bar in bars}
+                )
                 stored_count = self._price_repo.bulk_upsert(bars)
             total_bars += stored_count
             synced_codes.append(code)
@@ -247,7 +249,7 @@ class AlphaPriceCoverageSyncService:
         start_date: date,
         end_date: date,
     ) -> list[PriceBar]:
-        normalized: dict[tuple[date, str], PriceBar] = {}
+        normalized: dict[tuple[date, str, str], PriceBar] = {}
         for bar in bars:
             source = str(bar.source).strip()
             if not source or len(source) > 50 or not source.isprintable():
@@ -273,7 +275,7 @@ class AlphaPriceCoverageSyncService:
                 continue
             if not AlphaPriceCoverageSyncService._is_optional_nonnegative_finite(bar.amount):
                 continue
-            normalized[(bar.trade_date, source)] = PriceBar(
+            normalized[(bar.trade_date, source, bar.adjustment.value)] = PriceBar(
                 asset_code=normalized_code,
                 bar_date=bar.trade_date,
                 open=float(bar.open),
@@ -283,7 +285,7 @@ class AlphaPriceCoverageSyncService:
                 volume=float(bar.volume) if bar.volume is not None else None,
                 amount=float(bar.amount) if bar.amount is not None else None,
                 source=source,
-                adjustment=PriceAdjustment.NONE,
+                adjustment=bar.adjustment,
             )
         return [normalized[key] for key in sorted(normalized)]
 
@@ -306,10 +308,17 @@ class AlphaPriceCoverageSyncService:
         )
 
     @staticmethod
-    def _replace_managed_bars(asset_code: str, start_date: date, end_date: date) -> None:
+    def _replace_managed_bars(
+        asset_code: str,
+        start_date: date,
+        end_date: date,
+        *,
+        adjustments: set[PriceAdjustment],
+    ) -> None:
         PriceBarModel.objects.filter(
             asset_code=asset_code,
             bar_date__gte=start_date,
             bar_date__lte=end_date,
+            adjustment__in=[adjustment.value for adjustment in adjustments],
             source__in=["akshare", "eastmoney", "tushare", "tencent", "alpha_price_sync"],
         ).delete()

@@ -11,6 +11,7 @@ import pytest
 import requests
 
 from apps.data_center.domain.entities import ProviderConfig
+from apps.data_center.domain.enums import PriceAdjustment
 from apps.data_center.infrastructure.macro_sources.base import DataSourceUnavailableError
 from apps.data_center.infrastructure.macro_sources.fetchers.base_fetchers import (
     BaseIndicatorFetcher,
@@ -545,6 +546,7 @@ def test_akshare_price_history_preserves_requested_index_suffix(monkeypatch):
                     close=4768.0,
                     volume=1000,
                     amount=2000.0,
+                    adjustment=PriceAdjustment.NONE,
                 )
             ]
 
@@ -575,6 +577,7 @@ def test_akshare_price_history_preserves_fallback_source(monkeypatch):
                     volume=1000,
                     amount=2000.0,
                     source="tencent",
+                    adjustment=PriceAdjustment.FORWARD,
                 )
             ]
 
@@ -588,6 +591,7 @@ def test_akshare_price_history_preserves_fallback_source(monkeypatch):
     )
 
     assert bars[0].source == "tencent"
+    assert bars[0].adjustment == PriceAdjustment.FORWARD
 
 
 def test_akshare_unified_provider_adapter_fetches_valuation_series(monkeypatch):

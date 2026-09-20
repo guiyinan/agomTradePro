@@ -22,6 +22,9 @@ from apps.data_center.application.publication_query_bounds import (
 from apps.data_center.application.publication_query_bounds import (
     publication_as_of_datetime as _publication_as_of_datetime,
 )
+from apps.data_center.application.publication_query_bounds import (
+    publication_freshness_gate as _publication_freshness_gate,
+)
 from apps.data_center.application.query_use_cases import latest_completed_cn_market_session
 from apps.data_center.composition import (
     get_asset_repository,
@@ -314,6 +317,7 @@ def _publication_gate(
     publication_key: str,
     *,
     now: datetime | None = None,
+    asset_code: str | None = None,
 ) -> dict[str, object] | None:
     """Validate active policy, frozen evidence, mutable facts and source freshness."""
 
@@ -366,51 +370,34 @@ def _publication_gate(
             freshness_status="unverified",
         )
         return gate
-    oldest_observed_at = repository.get_oldest_member_observed_at(publication.publication_id)
-
-    # ``as_of`` is the publication's knowledge boundary.  A publication can
-    # otherwise look fresh when a member was re-indexed or its ingestion
-    # timestamp was refreshed while the selected fact set still represents an
-    # older market snapshot.  Current reads must be bounded by both pieces of
-    # evidence; use the oldest aware boundary so metadata cannot wash stale
-    # facts into a decision-facing response.
-    publication_as_of = getattr(publication, "as_of", None)
-    if publication_as_of is not None and oldest_observed_at is not None:
-        if (
-            publication_as_of.tzinfo is not None
-            and publication_as_of.utcoffset() is not None
-            and oldest_observed_at.tzinfo is not None
-            and oldest_observed_at.utcoffset() is not None
-        ):
-            oldest_observed_at = min(oldest_observed_at, publication_as_of)
-    if oldest_observed_at is None:
-        gate.update(
-            must_not_use_for_decision=True,
-            blocked_reason="publication_observation_missing",
-            freshness_status="missing",
-        )
-        return gate
-    if oldest_observed_at.tzinfo is None or oldest_observed_at.utcoffset() is None:
-        gate.update(
-            must_not_use_for_decision=True,
-            blocked_reason="publication_observation_naive",
-            freshness_status="invalid",
-        )
-        return gate
-    observed_at_utc = oldest_observed_at.astimezone(UTC)
-    age_seconds = max((reference.astimezone(UTC) - observed_at_utc).total_seconds(), 0.0)
-    gate["observed_at"] = observed_at_utc.isoformat()
-    gate["age_seconds"] = age_seconds
-    gate["max_age_seconds"] = max_age_seconds
-    if max_age_seconds is not None and age_seconds > max_age_seconds:
-        gate.update(
-            must_not_use_for_decision=True,
-            blocked_reason="canonical_publication_stale",
-            freshness_status="stale",
-        )
+    if asset_code is None:
+        oldest_observed_at = repository.get_oldest_member_observed_at(publication.publication_id)
     else:
-        gate["freshness_status"] = "fresh"
-    return gate
+        selected_members = tuple(
+            member
+            for member in members
+            if member.natural_key.split(":", 1)[0].strip().upper() == asset_code.strip().upper()
+        )
+        if not selected_members or any(member.observed_at is None for member in selected_members):
+            gate.update(
+                must_not_use_for_decision=True,
+                blocked_reason="canonical_publication_members_missing",
+                freshness_status="missing",
+            )
+            return gate
+        oldest_observed_at = min(
+            member.observed_at for member in selected_members if member.observed_at is not None
+        )
+        gate["freshness_scope"] = "asset"
+        gate["asset_code"] = asset_code.strip().upper()
+
+    return _publication_freshness_gate(
+        gate,
+        observed_at=oldest_observed_at,
+        publication_as_of=publication_as_of,
+        reference=reference,
+        max_age_seconds=max_age_seconds,
+    )
 
 
 def get_current_publication_gate(
@@ -530,7 +517,7 @@ def query_published_price_bar_series(
 ) -> dict[str, object]:
     """Read price bars only behind an active publication."""
 
-    gate = _publication_gate("equity.price.bar", publication_key)
+    gate = _publication_gate("equity.price.bar", publication_key, asset_code=asset_code)
     if gate is None or bool(gate.get("must_not_use_for_decision")):
         return _blocked_publication_result(gate)
     member_pks = _publication_member_fact_pks(

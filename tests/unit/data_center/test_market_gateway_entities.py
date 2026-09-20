@@ -206,6 +206,7 @@ class TestHistoricalPriceBar:
             "volume": 1000,
             "amount": 15500.0,
             "source": "test",
+            "adjustment": "none",
         }
 
 

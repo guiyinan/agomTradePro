@@ -633,6 +633,7 @@ def test_alpha_stocks_htmx_json_includes_readiness_contract(monkeypatch):
                     "recommendation_ready": False,
                     "must_not_use_for_decision": True,
                     "readiness_status": "blocked_broader_scope_cache",
+                    "refresh_notice": {"title": "Alpha 自动更新异常", "message": "行情口径不一致"},
                     "blocked_reason": "当前结果来自 broader-scope cache 映射。",
                     "scope_verification_status": "derived_from_broader_cache",
                     "freshness_status": "fresh",
@@ -663,6 +664,8 @@ def test_alpha_stocks_htmx_json_includes_readiness_contract(monkeypatch):
     contract = payload["data"]["contract"]
 
     assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    assert payload["data"]["meta"]["refresh_notice"]["message"] == "行情口径不一致"
     assert payload["data"]["count"] == 0
     assert payload["data"]["top_candidates"] == []
     assert contract["recommendation_ready"] is False
@@ -2290,6 +2293,7 @@ def test_alpha_ranking_page_renders_full_ranking_entry(monkeypatch):
             "meta": {
                 "source": "cache",
                 "effective_asof_date": "2026-04-16",
+                "refresh_notice": {"title": "Alpha 自动更新异常", "message": "行情口径不一致"},
             },
             "pool": {
                 "label": "账户驱动 Alpha 池",
@@ -2317,6 +2321,8 @@ def test_alpha_ranking_page_renders_full_ranking_entry(monkeypatch):
     assert response.status_code == 200
     assert "Alpha 完整排名" in content
     assert "不会为了展示而重排成 1-3" in content
+    assert 'role="alert"' in content
+    assert "行情口径不一致" in content
     assert "当前已加载 1 条，股票池规模约 320" in content
     assert "000001.SZ" in content
     assert "#8" in content
