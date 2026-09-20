@@ -23221,6 +23221,71 @@
       "text": "message = item.get(\"message\") or item.get(\"reason\") or item.get(\"summary\") or \"\""
     },
     {
+      "line": 29,
+      "path": "apps/terminal/application/tui_dashboard_result.py",
+      "text": "\"\"\"Project the command overview into a concise investor-facing summary.\"\"\""
+    },
+    {
+      "line": 31,
+      "path": "apps/terminal/application/tui_dashboard_result.py",
+      "text": "summary = self._mapping(payload.get(\"summary\"))"
+    },
+    {
+      "line": 32,
+      "path": "apps/terminal/application/tui_dashboard_result.py",
+      "text": "regime = self._display_value(summary.get(\"current_regime\"))"
+    },
+    {
+      "line": 33,
+      "path": "apps/terminal/application/tui_dashboard_result.py",
+      "text": "invested_ratio = self._dashboard_percentage(summary.get(\"invested_ratio_percent\"))"
+    },
+    {
+      "line": 34,
+      "path": "apps/terminal/application/tui_dashboard_result.py",
+      "text": "active_signals = self._dashboard_count(summary.get(\"active_signal_count\"))"
+    },
+    {
+      "line": 35,
+      "path": "apps/terminal/application/tui_dashboard_result.py",
+      "text": "pending_reviews = self._dashboard_count(summary.get(\"pending_review_count\"))"
+    },
+    {
+      "line": 42,
+      "path": "apps/terminal/application/tui_dashboard_result.py",
+      "text": "str(summary.get(\"regime_data_health\") or \"unknown\").strip().lower(),"
+    },
+    {
+      "line": 54,
+      "path": "apps/terminal/application/tui_dashboard_result.py",
+      "text": "\"value\": self._dashboard_percentage(summary.get(\"regime_confidence_percent\")),"
+    },
+    {
+      "line": 59,
+      "path": "apps/terminal/application/tui_dashboard_result.py",
+      "text": "\"value\": self._dashboard_money(summary.get(\"total_assets\")),"
+    },
+    {
+      "line": 64,
+      "path": "apps/terminal/application/tui_dashboard_result.py",
+      "text": "\"value\": self._dashboard_money(summary.get(\"total_return\")),"
+    },
+    {
+      "line": 69,
+      "path": "apps/terminal/application/tui_dashboard_result.py",
+      "text": "\"value\": self._dashboard_percentage(summary.get(\"total_return_percent\")),"
+    },
+    {
+      "line": 74,
+      "path": "apps/terminal/application/tui_dashboard_result.py",
+      "text": "\"value\": self._dashboard_money(summary.get(\"cash_balance\")),"
+    },
+    {
+      "line": 79,
+      "path": "apps/terminal/application/tui_dashboard_result.py",
+      "text": "\"value\": self._dashboard_money(summary.get(\"invested_value\")),"
+    },
+    {
       "line": 23,
       "path": "apps/terminal/application/tui_errors.py",
       "text": "\"\"\"Raised when the current user is outside a screen's audience.\"\"\""
@@ -23626,122 +23691,57 @@
       "text": "if action_key == \"dashboard.overview-summary\" and isinstance(payload, dict):"
     },
     {
-      "line": 160,
-      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
-      "text": "\"\"\"Project the command overview into a concise investor-facing summary.\"\"\""
-    },
-    {
       "line": 162,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "summary = self._mapping(payload.get(\"summary\"))"
     },
     {
-      "line": 163,
-      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
-      "text": "regime = self._display_value(summary.get(\"current_regime\"))"
-    },
-    {
       "line": 164,
-      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
-      "text": "invested_ratio = self._dashboard_percentage(summary.get(\"invested_ratio_percent\"))"
-    },
-    {
-      "line": 165,
-      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
-      "text": "active_signals = self._dashboard_count(summary.get(\"active_signal_count\"))"
-    },
-    {
-      "line": 166,
-      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
-      "text": "pending_reviews = self._dashboard_count(summary.get(\"pending_review_count\"))"
-    },
-    {
-      "line": 173,
-      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
-      "text": "str(summary.get(\"regime_data_health\") or \"unknown\").strip().lower(),"
-    },
-    {
-      "line": 185,
-      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
-      "text": "\"value\": self._dashboard_percentage(summary.get(\"regime_confidence_percent\")),"
-    },
-    {
-      "line": 190,
-      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
-      "text": "\"value\": self._dashboard_money(summary.get(\"total_assets\")),"
-    },
-    {
-      "line": 195,
-      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
-      "text": "\"value\": self._dashboard_money(summary.get(\"total_return\")),"
-    },
-    {
-      "line": 200,
-      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
-      "text": "\"value\": self._dashboard_percentage(summary.get(\"total_return_percent\")),"
-    },
-    {
-      "line": 205,
-      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
-      "text": "\"value\": self._dashboard_money(summary.get(\"cash_balance\")),"
-    },
-    {
-      "line": 210,
-      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
-      "text": "\"value\": self._dashboard_money(summary.get(\"invested_value\")),"
-    },
-    {
-      "line": 276,
-      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
-      "text": "summary = self._mapping(payload.get(\"summary\"))"
-    },
-    {
-      "line": 278,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "regime = self._display_value(summary.get(\"quadrant\") or \"Unknown\")"
     },
     {
-      "line": 279,
+      "line": 165,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "confidence = self._display_value(summary.get(\"confidence_percent\"))"
     },
     {
-      "line": 280,
+      "line": 166,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "growth_trend = self._regime_trend_label(summary.get(\"growth_trend\"))"
     },
     {
-      "line": 281,
+      "line": 167,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "inflation_trend = self._regime_trend_label(summary.get(\"inflation_trend\"))"
     },
     {
-      "line": 283,
+      "line": 169,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "raw_warnings = summary.get(\"warnings\")"
     },
     {
-      "line": 289,
+      "line": 175,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "error = self._operator_text(summary.get(\"error\") or \"\")"
     },
     {
-      "line": 304,
+      "line": 190,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "\"value\": self._display_value(summary.get(\"growth_level\")),"
     },
     {
-      "line": 309,
+      "line": 195,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "\"value\": self._display_value(summary.get(\"inflation_level\")),"
     },
     {
-      "line": 314,
+      "line": 200,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "\"value\": self._display_value(summary.get(\"source\")),"
     },
     {
-      "line": 319,
+      "line": 205,
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "\"value\": self._display_value(summary.get(\"as_of_date\")),"
     },
