@@ -4524,6 +4524,7 @@
         "apps/data_center/domain/control_plane.py",
         "apps/data_center/infrastructure/backfill_item_attempt_store.py",
         "apps/data_center/infrastructure/control_plane_repositories.py",
+        "apps/data_center/infrastructure/sync_item_attempt_repository.py",
         "apps/data_center/infrastructure/sync_item_attempt_models.py",
         "apps/data_center/migrations/0080_sync_item_attempt_evidence_hash.py",
         "apps/data_center/application/sync_use_cases.py",
@@ -4670,7 +4671,12 @@
           "SyncItemAttemptPhase.PUBLICATION",
           "publication_evidence_hash",
           "evidence_hash=publication_evidence_hash",
-          "provider_asset_identity_mismatch"
+          "provider_asset_identity_mismatch",
+          "len({attempt.attempt_id for attempt in attempts}) != len(attempts)",
+          "attempt.started_at != started_at",
+          "def persist_finished_attempts(",
+          "completion_specs:",
+          "persist_finished_attempts(completed_attempts)"
         ],
         "apps/data_center/infrastructure/publication_fact_identity.py": [
           "build_publication_fact_identity",
@@ -4738,19 +4744,15 @@
           "self._run_repository.save(",
           "self._batch_repository.save(",
           "self._attempt_repository.recover_interrupted(",
-          "self._attempt_repository.begin(",
-          "self._attempt_repository.finish("
+          "def begin_many(",
+          "self._attempt_repository.begin_many(attempts)",
+          "def finish_many(",
+          "self._attempt_repository.finish_many(attempts)"
         ],
         "apps/data_center/domain/control_plane.py": [
           "class SyncItemAttemptState(StrEnum):",
           "class SyncItemAttemptPhase(StrEnum):",
           "class SyncItemAttempt:"
-        ],
-        "apps/data_center/infrastructure/control_plane_repositories.py": [
-          "class SyncItemAttemptRepository:",
-          "active attempt already exists for this item phase",
-          "def recover_interrupted(",
-          "sync item attempt recovery requires an existing batch"
         ],
         "apps/data_center/infrastructure/sync_item_attempt_models.py": [
           "class SyncItemAttemptModel(models.Model):",
@@ -4760,7 +4762,10 @@
           "dc_item_pub_evidence",
           "evidence_hash=self.evidence_hash",
           "condition=models.Q(state=SyncItemAttemptState.RUNNING.value)",
-          "name=\"dc_item_one_running\""
+          "name=\"dc_item_one_running\"",
+          "_TERMINAL_UPDATE_FIELDS = frozenset(",
+          "sync item attempt bulk conflicts are forbidden",
+          "sync item attempt transition fields are restricted"
         ],
         "apps/data_center/migrations/0080_sync_item_attempt_evidence_hash.py": [
           "name=\"evidence_hash\"",
@@ -4784,6 +4789,17 @@
         "apps/data_center/migrations/0081_sync_item_attempt_running_unique.py": [
           "assert_no_duplicate_running_attempts",
           "dc_item_one_running preflight found conflicting RUNNING attempts"
+        ],
+        "apps/data_center/infrastructure/sync_item_attempt_repository.py": [
+          "class SyncItemAttemptRepository:",
+          "active attempt already exists for this item phase",
+          "def recover_interrupted(",
+          "sync item attempt recovery requires an existing batch",
+          "def _update_postgresql_item_attempt_terminals(",
+          "UPDATE {table_name} AS target",
+          "def begin_many(",
+          "def finish_many(",
+          "elif connection.vendor == \"postgresql\":"
         ]
       },
       "required_tests": [
@@ -5171,6 +5187,56 @@
           "case": "postgres_attempt_double_recovery",
           "test_file": "tests/component/data_center/test_data02_postgres_closure.py",
           "test_function": "test_postgresql_concurrent_recovery_transitions_stale_row_once"
+        },
+        {
+          "case": "resumable_backfill_duplicate_attempt_identity_blocks_before_provider",
+          "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
+          "test_function": "test_backfill_batch_rejects_duplicate_attempt_identity_before_provider_write"
+        },
+        {
+          "case": "resumable_backfill_mixed_terminal_failure_blocks_checkpoint",
+          "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
+          "test_function": "test_backfill_batch_blocks_checkpoint_when_mixed_group_finish_fails"
+        },
+        {
+          "case": "resumable_backfill_heterogeneous_terminal_counts_one_phase_write",
+          "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
+          "test_function": "test_backfill_batch_persists_heterogeneous_terminal_counts_once_per_phase"
+        },
+        {
+          "case": "item_attempt_bulk_transition_atomic",
+          "test_file": "tests/unit/data_center/test_sync_item_attempts.py",
+          "test_function": "test_sync_item_attempt_repository_bulk_transition_is_complete_and_atomic"
+        },
+        {
+          "case": "item_attempt_bulk_transition_mixed_outcomes",
+          "test_file": "tests/unit/data_center/test_sync_item_attempts.py",
+          "test_function": "test_sync_item_attempt_repository_bulk_transition_preserves_mixed_outcomes"
+        },
+        {
+          "case": "item_attempt_uuid_spellings_are_canonical",
+          "test_file": "tests/unit/data_center/test_sync_item_attempts.py",
+          "test_function": "test_sync_item_attempt_repository_canonicalizes_uuid_spellings"
+        },
+        {
+          "case": "item_attempt_bulk_rejection_rolls_back",
+          "test_file": "tests/unit/data_center/test_sync_item_attempts.py",
+          "test_function": "test_sync_item_attempt_repository_bulk_rejection_leaves_no_partial_rows"
+        },
+        {
+          "case": "item_attempt_bulk_capabilities_are_restricted",
+          "test_file": "tests/unit/data_center/test_sync_item_attempts.py",
+          "test_function": "test_sync_item_attempt_private_bulk_scopes_reject_upserts_and_identity_updates"
+        },
+        {
+          "case": "postgres_current_denominator_item_attempt_scale",
+          "test_file": "tests/component/data_center/test_data02_postgres_closure.py",
+          "test_function": "test_postgresql_current_denominator_item_attempt_scale"
+        },
+        {
+          "case": "postgres_mixed_terminal_values_atomic",
+          "test_file": "tests/component/data_center/test_data02_postgres_closure.py",
+          "test_function": "test_postgresql_mixed_terminal_values_update_atomically"
         }
       ]
     },

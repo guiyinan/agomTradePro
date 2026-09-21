@@ -22,6 +22,20 @@ from apps.data_center.domain.control_plane import (
 _SYNC_ITEM_ATTEMPT_TRANSITION: ContextVar[object | None] = ContextVar(
     "data_center_sync_item_attempt_transition", default=None
 )
+_SYNC_ITEM_ATTEMPT_PERSISTENCE: ContextVar[object | None] = ContextVar(
+    "data_center_sync_item_attempt_persistence", default=None
+)
+_TERMINAL_UPDATE_FIELDS = frozenset(
+    {
+        "state",
+        "finished_at",
+        "stored_count",
+        "error_code",
+        "error_message",
+        "evidence_hash",
+        "updated_at",
+    }
+)
 _MODEL_T = TypeVar("_MODEL_T", bound=models.Model)
 
 
@@ -38,12 +52,27 @@ def _activate_sync_item_attempt_transition() -> Iterator[None]:
         _SYNC_ITEM_ATTEMPT_TRANSITION.reset(reset)
 
 
+@contextmanager
+def _activate_sync_item_attempt_persistence() -> Iterator[None]:
+    """Allow one repository-owned validated bulk insert scope."""
+
+    if _SYNC_ITEM_ATTEMPT_PERSISTENCE.get() is not None:
+        raise ValidationError("sync item attempt persistence scopes may not be nested")
+    reset = _SYNC_ITEM_ATTEMPT_PERSISTENCE.set(object())
+    try:
+        yield
+    finally:
+        _SYNC_ITEM_ATTEMPT_PERSISTENCE.reset(reset)
+
+
 class _SyncItemAttemptQuerySet(models.QuerySet[_MODEL_T]):
     """Read-capable queryset that permits only claimed terminal updates."""
 
     def update(self, **kwargs: object) -> int:
         if _SYNC_ITEM_ATTEMPT_TRANSITION.get() is None:
             raise ValidationError("sync item attempts require a repository transition")
+        if not set(kwargs).issubset(_TERMINAL_UPDATE_FIELDS):
+            raise ValidationError("sync item attempt transition fields are restricted")
         return super().update(**kwargs)
 
     def delete(self) -> NoReturn:
@@ -58,9 +87,13 @@ class _SyncItemAttemptQuerySet(models.QuerySet[_MODEL_T]):
         objs: Iterable[_MODEL_T],
         fields: Iterable[str],
         batch_size: int | None = None,
-    ) -> NoReturn:
-        del objs, fields, batch_size
-        raise ValidationError("sync item attempts require a repository transition")
+    ) -> int:
+        if _SYNC_ITEM_ATTEMPT_TRANSITION.get() is None:
+            raise ValidationError("sync item attempts require a repository transition")
+        field_names = tuple(fields)
+        if not set(field_names).issubset(_TERMINAL_UPDATE_FIELDS):
+            raise ValidationError("sync item attempt transition fields are restricted")
+        return super().bulk_update(objs, field_names, batch_size=batch_size)
 
 
 class _SyncItemAttemptManager(models.Manager[_MODEL_T]):
@@ -77,18 +110,37 @@ class _SyncItemAttemptManager(models.Manager[_MODEL_T]):
         update_conflicts: bool = False,
         update_fields: Collection[str] | None = None,
         unique_fields: Collection[str] | None = None,
-    ) -> NoReturn:
-        del objs, batch_size, ignore_conflicts, update_conflicts, update_fields, unique_fields
-        raise ValidationError("sync item attempts require repository persistence")
+    ) -> list[_MODEL_T]:
+        if _SYNC_ITEM_ATTEMPT_PERSISTENCE.get() is None:
+            raise ValidationError("sync item attempts require repository persistence")
+        if (
+            ignore_conflicts
+            or update_conflicts
+            or update_fields is not None
+            or unique_fields is not None
+        ):
+            raise ValidationError("sync item attempt bulk conflicts are forbidden")
+        return super().bulk_create(
+            objs,
+            batch_size=batch_size,
+            ignore_conflicts=ignore_conflicts,
+            update_conflicts=update_conflicts,
+            update_fields=update_fields,
+            unique_fields=unique_fields,
+        )
 
     def bulk_update(
         self,
         objs: Iterable[_MODEL_T],
         fields: Iterable[str],
         batch_size: int | None = None,
-    ) -> NoReturn:
-        del objs, fields, batch_size
-        raise ValidationError("sync item attempts require a repository transition")
+    ) -> int:
+        if _SYNC_ITEM_ATTEMPT_TRANSITION.get() is None:
+            raise ValidationError("sync item attempts require a repository transition")
+        field_names = tuple(fields)
+        if not set(field_names).issubset(_TERMINAL_UPDATE_FIELDS):
+            raise ValidationError("sync item attempt transition fields are restricted")
+        return super().bulk_update(objs, field_names, batch_size=batch_size)
 
 
 class SyncItemAttemptModel(models.Model):

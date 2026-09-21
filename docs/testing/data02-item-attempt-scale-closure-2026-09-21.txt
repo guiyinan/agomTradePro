@@ -1,0 +1,60 @@
+DATA-02 item-attempt current-denominator scale closure
+Generated: 2026-09-22 Asia/Shanghai
+Branch: dev/next-development
+Baseline commit: adaba090d89822175adcccbb3269700b090a4be8
+
+Classification
+- Repository-only, cardinality-equivalent synthetic PostgreSQL measurement.
+- Disposable loopback PostgreSQL 16-alpine with a tmpfs data directory.
+- production_acceptance=false; no production credentials, provider calls, writes, deployment, or Publication switch.
+- Current production denominator 5,565 is bound by read-only source artifacts; test asset codes are deterministic synthetic codes and are not claimed to be the production universe.
+
+Production-scope source binding
+- legacy 5,533 artifact SHA-256: b86ce7082ce478f33fd394add7305f75b1373d4a2fcd2122eb42c240ceaebcc9
+- 32 new-listed artifact SHA-256: 47f49a245c893d2b08cde909504d8f07ed43c5a686f3ad70df52e8495a5779eb
+- verified manifest SHA-256: 4ea3f5190009584a11a86f8835f6afe5cdf562e932d539b33fecb2545dc4182b
+- legacy/new intersection: 0; combined denominator: 5,565
+- canonical production-universe hash: 4b9bfd44941336ed45d302d4c0f1cb53b7bfce025cff377ffa14a5ae8f792c22
+- synthetic measurement universe hash: d4da6f6c20058c2b2f6306bd7c853150240f59b91ac3f3141dd3d9c6dcdeab2d
+
+Final scale command result
+- tests/component/data_center/test_data02_postgres_closure.py::test_postgresql_current_denominator_item_attempt_scale
+- 1 passed in 2417.54s (40:17)
+- denominator=5,565; batch_count=28; batch_size=200
+- success_rows=27,825; quote/valuation/price/financial/publication=5,565 each
+- recovered_rows=5,565; one fresh RUNNING sentinel retained
+- final_batch_rows=6,225
+- begin_seconds=967.866862; finish_seconds=938.131088
+- recovery_seed_seconds=266.878471; recovery_seconds=158.328415
+- execute calls: success=1,606; list=1; recovery_seed=53; recovery=3; aggregate=3
+- relation bytes delta: total=31,547,392; table=16,465,920; indexes=15,048,704
+- EXPLAIN selected dc_item_attempt_state_idx
+- task budget: soft=3,500s; hard=3,600s; measured wall time passed both
+
+Regression and gates
+- focused unit after repository-module extraction: 54 passed in 176.91s
+- ordinary PostgreSQL closure suite after extraction: 14 passed, 1 scale test skipped in 266.29s
+- the added PostgreSQL mixed-terminal test executed the extracted UPDATE FROM VALUES path atomically
+- strict concurrent finish rerun after raising fixture wait only: 1 passed in 139.34s
+- incremental mypy: 0 regressions in 5 production files
+- full mypy debt ceiling: 0 errors in 0 files
+- Black/isort/Ruff/diff check: passed
+- data_center migration drift: none
+- Django system check: 0 issues
+- current-data contracts: 63 surfaces
+- Celery contracts: 92 tasks, 21 exemptions, 23 governed files
+- architecture full scan: 3,217 files, 0 boundary violations
+- architecture working-tree delta: 5 production files, 701 added lines, 0 boundary and 0 audit violations
+- governance consistency: baseline 2026-09-09.v220, 0 violations including large Python files
+
+Failed/exploratory attempts retained in summary
+- The original per-row path was stopped because it could not complete the first 200-asset phase within the useful measurement window.
+- The initial ORM CASE mixed bulk path remained over budget even after moving to a tmpfs fixture.
+- PostgreSQL UPDATE FROM VALUES closed the measured bottleneck while preserving batch locks, immutable-field checks, atomicity, and updated-count fail-closed behavior.
+- The repository was then mechanically extracted from control_plane_repositories.py into sync_item_attempt_repository.py; the former remains a compatibility re-export. The full focused unit and ordinary PostgreSQL suites were rerun after extraction; the 40-minute cardinality test was not repeated because its measured implementation body did not change.
+- One ordinary-suite run hit the fixture's former 5-second lock timeout. The test still observed one terminal winner and no overwrite, but did not accept timeout as success. The fixture wait was raised to 20 seconds with a 60-second result limit; the strict already-terminal assertion and the full suite then passed.
+
+Independent review
+- GPT-5.6 Luna Max final read-only review: P0=0, P1=0 after repository-module extraction. It confirmed compatibility re-export identity, batch-before-attempt lock order, PostgreSQL UPDATE FROM VALUES atomicity, guarded SQLite fallback, UUID canonicalization, and fail-closed updated-count checks.
+- Retained gates: policy-hash-bound four-Publication numeric tolerance, genuine current production authority, explicit production-write authorization, and production capacity/acceptance remain open.
+- DATA-02 remains awaiting_production.

@@ -1,0 +1,243 @@
+{
+  "schema_version": "data02-item-attempt-scale-closure.v1",
+  "generated_at": "2026-09-21T17:06:06.348864Z",
+  "candidate": {
+    "branch": "dev/next-development",
+    "baseline_commit": "adaba090d89822175adcccbb3269700b090a4be8",
+    "commit": "containing_git_commit"
+  },
+  "classification": {
+    "scope": "Repository-only current-denominator item-attempt cardinality, atomicity, query and recovery measurement.",
+    "measurement_only": true,
+    "production_acceptance": false,
+    "fixture": "Disposable loopback PostgreSQL 16-alpine with tmpfs data directory and default PostgreSQL transaction/fsync settings.",
+    "synthetic_asset_codes": true
+  },
+  "production_actions": {
+    "deployment": false,
+    "provider_fetch": false,
+    "database_write": false,
+    "publication_switch": false,
+    "tolerance_change": false
+  },
+  "production_scope_binding": {
+    "legacy_denominator": 5533,
+    "current_denominator": 5565,
+    "legacy_scope_artifact_sha256": "b86ce7082ce478f33fd394add7305f75b1373d4a2fcd2122eb42c240ceaebcc9",
+    "new_listed_32_artifact_sha256": "47f49a245c893d2b08cde909504d8f07ed43c5a686f3ad70df52e8495a5779eb",
+    "verified_manifest_sha256": "4ea3f5190009584a11a86f8835f6afe5cdf562e932d539b33fecb2545dc4182b",
+    "legacy_new_intersection": 0,
+    "canonical_production_universe_hash": "4b9bfd44941336ed45d302d4c0f1cb53b7bfce025cff377ffa14a5ae8f792c22",
+    "synthetic_measurement_universe_hash": "d4da6f6c20058c2b2f6306bd7c853150240f59b91ac3f3141dd3d9c6dcdeab2d",
+    "claim": "Source hashes bind the exact 5,565 denominator only; the synthetic codes are not the production universe."
+  },
+  "implemented_contract": [
+    "Application verifies exact begin evidence before provider writes and exact terminal evidence before checkpoint advancement.",
+    "Heterogeneous price/financial terminal results are persisted once per phase as prepared domain attempts.",
+    "Repository bulk begin/finish lock the parent batch first, preserve immutable identity, canonicalize UUID spellings and fail closed on partial updates.",
+    "PostgreSQL heterogeneous terminal persistence uses one UPDATE FROM VALUES statement inside the existing atomic transaction; non-PostgreSQL backends retain guarded ORM bulk_update.",
+    "Bulk insert capabilities reject conflict/upsert flags and terminal update capabilities reject immutable fields.",
+    "Scale execution is separately opt-in and scopes counts to its own batches."
+  ],
+  "scale_measurement": {
+    "aggregate_execute_calls": 3,
+    "aggregate_seconds": 0.955108,
+    "batch_count": 28,
+    "batch_size": 200,
+    "begin_seconds": 967.866862,
+    "classification": "cardinality-equivalent synthetic PostgreSQL measurement",
+    "denominator": 5565,
+    "explain": [
+      {
+        "Plan": {
+          "Alias": "data_center_sync_item_attempt",
+          "Async Capable": false,
+          "Node Type": "Bitmap Heap Scan",
+          "Parallel Aware": false,
+          "Plan Rows": 5813,
+          "Plan Width": 16,
+          "Plans": [
+            {
+              "Async Capable": false,
+              "Index Cond": "((batch_id = '40330e04-12f3-5bfe-881f-1ac68e3129f9'::uuid) AND ((state)::text = 'succeeded'::text))",
+              "Index Name": "dc_item_attempt_state_idx",
+              "Node Type": "Bitmap Index Scan",
+              "Parallel Aware": false,
+              "Parent Relationship": "Outer",
+              "Plan Rows": 5813,
+              "Plan Width": 0,
+              "Startup Cost": 0.0,
+              "Total Cost": 90.42
+            }
+          ],
+          "Recheck Cond": "((batch_id = '40330e04-12f3-5bfe-881f-1ac68e3129f9'::uuid) AND ((state)::text = 'succeeded'::text))",
+          "Relation Name": "data_center_sync_item_attempt",
+          "Startup Cost": 91.87,
+          "Total Cost": 2189.07
+        }
+      }
+    ],
+    "final_batch_rows": 6225,
+    "finish_seconds": 938.131088,
+    "legacy_denominator_superseded": 5533,
+    "list_execute_calls": 1,
+    "list_seconds": 6.593645,
+    "measurement_only": true,
+    "phase_counts": {
+      "financial": 5565,
+      "price": 5565,
+      "publication": 5565,
+      "quote": 5565,
+      "valuation": 5565
+    },
+    "production_acceptance": false,
+    "recovered_rows": 5565,
+    "recovery_execute_calls": 3,
+    "recovery_seconds": 158.328415,
+    "recovery_seed_execute_calls": 53,
+    "recovery_seed_rows": 5566,
+    "recovery_seed_seconds": 266.878471,
+    "relation_bytes_after": {
+      "indexes": 15155200,
+      "table": 16465920,
+      "total": 31662080
+    },
+    "relation_bytes_before": {
+      "indexes": 106496,
+      "table": 0,
+      "total": 114688
+    },
+    "relation_bytes_delta": {
+      "indexes": 15048704,
+      "table": 16465920,
+      "total": 31547392
+    },
+    "schema": "data02-item-attempt-scale.v1",
+    "success_execute_calls": 1606,
+    "success_rows": 27825,
+    "task_budget_seconds": {
+      "hard": 3600,
+      "soft": 3500
+    },
+    "universe_hash": "d4da6f6c20058c2b2f6306bd7c853150240f59b91ac3f3141dd3d9c6dcdeab2d"
+  },
+  "validation": {
+    "focused_unit": {
+      "result": "passed",
+      "passed": 54,
+      "duration_seconds": 176.91
+    },
+    "postgresql_scale": {
+      "result": "passed",
+      "passed": 1,
+      "duration_seconds": 2417.54
+    },
+    "postgresql_closure_suite": {
+      "result": "passed",
+      "passed": 14,
+      "skipped": 1,
+      "duration_seconds": 266.29
+    },
+    "postgresql_concurrent_finish_strict_rerun": {
+      "result": "passed",
+      "passed": 1,
+      "duration_seconds": 139.34
+    },
+    "incremental_mypy": {
+      "result": "passed",
+      "files": 5,
+      "regressions": 0,
+      "legacy_errors_observed": 0
+    },
+    "mypy_debt_ceiling": {
+      "result": "passed",
+      "errors": 0,
+      "files_with_errors": 0
+    },
+    "migration_drift": {
+      "result": "passed",
+      "detail": "No changes detected in app 'data_center'"
+    },
+    "django_system_check": {
+      "result": "passed",
+      "issues": 0
+    },
+    "format_and_lint": {
+      "result": "passed",
+      "black": true,
+      "isort": true,
+      "ruff": true,
+      "diff_check": true
+    },
+    "current_data_contracts": {
+      "result": "passed",
+      "surfaces": 63
+    },
+    "celery_task_contracts": {
+      "result": "passed",
+      "registered_tasks": 92,
+      "exemptions": 21,
+      "governed_files": 23
+    },
+    "architecture_full": {
+      "result": "passed",
+      "scanned_files": 3217,
+      "boundary_violations": 0
+    },
+    "architecture_delta": {
+      "result": "passed",
+      "changed_files": 5,
+      "added_lines": 701,
+      "boundary_violations": 0,
+      "audit_violations": 0
+    },
+    "governance": {
+      "result": "passed",
+      "baseline_version": "2026-09-09.v220",
+      "violations": 0,
+      "registry_version": "2026-09-22.v151"
+    },
+    "post_extraction_postgresql_path": {
+      "result": "passed",
+      "test": "test_postgresql_mixed_terminal_values_update_atomically",
+      "detail": "The ordinary PostgreSQL suite executed the extracted UPDATE FROM VALUES mixed-terminal path; the cardinality measurement body was mechanically relocated and not rerun."
+    }
+  },
+  "source_sha256": {
+    "apps/data_center/application/core_data_backfill.py": "269f3df36622be42d47870e3e98e5a7c1fe166bd356f79d81294992de5cc924b",
+    "apps/data_center/infrastructure/backfill_item_attempt_store.py": "638c989265e55ce26b73073d9daa80c4483d4aaef6b8fc9f3f9a4d9985adb479",
+    "apps/data_center/infrastructure/control_plane_repositories.py": "607194363e4365871f47d095223e12f569de7fd6c579b60c68b68ba670494a96",
+    "apps/data_center/infrastructure/sync_item_attempt_models.py": "e69412e68aca308af8d7611217b8c67309b356ea882a486eebb61615b1a4c783",
+    "apps/data_center/infrastructure/sync_item_attempt_repository.py": "823cbf49ee1deea62a08d761cedffc017638f5240e047cb9b77710e1ea6c2f49",
+    "tests/unit/data_center/test_core_data_backfill_task.py": "43de34807339b6b4f438f078823b232ee59627fd4a91ae13f4312889782cb60d",
+    "tests/unit/data_center/test_sync_item_attempts.py": "dbb815c2e28e8fb2bc33fd32b3dc58563aaa892c182c8ad3fad9a374e333ee9f",
+    "tests/component/data_center/test_data02_postgres_closure.py": "37b22537a5720fd2001b32c05b3f8f16ced03c398d8f1cd017129d9311bb6369"
+  },
+  "independent_review": {
+    "reviewer": "gpt-5.6-luna",
+    "reasoning_effort": "max",
+    "result": "Final read-only review after repository-module extraction: P0=0 and P1=0.",
+    "resolved_findings": [
+      "UUID canonicalization for attempt, batch and run identities.",
+      "Exact begin/finish result validation before writes or checkpoint progress.",
+      "Mixed terminal outcomes and heterogeneous stored_count persist in one phase transaction.",
+      "Bulk conflict flags and immutable field updates are rejected.",
+      "Scale test uses a dedicated flag, scoped counts, query counts and storage deltas.",
+      "Compatibility re-export identity, batch-before-attempt lock order, PostgreSQL UPDATE FROM VALUES atomicity, guarded SQLite fallback and fail-closed updated-count checks remain intact after extraction."
+    ]
+  },
+  "governance": {
+    "registry_transition": "2026-09-21.v150 -> 2026-09-22.v151",
+    "unit": "DATA-02",
+    "status_before": "awaiting_production",
+    "status_after": "awaiting_production",
+    "reason": "The synthetic current-denominator repository scale gate is closed; numeric reconciliation and genuine production authority/write authorization remain open."
+  },
+  "remaining_gates": [
+    "Produce policy-identity/hash-bound numeric tolerance reconciliation for all four frozen Publications.",
+    "Obtain genuine current production authority and explicit production-write authorization before any provider or production write.",
+    "Treat TAR-05 and production capacity acceptance as separate; this tmpfs measurement cannot authorize concurrency changes."
+  ],
+  "raw_summary": "docs/testing/data02-item-attempt-scale-closure-2026-09-21.txt",
+  "raw_summary_sha256": "ba72ec07f51453c5ea81257739e8963f031f0db315631701b3d8a4a98b762734"
+}

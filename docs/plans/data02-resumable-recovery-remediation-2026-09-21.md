@@ -18,14 +18,17 @@ Publication 只引用经过同一授权、同一冻结 universe 和完整成功�
    独立 PostgreSQL 证明 substituted/missing/duplicate 响应不改变既有事实，也不触发 Publication。
 7. PostgreSQL 条件唯一约束保证同一 batch/asset/phase 只有一个 RUNNING attempt；begin、finish、
    recovery 并发已用独立 backend 验证。迁移 0081 先检查历史重复并明确 fail closed，再创建条件索引。
+8. 以当前精确 denominator 5,565 完成 cardinality-equivalent PostgreSQL 规模测量：五阶段共
+   27,825 条成功 attempt，另恢复 5,565 条 stale attempt 并保留 1 条 fresh RUNNING sentinel。
+   实测发现异质终态的 ORM CASE 更新超出任务预算，现改为 PostgreSQL 单事务
+   `UPDATE ... FROM (VALUES ...)`，最终全流程 2,417.54 秒，低于 3,500/3,600 秒预算。
+   该夹具使用易失性 tmpfs，只关闭仓库行形状、原子性、查询与恢复规模门，不构成生产容量验收。
 
 ## 剩余阶段
 
-1. 用冻结 universe 执行 5,533/当前生产 denominator 规模测试，量化 attempt 写入、恢复查询和最终
-   聚合的时间、行数与存储开销；若超过任务预算，再做有界批量优化。
-2. 增加 policy identity/hash 绑定的四 Publication 数值容差对账，冻结 denominator/universe 并输出
+1. 增加 policy identity/hash 绑定的四 Publication 数值容差对账，冻结 denominator/universe 并输出
    字段、单位、绝对/相对偏差及 breach 证据。
-3. 取得真实 current production authority 与明确生产写授权后，执行分批 provider 回填；未获得前保持
+2. 取得真实 current production authority 与明确生产写授权后，执行分批 provider 回填；未获得前保持
    `awaiting_production`，不得把本地 PostgreSQL 证据当作生产验收。
 
 ## 回归范围

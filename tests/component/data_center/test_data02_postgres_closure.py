@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import importlib
+import json
 import os
+import time
 from collections.abc import Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
@@ -14,7 +17,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from threading import Barrier
 from types import SimpleNamespace
-from typing import cast
+from typing import Any, cast
 from urllib.parse import unquote, urlsplit
 from uuid import uuid4
 
@@ -31,6 +34,7 @@ from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 from django.db.models import Model
 from django.db.utils import load_backend
 
+from apps.data_center.application.backfill_control_plane import backfill_execution_token
 from apps.data_center.application.batch_identity import ProviderAssetIdentityError
 from apps.data_center.application.current_valuation_sync import (
     SyncCurrentValuationBatchUseCase,
@@ -46,26 +50,36 @@ from apps.data_center.domain.control_plane import (
     SyncItemState,
 )
 from apps.data_center.domain.entities import ProviderConfig, QuoteSnapshot, RawAudit, ValuationFact
+from apps.data_center.infrastructure.backfill_item_attempt_store import (
+    DjangoBackfillItemAttemptStore,
+)
 from apps.data_center.infrastructure.control_plane_repositories import (
     SyncBatchRepository,
     SyncItemAttemptRepository,
+    SyncRunRepository,
 )
 from apps.data_center.infrastructure.models import (
     QuoteSnapshotModel,
     SyncBatchModel,
     SyncItemAttemptModel,
+    SyncRunModel,
     ValuationFactModel,
 )
 from apps.data_center.infrastructure.quote_snapshot_repository import QuoteSnapshotRepository
 from apps.data_center.infrastructure.valuation_fact_repository import ValuationFactRepository
 
 _POSTGRES_FLAG = "AGOM_DATA02_POSTGRES_TEST"
+_SCALE_FLAG = "AGOM_DATA02_SCALE_TEST"
 _POSTGRES_URL = "AGOM_DATA02_POSTGRES_TEST_DATABASE_URL"
 _DATABASE_NAME = "data02_closure_test"
 _NOW = datetime(2026, 9, 21, 11, 30, tzinfo=UTC)
 _UNIVERSE_HASH = "b" * 64
 _AUTHORITY_HASH = "a" * 64
 _VAL_DATE = date(2026, 9, 19)
+_CURRENT_DENOMINATOR = 5_565
+_BACKFILL_BATCH_SIZE = 200
+_CONCURRENCY_LOCK_TIMEOUT_SECONDS = 20
+_CONCURRENCY_RESULT_TIMEOUT_SECONDS = 60
 
 
 @dataclass(frozen=True)
@@ -156,6 +170,7 @@ def _data02_postgres_schema(django_db_blocker: object) -> Iterator[None]:
                 for model in (
                     QuoteSnapshotModel,
                     ValuationFactModel,
+                    SyncRunModel,
                     SyncBatchModel,
                     SyncItemAttemptModel,
                 ):
@@ -236,7 +251,10 @@ def _running_attempt(
 
 def _backend_pid() -> int:
     with connection.cursor() as cursor:
-        cursor.execute("SET lock_timeout = '5s'")
+        cursor.execute(
+            "SELECT set_config('lock_timeout', %s, false)",
+            [f"{_CONCURRENCY_LOCK_TIMEOUT_SECONDS}s"],
+        )
         cursor.execute("SELECT pg_backend_pid()")
         row = cursor.fetchone()
     if row is None:
@@ -264,9 +282,14 @@ def _run_concurrently(*operations: Callable[[], str]) -> list[_WorkerResult]:
     ) as pool:
         futures = [pool.submit(_run_worker, barrier, operation) for operation in operations]
         try:
-            return [future.result(timeout=25) for future in futures]
+            return [
+                future.result(timeout=_CONCURRENCY_RESULT_TIMEOUT_SECONDS) for future in futures
+            ]
         except FutureTimeoutError:
-            pytest.fail("item-attempt PostgreSQL concurrency exceeded 25 seconds")
+            pytest.fail(
+                "item-attempt PostgreSQL concurrency exceeded "
+                f"{_CONCURRENCY_RESULT_TIMEOUT_SECONDS} seconds"
+            )
 
 
 def _publish_main_connection_setup() -> None:
@@ -276,6 +299,63 @@ def _publish_main_connection_setup() -> None:
         raise AssertionError("concurrency setup must not run inside an atomic block")
     connection.commit()
     connection.close()
+
+
+class _QueryCounter:
+    """Count database execute calls without retaining large SQL payloads."""
+
+    def __init__(self) -> None:
+        self.count = 0
+
+    def __call__(
+        self,
+        execute: Callable[..., Any],
+        sql: str,
+        params: object,
+        many: bool,
+        context: dict[str, object],
+    ) -> Any:
+        self.count += 1
+        return execute(sql, params, many, context)
+
+
+def _scale_asset_codes() -> list[str]:
+    """Return a deterministic cardinality-equivalent current-universe workload."""
+
+    return [f"{number:06d}.SZ" for number in range(1, _CURRENT_DENOMINATOR + 1)]
+
+
+def _scale_universe_hash(asset_codes: list[str]) -> str:
+    """Use the production backfill canonical universe encoding."""
+
+    payload = json.dumps(
+        {
+            "schema": "active-a-share-universe.v1",
+            "asset_codes": sorted(asset_codes),
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _attempt_relation_size() -> tuple[int, int, int]:
+    """Return total, table and index bytes for the item-attempt relation."""
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT pg_total_relation_size(%s), pg_relation_size(%s), " "pg_indexes_size(%s)",
+            [
+                SyncItemAttemptModel._meta.db_table,
+                SyncItemAttemptModel._meta.db_table,
+                SyncItemAttemptModel._meta.db_table,
+            ],
+        )
+        row = cursor.fetchone()
+    if row is None:
+        raise AssertionError("item-attempt relation size query returned no row")
+    return int(row[0]), int(row[1]), int(row[2])
 
 
 class _Provider:
@@ -679,6 +759,46 @@ def test_postgresql_concurrent_begin_has_one_winner_for_same_item_binding() -> N
     assert rows[0].universe_hash == _UNIVERSE_HASH
 
 
+def test_postgresql_mixed_terminal_values_update_atomically() -> None:
+    """PostgreSQL VALUES updates preserve heterogeneous terminal evidence."""
+
+    batch = _saved_batch()
+    repository = SyncItemAttemptRepository()
+    running = repository.begin_many(
+        (
+            _running_attempt(
+                batch,
+                execution_token="mixed-terminal-a",
+                asset_code="000001.SZ",
+            ),
+            _running_attempt(
+                batch,
+                execution_token="mixed-terminal-b",
+                asset_code="000002.SZ",
+            ),
+        )
+    )
+    terminal = (
+        running[0].finish(
+            state=SyncItemAttemptState.SUCCEEDED,
+            finished_at=_NOW + timedelta(seconds=1),
+            stored_count=17,
+        ),
+        running[1].finish(
+            state=SyncItemAttemptState.FAILED,
+            finished_at=_NOW + timedelta(seconds=1),
+            error_code="zero_output",
+        ),
+    )
+
+    assert repository.finish_many(terminal) == list(terminal)
+    rows = repository.list_for_batch(batch.batch_id)
+    assert [(item.state, item.stored_count, item.error_code) for item in rows] == [
+        (SyncItemAttemptState.SUCCEEDED, 17, ""),
+        (SyncItemAttemptState.FAILED, 0, "zero_output"),
+    ]
+
+
 def test_postgresql_concurrent_finish_applies_one_terminal_transition() -> None:
     """Two finishers cannot overwrite one another's terminal evidence."""
 
@@ -788,3 +908,248 @@ def test_postgresql_concurrent_recovery_transitions_stale_row_once() -> None:
     fresh_row = SyncItemAttemptModel._default_manager.get(attempt_id=fresh.attempt_id)
     assert stale_row.state == SyncItemAttemptState.INTERRUPTED.value
     assert fresh_row.state == SyncItemAttemptState.RUNNING.value
+
+
+def test_postgresql_current_denominator_item_attempt_scale() -> None:
+    """Measure the exact 5N attempt shape at the current 5,565 denominator."""
+
+    if os.environ.get(_SCALE_FLAG, "").strip() != "1":
+        pytest.skip(f"{_SCALE_FLAG}=1 is required for the 5,565-item scale measurement")
+    asset_codes = _scale_asset_codes()
+    universe_hash = _scale_universe_hash(asset_codes)
+    authority_hash = "c" * 64
+    phases = (
+        SyncItemAttemptPhase.QUOTE,
+        SyncItemAttemptPhase.VALUATION,
+        SyncItemAttemptPhase.PRICE,
+        SyncItemAttemptPhase.FINANCIAL,
+    )
+    store = DjangoBackfillItemAttemptStore(
+        run_repository=SyncRunRepository(),
+        batch_repository=SyncBatchRepository(),
+        attempt_repository=SyncItemAttemptRepository(),
+    )
+    relation_before = _attempt_relation_size()
+    query_counter = _QueryCounter()
+    begin_seconds = 0.0
+    finish_seconds = 0.0
+    batch_ids: set[str] = set()
+    batch_keys: list[str] = []
+
+    with connection.execute_wrapper(query_counter):
+        for offset in range(0, len(asset_codes), _BACKFILL_BATCH_SIZE):
+            batch_codes = asset_codes[offset : offset + _BACKFILL_BATCH_SIZE]
+            idempotency_key = f"data02-scale:{universe_hash}:{offset}"
+            batch_keys.append(idempotency_key)
+            execution_token = backfill_execution_token(idempotency_key)
+            for phase in phases:
+                phase_started = time.perf_counter()
+                attempts = store.begin_many(
+                    idempotency_key=idempotency_key,
+                    provider_name="scale-fixture",
+                    asset_codes=batch_codes,
+                    phase=phase,
+                    execution_token=execution_token,
+                    started_at=_NOW,
+                    universe_hash=universe_hash,
+                    authority_content_hash=authority_hash,
+                    requested=len(batch_codes),
+                )
+                begin_seconds += time.perf_counter() - phase_started
+                batch_ids.add(attempts[0].batch_id)
+                phase_finished = time.perf_counter()
+                store.finish_many(
+                    [
+                        attempt.finish(
+                            state=SyncItemAttemptState.SUCCEEDED,
+                            finished_at=_NOW + timedelta(seconds=1),
+                            stored_count=(index % 17) + 1,
+                        )
+                        for index, attempt in enumerate(attempts)
+                    ]
+                )
+                finish_seconds += time.perf_counter() - phase_finished
+
+        publication_key = batch_keys[-1]
+        publication_token = backfill_execution_token(publication_key)
+        publication_started = time.perf_counter()
+        publication_attempts = store.begin_many(
+            idempotency_key=publication_key,
+            provider_name="scale-fixture",
+            asset_codes=asset_codes,
+            phase=SyncItemAttemptPhase.PUBLICATION,
+            execution_token=publication_token,
+            started_at=_NOW,
+            universe_hash=universe_hash,
+            authority_content_hash=authority_hash,
+            requested=len(asset_codes[-_BACKFILL_BATCH_SIZE:]),
+        )
+        begin_seconds += time.perf_counter() - publication_started
+        publication_finished = time.perf_counter()
+        store.finish_many(
+            [
+                attempt.finish(
+                    state=SyncItemAttemptState.SUCCEEDED,
+                    finished_at=_NOW + timedelta(seconds=1),
+                    stored_count=1,
+                    evidence_hash="d" * 64,
+                )
+                for attempt in publication_attempts
+            ]
+        )
+        finish_seconds += time.perf_counter() - publication_finished
+
+    expected_success_rows = len(asset_codes) * 5
+    scale_rows = SyncItemAttemptModel._default_manager.filter(batch_id__in=batch_ids)
+    assert scale_rows.count() == expected_success_rows
+    assert scale_rows.filter(state=SyncItemAttemptState.RUNNING.value).count() == 0
+    assert scale_rows.filter(state=SyncItemAttemptState.SUCCEEDED.value).count() == (
+        expected_success_rows
+    )
+    assert scale_rows.exclude(attempt_number=1).count() == 0
+    phase_counts = {
+        phase.value: scale_rows.filter(phase=phase.value).count()
+        for phase in (*phases, SyncItemAttemptPhase.PUBLICATION)
+    }
+    assert set(phase_counts.values()) == {len(asset_codes)}
+
+    final_batch_id = publication_attempts[0].batch_id
+    list_counter = _QueryCounter()
+    list_started = time.perf_counter()
+    with connection.execute_wrapper(list_counter):
+        final_batch_attempts = SyncItemAttemptRepository().list_for_batch(final_batch_id)
+    list_seconds = time.perf_counter() - list_started
+    expected_final_batch_rows = len(asset_codes) + (len(asset_codes) % _BACKFILL_BATCH_SIZE) * len(
+        phases
+    )
+    assert len(final_batch_attempts) == expected_final_batch_rows
+
+    recovery_store = DjangoBackfillItemAttemptStore(
+        run_repository=SyncRunRepository(),
+        batch_repository=SyncBatchRepository(),
+        attempt_repository=SyncItemAttemptRepository(),
+    )
+    recovery_key = f"data02-scale-recovery:{universe_hash}"
+    recovery_token = backfill_execution_token(recovery_key)
+    recovery_seed_counter = _QueryCounter()
+    recovery_seed_started = time.perf_counter()
+    with connection.execute_wrapper(recovery_seed_counter):
+        stale_attempts = recovery_store.begin_many(
+            idempotency_key=recovery_key,
+            provider_name="scale-fixture",
+            asset_codes=asset_codes,
+            phase=SyncItemAttemptPhase.PUBLICATION,
+            execution_token=recovery_token,
+            started_at=_NOW,
+            universe_hash=universe_hash,
+            authority_content_hash=authority_hash,
+            requested=len(asset_codes),
+        )
+        fresh_attempt = recovery_store.begin(
+            idempotency_key=recovery_key,
+            provider_name="scale-fixture",
+            asset_code="999999.SZ",
+            phase=SyncItemAttemptPhase.PUBLICATION,
+            execution_token=recovery_token,
+            started_at=_NOW + timedelta(hours=2),
+            universe_hash=universe_hash,
+            authority_content_hash=authority_hash,
+            requested=len(asset_codes),
+        )
+    recovery_seed_seconds = time.perf_counter() - recovery_seed_started
+    assert len(stale_attempts) == len(asset_codes)
+    recovery_batch_id = stale_attempts[0].batch_id
+
+    recovery_counter = _QueryCounter()
+    recovery_started = time.perf_counter()
+    with connection.execute_wrapper(recovery_counter):
+        recovered = SyncItemAttemptRepository().recover_interrupted(
+            batch_id=recovery_batch_id,
+            phase=SyncItemAttemptPhase.PUBLICATION,
+            before=_NOW + timedelta(hours=1),
+            finished_at=_NOW + timedelta(hours=1),
+        )
+    recovery_seconds = time.perf_counter() - recovery_started
+    assert len(recovered) == len(asset_codes)
+    assert all(item.state is SyncItemAttemptState.INTERRUPTED for item in recovered)
+    fresh_row = SyncItemAttemptModel._default_manager.get(attempt_id=fresh_attempt.attempt_id)
+    assert fresh_row.state == SyncItemAttemptState.RUNNING.value
+    assert fresh_row.finished_at is None
+
+    aggregate_counter = _QueryCounter()
+    aggregate_started = time.perf_counter()
+    measured_batch_ids = {*batch_ids, recovery_batch_id}
+    with connection.execute_wrapper(aggregate_counter):
+        terminal_counts = {
+            state: SyncItemAttemptModel._default_manager.filter(
+                batch_id__in=measured_batch_ids,
+                state=state,
+            ).count()
+            for state in (
+                SyncItemAttemptState.SUCCEEDED.value,
+                SyncItemAttemptState.INTERRUPTED.value,
+                SyncItemAttemptState.RUNNING.value,
+            )
+        }
+    aggregate_seconds = time.perf_counter() - aggregate_started
+    assert terminal_counts == {
+        SyncItemAttemptState.SUCCEEDED.value: expected_success_rows,
+        SyncItemAttemptState.INTERRUPTED.value: len(asset_codes),
+        SyncItemAttemptState.RUNNING.value: 1,
+    }
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "EXPLAIN (FORMAT JSON) SELECT attempt_id FROM "
+            "data_center_sync_item_attempt WHERE batch_id = %s AND state = %s",
+            [final_batch_id, SyncItemAttemptState.SUCCEEDED.value],
+        )
+        explain_row = cursor.fetchone()
+    if explain_row is None:
+        raise AssertionError("item-attempt EXPLAIN returned no row")
+    relation_after = _attempt_relation_size()
+    metrics = {
+        "schema": "data02-item-attempt-scale.v1",
+        "classification": "cardinality-equivalent synthetic PostgreSQL measurement",
+        "measurement_only": True,
+        "production_acceptance": False,
+        "denominator": len(asset_codes),
+        "legacy_denominator_superseded": 5_533,
+        "batch_size": _BACKFILL_BATCH_SIZE,
+        "batch_count": len(batch_keys),
+        "universe_hash": universe_hash,
+        "success_rows": expected_success_rows,
+        "phase_counts": phase_counts,
+        "final_batch_rows": len(final_batch_attempts),
+        "begin_seconds": round(begin_seconds, 6),
+        "finish_seconds": round(finish_seconds, 6),
+        "success_execute_calls": query_counter.count,
+        "list_seconds": round(list_seconds, 6),
+        "list_execute_calls": list_counter.count,
+        "recovery_seed_rows": len(stale_attempts) + 1,
+        "recovery_seed_seconds": round(recovery_seed_seconds, 6),
+        "recovery_seed_execute_calls": recovery_seed_counter.count,
+        "recovered_rows": len(recovered),
+        "recovery_seconds": round(recovery_seconds, 6),
+        "recovery_execute_calls": recovery_counter.count,
+        "aggregate_seconds": round(aggregate_seconds, 6),
+        "aggregate_execute_calls": aggregate_counter.count,
+        "relation_bytes_before": {
+            "total": relation_before[0],
+            "table": relation_before[1],
+            "indexes": relation_before[2],
+        },
+        "relation_bytes_after": {
+            "total": relation_after[0],
+            "table": relation_after[1],
+            "indexes": relation_after[2],
+        },
+        "relation_bytes_delta": {
+            "total": relation_after[0] - relation_before[0],
+            "table": relation_after[1] - relation_before[1],
+            "indexes": relation_after[2] - relation_before[2],
+        },
+        "explain": explain_row[0],
+        "task_budget_seconds": {"soft": 3_500, "hard": 3_600},
+    }
+    print("DATA02_SCALE_METRICS=" + json.dumps(metrics, sort_keys=True))

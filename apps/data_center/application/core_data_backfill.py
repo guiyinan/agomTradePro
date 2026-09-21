@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any, Protocol
@@ -16,7 +16,7 @@ from apps.data_center.domain.control_plane import (
 )
 from shared.domain.task_outcomes import TaskBusinessOutcome
 
-from .backfill_control_plane import backfill_execution_token
+from .backfill_control_plane import backfill_control_plane_ids, backfill_execution_token
 from .batch_identity import ProviderAssetIdentityError
 from .current_valuation_sync import SyncCurrentValuationBatchUseCase
 from .dtos import SyncFinancialRequest, SyncPriceRequest, SyncQuoteRequest, SyncResult
@@ -89,6 +89,27 @@ class BackfillItemAttemptStore(Protocol):
         evidence_hash: str = "",
     ) -> SyncItemAttempt:
         """Persist the single terminal transition for one item attempt."""
+
+    def begin_many(
+        self,
+        *,
+        idempotency_key: str,
+        provider_name: str,
+        asset_codes: Sequence[str],
+        phase: SyncItemAttemptPhase,
+        execution_token: str,
+        started_at: datetime,
+        universe_hash: str,
+        authority_content_hash: str,
+        requested: int,
+    ) -> list[SyncItemAttempt]:
+        """Persist one bounded phase batch of RUNNING item attempts atomically."""
+
+    def finish_many(
+        self,
+        attempts: Sequence[SyncItemAttempt],
+    ) -> list[SyncItemAttempt]:
+        """Persist prepared terminal transitions for one phase batch atomically."""
 
 
 class PublicationEvidenceHash(Protocol):
@@ -393,35 +414,49 @@ def run_active_a_share_core_data_backfill_batch(
     ) -> tuple[list[SyncItemAttempt], bool]:
         """Start complete item evidence before a phase can perform writes."""
 
-        attempts: list[SyncItemAttempt] = []
         try:
-            for phase_asset_code in phase_asset_codes:
-                attempts.append(
-                    services.item_attempt_store.begin(
-                        idempotency_key=idempotency_key,
-                        provider_name=normalized_source,
-                        asset_code=phase_asset_code,
-                        phase=phase,
-                        execution_token=execution_token,
-                        started_at=started_at,
-                        universe_hash=bound_universe_hash,
-                        authority_content_hash=services.authority_binding.content_hash,
-                        requested=len(batch_codes),
-                    )
+            expected_run_id, expected_batch_id = backfill_control_plane_ids(idempotency_key)
+            attempts = services.item_attempt_store.begin_many(
+                idempotency_key=idempotency_key,
+                provider_name=normalized_source,
+                asset_codes=phase_asset_codes,
+                phase=phase,
+                execution_token=execution_token,
+                started_at=started_at,
+                universe_hash=bound_universe_hash,
+                authority_content_hash=services.authority_binding.content_hash,
+                requested=len(batch_codes),
+            )
+            if (
+                len(attempts) != len(phase_asset_codes)
+                or {attempt.asset_code for attempt in attempts} != set(phase_asset_codes)
+                or len({attempt.attempt_id for attempt in attempts}) != len(attempts)
+                or any(
+                    attempt.run_id != expected_run_id
+                    or attempt.batch_id != expected_batch_id
+                    or attempt.phase is not phase
+                    or attempt.state is not SyncItemAttemptState.RUNNING
+                    or attempt.dataset_key != "equity.core.backfill"
+                    or attempt.execution_token != execution_token
+                    or attempt.started_at != started_at
+                    or attempt.universe_hash != bound_universe_hash
+                    or attempt.authority_content_hash != services.authority_binding.content_hash
+                    for attempt in attempts
                 )
+            ):
+                raise ValueError("item-attempt store returned incomplete RUNNING evidence")
         except Exception:
-            for attempt in attempts:
-                try:
-                    services.item_attempt_store.finish(
-                        attempt,
-                        state=SyncItemAttemptState.BLOCKED,
-                        finished_at=services.current_time(),
-                        error_code="item_attempt_begin_failed",
-                    )
-                except Exception:
-                    pass
-            return attempts, False
+            return [], False
         return attempts, True
+
+    def persist_finished_attempts(attempts: list[SyncItemAttempt]) -> bool:
+        """Persist exact prepared terminal attempts and verify returned evidence."""
+
+        try:
+            finished = services.item_attempt_store.finish_many(attempts)
+        except Exception:
+            return False
+        return finished == attempts
 
     def finish_attempts(
         attempts: list[SyncItemAttempt],
@@ -434,21 +469,22 @@ def run_active_a_share_core_data_backfill_batch(
     ) -> bool:
         """Finish every started item attempt and report complete persistence."""
 
-        evidence_complete = True
-        for attempt in attempts:
-            try:
-                services.item_attempt_store.finish(
-                    attempt,
+        try:
+            finished_at = services.current_time()
+            terminal_attempts = [
+                attempt.finish(
                     state=state,
-                    finished_at=services.current_time(),
+                    finished_at=finished_at,
                     stored_count=stored_count,
                     error_code=error_code,
                     error_message=error_message,
                     evidence_hash=evidence_hash,
                 )
-            except Exception:
-                evidence_complete = False
-        return evidence_complete
+                for attempt in attempts
+            ]
+        except Exception:
+            return False
+        return persist_finished_attempts(terminal_attempts)
 
     def item_evidence_blocked_response() -> dict[str, Any]:
         """Fail closed without advancing when item evidence is incomplete."""
@@ -637,17 +673,17 @@ def run_active_a_share_core_data_backfill_batch(
         ):
             return item_evidence_blocked_response()
 
-    for asset_code in batch_codes:
-        domain_names = ("price", "financial")
-        for domain_name in domain_names:
-            phase = (
-                SyncItemAttemptPhase.PRICE
-                if domain_name == "price"
-                else SyncItemAttemptPhase.FINANCIAL
-            )
-            item_attempts, item_evidence_ready = begin_attempts(phase, [asset_code])
-            if not item_evidence_ready:
-                return item_evidence_blocked_response()
+    for domain_name, phase in (
+        ("price", SyncItemAttemptPhase.PRICE),
+        ("financial", SyncItemAttemptPhase.FINANCIAL),
+    ):
+        phase_attempts, item_evidence_ready = begin_attempts(phase, batch_codes)
+        if not item_evidence_ready:
+            return item_evidence_blocked_response()
+        attempts_by_asset = {attempt.asset_code: attempt for attempt in phase_attempts}
+        completion_specs: list[tuple[SyncItemAttempt, SyncItemAttemptState, int, str]] = []
+        for asset_code in batch_codes:
+            completion_key: tuple[SyncItemAttemptState, int, str]
             try:
                 if not authority_allows_next_write():
                     domain_counts[domain_name]["failed"] += 1
@@ -660,12 +696,11 @@ def run_active_a_share_core_data_backfill_batch(
                                 "error": "authority_changed",
                             }
                         )
-                    if not finish_attempts(
-                        item_attempts,
-                        state=SyncItemAttemptState.BLOCKED,
-                        error_code="authority_changed_or_expired",
-                    ):
-                        return item_evidence_blocked_response()
+                    completion_key = (
+                        SyncItemAttemptState.BLOCKED,
+                        0,
+                        "authority_changed_or_expired",
+                    )
                 else:
                     result: SyncResult
                     if domain_name == "price":
@@ -690,12 +725,11 @@ def run_active_a_share_core_data_backfill_batch(
                     domain_counts[domain_name]["stored"] += stored_count
                     if stored_count > 0:
                         domain_counts[domain_name]["succeeded"] += 1
-                        if not finish_attempts(
-                            item_attempts,
-                            state=SyncItemAttemptState.SUCCEEDED,
-                            stored_count=stored_count,
-                        ):
-                            return item_evidence_blocked_response()
+                        completion_key = (
+                            SyncItemAttemptState.SUCCEEDED,
+                            stored_count,
+                            "",
+                        )
                     else:
                         domain_counts[domain_name]["failed"] += 1
                         failed_asset_codes.add(asset_code)
@@ -707,12 +741,11 @@ def run_active_a_share_core_data_backfill_batch(
                                     "error": "zero_output",
                                 }
                             )
-                        if not finish_attempts(
-                            item_attempts,
-                            state=SyncItemAttemptState.FAILED,
-                            error_code="zero_output",
-                        ):
-                            return item_evidence_blocked_response()
+                        completion_key = (
+                            SyncItemAttemptState.FAILED,
+                            0,
+                            "zero_output",
+                        )
             except Exception:
                 domain_counts[domain_name]["failed"] += 1
                 failed_asset_codes.add(asset_code)
@@ -724,12 +757,27 @@ def run_active_a_share_core_data_backfill_batch(
                             "error": "sync_failed",
                         }
                     )
-                if not finish_attempts(
-                    item_attempts,
-                    state=SyncItemAttemptState.FAILED,
-                    error_code="sync_failed",
-                ):
-                    return item_evidence_blocked_response()
+                completion_key = (SyncItemAttemptState.FAILED, 0, "sync_failed")
+            completion_specs.append(
+                (
+                    attempts_by_asset[asset_code],
+                    completion_key[0],
+                    completion_key[1],
+                    completion_key[2],
+                )
+            )
+        phase_finished_at = services.current_time()
+        completed_attempts = [
+            attempt.finish(
+                state=state,
+                finished_at=phase_finished_at,
+                stored_count=stored_count,
+                error_code=error_code,
+            )
+            for attempt, state, stored_count, error_code in completion_specs
+        ]
+        if not persist_finished_attempts(completed_attempts):
+            return item_evidence_blocked_response()
     quote_missing = domain_counts["quote"]["failed"]
     failed_total = max(len(failed_asset_codes), quote_missing)
     succeeded_total = max(len(batch_codes) - failed_total, 0)

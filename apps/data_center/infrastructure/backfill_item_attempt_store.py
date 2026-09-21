@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from uuid import NAMESPACE_URL, uuid5
 
@@ -58,7 +59,39 @@ class DjangoBackfillItemAttemptStore:
     ) -> SyncItemAttempt:
         """Start the next item attempt after ensuring its stable batch exists."""
 
+        return self.begin_many(
+            idempotency_key=idempotency_key,
+            provider_name=provider_name,
+            asset_codes=(asset_code,),
+            phase=phase,
+            execution_token=execution_token,
+            started_at=started_at,
+            universe_hash=universe_hash,
+            authority_content_hash=authority_content_hash,
+            requested=requested,
+        )[0]
+
+    def begin_many(
+        self,
+        *,
+        idempotency_key: str,
+        provider_name: str,
+        asset_codes: Sequence[str],
+        phase: SyncItemAttemptPhase,
+        execution_token: str,
+        started_at: datetime,
+        universe_hash: str,
+        authority_content_hash: str,
+        requested: int,
+    ) -> list[SyncItemAttempt]:
+        """Start one bounded phase batch with a single database round-trip group."""
+
         run_id, batch_id = backfill_control_plane_ids(idempotency_key)
+        codes = tuple(asset_codes)
+        if not codes:
+            return []
+        if len(set(codes)) != len(codes):
+            raise ValueError("asset_codes must be unique")
         if idempotency_key not in self._prepared_batches:
             with transaction.atomic():
                 self._run_repository.save(
@@ -96,36 +129,40 @@ class DjangoBackfillItemAttemptStore:
                 finished_at=started_at,
             )
             self._recovered_phases.add(recovery_key)
-        attempt_number = self._attempt_repository.next_attempt_number(
+        attempt_numbers = self._attempt_repository.next_attempt_numbers(
             batch_id=batch_id,
-            asset_code=asset_code,
+            asset_codes=codes,
             phase=phase,
         )
-        attempt_id = str(
-            uuid5(
-                NAMESPACE_URL,
-                (
-                    "agomtradepro:sync-item-attempt:"
-                    f"{batch_id}:{asset_code}:{phase.value}:{attempt_number}"
-                ),
+        attempts = []
+        for asset_code in codes:
+            attempt_number = attempt_numbers[asset_code]
+            attempt_id = str(
+                uuid5(
+                    NAMESPACE_URL,
+                    (
+                        "agomtradepro:sync-item-attempt:"
+                        f"{batch_id}:{asset_code}:{phase.value}:{attempt_number}"
+                    ),
+                )
             )
-        )
-        return self._attempt_repository.begin(
-            SyncItemAttempt(
-                attempt_id=attempt_id,
-                run_id=run_id,
-                batch_id=batch_id,
-                dataset_key="equity.core.backfill",
-                asset_code=asset_code,
-                phase=phase,
-                attempt_number=attempt_number,
-                state=SyncItemAttemptState.RUNNING,
-                execution_token=execution_token,
-                started_at=started_at,
-                universe_hash=universe_hash,
-                authority_content_hash=authority_content_hash,
+            attempts.append(
+                SyncItemAttempt(
+                    attempt_id=attempt_id,
+                    run_id=run_id,
+                    batch_id=batch_id,
+                    dataset_key="equity.core.backfill",
+                    asset_code=asset_code,
+                    phase=phase,
+                    attempt_number=attempt_number,
+                    state=SyncItemAttemptState.RUNNING,
+                    execution_token=execution_token,
+                    started_at=started_at,
+                    universe_hash=universe_hash,
+                    authority_content_hash=authority_content_hash,
+                )
             )
-        )
+        return self._attempt_repository.begin_many(attempts)
 
     def finish(
         self,
@@ -140,16 +177,26 @@ class DjangoBackfillItemAttemptStore:
     ) -> SyncItemAttempt:
         """Persist the sole terminal transition for one running attempt."""
 
-        return self._attempt_repository.finish(
-            attempt.finish(
-                state=state,
-                finished_at=finished_at,
-                stored_count=stored_count,
-                error_code=error_code,
-                error_message=error_message,
-                evidence_hash=evidence_hash,
+        return self.finish_many(
+            (
+                attempt.finish(
+                    state=state,
+                    finished_at=finished_at,
+                    stored_count=stored_count,
+                    error_code=error_code,
+                    error_message=error_message,
+                    evidence_hash=evidence_hash,
+                ),
             )
-        )
+        )[0]
+
+    def finish_many(
+        self,
+        attempts: Sequence[SyncItemAttempt],
+    ) -> list[SyncItemAttempt]:
+        """Persist prepared terminal transitions for one phase batch."""
+
+        return self._attempt_repository.finish_many(attempts)
 
 
 __all__ = ["DjangoBackfillItemAttemptStore"]

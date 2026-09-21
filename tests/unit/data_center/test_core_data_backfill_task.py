@@ -2,16 +2,20 @@
 
 import hashlib
 import json
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
+from uuid import uuid4
 
 import pytest
 
+from apps.data_center.application.backfill_control_plane import backfill_control_plane_ids
 from apps.data_center.application.batch_identity import ProviderAssetIdentityError
 from apps.data_center.application.tasks import (
     backfill_active_a_share_core_data_batch_task,
 )
 from apps.data_center.domain.control_plane import (
+    SyncItemAttempt,
     SyncItemAttemptPhase,
     SyncItemAttemptState,
 )
@@ -88,11 +92,42 @@ def _patch_control_plane_repositories(mocker):
         repositories["batch"].save(batch),
         repositories["checkpoint"].save(checkpoint),
     )
-    repositories["item_attempt"].begin.side_effect = lambda **kwargs: SimpleNamespace(**kwargs)
-    repositories["item_attempt"].finish.side_effect = lambda attempt, **kwargs: SimpleNamespace(
-        attempt=attempt,
-        **kwargs,
-    )
+
+    def begin_item_attempt(**kwargs):
+        run_id, batch_id = backfill_control_plane_ids(kwargs["idempotency_key"])
+        return SyncItemAttempt(
+            attempt_id=str(uuid4()),
+            run_id=run_id,
+            batch_id=batch_id,
+            dataset_key="equity.core.backfill",
+            asset_code=kwargs["asset_code"],
+            phase=kwargs["phase"],
+            attempt_number=1,
+            state=SyncItemAttemptState.RUNNING,
+            execution_token=kwargs["execution_token"],
+            started_at=kwargs["started_at"],
+            universe_hash=kwargs["universe_hash"],
+            authority_content_hash=kwargs["authority_content_hash"],
+        )
+
+    repositories["item_attempt"].begin.side_effect = begin_item_attempt
+    repositories["item_attempt"].finish.side_effect = lambda attempt, **kwargs: attempt
+    repositories["item_attempt"].begin_many.side_effect = lambda *, asset_codes, **kwargs: [
+        repositories["item_attempt"].begin(asset_code=asset_code, **kwargs)
+        for asset_code in asset_codes
+    ]
+    repositories["item_attempt"].finish_many.side_effect = lambda attempts: [
+        repositories["item_attempt"].finish(
+            attempt,
+            state=attempt.state,
+            finished_at=attempt.finished_at,
+            stored_count=attempt.stored_count,
+            error_code=attempt.error_code,
+            error_message=attempt.error_message,
+            evidence_hash=attempt.evidence_hash,
+        )
+        for attempt in attempts
+    ]
     mocker.patch(
         "apps.data_center.application.tasks.get_backfill_item_attempt_store",
         return_value=repositories["item_attempt"],
@@ -104,6 +139,7 @@ def _patch_backfill_dependencies(
     mocker,
     *,
     stored_count=1,
+    stored_count_by_asset=None,
     failure=None,
     publication_failure: bool = False,
     quote_asset_codes=None,
@@ -130,7 +166,11 @@ def _patch_backfill_dependencies(
             asset_code = getattr(request, "asset_code", "batch")
             if failure == (domain, asset_code):
                 raise RuntimeError("provider failure")
-            count = len(request.asset_codes) if domain == "quote" else stored_count
+            count = (
+                len(request.asset_codes)
+                if domain == "quote"
+                else (stored_count_by_asset or {}).get((domain, asset_code), stored_count)
+            )
             if domain == "quote":
                 return SimpleNamespace(
                     stored_count=count,
@@ -386,6 +426,9 @@ def test_backfill_batch_records_all_item_phase_attempts(
     result = backfill_active_a_share_core_data_batch_task.run(batch_size=2)
 
     assert result["outcome"] == "success"
+    assert [
+        len(call.kwargs["asset_codes"]) for call in item_attempts.begin_many.call_args_list
+    ] == [2, 2, 2, 2, 2]
     phases = [call.kwargs["phase"] for call in item_attempts.begin.call_args_list]
     assert phases == [
         SyncItemAttemptPhase.QUOTE,
@@ -393,8 +436,8 @@ def test_backfill_batch_records_all_item_phase_attempts(
         SyncItemAttemptPhase.VALUATION,
         SyncItemAttemptPhase.VALUATION,
         SyncItemAttemptPhase.PRICE,
-        SyncItemAttemptPhase.FINANCIAL,
         SyncItemAttemptPhase.PRICE,
+        SyncItemAttemptPhase.FINANCIAL,
         SyncItemAttemptPhase.FINANCIAL,
         SyncItemAttemptPhase.PUBLICATION,
         SyncItemAttemptPhase.PUBLICATION,
@@ -440,6 +483,87 @@ def test_backfill_batch_blocks_checkpoint_when_item_evidence_finish_fails(
     assert result["blocked_reason"] == "item_attempt_evidence_failed"
     assert result["checkpoint"]["next_offset"] == 0
     assert result["checkpoint"]["complete"] is False
+
+
+def test_backfill_batch_rejects_duplicate_attempt_identity_before_provider_write(
+    mocker,
+    _patch_control_plane_repositories,
+) -> None:
+    """Malformed batch evidence blocks before the corresponding provider call."""
+
+    _patch_backfill_dependencies(mocker)
+    item_attempts = _patch_control_plane_repositories["item_attempt"]
+    original_begin_many = item_attempts.begin_many.side_effect
+
+    def begin_many_with_duplicate_identity(**kwargs):
+        attempts = original_begin_many(**kwargs)
+        attempts[1] = replace(attempts[1], attempt_id=attempts[0].attempt_id)
+        return attempts
+
+    item_attempts.begin_many.side_effect = begin_many_with_duplicate_identity
+
+    result = backfill_active_a_share_core_data_batch_task.run(batch_size=2)
+
+    assert result["outcome"] == "blocked"
+    assert result["stage"] == "item_evidence"
+    assert result["checkpoint"]["next_offset"] == 0
+
+
+def test_backfill_batch_blocks_checkpoint_when_mixed_group_finish_fails(
+    mocker,
+    _patch_control_plane_repositories,
+) -> None:
+    """A failed item group must persist before a mixed provider batch can advance."""
+
+    _patch_backfill_dependencies(mocker, failure=("price", "002156.SZ"))
+    item_attempts = _patch_control_plane_repositories["item_attempt"]
+    original_finish_many = item_attempts.finish_many.side_effect
+
+    def finish_many_with_failed_price_rejection(attempts):
+        if any(
+            attempt.phase is SyncItemAttemptPhase.PRICE
+            and attempt.state is SyncItemAttemptState.FAILED
+            for attempt in attempts
+        ):
+            raise RuntimeError("failed item evidence unavailable")
+        return original_finish_many(attempts)
+
+    item_attempts.finish_many.side_effect = finish_many_with_failed_price_rejection
+
+    result = backfill_active_a_share_core_data_batch_task.run(batch_size=2)
+
+    assert result["outcome"] == "blocked"
+    assert result["stage"] == "item_evidence"
+    assert result["blocked_reason"] == "item_attempt_evidence_failed"
+    assert result["checkpoint"]["next_offset"] == 0
+    assert result["checkpoint"]["complete"] is False
+
+
+def test_backfill_batch_persists_heterogeneous_terminal_counts_once_per_phase(
+    mocker,
+    _patch_control_plane_repositories,
+) -> None:
+    """Different per-asset row counts remain one atomic terminal phase write."""
+
+    _patch_backfill_dependencies(
+        mocker,
+        stored_count_by_asset={
+            ("price", "000001.SZ"): 3,
+            ("price", "002156.SZ"): 7,
+        },
+    )
+    item_attempts = _patch_control_plane_repositories["item_attempt"]
+
+    result = backfill_active_a_share_core_data_batch_task.run(batch_size=2)
+
+    assert result["outcome"] == "success"
+    price_batches = [
+        call.args[0]
+        for call in item_attempts.finish_many.call_args_list
+        if call.args[0][0].phase is SyncItemAttemptPhase.PRICE
+    ]
+    assert len(price_batches) == 1
+    assert [attempt.stored_count for attempt in price_batches[0]] == [3, 7]
 
 
 def test_backfill_resume_requires_frozen_universe_hash_before_repository_access(

@@ -180,3 +180,23 @@ registry v146 → v147，DATA-02 仍为 awaiting_production。本提交只建立
 valuation、price、financial、publication 的 begin/finish 接线、稳定 execution token、并发 Celery
 冲突与 PostgreSQL 组件证据仍是下一独立单元，不能据此启动生产回填或关闭 DATA-02。本次没有
 部署、provider 调用、生产写入或 Publication 切换。
+
+## DATA-02 item-attempt 当前 denominator 规模收口（2026-09-22）
+
+生产只读证据确认当前 denominator 已从历史 5,533 变为 5,565。本轮没有使用生产资产代码或生产
+数据库，而是在 loopback、易失性 tmpfs 的 PostgreSQL 16 夹具中按相同 cardinality 和 canonical
+universe 编码执行五阶段 attempt 形状。quote、valuation、price、financial、publication 各 5,565 条，
+共 27,825 条成功终态；recovery 另精确转换 5,565 条 stale RUNNING，并保留 1 条 fresh RUNNING。
+
+首轮默认 ORM mixed `bulk_update` 在异质 `stored_count` 下超过任务预算。仓储保留 batch→attempt
+锁顺序、不可变字段校验和 updated-count fail-closed，并为 PostgreSQL 使用单事务
+`UPDATE ... FROM (VALUES ...)`；SQLite 保留 ORM 回退。最终测量用 1–17 的异质 stored count 强制
+覆盖 mixed 路径，耗时 2,417.54 秒，低于 3,500/3,600 秒软硬预算。list、aggregate、recovery 分别
+为 1、3、3 次 execute；新增 relation 31,547,392 bytes，最终 batch 6,225 行，EXPLAIN 使用
+`dc_item_attempt_state_idx`。
+
+该结果只关闭仓库 cardinality、批量原子性、查询和恢复规模门，`production_acceptance=false`。
+四 Publication 的 policy-hash 数值容差对账、真实 current authority 和明确生产写授权仍未满足，
+DATA-02 继续 `awaiting_production`。完整指标、检查日志、生产范围哈希绑定和 Luna Max 复核见
+[DATA-02 规模封存](../testing/data02-item-attempt-scale-closure-2026-09-21.json)。本轮没有部署、
+provider 调用、生产写入、Publication 切换或容差放宽。

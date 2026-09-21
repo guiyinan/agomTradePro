@@ -30,6 +30,10 @@ from apps.data_center.infrastructure.control_plane_repositories import (
     SyncItemAttemptRepository,
 )
 from apps.data_center.infrastructure.models import SyncItemAttemptModel
+from apps.data_center.infrastructure.sync_item_attempt_models import (
+    _activate_sync_item_attempt_persistence,
+    _activate_sync_item_attempt_transition,
+)
 
 NOW = datetime(2026, 9, 21, 6, 30, tzinfo=UTC)
 UNIVERSE_HASH = "b" * 64
@@ -280,6 +284,181 @@ def test_sync_item_attempt_repository_rejects_active_duplicate() -> None:
     duplicate = _running_attempt(batch, attempt_number=2)
     with pytest.raises(ValueError, match="active attempt already exists"):
         repository.begin(duplicate)
+
+
+@pytest.mark.django_db
+def test_sync_item_attempt_repository_bulk_transition_is_complete_and_atomic() -> None:
+    """A bounded phase batch inserts and reaches terminal state as one unit."""
+
+    batch = _saved_batch()
+    repository = SyncItemAttemptRepository()
+    running_attempts = [
+        _running_attempt(batch, asset_code=f"{index:06d}.SZ") for index in range(1, 201)
+    ]
+
+    persisted = repository.begin_many(running_attempts)
+    assert persisted == running_attempts
+    terminal = [
+        attempt.finish(
+            state=SyncItemAttemptState.SUCCEEDED,
+            finished_at=NOW + timedelta(seconds=1),
+            stored_count=1,
+        )
+        for attempt in persisted
+    ]
+    assert repository.finish_many(terminal) == terminal
+
+    rows = repository.list_for_batch(batch.batch_id)
+    assert len(rows) == 200
+    assert all(item.state is SyncItemAttemptState.SUCCEEDED for item in rows)
+    assert all(item.attempt_number == 1 for item in rows)
+
+
+@pytest.mark.django_db
+def test_sync_item_attempt_repository_bulk_transition_preserves_mixed_outcomes() -> None:
+    """Mixed item outcomes retain their own counts and error evidence."""
+
+    batch = _saved_batch()
+    repository = SyncItemAttemptRepository()
+    running = repository.begin_many(
+        [
+            _running_attempt(batch, asset_code="000001.SZ"),
+            _running_attempt(batch, asset_code="000002.SZ"),
+        ]
+    )
+    terminal = [
+        running[0].finish(
+            state=SyncItemAttemptState.SUCCEEDED,
+            finished_at=NOW + timedelta(seconds=1),
+            stored_count=3,
+        ),
+        running[1].finish(
+            state=SyncItemAttemptState.FAILED,
+            finished_at=NOW + timedelta(seconds=1),
+            error_code="zero_output",
+        ),
+    ]
+
+    assert repository.finish_many(terminal) == terminal
+    rows = repository.list_for_batch(batch.batch_id)
+    assert [(item.state, item.stored_count, item.error_code) for item in rows] == [
+        (SyncItemAttemptState.SUCCEEDED, 3, ""),
+        (SyncItemAttemptState.FAILED, 0, "zero_output"),
+    ]
+
+
+@pytest.mark.django_db
+def test_sync_item_attempt_repository_canonicalizes_uuid_spellings() -> None:
+    """Equivalent UUID spellings resolve to the same persisted attempt identity."""
+
+    batch = _saved_batch()
+    repository = SyncItemAttemptRepository()
+    running = _running_attempt(batch)
+    alternate_running = replace(
+        running,
+        run_id="{" + running.run_id.upper() + "}",
+        batch_id="{" + running.batch_id.upper() + "}",
+    )
+
+    persisted = repository.begin(alternate_running)
+    terminal = persisted.finish(
+        state=SyncItemAttemptState.SUCCEEDED,
+        finished_at=NOW + timedelta(seconds=1),
+        stored_count=1,
+    )
+    alternate_terminal = replace(
+        terminal,
+        attempt_id="{" + terminal.attempt_id.upper() + "}",
+        run_id=terminal.run_id.upper(),
+        batch_id=terminal.batch_id.upper(),
+    )
+
+    finished = repository.finish(alternate_terminal)
+
+    assert finished.attempt_id == running.attempt_id
+    assert finished.run_id == batch.run_id
+    assert finished.batch_id == batch.batch_id
+    assert finished.state is SyncItemAttemptState.SUCCEEDED
+
+
+@pytest.mark.django_db
+def test_sync_item_attempt_repository_bulk_rejection_leaves_no_partial_rows() -> None:
+    """One invalid expected number rolls back every insert in the phase batch."""
+
+    batch = _saved_batch()
+    repository = SyncItemAttemptRepository()
+    attempts = [
+        _running_attempt(batch, asset_code="000001.SZ"),
+        _running_attempt(batch, asset_code="000002.SZ", attempt_number=2),
+    ]
+
+    with pytest.raises(ValueError, match="next monotonic value 1"):
+        repository.begin_many(attempts)
+
+    assert repository.list_for_batch(batch.batch_id) == []
+
+
+@pytest.mark.django_db
+def test_sync_item_attempt_manager_keeps_bulk_mutations_repository_owned() -> None:
+    """Callers cannot use public ORM bulk methods to bypass lifecycle checks."""
+
+    batch = _saved_batch()
+    attempt = _running_attempt(batch)
+    model = SyncItemAttemptModel(
+        attempt_id=attempt.attempt_id,
+        run_id=attempt.run_id,
+        batch_id=attempt.batch_id,
+        dataset_key=attempt.dataset_key,
+        asset_code=attempt.asset_code,
+        phase=attempt.phase.value,
+        attempt_number=attempt.attempt_number,
+        state=attempt.state.value,
+        execution_token=attempt.execution_token,
+        started_at=attempt.started_at,
+        universe_hash=attempt.universe_hash,
+        authority_content_hash=attempt.authority_content_hash,
+    )
+
+    with pytest.raises(ValidationError, match="repository persistence"):
+        SyncItemAttemptModel._default_manager.bulk_create([model])
+    with pytest.raises(ValidationError, match="repository transition"):
+        SyncItemAttemptModel._default_manager.bulk_update([model], ["state"])
+
+
+@pytest.mark.django_db
+def test_sync_item_attempt_private_bulk_scopes_reject_upserts_and_identity_updates() -> None:
+    """Repository capabilities cannot upsert rows or rewrite immutable identity fields."""
+
+    batch = _saved_batch()
+    attempt = _running_attempt(batch)
+    model = SyncItemAttemptModel(
+        attempt_id=attempt.attempt_id,
+        run_id=attempt.run_id,
+        batch_id=attempt.batch_id,
+        dataset_key=attempt.dataset_key,
+        asset_code=attempt.asset_code,
+        phase=attempt.phase.value,
+        attempt_number=attempt.attempt_number,
+        state=attempt.state.value,
+        execution_token=attempt.execution_token,
+        started_at=attempt.started_at,
+        universe_hash=attempt.universe_hash,
+        authority_content_hash=attempt.authority_content_hash,
+    )
+
+    with _activate_sync_item_attempt_persistence():
+        with pytest.raises(ValidationError, match="bulk conflicts"):
+            SyncItemAttemptModel._default_manager.bulk_create([model], ignore_conflicts=True)
+
+    persisted = SyncItemAttemptRepository().begin(attempt)
+    persisted_model = SyncItemAttemptModel._default_manager.get(attempt_id=persisted.attempt_id)
+    with _activate_sync_item_attempt_transition():
+        with pytest.raises(ValidationError, match="fields are restricted"):
+            SyncItemAttemptModel._default_manager.filter(attempt_id=persisted.attempt_id).update(
+                asset_code="000002.SZ"
+            )
+        with pytest.raises(ValidationError, match="fields are restricted"):
+            SyncItemAttemptModel._default_manager.bulk_update([persisted_model], ["asset_code"])
 
 
 @pytest.mark.django_db

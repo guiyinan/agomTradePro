@@ -9,7 +9,7 @@ from typing import TypeVar
 from uuid import UUID, uuid4
 
 from django.db import IntegrityError, models, transaction
-from django.db.models import Max, Q
+from django.db.models import Q
 
 from apps.data_center.application.publication_utils import member_reference, publication_hash
 from apps.data_center.application.sync_identity import SyncExecutionIdentity
@@ -21,9 +21,6 @@ from apps.data_center.domain.control_plane import (
     QuarantineRecord,
     SyncBatch,
     SyncCheckpoint,
-    SyncItemAttempt,
-    SyncItemAttemptPhase,
-    SyncItemAttemptState,
     SyncRun,
 )
 from apps.data_center.domain.publication_evidence import validate_publication_evidence
@@ -40,7 +37,6 @@ from .models import (
     SyncBatchModel,
     SyncCheckpointModel,
     SyncExecutionIdentityModel,
-    SyncItemAttemptModel,
     SyncRunModel,
 )
 from .publication_member_store import (
@@ -54,7 +50,7 @@ from .publication_models import (
     PublicationRollbackModel,
 )
 from .publication_policy_repository import PublicationPolicyRepository
-from .sync_item_attempt_models import _activate_sync_item_attempt_transition
+from .sync_item_attempt_repository import SyncItemAttemptRepository
 
 
 def _uuid(value: str) -> UUID:
@@ -237,204 +233,6 @@ class SyncBatchRepository:
             for model in SyncBatchModel._default_manager.filter(run_id=_uuid(run_id)).order_by(
                 "created_at"
             )
-        ]
-
-
-class SyncItemAttemptRepository:
-    """Persist append-only retry history with one terminal transition per attempt."""
-
-    def begin(self, attempt: SyncItemAttempt) -> SyncItemAttempt:
-        """Insert one RUNNING attempt after locking and validating its batch."""
-
-        if not isinstance(attempt, SyncItemAttempt):
-            raise TypeError("attempt must be a SyncItemAttempt")
-        if attempt.state is not SyncItemAttemptState.RUNNING:
-            raise ValueError("begin requires a RUNNING SyncItemAttempt")
-        with transaction.atomic():
-            batch = (
-                SyncBatchModel._default_manager.select_for_update()
-                .filter(batch_id=_uuid(attempt.batch_id))
-                .first()
-            )
-            if batch is None:
-                raise ValueError("sync item attempt requires an existing batch")
-            if str(batch.run_id) != attempt.run_id or batch.dataset_key != attempt.dataset_key:
-                raise ValueError("sync item attempt batch identity mismatch")
-            batch_attempts = SyncItemAttemptModel._default_manager.filter(
-                batch_id=_uuid(attempt.batch_id)
-            )
-            if batch_attempts.exclude(universe_hash=attempt.universe_hash).exists():
-                raise ValueError("sync item attempt batch universe_hash mismatch")
-            if batch_attempts.exclude(
-                authority_content_hash=attempt.authority_content_hash
-            ).exists():
-                raise ValueError("sync item attempt batch authority_content_hash mismatch")
-            scope = SyncItemAttemptModel._default_manager.filter(
-                batch_id=_uuid(attempt.batch_id),
-                asset_code=attempt.asset_code,
-                phase=attempt.phase.value,
-            )
-            if scope.filter(state=SyncItemAttemptState.RUNNING.value).exists():
-                raise ValueError("active attempt already exists for this item phase")
-            latest = scope.aggregate(latest=Max("attempt_number"))["latest"]
-            expected_number = int(latest or 0) + 1
-            if attempt.attempt_number != expected_number:
-                raise ValueError(
-                    f"attempt_number must be the next monotonic value {expected_number}"
-                )
-            try:
-                model = SyncItemAttemptModel._default_manager.create(
-                    attempt_id=_uuid(attempt.attempt_id),
-                    run_id=_uuid(attempt.run_id),
-                    batch_id=_uuid(attempt.batch_id),
-                    dataset_key=attempt.dataset_key,
-                    asset_code=attempt.asset_code,
-                    phase=attempt.phase.value,
-                    attempt_number=attempt.attempt_number,
-                    state=attempt.state.value,
-                    execution_token=attempt.execution_token,
-                    started_at=attempt.started_at,
-                    finished_at=None,
-                    stored_count=0,
-                    error_code="",
-                    error_message="",
-                    universe_hash=attempt.universe_hash,
-                    authority_content_hash=attempt.authority_content_hash,
-                    evidence_hash="",
-                )
-            except IntegrityError as exc:
-                raise ValueError("sync item attempt identity conflict") from exc
-        return model.to_domain()
-
-    def finish(self, attempt: SyncItemAttempt) -> SyncItemAttempt:
-        """Apply the sole RUNNING-to-terminal transition for an attempt."""
-
-        if not isinstance(attempt, SyncItemAttempt):
-            raise TypeError("attempt must be a SyncItemAttempt")
-        if attempt.state is SyncItemAttemptState.RUNNING or attempt.finished_at is None:
-            raise ValueError("finish requires a terminal SyncItemAttempt")
-        with transaction.atomic():
-            model = (
-                SyncItemAttemptModel._default_manager.select_for_update()
-                .filter(attempt_id=_uuid(attempt.attempt_id))
-                .first()
-            )
-            if model is None:
-                raise ValueError("sync item attempt does not exist")
-            current = model.to_domain()
-            if current.state is not SyncItemAttemptState.RUNNING:
-                raise ValueError("sync item attempt is already terminal")
-            immutable_fields = (
-                "run_id",
-                "batch_id",
-                "dataset_key",
-                "asset_code",
-                "phase",
-                "attempt_number",
-                "execution_token",
-                "started_at",
-                "universe_hash",
-                "authority_content_hash",
-            )
-            for field_name in immutable_fields:
-                if getattr(current, field_name) != getattr(attempt, field_name):
-                    raise ValueError(f"sync item attempt identity conflict for {field_name}")
-            with _activate_sync_item_attempt_transition():
-                updated = SyncItemAttemptModel._default_manager.filter(
-                    attempt_id=model.attempt_id,
-                    state=SyncItemAttemptState.RUNNING.value,
-                ).update(
-                    state=attempt.state.value,
-                    finished_at=attempt.finished_at,
-                    stored_count=attempt.stored_count,
-                    error_code=attempt.error_code,
-                    error_message=attempt.error_message,
-                    evidence_hash=attempt.evidence_hash,
-                    updated_at=attempt.finished_at,
-                )
-            if updated != 1:
-                raise ValueError("sync item attempt terminal transition conflict")
-            model.refresh_from_db()
-        return model.to_domain()
-
-    def next_attempt_number(
-        self,
-        *,
-        batch_id: str,
-        asset_code: str,
-        phase: SyncItemAttemptPhase,
-    ) -> int:
-        """Return the next number after all retained attempts in one item phase."""
-
-        latest = SyncItemAttemptModel._default_manager.filter(
-            batch_id=_uuid(batch_id),
-            asset_code=asset_code,
-            phase=phase.value,
-        ).aggregate(latest=Max("attempt_number"))["latest"]
-        return int(latest or 0) + 1
-
-    def recover_interrupted(
-        self,
-        *,
-        batch_id: str,
-        phase: SyncItemAttemptPhase,
-        before: datetime,
-        finished_at: datetime,
-    ) -> list[SyncItemAttempt]:
-        """Explicitly close stale RUNNING rows before a later retry begins."""
-
-        if before.tzinfo is None or before.utcoffset() is None:
-            raise ValueError("before must be timezone-aware")
-        with transaction.atomic():
-            batch = (
-                SyncBatchModel._default_manager.select_for_update()
-                .filter(batch_id=_uuid(batch_id))
-                .first()
-            )
-            if batch is None:
-                raise ValueError("sync item attempt recovery requires an existing batch")
-            models_to_finish = list(
-                SyncItemAttemptModel._default_manager.select_for_update()
-                .filter(
-                    batch_id=_uuid(batch_id),
-                    phase=phase.value,
-                    state=SyncItemAttemptState.RUNNING.value,
-                    started_at__lt=before,
-                )
-                .order_by("asset_code", "attempt_number")
-            )
-            interrupted = [
-                model.to_domain().finish(
-                    state=SyncItemAttemptState.INTERRUPTED,
-                    finished_at=finished_at,
-                    error_code="interrupted_before_retry",
-                )
-                for model in models_to_finish
-            ]
-            with _activate_sync_item_attempt_transition():
-                for attempt in interrupted:
-                    updated = SyncItemAttemptModel._default_manager.filter(
-                        attempt_id=_uuid(attempt.attempt_id),
-                        state=SyncItemAttemptState.RUNNING.value,
-                    ).update(
-                        state=attempt.state.value,
-                        finished_at=attempt.finished_at,
-                        error_code=attempt.error_code,
-                        error_message=attempt.error_message,
-                        updated_at=attempt.finished_at,
-                    )
-                    if updated != 1:
-                        raise ValueError("sync item attempt recovery transition conflict")
-        return interrupted
-
-    def list_for_batch(self, batch_id: str) -> list[SyncItemAttempt]:
-        """Return complete attempt history for a batch in deterministic order."""
-
-        return [
-            model.to_domain()
-            for model in SyncItemAttemptModel._default_manager.filter(
-                batch_id=_uuid(batch_id)
-            ).order_by("asset_code", "phase", "attempt_number")
         ]
 
 
