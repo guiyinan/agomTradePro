@@ -386,6 +386,13 @@ class SyncItemAttemptRepository:
         if before.tzinfo is None or before.utcoffset() is None:
             raise ValueError("before must be timezone-aware")
         with transaction.atomic():
+            batch = (
+                SyncBatchModel._default_manager.select_for_update()
+                .filter(batch_id=_uuid(batch_id))
+                .first()
+            )
+            if batch is None:
+                raise ValueError("sync item attempt recovery requires an existing batch")
             models_to_finish = list(
                 SyncItemAttemptModel._default_manager.select_for_update()
                 .filter(

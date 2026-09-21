@@ -173,6 +173,11 @@ class SyncItemAttemptModel(models.Model):
                 fields=["batch_id", "asset_code", "phase", "attempt_number"],
                 name="dc_sync_item_attempt_unique",
             ),
+            models.UniqueConstraint(
+                fields=["batch_id", "asset_code", "phase"],
+                condition=models.Q(state=SyncItemAttemptState.RUNNING.value),
+                name="dc_item_one_running",
+            ),
             models.CheckConstraint(
                 condition=models.Q(attempt_number__gte=1),
                 name="dc_sync_item_attempt_number_positive",

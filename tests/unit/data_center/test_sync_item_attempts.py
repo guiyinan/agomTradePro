@@ -8,6 +8,7 @@ from uuid import uuid4
 
 import pytest
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
 
 from apps.data_center.application.backfill_control_plane import (
     backfill_control_plane_ids,
@@ -305,6 +306,45 @@ def test_sync_item_attempt_model_rejects_direct_terminal_insert() -> None:
             error_message="",
             universe_hash=attempt.universe_hash,
             authority_content_hash=attempt.authority_content_hash,
+        )
+
+
+@pytest.mark.django_db
+def test_sync_item_attempt_database_rejects_two_running_rows_for_one_phase() -> None:
+    """A partial unique constraint protects the gate outside repository code."""
+
+    batch = _saved_batch()
+    first = _running_attempt(batch)
+    SyncItemAttemptRepository().begin(first)
+    duplicate = _running_attempt(batch, attempt_number=2)
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        SyncItemAttemptModel._default_manager.create(
+            attempt_id=duplicate.attempt_id,
+            run_id=duplicate.run_id,
+            batch_id=duplicate.batch_id,
+            dataset_key=duplicate.dataset_key,
+            asset_code=duplicate.asset_code,
+            phase=duplicate.phase.value,
+            attempt_number=duplicate.attempt_number,
+            state=duplicate.state.value,
+            execution_token=duplicate.execution_token,
+            started_at=duplicate.started_at,
+            universe_hash=duplicate.universe_hash,
+            authority_content_hash=duplicate.authority_content_hash,
+        )
+
+
+@pytest.mark.django_db
+def test_sync_item_attempt_recovery_requires_existing_locked_batch() -> None:
+    """Recovery cannot operate outside the canonical batch lock order."""
+
+    with pytest.raises(ValueError, match="recovery requires an existing batch"):
+        SyncItemAttemptRepository().recover_interrupted(
+            batch_id=str(uuid4()),
+            phase=SyncItemAttemptPhase.QUOTE,
+            before=NOW,
+            finished_at=NOW,
         )
 
 

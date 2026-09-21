@@ -4527,7 +4527,8 @@
         "apps/data_center/infrastructure/sync_item_attempt_models.py",
         "apps/data_center/migrations/0080_sync_item_attempt_evidence_hash.py",
         "apps/data_center/application/sync_use_cases.py",
-        "apps/data_center/interface/api_views_operations.py"
+        "apps/data_center/interface/api_views_operations.py",
+        "apps/data_center/migrations/0081_sync_item_attempt_running_unique.py"
       ],
       "required_markers": {
         "apps/data_center/application/current_fact_remediation.py": [
@@ -4748,7 +4749,8 @@
         "apps/data_center/infrastructure/control_plane_repositories.py": [
           "class SyncItemAttemptRepository:",
           "active attempt already exists for this item phase",
-          "def recover_interrupted("
+          "def recover_interrupted(",
+          "sync item attempt recovery requires an existing batch"
         ],
         "apps/data_center/infrastructure/sync_item_attempt_models.py": [
           "class SyncItemAttemptModel(models.Model):",
@@ -4756,7 +4758,9 @@
           "dc_sync_item_attempt_unique",
           "evidence_hash = models.CharField(max_length=64, blank=True)",
           "dc_item_pub_evidence",
-          "evidence_hash=self.evidence_hash"
+          "evidence_hash=self.evidence_hash",
+          "condition=models.Q(state=SyncItemAttemptState.RUNNING.value)",
+          "name=\"dc_item_one_running\""
         ],
         "apps/data_center/migrations/0080_sync_item_attempt_evidence_hash.py": [
           "name=\"evidence_hash\"",
@@ -4776,6 +4780,10 @@
         ],
         "apps/data_center/interface/api_views_operations.py": [
           "require_exact_asset_codes=True"
+        ],
+        "apps/data_center/migrations/0081_sync_item_attempt_running_unique.py": [
+          "assert_no_duplicate_running_attempts",
+          "dc_item_one_running preflight found conflicting RUNNING attempts"
         ]
       },
       "required_tests": [
@@ -5118,6 +5126,51 @@
           "case": "strict_quote_api_identity_mismatch_zero_residual_sqlite",
           "test_file": "tests/integration/data_center/test_api.py",
           "test_function": "test_sync_quotes_identity_mismatch_leaves_no_fact_row"
+        },
+        {
+          "case": "postgres_quote_identity_zero_residual",
+          "test_file": "tests/component/data_center/test_data02_postgres_closure.py",
+          "test_function": "test_postgresql_quote_identity_rejection_leaves_fact_rows_unchanged"
+        },
+        {
+          "case": "postgres_current_valuation_identity_zero_residual",
+          "test_file": "tests/component/data_center/test_data02_postgres_closure.py",
+          "test_function": "test_postgresql_current_valuation_identity_rejection_leaves_rows_unchanged"
+        },
+        {
+          "case": "postgres_single_valuation_identity_zero_residual",
+          "test_file": "tests/component/data_center/test_data02_postgres_closure.py",
+          "test_function": "test_postgresql_single_valuation_substitution_leaves_rows_unchanged"
+        },
+        {
+          "case": "postgres_running_attempt_constraint_and_preflight",
+          "test_file": "tests/component/data_center/test_data02_postgres_closure.py",
+          "test_function": "test_postgresql_running_attempt_constraint_and_migration_preflight_are_active"
+        },
+        {
+          "case": "postgres_running_attempt_partial_unique_race",
+          "test_file": "tests/component/data_center/test_data02_postgres_closure.py",
+          "test_function": "test_postgresql_partial_unique_constraint_rejects_concurrent_running_rows"
+        },
+        {
+          "case": "postgres_attempt_begin_race",
+          "test_file": "tests/component/data_center/test_data02_postgres_closure.py",
+          "test_function": "test_postgresql_concurrent_begin_has_one_winner_for_same_item_binding"
+        },
+        {
+          "case": "postgres_attempt_finish_race",
+          "test_file": "tests/component/data_center/test_data02_postgres_closure.py",
+          "test_function": "test_postgresql_concurrent_finish_applies_one_terminal_transition"
+        },
+        {
+          "case": "postgres_attempt_recovery_finish_race",
+          "test_file": "tests/component/data_center/test_data02_postgres_closure.py",
+          "test_function": "test_postgresql_recovery_and_finish_converge_on_one_terminal_state"
+        },
+        {
+          "case": "postgres_attempt_double_recovery",
+          "test_file": "tests/component/data_center/test_data02_postgres_closure.py",
+          "test_function": "test_postgresql_concurrent_recovery_transitions_stale_row_once"
         }
       ]
     },

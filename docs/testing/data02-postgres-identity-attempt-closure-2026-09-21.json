@@ -1,0 +1,130 @@
+{
+  "schema_version": "data02-postgres-identity-attempt-closure.v1",
+  "generated_at": "2026-09-21T12:36:30Z",
+  "candidate": {
+    "branch": "dev/next-development",
+    "baseline_commit": "f2eec708e3c6a3382200d68513e4f91f8ba095e1",
+    "commit": "containing_git_commit"
+  },
+  "scope": "Prove provider identity zero-residual behavior and durable item-attempt concurrency on disposable loopback PostgreSQL, then fail closed on legacy duplicate RUNNING scopes before migration 0081.",
+  "production_claim": false,
+  "production_actions": {
+    "deployment": false,
+    "provider_fetch": false,
+    "database_write": false,
+    "publication_switch": false
+  },
+  "postgresql_fixture": {
+    "engine": "PostgreSQL 16 alpine",
+    "network": "loopback only",
+    "database": "data02_closure_test",
+    "disposable": true,
+    "production_credentials_used": false
+  },
+  "implemented_contract": [
+    "The database allows at most one RUNNING item attempt for each batch_id, asset_code and phase through the conditional unique constraint dc_item_one_running.",
+    "begin and interrupted recovery lock the parent batch before attempt rows, use one stable batch-to-attempt lock order and fail closed when the batch is missing.",
+    "Migration 0081 scans historical RUNNING scopes first and emits a stable conflict scope instead of deleting, merging or rewriting append-only evidence.",
+    "Real QuoteSnapshotRepository and ValuationFactRepository calls preserve complete existing-row fingerprints on substituted, missing and duplicate provider identities.",
+    "Quote, current valuation and single valuation identity rejection carries PROVIDER_ASSET_IDENTITY_MISMATCH and never invokes a Publication publisher.",
+    "Independent PostgreSQL backends prove one-winner begin, database-level active-lease exclusion, one terminal finish, recovery-versus-finish convergence and single interrupted recovery while fresh RUNNING evidence remains active."
+  ],
+  "independent_review": {
+    "reviewer": "gpt-5.6-luna",
+    "reasoning_effort": "max",
+    "result": "No P0. Initial P1 findings for append-only fixture cleanup, migration duplicate preflight, same-binding begin/partial-index evidence, terminal field consistency and current-data governance were resolved before commit.",
+    "retained_open_gates": [
+      "Full-universe scale evidence for the production denominator remains required.",
+      "Policy-hash-bound numeric tolerance reconciliation for all four Publications remains required.",
+      "Genuine current production authority and explicit production-write authorization remain required."
+    ]
+  },
+  "validation": {
+    "sqlite_item_attempt_tests": {
+      "result": "passed",
+      "passed": 13,
+      "duration_seconds": 179.39
+    },
+    "postgresql_closure_tests": {
+      "result": "passed",
+      "passed": 13,
+      "duration_seconds": 97.29,
+      "independent_backend_pids": true,
+      "zero_residual_cases": 7,
+      "concurrency_and_constraint_cases": 6
+    },
+    "postgresql_migration_apply": {
+      "result": "passed_with_post_migrate_limitation",
+      "detail": "data_center.0081 recorded and dc_item_one_running catalog index created; a later unrelated global auth permission varchar(50) post_migrate signal failed after the migration transaction committed.",
+      "index_definition": "CREATE UNIQUE INDEX dc_item_one_running ON public.data_center_sync_item_attempt USING btree (batch_id, asset_code, phase) WHERE state = 'running'"
+    },
+    "postgresql_duplicate_preflight": {
+      "result": "passed",
+      "exit_code": 1,
+      "detail": "Two disposable historical RUNNING rows in one scope were rejected by the stable 0081 preflight before constraint creation."
+    },
+    "incremental_mypy": {
+      "result": "passed",
+      "files": 3,
+      "regressions": 0,
+      "legacy_errors_observed": 0
+    },
+    "mypy_debt_ceiling": {
+      "result": "passed",
+      "errors": 0,
+      "files_with_errors": 0
+    },
+    "migration_drift": {
+      "result": "passed",
+      "detail": "No changes detected in app 'data_center'"
+    },
+    "django_system_check": {
+      "result": "passed",
+      "issues": 0
+    },
+    "format_and_lint": {
+      "result": "passed",
+      "files": 5,
+      "ruff": true,
+      "black": true,
+      "isort": true,
+      "diff_check": true
+    },
+    "architecture": {
+      "result": "passed",
+      "scanned_files": 3216,
+      "boundary_violations": 0,
+      "changed_files": 3,
+      "added_lines": 61,
+      "audit_violations": 0
+    },
+    "current_data_contracts": {
+      "result": "passed",
+      "surfaces": 63
+    },
+    "governance": {
+      "result": "passed",
+      "registry_version": "2026-09-21.v150",
+      "violations": 0
+    },
+    "total_passed_tests": 26,
+    "celery_task_contracts": {
+      "result": "passed",
+      "registered_tasks": 92,
+      "exemptions": 21,
+      "governed_files": 23
+    }
+  },
+  "governance": {
+    "registry_transition": "2026-09-21.v149 -> 2026-09-21.v150",
+    "unit": "DATA-02",
+    "status_before": "awaiting_production",
+    "status_after": "awaiting_production",
+    "reason": "PostgreSQL identity/concurrency repository gates are closed; production-scale, numeric tolerance and genuine authority/write authorization remain open."
+  },
+  "remaining_repository_gates": [
+    "Measure item-attempt write and recovery behavior at the frozen full-universe denominator and optimize only if task budgets require it.",
+    "Produce policy-hash-bound numeric tolerance evidence for all four frozen Publications.",
+    "Obtain genuine current production authority and explicit authorization before any provider or production write."
+  ]
+}

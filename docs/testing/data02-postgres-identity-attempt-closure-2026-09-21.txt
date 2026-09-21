@@ -1,0 +1,30 @@
+DATA-02 PostgreSQL identity and item-attempt closure validation
+
+branch: dev/next-development
+baseline: f2eec708e3c6a3382200d68513e4f91f8ba095e1
+production actions: none
+
+SQLite item-attempt tests: 13 passed in 179.39s
+Disposable PostgreSQL closure tests: 13 passed in 97.29s
+PostgreSQL zero-residual cases: 7
+PostgreSQL constraint/concurrency cases: 6
+Migration 0081 clean apply/catalog: passed; dc_item_one_running conditional unique index present
+Migration 0081 duplicate RUNNING preflight: expected fail closed, exit 1
+Incremental mypy: 0 regressions in 3 production Python files
+Full mypy debt ceiling: 0 errors in 0 files
+Migration drift: No changes detected in app data_center
+Django system check: 0 issues
+Ruff/Black/isort/diff check: passed
+Architecture: 3 changed production files, 61 added lines; 3216 scanned, 0 boundary/audit violations
+Current-data contracts: 63 surfaces passed
+Celery contracts: 92 tasks, 21 exemptions, 23 governed files passed
+Governance: registry 2026-09-21.v150, 0 violations
+
+The full migrate command applied data_center.0081 successfully, then hit an unrelated global
+auth permission varchar(50) post_migrate limitation. PostgreSQL catalog verification proves
+the migration transaction and exact conditional unique index were committed.
+
+Full-universe scale, four-Publication policy-bound numeric tolerance, genuine current
+authority and explicit production-write authorization remain open DATA-02 gates.
+
+evidence sha256: 97c23a78d528f118e100695e04c5a28f6a1a2989d34ff5f8d0e6b5dd97a0e88a
