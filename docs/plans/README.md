@@ -1,5 +1,12 @@
 # 活跃计划索引
 
+> 2026-09-21 生产只读重验：生产仍为 `439468482` / `20260920184626`，健康门为
+> health/db/ready=200、decision-ready=503。5,565 资产中 quote/price/valuation Publication
+> 均为 5,565，financial 仅 80；四 Publication dry-run 因 financial `announced_at` 缺失而拒绝。
+> Authority 历史行存在但当前 actor/owner/joined heads 均为 0，v17 仍 mode=off、outbox=false、
+> selector 缺失；受保护监控认证仍返回 401。所有生产状态保持不变。
+> [源码与原始只读证据](../deployment/production-closure-revalidation-2026-09-21.json)。
+
 > 2026-09-21 AUD-05 复核补强：完整值哈希、事务候选绑定、歧义读取及 corrective 命令输入已修复。
 > SQLite 184 passed/2 PG-only skips、隔离 PostgreSQL 18 passed；[原始证据与源码绑定](../testing/config-center-review-fixes-2026-09-21.json)。
 > registry v142，AUD-05 保持 completed；生产状态未晋级。

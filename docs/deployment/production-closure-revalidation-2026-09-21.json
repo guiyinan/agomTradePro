@@ -1,0 +1,384 @@
+{
+  "schema": "production-closure-revalidation.v1",
+  "status": "blocked_production_exits_not_promoted",
+  "sealed_at_utc": "2026-09-21T02:50:37.624253Z",
+  "repository_head": "ec460c3db71a09e3713babf8e1c6c6e2189ec1db",
+  "repository_branch": "dev/next-development",
+  "production_commit": "439468482f457884db17da47d7566a5aac295842",
+  "production_release_tag": "20260920184626",
+  "production_is_behind_repository_head": true,
+  "candidate_commits_not_deployed": [
+    "ec460c3db71a09e3713babf8e1c6c6e2189ec1db docs: consolidate development on next-development",
+    "4f9fb99033faec3d467a165421f9e2f3a3c98b8f fix: verify complete runtime configuration integrity",
+    "336e578cb247a98a0686bee91be5358ffbbf9e60 fix: validate corrective configuration command envelopes",
+    "e779bf439b2ad49a30798f7ab3a74182ab9f3361 test: raise whole Research Domain branch coverage above 90 percent",
+    "0b1c922e79d793d26b8bd6a8dca36a90c73d5492 docs: register whole Research Domain coverage closure",
+    "dea925d831d5bf99b0b3acaed6f54162e1d7e7f1 fix: make runtime configuration correction atomic and fail closed",
+    "3c65d61e9f6cdf8a44860a06fbc6bbde65efb44e docs: record current retained telemetry authentication blocker",
+    "f76244f550393dd8d003c8e875390836a3061938 docs: revalidate production closure baseline and blockers"
+  ],
+  "observations": {
+    "public_https": {
+      "/api/decision-ready/": {
+        "body_bytes": 1029,
+        "body_sha256": "b13a052edc5e83fd9b0df1b2fd16e5b31d9002c4afef0c73a859c815a5271651",
+        "content_type": "application/json",
+        "status": 503
+      },
+      "/api/health/": {
+        "body_bytes": 62,
+        "body_sha256": "41c226578ee4d36dad46a56d6192980401f878f583c6edf7810d689f9c2f3bf9",
+        "content_type": "application/json",
+        "status": 200
+      },
+      "/api/health/db/": {
+        "body_bytes": 95,
+        "body_sha256": "6b058394a847fc960cdb361553b3323069a76d315fae79810fb887338615878c",
+        "content_type": "application/json",
+        "status": 200
+      },
+      "/api/operational-readiness/release-identity/": {
+        "body_bytes": 61,
+        "body_sha256": "c65bef74297615126656a101e44c654a66e04c61d4936c40643db8ce487152bd",
+        "content_type": "application/json",
+        "status": 403
+      },
+      "/api/ready/": {
+        "body_bytes": 16061,
+        "body_sha256": "9ea9b0f503da2c9295b48b4ecde2b792933d0a5ff1da310478a1f3f2b15bef3d",
+        "content_type": "application/json",
+        "status": 200
+      }
+    },
+    "protected_monitoring": {
+      "base_url": "https://demo.agomtrade.pro",
+      "decision": "DENY_STOP_LINES",
+      "decision_gate_cleared": false,
+      "https_statuses": {
+        "/api/decision-ready/": 503,
+        "/api/health/": 200,
+        "/api/health/db/": 200,
+        "/api/ready/": 200
+      },
+      "observed_at_utc": "2026-09-21T02:28:25.462988Z",
+      "protected_query_authenticated_status": 401,
+      "protected_query_unauthenticated_status": 401,
+      "retained_up_target": null,
+      "root_only_secret_path": "/opt/agomtradepro/prometheus-query-client.secret",
+      "schema": "evid09.protected-https-stop-lines.v1",
+      "secret_values_emitted": false,
+      "tls_default_trust_used": true
+    },
+    "database": {
+      "facts": {
+        "active_a_share_asset_count": 5565,
+        "active_profiles": [
+          {
+            "activated_at": "2026-09-19T12:17:53.73526+00:00",
+            "content_hash": "dc83050d3979e37c96f7540e176a6ae5917812ac73984b7bc58481836b6fe1ca",
+            "environment": "production",
+            "profile_id": "3500f37a-be7d-43fb-802f-752240db44b3",
+            "profile_key": "production",
+            "release_ref": "",
+            "version": 17
+          }
+        ],
+        "audit_runtime_values": {
+          "audit.system_event.mode": {
+            "validation_status": "valid",
+            "value": "off"
+          },
+          "audit.system_event.outbox_enabled": {
+            "validation_status": "valid",
+            "value": false
+          }
+        },
+        "authority_counts": {
+          "actor_source_max_valid_until": "2026-09-16T06:20:55.524621+00:00",
+          "actor_source_v3": 33,
+          "owner_assignment_evidence_v5": 4,
+          "owner_assignment_receipt_v5": 4,
+          "owner_authority_max_valid_until": "2026-09-13T18:11:14.891812+00:00",
+          "owner_tenant_v3": 4,
+          "owner_tenant_v3_revocations": 0,
+          "rbac_source_v3": 22,
+          "temporally_current_actor_leaf_heads": 0,
+          "temporally_current_joined_actor_owner_pairs": 0,
+          "temporally_current_owner_leaf_heads": 0,
+          "user_source_v3": 22
+        },
+        "core_current_publications": [
+          {
+            "as_of": "2026-04-29T00:00:00+00:00",
+            "blocked_reason": "",
+            "coverage_conflict_count": 0,
+            "coverage_eligible_count": 80,
+            "coverage_missing_count": 0,
+            "coverage_requested_count": 80,
+            "coverage_selected_count": 80,
+            "dataset_key": "equity.financial.fact",
+            "member_count": 80,
+            "must_not_use_for_decision": false,
+            "publication_hash": "20acdb3f16bcd4843a5a5ca48b6758f791a9b7cb1eefb12a27b7e474ac76785c",
+            "publication_id": "c8741812-cf01-512f-8d1c-91c0e6549f42",
+            "published_at": "2026-08-15T02:54:59.904908+00:00"
+          },
+          {
+            "as_of": "2026-09-17T16:00:00+00:00",
+            "blocked_reason": "",
+            "coverage_conflict_count": 0,
+            "coverage_eligible_count": 5565,
+            "coverage_missing_count": 0,
+            "coverage_requested_count": 5565,
+            "coverage_selected_count": 5565,
+            "dataset_key": "equity.price.bar",
+            "member_count": 5565,
+            "must_not_use_for_decision": false,
+            "publication_hash": "168cd5ac86cb71ccf20594fb1033a18aee8b828224f874591d8ea5ac7493760f",
+            "publication_id": "51023424-e9b0-590b-9d93-1606be338887",
+            "published_at": "2026-09-19T12:07:18.593157+00:00"
+          },
+          {
+            "as_of": "2026-09-18T08:15:00+00:00",
+            "blocked_reason": "",
+            "coverage_conflict_count": 0,
+            "coverage_eligible_count": 5565,
+            "coverage_missing_count": 0,
+            "coverage_requested_count": 5565,
+            "coverage_selected_count": 5565,
+            "dataset_key": "equity.quote.snapshot",
+            "member_count": 5565,
+            "must_not_use_for_decision": false,
+            "publication_hash": "9728e85abc154047595547b2fe07e152e7a169ef1046c7be699686a79c74f48e",
+            "publication_id": "3eaed0e5-a907-5c82-b641-8d0d2b712c87",
+            "published_at": "2026-09-19T12:07:18.593157+00:00"
+          },
+          {
+            "as_of": "2026-09-18T08:15:00+00:00",
+            "blocked_reason": "",
+            "coverage_conflict_count": 0,
+            "coverage_eligible_count": 5565,
+            "coverage_missing_count": 0,
+            "coverage_requested_count": 5565,
+            "coverage_selected_count": 5565,
+            "dataset_key": "equity.valuation.fact",
+            "member_count": 5565,
+            "must_not_use_for_decision": false,
+            "publication_hash": "3d0d25adf61cdf2280597174650c7fd2bd85f38e3832b7b40223af376ef65d43",
+            "publication_id": "fc52e7dc-5254-5445-9a81-3d287fe33111",
+            "published_at": "2026-09-19T12:07:18.593157+00:00"
+          }
+        ]
+      },
+      "mutations_performed": false,
+      "observed_at_utc": "2026-09-21T02:40:39.060164Z",
+      "schema": "production-closure-database-readonly.v1",
+      "secret_values_emitted": false,
+      "transaction": "REPEATABLE READ READ ONLY; ROLLBACK"
+    },
+    "data02_repair_preview": {
+      "command": [
+        "docker",
+        "exec",
+        "agomtradepro-web-1",
+        "python",
+        "manage.py",
+        "repair_active_a_share_current_facts",
+        "--source",
+        "akshare",
+        "--batch-size",
+        "50"
+      ],
+      "execute_flag_supplied": false,
+      "exit_code": 1,
+      "mutations_performed": false,
+      "observed_at_utc": "2026-09-21T02:36:10.307566Z",
+      "schema": "production-closure-data02-preview.v1",
+      "stderr_last_line": "CommandError: latest completed China market session is unavailable during live trading",
+      "stderr_sha256": "3d023fa5d3ac938d8d7f8089f014e2dee1d85ecd9f54a3ff1cba32627b12e134",
+      "stdout_last_line": "",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "data02_publication_preview": {
+      "command": [
+        "docker",
+        "exec",
+        "agomtradepro-web-1",
+        "python",
+        "manage.py",
+        "rebuild_active_a_share_core_publications"
+      ],
+      "execute_flag_supplied": false,
+      "exit_code": 1,
+      "mutations_performed": false,
+      "observed_at_utc": "2026-09-21T02:37:25.900084Z",
+      "schema": "production-closure-data02-publication-preview.v1",
+      "stderr_last_line": "CommandError: financial source announced_at is required",
+      "stderr_sha256": "69d2ecbcf49d1909ffef9ea6b5e639302bc379e9fc55c0e8e669235a2851e156",
+      "stdout_last_line": "",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "derived_findings": [
+    "Production remains 439468482 / 20260920184626; repository AUD-05 follow-up fixes are not deployed.",
+    "Health, database health and ready are 200 while decision-ready remains fail-closed at 503.",
+    "The protected monitoring credential path still returns 401 authenticated and unauthenticated, so no TUI-02 retained sample may be bound.",
+    "The frozen active-A-share denominator is 5,565. Quote, completed-session price and valuation current publications each have 5,565 members; the financial current publication has only 80.",
+    "The four-Publication dry-run fails closed because financial source announced_at is absent.",
+    "The repair dry-run was attempted during live trading and correctly refused because a latest completed session was unavailable; rerun after market close.",
+    "Authority ledgers contain historical rows, but no temporally current actor leaf, owner leaf or joined actor-owner pair exists. The active v17 profile remains mode=off, outbox=false and has no authority selector."
+  ],
+  "state_transitions": {
+    "DATA-02": "awaiting_production -> awaiting_production",
+    "EVID-01": "awaiting_production -> awaiting_production",
+    "EVID-02": "awaiting_production -> awaiting_production",
+    "AUD-03": "awaiting_production -> awaiting_production",
+    "TUI-02": "active -> active"
+  },
+  "gates": [
+    {
+      "name": "registry",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "scripts/check_active_plan_registry.py"
+      ],
+      "exit_code": 0,
+      "log_sha256": "436d220d0eba760f06981264576fe3458a3dca46accaa57812931ccf30543609"
+    },
+    {
+      "name": "governance",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "scripts/check_governance_consistency.py"
+      ],
+      "exit_code": 0,
+      "log_sha256": "4397e5f07215e140d8ab62eb4e96b311e030040c057e4f08825f849ccc81308d"
+    },
+    {
+      "name": "current-data",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "scripts/check_current_data_contracts.py"
+      ],
+      "exit_code": 0,
+      "log_sha256": "c774e415f966ca887601c6d7be92ab20f2958e430ce61b71bf0d81eeac033e4b"
+    },
+    {
+      "name": "diff-check",
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "log_sha256": "816d6f9ec36b5aa3ae7c923c6d90bb9d9cd2184d4107bd7576f10e71b98c6012"
+    }
+  ],
+  "next_gates": [
+    "Rerun the no-execute DATA-02 repair preview after the China market session completes.",
+    "Obtain genuine current actor and owner authority sources; do not extend or reuse expired clocks.",
+    "Repair financial announced_at and exact source provenance through an authorized source-backed path, then rerun the four-Publication preview.",
+    "Deploy the reviewed repository candidate before using the AUD-05 corrective activation path; deployment and profile activation remain separate authorized actions.",
+    "Restore protected-query authentication and obtain a real current-candidate sample before TUI-02 rebind."
+  ],
+  "production_mutations_performed": false,
+  "secrets_or_row_values_emitted": false,
+  "raw_archive": {
+    "path": "docs/deployment/production-closure-revalidation-2026-09-21-raw.zip",
+    "sha256": "0f27b88f4f1855899ffa4bfb824a9469bb695c8188aeb3952694bd1cdb834c63",
+    "members": {
+      "revalidation/current-identity.json": {
+        "bytes": 2248,
+        "sha256": "c93d5ce46c10485c76fb117526c6c1132e90596ab04659b472d5f2ac19386946"
+      },
+      "revalidation/current-identity.json.stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "revalidation/current_identity_probe.py": {
+        "bytes": 4139,
+        "sha256": "2098275c239bf882da35441a264d95c16bebd090af1612062452bdeba504a852"
+      },
+      "revalidation/data02-publication-preview.json": {
+        "bytes": 560,
+        "sha256": "cb33f7aae5adcf7f03b1b486f4225f0ac708d3fbc969a35a5adcca005744ffa0"
+      },
+      "revalidation/data02-publication-preview.json.stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "revalidation/data02-repair-preview.json": {
+        "bytes": 615,
+        "sha256": "31e2bbb9a39b4b7154a83f251340ca4cc74c5caab69056a8b9e276c9306d54be"
+      },
+      "revalidation/data02-repair-preview.json.stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "revalidation/data02_preview_probe.py": {
+        "bytes": 2698,
+        "sha256": "2530813a3b51b4d2f30cb3d7075eda569ff6f9536cbfed4ec93b50dc1887d6ee"
+      },
+      "revalidation/data02_publication_preview_probe.py": {
+        "bytes": 1900,
+        "sha256": "4a9e2da1cc95e3e3f9182f274b3db2a48943ff139fdf9ffcc2ec1add90313782"
+      },
+      "revalidation/database-readonly.json": {
+        "bytes": 3162,
+        "sha256": "ef1b01d98c3c07f0a8d465d8a267077ee168c0f7af377c71d573134957d2f113"
+      },
+      "revalidation/database-readonly.json.stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "revalidation/evid09_protected_https_stop_probe.py": {
+        "bytes": 6317,
+        "sha256": "469caad33f2eb60f9accfa2507441e8e98429c50d34e1c6447a1474330f092dc"
+      },
+      "revalidation/final-current-data.log": {
+        "bytes": 68,
+        "sha256": "c774e415f966ca887601c6d7be92ab20f2958e430ce61b71bf0d81eeac033e4b"
+      },
+      "revalidation/final-diff-check.log": {
+        "bytes": 396,
+        "sha256": "816d6f9ec36b5aa3ae7c923c6d90bb9d9cd2184d4107bd7576f10e71b98c6012"
+      },
+      "revalidation/final-gates.json": {
+        "bytes": 1087,
+        "sha256": "23077b43ca80562eef30ab406c45a5113d202ca94b5b68420c355cd6dcc5a63f"
+      },
+      "revalidation/final-governance.log": {
+        "bytes": 684,
+        "sha256": "4397e5f07215e140d8ab62eb4e96b311e030040c057e4f08825f849ccc81308d"
+      },
+      "revalidation/final-registry.log": {
+        "bytes": 138,
+        "sha256": "436d220d0eba760f06981264576fe3458a3dca46accaa57812931ccf30543609"
+      },
+      "revalidation/final_gates.py": {
+        "bytes": 1541,
+        "sha256": "ba0432cdcbbbe594163830ad0db6b875b595db40fbf2f089497db63734a7c588"
+      },
+      "revalidation/production_database_probe.py": {
+        "bytes": 6563,
+        "sha256": "15376f5cdf777fcdbdfde6af05d559e4a6b0b87cc6df69674abe8ad82a60c800"
+      },
+      "revalidation/protected-stop-lines.json": {
+        "bytes": 551,
+        "sha256": "82f4637996883d583c68c59d2642e62a629ca61afbe836c831fe9020405b25f8"
+      },
+      "revalidation/protected-stop-lines.json.stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "revalidation/seal.py": {
+        "bytes": 9274,
+        "sha256": "76bbb9250ab4cf63f72c207882f485b8ca109985511cb8b972f54d4de05a9586"
+      },
+      "revalidation/stream_vps_readonly.py": {
+        "bytes": 1362,
+        "sha256": "4afd89782e81254a9cd60ddbd4639973a096772423d92f67b24ea11137f87298"
+      }
+    }
+  }
+}

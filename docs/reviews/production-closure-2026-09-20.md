@@ -93,3 +93,24 @@ Ruff 无新增诊断（四条历史 UP042 保留），无迁移变化。架构�
 Luna max 独立复核通过，原始日志、源码哈希、JUnit 和覆盖率见[复核封存](../testing/config-center-review-fixes-2026-09-21.json)。
 registry v141 → v142；AUD-05 保持 completed，生产状态及 DATA-17 不变。仅完成仓库修复，未部署或访问生产。
 PostgreSQL 为隔离 Config Center 测试设置，不能替代生产恢复或全应用 migration 验收。
+
+## 2026-09-21 当前生产只读重验
+
+生产仍绑定 `439468482f457884db17da47d7566a5aac295842`、release `20260920184626` 和
+Web image `sha256:ad885af0fbb5904f389cbe469403fd758901e0f4b62e88e0c8dab34e52315d71`；
+仓库 `dev/next-development` 的 AUD-05 补强尚未部署。实际 HTTPS 为 health/db/ready=200、
+decision-ready=503，release identity 匿名访问为 403。VPS root-only 监控凭据的认证查询仍返回 401，
+因此 TUI-02 没有新首样本，旧窗口继续失效。
+
+同一 `REPEATABLE READ READ ONLY` 快照显示活动 A 股范围为 5,565。quote、price、valuation 的
+current Publication 均为 5,565/5,565；financial current head 仍只有 80，as-of 为 2026-04-29。
+四 Publication no-execute dry-run 明确拒绝 `financial source announced_at is required`。
+DATA-02 repair no-execute dry-run 在盘中按设计拒绝“无最近已完成交易日”，须收盘后重新执行。
+
+Authority 表内已有历史行，但最大 actor validity 为 2026-09-16，最大 owner validity 为 2026-09-13；
+当前 actor leaf、owner leaf 和可配对 head 均为 0。生产 v17 仍为 audit mode=off、outbox=false，
+authority selector 缺失。不能把历史计数当成当前权限，也不能延长旧时间或自动生成 selector。
+
+本次没有部署、登录、provider 请求、生产写入、profile 激活或 Publication 切换。DATA-02、
+EVID-01/02、AUD-03 保持 awaiting_production，TUI-02 保持 active。完整命令、探针源码、原始输出、
+哈希和限制见[2026-09-21 封存](../deployment/production-closure-revalidation-2026-09-21.json)。
