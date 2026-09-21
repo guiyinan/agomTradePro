@@ -4490,6 +4490,7 @@
       "id": "data_center.core_current_publication_rebuild",
       "surface": "Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "source_files": [
+        "apps/data_center/application/batch_identity.py",
         "apps/data_center/application/current_fact_remediation.py",
         "apps/data_center/application/dtos.py",
         "apps/data_center/application/sync_market_use_cases.py",
@@ -4524,7 +4525,9 @@
         "apps/data_center/infrastructure/backfill_item_attempt_store.py",
         "apps/data_center/infrastructure/control_plane_repositories.py",
         "apps/data_center/infrastructure/sync_item_attempt_models.py",
-        "apps/data_center/migrations/0080_sync_item_attempt_evidence_hash.py"
+        "apps/data_center/migrations/0080_sync_item_attempt_evidence_hash.py",
+        "apps/data_center/application/sync_use_cases.py",
+        "apps/data_center/interface/api_views_operations.py"
       ],
       "required_markers": {
         "apps/data_center/application/current_fact_remediation.py": [
@@ -4546,10 +4549,14 @@
           "returned_asset_codes: tuple[str, ...] = ()"
         ],
         "apps/data_center/application/sync_market_use_cases.py": [
-          "stored_asset_codes=tuple(quote.asset_code for quote in correlated_quotes)"
+          "stored_asset_codes=tuple(quote.asset_code for quote in correlated_quotes)",
+          "if request.require_exact_asset_codes:",
+          "returned_asset_codes=[quote.asset_code for quote in quotes]"
         ],
         "apps/data_center/application/current_valuation_sync.py": [
-          "returned_asset_codes=tuple(fact.asset_code for fact in facts)"
+          "returned_asset_codes=tuple(fact.asset_code for fact in facts)",
+          "if require_exact_asset_codes:",
+          "returned_asset_codes=[fact.asset_code for fact in facts]"
         ],
         "apps/data_center/composition.py": [
           "def preflight_current_authority(as_of: datetime) -> None:",
@@ -4661,7 +4668,8 @@
           "item_attempt_evidence_failed",
           "SyncItemAttemptPhase.PUBLICATION",
           "publication_evidence_hash",
-          "evidence_hash=publication_evidence_hash"
+          "evidence_hash=publication_evidence_hash",
+          "provider_asset_identity_mismatch"
         ],
         "apps/data_center/infrastructure/publication_fact_identity.py": [
           "build_publication_fact_identity",
@@ -4754,6 +4762,20 @@
           "name=\"evidence_hash\"",
           "max_length=64",
           "name=\"dc_item_pub_evidence\""
+        ],
+        "apps/data_center/application/batch_identity.py": [
+          "class ProviderAssetIdentityError(DataValidationError):",
+          "def require_exact_asset_identities(",
+          "def require_single_asset_identity(",
+          "normalize_asset_code(value)",
+          "PROVIDER_ASSET_IDENTITY_MISMATCH"
+        ],
+        "apps/data_center/application/sync_use_cases.py": [
+          "require_single_asset_identity(",
+          "returned_asset_codes=[fact.asset_code for fact in facts]"
+        ],
+        "apps/data_center/interface/api_views_operations.py": [
+          "require_exact_asset_codes=True"
         ]
       },
       "required_tests": [
@@ -5056,6 +5078,46 @@
           "case": "resumable_backfill_revalidates_after_publication_attempt_setup",
           "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
           "test_function": "test_backfill_revalidates_authority_after_publication_attempt_setup"
+        },
+        {
+          "case": "provider_identity_guard_rejects_incomplete_duplicate_or_noncanonical_rows",
+          "test_file": "tests/unit/data_center/test_batch_identity.py",
+          "test_function": "test_exact_asset_identities_reject_incomplete_duplicate_or_noncanonical_rows"
+        },
+        {
+          "case": "quote_provider_substitution_rejected_before_fact_write",
+          "test_file": "tests/unit/data_center/test_audited_quote_sync.py",
+          "test_function": "test_strict_asset_identity_rejects_provider_substitution_before_fact_write"
+        },
+        {
+          "case": "valuation_provider_substitution_rejected_before_fact_write",
+          "test_file": "tests/unit/data_center/test_valuation_publication_sync.py",
+          "test_function": "test_strict_current_valuation_identity_rejects_substitution_before_fact_write"
+        },
+        {
+          "case": "provider_identity_guard_uses_domain_normalization_for_requests",
+          "test_file": "tests/unit/data_center/test_batch_identity.py",
+          "test_function": "test_exact_asset_identities_use_domain_normalization_for_request_only"
+        },
+        {
+          "case": "provider_identity_guard_requires_canonical_provider_rows",
+          "test_file": "tests/unit/data_center/test_batch_identity.py",
+          "test_function": "test_provider_identities_must_arrive_in_canonical_domain_format"
+        },
+        {
+          "case": "single_valuation_provider_substitution_rejected_before_fact_write",
+          "test_file": "tests/unit/data_center/test_valuation_publication_sync.py",
+          "test_function": "test_single_valuation_rejects_provider_substitution_before_fact_write"
+        },
+        {
+          "case": "backfill_identity_mismatch_has_stable_attempt_error",
+          "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
+          "test_function": "test_backfill_identity_mismatch_records_stable_failed_attempt_and_open_checkpoint"
+        },
+        {
+          "case": "strict_quote_api_identity_mismatch_zero_residual_sqlite",
+          "test_file": "tests/integration/data_center/test_api.py",
+          "test_function": "test_sync_quotes_identity_mismatch_leaves_no_fact_row"
         }
       ]
     },

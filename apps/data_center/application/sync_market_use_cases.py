@@ -21,6 +21,7 @@ from core.integration.data_center_audit import (
     DataPublicationAuditObservation,
 )
 
+from .batch_identity import require_exact_asset_identities
 from .publication_sync import PublishPriceBarBatchUseCase, PublishQuoteSnapshotBatchUseCase
 from .sync_identity import (
     IssueSyncExecutionIdentityCommand,
@@ -411,6 +412,12 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
                 source_type=config.source_type,
                 provider_name=provider_name,
             )
+            if request.require_exact_asset_codes:
+                require_exact_asset_identities(
+                    requested_asset_codes=request.asset_codes,
+                    returned_asset_codes=[quote.asset_code for quote in quotes],
+                    label="quote",
+                )
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as error:
             self._commit_quote_fetch_failure(
                 config=config,

@@ -657,6 +657,7 @@ class SyncPriceRequest:
 class SyncQuoteRequest:
     provider_id: int
     asset_codes: list[str]
+    require_exact_asset_codes: bool = False
 
 
 @dataclass

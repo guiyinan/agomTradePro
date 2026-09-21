@@ -17,6 +17,7 @@ from apps.data_center.domain.control_plane import (
 from shared.domain.task_outcomes import TaskBusinessOutcome
 
 from .backfill_control_plane import backfill_execution_token
+from .batch_identity import ProviderAssetIdentityError
 from .current_valuation_sync import SyncCurrentValuationBatchUseCase
 from .dtos import SyncFinancialRequest, SyncPriceRequest, SyncQuoteRequest, SyncResult
 from .sync_use_cases import SyncFinancialUseCase, SyncPriceUseCase, SyncQuoteUseCase
@@ -511,7 +512,11 @@ def run_active_a_share_core_data_backfill_batch(
                 return item_evidence_blocked_response()
         else:
             quote_result = quote_use_case.execute(
-                SyncQuoteRequest(provider_id=provider_id, asset_codes=batch_codes)
+                SyncQuoteRequest(
+                    provider_id=provider_id,
+                    asset_codes=batch_codes,
+                    require_exact_asset_codes=True,
+                )
             )
             published_total += services.published_count_from_result(quote_result)
             quote_stored = int(quote_result.stored_count)
@@ -536,13 +541,18 @@ def run_active_a_share_core_data_backfill_batch(
                 stored_count=1,
             ):
                 return item_evidence_blocked_response()
-    except Exception:
+    except Exception as error:
+        error_code = (
+            "provider_asset_identity_mismatch"
+            if isinstance(error, ProviderAssetIdentityError)
+            else "sync_failed"
+        )
         domain_counts["quote"]["failed"] = len(batch_codes)
-        errors.append({"domain": "quote", "asset_code": "batch", "error": "sync_failed"})
+        errors.append({"domain": "quote", "asset_code": "batch", "error": error_code})
         if not finish_attempts(
             quote_attempts,
             state=SyncItemAttemptState.FAILED,
-            error_code="sync_failed",
+            error_code=error_code,
         ):
             return item_evidence_blocked_response()
 
@@ -570,6 +580,7 @@ def run_active_a_share_core_data_backfill_batch(
                 provider_id=provider_id,
                 asset_codes=batch_codes,
                 as_of_date=end_date,
+                require_exact_asset_codes=True,
             )
             published_total += services.published_count_from_result(valuation_result)
             valuation_succeeded_codes = tuple(
@@ -610,14 +621,19 @@ def run_active_a_share_core_data_backfill_batch(
                 stored_count=1,
             ):
                 return item_evidence_blocked_response()
-    except Exception:
+    except Exception as error:
+        error_code = (
+            "provider_asset_identity_mismatch"
+            if isinstance(error, ProviderAssetIdentityError)
+            else "sync_failed"
+        )
         domain_counts["valuation"]["failed"] = len(batch_codes)
         failed_asset_codes.update(batch_codes)
-        errors.append({"domain": "valuation", "asset_code": "batch", "error": "sync_failed"})
+        errors.append({"domain": "valuation", "asset_code": "batch", "error": error_code})
         if not finish_attempts(
             valuation_attempts,
             state=SyncItemAttemptState.FAILED,
-            error_code="sync_failed",
+            error_code=error_code,
         ):
             return item_evidence_blocked_response()
 

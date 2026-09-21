@@ -259,7 +259,11 @@ class OnDemandDataCenterService:
         errors = self._sync_sources(
             ("akshare",),
             lambda provider_id: self._sync_quote_use_case_factory().execute(
-                SyncQuoteRequest(provider_id=provider_id, asset_codes=[asset_code])
+                SyncQuoteRequest(
+                    provider_id=provider_id,
+                    asset_codes=[asset_code],
+                    require_exact_asset_codes=True,
+                )
             ),
         )
         refreshed = self._query_quotes(asset_code)

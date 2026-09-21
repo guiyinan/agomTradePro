@@ -350,6 +350,7 @@ class Command(BaseCommand):
                 SyncQuoteRequest(
                     provider_id=provider.id,
                     asset_codes=normalized_codes,
+                    require_exact_asset_codes=True,
                 )
             )
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:

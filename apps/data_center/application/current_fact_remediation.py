@@ -555,7 +555,11 @@ class CoreCurrentFactRefreshUseCase:
             batch_codes = list(normalized_codes[offset : offset + batch_size])
             last_authority_at = self._preflight_current_authority(not_before=last_authority_at)
             quote_result = quote_sync.execute(
-                SyncQuoteRequest(provider_id=self._provider_id, asset_codes=batch_codes)
+                SyncQuoteRequest(
+                    provider_id=self._provider_id,
+                    asset_codes=batch_codes,
+                    require_exact_asset_codes=True,
+                )
             )
             if quote_result.stored_count != len(batch_codes):
                 raise ValueError("realtime-quote provider batch incomplete at offset " f"{offset}")
@@ -573,6 +577,7 @@ class CoreCurrentFactRefreshUseCase:
                 provider_id=self._provider_id,
                 asset_codes=batch_codes,
                 as_of_date=session_date,
+                require_exact_asset_codes=True,
             )
             valuation_asset_codes = _normalize_returned_asset_codes(
                 valuation_result.returned_asset_codes

@@ -1,0 +1,22 @@
+DATA-02 provider identity pre-write guard validation
+
+branch: dev/next-development
+baseline: 2b79a6c4f761017efd45724feb5d0e0f5de897c5
+production actions: none
+
+pytest affected paths: 131 passed in 468.71s
+SQLite repository zero-residual: 1 passed in 187.71s
+incremental mypy: 0 regressions in 13 production files
+full mypy debt ceiling: 0 errors in 0 files
+migration drift: No changes detected in app data_center
+Django system check: 0 issues
+Ruff/Black/isort: 20 files passed
+architecture: 3216 files, 0 boundary violations
+current-data contracts: 63 surfaces passed
+Celery contracts: 92 tasks, 21 exemptions, 23 governed files passed
+governance: registry 2026-09-21.v149, 0 violations
+
+evidence sha256: 677e5708c440cd5d7038465fc2a8c3029b72376baed010ffbfb3c5ec063d83f7
+
+Actual PostgreSQL zero-residual/concurrency, 5,533-asset scale, numeric tolerance
+and genuine production authority remain explicit DATA-02 gates.

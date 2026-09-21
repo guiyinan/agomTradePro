@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from apps.data_center.application.batch_identity import ProviderAssetIdentityError
 from apps.data_center.application.tasks import (
     backfill_active_a_share_core_data_batch_task,
 )
@@ -144,8 +145,15 @@ def _patch_backfill_dependencies(
         use_case.execute.side_effect = _execute
         if domain == "valuation":
 
-            def _execute_current_batch(*, provider_id, asset_codes, as_of_date):
+            def _execute_current_batch(
+                *,
+                provider_id,
+                asset_codes,
+                as_of_date,
+                require_exact_asset_codes=False,
+            ):
                 del provider_id, as_of_date
+                assert require_exact_asset_codes is True
                 succeeded = [code for code in asset_codes if failure != ("valuation", code)]
                 count = len(succeeded) if stored_count else 0
                 return SimpleNamespace(
@@ -600,6 +608,32 @@ def test_backfill_batch_reports_partial_failure(mocker) -> None:
     assert result["checkpoint"]["next_offset"] == 0
     assert result["checkpoint"]["complete"] is False
     coordinator.execute.assert_not_called()
+
+
+def test_backfill_identity_mismatch_records_stable_failed_attempt_and_open_checkpoint(
+    mocker,
+    _patch_control_plane_repositories,
+) -> None:
+    _patch_backfill_dependencies(mocker)
+    quote_sync = mocker.Mock()
+    quote_sync.execute.side_effect = ProviderAssetIdentityError(
+        "quote provider asset identities mismatch"
+    )
+    mocker.patch(
+        "apps.data_center.application.tasks.make_backfill_sync_quote_use_case",
+        return_value=quote_sync,
+    )
+
+    result = backfill_active_a_share_core_data_batch_task.run(batch_size=2)
+
+    assert result["outcome"] == "partial"
+    assert result["checkpoint"]["next_offset"] == 0
+    assert result["checkpoint"]["complete"] is False
+    assert result["errors"][0]["error"] == "provider_asset_identity_mismatch"
+    assert any(
+        call.kwargs.get("error_code") == "provider_asset_identity_mismatch"
+        for call in _patch_control_plane_repositories["item_attempt"].finish.call_args_list
+    )
 
 
 @pytest.mark.parametrize(

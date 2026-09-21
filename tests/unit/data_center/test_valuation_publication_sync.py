@@ -5,6 +5,7 @@ from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
+from apps.data_center.application.batch_identity import ProviderAssetIdentityError
 from apps.data_center.application.current_valuation_sync import SyncCurrentValuationBatchUseCase
 from apps.data_center.application.dtos import SyncValuationRequest
 from apps.data_center.application.publication_sync import PublishValuationBatchUseCase
@@ -631,3 +632,135 @@ def test_current_valuation_batch_invokes_publication_after_fact_write() -> None:
     assert result.status == "success"
     assert len(facts.saved) == 1
     assert publisher.calls == [(facts.saved, "provider-main")]
+
+
+def test_single_valuation_rejects_provider_substitution_before_fact_write(mocker) -> None:
+    provider = mocker.Mock()
+    provider.provider_name.return_value = "provider-main"
+    provider.fetch_valuations.return_value = [_fact(asset_code="600000.SH")]
+    provider_repo = mocker.Mock()
+    provider_repo.get_by_id.return_value = ProviderConfig(
+        id=1,
+        name="provider-main",
+        source_type="tushare",
+        is_active=True,
+        priority=1,
+        api_key="",
+        api_secret="",
+        http_url="",
+        api_endpoint="",
+        extra_config={},
+        description="",
+    )
+    registry = mocker.Mock()
+    registry.get_by_id.return_value = provider
+    registry.get_all_statuses.return_value = []
+    facts = mocker.Mock()
+    raw_audit = mocker.Mock()
+    use_case = SyncValuationUseCase(
+        provider_repo=provider_repo,
+        provider_registry=registry,
+        fact_repo=facts,
+        raw_audit_repo=raw_audit,
+    )
+
+    with pytest.raises(
+        ProviderAssetIdentityError,
+        match="valuation provider asset identities mismatch",
+    ):
+        use_case.execute(
+            SyncValuationRequest(
+                provider_id=1,
+                asset_code="000001.SZ",
+                start=VAL_DATE,
+                end=VAL_DATE,
+            )
+        )
+
+    facts.bulk_upsert.assert_not_called()
+
+
+def test_strict_current_valuation_identity_rejects_substitution_before_fact_write() -> None:
+    class _Provider:
+        def provider_name(self) -> str:
+            return "provider-main"
+
+        def fetch_current_valuations(self, _asset_codes, _as_of_date) -> list[ValuationFact]:
+            return [_fact(asset_code="600000.SH")]
+
+    class _ProviderRepository:
+        def __init__(self) -> None:
+            self.config = ProviderConfig(
+                id=1,
+                name="provider-main",
+                source_type="tushare",
+                is_active=True,
+                priority=1,
+                api_key="",
+                api_secret="",
+                http_url="",
+                api_endpoint="",
+                extra_config={},
+                description="",
+            )
+
+        def get_by_id(self, _provider_id: int):
+            return self.config
+
+        def save(self, config):
+            self.config = config
+            return config
+
+    class _Registry:
+        def get_by_id(self, _provider_id: int):
+            return _Provider()
+
+        def record_success(self, *_args) -> None:
+            return None
+
+        def record_failure(self, *_args) -> None:
+            return None
+
+    class _Facts:
+        def __init__(self) -> None:
+            self.saved: list[ValuationFact] = []
+
+        def bulk_upsert(self, facts: list[ValuationFact]) -> int:
+            self.saved.extend(facts)
+            return len(facts)
+
+    class _RawAudit:
+        def log(self, _audit) -> None:
+            return None
+
+    class _Publisher:
+        def __init__(self) -> None:
+            self.calls: list[list[ValuationFact]] = []
+
+        def execute(self, facts, *, provider_name: str):
+            self.calls.append(list(facts))
+            return None
+
+    facts = _Facts()
+    publisher = _Publisher()
+    use_case = SyncCurrentValuationBatchUseCase(
+        provider_repo=_ProviderRepository(),
+        provider_registry=_Registry(),
+        fact_repo=facts,
+        raw_audit_repo=_RawAudit(),
+        publication_publisher=publisher,
+    )
+
+    with pytest.raises(
+        ProviderAssetIdentityError,
+        match="valuation provider asset identities mismatch",
+    ):
+        use_case.execute(
+            provider_id=1,
+            asset_codes=["000001.SZ"],
+            as_of_date=VAL_DATE,
+            require_exact_asset_codes=True,
+        )
+
+    assert facts.saved == []
+    assert publisher.calls == []

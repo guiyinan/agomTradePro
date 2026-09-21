@@ -263,7 +263,10 @@ def sync_prices(request: Request) -> Response:
 def sync_quotes(request: Request) -> Response:
     serializer = SyncQuoteRequestSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    req = SyncQuoteRequest(**serializer.validated_data)
+    req = SyncQuoteRequest(
+        **serializer.validated_data,
+        require_exact_asset_codes=True,
+    )
     result = make_sync_quote_use_case().execute(req)
     return Response(result.to_dict())
 

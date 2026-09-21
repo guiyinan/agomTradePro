@@ -496,6 +496,7 @@ class RepairDecisionDataReliabilityUseCase:
                     SyncQuoteRequest(
                         provider_id=quote_provider.id,
                         asset_codes=asset_codes,
+                        require_exact_asset_codes=True,
                     )
                 )
                 details["quote_sync"] = quote_sync_result.to_dict()

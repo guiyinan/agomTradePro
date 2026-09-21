@@ -107,6 +107,7 @@ def _sync_scope_quotes(asset_codes: list[str]) -> dict[str, Any]:
             SyncQuoteRequest(
                 provider_id=provider.id,
                 asset_codes=normalized_codes,
+                require_exact_asset_codes=True,
             )
         )
     except Exception as exc:

@@ -32,6 +32,7 @@ from apps.data_center.domain.protocols import (
     ValuationFactRepositoryProtocol,
 )
 
+from .batch_identity import ProviderAssetIdentityError, require_single_asset_identity
 from .provider_health_recorder import persist_provider_health_metric
 from .publication_sync import (
     PublishFinancialBatchUseCase,
@@ -65,6 +66,7 @@ RECOVERABLE_DATA_CENTER_EXCEPTIONS = (
     TimeoutError,
     TypeError,
     ValueError,
+    ProviderAssetIdentityError,
 )
 
 
@@ -406,6 +408,11 @@ class SyncValuationUseCase(_BaseSyncUseCase):
                 facts,
                 source_type=config.source_type,
                 provider_name=provider.provider_name(),
+            )
+            require_single_asset_identity(
+                requested_asset_code=request.asset_code,
+                returned_asset_codes=[fact.asset_code for fact in facts],
+                label="valuation",
             )
             stored_count = self._facts.bulk_upsert(facts)
             if self._publication_publisher is not None and facts:

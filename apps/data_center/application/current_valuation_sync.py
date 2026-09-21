@@ -14,6 +14,7 @@ from apps.data_center.domain.protocols import (
     ValuationFactRepositoryProtocol,
 )
 
+from .batch_identity import require_exact_asset_identities
 from .publication_sync import PublishValuationBatchUseCase
 from .sync_use_cases import RECOVERABLE_DATA_CENTER_EXCEPTIONS, _BaseSyncUseCase
 
@@ -39,6 +40,7 @@ class SyncCurrentValuationBatchUseCase(_BaseSyncUseCase):
         provider_id: int,
         asset_codes: list[str],
         as_of_date: date,
+        require_exact_asset_codes: bool = False,
     ) -> SyncValuationBatchResult:
         """Fetch and store one current valuation row per available asset."""
 
@@ -56,6 +58,12 @@ class SyncCurrentValuationBatchUseCase(_BaseSyncUseCase):
                 dataclasses.replace(fact, source=str(fact.source or config.source_type).strip())
                 for fact in facts
             ]
+            if require_exact_asset_codes:
+                require_exact_asset_identities(
+                    requested_asset_codes=asset_codes,
+                    returned_asset_codes=[fact.asset_code for fact in facts],
+                    label="valuation",
+                )
             stored_count = self._facts.bulk_upsert(facts)
             if self._publication_publisher is not None and facts:
                 self._publication_publisher.execute(

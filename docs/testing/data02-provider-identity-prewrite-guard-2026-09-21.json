@@ -1,0 +1,133 @@
+{
+  "schema_version": "data02-provider-identity-prewrite-guard.v1",
+  "generated_at": "2026-09-21T11:18:29.680928Z",
+  "candidate": {
+    "branch": "dev/next-development",
+    "baseline_commit": "2b79a6c4f761017efd45724feb5d0e0f5de897c5",
+    "commit": "containing_git_commit"
+  },
+  "scope": "Reject mismatched provider asset identities before quote, current-valuation or single-asset valuation fact mutation and preserve stable DATA-02 failure evidence.",
+  "production_claim": false,
+  "production_actions": {
+    "deployment": false,
+    "provider_fetch": false,
+    "database_write": false,
+    "publication_switch": false
+  },
+  "implemented_contract": [
+    "A shared Application guard uses the Domain normalize_asset_code rule for requested identities and requires provider facts to arrive in canonical numeric-code/exchange form.",
+    "Exact batch validation rejects missing, duplicate, substituted, extra, invalid, blank and non-string identities before quote or current-valuation bulk_upsert.",
+    "Single-asset valuation accepts zero rows or repeated time-series rows only when every row carries the exact requested canonical identity.",
+    "DATA-02 resumable backfill, scheduled full-market refresh, current-fact remediation, generic quote API, decision repair, decision sync and on-demand quote paths enable strict validation.",
+    "ProviderAssetIdentityError carries the stable PROVIDER_ASSET_IDENTITY_MISMATCH code and is recorded as provider_asset_identity_mismatch in failed item attempts.",
+    "Identity failure never calls the fact repository or publication publisher and leaves the resumable checkpoint at the current offset.",
+    "Generic quote API compatibility remains explicit through server-selected strict mode; the client cannot disable the guard."
+  ],
+  "independent_review": {
+    "reviewer": "gpt-5.6-luna",
+    "reasoning_effort": "max",
+    "initial_result": "No P0 in strict DATA-02 batch paths; four P1 gaps were identified.",
+    "resolved_before_commit": [
+      "Generic quote API now forces exact validation.",
+      "Single-asset valuation validates every returned time-series fact before mutation.",
+      "The guard reuses Domain asset-code normalization and rejects uncanonicalized provider aliases.",
+      "A structured error code maps to durable failed item attempts and a non-advancing checkpoint.",
+      "Current-data governance now checks pre-write markers and no-residual tests.",
+      "An actual SQLite API/repository test proves a substituted quote leaves no fact row and returns the structured error code."
+    ],
+    "retained_open_gates": [
+      "PostgreSQL zero-residual evidence with existing-row preservation remains required.",
+      "PostgreSQL concurrent item-attempt begin/recovery/finish evidence remains required.",
+      "A 5,533-asset scale run and any needed bulk persistence optimization remain required.",
+      "Policy-hash-bound numeric reconciliation tolerance evidence remains required.",
+      "Genuine current production authority and explicit production-write authorization remain required."
+    ],
+    "accepted_scope": "Repository pre-write guard checkpoint only; DATA-02 remains awaiting_production and no production completion is claimed."
+  },
+  "validation": {
+    "affected_tests": {
+      "result": "passed",
+      "passed": 131,
+      "duration_seconds": 468.71,
+      "scope": [
+        "batch identity guard",
+        "audited quote sync",
+        "valuation publication and sync",
+        "resumable core backfill",
+        "current fact remediation",
+        "market publication refresh",
+        "on-demand data center",
+        "decision reliability repair command"
+      ],
+      "log": "docs/testing/data02-provider-identity-prewrite-guard-2026-09-21.txt"
+    },
+    "incremental_mypy": {
+      "result": "passed",
+      "files": 13,
+      "regressions": 0,
+      "legacy_errors_observed": 0
+    },
+    "mypy_debt_ceiling": {
+      "result": "passed",
+      "errors": 0,
+      "files_with_errors": 0
+    },
+    "migration_drift": {
+      "result": "passed",
+      "detail": "No changes detected in app 'data_center'"
+    },
+    "django_system_check": {
+      "result": "passed",
+      "issues": 0
+    },
+    "format_and_lint": {
+      "result": "passed",
+      "ruff_files": 20,
+      "black_files": 20,
+      "isort_files": 20
+    },
+    "architecture": {
+      "result": "passed",
+      "changed_files": 12,
+      "added_lines": 68,
+      "scanned_files": 3216,
+      "boundary_violations": 0
+    },
+    "current_data_contracts": {
+      "result": "passed",
+      "surfaces": 63
+    },
+    "celery_task_contracts": {
+      "result": "passed",
+      "registered_tasks": 92,
+      "exemptions": 21,
+      "governed_files": 23
+    },
+    "governance": {
+      "result": "passed",
+      "registry_version": "2026-09-21.v149",
+      "violations": 0
+    },
+    "sqlite_repository_zero_residual": {
+      "result": "passed",
+      "passed": 1,
+      "duration_seconds": 187.71,
+      "assertion": "Substituted quote returned HTTP 422 with PROVIDER_ASSET_IDENTITY_MISMATCH, persisted one error audit and zero quote facts."
+    },
+    "total_passed_tests": 132
+  },
+  "governance": {
+    "registry_transition": "2026-09-21.v148 -> 2026-09-21.v149",
+    "unit": "DATA-02",
+    "status_before": "awaiting_production",
+    "status_after": "awaiting_production",
+    "reason": "Provider identity mismatch now fails before affected fact mutation, while actual PostgreSQL repository/concurrency evidence, scale, numeric tolerance and genuine production authority remain open."
+  },
+  "remaining_repository_gates": [
+    "Prove zero residual inserts and unchanged existing rows with the actual PostgreSQL repository.",
+    "Prove concurrent begin, active-lease exclusion, interrupted recovery and terminal immutability on PostgreSQL.",
+    "Measure and, if needed, bulk-optimize full-universe attempt persistence at 5,533 assets.",
+    "Produce policy-hash-bound numeric tolerance evidence for all four frozen Publications.",
+    "Obtain genuine current production authority and explicit authorization before any provider or production write."
+  ]
+}

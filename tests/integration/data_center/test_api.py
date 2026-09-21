@@ -297,6 +297,51 @@ def test_sync_quotes_endpoint_persists_snapshot_and_raw_audit(admin_client, mock
 
 
 @pytest.mark.django_db
+def test_sync_quotes_identity_mismatch_leaves_no_fact_row(admin_client, mocker):
+    """The strict API guard records failure but never persists the substituted quote."""
+
+    class _SubstitutingProvider(_StubProvider):
+        def fetch_quote_snapshots(self, _asset_codes):
+            from apps.data_center.domain.entities import QuoteSnapshot
+
+            return [
+                QuoteSnapshot(
+                    asset_code="600000.SH",
+                    snapshot_at=datetime(2025, 3, 1, 9, 30, tzinfo=UTC),
+                    current_price=12.34,
+                    source="stub-provider",
+                )
+            ]
+
+    class _SubstitutingRegistry(_StubRegistry):
+        def get_by_id(self, _provider_id):
+            return _SubstitutingProvider()
+
+    _install_canonical_audit_writers(mocker)
+    provider = ProviderConfigModel.objects.create(
+        name="stub-provider",
+        source_type="tushare",
+        is_active=True,
+        priority=1,
+    )
+    mocker.patch(
+        "apps.data_center.application.interface_services._get_provider_registry",
+        return_value=_SubstitutingRegistry(),
+    )
+
+    response = admin_client.post(
+        "/api/data-center/sync/quotes/",
+        data=json.dumps({"provider_id": provider.id, "asset_codes": ["000001.SZ"]}),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "PROVIDER_ASSET_IDENTITY_MISMATCH"
+    assert QuoteSnapshotModel.objects.count() == 0
+    assert RawAuditModel.objects.filter(capability="realtime_quote", status="error").count() == 1
+
+
+@pytest.mark.django_db
 def test_sync_fund_nav_endpoint_persists_fact_and_raw_audit(admin_client, mocker):
     _seed_publication_policy("fund.nav", ["source", "observed_at", "payload_hash"])
     provider = ProviderConfigModel.objects.create(

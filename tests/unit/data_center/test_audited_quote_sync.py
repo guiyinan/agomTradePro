@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import UTC, datetime
@@ -12,6 +13,7 @@ import pytest
 from apps.audit.application.data_fetch_audit import DataFetchAuditObservation
 from apps.audit.application.data_publication_audit import DataPublicationAuditObservation
 from apps.audit.domain.system_audit_event import AuditOutcome
+from apps.data_center.application.batch_identity import ProviderAssetIdentityError
 from apps.data_center.application.dtos import SyncQuoteRequest
 from apps.data_center.application.sync_identity import (
     SyncExecutionIdentity,
@@ -288,6 +290,33 @@ def _build(
 
 def _request() -> SyncQuoteRequest:
     return SyncQuoteRequest(provider_id=1, asset_codes=["000001.SZ"])
+
+
+def test_strict_asset_identity_rejects_provider_substitution_before_fact_write() -> None:
+    substituted = dataclasses.replace(_quote(), asset_code="600000.SH")
+    use_case, uow, writer, facts, raw, quality_recorder = _build(
+        [substituted],
+        publisher=_Publisher(),
+    )
+
+    with pytest.raises(
+        ProviderAssetIdentityError,
+        match="quote provider asset identities mismatch",
+    ):
+        use_case.execute(
+            SyncQuoteRequest(
+                provider_id=1,
+                asset_codes=["000001.SZ"],
+                require_exact_asset_codes=True,
+            )
+        )
+
+    assert facts.saved == []
+    assert writer.publication == []
+    assert quality_recorder.calls == []
+    assert raw.rows[-1].status == "error"
+    assert "facts" not in uow.events
+    assert uow.events[-1] == "commit"
 
 
 def test_success_correlates_quote_identity_raw_audit_and_publication_events() -> None:
