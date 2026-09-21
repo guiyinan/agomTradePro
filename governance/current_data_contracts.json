@@ -4644,6 +4644,8 @@
           "current_publication_rebuild_failed",
           "checkpoint = {**checkpoint, \"complete\": False}",
           "class BackfillAuthorityBinding:",
+          "active-a-share-universe.v1",
+          "expected_universe_hash and expected_universe_hash != observed_universe_hash",
           "\"authority\": services.authority_binding.to_checkpoint()",
           "services.revalidate_authority(services.current_time())",
           "quote_result.stored_asset_codes",
@@ -4687,6 +4689,7 @@
           "def _same_data02_task_authority_is_current(",
           "_BACKFILL_AUTHORITY_WINDOW = timedelta(seconds=3900)",
           "_BACKFILL_CURSOR_MAX_LENGTH = 500",
+          "universe_hash is required when offset is nonzero",
           "_FULL_MARKET_AUTHORITY_WINDOW = timedelta(seconds=2100)",
           "authority_binding=authority_binding",
           "revalidate_authority=revalidate_authority",
@@ -4700,7 +4703,8 @@
         "apps/data_center/management/commands/backfill_active_a_share_core_data.py": [
           "--execute is required for this production writer",
           "--operator must be a bounded canonical identity",
-          "operator=operator"
+          "operator=operator",
+          "universe_hash=universe_hash"
         ]
       },
       "required_tests": [
@@ -4923,6 +4927,26 @@
           "case": "resumable_backfill_authority_fits_durable_cursor",
           "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
           "test_function": "test_backfill_batch_blocks_oversized_authority_checkpoint_before_repository_access"
+        },
+        {
+          "case": "resumable_backfill_requires_frozen_universe_on_resume",
+          "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
+          "test_function": "test_backfill_resume_requires_frozen_universe_hash_before_repository_access"
+        },
+        {
+          "case": "resumable_backfill_blocks_universe_drift",
+          "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
+          "test_function": "test_backfill_resume_requires_same_frozen_universe_before_provider_access"
+        },
+        {
+          "case": "resumable_backfill_canonical_universe_identity",
+          "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
+          "test_function": "test_backfill_universe_hash_and_idempotency_ignore_query_order"
+        },
+        {
+          "case": "resumable_backfill_command_carries_frozen_universe",
+          "test_file": "tests/unit/data_center/test_core_data_backfill_command.py",
+          "test_function": "test_backfill_command_carries_frozen_universe_hash_between_batches"
         },
         {
           "case": "resumable_backfill_authority_head_bound_checkpoint",

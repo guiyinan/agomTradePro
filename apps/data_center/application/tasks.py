@@ -667,6 +667,7 @@ def backfill_active_a_share_core_data_batch_task(
     history_days: int = 756,
     financial_periods: int = 8,
     operator: str = "",
+    universe_hash: str = "",
 ) -> dict[str, Any]:
     """Backfill one resumable active-A-share core-data batch."""
 
@@ -711,6 +712,21 @@ def backfill_active_a_share_core_data_batch_task(
             or normalized_operator != raw_operator
         ):
             raise ValueError("operator must be a bounded canonical identity")
+        if not isinstance(universe_hash, str):
+            raise ValueError("universe_hash must be a string digest")
+        normalized_universe_hash = universe_hash.strip()
+        if normalized_universe_hash != universe_hash or (
+            normalized_universe_hash
+            and (
+                len(normalized_universe_hash) != 64
+                or any(
+                    character not in "0123456789abcdef" for character in normalized_universe_hash
+                )
+            )
+        ):
+            raise ValueError("universe_hash must be an exact lowercase sha256 digest")
+        if validated_offset > 0 and not normalized_universe_hash:
+            raise ValueError("universe_hash is required when offset is nonzero")
     except ValueError as exc:
         checkpoint = {
             "offset": 0,
@@ -751,6 +767,8 @@ def backfill_active_a_share_core_data_batch_task(
         "next_offset": validated_offset + validated_batch_size,
         "total_assets": 100_000,
         "complete": False,
+        "universe_hash": "f" * 64,
+        "observed_universe_hash": "e" * 64,
         "authority": authority_binding.to_checkpoint(),
     }
     encoded_checkpoint = json.dumps(
@@ -786,6 +804,7 @@ def backfill_active_a_share_core_data_batch_task(
         validated_history_days=validated_history_days,
         validated_periods=validated_periods,
         idempotency_key=idempotency_key,
+        expected_universe_hash=normalized_universe_hash,
         started_at=started_at,
         services=CoreDataBackfillServices(
             list_active_stock_codes=list_active_stock_codes_for_backfill,

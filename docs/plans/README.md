@@ -1,5 +1,10 @@
 # 活跃计划索引
 
+> 2026-09-21 DATA-02 冻结 universe 恢复绑定：首批 checkpoint 生成完整 active A-share universe
+> SHA-256，任何非零 offset 必须携带同一 hash；范围漂移在 provider lookup 前阻断，查询顺序不影响
+> hash 或幂等身份。聚焦 `57 passed`；[结构化证据](../testing/data02-frozen-universe-resume-binding-2026-09-21.json)，
+> [后续整改计划](data02-resumable-recovery-remediation-2026-09-21.md)。registry v146，DATA-02 仍 awaiting_production。
+
 > 2026-09-21 DATA-02 后台写入加固：可恢复 backfill 命令改为显式 execute，Celery 批次和定时
 > 全市场刷新在任何 repository/provider 访问前绑定 current authority，覆盖硬时限并在 cursor 推进前
 > 复核同一 authority head；quote/valuation returned 与 succeeded 身份均须唯一且精确匹配。

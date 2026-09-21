@@ -29,6 +29,11 @@ class Command(BaseCommand):
             help="Server-issued actor identity required with --execute.",
         )
         parser.add_argument("--resume-offset", type=int, default=0)
+        parser.add_argument(
+            "--universe-hash",
+            default="",
+            help="Frozen universe SHA-256 required when resuming a nonzero offset.",
+        )
         parser.add_argument("--batch-size", type=int, default=50)
         parser.add_argument("--source", default="tushare")
         parser.add_argument("--history-days", type=int, default=756)
@@ -49,6 +54,7 @@ class Command(BaseCommand):
         ):
             raise CommandError("--operator must be a bounded canonical identity")
         offset = int(options["resume_offset"])
+        universe_hash = str(options.get("universe_hash") or "")
         max_batches = int(options["max_batches"])
         if max_batches < 0:
             raise CommandError("--max-batches cannot be negative")
@@ -61,6 +67,7 @@ class Command(BaseCommand):
                 history_days=int(options["history_days"]),
                 financial_periods=int(options["financial_periods"]),
                 operator=operator,
+                universe_hash=universe_hash,
             )
             self.stdout.write(json.dumps(result, ensure_ascii=False, sort_keys=True))
             outcome = str(result.get("outcome") or "failed")
@@ -76,6 +83,7 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS("Active A-share core-data backfill complete."))
                 return
             offset = int(checkpoint.get("next_offset", offset))
+            universe_hash = str(checkpoint.get("universe_hash") or "")
             batches_run += 1
             if max_batches and batches_run >= max_batches:
                 self.stdout.write(

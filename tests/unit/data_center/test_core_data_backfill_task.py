@@ -1,5 +1,6 @@
 """Active A-share core-data backfill task outcome contracts."""
 
+import hashlib
 import json
 from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
@@ -11,6 +12,19 @@ from apps.data_center.application.tasks import (
 )
 
 AUTHORITY_HASH = "a" * 64
+
+
+def _universe_hash(*asset_codes: str) -> str:
+    payload = json.dumps(
+        {
+            "schema": "active-a-share-universe.v1",
+            "asset_codes": sorted(asset_codes),
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 @pytest.fixture(autouse=True)
@@ -299,6 +313,7 @@ def test_backfill_batch_reports_all_success_with_checkpoint(mocker) -> None:
         "next_offset": 2,
         "total_assets": 2,
         "complete": True,
+        "universe_hash": mocker.ANY,
         "authority": {
             "actor_id": "service:data02",
             "tenant_id": "tenant:production",
@@ -309,6 +324,113 @@ def test_backfill_batch_reports_all_success_with_checkpoint(mocker) -> None:
     }
     factory.assert_called_once_with(created_by="celery.core_data_backfill:service:data02")
     coordinator.execute.assert_called_once()
+
+
+def test_backfill_resume_requires_frozen_universe_hash_before_repository_access(
+    mocker,
+) -> None:
+    """A nonzero cursor cannot be interpreted against an unbound live universe."""
+
+    universe = mocker.patch(
+        "apps.data_center.application.tasks.list_active_stock_codes_for_backfill"
+    )
+
+    result = backfill_active_a_share_core_data_batch_task.run(offset=1)
+
+    assert result["outcome"] == "failed"
+    assert result["stage"] == "input"
+    assert "universe_hash" in result["error"]
+    universe.assert_not_called()
+
+
+def test_backfill_resume_requires_same_frozen_universe_before_provider_access(mocker) -> None:
+    """A changed universe blocks the saved offset before any provider access."""
+
+    _patch_backfill_dependencies(mocker)
+    provider = mocker.patch("apps.data_center.application.tasks.get_active_provider_id_by_source")
+
+    result = backfill_active_a_share_core_data_batch_task.run(
+        offset=1,
+        universe_hash="f" * 64,
+    )
+
+    assert result["outcome"] == "blocked"
+    assert result["stage"] == "universe"
+    assert result["blocked_reason"] == "universe_hash_mismatch"
+    assert result["checkpoint"]["next_offset"] == 1
+    assert result["checkpoint"]["complete"] is False
+    assert result["checkpoint"]["universe_hash"] == "f" * 64
+    assert result["checkpoint"]["observed_universe_hash"] != "f" * 64
+    provider.assert_not_called()
+
+
+def test_backfill_resume_accepts_exact_frozen_universe_hash(mocker) -> None:
+    """The initial checkpoint hash is sufficient to resume the next exact slice."""
+
+    _patch_backfill_dependencies(mocker)
+
+    first = backfill_active_a_share_core_data_batch_task.run(batch_size=1)
+    second = backfill_active_a_share_core_data_batch_task.run(
+        offset=1,
+        batch_size=1,
+        universe_hash=first["checkpoint"]["universe_hash"],
+    )
+
+    assert first["checkpoint"]["complete"] is False
+    assert second["outcome"] == "success"
+    assert second["checkpoint"]["complete"] is True
+    assert second["checkpoint"]["universe_hash"] == first["checkpoint"]["universe_hash"]
+
+
+@pytest.mark.parametrize(
+    "asset_codes",
+    [
+        ["", "002156.SZ"],
+        ["000001.SZ", "000001.SZ"],
+        [123, "002156.SZ"],
+    ],
+)
+def test_backfill_blocks_invalid_active_universe_before_provider_access(
+    mocker,
+    asset_codes,
+) -> None:
+    """Blank or duplicate identities cannot define an offset-bearing universe."""
+
+    mocker.patch(
+        "apps.data_center.application.tasks.list_active_stock_codes_for_backfill",
+        return_value=asset_codes,
+    )
+    provider = mocker.patch("apps.data_center.application.tasks.get_active_provider_id_by_source")
+
+    result = backfill_active_a_share_core_data_batch_task.run()
+
+    assert result["outcome"] == "blocked"
+    assert result["stage"] == "universe"
+    assert result["blocked_reason"] == "invalid_active_universe"
+    provider.assert_not_called()
+
+
+def test_backfill_universe_hash_and_idempotency_ignore_query_order(
+    mocker,
+    _patch_control_plane_repositories,
+) -> None:
+    """Equivalent universes converge on one canonical hash and durable batch."""
+
+    _patch_backfill_dependencies(mocker)
+    mocker.patch(
+        "apps.data_center.application.tasks.list_active_stock_codes_for_backfill",
+        side_effect=[
+            ["002156.SZ", "000001.SZ"],
+            ["000001.SZ", "002156.SZ"],
+        ],
+    )
+
+    first = backfill_active_a_share_core_data_batch_task.run(batch_size=2)
+    second = backfill_active_a_share_core_data_batch_task.run(batch_size=2)
+
+    assert first["checkpoint"]["universe_hash"] == second["checkpoint"]["universe_hash"]
+    batch_saves = _patch_control_plane_repositories["batch"].save.call_args_list
+    assert batch_saves[-2].args[0].idempotency_key == batch_saves[-1].args[0].idempotency_key
 
 
 def test_backfill_batch_persists_stable_run_batch_and_cursor_on_retry(
@@ -511,7 +633,10 @@ def test_backfill_batch_returns_noop_after_checkpoint_completion(mocker) -> None
         return_value=["002156.SZ"],
     )
 
-    result = backfill_active_a_share_core_data_batch_task.run(offset=1)
+    result = backfill_active_a_share_core_data_batch_task.run(
+        offset=1,
+        universe_hash=_universe_hash("002156.SZ"),
+    )
 
     assert result["outcome"] == "noop"
     assert result["checkpoint"]["complete"] is True

@@ -1,0 +1,31 @@
+.........................................................                [100%]
+57 passed in 2.67s
+
+PostgreSQL component control-plane tests
+..ss                                                                     [100%]
+2 passed, 2 skipped in 594.38s (0:09:54)
+
+Incremental mypy
+Success: no issues found in 3 source files
+Mypy regressions: 0 (legacy errors observed: 0)
+
+Full mypy debt ceiling
+Full mypy debt ceiling passed: 0 errors in 0 files
+
+Current-data contracts
+Current-data freshness contracts OK: 63 surface(s)
+
+Active plan registry
+active-plan-registry version=2026-09-21.v146 workstreams=9 primary=18 support=32 review=0 units=54 paths=50 violations=0
+
+Governance
+Governance baseline version: 2026-09-09.v220
+Governance violations: 0
+
+Architecture
+Architecture rules OK: scanned 3212 Python files, violations=0
+
+Format and lint
+Black: 5 files would be left unchanged.
+isort: passed for 5 files.
+Ruff: All checks passed for 5 files.

@@ -651,6 +651,7 @@ python manage.py backfill_active_a_share_core_data \
   --execute \
   --operator <server-issued-actor> \
   --resume-offset <verified-offset> \
+  --universe-hash <checkpoint-universe-sha256> \
   --batch-size 50 \
   --source <approved-provider> \
   --history-days 756 \

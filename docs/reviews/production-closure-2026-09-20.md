@@ -150,3 +150,17 @@ DATA-02 仍为 awaiting_production。上一份 v144 证据对“all execute path
 身份结果也在底层 fact 写入后才返回；当前门禁能阻止错误批次发布，但不能证明错误 fact 零残留。
 因此不得仅凭批次数量关闭 DATA-02，下一独立仓库单元须先补这些证据，再执行任何获批生产批次。
 本次未部署、未调用 provider、未写生产、未切换 Publication。
+
+## DATA-02 冻结 universe 恢复绑定（2026-09-21）
+
+可恢复 backfill 过去只保存 numeric offset；若 active universe 在批次间增删或排序改变，旧 offset
+可能跳过或重复资产。现将完整 universe 规范化、拒绝空白/重复、排序后按 canonical JSON 计算
+SHA-256。首批 checkpoint 和 durable idempotency identity 同时绑定该 hash；任何非零 offset 必须
+携带上一 checkpoint 的精确小写 digest，live universe 不一致时在 provider lookup 前以
+`universe_hash_mismatch` 阻断并保持原 offset。管理命令会自动把首批 hash 传给后续批次。
+
+聚焦回归 `57 passed`；结构化证据见
+[DATA-02 冻结 universe 恢复绑定](../testing/data02-frozen-universe-resume-binding-2026-09-21.json)，
+分阶段整改见[恢复证据计划](../plans/data02-resumable-recovery-remediation-2026-09-21.md)。registry
+v145 → v146，DATA-02 仍为 awaiting_production。完整 failure-item/retry 耐久化、provider 身份校验
+的写前/事务回滚，以及四 Publication 数值容差对账仍未完成。本次没有生产访问或写入。

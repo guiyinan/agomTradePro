@@ -1,0 +1,103 @@
+{
+  "schema_version": "data02-frozen-universe-resume-binding.v1",
+  "generated_at": "2026-09-21T05:55:32.009856Z",
+  "candidate": {
+    "branch": "dev/next-development",
+    "baseline_commit": "5a2295cd88ecd1425dd3da04ba79729f3a513476",
+    "commit": "containing_git_commit"
+  },
+  "scope": "Bind every nonzero DATA-02 backfill cursor to one canonical active-A-share universe identity.",
+  "production_claim": false,
+  "production_actions": {
+    "deployment": false,
+    "provider_fetch": false,
+    "database_write": false,
+    "publication_switch": false
+  },
+  "failing_first_observation": {
+    "raw_log_persisted": false,
+    "result": "5 failed before implementation",
+    "covered_failures": [
+      "nonzero offset accepted without a frozen universe hash",
+      "mismatched universe hash reached provider lookup",
+      "initial checkpoint omitted universe_hash",
+      "management command did not pass universe_hash",
+      "management command did not carry the first hash into the next batch"
+    ],
+    "limitation": "The failing-first terminal output was observed but not redirected; no timestamp or output was reconstructed."
+  },
+  "implemented_contract": [
+    "The live universe is normalized to uppercase, rejects blanks and duplicates, and is sorted before hashing.",
+    "The SHA-256 input is canonical JSON with schema active-a-share-universe.v1 and the complete ordered asset list.",
+    "Every checkpoint contains universe_hash; the durable batch idempotency digest also binds the same full hash.",
+    "Any nonzero offset requires an exact lowercase SHA-256 supplied from the preceding checkpoint.",
+    "A different live universe blocks before provider lookup, preserves the original bound hash, records the newly observed hash separately, resets next_offset to the current offset and persists an explicit universe_hash_mismatch control-plane outcome.",
+    "The synchronous management command carries the first checkpoint hash into each later batch automatically.",
+    "Equivalent query order converges on the same hash and idempotency identity."
+  ],
+  "independent_review": {
+    "reviewer": "gpt-5.6-luna",
+    "reasoning_effort": "max",
+    "resolved_before_commit": [
+      "A mismatch checkpoint preserves the original bound hash instead of replacing it with the newly observed hash.",
+      "The newly observed hash is recorded separately for diagnosis.",
+      "The Application boundary validates expected hash format independently of the Celery adapter.",
+      "Non-string universe members are rejected instead of being silently stringified."
+    ],
+    "next_recommended_unit": "Add append-only item-attempt durability instead of expanding the 500-character aggregate cursor."
+  },
+  "validation": {
+    "focused_unit_tests": {
+      "result": "passed",
+      "count": 57,
+      "duration_seconds": 2.67,
+      "log": "docs/testing/data02-frozen-universe-resume-binding-2026-09-21.txt"
+    },
+    "postgresql_component_tests": {
+      "result": "passed_with_expected_skips",
+      "passed": 2,
+      "skipped": 2,
+      "duration_seconds": 594.38,
+      "skip_reason": "PostgreSQL-only contention assertions remain skipped when the configured test database is not PostgreSQL."
+    },
+    "incremental_mypy": {
+      "result": "passed",
+      "files": 3,
+      "regressions": 0,
+      "legacy_errors_observed": 0
+    },
+    "mypy_debt_ceiling": {
+      "result": "passed",
+      "errors": 0,
+      "files_with_errors": 0
+    },
+    "current_data_contracts": {
+      "result": "passed",
+      "surfaces": 63
+    },
+    "format_and_lint": {
+      "result": "passed",
+      "black_files": 5,
+      "isort_files": 5,
+      "ruff_files": 5
+    },
+    "architecture_and_governance": {
+      "result": "passed",
+      "architecture_files": 3212,
+      "boundary_violations": 0,
+      "governance_violations": 0
+    }
+  },
+  "governance": {
+    "registry_transition": "2026-09-21.v145 -> 2026-09-21.v146",
+    "unit": "DATA-02",
+    "status_before": "awaiting_production",
+    "status_after": "awaiting_production",
+    "reason": "Resume offsets are now universe-bound, while full failure-item durability, pre-mutation identity rollback and four-Publication tolerance reconciliation remain open."
+  },
+  "remaining_repository_gates": [
+    "Persist complete failed-symbol, domain, attempt, phase, retry-target and stop-reason evidence outside the bounded cursor.",
+    "Validate provider identities before fact mutation or rollback the whole mutation on mismatch.",
+    "Produce policy-hash-bound numeric tolerance evidence for all four frozen Publications."
+  ]
+}
