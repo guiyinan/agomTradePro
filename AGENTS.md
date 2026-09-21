@@ -150,7 +150,7 @@ pytest tests/unit/test_internal_ssl_redirect.py -q
 
 ## 8. Git 与工作拆分
 
-- `main` 保持稳定；日常开发分支使用 `dev/<type>-<scope>-<description>`，不要使用 `codex/` 前缀。
+- `main` 保持稳定；日常开发统一直接在长期分支 `dev/next-development` 上进行。除非用户另行要求，不再创建其他 `dev/*` 或 `codex/*` 分支；工作拆分使用独立 commit。
 - Commit 格式为 `<type>: <summary>`，主题使用简短英文；一个 commit 尽量只解决一件事。
 - 不得无边界混合功能实现、架构重构、部署修复和治理文档。`terminal/tui`、`agent_runtime/sdk/mcp`、`deploy/vps`、`governance/docs` 应优先拆成独立主线或 commit 组。
 - 一条主线连续两个以上提交仍在扩展边界时，补阶段 plan/remediation 文档，记录目标、已完成、剩余、回归范围、风险和回滚点。
@@ -167,4 +167,3 @@ pytest tests/unit/test_internal_ssl_redirect.py -q
 
 - Python 虚拟环境名为 `agomtradepro`。
 - PowerShell 脚本内容使用英文。
-
