@@ -1,5 +1,11 @@
 # 活跃计划索引
 
+> 2026-09-21 DATA-02 后台写入加固：可恢复 backfill 命令改为显式 execute，Celery 批次和定时
+> 全市场刷新在任何 repository/provider 访问前绑定 current authority，覆盖硬时限并在 cursor 推进前
+> 复核同一 authority head；quote/valuation returned 与 succeeded 身份均须唯一且精确匹配。
+> 聚焦 `49 passed`，PostgreSQL 组件 `2 passed / 2 skipped`；[结构化证据](../testing/data02-background-writer-hardening-2026-09-21.json)。
+> registry v145，DATA-02 仍 awaiting_production；完整 failed-symbol/retry 耐久证据仍是下一仓库门。
+
 > 2026-09-21 DATA-02 仓库写路径加固：canonical current authority 已覆盖事实刷新和独立四 Publication rebuild；
 > execute operator 绑定服务器 actor，长批次重复预检，quote/valuation 核对精确资产集合。聚焦 120 tests passed。
 > [结构化证据](../testing/data02-authority-and-batch-preflight-hardening-2026-09-21.json)。registry v144，

@@ -1,6 +1,6 @@
 """Full-market snapshots must never publish an intermediate or failed batch."""
 
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
@@ -10,6 +10,29 @@ from apps.data_center.application.market_publication_refresh import (
     refresh_market_publications,
 )
 from core.exceptions import DataFetchError
+
+
+@pytest.fixture(autouse=True)
+def _patch_current_authority(monkeypatch):
+    """Bind task-path tests to one current server-issued authority."""
+
+    from types import SimpleNamespace
+
+    from apps.data_center.application import tasks
+
+    context = SimpleNamespace(
+        actor_id="service:market-refresh",
+        tenant_id="tenant:production",
+        owner_id="owner:production",
+        authority_content_hash="b" * 64,
+        authority_valid_until=datetime.now(UTC) + timedelta(hours=1),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "preflight_data_reliability_audit_runtime",
+        lambda **_: context,
+    )
+    return context
 
 
 def run(*, quote_count=None, publish_error=False, empty=False):
@@ -109,6 +132,111 @@ def test_task_calendar_unavailable_is_blocked(monkeypatch):
     assert result["stored"] == 0
 
 
+def test_task_blocks_without_current_authority_before_provider_access(monkeypatch):
+    """Scheduled market writes require the canonical current Audit authority."""
+
+    from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
+    from apps.data_center.application import tasks
+
+    def unavailable(**_):
+        raise SystemAuditCompositionUnavailable(
+            "unavailable",
+            reason_code="authority_unavailable",
+        )
+
+    monkeypatch.setattr(tasks, "preflight_data_reliability_audit_runtime", unavailable)
+    provider = monkeypatch.setattr(
+        tasks,
+        "get_active_provider_id_by_source",
+        lambda _: pytest.fail("provider IO"),
+    )
+
+    result = tasks.refresh_full_market_publications_task.run()
+
+    assert provider is None
+    assert result["outcome"] == "blocked"
+    assert result["blocked_reason"] == "system_audit_authority_unavailable"
+    assert result["stored"] == 0
+
+
+def test_task_blocks_authority_window_shorter_than_task_budget(
+    monkeypatch,
+    _patch_current_authority,
+):
+    """A scheduled refresh cannot outlive the authority used to start it."""
+
+    from apps.data_center.application import tasks
+
+    _patch_current_authority.authority_valid_until = datetime.now(UTC) + timedelta(minutes=10)
+    monkeypatch.setattr(
+        tasks,
+        "get_active_provider_id_by_source",
+        lambda _: pytest.fail("provider IO"),
+    )
+
+    result = tasks.refresh_full_market_publications_task.run()
+
+    assert result["outcome"] == "blocked"
+    assert result["blocked_reason"] == "authority_window_too_short"
+    assert result["stored"] == 0
+
+
+def test_task_stops_before_provider_when_current_authority_head_changes(monkeypatch):
+    """A scheduled batch must not continue under a successor authority head."""
+
+    from types import SimpleNamespace
+
+    from apps.data_center.application import tasks
+
+    initial = SimpleNamespace(
+        actor_id="service:market-refresh",
+        tenant_id="tenant:production",
+        owner_id="owner:production",
+        authority_content_hash="b" * 64,
+        authority_valid_until=datetime.now(UTC) + timedelta(hours=1),
+    )
+    changed = SimpleNamespace(
+        actor_id=initial.actor_id,
+        tenant_id=initial.tenant_id,
+        owner_id=initial.owner_id,
+        authority_content_hash="c" * 64,
+        authority_valid_until=initial.authority_valid_until,
+    )
+    contexts = iter((initial, changed))
+    monkeypatch.setattr(
+        tasks,
+        "preflight_data_reliability_audit_runtime",
+        lambda **_: next(contexts),
+    )
+    monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda _: 3)
+    monkeypatch.setattr(tasks, "latest_completed_cn_market_session", lambda _: date(2026, 9, 18))
+    monkeypatch.setattr(
+        tasks,
+        "list_active_stock_codes_for_backfill",
+        lambda: ["000001.SZ"],
+    )
+    quote = SimpleNamespace(
+        execute=lambda *_args, **_kwargs: pytest.fail("quote provider called after authority drift")
+    )
+    monkeypatch.setattr(tasks, "make_backfill_sync_quote_use_case", lambda: quote)
+    monkeypatch.setattr(
+        tasks,
+        "make_backfill_sync_current_valuation_batch_use_case",
+        lambda: SimpleNamespace(execute=lambda **_: pytest.fail("valuation provider called")),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "make_core_current_publication_rebuild_use_case",
+        lambda **_: SimpleNamespace(preview=lambda **_: pytest.fail("publication preview called")),
+    )
+
+    result = tasks.refresh_full_market_publications_task.run(batch_size=1)
+
+    assert result["outcome"] == "blocked"
+    assert result["blocked_reason"] == "authority_changed_or_expired"
+    assert result["stored"] == 0
+
+
 def test_audit_configuration_blocks_before_market_fetch(monkeypatch):
     from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
     from apps.data_center.application import tasks
@@ -139,7 +267,14 @@ def test_task_does_not_publish_stale_quotes_even_when_all_rows_were_stored(monke
     monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda _: 3)
     monkeypatch.setattr(tasks, "latest_completed_cn_market_session", lambda _: date(2026, 9, 18))
     monkeypatch.setattr(tasks, "list_active_stock_codes_for_backfill", lambda: ["000001.SZ"])
-    sync = SimpleNamespace(execute=lambda *_, **kwargs: SimpleNamespace(stored_count=1))
+    sync = SimpleNamespace(
+        execute=lambda *_, **kwargs: SimpleNamespace(
+            stored_count=1,
+            stored_asset_codes=("000001.SZ",),
+            succeeded_asset_codes=("000001.SZ",),
+            returned_asset_codes=("000001.SZ",),
+        )
+    )
     monkeypatch.setattr(tasks, "make_backfill_sync_quote_use_case", lambda: sync)
     monkeypatch.setattr(tasks, "make_backfill_sync_current_valuation_batch_use_case", lambda: sync)
     preview = SimpleNamespace(
@@ -153,14 +288,79 @@ def test_task_does_not_publish_stale_quotes_even_when_all_rows_were_stored(monke
             )
         ],
     )
+    composition_calls = []
+
+    def build_publications(**kwargs):
+        composition_calls.append(kwargs)
+        return SimpleNamespace(
+            preview=lambda **_: preview, execute=lambda **_: pytest.fail("published stale scope")
+        )
+
+    monkeypatch.setattr(tasks, "make_core_current_publication_rebuild_use_case", build_publications)
+    result = tasks.refresh_full_market_publications_task.run()
+    assert result["outcome"] == "partial"
+    assert result["published_members"] == 0
+    assert composition_calls[0]["created_by"] == (
+        "celery.full_market_refresh:service:market-refresh"
+    )
+
+
+@pytest.mark.parametrize(
+    ("quote_codes", "valuation_succeeded_codes"),
+    [
+        (("000001.SZ", "000001.SZ"), ("000001.SZ", "000002.SZ")),
+        (("000001.SZ", "000002.SZ"), ("000001.SZ", "000001.SZ")),
+    ],
+)
+def test_task_rejects_duplicate_provider_asset_identities_before_publication(
+    monkeypatch,
+    quote_codes,
+    valuation_succeeded_codes,
+):
+    """A count-equal duplicate batch cannot reach full-market publication."""
+
+    from types import SimpleNamespace
+
+    from apps.data_center.application import tasks
+
+    monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda _: 3)
+    monkeypatch.setattr(tasks, "latest_completed_cn_market_session", lambda _: date(2026, 9, 18))
+    monkeypatch.setattr(
+        tasks,
+        "list_active_stock_codes_for_backfill",
+        lambda: ["000001.SZ", "000002.SZ"],
+    )
+    quote = SimpleNamespace(
+        execute=lambda *_args, **_kwargs: SimpleNamespace(
+            stored_count=2,
+            stored_asset_codes=quote_codes,
+        )
+    )
+    valuation = SimpleNamespace(
+        execute=lambda *_args, **_kwargs: SimpleNamespace(
+            stored_count=2,
+            succeeded_asset_codes=valuation_succeeded_codes,
+            returned_asset_codes=("000001.SZ", "000002.SZ"),
+        )
+    )
+    monkeypatch.setattr(tasks, "make_backfill_sync_quote_use_case", lambda: quote)
+    monkeypatch.setattr(
+        tasks,
+        "make_backfill_sync_current_valuation_batch_use_case",
+        lambda: valuation,
+    )
+    publication = SimpleNamespace(
+        preview=lambda **_: pytest.fail("duplicate quote batch reached preview"),
+        execute=lambda **_: pytest.fail("duplicate quote batch reached publication"),
+    )
     monkeypatch.setattr(
         tasks,
         "make_core_current_publication_rebuild_use_case",
-        lambda **_: SimpleNamespace(
-            preview=lambda **_: preview, execute=lambda **_: pytest.fail("published stale scope")
-        ),
+        lambda **_: publication,
     )
-    result = tasks.refresh_full_market_publications_task.run()
+
+    result = tasks.refresh_full_market_publications_task.run(batch_size=2)
+
     assert result["outcome"] == "partial"
     assert result["published_members"] == 0
 
@@ -229,7 +429,14 @@ def test_task_repairs_missing_price_scope_before_final_publication(monkeypatch):
     monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda _: 3)
     monkeypatch.setattr(tasks, "latest_completed_cn_market_session", lambda _: date(2026, 9, 18))
     monkeypatch.setattr(tasks, "list_active_stock_codes_for_backfill", lambda: ["000001.SZ"])
-    sync = SimpleNamespace(execute=lambda *_, **kwargs: SimpleNamespace(stored_count=1))
+    sync = SimpleNamespace(
+        execute=lambda *_, **kwargs: SimpleNamespace(
+            stored_count=1,
+            stored_asset_codes=("000001.SZ",),
+            succeeded_asset_codes=("000001.SZ",),
+            returned_asset_codes=("000001.SZ",),
+        )
+    )
     monkeypatch.setattr(tasks, "make_backfill_sync_quote_use_case", lambda: sync)
     monkeypatch.setattr(tasks, "make_backfill_sync_current_valuation_batch_use_case", lambda: sync)
     observed = datetime(2026, 9, 18, 7, tzinfo=UTC)

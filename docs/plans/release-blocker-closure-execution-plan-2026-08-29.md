@@ -648,6 +648,8 @@ python scripts/check_web_to_tui_cutover_readiness.py --json
 
 ```bash
 python manage.py backfill_active_a_share_core_data \
+  --execute \
+  --operator <server-issued-actor> \
   --resume-offset <verified-offset> \
   --batch-size 50 \
   --source <approved-provider> \

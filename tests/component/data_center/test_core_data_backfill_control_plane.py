@@ -1,6 +1,6 @@
 """Database wiring tests for the resumable A-share backfill control plane."""
 
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -12,6 +12,22 @@ from apps.data_center.infrastructure.models import (
     SyncCheckpointModel,
     SyncRunModel,
 )
+
+
+@pytest.fixture(autouse=True)
+def _patch_current_authority(mocker) -> None:
+    """Keep control-plane tests bound to one deterministic authority."""
+
+    mocker.patch(
+        "apps.data_center.application.tasks.preflight_data_reliability_audit_runtime",
+        return_value=SimpleNamespace(
+            actor_id="service:data02",
+            tenant_id="tenant:production",
+            owner_id="owner:production",
+            authority_content_hash="d" * 64,
+            authority_valid_until=datetime.now(UTC) + timedelta(hours=2),
+        ),
+    )
 
 
 class _FakeBackfillUseCase:
@@ -54,10 +70,16 @@ def _patch_fake_backfill_dependencies(mocker, *, failure_domain: str | None = No
     )
 
     use_cases = {
-        "quote": _FakeBackfillUseCase(SimpleNamespace(stored_count=1)),
+        "quote": _FakeBackfillUseCase(
+            SimpleNamespace(stored_count=1, stored_asset_codes=("000001.SZ",))
+        ),
         "price": _FakeBackfillUseCase(SimpleNamespace(stored_count=1)),
         "valuation": _FakeBackfillUseCase(
-            SimpleNamespace(stored_count=1, succeeded_asset_codes=["000001.SZ"])
+            SimpleNamespace(
+                stored_count=1,
+                succeeded_asset_codes=["000001.SZ"],
+                returned_asset_codes=("000001.SZ",),
+            )
         ),
         "financial": _FakeBackfillUseCase(SimpleNamespace(stored_count=1)),
     }
@@ -103,13 +125,17 @@ def test_backfill_persists_run_batch_and_checkpoint_rows(mocker) -> None:
     )
 
     quote_use_case = mocker.Mock()
-    quote_use_case.execute.return_value = SimpleNamespace(stored_count=1)
+    quote_use_case.execute.return_value = SimpleNamespace(
+        stored_count=1,
+        stored_asset_codes=("000001.SZ",),
+    )
     price_use_case = mocker.Mock()
     price_use_case.execute.return_value = SimpleNamespace(stored_count=1)
     valuation_use_case = mocker.Mock()
     valuation_use_case.execute.return_value = SimpleNamespace(
         stored_count=1,
         succeeded_asset_codes=["000001.SZ"],
+        returned_asset_codes=("000001.SZ",),
     )
     financial_use_case = mocker.Mock()
     financial_use_case.execute.return_value = SimpleNamespace(stored_count=1)

@@ -50,6 +50,28 @@ class RebuildCurrentPublications(Protocol):
         """Publish complete current snapshots or raise without partial commit."""
 
 
+@dataclass(frozen=True, slots=True)
+class BackfillAuthorityBinding:
+    """Server-issued authority identity persisted with every batch checkpoint."""
+
+    actor_id: str
+    tenant_id: str
+    owner_id: str
+    content_hash: str
+    valid_until: datetime
+
+    def to_checkpoint(self) -> dict[str, str]:
+        """Return the immutable, non-secret authority checkpoint projection."""
+
+        return {
+            "actor_id": self.actor_id,
+            "tenant_id": self.tenant_id,
+            "owner_id": self.owner_id,
+            "content_hash": self.content_hash,
+            "valid_until": self.valid_until.isoformat(),
+        }
+
+
 @dataclass(frozen=True)
 class CoreDataBackfillServices:
     """Injected ports and use-case factories for one backfill batch."""
@@ -65,6 +87,8 @@ class CoreDataBackfillServices:
     rebuild_current_publications: RebuildCurrentPublications
     published_count_from_result: Callable[[object], int]
     persist_control_plane: PersistBackfillControlPlane
+    authority_binding: BackfillAuthorityBinding
+    revalidate_authority: Callable[[datetime], bool]
 
 
 def run_active_a_share_core_data_backfill_batch(
@@ -89,6 +113,7 @@ def run_active_a_share_core_data_backfill_batch(
         "next_offset": next_offset,
         "total_assets": total_assets,
         "complete": next_offset >= total_assets,
+        "authority": services.authority_binding.to_checkpoint(),
     }
     if not batch_codes:
         services.persist_control_plane(
@@ -185,6 +210,15 @@ def run_active_a_share_core_data_backfill_batch(
     price_use_case = services.make_sync_price_use_case()
     valuation_batch_use_case = services.make_sync_valuation_batch_use_case()
     financial_use_case = services.make_sync_financial_use_case()
+    authority_current = True
+
+    def authority_allows_next_write() -> bool:
+        """Revalidate once at every write boundary and stay closed after drift."""
+
+        nonlocal authority_current
+        if authority_current:
+            authority_current = services.revalidate_authority(services.current_time())
+        return authority_current
 
     domain_counts: dict[str, dict[str, int]] = {
         name: {
@@ -199,11 +233,24 @@ def run_active_a_share_core_data_backfill_batch(
     errors: list[dict[str, str]] = []
     failed_asset_codes: set[str] = set()
     try:
+        if not authority_allows_next_write():
+            raise RuntimeError("current Audit authority changed before quote batch")
         quote_result = quote_use_case.execute(
             SyncQuoteRequest(provider_id=provider_id, asset_codes=batch_codes)
         )
         published_total += services.published_count_from_result(quote_result)
         quote_stored = int(quote_result.stored_count)
+        quote_asset_codes = tuple(
+            str(asset_code or "").strip().upper() for asset_code in quote_result.stored_asset_codes
+        )
+        if (
+            any(not asset_code for asset_code in quote_asset_codes)
+            or quote_stored != len(batch_codes)
+            or len(set(quote_asset_codes)) != len(quote_asset_codes)
+            or len(quote_asset_codes) != len(batch_codes)
+            or set(quote_asset_codes) != set(batch_codes)
+        ):
+            raise ValueError("quote batch asset identities are incomplete")
         domain_counts["quote"]["stored"] = quote_stored
         domain_counts["quote"]["succeeded"] = min(quote_stored, len(batch_codes))
         domain_counts["quote"]["failed"] = max(len(batch_codes) - quote_stored, 0)
@@ -212,13 +259,34 @@ def run_active_a_share_core_data_backfill_batch(
         errors.append({"domain": "quote", "asset_code": "batch", "error": "sync_failed"})
 
     try:
+        if not authority_allows_next_write():
+            raise RuntimeError("current Audit authority changed before valuation batch")
         valuation_result = valuation_batch_use_case.execute(
             provider_id=provider_id,
             asset_codes=batch_codes,
             as_of_date=end_date,
         )
         published_total += services.published_count_from_result(valuation_result)
-        valuation_succeeded = set(valuation_result.succeeded_asset_codes)
+        valuation_succeeded_codes = tuple(
+            str(asset_code or "").strip().upper()
+            for asset_code in valuation_result.succeeded_asset_codes
+        )
+        valuation_returned = tuple(
+            str(asset_code or "").strip().upper()
+            for asset_code in valuation_result.returned_asset_codes
+        )
+        if (
+            any(not asset_code for asset_code in (*valuation_succeeded_codes, *valuation_returned))
+            or int(valuation_result.stored_count) != len(batch_codes)
+            or len(set(valuation_succeeded_codes)) != len(valuation_succeeded_codes)
+            or len(valuation_succeeded_codes) != len(batch_codes)
+            or set(valuation_succeeded_codes) != set(batch_codes)
+            or len(set(valuation_returned)) != len(valuation_returned)
+            or len(valuation_returned) != len(batch_codes)
+            or set(valuation_returned) != set(batch_codes)
+        ):
+            raise ValueError("valuation batch asset identities are incomplete")
+        valuation_succeeded = set(valuation_succeeded_codes)
         valuation_missing = set(batch_codes) - valuation_succeeded
         domain_counts["valuation"]["stored"] = int(valuation_result.stored_count)
         domain_counts["valuation"]["succeeded"] = len(valuation_succeeded)
@@ -235,6 +303,10 @@ def run_active_a_share_core_data_backfill_batch(
         domain_names = ("price", "financial")
         for domain_name in domain_names:
             try:
+                if not authority_allows_next_write():
+                    raise RuntimeError(
+                        f"current Audit authority changed before {domain_name} write"
+                    )
                 result: SyncResult
                 if domain_name == "price":
                     result = price_use_case.execute(
@@ -305,7 +377,31 @@ def run_active_a_share_core_data_backfill_batch(
     else:
         outcome = TaskBusinessOutcome.SUCCESS
 
+    if outcome is not TaskBusinessOutcome.SUCCESS:
+        checkpoint = {
+            **checkpoint,
+            "next_offset": validated_offset,
+            "complete": False,
+        }
+
     result_stage = "batch"
+    if not authority_current or not services.revalidate_authority(services.current_time()):
+        outcome = TaskBusinessOutcome.BLOCKED
+        result_stage = "authority"
+        checkpoint = {
+            **checkpoint,
+            "next_offset": validated_offset,
+            "complete": False,
+        }
+        succeeded_total = 0
+        failed_total = len(batch_codes)
+        errors.append(
+            {
+                "domain": "authority",
+                "asset_code": "batch",
+                "error": "authority_changed_or_expired",
+            }
+        )
     if outcome is TaskBusinessOutcome.SUCCESS and checkpoint["complete"] is True:
         try:
             rebuild_result = services.rebuild_current_publications(
@@ -351,9 +447,13 @@ def run_active_a_share_core_data_backfill_batch(
                 "partial_failure"
                 if outcome is TaskBusinessOutcome.PARTIAL
                 else (
-                    "current_publication_rebuild_failed"
-                    if outcome is TaskBusinessOutcome.BLOCKED
-                    else ""
+                    "authority_changed_or_expired"
+                    if outcome is TaskBusinessOutcome.BLOCKED and result_stage == "authority"
+                    else (
+                        "current_publication_rebuild_failed"
+                        if outcome is TaskBusinessOutcome.BLOCKED
+                        else ""
+                    )
                 )
             )
         ),

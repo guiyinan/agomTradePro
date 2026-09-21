@@ -35,6 +35,8 @@ def test_backfill_command_stops_on_partial_without_advancing_checkpoint(monkeypa
             batch_size=20,
             source="akshare",
             max_batches=5,
+            execute=True,
+            operator="service:data02",
             stdout=StringIO(),
         )
 
@@ -44,4 +46,34 @@ def test_backfill_command_stops_on_partial_without_advancing_checkpoint(monkeypa
         source="akshare",
         history_days=756,
         financial_periods=8,
+        operator="service:data02",
     )
+
+
+def test_backfill_command_requires_explicit_execute(monkeypatch) -> None:
+    """The production writer must not start from an accidental bare command."""
+
+    run = Mock()
+    monkeypatch.setattr(module.backfill_active_a_share_core_data_batch_task, "run", run)
+
+    with pytest.raises(CommandError, match="--execute is required"):
+        call_command("backfill_active_a_share_core_data", stdout=StringIO())
+
+    run.assert_not_called()
+
+
+def test_backfill_command_requires_bounded_operator(monkeypatch) -> None:
+    """The task receives one bounded identity for server-side actor binding."""
+
+    run = Mock()
+    monkeypatch.setattr(module.backfill_active_a_share_core_data_batch_task, "run", run)
+
+    with pytest.raises(CommandError, match="--operator must be"):
+        call_command(
+            "backfill_active_a_share_core_data",
+            execute=True,
+            operator="bad\nactor",
+            stdout=StringIO(),
+        )
+
+    run.assert_not_called()

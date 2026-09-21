@@ -4516,7 +4516,9 @@
         "apps/data_center/infrastructure/publication_fact_legacy_payload.py",
         "apps/data_center/infrastructure/publication_fact_evidence.py",
         "apps/data_center/infrastructure/financial_source_policy.py",
-        "apps/data_center/domain/publication_evidence.py"
+        "apps/data_center/domain/publication_evidence.py",
+        "apps/data_center/application/tasks.py",
+        "apps/data_center/management/commands/backfill_active_a_share_core_data.py"
       ],
       "required_markers": {
         "apps/data_center/application/current_fact_remediation.py": [
@@ -4640,7 +4642,13 @@
         "apps/data_center/application/core_data_backfill.py": [
           "rebuild_current_publications",
           "current_publication_rebuild_failed",
-          "checkpoint = {**checkpoint, \"complete\": False}"
+          "checkpoint = {**checkpoint, \"complete\": False}",
+          "class BackfillAuthorityBinding:",
+          "\"authority\": services.authority_binding.to_checkpoint()",
+          "services.revalidate_authority(services.current_time())",
+          "quote_result.stored_asset_codes",
+          "valuation_result.succeeded_asset_codes",
+          "valuation_result.returned_asset_codes"
         ],
         "apps/data_center/infrastructure/publication_fact_identity.py": [
           "build_publication_fact_identity",
@@ -4673,6 +4681,26 @@
         "apps/data_center/domain/publication_evidence.py": [
           "view.source_published_at > view.available_at",
           "publication evidence source_published_at is after available_at"
+        ],
+        "apps/data_center/application/tasks.py": [
+          "def _preflight_data02_task_authority(",
+          "def _same_data02_task_authority_is_current(",
+          "_BACKFILL_AUTHORITY_WINDOW = timedelta(seconds=3900)",
+          "_BACKFILL_CURSOR_MAX_LENGTH = 500",
+          "_FULL_MARKET_AUTHORITY_WINDOW = timedelta(seconds=2100)",
+          "authority_binding=authority_binding",
+          "revalidate_authority=revalidate_authority",
+          "created_by=f\"celery.core_data_backfill:{authority.actor_id}\"",
+          "created_by=f\"celery.full_market_refresh:{authority.actor_id}\"",
+          "def _exact_provider_batch_count(",
+          "returned_asset_codes=result.stored_asset_codes",
+          "returned_asset_codes=result.returned_asset_codes",
+          "succeeded_asset_codes=result.succeeded_asset_codes"
+        ],
+        "apps/data_center/management/commands/backfill_active_a_share_core_data.py": [
+          "--execute is required for this production writer",
+          "--operator must be a bounded canonical identity",
+          "operator=operator"
         ]
       },
       "required_tests": [
@@ -4875,6 +4903,61 @@
           "case": "optional_source_chronology_legacy_compatibility",
           "test_file": "tests/unit/data_center/test_publication_evidence.py",
           "test_function": "test_missing_chronology_fields_preserves_policy2_and_legacy_compatibility"
+        },
+        {
+          "case": "resumable_backfill_requires_current_authority",
+          "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
+          "test_function": "test_backfill_batch_blocks_before_repository_access_without_current_authority"
+        },
+        {
+          "case": "resumable_backfill_operator_matches_server_actor",
+          "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
+          "test_function": "test_backfill_batch_blocks_mismatched_operator_before_repository_access"
+        },
+        {
+          "case": "resumable_backfill_authority_covers_task_budget",
+          "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
+          "test_function": "test_backfill_batch_blocks_authority_window_shorter_than_task_budget"
+        },
+        {
+          "case": "resumable_backfill_authority_fits_durable_cursor",
+          "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
+          "test_function": "test_backfill_batch_blocks_oversized_authority_checkpoint_before_repository_access"
+        },
+        {
+          "case": "resumable_backfill_authority_head_bound_checkpoint",
+          "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
+          "test_function": "test_backfill_batch_keeps_checkpoint_open_when_authority_changes"
+        },
+        {
+          "case": "resumable_backfill_exact_provider_asset_identities",
+          "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
+          "test_function": "test_backfill_batch_rejects_duplicate_provider_asset_identities"
+        },
+        {
+          "case": "resumable_backfill_requires_explicit_execute",
+          "test_file": "tests/unit/data_center/test_core_data_backfill_command.py",
+          "test_function": "test_backfill_command_requires_explicit_execute"
+        },
+        {
+          "case": "scheduled_market_refresh_requires_current_authority",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_task_blocks_without_current_authority_before_provider_access"
+        },
+        {
+          "case": "scheduled_market_refresh_authority_covers_task_budget",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_task_blocks_authority_window_shorter_than_task_budget"
+        },
+        {
+          "case": "scheduled_market_refresh_revalidates_current_authority_head",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_task_stops_before_provider_when_current_authority_head_changes"
+        },
+        {
+          "case": "scheduled_market_refresh_exact_provider_asset_identities",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_task_rejects_duplicate_provider_asset_identities_before_publication"
         }
       ]
     },

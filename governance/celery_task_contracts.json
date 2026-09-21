@@ -213,7 +213,7 @@
         },
         "blocked": {
           "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
-          "test_function": "test_backfill_batch_blocks_and_keeps_checkpoint_open_when_publication_fails"
+          "test_function": "test_backfill_batch_blocks_before_repository_access_without_current_authority"
         }
       }
     },
@@ -1748,7 +1748,7 @@
         },
         "blocked": {
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
-          "test_function": "test_task_calendar_unavailable_is_blocked"
+          "test_function": "test_task_blocks_without_current_authority_before_provider_access"
         }
       }
     }

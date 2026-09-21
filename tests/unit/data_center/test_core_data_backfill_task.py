@@ -1,7 +1,7 @@
 """Active A-share core-data backfill task outcome contracts."""
 
 import json
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -9,6 +9,24 @@ import pytest
 from apps.data_center.application.tasks import (
     backfill_active_a_share_core_data_batch_task,
 )
+
+AUTHORITY_HASH = "a" * 64
+
+
+@pytest.fixture(autouse=True)
+def _patch_current_authority(mocker):
+    """Bind every successful task test to one server-issued authority."""
+
+    return mocker.patch(
+        "apps.data_center.application.tasks.preflight_data_reliability_audit_runtime",
+        return_value=SimpleNamespace(
+            actor_id="service:data02",
+            tenant_id="tenant:production",
+            owner_id="owner:production",
+            authority_content_hash=AUTHORITY_HASH,
+            authority_valid_until=datetime.now(UTC) + timedelta(hours=2),
+        ),
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -33,6 +51,9 @@ def _patch_backfill_dependencies(
     stored_count=1,
     failure=None,
     publication_failure: bool = False,
+    quote_asset_codes=None,
+    valuation_succeeded_codes=None,
+    valuation_returned_codes=None,
 ):
     mocker.patch(
         "apps.data_center.application.tasks.list_active_stock_codes_for_backfill",
@@ -55,6 +76,15 @@ def _patch_backfill_dependencies(
             if failure == (domain, asset_code):
                 raise RuntimeError("provider failure")
             count = len(request.asset_codes) if domain == "quote" else stored_count
+            if domain == "quote":
+                return SimpleNamespace(
+                    stored_count=count,
+                    stored_asset_codes=(
+                        tuple(request.asset_codes)
+                        if quote_asset_codes is None
+                        else tuple(quote_asset_codes)
+                    ),
+                )
             return SimpleNamespace(stored_count=count)
 
         use_case.execute.side_effect = _execute
@@ -66,7 +96,20 @@ def _patch_backfill_dependencies(
                 count = len(succeeded) if stored_count else 0
                 return SimpleNamespace(
                     stored_count=count,
-                    succeeded_asset_codes=(succeeded if stored_count else []),
+                    succeeded_asset_codes=(
+                        (
+                            succeeded
+                            if valuation_succeeded_codes is None
+                            else tuple(valuation_succeeded_codes)
+                        )
+                        if stored_count
+                        else []
+                    ),
+                    returned_asset_codes=(
+                        tuple(succeeded)
+                        if valuation_returned_codes is None
+                        else tuple(valuation_returned_codes)
+                    ),
                 )
 
             use_case.execute.side_effect = _execute_current_batch
@@ -117,6 +160,129 @@ def test_backfill_batch_rejects_invalid_input_before_repository_access(
         repository.save.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"source": ["tushare"]},
+        {"operator": ["service:data02"]},
+    ],
+)
+def test_backfill_batch_rejects_non_string_identities_before_repository_access(
+    mocker,
+    _patch_control_plane_repositories,
+    kwargs,
+) -> None:
+    """Celery JSON values cannot be stringified into trusted identities."""
+
+    universe = mocker.patch(
+        "apps.data_center.application.tasks.list_active_stock_codes_for_backfill"
+    )
+
+    result = backfill_active_a_share_core_data_batch_task.run(**kwargs)
+
+    assert result["outcome"] == "failed"
+    assert result["stage"] == "input"
+    universe.assert_not_called()
+    for repository in _patch_control_plane_repositories.values():
+        repository.save.assert_not_called()
+
+
+def test_backfill_batch_blocks_before_repository_access_without_current_authority(
+    mocker,
+    _patch_current_authority,
+) -> None:
+    """A missing canonical authority must stop before universe/provider reads."""
+
+    from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
+
+    _patch_current_authority.side_effect = SystemAuditCompositionUnavailable(
+        "unavailable",
+        reason_code="authority_unavailable",
+    )
+    universe = mocker.patch(
+        "apps.data_center.application.tasks.list_active_stock_codes_for_backfill"
+    )
+
+    result = backfill_active_a_share_core_data_batch_task.run()
+
+    assert result == {
+        "success": False,
+        "outcome": "blocked",
+        "stage": "authority",
+        "blocked_reason": "system_audit_authority_unavailable",
+        "must_not_use_for_decision": True,
+        "requested": 0,
+        "succeeded": 0,
+        "failed": 0,
+        "stored": 0,
+        "published": 0,
+        "checkpoint": {
+            "offset": 0,
+            "next_offset": 0,
+            "total_assets": 0,
+            "complete": False,
+        },
+    }
+    universe.assert_not_called()
+
+
+def test_backfill_batch_blocks_mismatched_operator_before_repository_access(
+    mocker,
+) -> None:
+    """A caller label cannot replace the server-issued actor identity."""
+
+    universe = mocker.patch(
+        "apps.data_center.application.tasks.list_active_stock_codes_for_backfill"
+    )
+
+    result = backfill_active_a_share_core_data_batch_task.run(operator="different:actor")
+
+    assert result["outcome"] == "blocked"
+    assert result["stage"] == "authority"
+    assert result["blocked_reason"] == "operator_actor_mismatch"
+    universe.assert_not_called()
+
+
+def test_backfill_batch_blocks_authority_window_shorter_than_task_budget(
+    mocker,
+    _patch_current_authority,
+) -> None:
+    """The authority must cover the full hard task limit plus its safety margin."""
+
+    _patch_current_authority.return_value.authority_valid_until = datetime.now(UTC) + timedelta(
+        minutes=30
+    )
+    universe = mocker.patch(
+        "apps.data_center.application.tasks.list_active_stock_codes_for_backfill"
+    )
+
+    result = backfill_active_a_share_core_data_batch_task.run()
+
+    assert result["outcome"] == "blocked"
+    assert result["blocked_reason"] == "authority_window_too_short"
+    universe.assert_not_called()
+
+
+def test_backfill_batch_blocks_oversized_authority_checkpoint_before_repository_access(
+    mocker,
+    _patch_current_authority,
+) -> None:
+    """A valid authority cannot start writes if its durable cursor would overflow."""
+
+    _patch_current_authority.return_value.actor_id = "actor:" + ("a" * 190)
+    _patch_current_authority.return_value.tenant_id = "tenant:" + ("b" * 190)
+    _patch_current_authority.return_value.owner_id = "owner:" + ("c" * 190)
+    universe = mocker.patch(
+        "apps.data_center.application.tasks.list_active_stock_codes_for_backfill"
+    )
+
+    result = backfill_active_a_share_core_data_batch_task.run()
+
+    assert result["outcome"] == "blocked"
+    assert result["blocked_reason"] == "authority_checkpoint_too_large"
+    universe.assert_not_called()
+
+
 def test_backfill_batch_reports_all_success_with_checkpoint(mocker) -> None:
     factory, coordinator = _patch_backfill_dependencies(mocker)
 
@@ -133,8 +299,15 @@ def test_backfill_batch_reports_all_success_with_checkpoint(mocker) -> None:
         "next_offset": 2,
         "total_assets": 2,
         "complete": True,
+        "authority": {
+            "actor_id": "service:data02",
+            "tenant_id": "tenant:production",
+            "owner_id": "owner:production",
+            "content_hash": AUTHORITY_HASH,
+            "valid_until": mocker.ANY,
+        },
     }
-    factory.assert_called_once_with(created_by="celery.core_data_backfill")
+    factory.assert_called_once_with(created_by="celery.core_data_backfill:service:data02")
     coordinator.execute.assert_called_once()
 
 
@@ -166,6 +339,21 @@ def test_backfill_batch_persists_stable_run_batch_and_cursor_on_retry(
     assert json.loads(checkpoint_saves[1].args[0].cursor_value) == second["checkpoint"]
 
 
+def test_backfill_batch_idempotency_uses_canonical_validated_source(
+    mocker,
+    _patch_control_plane_repositories,
+) -> None:
+    """Equivalent accepted source spellings must converge on one durable batch."""
+
+    _patch_backfill_dependencies(mocker)
+
+    backfill_active_a_share_core_data_batch_task.run(batch_size=2, source=" TUSHARE ")
+    backfill_active_a_share_core_data_batch_task.run(batch_size=2, source="tushare")
+
+    batch_saves = _patch_control_plane_repositories["batch"].save.call_args_list
+    assert batch_saves[0].args[0].idempotency_key == batch_saves[1].args[0].idempotency_key
+
+
 def test_backfill_batch_reports_partial_failure(mocker) -> None:
     _factory, coordinator = _patch_backfill_dependencies(
         mocker,
@@ -179,7 +367,64 @@ def test_backfill_batch_reports_partial_failure(mocker) -> None:
     assert result["succeeded"] == 1
     assert result["failed"] == 1
     assert result["domains"]["financial"]["failed"] == 1
+    assert result["checkpoint"]["next_offset"] == 0
+    assert result["checkpoint"]["complete"] is False
     coordinator.execute.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("override", "failed_domain"),
+    [
+        ({"quote_asset_codes": ["000001.SZ", "000001.SZ"]}, "quote"),
+        ({"valuation_succeeded_codes": ["000001.SZ", "000001.SZ"]}, "valuation"),
+        ({"valuation_succeeded_codes": ["000001.SZ", "600000.SH"]}, "valuation"),
+        ({"valuation_returned_codes": ["000001.SZ", "000001.SZ"]}, "valuation"),
+    ],
+)
+def test_backfill_batch_rejects_duplicate_provider_asset_identities(
+    mocker,
+    override,
+    failed_domain,
+) -> None:
+    """Count equality cannot hide a duplicate or substituted asset."""
+
+    _factory, coordinator = _patch_backfill_dependencies(mocker, **override)
+
+    result = backfill_active_a_share_core_data_batch_task.run(batch_size=2)
+
+    assert result["outcome"] == "partial"
+    assert result["domains"][failed_domain]["failed"] == 2
+    coordinator.execute.assert_not_called()
+
+
+def test_backfill_batch_keeps_checkpoint_open_when_authority_changes(
+    mocker,
+    _patch_current_authority,
+) -> None:
+    """A batch cannot advance its cursor under a different authority head."""
+
+    _patch_backfill_dependencies(mocker)
+    quote_factory = mocker.patch(
+        "apps.data_center.application.tasks.make_backfill_sync_quote_use_case"
+    )
+    initial = _patch_current_authority.return_value
+    changed = SimpleNamespace(
+        actor_id=initial.actor_id,
+        tenant_id=initial.tenant_id,
+        owner_id=initial.owner_id,
+        authority_content_hash="c" * 64,
+        authority_valid_until=initial.authority_valid_until,
+    )
+    _patch_current_authority.side_effect = [initial, changed]
+
+    result = backfill_active_a_share_core_data_batch_task.run(batch_size=2)
+
+    assert result["outcome"] == "blocked"
+    assert result["stage"] == "authority"
+    assert result["checkpoint"]["complete"] is False
+    assert result["checkpoint"]["next_offset"] == 0
+    assert result["errors"][-1]["error"] == "authority_changed_or_expired"
+    quote_factory.return_value.execute.assert_not_called()
 
 
 def test_backfill_batch_reports_zero_output_as_complete_failure(mocker) -> None:
@@ -190,6 +435,8 @@ def test_backfill_batch_reports_zero_output_as_complete_failure(mocker) -> None:
     assert result["outcome"] == "failed"
     assert result["success"] is False
     assert result["failed"] == 2
+    assert result["checkpoint"]["next_offset"] == 0
+    assert result["checkpoint"]["complete"] is False
     assert any(error["error"] == "zero_output" for error in result["errors"])
 
 

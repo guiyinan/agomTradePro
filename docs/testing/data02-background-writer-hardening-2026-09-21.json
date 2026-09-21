@@ -1,0 +1,168 @@
+{
+  "schema_version": "data02-background-writer-hardening.v1",
+  "generated_at": "2026-09-21T05:02:42.364946Z",
+  "candidate": {
+    "branch": "dev/next-development",
+    "baseline_commit": "3378b7eaa3de39c0bcc923e322a8e6338a4c3228",
+    "commit": "containing_git_commit"
+  },
+  "scope": "Repository hardening for the resumable DATA-02 batch writer and scheduled full-market refresh entrypoints.",
+  "production_claim": false,
+  "production_actions": {
+    "deployment": false,
+    "provider_fetch": false,
+    "database_write": false,
+    "publication_switch": false,
+    "profile_activation": false
+  },
+  "supersedes_wording": {
+    "evidence": "docs/testing/data02-authority-and-batch-preflight-hardening-2026-09-21.json",
+    "correction": "The v144 artifact proved the current-fact refresh and independent Publication rebuild paths. Its phrase 'all execute paths' was broader than the tested scope. This artifact adds the previously uncovered resumable command/task and scheduled full-market writer paths."
+  },
+  "failing_first_observations": {
+    "raw_log_persisted": false,
+    "limitation": "Failing-first outputs were observed in the active terminal before implementation but were not redirected. Counts below are recorded without reconstructed timestamps; the final passing run is retained in the companion log.",
+    "runs": [
+      {
+        "scope": "initial legacy entrypoint authority and execute guards",
+        "result": "3 failed, 34 errors before implementation"
+      },
+      {
+        "scope": "full-market duplicate quote identity",
+        "result": "1 failed before exact identity validation"
+      },
+      {
+        "scope": "valuation succeeded identity duplicates and substitutions",
+        "result": "2 failed before exact succeeded identity validation"
+      },
+      {
+        "scope": "canonical source idempotency",
+        "result": "1 failed before canonical validated inputs were hashed"
+      },
+      {
+        "scope": "non-string Celery identity inputs",
+        "result": "2 failed before strict boundary type validation"
+      },
+      {
+        "scope": "scheduled valuation succeeded identities",
+        "result": "1 failed before the scheduled wrapper validated succeeded_asset_codes"
+      }
+    ]
+  },
+  "implemented_safeguards": [
+    "The management command requires --execute and a bounded canonical --operator before invoking the production writer.",
+    "The resumable task and scheduled full-market refresh resolve canonical current Audit authority before universe, repository or provider access.",
+    "Authority validity must cover the Celery hard time limit plus a five-minute safety margin.",
+    "The resumable checkpoint records actor, tenant, owner, authority hash and validity without secret values; its idempotency key includes the authority hash and canonical validated task inputs.",
+    "The task proves the largest checkpoint projection fits the durable 500-character cursor before any repository/provider access.",
+    "The resumable task revalidates the same actor, tenant, owner and authority head before cursor advance or final Publication.",
+    "Both background tasks revalidate the same authority head before every provider/write boundary and stay fail-closed after the first drift.",
+    "Quote and valuation returned identities and valuation succeeded identities must be normalized, unique and exactly equal to the requested batch before Publication is reachable.",
+    "Partial, failed and blocked batches reset next_offset to the current batch start and force complete=false.",
+    "Publication created_by is derived from the server-issued actor rather than a free caller label."
+  ],
+  "independent_review": {
+    "reviewer": "gpt-5.6-luna",
+    "reasoning_effort": "max",
+    "resolved_before_commit": [
+      "Partial and failed batches now reset next_offset to the current batch start and force complete=false.",
+      "The resumable and scheduled paths now revalidate the same authority head before every provider/write boundary and before Publication.",
+      "Valuation succeeded identities are validated in addition to returned identities."
+    ],
+    "accepted_as_explicit_follow_up_gaps": [
+      "Provider identity evidence currently arrives after fact mutation, so no-residual-row proof needs a pre-write or rollback-capable transaction refactor.",
+      "Resume offsets are not yet bound to a frozen universe hash.",
+      "Full failed-symbol, retry and phase evidence needs a separate durable model."
+    ]
+  },
+  "validation": {
+    "focused_unit_tests": {
+      "result": "passed",
+      "count": 49,
+      "duration_seconds": 2.48,
+      "log": "docs/testing/data02-background-writer-hardening-2026-09-21.txt"
+    },
+    "postgresql_component_tests": {
+      "result": "passed_with_environment_skips",
+      "passed": 2,
+      "skipped": 2,
+      "duration_seconds": 547.18
+    },
+    "celery_contract_tests": {
+      "result": "passed",
+      "count": 13
+    },
+    "incremental_mypy": {
+      "result": "passed",
+      "files": 3,
+      "regressions": 0,
+      "legacy_errors_observed": 0
+    },
+    "mypy_debt_ceiling": {
+      "result": "passed",
+      "errors": 0,
+      "files_with_errors": 0
+    },
+    "celery_task_contracts": {
+      "result": "passed",
+      "registered_tasks": 92,
+      "exemptions": 21,
+      "governed_files": 23
+    },
+    "current_data_contracts": {
+      "result": "passed",
+      "surfaces": 63
+    },
+    "architecture_full_scan": {
+      "result": "passed",
+      "files": 3212,
+      "violations": 0
+    },
+    "governance_consistency": {
+      "result": "passed",
+      "violations": 0
+    },
+    "format_and_lint": {
+      "black": "passed",
+      "isort": "passed",
+      "ruff": "passed",
+      "git_diff_check": "passed"
+    }
+  },
+  "governance": {
+    "registry_transition": "2026-09-21.v144 -> 2026-09-21.v145",
+    "unit": "DATA-02",
+    "status_before": "awaiting_production",
+    "status_after": "awaiting_production",
+    "reason": "Repository background-writer bypasses are closed, but production authority, authorized provider execution, financial source time, complete retry evidence and four-Publication tolerance reconciliation remain absent."
+  },
+  "known_remaining_repository_gaps": [
+    {
+      "priority": "P0",
+      "gap": "The task response truncates detailed errors and the durable checkpoint cursor is limited to 500 characters, so complete failed-symbol sets, per-domain retry outcomes and exact recovery phases are not yet durable.",
+      "required_recovery": "Add a separate durable batch-item/failure evidence model and atomic phase checkpoints; prove more than 20 failures, interruption recovery, authority drift, stale/zero-output, identity mismatch, Publication failure and idempotent retry."
+    },
+    {
+      "priority": "P0",
+      "gap": "Quote and valuation identity results are currently returned after the underlying repositories have stored facts. The task prevents an inexact batch from reaching Publication, but it cannot prove that an inexact provider result left no fact rows behind.",
+      "required_recovery": "Move identity validation before repository mutation or wrap provider normalization, fact writes and validation in one rollback-capable transaction; add no-residual-row tests for duplicate, missing and substituted identities."
+    },
+    {
+      "priority": "P0",
+      "gap": "The resumable checkpoint records only the current universe count and numeric offset; it does not bind retries to a frozen universe content hash.",
+      "required_recovery": "Persist a canonical universe hash/id with each batch and require the same hash when resuming a nonzero offset so asset additions/removals cannot cause skip or duplication."
+    },
+    {
+      "priority": "P1",
+      "gap": "Four-Publication structural readiness does not yet include policy-identity-bound numeric tolerance reconciliation with per-field breach evidence.",
+      "required_recovery": "Add a read-only frozen-universe reconciliation contract with governed policy version/hash, units, absolute/relative comparisons and fail-closed drift tests."
+    }
+  ],
+  "remaining_production_gates": [
+    "Deploy a reviewed candidate through an explicitly authorized production change.",
+    "Obtain genuine current service actor/account/tenant/owner authority and an active audited runtime selector.",
+    "After the completed China trading session, rerun the candidate-bound read-only preflight.",
+    "Execute only authorized bounded provider batches while preserving exact source times and the governed 1% failover alert rule.",
+    "Reconcile quote, price, financial and valuation Publications against the frozen denominator and obtain required owner acceptance."
+  ]
+}

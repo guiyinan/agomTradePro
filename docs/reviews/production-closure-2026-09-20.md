@@ -128,3 +128,25 @@ provider、可用时刻修复和最终 publication 边界重复校验，quote/va
 registry v143 → v144，DATA-02 仍为 awaiting_production。此次没有部署、provider 请求、生产写入、
 profile 激活或 Publication 切换；真实 current authority、财报来源时间、授权分批回填与四 Publication
 容差对账仍是生产退出条件。
+
+## DATA-02 可恢复任务与定时写入加固（2026-09-21）
+
+继续审计发现，旧 `backfill_active_a_share_core_data` 命令、对应 Celery 批次任务和定时全市场刷新
+没有完整继承上一轮 current-fact/rebuild 路径的授权边界。现已要求命令显式 `--execute`，并把
+operator 精确绑定服务器签发 actor；两个后台任务在读取 universe/provider 前校验 current authority，
+授权有效期必须覆盖 Celery 硬时限和安全余量。可恢复批次还把 authority hash 纳入幂等键和 checkpoint，
+在推进 cursor 前复核同一 actor/tenant/owner/head；quote 与 valuation 同时验证 returned/succeeded
+资产集合的规范化、唯一性和精确相等。
+
+聚焦单元回归 `49 passed`，PostgreSQL control-plane 组件回归 `2 passed / 2 skipped`；生产 Python
+增量 mypy、全量债务、Celery/current-data 合同、架构及治理门禁通过。结构化证据见
+[DATA-02 后台写入加固封存](../testing/data02-background-writer-hardening-2026-09-21.json)，原始聚焦日志见
+[测试日志](../testing/data02-background-writer-hardening-2026-09-21.txt)。registry v144 → v145，
+DATA-02 仍为 awaiting_production。上一份 v144 证据对“all execute paths”的概括由本记录纠正；
+它实际覆盖 current-fact refresh 与独立 rebuild，本轮才补齐可恢复及定时入口。
+
+完整 failed-symbol 集合、逐项 retry outcome 和精确恢复阶段仍缺少耐久模型：现有 checkpoint
+`cursor_value` 上限 500 字符，任务响应也会截断错误。资产 universe 还没有冻结哈希，quote/valuation
+身份结果也在底层 fact 写入后才返回；当前门禁能阻止错误批次发布，但不能证明错误 fact 零残留。
+因此不得仅凭批次数量关闭 DATA-02，下一独立仓库单元须先补这些证据，再执行任何获批生产批次。
+本次未部署、未调用 provider、未写生产、未切换 Publication。

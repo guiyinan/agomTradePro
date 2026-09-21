@@ -6,8 +6,8 @@ import hashlib
 import json
 import logging
 import shutil
-from collections.abc import Mapping
-from datetime import UTC, date, datetime
+from collections.abc import Mapping, Sequence
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from uuid import NAMESPACE_URL, uuid4, uuid5
@@ -17,6 +17,7 @@ from django.core.cache import cache
 from django.utils import timezone
 
 from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
+from apps.audit.application.system_audit_query import SystemAuditReaderContext
 from apps.data_center.composition import (
     get_archive_coverage_gateway,
     get_raw_landing_repository,
@@ -36,11 +37,13 @@ from apps.data_center.domain.control_plane import (
 )
 from apps.data_center.domain.market_time import cn_market_date_from_observation
 from core.integration.config_center_runtime import evaluate_storage_pressure
+from core.integration.data_center_audit import preflight_data_reliability_audit_runtime
 from shared.domain.task_outcomes import TaskBusinessOutcome
 from shared.infrastructure.operational_alert_registry import record_operational_alert
 
 from .archive_tasks import verify_archive_manifest_task  # noqa: F401
 from .core_data_backfill import (
+    BackfillAuthorityBinding,
     CoreDataBackfillServices,
     run_active_a_share_core_data_backfill_batch,
 )
@@ -70,6 +73,117 @@ logger = logging.getLogger(__name__)
 DECISION_QUOTE_DEGRADED_STREAK_KEY = "task_monitor:decision_quote_degraded_streak:v1"
 BACKFILL_DATASET_KEY = "equity.core.backfill"
 BACKFILL_TASK_NAME = "celery.backfill_a_share_core"
+_BACKFILL_AUTHORITY_WINDOW = timedelta(seconds=3900)
+_FULL_MARKET_AUTHORITY_WINDOW = timedelta(seconds=2100)
+_AUTHORITY_FINALIZATION_WINDOW = timedelta(seconds=300)
+_BACKFILL_CURSOR_MAX_LENGTH = 500
+
+
+def _data02_authority_failure(reason: str) -> dict[str, object]:
+    """Return a stable zero-write authority denial for DATA-02 tasks."""
+
+    return {
+        "success": False,
+        "outcome": TaskBusinessOutcome.BLOCKED.value,
+        "stage": "authority",
+        "blocked_reason": reason,
+        "must_not_use_for_decision": True,
+        "requested": 0,
+        "succeeded": 0,
+        "failed": 0,
+        "stored": 0,
+        "published": 0,
+        "checkpoint": {
+            "offset": 0,
+            "next_offset": 0,
+            "total_assets": 0,
+            "complete": False,
+        },
+    }
+
+
+def _preflight_data02_task_authority(
+    *,
+    as_of: datetime,
+    minimum_window: timedelta,
+    expected_actor: str = "",
+) -> tuple[SystemAuditReaderContext | None, dict[str, object] | None]:
+    """Resolve current authority and prove it covers the task's bounded runtime."""
+
+    try:
+        context = preflight_data_reliability_audit_runtime(
+            environment="production",
+            using="default",
+            as_of=as_of,
+        )
+    except SystemAuditCompositionUnavailable as exc:
+        return None, _data02_authority_failure(f"system_audit_{exc.reason_code}")
+    if expected_actor and expected_actor != context.actor_id:
+        return None, _data02_authority_failure("operator_actor_mismatch")
+    if context.authority_valid_until < as_of + minimum_window:
+        return None, _data02_authority_failure("authority_window_too_short")
+    return context, None
+
+
+def _same_data02_task_authority_is_current(
+    authority: SystemAuditReaderContext,
+    *,
+    as_of: datetime,
+    minimum_window: timedelta = _AUTHORITY_FINALIZATION_WINDOW,
+) -> bool:
+    """Return whether the same current authority still covers the next boundary."""
+
+    current, failure = _preflight_data02_task_authority(
+        as_of=as_of,
+        minimum_window=minimum_window,
+        expected_actor=authority.actor_id,
+    )
+    return (
+        failure is None
+        and current is not None
+        and current.authority_content_hash == authority.authority_content_hash
+        and current.tenant_id == authority.tenant_id
+        and current.owner_id == authority.owner_id
+    )
+
+
+def _exact_provider_batch_count(
+    *,
+    requested_asset_codes: Sequence[str],
+    stored_count: object,
+    returned_asset_codes: object,
+    succeeded_asset_codes: object | None = None,
+) -> int:
+    """Require one distinct returned identity for every requested asset."""
+
+    if isinstance(stored_count, bool) or not isinstance(stored_count, int):
+        raise ValueError("provider batch stored_count must be an integer")
+    if isinstance(returned_asset_codes, (str, bytes)) or not isinstance(
+        returned_asset_codes, Sequence
+    ):
+        raise ValueError("provider batch asset identities are unavailable")
+    requested = tuple(str(code or "").strip().upper() for code in requested_asset_codes)
+    returned = tuple(str(code or "").strip().upper() for code in returned_asset_codes)
+    succeeded = returned
+    if succeeded_asset_codes is not None:
+        if isinstance(succeeded_asset_codes, (str, bytes)) or not isinstance(
+            succeeded_asset_codes, Sequence
+        ):
+            raise ValueError("provider batch succeeded identities are unavailable")
+        succeeded = tuple(str(code or "").strip().upper() for code in succeeded_asset_codes)
+    if (
+        any(not code for code in (*requested, *returned, *succeeded))
+        or len(set(requested)) != len(requested)
+        or len(set(returned)) != len(returned)
+        or len(set(succeeded)) != len(succeeded)
+        or stored_count != len(requested)
+        or len(returned) != len(requested)
+        or len(succeeded) != len(requested)
+        or set(returned) != set(requested)
+        or set(succeeded) != set(requested)
+    ):
+        raise ValueError("provider batch asset identities are incomplete")
+    return stored_count
 
 
 @shared_task(name="data_center.refresh_full_market_publications", time_limit=1800, soft_time_limit=1700)  # type: ignore[misc]
@@ -93,6 +207,15 @@ def refresh_full_market_publications_task(
         or not 1 <= batch_size <= 200
     ):
         return _full_market_input_failure("invalid_batch_size")
+    started_at = datetime.now(UTC)
+    authority, authority_failure = _preflight_data02_task_authority(
+        as_of=started_at,
+        minimum_window=_FULL_MARKET_AUTHORITY_WINDOW,
+    )
+    if authority_failure is not None:
+        return authority_failure
+    if authority is None:  # pragma: no cover - narrowed by the failure branch
+        raise RuntimeError("authority preflight returned no context")
     provider_id = get_active_provider_id_by_source(source)
     if provider_id is None:
         return _full_market_input_failure("market_provider_unavailable")
@@ -106,7 +229,7 @@ def refresh_full_market_publications_task(
         }
     valuations = make_backfill_sync_current_valuation_batch_use_case()
     publications = make_core_current_publication_rebuild_use_case(
-        created_by="celery.full_market_refresh",
+        created_by=f"celery.full_market_refresh:{authority.actor_id}",
         dataset_keys=("equity.quote.snapshot", "equity.valuation.fact", "equity.price.bar"),
     )
     target_date = latest_completed_cn_market_session(timezone.now())
@@ -122,8 +245,47 @@ def refresh_full_market_publications_task(
         }
 
     price_evidence: dict[str, object] = {}
+    authority_current = True
+
+    def authority_allows_next_write() -> bool:
+        """Revalidate at every write boundary and stay closed after drift."""
+
+        nonlocal authority_current
+        if authority_current:
+            authority_current = _same_data02_task_authority_is_current(
+                authority,
+                as_of=datetime.now(UTC),
+            )
+        return authority_current
+
+    def sync_quote_batch(codes: list[str]) -> int:
+        if not authority_allows_next_write():
+            raise ValueError("current Audit authority changed before quote batch")
+        result = quotes.execute(SyncQuoteRequest(provider_id, codes))
+        return _exact_provider_batch_count(
+            requested_asset_codes=codes,
+            stored_count=result.stored_count,
+            returned_asset_codes=result.stored_asset_codes,
+        )
+
+    def sync_valuation_batch(codes: list[str], day: date) -> int:
+        if not authority_allows_next_write():
+            raise ValueError("current Audit authority changed before valuation batch")
+        result = valuations.execute(
+            provider_id=provider_id,
+            asset_codes=codes,
+            as_of_date=day,
+        )
+        return _exact_provider_batch_count(
+            requested_asset_codes=codes,
+            stored_count=result.stored_count,
+            returned_asset_codes=result.returned_asset_codes,
+            succeeded_asset_codes=result.succeeded_asset_codes,
+        )
 
     def publish_complete_session(codes: list[str]) -> int:
+        if not authority_allows_next_write():
+            raise ValueError("current Audit authority changed before publication")
         preview = publications.preview(asset_codes=codes)
         current_snapshots = tuple(
             dataset for dataset in preview.datasets if dataset.dataset_key != "equity.price.bar"
@@ -150,15 +312,21 @@ def refresh_full_market_publications_task(
         batch_size=batch_size,
         ports=MarketPublicationRefreshPorts(
             list_codes=list_active_stock_codes_for_backfill,
-            sync_quotes=lambda codes: quotes.execute(
-                SyncQuoteRequest(provider_id, codes)
-            ).stored_count,
-            sync_valuations=lambda codes, day: valuations.execute(
-                provider_id=provider_id, asset_codes=codes, as_of_date=day
-            ).stored_count,
+            sync_quotes=sync_quote_batch,
+            sync_valuations=sync_valuation_batch,
             publish=publish_complete_session,
         ),
     )
+    if not authority_current:
+        return {
+            **result,
+            "outcome": TaskBusinessOutcome.BLOCKED.value,
+            "success": False,
+            "must_not_use_for_decision": True,
+            "blocked_reason": "authority_changed_or_expired",
+            "publication_updated": False,
+            "published_members": 0,
+        }
     return {**result, **price_evidence}
 
 
@@ -181,6 +349,7 @@ def _backfill_idempotency_key(
     batch_size: object,
     history_days: object,
     financial_periods: object,
+    authority_content_hash: object = "",
 ) -> str:
     """Build a bounded, deterministic key for one requested backfill window.
 
@@ -202,6 +371,7 @@ def _backfill_idempotency_key(
             f"batch_size={batch_size!r}",
             f"history_days={history_days!r}",
             f"financial_periods={financial_periods!r}",
+            f"authority_content_hash={authority_content_hash!r}",
         )
     )
     digest = hashlib.sha256(material.encode("utf-8", errors="replace")).hexdigest()[:16]
@@ -496,17 +666,11 @@ def backfill_active_a_share_core_data_batch_task(
     source: str = "tushare",
     history_days: int = 756,
     financial_periods: int = 8,
+    operator: str = "",
 ) -> dict[str, Any]:
     """Backfill one resumable active-A-share core-data batch."""
 
     started_at = datetime.now(UTC)
-    idempotency_key = _backfill_idempotency_key(
-        source,
-        offset,
-        batch_size,
-        history_days,
-        financial_periods,
-    )
     try:
         validated_offset = _validated_backfill_int(
             offset,
@@ -532,9 +696,21 @@ def backfill_active_a_share_core_data_batch_task(
             minimum=1,
             maximum=40,
         )
-        normalized_source = str(source or "").strip().lower()
+        if not isinstance(source, str):
+            raise ValueError("source must be a string identifier")
+        normalized_source = source.strip().lower()
         if not normalized_source or len(normalized_source) > 32:
             raise ValueError("source must be a non-empty identifier")
+        if not isinstance(operator, str):
+            raise ValueError("operator must be a string identity")
+        raw_operator = operator
+        normalized_operator = raw_operator.strip()
+        if (
+            len(normalized_operator) > 100
+            or any(character.isspace() for character in normalized_operator)
+            or normalized_operator != raw_operator
+        ):
+            raise ValueError("operator must be a bounded canonical identity")
     except ValueError as exc:
         checkpoint = {
             "offset": 0,
@@ -553,6 +729,55 @@ def backfill_active_a_share_core_data_batch_task(
             "stored": 0,
             "checkpoint": checkpoint,
         }
+
+    authority, authority_failure = _preflight_data02_task_authority(
+        as_of=started_at,
+        minimum_window=_BACKFILL_AUTHORITY_WINDOW,
+        expected_actor=normalized_operator,
+    )
+    if authority_failure is not None:
+        return authority_failure
+    if authority is None:  # pragma: no cover - narrowed by the failure branch
+        raise RuntimeError("authority preflight returned no context")
+    authority_binding = BackfillAuthorityBinding(
+        actor_id=authority.actor_id,
+        tenant_id=authority.tenant_id,
+        owner_id=authority.owner_id,
+        content_hash=authority.authority_content_hash,
+        valid_until=authority.authority_valid_until,
+    )
+    largest_checkpoint = {
+        "offset": validated_offset,
+        "next_offset": validated_offset + validated_batch_size,
+        "total_assets": 100_000,
+        "complete": False,
+        "authority": authority_binding.to_checkpoint(),
+    }
+    encoded_checkpoint = json.dumps(
+        largest_checkpoint,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    if len(encoded_checkpoint) > _BACKFILL_CURSOR_MAX_LENGTH:
+        return _data02_authority_failure("authority_checkpoint_too_large")
+    idempotency_key = _backfill_idempotency_key(
+        normalized_source,
+        validated_offset,
+        validated_batch_size,
+        validated_history_days,
+        validated_periods,
+        authority.authority_content_hash,
+    )
+
+    def revalidate_authority(as_of: datetime) -> bool:
+        """Require the same current authority before advancing the checkpoint."""
+
+        return _same_data02_task_authority_is_current(
+            authority,
+            as_of=as_of,
+            minimum_window=_AUTHORITY_FINALIZATION_WINDOW,
+        )
 
     return run_active_a_share_core_data_backfill_batch(
         validated_offset=validated_offset,
@@ -576,7 +801,7 @@ def backfill_active_a_share_core_data_batch_task(
             rebuild_current_publications=(
                 lambda *, asset_codes, published_at: (
                     make_core_current_publication_rebuild_use_case(
-                        created_by="celery.core_data_backfill"
+                        created_by=f"celery.core_data_backfill:{authority.actor_id}"
                     ).execute(
                         asset_codes=asset_codes,
                         published_at=published_at,
@@ -585,6 +810,8 @@ def backfill_active_a_share_core_data_batch_task(
             ),
             published_count_from_result=_published_count_from_result,
             persist_control_plane=_persist_backfill_control_plane,
+            authority_binding=authority_binding,
+            revalidate_authority=revalidate_authority,
         ),
     )
 
