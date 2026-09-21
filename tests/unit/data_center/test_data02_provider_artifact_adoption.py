@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime
@@ -32,6 +33,7 @@ from apps.data_center.domain.financial_response_evidence import (
     FinancialRequestScope,
     FinancialResponseEvidence,
     FinancialResponseScope,
+    FinancialResponseScopeBasis,
     raw_body_sha256,
 )
 from apps.data_center.financial_response_artifact_composition import (
@@ -69,10 +71,13 @@ from apps.data_center.management.commands.initialize_financial_response_artifact
 from core.exceptions import TushareError
 
 BODY = b'{"code":0,"data":{"fields":["ts_code"],"items":[["000001.SZ"]]}}'
+SCOPED_BODY = (
+    b'{"code":0,"data":{"fields":["ts_code","end_date"],' b'"items":[["000001.SZ","20251231"]]}}'
+)
 SYNTHETIC_REJECTED_BODY = b'{"code":2003,"msg":"synthetic provider rejection"}'
 FINANCIAL_BODY = (
-    b'{"code":0,"data":{"fields":["end_date","ann_date","roe"],'
-    b'"items":[["2025-12-31","2026-03-30",12.5]]}}'
+    b'{"code":0,"data":{"fields":["ts_code","end_date","ann_date","roe"],'
+    b'"items":[["000001.SZ","2025-12-31","2026-03-30",12.5]]}}'
 )
 CAPTURE_ID = UUID("20000000-0000-4000-8000-000000000001")
 COMPLETED_AT = datetime(2026, 9, 14, 6, 0, 0, tzinfo=UTC)
@@ -826,14 +831,17 @@ def test_tushare_handler_retains_capture_without_token_or_source_inference(
         _provider(),
         cast(FinancialResponseArtifactRepository, repository),
     )
-    evidence = _evidence()
+    evidence = _evidence(SCOPED_BODY)
     captured = _Captured(
         payload={
             "code": 0,
-            "data": {"fields": ["ts_code"], "items": [["000001.SZ"]]},
+            "data": {
+                "fields": ["ts_code", "end_date"],
+                "items": [["000001.SZ", "20251231"]],
+            },
         },
         evidence=evidence,
-        raw_body=BODY,
+        raw_body=SCOPED_BODY,
     )
     request_id = UUID("20000000-0000-4000-8000-000000000003")
 
@@ -870,13 +878,126 @@ def test_tushare_handler_retains_capture_without_token_or_source_inference(
 
     assert payload == {
         "code": 0,
-        "data": {"fields": ["ts_code"], "items": [["000001.SZ"]]},
+        "data": {
+            "fields": ["ts_code", "end_date"],
+            "items": [["000001.SZ", "20251231"]],
+        },
     }
     assert len(repository.calls) == 1
     request_projection = repository.calls[0]["request_params"]
     assert isinstance(request_projection, dict)
     assert "token" not in repr(request_projection)
     assert repository.calls[0]["capture_id"] == request_id
+    retained_evidence = repository.calls[0]["evidence"]
+    assert isinstance(retained_evidence, FinancialResponseEvidence)
+    assert (
+        retained_evidence.response_scope_basis is FinancialResponseScopeBasis.PROVIDER_BODY_VERIFIED
+    )
+    assert retained_evidence.response_scope == FinancialResponseScope(
+        asset_codes=("000001.SZ",),
+        period_ends=(date(2025, 12, 31),),
+        row_count=1,
+    )
+    assert repository.calls[0]["row_count"] == 1
+
+
+@pytest.mark.parametrize(
+    ("fields", "items"),
+    [
+        (["ts_code", "ann_date"], [["000001.SZ", "20260330"]]),
+        (["ts_code", "end_date"], [["000002.SZ", "20251231"]]),
+        (["ts_code", "end_date"], [["000001.SZ", "2025/12/31"]]),
+        (["ts_code", "end_date"], [["000001.SZ", "2025-W01-1"]]),
+    ],
+)
+def test_tushare_handler_rejects_unverifiable_provider_body_scope(
+    monkeypatch: pytest.MonkeyPatch,
+    fields: list[str],
+    items: list[list[object]],
+) -> None:
+    """Successful provider payloads need exact asset and period body coverage."""
+
+    repository = _RetentionRepository()
+    handler = _ConfiguredTushareFinancialResponseHandler(
+        _provider(),
+        cast(FinancialResponseArtifactRepository, repository),
+    )
+    payload = {"code": 0, "data": {"fields": fields, "items": items}}
+    raw_body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    captured = _Captured(payload=payload, evidence=_evidence(raw_body), raw_body=raw_body)
+
+    monkeypatch.setattr(
+        "apps.data_center.financial_response_artifact_composition.execute_financial_response_request",
+        lambda _context, **_kwargs: captured,
+    )
+    context = EgressRequestContext(
+        provider_id=7,
+        dataset_key=FINANCIAL_DATASET_KEY,
+        target_url="https://provider.example.test/tushare",
+        deployment_region="local",
+    )
+
+    with pytest.raises(TushareError) as caught:
+        handler(
+            request_id=CAPTURE_ID,
+            context=context,
+            method="POST",
+            params=None,
+            json_body={"params": {"ts_code": "000001.SZ", "limit": 2}},
+            headers={"X-API-Key": "secret"},
+            api_name="fina_indicator",
+        )
+
+    assert caught.value.code == "TUSHARE_INVALID_PAYLOAD"
+    assert repository.calls == []
+    assert repository.failure_calls == []
+
+
+@pytest.mark.parametrize("provider_code", [False, 0.0, "0", None])
+def test_tushare_handler_rejects_non_integer_success_code(
+    monkeypatch: pytest.MonkeyPatch,
+    provider_code: object,
+) -> None:
+    """Only the exact integer zero may authorize successful artifact retention."""
+
+    repository = _RetentionRepository()
+    handler = _ConfiguredTushareFinancialResponseHandler(
+        _provider(),
+        cast(FinancialResponseArtifactRepository, repository),
+    )
+    payload = {
+        "code": provider_code,
+        "data": {
+            "fields": ["ts_code", "end_date"],
+            "items": [["000001.SZ", "20251231"]],
+        },
+    }
+    raw_body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    captured = _Captured(payload=payload, evidence=_evidence(raw_body), raw_body=raw_body)
+    monkeypatch.setattr(
+        "apps.data_center.financial_response_artifact_composition.execute_financial_response_request",
+        lambda _context, **_kwargs: captured,
+    )
+
+    with pytest.raises(TushareError) as caught:
+        handler(
+            request_id=CAPTURE_ID,
+            context=EgressRequestContext(
+                provider_id=7,
+                dataset_key=FINANCIAL_DATASET_KEY,
+                target_url="https://provider.example.test/tushare",
+                deployment_region="local",
+            ),
+            method="POST",
+            params=None,
+            json_body={"params": {"ts_code": "000001.SZ", "limit": 2}},
+            headers={"X-API-Key": "secret"},
+            api_name="fina_indicator",
+        )
+
+    assert caught.value.code == "TUSHARE_INVALID_PAYLOAD"
+    assert repository.calls == []
+    assert repository.failure_calls == []
 
 
 def test_tushare_handler_rejects_provider_business_failure_before_audit(
@@ -928,6 +1049,9 @@ def test_tushare_handler_rejects_provider_business_failure_before_audit(
     assert repository.failure_calls[0]["capture_id"] == CAPTURE_ID
     assert repository.failure_calls[0]["failure_code"] == "TUSHARE_PROVIDER_REJECTED"
     assert repository.failure_calls[0]["body"] == SYNTHETIC_REJECTED_BODY
+    rejected_evidence = repository.failure_calls[0]["evidence"]
+    assert isinstance(rejected_evidence, FinancialResponseEvidence)
+    assert rejected_evidence.response_scope_basis is FinancialResponseScopeBasis.CALLER_DECLARED
 
 
 def test_tushare_adapter_client_egress_capture_store_and_audit_chain(
@@ -980,10 +1104,11 @@ def test_tushare_adapter_client_egress_capture_store_and_audit_chain(
     assert isinstance(link, dict)
     assert link["body_sha256"] == raw_body_sha256(FINANCIAL_BODY)
     assert link["body_size_bytes"] == len(FINANCIAL_BODY)
-    assert link["response_scope"]["row_count"] == 0
-    assert link["response_scope"]["period_ends"] == []
+    assert link["response_scope"]["row_count"] == 1
+    assert link["response_scope"]["period_ends"] == ["2025-12-31"]
+    assert link["response_scope_basis"] == "provider_body_verified"
     assert audit.response_payload_hash == ""
-    assert audit.row_count == 0
+    assert audit.row_count == 1
     assert audit.fetched_at == COMPLETED_AT
     assert store.read(reference_from_audit(audit)) == FINANCIAL_BODY
 

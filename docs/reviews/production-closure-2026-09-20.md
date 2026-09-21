@@ -275,3 +275,17 @@ GPT-5.6 Luna Max 只读复核最终为 P0=0、P1=0。复核最初指出证据文
 的 scope V1–V3 未纳入 apps-only 扫描；本提交已生成耐久证据并把扫描范围扩展到 `apps/` 与 `core/`，
 两项均在最终门禁前消除。旧 writer 只是“代码接口仍可调用且未发现生产调用方”，不能据静态搜索
 直接认定可删；零运行调用、生产行盘点和恢复重放仍须在对应 blocker 完成后单独证明。
+
+## DATA-02 财务响应正文范围绑定（2026-09-22）
+
+仓库已把成功 Tushare 财务响应的 scope 从固定 `caller_declared / row_count=0` 改为正文验证。
+成功留存前必须从原始响应的 `ts_code`、`end_date` 列证明请求资产、财政期和实际行数；缺列、
+跨资产或非法日期会 fail closed，且不会生成成功审计。验证结果随原始 body SHA、大小和 EOF UTC
+写入同一个加密不可变原件，并能从 store/audit round-trip 恢复
+`response_scope_basis=provider_body_verified`。供应商业务拒绝继续保留 caller-declared 失败原件。
+
+聚焦回归 147 项通过，新增 Domain 分支覆盖率 97.2%；Black、isort、Ruff、4 个生产文件增量
+mypy、全量 mypy 债务门禁和 64 个 current-data contracts 均通过。结构化证据见
+[DATA-02 provider 正文范围封存](../testing/data02-financial-provider-body-scope-2026-09-22.json)。
+registry v154 → v155，DATA-02 仍为 `awaiting_production`。本轮未访问 provider、未部署、未写生产、
+未切换 Publication，也没有补造 `announced_at`、`available_at` 或来源行身份。

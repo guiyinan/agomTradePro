@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import date, datetime
 from typing import Protocol
 from uuid import UUID
 
@@ -14,6 +15,7 @@ from apps.data_center.domain.entities import ProviderConfig
 from apps.data_center.domain.financial_response_evidence import (
     FinancialRequestScope,
     FinancialResponseScope,
+    with_provider_verified_response_scope,
 )
 from apps.data_center.infrastructure.financial_response_artifact_config import (
     build_financial_response_artifact_repository,
@@ -108,7 +110,10 @@ class _ConfiguredTushareFinancialResponseHandler:
             max_attempts=2,
         )
         try:
-            _validate_financial_payload(captured.payload)
+            verified_scope = _verified_financial_response_scope(
+                captured.payload,
+                requested_asset_code=asset_code,
+            )
         except TushareError as exc:
             if exc.code == _PROVIDER_REJECTION_CODE and _is_provider_rejection_payload(
                 captured.payload
@@ -123,13 +128,22 @@ class _ConfiguredTushareFinancialResponseHandler:
                     provider_id=self._provider_id,
                 )
             raise
+        if captured.evidence.request_scope != request_scope:
+            raise TushareError(
+                "Tushare capture request scope is inconsistent",
+                code="TUSHARE_INVALID_PAYLOAD",
+            )
+        verified_evidence = with_provider_verified_response_scope(
+            captured.evidence,
+            verified_scope,
+        )
         self._repository.retain(
             capture_id=request_id,
-            evidence=captured.evidence,
+            evidence=verified_evidence,
             body=captured.raw_body,
             provider_name=self._provider_name,
             request_params={"api_name": api_name, "params": request_params},
-            row_count=0,
+            row_count=verified_scope.row_count,
             provider_id=self._provider_id,
         )
         return captured.payload
@@ -184,16 +198,23 @@ def _required_text(value: object, field_name: str) -> str:
     return value
 
 
-def _validate_financial_payload(payload: object) -> None:
-    """Require the provider table contract before recording a successful audit."""
+def _verified_financial_response_scope(
+    payload: object,
+    *,
+    requested_asset_code: str,
+) -> FinancialResponseScope:
+    """Parse exact asset and period coverage from one successful provider body."""
 
     if not isinstance(payload, Mapping):
-        raise TushareError("Tushare response payload is invalid", code="TUSHARE_INVALID_PAYLOAD")
-    if payload.get("code") != 0:
+        raise _invalid_payload("Tushare response payload is invalid")
+    provider_code = payload.get("code")
+    if isinstance(provider_code, bool) or not isinstance(provider_code, int):
+        raise _invalid_payload("Tushare response code is invalid")
+    if provider_code != 0:
         raise TushareError("Tushare provider rejected the read", code="TUSHARE_PROVIDER_REJECTED")
     data = payload.get("data")
     if not isinstance(data, Mapping):
-        raise TushareError("Tushare response is missing data", code="TUSHARE_INVALID_PAYLOAD")
+        raise _invalid_payload("Tushare response is missing data")
     fields = data.get("fields")
     items = data.get("items")
     if (
@@ -203,7 +224,52 @@ def _validate_financial_payload(payload: object) -> None:
         or not isinstance(items, list)
         or not all(isinstance(item, list) and len(item) == len(fields) for item in items)
     ):
-        raise TushareError("Tushare financial table is invalid", code="TUSHARE_INVALID_PAYLOAD")
+        raise _invalid_payload("Tushare financial table is invalid")
+    if "ts_code" not in fields or "end_date" not in fields:
+        raise _invalid_payload("Tushare financial table is missing scope fields")
+
+    asset_index = fields.index("ts_code")
+    period_index = fields.index("end_date")
+    period_ends: list[date] = []
+    for item in items:
+        asset_code = item[asset_index]
+        if asset_code != requested_asset_code:
+            raise _invalid_payload("Tushare financial row asset is outside the request scope")
+        period_end = _parse_period_end(item[period_index])
+        if period_end not in period_ends:
+            period_ends.append(period_end)
+    return FinancialResponseScope(
+        asset_codes=(requested_asset_code,) if items else (),
+        period_ends=tuple(period_ends),
+        row_count=len(items),
+    )
+
+
+def _parse_period_end(value: object) -> date:
+    """Parse only the two provider date encodings accepted by the adapter."""
+
+    if not isinstance(value, str) or value != value.strip():
+        raise _invalid_payload("Tushare financial period is invalid")
+    try:
+        if len(value) == 8 and value.isascii() and value.isdigit():
+            return datetime.strptime(value, "%Y%m%d").date()
+        if (
+            len(value) == 10
+            and value[4] == "-"
+            and value[7] == "-"
+            and (value[:4] + value[5:7] + value[8:]).isascii()
+            and (value[:4] + value[5:7] + value[8:]).isdigit()
+        ):
+            return date.fromisoformat(value)
+    except ValueError as exc:
+        raise _invalid_payload("Tushare financial period is invalid") from exc
+    raise _invalid_payload("Tushare financial period is invalid")
+
+
+def _invalid_payload(message: str) -> TushareError:
+    """Return the stable error used for unprovable financial payload scope."""
+
+    return TushareError(message, code="TUSHARE_INVALID_PAYLOAD")
 
 
 def _is_provider_rejection_payload(payload: object) -> bool:

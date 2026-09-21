@@ -15,7 +15,9 @@ from apps.data_center.domain.financial_response_evidence import (
     FinancialResponseBodyScope,
     FinancialResponseEvidence,
     FinancialResponseScope,
+    FinancialResponseScopeBasis,
     raw_body_sha256,
+    with_provider_verified_response_scope,
 )
 from apps.data_center.infrastructure.financial_response_capture import (
     FinancialResponseCaptureError,
@@ -424,6 +426,86 @@ def test_scopes_are_explicit_and_never_serialize_transport_headers() -> None:
     assert "Authorization" not in str(projection)
     assert "secret-value" not in str(projection)
     assert "target_url" not in projection
+
+
+def test_provider_verified_scope_preserves_transport_evidence() -> None:
+    """Parser binding changes only the response coverage and its basis."""
+
+    evidence = _valid_evidence()
+    verified_scope = FinancialResponseScope(
+        asset_codes=(evidence.request_scope.asset_code,),
+        period_ends=(date(2026, 6, 30),),
+        row_count=1,
+    )
+
+    verified = with_provider_verified_response_scope(evidence, verified_scope)
+
+    assert verified.body_sha256 == evidence.body_sha256
+    assert verified.body_size_bytes == evidence.body_size_bytes
+    assert verified.response_completed_at == evidence.response_completed_at
+    assert verified.request_scope == evidence.request_scope
+    assert verified.response_scope == verified_scope
+    assert verified.response_scope_basis is FinancialResponseScopeBasis.PROVIDER_BODY_VERIFIED
+    assert verified.to_dict()["response_scope_basis"] == "provider_body_verified"
+
+
+@pytest.mark.parametrize(
+    "scope",
+    [
+        FinancialResponseScope(
+            asset_codes=("000002.SZ",),
+            period_ends=(date(2026, 6, 30),),
+            row_count=1,
+        ),
+        FinancialResponseScope(
+            asset_codes=("000001.SZ",),
+            period_ends=(),
+            row_count=1,
+        ),
+        FinancialResponseScope(
+            asset_codes=("000001.SZ",),
+            period_ends=(),
+            row_count=0,
+        ),
+    ],
+)
+def test_provider_verified_scope_rejects_unprovable_coverage(
+    scope: FinancialResponseScope,
+) -> None:
+    """Verified coverage cannot carry mismatched or structurally empty claims."""
+
+    with pytest.raises(ValueError):
+        with_provider_verified_response_scope(_valid_evidence(), scope)
+
+
+def test_provider_verified_scope_cannot_be_rebound() -> None:
+    """One response digest has one immutable provider-body coverage binding."""
+
+    scope = FinancialResponseScope(
+        asset_codes=("000001.SZ",),
+        period_ends=(date(2026, 6, 30),),
+        row_count=1,
+    )
+    verified = with_provider_verified_response_scope(_valid_evidence(), scope)
+
+    with pytest.raises(ValueError, match="already provider-body verified"):
+        with_provider_verified_response_scope(verified, scope)
+
+
+def test_provider_verified_basis_cannot_bypass_scope_validation() -> None:
+    """Direct evidence construction enforces the same verified-scope contract."""
+
+    evidence = _valid_evidence()
+    with pytest.raises(ValueError, match="requested asset"):
+        replace(
+            evidence,
+            response_scope=FinancialResponseScope(
+                asset_codes=("000002.SZ",),
+                period_ends=(date(2026, 6, 30),),
+                row_count=1,
+            ),
+            response_scope_basis=FinancialResponseScopeBasis.PROVIDER_BODY_VERIFIED,
+        )
 
 
 def test_date_only_source_remains_outside_response_evidence() -> None:

@@ -1,0 +1,140 @@
+{
+  "schema_version": "data02-financial-provider-body-scope-closure.v1",
+  "generated_at": "2026-09-21T21:17:39.942205Z",
+  "candidate": {
+    "branch": "dev/next-development",
+    "baseline_commit": "b330ef11446f3475c2726d4fe9db85784f5de443",
+    "commit": "containing_git_commit"
+  },
+  "classification": {
+    "scope": "Repository-only provider raw-response body-scope validation.",
+    "production_acceptance": false,
+    "production_ready": false,
+    "runtime_enablement": "not_authorized"
+  },
+  "production_actions": {
+    "deployment": false,
+    "provider_fetch": false,
+    "database_write": false,
+    "publication_switch": false,
+    "authority_change": false
+  },
+  "implemented_contract": [
+    "Successful Tushare financial response retention requires exact ts_code and end_date fields parsed from the captured body payload.",
+    "Every returned asset must equal the requested asset and every fiscal period must use strict YYYYMMDD or YYYY-MM-DD encoding.",
+    "Provider-body verified evidence binds exact asset coverage, unique periods, actual row count and the original body digest.",
+    "Direct evidence construction and rebinding cannot bypass provider-body scope invariants.",
+    "Encrypted artifact metadata and RawAudit links round-trip caller_declared and provider_body_verified bases.",
+    "Only exact integer zero is accepted as success across unified relay, REST path and routed SDK modes.",
+    "Provider rejections retain caller-declared failure evidence and do not become successful scope evidence.",
+    "No source announcement time, availability time or native row identity is inferred."
+  ],
+  "validation": {
+    "tdd_red": {
+      "result": "expected_failure",
+      "detail": "collection failed because FinancialResponseScopeBasis was absent"
+    },
+    "focused_tests": {
+      "result": "passed",
+      "passed": 147,
+      "duration_seconds": 3.32
+    },
+    "domain_coverage": {
+      "result": "passed",
+      "branch_aware_percent": 97.2,
+      "target_percent": 90.0
+    },
+    "incremental_mypy": {
+      "result": "passed",
+      "files": 4,
+      "regressions": 0,
+      "legacy_errors_observed": 0
+    },
+    "mypy_debt_ceiling": {
+      "result": "passed",
+      "errors": 0,
+      "files_with_errors": 0
+    },
+    "current_data_contracts": {
+      "result": "passed",
+      "surfaces": 64
+    },
+    "architecture_full": {
+      "result": "passed",
+      "scanned_files": 3220,
+      "boundary_violations": 0,
+      "audit_violations": 0
+    },
+    "governance": {
+      "result": "passed",
+      "baseline_version": "2026-09-09.v220",
+      "violations": 0,
+      "registry_version": "2026-09-22.v155"
+    },
+    "format_and_lint": {
+      "result": "passed",
+      "black": true,
+      "isort": true,
+      "ruff": true,
+      "diff_check": true
+    }
+  },
+  "source_sha256": {
+    "apps/data_center/domain/financial_response_evidence.py": "69a6c940e4aba559a9a3aca93988fc8a7c7f67d25d95200ce96be29e68854de4",
+    "apps/data_center/financial_response_artifact_composition.py": "9c99519aabcc2ffb633fdb742757f3472968d0f91ee67fa5dc1cdb635156d354",
+    "apps/data_center/infrastructure/financial_response_body_store.py": "eaefa1cd394de14e42a1fe68264f411d9a926785fdd6a565c8a74efe312ae195",
+    "apps/data_center/infrastructure/tushare_client.py": "d6663ae8dcafc9a4c4bc033a9f66ecffde253d6d8a7dced9116db80d830f0db1",
+    "tests/unit/data_center/test_financial_response_capture.py": "af055bcc343cbd6124e5215a07c9b84ed690c3de48d8d6ad12ea0d1ee9ed393d",
+    "tests/unit/data_center/test_data02_provider_artifact_adoption.py": "75801ddd443f5f5d05921dd3ecd20167ccceb22c2052702d9900e3794cf0632f",
+    "tests/unit/data_center/test_egress_tushare_transport.py": "f2ba4d9e72ee818a9e3f0d692f9df2f05a36ee0f609ef89b74180727eb21e11b",
+    "governance/current_data_contracts.json": "167025400f1d83b9f0c6d8264918fbd33227ace5d14dafee3a2b8c47c963f0f2",
+    "governance/active_plan_registry.json": "8f9fa9908ec3a0061f13a739479fd85c45785132ea893d6b2383a862406b1ae1",
+    "docs/plans/data02-financial-source-time-remediation-2026-09-13.md": "8eb03a63ff12d95e431ba6fe9eeedb3b0f47efcbe04e378486fe76659be2bfb5",
+    "docs/reviews/production-closure-2026-09-20.md": "671bfb2e852bb464000994f0816e3b3d45265194a83f0d7a357af9ea9587158e"
+  },
+  "independent_review": {
+    "reviewer": "gpt-5.6-luna",
+    "reasoning_effort": "max",
+    "result": "Final code recheck P0=0 and P1=0.",
+    "resolved_findings": [
+      "Reject bool, float, string and null values that compare equal or resemble integer zero.",
+      "Bind the handler unit-test payload to the exact hashed SCOPED_BODY bytes.",
+      "Generate the referenced JSON, TXT and SHA-256 evidence artifacts before commit."
+    ]
+  },
+  "governance": {
+    "registry_transition": "2026-09-22.v154 -> 2026-09-22.v155",
+    "unit": "DATA-02",
+    "status_before": "awaiting_production",
+    "status_after": "awaiting_production",
+    "reason": "Raw response scope is now body-verifiable; source time, authority and real production reconciliation remain open."
+  },
+  "remaining_gates": [
+    "Obtain a genuine provider source-time and native row-identity contract without synthesizing timestamps.",
+    "Add a select-only source-evidence probe and validate evidence before any FinancialFact write.",
+    "Obtain current production authority, owner-approved numeric tolerances and explicit production-write authorization.",
+    "Run the authorized provider backfill and real four-Publication reconciliation."
+  ],
+  "raw_summary": "docs/testing/data02-financial-provider-body-scope-2026-09-22.txt",
+  "raw_summary_sha256": "dcf38b32b8bc4a037e6d1799300ea8323d20c194f502d6f0fecafc9fda021975",
+  "source_worktree_raw_sha256": {
+    "apps/data_center/domain/financial_response_evidence.py": "46dc472c658f2a9de1cac337608c790d1ce74f342534c48b7c82a5bbfd0aedcb",
+    "apps/data_center/financial_response_artifact_composition.py": "75d9459e3eddd6d20385b404359275ae314ad2a6bed6b44312b613224fe68a38",
+    "apps/data_center/infrastructure/financial_response_body_store.py": "a6d138868a1de37aa5d82aabadfff07f5d303d70eccd0e91616b604b37a0ba07",
+    "apps/data_center/infrastructure/tushare_client.py": "11add1fef41b0411f4d6bf65260b3005c35c850b0cd8068ba0060c9943382227",
+    "tests/unit/data_center/test_financial_response_capture.py": "f02ddec4bc3a613fecdc64d03fec1fc9f06d51d3fd81d99c694e07bc08b68c9c",
+    "tests/unit/data_center/test_data02_provider_artifact_adoption.py": "ca37f5160fd62eaeec1f6dd66b4faa3aebcda90b92f197f0f27b18dc41002bce",
+    "tests/unit/data_center/test_egress_tushare_transport.py": "d1f6a6ed7244646b64c19b5154f5cbb09bc6b9d1d3717c922bb6f0c42cc177ff",
+    "governance/current_data_contracts.json": "4a6d1590087e97cbcd5d748558983ed5ed2b4bdf4e6f1fcd8ef7e95c185b9b0d",
+    "governance/active_plan_registry.json": "508741d948d04b1ac5d871629a408580a6bd3a36de95241d6785f932ff58de20",
+    "docs/plans/data02-financial-source-time-remediation-2026-09-13.md": "231f031871e2b6bd00bc163eab0d0d00b085e20c595380300764f8481b511b16",
+    "docs/reviews/production-closure-2026-09-20.md": "735b78049796e95c6591eceb18344effcb092ac1785cdf44155522e2db61ecaa"
+  },
+  "raw_summary_worktree_sha256": "c58ea735e4fec8d70de214300c1d7e197bc1cc320f5f1d59565b554d393cfc7c",
+  "hash_scope": {
+    "source_sha256": "Git index blobs with repository line-ending normalization",
+    "source_worktree_raw_sha256": "Raw local worktree bytes at evidence generation",
+    "raw_summary_sha256": "Git index blob with repository line-ending normalization",
+    "raw_summary_worktree_sha256": "Raw local worktree bytes at evidence generation"
+  }
+}

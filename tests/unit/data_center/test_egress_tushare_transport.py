@@ -62,6 +62,71 @@ def test_configured_provider_routes_real_query_with_original_wire_format(monkeyp
     session.post.assert_not_called()
 
 
+@pytest.mark.parametrize("mode", ["sdk_path", "rest_path", "unified_relay"])
+@pytest.mark.parametrize("provider_code", [False, 0.0, "0", None])
+def test_routed_clients_reject_non_integer_provider_codes(
+    monkeypatch: pytest.MonkeyPatch,
+    mode: str,
+    provider_code: object,
+) -> None:
+    """JSON values merely equal to zero cannot authorize a provider success."""
+
+    settings = tushare_client.TushareRuntimeSettings(
+        token="test-private-token",
+        http_url="https://market.example.com/pro",
+        request_mode=mode,
+    )
+    monkeypatch.setattr(
+        tushare_client,
+        "resolve_tushare_runtime_settings",
+        lambda **_kwargs: settings,
+    )
+    sdk = Mock()
+    sdk._DataApi__http_url = settings.http_url
+    sdk_module = SimpleNamespace(pro_api=lambda _token: sdk)
+    original_import = tushare_client.import_module
+    monkeypatch.setattr(
+        tushare_client,
+        "import_module",
+        lambda name: sdk_module if name == "tushare" else original_import(name),
+    )
+    session = Mock()
+    session.headers = {}
+    monkeypatch.setattr(tushare_client, "_create_requests_session", lambda: session)
+    monkeypatch.setattr(
+        egress_service,
+        "preview_route",
+        Mock(
+            return_value=EgressRouteDecision(
+                rule_id=5,
+                strategy=EgressStrategy.FIXED,
+                candidates=(9,),
+                reason="matched_rule",
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        egress_service,
+        "execute_provider_request",
+        Mock(
+            return_value={
+                "code": provider_code,
+                "data": {"fields": ["ts_code"], "items": [["000001.SZ"]]},
+            }
+        ),
+    )
+    client = tushare_client.create_tushare_pro_client(
+        provider_id=3,
+        deployment_region="overseas",
+        dataset_key="equity.price.bar",
+    )
+
+    with pytest.raises(tushare_client.TushareError) as caught:
+        client.daily(ts_code="000001.SZ")
+
+    assert caught.value.code == "TUSHARE_INVALID_PAYLOAD"
+
+
 def test_sdk_rechecks_rule_when_existing_client_is_reused(monkeypatch):
     sdk = Mock()
     sdk.query.return_value = "legacy-result"

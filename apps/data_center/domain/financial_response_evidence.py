@@ -10,7 +10,7 @@ before a fact can be considered source-complete.
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta
 from enum import StrEnum
 
@@ -20,6 +20,13 @@ class FinancialResponseBodyScope(StrEnum):
 
     BATCH = "batch_response_body"
     RECORD = "record_response_body"
+
+
+class FinancialResponseScopeBasis(StrEnum):
+    """The actor that established one response coverage projection."""
+
+    CALLER_DECLARED = "caller_declared"
+    PROVIDER_BODY_VERIFIED = "provider_body_verified"
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,10 +59,11 @@ class FinancialRequestScope:
 
 @dataclass(frozen=True, slots=True)
 class FinancialResponseScope:
-    """Caller-declared response coverage awaiting provider-body validation.
+    """Bounded response coverage with its basis carried by the evidence.
 
-    The capture seam records these dimensions for later parser validation; it
-    does not inspect the body or establish a row-level source binding.
+    The capture seam starts with caller-declared dimensions. A provider parser
+    may replace them with body-verified asset, period, and row-count coverage.
+    Neither basis establishes row-level source identity or source time.
     """
 
     asset_codes: tuple[str, ...]
@@ -86,7 +94,7 @@ class FinancialResponseScope:
         object.__setattr__(self, "asset_codes", normalized_assets)
 
     def to_dict(self) -> dict[str, object]:
-        """Return caller-declared response coverage as JSON-compatible values."""
+        """Return response coverage as JSON-compatible values."""
 
         return {
             "asset_codes": list(self.asset_codes),
@@ -105,6 +113,7 @@ class FinancialResponseEvidence:
     request_scope: FinancialRequestScope
     response_scope: FinancialResponseScope
     body_scope: FinancialResponseBodyScope = FinancialResponseBodyScope.BATCH
+    response_scope_basis: FinancialResponseScopeBasis = FinancialResponseScopeBasis.CALLER_DECLARED
 
     def __post_init__(self) -> None:
         """Require a raw-body digest and an aware UTC completion timestamp."""
@@ -122,6 +131,10 @@ class FinancialResponseEvidence:
             raise ValueError("FinancialResponseEvidence.response_scope must be typed")
         if not isinstance(self.body_scope, FinancialResponseBodyScope):
             raise ValueError("FinancialResponseEvidence.body_scope must be typed")
+        if not isinstance(self.response_scope_basis, FinancialResponseScopeBasis):
+            raise ValueError("FinancialResponseEvidence.response_scope_basis must be typed")
+        if self.response_scope_basis is FinancialResponseScopeBasis.PROVIDER_BODY_VERIFIED:
+            _validate_provider_body_scope(self.request_scope, self.response_scope)
 
     def to_dict(self) -> dict[str, object]:
         """Return safe transport evidence without body bytes or headers."""
@@ -133,9 +146,39 @@ class FinancialResponseEvidence:
             "response_completed_at": self.response_completed_at.isoformat(),
             "request_scope": self.request_scope.to_dict(),
             "response_scope": self.response_scope.to_dict(),
-            "response_scope_basis": "caller_declared",
+            "response_scope_basis": self.response_scope_basis.value,
             "body_scope": self.body_scope.value,
         }
+
+
+def with_provider_verified_response_scope(
+    evidence: FinancialResponseEvidence,
+    response_scope: FinancialResponseScope,
+) -> FinancialResponseEvidence:
+    """Bind parser-verified body coverage without changing transport evidence."""
+
+    if evidence.response_scope_basis is not FinancialResponseScopeBasis.CALLER_DECLARED:
+        raise ValueError("financial response scope is already provider-body verified")
+    return replace(
+        evidence,
+        response_scope=response_scope,
+        response_scope_basis=FinancialResponseScopeBasis.PROVIDER_BODY_VERIFIED,
+    )
+
+
+def _validate_provider_body_scope(
+    request_scope: FinancialRequestScope,
+    response_scope: FinancialResponseScope,
+) -> None:
+    """Require exact request binding for provider-body verified coverage."""
+
+    if response_scope.row_count:
+        if response_scope.asset_codes != (request_scope.asset_code,):
+            raise ValueError("verified response assets must match the requested asset")
+        if not response_scope.period_ends:
+            raise ValueError("verified response periods are required for rows")
+    elif response_scope.asset_codes or response_scope.period_ends:
+        raise ValueError("empty verified responses cannot claim asset or period coverage")
 
 
 def raw_body_sha256(body: bytes) -> str:
@@ -195,5 +238,7 @@ __all__ = [
     "FinancialResponseBodyScope",
     "FinancialResponseEvidence",
     "FinancialResponseScope",
+    "FinancialResponseScopeBasis",
     "raw_body_sha256",
+    "with_provider_verified_response_scope",
 ]

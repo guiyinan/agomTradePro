@@ -26,6 +26,7 @@ from apps.data_center.domain.financial_response_evidence import (
     FinancialResponseBodyScope,
     FinancialResponseEvidence,
     FinancialResponseScope,
+    FinancialResponseScopeBasis,
     raw_body_sha256,
 )
 from core.exceptions import DataFetchError
@@ -499,7 +500,7 @@ def _metadata_for_artifact(
         "response_completed_at": evidence.response_completed_at.isoformat(),
         "request_scope": request_scope,
         "response_scope": response_scope,
-        "response_scope_basis": "caller_declared",
+        "response_scope_basis": evidence.response_scope_basis.value,
         "body_scope": evidence.body_scope.value,
         "encryption_algorithm": ENCRYPTION_ALGORITHM,
         "encryption_key_ref": encryption_key_ref,
@@ -530,10 +531,11 @@ def _reference_from_metadata(metadata: Mapping[str, object]) -> FinancialRespons
         raise ValueError("metadata dataset key mismatch")
     if _required_text(metadata, "provider_name") != request_scope.provider_name:
         raise ValueError("metadata provider mismatch")
-    if _required_text(metadata, "response_scope_basis") != "caller_declared":
-        raise ValueError("metadata response scope basis is invalid")
     try:
         body_scope = FinancialResponseBodyScope(_required_text(metadata, "body_scope"))
+        response_scope_basis = FinancialResponseScopeBasis(
+            _required_text(metadata, "response_scope_basis")
+        )
         evidence = FinancialResponseEvidence(
             body_sha256=body_sha256,
             body_size_bytes=body_size_bytes,
@@ -541,6 +543,7 @@ def _reference_from_metadata(metadata: Mapping[str, object]) -> FinancialRespons
             request_scope=request_scope,
             response_scope=response_scope,
             body_scope=body_scope,
+            response_scope_basis=response_scope_basis,
         )
     except (TypeError, ValueError) as exc:
         raise ValueError("metadata evidence is invalid") from exc

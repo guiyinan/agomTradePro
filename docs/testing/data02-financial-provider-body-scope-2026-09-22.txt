@@ -1,0 +1,42 @@
+DATA-02 financial provider body-scope validation
+Date: 2026-09-22
+Branch: dev/next-development
+Baseline: b330ef11446f3475c2726d4fe9db85784f5de443
+
+TDD red:
+- Focused collection failed because FinancialResponseScopeBasis did not exist.
+- Result: 1 collection error; implementation had not started.
+
+Implemented contract:
+- Successful Tushare financial responses derive asset, fiscal-period and row-count scope from the same captured raw body.
+- Missing scope fields, cross-asset rows, invalid period encodings and ambiguous provider success codes fail closed.
+- Only exact integer zero is a success code in unified relay, REST path and routed SDK modes.
+- Provider business rejections remain caller-declared failure evidence with row_count zero.
+- Provider-body verification does not create announced_at, available_at or native row identity.
+
+Final validation:
+- Focused pytest: 147 passed in 3.32s.
+- Changed Domain module: 97.2% branch-aware coverage.
+- Black: passed.
+- isort: passed.
+- Ruff: passed.
+- Incremental mypy: 0 regressions, 0 legacy errors observed.
+- Full mypy debt ceiling: 0 errors in 0 files.
+- Current-data contracts: 64 surfaces, 0 violations.
+- Full architecture: 3220 files, 0 boundary violations, 0 audit violations.
+- Active plan registry: version 2026-09-22.v155, 0 violations.
+- Governance consistency: baseline 2026-09-09.v220, 0 violations.
+- git diff --check: passed.
+
+Independent review:
+- GPT-5.6 Luna Max first pass: P0=0, P1=2.
+- Fixed exact integer code validation and raw-body/payload test binding.
+- Final code recheck: P0=0, P1=0.
+- The remaining evidence-file finding is closed by the JSON, TXT and SHA-256 artifacts in this change.
+
+Production actions:
+- Provider access: no.
+- Deployment: no.
+- Production database write: no.
+- Publication switch: no.
+- DATA-02 status: awaiting_production.

@@ -262,7 +262,7 @@ class _UnifiedRelayClient:
                 "Tushare relay returned an invalid payload",
                 code="TUSHARE_INVALID_PAYLOAD",
             )
-        if payload.get("code") != 0:
+        if _validated_provider_code(payload) != 0:
             raise TushareError(
                 "Tushare relay rejected the request",
                 code="TUSHARE_PROVIDER_REJECTED",
@@ -404,7 +404,12 @@ class _RestPathClient(_UnifiedRelayClient):
                 )
             response.raise_for_status()
             payload = response.json()
-        if not isinstance(payload, dict) or payload.get("code") != 0:
+        if not isinstance(payload, dict):
+            raise TushareError(
+                "Tushare resource response is invalid",
+                code="TUSHARE_INVALID_PAYLOAD",
+            )
+        if _validated_provider_code(payload) != 0:
             raise TushareError(
                 "Tushare resource request rejected",
                 code="TUSHARE_PROVIDER_REJECTED",
@@ -485,7 +490,11 @@ class _RoutedSdkClient(_UnifiedRelayClient):
                 "fields": fields,
             },
         )
-        if not isinstance(payload, dict) or payload.get("code") != 0:
+        if not isinstance(payload, dict):
+            raise TushareError(
+                "Tushare response payload is invalid", code="TUSHARE_INVALID_PAYLOAD"
+            )
+        if _validated_provider_code(payload) != 0:
             raise TushareError(
                 "Tushare provider rejected the read", code="TUSHARE_PROVIDER_REJECTED"
             )
@@ -502,6 +511,18 @@ class _RoutedSdkClient(_UnifiedRelayClient):
         ):
             raise TushareError("Tushare table shape is invalid", code="TUSHARE_INVALID_PAYLOAD")
         return pd.DataFrame(items, columns=columns)
+
+
+def _validated_provider_code(payload: dict[str, object]) -> int:
+    """Return an exact integer provider code or reject ambiguous JSON scalars."""
+
+    provider_code = payload.get("code")
+    if isinstance(provider_code, bool) or not isinstance(provider_code, int):
+        raise TushareError(
+            "Tushare response code is invalid",
+            code="TUSHARE_INVALID_PAYLOAD",
+        )
+    return provider_code
 
 
 def create_tushare_pro_client(

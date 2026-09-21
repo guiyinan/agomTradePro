@@ -650,3 +650,21 @@ HTTPS 域名，使用 direct/priority 100；规则区域为 `*`，请求如实�
 原生财务行身份，EOF 不能替代公告或 available_at。下一步先定位供应商实际拒绝
 原因并验证合法修复或受控后备源，再完成成功 FRA1/RawAudit 回放、精确源时间、
 原生行身份与规范容差对账。历史 441,944 条数据的原始哈希和时间缺口未回填。
+
+## 24. 2026-09-22 provider 正文范围绑定
+
+成功的 Tushare 财务响应现在必须在保留成功原件前，从同一份已哈希正文中解析
+`ts_code` 与 `end_date`。解析器要求每行资产与请求资产完全一致，并只接受
+`YYYYMMDD` 或 `YYYY-MM-DD` 财政期编码；缺字段、跨资产或非法日期均以
+`TUSHARE_INVALID_PAYLOAD` 阻断成功留存。验证后的 immutable evidence 将
+`response_scope_basis` 提升为 `provider_body_verified`，并把实际资产、去重期间和
+正文行数共同写入加密原件与 RawAudit。供应商业务拒绝仍保存为
+`caller_declared`、row_count 0，不能伪装成成功正文范围。
+三个 routed client 模式也统一只接受精确整数 `0` 作为成功码；JSON `false`、浮点
+`0.0`、字符串 `"0"` 和 null 均按无效 payload 阻断。
+
+该绑定只证明“这一份原始响应正文覆盖哪些资产、期间和行数”。它没有生成
+`announced_at`、`available_at` 或 native row identity，也没有把 EOF 时间当成来源
+时间。生产回填继续要求真实供应商字段契约、只读 source-evidence probe、写入前
+证据校验、current authority、owner 批准容差与明确生产写授权。DATA-02 因此保持
+`awaiting_production`。
