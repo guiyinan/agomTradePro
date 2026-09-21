@@ -113,6 +113,7 @@ class SyncItemAttemptModel(models.Model):
     error_message = models.TextField(blank=True)
     universe_hash = models.CharField(max_length=64)
     authority_content_hash = models.CharField(max_length=64)
+    evidence_hash = models.CharField(max_length=64, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -186,6 +187,16 @@ class SyncItemAttemptModel(models.Model):
                 ),
                 name="dc_sync_item_attempt_terminal_time",
             ),
+            models.CheckConstraint(
+                condition=(
+                    ~models.Q(
+                        phase=SyncItemAttemptPhase.PUBLICATION.value,
+                        state=SyncItemAttemptState.SUCCEEDED.value,
+                    )
+                    | ~models.Q(evidence_hash="")
+                ),
+                name="dc_item_pub_evidence",
+            ),
         ]
         indexes = [
             models.Index(
@@ -222,6 +233,7 @@ class SyncItemAttemptModel(models.Model):
             error_message=self.error_message,
             universe_hash=self.universe_hash,
             authority_content_hash=self.authority_content_hash,
+            evidence_hash=self.evidence_hash,
         )
 
 

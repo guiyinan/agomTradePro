@@ -10,8 +10,18 @@ import pytest
 from apps.data_center.application.tasks import (
     backfill_active_a_share_core_data_batch_task,
 )
+from apps.data_center.domain.control_plane import (
+    SyncItemAttemptPhase,
+    SyncItemAttemptState,
+)
 
 AUTHORITY_HASH = "a" * 64
+PUBLICATION_DATASETS = (
+    "equity.quote.snapshot",
+    "equity.price.bar",
+    "equity.valuation.fact",
+    "equity.financial.fact",
+)
 
 
 def _universe_hash(*asset_codes: str) -> str:
@@ -25,6 +35,27 @@ def _universe_hash(*asset_codes: str) -> str:
         separators=(",", ":"),
     )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _publication_result(member_count: int) -> SimpleNamespace:
+    """Return exact four-Publication evidence for task tests."""
+
+    datasets = [
+        {
+            "dataset_key": dataset_key,
+            "publication_id": f"publication-{index}",
+            "publication_hash": format(index + 1, "x") * 64,
+            "member_count": member_count,
+        }
+        for index, dataset_key in enumerate(PUBLICATION_DATASETS)
+    ]
+    return SimpleNamespace(
+        published_count=member_count * len(datasets),
+        to_dict=lambda: {
+            "published_count": member_count * len(datasets),
+            "datasets": datasets,
+        },
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -47,7 +78,7 @@ def _patch_current_authority(mocker):
 def _patch_control_plane_repositories(mocker):
     """Keep unit tests in-memory while exercising the durable save calls."""
 
-    repositories = {name: mocker.Mock() for name in ("run", "batch", "checkpoint")}
+    repositories = {name: mocker.Mock() for name in ("run", "batch", "checkpoint", "item_attempt")}
     snapshot = mocker.patch(
         "apps.data_center.application.tasks.persist_sync_control_plane_snapshot"
     )
@@ -55,6 +86,15 @@ def _patch_control_plane_repositories(mocker):
         repositories["run"].save(run),
         repositories["batch"].save(batch),
         repositories["checkpoint"].save(checkpoint),
+    )
+    repositories["item_attempt"].begin.side_effect = lambda **kwargs: SimpleNamespace(**kwargs)
+    repositories["item_attempt"].finish.side_effect = lambda attempt, **kwargs: SimpleNamespace(
+        attempt=attempt,
+        **kwargs,
+    )
+    mocker.patch(
+        "apps.data_center.application.tasks.get_backfill_item_attempt_store",
+        return_value=repositories["item_attempt"],
     )
     return repositories
 
@@ -149,7 +189,7 @@ def _patch_backfill_dependencies(
     if publication_failure:
         coordinator.execute.side_effect = ValueError("full universe incomplete")
     else:
-        coordinator.execute.return_value = SimpleNamespace(published_count=6)
+        coordinator.execute.return_value = _publication_result(2)
     factory = mocker.patch(
         "apps.data_center.application.tasks." "make_core_current_publication_rebuild_use_case",
         return_value=coordinator,
@@ -307,7 +347,7 @@ def test_backfill_batch_reports_all_success_with_checkpoint(mocker) -> None:
     assert result["succeeded"] == 2
     assert result["failed"] == 0
     assert result["stored"] == 8
-    assert result["published"] == 6
+    assert result["published"] == 8
     assert result["checkpoint"] == {
         "offset": 0,
         "next_offset": 2,
@@ -324,6 +364,74 @@ def test_backfill_batch_reports_all_success_with_checkpoint(mocker) -> None:
     }
     factory.assert_called_once_with(created_by="celery.core_data_backfill:service:data02")
     coordinator.execute.assert_called_once()
+
+
+def test_backfill_batch_records_all_item_phase_attempts(
+    mocker,
+    _patch_control_plane_repositories,
+) -> None:
+    """Every write phase must have complete durable per-asset evidence."""
+
+    _patch_backfill_dependencies(mocker)
+    item_attempts = _patch_control_plane_repositories["item_attempt"]
+
+    result = backfill_active_a_share_core_data_batch_task.run(batch_size=2)
+
+    assert result["outcome"] == "success"
+    phases = [call.kwargs["phase"] for call in item_attempts.begin.call_args_list]
+    assert phases == [
+        SyncItemAttemptPhase.QUOTE,
+        SyncItemAttemptPhase.QUOTE,
+        SyncItemAttemptPhase.VALUATION,
+        SyncItemAttemptPhase.VALUATION,
+        SyncItemAttemptPhase.PRICE,
+        SyncItemAttemptPhase.FINANCIAL,
+        SyncItemAttemptPhase.PRICE,
+        SyncItemAttemptPhase.FINANCIAL,
+        SyncItemAttemptPhase.PUBLICATION,
+        SyncItemAttemptPhase.PUBLICATION,
+    ]
+    assert all(
+        call.kwargs["state"] is SyncItemAttemptState.SUCCEEDED
+        for call in item_attempts.finish.call_args_list
+    )
+    assert len(item_attempts.finish.call_args_list) == 10
+    publication_finishes = [
+        call
+        for call in item_attempts.finish.call_args_list
+        if call.args[0].phase is SyncItemAttemptPhase.PUBLICATION
+    ]
+    assert {call.kwargs["stored_count"] for call in publication_finishes} == {1}
+    assert all(len(call.kwargs["evidence_hash"]) == 64 for call in publication_finishes)
+
+
+def test_backfill_batch_blocks_checkpoint_when_item_evidence_finish_fails(
+    mocker,
+    _patch_control_plane_repositories,
+) -> None:
+    """A provider write cannot advance the cursor without terminal item evidence."""
+
+    _patch_backfill_dependencies(mocker)
+    item_attempts = _patch_control_plane_repositories["item_attempt"]
+    original_finish = item_attempts.finish.side_effect
+    calls = 0
+
+    def finish_with_first_failure(attempt, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise RuntimeError("evidence unavailable")
+        return original_finish(attempt, **kwargs)
+
+    item_attempts.finish.side_effect = finish_with_first_failure
+
+    result = backfill_active_a_share_core_data_batch_task.run(batch_size=2)
+
+    assert result["outcome"] == "blocked"
+    assert result["stage"] == "item_evidence"
+    assert result["blocked_reason"] == "item_attempt_evidence_failed"
+    assert result["checkpoint"]["next_offset"] == 0
+    assert result["checkpoint"]["complete"] is False
 
 
 def test_backfill_resume_requires_frozen_universe_hash_before_repository_access(
@@ -456,7 +564,7 @@ def test_backfill_batch_persists_stable_run_batch_and_cursor_on_retry(
     assert batch_saves[0].args[0].requested == 2
     assert batch_saves[0].args[0].succeeded == 2
     assert batch_saves[0].args[0].stored == 8
-    assert batch_saves[0].args[0].published == 6
+    assert batch_saves[0].args[0].published == 8
     assert json.loads(checkpoint_saves[0].args[0].cursor_value) == first["checkpoint"]
     assert json.loads(checkpoint_saves[1].args[0].cursor_value) == second["checkpoint"]
 
@@ -547,6 +655,44 @@ def test_backfill_batch_keeps_checkpoint_open_when_authority_changes(
     assert result["checkpoint"]["next_offset"] == 0
     assert result["errors"][-1]["error"] == "authority_changed_or_expired"
     quote_factory.return_value.execute.assert_not_called()
+
+
+def test_backfill_revalidates_authority_after_publication_attempt_setup(
+    mocker,
+    _patch_current_authority,
+    _patch_control_plane_repositories,
+) -> None:
+    """Publication cannot start if authority drifts while item evidence is prepared."""
+
+    _factory, coordinator = _patch_backfill_dependencies(mocker)
+    mocker.patch(
+        "apps.data_center.application.tasks.list_active_stock_codes_for_backfill",
+        return_value=["000001.SZ"],
+    )
+    initial = _patch_current_authority.return_value
+    changed = SimpleNamespace(
+        actor_id=initial.actor_id,
+        tenant_id=initial.tenant_id,
+        owner_id=initial.owner_id,
+        authority_content_hash="c" * 64,
+        authority_valid_until=initial.authority_valid_until,
+    )
+    _patch_current_authority.side_effect = [initial] * 6 + [changed]
+
+    result = backfill_active_a_share_core_data_batch_task.run(batch_size=1)
+
+    assert result["outcome"] == "blocked"
+    assert result["stage"] == "authority"
+    assert result["checkpoint"]["next_offset"] == 0
+    assert result["checkpoint"]["complete"] is False
+    coordinator.execute.assert_not_called()
+    publication_finishes = [
+        call
+        for call in _patch_control_plane_repositories["item_attempt"].finish.call_args_list
+        if call.args[0].phase is SyncItemAttemptPhase.PUBLICATION
+    ]
+    assert len(publication_finishes) == 1
+    assert publication_finishes[0].kwargs["state"] is SyncItemAttemptState.BLOCKED
 
 
 def test_backfill_batch_reports_zero_output_as_complete_failure(mocker) -> None:

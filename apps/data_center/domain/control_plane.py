@@ -320,6 +320,7 @@ class SyncItemAttempt:
     started_at: datetime
     universe_hash: str
     authority_content_hash: str
+    evidence_hash: str = ""
     finished_at: datetime | None = None
     stored_count: int = 0
     error_code: str = ""
@@ -351,10 +352,12 @@ class SyncItemAttempt:
             self.authority_content_hash,
             "SyncItemAttempt.authority_content_hash",
         )
+        if self.evidence_hash:
+            _require_sha256(self.evidence_hash, "SyncItemAttempt.evidence_hash")
         if self.state is SyncItemAttemptState.RUNNING:
             if self.finished_at is not None:
                 raise ValueError("A RUNNING SyncItemAttempt cannot have finished_at")
-            if self.stored_count or self.error_code or self.error_message:
+            if self.stored_count or self.error_code or self.error_message or self.evidence_hash:
                 raise ValueError("A RUNNING SyncItemAttempt cannot have terminal output")
             return
         if self.finished_at is None:
@@ -374,6 +377,12 @@ class SyncItemAttempt:
             raise ValueError("A failed, blocked, or interrupted attempt requires error_code")
         if self.state is SyncItemAttemptState.SUCCEEDED and self.error_code:
             raise ValueError("A succeeded SyncItemAttempt cannot have error_code")
+        if (
+            self.state is SyncItemAttemptState.SUCCEEDED
+            and self.phase is SyncItemAttemptPhase.PUBLICATION
+            and not self.evidence_hash
+        ):
+            raise ValueError("A succeeded publication attempt requires evidence_hash")
 
     def finish(
         self,
@@ -383,6 +392,7 @@ class SyncItemAttempt:
         stored_count: int = 0,
         error_code: str = "",
         error_message: str = "",
+        evidence_hash: str = "",
     ) -> SyncItemAttempt:
         """Return the single terminal representation of this running attempt."""
 
@@ -407,6 +417,7 @@ class SyncItemAttempt:
             error_message=error_message,
             universe_hash=self.universe_hash,
             authority_content_hash=self.authority_content_hash,
+            evidence_hash=evidence_hash,
         )
 
 

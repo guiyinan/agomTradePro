@@ -73,6 +73,9 @@ from apps.data_center.infrastructure.audited_sync_runtime import (
     DjangoRepairRunIdentityUnitOfWork,
     DjangoSyncExecutionIdentityIssuer,
 )
+from apps.data_center.infrastructure.backfill_item_attempt_store import (
+    DjangoBackfillItemAttemptStore,
+)
 from apps.data_center.infrastructure.cache_warmup_queries import (
     MacroFactCacheWarmupRepository,
 )
@@ -224,6 +227,7 @@ __all__ = [
     "get_archive_candidate_repository",
     "get_archive_capacity_guard",
     "get_archive_coverage_gateway",
+    "get_backfill_item_attempt_store",
     "get_canonical_publication_repository",
     "get_rollback_canonical_publication_use_case",
     "get_capital_flow_repository",
@@ -561,6 +565,16 @@ def get_sync_item_attempt_repository() -> SyncItemAttemptRepository:
     """Return the durable item-attempt repository."""
 
     return SyncItemAttemptRepository()
+
+
+def get_backfill_item_attempt_store() -> DjangoBackfillItemAttemptStore:
+    """Return the durable DATA-02 item-attempt store."""
+
+    return DjangoBackfillItemAttemptStore(
+        run_repository=get_sync_run_repository(),
+        batch_repository=get_sync_batch_repository(),
+        attempt_repository=get_sync_item_attempt_repository(),
+    )
 
 
 def persist_sync_control_plane_snapshot(

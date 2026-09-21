@@ -9,7 +9,14 @@ from uuid import uuid4
 import pytest
 from django.core.exceptions import ValidationError
 
-from apps.data_center.composition import get_sync_item_attempt_repository
+from apps.data_center.application.backfill_control_plane import (
+    backfill_control_plane_ids,
+    backfill_execution_token,
+)
+from apps.data_center.composition import (
+    get_backfill_item_attempt_store,
+    get_sync_item_attempt_repository,
+)
 from apps.data_center.domain.control_plane import (
     SyncBatch,
     SyncItemAttempt,
@@ -101,12 +108,96 @@ def test_sync_item_attempt_domain_rejects_invalid_lifecycle() -> None:
             state=SyncItemAttemptState.INTERRUPTED,
             finished_at=NOW,
         )
+    publication = replace(
+        SyncItemAttempt(**common, state=SyncItemAttemptState.RUNNING),
+        phase=SyncItemAttemptPhase.PUBLICATION,
+    )
+    with pytest.raises(ValueError, match="publication attempt requires evidence_hash"):
+        publication.finish(
+            state=SyncItemAttemptState.SUCCEEDED,
+            finished_at=NOW + timedelta(seconds=1),
+            stored_count=1,
+        )
 
 
 def test_sync_item_attempt_repository_is_available_from_composition() -> None:
     """Runtime wiring exposes the guarded repository through the composition root."""
 
     assert isinstance(get_sync_item_attempt_repository(), SyncItemAttemptRepository)
+
+
+@pytest.mark.django_db
+def test_backfill_item_attempt_store_creates_stable_batch_before_attempt() -> None:
+    """Runtime wiring creates the deterministic batch before item evidence."""
+
+    store = get_backfill_item_attempt_store()
+    idempotency_key = "equity.core.backfill:tushare:offset=0:window=2:abc123"
+    execution_token = backfill_execution_token(idempotency_key)
+
+    attempt = store.begin(
+        idempotency_key=idempotency_key,
+        provider_name="tushare",
+        asset_code="000001.SZ",
+        phase=SyncItemAttemptPhase.QUOTE,
+        execution_token=execution_token,
+        started_at=NOW,
+        universe_hash=UNIVERSE_HASH,
+        authority_content_hash=AUTHORITY_HASH,
+        requested=2,
+    )
+
+    expected_run_id, expected_batch_id = backfill_control_plane_ids(idempotency_key)
+    assert attempt.run_id == expected_run_id
+    assert attempt.batch_id == expected_batch_id
+    assert attempt.execution_token == execution_token
+    assert attempt.attempt_number == 1
+    assert attempt.state is SyncItemAttemptState.RUNNING
+
+    finished = store.finish(
+        attempt,
+        state=SyncItemAttemptState.SUCCEEDED,
+        finished_at=NOW + timedelta(seconds=1),
+        stored_count=1,
+    )
+    assert finished.state is SyncItemAttemptState.SUCCEEDED
+    assert finished.stored_count == 1
+
+
+@pytest.mark.django_db
+def test_backfill_item_attempt_store_recovers_only_stale_attempts() -> None:
+    """A recent execution blocks overlap while an expired execution is retained."""
+
+    store = get_backfill_item_attempt_store()
+    idempotency_key = "equity.core.backfill:tushare:offset=0:window=1:def456"
+    common = {
+        "idempotency_key": idempotency_key,
+        "provider_name": "tushare",
+        "asset_code": "000001.SZ",
+        "phase": SyncItemAttemptPhase.PRICE,
+        "execution_token": backfill_execution_token(idempotency_key),
+        "universe_hash": UNIVERSE_HASH,
+        "authority_content_hash": AUTHORITY_HASH,
+        "requested": 1,
+    }
+    first = store.begin(started_at=NOW, **common)
+
+    with pytest.raises(ValueError, match="active attempt already exists"):
+        get_backfill_item_attempt_store().begin(
+            started_at=NOW + timedelta(minutes=30),
+            **common,
+        )
+
+    second = get_backfill_item_attempt_store().begin(
+        started_at=NOW + timedelta(seconds=3902),
+        **common,
+    )
+
+    assert second.attempt_number == 2
+    attempts = SyncItemAttemptRepository().list_for_batch(first.batch_id)
+    assert [(item.attempt_number, item.state) for item in attempts] == [
+        (1, SyncItemAttemptState.INTERRUPTED),
+        (2, SyncItemAttemptState.RUNNING),
+    ]
 
 
 @pytest.mark.django_db

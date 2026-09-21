@@ -300,6 +300,7 @@ class SyncItemAttemptRepository:
                     error_message="",
                     universe_hash=attempt.universe_hash,
                     authority_content_hash=attempt.authority_content_hash,
+                    evidence_hash="",
                 )
             except IntegrityError as exc:
                 raise ValueError("sync item attempt identity conflict") from exc
@@ -348,6 +349,7 @@ class SyncItemAttemptRepository:
                     stored_count=attempt.stored_count,
                     error_code=attempt.error_code,
                     error_message=attempt.error_message,
+                    evidence_hash=attempt.evidence_hash,
                     updated_at=attempt.finished_at,
                 )
             if updated != 1:

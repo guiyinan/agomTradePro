@@ -1,0 +1,22 @@
+DATA-02 item-attempt writer wiring validation
+
+branch: dev/next-development
+baseline: 3c1e481a14194402b7c2f60c788898d17f4809c9
+production actions: none
+
+pytest focused: 44 passed, 2 skipped in 319.16s
+pytest publication evidence component recheck: 1 passed in 372.72s
+incremental mypy: 0 regressions in 8 production files
+full mypy debt ceiling: 0 errors in 0 files
+migration drift: No changes detected in app data_center
+Django system check: 0 issues
+Ruff: 12 files passed
+Black: 11 files passed
+isort: 11 files passed
+architecture: 3215 files, 0 boundary violations
+current-data contracts: 63 surfaces passed
+Celery contracts: 92 tasks, 21 exemptions, 23 governed files passed
+governance: registry 2026-09-21.v148, 0 violations
+migration graph verifier: not run because DATABASE_URL is not set
+
+PostgreSQL-only skips and 5,533-asset scale remain explicit production gates.

@@ -20,6 +20,7 @@ from apps.audit.application.system_audit_composition import SystemAuditCompositi
 from apps.audit.application.system_audit_query import SystemAuditReaderContext
 from apps.data_center.composition import (
     get_archive_coverage_gateway,
+    get_backfill_item_attempt_store,
     get_raw_landing_repository,
     get_retention_plan_repository,
     get_retention_policy_repository,
@@ -42,6 +43,7 @@ from shared.domain.task_outcomes import TaskBusinessOutcome
 from shared.infrastructure.operational_alert_registry import record_operational_alert
 
 from .archive_tasks import verify_archive_manifest_task  # noqa: F401
+from .backfill_control_plane import backfill_control_plane_ids
 from .core_data_backfill import (
     BackfillAuthorityBinding,
     CoreDataBackfillServices,
@@ -383,14 +385,6 @@ def _backfill_idempotency_key(
     return f"{visible}:{digest}"
 
 
-def _backfill_control_plane_ids(idempotency_key: str) -> tuple[str, str]:
-    """Return stable run and batch UUIDs for one idempotent task window."""
-
-    run_id = str(uuid5(NAMESPACE_URL, f"agomtradepro:sync-run:{idempotency_key}"))
-    batch_id = str(uuid5(NAMESPACE_URL, f"agomtradepro:sync-batch:{idempotency_key}"))
-    return run_id, batch_id
-
-
 def _backfill_sync_status(
     outcome: TaskBusinessOutcome,
     *,
@@ -433,6 +427,79 @@ def _published_count_from_result(result: object) -> int:
     return 0
 
 
+def _publication_evidence_hash_from_result(result: object) -> str:
+    """Hash the exact four-Publication identity and coverage evidence."""
+
+    to_dict = getattr(result, "to_dict", None)
+    if not callable(to_dict):
+        raise ValueError("publication rebuild result must expose canonical evidence")
+    payload = to_dict()
+    if not isinstance(payload, Mapping):
+        raise ValueError("publication rebuild evidence must be a mapping")
+    raw_datasets = payload.get("datasets")
+    if not isinstance(raw_datasets, list) or len(raw_datasets) != 4:
+        raise ValueError("publication rebuild must commit exactly four datasets")
+    expected_datasets = {
+        "equity.quote.snapshot",
+        "equity.price.bar",
+        "equity.valuation.fact",
+        "equity.financial.fact",
+    }
+    normalized: list[dict[str, object]] = []
+    member_counts: set[int] = set()
+    normalized_member_total = 0
+    for raw_dataset in raw_datasets:
+        if not isinstance(raw_dataset, Mapping):
+            raise ValueError("publication dataset evidence must be a mapping")
+        dataset_key = raw_dataset.get("dataset_key")
+        publication_id = raw_dataset.get("publication_id")
+        publication_hash = raw_dataset.get("publication_hash")
+        member_count = raw_dataset.get("member_count")
+        if not isinstance(dataset_key, str) or dataset_key not in expected_datasets:
+            raise ValueError("publication dataset evidence is unexpected")
+        if not isinstance(publication_id, str) or not publication_id.strip():
+            raise ValueError("publication id evidence is missing")
+        if (
+            not isinstance(publication_hash, str)
+            or len(publication_hash) != 64
+            or any(character not in "0123456789abcdef" for character in publication_hash)
+        ):
+            raise ValueError("publication hash evidence is invalid")
+        if isinstance(member_count, bool) or not isinstance(member_count, int) or member_count <= 0:
+            raise ValueError("publication member-count evidence is invalid")
+        member_counts.add(member_count)
+        normalized_member_total += member_count
+        normalized.append(
+            {
+                "dataset_key": dataset_key,
+                "publication_id": publication_id,
+                "publication_hash": publication_hash,
+                "member_count": member_count,
+            }
+        )
+    if {item["dataset_key"] for item in normalized} != expected_datasets:
+        raise ValueError("publication rebuild evidence is incomplete")
+    if len(member_counts) != 1:
+        raise ValueError("publication member counts disagree")
+    published_count = payload.get("published_count")
+    expected_published_count = normalized_member_total
+    if (
+        isinstance(published_count, bool)
+        or not isinstance(published_count, int)
+        or published_count != expected_published_count
+    ):
+        raise ValueError("publication published-count evidence is inconsistent")
+    if getattr(result, "published_count", None) != published_count:
+        raise ValueError("publication result count differs from canonical evidence")
+    encoded = json.dumps(
+        sorted(normalized, key=lambda item: str(item["dataset_key"])),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def _persist_backfill_control_plane(
     *,
     idempotency_key: str,
@@ -458,7 +525,7 @@ def _persist_backfill_control_plane(
     """
 
     finished_at = datetime.now(UTC)
-    run_id, batch_id = _backfill_control_plane_ids(idempotency_key)
+    run_id, batch_id = backfill_control_plane_ids(idempotency_key)
     run_status, batch_state = _backfill_sync_status(outcome, published=published)
     if run_status is SyncRunStatus.BLOCKED and not error_code:
         error_code = "blocked"
@@ -828,7 +895,9 @@ def backfill_active_a_share_core_data_batch_task(
                 )
             ),
             published_count_from_result=_published_count_from_result,
+            publication_evidence_hash=_publication_evidence_hash_from_result,
             persist_control_plane=_persist_backfill_control_plane,
+            item_attempt_store=get_backfill_item_attempt_store(),
             authority_binding=authority_binding,
             revalidate_authority=revalidate_authority,
         ),

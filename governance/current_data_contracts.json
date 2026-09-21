@@ -4518,7 +4518,13 @@
         "apps/data_center/infrastructure/financial_source_policy.py",
         "apps/data_center/domain/publication_evidence.py",
         "apps/data_center/application/tasks.py",
-        "apps/data_center/management/commands/backfill_active_a_share_core_data.py"
+        "apps/data_center/management/commands/backfill_active_a_share_core_data.py",
+        "apps/data_center/application/backfill_control_plane.py",
+        "apps/data_center/domain/control_plane.py",
+        "apps/data_center/infrastructure/backfill_item_attempt_store.py",
+        "apps/data_center/infrastructure/control_plane_repositories.py",
+        "apps/data_center/infrastructure/sync_item_attempt_models.py",
+        "apps/data_center/migrations/0080_sync_item_attempt_evidence_hash.py"
       ],
       "required_markers": {
         "apps/data_center/application/current_fact_remediation.py": [
@@ -4650,7 +4656,12 @@
           "services.revalidate_authority(services.current_time())",
           "quote_result.stored_asset_codes",
           "valuation_result.succeeded_asset_codes",
-          "valuation_result.returned_asset_codes"
+          "valuation_result.returned_asset_codes",
+          "class BackfillItemAttemptStore(Protocol):",
+          "item_attempt_evidence_failed",
+          "SyncItemAttemptPhase.PUBLICATION",
+          "publication_evidence_hash",
+          "evidence_hash=publication_evidence_hash"
         ],
         "apps/data_center/infrastructure/publication_fact_identity.py": [
           "build_publication_fact_identity",
@@ -4698,13 +4709,51 @@
           "def _exact_provider_batch_count(",
           "returned_asset_codes=result.stored_asset_codes",
           "returned_asset_codes=result.returned_asset_codes",
-          "succeeded_asset_codes=result.succeeded_asset_codes"
+          "succeeded_asset_codes=result.succeeded_asset_codes",
+          "get_backfill_item_attempt_store()",
+          "def _publication_evidence_hash_from_result(",
+          "publication_evidence_hash=_publication_evidence_hash_from_result"
         ],
         "apps/data_center/management/commands/backfill_active_a_share_core_data.py": [
           "--execute is required for this production writer",
           "--operator must be a bounded canonical identity",
           "operator=operator",
           "universe_hash=universe_hash"
+        ],
+        "apps/data_center/application/backfill_control_plane.py": [
+          "def backfill_control_plane_ids(",
+          "def backfill_execution_token("
+        ],
+        "apps/data_center/infrastructure/backfill_item_attempt_store.py": [
+          "class DjangoBackfillItemAttemptStore:",
+          "self._run_repository.save(",
+          "self._batch_repository.save(",
+          "self._attempt_repository.recover_interrupted(",
+          "self._attempt_repository.begin(",
+          "self._attempt_repository.finish("
+        ],
+        "apps/data_center/domain/control_plane.py": [
+          "class SyncItemAttemptState(StrEnum):",
+          "class SyncItemAttemptPhase(StrEnum):",
+          "class SyncItemAttempt:"
+        ],
+        "apps/data_center/infrastructure/control_plane_repositories.py": [
+          "class SyncItemAttemptRepository:",
+          "active attempt already exists for this item phase",
+          "def recover_interrupted("
+        ],
+        "apps/data_center/infrastructure/sync_item_attempt_models.py": [
+          "class SyncItemAttemptModel(models.Model):",
+          "sync item attempt inserts must start in RUNNING",
+          "dc_sync_item_attempt_unique",
+          "evidence_hash = models.CharField(max_length=64, blank=True)",
+          "dc_item_pub_evidence",
+          "evidence_hash=self.evidence_hash"
+        ],
+        "apps/data_center/migrations/0080_sync_item_attempt_evidence_hash.py": [
+          "name=\"evidence_hash\"",
+          "max_length=64",
+          "name=\"dc_item_pub_evidence\""
         ]
       },
       "required_tests": [
@@ -4982,6 +5031,31 @@
           "case": "scheduled_market_refresh_exact_provider_asset_identities",
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
           "test_function": "test_task_rejects_duplicate_provider_asset_identities_before_publication"
+        },
+        {
+          "case": "resumable_backfill_records_all_item_phases",
+          "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
+          "test_function": "test_backfill_batch_records_all_item_phase_attempts"
+        },
+        {
+          "case": "resumable_backfill_item_evidence_failure_blocks_checkpoint",
+          "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
+          "test_function": "test_backfill_batch_blocks_checkpoint_when_item_evidence_finish_fails"
+        },
+        {
+          "case": "resumable_backfill_stable_batch_precedes_item_attempt",
+          "test_file": "tests/unit/data_center/test_sync_item_attempts.py",
+          "test_function": "test_backfill_item_attempt_store_creates_stable_batch_before_attempt"
+        },
+        {
+          "case": "resumable_backfill_stale_attempt_recovery",
+          "test_file": "tests/unit/data_center/test_sync_item_attempts.py",
+          "test_function": "test_backfill_item_attempt_store_recovers_only_stale_attempts"
+        },
+        {
+          "case": "resumable_backfill_revalidates_after_publication_attempt_setup",
+          "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
+          "test_function": "test_backfill_revalidates_authority_after_publication_attempt_setup"
         }
       ]
     },

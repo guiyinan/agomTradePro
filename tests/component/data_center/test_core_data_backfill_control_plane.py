@@ -10,8 +10,37 @@ from apps.data_center.application.tasks import backfill_active_a_share_core_data
 from apps.data_center.infrastructure.models import (
     SyncBatchModel,
     SyncCheckpointModel,
+    SyncItemAttemptModel,
     SyncRunModel,
 )
+
+PUBLICATION_DATASETS = (
+    "equity.quote.snapshot",
+    "equity.price.bar",
+    "equity.valuation.fact",
+    "equity.financial.fact",
+)
+
+
+def _publication_result(member_count: int) -> SimpleNamespace:
+    """Return exact four-Publication evidence for component wiring tests."""
+
+    datasets = [
+        {
+            "dataset_key": dataset_key,
+            "publication_id": f"publication-{index}",
+            "publication_hash": format(index + 1, "x") * 64,
+            "member_count": member_count,
+        }
+        for index, dataset_key in enumerate(PUBLICATION_DATASETS)
+    ]
+    return SimpleNamespace(
+        published_count=member_count * len(datasets),
+        to_dict=lambda: {
+            "published_count": member_count * len(datasets),
+            "datasets": datasets,
+        },
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -100,7 +129,7 @@ def _patch_fake_backfill_dependencies(mocker, *, failure_domain: str | None = No
             return_value=use_cases[domain_name],
         )
     coordinator = mocker.Mock()
-    coordinator.execute.return_value = SimpleNamespace(published_count=3)
+    coordinator.execute.return_value = _publication_result(1)
     mocker.patch(
         "apps.data_center.application.tasks." "make_core_current_publication_rebuild_use_case",
         return_value=coordinator,
@@ -156,7 +185,7 @@ def test_backfill_persists_run_batch_and_checkpoint_rows(mocker) -> None:
         return_value=financial_use_case,
     )
     coordinator = mocker.Mock()
-    coordinator.execute.return_value = SimpleNamespace(published_count=3)
+    coordinator.execute.return_value = _publication_result(1)
     mocker.patch(
         "apps.data_center.application.tasks." "make_core_current_publication_rebuild_use_case",
         return_value=coordinator,
@@ -176,19 +205,25 @@ def test_backfill_persists_run_batch_and_checkpoint_rows(mocker) -> None:
     checkpoint = SyncCheckpointModel._default_manager.get(batch_id=batch.batch_id)
     assert run.outcome == "success"
     assert run.stored == 4
-    assert run.published == 3
+    assert run.published == 4
     assert batch.idempotency_key.startswith("equity.core.backfill:tushare:offset=0:window=1:")
     assert checkpoint.cursor_name == "asset_offset"
     assert '"complete":true' in checkpoint.cursor_value
     assert checkpoint.processed == 1
     assert checkpoint.failed == 0
+    attempts = list(SyncItemAttemptModel._default_manager.order_by("phase"))
+    assert len(attempts) == 5
+    assert {attempt.state for attempt in attempts} == {"succeeded"}
+    publication_attempt = next(attempt for attempt in attempts if attempt.phase == "publication")
+    assert publication_attempt.stored_count == 1
+    assert len(publication_attempt.evidence_hash) == 64
 
 
 @pytest.mark.django_db
 def test_backfill_control_plane_snapshot_rolls_back_if_checkpoint_persistence_fails(
     mocker,
 ) -> None:
-    """A failed checkpoint write must not leave an orphan run or batch row."""
+    """A failed final snapshot retains the pre-write run, batch and item evidence."""
 
     _patch_fake_backfill_dependencies(mocker)
     checkpoint_repository = mocker.Mock()
@@ -201,8 +236,11 @@ def test_backfill_control_plane_snapshot_rolls_back_if_checkpoint_persistence_fa
     with pytest.raises(RuntimeError, match="checkpoint store unavailable"):
         backfill_active_a_share_core_data_batch_task.run(batch_size=1)
 
-    assert SyncRunModel._default_manager.count() == 0
-    assert SyncBatchModel._default_manager.count() == 0
+    run = SyncRunModel._default_manager.get()
+    batch = SyncBatchModel._default_manager.get()
+    assert run.status == "fetching"
+    assert batch.state == "running"
+    assert SyncItemAttemptModel._default_manager.count() == 5
     assert SyncCheckpointModel._default_manager.count() == 0
 
 
@@ -243,6 +281,12 @@ def test_postgresql_backfill_first_run_and_same_parameter_retry_are_idempotent(m
     assert retry_batch.run_id == retry_run.run_id
     assert retry_checkpoint.batch_id == retry_batch.batch_id
     assert retry_checkpoint.cursor_value == first_checkpoint.cursor_value
+    attempts = list(
+        SyncItemAttemptModel._default_manager.order_by("asset_code", "phase", "attempt_number")
+    )
+    assert len(attempts) == 10
+    assert {attempt.attempt_number for attempt in attempts} == {1, 2}
+    assert {attempt.state for attempt in attempts} == {"succeeded"}
 
 
 @pytest.mark.django_db
@@ -275,3 +319,6 @@ def test_postgresql_backfill_provider_domain_failure_persists_partial_outcome(mo
     assert checkpoint.state == "failed"
     assert checkpoint.processed == 0
     assert checkpoint.failed == 1
+    attempts = list(SyncItemAttemptModel._default_manager.order_by("phase"))
+    assert len(attempts) == 4
+    assert [attempt.state for attempt in attempts].count("failed") == 1

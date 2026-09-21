@@ -1,0 +1,125 @@
+{
+  "schema_version": "data02-item-attempt-writer-wiring.v1",
+  "generated_at": "2026-09-21T09:55:00.585586Z",
+  "candidate": {
+    "branch": "dev/next-development",
+    "baseline_commit": "3c1e481a14194402b7c2f60c788898d17f4809c9",
+    "commit": "containing_git_commit"
+  },
+  "scope": "Wire durable item attempts into every DATA-02 resumable backfill write phase and bind successful publication attempts to exact four-Publication evidence.",
+  "production_claim": false,
+  "production_actions": {
+    "deployment": false,
+    "provider_fetch": false,
+    "database_write": false,
+    "publication_switch": false
+  },
+  "implemented_contract": [
+    "Quote, valuation, price, financial and final publication phases create per-asset RUNNING attempts before their provider or publication boundary and apply one terminal transition afterward.",
+    "Stable run, batch and execution identities derive from the final frozen-universe-bound idempotency key and remain stable across logical task retries.",
+    "The first attempt atomically creates the diagnostic FETCHING run and RUNNING batch before external writes; later attempts reuse the task-scoped prepared batch.",
+    "Stale RUNNING attempts older than the 3,900-second recovery boundary become INTERRUPTED before the next monotonic attempt is inserted; a recent active attempt blocks overlap.",
+    "Any item-attempt begin or finish persistence failure returns blocked, preserves the current offset and writes a non-advancing aggregate checkpoint.",
+    "Authority is revalidated at every provider write boundary, once before finalization and again after full-universe publication attempts have been prepared.",
+    "Successful publication attempts require a SHA-256 over exactly four unique immutable Publication dataset keys, ids, hashes, equal member counts and the canonical published count.",
+    "Migration 0080 adds publication evidence_hash and a database constraint that forbids a succeeded publication attempt without evidence.",
+    "If the final run/batch/checkpoint snapshot rolls back, the pre-write FETCHING run, RUNNING batch and terminal item evidence remain available for diagnosis.",
+    "The bounded task response still previews at most 20 errors while the item-attempt store retains complete per-asset phase history."
+  ],
+  "independent_review": {
+    "reviewer": "gpt-5.6-luna",
+    "reasoning_effort": "max",
+    "resolved_before_commit": [
+      "Publication authority is revalidated after potentially long item-attempt setup and before the publication writer is called.",
+      "Successful publication attempts now carry a canonical immutable Publication evidence hash and per-asset stored_count=1.",
+      "Run and batch existence precede item insertion, and item evidence failure blocks checkpoint advancement."
+    ],
+    "retained_open_gates": [
+      "Quote and valuation provider identities are still validated after their current fact mutation; pre-mutation validation or a transaction-wide rollback boundary remains required.",
+      "PostgreSQL concurrent begin/recovery/finish evidence is not available in the local SQLite environment.",
+      "A 5,533-asset publication-attempt scale run and bulk persistence optimization remain required before production execution.",
+      "The publication transaction still needs candidate-bound same-authority compare-and-set evidence under a real PostgreSQL production candidate."
+    ],
+    "accepted_scope": "Repository wiring checkpoint only; DATA-02 remains awaiting_production and no production completion is claimed."
+  },
+  "validation": {
+    "focused_tests": {
+      "result": "passed",
+      "passed": 44,
+      "skipped": 2,
+      "duration_seconds": 319.16,
+      "skip_reason": "Two PostgreSQL-only control-plane cases were skipped because the local Django test database is SQLite.",
+      "log": "docs/testing/data02-item-attempt-writer-wiring-2026-09-21.txt"
+    },
+    "publication_evidence_component_recheck": {
+      "result": "passed",
+      "passed": 1,
+      "duration_seconds": 372.72,
+      "assertion": "Persisted publication attempt is succeeded with stored_count=1 and a 64-character evidence_hash."
+    },
+    "incremental_mypy": {
+      "result": "passed",
+      "files": 8,
+      "regressions": 0,
+      "legacy_errors_observed": 0
+    },
+    "mypy_debt_ceiling": {
+      "result": "passed",
+      "errors": 0,
+      "files_with_errors": 0
+    },
+    "migration_drift": {
+      "result": "passed",
+      "detail": "No changes detected in app 'data_center'"
+    },
+    "migration_graph": {
+      "result": "not_run",
+      "reason": "The standalone verifier requires DATABASE_URL, which is not set in this local environment."
+    },
+    "django_system_check": {
+      "result": "passed",
+      "issues": 0
+    },
+    "format_and_lint": {
+      "result": "passed",
+      "ruff_files": 12,
+      "black_files": 11,
+      "isort_files": 11,
+      "composition_note": "composition.py has historical mixed EOLs; Ruff validated its import order while Black/isort write-mode was intentionally avoided to prevent unrelated churn."
+    },
+    "architecture": {
+      "result": "passed",
+      "files": 3215,
+      "boundary_violations": 0
+    },
+    "current_data_contracts": {
+      "result": "passed",
+      "surfaces": 63
+    },
+    "celery_task_contracts": {
+      "result": "passed",
+      "registered_tasks": 92,
+      "exemptions": 21,
+      "governed_files": 23
+    },
+    "governance": {
+      "result": "passed",
+      "registry_version": "2026-09-21.v148",
+      "violations": 0
+    }
+  },
+  "governance": {
+    "registry_transition": "2026-09-21.v147 -> 2026-09-21.v148",
+    "unit": "DATA-02",
+    "status_before": "awaiting_production",
+    "status_after": "awaiting_production",
+    "reason": "All resumable writer phases now emit durable attempts, while PostgreSQL concurrency/scale, pre-mutation provider identity validation, numeric tolerance evidence and genuine production authority remain open."
+  },
+  "remaining_repository_gates": [
+    "Validate quote and valuation provider asset identities before fact mutation or roll back the complete mutation on mismatch.",
+    "Prove concurrent begin, active-lease exclusion, interrupted recovery, terminal immutability and final snapshot failure behavior on PostgreSQL.",
+    "Measure and, if necessary, bulk-optimize full-universe publication attempt persistence at 5,533 assets within the task budget.",
+    "Produce policy-hash-bound numeric tolerance evidence for all four frozen Publications.",
+    "Obtain genuine current production authority and explicit authorization before any provider or production write."
+  ]
+}
