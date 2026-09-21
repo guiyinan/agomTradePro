@@ -1,0 +1,150 @@
+{
+  "schema_version": "2026-09-22.v1",
+  "owner": "architecture-governance",
+  "reviewed_at": "2026-09-22",
+  "scope": "apps/**/*.py and core/**/*.py excluding migrations; _vN module tokens",
+  "policy": "Parallel versions must have one declared preferred current version, an exact module inventory, explicit retained-read and write-capable versions, real blockers and retirement gates. A satisfied blocker makes the guard fail until the family is reviewed. Historical append-only rows and hashes must remain readable until archive/restore evidence proves safe retirement.",
+  "families": [
+    {
+      "id": "account-owner-assignment-evidence",
+      "owner": "account",
+      "state": "blocked_retirement",
+      "preferred_current_version": 5,
+      "write_surface_versions": [2, 3, 4, 5],
+      "retained_read_versions": [2, 3, 4, 5],
+      "blocked_by": ["EVID-01", "EVID-02"],
+      "retirement_gate": [
+        "Prove the V5/V3 production authority graph with genuine current owner and reviewer decisions.",
+        "Inventory production rows and every non-test consumer for V2-V4; old append-only hashes remain readable.",
+        "Remove V2-V4 write builders and mutation methods before considering historical codecs or readers.",
+        "Pass PostgreSQL archive/restore and exact historical replay before deleting any old table or reader."
+      ],
+      "evidence": [
+        "docs/deployment/production-closure-revalidation-2026-09-22.json",
+        "docs/testing/evid09-three-isolated-postgres-measurements-2026-09-13.json"
+      ],
+      "module_groups": {
+        "apps/account/account_owner_assignment_evidence_v#_composition.py": [3, 4, 5],
+        "apps/account/application/account_owner_assignment_evidence_v#.py": [2, 3, 4, 5],
+        "apps/account/domain/account_owner_assignment_evidence_v#.py": [2, 3, 4, 5],
+        "apps/account/infrastructure/account_owner_assignment_evidence_v#_codec.py": [2, 3, 4, 5],
+        "apps/account/infrastructure/account_owner_assignment_evidence_v#_models.py": [2, 3, 4],
+        "apps/account/infrastructure/account_owner_assignment_evidence_v#_record_codec.py": [4, 5],
+        "apps/account/infrastructure/account_owner_assignment_evidence_v#_repository.py": [2, 3, 4, 5]
+      }
+    },
+    {
+      "id": "account-owner-assignment-provenance",
+      "owner": "account",
+      "state": "blocked_retirement",
+      "preferred_current_version": 5,
+      "write_surface_versions": [2, 3, 4, 5],
+      "retained_read_versions": [2, 3, 4, 5],
+      "blocked_by": ["EVID-01", "EVID-02"],
+      "retirement_gate": [
+        "Complete genuine V5 owner assignment production acceptance.",
+        "Show zero live write callers for V2-V4 and preserve immutable historical receipt replay.",
+        "Remove prior-version issue/successor paths before any persistence cleanup.",
+        "Verify PostgreSQL backup, restore and hash-equivalent historical reads."
+      ],
+      "evidence": [
+        "docs/deployment/production-closure-revalidation-2026-09-22.json",
+        "docs/testing/evid09-three-isolated-postgres-measurements-2026-09-13.json"
+      ],
+      "module_groups": {
+        "apps/account/application/account_owner_assignment_provenance_receipt_v#.py": [2, 3, 4, 5],
+        "apps/account/domain/account_owner_assignment_provenance_receipt_v#.py": [2, 3, 4, 5],
+        "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v#_codec.py": [2, 3, 4, 5],
+        "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v#_models.py": [2, 3, 4],
+        "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v#_record_codec.py": [4, 5],
+        "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v#_repository.py": [2, 3, 4, 5]
+      }
+    },
+    {
+      "id": "account-owner-assignment-mapping",
+      "owner": "account",
+      "state": "read_compatibility",
+      "preferred_current_version": 3,
+      "write_surface_versions": [],
+      "retained_read_versions": [2, 3],
+      "blocked_by": ["EVID-01"],
+      "retirement_gate": [
+        "Inventory all production and integration consumers of the V2 read projection.",
+        "Prove no current head requires V2 and retain an exact historical export when old evidence rows remain.",
+        "Delete V2 only in a separately reviewed compatibility-removal commit."
+      ],
+      "evidence": [
+        "docs/deployment/production-closure-revalidation-2026-09-22.json"
+      ],
+      "module_groups": {
+        "apps/account/application/account_owner_assignment_mapping_v#.py": [2, 3]
+      }
+    },
+    {
+      "id": "owner-tenant-authority",
+      "owner": "account",
+      "state": "blocked_retirement",
+      "preferred_current_version": 3,
+      "write_surface_versions": [1, 2, 3],
+      "retained_read_versions": [1, 2, 3],
+      "blocked_by": ["EVID-01", "EVID-02"],
+      "retirement_gate": [
+        "Complete genuine Authority V3 production issue, successor, revoke and current-head acceptance.",
+        "Prove V1/V2 writer builders have no runtime consumer, then remove their write surfaces first.",
+        "Keep V1/V2 exact historical readers and codecs until production row inventory, archive/restore and replay pass.",
+        "Delete old tables only after every dependent Evidence scope has migrated and rollback evidence is sealed."
+      ],
+      "evidence": [
+        "docs/deployment/production-closure-revalidation-2026-09-22.json",
+        "docs/testing/evid09-three-isolated-postgres-measurements-2026-09-13.json"
+      ],
+      "module_groups": {
+        "apps/account/application/owner_tenant_authority_v#.py": [1, 2, 3],
+        "apps/account/application/owner_tenant_authority_v#_contracts.py": [2, 3],
+        "apps/account/domain/owner_tenant_authority_v#.py": [1, 2, 3],
+        "apps/account/infrastructure/_owner_tenant_authority_v#_repository_helpers.py": [2, 3],
+        "apps/account/infrastructure/owner_tenant_authority_v#_codec.py": [1, 2, 3],
+        "apps/account/infrastructure/owner_tenant_authority_v#_models.py": [1, 2, 3],
+        "apps/account/infrastructure/owner_tenant_authority_v#_record_codec.py": [2, 3],
+        "apps/account/infrastructure/owner_tenant_authority_v#_repository.py": [1, 2, 3],
+        "apps/account/owner_tenant_authority_v#_composition.py": [1, 2, 3]
+      }
+    },
+    {
+      "id": "owner-tenant-evidence-scope",
+      "owner": "core-integration",
+      "state": "read_compatibility",
+      "preferred_current_version": 3,
+      "write_surface_versions": [1],
+      "retained_read_versions": [1, 2, 3],
+      "blocked_by": ["EVID-01", "EVID-02"],
+      "retirement_gate": [
+        "Complete genuine Authority V3 production acceptance and inventory every Evidence scope consumer.",
+        "Decide whether the V1 source issuer requires a current-version successor before removing its composition path.",
+        "Preserve exact V1-V3 historical scope interpretation until archive/restore and hash replay pass.",
+        "Remove a prior reader only in a separately reviewed compatibility-removal commit."
+      ],
+      "evidence": [
+        "docs/deployment/production-closure-revalidation-2026-09-22.json",
+        "docs/testing/evid09-three-isolated-postgres-measurements-2026-09-13.json"
+      ],
+      "module_groups": {
+        "core/integration/owner_tenant_evidence_scope_v#.py": [1, 2, 3]
+      }
+    }
+  ],
+  "linked_retirement_gates": [
+    {
+      "id": "classic-web-to-tui",
+      "owner": "tui",
+      "blocked_by": ["TUI-02"],
+      "deletion_allowed": false,
+      "guard_command": "python scripts/check_web_to_tui_cutover_readiness.py --require-allow",
+      "retirement_gate": [
+        "Bind a clean deployed candidate and retain a real first monitoring sample.",
+        "Complete the full 14-day window, structured defects, 101-task telemetry, backup and two-role attestation.",
+        "Require the canonical command to return ALLOW before any A/B Classic cleanup wave."
+      ]
+    }
+  ]
+}

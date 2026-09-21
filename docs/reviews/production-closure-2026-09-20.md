@@ -249,3 +249,29 @@ v17 仍为 `audit.system_event.mode=off`、`outbox_enabled=false`，authority se
 [raw archive](../deployment/production-closure-revalidation-2026-09-22-raw.zip)。registry v152 → v153；
 DATA-02、EVID-01/02、AUD-03 状态不变，TUI-02 继续 active。本轮没有部署、provider 调用、生产写入、
 profile 激活、Publication 切换或凭据输出。
+
+## 版本并存与退役治理（2026-09-22）
+
+仓库审计确认，当前 `apps/` 与 `core/` 非 migration Python 源码中有 24 组 `_vN` 并存模块，
+分属五个家族：owner-assignment evidence V2–V5、provenance receipt V2–V5、只读 mapping V2–V3、
+owner-tenant authority V1–V3，以及 core Evidence scope V1–V3。其中 Evidence、provenance 和
+owner-tenant authority 三个写链家族仍保留多个版本的写能力；旧版不能仅因有新版
+就直接删除，因为 append-only 历史行、内容哈希和历史审计读取仍须可重放，但“保留读取”也不能
+成为永久保留旧写入口的理由。
+
+新增 `governance/versioned_surface_retirement.json` 作为版本退役台账，逐家族固定 preferred current
+version、仍存在的 write surface、保留读取版本、精确模块集合、真实 blocker 和分层退出门。目标顺序
+统一为：先完成当前版本生产验收，再证明旧写调用方为零并删除旧写入口，最后在生产行盘点、备份恢复
+和历史 hash replay 通过后才考虑删除 codec、reader 或表。EVID-01/02 未完成时，这五个家族继续
+fail-closed；它们完成后，检查器会主动失败并要求复核退役动作，不能让 blocker 文案无限续期。
+
+`scripts/check_versioned_surface_retirement.py` 会从源码重算所有并存组。新增 V6、出现未登记家族、
+版本集合漂移、blocker 不存在或 blocker 已全部完成但台账未复核，都会使 CI 失败。Classic Web 单列
+为关联退役面：TUI-02 未完成且唯一 `--require-allow` 命令未返回 ALLOW 前，`deletion_allowed=false`，
+没有删除任何 A/B 模板。本次仅建立治理门禁和退役顺序，没有把历史兼容层误标为死代码，也没有
+改动生产运行路径、数据库或任何 authority 记录。
+
+GPT-5.6 Luna Max 只读复核最终为 P0=0、P1=0。复核最初指出证据文件尚未生成，以及 `core/integration`
+的 scope V1–V3 未纳入 apps-only 扫描；本提交已生成耐久证据并把扫描范围扩展到 `apps/` 与 `core/`，
+两项均在最终门禁前消除。旧 writer 只是“代码接口仍可调用且未发现生产调用方”，不能据静态搜索
+直接认定可删；零运行调用、生产行盘点和恢复重放仍须在对应 blocker 完成后单独证明。

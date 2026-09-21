@@ -1,0 +1,104 @@
+{
+  "schema_version": "2026-09-22.v1",
+  "evidence_type": "versioned_surface_retirement_governance",
+  "generated_at": "2026-09-21T20:15:03.265838+00:00",
+  "base_commit": "782bdc99730e956647badea607290e5a9ab7ac07",
+  "branch": "dev/next-development",
+  "scope": {
+    "source_inventory": "apps/**/*.py and core/**/*.py excluding migrations; _vN module tokens",
+    "production_access": false,
+    "production_mutation": false,
+    "runtime_behavior_changed": false,
+    "classic_templates_deleted": false
+  },
+  "findings": {
+    "parallel_module_groups": 24,
+    "families": 5,
+    "multi_writer_families": 3,
+    "family_ids": [
+      "account-owner-assignment-evidence",
+      "account-owner-assignment-provenance",
+      "account-owner-assignment-mapping",
+      "owner-tenant-authority",
+      "owner-tenant-evidence-scope"
+    ],
+    "account_retirement_blockers": [
+      "EVID-01",
+      "EVID-02"
+    ],
+    "classic_retirement_blocker": "TUI-02",
+    "classic_deletion_allowed": false,
+    "required_order": [
+      "complete preferred-version production acceptance",
+      "prove prior-version write callers are zero and remove prior write surfaces",
+      "preserve historical read/hash replay through archive and restore evidence",
+      "remove historical readers/codecs/tables only after replay and rollback gates pass"
+    ]
+  },
+  "checks": [
+    {
+      "command": "python scripts/check_versioned_surface_retirement.py",
+      "result": "5 families, 3 multi-writer, 24 module groups, 1 linked gate, 0 violations"
+    },
+    {
+      "command": "pytest tests/guardrails/test_versioned_surface_retirement.py -q",
+      "result": "3 passed"
+    },
+    {
+      "command": "pytest tests/guardrails/test_versioned_surface_retirement.py tests/guardrails/test_governance_consistency.py -q",
+      "result": "32 passed"
+    },
+    {
+      "command": "python scripts/check_active_plan_registry.py",
+      "result": "version 2026-09-22.v154; 54 units; 0 violations"
+    },
+    {
+      "command": "python scripts/check_governance_consistency.py --baseline governance/governance_baseline.json --format text",
+      "result": "0 violations"
+    },
+    {
+      "command": "python scripts/check_mypy_regression.py scripts/check_versioned_surface_retirement.py",
+      "result": "0 regressions"
+    },
+    {
+      "command": "python scripts/check_mypy_debt_ceiling.py",
+      "result": "0 errors in 0 files"
+    },
+    {
+      "command": "black/isort/ruff focused checks",
+      "result": "passed after formatting"
+    },
+    {
+      "command": "workflow YAML parse",
+      "result": "passed"
+    }
+  ],
+  "independent_review": {
+    "reviewer": "gpt-5.6-luna-max",
+    "status": "passed_after_findings_resolved",
+    "p0_count": 0,
+    "p1_count": 0,
+    "findings_resolved": [
+      "Created this durable evidence file before final validation, resolving the initially missing active-plan evidence target.",
+      "Expanded discovery and the manifest from apps-only to apps plus core, adding core/integration/owner_tenant_evidence_scope_v1-v3."
+    ],
+    "classification": {
+      "immediate_delete": "none proven",
+      "historical_read_compatibility": "prior Account evidence/provenance/mapping/authority versions and core scope versions",
+      "blocked_current": "V5/V3 authority acceptance by EVID-01/02; Classic cleanup by TUI-02"
+    }
+  },
+  "files": {
+    ".github/workflows/consistency-check.yml": "993feaec93ec4496667a2dd61758cbef2de70da345d44bfc012d4c847a4315e9",
+    "governance/versioned_surface_retirement.json": "588a61e7b62c2359065979fb60ace19d3e3ae4dd38cd33b1720ccf76144971da",
+    "scripts/check_versioned_surface_retirement.py": "058ca76776211d0f7ea9e28a0bea7c65e772ebaadb0100499d7ca995b68ca9d5",
+    "tests/guardrails/test_versioned_surface_retirement.py": "da12f9c4001422b02c6a420f7532684772cb5af209de11edb7c84f3dca412848",
+    "docs/reviews/production-closure-2026-09-20.md": "fc5f311fdb57f4d9ea3a8b62c06b66b255c0cd119937bf44034bf26b26cbebcc",
+    "governance/active_plan_registry.json": "ee8448e13f6f52b24dd2e73aadaedebca87c0325c578c1b2231b465bc8a7e6ec"
+  },
+  "governance_transition": {
+    "active_plan_registry": "2026-09-22.v153 -> 2026-09-22.v154",
+    "unit_status_changes": [],
+    "note": "No production unit was advanced. EVID-01/02 and TUI-02 retain their existing states."
+  }
+}

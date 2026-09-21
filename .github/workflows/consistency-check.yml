@@ -71,6 +71,9 @@ jobs:
       - name: Enforce active plan registry
         run: python scripts/check_active_plan_registry.py
 
+      - name: Enforce versioned surface retirement ownership
+        run: python scripts/check_versioned_surface_retirement.py
+
       - name: Enforce reliability contract ownership
         run: python scripts/check_reliability_contract_ownership.py
 
