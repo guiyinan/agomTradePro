@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from enum import StrEnum
 from typing import Any
+from uuid import UUID
 
 
 class SyncRunStatus(StrEnum):
@@ -39,6 +40,26 @@ class SyncItemState(StrEnum):
     FAILED = "failed"
     QUARANTINED = "quarantined"
     SKIPPED = "skipped"
+
+
+class SyncItemAttemptState(StrEnum):
+    """Lifecycle state for one durable item attempt."""
+
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    BLOCKED = "blocked"
+    INTERRUPTED = "interrupted"
+
+
+class SyncItemAttemptPhase(StrEnum):
+    """DATA-02 phase represented by an item attempt."""
+
+    QUOTE = "quote"
+    VALUATION = "valuation"
+    PRICE = "price"
+    FINANCIAL = "financial"
+    PUBLICATION = "publication"
 
 
 class QuarantineResolution(StrEnum):
@@ -108,6 +129,18 @@ def _require_aware(value: datetime, field_name: str) -> None:
 def _require_nonnegative(value: int, field_name: str) -> None:
     if value < 0:
         raise ValueError(f"{field_name} cannot be negative")
+
+
+def _require_uuid(value: str, field_name: str) -> None:
+    try:
+        UUID(value)
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise ValueError(f"{field_name} must be a UUID string") from exc
+
+
+def _require_sha256(value: str, field_name: str) -> None:
+    if len(value) != 64 or any(character not in "0123456789abcdef" for character in value):
+        raise ValueError(f"{field_name} must be a lowercase sha256 digest")
 
 
 @dataclass(frozen=True)
@@ -269,6 +302,112 @@ class SyncCheckpoint:
         _require_nonnegative(self.failed, "SyncCheckpoint.failed")
         if self.state is SyncItemState.FAILED and not self.error_code:
             raise ValueError("Failed SyncCheckpoint requires an error_code")
+
+
+@dataclass(frozen=True, slots=True)
+class SyncItemAttempt:
+    """Durable evidence for one asset, phase, and execution attempt."""
+
+    attempt_id: str
+    run_id: str
+    batch_id: str
+    dataset_key: str
+    asset_code: str
+    phase: SyncItemAttemptPhase
+    attempt_number: int
+    state: SyncItemAttemptState
+    execution_token: str
+    started_at: datetime
+    universe_hash: str
+    authority_content_hash: str
+    finished_at: datetime | None = None
+    stored_count: int = 0
+    error_code: str = ""
+    error_message: str = ""
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.phase, SyncItemAttemptPhase):
+            raise ValueError("SyncItemAttempt.phase must be a SyncItemAttemptPhase")
+        if not isinstance(self.state, SyncItemAttemptState):
+            raise ValueError("SyncItemAttempt.state must be a SyncItemAttemptState")
+        for field_name in ("attempt_id", "run_id", "batch_id"):
+            _require_uuid(getattr(self, field_name), f"SyncItemAttempt.{field_name}")
+        for field_name, maximum_length in (
+            ("dataset_key", 160),
+            ("asset_code", 20),
+            ("execution_token", 100),
+        ):
+            value = getattr(self, field_name)
+            if not value.strip() or value != value.strip() or len(value) > maximum_length:
+                raise ValueError(f"SyncItemAttempt.{field_name} must be canonical and non-empty")
+        if len(self.error_code) > 80:
+            raise ValueError("SyncItemAttempt.error_code exceeds its storage boundary")
+        if self.attempt_number < 1:
+            raise ValueError("SyncItemAttempt.attempt_number must be positive")
+        _require_aware(self.started_at, "SyncItemAttempt.started_at")
+        _require_nonnegative(self.stored_count, "SyncItemAttempt.stored_count")
+        _require_sha256(self.universe_hash, "SyncItemAttempt.universe_hash")
+        _require_sha256(
+            self.authority_content_hash,
+            "SyncItemAttempt.authority_content_hash",
+        )
+        if self.state is SyncItemAttemptState.RUNNING:
+            if self.finished_at is not None:
+                raise ValueError("A RUNNING SyncItemAttempt cannot have finished_at")
+            if self.stored_count or self.error_code or self.error_message:
+                raise ValueError("A RUNNING SyncItemAttempt cannot have terminal output")
+            return
+        if self.finished_at is None:
+            raise ValueError("A terminal SyncItemAttempt requires finished_at")
+        _require_aware(self.finished_at, "SyncItemAttempt.finished_at")
+        if self.finished_at < self.started_at:
+            raise ValueError("SyncItemAttempt.finished_at cannot precede started_at")
+        if (
+            self.state
+            in {
+                SyncItemAttemptState.FAILED,
+                SyncItemAttemptState.BLOCKED,
+                SyncItemAttemptState.INTERRUPTED,
+            }
+            and not self.error_code.strip()
+        ):
+            raise ValueError("A failed, blocked, or interrupted attempt requires error_code")
+        if self.state is SyncItemAttemptState.SUCCEEDED and self.error_code:
+            raise ValueError("A succeeded SyncItemAttempt cannot have error_code")
+
+    def finish(
+        self,
+        *,
+        state: SyncItemAttemptState,
+        finished_at: datetime,
+        stored_count: int = 0,
+        error_code: str = "",
+        error_message: str = "",
+    ) -> SyncItemAttempt:
+        """Return the single terminal representation of this running attempt."""
+
+        if self.state is not SyncItemAttemptState.RUNNING:
+            raise ValueError("Only a RUNNING SyncItemAttempt can finish")
+        if state is SyncItemAttemptState.RUNNING:
+            raise ValueError("SyncItemAttempt.finish requires a terminal state")
+        return SyncItemAttempt(
+            attempt_id=self.attempt_id,
+            run_id=self.run_id,
+            batch_id=self.batch_id,
+            dataset_key=self.dataset_key,
+            asset_code=self.asset_code,
+            phase=self.phase,
+            attempt_number=self.attempt_number,
+            state=state,
+            execution_token=self.execution_token,
+            started_at=self.started_at,
+            finished_at=finished_at,
+            stored_count=stored_count,
+            error_code=error_code,
+            error_message=error_message,
+            universe_hash=self.universe_hash,
+            authority_content_hash=self.authority_content_hash,
+        )
 
 
 @dataclass(frozen=True)
@@ -490,6 +629,9 @@ __all__ = [
     "QuarantineResolution",
     "SyncBatch",
     "SyncCheckpoint",
+    "SyncItemAttempt",
+    "SyncItemAttemptPhase",
+    "SyncItemAttemptState",
     "SyncItemState",
     "SyncRun",
     "SyncRunStatus",

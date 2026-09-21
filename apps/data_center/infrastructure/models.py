@@ -878,6 +878,7 @@ class FinancialFactModel(models.Model):
 
 
 from . import fact_and_operational_models as _split_models  # noqa: E402
+from . import sync_item_attempt_models as _sync_item_attempt_models  # noqa: E402
 
 ArchiveManifestModel = _split_models.ArchiveManifestModel
 CapitalFlowFactModel = _split_models.CapitalFlowFactModel
@@ -895,5 +896,6 @@ StorageHoldModel = _split_models.StorageHoldModel
 SyncBatchModel = _split_models.SyncBatchModel
 SyncCheckpointModel = _split_models.SyncCheckpointModel
 SyncExecutionIdentityModel = _split_models.SyncExecutionIdentityModel
+SyncItemAttemptModel = _sync_item_attempt_models.SyncItemAttemptModel
 SyncRunModel = _split_models.SyncRunModel
 ValuationFactModel = _split_models.ValuationFactModel

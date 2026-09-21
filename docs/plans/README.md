@@ -1,5 +1,10 @@
 # 活跃计划索引
 
+> 2026-09-21 DATA-02 item-attempt 耐久存储基础：新增单资产/阶段/重试 attempt 领域契约、
+> 受保护 ORM、0079 迁移、仓储和 composition factory；重试保留单调历史，RUNNING 只允许一次
+> 终态转换，旧记录禁止删除或普通 ORM 改写，超过 20 项的失败集合可完整查询。该基础尚未接入
+> backfill 各阶段，DATA-02 仍 awaiting_production。[结构化证据](../testing/data02-item-attempt-store-foundation-2026-09-21.json)。
+
 > 2026-09-21 DATA-02 冻结 universe 恢复绑定：首批 checkpoint 生成完整 active A-share universe
 > SHA-256，任何非零 offset 必须携带同一 hash；范围漂移在 provider lookup 前阻断，查询顺序不影响
 > hash 或幂等身份。聚焦 `57 passed`；[结构化证据](../testing/data02-frozen-universe-resume-binding-2026-09-21.json)，

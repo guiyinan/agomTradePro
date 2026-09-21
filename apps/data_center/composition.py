@@ -88,6 +88,7 @@ from apps.data_center.infrastructure.control_plane_repositories import (
     SyncBatchRepository,
     SyncCheckpointRepository,
     SyncExecutionIdentityRepository,
+    SyncItemAttemptRepository,
     SyncRunRepository,
 )
 from apps.data_center.infrastructure.data_chain_replay_evidence import (
@@ -202,6 +203,7 @@ __all__ = [
     "SyncBatchRepository",
     "SyncCheckpointRepository",
     "SyncExecutionIdentityRepository",
+    "SyncItemAttemptRepository",
     "RepairRunAuditDependencies",
     "SyncRunRepository",
     "persist_sync_control_plane_snapshot",
@@ -259,6 +261,7 @@ __all__ = [
     "get_schema_fingerprint_repository",
     "get_sync_batch_repository",
     "get_sync_checkpoint_repository",
+    "get_sync_item_attempt_repository",
     "get_sync_run_repository",
     "get_storage_hold_repository",
     "get_valuation_fact_repository",
@@ -552,6 +555,12 @@ def get_sync_checkpoint_repository() -> SyncCheckpointRepository:
     """Return the resumable checkpoint repository."""
 
     return SyncCheckpointRepository()
+
+
+def get_sync_item_attempt_repository() -> SyncItemAttemptRepository:
+    """Return the durable item-attempt repository."""
+
+    return SyncItemAttemptRepository()
 
 
 def persist_sync_control_plane_snapshot(

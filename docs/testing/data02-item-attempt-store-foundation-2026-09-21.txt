@@ -1,0 +1,36 @@
+Focused DATA-02 item-attempt and existing control-plane tests
+...................                                                      [100%]
+22 passed in 405.98s (0:06:45)
+
+Incremental mypy
+Success: no issues found in 6 source files
+Mypy regressions: 0 (legacy errors observed: 0)
+
+Full mypy debt ceiling
+Full mypy debt ceiling passed: 0 errors in 0 files
+
+Migration drift
+No changes detected in app 'data_center'
+
+Django system check
+System check identified no issues (0 silenced).
+
+Format and lint
+Black: 8 files would be left unchanged.
+isort: passed for 8 files.
+Ruff: All checks passed for 8 files.
+
+Architecture
+Architecture rules version: 2026-06-30.v8
+Scanned files: 3213
+Boundary violations: 0
+
+Governance
+Governance baseline version: 2026-09-09.v220
+Governance violations: 0
+active-plan-registry version=2026-09-21.v147 workstreams=9 primary=18 support=32 review=0 units=54 paths=50 violations=0
+
+Independent GPT-5.6 Luna max review
+Resolved before commit: direct ORM terminal inserts are rejected.
+Resolved before commit: all attempts in one batch reuse the same universe and authority hashes.
+Accepted scope: additive storage foundation only; phase wiring and production acceptance remain open.

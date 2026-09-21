@@ -145,3 +145,6 @@ docs/testing/data02-background-writer-hardening-2026-09-21.txt text eol=lf
 docs/testing/data02-frozen-universe-resume-binding-2026-09-21.json text eol=lf
 docs/testing/data02-frozen-universe-resume-binding-2026-09-21.json.sha256 text eol=lf
 docs/testing/data02-frozen-universe-resume-binding-2026-09-21.txt text eol=lf
+docs/testing/data02-item-attempt-store-foundation-2026-09-21.json text eol=lf
+docs/testing/data02-item-attempt-store-foundation-2026-09-21.json.sha256 text eol=lf
+docs/testing/data02-item-attempt-store-foundation-2026-09-21.txt text eol=lf

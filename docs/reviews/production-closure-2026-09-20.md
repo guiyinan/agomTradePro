@@ -164,3 +164,19 @@ SHA-256。首批 checkpoint 和 durable idempotency identity 同时绑定该 has
 分阶段整改见[恢复证据计划](../plans/data02-resumable-recovery-remediation-2026-09-21.md)。registry
 v145 → v146，DATA-02 仍为 awaiting_production。完整 failure-item/retry 耐久化、provider 身份校验
 的写前/事务回滚，以及四 Publication 数值容差对账仍未完成。本次没有生产访问或写入。
+
+## DATA-02 item-attempt 耐久存储基础（2026-09-21）
+
+现有 aggregate cursor 只有 500 字符，Celery 响应错误预览只保留前 20 项，不能充当完整失败资产
+与重试历史。仓库现新增 `SyncItemAttempt` 领域状态机、独立受保护 ORM 表和 0079 additive migration，
+以 `(batch_id, asset_code, phase, attempt_number)` 保证每次重试一行。仓储先锁定稳定 batch，再允许
+RUNNING 插入；单个 attempt 只允许一次 RUNNING→终态转换，普通 save/queryset update、delete 与
+bulk mutation 均被拒绝。显式 recovery 可把遗留 RUNNING 标记为 INTERRUPTED，下一次重试使用
+单调递增 attempt number；25 项失败集合测试证明记录不受 20 项响应预览影响。
+
+聚焦控制面回归 `22 passed`；结构化证据见
+[DATA-02 item-attempt 耐久存储基础](../testing/data02-item-attempt-store-foundation-2026-09-21.json)。
+registry v146 → v147，DATA-02 仍为 awaiting_production。本提交只建立 durable store；quote、
+valuation、price、financial、publication 的 begin/finish 接线、稳定 execution token、并发 Celery
+冲突与 PostgreSQL 组件证据仍是下一独立单元，不能据此启动生产回填或关闭 DATA-02。本次没有
+部署、provider 调用、生产写入或 Publication 切换。

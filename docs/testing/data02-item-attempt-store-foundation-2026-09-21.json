@@ -1,0 +1,100 @@
+{
+  "schema_version": "data02-item-attempt-store-foundation.v1",
+  "generated_at": "2026-09-21T07:44:42.948592Z",
+  "candidate": {
+    "branch": "dev/next-development",
+    "baseline_commit": "3fadab8668ef3fbad85e979aa421a14c26d77977",
+    "commit": "containing_git_commit"
+  },
+  "scope": "Establish the durable item-attempt domain, schema, repository and composition foundation for DATA-02 recovery evidence.",
+  "production_claim": false,
+  "production_actions": {
+    "deployment": false,
+    "provider_fetch": false,
+    "database_write": false,
+    "publication_switch": false
+  },
+  "failing_first_observation": {
+    "raw_log_persisted": false,
+    "result": "test collection failed before implementation",
+    "error": "ImportError: cannot import name 'SyncItemAttempt' from apps.data_center.domain.control_plane",
+    "limitation": "The failing-first output was observed in the task transcript but was not redirected to a durable raw log."
+  },
+  "implemented_contract": [
+    "A domain-level SyncItemAttempt binds UUID run and batch identities, asset, phase, attempt number, execution token, universe hash and authority hash.",
+    "Each retry inserts a new monotonic attempt row under the stable batch lock; an active RUNNING attempt blocks a concurrent begin.",
+    "Every attempt in one batch must reuse the same frozen universe hash and authority content hash.",
+    "One attempt permits exactly one repository-owned RUNNING-to-terminal transition; later terminal rewrites fail closed.",
+    "Initial ORM inserts must be domain-valid RUNNING rows; normal model save, queryset update, bulk mutation and deletion cannot create terminal evidence or rewrite/remove history.",
+    "Explicit recovery converts stale RUNNING rows to INTERRUPTED before a later retry receives the next attempt number.",
+    "Migration 0079 adds unique batch/asset/phase/attempt identity, positive attempt-number and terminal-time constraints without a foreign key to the existing UUID control plane.",
+    "A 25-asset failure test proves durable queries are not truncated at the Celery response preview limit of 20."
+  ],
+  "independent_review": {
+    "reviewer": "gpt-5.6-luna",
+    "reasoning_effort": "max",
+    "resolved_before_commit": [
+      "Direct ORM creation can no longer insert a terminal state and bypass the repository-owned transition.",
+      "Repository begin rejects universe-hash or authority-hash drift anywhere within one stable batch.",
+      "The new ORM remains in a separate module so the existing large-file governance ceiling is not raised."
+    ],
+    "accepted_scope": "Suitable as an additive storage foundation only; DATA-02 phase wiring and production acceptance remain open."
+  },
+  "validation": {
+    "focused_control_plane_tests": {
+      "result": "passed",
+      "count": 22,
+      "duration_seconds": 405.98,
+      "log": "docs/testing/data02-item-attempt-store-foundation-2026-09-21.txt"
+    },
+    "incremental_mypy": {
+      "result": "passed",
+      "files": 6,
+      "regressions": 0,
+      "legacy_errors_observed": 0
+    },
+    "mypy_debt_ceiling": {
+      "result": "passed",
+      "errors": 0,
+      "files_with_errors": 0
+    },
+    "migration_drift": {
+      "result": "passed",
+      "detail": "No changes detected in app 'data_center'"
+    },
+    "django_system_check": {
+      "result": "passed",
+      "issues": 0
+    },
+    "format_and_lint": {
+      "result": "passed",
+      "black_files": 8,
+      "isort_files": 8,
+      "ruff_files": 8
+    },
+    "architecture": {
+      "result": "passed",
+      "files": 3213,
+      "boundary_violations": 0
+    },
+    "governance": {
+      "result": "passed",
+      "registry_version": "2026-09-21.v147",
+      "violations": 0
+    }
+  },
+  "governance": {
+    "registry_transition": "2026-09-21.v146 -> 2026-09-21.v147",
+    "unit": "DATA-02",
+    "status_before": "awaiting_production",
+    "status_after": "awaiting_production",
+    "reason": "The durable store exists, while phase wiring, execution-token recovery, PostgreSQL concurrency evidence and production acceptance remain open."
+  },
+  "remaining_repository_gates": [
+    "Wire quote, valuation, price, financial and publication begin/finish outcomes into the item-attempt store.",
+    "Create the stable initial batch before attempts and carry one execution token through Celery and command retries.",
+    "Prove concurrent begin, interrupted recovery, terminal immutability and transaction rollback on PostgreSQL.",
+    "Validate provider identities before fact mutation or roll back the complete mutation on mismatch.",
+    "Produce policy-hash-bound numeric tolerance evidence for all four frozen Publications."
+  ]
+}
