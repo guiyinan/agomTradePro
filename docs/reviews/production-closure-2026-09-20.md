@@ -200,3 +200,29 @@ universe 编码执行五阶段 attempt 形状。quote、valuation、price、fina
 DATA-02 继续 `awaiting_production`。完整指标、检查日志、生产范围哈希绑定和 Luna Max 复核见
 [DATA-02 规模封存](../testing/data02-item-attempt-scale-closure-2026-09-21.json)。本轮没有部署、
 provider 调用、生产写入、Publication 切换或容差放宽。
+
+## DATA-02 四 Publication 数值容差证据契约（2026-09-22）
+
+仓库已增加纯 Domain 数值容差策略与离线 Application 证据解析器。证据输入必须是 `select_only`，
+并同时绑定冻结 universe、四个 Publication 的 id/hash/完整成员、P2 publication policy identity、
+逐字段 canonical unit、绝对/相对容差和实际偏差。每个 Publication member 的每个治理字段必须恰好
+出现一次；Publication hash、current UUID、冻结资产集合以及 canonical/observed 数值快照 hash 都会
+重算。成员还须通过既有 required-evidence、quality 和时间顺序规则；替换成员、重复 fact、复用
+identity、篡改对账值或使用歧义 JSON 都会 fail closed。
+
+本轮纠正了“四类 Publication member_count 必须相等”的错误假设。验收使用独立
+`covered_asset_count` 对齐 denominator；financial 可为同一资产发布多个指标，因此其 member_count
+可高于资产数。最终 rebuild evidence 仍要求四类资产覆盖完整、Publication id/hash 唯一且总成员数
+与结果一致。
+
+仓库内数值策略 registry 故意保持 `awaiting_owner_approval` 且 `policies=[]`。测试使用的合成阈值
+仅验证算法，默认 recorder 在真实 data owner 提供逐字段/单位/阈值及 approval receipt 前拒绝生成
+证据；它不再接受调用方传入其他 registry 路径。由此只关闭“可审计的离线对账契约”这一仓库缺口，
+没有完成任何真实生产数值对账。
+
+聚焦回归 81 项、入口清单 20 项、增量和全量 mypy、Django/迁移、Celery、current-data、完整架构
+与治理检查均通过；完整证据见
+[DATA-02 四 Publication 容差契约封存](../testing/data02-four-publication-tolerance-contract-2026-09-22.json)。
+registry v151 → v152，DATA-02 继续 `awaiting_production`。剩余门为真实 owner 策略批准、真实 current
+authority、明确生产写授权、真实 provider 回填及真实四 Publication snapshot 对账。本轮没有部署、
+provider 调用、生产数据库写入、Publication 切换、策略批准或容差变更。

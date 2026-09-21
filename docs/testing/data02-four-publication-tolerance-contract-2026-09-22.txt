@@ -1,0 +1,33 @@
+DATA-02 four-Publication numeric tolerance repository contract closure
+
+Scope
+- Repository-only offline evidence contract; production acceptance is false.
+- No deployment, provider call, production database write, Publication switch, policy approval or tolerance change.
+- Repository numeric policy registry remains awaiting_owner_approval with policies=[].
+
+Implemented
+- Content-addressed absolute-or-relative numeric policies with exact Decimal arithmetic and canonical plain-decimal output.
+- Exact four current Publications bind frozen universe/denominator, complete members, PublicationPolicy identity, current UUID5, publication hash, unique fact identities, member evidence/quality/time rules and covered assets.
+- Canonical and observed snapshot hashes are recomputed from dataset, source, field, unit, natural key and normalized compared values.
+- Financial member_count may exceed covered_asset_count while every dataset must cover the exact frozen asset universe.
+- Strict JSON rejects duplicate keys and non-finite constants.
+- Operational recorder is select-only/offline, reads only governance/data02_numeric_tolerance_policies.json and writes append-only content-addressed local artifacts.
+
+Validation
+- focused numeric/rebuild/backfill tests: 81 passed in 2.22s
+- Data Center entrypoint inventory: 20 passed in 106.92s; candidate-review=0
+- incremental mypy: 8 files, 0 regressions, 0 legacy errors
+- full mypy debt ceiling: 0 errors in 0 files
+- current-data contracts: 63 surfaces
+- Celery contracts: 92 tasks, 21 exemptions, 23 governed files
+- full architecture: 3,220 files, 0 boundary violations, 0 audit violations
+- governance consistency: 0 violations
+- Django system check: 0 issues
+- data_center migration drift: none
+- Black/isort/Ruff: passed
+- GPT-5.6 Luna max final implementation review: P0=0, P1=0
+
+Governance
+- registry 2026-09-22.v151 -> 2026-09-22.v152
+- DATA-02 awaiting_production -> awaiting_production
+- Remaining: genuine owner-approved field/unit/tolerances with receipts, current production authority, explicit production-write authorization, provider backfill and real four-Publication reconciliation.

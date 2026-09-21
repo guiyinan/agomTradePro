@@ -23,19 +23,30 @@ Publication 只引用经过同一授权、同一冻结 universe 和完整成功�
    实测发现异质终态的 ORM CASE 更新超出任务预算，现改为 PostgreSQL 单事务
    `UPDATE ... FROM (VALUES ...)`，最终全流程 2,417.54 秒，低于 3,500/3,600 秒预算。
    该夹具使用易失性 tmpfs，只关闭仓库行形状、原子性、查询与恢复规模门，不构成生产容量验收。
+9. 四 Publication 数值容差证据契约已实现：它绑定冻结 denominator/universe、Publication
+   id/hash/member、P2 publication policy identity、字段、canonical unit、绝对/相对容差及偏差，
+   并校验每个 member 的每个治理字段恰好对账一次。`covered_asset_count` 与 `member_count` 分离，
+   因此 financial 的多指标成员数可以大于资产数。离线 recorder 只消费 `select_only` JSON，默认
+   策略 registry 保持 `awaiting_owner_approval` 且无策略，真实 owner 批准前按设计 fail closed。
+   Parser 复用 Publication 成员级 evidence/quality/time 规则，重算 current Publication UUID、完整成员
+   hash、冻结资产集合 hash 和 canonical/observed 数值快照 hash，并拒绝重复 fact 或歧义 JSON。
 
 ## 剩余阶段
 
-1. 增加 policy identity/hash 绑定的四 Publication 数值容差对账，冻结 denominator/universe 并输出
-   字段、单位、绝对/相对偏差及 breach 证据。
-2. 取得真实 current production authority 与明确生产写授权后，执行分批 provider 回填；未获得前保持
-   `awaiting_production`，不得把本地 PostgreSQL 证据当作生产验收。
+1. 由真实 data owner 批准四类数据逐字段、单位、绝对/相对容差并提供可验证 receipt；不得把测试
+   fixture 的合成阈值写入治理 registry。
+2. 取得真实 current production authority 与明确生产写授权后，执行分批 provider 回填并对真实四
+   Publication snapshot 运行数值对账；未获得前保持 `awaiting_production`，不得把本地 PostgreSQL
+   证据当作生产验收。
 
 ## 回归范围
 
 - `tests/unit/data_center/test_core_data_backfill_task.py`
 - `tests/unit/data_center/test_core_data_backfill_command.py`
 - `tests/unit/data_center/test_market_publication_refresh.py`
+- `tests/unit/data_center/test_current_publication_rebuild.py`
+- `tests/unit/data_center/test_numeric_tolerance.py`
+- `tests/unit/data_center/test_data02_publication_tolerance_evidence.py`
 - `tests/component/data_center/test_core_data_backfill_control_plane.py`
 - `tests/component/data_center/test_data02_postgres_closure.py`
 - Celery/current-data 合同、增量/全量 mypy、架构与治理检查。

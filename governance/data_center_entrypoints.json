@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 127,
       "compatibility_facade": 94,
-      "current_data_surface": 62,
+      "current_data_surface": 63,
       "dynamic_import_edge": 12,
       "management_command": 32,
       "management_command_edge": 56,
@@ -23,20 +23,20 @@
       "runbook": 7,
       "runtime_config_key": 45,
       "scheduler_writer": 17,
-      "script": 9,
+      "script": 10,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 70,
+      "test_evidence": 72,
       "workflow_step": 10
     },
     "by_status": {
-      "active_public": 758,
-      "adjacent_operational": 299,
-      "candidate-review": 27,
+      "active_public": 768,
+      "adjacent_operational": 320,
+      "candidate-review": 0,
       "compatibility": 137,
       "retired_blocked": 0
     },
-    "total": 1221
+    "total": 1225
   },
   "entries": [
     {
@@ -5152,6 +5152,16 @@
     {
       "category": "current_data_surface",
       "evidence": "governed current-data contract; source_files=5",
+      "id": "current_data_surface:governance/current_data_contracts.json:config_center.active_public_snapshot_integrity:Current runtime public values require exact active profile/public snapshot integrity; secret reads, active validation and successor inheritance additionally verify persisted values against the separate full profile hash, including inside the activation transaction",
+      "locator": "Current runtime public values require exact active profile/public snapshot integrity; secret reads, active validation and successor inheritance additionally verify persisted values against the separate full profile hash, including inside the activation transaction",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "config_center.active_public_snapshot_integrity",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=5",
       "id": "current_data_surface:governance/current_data_contracts.json:config_center.decision_runtime_fail_closed_activation:Candidate-bound decision-runtime preflight, compare-and-set activation and automatic re-block",
       "locator": "Candidate-bound decision-runtime preflight, compare-and-set activation and automatic re-block",
       "path": "governance/current_data_contracts.json",
@@ -5191,7 +5201,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=17",
+      "evidence": "governed current-data contract; source_files=45",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.core_current_publication_rebuild:Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "locator": "Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "path": "governance/current_data_contracts.json",
@@ -10521,11 +10531,11 @@
     },
     {
       "category": "script",
-      "evidence": "static Data Center reference; explicit owner review required",
+      "evidence": "canonical EVID-09 rollback-only current Publication reader through Data Center public ports",
       "id": "script:scripts/evid09_target_current_db_readonly_runtime.py:__main__:",
       "locator": "",
       "path": "scripts/evid09_target_current_db_readonly_runtime.py",
-      "status": "candidate-review",
+      "status": "active_public",
       "symbol": "__main__",
       "target": ""
     },
@@ -10545,6 +10555,16 @@
       "id": "script:scripts/record_data01_restore_evidence.py:__main__:",
       "locator": "",
       "path": "scripts/record_data01_restore_evidence.py",
+      "status": "active_public",
+      "symbol": "__main__",
+      "target": ""
+    },
+    {
+      "category": "script",
+      "evidence": "Data Center governance/measurement tooling",
+      "id": "script:scripts/record_data02_publication_tolerance_evidence.py:__main__:",
+      "locator": "",
+      "path": "scripts/record_data02_publication_tolerance_evidence.py",
       "status": "active_public",
       "symbol": "__main__",
       "target": ""
@@ -11451,21 +11471,21 @@
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "reviewed Account-owned disposable PostgreSQL creation, authentication, policy publication and current ownership evidence; no production authority is issued",
       "id": "test_evidence:tests/component/account/creation_chain_postgres_fixture.py:creation_chain_postgres_fixture:",
       "locator": "",
       "path": "tests/component/account/creation_chain_postgres_fixture.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "creation_chain_postgres_fixture",
       "target": ""
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "reviewed Account-owned disposable PostgreSQL creation, authentication, policy publication and current ownership evidence; no production authority is issued",
       "id": "test_evidence:tests/component/account/test_account_actor_authority_raw_source_publisher_postgres.py:test_account_actor_authority_raw_source_publisher_postgres:",
       "locator": "",
       "path": "tests/component/account/test_account_actor_authority_raw_source_publisher_postgres.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "test_account_actor_authority_raw_source_publisher_postgres",
       "target": ""
     },
@@ -11481,111 +11501,111 @@
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "reviewed Account-owned disposable PostgreSQL creation, authentication, policy publication and current ownership evidence; no production authority is issued",
       "id": "test_evidence:tests/component/account/test_actual_creation_chain_postgres.py:test_actual_creation_chain_postgres:",
       "locator": "",
       "path": "tests/component/account/test_actual_creation_chain_postgres.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "test_actual_creation_chain_postgres",
       "target": ""
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "reviewed Account-owned disposable PostgreSQL creation, authentication, policy publication and current ownership evidence; no production authority is issued",
       "id": "test_evidence:tests/component/account/test_authenticated_creation_credentials_postgres.py:test_authenticated_creation_credentials_postgres:",
       "locator": "",
       "path": "tests/component/account/test_authenticated_creation_credentials_postgres.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "test_authenticated_creation_credentials_postgres",
       "target": ""
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "reviewed Account-owned disposable PostgreSQL creation, authentication, policy publication and current ownership evidence; no production authority is issued",
       "id": "test_evidence:tests/component/account/test_authenticated_creation_http_postgres.py:test_authenticated_creation_http_postgres:",
       "locator": "",
       "path": "tests/component/account/test_authenticated_creation_http_postgres.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "test_authenticated_creation_http_postgres",
       "target": ""
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "reviewed Account-owned disposable PostgreSQL creation, authentication, policy publication and current ownership evidence; no production authority is issued",
       "id": "test_evidence:tests/component/account/test_bound_policy_publication_postgres.py:test_bound_policy_publication_postgres:",
       "locator": "",
       "path": "tests/component/account/test_bound_policy_publication_postgres.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "test_bound_policy_publication_postgres",
       "target": ""
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "reviewed Account-owned disposable PostgreSQL creation, authentication, policy publication and current ownership evidence; no production authority is issued",
       "id": "test_evidence:tests/component/account/test_canonical_account_creation_row_postgres.py:test_canonical_account_creation_row_postgres:",
       "locator": "",
       "path": "tests/component/account/test_canonical_account_creation_row_postgres.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "test_canonical_account_creation_row_postgres",
       "target": ""
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "reviewed Account-owned disposable PostgreSQL creation, authentication, policy publication and current ownership evidence; no production authority is issued",
       "id": "test_evidence:tests/component/account/test_canonical_creation_concurrency_postgres.py:test_canonical_creation_concurrency_postgres:",
       "locator": "",
       "path": "tests/component/account/test_canonical_creation_concurrency_postgres.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "test_canonical_creation_concurrency_postgres",
       "target": ""
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "reviewed Account-owned disposable PostgreSQL creation, authentication, policy publication and current ownership evidence; no production authority is issued",
       "id": "test_evidence:tests/component/account/test_canonical_creation_orchestration_postgres.py:test_canonical_creation_orchestration_postgres:",
       "locator": "",
       "path": "tests/component/account/test_canonical_creation_orchestration_postgres.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "test_canonical_creation_orchestration_postgres",
       "target": ""
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "reviewed Account-owned disposable PostgreSQL creation, authentication, policy publication and current ownership evidence; no production authority is issued",
       "id": "test_evidence:tests/component/account/test_canonical_ownership_reobservation_core_postgres.py:test_canonical_ownership_reobservation_core_postgres:",
       "locator": "",
       "path": "tests/component/account/test_canonical_ownership_reobservation_core_postgres.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "test_canonical_ownership_reobservation_core_postgres",
       "target": ""
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "reviewed Account-owned disposable PostgreSQL creation, authentication, policy publication and current ownership evidence; no production authority is issued",
       "id": "test_evidence:tests/component/account/test_creation_reader_postgres.py:test_creation_reader_postgres:",
       "locator": "",
       "path": "tests/component/account/test_creation_reader_postgres.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "test_creation_reader_postgres",
       "target": ""
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "reviewed Account-owned disposable PostgreSQL creation, authentication, policy publication and current ownership evidence; no production authority is issued",
       "id": "test_evidence:tests/component/account/test_creation_transaction_postgres.py:test_creation_transaction_postgres:",
       "locator": "",
       "path": "tests/component/account/test_creation_transaction_postgres.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "test_creation_transaction_postgres",
       "target": ""
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "reviewed Account-owned disposable PostgreSQL creation, authentication, policy publication and current ownership evidence; no production authority is issued",
       "id": "test_evidence:tests/component/account/test_current_account_ownership_postgres.py:test_current_account_ownership_postgres:",
       "locator": "",
       "path": "tests/component/account/test_current_account_ownership_postgres.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "test_current_account_ownership_postgres",
       "target": ""
     },
@@ -11601,11 +11621,11 @@
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "reviewed Account-owned disposable PostgreSQL creation, authentication, policy publication and current ownership evidence; no production authority is issued",
       "id": "test_evidence:tests/component/account/test_existing_account_reobservation_postgres.py:test_existing_account_reobservation_postgres:",
       "locator": "",
       "path": "tests/component/account/test_existing_account_reobservation_postgres.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "test_existing_account_reobservation_postgres",
       "target": ""
     },
@@ -11621,31 +11641,31 @@
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "reviewed Account-owned disposable PostgreSQL creation, authentication, policy publication and current ownership evidence; no production authority is issued",
       "id": "test_evidence:tests/component/account/test_owner_tenant_authority_v3_fresh_v5_parents_postgres.py:test_owner_tenant_authority_v3_fresh_v5_parents_postgres:",
       "locator": "",
       "path": "tests/component/account/test_owner_tenant_authority_v3_fresh_v5_parents_postgres.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "test_owner_tenant_authority_v3_fresh_v5_parents_postgres",
       "target": ""
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "reviewed Account-owned disposable PostgreSQL creation, authentication, policy publication and current ownership evidence; no production authority is issued",
       "id": "test_evidence:tests/component/account/test_policy_publication_api_postgres.py:test_policy_publication_api_postgres:",
       "locator": "",
       "path": "tests/component/account/test_policy_publication_api_postgres.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "test_policy_publication_api_postgres",
       "target": ""
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "reviewed Account-owned disposable PostgreSQL creation, authentication, policy publication and current ownership evidence; no production authority is issued",
       "id": "test_evidence:tests/component/account/test_single_owner_policy_authentication_postgres.py:test_single_owner_policy_authentication_postgres:",
       "locator": "",
       "path": "tests/component/account/test_single_owner_policy_authentication_postgres.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "test_single_owner_policy_authentication_postgres",
       "target": ""
     },
@@ -11691,41 +11711,51 @@
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "registered executable Data Center PostgreSQL evidence for DATA-02 closure, financial provenance, Publication policy activation and repeatable-read snapshots",
+      "id": "test_evidence:tests/component/data_center/test_data02_postgres_closure.py:test_data02_postgres_closure:",
+      "locator": "",
+      "path": "tests/component/data_center/test_data02_postgres_closure.py",
+      "status": "active_public",
+      "symbol": "test_data02_postgres_closure",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable Data Center PostgreSQL evidence for DATA-02 closure, financial provenance, Publication policy activation and repeatable-read snapshots",
       "id": "test_evidence:tests/component/data_center/test_financial_fact_repository_postgres_concurrency.py:test_financial_fact_repository_postgres_concurrency:",
       "locator": "",
       "path": "tests/component/data_center/test_financial_fact_repository_postgres_concurrency.py",
-      "status": "candidate-review",
+      "status": "active_public",
       "symbol": "test_financial_fact_repository_postgres_concurrency",
       "target": ""
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "registered executable Data Center PostgreSQL evidence for DATA-02 closure, financial provenance, Publication policy activation and repeatable-read snapshots",
       "id": "test_evidence:tests/component/data_center/test_financial_fact_repository_postgres_provenance.py:test_financial_fact_repository_postgres_provenance:",
       "locator": "",
       "path": "tests/component/data_center/test_financial_fact_repository_postgres_provenance.py",
-      "status": "candidate-review",
+      "status": "active_public",
       "symbol": "test_financial_fact_repository_postgres_provenance",
       "target": ""
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "registered executable Data Center PostgreSQL evidence for DATA-02 closure, financial provenance, Publication policy activation and repeatable-read snapshots",
       "id": "test_evidence:tests/component/data_center/test_publication_policy_activation_postgres.py:test_publication_policy_activation_postgres:",
       "locator": "",
       "path": "tests/component/data_center/test_publication_policy_activation_postgres.py",
-      "status": "candidate-review",
+      "status": "active_public",
       "symbol": "test_publication_policy_activation_postgres",
       "target": ""
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "registered executable Data Center PostgreSQL evidence for DATA-02 closure, financial provenance, Publication policy activation and repeatable-read snapshots",
       "id": "test_evidence:tests/component/data_center/test_publication_read_snapshot_postgres.py:test_publication_read_snapshot_postgres:",
       "locator": "",
       "path": "tests/component/data_center/test_publication_read_snapshot_postgres.py",
-      "status": "candidate-review",
+      "status": "active_public",
       "symbol": "test_publication_read_snapshot_postgres",
       "target": ""
     },
@@ -11751,21 +11781,21 @@
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "reviewed Research-owned disposable PostgreSQL owner-tenant evidence-scope verification",
       "id": "test_evidence:tests/component/research/test_owner_tenant_evidence_scope_v2_postgres.py:test_owner_tenant_evidence_scope_v2_postgres:",
       "locator": "",
       "path": "tests/component/research/test_owner_tenant_evidence_scope_v2_postgres.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "test_owner_tenant_evidence_scope_v2_postgres",
       "target": ""
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "reviewed Research-owned disposable PostgreSQL owner-tenant evidence-scope verification",
       "id": "test_evidence:tests/component/research/test_owner_tenant_evidence_scope_v3_postgres.py:test_owner_tenant_evidence_scope_v3_postgres:",
       "locator": "",
       "path": "tests/component/research/test_owner_tenant_evidence_scope_v3_postgres.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "test_owner_tenant_evidence_scope_v3_postgres",
       "target": ""
     },
@@ -11797,6 +11827,16 @@
       "path": "tests/integration/test_tui_registry_backup_commands.py",
       "status": "active_public",
       "symbol": "test_tui_registry_backup_commands",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "reviewed AUD-05 isolated loopback PostgreSQL settings evidence; production-like targets are refused",
+      "id": "test_evidence:tests/settings_aud05_postgres.py:settings_aud05_postgres:",
+      "locator": "",
+      "path": "tests/settings_aud05_postgres.py",
+      "status": "adjacent_operational",
+      "symbol": "settings_aud05_postgres",
       "target": ""
     },
     {
@@ -11861,11 +11901,11 @@
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "reviewed Account-owned disposable PostgreSQL creation, authentication, policy publication and current ownership evidence; no production authority is issued",
       "id": "test_evidence:tests/unit/account/test_fresh_v5_postgres_connection_options.py:test_fresh_v5_postgres_connection_options:",
       "locator": "",
       "path": "tests/unit/account/test_fresh_v5_postgres_connection_options.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "test_fresh_v5_postgres_connection_options",
       "target": ""
     },
@@ -12101,21 +12141,21 @@
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "registered executable EVID-09 controlled-image and web-only rollback evidence for Data Center public readers",
       "id": "test_evidence:tests/unit/test_evid09_controlled_image_exercise.py:test_evid09_controlled_image_exercise:",
       "locator": "",
       "path": "tests/unit/test_evid09_controlled_image_exercise.py",
-      "status": "candidate-review",
+      "status": "active_public",
       "symbol": "test_evid09_controlled_image_exercise",
       "target": ""
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "registered executable EVID-09 controlled-image and web-only rollback evidence for Data Center public readers",
       "id": "test_evidence:tests/unit/test_evid09_web_only_image_exercise.py:test_evid09_web_only_image_exercise:",
       "locator": "",
       "path": "tests/unit/test_evid09_web_only_image_exercise.py",
-      "status": "candidate-review",
+      "status": "active_public",
       "symbol": "test_evid09_web_only_image_exercise",
       "target": ""
     },
@@ -12261,9 +12301,9 @@
   },
   "source_contract_counts": {
     "celery_tasks": 92,
-    "current_data_contracts": 62,
+    "current_data_contracts": 63,
     "legacy_entrypoints_and_wrappers": 0,
-    "operational_governance_rules": 22,
+    "operational_governance_rules": 28,
     "runtime_config_keys": 45
   },
   "source_contracts": [

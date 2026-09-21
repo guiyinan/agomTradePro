@@ -1,0 +1,150 @@
+{
+  "schema_version": "data02-four-publication-tolerance-contract-closure.v1",
+  "generated_at": "2026-09-21T19:17:00.874061Z",
+  "candidate": {
+    "branch": "dev/next-development",
+    "baseline_commit": "88a3f12a76d8466b9cad80e7ed5cab68acffd2d6",
+    "commit": "containing_git_commit"
+  },
+  "classification": {
+    "scope": "Repository-only offline four-Publication numeric tolerance evidence contract.",
+    "production_acceptance": false,
+    "production_ready": false,
+    "runtime_enablement": "not_authorized",
+    "measurement_only": false
+  },
+  "production_actions": {
+    "deployment": false,
+    "provider_fetch": false,
+    "database_write": false,
+    "publication_switch": false,
+    "policy_approval": false,
+    "tolerance_change": false
+  },
+  "policy_truth": {
+    "path": "governance/data02_numeric_tolerance_policies.json",
+    "sha256": "8e8d59f6e46b4697eadd4b5564362ae3e89eb0f2d7f2de68affb4d443cfaa430",
+    "status": "awaiting_owner_approval",
+    "policy_count": 0,
+    "default_recorder_result": "fail_closed_until_active_owner-approved_repository_policies_exist"
+  },
+  "implemented_contract": [
+    "Numeric policies bind dataset, version, rule, field, unit and exact absolute/relative thresholds with content identities.",
+    "Decimal input and computed deviations preserve large exact values, use plain notation and compare relative bounds without rounded division.",
+    "The parser accepts only strict UTF-8 select_only JSON and rejects duplicate keys and non-finite constants.",
+    "All four current Publications bind exact members, P2 policy identity, current UUID5, publication hash, unique fact identities and member evidence/quality/time validity.",
+    "Each Publication asset set recomputes the canonical active-a-share universe hash; covered_asset_count is independent from member_count.",
+    "Every Publication member and governed field appears exactly once with its canonical unit.",
+    "Reference and observed snapshot hashes are recomputed from normalized compared values and source identity.",
+    "The operational recorder reads only the repository numeric policy registry and performs no database, provider or network operation.",
+    "Local writes are explicit, append-only and content-addressed; missing or conflicting sidecars fail closed."
+  ],
+  "validation": {
+    "focused_tests": {
+      "result": "passed",
+      "passed": 81,
+      "duration_seconds": 2.22
+    },
+    "entrypoint_inventory": {
+      "result": "passed",
+      "passed": 20,
+      "duration_seconds": 106.92,
+      "total_entries": 1225,
+      "candidate_review": 0
+    },
+    "incremental_mypy": {
+      "result": "passed",
+      "files": 8,
+      "regressions": 0,
+      "legacy_errors_observed": 0
+    },
+    "mypy_debt_ceiling": {
+      "result": "passed",
+      "errors": 0,
+      "files_with_errors": 0
+    },
+    "django_system_check": {
+      "result": "passed",
+      "issues": 0
+    },
+    "migration_drift": {
+      "result": "passed",
+      "detail": "No changes detected in app 'data_center'"
+    },
+    "current_data_contracts": {
+      "result": "passed",
+      "surfaces": 63
+    },
+    "celery_task_contracts": {
+      "result": "passed",
+      "registered_tasks": 92,
+      "exemptions": 21,
+      "governed_files": 23
+    },
+    "architecture_full": {
+      "result": "passed",
+      "scanned_files": 3220,
+      "boundary_violations": 0,
+      "audit_violations": 0
+    },
+    "governance": {
+      "result": "passed",
+      "baseline_version": "2026-09-09.v220",
+      "violations": 0,
+      "registry_version": "2026-09-22.v152"
+    },
+    "format_and_lint": {
+      "result": "passed",
+      "black": true,
+      "isort": true,
+      "ruff": true,
+      "diff_check": true
+    }
+  },
+  "source_sha256": {
+    "apps/data_center/domain/numeric_tolerance.py": "c027ebba609fdceecb5423ffa620af7e21827a1354edc25f31d93e8f274acb58",
+    "apps/data_center/application/data02_publication_tolerance_evidence.py": "2229e6dcdff55037326cbe68a4dfc37808e72c63cfb277d242afc752d5203c25",
+    "apps/data_center/application/publication_rebuild_evidence.py": "4dbd498fc191b62f29761ecf061c11fc3fe1a3f79cd55cb2b70c883fdfab7bcc",
+    "apps/data_center/application/core_data_backfill.py": "c4579cac6eae4aa4e0fd136c0fd9b17f8a219ca779f093df87060f9761ebe8d5",
+    "apps/data_center/application/current_publication_rebuild.py": "e954ec7dadae9b0c84f82a323e39005b2769cea153f2f5b5ff5a88c4d17bca7c",
+    "apps/data_center/application/tasks.py": "d544bd8d0c4f0faa09ce98cbd7294f81c53aa469ad5deda8cfb8fed64415a668",
+    "scripts/record_data02_publication_tolerance_evidence.py": "d82d82fd0761c01bcc1b5668015c82cafbf19b6f533d86b092732af8d4b17fd4",
+    "scripts/data_center_entrypoint_inventory.py": "c36bb28754e2fd87adc65f6554038938c5b2610dc7404d79d3d0c81b213dec8c",
+    "tests/unit/data_center/test_numeric_tolerance.py": "cd7adc74eb7cfdd391e94b7b51639fd41d3b25f539951ac891991bde5c9c25ac",
+    "tests/unit/data_center/test_data02_publication_tolerance_evidence.py": "5494e7adeb6e9e75428e003f3411b87a3c13844a42b0784b3ff6903e1256bb62",
+    "tests/unit/data_center/test_core_data_backfill_task.py": "cff139554ac3f9581c57c9202edb735b0fb3fe7cd1041df94717ff8b982a7f4e",
+    "tests/unit/data_center/test_current_publication_rebuild.py": "92bb7d9265059c11791499d4b8d16a16211b9e5781dd9f179333b6e970c3cf00",
+    "governance/data02_numeric_tolerance_policies.json": "8e8d59f6e46b4697eadd4b5564362ae3e89eb0f2d7f2de68affb4d443cfaa430",
+    "governance/publication_policies.json": "7bc60d74355eafb6fe9bdd0f8438c45731b03afd04e018e947c952474252e2c7",
+    "governance/current_data_contracts.json": "98506264c053a3abaaf3a3f75aa666166453a8b6abc8724e63d29996d6bd75c5",
+    "governance/data_center_operational_entrypoints.json": "db8da7b5cabe7bb05ce133e6d2e0f6cd09341e14bcac21b5b37eb27211bb4e52",
+    "governance/data_center_entrypoints.json": "06e91beed52dd73522a45f49b3e88c845efc04cb691af70592e906e6d972f45c"
+  },
+  "independent_review": {
+    "reviewer": "gpt-5.6-luna",
+    "reasoning_effort": "max",
+    "result": "Implementation final review P0=0 and P1=0. The only second-round governance finding was this previously missing evidence artifact; it is generated and hash-sealed by this change.",
+    "resolved_findings": [
+      "Preserve real governance PublicationPolicy required_evidence order.",
+      "Apply existing member evidence, quality and chronology validation.",
+      "Reject duplicate canonical fact identities.",
+      "Recompute canonical current Publication UUID5 and both numeric snapshot hashes.",
+      "Pin the operational recorder to the repository numeric policy registry.",
+      "Bind exact frozen asset sets, retain financial multi-metric member counts and use exact Decimal arithmetic."
+    ]
+  },
+  "governance": {
+    "registry_transition": "2026-09-22.v151 -> 2026-09-22.v152",
+    "unit": "DATA-02",
+    "status_before": "awaiting_production",
+    "status_after": "awaiting_production",
+    "reason": "The auditable offline reconciliation mechanism is complete; real policies, authority, writes, backfill and production reconciliation remain external gates."
+  },
+  "remaining_gates": [
+    "Obtain genuine data-owner approval and receipts for every dataset field, canonical unit and absolute/relative tolerance.",
+    "Obtain genuine current production authority and explicit production-write authorization.",
+    "Run authorized provider backfill and reconcile the real frozen four-Publication snapshots."
+  ],
+  "raw_summary": "docs/testing/data02-four-publication-tolerance-contract-2026-09-22.txt",
+  "raw_summary_sha256": "98c71e3e15fe4611e87d7d68db356b1f76da8447bbd8d6fb884355af325b277e"
+}

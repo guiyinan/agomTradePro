@@ -115,7 +115,7 @@ class BackfillItemAttemptStore(Protocol):
 class PublicationEvidenceHash(Protocol):
     """Port for binding a rebuild result to immutable Publication identities."""
 
-    def __call__(self, result: object) -> str:
+    def __call__(self, result: object, expected_asset_count: int) -> str:
         """Return a canonical SHA-256 for committed Publication evidence."""
 
 
@@ -865,10 +865,11 @@ def run_active_a_share_core_data_backfill_batch(
                     published_at=services.current_time(),
                 )
                 rebuild_published_count = services.published_count_from_result(rebuild_result)
-                if rebuild_published_count != len(asset_codes) * 4:
-                    raise ValueError("four-Publication member coverage is incomplete")
+                publication_evidence_hash = services.publication_evidence_hash(
+                    rebuild_result,
+                    len(asset_codes),
+                )
                 published_total += rebuild_published_count
-                publication_evidence_hash = services.publication_evidence_hash(rebuild_result)
                 if not finish_attempts(
                     publication_attempts,
                     state=SyncItemAttemptState.SUCCEEDED,

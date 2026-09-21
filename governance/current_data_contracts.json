@@ -4529,7 +4529,12 @@
         "apps/data_center/migrations/0080_sync_item_attempt_evidence_hash.py",
         "apps/data_center/application/sync_use_cases.py",
         "apps/data_center/interface/api_views_operations.py",
-        "apps/data_center/migrations/0081_sync_item_attempt_running_unique.py"
+        "apps/data_center/migrations/0081_sync_item_attempt_running_unique.py",
+        "apps/data_center/domain/numeric_tolerance.py",
+        "apps/data_center/application/data02_publication_tolerance_evidence.py",
+        "scripts/record_data02_publication_tolerance_evidence.py",
+        "governance/data02_numeric_tolerance_policies.json",
+        "apps/data_center/application/publication_rebuild_evidence.py"
       ],
       "required_markers": {
         "apps/data_center/application/current_fact_remediation.py": [
@@ -4599,7 +4604,10 @@
           "Current publication contains a future observation",
           "Current publication is missing active assets",
           "oldest_observed_at",
-          "newest_observed_at"
+          "newest_observed_at",
+          "covered_asset_count: int",
+          "\"covered_asset_count\": self.covered_asset_count",
+          "\"policy_identity\": publication.policy_version"
         ],
         "apps/data_center/domain/market_time.py": [
           "def latest_closed_cn_market_session(",
@@ -4676,7 +4684,8 @@
           "attempt.started_at != started_at",
           "def persist_finished_attempts(",
           "completion_specs:",
-          "persist_finished_attempts(completed_attempts)"
+          "persist_finished_attempts(completed_attempts)",
+          "services.publication_evidence_hash(\n                    rebuild_result,\n                    len(asset_codes),"
         ],
         "apps/data_center/infrastructure/publication_fact_identity.py": [
           "build_publication_fact_identity",
@@ -4726,8 +4735,8 @@
           "returned_asset_codes=result.returned_asset_codes",
           "succeeded_asset_codes=result.succeeded_asset_codes",
           "get_backfill_item_attempt_store()",
-          "def _publication_evidence_hash_from_result(",
-          "publication_evidence_hash=_publication_evidence_hash_from_result"
+          "publication_evidence_hash=_publication_evidence_hash_from_result",
+          "publication_evidence_hash_from_result as _publication_evidence_hash_from_result"
         ],
         "apps/data_center/management/commands/backfill_active_a_share_core_data.py": [
           "--execute is required for this production writer",
@@ -4800,6 +4809,42 @@
           "def begin_many(",
           "def finish_many(",
           "elif connection.vendor == \"postgresql\":"
+        ],
+        "apps/data_center/domain/numeric_tolerance.py": [
+          "class NumericToleranceField:",
+          "class NumericTolerancePolicy:",
+          "data02-numeric-tolerance-policy-v1",
+          "breached=not (within_absolute or within_relative)"
+        ],
+        "apps/data_center/application/data02_publication_tolerance_evidence.py": [
+          "class Data02PublicationToleranceEvidence:",
+          "datasets must contain exactly the four core datasets",
+          "Publication hash does not match member identities",
+          "tolerance policy is not the approved registry policy",
+          "comparison coverage must include every member and governed field",
+          "\"production_ready\": False",
+          "covered assets do not match the frozen universe hash",
+          "validate_publication_evidence(",
+          "Publication fact identities must be unique",
+          "Publication id does not match its canonical current identity",
+          "reference snapshot hash does not match compared values"
+        ],
+        "scripts/record_data02_publication_tolerance_evidence.py": [
+          "DEFAULT_POLICY_REGISTRY =",
+          "def record_data02_publication_tolerance_evidence(",
+          "\"runtime_enablement\": \"not_authorized\"",
+          "policy_registry_payload = DEFAULT_POLICY_REGISTRY.read_bytes()"
+        ],
+        "governance/data02_numeric_tolerance_policies.json": [
+          "\"schema_version\": \"data02-numeric-tolerance-policy-registry.v1\"",
+          "\"status\": \"awaiting_owner_approval\"",
+          "\"policies\": []"
+        ],
+        "apps/data_center/application/publication_rebuild_evidence.py": [
+          "def publication_evidence_hash_from_result(",
+          "expected_asset_count: int",
+          "publication covered-asset-count evidence is incomplete",
+          "\"policy_identity\": policy_identity"
         ]
       },
       "required_tests": [
@@ -5237,6 +5282,76 @@
           "case": "postgres_mixed_terminal_values_atomic",
           "test_file": "tests/component/data_center/test_data02_postgres_closure.py",
           "test_function": "test_postgresql_mixed_terminal_values_update_atomically"
+        },
+        {
+          "case": "numeric_tolerance_policy_content_identity",
+          "test_file": "tests/unit/data_center/test_numeric_tolerance.py",
+          "test_function": "test_policy_identity_binds_dataset_version_rule_field_unit_and_thresholds"
+        },
+        {
+          "case": "numeric_tolerance_boundary_semantics",
+          "test_file": "tests/unit/data_center/test_numeric_tolerance.py",
+          "test_function": "test_absolute_or_relative_boundary_is_inclusive"
+        },
+        {
+          "case": "four_publication_numeric_tolerance_policy_binding",
+          "test_file": "tests/unit/data_center/test_data02_publication_tolerance_evidence.py",
+          "test_function": "test_four_publication_report_binds_policies_universe_units_and_deviations"
+        },
+        {
+          "case": "four_publication_unequal_member_counts",
+          "test_file": "tests/unit/data_center/test_data02_publication_tolerance_evidence.py",
+          "test_function": "test_financial_member_count_can_differ_from_frozen_asset_denominator"
+        },
+        {
+          "case": "four_publication_member_identity_binding",
+          "test_file": "tests/unit/data_center/test_data02_publication_tolerance_evidence.py",
+          "test_function": "test_member_identity_substitution_cannot_reuse_publication_hash"
+        },
+        {
+          "case": "four_publication_approved_tolerance_registry",
+          "test_file": "tests/unit/data_center/test_data02_publication_tolerance_evidence.py",
+          "test_function": "test_unapproved_or_incomplete_policy_registry_fails_closed"
+        },
+        {
+          "case": "backfill_four_publication_unequal_member_counts",
+          "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
+          "test_function": "test_four_publication_evidence_allows_financial_member_count_to_differ"
+        },
+        {
+          "case": "repository_numeric_tolerance_registry_requires_real_approval",
+          "test_file": "tests/unit/data_center/test_data02_publication_tolerance_evidence.py",
+          "test_function": "test_repository_policy_registry_remains_blocked_pending_real_approval"
+        },
+        {
+          "case": "numeric_tolerance_large_exact_decimal_arithmetic",
+          "test_file": "tests/unit/data_center/test_numeric_tolerance.py",
+          "test_function": "test_large_exact_decimals_are_not_rounded_by_decimal_context"
+        },
+        {
+          "case": "four_publication_frozen_universe_member_binding",
+          "test_file": "tests/unit/data_center/test_data02_publication_tolerance_evidence.py",
+          "test_function": "test_publication_asset_sets_must_match_the_frozen_universe_hash"
+        },
+        {
+          "case": "four_publication_member_policy_and_fact_identity",
+          "test_file": "tests/unit/data_center/test_data02_publication_tolerance_evidence.py",
+          "test_function": "test_member_evidence_and_fact_identity_are_validated_before_acceptance"
+        },
+        {
+          "case": "four_publication_id_and_numeric_snapshot_binding",
+          "test_file": "tests/unit/data_center/test_data02_publication_tolerance_evidence.py",
+          "test_function": "test_publication_id_and_numeric_snapshot_hashes_are_content_bound"
+        },
+        {
+          "case": "four_publication_strict_json_decoder",
+          "test_file": "tests/unit/data_center/test_data02_publication_tolerance_evidence.py",
+          "test_function": "test_ambiguous_or_nonfinite_json_fails_closed"
+        },
+        {
+          "case": "repository_publication_policy_order_compatibility",
+          "test_file": "tests/unit/data_center/test_data02_publication_tolerance_evidence.py",
+          "test_function": "test_repository_publication_policy_order_is_accepted"
         }
       ]
     },

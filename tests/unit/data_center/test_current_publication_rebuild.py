@@ -289,6 +289,10 @@ def test_core_rebuild_wraps_all_three_publications_in_one_transaction() -> None:
     assert transaction_entries == [f"authority:{NOW.isoformat()}", "enter", "exit"]
     assert result.published_count == 3
     assert set(result.publication_ids) == {item.publication_id for item in publications.published}
+    assert all(item["covered_asset_count"] == 1 for item in result.to_dict()["datasets"])
+    assert all(
+        str(item["policy_identity"]).startswith("1.0:1.0") for item in result.to_dict()["datasets"]
+    )
 
 
 def test_core_preview_is_read_only() -> None:

@@ -338,6 +338,11 @@ class CoreCurrentPublicationRebuildResult:
     """Exact publication identities committed by one coordinated rebuild."""
 
     publications: tuple[CanonicalPublication, ...]
+    covered_asset_count: int
+
+    def __post_init__(self) -> None:
+        if self.covered_asset_count <= 0:
+            raise ValueError("covered_asset_count must be positive")
 
     @property
     def published_count(self) -> int:
@@ -363,6 +368,8 @@ class CoreCurrentPublicationRebuildResult:
                     "publication_id": publication.publication_id,
                     "publication_hash": publication.publication_hash,
                     "member_count": publication.member_count,
+                    "covered_asset_count": self.covered_asset_count,
+                    "policy_identity": publication.policy_version,
                     "as_of": publication.as_of.isoformat() if publication.as_of else None,
                     "published_at": (
                         publication.published_at.isoformat() if publication.published_at else None
@@ -431,7 +438,17 @@ class CoreCurrentPublicationRebuildUseCase:
                 )
                 for rebuilder in self._rebuilders
             )
-        return CoreCurrentPublicationRebuildResult(publications=publications)
+        covered_asset_count = len(
+            {
+                str(asset_code or "").strip().upper()
+                for asset_code in asset_codes
+                if str(asset_code or "").strip()
+            }
+        )
+        return CoreCurrentPublicationRebuildResult(
+            publications=publications,
+            covered_asset_count=covered_asset_count,
+        )
 
 
 __all__ = [

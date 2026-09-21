@@ -255,6 +255,75 @@
         "tests/support/actor_authority_capture_postgres.py"
       ],
       "status": "adjacent_operational"
+    },
+    {
+      "category": "script",
+      "evidence": "canonical EVID-09 rollback-only current Publication reader through Data Center public ports",
+      "path": "scripts/evid09_target_current_db_readonly_runtime.py",
+      "symbol": "__main__",
+      "status": "active_public"
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "reviewed Account-owned disposable PostgreSQL creation, authentication, policy publication and current ownership evidence; no production authority is issued",
+      "path": [
+        "tests/component/account/creation_chain_postgres_fixture.py",
+        "tests/component/account/test_account_actor_authority_raw_source_publisher_postgres.py",
+        "tests/component/account/test_actual_creation_chain_postgres.py",
+        "tests/component/account/test_authenticated_creation_credentials_postgres.py",
+        "tests/component/account/test_authenticated_creation_http_postgres.py",
+        "tests/component/account/test_bound_policy_publication_postgres.py",
+        "tests/component/account/test_canonical_account_creation_row_postgres.py",
+        "tests/component/account/test_canonical_creation_concurrency_postgres.py",
+        "tests/component/account/test_canonical_creation_orchestration_postgres.py",
+        "tests/component/account/test_canonical_ownership_reobservation_core_postgres.py",
+        "tests/component/account/test_creation_reader_postgres.py",
+        "tests/component/account/test_creation_transaction_postgres.py",
+        "tests/component/account/test_current_account_ownership_postgres.py",
+        "tests/component/account/test_existing_account_reobservation_postgres.py",
+        "tests/component/account/test_owner_tenant_authority_v3_fresh_v5_parents_postgres.py",
+        "tests/component/account/test_policy_publication_api_postgres.py",
+        "tests/component/account/test_single_owner_policy_authentication_postgres.py",
+        "tests/unit/account/test_fresh_v5_postgres_connection_options.py"
+      ],
+      "status": "adjacent_operational"
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable Data Center PostgreSQL evidence for DATA-02 closure, financial provenance, Publication policy activation and repeatable-read snapshots",
+      "path": [
+        "tests/component/data_center/test_data02_postgres_closure.py",
+        "tests/component/data_center/test_financial_fact_repository_postgres_concurrency.py",
+        "tests/component/data_center/test_financial_fact_repository_postgres_provenance.py",
+        "tests/component/data_center/test_publication_policy_activation_postgres.py",
+        "tests/component/data_center/test_publication_read_snapshot_postgres.py"
+      ],
+      "status": "active_public"
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "reviewed Research-owned disposable PostgreSQL owner-tenant evidence-scope verification",
+      "path": [
+        "tests/component/research/test_owner_tenant_evidence_scope_v2_postgres.py",
+        "tests/component/research/test_owner_tenant_evidence_scope_v3_postgres.py"
+      ],
+      "status": "adjacent_operational"
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "reviewed AUD-05 isolated loopback PostgreSQL settings evidence; production-like targets are refused",
+      "path": "tests/settings_aud05_postgres.py",
+      "symbol": "settings_aud05_postgres",
+      "status": "adjacent_operational"
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable EVID-09 controlled-image and web-only rollback evidence for Data Center public readers",
+      "path": [
+        "tests/unit/test_evid09_controlled_image_exercise.py",
+        "tests/unit/test_evid09_web_only_image_exercise.py"
+      ],
+      "status": "active_public"
     }
   ],
   "owner": "data_center",

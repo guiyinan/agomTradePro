@@ -12,6 +12,7 @@ import pytest
 from apps.data_center.application.backfill_control_plane import backfill_control_plane_ids
 from apps.data_center.application.batch_identity import ProviderAssetIdentityError
 from apps.data_center.application.tasks import (
+    _publication_evidence_hash_from_result,
     backfill_active_a_share_core_data_batch_task,
 )
 from apps.data_center.domain.control_plane import (
@@ -42,25 +43,67 @@ def _universe_hash(*asset_codes: str) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
-def _publication_result(member_count: int) -> SimpleNamespace:
+def _publication_result(
+    member_count: int,
+    *,
+    financial_member_count: int | None = None,
+) -> SimpleNamespace:
     """Return exact four-Publication evidence for task tests."""
 
+    member_counts = {
+        dataset_key: (
+            financial_member_count
+            if dataset_key == "equity.financial.fact" and financial_member_count is not None
+            else member_count
+        )
+        for dataset_key in PUBLICATION_DATASETS
+    }
     datasets = [
         {
             "dataset_key": dataset_key,
             "publication_id": f"publication-{index}",
             "publication_hash": format(index + 1, "x") * 64,
-            "member_count": member_count,
+            "member_count": member_counts[dataset_key],
+            "covered_asset_count": member_count,
+            "policy_identity": f"p2:{index + 1}:{format(index + 5, 'x') * 64}",
         }
         for index, dataset_key in enumerate(PUBLICATION_DATASETS)
     ]
+    published_count = sum(member_counts.values())
     return SimpleNamespace(
-        published_count=member_count * len(datasets),
+        published_count=published_count,
+        datasets=datasets,
         to_dict=lambda: {
-            "published_count": member_count * len(datasets),
+            "published_count": published_count,
             "datasets": datasets,
         },
     )
+
+
+def test_four_publication_evidence_allows_financial_member_count_to_differ() -> None:
+    result = _publication_result(2, financial_member_count=5)
+
+    digest = _publication_evidence_hash_from_result(result, expected_asset_count=2)
+
+    assert len(digest) == 64
+    assert result.published_count == 11
+
+
+def test_four_publication_evidence_rejects_asset_coverage_drift() -> None:
+    result = _publication_result(2, financial_member_count=5)
+    result.datasets[-1]["covered_asset_count"] = 1
+
+    with pytest.raises(ValueError, match="covered-asset-count"):
+        _publication_evidence_hash_from_result(result, expected_asset_count=2)
+
+
+@pytest.mark.parametrize("field_name", ["publication_id", "publication_hash"])
+def test_four_publication_evidence_rejects_reused_identity(field_name: str) -> None:
+    result = _publication_result(2, financial_member_count=5)
+    result.datasets[-1][field_name] = result.datasets[0][field_name]
+
+    with pytest.raises(ValueError, match=f"{field_name} evidence must be unique"):
+        _publication_evidence_hash_from_result(result, expected_asset_count=2)
 
 
 @pytest.fixture(autouse=True)
