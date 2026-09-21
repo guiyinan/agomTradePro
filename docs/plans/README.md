@@ -1,5 +1,10 @@
 # 活跃计划索引
 
+> 2026-09-21 DATA-02 仓库写路径加固：canonical current authority 已覆盖事实刷新和独立四 Publication rebuild；
+> execute operator 绑定服务器 actor，长批次重复预检，quote/valuation 核对精确资产集合。聚焦 120 tests passed。
+> [结构化证据](../testing/data02-authority-and-batch-preflight-hardening-2026-09-21.json)。registry v144，
+> DATA-02 仍 awaiting_production；未部署、未调用 provider、未写生产或切换 Publication。
+
 > 2026-09-21 生产只读重验：生产仍为 `439468482` / `20260920184626`，健康门为
 > health/db/ready=200、decision-ready=503。5,565 资产中 quote/price/valuation Publication
 > 均为 5,565，financial 仅 80；四 Publication dry-run 因 financial `announced_at` 缺失而拒绝。

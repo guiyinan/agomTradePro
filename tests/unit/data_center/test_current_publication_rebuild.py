@@ -279,11 +279,14 @@ def test_core_rebuild_wraps_all_three_publications_in_one_transaction() -> None:
     coordinator = CoreCurrentPublicationRebuildUseCase(
         rebuilders=rebuilders,
         transaction=lambda: _Transaction(),
+        authority_preflight=lambda as_of: transaction_entries.append(
+            f"authority:{as_of.isoformat()}"
+        ),
     )
 
     result = coordinator.execute(asset_codes=["000001.SZ"], published_at=NOW)
 
-    assert transaction_entries == ["enter", "exit"]
+    assert transaction_entries == [f"authority:{NOW.isoformat()}", "enter", "exit"]
     assert result.published_count == 3
     assert set(result.publication_ids) == {item.publication_id for item in publications.published}
 
@@ -304,6 +307,9 @@ def test_core_preview_is_read_only() -> None:
             ),
         ),
         transaction=nullcontext,
+        authority_preflight=lambda as_of: (_ for _ in ()).throw(
+            AssertionError("preview must not resolve write authority")
+        ),
     )
 
     payload = coordinator.preview(asset_codes=["000001.SZ"], published_at=NOW)
@@ -311,3 +317,32 @@ def test_core_preview_is_read_only() -> None:
     assert payload.ready is True
     assert payload.member_count == 1
     assert publications.published == []
+
+
+def test_core_rebuild_denied_authority_never_enters_transaction() -> None:
+    dataset = CurrentPublicationDataset(
+        "equity.price.bar",
+        "data_center_price_bar",
+        "ops.current_publication_rebuild",
+    )
+    transaction_entries: list[str] = []
+
+    def deny_authority(as_of: datetime) -> None:
+        assert as_of == NOW
+        raise RuntimeError("current audit authority unavailable")
+
+    coordinator = CoreCurrentPublicationRebuildUseCase(
+        rebuilders=(
+            _use_case(
+                dataset,
+                [_reference("000001.SZ", "1", dataset=dataset)],
+            ),
+        ),
+        transaction=lambda: transaction_entries.append("enter") or nullcontext(),
+        authority_preflight=deny_authority,
+    )
+
+    with pytest.raises(RuntimeError, match="authority unavailable"):
+        coordinator.execute(asset_codes=["000001.SZ"], published_at=NOW)
+
+    assert transaction_entries == []

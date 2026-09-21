@@ -303,6 +303,7 @@ def test_success_correlates_quote_identity_raw_audit_and_publication_events() ->
     assert result.publication_id == publication.publication_id
     assert result.publication_version == publication.publication_version
     assert result.publication_hash == publication.publication_hash
+    assert result.stored_asset_codes == ("000001.SZ",)
     result_payload = result.to_dict()
     assert result_payload["run_id"] == identity.run_id
     assert result_payload["ingested_run_id"] == identity.ingested_run_id
@@ -334,6 +335,7 @@ def test_noop_emits_fetch_noop_and_no_publication() -> None:
     assert result.publication_id is None
     assert result.publication_version is None
     assert result.publication_hash is None
+    assert result.stored_asset_codes == ()
     result_payload = result.to_dict()
     assert result_payload["run_id"] == identity.run_id
     assert result_payload["ingested_run_id"] == identity.ingested_run_id

@@ -453,6 +453,7 @@ class CoreCurrentFactRefreshUseCase:
         self,
         *,
         provider_id: int,
+        authority_preflight: Callable[[datetime], None],
         quote_sync_factory: Callable[[], SyncQuoteUseCase],
         price_sync_factory: Callable[[], SyncPriceUseCase],
         valuation_sync_factory: Callable[[], SyncCurrentValuationBatchUseCase],
@@ -465,6 +466,7 @@ class CoreCurrentFactRefreshUseCase:
         if provider_id <= 0:
             raise ValueError("provider_id must be positive")
         self._provider_id = provider_id
+        self._authority_preflight = authority_preflight
         self._quote_sync_factory = quote_sync_factory
         self._price_sync_factory = price_sync_factory
         self._valuation_sync_factory = valuation_sync_factory
@@ -519,6 +521,8 @@ class CoreCurrentFactRefreshUseCase:
         ):
             raise ValueError("batch_size must be an integer between 1 and 500")
 
+        self._authority_preflight(recorded_at)
+        last_authority_at = recorded_at
         quote_sync = self._quote_sync_factory()
         price_sync = self._price_sync_factory()
         valuation_sync = self._valuation_sync_factory()
@@ -534,6 +538,7 @@ class CoreCurrentFactRefreshUseCase:
         )
         if price_probe.stored_count <= 0:
             raise ValueError("historical-price provider probe produced zero rows")
+        last_authority_at = self._preflight_current_authority(not_before=last_authority_at)
         financial_probe = financial_sync.execute(
             SyncFinancialRequest(
                 provider_id=self._provider_id,
@@ -548,38 +553,57 @@ class CoreCurrentFactRefreshUseCase:
         valuation_stored = 0
         for offset in range(0, len(normalized_codes), batch_size):
             batch_codes = list(normalized_codes[offset : offset + batch_size])
+            last_authority_at = self._preflight_current_authority(not_before=last_authority_at)
             quote_result = quote_sync.execute(
                 SyncQuoteRequest(provider_id=self._provider_id, asset_codes=batch_codes)
             )
             if quote_result.stored_count != len(batch_codes):
                 raise ValueError("realtime-quote provider batch incomplete at offset " f"{offset}")
+            quote_asset_codes = _normalize_returned_asset_codes(quote_result.stored_asset_codes)
+            if len(quote_asset_codes) != len(batch_codes) or set(quote_asset_codes) != set(
+                batch_codes
+            ):
+                raise ValueError(
+                    "realtime-quote provider batch asset identities are incomplete "
+                    f"at offset {offset}"
+                )
             quote_stored += quote_result.stored_count
+            last_authority_at = self._preflight_current_authority(not_before=last_authority_at)
             valuation_result = valuation_sync.execute(
                 provider_id=self._provider_id,
                 asset_codes=batch_codes,
                 as_of_date=session_date,
             )
+            valuation_asset_codes = _normalize_returned_asset_codes(
+                valuation_result.returned_asset_codes
+            )
+            if (
+                valuation_result.stored_count != len(batch_codes)
+                or len(valuation_asset_codes) != len(batch_codes)
+                or set(valuation_asset_codes) != set(batch_codes)
+            ):
+                raise ValueError(
+                    "valuation provider batch asset identities are incomplete "
+                    f"at offset {offset}"
+                )
             if set(valuation_result.succeeded_asset_codes) != set(batch_codes):
                 raise ValueError("valuation provider batch incomplete at offset " f"{offset}")
             valuation_stored += valuation_result.stored_count
 
-        provider_completed_at = self._clock()
-        _require_aware(provider_completed_at, "provider_completed_at")
-        if provider_completed_at < recorded_at:
-            raise ValueError("completion clock cannot precede the recorded start")
+        availability_started_at = self._preflight_current_authority(not_before=last_authority_at)
         financial_availability = self._financial_availability.execute(
             asset_codes=normalized_codes,
-            recorded_at=provider_completed_at,
+            recorded_at=availability_started_at,
+        )
+        completed_prices_started_at = self._preflight_current_authority(
+            not_before=availability_started_at
         )
         completed_session_prices = self._completed_session_prices.execute(
             asset_codes=normalized_codes,
             session_date=session_date,
-            recorded_at=provider_completed_at,
+            recorded_at=completed_prices_started_at,
         )
-        publication_at = self._clock()
-        _require_aware(publication_at, "publication_at")
-        if publication_at < provider_completed_at:
-            raise ValueError("publication clock cannot precede provider completion")
+        publication_at = self._preflight_current_authority(not_before=completed_prices_started_at)
         publications = self._publications.execute(
             asset_codes=normalized_codes,
             published_at=publication_at,
@@ -593,6 +617,16 @@ class CoreCurrentFactRefreshUseCase:
             completed_session_prices=completed_session_prices,
             publications=publications,
         )
+
+    def _preflight_current_authority(self, *, not_before: datetime) -> datetime:
+        """Revalidate current authority at a monotonic write/provider boundary."""
+
+        as_of = self._clock()
+        _require_aware(as_of, "authority_preflight_at")
+        if as_of < not_before:
+            raise ValueError("authority preflight clock cannot move backwards")
+        self._authority_preflight(as_of)
+        return as_of
 
 
 def _normalize_asset_codes(asset_codes: Sequence[str]) -> tuple[str, ...]:
@@ -610,6 +644,12 @@ def _normalize_asset_codes(asset_codes: Sequence[str]) -> tuple[str, ...]:
     if not normalized:
         raise ValueError("active asset universe cannot be empty")
     return normalized
+
+
+def _normalize_returned_asset_codes(asset_codes: Sequence[str]) -> tuple[str, ...]:
+    """Normalize provider-returned identities without hiding duplicates or blanks."""
+
+    return tuple(str(asset_code or "").strip().upper() for asset_code in asset_codes)
 
 
 def _require_aware(value: datetime, field_name: str) -> None:

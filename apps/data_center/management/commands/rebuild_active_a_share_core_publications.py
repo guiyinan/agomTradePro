@@ -8,11 +8,18 @@ from typing import Any
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.utils import timezone
 
+from apps.audit.application.system_audit_composition import (
+    SystemAuditCompositionUnavailable,
+)
 from apps.data_center.application.query_services import (
     list_active_stock_codes_for_backfill,
 )
 from apps.data_center.composition import (
     make_core_current_publication_rebuild_use_case,
+)
+from core.exceptions import MissingConfigError
+from core.integration.data_center_audit import (
+    preflight_data_reliability_audit_runtime,
 )
 
 
@@ -52,17 +59,25 @@ class Command(BaseCommand):
         if not execute and operator:
             raise CommandError("--operator is accepted only together with --execute")
 
-        asset_codes = list_active_stock_codes_for_backfill()
+        try:
+            asset_codes = list_active_stock_codes_for_backfill()
+        except MissingConfigError as exc:
+            raise CommandError(str(exc)) from exc
         if not asset_codes:
             raise CommandError("active A-share universe is empty")
         observed_at = timezone.now()
-        created_by = (
-            f"ops.current_publication_rebuild:{operator}"
-            if execute
-            else "ops.current_publication_rebuild.preview"
-        )
-        coordinator = make_core_current_publication_rebuild_use_case(created_by=created_by)
         try:
+            created_by = "ops.current_publication_rebuild.preview"
+            if execute:
+                authority = preflight_data_reliability_audit_runtime(
+                    environment="production",
+                    using="default",
+                    as_of=observed_at,
+                )
+                if operator != authority.actor_id:
+                    raise CommandError("--operator must match the current server-issued actor")
+                created_by = f"ops.current_publication_rebuild:{authority.actor_id}"
+            coordinator = make_core_current_publication_rebuild_use_case(created_by=created_by)
             if execute:
                 result = coordinator.execute(
                     asset_codes=asset_codes,
@@ -87,6 +102,8 @@ class Command(BaseCommand):
                     "observed_at": observed_at.isoformat(),
                     **preview.to_dict(),
                 }
+        except SystemAuditCompositionUnavailable as exc:
+            raise CommandError(f"audit authority preflight failed: {exc.reason_code}") from exc
         except (TypeError, ValueError) as exc:
             raise CommandError(str(exc)) from exc
         self.stdout.write(

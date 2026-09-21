@@ -1,5 +1,7 @@
 """Composition of the atomic current-publication rebuild workflow."""
 
+from datetime import datetime
+
 from django.db import transaction
 
 from apps.data_center.application.current_publication_rebuild import (
@@ -17,6 +19,9 @@ from apps.data_center.infrastructure.repositories import (
     QuoteSnapshotRepository,
     ValuationFactRepository,
 )
+from core.integration.data_center_audit import (
+    preflight_data_reliability_audit_runtime,
+)
 
 
 def build_current_publication_rebuild(
@@ -25,6 +30,15 @@ def build_current_publication_rebuild(
     dataset_keys: tuple[str, ...] | None = None,
 ) -> CoreCurrentPublicationRebuildUseCase:
     """Compose the atomic active-universe publication rebuild workflow."""
+
+    def preflight_current_authority(as_of: datetime) -> None:
+        """Require exact current authority before the publication transaction."""
+
+        preflight_data_reliability_audit_runtime(
+            environment="production",
+            using="default",
+            as_of=as_of,
+        )
 
     publication_repository = CanonicalPublicationRepository()
     policy_repository = PublicationPolicyRepository()
@@ -83,4 +97,5 @@ def build_current_publication_rebuild(
     return CoreCurrentPublicationRebuildUseCase(
         rebuilders=rebuilders,
         transaction=transaction.atomic,
+        authority_preflight=preflight_current_authority,
     )

@@ -602,6 +602,8 @@ def make_core_current_fact_refresh_use_case(
 ) -> CoreCurrentFactRefreshUseCase:
     """Compose a fact-only provider refresh followed by atomic publication."""
 
+    from datetime import datetime
+
     normalized_source = source_type.strip().lower()
     if not normalized_source:
         raise ValueError("source_type cannot be empty")
@@ -616,8 +618,23 @@ def make_core_current_fact_refresh_use_case(
     price_repository = PriceBarRepository()
     quote_repository = QuoteSnapshotRepository()
     raw_audit_repository = RawAuditRepository()
+
+    def preflight_current_authority(as_of: datetime) -> None:
+        """Require the exact current Audit authority before any provider call."""
+
+        from core.integration.data_center_audit import (
+            preflight_data_reliability_audit_runtime,
+        )
+
+        preflight_data_reliability_audit_runtime(
+            environment="production",
+            using="default",
+            as_of=as_of,
+        )
+
     return CoreCurrentFactRefreshUseCase(
         provider_id=int(provider.id),
+        authority_preflight=preflight_current_authority,
         quote_sync_factory=lambda: make_system_audited_sync_quote_use_case(
             provider_repository=provider_repository,
             provider_registry=provider_registry,

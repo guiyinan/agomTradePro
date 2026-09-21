@@ -718,6 +718,7 @@ class SyncResult:
     publication_id: str | None = None
     publication_version: str | None = None
     publication_hash: str | None = None
+    stored_asset_codes: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         """Return the public result payload without dropping replay identities."""
@@ -745,6 +746,7 @@ class SyncValuationBatchResult:
     stored_count: int
     status: str
     succeeded_asset_codes: list[str]
+    returned_asset_codes: tuple[str, ...] = ()
 
 
 # ---------------------------------------------------------------------------

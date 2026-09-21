@@ -10,6 +10,9 @@ from types import SimpleNamespace
 import pytest
 from django.core.management import CommandError, call_command
 
+from apps.audit.application.system_audit_composition import (
+    SystemAuditCompositionUnavailable,
+)
 from core.exceptions import MissingConfigError
 
 NOW = datetime(2026, 8, 30, 1, 0, tzinfo=UTC)
@@ -26,6 +29,14 @@ def _patch_command_dependencies(mocker, coordinator):
     mocker.patch(
         f"{COMMAND_MODULE}.latest_completed_cn_market_session",
         return_value=SESSION_DATE,
+    )
+    mocker.patch(
+        f"{COMMAND_MODULE}.preflight_data_reliability_audit_runtime",
+        return_value=SimpleNamespace(
+            actor_id="django-user:7",
+            tenant_id="tenant:primary",
+            owner_id="owner:data",
+        ),
     )
     return mocker.patch(
         f"{COMMAND_MODULE}.make_core_current_fact_refresh_use_case",
@@ -89,7 +100,7 @@ def test_current_fact_repair_executes_with_explicit_operator(mocker) -> None:
         "repair_active_a_share_current_facts",
         "--execute",
         "--operator",
-        "root-approval-A3",
+        "django-user:7",
         "--batch-size",
         "2",
         stdout=stdout,
@@ -97,7 +108,7 @@ def test_current_fact_repair_executes_with_explicit_operator(mocker) -> None:
 
     payload = json.loads(stdout.getvalue())
     assert payload["mode"] == "execute"
-    assert payload["operator"] == "root-approval-A3"
+    assert payload["operator"] == "django-user:7"
     assert payload["quote_stored_count"] == 2
     coordinator.execute.assert_called_once_with(
         asset_codes=["000001.SZ", "600000.SH"],
@@ -107,8 +118,51 @@ def test_current_fact_repair_executes_with_explicit_operator(mocker) -> None:
     )
     factory.assert_called_once_with(
         source_type="akshare",
-        created_by="ops.current_fact_refresh:root-approval-A3",
+        created_by="ops.current_fact_refresh:django-user:7",
     )
+
+
+def test_current_fact_repair_reports_stable_authority_preflight_denial(mocker) -> None:
+    coordinator = mocker.Mock()
+    _patch_command_dependencies(mocker, coordinator)
+    mocker.patch(
+        f"{COMMAND_MODULE}.preflight_data_reliability_audit_runtime",
+        side_effect=SystemAuditCompositionUnavailable(
+            "system audit authority bundle is unavailable",
+            reason_code="authority_unavailable",
+        ),
+    )
+
+    with pytest.raises(
+        CommandError,
+        match="audit authority preflight failed: authority_unavailable",
+    ):
+        call_command(
+            "repair_active_a_share_current_facts",
+            "--execute",
+            "--operator",
+            "django-user:7",
+            stdout=StringIO(),
+        )
+
+    coordinator.execute.assert_not_called()
+
+
+def test_current_fact_repair_rejects_operator_not_bound_to_current_actor(mocker) -> None:
+    coordinator = mocker.Mock()
+    factory = _patch_command_dependencies(mocker, coordinator)
+
+    with pytest.raises(CommandError, match="current server-issued actor"):
+        call_command(
+            "repair_active_a_share_current_facts",
+            "--execute",
+            "--operator",
+            "different-operator",
+            stdout=StringIO(),
+        )
+
+    coordinator.execute.assert_not_called()
+    factory.assert_not_called()
 
 
 @pytest.mark.parametrize("operator", [" ", "x" * 101, "line\nbreak"])

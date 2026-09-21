@@ -282,22 +282,32 @@ class _Publications:
 
 
 def test_core_refresh_batches_then_publishes_at_completion_time() -> None:
-    quote_sync = _SyncUseCase(SimpleNamespace(stored_count=2))
+    execution_order: list[str] = []
+    quote_sync = _SyncUseCase(
+        SimpleNamespace(
+            stored_count=2,
+            stored_asset_codes=("000001.SZ", "600000.SH"),
+        )
+    )
     price_sync = _SyncUseCase(SimpleNamespace(stored_count=1))
     valuation_sync = _SyncUseCase(
         SimpleNamespace(
             stored_count=2,
             succeeded_asset_codes=["000001.SZ", "600000.SH"],
+            returned_asset_codes=("000001.SZ", "600000.SH"),
         )
     )
     financial_sync = _SyncUseCase(SimpleNamespace(stored_count=4))
     publications = _Publications()
     use_case = CoreCurrentFactRefreshUseCase(
         provider_id=7,
-        quote_sync_factory=lambda: quote_sync,
-        price_sync_factory=lambda: price_sync,
-        valuation_sync_factory=lambda: valuation_sync,
-        financial_sync_factory=lambda: financial_sync,
+        authority_preflight=lambda as_of: execution_order.append(f"authority:{as_of.isoformat()}"),
+        quote_sync_factory=lambda: execution_order.append("quote_factory") or quote_sync,
+        price_sync_factory=lambda: execution_order.append("price_factory") or price_sync,
+        valuation_sync_factory=lambda: execution_order.append("valuation_factory")
+        or valuation_sync,
+        financial_sync_factory=lambda: execution_order.append("financial_factory")
+        or financial_sync,
         financial_availability=_FinancialAvailability(),
         completed_session_prices=_CompletedPrices(),
         publications=publications,
@@ -315,6 +325,10 @@ def test_core_refresh_batches_then_publishes_at_completion_time() -> None:
     assert result.valuation_stored_count == 2
     assert len(quote_sync.requests) == 1
     assert publications.execute_kwargs["published_at"] == COMPLETED_AT
+    assert execution_order[:2] == [
+        f"authority:{STARTED_AT.isoformat()}",
+        "quote_factory",
+    ]
 
 
 def test_core_refresh_blocks_publication_when_financial_source_time_is_missing() -> None:
@@ -322,10 +336,20 @@ def test_core_refresh_blocks_publication_when_financial_source_time_is_missing()
     publications = _Publications()
     use_case = CoreCurrentFactRefreshUseCase(
         provider_id=7,
-        quote_sync_factory=lambda: _SyncUseCase(SimpleNamespace(stored_count=2)),
+        authority_preflight=lambda as_of: None,
+        quote_sync_factory=lambda: _SyncUseCase(
+            SimpleNamespace(
+                stored_count=2,
+                stored_asset_codes=("000001.SZ", "600000.SH"),
+            )
+        ),
         price_sync_factory=lambda: _SyncUseCase(SimpleNamespace(stored_count=1)),
         valuation_sync_factory=lambda: _SyncUseCase(
-            SimpleNamespace(stored_count=2, succeeded_asset_codes=["000001.SZ", "600000.SH"])
+            SimpleNamespace(
+                stored_count=2,
+                succeeded_asset_codes=["000001.SZ", "600000.SH"],
+                returned_asset_codes=("000001.SZ", "600000.SH"),
+            )
         ),
         financial_sync_factory=lambda: _SyncUseCase(SimpleNamespace(stored_count=4)),
         financial_availability=FinancialAvailabilityBackfillUseCase(
@@ -352,6 +376,7 @@ def test_core_refresh_stops_before_publication_on_incomplete_quote_batch() -> No
     publications = _Publications()
     use_case = CoreCurrentFactRefreshUseCase(
         provider_id=7,
+        authority_preflight=lambda as_of: None,
         quote_sync_factory=lambda: _SyncUseCase(SimpleNamespace(stored_count=1)),
         price_sync_factory=lambda: _SyncUseCase(SimpleNamespace(stored_count=1)),
         valuation_sync_factory=lambda: _SyncUseCase(
@@ -384,6 +409,7 @@ def test_core_refresh_preview_does_not_resolve_write_sync_factories() -> None:
 
     use_case = CoreCurrentFactRefreshUseCase(
         provider_id=7,
+        authority_preflight=forbidden_factory,
         quote_sync_factory=forbidden_factory,
         price_sync_factory=forbidden_factory,
         valuation_sync_factory=forbidden_factory,
@@ -401,3 +427,198 @@ def test_core_refresh_preview_does_not_resolve_write_sync_factories() -> None:
     )
 
     assert preview.ready_without_provider_refresh is True
+
+
+def test_core_refresh_stops_before_write_factories_when_authority_preflight_fails() -> None:
+    execution_order: list[str] = []
+
+    def denied_authority(as_of: datetime) -> None:
+        execution_order.append(f"authority:{as_of.isoformat()}")
+        raise RuntimeError("current audit authority unavailable")
+
+    def forbidden_factory():
+        execution_order.append("write_factory")
+        raise AssertionError("write factory must not resolve before authority preflight")
+
+    use_case = CoreCurrentFactRefreshUseCase(
+        provider_id=7,
+        authority_preflight=denied_authority,
+        quote_sync_factory=forbidden_factory,
+        price_sync_factory=forbidden_factory,
+        valuation_sync_factory=forbidden_factory,
+        financial_sync_factory=forbidden_factory,
+        financial_availability=_FinancialAvailability(),
+        completed_session_prices=_CompletedPrices(),
+        publications=_Publications(),
+        clock=lambda: COMPLETED_AT,
+    )
+
+    with pytest.raises(RuntimeError, match="authority unavailable"):
+        use_case.execute(
+            asset_codes=["000001.SZ"],
+            session_date=SESSION_DATE,
+            recorded_at=STARTED_AT,
+            batch_size=1,
+        )
+
+    assert execution_order == [f"authority:{STARTED_AT.isoformat()}"]
+
+
+def test_core_refresh_revalidates_authority_before_each_provider_batch() -> None:
+    preflight_calls = 0
+    quote_sync = _SyncUseCase(SimpleNamespace(stored_count=1, stored_asset_codes=("000001.SZ",)))
+    valuation_sync = _SyncUseCase(
+        SimpleNamespace(
+            stored_count=1,
+            succeeded_asset_codes=["000001.SZ"],
+            returned_asset_codes=("000001.SZ",),
+        )
+    )
+
+    def authority_preflight(as_of: datetime) -> None:
+        nonlocal preflight_calls
+        assert as_of >= STARTED_AT
+        preflight_calls += 1
+        if preflight_calls == 5:
+            raise RuntimeError("authority expired before second batch")
+
+    use_case = CoreCurrentFactRefreshUseCase(
+        provider_id=7,
+        authority_preflight=authority_preflight,
+        quote_sync_factory=lambda: quote_sync,
+        price_sync_factory=lambda: _SyncUseCase(SimpleNamespace(stored_count=1)),
+        valuation_sync_factory=lambda: valuation_sync,
+        financial_sync_factory=lambda: _SyncUseCase(SimpleNamespace(stored_count=1)),
+        financial_availability=_FinancialAvailability(),
+        completed_session_prices=_CompletedPrices(),
+        publications=_Publications(),
+        clock=lambda: COMPLETED_AT,
+    )
+
+    with pytest.raises(RuntimeError, match="expired before second batch"):
+        use_case.execute(
+            asset_codes=["000001.SZ", "600000.SH"],
+            session_date=SESSION_DATE,
+            recorded_at=STARTED_AT,
+            batch_size=1,
+        )
+
+    assert len(quote_sync.requests) == 1
+    assert len(valuation_sync.requests) == 1
+
+
+def test_core_refresh_revalidates_authority_before_final_publication() -> None:
+    preflight_calls = 0
+    publications = _Publications()
+
+    def authority_preflight(as_of: datetime) -> None:
+        nonlocal preflight_calls
+        assert as_of >= STARTED_AT
+        preflight_calls += 1
+        if preflight_calls == 7:
+            raise RuntimeError("authority expired before publication")
+
+    use_case = CoreCurrentFactRefreshUseCase(
+        provider_id=7,
+        authority_preflight=authority_preflight,
+        quote_sync_factory=lambda: _SyncUseCase(
+            SimpleNamespace(stored_count=1, stored_asset_codes=("000001.SZ",))
+        ),
+        price_sync_factory=lambda: _SyncUseCase(SimpleNamespace(stored_count=1)),
+        valuation_sync_factory=lambda: _SyncUseCase(
+            SimpleNamespace(
+                stored_count=1,
+                succeeded_asset_codes=["000001.SZ"],
+                returned_asset_codes=("000001.SZ",),
+            )
+        ),
+        financial_sync_factory=lambda: _SyncUseCase(SimpleNamespace(stored_count=1)),
+        financial_availability=_FinancialAvailability(),
+        completed_session_prices=_CompletedPrices(),
+        publications=publications,
+        clock=lambda: COMPLETED_AT,
+    )
+
+    with pytest.raises(RuntimeError, match="expired before publication"):
+        use_case.execute(
+            asset_codes=["000001.SZ"],
+            session_date=SESSION_DATE,
+            recorded_at=STARTED_AT,
+            batch_size=1,
+        )
+
+    assert publications.execute_kwargs is None
+
+
+def test_core_refresh_rejects_quote_count_with_duplicate_or_substituted_assets() -> None:
+    valuation_sync = _SyncUseCase(
+        SimpleNamespace(
+            stored_count=2,
+            succeeded_asset_codes=["000001.SZ", "600000.SH"],
+            returned_asset_codes=("000001.SZ", "600000.SH"),
+        )
+    )
+    use_case = CoreCurrentFactRefreshUseCase(
+        provider_id=7,
+        authority_preflight=lambda as_of: None,
+        quote_sync_factory=lambda: _SyncUseCase(
+            SimpleNamespace(
+                stored_count=2,
+                stored_asset_codes=("000001.SZ", "000001.SZ"),
+            )
+        ),
+        price_sync_factory=lambda: _SyncUseCase(SimpleNamespace(stored_count=1)),
+        valuation_sync_factory=lambda: valuation_sync,
+        financial_sync_factory=lambda: _SyncUseCase(SimpleNamespace(stored_count=1)),
+        financial_availability=_FinancialAvailability(),
+        completed_session_prices=_CompletedPrices(),
+        publications=_Publications(),
+        clock=lambda: COMPLETED_AT,
+    )
+
+    with pytest.raises(ValueError, match="quote provider batch asset identities"):
+        use_case.execute(
+            asset_codes=["000001.SZ", "600000.SH"],
+            session_date=SESSION_DATE,
+            recorded_at=STARTED_AT,
+            batch_size=2,
+        )
+
+    assert valuation_sync.requests == []
+
+
+def test_core_refresh_rejects_valuation_duplicate_rows_despite_set_coverage() -> None:
+    publications = _Publications()
+    use_case = CoreCurrentFactRefreshUseCase(
+        provider_id=7,
+        authority_preflight=lambda as_of: None,
+        quote_sync_factory=lambda: _SyncUseCase(
+            SimpleNamespace(
+                stored_count=2,
+                stored_asset_codes=("000001.SZ", "600000.SH"),
+            )
+        ),
+        price_sync_factory=lambda: _SyncUseCase(SimpleNamespace(stored_count=1)),
+        valuation_sync_factory=lambda: _SyncUseCase(
+            SimpleNamespace(
+                stored_count=2,
+                succeeded_asset_codes=["000001.SZ", "600000.SH"],
+                returned_asset_codes=("000001.SZ", "000001.SZ"),
+            )
+        ),
+        financial_sync_factory=lambda: _SyncUseCase(SimpleNamespace(stored_count=1)),
+        financial_availability=_FinancialAvailability(),
+        completed_session_prices=_CompletedPrices(),
+        publications=publications,
+        clock=lambda: COMPLETED_AT,
+    )
+
+    with pytest.raises(ValueError, match="valuation provider batch asset identities"):
+        use_case.execute(
+            asset_codes=["000001.SZ", "600000.SH"],
+            session_date=SESSION_DATE,
+            recorded_at=STARTED_AT,
+            batch_size=2,
+        )
+
+    assert publications.execute_kwargs is None

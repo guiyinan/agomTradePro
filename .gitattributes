@@ -137,3 +137,5 @@ docs/testing/config-center-review-fixes-2026-09-21.json.sha256 text eol=lf
 
 docs/deployment/production-closure-revalidation-2026-09-21.json text eol=lf
 docs/deployment/production-closure-revalidation-2026-09-21.json.sha256 text eol=lf
+docs/testing/data02-authority-and-batch-preflight-hardening-2026-09-21.json text eol=lf
+docs/testing/data02-authority-and-batch-preflight-hardening-2026-09-21.json.sha256 text eol=lf

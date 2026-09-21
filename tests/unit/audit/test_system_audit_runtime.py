@@ -376,6 +376,29 @@ def test_runtime_binds_exact_alias_repository_selector_and_issuer(
     assert order == ["publisher_preflight"]
 
 
+def test_runtime_preflight_reads_current_authority_without_claim_or_write(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    order: list[str] = []
+    _install_successful_components(
+        monkeypatch,
+        binding=_binding(mode="required"),
+        alias="audit",
+        order=order,
+    )
+
+    context = runtime.preflight_system_audit_runtime(
+        environment="production",
+        using="audit",
+        as_of=NOW,
+    )
+
+    assert context.actor_id == "django-user:7"
+    assert context.tenant_id == "tenant:primary"
+    assert context.owner_id == "owner:audit"
+    assert order == ["publisher_preflight", "authority_actor", "authority_scope"]
+
+
 def test_execute_orders_authority_and_sink_preflight_before_claim(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -6,6 +6,7 @@ it exposes the stable Audit contracts and concrete factories needed while
 keeping the Data Center app dependency graph one-way.
 """
 
+from datetime import datetime
 from typing import Any
 
 from apps.audit.application.data_conflict_audit import (
@@ -87,6 +88,22 @@ def get_data_reliability_audit_writers(*, environment: str, using: str) -> Any:
     return build_writers(environment=environment, using=using)
 
 
+def preflight_data_reliability_audit_runtime(
+    *, environment: str, using: str, as_of: datetime
+) -> SystemAuditReaderContext:
+    """Validate the canonical Audit runtime and current authority without writes."""
+
+    from apps.audit.application.repository_provider import (
+        preflight_data_reliability_audit_runtime as run_preflight,
+    )
+
+    return run_preflight(
+        environment=environment,
+        using=using,
+        as_of=as_of,
+    )
+
+
 def get_data_repair_audit_writer(*, environment: str, using: str) -> Any:
     """Build the Audit-owned repair writer after Django app initialization."""
 
@@ -142,4 +159,5 @@ __all__ = [
     "get_data_reliability_audit_writers",
     "get_data_repair_audit_writer",
     "get_system_audit_event_repository",
+    "preflight_data_reliability_audit_runtime",
 ]

@@ -381,6 +381,7 @@ class CoreCurrentPublicationRebuildUseCase:
         *,
         rebuilders: tuple[CurrentPublicationRebuildUseCase, ...],
         transaction: Callable[[], AbstractContextManager[None]],
+        authority_preflight: Callable[[datetime], None],
     ) -> None:
         if not rebuilders:
             raise ValueError("At least one current-publication rebuilder is required")
@@ -389,6 +390,7 @@ class CoreCurrentPublicationRebuildUseCase:
             raise ValueError("Current-publication rebuilders must have unique datasets")
         self._rebuilders = rebuilders
         self._transaction = transaction
+        self._authority_preflight = authority_preflight
 
     def preview(
         self,
@@ -419,6 +421,7 @@ class CoreCurrentPublicationRebuildUseCase:
         """Publish all datasets in one transaction or leave all current rows intact."""
 
         observed_at = published_at or datetime.now(UTC)
+        self._authority_preflight(observed_at)
         with self._transaction():
             publications = tuple(
                 rebuilder.execute(

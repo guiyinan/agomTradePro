@@ -4491,6 +4491,16 @@
       "surface": "Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "source_files": [
         "apps/data_center/application/current_fact_remediation.py",
+        "apps/data_center/application/dtos.py",
+        "apps/data_center/application/sync_market_use_cases.py",
+        "apps/data_center/application/current_valuation_sync.py",
+        "apps/data_center/composition.py",
+        "apps/data_center/management/commands/repair_active_a_share_current_facts.py",
+        "apps/data_center/management/commands/rebuild_active_a_share_core_publications.py",
+        "apps/data_center/publication_rebuild_composition.py",
+        "core/integration/data_center_audit.py",
+        "apps/audit/application/repository_provider.py",
+        "apps/audit/infrastructure/system_audit_outbox_runtime.py",
         "apps/data_center/application/current_publication_rebuild.py",
         "apps/data_center/domain/market_time.py",
         "apps/data_center/infrastructure/diagnostic_queries.py",
@@ -4517,11 +4527,57 @@
           "published_at=publication_at",
           "FINANCIAL_SOURCE_TIMESTAMP_REQUIRED",
           "self.missing_row_count == 0",
-          "and self.unresolved_row_count == 0"
+          "and self.unresolved_row_count == 0",
+          "self._authority_preflight(recorded_at)",
+          "self._preflight_current_authority(",
+          "quote_result.stored_asset_codes",
+          "valuation_result.returned_asset_codes"
+        ],
+        "apps/data_center/application/dtos.py": [
+          "stored_asset_codes: tuple[str, ...] = ()",
+          "returned_asset_codes: tuple[str, ...] = ()"
+        ],
+        "apps/data_center/application/sync_market_use_cases.py": [
+          "stored_asset_codes=tuple(quote.asset_code for quote in correlated_quotes)"
+        ],
+        "apps/data_center/application/current_valuation_sync.py": [
+          "returned_asset_codes=tuple(fact.asset_code for fact in facts)"
+        ],
+        "apps/data_center/composition.py": [
+          "def preflight_current_authority(as_of: datetime) -> None:",
+          "preflight_data_reliability_audit_runtime(",
+          "authority_preflight=preflight_current_authority"
+        ],
+        "apps/data_center/management/commands/repair_active_a_share_current_facts.py": [
+          "except SystemAuditCompositionUnavailable as exc:",
+          "audit authority preflight failed: {exc.reason_code}",
+          "--operator must match the current server-issued actor"
+        ],
+        "apps/data_center/management/commands/rebuild_active_a_share_core_publications.py": [
+          "preflight_data_reliability_audit_runtime(",
+          "--operator must match the current server-issued actor",
+          "audit authority preflight failed: {exc.reason_code}"
+        ],
+        "apps/data_center/publication_rebuild_composition.py": [
+          "def preflight_current_authority(as_of: datetime) -> None:",
+          "authority_preflight=preflight_current_authority"
+        ],
+        "core/integration/data_center_audit.py": [
+          "def preflight_data_reliability_audit_runtime(",
+          "preflight_data_reliability_audit_runtime as run_preflight"
+        ],
+        "apps/audit/application/repository_provider.py": [
+          "def preflight_data_reliability_audit_runtime(",
+          "preflight_system_audit_runtime("
+        ],
+        "apps/audit/infrastructure/system_audit_outbox_runtime.py": [
+          "def preflight_system_audit_runtime(",
+          "preflight_system_audit_runtime_authority("
         ],
         "apps/data_center/application/current_publication_rebuild.py": [
           "def preview(",
           "def execute(",
+          "self._authority_preflight(observed_at)",
           "published_at must be timezone-aware",
           "Current publication contains a future observation",
           "Current publication is missing active assets",
@@ -4664,6 +4720,56 @@
           "case": "incomplete_quote_batch_fails_closed",
           "test_file": "tests/unit/data_center/test_current_fact_remediation.py",
           "test_function": "test_core_refresh_stops_before_publication_on_incomplete_quote_batch"
+        },
+        {
+          "case": "current_authority_preflight_before_provider_writes",
+          "test_file": "tests/unit/data_center/test_current_fact_remediation.py",
+          "test_function": "test_core_refresh_stops_before_write_factories_when_authority_preflight_fails"
+        },
+        {
+          "case": "authority_revalidated_before_each_provider_batch",
+          "test_file": "tests/unit/data_center/test_current_fact_remediation.py",
+          "test_function": "test_core_refresh_revalidates_authority_before_each_provider_batch"
+        },
+        {
+          "case": "authority_revalidated_before_final_publication",
+          "test_file": "tests/unit/data_center/test_current_fact_remediation.py",
+          "test_function": "test_core_refresh_revalidates_authority_before_final_publication"
+        },
+        {
+          "case": "quote_exact_asset_identity_rejects_duplicate_substitution",
+          "test_file": "tests/unit/data_center/test_current_fact_remediation.py",
+          "test_function": "test_core_refresh_rejects_quote_count_with_duplicate_or_substituted_assets"
+        },
+        {
+          "case": "valuation_exact_asset_identity_rejects_duplicate_rows",
+          "test_file": "tests/unit/data_center/test_current_fact_remediation.py",
+          "test_function": "test_core_refresh_rejects_valuation_duplicate_rows_despite_set_coverage"
+        },
+        {
+          "case": "independent_publication_rebuild_requires_current_authority",
+          "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
+          "test_function": "test_core_rebuild_denied_authority_never_enters_transaction"
+        },
+        {
+          "case": "repair_operator_matches_server_actor",
+          "test_file": "tests/unit/data_center/test_current_fact_remediation_command.py",
+          "test_function": "test_current_fact_repair_rejects_operator_not_bound_to_current_actor"
+        },
+        {
+          "case": "publication_rebuild_operator_matches_server_actor",
+          "test_file": "tests/unit/data_center/test_current_publication_rebuild_command.py",
+          "test_function": "test_rebuild_command_rejects_operator_not_bound_to_current_actor"
+        },
+        {
+          "case": "current_authority_runtime_preflight_is_read_only",
+          "test_file": "tests/unit/audit/test_system_audit_runtime.py",
+          "test_function": "test_runtime_preflight_reads_current_authority_without_claim_or_write"
+        },
+        {
+          "case": "authority_preflight_denial_is_operator_safe",
+          "test_file": "tests/unit/data_center/test_current_fact_remediation_command.py",
+          "test_function": "test_current_fact_repair_reports_stable_authority_preflight_denial"
         },
         {
           "case": "weekend_latest_session_is_current",

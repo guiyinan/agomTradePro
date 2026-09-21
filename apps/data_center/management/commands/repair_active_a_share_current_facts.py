@@ -8,6 +8,9 @@ from typing import Any
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.utils import timezone
 
+from apps.audit.application.system_audit_composition import (
+    SystemAuditCompositionUnavailable,
+)
 from apps.data_center.application.query_services import (
     list_active_stock_codes_for_backfill,
 )
@@ -16,6 +19,9 @@ from apps.data_center.application.query_use_cases import (
 )
 from apps.data_center.composition import make_core_current_fact_refresh_use_case
 from core.exceptions import MissingConfigError
+from core.integration.data_center_audit import (
+    preflight_data_reliability_audit_runtime,
+)
 
 
 class Command(BaseCommand):
@@ -92,12 +98,17 @@ class Command(BaseCommand):
             raise CommandError(
                 "latest completed China market session is unavailable during live trading"
             )
-        created_by = (
-            f"ops.current_fact_refresh:{operator}"
-            if execute
-            else "ops.current_fact_refresh.preview"
-        )
         try:
+            created_by = "ops.current_fact_refresh.preview"
+            if execute:
+                authority = preflight_data_reliability_audit_runtime(
+                    environment="production",
+                    using="default",
+                    as_of=started_at,
+                )
+                if operator != authority.actor_id:
+                    raise CommandError("--operator must match the current server-issued actor")
+                created_by = f"ops.current_fact_refresh:{authority.actor_id}"
             coordinator = make_core_current_fact_refresh_use_case(
                 source_type=source_type,
                 created_by=created_by,
@@ -135,6 +146,8 @@ class Command(BaseCommand):
                     "started_at": started_at.isoformat(),
                     **preview.to_dict(),
                 }
+        except SystemAuditCompositionUnavailable as exc:
+            raise CommandError(f"audit authority preflight failed: {exc.reason_code}") from exc
         except (MissingConfigError, TypeError, ValueError) as exc:
             raise CommandError(str(exc)) from exc
         self.stdout.write(

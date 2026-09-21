@@ -1,0 +1,128 @@
+{
+  "schema_version": "data02-authority-and-batch-preflight-hardening.v1",
+  "generated_at": "2026-09-21T03:54:34.260909Z",
+  "candidate": {
+    "branch": "dev/next-development",
+    "baseline_commit": "5bb6bbe3e",
+    "commit": "containing_git_commit"
+  },
+  "scope": "Repository hardening for DATA-02 current-fact refresh and four-Publication rebuild write paths.",
+  "production_claim": false,
+  "production_actions": {
+    "deployment": false,
+    "provider_fetch": false,
+    "database_write": false,
+    "publication_switch": false,
+    "profile_activation": false
+  },
+  "failing_first_observations": {
+    "raw_log_persisted": false,
+    "limitation": "Failing-first outputs were observed in the active terminal but were not redirected to a durable raw log; counts are recorded without reconstructing timestamps or output.",
+    "runs": [
+      {
+        "scope": "initial authority injection",
+        "result": "5 failed before implementation"
+      },
+      {
+        "scope": "public Audit runtime preflight",
+        "result": "1 failed before implementation"
+      },
+      {
+        "scope": "rebuild/operator/missing-config guards",
+        "result": "12 failed before implementation"
+      },
+      {
+        "scope": "long-batch authority revalidation",
+        "result": "2 failed before implementation"
+      },
+      {
+        "scope": "exact quote/valuation asset identity",
+        "result": "2 failed before implementation"
+      }
+    ]
+  },
+  "independent_review": {
+    "reviewer": "gpt-5.6-luna",
+    "reasoning_effort": "max",
+    "findings_resolved": [
+      "The independent current-Publication rebuild path now requires exact current authority before its atomic transaction.",
+      "Both execute commands bind --operator to the server-issued actor and use that actor in created_by.",
+      "Long fact-refresh runs revalidate authority at provider and publication boundaries.",
+      "Quote and valuation batches prove exact returned asset identities, including duplicate/substitution rejection.",
+      "Expected configuration and authority failures are converted to stable CommandError output."
+    ]
+  },
+  "implemented_safeguards": [
+    "A read-only Audit Application preflight composes the canonical runtime and validates exact current authority.",
+    "The Data Center reaches Audit only through the core integration facade; no Interface-to-Infrastructure or Application ORM dependency was added.",
+    "Fact refresh preflights before provider construction, repeatedly at write/provider boundaries, and immediately before final publication.",
+    "Quote and valuation results carry correlated asset identities; count-only success can no longer hide duplicate or substituted assets.",
+    "Four-Publication rebuild preflights authority before entering the transaction; preview remains read-only and authority-free."
+  ],
+  "validation": {
+    "focused_tests": {
+      "result": "passed",
+      "count": 120,
+      "duration_seconds": 397.24
+    },
+    "incremental_mypy": {
+      "result": "passed",
+      "files": 12,
+      "regressions": 0,
+      "legacy_errors_observed": 0
+    },
+    "mypy_debt_ceiling": {
+      "result": "passed",
+      "errors": 0,
+      "files_with_errors": 0
+    },
+    "black": {
+      "result": "passed",
+      "files": 19
+    },
+    "isort": {
+      "result": "passed",
+      "files": 19
+    },
+    "ruff": {
+      "result": "passed"
+    },
+    "git_diff_check": {
+      "result": "passed"
+    },
+    "current_data_contracts": {
+      "result": "passed",
+      "surfaces": 63
+    },
+    "architecture_full_scan": {
+      "result": "passed",
+      "files": 3212,
+      "violations": 0
+    },
+    "architecture_delta": {
+      "result": "passed",
+      "production_files": 12,
+      "added_lines": 188,
+      "boundary_violations": 0,
+      "audit_violations": 0
+    },
+    "governance_consistency": {
+      "result": "passed",
+      "violations": 0
+    }
+  },
+  "governance": {
+    "registry_transition": "2026-09-21.v143 -> 2026-09-21.v144",
+    "unit": "DATA-02",
+    "status_before": "awaiting_production",
+    "status_after": "awaiting_production",
+    "reason": "Repository bypasses are closed, but genuine current authority, production audit activation, authorized provider backfill, financial source time, and four-Publication tolerance reconciliation are still absent."
+  },
+  "remaining_gates": [
+    "Deploy the reviewed candidate through an explicitly authorized production change.",
+    "Obtain genuine current service actor/account/tenant/owner authority and an active audited runtime selector.",
+    "After the completed China trading session, rerun the no-execute preview against the deployed candidate.",
+    "Execute only authorized bounded provider batches, preserving source observation and availability times and the governed 1% failover alert rule.",
+    "Reconcile quote, price, financial, and valuation Publications against the frozen denominator and obtain required owner acceptance."
+  ]
+}

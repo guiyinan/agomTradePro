@@ -597,6 +597,7 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
             publication_id=publication.publication_id if publication is not None else None,
             publication_version=publication.policy_version if publication is not None else None,
             publication_hash=publication.publication_hash if publication is not None else None,
+            stored_asset_codes=tuple(quote.asset_code for quote in correlated_quotes),
         )
 
     def _commit_quote_fetch_failure(

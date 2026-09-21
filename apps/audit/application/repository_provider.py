@@ -47,7 +47,10 @@ if TYPE_CHECKING:
     from apps.audit.application.system_audit_outbox_dispatcher import (
         DispatchSystemAuditOutboxUseCase,
     )
-    from apps.audit.application.system_audit_query import SystemAuditQueryRepository
+    from apps.audit.application.system_audit_query import (
+        SystemAuditQueryRepository,
+        SystemAuditReaderContext,
+    )
     from apps.audit.infrastructure.failure_counter import AuditFailureCounter
     from apps.audit.infrastructure.system_audit_outbox_repository import (
         DjangoSystemAuditOutboxRepository,
@@ -231,6 +234,22 @@ def get_data_reliability_audit_writers(
     return build_data_reliability_audit_writers(
         environment=environment,
         using=using,
+    )
+
+
+def preflight_data_reliability_audit_runtime(
+    *, environment: str, using: str, as_of: datetime
+) -> SystemAuditReaderContext:
+    """Validate the canonical runtime and exact current authority without writes."""
+
+    from apps.audit.infrastructure.system_audit_outbox_runtime import (
+        preflight_system_audit_runtime,
+    )
+
+    return preflight_system_audit_runtime(
+        environment=environment,
+        using=using,
+        as_of=as_of,
     )
 
 

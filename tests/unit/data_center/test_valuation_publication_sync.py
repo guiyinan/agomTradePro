@@ -547,6 +547,7 @@ def test_sync_current_valuation_batch_invokes_publication_after_fact_write() -> 
     ).execute(provider_id=1, asset_codes=["000001.SZ"], as_of_date=VAL_DATE)
 
     assert result.status == "success"
+    assert result.returned_asset_codes == ("000001.SZ",)
     assert len(publisher.calls) == 1
     assert publisher.calls[0][0][0].asset_code == "000001.SZ"
     assert publisher.calls[0][1] == "provider-main"

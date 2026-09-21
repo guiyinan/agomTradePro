@@ -234,6 +234,24 @@ def _build_system_audit_runtime_composition(
         ) from None
 
 
+def preflight_system_audit_runtime(
+    *,
+    environment: str = "production",
+    using: str = "default",
+    as_of: datetime,
+) -> SystemAuditReaderContext:
+    """Validate the configured runtime and exact current authority without writes."""
+
+    composition = _build_system_audit_runtime_composition(
+        environment=environment,
+        using=using,
+    )
+    return preflight_system_audit_runtime_authority(
+        composition.authority_bundle,
+        as_of=as_of,
+    )
+
+
 def build_system_audit_outbox_dispatcher(
     *, environment: str = "production", using: str = "default"
 ) -> DispatchSystemAuditOutboxUseCase:
@@ -515,4 +533,5 @@ __all__ = [
     "build_data_validation_audit_writer",
     "build_system_audit_outbox_dispatcher",
     "get_system_audit_outbox_dispatcher",
+    "preflight_system_audit_runtime",
 ]

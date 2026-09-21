@@ -81,6 +81,7 @@ class SyncCurrentValuationBatchUseCase(_BaseSyncUseCase):
                 stored_count=stored_count,
                 status="success" if complete else "partial",
                 succeeded_asset_codes=succeeded_asset_codes,
+                returned_asset_codes=tuple(fact.asset_code for fact in facts),
             )
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000

@@ -114,3 +114,17 @@ authority selector 缺失。不能把历史计数当成当前权限，也不能�
 本次没有部署、登录、provider 请求、生产写入、profile 激活或 Publication 切换。DATA-02、
 EVID-01/02、AUD-03 保持 awaiting_production，TUI-02 保持 active。完整命令、探针源码、原始输出、
 哈希和限制见[2026-09-21 封存](../deployment/production-closure-revalidation-2026-09-21.json)。
+
+## DATA-02 写路径授权与批次身份加固（2026-09-21）
+
+Luna Max 独立审查发现，独立四 Publication rebuild、自由填写的 `--operator`、长批次只在起点校验授权，
+以及只核对 stored count 的 quote/valuation 批次仍可留下绕过空间。仓库现已统一通过 Audit Application
+只读预检验证精确 current authority；两个 execute 命令把 operator 绑定到服务器签发的 actor，长刷新在
+provider、可用时刻修复和最终 publication 边界重复校验，quote/valuation 同时核对精确资产集合。
+
+聚焦回归 120 passed；12 个生产文件增量 mypy 为 0，Black/isort/Ruff、63 个 current-data surfaces、
+3,212 文件架构全扫描和治理一致性均通过。结构化证据见
+[DATA-02 授权与批次预检封存](../testing/data02-authority-and-batch-preflight-hardening-2026-09-21.json)。
+registry v143 → v144，DATA-02 仍为 awaiting_production。此次没有部署、provider 请求、生产写入、
+profile 激活或 Publication 切换；真实 current authority、财报来源时间、授权分批回填与四 Publication
+容差对账仍是生产退出条件。
