@@ -226,3 +226,26 @@ identity、篡改对账值或使用歧义 JSON 都会 fail closed。
 registry v151 → v152，DATA-02 继续 `awaiting_production`。剩余门为真实 owner 策略批准、真实 current
 authority、明确生产写授权、真实 provider 回填及真实四 Publication snapshot 对账。本轮没有部署、
 provider 调用、生产数据库写入、Publication 切换、策略批准或容差变更。
+
+## 生产只读阻断复核（2026-09-22）
+
+在 DATA-02 容差契约提交并推送后，本轮通过 SSH stdin 重新流式执行既有只读探针，未在 VPS 落盘
+脚本。生产仍为 `439468482 / 20260920184626`，落后于 `dev/next-development`；health、health/db、
+ready 为 200，decision-ready 按设计为 503，release identity 外部入口仍为 403。
+
+数据库探针在单一 `REPEATABLE READ READ ONLY` 事务中执行并显式 `ROLLBACK`。active A-share
+denominator 仍为 5,565；quote、price、valuation current Publication 各 5,565 members，financial
+仍为 80。历史 authority 行仍存在，但 temporally current actor、owner、joined actor-owner 均为 0；
+v17 仍为 `audit.system_event.mode=off`、`outbox_enabled=false`，authority selector 不存在。
+
+收盘后的 repair dry-run 已越过此前“盘中没有最近已完成交易日”的阻断，但在 provider 边界前因
+`financial source announced_at is required` 停止；独立四 Publication dry-run 在同一证据缺口停止。
+两条命令都未传 `--execute`，报告 `mutations_performed=false`。因此 session 时点阻断已排除，真实
+财报披露时间/来源证据、owner 批准的容差策略、当前 authority 和明确生产写授权仍是恢复条件。
+
+受保护 Prometheus query 使用 VPS root-only 凭据执行，但 authenticated/unauthenticated 仍同时为
+401，`DENY_STOP_LINES` 不变；TUI-02 不能绑定新候选或启动 14 日窗口。完整证据与 17 项原始成员见
+[2026-09-22 生产只读复核](../deployment/production-closure-revalidation-2026-09-22.json)，原始归档见
+[raw archive](../deployment/production-closure-revalidation-2026-09-22-raw.zip)。registry v152 → v153；
+DATA-02、EVID-01/02、AUD-03 状态不变，TUI-02 继续 active。本轮没有部署、provider 调用、生产写入、
+profile 激活、Publication 切换或凭据输出。
