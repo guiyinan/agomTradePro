@@ -662,6 +662,25 @@ class RawAuditModel(models.Model):
         super().save(*args, **kwargs)
 
 
+class FinancialSourceTimeAuditClaimModel(models.Model):
+    """Own the single RawAudit identity for one source-time capture UUID."""
+
+    capture_id = models.UUIDField(primary_key=True, editable=False)
+    audit = models.OneToOneField(
+        RawAuditModel,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="financial_source_time_claim",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "data_center_financial_source_time_audit_claim"
+        verbose_name = "Financial Source-Time Audit Claim"
+        verbose_name_plural = "Financial Source-Time Audit Claims"
+
+
 class RawPayloadModel(models.Model):
     """Hash-addressed, redacted raw provider payload."""
 

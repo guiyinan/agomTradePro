@@ -14,6 +14,7 @@ from uuid import UUID, uuid4
 from cryptography.fernet import Fernet, InvalidToken
 
 from apps.data_center.domain.financial_source_time_evidence import (
+    FINANCIAL_SOURCE_TIME_DATASET_KEY,
     FinancialSourceTimeArtifactRef,
 )
 from apps.data_center.infrastructure.financial_response_body_store import (
@@ -106,6 +107,38 @@ class FinancialSourceTimeBodyStore:
         self._max_body_bytes = max_body_bytes
         plaintext_limit = _PREFIX_BYTES + _MAX_METADATA_BYTES + max_body_bytes
         self._max_token_bytes = ((plaintext_limit + 73 + 2) // 3) * 4
+
+    def build_reference(
+        self,
+        *,
+        capture_id: UUID,
+        provider_name: str,
+        requested_asset_code: str,
+        requested_announcement_date: date,
+        body: bytes,
+        response_completed_at: datetime,
+        response_row_count: int,
+    ) -> FinancialSourceTimeArtifactRef:
+        """Build the only reference shape accepted by this configured store."""
+
+        if type(body) is not bytes:
+            raise FinancialSourceTimeArtifactError("financial source-time body must be exact bytes")
+        return FinancialSourceTimeArtifactRef(
+            capture_id=capture_id,
+            location=source_time_location_for(capture_id),
+            provider_name=provider_name,
+            dataset_key=FINANCIAL_SOURCE_TIME_DATASET_KEY,
+            requested_asset_code=requested_asset_code,
+            requested_announcement_date=requested_announcement_date,
+            body_sha256=hashlib.sha256(body).hexdigest(),
+            body_size_bytes=len(body),
+            response_completed_at=response_completed_at,
+            response_row_count=response_row_count,
+            format_version=FORMAT_VERSION,
+            encryption_algorithm=ENCRYPTION_ALGORITHM,
+            encryption_key_ref=self._encryption_key_ref,
+            encryption_key_version=self._encryption_key_version,
+        )
 
     def store(
         self,

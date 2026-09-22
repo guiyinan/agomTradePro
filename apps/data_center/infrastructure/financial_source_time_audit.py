@@ -7,6 +7,11 @@ from datetime import date, datetime
 from typing import TypeGuard
 from uuid import UUID
 
+from apps.data_center.application.financial_source_time_artifact import (
+    SOURCE_TIME_AUDIT_CAPABILITY,
+    SOURCE_TIME_AUDIT_LINK_KEY,
+    SOURCE_TIME_AUDIT_LINK_SCHEMA,
+)
 from apps.data_center.domain.entities import RawAudit
 from apps.data_center.domain.financial_response_artifact import FinancialResponseArtifactRef
 from apps.data_center.domain.financial_source_time_evidence import FinancialSourceTimeArtifactRef
@@ -15,8 +20,6 @@ from apps.data_center.infrastructure.financial_response_artifact_repository impo
 )
 from apps.data_center.infrastructure.provider_state_repositories import RawAuditRepository
 
-SOURCE_TIME_AUDIT_LINK_KEY = "financial_source_time_artifact"
-SOURCE_TIME_AUDIT_LINK_SCHEMA = "financial-source-time-artifact-link.v1"
 _SOURCE_TIME_LINK_KEYS = frozenset(
     {
         "schema",
@@ -109,7 +112,7 @@ def source_time_reference_from_audit(
 ) -> tuple[FinancialSourceTimeArtifactRef, int]:
     """Decode one exact successful source-time audit reference and provider id."""
 
-    if audit.capability != "financial_source_time" or audit.status != "ok":
+    if audit.capability != SOURCE_TIME_AUDIT_CAPABILITY or audit.status != "ok":
         raise ValueError("financial source-time audit outcome is invalid")
     raw_link = audit.extra.get(SOURCE_TIME_AUDIT_LINK_KEY)
     if not isinstance(raw_link, Mapping) or frozenset(raw_link) != _SOURCE_TIME_LINK_KEYS:

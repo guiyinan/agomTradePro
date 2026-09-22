@@ -563,3 +563,34 @@ contract，matcher 表为空，不能把仓库绿灯当成生产验收。
 原始探针、输出与哈希清单见同名 `-raw.zip`。registry v169 → v170；DATA-02、EVID-01/02、AUD-03
 状态不变，TUI-02 继续 active。本轮只通过 SSH stdin 执行只读事务和无 execute 预检，没有部署、
 provider 调用、生产写入、profile 激活或 Publication 切换。
+
+
+## DATA-02 财务来源时间原件留存（2026-09-23）
+
+双原件复验此前已经要求一份独立的 source-time body 与唯一 RawAudit，但仓库还没有生产方可调用的
+留存边界。本轮以红测起步，新增 contract-neutral retainer：配置好的 encrypted body store 生成唯一
+dataset/location/format/key/body-digest reference，Application 用例先读取完整 audit cardinality，再保存
+原始字节并追加 canonical content-hash RawAudit。相同 capture 只有完整 reference、provider row id、
+redacted request projection 和 audit 元数据全部一致时才能幂等重放；重复 audit 直接 fail closed。若正文
+成功而 audit 追加失败，异常只暴露 opaque reference，reconciliation 可区分 verified orphan 与多审计歧义。
+Luna Max 终审发现原先的 find-before-append 在并发下可能产生两条 audit；迁移 0083 增加 capture UUID
+主键 claim，原子 repository 在 claim 事务内重新查询并只允许首个 writer 追加。并发完全相同请求复用同一
+RawAudit，parser 或其他 canonical 内容漂移则拒绝。
+最终只读复核为 P0=0、P1=0；保留的 P2 是生产接线只能使用 retainer facade，并在获准的 PostgreSQL
+目标上重跑并发组件用例。
+
+该路径不会构造 `FinancialSourceTimeWitness`，不会从 `ann_date`、`NOTICE_DATE`、period end、fetch time
+或 response completion 推断 `announced_at/available_at`。owner-approved contract registry 仍为空，matcher
+表仍为空，因此没有新增可放行的 provider 路径。30 项聚焦/相关测试（含双连接并发组件用例）、7 个
+非 migration 生产文件增量 mypy、完整
+mypy debt、Black/isort/Ruff 与 68 个 current-data surface 均通过。
+
+GPT-5.6 Luna Max 同时复核版本化增生：本切片没有新增 `_vN` 平行模块；link/parser 中的 `v1` 是不可变
+审计契约标识。现有 V3/V4 authority 仍有真实 runtime caller，Audit V1 仍为默认，24 个 retirement proof
+仍待完成；EVID-01/02、STRAT-02 和 TUI-02 分别约束 authority、Regime 与 Classic 清理。当前没有旧实现
+或 Classic A/B 模板满足删除条件。
+
+结构化证据见
+[财务来源时间原件留存封存](../testing/data02-financial-source-time-artifact-retention-2026-09-23.json)。
+registry v170 → v171，DATA-02 保持 `awaiting_production`。本轮没有 provider/VPS/生产数据库访问、
+部署、生产写入、Publication 切换、contract/matcher 激活或旧版删除。

@@ -1,0 +1,67 @@
+{
+  "schema_version": "data02-financial-source-time-artifact-retention.v1",
+  "recorded_at_utc": "2026-09-22T16:53:40.054297Z",
+  "repository_branch": "dev/next-development",
+  "base_commit": "59e5bf1d3",
+  "closure_unit": "DATA-02",
+  "registry_transition": {
+    "from_version": "2026-09-23.v170",
+    "to_version": "2026-09-23.v171",
+    "status_before": "awaiting_production",
+    "status_after": "awaiting_production"
+  },
+  "tdd_red": {
+    "command": "pytest tests/unit/data_center/test_financial_source_time_retention.py -q",
+    "result": "collection failed: ModuleNotFoundError for apps.data_center.application.financial_source_time_artifact"
+  },
+  "implementation": {
+    "application_boundary": "RetainFinancialSourceTimeArtifactUseCase stores exact provider-native bytes and appends one canonical RawAudit without interpreting timestamp semantics",
+    "immutable_reference": "the configured body store builds the only accepted dataset, location, format, encryption-key and body-digest projection",
+    "audit_cardinality": "a database-primary-key claim owns each capture UUID; complete matching audits are read under the claim transaction and more than one row fails closed",
+    "idempotency": "concurrent or serial replay returns the first writer only when the complete body reference and canonical audit content hash match; drift fails closed",
+    "orphan_recovery": "an audit append failure exposes only the opaque retained reference; reconciliation reports verified body state and zero/one/many audit cardinality",
+    "redaction": "credential-shaped request keys and unsupported or non-finite values are rejected before RawAudit construction",
+    "time_semantics": "the retainer does not construct FinancialSourceTimeWitness and does not infer announced_at or available_at from dates or response completion"
+  },
+  "verification": {
+    "focused_and_related_tests": "30 passed, including a two-connection concurrent database component case",
+    "concurrency_backend": "the two-connection component case passed on the file-backed SQLite test database; no disposable PostgreSQL target was available in this turn",
+    "incremental_mypy": "0 regressions across 7 changed non-migration production Python files",
+    "full_mypy_debt": "passed: 0 errors in 0 files",
+    "black_isort_ruff": "passed",
+    "django_and_migrations": "system check passed; makemigrations --check reported no changes",
+    "current_data_contracts": "68 surfaces, passed",
+    "active_plan_registry": "version 2026-09-23.v171, 54 units, 0 violations",
+    "governance_consistency": "0 violations",
+    "architecture": "3231 files, 7 rules, 0 violations",
+    "versioned_surface_retirement": "5 families, 24 pending retirement proofs, 0 violations; no old version or Classic template is deletion-eligible"
+  },
+  "luna_max_review": {
+    "p0": 0,
+    "p1": 0,
+    "concurrency_remediation": "Luna Max found a find-before-append race; migration 0083 adds one durable capture claim and the atomic repository locks or creates it before re-querying and appending",
+    "retention_slice": "no parallel _vN implementation was introduced; the v1 link and parser strings are immutable contract identities",
+    "version_retirement": "V3/V4 authority surfaces still have runtime callers; Audit V1 remains the default; 24 proof slots, EVID-01/02, STRAT-02 and TUI-02 continue to block deletion",
+    "non_blocking_p2": [
+      "Production wiring must use the retainer facade so complete typed-link validation is not bypassed by direct infrastructure calls.",
+      "Repeat the concurrent component case against the authorized PostgreSQL target before production activation."
+    ],
+    "decision": "repository_slice_submittable"
+  },
+  "remaining_production_gates": [
+    "Obtain owner approval for a real provider source-time contract with exact asset, period-end and announcement-date join semantics.",
+    "Implement and register the provider-specific source-time producer and matcher from real raw samples.",
+    "Obtain current authority and explicit production-write authorization.",
+    "Run the provider backfill and reconcile four immutable Publications under approved tolerances."
+  ],
+  "production_effects": {
+    "provider_calls": 0,
+    "vps_or_production_database_access": 0,
+    "database_writes": 0,
+    "deployments": 0,
+    "publication_switches": 0,
+    "contract_or_matcher_activations": 0,
+    "legacy_or_classic_deletions": 0
+  },
+  "decision": "contract_neutral_retention_repository_slice_closed_production_acceptance_pending"
+}

@@ -6081,6 +6081,72 @@
           "test_function": "test_current_financial_publication_uses_the_repository_verifier"
         }
       ]
+    },
+    {
+      "id": "data_center.financial_source_time_artifact_retention",
+      "surface": "Provider-native financial source-time bodies are retained exactly with one canonical RawAudit before any governed timestamp interpretation",
+      "source_files": [
+        "apps/data_center/application/financial_source_time_artifact.py",
+        "apps/data_center/infrastructure/fact_and_operational_models.py",
+        "apps/data_center/infrastructure/financial_source_time_artifact_repository.py",
+        "apps/data_center/infrastructure/financial_source_time_audit.py",
+        "apps/data_center/infrastructure/financial_source_time_audit_repository.py",
+        "apps/data_center/infrastructure/financial_source_time_body_store.py",
+        "apps/data_center/infrastructure/models.py"
+      ],
+      "required_markers": {
+        "apps/data_center/application/financial_source_time_artifact.py": [
+          "class RetainFinancialSourceTimeArtifactUseCase:",
+          "len(existing) > 1",
+          "SOURCE_TIME_AUDIT_LINK_SCHEMA",
+          "financial source-time request contains credential-shaped data"
+        ],
+        "apps/data_center/infrastructure/financial_source_time_artifact_repository.py": [
+          "class FinancialSourceTimeArtifactRepository:",
+          "def inspect_orphan("
+        ],
+        "apps/data_center/infrastructure/financial_source_time_body_store.py": [
+          "def build_reference(",
+          "FINANCIAL_SOURCE_TIME_DATASET_KEY"
+        ],
+        "apps/data_center/infrastructure/fact_and_operational_models.py": [
+          "class FinancialSourceTimeAuditClaimModel(models.Model):",
+          "capture_id = models.UUIDField(primary_key=True, editable=False)"
+        ],
+        "apps/data_center/infrastructure/financial_source_time_audit_repository.py": [
+          "class DjangoFinancialSourceTimeArtifactAuditRepository:",
+          "with transaction.atomic():",
+          "FinancialSourceTimeAuditClaimModel.objects.select_for_update()",
+          "financial source-time audit replay conflicts"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "exact_encrypted_source_time_body_and_canonical_audit",
+          "test_file": "tests/unit/data_center/test_financial_source_time_retention.py",
+          "test_function": "test_retention_persists_exact_encrypted_body_and_canonical_audit"
+        },
+        {
+          "case": "source_time_retention_exact_replay",
+          "test_file": "tests/unit/data_center/test_financial_source_time_retention.py",
+          "test_function": "test_exact_replay_is_idempotent_and_changed_provider_id_conflicts"
+        },
+        {
+          "case": "source_time_retention_orphan_exposure",
+          "test_file": "tests/unit/data_center/test_financial_source_time_retention.py",
+          "test_function": "test_audit_append_failure_exposes_verified_orphan"
+        },
+        {
+          "case": "source_time_database_unique_claim",
+          "test_file": "tests/component/data_center/test_financial_source_time_audit_claim.py",
+          "test_function": "test_source_time_claim_replays_one_audit_and_rejects_drift"
+        },
+        {
+          "case": "source_time_database_concurrent_replay",
+          "test_file": "tests/component/data_center/test_financial_source_time_audit_claim.py",
+          "test_function": "test_concurrent_source_time_replay_has_one_raw_audit"
+        }
+      ]
     }
   ]
 }

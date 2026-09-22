@@ -1262,3 +1262,17 @@ Goal因连续多轮相同真实输入缺项转为blocked，而非complete：需�
 上一轮为有效进展：DATA-15验收和Caddy接线修复完成。本轮恢复后的阻塞审计重新计为第1轮，Goal保持active，尚未完成。
 [当前只读证据](../testing/sprint-resume-readonly-2026-09-10.json)确认候选和容器稳定，认证查询200、up=1、18规则健康，迁移指标仍为空；数据库只读事务确认actor/scope均0、审计runtime字段仍缺。未发生产写入或生成指标。
 注册表v79补齐上一轮Caddy修复投影，不晋级任何生产unit；DATA-02/EVID/AUD真实输入与TAR独立staging仍是恢复条件。原1371项测试证据保留，未因纯投影更新重复运行。
+
+
+### DATA-02 contract-neutral source-time 留存检查点（2026-09-23）
+
+仓库现在可以在解释来源时间之前保存 provider-native 原始正文：正文采用独立认证加密 envelope，
+reference 绑定 canonical dataset/location、完成时间、row count、body size/SHA-256 和 key identity；RawAudit
+绑定同一 reference、provider row id、parser 与 redacted request。数据库以 capture UUID 主键 claim
+串行化首个 writer；并发相同请求收敛到一条 RawAudit，canonical 内容漂移、重复 audit、凭据形状参数和
+审计写入失败均显式 fail closed，后者保留可对账 orphan identity。
+
+该检查点只关闭 producer 未来接线所需的留存基础，不注册真实 producer/matcher，不批准 registry contract，
+不生成 `announced_at/available_at`。DATA-02 继续 `awaiting_production`。版本退役复核仍为 24 个 pending
+proof、零 deletion-eligible surface；V3/V4、Audit V1 和 Classic A/B 在各自生产/观察门完成前继续保留。
+证据：`docs/testing/data02-financial-source-time-artifact-retention-2026-09-23.json`。
