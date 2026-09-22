@@ -5990,7 +5990,8 @@
           "PERIOD_END = \"period_end\"",
           "financial source-time contract requires exact join semantics",
           "financial source-time contract uses a synthetic time field",
-          "financial_source_time_contract_sha256"
+          "financial_source_time_contract_sha256",
+          "FinancialSourceTimeContractIdentity: TypeAlias = tuple[str, str, str, str]"
         ],
         "apps/data_center/infrastructure/financial_source_time_contract_registry.py": [
           "REGISTRY_SCHEMA_VERSION = \"financial-source-time-match-contract-registry.v2\"",
@@ -6075,7 +6076,9 @@
           "hashlib.sha256(body).hexdigest() != reference.body_sha256"
         ],
         "apps/data_center/financial_source_time_composition.py": [
-          "_MATCHERS: dict[str, FinancialSourceTimeContractMatcher] = {}",
+          "_MATCHERS: dict[FinancialSourceTimeContractIdentity, FinancialSourceTimeContractMatcher] = {}",
+          "def _resolve_contract_matcher(",
+          "return _MATCHERS.get(contract.identity)",
           "load_financial_source_time_contract_registry(",
           "verify_provider_financial_source_time_evidence",
           "verify_retained_financial_source_time_evidence"
@@ -6104,6 +6107,11 @@
           "case": "financial_source_time_current_publication_composition",
           "test_file": "tests/unit/data_center/test_financial_source_time_composition.py",
           "test_function": "test_current_financial_publication_uses_the_repository_verifier"
+        },
+        {
+          "case": "financial_source_time_matcher_exact_contract_identity",
+          "test_file": "tests/unit/data_center/test_financial_source_time_composition.py",
+          "test_function": "test_matcher_registry_uses_exact_contract_identity_not_parser_name"
         }
       ]
     },

@@ -642,3 +642,20 @@ owner，也不代替 authority 时效核验。真实 contract、receipt、provid
 [owner 审批与合约集合绑定封存](../testing/data02-financial-source-time-owner-approval-binding-2026-09-23.json)。
 registry v172 → v173，DATA-02 保持 `awaiting_production`。本轮没有 provider/VPS/数据库访问、部署、
 生产写入、Publication 切换或 contract 激活。
+
+## DATA-02 财务来源时间 matcher 精确路由（2026-09-23）
+
+继续审查 production composition 时发现，私有 matcher 表只以 `parser_version` 为键。两个 provider 或
+两份受治理 contract 如果复用同一个 parser 标签，严格 registry 虽然已经选出正确 contract，composition
+仍可能取得另一份 contract 的 matcher。
+
+matcher 表现在只接受完整的 `FinancialSourceTimeContractIdentity`：provider、contract id、contract
+version 与 contract SHA-256。parser、endpoint、时区、join 和 projection 已由 contract digest 绑定，
+不再建立第二套原始字段键，也不加入运行时 ProviderConfig 行号。没有 parser-only fallback；遗留字符串键
+只会 lookup miss 并失败关闭。synthetic 回归用相同 parser 标签的两个 contract 证明各自只命中自己的
+matcher，未登记 contract 即使 parser 相同也返回空。
+
+仓库 matcher 表仍为空，contract registry 仍为 pending，因此没有真实 provider 路径被激活。结构化证据见
+[matcher 精确路由封存](../testing/data02-financial-source-time-exact-matcher-routing-2026-09-23.json)。
+registry v173 → v174，DATA-02 保持 `awaiting_production`。本轮没有 provider/VPS/数据库访问、部署、
+生产写入、Publication 切换或 contract/matcher 激活。

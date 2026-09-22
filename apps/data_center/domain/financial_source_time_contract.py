@@ -7,10 +7,12 @@ import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import TypeAlias
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 FINANCIAL_FACT_DATASET_KEY = "equity.financial.fact"
 FINANCIAL_SOURCE_TIME_DATASET_KEY = "equity.financial.source-time"
+FinancialSourceTimeContractIdentity: TypeAlias = tuple[str, str, str, str]
 
 
 class FinancialSourceTimeJoinSemantic(StrEnum):
@@ -147,7 +149,7 @@ class FinancialSourceTimeMatchContract:
             raise ValueError("financial source-time contract_sha256 does not match content")
 
     @property
-    def identity(self) -> tuple[str, str, str, str]:
+    def identity(self) -> FinancialSourceTimeContractIdentity:
         """Return the exact lookup identity including the content digest."""
 
         return (
@@ -218,6 +220,7 @@ __all__ = [
     "FINANCIAL_SOURCE_TIME_DATASET_KEY",
     "FinancialSourceTimeJoinField",
     "FinancialSourceTimeJoinSemantic",
+    "FinancialSourceTimeContractIdentity",
     "FinancialSourceTimeMatchContract",
     "financial_source_time_contract_sha256",
 ]

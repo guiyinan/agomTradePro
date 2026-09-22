@@ -1,0 +1,75 @@
+{
+  "schema_version": "data02-financial-source-time-exact-matcher-routing.v1",
+  "recorded_at_utc": "2026-09-22T19:42:56.612015Z",
+  "repository_branch": "dev/next-development",
+  "base_commit": "92d6f4fffda192b66fe5fde345ce0f730d9896cf",
+  "closure_unit": "DATA-02",
+  "registry_transition": {
+    "from_version": "2026-09-23.v173",
+    "to_version": "2026-09-23.v174",
+    "status_before": "awaiting_production",
+    "status_after": "awaiting_production"
+  },
+  "tdd_red": {
+    "command": "pytest tests/unit/data_center/test_financial_source_time_composition.py -q",
+    "result": "collection failed: ImportError for _resolve_contract_matcher"
+  },
+  "implementation": {
+    "identity_type": "FinancialSourceTimeContractIdentity = tuple[provider_name, contract_id, contract_version, contract_sha256]",
+    "routing": "the private matcher table and resolver use only FinancialSourceTimeMatchContract.identity",
+    "digest_binding": "parser version, endpoint, timezone, join and projection semantics are already bound by contract_sha256",
+    "excluded_keys": [
+      "parser_version fallback",
+      "runtime ProviderConfig database id"
+    ],
+    "legacy_behavior": "a parser-version string key cannot match an exact contract identity and fails closed",
+    "repository_state": {
+      "contract_registry": "awaiting_owner_approval with zero contracts",
+      "matcher_table": "empty"
+    },
+    "runtime_effect": "no real provider matcher or source-time producer is activated"
+  },
+  "verification": {
+    "focused_composition_tests": "3 passed",
+    "focused_and_related_tests": "43 passed",
+    "incremental_mypy": "0 regressions across 2 changed production Python files",
+    "full_mypy_debt": "passed: 0 errors in 0 files",
+    "black_isort_ruff": "passed",
+    "current_data_contracts": "68 surfaces, passed",
+    "active_plan_registry": "version 2026-09-23.v174, 54 units, 0 violations",
+    "governance_consistency": "0 violations",
+    "architecture": "3231 files, 7 boundary rules and 20 audit rules, 0 violations",
+    "versioned_surface_retirement": "5 families, 24 module groups, 4 singleton compositions, 24 pending proofs, 0 violations"
+  },
+  "luna_max_final_review": {
+    "p0": 0,
+    "p1": 0,
+    "decision": "repository_slice_submittable",
+    "verified_boundaries": [
+      "two contracts sharing one parser label resolve only by their distinct exact identities",
+      "the same provider, contract id and contract version with a substituted contract digest does not match",
+      "a legacy parser-version string key does not match and fails closed",
+      "the contract registry remains pending and the matcher table remains empty"
+    ],
+    "version_proliferation": "no parallel _vN module or schema implementation was added",
+    "non_blocking_p2": [
+      "A future real matcher registration API may add implementation-digest and duplicate-registration guards once provider semantics are available."
+    ]
+  },
+  "remaining_production_gates": [
+    "Obtain a genuine owner-approved provider source-time contract and receipt.",
+    "Retain a real provider sample and implement the provider-specific matcher and producer from verified semantics.",
+    "Obtain current authority and explicit production-write authorization.",
+    "Run the provider backfill and reconcile four immutable Publications under approved tolerances."
+  ],
+  "production_effects": {
+    "provider_calls": 0,
+    "vps_or_production_database_access": 0,
+    "database_writes": 0,
+    "deployments": 0,
+    "publication_switches": 0,
+    "contract_or_matcher_activations": 0,
+    "legacy_or_classic_deletions": 0
+  },
+  "decision": "exact_matcher_routing_repository_slice_implemented_production_acceptance_pending"
+}

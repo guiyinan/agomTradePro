@@ -13,6 +13,10 @@ from apps.data_center.application.financial_source_time_verifier import (
 )
 from apps.data_center.domain.entities import ProviderConfig
 from apps.data_center.domain.financial_source_evidence import FinancialFactDecisionEvidence
+from apps.data_center.domain.financial_source_time_contract import (
+    FinancialSourceTimeContractIdentity,
+    FinancialSourceTimeMatchContract,
+)
 from apps.data_center.infrastructure.financial_response_artifact_config import (
     resolve_financial_response_artifact_config,
 )
@@ -32,7 +36,15 @@ from apps.data_center.infrastructure.financial_source_time_contract_registry imp
 from apps.data_center.infrastructure.provider_state_repositories import RawAuditRepository
 from core.exceptions import DataFetchError
 
-_MATCHERS: dict[str, FinancialSourceTimeContractMatcher] = {}
+_MATCHERS: dict[FinancialSourceTimeContractIdentity, FinancialSourceTimeContractMatcher] = {}
+
+
+def _resolve_contract_matcher(
+    contract: FinancialSourceTimeMatchContract,
+) -> FinancialSourceTimeContractMatcher | None:
+    """Resolve only a matcher registered for the exact governed contract identity."""
+
+    return _MATCHERS.get(contract.identity)
 
 
 def verify_retained_financial_source_time_evidence(
@@ -99,7 +111,7 @@ def _verify_source_time_evidence(
         )
         if contract is None:
             return False
-        matcher = _MATCHERS.get(contract.parser_version)
+        matcher = _resolve_contract_matcher(contract)
         if matcher is None:
             return False
         runtime = resolve_financial_response_artifact_config(environment=environment)
