@@ -486,3 +486,29 @@ outbox=false、selector absent。受保护监控的凭据请求与匿名请求�
 原始探针、输出和哈希清单见同名 `-raw.zip`。Luna Max 最终复核为 P0=0、P1=0。registry
 v164 → v165；DATA-02、EVID-01/02、AUD-03 状态不变，TUI-02 继续 active。本轮没有部署、provider 调用、生产写入、profile 激活或
 Publication 切换。
+
+## DATA-02 财务来源时间原件绑定（2026-09-22）
+
+后续代码审查发现，v1 `FinancialFactDecisionEvidence` 只证明 `fina_indicator` 财务正文存在，不能证明
+调用方附加的 `announced_at` / `available_at` 来自独立来源。现在 decision evidence v2 额外绑定独立
+source-time artifact、财务公告日、来源行标识与投影 SHA-256、受治理匹配契约 id/version/SHA-256，且
+`matched_row_count` 必须严格等于 1。Application verifier 接收完整 decision evidence，同时读取财务与
+来源时间两份留存正文和审计记录，
+重新解析并重算匹配；直接 canonical repository 写入若未注入独立 verifier，同样在 DML 前拒绝。
+普通和 current Publication 候选也会重新调用同一个完整 decision-evidence verifier；即使有人绕过
+repository 直接写入一组内部自洽的 ORM 字段，没有独立复验器仍不能取得发布资格。
+
+`available_at` 只接受 `provider_native_exact`，不把 response completion 当作 provider 时间。历史 v1 JSON
+仍可读取，但不能进入 current Publication。Tushare 官方 `fina_indicator` 只有 date-only `ann_date`，官方
+`anns_d` 是独立接口并提供可选 `rec_time`，没有可据此自动绑定财务期间的结构化关系；因此代码禁止按
+同一资产/日期选择最早或最新公告。真实 provider contract、公告原件留存与唯一匹配实现尚不存在，当前
+adapter 和 production composition 继续 fail-closed，DATA-02 保持 `awaiting_production`。
+
+GPT-5.6 Luna Max 在发布复验修复前的最终审查为 P0=0、P1=1：typed witness 仍是声明式边界，且仓库
+没有具体的双原件读取、审计核对与重算实现。本轮关闭了 Publication 绕过面，但不能把 verifier callback
+测试替身当作真实实现；该 P1 将持续到 provider-specific source-time repository/verifier 落地并接入
+composition 后才可关闭。
+
+结构化证据见
+[财务来源时间原件绑定封存](../testing/data02-financial-source-time-artifact-binding-2026-09-22.json)。
+本轮没有 provider/VPS/数据库访问、部署、生产写入或 Publication 切换。

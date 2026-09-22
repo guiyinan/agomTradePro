@@ -752,3 +752,26 @@ price readiness 和四 Publication coverage readiness 的合取。`data02_execut
 证据见
 [DATA-02 successor readiness 派生门禁](../testing/data02-successor-derived-readiness-2026-09-22.json)。
 DATA-02 继续 `awaiting_production`。
+
+## 28. 2026-09-22 独立 source-time artifact 与唯一匹配契约
+
+v1 retained financial body 只能证明财务响应和 native row，不足以证明响应正文之外的日内来源时间。
+decision evidence v2 因此要求第二份不可变 source-time artifact，并绑定 financial announcement date、
+source native row、canonical row projection SHA-256、governed match-contract id/version/SHA-256 和精确
+`matched_row_count=1`。verifier 必须自行读取 retained body/audit，按治理契约重算行标识、投影和唯一性；
+不能信任调用方自报字段。canonical repository 没有独立 verifier 时也拒绝直接写入。
+普通和 current Publication 候选会再次把完整 decision evidence 交给同一个独立 verifier；持久化字段
+即使彼此自洽，也不能绕过 retained-body 重算门。
+
+Tushare `anns_d.rec_time` 不能直接解决该缺口：它属于独立公告接口，公开字段没有财务 `end_date` 关系。
+在 provider contract 明确字段映射、唯一键、时区和 availability 语义之前，禁止按 `ts_code+ann_date`
+猜测关联、禁止取最早/最新，禁止用 response completion 伪装 provider-native `available_at`。当前 adapter
+继续输出缺失来源时间，production composition 未接线 source-time verifier，故严格路径保持零写入。
+
+Luna Max 复核保留 P1：当前实现定义了严格 typed boundary 与 fail-closed 注入点，但还没有具体的
+source-time artifact repository/verifier 去读取两份原件、核对审计并执行 provider-specific 唯一匹配。
+测试中的 verifier double 只证明门禁接线，不能作为生产证据。必须完成该实现并接入 composition 后，
+才可把这项 P1 标记关闭。
+
+结构化证据见
+[DATA-02 财务来源时间原件绑定](../testing/data02-financial-source-time-artifact-binding-2026-09-22.json)。

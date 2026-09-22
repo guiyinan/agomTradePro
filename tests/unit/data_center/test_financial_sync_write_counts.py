@@ -22,6 +22,12 @@ from apps.data_center.domain.financial_source_evidence import (
     FinancialFactDecisionEvidence,
     FinancialFactSourceEvidence,
 )
+from apps.data_center.domain.financial_source_time_evidence import (
+    FINANCIAL_SOURCE_TIME_DATASET_KEY,
+    FinancialAvailabilityBasis,
+    FinancialSourceTimeArtifactRef,
+    FinancialSourceTimeWitness,
+)
 
 _FETCHED_AT = datetime(2026, 9, 14, 12, 0, tzinfo=UTC)
 _AVAILABLE_AT = datetime(2026, 9, 14, 11, 58, tzinfo=UTC)
@@ -61,6 +67,38 @@ def _decision_evidence() -> FinancialFactDecisionEvidence:
         native_asset_code="000001.SZ",
         native_period_end=date(2026, 6, 30),
         native_row_id=_SOURCE_RECORD_ID,
+        source_time_witness=FinancialSourceTimeWitness(
+            artifact_reference=FinancialSourceTimeArtifactRef(
+                capture_id=UUID("20000000-0000-4000-8000-000000000008"),
+                location="financial-source-time/write-count.bin",
+                provider_name="provider-main",
+                dataset_key=FINANCIAL_SOURCE_TIME_DATASET_KEY,
+                requested_asset_code="000001.SZ",
+                requested_announcement_date=date(2026, 9, 14),
+                body_sha256="b" * 64,
+                body_size_bytes=96,
+                response_completed_at=_COMPLETED_AT,
+                response_row_count=1,
+                format_version="financial-source-time-artifact.v1",
+                encryption_algorithm="fernet",
+                encryption_key_ref="config_center.data02.test-key",
+                encryption_key_version="v1",
+            ),
+            native_asset_code="000001.SZ",
+            native_period_end=date(2026, 6, 30),
+            financial_native_row_id=_SOURCE_RECORD_ID,
+            financial_announced_date=date(2026, 9, 14),
+            source_native_row_id="provider-main:notice:000001.SZ:20260914:1",
+            source_timezone="Asia/Shanghai",
+            announced_at=_AVAILABLE_AT,
+            available_at=_AVAILABLE_AT,
+            row_projection_sha256="c" * 64,
+            governed_match_contract_id="provider-main.financial-announcement.exact",
+            governed_match_contract_version="v1",
+            governed_match_contract_sha256="d" * 64,
+            matched_row_count=1,
+            availability_basis=FinancialAvailabilityBasis.PROVIDER_NATIVE_EXACT,
+        ),
     )
 
 
@@ -178,6 +216,7 @@ def test_sync_financial_reports_actual_repository_write_count(
         fact_repo=facts,
         raw_audit_repo=raw_audit,
         artifact_verifier=lambda _provider, _reference: True,
+        source_time_artifact_verifier=lambda _provider, _witness: True,
     ).execute(SyncFinancialRequest(provider_id=1, asset_code="000001.SZ", periods=2))
 
     assert len(facts.calls) == 1

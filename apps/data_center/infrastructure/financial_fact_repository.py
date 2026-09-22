@@ -20,6 +20,7 @@ from apps.data_center.infrastructure.models import FinancialFactModel
 from .financial_decision_evidence_codec import decode_financial_decision_evidence
 from .financial_fact_write_guard import (
     FinancialFactProvenanceConflictError,
+    FinancialSourceTimeEvidenceVerifier,
     bulk_upsert_financial_facts,
     source_evidence_from_model,
 )
@@ -29,6 +30,14 @@ from .publication_fact_evidence import publication_fact_reference_for_dataset
 
 class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
     """ORM-backed repository for financial statement facts."""
+
+    def __init__(
+        self,
+        source_time_evidence_verifier: FinancialSourceTimeEvidenceVerifier | None = None,
+    ) -> None:
+        """Bind the verifier that recomputes unique source-time row evidence."""
+
+        self._source_time_evidence_verifier = source_time_evidence_verifier
 
     @staticmethod
     def _from_model(m: FinancialFactModel) -> FinancialFact:
@@ -96,7 +105,10 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
     def bulk_upsert(self, facts: list[FinancialFact]) -> int:
         """Persist facts without allowing stale source evidence to follow new values."""
 
-        return bulk_upsert_financial_facts(facts)
+        return bulk_upsert_financial_facts(
+            facts,
+            source_time_evidence_verifier=self._source_time_evidence_verifier,
+        )
 
     def list_publication_candidates(
         self, facts: Sequence[FinancialFact]
@@ -127,7 +139,13 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
                 continue
             fact_pk = str(row.pk)
             seen_fact_pks.add(fact_pk)
-            references.append(_financial_publication_reference(row, require_verified))
+            references.append(
+                _financial_publication_reference(
+                    row,
+                    require_verified,
+                    self._source_time_evidence_verifier,
+                )
+            )
         return references
 
     def list_current_publication_candidates(
@@ -164,17 +182,26 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
             period_end=Subquery(latest_available_period),
             pk=Subquery(latest_metric_row),
         ).order_by("asset_code", "period_type", "metric_code")
-        return [_financial_publication_reference(row, require_verified) for row in rows]
+        return [
+            _financial_publication_reference(
+                row,
+                require_verified,
+                self._source_time_evidence_verifier,
+            )
+            for row in rows
+        ]
 
 
 def _financial_publication_reference(
-    row: FinancialFactModel, require_verified_source_evidence: bool = False
+    row: FinancialFactModel,
+    require_verified_source_evidence: bool = False,
+    source_time_evidence_verifier: FinancialSourceTimeEvidenceVerifier | None = None,
 ) -> PublicationFactReference:
     """Convert one evidence-safe financial row to a publication reference."""
 
     if row.available_at is None:
         raise ValueError("financial publication candidate requires available_at")
-    _require_publication_decision_evidence(row)
+    _require_publication_decision_evidence(row, source_time_evidence_verifier)
     return publication_fact_reference_for_dataset(
         row,
         dataset_key="equity.financial.fact",
@@ -184,6 +211,7 @@ def _financial_publication_reference(
 
 def _require_publication_decision_evidence(
     row: FinancialFactModel,
+    source_time_evidence_verifier: FinancialSourceTimeEvidenceVerifier | None,
 ) -> FinancialFactDecisionEvidence:
     """Require the persisted artifact binding to match the exact candidate row."""
 
@@ -202,15 +230,45 @@ def _require_publication_decision_evidence(
         raise FinancialFactProvenanceConflictError(
             "financial publication decision evidence does not match the persisted row"
         )
+    source_time = decision.source_time_witness
+    if source_time is None:
+        raise FinancialFactProvenanceConflictError(
+            "financial source-time evidence is required for publication candidates"
+        )
+    if (
+        source_time.announced_at != row.announced_at
+        or source_time.available_at != row.available_at
+        or source_time.native_asset_code != row.asset_code
+        or source_time.native_period_end != row.period_end
+        or source_time.financial_native_row_id != row.source_record_id
+    ):
+        raise FinancialFactProvenanceConflictError(
+            "financial publication source-time evidence does not match the persisted row"
+        )
     extra = row.extra if isinstance(row.extra, dict) else {}
+    source_time_artifact = source_time.artifact_reference
     expected_transport = {
         "financial_response_capture_id": str(artifact.capture_id),
         "raw_payload_scope": artifact.evidence.body_scope.value,
         "response_scope_basis": artifact.evidence.response_scope_basis.value,
+        "financial_source_time_capture_id": str(source_time_artifact.capture_id),
+        "financial_source_time_body_sha256": source_time_artifact.body_sha256,
+        "financial_source_time_row_sha256": source_time.row_projection_sha256,
+        "financial_source_time_match_contract_id": source_time.governed_match_contract_id,
+        "financial_source_time_match_contract_version": (
+            source_time.governed_match_contract_version
+        ),
+        "financial_source_time_match_contract_sha256": source_time.governed_match_contract_sha256,
+        "financial_source_time_matched_row_count": source_time.matched_row_count,
     }
     if any(extra.get(key) != value for key, value in expected_transport.items()):
         raise FinancialFactProvenanceConflictError(
             "financial publication transport evidence does not match the persisted row"
+        )
+    # financial source-time evidence must be independently reverified for publication
+    if source_time_evidence_verifier is None or not source_time_evidence_verifier(decision):
+        raise FinancialFactProvenanceConflictError(
+            "financial source-time evidence must be independently reverified for publication"
         )
     return decision
 

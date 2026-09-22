@@ -1,0 +1,27 @@
+DATA-02 financial source-time artifact binding verification
+
+TDD red:
+- test_source_evidence_probe_rejects_unbound_source_time: 1 failed, 14 passed
+
+Final checks:
+- Focused unit: 57 passed
+- Focused component: 36 passed
+- Focused combined: 93 passed in 250.94s
+- PostgreSQL opt-in collection: 8 skipped (AGOM_EVID06_POSTGRES_TEST not enabled)
+- New Domain module: 105/105 statements and 44/44 branches, 100.0%
+- Incremental mypy: 0 regressions in 6 changed production files
+- Full mypy debt ceiling: 0 errors in 0 files
+- Black, isort and Ruff: passed
+- Current-data contracts: 65 surfaces passed
+- Active plan registry v167: 54 units, 0 violations
+- Governance consistency: 0 violations
+- Architecture: 3222 files, 7 rules, 0 violations
+
+Runtime decision:
+- Luna Max final review after Publication recheck: P0=0, P1=1; this contract-boundary slice may be committed.
+- Historical decision-evidence v1 remains readable but cannot enter a current Publication.
+- Canonical writes and ordinary/current Publication selection require independent verification of the complete decision evidence.
+- No concrete retained-body source-time verifier is wired in production composition; this remains P1.
+- Current provider adapters construct no positive source-time witness.
+- DATA-02 remains awaiting_production and all decision-time writes stay fail-closed.
+- No provider call, VPS/database access, deployment, production write or Publication switch occurred.

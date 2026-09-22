@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
+from hashlib import sha256
 
 import pytest
 
@@ -23,8 +24,52 @@ from apps.data_center.infrastructure.valuation_fact_repository import (
     ValuationFactRepository,
 )
 from core.exceptions import InvalidInputError
+from tests.component.data_center.test_financial_source_provenance import (
+    _decision_projection,
+    _decision_transport_extra,
+)
 
 AVAILABLE_AT = datetime(2026, 8, 20, 9, 0, tzinfo=UTC)
+
+
+def _evidenced_financial_row(
+    *,
+    asset_code: str,
+    period_end: date,
+    metric_code: str,
+    value: int,
+    source: str,
+    available_at: datetime,
+) -> FinancialFactModel:
+    """Persist a selector fixture with exact v2 source-time evidence."""
+
+    announced_at = available_at - timedelta(minutes=5)
+    source_record_id = f"{asset_code}:{period_end.isoformat()}:{metric_code}:{source}"
+    raw_payload_hash = sha256(source_record_id.encode("utf-8")).hexdigest()
+    decision_evidence = _decision_projection(
+        asset_code=asset_code,
+        period_end=period_end,
+        provider_name=source,
+        source_record_id=source_record_id,
+        announced_at=announced_at,
+        available_at=available_at,
+        raw_payload_hash=raw_payload_hash,
+    )
+    return FinancialFactModel.objects.create(
+        asset_code=asset_code,
+        period_end=period_end,
+        period_type="quarterly",
+        metric_code=metric_code,
+        value=value,
+        source=source,
+        report_date=announced_at.date(),
+        announced_at=announced_at,
+        available_at=available_at,
+        source_record_id=source_record_id,
+        raw_payload_hash=raw_payload_hash,
+        extra=_decision_transport_extra(decision_evidence),
+        decision_evidence=decision_evidence,
+    )
 
 
 @pytest.mark.django_db
@@ -132,37 +177,33 @@ def test_valuation_selector_returns_latest_fact_per_asset() -> None:
 
 @pytest.mark.django_db
 def test_financial_selector_uses_latest_available_period_and_one_source_per_metric() -> None:
-    FinancialFactModel.objects.create(
+    _evidenced_financial_row(
         asset_code="000001.SZ",
         period_end=date(2026, 3, 31),
-        period_type="quarterly",
         metric_code="revenue",
         value=90,
         source="source-old",
         available_at=AVAILABLE_AT - timedelta(days=90),
     )
-    FinancialFactModel.objects.create(
+    _evidenced_financial_row(
         asset_code="000001.SZ",
         period_end=date(2026, 6, 30),
-        period_type="quarterly",
         metric_code="revenue",
         value=100,
         source="source-a",
         available_at=AVAILABLE_AT - timedelta(hours=1),
     )
-    FinancialFactModel.objects.create(
+    _evidenced_financial_row(
         asset_code="000001.SZ",
         period_end=date(2026, 6, 30),
-        period_type="quarterly",
         metric_code="revenue",
         value=101,
         source="source-b",
         available_at=AVAILABLE_AT,
     )
-    FinancialFactModel.objects.create(
+    _evidenced_financial_row(
         asset_code="000001.SZ",
         period_end=date(2026, 6, 30),
-        period_type="quarterly",
         metric_code="net_profit",
         value=20,
         source="source-a",
@@ -177,19 +218,18 @@ def test_financial_selector_uses_latest_available_period_and_one_source_per_metr
         source="missing-evidence",
         available_at=None,
     )
-    FinancialFactModel.objects.create(
+    _evidenced_financial_row(
         asset_code="600000.SH",
         period_end=date(2026, 3, 31),
-        period_type="quarterly",
         metric_code="revenue",
         value=190,
         source="source-valid",
         available_at=AVAILABLE_AT - timedelta(days=80),
     )
 
-    references = FinancialFactRepository().list_current_publication_candidates(
-        ("000001.SZ", "600000.SH")
-    )
+    references = FinancialFactRepository(
+        source_time_evidence_verifier=lambda _decision: True
+    ).list_current_publication_candidates(("000001.SZ", "600000.SH"))
 
     assert len(references) == 3
     keys = {item.natural_key for item in references}

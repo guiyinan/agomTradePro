@@ -32,6 +32,12 @@ from apps.data_center.domain.financial_source_evidence import (
     FinancialFactDecisionEvidence,
     FinancialFactSourceEvidence,
 )
+from apps.data_center.domain.financial_source_time_evidence import (
+    FINANCIAL_SOURCE_TIME_DATASET_KEY,
+    FinancialAvailabilityBasis,
+    FinancialSourceTimeArtifactRef,
+    FinancialSourceTimeWitness,
+)
 from apps.data_center.infrastructure import financial_fact_write_guard as guard
 from apps.data_center.infrastructure.models import FinancialFactModel
 
@@ -219,6 +225,38 @@ def _fact(metric_code: str) -> FinancialFact:
             native_asset_code=_ASSET_CODE,
             native_period_end=_PERIOD_END,
             native_row_id=source_record_id,
+            source_time_witness=FinancialSourceTimeWitness(
+                artifact_reference=FinancialSourceTimeArtifactRef(
+                    capture_id=UUID("60000000-0000-4000-8000-000000000002"),
+                    location="financial-source-time/postgres-concurrency.bin",
+                    provider_name="provider-main",
+                    dataset_key=FINANCIAL_SOURCE_TIME_DATASET_KEY,
+                    requested_asset_code=_ASSET_CODE,
+                    requested_announcement_date=announced_at.date(),
+                    body_sha256="f" * 64,
+                    body_size_bytes=96,
+                    response_completed_at=available_at + timedelta(minutes=1),
+                    response_row_count=1,
+                    format_version="financial-source-time-artifact.v1",
+                    encryption_algorithm="fernet",
+                    encryption_key_ref="config_center.data02.test-key",
+                    encryption_key_version="v1",
+                ),
+                native_asset_code=_ASSET_CODE,
+                native_period_end=_PERIOD_END,
+                financial_native_row_id=source_record_id,
+                financial_announced_date=announced_at.date(),
+                source_native_row_id="provider-main:notice:pg-concurrency-row-1",
+                source_timezone="UTC",
+                announced_at=announced_at,
+                available_at=available_at,
+                row_projection_sha256="a" * 64,
+                governed_match_contract_id="provider-main.financial-announcement.exact",
+                governed_match_contract_version="v1",
+                governed_match_contract_sha256="b" * 64,
+                matched_row_count=1,
+                availability_basis=FinancialAvailabilityBasis.PROVIDER_NATIVE_EXACT,
+            ),
         ),
     )
 
@@ -240,7 +278,10 @@ def _run_batch(facts: list[FinancialFact]) -> _WorkerResult:
         backend_pid = int(identity[0])
         database_name = str(identity[1])
         vendor = str(connection.vendor)
-        stored_count = guard.bulk_upsert_financial_facts(facts)
+        stored_count = guard.bulk_upsert_financial_facts(
+            facts,
+            source_time_evidence_verifier=lambda _witness: True,
+        )
         return _WorkerResult(
             backend_pid=backend_pid,
             database_name=database_name,

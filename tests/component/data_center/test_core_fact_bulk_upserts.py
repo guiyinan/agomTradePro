@@ -1,5 +1,6 @@
 """Bulk persistence contracts for production core-data rebuilds."""
 
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 
@@ -18,10 +19,17 @@ from apps.data_center.domain.financial_source_evidence import (
     FinancialFactDecisionEvidence,
     FinancialFactSourceEvidence,
 )
-from apps.data_center.infrastructure.fundamental_fact_repositories import (
-    FinancialFactRepository,
-    ValuationFactRepository,
+from apps.data_center.domain.financial_source_time_evidence import (
+    FINANCIAL_SOURCE_TIME_DATASET_KEY,
+    FinancialAvailabilityBasis,
+    FinancialSourceTimeArtifactRef,
+    FinancialSourceTimeWitness,
 )
+from apps.data_center.infrastructure.financial_fact_repository import FinancialFactRepository
+from apps.data_center.infrastructure.financial_fact_write_guard import (
+    FinancialFactProvenanceConflictError,
+)
+from apps.data_center.infrastructure.fundamental_fact_repositories import ValuationFactRepository
 from apps.data_center.infrastructure.market_data_repositories import PriceBarRepository
 from apps.data_center.infrastructure.models import (
     FinancialFactModel,
@@ -30,6 +38,12 @@ from apps.data_center.infrastructure.models import (
 )
 
 pytestmark = pytest.mark.django_db
+
+
+def _financial_repository() -> FinancialFactRepository:
+    """Build a repository with an independent verifier double for retained fixtures."""
+
+    return FinancialFactRepository(source_time_evidence_verifier=lambda _witness: True)
 
 
 def _financial_fact(
@@ -74,6 +88,38 @@ def _financial_fact(
         native_asset_code="000001.SZ",
         native_period_end=period_end,
         native_row_id=source_record_id,
+        source_time_witness=FinancialSourceTimeWitness(
+            artifact_reference=FinancialSourceTimeArtifactRef(
+                capture_id=UUID(hex=("9" * 32)),
+                location=f"financial-source-time/{source_record_id}.bin",
+                provider_name="akshare",
+                dataset_key=FINANCIAL_SOURCE_TIME_DATASET_KEY,
+                requested_asset_code="000001.SZ",
+                requested_announcement_date=date(2026, 9, 1),
+                body_sha256="8" * 64,
+                body_size_bytes=96,
+                response_completed_at=available_at,
+                response_row_count=1,
+                format_version="financial-source-time-artifact.v1",
+                encryption_algorithm="fernet",
+                encryption_key_ref="config_center.data02.test-key",
+                encryption_key_version="v1",
+            ),
+            native_asset_code="000001.SZ",
+            native_period_end=period_end,
+            financial_native_row_id=source_record_id,
+            financial_announced_date=date(2026, 9, 1),
+            source_native_row_id=f"akshare:notice:{source_record_id}",
+            source_timezone="Asia/Shanghai",
+            announced_at=announced_at,
+            available_at=available_at,
+            row_projection_sha256="7" * 64,
+            governed_match_contract_id="akshare.financial-announcement.exact",
+            governed_match_contract_version="v1",
+            governed_match_contract_sha256="6" * 64,
+            matched_row_count=1,
+            availability_basis=FinancialAvailabilityBasis.PROVIDER_NATIVE_EXACT,
+        ),
     )
     return FinancialFact(
         asset_code="000001.SZ",
@@ -92,6 +138,53 @@ def _financial_fact(
         ),
         decision_evidence=decision,
     )
+
+
+def test_financial_bulk_upsert_rejects_unbound_source_time() -> None:
+    """A valid response body cannot authorize caller-supplied source timestamps."""
+
+    fact = _financial_fact(
+        period_end=date(2026, 6, 30),
+        metric_code="revenue",
+        value=100.0,
+        body_sha256="a" * 64,
+        source_record_id="row-unbound-source-time",
+    )
+    assert fact.decision_evidence is not None
+    unbound = replace(
+        fact,
+        decision_evidence=replace(fact.decision_evidence, source_time_witness=None),
+    )
+
+    with pytest.raises(FinancialFactProvenanceConflictError, match="source-time artifact"):
+        _financial_repository().bulk_upsert([unbound])
+
+    assert FinancialFactModel._default_manager.count() == 0
+
+
+def test_financial_bulk_upsert_requires_independent_source_time_verifier() -> None:
+    """A caller-built witness cannot cross the direct repository boundary by itself."""
+
+    fact = _financial_fact(
+        period_end=date(2026, 6, 30),
+        metric_code="revenue",
+        value=100.0,
+        body_sha256="a" * 64,
+        source_record_id="row-caller-asserted-source-time",
+    )
+
+    with pytest.raises(FinancialFactProvenanceConflictError, match="independently verified"):
+        FinancialFactRepository().bulk_upsert([fact])
+
+    assert FinancialFactModel._default_manager.count() == 0
+    verified: list[FinancialFactDecisionEvidence] = []
+
+    def verify(decision: FinancialFactDecisionEvidence) -> bool:
+        verified.append(decision)
+        return True
+
+    assert FinancialFactRepository(source_time_evidence_verifier=verify).bulk_upsert([fact]) == 1
+    assert verified == [fact.decision_evidence]
 
 
 def test_price_bulk_upsert_updates_conflicts_in_one_statement(
@@ -126,7 +219,7 @@ def test_price_bulk_upsert_updates_conflicts_in_one_statement(
 
 
 def test_financial_and_valuation_bulk_upserts_update_natural_keys() -> None:
-    financial_repository = FinancialFactRepository()
+    financial_repository = _financial_repository()
     valuation_repository = ValuationFactRepository()
     financial = _financial_fact(
         period_end=date(2026, 6, 30),
@@ -180,7 +273,7 @@ def test_financial_and_valuation_bulk_upserts_update_natural_keys() -> None:
 
 
 def test_financial_fact_repository_honors_as_of_end_date() -> None:
-    repository = FinancialFactRepository()
+    repository = _financial_repository()
     repository.bulk_upsert(
         [
             _financial_fact(
@@ -212,7 +305,7 @@ def test_financial_fact_repository_honors_as_of_end_date() -> None:
 def test_financial_fact_repository_enforces_exact_knowledge_cutoff() -> None:
     """Historical decisions exclude future and source-time-unknown statements."""
 
-    repository = FinancialFactRepository()
+    repository = _financial_repository()
     repository.bulk_upsert(
         [
             _financial_fact(

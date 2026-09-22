@@ -12,7 +12,10 @@ from django.test.utils import CaptureQueriesContext
 
 from apps.data_center.application.publication_utils import publication_member_from_reference
 from apps.data_center.domain.publication_evidence import validate_publication_evidence
-from apps.data_center.infrastructure.financial_fact_repository import FinancialFactRepository
+from apps.data_center.infrastructure.financial_fact_repository import (
+    FinancialFactProvenanceConflictError,
+    FinancialFactRepository,
+)
 from apps.data_center.infrastructure.models import FinancialFactModel
 from apps.data_center.infrastructure.publication_member_store import (
     add_immutable_publication_member,
@@ -21,7 +24,11 @@ from apps.data_center.infrastructure.publication_member_store import (
 from apps.data_center.infrastructure.publication_policy_repository import (
     PublicationPolicyRepository,
 )
-from tests.component.data_center.test_financial_source_provenance import _activate_policy3
+from tests.component.data_center.test_financial_source_provenance import (
+    _activate_policy3,
+    _decision_projection,
+    _decision_transport_extra,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -32,6 +39,13 @@ BODY = b'{"record_id":"source-1","announced_at":"2026-09-10T08:00:00Z","value":"
 def _stored_row(**changes: object) -> FinancialFactModel:
     """Seed one source record with an independently hashed original test body."""
 
+    available_at = ANNOUNCED + timedelta(minutes=5)
+    decision_evidence = _decision_projection(
+        source_record_id="source-1",
+        announced_at=ANNOUNCED,
+        available_at=available_at,
+        raw_payload_hash=sha256(BODY).hexdigest(),
+    )
     values: dict[str, object] = {
         "asset_code": "000001.SZ",
         "period_end": "2026-06-30",
@@ -42,10 +56,11 @@ def _stored_row(**changes: object) -> FinancialFactModel:
         "source": "provider-main",
         "report_date": ANNOUNCED.date(),
         "announced_at": ANNOUNCED,
-        "available_at": ANNOUNCED + timedelta(minutes=5),
+        "available_at": available_at,
         "source_record_id": "source-1",
         "raw_payload_hash": sha256(BODY).hexdigest(),
-        "extra": {"raw_payload_scope": "record_response_body"},
+        "extra": _decision_transport_extra(decision_evidence),
+        "decision_evidence": decision_evidence,
     }
     values.update(changes)
     return FinancialFactModel.objects.create(**values)
@@ -57,7 +72,9 @@ def test_current_financial_source_survives_persisted_member_replay() -> None:
     _activate_policy3()
     row = _stored_row()
     before = list(FinancialFactModel.objects.values())
-    references = FinancialFactRepository().list_current_publication_candidates((row.asset_code,))
+    references = FinancialFactRepository(
+        source_time_evidence_verifier=lambda _decision: True
+    ).list_current_publication_candidates((row.asset_code,))
     policy = PublicationPolicyRepository().get_active("equity.financial.fact")
     assert policy is not None
     validate_publication_evidence(policy, references, published_at=row.fetched_at)
@@ -96,7 +113,12 @@ def test_current_financial_missing_source_proof_never_mutates_history(
     row = _stored_row(**changes)
     before = list(FinancialFactModel.objects.values())
     with CaptureQueriesContext(connection) as queries:
-        with pytest.raises(ValueError, match="financial source"):
-            FinancialFactRepository().list_current_publication_candidates((row.asset_code,))
+        with pytest.raises(
+            (ValueError, FinancialFactProvenanceConflictError),
+            match="financial (publication )?",
+        ):
+            FinancialFactRepository(
+                source_time_evidence_verifier=lambda _decision: True
+            ).list_current_publication_candidates((row.asset_code,))
     assert list(FinancialFactModel.objects.values()) == before
     assert all(item["sql"].lstrip().upper().startswith("SELECT") for item in queries)

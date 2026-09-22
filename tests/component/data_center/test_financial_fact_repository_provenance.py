@@ -23,6 +23,12 @@ from apps.data_center.domain.financial_source_evidence import (
     FinancialFactDecisionEvidence,
     FinancialFactSourceEvidence,
 )
+from apps.data_center.domain.financial_source_time_evidence import (
+    FINANCIAL_SOURCE_TIME_DATASET_KEY,
+    FinancialAvailabilityBasis,
+    FinancialSourceTimeArtifactRef,
+    FinancialSourceTimeWitness,
+)
 from apps.data_center.infrastructure.financial_decision_evidence_codec import (
     encode_financial_decision_evidence,
 )
@@ -42,6 +48,12 @@ SOURCE_HASH_A = "a" * 64
 SOURCE_HASH_B = "b" * 64
 CAPTURE_ID = UUID("20000000-0000-4000-8000-000000000003")
 _UNSET = object()
+
+
+def _repository() -> FinancialFactRepository:
+    """Build a repository with an independent verifier double for retained fixtures."""
+
+    return FinancialFactRepository(source_time_evidence_verifier=lambda _witness: True)
 
 
 def _evidence(
@@ -82,6 +94,12 @@ def _fact(
             native_row_id=(resolved_source.source_record_id if resolved_source else None)
             or "vendor-record-1",
             native_period_end=period_end,
+            announced_at=(
+                resolved_source.announced_at
+                if resolved_source and resolved_source.announced_at is not None
+                else ANNOUNCED_AT
+            ),
+            available_at=available_at or AVAILABLE_AT,
         )
     else:
         resolved_decision = decision_evidence
@@ -107,13 +125,15 @@ def _decision_evidence(
     body_sha256: str = SOURCE_HASH_A,
     native_row_id: str = "vendor-record-1",
     native_period_end: date = PERIOD_END,
+    announced_at: datetime = ANNOUNCED_AT,
+    available_at: datetime = AVAILABLE_AT,
 ) -> FinancialFactDecisionEvidence:
     """Bind the source row to one retained-response reference projection."""
 
     response = FinancialResponseEvidence(
         body_sha256=body_sha256,
         body_size_bytes=128,
-        response_completed_at=AVAILABLE_AT + timedelta(minutes=1),
+        response_completed_at=available_at + timedelta(minutes=1),
         request_scope=FinancialRequestScope(
             provider_name="provider-main",
             dataset_key="equity.financial.fact",
@@ -140,6 +160,38 @@ def _decision_evidence(
         native_asset_code=ASSET_CODE,
         native_period_end=native_period_end,
         native_row_id=native_row_id,
+        source_time_witness=FinancialSourceTimeWitness(
+            artifact_reference=FinancialSourceTimeArtifactRef(
+                capture_id=UUID("20000000-0000-4000-8000-000000000009"),
+                location="financial-source-time/repository-round-trip.bin",
+                provider_name="provider-main",
+                dataset_key=FINANCIAL_SOURCE_TIME_DATASET_KEY,
+                requested_asset_code=ASSET_CODE,
+                requested_announcement_date=announced_at.date(),
+                body_sha256="c" * 64,
+                body_size_bytes=96,
+                response_completed_at=available_at + timedelta(minutes=1),
+                response_row_count=1,
+                format_version="financial-source-time-artifact.v1",
+                encryption_algorithm="fernet",
+                encryption_key_ref="config_center.data02.test-key",
+                encryption_key_version="v1",
+            ),
+            native_asset_code=ASSET_CODE,
+            native_period_end=native_period_end,
+            financial_native_row_id=native_row_id,
+            financial_announced_date=announced_at.date(),
+            source_native_row_id=f"provider-main:notice:{native_row_id}",
+            source_timezone="UTC",
+            announced_at=announced_at,
+            available_at=available_at,
+            row_projection_sha256="d" * 64,
+            governed_match_contract_id="provider-main.financial-announcement.exact",
+            governed_match_contract_version="v1",
+            governed_match_contract_sha256="e" * 64,
+            matched_row_count=1,
+            availability_basis=FinancialAvailabilityBasis.PROVIDER_NATIVE_EXACT,
+        ),
     )
 
 
@@ -166,14 +218,14 @@ def test_repository_round_trips_existing_source_fields() -> None:
     """Legacy source fields remain readable but cannot bypass the canonical write gate."""
 
     row = _stored_row()
-    fact = FinancialFactRepository().get_latest(ASSET_CODE, FinancialPeriodType.QUARTERLY)
+    fact = _repository().get_latest(ASSET_CODE, FinancialPeriodType.QUARTERLY)
 
     assert fact is not None
     assert fact.source_evidence == _evidence()
     assert fact.available_at == row.available_at
 
     with pytest.raises(FinancialFactProvenanceConflictError, match="decision evidence"):
-        FinancialFactRepository().bulk_upsert([fact])
+        _repository().bulk_upsert([fact])
     row.refresh_from_db()
 
     assert row.announced_at == ANNOUNCED_AT
@@ -195,14 +247,14 @@ def test_repository_round_trips_typed_financial_decision_evidence() -> None:
         },
     )
 
-    assert FinancialFactRepository().bulk_upsert([fact]) == 1
+    assert _repository().bulk_upsert([fact]) == 1
     row = FinancialFactModel.objects.get()
-    loaded = FinancialFactRepository().get_latest(ASSET_CODE, FinancialPeriodType.QUARTERLY)
+    loaded = _repository().get_latest(ASSET_CODE, FinancialPeriodType.QUARTERLY)
 
-    assert row.decision_evidence["schema"] == "financial-fact-decision-evidence.v1"
+    assert row.decision_evidence["schema"] == "financial-fact-decision-evidence.v2"
     assert loaded is not None
     assert loaded.decision_evidence == decision
-    assert FinancialFactRepository().bulk_upsert([loaded]) == 0
+    assert _repository().bulk_upsert([loaded]) == 0
 
 
 def test_canonical_write_rejects_missing_financial_decision_evidence() -> None:
@@ -211,7 +263,7 @@ def test_canonical_write_rejects_missing_financial_decision_evidence() -> None:
     fact = _fact(source_evidence=_evidence(), decision_evidence=None)
 
     with pytest.raises(FinancialFactProvenanceConflictError, match="decision evidence"):
-        FinancialFactRepository().bulk_upsert([fact])
+        _repository().bulk_upsert([fact])
 
     assert FinancialFactModel.objects.count() == 0
 
@@ -222,7 +274,7 @@ def test_current_publication_rejects_legacy_row_without_decision_evidence() -> N
     _stored_row()
 
     with pytest.raises(FinancialFactProvenanceConflictError, match="decision evidence"):
-        FinancialFactRepository().list_current_publication_candidates((ASSET_CODE,))
+        _repository().list_current_publication_candidates((ASSET_CODE,))
 
 
 def test_current_publication_rejects_decision_evidence_bound_to_another_row() -> None:
@@ -239,7 +291,7 @@ def test_current_publication_rejects_decision_evidence_bound_to_another_row() ->
     row.save(update_fields=["decision_evidence", "extra"])
 
     with pytest.raises(FinancialFactProvenanceConflictError, match="does not match"):
-        FinancialFactRepository().list_current_publication_candidates((ASSET_CODE,))
+        _repository().list_current_publication_candidates((ASSET_CODE,))
 
 
 def test_missing_decision_witness_blocks_entire_batch_before_any_dml() -> None:
@@ -256,7 +308,7 @@ def test_missing_decision_witness_blocks_entire_batch_before_any_dml() -> None:
     )
 
     with pytest.raises(FinancialFactProvenanceConflictError, match="decision evidence"):
-        FinancialFactRepository().bulk_upsert([replacement_candidate, new_candidate])
+        _repository().bulk_upsert([replacement_candidate, new_candidate])
 
     assert list(FinancialFactModel.objects.values()) == before
     assert FinancialFactModel.objects.count() == 1
@@ -272,7 +324,7 @@ def test_same_raw_hash_cannot_prove_changed_normalized_value() -> None:
     changed_with_same_body = _fact(value=999.0, source_evidence=_evidence())
 
     with pytest.raises(FinancialFactProvenanceConflictError, match="raw payload"):
-        FinancialFactRepository().bulk_upsert([changed_with_same_body])
+        _repository().bulk_upsert([changed_with_same_body])
 
     assert FinancialFactModel.objects.get().value == Decimal("123.4500")
 
@@ -293,7 +345,7 @@ def test_complete_source_replacement_updates_fact_and_source_fields_atomically()
         ),
     )
 
-    assert FinancialFactRepository().bulk_upsert([replacement]) == 1
+    assert _repository().bulk_upsert([replacement]) == 1
     row.refresh_from_db()
 
     assert row.value == Decimal("999.0000")
@@ -314,7 +366,7 @@ def test_partial_replacement_evidence_is_blocked_without_clearing_old_fields() -
     )
 
     with pytest.raises(FinancialFactProvenanceConflictError, match="complete"):
-        FinancialFactRepository().bulk_upsert([partial])
+        _repository().bulk_upsert([partial])
 
     row.refresh_from_db()
     assert row.value == Decimal("123.4500")
@@ -342,7 +394,7 @@ def test_existing_batch_locks_and_updates_with_bounded_query_count() -> None:
     facts = [_fact(metric_code=metric_code, value=124.45) for metric_code in metric_codes]
 
     with CaptureQueriesContext(connection) as queries:
-        assert FinancialFactRepository().bulk_upsert(facts) == len(facts)
+        assert _repository().bulk_upsert(facts) == len(facts)
 
     select_queries = [
         query["sql"] for query in queries if query["sql"].lstrip().upper().startswith("SELECT")
@@ -361,7 +413,7 @@ def test_decimalfield_storage_normalization_allows_precise_first_insert_and_repl
     """A Domain value beyond model scale can be inserted and replayed safely."""
 
     fact = _fact(metric_code="precise", value=12.34567)
-    repository = FinancialFactRepository()
+    repository = _repository()
     oracle = FinancialFactModel.objects.create(
         asset_code=ASSET_CODE,
         period_end=PERIOD_END,
@@ -407,7 +459,7 @@ def test_decimalfield_float_ties_follow_model_conversion_on_insert_and_replay(
 
     metric_code = f"tie_{str(value).replace('.', '_')}"
     fact = _fact(metric_code=metric_code, value=value)
-    repository = FinancialFactRepository()
+    repository = _repository()
     oracle = FinancialFactModel.objects.create(
         asset_code=ASSET_CODE,
         period_end=PERIOD_END,
@@ -471,7 +523,7 @@ def test_mixed_batch_counts_only_changed_rows_and_preserves_noop_row() -> None:
     unchanged_fetched_at = unchanged.fetched_at
     changed_fetched_at = changed.fetched_at
 
-    count = FinancialFactRepository().bulk_upsert(
+    count = _repository().bulk_upsert(
         [
             _fact(metric_code="unchanged", value=123.45),
             _fact(

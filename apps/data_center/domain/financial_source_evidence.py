@@ -13,6 +13,7 @@ from datetime import date, datetime
 
 from apps.data_center.domain.financial_response_artifact import FinancialResponseArtifactRef
 from apps.data_center.domain.financial_response_evidence import FinancialResponseScopeBasis
+from apps.data_center.domain.financial_source_time_evidence import FinancialSourceTimeWitness
 
 FINANCIAL_FACT_DATASET_KEY = "equity.financial.fact"
 
@@ -83,6 +84,7 @@ class FinancialFactDecisionEvidence:
     native_asset_code: str
     native_period_end: date
     native_row_id: str
+    source_time_witness: FinancialSourceTimeWitness | None = None
 
     def __post_init__(self) -> None:
         """Require body-verified response scope and exact native row dimensions."""
@@ -113,12 +115,24 @@ class FinancialFactDecisionEvidence:
             raise ValueError("financial decision evidence response contains no rows")
         if self.native_period_end not in response_scope.period_ends:
             raise ValueError("financial decision evidence period is outside response scope")
+        witness = self.source_time_witness
+        if witness is not None:
+            if not isinstance(witness, FinancialSourceTimeWitness):
+                raise ValueError("financial source-time witness must be typed")
+            if (
+                witness.native_asset_code != self.native_asset_code
+                or witness.native_period_end != self.native_period_end
+                or witness.financial_native_row_id != self.native_row_id
+                or witness.artifact_reference.provider_name
+                != self.artifact_reference.evidence.request_scope.provider_name
+            ):
+                raise ValueError("financial source-time witness dimensions do not match")
 
     def to_dict(self) -> dict[str, object]:
         """Return the bounded binding without storage location or key metadata."""
 
         evidence = self.artifact_reference.evidence
-        return {
+        payload: dict[str, object] = {
             "capture_id": str(self.artifact_reference.capture_id),
             "body_sha256": evidence.body_sha256,
             "body_scope": evidence.body_scope.value,
@@ -127,6 +141,9 @@ class FinancialFactDecisionEvidence:
             "native_period_end": self.native_period_end.isoformat(),
             "native_row_id": self.native_row_id,
         }
+        if self.source_time_witness is not None:
+            payload["source_time_witness"] = self.source_time_witness.to_dict()
+        return payload
 
 
 def _is_sha256(value: str) -> bool:

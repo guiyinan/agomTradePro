@@ -27,6 +27,12 @@ from apps.data_center.domain.financial_source_evidence import (
     FinancialFactDecisionEvidence,
     FinancialFactSourceEvidence,
 )
+from apps.data_center.domain.financial_source_time_evidence import (
+    FINANCIAL_SOURCE_TIME_DATASET_KEY,
+    FinancialAvailabilityBasis,
+    FinancialSourceTimeArtifactRef,
+    FinancialSourceTimeWitness,
+)
 from apps.data_center.infrastructure.financial_fact_repository import (
     FinancialFactProvenanceConflictError,
     FinancialFactRepository,
@@ -41,6 +47,12 @@ _PERIOD_END = date(2026, 6, 30)
 _ANNOUNCED_AT = datetime(2026, 9, 14, 8, 0, tzinfo=UTC)
 _AVAILABLE_AT = _ANNOUNCED_AT + timedelta(minutes=5)
 _SOURCE_HASH = "a" * 64
+
+
+def _repository() -> FinancialFactRepository:
+    """Build a repository with an independent verifier double for retained fixtures."""
+
+    return FinancialFactRepository(source_time_evidence_verifier=lambda _witness: True)
 
 
 def _credentials() -> dict[str, object]:
@@ -197,6 +209,38 @@ def _fact(
             native_asset_code=_ASSET_CODE,
             native_period_end=_PERIOD_END,
             native_row_id=evidence.source_record_id or "pg-vendor-record-1",
+            source_time_witness=FinancialSourceTimeWitness(
+                artifact_reference=FinancialSourceTimeArtifactRef(
+                    capture_id=UUID("50000000-0000-4000-8000-000000000002"),
+                    location="financial-source-time/postgres-provenance.bin",
+                    provider_name="provider-main",
+                    dataset_key=FINANCIAL_SOURCE_TIME_DATASET_KEY,
+                    requested_asset_code=_ASSET_CODE,
+                    requested_announcement_date=_ANNOUNCED_AT.date(),
+                    body_sha256="b" * 64,
+                    body_size_bytes=96,
+                    response_completed_at=_AVAILABLE_AT + timedelta(minutes=1),
+                    response_row_count=1,
+                    format_version="financial-source-time-artifact.v1",
+                    encryption_algorithm="fernet",
+                    encryption_key_ref="config_center.data02.test-key",
+                    encryption_key_version="v1",
+                ),
+                native_asset_code=_ASSET_CODE,
+                native_period_end=_PERIOD_END,
+                financial_native_row_id=evidence.source_record_id or "pg-vendor-record-1",
+                financial_announced_date=_ANNOUNCED_AT.date(),
+                source_native_row_id="provider-main:notice:pg-vendor-record-1",
+                source_timezone="UTC",
+                announced_at=_ANNOUNCED_AT,
+                available_at=_AVAILABLE_AT,
+                row_projection_sha256="c" * 64,
+                governed_match_contract_id="provider-main.financial-announcement.exact",
+                governed_match_contract_version="v1",
+                governed_match_contract_sha256="d" * 64,
+                matched_row_count=1,
+                availability_basis=FinancialAvailabilityBasis.PROVIDER_NATIVE_EXACT,
+            ),
         )
     return FinancialFact(
         asset_code=_ASSET_CODE,
@@ -236,7 +280,7 @@ def test_financial_repository_round_trip_and_replay_count_on_postgresql() -> Non
 
     oracle = _direct_model_row(metric_code="pg_oracle", value=12.34525)
     fact = _fact(metric_code="pg_repository", value=12.34525, evidence=_evidence())
-    repository = FinancialFactRepository()
+    repository = _repository()
 
     assert repository.bulk_upsert([fact]) == 1
     row = FinancialFactModel.objects.get(metric_code="pg_repository")
@@ -267,7 +311,7 @@ def test_repository_float_ties_match_direct_postgresql_writer(value: float) -> N
 
     oracle = _direct_model_row(metric_code="pg_tie_oracle", value=value)
     fact = _fact(metric_code="pg_tie_repository", value=value, evidence=_evidence())
-    repository = FinancialFactRepository()
+    repository = _repository()
 
     assert repository.bulk_upsert([fact]) == 1
     row = FinancialFactModel.objects.get(metric_code="pg_tie_repository")
@@ -295,7 +339,7 @@ def test_financial_repository_stale_witness_rolls_back_postgresql_batch() -> Non
     new_fact = _fact(metric_code="pg_new", value=1.0, evidence=_evidence())
 
     with pytest.raises(FinancialFactProvenanceConflictError, match="raw payload"):
-        FinancialFactRepository().bulk_upsert([replacement, new_fact])
+        _repository().bulk_upsert([replacement, new_fact])
 
     protected.refresh_from_db()
     assert protected.value == Decimal("100.0000")

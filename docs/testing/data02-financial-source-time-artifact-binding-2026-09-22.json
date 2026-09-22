@@ -1,0 +1,99 @@
+{
+  "schema_version": "data02-financial-source-time-artifact-binding.v1",
+  "recorded_at_utc": "2026-09-22T12:14:51.144341Z",
+  "repository_branch": "dev/next-development",
+  "base_commit": "05d1cebd002da2176c8c54ecd8a847f60ef3a804",
+  "closure_unit": "DATA-02",
+  "registry_transition": {
+    "from_version": "2026-09-22.v166",
+    "to_version": "2026-09-22.v167",
+    "status_before": "awaiting_production",
+    "status_after": "awaiting_production"
+  },
+  "finding": {
+    "severity_before_fix": "P1",
+    "summary": "A retained fina_indicator body did not prove caller-supplied intraday announced_at or available_at values.",
+    "tdd_red": "tests/unit/data_center/test_financial_source_evidence_probe.py::test_source_evidence_probe_rejects_unbound_source_time: 1 failed, 14 passed",
+    "luna_max_review_before_fix": {
+      "p0": 0,
+      "p1": 1,
+      "key_observation": "The verifier received only an artifact reference and could not recompute an exact unique source-row relationship. Tushare anns_d is a separate dataset and exposes no documented financial-period link."
+    },
+    "luna_max_final_review_before_publication_recheck": {
+      "p0": 0,
+      "p1": 1,
+      "key_observation": "The typed boundary remained declarative: Publication did not independently re-run a verifier, and no concrete retained-body/source-time repository verifier was wired."
+    },
+    "luna_max_final_review_after_publication_recheck": {
+      "p0": 0,
+      "p1": 1,
+      "submission_decision": "contract-boundary slice may be committed",
+      "key_observation": "Canonical writes plus ordinary/current Publication now default-deny and pass the complete decision evidence to the verifier. The remaining P1 is the missing concrete two-artifact/audit verifier and production composition wiring; a callback test double is not production proof."
+    }
+  },
+  "implemented_contract": {
+    "decision_evidence_schema": "financial-fact-decision-evidence.v2",
+    "legacy_readability": "v1 decodes but is ineligible for current Publication",
+    "required_source_time_fields": [
+      "independent retained artifact reference",
+      "financial announcement date",
+      "financial native row id",
+      "source native row id",
+      "canonical row projection SHA-256",
+      "governed match-contract id/version/SHA-256",
+      "matched_row_count=1",
+      "provider_native_exact availability basis"
+    ],
+    "application_gate": "The verifier receives complete decision evidence and must recompute the unique row match from both retained financial and source-time bodies plus audit evidence.",
+    "repository_gate": "Canonical bulk_upsert denies writes unless an independent source-time evidence verifier is injected and returns true.",
+    "publication_gate": "Persisted source-time witness, row clocks, dimensions and transport/contract metadata must match exactly; candidate selection also requires the independent verifier to recheck the complete decision evidence.",
+    "current_runtime": "No production source-time verifier is wired and current adapters construct no positive witness; the path remains fail-closed."
+  },
+  "provider_contract_status": {
+    "tushare_fina_indicator": "Official fields include date-only ann_date and end_date; they do not provide an intraday availability timestamp.",
+    "tushare_anns_d": "Official fields include ann_date and optional rec_time, but the API is separate and exposes no documented end_date relationship to a fina_indicator row.",
+    "automatic_join_allowed": false,
+    "prohibited_inferences": [
+      "join only on ts_code plus ann_date",
+      "select earliest or latest announcement",
+      "synthesize midnight from a date",
+      "use response completion as provider-native available_at"
+    ],
+    "official_sources": [
+      "https://tushare.pro/document/2?doc_id=79",
+      "https://tushare.pro/document/2?doc_id=176"
+    ]
+  },
+  "verification": {
+    "focused_unit": "57 passed",
+    "focused_component": "36 passed",
+    "postgres_opt_in": "8 skipped because AGOM_EVID06_POSTGRES_TEST was not enabled",
+    "new_domain_coverage": "105/105 statements, 44/44 branches, 100.0%",
+    "incremental_mypy": "0 regressions across 6 changed production Python files",
+    "full_mypy_debt": "0 errors in 0 files",
+    "ruff": "passed",
+    "black_isort": "passed",
+    "current_data_contracts": "65 surfaces, passed after adding independent Publication re-verification marker/test",
+    "active_plan_registry": "version 2026-09-22.v167, 54 units, 0 violations",
+    "governance_consistency": "0 violations",
+    "architecture": "3222 files, 7 rules, 0 violations",
+    "postgres_tests_implemented": true,
+    "focused_combined": "93 passed in 250.94s"
+  },
+  "production_effects": {
+    "provider_calls": 0,
+    "vps_access": 0,
+    "database_writes": 0,
+    "deployments": 0,
+    "publication_switches": 0,
+    "authority_or_tolerance_changes": 0
+  },
+  "remaining_recovery_conditions": [
+    "Approve a provider-specific immutable source-time match contract with exact field mapping, uniqueness, timezone and availability semantics.",
+    "Retain and audit the independent provider body and implement the concrete verifier that recomputes financial row identity, source-time row projection hash and exact-one cardinality from both bodies.",
+    "Wire the same verifier into Application and canonical repository composition.",
+    "Obtain current production authority, owner-approved tolerance policies and explicit production-write authorization.",
+    "Run the controlled backfill and reconcile all four current Publications against the frozen 5,565-asset universe."
+  ],
+  "decision": "contract_boundary_closed_concrete_verifier_pending_p1"
+}

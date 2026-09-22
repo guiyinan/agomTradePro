@@ -23,6 +23,7 @@ from apps.data_center.domain.entities import (
     RawAudit,
 )
 from apps.data_center.domain.financial_response_artifact import FinancialResponseArtifactRef
+from apps.data_center.domain.financial_source_evidence import FinancialFactDecisionEvidence
 from apps.data_center.domain.protocols import (
     FinancialFactRepositoryProtocol,
     FundNavRepositoryProtocol,
@@ -70,6 +71,17 @@ class FinancialResponseArtifactVerifier(Protocol):
         reference: FinancialResponseArtifactRef,
     ) -> bool:
         """Return whether the exact encrypted body and matching audit link exist."""
+
+
+class FinancialSourceTimeArtifactVerifier(Protocol):
+    """Read-only port proving that an independent source-time artifact is retained."""
+
+    def __call__(
+        self,
+        provider: ProviderConfig,
+        evidence: FinancialFactDecisionEvidence,
+    ) -> bool:
+        """Recompute the exact unique row match from retained bodies and its contract."""
 
 
 RECOVERABLE_DATA_CENTER_EXCEPTIONS = (
@@ -438,6 +450,7 @@ def _financial_source_probe_result(
     requested_asset_code: str,
     facts: list[FinancialFact],
     artifact_verifier: FinancialResponseArtifactVerifier | None,
+    source_time_artifact_verifier: FinancialSourceTimeArtifactVerifier | None,
 ) -> FinancialSourceEvidenceProbeResult:
     """Classify a fetched batch without exposing values or inferring source evidence."""
 
@@ -458,6 +471,7 @@ def _financial_source_probe_result(
             provider_name=provider_name,
             requested_periods=requested_periods,
             artifact_verifier=artifact_verifier,
+            source_time_artifact_verifier=source_time_artifact_verifier,
         )
         natural_key = (
             fact.asset_code,
@@ -489,6 +503,7 @@ def _financial_fact_source_block_reasons(
     provider_name: str,
     requested_periods: int,
     artifact_verifier: FinancialResponseArtifactVerifier | None,
+    source_time_artifact_verifier: FinancialSourceTimeArtifactVerifier | None,
 ) -> set[str]:
     """Return bounded fail-closed reasons for one provider financial fact."""
 
@@ -527,6 +542,24 @@ def _financial_fact_source_block_reasons(
             reasons.add("financial_native_asset_identity_mismatch")
         if decision_evidence.native_period_end != fact.period_end:
             reasons.add("financial_native_period_identity_mismatch")
+        source_time_witness = decision_evidence.source_time_witness
+        if evidence is not None and evidence.announced_at is not None and available_at is not None:
+            if source_time_witness is None:
+                reasons.add("financial_source_time_artifact_missing")
+            else:
+                if source_time_artifact_verifier is None or not source_time_artifact_verifier(
+                    provider, decision_evidence
+                ):
+                    reasons.add("financial_source_time_artifact_not_retained")
+                if (
+                    source_time_witness.announced_at != evidence.announced_at
+                    or source_time_witness.available_at != available_at
+                    or source_time_witness.native_asset_code != fact.asset_code
+                    or source_time_witness.native_period_end != fact.period_end
+                    or source_time_witness.financial_native_row_id
+                    != decision_evidence.native_row_id
+                ):
+                    reasons.add("financial_source_time_witness_mismatch")
         if (
             evidence is not None
             and evidence.announced_at is not None
@@ -546,6 +579,10 @@ def _with_verified_financial_transport_metadata(fact: FinancialFact) -> Financia
     if decision_evidence is None:
         raise ValueError("verified financial decision evidence is required")
     artifact = decision_evidence.artifact_reference
+    source_time = decision_evidence.source_time_witness
+    if source_time is None:
+        raise ValueError("verified financial source-time witness is required")
+    source_time_artifact = source_time.artifact_reference
     return dataclasses.replace(
         fact,
         extra={
@@ -553,6 +590,17 @@ def _with_verified_financial_transport_metadata(fact: FinancialFact) -> Financia
             "financial_response_capture_id": str(artifact.capture_id),
             "raw_payload_scope": artifact.evidence.body_scope.value,
             "response_scope_basis": artifact.evidence.response_scope_basis.value,
+            "financial_source_time_capture_id": str(source_time_artifact.capture_id),
+            "financial_source_time_body_sha256": source_time_artifact.body_sha256,
+            "financial_source_time_row_sha256": source_time.row_projection_sha256,
+            "financial_source_time_match_contract_id": source_time.governed_match_contract_id,
+            "financial_source_time_match_contract_version": (
+                source_time.governed_match_contract_version
+            ),
+            "financial_source_time_match_contract_sha256": (
+                source_time.governed_match_contract_sha256
+            ),
+            "financial_source_time_matched_row_count": source_time.matched_row_count,
         },
     )
 
@@ -566,11 +614,13 @@ class SyncFinancialUseCase(_BaseSyncUseCase):
         raw_audit_repo: RawAuditRepositoryProtocol,
         publication_publisher: PublishFinancialBatchUseCase | None = None,
         artifact_verifier: FinancialResponseArtifactVerifier | None = None,
+        source_time_artifact_verifier: FinancialSourceTimeArtifactVerifier | None = None,
     ) -> None:
         super().__init__(provider_repo, provider_registry, raw_audit_repo)
         self._facts = fact_repo
         self._publication_publisher = publication_publisher
         self._artifact_verifier = artifact_verifier
+        self._source_time_artifact_verifier = source_time_artifact_verifier
 
     def probe_source_evidence(
         self,
@@ -591,6 +641,7 @@ class SyncFinancialUseCase(_BaseSyncUseCase):
             requested_asset_code=request.asset_code,
             facts=facts,
             artifact_verifier=self._artifact_verifier,
+            source_time_artifact_verifier=self._source_time_artifact_verifier,
         )
 
     def prepare_for_write(self, request: SyncFinancialRequest) -> PreparedFinancialSync:
@@ -642,6 +693,7 @@ class SyncFinancialUseCase(_BaseSyncUseCase):
                 requested_asset_code=prepared.request.asset_code,
                 facts=facts,
                 artifact_verifier=self._artifact_verifier,
+                source_time_artifact_verifier=self._source_time_artifact_verifier,
             )
             if probe != prepared.probe or not probe.decision_ready:
                 raise InvalidInputError(
@@ -693,6 +745,7 @@ class SyncFinancialUseCase(_BaseSyncUseCase):
             requested_asset_code=request.asset_code,
             facts=facts,
             artifact_verifier=self._artifact_verifier,
+            source_time_artifact_verifier=self._source_time_artifact_verifier,
         )
         if not probe.decision_ready:
             raise InvalidInputError(

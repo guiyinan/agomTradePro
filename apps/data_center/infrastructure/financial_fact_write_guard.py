@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal, localcontext
 from typing import TypeAlias
@@ -11,7 +11,10 @@ from django.db import IntegrityError, connection, transaction
 from django.db.models import Q
 
 from apps.data_center.domain.entities import FinancialFact
-from apps.data_center.domain.financial_source_evidence import FinancialFactSourceEvidence
+from apps.data_center.domain.financial_source_evidence import (
+    FinancialFactDecisionEvidence,
+    FinancialFactSourceEvidence,
+)
 from apps.data_center.infrastructure.financial_decision_evidence_codec import (
     encode_financial_decision_evidence,
 )
@@ -19,8 +22,20 @@ from apps.data_center.infrastructure.models import FinancialFactModel
 from core.exceptions import DataValidationError
 
 FinancialFactNaturalKey: TypeAlias = tuple[str, date, str, str, str]
+FinancialSourceTimeEvidenceVerifier: TypeAlias = Callable[[FinancialFactDecisionEvidence], bool]
 _VERIFIED_TRANSPORT_EXTRA_KEYS = frozenset(
-    {"financial_response_capture_id", "raw_payload_scope", "response_scope_basis"}
+    {
+        "financial_response_capture_id",
+        "raw_payload_scope",
+        "response_scope_basis",
+        "financial_source_time_capture_id",
+        "financial_source_time_body_sha256",
+        "financial_source_time_row_sha256",
+        "financial_source_time_match_contract_id",
+        "financial_source_time_match_contract_version",
+        "financial_source_time_match_contract_sha256",
+        "financial_source_time_matched_row_count",
+    }
 )
 
 
@@ -31,7 +46,11 @@ class FinancialFactProvenanceConflictError(DataValidationError):
     default_code = "FINANCIAL_FACT_PROVENANCE_CONFLICT"
 
 
-def bulk_upsert_financial_facts(facts: list[FinancialFact]) -> int:
+def bulk_upsert_financial_facts(
+    facts: list[FinancialFact],
+    *,
+    source_time_evidence_verifier: FinancialSourceTimeEvidenceVerifier | None = None,
+) -> int:
     """Return actual inserts/updates, preserving unchanged rows and source proof."""
 
     if not facts:
@@ -39,6 +58,16 @@ def bulk_upsert_financial_facts(facts: list[FinancialFact]) -> int:
     _reject_duplicate_natural_keys(facts)
     for fact in facts:
         _validate_fact_decision_evidence(fact)
+        decision = fact.decision_evidence
+        if (
+            decision is None
+            or decision.source_time_witness is None
+            or source_time_evidence_verifier is None
+            or not source_time_evidence_verifier(decision)
+        ):
+            raise FinancialFactProvenanceConflictError(
+                "financial source-time witness must be independently verified before write"
+            )
     with transaction.atomic():
         locked_before = _lock_rows_by_natural_key(facts)
         for fact in facts:
@@ -299,6 +328,21 @@ def _validate_fact_decision_evidence(fact: FinancialFact) -> None:
         raise FinancialFactProvenanceConflictError(
             "financial decision evidence dimensions differ from the fact"
         )
+    witness = decision.source_time_witness
+    if witness is None:
+        raise FinancialFactProvenanceConflictError(
+            "financial source-time artifact evidence is required for canonical writes"
+        )
+    if (
+        witness.announced_at != source.announced_at
+        or witness.available_at != fact.available_at
+        or witness.native_asset_code != fact.asset_code
+        or witness.native_period_end != fact.period_end
+        or witness.financial_native_row_id != decision.native_row_id
+    ):
+        raise FinancialFactProvenanceConflictError(
+            "financial source-time witness differs from the fact"
+        )
 
 
 def _normalized_fields_match(fact: FinancialFact, row: FinancialFactModel) -> bool:
@@ -482,10 +526,23 @@ def _is_transport_metadata_upgrade(fact: FinancialFact, row: FinancialFactModel)
         return False
     decision = fact.decision_evidence
     artifact = decision.artifact_reference
+    source_time = decision.source_time_witness
+    if source_time is None:
+        return False
+    source_time_artifact = source_time.artifact_reference
     expected = {
         "financial_response_capture_id": str(artifact.capture_id),
         "raw_payload_scope": artifact.evidence.body_scope.value,
         "response_scope_basis": artifact.evidence.response_scope_basis.value,
+        "financial_source_time_capture_id": str(source_time_artifact.capture_id),
+        "financial_source_time_body_sha256": source_time_artifact.body_sha256,
+        "financial_source_time_row_sha256": source_time.row_projection_sha256,
+        "financial_source_time_match_contract_id": source_time.governed_match_contract_id,
+        "financial_source_time_match_contract_version": (
+            source_time.governed_match_contract_version
+        ),
+        "financial_source_time_match_contract_sha256": source_time.governed_match_contract_sha256,
+        "financial_source_time_matched_row_count": source_time.matched_row_count,
     }
     return all(fact.extra.get(key) == value for key, value in expected.items())
 
@@ -537,6 +594,7 @@ def _update_existing_row(fact: FinancialFact, row: FinancialFactModel) -> bool:
 
 __all__ = [
     "FinancialFactProvenanceConflictError",
+    "FinancialSourceTimeEvidenceVerifier",
     "bulk_upsert_financial_facts",
     "source_evidence_from_model",
 ]

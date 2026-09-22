@@ -25,6 +25,12 @@ from apps.data_center.domain.financial_source_evidence import (
     FinancialFactDecisionEvidence,
     FinancialFactSourceEvidence,
 )
+from apps.data_center.domain.financial_source_time_evidence import (
+    FINANCIAL_SOURCE_TIME_DATASET_KEY,
+    FinancialAvailabilityBasis,
+    FinancialSourceTimeArtifactRef,
+    FinancialSourceTimeWitness,
+)
 from core.exceptions import InvalidInputError
 
 ANNOUNCED_AT = datetime(2026, 8, 28, 8, 0, tzinfo=UTC)
@@ -33,10 +39,51 @@ COMPLETED_AT = datetime(2026, 8, 28, 8, 1, 30, tzinfo=UTC)
 FETCHED_AT = datetime(2026, 8, 28, 8, 2, tzinfo=UTC)
 RAW_HASH = "a" * 64
 CAPTURE_ID = UUID("20000000-0000-4000-8000-000000000001")
+SOURCE_TIME_CAPTURE_ID = UUID("20000000-0000-4000-8000-000000000002")
+SOURCE_TIME_BODY_HASH = "b" * 64
+SOURCE_TIME_ROW_HASH = "c" * 64
 SOURCE_RECORD_ID = "tushare:fina_indicator:000001.SZ:20260630:roe"
+SOURCE_TIME_RECORD_ID = "tushare:anns_d:000001.SZ:20260828:announcement-1"
 
 
-def _decision_evidence() -> FinancialFactDecisionEvidence:
+def _source_time_witness() -> FinancialSourceTimeWitness:
+    """Build an independently retained, conservatively timed source witness."""
+
+    return FinancialSourceTimeWitness(
+        artifact_reference=FinancialSourceTimeArtifactRef(
+            capture_id=SOURCE_TIME_CAPTURE_ID,
+            location="financial-source-time/20000000-0000-4000-8000-000000000002.bin",
+            provider_name="provider-main",
+            dataset_key=FINANCIAL_SOURCE_TIME_DATASET_KEY,
+            requested_asset_code="000001.SZ",
+            requested_announcement_date=date(2026, 8, 28),
+            body_sha256=SOURCE_TIME_BODY_HASH,
+            body_size_bytes=96,
+            response_completed_at=AVAILABLE_AT,
+            response_row_count=1,
+            format_version="financial-source-time-artifact.v1",
+            encryption_algorithm="fernet",
+            encryption_key_ref="config_center.data02.test-key",
+            encryption_key_version="v1",
+        ),
+        native_asset_code="000001.SZ",
+        native_period_end=date(2026, 6, 30),
+        financial_native_row_id=SOURCE_RECORD_ID,
+        financial_announced_date=date(2026, 8, 28),
+        source_native_row_id=SOURCE_TIME_RECORD_ID,
+        source_timezone="Asia/Shanghai",
+        announced_at=ANNOUNCED_AT,
+        available_at=AVAILABLE_AT,
+        row_projection_sha256=SOURCE_TIME_ROW_HASH,
+        governed_match_contract_id="tushare.financial-announcement.exact",
+        governed_match_contract_version="v1",
+        governed_match_contract_sha256="d" * 64,
+        matched_row_count=1,
+        availability_basis=FinancialAvailabilityBasis.PROVIDER_NATIVE_EXACT,
+    )
+
+
+def _decision_evidence(*, bind_source_time: bool = True) -> FinancialFactDecisionEvidence:
     """Build one typed retained-artifact and native-row binding."""
 
     response_evidence = FinancialResponseEvidence(
@@ -70,10 +117,11 @@ def _decision_evidence() -> FinancialFactDecisionEvidence:
         native_asset_code="000001.SZ",
         native_period_end=date(2026, 6, 30),
         native_row_id=SOURCE_RECORD_ID,
+        source_time_witness=_source_time_witness() if bind_source_time else None,
     )
 
 
-def _fact(*, complete: bool) -> FinancialFact:
+def _fact(*, complete: bool, bind_source_time: bool = True) -> FinancialFact:
     """Build one source-complete or deliberately incomplete provider fact."""
 
     return FinancialFact(
@@ -97,7 +145,9 @@ def _fact(*, complete: bool) -> FinancialFact:
             if complete
             else None
         ),
-        decision_evidence=_decision_evidence() if complete else None,
+        decision_evidence=(
+            _decision_evidence(bind_source_time=bind_source_time) if complete else None
+        ),
     )
 
 
@@ -201,6 +251,7 @@ def _use_case(
     provider: _Provider,
     *,
     artifact_retained: bool = True,
+    source_time_artifact_retained: bool = True,
 ) -> tuple[SyncFinancialUseCase, _Facts, _RawAudit, _Publisher]:
     facts = _Facts()
     audit = _RawAudit()
@@ -213,6 +264,9 @@ def _use_case(
             raw_audit_repo=audit,
             publication_publisher=publisher,
             artifact_verifier=lambda _provider, _reference: artifact_retained,
+            source_time_artifact_verifier=(
+                lambda _provider, _reference: source_time_artifact_retained
+            ),
         ),
         facts,
         audit,
@@ -290,6 +344,13 @@ def test_strict_financial_sync_persists_only_complete_bound_evidence() -> None:
     assert len(facts.calls) == 1
     assert facts.calls[0][0].extra == {
         "financial_response_capture_id": str(CAPTURE_ID),
+        "financial_source_time_body_sha256": SOURCE_TIME_BODY_HASH,
+        "financial_source_time_capture_id": str(SOURCE_TIME_CAPTURE_ID),
+        "financial_source_time_match_contract_id": "tushare.financial-announcement.exact",
+        "financial_source_time_match_contract_sha256": "d" * 64,
+        "financial_source_time_match_contract_version": "v1",
+        "financial_source_time_matched_row_count": 1,
+        "financial_source_time_row_sha256": SOURCE_TIME_ROW_HASH,
         "provider_name": "provider-main",
         "raw_payload_scope": "batch_response_body",
         "response_scope_basis": "provider_body_verified",
@@ -332,6 +393,43 @@ def test_source_evidence_probe_requires_a_retained_audited_artifact() -> None:
     assert audit.items == []
 
 
+def test_source_evidence_probe_rejects_unbound_source_time() -> None:
+    """A retained financial body cannot prove a timestamp absent from that body."""
+
+    use_case, facts, audit, publisher = _use_case(
+        _Provider([_fact(complete=True, bind_source_time=False)])
+    )
+
+    result = use_case.probe_source_evidence(
+        SyncFinancialRequest(provider_id=1, asset_code="000001.SZ", periods=1)
+    )
+
+    assert result.decision_ready is False
+    assert result.block_reasons == ("financial_source_time_artifact_missing",)
+    assert facts.calls == []
+    assert publisher.calls == []
+    assert audit.items == []
+
+
+def test_source_evidence_probe_requires_retained_source_time_artifact() -> None:
+    """A typed source-time claim cannot replace the independently retained body."""
+
+    use_case, facts, audit, publisher = _use_case(
+        _Provider([_fact(complete=True)]),
+        source_time_artifact_retained=False,
+    )
+
+    result = use_case.probe_source_evidence(
+        SyncFinancialRequest(provider_id=1, asset_code="000001.SZ", periods=1)
+    )
+
+    assert result.decision_ready is False
+    assert result.block_reasons == ("financial_source_time_artifact_not_retained",)
+    assert facts.calls == []
+    assert publisher.calls == []
+    assert audit.items == []
+
+
 @pytest.mark.parametrize(
     ("request_scope", "reason"),
     [
@@ -363,12 +461,21 @@ def test_source_evidence_probe_binds_provider_and_period_request_scope(
 
     decision = _decision_evidence()
     artifact = decision.artifact_reference
+    assert decision.source_time_witness is not None
+    source_time_witness = replace(
+        decision.source_time_witness,
+        artifact_reference=replace(
+            decision.source_time_witness.artifact_reference,
+            provider_name=request_scope.provider_name,
+        ),
+    )
     mismatched = replace(
         decision,
         artifact_reference=replace(
             artifact,
             evidence=replace(artifact.evidence, request_scope=request_scope),
         ),
+        source_time_witness=source_time_witness,
     )
     use_case, _facts, _audit, _publisher = _use_case(
         _Provider([replace(_fact(complete=True), decision_evidence=mismatched)])

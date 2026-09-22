@@ -24,10 +24,19 @@ from apps.data_center.domain.financial_source_evidence import (
     FinancialFactDecisionEvidence,
     FinancialFactSourceEvidence,
 )
+from apps.data_center.domain.financial_source_time_evidence import (
+    FINANCIAL_SOURCE_TIME_DATASET_KEY,
+    FinancialAvailabilityBasis,
+    FinancialSourceTimeArtifactRef,
+    FinancialSourceTimeWitness,
+)
 from apps.data_center.infrastructure.financial_decision_evidence_codec import (
     encode_financial_decision_evidence,
 )
-from apps.data_center.infrastructure.fundamental_fact_repositories import FinancialFactRepository
+from apps.data_center.infrastructure.financial_fact_repository import FinancialFactRepository
+from apps.data_center.infrastructure.financial_fact_write_guard import (
+    FinancialFactProvenanceConflictError,
+)
 from apps.data_center.infrastructure.models import FinancialFactModel
 
 PUBLISHED_AT = datetime(2026, 8, 4, 12, 0, tzinfo=UTC)
@@ -122,10 +131,43 @@ def _source_ready_fact(
         ),
         response_scope_basis=FinancialResponseScopeBasis.PROVIDER_BODY_VERIFIED,
     )
+    announced_at = datetime(2026, 7, 30, 8, 0, tzinfo=UTC)
+    source_time_witness = FinancialSourceTimeWitness(
+        artifact_reference=FinancialSourceTimeArtifactRef(
+            capture_id=UUID("20000000-0000-4000-8000-000000000006"),
+            location="financial-source-time/publication.bin",
+            provider_name="provider-main",
+            dataset_key=FINANCIAL_SOURCE_TIME_DATASET_KEY,
+            requested_asset_code="000001.SZ",
+            requested_announcement_date=date(2026, 7, 30),
+            body_sha256="d" * 64,
+            body_size_bytes=96,
+            response_completed_at=AVAILABLE_AT,
+            response_row_count=1,
+            format_version="financial-source-time-artifact.v1",
+            encryption_algorithm="fernet",
+            encryption_key_ref="config_center.data02.test-key",
+            encryption_key_version="v1",
+        ),
+        native_asset_code="000001.SZ",
+        native_period_end=PERIOD_END,
+        financial_native_row_id=source_record_id,
+        financial_announced_date=date(2026, 7, 30),
+        source_native_row_id="provider-main:notice:000001.SZ:20260730:1",
+        source_timezone="Asia/Shanghai",
+        announced_at=announced_at,
+        available_at=AVAILABLE_AT,
+        row_projection_sha256="e" * 64,
+        governed_match_contract_id="provider-main.financial-announcement.exact",
+        governed_match_contract_version="v1",
+        governed_match_contract_sha256="f" * 64,
+        matched_row_count=1,
+        availability_basis=FinancialAvailabilityBasis.PROVIDER_NATIVE_EXACT,
+    )
     return replace(
         _fact(),
         source_evidence=FinancialFactSourceEvidence(
-            announced_at=datetime(2026, 7, 30, 8, 0, tzinfo=UTC),
+            announced_at=announced_at,
             source_record_id=source_record_id,
             raw_payload_hash=raw_hash,
         ),
@@ -142,6 +184,7 @@ def _source_ready_fact(
             native_asset_code="000001.SZ",
             native_period_end=PERIOD_END,
             native_row_id=source_record_id,
+            source_time_witness=source_time_witness,
         ),
     )
 
@@ -268,6 +311,7 @@ def test_financial_repository_candidate_requires_available_at_and_preserves_evid
         source="provider-main",
         report_date=date(2026, 7, 30),
         available_at=AVAILABLE_AT,
+        announced_at=bound_fact.source_evidence.announced_at,
         source_record_id="financial-1",
         raw_payload_hash="b" * 64,
         extra={
@@ -276,13 +320,46 @@ def test_financial_repository_candidate_requires_available_at_and_preserves_evid
             ),
             "raw_payload_scope": "batch_response_body",
             "response_scope_basis": "provider_body_verified",
+            "financial_source_time_capture_id": str(
+                bound_fact.decision_evidence.source_time_witness.artifact_reference.capture_id
+            ),
+            "financial_source_time_body_sha256": (
+                bound_fact.decision_evidence.source_time_witness.artifact_reference.body_sha256
+            ),
+            "financial_source_time_row_sha256": (
+                bound_fact.decision_evidence.source_time_witness.row_projection_sha256
+            ),
+            "financial_source_time_match_contract_id": (
+                bound_fact.decision_evidence.source_time_witness.governed_match_contract_id
+            ),
+            "financial_source_time_match_contract_version": (
+                bound_fact.decision_evidence.source_time_witness.governed_match_contract_version
+            ),
+            "financial_source_time_match_contract_sha256": (
+                bound_fact.decision_evidence.source_time_witness.governed_match_contract_sha256
+            ),
+            "financial_source_time_matched_row_count": (
+                bound_fact.decision_evidence.source_time_witness.matched_row_count
+            ),
         },
         decision_evidence=encode_financial_decision_evidence(bound_fact.decision_evidence),
     )
 
-    references = FinancialFactRepository().list_publication_candidates(
-        [_fact(), _fact("600000.SH", available_at=None)]
-    )
+    verified: list[FinancialFactDecisionEvidence] = []
+
+    def verify(decision: FinancialFactDecisionEvidence) -> bool:
+        verified.append(decision)
+        return True
+
+    with pytest.raises(
+        FinancialFactProvenanceConflictError,
+        match="independently reverified",
+    ):
+        FinancialFactRepository().list_publication_candidates([bound_fact])
+
+    references = FinancialFactRepository(
+        source_time_evidence_verifier=verify
+    ).list_publication_candidates([_fact(), _fact("600000.SH", available_at=None)])
 
     assert len(references) == 1
     assert references[0].fact_pk == str(row.pk)
@@ -292,6 +369,39 @@ def test_financial_repository_candidate_requires_available_at_and_preserves_evid
     assert references[0].observed_at == AVAILABLE_AT
     assert references[0].observed_at != row.fetched_at
     assert str(missing.pk) not in {reference.fact_pk for reference in references}
+    assert verified == [bound_fact.decision_evidence]
+
+
+@pytest.mark.django_db
+def test_financial_repository_rejects_legacy_evidence_without_source_time_witness() -> None:
+    """Readable v1 evidence remains ineligible for a current Publication."""
+
+    bound_fact = _source_ready_fact(raw_hash="b" * 64, source_record_id="financial-legacy")
+    assert bound_fact.decision_evidence is not None
+    legacy = FinancialFactDecisionEvidence(
+        artifact_reference=bound_fact.decision_evidence.artifact_reference,
+        native_asset_code=bound_fact.decision_evidence.native_asset_code,
+        native_period_end=bound_fact.decision_evidence.native_period_end,
+        native_row_id=bound_fact.decision_evidence.native_row_id,
+    )
+    FinancialFactModel.objects.create(
+        asset_code=bound_fact.asset_code,
+        period_end=bound_fact.period_end,
+        period_type=bound_fact.period_type.value,
+        metric_code=bound_fact.metric_code,
+        value=bound_fact.value,
+        unit=bound_fact.unit,
+        source=bound_fact.source,
+        report_date=bound_fact.report_date,
+        available_at=bound_fact.available_at,
+        announced_at=bound_fact.source_evidence.announced_at,
+        source_record_id="financial-legacy",
+        raw_payload_hash="b" * 64,
+        decision_evidence=encode_financial_decision_evidence(legacy),
+    )
+
+    with pytest.raises(FinancialFactProvenanceConflictError, match="source-time evidence"):
+        FinancialFactRepository().list_publication_candidates([bound_fact])
 
 
 def test_sync_financial_use_case_invokes_publication_after_fact_write() -> None:
@@ -365,6 +475,7 @@ def test_sync_financial_use_case_invokes_publication_after_fact_write() -> None:
         raw_audit_repo=_RawAudit(),
         publication_publisher=publisher,
         artifact_verifier=lambda _provider, _reference: True,
+        source_time_artifact_verifier=lambda _provider, _reference: True,
     ).execute(SyncFinancialRequest(provider_id=1, asset_code="000001.SZ", periods=1))
 
     assert result.status == "success"

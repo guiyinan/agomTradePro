@@ -4082,6 +4082,26 @@
           "test_function": "test_financial_repository_candidate_requires_available_at_and_preserves_evidence"
         },
         {
+          "case": "financial_source_time_unique_governed_match",
+          "test_file": "tests/unit/data_center/test_financial_source_time_evidence.py",
+          "test_function": "test_source_time_witness_rejects_unbound_or_nonconservative_values"
+        },
+        {
+          "case": "financial_source_time_retained_artifact_required",
+          "test_file": "tests/unit/data_center/test_financial_source_evidence_probe.py",
+          "test_function": "test_source_evidence_probe_requires_retained_source_time_artifact"
+        },
+        {
+          "case": "financial_source_time_direct_writer_verifier_required",
+          "test_file": "tests/component/data_center/test_core_fact_bulk_upserts.py",
+          "test_function": "test_financial_bulk_upsert_requires_independent_source_time_verifier"
+        },
+        {
+          "case": "financial_legacy_evidence_excluded_from_current_publication",
+          "test_file": "tests/unit/data_center/test_financial_publication_sync.py",
+          "test_function": "test_financial_repository_rejects_legacy_evidence_without_source_time_witness"
+        },
+        {
           "case": "financial_sync_invokes_publication_writer",
           "test_file": "tests/unit/data_center/test_financial_publication_sync.py",
           "test_function": "test_sync_financial_use_case_invokes_publication_after_fact_write"
@@ -4545,6 +4565,7 @@
         "apps/data_center/infrastructure/financial_availability_repository.py",
         "apps/data_center/infrastructure/financial_fact_repository.py",
         "apps/data_center/domain/financial_source_evidence.py",
+        "apps/data_center/domain/financial_source_time_evidence.py",
         "apps/data_center/domain/entities.py",
         "apps/data_center/infrastructure/financial_fact_write_guard.py",
         "apps/data_center/infrastructure/financial_decision_evidence_codec.py",
@@ -4700,10 +4721,12 @@
           "require_verified_source_evidence=require_verified_source_evidence",
           "source_evidence=source_evidence_from_model(m)",
           "decision_evidence=decode_financial_decision_evidence(m.decision_evidence)",
-          "return bulk_upsert_financial_facts(facts)",
+          "source_time_evidence_verifier=self._source_time_evidence_verifier",
           "financial decision evidence is required for publication candidates",
+          "financial source-time evidence is required for publication candidates",
           "financial publication decision evidence does not match the persisted row",
-          "financial publication transport evidence does not match the persisted row"
+          "financial publication transport evidence does not match the persisted row",
+          "financial source-time evidence must be independently reverified for publication"
         ],
         "apps/data_center/domain/financial_source_evidence.py": [
           "class FinancialFactSourceEvidence:",
@@ -4714,6 +4737,13 @@
           "FinancialResponseScopeBasis.PROVIDER_BODY_VERIFIED",
           "\"body_sha256\": evidence.body_sha256",
           "\"native_row_id\": self.native_row_id"
+        ],
+        "apps/data_center/domain/financial_source_time_evidence.py": [
+          "FINANCIAL_SOURCE_TIME_DATASET_KEY = \"equity.financial.source-time\"",
+          "PROVIDER_NATIVE_EXACT = \"provider_native_exact\"",
+          "financial source-time match must resolve exactly one row",
+          "governed_match_contract_sha256",
+          "matched_row_count"
         ],
         "apps/data_center/domain/entities.py": [
           "decision_evidence: FinancialFactDecisionEvidence | None = None",
@@ -4727,12 +4757,15 @@
           "bulk_update(",
           "_model_decimal_storage",
           "_validate_fact_decision_evidence(fact)",
+          "source_time_evidence_verifier(decision)",
           "encode_financial_decision_evidence(fact.decision_evidence)",
           "financial decision evidence cannot be removed from an existing row",
-          "financial decision evidence is required for canonical writes"
+          "financial decision evidence is required for canonical writes",
+          "financial source-time witness must be independently verified before write"
         ],
         "apps/data_center/infrastructure/financial_decision_evidence_codec.py": [
           "financial-fact-decision-evidence.v1",
+          "financial-fact-decision-evidence.v2",
           "def encode_financial_decision_evidence(",
           "def decode_financial_decision_evidence(",
           "FinancialDecisionEvidenceCodecError"
@@ -4894,9 +4927,12 @@
           "def prepare_for_write(",
           "def execute_prepared(",
           "class FinancialResponseArtifactVerifier(Protocol):",
+          "class FinancialSourceTimeArtifactVerifier(Protocol):",
           "financial_response_artifact_not_retained",
           "financial_response_provider_identity_mismatch",
           "financial_response_period_limit_mismatch",
+          "financial_source_time_artifact_missing",
+          "financial_source_time_artifact_not_retained",
           "_with_verified_financial_transport_metadata(",
           "FINANCIAL_SOURCE_EVIDENCE_REQUIRED",
           "financial_natural_key_duplicate",
@@ -5569,6 +5605,11 @@
           "case": "financial_current_publication_rejects_cross_row_decision_binding",
           "test_file": "tests/component/data_center/test_financial_fact_repository_provenance.py",
           "test_function": "test_current_publication_rejects_decision_evidence_bound_to_another_row"
+        },
+        {
+          "case": "financial_publication_rechecks_independent_source_time_evidence",
+          "test_file": "tests/unit/data_center/test_financial_publication_sync.py",
+          "test_function": "test_financial_repository_candidate_requires_available_at_and_preserves_evidence"
         }
       ]
     },
