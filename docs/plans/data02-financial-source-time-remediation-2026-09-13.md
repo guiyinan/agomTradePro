@@ -785,7 +785,8 @@ join 语义。缺少 period-end 关系的 `ts_code+ann_date` 关联不能注册�
 `response_completed_at`、`fetched_at` 和 `period_end` 也不能被声明成来源时间字段。
 
 `governance/financial_source_time_match_contracts.json` 是当前注册真源。它仍为
-`awaiting_owner_approval` 且 `contracts=[]`，因此没有任何 provider 获得正向匹配资格。严格 loader 拒绝
+`awaiting_owner_approval`、`contracts=[]` 且 `approval=null`，因此没有任何 provider 获得正向匹配资格。
+严格 loader 拒绝
 重复 JSON key、未知字段、内容哈希漂移、重复逻辑 identity、弱 join，以及未批准状态下夹带 contract。
 这一切片只关闭“任意 contract 声明可进入 verifier”的治理缺口；双原件 reader、唯一 RawAudit 查询、
 具体 matcher 与 production composition 接线仍是 P1，DATA-02 保持 `awaiting_production`。
@@ -799,7 +800,8 @@ Domain canonical 算法重算一致，能力、provider、成功状态、行数�
 配置行被拼成一条证据链。
 
 来源时间原件使用独立 `FST1` authenticated envelope、content-addressed 路径和 no-replace 原子写入。
-共享 verifier 只从 owner 批准的 exact contract registry 取契约，并调用按 parser 注册的 provider-specific
+共享 verifier 只从 owner 批准的 exact contract registry 取契约，并调用按完整 contract identity 注册的
+provider-specific
 matcher 重算完整 witness；普通 financial 写入、on-demand、current refresh、普通 Publication 和 current
 Publication 都注入同一复验边界。
 
@@ -809,3 +811,52 @@ Publication 都注入同一复验边界。
 provider-specific matcher/producer、current authority、明确生产写授权与真实四 Publication 对账。
 结构化证据见
 [DATA-02 双原件独立复验证据](../testing/data02-financial-source-time-independent-verifier-2026-09-22.json)。
+
+## 31. 2026-09-23 contract-neutral source-time 原件留存
+
+来源时间原件现在有独立的 Application retainer。它接收 provider-native 原始字节，使用配置好的
+`FinancialSourceTimeBodyStore` 生成唯一 dataset/location/format/key/body-digest reference，并追加一条
+canonical content-hash RawAudit。request projection 在审计前拒绝 credential-shaped key、非有限数值和
+不支持的动态结构；异常与 reconciliation 只返回 opaque reference，不回显 provider 正文。
+
+同一 capture UUID 的审计追加由数据库主键 claim 串行化。原子 repository 在 claim 事务内重新读取全部
+审计：完整 identical replay 复用首条记录，parser、provider row id、request projection 或其他 canonical
+内容漂移时 fail closed；多审计歧义不会被排序掩盖。正文成功但审计失败时保留可核验 orphan 状态，不把
+部分成功声明成完成。
+
+该 retainer 不解释时间语义，不构造 `FinancialSourceTimeWitness`，也不会从 `ann_date`、period end、
+fetch time 或 response completion 推断 `announced_at/available_at`。真实 production producer 必须通过
+retainer facade，且在获准的 PostgreSQL 目标重跑 concurrent exact-one 用例后才可激活。证据见
+[source-time 原件留存封存](../testing/data02-financial-source-time-artifact-retention-2026-09-23.json)。
+
+## 32. 2026-09-23 owner approval 与 contract 集合绑定 v2
+
+contract registry v2 不再把 `status=active` 当成充分授权。active 状态必须同时存在非空、逐项通过 Domain
+内容哈希校验的 contract，以及 typed approval：UTC 整秒 `approved_at`、owner 标识、
+receipt SHA-256 和 `contract_set_sha256`。集合摘要对已验证 contract digest 排序后计算，顺序变化不影响
+结果，增删或替换任一 contract 都会失配；同一 provider/contract id/version 的不同 digest 仍是重复逻辑
+identity。JSON loader 另外要求 canonical `Z` 文本；frozen direct construction 强制 zero-offset UTC datetime
+与整秒精度。内部序列必须是不可变 tuple。
+
+receipt SHA-256 只是审批原件内容锚点，不证明签署者身份、当前 owner 或 authority。仓库真源仍为 pending、
+空 contract、空 approval，不能据此激活 provider。真实 owner receipt、签署者时效和 exact contract 仍须
+独立核验。证据见
+[owner approval 集合绑定封存](../testing/data02-financial-source-time-owner-approval-binding-2026-09-23.json)。
+直接构造的非零微秒入口也已按同一秒精度规则 fail closed；补充证据见
+[direct approval 时间精度封存](../testing/data02-financial-source-time-direct-approval-timestamp-2026-09-23.json)。
+
+## 33. 2026-09-23 provider matcher 精确 contract identity 路由
+
+private matcher table 只接受 `FinancialSourceTimeContractIdentity`：provider、contract id、contract
+version 与 contract SHA-256。parser version、endpoint、时区、join 和 projection 已由 contract digest
+绑定，不再用 parser 字符串建立第二套路由键，也不把运行时 ProviderConfig 数据库 id 混入治理 identity。
+没有 parser-only fallback；旧字符串 key 和任一 identity 字段替换都会 lookup miss 并 fail closed。
+
+synthetic regression 覆盖两个 contract 复用同一 parser 标签、未登记 provider，以及同一 provider/id/version
+仅替换 digest 的情况。matcher 表当前仍为空，因此本节只关闭未来首个 matcher 激活前的错误复用风险，
+没有创建 provider 实现或生产正向路径。证据见
+[matcher 精确路由封存](../testing/data02-financial-source-time-exact-matcher-routing-2026-09-23.json)。
+
+截至候选 `67cfef48f0` 的生产只读重验，以上三项均未部署；生产仍缺 financial `announced_at`、current
+authority、owner-approved contract/receipt、provider matcher/producer、明确写授权和真实四 Publication
+reconciliation。DATA-02 保持 `awaiting_production`，不得从仓库绿灯推导生产放行。

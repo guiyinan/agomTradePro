@@ -1,0 +1,71 @@
+{
+  "schema_version": "data02-financial-source-time-direct-approval-timestamp.v1",
+  "recorded_at_utc": "2026-09-22T20:46:58.376329Z",
+  "repository_branch": "dev/next-development",
+  "base_commit": "e631ee9b6f1109e3c76f6f0e8a4c19cb1db53494",
+  "closure_unit": "DATA-02",
+  "registry_transition": {
+    "from_version": "2026-09-23.v175",
+    "to_version": "2026-09-23.v176",
+    "status_before": "awaiting_production",
+    "status_after": "awaiting_production"
+  },
+  "finding": {
+    "severity": "P1",
+    "source": "GPT-5.6 Luna Max read-only review",
+    "previous_gap": "Frozen direct construction accepted an aware UTC approved_at with nonzero microseconds although the strict JSON loader required canonical whole-second UTC-Z.",
+    "production_authorization_effect": "none; the committed registry remained awaiting_owner_approval with zero contracts and no approval"
+  },
+  "tdd_red": {
+    "command": "pytest tests/unit/data_center/test_financial_source_time_contract_registry.py -q",
+    "result": "1 failed, 25 passed",
+    "failure": "test_direct_registry_construction_cannot_bypass_approval did not raise for a microsecond-bearing UTC datetime"
+  },
+  "implementation": {
+    "guard": "FinancialSourceTimeContractApproval.__post_init__ rejects approved_at.microsecond != 0",
+    "stable_error": "financial source-time approval approved_at must use whole-second UTC",
+    "shared_invariant": "The JSON loader requires canonical Z text at whole-second precision; frozen direct construction requires a zero-offset aware UTC datetime at whole-second precision.",
+    "current_data_contract_marker_added": "financial source-time approval approved_at must use whole-second UTC"
+  },
+  "verification": {
+    "focused_registry_tests": "26 passed",
+    "related_source_time_unit_tests": "81 passed, including explicit rejection of JSON approved_at with fractional seconds",
+    "black_isort_ruff": "passed",
+    "incremental_mypy": "0 regressions in 1 changed production Python file",
+    "full_mypy_debt": "passed: 0 errors in 0 files",
+    "current_data_contracts": "68 surfaces, passed",
+    "active_plan_registry": "version 2026-09-23.v176, 54 units, 0 violations",
+    "governance_consistency": "0 violations",
+    "architecture": "3231 files, 7 boundary rules, 0 violations",
+    "versioned_surface_retirement": "5 families, 24 module groups, 4 singleton versioned compositions, 24 pending proofs, 0 violations"
+  },
+  "luna_max_final_review": {
+    "status": "complete",
+    "p0": 0,
+    "p1": 0,
+    "p2": 0,
+    "decision": "repository_slice_submittable",
+    "verified_boundaries": [
+      "direct approval construction rejects nonzero microseconds",
+      "JSON loading rejects fractional-second canonical-Z input",
+      "documentation distinguishes canonical Z text from zero-offset UTC datetime semantics",
+      "the committed registry remains pending with zero contracts and no approval"
+    ]
+  },
+  "remaining_production_gates": [
+    "Obtain a genuine owner-approved provider source-time contract and receipt.",
+    "Retain a real provider sample and implement the provider-specific matcher and producer from verified semantics.",
+    "Obtain current authority and explicit production-write authorization.",
+    "Run the provider backfill and reconcile four immutable Publications under approved tolerances."
+  ],
+  "production_effects": {
+    "provider_calls": 0,
+    "vps_or_production_database_access": 0,
+    "database_writes": 0,
+    "deployments": 0,
+    "publication_switches": 0,
+    "contract_or_matcher_activations": 0,
+    "legacy_or_classic_deletions": 0
+  },
+  "decision": "direct_approval_timestamp_bypass_closed_production_acceptance_pending"
+}

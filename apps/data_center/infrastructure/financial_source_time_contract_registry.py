@@ -63,6 +63,10 @@ class FinancialSourceTimeContractApproval:
             raise FinancialSourceTimeContractRegistryError(
                 "financial source-time approval approved_at must be UTC"
             )
+        if self.approved_at.microsecond != 0:
+            raise FinancialSourceTimeContractRegistryError(
+                "financial source-time approval approved_at must use whole-second UTC"
+            )
         try:
             _bounded_token(self.approved_by, "approved_by", 128)
             _sha256(self.receipt_sha256, "receipt_sha256")

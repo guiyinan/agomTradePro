@@ -5998,6 +5998,7 @@
           "class FinancialSourceTimeContractApproval:",
           "financial_source_time_contract_set_sha256(",
           "active financial source-time registry approval is required",
+          "financial source-time approval approved_at must use whole-second UTC",
           "financial source-time approval contract set does not match",
           "pending financial source-time registry cannot contain approval",
           "object_pairs_hook=_object_pairs_no_duplicates"

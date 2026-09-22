@@ -248,6 +248,7 @@ def test_pending_registry_rejects_approval_claims(tmp_path: Path) -> None:
     [
         ("approved_at", "2026-09-23", "approved_at"),
         ("approved_at", "2026-09-23T01:02:03+08:00", "approved_at"),
+        ("approved_at", "2026-09-23T01:02:03.000001Z", "approved_at"),
         ("approved_by", " padded-owner", "approved_by"),
         ("receipt_sha256", "not-a-digest", "receipt_sha256"),
     ],
@@ -318,6 +319,13 @@ def test_direct_registry_construction_cannot_bypass_approval(tmp_path: Path) -> 
         FinancialSourceTimeContractApproval(
             approved_at=datetime(2026, 9, 23, 1, 2, 3, tzinfo=UTC),
             approved_by=cast(str, 7),
+            receipt_sha256="f" * 64,
+            contract_set_sha256=financial_source_time_contract_set_sha256([]),
+        )
+    with pytest.raises(FinancialSourceTimeContractRegistryError, match="whole-second UTC"):
+        FinancialSourceTimeContractApproval(
+            approved_at=datetime(2026, 9, 23, 1, 2, 3, 1, tzinfo=UTC),
+            approved_by="test-owner",
             receipt_sha256="f" * 64,
             contract_set_sha256=financial_source_time_contract_set_sha256([]),
         )
