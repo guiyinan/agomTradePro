@@ -716,3 +716,23 @@ reconciliation。证据：
 仓库验证结果为 208 项相关回归通过、8 个 PG-only 用例在 SQLite 跳过、Domain 新增分支覆盖率 100%、
 17 个生产文件增量 mypy 零回归；
 全量 mypy、current-data、Celery、架构、registry 与治理检查也全部通过。
+
+## 26. 2026-09-22 successor 候选与全集范围绑定 v2
+
+DATA-02 successor checkpoint 不再接受固定的历史 `5,533` 分母，也不允许输入文件自行声明一组
+内部自洽但未经信任的范围。v2 parser 要求调用方从独立部署清单固定 source commit、release id、
+image digest，并从已封存生产全集证据固定 `active-a-share-universe.v1`、分母 `5,565` 和 canonical
+universe SHA-256。输入中的三项候选 identity 与三项 universe identity 必须逐字段完全一致；
+`5,533`、相邻分母、正确分母但替换 hash，以及 commit/release/image 任一替换均 fail closed。
+
+repair asset count、completed-session request count 和 Publication asset count 必须等于同一个 caller-pinned
+分母。四个 dataset 分别保留 `covered_asset_count` 与 `member_count`；完整覆盖时 asset-code hash 必须等于
+canonical universe hash，顶层 member count 必须等于四个 dataset 的实际 member sum。这样 financial
+多指标成员数可以大于资产数，同时不能用单纯计数替换资产集合或 Publication 内容。历史 v1 原件继续
+作为 superseded evidence 保留，v2 parser 不自动升级或原地改写它。
+
+该单元只收紧离线、无网络/ORM 的证据 recorder，不构成生产回填、provider 可用或 DATA-02 完成证明。
+结构化证据见
+[DATA-02 successor 范围绑定 v2](../testing/data02-successor-scope-binding-v2-2026-09-22.json)。
+DATA-02 保持 `awaiting_production`；恢复条件仍为可信 source time/native row、当前 authority、owner 批准
+容差、明确生产写授权和真实四 Publication reconciliation。

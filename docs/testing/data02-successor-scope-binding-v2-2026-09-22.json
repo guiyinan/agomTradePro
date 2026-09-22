@@ -1,0 +1,158 @@
+{
+  "schema_version": "data02-successor-scope-binding-v2-closure.v1",
+  "generated_at": "2026-09-22T09:48:45.531498Z",
+  "candidate": {
+    "branch": "dev/next-development",
+    "baseline_commit": "787c9a581e712e5c93421333464802051fa90d02",
+    "commit": "containing_git_commit"
+  },
+  "classification": {
+    "scope": "Repository-only DATA-02 successor checkpoint identity and scope binding.",
+    "production_acceptance": false,
+    "production_ready": false,
+    "runtime_enablement": "not_authorized"
+  },
+  "trusted_scope_source": {
+    "artifact": "docs/testing/data02-item-attempt-scale-closure-2026-09-21.json",
+    "artifact_sha256": "5f58c6c68e1083568564b0f79438f584a1793cbf0aaed11d83c8082bc46aa0bc",
+    "schema": "active-a-share-universe.v1",
+    "denominator": 5565,
+    "universe_hash": "4b9bfd44941336ed45d302d4c0f1cb53b7bfce025cff377ffa14a5ae8f792c22"
+  },
+  "implemented_contract": [
+    "The caller independently pins source commit, release id and image digest; every checkpoint candidate coordinate must match exactly.",
+    "The caller independently pins universe schema, denominator and SHA-256; internally consistent alternate scopes are rejected.",
+    "Repair asset count, completed-session request count and Publication asset count equal the caller-pinned denominator.",
+    "Every complete dataset covered-asset-code hash equals the caller-pinned universe hash.",
+    "Dataset member counts remain distinct from covered asset counts, and the top-level Publication member count equals their exact sum.",
+    "Each dataset member count is at least its covered asset count; nonzero members cannot claim zero covered assets.",
+    "Four dataset keys and their publication ids and hashes remain exact and unique.",
+    "Historical v1/5,533 evidence remains immutable and fails closed under v2; it is not auto-upgraded.",
+    "The recorder remains offline and has no network, ORM or production-write path."
+  ],
+  "substitution_matrix": {
+    "candidate": [
+      "source_commit",
+      "release_id",
+      "image_id"
+    ],
+    "universe": [
+      "5533 denominator",
+      "5564 denominator",
+      "5566 denominator",
+      "5565 with substituted hash"
+    ],
+    "publication": [
+      "covered asset hash",
+      "top member sum",
+      "publication identity collision",
+      "covered/missing partition"
+    ],
+    "result": "all rejected before evidence recording"
+  },
+  "production_actions": {
+    "vps_access": false,
+    "provider_fetch": false,
+    "database_read": false,
+    "database_write": false,
+    "deployment": false,
+    "publication_switch": false,
+    "authority_change": false,
+    "tolerance_change": false
+  },
+  "validation": {
+    "tdd_red": [
+      {
+        "result": "expected_failure",
+        "detail": "ImportError: Data02SuccessorCandidate did not exist before candidate pinning implementation."
+      },
+      {
+        "result": "expected_failure",
+        "detail": "ImportError: Data02SuccessorUniverse did not exist before caller-pinned universe implementation."
+      },
+      {
+        "result": "expected_failure",
+        "detail": "A self-consistent top member sum initially allowed one dataset member_count below its covered asset count."
+      }
+    ],
+    "focused_pytest": {
+      "result": "passed",
+      "passed": 25,
+      "duration_seconds": 1.85
+    },
+    "incremental_mypy": {
+      "result": "passed",
+      "files": 2,
+      "regressions": 0,
+      "legacy_errors_observed": 0
+    },
+    "mypy_debt_ceiling": {
+      "result": "passed",
+      "errors": 0,
+      "files_with_errors": 0
+    },
+    "current_data_contracts": {
+      "result": "passed",
+      "surfaces": 65
+    },
+    "architecture": {
+      "result": "passed",
+      "scanned_files": 3221,
+      "boundary_rules": 7,
+      "violations": 0
+    },
+    "active_plan_registry": {
+      "result": "passed",
+      "registry_version": "2026-09-22.v163",
+      "units": 54,
+      "violations": 0
+    },
+    "governance_consistency": {
+      "result": "passed",
+      "baseline_version": "2026-09-09.v220",
+      "violations": 0
+    },
+    "format_and_lint": {
+      "result": "passed",
+      "black": true,
+      "isort": true,
+      "ruff": true,
+      "diff_check": true
+    }
+  },
+  "source_worktree_raw_sha256": {
+    "apps/data_center/application/data02_successor_checkpoint.py": "408d85f6e6953e6d958ca1a28f5d979b5a589bd2e31153246db77264f2cfc85d",
+    "scripts/record_data02_successor_checkpoint.py": "f0b968acc42fc2b4ad6856b6af385ecd4150ac2699a05e60fa5ce6c18df35890",
+    "tests/unit/data_center/test_data02_successor_checkpoint.py": "7e6d38d432ef90fe4994174eb5e782ed4c02a17efe905493a3e54b4f9e7388a8",
+    "governance/current_data_contracts.json": "76da953acea9a4386c4f538c1fc3ecc7323c48fae4b79c372ba07f44ded404d4",
+    "governance/active_plan_registry.json": "d655399a13a353582206b8e7d3f71beae6616f250fdf3ee65988b14e5645de4e",
+    "docs/plans/data02-financial-source-time-remediation-2026-09-13.md": "a16262ea3f14585a255b0d52b1a3845d3ac6308460d7671db21de98def998b03",
+    "docs/reviews/production-closure-2026-09-20.md": "ea186f2d631c469dfab3d0e7ee34bba49473f0b784d3c781d197877169957bfc"
+  },
+  "hash_scope": {
+    "source_worktree_raw_sha256": "Raw local worktree bytes at evidence generation.",
+    "raw_summary_sha256": "Raw UTF-8 LF summary bytes."
+  },
+  "independent_review": {
+    "reviewer": "gpt-5.6-luna",
+    "reasoning_effort": "max",
+    "initial_result": "P0=0, P1=1: v2 universe was self-declared by the checkpoint rather than caller-pinned.",
+    "resolved_finding": "Added immutable caller-pinned universe schema, current denominator and canonical SHA-256 across parser, recorder and CLI, with substitution tests.",
+    "final_result": "P0=0, P1=0 after caller-pinned candidate/universe, dataset/member, CLI and side-effect verification."
+  },
+  "governance": {
+    "registry_transition": "2026-09-22.v162 -> 2026-09-22.v163",
+    "unit": "DATA-02",
+    "status_before": "awaiting_production",
+    "status_after": "awaiting_production",
+    "reason": "Repository evidence scope is exact; genuine production backfill and all production authorization/acceptance gates remain open."
+  },
+  "remaining_gates": [
+    "Obtain trustworthy timezone-aware provider source-time and native-row evidence without synthesis.",
+    "Obtain current authority and owner-approved numeric tolerances.",
+    "Obtain explicit production-write authorization.",
+    "Run authorized provider backfill and real four-Publication reconciliation."
+  ],
+  "raw_summary": "docs/testing/data02-successor-scope-binding-v2-2026-09-22.txt",
+  "raw_summary_sha256": "650549ca928276a1dccfeb768f0dcf40853c87d4efdfc5c1224c7925f99c9e08"
+}

@@ -5867,6 +5867,55 @@
           "test_function": "test_routed_financial_clients_preserve_retained_artifact_reference"
         }
       ]
+    },
+    {
+      "id": "data_center.data02_successor_checkpoint_scope_v2",
+      "surface": "DATA-02 successor evidence binds the exact deployed candidate, canonical frozen universe, and four Publication scopes before recording",
+      "source_files": [
+        "apps/data_center/application/data02_successor_checkpoint.py",
+        "scripts/record_data02_successor_checkpoint.py"
+      ],
+      "required_markers": {
+        "apps/data_center/application/data02_successor_checkpoint.py": [
+          "DATA02_SUCCESSOR_SNAPSHOT_SCHEMA: Final[str] = \"data02-successor-production-readonly-checkpoint.v2\"",
+          "DATA02_SUCCESSOR_UNIVERSE_SCHEMA: Final[str] = \"active-a-share-universe.v1\"",
+          "expected_candidate: Data02SuccessorCandidate",
+          "expected_universe: Data02SuccessorUniverse",
+          "full coverage must match universe hash",
+          "publication.member_count must equal dataset sum",
+          "member_count cannot be smaller than covered assets"
+        ],
+        "scripts/record_data02_successor_checkpoint.py": [
+          "\"--expected-source-commit\"",
+          "\"--expected-release-id\"",
+          "\"--expected-image-id\"",
+          "\"--expected-universe-denominator\"",
+          "\"--expected-universe-hash\"",
+          "expected_universe=expected_universe"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "historical_v1_checkpoint_cannot_be_promoted_to_v2",
+          "test_file": "tests/unit/data_center/test_data02_successor_checkpoint.py",
+          "test_function": "test_checked_in_v1_checkpoint_fails_closed_without_exact_universe_scope"
+        },
+        {
+          "case": "candidate_coordinates_are_caller_pinned",
+          "test_file": "tests/unit/data_center/test_data02_successor_checkpoint.py",
+          "test_function": "test_candidate_substitution_fails_against_caller_pinned_identity"
+        },
+        {
+          "case": "canonical_universe_is_caller_pinned",
+          "test_file": "tests/unit/data_center/test_data02_successor_checkpoint.py",
+          "test_function": "test_universe_substitution_fails_against_caller_pinned_scope"
+        },
+        {
+          "case": "publication_scope_substitution_fails_closed",
+          "test_file": "tests/unit/data_center/test_data02_successor_checkpoint.py",
+          "test_function": "test_universe_and_publication_scope_substitution_fails_closed"
+        }
+      ]
     }
   ]
 }

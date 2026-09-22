@@ -22,8 +22,10 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from apps.data_center.application.data02_successor_checkpoint import (  # noqa: E402
+    Data02SuccessorCandidate,
     Data02SuccessorCheckpoint,
     Data02SuccessorCheckpointError,
+    Data02SuccessorUniverse,
     data02_successor_checkpoint_artifact_sha256,
     parse_data02_successor_checkpoint,
     serialize_data02_successor_checkpoint,
@@ -78,13 +80,19 @@ def _publication_identity_count(report: Data02SuccessorCheckpoint) -> int:
 def record_data02_successor_checkpoint(
     input_path: Path,
     *,
+    expected_candidate: Data02SuccessorCandidate,
+    expected_universe: Data02SuccessorUniverse,
     output_root: Path | None = None,
     write: bool = False,
 ) -> Data02SuccessorCheckpointRecording:
     """Validate one checkpoint and optionally append local evidence."""
 
     source_payload = input_path.read_bytes()
-    report = parse_data02_successor_checkpoint(source_payload)
+    report = parse_data02_successor_checkpoint(
+        source_payload,
+        expected_candidate=expected_candidate,
+        expected_universe=expected_universe,
+    )
     canonical_payload = serialize_data02_successor_checkpoint(report)
     artifact_digest = data02_successor_checkpoint_artifact_sha256(canonical_payload)
     artifact_path: Path | None = None
@@ -111,6 +119,32 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", required=True, type=Path, help="checkpoint JSON path")
     parser.add_argument(
+        "--expected-source-commit",
+        required=True,
+        help="exact 40-character deployed source commit",
+    )
+    parser.add_argument(
+        "--expected-release-id",
+        required=True,
+        help="exact 14-digit deployed release identity",
+    )
+    parser.add_argument(
+        "--expected-image-id",
+        required=True,
+        help="exact deployed sha256: image identity",
+    )
+    parser.add_argument(
+        "--expected-universe-denominator",
+        required=True,
+        type=int,
+        help="exact canonical frozen-universe denominator",
+    )
+    parser.add_argument(
+        "--expected-universe-hash",
+        required=True,
+        help="exact canonical frozen-universe SHA-256",
+    )
+    parser.add_argument(
         "--output-root",
         type=Path,
         help="local content-addressed evidence root; required with --write",
@@ -124,8 +158,20 @@ def main() -> int:
 
     args = _parser().parse_args()
     try:
+        expected_candidate = Data02SuccessorCandidate(
+            source_commit=args.expected_source_commit,
+            release_id=args.expected_release_id,
+            image_id=args.expected_image_id,
+        )
+        expected_universe = Data02SuccessorUniverse(
+            denominator=args.expected_universe_denominator,
+            schema="active-a-share-universe.v1",
+            universe_hash=args.expected_universe_hash,
+        )
         result = record_data02_successor_checkpoint(
             args.input,
+            expected_candidate=expected_candidate,
+            expected_universe=expected_universe,
             output_root=args.output_root,
             write=args.write,
         )

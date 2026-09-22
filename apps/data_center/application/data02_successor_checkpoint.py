@@ -19,15 +19,15 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Final, cast
 
-DATA02_SUCCESSOR_SNAPSHOT_SCHEMA: Final[str] = "data02-successor-production-readonly-checkpoint.v1"
-DATA02_SUCCESSOR_REPORT_SCHEMA: Final[str] = "data02-successor-checkpoint-readonly.v1"
+DATA02_SUCCESSOR_SNAPSHOT_SCHEMA: Final[str] = "data02-successor-production-readonly-checkpoint.v2"
+DATA02_SUCCESSOR_REPORT_SCHEMA: Final[str] = "data02-successor-checkpoint-readonly.v2"
+DATA02_SUCCESSOR_UNIVERSE_SCHEMA: Final[str] = "active-a-share-universe.v1"
 DATA02_SUCCESSOR_DATASET_KEYS: Final[tuple[str, ...]] = (
     "equity.financial.fact",
     "equity.price.bar",
     "equity.quote.snapshot",
     "equity.valuation.fact",
 )
-DATA02_SUCCESSOR_ASSET_COUNT: Final[int] = 5_533
 DATA02_SUCCESSOR_MAX_SAMPLES: Final[int] = 100
 
 _COMMIT_RE: Final[re.Pattern[str]] = re.compile(r"^[0-9a-f]{40}$")
@@ -49,11 +49,13 @@ _TOP_LEVEL_KEYS: Final[frozenset[str]] = frozenset(
         "publication_rebuild_dry_run",
         "schema",
         "side_effects",
+        "universe",
     }
 )
 _CANDIDATE_KEYS: Final[frozenset[str]] = frozenset(
     {"candidate_drift", "image_id", "release_id", "source_commit"}
 )
+_UNIVERSE_KEYS: Final[frozenset[str]] = frozenset({"denominator", "schema", "universe_hash"})
 _CONNECTION_KEYS: Final[frozenset[str]] = frozenset(
     {
         "client_backend_growth",
@@ -126,6 +128,8 @@ _PUBLICATION_REBUILD_KEYS: Final[frozenset[str]] = frozenset(
 _DATASET_KEYS: Final[frozenset[str]] = frozenset(
     {
         "covered_asset_count",
+        "covered_asset_codes_hash",
+        "member_count",
         "missing_asset_count",
         "newest_observed_at",
         "publication_hash",
@@ -259,7 +263,70 @@ def _cutoff(value: datetime | None) -> datetime:
     return result.astimezone(UTC)
 
 
-def _candidate(value: object) -> dict[str, object]:
+@dataclass(frozen=True, slots=True)
+class Data02SuccessorCandidate:
+    """Caller-pinned production candidate identity for checkpoint parsing."""
+
+    source_commit: str
+    release_id: str
+    image_id: str
+
+    def __post_init__(self) -> None:
+        """Reject malformed expected identities before reading checkpoint bytes."""
+
+        _text(self.source_commit, "expected_candidate.source_commit", pattern=_COMMIT_RE)
+        _text(self.release_id, "expected_candidate.release_id", pattern=_RELEASE_RE)
+        _text(self.image_id, "expected_candidate.image_id")
+        if not self.image_id.startswith("sha256:"):
+            raise Data02SuccessorCheckpointError(
+                "expected_candidate.image_id must use sha256: prefix"
+            )
+        _sha256(
+            self.image_id.removeprefix("sha256:"),
+            "expected_candidate.image_id",
+        )
+
+    def to_dict(self) -> dict[str, str]:
+        """Return the exact identity projection compared with the checkpoint."""
+
+        return {
+            "image_id": self.image_id,
+            "release_id": self.release_id,
+            "source_commit": self.source_commit,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class Data02SuccessorUniverse:
+    """Caller-pinned canonical asset-universe scope for checkpoint parsing."""
+
+    denominator: int
+    schema: str
+    universe_hash: str
+
+    def __post_init__(self) -> None:
+        """Reject malformed or noncanonical expected universe identities."""
+
+        _integer(self.denominator, "expected_universe.denominator", minimum=1)
+        if self.schema != DATA02_SUCCESSOR_UNIVERSE_SCHEMA:
+            raise Data02SuccessorCheckpointError("expected_universe.schema is not canonical")
+        _sha256(self.universe_hash, "expected_universe.universe_hash")
+
+    def to_dict(self) -> dict[str, object]:
+        """Return the exact scope projection compared with the checkpoint."""
+
+        return {
+            "denominator": self.denominator,
+            "schema": self.schema,
+            "universe_hash": self.universe_hash,
+        }
+
+
+def _candidate(
+    value: object,
+    *,
+    expected: Data02SuccessorCandidate,
+) -> dict[str, object]:
     """Validate one immutable deployed candidate identity."""
 
     raw = _mapping(value, "candidate")
@@ -273,12 +340,41 @@ def _candidate(value: object) -> dict[str, object]:
     candidate_drift = _boolean(raw["candidate_drift"], "candidate.candidate_drift")
     if candidate_drift:
         raise Data02SuccessorCheckpointError("candidate drift must be false")
-    return {
+    candidate: dict[str, object] = {
         "candidate_drift": False,
         "image_id": image_id,
         "release_id": release_id,
         "source_commit": source_commit,
     }
+    expected_identity = expected.to_dict()
+    if {key: candidate[key] for key in expected_identity} != expected_identity:
+        raise Data02SuccessorCheckpointError(
+            "checkpoint candidate does not match expected candidate identity"
+        )
+    return candidate
+
+
+def _universe(
+    value: object,
+    *,
+    expected: Data02SuccessorUniverse,
+) -> dict[str, object]:
+    """Validate the canonical frozen-universe identity and denominator."""
+
+    raw = _mapping(value, "universe")
+    _exact_keys(raw, _UNIVERSE_KEYS, "universe")
+    if raw["schema"] != DATA02_SUCCESSOR_UNIVERSE_SCHEMA:
+        raise Data02SuccessorCheckpointError("universe.schema is not canonical")
+    universe: dict[str, object] = {
+        "denominator": _integer(raw["denominator"], "universe.denominator", minimum=1),
+        "schema": DATA02_SUCCESSOR_UNIVERSE_SCHEMA,
+        "universe_hash": _sha256(raw["universe_hash"], "universe.universe_hash"),
+    }
+    if universe != expected.to_dict():
+        raise Data02SuccessorCheckpointError(
+            "checkpoint universe does not match expected universe identity"
+        )
+    return universe
 
 
 def _connection(value: object, *, observed_at: datetime) -> dict[str, object]:
@@ -432,7 +528,12 @@ def _date_text(value: object, field_name: str, *, observed_at: datetime) -> str:
     return parsed.isoformat()
 
 
-def _fact_repair(value: object, *, observed_at: datetime) -> dict[str, object]:
+def _fact_repair(
+    value: object,
+    *,
+    observed_at: datetime,
+    universe_denominator: int,
+) -> dict[str, object]:
     """Validate the dry-run coverage and freshness projection."""
 
     raw = _mapping(value, "fact_repair_dry_run")
@@ -442,8 +543,10 @@ def _fact_repair(value: object, *, observed_at: datetime) -> dict[str, object]:
     source = _token(raw["source"], "fact_repair_dry_run.source")
     batch_size = _integer(raw["batch_size"], "fact_repair_dry_run.batch_size", minimum=1)
     asset_count = _integer(raw["asset_count"], "fact_repair_dry_run.asset_count")
-    if asset_count != DATA02_SUCCESSOR_ASSET_COUNT:
-        raise Data02SuccessorCheckpointError("fact_repair_dry_run.asset_count must equal 5533")
+    if asset_count != universe_denominator:
+        raise Data02SuccessorCheckpointError(
+            "fact_repair_dry_run.asset_count must equal universe denominator"
+        )
     session_date = _date_text(
         raw["session_date"], "fact_repair_dry_run.session_date", observed_at=observed_at
     )
@@ -481,7 +584,9 @@ def _fact_repair(value: object, *, observed_at: datetime) -> dict[str, object]:
     _exact_keys(prices_raw, _PRICE_KEYS, "fact_repair_dry_run.completed_session_prices")
     requested = _integer(prices_raw["requested_asset_count"], "prices.requested_asset_count")
     if requested != asset_count:
-        raise Data02SuccessorCheckpointError("prices.requested_asset_count must equal 5533")
+        raise Data02SuccessorCheckpointError(
+            "prices.requested_asset_count must equal universe denominator"
+        )
     eligible = _integer(prices_raw["eligible_asset_count"], "prices.eligible_asset_count")
     invalid = _integer(prices_raw["invalid_asset_count"], "prices.invalid_asset_count")
     missing = _integer(prices_raw["missing_asset_count"], "prices.missing_asset_count")
@@ -527,7 +632,13 @@ def _fact_repair(value: object, *, observed_at: datetime) -> dict[str, object]:
     }
 
 
-def _publication_rebuild(value: object, *, observed_at: datetime) -> dict[str, object]:
+def _publication_rebuild(
+    value: object,
+    *,
+    observed_at: datetime,
+    universe_denominator: int,
+    universe_hash: str,
+) -> dict[str, object]:
     """Validate four dataset coverage rows and immutable publication IDs."""
 
     raw = _mapping(value, "publication_rebuild_dry_run")
@@ -535,8 +646,10 @@ def _publication_rebuild(value: object, *, observed_at: datetime) -> dict[str, o
     if raw["mode"] != "dry_run":
         raise Data02SuccessorCheckpointError("publication_rebuild_dry_run.mode must be dry_run")
     asset_count = _integer(raw["asset_count"], "publication.asset_count")
-    if asset_count != DATA02_SUCCESSOR_ASSET_COUNT:
-        raise Data02SuccessorCheckpointError("publication.asset_count must equal 5533")
+    if asset_count != universe_denominator:
+        raise Data02SuccessorCheckpointError(
+            "publication.asset_count must equal universe denominator"
+        )
     member_count = _integer(raw["member_count"], "publication.member_count")
     exit_code = _integer(raw["exit_code"], "publication.exit_code")
     if exit_code != 0:
@@ -554,18 +667,42 @@ def _publication_rebuild(value: object, *, observed_at: datetime) -> dict[str, o
     datasets: dict[str, dict[str, object]] = {}
     publication_ids: set[str] = set()
     publication_hashes: set[str] = set()
+    dataset_member_total = 0
     for dataset_key in DATA02_SUCCESSOR_DATASET_KEYS:
         dataset = _mapping(datasets_raw[dataset_key], f"publication.datasets.{dataset_key}")
         _exact_keys(dataset, _DATASET_KEYS, f"publication.datasets.{dataset_key}")
         covered = _integer(dataset["covered_asset_count"], f"{dataset_key}.covered_asset_count")
         missing = _integer(dataset["missing_asset_count"], f"{dataset_key}.missing_asset_count")
         if covered + missing != asset_count:
-            raise Data02SuccessorCheckpointError(f"{dataset_key} asset counts must partition 5533")
+            raise Data02SuccessorCheckpointError(
+                f"{dataset_key} asset counts must partition universe denominator"
+            )
+        covered_asset_codes_hash = _sha256(
+            dataset["covered_asset_codes_hash"],
+            f"{dataset_key}.covered_asset_codes_hash",
+        )
         ready = _boolean(dataset["ready"], f"{dataset_key}.ready")
         if ready != (missing == 0):
             raise Data02SuccessorCheckpointError(
                 f"{dataset_key}.ready conflicts with missing count"
             )
+        if ready and covered_asset_codes_hash != universe_hash:
+            raise Data02SuccessorCheckpointError(
+                f"{dataset_key} full coverage must match universe hash"
+            )
+        dataset_member_count = _integer(
+            dataset["member_count"],
+            f"{dataset_key}.member_count",
+        )
+        if dataset_member_count < covered:
+            raise Data02SuccessorCheckpointError(
+                f"{dataset_key}.member_count cannot be smaller than covered assets"
+            )
+        if covered == 0 and dataset_member_count != 0:
+            raise Data02SuccessorCheckpointError(
+                f"{dataset_key}.member_count requires at least one covered asset"
+            )
+        dataset_member_total += dataset_member_count
         newest = _parse_utc(
             dataset["newest_observed_at"], f"{dataset_key}.newest_observed_at", cutoff=observed_at
         )
@@ -579,6 +716,8 @@ def _publication_rebuild(value: object, *, observed_at: datetime) -> dict[str, o
         publication_hashes.add(publication_hash)
         datasets[dataset_key] = {
             "covered_asset_count": covered,
+            "covered_asset_codes_hash": covered_asset_codes_hash,
+            "member_count": dataset_member_count,
             "missing_asset_count": missing,
             "newest_observed_at": _utc_text(newest),
             "publication_hash": publication_hash,
@@ -589,6 +728,8 @@ def _publication_rebuild(value: object, *, observed_at: datetime) -> dict[str, o
     expected_ready = all(bool(dataset["ready"]) for dataset in datasets.values())
     if ready != expected_ready:
         raise Data02SuccessorCheckpointError("publication.ready conflicts with dataset readiness")
+    if member_count != dataset_member_total:
+        raise Data02SuccessorCheckpointError("publication.member_count must equal dataset sum")
     return {
         "asset_count": asset_count,
         "dataset_count": dataset_count,
@@ -663,6 +804,7 @@ class Data02SuccessorCheckpoint:
 
     observed_at: datetime
     candidate: dict[str, object]
+    universe: dict[str, object]
     connection_stability: dict[str, object]
     public_probe_window: dict[str, object]
     fact_repair_dry_run: dict[str, object]
@@ -693,12 +835,15 @@ class Data02SuccessorCheckpoint:
             "runtime_enablement": "not_authorized",
             "schema_version": DATA02_SUCCESSOR_REPORT_SCHEMA,
             "side_effects": self.side_effects,
+            "universe": self.universe,
         }
 
 
 def parse_data02_successor_checkpoint(
     payload: bytes,
     *,
+    expected_candidate: Data02SuccessorCandidate,
+    expected_universe: Data02SuccessorUniverse,
     as_of: datetime | None = None,
 ) -> Data02SuccessorCheckpoint:
     """Parse one external checkpoint without touching production state."""
@@ -715,11 +860,23 @@ def parse_data02_successor_checkpoint(
     if raw["schema"] != DATA02_SUCCESSOR_SNAPSHOT_SCHEMA:
         raise Data02SuccessorCheckpointError("checkpoint.schema is not canonical")
     observed_at = _parse_utc(raw["observed_at"], "observed_at", cutoff=cutoff)
-    candidate = _candidate(raw["candidate"])
+    candidate = _candidate(raw["candidate"], expected=expected_candidate)
+    universe = _universe(raw["universe"], expected=expected_universe)
+    universe_denominator = cast(int, universe["denominator"])
+    universe_hash = cast(str, universe["universe_hash"])
     connection = _connection(raw["connection_stability"], observed_at=observed_at)
     probe = _probe(raw["public_probe_window"])
-    repair = _fact_repair(raw["fact_repair_dry_run"], observed_at=observed_at)
-    publication = _publication_rebuild(raw["publication_rebuild_dry_run"], observed_at=observed_at)
+    repair = _fact_repair(
+        raw["fact_repair_dry_run"],
+        observed_at=observed_at,
+        universe_denominator=universe_denominator,
+    )
+    publication = _publication_rebuild(
+        raw["publication_rebuild_dry_run"],
+        observed_at=observed_at,
+        universe_denominator=universe_denominator,
+        universe_hash=universe_hash,
+    )
     gate = _gate(raw["gate"])
     side_effects = _side_effects(raw["side_effects"])
     price_projection = _mapping(
@@ -735,6 +892,7 @@ def parse_data02_successor_checkpoint(
     return Data02SuccessorCheckpoint(
         observed_at=observed_at,
         candidate=candidate,
+        universe=universe,
         connection_stability=connection,
         public_probe_window=probe,
         fact_repair_dry_run=repair,
@@ -762,12 +920,14 @@ def data02_successor_checkpoint_artifact_sha256(payload: bytes) -> str:
 
 
 __all__ = [
-    "DATA02_SUCCESSOR_ASSET_COUNT",
     "DATA02_SUCCESSOR_DATASET_KEYS",
     "DATA02_SUCCESSOR_REPORT_SCHEMA",
     "DATA02_SUCCESSOR_SNAPSHOT_SCHEMA",
+    "DATA02_SUCCESSOR_UNIVERSE_SCHEMA",
+    "Data02SuccessorCandidate",
     "Data02SuccessorCheckpoint",
     "Data02SuccessorCheckpointError",
+    "Data02SuccessorUniverse",
     "data02_successor_checkpoint_artifact_sha256",
     "parse_data02_successor_checkpoint",
     "serialize_data02_successor_checkpoint",

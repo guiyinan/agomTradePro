@@ -435,3 +435,21 @@ selector absent。受保护监控使用 root-only 凭据与匿名请求仍均返
 原始探针、输出及哈希清单见同名 -raw.zip。registry v161 → v162；DATA-02、EVID-01/02、
 AUD-03 状态不变，TUI-02 继续 active。本轮没有部署、provider 调用、生产写入、profile 激活或
 Publication 切换。
+
+## DATA-02 successor 候选与全集范围绑定 v2（2026-09-22）
+
+复核发现旧 successor recorder 把历史 `5,533` 写成代码常量，且仅校验 checkpoint 内部的计数自洽；
+即使升级 schema，输入仍可同时替换 denominator 与 universe hash。现在 v2 parser 要求调用方独立固定
+source commit、release id、image digest，以及 canonical universe schema、当前分母 `5,565` 和 SHA-256
+`4b9bfd44941336ed45d302d4c0f1cb53b7bfce025cff377ffa14a5ae8f792c22`。候选三元组或全集三元组任一
+替换都会在记录前 fail closed。
+
+repair、completed-session price request 与四 Publication 的 asset count 共享该固定分母；完整 dataset 的
+asset-code hash 必须等于固定全集 hash。每个 dataset 另带实际 `member_count`，顶层总数必须精确等于四项
+之和，因此 financial 多指标成员不会再被错误等同于资产数。历史 v1/5,533 原件保持只读历史状态，
+不会被自动升级为 v2 生产证据。
+
+TDD red、25 项聚焦回归、类型与治理门禁以及 Luna Max 最终复核写入
+[DATA-02 successor 范围绑定封存](../testing/data02-successor-scope-binding-v2-2026-09-22.json)。
+registry v162 → v163，DATA-02 继续 `awaiting_production`。本轮没有连接 provider/VPS/数据库，没有部署、
+生产写入、Publication 切换或 authority/tolerance 变更。

@@ -1,0 +1,16 @@
+DATA-02 successor candidate and universe scope binding v2
+baseline_commit: 787c9a581e712e5c93421333464802051fa90d02
+status: repository-only; DATA-02 remains awaiting_production
+canonical_universe: active-a-share-universe.v1 / 5565 / 4b9bfd44941336ed45d302d4c0f1cb53b7bfce025cff377ffa14a5ae8f792c22
+TDD red 1: ImportError for Data02SuccessorCandidate before candidate pinning implementation
+TDD red 2: ImportError for Data02SuccessorUniverse before caller-pinned universe implementation
+TDD red 3: self-consistent top member total initially accepted one dataset member count below its covered asset count
+focused pytest: 25 passed in 1.85s
+incremental mypy: 0 regressions in 2 production files
+full mypy debt ceiling: 0 errors in 0 files
+current-data contracts: 65 surfaces, passed
+architecture: 3221 files, 7 rules, 0 violations
+active registry: 2026-09-22.v163, 54 units, 0 violations
+governance baseline: 2026-09-09.v220, 0 violations
+Black/isort/Ruff/git diff check: passed
+production actions: no provider/VPS/database access, deployment, business write, publication switch, authority change, or tolerance change
