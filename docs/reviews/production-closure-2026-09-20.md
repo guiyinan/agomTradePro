@@ -366,3 +366,21 @@ availability 权威性”。AKShare 仍未提供同等级 artifact/row binding�
 provider、未部署、未写生产、未切换 Publication，也没有补造来源时间。结构化证据见
 [DATA-02 Tushare 留存行绑定封存](../testing/data02-tushare-retained-row-binding-2026-09-22.json)。
 registry v157 → v158，DATA-02 保持 `awaiting_production`。
+
+## 当前候选生产只读重验（2026-09-22，repository 24fa0ed90）
+
+复用已封存探针，经 SSH stdin 对生产执行 release/HTTPS、PostgreSQL `REPEATABLE READ READ ONLY`、
+两个无 `--execute` 的 DATA-02 dry-run 和 protected monitoring 检查；探针未在 VPS 落盘。生产仍为
+`439468482 / 20260920184626`，Web/Prometheus 容器 identity 未变，health、db health、ready 为 200，
+decision-ready 为设计内 503。仓库候选 `24fa0ed9029b208d0f225b1d4a3941774c22930e` 尚未部署。
+
+数据库 denominator 仍为 5,565；quote、price、valuation current Publication 各 5,565 members，
+financial 仍为 80。当前盘中 repair preview 在 provider 访问前按 completed-session 门禁停止；这不覆盖
+上一份收盘后已到达 `financial announced_at` 门禁的证据。独立四 Publication preview 仍明确拒绝缺失
+financial `announced_at`。当前 actor、owner、joined authority heads 均为 0；v17 audit mode 仍为 off、
+outbox=false，authority selector 未激活。protected monitoring 使用 root-only credential 与匿名请求均为
+401，因此没有绑定 retained sample、候选 rebind 或新的 14 日窗口。
+
+结构化报告见[候选绑定生产只读重验](../deployment/production-closure-revalidation-2026-09-22-24fa0ed90.json)，
+原始探针、输出和哈希清单见同名 `-raw.zip`。registry v158 → v159；DATA-02、EVID-01/02、AUD-03
+状态不变，TUI-02 继续 active。本轮没有部署、provider 调用、生产写入、profile 激活或 Publication 切换。
