@@ -65,6 +65,10 @@ from apps.data_center.domain.protocols import (
 from apps.data_center.financial_response_artifact_composition import (
     verify_retained_financial_response_artifact,
 )
+from apps.data_center.financial_source_time_composition import (
+    verify_provider_financial_source_time_evidence,
+    verify_retained_financial_source_time_evidence,
+)
 from apps.data_center.infrastructure.archive_repositories import (
     ArchiveCandidateRepository,
     ArchiveCapacityGuard,
@@ -362,7 +366,9 @@ def get_market_thermometer_snapshot_repository() -> MarketThermometerSnapshotRep
 
 
 def get_financial_fact_repository() -> FinancialFactRepository:
-    return FinancialFactRepository()
+    return FinancialFactRepository(
+        source_time_evidence_verifier=verify_retained_financial_source_time_evidence
+    )
 
 
 def get_fund_nav_repository() -> FundNavRepository:
@@ -640,7 +646,9 @@ def make_core_current_fact_refresh_use_case(
         raise ValueError(f"No active provider is configured for {normalized_source}")
 
     provider_registry = build_provider_registry_for_repo(provider_repository)
-    financial_repository = FinancialFactRepository()
+    financial_repository = FinancialFactRepository(
+        source_time_evidence_verifier=verify_retained_financial_source_time_evidence
+    )
     price_repository = PriceBarRepository()
     quote_repository = QuoteSnapshotRepository()
     raw_audit_repository = RawAuditRepository()
@@ -685,6 +693,7 @@ def make_core_current_fact_refresh_use_case(
             raw_audit_repo=raw_audit_repository,
             publication_publisher=None,
             artifact_verifier=verify_retained_financial_response_artifact,
+            source_time_artifact_verifier=verify_provider_financial_source_time_evidence,
         ),
         financial_availability=FinancialAvailabilityBackfillUseCase(
             repository=financial_repository,

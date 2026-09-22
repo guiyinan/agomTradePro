@@ -6020,6 +6020,67 @@
           "test_function": "test_contract_requires_asset_period_and_announcement_date_join"
         }
       ]
+    },
+    {
+      "id": "data_center.financial_source_time_independent_verifier",
+      "surface": "Financial writes and ordinary/current Publication recompute two retained bodies and exact-one audit evidence through one fail-closed verifier",
+      "source_files": [
+        "apps/data_center/application/financial_source_time_verifier.py",
+        "apps/data_center/infrastructure/financial_source_time_audit.py",
+        "apps/data_center/infrastructure/financial_source_time_body_store.py",
+        "apps/data_center/financial_source_time_composition.py",
+        "apps/data_center/publication_rebuild_composition.py"
+      ],
+      "required_markers": {
+        "apps/data_center/application/financial_source_time_verifier.py": [
+          "financial_reference.capture_id == source_reference.capture_id",
+          "len(audits) != 1",
+          "audit.content_hash == raw_audit_content_hash(audit)",
+          "return recomputed == witness"
+        ],
+        "apps/data_center/infrastructure/financial_source_time_audit.py": [
+          "class DjangoFinancialSourceTimeAuditReader:",
+          "list_by_source_time_artifact_capture_id",
+          "SOURCE_TIME_AUDIT_LINK_SCHEMA",
+          "audit.response_payload_hash == reference.body_sha256"
+        ],
+        "apps/data_center/infrastructure/financial_source_time_body_store.py": [
+          "class FinancialSourceTimeBodyStore:",
+          "financial_source_time_artifact",
+          "hashlib.sha256(body).hexdigest() != reference.body_sha256"
+        ],
+        "apps/data_center/financial_source_time_composition.py": [
+          "_MATCHERS: dict[str, FinancialSourceTimeContractMatcher] = {}",
+          "load_financial_source_time_contract_registry(",
+          "verify_provider_financial_source_time_evidence",
+          "verify_retained_financial_source_time_evidence"
+        ],
+        "apps/data_center/publication_rebuild_composition.py": [
+          "source_time_evidence_verifier=verify_retained_financial_source_time_evidence"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "financial_source_time_exact_recomputation",
+          "test_file": "tests/unit/data_center/test_financial_source_time_verifier.py",
+          "test_function": "test_exact_recomputation_accepts_one_complete_evidence_chain"
+        },
+        {
+          "case": "financial_source_time_exact_one_audit",
+          "test_file": "tests/unit/data_center/test_financial_source_time_verifier.py",
+          "test_function": "test_each_artifact_requires_exactly_one_raw_audit"
+        },
+        {
+          "case": "financial_source_time_authenticated_body",
+          "test_file": "tests/unit/data_center/test_financial_source_time_body_store.py",
+          "test_function": "test_store_read_and_inspect_exact_authenticated_body"
+        },
+        {
+          "case": "financial_source_time_current_publication_composition",
+          "test_file": "tests/unit/data_center/test_financial_source_time_composition.py",
+          "test_function": "test_current_financial_publication_uses_the_repository_verifier"
+        }
+      ]
     }
   ]
 }

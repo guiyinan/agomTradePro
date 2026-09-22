@@ -9,6 +9,9 @@ from apps.data_center.application.current_publication_rebuild import (
     CurrentPublicationDataset,
     CurrentPublicationRebuildUseCase,
 )
+from apps.data_center.financial_source_time_composition import (
+    verify_retained_financial_source_time_evidence,
+)
 from apps.data_center.infrastructure.catalog_runtime_repositories import PublicationPolicyRepository
 from apps.data_center.infrastructure.control_plane_repositories import (
     CanonicalPublicationRepository,
@@ -73,7 +76,9 @@ def build_current_publication_rebuild(
                 fact_table="data_center_financial_fact",
                 created_by=created_by,
             ),
-            FinancialFactRepository(),
+            FinancialFactRepository(
+                source_time_evidence_verifier=verify_retained_financial_source_time_evidence
+            ),
         ),
     )
     if dataset_keys is not None:

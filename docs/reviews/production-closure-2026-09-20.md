@@ -526,3 +526,21 @@ SHA-256 绑定 provider、两个 dataset、endpoint、parser、时区、来源�
 或 production composition 接线；P1 继续保留，DATA-02 继续 `awaiting_production`。本轮一次 SSH stdin
 只读重验因远端未返回而被本地中止，随后公网 health/db/ready 为 200、decision-ready 重试为 503；没有
 将这组不完整观测封存成生产候选验收，也没有执行 provider 或生产写入。
+
+## DATA-02 双原件独立复验（2026-09-22）
+
+上一节保留的具体实现 P1 已关闭。生产代码现在用一套共享 verifier 读取两份 authenticated encrypted
+body，逐份核对长度/SHA-256，并要求 capture UUID 各自只有一条 canonical content-hash 完整的 RawAudit。
+审计能力、provider、row count、完成时间、parser、payload size 和 typed artifact link 全部精确匹配；
+两条 audit link 的 provider row id 必须相同，防止同名 provider 配置被混用。
+
+同一个 verifier 已接入严格 financial sync、backfill、on-demand/current refresh、普通 Publication 与
+current Publication。Luna Max 首轮终审发现 provider id equality 缺口后，新增红测证明原实现会误接受
+7/8 两个不同 id；修复后 22 项聚焦测试和 48 项相关回归通过，最终复核 P0=0、P1=0。
+
+仓库中的 contract registry 仍为 `awaiting_owner_approval`，provider matcher 表仍为空，因此本次接线不会
+放行任何真实来源时间写入。DATA-02 状态保持 `awaiting_production`；仍需真实 owner-approved contract、
+provider-specific matcher 与 source-time producer、current authority、生产写授权和四 Publication 对账。
+结构化证据见
+[双原件独立复验封存](../testing/data02-financial-source-time-independent-verifier-2026-09-22.json)。
+本轮没有 provider/VPS/数据库访问、部署、生产写入或 Publication 切换。

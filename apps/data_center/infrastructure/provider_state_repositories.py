@@ -245,6 +245,31 @@ class RawAuditRepository:
         )
         return self._from_model(model) if model is not None else None
 
+    def list_by_artifact_capture_id(self, capture_id: UUID) -> list[RawAudit]:
+        """Return every financial audit row for exact-cardinality verification."""
+
+        if not isinstance(capture_id, UUID):
+            raise ValueError("capture_id must be a UUID")
+        models = RawAuditModel.objects.filter(
+            capability="financial",
+            extra__financial_response_artifact__capture_id=str(capture_id),
+        ).order_by("fetched_at", "pk")
+        return [self._from_model(model) for model in models]
+
+    def list_by_source_time_artifact_capture_id(
+        self,
+        capture_id: UUID,
+    ) -> list[RawAudit]:
+        """Return every financial source-time audit row for one capture UUID."""
+
+        if not isinstance(capture_id, UUID):
+            raise ValueError("capture_id must be a UUID")
+        models = RawAuditModel.objects.filter(
+            capability="financial_source_time",
+            extra__financial_source_time_artifact__capture_id=str(capture_id),
+        ).order_by("fetched_at", "pk")
+        return [self._from_model(model) for model in models]
+
     def log_failure(self, audit: RawAudit) -> RawAudit:
         """Persist one provider-rejection audit under its dedicated capability."""
 

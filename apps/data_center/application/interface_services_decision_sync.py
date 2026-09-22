@@ -39,6 +39,10 @@ from apps.data_center.domain.enums import DataCapability
 from apps.data_center.financial_response_artifact_composition import (
     verify_retained_financial_response_artifact,
 )
+from apps.data_center.financial_source_time_composition import (
+    verify_provider_financial_source_time_evidence,
+    verify_retained_financial_source_time_evidence,
+)
 from core.exceptions import DataFetchError
 
 from .current_valuation_sync import SyncCurrentValuationBatchUseCase
@@ -435,7 +439,9 @@ def make_sync_fund_nav_use_case() -> SyncFundNavUseCase:
 def make_sync_financial_use_case() -> SyncFinancialUseCase:
     """Build a fact-only financial sync; aggregate publication is separate."""
 
-    financial_repository = FinancialFactRepository()
+    financial_repository = FinancialFactRepository(
+        source_time_evidence_verifier=verify_retained_financial_source_time_evidence
+    )
     return SyncFinancialUseCase(
         provider_repo=_make_provider_repo(),
         provider_registry=_get_provider_registry(),
@@ -443,13 +449,16 @@ def make_sync_financial_use_case() -> SyncFinancialUseCase:
         raw_audit_repo=_make_raw_audit_repo(),
         publication_publisher=None,
         artifact_verifier=verify_retained_financial_response_artifact,
+        source_time_artifact_verifier=verify_provider_financial_source_time_evidence,
     )
 
 
 def make_backfill_sync_financial_use_case() -> SyncFinancialUseCase:
     """Build a fact-only financial sync for aggregate final publication."""
 
-    financial_repository = FinancialFactRepository()
+    financial_repository = FinancialFactRepository(
+        source_time_evidence_verifier=verify_retained_financial_source_time_evidence
+    )
     return SyncFinancialUseCase(
         provider_repo=_make_provider_repo(),
         provider_registry=_get_provider_registry(),
@@ -457,6 +466,7 @@ def make_backfill_sync_financial_use_case() -> SyncFinancialUseCase:
         raw_audit_repo=_make_raw_audit_repo(),
         publication_publisher=None,
         artifact_verifier=verify_retained_financial_response_artifact,
+        source_time_artifact_verifier=verify_provider_financial_source_time_evidence,
     )
 
 
@@ -543,7 +553,9 @@ def make_on_demand_data_center_service() -> OnDemandDataCenterService:
     return OnDemandDataCenterService(
         price_repo=PriceBarRepository(),
         valuation_repo=ValuationFactRepository(),
-        financial_repo=FinancialFactRepository(),
+        financial_repo=FinancialFactRepository(
+            source_time_evidence_verifier=verify_retained_financial_source_time_evidence
+        ),
         quote_repo=QuoteSnapshotRepository(),
         sync_price_use_case_factory=make_sync_price_use_case,
         sync_valuation_use_case_factory=make_sync_valuation_use_case,

@@ -1,0 +1,91 @@
+{
+  "schema_version": "data02-financial-source-time-independent-verifier.v1",
+  "recorded_at_utc": "2026-09-22T15:58:41.693738Z",
+  "repository_branch": "dev/next-development",
+  "base_commit": "fcaccba249a05a7cbe9f7ac137e17a94eae1de87",
+  "closure_unit": "DATA-02",
+  "registry_transition": {
+    "from_version": "2026-09-22.v168",
+    "to_version": "2026-09-22.v169",
+    "status_before": "awaiting_production",
+    "status_after": "awaiting_production"
+  },
+  "tdd_red": [
+    {
+      "command": "pytest tests/unit/data_center/test_financial_source_time_verifier.py tests/unit/data_center/test_financial_source_time_body_store.py -q",
+      "result": "collection errors: ModuleNotFoundError for the independent verifier and source-time body store"
+    },
+    {
+      "command": "pytest tests/unit/data_center/test_financial_source_time_verifier.py::test_financial_and_source_time_audits_require_the_same_provider_id -q",
+      "result": "1 failed: verifier accepted financial provider_id=7 with source-time provider_id=8"
+    }
+  ],
+  "implementation": {
+    "shared_application_verifier": "reads both retained bodies, recomputes exact byte size and SHA-256, validates both audits, resolves one exact governed contract and delegates provider-specific witness recomputation",
+    "audit_cardinality": "queries every audit row for each capture UUID and requires exactly one row with a non-empty recomputed canonical content_hash",
+    "audit_projection": [
+      "capability",
+      "provider_name",
+      "status",
+      "row_count",
+      "fetched_at",
+      "parser_version",
+      "payload_size_bytes",
+      "redacted",
+      "error_message",
+      "typed_artifact_link"
+    ],
+    "provider_identity": "both typed audit links must bind the same positive provider row id; provider-bound sync additionally requires the active ProviderConfig id",
+    "source_time_body_store": "distinct FST1 authenticated Fernet envelope, canonical content-addressed location, atomic no-replace publication, link/reparse rejection and exact metadata/body replay",
+    "composition_surfaces": [
+      "strict financial sync",
+      "resumable financial backfill",
+      "on-demand financial hydration",
+      "core current fact refresh",
+      "ordinary financial Publication",
+      "current financial Publication rebuild"
+    ]
+  },
+  "fail_closed_state": {
+    "contract_registry_status": "awaiting_owner_approval",
+    "registered_contract_count": 0,
+    "registered_matcher_count": 0,
+    "runtime_effect": "no provider can pass the source-time verifier; financial writes and ordinary/current Publication remain denied"
+  },
+  "verification": {
+    "focused_tests": "22 passed",
+    "related_regression_tests": "48 passed in 213.28s",
+    "incremental_mypy": "0 regressions across 8 changed production Python files",
+    "full_mypy_debt": "passed: 0 errors in 0 files",
+    "black_isort_ruff": "passed; composition.py retained its existing CRLF layout and was checked with Ruff without whole-file normalization",
+    "current_data_contracts": "67 surfaces, passed",
+    "active_plan_registry": "version 2026-09-22.v169, 54 units, 0 violations",
+    "governance_consistency": "0 violations",
+    "architecture": "3228 files, 7 rules, 0 violations",
+    "versioned_surface_retirement": "5 families, 24 pending retirement proofs, 0 violations; no old version is deletion-eligible"
+  },
+  "luna_max_review": {
+    "initial_p0": 0,
+    "initial_p1": 1,
+    "initial_p1_finding": "financial and source-time audit links could bind different provider row ids under the same provider name",
+    "remediation": "return both provider row ids from the strict link verifier and reject missing or unequal identities before matcher execution",
+    "final_p0": 0,
+    "final_p1": 0,
+    "decision": "repository_slice_submittable"
+  },
+  "remaining_production_gates": [
+    "Obtain owner approval for a real provider contract with exact asset, period-end and announcement-date join semantics.",
+    "Implement and register the matching provider-specific parser/matcher and source-time capture/audit producer.",
+    "Obtain current authority and explicit production-write authorization.",
+    "Run the provider backfill and reconcile four immutable Publications under approved tolerances."
+  ],
+  "production_effects": {
+    "provider_calls": 0,
+    "vps_or_production_database_access": 0,
+    "database_writes": 0,
+    "deployments": 0,
+    "publication_switches": 0,
+    "authority_or_owner_policy_changes": 0
+  },
+  "decision": "independent_verifier_repository_slice_closed_production_acceptance_pending"
+}

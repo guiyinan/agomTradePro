@@ -151,3 +151,5 @@ docs/testing/data02-item-attempt-store-foundation-2026-09-21.txt text eol=lf
 docs/testing/data02-financial-source-time-artifact-binding-2026-09-22.json text eol=lf
 docs/testing/data02-financial-source-time-contract-registry-2026-09-22.json text eol=lf
 docs/testing/data02-financial-source-time-contract-registry-2026-09-22.json.sha256 text eol=lf
+docs/testing/data02-financial-source-time-independent-verifier-2026-09-22.json text eol=lf
+docs/testing/data02-financial-source-time-independent-verifier-2026-09-22.json.sha256 text eol=lf

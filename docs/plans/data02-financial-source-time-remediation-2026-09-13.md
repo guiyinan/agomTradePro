@@ -789,3 +789,23 @@ join 语义。缺少 period-end 关系的 `ts_code+ann_date` 关联不能注册�
 重复 JSON key、未知字段、内容哈希漂移、重复逻辑 identity、弱 join，以及未批准状态下夹带 contract。
 这一切片只关闭“任意 contract 声明可进入 verifier”的治理缺口；双原件 reader、唯一 RawAudit 查询、
 具体 matcher 与 production composition 接线仍是 P1，DATA-02 保持 `awaiting_production`。
+
+## 30. 2026-09-22 双原件独立复验与 production composition 接线
+
+新增共享 Application verifier，分别读取财务响应原件和来源时间原件，逐份重算正文长度与 SHA-256，
+并查询与 capture UUID 匹配的全部 RawAudit。每份原件只能有一条审计记录；审计 `content_hash` 必须按
+Domain canonical 算法重算一致，能力、provider、成功状态、行数、完成时间、parser、正文长度和 redaction
+也必须逐项一致。两条 audit link 还必须给出相同的正整数 provider row id，避免同名 provider 的不同
+配置行被拼成一条证据链。
+
+来源时间原件使用独立 `FST1` authenticated envelope、content-addressed 路径和 no-replace 原子写入。
+共享 verifier 只从 owner 批准的 exact contract registry 取契约，并调用按 parser 注册的 provider-specific
+matcher 重算完整 witness；普通 financial 写入、on-demand、current refresh、普通 Publication 和 current
+Publication 都注入同一复验边界。
+
+当前 registry 仍是 `awaiting_owner_approval` 且 matcher 表为空，所以所有路径继续 fail closed。此切片
+关闭双原件 reader、exact-one audit、共享 orchestrator 和 composition 接线 P1，但没有创建真实 provider
+契约、matcher 或来源时间采集器。DATA-02 继续 `awaiting_production`，恢复条件仍是 owner 批准的真实契约、
+provider-specific matcher/producer、current authority、明确生产写授权与真实四 Publication 对账。
+结构化证据见
+[DATA-02 双原件独立复验证据](../testing/data02-financial-source-time-independent-verifier-2026-09-22.json)。
