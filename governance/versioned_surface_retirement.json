@@ -1,7 +1,7 @@
 {
-  "schema_version": "2026-09-22.v6",
+  "schema_version": "2026-09-23.v7",
   "owner": "architecture-governance",
-  "reviewed_at": "2026-09-22",
+  "reviewed_at": "2026-09-23",
   "scope": "apps/**/*.py and core/**/*.py excluding migrations; _vN module groups plus explicit no-suffix, runtime-schema and composition-route legacy surfaces",
   "policy": "Parallel versions must have one declared preferred current version, exact _vN and no-suffix inventories, explicit retained-read and write-capable versions, real blockers and retirement gates. A satisfied blocker makes the guard fail until the family is reviewed. Historical append-only rows and hashes must remain readable until archive/restore evidence proves safe retirement. The content-addressed baseline freezes the exact parallel, retained-read and write-capable version sets: ordinary inventory edits cannot add, replace or retire a version while proofs remain pending. A separate content-addressed retention-floor baseline preserves every governed historical version, retained-read classification, no-suffix route and same-file schema marker until the applicable production blockers and retirement proofs are independently reviewed.",
   "version_growth_policy": {
@@ -649,6 +649,16 @@
           "markers": [
             "DjangoAccountOwnerAssignmentProvenanceReceiptV3Repository(using=using)"
           ]
+        },
+        {
+          "path": "apps/account/account_owner_assignment_provenance_receipt_v4_composition.py",
+          "versions": [
+            4
+          ],
+          "role": "writer",
+          "markers": [
+            "def build_account_owner_assignment_provenance_receipt_v4_issuer("
+          ]
         }
       ],
       "retirement_evidence": {
@@ -806,6 +816,16 @@
           "role": "preferred_entrypoint",
           "markers": [
             "DjangoPhysicalAccountRowObservationV2Repository(using=alias)"
+          ]
+        },
+        {
+          "path": "apps/simulated_trading/account_physical_row_v2_composition.py",
+          "versions": [
+            2
+          ],
+          "role": "reader",
+          "markers": [
+            "def build_account_physical_row_v2_provider("
           ]
         }
       ],
@@ -994,6 +1014,16 @@
           "role": "reader",
           "markers": [
             "class DjangoExactPhysicalSimulatedAccountRowV2Provider:"
+          ]
+        },
+        {
+          "path": "apps/simulated_trading/source_v2_composition.py",
+          "versions": [
+            2
+          ],
+          "role": "reader",
+          "markers": [
+            "def build_exact_raw_simulated_account_observation_v2_provider("
           ]
         }
       ],

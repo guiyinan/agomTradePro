@@ -1,0 +1,122 @@
+{
+  "schema_version": "2026-09-23.v1",
+  "evidence_type": "versioned_singleton_composition_retirement_guard",
+  "generated_at": "2026-09-22T18:39:42.468921+00:00",
+  "base_commit": "9758bdea3c22135066fe2e45b9cd4580d6881f7a",
+  "branch": "dev/next-development",
+  "scope": {
+    "production_access": false,
+    "production_mutation": false,
+    "runtime_behavior_changed": false,
+    "legacy_code_deleted": false,
+    "classic_templates_deleted": false
+  },
+  "finding": {
+    "severity": "P1",
+    "resolved": true,
+    "description": "A versioned composition route with no normalized peer was invisible to parallel-basename discovery, leaving the Provenance V4 issuer outside the explicit marker floor.",
+    "red_test_violations": [
+      "unregistered_singleton_versioned_composition:apps/account/account_owner_assignment_provenance_receipt_v4_composition.py",
+      "unregistered_singleton_versioned_composition:apps/simulated_trading/account_physical_row_v2_composition.py",
+      "unregistered_singleton_versioned_composition:apps/simulated_trading/source_v2_composition.py"
+    ]
+  },
+  "closure": {
+    "singleton_versioned_composition_count": 4,
+    "governed_routes": [
+      {
+        "path": "apps/account/account_owner_assignment_provenance_receipt_v4_composition.py",
+        "legacy_surface": "account-owner-assignment-provenance-nosuffix",
+        "role": "writer",
+        "version": 4
+      },
+      {
+        "path": "apps/account/system_audit_authority_v3_composition.py",
+        "legacy_surface": "audit-authority-schema-route",
+        "role": "reader",
+        "version": 3,
+        "previously_governed": true
+      },
+      {
+        "path": "apps/simulated_trading/account_physical_row_v2_composition.py",
+        "legacy_surface": "physical-account-row-observation",
+        "role": "reader",
+        "version": 2
+      },
+      {
+        "path": "apps/simulated_trading/source_v2_composition.py",
+        "legacy_surface": "simulated-account-row-source",
+        "role": "reader",
+        "version": 2
+      }
+    ],
+    "retention_floor_sha256": "7a0a2df923f7c9af0288b3d99546db21ebb49ca34a6ed9103d9178b6ec8e0453",
+    "deletion_eligible_surfaces": [],
+    "pending_retirement_proofs": 24,
+    "blocked_deletions": {
+      "account_and_audit": [
+        "EVID-01",
+        "EVID-02"
+      ],
+      "regime": [
+        "STRAT-02"
+      ],
+      "classic": [
+        "TUI-02",
+        "python scripts/check_web_to_tui_cutover_readiness.py --require-allow"
+      ]
+    }
+  },
+  "checks": [
+    {
+      "command": "pytest tests/guardrails/test_versioned_surface_retirement.py tests/guardrails/test_governance_consistency.py -q",
+      "result": "37 passed"
+    },
+    {
+      "command": "python scripts/check_versioned_surface_retirement.py",
+      "result": "4 singleton versioned compositions; 0 violations"
+    },
+    {
+      "command": "python scripts/check_active_plan_registry.py",
+      "result": "version 2026-09-23.v172; 54 units; 0 violations"
+    },
+    {
+      "command": "python scripts/check_governance_consistency.py --baseline governance/governance_baseline.json --format text",
+      "result": "0 violations"
+    },
+    {
+      "command": "python scripts/check_mypy_regression.py scripts/check_versioned_surface_retirement.py",
+      "result": "0 regressions"
+    },
+    {
+      "command": "python scripts/check_mypy_debt_ceiling.py",
+      "result": "0 errors in 0 files"
+    },
+    {
+      "command": "black/isort/ruff focused checks",
+      "result": "passed"
+    }
+  ],
+  "independent_review": {
+    "reviewer": "gpt-5.6-luna-max",
+    "status": "passed_after_finding_resolved",
+    "p0_count": 0,
+    "p1_count": 0,
+    "p2_count": 0,
+    "observation": "All four singleton versioned compositions are now governed; the three new surface/role/marker assignments and the sealed digest are accurate."
+  },
+  "governance_transition": {
+    "unit_status_changes": [],
+    "note": "No production closure unit advanced. Existing EVID-01/02, STRAT-02 and TUI-02 blockers remain unchanged."
+  },
+  "files": {
+    "governance/versioned_surface_retirement.json": "813738066483d1dc49cdb64b33f92866d90333526f778ef7fc872924846dc38c",
+    "governance/versioned_surface_retention_floor.json": "38842669c3920582f63ca41d6f044c911f2b4dfc69e962593de4bd39728fedaf",
+    "scripts/check_versioned_surface_retirement.py": "43324426328253a759f10c1c35e6842bf1be7a441e5c4d7eee9ada6a2ca98abb",
+    "tests/guardrails/test_versioned_surface_retirement.py": "70c9ef13ef7aed9ec69b659803acfb78dbff5326514286a9e5c55ceb250cd912",
+    "docs/reviews/production-closure-2026-09-20.md": "14fe6c3a1254a548cbeb9bedae2404d446488b9535fce72a2b5612ed844e26bb"
+  },
+  "limitations": [
+    "A route filename version can identify the composition contract while tracked versions identify the governed payload family; exact path, role and stable markers remain the sealed trust root."
+  ]
+}

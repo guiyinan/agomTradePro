@@ -1,7 +1,7 @@
 {
-  "schema_version": "2026-09-22.v2",
+  "schema_version": "2026-09-23.v3",
   "owner": "architecture-governance",
-  "frozen_at": "2026-09-22",
+  "frozen_at": "2026-09-23",
   "policy": "This content-addressed baseline is immutable while any governed production blocker or retirement proof is pending. It freezes exact parallel, retained-read and write-capable version sets plus same-file markers. Changing any set requires a separate retirement review that proves zero runtime callers, production row inventory, backup/restore and exact historical hash replay before rebinding the checker digest.",
   "module_group_retained_version_floor": {
     "apps/account/account_owner_assignment_evidence_v#_composition.py": [
@@ -506,6 +506,15 @@
     ],
     "apps/account/system_audit_authority_v3_composition.py": [
       "class AccountSystemAuditOwnerTenantAuthorityV3Reader:"
+    ],
+    "apps/account/account_owner_assignment_provenance_receipt_v4_composition.py": [
+      "def build_account_owner_assignment_provenance_receipt_v4_issuer("
+    ],
+    "apps/simulated_trading/account_physical_row_v2_composition.py": [
+      "def build_account_physical_row_v2_provider("
+    ],
+    "apps/simulated_trading/source_v2_composition.py": [
+      "def build_exact_raw_simulated_account_observation_v2_provider("
     ]
   },
   "family_write_surface_version_floor": {

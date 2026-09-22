@@ -13,7 +13,7 @@ DEFAULT_MANIFEST = ROOT / "governance" / "versioned_surface_retirement.json"
 DEFAULT_ACTIVE_PLAN = ROOT / "governance" / "active_plan_registry.json"
 DEFAULT_RETENTION_BASELINE = ROOT / "governance" / "versioned_surface_retention_floor.json"
 EXPECTED_RETENTION_BASELINE_SHA256 = (
-    "ca333ec649368d7ec5dc993289e67d4a1be4fd00fba79e56b4b47c574e4fa35b"
+    "7a0a2df923f7c9af0288b3d99546db21ebb49ca34a6ed9103d9178b6ec8e0453"
 )
 VERSION_TOKEN = re.compile(r"_v(?P<version>[0-9]+)(?=_|\.py$)")
 NO_SUFFIX_VERSION = re.compile(r"^(?P<prefix>.*)_v(?P<version>[0-9]+)(?P<suffix>.*)\.py$")
@@ -223,6 +223,22 @@ def discover_no_suffix_version_groups(repository_root: Path = ROOT) -> dict[str,
     return {group: sorted(versions) for group, versions in sorted(groups.items())}
 
 
+def discover_singleton_versioned_compositions(repository_root: Path = ROOT) -> set[str]:
+    """Return versioned composition routes whose normalized module has no peer version."""
+
+    groups: dict[str, list[str]] = {}
+    for source_root in (repository_root / "apps", repository_root / "core"):
+        for path in sorted(source_root.rglob("*_composition.py")):
+            relative = path.relative_to(repository_root).as_posix()
+            if "/migrations/" in relative or "/__pycache__/" in relative:
+                continue
+            if VERSION_TOKEN.search(relative) is None:
+                continue
+            normalized = VERSION_TOKEN.sub("_v#", relative)
+            groups.setdefault(normalized, []).append(relative)
+    return {paths[0] for paths in groups.values() if len(paths) == 1}
+
+
 def _active_unit_statuses(payload: dict[str, Any], violations: list[str]) -> dict[str, str]:
     backlog = payload.get("closure_backlog")
     if not isinstance(backlog, dict) or not isinstance(backlog.get("units"), list):
@@ -385,11 +401,11 @@ def validate(
     discovered = discover_multi_version_groups(repository_root)
     discovered_no_suffix = discover_no_suffix_version_groups(repository_root)
 
-    if manifest.get("schema_version") != "2026-09-22.v6":
+    if manifest.get("schema_version") != "2026-09-23.v7":
         violations.append("schema_version_invalid")
     if frozenset(retention_baseline) != RETENTION_BASELINE_KEYS:
         violations.append("retention_baseline_contract_invalid")
-    if retention_baseline.get("schema_version") != "2026-09-22.v2":
+    if retention_baseline.get("schema_version") != "2026-09-23.v3":
         violations.append("retention_baseline_schema_version_invalid")
     if retention_baseline.get("owner") != "architecture-governance":
         violations.append("retention_baseline_owner_invalid")
@@ -602,6 +618,10 @@ def validate(
             violations=violations,
         )
 
+    singleton_compositions = discover_singleton_versioned_compositions(repository_root)
+    for path in sorted(singleton_compositions - legacy_paths):
+        violations.append(f"unregistered_singleton_versioned_composition:{path}")
+
     no_suffix_raw = manifest.get("no_suffix_module_groups")
     if not isinstance(no_suffix_raw, dict) or not no_suffix_raw:
         violations.append("no_suffix_module_groups_invalid")
@@ -767,6 +787,7 @@ def validate(
         "multi_writer_family_count": multi_writer_family_count,
         "discovered_module_group_count": len(discovered),
         "discovered_no_suffix_group_count": len(discovered_no_suffix),
+        "singleton_versioned_composition_count": len(singleton_compositions),
         "legacy_surface_count": len(legacy_ids),
         "pending_retirement_evidence_count": pending_retirement_evidence_count,
         "linked_retirement_gate_count": len(linked_ids),
@@ -792,6 +813,7 @@ def main() -> int:
         f"{summary['multi_writer_family_count']} multi-writer, "
         f"{summary['discovered_module_group_count']} module groups, "
         f"{summary['discovered_no_suffix_group_count']} no-suffix groups, "
+        f"{summary['singleton_versioned_composition_count']} singleton versioned compositions, "
         f"{summary['legacy_surface_count']} explicit legacy surfaces, "
         f"{summary['pending_retirement_evidence_count']} pending retirement proofs, "
         f"{linked_gate_count} linked {linked_gate_label}, 0 violations"

@@ -303,6 +303,14 @@ Luna Max 复核确认当前没有任何 V3/V4 或 Classic A/B 模板具备删除
 `--require-allow` 约束。因此本轮只关闭继续增生和等量替换绕过，没有删除历史实现或改变运行时路由。
 结构化证据见[版本增生预算与保留地板封存](../testing/versioned-surface-growth-budget-2026-09-22.json)。
 
+2026-09-23 的扩展复核发现，只有单一版本文件的 composition route 不会进入并行 basename 分组，
+其中 Provenance V4 issuer 曾因此未被台账和 marker floor 冻结。检查器现在单独发现全部 singleton
+versioned composition route，并要求它们归属显式 legacy surface；当前四条 route 已全部登记，包含
+Provenance V4 writer、Audit Authority V3 reader，以及 simulated/physical V2 read composition。
+删除文件、修改稳定 builder marker 或新增未登记 singleton route 都会使 CI 失败。本轮只补治理覆盖，
+没有改变 route、读写版本或生产状态；结构化证据见
+[singleton composition 退役门禁封存](../testing/versioned-singleton-composition-retirement-guard-2026-09-23.json)。
+
 ## DATA-02 财务响应正文范围绑定（2026-09-22）
 
 仓库已把成功 Tushare 财务响应的 scope 从固定 `caller_declared / row_count=0` 改为正文验证。
@@ -586,9 +594,9 @@ RawAudit，parser 或其他 canonical 内容漂移则拒绝。
 mypy debt、Black/isort/Ruff 与 68 个 current-data surface 均通过。
 
 GPT-5.6 Luna Max 同时复核版本化增生：本切片没有新增 `_vN` 平行模块；link/parser 中的 `v1` 是不可变
-审计契约标识。现有 V3/V4 authority 仍有真实 runtime caller，Audit V1 仍为默认，24 个 retirement proof
-仍待完成；EVID-01/02、STRAT-02 和 TUI-02 分别约束 authority、Regime 与 Classic 清理。当前没有旧实现
-或 Classic A/B 模板满足删除条件。
+审计契约标识。Evidence/Provenance 的 V3/V4 路径仍有真实 runtime caller，Authority V3 是 preferred，
+Audit 默认 composition 仍走 Authority V1，24 个 retirement proof 仍待完成；EVID-01/02、STRAT-02 和
+TUI-02 分别约束 authority、Regime 与 Classic 清理。当前没有旧实现或 Classic A/B 模板满足删除条件。
 
 结构化证据见
 [财务来源时间原件留存封存](../testing/data02-financial-source-time-artifact-retention-2026-09-23.json)。
