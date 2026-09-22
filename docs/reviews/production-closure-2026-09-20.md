@@ -594,3 +594,23 @@ GPT-5.6 Luna Max 同时复核版本化增生：本切片没有新增 `_vN` 平�
 [财务来源时间原件留存封存](../testing/data02-financial-source-time-artifact-retention-2026-09-23.json)。
 registry v170 → v171，DATA-02 保持 `awaiting_production`。本轮没有 provider/VPS/生产数据库访问、
 部署、生产写入、Publication 切换、contract/matcher 激活或旧版删除。
+
+
+## 候选 e59baf2ee8 生产只读重验（2026-09-23）
+
+当前仓库候选 `e59baf2ee8` 比生产 `439468482 / 20260920184626` 领先 36 个 commit。生产 Web 与
+Prometheus 容器仍 healthy 且无重启；公网 health、db health、ready 为 200，decision-ready 按设计为
+503。冻结 A 股分母仍为 5,565，quote、price、valuation current Publication 各有 5,565 members，
+financial 仍为 80。
+
+两个无 `--execute` 的 DATA-02 预检继续在 provider 调用前因 `financial source announced_at is required`
+fail closed。temporally current actor、owner、joined authority heads 仍全部为 0；v17 audit mode=off、
+outbox=false、selector absent。受保护监控的凭据请求与匿名请求仍均为 401，因此 TUI-02 不能绑定首样本。
+source-time retainer 与 capture claim migration 0083 尚未部署，contract registry 仍无 owner-approved
+contract，matcher 表为空，不能把仓库绿灯当成生产验收。
+
+结构化证据见
+[候选 e59baf2ee8 生产只读重验](../deployment/production-closure-revalidation-2026-09-23-e59baf2ee8.json)，
+原始探针、输出与哈希清单见同名 `-raw.zip`。registry v171 → v172；DATA-02、EVID-01/02、AUD-03
+状态不变，TUI-02 继续 active。本轮只通过 SSH stdin 执行只读事务和无 execute 预检，没有部署、
+provider 调用、生产写入、profile 激活或 Publication 切换。
