@@ -1,18 +1,31 @@
 {
-  "schema_version": "2026-09-22.v1",
+  "schema_version": "2026-09-22.v2",
   "owner": "architecture-governance",
   "reviewed_at": "2026-09-22",
-  "scope": "apps/**/*.py and core/**/*.py excluding migrations; _vN module tokens",
-  "policy": "Parallel versions must have one declared preferred current version, an exact module inventory, explicit retained-read and write-capable versions, real blockers and retirement gates. A satisfied blocker makes the guard fail until the family is reviewed. Historical append-only rows and hashes must remain readable until archive/restore evidence proves safe retirement.",
+  "scope": "apps/**/*.py and core/**/*.py excluding migrations; _vN module groups plus explicit no-suffix, runtime-schema and composition-route legacy surfaces",
+  "policy": "Parallel versions must have one declared preferred current version, exact _vN and no-suffix inventories, explicit retained-read and write-capable versions, real blockers and retirement gates. A satisfied blocker makes the guard fail until the family is reviewed. Historical append-only rows and hashes must remain readable until archive/restore evidence proves safe retirement.",
   "families": [
     {
       "id": "account-owner-assignment-evidence",
       "owner": "account",
       "state": "blocked_retirement",
       "preferred_current_version": 5,
-      "write_surface_versions": [2, 3, 4, 5],
-      "retained_read_versions": [2, 3, 4, 5],
-      "blocked_by": ["EVID-01", "EVID-02"],
+      "write_surface_versions": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "retained_read_versions": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "blocked_by": [
+        "EVID-01",
+        "EVID-02"
+      ],
       "retirement_gate": [
         "Prove the V5/V3 production authority graph with genuine current owner and reviewer decisions.",
         "Inventory production rows and every non-test consumer for V2-V4; old append-only hashes remain readable.",
@@ -24,13 +37,44 @@
         "docs/testing/evid09-three-isolated-postgres-measurements-2026-09-13.json"
       ],
       "module_groups": {
-        "apps/account/account_owner_assignment_evidence_v#_composition.py": [3, 4, 5],
-        "apps/account/application/account_owner_assignment_evidence_v#.py": [2, 3, 4, 5],
-        "apps/account/domain/account_owner_assignment_evidence_v#.py": [2, 3, 4, 5],
-        "apps/account/infrastructure/account_owner_assignment_evidence_v#_codec.py": [2, 3, 4, 5],
-        "apps/account/infrastructure/account_owner_assignment_evidence_v#_models.py": [2, 3, 4],
-        "apps/account/infrastructure/account_owner_assignment_evidence_v#_record_codec.py": [4, 5],
-        "apps/account/infrastructure/account_owner_assignment_evidence_v#_repository.py": [2, 3, 4, 5]
+        "apps/account/account_owner_assignment_evidence_v#_composition.py": [
+          3,
+          4,
+          5
+        ],
+        "apps/account/application/account_owner_assignment_evidence_v#.py": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "apps/account/domain/account_owner_assignment_evidence_v#.py": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "apps/account/infrastructure/account_owner_assignment_evidence_v#_codec.py": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "apps/account/infrastructure/account_owner_assignment_evidence_v#_models.py": [
+          2,
+          3,
+          4
+        ],
+        "apps/account/infrastructure/account_owner_assignment_evidence_v#_record_codec.py": [
+          4,
+          5
+        ],
+        "apps/account/infrastructure/account_owner_assignment_evidence_v#_repository.py": [
+          2,
+          3,
+          4,
+          5
+        ]
       }
     },
     {
@@ -38,9 +82,22 @@
       "owner": "account",
       "state": "blocked_retirement",
       "preferred_current_version": 5,
-      "write_surface_versions": [2, 3, 4, 5],
-      "retained_read_versions": [2, 3, 4, 5],
-      "blocked_by": ["EVID-01", "EVID-02"],
+      "write_surface_versions": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "retained_read_versions": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "blocked_by": [
+        "EVID-01",
+        "EVID-02"
+      ],
       "retirement_gate": [
         "Complete genuine V5 owner assignment production acceptance.",
         "Show zero live write callers for V2-V4 and preserve immutable historical receipt replay.",
@@ -52,12 +109,39 @@
         "docs/testing/evid09-three-isolated-postgres-measurements-2026-09-13.json"
       ],
       "module_groups": {
-        "apps/account/application/account_owner_assignment_provenance_receipt_v#.py": [2, 3, 4, 5],
-        "apps/account/domain/account_owner_assignment_provenance_receipt_v#.py": [2, 3, 4, 5],
-        "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v#_codec.py": [2, 3, 4, 5],
-        "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v#_models.py": [2, 3, 4],
-        "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v#_record_codec.py": [4, 5],
-        "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v#_repository.py": [2, 3, 4, 5]
+        "apps/account/application/account_owner_assignment_provenance_receipt_v#.py": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "apps/account/domain/account_owner_assignment_provenance_receipt_v#.py": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v#_codec.py": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v#_models.py": [
+          2,
+          3,
+          4
+        ],
+        "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v#_record_codec.py": [
+          4,
+          5
+        ],
+        "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v#_repository.py": [
+          2,
+          3,
+          4,
+          5
+        ]
       }
     },
     {
@@ -66,8 +150,13 @@
       "state": "read_compatibility",
       "preferred_current_version": 3,
       "write_surface_versions": [],
-      "retained_read_versions": [2, 3],
-      "blocked_by": ["EVID-01"],
+      "retained_read_versions": [
+        2,
+        3
+      ],
+      "blocked_by": [
+        "EVID-01"
+      ],
       "retirement_gate": [
         "Inventory all production and integration consumers of the V2 read projection.",
         "Prove no current head requires V2 and retain an exact historical export when old evidence rows remain.",
@@ -77,7 +166,10 @@
         "docs/deployment/production-closure-revalidation-2026-09-22.json"
       ],
       "module_groups": {
-        "apps/account/application/account_owner_assignment_mapping_v#.py": [2, 3]
+        "apps/account/application/account_owner_assignment_mapping_v#.py": [
+          2,
+          3
+        ]
       }
     },
     {
@@ -85,9 +177,20 @@
       "owner": "account",
       "state": "blocked_retirement",
       "preferred_current_version": 3,
-      "write_surface_versions": [1, 2, 3],
-      "retained_read_versions": [1, 2, 3],
-      "blocked_by": ["EVID-01", "EVID-02"],
+      "write_surface_versions": [
+        1,
+        2,
+        3
+      ],
+      "retained_read_versions": [
+        1,
+        2,
+        3
+      ],
+      "blocked_by": [
+        "EVID-01",
+        "EVID-02"
+      ],
       "retirement_gate": [
         "Complete genuine Authority V3 production issue, successor, revoke and current-head acceptance.",
         "Prove V1/V2 writer builders have no runtime consumer, then remove their write surfaces first.",
@@ -99,15 +202,48 @@
         "docs/testing/evid09-three-isolated-postgres-measurements-2026-09-13.json"
       ],
       "module_groups": {
-        "apps/account/application/owner_tenant_authority_v#.py": [1, 2, 3],
-        "apps/account/application/owner_tenant_authority_v#_contracts.py": [2, 3],
-        "apps/account/domain/owner_tenant_authority_v#.py": [1, 2, 3],
-        "apps/account/infrastructure/_owner_tenant_authority_v#_repository_helpers.py": [2, 3],
-        "apps/account/infrastructure/owner_tenant_authority_v#_codec.py": [1, 2, 3],
-        "apps/account/infrastructure/owner_tenant_authority_v#_models.py": [1, 2, 3],
-        "apps/account/infrastructure/owner_tenant_authority_v#_record_codec.py": [2, 3],
-        "apps/account/infrastructure/owner_tenant_authority_v#_repository.py": [1, 2, 3],
-        "apps/account/owner_tenant_authority_v#_composition.py": [1, 2, 3]
+        "apps/account/application/owner_tenant_authority_v#.py": [
+          1,
+          2,
+          3
+        ],
+        "apps/account/application/owner_tenant_authority_v#_contracts.py": [
+          2,
+          3
+        ],
+        "apps/account/domain/owner_tenant_authority_v#.py": [
+          1,
+          2,
+          3
+        ],
+        "apps/account/infrastructure/_owner_tenant_authority_v#_repository_helpers.py": [
+          2,
+          3
+        ],
+        "apps/account/infrastructure/owner_tenant_authority_v#_codec.py": [
+          1,
+          2,
+          3
+        ],
+        "apps/account/infrastructure/owner_tenant_authority_v#_models.py": [
+          1,
+          2,
+          3
+        ],
+        "apps/account/infrastructure/owner_tenant_authority_v#_record_codec.py": [
+          2,
+          3
+        ],
+        "apps/account/infrastructure/owner_tenant_authority_v#_repository.py": [
+          1,
+          2,
+          3
+        ],
+        "apps/account/owner_tenant_authority_v#_composition.py": [
+          1,
+          2,
+          3
+        ]
       }
     },
     {
@@ -115,9 +251,18 @@
       "owner": "core-integration",
       "state": "read_compatibility",
       "preferred_current_version": 3,
-      "write_surface_versions": [1],
-      "retained_read_versions": [1, 2, 3],
-      "blocked_by": ["EVID-01", "EVID-02"],
+      "write_surface_versions": [
+        1
+      ],
+      "retained_read_versions": [
+        1,
+        2,
+        3
+      ],
+      "blocked_by": [
+        "EVID-01",
+        "EVID-02"
+      ],
       "retirement_gate": [
         "Complete genuine Authority V3 production acceptance and inventory every Evidence scope consumer.",
         "Decide whether the V1 source issuer requires a current-version successor before removing its composition path.",
@@ -129,15 +274,1165 @@
         "docs/testing/evid09-three-isolated-postgres-measurements-2026-09-13.json"
       ],
       "module_groups": {
-        "core/integration/owner_tenant_evidence_scope_v#.py": [1, 2, 3]
+        "core/integration/owner_tenant_evidence_scope_v#.py": [
+          1,
+          2,
+          3
+        ]
       }
     }
   ],
+  "legacy_surfaces": [
+    {
+      "id": "account-owner-assignment-evidence-nosuffix",
+      "owner": "account",
+      "state": "blocked_retirement",
+      "versions": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "preferred_current_version": 5,
+      "active_default_version": 3,
+      "write_surface_versions": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "retained_read_versions": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "blocked_by": [
+        "EVID-01",
+        "EVID-02"
+      ],
+      "retirement_gate": [
+        "Complete genuine Evidence V5 production acceptance before changing or removing the V1 compatibility route.",
+        "Prove zero runtime callers for the V1 writer and inventory every V1 production row before removing mutation surfaces.",
+        "Keep V1 decoding and exact historical hashes until backup/restore and replay are verified."
+      ],
+      "tracked_paths": [
+        {
+          "path": "apps/account/application/account_owner_assignment_evidence.py",
+          "versions": [
+            1
+          ],
+          "role": "compatibility_entrypoint",
+          "markers": [
+            "class ApproveAccountOwnerAssignment:"
+          ]
+        },
+        {
+          "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
+          "versions": [
+            5
+          ],
+          "role": "preferred_entrypoint",
+          "markers": [
+            "class ApproveAccountOwnerAssignmentEvidenceV5:"
+          ]
+        },
+        {
+          "path": "apps/account/domain/account_owner_assignment_evidence.py",
+          "versions": [
+            1
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class AccountOwnerAssignmentEvidence:"
+          ]
+        },
+        {
+          "path": "apps/account/domain/account_owner_assignment_evidence_v5.py",
+          "versions": [
+            5
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class AccountOwnerAssignmentEvidenceV5:"
+          ]
+        },
+        {
+          "path": "apps/account/infrastructure/account_owner_assignment_evidence_codec.py",
+          "versions": [
+            1
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class AccountOwnerAssignmentEvidenceCodecError"
+          ]
+        },
+        {
+          "path": "apps/account/infrastructure/account_owner_assignment_evidence_v5_codec.py",
+          "versions": [
+            5
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class AccountOwnerAssignmentEvidenceV5CodecError"
+          ]
+        },
+        {
+          "path": "apps/account/infrastructure/account_owner_assignment_evidence_models.py",
+          "versions": [
+            1
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class AccountOwnerAssignmentEvidenceModel"
+          ]
+        },
+        {
+          "path": "apps/account/infrastructure/account_owner_assignment_evidence_repository.py",
+          "versions": [
+            1
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class DjangoAccountOwnerAssignmentRepository"
+          ]
+        },
+        {
+          "path": "apps/account/infrastructure/account_owner_assignment_evidence_v5_repository.py",
+          "versions": [
+            5
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class DjangoAccountOwnerAssignmentEvidenceV5Repository"
+          ]
+        },
+        {
+          "path": "apps/account/account_owner_assignment_evidence_v5_composition.py",
+          "versions": [
+            5
+          ],
+          "role": "preferred_entrypoint",
+          "markers": [
+            "def build_account_owner_assignment_evidence_v5_facade("
+          ]
+        },
+        {
+          "path": "apps/account/application/account_owner_assignment_evidence_v2.py",
+          "versions": [
+            2
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class ApproveAccountOwnerAssignmentEvidenceV2:"
+          ]
+        },
+        {
+          "path": "apps/account/application/account_owner_assignment_evidence_v3.py",
+          "versions": [
+            3
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class ApproveAccountOwnerAssignmentEvidenceV3:"
+          ]
+        },
+        {
+          "path": "apps/account/application/account_owner_assignment_evidence_v4.py",
+          "versions": [
+            4
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class ApproveAccountOwnerAssignmentEvidenceV4:"
+          ]
+        },
+        {
+          "path": "apps/account/owner_tenant_authority_v1_composition.py",
+          "versions": [
+            3
+          ],
+          "role": "compatibility_entrypoint",
+          "markers": [
+            "assignment_reader=build_current_account_owner_assignment_evidence_v3(using=using)"
+          ]
+        }
+      ],
+      "retirement_evidence": {
+        "zero_runtime_callers": {
+          "status": "pending",
+          "artifact": null
+        },
+        "production_row_inventory": {
+          "status": "pending",
+          "artifact": null
+        },
+        "backup_restore": {
+          "status": "pending",
+          "artifact": null
+        },
+        "historical_hash_replay": {
+          "status": "pending",
+          "artifact": null
+        }
+      }
+    },
+    {
+      "id": "account-owner-assignment-provenance-nosuffix",
+      "owner": "account",
+      "state": "blocked_retirement",
+      "versions": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "preferred_current_version": 5,
+      "active_default_version": 3,
+      "write_surface_versions": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "retained_read_versions": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "blocked_by": [
+        "EVID-01",
+        "EVID-02"
+      ],
+      "retirement_gate": [
+        "Complete genuine Provenance V5 production acceptance before changing or removing the V1 compatibility route.",
+        "Prove zero runtime callers for V1 issuance and inventory every V1 production row before removing mutation surfaces.",
+        "Keep V1 decoding and exact historical receipt hashes until backup/restore and replay are verified."
+      ],
+      "tracked_paths": [
+        {
+          "path": "apps/account/application/account_owner_assignment_provenance_receipt.py",
+          "versions": [
+            1
+          ],
+          "role": "compatibility_entrypoint",
+          "markers": [
+            "class IssueAccountOwnerAssignmentProvenanceReceipt:"
+          ]
+        },
+        {
+          "path": "apps/account/application/account_owner_assignment_provenance_receipt_v5.py",
+          "versions": [
+            5
+          ],
+          "role": "preferred_entrypoint",
+          "markers": [
+            "class IssueAccountOwnerAssignmentProvenanceReceiptV5:"
+          ]
+        },
+        {
+          "path": "apps/account/domain/account_owner_assignment_provenance_receipt.py",
+          "versions": [
+            1
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class AccountOwnerAssignmentProvenanceReceipt:"
+          ]
+        },
+        {
+          "path": "apps/account/domain/account_owner_assignment_provenance_receipt_v5.py",
+          "versions": [
+            5
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class AccountOwnerAssignmentProvenanceReceiptV5:"
+          ]
+        },
+        {
+          "path": "apps/account/infrastructure/account_owner_assignment_provenance_receipt_codec.py",
+          "versions": [
+            1
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class AccountOwnerAssignmentProvenanceReceiptCodecError"
+          ]
+        },
+        {
+          "path": "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v5_codec.py",
+          "versions": [
+            5
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class AccountOwnerAssignmentProvenanceReceiptV5CodecError"
+          ]
+        },
+        {
+          "path": "apps/account/infrastructure/account_owner_assignment_provenance_receipt_models.py",
+          "versions": [
+            1
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class AccountOwnerAssignmentProvenanceReceiptModel"
+          ]
+        },
+        {
+          "path": "apps/account/infrastructure/account_owner_assignment_provenance_receipt_repository.py",
+          "versions": [
+            1
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class DjangoAccountOwnerAssignmentProvenanceReceiptRepository"
+          ]
+        },
+        {
+          "path": "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v5_repository.py",
+          "versions": [
+            5
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class DjangoAccountOwnerAssignmentProvenanceReceiptV5Repository"
+          ]
+        },
+        {
+          "path": "apps/account/application/account_owner_assignment_provenance_receipt_v2.py",
+          "versions": [
+            2
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class IssueAccountOwnerAssignmentProvenanceReceiptV2:"
+          ]
+        },
+        {
+          "path": "apps/account/application/account_owner_assignment_provenance_receipt_v3.py",
+          "versions": [
+            3
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class IssueAccountOwnerAssignmentProvenanceReceiptV3:"
+          ]
+        },
+        {
+          "path": "apps/account/application/account_owner_assignment_provenance_receipt_v4.py",
+          "versions": [
+            4
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class IssueAccountOwnerAssignmentProvenanceReceiptV4:"
+          ]
+        },
+        {
+          "path": "apps/account/account_owner_assignment_evidence_v3_composition.py",
+          "versions": [
+            3
+          ],
+          "role": "compatibility_entrypoint",
+          "markers": [
+            "DjangoAccountOwnerAssignmentProvenanceReceiptV3Repository(using=using)"
+          ]
+        }
+      ],
+      "retirement_evidence": {
+        "zero_runtime_callers": {
+          "status": "pending",
+          "artifact": null
+        },
+        "production_row_inventory": {
+          "status": "pending",
+          "artifact": null
+        },
+        "backup_restore": {
+          "status": "pending",
+          "artifact": null
+        },
+        "historical_hash_replay": {
+          "status": "pending",
+          "artifact": null
+        }
+      }
+    },
+    {
+      "id": "physical-account-row-observation",
+      "owner": "account",
+      "state": "blocked_retirement",
+      "versions": [
+        1,
+        2
+      ],
+      "preferred_current_version": 2,
+      "active_default_version": 2,
+      "write_surface_versions": [
+        1,
+        2
+      ],
+      "retained_read_versions": [
+        1,
+        2
+      ],
+      "blocked_by": [
+        "EVID-01",
+        "EVID-02"
+      ],
+      "retirement_gate": [
+        "Prove genuine V2 physical-row capture and current-head acceptance in production.",
+        "Show zero runtime callers for the V1 writer before removing its capture or repository surfaces.",
+        "Inventory production V1 rows and preserve exact historical decoding until backup/restore and hash replay pass."
+      ],
+      "tracked_paths": [
+        {
+          "path": "apps/account/application/physical_account_row_observation.py",
+          "versions": [
+            1
+          ],
+          "role": "writer",
+          "markers": [
+            "class CapturePhysicalAccountRowObservation:"
+          ]
+        },
+        {
+          "path": "apps/account/application/physical_account_row_observation_v2.py",
+          "versions": [
+            2
+          ],
+          "role": "writer",
+          "markers": [
+            "class CapturePhysicalAccountRowObservationV2:"
+          ]
+        },
+        {
+          "path": "apps/account/domain/physical_account_row_observation.py",
+          "versions": [
+            1
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class PhysicalAccountRowObservation:"
+          ]
+        },
+        {
+          "path": "apps/account/domain/physical_account_row_observation_v2.py",
+          "versions": [
+            2
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class PhysicalAccountRowObservationV2:"
+          ]
+        },
+        {
+          "path": "apps/account/infrastructure/physical_account_row_observation_codec.py",
+          "versions": [
+            1
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class PhysicalAccountRowObservationCodecError"
+          ]
+        },
+        {
+          "path": "apps/account/infrastructure/physical_account_row_observation_v2_codec.py",
+          "versions": [
+            2
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class PhysicalAccountRowObservationV2CodecError"
+          ]
+        },
+        {
+          "path": "apps/account/infrastructure/physical_account_row_observation_models.py",
+          "versions": [
+            1
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class PhysicalAccountRowObservationModel"
+          ]
+        },
+        {
+          "path": "apps/account/infrastructure/physical_account_row_observation_v2_models.py",
+          "versions": [
+            2
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class PhysicalAccountRowObservationV2Model"
+          ]
+        },
+        {
+          "path": "apps/account/infrastructure/physical_account_row_observation_repository.py",
+          "versions": [
+            1
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class DjangoPhysicalAccountRowObservationRepository"
+          ]
+        },
+        {
+          "path": "apps/account/infrastructure/physical_account_row_observation_v2_repository.py",
+          "versions": [
+            2
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class DjangoPhysicalAccountRowObservationV2Repository"
+          ]
+        },
+        {
+          "path": "apps/account/canonical_creation_composition.py",
+          "versions": [
+            2
+          ],
+          "role": "preferred_entrypoint",
+          "markers": [
+            "DjangoPhysicalAccountRowObservationV2Repository(using=alias)"
+          ]
+        }
+      ],
+      "retirement_evidence": {
+        "zero_runtime_callers": {
+          "status": "pending",
+          "artifact": null
+        },
+        "production_row_inventory": {
+          "status": "pending",
+          "artifact": null
+        },
+        "backup_restore": {
+          "status": "pending",
+          "artifact": null
+        },
+        "historical_hash_replay": {
+          "status": "pending",
+          "artifact": null
+        }
+      }
+    },
+    {
+      "id": "simulated-account-row-source",
+      "owner": "simulated-trading",
+      "state": "blocked_retirement",
+      "versions": [
+        1,
+        2
+      ],
+      "preferred_current_version": 2,
+      "active_default_version": 2,
+      "write_surface_versions": [
+        1,
+        2
+      ],
+      "retained_read_versions": [
+        1,
+        2
+      ],
+      "blocked_by": [
+        "EVID-01",
+        "EVID-02"
+      ],
+      "retirement_gate": [
+        "Prove genuine V2 simulated-row capture and current-head acceptance in production.",
+        "Show zero runtime callers for the V1 composition and writer before removing their surfaces.",
+        "Inventory production V1 rows and preserve exact historical decoding until backup/restore and hash replay pass."
+      ],
+      "tracked_paths": [
+        {
+          "path": "apps/simulated_trading/application/simulated_account_row_source.py",
+          "versions": [
+            1
+          ],
+          "role": "writer",
+          "markers": [
+            "class CaptureSimulatedAccountRowSource:"
+          ]
+        },
+        {
+          "path": "apps/simulated_trading/application/simulated_account_row_source_v2.py",
+          "versions": [
+            2
+          ],
+          "role": "writer",
+          "markers": [
+            "class CaptureSimulatedAccountRowSourceV2:"
+          ]
+        },
+        {
+          "path": "apps/simulated_trading/domain/simulated_account_row_source.py",
+          "versions": [
+            1
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class SimulatedAccountRowSource:"
+          ]
+        },
+        {
+          "path": "apps/simulated_trading/domain/simulated_account_row_source_v2.py",
+          "versions": [
+            2
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class SimulatedAccountRowSourceV2:"
+          ]
+        },
+        {
+          "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_codec.py",
+          "versions": [
+            1
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class SimulatedAccountRowSourceCodecError"
+          ]
+        },
+        {
+          "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_codec.py",
+          "versions": [
+            2
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class SimulatedAccountRowSourceV2CodecError"
+          ]
+        },
+        {
+          "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_models.py",
+          "versions": [
+            1
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class SimulatedAccountRowSourceModel"
+          ]
+        },
+        {
+          "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_models.py",
+          "versions": [
+            2
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class SimulatedAccountRowSourceV2Model"
+          ]
+        },
+        {
+          "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_repository.py",
+          "versions": [
+            1
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class DjangoSimulatedAccountRowSourceRepository"
+          ]
+        },
+        {
+          "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
+          "versions": [
+            2
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class DjangoSimulatedAccountRowSourceV2Repository"
+          ]
+        },
+        {
+          "path": "apps/simulated_trading/composition.py",
+          "versions": [
+            1
+          ],
+          "role": "compatibility_entrypoint",
+          "markers": [
+            "DjangoSimulatedAccountRowSourceRepository()"
+          ]
+        },
+        {
+          "path": "apps/simulated_trading/creation_composition.py",
+          "versions": [
+            2
+          ],
+          "role": "preferred_entrypoint",
+          "markers": [
+            "repository=DjangoSimulatedAccountRowSourceV2Repository(using=using)"
+          ]
+        },
+        {
+          "path": "apps/simulated_trading/infrastructure/account_physical_row_provider.py",
+          "versions": [
+            1
+          ],
+          "role": "reader",
+          "markers": [
+            "class DjangoExactPhysicalSimulatedAccountRowProvider:"
+          ]
+        },
+        {
+          "path": "apps/simulated_trading/infrastructure/account_physical_row_v2_provider.py",
+          "versions": [
+            2
+          ],
+          "role": "reader",
+          "markers": [
+            "class DjangoExactPhysicalSimulatedAccountRowV2Provider:"
+          ]
+        }
+      ],
+      "retirement_evidence": {
+        "zero_runtime_callers": {
+          "status": "pending",
+          "artifact": null
+        },
+        "production_row_inventory": {
+          "status": "pending",
+          "artifact": null
+        },
+        "backup_restore": {
+          "status": "pending",
+          "artifact": null
+        },
+        "historical_hash_replay": {
+          "status": "pending",
+          "artifact": null
+        }
+      }
+    },
+    {
+      "id": "regime-calculation",
+      "owner": "regime",
+      "state": "compatibility_only",
+      "versions": [
+        1,
+        2
+      ],
+      "preferred_current_version": 2,
+      "active_default_version": 2,
+      "write_surface_versions": [],
+      "retained_read_versions": [
+        1,
+        2
+      ],
+      "blocked_by": [
+        "STRAT-02"
+      ],
+      "retirement_gate": [
+        "Accumulate genuine PIT/OOS receipts that prove the V2 decision route over the required observation window.",
+        "Show zero runtime callers for CalculateRegimeUseCase and the V1 diagnostic query before removing them.",
+        "Preserve replayable historical regime interpretation until backup/restore and result-equivalence checks pass."
+      ],
+      "tracked_paths": [
+        {
+          "path": "apps/regime/application/use_cases.py",
+          "versions": [
+            1
+          ],
+          "role": "compatibility_entrypoint",
+          "markers": [
+            "class CalculateRegimeUseCase:"
+          ]
+        },
+        {
+          "path": "apps/regime/application/regime_v2_use_cases.py",
+          "versions": [
+            2
+          ],
+          "role": "preferred_entrypoint",
+          "markers": [
+            "class CalculateRegimeV2UseCase:"
+          ]
+        },
+        {
+          "path": "apps/regime/application/query_services.py",
+          "versions": [
+            1
+          ],
+          "role": "compatibility_entrypoint",
+          "markers": [
+            "def calculate_regime_diagnostic_payload("
+          ]
+        },
+        {
+          "path": "apps/regime/application/current_regime.py",
+          "versions": [
+            2
+          ],
+          "role": "preferred_entrypoint",
+          "markers": [
+            "def resolve_current_regime(",
+            "use_case = CalculateRegimeV2UseCase(macro_repo)"
+          ]
+        },
+        {
+          "path": "apps/regime/domain/services.py",
+          "versions": [
+            1
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class RegimeCalculator:"
+          ]
+        },
+        {
+          "path": "apps/regime/domain/services_v2.py",
+          "versions": [
+            2
+          ],
+          "role": "reader_writer",
+          "markers": [
+            "class RegimeCalculatorV2:"
+          ]
+        }
+      ],
+      "retirement_evidence": {
+        "zero_runtime_callers": {
+          "status": "pending",
+          "artifact": null
+        },
+        "production_row_inventory": {
+          "status": "pending",
+          "artifact": null
+        },
+        "backup_restore": {
+          "status": "pending",
+          "artifact": null
+        },
+        "historical_hash_replay": {
+          "status": "pending",
+          "artifact": null
+        }
+      }
+    },
+    {
+      "id": "system-audit-authority-schema-route",
+      "owner": "audit",
+      "state": "blocked_retirement",
+      "versions": [
+        1,
+        2,
+        3
+      ],
+      "preferred_current_version": 3,
+      "active_default_version": 1,
+      "write_surface_versions": [
+        1,
+        3
+      ],
+      "retained_read_versions": [
+        1,
+        2,
+        3
+      ],
+      "blocked_by": [
+        "EVID-01",
+        "EVID-02"
+      ],
+      "retirement_gate": [
+        "Complete genuine Authority V3 and Evidence production acceptance before changing the audit default from V1.",
+        "Prove zero runtime callers for V1/V2 write-capable routes before removing prior-version issuance paths.",
+        "Inventory production audit rows and preserve exact V1-V3 scope decoding until backup/restore and hash replay pass."
+      ],
+      "tracked_paths": [
+        {
+          "path": "apps/audit/application/system_audit_authority_schema.py",
+          "versions": [
+            1,
+            2,
+            3
+          ],
+          "role": "schema",
+          "markers": [
+            "SYSTEM_AUDIT_SCOPE_SCHEMA_V1:",
+            "SYSTEM_AUDIT_SCOPE_SCHEMA_V2:",
+            "SYSTEM_AUDIT_SCOPE_SCHEMA_V3:"
+          ]
+        },
+        {
+          "path": "apps/audit/application/system_audit_composition.py",
+          "versions": [
+            1
+          ],
+          "role": "compatibility_entrypoint",
+          "markers": [
+            "scope_schema: str = SYSTEM_AUDIT_SCOPE_SCHEMA_V1"
+          ]
+        },
+        {
+          "path": "apps/account/system_audit_authority_composition.py",
+          "versions": [
+            1
+          ],
+          "role": "compatibility_entrypoint",
+          "markers": [
+            "scope=build_owner_tenant_authority_v1_reader(using=alias)"
+          ]
+        },
+        {
+          "path": "core/integration/system_audit_authority.py",
+          "versions": [
+            1,
+            3
+          ],
+          "role": "reader",
+          "markers": [
+            "if selector is None or selector.scope_schema == SYSTEM_AUDIT_SCOPE_SCHEMA_V1:",
+            "elif selector.scope_schema == SYSTEM_AUDIT_SCOPE_SCHEMA_V3:"
+          ]
+        },
+        {
+          "path": "apps/account/owner_tenant_authority_v3_composition.py",
+          "versions": [
+            3
+          ],
+          "role": "preferred_entrypoint",
+          "markers": [
+            "def build_owner_tenant_authority_v3_facade("
+          ]
+        },
+        {
+          "path": "apps/account/system_audit_authority_v3_composition.py",
+          "versions": [
+            3
+          ],
+          "role": "preferred_entrypoint",
+          "markers": [
+            "class AccountSystemAuditOwnerTenantAuthorityV3Reader:"
+          ]
+        }
+      ],
+      "retirement_evidence": {
+        "zero_runtime_callers": {
+          "status": "pending",
+          "artifact": null
+        },
+        "production_row_inventory": {
+          "status": "pending",
+          "artifact": null
+        },
+        "backup_restore": {
+          "status": "pending",
+          "artifact": null
+        },
+        "historical_hash_replay": {
+          "status": "pending",
+          "artifact": null
+        }
+      }
+    }
+  ],
+  "no_suffix_module_groups": {
+    "apps/account/application/account_owner_assignment_evidence{_v#}.py": {
+      "versions": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "legacy_surface_id": "account-owner-assignment-evidence-nosuffix"
+    },
+    "apps/account/application/account_owner_assignment_provenance_receipt{_v#}.py": {
+      "versions": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "legacy_surface_id": "account-owner-assignment-provenance-nosuffix"
+    },
+    "apps/account/application/physical_account_row_observation{_v#}.py": {
+      "versions": [
+        1,
+        2
+      ],
+      "legacy_surface_id": "physical-account-row-observation"
+    },
+    "apps/account/domain/account_owner_assignment_evidence{_v#}.py": {
+      "versions": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "legacy_surface_id": "account-owner-assignment-evidence-nosuffix"
+    },
+    "apps/account/domain/account_owner_assignment_provenance_receipt{_v#}.py": {
+      "versions": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "legacy_surface_id": "account-owner-assignment-provenance-nosuffix"
+    },
+    "apps/account/domain/physical_account_row_observation{_v#}.py": {
+      "versions": [
+        1,
+        2
+      ],
+      "legacy_surface_id": "physical-account-row-observation"
+    },
+    "apps/account/infrastructure/account_owner_assignment_evidence_codec{_v#}.py": {
+      "versions": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "legacy_surface_id": "account-owner-assignment-evidence-nosuffix"
+    },
+    "apps/account/infrastructure/account_owner_assignment_evidence_models{_v#}.py": {
+      "versions": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "legacy_surface_id": "account-owner-assignment-evidence-nosuffix"
+    },
+    "apps/account/infrastructure/account_owner_assignment_evidence_repository{_v#}.py": {
+      "versions": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "legacy_surface_id": "account-owner-assignment-evidence-nosuffix"
+    },
+    "apps/account/infrastructure/account_owner_assignment_provenance_receipt_codec{_v#}.py": {
+      "versions": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "legacy_surface_id": "account-owner-assignment-provenance-nosuffix"
+    },
+    "apps/account/infrastructure/account_owner_assignment_provenance_receipt_models{_v#}.py": {
+      "versions": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "legacy_surface_id": "account-owner-assignment-provenance-nosuffix"
+    },
+    "apps/account/infrastructure/account_owner_assignment_provenance_receipt_repository{_v#}.py": {
+      "versions": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "legacy_surface_id": "account-owner-assignment-provenance-nosuffix"
+    },
+    "apps/account/infrastructure/physical_account_row_observation_codec{_v#}.py": {
+      "versions": [
+        1,
+        2
+      ],
+      "legacy_surface_id": "physical-account-row-observation"
+    },
+    "apps/account/infrastructure/physical_account_row_observation_models{_v#}.py": {
+      "versions": [
+        1,
+        2
+      ],
+      "legacy_surface_id": "physical-account-row-observation"
+    },
+    "apps/account/infrastructure/physical_account_row_observation_repository{_v#}.py": {
+      "versions": [
+        1,
+        2
+      ],
+      "legacy_surface_id": "physical-account-row-observation"
+    },
+    "apps/account/system_audit_authority_composition{_v#}.py": {
+      "versions": [
+        1,
+        3
+      ],
+      "legacy_surface_id": "system-audit-authority-schema-route"
+    },
+    "apps/regime/domain/services{_v#}.py": {
+      "versions": [
+        1,
+        2
+      ],
+      "legacy_surface_id": "regime-calculation"
+    },
+    "apps/simulated_trading/application/simulated_account_row_source{_v#}.py": {
+      "versions": [
+        1,
+        2
+      ],
+      "legacy_surface_id": "simulated-account-row-source"
+    },
+    "apps/simulated_trading/domain/simulated_account_row_source{_v#}.py": {
+      "versions": [
+        1,
+        2
+      ],
+      "legacy_surface_id": "simulated-account-row-source"
+    },
+    "apps/simulated_trading/infrastructure/account_physical_row_provider{_v#}.py": {
+      "versions": [
+        1,
+        2
+      ],
+      "legacy_surface_id": "simulated-account-row-source"
+    },
+    "apps/simulated_trading/infrastructure/simulated_account_row_source_codec{_v#}.py": {
+      "versions": [
+        1,
+        2
+      ],
+      "legacy_surface_id": "simulated-account-row-source"
+    },
+    "apps/simulated_trading/infrastructure/simulated_account_row_source_models{_v#}.py": {
+      "versions": [
+        1,
+        2
+      ],
+      "legacy_surface_id": "simulated-account-row-source"
+    },
+    "apps/simulated_trading/infrastructure/simulated_account_row_source_repository{_v#}.py": {
+      "versions": [
+        1,
+        2
+      ],
+      "legacy_surface_id": "simulated-account-row-source"
+    }
+  },
   "linked_retirement_gates": [
     {
       "id": "classic-web-to-tui",
       "owner": "tui",
-      "blocked_by": ["TUI-02"],
+      "blocked_by": [
+        "TUI-02"
+      ],
       "deletion_allowed": false,
       "guard_command": "python scripts/check_web_to_tui_cutover_readiness.py --require-allow",
       "retirement_gate": [

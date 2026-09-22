@@ -1,0 +1,11 @@
+Versioned surface retirement explicit legacy coverage
+Base: be02e8089fb2e7c0748756223e7c2b1bb72608a8
+Branch: dev/next-development
+Inventory: 24 _vN groups / 23 no-suffix-plus-_vN groups / 5 filename families / 6 explicit legacy surfaces
+Explicit surfaces: Evidence V1/V5; Provenance V1/V5; physical row V1/V2; simulated row V1/V2; Regime V1/V2; Audit Authority V1/V2/V3
+Account Evidence/Provenance: preferred V5; active default V3
+Audit runtime: preferred V3; active default V1; blocked by EVID-01/EVID-02
+Retirement proofs: 24 pending; 0 deletion-eligible surfaces
+Validation: 34 tests; version/registry/governance/mypy/format gates pass
+Production access/mutation: none
+Independent review: GPT-5.6 Luna Max P0=0, P1=0

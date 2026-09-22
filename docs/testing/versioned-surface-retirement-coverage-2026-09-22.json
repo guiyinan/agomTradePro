@@ -1,0 +1,127 @@
+{
+  "schema_version": "2026-09-22.v1",
+  "evidence_type": "versioned_surface_retirement_explicit_legacy_coverage",
+  "generated_at": "2026-09-22T04:38:16.779380+00:00",
+  "base_commit": "be02e8089fb2e7c0748756223e7c2b1bb72608a8",
+  "branch": "dev/next-development",
+  "scope": {
+    "source_inventory": "apps/**/*.py and core/**/*.py excluding migrations; _vN groups plus explicit no-suffix, runtime-schema and composition-route legacy surfaces",
+    "production_access": false,
+    "production_mutation": false,
+    "runtime_behavior_changed": false,
+    "legacy_code_deleted": false,
+    "classic_templates_deleted": false
+  },
+  "findings": {
+    "parallel_module_groups": 24,
+    "filename_discovered_families": 5,
+    "multi_writer_families": 3,
+    "explicit_legacy_surfaces": 6,
+    "explicit_surface_ids": [
+      "account-owner-assignment-evidence-nosuffix",
+      "account-owner-assignment-provenance-nosuffix",
+      "physical-account-row-observation",
+      "simulated-account-row-source",
+      "regime-calculation",
+      "system-audit-authority-schema-route"
+    ],
+    "audit_preferred_version": 3,
+    "audit_active_default_version": 1,
+    "pending_retirement_proofs": 24,
+    "proof_types": [
+      "zero_runtime_callers",
+      "production_row_inventory",
+      "backup_restore",
+      "historical_hash_replay"
+    ],
+    "blockers": {
+      "account-owner-assignment-evidence-nosuffix": [
+        "EVID-01",
+        "EVID-02"
+      ],
+      "account-owner-assignment-provenance-nosuffix": [
+        "EVID-01",
+        "EVID-02"
+      ],
+      "physical-account-row-observation": [
+        "EVID-01",
+        "EVID-02"
+      ],
+      "simulated-account-row-source": [
+        "EVID-01",
+        "EVID-02"
+      ],
+      "regime-calculation": [
+        "STRAT-02"
+      ],
+      "system-audit-authority-schema-route": [
+        "EVID-01",
+        "EVID-02"
+      ]
+    },
+    "deletion_eligible_surfaces": [],
+    "no_suffix_module_groups": 23,
+    "account_evidence_preferred_version": 5,
+    "account_evidence_active_default_version": 3,
+    "account_provenance_preferred_version": 5,
+    "account_provenance_active_default_version": 3
+  },
+  "checks": [
+    {
+      "command": "python scripts/check_versioned_surface_retirement.py",
+      "result": "5 families, 3 multi-writer, 24 module groups, 23 no-suffix groups, 6 explicit legacy surfaces, 24 pending retirement proofs, 1 linked gate, 0 violations"
+    },
+    {
+      "command": "pytest tests/guardrails/test_versioned_surface_retirement.py tests/guardrails/test_governance_consistency.py -q",
+      "result": "34 passed"
+    },
+    {
+      "command": "python scripts/check_active_plan_registry.py",
+      "result": "version 2026-09-22.v157; 54 units; 0 violations"
+    },
+    {
+      "command": "python scripts/check_governance_consistency.py --baseline governance/governance_baseline.json --format text",
+      "result": "0 violations"
+    },
+    {
+      "command": "python scripts/check_mypy_regression.py scripts/check_versioned_surface_retirement.py",
+      "result": "0 regressions"
+    },
+    {
+      "command": "python scripts/check_mypy_debt_ceiling.py",
+      "result": "0 errors in 0 files"
+    },
+    {
+      "command": "black/isort/ruff focused checks",
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed; line-ending notices only"
+    }
+  ],
+  "independent_review": {
+    "reviewer": "gpt-5.6-luna-max",
+    "status": "passed",
+    "p0_count": 0,
+    "p1_count": 0,
+    "findings_resolved": [
+      "Expanded filename-only governance to auto-discover all 23 no-suffix-plus-_vN groups.",
+      "Added Account Evidence and Provenance no-suffix V1 coverage and corrected their observed default route to V3 with V5 preferred.",
+      "Bound preferred and active-default entrypoint versions to exact tracked source markers."
+    ],
+    "final_observation": "No validation bypass, source-fact mismatch, major omission, gate-defeating test gap or governance/evidence overstatement found."
+  },
+  "files": {
+    "governance/versioned_surface_retirement.json": "1c063bfdf73f0f1353810c63fb83a966a23c16ad40c61779feccc2804d12c0e1",
+    "scripts/check_versioned_surface_retirement.py": "a0fda88d0f781a76b80b27e6c96921dca23156f525f2829b122191cb7be24114",
+    "tests/guardrails/test_versioned_surface_retirement.py": "4d8da517207d6925940266e59865369dec78d4d9efb252fb313824fbab020264",
+    "docs/reviews/production-closure-2026-09-20.md": "004fe54291abf6911d7bf598811d03b0654bc4fb72a9ef26c7a20f7570074ca3",
+    "governance/active_plan_registry.json": "1f5b8ed599bef48eb4307b0e8a15d2550393583e562f286a60a28826f5ac80b8"
+  },
+  "governance_transition": {
+    "active_plan_registry": "2026-09-22.v156 -> 2026-09-22.v157",
+    "unit_status_changes": [],
+    "note": "No production unit advanced. EVID-01/02 and STRAT-02 retain their existing states; all 24 retirement proof slots are pending."
+  }
+}

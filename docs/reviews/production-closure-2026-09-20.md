@@ -271,10 +271,19 @@ fail-closed；它们完成后，检查器会主动失败并要求复核退役动
 没有删除任何 A/B 模板。本次仅建立治理门禁和退役顺序，没有把历史兼容层误标为死代码，也没有
 改动生产运行路径、数据库或任何 authority 记录。
 
-GPT-5.6 Luna Max 只读复核最终为 P0=0、P1=0。复核最初指出证据文件尚未生成，以及 `core/integration`
-的 scope V1–V3 未纳入 apps-only 扫描；本提交已生成耐久证据并把扫描范围扩展到 `apps/` 与 `core/`，
-两项均在最终门禁前消除。旧 writer 只是“代码接口仍可调用且未发现生产调用方”，不能据静态搜索
-直接认定可删；零运行调用、生产行盘点和恢复重放仍须在对应 blocker 完成后单独证明。
+首轮 GPT-5.6 Luna Max 只读复核为 P0=0、P1=0。首轮只覆盖 `_vN` 文件名家族；后续扩大审计后发现，
+无后缀 V1、同文件内 schema 版本和 composition 默认路由不在扫描范围。治理 v2 因此新增六个显式旧面：
+owner-assignment evidence 与 provenance 的无后缀 V1 到 preferred V5、physical-account row V1/V2、
+simulated-account row V1/V2、Regime V1/V2，以及 Audit Authority schema/route V1/V2/V3。检查器还会
+自动发现并核对 23 组“无后缀文件 + `_vN` 文件”集合；新增、删除或改变版本集合而不更新台账会失败。
+每个旧面固定精确文件、版本角色和源码 marker，文件消失或 marker 漂移同样会失败。
+
+Audit Authority 的 preferred version 是 V3，但默认 composition 当前仍为 V1；台账如实记录该差异并绑定
+EVID-01/02。Account Evidence/Provenance 的 preferred version 是 V5，而默认 Authority V1 composition
+当前仍读取 V3；这些差异均未用静态治理改写运行时默认值。六个旧面各有 zero-runtime-callers、生产行盘点、备份恢复、
+历史 hash replay 四类机器可读证明槽，当前 24 项全部为 `pending`。只有真实 artifact 存在时才能标为
+`verified`。旧 writer 不能据静态搜索直接认定可删；Regime V1 还受 STRAT-02 真实 PIT/OOS 时间窗口约束。
+本轮证据见[显式旧面覆盖封存](../testing/versioned-surface-retirement-coverage-2026-09-22.json)。
 
 ## DATA-02 财务响应正文范围绑定（2026-09-22）
 
