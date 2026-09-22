@@ -181,3 +181,63 @@ Celery 自身 SUCCESS 不计作发布成功。Alpha 页面仍显示“行情自�
 
 本次回查只更新证据与文档；四份新增/更新证据下载均校验远端与本地 SHA-256，
 verified-manifest.json 一并更新。没有生产代码变更，因此未重复执行代码回归测试。
+
+## 自然周期核验（2026-09-21 19:23 北京时间）
+
+- 16:30 全市场发布任务 `9660c46d-da00-4837-9613-81f0edad3cfa` 已进入终态，
+  Task Monitor=failed，业务 outcome=blocked，`blocked_reason=system_audit_audit_runtime_disabled`，
+  requested/succeeded/failed/stored 均为 0；因此没有把行情发布标记为已恢复。
+- 17:30 通用 Alpha 父任务 `5a8750e6-7658-4c27-9f35-fba4b083562f` 与子任务
+  `f86ac18b-a055-431c-96b4-d48354625c91` 均成功，`csi300` 的 09-21 缓存有 30 个有限评分。
+- 17:40 账户父任务 `9f168f61-29d3-42a8-9816-b96b987b4707` 刷新目标日为 09-21，
+  scope=6、全集 5,565、可推理 5,553、已证实停牌 12；六个子任务中账户 142、141 已成功写入
+  30 个有限评分缓存，账户 140 仍由 Celery active 执行，账户 135、139、138 仍在 reserved。
+  active/reserved 仅记录运行状态，不能计为成功；当前仅 3/6 账户缓存可验收。
+- 本次自然周期仍未满足全市场发布、六个账户子任务和缓存证据的联合终态，
+  `natural_cycle_verified` 保持 `false`。审计运行时身份阻断和财报来源证据缺口继续保留。
+
+本次只读回查证据为 `backups/vps-postgres/market-recovery-evidence-20260919/full-market-natural-cycle-20260921.json`；
+其 SHA-256 为 `4ff887eb7e13f5b05b1691c74e6cb3cc6313ee70eae821b0f3b1521d8cc12bd0`，
+已加入 `verified-manifest.json`。未触发任务、重启容器、修改授权或写入生产数据。
+
+## 自然周期核验（2026-09-22 19:09 北京时间）
+
+- 16:30 全市场发布任务 `cb184cb2-d2d0-40a7-b58a-1d346b1ba65f` 已进入终态，
+  Task Monitor=failed，业务 outcome=blocked，`blocked_reason=system_audit_audit_runtime_disabled`，
+  requested/succeeded/failed/stored 均为 0；审计运行时阻断仍未恢复。
+- 17:30 通用 Alpha 父任务 `f5ef6ebb-d3ba-4ac4-b7bc-bb6721f977aa` 与子任务
+  `78a5793b-81f8-4736-a11c-bbdd9f4d69ed` 均成功，`csi300` 的 2026-09-22 缓存有
+  30 个有限评分，目标日与实际日一致。
+- 17:40 账户父任务连续三次终止为业务阻断：`aea06dd7-ec8d-467a-ad14-f3358ea85829`
+  为 `model_market_adjustment_incompatible`，`41caa177-d584-4d53-9000-0011788af871`
+  为 `tushare_daily_quota_exhausted`，`f49a7915-dff7-484c-a03f-a4c7e12bf405` 为
+  `model_market_invalid`；每次均为 6 个 scope、全集 5,565、成功/写入为 0。
+  随后重试 `344f348f-d04f-4ab3-9c44-bc7a899b36bb` 在回查时仍为 Celery active，不能计为成功，
+  2026-09-22 没有账户 scope 缓存。
+- 同时记录到三条配置路由的真实失败：DataHubCo RDS 出现 `TUSHARE_HTTP_502`/
+  `MODEL_MARKET_INVALID`，Tushare Pro 出现 `TUSHARE_DAILY_QUOTA_EXHAUSTED`/连接超时，
+  AKShare Public 出现 `MODEL_MARKET_ADJUSTMENT_INCOMPATIBLE`/连接错误；当前没有
+  `equity.price.bar` 出口规则或可用 egress endpoint，因此不能把路由不可用误标为数据已恢复。
+
+本次自然周期仍未满足全市场发布、通用 Alpha、六个账户子任务和缓存证据的联合终态；
+`natural_cycle_verified` 保持 `false`，并保留审计身份及财报来源证据缺口。只读证据为
+`backups/vps-postgres/market-recovery-evidence-20260919/full-market-natural-cycle-20260922.json`，
+其 SHA-256 为 `ee73a8c80b1e0d7dc497bea46ea203965f68c79b89515dad99d256be2a37756b`，
+已加入 `verified-manifest.json`。本次未触发任务、重启容器、修改授权或写入生产数据。
+
+### 终态补充（2026-09-23 07:36 北京时间）
+
+- 重试父任务 `344f348f-d04f-4ab3-9c44-bc7a899b36bb` 最终为
+  `refresh_result.status=failed`、`error=SoftTimeLimitExceeded()`、`stock_count=5565`，
+  但编排层仍将 6 个子任务排队，父任务因此记录为 `outcome=partial`、`success=true`、
+  `stored=6`。这 6 个值只代表子任务已入队，不代表有缓存写入。
+- 6 个子任务最终全部以 `model_market_scope_incomplete` 阻断，实际 `stored=0`。
+  生产 Qlib 的 `scoped_portfolios.txt` 有 5,565 个标的，但最新日期仍为 2026-09-21；
+  `build_evidence/2026-09-22.json` 只覆盖 300 个标的，不能证明账户全集在目标日有数据。
+- 因此新增的代码整改顺序是：刷新结果只要是 `failed`/不完整就立即阻断，不再排子任务；
+  行情源恢复后重新构建 5,565 个标的，并要求目标日、Qlib 特征、instrument 文件和
+  build evidence 四者范围一致后才允许发布成功。
+
+终态证据为 `backups/vps-postgres/market-recovery-evidence-20260919/full-market-natural-cycle-20260922-final.json`，
+其 SHA-256 为 `101cc0fb3fbfb35d1a91b6ac80ed36453b0f67dfc18ad3fb0a12462c2852a79d`，
+已加入 `verified-manifest.json`。
