@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from scripts.check_versioned_surface_retirement import validate
+from scripts.check_versioned_surface_retirement import retention_baseline_sha256, validate
 
 ROOT = Path(__file__).resolve().parents[2]
 SCOPE = (
@@ -72,6 +72,51 @@ def _sample_no_suffix_groups() -> dict[str, dict[str, object]]:
     }
 
 
+def _sample_version_growth_policy() -> dict[str, object]:
+    return {"mode": "retirement_only"}
+
+
+def _sample_retention_baseline() -> dict[str, object]:
+    return {
+        "schema_version": "2026-09-22.v2",
+        "owner": "architecture-governance",
+        "frozen_at": "2026-09-22",
+        "policy": "Frozen until the sample retirement proofs pass.",
+        "module_group_retained_version_floor": {
+            "apps/sample/application/policy_v#.py": [1, 2],
+        },
+        "no_suffix_group_retained_version_floor": {
+            "apps/sample/application/legacy_policy{_v#}.py": [1, 2],
+        },
+        "family_retained_read_version_floor": {"sample-policy": [1, 2]},
+        "legacy_retained_read_version_floor": {"sample-runtime-route": [1, 2]},
+        "family_write_surface_version_floor": {"sample-policy": [1, 2]},
+        "legacy_write_surface_version_floor": {"sample-runtime-route": [1, 2]},
+        "legacy_tracked_marker_floor": {
+            "apps/sample/application/legacy_policy.py": ["LEGACY_POLICY = 1"],
+            "apps/sample/application/legacy_policy_v2.py": ["CURRENT_POLICY = 2"],
+        },
+    }
+
+
+def _validate_sample(
+    *,
+    repository: Path,
+    manifest_path: Path,
+    active_plan_path: Path,
+) -> tuple[list[str], dict[str, object]]:
+    baseline = _sample_retention_baseline()
+    baseline_path = repository / "retention-floor.json"
+    baseline_path.write_text(json.dumps(baseline), encoding="utf-8")
+    return validate(
+        manifest_path=manifest_path,
+        active_plan_path=active_plan_path,
+        repository_root=repository,
+        retention_baseline_path=baseline_path,
+        expected_retention_baseline_sha256=retention_baseline_sha256(baseline),
+    )
+
+
 def test_repository_versioned_surface_retirement_guard_passes() -> None:
     """The checked-in inventory must match every parallel source family."""
 
@@ -89,8 +134,8 @@ def test_repository_versioned_surface_retirement_guard_passes() -> None:
     )
 
 
-def test_new_parallel_version_requires_manifest_update(tmp_path: Path) -> None:
-    """Adding V3 beside governed V1/V2 must fail until lifecycle data changes."""
+def test_manifest_update_cannot_raise_parallel_version_budget(tmp_path: Path) -> None:
+    """Registering V3 must still fail while the frozen family budget is two."""
 
     repository = tmp_path / "repository"
     application = repository / "apps" / "sample" / "application"
@@ -98,11 +143,9 @@ def test_new_parallel_version_requires_manifest_update(tmp_path: Path) -> None:
     for version in (1, 2, 3):
         (application / f"policy_v{version}.py").write_text("VALUE = 1\n", encoding="utf-8")
     _write_sample_legacy_paths(application)
-    (application / "extra_policy.py").write_text("VALUE = 1\n", encoding="utf-8")
-    (application / "extra_policy_v2.py").write_text("VALUE = 2\n", encoding="utf-8")
 
     manifest = {
-        "schema_version": "2026-09-22.v2",
+        "schema_version": "2026-09-22.v6",
         "owner": "architecture-governance",
         "scope": SCOPE,
         "families": [
@@ -111,16 +154,17 @@ def test_new_parallel_version_requires_manifest_update(tmp_path: Path) -> None:
                 "owner": "sample",
                 "state": "blocked_retirement",
                 "preferred_current_version": 2,
-                "write_surface_versions": [1, 2],
-                "retained_read_versions": [1, 2],
+                "write_surface_versions": [1, 2, 3],
+                "retained_read_versions": [1, 2, 3],
                 "blocked_by": ["SAMPLE-01"],
                 "retirement_gate": ["Remove the old writer after production acceptance."],
                 "evidence": ["evidence.json"],
-                "module_groups": {"apps/sample/application/policy_v#.py": [1, 2]},
+                "module_groups": {"apps/sample/application/policy_v#.py": [1, 2, 3]},
             }
         ],
         "legacy_surfaces": [_sample_legacy_surface()],
         "no_suffix_module_groups": _sample_no_suffix_groups(),
+        "version_growth_policy": _sample_version_growth_policy(),
         "linked_retirement_gates": [
             {
                 "id": "sample-linked",
@@ -141,17 +185,161 @@ def test_new_parallel_version_requires_manifest_update(tmp_path: Path) -> None:
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
     active_plan_path.write_text(json.dumps(active_plan), encoding="utf-8")
 
-    violations, _summary = validate(
+    violations, _summary = _validate_sample(
+        manifest_path=manifest_path,
+        active_plan_path=active_plan_path,
+        repository=repository,
+    )
+
+    assert (
+        "module_group_retention_floor_unsealed_version:"
+        "apps/sample/application/policy_v#.py:3" in violations
+    )
+    assert "family_write_surface_floor_unsealed_version:sample-policy:3" in violations
+
+
+def test_equal_count_replacement_cannot_bypass_retention_floor(tmp_path: Path) -> None:
+    """Replacing V2 with V3 must fail while V2 remains in the frozen read floor."""
+
+    repository = tmp_path / "repository"
+    application = repository / "apps" / "sample" / "application"
+    application.mkdir(parents=True)
+    for version in (1, 3):
+        (application / f"policy_v{version}.py").write_text("VALUE = 1\n", encoding="utf-8")
+    _write_sample_legacy_paths(application)
+    (repository / "evidence.json").write_text("{}\n", encoding="utf-8")
+    manifest = {
+        "schema_version": "2026-09-22.v6",
+        "owner": "architecture-governance",
+        "scope": SCOPE,
+        "families": [
+            {
+                "id": "sample-policy",
+                "owner": "sample",
+                "state": "blocked_retirement",
+                "preferred_current_version": 3,
+                "write_surface_versions": [1, 3],
+                "retained_read_versions": [1, 3],
+                "blocked_by": ["SAMPLE-01"],
+                "retirement_gate": ["Remove old versions only after retained proof."],
+                "evidence": ["evidence.json"],
+                "module_groups": {"apps/sample/application/policy_v#.py": [1, 3]},
+            }
+        ],
+        "legacy_surfaces": [_sample_legacy_surface()],
+        "no_suffix_module_groups": _sample_no_suffix_groups(),
+        "version_growth_policy": _sample_version_growth_policy(),
+        "linked_retirement_gates": [
+            {
+                "id": "sample-linked",
+                "owner": "sample",
+                "blocked_by": ["SAMPLE-01"],
+                "deletion_allowed": False,
+                "guard_command": "python guard.py",
+                "retirement_gate": ["Wait for production acceptance."],
+            }
+        ],
+    }
+    active_plan = {
+        "closure_backlog": {"units": [{"id": "SAMPLE-01", "status": "awaiting_production"}]}
+    }
+    manifest_path = repository / "manifest.json"
+    active_plan_path = repository / "active.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    active_plan_path.write_text(json.dumps(active_plan), encoding="utf-8")
+
+    violations, _summary = _validate_sample(
+        manifest_path=manifest_path,
+        active_plan_path=active_plan_path,
+        repository=repository,
+    )
+
+    assert (
+        "module_group_retention_floor_missing_version:"
+        "apps/sample/application/policy_v#.py:2" in violations
+    )
+    assert "family_retained_read_floor_missing_version:sample-policy:2" in violations
+    assert "family_write_surface_floor_missing_version:sample-policy:2" in violations
+    assert "family_write_surface_floor_unsealed_version:sample-policy:3" in violations
+
+    sealed_baseline = _sample_retention_baseline()
+    expected_digest = retention_baseline_sha256(sealed_baseline)
+    tampered_baseline = json.loads(json.dumps(sealed_baseline))
+    tampered_baseline["module_group_retained_version_floor"] = {
+        "apps/sample/application/policy_v#.py": [1, 3]
+    }
+    tampered_path = repository / "tampered-retention-floor.json"
+    tampered_path.write_text(json.dumps(tampered_baseline), encoding="utf-8")
+    tampered_violations, _summary = validate(
         manifest_path=manifest_path,
         active_plan_path=active_plan_path,
         repository_root=repository,
+        retention_baseline_path=tampered_path,
+        expected_retention_baseline_sha256=expected_digest,
     )
 
-    assert any(item.startswith("module_group_versions_changed:") for item in violations)
-    assert (
-        "unregistered_no_suffix_version_group:"
-        "apps/sample/application/extra_policy{_v#}.py" in violations
+    assert any(
+        item.startswith("retention_baseline_sha256_mismatch:") for item in tampered_violations
     )
+
+
+def test_pending_writer_cannot_be_removed_from_manifest(tmp_path: Path) -> None:
+    """A retained V1 writer must remain declared while its sealed proof is pending."""
+
+    repository = tmp_path / "repository"
+    application = repository / "apps" / "sample" / "application"
+    application.mkdir(parents=True)
+    for version in (1, 2):
+        (application / f"policy_v{version}.py").write_text("VALUE = 1\n", encoding="utf-8")
+    _write_sample_legacy_paths(application)
+    (repository / "evidence.json").write_text("{}\n", encoding="utf-8")
+    manifest = {
+        "schema_version": "2026-09-22.v6",
+        "owner": "architecture-governance",
+        "scope": SCOPE,
+        "families": [
+            {
+                "id": "sample-policy",
+                "owner": "sample",
+                "state": "blocked_retirement",
+                "preferred_current_version": 2,
+                "write_surface_versions": [2],
+                "retained_read_versions": [1, 2],
+                "blocked_by": ["SAMPLE-01"],
+                "retirement_gate": ["Remove V1 only after its proof is verified."],
+                "evidence": ["evidence.json"],
+                "module_groups": {"apps/sample/application/policy_v#.py": [1, 2]},
+            }
+        ],
+        "legacy_surfaces": [_sample_legacy_surface()],
+        "no_suffix_module_groups": _sample_no_suffix_groups(),
+        "version_growth_policy": _sample_version_growth_policy(),
+        "linked_retirement_gates": [
+            {
+                "id": "sample-linked",
+                "owner": "sample",
+                "blocked_by": ["SAMPLE-01"],
+                "deletion_allowed": False,
+                "guard_command": "python guard.py",
+                "retirement_gate": ["Wait for production acceptance."],
+            }
+        ],
+    }
+    active_plan = {
+        "closure_backlog": {"units": [{"id": "SAMPLE-01", "status": "awaiting_production"}]}
+    }
+    manifest_path = repository / "manifest.json"
+    active_plan_path = repository / "active.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    active_plan_path.write_text(json.dumps(active_plan), encoding="utf-8")
+
+    violations, _summary = _validate_sample(
+        manifest_path=manifest_path,
+        active_plan_path=active_plan_path,
+        repository=repository,
+    )
+
+    assert "family_write_surface_floor_missing_version:sample-policy:1" in violations
 
 
 def test_completed_blocker_forces_retirement_review(tmp_path: Path) -> None:
@@ -165,7 +353,7 @@ def test_completed_blocker_forces_retirement_review(tmp_path: Path) -> None:
     _write_sample_legacy_paths(application)
     (repository / "evidence.json").write_text("{}\n", encoding="utf-8")
     manifest = {
-        "schema_version": "2026-09-22.v2",
+        "schema_version": "2026-09-22.v6",
         "owner": "architecture-governance",
         "scope": SCOPE,
         "families": [
@@ -184,6 +372,7 @@ def test_completed_blocker_forces_retirement_review(tmp_path: Path) -> None:
         ],
         "legacy_surfaces": [_sample_legacy_surface()],
         "no_suffix_module_groups": _sample_no_suffix_groups(),
+        "version_growth_policy": _sample_version_growth_policy(),
         "linked_retirement_gates": [
             {
                 "id": "sample-linked",
@@ -201,10 +390,10 @@ def test_completed_blocker_forces_retirement_review(tmp_path: Path) -> None:
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
     active_plan_path.write_text(json.dumps(active_plan), encoding="utf-8")
 
-    violations, _summary = validate(
+    violations, _summary = _validate_sample(
         manifest_path=manifest_path,
         active_plan_path=active_plan_path,
-        repository_root=repository,
+        repository=repository,
     )
 
     assert "sample-policy.retirement_review_due" in violations
@@ -224,7 +413,7 @@ def test_tracked_no_suffix_legacy_path_must_still_exist(tmp_path: Path) -> None:
     (application / "legacy_policy.py").unlink()
     (repository / "evidence.json").write_text("{}\n", encoding="utf-8")
     manifest = {
-        "schema_version": "2026-09-22.v2",
+        "schema_version": "2026-09-22.v6",
         "owner": "architecture-governance",
         "scope": SCOPE,
         "families": [
@@ -243,6 +432,7 @@ def test_tracked_no_suffix_legacy_path_must_still_exist(tmp_path: Path) -> None:
         ],
         "legacy_surfaces": [_sample_legacy_surface()],
         "no_suffix_module_groups": _sample_no_suffix_groups(),
+        "version_growth_policy": _sample_version_growth_policy(),
         "linked_retirement_gates": [
             {
                 "id": "sample-linked",
@@ -262,14 +452,18 @@ def test_tracked_no_suffix_legacy_path_must_still_exist(tmp_path: Path) -> None:
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
     active_plan_path.write_text(json.dumps(active_plan), encoding="utf-8")
 
-    violations, _summary = validate(
+    violations, _summary = _validate_sample(
         manifest_path=manifest_path,
         active_plan_path=active_plan_path,
-        repository_root=repository,
+        repository=repository,
     )
 
     assert (
         "sample-runtime-route.tracked_path_missing:apps/sample/application/legacy_policy.py"
+        in violations
+    )
+    assert (
+        "legacy_tracked_marker_floor_path_missing:apps/sample/application/legacy_policy.py"
         in violations
     )
 
@@ -292,7 +486,7 @@ def test_verified_retirement_proof_must_resolve_to_an_artifact(tmp_path: Path) -
         "artifact": "missing-proof.json",
     }
     manifest = {
-        "schema_version": "2026-09-22.v2",
+        "schema_version": "2026-09-22.v6",
         "owner": "architecture-governance",
         "scope": SCOPE,
         "families": [
@@ -311,6 +505,7 @@ def test_verified_retirement_proof_must_resolve_to_an_artifact(tmp_path: Path) -
         ],
         "legacy_surfaces": [surface],
         "no_suffix_module_groups": _sample_no_suffix_groups(),
+        "version_growth_policy": _sample_version_growth_policy(),
         "linked_retirement_gates": [
             {
                 "id": "sample-linked",
@@ -330,10 +525,10 @@ def test_verified_retirement_proof_must_resolve_to_an_artifact(tmp_path: Path) -
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
     active_plan_path.write_text(json.dumps(active_plan), encoding="utf-8")
 
-    violations, _summary = validate(
+    violations, _summary = _validate_sample(
         manifest_path=manifest_path,
         active_plan_path=active_plan_path,
-        repository_root=repository,
+        repository=repository,
     )
 
     assert (

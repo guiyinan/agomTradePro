@@ -1,0 +1,563 @@
+{
+  "schema_version": "2026-09-22.v2",
+  "owner": "architecture-governance",
+  "frozen_at": "2026-09-22",
+  "policy": "This content-addressed baseline is immutable while any governed production blocker or retirement proof is pending. It freezes exact parallel, retained-read and write-capable version sets plus same-file markers. Changing any set requires a separate retirement review that proves zero runtime callers, production row inventory, backup/restore and exact historical hash replay before rebinding the checker digest.",
+  "module_group_retained_version_floor": {
+    "apps/account/account_owner_assignment_evidence_v#_composition.py": [
+      3,
+      4,
+      5
+    ],
+    "apps/account/application/account_owner_assignment_evidence_v#.py": [
+      2,
+      3,
+      4,
+      5
+    ],
+    "apps/account/domain/account_owner_assignment_evidence_v#.py": [
+      2,
+      3,
+      4,
+      5
+    ],
+    "apps/account/infrastructure/account_owner_assignment_evidence_v#_codec.py": [
+      2,
+      3,
+      4,
+      5
+    ],
+    "apps/account/infrastructure/account_owner_assignment_evidence_v#_models.py": [
+      2,
+      3,
+      4
+    ],
+    "apps/account/infrastructure/account_owner_assignment_evidence_v#_record_codec.py": [
+      4,
+      5
+    ],
+    "apps/account/infrastructure/account_owner_assignment_evidence_v#_repository.py": [
+      2,
+      3,
+      4,
+      5
+    ],
+    "apps/account/application/account_owner_assignment_provenance_receipt_v#.py": [
+      2,
+      3,
+      4,
+      5
+    ],
+    "apps/account/domain/account_owner_assignment_provenance_receipt_v#.py": [
+      2,
+      3,
+      4,
+      5
+    ],
+    "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v#_codec.py": [
+      2,
+      3,
+      4,
+      5
+    ],
+    "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v#_models.py": [
+      2,
+      3,
+      4
+    ],
+    "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v#_record_codec.py": [
+      4,
+      5
+    ],
+    "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v#_repository.py": [
+      2,
+      3,
+      4,
+      5
+    ],
+    "apps/account/application/account_owner_assignment_mapping_v#.py": [
+      2,
+      3
+    ],
+    "apps/account/application/owner_tenant_authority_v#.py": [
+      1,
+      2,
+      3
+    ],
+    "apps/account/application/owner_tenant_authority_v#_contracts.py": [
+      2,
+      3
+    ],
+    "apps/account/domain/owner_tenant_authority_v#.py": [
+      1,
+      2,
+      3
+    ],
+    "apps/account/infrastructure/_owner_tenant_authority_v#_repository_helpers.py": [
+      2,
+      3
+    ],
+    "apps/account/infrastructure/owner_tenant_authority_v#_codec.py": [
+      1,
+      2,
+      3
+    ],
+    "apps/account/infrastructure/owner_tenant_authority_v#_models.py": [
+      1,
+      2,
+      3
+    ],
+    "apps/account/infrastructure/owner_tenant_authority_v#_record_codec.py": [
+      2,
+      3
+    ],
+    "apps/account/infrastructure/owner_tenant_authority_v#_repository.py": [
+      1,
+      2,
+      3
+    ],
+    "apps/account/owner_tenant_authority_v#_composition.py": [
+      1,
+      2,
+      3
+    ],
+    "core/integration/owner_tenant_evidence_scope_v#.py": [
+      1,
+      2,
+      3
+    ]
+  },
+  "no_suffix_group_retained_version_floor": {
+    "apps/account/application/account_owner_assignment_evidence{_v#}.py": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "apps/account/application/account_owner_assignment_provenance_receipt{_v#}.py": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "apps/account/application/physical_account_row_observation{_v#}.py": [
+      1,
+      2
+    ],
+    "apps/account/domain/account_owner_assignment_evidence{_v#}.py": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "apps/account/domain/account_owner_assignment_provenance_receipt{_v#}.py": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "apps/account/domain/physical_account_row_observation{_v#}.py": [
+      1,
+      2
+    ],
+    "apps/account/infrastructure/account_owner_assignment_evidence_codec{_v#}.py": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "apps/account/infrastructure/account_owner_assignment_evidence_models{_v#}.py": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "apps/account/infrastructure/account_owner_assignment_evidence_repository{_v#}.py": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "apps/account/infrastructure/account_owner_assignment_provenance_receipt_codec{_v#}.py": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "apps/account/infrastructure/account_owner_assignment_provenance_receipt_models{_v#}.py": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "apps/account/infrastructure/account_owner_assignment_provenance_receipt_repository{_v#}.py": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "apps/account/infrastructure/physical_account_row_observation_codec{_v#}.py": [
+      1,
+      2
+    ],
+    "apps/account/infrastructure/physical_account_row_observation_models{_v#}.py": [
+      1,
+      2
+    ],
+    "apps/account/infrastructure/physical_account_row_observation_repository{_v#}.py": [
+      1,
+      2
+    ],
+    "apps/account/system_audit_authority_composition{_v#}.py": [
+      1,
+      3
+    ],
+    "apps/regime/domain/services{_v#}.py": [
+      1,
+      2
+    ],
+    "apps/simulated_trading/application/simulated_account_row_source{_v#}.py": [
+      1,
+      2
+    ],
+    "apps/simulated_trading/domain/simulated_account_row_source{_v#}.py": [
+      1,
+      2
+    ],
+    "apps/simulated_trading/infrastructure/account_physical_row_provider{_v#}.py": [
+      1,
+      2
+    ],
+    "apps/simulated_trading/infrastructure/simulated_account_row_source_codec{_v#}.py": [
+      1,
+      2
+    ],
+    "apps/simulated_trading/infrastructure/simulated_account_row_source_models{_v#}.py": [
+      1,
+      2
+    ],
+    "apps/simulated_trading/infrastructure/simulated_account_row_source_repository{_v#}.py": [
+      1,
+      2
+    ]
+  },
+  "family_retained_read_version_floor": {
+    "account-owner-assignment-evidence": [
+      2,
+      3,
+      4,
+      5
+    ],
+    "account-owner-assignment-provenance": [
+      2,
+      3,
+      4,
+      5
+    ],
+    "account-owner-assignment-mapping": [
+      2,
+      3
+    ],
+    "owner-tenant-authority": [
+      1,
+      2,
+      3
+    ],
+    "owner-tenant-evidence-scope": [
+      1,
+      2,
+      3
+    ]
+  },
+  "legacy_retained_read_version_floor": {
+    "account-owner-assignment-evidence-nosuffix": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "account-owner-assignment-provenance-nosuffix": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "physical-account-row-observation": [
+      1,
+      2
+    ],
+    "simulated-account-row-source": [
+      1,
+      2
+    ],
+    "regime-calculation": [
+      1,
+      2
+    ],
+    "system-audit-authority-schema-route": [
+      1,
+      2,
+      3
+    ]
+  },
+  "legacy_tracked_marker_floor": {
+    "apps/account/application/account_owner_assignment_evidence.py": [
+      "class ApproveAccountOwnerAssignment:"
+    ],
+    "apps/account/application/account_owner_assignment_evidence_v5.py": [
+      "class ApproveAccountOwnerAssignmentEvidenceV5:"
+    ],
+    "apps/account/domain/account_owner_assignment_evidence.py": [
+      "class AccountOwnerAssignmentEvidence:"
+    ],
+    "apps/account/domain/account_owner_assignment_evidence_v5.py": [
+      "class AccountOwnerAssignmentEvidenceV5:"
+    ],
+    "apps/account/infrastructure/account_owner_assignment_evidence_codec.py": [
+      "class AccountOwnerAssignmentEvidenceCodecError"
+    ],
+    "apps/account/infrastructure/account_owner_assignment_evidence_v5_codec.py": [
+      "class AccountOwnerAssignmentEvidenceV5CodecError"
+    ],
+    "apps/account/infrastructure/account_owner_assignment_evidence_models.py": [
+      "class AccountOwnerAssignmentEvidenceModel"
+    ],
+    "apps/account/infrastructure/account_owner_assignment_evidence_repository.py": [
+      "class DjangoAccountOwnerAssignmentRepository"
+    ],
+    "apps/account/infrastructure/account_owner_assignment_evidence_v5_repository.py": [
+      "class DjangoAccountOwnerAssignmentEvidenceV5Repository"
+    ],
+    "apps/account/account_owner_assignment_evidence_v5_composition.py": [
+      "def build_account_owner_assignment_evidence_v5_facade("
+    ],
+    "apps/account/application/account_owner_assignment_evidence_v2.py": [
+      "class ApproveAccountOwnerAssignmentEvidenceV2:"
+    ],
+    "apps/account/application/account_owner_assignment_evidence_v3.py": [
+      "class ApproveAccountOwnerAssignmentEvidenceV3:"
+    ],
+    "apps/account/application/account_owner_assignment_evidence_v4.py": [
+      "class ApproveAccountOwnerAssignmentEvidenceV4:"
+    ],
+    "apps/account/owner_tenant_authority_v1_composition.py": [
+      "assignment_reader=build_current_account_owner_assignment_evidence_v3(using=using)"
+    ],
+    "apps/account/application/account_owner_assignment_provenance_receipt.py": [
+      "class IssueAccountOwnerAssignmentProvenanceReceipt:"
+    ],
+    "apps/account/application/account_owner_assignment_provenance_receipt_v5.py": [
+      "class IssueAccountOwnerAssignmentProvenanceReceiptV5:"
+    ],
+    "apps/account/domain/account_owner_assignment_provenance_receipt.py": [
+      "class AccountOwnerAssignmentProvenanceReceipt:"
+    ],
+    "apps/account/domain/account_owner_assignment_provenance_receipt_v5.py": [
+      "class AccountOwnerAssignmentProvenanceReceiptV5:"
+    ],
+    "apps/account/infrastructure/account_owner_assignment_provenance_receipt_codec.py": [
+      "class AccountOwnerAssignmentProvenanceReceiptCodecError"
+    ],
+    "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v5_codec.py": [
+      "class AccountOwnerAssignmentProvenanceReceiptV5CodecError"
+    ],
+    "apps/account/infrastructure/account_owner_assignment_provenance_receipt_models.py": [
+      "class AccountOwnerAssignmentProvenanceReceiptModel"
+    ],
+    "apps/account/infrastructure/account_owner_assignment_provenance_receipt_repository.py": [
+      "class DjangoAccountOwnerAssignmentProvenanceReceiptRepository"
+    ],
+    "apps/account/infrastructure/account_owner_assignment_provenance_receipt_v5_repository.py": [
+      "class DjangoAccountOwnerAssignmentProvenanceReceiptV5Repository"
+    ],
+    "apps/account/application/account_owner_assignment_provenance_receipt_v2.py": [
+      "class IssueAccountOwnerAssignmentProvenanceReceiptV2:"
+    ],
+    "apps/account/application/account_owner_assignment_provenance_receipt_v3.py": [
+      "class IssueAccountOwnerAssignmentProvenanceReceiptV3:"
+    ],
+    "apps/account/application/account_owner_assignment_provenance_receipt_v4.py": [
+      "class IssueAccountOwnerAssignmentProvenanceReceiptV4:"
+    ],
+    "apps/account/account_owner_assignment_evidence_v3_composition.py": [
+      "DjangoAccountOwnerAssignmentProvenanceReceiptV3Repository(using=using)"
+    ],
+    "apps/account/application/physical_account_row_observation.py": [
+      "class CapturePhysicalAccountRowObservation:"
+    ],
+    "apps/account/application/physical_account_row_observation_v2.py": [
+      "class CapturePhysicalAccountRowObservationV2:"
+    ],
+    "apps/account/domain/physical_account_row_observation.py": [
+      "class PhysicalAccountRowObservation:"
+    ],
+    "apps/account/domain/physical_account_row_observation_v2.py": [
+      "class PhysicalAccountRowObservationV2:"
+    ],
+    "apps/account/infrastructure/physical_account_row_observation_codec.py": [
+      "class PhysicalAccountRowObservationCodecError"
+    ],
+    "apps/account/infrastructure/physical_account_row_observation_v2_codec.py": [
+      "class PhysicalAccountRowObservationV2CodecError"
+    ],
+    "apps/account/infrastructure/physical_account_row_observation_models.py": [
+      "class PhysicalAccountRowObservationModel"
+    ],
+    "apps/account/infrastructure/physical_account_row_observation_v2_models.py": [
+      "class PhysicalAccountRowObservationV2Model"
+    ],
+    "apps/account/infrastructure/physical_account_row_observation_repository.py": [
+      "class DjangoPhysicalAccountRowObservationRepository"
+    ],
+    "apps/account/infrastructure/physical_account_row_observation_v2_repository.py": [
+      "class DjangoPhysicalAccountRowObservationV2Repository"
+    ],
+    "apps/account/canonical_creation_composition.py": [
+      "DjangoPhysicalAccountRowObservationV2Repository(using=alias)"
+    ],
+    "apps/simulated_trading/application/simulated_account_row_source.py": [
+      "class CaptureSimulatedAccountRowSource:"
+    ],
+    "apps/simulated_trading/application/simulated_account_row_source_v2.py": [
+      "class CaptureSimulatedAccountRowSourceV2:"
+    ],
+    "apps/simulated_trading/domain/simulated_account_row_source.py": [
+      "class SimulatedAccountRowSource:"
+    ],
+    "apps/simulated_trading/domain/simulated_account_row_source_v2.py": [
+      "class SimulatedAccountRowSourceV2:"
+    ],
+    "apps/simulated_trading/infrastructure/simulated_account_row_source_codec.py": [
+      "class SimulatedAccountRowSourceCodecError"
+    ],
+    "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_codec.py": [
+      "class SimulatedAccountRowSourceV2CodecError"
+    ],
+    "apps/simulated_trading/infrastructure/simulated_account_row_source_models.py": [
+      "class SimulatedAccountRowSourceModel"
+    ],
+    "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_models.py": [
+      "class SimulatedAccountRowSourceV2Model"
+    ],
+    "apps/simulated_trading/infrastructure/simulated_account_row_source_repository.py": [
+      "class DjangoSimulatedAccountRowSourceRepository"
+    ],
+    "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py": [
+      "class DjangoSimulatedAccountRowSourceV2Repository"
+    ],
+    "apps/simulated_trading/composition.py": [
+      "DjangoSimulatedAccountRowSourceRepository()"
+    ],
+    "apps/simulated_trading/creation_composition.py": [
+      "repository=DjangoSimulatedAccountRowSourceV2Repository(using=using)"
+    ],
+    "apps/simulated_trading/infrastructure/account_physical_row_provider.py": [
+      "class DjangoExactPhysicalSimulatedAccountRowProvider:"
+    ],
+    "apps/simulated_trading/infrastructure/account_physical_row_v2_provider.py": [
+      "class DjangoExactPhysicalSimulatedAccountRowV2Provider:"
+    ],
+    "apps/regime/application/use_cases.py": [
+      "class CalculateRegimeUseCase:"
+    ],
+    "apps/regime/application/regime_v2_use_cases.py": [
+      "class CalculateRegimeV2UseCase:"
+    ],
+    "apps/regime/application/query_services.py": [
+      "def calculate_regime_diagnostic_payload("
+    ],
+    "apps/regime/application/current_regime.py": [
+      "def resolve_current_regime(",
+      "use_case = CalculateRegimeV2UseCase(macro_repo)"
+    ],
+    "apps/regime/domain/services.py": [
+      "class RegimeCalculator:"
+    ],
+    "apps/regime/domain/services_v2.py": [
+      "class RegimeCalculatorV2:"
+    ],
+    "apps/audit/application/system_audit_authority_schema.py": [
+      "SYSTEM_AUDIT_SCOPE_SCHEMA_V1:",
+      "SYSTEM_AUDIT_SCOPE_SCHEMA_V2:",
+      "SYSTEM_AUDIT_SCOPE_SCHEMA_V3:"
+    ],
+    "apps/audit/application/system_audit_composition.py": [
+      "scope_schema: str = SYSTEM_AUDIT_SCOPE_SCHEMA_V1"
+    ],
+    "apps/account/system_audit_authority_composition.py": [
+      "scope=build_owner_tenant_authority_v1_reader(using=alias)"
+    ],
+    "core/integration/system_audit_authority.py": [
+      "if selector is None or selector.scope_schema == SYSTEM_AUDIT_SCOPE_SCHEMA_V1:",
+      "elif selector.scope_schema == SYSTEM_AUDIT_SCOPE_SCHEMA_V3:"
+    ],
+    "apps/account/owner_tenant_authority_v3_composition.py": [
+      "def build_owner_tenant_authority_v3_facade("
+    ],
+    "apps/account/system_audit_authority_v3_composition.py": [
+      "class AccountSystemAuditOwnerTenantAuthorityV3Reader:"
+    ]
+  },
+  "family_write_surface_version_floor": {
+    "account-owner-assignment-evidence": [
+      2,
+      3,
+      4,
+      5
+    ],
+    "account-owner-assignment-provenance": [
+      2,
+      3,
+      4,
+      5
+    ],
+    "account-owner-assignment-mapping": [],
+    "owner-tenant-authority": [
+      1,
+      2,
+      3
+    ],
+    "owner-tenant-evidence-scope": [
+      1
+    ]
+  },
+  "legacy_write_surface_version_floor": {
+    "account-owner-assignment-evidence-nosuffix": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "account-owner-assignment-provenance-nosuffix": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "physical-account-row-observation": [
+      1,
+      2
+    ],
+    "simulated-account-row-source": [
+      1,
+      2
+    ],
+    "regime-calculation": [],
+    "system-audit-authority-schema-route": [
+      1,
+      3
+    ]
+  }
+}

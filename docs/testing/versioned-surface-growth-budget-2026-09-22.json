@@ -1,0 +1,118 @@
+{
+  "schema_version": "2026-09-22.v1",
+  "evidence_type": "versioned_surface_growth_budget_and_sealed_retention_floor",
+  "generated_at": "2026-09-22T07:22:19.433542+00:00",
+  "base_commit": "0d916addb526b5bdec8d91f05c4ee83ddd8c8086",
+  "branch": "dev/next-development",
+  "scope": {
+    "production_access": false,
+    "production_mutation": false,
+    "runtime_behavior_changed": false,
+    "legacy_code_deleted": false,
+    "classic_templates_deleted": false
+  },
+  "findings": {
+    "parallel_module_groups": 24,
+    "no_suffix_module_groups": 23,
+    "multi_writer_families": 3,
+    "explicit_legacy_surfaces": 6,
+    "pending_retirement_proofs": 24,
+    "deletion_eligible_surfaces": [],
+    "blocked_deletions": {
+      "account_and_audit": [
+        "EVID-01",
+        "EVID-02"
+      ],
+      "regime": [
+        "STRAT-02"
+      ],
+      "classic": [
+        "TUI-02",
+        "check_web_to_tui_cutover_readiness.py --require-allow"
+      ]
+    },
+    "sealed_exact_sets": {
+      "path": "governance/versioned_surface_retention_floor.json",
+      "canonical_sha256": "ca333ec649368d7ec5dc993289e67d4a1be4fd00fba79e56b4b47c574e4fa35b",
+      "module_group_sets": 24,
+      "no_suffix_group_sets": 23,
+      "family_read_sets": 5,
+      "legacy_read_sets": 6,
+      "family_write_sets": 5,
+      "legacy_write_sets": 6,
+      "tracked_path_sets": 64,
+      "tracked_marker_count": 68
+    }
+  },
+  "guard_behavior": [
+    "Adding V6 or any other unsealed parallel/no-suffix version fails.",
+    "Removing a sealed parallel/no-suffix version or replacing it at equal count fails.",
+    "Adding or removing a family/legacy write-capable version fails.",
+    "Adding or removing a family/legacy retained-read version fails.",
+    "Deleting or changing a sealed same-file schema/composition marker fails.",
+    "Changing the independent baseline without rebinding its checker-pinned canonical digest fails."
+  ],
+  "checks": [
+    {
+      "command": "pytest tests/guardrails/test_versioned_surface_retirement.py -q",
+      "result": "7 passed"
+    },
+    {
+      "command": "pytest tests/guardrails/test_versioned_surface_retirement.py tests/guardrails/test_governance_consistency.py -q",
+      "result": "36 passed"
+    },
+    {
+      "command": "python scripts/check_versioned_surface_retirement.py",
+      "result": "5 families, 3 multi-writer, 24 module groups, 23 no-suffix groups, 6 explicit legacy surfaces, 24 pending retirement proofs, 1 linked gate, 0 violations"
+    },
+    {
+      "command": "python scripts/check_active_plan_registry.py",
+      "result": "version 2026-09-22.v160; 54 units; 0 violations"
+    },
+    {
+      "command": "python scripts/check_governance_consistency.py --baseline governance/governance_baseline.json --format text",
+      "result": "governance baseline 2026-09-09.v220; 0 violations"
+    },
+    {
+      "command": "python scripts/check_mypy_regression.py scripts/check_versioned_surface_retirement.py",
+      "result": "0 regressions"
+    },
+    {
+      "command": "python scripts/check_mypy_debt_ceiling.py",
+      "result": "0 errors in 0 files"
+    },
+    {
+      "command": "black/isort/ruff focused checks",
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed; line-ending notices only"
+    }
+  ],
+  "independent_review": {
+    "reviewer": "gpt-5.6-luna-max",
+    "status": "passed_after_findings_resolved",
+    "p0_count": 0,
+    "p1_count": 0,
+    "resolved_findings": [
+      "Added retained-version and marker floors after the first review found equal-count replacement could bypass ceilings.",
+      "Moved floors out of the mutable inventory and pinned their canonical digest after the second review found same-manifest floor lowering could bypass the guard.",
+      "Moved exact parallel ceilings and family/legacy write-surface version sets into the sealed baseline after the third review found mutable manifest ceilings and writer declarations."
+    ],
+    "final_observation": "The sealed baseline is the sole source for exact module, no-suffix, retained-read, write-capable and marker sets. Missing and unsealed versions both fail. No remaining P0/P1 was found."
+  },
+  "files": {
+    "governance/versioned_surface_retirement.json": "a9bacd2cee42629b4e5ceb585fc882dfc6edcddf3ec763576747eb18788244f2",
+    "governance/versioned_surface_retention_floor.json": "5461d740677403d464519342e3da88f2a7f288341aaf59c6191154d1c5e49328",
+    "scripts/check_versioned_surface_retirement.py": "e4ef99fd098368efd4b7cec0b360adfa5a4a6920caf7f1da18f2ad8f154ba5c3",
+    "tests/guardrails/test_versioned_surface_retirement.py": "4e4dcdc1e49daad262121d0eed4d0b414f9daacf37b566bccca5209e4652eabf",
+    "docs/reviews/production-closure-2026-09-20.md": "3b7479996bb73cd97498453a599ee86d52565fd4153fa50179d1029bb3defdad",
+    "governance/active_plan_registry.json": "56580eef4b79e44d00446746bb9b3b7737c558112359fb62db242f853de38d20"
+  },
+  "governance_transition": {
+    "active_plan_registry": "2026-09-22.v159 -> 2026-09-22.v160",
+    "unit_status_changes": [],
+    "note": "No production closure unit advanced; existing EVID-01/02, STRAT-02 and TUI-02 states remain unchanged."
+  }
+}

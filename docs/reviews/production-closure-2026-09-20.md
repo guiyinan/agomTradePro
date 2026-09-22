@@ -285,6 +285,24 @@ EVID-01/02。Account Evidence/Provenance 的 preferred version 是 V5，而默�
 `verified`。旧 writer 不能据静态搜索直接认定可删；Regime V1 还受 STRAT-02 真实 PIT/OOS 时间窗口约束。
 本轮证据见[显式旧面覆盖封存](../testing/versioned-surface-retirement-coverage-2026-09-22.json)。
 
+针对“登记了新版本但继续堆叠旧版本”的缺口，退役治理 v6 冻结全部并存、读取和写入版本集合。
+24 组 `_vN`、23 组无后缀并存模块、family/legacy retained-read 及 write surface 都必须与封存集合精确
+一致；单纯同步台账不能让 V6、额外 writer 或提前删除的旧 writer 静默通过。数量不变也不能用新版本
+替换旧版本；同文件 schema/composition marker 同样进入保留地板。测试覆盖了“登记 V3 后新增并存/
+写版本”“以 V3 等量替换 V2”和“文件仍保留但从 write_surface_versions 移除 V1”三类绕过，均
+fail closed。封存集合只能在对应
+生产 blocker、zero-runtime-caller、生产行盘点、备份恢复、历史 hash replay 和单独退役复核完成后收缩。
+保留地板不与可变 inventory 共存于同一对象，而是封存在
+`governance/versioned_surface_retention_floor.json`；检查器固定其规范化 SHA-256
+`ca333ec649368d7ec5dc993289e67d4a1be4fd00fba79e56b4b47c574e4fa35b`。同步修改 inventory 与
+floor 会触发 digest mismatch；退役必须以单独提交显式重绑封存摘要，不能伪装成普通版本登记。
+
+Luna Max 复核确认当前没有任何 V3/V4 或 Classic A/B 模板具备删除资格：Evidence/Provenance 的 V3
+仍是 active default、V5 是 preferred；Audit 默认 composition 仍走 Authority V1；24 个退役证明槽
+全部 pending；Regime V1 仍受 STRAT-02 的真实 PIT/OOS 积累约束；Classic 仍受 TUI-02 和
+`--require-allow` 约束。因此本轮只关闭继续增生和等量替换绕过，没有删除历史实现或改变运行时路由。
+结构化证据见[版本增生预算与保留地板封存](../testing/versioned-surface-growth-budget-2026-09-22.json)。
+
 ## DATA-02 财务响应正文范围绑定（2026-09-22）
 
 仓库已把成功 Tushare 财务响应的 scope 从固定 `caller_declared / row_count=0` 改为正文验证。

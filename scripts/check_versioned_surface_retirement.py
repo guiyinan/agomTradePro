@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -10,6 +11,10 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MANIFEST = ROOT / "governance" / "versioned_surface_retirement.json"
 DEFAULT_ACTIVE_PLAN = ROOT / "governance" / "active_plan_registry.json"
+DEFAULT_RETENTION_BASELINE = ROOT / "governance" / "versioned_surface_retention_floor.json"
+EXPECTED_RETENTION_BASELINE_SHA256 = (
+    "ca333ec649368d7ec5dc993289e67d4a1be4fd00fba79e56b4b47c574e4fa35b"
+)
 VERSION_TOKEN = re.compile(r"_v(?P<version>[0-9]+)(?=_|\.py$)")
 NO_SUFFIX_VERSION = re.compile(r"^(?P<prefix>.*)_v(?P<version>[0-9]+)(?P<suffix>.*)\.py$")
 ALLOWED_FAMILY_STATES = {"blocked_retirement", "read_compatibility"}
@@ -30,6 +35,26 @@ REQUIRED_RETIREMENT_EVIDENCE = frozenset(
         "historical_hash_replay",
     }
 )
+VERSION_GROWTH_POLICY_KEYS = frozenset(
+    {
+        "mode",
+    }
+)
+RETENTION_BASELINE_KEYS = frozenset(
+    {
+        "schema_version",
+        "owner",
+        "frozen_at",
+        "policy",
+        "module_group_retained_version_floor",
+        "no_suffix_group_retained_version_floor",
+        "family_retained_read_version_floor",
+        "legacy_retained_read_version_floor",
+        "family_write_surface_version_floor",
+        "legacy_write_surface_version_floor",
+        "legacy_tracked_marker_floor",
+    }
+)
 
 
 def _load_object(path: Path) -> dict[str, Any]:
@@ -37,6 +62,18 @@ def _load_object(path: Path) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError(f"{path} must contain a JSON object")
     return payload
+
+
+def retention_baseline_sha256(payload: dict[str, Any]) -> str:
+    """Return a platform-independent digest for the frozen retention baseline."""
+
+    canonical = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
 
 
 def _tokens(value: object, *, field: str, violations: list[str]) -> list[str]:
@@ -67,6 +104,84 @@ def _versions(value: object, *, field: str, violations: list[str]) -> list[int]:
     if result != sorted(set(result)):
         violations.append(f"{field}_not_sorted_unique")
     return result
+
+
+def _version_floor_map(
+    value: object,
+    *,
+    field: str,
+    violations: list[str],
+    allow_empty: bool = False,
+) -> dict[str, list[int]]:
+    """Return required historical versions that cannot be silently replaced."""
+
+    if not isinstance(value, dict):
+        violations.append(f"{field}_invalid")
+        return {}
+    floors: dict[str, list[int]] = {}
+    for raw_key, raw_versions in value.items():
+        if not isinstance(raw_key, str) or not raw_key.strip():
+            violations.append(f"{field}_key_invalid")
+            continue
+        versions = _versions(
+            raw_versions,
+            field=f"{field}.{raw_key}",
+            violations=violations,
+        )
+        if not versions and not allow_empty:
+            violations.append(f"{field}.{raw_key}_empty")
+            continue
+        floors[raw_key] = versions
+    return floors
+
+
+def _check_version_floor(
+    *,
+    field: str,
+    floors: dict[str, list[int]],
+    actual: dict[str, list[int]],
+    violations: list[str],
+) -> None:
+    """Require every frozen historical version until a reviewed retirement changes the floor."""
+
+    for key in sorted(set(actual) - set(floors)):
+        violations.append(f"{field}_missing:{key}")
+    for key, floor_versions in sorted(floors.items()):
+        actual_versions = set(actual.get(key, []))
+        for version in sorted(set(floor_versions) - actual_versions):
+            violations.append(f"{field}_missing_version:{key}:{version}")
+        for version in sorted(actual_versions - set(floor_versions)):
+            violations.append(f"{field}_unsealed_version:{key}:{version}")
+
+
+def _check_marker_floor(
+    *,
+    value: object,
+    repository_root: Path,
+    violations: list[str],
+) -> None:
+    """Keep same-file schemas and compatibility route markers until retirement review."""
+
+    if not isinstance(value, dict) or not value:
+        violations.append("legacy_tracked_marker_floor_invalid")
+        return
+    for raw_path, raw_markers in value.items():
+        if not isinstance(raw_path, str) or not raw_path.strip():
+            violations.append("legacy_tracked_marker_floor_path_invalid")
+            continue
+        markers = _tokens(
+            raw_markers,
+            field=f"legacy_tracked_marker_floor.{raw_path}",
+            violations=violations,
+        )
+        source_path = repository_root / raw_path
+        if not source_path.is_file():
+            violations.append(f"legacy_tracked_marker_floor_path_missing:{raw_path}")
+            continue
+        source_text = source_path.read_text(encoding="utf-8")
+        for marker in markers:
+            if marker not in source_text:
+                violations.append(f"legacy_tracked_marker_floor_marker_missing:{raw_path}:{marker}")
 
 
 def discover_multi_version_groups(repository_root: Path = ROOT) -> dict[str, list[int]]:
@@ -257,18 +372,34 @@ def validate(
     manifest_path: Path = DEFAULT_MANIFEST,
     active_plan_path: Path = DEFAULT_ACTIVE_PLAN,
     repository_root: Path = ROOT,
+    retention_baseline_path: Path = DEFAULT_RETENTION_BASELINE,
+    expected_retention_baseline_sha256: str = EXPECTED_RETENTION_BASELINE_SHA256,
 ) -> tuple[list[str], dict[str, Any]]:
     """Return lifecycle violations and a deterministic inventory summary."""
 
     manifest = _load_object(manifest_path)
     active_plan = _load_object(active_plan_path)
+    retention_baseline = _load_object(retention_baseline_path)
     violations: list[str] = []
     statuses = _active_unit_statuses(active_plan, violations)
     discovered = discover_multi_version_groups(repository_root)
     discovered_no_suffix = discover_no_suffix_version_groups(repository_root)
 
-    if manifest.get("schema_version") != "2026-09-22.v2":
+    if manifest.get("schema_version") != "2026-09-22.v6":
         violations.append("schema_version_invalid")
+    if frozenset(retention_baseline) != RETENTION_BASELINE_KEYS:
+        violations.append("retention_baseline_contract_invalid")
+    if retention_baseline.get("schema_version") != "2026-09-22.v2":
+        violations.append("retention_baseline_schema_version_invalid")
+    if retention_baseline.get("owner") != "architecture-governance":
+        violations.append("retention_baseline_owner_invalid")
+    observed_retention_digest = retention_baseline_sha256(retention_baseline)
+    if observed_retention_digest != expected_retention_baseline_sha256:
+        violations.append(
+            "retention_baseline_sha256_mismatch:"
+            f"expected={expected_retention_baseline_sha256}:"
+            f"actual={observed_retention_digest}"
+        )
     if manifest.get("owner") != "architecture-governance":
         violations.append("manifest_owner_invalid")
     if manifest.get("scope") != (
@@ -283,6 +414,8 @@ def validate(
         families_raw = []
     registered: dict[str, list[int]] = {}
     family_ids: set[str] = set()
+    family_write_versions: dict[str, list[int]] = {}
+    family_read_versions: dict[str, list[int]] = {}
     multi_writer_family_count = 0
     for index, raw_family in enumerate(families_raw):
         if not isinstance(raw_family, dict):
@@ -308,11 +441,13 @@ def validate(
             field=f"{family_id}.write_surface_versions",
             violations=violations,
         )
+        family_write_versions[family_id] = write_versions
         read_versions = _versions(
             raw_family.get("retained_read_versions"),
             field=f"{family_id}.retained_read_versions",
             violations=violations,
         )
+        family_read_versions[family_id] = read_versions
         if len(write_versions) > 1:
             multi_writer_family_count += 1
             if state != "blocked_retirement":
@@ -383,6 +518,8 @@ def validate(
     legacy_ids: set[str] = set()
     legacy_versions: dict[str, list[int]] = {}
     legacy_paths: set[str] = set()
+    legacy_write_versions: dict[str, list[int]] = {}
+    legacy_read_versions: dict[str, list[int]] = {}
     pending_retirement_evidence_count = 0
     for index, raw_surface in enumerate(legacy_raw):
         if not isinstance(raw_surface, dict):
@@ -419,11 +556,13 @@ def validate(
             field=f"{surface_id}.write_surface_versions",
             violations=violations,
         )
+        legacy_write_versions[surface_id] = write_versions
         read_versions = _versions(
             raw_surface.get("retained_read_versions"),
             field=f"{surface_id}.retained_read_versions",
             violations=violations,
         )
+        legacy_read_versions[surface_id] = read_versions
         versions_set = set(versions)
         unknown_classified = sorted((set(write_versions) | set(read_versions)) - versions_set)
         if unknown_classified:
@@ -500,6 +639,88 @@ def validate(
                 f"expected={registered_no_suffix[group]}:actual={discovered_no_suffix[group]}"
             )
 
+    growth_policy = manifest.get("version_growth_policy")
+    if not isinstance(growth_policy, dict) or frozenset(growth_policy) != (
+        VERSION_GROWTH_POLICY_KEYS
+    ):
+        violations.append("version_growth_policy_invalid")
+        growth_policy = {}
+    if growth_policy.get("mode") != "retirement_only":
+        violations.append("version_growth_policy_mode_invalid")
+    module_group_floors = _version_floor_map(
+        retention_baseline.get("module_group_retained_version_floor"),
+        field="module_group_retention_floor",
+        violations=violations,
+    )
+    no_suffix_group_floors = _version_floor_map(
+        retention_baseline.get("no_suffix_group_retained_version_floor"),
+        field="no_suffix_group_retention_floor",
+        violations=violations,
+    )
+    family_read_floors = _version_floor_map(
+        retention_baseline.get("family_retained_read_version_floor"),
+        field="family_retained_read_floor",
+        violations=violations,
+    )
+    legacy_read_floors = _version_floor_map(
+        retention_baseline.get("legacy_retained_read_version_floor"),
+        field="legacy_retained_read_floor",
+        violations=violations,
+    )
+    family_write_floors = _version_floor_map(
+        retention_baseline.get("family_write_surface_version_floor"),
+        field="family_write_surface_floor",
+        violations=violations,
+        allow_empty=True,
+    )
+    legacy_write_floors = _version_floor_map(
+        retention_baseline.get("legacy_write_surface_version_floor"),
+        field="legacy_write_surface_floor",
+        violations=violations,
+        allow_empty=True,
+    )
+    _check_version_floor(
+        field="module_group_retention_floor",
+        floors=module_group_floors,
+        actual=discovered,
+        violations=violations,
+    )
+    _check_version_floor(
+        field="no_suffix_group_retention_floor",
+        floors=no_suffix_group_floors,
+        actual=discovered_no_suffix,
+        violations=violations,
+    )
+    _check_version_floor(
+        field="family_retained_read_floor",
+        floors=family_read_floors,
+        actual=family_read_versions,
+        violations=violations,
+    )
+    _check_version_floor(
+        field="legacy_retained_read_floor",
+        floors=legacy_read_floors,
+        actual=legacy_read_versions,
+        violations=violations,
+    )
+    _check_version_floor(
+        field="family_write_surface_floor",
+        floors=family_write_floors,
+        actual=family_write_versions,
+        violations=violations,
+    )
+    _check_version_floor(
+        field="legacy_write_surface_floor",
+        floors=legacy_write_floors,
+        actual=legacy_write_versions,
+        violations=violations,
+    )
+    _check_marker_floor(
+        value=retention_baseline.get("legacy_tracked_marker_floor"),
+        repository_root=repository_root,
+        violations=violations,
+    )
+
     linked_raw = manifest.get("linked_retirement_gates")
     if not isinstance(linked_raw, list) or not linked_raw:
         violations.append("linked_retirement_gates_invalid")
@@ -541,6 +762,7 @@ def validate(
 
     summary = {
         "schema_version": manifest.get("schema_version"),
+        "retention_baseline_sha256": observed_retention_digest,
         "family_count": len(family_ids),
         "multi_writer_family_count": multi_writer_family_count,
         "discovered_module_group_count": len(discovered),

@@ -1,9 +1,12 @@
 {
-  "schema_version": "2026-09-22.v2",
+  "schema_version": "2026-09-22.v6",
   "owner": "architecture-governance",
   "reviewed_at": "2026-09-22",
   "scope": "apps/**/*.py and core/**/*.py excluding migrations; _vN module groups plus explicit no-suffix, runtime-schema and composition-route legacy surfaces",
-  "policy": "Parallel versions must have one declared preferred current version, exact _vN and no-suffix inventories, explicit retained-read and write-capable versions, real blockers and retirement gates. A satisfied blocker makes the guard fail until the family is reviewed. Historical append-only rows and hashes must remain readable until archive/restore evidence proves safe retirement.",
+  "policy": "Parallel versions must have one declared preferred current version, exact _vN and no-suffix inventories, explicit retained-read and write-capable versions, real blockers and retirement gates. A satisfied blocker makes the guard fail until the family is reviewed. Historical append-only rows and hashes must remain readable until archive/restore evidence proves safe retirement. The content-addressed baseline freezes the exact parallel, retained-read and write-capable version sets: ordinary inventory edits cannot add, replace or retire a version while proofs remain pending. A separate content-addressed retention-floor baseline preserves every governed historical version, retained-read classification, no-suffix route and same-file schema marker until the applicable production blockers and retirement proofs are independently reviewed.",
+  "version_growth_policy": {
+    "mode": "retirement_only"
+  },
   "families": [
     {
       "id": "account-owner-assignment-evidence",
