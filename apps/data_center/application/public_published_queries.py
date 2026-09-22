@@ -41,6 +41,7 @@ from apps.data_center.composition import (
     get_provider_config_repository,
 )
 from apps.data_center.domain.entities import MacroFact
+from apps.data_center.domain.market_time import cn_market_date_start_utc
 from apps.data_center.publication_read_composition import publication_snapshot
 
 
@@ -447,6 +448,27 @@ def get_financial_facts(
     """Read canonical financial facts for one asset through an optional as-of date."""
 
     return query_financial_facts(asset_code, limit=limit, end=as_of)
+
+
+def get_financial_facts_for_decision(
+    asset_code: str,
+    *,
+    decision_date: date,
+    limit: int = 20,
+) -> list[dict[str, object]]:
+    """Read statements knowable at the start of a China-market decision date.
+
+    This date-only port is intentionally a pre-open contract. Intraday or
+    post-close decisions must supply their own aware instant through a future
+    explicit-time port instead of widening this conservative boundary.
+    """
+
+    return query_financial_facts(
+        asset_code,
+        limit=limit,
+        end=decision_date,
+        knowledge_cutoff=cn_market_date_start_utc(decision_date),
+    )
 
 
 def get_valuation_facts(

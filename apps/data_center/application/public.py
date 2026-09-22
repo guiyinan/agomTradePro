@@ -939,6 +939,10 @@ list_valuation_covered_codes = _bind_published_query(
 get_financial_facts = _bind_published_query(
     "get_financial_facts", _published_queries.get_financial_facts
 )
+get_financial_facts_for_decision = _bind_published_query(
+    "get_financial_facts_for_decision",
+    _published_queries.get_financial_facts_for_decision,
+)
 get_valuation_facts = _bind_published_query(
     "get_valuation_facts", _published_queries.get_valuation_facts
 )
@@ -962,6 +966,7 @@ __all__ = [
     "get_active_dataset_contract",
     "get_active_publication_policy",
     "get_financial_facts",
+    "get_financial_facts_for_decision",
     "get_akshare_eastmoney_gateway_port",
     "get_akshare_module_port",
     "get_current_publication",

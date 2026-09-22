@@ -402,3 +402,19 @@ outbox=false，authority selector 未激活。protected monitoring 使用 root-o
 结构化报告见[候选绑定生产只读重验](../deployment/production-closure-revalidation-2026-09-22-24fa0ed90.json)，
 原始探针、输出和哈希清单见同名 `-raw.zip`。registry v158 → v159；DATA-02、EVID-01/02、AUD-03
 状态不变，TUI-02 继续 active。本轮没有部署、provider 调用、生产写入、profile 激活或 Publication 切换。
+
+## DATA-02 历史财务知识截止门禁（2026-09-22）
+
+Factor 与 Alpha 的历史财务读取不再把 `period_end <= trade_date` 当作“当日已知”。新增决策专用
+Application Port `get_financial_facts_for_decision`，其 date-only 契约只适用于中国市场日开盘前：
+知识截止为上海时区决策日 00:00 对应的精确 UTC 瞬间。Repository 除报告期上界外，同时要求真实
+`announced_at`、`available_at` 非空且均不晚于截止时刻；不会用 `report_date`、`period_end` 或
+`fetched_at` 补缺。raw 历史查询继续保留原报告期兼容语义，盘中或收盘决策必须另建接受 aware
+datetime 的显式端口，不能放宽日期接口。
+
+回归覆盖截止点相等纳入、晚 1 秒排除、较新报告尚不可知时回退旧合格报告、来源时间缺失、naive
+cutoff，以及 Tushare、AKShare、Alpha 三条决策调用。Luna Max 最终只读复核为 P0=0、P1=0。
+该单元关闭仓库后视偏差路径，但不证明生产 source-time 已补齐；现有生产旧行缺失真实公告/可用时间时
+会按设计返回空，DATA-02 继续 `awaiting_production`。结构化证据见
+[历史财务知识截止封存](../testing/data02-financial-decision-knowledge-cutoff-2026-09-22.json)。
+本轮没有 provider 调用、部署、生产/本地业务数据写入或 Publication 切换。

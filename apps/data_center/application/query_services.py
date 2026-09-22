@@ -105,14 +105,30 @@ def query_financial_facts(
     limit: int = 20,
     end: date | None = None,
     fact_pks: Sequence[str] | None = None,
+    knowledge_cutoff: datetime | None = None,
 ) -> list[dict[str, object]]:
-    """Return canonical financial facts through the application query port."""
+    """Return raw facts, optionally constrained to exact source knowledge."""
 
     repository = get_financial_fact_repository()
-    if fact_pks is None:
+    if fact_pks is None and knowledge_cutoff is None:
         facts = repository.get_facts(asset_code, limit=limit, end=end)
-    else:
+    elif fact_pks is None:
+        facts = repository.get_facts(
+            asset_code,
+            limit=limit,
+            end=end,
+            knowledge_cutoff=knowledge_cutoff,
+        )
+    elif knowledge_cutoff is None:
         facts = repository.get_facts(asset_code, limit=limit, end=end, fact_pks=fact_pks)
+    else:
+        facts = repository.get_facts(
+            asset_code,
+            limit=limit,
+            end=end,
+            fact_pks=fact_pks,
+            knowledge_cutoff=knowledge_cutoff,
+        )
     return [fact.to_dict() for fact in facts]
 
 

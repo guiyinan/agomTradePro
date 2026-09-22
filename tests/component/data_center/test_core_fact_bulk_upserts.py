@@ -207,3 +207,61 @@ def test_financial_fact_repository_honors_as_of_end_date() -> None:
     )
 
     assert [row.period_end for row in rows] == [date(2026, 7, 31)]
+
+
+def test_financial_fact_repository_enforces_exact_knowledge_cutoff() -> None:
+    """Historical decisions exclude future and source-time-unknown statements."""
+
+    repository = FinancialFactRepository()
+    repository.bulk_upsert(
+        [
+            _financial_fact(
+                period_end=date(2026, 3, 31),
+                metric_code="roe",
+                value=10.0,
+                body_sha256="e" * 64,
+                source_record_id="row000000005",
+            ),
+            _financial_fact(
+                period_end=date(2026, 6, 30),
+                metric_code="roa",
+                value=20.0,
+                body_sha256="f" * 64,
+                source_record_id="row000000006",
+            ),
+            _financial_fact(
+                period_end=date(2026, 6, 30),
+                metric_code="debt_ratio",
+                value=30.0,
+                body_sha256="1" * 64,
+                source_record_id="row000000007",
+            ),
+        ]
+    )
+    cutoff = datetime(2026, 9, 1, 9, tzinfo=UTC)
+    FinancialFactModel._default_manager.filter(metric_code="roe").update(
+        announced_at=cutoff,
+        available_at=cutoff,
+    )
+    FinancialFactModel._default_manager.filter(metric_code="roa").update(
+        announced_at=cutoff + timedelta(seconds=1),
+        available_at=cutoff + timedelta(seconds=1),
+    )
+    FinancialFactModel._default_manager.filter(metric_code="debt_ratio").update(
+        announced_at=None,
+        available_at=None,
+    )
+
+    rows = repository.get_facts(
+        "000001.SZ",
+        limit=20,
+        end=date(2026, 9, 1),
+        knowledge_cutoff=cutoff,
+    )
+
+    assert [(row.period_end, row.metric_code) for row in rows] == [(date(2026, 3, 31), "roe")]
+    with pytest.raises(ValueError, match="knowledge cutoff must be timezone-aware"):
+        repository.get_facts(
+            "000001.SZ",
+            knowledge_cutoff=datetime(2026, 9, 1, 9),
+        )

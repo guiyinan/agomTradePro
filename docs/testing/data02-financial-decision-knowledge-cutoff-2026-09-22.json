@@ -1,0 +1,131 @@
+{
+  "schema_version": "data02-financial-decision-knowledge-cutoff-closure.v1",
+  "generated_at": "2026-09-22T08:27:31.728922Z",
+  "candidate": {
+    "branch": "dev/next-development",
+    "baseline_commit": "7b94bb3c12f461c181b80b9c77ef3f48fa956d3d",
+    "commit": "containing_git_commit"
+  },
+  "classification": {
+    "scope": "Repository-only historical financial decision knowledge-cutoff closure.",
+    "production_acceptance": false,
+    "production_ready": false,
+    "runtime_enablement": "not_authorized"
+  },
+  "production_actions": {
+    "deployment": false,
+    "provider_fetch": false,
+    "database_write": false,
+    "local_business_data_write": false,
+    "publication_switch": false,
+    "authority_change": false
+  },
+  "implemented_contract": [
+    "Raw get_financial_facts(as_of=...) retains period-end compatibility semantics.",
+    "Date-only decisions use a dedicated China-market pre-open Application Port.",
+    "The decision date maps to Shanghai local 00:00 and then to the exact UTC cutoff.",
+    "Repository reads require period_end within the decision date and both announced_at and available_at no later than the cutoff.",
+    "Missing, future and naive source-time evidence fails closed.",
+    "Alpha and both Tushare and AKShare factor paths use the dedicated decision port.",
+    "Intraday and post-close consumers must use a future explicit timezone-aware datetime port."
+  ],
+  "validation": {
+    "tdd_red": {
+      "result": "expected_failure",
+      "detail": "Focused tests initially failed because the decision port and knowledge_cutoff repository argument did not exist."
+    },
+    "strengthened_repository_boundary": {
+      "result": "passed",
+      "passed": 1,
+      "duration_seconds": 230.03,
+      "coverage": [
+        "cutoff equality included",
+        "cutoff plus one second excluded",
+        "newer ineligible period falls back to older eligible period",
+        "missing source times excluded",
+        "naive cutoff rejected"
+      ]
+    },
+    "affected_regression": {
+      "result": "passed",
+      "passed": 24,
+      "duration_seconds": 223.71
+    },
+    "incremental_mypy": {
+      "result": "passed",
+      "files": 7,
+      "regressions": 0,
+      "legacy_errors_observed": 0
+    },
+    "mypy_debt_ceiling": {
+      "result": "passed",
+      "errors": 0,
+      "files_with_errors": 0
+    },
+    "current_data_contracts": {
+      "result": "passed",
+      "surfaces": 64
+    },
+    "active_plan_registry": {
+      "result": "passed",
+      "registry_version": "2026-09-22.v161",
+      "units": 54,
+      "violations": 0
+    },
+    "governance_consistency": {
+      "result": "passed",
+      "baseline_version": "2026-09-09.v220",
+      "violations": 0
+    },
+    "format_and_lint": {
+      "result": "passed",
+      "black": true,
+      "isort": true,
+      "ruff": true,
+      "diff_check": true
+    }
+  },
+  "source_worktree_raw_sha256": {
+    "apps/alpha/infrastructure/adapters/simple_adapter.py": "843bc2534a4dba61511fb1f7d7d2783ad2e0e7c53908da3942ea19902914fb2e",
+    "apps/data_center/application/public.py": "b5c49ec8025ac7c246287d2a016cfd4688f9fa80da7cd652d30cb2352e62d717",
+    "apps/data_center/application/public_published_queries.py": "a07244d25889c2cac7112949c2d07696be51b40d7352d3efa58dd5f31a34f819",
+    "apps/data_center/application/query_services.py": "17de813705c5088249f7e67a075ef4b0a3f898e4c1b13400c0983af19670ad26",
+    "apps/data_center/domain/protocols.py": "3f6f581762a8eeebd8a8ab046483637d5f6da6a4ebc1335a03a6f307d66512e8",
+    "apps/data_center/infrastructure/financial_fact_repository.py": "c557fa1f2cde5d732b208c264a7a8d5a8c684a8eff152f3f1bb08fd6b6bab185",
+    "apps/factor/infrastructure/adapters/__init__.py": "e9c3c00b49bdbf460c159488cb65730592a4f6dc2ae8bebf20a9b8214f1bfe79",
+    "tests/component/data_center/test_core_fact_bulk_upserts.py": "096213c30f0464e0f5d7c1f5a7b393b57b44cbecb9f0fceb769662079446e0c1",
+    "tests/unit/data_center/test_financial_decision_query.py": "f03a3d939d1accba05bb597784a3a6a0a55ceb7894ad787d41afe542745875b4",
+    "tests/unit/alpha/test_t3b_provider_contracts.py": "21cb2410d15b8c75ce2600e94c6f306f96d31b46e5f34f733862a6e05d8fde3b",
+    "tests/unit/infrastructure/factor/test_adapters.py": "2916c8a1a28a9bc2f0834925d44025bdb134aba31c0ee920f93e64d452c401e7",
+    "governance/current_data_contracts.json": "db227ca4ee555da02a22cf74b816cf152c0e23783fef8b3ccedf0d8d3ed65d04",
+    "governance/active_plan_registry.json": "966cbcefc5953f23a23b74d9b92d1dd267266d3befc67ac6451d2a18328aaef5",
+    "docs/plans/data02-financial-source-time-remediation-2026-09-13.md": "fd0aeee8e7d22e9c4a34a237b2cf695f44e1e0872e0838f01ae369f602f8c3d2",
+    "docs/reviews/production-closure-2026-09-20.md": "3f828cf11bc10ddd82065e274a53e00f05104bf0e65042f97b4633294eefc90c"
+  },
+  "hash_scope": {
+    "source_worktree_raw_sha256": "Raw local worktree bytes at evidence generation.",
+    "raw_summary_sha256": "Raw UTF-8 LF summary bytes."
+  },
+  "independent_review": {
+    "reviewer": "gpt-5.6-luna",
+    "reasoning_effort": "max",
+    "initial_result": "P0=0, P1=1: referenced evidence artifacts were absent.",
+    "resolved_finding": "JSON, TXT and SHA-256 evidence artifacts were generated and linked.",
+    "final_result": "P0=0, P1=0 after evidence artifact and hash verification."
+  },
+  "governance": {
+    "registry_transition": "2026-09-22.v160 -> 2026-09-22.v161",
+    "unit": "DATA-02",
+    "status_before": "awaiting_production",
+    "status_after": "awaiting_production",
+    "reason": "The repository look-ahead path is closed; genuine production source-time and remaining production gates are still absent."
+  },
+  "remaining_gates": [
+    "Obtain trustworthy timezone-aware provider source-time evidence without synthesizing it.",
+    "Obtain current authority and owner-approved numeric tolerances.",
+    "Obtain explicit production-write authorization.",
+    "Run the authorized provider backfill and real four-Publication reconciliation."
+  ],
+  "raw_summary": "docs/testing/data02-financial-decision-knowledge-cutoff-2026-09-22.txt",
+  "raw_summary_sha256": "f1d75cad3278e7c2213abe58d20656d6dd89578f074b582250169aa7a0f3fb62"
+}

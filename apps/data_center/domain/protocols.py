@@ -8,7 +8,7 @@ Domain / application layers depend only on these abstractions.
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Protocol, runtime_checkable
 
 from apps.data_center.domain.contracts import (
@@ -418,6 +418,7 @@ class FinancialFactRepositoryProtocol(Protocol):
         limit: int = 20,
         end: date | None = None,
         fact_pks: Sequence[str] | None = None,
+        knowledge_cutoff: datetime | None = None,
     ) -> list[FinancialFact]: ...
 
     def get_latest(

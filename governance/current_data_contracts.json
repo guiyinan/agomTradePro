@@ -3116,11 +3116,13 @@
     },
     {
       "id": "data_center.financial_as_of_reads",
-      "surface": "Historical financial reads preserve an explicit as-of boundary",
+      "surface": "Date-only pre-open financial decisions enforce period-end and exact China-market-day-start source-knowledge boundaries",
       "source_files": [
         "apps/data_center/application/query_services.py",
         "apps/data_center/application/public.py",
         "apps/data_center/application/public_published_queries.py",
+        "apps/data_center/domain/market_time.py",
+        "apps/data_center/domain/protocols.py",
         "apps/data_center/infrastructure/financial_fact_repository.py",
         "apps/alpha/infrastructure/adapters/simple_adapter.py",
         "apps/factor/infrastructure/adapters/__init__.py"
@@ -3128,20 +3130,37 @@
       "required_markers": {
         "apps/data_center/application/query_services.py": [
           "end: date | None = None",
-          "end=end"
+          "knowledge_cutoff: datetime | None = None",
+          "knowledge_cutoff=knowledge_cutoff"
+        ],
+        "apps/data_center/application/public.py": [
+          "get_financial_facts_for_decision = _bind_published_query("
         ],
         "apps/data_center/application/public_published_queries.py": [
-          "as_of: date | None = None",
-          "end=as_of"
+          "def get_financial_facts_for_decision(",
+          "decision_date: date",
+          "knowledge_cutoff=cn_market_date_start_utc(decision_date)"
+        ],
+        "apps/data_center/domain/market_time.py": [
+          "def cn_market_date_start_utc(value: date) -> datetime:"
+        ],
+        "apps/data_center/domain/protocols.py": [
+          "knowledge_cutoff: datetime | None = None"
         ],
         "apps/data_center/infrastructure/financial_fact_repository.py": [
-          "period_end__lte=end"
+          "financial knowledge cutoff must be timezone-aware",
+          "announced_at__isnull=False",
+          "announced_at__lte=knowledge_cutoff",
+          "available_at__isnull=False",
+          "available_at__lte=knowledge_cutoff"
         ],
         "apps/alpha/infrastructure/adapters/simple_adapter.py": [
-          "as_of=trade_date"
+          "get_financial_facts_for_decision(",
+          "decision_date=trade_date"
         ],
         "apps/factor/infrastructure/adapters/__init__.py": [
-          "get_financial_facts(stock_code, limit=200, as_of=trade_date)"
+          "get_financial_facts_for_decision(",
+          "decision_date=trade_date"
         ]
       },
       "required_tests": [
@@ -3151,9 +3170,24 @@
           "test_function": "test_financial_fact_repository_honors_as_of_end_date"
         },
         {
-          "case": "alpha_requests_trade_date_boundary",
+          "case": "repository_enforces_exact_knowledge_cutoff",
+          "test_file": "tests/component/data_center/test_core_fact_bulk_upserts.py",
+          "test_function": "test_financial_fact_repository_enforces_exact_knowledge_cutoff"
+        },
+        {
+          "case": "date_only_decision_uses_china_market_day_start",
+          "test_file": "tests/unit/data_center/test_financial_decision_query.py",
+          "test_function": "test_date_only_decision_uses_china_market_day_start"
+        },
+        {
+          "case": "alpha_requests_exact_knowledge_boundary",
           "test_file": "tests/unit/alpha/test_t3b_provider_contracts.py",
-          "test_function": "test_simple_fundamentals_requests_financial_facts_as_of_trade_date"
+          "test_function": "test_simple_fundamentals_requests_exact_financial_knowledge_boundary"
+        },
+        {
+          "case": "factor_requests_exact_knowledge_boundary",
+          "test_file": "tests/unit/infrastructure/factor/test_adapters.py",
+          "test_function": "test_financial_factor_uses_decision_knowledge_boundary"
         }
       ]
     },

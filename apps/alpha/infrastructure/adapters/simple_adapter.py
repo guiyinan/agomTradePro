@@ -19,7 +19,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from apps.data_center.application.public import (
-    get_financial_facts,
+    get_financial_facts_for_decision,
     get_published_quote_payloads,
     get_valuation_facts,
     list_active_stock_codes,
@@ -393,10 +393,10 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             for stock_code in stock_list:
                 valuation_rows = get_valuation_facts(stock_code, as_of=trade_date, limit=1)
                 valuation = valuation_rows[0] if valuation_rows else None
-                financial_rows = get_financial_facts(
+                financial_rows = get_financial_facts_for_decision(
                     stock_code,
                     limit=100,
-                    as_of=trade_date,
+                    decision_date=trade_date,
                 )
                 latest_period = max(
                     (str(row.get("period_end")) for row in financial_rows if row.get("period_end")),

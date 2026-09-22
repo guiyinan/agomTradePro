@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import date
+from datetime import date, datetime
 
 from django.db.models import OuterRef, Subquery
 
@@ -55,7 +55,12 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
         limit: int = 20,
         end: date | None = None,
         fact_pks: Sequence[str] | None = None,
+        knowledge_cutoff: datetime | None = None,
     ) -> list[FinancialFact]:
+        if knowledge_cutoff is not None and (
+            knowledge_cutoff.tzinfo is None or knowledge_cutoff.utcoffset() is None
+        ):
+            raise ValueError("financial knowledge cutoff must be timezone-aware")
         for candidate in _resolve_asset_code_candidates(asset_code):
             qs = FinancialFactModel.objects.filter(asset_code=candidate)
             if fact_pks is not None:
@@ -64,6 +69,13 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
                 qs = qs.filter(period_type=period_type.value)
             if end is not None:
                 qs = qs.filter(period_end__lte=end)
+            if knowledge_cutoff is not None:
+                qs = qs.filter(
+                    announced_at__isnull=False,
+                    announced_at__lte=knowledge_cutoff,
+                    available_at__isnull=False,
+                    available_at__lte=knowledge_cutoff,
+                )
             rows = list(qs.order_by("-period_end")[:limit])
             if rows:
                 return [self._from_model(m) for m in rows]

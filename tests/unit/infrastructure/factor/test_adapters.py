@@ -2,7 +2,14 @@
 
 from datetime import date
 
-from apps.factor.infrastructure.adapters import CachedFactorAdapter
+import pytest
+
+from apps.factor.infrastructure.adapters import (
+    AkshareFactorAdapter,
+    CachedFactorAdapter,
+    FactorDataSource,
+    TushareFactorAdapter,
+)
 
 
 class FakePriceDataService:
@@ -55,3 +62,45 @@ def test_cached_factor_adapter_routes_beta_to_benchmark_calculation(
 
     assert beta is not None
     assert price_service.calls == ["600000.SH", "000300.SH"]
+
+
+@pytest.mark.parametrize(
+    ("adapter_type", "source"),
+    [(TushareFactorAdapter, "tushare"), (AkshareFactorAdapter, "akshare")],
+)
+def test_financial_factor_uses_decision_knowledge_boundary(
+    monkeypatch: pytest.MonkeyPatch,
+    adapter_type: type[FactorDataSource],
+    source: str,
+) -> None:
+    """Date-only factor requests enter the fail-closed decision query port."""
+
+    seen: list[dict[str, object]] = []
+
+    def _financials(stock_code: str, **kwargs: object) -> list[dict[str, object]]:
+        seen.append({"stock_code": stock_code, **kwargs})
+        return [
+            {
+                "period_end": "2026-06-30",
+                "metric_code": "roe",
+                "value": 0.2,
+                "source": source,
+            }
+        ]
+
+    monkeypatch.setattr(
+        "apps.factor.infrastructure.adapters.get_financial_facts_for_decision",
+        _financials,
+    )
+    trade_date = date(2026, 7, 24)
+
+    value = adapter_type().get_factor_value("600000.SH", "roe", trade_date)
+
+    assert value == 0.2
+    assert seen == [
+        {
+            "stock_code": "600000.SH",
+            "limit": 200,
+            "decision_date": trade_date,
+        }
+    ]

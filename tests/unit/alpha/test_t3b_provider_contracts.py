@@ -133,7 +133,7 @@ def test_simple_fundamentals_classify_complete_partial_missing_and_repository_fa
         lambda stock_code, **kwargs: [row for row in valuations if row["asset_code"] == stock_code],
     )
     monkeypatch.setattr(
-        "apps.alpha.infrastructure.adapters.simple_adapter.get_financial_facts",
+        "apps.alpha.infrastructure.adapters.simple_adapter.get_financial_facts_for_decision",
         lambda stock_code, **kwargs: financials.get(stock_code, []),
     )
     provider = SimpleAlphaProvider()
@@ -157,7 +157,7 @@ def test_simple_fundamentals_classify_complete_partial_missing_and_repository_fa
     assert quality["error"] == "获取基本面数据时发生错误: valuation locked"
 
 
-def test_simple_fundamentals_requests_financial_facts_as_of_trade_date(
+def test_simple_fundamentals_requests_exact_financial_knowledge_boundary(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     seen: list[dict[str, object]] = []
@@ -188,7 +188,7 @@ def test_simple_fundamentals_requests_financial_facts_as_of_trade_date(
         return financial_rows
 
     monkeypatch.setattr(
-        "apps.alpha.infrastructure.adapters.simple_adapter.get_financial_facts",
+        "apps.alpha.infrastructure.adapters.simple_adapter.get_financial_facts_for_decision",
         _financials,
     )
 
@@ -196,7 +196,7 @@ def test_simple_fundamentals_requests_financial_facts_as_of_trade_date(
 
     assert data["000001.SZ"]["roe"] == 0.2
     assert quality["complete_count"] == 1
-    assert seen == [{"limit": 100, "as_of": TARGET_DATE}]
+    assert seen == [{"limit": 100, "decision_date": TARGET_DATE}]
 
 
 def test_simple_quote_fallback_rejects_missing_and_nonpositive_prices(

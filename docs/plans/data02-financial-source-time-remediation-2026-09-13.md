@@ -325,6 +325,18 @@ raw scope均缺失441944条；441784条有available_at却无source announcement�
 用“期末已到、公告未到”以及 date-only/unknown 来源反例证明无后视偏差；raw 历史
 资料读取保留兼容性，不在 DATA-16 中改写既有历史接口语义。
 
+2026-09-22 仓库修复已关闭上述读取缺口。raw `get_financial_facts(as_of=...)`
+继续只表达报告期上界；Factor 与 Alpha 改用独立的
+`get_financial_facts_for_decision(decision_date=...)`。该 date-only API 明确定义为
+中国市场日开盘前决策，知识截止取上海时区当日 00:00 对应的精确 UTC 瞬间；盘中或
+收盘决策不得复用该日期接口，后续必须提供 timezone-aware 的显式时刻。Repository 在
+报告期上界之外同时要求 `announced_at`、`available_at` 非空且均不晚于知识截止，缺失
+时间不回退到 report/period/fetched 时间。反例覆盖边界相等可用、晚 1 秒拒绝、较新报告
+尚不可知时回退到旧合格报告、时间缺失拒绝和 naive cutoff 拒绝；Tushare、AKShare、
+Alpha 均不再走 raw `as_of` 决策入口。该修复只证明仓库防后视读取契约，不证明生产历史
+source-time 真实存在；生产绝大多数旧行仍缺可信 announced/available 时间，DATA-02
+继续 fail closed 并保持 `awaiting_production`。
+
 独立只读调用链审查确认 Account AuthorityV3/SourceV2 只恢复 Account 与
 simulated_trading 物理账户账本，未依赖 Data Center current publication；因此
 financial policy3 的 publication_policy_changed 不会直接使 Account authority

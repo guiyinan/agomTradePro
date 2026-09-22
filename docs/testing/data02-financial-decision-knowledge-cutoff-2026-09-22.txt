@@ -1,0 +1,32 @@
+DATA-02 historical financial decision knowledge-cutoff closure
+Generated: 2026-09-22
+Branch: dev/next-development
+Baseline commit: 7b94bb3c12f461c181b80b9c77ef3f48fa956d3d
+
+Repository contract:
+- Raw get_financial_facts(as_of=...) retains period-end compatibility semantics.
+- Date-only decision reads are explicitly China-market pre-open.
+- The cutoff is Shanghai local 00:00 converted to an exact UTC instant.
+- period_end must be within the decision date.
+- announced_at and available_at must both be present and no later than the cutoff.
+- Missing, future, or naive source-time evidence fails closed.
+- Factor Tushare/AKShare paths and Alpha use the dedicated decision port.
+
+Validation:
+- Focused affected regression: 24 passed in 223.71s.
+- Strengthened repository boundary test: 1 passed in 230.03s.
+- Incremental mypy: 7 files, 0 regressions, 0 legacy errors.
+- Full mypy debt ceiling: 0 errors in 0 files.
+- Current-data contracts: 64 surfaces.
+- Active-plan registry: v161, 54 units, 0 violations.
+- Governance consistency: baseline 2026-09-09.v220, 0 violations.
+- Black, isort, Ruff, and git diff checks passed or are recorded in the JSON validation block.
+
+Scope:
+- No provider access.
+- No deployment.
+- No production or local business-data writes.
+- No Publication switch.
+- DATA-02 remains awaiting_production because real production source-time, current authority,
+  owner-approved tolerances, explicit write authorization, and real four-Publication reconciliation
+  remain absent.

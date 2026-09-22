@@ -12,7 +12,10 @@ from typing import Protocol
 from apps.account.application.config_summary_service import (
     get_account_config_summary_service,
 )
-from apps.data_center.application.public import get_financial_facts, get_valuation_facts
+from apps.data_center.application.public import (
+    get_financial_facts_for_decision,
+    get_valuation_facts,
+)
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
@@ -103,7 +106,11 @@ def _get_factor_from_data_center(
     if factor_code in financial_metric_map:
         financial_facts = [
             row
-            for row in get_financial_facts(stock_code, limit=200, as_of=trade_date)
+            for row in get_financial_facts_for_decision(
+                stock_code,
+                limit=200,
+                decision_date=trade_date,
+            )
             if row.get("metric_code") == financial_metric_map[factor_code]
             and str(row.get("period_end") or "") <= trade_date.isoformat()
         ]
