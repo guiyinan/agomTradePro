@@ -1291,7 +1291,7 @@
         {
           "case": "valuation_mirror_preserves_source_and_fetch_times",
           "test_file": "tests/component/test_equity_repository_data_center.py",
-          "test_function": "test_save_methods_mirror_equity_data_to_data_center"
+          "test_function": "test_save_valuation_mirrors_equity_data_to_data_center"
         }
       ]
     },
@@ -4511,7 +4511,14 @@
         "apps/data_center/infrastructure/financial_availability_repository.py",
         "apps/data_center/infrastructure/financial_fact_repository.py",
         "apps/data_center/domain/financial_source_evidence.py",
+        "apps/data_center/domain/entities.py",
         "apps/data_center/infrastructure/financial_fact_write_guard.py",
+        "apps/data_center/infrastructure/financial_decision_evidence_codec.py",
+        "apps/data_center/infrastructure/models.py",
+        "apps/data_center/migrations/0082_financial_fact_decision_evidence.py",
+        "apps/data_center/financial_response_artifact_composition.py",
+        "apps/data_center/infrastructure/financial_response_artifact_repository.py",
+        "apps/data_center/application/interface_services_decision_sync.py",
         "apps/data_center/application/core_data_backfill.py",
         "apps/data_center/infrastructure/publication_fact_identity.py",
         "apps/data_center/infrastructure/publication_fact_legacy_payload.py",
@@ -4534,7 +4541,9 @@
         "apps/data_center/application/data02_publication_tolerance_evidence.py",
         "scripts/record_data02_publication_tolerance_evidence.py",
         "governance/data02_numeric_tolerance_policies.json",
-        "apps/data_center/application/publication_rebuild_evidence.py"
+        "apps/data_center/application/publication_rebuild_evidence.py",
+        "apps/data_center/application/on_demand.py",
+        "apps/equity/application/tasks_valuation_sync.py"
       ],
       "required_markers": {
         "apps/data_center/application/current_fact_remediation.py": [
@@ -4549,11 +4558,18 @@
           "self._authority_preflight(recorded_at)",
           "self._preflight_current_authority(",
           "quote_result.stored_asset_codes",
-          "valuation_result.returned_asset_codes"
+          "valuation_result.returned_asset_codes",
+          "financial_sync.probe_source_evidence(",
+          "financial_probe.provider_id != self._provider_id",
+          "financial_probe.requested_asset_code != probe_code",
+          "financial_probe_fact_count += financial_probe.fact_count",
+          "financial_probe_stored_count=0"
         ],
         "apps/data_center/application/dtos.py": [
           "stored_asset_codes: tuple[str, ...] = ()",
-          "returned_asset_codes: tuple[str, ...] = ()"
+          "returned_asset_codes: tuple[str, ...] = ()",
+          "require_decision_evidence: bool = True",
+          "require_decision_evidence must remain enabled"
         ],
         "apps/data_center/application/sync_market_use_cases.py": [
           "stored_asset_codes=tuple(quote.asset_code for quote in correlated_quotes)",
@@ -4568,7 +4584,8 @@
         "apps/data_center/composition.py": [
           "def preflight_current_authority(as_of: datetime) -> None:",
           "preflight_data_reliability_audit_runtime(",
-          "authority_preflight=preflight_current_authority"
+          "authority_preflight=preflight_current_authority",
+          "artifact_verifier=verify_retained_financial_response_artifact"
         ],
         "apps/data_center/management/commands/repair_active_a_share_current_facts.py": [
           "except SystemAuditCompositionUnavailable as exc:",
@@ -4648,19 +4665,61 @@
           "publication_fact_reference_for_dataset",
           "require_verified_source_evidence=require_verified_source_evidence",
           "source_evidence=source_evidence_from_model(m)",
-          "return bulk_upsert_financial_facts(facts)"
+          "decision_evidence=decode_financial_decision_evidence(m.decision_evidence)",
+          "return bulk_upsert_financial_facts(facts)",
+          "financial decision evidence is required for publication candidates",
+          "financial publication decision evidence does not match the persisted row",
+          "financial publication transport evidence does not match the persisted row"
         ],
         "apps/data_center/domain/financial_source_evidence.py": [
           "class FinancialFactSourceEvidence:",
           "def is_complete(",
-          "no timestamp is inferred from it."
+          "no timestamp is inferred from it.",
+          "FINANCIAL_FACT_DATASET_KEY = \"equity.financial.fact\"",
+          "class FinancialFactDecisionEvidence:",
+          "FinancialResponseScopeBasis.PROVIDER_BODY_VERIFIED",
+          "\"body_sha256\": evidence.body_sha256",
+          "\"native_row_id\": self.native_row_id"
+        ],
+        "apps/data_center/domain/entities.py": [
+          "decision_evidence: FinancialFactDecisionEvidence | None = None",
+          "FinancialFact.decision_evidence must be typed decision evidence",
+          "self.decision_evidence.to_dict() if self.decision_evidence is not None else None"
         ],
         "apps/data_center/infrastructure/financial_fact_write_guard.py": [
           "def bulk_upsert_financial_facts(",
           "_lock_rows_by_natural_key",
           "select_for_update()",
           "bulk_update(",
-          "_model_decimal_storage"
+          "_model_decimal_storage",
+          "_validate_fact_decision_evidence(fact)",
+          "encode_financial_decision_evidence(fact.decision_evidence)",
+          "financial decision evidence cannot be removed from an existing row",
+          "financial decision evidence is required for canonical writes"
+        ],
+        "apps/data_center/infrastructure/financial_decision_evidence_codec.py": [
+          "financial-fact-decision-evidence.v1",
+          "def encode_financial_decision_evidence(",
+          "def decode_financial_decision_evidence(",
+          "FinancialDecisionEvidenceCodecError"
+        ],
+        "apps/data_center/infrastructure/models.py": [
+          "decision_evidence = models.JSONField(default=dict, blank=True)"
+        ],
+        "apps/data_center/migrations/0082_financial_fact_decision_evidence.py": [
+          "name=\"decision_evidence\"",
+          "models.JSONField(blank=True, default=dict)"
+        ],
+        "apps/data_center/financial_response_artifact_composition.py": [
+          "def verify_retained_financial_response_artifact(",
+          "inspection.body_verified",
+          "inspection.audit is not None"
+        ],
+        "apps/data_center/infrastructure/financial_response_artifact_repository.py": [
+          "if reference_from_audit(audit) != reference"
+        ],
+        "apps/data_center/application/interface_services_decision_sync.py": [
+          "artifact_verifier=verify_retained_financial_response_artifact"
         ],
         "apps/data_center/application/core_data_backfill.py": [
           "rebuild_current_publications",
@@ -4685,7 +4744,11 @@
           "def persist_finished_attempts(",
           "completion_specs:",
           "persist_finished_attempts(completed_attempts)",
-          "services.publication_evidence_hash(\n                    rebuild_result,\n                    len(asset_codes),"
+          "services.publication_evidence_hash(\n                    rebuild_result,\n                    len(asset_codes),",
+          "financial_use_case.prepare_for_write(",
+          "financial_use_case.execute_prepared(",
+          "financial_source_evidence_required",
+          "pending_financial_attempts"
         ],
         "apps/data_center/infrastructure/publication_fact_identity.py": [
           "build_publication_fact_identity",
@@ -4790,7 +4853,21 @@
         ],
         "apps/data_center/application/sync_use_cases.py": [
           "require_single_asset_identity(",
-          "returned_asset_codes=[fact.asset_code for fact in facts]"
+          "returned_asset_codes=[fact.asset_code for fact in normalized]",
+          "class FinancialSourceEvidenceProbeResult:",
+          "class PreparedFinancialSync:",
+          "def probe_source_evidence(",
+          "def prepare_for_write(",
+          "def execute_prepared(",
+          "class FinancialResponseArtifactVerifier(Protocol):",
+          "financial_response_artifact_not_retained",
+          "financial_response_provider_identity_mismatch",
+          "financial_response_period_limit_mismatch",
+          "_with_verified_financial_transport_metadata(",
+          "FINANCIAL_SOURCE_EVIDENCE_REQUIRED",
+          "financial_natural_key_duplicate",
+          "financial_response_body_hash_mismatch",
+          "financial_native_row_identity_mismatch"
         ],
         "apps/data_center/interface/api_views_operations.py": [
           "require_exact_asset_codes=True"
@@ -4845,6 +4922,12 @@
           "expected_asset_count: int",
           "publication covered-asset-count evidence is incomplete",
           "\"policy_identity\": policy_identity"
+        ],
+        "apps/data_center/application/on_demand.py": [
+          "require_decision_evidence=True"
+        ],
+        "apps/equity/application/tasks_valuation_sync.py": [
+          "require_decision_evidence=True"
         ]
       },
       "required_tests": [
@@ -5019,9 +5102,9 @@
           "test_function": "test_financial_source_evidence_round_trips_existing_source_fields"
         },
         {
-          "case": "financial_stale_witness_batch_is_atomic",
+          "case": "financial_missing_decision_witness_batch_is_atomic",
           "test_file": "tests/component/data_center/test_financial_fact_repository_provenance.py",
-          "test_function": "test_stale_witness_blocks_entire_batch_before_any_dml"
+          "test_function": "test_missing_decision_witness_blocks_entire_batch_before_any_dml"
         },
         {
           "case": "financial_existing_batch_query_bound",
@@ -5352,6 +5435,106 @@
           "case": "repository_publication_policy_order_compatibility",
           "test_file": "tests/unit/data_center/test_data02_publication_tolerance_evidence.py",
           "test_function": "test_repository_publication_policy_order_is_accepted"
+        },
+        {
+          "case": "financial_source_probe_has_no_normalized_writes",
+          "test_file": "tests/unit/data_center/test_financial_source_evidence_probe.py",
+          "test_function": "test_source_evidence_probe_fetches_without_fact_publication_or_sync_audit_writes"
+        },
+        {
+          "case": "financial_strict_sync_blocks_incomplete_evidence",
+          "test_file": "tests/unit/data_center/test_financial_source_evidence_probe.py",
+          "test_function": "test_strict_financial_sync_blocks_incomplete_evidence_before_fact_write"
+        },
+        {
+          "case": "financial_source_probe_rejects_asset_substitution",
+          "test_file": "tests/unit/data_center/test_financial_source_evidence_probe.py",
+          "test_function": "test_source_evidence_probe_rejects_substituted_asset_before_any_write"
+        },
+        {
+          "case": "financial_source_probe_rejects_duplicate_natural_key",
+          "test_file": "tests/unit/data_center/test_financial_source_evidence_probe.py",
+          "test_function": "test_source_evidence_probe_rejects_duplicate_financial_natural_key"
+        },
+        {
+          "case": "core_refresh_source_probe_precedes_all_normalized_writes",
+          "test_file": "tests/unit/data_center/test_current_fact_remediation.py",
+          "test_function": "test_core_refresh_source_probe_blocks_before_any_normalized_write"
+        },
+        {
+          "case": "equity_financial_task_requires_decision_evidence",
+          "test_file": "tests/unit/equity/test_valuation_sync_tasks.py",
+          "test_function": "test_sync_financial_data_task_uses_explicit_codes_without_legacy_filter"
+        },
+        {
+          "case": "on_demand_financial_requires_decision_evidence",
+          "test_file": "tests/unit/test_data_center_on_demand.py",
+          "test_function": "test_ensure_financials_prefers_akshare_before_tushare"
+        },
+        {
+          "case": "financial_gate_cannot_be_disabled",
+          "test_file": "tests/unit/data_center/test_financial_source_evidence_probe.py",
+          "test_function": "test_financial_request_cannot_disable_decision_evidence"
+        },
+        {
+          "case": "financial_prepared_batch_is_not_refetched",
+          "test_file": "tests/unit/data_center/test_financial_source_evidence_probe.py",
+          "test_function": "test_prepared_financial_sync_reuses_the_verified_fetch_for_write"
+        },
+        {
+          "case": "financial_legacy_freeform_witness_rejected",
+          "test_file": "tests/unit/data_center/test_financial_source_evidence_probe.py",
+          "test_function": "test_source_evidence_probe_fails_closed_on_invalid_witness_parts"
+        },
+        {
+          "case": "backfill_financial_evidence_preflight_zero_writes",
+          "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
+          "test_function": "test_backfill_financial_evidence_block_stops_before_all_fact_writers"
+        },
+        {
+          "case": "financial_retained_artifact_required",
+          "test_file": "tests/unit/data_center/test_financial_source_evidence_probe.py",
+          "test_function": "test_source_evidence_probe_requires_a_retained_audited_artifact"
+        },
+        {
+          "case": "financial_provider_and_period_scope_bound",
+          "test_file": "tests/unit/data_center/test_financial_source_evidence_probe.py",
+          "test_function": "test_source_evidence_probe_binds_provider_and_period_request_scope"
+        },
+        {
+          "case": "current_refresh_financial_probe_identity_bound",
+          "test_file": "tests/unit/data_center/test_current_fact_remediation.py",
+          "test_function": "test_core_refresh_rejects_mismatched_financial_probe_identity_before_writes"
+        },
+        {
+          "case": "financial_decision_evidence_codec_strict",
+          "test_file": "tests/unit/data_center/test_financial_decision_evidence_codec.py",
+          "test_function": "test_financial_decision_evidence_projection_rejects_ambiguous_json"
+        },
+        {
+          "case": "financial_decision_evidence_persisted_round_trip",
+          "test_file": "tests/component/data_center/test_financial_fact_repository_provenance.py",
+          "test_function": "test_repository_round_trips_typed_financial_decision_evidence"
+        },
+        {
+          "case": "financial_canonical_write_requires_typed_decision_evidence",
+          "test_file": "tests/component/data_center/test_financial_fact_repository_provenance.py",
+          "test_function": "test_canonical_write_rejects_missing_financial_decision_evidence"
+        },
+        {
+          "case": "financial_current_publication_rejects_legacy_unbound_row",
+          "test_file": "tests/component/data_center/test_financial_fact_repository_provenance.py",
+          "test_function": "test_current_publication_rejects_legacy_row_without_decision_evidence"
+        },
+        {
+          "case": "equity_legacy_financial_write_cannot_bypass_decision_evidence",
+          "test_file": "tests/component/test_equity_repository_data_center.py",
+          "test_function": "test_legacy_equity_financial_write_fails_closed_without_decision_evidence"
+        },
+        {
+          "case": "financial_current_publication_rejects_cross_row_decision_binding",
+          "test_file": "tests/component/data_center/test_financial_fact_repository_provenance.py",
+          "test_function": "test_current_publication_rejects_decision_evidence_bound_to_another_row"
         }
       ]
     },

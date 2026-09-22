@@ -20,6 +20,7 @@ from apps.data_center.domain.control_plane import (
     SyncItemAttemptPhase,
     SyncItemAttemptState,
 )
+from core.exceptions import InvalidInputError
 
 AUTHORITY_HASH = "a" * 64
 PUBLICATION_DATASETS = (
@@ -188,6 +189,8 @@ def _patch_backfill_dependencies(
     quote_asset_codes=None,
     valuation_succeeded_codes=None,
     valuation_returned_codes=None,
+    financial_evidence_blocked_asset=None,
+    captured_use_cases=None,
 ):
     mocker.patch(
         "apps.data_center.application.tasks.list_active_stock_codes_for_backfill",
@@ -204,9 +207,13 @@ def _patch_backfill_dependencies(
 
     def _use_case(domain):
         use_case = mocker.Mock()
+        if captured_use_cases is not None:
+            captured_use_cases[domain] = use_case
 
         def _execute(request):
             asset_code = getattr(request, "asset_code", "batch")
+            if domain == "financial":
+                assert request.require_decision_evidence is True
             if failure == (domain, asset_code):
                 raise RuntimeError("provider failure")
             count = (
@@ -226,6 +233,28 @@ def _patch_backfill_dependencies(
             return SimpleNamespace(stored_count=count)
 
         use_case.execute.side_effect = _execute
+        if domain == "financial":
+
+            def _prepare_for_write(request):
+                assert request.require_decision_evidence is True
+                if request.asset_code == financial_evidence_blocked_asset:
+                    raise InvalidInputError(
+                        "financial evidence is incomplete",
+                        code="FINANCIAL_SOURCE_EVIDENCE_REQUIRED",
+                    )
+                if failure == (domain, request.asset_code):
+                    raise RuntimeError("provider failure")
+                return SimpleNamespace(request=request)
+
+            def _execute_prepared(prepared):
+                request = prepared.request
+                count = (stored_count_by_asset or {}).get(
+                    (domain, request.asset_code), stored_count
+                )
+                return SimpleNamespace(stored_count=count)
+
+            use_case.prepare_for_write.side_effect = _prepare_for_write
+            use_case.execute_prepared.side_effect = _execute_prepared
         if domain == "valuation":
 
             def _execute_current_batch(
@@ -474,14 +503,14 @@ def test_backfill_batch_records_all_item_phase_attempts(
     ] == [2, 2, 2, 2, 2]
     phases = [call.kwargs["phase"] for call in item_attempts.begin.call_args_list]
     assert phases == [
+        SyncItemAttemptPhase.FINANCIAL,
+        SyncItemAttemptPhase.FINANCIAL,
         SyncItemAttemptPhase.QUOTE,
         SyncItemAttemptPhase.QUOTE,
         SyncItemAttemptPhase.VALUATION,
         SyncItemAttemptPhase.VALUATION,
         SyncItemAttemptPhase.PRICE,
         SyncItemAttemptPhase.PRICE,
-        SyncItemAttemptPhase.FINANCIAL,
-        SyncItemAttemptPhase.FINANCIAL,
         SyncItemAttemptPhase.PUBLICATION,
         SyncItemAttemptPhase.PUBLICATION,
     ]
@@ -762,7 +791,7 @@ def test_backfill_batch_idempotency_uses_canonical_validated_source(
 def test_backfill_batch_reports_partial_failure(mocker) -> None:
     _factory, coordinator = _patch_backfill_dependencies(
         mocker,
-        failure=("financial", "002156.SZ"),
+        failure=("price", "002156.SZ"),
     )
 
     result = backfill_active_a_share_core_data_batch_task.run(batch_size=2)
@@ -771,10 +800,50 @@ def test_backfill_batch_reports_partial_failure(mocker) -> None:
     assert result["success"] is True
     assert result["succeeded"] == 1
     assert result["failed"] == 1
-    assert result["domains"]["financial"]["failed"] == 1
+    assert result["domains"]["price"]["failed"] == 1
     assert result["checkpoint"]["next_offset"] == 0
     assert result["checkpoint"]["complete"] is False
     coordinator.execute.assert_not_called()
+
+
+def test_backfill_financial_evidence_block_stops_before_all_fact_writers(
+    mocker,
+    _patch_control_plane_repositories,
+) -> None:
+    """The complete batch financial preflight must precede every normalized writer."""
+
+    use_cases = {}
+    _factory, coordinator = _patch_backfill_dependencies(
+        mocker,
+        financial_evidence_blocked_asset="002156.SZ",
+        captured_use_cases=use_cases,
+    )
+
+    result = backfill_active_a_share_core_data_batch_task.run(batch_size=2)
+
+    assert result["outcome"] == "blocked"
+    assert result["stage"] == "financial_evidence"
+    assert result["blocked_reason"] == "financial_source_evidence_required"
+    assert result["stored"] == 0
+    assert result["published"] == 0
+    assert result["failed"] == 0
+    assert result["domains"]["financial"]["blocked"] == 2
+    assert result["checkpoint"]["next_offset"] == 0
+    assert use_cases["financial"].prepare_for_write.call_count == 2
+    use_cases["financial"].execute_prepared.assert_not_called()
+    use_cases["quote"].execute.assert_not_called()
+    use_cases["valuation"].execute.assert_not_called()
+    use_cases["price"].execute.assert_not_called()
+    coordinator.execute.assert_not_called()
+    attempts = _patch_control_plane_repositories["item_attempt"]
+    assert all(
+        call.kwargs["phase"] is SyncItemAttemptPhase.FINANCIAL
+        for call in attempts.begin.call_args_list
+    )
+    assert all(
+        call.kwargs["state"] is SyncItemAttemptState.BLOCKED
+        for call in attempts.finish.call_args_list
+    )
 
 
 def test_backfill_identity_mismatch_records_stable_failed_attempt_and_open_checkpoint(
@@ -878,7 +947,7 @@ def test_backfill_revalidates_authority_after_publication_attempt_setup(
         authority_content_hash="c" * 64,
         authority_valid_until=initial.authority_valid_until,
     )
-    _patch_current_authority.side_effect = [initial] * 6 + [changed]
+    _patch_current_authority.side_effect = [initial] * 7 + [changed]
 
     result = backfill_active_a_share_core_data_batch_task.run(batch_size=1)
 

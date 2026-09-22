@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, date, datetime
+from uuid import UUID
 
 import pytest
 
@@ -11,6 +13,20 @@ from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
 from apps.data_center.domain.control_plane import CanonicalPublication, PublicationFactReference
 from apps.data_center.domain.entities import FinancialFact, ProviderConfig
 from apps.data_center.domain.enums import FinancialPeriodType
+from apps.data_center.domain.financial_response_artifact import FinancialResponseArtifactRef
+from apps.data_center.domain.financial_response_evidence import (
+    FinancialRequestScope,
+    FinancialResponseEvidence,
+    FinancialResponseScope,
+    FinancialResponseScopeBasis,
+)
+from apps.data_center.domain.financial_source_evidence import (
+    FinancialFactDecisionEvidence,
+    FinancialFactSourceEvidence,
+)
+from apps.data_center.infrastructure.financial_decision_evidence_codec import (
+    encode_financial_decision_evidence,
+)
 from apps.data_center.infrastructure.fundamental_fact_repositories import FinancialFactRepository
 from apps.data_center.infrastructure.models import FinancialFactModel
 
@@ -79,6 +95,54 @@ def _fact(
         report_date=date(2026, 7, 30),
         available_at=available_at,
         fetched_at=PUBLISHED_AT,
+    )
+
+
+def _source_ready_fact(
+    *,
+    raw_hash: str = "c" * 64,
+    source_record_id: str = "tushare:fina_indicator:000001.SZ:20260630",
+) -> FinancialFact:
+    """Build one fact bound to a typed retained response and native row."""
+
+    response = FinancialResponseEvidence(
+        body_sha256=raw_hash,
+        body_size_bytes=128,
+        response_completed_at=datetime(2026, 8, 4, 11, 59, tzinfo=UTC),
+        request_scope=FinancialRequestScope(
+            provider_name="provider-main",
+            dataset_key="equity.financial.fact",
+            asset_code="000001.SZ",
+            period_limit=1,
+        ),
+        response_scope=FinancialResponseScope(
+            asset_codes=("000001.SZ",),
+            period_ends=(PERIOD_END,),
+            row_count=1,
+        ),
+        response_scope_basis=FinancialResponseScopeBasis.PROVIDER_BODY_VERIFIED,
+    )
+    return replace(
+        _fact(),
+        source_evidence=FinancialFactSourceEvidence(
+            announced_at=datetime(2026, 7, 30, 8, 0, tzinfo=UTC),
+            source_record_id=source_record_id,
+            raw_payload_hash=raw_hash,
+        ),
+        decision_evidence=FinancialFactDecisionEvidence(
+            artifact_reference=FinancialResponseArtifactRef(
+                capture_id=UUID("20000000-0000-4000-8000-000000000003"),
+                location="financial-response/publication.bin",
+                evidence=response,
+                format_version="financial-response-artifact.v1",
+                encryption_algorithm="fernet",
+                encryption_key_ref="config_center.data02.test-key",
+                encryption_key_version="v1",
+            ),
+            native_asset_code="000001.SZ",
+            native_period_end=PERIOD_END,
+            native_row_id=source_record_id,
+        ),
     )
 
 
@@ -180,6 +244,8 @@ def test_financial_publication_rejects_future_available_at() -> None:
 
 @pytest.mark.django_db
 def test_financial_repository_candidate_requires_available_at_and_preserves_evidence() -> None:
+    bound_fact = _source_ready_fact(raw_hash="b" * 64, source_record_id="financial-1")
+    assert bound_fact.decision_evidence is not None
     missing = FinancialFactModel.objects.create(
         asset_code="600000.SH",
         period_end=PERIOD_END,
@@ -204,6 +270,14 @@ def test_financial_repository_candidate_requires_available_at_and_preserves_evid
         available_at=AVAILABLE_AT,
         source_record_id="financial-1",
         raw_payload_hash="b" * 64,
+        extra={
+            "financial_response_capture_id": str(
+                bound_fact.decision_evidence.artifact_reference.capture_id
+            ),
+            "raw_payload_scope": "batch_response_body",
+            "response_scope_basis": "provider_body_verified",
+        },
+        decision_evidence=encode_financial_decision_evidence(bound_fact.decision_evidence),
     )
 
     references = FinancialFactRepository().list_publication_candidates(
@@ -226,7 +300,7 @@ def test_sync_financial_use_case_invokes_publication_after_fact_write() -> None:
             return "provider-main"
 
         def fetch_financials(self, _asset_code, periods: int = 8) -> list[FinancialFact]:
-            return [_fact()][:periods]
+            return [_source_ready_fact()][:periods]
 
     class _ProviderRepository:
         def __init__(self) -> None:
@@ -290,6 +364,7 @@ def test_sync_financial_use_case_invokes_publication_after_fact_write() -> None:
         fact_repo=facts,
         raw_audit_repo=_RawAudit(),
         publication_publisher=publisher,
+        artifact_verifier=lambda _provider, _reference: True,
     ).execute(SyncFinancialRequest(provider_id=1, asset_code="000001.SZ", periods=1))
 
     assert result.status == "success"

@@ -27,6 +27,7 @@ from apps.equity.application.use_cases_valuation_sync import (
     ValidateEquityValuationQualityRequest,
     ValidateEquityValuationQualityUseCase,
 )
+from core.exceptions import InvalidInputError
 from shared.domain.task_outcomes import TaskBusinessOutcome
 
 TaskPayload: TypeAlias = dict[str, object]
@@ -415,6 +416,7 @@ def sync_financial_data_task(
     sync_use_case = make_sync_financial_use_case()
     synced_count = 0
     error_count = 0
+    blocked_count = 0
     errors: list[str] = []
 
     for stock_code in active_stock_codes:
@@ -424,6 +426,7 @@ def sync_financial_data_task(
                     provider_id=provider_id,
                     asset_code=stock_code,
                     periods=validated_periods,
+                    require_decision_evidence=True,
                 )
             )
             stored_count = result.stored_count
@@ -434,6 +437,23 @@ def sync_financial_data_task(
             ):
                 raise ValueError("同步结果 stored_count 无效")
             synced_count += stored_count
+        except InvalidInputError as exc:
+            if exc.code != "FINANCIAL_SOURCE_EVIDENCE_REQUIRED":
+                error_count += 1
+                logger.warning(
+                    "Financial data sync failed for %s: %s",
+                    stock_code,
+                    type(exc).__name__,
+                )
+                if len(errors) < 10:
+                    errors.append(f"{stock_code}: 同步失败")
+                continue
+            blocked_count += 1
+            logger.info(
+                "Financial data sync blocked for %s: %s",
+                stock_code,
+                exc.code,
+            )
         except Exception as exc:
             error_count += 1
             logger.warning(
@@ -445,10 +465,12 @@ def sync_financial_data_task(
                 errors.append(f"{stock_code}: 同步失败")
 
     total_stocks = len(active_stock_codes)
-    succeeded_stock_count = total_stocks - error_count
-    is_partial = 0 < error_count < total_stocks
-    if error_count == total_stocks:
+    succeeded_stock_count = total_stocks - error_count - blocked_count
+    is_partial = succeeded_stock_count > 0 and (error_count > 0 or blocked_count > 0)
+    if succeeded_stock_count == 0 and error_count > 0:
         outcome = TaskBusinessOutcome.FAILED
+    elif blocked_count == total_stocks:
+        outcome = TaskBusinessOutcome.BLOCKED
     elif is_partial:
         outcome = TaskBusinessOutcome.PARTIAL
     elif synced_count == 0:
@@ -467,8 +489,11 @@ def sync_financial_data_task(
         "requested_stock_count": total_stocks,
         "succeeded_stock_count": succeeded_stock_count,
         "failed_stock_count": error_count,
+        "blocked_stock_count": blocked_count,
         "errors": errors,
     }
+    if blocked_count:
+        payload["blocked_reason"] = "financial_source_evidence_required"
     if outcome is TaskBusinessOutcome.NOOP:
         payload["noop_reason"] = "provider completed without new financial records"
     return payload

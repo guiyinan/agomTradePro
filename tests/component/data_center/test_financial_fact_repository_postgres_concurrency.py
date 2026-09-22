@@ -9,10 +9,11 @@ from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from copy import deepcopy
 from dataclasses import asdict, dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from threading import Barrier
 from urllib.parse import unquote, urlsplit
+from uuid import UUID
 
 import pytest
 from django.db import close_old_connections, connections
@@ -20,6 +21,17 @@ from django.db.utils import load_backend
 
 from apps.data_center.domain.entities import FinancialFact
 from apps.data_center.domain.enums import FinancialPeriodType
+from apps.data_center.domain.financial_response_artifact import FinancialResponseArtifactRef
+from apps.data_center.domain.financial_response_evidence import (
+    FinancialRequestScope,
+    FinancialResponseEvidence,
+    FinancialResponseScope,
+    FinancialResponseScopeBasis,
+)
+from apps.data_center.domain.financial_source_evidence import (
+    FinancialFactDecisionEvidence,
+    FinancialFactSourceEvidence,
+)
 from apps.data_center.infrastructure import financial_fact_write_guard as guard
 from apps.data_center.infrastructure.models import FinancialFactModel
 
@@ -158,6 +170,27 @@ def _clear_financial_rows(_financial_postgres_schema) -> Iterator[None]:
 def _fact(metric_code: str) -> FinancialFact:
     """Build one unambiguous new natural key for the concurrent writers."""
 
+    announced_at = datetime(2026, 9, 14, 8, tzinfo=UTC)
+    available_at = announced_at + timedelta(minutes=5)
+    source_record_id = "pg-concurrency-row-1"
+    body_sha256 = "e" * 64
+    response = FinancialResponseEvidence(
+        body_sha256=body_sha256,
+        body_size_bytes=128,
+        response_completed_at=available_at + timedelta(minutes=1),
+        request_scope=FinancialRequestScope(
+            provider_name="provider-main",
+            dataset_key="equity.financial.fact",
+            asset_code=_ASSET_CODE,
+            period_limit=1,
+        ),
+        response_scope=FinancialResponseScope(
+            asset_codes=(_ASSET_CODE,),
+            period_ends=(_PERIOD_END,),
+            row_count=1,
+        ),
+        response_scope_basis=FinancialResponseScopeBasis.PROVIDER_BODY_VERIFIED,
+    )
     return FinancialFact(
         asset_code=_ASSET_CODE,
         period_end=_PERIOD_END,
@@ -166,6 +199,27 @@ def _fact(metric_code: str) -> FinancialFact:
         value=123.45,
         unit="CNY",
         source="provider-main",
+        report_date=_PERIOD_END,
+        available_at=available_at,
+        source_evidence=FinancialFactSourceEvidence(
+            announced_at=announced_at,
+            source_record_id=source_record_id,
+            raw_payload_hash=body_sha256,
+        ),
+        decision_evidence=FinancialFactDecisionEvidence(
+            artifact_reference=FinancialResponseArtifactRef(
+                capture_id=UUID("60000000-0000-4000-8000-000000000001"),
+                location="financial-response/postgres-concurrency.bin",
+                evidence=response,
+                format_version="financial-response-artifact.v1",
+                encryption_algorithm="fernet",
+                encryption_key_ref="config_center.data02.test-key",
+                encryption_key_version="v1",
+            ),
+            native_asset_code=_ASSET_CODE,
+            native_period_end=_PERIOD_END,
+            native_row_id=source_record_id,
+        ),
     )
 
 

@@ -299,6 +299,7 @@ def test_ensure_financials_prefers_akshare_before_tushare():
 
     assert result.quality.status == "fresh"
     assert sync_financial.calls[0].provider_id == 2
+    assert sync_financial.calls[0].require_decision_evidence is True
 
 
 @pytest.mark.parametrize(

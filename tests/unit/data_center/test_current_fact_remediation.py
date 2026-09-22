@@ -16,6 +16,7 @@ from apps.data_center.application.current_fact_remediation import (
     FinancialAvailabilityBackfillResult,
     FinancialAvailabilityBackfillUseCase,
 )
+from apps.data_center.application.sync_use_cases import FinancialSourceEvidenceProbeResult
 from apps.data_center.domain.entities import QuoteSnapshot
 from core.exceptions import InvalidInputError
 
@@ -249,6 +250,18 @@ class _SyncUseCase:
         self.requests.append(request if request is not None else kwargs)
         return self.result
 
+    def probe_source_evidence(self, request):
+        self.requests.append(request)
+        fact_count = int(self.result.stored_count)
+        return FinancialSourceEvidenceProbeResult(
+            provider_id=request.provider_id,
+            provider_name="provider-main",
+            requested_asset_code=request.asset_code,
+            fact_count=fact_count,
+            complete_fact_count=fact_count,
+            block_reasons=(),
+        )
+
 
 class _FinancialAvailability:
     def preview(self, **kwargs):
@@ -323,7 +336,10 @@ def test_core_refresh_batches_then_publishes_at_completion_time() -> None:
 
     assert result.quote_stored_count == 2
     assert result.valuation_stored_count == 2
+    assert result.financial_probe_fact_count == 8
+    assert result.financial_probe_stored_count == 0
     assert len(quote_sync.requests) == 1
+    assert len(financial_sync.requests) == 2
     assert publications.execute_kwargs["published_at"] == COMPLETED_AT
     assert execution_order[:2] == [
         f"authority:{STARTED_AT.isoformat()}",
@@ -370,6 +386,111 @@ def test_core_refresh_blocks_publication_when_financial_source_time_is_missing()
 
     assert repository.updated == 0
     assert publications.execute_kwargs is None
+
+
+def test_core_refresh_source_probe_blocks_before_any_normalized_write() -> None:
+    """An incomplete provider witness stops before price, quote or valuation writes."""
+
+    price_sync = _SyncUseCase(SimpleNamespace(stored_count=1))
+    quote_sync = _SyncUseCase(SimpleNamespace(stored_count=1, stored_asset_codes=("000001.SZ",)))
+    valuation_sync = _SyncUseCase(
+        SimpleNamespace(
+            stored_count=1,
+            succeeded_asset_codes=["000001.SZ"],
+            returned_asset_codes=("000001.SZ",),
+        )
+    )
+    financial_sync = _SyncUseCase(SimpleNamespace(stored_count=1))
+
+    def incomplete_probe(_request):
+        return FinancialSourceEvidenceProbeResult(
+            provider_id=7,
+            provider_name="provider-main",
+            requested_asset_code="000001.SZ",
+            fact_count=1,
+            complete_fact_count=0,
+            block_reasons=("financial_available_at_missing",),
+        )
+
+    financial_sync.probe_source_evidence = incomplete_probe
+    use_case = CoreCurrentFactRefreshUseCase(
+        provider_id=7,
+        authority_preflight=lambda _as_of: None,
+        quote_sync_factory=lambda: quote_sync,
+        price_sync_factory=lambda: price_sync,
+        valuation_sync_factory=lambda: valuation_sync,
+        financial_sync_factory=lambda: financial_sync,
+        financial_availability=_FinancialAvailability(),
+        completed_session_prices=_CompletedPrices(),
+        publications=_Publications(),
+        clock=lambda: COMPLETED_AT,
+    )
+
+    with pytest.raises(InvalidInputError) as caught:
+        use_case.execute(
+            asset_codes=["000001.SZ"],
+            session_date=SESSION_DATE,
+            recorded_at=STARTED_AT,
+            batch_size=1,
+        )
+
+    assert caught.value.code == "FINANCIAL_SOURCE_EVIDENCE_REQUIRED"
+    assert price_sync.requests == []
+    assert quote_sync.requests == []
+    assert valuation_sync.requests == []
+
+
+def test_core_refresh_rejects_mismatched_financial_probe_identity_before_writes() -> None:
+    """A probe result for another provider or asset cannot authorize current writes."""
+
+    price_sync = _SyncUseCase(SimpleNamespace(stored_count=1))
+    quote_sync = _SyncUseCase(SimpleNamespace(stored_count=1, stored_asset_codes=("000001.SZ",)))
+    valuation_sync = _SyncUseCase(
+        SimpleNamespace(
+            stored_count=1,
+            succeeded_asset_codes=["000001.SZ"],
+            returned_asset_codes=("000001.SZ",),
+        )
+    )
+    financial_sync = _SyncUseCase(SimpleNamespace(stored_count=1))
+
+    def mismatched_probe(_request):
+        return FinancialSourceEvidenceProbeResult(
+            provider_id=99,
+            provider_name="provider-main",
+            requested_asset_code="600000.SH",
+            fact_count=1,
+            complete_fact_count=1,
+            block_reasons=(),
+        )
+
+    financial_sync.probe_source_evidence = mismatched_probe
+    use_case = CoreCurrentFactRefreshUseCase(
+        provider_id=7,
+        authority_preflight=lambda _as_of: None,
+        quote_sync_factory=lambda: quote_sync,
+        price_sync_factory=lambda: price_sync,
+        valuation_sync_factory=lambda: valuation_sync,
+        financial_sync_factory=lambda: financial_sync,
+        financial_availability=_FinancialAvailability(),
+        completed_session_prices=_CompletedPrices(),
+        publications=_Publications(),
+        clock=lambda: COMPLETED_AT,
+    )
+
+    with pytest.raises(InvalidInputError) as caught:
+        use_case.execute(
+            asset_codes=["000001.SZ"],
+            session_date=SESSION_DATE,
+            recorded_at=STARTED_AT,
+            batch_size=1,
+        )
+
+    assert caught.value.code == "FINANCIAL_SOURCE_EVIDENCE_REQUIRED"
+    assert caught.value.details == {"block_reasons": ["financial_probe_identity_mismatch"]}
+    assert price_sync.requests == []
+    assert quote_sync.requests == []
+    assert valuation_sync.requests == []
 
 
 def test_core_refresh_stops_before_publication_on_incomplete_quote_batch() -> None:
@@ -479,7 +600,7 @@ def test_core_refresh_revalidates_authority_before_each_provider_batch() -> None
         nonlocal preflight_calls
         assert as_of >= STARTED_AT
         preflight_calls += 1
-        if preflight_calls == 5:
+        if preflight_calls == 8:
             raise RuntimeError("authority expired before second batch")
 
     use_case = CoreCurrentFactRefreshUseCase(
@@ -515,7 +636,7 @@ def test_core_refresh_revalidates_authority_before_final_publication() -> None:
         nonlocal preflight_calls
         assert as_of >= STARTED_AT
         preflight_calls += 1
-        if preflight_calls == 7:
+        if preflight_calls == 9:
             raise RuntimeError("authority expired before publication")
 
     use_case = CoreCurrentFactRefreshUseCase(

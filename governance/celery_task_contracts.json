@@ -501,6 +501,10 @@
         "zero_output": {
           "test_file": "tests/unit/equity/test_valuation_sync_tasks.py",
           "test_function": "test_sync_financial_data_task_reports_explicit_noop_for_zero_records"
+        },
+        "blocked": {
+          "test_file": "tests/unit/equity/test_valuation_sync_tasks.py",
+          "test_function": "test_sync_financial_data_task_reports_source_evidence_gate_as_blocked"
         }
       }
     },

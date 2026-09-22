@@ -1,0 +1,181 @@
+{
+  "schema_version": "data02-financial-source-evidence-prewrite-gate-closure.v1",
+  "generated_at": "2026-09-22T03:09:09.566988Z",
+  "candidate": {
+    "branch": "dev/next-development",
+    "baseline_commit": "392e60d5135e7db293c676bfb8550290faef7928",
+    "commit": "containing_git_commit"
+  },
+  "classification": {
+    "scope": "Repository-only mandatory pre-write and pre-publication financial decision-evidence gate.",
+    "production_acceptance": false,
+    "production_ready": false,
+    "runtime_enablement": "not_authorized"
+  },
+  "production_actions": {
+    "deployment": false,
+    "provider_fetch": false,
+    "database_write": false,
+    "publication_switch": false,
+    "authority_change": false,
+    "tolerance_change": false
+  },
+  "implemented_contract": [
+    "SyncFinancialRequest always requires decision evidence and exposes no opt-out.",
+    "Every accepted fact binds typed source evidence to an exact retained artifact reference, provider-body verified response scope, and native row identity.",
+    "The read-only verifier confirms the encrypted body exists and a successful RawAudit reconstructs the same reference.",
+    "Strict execute writes the same prepared in-memory batch that passed verification and re-verifies before bulk_upsert.",
+    "Current refresh probes every requested asset and validates provider and requested-asset identity before any normalized writer.",
+    "Resumable backfill prepares all financial batches before quote, valuation, price, or financial writes and blocks the whole batch with an unchanged checkpoint on rejection.",
+    "Accepted evidence persists as the strict financial-fact-decision-evidence.v1 projection and is reconstructed on repository reads.",
+    "Canonical financial writes reject missing decision evidence, including the old Equity compatibility write path.",
+    "Ordinary and current financial Publication candidates reject empty, malformed, cross-row, body-hash, or transport-metadata mismatches.",
+    "Migration 0082 leaves historical decision evidence empty and does not fabricate witnesses."
+  ],
+  "validation": {
+    "tdd_red": {
+      "result": "expected_failure",
+      "details": [
+        "Focused collection failed before FinancialSourceEvidenceProbeResult existed.",
+        "Celery rejection was initially classified as failed rather than blocked.",
+        "Three repository bypass tests failed before canonical write and Publication candidate gates were enforced."
+      ]
+    },
+    "related_tests": {
+      "result": "passed",
+      "passed": 208,
+      "skipped": 8,
+      "duration_seconds": 27.86,
+      "database_setup": "reused SQLite test database with --no-migrations; migration integrity checked separately"
+    },
+    "domain_coverage": {
+      "result": "passed",
+      "tests_passed": 31,
+      "module": "apps/data_center/domain/financial_source_evidence.py",
+      "statement_percent": 100.0,
+      "branch_percent": 100.0,
+      "target_percent": 90.0
+    },
+    "format_and_lint": {
+      "result": "passed",
+      "files": 32,
+      "black": true,
+      "isort": true,
+      "ruff": true,
+      "staged_diff_check": "passed with Git cr-at-eol semantics for the repository mixed-line-ending composition file"
+    },
+    "incremental_mypy": {
+      "result": "passed",
+      "files": 17,
+      "regressions": 0,
+      "legacy_errors_observed": 0
+    },
+    "mypy_debt_ceiling": {
+      "result": "passed",
+      "errors": 0,
+      "files_with_errors": 0
+    },
+    "django": {
+      "migration_drift": false,
+      "system_check_issues": 0
+    },
+    "current_data_contracts": {
+      "result": "passed",
+      "surfaces": 64
+    },
+    "celery_task_contracts": {
+      "result": "passed",
+      "tasks": 92,
+      "exemptions": 21,
+      "governed_files": 23
+    },
+    "architecture": {
+      "result": "passed",
+      "scanned_files": 3221,
+      "changed_files": 15,
+      "added_lines": 907,
+      "boundary_violations": 0,
+      "audit_violations": 0
+    },
+    "guardrail_tests": {
+      "result": "passed",
+      "passed": 4
+    },
+    "governance": {
+      "result": "passed",
+      "baseline_version": "2026-09-09.v220",
+      "violations": 0,
+      "registry_version": "2026-09-22.v156",
+      "registry_units": 54
+    }
+  },
+  "independent_review": {
+    "reviewer": "gpt-5.6-luna",
+    "reasoning_effort": "max",
+    "result": "P0=0, P1=0.",
+    "resolved_findings": [
+      "Make the decision-evidence gate mandatory.",
+      "Reject free-form witness strings and require typed artifact binding.",
+      "Move backfill evidence preparation before all normalized writers.",
+      "Verify actual retained body and successful audit rather than object shape alone.",
+      "Persist typed evidence and validate provider plus asset identity for every current-refresh request.",
+      "Reject missing decision evidence at the canonical writer and all financial Publication candidate boundaries.",
+      "Bind Publication candidates to the persisted row source identity, body hash, capture id, body scope, and response-scope basis."
+    ]
+  },
+  "governance": {
+    "registry_transition": "2026-09-22.v155 -> 2026-09-22.v156",
+    "unit": "DATA-02",
+    "status_before": "awaiting_production",
+    "status_after": "awaiting_production",
+    "reason": "The repository write and publication gates are closed; genuine provider source time, native row binding, authority, write authorization, and real four-Publication reconciliation remain open."
+  },
+  "remaining_gates": [
+    "Obtain genuine provider announcement/availability time and native row identity.",
+    "Build adapter facts with the exact retained artifact binding.",
+    "Obtain current authority, owner-approved tolerances, and explicit production-write authorization.",
+    "Run the authorized provider backfill and reconcile price, quote, valuation, and financial Publications."
+  ],
+  "raw_summary": "docs/testing/data02-financial-source-evidence-prewrite-gate-2026-09-22.txt",
+  "raw_summary_sha256": "f52b637a36390379d2cf15bfc35e0b91626ecbcbec658aaa3770d4c3f118a4a1",
+  "hash_scope": "SHA-256 of staged Git blob bytes for intended source paths; unstaged user-owned files are excluded.",
+  "source_sha256_staged": {
+    "apps/data_center/application/core_data_backfill.py": "3e7898dd72d5ddc99b3a7bed97ec0b8477c2ede883ec72639bfef33bfa42b9cd",
+    "apps/data_center/application/current_fact_remediation.py": "2b6c9e3da217ae650c1303435edd1517657e464d54dcd34d0dc83feefd781c28",
+    "apps/data_center/application/dtos.py": "f52da25a18c9938a4881fdde064c9fc83e8c74c5f00d9c157f20d8b9393eb8f6",
+    "apps/data_center/application/interface_services_decision_sync.py": "ddb7cbc4d3a97a63b2605ab8f2c852a2ab5fd35b89562005601d822c521b99a2",
+    "apps/data_center/application/on_demand.py": "9ec23725111ac793aaa0b06ba661fa0956168537f110da937d287f890ca976c8",
+    "apps/data_center/application/sync_use_cases.py": "c3996f2efa3fa21f4daa9ea6ce9cbfd86667b4d54e9481cd7b8edb3f521f206a",
+    "apps/data_center/composition.py": "0de1da0b45d2d83a6d24685b22efad12aa56353d77142b9e381f0c968e127800",
+    "apps/data_center/domain/entities.py": "f91bbd985938903bc433ca48ae23c720622c65cfecb07d52a93380226250cf9a",
+    "apps/data_center/domain/financial_source_evidence.py": "d39bf10d8eec0342f51d15244dd4c402ea5aba2d08d748756b2fa6cda2268f05",
+    "apps/data_center/financial_response_artifact_composition.py": "d8dc5f4c353254c8841796b9393f5639db6147a72f97910c0cfd1dd10372650e",
+    "apps/data_center/infrastructure/financial_decision_evidence_codec.py": "e9edb6a458908fcc26b9193351ddabe612212d227490ce2783dca50e516b84f4",
+    "apps/data_center/infrastructure/financial_fact_repository.py": "0cfb10ff23e64efa59a003b98d2aa3f85b4f9d75d9b0690f6347237adc061798",
+    "apps/data_center/infrastructure/financial_fact_write_guard.py": "48c9335057157594328b29d9b8672f0769b0c7711e3eef64e30cebe3bb1f57fc",
+    "apps/data_center/infrastructure/financial_response_artifact_repository.py": "789a2b7c270cbbcae2b618315b57f8b95489d2597c68921280e2a0dee8a7d51a",
+    "apps/data_center/infrastructure/models.py": "9d1683efa143e474298f0b2b1b32247363e15f208e10b351001c861273efde8d",
+    "apps/data_center/migrations/0082_financial_fact_decision_evidence.py": "0eeee2c513b220b98537f9c6c4cb6ab4831670becfff47738e28dcb11de1716f",
+    "apps/equity/application/tasks_valuation_sync.py": "af73bab18264e0700175021cba3d8bf9a3b7f502f8ca3659519ed15fc0c806d5",
+    "docs/plans/data02-financial-source-time-remediation-2026-09-13.md": "9c4aea18d817985ed74042d948dcbf8c42922a3e1a1e3696f6c317e21c263992",
+    "docs/reviews/production-closure-2026-09-20.md": "f8352d84cfeb9a5d8e1392473d53eb10ea6343bd6fc77b1b6095efa789965efd",
+    "governance/active_plan_registry.json": "00f4596e32ea46851043c1fda0e05905cb405e067dab38ab928c402854d082f7",
+    "governance/celery_task_contracts.json": "58ed355acedf5aad2aef806a6a0e30bd0d55ced6a3979b52b758260c267d19c6",
+    "governance/current_data_contracts.json": "22b52fa96353620f5d5515d5dd1db42c36ec5def0265eccdd0c67cb1261d7cf4",
+    "tests/component/data_center/test_core_fact_bulk_upserts.py": "55433382095e0d717f4761d95f1cb021e88abbd803090081fd365063f16f441e",
+    "tests/component/data_center/test_financial_fact_repository_postgres_concurrency.py": "aa0411f4660ae0f9c45122c771e8e592c28531bd9cb033edfa47b61c5d0b5e2e",
+    "tests/component/data_center/test_financial_fact_repository_postgres_provenance.py": "4a3203f9aaf44ae75945b3b58707c0c9eaf17004f3df4d99a4b6e1dbe887f23b",
+    "tests/component/data_center/test_financial_fact_repository_provenance.py": "b5e1cb9bc1ca7c8f3841ee2f407de4041bdab51b9ed6824b5ef7554f1e21bd4a",
+    "tests/component/data_center/test_financial_source_provenance.py": "829673d4ad40eb23217dfa278cddb027f31434b15a17e9bea1237d908b0f9634",
+    "tests/component/test_equity_repository_data_center.py": "39743a6e07eee19dd84a82d4f00364151850cdb374afb0bb5a5ca87f00f33745",
+    "tests/unit/data_center/test_core_data_backfill_task.py": "6938712eece6c47ec64844153c07a1444ecd69da2ed80289c27cfd30328bd7c9",
+    "tests/unit/data_center/test_current_fact_remediation.py": "b33b4db3c200d02c45d8f6a1ecfbe88b06e5d68446011e4f6507deca52c59a27",
+    "tests/unit/data_center/test_financial_decision_evidence_codec.py": "cc5a4a04f4034b34f1a148d0329abaf98a36b612790f351567b5fd3230c9cbf6",
+    "tests/unit/data_center/test_financial_publication_sync.py": "78eb656771d8ff8ea4402957f3ae63e7edcdb66476000eb608b5b4c22795c19d",
+    "tests/unit/data_center/test_financial_source_evidence.py": "4ce399b8a735f219252f7bc1cf5b2dd4b19d3c3996b18c23da745610887fed5f",
+    "tests/unit/data_center/test_financial_source_evidence_probe.py": "f1674c92618bd706c260ac2c47e17c80d001e00b5d8132b96d4caa5033a45bcf",
+    "tests/unit/data_center/test_financial_sync_write_counts.py": "b66f6e4b3aa1f0774e29e5e2fc097cfd3a9f498058c0f3b1a5b7b22356c60f28",
+    "tests/unit/equity/test_valuation_sync_tasks.py": "7c90abcdb96596706a193d25de98180f2e23ad71fc0866858675f84b9a834808",
+    "tests/unit/test_data_center_on_demand.py": "396f4447645f31b34b6d9d703cf74b7dd97cc8d9e7d3c8ab2216394c63c6af1d"
+  }
+}

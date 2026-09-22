@@ -5,6 +5,9 @@ from decimal import Decimal
 
 import pytest
 
+from apps.data_center.infrastructure.financial_fact_repository import (
+    FinancialFactProvenanceConflictError,
+)
 from apps.data_center.infrastructure.models import FinancialFactModel, ValuationFactModel
 from apps.equity.domain.entities import FinancialData, ValuationMetrics
 from apps.equity.infrastructure.repositories import DjangoStockRepository
@@ -530,24 +533,32 @@ def test_technical_bars_current_read_preserves_published_ohlcv(monkeypatch):
 
 
 @pytest.mark.django_db
-def test_save_methods_mirror_equity_data_to_data_center():
+def test_legacy_equity_financial_write_fails_closed_without_decision_evidence():
     repo = DjangoStockRepository()
-    repo.save_financial_data(
-        FinancialData(
-            stock_code="600519.SH",
-            report_date=date(2025, 12, 31),
-            revenue=Decimal("1000000"),
-            net_profit=Decimal("200000"),
-            revenue_growth=12.0,
-            net_profit_growth=10.0,
-            total_assets=Decimal("3000000"),
-            total_liabilities=Decimal("500000"),
-            equity=Decimal("2500000"),
-            roe=18.5,
-            roa=12.2,
-            debt_ratio=16.7,
+    with pytest.raises(FinancialFactProvenanceConflictError, match="decision evidence"):
+        repo.save_financial_data(
+            FinancialData(
+                stock_code="600519.SH",
+                report_date=date(2025, 12, 31),
+                revenue=Decimal("1000000"),
+                net_profit=Decimal("200000"),
+                revenue_growth=12.0,
+                net_profit_growth=10.0,
+                total_assets=Decimal("3000000"),
+                total_liabilities=Decimal("500000"),
+                equity=Decimal("2500000"),
+                roe=18.5,
+                roa=12.2,
+                debt_ratio=16.7,
+            )
         )
-    )
+
+    assert FinancialFactModel.objects.filter(asset_code="600519.SH").count() == 0
+
+
+@pytest.mark.django_db
+def test_save_valuation_mirrors_equity_data_to_data_center():
+    repo = DjangoStockRepository()
     repo.save_valuation(
         ValuationMetrics(
             stock_code="600519.SH",
@@ -564,7 +575,6 @@ def test_save_methods_mirror_equity_data_to_data_center():
         )
     )
 
-    assert FinancialFactModel.objects.filter(asset_code="600519.SH").count() >= 7
     assert ValuationFactModel.objects.filter(asset_code="600519.SH").count() == 1
     stored_valuation = ValuationFactModel.objects.get(asset_code="600519.SH")
     assert stored_valuation.observed_at == datetime(2026, 3, 20, 7, tzinfo=UTC)

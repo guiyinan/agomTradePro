@@ -668,3 +668,39 @@ HTTPS 域名，使用 direct/priority 100；规则区域为 `*`，请求如实�
 时间。生产回填继续要求真实供应商字段契约、只读 source-evidence probe、写入前
 证据校验、current authority、owner 批准容差与明确生产写授权。DATA-02 因此保持
 `awaiting_production`。
+
+## 25. 2026-09-22 财务来源证据写前门禁
+
+新增 `SyncFinancialUseCase.probe_source_evidence` 作为 select-only Application 边界。它获取并
+规范化同一批 provider facts，校验请求资产、自然键唯一性、typed source evidence 和精确
+available/fetched 时间顺序，只返回有界计数和稳定阻断原因；不会写 FinancialFact、Publication 或
+同步审计。每个 fact 必须通过 `FinancialFactDecisionEvidence` 绑定真实 retained artifact reference、
+正文 SHA-256、provider-body verified 请求/响应范围以及 native asset/period/row identity；自由格式
+`extra`、裸 capture UUID、EOF、report date 或 period end 都不能充当信任根。Application verifier
+只读核验加密正文及匹配成功 RawAudit 均真实存在，reference 的 provider 和 period limit 也必须与
+本次配置和请求精确相同。
+
+`SyncFinancialRequest` 默认且强制开启门禁。严格 execute 使用同一次 fetch 的 facts 完成门禁后才
+允许 bulk_upsert，不再做“先 probe、后重新请求”的不一致检查。current refresh 在所有规范化 fact
+writer 前逐资产 probe，并验证返回 provider id/asset，明确记录 probe facts 与零 financial writes。
+resumable backfill 在所有
+quote/valuation/price/financial writer 前先完成整批 `prepare_for_write`，再以 `execute_prepared` 消费
+同一批事实；任一资产拒绝即整批 `blocked`、零 stored、游标不前移，financial item attempts 进入
+BLOCKED。on-demand hydration 和 Equity financial Celery 任务也使用强制门禁。
+
+通过门禁的 binding 以 `financial-fact-decision-evidence.v1` 严格 JSON projection 随规范化行持久化，
+migration 0082 不为历史行合成内容。repository reload 完整重建 typed evidence；未知键、降级 schema、
+坏 hash 或错误范围均 fail closed。同一 raw body 上的 binding 不得替换或删除，verified scope/basis/
+capture 同时投影到 Publication 所需字段。
+canonical repository 对缺少该 projection 的所有新写入 fail closed；旧 Equity 兼容写入口不能绕过。
+普通与 current Publication candidate 也必须严格解码 binding，历史空 projection 不会被新发布采用。
+
+现有 Tushare/AKShare facts 仍缺真实 `announced_at`、`available_at` 和 typed native source record
+binding，所以严格入口当前会 fail closed。这一切片关闭写前门禁和调用方接线缺口，不关闭 provider
+adapter 绑定或生产验收。恢复条件仍为真实 provider source-time/row-identity 合同、adapter 构造真实
+artifact binding、current authority、owner 批准的容差、明确生产写授权，以及实际四 Publication
+reconciliation。证据：
+[data02-financial-source-evidence-prewrite-gate-2026-09-22.json](../testing/data02-financial-source-evidence-prewrite-gate-2026-09-22.json)。
+仓库验证结果为 208 项相关回归通过、8 个 PG-only 用例在 SQLite 跳过、Domain 新增分支覆盖率 100%、
+17 个生产文件增量 mypy 零回归；
+全量 mypy、current-data、Celery、架构、registry 与治理检查也全部通过。

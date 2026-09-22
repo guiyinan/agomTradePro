@@ -7,6 +7,7 @@ from apps.equity.application.tasks_valuation_sync import (
     sync_financial_data_task,
     sync_validate_scan_equity_valuation_task,
 )
+from core.exceptions import InvalidInputError
 
 
 def test_legacy_equity_task_aliases_delegate_exactly_to_canonical_tasks(monkeypatch) -> None:
@@ -243,6 +244,7 @@ def test_sync_financial_data_task_uses_explicit_codes_without_legacy_filter():
         assert request.provider_id == 3
         assert request.asset_code == "001979.SZ"
         assert request.periods == 8
+        assert request.require_decision_evidence is True
 
 
 def test_sync_financial_data_task_does_not_expand_explicit_empty_list():
@@ -292,6 +294,39 @@ def test_sync_financial_data_task_reports_complete_failure():
         "600000.SH: 同步失败",
     ]
     assert "provider down" not in str(result)
+
+
+def test_sync_financial_data_task_reports_source_evidence_gate_as_blocked():
+    """Missing decision evidence is a bounded business block, not a provider failure."""
+
+    with (
+        patch(
+            "apps.equity.application.tasks_valuation_sync.get_active_provider_id_by_source",
+            return_value=3,
+        ),
+        patch(
+            "apps.equity.application.tasks_valuation_sync.make_sync_financial_use_case"
+        ) as make_sync_use_case,
+    ):
+        make_sync_use_case.return_value.execute.side_effect = InvalidInputError(
+            "financial provider facts require complete source evidence before write",
+            code="FINANCIAL_SOURCE_EVIDENCE_REQUIRED",
+        )
+
+        result = sync_financial_data_task(
+            source="tushare",
+            periods=8,
+            stock_codes=["000001.SZ"],
+        )
+
+    assert result["success"] is True
+    assert result["outcome"] == "blocked"
+    assert result["blocked_reason"] == "financial_source_evidence_required"
+    assert result["stored_record_count"] == 0
+    assert result["requested_stock_count"] == 1
+    assert result["succeeded_stock_count"] == 0
+    assert result["failed_stock_count"] == 0
+    assert result["blocked_stock_count"] == 1
 
 
 def test_sync_financial_data_task_reports_partial_success():

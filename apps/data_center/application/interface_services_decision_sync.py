@@ -36,6 +36,9 @@ from apps.data_center.composition import (
     make_system_audited_sync_quote_use_case,
 )
 from apps.data_center.domain.enums import DataCapability
+from apps.data_center.financial_response_artifact_composition import (
+    verify_retained_financial_response_artifact,
+)
 from core.exceptions import DataFetchError
 
 from .current_valuation_sync import SyncCurrentValuationBatchUseCase
@@ -439,6 +442,7 @@ def make_sync_financial_use_case() -> SyncFinancialUseCase:
         fact_repo=financial_repository,
         raw_audit_repo=_make_raw_audit_repo(),
         publication_publisher=None,
+        artifact_verifier=verify_retained_financial_response_artifact,
     )
 
 
@@ -452,6 +456,7 @@ def make_backfill_sync_financial_use_case() -> SyncFinancialUseCase:
         fact_repo=financial_repository,
         raw_audit_repo=_make_raw_audit_repo(),
         publication_publisher=None,
+        artifact_verifier=verify_retained_financial_response_artifact,
     )
 
 

@@ -668,11 +668,20 @@ class SyncFundNavRequest:
     end: date
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class SyncFinancialRequest:
+    """Request one financial sync with a mandatory decision-evidence write gate."""
+
     provider_id: int
     asset_code: str
     periods: int = 8
+    require_decision_evidence: bool = True
+
+    def __post_init__(self) -> None:
+        """Reject ambiguous truthy values at the pre-write policy boundary."""
+
+        if self.require_decision_evidence is not True:
+            raise ValueError("require_decision_evidence must remain enabled")
 
 
 @dataclass

@@ -289,3 +289,51 @@ mypy、全量 mypy 债务门禁和 64 个 current-data contracts 均通过。结
 [DATA-02 provider 正文范围封存](../testing/data02-financial-provider-body-scope-2026-09-22.json)。
 registry v154 → v155，DATA-02 仍为 `awaiting_production`。本轮未访问 provider、未部署、未写生产、
 未切换 Publication，也没有补造 `announced_at`、`available_at` 或来源行身份。
+
+## DATA-02 财务来源证据写前门禁（2026-09-22）
+
+财务同步现提供显式 select-only source-evidence probe。它只获取并规范化 provider facts，随后按请求
+资产、自然键唯一性、真实公告时间和 available/fetched 时间顺序做有界分类；不会写 FinancialFact、
+Publication 或同步审计。决策证据不再信任 `extra` 中的自由字符串或仅格式正确的 UUID，而是要求
+`FinancialFactDecisionEvidence` 直接持有已留存的 typed artifact reference，并逐 fact 绑定正文 SHA-256、
+provider-body verified 请求/响应资产与期间范围、native asset/period/row identity。source raw hash 与
+artifact body hash、source record id 与 native row id 任一不一致均 fail closed。Application verifier 还会
+只读检查加密正文确实存在，且 capture 对应的成功 RawAudit 能精确重建同一 reference；仅构造一个形状
+正确的 typed object 也不能越过门禁。
+
+`SyncFinancialRequest` 的门禁默认开启且不能关闭。严格 execute 对同一次 fetch 得到的内存 facts 先
+执行同一门禁，再决定是否 bulk_upsert，避免 probe 通过后重新请求导致证据漂移。current-fact refresh
+对每个请求资产运行 probe，并核对 provider id 与资产 identity；不完整或错配 witness 会在 price、
+quote、valuation 和 financial 规范化写入前以
+`FINANCIAL_SOURCE_EVIDENCE_REQUIRED` 阻断。probe 成功也不把
+financial fact 写入量冒充探测结果，返回值分别记录 `financial_probe_fact_count` 与兼容字段
+`financial_probe_stored_count=0`。DATA-02 resumable backfill、on-demand financial hydration 和 Equity
+financial Celery task 均经过该门禁。resumable backfill 在任何 quote、valuation、price 或 financial
+writer 前对整批资产执行 `prepare_for_write`，后续只消费同一 prepared batch；任一资产证据不足时整批
+返回 `outcome=blocked`、零 stored、游标不前移，并把已创建的 financial item attempts 置为 BLOCKED。
+Celery 全量遇到同一门禁时也返回稳定 `blocked_reason`，而非伪装成 provider 成功。
+
+通过门禁的 typed binding 使用 `financial-fact-decision-evidence.v1` 严格 JSON projection 随
+FinancialFact 原子写入；migration 0082 对历史行只写空 projection，不补造证据。repository 重读会
+完整重建 artifact scope 与 native row binding，未知键、旧 schema、坏 hash 或空 provider 都拒绝；
+同一 raw body 上已有 binding 不能被替换或删除。verified body scope、basis 与 capture id 同时投影到
+既有 Publication evidence 字段，避免内存门禁通过而持久化 current 候选再次丢证。
+
+底层 canonical `bulk_upsert` 也强制要求同一 typed binding，旧 Equity `save_financial_data` 因无法提供
+真实 retained artifact 会明确拒写；不能再绕过 Application 门禁。普通与 current financial Publication
+candidate 在生成引用前必须严格解码持久化 binding，历史空 projection 只读保留但不能进入新发布。
+
+当前 Tushare/AKShare financial adapters 仍只有 date-only report information，且尚未构造上述 typed
+fact-to-artifact binding，因此严格路径会按设计 fail closed。该仓库单元不构成 provider 可用、生产回填
+或 DATA-02 完成证明；下一步仍须从真实源取得精确公告/可用时间和 native row identity，并在 adapter
+中构造真实绑定，之后才能在当前 authority、owner 批准容差和明确生产写授权下执行真实回填与四
+Publication 对账。
+
+最终相关回归 208 项通过、8 个仅 PostgreSQL 可运行的用例在 SQLite 跳过；Domain 新增分支覆盖率为
+100%。Black、isort、Ruff、17 个生产文件增量
+mypy、全量 mypy、64 个 current-data contracts、92 个 Celery contracts，以及 3,221 个源码文件的
+完整架构门禁均通过。
+结构化证据见
+[DATA-02 财务来源证据写前门禁封存](../testing/data02-financial-source-evidence-prewrite-gate-2026-09-22.json)。
+registry v155 → v156，DATA-02 继续 `awaiting_production`。本轮没有访问 provider、部署、生产写入、
+Publication 切换或 authority/tolerance 变更。

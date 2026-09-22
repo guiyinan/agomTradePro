@@ -852,6 +852,7 @@ class FinancialFactModel(models.Model):
     report_date = models.DateField(null=True, blank=True, help_text="Date report was published")
     fetched_at = models.DateTimeField(auto_now_add=True)
     extra = models.JSONField(default=dict, blank=True)
+    decision_evidence = models.JSONField(default=dict, blank=True)
     contract_version = models.CharField(max_length=40, default="1.0")
     schema_version = models.CharField(max_length=40, default="1.0")
     source_record_id = models.CharField(max_length=200, blank=True)

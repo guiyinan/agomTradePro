@@ -14,13 +14,19 @@ from apps.data_center.domain.control_plane import (
     SyncItemAttemptPhase,
     SyncItemAttemptState,
 )
+from core.exceptions import InvalidInputError
 from shared.domain.task_outcomes import TaskBusinessOutcome
 
 from .backfill_control_plane import backfill_control_plane_ids, backfill_execution_token
 from .batch_identity import ProviderAssetIdentityError
 from .current_valuation_sync import SyncCurrentValuationBatchUseCase
 from .dtos import SyncFinancialRequest, SyncPriceRequest, SyncQuoteRequest, SyncResult
-from .sync_use_cases import SyncFinancialUseCase, SyncPriceUseCase, SyncQuoteUseCase
+from .sync_use_cases import (
+    PreparedFinancialSync,
+    SyncFinancialUseCase,
+    SyncPriceUseCase,
+    SyncQuoteUseCase,
+)
 
 
 class PersistBackfillControlPlane(Protocol):
@@ -399,6 +405,7 @@ def run_active_a_share_core_data_backfill_batch(
             "requested": len(batch_codes),
             "succeeded": 0,
             "failed": 0,
+            "blocked": 0,
             "stored": 0,
         }
         for name in ("quote", "price", "valuation", "financial")
@@ -407,6 +414,8 @@ def run_active_a_share_core_data_backfill_batch(
     errors: list[dict[str, str]] = []
     failed_asset_codes: set[str] = set()
     execution_token = backfill_execution_token(idempotency_key)
+    financial_attempts: list[SyncItemAttempt] = []
+    terminal_attempt_ids: set[str] = set()
 
     def begin_attempts(
         phase: SyncItemAttemptPhase,
@@ -456,7 +465,10 @@ def run_active_a_share_core_data_backfill_batch(
             finished = services.item_attempt_store.finish_many(attempts)
         except Exception:
             return False
-        return finished == attempts
+        if finished != attempts:
+            return False
+        terminal_attempt_ids.update(attempt.attempt_id for attempt in attempts)
+        return True
 
     def finish_attempts(
         attempts: list[SyncItemAttempt],
@@ -489,6 +501,17 @@ def run_active_a_share_core_data_backfill_batch(
     def item_evidence_blocked_response() -> dict[str, Any]:
         """Fail closed without advancing when item evidence is incomplete."""
 
+        pending_financial_attempts = [
+            attempt
+            for attempt in financial_attempts
+            if attempt.attempt_id not in terminal_attempt_ids
+        ]
+        if pending_financial_attempts:
+            finish_attempts(
+                pending_financial_attempts,
+                state=SyncItemAttemptState.BLOCKED,
+                error_code="item_attempt_evidence_failed",
+            )
         blocked_checkpoint = {
             **checkpoint,
             "next_offset": validated_offset,
@@ -529,6 +552,132 @@ def run_active_a_share_core_data_backfill_batch(
             "errors": errors[:20],
             "checkpoint": blocked_checkpoint,
         }
+
+    def financial_prepare_terminal_response(
+        *,
+        outcome: TaskBusinessOutcome,
+        reason: str,
+    ) -> dict[str, Any]:
+        """Return a zero-write terminal result for the batch financial preflight."""
+
+        blocked = outcome is TaskBusinessOutcome.BLOCKED
+        domain_counts["financial"]["blocked"] = len(batch_codes) if blocked else 0
+        domain_counts["financial"]["failed"] = 0 if blocked else len(batch_codes)
+        failed = 0 if blocked else len(batch_codes)
+        terminal_checkpoint = {
+            **checkpoint,
+            "next_offset": validated_offset,
+            "complete": False,
+        }
+        services.persist_control_plane(
+            idempotency_key=idempotency_key,
+            provider_name=normalized_source,
+            outcome=outcome,
+            requested=len(batch_codes),
+            succeeded=0,
+            failed=failed,
+            stored=0,
+            published=0,
+            checkpoint=terminal_checkpoint,
+            window_start=start_date,
+            window_end=end_date,
+            started_at=started_at,
+            error_code=reason,
+            error_message="financial source evidence preflight did not permit writes",
+        )
+        response: dict[str, Any] = {
+            "success": False,
+            "outcome": outcome.value,
+            "stage": (
+                "authority"
+                if reason == "authority_changed_or_expired"
+                else ("financial_evidence" if blocked else "financial_prepare")
+            ),
+            "source": normalized_source,
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
+            "asset_codes": batch_codes,
+            "requested": len(batch_codes),
+            "succeeded": 0,
+            "failed": failed,
+            "stored": 0,
+            "published": 0,
+            "domains": domain_counts,
+            "errors": [
+                {
+                    "domain": "financial",
+                    "asset_code": "batch",
+                    "error": reason,
+                }
+            ],
+            "checkpoint": terminal_checkpoint,
+        }
+        if blocked:
+            response["blocked_reason"] = reason
+        else:
+            response["error"] = reason
+        return response
+
+    financial_attempts, financial_evidence_ready = begin_attempts(
+        SyncItemAttemptPhase.FINANCIAL,
+        batch_codes,
+    )
+    if not financial_evidence_ready:
+        return item_evidence_blocked_response()
+    prepared_financial: dict[str, PreparedFinancialSync] = {}
+    for asset_code in batch_codes:
+        if not authority_allows_next_write():
+            if not finish_attempts(
+                financial_attempts,
+                state=SyncItemAttemptState.BLOCKED,
+                error_code="authority_changed_or_expired",
+            ):
+                return item_evidence_blocked_response()
+            return financial_prepare_terminal_response(
+                outcome=TaskBusinessOutcome.BLOCKED,
+                reason="authority_changed_or_expired",
+            )
+        try:
+            prepared_financial[asset_code] = financial_use_case.prepare_for_write(
+                SyncFinancialRequest(
+                    provider_id=provider_id,
+                    asset_code=asset_code,
+                    periods=validated_periods,
+                )
+            )
+        except InvalidInputError as exc:
+            if exc.code != "FINANCIAL_SOURCE_EVIDENCE_REQUIRED":
+                if not finish_attempts(
+                    financial_attempts,
+                    state=SyncItemAttemptState.FAILED,
+                    error_code="financial_prepare_failed",
+                ):
+                    return item_evidence_blocked_response()
+                return financial_prepare_terminal_response(
+                    outcome=TaskBusinessOutcome.FAILED,
+                    reason="financial_prepare_failed",
+                )
+            if not finish_attempts(
+                financial_attempts,
+                state=SyncItemAttemptState.BLOCKED,
+                error_code="financial_source_evidence_required",
+            ):
+                return item_evidence_blocked_response()
+            return financial_prepare_terminal_response(
+                outcome=TaskBusinessOutcome.BLOCKED,
+                reason="financial_source_evidence_required",
+            )
+        except Exception:
+            if not finish_attempts(
+                financial_attempts,
+                state=SyncItemAttemptState.FAILED,
+                error_code="financial_prepare_failed",
+            ):
+                return item_evidence_blocked_response()
+            return financial_prepare_terminal_response(
+                outcome=TaskBusinessOutcome.FAILED,
+                reason="financial_prepare_failed",
+            )
 
     quote_attempts, quote_evidence_ready = begin_attempts(
         SyncItemAttemptPhase.QUOTE,
@@ -677,9 +826,12 @@ def run_active_a_share_core_data_backfill_batch(
         ("price", SyncItemAttemptPhase.PRICE),
         ("financial", SyncItemAttemptPhase.FINANCIAL),
     ):
-        phase_attempts, item_evidence_ready = begin_attempts(phase, batch_codes)
-        if not item_evidence_ready:
-            return item_evidence_blocked_response()
+        if domain_name == "financial":
+            phase_attempts = financial_attempts
+        else:
+            phase_attempts, item_evidence_ready = begin_attempts(phase, batch_codes)
+            if not item_evidence_ready:
+                return item_evidence_blocked_response()
         attempts_by_asset = {attempt.asset_code: attempt for attempt in phase_attempts}
         completion_specs: list[tuple[SyncItemAttempt, SyncItemAttemptState, int, str]] = []
         for asset_code in batch_codes:
@@ -713,13 +865,7 @@ def run_active_a_share_core_data_backfill_batch(
                             )
                         )
                     else:
-                        result = financial_use_case.execute(
-                            SyncFinancialRequest(
-                                provider_id=provider_id,
-                                asset_code=asset_code,
-                                periods=validated_periods,
-                            )
-                        )
+                        result = financial_use_case.execute_prepared(prepared_financial[asset_code])
                     published_total += services.published_count_from_result(result)
                     stored_count = int(result.stored_count)
                     domain_counts[domain_name]["stored"] += stored_count

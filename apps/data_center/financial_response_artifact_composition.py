@@ -7,11 +7,14 @@ from datetime import date, datetime
 from typing import Protocol
 from uuid import UUID
 
+from django.db import DatabaseError
+
 from apps.data_center.application.egress_service import (
     execute_financial_response_request,
 )
 from apps.data_center.domain.egress_routing import EgressRequestContext
 from apps.data_center.domain.entities import ProviderConfig
+from apps.data_center.domain.financial_response_artifact import FinancialResponseArtifactRef
 from apps.data_center.domain.financial_response_evidence import (
     FinancialRequestScope,
     FinancialResponseScope,
@@ -23,7 +26,7 @@ from apps.data_center.infrastructure.financial_response_artifact_config import (
 from apps.data_center.infrastructure.financial_response_artifact_repository import (
     FinancialResponseArtifactRepository,
 )
-from core.exceptions import TushareError
+from core.exceptions import DataFetchError, TushareError
 
 _PROVIDER_REJECTION_CODE = "TUSHARE_PROVIDER_REJECTED"
 
@@ -159,6 +162,32 @@ def get_financial_response_artifact_repository(
     return build_financial_response_artifact_repository(provider, environment=environment)
 
 
+def verify_retained_financial_response_artifact(
+    provider: ProviderConfig,
+    reference: FinancialResponseArtifactRef,
+    *,
+    environment: str | None = None,
+) -> bool:
+    """Verify the exact encrypted body and its matching successful audit link."""
+
+    try:
+        repository = get_financial_response_artifact_repository(
+            provider,
+            environment=environment,
+        )
+        if repository is None:
+            return False
+        inspection = repository.inspect_orphan(reference)
+    except (DataFetchError, DatabaseError, OSError, TypeError, ValueError):
+        return False
+    return (
+        inspection.body_verified
+        and inspection.audit is not None
+        and not inspection.is_orphan
+        and inspection.reference == reference
+    )
+
+
 def build_tushare_financial_response_handler(
     provider: ProviderConfig,
     *,
@@ -287,4 +316,5 @@ __all__ = [
     "TushareFinancialResponseHandler",
     "build_tushare_financial_response_handler",
     "get_financial_response_artifact_repository",
+    "verify_retained_financial_response_artifact",
 ]

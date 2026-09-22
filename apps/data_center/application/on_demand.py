@@ -236,6 +236,7 @@ class OnDemandDataCenterService:
                     provider_id=provider_id,
                     asset_code=asset_code,
                     periods=periods,
+                    require_decision_evidence=True,
                 )
             ),
         )

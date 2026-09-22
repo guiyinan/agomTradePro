@@ -169,6 +169,12 @@ class FinancialResponseArtifactRepository:
         except FinancialResponseArtifactError:
             inspected = reference
         audit = self._audit_repository.find_by_artifact_capture_id(reference.capture_id)
+        if audit is not None:
+            try:
+                if reference_from_audit(audit) != reference:
+                    audit = None
+            except ValueError:
+                audit = None
         return FinancialResponseArtifactOrphan(
             reference=inspected,
             audit=audit,

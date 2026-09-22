@@ -10,12 +10,14 @@ from django.db.models import OuterRef, Subquery
 from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import FinancialFact
 from apps.data_center.domain.enums import FinancialPeriodType
+from apps.data_center.domain.financial_source_evidence import FinancialFactDecisionEvidence
 from apps.data_center.infrastructure._repository_helpers import _resolve_asset_code_candidates
 from apps.data_center.infrastructure.financial_availability_repository import (
     FinancialAvailabilityRepositoryMixin,
 )
 from apps.data_center.infrastructure.models import FinancialFactModel
 
+from .financial_decision_evidence_codec import decode_financial_decision_evidence
 from .financial_fact_write_guard import (
     FinancialFactProvenanceConflictError,
     bulk_upsert_financial_facts,
@@ -43,6 +45,7 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
             fetched_at=m.fetched_at,
             extra=m.extra or {},
             source_evidence=source_evidence_from_model(m),
+            decision_evidence=decode_financial_decision_evidence(m.decision_evidence),
         )
 
     def get_facts(
@@ -159,11 +162,45 @@ def _financial_publication_reference(
 
     if row.available_at is None:
         raise ValueError("financial publication candidate requires available_at")
+    _require_publication_decision_evidence(row)
     return publication_fact_reference_for_dataset(
         row,
         dataset_key="equity.financial.fact",
         require_verified_source_evidence=require_verified_source_evidence,
     )
+
+
+def _require_publication_decision_evidence(
+    row: FinancialFactModel,
+) -> FinancialFactDecisionEvidence:
+    """Require the persisted artifact binding to match the exact candidate row."""
+
+    decision = decode_financial_decision_evidence(row.decision_evidence)
+    if decision is None:
+        raise FinancialFactProvenanceConflictError(
+            "financial decision evidence is required for publication candidates"
+        )
+    artifact = decision.artifact_reference
+    if (
+        decision.native_asset_code != row.asset_code
+        or decision.native_period_end != row.period_end
+        or decision.native_row_id != row.source_record_id
+        or artifact.evidence.body_sha256 != row.raw_payload_hash
+    ):
+        raise FinancialFactProvenanceConflictError(
+            "financial publication decision evidence does not match the persisted row"
+        )
+    extra = row.extra if isinstance(row.extra, dict) else {}
+    expected_transport = {
+        "financial_response_capture_id": str(artifact.capture_id),
+        "raw_payload_scope": artifact.evidence.body_scope.value,
+        "response_scope_basis": artifact.evidence.response_scope_basis.value,
+    }
+    if any(extra.get(key) != value for key, value in expected_transport.items()):
+        raise FinancialFactProvenanceConflictError(
+            "financial publication transport evidence does not match the persisted row"
+        )
+    return decision
 
 
 __all__ = ["FinancialFactProvenanceConflictError", "FinancialFactRepository"]

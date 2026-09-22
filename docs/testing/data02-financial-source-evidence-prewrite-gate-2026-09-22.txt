@@ -1,0 +1,58 @@
+DATA-02 financial source-evidence pre-write gate
+Date: 2026-09-22
+Branch: dev/next-development
+Baseline: 392e60d5135e7db293c676bfb8550290faef7928
+
+TDD red:
+- Focused collection failed because FinancialSourceEvidenceProbeResult did not exist.
+- The Celery contract test then failed until source-evidence rejection mapped to blocked.
+
+Implemented contract:
+- SyncFinancialRequest always requires decision evidence; callers cannot disable the gate.
+- Every financial fact binds a typed retained artifact reference, verified provider-body scope, native asset/period/row identity, source record id and body SHA-256.
+- The verifier confirms the encrypted response body exists and a successful RawAudit reconstructs the exact same reference.
+- Strict execute validates and writes the same prepared in-memory batch, preventing probe/refetch drift.
+- Current refresh probes every requested asset and validates provider plus requested-asset identity before any normalized writer.
+- Resumable DATA-02 backfill prepares every financial batch before quote, valuation, price or financial writes; one rejection blocks the batch, stores zero rows, preserves the checkpoint and closes item attempts as BLOCKED.
+- Accepted decision evidence is persisted as financial-fact-decision-evidence.v1 and strictly reconstructed on repository reads.
+- Migration 0082 adds an empty projection for historical rows and does not fabricate historical decision evidence.
+- Verified transport metadata is derived from typed evidence rather than free-form provider extras.
+- Canonical writes and financial Publication candidates reject missing, malformed, cross-row, or transport-mismatched decision evidence.
+- Current Tushare/AKShare adapter facts still lack the required genuine source-time and native row binding, so production paths fail closed by design.
+
+Final validation:
+- Related pytest suite: 208 passed and 8 PostgreSQL-only tests skipped on SQLite in 27.86s with the already-created test database.
+- Domain evidence pytest: 31 passed; financial_source_evidence.py reached 100% statements and branches.
+- Black: passed for 32 changed Python files.
+- isort: passed for 32 changed Python files.
+- Ruff: passed for 32 changed Python files.
+- Incremental mypy: 0 regressions and 0 legacy errors across 17 production Python files.
+- Full mypy debt ceiling: 0 errors in 0 files.
+- Django migration check: no changes detected after migration 0082.
+- Django system check: 0 issues.
+- Current-data contracts: 64 surfaces.
+- Celery task contracts: 92 tasks, 21 exemptions, 23 governed files.
+- Architecture guard: 3,221 files, 0 boundary violations, 0 audit violations.
+- Active plan registry: version 2026-09-22.v156, 54 units, 0 violations.
+- Governance consistency: baseline 2026-09-09.v220, 0 violations.
+- Versioned-surface guard before the follow-up retirement-governance commit: 5 families, 24 module groups, 0 violations.
+- Guardrail pytest: 4 passed.
+- git diff --check: passed after preserving repository line-ending conventions.
+
+Independent review:
+- GPT-5.6 Luna Max final result: P0=0, P1=0.
+- The final P1 required canonical writes and Publication candidates to reject all missing or mismatched decision evidence; the old Equity write path is covered by a fail-closed regression.
+
+Production actions:
+- Provider access: no.
+- Deployment: no.
+- Production database write: no.
+- Publication switch: no.
+- Authority or tolerance change: no.
+- DATA-02 status: awaiting_production.
+
+Remaining production gates:
+- Obtain genuine source announcement/availability time and native row identity from the real provider contract.
+- Build adapter facts with the retained artifact binding.
+- Obtain current authority, owner-approved tolerances and explicit production-write authorization.
+- Run provider backfill and reconcile price, quote, valuation and financial Publications using real production evidence.

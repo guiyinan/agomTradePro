@@ -427,6 +427,7 @@ class CoreCurrentFactRefreshResult:
     quote_stored_count: int
     valuation_stored_count: int
     price_probe_stored_count: int
+    financial_probe_fact_count: int
     financial_probe_stored_count: int
     financial_availability: FinancialAvailabilityBackfillResult
     completed_session_prices: CompletedSessionPriceBarResult
@@ -439,6 +440,7 @@ class CoreCurrentFactRefreshResult:
             "quote_stored_count": self.quote_stored_count,
             "valuation_stored_count": self.valuation_stored_count,
             "price_probe_stored_count": self.price_probe_stored_count,
+            "financial_probe_fact_count": self.financial_probe_fact_count,
             "financial_probe_stored_count": self.financial_probe_stored_count,
             "financial_availability": self.financial_availability.to_dict(),
             "completed_session_prices": self.completed_session_prices.to_dict(),
@@ -527,7 +529,34 @@ class CoreCurrentFactRefreshUseCase:
         price_sync = self._price_sync_factory()
         valuation_sync = self._valuation_sync_factory()
         financial_sync = self._financial_sync_factory()
+        financial_probe_fact_count = 0
+        for probe_code in normalized_codes:
+            last_authority_at = self._preflight_current_authority(not_before=last_authority_at)
+            financial_probe = financial_sync.probe_source_evidence(
+                SyncFinancialRequest(
+                    provider_id=self._provider_id,
+                    asset_code=probe_code,
+                    periods=1,
+                )
+            )
+            if (
+                financial_probe.provider_id != self._provider_id
+                or financial_probe.requested_asset_code != probe_code
+            ):
+                raise InvalidInputError(
+                    "financial provider probe identity differs from the request",
+                    code="FINANCIAL_SOURCE_EVIDENCE_REQUIRED",
+                    details={"block_reasons": ["financial_probe_identity_mismatch"]},
+                )
+            if not financial_probe.decision_ready:
+                raise InvalidInputError(
+                    "financial provider probe requires complete source evidence",
+                    code="FINANCIAL_SOURCE_EVIDENCE_REQUIRED",
+                    details={"block_reasons": list(financial_probe.block_reasons)},
+                )
+            financial_probe_fact_count += financial_probe.fact_count
         probe_code = normalized_codes[0]
+        last_authority_at = self._preflight_current_authority(not_before=last_authority_at)
         price_probe = price_sync.execute(
             SyncPriceRequest(
                 provider_id=self._provider_id,
@@ -539,15 +568,6 @@ class CoreCurrentFactRefreshUseCase:
         if price_probe.stored_count <= 0:
             raise ValueError("historical-price provider probe produced zero rows")
         last_authority_at = self._preflight_current_authority(not_before=last_authority_at)
-        financial_probe = financial_sync.execute(
-            SyncFinancialRequest(
-                provider_id=self._provider_id,
-                asset_code=probe_code,
-                periods=1,
-            )
-        )
-        if financial_probe.stored_count <= 0:
-            raise ValueError("financial provider probe produced zero rows")
 
         quote_stored = 0
         valuation_stored = 0
@@ -617,7 +637,8 @@ class CoreCurrentFactRefreshUseCase:
             quote_stored_count=quote_stored,
             valuation_stored_count=valuation_stored,
             price_probe_stored_count=price_probe.stored_count,
-            financial_probe_stored_count=financial_probe.stored_count,
+            financial_probe_fact_count=financial_probe_fact_count,
+            financial_probe_stored_count=0,
             financial_availability=financial_availability,
             completed_session_prices=completed_session_prices,
             publications=publications,

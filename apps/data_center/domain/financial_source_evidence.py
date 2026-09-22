@@ -9,7 +9,12 @@ separate evidence layer.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
+
+from apps.data_center.domain.financial_response_artifact import FinancialResponseArtifactRef
+from apps.data_center.domain.financial_response_evidence import FinancialResponseScopeBasis
+
+FINANCIAL_FACT_DATASET_KEY = "equity.financial.fact"
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,10 +75,68 @@ class FinancialFactSourceEvidence:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class FinancialFactDecisionEvidence:
+    """Bind one parsed provider row to an immutable captured response artifact."""
+
+    artifact_reference: FinancialResponseArtifactRef
+    native_asset_code: str
+    native_period_end: date
+    native_row_id: str
+
+    def __post_init__(self) -> None:
+        """Require body-verified response scope and exact native row dimensions."""
+
+        if not isinstance(self.artifact_reference, FinancialResponseArtifactRef):
+            raise ValueError("FinancialFactDecisionEvidence.artifact_reference must be typed")
+        for field_name, value in (
+            ("native_asset_code", self.native_asset_code),
+            ("native_row_id", self.native_row_id),
+        ):
+            if not isinstance(value, str) or not value or value != value.strip():
+                raise ValueError(f"FinancialFactDecisionEvidence.{field_name} is invalid")
+        if isinstance(self.native_period_end, datetime) or not isinstance(
+            self.native_period_end, date
+        ):
+            raise ValueError("FinancialFactDecisionEvidence.native_period_end must be a date")
+
+        evidence = self.artifact_reference.evidence
+        request_scope = evidence.request_scope
+        response_scope = evidence.response_scope
+        if request_scope.dataset_key != FINANCIAL_FACT_DATASET_KEY:
+            raise ValueError("financial decision evidence dataset is invalid")
+        if evidence.response_scope_basis is not FinancialResponseScopeBasis.PROVIDER_BODY_VERIFIED:
+            raise ValueError("financial decision evidence response scope is not body verified")
+        if request_scope.asset_code != self.native_asset_code:
+            raise ValueError("financial decision evidence request asset mismatch")
+        if response_scope.row_count <= 0:
+            raise ValueError("financial decision evidence response contains no rows")
+        if self.native_period_end not in response_scope.period_ends:
+            raise ValueError("financial decision evidence period is outside response scope")
+
+    def to_dict(self) -> dict[str, object]:
+        """Return the bounded binding without storage location or key metadata."""
+
+        evidence = self.artifact_reference.evidence
+        return {
+            "capture_id": str(self.artifact_reference.capture_id),
+            "body_sha256": evidence.body_sha256,
+            "body_scope": evidence.body_scope.value,
+            "response_scope_basis": evidence.response_scope_basis.value,
+            "native_asset_code": self.native_asset_code,
+            "native_period_end": self.native_period_end.isoformat(),
+            "native_row_id": self.native_row_id,
+        }
+
+
 def _is_sha256(value: str) -> bool:
     """Return whether ``value`` is one lowercase SHA-256 digest."""
 
     return len(value) == 64 and all(character in "0123456789abcdef" for character in value)
 
 
-__all__ = ["FinancialFactSourceEvidence"]
+__all__ = [
+    "FINANCIAL_FACT_DATASET_KEY",
+    "FinancialFactDecisionEvidence",
+    "FinancialFactSourceEvidence",
+]

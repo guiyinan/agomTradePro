@@ -7,7 +7,7 @@ import hashlib
 import json
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar, cast
 
 from apps.data_center.application.dtos import (
     MacroFailoverDecision,
@@ -18,9 +18,11 @@ from apps.data_center.application.dtos import (
     SyncValuationRequest,
 )
 from apps.data_center.domain.entities import (
+    FinancialFact,
     ProviderConfig,
     RawAudit,
 )
+from apps.data_center.domain.financial_response_artifact import FinancialResponseArtifactRef
 from apps.data_center.domain.protocols import (
     FinancialFactRepositoryProtocol,
     FundNavRepositoryProtocol,
@@ -31,6 +33,7 @@ from apps.data_center.domain.protocols import (
     UnifiedDataProviderProtocol,
     ValuationFactRepositoryProtocol,
 )
+from core.exceptions import InvalidInputError
 
 from .batch_identity import ProviderAssetIdentityError, require_single_asset_identity
 from .provider_health_recorder import persist_provider_health_metric
@@ -57,6 +60,18 @@ if TYPE_CHECKING:
 
 FactT = TypeVar("FactT")
 
+
+class FinancialResponseArtifactVerifier(Protocol):
+    """Read-only port proving that a typed response reference is retained and audited."""
+
+    def __call__(
+        self,
+        provider: ProviderConfig,
+        reference: FinancialResponseArtifactRef,
+    ) -> bool:
+        """Return whether the exact encrypted body and matching audit link exist."""
+
+
 RECOVERABLE_DATA_CENTER_EXCEPTIONS = (
     AttributeError,
     ConnectionError,
@@ -67,6 +82,7 @@ RECOVERABLE_DATA_CENTER_EXCEPTIONS = (
     TypeError,
     ValueError,
     ProviderAssetIdentityError,
+    InvalidInputError,
 )
 
 
@@ -324,6 +340,223 @@ class SyncFundNavUseCase(_BaseSyncUseCase):
             raise
 
 
+@dataclasses.dataclass(frozen=True, slots=True)
+class FinancialSourceEvidenceProbeResult:
+    """Bounded provider-read result produced without normalized fact writes."""
+
+    provider_id: int
+    provider_name: str
+    requested_asset_code: str
+    fact_count: int
+    complete_fact_count: int
+    block_reasons: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        """Validate deterministic counts and reason evidence."""
+
+        if isinstance(self.provider_id, bool) or not isinstance(self.provider_id, int):
+            raise ValueError("financial source probe provider_id is invalid")
+        if self.provider_id <= 0 or not self.provider_name or not self.requested_asset_code:
+            raise ValueError("financial source probe identity is required")
+        if (
+            isinstance(self.fact_count, bool)
+            or not isinstance(self.fact_count, int)
+            or self.fact_count < 0
+        ):
+            raise ValueError("financial source probe fact_count is invalid")
+        if (
+            isinstance(self.complete_fact_count, bool)
+            or not isinstance(self.complete_fact_count, int)
+            or not 0 <= self.complete_fact_count <= self.fact_count
+        ):
+            raise ValueError("financial source probe complete_fact_count is invalid")
+        if not isinstance(self.block_reasons, tuple) or any(
+            not isinstance(reason, str) or not reason or reason != reason.strip()
+            for reason in self.block_reasons
+        ):
+            raise ValueError("financial source probe block_reasons are invalid")
+        if tuple(sorted(set(self.block_reasons))) != self.block_reasons:
+            raise ValueError("financial source probe block_reasons must be sorted and unique")
+
+    @property
+    def decision_ready(self) -> bool:
+        """Return whether every fetched fact has complete bound decision evidence."""
+
+        return (
+            self.fact_count > 0
+            and self.complete_fact_count == self.fact_count
+            and not self.block_reasons
+        )
+
+    def to_dict(self) -> dict[str, object]:
+        """Return a bounded JSON-safe probe result without provider fact values."""
+
+        return {
+            "provider_id": self.provider_id,
+            "provider_name": self.provider_name,
+            "requested_asset_code": self.requested_asset_code,
+            "fact_count": self.fact_count,
+            "complete_fact_count": self.complete_fact_count,
+            "decision_ready": self.decision_ready,
+            "block_reasons": list(self.block_reasons),
+        }
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class PreparedFinancialSync:
+    """One source-verified fetched batch that can be written without refetching."""
+
+    config: ProviderConfig
+    provider_name: str
+    request: SyncFinancialRequest
+    facts: tuple[FinancialFact, ...]
+    probe: FinancialSourceEvidenceProbeResult
+    started_at: datetime
+
+    def __post_init__(self) -> None:
+        """Reject mismatched or mutable prepared-batch identities."""
+
+        if not isinstance(self.config, ProviderConfig):
+            raise ValueError("prepared financial config must be typed")
+        if self.config.id != self.probe.provider_id:
+            raise ValueError("prepared financial provider id mismatch")
+        if not self.provider_name or self.provider_name != self.probe.provider_name:
+            raise ValueError("prepared financial provider identity mismatch")
+        if self.request.asset_code != self.probe.requested_asset_code:
+            raise ValueError("prepared financial request identity mismatch")
+        if len(self.facts) != self.probe.fact_count or not self.probe.decision_ready:
+            raise ValueError("prepared financial batch is not decision ready")
+        if self.started_at.tzinfo is None or self.started_at.utcoffset() is None:
+            raise ValueError("prepared financial started_at must be timezone-aware")
+
+
+def _financial_source_probe_result(
+    *,
+    provider: ProviderConfig,
+    provider_name: str,
+    requested_periods: int,
+    requested_asset_code: str,
+    facts: list[FinancialFact],
+    artifact_verifier: FinancialResponseArtifactVerifier | None,
+) -> FinancialSourceEvidenceProbeResult:
+    """Classify a fetched batch without exposing values or inferring source evidence."""
+
+    require_single_asset_identity(
+        requested_asset_code=requested_asset_code,
+        returned_asset_codes=[fact.asset_code for fact in facts],
+        label="financial",
+    )
+    reasons: set[str] = set()
+    complete_fact_count = 0
+    natural_keys: set[tuple[str, object, object, str, str]] = set()
+    if not facts:
+        reasons.add("financial_provider_facts_empty")
+    for fact in facts:
+        fact_reasons = _financial_fact_source_block_reasons(
+            fact,
+            provider=provider,
+            provider_name=provider_name,
+            requested_periods=requested_periods,
+            artifact_verifier=artifact_verifier,
+        )
+        natural_key = (
+            fact.asset_code,
+            fact.period_end,
+            fact.period_type,
+            fact.metric_code,
+            fact.source,
+        )
+        if natural_key in natural_keys:
+            fact_reasons.add("financial_natural_key_duplicate")
+        natural_keys.add(natural_key)
+        if not fact_reasons:
+            complete_fact_count += 1
+        reasons.update(fact_reasons)
+    return FinancialSourceEvidenceProbeResult(
+        provider_id=int(provider.id or 0),
+        provider_name=provider_name,
+        requested_asset_code=requested_asset_code,
+        fact_count=len(facts),
+        complete_fact_count=complete_fact_count,
+        block_reasons=tuple(sorted(reasons)),
+    )
+
+
+def _financial_fact_source_block_reasons(
+    fact: FinancialFact,
+    *,
+    provider: ProviderConfig,
+    provider_name: str,
+    requested_periods: int,
+    artifact_verifier: FinancialResponseArtifactVerifier | None,
+) -> set[str]:
+    """Return bounded fail-closed reasons for one provider financial fact."""
+
+    reasons: set[str] = set()
+    evidence = fact.source_evidence
+    if evidence is None:
+        reasons.add("financial_source_evidence_missing")
+    elif not evidence.is_complete:
+        reasons.add("financial_source_evidence_incomplete")
+
+    available_at = fact.available_at
+    if available_at is None:
+        reasons.add("financial_available_at_missing")
+    fetched_at = fact.fetched_at
+    if fetched_at.tzinfo is None or fetched_at.utcoffset() is None:
+        reasons.add("financial_fetched_at_invalid")
+    decision_evidence = fact.decision_evidence
+    if decision_evidence is None:
+        reasons.add("financial_decision_evidence_missing")
+    else:
+        artifact_reference = decision_evidence.artifact_reference
+        artifact_evidence = artifact_reference.evidence
+        request_scope = artifact_evidence.request_scope
+        completed_at = artifact_evidence.response_completed_at
+        if request_scope.provider_name != provider_name:
+            reasons.add("financial_response_provider_identity_mismatch")
+        if request_scope.period_limit != requested_periods:
+            reasons.add("financial_response_period_limit_mismatch")
+        if artifact_verifier is None or not artifact_verifier(provider, artifact_reference):
+            reasons.add("financial_response_artifact_not_retained")
+        if evidence is None or evidence.raw_payload_hash != artifact_evidence.body_sha256:
+            reasons.add("financial_response_body_hash_mismatch")
+        if evidence is None or evidence.source_record_id != decision_evidence.native_row_id:
+            reasons.add("financial_native_row_identity_mismatch")
+        if decision_evidence.native_asset_code != fact.asset_code:
+            reasons.add("financial_native_asset_identity_mismatch")
+        if decision_evidence.native_period_end != fact.period_end:
+            reasons.add("financial_native_period_identity_mismatch")
+        if (
+            evidence is not None
+            and evidence.announced_at is not None
+            and available_at is not None
+            and fetched_at.tzinfo is not None
+            and fetched_at.utcoffset() is not None
+            and not evidence.announced_at <= available_at <= completed_at <= fetched_at
+        ):
+            reasons.add("financial_source_time_order_invalid")
+    return reasons
+
+
+def _with_verified_financial_transport_metadata(fact: FinancialFact) -> FinancialFact:
+    """Project verified transport metadata needed by persisted publication evidence."""
+
+    decision_evidence = fact.decision_evidence
+    if decision_evidence is None:
+        raise ValueError("verified financial decision evidence is required")
+    artifact = decision_evidence.artifact_reference
+    return dataclasses.replace(
+        fact,
+        extra={
+            **fact.extra,
+            "financial_response_capture_id": str(artifact.capture_id),
+            "raw_payload_scope": artifact.evidence.body_scope.value,
+            "response_scope_basis": artifact.evidence.response_scope_basis.value,
+        },
+    )
+
+
 class SyncFinancialUseCase(_BaseSyncUseCase):
     def __init__(
         self,
@@ -332,53 +565,195 @@ class SyncFinancialUseCase(_BaseSyncUseCase):
         fact_repo: FinancialFactRepositoryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
         publication_publisher: PublishFinancialBatchUseCase | None = None,
+        artifact_verifier: FinancialResponseArtifactVerifier | None = None,
     ) -> None:
         super().__init__(provider_repo, provider_registry, raw_audit_repo)
         self._facts = fact_repo
         self._publication_publisher = publication_publisher
+        self._artifact_verifier = artifact_verifier
+
+    def probe_source_evidence(
+        self,
+        request: SyncFinancialRequest,
+    ) -> FinancialSourceEvidenceProbeResult:
+        """Fetch and classify source evidence without fact, publication, or sync-audit writes."""
+
+        config, provider = self._get_provider(request.provider_id)
+        facts = self._fetch_normalized(
+            request,
+            config=config,
+            provider=provider,
+        )
+        return _financial_source_probe_result(
+            provider=config,
+            provider_name=provider.provider_name(),
+            requested_periods=request.periods,
+            requested_asset_code=request.asset_code,
+            facts=facts,
+            artifact_verifier=self._artifact_verifier,
+        )
+
+    def prepare_for_write(self, request: SyncFinancialRequest) -> PreparedFinancialSync:
+        """Fetch and validate one immutable batch for a later no-refetch write."""
+
+        config, provider = self._get_provider(request.provider_id)
+        return self._prepare_for_write(
+            request,
+            config=config,
+            provider=provider,
+            started_at=datetime.now(UTC),
+        )
 
     def execute(self, request: SyncFinancialRequest) -> SyncResult:
         config, provider = self._get_provider(request.provider_id)
         started = datetime.now(UTC)
         params = {"asset_code": request.asset_code, "periods": request.periods}
         try:
-            facts = provider.fetch_financials(request.asset_code, periods=request.periods)
-            facts = self._normalize_fact_sources(
-                facts,
-                source_type=config.source_type,
-                provider_name=provider.provider_name(),
+            prepared = self._prepare_for_write(
+                request,
+                config=config,
+                provider=provider,
+                started_at=started,
             )
+        except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
+            self._record_financial_error(
+                config=config,
+                provider_name=provider.provider_name(),
+                params=params,
+                started_at=started,
+                error=exc,
+            )
+            raise
+        return self.execute_prepared(prepared)
+
+    def execute_prepared(self, prepared: PreparedFinancialSync) -> SyncResult:
+        """Write one source-verified prepared batch without another provider fetch."""
+
+        params = {
+            "asset_code": prepared.request.asset_code,
+            "periods": prepared.request.periods,
+        }
+        try:
+            facts = list(prepared.facts)
+            probe = _financial_source_probe_result(
+                provider=prepared.config,
+                provider_name=prepared.provider_name,
+                requested_periods=prepared.request.periods,
+                requested_asset_code=prepared.request.asset_code,
+                facts=facts,
+                artifact_verifier=self._artifact_verifier,
+            )
+            if probe != prepared.probe or not probe.decision_ready:
+                raise InvalidInputError(
+                    "prepared financial evidence changed before write",
+                    code="FINANCIAL_SOURCE_EVIDENCE_REQUIRED",
+                    details={"block_reasons": list(probe.block_reasons)},
+                )
             stored_count = self._facts.bulk_upsert(facts)
             if self._publication_publisher is not None and facts:
-                self._publication_publisher.execute(
-                    facts,
-                    provider_name=provider.provider_name(),
-                )
+                self._publication_publisher.execute(facts, provider_name=prepared.provider_name)
             audit_status, result_status = _sync_status(stored_count)
-            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - prepared.started_at).total_seconds() * 1000
             self._record_outcome(
-                config,
-                provider_name=provider.provider_name(),
+                prepared.config,
+                provider_name=prepared.provider_name,
                 capability="financial",
                 request_params=params,
                 status=audit_status,
                 row_count=stored_count,
                 latency_ms=latency_ms,
             )
-            return SyncResult("financial", provider.provider_name(), stored_count, result_status)
+            return SyncResult("financial", prepared.provider_name, stored_count, result_status)
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
-            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
-            self._record_outcome(
-                config,
-                provider_name=provider.provider_name(),
-                capability="financial",
-                request_params=params,
-                status="error",
-                row_count=0,
-                latency_ms=latency_ms,
-                error_message=str(exc),
+            self._record_financial_error(
+                config=prepared.config,
+                provider_name=prepared.provider_name,
+                params=params,
+                started_at=prepared.started_at,
+                error=exc,
             )
             raise
+
+    def _prepare_for_write(
+        self,
+        request: SyncFinancialRequest,
+        *,
+        config: ProviderConfig,
+        provider: UnifiedDataProviderProtocol,
+        started_at: datetime,
+    ) -> PreparedFinancialSync:
+        """Return the exact fetched facts only when their typed witness is complete."""
+
+        facts = self._fetch_normalized(request, config=config, provider=provider)
+        provider_name = provider.provider_name()
+        probe = _financial_source_probe_result(
+            provider=config,
+            provider_name=provider_name,
+            requested_periods=request.periods,
+            requested_asset_code=request.asset_code,
+            facts=facts,
+            artifact_verifier=self._artifact_verifier,
+        )
+        if not probe.decision_ready:
+            raise InvalidInputError(
+                "financial provider facts require complete source evidence before write",
+                code="FINANCIAL_SOURCE_EVIDENCE_REQUIRED",
+                details={"block_reasons": list(probe.block_reasons)},
+            )
+        facts = [_with_verified_financial_transport_metadata(fact) for fact in facts]
+        return PreparedFinancialSync(
+            config=config,
+            provider_name=provider_name,
+            request=request,
+            facts=tuple(facts),
+            probe=probe,
+            started_at=started_at,
+        )
+
+    def _record_financial_error(
+        self,
+        *,
+        config: ProviderConfig,
+        provider_name: str,
+        params: dict[str, object],
+        started_at: datetime,
+        error: Exception,
+    ) -> None:
+        """Persist the bounded failure outcome for a direct financial sync."""
+
+        latency_ms = (datetime.now(UTC) - started_at).total_seconds() * 1000
+        self._record_outcome(
+            config,
+            provider_name=provider_name,
+            capability="financial",
+            request_params=params,
+            status="error",
+            row_count=0,
+            latency_ms=latency_ms,
+            error_message=str(error),
+        )
+
+    def _fetch_normalized(
+        self,
+        request: SyncFinancialRequest,
+        *,
+        config: ProviderConfig,
+        provider: UnifiedDataProviderProtocol,
+    ) -> list[FinancialFact]:
+        """Fetch one financial batch and normalize provider identity without writing."""
+
+        facts = provider.fetch_financials(request.asset_code, periods=request.periods)
+        normalized = self._normalize_fact_sources(
+            facts,
+            source_type=config.source_type,
+            provider_name=provider.provider_name(),
+        )
+        require_single_asset_identity(
+            requested_asset_code=request.asset_code,
+            returned_asset_codes=[fact.asset_code for fact in normalized],
+            label="financial",
+        )
+        return normalized
 
 
 class SyncValuationUseCase(_BaseSyncUseCase):
@@ -543,10 +918,13 @@ def __getattr__(name: str) -> object:
 
 
 __all__ = [
+    "FinancialResponseArtifactVerifier",
+    "FinancialSourceEvidenceProbeResult",
     "MacroFailoverDecision",
     "MacroFailoverPolicy",
     "MacroFailoverPolicyProvider",
     "PreparedMacroSync",
+    "PreparedFinancialSync",
     "RECOVERABLE_DATA_CENTER_EXCEPTIONS",
     "SyncCapitalFlowUseCase",
     "SyncFinancialUseCase",

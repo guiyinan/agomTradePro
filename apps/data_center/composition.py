@@ -62,6 +62,9 @@ from apps.data_center.domain.protocols import (
     ProviderConfigRepositoryProtocol,
     ProviderRegistryProtocol,
 )
+from apps.data_center.financial_response_artifact_composition import (
+    verify_retained_financial_response_artifact,
+)
 from apps.data_center.infrastructure.archive_repositories import (
     ArchiveCandidateRepository,
     ArchiveCapacityGuard,
@@ -681,6 +684,7 @@ def make_core_current_fact_refresh_use_case(
             fact_repo=financial_repository,
             raw_audit_repo=raw_audit_repository,
             publication_publisher=None,
+            artifact_verifier=verify_retained_financial_response_artifact,
         ),
         financial_availability=FinancialAvailabilityBackfillUseCase(
             repository=financial_repository,

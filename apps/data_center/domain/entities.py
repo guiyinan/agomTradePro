@@ -24,7 +24,10 @@ from apps.data_center.domain.enums import (
     PriceAdjustment,
     ProviderHealthStatus,
 )
-from apps.data_center.domain.financial_source_evidence import FinancialFactSourceEvidence
+from apps.data_center.domain.financial_source_evidence import (
+    FinancialFactDecisionEvidence,
+    FinancialFactSourceEvidence,
+)
 
 # ---------------------------------------------------------------------------
 # Provider configuration value objects
@@ -583,6 +586,7 @@ class FinancialFact:
     fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     extra: dict[str, Any] = field(default_factory=dict)
     source_evidence: FinancialFactSourceEvidence | None = None
+    decision_evidence: FinancialFactDecisionEvidence | None = None
 
     def __post_init__(self) -> None:
         """Validate the fact and preserve optional source evidence as typed data."""
@@ -603,6 +607,10 @@ class FinancialFact:
             self.source_evidence, FinancialFactSourceEvidence
         ):
             raise ValueError("FinancialFact.source_evidence must be typed source evidence")
+        if self.decision_evidence is not None and not isinstance(
+            self.decision_evidence, FinancialFactDecisionEvidence
+        ):
+            raise ValueError("FinancialFact.decision_evidence must be typed decision evidence")
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize the fact without inferring missing source timestamps."""
@@ -621,6 +629,9 @@ class FinancialFact:
             "extra": self.extra,
             "source_evidence": (
                 self.source_evidence.to_dict() if self.source_evidence is not None else None
+            ),
+            "decision_evidence": (
+                self.decision_evidence.to_dict() if self.decision_evidence is not None else None
             ),
         }
 

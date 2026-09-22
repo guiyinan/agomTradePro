@@ -8,6 +8,7 @@ from copy import deepcopy
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from urllib.parse import unquote, urlsplit
+from uuid import UUID
 
 import pytest
 from django.db import connections
@@ -15,7 +16,17 @@ from django.db.utils import load_backend
 
 from apps.data_center.domain.entities import FinancialFact
 from apps.data_center.domain.enums import FinancialPeriodType
-from apps.data_center.domain.financial_source_evidence import FinancialFactSourceEvidence
+from apps.data_center.domain.financial_response_artifact import FinancialResponseArtifactRef
+from apps.data_center.domain.financial_response_evidence import (
+    FinancialRequestScope,
+    FinancialResponseEvidence,
+    FinancialResponseScope,
+    FinancialResponseScopeBasis,
+)
+from apps.data_center.domain.financial_source_evidence import (
+    FinancialFactDecisionEvidence,
+    FinancialFactSourceEvidence,
+)
 from apps.data_center.infrastructure.financial_fact_repository import (
     FinancialFactProvenanceConflictError,
     FinancialFactRepository,
@@ -154,6 +165,39 @@ def _fact(
 ) -> FinancialFact:
     """Build one financial fact with explicit source timing and optional witness."""
 
+    decision_evidence = None
+    if evidence is not None:
+        response = FinancialResponseEvidence(
+            body_sha256=evidence.raw_payload_hash or _SOURCE_HASH,
+            body_size_bytes=128,
+            response_completed_at=_AVAILABLE_AT + timedelta(minutes=1),
+            request_scope=FinancialRequestScope(
+                provider_name="provider-main",
+                dataset_key="equity.financial.fact",
+                asset_code=_ASSET_CODE,
+                period_limit=1,
+            ),
+            response_scope=FinancialResponseScope(
+                asset_codes=(_ASSET_CODE,),
+                period_ends=(_PERIOD_END,),
+                row_count=1,
+            ),
+            response_scope_basis=FinancialResponseScopeBasis.PROVIDER_BODY_VERIFIED,
+        )
+        decision_evidence = FinancialFactDecisionEvidence(
+            artifact_reference=FinancialResponseArtifactRef(
+                capture_id=UUID("50000000-0000-4000-8000-000000000001"),
+                location="financial-response/postgres-provenance.bin",
+                evidence=response,
+                format_version="financial-response-artifact.v1",
+                encryption_algorithm="fernet",
+                encryption_key_ref="config_center.data02.test-key",
+                encryption_key_version="v1",
+            ),
+            native_asset_code=_ASSET_CODE,
+            native_period_end=_PERIOD_END,
+            native_row_id=evidence.source_record_id or "pg-vendor-record-1",
+        )
     return FinancialFact(
         asset_code=_ASSET_CODE,
         period_end=_PERIOD_END,
@@ -165,6 +209,7 @@ def _fact(
         report_date=date(2026, 9, 13),
         available_at=_AVAILABLE_AT,
         source_evidence=evidence,
+        decision_evidence=decision_evidence,
     )
 
 
@@ -246,10 +291,10 @@ def test_financial_repository_stale_witness_rolls_back_postgresql_batch() -> Non
     protected.source_record_id = "pg-old-record"
     protected.raw_payload_hash = _SOURCE_HASH
     protected.save(update_fields=["announced_at", "source_record_id", "raw_payload_hash"])
-    replacement = _fact(metric_code="pg_protected", value=101.0)
-    new_fact = _fact(metric_code="pg_new", value=1.0)
+    replacement = _fact(metric_code="pg_protected", value=101.0, evidence=_evidence())
+    new_fact = _fact(metric_code="pg_new", value=1.0, evidence=_evidence())
 
-    with pytest.raises(FinancialFactProvenanceConflictError, match="stale"):
+    with pytest.raises(FinancialFactProvenanceConflictError, match="raw payload"):
         FinancialFactRepository().bulk_upsert([replacement, new_fact])
 
     protected.refresh_from_db()

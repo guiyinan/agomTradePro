@@ -12,10 +12,16 @@ from django.db.models import Q
 
 from apps.data_center.domain.entities import FinancialFact
 from apps.data_center.domain.financial_source_evidence import FinancialFactSourceEvidence
+from apps.data_center.infrastructure.financial_decision_evidence_codec import (
+    encode_financial_decision_evidence,
+)
 from apps.data_center.infrastructure.models import FinancialFactModel
 from core.exceptions import DataValidationError
 
 FinancialFactNaturalKey: TypeAlias = tuple[str, date, str, str, str]
+_VERIFIED_TRANSPORT_EXTRA_KEYS = frozenset(
+    {"financial_response_capture_id", "raw_payload_scope", "response_scope_basis"}
+)
 
 
 class FinancialFactProvenanceConflictError(DataValidationError):
@@ -31,6 +37,8 @@ def bulk_upsert_financial_facts(facts: list[FinancialFact]) -> int:
     if not facts:
         return 0
     _reject_duplicate_natural_keys(facts)
+    for fact in facts:
+        _validate_fact_decision_evidence(fact)
     with transaction.atomic():
         locked_before = _lock_rows_by_natural_key(facts)
         for fact in facts:
@@ -71,7 +79,14 @@ def bulk_upsert_financial_facts(facts: list[FinancialFact]) -> int:
         if normalized_updates:
             updated_count += FinancialFactModel._default_manager.bulk_update(
                 normalized_updates,
-                fields=["value", "unit", "report_date", "available_at", "extra"],
+                fields=[
+                    "value",
+                    "unit",
+                    "report_date",
+                    "available_at",
+                    "extra",
+                    "decision_evidence",
+                ],
                 batch_size=1_000,
             )
         if source_updates:
@@ -83,6 +98,7 @@ def bulk_upsert_financial_facts(facts: list[FinancialFact]) -> int:
                     "report_date",
                     "available_at",
                     "extra",
+                    "decision_evidence",
                     "announced_at",
                     "source_record_id",
                     "raw_payload_hash",
@@ -254,6 +270,37 @@ def _reject_duplicate_natural_keys(facts: Sequence[FinancialFact]) -> None:
         )
 
 
+def _validate_fact_decision_evidence(fact: FinancialFact) -> None:
+    """Require an internally consistent source/artifact binding for every canonical write."""
+
+    decision = fact.decision_evidence
+    if decision is None:
+        raise FinancialFactProvenanceConflictError(
+            "financial decision evidence is required for canonical writes"
+        )
+    source = fact.source_evidence
+    artifact = decision.artifact_reference.evidence
+    if source is None or not source.is_complete:
+        raise FinancialFactProvenanceConflictError(
+            "financial decision evidence requires complete source evidence"
+        )
+    if source.raw_payload_hash != artifact.body_sha256:
+        raise FinancialFactProvenanceConflictError(
+            "financial decision evidence body hash differs from source evidence"
+        )
+    if source.source_record_id != decision.native_row_id:
+        raise FinancialFactProvenanceConflictError(
+            "financial decision evidence row identity differs from source evidence"
+        )
+    if (
+        decision.native_asset_code != fact.asset_code
+        or decision.native_period_end != fact.period_end
+    ):
+        raise FinancialFactProvenanceConflictError(
+            "financial decision evidence dimensions differ from the fact"
+        )
+
+
 def _normalized_fields_match(fact: FinancialFact, row: FinancialFactModel) -> bool:
     """Compare fields the legacy upsert is allowed to replace."""
 
@@ -330,6 +377,19 @@ def _source_fields(fact: FinancialFact) -> tuple[datetime | None, str, str]:
     )
 
 
+def _decision_evidence_payload(fact: FinancialFact) -> dict[str, object]:
+    """Return the strict persisted projection for one fact."""
+
+    return encode_financial_decision_evidence(fact.decision_evidence)
+
+
+def _decision_evidence_matches(fact: FinancialFact, row: FinancialFactModel) -> bool:
+    """Compare the exact versioned decision-evidence projection."""
+
+    stored: object = getattr(row, "decision_evidence", None)
+    return (stored if stored is not None else {}) == _decision_evidence_payload(fact)
+
+
 def _row_has_source_evidence(row: FinancialFactModel) -> bool:
     """Return whether a row contains any existing source witness field."""
 
@@ -352,6 +412,21 @@ def _source_fields_match(fact: FinancialFact, row: FinancialFactModel) -> bool:
 def _validate_existing_row_update(fact: FinancialFact, row: FinancialFactModel) -> None:
     """Reject a value update that would retain or merge stale source proof."""
 
+    stored_decision: object = getattr(row, "decision_evidence", None)
+    requested_decision = _decision_evidence_payload(fact)
+    if stored_decision not in (None, {}) and not requested_decision:
+        raise FinancialFactProvenanceConflictError(
+            "financial decision evidence cannot be removed from an existing row"
+        )
+    if (
+        stored_decision not in (None, {})
+        and stored_decision != requested_decision
+        and fact.source_evidence is not None
+        and fact.source_evidence.raw_payload_hash == row.raw_payload_hash
+    ):
+        raise FinancialFactProvenanceConflictError(
+            "financial decision evidence cannot change for the same raw payload"
+        )
     if not _row_has_source_evidence(row):
         return
     normalized_same = _normalized_fields_match(fact, row)
@@ -361,7 +436,10 @@ def _validate_existing_row_update(fact: FinancialFact, row: FinancialFactModel) 
             raise FinancialFactProvenanceConflictError(
                 "stale financial source evidence requires complete replacement evidence"
             )
-        if evidence.raw_payload_hash == row.raw_payload_hash:
+        if (
+            evidence.raw_payload_hash == row.raw_payload_hash
+            and not _is_transport_metadata_upgrade(fact, row)
+        ):
             raise FinancialFactProvenanceConflictError(
                 "changed financial value cannot reuse the same raw payload"
             )
@@ -383,6 +461,33 @@ def _validate_missing_row_race(fact: FinancialFact, row: FinancialFactModel) -> 
         raise FinancialFactProvenanceConflictError(
             "concurrent financial source evidence differs from the requested witness"
         )
+    if fact.decision_evidence is not None and not _decision_evidence_matches(fact, row):
+        raise FinancialFactProvenanceConflictError(
+            "concurrent financial decision evidence differs from the requested witness"
+        )
+
+
+def _is_transport_metadata_upgrade(fact: FinancialFact, row: FinancialFactModel) -> bool:
+    """Allow only verified transport keys to augment an otherwise identical row."""
+
+    if fact.decision_evidence is None:
+        return False
+    stored_extra_raw: object = getattr(row, "extra", None)
+    if not isinstance(stored_extra_raw, dict):
+        return False
+    if any(fact.extra.get(key) != value for key, value in stored_extra_raw.items()):
+        return False
+    added_keys = frozenset(fact.extra) - frozenset(stored_extra_raw)
+    if not added_keys or not added_keys.issubset(_VERIFIED_TRANSPORT_EXTRA_KEYS):
+        return False
+    decision = fact.decision_evidence
+    artifact = decision.artifact_reference
+    expected = {
+        "financial_response_capture_id": str(artifact.capture_id),
+        "raw_payload_scope": artifact.evidence.body_scope.value,
+        "response_scope_basis": artifact.evidence.response_scope_basis.value,
+    }
+    return all(fact.extra.get(key) == value for key, value in expected.items())
 
 
 def _model_from_fact(fact: FinancialFact) -> FinancialFactModel:
@@ -400,6 +505,7 @@ def _model_from_fact(fact: FinancialFact) -> FinancialFactModel:
         report_date=fact.report_date,
         available_at=fact.available_at,
         extra=fact.extra,
+        decision_evidence=_decision_evidence_payload(fact),
         announced_at=announced_at,
         source_record_id=source_record_id,
         raw_payload_hash=raw_payload_hash,
@@ -409,8 +515,10 @@ def _model_from_fact(fact: FinancialFact) -> FinancialFactModel:
 def _update_existing_row(fact: FinancialFact, row: FinancialFactModel) -> bool:
     """Apply one prevalidated in-memory update and report whether it changed."""
 
-    if _normalized_fields_match(fact, row) and (
-        fact.source_evidence is None or _source_fields_match(fact, row)
+    if (
+        _normalized_fields_match(fact, row)
+        and (fact.source_evidence is None or _source_fields_match(fact, row))
+        and _decision_evidence_matches(fact, row)
     ):
         return False
     row.value = fact.value
@@ -418,6 +526,7 @@ def _update_existing_row(fact: FinancialFact, row: FinancialFactModel) -> bool:
     row.report_date = fact.report_date
     row.available_at = fact.available_at
     row.extra = fact.extra
+    row.decision_evidence = _decision_evidence_payload(fact)
     if fact.source_evidence is not None:
         announced_at, source_record_id, raw_payload_hash = _source_fields(fact)
         row.announced_at = announced_at
