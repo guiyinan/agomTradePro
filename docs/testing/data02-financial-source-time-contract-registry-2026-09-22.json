@@ -1,0 +1,97 @@
+{
+  "schema_version": "data02-financial-source-time-contract-registry.v1",
+  "recorded_at_utc": "2026-09-22T13:58:59.619038Z",
+  "repository_branch": "dev/next-development",
+  "base_commit": "7c5e5a18712f6851f2910c2a9468d0f175487eac",
+  "closure_unit": "DATA-02",
+  "registry_transition": {
+    "from_version": "2026-09-22.v167",
+    "to_version": "2026-09-22.v168",
+    "status_before": "awaiting_production",
+    "status_after": "awaiting_production"
+  },
+  "tdd_red": {
+    "command": "pytest tests/unit/data_center/test_financial_source_time_contract_registry.py -q",
+    "result": "collection error: ModuleNotFoundError for financial_source_time_contract"
+  },
+  "implemented_contract": {
+    "domain_type": "FinancialSourceTimeMatchContract",
+    "required_join_semantics": [
+      "asset_code",
+      "period_end",
+      "announcement_date"
+    ],
+    "bound_dimensions": [
+      "provider_name",
+      "financial_dataset_key",
+      "source_time_dataset_key",
+      "endpoint",
+      "contract_id",
+      "contract_version",
+      "parser_version",
+      "source_timezone",
+      "join_fields",
+      "source_row_id_field",
+      "announced_at_field",
+      "available_at_field",
+      "projection_fields",
+      "contract_sha256"
+    ],
+    "prohibited_time_fields": [
+      "response_completed_at",
+      "fetched_at",
+      "period_end"
+    ],
+    "canonical_hash_domain": "agomtradepro:financial-source-time-match-contract:v1",
+    "registry_path": "governance/financial_source_time_match_contracts.json",
+    "registry_status": "awaiting_owner_approval",
+    "registered_contract_count": 0,
+    "runtime_effect": "no provider contract is authorized; every exact lookup returns no match"
+  },
+  "verification": {
+    "focused_tests": "18 passed",
+    "new_domain_coverage": "98/98 statements, 34/34 branches, 100.0%",
+    "incremental_mypy": "0 regressions across 2 changed production Python files",
+    "full_mypy_debt": "0 errors in 0 files",
+    "black_isort_ruff": "passed",
+    "current_data_contracts": "66 surfaces, passed",
+    "active_plan_registry": "version 2026-09-22.v168, 54 units, 0 violations",
+    "governance_consistency": "0 violations",
+    "architecture": "3224 files, 7 rules, 0 violations"
+  },
+  "production_read_only_observation": {
+    "ssh_stdin_probe": "remote session did not return and was locally interrupted; no output was accepted as evidence",
+    "public_observed_at_utc": "2026-09-22T13:31:40.491282Z",
+    "public_statuses": {
+      "/api/health/": 200,
+      "/api/health/db/": 200,
+      "/api/ready/": 200,
+      "/api/decision-ready/": 503,
+      "/api/operational-readiness/release-identity/": 403
+    },
+    "candidate_bound_production_acceptance": false
+  },
+  "production_effects": {
+    "provider_calls": 0,
+    "database_writes": 0,
+    "deployments": 0,
+    "publication_switches": 0,
+    "authority_or_owner_policy_changes": 0
+  },
+  "luna_max_final_review": {
+    "slice_p0": 0,
+    "slice_p1": 0,
+    "data02_overall_p0": 0,
+    "data02_overall_p1": 1,
+    "decision": "contract_registry_slice_submittable",
+    "non_blocking_note": "Keep the loader API consistent when the first production consumer is introduced; the explicit NaN parser regression is now pinned."
+  },
+  "remaining_p1": [
+    "Implement an independently retained encrypted source-time artifact reader and exact audit link verifier.",
+    "Query all matching RawAudit rows and require exactly one non-empty recomputed content hash.",
+    "Implement a provider-specific matcher only after a real owner-approved contract is registered.",
+    "Wire the same concrete verifier into Application, canonical writes and ordinary/current Publication composition.",
+    "Collect real unique-match evidence before any production backfill or Publication promotion."
+  ],
+  "decision": "governed_contract_registry_closed_concrete_verifier_pending_p1"
+}\n

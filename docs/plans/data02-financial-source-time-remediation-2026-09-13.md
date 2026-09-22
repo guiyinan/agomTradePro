@@ -775,3 +775,17 @@ source-time artifact repository/verifier 去读取两份原件、核对审计并
 
 结构化证据见
 [DATA-02 财务来源时间原件绑定](../testing/data02-financial-source-time-artifact-binding-2026-09-22.json)。
+
+## 29. 2026-09-22 provider match contract 注册门
+
+来源时间 verifier 不再预留一个可以由调用方自由解释的 contract id。新增不可变
+`FinancialSourceTimeMatchContract`，其内容哈希同时绑定 provider、财务/来源时间 dataset、endpoint、
+parser、时区、row id 与 announced/available 字段、投影字段，以及资产、财政期末、公告日期三项必需
+join 语义。缺少 period-end 关系的 `ts_code+ann_date` 关联不能注册为 exact contract；
+`response_completed_at`、`fetched_at` 和 `period_end` 也不能被声明成来源时间字段。
+
+`governance/financial_source_time_match_contracts.json` 是当前注册真源。它仍为
+`awaiting_owner_approval` 且 `contracts=[]`，因此没有任何 provider 获得正向匹配资格。严格 loader 拒绝
+重复 JSON key、未知字段、内容哈希漂移、重复逻辑 identity、弱 join，以及未批准状态下夹带 contract。
+这一切片只关闭“任意 contract 声明可进入 verifier”的治理缺口；双原件 reader、唯一 RawAudit 查询、
+具体 matcher 与 production composition 接线仍是 P1，DATA-02 保持 `awaiting_production`。

@@ -512,3 +512,17 @@ composition 后才可关闭。
 结构化证据见
 [财务来源时间原件绑定封存](../testing/data02-financial-source-time-artifact-binding-2026-09-22.json)。
 本轮没有 provider/VPS/数据库访问、部署、生产写入或 Publication 切换。
+
+## DATA-02 财务来源时间 contract 注册门（2026-09-22）
+
+继续修复 Luna Max 保留的 P1 时，先关闭 contract 声明面。新增的 Domain contract 必须以 canonical
+SHA-256 绑定 provider、两个 dataset、endpoint、parser、时区、来源行和 timestamp 字段，并同时包含
+资产、财政期末、公告日期三项 join 语义；因此当前公开字段缺少 period 关系的 Tushare `anns_d` 不能只按
+`ts_code+ann_date` 注册成 exact contract。严格 JSON registry 只在 `status=active` 且存在非空、唯一、
+内容哈希一致的 contract 时返回 exact lookup。
+
+仓库 registry 当前仍为 `awaiting_owner_approval`、`contracts=[]`，所以没有新增正向来源时间路径。
+这一阶段尚未实现 source-time encrypted-body reader、唯一且 content-hash 完整的 RawAudit 查询、具体 matcher
+或 production composition 接线；P1 继续保留，DATA-02 继续 `awaiting_production`。本轮一次 SSH stdin
+只读重验因远端未返回而被本地中止，随后公网 health/db/ready 为 200、decision-ready 重试为 503；没有
+将这组不完整观测封存成生产候选验收，也没有执行 provider 或生产写入。

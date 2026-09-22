@@ -5975,6 +5975,51 @@
           "test_function": "test_execution_ready_requires_passed_data04_production_revalidation"
         }
       ]
+    },
+    {
+      "id": "data_center.financial_source_time_contract_registry",
+      "surface": "Owner-approved exact provider contract is required before financial source-time matching can be enabled",
+      "source_files": [
+        "apps/data_center/domain/financial_source_time_contract.py",
+        "apps/data_center/infrastructure/financial_source_time_contract_registry.py",
+        "governance/financial_source_time_match_contracts.json"
+      ],
+      "required_markers": {
+        "apps/data_center/domain/financial_source_time_contract.py": [
+          "class FinancialSourceTimeJoinSemantic(StrEnum):",
+          "PERIOD_END = \"period_end\"",
+          "financial source-time contract requires exact join semantics",
+          "financial source-time contract uses a synthetic time field",
+          "financial_source_time_contract_sha256"
+        ],
+        "apps/data_center/infrastructure/financial_source_time_contract_registry.py": [
+          "status == \"awaiting_owner_approval\" and raw_contracts",
+          "status == \"active\" and not raw_contracts",
+          "financial source-time registry contains a duplicate contract identity",
+          "object_pairs_hook=_object_pairs_no_duplicates"
+        ],
+        "governance/financial_source_time_match_contracts.json": [
+          "\"status\": \"awaiting_owner_approval\"",
+          "\"contracts\": []"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "financial_source_time_registry_default_denial",
+          "test_file": "tests/unit/data_center/test_financial_source_time_contract_registry.py",
+          "test_function": "test_repository_registry_is_awaiting_owner_approval_and_denies_lookup"
+        },
+        {
+          "case": "financial_source_time_registry_exact_identity",
+          "test_file": "tests/unit/data_center/test_financial_source_time_contract_registry.py",
+          "test_function": "test_active_registry_resolves_only_the_exact_contract_identity"
+        },
+        {
+          "case": "financial_source_time_registry_weak_join_rejected",
+          "test_file": "tests/unit/data_center/test_financial_source_time_contract_registry.py",
+          "test_function": "test_contract_requires_asset_period_and_announcement_date_join"
+        }
+      ]
     }
   ]
 }
