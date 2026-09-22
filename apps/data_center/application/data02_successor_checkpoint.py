@@ -559,24 +559,40 @@ def _fact_repair(
     )
     if eligible_assets > asset_count:
         raise Data02SuccessorCheckpointError("financial eligible assets exceed asset_count")
+    eligible_rows = _integer(financial_raw["eligible_row_count"], "financial.eligible_row_count")
+    future_available = _integer(
+        financial_raw["future_available_at_count"], "financial.future_available_at_count"
+    )
+    future_report = _integer(
+        financial_raw["future_report_date_count"], "financial.future_report_date_count"
+    )
+    missing_rows = _integer(financial_raw["missing_row_count"], "financial.missing_row_count")
+    unresolved_rows = _integer(
+        financial_raw["unresolved_row_count"], "financial.unresolved_row_count"
+    )
+    safe_to_execute = _boolean(financial_raw["safe_to_execute"], "financial.safe_to_execute")
+    expected_financial_safe = all(
+        count == 0
+        for count in (
+            eligible_rows,
+            future_available,
+            future_report,
+            missing_rows,
+            unresolved_rows,
+        )
+    )
+    if safe_to_execute != expected_financial_safe:
+        raise Data02SuccessorCheckpointError(
+            "financial.safe_to_execute conflicts with availability counts"
+        )
     financial = {
         "eligible_asset_count": eligible_assets,
-        "eligible_row_count": _integer(
-            financial_raw["eligible_row_count"], "financial.eligible_row_count"
-        ),
-        "future_available_at_count": _integer(
-            financial_raw["future_available_at_count"], "financial.future_available_at_count"
-        ),
-        "future_report_date_count": _integer(
-            financial_raw["future_report_date_count"], "financial.future_report_date_count"
-        ),
-        "missing_row_count": _integer(
-            financial_raw["missing_row_count"], "financial.missing_row_count"
-        ),
-        "safe_to_execute": _boolean(financial_raw["safe_to_execute"], "financial.safe_to_execute"),
-        "unresolved_row_count": _integer(
-            financial_raw["unresolved_row_count"], "financial.unresolved_row_count"
-        ),
+        "eligible_row_count": eligible_rows,
+        "future_available_at_count": future_available,
+        "future_report_date_count": future_report,
+        "missing_row_count": missing_rows,
+        "safe_to_execute": safe_to_execute,
+        "unresolved_row_count": unresolved_rows,
     }
     prices_raw = _mapping(
         raw["completed_session_prices"], "fact_repair_dry_run.completed_session_prices"
@@ -756,6 +772,10 @@ def _gate(value: object) -> dict[str, object]:
     activation_allowed = _boolean(
         raw["data03_activation_allowed"], "gate.data03_activation_allowed"
     )
+    if execution_ready and data04 != "passed":
+        raise Data02SuccessorCheckpointError(
+            "DATA-02 execution readiness requires passed DATA-04 production revalidation"
+        )
     if exit_complete and not execution_ready:
         raise Data02SuccessorCheckpointError(
             "DATA-02 exit gate cannot complete before execution readiness"
@@ -882,10 +902,25 @@ def parse_data02_successor_checkpoint(
     price_projection = _mapping(
         repair["completed_session_prices"], "fact_repair_dry_run.completed_session_prices"
     )
-    if bool(gate["data02_execution_ready"]) and (
-        not _boolean(price_projection["ready"], "prices.ready")
-        or not _boolean(publication["ready"], "publication.ready")
+    financial_projection = _mapping(
+        repair["financial_availability"], "fact_repair_dry_run.financial_availability"
+    )
+    expected_ready_without_refresh = (
+        _boolean(financial_projection["safe_to_execute"], "financial.safe_to_execute")
+        and _boolean(price_projection["ready"], "prices.ready")
+        and _boolean(publication["ready"], "publication.ready")
+    )
+    if (
+        _boolean(
+            repair["ready_without_provider_refresh"],
+            "fact_repair_dry_run.ready_without_provider_refresh",
+        )
+        != expected_ready_without_refresh
     ):
+        raise Data02SuccessorCheckpointError(
+            "fact_repair_dry_run.ready_without_provider_refresh conflicts with dry-run readiness"
+        )
+    if bool(gate["data02_execution_ready"]) and not expected_ready_without_refresh:
         raise Data02SuccessorCheckpointError(
             "DATA-02 execution readiness conflicts with dry-run readiness"
         )

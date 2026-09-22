@@ -56,6 +56,9 @@ def _payload(
     repair = payload["fact_repair_dry_run"]
     assert isinstance(repair, dict)
     repair["asset_count"] = denominator
+    financial = repair["financial_availability"]
+    assert isinstance(financial, dict)
+    financial["safe_to_execute"] = False
     prices = repair["completed_session_prices"]
     assert isinstance(prices, dict)
     prices["requested_asset_count"] = denominator
@@ -106,6 +109,44 @@ def _understate_quote_member_count(payload: dict[str, object]) -> None:
     publication["member_count"] = sum(
         int(item["member_count"]) for item in publication["datasets"].values()
     )
+
+
+def _make_price_and_publication_ready(payload: dict[str, object]) -> None:
+    """Make non-financial dry-run sections ready while retaining financial blockers."""
+
+    repair = payload["fact_repair_dry_run"]
+    denominator = int(repair["asset_count"])
+    prices = repair["completed_session_prices"]
+    prices["eligible_asset_count"] = denominator
+    prices["invalid_asset_count"] = 0
+    prices["missing_asset_count"] = 0
+    prices["ready"] = True
+    publication = payload["publication_rebuild_dry_run"]
+    financial = publication["datasets"]["equity.financial.fact"]
+    financial["covered_asset_count"] = denominator
+    financial["missing_asset_count"] = 0
+    financial["covered_asset_codes_hash"] = payload["universe"]["universe_hash"]
+    financial["ready"] = True
+    publication["ready"] = True
+
+
+def _make_all_data_ready(payload: dict[str, object]) -> None:
+    """Build a coherent data-ready projection without claiming execution completion."""
+
+    _make_price_and_publication_ready(payload)
+    repair = payload["fact_repair_dry_run"]
+    financial = repair["financial_availability"]
+    for field_name in (
+        "eligible_asset_count",
+        "eligible_row_count",
+        "future_available_at_count",
+        "future_report_date_count",
+        "missing_row_count",
+        "unresolved_row_count",
+    ):
+        financial[field_name] = 0
+    financial["safe_to_execute"] = True
+    repair["ready_without_provider_refresh"] = True
 
 
 def test_checked_in_v1_checkpoint_fails_closed_without_exact_universe_scope() -> None:
@@ -284,6 +325,18 @@ def test_universe_and_publication_scope_substitution_fails_closed(mutate, messag
             ),
             "decision probe",
         ),
+        (
+            lambda payload: payload["fact_repair_dry_run"]["financial_availability"].__setitem__(
+                "safe_to_execute", True
+            ),
+            "safe_to_execute conflicts",
+        ),
+        (
+            lambda payload: payload["fact_repair_dry_run"].__setitem__(
+                "ready_without_provider_refresh", True
+            ),
+            "ready_without_provider_refresh conflicts",
+        ),
     ],
 )
 def test_inconsistent_successor_checkpoint_fails_closed(mutate, message: str) -> None:
@@ -292,6 +345,56 @@ def test_inconsistent_successor_checkpoint_fails_closed(mutate, message: str) ->
     payload = _payload()
     mutate(payload)
     with pytest.raises(Data02SuccessorCheckpointError, match=message):
+        parse_data02_successor_checkpoint(
+            _bytes(payload),
+            expected_candidate=EXPECTED_CANDIDATE,
+            expected_universe=EXPECTED_UNIVERSE,
+            as_of=AS_OF,
+        )
+
+
+def test_execution_ready_requires_financial_availability_even_when_other_data_is_ready() -> None:
+    """Price and Publication readiness cannot hide an unsafe financial projection."""
+
+    payload = _payload()
+    _make_price_and_publication_ready(payload)
+    payload["gate"]["data02_execution_ready"] = True
+
+    with pytest.raises(Data02SuccessorCheckpointError, match="execution readiness conflicts"):
+        parse_data02_successor_checkpoint(
+            _bytes(payload),
+            expected_candidate=EXPECTED_CANDIDATE,
+            expected_universe=EXPECTED_UNIVERSE,
+            as_of=AS_OF,
+        )
+
+
+def test_execution_ready_accepts_one_coherent_all_data_ready_projection() -> None:
+    """The strengthened gate still accepts a coherent pre-execution readiness report."""
+
+    payload = _payload()
+    _make_all_data_ready(payload)
+    payload["gate"]["data02_execution_ready"] = True
+
+    report = parse_data02_successor_checkpoint(
+        _bytes(payload),
+        expected_candidate=EXPECTED_CANDIDATE,
+        expected_universe=EXPECTED_UNIVERSE,
+        as_of=AS_OF,
+    )
+
+    assert report.gate["data02_execution_ready"] is True
+
+
+def test_execution_ready_requires_passed_data04_production_revalidation() -> None:
+    """A data-ready snapshot cannot bypass the declared DATA-04 dependency."""
+
+    payload = _payload()
+    _make_all_data_ready(payload)
+    payload["gate"]["data02_execution_ready"] = True
+    payload["gate"]["data04_production_revalidation"] = "blocked"
+
+    with pytest.raises(Data02SuccessorCheckpointError, match="DATA-04 production revalidation"):
         parse_data02_successor_checkpoint(
             _bytes(payload),
             expected_candidate=EXPECTED_CANDIDATE,

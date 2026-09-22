@@ -736,3 +736,19 @@ canonical universe hash，顶层 member count 必须等于四个 dataset 的实�
 [DATA-02 successor 范围绑定 v2](../testing/data02-successor-scope-binding-v2-2026-09-22.json)。
 DATA-02 保持 `awaiting_production`；恢复条件仍为可信 source time/native row、当前 authority、owner 批准
 容差、明确生产写授权和真实四 Publication reconciliation。
+
+## 27. 2026-09-22 successor readiness 派生门禁
+
+v2 successor parser 现按 `FinancialAvailabilityBackfillPreview.safe_to_execute` 的生产定义重新计算财务
+安全状态：missing、eligible、unresolved、future report date 和 future available-at 五类行数必须全部为
+零。输入不能再通过把 `safe_to_execute=true` 与非零阻断计数一起提交来取得更高 readiness。
+
+`ready_without_provider_refresh` 也不再作为可信输入值，而是必须精确等于财务安全、completed-session
+price readiness 和四 Publication coverage readiness 的合取。`data02_execution_ready=true` 只能建立在同一
+合取和 `DATA-04 production revalidation=passed` 上。这样即使价格和 Publication 计数完整，缺失财务
+来源时间仍会阻断 execution-ready；一致的全绿预执行投影仍可通过，避免把 fail-closed 误写成永久拒绝。
+
+本单元只修正离线 successor 证据解释，不访问 provider/VPS/数据库，也不授权任何生产操作。结构化
+证据见
+[DATA-02 successor readiness 派生门禁](../testing/data02-successor-derived-readiness-2026-09-22.json)。
+DATA-02 继续 `awaiting_production`。

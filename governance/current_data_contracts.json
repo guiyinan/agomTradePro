@@ -5883,7 +5883,10 @@
           "expected_universe: Data02SuccessorUniverse",
           "full coverage must match universe hash",
           "publication.member_count must equal dataset sum",
-          "member_count cannot be smaller than covered assets"
+          "member_count cannot be smaller than covered assets",
+          "financial.safe_to_execute conflicts with availability counts",
+          "ready_without_provider_refresh conflicts with dry-run readiness",
+          "DATA-02 execution readiness requires passed DATA-04 production revalidation"
         ],
         "scripts/record_data02_successor_checkpoint.py": [
           "\"--expected-source-commit\"",
@@ -5914,6 +5917,21 @@
           "case": "publication_scope_substitution_fails_closed",
           "test_file": "tests/unit/data_center/test_data02_successor_checkpoint.py",
           "test_function": "test_universe_and_publication_scope_substitution_fails_closed"
+        },
+        {
+          "case": "financial_safe_flag_is_derived_from_counts",
+          "test_file": "tests/unit/data_center/test_data02_successor_checkpoint.py",
+          "test_function": "test_inconsistent_successor_checkpoint_fails_closed"
+        },
+        {
+          "case": "execution_readiness_requires_financial_availability",
+          "test_file": "tests/unit/data_center/test_data02_successor_checkpoint.py",
+          "test_function": "test_execution_ready_requires_financial_availability_even_when_other_data_is_ready"
+        },
+        {
+          "case": "execution_readiness_requires_data04_production_revalidation",
+          "test_file": "tests/unit/data_center/test_data02_successor_checkpoint.py",
+          "test_function": "test_execution_ready_requires_passed_data04_production_revalidation"
         }
       ]
     }

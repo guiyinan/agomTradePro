@@ -1,0 +1,129 @@
+{
+  "schema_version": "data02-successor-derived-readiness-closure.v1",
+  "generated_at": "2026-09-22T10:29:29.222764Z",
+  "candidate": {
+    "branch": "dev/next-development",
+    "baseline_commit": "eded7dc2691eae822cb03d49bc01c650c38dc095",
+    "commit": "containing_git_commit"
+  },
+  "classification": {
+    "scope": "Repository-only DATA-02 successor derived-readiness enforcement.",
+    "production_acceptance": false,
+    "production_ready": false,
+    "runtime_enablement": "not_authorized"
+  },
+  "implemented_contract": [
+    "financial.safe_to_execute must equal the authoritative zero-blocker projection across eligible, missing, unresolved, future-report and future-available row counts.",
+    "ready_without_provider_refresh must equal the conjunction of financial safety, completed-session price readiness and four-Publication coverage readiness.",
+    "data02_execution_ready cannot be true unless the same derived readiness is true.",
+    "data02_execution_ready cannot be true unless DATA-04 production revalidation is passed.",
+    "A coherent all-data-ready pre-execution projection remains accepted.",
+    "Historical v1 evidence remains immutable and fails closed under the current v2 parser."
+  ],
+  "tdd_red": [
+    {
+      "result": "expected_failure",
+      "observed": "3 failed, 25 passed",
+      "detail": "A supplied financial.safe_to_execute=true conflicted with nonzero availability blockers but was accepted."
+    },
+    {
+      "result": "expected_failure",
+      "observed": "3 failed, 25 passed",
+      "detail": "A supplied ready_without_provider_refresh=true conflicted with component readiness but was accepted."
+    },
+    {
+      "result": "expected_failure",
+      "observed": "1 failed, 29 passed",
+      "detail": "A data-ready execution projection did not require passed DATA-04 production revalidation."
+    }
+  ],
+  "production_actions": {
+    "vps_access": false,
+    "provider_fetch": false,
+    "database_read": false,
+    "database_write": false,
+    "deployment": false,
+    "publication_switch": false,
+    "authority_change": false,
+    "tolerance_change": false
+  },
+  "validation": {
+    "focused_pytest": {
+      "result": "passed",
+      "passed": 30,
+      "duration_seconds": 1.95
+    },
+    "incremental_mypy": {
+      "result": "passed",
+      "files": 1,
+      "regressions": 0,
+      "legacy_errors_observed": 0
+    },
+    "mypy_debt_ceiling": {
+      "result": "passed",
+      "errors": 0,
+      "files_with_errors": 0
+    },
+    "current_data_contracts": {
+      "result": "passed",
+      "surfaces": 65
+    },
+    "architecture": {
+      "result": "passed",
+      "scanned_files": 3221,
+      "boundary_rules": 7,
+      "violations": 0
+    },
+    "active_plan_registry": {
+      "result": "passed",
+      "registry_version": "2026-09-22.v164",
+      "units": 54,
+      "violations": 0
+    },
+    "governance_consistency": {
+      "result": "passed",
+      "baseline_version": "2026-09-09.v220",
+      "violations": 0
+    },
+    "format_and_lint": {
+      "result": "passed",
+      "black": true,
+      "isort": true,
+      "ruff": true,
+      "diff_check": true
+    }
+  },
+  "source_worktree_raw_sha256": {
+    "apps/data_center/application/data02_successor_checkpoint.py": "6621506882779df37fac861812456b333f93b01b7e6b68205e924f9e813d1424",
+    "tests/unit/data_center/test_data02_successor_checkpoint.py": "61d9cd852369fc282ff5f624d26a875e192c4f525c0f7d2c8e8178dee4d958e8",
+    "governance/current_data_contracts.json": "6f872d00509a5cff736fa8efb7aa31d22884f7d4b5a99c84b4ce885efb21b4c7",
+    "governance/active_plan_registry.json": "4a367b819c36d0323c5651665a62da3a35e43e8a37d81615ed6da88e8045f4fd",
+    "docs/plans/data02-financial-source-time-remediation-2026-09-13.md": "d98c76102256323e24b9857f6497fa87b02a8237a89472f0c2950dced01e73f6",
+    "docs/reviews/production-closure-2026-09-20.md": "e3436855ddc7ff7f2d3d1067ee5e27822d3f4ba3e6712b733bd87cf1e44a40c2"
+  },
+  "hash_scope": {
+    "source_worktree_raw_sha256": "Raw local worktree bytes at evidence generation.",
+    "raw_summary_sha256": "Raw UTF-8 LF summary bytes."
+  },
+  "independent_review": {
+    "reviewer": "gpt-5.6-luna",
+    "reasoning_effort": "max",
+    "final_result": "P0=0, P1=0",
+    "detail": "Derived financial safety, composite no-refresh readiness and DATA-04 execution dependency are correct; historical v1 remains fail-closed and 30 focused tests pass."
+  },
+  "governance": {
+    "registry_transition": "2026-09-22.v163 -> 2026-09-22.v164",
+    "unit": "DATA-02",
+    "status_before": "awaiting_production",
+    "status_after": "awaiting_production",
+    "reason": "Repository readiness is now derived fail-closed; genuine production source time, authority, authorization and reconciliation gates remain open."
+  },
+  "remaining_gates": [
+    "Obtain trustworthy timezone-aware provider source-time and native-row evidence without synthesis.",
+    "Obtain current authority and owner-approved numeric tolerances.",
+    "Obtain explicit production-write authorization.",
+    "Run authorized provider backfill and real four-Publication reconciliation."
+  ],
+  "raw_summary": "docs/testing/data02-successor-derived-readiness-2026-09-22.txt",
+  "raw_summary_sha256": "8aebbd5fda3d9c650bb80b39fb3b1acb38807b60f9ec9a9b49701e62d29b4424"
+}
