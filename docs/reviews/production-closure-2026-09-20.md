@@ -418,3 +418,20 @@ cutoff，以及 Tushare、AKShare、Alpha 三条决策调用。Luna Max 最终�
 会按设计返回空，DATA-02 继续 `awaiting_production`。结构化证据见
 [历史财务知识截止封存](../testing/data02-financial-decision-knowledge-cutoff-2026-09-22.json)。
 本轮没有 provider 调用、部署、生产/本地业务数据写入或 Publication 切换。
+
+## 候选 f9a96b611 生产只读重验（2026-09-22）
+
+当前仓库候选 f9a96b611 相比生产 439468482 已领先 27 个 commit；生产仍运行
+/opt/agomtradepro/releases/source-20260920184626，Web/Prometheus healthy 且无重启，
+公网 health、db health、ready 为 200，decision-ready 按设计保持 503。冻结 A 股分母仍为
+5,565；quote、price、valuation 的 current Publication 各有 5,565 members，financial 仍为 80。
+
+本轮在收盘后执行两个无 --execute 的只读预检。repair 与独立四 Publication dry-run 均越过
+session-time 门，并在 provider 调用前以 financial source announced_at is required fail closed。
+current actor、owner、joined authority heads 仍为 0；v17 仍为 audit mode=off、outbox=false、
+selector absent。受保护监控使用 root-only 凭据与匿名请求仍均返回 401，因此 TUI-02 不能重绑首样本。
+
+结构化证据见[候选 f9a96b611 生产只读重验](../deployment/production-closure-revalidation-2026-09-22-f9a96b611.json)，
+原始探针、输出及哈希清单见同名 -raw.zip。registry v161 → v162；DATA-02、EVID-01/02、
+AUD-03 状态不变，TUI-02 继续 active。本轮没有部署、provider 调用、生产写入、profile 激活或
+Publication 切换。
