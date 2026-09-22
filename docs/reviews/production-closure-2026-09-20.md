@@ -628,10 +628,11 @@ provider 调用、生产写入、profile 激活或 Publication 切换。
 没有把真实 owner receipt 绑定到精确的合约集合。若未来人工只改 status，或者审批后替换、增删合约，
 loader 无法证明当前集合就是被批准的集合。
 
-registry v2 新增 typed approval，要求秒精度 canonical UTC-Z 审批时间、owner 标识、receipt SHA-256 和
+registry v2 新增 typed approval，要求 UTC 整秒审批时间、owner 标识、receipt SHA-256 和
 `contract_set_sha256`。集合摘要只接受已经逐项通过 Domain 校验且内容寻址的 contract digest，排序不影响
-结果，增删或替换任一合约都会失配。JSON loader 与 frozen registry 直接构造共享同一不变量；pending 状态
-必须保持 `contracts=[]`、`approval=null`，active 缺失 approval 或 approval 指向其他集合时失败关闭。
+结果，增删或替换任一合约都会失配。JSON loader 另外要求 canonical `Z` 文本，frozen direct construction
+要求 zero-offset UTC datetime 与整秒精度；pending 状态必须保持 `contracts=[]`、`approval=null`，active
+缺失 approval 或 approval 指向其他集合时失败关闭。
 
 仓库登记仍为 `awaiting_owner_approval`、空合约和空 approval，因此没有 provider 被授权，也没有新增
 matcher 或 source-time producer。receipt digest 只证明登记值符合内容锚点格式，不证明签署人是真实当前
@@ -675,5 +676,34 @@ root-only 凭据与匿名请求仍均返回 401，因此 TUI-02 不能绑定首�
 结构化证据见
 [候选 67cfef48f0 生产只读重验](../deployment/production-closure-revalidation-2026-09-23-67cfef48f0.json)，
 原始探针、输出与哈希清单见同名 `-raw.zip`。registry v174 → v175；DATA-02、EVID-01/02、AUD-03
+状态不变，TUI-02 继续 active。本轮只通过 SSH stdin 执行只读事务和无 execute 预检，没有部署、
+provider 调用、生产写入、profile 激活或 Publication 切换。
+
+## DATA-02 审批时间直接构造收紧（2026-09-23）
+
+Luna Max 复核发现，JSON loader 已拒绝带小数秒的审批时间，但 frozen approval 对象的直接构造只验证
+UTC offset，没有拒绝非零微秒。直接构造现在也要求整秒，并增加 JSON `.000001Z` 与 Python datetime
+微秒输入的回归；两条入口在 UTC 整秒语义上保持一致，同时保留 loader 独有的 canonical `Z` 文本约束。
+
+结构化证据见
+[审批时间直接构造封存](../testing/data02-financial-source-time-direct-approval-timestamp-2026-09-23.json)。
+registry v175 → v176，DATA-02 保持 `awaiting_production`。仓库 contract registry 仍为 pending、空 contract、
+空 approval；本轮没有 owner/provider 授权、生产访问、部署、生产写入或 Publication 切换。
+
+## 候选 4e8c4ec7d9 生产只读重验（2026-09-23）
+
+当前仓库候选 `4e8c4ec7d9` 比生产 `439468482 / 20260920184626` 领先 42 个 commit。生产 Web 与
+Prometheus 容器仍 healthy 且无重启；公网 health、db health、ready 为 200，decision-ready 按设计为
+503。冻结 A 股分母仍为 5,565，quote、price、valuation current Publication 各有 5,565 members，
+financial 仍为 80。
+
+两个未传 `--execute` 的 DATA-02 预检继续在 provider 调用前因
+`financial source announced_at is required` fail closed。temporally current actor、owner、joined authority
+heads 仍全部为 0；v17 audit mode=off、outbox=false、selector absent。受保护监控使用 root-only 凭据与
+匿名请求仍均返回 401，因此 TUI-02 不能绑定首样本或启动新的观察窗口。
+
+结构化证据见
+[候选 4e8c4ec7d9 生产只读重验](../deployment/production-closure-revalidation-2026-09-23-4e8c4ec7d9.json)，
+原始探针、输出与哈希清单见同名 `-raw.zip`。registry v176 → v177；DATA-02、EVID-01/02、AUD-03
 状态不变，TUI-02 继续 active。本轮只通过 SSH stdin 执行只读事务和无 execute 预检，没有部署、
 provider 调用、生产写入、profile 激活或 Publication 切换。
