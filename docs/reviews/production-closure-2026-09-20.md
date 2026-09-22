@@ -469,3 +469,20 @@ TDD red、30 项聚焦回归、类型与治理门禁及 Luna Max 复核封存在
 [DATA-02 successor readiness 证据](../testing/data02-successor-derived-readiness-2026-09-22.json)。
 registry v163 → v164，DATA-02 继续 `awaiting_production`；没有 provider/VPS/数据库访问、部署、生产
 写入、Publication 切换或 authority/tolerance 变更。
+
+## 候选 4e36b6604 生产只读重验（2026-09-22）
+
+当前仓库候选 `4e36b6604` 比生产 `439468482 / 20260920184626` 领先 30 个 commit。生产 Web 与
+Prometheus 容器仍 healthy 且无重启；公网 health、db health、ready 为 200，decision-ready 按设计为
+503。冻结 A 股分母仍为 5,565，quote、price、valuation current Publication 各有 5,565 members，
+financial 仍为 80。
+
+两个无 `--execute` 的 DATA-02 预检均在 provider 调用前因 `financial source announced_at is required`
+fail closed。temporally current actor、owner、joined authority heads 仍全部为 0；v17 audit mode=off、
+outbox=false、selector absent。受保护监控的凭据请求与匿名请求仍均为 401，因此 TUI-02 不能绑定首样本。
+当前 successor readiness、来源证据写前门禁与版本退役治理均尚未部署，不能用仓库绿灯替代生产验收。
+
+结构化证据见[候选 4e36b6604 生产只读重验](../deployment/production-closure-revalidation-2026-09-22-4e36b6604.json)，
+原始探针、输出和哈希清单见同名 `-raw.zip`。Luna Max 最终复核为 P0=0、P1=0。registry
+v164 → v165；DATA-02、EVID-01/02、AUD-03 状态不变，TUI-02 继续 active。本轮没有部署、provider 调用、生产写入、profile 激活或
+Publication 切换。
