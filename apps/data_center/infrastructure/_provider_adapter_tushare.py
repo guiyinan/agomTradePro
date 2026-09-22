@@ -23,6 +23,11 @@ from apps.data_center.domain.entities import (
 from apps.data_center.domain.enums import (
     DataQualityStatus,
 )
+from apps.data_center.domain.financial_response_artifact import FinancialResponseArtifactRef
+from apps.data_center.domain.financial_source_evidence import (
+    FinancialFactDecisionEvidence,
+    FinancialFactSourceEvidence,
+)
 from apps.data_center.domain.model_market_data import ModelMarketDataPort
 from apps.data_center.domain.rules import normalize_asset_code
 from apps.data_center.financial_response_artifact_composition import (
@@ -181,6 +186,7 @@ def _financial_fact_builder(
     report_type: str,
     source: str,
     extra: dict[str, Any],
+    artifact_reference: FinancialResponseArtifactRef | None = None,
 ) -> Callable[[str, float, str], FinancialFact]:
     """Bind one financial period's shared fields to a typed fact constructor."""
 
@@ -189,6 +195,26 @@ def _financial_fact_builder(
     def build(metric_code: str, value: float, unit: str) -> FinancialFact:
         """Keep date-only announcement evidence unavailable for intraday decisions."""
 
+        source_evidence: FinancialFactSourceEvidence | None = None
+        decision_evidence: FinancialFactDecisionEvidence | None = None
+        if artifact_reference is not None:
+            native_row_id = _financial_native_row_id(
+                asset_code=asset_code,
+                period_end=period_end,
+                report_date=report_date,
+                metric_code=metric_code,
+            )
+            source_evidence = FinancialFactSourceEvidence(
+                announced_at=None,
+                source_record_id=native_row_id,
+                raw_payload_hash=artifact_reference.evidence.body_sha256,
+            )
+            decision_evidence = FinancialFactDecisionEvidence(
+                artifact_reference=artifact_reference,
+                native_asset_code=asset_code,
+                native_period_end=period_end,
+                native_row_id=native_row_id,
+            )
         return FinancialFact(
             asset_code=asset_code,
             period_end=period_end,
@@ -200,9 +226,39 @@ def _financial_fact_builder(
             report_date=report_date,
             available_at=None,
             extra=extra,
+            source_evidence=source_evidence,
+            decision_evidence=decision_evidence,
         )
 
     return build
+
+
+def _financial_native_row_id(
+    *,
+    asset_code: str,
+    period_end: date,
+    report_date: date | None,
+    metric_code: str,
+) -> str:
+    """Build the bounded identity of one metric projected from a provider row."""
+
+    announcement = report_date.strftime("%Y%m%d") if report_date is not None else "unknown"
+    row_id = (
+        f"tushare:fina_indicator:{asset_code}:"
+        f"{period_end.strftime('%Y%m%d')}:{announcement}:{metric_code}"
+    )
+    if len(row_id) > 200:
+        raise ValueError("financial native row identity exceeds storage limit")
+    return row_id
+
+
+def _financial_artifact_from_frame(frame: object) -> FinancialResponseArtifactRef | None:
+    """Read an optional retained reference carried by the financial result frame."""
+
+    reference = getattr(frame, "artifact_reference", None)
+    if reference is not None and not isinstance(reference, FinancialResponseArtifactRef):
+        raise TypeError("financial frame artifact reference must be typed")
+    return reference
 
 
 class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
@@ -768,6 +824,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             ts_code=normalize_asset_code(asset_code, "tushare"),
             limit=max(periods, 1),
         )
+        artifact_reference = _financial_artifact_from_frame(frame)
         if frame is None or frame.empty:
             return []
         native_facts: list[FinancialFact] = []
@@ -788,6 +845,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 report_type=report_type,
                 source=self.provider_source(),
                 extra=self._provider_extra(),
+                artifact_reference=artifact_reference,
             )
 
             for metric_code, raw_value, unit in (

@@ -346,3 +346,23 @@ mypy、全量 mypy、64 个 current-data contracts、92 个 Celery contracts，�
 [DATA-02 财务来源证据写前门禁封存](../testing/data02-financial-source-evidence-prewrite-gate-2026-09-22.json)。
 registry v155 → v156，DATA-02 继续 `awaiting_production`。本轮没有访问 provider、部署、生产写入、
 Publication 切换或 authority/tolerance 变更。
+
+## DATA-02 Tushare 留存正文与来源行绑定（2026-09-22）
+
+Tushare 的 opt-in 财务响应 handler 现在返回 typed payload/reference pair；unified relay、REST path 和
+routed SDK 三条 transport 路径把同一个 `FinancialResponseArtifactRef` 带到 adapter。adapter 按实际
+`ts_code`、`end_date`、`ann_date` 和 metric 构造稳定的 canonical provider-row coordinate，并将每个
+FinancialFact 绑定到已加密留存的原始 body SHA-256、正文验证后的资产/期间范围和同一个 native row
+identity。该坐标是从真实 provider row dimensions 派生的事实坐标，不宣称是供应商提供的 opaque id。
+
+`ann_date` 只有日期，不能证明公告时刻或业务可用时刻；adapter 因此继续保持 `announced_at=None`、
+`available_at=None`。端到端测试覆盖 capture、加密留存、审计、adapter 和严格同步，确认阻断原因只剩
+`financial_source_evidence_incomplete` 与 `financial_available_at_missing`，且 FinancialFact writer
+零调用。治理契约也已把旧的“report date becomes available_at”描述改成“date-only report date 不具备
+availability 权威性”。AKShare 仍未提供同等级 artifact/row binding。
+
+本轮只完成可追溯绑定，没有把 DATA-02 改为完成。恢复生产回填仍需可信且 timezone-aware 的公告/
+可用时间来源、当前 authority、owner 批准的容差、明确生产写授权和真实四 Publication 对账。本轮未访问
+provider、未部署、未写生产、未切换 Publication，也没有补造来源时间。结构化证据见
+[DATA-02 Tushare 留存行绑定封存](../testing/data02-tushare-retained-row-binding-2026-09-22.json)。
+registry v157 → v158，DATA-02 保持 `awaiting_production`。

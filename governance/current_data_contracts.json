@@ -4153,9 +4153,9 @@
           "test_function": "test_current_valuation_batch_invokes_publication_after_fact_write"
         },
         {
-          "case": "tushare_report_date_becomes_available_at",
-          "test_file": "tests/unit/data_center/test_phase3_provider_adapters.py",
-          "test_function": "test_tushare_unified_provider_adapter_builds_typed_financial_facts"
+          "case": "tushare_report_date_remains_non_authoritative_for_availability",
+          "test_file": "tests/unit/data_center/test_data02_provider_artifact_adoption.py",
+          "test_function": "test_tushare_adapter_binds_retained_body_and_native_row_without_inventing_time"
         },
         {
           "case": "akshare_notice_date_becomes_available_at",
@@ -5763,10 +5763,12 @@
     },
     {
       "id": "data_center.financial_provider_body_scope",
-      "surface": "Financial provider response scope is verified from raw body fields before current publication eligibility",
+      "surface": "Financial provider body scope, retained artifact and exact row binding are required before current publication eligibility",
       "source_files": [
+        "apps/data_center/application/financial_response_artifact.py",
         "apps/data_center/domain/financial_response_evidence.py",
         "apps/data_center/financial_response_artifact_composition.py",
+        "apps/data_center/infrastructure/_provider_adapter_tushare.py",
         "apps/data_center/infrastructure/financial_response_body_store.py",
         "apps/data_center/infrastructure/tushare_client.py"
       ],
@@ -5779,16 +5781,29 @@
         "apps/data_center/financial_response_artifact_composition.py": [
           "def _verified_financial_response_scope(",
           "requested_asset_code=asset_code",
-          "row_count=verified_scope.row_count"
+          "row_count=verified_scope.row_count",
+          "return RetainedFinancialResponsePayload("
         ],
         "apps/data_center/infrastructure/financial_response_body_store.py": [
           "evidence.response_scope_basis.value",
           "response_scope_basis = FinancialResponseScopeBasis("
         ],
         "apps/data_center/infrastructure/tushare_client.py": [
+          "class _RetainedFinancialFrame:",
+          "def _unwrap_retained_financial_payload(",
           "def _validated_provider_code(",
           "isinstance(provider_code, bool)",
           "code=\"TUSHARE_INVALID_PAYLOAD\""
+        ],
+        "apps/data_center/application/financial_response_artifact.py": [
+          "class RetainedFinancialResponsePayload:",
+          "reference: FinancialResponseArtifactRef"
+        ],
+        "apps/data_center/infrastructure/_provider_adapter_tushare.py": [
+          "def _financial_native_row_id(",
+          "artifact_reference = _financial_artifact_from_frame(frame)",
+          "FinancialFactDecisionEvidence(",
+          "announced_at=None"
         ]
       },
       "required_tests": [
@@ -5803,14 +5818,19 @@
           "test_function": "test_tushare_handler_rejects_unverifiable_provider_body_scope"
         },
         {
-          "case": "verified_scope_round_trips_through_encrypted_store_and_audit",
+          "case": "retained_body_and_native_row_bind_without_inventing_source_time",
           "test_file": "tests/unit/data_center/test_data02_provider_artifact_adoption.py",
-          "test_function": "test_tushare_adapter_client_egress_capture_store_and_audit_chain"
+          "test_function": "test_tushare_adapter_binds_retained_body_and_native_row_without_inventing_time"
         },
         {
           "case": "all_routed_clients_require_exact_integer_success_code",
           "test_file": "tests/unit/data_center/test_egress_tushare_transport.py",
           "test_function": "test_routed_clients_reject_non_integer_provider_codes"
+        },
+        {
+          "case": "all_routed_financial_clients_preserve_retained_artifact_reference",
+          "test_file": "tests/unit/data_center/test_egress_tushare_transport.py",
+          "test_function": "test_routed_financial_clients_preserve_retained_artifact_reference"
         }
       ]
     }

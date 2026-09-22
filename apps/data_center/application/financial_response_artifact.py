@@ -75,6 +75,20 @@ class FinancialResponseArtifactRetention:
     audit: RawAudit
 
 
+@dataclass(frozen=True, slots=True)
+class RetainedFinancialResponsePayload:
+    """Carry a decoded provider payload with its exact retained body reference."""
+
+    payload: object
+    reference: FinancialResponseArtifactRef
+
+    def __post_init__(self) -> None:
+        """Reject an untyped artifact reference at the transport boundary."""
+
+        if not isinstance(self.reference, FinancialResponseArtifactRef):
+            raise ValueError("retained financial response reference must be typed")
+
+
 class FinancialResponseArtifactAuditError(DataFetchError):
     """Raised when an encrypted body exists but its audit link was not committed."""
 
@@ -504,6 +518,7 @@ __all__ = [
     "FinancialResponseFailureAuditLookupError",
     "FinancialResponseFailureAuditPort",
     "FinancialResponseFailureRetention",
+    "RetainedFinancialResponsePayload",
     "RetainFinancialResponseArtifactUseCase",
     "RetainFinancialResponseFailureUseCase",
 ]

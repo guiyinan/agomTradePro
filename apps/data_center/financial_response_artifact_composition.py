@@ -12,6 +12,9 @@ from django.db import DatabaseError
 from apps.data_center.application.egress_service import (
     execute_financial_response_request,
 )
+from apps.data_center.application.financial_response_artifact import (
+    RetainedFinancialResponsePayload,
+)
 from apps.data_center.domain.egress_routing import EgressRequestContext
 from apps.data_center.domain.entities import ProviderConfig
 from apps.data_center.domain.financial_response_artifact import FinancialResponseArtifactRef
@@ -47,8 +50,8 @@ class TushareFinancialResponseHandler(Protocol):
         json_body: Mapping[str, object] | None,
         headers: Mapping[str, str] | None,
         api_name: str,
-    ) -> object:
-        """Capture, retain, and return one provider payload."""
+    ) -> RetainedFinancialResponsePayload:
+        """Capture, retain, and return one payload/reference pair."""
         ...
 
 
@@ -76,7 +79,7 @@ class _ConfiguredTushareFinancialResponseHandler:
         json_body: Mapping[str, object] | None,
         headers: Mapping[str, str] | None,
         api_name: str,
-    ) -> object:
+    ) -> RetainedFinancialResponsePayload:
         """Capture one typed financial response before returning its payload."""
 
         if api_name != FINANCIAL_API_NAME or context.dataset_key != FINANCIAL_DATASET_KEY:
@@ -140,7 +143,7 @@ class _ConfiguredTushareFinancialResponseHandler:
             captured.evidence,
             verified_scope,
         )
-        self._repository.retain(
+        retention = self._repository.retain(
             capture_id=request_id,
             evidence=verified_evidence,
             body=captured.raw_body,
@@ -149,7 +152,10 @@ class _ConfiguredTushareFinancialResponseHandler:
             row_count=verified_scope.row_count,
             provider_id=self._provider_id,
         )
-        return captured.payload
+        return RetainedFinancialResponsePayload(
+            payload=captured.payload,
+            reference=retention.reference,
+        )
 
 
 def get_financial_response_artifact_repository(

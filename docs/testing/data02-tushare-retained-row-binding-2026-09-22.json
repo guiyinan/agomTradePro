@@ -1,0 +1,147 @@
+{
+  "schema_version": "data02-tushare-retained-row-binding-closure.v1",
+  "generated_at": "2026-09-22T06:09:24.695557Z",
+  "candidate": {
+    "branch": "dev/next-development",
+    "baseline_commit": "f788dfe62d27d1648ba98d7eaaabbb7c42dd40df",
+    "commit": "containing_git_commit"
+  },
+  "classification": {
+    "scope": "Repository-only Tushare retained response and canonical provider-row binding.",
+    "production_acceptance": false,
+    "production_ready": false,
+    "runtime_enablement": "not_authorized"
+  },
+  "production_actions": {
+    "deployment": false,
+    "provider_fetch": false,
+    "database_write": false,
+    "publication_switch": false,
+    "authority_change": false
+  },
+  "implemented_contract": [
+    "A retained financial response returns its decoded payload and exact typed artifact reference as one immutable value.",
+    "Unified relay, REST path and routed SDK financial modes preserve that reference on the dataframe-compatible result.",
+    "Tushare facts bind the retained body SHA-256, native asset, native fiscal period and a bounded canonical provider-row coordinate.",
+    "The coordinate is derived from ts_code/end_date/ann_date/metric and is not claimed to be a provider-issued opaque identifier.",
+    "Date-only ann_date does not populate announced_at or available_at.",
+    "Strict sync blocks before bulk_upsert when trustworthy source time remains absent."
+  ],
+  "validation": {
+    "tdd_red": {
+      "result": "expected_failure",
+      "failed": 2,
+      "detail": "The handler discarded the retention reference and adapter facts lacked source/decision evidence."
+    },
+    "focused_tests": {
+      "result": "passed",
+      "passed": 146,
+      "skipped": 0,
+      "execution": "split runs; includes the 302.13-second Django repository candidate case"
+    },
+    "three_routed_modes": {
+      "result": "passed",
+      "passed": 3,
+      "modes": [
+        "sdk_path",
+        "rest_path",
+        "unified_relay"
+      ]
+    },
+    "incremental_mypy": {
+      "result": "passed",
+      "files": 4,
+      "regressions": 0,
+      "legacy_errors_observed": 0
+    },
+    "mypy_debt_ceiling": {
+      "result": "passed",
+      "errors": 0,
+      "files_with_errors": 0
+    },
+    "current_data_contracts": {
+      "result": "passed",
+      "surfaces": 64
+    },
+    "architecture": {
+      "result": "passed",
+      "scanned_files": 3221,
+      "boundary_violations": 0,
+      "audit_violations": 0
+    },
+    "governance": {
+      "result": "passed",
+      "baseline_version": "2026-09-09.v220",
+      "violations": 0,
+      "registry_version": "2026-09-22.v158",
+      "registry_units": 54
+    },
+    "migration_check": {
+      "result": "passed",
+      "changes": 0
+    },
+    "format_and_lint": {
+      "result": "passed",
+      "black": true,
+      "isort": true,
+      "ruff": true,
+      "diff_check": true
+    }
+  },
+  "source_worktree_raw_sha256": {
+    "apps/data_center/application/financial_response_artifact.py": "3efee245404e06914a997d6d7c3d64ca27c9fc566240e1030544798eb93941a1",
+    "apps/data_center/financial_response_artifact_composition.py": "23d1b819edd9f76dce9070610be94c0bc31f5a5a9a7ac87bf9ef9f37a04d0a9b",
+    "apps/data_center/infrastructure/_provider_adapter_tushare.py": "1053aa4227ccd3322f68af0e5c3e428764099053d47a99a2204d886822560a1f",
+    "apps/data_center/infrastructure/tushare_client.py": "f6d51b1d2073abf04ed4930ca1910b61fd79219002b1b6649c957bf11f62de7c",
+    "tests/unit/data_center/test_data02_provider_artifact_adoption.py": "d0d8f555c99dfa3cd90eda8dbce692dd637077e747d089dbe4da334804b7200e",
+    "tests/unit/data_center/test_egress_tushare_transport.py": "cd0ce56f80b3643ef0109fd4543e74f867c6a92fb11b8152735a11721594fb26",
+    "governance/current_data_contracts.json": "7cccd2c5ccc5a3a262590b8f43887741f4df6d454d5a9c4cbf0d18b1d0702cff",
+    "governance/active_plan_registry.json": "71d443f9765405e0f92f687ad290c1c1d78d7421e59eeb8153d94265c2e0819f",
+    "docs/reviews/production-closure-2026-09-20.md": "663d38d4a2cc8432967cc6f4df86b077e69625bf7a5215e9ebca3f0807f1d780",
+    "docs/testing/data02-tushare-retained-row-binding-2026-09-22.txt": "d05afe1cb9f3964ce6b970cd2ac0472cbb9d53d58574c26679da6f78aaf36347"
+  },
+  "hash_scope": {
+    "source_sha256": "Git index blobs with repository line-ending normalization.",
+    "source_worktree_raw_sha256": "Raw local worktree bytes at evidence generation.",
+    "raw_summary_sha256": "Raw UTF-8 summary bytes at evidence generation."
+  },
+  "independent_review": {
+    "reviewer": "gpt-5.6-luna",
+    "reasoning_effort": "max",
+    "implementation_result": "P0=0 and P1=0 after direct three-mode retained-envelope coverage.",
+    "accepted_boundaries": [
+      "All three routed clients preserve the same retained reference.",
+      "The canonical coordinate is truthful and bounded.",
+      "Date-only ann_date does not infer source time.",
+      "Strict sync remains fail-closed with zero normalized writes."
+    ],
+    "evidence_finding_resolution": "The referenced JSON, TXT and JSON SHA-256 files are generated and checked in this change."
+  },
+  "governance": {
+    "registry_transition": "2026-09-22.v157 -> 2026-09-22.v158",
+    "unit": "DATA-02",
+    "status_before": "awaiting_production",
+    "status_after": "awaiting_production",
+    "reason": "Retained body and canonical row binding are implemented; trustworthy source time and production authorization remain open."
+  },
+  "remaining_gates": [
+    "Obtain a trustworthy timezone-aware announcement or availability source without synthesizing time.",
+    "Provide equivalent retained artifact and row binding for any other financial provider selected for production.",
+    "Obtain current production authority, owner-approved numeric tolerances and explicit production-write authorization.",
+    "Run the authorized provider backfill and real four-Publication reconciliation."
+  ],
+  "raw_summary": "docs/testing/data02-tushare-retained-row-binding-2026-09-22.txt",
+  "raw_summary_sha256": "d05afe1cb9f3964ce6b970cd2ac0472cbb9d53d58574c26679da6f78aaf36347",
+  "source_sha256": {
+    "apps/data_center/application/financial_response_artifact.py": "26c6fc01aa0f95ad7c1cc59d074102db64227b0cf947b67ec196b7302d88858b",
+    "apps/data_center/financial_response_artifact_composition.py": "1203e02519e8b811f62d054bda0dbf716a8aeef432e7f7b6c87fd020ae738225",
+    "apps/data_center/infrastructure/_provider_adapter_tushare.py": "ef7acdeb406c2f13fe5295e8b93d59948bbe073eb631b747b5b4f4f6ce1022a1",
+    "apps/data_center/infrastructure/tushare_client.py": "c635490e89aec4d96376c1d8ac69d7c9ca116d66dea78d2a1143d726b3f3636f",
+    "tests/unit/data_center/test_data02_provider_artifact_adoption.py": "f3011e1492336c683cb67dd226986f1d35942f2cecd4c9b6caabae71f255f075",
+    "tests/unit/data_center/test_egress_tushare_transport.py": "b5e9af1914094afdf17897245d2e60c8b6cea121e5829920d541f23c6a0f1ba4",
+    "governance/current_data_contracts.json": "64d41e8389e89c0ab2e463ae9a57770cae93a30ebbf5c27c4d9c1d75b54366c5",
+    "governance/active_plan_registry.json": "42b49539fb06e5824d28a28aa312096c5255b7b8d082308cbe3189bb0269f81d",
+    "docs/reviews/production-closure-2026-09-20.md": "e261b5319e788136d41c29892bf15bf3ffc4baad9937f71d8bed29d5f0c6b308",
+    "docs/testing/data02-tushare-retained-row-binding-2026-09-22.txt": "f2fbba96c1b83d009fa174b10e87a0993f1e19e21001364b122100b3bab6d8d5"
+  }
+}

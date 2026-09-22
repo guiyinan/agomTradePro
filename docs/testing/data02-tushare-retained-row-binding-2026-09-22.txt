@@ -1,0 +1,46 @@
+DATA-02 Tushare retained body and provider-row binding
+Date: 2026-09-22
+Branch: dev/next-development
+Baseline: f788dfe62d27d1648ba98d7eaaabbb7c42dd40df
+
+TDD red:
+- The handler returned only a decoded payload and discarded FinancialResponseArtifactRetention.reference.
+- Tushare FinancialFact objects had neither source evidence nor decision evidence.
+- Result: 2 expected failures before implementation.
+
+Implemented contract:
+- The opt-in handler returns a typed payload/reference pair only after exact body retention and audit linking.
+- Unified relay, REST path and routed SDK clients carry the same FinancialResponseArtifactRef into the financial frame.
+- The adapter binds each metric to the exact body SHA-256 and a canonical row coordinate derived from ts_code/end_date/ann_date/metric.
+- The coordinate is derived from real provider row dimensions; it is not represented as a provider-issued opaque identifier.
+- Date-only ann_date remains non-authoritative: announced_at and available_at are not inferred.
+- Strict sync reports financial_source_evidence_incomplete and financial_available_at_missing before any normalized fact write.
+
+Final validation:
+- Focused pytest: 146 passed across split runs; no skipped tests.
+- Routed retained-envelope parameterization: 3 passed for sdk_path, rest_path and unified_relay.
+- Django repository candidate test: 1 passed in 302.13s with --reuse-db.
+- Black: passed.
+- isort: passed.
+- Ruff: passed.
+- Incremental mypy: 0 regressions in 4 production files.
+- Full mypy debt ceiling: 0 errors in 0 files.
+- Current-data contracts: 64 surfaces, 0 violations.
+- Architecture/governance scan: 3,221 files, 0 boundary violations, 0 audit violations.
+- Governance consistency: baseline 2026-09-09.v220, 0 violations.
+- Active plan registry: version 2026-09-22.v158, 54 units, 0 violations.
+- Migration check: no changes detected.
+- git diff --check: passed.
+
+Independent review:
+- GPT-5.6 Luna Max implementation recheck: P0=0, P1=0.
+- The three routed modes, native coordinate, date-only time boundary and strict zero-write behavior were accepted.
+- The evidence-file finding is closed by this JSON, TXT and JSON SHA-256 set.
+
+Production actions:
+- Provider access: no.
+- Deployment: no.
+- Production database write: no.
+- Publication switch: no.
+- DATA-02 status: awaiting_production.
+- Remaining gate: a trustworthy timezone-aware announcement/availability source plus current authority, approved tolerances, explicit write authorization and real four-Publication reconciliation.

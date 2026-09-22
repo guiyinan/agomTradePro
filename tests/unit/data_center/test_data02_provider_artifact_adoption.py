@@ -8,6 +8,7 @@ from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import cast
+from unittest.mock import Mock
 from uuid import UUID
 
 import pytest
@@ -15,6 +16,7 @@ from cryptography.fernet import Fernet
 from django.core.management import CommandError
 
 from apps.data_center.application import egress_service
+from apps.data_center.application.dtos import SyncFinancialRequest
 from apps.data_center.application.financial_response_artifact import (
     FinancialResponseArtifactAuditError,
     FinancialResponseArtifactAuditLookupError,
@@ -23,12 +25,14 @@ from apps.data_center.application.financial_response_artifact import (
     RetainFinancialResponseArtifactUseCase,
     RetainFinancialResponseFailureUseCase,
 )
+from apps.data_center.application.sync_use_cases import SyncFinancialUseCase
 from apps.data_center.domain.egress_routing import (
     EgressRequestContext,
     EgressRouteDecision,
     EgressStrategy,
 )
 from apps.data_center.domain.entities import ProviderConfig, RawAudit, raw_audit_content_hash
+from apps.data_center.domain.financial_response_artifact import FinancialResponseArtifactRef
 from apps.data_center.domain.financial_response_evidence import (
     FinancialRequestScope,
     FinancialResponseEvidence,
@@ -68,7 +72,7 @@ from apps.data_center.infrastructure.financial_response_capture import (
 )
 from apps.data_center.infrastructure.provider_state_repositories import RawAuditRepository
 from apps.data_center.management.commands.initialize_financial_response_artifact import Command
-from core.exceptions import TushareError
+from core.exceptions import InvalidInputError, TushareError
 
 BODY = b'{"code":0,"data":{"fields":["ts_code"],"items":[["000001.SZ"]]}}'
 SCOPED_BODY = (
@@ -248,15 +252,37 @@ class _RetentionRepository:
         self.calls: list[dict[str, object]] = []
         self.failure_calls: list[dict[str, object]] = []
 
-    def retain(self, **kwargs: object) -> None:
+    def retain(self, **kwargs: object) -> _RetentionResult:
         """Record only the typed retention arguments supplied by the handler."""
 
         self.calls.append(kwargs)
+        capture_id = kwargs["capture_id"]
+        evidence = kwargs["evidence"]
+        assert isinstance(capture_id, UUID)
+        assert isinstance(evidence, FinancialResponseEvidence)
+        return _RetentionResult(
+            reference=FinancialResponseArtifactRef(
+                capture_id=capture_id,
+                location=f"test-financial-response:///{capture_id}",
+                evidence=evidence,
+                format_version="financial-response-artifact.v1",
+                encryption_algorithm="fernet",
+                encryption_key_ref="test/financial-response-key",
+                encryption_key_version="test-v1",
+            )
+        )
 
     def retain_rejected(self, **kwargs: object) -> None:
         """Record only the typed failure-retention arguments supplied by the handler."""
 
         self.failure_calls.append(kwargs)
+
+
+@dataclass(frozen=True)
+class _RetentionResult:
+    """Minimal successful retention result returned by the repository seam."""
+
+    reference: FinancialResponseArtifactRef
 
 
 def _evidence(body: bytes = BODY) -> FinancialResponseEvidence:
@@ -862,7 +888,7 @@ def test_tushare_handler_retains_capture_without_token_or_source_inference(
         target_url="https://provider.example.test/tushare",
         deployment_region="local",
     )
-    payload = handler(
+    result = handler(
         request_id=request_id,
         context=context,
         method="POST",
@@ -876,7 +902,7 @@ def test_tushare_handler_retains_capture_without_token_or_source_inference(
         api_name="fina_indicator",
     )
 
-    assert payload == {
+    assert result.payload == {
         "code": 0,
         "data": {
             "fields": ["ts_code", "end_date"],
@@ -899,6 +925,8 @@ def test_tushare_handler_retains_capture_without_token_or_source_inference(
         row_count=1,
     )
     assert repository.calls[0]["row_count"] == 1
+    assert result.reference.capture_id == request_id
+    assert result.reference.evidence == retained_evidence
 
 
 @pytest.mark.parametrize(
@@ -1054,11 +1082,11 @@ def test_tushare_handler_rejects_provider_business_failure_before_audit(
     assert rejected_evidence.response_scope_basis is FinancialResponseScopeBasis.CALLER_DECLARED
 
 
-def test_tushare_adapter_client_egress_capture_store_and_audit_chain(
+def test_tushare_adapter_binds_retained_body_and_native_row_without_inventing_time(
     monkeypatch: pytest.MonkeyPatch,
     artifact_tmp_path: Path,
 ) -> None:
-    """The opted-in adapter retains exact bytes while facts stay source-incomplete."""
+    """The adapter binds retained bytes and row identity but keeps source time unknown."""
 
     audits = _AuditRepository()
     store = _store(artifact_tmp_path)
@@ -1095,7 +1123,18 @@ def test_tushare_adapter_client_egress_capture_store_and_audit_chain(
     assert fact.period_end == date(2025, 12, 31)
     assert fact.report_date == date(2026, 3, 30)
     assert fact.available_at is None
-    assert fact.source_evidence is None
+    assert fact.source_evidence is not None
+    assert fact.source_evidence.announced_at is None
+    assert fact.source_evidence.raw_payload_hash == raw_body_sha256(FINANCIAL_BODY)
+    assert (
+        fact.source_evidence.source_record_id
+        == "tushare:fina_indicator:000001.SZ:20251231:20260330:roe"
+    )
+    assert fact.source_evidence.is_complete is False
+    assert fact.decision_evidence is not None
+    assert fact.decision_evidence.native_asset_code == "000001.SZ"
+    assert fact.decision_evidence.native_period_end == date(2025, 12, 31)
+    assert fact.decision_evidence.native_row_id == fact.source_evidence.source_record_id
     assert len(transport.calls) == 1
     assert transport.responses[0].read_count == 1
     assert len(audits.rows) == 1
@@ -1110,7 +1149,39 @@ def test_tushare_adapter_client_egress_capture_store_and_audit_chain(
     assert audit.response_payload_hash == ""
     assert audit.row_count == 1
     assert audit.fetched_at == COMPLETED_AT
-    assert store.read(reference_from_audit(audit)) == FINANCIAL_BODY
+    artifact_reference = reference_from_audit(audit)
+    assert fact.decision_evidence.artifact_reference == artifact_reference
+    assert store.read(artifact_reference) == FINANCIAL_BODY
+
+    provider_repository = Mock()
+    provider_repository.get_by_id.return_value = _provider()
+    provider_registry = Mock()
+    provider_registry.get_by_id.return_value = adapter_module.TushareUnifiedProviderAdapter(
+        _provider()
+    )
+    provider_registry.get_all_statuses.return_value = []
+    fact_repository = Mock()
+    raw_audit_repository = Mock()
+    use_case = SyncFinancialUseCase(
+        provider_repo=provider_repository,
+        provider_registry=provider_registry,
+        fact_repo=fact_repository,
+        raw_audit_repo=raw_audit_repository,
+        artifact_verifier=lambda _provider_config, reference: store.read(reference)
+        == FINANCIAL_BODY,
+    )
+
+    with pytest.raises(InvalidInputError) as caught:
+        use_case.execute(SyncFinancialRequest(provider_id=7, asset_code="000001.SZ", periods=2))
+
+    assert caught.value.code == "FINANCIAL_SOURCE_EVIDENCE_REQUIRED"
+    assert caught.value.details == {
+        "block_reasons": [
+            "financial_available_at_missing",
+            "financial_source_evidence_incomplete",
+        ]
+    }
+    fact_repository.bulk_upsert.assert_not_called()
 
 
 def test_artifact_config_requires_explicit_complete_values(monkeypatch: pytest.MonkeyPatch) -> None:

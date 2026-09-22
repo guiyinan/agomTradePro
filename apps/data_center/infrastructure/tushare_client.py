@@ -16,7 +16,11 @@ from typing import Any, Protocol, cast
 from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
+from apps.data_center.application.financial_response_artifact import (
+    RetainedFinancialResponsePayload,
+)
 from apps.data_center.domain.egress_routing import EgressRequestContext
+from apps.data_center.domain.financial_response_artifact import FinancialResponseArtifactRef
 from core.exceptions import TushareError
 from shared.config.secrets import get_secrets
 from shared.config.tushare import (
@@ -58,9 +62,51 @@ class TushareFinancialResponseHandler(Protocol):
         json_body: Mapping[str, object] | None,
         headers: Mapping[str, str] | None,
         api_name: str,
-    ) -> object:
-        """Capture, retain, and return one financial response payload."""
+    ) -> RetainedFinancialResponsePayload:
+        """Capture, retain, and return one payload/reference pair."""
         ...
+
+
+@dataclass(frozen=True, slots=True)
+class _RetainedFinancialFrame:
+    """Expose a dataframe-compatible view with its immutable response reference."""
+
+    frame: Any
+    artifact_reference: FinancialResponseArtifactRef
+
+    @property
+    def empty(self) -> bool:
+        """Return the wrapped dataframe's empty flag."""
+
+        return bool(self.frame.empty)
+
+    def to_dict(self, orient: str) -> list[dict[str, object]]:
+        """Return provider rows through the wrapped dataframe conversion."""
+
+        return cast(list[dict[str, object]], self.frame.to_dict(orient))
+
+
+def _unwrap_retained_financial_payload(
+    value: object,
+) -> tuple[object, FinancialResponseArtifactRef | None]:
+    """Separate an opt-in retained reference from the decoded provider payload."""
+
+    if not isinstance(value, RetainedFinancialResponsePayload):
+        return value, None
+    return value.payload, value.reference
+
+
+def _provider_frame(
+    items: list[object],
+    columns: list[str],
+    artifact_reference: FinancialResponseArtifactRef | None,
+) -> PandasDataFrame:
+    """Build the usual dataframe or its retained-financial wrapper."""
+
+    frame = pd.DataFrame(items, columns=columns)
+    if artifact_reference is None:
+        return frame
+    return _RetainedFinancialFrame(frame=frame, artifact_reference=artifact_reference)
 
 
 class TushareRelayAuthorizationError(PermissionError):
@@ -257,6 +303,7 @@ class _UnifiedRelayClient:
                 )
             response.raise_for_status()
             payload = response.json()
+        payload, artifact_reference = _unwrap_retained_financial_payload(payload)
         if not isinstance(payload, dict):
             raise TushareError(
                 "Tushare relay returned an invalid payload",
@@ -285,7 +332,7 @@ class _UnifiedRelayClient:
                 "Tushare relay response items are invalid",
                 code="TUSHARE_INVALID_PAYLOAD",
             )
-        return pd.DataFrame(items, columns=columns)
+        return _provider_frame(items, columns, artifact_reference)
 
     def _should_use_egress(self, target_url: str, *, api_name: str) -> bool:
         """Use the Data Center transport only when an explicit rule matches."""
@@ -404,6 +451,7 @@ class _RestPathClient(_UnifiedRelayClient):
                 )
             response.raise_for_status()
             payload = response.json()
+        payload, artifact_reference = _unwrap_retained_financial_payload(payload)
         if not isinstance(payload, dict):
             raise TushareError(
                 "Tushare resource response is invalid",
@@ -437,7 +485,7 @@ class _RestPathClient(_UnifiedRelayClient):
                 "Tushare resource table shape is invalid",
                 code="TUSHARE_INVALID_PAYLOAD",
             )
-        return pd.DataFrame(items, columns=columns)
+        return _provider_frame(items, columns, artifact_reference)
 
 
 class _RoutedSdkClient(_UnifiedRelayClient):
@@ -490,6 +538,7 @@ class _RoutedSdkClient(_UnifiedRelayClient):
                 "fields": fields,
             },
         )
+        payload, artifact_reference = _unwrap_retained_financial_payload(payload)
         if not isinstance(payload, dict):
             raise TushareError(
                 "Tushare response payload is invalid", code="TUSHARE_INVALID_PAYLOAD"
@@ -510,7 +559,7 @@ class _RoutedSdkClient(_UnifiedRelayClient):
             or not all(isinstance(row, list) and len(row) == len(columns) for row in items)
         ):
             raise TushareError("Tushare table shape is invalid", code="TUSHARE_INVALID_PAYLOAD")
-        return pd.DataFrame(items, columns=columns)
+        return _provider_frame(items, columns, artifact_reference)
 
 
 def _validated_provider_code(payload: dict[str, object]) -> int:
