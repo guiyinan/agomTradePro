@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import replace
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
 
@@ -16,9 +17,14 @@ from apps.data_center.domain.financial_source_time_contract import (
     financial_source_time_contract_sha256,
 )
 from apps.data_center.infrastructure.financial_source_time_contract_registry import (
+    FinancialSourceTimeContractApproval,
+    FinancialSourceTimeContractRegistry,
     FinancialSourceTimeContractRegistryError,
+    financial_source_time_contract_set_sha256,
     load_financial_source_time_contract_registry,
 )
+
+_MISSING = object()
 
 
 def _contract_payload() -> dict[str, object]:
@@ -66,15 +72,52 @@ def _contract_payload() -> dict[str, object]:
     return payload
 
 
-def _write_registry(path: Path, *, status: str, contracts: list[object]) -> Path:
+def _approval(contracts: list[object]) -> dict[str, str]:
+    """Return synthetic test-only approval metadata bound to claimed contract digests."""
+
+    claimed_digests = [
+        str(contract["contract_sha256"])
+        for contract in contracts
+        if isinstance(contract, dict) and "contract_sha256" in contract
+    ]
+    digests = sorted(
+        {
+            value
+            for value in claimed_digests
+            if len(value) == 64 and all(character in "0123456789abcdef" for character in value)
+        }
+    )
+    if contracts and not digests:
+        digests = ["a" * 64]
+    return {
+        "approved_at": "2026-09-23T01:02:03Z",
+        "approved_by": "test-owner",
+        "receipt_sha256": "f" * 64,
+        "contract_set_sha256": financial_source_time_contract_set_sha256(digests),
+    }
+
+
+def _write_registry(
+    path: Path,
+    *,
+    status: str,
+    contracts: list[object],
+    approval: object = _MISSING,
+) -> Path:
     """Write one test registry with canonical JSON syntax."""
 
+    resolved_approval = (
+        _approval(contracts) if approval is _MISSING and status == "active" else approval
+    )
+    if resolved_approval is _MISSING:
+        resolved_approval = None
     path.write_text(
         json.dumps(
             {
-                "schema_version": "financial-source-time-match-contract-registry.v1",
+                "schema_version": "financial-source-time-match-contract-registry.v2",
                 "status": status,
                 "contracts": contracts,
+                "approval": resolved_approval,
             },
             ensure_ascii=False,
             indent=2,
@@ -94,6 +137,7 @@ def test_repository_registry_is_awaiting_owner_approval_and_denies_lookup() -> N
 
     assert registry.status == "awaiting_owner_approval"
     assert registry.contracts == ()
+    assert registry.approval is None
     assert (
         registry.get(
             provider_name="tushare",
@@ -121,6 +165,8 @@ def test_active_registry_resolves_only_the_exact_contract_identity(tmp_path: Pat
     )
     assert contract is not None
     assert contract.to_dict() == payload
+    assert registry.approval is not None
+    assert registry.approval.approved_by == "test-owner"
     assert (
         registry.get(
             provider_name="synthetic-provider",
@@ -152,6 +198,155 @@ def test_registry_status_cannot_promote_or_hide_contracts(
         load_financial_source_time_contract_registry(path)
 
 
+def test_active_registry_requires_owner_approval_bound_to_exact_contract_set(
+    tmp_path: Path,
+) -> None:
+    """An active string and contracts alone cannot authorize matching."""
+
+    payload = _contract_payload()
+    without_approval = _write_registry(
+        tmp_path / "missing-approval.json",
+        status="active",
+        contracts=[payload],
+        approval=None,
+    )
+    with pytest.raises(FinancialSourceTimeContractRegistryError, match="approval is required"):
+        load_financial_source_time_contract_registry(without_approval)
+
+    approval = _approval([payload])
+    approval["contract_set_sha256"] = "0" * 64
+    drifted = _write_registry(
+        tmp_path / "drifted-approval.json",
+        status="active",
+        contracts=[payload],
+        approval=approval,
+    )
+    with pytest.raises(FinancialSourceTimeContractRegistryError, match="contract set"):
+        load_financial_source_time_contract_registry(drifted)
+
+
+def test_pending_registry_rejects_approval_claims(tmp_path: Path) -> None:
+    """Pending policy cannot carry approval-looking metadata."""
+
+    path = _write_registry(
+        tmp_path / "pending-approval.json",
+        status="awaiting_owner_approval",
+        contracts=[],
+        approval={
+            "approved_at": "2026-09-23T01:02:03Z",
+            "approved_by": "test-owner",
+            "receipt_sha256": "f" * 64,
+            "contract_set_sha256": financial_source_time_contract_set_sha256([]),
+        },
+    )
+    with pytest.raises(FinancialSourceTimeContractRegistryError, match="cannot contain approval"):
+        load_financial_source_time_contract_registry(path)
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("approved_at", "2026-09-23", "approved_at"),
+        ("approved_at", "2026-09-23T01:02:03+08:00", "approved_at"),
+        ("approved_by", " padded-owner", "approved_by"),
+        ("receipt_sha256", "not-a-digest", "receipt_sha256"),
+    ],
+)
+def test_active_registry_rejects_invalid_approval_fields(
+    tmp_path: Path,
+    field: str,
+    value: str,
+    message: str,
+) -> None:
+    """Approval metadata must remain exact, bounded and content-addressed."""
+
+    payload = _contract_payload()
+    approval = _approval([payload])
+    approval[field] = value
+    path = _write_registry(
+        tmp_path / f"approval-{field}.json",
+        status="active",
+        contracts=[payload],
+        approval=approval,
+    )
+    with pytest.raises(FinancialSourceTimeContractRegistryError, match=message):
+        load_financial_source_time_contract_registry(path)
+
+
+def test_contract_set_hash_is_order_invariant_and_membership_sensitive() -> None:
+    """Approval binds the exact validated contract digest set, independent of JSON order."""
+
+    first = "1" * 64
+    second = "2" * 64
+    expected = financial_source_time_contract_set_sha256([first, second])
+    assert financial_source_time_contract_set_sha256([second, first]) == expected
+    assert financial_source_time_contract_set_sha256([first]) != expected
+    assert financial_source_time_contract_set_sha256([first, "3" * 64]) != expected
+    with pytest.raises(ValueError, match="digest set"):
+        financial_source_time_contract_set_sha256([first, first])
+    with pytest.raises(ValueError, match="digest set"):
+        financial_source_time_contract_set_sha256(cast(list[str], [first, 7]))
+
+
+def test_direct_registry_construction_cannot_bypass_approval(tmp_path: Path) -> None:
+    """The public frozen registry type enforces approval even without JSON loading."""
+
+    path = Path("governance/financial_source_time_match_contracts.json")
+    pending = load_financial_source_time_contract_registry(path)
+    assert pending.approval is None
+
+    with pytest.raises(FinancialSourceTimeContractRegistryError, match="immutable tuple"):
+        FinancialSourceTimeContractRegistry(
+            status="awaiting_owner_approval",
+            contracts=cast(tuple[FinancialSourceTimeMatchContract, ...], []),
+            approval=None,
+        )
+    with pytest.raises(FinancialSourceTimeContractRegistryError, match="typed contracts"):
+        FinancialSourceTimeContractRegistry(status="active", contracts=(), approval=None)
+    with pytest.raises(FinancialSourceTimeContractRegistryError, match="must be empty"):
+        FinancialSourceTimeContractRegistry(
+            status="awaiting_owner_approval",
+            contracts=(),
+            approval=FinancialSourceTimeContractApproval(
+                approved_at=datetime(2026, 9, 23, 1, 2, 3, tzinfo=UTC),
+                approved_by="test-owner",
+                receipt_sha256="f" * 64,
+                contract_set_sha256=financial_source_time_contract_set_sha256([]),
+            ),
+        )
+    with pytest.raises(FinancialSourceTimeContractRegistryError, match="approved_by"):
+        FinancialSourceTimeContractApproval(
+            approved_at=datetime(2026, 9, 23, 1, 2, 3, tzinfo=UTC),
+            approved_by=cast(str, 7),
+            receipt_sha256="f" * 64,
+            contract_set_sha256=financial_source_time_contract_set_sha256([]),
+        )
+
+    first_path = _write_registry(
+        tmp_path / "first.json", status="active", contracts=[_contract_payload()]
+    )
+    first = load_financial_source_time_contract_registry(first_path).contracts[0]
+    second_payload = _contract_payload()
+    second_payload["endpoint"] = "anns_d_v2"
+    second_payload["contract_sha256"] = financial_source_time_contract_sha256(second_payload)
+    second_path = _write_registry(
+        tmp_path / "second.json", status="active", contracts=[second_payload]
+    )
+    second = load_financial_source_time_contract_registry(second_path).contracts[0]
+    digests = [first.contract_sha256, second.contract_sha256]
+    with pytest.raises(FinancialSourceTimeContractRegistryError, match="duplicate contract"):
+        FinancialSourceTimeContractRegistry(
+            status="active",
+            contracts=(first, second),
+            approval=FinancialSourceTimeContractApproval(
+                approved_at=datetime(2026, 9, 23, 1, 2, 3, tzinfo=UTC),
+                approved_by="test-owner",
+                receipt_sha256="f" * 64,
+                contract_set_sha256=financial_source_time_contract_set_sha256(digests),
+            ),
+        )
+
+
 def test_registry_rejects_unknown_or_duplicate_json_keys(tmp_path: Path) -> None:
     """Ambiguous JSON cannot become a governance contract."""
 
@@ -163,8 +358,8 @@ def test_registry_rejects_unknown_or_duplicate_json_keys(tmp_path: Path) -> None
 
     duplicate = tmp_path / "duplicate.json"
     duplicate.write_text(
-        '{"schema_version":"financial-source-time-match-contract-registry.v1",'
-        '"status":"active","status":"active","contracts":[]}',
+        '{"schema_version":"financial-source-time-match-contract-registry.v2",'
+        '"status":"active","status":"active","contracts":[],"approval":null}',
         encoding="utf-8",
     )
     with pytest.raises(FinancialSourceTimeContractRegistryError, match="duplicate JSON key"):
@@ -176,8 +371,8 @@ def test_registry_rejects_non_finite_json_constants(tmp_path: Path) -> None:
 
     path = tmp_path / "nan.json"
     path.write_text(
-        '{"schema_version":"financial-source-time-match-contract-registry.v1",'
-        '"status":NaN,"contracts":[]}',
+        '{"schema_version":"financial-source-time-match-contract-registry.v2",'
+        '"status":NaN,"contracts":[],"approval":null}',
         encoding="utf-8",
     )
 
@@ -297,6 +492,16 @@ def test_domain_types_reject_untyped_join_and_projection_values(tmp_path: Path) 
         _write_registry(tmp_path / "valid.json", status="active", contracts=[payload])
     )
     contract = cast(FinancialSourceTimeMatchContract, registry.contracts[0])
+    with pytest.raises(ValueError, match="join fields must be an immutable tuple"):
+        replace(
+            contract,
+            join_fields=cast(tuple[FinancialSourceTimeJoinField, ...], list(contract.join_fields)),
+        )
+    with pytest.raises(ValueError, match="projection fields must be an immutable tuple"):
+        replace(
+            contract,
+            projection_fields=cast(tuple[str, ...], list(contract.projection_fields)),
+        )
     with pytest.raises(ValueError, match="join fields must be typed"):
         replace(contract, join_fields=())
     with pytest.raises(ValueError, match="projection fields must be text"):

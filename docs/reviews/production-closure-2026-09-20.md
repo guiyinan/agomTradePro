@@ -572,7 +572,6 @@ contract，matcher 表为空，不能把仓库绿灯当成生产验收。
 状态不变，TUI-02 继续 active。本轮只通过 SSH stdin 执行只读事务和无 execute 预检，没有部署、
 provider 调用、生产写入、profile 激活或 Publication 切换。
 
-
 ## DATA-02 财务来源时间原件留存（2026-09-23）
 
 双原件复验此前已经要求一份独立的 source-time body 与唯一 RawAudit，但仓库还没有生产方可调用的
@@ -622,3 +621,24 @@ contract，matcher 表为空，不能把仓库绿灯当成生产验收。
 原始探针、输出与哈希清单见同名 `-raw.zip`。registry v171 → v172；DATA-02、EVID-01/02、AUD-03
 状态不变，TUI-02 继续 active。本轮只通过 SSH stdin 执行只读事务和无 execute 预检，没有部署、
 provider 调用、生产写入、profile 激活或 Publication 切换。
+
+## DATA-02 财务来源时间 owner 审批绑定（2026-09-23）
+
+后续审查发现 contract registry v1 的激活条件只要求 `status=active`、非空合约和各合约内容哈希，
+没有把真实 owner receipt 绑定到精确的合约集合。若未来人工只改 status，或者审批后替换、增删合约，
+loader 无法证明当前集合就是被批准的集合。
+
+registry v2 新增 typed approval，要求秒精度 canonical UTC-Z 审批时间、owner 标识、receipt SHA-256 和
+`contract_set_sha256`。集合摘要只接受已经逐项通过 Domain 校验且内容寻址的 contract digest，排序不影响
+结果，增删或替换任一合约都会失配。JSON loader 与 frozen registry 直接构造共享同一不变量；pending 状态
+必须保持 `contracts=[]`、`approval=null`，active 缺失 approval 或 approval 指向其他集合时失败关闭。
+
+仓库登记仍为 `awaiting_owner_approval`、空合约和空 approval，因此没有 provider 被授权，也没有新增
+matcher 或 source-time producer。receipt digest 只证明登记值符合内容锚点格式，不证明签署人是真实当前
+owner，也不代替 authority 时效核验。真实 contract、receipt、provider 原始样本、时区和唯一 join 语义仍需
+业务主体提供后才能继续接线。
+
+结构化证据见
+[owner 审批与合约集合绑定封存](../testing/data02-financial-source-time-owner-approval-binding-2026-09-23.json)。
+registry v172 → v173，DATA-02 保持 `awaiting_production`。本轮没有 provider/VPS/数据库访问、部署、
+生产写入、Publication 切换或 contract 激活。

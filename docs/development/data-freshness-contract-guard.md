@@ -101,6 +101,12 @@ Repository 写入口发布 `FINANCIAL_SOURCE_TIMESTAMP_REQUIRED`，不修改事�
 只读盘点中任一 missing/unresolved availability 均不可执行，完整抓取计数也不能
 使发布主流程绕过该阻断。精确公告时间、原始响应哈希和历史来源修复另行验收。
 
+财务来源时间匹配契约只有在 owner approval 同时绑定精确 contract digest 集合时才能激活。
+pending registry 必须保持 `contracts=[]`、`approval=null`；单独修改 status 或插入合约不能
+形成授权。receipt SHA-256 只锚定审批原件内容，不证明签署人身份或当前 authority，生产启用仍须
+独立核对真实 owner、receipt 和授权时效。`approved_at` 使用秒精度 canonical UTC-Z；更高精度或
+带 offset 的表示必须在登记前规范化，不能让同一审批瞬间产生多个治理编码。
+
 QMT 整体桥登记为 `data_center.qmt_bridge_observations`：源时间在重试时保持不变，VPS 仅接收授权标的，stale 快照不能截断备用源；批次落库不等同于全 universe current Publication 激活。
 
 新增任何当前数据读取时，按顺序完成：

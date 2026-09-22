@@ -91,6 +91,8 @@ class FinancialSourceTimeMatchContract:
             ZoneInfo(self.source_timezone)
         except ZoneInfoNotFoundError as exc:
             raise ValueError("financial source-time contract timezone is unknown") from exc
+        if not isinstance(self.join_fields, tuple):
+            raise ValueError("financial source-time join fields must be an immutable tuple")
         if not self.join_fields or not all(
             isinstance(item, FinancialSourceTimeJoinField) for item in self.join_fields
         ):
@@ -105,6 +107,8 @@ class FinancialSourceTimeMatchContract:
             set(source_fields)
         ):
             raise ValueError("financial source-time join fields must be unique")
+        if not isinstance(self.projection_fields, tuple):
+            raise ValueError("financial source-time projection fields must be an immutable tuple")
         if not self.projection_fields or any(
             not isinstance(item, str) for item in self.projection_fields
         ):

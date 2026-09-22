@@ -1,5 +1,6 @@
 {
-  "schema_version": "financial-source-time-match-contract-registry.v1",
+  "schema_version": "financial-source-time-match-contract-registry.v2",
   "status": "awaiting_owner_approval",
-  "contracts": []
+  "contracts": [],
+  "approval": null
 }

@@ -5993,14 +5993,19 @@
           "financial_source_time_contract_sha256"
         ],
         "apps/data_center/infrastructure/financial_source_time_contract_registry.py": [
-          "status == \"awaiting_owner_approval\" and raw_contracts",
-          "status == \"active\" and not raw_contracts",
-          "financial source-time registry contains a duplicate contract identity",
+          "REGISTRY_SCHEMA_VERSION = \"financial-source-time-match-contract-registry.v2\"",
+          "class FinancialSourceTimeContractApproval:",
+          "financial_source_time_contract_set_sha256(",
+          "active financial source-time registry approval is required",
+          "financial source-time approval contract set does not match",
+          "pending financial source-time registry cannot contain approval",
           "object_pairs_hook=_object_pairs_no_duplicates"
         ],
         "governance/financial_source_time_match_contracts.json": [
+          "\"schema_version\": \"financial-source-time-match-contract-registry.v2\"",
           "\"status\": \"awaiting_owner_approval\"",
-          "\"contracts\": []"
+          "\"contracts\": []",
+          "\"approval\": null"
         ]
       },
       "required_tests": [
@@ -6018,6 +6023,26 @@
           "case": "financial_source_time_registry_weak_join_rejected",
           "test_file": "tests/unit/data_center/test_financial_source_time_contract_registry.py",
           "test_function": "test_contract_requires_asset_period_and_announcement_date_join"
+        },
+        {
+          "case": "financial_source_time_registry_owner_approval_binding",
+          "test_file": "tests/unit/data_center/test_financial_source_time_contract_registry.py",
+          "test_function": "test_active_registry_requires_owner_approval_bound_to_exact_contract_set"
+        },
+        {
+          "case": "financial_source_time_registry_pending_approval_denial",
+          "test_file": "tests/unit/data_center/test_financial_source_time_contract_registry.py",
+          "test_function": "test_pending_registry_rejects_approval_claims"
+        },
+        {
+          "case": "financial_source_time_registry_contract_set_digest",
+          "test_file": "tests/unit/data_center/test_financial_source_time_contract_registry.py",
+          "test_function": "test_contract_set_hash_is_order_invariant_and_membership_sensitive"
+        },
+        {
+          "case": "financial_source_time_registry_direct_construction_denial",
+          "test_file": "tests/unit/data_center/test_financial_source_time_contract_registry.py",
+          "test_function": "test_direct_registry_construction_cannot_bypass_approval"
         }
       ]
     },
