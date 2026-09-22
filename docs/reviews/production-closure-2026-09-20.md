@@ -659,3 +659,21 @@ matcher，未登记 contract 即使 parser 相同也返回空。
 [matcher 精确路由封存](../testing/data02-financial-source-time-exact-matcher-routing-2026-09-23.json)。
 registry v173 → v174，DATA-02 保持 `awaiting_production`。本轮没有 provider/VPS/数据库访问、部署、
 生产写入、Publication 切换或 contract/matcher 激活。
+
+## 候选 67cfef48f0 生产只读重验（2026-09-23）
+
+当前仓库候选 `67cfef48f0` 比生产 `439468482 / 20260920184626` 领先 40 个 commit。生产 Web 与
+Prometheus 容器仍 healthy 且无重启；公网 health、db health、ready 为 200，decision-ready 按设计为
+503。冻结 A 股分母仍为 5,565，quote、price、valuation current Publication 各有 5,565 members，
+financial 仍为 80。
+
+两个未传 `--execute` 的 DATA-02 预检继续在 provider 调用前因
+`financial source announced_at is required` fail closed。temporally current actor、owner、joined
+authority heads 仍全部为 0；v17 audit mode=off、outbox=false、selector absent。受保护监控使用
+root-only 凭据与匿名请求仍均返回 401，因此 TUI-02 不能绑定首样本或启动新的观察窗口。
+
+结构化证据见
+[候选 67cfef48f0 生产只读重验](../deployment/production-closure-revalidation-2026-09-23-67cfef48f0.json)，
+原始探针、输出与哈希清单见同名 `-raw.zip`。registry v174 → v175；DATA-02、EVID-01/02、AUD-03
+状态不变，TUI-02 继续 active。本轮只通过 SSH stdin 执行只读事务和无 execute 预检，没有部署、
+provider 调用、生产写入、profile 激活或 Publication 切换。
