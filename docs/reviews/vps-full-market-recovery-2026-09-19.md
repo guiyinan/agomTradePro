@@ -241,3 +241,13 @@ verified-manifest.json 一并更新。没有生产代码变更，因此未重复
 终态证据为 `backups/vps-postgres/market-recovery-evidence-20260919/full-market-natural-cycle-20260922-final.json`，
 其 SHA-256 为 `101cc0fb3fbfb35d1a91b6ac80ed36453b0f67dfc18ad3fb0a12462c2852a79d`，
 已加入 `verified-manifest.json`。
+
+## 自然周期核验（2026-09-23 19:13 北京时间）
+
+- 16:30 全市场发布任务 `ce64f8ae-47d0-41d0-a1ea-fe7f2af77246` 已终态失败，业务 `outcome=blocked`，`blocked_reason=system_audit_audit_runtime_disabled`，`requested/succeeded/failed/stored=0`；仍不能标记行情发布恢复。
+- 17:30 通用 Alpha 已成功写入 `csi300` 的 2026-09-23 缓存，30 个有限评分，目标日与实际日一致，来源为 Qlib，无 fallback。
+- 17:40 账户推理先后遇到 `model_market_scope_refresh_failed`、`tushare_daily_quota_exhausted` 等阻断；重试任务 `27c55e33-6bec-414f-893a-2d800a750b40` 于 18:59:04 北京时间开始，19:13 回查仍为 Task Monitor=started、Celery active，不能把运行中当作成功；账户 2026-09-23 可用缓存仍为 0。
+- Celery Beat 持续发送定时任务，worker、beat、web、PostgreSQL、Redis 均运行；本次未触发任务、未重启容器、未修改授权或生产数据。
+- 审计运行时仍为 `mode=off`、`outbox_enabled=false`、selector 缺失。行情 freshness 与市场温度计阻断也仍存在，`valid_component_count=3`。
+
+本次自然周期仍未满足全市场发布、通用 Alpha、六个账户子任务和缓存证据的联合终态，`natural_cycle_verified` 保持 `false`。只读证据为 `backups/vps-postgres/market-recovery-evidence-20260919/full-market-natural-cycle-20260923.json`，SHA-256 为 `1d4f2e2a378aeec6177da0e6d081dbcd056bb26aa191caedd0d44921472cadfb`，已加入 `verified-manifest.json`。当前活动账户任务需临时后续回查，完成后再恢复工作日 18:55 的自然周期核验。
