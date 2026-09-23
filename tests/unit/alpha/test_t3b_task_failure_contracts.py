@@ -305,7 +305,7 @@ def test_daily_inference_and_cache_refresh_keep_failure_results_explicit(
     assert refreshed["success"] is False
 
 
-def test_scoped_inference_isolates_empty_duplicate_resolution_refresh_and_queue_failures(
+def test_scoped_inference_isolates_empty_duplicate_resolution_and_queue_failures(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """One bad portfolio cannot hide or abort other scoped inference outcomes."""
@@ -345,7 +345,11 @@ def test_scoped_inference_isolates_empty_duplicate_resolution_refresh_and_queue_
     monkeypatch.setattr(
         tasks,
         "_refresh_qlib_runtime_data_for_codes",
-        lambda **kwargs: (_ for _ in ()).throw(TimeoutError("refresh failed")),
+        lambda **kwargs: {
+            "status": "success",
+            "effective_target_date": TRADE_DATE.isoformat(),
+            "stock_count": 2,
+        },
     )
     monkeypatch.setattr(
         tasks.qlib_predict_scores,
@@ -361,7 +365,7 @@ def test_scoped_inference_isolates_empty_duplicate_resolution_refresh_and_queue_
 
     assert result["status"] == "skipped"
     assert result["queued_count"] == 0
-    assert result["refresh_result"]["status"] == "failed"
+    assert result["refresh_result"]["status"] == "success"
     assert {item["reason"] for item in result["skipped"]} == {
         "empty_scope",
         "duplicate_scope",

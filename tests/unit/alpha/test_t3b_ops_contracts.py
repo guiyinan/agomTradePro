@@ -113,6 +113,39 @@ def test_runtime_refresh_service_handles_disabled_empty_and_successful_scopes(
     assert ("codes", ["000001.SZ", "600000.SH"]) in calls
 
 
+def test_runtime_refresh_service_blocks_stale_explicit_scope(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An explicit-code refresh cannot report success before the requested day."""
+    service = ops_services.QlibRuntimeDataRefreshService()
+    monkeypatch.setattr(
+        service,
+        "get_runtime_config",
+        lambda: {"enabled": True, "provider_uri": "local-data"},
+    )
+    stale_summary = _summary()
+    stale_summary.effective_target_date = date(2026, 7, 23)
+
+    class _Builder:
+        def __init__(self, provider_uri: str) -> None:
+            assert provider_uri == "local-data"
+
+        def build_recent_data_for_codes(self, **kwargs: object) -> SimpleNamespace:
+            return stale_summary
+
+    monkeypatch.setattr(ops_services, "TushareQlibBuilder", _Builder)
+    result = service.refresh_codes(
+        target_date=TARGET_DATE,
+        stock_codes=["000001.SZ"],
+    )
+
+    assert result["status"] == "blocked"
+    assert result["reason"] == "model_market_scope_incomplete"
+    assert result["blocked_reason"] == "model_market_scope_incomplete"
+    assert result["error_code"] == "MODEL_MARKET_SCOPE_INCOMPLETE"
+    assert result["must_not_use_for_decision"] is True
+
+
 def test_alpha_ops_overview_serializes_health_tasks_caches_and_alerts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

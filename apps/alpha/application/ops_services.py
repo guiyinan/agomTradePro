@@ -276,7 +276,7 @@ class QlibRuntimeDataRefreshService:
             universe_id=universe_id,
             lookback_days=lookback_days,
         )
-        return {
+        result: dict[str, Any] = {
             "status": "success",
             "provider_uri": provider_uri,
             "universe_id": universe_id,
@@ -291,6 +291,16 @@ class QlibRuntimeDataRefreshService:
             "warning_messages": list(summary.warning_messages),
             "suspended_codes": list(summary.suspended_codes),
         }
+        if summary.effective_target_date is None or summary.effective_target_date < target_date:
+            return {
+                **result,
+                "status": "blocked",
+                "reason": "model_market_scope_incomplete",
+                "blocked_reason": "model_market_scope_incomplete",
+                "error_code": "MODEL_MARKET_SCOPE_INCOMPLETE",
+                "must_not_use_for_decision": True,
+            }
+        return result
 
 
 class AlphaOpsOverviewQueryService:

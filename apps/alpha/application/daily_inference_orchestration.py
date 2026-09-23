@@ -39,6 +39,58 @@ def _refresh_block_result(refresh: dict[str, Any], requested: int) -> dict[str, 
     }
 
 
+def _scoped_refresh_block_reason(refresh_result: dict[str, Any]) -> str:
+    """Return a stable reason when scoped refresh cannot support inference."""
+
+    for key in ("blocked_reason", "reason", "error_code"):
+        value = str(refresh_result.get(key) or "").strip()
+        if value:
+            return value
+    return "model_market_scope_refresh_failed"
+
+
+def _scoped_refresh_is_usable(
+    refresh_result: dict[str, Any],
+    target_trade_date: date,
+) -> bool:
+    """Require a successful scoped refresh whose evidence reaches the target date."""
+
+    if str(refresh_result.get("status") or "").strip().lower() != "success":
+        return False
+    raw_effective_target_date = refresh_result.get("effective_target_date")
+    if raw_effective_target_date is None:
+        return False
+    try:
+        effective_target_date = date.fromisoformat(str(raw_effective_target_date)[:10])
+    except ValueError:
+        return False
+    return effective_target_date >= target_trade_date
+
+
+def _normalize_scoped_refresh_block(refresh_result: dict[str, Any]) -> dict[str, Any]:
+    """Convert failed or stale scoped refresh evidence into a fail-closed result."""
+
+    status = str(refresh_result.get("status") or "").strip().lower()
+    error_code: str | None
+    if status == "success":
+        reason = "model_market_scope_incomplete"
+        error_code = "MODEL_MARKET_SCOPE_INCOMPLETE"
+    else:
+        reason = _scoped_refresh_block_reason(refresh_result)
+        raw_error_code = refresh_result.get("error_code")
+        error_code = str(raw_error_code) if raw_error_code else None
+    normalized = {
+        **refresh_result,
+        "status": "blocked",
+        "reason": reason,
+        "blocked_reason": reason,
+        "must_not_use_for_decision": True,
+    }
+    if error_code:
+        normalized["error_code"] = error_code
+    return normalized
+
+
 def run_daily_inference(
     *,
     universe_id: str,
@@ -231,6 +283,12 @@ def run_scoped_inference(
                 **_refresh_failure(exc),
                 "stock_count": len(scoped_codes),
             }
+
+    if refresh_requested and not _scoped_refresh_is_usable(
+        refresh_result,
+        target_trade_date,
+    ):
+        refresh_result = _normalize_scoped_refresh_block(refresh_result)
 
     if refresh_result.get("status") == "blocked":
         return {

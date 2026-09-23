@@ -1539,6 +1539,10 @@
         "blocked": {
           "test_file": "tests/unit/alpha/test_daily_inference_refresh_blocking.py",
           "test_function": "test_daily_refresh_block_does_not_queue_predictions"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/alpha/test_daily_inference_refresh_blocking.py",
+          "test_function": "test_scoped_refresh_failure_does_not_queue_predictions"
         }
       }
     },

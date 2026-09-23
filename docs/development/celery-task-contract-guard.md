@@ -7,7 +7,7 @@
 
 2026-09-19 全市场刷新：`refresh_full_market_publications_task` 冻结有效 A 股范围，分批执行带审计的 quote/valuation fact-only 同步。全部批次成功且快照、估值源日期等于最近完成交易日后，才原子发布整个 quote/valuation/price 范围；独立财报缺少可用时间不再阻止市场数据发布。日线保留停牌股票真实末次观测，不填充价格，发布成功不表示所有成员可用于决策。计数单位为同步/发布操作，`stored` 为报价/估值事实行（不含日线补录量），部分同步或发布失败必须为 partial/failed，禁止发布中间批次。生产定时在推理前刷新快照并经过中台补录/校验当日日线后发布；`price_scope_verified` 和 `suspended_codes` 单独记录验证范围。
 
-2026-09-19 Alpha 定时入口：额度耗尽、模型行情契约阻断和刷新返回 blocked 时，父任务直接发布 blocked、零写入并停止投递子推理，避免各组合重复刷新。普通瞬时异常仍保留既有推理重试路径。详见 [排查记录](../reviews/vps-alpha-auto-refresh-2026-09-19.md)。
+2026-09-19 Alpha scoped 定时入口：额度耗尽、模型行情契约阻断、刷新返回 failed/blocked 或目标日覆盖不足时，父任务直接发布 blocked、零写入并停止投递子推理，避免各组合重复刷新。普通瞬时异常仍保留既有通用推理重试路径。详见 [排查记录](../reviews/vps-alpha-auto-refresh-2026-09-19.md)。
 
 2026-09-09 Alpha 额度耗尽处理：Qlib builder 遇到 `token daily limit exceeded`
 立即抛出 `TUSHARE_DAILY_QUOTA_EXHAUSTED`，停止未开始的并发请求；推理任务发布

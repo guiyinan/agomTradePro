@@ -85,3 +85,107 @@ def test_daily_refresh_block_does_not_queue_predictions(monkeypatch, scoped, fai
     assert result["succeeded"] == 0
     refresh.assert_called_once()
     queue.assert_not_called()
+
+
+def test_scoped_refresh_failure_does_not_queue_predictions(monkeypatch):
+    """A refresh task failure must stop the scoped parent before child fan-out."""
+    scope = AlphaPoolScope(
+        pool_type="portfolio_market",
+        market="CN",
+        pool_mode="price_covered",
+        selection_reason="test",
+        trade_date=date(2026, 9, 22),
+        portfolio_id=1,
+        instrument_codes=("000001.SZ",),
+    )
+    refresh = Mock(
+        return_value={
+            "status": "failed",
+            "error": "SoftTimeLimitExceeded()",
+            "stock_count": 1,
+        }
+    )
+    queue = Mock(return_value=SimpleNamespace(id="should-not-be-queued"))
+    monkeypatch.setattr(
+        "apps.alpha.application.pool_resolver.PortfolioAlphaPoolResolver",
+        lambda: SimpleNamespace(resolve=lambda **kw: SimpleNamespace(scope=scope)),
+    )
+
+    result = run_scoped_inference(
+        top_n=30,
+        portfolio_limit=10,
+        pool_mode="price_covered",
+        refresh_data=True,
+        lookback_days=120,
+        trade_date="2026-09-22",
+        only_missing=False,
+        resolve_trade_date=lambda: date(2026, 9, 22),
+        get_active_model=lambda: SimpleNamespace(artifact_hash="model"),
+        get_score_cache_repository=lambda: Mock(),
+        get_pool_repository=lambda: SimpleNamespace(
+            list_active_portfolio_refs=lambda **kw: [{"portfolio_id": 1, "user_id": 1}]
+        ),
+        cache_is_fresh=lambda *_: False,
+        refresh_runtime_for_codes=refresh,
+        queue_prediction=queue,
+    )
+
+    assert result["status"] == result["outcome"] == "blocked"
+    assert result["blocked_reason"] == "model_market_scope_refresh_failed"
+    assert result["refresh_result"]["status"] == "blocked"
+    assert result["refresh_result"]["reason"] == "model_market_scope_refresh_failed"
+    assert result["must_not_use_for_decision"] is True
+    assert result["queued_count"] == 0
+    assert result["stored"] == 0
+    refresh.assert_called_once()
+    queue.assert_not_called()
+
+
+def test_scoped_stale_refresh_does_not_queue_predictions(monkeypatch):
+    """A successful response with stale target-date evidence is still blocked."""
+    scope = AlphaPoolScope(
+        pool_type="portfolio_market",
+        market="CN",
+        pool_mode="price_covered",
+        selection_reason="test",
+        trade_date=date(2026, 9, 22),
+        portfolio_id=1,
+        instrument_codes=("000001.SZ",),
+    )
+    refresh = Mock(
+        return_value={
+            "status": "success",
+            "effective_target_date": "2026-09-21",
+            "stock_count": 1,
+        }
+    )
+    queue = Mock(return_value=SimpleNamespace(id="should-not-be-queued"))
+    monkeypatch.setattr(
+        "apps.alpha.application.pool_resolver.PortfolioAlphaPoolResolver",
+        lambda: SimpleNamespace(resolve=lambda **kw: SimpleNamespace(scope=scope)),
+    )
+
+    result = run_scoped_inference(
+        top_n=30,
+        portfolio_limit=10,
+        pool_mode="price_covered",
+        refresh_data=True,
+        lookback_days=120,
+        trade_date="2026-09-22",
+        only_missing=False,
+        resolve_trade_date=lambda: date(2026, 9, 22),
+        get_active_model=lambda: SimpleNamespace(artifact_hash="model"),
+        get_score_cache_repository=lambda: Mock(),
+        get_pool_repository=lambda: SimpleNamespace(
+            list_active_portfolio_refs=lambda **kw: [{"portfolio_id": 1, "user_id": 1}]
+        ),
+        cache_is_fresh=lambda *_: False,
+        refresh_runtime_for_codes=refresh,
+        queue_prediction=queue,
+    )
+
+    assert result["status"] == result["outcome"] == "blocked"
+    assert result["blocked_reason"] == "model_market_scope_incomplete"
+    assert result["refresh_result"]["error_code"] == "MODEL_MARKET_SCOPE_INCOMPLETE"
+    assert result["queued_count"] == 0
+    queue.assert_not_called()

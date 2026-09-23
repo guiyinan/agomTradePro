@@ -158,7 +158,9 @@ def test_qlib_daily_scoped_inference_queues_active_portfolio_scopes():
         ),
         patch(
             "apps.alpha.application.tasks.get_qlib_model_registry_repository",
-            return_value=SimpleNamespace(get_active_model=lambda: SimpleNamespace(artifact_hash="hash-1")),
+            return_value=SimpleNamespace(
+                get_active_model=lambda: SimpleNamespace(artifact_hash="hash-1")
+            ),
         ),
         patch(
             "apps.alpha.application.tasks.get_alpha_score_cache_repository",
@@ -174,7 +176,11 @@ def test_qlib_daily_scoped_inference_queues_active_portfolio_scopes():
         ) as resolve_mock,
         patch(
             "apps.alpha.application.tasks._refresh_qlib_runtime_data_for_codes",
-            return_value={"status": "success", "stock_count": 2},
+            return_value={
+                "status": "success",
+                "effective_target_date": "2026-05-07",
+                "stock_count": 2,
+            },
         ) as refresh_mock,
         patch("apps.alpha.application.tasks.qlib_predict_scores.delay") as delay_mock,
     ):
