@@ -5567,7 +5567,7 @@ owner 本任务内明确允许重启本机 Docker Desktop。管理命令
 专用卷与 dump 重新 inspect/hash 均与先前已核验身份一致；没有再运行 restore。
 
 只启动一个任务 app 容器，使用 `core.settings.production` 与本机临时生成密钥，
-根目录只读、`/tmp` 和 `/app/logs` tmpfs、零端口、共享已获批 PG 容器的
+根目录只读、`/tmp` 和应用日志 tmpfs、零端口、共享已获批 PG 容器的
 无外网 loopback。app 到 `evid09_compat_891c40c57` 的真实 PostgreSQL 会话
 显示 `default_transaction_read_only=on`。先用 30 秒 faulthandler 栈快照
 测量目标 `django.setup()`；快照从 Daphne/Twisted、业务模型等模块导入
@@ -5682,7 +5682,7 @@ healthy。仅在目标精确 OCI 的临时容器中运行
 network namespace，但零发布端口、无业务卷/镜像声明卷、只读根目录、
 tmpfs 日志、已知外部 token 覆盖为空，并以 `PGOPTIONS` 强制 libpq
 默认只读。首次探针在 Django `dictConfig` 前退出 1：镜像用户 UID/GID
-1000 对 root 拥有的 `/app/logs` tmpfs 无写权限。只调整**探针 tmpfs
+1000 对 root 拥有的应用日志 tmpfs 无写权限。只调整**探针 tmpfs
 属主**后，目标应用进程自然退出 0；DB 会话确认为默认只读、外层
 repeatable-read/read-only 并在结束时 rollback。四项严格策略存在；
 Application `get_current_publication` 精确读得新 ID/hash/12 coverage，

@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
+from importlib import import_module
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import DatabaseError, transaction
@@ -32,12 +34,6 @@ from apps.audit.infrastructure.system_audit_authority_renewal_request import (
     SystemAuditAuthorityRenewalInput,
     parse_system_audit_authority_renewal_request,
 )
-from apps.config_center.application.runtime_public import (
-    activate_runtime_profile_patch_payload,
-)
-from apps.simulated_trading.account_physical_row_v2_composition import (
-    build_account_physical_row_v2_provider,
-)
 from core.exceptions import AgomTradeProException
 
 
@@ -48,7 +44,7 @@ class _OwnerFactory:
         """Bind the server-owned principal, policy, and source alias."""
 
         self._request = request
-        self._physical_rows = build_account_physical_row_v2_provider(using=request.database_alias)
+        self._physical_rows = _load_physical_row_provider(request.database_alias)
 
     def build(
         self, actor: AccountOwnerAssignmentActorAuthoritySourceV3
@@ -240,7 +236,8 @@ def _activate_runtime_successor(
 ) -> dict[str, object]:
     """Publish the selector and required audit mode as one profile successor."""
 
-    return activate_runtime_profile_patch_payload(
+    activate = _load_runtime_profile_activator()
+    return activate(
         environment=profile.environment,
         patch={
             "audit.system_event.mode": "required",
@@ -255,6 +252,26 @@ def _activate_runtime_successor(
         expected_active_profile_hash=profile.expected_active_profile_hash,
         expected_active_snapshot_hash=profile.expected_active_snapshot_hash,
     )
+
+
+def _load_physical_row_provider(using: str) -> Any:
+    """Load the simulated-account provider at the composition boundary."""
+
+    module = import_module("apps.simulated_trading.account_physical_row_v2_composition")
+    builder = getattr(module, "build_account_physical_row_v2_provider", None)
+    if not callable(builder):
+        raise TypeError("physical row provider factory is unavailable")
+    return builder(using=using)
+
+
+def _load_runtime_profile_activator() -> Callable[..., dict[str, object]]:
+    """Load the Config Center writer without adding an app-level import edge."""
+
+    module = import_module("apps.config_center.application.runtime_public")
+    activator = getattr(module, "activate_runtime_profile_patch_payload", None)
+    if not callable(activator):
+        raise TypeError("runtime profile activator is unavailable")
+    return cast(Callable[..., dict[str, object]], activator)
 
 
 __all__ = ["Command"]
