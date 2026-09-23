@@ -28,7 +28,7 @@
 
 ### 2026-09-23
 
-- Tushare runtime settings are now persisted through deployment: `TUSHARE_TOKEN`, `TUSHARE_HTTP_URL`, and `TUSHARE_REQUEST_MODE` are retained in the VPS deployment and secrets files and passed to the Web, Worker, Beat, and optional Qlib Worker; credentials are never committed to Git.
+- The database is the source of truth for production Tushare settings: `data_center_provider_config` stores the endpoint and `tushare_request_mode`, while Config Center stores the Tushare token encrypted. VPS environment variables remain only for bootstrap, standalone diagnostics, and compatibility fallback when the database is unavailable; database settings take precedence, and credentials are never committed to Git.
 - VPS UAT verified the Tushare `trade_cal` probe, the Qlib `csi300` runtime refresh, and Alpha write-back of 30 scores, all at the `2026-09-23` data date. Full-market publication remains fail-closed because the audit runtime is not enabled, so this UAT does not establish complete automatic scheduling or decision-data recovery.
 
 ### 2026-09-20

@@ -30,7 +30,7 @@
 
 - 审计授权续期链已补齐：默认 dry-run，真实续期只追加新 actor/source 与 owner/tenant successor，使用 CAS 和同一事务原子激活 Config Center 的审计 selector；不会延长已过期旧授权。详见[授权续期运行手册](docs/deployment/system-audit-authority-renewal.md)。
 - VPS 已完成 code-only hotfix，Web health 200 且容器正常；生产在取得新的真实 owner/actor 授权材料前继续 fail-closed，调度器不会绕过授权闸门写入数据。
-- Tushare 运行时配置已纳入部署持久化：`TUSHARE_TOKEN`、`TUSHARE_HTTP_URL` 和 `TUSHARE_REQUEST_MODE` 会保存在 VPS 的部署环境与 secrets 文件中，并传递给 Web、Worker、Beat 及可选 Qlib Worker；凭据不会写入 Git。
+- Tushare 正式运行的配置真源是数据库：`data_center_provider_config` 保存 endpoint 和 `tushare_request_mode`，Tushare Token 由 Config Center 加密保存；VPS 环境变量仅用于首启、独立诊断和数据库不可用时的兼容降级，数据库配置优先，凭据不会写入 Git。
 - VPS UAT 已验证 Tushare `trade_cal`、Qlib `csi300` 数据刷新和 Alpha 30 条评分写回均成功，最新数据日期为 `2026-09-23`。全市场发布仍因审计运行时未启用而保持 fail-closed，不能把本次 UAT 视为自动调度和决策数据已完全恢复。
 
 ### 2026-09-20

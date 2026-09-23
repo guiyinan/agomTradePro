@@ -209,12 +209,14 @@ locally exported `AGOMTRADEPRO_*` SDK auth variables into the VPS `deploy/.env`
 and persist them in `/opt/agomtradepro/secrets.env`, so they survive a fresh
 redeploy that wipes containers/images.
 
-The same persistence path applies to the Tushare runtime settings
-`TUSHARE_TOKEN`, `TUSHARE_HTTP_URL`, and `TUSHARE_REQUEST_MODE`. Keep their
-values only in the ignored local `.env` or the VPS `deploy/.env`/`secrets.env`;
-the compose stack passes all three settings to web, Celery worker, beat, and
-the optional Qlib training worker so a restart cannot silently fall back to a
-different endpoint.
+Production Tushare configuration is owned by the database: the Data Center
+provider row stores the endpoint and transport mode, while Config Center
+stores the token encrypted. `TUSHARE_TOKEN`, `TUSHARE_HTTP_URL`, and
+`TUSHARE_REQUEST_MODE` in the ignored local/VPS environment are bootstrap and
+compatibility fallbacks for standalone diagnostics; database-backed provider
+configuration takes precedence when it exists. The compose stack still passes
+these variables to web, Celery worker, beat, and the optional Qlib worker so
+legacy paths remain operable during bootstrap or database recovery.
 
 The one-click deploy finishes with blocking runtime verification. In addition
 to the HTTPS health probe and container checks, it runs Django's production
