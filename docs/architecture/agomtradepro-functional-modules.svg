@@ -1,0 +1,311 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1130" viewBox="0 0 1600 1130" font-family="'Microsoft YaHei','PingFang SC','Noto Sans CJK SC',sans-serif">
+  <!-- ============ 背景 ============ -->
+  <rect x="0" y="0" width="1600" height="1130" fill="#fcfcfd"/>
+
+  <!-- ============ 标题区 ============ -->
+  <!-- 图标 1/3：模块网格符号 -->
+  <g fill="none" stroke="#2563eb" stroke-width="1.8">
+    <rect x="34" y="16" width="10" height="10" rx="2"/>
+    <rect x="47" y="16" width="10" height="10" rx="2"/>
+    <rect x="34" y="29" width="10" height="10" rx="2"/>
+    <rect x="47" y="29" width="10" height="10" rx="2"/>
+  </g>
+  <text x="68" y="40" font-size="22" font-weight="700" fill="#1e293b">AgomTradePro 功能模块全景</text>
+  <text x="1568" y="40" font-size="12" fill="#64748b" text-anchor="end">44 个业务 App · 按业务职能分 6 层 · 依赖细节见 docs/architecture/MODULE_DEPENDENCIES.md</text>
+
+  <!-- ============================================================
+       L1 接入与交互（蓝）
+       ============================================================ -->
+  <g>
+    <rect x="32" y="86" width="1314" height="118" rx="12" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
+    <circle cx="70" cy="120" r="16" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+    <text x="70" y="125" font-size="15" font-weight="700" fill="#2563eb" text-anchor="middle">1</text>
+    <text x="96" y="125" font-size="16" font-weight="700" fill="#1e293b">接入与交互</text>
+    <text x="96" y="142" font-size="9.5" fill="#94a3b8" letter-spacing="1.5">INTERACTION</text>
+    <text x="48" y="174" font-size="12" fill="#475569">用户与 Agent 的任务入口</text>
+    <g font-size="14" font-weight="600" fill="#334155">
+      <rect x="248" y="100" width="206" height="64" rx="8" fill="#ffffff" stroke="#2563eb" stroke-width="2.6"/>
+      <text x="260" y="124">terminal</text>
+      <text x="260" y="145" font-size="10.5" font-weight="400" fill="#64748b">TUI 任务界面 · 主入口</text>
+
+      <rect x="466" y="100" width="206" height="64" rx="8" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="478" y="124">dashboard</text>
+      <text x="478" y="145" font-size="10.5" font-weight="400" fill="#64748b">决策仪表盘总览</text>
+
+      <rect x="684" y="100" width="206" height="64" rx="8" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="696" y="124">share</text>
+      <text x="696" y="145" font-size="10.5" font-weight="400" fill="#64748b">快照分享 · 只读链接</text>
+
+      <rect x="902" y="100" width="206" height="64" rx="8" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="914" y="124">setup_wizard</text>
+      <text x="914" y="145" font-size="10.5" font-weight="400" fill="#64748b">首次配置向导</text>
+
+      <rect x="1120" y="100" width="206" height="64" rx="8" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="1132" y="124">agent_runtime</text>
+      <text x="1132" y="145" font-size="10.5" font-weight="400" fill="#64748b">Agent 会话与工具运行时</text>
+    </g>
+    <text x="248" y="190" font-size="11" fill="#64748b"><tspan font-weight="600" fill="#2563eb">不变式：</tspan>新业务主任务默认只进入 /tui/；Classic 页面仅允许缺陷修复、兼容提示与迁移导流</text>
+  </g>
+
+  <!-- ============================================================
+       L2 宏观与信号（青）
+       ============================================================ -->
+  <g>
+    <rect x="32" y="218" width="1314" height="190" rx="12" fill="#f0fdfa" stroke="#0d9488" stroke-width="1.5"/>
+    <circle cx="70" cy="252" r="16" fill="#ffffff" stroke="#0d9488" stroke-width="2"/>
+    <text x="70" y="257" font-size="15" font-weight="700" fill="#0d9488" text-anchor="middle">2</text>
+    <text x="96" y="257" font-size="16" font-weight="700" fill="#1e293b">宏观与信号</text>
+    <text x="96" y="274" font-size="9.5" fill="#94a3b8" letter-spacing="1.5">MACRO &amp; SIGNAL</text>
+    <text x="48" y="306" font-size="12" fill="#475569">环境判断与信号生产</text>
+    <g font-size="14" font-weight="600" fill="#334155">
+      <rect x="248" y="232" width="206" height="64" rx="8" fill="#ffffff" stroke="#0d9488" stroke-width="1.5"/>
+      <text x="260" y="256">regime</text>
+      <text x="260" y="277" font-size="10.5" font-weight="400" fill="#64748b">宏观象限判定</text>
+
+      <rect x="466" y="232" width="206" height="64" rx="8" fill="#ffffff" stroke="#0d9488" stroke-width="1.5"/>
+      <text x="478" y="256">macro</text>
+      <text x="478" y="277" font-size="10.5" font-weight="400" fill="#64748b">宏观数据与指标</text>
+
+      <rect x="684" y="232" width="206" height="64" rx="8" fill="#ffffff" stroke="#0d9488" stroke-width="1.5"/>
+      <text x="696" y="256">macro_factor</text>
+      <text x="696" y="277" font-size="10.5" font-weight="400" fill="#64748b">宏观因子构建</text>
+
+      <rect x="902" y="232" width="206" height="64" rx="8" fill="#ffffff" stroke="#0d9488" stroke-width="1.5"/>
+      <text x="914" y="256">policy</text>
+      <text x="914" y="277" font-size="10.5" font-weight="400" fill="#64748b">政策事件解读</text>
+
+      <rect x="1120" y="232" width="206" height="64" rx="8" fill="#ffffff" stroke="#0d9488" stroke-width="1.5"/>
+      <text x="1132" y="256">sentiment</text>
+      <text x="1132" y="277" font-size="10.5" font-weight="400" fill="#64748b">市场情绪分析</text>
+
+      <rect x="248" y="308" width="260" height="64" rx="8" fill="#ffffff" stroke="#0d9488" stroke-width="2.6"/>
+      <text x="260" y="332">signal</text>
+      <text x="260" y="353" font-size="10.5" font-weight="400" fill="#64748b">投资信号 · 必须含证伪阈值</text>
+
+      <rect x="522" y="308" width="260" height="64" rx="8" fill="#ffffff" stroke="#0d9488" stroke-width="1.5"/>
+      <text x="534" y="332">filter</text>
+      <text x="534" y="353" font-size="10.5" font-weight="400" fill="#64748b">信号过滤与降噪</text>
+
+      <rect x="796" y="308" width="260" height="64" rx="8" fill="#ffffff" stroke="#0d9488" stroke-width="1.5"/>
+      <text x="808" y="332">pulse</text>
+      <text x="808" y="353" font-size="10.5" font-weight="400" fill="#64748b">市场脉搏监测</text>
+
+      <rect x="1070" y="308" width="260" height="64" rx="8" fill="#ffffff" stroke="#0d9488" stroke-width="1.5"/>
+      <text x="1082" y="332">research</text>
+      <text x="1082" y="353" font-size="10.5" font-weight="400" fill="#64748b">研究产出管理</text>
+    </g>
+    <text x="248" y="394" font-size="11" fill="#64748b"><tspan font-weight="600" fill="#0d9488">不变式：</tspan>信号必须含证伪逻辑与阈值；决策数据必须发布 freshness · reliability · must_not_use_for_decision</text>
+  </g>
+
+  <!-- ============================================================
+       L3 资产分析（青蓝）
+       ============================================================ -->
+  <g>
+    <rect x="32" y="422" width="1314" height="190" rx="12" fill="#ecfeff" stroke="#0891b2" stroke-width="1.5"/>
+    <circle cx="70" cy="456" r="16" fill="#ffffff" stroke="#0891b2" stroke-width="2"/>
+    <text x="70" y="461" font-size="15" font-weight="700" fill="#0891b2" text-anchor="middle">3</text>
+    <text x="96" y="461" font-size="16" font-weight="700" fill="#1e293b">资产分析</text>
+    <text x="96" y="478" font-size="9.5" fill="#94a3b8" letter-spacing="1.5">ASSET ANALYSIS</text>
+    <text x="48" y="510" font-size="12" fill="#475569">标的维度的深度分析</text>
+    <g font-size="14" font-weight="600" fill="#334155">
+      <rect x="248" y="436" width="260" height="64" rx="8" fill="#ffffff" stroke="#0891b2" stroke-width="1.5"/>
+      <text x="260" y="460">asset_analysis</text>
+      <text x="260" y="481" font-size="10.5" font-weight="400" fill="#64748b">资产分析聚合入口</text>
+
+      <rect x="522" y="436" width="260" height="64" rx="8" fill="#ffffff" stroke="#0891b2" stroke-width="1.5"/>
+      <text x="534" y="460">equity</text>
+      <text x="534" y="481" font-size="10.5" font-weight="400" fill="#64748b">股票标的分析</text>
+
+      <rect x="796" y="436" width="260" height="64" rx="8" fill="#ffffff" stroke="#0891b2" stroke-width="1.5"/>
+      <text x="808" y="460">fund</text>
+      <text x="808" y="481" font-size="10.5" font-weight="400" fill="#64748b">基金标的分析</text>
+
+      <rect x="1070" y="436" width="260" height="64" rx="8" fill="#ffffff" stroke="#0891b2" stroke-width="1.5"/>
+      <text x="1082" y="460">fixed_income</text>
+      <text x="1082" y="481" font-size="10.5" font-weight="400" fill="#64748b">固收标的分析</text>
+
+      <rect x="248" y="512" width="351" height="64" rx="8" fill="#ffffff" stroke="#0891b2" stroke-width="1.5"/>
+      <text x="260" y="536">sector</text>
+      <text x="260" y="557" font-size="10.5" font-weight="400" fill="#64748b">行业板块分析</text>
+
+      <rect x="613" y="512" width="351" height="64" rx="8" fill="#ffffff" stroke="#0891b2" stroke-width="1.5"/>
+      <text x="625" y="536">factor</text>
+      <text x="625" y="557" font-size="10.5" font-weight="400" fill="#64748b">因子计算与管理</text>
+
+      <rect x="978" y="512" width="351" height="64" rx="8" fill="#ffffff" stroke="#0891b2" stroke-width="1.5"/>
+      <text x="990" y="536">valuation</text>
+      <text x="990" y="557" font-size="10.5" font-weight="400" fill="#64748b">估值分析</text>
+    </g>
+    <text x="248" y="598" font-size="11" fill="#64748b"><tspan font-weight="600" fill="#0891b2">不变式：</tspan>外部数值统一经 safe_float；缺失值默认 None，业务默认值与缩放必须显式声明</text>
+  </g>
+
+  <!-- ============================================================
+       L4 策略与决策（紫）
+       ============================================================ -->
+  <g>
+    <rect x="32" y="626" width="1314" height="118" rx="12" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
+    <circle cx="70" cy="660" r="16" fill="#ffffff" stroke="#7c3aed" stroke-width="2"/>
+    <text x="70" y="665" font-size="15" font-weight="700" fill="#7c3aed" text-anchor="middle">4</text>
+    <text x="96" y="665" font-size="16" font-weight="700" fill="#1e293b">策略与决策</text>
+    <text x="96" y="682" font-size="9.5" fill="#94a3b8" letter-spacing="1.5">STRATEGY &amp; DECISION</text>
+    <text x="48" y="714" font-size="12" fill="#475569">策略生成与历史验证</text>
+    <g font-size="14" font-weight="600" fill="#334155">
+      <rect x="248" y="640" width="172" height="64" rx="8" fill="#ffffff" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="260" y="664">alpha</text>
+      <text x="260" y="685" font-size="10.5" font-weight="400" fill="#64748b">Alpha 策略</text>
+
+      <rect x="430" y="640" width="172" height="64" rx="8" fill="#ffffff" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="442" y="664">alpha_trigger</text>
+      <text x="442" y="685" font-size="10.5" font-weight="400" fill="#64748b">Alpha 触发器</text>
+
+      <rect x="612" y="640" width="172" height="64" rx="8" fill="#ffffff" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="624" y="664">strategy</text>
+      <text x="624" y="685" font-size="10.5" font-weight="400" fill="#64748b">策略编排管理</text>
+
+      <rect x="794" y="640" width="172" height="64" rx="8" fill="#ffffff" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="806" y="664">rotation</text>
+      <text x="806" y="685" font-size="10.5" font-weight="400" fill="#64748b">轮动策略</text>
+
+      <rect x="976" y="640" width="172" height="64" rx="8" fill="#ffffff" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="988" y="664" font-size="12.5">decision_rhythm</text>
+      <text x="988" y="685" font-size="10.5" font-weight="400" fill="#64748b">决策节奏编排</text>
+
+      <rect x="1158" y="640" width="172" height="64" rx="8" fill="#ffffff" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="1170" y="664">backtest</text>
+      <text x="1170" y="685" font-size="10.5" font-weight="400" fill="#64748b">历史回测验证</text>
+    </g>
+    <text x="248" y="730" font-size="11" fill="#64748b"><tspan font-weight="600" fill="#7c3aed">不变式：</tspan>HP 滤波只用扩张窗口（时点 t 可见数据），禁止全量滤波造成后视偏差</text>
+  </g>
+
+  <!-- ============================================================
+       L5 组合与执行（绿）
+       ============================================================ -->
+  <g>
+    <rect x="32" y="758" width="1314" height="118" rx="12" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+    <circle cx="70" cy="792" r="16" fill="#ffffff" stroke="#16a34a" stroke-width="2"/>
+    <text x="70" y="797" font-size="15" font-weight="700" fill="#16a34a" text-anchor="middle">5</text>
+    <text x="96" y="797" font-size="16" font-weight="700" fill="#1e293b">组合与执行</text>
+    <text x="96" y="814" font-size="9.5" fill="#94a3b8" letter-spacing="1.5">PORTFOLIO &amp; EXECUTION</text>
+    <text x="48" y="846" font-size="12" fill="#475569">持仓管理与交易落地</text>
+    <g font-size="14" font-weight="600" fill="#334155">
+      <rect x="248" y="772" width="260" height="64" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="2.6"/>
+      <text x="260" y="796">portfolio</text>
+      <text x="260" y="817" font-size="10.5" font-weight="400" fill="#64748b">组合 · 持仓 · 交易流水</text>
+
+      <rect x="522" y="772" width="260" height="64" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="1.5"/>
+      <text x="534" y="796">simulated_trading</text>
+      <text x="534" y="817" font-size="10.5" font-weight="400" fill="#64748b">模拟交易撮合</text>
+
+      <rect x="796" y="772" width="260" height="64" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="1.5"/>
+      <text x="808" y="796">broker_execution</text>
+      <text x="808" y="817" font-size="10.5" font-weight="400" fill="#64748b">券商执行桥接（QMT）</text>
+
+      <rect x="1070" y="772" width="260" height="64" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="1.5"/>
+      <text x="1082" y="796">hedge</text>
+      <text x="1082" y="817" font-size="10.5" font-weight="400" fill="#64748b">对冲管理</text>
+    </g>
+    <text x="248" y="862" font-size="11" fill="#64748b"><tspan font-weight="600" fill="#16a34a">不变式：</tspan>组合、持仓与交易流水唯一归属 portfolio；执行链路全程留痕可追溯</text>
+  </g>
+
+  <!-- ============================================================
+       L6 数据与 AI 底座（中性灰）
+       ============================================================ -->
+  <g>
+    <rect x="32" y="890" width="1314" height="190" rx="12" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+    <circle cx="70" cy="924" r="16" fill="#ffffff" stroke="#64748b" stroke-width="2"/>
+    <text x="70" y="929" font-size="15" font-weight="700" fill="#64748b" text-anchor="middle">6</text>
+    <text x="96" y="929" font-size="16" font-weight="700" fill="#1e293b">数据与 AI 底座</text>
+    <text x="96" y="946" font-size="9.5" fill="#94a3b8" letter-spacing="1.5">DATA &amp; AI FOUNDATION</text>
+    <text x="48" y="978" font-size="12" fill="#475569">数据供给与 AI 能力底座</text>
+    <g font-size="14" font-weight="600" fill="#334155">
+      <rect x="248" y="904" width="260" height="64" rx="8" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
+      <!-- 图标 3/3：存储柱体 -->
+      <g fill="none" stroke="#64748b" stroke-width="1.6">
+        <ellipse cx="268" cy="922" rx="8" ry="3.5"/>
+        <path d="M260 922 V944 A8 3.5 0 0 0 276 944 V922"/>
+        <path d="M260 933 A8 3.5 0 0 0 276 933"/>
+      </g>
+      <text x="284" y="928">data_center</text>
+      <text x="284" y="949" font-size="10.5" font-weight="400" fill="#64748b">Provider 协议 · 统一查询</text>
+
+      <rect x="522" y="904" width="260" height="64" rx="8" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
+      <text x="534" y="928">realtime</text>
+      <text x="534" y="949" font-size="10.5" font-weight="400" fill="#64748b">实时数据 · freshness</text>
+
+      <rect x="796" y="904" width="260" height="64" rx="8" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
+      <text x="808" y="928">ai_provider</text>
+      <text x="808" y="949" font-size="10.5" font-weight="400" fill="#64748b">AI 服务商接入与 failover</text>
+
+      <rect x="1070" y="904" width="260" height="64" rx="8" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
+      <text x="1082" y="928">ai_capability</text>
+      <text x="1082" y="949" font-size="10.5" font-weight="400" fill="#64748b">AI 能力治理</text>
+
+      <rect x="248" y="980" width="260" height="64" rx="8" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
+      <text x="260" y="1004">prompt</text>
+      <text x="260" y="1025" font-size="10.5" font-weight="400" fill="#64748b">Prompt 模板管理</text>
+
+      <rect x="522" y="980" width="260" height="64" rx="8" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
+      <text x="534" y="1004">config_center</text>
+      <text x="534" y="1025" font-size="10.5" font-weight="400" fill="#64748b">全局运行配置</text>
+
+      <rect x="796" y="980" width="260" height="64" rx="8" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
+      <text x="808" y="1004">account</text>
+      <text x="808" y="1025" font-size="10.5" font-weight="400" fill="#64748b">账户身份</text>
+
+      <rect x="1070" y="980" width="260" height="64" rx="8" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
+      <text x="1082" y="1004">events</text>
+      <text x="1082" y="1025" font-size="10.5" font-weight="400" fill="#64748b">领域事件总线</text>
+    </g>
+    <text x="248" y="1066" font-size="11" fill="#64748b"><tspan font-weight="600" fill="#64748b">不变式：</tspan>data_center 不得反向依赖业务模块；宏观数据必须带单位并转 canonical unit 存储</text>
+  </g>
+
+  <!-- ============================================================
+       右侧纵向容器：强制与风险（暖橙红，跨层）
+       ============================================================ -->
+  <g>
+    <rect x="1362" y="86" width="206" height="994" rx="12" fill="#fff7ed" stroke="#ea580c" stroke-width="1.5"/>
+    <!-- 图标 2/3：盾牌 -->
+    <path d="M1386 100 L1397 105 V114 C1397 122 1392 127 1386 130 C1380 127 1375 122 1375 114 V105 Z" fill="none" stroke="#ea580c" stroke-width="1.8"/>
+    <text x="1406" y="121" font-size="15" font-weight="700" fill="#9a3412">强制与风险</text>
+    <text x="1406" y="136" font-size="8.5" fill="#c2410c" letter-spacing="1">ENFORCEMENT &amp; RISK</text>
+
+    <!-- 实心块 1/2：risk_center -->
+    <rect x="1376" y="150" width="178" height="104" rx="8" fill="#ea580c" stroke="#ea580c" stroke-width="1.5"/>
+    <text x="1388" y="184" font-size="14" font-weight="700" fill="#ffffff">risk_center</text>
+    <text x="1388" y="210" font-size="10.5" fill="#ffedd5">风险规则与状态</text>
+    <text x="1388" y="230" font-size="10.5" fill="#ffedd5">组合风控唯一归属</text>
+
+    <rect x="1376" y="280" width="178" height="104" rx="8" fill="#ffffff" stroke="#ea580c" stroke-width="1.5"/>
+    <text x="1388" y="314" font-size="14" font-weight="600" fill="#334155">beta_gate</text>
+    <text x="1388" y="340" font-size="10.5" font-weight="400" fill="#64748b">准入闸门</text>
+    <text x="1388" y="360" font-size="10.5" font-weight="400" fill="#64748b">fail-closed 默认拒绝</text>
+
+    <rect x="1376" y="410" width="178" height="104" rx="8" fill="#ffffff" stroke="#ea580c" stroke-width="1.5"/>
+    <text x="1388" y="444" font-size="14" font-weight="600" fill="#334155">audit</text>
+    <text x="1388" y="470" font-size="10.5" font-weight="400" fill="#64748b">操作审计日志</text>
+    <text x="1388" y="490" font-size="10.5" font-weight="400" fill="#64748b">全程留痕可追溯</text>
+
+    <rect x="1376" y="540" width="178" height="104" rx="8" fill="#ffffff" stroke="#ea580c" stroke-width="1.5"/>
+    <text x="1388" y="574" font-size="12" font-weight="600" fill="#334155">operational_readiness</text>
+    <text x="1388" y="600" font-size="10.5" font-weight="400" fill="#64748b">运营就绪度</text>
+    <text x="1388" y="620" font-size="10.5" font-weight="400" fill="#64748b">门禁证据核验</text>
+
+    <rect x="1376" y="670" width="178" height="104" rx="8" fill="#ffffff" stroke="#ea580c" stroke-width="1.5"/>
+    <text x="1388" y="704" font-size="14" font-weight="600" fill="#334155">task_monitor</text>
+    <text x="1388" y="730" font-size="10.5" font-weight="400" fill="#64748b">任务监控与告警</text>
+    <text x="1388" y="750" font-size="10.5" font-weight="400" fill="#64748b">读取业务 outcome</text>
+
+    <!-- 实心块 2/2：CI 治理门禁 -->
+    <rect x="1376" y="800" width="178" height="104" rx="8" fill="#dc2626" stroke="#dc2626" stroke-width="1.5"/>
+    <text x="1388" y="834" font-size="14" font-weight="700" fill="#ffffff">CI 治理门禁</text>
+    <text x="1388" y="860" font-size="10.5" fill="#fee2e2">mypy 增量 · 结构扫描</text>
+    <text x="1388" y="880" font-size="10.5" fill="#fee2e2">契约检查 · 债务基线</text>
+
+    <text x="1376" y="1000" font-size="10.5" fill="#9a3412"><tspan font-weight="700">不变式：</tspan>超限告警不静默切换；</text>
+    <text x="1376" y="1018" font-size="10.5" fill="#9a3412">风险与就绪门禁 fail-closed；</text>
+    <text x="1376" y="1036" font-size="10.5" fill="#9a3412">暖橙红仅用于强制与风险。</text>
+  </g>
+
+  <!-- ============ 底部图例 ============ -->
+  <text x="800" y="1108" font-size="11.5" fill="#64748b" text-anchor="middle">无连线设计：分层与容器嵌套即协作关系 · 实心色块（全图 2 处）= 强制执行点 · 描边加粗 = 强调（terminal / signal / portfolio）· 冷色 = 业务功能，灰 = 数据与 AI 底座，暖橙红 = 强制与风险</text>
+</svg>

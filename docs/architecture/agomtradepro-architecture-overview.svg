@@ -1,0 +1,212 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1480" height="800" viewBox="0 0 1480 800" font-family="'Microsoft YaHei','PingFang SC','Noto Sans CJK SC',sans-serif">
+  <!-- ============ 背景 ============ -->
+  <rect x="0" y="0" width="1480" height="800" fill="#fcfcfd"/>
+
+  <!-- ============ 标题区 ============ -->
+  <!-- 图标 1/3：分层符号 -->
+  <g fill="none" stroke="#2563eb" stroke-width="1.8">
+    <rect x="34" y="16" width="24" height="7" rx="2"/>
+    <rect x="34" y="26" width="24" height="7" rx="2"/>
+    <rect x="34" y="36" width="24" height="7" rx="2"/>
+  </g>
+  <text x="68" y="40" font-size="22" font-weight="700" fill="#1e293b">AgomTradePro 总体架构</text>
+  <text x="1448" y="40" font-size="12" fill="#64748b" text-anchor="end">依赖方向 Interface → Application → Domain ← Infrastructure · Python 3.11 · Django 5.x · Celery + Redis · PostgreSQL</text>
+
+  <!-- ============================================================
+       L1 接入层 Interface（蓝）
+       ============================================================ -->
+  <g>
+    <rect x="32" y="86" width="1200" height="118" rx="12" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
+    <!-- 左侧：编号 + 层名 + 定位 -->
+    <circle cx="70" cy="120" r="16" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+    <text x="70" y="125" font-size="15" font-weight="700" fill="#2563eb" text-anchor="middle">1</text>
+    <text x="96" y="125" font-size="16" font-weight="700" fill="#1e293b">接入层</text>
+    <text x="96" y="142" font-size="9.5" fill="#94a3b8" letter-spacing="1.5">INTERFACE</text>
+    <text x="48" y="174" font-size="12" fill="#475569">请求入口 · 校验与格式化</text>
+    <!-- 卡片 ×5 -->
+    <g font-size="14" font-weight="600" fill="#334155">
+      <rect x="252" y="100" width="183" height="62" rx="8" fill="#ffffff" stroke="#2563eb" stroke-width="2.6"/>
+      <text x="264" y="123">TUI 任务界面</text>
+      <text x="264" y="142" font-size="10.5" font-weight="400" fill="#64748b">/tui/ · 一屏一主任务</text>
+
+      <rect x="447" y="100" width="183" height="62" rx="8" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="459" y="123">Classic Web</text>
+      <text x="459" y="142" font-size="10.5" font-weight="400" fill="#64748b">仅缺陷修复与迁移导流</text>
+
+      <rect x="642" y="100" width="183" height="62" rx="8" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="654" y="123">REST API</text>
+      <text x="654" y="142" font-size="10.5" font-weight="400" fill="#64748b">DRF · 契约测试</text>
+
+      <rect x="837" y="100" width="183" height="62" rx="8" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="849" y="123">SDK / MCP</text>
+      <text x="849" y="142" font-size="10.5" font-weight="400" fill="#64748b">外部集成 · 远程调用</text>
+
+      <rect x="1032" y="100" width="183" height="62" rx="8" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="1044" y="123">Django Admin</text>
+      <text x="1044" y="142" font-size="10.5" font-weight="400" fill="#64748b">TypedModelAdmin</text>
+    </g>
+    <text x="252" y="190" font-size="11" fill="#64748b"><tspan font-weight="600" fill="#2563eb">不变式：</tspan>禁止导入 apps.*.infrastructure、禁止直连 ORM；API 路由入 api_urls.py，页面路由入 urls.py</text>
+  </g>
+
+  <!-- ============================================================
+       L2 应用层 Application（青）
+       ============================================================ -->
+  <g>
+    <rect x="32" y="220" width="1200" height="118" rx="12" fill="#f0fdfa" stroke="#0d9488" stroke-width="1.5"/>
+    <circle cx="70" cy="254" r="16" fill="#ffffff" stroke="#0d9488" stroke-width="2"/>
+    <text x="70" y="259" font-size="15" font-weight="700" fill="#0d9488" text-anchor="middle">2</text>
+    <text x="96" y="259" font-size="16" font-weight="700" fill="#1e293b">应用层</text>
+    <text x="96" y="276" font-size="9.5" fill="#94a3b8" letter-spacing="1.5">APPLICATION</text>
+    <text x="48" y="308" font-size="12" fill="#475569">用例编排 · 跨模块协作</text>
+    <g font-size="14" font-weight="600" fill="#334155">
+      <rect x="252" y="234" width="230" height="62" rx="8" fill="#ffffff" stroke="#0d9488" stroke-width="1.5"/>
+      <text x="264" y="257">研究决策</text>
+      <text x="264" y="276" font-size="10.5" font-weight="400" fill="#64748b">regime·macro·policy·alpha·signal</text>
+
+      <rect x="496" y="234" width="230" height="62" rx="8" fill="#ffffff" stroke="#0d9488" stroke-width="1.5"/>
+      <text x="508" y="257">组合与交易</text>
+      <text x="508" y="276" font-size="10.5" font-weight="400" fill="#64748b">portfolio·strategy·backtest·execution</text>
+
+      <rect x="740" y="234" width="230" height="62" rx="8" fill="#ffffff" stroke="#0d9488" stroke-width="1.5"/>
+      <text x="752" y="257">数据中心</text>
+      <text x="752" y="276" font-size="10.5" font-weight="400" fill="#64748b">data_center·统一查询与标准化存储</text>
+
+      <rect x="984" y="234" width="230" height="62" rx="8" fill="#ffffff" stroke="#0d9488" stroke-width="1.5"/>
+      <text x="996" y="257">AI 能力</text>
+      <text x="996" y="276" font-size="10.5" font-weight="400" fill="#64748b">ai_capability·ai_provider·prompt</text>
+    </g>
+    <text x="252" y="324" font-size="11" fill="#64748b"><tspan font-weight="600" fill="#0d9488">不变式：</tspan>禁止 .objects 与函数内延迟 import 绕过；跨 App 仅调用公开 UseCase / Service，经 Protocol · Facade · 注入解耦</text>
+  </g>
+
+  <!-- ============================================================
+       L3 领域层 Domain（紫，描边加粗强调核心）
+       ============================================================ -->
+  <g>
+    <rect x="32" y="354" width="1200" height="118" rx="12" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2.6"/>
+    <circle cx="70" cy="388" r="16" fill="#ffffff" stroke="#7c3aed" stroke-width="2"/>
+    <text x="70" y="393" font-size="15" font-weight="700" fill="#7c3aed" text-anchor="middle">3</text>
+    <text x="96" y="393" font-size="16" font-weight="700" fill="#1e293b">领域层</text>
+    <text x="96" y="410" font-size="9.5" fill="#94a3b8" letter-spacing="1.5">DOMAIN</text>
+    <text x="48" y="442" font-size="12" fill="#475569">纯业务内核 · 零框架依赖</text>
+    <g font-size="14" font-weight="600" fill="#334155">
+      <rect x="252" y="368" width="310" height="62" rx="8" fill="#ffffff" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="264" y="391">金融实体与值对象</text>
+      <text x="264" y="410" font-size="10.5" font-weight="400" fill="#64748b">@dataclass(frozen=True) 值对象优先</text>
+
+      <rect x="578" y="368" width="310" height="62" rx="8" fill="#ffffff" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="590" y="391">纯业务规则与算法</text>
+      <text x="590" y="410" font-size="10.5" font-weight="400" fill="#64748b">HP 滤波扩张窗口（防后视）· Kalman 参数</text>
+
+      <rect x="904" y="368" width="310" height="62" rx="8" fill="#ffffff" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="916" y="391">投资信号证伪</text>
+      <text x="916" y="410" font-size="10.5" font-weight="400" fill="#64748b">每条信号必须含证伪逻辑与阈值</text>
+    </g>
+    <text x="252" y="458" font-size="11" fill="#64748b"><tspan font-weight="600" fill="#7c3aed">不变式：</tspan>仅允许标准库 + dataclasses / typing / enum / abc；禁止 django · pandas · numpy · requests；覆盖率目标 ≥ 90%</text>
+  </g>
+
+  <!-- ============================================================
+       L4 基础设施层 Infrastructure（青蓝）
+       ============================================================ -->
+  <g>
+    <rect x="32" y="488" width="1200" height="118" rx="12" fill="#ecfeff" stroke="#0891b2" stroke-width="1.5"/>
+    <circle cx="70" cy="522" r="16" fill="#ffffff" stroke="#0891b2" stroke-width="2"/>
+    <text x="70" y="527" font-size="15" font-weight="700" fill="#0891b2" text-anchor="middle">4</text>
+    <text x="96" y="527" font-size="16" font-weight="700" fill="#1e293b">基础设施层</text>
+    <text x="96" y="544" font-size="9.5" fill="#94a3b8" letter-spacing="1.5">INFRASTRUCTURE</text>
+    <text x="48" y="576" font-size="12" fill="#475569">协议实现 · 外部世界适配</text>
+    <g font-size="14" font-weight="600" fill="#334155">
+      <rect x="252" y="502" width="230" height="62" rx="8" fill="#ffffff" stroke="#0891b2" stroke-width="1.5"/>
+      <text x="264" y="525">ORM Repository</text>
+      <text x="264" y="544" font-size="10.5" font-weight="400" fill="#64748b">查询下沉 · 聚合写入</text>
+
+      <rect x="496" y="502" width="230" height="62" rx="8" fill="#ffffff" stroke="#0891b2" stroke-width="1.5"/>
+      <text x="508" y="525">Provider 接入</text>
+      <text x="508" y="544" font-size="10.5" font-weight="400" fill="#64748b">failover · 一致性容差 1%</text>
+
+      <rect x="740" y="502" width="230" height="62" rx="8" fill="#ffffff" stroke="#0891b2" stroke-width="1.5"/>
+      <text x="752" y="525">Celery · 缓存</text>
+      <text x="752" y="544" font-size="10.5" font-weight="400" fill="#64748b">outcome 契约 · 四项统计</text>
+
+      <rect x="984" y="502" width="230" height="62" rx="8" fill="#ffffff" stroke="#0891b2" stroke-width="1.5"/>
+      <text x="996" y="525">外部 IO</text>
+      <text x="996" y="544" font-size="10.5" font-weight="400" fill="#64748b">外部 API · 文件 · 网络</text>
+    </g>
+    <text x="252" y="592" font-size="11" fill="#64748b"><tspan font-weight="600" fill="#0891b2">不变式：</tspan>外部输入先校验、标准化、类型收窄；部分失败不得报全成功，零写入必须说明原因</text>
+  </g>
+
+  <!-- ============================================================
+       L5 底座层 Foundation（中性灰）
+       ============================================================ -->
+  <g>
+    <rect x="32" y="622" width="1200" height="118" rx="12" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+    <circle cx="70" cy="656" r="16" fill="#ffffff" stroke="#64748b" stroke-width="2"/>
+    <text x="70" y="661" font-size="15" font-weight="700" fill="#64748b" text-anchor="middle">5</text>
+    <text x="96" y="661" font-size="16" font-weight="700" fill="#1e293b">底座层</text>
+    <text x="96" y="678" font-size="9.5" fill="#94a3b8" letter-spacing="1.5">FOUNDATION</text>
+    <text x="48" y="710" font-size="12" fill="#475569">配置 · 工具 · 存储引擎</text>
+    <g font-size="14" font-weight="600" fill="#334155">
+      <rect x="252" y="636" width="230" height="62" rx="8" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
+      <text x="264" y="659">core/</text>
+      <text x="264" y="678" font-size="10.5" font-weight="400" fill="#64748b">settings · 异常体系 · 中间件</text>
+
+      <rect x="496" y="636" width="230" height="62" rx="8" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
+      <text x="508" y="659">shared/</text>
+      <text x="508" y="678" font-size="10.5" font-weight="400" fill="#64748b">safe_float · 通用算法 · Protocol</text>
+
+      <rect x="740" y="636" width="230" height="62" rx="8" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
+      <text x="752" y="659">配置与身份</text>
+      <text x="752" y="678" font-size="10.5" font-weight="400" fill="#64748b">config_center · account</text>
+
+      <rect x="984" y="636" width="230" height="62" rx="8" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
+      <!-- 图标 3/3：存储柱体 -->
+      <g fill="none" stroke="#64748b" stroke-width="1.6">
+        <ellipse cx="1004" cy="654" rx="8" ry="3.5"/>
+        <path d="M996 654 V676 A8 3.5 0 0 0 1012 676 V654"/>
+        <path d="M996 665 A8 3.5 0 0 0 1012 665"/>
+      </g>
+      <text x="1020" y="659">存储引擎</text>
+      <text x="1020" y="678" font-size="10.5" font-weight="400" fill="#64748b">PostgreSQL · SQLite · Redis</text>
+    </g>
+    <text x="252" y="726" font-size="11" fill="#64748b"><tspan font-weight="600" fill="#64748b">不变式：</tspan>shared 禁止依赖 apps、禁止业务语义与硬编码业务配置；密钥统一经 get_secrets() 获取</text>
+  </g>
+
+  <!-- ============================================================
+       右侧纵向容器：强制与风险（暖橙红，跨层）
+       ============================================================ -->
+  <g>
+    <rect x="1248" y="86" width="200" height="654" rx="12" fill="#fff7ed" stroke="#ea580c" stroke-width="1.5"/>
+    <!-- 图标 2/3：盾牌 -->
+    <path d="M1270 100 L1281 105 V114 C1281 122 1276 127 1270 130 C1264 127 1259 122 1259 114 V105 Z" fill="none" stroke="#ea580c" stroke-width="1.8"/>
+    <text x="1290" y="121" font-size="15" font-weight="700" fill="#9a3412">强制与风险</text>
+    <text x="1290" y="136" font-size="8.5" fill="#c2410c" letter-spacing="1">ENFORCEMENT &amp; RISK</text>
+
+    <!-- 实心块 1/2：risk_center -->
+    <rect x="1262" y="158" width="172" height="68" rx="8" fill="#ea580c" stroke="#ea580c" stroke-width="1.5"/>
+    <text x="1274" y="184" font-size="14" font-weight="700" fill="#ffffff">risk_center</text>
+    <text x="1274" y="205" font-size="10.5" fill="#ffedd5">风险规则与状态唯一归属</text>
+
+    <rect x="1262" y="240" width="172" height="68" rx="8" fill="#ffffff" stroke="#ea580c" stroke-width="1.5"/>
+    <text x="1274" y="266" font-size="14" font-weight="600" fill="#334155">beta_gate</text>
+    <text x="1274" y="287" font-size="10.5" font-weight="400" fill="#64748b">准入闸门 · fail-closed</text>
+
+    <rect x="1262" y="322" width="172" height="68" rx="8" fill="#ffffff" stroke="#ea580c" stroke-width="1.5"/>
+    <text x="1274" y="348" font-size="14" font-weight="600" fill="#334155">audit</text>
+    <text x="1274" y="369" font-size="10.5" font-weight="400" fill="#64748b">审计日志 · 全程留痕</text>
+
+    <rect x="1262" y="404" width="172" height="68" rx="8" fill="#ffffff" stroke="#ea580c" stroke-width="1.5"/>
+    <text x="1274" y="430" font-size="14" font-weight="600" fill="#334155">governance/</text>
+    <text x="1274" y="451" font-size="10.5" font-weight="400" fill="#64748b">governance_baseline.json 真源</text>
+
+    <!-- 实心块 2/2：CI 治理门禁 -->
+    <rect x="1262" y="486" width="172" height="68" rx="8" fill="#dc2626" stroke="#dc2626" stroke-width="1.5"/>
+    <text x="1274" y="512" font-size="14" font-weight="700" fill="#ffffff">CI 治理门禁</text>
+    <text x="1274" y="533" font-size="10.5" fill="#fee2e2">mypy 增量 · 结构扫描 · 契约检查</text>
+
+    <text x="1262" y="676" font-size="10.5" fill="#9a3412"><tspan font-weight="700">不变式：</tspan>超限告警不静默切换；</text>
+    <text x="1262" y="692" font-size="10.5" fill="#9a3412">未知事件映射 UNKNOWN 并留痕；</text>
+    <text x="1262" y="708" font-size="10.5" fill="#9a3412">暖橙红仅用于强制与风险。</text>
+  </g>
+
+  <!-- ============ 底部图例 ============ -->
+  <text x="740" y="776" font-size="11.5" fill="#64748b" text-anchor="middle">无连线设计：自上而下分层与容器嵌套即依赖关系 · 实心色块（全图 2 处）= 强制执行点 · 描边加粗 = 强调 · 冷色 = 业务层，中性灰 = 底座，暖橙红 = 强制与风险</text>
+</svg>
