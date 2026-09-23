@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import cast
 
+from django.utils import timezone
+
 from apps.audit.application.data_conflict_audit import (
     AppendDataConflictAuditObservationUseCase,
     DataConflictAuditEventOutboxWriter,
@@ -53,6 +55,9 @@ from apps.audit.application.data_validation_audit import (
 from apps.audit.application.system_audit_authority_provider import (
     ExactScopedSystemAuditAuthorityProvider,
     SystemAuditAuthorityBundleSelector,
+)
+from apps.audit.application.system_audit_authority_renewal_guard import (
+    SystemAuditAuthorityLease,
 )
 from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
 from apps.audit.application.system_audit_outbox_dispatcher import DispatchSystemAuditOutboxUseCase
@@ -249,6 +254,63 @@ def preflight_system_audit_runtime(
     return preflight_system_audit_runtime_authority(
         composition.authority_bundle,
         as_of=as_of,
+    )
+
+
+def get_system_audit_authority_lease(
+    *, environment: str = "production", using: str = "default"
+) -> SystemAuditAuthorityLease:
+    """Read the configured authority lease without claiming or writing rows.
+
+    This deliberately works even when the outbox runtime is disabled so the
+    scheduled guard can distinguish an operator-disabled runtime from a
+    missing current authority.  It does not enable a profile or create an
+    approval; those operations remain inside the hash-bound renewal command.
+    """
+
+    as_of = timezone.now()
+    alias = _validated_alias(using)
+    binding = _load_binding(environment)
+    if binding.mode != "required" or not binding.outbox_enabled:
+        return SystemAuditAuthorityLease(
+            mode=binding.mode,
+            outbox_enabled=binding.outbox_enabled,
+            valid_until=None,
+            reason_code="audit_runtime_disabled",
+        )
+    selector = binding.authority_selector
+    if type(selector) is not SystemAuditAuthorityBundleSelector:
+        return SystemAuditAuthorityLease(
+            mode=binding.mode,
+            outbox_enabled=binding.outbox_enabled,
+            valid_until=None,
+            reason_code="authority_selector_invalid",
+        )
+    readers = build_system_audit_authority_readers(using=alias, selector=selector)
+    if type(readers) is not SystemAuditAuthorityReaders:
+        return SystemAuditAuthorityLease(
+            mode=binding.mode,
+            outbox_enabled=binding.outbox_enabled,
+            valid_until=None,
+            reason_code="authority_readers_invalid",
+        )
+    provider = ExactScopedSystemAuditAuthorityProvider(
+        actor_reader=readers.actor,
+        scope_reader=readers.scope,
+        selector=selector,
+    )
+    snapshot = provider.get_current(as_of=as_of)
+    if snapshot is None:
+        return SystemAuditAuthorityLease(
+            mode=binding.mode,
+            outbox_enabled=binding.outbox_enabled,
+            valid_until=None,
+            reason_code="authority_unavailable",
+        )
+    return SystemAuditAuthorityLease(
+        mode=binding.mode,
+        outbox_enabled=binding.outbox_enabled,
+        valid_until=snapshot.valid_until,
     )
 
 
@@ -532,6 +594,7 @@ __all__ = [
     "build_data_reliability_audit_writers",
     "build_data_validation_audit_writer",
     "build_system_audit_outbox_dispatcher",
+    "get_system_audit_authority_lease",
     "get_system_audit_outbox_dispatcher",
     "preflight_system_audit_runtime",
 ]

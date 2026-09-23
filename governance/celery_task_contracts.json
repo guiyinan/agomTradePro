@@ -103,6 +103,25 @@
       }
     },
     {
+      "task_path": "apps.audit.application.tasks.system_audit_authority_renewal_guard_task",
+      "source_file": "apps/audit/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/audit/test_system_audit_authority_renewal_guard.py",
+          "test_function": "test_guard_reports_healthy_authority_without_writing"
+        },
+        "blocked": {
+          "test_file": "tests/unit/audit/test_system_audit_authority_renewal_guard.py",
+          "test_function": "test_guard_blocks_and_alerts_when_runtime_is_disabled"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/audit/test_system_audit_authority_renewal_guard.py",
+          "test_function": "test_guard_blocks_invalid_renewal_result"
+        }
+      }
+    },
+    {
       "task_path": "apps.task_monitor.application.backup_tasks.backup_database_task",
       "source_file": "apps/task_monitor/application/backup_tasks.py",
       "criticality": "data_mutation_critical",

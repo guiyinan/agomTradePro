@@ -445,6 +445,13 @@ CELERY_BEAT_SCHEDULE = {
             "expire_seconds": 3600,
         },
     },
+    "audit-authority-renewal-guard": {
+        "task": "apps.audit.application.tasks.system_audit_authority_renewal_guard_task",
+        "schedule": crontab(minute="*/15"),
+        "options": {
+            "expire_seconds": 300,
+        },
+    },
     # ============================================
     # ========== Pulse 脉搏层 ==========
     "pulse-weekly-calculate": {

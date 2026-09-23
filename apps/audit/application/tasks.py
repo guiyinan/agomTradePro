@@ -10,6 +10,10 @@ from celery import shared_task
 from django.utils import timezone
 
 from apps.audit.application.repository_provider import get_system_audit_outbox_dispatcher
+from apps.audit.application.system_audit_authority_renewal_guard import (
+    AUTHORITY_RENEWAL_GUARD_TASK_NAME,
+    run_system_audit_authority_renewal_guard,
+)
 from apps.audit.application.system_audit_outbox_dispatcher import (
     BlockedSystemAuditOutboxDispatchResult,
     DispatchSystemAuditOutboxCommand,
@@ -144,4 +148,19 @@ def dispatch_system_audit_outbox_task(
     }
 
 
-__all__ = ["dispatch_system_audit_outbox_task"]
+@shared_task(  # type: ignore[misc]
+    name=AUTHORITY_RENEWAL_GUARD_TASK_NAME,
+    max_retries=0,
+    time_limit=120,
+    soft_time_limit=100,
+)
+def system_audit_authority_renewal_guard_task() -> dict[str, object]:
+    """Renew the audit authority before expiry or publish a stable blocker."""
+
+    return run_system_audit_authority_renewal_guard()
+
+
+__all__ = [
+    "dispatch_system_audit_outbox_task",
+    "system_audit_authority_renewal_guard_task",
+]
