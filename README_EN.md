@@ -26,6 +26,11 @@
 
 > This section is maintained day by day and should focus on user-visible changes from the last 1-7 days.
 
+### 2026-09-23
+
+- Tushare runtime settings are now persisted through deployment: `TUSHARE_TOKEN`, `TUSHARE_HTTP_URL`, and `TUSHARE_REQUEST_MODE` are retained in the VPS deployment and secrets files and passed to the Web, Worker, Beat, and optional Qlib Worker; credentials are never committed to Git.
+- VPS UAT verified the Tushare `trade_cal` probe, the Qlib `csi300` runtime refresh, and Alpha write-back of 30 scores, all at the `2026-09-23` data date. Full-market publication remains fail-closed because the audit runtime is not enabled, so this UAT does not establish complete automatic scheduling or decision-data recovery.
+
 ### 2026-09-20
 
 - The Alpha data chain now validates historical volume units and price adjustments, refreshes full-market quotes and valuations in batches, and checks Qlib concurrency and trading-suspension evidence. Explicit data blocks stop downstream inference dispatch while preserving source dates and stable reasons.
