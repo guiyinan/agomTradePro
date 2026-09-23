@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 127,
       "compatibility_facade": 94,
-      "current_data_surface": 63,
+      "current_data_surface": 68,
       "dynamic_import_edge": 12,
       "management_command": 32,
       "management_command_edge": 56,
@@ -18,7 +18,7 @@
       "operational_dispatch_edge": 61,
       "operational_script": 29,
       "orchestration_entry": 9,
-      "public_port": 92,
+      "public_port": 93,
       "rest_url": 72,
       "runbook": 7,
       "runtime_config_key": 45,
@@ -26,17 +26,17 @@
       "script": 10,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 72,
+      "test_evidence": 73,
       "workflow_step": 10
     },
     "by_status": {
-      "active_public": 768,
+      "active_public": 774,
       "adjacent_operational": 320,
-      "candidate-review": 0,
+      "candidate-review": 1,
       "compatibility": 137,
       "retired_blocked": 0
     },
-    "total": 1225
+    "total": 1232
   },
   "entries": [
     {
@@ -302,11 +302,11 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/alpha/infrastructure/adapters/simple_adapter.py:get_financial_facts:line:21",
+      "id": "application_consumer:apps/alpha/infrastructure/adapters/simple_adapter.py:get_financial_facts_for_decision:line:21",
       "locator": "line:21",
       "path": "apps/alpha/infrastructure/adapters/simple_adapter.py",
       "status": "active_public",
-      "symbol": "get_financial_facts",
+      "symbol": "get_financial_facts_for_decision",
       "target": ""
     },
     {
@@ -812,11 +812,11 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/factor/infrastructure/adapters/__init__.py:get_financial_facts:line:15",
+      "id": "application_consumer:apps/factor/infrastructure/adapters/__init__.py:get_financial_facts_for_decision:line:15",
       "locator": "line:15",
       "path": "apps/factor/infrastructure/adapters/__init__.py",
       "status": "active_public",
-      "symbol": "get_financial_facts",
+      "symbol": "get_financial_facts_for_decision",
       "target": ""
     },
     {
@@ -5201,7 +5201,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=45",
+      "evidence": "governed current-data contract; source_files=55",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.core_current_publication_rebuild:Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "locator": "Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "path": "governance/current_data_contracts.json",
@@ -5211,12 +5211,62 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=6",
-      "id": "current_data_surface:governance/current_data_contracts.json:data_center.financial_as_of_reads:Historical financial reads preserve an explicit as-of boundary",
-      "locator": "Historical financial reads preserve an explicit as-of boundary",
+      "evidence": "governed current-data contract; source_files=2",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.data02_successor_checkpoint_scope_v2:DATA-02 successor evidence binds the exact deployed candidate, canonical frozen universe, and four Publication scopes before recording",
+      "locator": "DATA-02 successor evidence binds the exact deployed candidate, canonical frozen universe, and four Publication scopes before recording",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "data_center.data02_successor_checkpoint_scope_v2",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=8",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.financial_as_of_reads:Date-only pre-open financial decisions enforce period-end and exact China-market-day-start source-knowledge boundaries",
+      "locator": "Date-only pre-open financial decisions enforce period-end and exact China-market-day-start source-knowledge boundaries",
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "data_center.financial_as_of_reads",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=6",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.financial_provider_body_scope:Financial provider body scope, retained artifact and exact row binding are required before current publication eligibility",
+      "locator": "Financial provider body scope, retained artifact and exact row binding are required before current publication eligibility",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "data_center.financial_provider_body_scope",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=7",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.financial_source_time_artifact_retention:Provider-native financial source-time bodies are retained exactly with one canonical RawAudit before any governed timestamp interpretation",
+      "locator": "Provider-native financial source-time bodies are retained exactly with one canonical RawAudit before any governed timestamp interpretation",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "data_center.financial_source_time_artifact_retention",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=3",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.financial_source_time_contract_registry:Owner-approved exact provider contract is required before financial source-time matching can be enabled",
+      "locator": "Owner-approved exact provider contract is required before financial source-time matching can be enabled",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "data_center.financial_source_time_contract_registry",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=5",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.financial_source_time_independent_verifier:Financial writes and ordinary/current Publication recompute two retained bodies and exact-one audit evidence through one fail-closed verifier",
+      "locator": "Financial writes and ordinary/current Publication recompute two retained bodies and exact-one audit evidence through one fail-closed verifier",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "data_center.financial_source_time_independent_verifier",
       "target": ""
     },
     {
@@ -5702,8 +5752,8 @@
     {
       "category": "dynamic_import_edge",
       "evidence": "statically resolved dynamic import target",
-      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:178",
-      "locator": "line:178",
+      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:224",
+      "locator": "line:224",
       "path": "apps/data_center/infrastructure/tushare_client.py",
       "status": "adjacent_operational",
       "symbol": "import_module",
@@ -5712,8 +5762,8 @@
     {
       "category": "dynamic_import_edge",
       "evidence": "statically resolved dynamic import target",
-      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:30",
-      "locator": "line:30",
+      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:34",
+      "locator": "line:34",
       "path": "apps/data_center/infrastructure/tushare_client.py",
       "status": "adjacent_operational",
       "symbol": "import_module",
@@ -5722,8 +5772,8 @@
     {
       "category": "dynamic_import_edge",
       "evidence": "statically resolved dynamic import target",
-      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:549",
-      "locator": "line:549",
+      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:619",
+      "locator": "line:619",
       "path": "apps/data_center/infrastructure/tushare_client.py",
       "status": "adjacent_operational",
       "symbol": "import_module",
@@ -8417,6 +8467,16 @@
       "path": "apps/data_center/application/public.py",
       "status": "active_public",
       "symbol": "get_financial_facts",
+      "target": ""
+    },
+    {
+      "category": "public_port",
+      "evidence": "canonical Data Center Application public port",
+      "id": "public_port:apps/data_center/application/public.py:get_financial_facts_for_decision:",
+      "locator": "",
+      "path": "apps/data_center/application/public.py",
+      "status": "active_public",
+      "symbol": "get_financial_facts_for_decision",
       "target": ""
     },
     {
@@ -12001,6 +12061,16 @@
     },
     {
       "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/unit/data_center/test_financial_source_time_retention.py:test_financial_source_time_retention:",
+      "locator": "",
+      "path": "tests/unit/data_center/test_financial_source_time_retention.py",
+      "status": "candidate-review",
+      "symbol": "test_financial_source_time_retention",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
       "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
       "id": "test_evidence:tests/unit/data_center/test_raw_archive_store.py:test_raw_archive_store:",
       "locator": "",
@@ -12301,7 +12371,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 92,
-    "current_data_contracts": 63,
+    "current_data_contracts": 68,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 28,
     "runtime_config_keys": 45
