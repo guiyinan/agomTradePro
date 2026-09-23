@@ -1,0 +1,475 @@
+{
+  "schema": "production-closure-revalidation.v1",
+  "status": "blocked_production_exits_not_promoted",
+  "sealed_at_utc": "2026-09-23T07:49:30.731343Z",
+  "repository_head": "102012c05bdabc99d2a1dff73cde388da8595971",
+  "repository_branch": "dev/next-development",
+  "production_commit": "fff17ee7b3a58de46e472691afdb2e9a45287fd9",
+  "production_release_tag": "20260923130829",
+  "production_is_behind_repository_head": true,
+  "candidate_commit_count_not_deployed": 1,
+  "candidate_commits_not_deployed": [
+    "102012c05bdabc99d2a1dff73cde388da8595971 fix: add governed system audit authority renewal"
+  ],
+  "observations": {
+    "current_identity": {
+      "containers": [
+        {
+          "available": true,
+          "health": "healthy",
+          "image_id": "sha256:b89d6caace56e0d83c9375152b3402f0d633541dd093269575dd255001d1be27",
+          "image_reference": "agomtradepro-web:20260923130829",
+          "name": "agomtradepro-web-1",
+          "oci_revision": "fff17ee7b3a58de46e472691afdb2e9a45287fd9",
+          "restart_count": 0,
+          "started_at": "2026-09-23T05:22:37.28036835Z",
+          "status": "running"
+        },
+        {
+          "available": true,
+          "health": "healthy",
+          "image_id": "sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996",
+          "image_reference": "prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996",
+          "name": "agomtradepro-prometheus-1",
+          "oci_revision": null,
+          "restart_count": 0,
+          "started_at": "2026-09-23T05:22:54.278417479Z",
+          "status": "running"
+        },
+        {
+          "available": false,
+          "name": "agomtradepro-worker-1"
+        },
+        {
+          "available": false,
+          "name": "agomtradepro-beat-1"
+        }
+      ],
+      "current_release_path": "/opt/agomtradepro/releases/source-20260923130829",
+      "https": {
+        "/api/decision-ready/": {
+          "body_bytes": 1029,
+          "body_sha256": "1277cb0139e36259df624a6ef3d50acd7980bbe0216f6082a9e0e88d635a7374",
+          "content_type": "application/json",
+          "status": 503
+        },
+        "/api/health/": {
+          "body_bytes": 62,
+          "body_sha256": "e412eacecdd6d72aec2d2a59b8e651c28164a732ab4a8572136aad5d4970f3aa",
+          "content_type": "application/json",
+          "status": 200
+        },
+        "/api/health/db/": {
+          "body_bytes": 95,
+          "body_sha256": "64418ff02b3e2aeaa852e00958744666ce751fde6326583b776bf0c9aa80120a",
+          "content_type": "application/json",
+          "status": 200
+        },
+        "/api/operational-readiness/release-identity/": {
+          "body_bytes": 61,
+          "body_sha256": "c65bef74297615126656a101e44c654a66e04c61d4936c40643db8ce487152bd",
+          "content_type": "application/json",
+          "status": 403
+        },
+        "/api/ready/": {
+          "body_bytes": 16053,
+          "body_sha256": "96aaaf89f748eb667c682d9575f3f565e07e350867733545a0106aa06291dff5",
+          "content_type": "application/json",
+          "status": 200
+        }
+      },
+      "manifest": {
+        "image_id": "sha256:b89d6caace56e0d83c9375152b3402f0d633541dd093269575dd255001d1be27",
+        "image_tag": "agomtradepro-web:20260923130829",
+        "release_tag": "20260923130829",
+        "source_commit": "fff17ee7b3a58de46e472691afdb2e9a45287fd9"
+      },
+      "manifest_sha256": "3280e6b351ec9c36a7a70bf9a92761f3aa7db672237c68a3fe86ac64060ca191",
+      "mutations_performed": false,
+      "observed_at_utc": "2026-09-23T07:43:38.873519Z",
+      "schema": "production-closure-current-identity.v1",
+      "secret_values_emitted": false
+    },
+    "database": {
+      "facts": {
+        "active_a_share_asset_count": 5565,
+        "active_profiles": [
+          {
+            "activated_at": "2026-09-19T12:17:53.73526+00:00",
+            "content_hash": "dc83050d3979e37c96f7540e176a6ae5917812ac73984b7bc58481836b6fe1ca",
+            "environment": "production",
+            "profile_id": "3500f37a-be7d-43fb-802f-752240db44b3",
+            "profile_key": "production",
+            "release_ref": "",
+            "version": 17
+          }
+        ],
+        "audit_runtime_values": {
+          "audit.system_event.mode": {
+            "validation_status": "valid",
+            "value": "off"
+          },
+          "audit.system_event.outbox_enabled": {
+            "validation_status": "valid",
+            "value": false
+          }
+        },
+        "authority_counts": {
+          "actor_source_max_valid_until": "2026-09-23T06:57:20.867754+00:00",
+          "actor_source_v3": 34,
+          "owner_assignment_evidence_v5": 4,
+          "owner_assignment_receipt_v5": 4,
+          "owner_authority_max_valid_until": "2026-09-13T18:11:14.891812+00:00",
+          "owner_tenant_v3": 4,
+          "owner_tenant_v3_revocations": 0,
+          "rbac_source_v3": 23,
+          "temporally_current_actor_leaf_heads": 0,
+          "temporally_current_joined_actor_owner_pairs": 0,
+          "temporally_current_owner_leaf_heads": 0,
+          "user_source_v3": 23
+        },
+        "core_current_publications": [
+          {
+            "as_of": "2026-04-29T00:00:00+00:00",
+            "blocked_reason": "",
+            "coverage_conflict_count": 0,
+            "coverage_eligible_count": 80,
+            "coverage_missing_count": 0,
+            "coverage_requested_count": 80,
+            "coverage_selected_count": 80,
+            "dataset_key": "equity.financial.fact",
+            "member_count": 80,
+            "must_not_use_for_decision": false,
+            "publication_hash": "20acdb3f16bcd4843a5a5ca48b6758f791a9b7cb1eefb12a27b7e474ac76785c",
+            "publication_id": "c8741812-cf01-512f-8d1c-91c0e6549f42",
+            "published_at": "2026-08-15T02:54:59.904908+00:00"
+          },
+          {
+            "as_of": "2026-09-17T16:00:00+00:00",
+            "blocked_reason": "",
+            "coverage_conflict_count": 0,
+            "coverage_eligible_count": 5565,
+            "coverage_missing_count": 0,
+            "coverage_requested_count": 5565,
+            "coverage_selected_count": 5565,
+            "dataset_key": "equity.price.bar",
+            "member_count": 5565,
+            "must_not_use_for_decision": false,
+            "publication_hash": "168cd5ac86cb71ccf20594fb1033a18aee8b828224f874591d8ea5ac7493760f",
+            "publication_id": "51023424-e9b0-590b-9d93-1606be338887",
+            "published_at": "2026-09-19T12:07:18.593157+00:00"
+          },
+          {
+            "as_of": "2026-09-18T08:15:00+00:00",
+            "blocked_reason": "",
+            "coverage_conflict_count": 0,
+            "coverage_eligible_count": 5565,
+            "coverage_missing_count": 0,
+            "coverage_requested_count": 5565,
+            "coverage_selected_count": 5565,
+            "dataset_key": "equity.quote.snapshot",
+            "member_count": 5565,
+            "must_not_use_for_decision": false,
+            "publication_hash": "9728e85abc154047595547b2fe07e152e7a169ef1046c7be699686a79c74f48e",
+            "publication_id": "3eaed0e5-a907-5c82-b641-8d0d2b712c87",
+            "published_at": "2026-09-19T12:07:18.593157+00:00"
+          },
+          {
+            "as_of": "2026-09-18T08:15:00+00:00",
+            "blocked_reason": "",
+            "coverage_conflict_count": 0,
+            "coverage_eligible_count": 5565,
+            "coverage_missing_count": 0,
+            "coverage_requested_count": 5565,
+            "coverage_selected_count": 5565,
+            "dataset_key": "equity.valuation.fact",
+            "member_count": 5565,
+            "must_not_use_for_decision": false,
+            "publication_hash": "3d0d25adf61cdf2280597174650c7fd2bd85f38e3832b7b40223af376ef65d43",
+            "publication_id": "fc52e7dc-5254-5445-9a81-3d287fe33111",
+            "published_at": "2026-09-19T12:07:18.593157+00:00"
+          }
+        ]
+      },
+      "mutations_performed": false,
+      "observed_at_utc": "2026-09-23T07:43:46.629386Z",
+      "schema": "production-closure-database-readonly.v1",
+      "secret_values_emitted": false,
+      "transaction": "REPEATABLE READ READ ONLY; ROLLBACK"
+    },
+    "data02_repair_preview": {
+      "command": [
+        "docker",
+        "exec",
+        "agomtradepro-web-1",
+        "python",
+        "manage.py",
+        "repair_active_a_share_current_facts",
+        "--source",
+        "akshare",
+        "--batch-size",
+        "50"
+      ],
+      "execute_flag_supplied": false,
+      "exit_code": 1,
+      "mutations_performed": false,
+      "observed_at_utc": "2026-09-23T07:45:33.823592Z",
+      "schema": "production-closure-data02-preview.v1",
+      "stderr_last_line": "apps.data_center.infrastructure.financial_fact_write_guard.FinancialFactProvenanceConflictError: financial decision evidence is required for publication candidates",
+      "stderr_sha256": "246d6f2b1d183a680343c233f01803c4fc989f694341e5a4280a9fa5105d836a",
+      "stdout_last_line": "",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "data02_publication_preview": {
+      "command": [
+        "docker",
+        "exec",
+        "agomtradepro-web-1",
+        "python",
+        "manage.py",
+        "rebuild_active_a_share_core_publications"
+      ],
+      "execute_flag_supplied": false,
+      "exit_code": 1,
+      "mutations_performed": false,
+      "observed_at_utc": "2026-09-23T07:47:22.569605Z",
+      "schema": "production-closure-data02-publication-preview.v1",
+      "stderr_last_line": "apps.data_center.infrastructure.financial_fact_write_guard.FinancialFactProvenanceConflictError: financial decision evidence is required for publication candidates",
+      "stderr_sha256": "43ee233b4b2bc702c72b4508109675d65e35aef05a47402a063caa3b85398674",
+      "stdout_last_line": "",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "protected_monitoring_initial_failure": {
+      "exit_code": 1,
+      "stdout_bytes": 0,
+      "stderr": "DENY: TimeoutError"
+    },
+    "protected_monitoring": {
+      "base_url": "https://demo.agomtrade.pro",
+      "decision": "DENY_STOP_LINES",
+      "decision_gate_cleared": false,
+      "https_statuses": {
+        "/api/decision-ready/": 503,
+        "/api/health/": 200,
+        "/api/health/db/": 200,
+        "/api/ready/": 200
+      },
+      "observed_at_utc": "2026-09-23T07:49:31.134128Z",
+      "protected_query_authenticated_status": 401,
+      "protected_query_unauthenticated_status": 401,
+      "retained_up_target": null,
+      "root_only_secret_path": "/opt/agomtradepro/prometheus-query-client.secret",
+      "schema": "evid09.protected-https-stop-lines.v1",
+      "secret_values_emitted": false,
+      "tls_default_trust_used": true
+    }
+  },
+  "derived_findings": [
+    "Production runs the exact observed revision fff17ee7b3 / 20260923130829; the previously reviewed candidate controls are deployed. Repository HEAD advanced concurrently to 102012c05, so production is one commit behind at sealing.",
+    "Health, database health and ready are 200 while decision-ready remains fail-closed at 503.",
+    "The active-A-share denominator remains 5565; quote, price and valuation current Publications each retain 5,565 members while financial retains 80.",
+    "Both no-execute DATA-02 previews now fail closed on missing persisted financial decision evidence for publication candidates; preview paths do not execute provider refresh or mutations.",
+    "Actor/user/RBAC ledger counts increased to 34/23/23, but actor max validity ended at 2026-09-23T06:57:20.867754+00:00; temporally current actor, owner and joined heads remain zero.",
+    "Audit mode remains off, outbox remains false and no selector value is active.",
+    "The first protected-monitoring probe hit a transient TimeoutError; the retained retry completed and still returned 401 for both credentialed and anonymous requests, so TUI-02 cannot bind a retained sample.",
+    "Deployment closes the previously observed candidate-not-deployed gate. The new 102012c05 authority-renewal candidate is not deployed; owner-approved source-time contracts/tolerances, retained real provider sample, provider matcher/producer, current authority, explicit production-write authorization and real four-Publication reconciliation remain absent."
+  ],
+  "state_transitions": {
+    "DATA-02": "awaiting_production -> awaiting_production",
+    "EVID-01": "awaiting_production -> awaiting_production",
+    "EVID-02": "awaiting_production -> awaiting_production",
+    "AUD-03": "awaiting_production -> awaiting_production",
+    "TUI-02": "active -> active"
+  },
+  "production_mutations_performed": false,
+  "provider_calls_performed": false,
+  "secrets_or_row_values_emitted": false,
+  "raw_archive": {
+    "path": "docs/deployment/production-closure-revalidation-2026-09-23-fff17ee7b3-raw.zip",
+    "sha256": "7011ccba1b35438165806c3db4cdb915fb85debdb293b491dfae30129ef986de",
+    "members": {
+      "revalidation/current_identity_probe.py": {
+        "bytes": 4139,
+        "sha256": "2098275c239bf882da35441a264d95c16bebd090af1612062452bdeba504a852"
+      },
+      "revalidation/current_identity_probe.py.stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "revalidation/current_identity_probe.py.stdout": {
+        "bytes": 2247,
+        "sha256": "3abb84076b1d6686992c0e5b009fbaa8f354cd52ec482511e03e2938dd0cb42a"
+      },
+      "revalidation/data02_preview_probe.py": {
+        "bytes": 2698,
+        "sha256": "2530813a3b51b4d2f30cb3d7075eda569ff6f9536cbfed4ec93b50dc1887d6ee"
+      },
+      "revalidation/data02_preview_probe.py.stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "revalidation/data02_preview_probe.py.stdout": {
+        "bytes": 692,
+        "sha256": "9f9a8cc8c021826eb74b18f12178803c66334ab91810d512031a50ec95b3a471"
+      },
+      "revalidation/data02_publication_preview_probe.py": {
+        "bytes": 1900,
+        "sha256": "4a9e2da1cc95e3e3f9182f274b3db2a48943ff139fdf9ffcc2ec1add90313782"
+      },
+      "revalidation/data02_publication_preview_probe.py.stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "revalidation/data02_publication_preview_probe.py.stdout": {
+        "bytes": 668,
+        "sha256": "73ae028768b6748ad67c370b19dc514b0f69e288de1629c391d85a85c2a29011"
+      },
+      "revalidation/evid09_protected_https_stop_probe.py": {
+        "bytes": 6317,
+        "sha256": "469caad33f2eb60f9accfa2507441e8e98429c50d34e1c6447a1474330f092dc"
+      },
+      "revalidation/evid09_protected_https_stop_probe.py.stderr": {
+        "bytes": 19,
+        "sha256": "88dae123db12861574d4e3c926866e040a85b5c62d4b99d86d0050ed1315ea69"
+      },
+      "revalidation/evid09_protected_https_stop_probe.py.stdout": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "revalidation/evid09_protected_https_stop_retry.py": {
+        "bytes": 6317,
+        "sha256": "469caad33f2eb60f9accfa2507441e8e98429c50d34e1c6447a1474330f092dc"
+      },
+      "revalidation/evid09_protected_https_stop_retry.py.stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "revalidation/evid09_protected_https_stop_retry.py.stdout": {
+        "bytes": 551,
+        "sha256": "c1acf8c27d6036bb2423ef09cfe8afac613352bba9776ecceb65bf3181df4d82"
+      },
+      "revalidation/metadata.json": {
+        "bytes": 665,
+        "sha256": "3da82bf073ec2edd3a546e7823b808b5bf35fa8cf8d9eb7053d3dbd563072b50"
+      },
+      "revalidation/production_database_probe.py": {
+        "bytes": 6563,
+        "sha256": "15376f5cdf777fcdbdfde6af05d559e4a6b0b87cc6df69674abe8ad82a60c800"
+      },
+      "revalidation/production_database_probe.py.stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "revalidation/production_database_probe.py.stdout": {
+        "bytes": 3162,
+        "sha256": "d5b5bd1d4cd50b7489f8d5c9d33b410a84bc8fa235329f5078080101a5ae70a1"
+      },
+      "revalidation/run-summary.json": {
+        "bytes": 1863,
+        "sha256": "7c242caee77a54c66ac183089fd4aaae3e1e04d53b1a4e845d8513ed73b21876"
+      }
+    }
+  },
+  "gates": [
+    {
+      "name": "registry",
+      "command": [
+        "python",
+        "scripts/check_active_plan_registry.py"
+      ],
+      "exit_code": 0,
+      "log_sha256": "4b6b29b40743a3e95a8b8c0b8edf801a38334bf2919006a639a6da0e78cb913c",
+      "log_bytes": 122
+    },
+    {
+      "name": "governance",
+      "command": [
+        "python",
+        "scripts/check_governance_consistency.py",
+        "--baseline",
+        "governance/governance_baseline.json",
+        "--format",
+        "text"
+      ],
+      "exit_code": 0,
+      "log_sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b",
+      "log_bytes": 668
+    },
+    {
+      "name": "current-data",
+      "command": [
+        "python",
+        "scripts/check_current_data_contracts.py"
+      ],
+      "exit_code": 0,
+      "log_sha256": "0a4a79e13a15daf1adb6c6a746469a026d169ac798951c3102de8065ceae4766",
+      "log_bytes": 52
+    },
+    {
+      "name": "architecture",
+      "command": [
+        "python",
+        "scripts/verify_architecture.py",
+        "--rules-file",
+        "governance/architecture_rules.json",
+        "--format",
+        "text",
+        "--include-audit",
+        "--fail-on-audit-violations"
+      ],
+      "exit_code": 0,
+      "log_sha256": "b5e70948fc3da134aa62229989911a90ad9cbb2bdae71f8ffc8457a5ec115dfb",
+      "log_bytes": 179
+    },
+    {
+      "name": "version-retirement",
+      "command": [
+        "python",
+        "scripts/check_versioned_surface_retirement.py"
+      ],
+      "exit_code": 0,
+      "log_sha256": "77f3e3a5d2b05b2e78f4760bd22ceccf77608b2dd9648d483de13e8f2605636d",
+      "log_bytes": 220
+    },
+    {
+      "name": "diff-check",
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "log_bytes": 0
+    }
+  ],
+  "next_gates": [
+    "Obtain an owner-approved exact provider contract and receipt, retain a real provider source-time sample, and implement the provider-specific matcher and producer from verified semantics.",
+    "Obtain owner-approved numeric tolerance policies and receipts.",
+    "Review and deploy 102012c05 only through the governed authority-renewal path before relying on it for production authority.",
+    "Obtain genuine temporally current actor and owner authority plus explicit production-write authorization.",
+    "Repeat source-time exact-one concurrency evidence against the authorized PostgreSQL target before activation.",
+    "Execute only an authorized bounded backfill and real four-Publication reconciliation after the no-execute previews pass.",
+    "Restore protected-query authentication before binding a new TUI-02 sample or observation window."
+  ],
+  "luna_max_next_action_review": {
+    "status": "complete",
+    "p0": 0,
+    "evidence_package_p1": 0,
+    "production_closure_p1": 1,
+    "decision": "readonly_evidence_package_submittable_production_exits_remain_blocked",
+    "verified": [
+      "raw ZIP digest and all 20 member names, byte counts and SHA-256 values match the JSON manifest",
+      "run-summary contains six probes whose retained stdout and stderr hashes match",
+      "production identity equals the probe-time repository HEAD fff17ee7b3a58de46e472691afdb2e9a45287fd9; repository HEAD advanced concurrently to 102012c05bdabc99d2a1dff73cde388da8595971 before sealing",
+      "database probe used REPEATABLE READ READ ONLY and ROLLBACK",
+      "both no-execute previews made no provider calls or writes and failed closed because financial decision evidence is required",
+      "new authority rows are expired while current actor, owner and joined heads remain zero",
+      "the initial monitoring TimeoutError is retained and the retry returned credentialed and anonymous 401 DENY stop lines",
+      "registry v178 and the production closure review keep DATA-02, EVID-01/02 and AUD-03 awaiting production and TUI-02 active"
+    ],
+    "pre_seal_finding_closed": "the pending review field and missing JSON sidecar were replaced before final sealing",
+    "remaining_blocker": "deployment and governed use of the new 102012c05 authority-renewal candidate, owner-approved source-time contract and receipt, retained real provider sample, matcher and producer path, approved tolerances, current authority, explicit production-write authorization, real four-Publication reconciliation and protected monitoring authentication remain absent"
+  },
+  "production_deployment_observed": true
+}

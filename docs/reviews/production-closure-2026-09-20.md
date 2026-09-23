@@ -707,3 +707,26 @@ heads 仍全部为 0；v17 audit mode=off、outbox=false、selector absent。受
 原始探针、输出与哈希清单见同名 `-raw.zip`。registry v176 → v177；DATA-02、EVID-01/02、AUD-03
 状态不变，TUI-02 继续 active。本轮只通过 SSH stdin 执行只读事务和无 execute 预检，没有部署、
 provider 调用、生产写入、profile 激活或 Publication 切换。
+
+## 候选 fff17ee7b3 部署后生产只读重验（2026-09-23）
+
+生产现已运行探针时仓库 HEAD `fff17ee7b3`，release `20260923130829`，Web OCI revision、镜像 tag、只读
+manifest 与该提交一致。封存前 `dev/next-development` HEAD 并发推进到 `102012c05`，因此生产此时落后
+1 个提交。公网 health、db health、ready 为 200，decision-ready 按设计为 503；
+冻结 A 股分母仍为 5,565，quote、price、valuation current Publication 各有 5,565 members，financial
+仍为 80。
+
+两个未传 `--execute` 的 DATA-02 预检现在都在 publication candidate 查询边界拒绝缺少持久化 financial
+decision evidence，没有进入 provider refresh 或写入。Actor/User/RBAC ledger 行数增至 34/23/23，但
+actor 最新有效期已于 `2026-09-23T06:57:20.867754Z` 结束，temporally current actor、owner、joined
+authority heads 仍全部为 0。v17 audit mode=off、outbox=false、selector absent。
+
+受保护监控首次探针出现一次 `TimeoutError`；同一只读探针的留存重试完成，认证与匿名请求仍均返回 401，
+因此不能绑定 TUI-02 首样本。结构化证据见
+[候选 fff17ee7b3 部署后生产只读重验](../deployment/production-closure-revalidation-2026-09-23-fff17ee7b3.json)，
+原始探针、首次超时、重试输出与哈希清单见同名 `-raw.zip`。
+
+registry v177 → v178；DATA-02、EVID-01/02、AUD-03 状态不变，TUI-02 继续 active。部署关闭了
+上一轮“候选尚未部署”门槛；新增 `102012c05` authority-renewal 候选尚未部署，真实 owner contract/receipt、retained provider sample、matcher/producer、approved
+tolerances、current authority、生产写授权和真实四 Publication 对账仍缺失。本轮验证没有 provider 调用、
+生产数据写入、profile 激活或 Publication 切换。
