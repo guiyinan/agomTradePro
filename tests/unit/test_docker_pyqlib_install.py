@@ -91,6 +91,31 @@ def test_vps_compose_worker_consumes_qlib_queues() -> None:
     assert "curl -sS -o /dev/null -w '%{http_code}'" not in compose
 
 
+def test_vps_compose_propagates_tushare_runtime_settings_to_long_lived_services() -> None:
+    """Every provider process must receive the same Tushare transport settings."""
+
+    compose = (REPO_ROOT / "docker" / "docker-compose.vps.yml").read_text(encoding="utf-8")
+
+    for assignment in (
+        "TUSHARE_TOKEN: ${TUSHARE_TOKEN:-}",
+        "TUSHARE_HTTP_URL: ${TUSHARE_HTTP_URL:-}",
+        "TUSHARE_REQUEST_MODE: ${TUSHARE_REQUEST_MODE:-sdk_path}",
+    ):
+        assert compose.count(assignment) == 3, assignment
+
+
+def test_vps_deploy_preserves_tushare_runtime_settings_across_releases() -> None:
+    """A redeploy must carry Tushare credentials and transport mode forward."""
+
+    script = (REPO_ROOT / "scripts" / "remote_build_deploy_vps.py").read_text(encoding="utf-8")
+    example = (REPO_ROOT / "deploy" / ".env.vps.example").read_text(encoding="utf-8")
+
+    for key in ("TUSHARE_TOKEN", "TUSHARE_HTTP_URL", "TUSHARE_REQUEST_MODE"):
+        assert f'get_env_kv {key}' in script
+        assert f'_persist_secrets_env "{key}"' in script
+        assert f"{key}=" in example
+
+
 def test_vps_compose_freezes_terminal_queue_migration_flags() -> None:
     """Queue flags require an explicit reviewed runtime authorization."""
 
