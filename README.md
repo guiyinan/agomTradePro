@@ -26,6 +26,11 @@
 
 > 这个区域按天维护，优先记录最近 1-7 天内对外可见、值得关注的变化。
 
+### 2026-09-23
+
+- 审计授权续期链已补齐：默认 dry-run，真实续期只追加新 actor/source 与 owner/tenant successor，使用 CAS 和同一事务原子激活 Config Center 的审计 selector；不会延长已过期旧授权。详见[授权续期运行手册](docs/deployment/system-audit-authority-renewal.md)。
+- VPS 已完成 code-only hotfix，Web health 200 且容器正常；生产在取得新的真实 owner/actor 授权材料前继续 fail-closed，调度器不会绕过授权闸门写入数据。
+
 ### 2026-09-20
 
 - Alpha 数据链补齐历史成交量单位与复权校验、全市场报价和估值分批更新、Qlib 并发锁及停牌证据检查；明确的数据阻断会停止后续推理派发，保留真实观测日期和阻断原因。
