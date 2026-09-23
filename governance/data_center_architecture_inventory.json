@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 5043,
+    "current_surface_references": 5077,
     "data_write_task_decorators": 63,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -6451,17 +6451,22 @@
       "text": "\"suspended_codes\": list(summary.suspended_codes),"
     },
     {
-      "line": 445,
+      "line": 294,
+      "path": "apps/alpha/application/ops_services.py",
+      "text": "if summary.effective_target_date is None or summary.effective_target_date < target_date:"
+    },
+    {
+      "line": 455,
       "path": "apps/alpha/application/ops_services.py",
       "text": "\"Failed to inspect qlib latest local date\","
     },
     {
-      "line": 476,
+      "line": 486,
       "path": "apps/alpha/application/ops_services.py",
       "text": "if \"summary\" in result and isinstance(result[\"summary\"], dict):"
     },
     {
-      "line": 477,
+      "line": 487,
       "path": "apps/alpha/application/ops_services.py",
       "text": "return result[\"summary\"]"
     },
@@ -7186,7 +7191,12 @@
       "text": "\"\"\"Return the JSON-friendly audit metrics summary.\"\"\""
     },
     {
-      "line": 303,
+      "line": 243,
+      "path": "apps/audit/application/repository_provider.py",
+      "text": "\"\"\"Validate the canonical runtime and exact current authority without writes.\"\"\""
+    },
+    {
+      "line": 322,
       "path": "apps/audit/application/repository_provider.py",
       "text": "\"\"\"Return the current audit metrics summary.\"\"\""
     },
@@ -7244,6 +7254,11 @@
       "line": 217,
       "path": "apps/audit/application/system_audit_authority_provider.py",
       "text": "\"\"\"Read one exact/current immutable tenant/owner scope source.\"\"\""
+    },
+    {
+      "line": 36,
+      "path": "apps/audit/application/system_audit_authority_renewal.py",
+      "text": "\"\"\"A renewal cannot produce a current, bounded authority bundle.\"\"\""
     },
     {
       "line": 529,
@@ -7474,6 +7489,11 @@
       "line": 102,
       "path": "apps/audit/infrastructure/system_audit_outbox_runtime.py",
       "text": "\"\"\"Return the exact current scope at the event persistence cutoff.\"\"\""
+    },
+    {
+      "line": 243,
+      "path": "apps/audit/infrastructure/system_audit_outbox_runtime.py",
+      "text": "\"\"\"Validate the configured runtime and exact current authority without writes.\"\"\""
     },
     {
       "line": 53,
@@ -9171,17 +9191,22 @@
       "text": "\"\"\"Return the Config Center-owned system settings summary.\"\"\""
     },
     {
-      "line": 94,
+      "line": 116,
       "path": "apps/config_center/application/runtime_config.py",
       "text": "\"\"\"Return the latest immutable resolved snapshot for a profile key.\"\"\""
     },
     {
-      "line": 124,
+      "line": 127,
       "path": "apps/config_center/application/runtime_public.py",
       "text": "\"\"\"Read the latest resolved snapshot for a profile key.\"\"\""
     },
     {
-      "line": 616,
+      "line": 410,
+      "path": "apps/config_center/application/runtime_public.py",
+      "text": "\"\"\"Build a complete successor candidate from the current active profile.\"\"\""
+    },
+    {
+      "line": 798,
       "path": "apps/config_center/application/runtime_public.py",
       "text": "\"\"\"Return the latest capacity observation without a fallback.\"\"\""
     },
@@ -9741,17 +9766,17 @@
       "text": "\"\"\"Apply a publication policy before exposing selected facts as current.\"\"\""
     },
     {
-      "line": 50,
+      "line": 65,
       "path": "apps/data_center/application/core_data_backfill.py",
       "text": "\"\"\"Publish complete current snapshots or raise without partial commit.\"\"\""
     },
     {
-      "line": 170,
+      "line": 375,
       "path": "apps/data_center/application/core_data_backfill.py",
       "text": "error_message=\"latest completed China market session is unavailable\","
     },
     {
-      "line": 176,
+      "line": 381,
       "path": "apps/data_center/application/core_data_backfill.py",
       "text": "\"error\": \"latest completed China market session is unavailable\","
     },
@@ -9776,19 +9801,29 @@
       "text": "\"\"\"Read-only preflight for the current-fact remediation workflow.\"\"\""
     },
     {
-      "line": 450,
+      "line": 452,
       "path": "apps/data_center/application/current_fact_remediation.py",
       "text": "\"\"\"Refresh current facts and publish only after full-universe validation.\"\"\""
     },
     {
-      "line": 511,
+      "line": 515,
       "path": "apps/data_center/application/current_fact_remediation.py",
       "text": "\"\"\"Fetch, repair and publish current data while preserving fail-closed state.\"\"\""
     },
     {
-      "line": 555,
+      "line": 585,
       "path": "apps/data_center/application/current_fact_remediation.py",
       "text": "raise ValueError(\"realtime-quote provider batch incomplete at offset \" f\"{offset}\")"
+    },
+    {
+      "line": 591,
+      "path": "apps/data_center/application/current_fact_remediation.py",
+      "text": "\"realtime-quote provider batch asset identities are incomplete \""
+    },
+    {
+      "line": 648,
+      "path": "apps/data_center/application/current_fact_remediation.py",
+      "text": "\"\"\"Revalidate current authority at a monotonic write/provider boundary.\"\"\""
     },
     {
       "line": 1,
@@ -9906,22 +9941,22 @@
       "text": "raise ValueError(\"Current publication fact resolves to multiple natural keys\")"
     },
     {
-      "line": 377,
+      "line": 384,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "\"\"\"Preview or atomically publish all configured core current datasets.\"\"\""
     },
     {
-      "line": 386,
+      "line": 394,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "raise ValueError(\"At least one current-publication rebuilder is required\")"
     },
     {
-      "line": 389,
+      "line": 397,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "raise ValueError(\"Current-publication rebuilders must have unique datasets\")"
     },
     {
-      "line": 419,
+      "line": 428,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "\"\"\"Publish all datasets in one transaction or leave all current rows intact.\"\"\""
     },
@@ -9931,12 +9966,12 @@
       "text": "\"\"\"Current valuation batch synchronization.\"\"\""
     },
     {
-      "line": 22,
+      "line": 23,
       "path": "apps/data_center/application/current_valuation_sync.py",
       "text": "\"\"\"Persist current valuation coverage with an optional provider batch capability.\"\"\""
     },
     {
-      "line": 43,
+      "line": 45,
       "path": "apps/data_center/application/current_valuation_sync.py",
       "text": "\"\"\"Fetch and store one current valuation row per available asset.\"\"\""
     },
@@ -9956,6 +9991,21 @@
       "text": "\"\"\"Classify one selected-fact/current-publication pair.\"\"\""
     },
     {
+      "line": 361,
+      "path": "apps/data_center/application/data02_publication_tolerance_evidence.py",
+      "text": "\"\"\"Rebuild the canonical current Publication UUID from its content hash.\"\"\""
+    },
+    {
+      "line": 366,
+      "path": "apps/data_center/application/data02_publication_tolerance_evidence.py",
+      "text": "f\"agomtradepro:{dataset_key}:current:{publication_hash_value}\","
+    },
+    {
+      "line": 744,
+      "path": "apps/data_center/application/data02_publication_tolerance_evidence.py",
+      "text": "f\"{dataset_key} Publication id does not match its canonical current identity\""
+    },
+    {
       "line": 336,
       "path": "apps/data_center/application/data_chain_replay.py",
       "text": "latest = publication_reader.get_rollback_by_id(rollback_ids[-1])"
@@ -9971,7 +10021,7 @@
       "text": "\"\"\"Input DTO for fetching the latest quote snapshot.\"\"\""
     },
     {
-      "line": 741,
+      "line": 752,
       "path": "apps/data_center/application/dtos.py",
       "text": "\"\"\"Result of one current-valuation batch sync.\"\"\""
     },
@@ -10001,42 +10051,42 @@
       "text": "\"\"\"Return the latest market-thermometer payload for UI/API consumers.\"\"\""
     },
     {
-      "line": 99,
+      "line": 106,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "return {\"status\": \"skipped\", \"message\": \"No realtime quote provider is available.\"}"
     },
     {
-      "line": 244,
+      "line": 252,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "latest = MarketThermometerSnapshotRepository().get_latest()"
     },
     {
-      "line": 245,
+      "line": 253,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "if latest is None:"
     },
     {
-      "line": 249,
+      "line": 257,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "latest_observed_at = latest.observed_at.isoformat()"
     },
     {
-      "line": 251,
+      "line": 259,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "latest_is_blocked = latest.must_not_use_for_decision"
     },
     {
-      "line": 255,
+      "line": 263,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "skipped_payload = latest.to_dict()"
     },
     {
-      "line": 492,
+      "line": 508,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "\"\"\"Build a fact-only current valuation batch sync use case.\"\"\""
     },
     {
-      "line": 505,
+      "line": 521,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "\"\"\"Build a fact-only current-valuation batch for aggregate publication.\"\"\""
     },
@@ -10221,22 +10271,22 @@
       "text": "\"\"\"Small quality summary attached to on-demand Data Center reads.\"\"\""
     },
     {
-      "line": 423,
+      "line": 428,
       "path": "apps/data_center/application/on_demand.py",
       "text": "latest = quotes[-1]"
     },
     {
-      "line": 425,
+      "line": 430,
       "path": "apps/data_center/application/on_demand.py",
       "text": "latest_date = latest.snapshot_at.astimezone(market_tz).date()"
     },
     {
-      "line": 439,
+      "line": 444,
       "path": "apps/data_center/application/on_demand.py",
       "text": "source=latest.source or None,"
     },
     {
-      "line": 440,
+      "line": 445,
       "path": "apps/data_center/application/on_demand.py",
       "text": "fetched_at=latest.snapshot_at,"
     },
@@ -10356,107 +10406,107 @@
       "text": "return plain DTO-shaped values for the current migration bridge; new callers"
     },
     {
-      "line": 51,
+      "line": 52,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "\"\"\"Return the freshness-validated gate for a current publication.\"\"\""
     },
     {
-      "line": 59,
+      "line": 60,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 84,
+      "line": 85,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 86,
+      "line": 87,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
     },
     {
-      "line": 94,
+      "line": 95,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 149,
+      "line": 150,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 153,
+      "line": 154,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "\"\"\"Read current intraday quote snapshots behind the Publication gate.\"\"\""
     },
     {
-      "line": 166,
+      "line": 167,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 171,
+      "line": 172,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
     },
     {
-      "line": 186,
+      "line": 187,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 202,
+      "line": 203,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 220,
+      "line": 221,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 237,
+      "line": 238,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 253,
+      "line": 254,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 290,
+      "line": 291,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "current = existing[0] if existing else None"
     },
     {
-      "line": 293,
+      "line": 294,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "id=current.id if current is not None else None,"
     },
     {
-      "line": 297,
+      "line": 298,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "priority=current.priority if current is not None else 100,"
     },
     {
-      "line": 299,
+      "line": 300,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "api_secret=current.api_secret if current is not None else \"\","
     },
     {
-      "line": 302,
+      "line": 303,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "extra_config=current.extra_config if current is not None else {},"
     },
     {
-      "line": 303,
+      "line": 304,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 468,
+      "line": 490,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
@@ -10599,6 +10649,11 @@
       "line": 57,
       "path": "apps/data_center/application/publication_query_bounds.py",
       "text": "\"\"\"Limit a current-data query to the publication's knowledge boundary.\"\"\""
+    },
+    {
+      "line": 1,
+      "path": "apps/data_center/application/publication_rebuild_evidence.py",
+      "text": "\"\"\"Canonical evidence validation for coordinated current Publication rebuilds.\"\"\""
     },
     {
       "line": 85,
@@ -10861,117 +10916,117 @@
       "text": "\"\"\"Return data-center summary counts for operational diagnostics.\"\"\""
     },
     {
-      "line": 144,
+      "line": 160,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest canonical quote payloads, preserving source observation time.\"\"\""
     },
     {
-      "line": 171,
+      "line": 187,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return a current macro value only when its Publication gate passes.\"\"\""
     },
     {
-      "line": 242,
+      "line": 258,
       "path": "apps/data_center/application/query_services.py",
       "text": "This explicit current-data port prevents a non-empty, unpublished, or"
     },
     {
-      "line": 278,
+      "line": 294,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 283,
+      "line": 299,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read fund NAV facts only from the selected current publication members.\"\"\""
     },
     {
-      "line": 407,
+      "line": 423,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return a freshness-validated gate for one current publication.\"\"\""
     },
     {
-      "line": 486,
+      "line": 502,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 513,
+      "line": 529,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 550,
+      "line": 566,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 554,
+      "line": 570,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read quote snapshots only from the selected current publication members.\"\"\""
     },
     {
-      "line": 591,
+      "line": 607,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 593,
+      "line": 609,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read financial facts only after the current financial publication gate.\"\"\""
     },
     {
-      "line": 621,
+      "line": 637,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 623,
+      "line": 639,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read valuation facts only after the current valuation publication gate.\"\"\""
     },
     {
-      "line": 651,
+      "line": 667,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 679,
+      "line": 695,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 725,
+      "line": 741,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 819,
+      "line": 835,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest A-share behavior values with an explicit freshness contract.\"\"\""
     },
     {
-      "line": 878,
+      "line": 894,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read current market breadth only after every component is published."
     },
     {
-      "line": 968,
+      "line": 984,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest macro indicator payloads for cache warmup.\"\"\""
     },
     {
-      "line": 981,
+      "line": 997,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return only fresh, member-bound macro values for current consumers."
     },
     {
-      "line": 983,
+      "line": 999,
       "path": "apps/data_center/application/query_services.py",
       "text": "The cache-warmup helper above intentionally reads the latest canonical fact"
     },
     {
-      "line": 984,
+      "line": 1000,
       "path": "apps/data_center/application/query_services.py",
       "text": "for deployment warming and maintenance.  Current/ops consumers must not"
     },
@@ -11031,12 +11086,12 @@
       "text": "current_count = _semantic_conflict_count(current)"
     },
     {
-      "line": 587,
+      "line": 588,
       "path": "apps/data_center/application/reliability_repair_use_case.py",
       "text": "publication_key=\"current\","
     },
     {
-      "line": 630,
+      "line": 631,
       "path": "apps/data_center/application/reliability_repair_use_case.py",
       "text": "publication_key=\"current\","
     },
@@ -11086,22 +11141,77 @@
       "text": "raise AssertionError(\"retention current payload guard failed\")"
     },
     {
-      "line": 53,
+      "line": 54,
       "path": "apps/data_center/application/sync_market_use_cases.py",
       "text": "publication_key = \"current\""
     },
     {
-      "line": 363,
+      "line": 364,
       "path": "apps/data_center/application/sync_market_use_cases.py",
       "text": "publication_key = \"current\""
     },
     {
-      "line": 248,
+      "line": 116,
+      "path": "apps/data_center/application/tasks.py",
+      "text": "\"\"\"Resolve current authority and prove it covers the task's bounded runtime.\"\"\""
+    },
+    {
+      "line": 139,
+      "path": "apps/data_center/application/tasks.py",
+      "text": "\"\"\"Return whether the same current authority still covers the next boundary.\"\"\""
+    },
+    {
+      "line": 141,
+      "path": "apps/data_center/application/tasks.py",
+      "text": "current, failure = _preflight_data02_task_authority("
+    },
+    {
+      "line": 148,
+      "path": "apps/data_center/application/tasks.py",
+      "text": "and current is not None"
+    },
+    {
+      "line": 149,
+      "path": "apps/data_center/application/tasks.py",
+      "text": "and current.authority_content_hash == authority.authority_content_hash"
+    },
+    {
+      "line": 150,
+      "path": "apps/data_center/application/tasks.py",
+      "text": "and current.tenant_id == authority.tenant_id"
+    },
+    {
+      "line": 151,
+      "path": "apps/data_center/application/tasks.py",
+      "text": "and current.owner_id == authority.owner_id"
+    },
+    {
+      "line": 268,
+      "path": "apps/data_center/application/tasks.py",
+      "text": "raise ValueError(\"current Audit authority changed before quote batch\")"
+    },
+    {
+      "line": 280,
+      "path": "apps/data_center/application/tasks.py",
+      "text": "raise ValueError(\"current Audit authority changed before valuation batch\")"
+    },
+    {
+      "line": 296,
+      "path": "apps/data_center/application/tasks.py",
+      "text": "raise ValueError(\"current Audit authority changed before publication\")"
+    },
+    {
+      "line": 418,
       "path": "apps/data_center/application/tasks.py",
       "text": "Current domain sync DTOs expose ``stored_count`` only, so the durable"
     },
     {
-      "line": 895,
+      "line": 792,
+      "path": "apps/data_center/application/tasks.py",
+      "text": "\"\"\"Require the same current authority before advancing the checkpoint.\"\"\""
+    },
+    {
+      "line": 1143,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Check current filesystem pressure before another mutating batch.\"\"\""
     },
@@ -11136,7 +11246,12 @@
       "text": "return current"
     },
     {
-      "line": 1046,
+      "line": 657,
+      "path": "apps/data_center/composition.py",
+      "text": "\"\"\"Require the exact current Audit authority before any provider call.\"\"\""
+    },
+    {
+      "line": 1099,
       "path": "apps/data_center/composition.py",
       "text": "\"\"\"Compose the canonical same-UOW realtime-quote sync writer.\"\"\""
     },
@@ -11146,22 +11261,22 @@
       "text": "raise ValueError(\"current DataEnvelope requires publication_id\")"
     },
     {
-      "line": 177,
+      "line": 180,
       "path": "apps/data_center/domain/entities.py",
       "text": "summary: str"
     },
     {
-      "line": 185,
+      "line": 188,
       "path": "apps/data_center/domain/entities.py",
       "text": "\"summary\": self.summary,"
     },
     {
-      "line": 747,
+      "line": 758,
       "path": "apps/data_center/domain/entities.py",
       "text": "summary: str = \"\""
     },
     {
-      "line": 762,
+      "line": 773,
       "path": "apps/data_center/domain/entities.py",
       "text": "\"summary\": self.summary,"
     },
@@ -11391,112 +11506,112 @@
       "text": "summary=f\"Connection test failed ({error_type})\","
     },
     {
-      "line": 727,
+      "line": 728,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "\"\"\"Reject a late publication that would rewind the current scope."
     },
     {
-      "line": 730,
+      "line": 731,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "intervals.  Superseding an already-current row with an earlier (or"
     },
     {
-      "line": 732,
+      "line": 733,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "and could expose an out-of-order snapshot as current.  Keep this"
     },
     {
-      "line": 747,
+      "line": 748,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "raise ValueError(\"Cannot publish while current publication has no published_at\")"
     },
     {
-      "line": 748,
+      "line": 749,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "latest = active.order_by(\"-published_at\").first()"
     },
     {
-      "line": 750,
+      "line": 751,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "latest is not None"
     },
     {
-      "line": 751,
+      "line": 752,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "and latest.published_at is not None"
     },
     {
-      "line": 752,
+      "line": 753,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "and published_at <= latest.published_at"
     },
     {
-      "line": 754,
+      "line": 755,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "raise ValueError(\"Publication published_at must be later than current publication\")"
     },
     {
-      "line": 802,
+      "line": 803,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "raise ValueError(\"Rollback requires exactly one current published publication\")"
     },
     {
-      "line": 803,
+      "line": 804,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "current = current_rows[0]"
     },
     {
-      "line": 804,
+      "line": 805,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "if current.published_at is None or current.as_of is None:"
     },
     {
-      "line": 805,
+      "line": 806,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "raise ValueError(\"Current publication is missing publication time evidence\")"
     },
     {
-      "line": 806,
+      "line": 807,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "if current.as_of > current.published_at:"
     },
     {
-      "line": 807,
+      "line": 808,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "raise ValueError(\"Current publication has inconsistent publication time evidence\")"
     },
     {
-      "line": 808,
+      "line": 809,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "if rollback.observed_at <= current.published_at:"
     },
     {
-      "line": 809,
+      "line": 810,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "raise ValueError(\"Rollback observed_at must be later than current published_at\")"
     },
     {
-      "line": 814,
+      "line": 815,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "publication_id=current.publication_id,"
     },
     {
-      "line": 828,
+      "line": 829,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "previous_publication_id=current.publication_id,"
     },
     {
-      "line": 843,
+      "line": 844,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "\"\"\"Replay only an exact rollback whose resulting state is still current.\"\"\""
     },
     {
-      "line": 874,
+      "line": 875,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "raise ValueError(\"publication rollback replay no longer matches current state\")"
     },
     {
-      "line": 952,
+      "line": 953,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "\"\"\"Return the latest publication visible at an historical boundary.\"\"\""
     },
@@ -11991,22 +12106,22 @@
       "text": "summary = models.TextField(blank=True)"
     },
     {
-      "line": 122,
+      "line": 155,
       "path": "apps/data_center/infrastructure/financial_fact_repository.py",
       "text": "\"\"\"Select every metric from each asset's latest evidence-safe period.\"\"\""
     },
     {
-      "line": 769,
+      "line": 772,
       "path": "apps/data_center/infrastructure/financial_response_body_store.py",
       "text": "current = Path(absolute.anchor) if absolute.anchor else Path()"
     },
     {
-      "line": 773,
+      "line": 776,
       "path": "apps/data_center/infrastructure/financial_response_body_store.py",
       "text": "current /= part"
     },
     {
-      "line": 774,
+      "line": 777,
       "path": "apps/data_center/infrastructure/financial_response_body_store.py",
       "text": "if current.is_symlink() or _is_windows_reparse_point(current):"
     },
@@ -12506,6 +12621,41 @@
       "text": "\"\"\"Return SSE MDATE query months, allowing current-year publication lag.\"\"\""
     },
     {
+      "line": 139,
+      "path": "apps/data_center/infrastructure/sync_item_attempt_repository.py",
+      "text": "latest=Max(\"attempt_number\"),"
+    },
+    {
+      "line": 152,
+      "path": "apps/data_center/infrastructure/sync_item_attempt_repository.py",
+      "text": "latest_by_scope[scope_key] = int(row[\"latest\"] or 0)"
+    },
+    {
+      "line": 251,
+      "path": "apps/data_center/infrastructure/sync_item_attempt_repository.py",
+      "text": "current = model.to_domain()"
+    },
+    {
+      "line": 252,
+      "path": "apps/data_center/infrastructure/sync_item_attempt_repository.py",
+      "text": "if current.state is not SyncItemAttemptState.RUNNING:"
+    },
+    {
+      "line": 257,
+      "path": "apps/data_center/infrastructure/sync_item_attempt_repository.py",
+      "text": "current_value = getattr(current, field_name)"
+    },
+    {
+      "line": 361,
+      "path": "apps/data_center/infrastructure/sync_item_attempt_repository.py",
+      "text": ".annotate(latest=Max(\"attempt_number\"))"
+    },
+    {
+      "line": 363,
+      "path": "apps/data_center/infrastructure/sync_item_attempt_repository.py",
+      "text": "latest_by_code = {str(row[\"asset_code\"]): int(row[\"latest\"] or 0) for row in latest_rows}"
+    },
+    {
       "line": 259,
       "path": "apps/data_center/infrastructure/tushare_model_market_source.py",
       "text": "\"\"\"Read the latest effective snapshot, never a future constituent list.\"\"\""
@@ -12746,9 +12896,14 @@
       "text": "\"\"\"Preview or execute exact active-A-share core current publications.\"\"\""
     },
     {
-      "line": 23,
+      "line": 30,
       "path": "apps/data_center/management/commands/rebuild_active_a_share_core_publications.py",
       "text": "\"Preview full active-A-share quote/price/valuation/financial current publications; \""
+    },
+    {
+      "line": 78,
+      "path": "apps/data_center/management/commands/rebuild_active_a_share_core_publications.py",
+      "text": "raise CommandError(\"--operator must match the current server-issued actor\")"
     },
     {
       "line": 1,
@@ -12756,19 +12911,24 @@
       "text": "\"\"\"Preview or repair active-A-share decision-current facts and publications.\"\"\""
     },
     {
-      "line": 22,
+      "line": 28,
       "path": "apps/data_center/management/commands/repair_active_a_share_current_facts.py",
       "text": "\"\"\"Expose a dry-run-first, fail-closed current-fact repair boundary.\"\"\""
     },
     {
-      "line": 25,
+      "line": 31,
       "path": "apps/data_center/management/commands/repair_active_a_share_current_facts.py",
       "text": "\"Preview active-A-share current-fact coverage; use --execute and an \""
     },
     {
-      "line": 93,
+      "line": 99,
       "path": "apps/data_center/management/commands/repair_active_a_share_current_facts.py",
       "text": "\"latest completed China market session is unavailable during live trading\""
+    },
+    {
+      "line": 110,
+      "path": "apps/data_center/management/commands/repair_active_a_share_current_facts.py",
+      "text": "raise CommandError(\"--operator must match the current server-issued actor\")"
     },
     {
       "line": 342,
@@ -12801,7 +12961,12 @@
       "text": "\"\"\"Composition of the atomic current-publication rebuild workflow.\"\"\""
     },
     {
-      "line": 72,
+      "line": 38,
+      "path": "apps/data_center/publication_rebuild_composition.py",
+      "text": "\"\"\"Require exact current authority before the publication transaction.\"\"\""
+    },
+    {
+      "line": 91,
       "path": "apps/data_center/publication_rebuild_composition.py",
       "text": "raise ValueError(\"Invalid current-publication dataset selection\")"
     },
@@ -14041,12 +14206,12 @@
       "text": "\"\"\"Return the latest persisted holdings for one factor portfolio config.\"\"\""
     },
     {
-      "line": 214,
+      "line": 221,
       "path": "apps/factor/infrastructure/adapters/__init__.py",
       "text": "current = prices[-1]"
     },
     {
-      "line": 217,
+      "line": 224,
       "path": "apps/factor/infrastructure/adapters/__init__.py",
       "text": "return (current - past) / past if past > 0 else 0.0"
     },
@@ -24576,6 +24741,11 @@
       "text": "\"\"\"Record one current physical re-observation under a trusted user lock."
     },
     {
+      "line": 94,
+      "path": "core/integration/data_center_audit.py",
+      "text": "\"\"\"Validate the canonical Audit runtime and current authority without writes.\"\"\""
+    },
+    {
       "line": 9,
       "path": "core/integration/data_center_readiness.py",
       "text": "\"\"\"Owner facade consumed by Config Center readiness and summary screens.\"\"\""
@@ -25583,42 +25753,42 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 75,
+      "line": 194,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(name=\"data_center.refresh_full_market_publications\", time_limit=1800, soft_time_limit=1700)  # type: ignore[misc]"
     },
     {
-      "line": 373,
+      "line": 543,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 405,
+      "line": 575,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 487,
+      "line": 657,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 716,
+      "line": 964,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 753,
+      "line": 1001,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 826,
+      "line": 1074,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 889,
+      "line": 1137,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
@@ -25643,22 +25813,22 @@
       "text": "@shared_task(name=\"apps.equity.application.tasks.sync_financial_data_task\")  # type: ignore[misc]"
     },
     {
-      "line": 154,
+      "line": 155,
       "path": "apps/equity/application/tasks_valuation_sync.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 198,
+      "line": 199,
       "path": "apps/equity/application/tasks_valuation_sync.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 227,
+      "line": 228,
       "path": "apps/equity/application/tasks_valuation_sync.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 354,
+      "line": 355,
       "path": "apps/equity/application/tasks_valuation_sync.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
