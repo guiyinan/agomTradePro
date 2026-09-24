@@ -131,7 +131,7 @@ python scripts/check_celery_task_contracts.py \
 
 2026-09-19：qlib_predict_scores 执行预测遇到 MODEL_MARKET_* 数据质量/范围错误时，发布 blocked、requested=1/succeeded=0/failed=1/stored=0 和稳定 blocked_reason，禁止进入旧缓存复用分支。账户 scope 缺少目标日模型数据不得静默缩小范围。
 
-2026-09-19：`data_center.refresh_full_market_publications` 冻结有效 A 股全集，按批刷新报价与估值事实；任何批次不完整均保留原 Publication。全部事实齐备且源观测日匹配最近完成交易日后才发布报价、估值、日线全集。停牌日线保留实际日期，财报发布仍独立校验。`setup_full_market_publications` 幂等配置工作日 16:30（项目时区）的 Beat 任务，可用参数调整或禁用。审计配置/服务身份不可用时，在任何行情请求和写入前返回 `outcome=blocked`、`stored=0` 及稳定原因；不得以关闭审计、空 writer 或临时管理员身份作为恢复措施。
+2026-09-19：`data_center.refresh_full_market_publications` 冻结有效 A 股全集，按批刷新报价与估值事实；任何批次不完整均保留原 Publication。全部事实齐备且源观测日匹配最近完成交易日后才发布报价、估值、日线全集。停牌日线保留实际日期，财报发布仍独立校验。`setup_full_market_publications` 幂等配置工作日 17:05（项目时区）的 Beat 任务，可用参数调整或禁用；该时间晚于 Tushare `daily_basic` 官方 15:00～17:00 更新窗口，不能在数据源尚未形成当日完整截面时发布前一日数据冒充当期。审计配置/服务身份不可用时，在任何行情请求和写入前返回 `outcome=blocked`、`stored=0` 及稳定原因；不得以关闭审计、空 writer 或临时管理员身份作为恢复措施。
 
 2026-09-20 合并前维护：Alpha 的数据阻断结果和旧源评分标记由 `task_outcome_contracts` 统一生成，任务入口及原有 outcome、计数和阻断原因保持不变。
 

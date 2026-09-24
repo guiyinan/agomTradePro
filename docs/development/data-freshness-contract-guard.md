@@ -199,3 +199,5 @@ Alpha 页面独立读取全市场发布任务的业务 outcome。评分推理成
 长任务允许审计授权在运行中追加同身份 successor。只有 authority source、actor、user、tenant、owner、认证/职员状态或 role 改变，或起始授权自身无法覆盖下一写边界时才停止；单纯续期产生的新 content hash 不能中断已获授权且仍在有效期内的刷新。
 
 日频估值只提供 `trade_date` 时，将该日期对应的中国大陆市场 15:00 收盘时刻作为 `observed_at`，再转换为 UTC 存储。该时间来自提供方交易日字段与交易所会话边界，不能使用抓取时间替代；Tushare 单股、全市场批量路径以及 AKShare 历史估值路径必须使用同一规则。缺少合法交易日仍失败关闭。
+
+[Tushare `daily_basic` 官方文档](https://tushare.pro/document/2?doc_id=32)给出的更新窗口为交易日 15:00～17:00。全市场自然发布默认安排在 17:05，确保任务确定的最近收盘交易日已有完整估值截面；提前人工触发时若当日截面仍为空，必须保持旧 Publication 并返回 `CURRENT_VALUATION_SCOPE_UNAVAILABLE`，不能退回前一日并伪装成当期成功。

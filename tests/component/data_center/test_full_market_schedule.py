@@ -13,7 +13,7 @@ def test_full_market_schedule_is_idempotent_and_precedes_inference():
     row = PeriodicTask.objects.get(name="full-market-current-publications")
     assert row.task == "data_center.refresh_full_market_publications"
     assert row.enabled
-    assert (row.crontab.hour, row.crontab.minute) == ("16", "30")
+    assert (row.crontab.hour, row.crontab.minute) == ("17", "5")
     assert row.crontab.day_of_week == "1,2,3,4,5"
     assert json.loads(row.kwargs) == {
         "quote_source": "akshare",
