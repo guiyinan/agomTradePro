@@ -28,11 +28,21 @@ class Command(BaseCommand):
         parser.add_argument("--quote-source", choices=("akshare", "tushare"), default="akshare")
         parser.add_argument("--valuation-source", choices=("akshare", "tushare"), default="tushare")
         parser.add_argument("--batch-size", type=int, default=100)
+        parser.add_argument("--financial-hour", type=int, default=1)
+        parser.add_argument("--financial-minute", type=int, default=10)
+        parser.add_argument("--financial-batch-size", type=int, default=50)
         parser.add_argument("--disable", action="store_true")
 
     def handle(self, *args: object, **options: object) -> None:
         """Validate before atomically upserting the schedule and its task."""
-        for name, lower, upper in (("hour", 0, 23), ("minute", 0, 59), ("batch_size", 1, 200)):
+        for name, lower, upper in (
+            ("hour", 0, 23),
+            ("minute", 0, 59),
+            ("batch_size", 1, 200),
+            ("financial_hour", 0, 23),
+            ("financial_minute", 0, 59),
+            ("financial_batch_size", 1, 200),
+        ):
             value = options[name]
             if type(value) is not int or not lower <= value <= upper:
                 raise CommandError(f"Invalid {name}")
@@ -79,6 +89,36 @@ class Command(BaseCommand):
                     "description": "Full active market facts and canonical publication; fails closed without valid audit authority.",
                 },
             )
+            financial_schedule, _ = CrontabSchedule.objects.get_or_create(
+                minute=str(options["financial_minute"]),
+                hour=str(options["financial_hour"]),
+                day_of_week="*",
+                day_of_month="*",
+                month_of_year="*",
+                timezone=settings.TIME_ZONE,
+            )
+            PeriodicTask.objects.update_or_create(
+                name="financial-current-publication-refresh",
+                defaults={
+                    "task": "data_center.refresh_financial_publications_batch",
+                    "crontab": financial_schedule,
+                    "interval": None,
+                    "solar": None,
+                    "clocked": None,
+                    "one_off": False,
+                    "enabled": not options["disable"],
+                    "args": "[]",
+                    "kwargs": json.dumps(
+                        {
+                            "source": "tushare",
+                            "financial_periods": 8,
+                            "batch_size": options["financial_batch_size"],
+                            "auto_continue": True,
+                        }
+                    ),
+                    "description": "Resumable evidence-complete financial refresh; publishes only after the full active universe succeeds.",
+                },
+            )
         self.stdout.write(
-            "Full-market publication schedule configured; audit authority is required."
+            "Full-market and financial publication schedules configured; audit authority is required."
         )

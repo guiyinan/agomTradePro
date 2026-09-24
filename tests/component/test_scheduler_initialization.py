@@ -67,6 +67,7 @@ def test_init_scheduler_defaults_runs_expected_commands(monkeypatch):
     assert called == [
         "setup_macro_daily_sync",
         "setup_equity_valuation_sync",
+        "setup_full_market_publications",
         "setup_decision_quote_refresh",
         "setup_workspace_snapshot_refresh",
         "setup_account_risk_tasks",
@@ -117,6 +118,7 @@ def test_init_scheduler_defaults_rolls_back_on_subcommand_failure(monkeypatch):
     assert calls == [
         "setup_macro_daily_sync",
         "setup_equity_valuation_sync",
+        "setup_full_market_publications",
         "setup_decision_quote_refresh",
     ]
     assert atomic_events == [("enter", None), ("exit", RuntimeError)]

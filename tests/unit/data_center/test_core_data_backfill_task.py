@@ -114,9 +114,14 @@ def _patch_current_authority(mocker):
     return mocker.patch(
         "apps.data_center.application.tasks.preflight_data_reliability_audit_runtime",
         return_value=SimpleNamespace(
+            authority_source_id="config-center",
             actor_id="service:data02",
+            user_id=1,
             tenant_id="tenant:production",
             owner_id="owner:production",
+            is_authenticated=True,
+            is_staff=True,
+            role="system_owner",
             authority_content_hash=AUTHORITY_HASH,
             authority_valid_until=datetime.now(UTC) + timedelta(hours=2),
         ),
@@ -909,11 +914,11 @@ def test_backfill_batch_keeps_checkpoint_open_when_authority_changes(
     )
     initial = _patch_current_authority.return_value
     changed = SimpleNamespace(
-        actor_id=initial.actor_id,
-        tenant_id=initial.tenant_id,
-        owner_id=initial.owner_id,
-        authority_content_hash="c" * 64,
-        authority_valid_until=initial.authority_valid_until,
+        **{
+            **vars(initial),
+            "actor_id": "service:other-data02",
+            "authority_content_hash": "c" * 64,
+        },
     )
     _patch_current_authority.side_effect = [initial, changed]
 
@@ -941,11 +946,11 @@ def test_backfill_revalidates_authority_after_publication_attempt_setup(
     )
     initial = _patch_current_authority.return_value
     changed = SimpleNamespace(
-        actor_id=initial.actor_id,
-        tenant_id=initial.tenant_id,
-        owner_id=initial.owner_id,
-        authority_content_hash="c" * 64,
-        authority_valid_until=initial.authority_valid_until,
+        **{
+            **vars(initial),
+            "actor_id": "service:other-data02",
+            "authority_content_hash": "c" * 64,
+        },
     )
     _patch_current_authority.side_effect = [initial] * 7 + [changed]
 

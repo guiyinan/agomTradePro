@@ -10,6 +10,7 @@ from django.db import transaction
 SCHEDULER_COMMANDS = (
     "setup_macro_daily_sync",
     "setup_equity_valuation_sync",
+    "setup_full_market_publications",
     "setup_decision_quote_refresh",
     "setup_workspace_snapshot_refresh",
     "setup_account_risk_tasks",

@@ -1749,6 +1749,37 @@
       }
     },
     {
+      "task_path": "apps.data_center.application.tasks.refresh_financial_publications_batch_task",
+      "source_file": "apps/data_center/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/data_center/test_financial_publication_refresh.py",
+          "test_function": "test_financial_refresh_rejects_invalid_input_before_provider_access"
+        },
+        "all_success": {
+          "test_file": "tests/unit/data_center/test_financial_publication_refresh.py",
+          "test_function": "test_financial_refresh_publishes_only_after_full_universe"
+        },
+        "partial_failure": {
+          "test_file": "tests/unit/data_center/test_financial_publication_refresh.py",
+          "test_function": "test_financial_refresh_reports_partial_failure_without_publishing"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/data_center/test_financial_publication_refresh.py",
+          "test_function": "test_financial_refresh_reports_zero_output_as_failure"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/data_center/test_financial_publication_refresh.py",
+          "test_function": "test_financial_refresh_reports_zero_output_as_failure"
+        },
+        "blocked": {
+          "test_file": "tests/unit/data_center/test_financial_publication_refresh.py",
+          "test_function": "test_financial_refresh_blocks_without_current_authority"
+        }
+      }
+    },
+    {
       "task_path": "apps.data_center.application.tasks.refresh_full_market_publications_task",
       "source_file": "apps/data_center/application/tasks.py",
       "criticality": "freshness_critical",

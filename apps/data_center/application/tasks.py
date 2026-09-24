@@ -14,6 +14,7 @@ from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from celery import shared_task
 from django.core.cache import cache
+from django.db import DatabaseError
 from django.utils import timezone
 
 from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
@@ -41,7 +42,7 @@ from apps.data_center.domain.market_time import (
     cn_market_date_from_observation,
     latest_closed_cn_market_session,
 )
-from core.exceptions import DataFetchError
+from core.exceptions import DataFetchError, DataValidationError, InvalidInputError
 from core.integration.config_center_runtime import evaluate_storage_pressure
 from core.integration.data_center_audit import preflight_data_reliability_audit_runtime
 from shared.domain.task_outcomes import TaskBusinessOutcome
@@ -89,6 +90,9 @@ _BACKFILL_AUTHORITY_WINDOW = timedelta(seconds=3900)
 _FULL_MARKET_AUTHORITY_WINDOW = timedelta(seconds=3900)
 _AUTHORITY_FINALIZATION_WINDOW = timedelta(seconds=300)
 _BACKFILL_CURSOR_MAX_LENGTH = 500
+_FINANCIAL_REFRESH_LOCK_KEY = "data_center:financial_publication_refresh:lock:v1"
+_FINANCIAL_REFRESH_PROGRESS_KEY = "data_center:financial_publication_refresh:progress:v1"
+_FINANCIAL_REFRESH_CACHE_TTL = 7 * 86400
 
 
 def _data02_authority_failure(reason: str) -> dict[str, object]:
@@ -414,6 +418,365 @@ def refresh_full_market_publications_task(
         "excluded_non_trading_count": len(excluded_non_trading_codes),
         "excluded_non_trading_codes": excluded_non_trading_codes,
     }
+
+
+def _financial_refresh_checkpoint(
+    *,
+    offset: int,
+    next_offset: int,
+    total_assets: int,
+    universe_hash: str,
+) -> dict[str, object]:
+    """Build the stable resumable checkpoint for financial refresh batches."""
+
+    return {
+        "offset": offset,
+        "next_offset": next_offset,
+        "total_assets": total_assets,
+        "complete": next_offset >= total_assets,
+        "universe_hash": universe_hash,
+    }
+
+
+def _release_financial_refresh_lock(workflow_id: str) -> None:
+    """Release the workflow lock only when this workflow still owns it."""
+
+    if cache.get(_FINANCIAL_REFRESH_LOCK_KEY) == workflow_id:
+        cache.delete(_FINANCIAL_REFRESH_LOCK_KEY)
+
+
+@shared_task(  # type: ignore[misc]
+    name="data_center.refresh_financial_publications_batch",
+    time_limit=3600,
+    soft_time_limit=3500,
+)
+def refresh_financial_publications_batch_task(
+    *,
+    offset: int = 0,
+    batch_size: int = 50,
+    source: str = "tushare",
+    financial_periods: int = 8,
+    universe_hash: str = "",
+    auto_continue: bool = False,
+    workflow_id: str = "",
+) -> dict[str, object]:
+    """Refresh one evidence-complete financial batch and publish after the full universe."""
+
+    if (
+        isinstance(offset, bool)
+        or not isinstance(offset, int)
+        or not 0 <= offset <= 100_000
+        or isinstance(batch_size, bool)
+        or not isinstance(batch_size, int)
+        or not 1 <= batch_size <= 200
+        or isinstance(financial_periods, bool)
+        or not isinstance(financial_periods, int)
+        or not 1 <= financial_periods <= 40
+        or not isinstance(source, str)
+        or source not in {"akshare", "tushare"}
+        or not isinstance(universe_hash, str)
+        or not isinstance(auto_continue, bool)
+        or not isinstance(workflow_id, str)
+        or len(workflow_id) > 64
+        or any(character.isspace() for character in workflow_id)
+        or (
+            universe_hash
+            and (
+                len(universe_hash) != 64
+                or any(character not in "0123456789abcdef" for character in universe_hash)
+            )
+        )
+    ):
+        return {
+            **_full_market_input_failure("invalid_financial_refresh_input"),
+            "stage": "input",
+        }
+
+    started_at = datetime.now(UTC)
+    authority, authority_failure = _preflight_data02_task_authority(
+        as_of=started_at,
+        minimum_window=_FULL_MARKET_AUTHORITY_WINDOW,
+    )
+    if authority_failure is not None:
+        return authority_failure
+    if authority is None:  # pragma: no cover - narrowed by the failure branch
+        raise RuntimeError("authority preflight returned no context")
+    provider_id = get_active_provider_id_by_source(source)
+    if provider_id is None:
+        return {
+            **_full_market_input_failure("financial_provider_unavailable"),
+            "stage": "provider",
+        }
+
+    active_codes = sorted(list_active_stock_codes_for_backfill())
+    if (
+        not active_codes
+        or any(not code for code in active_codes)
+        or len(set(active_codes)) != len(active_codes)
+    ):
+        return {
+            **_full_market_input_failure("financial_universe_invalid"),
+            "outcome": TaskBusinessOutcome.BLOCKED.value,
+            "stage": "universe",
+            "must_not_use_for_decision": True,
+        }
+    encoded_universe = json.dumps(
+        {"schema": "active-a-share-universe.v1", "asset_codes": active_codes},
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    observed_universe_hash = hashlib.sha256(encoded_universe.encode("utf-8")).hexdigest()
+
+    owner = workflow_id
+    if auto_continue and not owner:
+        if cache.get(_FINANCIAL_REFRESH_LOCK_KEY):
+            return {
+                "success": True,
+                "outcome": TaskBusinessOutcome.NOOP.value,
+                "stage": "lock",
+                "requested": 0,
+                "succeeded": 0,
+                "failed": 0,
+                "stored": 0,
+                "published": 0,
+                "noop_reason": "financial_refresh_already_running",
+            }
+        progress = cache.get(_FINANCIAL_REFRESH_PROGRESS_KEY)
+        if isinstance(progress, dict) and (
+            progress.get("universe_hash") == observed_universe_hash
+            and progress.get("source") == source
+            and progress.get("financial_periods") == financial_periods
+            and progress.get("batch_size") == batch_size
+            and isinstance(progress.get("next_offset"), int)
+            and not isinstance(progress.get("next_offset"), bool)
+            and 0 <= int(progress["next_offset"]) <= len(active_codes)
+        ):
+            offset = int(progress["next_offset"])
+            universe_hash = observed_universe_hash
+        owner = str(uuid4())
+        if not cache.add(
+            _FINANCIAL_REFRESH_LOCK_KEY,
+            owner,
+            timeout=_FINANCIAL_REFRESH_CACHE_TTL,
+        ):
+            return {
+                "success": True,
+                "outcome": TaskBusinessOutcome.NOOP.value,
+                "stage": "lock",
+                "requested": 0,
+                "succeeded": 0,
+                "failed": 0,
+                "stored": 0,
+                "published": 0,
+                "noop_reason": "financial_refresh_already_running",
+            }
+    elif auto_continue:
+        current_owner = cache.get(_FINANCIAL_REFRESH_LOCK_KEY)
+        if (current_owner is not None and current_owner != owner) or (
+            current_owner is None
+            and not cache.add(
+                _FINANCIAL_REFRESH_LOCK_KEY,
+                owner,
+                timeout=_FINANCIAL_REFRESH_CACHE_TTL,
+            )
+        ):
+            return {
+                **_full_market_input_failure("financial_refresh_lock_lost"),
+                "outcome": TaskBusinessOutcome.BLOCKED.value,
+                "stage": "lock",
+                "must_not_use_for_decision": True,
+            }
+
+    if offset > 0 and not universe_hash:
+        _release_financial_refresh_lock(owner)
+        return {
+            **_full_market_input_failure("financial_universe_hash_required"),
+            "outcome": TaskBusinessOutcome.BLOCKED.value,
+            "stage": "universe",
+            "must_not_use_for_decision": True,
+        }
+    if universe_hash and universe_hash != observed_universe_hash:
+        cache.delete(_FINANCIAL_REFRESH_PROGRESS_KEY)
+        _release_financial_refresh_lock(owner)
+        return {
+            **_full_market_input_failure("financial_universe_hash_mismatch"),
+            "outcome": TaskBusinessOutcome.BLOCKED.value,
+            "stage": "universe",
+            "must_not_use_for_decision": True,
+        }
+
+    batch_codes = active_codes[offset : offset + batch_size]
+    next_offset = offset + len(batch_codes)
+    checkpoint = _financial_refresh_checkpoint(
+        offset=offset,
+        next_offset=next_offset,
+        total_assets=len(active_codes),
+        universe_hash=observed_universe_hash,
+    )
+    if not batch_codes:
+        cache.delete(_FINANCIAL_REFRESH_PROGRESS_KEY)
+        _release_financial_refresh_lock(owner)
+        return {
+            "success": True,
+            "outcome": TaskBusinessOutcome.NOOP.value,
+            "stage": "complete",
+            "requested": 0,
+            "succeeded": 0,
+            "failed": 0,
+            "stored": 0,
+            "published": 0,
+            "checkpoint": checkpoint,
+            "noop_reason": "no_remaining_financial_assets",
+        }
+
+    sync = make_backfill_sync_financial_use_case()
+    succeeded = 0
+    failed = 0
+    blocked = 0
+    stored = 0
+    authority_changed = False
+    for asset_code in batch_codes:
+        if not _same_data02_task_authority_is_current(
+            authority,
+            as_of=datetime.now(UTC),
+        ):
+            authority_changed = True
+            blocked += len(batch_codes) - succeeded - failed
+            break
+        try:
+            from .dtos import SyncFinancialRequest
+
+            result = sync.execute(
+                SyncFinancialRequest(
+                    provider_id=provider_id,
+                    asset_code=asset_code,
+                    periods=financial_periods,
+                    require_decision_evidence=True,
+                )
+            )
+            if (
+                isinstance(result.stored_count, bool)
+                or not isinstance(result.stored_count, int)
+                or result.stored_count <= 0
+            ):
+                failed += 1
+                continue
+            succeeded += 1
+            stored += result.stored_count
+        except InvalidInputError as exc:
+            if exc.code == "FINANCIAL_SOURCE_EVIDENCE_REQUIRED":
+                blocked += 1
+            else:
+                failed += 1
+        except (
+            DataFetchError,
+            DataValidationError,
+            DatabaseError,
+            OSError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+        ):
+            failed += 1
+
+    if blocked:
+        outcome = TaskBusinessOutcome.BLOCKED
+    elif failed and succeeded:
+        outcome = TaskBusinessOutcome.PARTIAL
+    elif failed:
+        outcome = TaskBusinessOutcome.FAILED
+    else:
+        outcome = TaskBusinessOutcome.SUCCESS
+    published = 0
+    publication_updated = False
+    blocked_reason = (
+        "authority_changed_or_expired"
+        if authority_changed
+        else ("financial_source_evidence_required" if blocked else "")
+    )
+    stage = "authority" if authority_changed else ("financial_evidence" if blocked else "batch")
+
+    if outcome is TaskBusinessOutcome.SUCCESS and checkpoint["complete"] is True:
+        try:
+            rebuild = make_core_current_publication_rebuild_use_case(
+                created_by=f"celery.financial_refresh:{authority.actor_id}",
+                dataset_keys=("equity.financial.fact",),
+            ).execute(
+                asset_codes=active_codes,
+                published_at=datetime.now(UTC),
+            )
+            published = rebuild.published_count
+            publication_updated = published > 0
+            if not publication_updated:
+                raise DataValidationError("financial publication produced no members")
+        except (
+            DataFetchError,
+            DataValidationError,
+            DatabaseError,
+            OSError,
+            RuntimeError,
+            SystemAuditCompositionUnavailable,
+            TypeError,
+            ValueError,
+        ) as exc:
+            logger.warning(
+                "Financial current publication rebuild failed: %s",
+                type(exc).__name__,
+            )
+            outcome = TaskBusinessOutcome.BLOCKED
+            blocked_reason = "financial_publication_rebuild_failed"
+            stage = "publication"
+
+    response: dict[str, object] = {
+        "success": outcome not in {TaskBusinessOutcome.FAILED, TaskBusinessOutcome.BLOCKED},
+        "outcome": outcome.value,
+        "stage": stage,
+        "requested": len(batch_codes),
+        "succeeded": succeeded,
+        "failed": failed,
+        "blocked": blocked,
+        "stored": stored,
+        "published": published,
+        "publication_updated": publication_updated,
+        "checkpoint": checkpoint,
+    }
+    if blocked_reason:
+        response["blocked_reason"] = blocked_reason
+        response["must_not_use_for_decision"] = True
+
+    if outcome is TaskBusinessOutcome.SUCCESS and checkpoint["complete"] is False:
+        progress_payload = {
+            "next_offset": next_offset,
+            "universe_hash": observed_universe_hash,
+            "source": source,
+            "financial_periods": financial_periods,
+            "batch_size": batch_size,
+        }
+        cache.set(
+            _FINANCIAL_REFRESH_PROGRESS_KEY,
+            progress_payload,
+            timeout=_FINANCIAL_REFRESH_CACHE_TTL,
+        )
+        if auto_continue:
+            continuation = refresh_financial_publications_batch_task.apply_async(
+                kwargs={
+                    "offset": next_offset,
+                    "batch_size": batch_size,
+                    "source": source,
+                    "financial_periods": financial_periods,
+                    "universe_hash": observed_universe_hash,
+                    "auto_continue": True,
+                    "workflow_id": owner,
+                },
+                countdown=5,
+            )
+            response["continuation_task_id"] = str(continuation.id)
+    else:
+        if outcome is TaskBusinessOutcome.SUCCESS:
+            cache.delete(_FINANCIAL_REFRESH_PROGRESS_KEY)
+        _release_financial_refresh_lock(owner)
+    return response
 
 
 def _backfill_idempotency_key(

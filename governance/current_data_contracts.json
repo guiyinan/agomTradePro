@@ -4898,6 +4898,9 @@
           "valuation_seed.succeeded_asset_codes",
           "universe_report = sync_active_a_share_universe()",
           "excluded_non_trading_codes",
+          "def refresh_financial_publications_batch_task(",
+          "financial_publication_rebuild_failed",
+          "dataset_keys=(\"equity.financial.fact\",)",
           "get_backfill_item_attempt_store()",
           "publication_evidence_hash=_publication_evidence_hash_from_result",
           "publication_evidence_hash_from_result as _publication_evidence_hash_from_result"
@@ -5047,6 +5050,16 @@
         ]
       },
       "required_tests": [
+        {
+          "case": "scheduled_financial_refresh_publishes_only_after_full_universe",
+          "test_file": "tests/unit/data_center/test_financial_publication_refresh.py",
+          "test_function": "test_financial_refresh_publishes_only_after_full_universe"
+        },
+        {
+          "case": "scheduled_financial_refresh_keeps_partial_batch_unpublished",
+          "test_file": "tests/unit/data_center/test_financial_publication_refresh.py",
+          "test_function": "test_financial_refresh_reports_partial_failure_without_publishing"
+        },
         {
           "case": "exact_full_universe_current_publication",
           "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
