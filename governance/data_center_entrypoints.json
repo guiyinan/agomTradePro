@@ -11,7 +11,7 @@
       "compatibility_facade": 94,
       "current_data_surface": 70,
       "dynamic_import_edge": 12,
-      "management_command": 35,
+      "management_command": 33,
       "management_command_edge": 58,
       "mcp_tool": 40,
       "migration_evidence": 14,
@@ -33,10 +33,10 @@
       "active_public": 784,
       "adjacent_operational": 327,
       "candidate-review": 0,
-      "compatibility": 139,
+      "compatibility": 137,
       "retired_blocked": 0
     },
-    "total": 1250
+    "total": 1248
   },
   "entries": [
     {
@@ -6227,26 +6227,6 @@
       "path": "core/management/commands/warmup_cache.py",
       "status": "adjacent_operational",
       "symbol": "warmup_cache",
-      "target": ""
-    },
-    {
-      "category": "management_command",
-      "evidence": "cross-app command consumer of Data Center",
-      "id": "management_command:output/data18-browser-review-0925/pytest-entrypoint-contracts/test_periodic_task_annassign_a0/apps/data_center/management/commands/setup_demo.py:setup_demo:",
-      "locator": "",
-      "path": "output/data18-browser-review-0925/pytest-entrypoint-contracts/test_periodic_task_annassign_a0/apps/data_center/management/commands/setup_demo.py",
-      "status": "compatibility",
-      "symbol": "setup_demo",
-      "target": ""
-    },
-    {
-      "category": "management_command",
-      "evidence": "cross-app command consumer of Data Center",
-      "id": "management_command:output/pytest-release-final/test_periodic_task_annassign_a0/apps/data_center/management/commands/setup_demo.py:setup_demo:",
-      "locator": "",
-      "path": "output/pytest-release-final/test_periodic_task_annassign_a0/apps/data_center/management/commands/setup_demo.py",
-      "status": "compatibility",
-      "symbol": "setup_demo",
       "target": ""
     },
     {

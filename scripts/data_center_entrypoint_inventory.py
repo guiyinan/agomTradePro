@@ -211,6 +211,7 @@ IGNORED_PATH_PARTS = frozenset(
         ".venv",
         "__pycache__",
         "node_modules",
+        "output",
         "pytest-tmp",
     }
 )
