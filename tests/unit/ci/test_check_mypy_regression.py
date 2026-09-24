@@ -41,3 +41,31 @@ def test_mypy_regression_gate_rejects_only_error_count_growth():
     assert check_mypy_regression.find_regressions(observed, baseline) == [
         "apps/example.py: type-arg increased from 0 to 1"
     ]
+
+
+def test_mypy_regression_gate_rejects_unclassified_mypy_failure():
+    output = (
+        "output/proposal.py: error: No parent module -- cannot perform relative import\n"
+        "Found 1 error in 1 file (errors prevented further checking)\n"
+    )
+
+    assert check_mypy_regression.parse_error_counts(output) == {}
+    assert check_mypy_regression.has_unclassified_failure(1, output, {}) is True
+
+
+def test_mypy_regression_gate_allows_baselined_diagnostics_to_be_compared():
+    output = "apps/example.py:10: error: Missing annotation [no-untyped-def]\n"
+    observed = check_mypy_regression.parse_error_counts(output)
+
+    assert check_mypy_regression.has_unclassified_failure(1, output, observed) is False
+
+
+def test_mypy_regression_gate_rejects_mixed_classified_and_unclassified_errors():
+    output = (
+        "apps/example.py:10: error: Existing debt [no-untyped-def]\n"
+        "apps/other.py: error: Configuration or import failure\n"
+    )
+    observed = check_mypy_regression.parse_error_counts(output)
+
+    assert observed == {"apps/example.py": Counter({"no-untyped-def": 1})}
+    assert check_mypy_regression.has_unclassified_failure(1, output, observed) is True

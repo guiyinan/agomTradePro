@@ -42,6 +42,27 @@ def find_regressions(
     return regressions
 
 
+def has_unclassified_failure(
+    return_code: int, output: str, observed: dict[str, Counter[str]]
+) -> bool:
+    """Reject mypy failures that cannot be compared with the governed baseline."""
+
+    if return_code == 0:
+        return False
+    normalized = output.casefold()
+    parsed_error_count = sum(sum(codes.values()) for codes in observed.values())
+    reported_error_count = sum(
+        1 for line in output.splitlines() if ": error:" in line.casefold()
+    )
+    return (
+        return_code not in {0, 1}
+        or not observed
+        or reported_error_count != parsed_error_count
+        or "errors prevented further checking" in normalized
+        or "cannot perform relative import" in normalized
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -69,6 +90,12 @@ def main() -> int:
         print(combined_output, end="" if combined_output.endswith("\n") else "\n")
 
     observed = parse_error_counts(combined_output)
+    if has_unclassified_failure(result.returncode, combined_output, observed):
+        print(
+            "Mypy execution failed before all diagnostics could be compared with the baseline.",
+            file=sys.stderr,
+        )
+        return 1
     regressions = find_regressions(observed, baseline)
     if regressions:
         print("Mypy regression(s):", file=sys.stderr)
