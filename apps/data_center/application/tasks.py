@@ -294,11 +294,17 @@ def refresh_full_market_publications_task(
     try:
         universe_report = sync_active_a_share_universe()
     except (DataFetchError, OSError, RuntimeError, ValueError) as exc:
+        logger.warning(
+            "Full-market universe refresh failed: %s",
+            type(exc).__name__,
+        )
         return {
             **_full_market_input_failure(type(exc).__name__),
             "outcome": TaskBusinessOutcome.BLOCKED.value,
             "must_not_use_for_decision": True,
             "blocked_reason": "market_universe_refresh_failed",
+            "error_code": "MARKET_UNIVERSE_REFRESH_FAILED",
+            "errors": ["MARKET_UNIVERSE_REFRESH_FAILED"],
         }
     universe_active_count = universe_report.get("active_count")
     if (
@@ -311,6 +317,8 @@ def refresh_full_market_publications_task(
             "outcome": TaskBusinessOutcome.BLOCKED.value,
             "must_not_use_for_decision": True,
             "blocked_reason": "market_universe_refresh_failed",
+            "error_code": "MARKET_UNIVERSE_REFRESH_FAILED",
+            "errors": ["MARKET_UNIVERSE_REFRESH_FAILED"],
         }
 
     active_codes = list_active_stock_codes_for_backfill()
@@ -324,11 +332,17 @@ def refresh_full_market_publications_task(
             require_exact_asset_codes=False,
         )
     except (DataFetchError, OSError, RuntimeError, ValueError) as exc:
+        logger.warning(
+            "Full-market valuation scope refresh failed: %s",
+            type(exc).__name__,
+        )
         return {
             **_full_market_input_failure(type(exc).__name__),
             "outcome": TaskBusinessOutcome.BLOCKED.value,
             "must_not_use_for_decision": True,
             "blocked_reason": "current_valuation_scope_unavailable",
+            "error_code": "CURRENT_VALUATION_SCOPE_UNAVAILABLE",
+            "errors": ["CURRENT_VALUATION_SCOPE_UNAVAILABLE"],
         }
     requested_codes = {str(code or "").strip().upper() for code in active_codes}
     returned_codes = tuple(
@@ -351,6 +365,8 @@ def refresh_full_market_publications_task(
             "outcome": TaskBusinessOutcome.BLOCKED.value,
             "must_not_use_for_decision": True,
             "blocked_reason": "current_valuation_scope_invalid",
+            "error_code": "CURRENT_VALUATION_SCOPE_INVALID",
+            "errors": ["CURRENT_VALUATION_SCOPE_INVALID"],
         }
     tradable_codes = sorted(set(succeeded_codes))
     if not tradable_codes:
@@ -359,6 +375,8 @@ def refresh_full_market_publications_task(
             "outcome": TaskBusinessOutcome.BLOCKED.value,
             "must_not_use_for_decision": True,
             "blocked_reason": "current_valuation_scope_unavailable",
+            "error_code": "CURRENT_VALUATION_SCOPE_UNAVAILABLE",
+            "errors": ["CURRENT_VALUATION_SCOPE_UNAVAILABLE"],
         }
     excluded_non_trading_codes = sorted(requested_codes - set(tradable_codes))
 

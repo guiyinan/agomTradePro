@@ -295,6 +295,41 @@ def test_task_stops_before_provider_when_authority_identity_changes(monkeypatch)
     assert result["stored"] == 0
 
 
+def test_task_exposes_stable_universe_refresh_error(monkeypatch):
+    """Provider exception text stays out of the user-facing task result."""
+
+    from types import SimpleNamespace
+
+    from apps.data_center.application import tasks
+
+    monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda _: 3)
+    monkeypatch.setattr(tasks, "latest_closed_cn_market_session", lambda _: date(2026, 9, 18))
+    monkeypatch.setattr(tasks, "make_backfill_sync_quote_use_case", SimpleNamespace)
+    monkeypatch.setattr(
+        tasks,
+        "make_backfill_sync_current_valuation_batch_use_case",
+        SimpleNamespace,
+    )
+    monkeypatch.setattr(
+        tasks,
+        "make_core_current_publication_rebuild_use_case",
+        lambda **_: SimpleNamespace(),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "sync_active_a_share_universe",
+        lambda: (_ for _ in ()).throw(ValueError("secret upstream response")),
+    )
+
+    result = tasks.refresh_full_market_publications_task.run()
+
+    assert result["outcome"] == "blocked"
+    assert result["blocked_reason"] == "market_universe_refresh_failed"
+    assert result["error_code"] == "MARKET_UNIVERSE_REFRESH_FAILED"
+    assert result["errors"] == ["MARKET_UNIVERSE_REFRESH_FAILED"]
+    assert "secret" not in str(result)
+
+
 def test_equivalent_authority_successor_does_not_interrupt_active_refresh(
     monkeypatch,
     _patch_current_authority,

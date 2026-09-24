@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Protocol
@@ -11,6 +12,9 @@ from apps.data_center.domain.entities import AssetAlias, AssetMaster
 from apps.data_center.domain.enums import AssetType, MarketExchange
 from apps.data_center.infrastructure.orm_retry import retry_sqlite_locked_operation
 from apps.data_center.infrastructure.repositories import AssetRepository
+
+logger = logging.getLogger(__name__)
+_UNIVERSE_PROVIDER_ATTEMPTS = 3
 
 
 class AShareCodeNameProvider(Protocol):
@@ -56,7 +60,27 @@ class AkshareAshareCodeNameProvider:
 
         import akshare as ak
 
-        frame = ak.stock_info_a_code_name()
+        frame = None
+        for attempt in range(1, _UNIVERSE_PROVIDER_ATTEMPTS + 1):
+            try:
+                frame = ak.stock_info_a_code_name()
+            except (OSError, RuntimeError, ValueError) as exc:
+                logger.warning(
+                    "A-share universe provider attempt %s/%s failed: %s",
+                    attempt,
+                    _UNIVERSE_PROVIDER_ATTEMPTS,
+                    type(exc).__name__,
+                )
+                if attempt == _UNIVERSE_PROVIDER_ATTEMPTS:
+                    raise
+                continue
+            if frame is not None and not frame.empty:
+                break
+            logger.warning(
+                "A-share universe provider attempt %s/%s returned no rows",
+                attempt,
+                _UNIVERSE_PROVIDER_ATTEMPTS,
+            )
         if frame is None or frame.empty:
             return []
         rows: list[dict[str, str]] = []

@@ -140,3 +140,5 @@ python scripts/check_celery_task_contracts.py \
 同日生产验收确认单一 Provider 无法同时覆盖停牌报价与估值。自然调度使用 AKShare 批量报价与估值；报价个别缺失时，适配器只在 Tencent 同批重叠价格全部处于 1% 容差后补入缺失身份，零重叠或冲突继续失败关闭。兼容参数 `source` 只用于显式单源诊断；自然调度仍写入独立的 `quote_source` / `valuation_source`，不得因某一能力缺口放宽全集校验。
 
 生产 200 只批次实测约 65 秒，全市场约 28 批；任务 hard/soft time limit 为 3600/3500 秒，审计授权预检至少覆盖 3900 秒。三者必须同时调整，禁止让合法全集刷新在发布前被旧 30 分钟预算终止。
+
+证券主数据自然刷新对 AKShare 的瞬时 `OSError/RuntimeError/ValueError` 最多尝试 3 次；最终失败返回 `MARKET_UNIVERSE_REFRESH_FAILED`，任务结果和 Alpha 页面只显示稳定错误码，不回显第三方响应。空名单同样阻断，不能用旧名单伪装本次同步成功。
