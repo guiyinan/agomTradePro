@@ -669,7 +669,8 @@ GET /api/alpha/scores/?top_n=10&ai_filter=1
 - Tushare 第三方代理地址统一配置在 `ProviderConfigModel.http_url`
 - 可以创建多条 `source_type=tushare` 的激活配置，并用唯一 `name` 区分官方 SDK、SDK
   路径中转和统一中继；`priority` 数字越小，首次尝试顺序越靠前
-- 默认 `sdk_path` 模式会自动下发到 `pro._DataApi__http_url`
+- 默认 `sdk_path` 模式会自动下发到 `pro._DataApi__http_url`，所有 API 都向该单一地址
+  POST，并在 JSON 请求体的 `api_name` 字段声明接口名
 - 单 URL 中继使用 `extra_config={"tushare_request_mode":"unified_relay"}`；运行时固定向
   `http_url` POST，并发送 `X-API-Key`，不会在 URL 后追加 API 名
 - 每条 Tushare 配置独立使用自己的 Token、URL 和请求模式，不会从另一条配置继承连接方式

@@ -26,6 +26,16 @@
 
 > 这个区域按天维护，优先记录最近 1-7 天内对外可见、值得关注的变化。
 
+### 2026-09-25
+
+- 行情、日线、估值和财报事实采用不可变修订：已经进入 Publication 的事实不会再被后续同步原地覆盖；新数据追加 revision，历史 Publication 继续绑定原始行和内容摘要，避免后台更新造成已发布成员校验失效。
+- Alpha 首页和决策工作台的普通 GET/查看流程改为只读；刷新、推理和建议写回必须由明确动作触发。任务监控同时展示本次运行阶段、业务 `outcome`、安全错误码和 requested/succeeded/failed/stored 计数，不再用 Celery `SUCCESS` 掩盖业务失败。
+- SDK/MCP 统一信号分页、政策待分类/人工复核语义和决策运行时阻断字段；上游 `block_reason_code/block_reason` 会安全透传，投资者可以看到数据为什么不可用于决策。
+- Tushare SDK 路由按其单一 Data API URL 协议发送请求，endpoint 与密钥继续由 Data Center / Config Center 和部署环境管理，不写入仓库。发布前新增候选绑定、数据库只读的真实 provider 小样本演练，默认抽取 50 只股票并记录覆盖、时钟、HTTP 回执和零写入证据。
+- 财报仍坚持来源时点证据门槛：provider 只给日期、没有可验证的精确发布时间时，系统会显示 `financial_available_at_missing` / `financial_source_evidence_incomplete`，不会用抓取时间伪装来源时间，也不会把该链路标记为可用于投资决策。
+- 中国市场日期统一使用来源签发的完整交易日历证据：区间内每个自然日都必须有开/闭市状态，缺尾、缺中间、冲突或来源不可用都会阻断，不再把工作日或节假日猜成交易日。
+- SDK 的 HTTP 状态重试会保留最后一次业务响应；连续 503 后仍能向 MCP 透传 `decision_runtime_blocked`、`blocked_reason` 和不可用于决策标记，不再退化为 `HTTP unknown`。
+
 ### 2026-09-24
 
 - 全市场自动发布根因已系统修复并部署到 VPS：长任务时限扩到 3600 秒；审计授权允许同身份 successor 续期；资产全集在发布前刷新并对短暂连接失败重试三次；停牌等当日无估值股票从可交易范围显式排除，不再阻断其他股票。

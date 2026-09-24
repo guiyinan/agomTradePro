@@ -26,6 +26,16 @@
 
 > This section is maintained day by day and should focus on user-visible changes from the last 1-7 days.
 
+### 2026-09-25
+
+- Quote, price-bar, valuation, and financial facts now use immutable revisions. A fact already pinned by a Publication is never updated in place; corrections append a revision while historical Publications keep their original row and content digest.
+- Ordinary Alpha and decision-workspace reads no longer enqueue inference or write recommendations. Refreshes require an explicit action, and task monitoring exposes the active phase, business `outcome`, safe error code, and requested/succeeded/failed/stored counts.
+- SDK and MCP contracts now preserve signal pagination, unclassified policy/manual-review semantics, and decision-runtime blockers. Upstream `block_reason_code/block_reason` fields reach investors as bounded safe diagnostics instead of collapsing into a generic HTTP error.
+- Tushare SDK traffic follows its single Data API URL protocol. Endpoints and credentials remain in Data Center / Config Center and deployment configuration, outside Git. A candidate-bound, database-read-only live-provider rehearsal samples 50 stocks by default and records coverage, clocks, HTTP receipts, and zero-write evidence.
+- Financial publication remains fail closed when the provider supplies only an announcement date without a verifiable source-native timestamp. The system reports `financial_available_at_missing` / `financial_source_evidence_incomplete` and never substitutes fetch time or claims the data is decision-ready.
+- China-market dates now require source-bound, complete exchange-calendar evidence for every calendar day in the requested window. Truncated, missing, conflicting, or unavailable calendars block the decision path instead of treating weekdays or holidays as sessions.
+- SDK status retries preserve the final business response. Repeated 503 responses still carry `decision_runtime_blocked`, `blocked_reason`, and decision-safety fields through MCP instead of collapsing to `HTTP unknown`.
+
 ### 2026-09-23
 
 - The database is the source of truth for production Tushare settings: `data_center_provider_config` stores the endpoint and `tushare_request_mode`, while Config Center stores the Tushare token encrypted. VPS environment variables remain only for bootstrap, standalone diagnostics, and compatibility fallback when the database is unavailable; database settings take precedence, and credentials are never committed to Git.

@@ -373,7 +373,8 @@ QMT 现在只接入了“行情 provider”这一层，不接交易。
 2. 填写 `api_key`
 3. 填写 `http_url`
 4. 按代理协议选择请求模式：
-   - 默认 `sdk_path`：系统把 `http_url` 写入 `pro._DataApi__http_url`，由 SDK 追加 API 名
+   - 默认 `sdk_path`：系统把 `http_url` 写入 `pro._DataApi__http_url`；SDK 固定向该地址
+     POST，并在 JSON 请求体的 `api_name` 字段声明接口名
    - 统一中继 `unified_relay`：在 `extra_config` 写入
      `{"tushare_request_mode": "unified_relay"}`
 5. `unified_relay` 会把所有 API 统一 POST 到配置的 `http_url`，并使用同一凭据发送
