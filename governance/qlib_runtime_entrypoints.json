@@ -8,6 +8,7 @@
       "apps/account/application/config_summary_service.py",
       "apps/account/infrastructure/config_summary_repository.py",
       "apps/alpha/admin.py",
+      "apps/alpha/application/alpha_service.py",
       "apps/alpha/application/ops_services.py",
       "apps/alpha/application/repository_provider.py",
       "apps/alpha/application/services.py",
@@ -203,7 +204,7 @@
     {
       "id": "alpha.qlib_service_registration",
       "kind": "provider_registration",
-      "file": "apps/alpha/application/services.py",
+      "file": "apps/alpha/application/alpha_service.py",
       "symbol": "AlphaService._setup_providers",
       "source": "typed_runtime_summary",
       "gate": "typed_provider_uri_model_path_region",

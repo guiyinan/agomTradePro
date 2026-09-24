@@ -60,63 +60,61 @@ def test_strategy_fallback_matrix_delegates_and_normalizes(
 
     assert strategy._fallback_strategy_read_catalog("factor", True, 10)["total_count"] == 1
     assert strategy._fallback_strategy_read_detail(1)["strategy"]["id"] == 1
-    assert (
-        strategy._fallback_strategy_read_ai_config_catalog(1, "auto", 2, 10)[
-            "total_count"
-        ]
-        == 1
-    )
+    assert strategy._fallback_strategy_read_ai_config_catalog(1, "auto", 2, 10)["total_count"] == 1
     assert strategy._fallback_strategy_read_ai_config_detail(1)["config"] is None
-    assert (
-        strategy._fallback_strategy_read_position_rule_catalog(1, True, 10)[
-            "total_count"
-        ]
-        == 1
-    )
+    assert strategy._fallback_strategy_read_position_rule_catalog(1, True, 10)["total_count"] == 1
     assert strategy._fallback_strategy_read_position_rule_detail(1)["rule"]["id"] == 3
     assert strategy._fallback_strategy_compute_position_rule(3, {"price": 10}) == {
         "decision": "hold"
     }
-    assert strategy._fallback_strategy_compute_position_management(
-        1, {"price": 10}
-    ) == {"target": 0.5}
-    assert strategy._fallback_strategy_read_performance(
-        1, "2026-01-01", "2026-07-25"
-    ) == {"return": 0.1}
+    assert strategy._fallback_strategy_compute_position_management(1, {"price": 10}) == {
+        "target": 0.5
+    }
+    assert strategy._fallback_strategy_read_performance(1, "2026-01-01", "2026-07-25") == {
+        "return": 0.1
+    }
     assert strategy._fallback_strategy_read_signals(1, "active", 10)["total_count"] == 1
     assert strategy._fallback_strategy_read_positions(1)["total_count"] == 1
     assert strategy._fallback_execute_strategy(1, "2026-07-25")["success"] is True
     assert strategy._fallback_bind_portfolio_strategy(1, 2)["success"] is True
     assert strategy._fallback_unbind_portfolio_strategy(1)["success"] is True
-    assert strategy._fallback_create_position_rule(
-        1,
-        "rule",
-        "buy",
-        "sell",
-        "stop",
-        "take",
-        "size",
-        buy_condition_expr="condition",
-        sell_condition_expr="exit",
-        description="desc",
-        price_precision=4,
-        variables_schema=[{"name": "x"}],
-        metadata={"source": "test"},
-        is_active=False,
-    )["success"] is True
+    assert (
+        strategy._fallback_create_position_rule(
+            1,
+            "rule",
+            "buy",
+            "sell",
+            "stop",
+            "take",
+            "size",
+            buy_condition_expr="condition",
+            sell_condition_expr="exit",
+            description="desc",
+            price_precision=4,
+            variables_schema=[{"name": "x"}],
+            metadata={"source": "test"},
+            is_active=False,
+        )["success"]
+        is True
+    )
     assert strategy._fallback_update_position_rule(3, {"name": "new"})["success"] is True
-    assert strategy._fallback_create_strategy(
-        "quality", "factor", "desc", {"window": 20}
-    )["success"] is True
-    assert strategy._fallback_create_ai_strategy_config(
-        1,
-        prompt_template_id=2,
-        chain_config_id=3,
-        ai_provider_id=4,
-    )["success"] is True
-    assert strategy._fallback_update_ai_strategy_config(
-        2, {"approval_mode": "manual"}
-    )["success"] is True
+    assert (
+        strategy._fallback_create_strategy("quality", "factor", "desc", {"window": 20})["success"]
+        is True
+    )
+    assert (
+        strategy._fallback_create_ai_strategy_config(
+            1,
+            prompt_template_id=2,
+            chain_config_id=3,
+            ai_provider_id=4,
+        )["success"]
+        is True
+    )
+    assert (
+        strategy._fallback_update_ai_strategy_config(2, {"approval_mode": "manual"})["success"]
+        is True
+    )
 
 
 def test_strategy_fallbacks_reject_invalid_sdk_shapes(sdk_client: MagicMock) -> None:
@@ -205,90 +203,108 @@ def test_data_center_fallback_matrix_builds_complete_payloads(
 
     assert data_center._fallback_get_data_center_provider_status()["total_count"] == 1
     assert data_center._fallback_list_data_center_providers()["total_count"] == 1
-    assert data_center._fallback_data_center_get_macro_series(
-        "PMI", "2026-01-01", "2026-07-25", 10
-    )["success"] is True
+    assert (
+        data_center._fallback_data_center_get_macro_series("PMI", "2026-01-01", "2026-07-25", 10)[
+            "success"
+        ]
+        is True
+    )
     assert data_center._fallback_data_center_list_indicators(True)["total_count"] == 1
-    assert data_center._fallback_data_center_get_price_history(
-        "A", "2026-01-01", "2026-07-25", "1d", "qfq", 10
-    )["success"] is True
+    assert (
+        data_center._fallback_data_center_get_price_history(
+            "A", "2026-01-01", "2026-07-25", "1d", "qfq", 10
+        )["success"]
+        is True
+    )
     assert data_center._fallback_data_center_get_quotes("A", True, 1.5)["success"] is True
     assert data_center._fallback_data_center_get_news("A", 5)["success"] is True
     assert data_center._fallback_data_center_get_publisher("NBS")["success"] is True
     assert data_center._fallback_data_center_list_publishers(True)["total_count"] == 1
     assert data_center._fallback_data_center_get_indicator("PMI")["success"] is True
+    assert data_center._fallback_data_center_list_indicator_unit_rules("PMI")["total_count"] == 1
+    assert data_center._fallback_data_center_get_indicator_unit_rule("PMI", 7)["success"] is True
     assert (
-        data_center._fallback_data_center_list_indicator_unit_rules("PMI")[
-            "total_count"
-        ]
-        == 1
+        data_center._fallback_data_center_update_publisher(
+            "NBS",
+            canonical_name="Statistics",
+            publisher_class="government",
+            aliases=["NBSC"],
+            canonical_name_en="NBS",
+            country_code="CN",
+            website="https://example.test",
+            is_active=False,
+            description="updated",
+        )["success"]
+        is True
     )
-    assert data_center._fallback_data_center_get_indicator_unit_rule("PMI", 7)[
-        "success"
-    ] is True
-    assert data_center._fallback_data_center_update_publisher(
-        "NBS",
-        canonical_name="Statistics",
-        publisher_class="government",
-        aliases=["NBSC"],
-        canonical_name_en="NBS",
-        country_code="CN",
-        website="https://example.test",
-        is_active=False,
-        description="updated",
-    )["success"] is True
-    assert data_center._fallback_data_center_create_publisher(
-        "NBS", "Statistics", "government", aliases=["NBSC"]
-    )["success"] is True
+    assert (
+        data_center._fallback_data_center_create_publisher(
+            "NBS", "Statistics", "government", aliases=["NBSC"]
+        )["success"]
+        is True
+    )
     assert data_center._fallback_data_center_delete_publisher("NBS") == {
         "success": True,
         "publisher_code": "NBS",
     }
-    assert data_center._fallback_data_center_create_indicator(
-        "PMI", "采购经理指数", extra={"unit": "index"}
-    )["success"] is True
+    assert (
+        data_center._fallback_data_center_create_indicator(
+            "PMI", "采购经理指数", extra={"unit": "index"}
+        )["success"]
+        is True
+    )
     assert data_center._fallback_data_center_delete_indicator("PMI") == {
         "success": True,
         "indicator_code": "PMI",
     }
-    assert data_center._fallback_data_center_create_indicator_unit_rule(
-        "PMI", "index", "index", "index", 1.0
-    )["success"] is True
+    assert (
+        data_center._fallback_data_center_create_indicator_unit_rule(
+            "PMI", "index", "index", "index", 1.0
+        )["success"]
+        is True
+    )
     assert data_center._fallback_data_center_delete_indicator_unit_rule("PMI", 7) == {
         "success": True,
         "indicator_code": "PMI",
         "rule_id": 7,
     }
-    assert data_center._fallback_data_center_update_indicator_unit_rule(
-        "PMI",
-        7,
-        source_type="api",
-        dimension_key="index",
-        original_unit="point",
-        storage_unit="index",
-        display_unit="index",
-        multiplier_to_storage=1.0,
-        is_active=False,
-        priority=10,
-        description="updated",
-    )["success"] is True
-    assert data_center._fallback_data_center_sync_macro(
-        1, "PMI", "2026-01-01", "2026-07-25"
-    )["success"] is True
-    assert data_center._fallback_data_center_sync_capital_flows(1, "A", "10d")[
-        "success"
-    ] is True
+    assert (
+        data_center._fallback_data_center_update_indicator_unit_rule(
+            "PMI",
+            7,
+            source_type="api",
+            dimension_key="index",
+            original_unit="point",
+            storage_unit="index",
+            display_unit="index",
+            multiplier_to_storage=1.0,
+            is_active=False,
+            priority=10,
+            description="updated",
+        )["success"]
+        is True
+    )
+    assert (
+        data_center._fallback_data_center_sync_macro(1, "PMI", "2026-01-01", "2026-07-25")[
+            "success"
+        ]
+        is True
+    )
+    assert data_center._fallback_data_center_sync_capital_flows(1, "A", "10d")["success"] is True
     assert data_center._fallback_data_center_sync_news(1, "A", 10)["success"] is True
-    assert data_center._fallback_data_center_update_indicator(
-        "PMI",
-        name_cn="采购经理指数",
-        name_en="PMI",
-        description="updated",
-        category="growth",
-        default_period_type="M",
-        is_active=False,
-        extra={"unit": "index"},
-    )["success"] is True
+    assert (
+        data_center._fallback_data_center_update_indicator(
+            "PMI",
+            name_cn="采购经理指数",
+            name_en="PMI",
+            description="updated",
+            category="growth",
+            default_period_type="M",
+            is_active=False,
+            extra={"unit": "index"},
+        )["success"]
+        is True
+    )
 
 
 def test_risk_center_fallback_matrix_delegates_complete_context(
@@ -311,28 +327,33 @@ def test_risk_center_fallback_matrix_delegates_complete_context(
     assert risk_center._fallback_get_effective_risk_policy(1)["id"] == 2
     assert risk_center._fallback_get_account_risk_policy(1)["id"] == 3
     assert risk_center._fallback_list_risk_exceptions(1)["total_count"] == 1
-    assert risk_center._fallback_check_pre_trade_risk(
-        1, "A", "buy", 10, 2, 100, 20, 80, 5
-    )["allowed"] is True
-    assert risk_center._fallback_check_post_investment_risk(
-        1,
-        100,
-        positions=[{"asset_code": "A"}],
-        cash_balance=80,
-        total_position_value=20,
-        daily_pnl_pct=-0.01,
-        drawdown_pct=0.02,
-    )["allowed"] is True
-    assert risk_center._fallback_get_risk_center_daily_report(1, "2026-07-25")[
-        "id"
-    ] == 5
-    assert risk_center._fallback_list_risk_center_daily_reports(
-        1,
-        "2026-07-25",
-        "2026-01-01",
-        "2026-07-25",
-        10,
-    )["total_count"] == 1
+    assert (
+        risk_center._fallback_check_pre_trade_risk(1, "A", "buy", 10, 2, 100, 20, 80, 5)["allowed"]
+        is True
+    )
+    assert (
+        risk_center._fallback_check_post_investment_risk(
+            1,
+            100,
+            positions=[{"asset_code": "A"}],
+            cash_balance=80,
+            total_position_value=20,
+            daily_pnl_pct=-0.01,
+            drawdown_pct=0.02,
+        )["allowed"]
+        is True
+    )
+    assert risk_center._fallback_get_risk_center_daily_report(1, "2026-07-25")["id"] == 5
+    assert (
+        risk_center._fallback_list_risk_center_daily_reports(
+            1,
+            "2026-07-25",
+            "2026-01-01",
+            "2026-07-25",
+            10,
+        )["total_count"]
+        == 1
+    )
 
 
 def test_account_and_rotation_fallback_matrix(
@@ -396,16 +417,21 @@ def test_account_and_rotation_fallback_matrix(
     assert rotation._fallback_list_rotation_asset_master()["total_count"] == 1
     assert rotation._fallback_get_rotation_asset("A")["code"] == "A"
     assert rotation._fallback_get_latest_rotation_signals()["total_count"] == 1
-    assert rotation._fallback_create_account_rotation_config(
-        7, "moderate", True, {"risk_on": {"A": 1.0}}
-    )["success"] is True
+    assert (
+        rotation._fallback_create_account_rotation_config(
+            7, "moderate", True, {"risk_on": {"A": 1.0}}
+        )["success"]
+        is True
+    )
     assert rotation._fallback_delete_account_rotation_config(1)["success"] is True
-    assert rotation._fallback_update_account_rotation_config(
-        1, {"is_enabled": True}, False
-    )["success"] is True
-    assert rotation._fallback_apply_rotation_template_to_account_config(
-        1, "balanced"
-    )["success"] is True
+    assert (
+        rotation._fallback_update_account_rotation_config(1, {"is_enabled": True}, False)["success"]
+        is True
+    )
+    assert (
+        rotation._fallback_apply_rotation_template_to_account_config(1, "balanced")["success"]
+        is True
+    )
 
 
 def test_policy_fallback_matrix_formats_workbench_records(
@@ -482,19 +508,15 @@ def test_policy_fallback_matrix_formats_workbench_records(
         getattr(service, method_name).return_value = {"success": True}
 
     assert policy._fallback_get_policy_status()["recent_events_count"] == 1
-    assert policy._fallback_get_policy_events(
-        "2026-01-01", "2026-07-25", 10
-    )["total_count"] == 1
+    assert policy._fallback_get_policy_events("2026-01-01", "2026-07-25", 10)["total_count"] == 1
     assert policy._fallback_get_workbench_bootstrap()["tabs"] == ["pending"]
     assert policy._fallback_get_workbench_summary()["policy_level"] == "P1"
     assert policy._fallback_get_workbench_event_detail(1)["id"] == 1
-    assert policy._fallback_get_workbench_items(
-        "pending", "rate", "P1", "open", "decision", 1, 20
-    )["items"][0]["created_at"].startswith("2026-07-25")
+    assert policy._fallback_get_workbench_items("pending", "rate", "P1", "open", "decision", 1, 20)[
+        "items"
+    ][0]["created_at"].startswith("2026-07-25")
     assert policy._fallback_get_sentiment_gate_state("equity")["signal_paused"] is False
     assert policy._fallback_approve_workbench_event(1)["success"] is True
     assert policy._fallback_reject_workbench_event(1, "reason")["success"] is True
     assert policy._fallback_rollback_workbench_event(1, "reason")["success"] is True
-    assert policy._fallback_override_workbench_event(1, "reason", "P2")[
-        "success"
-    ] is True
+    assert policy._fallback_override_workbench_event(1, "reason", "P2")["success"] is True
