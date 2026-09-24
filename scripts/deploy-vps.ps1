@@ -126,6 +126,10 @@ if (Test-Path (Join-Path $ProjectRoot "package.json")) {
 }
 
 $passFile = Join-Path $env:TEMP "agomtradepro_vps_pass_$([guid]::NewGuid().ToString('N').Substring(0,8)).txt"
+$expectedCommit = (& git -C $ProjectRoot rev-parse HEAD).Trim()
+if ($expectedCommit -notmatch '^[0-9a-f]{40}$') {
+    Throw-Err "Cannot resolve an exact source commit before deployment."
+}
 try {
     Set-Content -Path $passFile -Value $VpsPass -NoNewline
 
@@ -165,7 +169,6 @@ try {
     if ($exitCode -eq 0) {
         Write-Info "=== Deploy succeeded ==="
         Write-Info "Verifying health..."
-        $expectedCommit = (& git -C $ProjectRoot rev-parse HEAD).Trim()
         $verifyScriptPath = Join-Path $PSScriptRoot "deploy_vps_verify.py"
         $verifyArgs = @(
             $verifyScriptPath,

@@ -322,6 +322,21 @@ def test_data_center_catalog_preservation_is_explicit_and_after_schema_verify() 
     assert "'--preserve-data-center-catalog'" in wrapper
 
 
+def test_one_click_deploy_pins_expected_commit_before_remote_work() -> None:
+    """Post-deploy verification must use the candidate pinned before deployment."""
+
+    repository_root = Path(__file__).resolve().parents[2]
+    wrapper = (repository_root / "scripts" / "deploy-vps.ps1").read_text(encoding="utf-8")
+
+    assignment = "$expectedCommit = (& git -C $ProjectRoot rev-parse HEAD).Trim()"
+    launch = "& $PythonExe @pyArgs"
+    verification = "'--expected-commit', $expectedCommit"
+
+    assert wrapper.count(assignment) == 1
+    assert wrapper.index(assignment) < wrapper.index(launch)
+    assert wrapper.index(launch) < wrapper.index(verification)
+
+
 def test_remote_deploy_publishes_canonical_https_origin_and_validates_tls() -> None:
     script = remote_build_deploy_vps._build_remote_deploy_script()
 
