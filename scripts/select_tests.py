@@ -44,6 +44,9 @@ MODULE_TEST_MAP: dict[str, list[str]] = {
     # 核心模块 - 这些变更运行更多测试
     "core": [
         "tests/guardrails/",
+        "tests/component/test_health_checks.py",
+        "tests/unit/core/test_decision_runtime_gate_middleware.py",
+        "tests/unit/core/test_decision_runtime_public.py",
     ],
     # 宏观相关
     "macro": [

@@ -112,6 +112,30 @@ class TestSelectTests(unittest.TestCase):
         modules = get_changed_modules(changed_files)
         self.assertIn("core", modules)
 
+    def test_logic_profile_keeps_runtime_gate_contracts_for_core_changes(self):
+        """Runtime-gate production changes must keep their public error contracts in CI."""
+
+        required = {
+            "tests/component/test_health_checks.py",
+            "tests/unit/core/test_decision_runtime_gate_middleware.py",
+            "tests/unit/core/test_decision_runtime_public.py",
+        }
+        for source in (
+            "core/decision_runtime_public.py",
+            "core/middleware/decision_gate.py",
+            "core/health_checks.py",
+        ):
+            for extra in ((), (".github/workflows/ci-fast-feedback.yml",), ("shared/numeric.py",)):
+                changed = [source, *extra]
+                targets = set(
+                    select_tests_func(
+                        get_changed_modules(changed),
+                        changed,
+                        profile="logic_guardrails",
+                    )
+                )
+                self.assertTrue(required <= targets, f"missing runtime contracts for {changed}")
+
     def test_get_changed_modules_from_shared(self):
         """shared/ 目录变更识别为 shared 模块"""
         changed_files = ["shared/domain/interfaces.py", "shared/infrastructure/filters.py"]
