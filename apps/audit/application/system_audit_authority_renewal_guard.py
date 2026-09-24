@@ -229,32 +229,14 @@ def run_system_audit_authority_renewal_guard(
 def _default_dependencies() -> SystemAuditAuthorityRenewalGuardDependencies:
     """Compose the scheduled guard at the infrastructure boundary."""
 
-    from apps.audit.infrastructure.system_audit_authority_renewal_executor import (
-        execute_configured_system_audit_authority_renewal,
+    from apps.audit.application.repository_provider import (
+        get_system_audit_authority_renewal_guard_dependencies,
     )
-    from apps.audit.infrastructure.system_audit_outbox_runtime import (
-        get_system_audit_authority_lease,
-    )
-    from shared.infrastructure.operational_alert_registry import record_operational_alert
 
-    def publish_alert(level: str, title: str, metadata: dict[str, Any]) -> None:
-        """Persist one scheduler alert without exposing credentials."""
-
-        message = str(metadata.get("message", title))
-        alert_metadata = {key: value for key, value in metadata.items() if key != "message"}
-        record_operational_alert(
-            level=level,
-            task_name=AUTHORITY_RENEWAL_GUARD_TASK_NAME,
-            title=title,
-            message=message,
-            metadata=alert_metadata,
-        )
-
-    return SystemAuditAuthorityRenewalGuardDependencies(
-        read_lease=get_system_audit_authority_lease,
-        execute_renewal=execute_configured_system_audit_authority_renewal,
-        publish_alert=publish_alert,
-    )
+    dependencies = get_system_audit_authority_renewal_guard_dependencies()
+    if not isinstance(dependencies, SystemAuditAuthorityRenewalGuardDependencies):
+        raise TypeError("authority renewal guard composition is invalid")
+    return dependencies
 
 
 __all__ = [

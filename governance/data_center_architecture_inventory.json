@@ -7191,12 +7191,12 @@
       "text": "\"\"\"Return the JSON-friendly audit metrics summary.\"\"\""
     },
     {
-      "line": 243,
+      "line": 283,
       "path": "apps/audit/application/repository_provider.py",
       "text": "\"\"\"Validate the canonical runtime and exact current authority without writes.\"\"\""
     },
     {
-      "line": 322,
+      "line": 362,
       "path": "apps/audit/application/repository_provider.py",
       "text": "\"\"\"Return the current audit metrics summary.\"\"\""
     },

@@ -44,6 +44,9 @@ if TYPE_CHECKING:
     from apps.audit.application.data_validation_audit import (
         AppendDataValidationRejectedObservationUseCase,
     )
+    from apps.audit.application.system_audit_authority_renewal_guard import (
+        SystemAuditAuthorityRenewalGuardDependencies,
+    )
     from apps.audit.application.system_audit_outbox_dispatcher import (
         DispatchSystemAuditOutboxUseCase,
     )
@@ -112,6 +115,43 @@ def get_system_audit_outbox_dispatcher() -> DispatchSystemAuditOutboxUseCase:
             reason_code="invalid_dispatch_composition",
         )
     return dispatcher
+
+
+def get_system_audit_authority_renewal_guard_dependencies() -> (
+    SystemAuditAuthorityRenewalGuardDependencies
+):
+    """Compose the scheduled authority-renewal guard at the allowed boundary."""
+
+    from apps.audit.application.system_audit_authority_renewal_guard import (
+        AUTHORITY_RENEWAL_GUARD_TASK_NAME,
+        SystemAuditAuthorityRenewalGuardDependencies,
+    )
+    from apps.audit.infrastructure.system_audit_authority_renewal_executor import (
+        execute_configured_system_audit_authority_renewal,
+    )
+    from apps.audit.infrastructure.system_audit_outbox_runtime import (
+        get_system_audit_authority_lease,
+    )
+    from shared.infrastructure.operational_alert_registry import record_operational_alert
+
+    def publish_alert(level: str, title: str, metadata: dict[str, Any]) -> None:
+        """Persist one scheduler alert without exposing credentials."""
+
+        message = str(metadata.get("message", title))
+        alert_metadata = {key: value for key, value in metadata.items() if key != "message"}
+        record_operational_alert(
+            level=level,
+            task_name=AUTHORITY_RENEWAL_GUARD_TASK_NAME,
+            title=title,
+            message=message,
+            metadata=alert_metadata,
+        )
+
+    return SystemAuditAuthorityRenewalGuardDependencies(
+        read_lease=get_system_audit_authority_lease,
+        execute_renewal=execute_configured_system_audit_authority_renewal,
+        publish_alert=publish_alert,
+    )
 
 
 def get_data_fetch_audit_writer(
