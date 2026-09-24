@@ -174,6 +174,7 @@
 - `deploy-vps.ps1` 的后置验证由“警告后成功”改为真实非零退出；Python verifier 缺 Paramiko 时也 fail closed。部署包装器将批准的精确 SHA 传给 remote builder，若本地 HEAD 在预验收和构建之间变化，会在读取凭据或 SSH 前终止。
 - 新增 `validate_release_rehearsal.py`。它只验证、不采集证据：四类报告必须绑定相同候选、交易日、完整 universe hash 和结构化 provider 身份；真实响应和隔离写入回执必须是可解析、身份一致的结构化记录并继续校验所引用原始 body；容量报告必须携带排序去重后的完整证券清单并重算 hash；每个数据集的样本必须等于由该 universe 确定性选出的 `min(50, universe_count)`；PostgreSQL JUnit 必须包含固定 23 项用例、无 skip/failure/error 和有效时间。候选回归同时查询 GitHub Actions 官方接口，核对同 SHA 成功 run、该 run 的未过期唯一 artifact、ZIP 的官方 SHA-256，以及 ZIP 内两份 JUnit 与本地报告的逐字节一致性；下载鉴权头不会转发给签名存储地址。
 - synthetic 正常样例及反例用于证明 validator fail closed，不属于上线证据。独立攻击复验确认：无关 PostgreSQL 用例、单资产冒充全量 universe、浮点 `0.0` 冒充零残留均被拒绝。最终候选仍需采集真实响应/单位重放、完整容量、隔离写入回滚以及远端 CI JUnit 后才能部署。
+- `collect_release_regression_evidence.py` 只从 GitHub 官方 run 采集候选回归子报告和两份原始 JUnit，并在写 success 报告前由共享 validator 重新下载、逐字节复核；来源在采集前后漂移、目录已存在或任一校验失败时只保留 blocked 结果。它不会把 provider 身份关联上下文冒充 provider 验收，另外三类报告仍须独立采集。
 
 ### 2026-09-24 首轮执行证据
 

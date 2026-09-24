@@ -43,6 +43,7 @@ TEST_ID_MIGRATIONS = _load_test_id_migrations()
 MODULE_TEST_MAP: dict[str, list[str]] = {
     # Deployment entrypoints must exercise the wrapper and verifier contracts.
     "deployment": [
+        "tests/unit/test_collect_release_regression_evidence.py",
         "tests/unit/test_deploy_vps_verify.py",
         "tests/unit/test_docker_pyqlib_install.py",
         "tests/unit/test_remote_build_deploy_vps.py",
@@ -459,6 +460,7 @@ def get_changed_modules(changed_files: list[str]) -> set[str]:
         normalized = f.replace("\\", "/")
         if normalized in {
             "scripts/deploy-vps.ps1",
+            "scripts/collect_release_regression_evidence.py",
             "scripts/deploy_vps_verify.py",
             "scripts/deploy-on-vps.sh",
             "scripts/remote_build_deploy_vps.py",

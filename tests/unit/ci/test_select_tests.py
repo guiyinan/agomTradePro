@@ -145,6 +145,7 @@ class TestSelectTests(unittest.TestCase):
     def test_deployment_entrypoints_select_deployment_contracts(self):
         """Deployment entrypoint changes must exercise wrapper and verifier contracts."""
         required = {
+            "tests/unit/test_collect_release_regression_evidence.py",
             "tests/unit/test_deploy_vps_verify.py",
             "tests/unit/test_docker_pyqlib_install.py",
             "tests/unit/test_remote_build_deploy_vps.py",
@@ -153,6 +154,7 @@ class TestSelectTests(unittest.TestCase):
         }
         for changed_file in (
             "scripts/deploy-vps.ps1",
+            "scripts/collect_release_regression_evidence.py",
             "scripts/deploy_vps_verify.py",
             "scripts/deploy-on-vps.sh",
             "scripts/remote_build_deploy_vps.py",
