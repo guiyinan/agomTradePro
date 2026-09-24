@@ -288,6 +288,7 @@ def test_verification_commands_cover_identity_backup_resources_and_healthcheck()
     assert "gzip -t" in backup
     assert "PGDMP" in backup
     assert "OOMKilled" in resources
+    assert '"celery_worker", "celery_qlib_worker", "celery_beat"' in resources
     assert "exec -T web python manage.py healthcheck --json" in healthcheck
     assert "apps.data_center.infrastructure" not in healthcheck
     assert "-checkend 1814400" in certificate

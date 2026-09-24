@@ -590,11 +590,11 @@ def build_security_backup_command(target_dir: str) -> str:
 
 
 def build_resource_command(target_dir: str) -> str:
-    """Return resource and restart state as JSON for web and Celery Beat."""
+    """Return resource and restart state for the web and Celery services."""
 
     python_code = """import json, subprocess
 rows = []
-for service in ("web", "celery_beat"):
+for service in ("web", "celery_worker", "celery_qlib_worker", "celery_beat"):
     cid = subprocess.check_output(["docker", "compose", "-p", "agomtradepro", "-f", "docker/docker-compose.vps.yml", "--env-file", "deploy/.env", "ps", "-q", service], text=True).strip()
     info = json.loads(subprocess.check_output(["docker", "inspect", cid], text=True))[0]
     state = info["State"]
@@ -857,7 +857,7 @@ def main() -> int:
         ok = healthcheck_ok and ok
 
         if args.expect_celery:
-            for service in ("celery_worker", "celery_beat"):
+            for service in ("celery_worker", "celery_qlib_worker", "celery_beat"):
                 service_code, service_out, service_err = _run(
                     ssh,
                     build_container_running_command(args.target_dir, service),

@@ -377,7 +377,7 @@ if is_true "$(env_value ENABLE_RSSHUB deploy/.env)"; then
   extra_services="$extra_services rsshub"
 fi
 if is_true "$(env_value ENABLE_CELERY deploy/.env)"; then
-  extra_services="$extra_services celery_worker celery_beat"
+  extra_services="$extra_services celery_worker celery_qlib_worker celery_beat"
 fi
 
 if [ "$ACTION" = "fresh" ] || [ "$ACTION" = "upgrade" ] || [ "$ACTION" = "restore-only" ]; then

@@ -91,7 +91,7 @@ pwsh -File .\scripts\package-for-vps-aggressive.ps1 -AllowOnlinePipFallback
 
 - The entrypoint script generates missing keys before Django starts
 - Keys are persisted to `/app/data/.env.generated` (inside the `sqlite_data` volume)
-- All containers (web, celery_worker, celery_beat) share the same keys via the shared volume
+- All containers (web, both Celery workers, celery_beat) share the same keys via the shared volume
 - Keys survive container restarts and redeployments
 - If you explicitly set keys in `deploy/.env`, those take precedence and are never overwritten by persisted generated values
 

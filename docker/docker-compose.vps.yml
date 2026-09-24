@@ -182,7 +182,7 @@ services:
     image: ${WEB_IMAGE:?WEB_IMAGE is required}
     restart: unless-stopped
     pid: "service:runtime_ns"
-    command: ["celery", "-A", "core", "worker", "-l", "info", "-Q", "${CELERY_WORKER_QUEUES:-celery,qlib_infer,qlib_train}", "--concurrency", "${CELERY_WORKER_CONCURRENCY:-1}", "--max-tasks-per-child", "${CELERY_WORKER_MAX_TASKS_PER_CHILD:-1}"]
+    command: ["celery", "-A", "core", "worker", "-l", "info", "-Q", "${CELERY_WORKER_QUEUES:-celery}", "--concurrency", "${CELERY_WORKER_CONCURRENCY:-2}", "--prefetch-multiplier", "1", "--max-tasks-per-child", "${CELERY_WORKER_MAX_TASKS_PER_CHILD:-100}"]
     environment:
       DJANGO_SETTINGS_MODULE: core.settings.production
       POSTGRES_HOST: postgres
@@ -243,16 +243,22 @@ services:
         condition: service_healthy
     healthcheck:
       disable: true
-    # QLib inference can legitimately exceed 2 GiB RSS for a full portfolio
-    # universe.  Keep concurrency at one and recycle the child after each task,
-    # but leave enough cgroup headroom to prevent SIGKILL/OOM during inference.
-    mem_limit: ${CELERY_WORKER_MEMORY_LIMIT:-4g}
-    cpus: 1.0
+    mem_limit: ${CELERY_WORKER_MEMORY_LIMIT:-1536m}
+    cpus: ${CELERY_WORKER_CPUS:-1.5}
     logging:
       driver: "json-file"
       options:
         max-size: "25m"
         max-file: "5"
+
+  celery_qlib_worker:
+    extends:
+      service: celery_worker
+    command: ["celery", "-A", "core", "worker", "-l", "info", "-Q", "${CELERY_QLIB_WORKER_QUEUES:-qlib_infer,qlib_train}", "--concurrency", "${CELERY_QLIB_WORKER_CONCURRENCY:-1}", "--prefetch-multiplier", "1", "--max-tasks-per-child", "${CELERY_QLIB_WORKER_MAX_TASKS_PER_CHILD:-1}"]
+    # Full-market Qlib inference can exceed 2 GiB RSS. Isolate it so a long
+    # inference cannot block publication, regime, monitoring, or refresh jobs.
+    mem_limit: ${CELERY_QLIB_WORKER_MEMORY_LIMIT:-4g}
+    cpus: ${CELERY_QLIB_WORKER_CPUS:-2.0}
 
   terminal_agent_worker:
     extends:

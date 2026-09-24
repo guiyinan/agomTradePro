@@ -6,7 +6,7 @@ export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-core.settings.productio
 # ── Auto-generate security keys ──────────────────────────────────────
 # If SECRET_KEY or AGOMTRADEPRO_ENCRYPTION_KEY are not provided via
 # environment, generate them on first boot and persist in the data
-# volume so all containers (web, celery_worker, celery_beat) share
+# volume so all containers (web, Celery workers, celery_beat) share
 # the same keys across restarts.
 # ─────────────────────────────────────────────────────────────────────
 ENV_GENERATED="/app/data/.env.generated"

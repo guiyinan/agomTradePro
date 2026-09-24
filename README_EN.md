@@ -814,7 +814,7 @@ docker compose -f ../docker/docker-compose.vps.yml up -d
 
 - `entrypoint.prod.sh` checks `SECRET_KEY` and `AGOMTRADEPRO_ENCRYPTION_KEY` before Django starts
 - If not provided, keys are auto-generated and persisted to `/app/data/.env.generated` (inside the data volume)
-- web, celery_worker, and celery_beat containers share the same keys; they survive container restarts
+- web, celery_worker, celery_qlib_worker, and celery_beat containers share the same keys; they survive container restarts
 - If you explicitly set keys in `deploy/.env`, those take precedence over auto-generated values
 
 ### Common First-Run Pitfalls

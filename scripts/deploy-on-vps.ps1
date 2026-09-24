@@ -231,6 +231,7 @@ if (Test-Truthy (Get-EnvValue -Name 'ENABLE_RSSHUB' -Text $envText)) {
 }
 if (Test-Truthy (Get-EnvValue -Name 'ENABLE_CELERY' -Text $envText)) {
     $services += 'celery_worker'
+    $services += 'celery_qlib_worker'
     $services += 'celery_beat'
 }
 

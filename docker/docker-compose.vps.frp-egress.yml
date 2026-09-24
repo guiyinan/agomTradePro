@@ -5,8 +5,8 @@
 #
 #   docker compose -f docker/docker-compose.vps.yml \
 #     -f docker/docker-compose.vps.frp-egress.yml \
-#     --profile frp-egress up -d web celery_worker terminal_agent_worker \
-#     celery_beat frpc_egress_visitor
+#     --profile frp-egress up -d web celery_worker celery_qlib_worker \
+#     terminal_agent_worker celery_beat frpc_egress_visitor
 #
 # The visitor has no host port.  Applications reach it at
 # http://frpc_egress_visitor:18080 on the private Docker network.  The second
@@ -26,6 +26,13 @@ services:
       - frp_egress_private
 
   celery_worker:
+    environment:
+      DATA_CENTER_DEPLOYMENT_REGION: "${DATA_CENTER_DEPLOYMENT_REGION:-overseas_vps}"
+    networks:
+      - default
+      - frp_egress_private
+
+  celery_qlib_worker:
     environment:
       DATA_CENTER_DEPLOYMENT_REGION: "${DATA_CENTER_DEPLOYMENT_REGION:-overseas_vps}"
     networks:

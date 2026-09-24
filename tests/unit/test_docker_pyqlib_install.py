@@ -81,11 +81,16 @@ def test_docker_context_excludes_codex_runtime_temporaries() -> None:
     assert ".codex-test-deps/" in dockerignore
 
 
-def test_vps_compose_worker_consumes_qlib_queues() -> None:
+def test_vps_compose_isolates_qlib_queues_from_scheduled_work() -> None:
     compose = (REPO_ROOT / "docker" / "docker-compose.vps.yml").read_text(encoding="utf-8")
     healthcheck = (REPO_ROOT / "docker" / "healthcheck-web.sh").read_text(encoding="utf-8")
 
-    assert "CELERY_WORKER_QUEUES:-celery,qlib_infer,qlib_train" in compose
+    assert "CELERY_WORKER_QUEUES:-celery" in compose
+    assert "CELERY_WORKER_CONCURRENCY:-2" in compose
+    assert "celery_qlib_worker:" in compose
+    assert "CELERY_QLIB_WORKER_QUEUES:-qlib_infer,qlib_train" in compose
+    assert "CELERY_QLIB_WORKER_CONCURRENCY:-1" in compose
+    assert '"--prefetch-multiplier", "1"' in compose
     assert "healthcheck:\n      disable: true" in compose
     assert '"$curl_bin" -fsS --connect-timeout 2 --max-time 5' in healthcheck
     assert "curl -sS -o /dev/null -w '%{http_code}'" not in compose
@@ -111,7 +116,7 @@ def test_vps_deploy_preserves_tushare_runtime_settings_across_releases() -> None
     example = (REPO_ROOT / "deploy" / ".env.vps.example").read_text(encoding="utf-8")
 
     for key in ("TUSHARE_TOKEN", "TUSHARE_HTTP_URL", "TUSHARE_REQUEST_MODE"):
-        assert f'get_env_kv {key}' in script
+        assert f"get_env_kv {key}" in script
         assert f'_persist_secrets_env "{key}"' in script
         assert f"{key}=" in example
 
@@ -211,7 +216,7 @@ def test_vps_remote_deploy_defaults_and_celery_runtime_checks() -> None:
     assert "compose up -d runtime_ns redis postgres" in script
     assert 'SERVICES="runtime_ns redis postgres web caddy"' in script
     assert 'if [ "$ENABLE_CELERY" = "1" ]; then' in script
-    assert "celery_worker celery_beat" in script
+    assert "celery_worker celery_qlib_worker celery_beat" in script
     assert "env_value()" in script
     assert "TERMINAL_WORKER_ENABLED=0" in script
     assert "compose rm -sf terminal_agent_worker" in script

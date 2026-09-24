@@ -687,7 +687,13 @@ def _validate_compose(path: Path) -> ValidationReport:
                 "private and outbound networks are both required",
             )
         )
-    for service_name in ("web", "celery_worker", "terminal_agent_worker", "celery_beat"):
+    for service_name in (
+        "web",
+        "celery_worker",
+        "celery_qlib_worker",
+        "terminal_agent_worker",
+        "celery_beat",
+    ):
         service = _mapping(services.get(service_name))
         if "frp_egress_private" not in _network_names(service.get("networks")):
             issues.append(

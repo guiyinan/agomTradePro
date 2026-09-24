@@ -389,7 +389,7 @@ This is almost always `ALLOWED_HOSTS` mismatch.
    ```bash
    docker compose -f /opt/agomtradepro/current/docker/docker-compose.vps.yml --env-file /opt/agomtradepro/current/deploy/.env restart web
    ```
-4. Keep the neutral `runtime_ns` service in `docker/docker-compose.vps.yml`. `web`, `celery_worker`, and `celery_beat` intentionally share `pid: "service:runtime_ns"` so readiness runtime checks can still observe local Celery processes without coupling Celery lifecycle to `web`. Reverting this back to `pid: "service:web"` will make a `restart web` tear down the worker and beat containers as collateral.
+4. Keep the neutral `runtime_ns` service in `docker/docker-compose.vps.yml`. `web`, `celery_worker`, `celery_qlib_worker`, and `celery_beat` intentionally share `pid: "service:runtime_ns"` so readiness runtime checks can still observe local Celery processes without coupling Celery lifecycle to `web`. The ordinary worker consumes only `celery`; the Qlib worker consumes `qlib_infer,qlib_train`, so long inference jobs cannot starve publication, regime, monitoring, and refresh schedules. Reverting this back to `pid: "service:web"` will make a `restart web` tear down the worker and beat containers as collateral.
 
 ### SQLite restore fails
 

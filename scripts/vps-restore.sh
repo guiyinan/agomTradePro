@@ -71,7 +71,7 @@ if [ "$RESTORE_DATABASE" = "1" ]; then
       $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env \
         exec -T postgres pg_restore --list < "$DATABASE_FILE" >/dev/null
       $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env \
-        stop web celery_worker celery_beat >/dev/null 2>&1 || true
+        stop web celery_worker celery_qlib_worker celery_beat >/dev/null 2>&1 || true
       $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env \
         exec -T postgres sh -eu <<'SH'
 dropdb --force --if-exists -U "$POSTGRES_USER" "$POSTGRES_DB"

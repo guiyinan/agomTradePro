@@ -1955,7 +1955,7 @@ if [ "$ENABLE_RSSHUB" = "1" ]; then
   SERVICES="$SERVICES rsshub"
 fi
 if [ "$ENABLE_CELERY" = "1" ]; then
-  SERVICES="$SERVICES celery_worker celery_beat"
+  SERVICES="$SERVICES celery_worker celery_qlib_worker celery_beat"
 fi
 
 TERMINAL_WORKER_ENABLED=0
@@ -2037,7 +2037,7 @@ fi
 cat /tmp/agomtradepro-release-identity.json
 
 if [ "$ENABLE_CELERY" = "1" ]; then
-  for service in celery_worker celery_beat; do
+  for service in celery_worker celery_qlib_worker celery_beat; do
     cid="$(compose ps -q "$service" || true)"
     if [ -z "$cid" ]; then
       echo "[ERROR] $service container was not created" >&2
