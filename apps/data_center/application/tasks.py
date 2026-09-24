@@ -36,7 +36,10 @@ from apps.data_center.domain.control_plane import (
     SyncRun,
     SyncRunStatus,
 )
-from apps.data_center.domain.market_time import cn_market_date_from_observation
+from apps.data_center.domain.market_time import (
+    cn_market_date_from_observation,
+    latest_closed_cn_market_session,
+)
 from core.integration.config_center_runtime import evaluate_storage_pressure
 from core.integration.data_center_audit import preflight_data_reliability_audit_runtime
 from shared.domain.task_outcomes import TaskBusinessOutcome
@@ -237,7 +240,7 @@ def refresh_full_market_publications_task(
         created_by=f"celery.full_market_refresh:{authority.actor_id}",
         dataset_keys=("equity.quote.snapshot", "equity.valuation.fact", "equity.price.bar"),
     )
-    target_date = latest_completed_cn_market_session(timezone.now())
+    target_date = latest_closed_cn_market_session(timezone.now())
     if target_date is None:
         return {
             "outcome": "blocked",

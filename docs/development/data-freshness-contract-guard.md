@@ -29,6 +29,8 @@ Alpha Qlib 推理缓存必须按 `asof_date` 核对请求交易日；旧源日�
 
 日频 A 股 price/valuation 的自然小时预算到期后，只允许在所有 Publication member 都精确绑定最近已收盘交易日时标记为 `latest_completed_session`；这不会改变源观测时间，也不适用于实时 quote。全市场 current Publication 必须按冻结 universe 原子发布，单标的或中间批次同步只写 fact，不得缩小既有 current member 集合。
 
+全市场刷新任务使用 `latest_closed_cn_market_session` 选择目标日：收盘后选择当日，盘中、开盘前和周末选择上一已收盘工作日。盘中触发不得因为实时决策函数返回 `None` 而跳过上一完整交易日的恢复；Publication 仍须通过完整范围、源观测日和事实证据检查后才能发布。
+
 ## DATA-16 版本化证据边界
 
 候选策略具有独立 `policy_version`，不可用同一版本改写决策字段；新的 `p2` 身份绑定

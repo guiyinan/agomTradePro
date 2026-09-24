@@ -5,8 +5,10 @@ from datetime import UTC, date, datetime
 import pytest
 
 from apps.data_center.domain.market_time import (
+    CN_MARKET_TIMEZONE,
     cn_market_date_from_observation,
     cn_market_date_start_utc,
+    latest_closed_cn_market_session,
 )
 
 
@@ -29,3 +31,11 @@ def test_cn_market_date_projection_rejects_naive_timestamp() -> None:
 
     with pytest.raises(ValueError, match="timezone-aware"):
         cn_market_date_from_observation(datetime(2026, 8, 8, 16, 30))
+
+
+def test_latest_closed_session_uses_previous_weekday_during_live_market() -> None:
+    """A refresh started during trading targets the prior completed session."""
+
+    live_market_time = datetime(2026, 9, 24, 10, 0, tzinfo=CN_MARKET_TIMEZONE)
+
+    assert latest_closed_cn_market_session(live_market_time) == date(2026, 9, 23)

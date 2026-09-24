@@ -4865,6 +4865,7 @@
           "revalidate_authority=revalidate_authority",
           "created_by=f\"celery.core_data_backfill:{authority.actor_id}\"",
           "created_by=f\"celery.full_market_refresh:{authority.actor_id}\"",
+          "latest_closed_cn_market_session(timezone.now())",
           "def _exact_provider_batch_count(",
           "returned_asset_codes=result.stored_asset_codes",
           "returned_asset_codes=result.returned_asset_codes",
@@ -5260,6 +5261,11 @@
           "case": "resumable_backfill_requires_explicit_execute",
           "test_file": "tests/unit/data_center/test_core_data_backfill_command.py",
           "test_function": "test_backfill_command_requires_explicit_execute"
+        },
+        {
+          "case": "scheduled_market_refresh_uses_previous_closed_session_during_live_market",
+          "test_file": "tests/unit/data_center/test_market_time.py",
+          "test_function": "test_latest_closed_session_uses_previous_weekday_during_live_market"
         },
         {
           "case": "scheduled_market_refresh_requires_current_authority",

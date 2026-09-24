@@ -148,7 +148,7 @@ def test_task_calendar_unavailable_is_blocked(monkeypatch):
     from apps.data_center.application import tasks
 
     monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda _: 3)
-    monkeypatch.setattr(tasks, "latest_completed_cn_market_session", lambda _: None)
+    monkeypatch.setattr(tasks, "latest_closed_cn_market_session", lambda _: None)
     monkeypatch.setattr(tasks, "make_backfill_sync_quote_use_case", lambda: SimpleNamespace())
     monkeypatch.setattr(
         tasks, "make_backfill_sync_current_valuation_batch_use_case", lambda: SimpleNamespace()
@@ -238,7 +238,7 @@ def test_task_stops_before_provider_when_current_authority_head_changes(monkeypa
         lambda **_: next(contexts),
     )
     monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda _: 3)
-    monkeypatch.setattr(tasks, "latest_completed_cn_market_session", lambda _: date(2026, 9, 18))
+    monkeypatch.setattr(tasks, "latest_closed_cn_market_session", lambda _: date(2026, 9, 18))
     monkeypatch.setattr(
         tasks,
         "list_active_stock_codes_for_backfill",
@@ -294,7 +294,7 @@ def test_task_does_not_publish_stale_quotes_even_when_all_rows_were_stored(monke
     from apps.data_center.application import tasks
 
     monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda _: 3)
-    monkeypatch.setattr(tasks, "latest_completed_cn_market_session", lambda _: date(2026, 9, 18))
+    monkeypatch.setattr(tasks, "latest_closed_cn_market_session", lambda _: date(2026, 9, 18))
     monkeypatch.setattr(tasks, "list_active_stock_codes_for_backfill", lambda: ["000001.SZ"])
     sync = SimpleNamespace(
         execute=lambda *_, **kwargs: SimpleNamespace(
@@ -353,7 +353,7 @@ def test_task_rejects_duplicate_provider_asset_identities_before_publication(
     from apps.data_center.application import tasks
 
     monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda _: 3)
-    monkeypatch.setattr(tasks, "latest_completed_cn_market_session", lambda _: date(2026, 9, 18))
+    monkeypatch.setattr(tasks, "latest_closed_cn_market_session", lambda _: date(2026, 9, 18))
     monkeypatch.setattr(
         tasks,
         "list_active_stock_codes_for_backfill",
@@ -456,7 +456,7 @@ def test_task_repairs_missing_price_scope_before_final_publication(monkeypatch):
 
     events = []
     monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda _: 3)
-    monkeypatch.setattr(tasks, "latest_completed_cn_market_session", lambda _: date(2026, 9, 18))
+    monkeypatch.setattr(tasks, "latest_closed_cn_market_session", lambda _: date(2026, 9, 18))
     monkeypatch.setattr(tasks, "list_active_stock_codes_for_backfill", lambda: ["000001.SZ"])
     sync = SimpleNamespace(
         execute=lambda *_, **kwargs: SimpleNamespace(
