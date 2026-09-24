@@ -99,12 +99,12 @@ def refresh_market_publications(
             succeeded += 1
         except (DataFetchError, OSError, RuntimeError, ValueError) as exc:
             failed += 1
-            errors.append(getattr(exc, "code", type(exc).__name__))
+            errors.append(str(getattr(exc, "code", "") or "MARKET_PUBLICATION_VALIDATION_FAILED"))
     elif codes:
         failed += 1
         errors.append("market_publication_skipped_incomplete_refresh")
     outcome = "success" if published else "partial" if stored else "failed"
-    return {
+    result: dict[str, object] = {
         "outcome": outcome,
         "success": outcome == "success",
         "requested": requested,
@@ -117,3 +117,7 @@ def refresh_market_publications(
         "publication_updated": bool(published),
         "errors": errors or ([] if codes else ["market_scope_empty"]),
     }
+    if errors:
+        result["error_code"] = errors[0]
+        result["blocked_reason"] = errors[0]
+    return result

@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import os
 from collections.abc import Callable
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any, Protocol, cast
 
 from apps.data_center.domain.entities import (
@@ -189,14 +189,18 @@ def _tushare_market_cap_cny(value: object) -> float | None:
     return parsed * _TUSHARE_MARKET_CAP_MULTIPLIER_TO_CNY if parsed is not None else None
 
 
-def _tushare_valuation_extra(base: dict[str, Any]) -> dict[str, Any]:
-    """Publish the provider unit and explicit canonical storage conversion."""
+def _tushare_valuation_extra(
+    base: dict[str, Any], *, response_completed_at: datetime
+) -> dict[str, Any]:
+    """Publish units and the local knowledge-time basis for one response."""
 
     return {
         **base,
         "market_cap_original_unit": "万元",
         "market_cap_canonical_unit": "元",
         "market_cap_multiplier_to_storage": _TUSHARE_MARKET_CAP_MULTIPLIER_TO_CNY,
+        "availability_basis": "response_completed_utc",
+        "response_completed_at": response_completed_at.isoformat(),
     }
 
 
@@ -899,6 +903,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         )
         if compatibility_gateway is not None:
             batch = compatibility_gateway.fetch(asset_code, start_date, end_date)
+            response_completed_at = datetime.now(UTC)
             return [
                 ValuationFact(
                     asset_code=record.stock_code,
@@ -911,7 +916,12 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     dv_ratio=safe_float(record.dividend_yield),
                     source=self.provider_source(),
                     observed_at=cn_market_session_close_utc(record.trade_date),
-                    extra=_tushare_valuation_extra(self._provider_extra()),
+                    available_at=response_completed_at,
+                    fetched_at=response_completed_at,
+                    extra=_tushare_valuation_extra(
+                        self._provider_extra(),
+                        response_completed_at=response_completed_at,
+                    ),
                 )
                 for record in batch.records
             ]
@@ -921,6 +931,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             start_date=start_date.strftime("%Y%m%d"),
             end_date=end_date.strftime("%Y%m%d"),
         )
+        response_completed_at = datetime.now(UTC)
         if frame is None or frame.empty:
             return []
         facts: list[ValuationFact] = []
@@ -940,7 +951,12 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     dv_ratio=safe_float(_first_present(row, "dv_ttm", "dv_ratio")),
                     source=self.provider_source(),
                     observed_at=cn_market_session_close_utc(val_date),
-                    extra=_tushare_valuation_extra(self._provider_extra()),
+                    available_at=response_completed_at,
+                    fetched_at=response_completed_at,
+                    extra=_tushare_valuation_extra(
+                        self._provider_extra(),
+                        response_completed_at=response_completed_at,
+                    ),
                 )
             )
         return facts
@@ -956,6 +972,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         if not requested:
             return []
         frame = self._create_pro_client().daily_basic(trade_date=as_of_date.strftime("%Y%m%d"))
+        response_completed_at = datetime.now(UTC)
         if frame is None or frame.empty:
             return []
         facts: list[ValuationFact] = []
@@ -979,7 +996,12 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     dv_ratio=safe_float(_first_present(row, "dv_ttm", "dv_ratio")),
                     source=self.provider_source(),
                     observed_at=cn_market_session_close_utc(val_date),
-                    extra=_tushare_valuation_extra(self._provider_extra()),
+                    available_at=response_completed_at,
+                    fetched_at=response_completed_at,
+                    extra=_tushare_valuation_extra(
+                        self._provider_extra(),
+                        response_completed_at=response_completed_at,
+                    ),
                 )
             )
         return facts

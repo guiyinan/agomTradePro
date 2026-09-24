@@ -116,6 +116,9 @@ def test_publication_evidence_failure_is_not_success():
     result, published = run(publish_error=True)
     assert result["outcome"] == "partial"
     assert result["failed"] == 1
+    assert result["error_code"] == "MARKET_PUBLICATION_VALIDATION_FAILED"
+    assert result["blocked_reason"] == "MARKET_PUBLICATION_VALIDATION_FAILED"
+    assert result["errors"] == ["MARKET_PUBLICATION_VALIDATION_FAILED"]
     assert published == []
 
 

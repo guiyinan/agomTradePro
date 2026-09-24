@@ -26,6 +26,7 @@ _TASK_NAMES = (
 _MESSAGES = {
     "system_audit_unavailable": "全市场行情自动发布被审计配置或服务身份阻断。请修复审计配置并绑定有效的任务身份；现有行情日期仍以页面标注为准。",
     "market_publication_failed": "全市场行情更新或发布未完成。请在任务监控中检查原因；现有行情不能视为已更新。",
+    "market_publication_validation_failed": "全市场数据已经抓取，但发布证据未通过校验。系统已保留旧版本，请检查数据可用时间、质量状态和发布策略后重试。",
     "model_market_refresh_busy": "模型特征正在更新或被其他推理任务读取，本次更新已暂缓。后续定时任务会重试。",
     "inference_queue_failed": "自动推理未能提交到后台。请检查任务服务连接后重试；当前展示的仍是原有评分。",
     "model_market_unverified_failover": "备用行情缺少同口径原始数据用于校验，更新已阻断。请补齐可信原始行情后重试。",
@@ -117,7 +118,11 @@ def build_refresh_notice(
             code = (
                 "system_audit_unavailable"
                 if code.startswith("system_audit_")
-                else "market_publication_failed"
+                else (
+                    code
+                    if code in {"market_publication_validation_failed"}
+                    else "market_publication_failed"
+                )
             )
         # Batch diagnostics are shared only for global data-source failures.
         if scoped_batch and not (code.startswith("model_market_") or "quota_exhausted" in code):

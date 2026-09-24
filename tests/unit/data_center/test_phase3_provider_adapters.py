@@ -127,6 +127,11 @@ def test_tushare_current_valuations_use_one_session_batch(monkeypatch):
     assert facts[0].market_cap == 22_569_100.0
     assert facts[0].float_market_cap == 22_568_700.0
     assert facts[0].observed_at == datetime(2026, 9, 23, 7, tzinfo=UTC)
+    assert facts[0].available_at == facts[0].fetched_at
+    assert facts[0].available_at is not None
+    assert facts[0].available_at >= facts[0].observed_at
+    assert facts[0].extra["availability_basis"] == "response_completed_utc"
+    assert facts[0].extra["response_completed_at"] == facts[0].available_at.isoformat()
     assert facts[0].extra["market_cap_original_unit"] == "万元"
     assert facts[0].extra["market_cap_canonical_unit"] == "元"
 

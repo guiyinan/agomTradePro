@@ -200,4 +200,9 @@ Alpha 页面独立读取全市场发布任务的业务 outcome。评分推理成
 
 日频估值只提供 `trade_date` 时，将该日期对应的中国大陆市场 15:00 收盘时刻作为 `observed_at`，再转换为 UTC 存储。该时间来自提供方交易日字段与交易所会话边界，不能使用抓取时间替代；Tushare 单股、全市场批量路径以及 AKShare 历史估值路径必须使用同一规则。缺少合法交易日仍失败关闭。
 
+Tushare `daily_basic` 成功返回后，以响应完成 UTC 同时记录本系统首次取得该响应的
+`available_at` 与 `fetched_at`，并标记 `availability_basis=response_completed_utc`。该时间只表示
+本系统已经取得数据，不宣称是供应商最早披露时间，也不能覆盖上述交易会话 `observed_at`。
+缺少这一知识时间的估值保持 `available_at_unverified`，不得进入 current Publication。
+
 [Tushare `daily_basic` 官方文档](https://tushare.pro/document/2?doc_id=32)给出的更新窗口为交易日 15:00～17:00。全市场自然发布默认安排在 17:05，确保任务确定的最近收盘交易日已有完整估值截面；提前人工触发时若当日截面仍为空，必须保持旧 Publication 并返回 `CURRENT_VALUATION_SCOPE_UNAVAILABLE`，不能退回前一日并伪装成当期成功。

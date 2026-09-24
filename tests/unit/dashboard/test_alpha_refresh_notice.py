@@ -182,3 +182,20 @@ def test_prediction_success_does_not_hide_independent_market_block(portfolio_id)
         )
         == {}
     )
+
+
+def test_market_publication_validation_failure_has_specific_safe_message() -> None:
+    failed = replace(
+        record(
+            "{'outcome': 'partial', "
+            "'blocked_reason': 'MARKET_PUBLICATION_VALIDATION_FAILED', "
+            "'error': 'token=secret'}"
+        ),
+        task_name="data_center.refresh_full_market_publications",
+    )
+
+    notice = build_refresh_notice([failed], portfolio_id=None, universe_id="csi300")
+
+    assert notice["code"] == "market_publication_validation_failed"
+    assert "发布证据未通过校验" in notice["message"]
+    assert "secret" not in str(notice)
