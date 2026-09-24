@@ -730,3 +730,24 @@ registry v177 → v178；DATA-02、EVID-01/02、AUD-03 状态不变，TUI-02 继
 上一轮“候选尚未部署”门槛；新增 `102012c05` authority-renewal 候选尚未部署，真实 owner contract/receipt、retained provider sample、matcher/producer、approved
 tolerances、current authority、生产写授权和真实四 Publication 对账仍缺失。本轮验证没有 provider 调用、
 生产数据写入、profile 激活或 Publication 切换。
+
+## 生产 revision a3c41d1eb0 只读重验（2026-09-24）
+
+生产现运行 `a3c41d1eb0`，release `20260924145747`；探针采集时 `dev/next-development` HEAD 为
+`d21202318`，封存时已推进到 `779088260`，生产落后 3 个提交。公网 health、db health、ready 为 200，decision-ready 按设计为
+503。A 股有效分母由 5,565 增至 5,569，但 quote、price、valuation current Publication 仍各有
+5,565 members，financial 仍为 80，四 Publication 尚未覆盖新分母。
+
+生产 profile v18 已激活并绑定 `release_ref=2a06333c1d92b2aca6e64a4497c6845d6e359759`。审计链路出现
+实质进展：mode=`required`、outbox=`true`、authority selector 已设置，temporally current
+actor、owner、joined heads 均为 1，有效期至 2026-10-01。该快照仍不能替代 EVID-01/02 与 AUD-03
+要求的精确 PostgreSQL 并发、writer/recovery、archive-restore 和告警验收，相关状态暂不晋级。
+
+两个未传 `--execute` 的 DATA-02 预检仍在 publication candidate 边界拒绝缺少持久化 financial
+decision evidence，没有进入 provider refresh 或写入。受保护监控探针及留存重试均返回 `URLError`，
+因此未取得可判定的认证状态，也不能绑定 TUI-02 首样本或启动观察窗口。
+
+结构化证据见 [生产 revision a3c41d1eb0 只读重验](../deployment/production-closure-revalidation-2026-09-24-a3c41d1eb0.json)，原始探针、
+输出和哈希清单见同名 `-raw.zip`。registry v178 → v179；DATA-02、EVID-01/02、AUD-03 状态不变，
+TUI-02 继续 active。本轮只执行 SSH stdin 只读事务和无 execute 预检，没有 provider 调用、生产数据
+写入、profile 激活或 Publication 切换。
