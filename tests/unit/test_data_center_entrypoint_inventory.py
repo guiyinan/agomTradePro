@@ -90,9 +90,7 @@ def test_management_command_discovery_ignores_generated_output_tree(
     """Generated pytest/output copies must not make the inventory host-dependent."""
 
     inventory = _load_script()
-    real_command = (
-        tmp_path / "apps" / "data_center" / "management" / "commands" / "real.py"
-    )
+    real_command = tmp_path / "apps" / "data_center" / "management" / "commands" / "real.py"
     copied_command = (
         tmp_path
         / "output"

@@ -51,9 +51,7 @@ def has_unclassified_failure(
         return False
     normalized = output.casefold()
     parsed_error_count = sum(sum(codes.values()) for codes in observed.values())
-    reported_error_count = sum(
-        1 for line in output.splitlines() if ": error:" in line.casefold()
-    )
+    reported_error_count = sum(1 for line in output.splitlines() if ": error:" in line.casefold())
     return (
         return_code not in {0, 1}
         or not observed
