@@ -2233,6 +2233,11 @@ def main() -> int:
         default=os.environ.get("AGOM_VPS_GIT_BRANCH", "main"),
         help="Git branch/tag for --git-clone mode",
     )
+    ap.add_argument(
+        "--expected-source-commit",
+        default="",
+        help="Exact local candidate SHA already approved by the deployment wrapper",
+    )
     args = ap.parse_args()
     if args.http_port is None:
         args.http_port = _optional_env_int("AGOM_VPS_HTTP_PORT")
@@ -2251,6 +2256,16 @@ def main() -> int:
         source_commit = _normalize_source_commit(raw_source_commit)
     except ValueError as exc:
         _die(str(exc))
+    if args.expected_source_commit:
+        try:
+            expected_source_commit = _normalize_source_commit(args.expected_source_commit)
+        except ValueError as exc:
+            _die(str(exc))
+        if source_commit != expected_source_commit:
+            _die(
+                "Local source commit changed after release validation: "
+                f"actual={source_commit} expected={expected_source_commit}"
+            )
     if not args.git_clone:
         try:
             worktree_status = subprocess.check_output(

@@ -333,10 +333,27 @@ def test_one_click_deploy_pins_expected_commit_before_remote_work() -> None:
     assignment = "$expectedCommit = (& git -C $ProjectRoot rev-parse HEAD).Trim()"
     launch = "& $PythonExe @pyArgs"
     verification = "'--expected-commit', $expectedCommit"
+    builder_binding = "'--expected-source-commit', $expectedCommit"
 
     assert wrapper.count(assignment) == 1
     assert wrapper.index(assignment) < wrapper.index(launch)
+    assert wrapper.index(assignment) < wrapper.index(builder_binding) < wrapper.index(launch)
     assert wrapper.index(launch) < wrapper.index(verification)
+
+
+def test_remote_builder_rejects_candidate_drift_before_credentials() -> None:
+    """The builder must compare its local HEAD with the wrapper-approved candidate."""
+
+    source = (
+        Path(__file__).resolve().parents[2] / "scripts" / "remote_build_deploy_vps.py"
+    ).read_text(encoding="utf-8")
+
+    parser_option = '"--expected-source-commit"'
+    comparison = "if source_commit != expected_source_commit:"
+    credential_prompt = 'host = args.host or _prompt("VPS host/IP")'
+    assert parser_option in source
+    assert comparison in source
+    assert source.index(comparison) < source.index(credential_prompt)
 
 
 def test_remote_deploy_publishes_canonical_https_origin_and_validates_tls() -> None:

@@ -162,6 +162,7 @@ try {
         '--action', $Action,
         '--git-clone',
         '--git-branch', $GitBranch,
+        '--expected-source-commit', $expectedCommit,
         '--allowed-hosts', $AllowedHosts,
         '--timeout', "$BuildTimeoutSeconds"
     )
