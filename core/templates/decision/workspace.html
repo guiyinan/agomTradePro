@@ -713,6 +713,11 @@
         </aside>
 
         <div class="workspace-main">
+            <section id="workspace-research-bridge" aria-live="polite">
+                <div id="workspace-bridge-research-entry" class="bridge-banner bridge-banner-info" style="display: none;"></div>
+                <div id="recommendation-bridge-banner" class="bridge-banner" style="display: none;"></div>
+            </section>
+
             <section class="advisor-panel" id="advisor-today-panel">
                 <div class="advisor-panel-head">
                     <div>
@@ -873,6 +878,14 @@ document.addEventListener('alpine:init', () => {
             window.decisionFunnelState = this;
             const params = new URLSearchParams(window.location.search);
             const requestedStep = parseInt(params.get('step'));
+
+            // Reflect a deep-linked research/decision step immediately. Network loading
+            // below must not leave the user staring at Step 1 while the request runs.
+            if (requestedStep && requestedStep >= 1 && requestedStep <= 6) {
+                const targetStep = normalizeDecisionStepRequest(requestedStep);
+                this.maxReached = Math.max(this.maxReached, targetStep);
+                this.currentStep = targetStep;
+            }
 
             if (window.initializeDecisionWorkspace) {
                 await window.initializeDecisionWorkspace();
@@ -1158,8 +1171,8 @@ let currentTransitionPlanActiveOrdersCount = 0;
 let currentAdvisorSheet = null;
 let userAccounts = [];
 let workspaceInitialized = false;
+let workspaceAccountLoadGeneration = 0;
 const selectedRecommendationIds = new Set();
-const recommendationAutoRefreshAttempts = new Set();
 const workspaceBridge = {
     source: workspaceParams.get('source') || (workspaceParams.get('execute_request') ? 'alpha-trigger-execute' : ''),
     securityCode: workspaceParams.get('security_code') || workspaceParams.get('asset_code') || '',
@@ -1170,31 +1183,45 @@ const workspaceBridge = {
 };
 const requestedWorkspaceAccountId = workspaceParams.get('account_id') || '';
 
-function getLatestRecommendationUpdatedAt(recommendations) {
-    return (recommendations || []).reduce((latest, recommendation) => {
-        const timestamp = recommendation.updated_at || recommendation.created_at;
-        if (!timestamp) {
-            return latest;
-        }
-        const parsed = new Date(timestamp);
-        if (Number.isNaN(parsed.getTime())) {
-            return latest;
-        }
-        return !latest || parsed > latest ? parsed : latest;
-    }, null);
+function isCurrentWorkspaceAccount(accountId, generation) {
+    return generation === workspaceAccountLoadGeneration
+        && String(accountId || 'default') === String(getSelectedWorkspaceAccountId() || 'default');
 }
 
-function shouldAutoRefreshRecommendations(recommendations) {
-    if (!recommendations || recommendations.length === 0) {
-        return true;
+async function fetchWorkspaceJson(resource, init = {}, timeoutMs = 10000) {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await window.fetchJsonOrThrow(resource, { ...init, signal: controller.signal });
+    } catch (error) {
+        if (error?.name === 'AbortError') {
+            const timeoutError = new Error('请求超时');
+            timeoutError.code = 'WORKSPACE_TIMEOUT';
+            throw timeoutError;
+        }
+        throw error;
+    } finally {
+        window.clearTimeout(timeoutId);
     }
-    const latestUpdatedAt = getLatestRecommendationUpdatedAt(recommendations);
-    if (!latestUpdatedAt) {
-        return false;
+}
+
+function getWorkspaceErrorMessage(error, fallback = '加载失败，请重试。') {
+    if (error?.code === 'WORKSPACE_TIMEOUT') {
+        return '加载超时，请点击“重试”。';
     }
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    return latestUpdatedAt < todayStart;
+    return fallback;
+}
+
+function renderWorkspaceRetryState(container, message, retryHandler = 'loadRecommendations()') {
+    if (!container) {
+        return;
+    }
+    container.innerHTML = `
+        <div class="error-state">
+            <p>${escapeHtml(message)}</p>
+            <button type="button" class="btn btn-outline btn-sm" onclick="${retryHandler}">重试</button>
+        </div>
+    `;
 }
 
 function formatRepairPercent(value) {
@@ -1212,11 +1239,18 @@ function formatRepairEta(value) {
     return `${value}d`;
 }
 
-function showBridgeBanner(message, tone = 'info') {
+function showBridgeBanner(message, tone = 'info', actionUrl = '', actionLabel = '') {
     const banner = document.getElementById('recommendation-bridge-banner');
     if (!banner) return;
     banner.className = `bridge-banner bridge-banner-${tone}`;
     banner.textContent = message;
+    if (actionUrl && actionLabel) {
+        const action = document.createElement('a');
+        action.href = actionUrl;
+        action.className = 'btn btn-outline btn-sm';
+        action.textContent = actionLabel;
+        banner.append(document.createTextNode(' '), action);
+    }
     banner.style.display = 'block';
 }
 
@@ -1231,14 +1265,55 @@ function escapeHtml(value) {
 
 function buildEquityDetailUrl(securityCode) {
     const code = String(securityCode || '').trim().toUpperCase();
-    return code ? `/equity/detail/${encodeURIComponent(code)}/` : '';
+    if (!code) {
+        return '';
+    }
+    const accountId = arguments.length > 1
+        ? arguments[1]
+        : getSelectedWorkspaceAccountId();
+    if (accountId && accountId !== 'default') {
+        return `/equity/detail/${encodeURIComponent(code)}/?account_id=${encodeURIComponent(accountId)}`;
+    }
+    return `/equity/detail/${encodeURIComponent(code)}/`;
 }
 
-function renderSecurityLabel(securityName, securityCode, extraClass = '') {
+function showWorkspaceBridgeResearchEntry() {
+    if (!workspaceBridge.securityCode) {
+        return;
+    }
+    const entry = document.getElementById('workspace-bridge-research-entry');
+    if (!entry) return;
+    const accountId = getSelectedWorkspaceAccountId();
+    entry.textContent = `${workspaceBridge.securityCode} 的研究详情可立即查看。 `;
+    const action = document.createElement('a');
+    action.href = buildEquityDetailUrl(workspaceBridge.securityCode, accountId);
+    action.className = 'btn btn-outline btn-sm';
+    action.textContent = '查看研究详情与数据阻断';
+    entry.append(action);
+    entry.style.display = 'block';
+}
+
+function showWorkspaceBridgeRetry(message, accountId, generation) {
+    showBridgeBanner(message, 'danger');
+    const banner = document.getElementById('recommendation-bridge-banner');
+    if (!banner) return;
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'btn btn-outline btn-sm';
+    retry.textContent = '重新加载已有推荐';
+    retry.addEventListener('click', () => {
+        if (!isCurrentWorkspaceAccount(accountId, generation)) return;
+        workspaceBridge.handled = false;
+        void bootstrapWorkspaceBridge();
+    });
+    banner.append(document.createTextNode(' '), retry);
+}
+
+function renderSecurityLabel(securityName, securityCode, extraClass = '', accountId = null) {
     const code = String(securityCode || '').trim();
     const name = String(securityName || '').trim();
     const classAttr = extraClass ? ` security-display ${extraClass}` : ' security-display';
-    const detailUrl = buildEquityDetailUrl(code);
+    const detailUrl = buildEquityDetailUrl(code, accountId || getSelectedWorkspaceAccountId());
     const tagName = detailUrl ? 'a' : 'span';
     const hrefAttr = detailUrl ? ` href="${escapeHtml(detailUrl)}" title="打开个股详情"` : '';
     if (!name || name === code) {
@@ -1289,11 +1364,69 @@ function formatDecisionDateTime(value) {
         return String(value);
     }
     return parsed.toLocaleString('zh-CN', {
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
         minute: '2-digit',
     });
+}
+
+function formatWorkspaceDateValue(value) {
+    const rawValue = String(value || '').trim();
+    if (!rawValue) {
+        return '日期未知';
+    }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(rawValue)) {
+        const [year, month, day] = rawValue.split('-');
+        return `${year}年${month}月${day}日`;
+    }
+    return formatDecisionDateTime(rawValue) || '日期未知';
+}
+
+function formatWorkspacePrice(value) {
+    const numericValue = parsePriceValue(value);
+    if (numericValue === null || numericValue <= 0) {
+        return '暂无';
+    }
+    return numericValue.toLocaleString('zh-CN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+}
+
+function formatWorkspacePriceRange(low, high) {
+    const lowText = formatWorkspacePrice(low);
+    const highText = formatWorkspacePrice(high);
+    if (lowText === '暂无' && highText === '暂无') {
+        return '暂无';
+    }
+    if (lowText === '暂无') {
+        return highText;
+    }
+    if (highText === '暂无') {
+        return lowText;
+    }
+    return `${lowText} - ${highText}`;
+}
+
+function formatWorkspacePriceBand(band) {
+    const priceBand = band && typeof band === 'object' ? band : {};
+    const low = priceBand.low ?? priceBand.price_low ?? priceBand.min;
+    const high = priceBand.high ?? priceBand.price_high ?? priceBand.max;
+    if (low !== undefined || high !== undefined) {
+        return formatWorkspacePriceRange(low, high);
+    }
+    const label = String(priceBand.label || '').trim();
+    if (!label) {
+        return '';
+    }
+    const numericValues = label.match(/-?\d+(?:\.\d+)?/g) || [];
+    if (numericValues.length > 0 && numericValues.every(value => Number(value) <= 0)) {
+        return '';
+    }
+    return label;
 }
 
 function calculateRewardRisk(entryPrice, targetPrice, stopLossPrice) {
@@ -1339,11 +1472,26 @@ function renderRewardRiskPill(metrics) {
 }
 
 function renderDataAsOf(dataAsOf) {
-    const value = String(dataAsOf || '').trim();
+    const asOfObject = dataAsOf && typeof dataAsOf === 'object' ? dataAsOf : {};
+    const value = typeof dataAsOf === 'object'
+        ? (
+            asOfObject.data_date
+            || asOfObject.as_of_date
+            || asOfObject.source_observed_at
+            || asOfObject.quote_observed_at
+            || asOfObject.observed_at
+            || ''
+        )
+        : String(dataAsOf || '').trim();
     if (!value) {
         return '';
     }
-    return `<span class="decision-brief-asof">数据 ${escapeHtml(formatDecisionDateTime(value))}</span>`;
+    const freshness = typeof dataAsOf === 'object'
+        ? getWorkspaceBusinessStatusText(asOfObject.quote_freshness_status || asOfObject.freshness_status)
+        : '';
+    const warning = asOfObject.must_not_use_for_decision ? ' · 当前数据不可用于执行' : '';
+    const freshnessText = freshness && freshness !== '未知' ? ` · ${freshness}` : '';
+    return `<span class="decision-brief-asof">数据日期 ${escapeHtml(formatWorkspaceDateValue(value))}${escapeHtml(freshnessText)}${escapeHtml(warning)}</span>`;
 }
 
 function renderRecommendationDecisionBrief(rec) {
@@ -1382,7 +1530,7 @@ function renderOrderDecisionBrief(order) {
         || calculateRewardRisk(executionPrice, takeProfit, stopLoss);
     const invalidationText = String(order.risk_summary || order.invalidation_description || '').trim();
     const thesis = String(order.thesis || '').trim();
-    const fallbackSummary = `${order.action || 'HOLD'} ${order.security_code || ''}，数量变化 ${order.delta_qty ?? '-'}`;
+    const fallbackSummary = `${getWorkspaceSideText(order.action || 'HOLD')} ${order.security_code || ''}，数量变化 ${order.delta_qty ?? '-'}`;
     return `
         <div class="decision-brief decision-brief-plan">
             <div class="decision-brief-item">
@@ -1413,6 +1561,44 @@ function getUserActionText(action, label = '') {
         ADOPTED: '已采纳',
         IGNORED: '已忽略',
     }[action] || action || '待决策';
+}
+
+function getWorkspaceSideText(side) {
+    return {
+        BUY: '买入',
+        ADD: '加仓',
+        SELL: '卖出',
+        REDUCE: '减仓',
+        EXIT: '清仓',
+        HOLD: '持有',
+    }[String(side || '').trim().toUpperCase()] || '待定';
+}
+
+function getWorkspaceBusinessStatusText(status) {
+    const normalized = String(status || '').trim().toUpperCase();
+    return {
+        OK: '正常',
+        PASS: '通过',
+        PASSED: '通过',
+        BLOCKED: '已阻断',
+        PENDING: '待处理',
+        RUNNING: '处理中',
+        DRAFT: '草稿',
+        APPROVED: '已批准',
+        REJECTED: '已拒绝',
+        EXECUTED: '已执行',
+        FAILED: '失败',
+        STALE: '数据已过期',
+        ACTIVE: '运行中',
+        INACTIVE: '已停用',
+        READY: '就绪',
+        REVIEWING: '审核中',
+        CONFLICT: '冲突',
+        WAIT: '等待中',
+        WAITING: '等待中',
+        SKIPPED: '已跳过',
+        UNKNOWN: '未知',
+    }[normalized] || (status || '未知');
 }
 
 function normalizeWorkspaceBridgeUserAction(action) {
@@ -1587,7 +1773,7 @@ function renderWorkspacePositionList(positions, emptyMessage) {
             <li class="workspace-position-item">
                 <div>
                     <div class="workspace-position-code">${escapeHtml(position.asset_code || '-')}</div>
-                    <div class="workspace-position-meta">${escapeHtml(assetName)} · ${position.quantity || 0}股 · 成本 ${formatWorkspaceCurrency(position.avg_cost)}</div>
+                    <div class="workspace-position-meta">${escapeHtml(assetName)} · ${position.quantity || 0}股 · 成本 ${formatWorkspacePrice(position.avg_cost)}</div>
                 </div>
                 <div style="text-align: right;">
                     <div class="workspace-position-code">${formatWorkspaceCurrency(position.market_value)}</div>
@@ -1617,6 +1803,28 @@ function renderWorkspaceDefaultSnapshot() {
     setWorkspaceSnapshotValue('workspace-position-count', '-');
     setWorkspaceSnapshotValue('workspace-drawdown-value', '-');
     renderWorkspacePositionList([], '默认账户仅展示系统级上下文，不展示持仓快照。');
+}
+
+function renderWorkspaceUnavailableAccount() {
+    const message = '请求的账户不存在或无权访问，请从账户列表选择可用账户。';
+    const meta = document.getElementById('workspace-account-meta');
+    const status = document.getElementById('workspace-account-status');
+    if (meta) {
+        meta.textContent = message;
+    }
+    if (status) {
+        status.className = 'badge badge-danger';
+        status.textContent = '不可访问';
+    }
+    setWorkspaceSnapshotValue('workspace-total-value', '-');
+    setWorkspaceSnapshotValue('workspace-cash-value', '-');
+    setWorkspaceSnapshotValue('workspace-market-value', '-');
+    setWorkspaceSnapshotValue('workspace-return-value', '-');
+    setWorkspaceSnapshotValue('workspace-position-count', '-');
+    setWorkspaceSnapshotValue('workspace-drawdown-value', '-');
+    renderWorkspacePositionList([], message);
+    renderAdvisorEmpty(message);
+    renderWorkspaceRetryState(document.getElementById('recommendations-list'), message);
 }
 
 function renderWorkspaceAccountSnapshot(detailData, positionsData) {
@@ -1650,7 +1858,7 @@ function renderWorkspaceAccountSnapshot(detailData, positionsData) {
     );
 }
 
-async function loadWorkspaceAccountSnapshot() {
+async function loadWorkspaceAccountSnapshot(generation = workspaceAccountLoadGeneration) {
     syncWorkspaceAccountSummary();
     const accountId = getSelectedWorkspaceAccountId();
     if (!accountId || accountId === 'default') {
@@ -1671,18 +1879,18 @@ async function loadWorkspaceAccountSnapshot() {
     renderWorkspacePositionList([], '正在加载持仓摘要...');
 
     try {
-        const [detailRes, positionsRes] = await Promise.all([
-            fetch(`/api/account/accounts/${encodeURIComponent(accountId)}/`, {
-                headers: { 'X-CSRFToken': window.csrfToken }
-            }),
-            fetch(`/api/account/accounts/${encodeURIComponent(accountId)}/positions/`, {
-                headers: { 'X-CSRFToken': window.csrfToken }
-            }),
-        ]);
         const [detailData, positionsData] = await Promise.all([
-            detailRes.json(),
-            positionsRes.json(),
+            fetchWorkspaceJson(`/api/account/accounts/${encodeURIComponent(accountId)}/`, {
+                headers: { 'X-CSRFToken': window.csrfToken }
+            }),
+            fetchWorkspaceJson(`/api/account/accounts/${encodeURIComponent(accountId)}/positions/`, {
+                headers: { 'X-CSRFToken': window.csrfToken }
+            }),
         ]);
+
+        if (!isCurrentWorkspaceAccount(accountId, generation)) {
+            return;
+        }
 
         if (!detailData?.success) {
             throw new Error(detailData?.error || '账户详情加载失败');
@@ -1693,6 +1901,9 @@ async function loadWorkspaceAccountSnapshot() {
 
         renderWorkspaceAccountSnapshot(detailData, positionsData);
     } catch (error) {
+        if (!isCurrentWorkspaceAccount(accountId, generation)) {
+            return;
+        }
         console.error('加载账户快照失败:', error);
         if (meta) {
             meta.textContent = '账户快照加载失败';
@@ -1707,11 +1918,15 @@ async function loadWorkspaceAccountSnapshot() {
         setWorkspaceSnapshotValue('workspace-return-value', '-');
         setWorkspaceSnapshotValue('workspace-position-count', '-');
         setWorkspaceSnapshotValue('workspace-drawdown-value', '-');
-        renderWorkspacePositionList([], `账户快照加载失败: ${error.message}`);
+        renderWorkspaceRetryState(
+            document.getElementById('workspace-position-list'),
+            getWorkspaceErrorMessage(error, '账户快照加载失败，请重试。'),
+            'loadWorkspaceAccountSnapshot()'
+        );
     }
 }
 
-function renderAdvisorEmpty(message) {
+function renderAdvisorEmpty(message, retryHandler = '') {
     currentAdvisorSheet = null;
     const verdict = document.getElementById('advisor-verdict');
     const accountLine = document.getElementById('advisor-account-line');
@@ -1728,7 +1943,10 @@ function renderAdvisorEmpty(message) {
     setWorkspaceSnapshotValue('advisor-sell-orders', '-');
     setWorkspaceSnapshotValue('advisor-blocked-orders', '-');
     if (list) {
-        list.innerHTML = `<div class="workspace-sidebar-subtitle">${escapeHtml(message)}</div>`;
+        const retryButton = retryHandler
+            ? `<button type="button" class="btn btn-outline btn-sm" onclick="${retryHandler}">重试</button>`
+            : '';
+        list.innerHTML = `<div class="workspace-sidebar-subtitle">${escapeHtml(message)}</div>${retryButton}`;
     }
 }
 
@@ -1751,7 +1969,7 @@ function renderAdvisorSheet(sheet) {
         }[verdictText] || `今日建议：${verdictText}`;
     }
     if (accountLine) {
-        accountLine.textContent = `${account.account_name || '-'} · ${account.account_type_label || account.account_type || '账户'} · ${account.account_status || '-'} · 持仓 ${account.holding_count || 0} 个 · 可用资金 ${formatWorkspaceCurrency(account.available_cash)}`;
+        accountLine.textContent = `${account.account_name || '-'} · ${account.account_type_label || account.account_type || '账户'} · ${getWorkspaceBusinessStatusText(account.account_status)} · 持仓 ${account.holding_count || 0} 个 · 可用资金 ${formatWorkspaceCurrency(account.available_cash)}`;
     }
 
     setWorkspaceSnapshotValue('advisor-total-orders', String(summary.total ?? 0));
@@ -1771,8 +1989,8 @@ function renderAdvisorSheet(sheet) {
     list.innerHTML = orders.slice(0, 6).map(order => {
         const band = order.price_band || {};
         const dataAsOf = order.data_asof || {};
-        const riskGateStatus = order.risk_gate_status || '-';
-        const quoteFreshness = dataAsOf.quote_freshness_status || '-';
+        const riskGateStatus = getWorkspaceBusinessStatusText(order.risk_gate_status);
+        const quoteFreshness = getWorkspaceBusinessStatusText(dataAsOf.quote_freshness_status);
         const riskText = Array.isArray(order.risk_notes) && order.risk_notes.length
             ? order.risk_notes.join('；')
             : '风险提示按账户风控和推荐失效规则执行';
@@ -1783,24 +2001,24 @@ function renderAdvisorSheet(sheet) {
                     <div class="advisor-order-meta">${escapeHtml(order.reason || '-')}</div>
                 </div>
                 <div>
-                    <span class="rec-side rec-side-${String(order.side || '').toLowerCase()}">${escapeHtml(order.side || '-')}</span>
+                    <span class="rec-side rec-side-${String(order.side || '').toLowerCase()}">${escapeHtml(getWorkspaceSideText(order.side))}</span>
                     <div class="advisor-order-meta">优先级 ${order.priority ?? '-'}</div>
                 </div>
                 <div>
                     <div class="advisor-order-main">${order.delta_quantity ?? 0}</div>
-                    <div class="advisor-order-meta">${formatWorkspaceCurrency(order.estimated_amount)} · ${escapeHtml(band.label || '-')}</div>
+                    <div class="advisor-order-meta">${formatWorkspaceCurrency(order.estimated_amount)} · ${escapeHtml(formatWorkspacePriceBand(band) || formatWorkspacePrice(order.estimated_price))}</div>
                 </div>
                 <div>
                     <div class="advisor-order-meta">${escapeHtml(riskText)}</div>
                     <div class="advisor-order-meta">执行：${escapeHtml(order.execution_hint || '-')}</div>
-                    <div class="advisor-order-meta">状态：${escapeHtml(order.blocking_status || 'OK')} · 风控：${escapeHtml(riskGateStatus)} · 数据：${escapeHtml(quoteFreshness)}</div>
+                    <div class="advisor-order-meta">状态：${escapeHtml(getWorkspaceBusinessStatusText(order.blocking_status || 'OK'))} · 风控：${escapeHtml(riskGateStatus)} · 数据：${escapeHtml(quoteFreshness)}</div>
                 </div>
             </div>
         `;
     }).join('');
 }
 
-async function loadAdvisorSheet() {
+async function loadAdvisorSheet(generation = workspaceAccountLoadGeneration) {
     const accountId = getSelectedWorkspaceAccountId();
     if (!accountId || accountId === 'default') {
         renderAdvisorEmpty('请选择一个具体账户，自动投顾会按该账户持仓和现金生成建议单。');
@@ -1811,16 +2029,24 @@ async function loadAdvisorSheet() {
         list.innerHTML = '<div class="workspace-sidebar-subtitle">正在生成账户级建议单...</div>';
     }
     try {
-        const payload = await window.fetchJsonOrThrow(`/api/decision/advisor/sheet/?account_id=${encodeURIComponent(accountId)}`, {
+        const payload = await fetchWorkspaceJson(`/api/decision/advisor/sheet/?account_id=${encodeURIComponent(accountId)}`, {
             headers: { 'X-CSRFToken': window.csrfToken }
         });
         if (!payload.success) {
             throw new Error(payload.error || '建议单生成失败');
         }
-        renderAdvisorSheet(payload.data);
+        if (isCurrentWorkspaceAccount(accountId, generation)) {
+            renderAdvisorSheet(payload.data);
+        }
     } catch (error) {
+        if (!isCurrentWorkspaceAccount(accountId, generation)) {
+            return;
+        }
         console.error('加载自动投顾建议单失败:', error);
-        renderAdvisorEmpty(`自动投顾建议单加载失败: ${error.message}`);
+        renderAdvisorEmpty(
+            getWorkspaceErrorMessage(error, '自动投顾建议单加载失败，请重试。'),
+            'loadAdvisorSheet()'
+        );
     }
 }
 
@@ -1867,8 +2093,8 @@ async function copyAdvisorManualList() {
             order.asset_name,
             `delta=${order.delta_quantity}`,
             `amount=${order.estimated_amount}`,
-            `price=${band.label || order.estimated_price || '-'}`,
-            `status=${order.blocking_status}`,
+            `price=${formatWorkspacePriceBand(band) || formatWorkspacePrice(order.estimated_price)}`,
+            `status=${getWorkspaceBusinessStatusText(order.blocking_status)}`,
             `reason=${order.reason}`,
         ].join(' | ');
     });
@@ -1887,12 +2113,12 @@ function refreshCurrentDecisionStep() {
     }
 }
 
-function refreshWorkspaceDecisionLists() {
-    loadRecommendations();
-    loadApprovals();
-    loadConflicts();
-    loadTransitionPlanStep();
-    loadExecutionPlanPanel();
+function refreshWorkspaceDecisionLists(generation = workspaceAccountLoadGeneration) {
+    loadRecommendations(generation);
+    loadApprovals(generation);
+    loadConflicts(generation);
+    loadTransitionPlanStep(generation);
+    loadExecutionPlanPanel(generation);
 }
 
 function syncIgnoredRecommendationsFilterButton() {
@@ -1921,6 +2147,7 @@ function toggleIgnoredRecommendationsFilter() {
 }
 
 function handleWorkspaceAccountChange() {
+    const generation = ++workspaceAccountLoadGeneration;
     const accountId = getSelectedWorkspaceAccountId();
     const url = new URL(window.location.href);
     if (accountId && accountId !== 'default') {
@@ -1929,12 +2156,17 @@ function handleWorkspaceAccountChange() {
         url.searchParams.delete('account_id');
     }
     selectedRecommendationIds.clear();
+    currentWorkspaceRecommendations = [];
+    workspaceBridge.handled = false;
+    workspaceBridge.highlightedRecommendationId = '';
     applyTransitionPlanState(null);
     window.history.replaceState({}, '', url.toString());
-    loadWorkspaceAccountSnapshot();
-    loadAdvisorSheet();
+    showWorkspaceBridgeResearchEntry();
+    void bootstrapWorkspaceBridge();
+    loadWorkspaceAccountSnapshot(generation);
+    loadAdvisorSheet(generation);
     refreshCurrentDecisionStep();
-    refreshWorkspaceDecisionLists();
+    refreshWorkspaceDecisionLists(generation);
     syncDecisionFunnelGuardrails();
 }
 
@@ -1944,33 +2176,26 @@ async function bootstrapWorkspaceBridge() {
     }
 
     const accountId = getSelectedWorkspaceAccountId();
-    showBridgeBanner(`正在将 ${workspaceBridge.securityCode} 同步到决策工作台...`);
+    const generation = workspaceAccountLoadGeneration;
+    showBridgeBanner(`正在查找 ${workspaceBridge.securityCode} 的已有推荐...`);
 
     try {
-        const refreshData = await window.fetchJsonOrThrow('/api/decision/workspace/recommendations/refresh/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': window.csrfToken,
-            },
-            body: JSON.stringify({
-                account_id: accountId,
-                security_codes: [workspaceBridge.securityCode],
-                force: false,
-            }),
-        });
-        if (!refreshData.success) {
-            throw new Error(refreshData.error || '刷新失败');
-        }
-
-        let listUrl = `/api/decision/workspace/recommendations/?account_id=${encodeURIComponent(accountId)}&security_code=${encodeURIComponent(workspaceBridge.securityCode)}&include_ignored=true`;
-        const listData = await window.fetchJsonOrThrow(listUrl, {
+        const listUrl = `/api/decision/workspace/recommendations/?account_id=${encodeURIComponent(accountId)}&security_code=${encodeURIComponent(workspaceBridge.securityCode)}&include_ignored=true`;
+        const listData = await fetchWorkspaceJson(listUrl, {
             headers: { 'X-CSRFToken': window.csrfToken }
         });
+        if (!isCurrentWorkspaceAccount(accountId, generation)) {
+            return;
+        }
         const targetRecommendation = listData?.data?.recommendations?.[0];
 
         if (!targetRecommendation) {
-            showBridgeBanner(`已触发 ${workspaceBridge.securityCode} 推荐同步，但工作台尚未返回可用推荐。`, 'warning');
+            showBridgeBanner(
+                `当前账户暂无 ${workspaceBridge.securityCode} 的已有推荐；可以继续查看研究详情和数据阻断，如需更新请点击“刷新推荐”。`,
+                'warning',
+                buildEquityDetailUrl(workspaceBridge.securityCode, accountId),
+                '查看研究详情与数据阻断'
+            );
             workspaceBridge.handled = true;
             return;
         }
@@ -1978,33 +2203,28 @@ async function bootstrapWorkspaceBridge() {
         workspaceBridge.highlightedRecommendationId = targetRecommendation.recommendation_id;
 
         const bridgeUserAction = normalizeWorkspaceBridgeUserAction(workspaceBridge.action);
-        if (bridgeUserAction) {
-            const actionData = await window.fetchJsonOrThrow('/api/decision/workspace/recommendations/action/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': window.csrfToken,
-                },
-                body: JSON.stringify({
-                    recommendation_id: targetRecommendation.recommendation_id,
-                    account_id: accountId,
-                    action: bridgeUserAction,
-                    note: workspaceBridge.source ? `source=${workspaceBridge.source}` : '',
-                }),
-            });
-            if (!actionData.success) {
-                throw new Error(actionData.error || '用户动作写入失败');
-            }
-            showBridgeBanner(`${workspaceBridge.securityCode} 已同步到工作台，并标记为${getUserActionText(actionData.data.recommendation.user_action, actionData.data.recommendation.user_action_label)}。`, 'success');
-        } else {
-            showBridgeBanner(`${workspaceBridge.securityCode} 已同步到工作台；请先核对退出详情，再选择观察、采纳或忽略。`, 'success');
-        }
+        const bridgeActionLabel = {
+            watch: '观察',
+            adopt: '采纳',
+            ignore: '忽略',
+        }[bridgeUserAction] || '处理';
+        const actionHint = bridgeUserAction
+            ? `链接动作“${bridgeActionLabel}”仅作为提示，请点击页面按钮确认。`
+            : '请先核对研究详情，再选择观察、采纳或忽略。';
+        showBridgeBanner(`${workspaceBridge.securityCode} 已加载已有推荐；${actionHint}`, 'success');
 
         workspaceBridge.handled = true;
     } catch (error) {
+        if (!isCurrentWorkspaceAccount(accountId, generation)) {
+            return;
+        }
         console.error('bootstrapWorkspaceBridge failed:', error);
-        showBridgeBanner(`同步 ${workspaceBridge.securityCode} 到工作台失败: ${error.message}`, 'danger');
-        workspaceBridge.handled = true;
+        showWorkspaceBridgeRetry(
+            getWorkspaceErrorMessage(error, `加载 ${workspaceBridge.securityCode} 的已有推荐失败，请稍后重试。`),
+            accountId,
+            generation
+        );
+        workspaceBridge.handled = false;
     }
 }
 
@@ -2016,7 +2236,9 @@ window.initializeDecisionWorkspace = async function() {
     workspaceInitialized = true;
 
     // 加载账户列表
-    await loadUserAccounts();
+    if (!await loadUserAccounts()) {
+        return;
+    }
     await bootstrapWorkspaceBridge();
     refreshWorkspaceDecisionLists();
 
@@ -2044,10 +2266,15 @@ document.body.addEventListener('htmx:afterSwap', function(event) {
 
 // ===== 加载用户账户 =====
 async function loadUserAccounts() {
+    const generation = ++workspaceAccountLoadGeneration;
     try {
-        const data = await window.fetchJsonOrThrow('/api/account/accounts/?active_only=false', {
+        const data = await fetchWorkspaceJson('/api/account/accounts/?active_only=false', {
             headers: { 'X-CSRFToken': window.csrfToken }
         });
+
+        if (generation !== workspaceAccountLoadGeneration) {
+            return;
+        }
 
         if (data.success && Array.isArray(data.accounts)) {
             userAccounts = data.accounts;
@@ -2063,7 +2290,15 @@ async function loadUserAccounts() {
 
             selector.innerHTML = options;
 
-            if (requestedWorkspaceAccountId && userAccounts.some(acc => String(acc.account_id) === requestedWorkspaceAccountId)) {
+            if (requestedWorkspaceAccountId) {
+                const requestedAccountExists = userAccounts.some(
+                    acc => String(acc.account_id) === requestedWorkspaceAccountId
+                );
+                if (!requestedAccountExists) {
+                    selector.value = 'default';
+                    renderWorkspaceUnavailableAccount();
+                    return false;
+                }
                 selector.value = requestedWorkspaceAccountId;
             } else if (userAccounts.length > 0) {
                 selector.value = String(userAccounts[0].account_id);
@@ -2071,17 +2306,28 @@ async function loadUserAccounts() {
                 selector.value = 'default';
             }
         }
-        await loadWorkspaceAccountSnapshot();
-        await loadAdvisorSheet();
+        showWorkspaceBridgeResearchEntry();
+        void Promise.allSettled([
+            loadWorkspaceAccountSnapshot(generation),
+            loadAdvisorSheet(generation),
+        ]);
         refreshCurrentDecisionStep();
+        return true;
     } catch (error) {
+        if (generation !== workspaceAccountLoadGeneration) {
+            return;
+        }
         console.error('加载账户失败:', error);
-        renderAdvisorEmpty('账户列表加载失败，无法生成自动投顾建议单。');
+        renderAdvisorEmpty(
+            getWorkspaceErrorMessage(error, '账户列表加载失败，请点击重试。'),
+            'loadUserAccounts()'
+        );
+        return false;
     }
 }
 
 // ===== 加载推荐列表 =====
-async function loadRecommendations() {
+async function loadRecommendations(generation = workspaceAccountLoadGeneration) {
     const container = document.getElementById('recommendations-list');
     if (!container) {
         return;
@@ -2109,59 +2355,32 @@ async function loadRecommendations() {
         if (workspaceBridge.securityCode) params.append('security_code', workspaceBridge.securityCode);
         if (params.toString()) url += '?' + params.toString();
 
-        const data = await window.fetchJsonOrThrow(url, {
+        const data = await fetchWorkspaceJson(url, {
             headers: { 'X-CSRFToken': window.csrfToken }
         });
 
         if (data.success && data.data) {
             const recommendations = data.data.recommendations || [];
             const totalCount = data.data.total_count || 0;
-            currentWorkspaceRecommendations = recommendations;
-
-            if (
-                shouldAutoRefreshRecommendations(recommendations) &&
-                !workspaceBridge.securityCode &&
-                !statusFilter &&
-                !decisionFilter &&
-                !recommendationAutoRefreshAttempts.has(accountId || 'default')
-            ) {
-                recommendationAutoRefreshAttempts.add(accountId || 'default');
-                try {
-                    const refreshData = await window.fetchJsonOrThrow('/api/decision/workspace/recommendations/refresh/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': window.csrfToken
-                        },
-                        body: JSON.stringify({
-                            account_id: accountId || 'default',
-                            force: true,
-                        })
-                    });
-                    if (refreshData.success) {
-                        return loadRecommendations();
-                    }
-                } catch (error) {
-                    console.error('自动刷新推荐失败:', error);
-                }
+            if (!isCurrentWorkspaceAccount(accountId, generation)) {
+                return;
             }
+            currentWorkspaceRecommendations = recommendations;
 
             renderRecommendations(recommendations, totalCount);
         } else {
+            if (!isCurrentWorkspaceAccount(accountId, generation)) {
+                return;
+            }
             currentWorkspaceRecommendations = [];
-            container.innerHTML = `
-                <div class="error-state">
-                    <p>加载失败: ${data.error || '未知错误'}</p>
-                </div>
-            `;
+            renderWorkspaceRetryState(container, '推荐加载失败，请点击“重试”。');
         }
     } catch (error) {
+        if (!isCurrentWorkspaceAccount(accountId, generation)) {
+            return;
+        }
         currentWorkspaceRecommendations = [];
-        container.innerHTML = `
-            <div class="error-state">
-                <p>网络错误: ${error.message}</p>
-            </div>
-        `;
+        renderWorkspaceRetryState(container, getWorkspaceErrorMessage(error, '推荐加载失败，请点击“重试”。'));
     }
 }
 
@@ -2186,10 +2405,17 @@ function renderRecommendations(recommendations, totalCount) {
     }
 
     if (!recommendations || recommendations.length === 0) {
+        const researchUrl = workspaceBridge.securityCode
+            ? buildEquityDetailUrl(workspaceBridge.securityCode)
+            : '';
+        const researchAction = researchUrl
+            ? `<a class="btn btn-outline btn-sm" href="${escapeHtml(researchUrl)}">查看 ${escapeHtml(workspaceBridge.securityCode)} 研究详情与数据阻断</a>`
+            : '';
         container.innerHTML = `
             <div class="empty-state">
                 <div class="empty-icon">📭</div>
                 <p>暂无推荐建议</p>
+                ${researchAction}
             </div>
         `;
         return;
@@ -2204,7 +2430,7 @@ function renderRecommendations(recommendations, totalCount) {
                             <span style="font-size: 12px; color: var(--color-text-muted);">计划</span>
                         </label>
                     ${renderSecurityLabel(rec.security_name, rec.security_code, 'rec-asset-title')}
-                    <span class="rec-side rec-side-${rec.side.toLowerCase()}">${rec.side}</span>
+                    <span class="rec-side rec-side-${String(rec.side || 'hold').toLowerCase()}">${escapeHtml(getWorkspaceSideText(rec.side))}</span>
                     <span class="rec-user-action rec-user-action-${String(rec.user_action || 'PENDING').toLowerCase()}">${getUserActionText(rec.user_action, rec.user_action_label)}</span>
                 </div>
                 <div class="rec-confidence">
@@ -2228,15 +2454,15 @@ function renderRecommendations(recommendations, totalCount) {
                 <div class="rec-prices">
                     <div class="price-info">
                         <span class="price-label">公允:</span>
-                        <span class="price-value">${rec.fair_value}</span>
+                        <span class="price-value">${formatWorkspacePrice(rec.fair_value)}</span>
                     </div>
                     <div class="price-info">
                         <span class="price-label">入场:</span>
-                        <span class="price-value">${rec.entry_price_low} - ${rec.entry_price_high}</span>
+                        <span class="price-value">${formatWorkspacePriceRange(rec.entry_price_low, rec.entry_price_high)}</span>
                     </div>
                     <div class="price-info">
                         <span class="price-label">目标:</span>
-                        <span class="price-value">${rec.target_price_low} - ${rec.target_price_high}</span>
+                        <span class="price-value">${formatWorkspacePriceRange(rec.target_price_low, rec.target_price_high)}</span>
                     </div>
                 </div>
                 <div class="rec-position">
@@ -2375,7 +2601,7 @@ async function applyRecommendationAction(recommendationId, action) {
     }
 }
 
-async function loadTransitionPlanStep() {
+async function loadTransitionPlanStep(generation = workspaceAccountLoadGeneration) {
     const summaryContainer = document.getElementById('transition-plan-summary');
     const ordersContainer = document.getElementById('transition-plan-orders');
     if (!summaryContainer || !ordersContainer) {
@@ -2383,7 +2609,9 @@ async function loadTransitionPlanStep() {
     }
     syncWorkspaceAccountSummary();
 
-    if (!currentTransitionPlanId) {
+    const accountId = getSelectedWorkspaceAccountId();
+    const planId = currentTransitionPlanId;
+    if (!planId) {
         applyTransitionPlanState(null);
         summaryContainer.innerHTML = `
             <div class="empty-state">
@@ -2404,16 +2632,23 @@ async function loadTransitionPlanStep() {
     ordersContainer.innerHTML = summaryContainer.innerHTML;
 
     try {
-        const payload = await window.fetchJsonOrThrow(`/api/decision/workspace/plans/${encodeURIComponent(currentTransitionPlanId)}/`, {
+        const payload = await fetchWorkspaceJson(`/api/decision/workspace/plans/${encodeURIComponent(planId)}/`, {
             headers: { 'X-CSRFToken': window.csrfToken }
         });
         if (!payload.success || !payload.data) {
             throw new Error(payload.error || '加载交易计划失败');
         }
+        if (!isCurrentWorkspaceAccount(accountId, generation) || currentTransitionPlanId !== planId) {
+            return;
+        }
         renderTransitionPlan(payload.data);
     } catch (error) {
-        summaryContainer.innerHTML = `<div class="error-state"><p>${escapeHtml(error.message)}</p></div>`;
-        ordersContainer.innerHTML = `<div class="error-state"><p>${escapeHtml(error.message)}</p></div>`;
+        if (!isCurrentWorkspaceAccount(accountId, generation) || currentTransitionPlanId !== planId) {
+            return;
+        }
+        const message = getWorkspaceErrorMessage(error, '交易计划加载失败，请重试。');
+        summaryContainer.innerHTML = `<div class="error-state"><p>${escapeHtml(message)}</p><button type="button" class="btn btn-outline btn-sm" onclick="loadTransitionPlanStep()">重试</button></div>`;
+        ordersContainer.innerHTML = `<div class="error-state"><p>${escapeHtml(message)}</p></div>`;
     }
 }
 
@@ -2444,13 +2679,13 @@ function renderTransitionPlan(plan) {
         <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
             <div class="attention-card"><strong>计划 ID</strong><div>${escapeHtml(plan.plan_id)}</div></div>
             <div class="attention-card"><strong>订单数</strong><div>${plan.summary?.orders_count ?? 0}</div></div>
-            <div class="attention-card"><strong>状态</strong><div>${escapeHtml(plan.status || 'DRAFT')}</div></div>
+            <div class="attention-card"><strong>状态</strong><div>${escapeHtml(getWorkspaceBusinessStatusText(plan.status || 'DRAFT'))}</div></div>
             <div class="attention-card"><strong>审批状态</strong><div>${plan.approval_request_id ? '已创建审批请求' : '未提交审批'}</div></div>
         </div>
         <div style="margin-top: 16px;">
-            <strong>计划摘要</strong>
+                <strong>计划摘要</strong>
             <p style="margin-top: 8px; color: var(--color-text-muted);">
-                BUY ${plan.summary?.buy_count ?? 0} / REDUCE ${plan.summary?.reduce_count ?? 0} / EXIT ${plan.summary?.exit_count ?? 0} / HOLD ${plan.summary?.hold_count ?? 0}
+                买入 ${plan.summary?.buy_count ?? 0} / 减仓 ${plan.summary?.reduce_count ?? 0} / 清仓 ${plan.summary?.exit_count ?? 0} / 持有 ${plan.summary?.hold_count ?? 0}
             </p>
             ${plan.can_enter_approval ? '<p style="color: var(--color-success); margin-top: 8px;">证伪条件与止损信息已齐备，可进入审批执行。</p>' : `<div style="margin-top: 8px; color: var(--color-danger);"><strong>阻塞项</strong><ul style="margin: 8px 0 0 18px;">${blockingIssues}</ul></div>`}
         </div>
@@ -2471,7 +2706,7 @@ function renderTransitionPlan(plan) {
         <div class="approval-card approval-card-${String(order.action || 'hold').toLowerCase()}" data-plan-order-row="${escapeHtml(order.source_recommendation_id || '')}" data-security-code="${escapeHtml(order.security_code)}">
             <div class="approval-header">
                 ${renderSecurityLabel(order.security_name, order.security_code, 'approval-asset-title')}
-                <span class="approval-side approval-side-${String(order.action || 'hold').toLowerCase()}">${escapeHtml(order.action)}</span>
+                    <span class="approval-side approval-side-${String(order.action || 'hold').toLowerCase()}">${escapeHtml(getWorkspaceSideText(order.action))}</span>
             </div>
             <div class="approval-body">
                 <div class="approval-info" style="margin-bottom: 12px;">
@@ -2487,7 +2722,7 @@ function renderTransitionPlan(plan) {
                         <input class="form-input" data-plan-execution-price type="number" min="0" step="0.01" value="${order.execution_price || ''}" />
                         <div class="workspace-sidebar-subtitle">
                             来源：${escapeHtml(formatOrderPriceSource(order.price_source))}
-                            ${order.price_band_low || order.price_band_high ? ` · 价格带 ${escapeHtml(order.price_band_low || '0')} - ${escapeHtml(order.price_band_high || '0')}` : ''}
+                            ${order.price_band_low || order.price_band_high ? ` · 价格带 ${escapeHtml(formatWorkspacePriceRange(order.price_band_low, order.price_band_high))}` : ''}
                         </div>
                     </div>
                     <div class="form-group">
@@ -2750,13 +2985,15 @@ async function submitTransitionPlanForApproval() {
     }
 }
 
-async function loadExecutionPlanPanel() {
+async function loadExecutionPlanPanel(generation = workspaceAccountLoadGeneration) {
     const container = document.getElementById('execution-plan-panel');
     if (!container) {
         return;
     }
 
-    if (!currentTransitionPlanId) {
+    const accountId = getSelectedWorkspaceAccountId();
+    const planId = currentTransitionPlanId;
+    if (!planId) {
         container.innerHTML = `
             <div class="empty-state">
                 <div class="empty-icon">📋</div>
@@ -2768,11 +3005,14 @@ async function loadExecutionPlanPanel() {
 
     container.innerHTML = '<div class="app-loading-state app-loading-state--compact"><div class="app-spinner" aria-hidden="true"></div><p class="app-loading-text">加载中...</p></div>';
     try {
-        const payload = await window.fetchJsonOrThrow(`/api/decision/workspace/plans/${encodeURIComponent(currentTransitionPlanId)}/`, {
+        const payload = await fetchWorkspaceJson(`/api/decision/workspace/plans/${encodeURIComponent(planId)}/`, {
             headers: { 'X-CSRFToken': window.csrfToken }
         });
         if (!payload.success || !payload.data) {
             throw new Error(payload.error || '加载审批面板失败');
+        }
+        if (!isCurrentWorkspaceAccount(accountId, generation) || currentTransitionPlanId !== planId) {
+            return;
         }
         const plan = payload.data;
         applyTransitionPlanState(plan);
@@ -2780,7 +3020,7 @@ async function loadExecutionPlanPanel() {
             <div class="approval-card">
                 <div class="approval-header">
                     <strong>${escapeHtml(plan.plan_id)}</strong>
-                    <span class="approval-side approval-side-${String(plan.status || 'draft').toLowerCase()}">${escapeHtml(plan.status)}</span>
+                    <span class="approval-side approval-side-${String(plan.status || 'draft').toLowerCase()}">${escapeHtml(getWorkspaceBusinessStatusText(plan.status || 'DRAFT'))}</span>
                 </div>
                 <div class="approval-body">
                     <div class="approval-info" style="margin-bottom: 12px;">
@@ -2798,7 +3038,11 @@ async function loadExecutionPlanPanel() {
             </div>
         `;
     } catch (error) {
-        container.innerHTML = `<div class="error-state"><p>${escapeHtml(error.message)}</p></div>`;
+        if (!isCurrentWorkspaceAccount(accountId, generation) || currentTransitionPlanId !== planId) {
+            return;
+        }
+        const message = getWorkspaceErrorMessage(error, '审批面板加载失败，请重试。');
+        container.innerHTML = `<div class="error-state"><p>${escapeHtml(message)}</p><button type="button" class="btn btn-outline btn-sm" onclick="loadExecutionPlanPanel()">重试</button></div>`;
     }
 }
 
@@ -2869,7 +3113,7 @@ async function rejectCurrentTransitionPlan() {
 }
 
 // ===== 加载审批列表 =====
-async function loadApprovals() {
+async function loadApprovals(generation = workspaceAccountLoadGeneration) {
     const container = document.getElementById('approvals-list');
     if (!container) {
         return;
@@ -2891,25 +3135,28 @@ async function loadApprovals() {
         params.append('status', 'APPROVED');
         if (params.toString()) url += '?' + params.toString();
 
-        const data = await window.fetchJsonOrThrow(url, {
+        const data = await fetchWorkspaceJson(url, {
             headers: { 'X-CSRFToken': window.csrfToken }
         });
 
         if (data.success && data.data) {
+            if (!isCurrentWorkspaceAccount(accountId, generation)) {
+                return;
+            }
             renderApprovals(data.data.recommendations || [], data.data.total_count || 0);
         } else {
-            container.innerHTML = `
-                <div class="error-state">
-                    <p>加载失败: ${data.error || '未知错误'}</p>
-                </div>
-            `;
+            if (isCurrentWorkspaceAccount(accountId, generation)) {
+                renderWorkspaceRetryState(container, '审批列表加载失败，请点击“重试”。', 'loadApprovals()');
+            }
         }
     } catch (error) {
-        container.innerHTML = `
-            <div class="error-state">
-                <p>网络错误: ${error.message}</p>
-            </div>
-        `;
+        if (isCurrentWorkspaceAccount(accountId, generation)) {
+            renderWorkspaceRetryState(
+                container,
+                getWorkspaceErrorMessage(error, '审批列表加载失败，请点击“重试”。'),
+                'loadApprovals()'
+            );
+        }
     }
 }
 
@@ -2942,13 +3189,13 @@ function renderApprovals(approvals, totalCount) {
         <div class="approval-card approval-card-${String(rec.side || 'hold').toLowerCase()}">
             <div class="approval-header">
                 ${renderSecurityLabel(rec.security_name, rec.security_code, 'approval-asset-title')}
-                <span class="approval-side approval-side-${rec.side.toLowerCase()}">${rec.side}</span>
+                <span class="approval-side approval-side-${String(rec.side || 'hold').toLowerCase()}">${escapeHtml(getWorkspaceSideText(rec.side))}</span>
             </div>
             <div class="approval-body">
                 <div class="approval-info">
                     <span>置信度: ${(rec.confidence * 100).toFixed(1)}%</span>
                     <span>仓位: ${rec.position_pct}% (${rec.suggested_quantity}股)</span>
-                    <span>入场: ${rec.entry_price_low} - ${rec.entry_price_high}</span>
+                    <span>入场: ${formatWorkspacePriceRange(rec.entry_price_low, rec.entry_price_high)}</span>
                 </div>
                 ${renderRecommendationDecisionBrief(rec)}
             </div>
@@ -2962,7 +3209,7 @@ function renderApprovals(approvals, totalCount) {
 }
 
 // ===== 加载冲突列表 =====
-async function loadConflicts() {
+async function loadConflicts(generation = workspaceAccountLoadGeneration) {
     const container = document.getElementById('conflicts-list');
     if (!container) {
         return;
@@ -2983,25 +3230,28 @@ async function loadConflicts() {
         params.append('account_id', accountId || 'default');
         if (params.toString()) url += '?' + params.toString();
 
-        const data = await window.fetchJsonOrThrow(url, {
+        const data = await fetchWorkspaceJson(url, {
             headers: { 'X-CSRFToken': window.csrfToken }
         });
 
         if (data.success && data.data) {
+            if (!isCurrentWorkspaceAccount(accountId, generation)) {
+                return;
+            }
             renderConflicts(data.data.conflicts || [], data.data.total_count || 0);
         } else {
-            container.innerHTML = `
-                <div class="error-state">
-                    <p>加载失败: ${data.error || '未知错误'}</p>
-                </div>
-            `;
+            if (isCurrentWorkspaceAccount(accountId, generation)) {
+                renderWorkspaceRetryState(container, '冲突列表加载失败，请点击“重试”。', 'loadConflicts()');
+            }
         }
     } catch (error) {
-        container.innerHTML = `
-            <div class="error-state">
-                <p>网络错误: ${error.message}</p>
-            </div>
-        `;
+        if (isCurrentWorkspaceAccount(accountId, generation)) {
+            renderWorkspaceRetryState(
+                container,
+                getWorkspaceErrorMessage(error, '冲突列表加载失败，请点击“重试”。'),
+                'loadConflicts()'
+            );
+        }
     }
 }
 
@@ -3034,19 +3284,19 @@ function renderConflicts(conflicts, totalCount) {
         <div class="conflict-card">
             <div class="conflict-header">
                 ${renderSecurityLabel(conflict.security_name, conflict.security_code, 'conflict-asset-title')}
-                <span class="conflict-badge">BUY/SELL 冲突</span>
+                <span class="conflict-badge">买入/卖出方向冲突</span>
             </div>
             <div class="conflict-body">
                 ${conflict.buy_recommendation ? `
                     <div class="conflict-side conflict-buy">
-                        <span class="side-label">BUY:</span>
+                        <span class="side-label">买入：</span>
                         <span class="side-score">综合分 ${conflict.buy_recommendation.composite_score.toFixed(2)}</span>
                         <span class="side-confidence">置信度 ${(conflict.buy_recommendation.confidence * 100).toFixed(1)}%</span>
                     </div>
                 ` : ''}
                 ${conflict.sell_recommendation ? `
                     <div class="conflict-side conflict-sell">
-                        <span class="side-label">SELL:</span>
+                        <span class="side-label">卖出：</span>
                         <span class="side-score">综合分 ${conflict.sell_recommendation.composite_score.toFixed(2)}</span>
                         <span class="side-confidence">置信度 ${(conflict.sell_recommendation.confidence * 100).toFixed(1)}%</span>
                     </div>
@@ -3168,17 +3418,17 @@ async function openApprovalModal(recommendationId) {
         'modal-security-display'
     );
     const sideEl = document.getElementById('modal-side');
-    sideEl.textContent = currentRecommendation.side;
+    sideEl.textContent = getWorkspaceSideText(currentRecommendation.side);
     sideEl.className = `info-value direction direction-${currentRecommendation.side.toLowerCase()}`;
     document.getElementById('modal-confidence').textContent = (currentRecommendation.confidence * 100).toFixed(1) + '%';
 
     // 填充价格信息
-    document.getElementById('modal-fair-value').textContent = currentRecommendation.fair_value || '-';
+    document.getElementById('modal-fair-value').textContent = formatWorkspacePrice(currentRecommendation.fair_value);
     document.getElementById('modal-entry-range').textContent =
-        (currentRecommendation.entry_price_low || '-') + ' - ' + (currentRecommendation.entry_price_high || '-');
+        formatWorkspacePriceRange(currentRecommendation.entry_price_low, currentRecommendation.entry_price_high);
     document.getElementById('modal-target-range').textContent =
-        (currentRecommendation.target_price_low || '-') + ' - ' + (currentRecommendation.target_price_high || '-');
-    document.getElementById('modal-stop-loss').textContent = currentRecommendation.stop_loss_price || '-';
+        formatWorkspacePriceRange(currentRecommendation.target_price_low, currentRecommendation.target_price_high);
+    document.getElementById('modal-stop-loss').textContent = formatWorkspacePrice(currentRecommendation.stop_loss_price);
 
     // 填充仓位信息
     document.getElementById('modal-position-pct').textContent = (currentRecommendation.position_pct || 0) + '%';
@@ -3380,7 +3630,7 @@ function getStatusText(status) {
         'FAILED': '执行失败',
         'CONFLICT': '冲突'
     };
-    return statusMap[status] || status;
+    return statusMap[String(status || '').trim().toUpperCase()] || getWorkspaceBusinessStatusText(status);
 }
 
 Object.assign(window, {

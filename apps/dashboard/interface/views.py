@@ -243,12 +243,14 @@ def _get_alpha_metrics_data(ic_days: int = 30) -> Any:
 def _get_decision_plane_data(
     max_candidates: int = 5,
     max_pending: int = 10,
+    user_id: int | None = None,
 ) -> DecisionPlaneData:
     """Load decision-plane data through the legacy query-factory patch surface."""
 
     return dashboard_interface_services.get_decision_plane_data(
         max_candidates=max_candidates,
         max_pending=max_pending,
+        user_id=user_id,
         query_factory=get_decision_plane_query,
     )
 
@@ -357,7 +359,11 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
         selected_alpha_scope = ALPHA_SCOPE_GENERAL
 
     step_started_at = perf_counter()
-    decision_plane_data = _get_decision_plane_data(max_candidates=5, max_pending=10)
+    decision_plane_data = _get_decision_plane_data(
+        max_candidates=5,
+        max_pending=10,
+        user_id=user_id,
+    )
     _track_step("decision_plane", step_started_at)
 
     step_started_at = perf_counter()

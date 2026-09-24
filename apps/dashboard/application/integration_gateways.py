@@ -88,13 +88,30 @@ class DashboardApplicationGateway:
             )
         )
 
-    def list_pending_execution_requests(self, *, limit: int) -> list[Any]:
+    def list_pending_execution_requests(
+        self,
+        *,
+        limit: int,
+        user_id: int | None = None,
+    ) -> list[Any]:
+        """Return pending requests globally or within one user's owned accounts."""
+
         from apps.decision_rhythm.application.global_alert_service import (
             get_decision_rhythm_global_alert_service,
         )
 
+        account_ids: list[str] | None = None
+        if user_id is not None:
+            account_ids = [
+                str(account.get("id"))
+                for account in self.list_dashboard_accounts(user_id)
+                if account.get("id") not in (None, "")
+            ]
         return list(
-            get_decision_rhythm_global_alert_service().list_pending_execution_requests(limit=limit)
+            get_decision_rhythm_global_alert_service().list_pending_execution_requests(
+                limit=limit,
+                account_ids=account_ids,
+            )
         )
 
     def get_manual_override_trigger_ids(self) -> set[str]:

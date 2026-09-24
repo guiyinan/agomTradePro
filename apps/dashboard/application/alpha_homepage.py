@@ -109,6 +109,8 @@ class AlphaHomepageQuery(
         pool_mode: str | None = None,
         alpha_scope: str | None = None,
         refresh_sizing_pulse_if_stale: bool = False,
+        allow_refresh: bool = False,
+        persist_history: bool = False,
     ) -> AlphaHomepageData:
         today = resolve_recent_closed_trade_date()
         normalized_scope = normalize_alpha_scope(alpha_scope)
@@ -117,6 +119,7 @@ class AlphaHomepageQuery(
                 user=user,
                 top_n=top_n,
                 trade_date=today,
+                allow_refresh=allow_refresh,
             )
 
         resolved_pool = PortfolioAlphaPoolResolver().resolve(
@@ -132,6 +135,7 @@ class AlphaHomepageQuery(
             scope=scope,
             trade_date=today,
             top_n=top_n,
+            allow_refresh=allow_refresh,
         )
         self._attach_scope_resolution_metadata(
             result=alpha_result,
@@ -146,11 +150,11 @@ class AlphaHomepageQuery(
         top_scores = list(alpha_result.scores[:top_n]) if alpha_result.success else []
         stock_context = self._load_stock_context([score.code for score in top_scores])
         actionable_map = self._load_actionable_map()
-        pending_map = self._load_pending_map()
+        pending_map = self._load_pending_map(user.id)
         position_map, portfolio_snapshot, sizing_context = self._load_portfolio_context(
             user_id=user.id,
             portfolio_id=resolved_pool.portfolio_id,
-            refresh_pulse_if_stale=refresh_sizing_pulse_if_stale,
+            refresh_pulse_if_stale=refresh_sizing_pulse_if_stale and allow_refresh,
         )
         policy_state = self._load_policy_state()
 
@@ -188,15 +192,17 @@ class AlphaHomepageQuery(
         for item in pending_requests:
             displayed_snapshots.setdefault(item["code"], item)
 
-        history_run_id = self._persist_history(
-            user_id=user.id,
-            portfolio_id=resolved_pool.portfolio_id,
-            portfolio_name=resolved_pool.portfolio_name,
-            scope=scope,
-            alpha_result=alpha_result,
-            meta=meta,
-            snapshots=list(displayed_snapshots.values()),
-        )
+        history_run_id: int | None = None
+        if persist_history:
+            history_run_id = self._persist_history(
+                user_id=user.id,
+                portfolio_id=resolved_pool.portfolio_id,
+                portfolio_name=resolved_pool.portfolio_name,
+                scope=scope,
+                alpha_result=alpha_result,
+                meta=meta,
+                snapshots=list(displayed_snapshots.values()),
+            )
         recent_runs = self._serialize_recent_runs(
             self.history_repo.list_recent_runs(
                 user_id=user.id,
@@ -233,13 +239,19 @@ class AlphaHomepageQuery(
         )
 
     def _execute_general(
-        self, *, user: DashboardUser, top_n: int, trade_date: date
+        self,
+        *,
+        user: DashboardUser,
+        top_n: int,
+        trade_date: date,
+        allow_refresh: bool = False,
     ) -> AlphaHomepageData:
         """Build a broad-universe research-only Alpha ranking payload."""
         alpha_result = self._fetch_general_alpha_result(
             user=user,
             trade_date=trade_date,
             top_n=top_n,
+            allow_refresh=allow_refresh,
         )
         self._mark_general_research_only(result=alpha_result, trade_date=trade_date)
         top_scores = list(alpha_result.scores[:top_n]) if alpha_result.success else []

@@ -69,6 +69,42 @@ def test_queued_parent_does_not_hide_last_failure():
     assert "secret" not in str(notice)
 
 
+def test_running_attempt_is_visible_alongside_last_completed_failure():
+    failed = replace(
+        record(
+            "{'outcome': 'partial', 'phase': 'publication', 'requested': 57, 'succeeded': 56, 'stored': 11114, 'count_unit': 'sync_operation', 'error_code': 'PUBLICATION_FAILED'}"
+        ),
+        status=TaskStatus.FAILURE,
+        finished_at=datetime(2026, 9, 24, 9, 48, tzinfo=UTC),
+    )
+    running = replace(
+        record(
+            "{'outcome': 'partial', 'phase': 'publication', 'count_unit': 'sync_operation', "
+            "'requested': 57, 'succeeded': 56, 'phase_results': "
+            "[{'phase': 'publication', 'requested': 1, 'succeeded': 0, 'failed': 1}]}"
+        ),
+        task_id="current-task",
+        status=TaskStatus.STARTED,
+        started_at=datetime(2026, 9, 24, 10, 0, tzinfo=UTC),
+        finished_at=None,
+    )
+
+    notice = build_refresh_notice(
+        [running, failed],
+        portfolio_id=None,
+        universe_id="csi300",
+    )
+
+    assert notice["code"] == "inference_in_progress"
+    assert notice["current_attempt"]["phase"] == "publication"
+    assert notice["current_attempt"]["requested"] == 57
+    assert notice["current_attempt"]["stored"] is None
+    assert notice["last_completed"]["error_code"] == "PUBLICATION_FAILED"
+    assert notice["current_attempt"]["phase_results"][0]["failed"] == 1
+    assert "current-task" not in str(notice)
+    assert __import__("json").dumps(notice)
+
+
 def test_malformed_failure_is_visible_without_raw_error():
     failure = replace(record("not JSON token=secret"), status=TaskStatus.FAILURE)
     notice = build_refresh_notice([failure], portfolio_id=None, universe_id="csi300")

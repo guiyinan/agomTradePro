@@ -8,13 +8,20 @@ import it here.
 import re
 
 from django.contrib.auth.decorators import login_required
-from django.http import Http404, HttpRequest, HttpResponse
+from django.http import (
+    Http404,
+    HttpRequest,
+    HttpResponse,
+    HttpResponseBadRequest,
+    HttpResponseForbidden,
+)
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
 
 from apps.equity.application.market_sessions import (
     get_equity_detail_market_session_profile,
 )
+from apps.simulated_trading.application.interface_services import get_account_access
 
 # ============================================================================
 
@@ -28,6 +35,23 @@ def _normalized_stock_code(stock_code: str) -> str:
     if _STOCK_CODE_PATTERN.fullmatch(normalized) is None:
         raise Http404("Stock not found")
     return normalized
+
+
+def _validate_optional_account_scope(request: HttpRequest) -> HttpResponse | None:
+    """Validate an optional account context before opening research detail."""
+
+    raw_account_id = str(request.GET.get("account_id") or "").strip()
+    if not raw_account_id:
+        return None
+    if not raw_account_id.isascii() or not raw_account_id.isdecimal():
+        return HttpResponseBadRequest("account_id is invalid")
+    account_id = int(raw_account_id)
+    if account_id <= 0:
+        return HttpResponseBadRequest("account_id is invalid")
+    access = get_account_access(request.user, account_id, action="查看研究详情")
+    if access.error:
+        return HttpResponseForbidden(access.error)
+    return None
 
 
 # 页面视图（前端）
@@ -54,6 +78,9 @@ def detail_page(request: HttpRequest, stock_code: str) -> HttpResponse:
     GET /equity/detail/<stock_code>/
     """
     normalized_code = _normalized_stock_code(stock_code)
+    account_scope_error = _validate_optional_account_scope(request)
+    if account_scope_error is not None:
+        return account_scope_error
     context = {
         "stock_code": normalized_code,
         "market_session_profile": get_equity_detail_market_session_profile(normalized_code),

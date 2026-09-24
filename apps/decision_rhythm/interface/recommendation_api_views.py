@@ -6,6 +6,7 @@ from typing import Any, TypeVar
 
 from django.conf import settings
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -20,6 +21,7 @@ from ..application.dtos import (
 from ..application.user_action_labels import build_user_action_label
 from ..application.workspace_services import (
     get_model_params_payload,
+    get_unified_recommendation,
     list_workspace_conflicts,
     list_workspace_recommendations,
     refresh_workspace_recommendations,
@@ -30,6 +32,7 @@ from ..domain.recommendation_entities import (
     RecommendationStatus,
     UserDecisionAction,
 )
+from .workspace_api_support import workspace_account_access_response
 
 logger = logging.getLogger(__name__)
 EnumValue = TypeVar("EnumValue", bound=Enum)
@@ -90,6 +93,8 @@ class UnifiedRecommendationsView(APIView):
     返回统一聚合建议列表。
     """
 
+    permission_classes = [IsAuthenticated]
+
     def get(self, request: Request) -> Response:
         """
         获取推荐列表
@@ -117,6 +122,9 @@ class UnifiedRecommendationsView(APIView):
                 {"success": False, "error": "account_id is required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        access_error = workspace_account_access_response(request, account_id)
+        if access_error is not None:
+            return access_error
 
         try:
             status_filter = _normalize_enum_filter(
@@ -204,6 +212,8 @@ class RecommendationUserActionView(APIView):
         "pending": UserDecisionAction.PENDING,
     }
 
+    permission_classes = [IsAuthenticated]
+
     def post(self, request: Request) -> Response:
         request_payload = request_data_mapping(request)
         recommendation_id = _optional_text(request_payload.get("recommendation_id"))
@@ -225,12 +235,33 @@ class RecommendationUserActionView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        recommendation = get_unified_recommendation(recommendation_id)
+        if recommendation is None:
+            return Response(
+                {"success": False, "error": "Recommendation not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        actual_account_id = str(getattr(recommendation, "account_id", "") or "").strip()
+        if account_id and account_id != actual_account_id:
+            return Response(
+                {"success": False, "error": "推荐不属于指定账户"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        access_error = workspace_account_access_response(
+            request,
+            actual_account_id,
+            action="更新推荐",
+        )
+        if access_error is not None:
+            return access_error
+
         user_action = self.ACTION_MAPPING[action]
         dto = update_workspace_recommendation_action(
             recommendation_id=recommendation_id,
             action=user_action,
             note=note,
-            account_id=account_id,
+            account_id=actual_account_id,
         )
         if dto is None:
             return Response(
@@ -256,6 +287,8 @@ class RefreshRecommendationsView(APIView):
     手动触发推荐重算。
     """
 
+    permission_classes = [IsAuthenticated]
+
     def post(self, request: Request) -> Response:
         """
         触发刷新
@@ -269,6 +302,13 @@ class RefreshRecommendationsView(APIView):
         payload: dict[str, Any] = {
             str(key): value for key, value in dict(request.data or {}).items()
         }
+        access_error = workspace_account_access_response(
+            request,
+            _optional_text(payload.get("account_id")),
+            action="刷新推荐",
+        )
+        if access_error is not None:
+            return access_error
         try:
             payload["security_codes"] = _validate_security_codes_payload(
                 payload.get("security_codes")
@@ -307,6 +347,8 @@ class ConflictsView(APIView):
     返回冲突建议。
     """
 
+    permission_classes = [IsAuthenticated]
+
     def get(self, request: Request) -> Response:
         """
         获取冲突列表
@@ -320,6 +362,9 @@ class ConflictsView(APIView):
                 {"success": False, "error": "account_id is required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        access_error = workspace_account_access_response(request, account_id)
+        if access_error is not None:
+            return access_error
 
         try:
             conflicts = list_workspace_conflicts(account_id)

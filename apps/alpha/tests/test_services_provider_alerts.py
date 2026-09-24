@@ -124,11 +124,12 @@ def test_auto_fallback_failure_still_creates_global_provider_unavailable_alert(m
         universe_id="csi300",
         intended_trade_date=date(2026, 4, 30),
         top_n=30,
+        record_alerts=True,
     )
 
     assert result.success is False
     assert result.source == "none"
-    assert result.error_message == "所有 Alpha Provider 失败或数据过期"
+    assert result.error_message == "所有 Alpha Provider 失败或数据过期。"
     assert len(alert_repo.created_alerts) == 1
     alert = alert_repo.created_alerts[0]
     assert alert["alert_type"] == "provider_unavailable"

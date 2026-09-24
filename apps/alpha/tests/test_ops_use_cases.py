@@ -178,13 +178,17 @@ def test_trigger_scoped_batch_inference_use_case_queues_batch_task(monkeypatch):
     monkeypatch.setattr(
         "apps.alpha.application.tasks.qlib_daily_scoped_inference", FakeDelayWrapper
     )
+    monkeypatch.setattr(
+        "apps.alpha.application.ops_use_cases.resolve_recent_closed_trade_date",
+        lambda: date(2026, 4, 28),
+    )
 
     payload = TriggerScopedBatchInferenceUseCase().execute(top_n=25, pool_mode="market")
 
     cache.delete(
         build_inference_batch_lock_key(
             mode="daily_scoped_batch",
-            target_date=date.today(),
+            target_date=date(2026, 4, 28),
             top_n=25,
             descriptor="market:0",
         )

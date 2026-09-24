@@ -74,9 +74,8 @@ class QlibAlphaProvider(BaseAlphaProvider):
 
     工作流程：
     1. 快路径：从 AlphaScoreCache 读取缓存
-    2. 慢路径：触发异步推理任务（Celery）
-    3. 本地无可用 worker 时同步执行一次推理并回读缓存
-    4. 推理不可用时返回 degraded，让 registry 去尝试下一个 provider
+    2. 缓存缺失时返回 degraded，让 registry 尝试下一个 provider
+    3. 推理由显式刷新接口或调度任务负责，读取不会投递或同步执行任务
 
     Attributes:
         priority: 1（最高优先级）
@@ -200,10 +199,8 @@ class QlibAlphaProvider(BaseAlphaProvider):
         """
         获取股票评分
 
-        1. 快路径：读缓存
-        2. 如果缓存未命中，触发异步推理任务
-        3. 如果本地没有可用 worker，同步执行一次推理并回读缓存
-        4. 推理仍不可用时立即返回 degraded
+        1. 只读已发布缓存
+        2. 缓存未命中时返回 degraded，由显式刷新或调度任务负责推理
 
         Args:
             universe_id: 股票池标识
@@ -238,84 +235,23 @@ class QlibAlphaProvider(BaseAlphaProvider):
             logger.info(f"Qlib 缓存命中: {universe_id}@{intended_trade_date}")
             return cached
 
-        # 2. 慢路径：触发异步推理任务
-        logger.info(f"Qlib 缓存未命中，触发异步推理: {universe_id}@{intended_trade_date}")
-        trigger_status = self._trigger_infer_task(
-            universe_id,
-            intended_trade_date,
-            top_n,
-            pool_scope=pool_scope,
+        logger.info(
+            "Qlib 缓存未命中，等待显式刷新或调度推理: %s@%s", universe_id, intended_trade_date
         )
-        inline_metadata: dict[str, object] = {}
-        inline_inference_executed = False
-
-        if trigger_status == "no_worker" and self._can_run_inline_inference(pool_scope):
-            inline_inference_executed = True
-            inline_metadata = self._run_inline_infer_task(
-                universe_id=universe_id,
-                intended_trade_date=intended_trade_date,
-                top_n=top_n,
-                pool_scope=pool_scope,
-            )
-            cached_after_inline = self._get_from_cache(
-                universe_id,
-                intended_trade_date,
-                top_n,
-                pool_scope=pool_scope,
-            )
-            if cached_after_inline:
-                latency_ms = int((time.time() - start_time) * 1000)
-                cached_after_inline.latency_ms = latency_ms
-                if (
-                    cached_after_inline.status == "available"
-                    and cached_after_inline.staleness_days is None
-                ):
-                    cached_after_inline.staleness_days = 0
-                cached_metadata = dict(cached_after_inline.metadata or {})
-                cached_metadata.update(
-                    {
-                        "inline_inference_executed": True,
-                        "inline_inference_result": inline_metadata,
-                    }
-                )
-                cached_after_inline.metadata = cached_metadata
-                logger.info(
-                    "Qlib 同步推理完成并命中缓存: universe=%s, date=%s",
-                    universe_id,
-                    intended_trade_date,
-                )
-                return cached_after_inline
-        elif trigger_status == "no_worker":
-            inline_metadata = self._build_inline_skip_metadata(pool_scope)
-            logger.info(
-                "Qlib 同步推理跳过: universe=%s, date=%s, reason=%s",
-                universe_id,
-                intended_trade_date,
-                inline_metadata.get("reason"),
-            )
-
-        # 3. 立即返回 degraded，让 registry 去走下一个 provider
-        if trigger_status == "queued":
-            error_message = "缓存缺失，已触发异步推理任务"
-        elif trigger_status == "failed":
-            error_message = "缓存缺失，推理任务投递失败"
-        else:
-            error_message = "缓存缺失，同步推理未生成可用结果"
-
         return AlphaResult(
             success=False,
             scores=[],
             source="qlib",
             timestamp=intended_trade_date.isoformat(),
             status="degraded",
-            error_message=error_message,
+            error_message="缓存缺失，等待显式刷新或调度推理",
             metadata={
                 "universe_id": universe_id,
                 "intended_trade_date": intended_trade_date.isoformat(),
-                "async_task_triggered": trigger_status == "queued",
-                "inference_trigger_status": trigger_status,
-                "inline_inference_executed": inline_inference_executed,
-                "inline_inference_result": inline_metadata or None,
+                "async_task_triggered": False,
+                "inference_trigger_status": "read_only_cache_miss",
+                "inline_inference_executed": False,
+                "inline_inference_result": None,
                 "scope_hash": pool_scope.scope_hash if pool_scope else None,
                 "scope_label": pool_scope.display_label if pool_scope else None,
                 "scope_metadata": pool_scope.to_dict() if pool_scope else {},

@@ -551,18 +551,27 @@ class DecisionPlaneQuery:
         >>> print(data.quota_remaining)
     """
 
-    def execute(self, max_candidates: int = 5, max_pending: int = 10) -> DecisionPlaneData:
+    def execute(
+        self,
+        max_candidates: int = 5,
+        max_pending: int = 10,
+        user_id: int | None = None,
+    ) -> DecisionPlaneData:
         """
         执行查询
 
         Args:
             max_candidates: 最大候选数量
             max_pending: 最大待处理请求数量
+            user_id: 用户 ID；提供时仅返回该用户账户的待执行请求
 
         Returns:
             DecisionPlaneData
         """
-        all_actionable_candidates = self._get_actionable_candidates(max_count=None)
+        all_actionable_candidates = self._get_actionable_candidates(
+            max_count=None,
+            user_id=user_id,
+        )
         listed_actionable_candidates = (
             all_actionable_candidates[:max_candidates]
             if max_candidates > 0
@@ -580,7 +589,7 @@ class DecisionPlaneQuery:
             quota_remaining=quota.remaining,
             quota_usage_percent=quota.usage_percent,
             actionable_candidates=listed_actionable_candidates,
-            pending_requests=self._get_pending_requests(max_pending),
+            pending_requests=self._get_pending_requests(max_pending, user_id=user_id),
             quota_available=quota.available,
         )
 
@@ -734,24 +743,48 @@ class DecisionPlaneQuery:
 
         return items
 
-    def _get_actionable_candidates(self, max_count: int | None) -> list[Any]:
-        """获取可操作候选列表"""
+    def _get_actionable_candidates(
+        self,
+        max_count: int | None,
+        *,
+        user_id: int | None = None,
+    ) -> list[Any]:
+        """获取可操作候选列表，并按用户账户范围排除待执行标的。"""
         try:
             context_repo = get_dashboard_alpha_context_repository()
-            candidates = context_repo.load_actionable_candidates(max_count=max_count)
+            if user_id is None:
+                candidates = context_repo.load_actionable_candidates(max_count=max_count)
+            else:
+                candidates = context_repo.load_actionable_candidates(
+                    max_count=max_count,
+                    user_id=user_id,
+                )
             return self._attach_asset_names(candidates)
         except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as exc:
             logger.warning("Failed to get actionable candidates: error_type=%s", type(exc).__name__)
             return []
 
-    def _get_pending_requests(self, max_count: int | None) -> list[Any]:
-        """获取待处理请求列表"""
+    def _get_pending_requests(
+        self,
+        max_count: int | None,
+        *,
+        user_id: int | None = None,
+    ) -> list[Any]:
+        """获取待处理请求列表；用户页面必须传入 ``user_id``。"""
         try:
-            from apps.decision_rhythm.application.global_alert_service import (
-                get_decision_rhythm_global_alert_service,
-            )
+            if user_id is None:
+                from apps.decision_rhythm.application.global_alert_service import (
+                    get_decision_rhythm_global_alert_service,
+                )
 
-            requests = get_decision_rhythm_global_alert_service().list_pending_execution_requests()
+                requests = (
+                    get_decision_rhythm_global_alert_service().list_pending_execution_requests()
+                )
+            else:
+                requests = get_dashboard_alpha_context_repository().load_pending_requests(
+                    max_count=max_count,
+                    user_id=user_id,
+                )
 
             deduped = []
             seen_codes = set()
@@ -806,6 +839,7 @@ class AlphaDecisionChainQuery:
         decision_plane_data = get_decision_plane_query().execute(
             max_candidates=max_candidates,
             max_pending=max_pending,
+            user_id=int(user.id) if user is not None else None,
         )
         return self.build(
             alpha_visualization_data=alpha_visualization_data,

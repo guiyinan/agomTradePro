@@ -60,9 +60,19 @@ class AlphaRuntimeMixin:
         user: object,
         trade_date: date,
         top_n: int,
+        allow_refresh: bool = True,
     ) -> AlphaResult:
         result: AlphaResult | None = None
-        for provider_name in ("qlib", "cache", "simple", "etf"):
+        provider_names = (
+            ("qlib", "cache", "simple", "etf")
+            if allow_refresh
+            else (
+                "cache",
+                "simple",
+                "etf",
+            )
+        )
+        for provider_name in provider_names:
             candidate = self.alpha_service.get_stock_scores(
                 universe_id="csi300",
                 intended_trade_date=trade_date,
@@ -129,6 +139,7 @@ class AlphaRuntimeMixin:
         scope: AlphaPoolScope,
         trade_date: date,
         top_n: int,
+        allow_refresh: bool = True,
     ) -> AlphaResult:
         result: AlphaResult | None = None
         broader_cache_candidate: AlphaResult | None = None
@@ -146,11 +157,18 @@ class AlphaRuntimeMixin:
                 metadata = _json_object(candidate.metadata)
                 if metadata.get("derived_from_broader_cache"):
                     broader_cache_candidate = candidate
-                    async_status = self._trigger_async_inference_if_needed(
-                        user=user,
-                        scope=scope,
-                        trade_date=trade_date,
-                        top_n=top_n,
+                    async_status = (
+                        self._trigger_async_inference_if_needed(
+                            user=user,
+                            scope=scope,
+                            trade_date=trade_date,
+                            top_n=top_n,
+                        )
+                        if allow_refresh
+                        else {
+                            "refresh_status": "skipped",
+                            "message": "首页读取不会触发后台推理；请使用明确的刷新操作。",
+                        }
                     )
                     metadata.update(
                         {
@@ -171,11 +189,18 @@ class AlphaRuntimeMixin:
         if broader_cache_candidate is not None:
             return broader_cache_candidate
         if result is not None:
-            async_status = self._trigger_async_inference_if_needed(
-                user=user,
-                scope=scope,
-                trade_date=trade_date,
-                top_n=top_n,
+            async_status = (
+                self._trigger_async_inference_if_needed(
+                    user=user,
+                    scope=scope,
+                    trade_date=trade_date,
+                    top_n=top_n,
+                )
+                if allow_refresh
+                else {
+                    "refresh_status": "skipped",
+                    "message": "首页读取不会触发后台推理；请使用明确的刷新操作。",
+                }
             )
             self._mark_no_verified_recommendation(
                 result=result,

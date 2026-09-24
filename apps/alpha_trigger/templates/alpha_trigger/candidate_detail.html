@@ -209,12 +209,12 @@
             <button class="btn-action btn-approve" onclick="updateCandidateStatus('ACTIONABLE')">
                 <i class="bi bi-check-circle"></i> 批准
             </button>
-            {% if candidate.last_decision_request_id %}
-            <button class="btn-action btn-execute" onclick="goToExecute('{{ candidate.last_decision_request_id|escapejs }}', '{{ candidate.asset_code|escapejs }}', '{% if candidate.direction == 'LONG' %}BUY{% else %}SELL{% endif %}')">
+            {% if candidate.last_decision_request_id and execution_ref.account_id %}
+            <button class="btn-action btn-execute" onclick="goToExecute('{{ candidate.last_decision_request_id|escapejs }}', '{{ candidate.asset_code|escapejs }}', '{% if candidate.direction == 'LONG' %}BUY{% else %}SELL{% endif %}', '{{ execution_ref.account_id|default:""|escapejs }}')">
                 <i class="bi bi-play-circle"></i> 去执行
             </button>
             {% else %}
-            <button class="btn-action btn-execute" disabled title="请先提交决策请求">
+            <button class="btn-action btn-execute" disabled title="当前请求缺少可验证的账户归属，请从账户工作台进入">
                 <i class="bi bi-play-circle"></i> 去执行
             </button>
             {% endif %}
@@ -384,14 +384,18 @@ async function updateCandidateStatus(newStatus) {
 }
 
 // 去执行
-function goToExecute(requestId, assetCode, direction) {
+function goToExecute(requestId, assetCode, direction, accountId) {
     // 跳转到工作台执行入口；Step 6 不可直达时会按当前 guardrail 自动回退。
     const params = new URLSearchParams({
         source: 'alpha-trigger-execute',
         security_code: assetCode,
         action: direction,
         step: '6',
+        execute_request: requestId,
     });
+    if (accountId) {
+        params.set('account_id', accountId);
+    }
     window.location.href = `/decision/workspace/?${params.toString()}`;
 }
 

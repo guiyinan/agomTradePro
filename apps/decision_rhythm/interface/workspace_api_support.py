@@ -10,9 +10,14 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
+from rest_framework import status
+from rest_framework.request import Request
+from rest_framework.response import Response
+
 from apps.decision_rhythm.application.user_action_labels import build_user_action_label
 from apps.pulse.application.use_cases import GetLatestPulseUseCase
 from apps.regime.application.current_regime import resolve_current_regime
+from apps.simulated_trading.application.interface_services import get_account_access
 
 from ..application import workspace_services
 from ..domain.entities import (
@@ -26,6 +31,66 @@ from ..domain.entities import (
 )
 
 logger = logging.getLogger(__name__)
+_WORKSPACE_ACCOUNT_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+
+def workspace_account_access_response(
+    request: Request,
+    account_id: str | None,
+    *,
+    action: str = "查看",
+    required: bool = True,
+) -> Response | None:
+    """Validate an account token and enforce ownership before workspace access.
+
+    Workspace recommendations and execution records are account-scoped.  The
+    durable owner record is ``SimulatedAccountModel``; a logical namespace such as
+    ``default`` or ``account_001`` is not an ownership proof and therefore cannot
+    be used to read or mutate an account-scoped workspace through this interface.
+    """
+
+    if not getattr(request.user, "is_authenticated", False):
+        return Response(
+            {"success": False, "error": f"请先登录后再{action}账户"},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    normalized = str(account_id or "").strip()
+    if not normalized:
+        if required:
+            return Response(
+                {"success": False, "error": "account_id is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return None
+    if _WORKSPACE_ACCOUNT_PATTERN.fullmatch(normalized) is None:
+        return Response(
+            {"success": False, "error": "account_id is invalid"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not normalized.isascii() or not normalized.isdecimal():
+        return Response(
+            {
+                "success": False,
+                "error": "account_id must identify an owned account",
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    parsed = int(normalized)
+    if parsed <= 0:
+        return Response(
+            {"success": False, "error": "account_id is invalid"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    access = get_account_access(request.user, parsed, action=action)
+    if access.error:
+        return Response(
+            {"success": False, "error": access.error},
+            status=access.status_code or status.HTTP_403_FORBIDDEN,
+        )
+    return None
 
 
 def _decimal(value: Any, *, default: Decimal | None = None) -> Decimal | None:

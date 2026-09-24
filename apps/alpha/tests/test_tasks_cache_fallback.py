@@ -94,7 +94,11 @@ def test_qlib_refresh_cache_alias_forwards_top_n_without_type_error():
             return cls(2026, 4, 24)
 
     with (
-        patch("apps.alpha.application.tasks.date", FixedDate),
+        patch("apps.alpha.application.tasks.timezone.localdate", return_value=FixedDate.today()),
+        patch(
+            "apps.alpha.application.tasks.load_open_cn_market_sessions",
+            return_value=(FixedDate.today(),),
+        ),
         patch("apps.alpha.application.tasks.qlib_predict_scores.delay") as delay_mock,
     ):
         delay_mock.return_value = SimpleNamespace(id="task-1")

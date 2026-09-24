@@ -33,8 +33,8 @@ class AlphaCandidateMixin:
     def _load_actionable_map(self) -> dict[str, Any]:
         return self.context_repo.load_actionable_map()
 
-    def _load_pending_map(self) -> dict[str, Any]:
-        return self.context_repo.load_pending_map()
+    def _load_pending_map(self, user_id: int) -> dict[str, Any]:
+        return self.context_repo.load_pending_map(user_id)
 
     def _load_portfolio_context(
         self,
@@ -128,7 +128,10 @@ class AlphaCandidateMixin:
             rank = 0
             data_quality_reasons.append("Alpha 排名缺失或不是正整数。")
 
-        current_price = self._finite_float(stock_context.get("close"), minimum=0.0) or 0.0
+        resolved_current_price = self._finite_float(stock_context.get("close"), minimum=0.0)
+        if resolved_current_price is None:
+            data_quality_reasons.append("当前价格缺失、非有限或为负数。")
+        current_price = resolved_current_price or 0.0
         account_equity = (
             self._finite_float(getattr(portfolio_snapshot, "total_value", None), minimum=0.0) or 0.0
         )

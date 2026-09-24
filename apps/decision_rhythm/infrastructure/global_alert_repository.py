@@ -41,9 +41,7 @@ class DjangoDecisionRhythmGlobalAlertRepository:
         """Return approximate active cooldown count."""
 
         threshold = timezone.now() - timedelta(hours=window_hours)
-        return CooldownPeriodModel._default_manager.filter(
-            last_decision_at__gte=threshold
-        ).count()
+        return CooldownPeriodModel._default_manager.filter(last_decision_at__gte=threshold).count()
 
     def count_high_priority_pending_requests(self) -> int:
         """Return pending high-priority request count."""
@@ -53,12 +51,19 @@ class DjangoDecisionRhythmGlobalAlertRepository:
             priority="high",
         ).count()
 
-    def list_pending_execution_requests(self, limit: int) -> list[DecisionRequestModel]:
-        """Return approved pending/failed execution requests."""
+    def list_pending_execution_requests(
+        self,
+        limit: int,
+        account_ids: list[str] | None = None,
+    ) -> list[DecisionRequestModel]:
+        """Return approved pending/failed requests, optionally scoped to accounts."""
 
-        return list(
-            DecisionRequestModel._default_manager.filter(
-                response__approved=True,
-                execution_status__in=["PENDING", "FAILED"],
-            ).order_by("-requested_at")[:limit]
-        )
+        queryset = DecisionRequestModel._default_manager.filter(
+            response__approved=True,
+            execution_status__in=["PENDING", "FAILED"],
+        ).select_related("unified_recommendation")
+        if account_ids is not None:
+            if not account_ids:
+                return []
+            queryset = queryset.filter(unified_recommendation__account_id__in=account_ids)
+        return list(queryset.order_by("-requested_at")[:limit])

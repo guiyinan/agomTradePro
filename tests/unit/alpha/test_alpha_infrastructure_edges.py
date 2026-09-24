@@ -80,22 +80,22 @@ def test_qlib_calendar_normalization_and_artifact_round_trip(tmp_path) -> None:
 
 
 def test_qlib_provider_cache_miss_statuses_and_inline_boundaries(monkeypatch) -> None:
-    """Cache misses expose queue/inline outcomes without hiding degradation."""
+    """Cache-miss reads remain side-effect free regardless of queue helpers."""
     provider = QlibAlphaProvider(provider_uri=".", model_path=".")
     monkeypatch.setattr(settings, "ALPHA_ALLOW_INLINE_INFERENCE", True, raising=False)
     trade_date = date(2026, 7, 24)
     monkeypatch.setattr(provider, "_get_from_cache", lambda *args, **kwargs: None)
 
-    for trigger, expected_error in (
-        ("queued", "已触发"),
-        ("failed", "投递失败"),
-    ):
+    trigger_calls: list[str] = []
+    for trigger in ("queued", "failed"):
         monkeypatch.setattr(
-            provider, "_trigger_infer_task", lambda *args, value=trigger, **kwargs: value
+            provider,
+            "_trigger_infer_task",
+            lambda *args, value=trigger, **kwargs: trigger_calls.append(value) or value,
         )
         result = provider.get_stock_scores("csi300", trade_date)
         assert result.status == "degraded"
-        assert expected_error in (result.error_message or "")
+        assert result.metadata["inference_trigger_status"] == "read_only_cache_miss"
 
     small_scope = _scope()
     monkeypatch.setattr(provider, "_trigger_infer_task", lambda *args, **kwargs: "no_worker")
@@ -105,7 +105,8 @@ def test_qlib_provider_cache_miss_statuses_and_inline_boundaries(monkeypatch) ->
         lambda **kwargs: {"status": "completed", "result": {"count": 0}},
     )
     result = provider.get_stock_scores("csi300", trade_date, pool_scope=small_scope)
-    assert result.metadata["inline_inference_executed"] is True
+    assert result.metadata["inline_inference_executed"] is False
+    assert trigger_calls == []
     assert provider._can_run_inline_inference(small_scope) is True
     assert provider._can_run_inline_inference(None) is False
     assert provider._build_inline_skip_metadata(None)["reason"].endswith("scoped_pool")
@@ -134,8 +135,8 @@ def test_qlib_inline_inference_is_disabled_when_not_explicitly_allowed(monkeypat
     assert inline is False
 
 
-def test_qlib_provider_returns_inline_cache_and_parses_only_valid_scores(monkeypatch) -> None:
-    """Inline inference rechecks cache and malformed cached rows are ignored."""
+def test_qlib_provider_does_not_recheck_cache_after_read_only_miss(monkeypatch) -> None:
+    """Read-only misses do not infer or recheck cache; score parsing remains strict."""
     provider = QlibAlphaProvider(provider_uri=".", model_path=".")
     monkeypatch.setattr(settings, "ALPHA_ALLOW_INLINE_INFERENCE", True, raising=False)
     trade_date = date(2026, 7, 24)
@@ -155,9 +156,8 @@ def test_qlib_provider_returns_inline_cache_and_parses_only_valid_scores(monkeyp
         lambda **kwargs: {"status": "completed", "result": {"count": 2}},
     )
     result = provider.get_stock_scores("csi300", trade_date, pool_scope=_scope())
-    assert result.success is True
-    assert result.metadata["inline_inference_executed"] is True
-    assert result.staleness_days == 0
+    assert result.success is False
+    assert result.metadata["inline_inference_executed"] is False
 
     parsed = provider._parse_scores(
         [

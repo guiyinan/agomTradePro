@@ -223,17 +223,14 @@ class DashboardAlphaContextRepository:
         self,
         codes: list[str],
         *,
-        persist_names: bool = True,
+        persist_names: bool = False,
     ) -> dict[str, dict[str, Any]]:
         """Load published context, preserving missing values and volume observation time."""
         if not codes:
             return {}
 
         code_aliases = self._build_code_aliases(codes)
-        if persist_names:
-            local_context = self._integration_gateway.get_stock_context_map(codes)
-        else:
-            local_context = {}
+        local_context = self._integration_gateway.get_stock_context_map(codes)
 
         asset_context = self._load_data_center_asset_context(codes, code_aliases)
         legacy_holding_context = self._load_legacy_holding_asset_context(
@@ -257,6 +254,9 @@ class DashboardAlphaContextRepository:
             quote_volume = safe_float(quote.get("volume"))
             daily_volume = safe_float(latest_daily.get("volume"))
             volume = quote_volume if quote_volume is not None else daily_volume
+            quote_price = safe_float(quote.get("current_price"))
+            daily_price = safe_float(latest_daily.get("close"))
+            close = quote_price if quote_price is not None else daily_price
             info: dict[str, Any] = {
                 "name": str(latest_daily.get("name") or ""),
                 "sector": str(latest_daily.get("sector") or ""),
@@ -272,11 +272,7 @@ class DashboardAlphaContextRepository:
                     or "",
                     "sector": info.get("sector") or master_info.get("sector") or "",
                     "market": info.get("market") or master_info.get("market") or "",
-                    "close": float(
-                        quote_context.get(code, {}).get("current_price")
-                        or latest_daily.get("close")
-                        or 0.0
-                    ),
+                    "close": close,
                     "volume": volume,
                     "volume_source": (
                         quote.get("source", "")
@@ -435,23 +431,46 @@ class DashboardAlphaContextRepository:
         candidates = self._integration_gateway.list_actionable_alpha_candidates(limit=200)
         return {str(item.asset_code).upper(): item for item in candidates}
 
-    def load_pending_map(self) -> dict[str, Any]:
-        queryset = self._integration_gateway.list_pending_execution_requests(limit=200)
+    def load_pending_map(self, user_id: int) -> dict[str, Any]:
+        """Return pending requests limited to accounts owned by ``user_id``."""
+
+        queryset = self._integration_gateway.list_pending_execution_requests(
+            limit=200,
+            user_id=user_id,
+        )
         pending_map: dict[str, Any] = {}
         for item in queryset:
             code = str(item.asset_code or "").upper()
             pending_map.setdefault(code, item)
         return pending_map
 
+    def load_pending_requests(self, *, max_count: int | None, user_id: int) -> list[Any]:
+        """Return pending requests limited to accounts owned by ``user_id``."""
+
+        return self._integration_gateway.list_pending_execution_requests(
+            limit=max_count if max_count is not None else 200,
+            user_id=user_id,
+        )
+
     def load_user_account_totals(self, user_id: int) -> dict[str, float] | None:
         """Load simulated account totals for sizing fallback."""
 
         return self._integration_gateway.get_user_account_totals(user_id)
 
-    def load_actionable_candidates(self, max_count: int | None) -> list[Any]:
+    def load_actionable_candidates(
+        self,
+        max_count: int | None,
+        *,
+        user_id: int | None = None,
+    ) -> list[Any]:
+        """Return actionable candidates without cross-account pending suppression."""
+
         pending_codes = {
             str(getattr(item, "asset_code", "") or "").upper()
-            for item in self._integration_gateway.list_pending_execution_requests(limit=200)
+            for item in self._integration_gateway.list_pending_execution_requests(
+                limit=200,
+                user_id=user_id,
+            )
             if getattr(item, "asset_code", None)
         }
         manual_override_trigger_ids = self._integration_gateway.get_manual_override_trigger_ids()

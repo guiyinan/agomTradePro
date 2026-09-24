@@ -409,7 +409,7 @@ def test_alpha_homepage_execute_uses_recent_closed_trade_date(monkeypatch):
     query._build_meta = lambda **kwargs: {"recommendation_ready": False}
     query._load_stock_context = lambda codes: {}
     query._load_actionable_map = lambda: {}
-    query._load_pending_map = lambda: {}
+    query._load_pending_map = lambda user_id: {}
     query._load_portfolio_context = lambda **kwargs: ({}, None, None)
     query._load_policy_state = lambda: {}
     query._build_exit_watchlist = lambda **kwargs: []
@@ -1707,8 +1707,8 @@ def test_decision_plane_query_loads_one_consistent_quota_snapshot(monkeypatch):
     query = DecisionPlaneQuery()
     monkeypatch.setattr(query, "_get_beta_gate_visible_classes", lambda: "equity")
     monkeypatch.setattr(query, "_get_alpha_status_count", lambda status: 0)
-    monkeypatch.setattr(query, "_get_actionable_candidates", lambda max_count: [])
-    monkeypatch.setattr(query, "_get_pending_requests", lambda max_count: [])
+    monkeypatch.setattr(query, "_get_actionable_candidates", lambda max_count, **kwargs: [])
+    monkeypatch.setattr(query, "_get_pending_requests", lambda max_count, **kwargs: [])
 
     result = query.execute()
 
@@ -1938,9 +1938,10 @@ def test_alpha_decision_chain_execute_uses_homepage_fast_path_for_user(monkeypat
             raise AssertionError("authenticated decision chain should use homepage fast path")
 
     class FakeDecisionPlaneQuery:
-        def execute(self, *, max_candidates, max_pending):
+        def execute(self, *, max_candidates, max_pending, user_id=None):
             captured["max_candidates"] = max_candidates
             captured["max_pending"] = max_pending
+            captured["user_id"] = user_id
             return SimpleNamespace(
                 alpha_actionable_count=0,
                 actionable_candidates=[],
@@ -1972,6 +1973,7 @@ def test_alpha_decision_chain_execute_uses_homepage_fast_path_for_user(monkeypat
         "homepage_top_n": 5,
         "max_candidates": 3,
         "max_pending": 4,
+        "user_id": user.id,
     }
     assert data.top_stocks[0]["code"] == "000001.SZ"
     assert data.overview["requested_trade_date"] == "2026-04-12"

@@ -275,6 +275,11 @@ def test_daily_inference_and_cache_refresh_keep_failure_results_explicit(
     """Daily scheduling continues after refresh failure; range refresh serializes queue failure."""
     monkeypatch.setattr(
         tasks,
+        "load_open_cn_market_sessions",
+        lambda _start, end: (end,),
+    )
+    monkeypatch.setattr(
+        tasks,
         "_refresh_qlib_runtime_data",
         lambda **kwargs: (_ for _ in ()).throw(TimeoutError("source timeout")),
     )

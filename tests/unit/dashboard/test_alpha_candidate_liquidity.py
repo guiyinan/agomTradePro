@@ -61,6 +61,14 @@ def test_zero_volume_is_insufficient_liquidity_not_missing_data():
     assert item["risk_snapshot"]["risk_checks"]["liquidity_check"]["avg_volume"] == 0
 
 
+def test_missing_price_blocks_recommendation_without_inventing_zero_market_data():
+    item = candidate(1000000, close=None)
+
+    assert item["recommendation_ready"] is False
+    assert item["must_not_use_for_decision"] is True
+    assert "当前价格缺失" in item["no_buy_reason_summary"]
+
+
 def test_valid_volume_keeps_observation_and_can_pass():
     item = candidate(1000000, volume_source="published_daily", volume_observed_at="2026-09-18")
     assert item["recommendation_ready"] is True

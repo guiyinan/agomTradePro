@@ -123,12 +123,12 @@ class TestQlibAlphaProvider:
     @patch("apps.alpha.infrastructure.adapters.qlib_adapter.current_app")
     @patch("apps.alpha.application.tasks.qlib_predict_scores.apply")
     @override_settings(ALPHA_ALLOW_INLINE_INFERENCE=True)
-    def test_get_stock_scores_runs_inline_inference_without_worker(
+    def test_get_stock_scores_does_not_run_inline_inference_without_worker(
         self,
         mock_apply,
         mock_current_app,
     ):
-        """缓存未命中且没有 worker 时，应同步执行一次推理并回读缓存。"""
+        """缓存未命中且没有 worker 时，读取仍不得同步执行推理。"""
         mock_current_app.control.inspect.return_value.active_queues.return_value = None
         mock_task_result = Mock()
         mock_task_result.get.return_value = {"status": "success", "cache_created": True}
@@ -159,11 +159,11 @@ class TestQlibAlphaProvider:
                 pool_scope=pool_scope,
             )
 
-        assert result.success is True
+        assert result.success is False
         assert result.source == "qlib"
-        assert result.metadata["inline_inference_executed"] is True
-        assert result.metadata["inline_inference_result"]["status"] == "completed"
-        mock_apply.assert_called_once()
+        assert result.metadata["inference_trigger_status"] == "read_only_cache_miss"
+        assert result.metadata["inline_inference_executed"] is False
+        mock_apply.assert_not_called()
 
     @patch("apps.alpha.infrastructure.adapters.qlib_adapter.current_app")
     @patch("apps.alpha.application.tasks.qlib_predict_scores.apply")
@@ -173,7 +173,7 @@ class TestQlibAlphaProvider:
         mock_apply,
         mock_current_app,
     ):
-        """同步推理未写出缓存时，应返回降级结果并保留诊断元数据。"""
+        """读取不得尝试同步推理，并应返回稳定的缓存缺失诊断。"""
         mock_current_app.control.inspect.return_value.active_queues.return_value = None
         mock_task_result = Mock()
         mock_task_result.get.return_value = {"status": "failed", "error": "empty"}
@@ -193,8 +193,9 @@ class TestQlibAlphaProvider:
 
         assert result.success is False
         assert result.status == "degraded"
-        assert result.metadata["inference_trigger_status"] == "no_worker"
-        assert result.metadata["inline_inference_executed"] is True
+        assert result.metadata["inference_trigger_status"] == "read_only_cache_miss"
+        assert result.metadata["inline_inference_executed"] is False
+        mock_apply.assert_not_called()
 
     @patch("apps.alpha.infrastructure.adapters.qlib_adapter.current_app")
     @patch("apps.alpha.application.tasks.qlib_predict_scores.apply")
@@ -211,11 +212,8 @@ class TestQlibAlphaProvider:
             result = provider.get_stock_scores("csi300", date(2026, 2, 8), 10)
 
         assert result.success is False
-        assert result.metadata["inline_inference_result"]["status"] == "skipped"
-        assert (
-            result.metadata["inline_inference_result"]["reason"]
-            == "inline_inference_requires_scoped_pool"
-        )
+        assert result.metadata["inference_trigger_status"] == "read_only_cache_miss"
+        assert result.metadata["inline_inference_result"] is None
         mock_apply.assert_not_called()
 
     def test_get_stock_scores_preserves_degraded_staleness_metadata(self):

@@ -28,6 +28,26 @@ def test_decision_workspace_templates_bind_simulated_accounts_and_step4_preview_
     assert 'class="workspace-shell"' in main_workspace
     assert 'id="workspace-position-list"' in main_workspace
     assert "loadWorkspaceAccountSnapshot()" in main_workspace
+    assert "function renderWorkspaceUnavailableAccount()" in main_workspace
+    assert "if (!requestedAccountExists)" in main_workspace
+    assert (
+        "renderWorkspaceUnavailableAccount();\n                    return false;" in main_workspace
+    )
+    assert "if (!await loadUserAccounts())" in main_workspace
+    assert "请求的账户不存在或无权访问" in main_workspace
+    assert "查看研究详情与数据阻断" in main_workspace
+    assert "buildEquityDetailUrl(workspaceBridge.securityCode, accountId)" in main_workspace
+    assert "const researchAction = researchUrl" in main_workspace
+    assert 'id="workspace-research-bridge"' in main_workspace
+    assert main_workspace.count('id="recommendation-bridge-banner"') == 1
+    assert "function showWorkspaceBridgeResearchEntry()" in main_workspace
+    assert "showWorkspaceBridgeResearchEntry();" in main_workspace
+    assert "void Promise.allSettled([" in main_workspace
+    assert "await loadWorkspaceAccountSnapshot(generation);" not in main_workspace
+    assert "await loadAdvisorSheet(generation);" not in main_workspace
+    assert "workspaceBridge.handled = false;" in main_workspace
+    assert "workspaceBridge.highlightedRecommendationId = '';" in main_workspace
+    assert "void bootstrapWorkspaceBridge();" in main_workspace
     assert 'hx-include="#workspace-account-selector"' in main_workspace
     assert "account_id: getSelectedWorkspaceAccountId()" in main_workspace
     assert "initializeLegacyWorkspace" not in main_workspace
@@ -35,12 +55,8 @@ def test_decision_workspace_templates_bind_simulated_accounts_and_step4_preview_
 
 
 def test_decision_workspace_step_templates_show_account_context_as_system_level():
-    environment = Path("core/templates/decision/steps/environment.html").read_text(
-        encoding="utf-8"
-    )
-    direction = Path("core/templates/decision/steps/direction.html").read_text(
-        encoding="utf-8"
-    )
+    environment = Path("core/templates/decision/steps/environment.html").read_text(encoding="utf-8")
+    direction = Path("core/templates/decision/steps/direction.html").read_text(encoding="utf-8")
     sector = Path("core/templates/decision/steps/sector.html").read_text(encoding="utf-8")
 
     for content in [environment, direction, sector]:
@@ -62,7 +78,9 @@ def test_decision_workspace_step_templates_show_account_context_as_system_level(
 def test_decision_workspace_step_templates_use_window_bound_actions():
     screen_template = Path("core/templates/decision/steps/screen.html").read_text(encoding="utf-8")
     plan_template = Path("core/templates/decision/steps/plan.html").read_text(encoding="utf-8")
-    execute_template = Path("core/templates/decision/steps/execute.html").read_text(encoding="utf-8")
+    execute_template = Path("core/templates/decision/steps/execute.html").read_text(
+        encoding="utf-8"
+    )
     workspace_template = Path("core/templates/decision/workspace.html").read_text(encoding="utf-8")
 
     assert "window.loadRecommendations()" in screen_template
@@ -85,8 +103,24 @@ def test_decision_workspace_step_templates_use_window_bound_actions():
 
 
 def test_decision_workspace_step6_is_execution_only():
-    execute_template = Path("core/templates/decision/steps/execute.html").read_text(encoding="utf-8")
+    execute_template = Path("core/templates/decision/steps/execute.html").read_text(
+        encoding="utf-8"
+    )
 
     assert "阶段 6: 审批执行" in execute_template
     assert "自动交易系统" in execute_template
     assert "审计与归因复盘" not in execute_template
+
+
+def test_alpha_candidate_execution_link_preserves_request_and_account_scope():
+    """Candidate execution navigation must retain its originating request scope."""
+
+    template = Path("apps/alpha_trigger/templates/alpha_trigger/candidate_detail.html").read_text(
+        encoding="utf-8"
+    )
+
+    assert "execute_request: requestId" in template
+    assert "params.set('account_id', accountId)" in template
+    assert "execution_ref.account_id" in template
+    assert "candidate.last_decision_request_id and execution_ref.account_id" in template
+    assert "缺少可验证的账户归属" in template

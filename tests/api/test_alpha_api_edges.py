@@ -5,7 +5,11 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 
+from apps.alpha.application.services import AlphaProviderRegistry, AlphaService
 from apps.alpha.domain.entities import AlphaResult, StockScore
+from apps.alpha.domain.interfaces import AlphaProviderStatus
+from apps.alpha.infrastructure.adapters.qlib_adapter import QlibAlphaProvider
+from apps.alpha.infrastructure.models import AlphaAlertModel
 
 
 @pytest.fixture(autouse=True)
@@ -104,6 +108,49 @@ def test_alpha_health_success_contract(authenticated_client):
     assert payload["providers"] == {"available": 2, "total": 3}
     assert payload["timestamp"]
     mock_status.assert_called_once_with()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("query", ["", "&provider=qlib"])
+def test_alpha_score_get_is_read_only_on_qlib_cache_miss(
+    authenticated_client,
+    monkeypatch,
+    tmp_path,
+    query,
+):
+    """The public GET chain must never enqueue or run inference on a cache miss."""
+
+    provider = QlibAlphaProvider(
+        provider_uri=str(tmp_path / "qlib-data"),
+        model_path=str(tmp_path / "model.pkl"),
+    )
+    monkeypatch.setattr(provider, "health_check", lambda: AlphaProviderStatus.DEGRADED)
+    monkeypatch.setattr(provider, "_get_from_cache", lambda *args, **kwargs: None)
+    trigger_calls: list[tuple[object, ...]] = []
+    monkeypatch.setattr(
+        provider,
+        "_trigger_infer_task",
+        lambda *args, **kwargs: trigger_calls.append(args) or "queued",
+    )
+    registry = AlphaProviderRegistry()
+    registry.register(provider)
+    service = AlphaService.__new__(AlphaService)
+    service._registry = registry
+    monkeypatch.setattr("apps.alpha.interface.views.AlphaService", lambda: service)
+
+    alerts_before = AlphaAlertModel._default_manager.count()
+    response = authenticated_client.get(f"/api/alpha/scores/?top_n=5{query}")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "unavailable"
+    assert response.json()["metadata"]["blocked_reason"] == (
+        "Qlib 缓存缺失，等待显式刷新或调度推理。"
+    )
+    assert response.json()["metadata"]["provider_failures"] == [
+        {"provider": "qlib", "reason_code": "read_only_cache_miss"}
+    ]
+    assert trigger_calls == []
+    assert AlphaAlertModel._default_manager.count() == alerts_before
 
 
 @pytest.mark.django_db

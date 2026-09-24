@@ -26,8 +26,12 @@ class DecisionRhythmGlobalAlertRepository(Protocol):
     def count_high_priority_pending_requests(self) -> int:
         """Return pending high-priority request count."""
 
-    def list_pending_execution_requests(self, limit: int) -> list[Any]:
-        """Return approved pending/failed execution requests."""
+    def list_pending_execution_requests(
+        self,
+        limit: int,
+        account_ids: list[str] | None = None,
+    ) -> list[Any]:
+        """Return approved pending/failed requests, optionally scoped to accounts."""
 
 
 class DecisionRhythmGlobalAlertService:
@@ -51,10 +55,14 @@ class DecisionRhythmGlobalAlertService:
 
         return self.repository.count_high_priority_pending_requests()
 
-    def list_pending_execution_requests(self, limit: int = 100) -> list[Any]:
-        """Return approved pending/failed execution requests."""
+    def list_pending_execution_requests(
+        self,
+        limit: int = 100,
+        account_ids: list[str] | None = None,
+    ) -> list[Any]:
+        """Return approved pending/failed requests, optionally scoped to accounts."""
 
-        return self.repository.list_pending_execution_requests(limit)
+        return self.repository.list_pending_execution_requests(limit, account_ids)
 
 
 _global_alert_repository: DecisionRhythmGlobalAlertRepository | None = None

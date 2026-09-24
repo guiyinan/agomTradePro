@@ -159,6 +159,8 @@ def get_alpha_stock_scores_payload(
     portfolio_id: int | None = None,
     pool_mode: str | None = None,
     alpha_scope: str | None = None,
+    allow_refresh: bool = False,
+    persist_history: bool = False,
     query_factory: Callable[[], AlphaHomepageQuery],
 ) -> dict[str, Any]:
     """Return Alpha stock items plus reliability metadata."""
@@ -172,6 +174,8 @@ def get_alpha_stock_scores_payload(
             portfolio_id=portfolio_id,
             pool_mode=pool_mode,
             alpha_scope=alpha_scope,
+            allow_refresh=allow_refresh,
+            persist_history=persist_history,
         )
         meta = dict(data.meta)
         meta.setdefault("alpha_scope", alpha_scope)
@@ -416,12 +420,17 @@ def get_decision_plane_data(
     *,
     max_candidates: int = 5,
     max_pending: int = 10,
+    user_id: int | None = None,
     query_factory: Callable[[], DecisionPlaneQuery],
 ) -> DecisionPlaneData:
     """Return the aggregated decision-plane payload with a single query execution."""
     started_at = perf_counter()
     try:
-        return query_factory().execute(max_candidates=max_candidates, max_pending=max_pending)
+        return query_factory().execute(
+            max_candidates=max_candidates,
+            max_pending=max_pending,
+            user_id=user_id,
+        )
     except RECOVERABLE_DASHBOARD_INTERFACE_EXCEPTIONS as exc:
         logger.warning("Failed to get decision plane data: %s", exc)
         return _empty_decision_plane_data()

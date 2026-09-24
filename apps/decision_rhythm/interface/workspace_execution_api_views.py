@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import Any
 
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -37,6 +38,7 @@ from .workspace_api_support import (
     _serialize_transition_plan,
     _truthy,
     _update_transition_plan_from_payload,
+    workspace_account_access_response,
 )
 
 logger = logging.getLogger(__name__)
@@ -78,8 +80,16 @@ def _string_list(value: Any, *, field_name: str) -> list[str] | None:
 class AggregatedWorkspaceView(APIView):
     """GET /api/decision/workspace/aggregated/"""
 
+    permission_classes = [IsAuthenticated]
+
     def get(self, request: Request) -> Response:
         account_id = _optional_text(request.query_params.get("account_id"))
+        access_error = workspace_account_access_response(
+            request,
+            account_id,
+        )
+        if access_error is not None:
+            return access_error
         payload = get_aggregated_workspace_payload(account_id)
 
         return Response(
@@ -96,9 +106,19 @@ class AggregatedWorkspaceView(APIView):
 class TransitionPlanGenerateView(APIView):
     """POST /api/decision/workspace/plans/generate/"""
 
+    permission_classes = [IsAuthenticated]
+
     def post(self, request: Request) -> Response:
+        """Generate a plan only for the authenticated owner's explicit account."""
         payload = _request_payload(request)
-        account_id = _optional_text(payload.get("account_id")) or "default"
+        account_id = _optional_text(payload.get("account_id")) or ""
+        access_error = workspace_account_access_response(
+            request,
+            account_id,
+            action="生成交易计划",
+        )
+        if access_error is not None:
+            return access_error
 
         try:
             recommendation_ids = _string_list(
@@ -130,6 +150,8 @@ class TransitionPlanGenerateView(APIView):
 class TransitionPlanDetailView(APIView):
     """GET /api/decision/workspace/plans/<str:plan_id>/"""
 
+    permission_classes = [IsAuthenticated]
+
     def get(self, request: Request, plan_id: str) -> Response:
         plan = get_transition_plan(plan_id)
         if plan is None:
@@ -137,11 +159,20 @@ class TransitionPlanDetailView(APIView):
                 {"success": False, "error": "Transition plan not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
+        access_error = workspace_account_access_response(
+            request,
+            str(plan.account_id),
+            action="查看交易计划",
+        )
+        if access_error is not None:
+            return access_error
         return Response({"success": True, "data": _serialize_transition_plan(plan)})
 
 
 class TransitionPlanUpdateView(APIView):
     """POST /api/decision/workspace/plans/<str:plan_id>/update/"""
+
+    permission_classes = [IsAuthenticated]
 
     def post(self, request: Request, plan_id: str) -> Response:
         plan = get_transition_plan(plan_id)
@@ -150,6 +181,13 @@ class TransitionPlanUpdateView(APIView):
                 {"success": False, "error": "Transition plan not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
+        access_error = workspace_account_access_response(
+            request,
+            str(plan.account_id),
+            action="更新交易计划",
+        )
+        if access_error is not None:
+            return access_error
 
         try:
             updated_plan = _update_transition_plan_from_payload(
@@ -169,12 +207,15 @@ class TransitionPlanUpdateView(APIView):
 class ExecutionPreviewView(APIView):
     """POST /api/decision/execute/preview/"""
 
+    permission_classes = [IsAuthenticated]
+
     def post(self, request: Request) -> Response:
+        """Validate stored account ownership before previewing or creating approval."""
         payload = _request_payload(request)
         plan_id = _optional_text(payload.get("plan_id"))
         recommendation_id = _optional_text(payload.get("recommendation_id"))
         create_request = _truthy(payload.get("create_request"))
-        account_id = _optional_text(payload.get("account_id")) or "default"
+        requested_account_id = _optional_text(payload.get("account_id"))
         market_price = _decimal(payload.get("market_price"))
 
         if plan_id:
@@ -184,6 +225,21 @@ class ExecutionPreviewView(APIView):
                     {"success": False, "error": "Transition plan not found"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
+
+            account_id = str(plan.account_id)
+            if requested_account_id and requested_account_id != account_id:
+                return Response(
+                    {"success": False, "error": "交易计划不属于指定账户"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            plan_access_error = workspace_account_access_response(
+                request,
+                account_id,
+                action="预览交易计划",
+            )
+            if plan_access_error is not None:
+                return plan_access_error
 
             risk_checks = _build_plan_risk_checks(plan)
             if not risk_checks["plan_validation"]["passed"]:
@@ -243,6 +299,19 @@ class ExecutionPreviewView(APIView):
         # 优先查找 UnifiedRecommendation（M2 融合推荐）
         uni_rec = get_unified_recommendation(recommendation_id)
         if uni_rec:
+            account_id = str(uni_rec.account_id)
+            if requested_account_id and requested_account_id != account_id:
+                return Response(
+                    {"success": False, "error": "推荐不属于指定账户"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            access_error = workspace_account_access_response(
+                request,
+                account_id,
+                action="预览执行",
+            )
+            if access_error is not None:
+                return access_error
             risk_checks = build_recommendation_risk_checks(uni_rec, market_price)
             unified_request_id: str | None = None
             regime_source = str(_regime_context()["source"])
@@ -306,6 +375,19 @@ class ExecutionPreviewView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        account_id = str(recommendation.account_id)
+        if requested_account_id and requested_account_id != account_id:
+            return Response(
+                {"success": False, "error": "推荐不属于指定账户"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        access_error = workspace_account_access_response(
+            request,
+            account_id,
+            action="预览执行",
+        )
+        if access_error is not None:
+            return access_error
         risk_checks = build_recommendation_risk_checks(recommendation, market_price)
         regime_source = str(_regime_context()["source"])
         legacy_request_id: str | None = None
@@ -359,7 +441,10 @@ class ExecutionPreviewView(APIView):
 class ExecutionApproveView(APIView):
     """POST /api/decision/execute/approve/"""
 
+    permission_classes = [IsAuthenticated]
+
     def post(self, request: Request) -> Response:
+        """Approve a request only after verifying its persisted account owner."""
         payload = _request_payload(request)
         request_id = _optional_text(payload.get("approval_request_id"))
         reviewer_comments = str(payload.get("reviewer_comments", ""))
@@ -377,6 +462,14 @@ class ExecutionApproveView(APIView):
                 {"success": False, "error": "Approval request not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
+
+        access_error = workspace_account_access_response(
+            request,
+            str(approval_request.account_id),
+            action="审批执行请求",
+        )
+        if access_error is not None:
+            return access_error
 
         can_approve, reason = ExecutionApprovalService().can_approve(
             approval_request,
@@ -446,6 +539,8 @@ class ExecutionApproveView(APIView):
 class ExecutionRejectView(APIView):
     """POST /api/decision/execute/reject/"""
 
+    permission_classes = [IsAuthenticated]
+
     def post(self, request: Request) -> Response:
         payload = _request_payload(request)
         request_id = _optional_text(payload.get("approval_request_id"))
@@ -463,6 +558,13 @@ class ExecutionRejectView(APIView):
                 {"success": False, "error": "Approval request not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
+        access_error = workspace_account_access_response(
+            request,
+            str(approval_request.account_id),
+            action="拒绝执行请求",
+        )
+        if access_error is not None:
+            return access_error
 
         can_transition, reason = ApprovalStatusStateMachine.validate_transition(
             approval_request.approval_status,
@@ -531,6 +633,8 @@ class ExecutionRejectView(APIView):
 class ExecutionRequestDetailView(APIView):
     """GET /api/decision/execute/{request_id}/"""
 
+    permission_classes = [IsAuthenticated]
+
     def get(self, request: Request, request_id: str) -> Response:
         approval_request = get_approval_request(request_id)
         if approval_request is None:
@@ -538,4 +642,11 @@ class ExecutionRequestDetailView(APIView):
                 {"success": False, "error": "Approval request not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
+        access_error = workspace_account_access_response(
+            request,
+            str(approval_request.account_id),
+            action="查看执行请求",
+        )
+        if access_error is not None:
+            return access_error
         return Response({"success": True, "data": approval_request.to_dict()})

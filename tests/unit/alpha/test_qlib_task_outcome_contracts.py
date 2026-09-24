@@ -199,17 +199,12 @@ def test_qlib_evaluate_model_normalizes_service_result(monkeypatch) -> None:
 def test_qlib_refresh_cache_reports_success_noop_and_failure(monkeypatch) -> None:
     """Range scheduling distinguishes queued work, no work, and broker failure."""
 
-    class Friday(date):
-        @classmethod
-        def today(cls) -> Friday:
-            return cls(2026, 7, 24)
-
-    class Saturday(date):
-        @classmethod
-        def today(cls) -> Saturday:
-            return cls(2026, 7, 25)
-
-    monkeypatch.setattr(tasks, "date", Friday)
+    monkeypatch.setattr(tasks.timezone, "localdate", lambda: date(2026, 7, 24))
+    monkeypatch.setattr(
+        tasks,
+        "load_open_cn_market_sessions",
+        lambda _start, _end: (date(2026, 7, 24),),
+    )
     monkeypatch.setattr(
         tasks.qlib_predict_scores,
         "delay",
@@ -219,11 +214,21 @@ def test_qlib_refresh_cache_reports_success_noop_and_failure(monkeypatch) -> Non
     assert success["outcome"] == "success"
     assert success["requested"] == success["succeeded"] == 1
 
-    monkeypatch.setattr(tasks, "date", Saturday)
+    monkeypatch.setattr(tasks.timezone, "localdate", lambda: date(2026, 7, 25))
+    monkeypatch.setattr(
+        tasks,
+        "load_open_cn_market_sessions",
+        lambda _start, _end: (date(2026, 7, 24),),
+    )
     noop = tasks.qlib_refresh_cache.run("csi300", days_back=0, top_n=10)
     assert noop["outcome"] == "noop"
 
-    monkeypatch.setattr(tasks, "date", Friday)
+    monkeypatch.setattr(tasks.timezone, "localdate", lambda: date(2026, 7, 24))
+    monkeypatch.setattr(
+        tasks,
+        "load_open_cn_market_sessions",
+        lambda _start, _end: (date(2026, 7, 24),),
+    )
     monkeypatch.setattr(
         tasks.qlib_predict_scores,
         "delay",

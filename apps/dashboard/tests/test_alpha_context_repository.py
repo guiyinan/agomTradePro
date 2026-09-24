@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
 import pytest
 
+from apps.dashboard.application.integration_gateways import DashboardApplicationGateway
 from apps.dashboard.infrastructure.repositories import (
     DashboardAlphaContextRepository,
     DashboardOverviewRepository,
@@ -19,7 +20,7 @@ def _build_gateway(**overrides):
         "query_latest_quote": lambda asset_code: None,
         "query_latest_quotes": lambda asset_codes: [],
         "list_actionable_alpha_candidates": lambda *, limit: [],
-        "list_pending_execution_requests": lambda *, limit: [],
+        "list_pending_execution_requests": lambda *, limit, user_id=None: [],
         "get_manual_override_trigger_ids": lambda: set(),
         "get_valuation_repair_snapshot_map": lambda codes: {},
         "get_policy_state": lambda: {"gate_level": "L0", "effective": False},
@@ -255,18 +256,73 @@ def test_dashboard_alpha_context_uses_gateway_for_pending_map():
 
     pending_map = DashboardAlphaContextRepository(
         _build_gateway(
-            list_pending_execution_requests=lambda *, limit: captured.update({"limit": limit})
+            list_pending_execution_requests=lambda *, limit, user_id=None: captured.update(
+                {"limit": limit, "user_id": user_id}
+            )
             or [
                 SimpleNamespace(asset_code="000001.SZ", request_id="req-1"),
                 SimpleNamespace(asset_code="000001.SZ", request_id="req-2"),
                 SimpleNamespace(asset_code="600519.SH", request_id="req-3"),
             ]
         )
-    ).load_pending_map()
+    ).load_pending_map(user_id=17)
 
-    assert captured == {"limit": 200}
+    assert captured == {"limit": 200, "user_id": 17}
     assert pending_map["000001.SZ"].request_id == "req-1"
     assert pending_map["600519.SH"].request_id == "req-3"
+
+
+def test_dashboard_gateway_resolves_user_accounts_before_pending_query(monkeypatch):
+    captured: dict[str, object] = {}
+    service = SimpleNamespace(
+        list_pending_execution_requests=lambda **kwargs: captured.update(kwargs) or []
+    )
+    monkeypatch.setattr(
+        "apps.decision_rhythm.application.global_alert_service.get_decision_rhythm_global_alert_service",
+        lambda: service,
+    )
+    gateway = DashboardApplicationGateway()
+    monkeypatch.setattr(
+        gateway,
+        "list_dashboard_accounts",
+        lambda user_id: [{"id": 17}, {"id": 19}] if user_id == 7 else [],
+    )
+
+    assert gateway.list_pending_execution_requests(limit=25, user_id=7) == []
+    assert captured == {"limit": 25, "account_ids": ["17", "19"]}
+
+    assert gateway.list_pending_execution_requests(limit=25, user_id=8) == []
+    assert captured == {"limit": 25, "account_ids": []}
+
+
+def test_dashboard_alpha_context_read_is_side_effect_free_and_preserves_missing_price(
+    monkeypatch,
+):
+    persisted: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        "apps.dashboard.infrastructure.repositories.resolve_fund_holding_names",
+        lambda codes: {"600547.SH": "山东黄金"},
+    )
+    monkeypatch.setattr(
+        "apps.dashboard.infrastructure.repositories.update_asset_display_name",
+        lambda code, name: persisted.append((code, name)),
+    )
+    gateway = _build_gateway(
+        get_stock_context_map=lambda codes: {
+            "600547.SH": {
+                "report_date": date(2026, 6, 30),
+                "roe": 0.12,
+            }
+        }
+    )
+
+    context = DashboardAlphaContextRepository(gateway).load_stock_context(["600547.SH"])
+
+    assert context["600547.SH"]["name"] == "山东黄金"
+    assert context["600547.SH"]["report_date"] == "2026-06-30"
+    assert context["600547.SH"]["roe"] == pytest.approx(0.12)
+    assert context["600547.SH"]["close"] is None
+    assert persisted == []
 
 
 def test_dashboard_alpha_context_uses_gateway_for_policy_state():

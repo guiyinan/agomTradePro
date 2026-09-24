@@ -11,10 +11,16 @@
     </div>
 
     {% if alpha_meta.refresh_notice %}
-    <div class="alpha-banner alpha-banner-warning" role="alert">
+    <div class="alpha-banner alpha-banner-{{ alpha_meta.refresh_notice.level|default:'warning' }}" role="alert">
         <strong>{{ alpha_meta.refresh_notice.title }}</strong>
         <span>{{ alpha_meta.refresh_notice.message }}</span>
         <span>最近尝试 {{ alpha_meta.refresh_notice.attempted_at|default:"未知" }}</span>
+        {% if alpha_meta.refresh_notice.current_attempt %}
+        <span>当前阶段 {{ alpha_meta.refresh_notice.current_attempt.phase|default:"处理中" }}；统计口径 {{ alpha_meta.refresh_notice.current_attempt.count_unit|default:"未知" }}；已完成 {{ alpha_meta.refresh_notice.current_attempt.succeeded|default:"未知" }} / {{ alpha_meta.refresh_notice.current_attempt.requested|default:"未知" }}；已存储 {{ alpha_meta.refresh_notice.current_attempt.stored|default_if_none:"未知" }} {{ alpha_meta.refresh_notice.current_attempt.stored_count_unit|default:"记录" }}</span>
+        {% endif %}
+        {% if alpha_meta.refresh_notice.last_completed %}
+        <span>最近完成状态 {% if alpha_meta.refresh_notice.last_completed.outcome %}{{ alpha_meta.refresh_notice.last_completed.outcome }}{% elif alpha_meta.refresh_notice.last_completed.status %}{{ alpha_meta.refresh_notice.last_completed.status }}{% else %}未知{% endif %}{% if alpha_meta.refresh_notice.last_completed.error_code %}（{{ alpha_meta.refresh_notice.last_completed.error_code }}）{% elif alpha_meta.refresh_notice.last_completed.stable_error_code %}（{{ alpha_meta.refresh_notice.last_completed.stable_error_code }}）{% endif %}</span>
+        {% endif %}
         <span>当前评分日期 {% firstof alpha_meta.effective_asof_date alpha_meta.cache_date "暂无可用评分" %}；目标日期 {{ alpha_meta.requested_trade_date|default:"未知" }}。旧评分不会作为本次更新成功的结果。</span>
     </div>
     {% endif %}

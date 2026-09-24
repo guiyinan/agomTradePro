@@ -119,6 +119,7 @@ from apps.alpha.application.trade_dates import resolve_recent_closed_trade_date
 from apps.alpha.application.workspace_sync import sync_default_workspace_after_alpha_update
 from apps.alpha.domain.entities import AlphaPoolScope
 from apps.config_center.application.repository_provider import get_qlib_training_run_repository
+from apps.data_center.application.market_calendar import load_open_cn_market_sessions
 from core.exceptions import DataFetchError
 from shared.infrastructure.celery_typing import BoundTask, typed_shared_task
 
@@ -776,27 +777,20 @@ def qlib_refresh_cache(
     results: list[dict[str, str]] = []
     attempted_count = 0
     try:
-        from datetime import timedelta
-
         logger.info(f"开始刷新缓存: {universe_id}, 回溯 {days_back} 天, top_n={top_n}")
 
-        end_date = date.today()
+        end_date = timezone.localdate()
         start_date = end_date - timedelta(days=days_back)
-
-        current_date = start_date
-
-        while current_date <= end_date:
-            # 触发推理任务（仅工作日）
-            if current_date.weekday() < 5:  # 周一到周五
-                attempted_count += 1
-                result = qlib_predict_scores.delay(
-                    universe_id,
-                    current_date.isoformat(),
-                    top_n,
-                )
-                results.append({"date": current_date.isoformat(), "task_id": result.id})
-
-            current_date += timedelta(days=1)
+        calendar_dates = load_open_cn_market_sessions(start_date - timedelta(days=7), end_date)
+        trade_dates = tuple(item for item in calendar_dates if start_date <= item <= end_date)
+        attempted_count = len(trade_dates)
+        for trade_date in trade_dates:
+            result = qlib_predict_scores.delay(
+                universe_id,
+                trade_date.isoformat(),
+                top_n,
+            )
+            results.append({"date": trade_date.isoformat(), "task_id": result.id})
 
         logger.info(f"已触发 {len(results)} 个推理任务")
 
