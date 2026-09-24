@@ -172,6 +172,10 @@ def test_dispatcher_preserves_business_metadata_and_redacts_sensitive_values() -
             "observed_at": "2026-09-24T16:15:00+00:00",
             "freshness_status": "stale",
             "trace_id": "trace-123",
+            "changed_at": "2026-09-24T16:10:00+00:00",
+            "release_ref": "a" * 40,
+            "next_action": "等待管理员完成核查",
+            "responsible_role": "系统管理员",
             "internal_trace": "token=secret-value SELECT password FROM users",
         }
         raise ServerError(status_code=503, response=response)
@@ -188,6 +192,10 @@ def test_dispatcher_preserves_business_metadata_and_redacts_sensitive_values() -
         "observed_at": "2026-09-24T16:15:00+00:00",
         "freshness_status": "stale",
         "trace_id": "trace-123",
+        "changed_at": "2026-09-24T16:10:00+00:00",
+        "release_ref": "a" * 40,
+        "next_action": "等待管理员完成核查",
+        "responsible_role": "系统管理员",
     }
     assert "secret-value" not in str(result)
     assert "SELECT" not in str(result)

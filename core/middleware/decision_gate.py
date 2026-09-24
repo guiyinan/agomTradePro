@@ -36,12 +36,17 @@ class DecisionRuntimeGateMiddleware:
         try:
             state = GetDecisionRuntimeStateUseCase().execute()
         except Exception:
+            public_reason, next_action, responsible_role = (
+                get_public_decision_runtime_block_details("unavailable")
+            )
             return JsonResponse(
                 {
                     "status": "failed",
                     "must_not_use_for_decision": True,
                     "block_reason_code": "decision_runtime_state_unavailable",
-                    "block_reason": "无法验证决策运行状态，已按安全策略阻断。",
+                    "block_reason": public_reason,
+                    "next_action": next_action,
+                    "responsible_role": responsible_role,
                 },
                 status=503,
             )

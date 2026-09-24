@@ -659,6 +659,10 @@ class CapabilityDispatcher:
                 "reliability",
                 "trace_id",
                 "request_id",
+                "changed_at",
+                "release_ref",
+                "next_action",
+                "responsible_role",
             ):
                 value = response.get(key)
                 if (

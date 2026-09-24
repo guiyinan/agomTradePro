@@ -40,12 +40,8 @@ from apps.data_center.domain.market_time import (
     cn_market_date_from_observation,
 )
 from core.exceptions import DataFetchError, DataValidationError, InvalidInputError
+from core.integration import data_center_audit as audit_integration
 from core.integration.config_center_runtime import evaluate_storage_pressure
-from core.integration.data_center_audit import (
-    SystemAuditCompositionUnavailable,
-    SystemAuditReaderContext,
-    preflight_data_reliability_audit_runtime,
-)
 from shared.domain.task_outcomes import TaskBusinessOutcome
 from shared.infrastructure.operational_alert_registry import record_operational_alert
 
@@ -125,16 +121,16 @@ def _preflight_data02_task_authority(
     as_of: datetime,
     minimum_window: timedelta,
     expected_actor: str = "",
-) -> tuple[SystemAuditReaderContext | None, dict[str, object] | None]:
+) -> tuple[audit_integration.SystemAuditReaderContext | None, dict[str, object] | None]:
     """Resolve current authority and prove it covers the task's bounded runtime."""
 
     try:
-        context = preflight_data_reliability_audit_runtime(
+        context = audit_integration.preflight_data_reliability_audit_runtime(
             environment="production",
             using="default",
             as_of=as_of,
         )
-    except SystemAuditCompositionUnavailable as exc:
+    except audit_integration.SystemAuditCompositionUnavailable as exc:
         return None, _data02_authority_failure(f"system_audit_{exc.reason_code}")
     if expected_actor and expected_actor != context.actor_id:
         return None, _data02_authority_failure("operator_actor_mismatch")
@@ -144,7 +140,7 @@ def _preflight_data02_task_authority(
 
 
 def _same_data02_task_authority_is_current(
-    authority: SystemAuditReaderContext,
+    authority: audit_integration.SystemAuditReaderContext,
     *,
     as_of: datetime,
     minimum_window: timedelta = _AUTHORITY_FINALIZATION_WINDOW,
@@ -221,7 +217,7 @@ def refresh_full_market_publications_task(
         return _full_market_input_failure("valuation_provider_unavailable")
     try:
         quotes = make_backfill_sync_quote_use_case()
-    except SystemAuditCompositionUnavailable as exc:
+    except audit_integration.SystemAuditCompositionUnavailable as exc:
         return {
             **_full_market_input_failure(f"system_audit_{exc.reason_code}"),
             "outcome": "blocked",
@@ -718,7 +714,7 @@ def refresh_financial_publications_batch_task(
             DatabaseError,
             OSError,
             RuntimeError,
-            SystemAuditCompositionUnavailable,
+            audit_integration.SystemAuditCompositionUnavailable,
             TypeError,
             ValueError,
         ) as exc:
