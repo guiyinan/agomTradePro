@@ -461,6 +461,14 @@ def select_tests(
     Returns:
         测试路径列表
     """
+    # SDK-only diffs previously fell through to the no-module guardrail suite,
+    # so incompatible wire parameters could ship without exercising clients.
+    sdk_files = [path for path in changed_files if path.replace("\\", "/").startswith("sdk/")]
+    if sdk_files:
+        remaining_files = [path for path in changed_files if path not in sdk_files]
+        base_targets = select_tests(modules - {"sdk"}, remaining_files, profile)
+        return sorted(set(base_targets) | {"sdk/tests/test_sdk/", "sdk/tests/test_mcp/"})
+
     tests = set()
 
     # 始终添加核心 guardrail 测试
@@ -535,7 +543,8 @@ def select_tests(
     return sorted(existing_tests)
 
 
-def main():
+def main() -> None:
+    """Print test targets selected for the candidate's changed files."""
     parser = argparse.ArgumentParser(description="根据代码变更智能选择相关测试")
     parser.add_argument(
         "--base",

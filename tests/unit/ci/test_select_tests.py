@@ -28,6 +28,18 @@ select_tests_func = select_tests.select_tests
 class TestSelectTests(unittest.TestCase):
     """测试智能测试选择逻辑"""
 
+    def test_sdk_only_change_selects_sdk_and_mcp_contracts_for_pull_requests(self):
+        changed = ["sdk/agomtradepro/modules/signal.py"]
+        targets = select_tests_func(get_changed_modules(changed), changed, "logic_guardrails")
+        self.assertIn("sdk/tests/test_sdk/", targets)
+        self.assertIn("sdk/tests/test_mcp/", targets)
+
+    def test_shared_change_does_not_hide_changed_mcp_contracts(self):
+        changed = ["shared/numeric.py", "sdk/agomtradepro_mcp/registry/dispatcher.py"]
+        targets = select_tests_func(get_changed_modules(changed), changed, "logic_guardrails")
+        self.assertIn("sdk/tests/test_sdk/", targets)
+        self.assertIn("sdk/tests/test_mcp/", targets)
+
     def test_core_guardrail_tests_defined(self):
         """核心 guardrail 测试必须定义"""
         self.assertIsInstance(CORE_GUARDRAIL_TESTS, list)

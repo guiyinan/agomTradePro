@@ -26,6 +26,9 @@ from .financial_fact_write_guard import (
 )
 from .financial_source_policy import requires_verified_financial_source_evidence
 from .publication_fact_evidence import publication_fact_reference_for_dataset
+from .published_fact_versions import latest_fact_revisions
+
+_NATURAL_KEY = ("asset_code", "period_end", "period_type", "metric_code", "source")
 
 
 class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
@@ -66,6 +69,7 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
         fact_pks: Sequence[str] | None = None,
         knowledge_cutoff: datetime | None = None,
     ) -> list[FinancialFact]:
+        """Select latest revisions within the requested historical knowledge scope."""
         if knowledge_cutoff is not None and (
             knowledge_cutoff.tzinfo is None or knowledge_cutoff.utcoffset() is None
         ):
@@ -85,6 +89,13 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
                     available_at__isnull=False,
                     available_at__lte=knowledge_cutoff,
                 )
+            if fact_pks is None:
+                latest = (
+                    qs.filter(**{name: OuterRef(name) for name in _NATURAL_KEY})
+                    .order_by("-revision_number", "-pk")
+                    .values("pk")[:1]
+                )
+                qs = qs.filter(pk=Subquery(latest))
             rows = list(qs.order_by("-period_end")[:limit])
             if rows:
                 return [self._from_model(m) for m in rows]
@@ -93,11 +104,12 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
     def get_latest(
         self, asset_code: str, period_type: FinancialPeriodType | None = None
     ) -> FinancialFact | None:
+        """Return the latest source period and revision for an asset."""
         for candidate in _resolve_asset_code_candidates(asset_code):
             qs = FinancialFactModel.objects.filter(asset_code=candidate)
             if period_type:
                 qs = qs.filter(period_type=period_type.value)
-            m = qs.order_by("-period_end").first()
+            m = qs.order_by("-period_end", "-revision_number", "-pk").first()
             if m is not None:
                 return self._from_model(m)
         return None
@@ -127,7 +139,7 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
                     metric_code=fact.metric_code,
                     source=fact.source,
                 )
-                .order_by("id")
+                .order_by("-revision_number", "-id")
                 .first()
             )
             if row is None or str(row.pk) in seen_fact_pks:
@@ -158,7 +170,8 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
             return []
         require_verified = requires_verified_financial_source_evidence()
         latest_available_period = (
-            FinancialFactModel._default_manager.filter(
+            latest_fact_revisions(FinancialFactModel, _NATURAL_KEY)
+            .filter(
                 asset_code=OuterRef("asset_code"),
                 available_at__isnull=False,
             )
@@ -166,7 +179,8 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
             .values("period_end")[:1]
         )
         latest_metric_row = (
-            FinancialFactModel._default_manager.filter(
+            latest_fact_revisions(FinancialFactModel, _NATURAL_KEY)
+            .filter(
                 asset_code=OuterRef("asset_code"),
                 period_end=OuterRef("period_end"),
                 period_type=OuterRef("period_type"),

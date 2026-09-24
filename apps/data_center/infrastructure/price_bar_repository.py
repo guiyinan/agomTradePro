@@ -14,6 +14,9 @@ from apps.data_center.infrastructure._repository_helpers import _resolve_asset_c
 from apps.data_center.infrastructure.models import PriceBarModel
 
 from .publication_fact_evidence import publication_fact_reference_for_dataset
+from .published_fact_versions import latest_fact_revisions, upsert_publication_safe_facts
+
+_NATURAL_KEY = ("asset_code", "bar_date", "freq", "adjustment", "source")
 
 
 class PriceBarRepository:
@@ -51,10 +54,13 @@ class PriceBarRepository:
         limit: int = 500,
         fact_pks: Sequence[str] | None = None,
     ) -> list[PriceBar]:
+        """Return latest revisions or the exact rows pinned by a publication."""
         for candidate in _resolve_asset_code_candidates(asset_code):
             qs = PriceBarModel.objects.filter(asset_code=candidate)
             if fact_pks is not None:
                 qs = qs.filter(pk__in=list(fact_pks))
+            else:
+                qs = latest_fact_revisions(PriceBarModel, _NATURAL_KEY).filter(asset_code=candidate)
             if start:
                 qs = qs.filter(bar_date__gte=start)
             if end:
@@ -69,11 +75,12 @@ class PriceBarRepository:
         asset_code: str,
         fact_pks: Sequence[str] | None = None,
     ) -> PriceBar | None:
+        """Return the latest source bar within the optional frozen member scope."""
         for candidate in _resolve_asset_code_candidates(asset_code):
             qs = PriceBarModel.objects.filter(asset_code=candidate)
             if fact_pks is not None:
                 qs = qs.filter(pk__in=list(fact_pks))
-            m = qs.order_by("-bar_date").first()
+            m = qs.order_by("-bar_date", "-revision_number", "-pk").first()
             if m is not None:
                 return self._from_model(m)
         return None
@@ -87,6 +94,7 @@ class PriceBarRepository:
         return list(queryset.order_by("asset_code").values_list("asset_code", flat=True).distinct())
 
     def bulk_upsert(self, bars: list[PriceBar]) -> int:
+        """Persist daily corrections without rewriting publication-referenced bars."""
         if not bars:
             return 0
         models = [
@@ -106,11 +114,11 @@ class PriceBarRepository:
             )
             for bar in bars
         ]
-        PriceBarModel._default_manager.bulk_create(
+        return upsert_publication_safe_facts(
+            PriceBarModel,
             models,
-            batch_size=1_000,
-            update_conflicts=True,
-            update_fields=[
+            natural_key=_NATURAL_KEY,
+            update_fields=(
                 "open",
                 "high",
                 "low",
@@ -118,10 +126,8 @@ class PriceBarRepository:
                 "volume",
                 "amount",
                 "ingested_run_id",
-            ],
-            unique_fields=["asset_code", "bar_date", "freq", "adjustment", "source"],
+            ),
         )
-        return len(models)
 
     def list_publication_candidates(
         self, bars: Sequence[PriceBar]
@@ -139,7 +145,7 @@ class PriceBarRepository:
                     adjustment=bar.adjustment.value,
                     source=bar.source,
                 )
-                .order_by("id")
+                .order_by("-revision_number", "-id")
                 .first()
             )
             if row is None or str(row.pk) in seen_fact_pks:
@@ -158,7 +164,8 @@ class PriceBarRepository:
         if not asset_codes:
             return []
         latest_row = (
-            PriceBarModel._default_manager.filter(
+            latest_fact_revisions(PriceBarModel, _NATURAL_KEY)
+            .filter(
                 asset_code=OuterRef("asset_code"),
                 freq="1d",
                 adjustment=PriceAdjustment.NONE.value,

@@ -573,7 +573,11 @@ class _RoutedSdkClient(_UnifiedRelayClient):
         """Preserve the SDK URL/body contract while routing explicitly selected reads."""
         if not re.fullmatch(r"[a-z][a-z0-9_]{0,127}", api_name):
             raise ValueError("Tushare API name has invalid format")
-        target_url = self._http_url.rstrip("/") + "/" + api_name
+        # ``pro._DataApi__http_url`` is a single POST endpoint.  The official
+        # SDK carries ``api_name`` in the JSON body and never appends it to the
+        # configured URL.  Keep that wire contract when the request is routed
+        # through the governed egress path as well.
+        target_url = self._http_url
         if not self._should_use_egress(target_url, api_name=api_name):
             if self._requires_financial_response_capture(api_name):
                 raise TushareError(

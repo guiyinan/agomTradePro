@@ -1,0 +1,82 @@
+name: Publication PostgreSQL contracts
+
+on:
+  pull_request:
+    branches: [main, 'dev/**']
+    paths:
+      - 'apps/data_center/**'
+      - 'tests/component/data_center/**'
+      - 'tests/settings_data_center_sync_identity.py'
+      - 'pyproject.toml'
+      - 'requirements-dev.txt'
+      - '.github/workflows/ci-publication-postgres.yml'
+  push:
+    branches: [main, 'dev/**']
+    paths:
+      - 'apps/data_center/**'
+      - 'tests/component/data_center/**'
+      - 'tests/settings_data_center_sync_identity.py'
+      - 'pyproject.toml'
+      - 'requirements-dev.txt'
+      - '.github/workflows/ci-publication-postgres.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publication-postgres-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publication-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: evid06_authority_test
+          POSTGRES_USER: contract_test
+          POSTGRES_PASSWORD: disposable_ci_only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U contract_test -d evid06_authority_test"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      AGOM_EVID06_POSTGRES_TEST: '1'
+      AGOM_EVID06_POSTGRES_TEST_DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/evid06_authority_test
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install -r requirements-dev.txt
+          python -m pip install -e sdk/
+      - name: Exercise real publication locks and frozen facts
+        run: >-
+          python -m pytest
+          tests/component/data_center/test_publication_read_snapshot_postgres.py
+          tests/component/data_center/test_financial_fact_repository_postgres_provenance.py
+          --ds=tests.settings_data_center_sync_identity
+          --confcutdir=tests/component/data_center
+          -q -o addopts='' --junitxml=publication-postgres.xml
+      - name: Reject missing or skipped PostgreSQL evidence
+        run: |
+          python - <<'PY'
+          from xml.etree import ElementTree
+          cases = ElementTree.parse('publication-postgres.xml').findall('.//testcase')
+          assert len(cases) >= 21, 'Expected publication PostgreSQL cases were not collected'
+          assert all(case.find('skipped') is None for case in cases), 'PostgreSQL cases must execute'
+          assert all(case.find('failure') is None and case.find('error') is None for case in cases)
+          PY
+      - name: Retain test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: publication-postgres-evidence
+          path: publication-postgres.xml
+          if-no-files-found: error

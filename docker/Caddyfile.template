@@ -45,5 +45,19 @@ __SITE_ADDRESS__ {
         reverse_proxy prometheus:9090
     }
 
+    # The configured Tushare gateway currently exposes HTTP only. Keep that
+    # hop behind this host and give application containers a certificate-bound
+    # HTTPS origin for retained financial-response evidence. The private-range
+    # matcher prevents this route from becoming a public forwarding proxy.
+    @tushare_gateway {
+        method POST
+        path /internal/tushare-gateway
+        remote_ip private_ranges {$TUSHARE_GATEWAY_ALLOWED_IP:127.0.0.1}
+    }
+    handle @tushare_gateway {
+        uri replace /internal/tushare-gateway /
+        reverse_proxy {$TUSHARE_GATEWAY_UPSTREAM:http://127.0.0.1:9}
+    }
+
     reverse_proxy web:8000
 }

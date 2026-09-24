@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from typing import Protocol, runtime_checkable
 
 
@@ -22,6 +22,43 @@ class ModelDailyBar:
     adjustment_factor: float | None
     source: str
     amount: float | None = None
+
+
+@dataclass(frozen=True)
+class TradingCalendarEvidence:
+    """Source-bound proof that a provider answered one complete calendar window."""
+
+    coverage_start: date
+    coverage_end: date
+    open_sessions: tuple[date, ...]
+    source: str
+    observed_at: datetime
+
+    def __post_init__(self) -> None:
+        if self.coverage_start > self.coverage_end:
+            raise ValueError("trading calendar coverage is inverted")
+        if not self.source.strip():
+            raise ValueError("trading calendar source is required")
+        if self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None:
+            raise ValueError("trading calendar observed_at must be timezone-aware")
+        if tuple(sorted(set(self.open_sessions))) != self.open_sessions:
+            raise ValueError("trading calendar sessions must be sorted and unique")
+        if any(
+            session < self.coverage_start or session > self.coverage_end
+            for session in self.open_sessions
+        ):
+            raise ValueError("trading calendar session falls outside coverage")
+
+
+@runtime_checkable
+class TradingCalendarEvidencePort(Protocol):
+    """Expose source and coverage with exchange-calendar observations."""
+
+    def trading_calendar_evidence(
+        self, start_date: date, end_date: date
+    ) -> TradingCalendarEvidence:
+        """Return explicit source and coverage for a bounded calendar query."""
+        ...
 
 
 @runtime_checkable

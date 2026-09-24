@@ -9,12 +9,10 @@ from typing import TypedDict, cast
 from django.db import models
 from django.db.models import Q
 
+from apps.data_center.application.market_calendar import latest_closed_cn_market_session
 from apps.data_center.domain.control_plane import PublicationState
 from apps.data_center.domain.entities import ProductionCoverageUniverseConfig
-from apps.data_center.domain.market_time import (
-    cn_market_date_from_observation,
-    latest_closed_cn_market_session,
-)
+from apps.data_center.domain.market_time import cn_market_date_from_observation
 from apps.data_center.infrastructure.catalog_runtime_repositories import (
     DatasetContractRepository,
 )
@@ -514,11 +512,17 @@ class DataCenterDiagnosticRepository:
         summary["age_seconds"] = age_seconds
         if age_seconds > int(max_age_seconds):
             latest_session = latest_closed_cn_market_session(current_time)
-            is_latest_market_session = dataset_key in {
-                "equity.price.bar",
-                "equity.valuation.fact",
-            } and all(
-                cn_market_date_from_observation(value) == latest_session for value in aware_observed
+            is_latest_market_session = (
+                latest_session is not None
+                and dataset_key
+                in {
+                    "equity.price.bar",
+                    "equity.valuation.fact",
+                }
+                and all(
+                    cn_market_date_from_observation(value) == latest_session
+                    for value in aware_observed
+                )
             )
             if not is_latest_market_session:
                 summary.update(

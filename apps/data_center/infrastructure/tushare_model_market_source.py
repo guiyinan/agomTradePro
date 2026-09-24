@@ -8,14 +8,14 @@ import re
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from threading import Event
 from typing import Any, Protocol, TypeVar, cast
 
 import numpy as np
 import pandas as pd  # type: ignore[import-untyped]
 
-from apps.data_center.domain.model_market_data import ModelDailyBar
+from apps.data_center.domain.model_market_data import ModelDailyBar, TradingCalendarEvidence
 from core.exceptions import DataFetchError, TushareError
 from shared.numeric import safe_float
 
@@ -228,6 +228,67 @@ class TushareModelMarketSource:
     def trade_days(self, start_date: date, end_date: date) -> tuple[date, ...]:
         """Read the exchange calendar without manufacturing weekdays."""
         return tuple(sorted(set(self._fetch_trade_days(start_date, end_date))))
+
+    def trading_calendar_evidence(
+        self, start_date: date, end_date: date
+    ) -> TradingCalendarEvidence:
+        """Fetch every calendar member and reject truncated or conflicting coverage."""
+
+        if start_date > end_date:
+            raise ValueError("Trading calendar start_date must not exceed end_date")
+        frame = self._call_with_retry(
+            self._pro.trade_cal,
+            exchange="SSE",
+            start_date=start_date.strftime("%Y%m%d"),
+            end_date=end_date.strftime("%Y%m%d"),
+        )
+        if frame is None or frame.empty or not {"cal_date", "is_open"}.issubset(frame.columns):
+            raise DataFetchError(
+                "Trading calendar schema is incomplete",
+                code="MODEL_MARKET_CALENDAR_SCHEMA_INVALID",
+            )
+        states: dict[date, bool] = {}
+        for row in frame.to_dict("records"):
+            parsed = pd.to_datetime(row.get("cal_date"), format="%Y%m%d", errors="coerce")
+            if pd.isna(parsed):
+                raise DataFetchError(
+                    "Trading calendar date is invalid",
+                    code="MODEL_MARKET_CALENDAR_SCHEMA_INVALID",
+                )
+            calendar_date = parsed.date()
+            if not start_date <= calendar_date <= end_date:
+                continue
+            state_value = row.get("is_open")
+            raw_state = "" if state_value is None else str(state_value).strip().lower()
+            if raw_state not in {"0", "0.0", "false", "1", "1.0", "true"}:
+                raise DataFetchError(
+                    "Trading calendar state is invalid",
+                    code="MODEL_MARKET_CALENDAR_SCHEMA_INVALID",
+                )
+            is_open = raw_state in {"1", "1.0", "true"}
+            if calendar_date in states and states[calendar_date] != is_open:
+                raise DataFetchError(
+                    "Trading calendar contains conflicting states",
+                    code="MODEL_MARKET_CALENDAR_CONFLICT",
+                )
+            states[calendar_date] = is_open
+        expected_dates: set[date] = set()
+        current = start_date
+        while current <= end_date:
+            expected_dates.add(current)
+            current += timedelta(days=1)
+        if set(states) != expected_dates:
+            raise DataFetchError(
+                "Trading calendar coverage is incomplete",
+                code="MODEL_MARKET_CALENDAR_COVERAGE_INCOMPLETE",
+            )
+        return TradingCalendarEvidence(
+            coverage_start=start_date,
+            coverage_end=end_date,
+            open_sessions=tuple(day for day in sorted(states) if states[day]),
+            source=self._source,
+            observed_at=datetime.now(UTC),
+        )
 
     def suspended_days(self, asset_code: str, start_date: date, end_date: date) -> tuple[date, ...]:
         """Accept only explicit full-day S records; intraday halts do not explain gaps."""

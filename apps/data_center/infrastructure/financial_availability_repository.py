@@ -12,6 +12,8 @@ from apps.data_center.application.current_fact_remediation import (
 from apps.data_center.infrastructure.models import FinancialFactModel
 from core.exceptions import InvalidInputError
 
+from .published_fact_versions import latest_fact_revisions
+
 
 class FinancialAvailabilityRepositoryMixin:
     """Provide calendar inventory while refusing fabricated historical timestamps."""
@@ -24,7 +26,9 @@ class FinancialAvailabilityRepositoryMixin:
     ) -> FinancialAvailabilityBackfillPreview:
         """Summarize source-date availability repair without mutating facts."""
 
-        queryset = FinancialFactModel._default_manager.filter(asset_code__in=asset_codes)
+        queryset = latest_fact_revisions(
+            FinancialFactModel, ("asset_code", "period_end", "period_type", "metric_code", "source")
+        ).filter(asset_code__in=asset_codes)
         missing = queryset.filter(available_at__isnull=True)
         eligible = missing.filter(
             report_date__isnull=False,

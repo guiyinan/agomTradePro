@@ -1,13 +1,13 @@
 """Model routing must fail closed on stale, conflicting or unverified history."""
 
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import pandas as pd
 import pytest
 
 from apps.data_center.application.model_market_data import ModelMarketDataService, ModelMarketRoute
-from apps.data_center.domain.model_market_data import ModelDailyBar
+from apps.data_center.domain.model_market_data import ModelDailyBar, TradingCalendarEvidence
 from apps.data_center.infrastructure.akshare_model_market_source import AkshareModelMarketSource
 from core.exceptions import DataFetchError, TushareError
 
@@ -34,6 +34,15 @@ class Source:
         self.calendar_calls += 1
         return (D1, D2)
 
+    def trading_calendar_evidence(self, start_date, end_date):
+        return TradingCalendarEvidence(
+            coverage_start=start_date,
+            coverage_end=end_date,
+            open_sessions=(D1, D2),
+            source="primary-fixture",
+            observed_at=datetime.now(UTC),
+        )
+
     def index_members(self, *args):
         return ("600000.SH",)
 
@@ -46,6 +55,16 @@ def service(primary, backup, *, reference=(), enabled=True, stored=None):
         reference_history=lambda *_: reference,
         store_history=stored.extend if stored is not None else None,
     )
+
+
+def test_calendar_evidence_binds_requested_coverage_and_provider_source():
+    evidence = service(Source(), Source()).trading_calendar_evidence(D1, D2)
+
+    assert evidence.coverage_start == D1
+    assert evidence.coverage_end == D2
+    assert evidence.open_sessions == (D1, D2)
+    assert evidence.source == "primary-fixture"
+    assert evidence.observed_at.tzinfo is not None
 
 
 def test_stale_primary_continues_to_consistent_fresh_source_and_stores_raw_values():

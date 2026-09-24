@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from django.db import connection
@@ -37,6 +38,8 @@ from apps.data_center.infrastructure.financial_fact_repository import (
     FinancialFactRepository,
 )
 from apps.data_center.infrastructure.models import FinancialFactModel
+from apps.data_center.infrastructure.publication_fact_evidence import canonical_fact_content_hash
+from apps.data_center.infrastructure.publication_models import PublicationMemberModel
 
 pytestmark = pytest.mark.django_db
 
@@ -48,6 +51,64 @@ SOURCE_HASH_A = "a" * 64
 SOURCE_HASH_B = "b" * 64
 CAPTURE_ID = UUID("20000000-0000-4000-8000-000000000003")
 _UNSET = object()
+
+
+def test_verified_financial_correction_preserves_publication_and_past_knowledge():
+    repo = _repository()
+    first = _publication_fact()
+    assert repo.bulk_upsert([first]) == 1
+    old = FinancialFactModel.objects.get()
+    digest = canonical_fact_content_hash(old)
+    PublicationMemberModel.objects.create(
+        publication_id=uuid4(),
+        dataset_key="equity.financial.fact",
+        natural_key=str(old.pk),
+        source=old.source,
+        fact_table=old._meta.db_table,
+        fact_pk=str(old.pk),
+        fact_content_hash=digest,
+    )
+    later = AVAILABLE_AT + timedelta(days=1)
+    corrected = _publication_fact(
+        value=200,
+        available_at=later,
+        source_evidence=_evidence(raw_payload_hash=SOURCE_HASH_B),
+    )
+    assert repo.bulk_upsert([corrected]) == 1
+    old.refresh_from_db()
+    assert canonical_fact_content_hash(old) == digest
+    assert FinancialFactModel.objects.count() == 2
+    assert repo.get_latest(ASSET_CODE).value == 200
+    assert len(repo.get_facts(ASSET_CODE)) == 1
+    assert repo.get_facts(ASSET_CODE, knowledge_cutoff=AVAILABLE_AT)[0].value == first.value
+    assert repo.get_facts(ASSET_CODE, fact_pks=[str(old.pk)])[0].value == first.value
+    assert repo.list_publication_candidates([corrected])[0].revision_number == 2
+    assert repo.list_current_publication_candidates((ASSET_CODE,))[0].revision_number == 2
+    assert repo.bulk_upsert([corrected]) == 0
+    assert FinancialFactModel.objects.count() == 2
+
+
+def _publication_fact(**kwargs):
+    fact = _fact(**kwargs)
+    decision = fact.decision_evidence
+    witness = decision.source_time_witness
+    assert witness is not None
+    artifact = decision.artifact_reference
+    return replace(
+        fact,
+        extra={
+            "financial_response_capture_id": str(artifact.capture_id),
+            "raw_payload_scope": artifact.evidence.body_scope.value,
+            "response_scope_basis": artifact.evidence.response_scope_basis.value,
+            "financial_source_time_capture_id": str(witness.artifact_reference.capture_id),
+            "financial_source_time_body_sha256": witness.artifact_reference.body_sha256,
+            "financial_source_time_row_sha256": witness.row_projection_sha256,
+            "financial_source_time_match_contract_id": witness.governed_match_contract_id,
+            "financial_source_time_match_contract_version": witness.governed_match_contract_version,
+            "financial_source_time_match_contract_sha256": witness.governed_match_contract_sha256,
+            "financial_source_time_matched_row_count": witness.matched_row_count,
+        },
+    )
 
 
 def _repository() -> FinancialFactRepository:
@@ -402,7 +463,9 @@ def test_existing_batch_locks_and_updates_with_bounded_query_count() -> None:
     update_queries = [
         query["sql"] for query in queries if query["sql"].lstrip().upper().startswith("UPDATE")
     ]
-    assert len(select_queries) == 1
+    assert len(select_queries) == 2
+    assert sum('FROM "data_center_financial_fact"' in query for query in select_queries) == 1
+    assert sum('FROM "data_center_publication_member"' in query for query in select_queries) == 1
     assert len(update_queries) == 1
     assert set(FinancialFactModel.objects.values_list("metric_code", flat=True)) == set(
         metric_codes

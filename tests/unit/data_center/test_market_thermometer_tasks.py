@@ -21,7 +21,11 @@ from apps.data_center.management.commands import import_investor_accounts as imp
 from apps.data_center.management.commands import sync_market_thermometer_inputs as sync_command
 
 
-def test_resolve_market_thermometer_as_of_date_uses_previous_business_day_before_close():
+def test_resolve_market_thermometer_as_of_date_uses_previous_business_day_before_close(monkeypatch):
+    monkeypatch.setattr(
+        "apps.data_center.application.market_thermometer_dates.latest_cn_market_session_ready_after",
+        lambda *_args, **_kwargs: date(2026, 5, 22),
+    )
     assert resolve_market_thermometer_as_of_date(
         now=datetime(2026, 5, 25, 15, 30, tzinfo=ZoneInfo("Asia/Shanghai"))
     ) == date(2026, 5, 22)

@@ -94,7 +94,7 @@ def test_configured_provider_routes_real_query_with_original_wire_format(monkeyp
     context = execute.call_args.args[0]
     assert context.provider_id == 3
     assert context.dataset_key == "equity.price.bar"
-    expected_suffix = "" if mode == "unified_relay" else "/daily"
+    expected_suffix = "/daily" if mode == "rest_path" else ""
     assert context.target_url == settings.http_url + expected_suffix
     assert execute.call_args.kwargs["method"] == ("GET" if mode == "rest_path" else "POST")
     assert execute.call_args.kwargs["max_attempts"] == 2

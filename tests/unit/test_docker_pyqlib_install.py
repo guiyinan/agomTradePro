@@ -115,10 +115,17 @@ def test_vps_deploy_preserves_tushare_runtime_settings_across_releases() -> None
     script = (REPO_ROOT / "scripts" / "remote_build_deploy_vps.py").read_text(encoding="utf-8")
     example = (REPO_ROOT / "deploy" / ".env.vps.example").read_text(encoding="utf-8")
 
-    for key in ("TUSHARE_TOKEN", "TUSHARE_HTTP_URL", "TUSHARE_REQUEST_MODE"):
+    for key in (
+        "TUSHARE_TOKEN",
+        "TUSHARE_HTTP_URL",
+        "TUSHARE_REQUEST_MODE",
+        "TUSHARE_GATEWAY_UPSTREAM",
+        "TUSHARE_GATEWAY_ALLOWED_IP",
+    ):
         assert f"get_env_kv {key}" in script
         assert f'_persist_secrets_env "{key}"' in script
-        assert f"{key}=" in example
+        if key in {"TUSHARE_TOKEN", "TUSHARE_HTTP_URL", "TUSHARE_REQUEST_MODE"}:
+            assert f"{key}=" in example
 
 
 def test_vps_compose_freezes_terminal_queue_migration_flags() -> None:
@@ -282,6 +289,20 @@ def test_vps_remote_deploy_defaults_and_celery_runtime_checks() -> None:
     assert '"auth.permission"' in migration
     assert ".postgres-migration-complete" in migration
     assert "check_encryption_readiness --json" in migration
+
+
+def test_tushare_gateway_is_private_and_fails_closed_without_host_config() -> None:
+    """The HTTPS bridge must stay internal and use an inert default upstream."""
+
+    compose = (REPO_ROOT / "docker" / "docker-compose.vps.yml").read_text(encoding="utf-8")
+    caddyfile = (REPO_ROOT / "docker" / "Caddyfile.template").read_text(encoding="utf-8")
+
+    assert "TUSHARE_GATEWAY_UPSTREAM: ${TUSHARE_GATEWAY_UPSTREAM:-http://127.0.0.1:9}" in compose
+    assert "TUSHARE_GATEWAY_ALLOWED_IP: ${TUSHARE_GATEWAY_ALLOWED_IP:-127.0.0.1}" in compose
+    assert "path /internal/tushare-gateway" in caddyfile
+    assert "remote_ip private_ranges {$TUSHARE_GATEWAY_ALLOWED_IP:127.0.0.1}" in caddyfile
+    assert "uri replace /internal/tushare-gateway /" in caddyfile
+    assert "reverse_proxy {$TUSHARE_GATEWAY_UPSTREAM:http://127.0.0.1:9}" in caddyfile
 
 
 def test_apps_with_infrastructure_models_have_django_discovery_bridge() -> None:

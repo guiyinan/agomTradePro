@@ -45,4 +45,18 @@ def test_latest_closed_session_uses_previous_weekday_during_live_market() -> Non
 
     live_market_time = datetime(2026, 9, 24, 10, 0, tzinfo=CN_MARKET_TIMEZONE)
 
-    assert latest_closed_cn_market_session(live_market_time) == date(2026, 9, 23)
+    assert latest_closed_cn_market_session(
+        live_market_time,
+        open_sessions=(date(2026, 9, 23), date(2026, 9, 24)),
+    ) == date(2026, 9, 23)
+
+
+def test_latest_closed_session_skips_source_observed_holiday() -> None:
+    """A weekday exchange holiday cannot become a manufactured market session."""
+
+    holiday_time = datetime(2026, 9, 25, 16, 30, tzinfo=CN_MARKET_TIMEZONE)
+
+    assert latest_closed_cn_market_session(
+        holiday_time,
+        open_sessions=(date(2026, 9, 23), date(2026, 9, 24), date(2026, 9, 28)),
+    ) == date(2026, 9, 24)

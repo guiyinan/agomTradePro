@@ -2,21 +2,15 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time
 from zoneinfo import ZoneInfo
+
+from apps.data_center.application.market_calendar import latest_cn_market_session_ready_after
+from core.exceptions import DataFetchError
 
 MARKET_THERMOMETER_POST_CLOSE_HOUR = 16
 MARKET_THERMOMETER_POST_CLOSE_MINUTE = 0
 MARKET_THERMOMETER_TIMEZONE = ZoneInfo("Asia/Shanghai")
-
-
-def previous_business_day(target_date: date) -> date:
-    """Return the latest weekday before ``target_date``."""
-
-    previous_day = target_date - timedelta(days=1)
-    while previous_day.weekday() >= 5:
-        previous_day -= timedelta(days=1)
-    return previous_day
 
 
 def resolve_market_thermometer_as_of_date(
@@ -36,12 +30,16 @@ def resolve_market_thermometer_as_of_date(
     else:
         local_now = local_now.astimezone(MARKET_THERMOMETER_TIMEZONE)
 
-    current_date = local_now.date()
-    if current_date.weekday() >= 5:
-        return previous_business_day(current_date)
-    if (local_now.hour, local_now.minute) < (
-        MARKET_THERMOMETER_POST_CLOSE_HOUR,
-        MARKET_THERMOMETER_POST_CLOSE_MINUTE,
-    ):
-        return previous_business_day(current_date)
-    return current_date
+    resolved = latest_cn_market_session_ready_after(
+        local_now,
+        ready_after=time(
+            MARKET_THERMOMETER_POST_CLOSE_HOUR,
+            MARKET_THERMOMETER_POST_CLOSE_MINUTE,
+        ),
+    )
+    if resolved is None:
+        raise DataFetchError(
+            "Exchange trading calendar is unavailable",
+            code="MARKET_CALENDAR_UNAVAILABLE",
+        )
+    return resolved

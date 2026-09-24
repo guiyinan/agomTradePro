@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, timedelta
 from functools import partial
+from typing import TypedDict
 
 from apps.data_center.domain.model_market_data import (
     ModelHistoryPreparationPort,
@@ -14,6 +16,16 @@ from apps.data_center.domain.model_market_data import (
 from core.exceptions import DataFetchError
 
 from .batch_identity import ProviderAssetIdentityError
+
+logger = logging.getLogger(__name__)
+
+
+class _PhaseResult(TypedDict):
+    phase: str
+    requested: int
+    succeeded: int
+    failed: int
+    stored: int
 
 
 def refresh_market_price_inputs(
@@ -66,6 +78,16 @@ def refresh_market_publications(
         raise ValueError("as_of_date must be a date")
     codes = sorted(set(ports.list_codes()))
     requested = ((len(codes) + batch_size - 1) // batch_size) * 2 + 1 if codes else 0
+    batches = (len(codes) + batch_size - 1) // batch_size
+    phases: list[_PhaseResult] = [
+        {"phase": name, "requested": total, "succeeded": 0, "failed": 0, "stored": 0}
+        for name, total in (
+            ("quote", batches),
+            ("valuation", batches),
+            ("publication", int(bool(codes))),
+        )
+    ]
+    failed_phase = ""
     succeeded = failed = stored = 0
     errors: list[str] = []
     for offset in range(0, len(codes), batch_size):
@@ -74,13 +96,17 @@ def refresh_market_publications(
             partial(ports.sync_quotes, batch),
             partial(ports.sync_valuations, batch, as_of_date),
         )
-        for operation in operations:
+        for phase, operation in zip(phases[:2], operations, strict=True):
             try:
                 count = operation()
+                if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+                    raise DataFetchError("Invalid stored count", code="MARKET_STORED_COUNT_INVALID")
                 stored += count
+                phase["stored"] += count
                 if count != len(batch):
                     raise DataFetchError("Market batch incomplete", code="MARKET_BATCH_INCOMPLETE")
                 succeeded += 1
+                phase["succeeded"] += 1
             except (
                 DataFetchError,
                 ProviderAssetIdentityError,
@@ -89,19 +115,37 @@ def refresh_market_publications(
                 ValueError,
             ) as exc:
                 failed += 1
+                phase["failed"] += 1
+                failed_phase = failed_phase or phase["phase"]
                 errors.append(getattr(exc, "code", type(exc).__name__))
+                logger.exception(
+                    "Market refresh phase failed: phase=%s offset=%s", phase["phase"], offset
+                )
     published = 0
     if codes and failed == 0:
         try:
-            published = ports.publish(codes)
-            if published <= 0:
-                raise ValueError("Market publication produced no members")
+            publication_count = ports.publish(codes)
+            if (
+                isinstance(publication_count, bool)
+                or not isinstance(publication_count, int)
+                or publication_count <= 0
+            ):
+                raise DataFetchError(
+                    "Market publication returned an invalid member count",
+                    code="MARKET_PUBLICATION_COUNT_INVALID",
+                )
+            published = publication_count
             succeeded += 1
+            phases[2]["succeeded"] = 1
         except (DataFetchError, OSError, RuntimeError, ValueError) as exc:
             failed += 1
+            phases[2]["failed"] = 1
+            failed_phase = "publication"
             errors.append(str(getattr(exc, "code", "") or "MARKET_PUBLICATION_VALIDATION_FAILED"))
+            logger.exception("Market publication validation failed for target_date=%s", as_of_date)
     elif codes:
         failed += 1
+        phases[2]["failed"] = 1
         errors.append("market_publication_skipped_incomplete_refresh")
     outcome = "success" if published else "partial" if stored else "failed"
     result: dict[str, object] = {
@@ -112,6 +156,10 @@ def refresh_market_publications(
         "failed": failed,
         "stored": stored,
         "count_unit": "sync_operation",
+        "stored_count_unit": "fact_row",
+        "target_trade_date": as_of_date.isoformat(),
+        "phase": failed_phase or ("completed" if published else "scope"),
+        "phase_results": phases,
         "asset_count": len(codes),
         "published_members": published,
         "publication_updated": bool(published),

@@ -15,6 +15,8 @@ from apps.data_center.domain.model_market_data import (
     ModelHistoryPreparationPort,
     ModelMarketDataPort,
     ModelSuspensionPort,
+    TradingCalendarEvidence,
+    TradingCalendarEvidencePort,
 )
 from core.exceptions import DataFetchError, TushareError
 
@@ -92,6 +94,44 @@ class ModelMarketDataService:
                     lambda port: port.trade_days(start_date, end_date)
                 )
             return self._calendar_cache[key]
+
+    def trading_calendar_evidence(
+        self, start_date: date, end_date: date
+    ) -> TradingCalendarEvidence:
+        """Return the exact provider route and requested coverage for calendar data."""
+
+        last_error: DataFetchError | None = None
+        for route in self._routes:
+            if route.name in self._disabled:
+                last_error = self._disabled[route.name]
+                continue
+            if not isinstance(route.port, TradingCalendarEvidencePort):
+                continue
+            try:
+                evidence = route.port.trading_calendar_evidence(start_date, end_date)
+                if (
+                    evidence.coverage_start != start_date
+                    or evidence.coverage_end != end_date
+                    or not evidence.open_sessions
+                ):
+                    raise DataFetchError(
+                        "Trading calendar coverage is incomplete",
+                        code="MODEL_MARKET_CALENDAR_COVERAGE_INCOMPLETE",
+                    )
+                return evidence
+            except PermissionError:
+                raise
+            except DataFetchError as exc:
+                last_error = exc
+                self._disable_quota(route, exc)
+            except (OSError, RuntimeError, TypeError, ValueError) as exc:
+                logger.warning(
+                    "Trading calendar route %s failed: %s", route.name, type(exc).__name__
+                )
+        raise last_error or DataFetchError(
+            "No trading calendar evidence available",
+            code="MODEL_MARKET_CALENDAR_UNAVAILABLE",
+        )
 
     def index_members(self, index_code: str, target_date: date) -> tuple[str, ...]:
         """Resolve historical membership inside Data Center."""

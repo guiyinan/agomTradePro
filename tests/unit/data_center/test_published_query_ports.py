@@ -22,11 +22,23 @@ from apps.data_center.domain.entities import (
     NewsFact,
     SectorMembershipFact,
 )
+from apps.data_center.domain.market_time import CN_MARKET_TIMEZONE
 
 pytestmark = pytest.mark.django_db
 
 
 _DEFAULT_OLDEST = object()
+
+
+@pytest.fixture(autouse=True)
+def _source_observed_market_calendar(monkeypatch) -> None:
+    """Keep publication fixtures independent from configured provider I/O."""
+
+    monkeypatch.setattr(
+        query_services,
+        "latest_completed_cn_market_session",
+        lambda now: now.astimezone(CN_MARKET_TIMEZONE).date(),
+    )
 
 
 @pytest.mark.parametrize("tamper_other", [False, True])

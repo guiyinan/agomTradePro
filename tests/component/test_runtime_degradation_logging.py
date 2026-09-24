@@ -195,5 +195,5 @@ def test_qlib_provider_no_worker_path_is_quiet(monkeypatch, caplog):
         result = provider.get_stock_scores("csi300", date.today(), 10)
 
     assert result.success is False
-    assert result.metadata["inference_trigger_status"] == "no_worker"
+    assert result.metadata["inference_trigger_status"] == "read_only_cache_miss"
     assert not [record for record in caplog.records if record.levelno >= logging.WARNING]

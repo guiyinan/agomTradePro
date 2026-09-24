@@ -27,6 +27,17 @@ from apps.data_center.domain.enums import DataQualityStatus
 pytestmark = pytest.mark.django_db
 
 
+@pytest.fixture(autouse=True)
+def _source_observed_market_calendar(monkeypatch) -> None:
+    """Keep business-read fixtures independent from configured provider I/O."""
+
+    monkeypatch.setattr(
+        query_services,
+        "latest_completed_cn_market_session",
+        lambda _now: date(2026, 7, 30),
+    )
+
+
 def _macro_policy() -> PublicationPolicy:
     """Return the legacy policy identity used by the composite test scope."""
 

@@ -19,6 +19,8 @@ from apps.data_center.infrastructure.financial_decision_evidence_codec import (
     encode_financial_decision_evidence,
 )
 from apps.data_center.infrastructure.models import FinancialFactModel
+from apps.data_center.infrastructure.publication_fact_write_lock import publication_fact_write_lock
+from apps.data_center.infrastructure.publication_models import PublicationMemberModel
 from core.exceptions import DataValidationError
 
 FinancialFactNaturalKey: TypeAlias = tuple[str, date, str, str, str]
@@ -68,7 +70,7 @@ def bulk_upsert_financial_facts(
             raise FinancialFactProvenanceConflictError(
                 "financial source-time witness must be independently verified before write"
             )
-    with transaction.atomic():
+    with transaction.atomic(), publication_fact_write_lock(FinancialFactModel):
         locked_before = _lock_rows_by_natural_key(facts)
         for fact in facts:
             row = locked_before[_financial_natural_key(fact)]
@@ -91,6 +93,13 @@ def bulk_upsert_financial_facts(
 
         normalized_updates: list[FinancialFactModel] = []
         source_updates: list[FinancialFactModel] = []
+        successors: list[FinancialFactModel] = []
+        pinned = set(
+            PublicationMemberModel._default_manager.filter(
+                fact_table=FinancialFactModel._meta.db_table,
+                fact_pk__in=[str(row.pk) for row in locked_before.values() if row is not None],
+            ).values_list("fact_pk", flat=True)
+        )
         for fact in facts:
             if locked_before[_financial_natural_key(fact)] is None:
                 continue
@@ -100,11 +109,20 @@ def bulk_upsert_financial_facts(
                     "Financial fact row disappeared during upsert"
                 )
             if _update_existing_row(fact, row):
+                if str(row.pk) in pinned:
+                    row.pk = None
+                    row.revision_number += 1
+                    successors.append(row)
+                    continue
                 if fact.source_evidence is None:
                     normalized_updates.append(row)
                 else:
                     source_updates.append(row)
         updated_count = 0
+        if successors:
+            inserted_count += len(
+                FinancialFactModel._default_manager.bulk_create(successors, batch_size=500)
+            )
         if normalized_updates:
             updated_count += FinancialFactModel._default_manager.bulk_update(
                 normalized_updates,
@@ -257,7 +275,8 @@ def _lock_rows_by_natural_key(
                 "period_type",
                 "metric_code",
                 "source",
-                "pk",
+                "-revision_number",
+                "-pk",
             )
         ):
             key = _row_natural_key(row)

@@ -137,7 +137,10 @@ class PublicationMemberModel(models.Model):
                 name="dc_publication_member_natural_key_unique",
             ),
         ]
-        indexes = [models.Index(fields=["dataset_key", "natural_key", "observed_at"])]
+        indexes = [
+            models.Index(fields=["dataset_key", "natural_key", "observed_at"]),
+            models.Index(fields=["fact_table", "fact_pk"], name="dc_pub_member_fact_idx"),
+        ]
 
     def to_domain(self) -> PublicationMember:
         """Convert the persisted member reference to a domain value object."""

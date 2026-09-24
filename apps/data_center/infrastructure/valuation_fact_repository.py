@@ -13,6 +13,9 @@ from apps.data_center.infrastructure._repository_helpers import _resolve_asset_c
 from apps.data_center.infrastructure.models import ValuationFactModel
 
 from .publication_fact_evidence import publication_fact_reference_for_dataset
+from .published_fact_versions import latest_fact_revisions, upsert_publication_safe_facts
+
+_NATURAL_KEY = ("asset_code", "val_date", "source")
 
 
 class ValuationFactRepository:
@@ -46,10 +49,15 @@ class ValuationFactRepository:
         end: date | None = None,
         fact_pks: Sequence[str] | None = None,
     ) -> list[ValuationFact]:
+        """Return latest revisions or the exact rows pinned by a publication."""
         for candidate in _resolve_asset_code_candidates(asset_code):
             qs = ValuationFactModel.objects.filter(asset_code=candidate)
             if fact_pks is not None:
                 qs = qs.filter(pk__in=list(fact_pks))
+            else:
+                qs = latest_fact_revisions(ValuationFactModel, _NATURAL_KEY).filter(
+                    asset_code=candidate
+                )
             if start:
                 qs = qs.filter(val_date__gte=start)
             if end:
@@ -60,10 +68,11 @@ class ValuationFactRepository:
         return []
 
     def get_latest(self, asset_code: str) -> ValuationFact | None:
+        """Return the newest source observation and its latest revision."""
         for candidate in _resolve_asset_code_candidates(asset_code):
             m = (
                 ValuationFactModel.objects.filter(asset_code=candidate)
-                .order_by("-val_date")
+                .order_by("-val_date", "-revision_number", "-pk")
                 .first()
             )
             if m is not None:
@@ -79,8 +88,10 @@ class ValuationFactRepository:
     def list_by_date(self, as_of_date: date) -> list[ValuationFact]:
         """Return canonical valuation facts for one date in deterministic order."""
 
-        rows = ValuationFactModel._default_manager.filter(val_date=as_of_date).order_by(
-            "asset_code"
+        rows = (
+            latest_fact_revisions(ValuationFactModel, _NATURAL_KEY)
+            .filter(val_date=as_of_date)
+            .order_by("asset_code")
         )
         return [self._from_model(row) for row in rows]
 
@@ -118,11 +129,11 @@ class ValuationFactRepository:
             )
             for fact in facts
         ]
-        ValuationFactModel._default_manager.bulk_create(
+        return upsert_publication_safe_facts(
+            ValuationFactModel,
             models,
-            batch_size=1_000,
-            update_conflicts=True,
-            update_fields=[
+            natural_key=_NATURAL_KEY,
+            update_fields=(
                 "pe_ttm",
                 "pe_static",
                 "pb",
@@ -136,10 +147,8 @@ class ValuationFactRepository:
                 "extra",
                 "source_record_id",
                 "raw_payload_hash",
-            ],
-            unique_fields=["asset_code", "val_date", "source"],
+            ),
         )
-        return len(models)
 
     def list_publication_candidates(
         self, facts: Sequence[ValuationFact]
@@ -161,7 +170,7 @@ class ValuationFactRepository:
                     val_date=fact.val_date,
                     source=fact.source,
                 )
-                .order_by("id")
+                .order_by("-revision_number", "-id")
                 .first()
             )
             if row is None or str(row.pk) in seen_fact_pks:
@@ -180,7 +189,8 @@ class ValuationFactRepository:
         if not asset_codes:
             return []
         latest_row = (
-            ValuationFactModel._default_manager.filter(asset_code=OuterRef("asset_code"))
+            latest_fact_revisions(ValuationFactModel, _NATURAL_KEY)
+            .filter(asset_code=OuterRef("asset_code"))
             .order_by(
                 F("val_date").desc(),
                 F("observed_at").desc(nulls_last=True),

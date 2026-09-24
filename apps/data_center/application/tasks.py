@@ -40,7 +40,6 @@ from apps.data_center.domain.control_plane import (
 )
 from apps.data_center.domain.market_time import (
     cn_market_date_from_observation,
-    latest_closed_cn_market_session,
 )
 from core.exceptions import DataFetchError, DataValidationError, InvalidInputError
 from core.integration.config_center_runtime import evaluate_storage_pressure
@@ -65,6 +64,7 @@ from .interface_services import (
     make_sync_market_thermometer_inputs_use_case,
     refresh_decision_quote_snapshots,
 )
+from .market_calendar import latest_closed_cn_market_session
 from .market_thermometer_dates import resolve_market_thermometer_as_of_date
 from .public import (
     get_active_provider_id_by_source,

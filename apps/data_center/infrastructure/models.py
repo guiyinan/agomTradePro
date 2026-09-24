@@ -685,7 +685,9 @@ class PriceBarModel(models.Model):
 
     class Meta:
         db_table = "data_center_price_bar"
-        unique_together = [("asset_code", "bar_date", "freq", "adjustment", "source")]
+        unique_together = [
+            ("asset_code", "bar_date", "freq", "adjustment", "source", "revision_number")
+        ]
         indexes = [
             models.Index(fields=["asset_code", "bar_date"]),
         ]
@@ -712,8 +714,8 @@ class PriceBarModel(models.Model):
 class QuoteSnapshotModel(models.Model):
     """Intraday real-time quote snapshot.
 
-    Append-only — rows are never updated, only inserted.
-    Natural key: (asset_code, snapshot_at, source).
+    Publication-referenced rows are immutable; later ingestion adds a revision.
+    Natural key: (asset_code, snapshot_at, source, revision_number).
     """
 
     asset_code = models.CharField(max_length=20, db_index=True)
@@ -740,7 +742,7 @@ class QuoteSnapshotModel(models.Model):
 
     class Meta:
         db_table = "data_center_quote_snapshot"
-        unique_together = [("asset_code", "snapshot_at", "source")]
+        unique_together = [("asset_code", "snapshot_at", "source", "revision_number")]
         indexes = [
             models.Index(fields=["asset_code", "snapshot_at"]),
         ]
@@ -865,7 +867,9 @@ class FinancialFactModel(models.Model):
 
     class Meta:
         db_table = "data_center_financial_fact"
-        unique_together = [("asset_code", "period_end", "period_type", "metric_code", "source")]
+        unique_together = [
+            ("asset_code", "period_end", "period_type", "metric_code", "source", "revision_number")
+        ]
         indexes = [
             models.Index(fields=["asset_code", "period_end"]),
             models.Index(fields=["metric_code"]),

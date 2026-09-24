@@ -33,11 +33,20 @@ from apps.data_center.domain.financial_source_time_evidence import (
     FinancialSourceTimeArtifactRef,
     FinancialSourceTimeWitness,
 )
+from apps.data_center.infrastructure.catalog_models import DatasetPublicationPolicyModel
 from apps.data_center.infrastructure.financial_fact_repository import (
     FinancialFactProvenanceConflictError,
     FinancialFactRepository,
 )
-from apps.data_center.infrastructure.models import FinancialFactModel
+from apps.data_center.infrastructure.models import (
+    AssetAliasModel,
+    AssetMasterModel,
+    FinancialFactModel,
+)
+from apps.data_center.infrastructure.publication_models import PublicationMemberModel
+from tests.component.data_center.test_financial_fact_repository_provenance import (
+    test_verified_financial_correction_preserves_publication_and_past_knowledge as _assert_frozen_financial_history,
+)
 
 _POSTGRES_FLAG = "AGOM_EVID06_POSTGRES_TEST"
 _POSTGRES_URL = "AGOM_EVID06_POSTGRES_TEST_DATABASE_URL"
@@ -47,6 +56,13 @@ _PERIOD_END = date(2026, 6, 30)
 _ANNOUNCED_AT = datetime(2026, 9, 14, 8, 0, tzinfo=UTC)
 _AVAILABLE_AT = _ANNOUNCED_AT + timedelta(minutes=5)
 _SOURCE_HASH = "a" * 64
+_SCHEMA_MODELS = (
+    AssetMasterModel,
+    AssetAliasModel,
+    FinancialFactModel,
+    PublicationMemberModel,
+    DatasetPublicationPolicyModel,
+)
 
 
 def _repository() -> FinancialFactRepository:
@@ -102,7 +118,7 @@ def _database_observation(wrapper) -> tuple[str, int, int]:
 
 @pytest.fixture(scope="module")
 def _financial_postgres_schema(django_db_blocker) -> Iterator[None]:
-    """Create and remove only the financial fact table in the empty test DB."""
+    """Create financial, asset identity and member tables in the empty test DB."""
 
     credentials = _credentials()
     original = connections["default"]
@@ -136,15 +152,19 @@ def _financial_postgres_schema(django_db_blocker) -> Iterator[None]:
             assert table_count == 0
             assert other_clients == 0
             with wrapper.schema_editor() as editor:
-                editor.create_model(FinancialFactModel)
+                for model in _SCHEMA_MODELS:
+                    editor.create_model(model)
             created = True
-            assert wrapper.introspection.table_names() == [FinancialFactModel._meta.db_table]
+            assert set(wrapper.introspection.table_names()) == {
+                model._meta.db_table for model in _SCHEMA_MODELS
+            }
             yield
         finally:
             if created:
                 wrapper.rollback()
                 with wrapper.schema_editor() as editor:
-                    editor.delete_model(FinancialFactModel)
+                    for model in reversed(_SCHEMA_MODELS):
+                        editor.delete_model(model)
                 database_name, table_count, other_clients = _database_observation(wrapper)
                 assert database_name == _DATABASE_NAME
                 assert table_count == 0
@@ -155,11 +175,23 @@ def _financial_postgres_schema(django_db_blocker) -> Iterator[None]:
 
 @pytest.fixture(autouse=True)
 def _clear_financial_rows(_financial_postgres_schema) -> Iterator[None]:
-    """Keep the two cases row-isolated while the module owns one table."""
+    """Keep each case row-isolated while the module owns its test tables."""
 
     FinancialFactModel.objects.all().delete()
+    PublicationMemberModel.objects.all().delete()
+    AssetAliasModel.objects.all().delete()
+    AssetMasterModel.objects.all().delete()
+    DatasetPublicationPolicyModel.objects.all().delete()
     yield
+    PublicationMemberModel.objects.all().delete()
     FinancialFactModel.objects.all().delete()
+    AssetAliasModel.objects.all().delete()
+    AssetMasterModel.objects.all().delete()
+    DatasetPublicationPolicyModel.objects.all().delete()
+
+
+def test_postgres_financial_revision_preserves_frozen_rows_and_past_knowledge() -> None:
+    _assert_frozen_financial_history()
 
 
 def _evidence() -> FinancialFactSourceEvidence:

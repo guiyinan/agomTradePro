@@ -2229,7 +2229,7 @@
         ],
         "apps/data_center/infrastructure/quote_snapshot_repository.py": [
           "fetched_at=m.fetched_at",
-          "\"fetched_at\": q.fetched_at"
+          "fetched_at=q.fetched_at"
         ],
         "apps/realtime/infrastructure/repositories.py": [
           "timestamp=observed_at",
@@ -6258,6 +6258,109 @@
           "case": "source_time_database_concurrent_replay",
           "test_file": "tests/component/data_center/test_financial_source_time_audit_claim.py",
           "test_function": "test_concurrent_source_time_replay_has_one_raw_audit"
+        }
+      ]
+    },
+    {
+      "id": "data_center.published_market_fact_revisions",
+      "surface": "Frozen quote, daily bar, valuation and financial rows survive later ingestion; raw reads select latest revisions within knowledge scope",
+      "source_files": [
+        "apps/data_center/infrastructure/published_fact_versions.py",
+        "apps/data_center/infrastructure/publication_fact_write_lock.py",
+        "apps/data_center/infrastructure/financial_fact_write_guard.py",
+        "apps/data_center/infrastructure/financial_fact_repository.py",
+        "apps/data_center/infrastructure/financial_availability_repository.py",
+        "apps/data_center/infrastructure/quote_snapshot_repository.py",
+        "apps/data_center/infrastructure/valuation_fact_repository.py",
+        "apps/data_center/infrastructure/price_bar_repository.py"
+      ],
+      "required_markers": {
+        "apps/data_center/infrastructure/published_fact_versions.py": [
+          "def upsert_publication_safe_facts(",
+          "def latest_fact_revisions(",
+          "DUPLICATE_FACT_IDENTITY"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "frozen_quote_preserved",
+          "test_file": "tests/component/data_center/test_published_fact_refresh.py",
+          "test_function": "test_refreshing_published_quote_keeps_frozen_row_and_selects_new_revision"
+        },
+        {
+          "case": "valuation_knowledge_time_preserved",
+          "test_file": "tests/component/data_center/test_published_fact_refresh.py",
+          "test_function": "test_refetching_published_valuation_does_not_rewrite_knowledge_time"
+        },
+        {
+          "case": "duplicate_batch_atomic",
+          "test_file": "tests/component/data_center/test_published_fact_refresh.py",
+          "test_function": "test_duplicate_batch_rolls_back_without_changing_frozen_or_unpublished_rows"
+        },
+        {
+          "case": "exact_replay_idempotent",
+          "test_file": "tests/component/data_center/test_published_fact_refresh.py",
+          "test_function": "test_exact_replay_of_frozen_quote_does_not_create_new_revision"
+        },
+        {
+          "case": "market_scale_bounded",
+          "test_file": "tests/component/data_center/test_published_fact_refresh.py",
+          "test_function": "test_market_sized_unpublished_refetch_uses_bounded_insert_upserts"
+        },
+        {
+          "case": "frozen_daily_bar_preserved",
+          "test_file": "tests/component/data_center/test_published_fact_refresh.py",
+          "test_function": "test_correcting_published_daily_bar_preserves_snapshot_and_latest_history"
+        },
+        {
+          "case": "frozen_financial_and_historical_knowledge_preserved",
+          "test_file": "tests/component/data_center/test_financial_fact_repository_provenance.py",
+          "test_function": "test_verified_financial_correction_preserves_publication_and_past_knowledge"
+        },
+        {
+          "case": "postgres_financial_source_proof_and_revisions",
+          "test_file": "tests/component/data_center/test_financial_fact_repository_postgres_provenance.py",
+          "test_function": "test_postgres_financial_revision_preserves_frozen_rows_and_past_knowledge"
+        }
+      ]
+    },
+    {
+      "id": "data_center.market_provider_rehearsal",
+      "surface": "Read-only live provider probe binds sampled scope, source clock and observed HTTP receipts; it is not release approval",
+      "source_files": [
+        "apps/data_center/application/market_provider_rehearsal.py",
+        "apps/data_center/infrastructure/market_rehearsal_runner.py",
+        "apps/data_center/infrastructure/rehearsal_http_capture.py",
+        "apps/data_center/management/commands/rehearse_market_providers.py"
+      ],
+      "required_markers": {
+        "apps/data_center/infrastructure/market_rehearsal_runner.py": [
+          "REPEATABLE READ, READ ONLY",
+          "REHEARSAL_REAL_RESPONSE_MISSING",
+          "REHEARSAL_SOURCE_RESPONSE_MISMATCH",
+          "remaining_release_gates"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "real_clock_and_coverage",
+          "test_file": "tests/unit/data_center/test_market_provider_rehearsal.py",
+          "test_function": "test_probe_rejects_coverage_and_real_clock_defects"
+        },
+        {
+          "case": "real_transport_receipt",
+          "test_file": "tests/unit/data_center/test_rehearsal_http_capture.py",
+          "test_function": "test_real_transport_receipt_preserves_body_and_restores_session"
+        },
+        {
+          "case": "postgres_read_only_enforced",
+          "test_file": "tests/component/data_center/test_publication_read_snapshot_postgres.py",
+          "test_function": "test_market_rehearsal_database_enforces_read_only_on_provider_write"
+        },
+        {
+          "case": "no_receipt_no_pass",
+          "test_file": "tests/unit/data_center/test_market_rehearsal_runner.py",
+          "test_function": "test_probe_without_real_response_receipt_cannot_pass"
         }
       ]
     }

@@ -31,6 +31,8 @@ def _publication_result(member_count: int) -> SimpleNamespace:
             "publication_id": f"publication-{index}",
             "publication_hash": format(index + 1, "x") * 64,
             "member_count": member_count,
+            "covered_asset_count": member_count,
+            "policy_identity": f"p2:test-{index}:{format(index + 5, 'x') * 64}",
         }
         for index, dataset_key in enumerate(PUBLICATION_DATASETS)
     ]
@@ -50,10 +52,18 @@ def _patch_current_authority(mocker) -> None:
     mocker.patch(
         "apps.data_center.application.tasks.preflight_data_reliability_audit_runtime",
         return_value=SimpleNamespace(
+            authority_source_id="authority:test",
+            authority_source_version="1",
             actor_id="service:data02",
+            user_id=1,
             tenant_id="tenant:production",
             owner_id="owner:production",
             authority_content_hash="d" * 64,
+            is_authenticated=True,
+            is_staff=True,
+            role="system_operator",
+            authority_state="active",
+            authority_recorded_at=datetime.now(UTC) - timedelta(hours=1),
             authority_valid_until=datetime.now(UTC) + timedelta(hours=2),
         ),
     )
@@ -70,6 +80,18 @@ class _FakeBackfillUseCase:
         """Implement the application use-case port used by the backfill task."""
 
         del args, kwargs
+        if self._error is not None:
+            raise self._error
+        return self._result
+
+    def prepare_for_write(self, request: object) -> object:
+        """Return deterministic source evidence for the financial write phase."""
+
+        return request
+
+    def execute_prepared(self, _prepared: object) -> object:
+        """Execute the financial fixture after its source-evidence preflight."""
+
         if self._error is not None:
             raise self._error
         return self._result
@@ -167,7 +189,9 @@ def test_backfill_persists_run_batch_and_checkpoint_rows(mocker) -> None:
         returned_asset_codes=("000001.SZ",),
     )
     financial_use_case = mocker.Mock()
-    financial_use_case.execute.return_value = SimpleNamespace(stored_count=1)
+    prepared_financial = object()
+    financial_use_case.prepare_for_write.return_value = prepared_financial
+    financial_use_case.execute_prepared.return_value = SimpleNamespace(stored_count=1)
     mocker.patch(
         "apps.data_center.application.tasks.make_backfill_sync_quote_use_case",
         return_value=quote_use_case,
@@ -193,7 +217,7 @@ def test_backfill_persists_run_batch_and_checkpoint_rows(mocker) -> None:
 
     result = backfill_active_a_share_core_data_batch_task.run(batch_size=1)
 
-    assert result["outcome"] == "success"
+    assert result["outcome"] == "success", result
     run = SyncRunModel._default_manager.get(
         dataset_key="equity.core.backfill",
         trigger="celery.backfill_a_share_core",

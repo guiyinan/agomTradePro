@@ -14,10 +14,10 @@ from apps.data_center.application.dtos import (
     QuoteResponse,
     ResolveAssetRequest,
 )
+from apps.data_center.application.market_calendar import latest_completed_cn_market_session
 from apps.data_center.domain.market_time import (
     CN_MARKET_CLOSE,
     CN_MARKET_TIMEZONE,
-    latest_completed_cn_market_session,
 )
 from apps.data_center.domain.protocols import (
     AssetRepositoryProtocol,

@@ -4,12 +4,16 @@ import os
 from collections.abc import Iterator, Sequence
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
+from datetime import date
+from importlib import import_module
 from urllib.parse import unquote, urlsplit
 from uuid import UUID, uuid4
 
 import psycopg
 import pytest
-from django.db import connections, transaction
+from django.apps import apps
+from django.db import IntegrityError, OperationalError, connections, transaction
+from django.db.migrations.state import ProjectState
 from django.db.utils import load_backend
 from django.utils import timezone
 
@@ -29,6 +33,9 @@ from apps.data_center.infrastructure.control_plane_repositories import (
 from apps.data_center.infrastructure.models import (
     AssetAliasModel,
     AssetMasterModel,
+    FinancialFactModel,
+    PriceBarModel,
+    QuoteSnapshotModel,
     ValuationFactModel,
 )
 from apps.data_center.infrastructure.publication_models import (
@@ -88,6 +95,9 @@ def _actual_publication_pg_schema(django_db_blocker) -> Iterator[_PGProbeFactory
         DatasetPublicationPolicyModel,
         AssetMasterModel,
         AssetAliasModel,
+        PriceBarModel,
+        QuoteSnapshotModel,
+        FinancialFactModel,
         ValuationFactModel,
         CanonicalPublicationModel,
         CoverageSnapshotModel,
@@ -116,7 +126,7 @@ def _actual_publication_pg_schema(django_db_blocker) -> Iterator[_PGProbeFactory
 
 @pytest.fixture
 def actual_publication_pg(_actual_publication_pg_schema) -> Iterator[_PGProbeFactory]:
-    """Reset only the eight tables created in the opted-in empty test database."""
+    """Reset only the tables created in the opted-in empty test database."""
 
     try:
         yield _actual_publication_pg_schema
@@ -129,6 +139,9 @@ def actual_publication_pg(_actual_publication_pg_schema) -> Iterator[_PGProbeFac
             DatasetPublicationPolicyModel,
             AssetMasterModel,
             AssetAliasModel,
+            PriceBarModel,
+            QuoteSnapshotModel,
+            FinancialFactModel,
             ValuationFactModel,
             CanonicalPublicationModel,
             CoverageSnapshotModel,
@@ -144,6 +157,45 @@ def actual_publication_pg(_actual_publication_pg_schema) -> Iterator[_PGProbeFac
 def _probe_update(probe, fact_pk: str) -> None:
     probe.execute("SELECT set_config('lock_timeout', %s, true)", ["150ms"])
     probe.execute("UPDATE data_center_valuation_fact SET pe_ttm=99 WHERE id=%s", [fact_pk])
+
+
+def test_market_rehearsal_database_enforces_read_only_on_provider_write(
+    actual_publication_pg,
+    monkeypatch,
+    tmp_path,
+) -> None:
+    from types import SimpleNamespace
+
+    from django.db import DatabaseError
+
+    from apps.data_center.infrastructure import market_rehearsal_runner as runner
+
+    class Provider:
+        def fetch_quote_snapshots(self, codes):
+            with connections["default"].cursor() as cursor:
+                cursor.execute("UPDATE data_center_valuation_fact SET pe_ttm=99")
+            pytest.fail("PostgreSQL must reject a business write even with no rows")
+
+        def fetch_current_valuations(self, codes, as_of_date):
+            pytest.fail("must abort after database-enforced read-only rejection")
+
+    monkeypatch.setattr(runner, "market_rehearsal_source_digest", lambda root: "b" * 64)
+    monkeypatch.setattr(runner, "list_active_stock_codes_for_backfill", lambda: ["000001.SZ"])
+    monkeypatch.setattr(runner, "latest_completed_cn_market_session", lambda now: date(2026, 9, 24))
+    monkeypatch.setattr(
+        runner, "get_provider_registry", lambda: SimpleNamespace(get_by_id=lambda _: Provider())
+    )
+    with pytest.raises(DatabaseError, match="read-only"):
+        runner.run_market_provider_rehearsal(
+            quote_provider_id=1,
+            valuation_provider_id=2,
+            candidate_sha="a" * 40,
+            source_root=tmp_path,
+        )
+    assert ValuationFactModel.objects.count() == 0
+    with connections["default"].cursor() as cursor:
+        cursor.execute("SHOW transaction_read_only")
+        assert cursor.fetchone()[0] == "off"
 
 
 def _probe_write(probe, statement: str, params: Sequence[object]) -> None:
@@ -427,3 +479,103 @@ def test_forged_frozen_provenance_with_real_row_digest_never_replaces_current(
     assert CanonicalPublicationRepository().get_current(policy.dataset.value, "current") == previous
     assert CanonicalPublicationModel.objects.count() == 1
     assert PublicationMemberModel.objects.count() == 1
+
+
+def test_postgres_refetch_retains_frozen_publication_and_excludes_parallel_writer(
+    actual_publication_pg,
+) -> None:
+    _policy, _publication, member = _published_snapshot()
+    repo = ValuationFactRepository()
+    first = repo.get_latest("000001.SZ")
+    assert first is not None
+    before = query_published_valuation_facts("000001.SZ")
+    with actual_publication_pg.connect() as probe:
+        with transaction.atomic():
+            assert repo.bulk_upsert([replace(first, pe_ttm=19.5)]) == 1
+            assert query_published_valuation_facts("000001.SZ")["rows"] == before["rows"]
+            with pytest.raises(psycopg.errors.LockNotAvailable):
+                _probe_update(probe, member.fact_pk)
+            probe.rollback()
+    assert ValuationFactModel.objects.count() == 2
+    assert repo.get_latest("000001.SZ").pe_ttm == 19.5
+    assert query_published_valuation_facts("000001.SZ")["rows"] == before["rows"]
+
+
+def test_postgres_fact_refresh_honors_stricter_lock_timeout_and_rolls_back(
+    actual_publication_pg,
+) -> None:
+    _policy, _publication, member = _published_snapshot()
+    repo = ValuationFactRepository()
+    first = repo.get_latest("000001.SZ")
+    assert first is not None
+    with actual_publication_pg.connect() as probe:
+        _probe_update(probe, member.fact_pk)
+        with transaction.atomic():
+            with connections["default"].cursor() as cursor:
+                cursor.execute("SET LOCAL lock_timeout = '75ms'")
+            with pytest.raises(OperationalError, match="lock timeout"):
+                repo.bulk_upsert([replace(first, pe_ttm=19.5)])
+            with connections["default"].cursor() as cursor:
+                cursor.execute("SHOW lock_timeout")
+                assert cursor.fetchone() == ("75ms",)
+        probe.rollback()
+    assert ValuationFactModel.objects.count() == 1
+    assert repo.get_latest("000001.SZ").pe_ttm == first.pe_ttm
+
+
+def test_postgres_revision_migration_preserves_rows_and_refuses_lossy_downgrade(
+    actual_publication_pg,
+) -> None:
+    migration_type = import_module(
+        "apps.data_center.migrations.0085_published_market_fact_revisions"
+    ).Migration
+    migration = migration_type("0085_published_market_fact_revisions", "data_center")
+    before = ProjectState.from_apps(apps)
+    for name, fields in (
+        (
+            "financialfactmodel",
+            ("asset_code", "period_end", "period_type", "metric_code", "source"),
+        ),
+        ("pricebarmodel", ("asset_code", "bar_date", "freq", "adjustment", "source")),
+        ("quotesnapshotmodel", ("asset_code", "snapshot_at", "source")),
+        ("valuationfactmodel", ("asset_code", "val_date", "source")),
+    ):
+        before.alter_model_options(
+            "data_center", name, {"unique_together": {fields}}, ["unique_together"]
+        )
+    before.remove_index("data_center", "publicationmembermodel", "dc_pub_member_fact_idx")
+    connection = connections["default"]
+    with connection.schema_editor() as editor:
+        migration.unapply(before, editor)
+    _policy, _publication, member = _published_snapshot()
+    retained = ValuationFactModel.objects.values().get(pk=member.fact_pk)
+    duplicate = {key: value for key, value in retained.items() if key != "id"}
+    duplicate["revision_number"] = 2
+    with pytest.raises(IntegrityError):
+        with transaction.atomic():
+            ValuationFactModel.objects.create(**duplicate)
+    with connection.schema_editor() as editor:
+        migration.apply(before.clone(), editor)
+    assert ValuationFactModel.objects.values().get(pk=member.fact_pk) == retained
+    with connection.cursor() as cursor:
+        for model in (FinancialFactModel, PriceBarModel, QuoteSnapshotModel, ValuationFactModel):
+            constraints = connection.introspection.get_constraints(cursor, model._meta.db_table)
+            expected = list(model._meta.unique_together[0])
+            assert any(
+                item["unique"] and item["columns"] == expected for item in constraints.values()
+            )
+    repo = ValuationFactRepository()
+    first = repo.get_latest("000001.SZ")
+    assert first is not None
+    repo.bulk_upsert([replace(first, pe_ttm=19.5)])
+    assert ValuationFactModel.objects.count() == 2
+    with pytest.raises(IntegrityError):
+        with connection.schema_editor() as editor:
+            migration.unapply(before, editor)
+    assert ValuationFactModel.objects.count() == 2
+    assert ValuationFactModel.objects.values().get(pk=member.fact_pk) == retained
+    with connection.cursor() as cursor:
+        indexes = connection.introspection.get_constraints(
+            cursor, PublicationMemberModel._meta.db_table
+        )
+    assert "dc_pub_member_fact_idx" in indexes

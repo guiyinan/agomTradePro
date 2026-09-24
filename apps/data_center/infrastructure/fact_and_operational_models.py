@@ -221,7 +221,7 @@ class ValuationFactModel(models.Model):
 
     class Meta:
         db_table = "data_center_valuation_fact"
-        unique_together = [("asset_code", "val_date", "source")]
+        unique_together = [("asset_code", "val_date", "source", "revision_number")]
         indexes = [models.Index(fields=["asset_code", "val_date"])]
         ordering = ["-val_date"]
         verbose_name = "Valuation Fact"

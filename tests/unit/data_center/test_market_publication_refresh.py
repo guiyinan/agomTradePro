@@ -122,11 +122,52 @@ def test_publication_evidence_failure_is_not_success():
     assert published == []
 
 
+def test_publication_failure_preserves_phase_and_actual_write_counts():
+    result, _ = run(publish_error=True)
+    assert result["phase"] == "publication"
+    assert result["stored_count_unit"] == "fact_row"
+    assert result["target_trade_date"] == "2026-09-18"
+    assert result["phase_results"] == [
+        {"phase": "quote", "requested": 2, "succeeded": 2, "failed": 0, "stored": 3},
+        {"phase": "valuation", "requested": 2, "succeeded": 2, "failed": 0, "stored": 3},
+        {"phase": "publication", "requested": 1, "succeeded": 0, "failed": 1, "stored": 0},
+    ]
+
+
+def test_failed_quote_phase_is_not_hidden_by_skipped_publication():
+    result, _ = run(quote_count=0)
+    assert result["phase"] == "quote"
+    assert result["phase_results"][0] == {
+        "phase": "quote",
+        "requested": 2,
+        "succeeded": 0,
+        "failed": 2,
+        "stored": 0,
+    }
+    assert result["phase_results"][-1]["succeeded"] == 0
+
+
 def test_empty_scope_is_not_success():
     result, published = run(empty=True)
     assert result["outcome"] == "failed"
     assert result["stored"] == 0
     assert published == []
+
+
+@pytest.mark.parametrize("count", [True, -1, 0, 1.5, "3", None])
+def test_invalid_publication_count_never_reports_success(count):
+    ports = MarketPublicationRefreshPorts(
+        list_codes=lambda: ["000001.SZ"],
+        sync_quotes=lambda codes: len(codes),
+        sync_valuations=lambda codes, day: len(codes),
+        publish=lambda codes: count,
+    )
+    result = refresh_market_publications(ports=ports, as_of_date=date(2026, 9, 24))
+    assert result["outcome"] == "partial"
+    assert result["publication_updated"] is False
+    assert result["published_members"] == 0
+    assert result["failed"] == 1
+    assert result["error_code"] == "MARKET_PUBLICATION_COUNT_INVALID"
 
 
 @pytest.mark.parametrize("batch_size", [True, 0, 201, "10"])

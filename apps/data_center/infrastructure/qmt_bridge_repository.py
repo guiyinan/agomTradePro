@@ -331,6 +331,7 @@ class QmtBridgeRepository:
                     asset_code=sample.asset_code,
                     snapshot_at=sample.observed_at,
                     source=source,
+                    revision_number=1,
                     defaults={
                         **common,
                         "current_price": sample.price,
@@ -371,6 +372,7 @@ class QmtBridgeRepository:
                     source=source,
                     freq="1d",
                     adjustment="none",
+                    revision_number=1,
                     defaults={**common, "close": sample.price, "quality_status": "unverified"},
                 )
                 if not created and (
