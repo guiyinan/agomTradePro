@@ -415,8 +415,12 @@ def test_policy_fallback_matrix_formats_workbench_records(
     service = sdk_client.policy
     service.get_status.return_value = SimpleNamespace(
         current_gear="P1",
+        current_level="P1",
+        level_name="observe",
         observed_at=datetime(2026, 7, 25, tzinfo=UTC),
         recent_events=[{"id": 1}],
+        requires_manual_approval=True,
+        must_not_use_for_decision=False,
     )
     service.get_events.return_value = [
         SimpleNamespace(

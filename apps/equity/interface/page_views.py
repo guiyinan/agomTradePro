@@ -21,7 +21,7 @@ from django.views.decorators.http import require_http_methods
 from apps.equity.application.market_sessions import (
     get_equity_detail_market_session_profile,
 )
-from apps.simulated_trading.application.interface_services import get_account_access
+from core.integration.portfolio_account_access import check_portfolio_account_access
 
 # ============================================================================
 
@@ -48,7 +48,7 @@ def _validate_optional_account_scope(request: HttpRequest) -> HttpResponse | Non
     account_id = int(raw_account_id)
     if account_id <= 0:
         return HttpResponseBadRequest("account_id is invalid")
-    access = get_account_access(request.user, account_id, action="查看研究详情")
+    access = check_portfolio_account_access(request.user, account_id, action="查看研究详情")
     if access.error:
         return HttpResponseForbidden(access.error)
     return None

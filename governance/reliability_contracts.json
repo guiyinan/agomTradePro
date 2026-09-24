@@ -31,6 +31,16 @@
   ],
   "dynamic_reason_boundaries": [
     {
+      "path": "apps/audit/application/system_audit_authority_renewal_guard.py",
+      "symbol": "def _counters",
+      "pattern": "^(?:audit_runtime_disabled|authority_(?:expired_reapproval_required|lease_(?:invalid|unavailable)|readers_invalid|renewal_(?:failed|rejected|result_invalid)|selector_invalid|unavailable|validity_missing|window_healthy)|renewal_(?:command_failed|request_(?:not_configured|not_found|unavailable)|result_invalid))$"
+    },
+    {
+      "path": "apps/audit/infrastructure/system_audit_authority_renewal_executor.py",
+      "symbol": "def _blocked",
+      "pattern": "^renewal_(?:command_failed|request_(?:not_configured|not_found|unavailable)|result_invalid)$"
+    },
+    {
       "path": "apps/config_center/domain/entities.py",
       "symbol": "def block_reason_code",
       "pattern": "^decision_runtime_(maintenance|validating|blocked)$"

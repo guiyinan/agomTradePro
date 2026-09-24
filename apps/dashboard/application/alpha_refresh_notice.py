@@ -10,9 +10,12 @@ from datetime import datetime
 
 from django.db import DatabaseError
 
-from apps.task_monitor.application.dtos import project_task_business_result
-from apps.task_monitor.application.query_services import list_task_executions
-from apps.task_monitor.domain.entities import TaskExecutionRecord, TaskStatus
+from core.integration.task_monitor_runtime import (
+    TaskExecutionRecord,
+    TaskStatus,
+    list_task_executions,
+    project_task_business_result,
+)
 
 _PREDICT = "apps.alpha.application.tasks.qlib_predict_scores"
 _MARKET_REFRESH = "data_center.refresh_full_market_publications"

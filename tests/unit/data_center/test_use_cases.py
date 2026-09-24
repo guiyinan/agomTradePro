@@ -1018,7 +1018,14 @@ class TestQueryLatestQuoteUseCase:
         assert "freshness 阈值" in result.blocked_reason
         assert result.max_age_hours == 1.0
 
-    def test_accepts_latest_completed_session_quote_on_weekend(self):
+    def test_accepts_latest_completed_session_quote_on_weekend(self, monkeypatch):
+        from apps.data_center.application import query_use_cases
+
+        monkeypatch.setattr(
+            query_use_cases,
+            "latest_completed_cn_market_session",
+            lambda _now: date(2026, 6, 26),
+        )
         result = QueryLatestQuoteUseCase.build_response(
             asset_code="510300.SH",
             snapshot_at=datetime(2026, 6, 26, 7, 2, tzinfo=UTC),

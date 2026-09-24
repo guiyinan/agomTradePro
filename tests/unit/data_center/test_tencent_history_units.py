@@ -23,8 +23,6 @@ def test_longest_configured_prefix_and_exchange_match(monkeypatch):
 
 
 def test_configuration_command_dry_run_then_audited_activation(tmp_path, monkeypatch):
-    from types import SimpleNamespace
-
     from django.core.management import call_command
 
     from apps.data_center.management.commands import configure_tencent_history_units as command
@@ -36,9 +34,14 @@ def test_configuration_command_dry_run_then_audited_activation(tmp_path, monkeyp
     monkeypatch.setattr(
         command,
         "activate_runtime_profile_patch",
-        lambda **kwargs: (calls.append(kwargs) or SimpleNamespace(profile_id="new"), None),
+        lambda **kwargs: (calls.append(kwargs) or {"profile_id": "new"}),
     )
-    kwargs = dict(rules=str(rules), environment="production", actor="test", reason="verified units")
+    kwargs = {
+        "rules": str(rules),
+        "environment": "production",
+        "actor": "test",
+        "reason": "verified units",
+    }
     call_command("configure_tencent_history_units", **kwargs)
     assert calls == []
     call_command("configure_tencent_history_units", apply=True, **kwargs)

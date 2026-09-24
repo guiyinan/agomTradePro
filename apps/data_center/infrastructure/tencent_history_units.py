@@ -6,8 +6,8 @@ import json
 import math
 import re
 
-from apps.config_center.application.public import get_runtime_config_value
 from core.exceptions import ConfigurationError
+from core.integration.runtime_settings import get_runtime_config_value
 from shared.numeric import safe_float
 
 TENCENT_HISTORY_VOLUME_KEY = "data_center.tencent.history_volume_multipliers"

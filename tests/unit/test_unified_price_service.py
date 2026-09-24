@@ -6,12 +6,28 @@ import pandas as pd
 import pytest
 
 import apps.data_center.application.price_service as price_service_module
+from apps.data_center.application import market_calendar
 from apps.data_center.application.price_service import (
     PriceLookupResult,
     UnifiedPriceService,
 )
 from apps.data_center.domain.entities import FundNavFact, PriceBar, QuoteSnapshot
 from core.exceptions import DataFetchError
+
+
+@pytest.fixture(autouse=True)
+def _authoritative_calendar_fixture(monkeypatch):
+    """Bind freshness tests to deterministic provider-backed session evidence."""
+
+    sessions = (
+        date(2026, 9, 23),
+        date(2026, 9, 24),
+    )
+    monkeypatch.setattr(
+        market_calendar,
+        "load_open_cn_market_sessions",
+        lambda start, end: tuple(session for session in sessions if start <= session <= end),
+    )
 
 
 def _after_close_now() -> datetime:
@@ -23,10 +39,7 @@ def _after_close_now() -> datetime:
 def _test_session_date() -> date:
     """Return a weekday so freshness tests do not depend on CI calendar timing."""
 
-    session_date = date.today()
-    while session_date.weekday() >= 5:
-        session_date -= timedelta(days=1)
-    return session_date
+    return date(2026, 9, 24)
 
 
 def _published(rows: list[dict[str, object]]) -> dict[str, object]:

@@ -8,15 +8,15 @@ from typing import Any
 
 from django.core.management.base import BaseCommand, CommandParser
 
-from apps.config_center.application.runtime_public import (
-    activate_runtime_profile_patch,
-    register_runtime_definitions,
-)
 from apps.data_center.infrastructure.tencent_history_units import (
     TENCENT_HISTORY_VOLUME_KEY,
     parse_history_volume_rules,
 )
-from core.integration.config_center_runtime import RuntimeConfigDefinitionSpec
+from core.integration.config_center_runtime import (
+    RuntimeConfigDefinitionSpec,
+    activate_runtime_profile_patch,
+    register_runtime_definitions,
+)
 
 
 class Command(BaseCommand):
@@ -46,11 +46,12 @@ class Command(BaseCommand):
                     ),
                 )
             )
-            profile, _ = activate_runtime_profile_patch(
+            profile = activate_runtime_profile_patch(
                 environment=str(options["environment"]),
                 patch={TENCENT_HISTORY_VOLUME_KEY: json.dumps(rules)},
+                bootstrap_values=None,
                 actor=str(options["actor"]),
                 reason=str(options["reason"]),
             )
-            self.stdout.write(f"Activated profile {profile.profile_id}")
+            self.stdout.write(f"Activated profile {profile['profile_id']}")
         self.stdout.write(json.dumps({"applied": bool(options["apply"]), "rules": rules}))

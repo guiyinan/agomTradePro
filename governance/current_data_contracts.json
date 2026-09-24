@@ -3740,6 +3740,7 @@
         "apps/data_center/application/valuation_publication.py",
         "apps/data_center/application/publication_utils.py",
         "apps/data_center/application/sync_use_cases.py",
+        "apps/data_center/application/sync_valuation_sector_use_cases.py",
         "apps/data_center/application/sync_market_use_cases.py",
         "apps/data_center/application/sync_macro_use_cases.py",
         "apps/data_center/application/interface_services.py",
@@ -3825,6 +3826,9 @@
         ],
         "apps/data_center/application/sync_use_cases.py": [
           "publication_publisher: PublishFinancialBatchUseCase | None = None",
+          "self._publication_publisher.execute("
+        ],
+        "apps/data_center/application/sync_valuation_sector_use_cases.py": [
           "publication_publisher: PublishValuationBatchUseCase | None = None",
           "self._publication_publisher.execute("
         ],

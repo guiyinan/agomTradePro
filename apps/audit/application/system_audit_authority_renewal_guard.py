@@ -22,6 +22,27 @@ AUTHORITY_RENEWAL_GUARD_TASK_NAME = (
     "apps.audit.application.tasks.system_audit_authority_renewal_guard_task"
 )
 DEFAULT_RENEWAL_WINDOW = timedelta(hours=6)
+_STABLE_REASON_CODES = frozenset(
+    {
+        "audit_runtime_disabled",
+        "authority_expired_reapproval_required",
+        "authority_lease_invalid",
+        "authority_lease_unavailable",
+        "authority_readers_invalid",
+        "authority_renewal_failed",
+        "authority_renewal_rejected",
+        "authority_renewal_result_invalid",
+        "authority_selector_invalid",
+        "authority_unavailable",
+        "authority_validity_missing",
+        "authority_window_healthy",
+        "renewal_command_failed",
+        "renewal_request_not_configured",
+        "renewal_request_not_found",
+        "renewal_request_unavailable",
+        "renewal_result_invalid",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,6 +110,7 @@ def _counters(
 ) -> dict[str, object]:
     """Return the common Celery business-outcome counters."""
 
+    stable_reason_code = _stable_reason_code(reason_code)
     result: dict[str, object] = {
         "outcome": outcome,
         "success": outcome in {TaskBusinessOutcome.SUCCESS.value, TaskBusinessOutcome.NOOP.value},
@@ -101,7 +123,7 @@ def _counters(
         "succeeded": 1 if outcome == TaskBusinessOutcome.SUCCESS.value else 0,
         "failed": 1 if outcome == TaskBusinessOutcome.FAILED.value else 0,
         "stored": 0,
-        "block_reason_code": reason_code,
+        "block_reason_code": stable_reason_code,
     }
     if seconds_remaining is not None:
         result["seconds_remaining"] = max(0.0, seconds_remaining)
@@ -117,12 +139,21 @@ def _blocked(
 ) -> dict[str, object]:
     """Publish one deduplicated operational alert and return a blocked result."""
 
+    stable_reason_code = _stable_reason_code(reason_code)
     dependencies.publish_alert(
         "critical",
         "System Audit authority renewal blocked",
-        {"reason_code": reason_code, **metadata, "message": message},
+        {"reason_code": stable_reason_code, **metadata, "message": message},
     )
-    return _counters(outcome=TaskBusinessOutcome.BLOCKED.value, reason_code=reason_code)
+    return _counters(outcome=TaskBusinessOutcome.BLOCKED.value, reason_code=stable_reason_code)
+
+
+def _stable_reason_code(reason_code: object) -> str:
+    """Map ungoverned dynamic reasons to one stable fail-closed code."""
+
+    if isinstance(reason_code, str) and reason_code in _STABLE_REASON_CODES:
+        return reason_code
+    return "authority_renewal_rejected"
 
 
 def run_system_audit_authority_renewal_guard(

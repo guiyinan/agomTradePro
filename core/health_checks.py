@@ -222,21 +222,47 @@ def check_decision_runtime_state() -> dict[str, Any]:
         from apps.config_center.application.use_cases import (
             GetDecisionRuntimeStateUseCase,
         )
+        from core.decision_runtime_public import get_public_decision_runtime_block_details
 
         state = GetDecisionRuntimeStateUseCase().execute()
-        payload = state.to_dict()
-        return {
-            **payload,
-            "runtime_status": payload["status"],
+        runtime_status = state.status.value
+        payload: dict[str, Any] = {
+            "runtime_status": runtime_status,
             "status": "blocked" if state.must_not_use_for_decision else "ok",
+            "must_not_use_for_decision": state.must_not_use_for_decision,
+            "block_reason_code": state.block_reason_code,
+            "changed_at": state.changed_at.isoformat() if state.changed_at else None,
+            "release_ref": state.release_ref,
+            "expected_resume_at": (
+                state.expected_resume_at.isoformat() if state.expected_resume_at else None
+            ),
         }
+        if state.must_not_use_for_decision:
+            block_reason, next_action, responsible_role = get_public_decision_runtime_block_details(
+                runtime_status
+            )
+            payload.update(
+                {
+                    "block_reason": block_reason,
+                    "next_action": next_action,
+                    "responsible_role": responsible_role,
+                }
+            )
+        return payload
     except Exception as exc:
         logger.warning("Decision runtime state check failed: %s", exc)
+        from core.decision_runtime_public import get_public_decision_runtime_block_details
+
+        block_reason, next_action, responsible_role = get_public_decision_runtime_block_details(
+            "unavailable"
+        )
         return {
             "status": "error",
             "must_not_use_for_decision": True,
             "block_reason_code": "decision_runtime_state_unavailable",
-            "error": str(exc),
+            "block_reason": block_reason,
+            "next_action": next_action,
+            "responsible_role": responsible_role,
         }
 
 

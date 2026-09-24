@@ -518,7 +518,14 @@ def test_alpha_stocks_htmx_passes_request_user_to_query(monkeypatch):
 
     class FakeQuery:
         def execute(
-            self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None
+            self,
+            top_n: int,
+            user=None,
+            portfolio_id=None,
+            pool_mode=None,
+            alpha_scope=None,
+            allow_refresh=False,
+            persist_history=False,
         ):
             captured["top_n"] = top_n
             captured["user"] = user
@@ -613,7 +620,14 @@ def test_alpha_stocks_htmx_passes_request_user_to_query(monkeypatch):
 def test_alpha_stocks_htmx_json_includes_readiness_contract(monkeypatch):
     class FakeQuery:
         def execute(
-            self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None
+            self,
+            top_n: int,
+            user=None,
+            portfolio_id=None,
+            pool_mode=None,
+            alpha_scope=None,
+            allow_refresh=False,
+            persist_history=False,
         ):
             return SimpleNamespace(
                 top_candidates=[
@@ -682,7 +696,14 @@ def test_alpha_stocks_htmx_general_scope_is_research_only(monkeypatch):
 
     class FakeQuery:
         def execute(
-            self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None
+            self,
+            top_n: int,
+            user=None,
+            portfolio_id=None,
+            pool_mode=None,
+            alpha_scope=None,
+            allow_refresh=False,
+            persist_history=False,
         ):
             captured["alpha_scope"] = alpha_scope
             captured["portfolio_id"] = portfolio_id
@@ -743,7 +764,14 @@ def test_alpha_stocks_htmx_general_scope_is_research_only(monkeypatch):
 def test_alpha_stocks_htmx_json_contract_exposes_trade_date_adjustment(monkeypatch):
     class FakeQuery:
         def execute(
-            self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None
+            self,
+            top_n: int,
+            user=None,
+            portfolio_id=None,
+            pool_mode=None,
+            alpha_scope=None,
+            allow_refresh=False,
+            persist_history=False,
         ):
             return SimpleNamespace(
                 top_candidates=[
@@ -817,7 +845,14 @@ def test_alpha_stocks_htmx_renders_compact_scrollable_table(monkeypatch):
 
     class FakeQuery:
         def execute(
-            self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None
+            self,
+            top_n: int,
+            user=None,
+            portfolio_id=None,
+            pool_mode=None,
+            alpha_scope=None,
+            allow_refresh=False,
+            persist_history=False,
         ):
             return SimpleNamespace(
                 top_candidates=[
@@ -918,7 +953,14 @@ def test_alpha_stocks_htmx_portfolio_scope_hides_blocked_cached_rankings(monkeyp
 
     class FakeQuery:
         def execute(
-            self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None
+            self,
+            top_n: int,
+            user=None,
+            portfolio_id=None,
+            pool_mode=None,
+            alpha_scope=None,
+            allow_refresh=False,
+            persist_history=False,
         ):
             return SimpleNamespace(
                 top_candidates=[
@@ -975,7 +1017,14 @@ def test_alpha_stocks_htmx_general_scope_keeps_research_rankings_visible(monkeyp
 
     class FakeQuery:
         def execute(
-            self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None
+            self,
+            top_n: int,
+            user=None,
+            portfolio_id=None,
+            pool_mode=None,
+            alpha_scope=None,
+            allow_refresh=False,
+            persist_history=False,
         ):
             return SimpleNamespace(
                 top_candidates=[
@@ -1673,7 +1722,14 @@ def test_dashboard_view_loads_homepage_alpha_payload_and_keeps_workflow_candidat
 
     class FakeHomepageQuery:
         def execute(
-            self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None
+            self,
+            top_n: int,
+            user=None,
+            portfolio_id=None,
+            pool_mode=None,
+            alpha_scope=None,
+            allow_refresh=False,
+            persist_history=False,
         ):
             captured["homepage_calls"] += 1
             return SimpleNamespace(
@@ -1714,7 +1770,12 @@ def test_dashboard_view_loads_homepage_alpha_payload_and_keeps_workflow_candidat
             )
 
     class FakeDecisionQuery:
-        def execute(self, max_candidates: int, max_pending: int):
+        def execute(
+            self,
+            max_candidates: int,
+            max_pending: int,
+            user_id: int | None = None,
+        ):
             captured["decision_calls"] += 1
             return SimpleNamespace(
                 beta_gate_visible_classes="equity",
@@ -1749,6 +1810,7 @@ def test_dashboard_view_loads_homepage_alpha_payload_and_keeps_workflow_candidat
     monkeypatch.setattr(views, "_build_dashboard_data", lambda user_id: dashboard_data)
     monkeypatch.setattr(views, "_ensure_dashboard_positions", lambda data, user_id: data)
     monkeypatch.setattr(views, "_load_phase1_macro_components", lambda: (None, None, None))
+    monkeypatch.setattr(views, "_load_market_thermometer_payload", lambda user_id: {})
     monkeypatch.setattr(views, "_get_dashboard_portfolio_options", lambda user_id: [])
     monkeypatch.setattr(views, "_get_dashboard_accounts", lambda user: [])
     monkeypatch.setattr(views, "_get_dashboard_valuation_repair_config_summary", lambda: None)
@@ -1830,6 +1892,7 @@ def test_dashboard_view_does_not_load_verified_top_rankings_on_homepage(monkeypa
     monkeypatch.setattr(views, "_build_dashboard_data", lambda user_id: dashboard_data)
     monkeypatch.setattr(views, "_ensure_dashboard_positions", lambda data, user_id: data)
     monkeypatch.setattr(views, "_load_phase1_macro_components", lambda: (None, None, None))
+    monkeypatch.setattr(views, "_load_market_thermometer_payload", lambda user_id: {})
     monkeypatch.setattr(views, "_get_dashboard_portfolio_options", lambda user_id: [])
     monkeypatch.setattr(views, "_get_dashboard_accounts", lambda user: [])
     monkeypatch.setattr(views, "_get_dashboard_valuation_repair_config_summary", lambda: None)
@@ -1887,7 +1950,7 @@ def test_dashboard_view_does_not_load_verified_top_rankings_on_homepage(monkeypa
     monkeypatch.setattr(
         views,
         "_get_decision_plane_data",
-        lambda max_candidates=5, max_pending=10: SimpleNamespace(
+        lambda max_candidates=5, max_pending=10, user_id=None: SimpleNamespace(
             beta_gate_visible_classes="equity",
             alpha_watch_count=1,
             alpha_candidate_count=1,
@@ -1970,6 +2033,7 @@ def test_dashboard_view_does_not_load_unverified_top_rankings_on_homepage(monkey
     monkeypatch.setattr(views, "_build_dashboard_data", lambda user_id: dashboard_data)
     monkeypatch.setattr(views, "_ensure_dashboard_positions", lambda data, user_id: data)
     monkeypatch.setattr(views, "_load_phase1_macro_components", lambda: (None, None, None))
+    monkeypatch.setattr(views, "_load_market_thermometer_payload", lambda user_id: {})
     monkeypatch.setattr(views, "_get_dashboard_portfolio_options", lambda user_id: [])
     monkeypatch.setattr(views, "_get_dashboard_accounts", lambda user: [])
     monkeypatch.setattr(views, "_get_dashboard_valuation_repair_config_summary", lambda: None)
@@ -2027,7 +2091,7 @@ def test_dashboard_view_does_not_load_unverified_top_rankings_on_homepage(monkey
     monkeypatch.setattr(
         views,
         "_get_decision_plane_data",
-        lambda max_candidates=5, max_pending=10: SimpleNamespace(
+        lambda max_candidates=5, max_pending=10, user_id=None: SimpleNamespace(
             beta_gate_visible_classes="equity",
             alpha_watch_count=1,
             alpha_candidate_count=1,
@@ -2088,11 +2152,12 @@ def test_dashboard_view_logs_timing_breakdown(monkeypatch, caplog):
     monkeypatch.setattr(views, "_build_dashboard_data", lambda user_id: dashboard_data)
     monkeypatch.setattr(views, "_ensure_dashboard_positions", lambda data, user_id: data)
     monkeypatch.setattr(views, "_load_phase1_macro_components", lambda: (None, None, None))
+    monkeypatch.setattr(views, "_load_market_thermometer_payload", lambda user_id: {})
     monkeypatch.setattr(views, "_get_dashboard_portfolio_options", lambda user_id: [{"id": 21}])
     monkeypatch.setattr(
         views,
         "_get_decision_plane_data",
-        lambda max_candidates, max_pending: decision_plane_data,
+        lambda max_candidates, max_pending, user_id=None: decision_plane_data,
     )
     monkeypatch.setattr(
         views, "_get_alpha_metrics_data", lambda ic_days=30: {"provider_status": {}}
@@ -2542,6 +2607,7 @@ def test_dashboard_view_accepts_pending_request_models(monkeypatch):
     monkeypatch.setattr(views, "_build_dashboard_data", lambda user_id: dashboard_data)
     monkeypatch.setattr(views, "_ensure_dashboard_positions", lambda data, user_id: data)
     monkeypatch.setattr(views, "_load_phase1_macro_components", lambda: (None, None, None))
+    monkeypatch.setattr(views, "_load_market_thermometer_payload", lambda user_id: {})
     monkeypatch.setattr(views, "_get_dashboard_portfolio_options", lambda user_id: [])
     monkeypatch.setattr(views, "_get_dashboard_accounts", lambda user: [])
     monkeypatch.setattr(views, "_get_dashboard_valuation_repair_config_summary", lambda: None)
@@ -2581,7 +2647,7 @@ def test_dashboard_view_accepts_pending_request_models(monkeypatch):
     monkeypatch.setattr(
         views,
         "_get_decision_plane_data",
-        lambda max_candidates=5, max_pending=10: SimpleNamespace(
+        lambda max_candidates=5, max_pending=10, user_id=None: SimpleNamespace(
             beta_gate_visible_classes="equity",
             alpha_watch_count=0,
             alpha_candidate_count=0,

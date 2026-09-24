@@ -391,7 +391,7 @@ class _FakeClient:
         )
         self.task_monitor = SimpleNamespace(
             get_task_status=lambda task_id: {"task_id": task_id, "status": "done"},
-            list_tasks=lambda: {"tasks": []},
+            list_tasks=lambda **_kwargs: {"tasks": []},
             statistics=lambda: {"stats": {}},
             dashboard=lambda: {"dashboard": {}},
             celery_health=lambda: {"celery": "ok"},
@@ -707,7 +707,12 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         ("batch_delete_simulated_accounts", {"account_ids": [7, 8]}),
         (
             "create_simulated_account",
-            {"name": "测试账户", "initial_capital": 100000.0, "start_date": "2026-03-21"},
+            {
+                "name": "测试账户",
+                "initial_capital": 100000.0,
+                "start_date": "2026-03-21",
+                "idempotency_key": "test-create-account-20260321",
+            },
         ),
         (
             "execute_simulated_trade",

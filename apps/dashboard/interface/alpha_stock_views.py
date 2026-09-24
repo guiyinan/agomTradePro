@@ -117,7 +117,6 @@ def alpha_refresh_htmx(request: HttpRequest) -> HttpResponse:
     lock_owner_token = None
     task_dispatched = False
     try:
-        target_date = dashboard_views.resolve_dashboard_alpha_trade_date()
         top_n = dashboard_views._parse_positive_int_param(
             request.POST.get("top_n", 10),
             field_name="top_n",
@@ -145,6 +144,7 @@ def alpha_refresh_htmx(request: HttpRequest) -> HttpResponse:
         ):
             raise ValueError("账户专属 Alpha 推理必须提供 portfolio_id")
 
+        target_date = dashboard_views.resolve_dashboard_alpha_trade_date()
         user_id = dashboard_views._get_request_user_id(request.user)
         raw_universe_id = str(request.POST.get("universe_id") or "").strip() or "csi300"
         resolved_pool = None

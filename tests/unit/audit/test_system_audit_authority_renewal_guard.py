@@ -81,3 +81,28 @@ def test_guard_blocks_invalid_renewal_result() -> None:
     assert result["outcome"] == "blocked"
     assert result["block_reason_code"] == "authority_renewal_result_invalid"
     assert alerts[0]["reason_code"] == "authority_renewal_result_invalid"
+
+
+def test_guard_normalizes_unknown_dynamic_renewal_reason() -> None:
+    """An executor cannot publish an ungoverned diagnostic as a reason code."""
+
+    alerts: list[dict[str, object]] = []
+    dependencies = SystemAuditAuthorityRenewalGuardDependencies(
+        read_lease=lambda: SystemAuditAuthorityLease(
+            mode="required",
+            outbox_enabled=True,
+            valid_until=NOW + timedelta(minutes=30),
+        ),
+        execute_renewal=lambda: {
+            "outcome": "blocked",
+            "block_reason_code": "provider timeout: credential detail",
+        },
+        publish_alert=lambda _level, _title, metadata: alerts.append(metadata),
+        clock=lambda: NOW,
+        renewal_window=timedelta(hours=1),
+    )
+
+    result = run_system_audit_authority_renewal_guard(dependencies)
+
+    assert result["block_reason_code"] == "authority_renewal_rejected"
+    assert alerts[0]["reason_code"] == "authority_renewal_rejected"

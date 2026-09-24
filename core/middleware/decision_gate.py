@@ -7,6 +7,7 @@ from collections.abc import Callable
 from django.http import HttpRequest, HttpResponse, JsonResponse
 
 from apps.config_center.application.use_cases import GetDecisionRuntimeStateUseCase
+from core.decision_runtime_public import get_public_decision_runtime_block_details
 
 DECISION_PATH_PREFIXES = (
     "/api/terminal/chat/",
@@ -46,12 +47,17 @@ class DecisionRuntimeGateMiddleware:
             )
         if not state.must_not_use_for_decision:
             return self.get_response(request)
+        public_reason, next_action, responsible_role = get_public_decision_runtime_block_details(
+            state.status.value
+        )
         return JsonResponse(
             {
                 "status": state.status.value,
                 "must_not_use_for_decision": True,
                 "block_reason_code": state.block_reason_code,
-                "block_reason": state.reason,
+                "block_reason": public_reason,
+                "next_action": next_action,
+                "responsible_role": responsible_role,
                 "changed_at": state.changed_at.isoformat() if state.changed_at else None,
                 "release_ref": state.release_ref,
             },

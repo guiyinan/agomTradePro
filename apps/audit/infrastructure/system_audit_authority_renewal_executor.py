@@ -10,6 +10,16 @@ from pathlib import Path
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
+_RENEWAL_EXECUTOR_REASONS = frozenset(
+    {
+        "renewal_command_failed",
+        "renewal_request_not_configured",
+        "renewal_request_not_found",
+        "renewal_request_unavailable",
+        "renewal_result_invalid",
+    }
+)
+
 
 def execute_configured_system_audit_authority_renewal() -> dict[str, object]:
     """Execute the configured renewal envelope through the existing command.
@@ -56,6 +66,10 @@ def execute_configured_system_audit_authority_renewal() -> dict[str, object]:
 def _blocked(reason_code: str) -> dict[str, object]:
     """Return a redacted blocked task payload."""
 
+    stable_reason_code = (
+        reason_code if reason_code in _RENEWAL_EXECUTOR_REASONS else "renewal_result_invalid"
+    )
+
     return {
         "outcome": "blocked",
         "success": False,
@@ -64,7 +78,7 @@ def _blocked(reason_code: str) -> dict[str, object]:
         "succeeded": 0,
         "failed": 0,
         "stored": 0,
-        "block_reason_code": reason_code,
+        "block_reason_code": stable_reason_code,
     }
 
 

@@ -44,8 +44,8 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 5078,
-    "data_write_task_decorators": 64,
+    "current_surface_references": 5098,
+    "data_write_task_decorators": 65,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
     "legacy_fact_references": 0,
@@ -6476,7 +6476,7 @@
       "text": "\"\"\"Resolve the homepage Alpha pool from the current portfolio context.\"\"\""
     },
     {
-      "line": 180,
+      "line": 173,
       "path": "apps/alpha/application/services.py",
       "text": "\"\"\"Return True when the cache row is only the delivery channel for the latest Qlib output.\"\"\""
     },
@@ -6486,54 +6486,59 @@
       "text": "\"\"\"Map an authoritative refresh summary into the task outcome vocabulary.\"\"\""
     },
     {
-      "line": 956,
+      "line": 950,
       "path": "apps/alpha/application/tasks.py",
       "text": "summary = _refresh_qlib_runtime_data("
     },
     {
-      "line": 970,
+      "line": 964,
       "path": "apps/alpha/application/tasks.py",
       "text": "summary_status = str(summary.get(\"status\") or \"failed\")"
     },
     {
-      "line": 971,
+      "line": 965,
       "path": "apps/alpha/application/tasks.py",
       "text": "raw_count = summary.get(\"universe_count\", 1)"
     },
     {
-      "line": 976,
+      "line": 970,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"summary\": summary,"
     },
     {
-      "line": 1056,
+      "line": 1050,
       "path": "apps/alpha/application/tasks.py",
       "text": "summary = _refresh_qlib_runtime_data_for_codes("
     },
     {
-      "line": 1071,
+      "line": 1065,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"summary\": {"
     },
     {
-      "line": 1084,
+      "line": 1078,
       "path": "apps/alpha/application/tasks.py",
       "text": "summary_status = str(summary.get(\"status\") or \"failed\")"
     },
     {
-      "line": 1085,
+      "line": 1079,
       "path": "apps/alpha/application/tasks.py",
       "text": "raw_stored_count = summary.get(\"stock_count\", 0)"
     },
     {
-      "line": 1094,
+      "line": 1088,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"summary\": {"
     },
     {
-      "line": 1095,
+      "line": 1089,
       "path": "apps/alpha/application/tasks.py",
       "text": "**summary,"
+    },
+    {
+      "line": 17,
+      "path": "apps/alpha/application/trade_dates.py",
+      "text": "\"\"\"Resolve the latest source-observed session whose Alpha inputs should be ready.\"\"\""
     },
     {
       "line": 25,
@@ -6546,27 +6551,27 @@
       "text": "\"\"\"Accept legacy 2-tuple mocks and normalize to the current 3-tuple contract.\"\"\""
     },
     {
-      "line": 571,
+      "line": 507,
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "text": "\"\"\"Return the latest trading date available in the local qlib dataset.\"\"\""
     },
     {
-      "line": 779,
+      "line": 715,
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "text": "summary: dict[str, object] = {}"
     },
     {
-      "line": 782,
+      "line": 718,
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "text": "summary[\"status\"] = status"
     },
     {
-      "line": 786,
+      "line": 722,
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "text": "summary[key] = value"
     },
     {
-      "line": 787,
+      "line": 723,
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "text": "return summary or None"
     },
@@ -9276,17 +9281,17 @@
       "text": "\"\"\"Atomically consume the current token and reject replay/expiry.\"\"\""
     },
     {
-      "line": 441,
+      "line": 444,
       "path": "apps/dashboard/application/alpha_homepage_candidates.py",
       "text": "\"summary\": f\"若跌出 Top {max(rank + 5, 10)}、政策/风控转差或{strength_invalidation}，则当前候选失效。\","
     },
     {
-      "line": 563,
+      "line": 566,
       "path": "apps/dashboard/application/alpha_homepage_candidates.py",
       "text": "\"invalidation_summary\": invalidation_rule[\"summary\"],"
     },
     {
-      "line": 691,
+      "line": 694,
       "path": "apps/dashboard/application/alpha_homepage_candidates.py",
       "text": "\"summary\": \"若执行失败或审批撤回，该待执行请求失效。\","
     },
@@ -9306,9 +9311,14 @@
       "text": "getattr(current, \"updated_at\", None) or getattr(current, \"created_at\", None)"
     },
     {
-      "line": 63,
+      "line": 69,
       "path": "apps/dashboard/application/alpha_refresh_notice.py",
-      "text": "\"\"\"Describe the latest relevant completed attempt without exposing raw exceptions.\"\"\""
+      "text": "\"\"\"Return the non-sensitive attempt fields used by the Alpha summary.\"\"\""
+    },
+    {
+      "line": 169,
+      "path": "apps/dashboard/application/alpha_refresh_notice.py",
+      "text": "\"\"\"Describe current and completed attempts without exposing raw exceptions.\"\"\""
     },
     {
       "line": 1,
@@ -9436,42 +9446,42 @@
       "text": "logger.warning(\"Failed to get regime summary: error_type=%s\", type(exc).__name__)"
     },
     {
-      "line": 233,
+      "line": 237,
       "path": "apps/dashboard/application/interface_services.py",
       "text": "\"\"\"Load valuation-repair config summary for dashboard widgets.\"\"\""
     },
     {
-      "line": 239,
+      "line": 243,
       "path": "apps/dashboard/application/interface_services.py",
       "text": "summary = load_summary(use_cache=use_cache)"
     },
     {
-      "line": 240,
+      "line": 244,
       "path": "apps/dashboard/application/interface_services.py",
       "text": "return _json_object(summary) if summary is not None else None"
     },
     {
-      "line": 242,
+      "line": 246,
       "path": "apps/dashboard/application/interface_services.py",
       "text": "logger.warning(\"Failed to get valuation repair config summary: %s\", exc)"
     },
     {
-      "line": 317,
+      "line": 321,
       "path": "apps/dashboard/application/interface_services.py",
       "text": "\"\"\"Build the current Beta conclusion used before reading Alpha candidates.\"\"\""
     },
     {
-      "line": 195,
+      "line": 198,
       "path": "apps/dashboard/application/queries.py",
       "text": "\"\"\"Attach dashboard-specific freshness hints when the page falls back from realtime qlib.\"\"\""
     },
     {
-      "line": 612,
+      "line": 624,
       "path": "apps/dashboard/application/queries.py",
       "text": "summary = get_alpha_trigger_global_alert_service().get_workspace_summary()"
     },
     {
-      "line": 618,
+      "line": 630,
       "path": "apps/dashboard/application/queries.py",
       "text": "return int(summary.get(key_by_status.get(status, \"\"), 0))"
     },
@@ -9616,7 +9626,7 @@
       "text": "\"summary\": advice.summary,"
     },
     {
-      "line": 618,
+      "line": 637,
       "path": "apps/dashboard/infrastructure/repositories.py",
       "text": "\"\"\"Return the latest macro indicator value for one code.\"\"\""
     },
@@ -9721,12 +9731,12 @@
       "text": "return _json_object(summary) if summary is not None else None"
     },
     {
-      "line": 623,
+      "line": 629,
       "path": "apps/dashboard/interface/views.py",
       "text": "\"alpha_exit_entry_watch_summary\": alpha_exit_entry_panel[\"summary\"],"
     },
     {
-      "line": 2427,
+      "line": 2492,
       "path": "apps/dashboard/tests/test_alpha_views.py",
       "text": "assert context[\"summary\"] == {"
     },
@@ -10146,12 +10156,27 @@
       "text": "return current"
     },
     {
-      "line": 22,
+      "line": 95,
+      "path": "apps/data_center/application/market_calendar.py",
+      "text": "\"\"\"Resolve the latest completed session from provider calendar evidence.\"\"\""
+    },
+    {
+      "line": 101,
+      "path": "apps/data_center/application/market_calendar.py",
+      "text": "\"\"\"Resolve the latest closed session from provider calendar evidence.\"\"\""
+    },
+    {
+      "line": 107,
+      "path": "apps/data_center/application/market_calendar.py",
+      "text": "\"\"\"Resolve the latest exchange session whose post-close readiness time passed.\"\"\""
+    },
+    {
+      "line": 34,
       "path": "apps/data_center/application/market_publication_refresh.py",
       "text": "\"\"\"Refresh raw price facts and verify every current member before publication.\"\"\""
     },
     {
-      "line": 32,
+      "line": 44,
       "path": "apps/data_center/application/market_publication_refresh.py",
       "text": "\"Current price observations missing\", code=\"MODEL_MARKET_STALE\""
     },
@@ -10216,12 +10241,7 @@
       "text": "component_weights=component_weights or dict(current.component_weights),"
     },
     {
-      "line": 14,
-      "path": "apps/data_center/application/market_thermometer_dates.py",
-      "text": "\"\"\"Return the latest weekday before ``target_date``.\"\"\""
-    },
-    {
-      "line": 27,
+      "line": 21,
       "path": "apps/data_center/application/market_thermometer_dates.py",
       "text": "\"\"\"Resolve the latest market date that is safe for decision-grade reads/writes.\"\"\""
     },
@@ -10271,22 +10291,22 @@
       "text": "\"unit\": latest.unit,"
     },
     {
-      "line": 152,
+      "line": 192,
       "path": "apps/data_center/application/model_market_data.py",
       "text": "latest = max(row.trade_date for row in rows)"
     },
     {
-      "line": 153,
+      "line": 193,
       "path": "apps/data_center/application/model_market_data.py",
       "text": "missing = {day for day in calendar if day > latest}"
     },
     {
-      "line": 167,
+      "line": 207,
       "path": "apps/data_center/application/model_market_data.py",
       "text": "\"last_observed_date\": latest.isoformat(),"
     },
     {
-      "line": 194,
+      "line": 234,
       "path": "apps/data_center/application/model_market_data.py",
       "text": "\"No current observation: verified full-day suspension\","
     },
@@ -10966,92 +10986,92 @@
       "text": "\"\"\"Read fund NAV facts only from the selected current publication members.\"\"\""
     },
     {
-      "line": 423,
+      "line": 438,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return a freshness-validated gate for one current publication.\"\"\""
     },
     {
-      "line": 502,
+      "line": 517,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 529,
+      "line": 544,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 566,
+      "line": 581,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 570,
+      "line": 585,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read quote snapshots only from the selected current publication members.\"\"\""
     },
     {
-      "line": 607,
+      "line": 622,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 609,
+      "line": 624,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read financial facts only after the current financial publication gate.\"\"\""
     },
     {
-      "line": 637,
+      "line": 652,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 639,
+      "line": 654,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read valuation facts only after the current valuation publication gate.\"\"\""
     },
     {
-      "line": 667,
+      "line": 682,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 695,
+      "line": 710,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 741,
+      "line": 756,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 835,
+      "line": 850,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest A-share behavior values with an explicit freshness contract.\"\"\""
     },
     {
-      "line": 894,
+      "line": 909,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read current market breadth only after every component is published."
     },
     {
-      "line": 984,
+      "line": 999,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest macro indicator payloads for cache warmup.\"\"\""
     },
     {
-      "line": 997,
+      "line": 1012,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return only fresh, member-bound macro values for current consumers."
     },
     {
-      "line": 999,
+      "line": 1014,
       "path": "apps/data_center/application/query_services.py",
       "text": "The cache-warmup helper above intentionally reads the latest canonical fact"
     },
     {
-      "line": 1000,
+      "line": 1015,
       "path": "apps/data_center/application/query_services.py",
       "text": "for deployment warming and maintenance.  Current/ops consumers must not"
     },
@@ -11176,47 +11196,52 @@
       "text": "publication_key = \"current\""
     },
     {
-      "line": 123,
+      "line": 129,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Resolve current authority and prove it covers the task's bounded runtime.\"\"\""
     },
     {
-      "line": 148,
+      "line": 154,
       "path": "apps/data_center/application/tasks.py",
       "text": "current, failure = _preflight_data02_task_authority("
     },
     {
-      "line": 153,
+      "line": 159,
       "path": "apps/data_center/application/tasks.py",
       "text": "if failure is not None or current is None:"
     },
     {
-      "line": 167,
+      "line": 173,
       "path": "apps/data_center/application/tasks.py",
       "text": "return all(getattr(current, field) == getattr(authority, field) for field in identity_fields)"
     },
     {
-      "line": 348,
+      "line": 354,
       "path": "apps/data_center/application/tasks.py",
       "text": "raise ValueError(\"current Audit authority changed before quote batch\")"
     },
     {
-      "line": 365,
+      "line": 371,
       "path": "apps/data_center/application/tasks.py",
       "text": "raise ValueError(\"current Audit authority changed before publication\")"
     },
     {
-      "line": 483,
+      "line": 726,
+      "path": "apps/data_center/application/tasks.py",
+      "text": "\"Financial current publication rebuild failed: %s\","
+    },
+    {
+      "line": 848,
       "path": "apps/data_center/application/tasks.py",
       "text": "Current domain sync DTOs expose ``stored_count`` only, so the durable"
     },
     {
-      "line": 857,
+      "line": 1222,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Require the same current authority before advancing the checkpoint.\"\"\""
     },
     {
-      "line": 1208,
+      "line": 1573,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Check current filesystem pressure before another mutating batch.\"\"\""
     },
@@ -11286,19 +11311,19 @@
       "text": "\"summary\": self.summary,"
     },
     {
-      "line": 13,
+      "line": 14,
       "path": "apps/data_center/domain/market_time.py",
-      "text": "\"\"\"Return the latest weekday before ``target_date``.\"\"\""
+      "text": "\"\"\"Return the latest source-observed session on or before ``target_date``.\"\"\""
     },
     {
-      "line": 22,
+      "line": 23,
       "path": "apps/data_center/domain/market_time.py",
-      "text": "\"\"\"Return the latest completed mainland-China weekday session.\"\"\""
+      "text": "\"\"\"Return the latest source-observed completed mainland-China session.\"\"\""
     },
     {
       "line": 39,
       "path": "apps/data_center/domain/market_time.py",
-      "text": "\"\"\"Return the latest closed weekday session, including during live trading.\"\"\""
+      "text": "\"\"\"Return the latest source-observed closed session, including during trading.\"\"\""
     },
     {
       "line": 141,
@@ -11656,397 +11681,397 @@
       "text": "AND publication_key = 'current'"
     },
     {
-      "line": 37,
+      "line": 35,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "\"\"\"Typed coverage summary for one persisted fact domain.\"\"\""
     },
     {
-      "line": 84,
+      "line": 82,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "\"\"\"Read data-center summary counts for operational diagnostics.\"\"\""
     },
     {
-      "line": 291,
+      "line": 289,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "\"\"\"Return current Publication/member-bound coverage evidence."
     },
     {
-      "line": 293,
+      "line": 291,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "A fact-table row is not current-data evidence by itself.  This query"
     },
     {
-      "line": 310,
+      "line": 308,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "publication_key=\"current\","
     },
     {
-      "line": 320,
+      "line": 318,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "publication_key=\"current\","
     },
     {
-      "line": 332,
+      "line": 330,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "summary = dict(empty)"
     },
     {
-      "line": 334,
+      "line": 332,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "summary.update("
     },
     {
-      "line": 350,
+      "line": 348,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "summary.update("
+    },
+    {
+      "line": 353,
+      "path": "apps/data_center/infrastructure/diagnostic_queries.py",
+      "text": "return self._typed_publication_summary(summary)"
     },
     {
       "line": 355,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
-      "text": "return self._typed_publication_summary(summary)"
+      "text": "summary.update("
     },
     {
-      "line": 357,
+      "line": 362,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
-      "text": "summary.update("
+      "text": "return self._typed_publication_summary(summary)"
     },
     {
       "line": 364,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
-      "text": "return self._typed_publication_summary(summary)"
+      "text": "summary.update("
     },
     {
-      "line": 366,
+      "line": 369,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
-      "text": "summary.update("
+      "text": "return self._typed_publication_summary(summary)"
     },
     {
       "line": 371,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
-      "text": "return self._typed_publication_summary(summary)"
-    },
-    {
-      "line": 373,
-      "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "summary.update("
     },
     {
-      "line": 378,
+      "line": 376,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "return self._typed_publication_summary(summary)"
     },
     {
-      "line": 385,
+      "line": 383,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "summary.update("
+    },
+    {
+      "line": 388,
+      "path": "apps/data_center/infrastructure/diagnostic_queries.py",
+      "text": "return self._typed_publication_summary(summary)"
     },
     {
       "line": 390,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
-      "text": "return self._typed_publication_summary(summary)"
-    },
-    {
-      "line": 392,
-      "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "summary.update("
     },
     {
-      "line": 397,
+      "line": 395,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "return self._typed_publication_summary(summary)"
     },
     {
-      "line": 405,
+      "line": 403,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "summary[\"member_row_count\"] = member_row_count"
     },
     {
-      "line": 407,
+      "line": 405,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "summary.update("
+    },
+    {
+      "line": 410,
+      "path": "apps/data_center/infrastructure/diagnostic_queries.py",
+      "text": "return self._typed_publication_summary(summary)"
     },
     {
       "line": 412,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
+      "text": "summary.update("
+    },
+    {
+      "line": 417,
+      "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "return self._typed_publication_summary(summary)"
     },
     {
-      "line": 414,
+      "line": 422,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "summary.update("
     },
     {
-      "line": 419,
+      "line": 427,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "return self._typed_publication_summary(summary)"
     },
     {
-      "line": 424,
-      "path": "apps/data_center/infrastructure/diagnostic_queries.py",
-      "text": "summary.update("
-    },
-    {
-      "line": 429,
-      "path": "apps/data_center/infrastructure/diagnostic_queries.py",
-      "text": "return self._typed_publication_summary(summary)"
-    },
-    {
-      "line": 440,
+      "line": 438,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "summary[\"member_bound_count\"] = member_bound_count"
     },
     {
-      "line": 441,
+      "line": 439,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "summary[\"member_missing_count\"] = max(len(active_codes) - member_bound_count, 0)"
     },
     {
-      "line": 449,
+      "line": 447,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "summary[\"published_latest_date\"] = latest_value.isoformat()"
     },
     {
-      "line": 451,
+      "line": 449,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "summary.update("
     },
     {
-      "line": 456,
+      "line": 454,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "return self._typed_publication_summary(summary)"
     },
     {
-      "line": 460,
+      "line": 458,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "summary.update("
     },
     {
-      "line": 465,
+      "line": 463,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "return self._typed_publication_summary(summary)"
     },
     {
-      "line": 468,
+      "line": 466,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "summary.update("
+    },
+    {
+      "line": 471,
+      "path": "apps/data_center/infrastructure/diagnostic_queries.py",
+      "text": "return self._typed_publication_summary(summary)"
     },
     {
       "line": 473,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
+      "text": "summary.update("
+    },
+    {
+      "line": 478,
+      "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "return self._typed_publication_summary(summary)"
     },
     {
-      "line": 475,
+      "line": 482,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "summary.update("
     },
     {
-      "line": 480,
+      "line": 487,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "return self._typed_publication_summary(summary)"
     },
     {
-      "line": 484,
-      "path": "apps/data_center/infrastructure/diagnostic_queries.py",
-      "text": "summary.update("
-    },
-    {
-      "line": 489,
-      "path": "apps/data_center/infrastructure/diagnostic_queries.py",
-      "text": "return self._typed_publication_summary(summary)"
-    },
-    {
-      "line": 493,
+      "line": 491,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "summary[\"observed_at\"] = oldest.isoformat()"
     },
     {
-      "line": 496,
+      "line": 494,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "summary[\"max_age_seconds\"] = int(max_age_seconds) if max_age_seconds is not None else None"
     },
     {
-      "line": 498,
+      "line": 496,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "summary.update("
     },
     {
-      "line": 503,
+      "line": 501,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "return self._typed_publication_summary(summary)"
     },
     {
-      "line": 507,
+      "line": 505,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "summary.update("
+    },
+    {
+      "line": 510,
+      "path": "apps/data_center/infrastructure/diagnostic_queries.py",
+      "text": "return self._typed_publication_summary(summary)"
     },
     {
       "line": 512,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
-      "text": "return self._typed_publication_summary(summary)"
-    },
-    {
-      "line": 514,
-      "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "summary[\"age_seconds\"] = age_seconds"
     },
     {
-      "line": 524,
+      "line": 528,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "summary.update("
     },
     {
-      "line": 529,
+      "line": 533,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "return self._typed_publication_summary(summary)"
     },
     {
-      "line": 530,
+      "line": 534,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "summary.update("
     },
     {
-      "line": 536,
+      "line": 540,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "return self._typed_publication_summary(summary)"
     },
     {
-      "line": 537,
+      "line": 541,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "summary.update("
     },
     {
-      "line": 543,
+      "line": 547,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "return self._typed_publication_summary(summary)"
     },
     {
-      "line": 551,
+      "line": 555,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "\"publication_key\": \"current\","
     },
     {
-      "line": 574,
+      "line": 578,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "summary: dict[str, object],"
     },
     {
-      "line": 579,
+      "line": 583,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "dataset_key=str(summary[\"dataset_key\"]),"
     },
     {
-      "line": 580,
+      "line": 584,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "publication_key=str(summary[\"publication_key\"]),"
     },
     {
-      "line": 582,
+      "line": 586,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "str(summary[\"publication_id\"])"
     },
     {
-      "line": 583,
+      "line": 587,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "if summary.get(\"publication_id\") is not None"
     },
     {
-      "line": 586,
+      "line": 590,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "state=(str(summary[\"state\"]) if summary.get(\"state\") is not None else None),"
     },
     {
-      "line": 587,
+      "line": 591,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "member_count=int(cast(int, summary[\"member_count\"])),"
     },
     {
-      "line": 588,
+      "line": 592,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "member_row_count=int(cast(int, summary[\"member_row_count\"])),"
     },
     {
-      "line": 589,
+      "line": 593,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "member_bound_count=int(cast(int, summary[\"member_bound_count\"])),"
     },
     {
-      "line": 590,
+      "line": 594,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "member_missing_count=int(cast(int, summary[\"member_missing_count\"])),"
     },
     {
-      "line": 591,
+      "line": 595,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "coverage_selected_count=int(cast(int, summary[\"coverage_selected_count\"])),"
     },
     {
-      "line": 592,
+      "line": 596,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "coverage_missing_count=int(cast(int, summary[\"coverage_missing_count\"])),"
     },
     {
-      "line": 593,
+      "line": 597,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "as_of=str(summary[\"as_of\"]) if summary.get(\"as_of\") is not None else None,"
     },
     {
-      "line": 595,
+      "line": 599,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "str(summary[\"published_at\"]) if summary.get(\"published_at\") is not None else None"
     },
     {
-      "line": 598,
+      "line": 602,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "str(summary[\"published_latest_date\"])"
     },
     {
-      "line": 599,
+      "line": 603,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "if summary.get(\"published_latest_date\") is not None"
     },
     {
-      "line": 603,
+      "line": 607,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "str(summary[\"observed_at\"]) if summary.get(\"observed_at\") is not None else None"
     },
     {
-      "line": 606,
+      "line": 610,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "float(cast(float, summary[\"age_seconds\"]))"
     },
     {
-      "line": 607,
+      "line": 611,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "if summary.get(\"age_seconds\") is not None"
     },
     {
-      "line": 611,
+      "line": 615,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "int(cast(int, summary[\"max_age_seconds\"]))"
     },
     {
-      "line": 612,
+      "line": 616,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "if summary.get(\"max_age_seconds\") is not None"
     },
     {
-      "line": 615,
+      "line": 619,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "freshness_status=str(summary[\"freshness_status\"]),"
     },
     {
-      "line": 616,
+      "line": 620,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "must_not_use_for_decision=bool(summary[\"must_not_use_for_decision\"]),"
     },
     {
-      "line": 617,
+      "line": 621,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "blocked_reason=str(summary[\"blocked_reason\"]),"
     },
     {
-      "line": 618,
+      "line": 622,
       "path": "apps/data_center/infrastructure/diagnostic_queries.py",
       "text": "status=str(summary[\"status\"]),"
     },
@@ -12111,7 +12136,27 @@
       "text": "summary = models.TextField(blank=True)"
     },
     {
-      "line": 155,
+      "line": 72,
+      "path": "apps/data_center/infrastructure/financial_fact_repository.py",
+      "text": "\"\"\"Select latest revisions within the requested historical knowledge scope.\"\"\""
+    },
+    {
+      "line": 93,
+      "path": "apps/data_center/infrastructure/financial_fact_repository.py",
+      "text": "latest = ("
+    },
+    {
+      "line": 98,
+      "path": "apps/data_center/infrastructure/financial_fact_repository.py",
+      "text": "qs = qs.filter(pk=Subquery(latest))"
+    },
+    {
+      "line": 107,
+      "path": "apps/data_center/infrastructure/financial_fact_repository.py",
+      "text": "\"\"\"Return the latest source period and revision for an asset.\"\"\""
+    },
+    {
+      "line": 167,
       "path": "apps/data_center/infrastructure/financial_fact_repository.py",
       "text": "\"\"\"Select every metric from each asset's latest evidence-safe period.\"\"\""
     },
@@ -12471,7 +12516,17 @@
       "text": "\"\"\"Return one latest knowable version per business key.\"\"\""
     },
     {
-      "line": 156,
+      "line": 57,
+      "path": "apps/data_center/infrastructure/price_bar_repository.py",
+      "text": "\"\"\"Return latest revisions or the exact rows pinned by a publication.\"\"\""
+    },
+    {
+      "line": 78,
+      "path": "apps/data_center/infrastructure/price_bar_repository.py",
+      "text": "\"\"\"Return the latest source bar within the optional frozen member scope.\"\"\""
+    },
+    {
+      "line": 162,
       "path": "apps/data_center/infrastructure/price_bar_repository.py",
       "text": "\"\"\"Select the latest daily unadjusted fact for every requested asset.\"\"\""
     },
@@ -12531,17 +12586,22 @@
       "text": "\"\"\"Persist only authorized sources; never activate a current Publication here.\"\"\""
     },
     {
-      "line": 111,
+      "line": 72,
+      "path": "apps/data_center/infrastructure/quote_snapshot_repository.py",
+      "text": "\"\"\"Return latest revisions or the exact rows pinned by a publication.\"\"\""
+    },
+    {
+      "line": 137,
       "path": "apps/data_center/infrastructure/quote_snapshot_repository.py",
       "text": "becomes the realtime observation boundary."
     },
     {
-      "line": 142,
+      "line": 168,
       "path": "apps/data_center/infrastructure/quote_snapshot_repository.py",
       "text": "\"\"\"Return one deterministic latest source snapshot per requested asset.\"\"\""
     },
     {
-      "line": 161,
+      "line": 188,
       "path": "apps/data_center/infrastructure/quote_snapshot_repository.py",
       "text": "\"\"\"Select the latest immutable quote fact for every requested asset.\"\"\""
     },
@@ -12661,22 +12721,52 @@
       "text": "latest_by_code = {str(row[\"asset_code\"]): int(row[\"latest\"] or 0) for row in latest_rows}"
     },
     {
-      "line": 259,
+      "line": 276,
+      "path": "apps/data_center/infrastructure/tushare_model_market_source.py",
+      "text": "current = start_date"
+    },
+    {
+      "line": 277,
+      "path": "apps/data_center/infrastructure/tushare_model_market_source.py",
+      "text": "while current <= end_date:"
+    },
+    {
+      "line": 278,
+      "path": "apps/data_center/infrastructure/tushare_model_market_source.py",
+      "text": "expected_dates.add(current)"
+    },
+    {
+      "line": 279,
+      "path": "apps/data_center/infrastructure/tushare_model_market_source.py",
+      "text": "current += timedelta(days=1)"
+    },
+    {
+      "line": 320,
       "path": "apps/data_center/infrastructure/tushare_model_market_source.py",
       "text": "\"\"\"Read the latest effective snapshot, never a future constituent list.\"\"\""
     },
     {
-      "line": 332,
+      "line": 393,
       "path": "apps/data_center/infrastructure/tushare_model_market_source.py",
       "text": "\"\"\"Fetch the latest effective constituents for one configured index.\"\"\""
     },
     {
-      "line": 76,
+      "line": 52,
+      "path": "apps/data_center/infrastructure/valuation_fact_repository.py",
+      "text": "\"\"\"Return latest revisions or the exact rows pinned by a publication.\"\"\""
+    },
+    {
+      "line": 71,
+      "path": "apps/data_center/infrastructure/valuation_fact_repository.py",
+      "text": "\"\"\"Return the newest source observation and its latest revision.\"\"\""
+    },
+    {
+      "line": 85,
       "path": "apps/data_center/infrastructure/valuation_fact_repository.py",
       "text": "value = ValuationFactModel._default_manager.aggregate(latest=Max(\"val_date\"))[\"latest\"]"
     },
     {
-      "line": 178,
+      "line": 187,
       "path": "apps/data_center/infrastructure/valuation_fact_repository.py",
       "text": "\"\"\"Select the latest deterministic valuation fact for every asset.\"\"\""
     },
@@ -12716,72 +12806,72 @@
       "text": "name=\"dc-market-thermometer-current\","
     },
     {
-      "line": 450,
+      "line": 451,
       "path": "apps/data_center/interface/api_views.py",
       "text": "current = get_provider_settings_payload()"
     },
     {
-      "line": 453,
+      "line": 454,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_source=d.get(\"default_source\", current[\"default_source\"]),"
     },
     {
-      "line": 454,
+      "line": 455,
       "path": "apps/data_center/interface/api_views.py",
       "text": "enable_failover=d.get(\"enable_failover\", current[\"enable_failover\"]),"
     },
     {
-      "line": 457,
+      "line": 458,
       "path": "apps/data_center/interface/api_views.py",
       "text": "current[\"failover_tolerance\"],"
     },
     {
-      "line": 478,
+      "line": 479,
       "path": "apps/data_center/interface/api_views.py",
       "text": "current = ("
     },
     {
-      "line": 481,
+      "line": 482,
       "path": "apps/data_center/interface/api_views.py",
       "text": "merged = {**current, **data}"
     },
     {
-      "line": 500,
+      "line": 501,
       "path": "apps/data_center/interface/api_views.py",
       "text": "\"\"\"Return current production coverage diagnostics summary.\"\"\""
     },
     {
-      "line": 631,
+      "line": 632,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 703,
+      "line": 704,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 811,
+      "line": 812,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 864,
+      "line": 865,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 907,
+      "line": 908,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 1001,
+      "line": 1002,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 1032,
+      "line": 1033,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
@@ -12796,22 +12886,22 @@
       "text": "\"\"\"Return or update current user's threshold override.\"\"\""
     },
     {
-      "line": 86,
+      "line": 100,
       "path": "apps/data_center/interface/publication_guards.py",
       "text": "publication_key = str(publication.get(\"publication_key\") or \"current\")"
     },
     {
-      "line": 137,
+      "line": 151,
       "path": "apps/data_center/interface/publication_guards.py",
       "text": "publication_key = str(publication.get(\"publication_key\") or \"current\")"
     },
     {
-      "line": 171,
+      "line": 185,
       "path": "apps/data_center/interface/publication_guards.py",
       "text": "\"\"\"Apply freshness and member selection gates for a current-data read.\"\"\""
     },
     {
-      "line": 217,
+      "line": 231,
       "path": "apps/data_center/interface/publication_guards.py",
       "text": "\"\"\"Apply an explicit current-publication gate to a Data Center read.\"\"\""
     },
@@ -12901,12 +12991,12 @@
       "text": "\"\"\"Preview or execute exact active-A-share core current publications.\"\"\""
     },
     {
-      "line": 30,
+      "line": 28,
       "path": "apps/data_center/management/commands/rebuild_active_a_share_core_publications.py",
       "text": "\"Preview full active-A-share quote/price/valuation/financial current publications; \""
     },
     {
-      "line": 78,
+      "line": 76,
       "path": "apps/data_center/management/commands/rebuild_active_a_share_core_publications.py",
       "text": "raise CommandError(\"--operator must match the current server-issued actor\")"
     },
@@ -12916,22 +13006,22 @@
       "text": "\"\"\"Preview or repair active-A-share decision-current facts and publications.\"\"\""
     },
     {
-      "line": 28,
+      "line": 26,
       "path": "apps/data_center/management/commands/repair_active_a_share_current_facts.py",
       "text": "\"\"\"Expose a dry-run-first, fail-closed current-fact repair boundary.\"\"\""
     },
     {
-      "line": 31,
+      "line": 29,
       "path": "apps/data_center/management/commands/repair_active_a_share_current_facts.py",
       "text": "\"Preview active-A-share current-fact coverage; use --execute and an \""
     },
     {
-      "line": 99,
+      "line": 97,
       "path": "apps/data_center/management/commands/repair_active_a_share_current_facts.py",
       "text": "\"latest completed China market session is unavailable during live trading\""
     },
     {
-      "line": 110,
+      "line": 108,
       "path": "apps/data_center/management/commands/repair_active_a_share_current_facts.py",
       "text": "raise CommandError(\"--operator must match the current server-issued actor\")"
     },
@@ -12941,9 +13031,14 @@
       "text": "return {\"status\": \"skipped\", \"message\": \"No realtime quote provider is available.\"}"
     },
     {
-      "line": 62,
+      "line": 72,
       "path": "apps/data_center/management/commands/setup_full_market_publications.py",
       "text": "name=\"full-market-current-publications\","
+    },
+    {
+      "line": 101,
+      "path": "apps/data_center/management/commands/setup_full_market_publications.py",
+      "text": "name=\"financial-current-publication-refresh\","
     },
     {
       "line": 24,
@@ -13141,7 +13236,7 @@
       "text": "\"\"\"Return latest weekly quota usage.\"\"\""
     },
     {
-      "line": 40,
+      "line": 44,
       "path": "apps/decision_rhythm/application/global_alert_service.py",
       "text": "\"\"\"Return latest weekly quota usage.\"\"\""
     },
@@ -13351,27 +13446,27 @@
       "text": "\"\"\"Return the current user's account-level daily decision queue.\"\"\""
     },
     {
-      "line": 50,
+      "line": 115,
       "path": "apps/decision_rhythm/interface/workspace_api_support.py",
       "text": "current = resolve_current_regime()"
     },
     {
-      "line": 52,
+      "line": 117,
       "path": "apps/decision_rhythm/interface/workspace_api_support.py",
       "text": "\"current_regime\": getattr(current, \"dominant_regime\", \"UNKNOWN\") or \"UNKNOWN\","
     },
     {
-      "line": 53,
+      "line": 118,
       "path": "apps/decision_rhythm/interface/workspace_api_support.py",
       "text": "\"confidence\": float(getattr(current, \"confidence\", 0.0) or 0.0),"
     },
     {
-      "line": 54,
+      "line": 119,
       "path": "apps/decision_rhythm/interface/workspace_api_support.py",
       "text": "\"source\": getattr(current, \"data_source\", \"V2_CALCULATION\") or \"V2_CALCULATION\","
     },
     {
-      "line": 228,
+      "line": 284,
       "path": "apps/decision_rhythm/interface/workspace_execution_api_views.py",
       "text": "\"summary\": plan.summary,"
     },
@@ -15246,7 +15341,7 @@
       "text": "\"target_count\": summary.get(\"target_count\"),"
     },
     {
-      "line": 65,
+      "line": 64,
       "path": "apps/operational_readiness/infrastructure/readiness_window_validation_calendar.py",
       "text": "raise CommandError(\"expected-latest-date must be YYYY-MM-DD\") from exc"
     },
@@ -15366,7 +15461,7 @@
       "text": "\"target_date\": current.isoformat(),"
     },
     {
-      "line": 209,
+      "line": 211,
       "path": "apps/operational_readiness/infrastructure/readiness_window_validation_core.py",
       "text": "current = _previous_trading_day(current, calendar)"
     },
@@ -15981,27 +16076,27 @@
       "text": "summary=\"获取当前政策状态\","
     },
     {
-      "line": 159,
+      "line": 172,
       "path": "apps/policy/interface/event_api_views.py",
       "text": "summary=\"获取政策事件列表\","
     },
     {
-      "line": 245,
+      "line": 258,
       "path": "apps/policy/interface/event_api_views.py",
       "text": "summary=\"创建政策事件\","
     },
     {
-      "line": 344,
+      "line": 357,
       "path": "apps/policy/interface/event_api_views.py",
       "text": "summary=\"获取指定日期的政策事件\","
     },
     {
-      "line": 392,
+      "line": 405,
       "path": "apps/policy/interface/event_api_views.py",
       "text": "summary=\"更新政策事件\","
     },
     {
-      "line": 470,
+      "line": 483,
       "path": "apps/policy/interface/event_api_views.py",
       "text": "summary=\"删除政策事件\","
     },
@@ -16081,7 +16176,7 @@
       "text": "\"count\": int(summary[\"total_items\"]),"
     },
     {
-      "line": 672,
+      "line": 677,
       "path": "apps/policy/interface/serializers.py",
       "text": "summary = WorkbenchSummarySerializer()"
     },
@@ -21981,67 +22076,67 @@
       "text": "last_updated=latest.observed_at.isoformat() if latest.observed_at else None,"
     },
     {
-      "line": 142,
+      "line": 154,
       "path": "apps/signal/application/query_services.py",
       "text": "\"\"\"Return current regime payload for signal pages.\"\"\""
     },
     {
-      "line": 144,
+      "line": 156,
       "path": "apps/signal/application/query_services.py",
       "text": "latest = resolve_current_regime(as_of_date=date.today())"
     },
     {
-      "line": 145,
+      "line": 157,
       "path": "apps/signal/application/query_services.py",
       "text": "if latest is None:"
     },
     {
-      "line": 147,
+      "line": 159,
       "path": "apps/signal/application/query_services.py",
       "text": "must_not_use_for_decision = bool(latest.must_not_use_for_decision) or ("
     },
     {
-      "line": 148,
+      "line": 160,
       "path": "apps/signal/application/query_services.py",
       "text": "latest.dominant_regime in (None, \"Unknown\")"
     },
     {
-      "line": 152,
+      "line": 164,
       "path": "apps/signal/application/query_services.py",
       "text": "\"dominant_regime\": latest.dominant_regime,"
     },
     {
-      "line": 153,
+      "line": 165,
       "path": "apps/signal/application/query_services.py",
       "text": "\"confidence\": latest.confidence,"
     },
     {
-      "line": 154,
+      "line": 166,
       "path": "apps/signal/application/query_services.py",
       "text": "\"observed_at\": latest.observed_at,"
     },
     {
-      "line": 155,
+      "line": 167,
       "path": "apps/signal/application/query_services.py",
       "text": "\"distribution\": dict(latest.distribution or {}) if not must_not_use_for_decision else {},"
     },
     {
-      "line": 158,
+      "line": 170,
       "path": "apps/signal/application/query_services.py",
       "text": "latest.blocked_reason or \"regime_data_unavailable\" if must_not_use_for_decision else \"\""
     },
     {
-      "line": 517,
+      "line": 539,
       "path": "apps/signal/application/query_services.py",
       "text": "\"\"\"Return signal summary for operational diagnostics.\"\"\""
     },
     {
-      "line": 571,
+      "line": 593,
       "path": "apps/signal/application/query_services.py",
       "text": "\"\"\"Validate one existing signal against current regime context.\"\"\""
     },
     {
-      "line": 597,
+      "line": 619,
       "path": "apps/signal/application/query_services.py",
       "text": "raise ValueError(\"Current regime payload is invalid\")"
     },
@@ -23146,7 +23241,7 @@
       "text": "summary=\"按策略计算仓位管理建议\","
     },
     {
-      "line": 130,
+      "line": 452,
       "path": "apps/task_monitor/application/dtos.py",
       "text": "summary: SchedulerSummaryResponse"
     },
@@ -23161,47 +23256,47 @@
       "text": "\"summary\": asdict(response.summary),"
     },
     {
-      "line": 361,
+      "line": 420,
       "path": "apps/task_monitor/application/use_cases.py",
       "text": "summary = self.scheduler_repository.get_catalog_summary()"
     },
     {
-      "line": 384,
+      "line": 443,
       "path": "apps/task_monitor/application/use_cases.py",
       "text": "summary=_map_scheduler_summary(summary),"
     },
     {
-      "line": 524,
+      "line": 575,
       "path": "apps/task_monitor/application/use_cases.py",
       "text": "def _map_scheduler_summary(summary: SchedulerCatalogSummary) -> SchedulerSummaryResponse:"
     },
     {
-      "line": 526,
+      "line": 577,
       "path": "apps/task_monitor/application/use_cases.py",
       "text": "total_tasks=summary.total_tasks,"
     },
     {
-      "line": 527,
+      "line": 578,
       "path": "apps/task_monitor/application/use_cases.py",
       "text": "enabled_tasks=summary.enabled_tasks,"
     },
     {
-      "line": 528,
+      "line": 579,
       "path": "apps/task_monitor/application/use_cases.py",
       "text": "disabled_tasks=summary.disabled_tasks,"
     },
     {
-      "line": 529,
+      "line": 580,
       "path": "apps/task_monitor/application/use_cases.py",
       "text": "crontab_tasks=summary.crontab_tasks,"
     },
     {
-      "line": 530,
+      "line": 581,
       "path": "apps/task_monitor/application/use_cases.py",
       "text": "interval_tasks=summary.interval_tasks,"
     },
     {
-      "line": 531,
+      "line": 582,
       "path": "apps/task_monitor/application/use_cases.py",
       "text": "one_off_tasks=summary.one_off_tasks,"
     },
@@ -23231,47 +23326,52 @@
       "text": "last_execution_at=latest.created_at if latest else None,"
     },
     {
-      "line": 100,
+      "line": 30,
+      "path": "apps/task_monitor/interface/serializers.py",
+      "text": "\"\"\"Safe business summary for one task attempt.\"\"\""
+    },
+    {
+      "line": 102,
       "path": "apps/task_monitor/interface/views.py",
       "text": "summary=\"读取计划任务管理台\","
     },
     {
-      "line": 115,
+      "line": 117,
       "path": "apps/task_monitor/interface/views.py",
       "text": "summary=\"初始化默认计划任务\","
     },
     {
-      "line": 129,
+      "line": 131,
       "path": "apps/task_monitor/interface/views.py",
       "text": "summary=\"读取 readiness 验收状态\","
     },
     {
-      "line": 148,
+      "line": 150,
       "path": "apps/task_monitor/interface/views.py",
       "text": "summary=\"读取或更新 readiness 调度时间\","
     },
     {
-      "line": 173,
+      "line": 175,
       "path": "apps/task_monitor/interface/views.py",
       "text": "summary=\"获取任务状态\","
     },
     {
-      "line": 207,
+      "line": 229,
       "path": "apps/task_monitor/interface/views.py",
       "text": "summary=\"列出任务\","
     },
     {
-      "line": 290,
+      "line": 328,
       "path": "apps/task_monitor/interface/views.py",
       "text": "summary=\"获取任务统计\","
     },
     {
-      "line": 358,
+      "line": 396,
       "path": "apps/task_monitor/interface/views.py",
       "text": "summary=\"Celery 健康检查\","
     },
     {
-      "line": 398,
+      "line": 436,
       "path": "apps/task_monitor/interface/views.py",
       "text": "summary=\"任务监控概览\","
     },
@@ -24746,7 +24846,7 @@
       "text": "\"\"\"Record one current physical re-observation under a trusted user lock."
     },
     {
-      "line": 94,
+      "line": 95,
       "path": "core/integration/data_center_audit.py",
       "text": "\"\"\"Validate the canonical Audit runtime and current authority without writes.\"\"\""
     },
@@ -25421,17 +25521,17 @@
       "text": "\"Failed to get metrics summary (error_type=%s)\","
     },
     {
-      "line": 15,
+      "line": 16,
       "path": "core/middleware/decision_gate.py",
       "text": "\"/api/realtime/market-summary/\","
     },
     {
-      "line": 18,
+      "line": 19,
       "path": "core/middleware/decision_gate.py",
       "text": "\"/api/regime/current/\","
     },
     {
-      "line": 20,
+      "line": 21,
       "path": "core/middleware/decision_gate.py",
       "text": "\"/api/pulse/current/\","
     },
@@ -25763,42 +25863,47 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 170,
+      "line": 176,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(name=\"data_center.refresh_full_market_publications\", time_limit=3600, soft_time_limit=3500)  # type: ignore[misc]"
     },
     {
-      "line": 608,
+      "line": 450,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 640,
+      "line": 973,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 722,
+      "line": 1005,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1029,
+      "line": 1087,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1066,
+      "line": 1394,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1139,
+      "line": 1431,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1202,
+      "line": 1504,
+      "path": "apps/data_center/application/tasks.py",
+      "text": "@shared_task(  # type: ignore[misc]"
+    },
+    {
+      "line": 1567,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },

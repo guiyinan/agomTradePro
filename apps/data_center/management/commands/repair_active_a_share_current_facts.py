@@ -8,9 +8,6 @@ from typing import Any
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.utils import timezone
 
-from apps.audit.application.system_audit_composition import (
-    SystemAuditCompositionUnavailable,
-)
 from apps.data_center.application.query_services import (
     list_active_stock_codes_for_backfill,
 )
@@ -20,6 +17,7 @@ from apps.data_center.application.query_use_cases import (
 from apps.data_center.composition import make_core_current_fact_refresh_use_case
 from core.exceptions import MissingConfigError
 from core.integration.data_center_audit import (
+    SystemAuditCompositionUnavailable,
     preflight_data_reliability_audit_runtime,
 )
 

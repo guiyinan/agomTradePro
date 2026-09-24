@@ -3,9 +3,25 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
+import pytest
+
 from apps.operational_readiness.application import tasks as canonical_task_module
+from apps.operational_readiness.management.commands import (
+    run_personal_readiness_daily as readiness_command_module,
+)
 from apps.task_monitor.application import tasks as task_module
 from core.celery import app as celery_app
+
+
+@pytest.fixture(autouse=True)
+def _closed_session_fixture(monkeypatch):
+    """Keep task-contract tests independent of the wall clock and provider calendar."""
+
+    monkeypatch.setattr(
+        readiness_command_module,
+        "resolve_default_readiness_target_date",
+        lambda: date(2026, 7, 2),
+    )
 
 
 def test_readiness_canonical_and_legacy_task_names_remain_registered_contracts():

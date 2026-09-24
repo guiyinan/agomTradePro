@@ -39,6 +39,7 @@ from apps.audit.application.data_repair_audit import (
 from apps.audit.application.data_validation_audit import (
     DataValidationRejectedObservation,
 )
+from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
 from apps.audit.application.system_audit_query import (
     ListCorrelatedSystemAuditEventsCommand,
     ListCorrelatedSystemAuditEventsResult,
@@ -150,6 +151,7 @@ __all__ = [
     "RepairPublicationEvidence",
     "RepairSectionEvidence",
     "SystemAuditEvent",
+    "SystemAuditCompositionUnavailable",
     "SystemAuditQueryCorruption",
     "SystemAuditQueryRepository",
     "SystemAuditQueryUnavailable",
