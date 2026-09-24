@@ -3,16 +3,16 @@
     "by_category": {
       "admin_surface": 13,
       "agent_skill": 3,
-      "application_consumer": 160,
+      "application_consumer": 161,
       "beat_schedule": 60,
       "capability_runtime": 25,
-      "celery_dispatch_edge": 18,
-      "celery_task": 128,
+      "celery_dispatch_edge": 19,
+      "celery_task": 129,
       "compatibility_facade": 94,
-      "current_data_surface": 68,
+      "current_data_surface": 70,
       "dynamic_import_edge": 12,
-      "management_command": 32,
-      "management_command_edge": 57,
+      "management_command": 33,
+      "management_command_edge": 58,
       "mcp_tool": 40,
       "migration_evidence": 14,
       "operational_dispatch_edge": 61,
@@ -22,7 +22,7 @@
       "rest_url": 72,
       "runbook": 7,
       "runtime_config_key": 45,
-      "scheduler_writer": 17,
+      "scheduler_writer": 18,
       "script": 10,
       "sdk": 57,
       "terminal_tui": 28,
@@ -30,13 +30,13 @@
       "workflow_step": 10
     },
     "by_status": {
-      "active_public": 776,
-      "adjacent_operational": 322,
+      "active_public": 783,
+      "adjacent_operational": 323,
       "candidate-review": 0,
       "compatibility": 137,
       "retired_blocked": 0
     },
-    "total": 1235
+    "total": 1243
   },
   "entries": [
     {
@@ -482,8 +482,18 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/dashboard/application/integration_gateways.py:get_published_macro_fact_series:line:325",
-      "locator": "line:325",
+      "id": "application_consumer:apps/dashboard/application/alpha_refresh_notice.py:get_decision_publication_gate:line:318",
+      "locator": "line:318",
+      "path": "apps/dashboard/application/alpha_refresh_notice.py",
+      "status": "active_public",
+      "symbol": "get_decision_publication_gate",
+      "target": ""
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/dashboard/application/integration_gateways.py:get_published_macro_fact_series:line:342",
+      "locator": "line:342",
       "path": "apps/dashboard/application/integration_gateways.py",
       "status": "active_public",
       "symbol": "get_published_macro_fact_series",
@@ -1632,8 +1642,8 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:core/health_checks.py:get_active_stock_fact_coverage_payload:line:247",
-      "locator": "line:247",
+      "id": "application_consumer:core/health_checks.py:get_active_stock_fact_coverage_payload:line:273",
+      "locator": "line:273",
       "path": "core/health_checks.py",
       "status": "active_public",
       "symbol": "get_active_stock_fact_coverage_payload",
@@ -1652,8 +1662,8 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:core/health_checks.py:get_decision_provider_capability_health_payload:line:273",
-      "locator": "line:273",
+      "id": "application_consumer:core/health_checks.py:get_decision_provider_capability_health_payload:line:299",
+      "locator": "line:299",
       "path": "core/health_checks.py",
       "status": "active_public",
       "symbol": "get_decision_provider_capability_health_payload",
@@ -2712,8 +2722,8 @@
     {
       "category": "celery_dispatch_edge",
       "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
-      "id": "celery_dispatch_edge:apps/alpha/application/tasks.py:delay:line:792",
-      "locator": "line:792",
+      "id": "celery_dispatch_edge:apps/alpha/application/tasks.py:delay:line:788",
+      "locator": "line:788",
       "path": "apps/alpha/application/tasks.py",
       "status": "active_public",
       "symbol": "delay",
@@ -2722,8 +2732,8 @@
     {
       "category": "celery_dispatch_edge",
       "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
-      "id": "celery_dispatch_edge:apps/alpha/infrastructure/adapters/qlib_adapter.py:apply_async:line:644",
-      "locator": "line:644",
+      "id": "celery_dispatch_edge:apps/alpha/infrastructure/adapters/qlib_adapter.py:apply_async:line:580",
+      "locator": "line:580",
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "status": "active_public",
       "symbol": "apply_async",
@@ -2742,8 +2752,8 @@
     {
       "category": "celery_dispatch_edge",
       "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
-      "id": "celery_dispatch_edge:apps/dashboard/application/alpha_homepage_runtime.py:delay:line:237",
-      "locator": "line:237",
+      "id": "celery_dispatch_edge:apps/dashboard/application/alpha_homepage_runtime.py:delay:line:262",
+      "locator": "line:262",
       "path": "apps/dashboard/application/alpha_homepage_runtime.py",
       "status": "active_public",
       "symbol": "delay",
@@ -2768,6 +2778,16 @@
       "status": "active_public",
       "symbol": "delay",
       "target": "apps.alpha.application.tasks.qlib_predict_scores"
+    },
+    {
+      "category": "celery_dispatch_edge",
+      "evidence": "statically resolved Celery task dispatch",
+      "id": "celery_dispatch_edge:apps/data_center/application/tasks.py:apply_async:line:760",
+      "locator": "line:760",
+      "path": "apps/data_center/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "apply_async",
+      "target": "data_center.refresh_financial_publications_batch"
     },
     {
       "category": "celery_dispatch_edge",
@@ -3318,6 +3338,16 @@
       "status": "active_public",
       "symbol": "refresh_decision_quote_snapshots_task",
       "target": "apps.data_center.application.tasks.refresh_decision_quote_snapshots_task"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "governance/celery_task_contracts.json",
+      "id": "celery_task:apps/data_center/application/tasks.py:refresh_financial_publications_batch_task:data_center.refresh_financial_publications_batch",
+      "locator": "data_center.refresh_financial_publications_batch",
+      "path": "apps/data_center/application/tasks.py",
+      "status": "active_public",
+      "symbol": "refresh_financial_publications_batch_task",
+      "target": "data_center.refresh_financial_publications_batch"
     },
     {
       "category": "celery_task",
@@ -5301,6 +5331,16 @@
     },
     {
       "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=4",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.market_provider_rehearsal:Read-only live provider probe binds sampled scope, source clock and observed HTTP receipts; it is not release approval",
+      "locator": "Read-only live provider probe binds sampled scope, source clock and observed HTTP receipts; it is not release approval",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "data_center.market_provider_rehearsal",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
       "evidence": "governed current-data contract; source_files=5",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.market_thermometer:GET /api/data-center/market-thermometer/current/",
       "locator": "GET /api/data-center/market-thermometer/current/",
@@ -5381,12 +5421,22 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=34",
+      "evidence": "governed current-data contract; source_files=35",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.publication_writer_atomicity:Canonical publication writer and member snapshot commit",
       "locator": "Canonical publication writer and member snapshot commit",
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "data_center.publication_writer_atomicity",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=8",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.published_market_fact_revisions:Frozen quote, daily bar, valuation and financial rows survive later ingestion; raw reads select latest revisions within knowledge scope",
+      "locator": "Frozen quote, daily bar, valuation and financial rows survive later ingestion; raw reads select latest revisions within knowledge scope",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "data_center.published_market_fact_revisions",
       "target": ""
     },
     {
@@ -5772,8 +5822,8 @@
     {
       "category": "dynamic_import_edge",
       "evidence": "statically resolved dynamic import target",
-      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:224",
-      "locator": "line:224",
+      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:268",
+      "locator": "line:268",
       "path": "apps/data_center/infrastructure/tushare_client.py",
       "status": "adjacent_operational",
       "symbol": "import_module",
@@ -5782,8 +5832,8 @@
     {
       "category": "dynamic_import_edge",
       "evidence": "statically resolved dynamic import target",
-      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:34",
-      "locator": "line:34",
+      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:36",
+      "locator": "line:36",
       "path": "apps/data_center/infrastructure/tushare_client.py",
       "status": "adjacent_operational",
       "symbol": "import_module",
@@ -5792,8 +5842,8 @@
     {
       "category": "dynamic_import_edge",
       "evidence": "statically resolved dynamic import target",
-      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:619",
-      "locator": "line:619",
+      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:680",
+      "locator": "line:680",
       "path": "apps/data_center/infrastructure/tushare_client.py",
       "status": "adjacent_operational",
       "symbol": "import_module",
@@ -6037,6 +6087,16 @@
       "path": "apps/data_center/management/commands/record_data_center_reconciliation.py",
       "status": "active_public",
       "symbol": "record_data_center_reconciliation",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "Data Center-owned Django command",
+      "id": "management_command:apps/data_center/management/commands/rehearse_market_providers.py:rehearse_market_providers:",
+      "locator": "",
+      "path": "apps/data_center/management/commands/rehearse_market_providers.py",
+      "status": "active_public",
+      "symbol": "rehearse_market_providers",
       "target": ""
     },
     {
@@ -6502,8 +6562,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/audit/management/commands/renew_system_audit_authority.py",
-      "id": "management_command_edge:apps/audit/infrastructure/system_audit_authority_renewal_executor.py:renew_system_audit_authority:line:35",
-      "locator": "line:35",
+      "id": "management_command_edge:apps/audit/infrastructure/system_audit_authority_renewal_executor.py:renew_system_audit_authority:line:45",
+      "locator": "line:45",
       "path": "apps/audit/infrastructure/system_audit_authority_renewal_executor.py",
       "status": "adjacent_operational",
       "symbol": "renew_system_audit_authority",
@@ -6622,8 +6682,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/account/management/commands/setup_account_risk_tasks.py",
-      "id": "management_command_edge:apps/task_monitor/management/commands/init_scheduler_defaults.py:setup_account_risk_tasks:line:49",
-      "locator": "line:49",
+      "id": "management_command_edge:apps/task_monitor/management/commands/init_scheduler_defaults.py:setup_account_risk_tasks:line:50",
+      "locator": "line:50",
       "path": "apps/task_monitor/management/commands/init_scheduler_defaults.py",
       "status": "adjacent_operational",
       "symbol": "setup_account_risk_tasks",
@@ -6632,8 +6692,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/dashboard/management/commands/setup_auto_advisor_weekly_report.py",
-      "id": "management_command_edge:apps/task_monitor/management/commands/init_scheduler_defaults.py:setup_auto_advisor_weekly_report:line:49",
-      "locator": "line:49",
+      "id": "management_command_edge:apps/task_monitor/management/commands/init_scheduler_defaults.py:setup_auto_advisor_weekly_report:line:50",
+      "locator": "line:50",
       "path": "apps/task_monitor/management/commands/init_scheduler_defaults.py",
       "status": "adjacent_operational",
       "symbol": "setup_auto_advisor_weekly_report",
@@ -6642,8 +6702,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/data_center/management/commands/setup_decision_quote_refresh.py",
-      "id": "management_command_edge:apps/task_monitor/management/commands/init_scheduler_defaults.py:setup_decision_quote_refresh:line:49",
-      "locator": "line:49",
+      "id": "management_command_edge:apps/task_monitor/management/commands/init_scheduler_defaults.py:setup_decision_quote_refresh:line:50",
+      "locator": "line:50",
       "path": "apps/task_monitor/management/commands/init_scheduler_defaults.py",
       "status": "active_public",
       "symbol": "setup_decision_quote_refresh",
@@ -6652,8 +6712,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/equity/management/commands/setup_equity_valuation_sync.py",
-      "id": "management_command_edge:apps/task_monitor/management/commands/init_scheduler_defaults.py:setup_equity_valuation_sync:line:49",
-      "locator": "line:49",
+      "id": "management_command_edge:apps/task_monitor/management/commands/init_scheduler_defaults.py:setup_equity_valuation_sync:line:50",
+      "locator": "line:50",
       "path": "apps/task_monitor/management/commands/init_scheduler_defaults.py",
       "status": "adjacent_operational",
       "symbol": "setup_equity_valuation_sync",
@@ -6661,9 +6721,19 @@
     },
     {
       "category": "management_command_edge",
+      "evidence": "call_command resolves to apps/data_center/management/commands/setup_full_market_publications.py",
+      "id": "management_command_edge:apps/task_monitor/management/commands/init_scheduler_defaults.py:setup_full_market_publications:line:50",
+      "locator": "line:50",
+      "path": "apps/task_monitor/management/commands/init_scheduler_defaults.py",
+      "status": "active_public",
+      "symbol": "setup_full_market_publications",
+      "target": "apps/data_center/management/commands/setup_full_market_publications.py"
+    },
+    {
+      "category": "management_command_edge",
       "evidence": "call_command resolves to apps/macro/management/commands/setup_macro_daily_sync.py",
-      "id": "management_command_edge:apps/task_monitor/management/commands/init_scheduler_defaults.py:setup_macro_daily_sync:line:49",
-      "locator": "line:49",
+      "id": "management_command_edge:apps/task_monitor/management/commands/init_scheduler_defaults.py:setup_macro_daily_sync:line:50",
+      "locator": "line:50",
       "path": "apps/task_monitor/management/commands/init_scheduler_defaults.py",
       "status": "adjacent_operational",
       "symbol": "setup_macro_daily_sync",
@@ -6672,8 +6742,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/task_monitor/management/commands/setup_personal_readiness_daily.py",
-      "id": "management_command_edge:apps/task_monitor/management/commands/init_scheduler_defaults.py:setup_personal_readiness_daily:line:49",
-      "locator": "line:49",
+      "id": "management_command_edge:apps/task_monitor/management/commands/init_scheduler_defaults.py:setup_personal_readiness_daily:line:50",
+      "locator": "line:50",
       "path": "apps/task_monitor/management/commands/init_scheduler_defaults.py",
       "status": "adjacent_operational",
       "symbol": "setup_personal_readiness_daily",
@@ -6682,8 +6752,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/sentiment/management/commands/setup_sentiment_refresh.py",
-      "id": "management_command_edge:apps/task_monitor/management/commands/init_scheduler_defaults.py:setup_sentiment_refresh:line:49",
-      "locator": "line:49",
+      "id": "management_command_edge:apps/task_monitor/management/commands/init_scheduler_defaults.py:setup_sentiment_refresh:line:50",
+      "locator": "line:50",
       "path": "apps/task_monitor/management/commands/init_scheduler_defaults.py",
       "status": "adjacent_operational",
       "symbol": "setup_sentiment_refresh",
@@ -6692,8 +6762,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/decision_rhythm/management/commands/setup_workspace_snapshot_refresh.py",
-      "id": "management_command_edge:apps/task_monitor/management/commands/init_scheduler_defaults.py:setup_workspace_snapshot_refresh:line:49",
-      "locator": "line:49",
+      "id": "management_command_edge:apps/task_monitor/management/commands/init_scheduler_defaults.py:setup_workspace_snapshot_refresh:line:50",
+      "locator": "line:50",
       "path": "apps/task_monitor/management/commands/init_scheduler_defaults.py",
       "status": "adjacent_operational",
       "symbol": "setup_workspace_snapshot_refresh",
@@ -8222,8 +8292,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:init_macro_indicator_governance:line:1938",
-      "locator": "line:1938",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:init_macro_indicator_governance:line:1959",
+      "locator": "line:1959",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "init_macro_indicator_governance",
@@ -8232,8 +8302,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:initialize_data_center_catalog:line:1888",
-      "locator": "line:1888",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:initialize_data_center_catalog:line:1909",
+      "locator": "line:1909",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "initialize_data_center_catalog",
@@ -8242,8 +8312,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:normalize_macro_fact_units:line:1938",
-      "locator": "line:1938",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:normalize_macro_fact_units:line:1959",
+      "locator": "line:1959",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "normalize_macro_fact_units",
@@ -8252,8 +8322,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:verify_canonical_schema:line:1880",
-      "locator": "line:1880",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:verify_canonical_schema:line:1901",
+      "locator": "line:1901",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "verify_canonical_schema",
@@ -10501,7 +10571,17 @@
     },
     {
       "category": "scheduler_writer",
-      "evidence": "database-backed Beat schedule writer at line 61",
+      "evidence": "database-backed Beat schedule writer at line 100",
+      "id": "scheduler_writer:apps/data_center/management/commands/setup_full_market_publications.py:PeriodicTask:financial-current-publication-refresh",
+      "locator": "financial-current-publication-refresh",
+      "path": "apps/data_center/management/commands/setup_full_market_publications.py",
+      "status": "active_public",
+      "symbol": "PeriodicTask",
+      "target": "data_center.refresh_financial_publications_batch"
+    },
+    {
+      "category": "scheduler_writer",
+      "evidence": "database-backed Beat schedule writer at line 71",
       "id": "scheduler_writer:apps/data_center/management/commands/setup_full_market_publications.py:PeriodicTask:full-market-current-publications",
       "locator": "full-market-current-publications",
       "path": "apps/data_center/management/commands/setup_full_market_publications.py",
@@ -10712,8 +10792,8 @@
     {
       "category": "sdk",
       "evidence": "public SDK client property exposes the canonical Data Center module",
-      "id": "sdk:sdk/agomtradepro/client.py:AgomTradeProClient.data_center:line:764",
-      "locator": "line:764",
+      "id": "sdk:sdk/agomtradepro/client.py:AgomTradeProClient.data_center:line:765",
+      "locator": "line:765",
       "path": "sdk/agomtradepro/client.py",
       "status": "active_public",
       "symbol": "AgomTradeProClient.data_center",
@@ -12400,8 +12480,8 @@
     "retired_blocked": "known unsafe or obsolete operational path retained only as blocked evidence"
   },
   "source_contract_counts": {
-    "celery_tasks": 93,
-    "current_data_contracts": 68,
+    "celery_tasks": 94,
+    "current_data_contracts": 70,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 28,
     "runtime_config_keys": 45
