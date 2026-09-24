@@ -10,6 +10,7 @@ import pandas as pd
 import pytest
 
 from apps.data_center.domain.entities import ProviderConfig
+from apps.data_center.domain.enums import PriceAdjustment
 from apps.data_center.infrastructure import _provider_adapter_akshare
 from apps.data_center.infrastructure._provider_adapter_akshare import (
     AkshareUnifiedProviderAdapter,
@@ -106,6 +107,7 @@ def test_price_quote_and_stock_news_gateway_rows_are_converted(
                     close=1.5,
                     volume=100,
                     amount=200,
+                    adjustment=PriceAdjustment.NONE,
                 )
             ]
 
@@ -182,6 +184,85 @@ def test_fund_nav_filters_missing_and_out_of_range_rows(
 
     assert len(result) == 1
     assert result[0].nav == 3
+
+
+def test_quote_batch_fills_missing_identity_after_tencent_consistency_check(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observed = datetime(2026, 9, 23, 7, tzinfo=UTC)
+
+    def quote(code: str, price: str, source: str) -> SimpleNamespace:
+        return SimpleNamespace(
+            stock_code=code,
+            observed_at=observed,
+            fetched_at=observed,
+            price=Decimal(price),
+            open=10,
+            high=11,
+            low=9,
+            pre_close=10,
+            volume=0,
+            amount=0,
+            source=source,
+        )
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway."
+        "AKShareEastMoneyGateway.get_quote_snapshots",
+        lambda _self, _codes: [quote("000001.SZ", "10.00", "eastmoney")],
+    )
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.tencent_gateway."
+        "TencentGateway.get_quote_snapshots",
+        lambda _self, _codes: [
+            quote("000001.SZ", "10.05", "tencent"),
+            quote("000016.SZ", "20.00", "tencent"),
+        ],
+    )
+
+    result = _adapter().fetch_quote_snapshots(["000001.SZ", "000016.SZ"])
+
+    assert [item.asset_code for item in result] == ["000001.SZ", "000016.SZ"]
+    assert result[1].source == "tencent"
+
+
+def test_quote_batch_rejects_tencent_fallback_when_overlap_conflicts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observed = datetime(2026, 9, 23, 7, tzinfo=UTC)
+
+    def quote(code: str, price: str) -> SimpleNamespace:
+        return SimpleNamespace(
+            stock_code=code,
+            observed_at=observed,
+            fetched_at=observed,
+            price=Decimal(price),
+            open=10,
+            high=11,
+            low=9,
+            pre_close=10,
+            volume=0,
+            amount=0,
+            source="test",
+        )
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway."
+        "AKShareEastMoneyGateway.get_quote_snapshots",
+        lambda _self, _codes: [quote("000001.SZ", "10.00")],
+    )
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.tencent_gateway."
+        "TencentGateway.get_quote_snapshots",
+        lambda _self, _codes: [
+            quote("000001.SZ", "11.00"),
+            quote("000016.SZ", "20.00"),
+        ],
+    )
+
+    result = _adapter().fetch_quote_snapshots(["000001.SZ", "000016.SZ"])
+
+    assert [item.asset_code for item in result] == ["000001.SZ"]
 
 
 def test_sector_membership_fails_closed_without_stable_akshare_contract(

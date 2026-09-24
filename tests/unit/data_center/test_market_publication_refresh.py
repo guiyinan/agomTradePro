@@ -520,7 +520,7 @@ def test_task_repairs_missing_price_scope_before_final_publication(monkeypatch):
     assert events == ["refresh_prices", "publish"]
     assert result["outcome"] == "success"
     assert result["price_scope_verified"] == 1
-    assert result["quote_source"] == "tushare"
+    assert result["quote_source"] == "akshare"
     assert result["valuation_source"] == "akshare"
-    assert quote_provider_ids == [3]
+    assert quote_provider_ids == [7]
     assert valuation_provider_ids == [7]

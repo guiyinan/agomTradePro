@@ -531,9 +531,39 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
             AKShareEastMoneyGateway,
         )
+        from apps.data_center.infrastructure.gateways.tencent_gateway import TencentGateway
 
         gateway = AKShareEastMoneyGateway()
         quotes = gateway.get_quote_snapshots(asset_codes)
+        requested = {normalize_asset_code(code, "akshare") for code in asset_codes}
+        primary_by_code = {
+            normalize_asset_code(quote.stock_code, "akshare"): quote for quote in quotes
+        }
+        missing = requested - set(primary_by_code)
+        if missing:
+            fallback_quotes = TencentGateway().get_quote_snapshots(asset_codes)
+            fallback_by_code = {
+                normalize_asset_code(quote.stock_code, "tencent"): quote
+                for quote in fallback_quotes
+            }
+            overlap = set(primary_by_code) & set(fallback_by_code)
+            consistent = bool(overlap) and all(
+                abs(float(primary_by_code[code].price) - float(fallback_by_code[code].price))
+                / max(abs(float(primary_by_code[code].price)), 1e-12)
+                <= 0.01
+                for code in overlap
+            )
+            if consistent:
+                quotes.extend(
+                    fallback_by_code[code] for code in sorted(missing & set(fallback_by_code))
+                )
+            else:
+                logger.warning(
+                    "AKShare quote fallback rejected: missing=%d overlap=%d consistency=%s",
+                    len(missing),
+                    len(overlap),
+                    consistent,
+                )
         return [
             QuoteSnapshot(
                 asset_code=normalize_asset_code(quote.stock_code, "akshare"),

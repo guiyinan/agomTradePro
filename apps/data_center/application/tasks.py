@@ -198,7 +198,7 @@ def _exact_provider_batch_count(
 def refresh_full_market_publications_task(
     source: str | None = None,
     batch_size: int = 100,
-    quote_source: str = "tushare",
+    quote_source: str = "akshare",
     valuation_source: str = "akshare",
 ) -> dict[str, object]:
     """Refresh all active market quotes and valuations without waiting for financial filings."""

@@ -25,7 +25,7 @@ class Command(BaseCommand):
         parser.add_argument("--hour", type=int, default=16)
         parser.add_argument("--minute", type=int, default=30)
         parser.add_argument("--source", choices=("akshare", "tushare"), default=None)
-        parser.add_argument("--quote-source", choices=("akshare", "tushare"), default="tushare")
+        parser.add_argument("--quote-source", choices=("akshare", "tushare"), default="akshare")
         parser.add_argument("--valuation-source", choices=("akshare", "tushare"), default="akshare")
         parser.add_argument("--batch-size", type=int, default=100)
         parser.add_argument("--disable", action="store_true")
