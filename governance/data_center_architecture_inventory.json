@@ -11196,52 +11196,52 @@
       "text": "publication_key = \"current\""
     },
     {
-      "line": 129,
+      "line": 125,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Resolve current authority and prove it covers the task's bounded runtime.\"\"\""
     },
     {
-      "line": 154,
+      "line": 150,
       "path": "apps/data_center/application/tasks.py",
       "text": "current, failure = _preflight_data02_task_authority("
     },
     {
-      "line": 159,
+      "line": 155,
       "path": "apps/data_center/application/tasks.py",
       "text": "if failure is not None or current is None:"
     },
     {
-      "line": 173,
+      "line": 169,
       "path": "apps/data_center/application/tasks.py",
       "text": "return all(getattr(current, field) == getattr(authority, field) for field in identity_fields)"
     },
     {
-      "line": 354,
+      "line": 350,
       "path": "apps/data_center/application/tasks.py",
       "text": "raise ValueError(\"current Audit authority changed before quote batch\")"
     },
     {
-      "line": 371,
+      "line": 367,
       "path": "apps/data_center/application/tasks.py",
       "text": "raise ValueError(\"current Audit authority changed before publication\")"
     },
     {
-      "line": 726,
+      "line": 722,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"Financial current publication rebuild failed: %s\","
     },
     {
-      "line": 848,
+      "line": 844,
       "path": "apps/data_center/application/tasks.py",
       "text": "Current domain sync DTOs expose ``stored_count`` only, so the durable"
     },
     {
-      "line": 1222,
+      "line": 1218,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Require the same current authority before advancing the checkpoint.\"\"\""
     },
     {
-      "line": 1573,
+      "line": 1569,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Check current filesystem pressure before another mutating batch.\"\"\""
     },
@@ -25863,47 +25863,47 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 176,
+      "line": 172,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(name=\"data_center.refresh_full_market_publications\", time_limit=3600, soft_time_limit=3500)  # type: ignore[misc]"
     },
     {
-      "line": 450,
+      "line": 446,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 973,
+      "line": 969,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1005,
+      "line": 1001,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1087,
+      "line": 1083,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1394,
+      "line": 1390,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1431,
+      "line": 1427,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1504,
+      "line": 1500,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1567,
+      "line": 1563,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
