@@ -17,7 +17,7 @@ def test_full_market_schedule_is_idempotent_and_precedes_inference():
     assert row.crontab.day_of_week == "1,2,3,4,5"
     assert json.loads(row.kwargs) == {
         "quote_source": "akshare",
-        "valuation_source": "akshare",
+        "valuation_source": "tushare",
         "batch_size": 100,
     }
     call_command("setup_full_market_publications", disable=True)

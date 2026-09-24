@@ -44,8 +44,8 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 5077,
-    "data_write_task_decorators": 63,
+    "current_surface_references": 5078,
+    "data_write_task_decorators": 64,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
     "legacy_fact_references": 0,
@@ -956,192 +956,192 @@
       "text": "\"\"\"Compare a historical/current read result with its ID/version/hash.\"\"\""
     },
     {
-      "line": 57,
+      "line": 58,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"\"\"An exact current Subject V5 or other Evidence V5 source is unavailable.\"\"\""
     },
     {
-      "line": 69,
+      "line": 70,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"\"\"A repository or current reader substituted invalid Evidence V5 data.\"\"\""
     },
     {
-      "line": 132,
+      "line": 133,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "raise ValueError(\"evidence authority is not an authenticated current admin\")"
     },
     {
-      "line": 179,
+      "line": 186,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"\"\"Select one Evidence V5 only while its complete Subject V5 graph is current.\"\"\""
     },
     {
-      "line": 187,
+      "line": 194,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"\"\"Validate current selectors and an aware point-in-time cutoff.\"\"\""
     },
     {
-      "line": 196,
+      "line": 203,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"\"\"Read one exact current Subject V5 through its public Application port.\"\"\""
     },
     {
-      "line": 201,
+      "line": 208,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"\"\"Return the selected current Subject V5 or no value.\"\"\""
     },
     {
-      "line": 206,
+      "line": 213,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"\"\"Re-read current policy, authority, and same-owner roles per cutoff.\"\"\""
     },
     {
-      "line": 209,
+      "line": 216,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"\"\"Return exact current participant facts at ``as_of``.\"\"\""
     },
     {
-      "line": 281,
+      "line": 288,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"\"\"Validated current Subject V5 and server-owned participant projection.\"\"\""
     },
     {
-      "line": 338,
+      "line": 345,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"current single-owner participants are unavailable\""
     },
     {
-      "line": 377,
+      "line": 384,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"current single-owner policy is unavailable\""
     },
     {
-      "line": 386,
+      "line": 393,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "raise AccountOwnerAssignmentEvidenceV5Unavailable(\"current actor authority is unavailable\")"
     },
     {
-      "line": 389,
+      "line": 396,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"current participant validity is unavailable\""
     },
     {
-      "line": 426,
+      "line": 433,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"\"\"Read and validate one exact current Subject V5 through its Application port.\"\"\""
     },
     {
-      "line": 441,
+      "line": 448,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"current Subject V5 is unavailable\""
     },
     {
-      "line": 445,
+      "line": 452,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"current Subject V5 reader returned corrupt evidence\""
     },
     {
-      "line": 449,
+      "line": 456,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"current Subject V5 is unavailable\""
     },
     {
-      "line": 453,
+      "line": 460,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"current Subject V5 reader returned corrupt evidence\""
     },
     {
-      "line": 457,
+      "line": 464,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "raise AccountOwnerAssignmentEvidenceV5Unavailable(\"current Subject V5 is unavailable\")"
     },
     {
-      "line": 463,
+      "line": 470,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "raise AccountOwnerAssignmentEvidenceV5Corruption(\"current Subject V5 selector substitution\")"
     },
     {
-      "line": 465,
+      "line": 472,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "current = subject.is_current_at(as_of)"
     },
     {
-      "line": 468,
+      "line": 475,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"current Subject V5 cutoff is invalid\""
     },
     {
-      "line": 470,
+      "line": 477,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "if not current:"
     },
     {
-      "line": 471,
+      "line": 478,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "raise AccountOwnerAssignmentEvidenceV5Unavailable(\"Subject V5 is not current\")"
     },
     {
-      "line": 482,
+      "line": 489,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"\"\"Read a registered current Subject V5 and the current participant projection.\"\"\""
     },
     {
-      "line": 507,
+      "line": 514,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "raise AccountOwnerAssignmentEvidenceV5Corruption(\"Subject V5 current source substitution\")"
     },
     {
-      "line": 546,
+      "line": 553,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"\"\"Explicitly approve one current Subject V5 as inactive Evidence V5.\"\"\""
     },
     {
-      "line": 602,
+      "line": 609,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"Evidence V5 winner is no longer current\""
     },
     {
-      "line": 605,
+      "line": 612,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "current = _read_approval_inputs("
     },
     {
-      "line": 618,
+      "line": 628,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "if not _matches_record(current, winner):"
     },
     {
-      "line": 623,
+      "line": 633,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "self._repository, current.subject, cutoff"
     },
     {
-      "line": 631,
+      "line": 641,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"Evidence V5 winner no longer has current sources\""
     },
     {
-      "line": 728,
+      "line": 759,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"\"\"Read immutable historical Evidence V5 without current authority checks.\"\"\""
     },
     {
-      "line": 774,
+      "line": 805,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"\"\"Inject current readers and a fresh phase factory for each read group.\"\"\""
     },
     {
-      "line": 808,
+      "line": 839,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"current Evidence V5 selector substitution\""
     },
     {
-      "line": 878,
+      "line": 911,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"\"\"Compare a historical/current result with its ID, version, and hash.\"\"\""
     },
     {
-      "line": 891,
+      "line": 924,
       "path": "apps/account/application/account_owner_assignment_evidence_v5.py",
       "text": "\"\"\"Compare current Subject, participants, and authority with a persisted root.\"\"\""
     },
@@ -2976,17 +2976,17 @@
       "text": "\"\"\"Return whether this evidence and its complete subject remain current.\"\"\""
     },
     {
-      "line": 188,
+      "line": 191,
       "path": "apps/account/domain/account_owner_assignment_evidence_v5.py",
       "text": "\"evidence v5 participants are not the same current staff owner\""
     },
     {
-      "line": 191,
+      "line": 194,
       "path": "apps/account/domain/account_owner_assignment_evidence_v5.py",
       "text": "raise ValueError(\"evidence v5 requires a current subject when recorded\")"
     },
     {
-      "line": 297,
+      "line": 300,
       "path": "apps/account/domain/account_owner_assignment_evidence_v5.py",
       "text": "\"\"\"Return whether this evidence and its complete subject remain current.\"\"\""
     },
@@ -3966,7 +3966,7 @@
       "text": "\"\"\"Append an exact first subject only after current durable parent validation.\"\"\""
     },
     {
-      "line": 104,
+      "line": 107,
       "path": "apps/account/infrastructure/account_owner_assignment_evidence_v5_repository.py",
       "text": "\"\"\"Return the server's current time.\"\"\""
     },
@@ -7476,24 +7476,29 @@
       "text": "\"\"\"Return the current timezone-aware timestamp.\"\"\""
     },
     {
-      "line": 90,
+      "line": 95,
       "path": "apps/audit/infrastructure/system_audit_outbox_runtime.py",
       "text": "\"\"\"Validate the exact current authority at the dispatch cutoff.\"\"\""
     },
     {
-      "line": 97,
+      "line": 102,
       "path": "apps/audit/infrastructure/system_audit_outbox_runtime.py",
       "text": "\"\"\"Resolve the current event scope from the inspected authority bundle.\"\"\""
     },
     {
-      "line": 102,
+      "line": 107,
       "path": "apps/audit/infrastructure/system_audit_outbox_runtime.py",
       "text": "\"\"\"Return the exact current scope at the event persistence cutoff.\"\"\""
     },
     {
-      "line": 243,
+      "line": 248,
       "path": "apps/audit/infrastructure/system_audit_outbox_runtime.py",
       "text": "\"\"\"Validate the configured runtime and exact current authority without writes.\"\"\""
+    },
+    {
+      "line": 267,
+      "path": "apps/audit/infrastructure/system_audit_outbox_runtime.py",
+      "text": "missing current authority.  It does not enable a profile or create an"
     },
     {
       "line": 53,
@@ -7999,6 +8004,26 @@
       "line": 233,
       "path": "apps/audit/management/commands/init_confidence_config.py",
       "text": "\"\"\"Write the persisted configuration summary after transaction success.\"\"\""
+    },
+    {
+      "line": 276,
+      "path": "apps/audit/management/commands/recover_system_audit_authority.py",
+      "text": "current = reobservation.current_physical"
+    },
+    {
+      "line": 295,
+      "path": "apps/audit/management/commands/recover_system_audit_authority.py",
+      "text": "current_physical_observation_content_hash=current.content_hash,"
+    },
+    {
+      "line": 296,
+      "path": "apps/audit/management/commands/recover_system_audit_authority.py",
+      "text": "current_physical_source_content_hash=current.source_content_hash,"
+    },
+    {
+      "line": 297,
+      "path": "apps/audit/management/commands/recover_system_audit_authority.py",
+      "text": "current_physical_raw_observation_content_hash=current.raw_observation_content_hash,"
     },
     {
       "line": 316,
@@ -10121,12 +10146,12 @@
       "text": "return current"
     },
     {
-      "line": 20,
+      "line": 22,
       "path": "apps/data_center/application/market_publication_refresh.py",
       "text": "\"\"\"Refresh raw price facts and verify every current member before publication.\"\"\""
     },
     {
-      "line": 30,
+      "line": 32,
       "path": "apps/data_center/application/market_publication_refresh.py",
       "text": "\"Current price observations missing\", code=\"MODEL_MARKET_STALE\""
     },
@@ -11151,67 +11176,47 @@
       "text": "publication_key = \"current\""
     },
     {
-      "line": 116,
+      "line": 121,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Resolve current authority and prove it covers the task's bounded runtime.\"\"\""
     },
     {
-      "line": 139,
-      "path": "apps/data_center/application/tasks.py",
-      "text": "\"\"\"Return whether the same current authority still covers the next boundary.\"\"\""
-    },
-    {
-      "line": 141,
+      "line": 146,
       "path": "apps/data_center/application/tasks.py",
       "text": "current, failure = _preflight_data02_task_authority("
     },
     {
-      "line": 148,
-      "path": "apps/data_center/application/tasks.py",
-      "text": "and current is not None"
-    },
-    {
-      "line": 149,
-      "path": "apps/data_center/application/tasks.py",
-      "text": "and current.authority_content_hash == authority.authority_content_hash"
-    },
-    {
-      "line": 150,
-      "path": "apps/data_center/application/tasks.py",
-      "text": "and current.tenant_id == authority.tenant_id"
-    },
-    {
       "line": 151,
       "path": "apps/data_center/application/tasks.py",
-      "text": "and current.owner_id == authority.owner_id"
+      "text": "if failure is not None or current is None:"
     },
     {
-      "line": 268,
+      "line": 165,
+      "path": "apps/data_center/application/tasks.py",
+      "text": "return all(getattr(current, field) == getattr(authority, field) for field in identity_fields)"
+    },
+    {
+      "line": 367,
       "path": "apps/data_center/application/tasks.py",
       "text": "raise ValueError(\"current Audit authority changed before quote batch\")"
     },
     {
-      "line": 280,
-      "path": "apps/data_center/application/tasks.py",
-      "text": "raise ValueError(\"current Audit authority changed before valuation batch\")"
-    },
-    {
-      "line": 296,
+      "line": 384,
       "path": "apps/data_center/application/tasks.py",
       "text": "raise ValueError(\"current Audit authority changed before publication\")"
     },
     {
-      "line": 418,
+      "line": 515,
       "path": "apps/data_center/application/tasks.py",
       "text": "Current domain sync DTOs expose ``stored_count`` only, so the durable"
     },
     {
-      "line": 792,
+      "line": 889,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Require the same current authority before advancing the checkpoint.\"\"\""
     },
     {
-      "line": 1143,
+      "line": 1240,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Check current filesystem pressure before another mutating batch.\"\"\""
     },
@@ -11246,12 +11251,12 @@
       "text": "return current"
     },
     {
-      "line": 657,
+      "line": 658,
       "path": "apps/data_center/composition.py",
       "text": "\"\"\"Require the exact current Audit authority before any provider call.\"\"\""
     },
     {
-      "line": 1099,
+      "line": 1110,
       "path": "apps/data_center/composition.py",
       "text": "\"\"\"Compose the canonical same-UOW realtime-quote sync writer.\"\"\""
     },
@@ -11341,17 +11346,17 @@
       "text": "\"\"\"Fetch market-wide ETF net flow from the latest ETF spot snapshot.\"\"\""
     },
     {
-      "line": 755,
+      "line": 785,
       "path": "apps/data_center/infrastructure/_provider_adapter_akshare.py",
       "text": "\"\"\"Fetch current valuation coverage through Tencent's batch quote contract.\"\"\""
     },
     {
-      "line": 825,
+      "line": 855,
       "path": "apps/data_center/infrastructure/_provider_adapter_akshare.py",
       "text": "summary=article.content,"
     },
     {
-      "line": 843,
+      "line": 873,
       "path": "apps/data_center/infrastructure/_provider_adapter_akshare.py",
       "text": "summary=article.content,"
     },
@@ -12936,7 +12941,7 @@
       "text": "return {\"status\": \"skipped\", \"message\": \"No realtime quote provider is available.\"}"
     },
     {
-      "line": 52,
+      "line": 62,
       "path": "apps/data_center/management/commands/setup_full_market_publications.py",
       "text": "name=\"full-market-current-publications\","
     },
@@ -25723,7 +25728,12 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 68,
+      "line": 72,
+      "path": "apps/audit/application/tasks.py",
+      "text": "@shared_task(  # type: ignore[misc]"
+    },
+    {
+      "line": 151,
       "path": "apps/audit/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
@@ -25753,42 +25763,42 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 194,
+      "line": 207,
       "path": "apps/data_center/application/tasks.py",
-      "text": "@shared_task(name=\"data_center.refresh_full_market_publications\", time_limit=1800, soft_time_limit=1700)  # type: ignore[misc]"
+      "text": "@shared_task(name=\"data_center.refresh_full_market_publications\", time_limit=3600, soft_time_limit=3500)  # type: ignore[misc]"
     },
     {
-      "line": 543,
-      "path": "apps/data_center/application/tasks.py",
-      "text": "@shared_task(  # type: ignore[misc]"
-    },
-    {
-      "line": 575,
+      "line": 640,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 657,
+      "line": 672,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 964,
+      "line": 754,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1001,
+      "line": 1061,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1074,
+      "line": 1098,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1137,
+      "line": 1171,
+      "path": "apps/data_center/application/tasks.py",
+      "text": "@shared_task(  # type: ignore[misc]"
+    },
+    {
+      "line": 1234,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },

@@ -222,6 +222,7 @@ __all__ = [
     "build_provider_registry_for_repo",
     "build_tushare_client",
     "backfill_asset_master_codes",
+    "sync_active_a_share_universe",
     "get_alpha_price_coverage_sync_service",
     "fetch_akshare_eastmoney_historical_prices",
     "fetch_rss_feed",
@@ -772,6 +773,16 @@ def backfill_asset_master_codes(
         asset_codes,
         include_remote=include_remote,
     )
+
+
+def sync_active_a_share_universe() -> dict[str, object]:
+    """Refresh active A-share identities before a complete-market publication."""
+
+    from apps.data_center.infrastructure.a_share_universe_sync import (
+        AShareUniverseSyncService,
+    )
+
+    return AShareUniverseSyncService().sync(deactivate_missing=False).to_dict()
 
 
 def get_alpha_price_coverage_sync_service() -> object:

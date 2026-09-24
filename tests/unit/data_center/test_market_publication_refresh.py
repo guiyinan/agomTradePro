@@ -21,16 +21,26 @@ def _patch_current_authority(monkeypatch):
     from apps.data_center.application import tasks
 
     context = SimpleNamespace(
+        authority_source_id="config-center",
         actor_id="service:market-refresh",
+        user_id=1,
         tenant_id="tenant:production",
         owner_id="owner:production",
+        is_authenticated=True,
+        is_staff=True,
+        role="system_owner",
         authority_content_hash="b" * 64,
-        authority_valid_until=datetime.now(UTC) + timedelta(hours=1),
+        authority_valid_until=datetime.now(UTC) + timedelta(hours=2),
     )
     monkeypatch.setattr(
         tasks,
         "preflight_data_reliability_audit_runtime",
         lambda **_: context,
+    )
+    monkeypatch.setattr(
+        tasks,
+        "sync_active_a_share_universe",
+        lambda: {"active_count": 1, "touched_count": 1},
     )
     return context
 
@@ -219,24 +229,34 @@ def test_task_blocks_authority_window_shorter_than_task_budget(
     assert result["stored"] == 0
 
 
-def test_task_stops_before_provider_when_current_authority_head_changes(monkeypatch):
-    """A scheduled batch must not continue under a successor authority head."""
+def test_task_stops_before_provider_when_authority_identity_changes(monkeypatch):
+    """A scheduled batch must not continue under a different authority identity."""
 
     from types import SimpleNamespace
 
     from apps.data_center.application import tasks
 
     initial = SimpleNamespace(
+        authority_source_id="config-center",
         actor_id="service:market-refresh",
+        user_id=1,
         tenant_id="tenant:production",
         owner_id="owner:production",
+        is_authenticated=True,
+        is_staff=True,
+        role="system_owner",
         authority_content_hash="b" * 64,
-        authority_valid_until=datetime.now(UTC) + timedelta(hours=1),
+        authority_valid_until=datetime.now(UTC) + timedelta(hours=2),
     )
     changed = SimpleNamespace(
-        actor_id=initial.actor_id,
+        authority_source_id=initial.authority_source_id,
+        actor_id="service:other-refresh",
+        user_id=initial.user_id,
         tenant_id=initial.tenant_id,
         owner_id=initial.owner_id,
+        is_authenticated=initial.is_authenticated,
+        is_staff=initial.is_staff,
+        role=initial.role,
         authority_content_hash="c" * 64,
         authority_valid_until=initial.authority_valid_until,
     )
@@ -273,6 +293,35 @@ def test_task_stops_before_provider_when_current_authority_head_changes(monkeypa
     assert result["outcome"] == "blocked"
     assert result["blocked_reason"] == "authority_changed_or_expired"
     assert result["stored"] == 0
+
+
+def test_equivalent_authority_successor_does_not_interrupt_active_refresh(
+    monkeypatch,
+    _patch_current_authority,
+):
+    """An append-only renewal with the same identity may rotate the authority hash."""
+
+    from types import SimpleNamespace
+
+    from apps.data_center.application import tasks
+
+    successor = SimpleNamespace(
+        **{
+            **vars(_patch_current_authority),
+            "authority_content_hash": "c" * 64,
+            "authority_valid_until": datetime.now(UTC) + timedelta(hours=3),
+        }
+    )
+    monkeypatch.setattr(
+        tasks,
+        "preflight_data_reliability_audit_runtime",
+        lambda **_: successor,
+    )
+
+    assert tasks._same_data02_task_authority_is_current(
+        _patch_current_authority,
+        as_of=datetime.now(UTC),
+    )
 
 
 def test_audit_configuration_blocks_before_market_fetch(monkeypatch):
@@ -344,16 +393,17 @@ def test_task_does_not_publish_stale_quotes_even_when_all_rows_were_stored(monke
 
 
 @pytest.mark.parametrize(
-    ("quote_codes", "valuation_succeeded_codes"),
+    ("quote_codes", "valuation_succeeded_codes", "expected_outcome"),
     [
-        (("000001.SZ", "000001.SZ"), ("000001.SZ", "000002.SZ")),
-        (("000001.SZ", "000002.SZ"), ("000001.SZ", "000001.SZ")),
+        (("000001.SZ", "000001.SZ"), ("000001.SZ", "000002.SZ"), "partial"),
+        (("000001.SZ", "000002.SZ"), ("000001.SZ", "000001.SZ"), "blocked"),
     ],
 )
 def test_task_rejects_duplicate_provider_asset_identities_before_publication(
     monkeypatch,
     quote_codes,
     valuation_succeeded_codes,
+    expected_outcome,
 ):
     """A count-equal duplicate batch cannot reach full-market publication."""
 
@@ -399,8 +449,8 @@ def test_task_rejects_duplicate_provider_asset_identities_before_publication(
 
     result = tasks.refresh_full_market_publications_task.run(batch_size=2)
 
-    assert result["outcome"] == "partial"
-    assert result["published_members"] == 0
+    assert result["outcome"] == expected_outcome
+    assert result.get("published_members", 0) == 0
 
 
 def test_market_dataset_selection_retains_default_financial_rebuild():
@@ -521,6 +571,6 @@ def test_task_repairs_missing_price_scope_before_final_publication(monkeypatch):
     assert result["outcome"] == "success"
     assert result["price_scope_verified"] == 1
     assert result["quote_source"] == "akshare"
-    assert result["valuation_source"] == "akshare"
+    assert result["valuation_source"] == "tushare"
     assert quote_provider_ids == [7]
-    assert valuation_provider_ids == [7]
+    assert valuation_provider_ids == [3]

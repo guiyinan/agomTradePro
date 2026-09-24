@@ -83,6 +83,53 @@ def test_tushare_unified_provider_uses_its_own_transport_configuration(monkeypat
     }
 
 
+def test_tushare_current_valuations_use_one_session_batch(monkeypatch):
+    """The full-market path must not make one Tushare request per stock."""
+
+    calls: list[dict[str, object]] = []
+
+    class _FakePro:
+        def daily_basic(self, **kwargs: object) -> pd.DataFrame:
+            calls.append(kwargs)
+            return pd.DataFrame(
+                [
+                    {
+                        "ts_code": "000001.SZ",
+                        "trade_date": "20260923",
+                        "pe_ttm": 5.2,
+                        "pb": 0.5,
+                        "total_mv": 2256.91,
+                        "circ_mv": 2256.87,
+                    },
+                    {
+                        "ts_code": "000002.SZ",
+                        "trade_date": "20260923",
+                        "pe_ttm": 8.1,
+                        "pb": 0.8,
+                        "total_mv": 3000.0,
+                        "circ_mv": 2800.0,
+                    },
+                    {
+                        "ts_code": "000003.SZ",
+                        "trade_date": "20260923",
+                        "total_mv": 1.0,
+                    },
+                ]
+            )
+
+    adapter = TushareUnifiedProviderAdapter(_config("tushare", "Tushare Pro"))
+    monkeypatch.setattr(adapter, "_create_pro_client", lambda: _FakePro())
+
+    facts = adapter.fetch_current_valuations(["000001.SZ", "000002.SZ"], date(2026, 9, 23))
+
+    assert calls == [{"trade_date": "20260923"}]
+    assert [fact.asset_code for fact in facts] == ["000001.SZ", "000002.SZ"]
+    assert facts[0].market_cap == 22_569_100.0
+    assert facts[0].float_market_cap == 22_568_700.0
+    assert facts[0].extra["market_cap_original_unit"] == "万元"
+    assert facts[0].extra["market_cap_canonical_unit"] == "元"
+
+
 def test_fred_unified_provider_adapter_parses_observations(monkeypatch):
     class _Response:
         def raise_for_status(self):

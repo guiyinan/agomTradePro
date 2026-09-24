@@ -4860,7 +4860,7 @@
           "_BACKFILL_AUTHORITY_WINDOW = timedelta(seconds=3900)",
           "_BACKFILL_CURSOR_MAX_LENGTH = 500",
           "universe_hash is required when offset is nonzero",
-          "_FULL_MARKET_AUTHORITY_WINDOW = timedelta(seconds=2100)",
+          "_FULL_MARKET_AUTHORITY_WINDOW = timedelta(seconds=3900)",
           "authority_binding=authority_binding",
           "revalidate_authority=revalidate_authority",
           "created_by=f\"celery.core_data_backfill:{authority.actor_id}\"",
@@ -4868,8 +4868,10 @@
           "latest_closed_cn_market_session(timezone.now())",
           "def _exact_provider_batch_count(",
           "returned_asset_codes=result.stored_asset_codes",
-          "returned_asset_codes=result.returned_asset_codes",
-          "succeeded_asset_codes=result.succeeded_asset_codes",
+          "valuation_seed.returned_asset_codes",
+          "valuation_seed.succeeded_asset_codes",
+          "universe_report = sync_active_a_share_universe()",
+          "excluded_non_trading_codes",
           "get_backfill_item_attempt_store()",
           "publication_evidence_hash=_publication_evidence_hash_from_result",
           "publication_evidence_hash_from_result as _publication_evidence_hash_from_result"
@@ -5278,9 +5280,14 @@
           "test_function": "test_task_blocks_authority_window_shorter_than_task_budget"
         },
         {
-          "case": "scheduled_market_refresh_revalidates_current_authority_head",
+          "case": "scheduled_market_refresh_revalidates_authority_identity",
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
-          "test_function": "test_task_stops_before_provider_when_current_authority_head_changes"
+          "test_function": "test_task_stops_before_provider_when_authority_identity_changes"
+        },
+        {
+          "case": "scheduled_market_refresh_accepts_equivalent_authority_successor",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_equivalent_authority_successor_does_not_interrupt_active_refresh"
         },
         {
           "case": "scheduled_market_refresh_exact_provider_asset_identities",

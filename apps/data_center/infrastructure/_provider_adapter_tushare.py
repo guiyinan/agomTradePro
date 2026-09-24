@@ -164,9 +164,10 @@ class _TushareProClient(Protocol):
     def daily_basic(
         self,
         *,
-        ts_code: str,
-        start_date: str,
-        end_date: str,
+        ts_code: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        trade_date: str | None = None,
     ) -> _ProviderFrame | None:
         """Return daily valuation rows."""
 
@@ -928,6 +929,44 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             facts.append(
                 ValuationFact(
                     asset_code=normalize_asset_code(asset_code, "tushare"),
+                    val_date=val_date,
+                    pe_ttm=safe_float(_first_present(row, "pe_ttm", "pe")),
+                    pb=safe_float(_first_present(row, "pb")),
+                    ps_ttm=safe_float(_first_present(row, "ps_ttm", "ps")),
+                    market_cap=_tushare_market_cap_cny(_first_present(row, "total_mv")),
+                    float_market_cap=_tushare_market_cap_cny(_first_present(row, "circ_mv")),
+                    dv_ratio=safe_float(_first_present(row, "dv_ttm", "dv_ratio")),
+                    source=self.provider_source(),
+                    extra=_tushare_valuation_extra(self._provider_extra()),
+                )
+            )
+        return facts
+
+    def fetch_current_valuations(
+        self,
+        asset_codes: list[str],
+        as_of_date: date,
+    ) -> list[ValuationFact]:
+        """Fetch one complete trading-session valuation frame and narrow it to scope."""
+
+        requested = {normalize_asset_code(asset_code, "tushare") for asset_code in asset_codes}
+        if not requested:
+            return []
+        frame = self._create_pro_client().daily_basic(trade_date=as_of_date.strftime("%Y%m%d"))
+        if frame is None or frame.empty:
+            return []
+        facts: list[ValuationFact] = []
+        for row in frame.to_dict("records"):
+            asset_code = normalize_asset_code(
+                str(_first_present(row, "ts_code", "asset_code") or ""),
+                "tushare",
+            )
+            val_date = _safe_date(_first_present(row, "trade_date", "val_date"))
+            if asset_code not in requested or val_date != as_of_date:
+                continue
+            facts.append(
+                ValuationFact(
+                    asset_code=asset_code,
                     val_date=val_date,
                     pe_ttm=safe_float(_first_present(row, "pe_ttm", "pe")),
                     pb=safe_float(_first_present(row, "pb")),

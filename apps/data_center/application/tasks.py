@@ -28,6 +28,7 @@ from apps.data_center.composition import (
     get_storage_hold_repository,
     make_core_current_publication_rebuild_use_case,
     persist_sync_control_plane_snapshot,
+    sync_active_a_share_universe,
 )
 from apps.data_center.domain.control_plane import (
     SyncBatch,
@@ -40,6 +41,7 @@ from apps.data_center.domain.market_time import (
     cn_market_date_from_observation,
     latest_closed_cn_market_session,
 )
+from core.exceptions import DataFetchError
 from core.integration.config_center_runtime import evaluate_storage_pressure
 from core.integration.data_center_audit import preflight_data_reliability_audit_runtime
 from shared.domain.task_outcomes import TaskBusinessOutcome
@@ -82,7 +84,7 @@ DECISION_QUOTE_DEGRADED_STREAK_KEY = "task_monitor:decision_quote_degraded_strea
 BACKFILL_DATASET_KEY = "equity.core.backfill"
 BACKFILL_TASK_NAME = "celery.backfill_a_share_core"
 _BACKFILL_AUTHORITY_WINDOW = timedelta(seconds=3900)
-_FULL_MARKET_AUTHORITY_WINDOW = timedelta(seconds=2100)
+_FULL_MARKET_AUTHORITY_WINDOW = timedelta(seconds=3900)
 _AUTHORITY_FINALIZATION_WINDOW = timedelta(seconds=300)
 _BACKFILL_CURSOR_MAX_LENGTH = 500
 
@@ -139,20 +141,28 @@ def _same_data02_task_authority_is_current(
     as_of: datetime,
     minimum_window: timedelta = _AUTHORITY_FINALIZATION_WINDOW,
 ) -> bool:
-    """Return whether the same current authority still covers the next boundary."""
+    """Allow an equivalent active successor while the starting grant remains valid."""
 
     current, failure = _preflight_data02_task_authority(
         as_of=as_of,
         minimum_window=minimum_window,
         expected_actor=authority.actor_id,
     )
-    return (
-        failure is None
-        and current is not None
-        and current.authority_content_hash == authority.authority_content_hash
-        and current.tenant_id == authority.tenant_id
-        and current.owner_id == authority.owner_id
+    if failure is not None or current is None:
+        return False
+    if authority.authority_valid_until < as_of + minimum_window:
+        return False
+    identity_fields = (
+        "authority_source_id",
+        "actor_id",
+        "user_id",
+        "tenant_id",
+        "owner_id",
+        "is_authenticated",
+        "is_staff",
+        "role",
     )
+    return all(getattr(current, field) == getattr(authority, field) for field in identity_fields)
 
 
 def _exact_provider_batch_count(
@@ -194,12 +204,12 @@ def _exact_provider_batch_count(
     return stored_count
 
 
-@shared_task(name="data_center.refresh_full_market_publications", time_limit=1800, soft_time_limit=1700)  # type: ignore[misc]
+@shared_task(name="data_center.refresh_full_market_publications", time_limit=3600, soft_time_limit=3500)  # type: ignore[misc]
 def refresh_full_market_publications_task(
     source: str | None = None,
     batch_size: int = 100,
     quote_source: str = "akshare",
-    valuation_source: str = "akshare",
+    valuation_source: str = "tushare",
 ) -> dict[str, object]:
     """Refresh all active market quotes and valuations without waiting for financial filings."""
     from .dtos import SyncQuoteRequest
@@ -279,6 +289,79 @@ def refresh_full_market_publications_task(
             )
         return authority_current
 
+    if not authority_allows_next_write():
+        return _data02_authority_failure("authority_changed_or_expired")
+    try:
+        universe_report = sync_active_a_share_universe()
+    except (DataFetchError, OSError, RuntimeError, ValueError) as exc:
+        return {
+            **_full_market_input_failure(type(exc).__name__),
+            "outcome": TaskBusinessOutcome.BLOCKED.value,
+            "must_not_use_for_decision": True,
+            "blocked_reason": "market_universe_refresh_failed",
+        }
+    universe_active_count = universe_report.get("active_count")
+    if (
+        isinstance(universe_active_count, bool)
+        or not isinstance(universe_active_count, int)
+        or universe_active_count <= 0
+    ):
+        return {
+            **_full_market_input_failure("market_universe_empty"),
+            "outcome": TaskBusinessOutcome.BLOCKED.value,
+            "must_not_use_for_decision": True,
+            "blocked_reason": "market_universe_refresh_failed",
+        }
+
+    active_codes = list_active_stock_codes_for_backfill()
+    if not authority_allows_next_write():
+        return _data02_authority_failure("authority_changed_or_expired")
+    try:
+        valuation_seed = valuations.execute(
+            provider_id=valuation_provider_id,
+            asset_codes=active_codes,
+            as_of_date=target_date,
+            require_exact_asset_codes=False,
+        )
+    except (DataFetchError, OSError, RuntimeError, ValueError) as exc:
+        return {
+            **_full_market_input_failure(type(exc).__name__),
+            "outcome": TaskBusinessOutcome.BLOCKED.value,
+            "must_not_use_for_decision": True,
+            "blocked_reason": "current_valuation_scope_unavailable",
+        }
+    requested_codes = {str(code or "").strip().upper() for code in active_codes}
+    returned_codes = tuple(
+        str(code or "").strip().upper() for code in valuation_seed.returned_asset_codes
+    )
+    succeeded_codes = tuple(
+        str(code or "").strip().upper() for code in valuation_seed.succeeded_asset_codes
+    )
+    if (
+        not requested_codes
+        or any(not code for code in (*returned_codes, *succeeded_codes))
+        or len(set(returned_codes)) != len(returned_codes)
+        or len(set(succeeded_codes)) != len(succeeded_codes)
+        or not set(returned_codes).issubset(requested_codes)
+        or not set(succeeded_codes).issubset(requested_codes)
+        or valuation_seed.stored_count != len(set(succeeded_codes))
+    ):
+        return {
+            **_full_market_input_failure("valuation_scope_identity_invalid"),
+            "outcome": TaskBusinessOutcome.BLOCKED.value,
+            "must_not_use_for_decision": True,
+            "blocked_reason": "current_valuation_scope_invalid",
+        }
+    tradable_codes = sorted(set(succeeded_codes))
+    if not tradable_codes:
+        return {
+            **_full_market_input_failure("valuation_scope_empty"),
+            "outcome": TaskBusinessOutcome.BLOCKED.value,
+            "must_not_use_for_decision": True,
+            "blocked_reason": "current_valuation_scope_unavailable",
+        }
+    excluded_non_trading_codes = sorted(requested_codes - set(tradable_codes))
+
     def sync_quote_batch(codes: list[str]) -> int:
         if not authority_allows_next_write():
             raise ValueError("current Audit authority changed before quote batch")
@@ -292,20 +375,9 @@ def refresh_full_market_publications_task(
         )
 
     def sync_valuation_batch(codes: list[str], day: date) -> int:
-        if not authority_allows_next_write():
-            raise ValueError("current Audit authority changed before valuation batch")
-        result = valuations.execute(
-            provider_id=valuation_provider_id,
-            asset_codes=codes,
-            as_of_date=day,
-            require_exact_asset_codes=True,
-        )
-        return _exact_provider_batch_count(
-            requested_asset_codes=codes,
-            stored_count=result.stored_count,
-            returned_asset_codes=result.returned_asset_codes,
-            succeeded_asset_codes=result.succeeded_asset_codes,
-        )
+        if day != target_date or not set(codes).issubset(tradable_codes):
+            raise ValueError("prefetched valuation scope changed before publication")
+        return len(codes)
 
     def publish_complete_session(codes: list[str]) -> int:
         if not authority_allows_next_write():
@@ -335,7 +407,7 @@ def refresh_full_market_publications_task(
         as_of_date=target_date,
         batch_size=batch_size,
         ports=MarketPublicationRefreshPorts(
-            list_codes=list_active_stock_codes_for_backfill,
+            list_codes=lambda: tradable_codes,
             sync_quotes=sync_quote_batch,
             sync_valuations=sync_valuation_batch,
             publish=publish_complete_session,
@@ -356,6 +428,10 @@ def refresh_full_market_publications_task(
         **price_evidence,
         "quote_source": selected_quote_source,
         "valuation_source": selected_valuation_source,
+        "market_universe": universe_report,
+        "valuation_seed_stored": valuation_seed.stored_count,
+        "excluded_non_trading_count": len(excluded_non_trading_codes),
+        "excluded_non_trading_codes": excluded_non_trading_codes,
     }
 
 
