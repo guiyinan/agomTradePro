@@ -4,15 +4,15 @@
       "admin_surface": 13,
       "agent_skill": 3,
       "application_consumer": 160,
-      "beat_schedule": 59,
+      "beat_schedule": 60,
       "capability_runtime": 25,
       "celery_dispatch_edge": 18,
-      "celery_task": 127,
+      "celery_task": 128,
       "compatibility_facade": 94,
       "current_data_surface": 68,
       "dynamic_import_edge": 12,
       "management_command": 32,
-      "management_command_edge": 56,
+      "management_command_edge": 57,
       "mcp_tool": 40,
       "migration_evidence": 14,
       "operational_dispatch_edge": 61,
@@ -30,13 +30,13 @@
       "workflow_step": 10
     },
     "by_status": {
-      "active_public": 774,
-      "adjacent_operational": 320,
+      "active_public": 775,
+      "adjacent_operational": 322,
       "candidate-review": 1,
       "compatibility": 137,
       "retired_blocked": 0
     },
-    "total": 1232
+    "total": 1235
   },
   "entries": [
     {
@@ -2352,6 +2352,16 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
+      "id": "beat_schedule:core/settings/celery_schedule.py:system_audit_authority_renewal_guard_task:audit-authority-renewal-guard",
+      "locator": "audit-authority-renewal-guard",
+      "path": "core/settings/celery_schedule.py",
+      "status": "active_public",
+      "symbol": "system_audit_authority_renewal_guard_task",
+      "target": "apps.audit.application.tasks.system_audit_authority_renewal_guard_task"
+    },
+    {
+      "category": "beat_schedule",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/celery_schedule.py:update_all_prices_after_close:realtime-update-prices-after-close",
       "locator": "realtime-update-prices-after-close",
       "path": "core/settings/celery_schedule.py",
@@ -3138,6 +3148,16 @@
       "status": "adjacent_operational",
       "symbol": "dispatch_system_audit_outbox_task",
       "target": "apps.audit.application.tasks.dispatch_system_audit_outbox_task"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "governance/celery_task_contracts.json",
+      "id": "celery_task:apps/audit/application/tasks.py:system_audit_authority_renewal_guard_task:apps.audit.application.tasks.system_audit_authority_renewal_guard_task",
+      "locator": "apps.audit.application.tasks.system_audit_authority_renewal_guard_task",
+      "path": "apps/audit/application/tasks.py",
+      "status": "adjacent_operational",
+      "symbol": "system_audit_authority_renewal_guard_task",
+      "target": "apps.audit.application.tasks.system_audit_authority_renewal_guard_task"
     },
     {
       "category": "celery_task",
@@ -5201,7 +5221,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=55",
+      "evidence": "governed current-data contract; source_files=58",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.core_current_publication_rebuild:Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "locator": "Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "path": "governance/current_data_contracts.json",
@@ -6478,6 +6498,16 @@
       "status": "adjacent_operational",
       "symbol": "sync_macro_data",
       "target": "apps/macro/management/commands/sync_macro_data.py"
+    },
+    {
+      "category": "management_command_edge",
+      "evidence": "call_command resolves to apps/audit/management/commands/renew_system_audit_authority.py",
+      "id": "management_command_edge:apps/audit/infrastructure/system_audit_authority_renewal_executor.py:renew_system_audit_authority:line:35",
+      "locator": "line:35",
+      "path": "apps/audit/infrastructure/system_audit_authority_renewal_executor.py",
+      "status": "adjacent_operational",
+      "symbol": "renew_system_audit_authority",
+      "target": "apps/audit/management/commands/renew_system_audit_authority.py"
     },
     {
       "category": "management_command_edge",
@@ -8192,8 +8222,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:init_macro_indicator_governance:line:1913",
-      "locator": "line:1913",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:init_macro_indicator_governance:line:1938",
+      "locator": "line:1938",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "init_macro_indicator_governance",
@@ -8202,8 +8232,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:initialize_data_center_catalog:line:1863",
-      "locator": "line:1863",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:initialize_data_center_catalog:line:1888",
+      "locator": "line:1888",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "initialize_data_center_catalog",
@@ -8212,8 +8242,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:normalize_macro_fact_units:line:1913",
-      "locator": "line:1913",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:normalize_macro_fact_units:line:1938",
+      "locator": "line:1938",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "normalize_macro_fact_units",
@@ -8222,8 +8252,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:verify_canonical_schema:line:1855",
-      "locator": "line:1855",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:verify_canonical_schema:line:1880",
+      "locator": "line:1880",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "verify_canonical_schema",
@@ -10471,7 +10501,7 @@
     },
     {
       "category": "scheduler_writer",
-      "evidence": "database-backed Beat schedule writer at line 51",
+      "evidence": "database-backed Beat schedule writer at line 61",
       "id": "scheduler_writer:apps/data_center/management/commands/setup_full_market_publications.py:PeriodicTask:full-market-current-publications",
       "locator": "full-market-current-publications",
       "path": "apps/data_center/management/commands/setup_full_market_publications.py",
@@ -12370,7 +12400,7 @@
     "retired_blocked": "known unsafe or obsolete operational path retained only as blocked evidence"
   },
   "source_contract_counts": {
-    "celery_tasks": 92,
+    "celery_tasks": 93,
     "current_data_contracts": 68,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 28,

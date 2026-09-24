@@ -11176,47 +11176,47 @@
       "text": "publication_key = \"current\""
     },
     {
-      "line": 121,
+      "line": 123,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Resolve current authority and prove it covers the task's bounded runtime.\"\"\""
     },
     {
-      "line": 146,
+      "line": 148,
       "path": "apps/data_center/application/tasks.py",
       "text": "current, failure = _preflight_data02_task_authority("
     },
     {
-      "line": 151,
+      "line": 153,
       "path": "apps/data_center/application/tasks.py",
       "text": "if failure is not None or current is None:"
     },
     {
-      "line": 165,
+      "line": 167,
       "path": "apps/data_center/application/tasks.py",
       "text": "return all(getattr(current, field) == getattr(authority, field) for field in identity_fields)"
     },
     {
-      "line": 385,
+      "line": 348,
       "path": "apps/data_center/application/tasks.py",
       "text": "raise ValueError(\"current Audit authority changed before quote batch\")"
     },
     {
-      "line": 402,
+      "line": 365,
       "path": "apps/data_center/application/tasks.py",
       "text": "raise ValueError(\"current Audit authority changed before publication\")"
     },
     {
-      "line": 533,
+      "line": 483,
       "path": "apps/data_center/application/tasks.py",
       "text": "Current domain sync DTOs expose ``stored_count`` only, so the durable"
     },
     {
-      "line": 907,
+      "line": 857,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Require the same current authority before advancing the checkpoint.\"\"\""
     },
     {
-      "line": 1258,
+      "line": 1208,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Check current filesystem pressure before another mutating batch.\"\"\""
     },
@@ -11341,22 +11341,22 @@
       "text": "\"\"\"Return fractional rate of change ``(current / previous) - 1``.\"\"\""
     },
     {
-      "line": 350,
+      "line": 351,
       "path": "apps/data_center/infrastructure/_provider_adapter_akshare.py",
       "text": "\"\"\"Fetch market-wide ETF net flow from the latest ETF spot snapshot.\"\"\""
     },
     {
-      "line": 785,
+      "line": 787,
       "path": "apps/data_center/infrastructure/_provider_adapter_akshare.py",
       "text": "\"\"\"Fetch current valuation coverage through Tencent's batch quote contract.\"\"\""
     },
     {
-      "line": 855,
+      "line": 857,
       "path": "apps/data_center/infrastructure/_provider_adapter_akshare.py",
       "text": "summary=article.content,"
     },
     {
-      "line": 873,
+      "line": 875,
       "path": "apps/data_center/infrastructure/_provider_adapter_akshare.py",
       "text": "summary=article.content,"
     },
@@ -25763,42 +25763,42 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 207,
+      "line": 170,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(name=\"data_center.refresh_full_market_publications\", time_limit=3600, soft_time_limit=3500)  # type: ignore[misc]"
     },
     {
-      "line": 658,
+      "line": 608,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 690,
+      "line": 640,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 772,
+      "line": 722,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1079,
+      "line": 1029,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1116,
+      "line": 1066,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1189,
+      "line": 1139,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1252,
+      "line": 1202,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
