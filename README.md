@@ -26,12 +26,19 @@
 
 > 这个区域按天维护，优先记录最近 1-7 天内对外可见、值得关注的变化。
 
+### 2026-09-24
+
+- 全市场自动发布根因已系统修复并部署到 VPS：长任务时限扩到 3600 秒；审计授权允许同身份 successor 续期；资产全集在发布前刷新并对短暂连接失败重试三次；停牌等当日无估值股票从可交易范围显式排除，不再阻断其他股票。
+- Tushare `daily_basic` 改为单次交易日批量取数，`total_mv/circ_mv` 从万元转换为元；只有交易日期时统一把中国市场 15:00 收盘时刻写入 `observed_at`，不再因缺少源观测时间拒绝估值 Publication，也不使用抓取时间冒充市场时间。
+- 全市场自然发布默认从 16:30 调整为工作日 17:05，晚于 Tushare 官方 15:00～17:00 更新窗口，并位于 17:40 Alpha 推理前。提前人工触发若当日截面尚未形成，会保留旧 Publication 并在 Alpha 页面显示行情自动发布异常。
+- 生产运行在 `d21202318`：HTTPS、PostgreSQL、Redis、Celery、迁移、TUI metadata、Qlib 身份和版本一致性均通过；9 月 23 日 5,556 条估值已补齐收盘观测时间。9 月 24 日完整 Publication 与后续 Regime/Alpha 自然链仍等待 17:05 数据窗口验收，当前未标记为完全恢复。
+
 ### 2026-09-23
 
 - 审计授权续期链已补齐：默认 dry-run，真实续期只追加新 actor/source 与 owner/tenant successor，使用 CAS 和同一事务原子激活 Config Center 的审计 selector；不会延长已过期旧授权。详见[授权续期运行手册](docs/deployment/system-audit-authority-renewal.md)。
 - VPS 已完成 code-only hotfix，Web health 200 且容器正常；生产在取得新的真实 owner/actor 授权材料前继续 fail-closed，调度器不会绕过授权闸门写入数据。
 - Tushare 正式运行的配置真源是数据库：`data_center_provider_config` 保存 endpoint 和 `tushare_request_mode`，Tushare Token 由 Config Center 加密保存；VPS 环境变量仅用于首启、独立诊断和数据库不可用时的兼容降级，数据库配置优先，凭据不会写入 Git。
-- VPS UAT 已验证 Tushare `trade_cal`、Qlib `csi300` 数据刷新和 Alpha 30 条评分写回均成功，最新数据日期为 `2026-09-23`。全市场发布仍因审计运行时未启用而保持 fail-closed，不能把本次 UAT 视为自动调度和决策数据已完全恢复。
+- VPS UAT 已验证 Tushare `trade_cal`、Qlib `csi300` 数据刷新和 Alpha 30 条评分写回均成功，最新数据日期为 `2026-09-23`。当日全市场发布曾因审计运行时未启用而保持 fail-closed；其后续恢复状态见 2026-09-24 记录。
 
 ### 2026-09-20
 
