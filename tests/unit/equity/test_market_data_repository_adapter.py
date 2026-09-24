@@ -35,31 +35,26 @@ def test_market_data_repository_adapter_falls_back_to_akshare_index_history(mock
     assert round(returns[date(2025, 3, 5)], 6) == -0.00495
 
 
-def test_market_data_repository_adapter_persists_secondary_remote_source(mocker) -> None:
+def test_market_data_repository_adapter_delegates_remote_history_to_data_center(mocker) -> None:
     mocker.patch(
         "apps.equity.infrastructure.adapters.get_runtime_benchmark_code",
         return_value="000300.SH",
     )
     adapter = MarketDataRepositoryAdapter()
 
-    mock_ak = SimpleNamespace(
-        stock_zh_index_daily_em=mocker.Mock(side_effect=RuntimeError("primary down")),
-        stock_zh_index_daily=mocker.Mock(side_effect=RuntimeError("secondary down")),
-        stock_zh_index_daily_tx=mocker.Mock(side_effect=RuntimeError("tertiary down")),
-        index_zh_a_hist=mocker.Mock(
-            return_value=__import__("pandas").DataFrame(
-                {
-                    "日期": ["2025-03-03", "2025-03-04", "2025-03-05"],
-                    "收盘": [1000.0, 1010.0, 1005.0],
-                }
-            )
-        ),
+    model_market_port = SimpleNamespace(
+        index_history=mocker.Mock(
+            return_value=[
+                SimpleNamespace(trade_date=date(2025, 3, 3), close=1000.0),
+                SimpleNamespace(trade_date=date(2025, 3, 4), close=1010.0),
+                SimpleNamespace(trade_date=date(2025, 3, 5), close=1005.0),
+            ]
+        )
     )
     mocker.patch(
-        "apps.data_center.infrastructure.legacy_sdk_bridge.get_akshare_module",
-        return_value=mock_ak,
+        "apps.equity.infrastructure.adapters.get_model_market_data_port",
+        return_value=model_market_port,
     )
-    persist_spy = mocker.patch.object(adapter, "_persist_index_points")
 
     points = adapter._load_remote_index_points(
         index_code="000300.SH",
@@ -72,4 +67,8 @@ def test_market_data_repository_adapter_persists_secondary_remote_source(mocker)
         (date(2025, 3, 4), 1010.0),
         (date(2025, 3, 5), 1005.0),
     ]
-    persist_spy.assert_called_once()
+    model_market_port.index_history.assert_called_once_with(
+        "000300.SH",
+        date(2025, 3, 1),
+        date(2025, 3, 31),
+    )

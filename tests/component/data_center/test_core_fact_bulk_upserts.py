@@ -187,35 +187,32 @@ def test_financial_bulk_upsert_requires_independent_source_time_verifier() -> No
     assert verified == [fact.decision_evidence]
 
 
-def test_price_bulk_upsert_updates_conflicts_in_one_statement(
+def test_price_bulk_upsert_updates_conflicts_with_bounded_batch_queries(
     django_assert_num_queries: object,
 ) -> None:
     repository = PriceBarRepository()
-    first = PriceBar(
-        asset_code="000001.SZ",
-        bar_date=date(2026, 7, 31),
-        open=10.0,
-        high=11.0,
-        low=9.0,
-        close=10.5,
-        source="akshare",
-    )
-    revised = PriceBar(
-        asset_code=first.asset_code,
-        bar_date=first.bar_date,
-        open=10.0,
-        high=12.0,
-        low=9.0,
-        close=11.5,
-        source=first.source,
-    )
+    first = [
+        PriceBar(
+            asset_code=f"{index:06d}.SZ",
+            bar_date=date(2026, 7, 31),
+            open=10.0,
+            high=11.0,
+            low=9.0,
+            close=10.5,
+            source="akshare",
+        )
+        for index in range(20)
+    ]
+    revised = [replace(item, high=12.0, close=11.5) for item in first]
 
-    with django_assert_num_queries(1):  # type: ignore[operator]
-        assert repository.bulk_upsert([first]) == 1
-    with django_assert_num_queries(1):  # type: ignore[operator]
-        assert repository.bulk_upsert([revised]) == 1
+    # Ownership and frozen-publication checks plus one batched write stay
+    # constant as the batch grows; they must not become per-asset queries.
+    with django_assert_num_queries(4):  # type: ignore[operator]
+        assert repository.bulk_upsert(first) == 20
+    with django_assert_num_queries(5):  # type: ignore[operator]
+        assert repository.bulk_upsert(revised) == 20
 
-    assert PriceBarModel._default_manager.get().close == 11.5
+    assert PriceBarModel._default_manager.filter(close=11.5).count() == 20
 
 
 def test_financial_and_valuation_bulk_upserts_update_natural_keys() -> None:

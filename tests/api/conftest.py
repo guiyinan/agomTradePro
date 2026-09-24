@@ -54,3 +54,19 @@ def authenticated_client(
     api_client.force_authenticate(user=auth_user)
     yield api_client
     api_client.force_authenticate(user=None)
+
+
+@pytest.fixture
+def owned_account(db: object, auth_user: AbstractBaseUser) -> object:
+    """Create one simulated account owned by the shared API user."""
+
+    from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+
+    return SimulatedAccountModel.objects.create(
+        user=auth_user,
+        account_name="API edge owned account",
+        account_type="simulated",
+        initial_capital="100000",
+        current_cash="100000",
+        total_value="100000",
+    )

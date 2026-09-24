@@ -14,6 +14,7 @@ from apps.data_center.domain.entities import (
 )
 from apps.data_center.domain.enums import DataQualityStatus
 from apps.data_center.domain.market_time import cn_market_date_start_utc
+from apps.data_center.domain.model_market_data import TradingCalendarEvidence
 from apps.data_center.infrastructure import orm_retry
 from apps.data_center.infrastructure.a_share_universe_sync import (
     AShareUniverseSyncService,
@@ -756,12 +757,22 @@ def test_diagnostic_coverage_requires_fresh_complete_publication_members():
 
 
 @pytest.mark.django_db
-def test_diagnostic_coverage_accepts_latest_closed_session_over_weekend():
+def test_diagnostic_coverage_accepts_latest_closed_session_over_weekend(monkeypatch):
     """A Friday daily publication remains current during the weekend closure."""
 
     codes = _configure_diagnostic_test_universe()
     friday = date(2026, 8, 28)
     sunday = datetime(2026, 8, 30, 4, 0, tzinfo=UTC)
+    monkeypatch.setattr(
+        "apps.data_center.application.market_calendar.load_cn_market_calendar_evidence",
+        lambda start_date, end_date: TradingCalendarEvidence(
+            coverage_start=start_date,
+            coverage_end=end_date,
+            open_sessions=(friday,),
+            source="exchange-calendar-test",
+            observed_at=sunday,
+        ),
+    )
     price_rows = [
         PriceBarModel.objects.create(
             asset_code=code,

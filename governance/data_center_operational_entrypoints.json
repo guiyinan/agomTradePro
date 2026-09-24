@@ -3,7 +3,7 @@
     {
       "category": "celery_task",
       "evidence": "legacy retention preview task; canonical writes use plan_retention_task and enforce_retention_task",
-      "path": "apps/data_center/application/tasks.py",
+      "path": "apps/data_center/application/retention_tasks.py",
       "status": "compatibility",
       "symbol": "cleanup_expired_raw_payloads_task",
       "target": "apps.data_center.application.tasks.plan_retention_task"

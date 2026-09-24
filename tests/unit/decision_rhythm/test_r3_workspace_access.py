@@ -80,7 +80,7 @@ def test_equity_detail_account_query_reuses_owner_scope_check(monkeypatch) -> No
         user=SimpleNamespace(is_authenticated=True),
     )
     monkeypatch.setattr(
-        "apps.equity.interface.page_views.get_account_access",
+        "apps.equity.interface.page_views.check_portfolio_account_access",
         lambda user, account_id, action: SimpleNamespace(error="无权查看该账户", status_code=403),
     )
 

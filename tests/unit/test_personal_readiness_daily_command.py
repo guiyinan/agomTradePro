@@ -326,6 +326,11 @@ def test_daily_pipeline_collects_evidence_and_validates_window(monkeypatch, tmp_
 def test_daily_command_strict_daily_raises_when_not_ok(monkeypatch, tmp_path):
     monkeypatch.setattr(
         command_module,
+        "resolve_default_readiness_target_date",
+        lambda: date(2026, 6, 30),
+    )
+    monkeypatch.setattr(
+        command_module,
         "run_personal_readiness_daily",
         lambda **kwargs: {
             "status": "action_required",

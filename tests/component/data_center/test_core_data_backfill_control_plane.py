@@ -50,7 +50,7 @@ def _patch_current_authority(mocker) -> None:
     """Keep control-plane tests bound to one deterministic authority."""
 
     mocker.patch(
-        "apps.data_center.application.tasks.preflight_data_reliability_audit_runtime",
+        "apps.data_center.application.tasks.audit_integration.preflight_data_reliability_audit_runtime",
         return_value=SimpleNamespace(
             authority_source_id="authority:test",
             authority_source_version="1",

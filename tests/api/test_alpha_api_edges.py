@@ -134,7 +134,7 @@ def test_alpha_score_get_is_read_only_on_qlib_cache_miss(
     )
     registry = AlphaProviderRegistry()
     registry.register(provider)
-    service = AlphaService.__new__(AlphaService)
+    service = object.__new__(AlphaService)
     service._registry = registry
     monkeypatch.setattr("apps.alpha.interface.views.AlphaService", lambda: service)
 

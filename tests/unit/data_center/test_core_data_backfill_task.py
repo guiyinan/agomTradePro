@@ -112,7 +112,7 @@ def _patch_current_authority(mocker):
     """Bind every successful task test to one server-issued authority."""
 
     return mocker.patch(
-        "apps.data_center.application.tasks.preflight_data_reliability_audit_runtime",
+        "apps.data_center.application.tasks.audit_integration.preflight_data_reliability_audit_runtime",
         return_value=SimpleNamespace(
             authority_source_id="config-center",
             actor_id="service:data02",

@@ -31,7 +31,7 @@ def _financial_runtime(monkeypatch):
         authority_valid_until=datetime.now(UTC) + timedelta(hours=2),
     )
     monkeypatch.setattr(
-        tasks,
+        tasks.audit_integration,
         "preflight_data_reliability_audit_runtime",
         lambda **_: authority,
     )
@@ -75,7 +75,7 @@ def test_financial_refresh_blocks_without_current_authority(monkeypatch) -> None
     from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
 
     monkeypatch.setattr(
-        tasks,
+        tasks.audit_integration,
         "preflight_data_reliability_audit_runtime",
         lambda **_: (_ for _ in ()).throw(
             SystemAuditCompositionUnavailable(

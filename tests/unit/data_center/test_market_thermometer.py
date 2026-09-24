@@ -898,7 +898,10 @@ def test_build_current_payload_applies_user_override_band():
     )
 
     payload = use_case.build_current_payload(
-        user_id=7, use_personal_thresholds=True, auto_calculate=False
+        user_id=7,
+        use_personal_thresholds=True,
+        as_of_date=date(2026, 5, 19),
+        auto_calculate=False,
     )
 
     assert payload["threshold_source"] == "user_override"
@@ -1070,7 +1073,10 @@ def test_build_current_payload_marks_score_unavailable_when_all_components_missi
         macro_repo=_FakeMacroRepo(series_map={}),
     )
 
-    payload = use_case.build_current_payload(auto_calculate=False)
+    payload = use_case.build_current_payload(
+        as_of_date=date(2026, 5, 22),
+        auto_calculate=False,
+    )
 
     assert payload["score_available"] is False
 
@@ -1109,7 +1115,10 @@ def test_build_current_payload_falls_back_to_latest_score_snapshot_when_current_
         macro_repo=_FakeMacroRepo(series_map={}),
     )
 
-    payload = use_case.build_current_payload(auto_calculate=False)
+    payload = use_case.build_current_payload(
+        as_of_date=date(2026, 6, 20),
+        auto_calculate=False,
+    )
 
     assert payload["observed_at"] == "2026-06-05"
     assert payload["score"] == 51.95
@@ -1154,7 +1163,10 @@ def test_build_current_payload_prefers_history_when_current_snapshot_is_more_deg
         macro_repo=_FakeMacroRepo(series_map={}),
     )
 
-    payload = use_case.build_current_payload(auto_calculate=False)
+    payload = use_case.build_current_payload(
+        as_of_date=date(2026, 6, 20),
+        auto_calculate=False,
+    )
 
     assert payload["observed_at"] == "2026-06-05"
     assert payload["score"] == 51.95

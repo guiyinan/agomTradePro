@@ -16,7 +16,7 @@ from apps.decision_rhythm.infrastructure.models import UnifiedRecommendationMode
 pytestmark = pytest.mark.django_db
 
 
-def test_alpha_ranking_snapshot_reads_latest_cache() -> None:
+def test_alpha_ranking_snapshot_reads_latest_cache(monkeypatch: pytest.MonkeyPatch) -> None:
     """Latest Alpha cache row becomes the ranking snapshot."""
 
     AlphaScoreCacheModel.objects.create(
@@ -37,6 +37,11 @@ def test_alpha_ranking_snapshot_reads_latest_cache() -> None:
             {"code": "300274.SZ", "score": 0.7},
         ],
         status=AlphaScoreCacheModel.STATUS_AVAILABLE,
+    )
+
+    monkeypatch.setattr(
+        "apps.decision_rhythm.infrastructure.consistency_snapshots._resolve_recent_closed_trade_date",
+        lambda: date(2026, 6, 4),
     )
 
     snapshot = get_latest_alpha_ranking_snapshot(top_n=1)
@@ -110,7 +115,9 @@ def test_workspace_snapshot_reads_latest_recommendations() -> None:
     assert snapshot.source_candidate_ids == ("alpha_rank:002709.SZ:2026-06-04",)
 
 
-def test_persisted_consistency_check_flags_old_workspace_rows() -> None:
+def test_persisted_consistency_check_flags_old_workspace_rows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Persisted check catches the stale-workspace scenario from production."""
 
     AlphaScoreCacheModel.objects.create(
@@ -132,6 +139,11 @@ def test_persisted_consistency_check_flags_old_workspace_rows() -> None:
         updated_at=datetime(2026, 5, 20, 1, tzinfo=UTC)
     )
 
+    monkeypatch.setattr(
+        "apps.decision_rhythm.infrastructure.consistency_snapshots._resolve_recent_closed_trade_date",
+        lambda: date(2026, 6, 4),
+    )
+
     result = run_alpha_workspace_consistency_check(account_id="510")
 
     assert result.status == "warning"
@@ -141,7 +153,9 @@ def test_persisted_consistency_check_flags_old_workspace_rows() -> None:
     }
 
 
-def test_persisted_consistency_check_flags_stale_alpha_rank_source_dates() -> None:
+def test_persisted_consistency_check_flags_stale_alpha_rank_source_dates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """A fresh workspace row must still reveal stale Alpha-rank source dates."""
 
     AlphaScoreCacheModel.objects.create(
@@ -164,6 +178,11 @@ def test_persisted_consistency_check_flags_stale_alpha_rank_source_dates() -> No
     )
     UnifiedRecommendationModel.objects.filter(pk=rec.pk).update(
         updated_at=timezone.make_aware(datetime(2026, 7, 2, 18))
+    )
+
+    monkeypatch.setattr(
+        "apps.decision_rhythm.infrastructure.consistency_snapshots._resolve_recent_closed_trade_date",
+        lambda: date(2026, 7, 2),
     )
 
     result = run_alpha_workspace_consistency_check(account_id="default")

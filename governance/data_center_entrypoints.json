@@ -2782,8 +2782,8 @@
     {
       "category": "celery_dispatch_edge",
       "evidence": "statically resolved Celery task dispatch",
-      "id": "celery_dispatch_edge:apps/data_center/application/tasks.py:apply_async:line:760",
-      "locator": "line:760",
+      "id": "celery_dispatch_edge:apps/data_center/application/tasks.py:apply_async:line:746",
+      "locator": "line:746",
       "path": "apps/data_center/application/tasks.py",
       "status": "adjacent_operational",
       "symbol": "apply_async",
@@ -3291,20 +3291,10 @@
     },
     {
       "category": "celery_task",
-      "evidence": "governance/celery_task_contracts.json",
-      "id": "celery_task:apps/data_center/application/tasks.py:backfill_active_a_share_core_data_batch_task:apps.data_center.application.tasks.backfill_active_a_share_core_data_batch_task",
-      "locator": "apps.data_center.application.tasks.backfill_active_a_share_core_data_batch_task",
-      "path": "apps/data_center/application/tasks.py",
-      "status": "active_public",
-      "symbol": "backfill_active_a_share_core_data_batch_task",
-      "target": "apps.data_center.application.tasks.backfill_active_a_share_core_data_batch_task"
-    },
-    {
-      "category": "celery_task",
       "evidence": "legacy retention preview task; canonical writes use plan_retention_task and enforce_retention_task",
-      "id": "celery_task:apps/data_center/application/tasks.py:cleanup_expired_raw_payloads_task:apps.data_center.application.tasks.cleanup_expired_raw_payloads_task",
+      "id": "celery_task:apps/data_center/application/retention_tasks.py:cleanup_expired_raw_payloads_task:apps.data_center.application.tasks.cleanup_expired_raw_payloads_task",
       "locator": "apps.data_center.application.tasks.cleanup_expired_raw_payloads_task",
-      "path": "apps/data_center/application/tasks.py",
+      "path": "apps/data_center/application/retention_tasks.py",
       "status": "compatibility",
       "symbol": "cleanup_expired_raw_payloads_task",
       "target": "apps.data_center.application.tasks.plan_retention_task"
@@ -3312,9 +3302,9 @@
     {
       "category": "celery_task",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "celery_task:apps/data_center/application/tasks.py:enforce_retention_task:apps.data_center.application.tasks.enforce_retention_task",
+      "id": "celery_task:apps/data_center/application/retention_tasks.py:enforce_retention_task:apps.data_center.application.tasks.enforce_retention_task",
       "locator": "apps.data_center.application.tasks.enforce_retention_task",
-      "path": "apps/data_center/application/tasks.py",
+      "path": "apps/data_center/application/retention_tasks.py",
       "status": "active_public",
       "symbol": "enforce_retention_task",
       "target": "apps.data_center.application.tasks.enforce_retention_task"
@@ -3322,12 +3312,32 @@
     {
       "category": "celery_task",
       "evidence": "governance/celery_task_contracts.json",
-      "id": "celery_task:apps/data_center/application/tasks.py:plan_retention_task:apps.data_center.application.tasks.plan_retention_task",
+      "id": "celery_task:apps/data_center/application/retention_tasks.py:plan_retention_task:apps.data_center.application.tasks.plan_retention_task",
       "locator": "apps.data_center.application.tasks.plan_retention_task",
-      "path": "apps/data_center/application/tasks.py",
+      "path": "apps/data_center/application/retention_tasks.py",
       "status": "active_public",
       "symbol": "plan_retention_task",
       "target": "apps.data_center.application.tasks.plan_retention_task"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "governance/celery_task_contracts.json",
+      "id": "celery_task:apps/data_center/application/retention_tasks.py:verify_storage_budget_task:apps.data_center.application.tasks.verify_storage_budget_task",
+      "locator": "apps.data_center.application.tasks.verify_storage_budget_task",
+      "path": "apps/data_center/application/retention_tasks.py",
+      "status": "active_public",
+      "symbol": "verify_storage_budget_task",
+      "target": "apps.data_center.application.tasks.verify_storage_budget_task"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "governance/celery_task_contracts.json",
+      "id": "celery_task:apps/data_center/application/tasks.py:backfill_active_a_share_core_data_batch_task:apps.data_center.application.tasks.backfill_active_a_share_core_data_batch_task",
+      "locator": "apps.data_center.application.tasks.backfill_active_a_share_core_data_batch_task",
+      "path": "apps/data_center/application/tasks.py",
+      "status": "active_public",
+      "symbol": "backfill_active_a_share_core_data_batch_task",
+      "target": "apps.data_center.application.tasks.backfill_active_a_share_core_data_batch_task"
     },
     {
       "category": "celery_task",
@@ -3368,16 +3378,6 @@
       "status": "active_public",
       "symbol": "refresh_market_thermometer_task",
       "target": "apps.data_center.application.tasks.refresh_market_thermometer_task"
-    },
-    {
-      "category": "celery_task",
-      "evidence": "governance/celery_task_contracts.json",
-      "id": "celery_task:apps/data_center/application/tasks.py:verify_storage_budget_task:apps.data_center.application.tasks.verify_storage_budget_task",
-      "locator": "apps.data_center.application.tasks.verify_storage_budget_task",
-      "path": "apps/data_center/application/tasks.py",
-      "status": "active_public",
-      "symbol": "verify_storage_budget_task",
-      "target": "apps.data_center.application.tasks.verify_storage_budget_task"
     },
     {
       "category": "celery_task",

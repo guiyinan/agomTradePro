@@ -112,7 +112,7 @@ def test_operational_lifecycles_correct_legacy_and_adjacent_tasks(
         entry
         for entry in entries
         if entry["category"] == "celery_task"
-        and entry["path"] == "apps/data_center/application/tasks.py"
+        and entry["path"] == "apps/data_center/application/retention_tasks.py"
         and entry["symbol"] == "cleanup_expired_raw_payloads_task"
     )
     assert cleanup["status"] == "compatibility"
@@ -327,6 +327,7 @@ def test_inventory_expands_command_edges_and_publishes_full_task_targets(
         "setup_auto_advisor_weekly_report",
         "setup_personal_readiness_daily",
         "setup_sentiment_refresh",
+        "setup_full_market_publications",
     }
     expanded = {
         entry["symbol"]

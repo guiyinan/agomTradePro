@@ -34,10 +34,11 @@ def test_workspace_execution_plan_detail_returns_404_for_missing_plan(authentica
 @pytest.mark.django_db
 def test_workspace_plan_generation_rejects_non_list_recommendation_ids(
     authenticated_client,
+    owned_account,
 ):
     response = authenticated_client.post(
         "/api/decision/workspace/plans/generate/",
-        {"recommendation_ids": "rec-1"},
+        {"account_id": str(owned_account.id), "recommendation_ids": "rec-1"},
         format="json",
     )
 
@@ -90,8 +91,10 @@ def test_workspace_execution_approve_returns_404_for_missing_request(authenticat
 @pytest.mark.django_db
 def test_workspace_execution_approve_skips_event_when_status_update_returns_none(
     authenticated_client,
+    owned_account,
 ):
     approval_request = SimpleNamespace(
+        account_id=str(owned_account.id),
         approval_status=ApprovalStatus.PENDING,
         market_price_at_review=None,
     )
@@ -128,9 +131,11 @@ def test_workspace_execution_approve_skips_event_when_status_update_returns_none
 @pytest.mark.parametrize("action", ["approve", "reject"])
 def test_workspace_plan_approval_legacy_blocker_returns_conflict(
     authenticated_client,
+    owned_account,
     action: str,
 ) -> None:
     approval_request = SimpleNamespace(
+        account_id=str(owned_account.id),
         approval_status=ApprovalStatus.PENDING,
         market_price_at_review=None,
     )
@@ -169,9 +174,10 @@ def test_workspace_plan_approval_legacy_blocker_returns_conflict(
 
 
 @pytest.mark.django_db
-def test_workspace_execution_detail_returns_request_payload(authenticated_client):
+def test_workspace_execution_detail_returns_request_payload(authenticated_client, owned_account):
     fake_request = SimpleNamespace(
-        to_dict=lambda: {"request_id": "req-1", "approval_status": "pending"}
+        account_id=str(owned_account.id),
+        to_dict=lambda: {"request_id": "req-1", "approval_status": "pending"},
     )
 
     with patch(

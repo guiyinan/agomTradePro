@@ -5,11 +5,13 @@ import pytest
 
 
 @pytest.mark.django_db
-def test_workspace_recommendations_reject_invalid_status_filter(authenticated_client, settings):
+def test_workspace_recommendations_reject_invalid_status_filter(
+    authenticated_client, owned_account, settings
+):
     settings.DECISION_WORKSPACE_V2_ENABLED = True
 
     response = authenticated_client.get(
-        "/api/decision/workspace/recommendations/?account_id=default&status=bad-status"
+        f"/api/decision/workspace/recommendations/?account_id={owned_account.id}&status=bad-status"
     )
 
     assert response.status_code == 400
@@ -20,12 +22,13 @@ def test_workspace_recommendations_reject_invalid_status_filter(authenticated_cl
 
 @pytest.mark.django_db
 def test_workspace_recommendations_reject_invalid_user_action_filter(
-    authenticated_client, settings
+    authenticated_client, owned_account, settings
 ):
     settings.DECISION_WORKSPACE_V2_ENABLED = True
 
     response = authenticated_client.get(
-        "/api/decision/workspace/recommendations/?account_id=default&user_action=bad-action"
+        f"/api/decision/workspace/recommendations/?account_id={owned_account.id}"
+        "&user_action=bad-action"
     )
 
     assert response.status_code == 400
@@ -36,7 +39,7 @@ def test_workspace_recommendations_reject_invalid_user_action_filter(
 
 @pytest.mark.django_db
 def test_workspace_recommendations_normalize_enum_filters_before_service_call(
-    authenticated_client, settings
+    authenticated_client, owned_account, settings
 ):
     settings.DECISION_WORKSPACE_V2_ENABLED = True
 
@@ -46,7 +49,7 @@ def test_workspace_recommendations_normalize_enum_filters_before_service_call(
     ) as list_mock:
         response = authenticated_client.get(
             "/api/decision/workspace/recommendations/"
-            "?account_id=default&status=reviewing&user_action=watching"
+            f"?account_id={owned_account.id}&status=reviewing&user_action=watching"
         )
 
     assert response.status_code == 200
@@ -87,10 +90,10 @@ def test_workspace_recommendation_action_returns_404_when_account_scope_misses(
 
 
 @pytest.mark.django_db
-def test_workspace_refresh_rejects_non_list_security_codes(authenticated_client):
+def test_workspace_refresh_rejects_non_list_security_codes(authenticated_client, owned_account):
     response = authenticated_client.post(
         "/api/decision/workspace/recommendations/refresh/",
-        {"account_id": "default", "security_codes": "000001.SZ"},
+        {"account_id": str(owned_account.id), "security_codes": "000001.SZ"},
         format="json",
     )
 
@@ -101,10 +104,12 @@ def test_workspace_refresh_rejects_non_list_security_codes(authenticated_client)
 
 
 @pytest.mark.django_db
-def test_workspace_refresh_rejects_non_string_security_code_items(authenticated_client):
+def test_workspace_refresh_rejects_non_string_security_code_items(
+    authenticated_client, owned_account
+):
     response = authenticated_client.post(
         "/api/decision/workspace/recommendations/refresh/",
-        {"account_id": "default", "security_codes": ["000001.SZ", 123]},
+        {"account_id": str(owned_account.id), "security_codes": ["000001.SZ", 123]},
         format="json",
     )
 
@@ -115,7 +120,7 @@ def test_workspace_refresh_rejects_non_string_security_code_items(authenticated_
 
 
 @pytest.mark.django_db
-def test_workspace_refresh_returns_failed_status_payload(authenticated_client):
+def test_workspace_refresh_returns_failed_status_payload(authenticated_client, owned_account):
     failed_response = SimpleNamespace(
         status="FAILED",
         to_dict=lambda: {
@@ -133,7 +138,7 @@ def test_workspace_refresh_returns_failed_status_payload(authenticated_client):
     ):
         response = authenticated_client.post(
             "/api/decision/workspace/recommendations/refresh/",
-            {"account_id": "default", "security_codes": ["000001.SZ"]},
+            {"account_id": str(owned_account.id), "security_codes": ["000001.SZ"]},
             format="json",
         )
 

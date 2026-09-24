@@ -33,7 +33,7 @@ def _patch_current_authority(monkeypatch):
         authority_valid_until=datetime.now(UTC) + timedelta(hours=2),
     )
     monkeypatch.setattr(
-        tasks,
+        tasks.audit_integration,
         "preflight_data_reliability_audit_runtime",
         lambda **_: context,
     )
@@ -236,7 +236,11 @@ def test_task_blocks_without_current_authority_before_provider_access(monkeypatc
             reason_code="authority_unavailable",
         )
 
-    monkeypatch.setattr(tasks, "preflight_data_reliability_audit_runtime", unavailable)
+    monkeypatch.setattr(
+        tasks.audit_integration,
+        "preflight_data_reliability_audit_runtime",
+        unavailable,
+    )
     provider = monkeypatch.setattr(
         tasks,
         "get_active_provider_id_by_source",
@@ -306,7 +310,7 @@ def test_task_stops_before_provider_when_authority_identity_changes(monkeypatch)
     )
     contexts = iter((initial, changed))
     monkeypatch.setattr(
-        tasks,
+        tasks.audit_integration,
         "preflight_data_reliability_audit_runtime",
         lambda **_: next(contexts),
     )
@@ -392,7 +396,7 @@ def test_equivalent_authority_successor_does_not_interrupt_active_refresh(
         }
     )
     monkeypatch.setattr(
-        tasks,
+        tasks.audit_integration,
         "preflight_data_reliability_audit_runtime",
         lambda **_: successor,
     )

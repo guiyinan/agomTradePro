@@ -446,12 +446,13 @@ def test_decision_rhythm_classic_pages_publish_role_appropriate_tui_links(
 @pytest.mark.django_db
 def test_decision_workspace_recommendations_reject_invalid_page(
     authenticated_client,
+    owned_account,
     settings,
 ):
     settings.DECISION_WORKSPACE_V2_ENABLED = True
 
     response = authenticated_client.get(
-        "/api/decision/workspace/recommendations/?account_id=default&page=bad"
+        f"/api/decision/workspace/recommendations/?account_id={owned_account.id}&page=bad"
     )
 
     assert response.status_code == 400
