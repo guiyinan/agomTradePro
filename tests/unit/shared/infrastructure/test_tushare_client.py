@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import os
+from hashlib import sha256
 from typing import Any
 from unittest.mock import Mock
 
@@ -20,6 +22,12 @@ class _RelayResponse:
     """Minimal successful requests response used by relay tests."""
 
     status_code = 200
+
+    @property
+    def content(self) -> bytes:
+        """Return the exact encoded body used by the transport digest."""
+
+        return json.dumps(self.json(), separators=(",", ":")).encode("utf-8")
 
     def raise_for_status(self) -> None:
         """Model one successful HTTP status."""
@@ -110,6 +118,8 @@ def test_unified_relay_posts_to_exact_url_with_api_key_header(monkeypatch: Any) 
     assert result.to_dict(orient="records") == [
         {"exchange": "SSE", "cal_date": "20240102", "is_open": 1}
     ]
+    assert result.response_evidence.body_sha256 == sha256(_RelayResponse().content).hexdigest()
+    assert result.response_evidence.raw_payload_scope == "batch_response_body"
     assert session.headers == {"X-API-Key": "relay-secret"}
     assert session.trust_env is False
     assert session.proxies == {"http": "", "https": ""}

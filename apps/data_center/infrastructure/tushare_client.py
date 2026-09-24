@@ -10,7 +10,9 @@ import os
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from functools import partial
+from hashlib import sha256
 from importlib import import_module
 from typing import Any, Protocol, cast
 from urllib.parse import urlsplit
@@ -41,6 +43,24 @@ class TushareRuntimeSettings:
     token: str
     http_url: str | None = None
     request_mode: TushareRequestMode = TUSHARE_REQUEST_MODE_SDK_PATH
+
+
+@dataclass(frozen=True, slots=True)
+class TushareResponseEvidence:
+    """Exact response-body digest and local completion time for one provider call."""
+
+    body_sha256: str
+    response_completed_at: datetime
+    raw_payload_scope: str = "batch_response_body"
+
+    def __post_init__(self) -> None:
+        if not re.fullmatch(r"[0-9a-f]{64}", self.body_sha256):
+            raise ValueError("Tushare response body digest is invalid")
+        if (
+            self.response_completed_at.tzinfo is None
+            or self.response_completed_at.utcoffset() is None
+        ):
+            raise ValueError("Tushare response completion time must be timezone-aware")
 
 
 class _TushareDataApi(Protocol):
@@ -86,6 +106,25 @@ class _RetainedFinancialFrame:
         return cast(list[dict[str, object]], self.frame.to_dict(orient))
 
 
+@dataclass(frozen=True, slots=True)
+class _WitnessedProviderFrame:
+    """Expose dataframe operations with exact non-financial transport evidence."""
+
+    frame: Any
+    response_evidence: TushareResponseEvidence
+
+    @property
+    def empty(self) -> bool:
+        """Return the wrapped dataframe's empty flag."""
+
+        return bool(self.frame.empty)
+
+    def to_dict(self, orient: str) -> list[dict[str, object]]:
+        """Return provider rows through the wrapped dataframe conversion."""
+
+        return cast(list[dict[str, object]], self.frame.to_dict(orient))
+
+
 def _unwrap_retained_financial_payload(
     value: object,
 ) -> tuple[object, FinancialResponseArtifactRef | None]:
@@ -100,12 +139,17 @@ def _provider_frame(
     items: list[object],
     columns: list[str],
     artifact_reference: FinancialResponseArtifactRef | None,
+    response_evidence: TushareResponseEvidence | None = None,
 ) -> PandasDataFrame:
     """Build the usual dataframe or its retained-financial wrapper."""
 
     frame = pd.DataFrame(items, columns=columns)
     if artifact_reference is None:
-        return frame
+        return (
+            _WitnessedProviderFrame(frame=frame, response_evidence=response_evidence)
+            if response_evidence is not None
+            else frame
+        )
     return _RetainedFinancialFrame(frame=frame, artifact_reference=artifact_reference)
 
 
@@ -274,6 +318,7 @@ class _UnifiedRelayClient:
             "fields": fields,
         }
         target_url = self._http_url
+        response_evidence: TushareResponseEvidence | None = None
         if self._should_use_egress(target_url, api_name=api_name):
             payload = self._request_through_egress(
                 target_url,
@@ -302,6 +347,11 @@ class _UnifiedRelayClient:
                     code=f"TUSHARE_HTTP_{response.status_code}",
                 )
             response.raise_for_status()
+            body = bytes(response.content)
+            response_evidence = TushareResponseEvidence(
+                body_sha256=sha256(body).hexdigest(),
+                response_completed_at=datetime.now(UTC),
+            )
             payload = response.json()
         payload, artifact_reference = _unwrap_retained_financial_payload(payload)
         if not isinstance(payload, dict):
@@ -332,7 +382,12 @@ class _UnifiedRelayClient:
                 "Tushare relay response items are invalid",
                 code="TUSHARE_INVALID_PAYLOAD",
             )
-        return _provider_frame(items, columns, artifact_reference)
+        return _provider_frame(
+            items,
+            columns,
+            artifact_reference,
+            response_evidence=response_evidence,
+        )
 
     def _should_use_egress(self, target_url: str, *, api_name: str) -> bool:
         """Use the Data Center transport only when an explicit rule matches."""
@@ -525,6 +580,8 @@ class _RoutedSdkClient(_UnifiedRelayClient):
                     "Financial raw capture requires an explicit egress route",
                     code="TUSHARE_FINANCIAL_ARTIFACT_ROUTE_REQUIRED",
                 )
+            if api_name == "daily_basic":
+                return super().query(api_name, fields=fields, **params)
             _append_custom_endpoint_to_no_proxy(self._legacy_bypass_url)
             return cast(Any, self._sdk_client).query(api_name, fields=fields, **params)
         payload = self._request_through_egress(
@@ -642,6 +699,7 @@ __all__ = [
     "TushareFinancialResponseHandler",
     "TushareRelayAuthorizationError",
     "TushareRuntimeSettings",
+    "TushareResponseEvidence",
     "configure_tushare_pro_client",
     "create_tushare_pro_client",
     "resolve_tushare_runtime_settings",

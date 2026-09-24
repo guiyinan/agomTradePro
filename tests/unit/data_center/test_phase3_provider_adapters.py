@@ -22,6 +22,7 @@ from apps.data_center.infrastructure.provider_adapters import (
     TushareUnifiedProviderAdapter,
     build_unified_provider_adapter,
 )
+from apps.data_center.infrastructure.tushare_client import TushareResponseEvidence
 
 
 def _config(source_type: str, name: str | None = None) -> ProviderConfig:
@@ -88,10 +89,29 @@ def test_tushare_current_valuations_use_one_session_batch(monkeypatch):
 
     calls: list[dict[str, object]] = []
 
+    witnessed_at = datetime(2026, 9, 23, 9, tzinfo=UTC)
+    raw_payload_hash = "a" * 64
+
+    class _Frame:
+        response_evidence = TushareResponseEvidence(
+            body_sha256=raw_payload_hash,
+            response_completed_at=witnessed_at,
+        )
+
+        def __init__(self, rows: list[dict[str, object]]) -> None:
+            self._frame = pd.DataFrame(rows)
+
+        @property
+        def empty(self) -> bool:
+            return bool(self._frame.empty)
+
+        def to_dict(self, orient: str) -> list[dict[str, object]]:
+            return self._frame.to_dict(orient)
+
     class _FakePro:
-        def daily_basic(self, **kwargs: object) -> pd.DataFrame:
+        def daily_basic(self, **kwargs: object) -> _Frame:
             calls.append(kwargs)
-            return pd.DataFrame(
+            return _Frame(
                 [
                     {
                         "ts_code": "000001.SZ",
@@ -128,10 +148,13 @@ def test_tushare_current_valuations_use_one_session_batch(monkeypatch):
     assert facts[0].float_market_cap == 22_568_700.0
     assert facts[0].observed_at == datetime(2026, 9, 23, 7, tzinfo=UTC)
     assert facts[0].available_at == facts[0].fetched_at
-    assert facts[0].available_at is not None
+    assert facts[0].available_at == witnessed_at
     assert facts[0].available_at >= facts[0].observed_at
     assert facts[0].extra["availability_basis"] == "response_completed_utc"
     assert facts[0].extra["response_completed_at"] == facts[0].available_at.isoformat()
+    assert facts[0].extra["raw_payload_scope"] == "batch_response_body"
+    assert facts[0].raw_payload_hash == raw_payload_hash
+    assert facts[0].source_record_id.startswith("tushare:daily_basic:20260923:000001.SZ:")
     assert facts[0].extra["market_cap_original_unit"] == "万元"
     assert facts[0].extra["market_cap_canonical_unit"] == "元"
 

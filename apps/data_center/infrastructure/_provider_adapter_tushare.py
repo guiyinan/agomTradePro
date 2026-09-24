@@ -43,7 +43,10 @@ from apps.data_center.infrastructure._provider_adapter_base import (
     _to_period_type,
 )
 from apps.data_center.infrastructure.macro_sources import TushareAdapter
-from apps.data_center.infrastructure.tushare_client import create_tushare_pro_client
+from apps.data_center.infrastructure.tushare_client import (
+    TushareResponseEvidence,
+    create_tushare_pro_client,
+)
 from apps.data_center.infrastructure.tushare_model_market_source import TushareModelMarketSource
 from shared.numeric import safe_float
 
@@ -190,11 +193,14 @@ def _tushare_market_cap_cny(value: object) -> float | None:
 
 
 def _tushare_valuation_extra(
-    base: dict[str, Any], *, response_completed_at: datetime
+    base: dict[str, Any],
+    *,
+    response_completed_at: datetime,
+    response_evidence: TushareResponseEvidence | None = None,
 ) -> dict[str, Any]:
     """Publish units and the local knowledge-time basis for one response."""
 
-    return {
+    result: dict[str, Any] = {
         **base,
         "market_cap_original_unit": "万元",
         "market_cap_canonical_unit": "元",
@@ -202,6 +208,27 @@ def _tushare_valuation_extra(
         "availability_basis": "response_completed_utc",
         "response_completed_at": response_completed_at.isoformat(),
     }
+    if response_evidence is not None:
+        result["raw_payload_scope"] = response_evidence.raw_payload_scope
+    return result
+
+
+def _tushare_valuation_response_evidence(frame: object) -> TushareResponseEvidence | None:
+    """Return typed exact-body evidence when the transport captured it."""
+
+    evidence = getattr(frame, "response_evidence", None)
+    return evidence if isinstance(evidence, TushareResponseEvidence) else None
+
+
+def _tushare_valuation_source_record_id(
+    *, asset_code: str, val_date: date, evidence: TushareResponseEvidence
+) -> str:
+    """Bind one valuation row to its batch response without claiming row-level bytes."""
+
+    return (
+        f"tushare:daily_basic:{val_date.strftime('%Y%m%d')}:"
+        f"{asset_code}:{evidence.body_sha256[:16]}"
+    )
 
 
 def _financial_fact_builder(
@@ -931,7 +958,12 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             start_date=start_date.strftime("%Y%m%d"),
             end_date=end_date.strftime("%Y%m%d"),
         )
-        response_completed_at = datetime.now(UTC)
+        response_evidence = _tushare_valuation_response_evidence(frame)
+        response_completed_at = (
+            response_evidence.response_completed_at
+            if response_evidence is not None
+            else datetime.now(UTC)
+        )
         if frame is None or frame.empty:
             return []
         facts: list[ValuationFact] = []
@@ -956,6 +988,19 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     extra=_tushare_valuation_extra(
                         self._provider_extra(),
                         response_completed_at=response_completed_at,
+                        response_evidence=response_evidence,
+                    ),
+                    source_record_id=(
+                        _tushare_valuation_source_record_id(
+                            asset_code=normalize_asset_code(asset_code, "tushare"),
+                            val_date=val_date,
+                            evidence=response_evidence,
+                        )
+                        if response_evidence is not None
+                        else ""
+                    ),
+                    raw_payload_hash=(
+                        response_evidence.body_sha256 if response_evidence is not None else ""
                     ),
                 )
             )
@@ -972,7 +1017,12 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         if not requested:
             return []
         frame = self._create_pro_client().daily_basic(trade_date=as_of_date.strftime("%Y%m%d"))
-        response_completed_at = datetime.now(UTC)
+        response_evidence = _tushare_valuation_response_evidence(frame)
+        response_completed_at = (
+            response_evidence.response_completed_at
+            if response_evidence is not None
+            else datetime.now(UTC)
+        )
         if frame is None or frame.empty:
             return []
         facts: list[ValuationFact] = []
@@ -1001,6 +1051,19 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     extra=_tushare_valuation_extra(
                         self._provider_extra(),
                         response_completed_at=response_completed_at,
+                        response_evidence=response_evidence,
+                    ),
+                    source_record_id=(
+                        _tushare_valuation_source_record_id(
+                            asset_code=asset_code,
+                            val_date=val_date,
+                            evidence=response_evidence,
+                        )
+                        if response_evidence is not None
+                        else ""
+                    ),
+                    raw_payload_hash=(
+                        response_evidence.body_sha256 if response_evidence is not None else ""
                     ),
                 )
             )
