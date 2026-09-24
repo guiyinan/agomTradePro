@@ -11,12 +11,12 @@
       "compatibility_facade": 94,
       "current_data_surface": 70,
       "dynamic_import_edge": 12,
-      "management_command": 33,
+      "management_command": 35,
       "management_command_edge": 58,
       "mcp_tool": 40,
       "migration_evidence": 14,
-      "operational_dispatch_edge": 61,
-      "operational_script": 29,
+      "operational_dispatch_edge": 64,
+      "operational_script": 30,
       "orchestration_entry": 9,
       "public_port": 93,
       "rest_url": 72,
@@ -26,17 +26,17 @@
       "script": 10,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 73,
+      "test_evidence": 74,
       "workflow_step": 10
     },
     "by_status": {
-      "active_public": 783,
-      "adjacent_operational": 323,
+      "active_public": 784,
+      "adjacent_operational": 327,
       "candidate-review": 0,
-      "compatibility": 137,
+      "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1243
+    "total": 1250
   },
   "entries": [
     {
@@ -6230,6 +6230,26 @@
       "target": ""
     },
     {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:output/data18-browser-review-0925/pytest-entrypoint-contracts/test_periodic_task_annassign_a0/apps/data_center/management/commands/setup_demo.py:setup_demo:",
+      "locator": "",
+      "path": "output/data18-browser-review-0925/pytest-entrypoint-contracts/test_periodic_task_annassign_a0/apps/data_center/management/commands/setup_demo.py",
+      "status": "compatibility",
+      "symbol": "setup_demo",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:output/pytest-release-final/test_periodic_task_annassign_a0/apps/data_center/management/commands/setup_demo.py:setup_demo:",
+      "locator": "",
+      "path": "output/pytest-release-final/test_periodic_task_annassign_a0/apps/data_center/management/commands/setup_demo.py",
+      "status": "compatibility",
+      "symbol": "setup_demo",
+      "target": ""
+    },
+    {
       "category": "management_command_edge",
       "evidence": "call_command target is external or runtime-selected",
       "id": "management_command_edge:apps/account/infrastructure/backup_service.py:dumpdata:line:219",
@@ -7812,6 +7832,36 @@
     {
       "category": "operational_dispatch_edge",
       "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/select_tests.py:deploy-on-vps.sh:token:deploy-on-vps.sh",
+      "locator": "token:deploy-on-vps.sh",
+      "path": "scripts/select_tests.py",
+      "status": "adjacent_operational",
+      "symbol": "deploy-on-vps.sh",
+      "target": "scripts/deploy-on-vps.sh"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/select_tests.py:deploy-vps.ps1:token:deploy-vps.ps1",
+      "locator": "token:deploy-vps.ps1",
+      "path": "scripts/select_tests.py",
+      "status": "adjacent_operational",
+      "symbol": "deploy-vps.ps1",
+      "target": "scripts/deploy-vps.ps1"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/select_tests.py:remote_build_deploy_vps.py:token:remote_build_deploy_vps.py",
+      "locator": "token:remote_build_deploy_vps.py",
+      "path": "scripts/select_tests.py",
+      "status": "adjacent_operational",
+      "symbol": "remote_build_deploy_vps.py",
+      "target": "scripts/remote_build_deploy_vps.py"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/start-dev.ps1:manage.py migrate:token:manage.py migrate",
       "locator": "token:manage.py migrate",
       "path": "scripts/start-dev.ps1",
@@ -8182,6 +8232,16 @@
     {
       "category": "operational_script",
       "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_script:scripts/select_tests.py:__main__:",
+      "locator": "",
+      "path": "scripts/select_tests.py",
+      "status": "adjacent_operational",
+      "symbol": "__main__",
+      "target": "scripts/deploy-on-vps.sh,scripts/deploy-vps.ps1,scripts/remote_build_deploy_vps.py"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_script:scripts/start-dev.ps1:__main__:",
       "locator": "",
       "path": "scripts/start-dev.ps1",
@@ -8282,8 +8342,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/deploy_vps_verify.py:verify_canonical_schema:line:432",
-      "locator": "line:432",
+      "id": "orchestration_entry:scripts/deploy_vps_verify.py:verify_canonical_schema:line:433",
+      "locator": "line:433",
       "path": "scripts/deploy_vps_verify.py",
       "status": "active_public",
       "symbol": "verify_canonical_schema",
@@ -12097,6 +12157,16 @@
       "path": "tests/unit/audit/test_system_audit_archive.py",
       "status": "adjacent_operational",
       "symbol": "test_system_audit_archive",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/ci/test_select_tests.py:test_select_tests:",
+      "locator": "",
+      "path": "tests/unit/ci/test_select_tests.py",
+      "status": "active_public",
+      "symbol": "test_select_tests",
       "target": ""
     },
     {

@@ -158,14 +158,22 @@
 | 项目 | 状态 | 当前证据 / 下一步 |
 | --- | --- | --- |
 | P0 计划与 goal | 已完成 | goal 已启动；2026-09-24 本计划建立；原始核查 JSON 见第 2 节 |
-| R1 发布/运行时/Alpha | 执行中 | 主代理复现 publication member 漂移并取证 |
-| R2 信号/MCP | 主代理复核中 | Luna max 已停止；保留改动，主代理回归 SDK/MCP 契约 |
-| R3 只读/工作台/文案 | 主代理补修中 | Luna max 用量限制停止；已发现并补修执行分支权限缺口；浏览器待验 |
-| R4 进度/诊断 | 主代理复核中 | Luna max 用量限制停止；DTO/安全投影单测通过，组合 API 回归中 |
-| S1–S6 | 待集成 | 独立分类追踪，不将已有零散测试当作全部完成 |
+| R1 发布/运行时/Alpha | 候选代码完成，生产待验 | 四类事实不可变修订、完整交易日历、发布计数和 Alpha 只读/显式刷新已形成组合回归；正式发布、运行时激活和当前日 Alpha 仍须在同一部署候选验证 |
+| R2 信号/MCP | 候选代码完成，生产待验 | API/SDK/MCP 分页、最后业务 503、政策待分类及安全业务码已回归；部署重启后的新 MCP 会话待验 |
+| R3 只读/工作台/文案 | 候选代码完成，生产待验 | 账户归属、GET 零写入、研究入口、慢请求/重试和缺失价格语义已通过本地行为验收；生产普通投资者浏览器 UAT 待验 |
+| R4 进度/诊断 | 候选代码完成，生产待验 | current attempt / last completed、phase、outcome、计数单位和安全错误投影已形成回归；生产任务结果待验 |
+| S1–S5 | 候选代码完成，远端 CI 待验 | 真实 provider 契约、不变量、时间、规模和跨消费者选测已集成；同一最终 SHA 的远端 CI 结果仍须冻结 |
+| S6 | 门禁代码完成，真实证据待采集 | 部署前验证器固定四类报告、候选/日期/universe/provider、时效、响应/写入 artifact 与 23 项 PostgreSQL JUnit；缺真实报告时明确阻断，不能把 synthetic 单测当发布证据 |
 | 生产联合复验 | 未完成 | 真实普通用户、四发布、自然周期和准确 runtime 门尚需验证 |
 
 本表在每个阶段完成后更新，只写实际验证结果。最终报告必须列完成项、未完成项、已验证测试与未验证风险。
+
+### 2026-09-25 候选收口与发布门禁
+
+- 修复增量 CI 的同类漏选：Data Center 生产变更会执行 realtime consumer component；部署入口会选择 verifier、remote builder、Qlib 安装、watchdog 和发布预演验证器契约。PostgreSQL 工作流除 21 项 publication/provenance 用例外，显式运行两项 backfill control-plane 用例，并拒绝 missing、failed、error 或 skipped。
+- `deploy-vps.ps1` 的后置验证由“警告后成功”改为真实非零退出；Python verifier 缺 Paramiko 时也 fail closed。部署包装器将批准的精确 SHA 传给 remote builder，若本地 HEAD 在预验收和构建之间变化，会在读取凭据或 SSH 前终止。
+- 新增 `validate_release_rehearsal.py`。它只验证、不采集证据：四类报告必须绑定相同候选、交易日、完整 universe hash 和结构化 provider 身份；真实响应和隔离写入回执必须是可解析、身份一致的结构化记录并继续校验所引用原始 body；容量报告必须携带排序去重后的完整证券清单并重算 hash；每个数据集的样本必须等于由该 universe 确定性选出的 `min(50, universe_count)`；PostgreSQL JUnit 必须包含固定 23 项用例、无 skip/failure/error 和有效时间。候选回归同时查询 GitHub Actions 官方接口，核对同 SHA 成功 run、该 run 的未过期唯一 artifact、ZIP 的官方 SHA-256，以及 ZIP 内两份 JUnit 与本地报告的逐字节一致性；下载鉴权头不会转发给签名存储地址。
+- synthetic 正常样例及反例用于证明 validator fail closed，不属于上线证据。独立攻击复验确认：无关 PostgreSQL 用例、单资产冒充全量 universe、浮点 `0.0` 冒充零残留均被拒绝。最终候选仍需采集真实响应/单位重放、完整容量、隔离写入回滚以及远端 CI JUnit 后才能部署。
 
 ### 2026-09-24 首轮执行证据
 

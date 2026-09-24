@@ -31,7 +31,15 @@ param(
     [switch]$GlobalDockerCleanup,
     [ValidateRange(600, 86400)]
     [int]$BuildTimeoutSeconds = 3600,
-    [string]$GitBranch
+    [string]$GitBranch,
+    [string]$ReleaseRehearsalManifest,
+    [string]$RehearsalTargetDate,
+    [string]$RehearsalUniverseSha256,
+    [string]$RehearsalProviderIdentitiesSha256,
+    [string]$GitHubRepository,
+    [long]$GitHubRunId,
+    [ValidateRange(0.25, 168.0)]
+    [double]$RehearsalMaxAgeHours = 24.0
 )
 
 Set-StrictMode -Version Latest
@@ -92,6 +100,33 @@ if (-not $GitBranch) {
     }
 }
 
+$expectedCommit = (& git -C $ProjectRoot rev-parse HEAD).Trim()
+if ($expectedCommit -notmatch '^[0-9a-f]{40}$') {
+    Throw-Err "Cannot resolve an exact source commit before deployment."
+}
+$ProjectPython = Join-Path $ProjectRoot "agomtradepro\Scripts\python.exe"
+$PythonExe = if (Test-Path $ProjectPython) { $ProjectPython } else { 'python' }
+if (-not $ReleaseRehearsalManifest -or -not $RehearsalTargetDate -or -not $RehearsalUniverseSha256 -or -not $RehearsalProviderIdentitiesSha256 -or -not $GitHubRepository -or $GitHubRunId -le 0) {
+    Throw-Err "Candidate-bound release rehearsal manifest, target date, universe digest, provider identity digest and GitHub Actions run are required."
+}
+$rehearsalValidator = Join-Path $PSScriptRoot "validate_release_rehearsal.py"
+$rehearsalArgs = @(
+    $rehearsalValidator,
+    '--manifest', $ReleaseRehearsalManifest,
+    '--expected-candidate', $expectedCommit,
+    '--expected-target-date', $RehearsalTargetDate,
+    '--expected-universe-sha256', $RehearsalUniverseSha256,
+    '--expected-provider-identities-sha256', $RehearsalProviderIdentitiesSha256,
+    '--expected-github-repository', $GitHubRepository,
+    '--expected-github-run-id', "$GitHubRunId",
+    '--max-age-hours', "$RehearsalMaxAgeHours"
+)
+Write-Info "Validating candidate-bound release rehearsal evidence..."
+& $PythonExe @rehearsalArgs
+if ($LASTEXITCODE -ne 0) {
+    Throw-Err "Release rehearsal validation failed."
+}
+
 $AllowedHosts = "$VpsHost,demo.agomtrade.pro,localhost,127.0.0.1"
 
 Write-Info "=== AgomTradePro VPS Deploy ==="
@@ -146,10 +181,6 @@ if (Test-Path (Join-Path $ProjectRoot "package.json")) {
 }
 
 $passFile = Join-Path $env:TEMP "agomtradepro_vps_pass_$([guid]::NewGuid().ToString('N').Substring(0,8)).txt"
-$expectedCommit = (& git -C $ProjectRoot rev-parse HEAD).Trim()
-if ($expectedCommit -notmatch '^[0-9a-f]{40}$') {
-    Throw-Err "Cannot resolve an exact source commit before deployment."
-}
 try {
     Set-Content -Path $passFile -Value $VpsPass -NoNewline
 
@@ -179,9 +210,6 @@ try {
     if ($SkipPreDeployBackup) { $pyArgs += '--skip-predeploy-backup' }
     if ($DisableAutoRollback) { $pyArgs += '--disable-auto-rollback' }
     if ($GlobalDockerCleanup) { $pyArgs += '--wipe-docker' }
-
-    $ProjectPython = Join-Path $ProjectRoot "agomtradepro\Scripts\python.exe"
-    $PythonExe = if (Test-Path $ProjectPython) { $ProjectPython } else { 'python' }
 
     Write-Info "Launching deploy..."
     & $PythonExe @pyArgs

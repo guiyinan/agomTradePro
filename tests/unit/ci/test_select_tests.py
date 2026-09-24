@@ -148,6 +148,7 @@ class TestSelectTests(unittest.TestCase):
             "tests/unit/test_deploy_vps_verify.py",
             "tests/unit/test_docker_pyqlib_install.py",
             "tests/unit/test_remote_build_deploy_vps.py",
+            "tests/unit/test_validate_release_rehearsal.py",
             "tests/unit/test_vps_web_watchdog.py",
         }
         for changed_file in (
@@ -155,6 +156,7 @@ class TestSelectTests(unittest.TestCase):
             "scripts/deploy_vps_verify.py",
             "scripts/deploy-on-vps.sh",
             "scripts/remote_build_deploy_vps.py",
+            "scripts/validate_release_rehearsal.py",
             "scripts/verify-vps-bundle.ps1",
         ):
             with self.subTest(changed_file=changed_file):

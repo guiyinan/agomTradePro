@@ -49,6 +49,7 @@
         "scripts/docker-dev.bat",
         "scripts/register-macro-daily-sync-task.ps1",
         "scripts/remote_build_deploy_vps.py",
+        "scripts/select_tests.py",
         "scripts/deploy-bundle-to-vps.py",
         "scripts/deploy-on-vps.sh",
         "scripts/deploy-vps.ps1",
@@ -146,6 +147,7 @@
         "tests/unit/test_docker_pyqlib_install.py",
         "tests/unit/test_evid_02_postgres_evidence.py",
         "tests/unit/test_remote_build_deploy_vps.py",
+        "tests/unit/ci/test_select_tests.py",
         "tests/unit/test_verify_postgres_backup_restore.py"
       ],
       "status": "active_public"

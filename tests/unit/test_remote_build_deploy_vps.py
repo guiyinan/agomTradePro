@@ -334,11 +334,40 @@ def test_one_click_deploy_pins_expected_commit_before_remote_work() -> None:
     launch = "& $PythonExe @pyArgs"
     verification = "'--expected-commit', $expectedCommit"
     builder_binding = "'--expected-source-commit', $expectedCommit"
+    rehearsal_validation = 'Write-Info "Validating candidate-bound release rehearsal evidence..."'
+    password_creation = "Set-Content -Path $passFile -Value $VpsPass -NoNewline"
 
     assert wrapper.count(assignment) == 1
     assert wrapper.index(assignment) < wrapper.index(launch)
+    assert wrapper.index(assignment) < wrapper.index(rehearsal_validation)
+    assert wrapper.index(rehearsal_validation) < wrapper.index(password_creation)
     assert wrapper.index(assignment) < wrapper.index(builder_binding) < wrapper.index(launch)
     assert wrapper.index(launch) < wrapper.index(verification)
+
+
+def test_one_click_deploy_requires_explicit_release_rehearsal_inputs() -> None:
+    """The deployment wrapper must not create credentials before rehearsal validation."""
+
+    wrapper = (Path(__file__).resolve().parents[2] / "scripts" / "deploy-vps.ps1").read_text(
+        encoding="utf-8"
+    )
+    required = (
+        "$ReleaseRehearsalManifest",
+        "$RehearsalTargetDate",
+        "$RehearsalUniverseSha256",
+        "$RehearsalProviderIdentitiesSha256",
+        "$GitHubRepository",
+        "$GitHubRunId",
+    )
+    validation = "& $PythonExe @rehearsalArgs"
+    password_creation = "Set-Content -Path $passFile -Value $VpsPass -NoNewline"
+
+    for parameter in required:
+        assert parameter in wrapper
+    assert wrapper.index(validation) < wrapper.index("git push origin $GitBranch")
+    assert wrapper.index(validation) < wrapper.index("npm ci")
+    assert wrapper.index(validation) < wrapper.index(password_creation)
+    assert "Release rehearsal validation failed." in wrapper
 
 
 def test_remote_builder_rejects_candidate_drift_before_credentials() -> None:
