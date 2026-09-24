@@ -39,6 +39,26 @@ $ErrorActionPreference = 'Stop'
 
 . "$PSScriptRoot\shared\common.ps1"
 
+function Invoke-PostDeployVerification {
+    param(
+        [Parameter(Mandatory)]
+        [scriptblock]$Verifier,
+        [Parameter(Mandatory)]
+        [ref]$ExitCode
+    )
+    try {
+        & $Verifier
+        $verifyExitCode = $LASTEXITCODE
+        if ($verifyExitCode -ne 0) {
+            Write-Err "Post-deploy verification failed (exit code $verifyExitCode)."
+            $ExitCode.Value = $verifyExitCode
+        }
+    } catch {
+        Write-Err "Post-deploy verification failed: $($_.Exception.Message)"
+        $ExitCode.Value = 1
+    }
+}
+
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $ProjectRoot
 
@@ -185,16 +205,9 @@ try {
         if ($null -ne $HttpPort) { $verifyArgs += @('--http-port', $HttpPort) }
         if ($UseCelery) { $verifyArgs += '--expect-celery' }
         if (-not $DisableAutoRollback) { $verifyArgs += '--auto-rollback' }
-        try {
+        Invoke-PostDeployVerification -Verifier {
             & $PythonExe @verifyArgs
-            $verifyExitCode = $LASTEXITCODE
-            if ($verifyExitCode -ne 0) {
-                Write-Err "Post-deploy verification failed."
-                $exitCode = $verifyExitCode
-            }
-        } catch {
-            Write-Warn "Post-deploy verification skipped: $($_.Exception.Message)"
-        }
+        } -ExitCode ([ref]$exitCode)
     } else {
         Write-Err "=== Deploy FAILED (exit code $exitCode) ==="
     }

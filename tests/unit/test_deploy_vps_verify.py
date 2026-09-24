@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import builtins
 import importlib.util
 import sys
 from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
 
 
 def _load_module():
@@ -314,3 +318,63 @@ def test_release_identity_supports_manifest_backed_source_uploads_fail_closed():
     assert "manifest source commit does not match image revision" in identity
     assert "git rev-parse HEAD" not in identity
     assert "\nPY\n" in identity
+
+
+@pytest.mark.parametrize("error_type", [ImportError, RuntimeError])
+def test_ssh_dependency_failure_rejects_verification_without_exposing_cause(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    error_type: type[Exception],
+) -> None:
+    """An unavailable or broken SSH dependency cannot become successful verification."""
+    original_import = builtins.__import__
+    private_marker = "dependency-private-diagnostic-marker"
+
+    def fail_paramiko_import(name, *args, **kwargs):
+        if name == "paramiko":
+            raise error_type(private_marker)
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fail_paramiko_import)
+    with pytest.raises(SystemExit) as raised:
+        deploy_vps_verify._ssh_connect("unused.invalid", 22, "test", "unused", 1)
+
+    assert raised.value.code == 1
+    output = capsys.readouterr().out
+    assert "DEPLOY_VERIFICATION_DEPENDENCY_UNAVAILABLE" in output
+    assert private_marker not in output
+
+
+def test_ssh_dependency_success_still_connects_with_configured_options(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The failure guard preserves normal SSH setup; this client has no network I/O."""
+    calls = []
+    client = SimpleNamespace(
+        set_missing_host_key_policy=lambda policy: calls.append(("policy", policy)),
+        connect=lambda **kwargs: calls.append(("connect", kwargs)),
+    )
+    policy = object()
+    fake_paramiko = SimpleNamespace(SSHClient=lambda: client, AutoAddPolicy=lambda: policy)
+    monkeypatch.setitem(sys.modules, "paramiko", fake_paramiko)
+
+    result = deploy_vps_verify._ssh_connect("unused.invalid", 2200, "test", "unused", 7)
+
+    assert result is client
+    assert calls == [
+        ("policy", policy),
+        (
+            "connect",
+            {
+                "hostname": "unused.invalid",
+                "port": 2200,
+                "username": "test",
+                "password": "unused",
+                "look_for_keys": False,
+                "allow_agent": False,
+                "timeout": 7,
+                "banner_timeout": 7,
+                "auth_timeout": 7,
+            },
+        ),
+    ]

@@ -36,11 +36,12 @@ def _summarize(text: str, limit: int = 200) -> str:
 
 
 def _ssh_connect(host: str, port: int, username: str, password: str, timeout: int) -> Any:
+    """Open verification SSH; dependency failures must reject deployment acceptance."""
     try:
         import paramiko  # type: ignore
-    except Exception as exc:  # pragma: no cover - dependency failure is environment-specific
-        print(f"[WARN] Post-deploy verification skipped: paramiko unavailable ({exc})")
-        raise SystemExit(0) from exc
+    except Exception as exc:
+        print("[FAIL] DEPLOY_VERIFICATION_DEPENDENCY_UNAVAILABLE: SSH verifier cannot start")
+        raise SystemExit(1) from exc
 
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())

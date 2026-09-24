@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import importlib.util
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -415,3 +417,69 @@ def test_remote_deploy_removes_duplicate_backup_cron_and_keeps_beat_as_owner() -
     assert "Django Beat is the daily owner" in script
     assert "--keep-days 14" not in script
     assert "--keep-days 1" in script
+
+
+def _extract_post_deploy_verification_function(script: str) -> str:
+    """Extract only the pure post-deploy result boundary, not the deploy script."""
+    signature = "function Invoke-PostDeployVerification {"
+    start = script.index(signature)
+    opening_brace = script.index("{", start)
+    depth = 0
+    for index in range(opening_brace, len(script)):
+        if script[index] == "{":
+            depth += 1
+        elif script[index] == "}":
+            depth -= 1
+            if depth == 0:
+                return script[start : index + 1]
+    raise AssertionError("unterminated Invoke-PostDeployVerification function")
+
+
+@pytest.mark.parametrize(
+    ("verifier_body", "expected_exit_code"),
+    [
+        ("& $NativePwsh -NoProfile -NonInteractive -Command 'exit 0'", 0),
+        ("& $NativePwsh -NoProfile -NonInteractive -Command 'exit 23'", 23),
+        ("throw [System.InvalidOperationException]::new('stub failure')", 1),
+    ],
+    ids=["success", "nonzero-exit", "thrown-exception"],
+)
+def test_one_click_post_deploy_verification_is_fail_closed(
+    verifier_body: str, expected_exit_code: int
+) -> None:
+    """Run only the isolated result helper with a stubbed verifier scriptblock."""
+    repository_root = Path(__file__).resolve().parents[2]
+    wrapper = (repository_root / "scripts" / "deploy-vps.ps1").read_text(encoding="utf-8")
+    assert wrapper.count("Invoke-PostDeployVerification -Verifier {") == 1
+    assert "-ExitCode ([ref]$exitCode)" in wrapper
+    helper = _extract_post_deploy_verification_function(wrapper)
+    pwsh = shutil.which("pwsh")
+    assert pwsh is not None, "pwsh is required for this deployment-wrapper CI regression gate"
+    native_pwsh_literal = "'" + pwsh.replace("'", "''") + "'"
+    verifier_body = verifier_body.replace("$NativePwsh", native_pwsh_literal)
+
+    command = "\n".join(
+        [
+            "$ErrorActionPreference = 'Stop'",
+            "function Write-Err { param([string]$Message) }",
+            helper,
+            "$global:LASTEXITCODE = 0",
+            "$exitCode = 0",
+            "Invoke-PostDeployVerification -Verifier {",
+            verifier_body,
+            "} -ExitCode ([ref]$exitCode)",
+            "exit $exitCode",
+        ]
+    )
+    completed = subprocess.run(
+        [pwsh, "-NoProfile", "-NonInteractive", "-Command", command],
+        capture_output=True,
+        check=False,
+        text=True,
+        timeout=15,
+    )
+    assert completed.returncode == expected_exit_code, (
+        f"expected isolated verification exit {expected_exit_code}, "
+        f"got {completed.returncode}; stdout={completed.stdout!r}; "
+        f"stderr={completed.stderr!r}"
+    )
