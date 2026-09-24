@@ -4603,7 +4603,9 @@
         "governance/data02_numeric_tolerance_policies.json",
         "apps/data_center/application/publication_rebuild_evidence.py",
         "apps/data_center/application/on_demand.py",
-        "apps/equity/application/tasks_valuation_sync.py"
+        "apps/equity/application/tasks_valuation_sync.py",
+        "apps/data_center/infrastructure/_provider_adapter_tushare.py",
+        "apps/data_center/infrastructure/_provider_adapter_akshare.py"
       ],
       "required_markers": {
         "apps/data_center/application/current_fact_remediation.py": [
@@ -4688,7 +4690,8 @@
         ],
         "apps/data_center/domain/market_time.py": [
           "def latest_closed_cn_market_session(",
-          "market clock must be timezone-aware"
+          "market clock must be timezone-aware",
+          "def cn_market_session_close_utc(value: date) -> datetime:"
         ],
         "apps/data_center/infrastructure/diagnostic_queries.py": [
           "latest_closed_cn_market_session(current_time)",
@@ -5006,6 +5009,13 @@
         ],
         "apps/equity/application/tasks_valuation_sync.py": [
           "require_decision_evidence=True"
+        ],
+        "apps/data_center/infrastructure/_provider_adapter_tushare.py": [
+          "observed_at=cn_market_session_close_utc(record.trade_date)",
+          "observed_at=cn_market_session_close_utc(val_date)"
+        ],
+        "apps/data_center/infrastructure/_provider_adapter_akshare.py": [
+          "observed_at=cn_market_session_close_utc(val_date)"
         ]
       },
       "required_tests": [
@@ -5628,6 +5638,16 @@
           "case": "financial_publication_rechecks_independent_source_time_evidence",
           "test_file": "tests/unit/data_center/test_financial_publication_sync.py",
           "test_function": "test_financial_repository_candidate_requires_available_at_and_preserves_evidence"
+        },
+        {
+          "case": "daily_valuation_trade_date_maps_to_session_close",
+          "test_file": "tests/unit/data_center/test_phase3_provider_adapters.py",
+          "test_function": "test_tushare_current_valuations_use_one_session_batch"
+        },
+        {
+          "case": "market_session_close_boundary",
+          "test_file": "tests/unit/data_center/test_market_time.py",
+          "test_function": "test_cn_market_session_close_maps_to_official_close_in_utc"
         }
       ]
     },

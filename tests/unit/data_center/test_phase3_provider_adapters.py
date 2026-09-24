@@ -126,6 +126,7 @@ def test_tushare_current_valuations_use_one_session_batch(monkeypatch):
     assert [fact.asset_code for fact in facts] == ["000001.SZ", "000002.SZ"]
     assert facts[0].market_cap == 22_569_100.0
     assert facts[0].float_market_cap == 22_568_700.0
+    assert facts[0].observed_at == datetime(2026, 9, 23, 7, tzinfo=UTC)
     assert facts[0].extra["market_cap_original_unit"] == "万元"
     assert facts[0].extra["market_cap_canonical_unit"] == "元"
 
@@ -678,6 +679,7 @@ def test_akshare_unified_provider_adapter_fetches_valuation_series(monkeypatch):
     assert facts[0].pe_static == 73.62
     assert facts[0].pb == 0.77
     assert facts[0].market_cap == 753.74 * 100_000_000
+    assert facts[0].observed_at == datetime(2026, 4, 24, 7, tzinfo=UTC)
     assert facts[0].source == "akshare"
     assert facts[0].extra["provider_name"] == "AKShare Public"
     assert facts[0].extra["source_type"] == "akshare"

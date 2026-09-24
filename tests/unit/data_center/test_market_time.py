@@ -8,6 +8,7 @@ from apps.data_center.domain.market_time import (
     CN_MARKET_TIMEZONE,
     cn_market_date_from_observation,
     cn_market_date_start_utc,
+    cn_market_session_close_utc,
     latest_closed_cn_market_session,
 )
 
@@ -16,6 +17,12 @@ def test_cn_market_date_start_maps_local_midnight_to_previous_utc_day() -> None:
     """A mainland market date starts eight hours before UTC midnight."""
 
     assert cn_market_date_start_utc(date(2026, 8, 9)) == datetime(2026, 8, 8, 16, tzinfo=UTC)
+
+
+def test_cn_market_session_close_maps_to_official_close_in_utc() -> None:
+    """Date-only daily facts use the completed session close as observation time."""
+
+    assert cn_market_session_close_utc(date(2026, 9, 23)) == datetime(2026, 9, 23, 7, tzinfo=UTC)
 
 
 def test_cn_market_date_projection_preserves_post_midnight_market_day() -> None:

@@ -28,6 +28,7 @@ from apps.data_center.domain.financial_source_evidence import (
     FinancialFactDecisionEvidence,
     FinancialFactSourceEvidence,
 )
+from apps.data_center.domain.market_time import cn_market_session_close_utc
 from apps.data_center.domain.model_market_data import ModelMarketDataPort
 from apps.data_center.domain.rules import normalize_asset_code
 from apps.data_center.financial_response_artifact_composition import (
@@ -909,6 +910,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     float_market_cap=_tushare_market_cap_cny(record.circ_mv),
                     dv_ratio=safe_float(record.dividend_yield),
                     source=self.provider_source(),
+                    observed_at=cn_market_session_close_utc(record.trade_date),
                     extra=_tushare_valuation_extra(self._provider_extra()),
                 )
                 for record in batch.records
@@ -937,6 +939,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     float_market_cap=_tushare_market_cap_cny(_first_present(row, "circ_mv")),
                     dv_ratio=safe_float(_first_present(row, "dv_ttm", "dv_ratio")),
                     source=self.provider_source(),
+                    observed_at=cn_market_session_close_utc(val_date),
                     extra=_tushare_valuation_extra(self._provider_extra()),
                 )
             )
@@ -975,6 +978,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     float_market_cap=_tushare_market_cap_cny(_first_present(row, "circ_mv")),
                     dv_ratio=safe_float(_first_present(row, "dv_ttm", "dv_ratio")),
                     source=self.provider_source(),
+                    observed_at=cn_market_session_close_utc(val_date),
                     extra=_tushare_valuation_extra(self._provider_extra()),
                 )
             )

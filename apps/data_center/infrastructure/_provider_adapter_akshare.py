@@ -29,6 +29,7 @@ from apps.data_center.domain.entities import (
 from apps.data_center.domain.enums import (
     DataQualityStatus,
 )
+from apps.data_center.domain.market_time import cn_market_session_close_utc
 from apps.data_center.domain.model_market_data import ModelMarketDataPort
 from apps.data_center.domain.rules import normalize_asset_code
 from apps.data_center.infrastructure._provider_adapter_base import (
@@ -772,6 +773,7 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     float_market_cap=None,
                     dv_ratio=None,
                     source=self.provider_source(),
+                    observed_at=cn_market_session_close_utc(val_date),
                     extra=self._provider_extra(),
                 )
             )

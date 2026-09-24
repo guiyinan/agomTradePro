@@ -55,6 +55,12 @@ def cn_market_date_start_utc(value: date) -> datetime:
     return datetime.combine(value, time.min, tzinfo=CN_MARKET_TIMEZONE).astimezone(UTC)
 
 
+def cn_market_session_close_utc(value: date) -> datetime:
+    """Return the canonical close instant for a mainland-China market session."""
+
+    return datetime.combine(value, CN_MARKET_CLOSE, tzinfo=CN_MARKET_TIMEZONE).astimezone(UTC)
+
+
 def cn_market_date_from_observation(value: datetime) -> date:
     """Project an aware observation timestamp onto its China-market date."""
 
@@ -69,6 +75,7 @@ __all__ = [
     "CN_MARKET_TIMEZONE",
     "cn_market_date_from_observation",
     "cn_market_date_start_utc",
+    "cn_market_session_close_utc",
     "latest_closed_cn_market_session",
     "latest_completed_cn_market_session",
 ]
