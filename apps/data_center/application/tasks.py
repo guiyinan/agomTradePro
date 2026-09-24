@@ -6,7 +6,7 @@ import hashlib
 import json
 import logging
 import shutil
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -54,6 +54,8 @@ from .core_data_backfill import (
     CoreDataBackfillServices,
     run_active_a_share_core_data_backfill_batch,
 )
+from .full_market_task_support import exact_provider_batch_count as _exact_provider_batch_count
+from .full_market_task_support import full_market_input_failure as _full_market_input_failure
 from .interface_services import (
     make_backfill_sync_current_valuation_batch_use_case,
     make_backfill_sync_financial_use_case,
@@ -163,45 +165,6 @@ def _same_data02_task_authority_is_current(
         "role",
     )
     return all(getattr(current, field) == getattr(authority, field) for field in identity_fields)
-
-
-def _exact_provider_batch_count(
-    *,
-    requested_asset_codes: Sequence[str],
-    stored_count: object,
-    returned_asset_codes: object,
-    succeeded_asset_codes: object | None = None,
-) -> int:
-    """Require one distinct returned identity for every requested asset."""
-
-    if isinstance(stored_count, bool) or not isinstance(stored_count, int):
-        raise ValueError("provider batch stored_count must be an integer")
-    if isinstance(returned_asset_codes, (str, bytes)) or not isinstance(
-        returned_asset_codes, Sequence
-    ):
-        raise ValueError("provider batch asset identities are unavailable")
-    requested = tuple(str(code or "").strip().upper() for code in requested_asset_codes)
-    returned = tuple(str(code or "").strip().upper() for code in returned_asset_codes)
-    succeeded = returned
-    if succeeded_asset_codes is not None:
-        if isinstance(succeeded_asset_codes, (str, bytes)) or not isinstance(
-            succeeded_asset_codes, Sequence
-        ):
-            raise ValueError("provider batch succeeded identities are unavailable")
-        succeeded = tuple(str(code or "").strip().upper() for code in succeeded_asset_codes)
-    if (
-        any(not code for code in (*requested, *returned, *succeeded))
-        or len(set(requested)) != len(requested)
-        or len(set(returned)) != len(returned)
-        or len(set(succeeded)) != len(succeeded)
-        or stored_count != len(requested)
-        or len(returned) != len(requested)
-        or len(succeeded) != len(requested)
-        or set(returned) != set(requested)
-        or set(succeeded) != set(requested)
-    ):
-        raise ValueError("provider batch asset identities are incomplete")
-    return stored_count
 
 
 @shared_task(name="data_center.refresh_full_market_publications", time_limit=3600, soft_time_limit=3500)  # type: ignore[misc]
@@ -450,19 +413,6 @@ def refresh_full_market_publications_task(
         "valuation_seed_stored": valuation_seed.stored_count,
         "excluded_non_trading_count": len(excluded_non_trading_codes),
         "excluded_non_trading_codes": excluded_non_trading_codes,
-    }
-
-
-def _full_market_input_failure(reason: str) -> dict[str, object]:
-    """Publish a stable zero-write failure before any market fetch."""
-    return {
-        "outcome": "failed",
-        "success": False,
-        "requested": 0,
-        "succeeded": 0,
-        "failed": 0,
-        "stored": 0,
-        "blocked_reason": reason,
     }
 
 

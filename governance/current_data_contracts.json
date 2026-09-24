@@ -4585,6 +4585,7 @@
         "apps/data_center/infrastructure/publication_fact_evidence.py",
         "apps/data_center/infrastructure/financial_source_policy.py",
         "apps/data_center/domain/publication_evidence.py",
+        "apps/data_center/application/full_market_task_support.py",
         "apps/data_center/application/tasks.py",
         "apps/data_center/management/commands/backfill_active_a_share_core_data.py",
         "apps/data_center/application/backfill_control_plane.py",
@@ -4869,7 +4870,6 @@
           "created_by=f\"celery.core_data_backfill:{authority.actor_id}\"",
           "created_by=f\"celery.full_market_refresh:{authority.actor_id}\"",
           "latest_closed_cn_market_session(timezone.now())",
-          "def _exact_provider_batch_count(",
           "returned_asset_codes=result.stored_asset_codes",
           "valuation_seed.returned_asset_codes",
           "valuation_seed.succeeded_asset_codes",
@@ -5016,6 +5016,11 @@
         ],
         "apps/data_center/infrastructure/_provider_adapter_akshare.py": [
           "observed_at=cn_market_session_close_utc(val_date)"
+        ],
+        "apps/data_center/application/full_market_task_support.py": [
+          "def exact_provider_batch_count(",
+          "def full_market_input_failure(",
+          "provider batch asset identities are incomplete"
         ]
       },
       "required_tests": [
