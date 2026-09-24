@@ -734,7 +734,7 @@ tolerances、current authority、生产写授权和真实四 Publication 对账�
 ## 生产 revision a3c41d1eb0 只读重验（2026-09-24）
 
 生产现运行 `a3c41d1eb0`，release `20260924145747`；探针采集时 `dev/next-development` HEAD 为
-`d21202318`，封存时已推进到 `779088260`，生产落后 3 个提交。公网 health、db health、ready 为 200，decision-ready 按设计为
+`d21202318`，最终封存时已推进到 `2b2235efb`，生产落后 8 个提交。公网 health、db health、ready 为 200，decision-ready 按设计为
 503。A 股有效分母由 5,565 增至 5,569，但 quote、price、valuation current Publication 仍各有
 5,565 members，financial 仍为 80，四 Publication 尚未覆盖新分母。
 

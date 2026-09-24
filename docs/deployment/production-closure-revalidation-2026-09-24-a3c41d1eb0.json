@@ -1,14 +1,19 @@
 {
   "schema": "production-closure-revalidation.v6",
   "status": "sealed_candidate_bound_read_only_revalidation",
-  "sealed_at_utc": "2026-09-24T07:46:04.984068Z",
-  "repository_head": "779088260d8eb9c3eb15985361f4cc0f63192fc7",
+  "sealed_at_utc": "2026-09-24T08:58:57.948229Z",
+  "repository_head": "2b2235efbfe6c05b0a7e2952656c27cc319175b0",
   "repository_branch": "dev/next-development",
   "production_commit": "a3c41d1eb0d37ddaa86aa054f4af6489617d555b",
   "production_release_tag": "20260924145747",
   "production_is_behind_repository_head": true,
-  "candidate_commit_count_not_deployed": 3,
+  "candidate_commit_count_not_deployed": 8,
   "candidate_commits_not_deployed": [
+    "2b2235efbfe6c05b0a7e2952656c27cc319175b0 fix: restore audit composition boundary",
+    "4d2433a9b1cbba32038503110944bf69be3afccb fix: pin deployment candidate revision",
+    "43ffae5c27dc6d741095ac3d7624897aeb19e525 merge: reconcile generated governance state",
+    "8c6add2c1d4bec2441c6e94695241c45228ea5a6 docs: record production closure revalidation",
+    "8da1bf3df8ffbce7edb2a58fa951e98b3ffd95e5 docs: record production closure revalidation",
     "779088260d8eb9c3eb15985361f4cc0f63192fc7 refactor: split full-market task helpers",
     "086d4e749ca94a4e8fc59ddcb25d2a8fd55e8cdc docs: record market publication recovery",
     "d21202318dee3568c83e8f6a85b2fc1edee8cd68 fix: schedule market publication after source close"
@@ -265,7 +270,7 @@
     }
   },
   "derived_findings": [
-    "Production runs a3c41d1eb0 / 20260924145747. The probe-time repository HEAD was d21202318; sealing HEAD advanced to 779088260 and production is three commits behind.",
+    "Production runs a3c41d1eb0 / 20260924145747. The probe-time repository HEAD was d21202318; final sealing HEAD is 2b2235efb and production is eight commits behind.",
     "Health, database health and ready are 200 while decision-ready remains fail-closed at 503.",
     "The active-A-share denominator increased from 5,565 to 5,569, while quote, price and valuation current Publications remain at 5,565 members and financial remains at 80; the four current Publications do not cover the new denominator.",
     "Active production profile v18 is bound to release_ref 2a06333c1d92b2aca6e64a4497c6845d6e359759.",
@@ -370,9 +375,81 @@
       }
     }
   },
-  "gates": [],
+  "gates": [
+    {
+      "name": "registry",
+      "command": [
+        "python",
+        "scripts/check_active_plan_registry.py"
+      ],
+      "exit_code": 0,
+      "log_sha256": "99e630ffc3faae9bba4a094ddaa0803833eab4f775f1d72d281e9edc9ecf09e4",
+      "log_bytes": 122
+    },
+    {
+      "name": "governance",
+      "command": [
+        "python",
+        "scripts/check_governance_consistency.py",
+        "--baseline",
+        "governance/governance_baseline.json",
+        "--format",
+        "text"
+      ],
+      "exit_code": 0,
+      "log_sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b",
+      "log_bytes": 668
+    },
+    {
+      "name": "current-data",
+      "command": [
+        "python",
+        "scripts/check_current_data_contracts.py"
+      ],
+      "exit_code": 0,
+      "log_sha256": "0a4a79e13a15daf1adb6c6a746469a026d169ac798951c3102de8065ceae4766",
+      "log_bytes": 52
+    },
+    {
+      "name": "architecture",
+      "command": [
+        "python",
+        "scripts/verify_architecture.py",
+        "--rules-file",
+        "governance/architecture_rules.json",
+        "--format",
+        "text",
+        "--include-audit",
+        "--fail-on-audit-violations"
+      ],
+      "exit_code": 0,
+      "log_sha256": "807e4ab6a51a1a5e2d5fb5e8f8a7094b01163c1a12460642eb8787a933faf3eb",
+      "log_bytes": 179
+    },
+    {
+      "name": "version-retirement",
+      "command": [
+        "python",
+        "scripts/check_versioned_surface_retirement.py"
+      ],
+      "exit_code": 0,
+      "log_sha256": "77f3e3a5d2b05b2e78f4760bd22ceccf77608b2dd9648d483de13e8f2605636d",
+      "log_bytes": 220
+    },
+    {
+      "name": "diff-check",
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "log_bytes": 0
+    }
+  ],
   "next_gates": [
-    "Review and deploy the three commits through 779088260 only after source-close scheduling and the full-market helper refactor pass the normal production release gate.",
+    "Review and deploy the eight commits through 2b2235efb only after source-close scheduling, deployment pinning, the full-market helper refactor and Audit composition-boundary fix pass the normal production release gate.",
     "Obtain owner-approved exact provider source-time contract/receipt, retained real sample, matcher/producer and numeric tolerances.",
     "Use the genuine current authority to collect exact PostgreSQL concurrency, writer, recovery, archive/restore and alert acceptance evidence without fabricating business subjects.",
     "Obtain explicit production-write authorization before any bounded DATA-02 backfill or Publication switch.",
@@ -388,7 +465,7 @@
     "verified": [
       "raw ZIP digest and all 20 member names, byte counts and SHA-256 values match the JSON manifest",
       "run-summary contains six probes whose retained stdout and stderr hashes match",
-      "production identity is a3c41d1eb0d37ddaa86aa054f4af6489617d555b / 20260924145747; probe-time repository HEAD was d21202318 and sealing HEAD is 779088260",
+      "production identity is a3c41d1eb0d37ddaa86aa054f4af6489617d555b / 20260924145747; probe-time repository HEAD was d21202318 and final sealing HEAD is 2b2235efb",
       "database probe used REPEATABLE READ READ ONLY and ROLLBACK",
       "the active denominator is 5,569 while quote, price and valuation Publications remain 5,565 and financial remains 80",
       "production profile v18 binds release_ref 2a06333c1d92b2aca6e64a4497c6845d6e359759",
@@ -398,7 +475,7 @@
       "registry v179 and the production closure review keep DATA-02, EVID-01/02 and AUD-03 awaiting production and TUI-02 active"
     ],
     "pre_seal_finding_closed": "the pending review field and missing JSON sidecar are replaced before final sealing",
-    "remaining_blocker": "the three commits through 779088260 are not deployed; the 5,569 denominator is not reconciled; owner-approved provider source-time contract/sample, matcher/producer, tolerances, explicit production-write authorization, exact Evidence/Audit acceptance and protected monitoring authentication remain absent"
+    "remaining_blocker": "the eight commits through 2b2235efb are not deployed; the 5,569 denominator is not reconciled; owner-approved provider source-time contract/sample, matcher/producer, tolerances, explicit production-write authorization, exact Evidence/Audit acceptance and protected monitoring authentication remain absent"
   },
   "production_deployment_observed": true
 }
