@@ -306,26 +306,29 @@ def _patch_task_dependencies(
     if isinstance(resolved_plans, _Plans):
         resolved_plans.candidates = candidates
     monkeypatch.setattr(
-        "apps.data_center.application.tasks.evaluate_storage_pressure",
+        "apps.data_center.application.retention_tasks.evaluate_storage_pressure",
         lambda **_kwargs: {"state": "healthy"},
     )
     monkeypatch.setattr(
-        "apps.data_center.application.tasks.get_retention_policy_repository", lambda: policies
+        "apps.data_center.application.retention_tasks.get_retention_policy_repository",
+        lambda: policies,
     )
     monkeypatch.setattr(
-        "apps.data_center.application.tasks.get_storage_hold_repository", lambda: holds
+        "apps.data_center.application.retention_tasks.get_storage_hold_repository", lambda: holds
     )
     monkeypatch.setattr(
-        "apps.data_center.application.tasks.get_archive_coverage_gateway", lambda: archives
+        "apps.data_center.application.retention_tasks.get_archive_coverage_gateway",
+        lambda: archives,
     )
     monkeypatch.setattr(
-        "apps.data_center.application.tasks.get_raw_landing_repository", lambda: candidates
+        "apps.data_center.application.retention_tasks.get_raw_landing_repository",
+        lambda: candidates,
     )
     monkeypatch.setattr(
-        "apps.data_center.application.tasks.get_retention_run_repository", lambda: runs
+        "apps.data_center.application.retention_tasks.get_retention_run_repository", lambda: runs
     )
     monkeypatch.setattr(
-        "apps.data_center.application.tasks.get_retention_plan_repository",
+        "apps.data_center.application.retention_tasks.get_retention_plan_repository",
         lambda: resolved_plans,
     )
 
@@ -352,7 +355,7 @@ def test_retention_task_blocks_without_active_policy(monkeypatch) -> None:  # ty
 
 def test_legacy_cleanup_task_rejects_mutating_mode(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.setattr(
-        "apps.data_center.application.tasks.get_retention_policy_repository",
+        "apps.data_center.application.retention_tasks.get_retention_policy_repository",
         lambda: (_ for _ in ()).throw(AssertionError("repository must not be reached")),
     )
 
@@ -463,11 +466,11 @@ def test_retention_task_fails_closed_for_legacy_future_deadline_candidate(monkey
 
 def test_retention_task_reports_storage_evaluation_failure(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.setattr(
-        "apps.data_center.application.tasks.evaluate_storage_pressure",
+        "apps.data_center.application.retention_tasks.evaluate_storage_pressure",
         lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("observer down")),
     )
     monkeypatch.setattr(
-        "apps.data_center.application.tasks.get_retention_policy_repository",
+        "apps.data_center.application.retention_tasks.get_retention_policy_repository",
         lambda: (_ for _ in ()).throw(AssertionError("repository must not be reached")),
     )
 
@@ -562,11 +565,11 @@ def test_plan_retention_task_reports_complete_failure(monkeypatch) -> None:  # t
 
 def test_plan_retention_task_blocks_without_storage_policy(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.setattr(
-        "apps.data_center.application.tasks.evaluate_storage_pressure",
+        "apps.data_center.application.retention_tasks.evaluate_storage_pressure",
         lambda **_kwargs: {"state": "blocked", "reason": "storage_policy_missing"},
     )
     monkeypatch.setattr(
-        "apps.data_center.application.tasks.get_retention_policy_repository",
+        "apps.data_center.application.retention_tasks.get_retention_policy_repository",
         lambda: (_ for _ in ()).throw(AssertionError("retention repository must not be reached")),
     )
 
@@ -744,11 +747,11 @@ def test_archive_verification_blocks_without_configured_cold_store(monkeypatch) 
 
 def _patch_storage_probe(monkeypatch, pressure: dict[str, object]) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.setattr(
-        "apps.data_center.application.tasks.shutil.disk_usage",
+        "apps.data_center.application.retention_tasks.shutil.disk_usage",
         lambda _path: SimpleNamespace(total=100, used=20, free=80),
     )
     monkeypatch.setattr(
-        "apps.data_center.application.tasks.evaluate_storage_pressure",
+        "apps.data_center.application.retention_tasks.evaluate_storage_pressure",
         lambda **_kwargs: pressure,
     )
 
@@ -785,7 +788,7 @@ def test_storage_budget_task_blocks_critical_pressure(monkeypatch) -> None:  # t
 
 def test_storage_budget_task_reports_observer_failure(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.setattr(
-        "apps.data_center.application.tasks.shutil.disk_usage",
+        "apps.data_center.application.retention_tasks.shutil.disk_usage",
         lambda _path: (_ for _ in ()).throw(OSError("mount unavailable")),
     )
 

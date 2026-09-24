@@ -4,6 +4,7 @@
     "apps/config_center/application/tasks.py",
     "apps/data_center/application/archive_tasks.py",
     "apps/data_center/application/tasks.py",
+    "apps/data_center/application/retention_tasks.py",
     "apps/equity/application/tasks_valuation_sync.py",
     "apps/config_center/application/decision_readiness_guard_tasks.py",
     "apps/task_monitor/application/backup_tasks.py",
@@ -238,7 +239,7 @@
     },
     {
       "task_path": "apps.data_center.application.tasks.cleanup_expired_raw_payloads_task",
-      "source_file": "apps/data_center/application/tasks.py",
+      "source_file": "apps/data_center/application/retention_tasks.py",
       "criticality": "data_mutation_critical",
       "required_cases": {
         "invalid_input": {
@@ -265,7 +266,7 @@
     },
     {
       "task_path": "apps.data_center.application.tasks.plan_retention_task",
-      "source_file": "apps/data_center/application/tasks.py",
+      "source_file": "apps/data_center/application/retention_tasks.py",
       "criticality": "data_mutation_critical",
       "required_cases": {
         "invalid_input": {
@@ -296,7 +297,7 @@
     },
     {
       "task_path": "apps.data_center.application.tasks.enforce_retention_task",
-      "source_file": "apps/data_center/application/tasks.py",
+      "source_file": "apps/data_center/application/retention_tasks.py",
       "criticality": "data_mutation_critical",
       "required_cases": {
         "invalid_input": {
@@ -400,7 +401,7 @@
     },
     {
       "task_path": "apps.data_center.application.tasks.verify_storage_budget_task",
-      "source_file": "apps/data_center/application/tasks.py",
+      "source_file": "apps/data_center/application/retention_tasks.py",
       "criticality": "freshness_critical",
       "required_cases": {
         "all_success": {

@@ -11186,6 +11186,11 @@
       "text": "raise AssertionError(\"retention current payload guard failed\")"
     },
     {
+      "line": 335,
+      "path": "apps/data_center/application/retention_tasks.py",
+      "text": "\"\"\"Check current filesystem pressure before another mutating batch.\"\"\""
+    },
+    {
       "line": 54,
       "path": "apps/data_center/application/sync_market_use_cases.py",
       "text": "publication_key = \"current\""
@@ -11196,54 +11201,49 @@
       "text": "publication_key = \"current\""
     },
     {
-      "line": 125,
+      "line": 111,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Resolve current authority and prove it covers the task's bounded runtime.\"\"\""
     },
     {
-      "line": 150,
+      "line": 136,
       "path": "apps/data_center/application/tasks.py",
       "text": "current, failure = _preflight_data02_task_authority("
     },
     {
-      "line": 155,
+      "line": 141,
       "path": "apps/data_center/application/tasks.py",
       "text": "if failure is not None or current is None:"
     },
     {
-      "line": 169,
+      "line": 155,
       "path": "apps/data_center/application/tasks.py",
       "text": "return all(getattr(current, field) == getattr(authority, field) for field in identity_fields)"
     },
     {
-      "line": 350,
+      "line": 336,
       "path": "apps/data_center/application/tasks.py",
       "text": "raise ValueError(\"current Audit authority changed before quote batch\")"
     },
     {
-      "line": 367,
+      "line": 353,
       "path": "apps/data_center/application/tasks.py",
       "text": "raise ValueError(\"current Audit authority changed before publication\")"
     },
     {
-      "line": 722,
+      "line": 708,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"Financial current publication rebuild failed: %s\","
     },
     {
-      "line": 844,
+      "line": 830,
       "path": "apps/data_center/application/tasks.py",
       "text": "Current domain sync DTOs expose ``stored_count`` only, so the durable"
     },
     {
-      "line": 1218,
+      "line": 1204,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Require the same current authority before advancing the checkpoint.\"\"\""
-    },
-    {
-      "line": 1569,
-      "path": "apps/data_center/application/tasks.py",
-      "text": "\"\"\"Check current filesystem pressure before another mutating batch.\"\"\""
     },
     {
       "line": 58,
@@ -25863,47 +25863,47 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 172,
+      "line": 156,
+      "path": "apps/data_center/application/retention_tasks.py",
+      "text": "@shared_task(  # type: ignore[misc]"
+    },
+    {
+      "line": 193,
+      "path": "apps/data_center/application/retention_tasks.py",
+      "text": "@shared_task(  # type: ignore[misc]"
+    },
+    {
+      "line": 266,
+      "path": "apps/data_center/application/retention_tasks.py",
+      "text": "@shared_task(  # type: ignore[misc]"
+    },
+    {
+      "line": 329,
+      "path": "apps/data_center/application/retention_tasks.py",
+      "text": "@shared_task(  # type: ignore[misc]"
+    },
+    {
+      "line": 158,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(name=\"data_center.refresh_full_market_publications\", time_limit=3600, soft_time_limit=3500)  # type: ignore[misc]"
     },
     {
-      "line": 446,
+      "line": 432,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 969,
+      "line": 955,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1001,
+      "line": 987,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1083,
-      "path": "apps/data_center/application/tasks.py",
-      "text": "@shared_task(  # type: ignore[misc]"
-    },
-    {
-      "line": 1390,
-      "path": "apps/data_center/application/tasks.py",
-      "text": "@shared_task(  # type: ignore[misc]"
-    },
-    {
-      "line": 1427,
-      "path": "apps/data_center/application/tasks.py",
-      "text": "@shared_task(  # type: ignore[misc]"
-    },
-    {
-      "line": 1500,
-      "path": "apps/data_center/application/tasks.py",
-      "text": "@shared_task(  # type: ignore[misc]"
-    },
-    {
-      "line": 1563,
+      "line": 1069,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
