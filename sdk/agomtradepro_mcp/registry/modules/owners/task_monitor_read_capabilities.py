@@ -4,6 +4,88 @@ from __future__ import annotations
 
 from agomtradepro_mcp.registry.manifest import CapabilityManifest
 
+_TASK_ATTEMPT_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "task_id": {"type": "string"},
+        "status": {"type": "string"},
+        "started_at": {"type": ["string", "null"]},
+        "finished_at": {"type": ["string", "null"]},
+        "retries": {"type": "integer"},
+        "outcome": {"type": ["string", "null"]},
+        "phase": {"type": ["string", "null"]},
+        "count_unit": {"type": ["string", "null"]},
+        "requested": {"type": ["integer", "null"]},
+        "succeeded": {"type": ["integer", "null"]},
+        "failed": {"type": ["integer", "null"]},
+        "stored": {"type": ["integer", "null"]},
+        "error_code": {"type": ["string", "null"]},
+        "stable_error_code": {"type": ["string", "null"]},
+        "trace_id": {"type": ["string", "null"]},
+        "stored_count_unit": {"type": ["string", "null"]},
+        "target_trade_date": {"type": ["string", "null"]},
+        "phase_results": {
+            "type": ["array", "null"],
+            "items": {
+                "type": "object",
+                "properties": {
+                    "phase": {"type": ["string", "null"]},
+                    "requested": {"type": ["integer", "null"]},
+                    "succeeded": {"type": ["integer", "null"]},
+                    "failed": {"type": ["integer", "null"]},
+                    "stored": {"type": ["integer", "null"]},
+                },
+                "required": [],
+            },
+        },
+        "business_success": {"type": ["boolean", "null"]},
+    },
+    "required": [],
+}
+
+
+_TASK_STATUS_OUTPUT_PROPERTIES = {
+    "task_id": {"type": "string"},
+    "task_name": {"type": "string"},
+    "status": {"type": "string"},
+    "started_at": {"type": ["string", "null"]},
+    "finished_at": {"type": ["string", "null"]},
+    "runtime_seconds": {"type": ["number", "null"]},
+    "retries": {"type": "integer"},
+    "is_success": {"type": "boolean"},
+    "is_failure": {"type": "boolean"},
+    "outcome": {"type": ["string", "null"]},
+    "phase": {"type": ["string", "null"]},
+    "count_unit": {"type": ["string", "null"]},
+    "requested": {"type": ["integer", "null"]},
+    "succeeded": {"type": ["integer", "null"]},
+    "failed": {"type": ["integer", "null"]},
+    "stored": {"type": ["integer", "null"]},
+    "error_code": {"type": ["string", "null"]},
+    "stable_error_code": {"type": ["string", "null"]},
+    "trace_id": {"type": ["string", "null"]},
+    "stored_count_unit": {"type": ["string", "null"]},
+    "target_trade_date": {"type": ["string", "null"]},
+    "phase_results": {
+        "type": ["array", "null"],
+        "items": {
+            "type": "object",
+            "properties": {
+                "phase": {"type": ["string", "null"]},
+                "requested": {"type": ["integer", "null"]},
+                "succeeded": {"type": ["integer", "null"]},
+                "failed": {"type": ["integer", "null"]},
+                "stored": {"type": ["integer", "null"]},
+            },
+            "required": [],
+        },
+    },
+    "business_success": {"type": ["boolean", "null"]},
+    "current_attempt": {"anyOf": [_TASK_ATTEMPT_OUTPUT_SCHEMA, {"type": "null"}]},
+    "last_completed": {"anyOf": [_TASK_ATTEMPT_OUTPUT_SCHEMA, {"type": "null"}]},
+}
+
+
 MANIFESTS = [
     CapabilityManifest(
         capability_key="system.read.task_monitor.statistics",
@@ -53,22 +135,13 @@ MANIFESTS = [
             "type": "object",
             "properties": {
                 "task_id": {"type": "string"},
+                "diagnostics": {"type": "boolean"},
             },
             "required": ["task_id"],
         },
         output_schema={
             "type": "object",
-            "properties": {
-                "task_id": {"type": "string"},
-                "task_name": {"type": "string"},
-                "status": {"type": "string"},
-                "started_at": {"type": ["string", "null"]},
-                "finished_at": {"type": ["string", "null"]},
-                "runtime_seconds": {"type": ["number", "null"]},
-                "retries": {"type": "integer"},
-                "is_success": {"type": "boolean"},
-                "is_failure": {"type": "boolean"},
-            },
+            "properties": _TASK_STATUS_OUTPUT_PROPERTIES,
             "required": [],
         },
         legacy_tool_names=("get_task_monitor_status",),
@@ -85,14 +158,27 @@ MANIFESTS = [
         tags=("task_monitor", "operations", "task", "list", "read"),
         input_schema={
             "type": "object",
-            "properties": {},
+            "properties": {
+                "task_name": {"type": "string"},
+                "status": {"type": "string"},
+                "limit": {"type": "integer"},
+                "failures_only": {"type": "boolean"},
+                "diagnostics": {"type": "boolean"},
+            },
             "required": [],
         },
         output_schema={
             "type": "object",
             "properties": {
                 "total": {"type": "integer"},
-                "items": {"type": "array"},
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": _TASK_STATUS_OUTPUT_PROPERTIES,
+                        "required": [],
+                    },
+                },
             },
             "required": [],
         },

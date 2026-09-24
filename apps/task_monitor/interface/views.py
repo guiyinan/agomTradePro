@@ -38,8 +38,10 @@ from apps.task_monitor.interface.serializers import (
     ReadinessMonitorQuerySerializer,
     ReadinessScheduleUpdateSerializer,
     SchedulerConsoleQuerySerializer,
+    TaskDiagnosticListSerializer,
     TaskListSerializer,
     TaskStatisticsSerializer,
+    TaskStatusDiagnosticSerializer,
     TaskStatusSerializer,
 )
 
@@ -172,6 +174,15 @@ def readiness_schedule(request: Request) -> Response:
     tags=["Task Monitor"],
     summary="获取任务状态",
     description="根据任务 ID 获取任务的执行状态",
+    parameters=[
+        OpenApiParameter(
+            name="diagnostics",
+            description="管理员可选：包含受保护的异常诊断字段",
+            type=OpenApiTypes.BOOL,
+            location=OpenApiParameter.QUERY,
+            required=False,
+        ),
+    ],
     responses={
         200: TaskStatusSerializer,
         404: {"description": "任务不存在"},
@@ -187,7 +198,15 @@ def get_task_status(request: Request, task_id: str) -> Response:
     """
     try:
         use_case = GetTaskStatusUseCase(repository=get_task_record_repository())
-        result = use_case.execute(task_id=task_id)
+        include_diagnostics = _parse_bool(
+            request.query_params.get("diagnostics"),
+            field_name="diagnostics",
+            default=False,
+        )
+        if include_diagnostics:
+            result = use_case.execute(task_id=task_id, include_diagnostics=True)
+        else:
+            result = use_case.execute(task_id=task_id)
 
         if not result:
             return Response(
@@ -195,7 +214,10 @@ def get_task_status(request: Request, task_id: str) -> Response:
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        serializer = TaskStatusSerializer(result)
+        serializer_type = (
+            TaskStatusDiagnosticSerializer if include_diagnostics else TaskStatusSerializer
+        )
+        serializer = serializer_type(result)
         return Response(serializer.data)
 
     except Exception:
@@ -235,6 +257,13 @@ def get_task_status(request: Request, task_id: str) -> Response:
             location=OpenApiParameter.QUERY,
             required=False,
         ),
+        OpenApiParameter(
+            name="diagnostics",
+            description="管理员可选：包含受保护的异常诊断字段",
+            type=OpenApiTypes.BOOL,
+            location=OpenApiParameter.QUERY,
+            required=False,
+        ),
     ],
     responses={200: TaskListSerializer},
 )
@@ -264,6 +293,11 @@ def list_tasks(request: Request) -> Response:
             field_name="failures_only",
             default=False,
         )
+        include_diagnostics = _parse_bool(
+            request.query_params.get("diagnostics"),
+            field_name="diagnostics",
+            default=False,
+        )
 
         use_case = ListTasksUseCase(repository=get_task_record_repository())
         result = use_case.execute(
@@ -271,9 +305,13 @@ def list_tasks(request: Request) -> Response:
             status=status_filter,
             limit=limit,
             failures_only=failures_only,
+            include_diagnostics=include_diagnostics,
         )
 
-        serializer = TaskListSerializer(result)
+        serializer_type = (
+            TaskDiagnosticListSerializer if include_diagnostics else TaskListSerializer
+        )
+        serializer = serializer_type(result)
         return Response(serializer.data)
 
     except ValueError as exc:

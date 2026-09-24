@@ -3,22 +3,26 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
+from agomtradepro.types import RegimeType, SignalStatus
 from agomtradepro_mcp.registry.runtime_handlers.common import _call_registered_tool
 
 
 def _serialize_signal_read_model(signal: Any) -> dict[str, Any]:
+    created_at = getattr(signal, "created_at", None)
+    approved_at = getattr(signal, "approved_at", None)
+    invalidated_at = getattr(signal, "invalidated_at", None)
     return {
         "id": signal.id,
         "asset_code": signal.asset_code,
         "logic_desc": signal.logic_desc,
         "status": signal.status,
-        "created_at": signal.created_at.isoformat() if signal.created_at else None,
+        "created_at": created_at.isoformat() if created_at else None,
         "invalidation_logic": signal.invalidation_logic,
         "invalidation_threshold": signal.invalidation_threshold,
-        "approved_at": signal.approved_at.isoformat() if signal.approved_at else None,
-        "invalidated_at": signal.invalidated_at.isoformat() if signal.invalidated_at else None,
+        "approved_at": approved_at.isoformat() if approved_at else None,
+        "invalidated_at": invalidated_at.isoformat() if invalidated_at else None,
         "created_by": signal.created_by,
     }
 
@@ -26,19 +30,24 @@ def _serialize_signal_read_model(signal: Any) -> dict[str, Any]:
 def _fallback_list_signals(
     status: str | None = None,
     asset_code: str | None = None,
-    limit: int = 20,
+    limit: int = 50,
+    offset: int = 0,
 ) -> dict[str, Any]:
     from agomtradepro import AgomTradeProClient
 
     client = AgomTradeProClient()
     signals = client.signal.list(
-        status=status,
+        status=cast(SignalStatus | None, status),
         asset_code=asset_code,
         limit=limit,
+        offset=offset,
     )
     return {
         "signals": [_serialize_signal_read_model(signal) for signal in signals],
         "total_count": len(signals),
+        "returned_count": len(signals),
+        "limit": limit,
+        "offset": offset,
     }
 
 
@@ -86,7 +95,7 @@ def _fallback_create_signal(
         logic_desc=logic_desc,
         invalidation_logic=invalidation_logic,
         invalidation_threshold=invalidation_threshold,
-        target_regime=target_regime,
+        target_regime=cast(RegimeType | None, target_regime),
     )
     return {
         "id": signal.id,
@@ -161,7 +170,7 @@ def _internal_handler_signal_create_signal(
         eligibility = client.signal.check_eligibility(
             asset_code=asset_code,
             logic_desc=logic_desc,
-            target_regime=target_regime,
+            target_regime=cast(RegimeType | None, target_regime),
         )
         return {
             "success": True,
@@ -184,15 +193,18 @@ def _internal_handler_signal_create_signal(
             "message": ("Preview generated. Confirm to create the pending investment signal."),
         }
 
-    return _call_registered_tool(
-        "create_signal",
-        {
-            "asset_code": asset_code,
-            "logic_desc": logic_desc,
-            "invalidation_logic": invalidation_logic,
-            "invalidation_threshold": invalidation_threshold,
-            "target_regime": target_regime,
-        },
+    return cast(
+        dict[str, Any],
+        _call_registered_tool(
+            "create_signal",
+            {
+                "asset_code": asset_code,
+                "logic_desc": logic_desc,
+                "invalidation_logic": invalidation_logic,
+                "invalidation_threshold": invalidation_threshold,
+                "target_regime": target_regime,
+            },
+        ),
     )
 
 
@@ -220,12 +232,15 @@ def _internal_handler_signal_approve_signal(
             "message": ("Preview generated. Confirm to approve the pending investment signal."),
         }
 
-    return _call_registered_tool(
-        "approve_signal",
-        {
-            "signal_id": signal_id,
-            "approver": approver,
-        },
+    return cast(
+        dict[str, Any],
+        _call_registered_tool(
+            "approve_signal",
+            {
+                "signal_id": signal_id,
+                "approver": approver,
+            },
+        ),
     )
 
 
@@ -253,12 +268,15 @@ def _internal_handler_signal_reject_signal(
             "message": ("Preview generated. Confirm to reject the pending investment signal."),
         }
 
-    return _call_registered_tool(
-        "reject_signal",
-        {
-            "signal_id": signal_id,
-            "reason": reason,
-        },
+    return cast(
+        dict[str, Any],
+        _call_registered_tool(
+            "reject_signal",
+            {
+                "signal_id": signal_id,
+                "reason": reason,
+            },
+        ),
     )
 
 
@@ -286,12 +304,15 @@ def _internal_handler_signal_invalidate_signal(
             "message": ("Preview generated. Confirm to invalidate the investment signal."),
         }
 
-    return _call_registered_tool(
-        "invalidate_signal",
-        {
-            "signal_id": signal_id,
-            "reason": reason,
-        },
+    return cast(
+        dict[str, Any],
+        _call_registered_tool(
+            "invalidate_signal",
+            {
+                "signal_id": signal_id,
+                "reason": reason,
+            },
+        ),
     )
 
 

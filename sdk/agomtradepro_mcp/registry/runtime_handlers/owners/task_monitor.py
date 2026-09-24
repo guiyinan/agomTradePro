@@ -21,12 +21,15 @@ def _fallback_get_task_monitor_statistics(
     return client.task_monitor.statistics(task_name=task_name, days=days)
 
 
-def _fallback_get_task_monitor_status(task_id: str) -> dict[str, Any]:
+def _fallback_get_task_monitor_status(
+    task_id: str,
+    diagnostics: bool = False,
+) -> dict[str, Any]:
     from agomtradepro import AgomTradeProClient
 
     client = AgomTradeProClient()
     try:
-        return client.task_monitor.get_task_status(task_id)
+        return client.task_monitor.get_task_status(task_id, diagnostics=diagnostics)
     except Exception as exc:
         return {
             "success": False,
@@ -35,11 +38,23 @@ def _fallback_get_task_monitor_status(task_id: str) -> dict[str, Any]:
         }
 
 
-def _fallback_list_task_monitor_tasks() -> dict[str, Any]:
+def _fallback_list_task_monitor_tasks(
+    task_name: str | None = None,
+    status: str | None = None,
+    limit: int | None = None,
+    failures_only: bool = False,
+    diagnostics: bool = False,
+) -> dict[str, Any]:
     from agomtradepro import AgomTradeProClient
 
     client = AgomTradeProClient()
-    return client.task_monitor.list_tasks()
+    return client.task_monitor.list_tasks(
+        task_name=task_name,
+        status=status,
+        limit=limit,
+        failures_only=failures_only,
+        diagnostics=diagnostics,
+    )
 
 
 def _fallback_get_task_monitor_dashboard() -> dict[str, Any]:

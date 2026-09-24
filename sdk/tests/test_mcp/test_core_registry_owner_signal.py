@@ -89,6 +89,50 @@ def test_agom_capability_call_reads_signal_family_in_core_only_mode(
     assert "core-only-fallback" in rendered
 
 
+def test_signal_list_publishes_offset_and_preserves_empty_page(
+    monkeypatch: pytest.MonkeyPatch,
+    core_only_mcp_server,
+):
+    """MCP schema and dispatcher forward nonzero offset without turning [] into an error."""
+
+    import agomtradepro_mcp.server as server_module
+
+    schema = server_module.CORE_DISPATCHER.get_schema("signal.read.list")
+    assert schema["input_schema"]["properties"]["offset"] == {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 1_000_000,
+    }
+
+    captured: dict[str, object] = {}
+
+    def fake_list_signals(**kwargs):
+        captured.update(kwargs)
+        return {
+            "signals": [],
+            "total_count": 0,
+            "returned_count": 0,
+            "limit": kwargs["limit"],
+            "offset": kwargs["offset"],
+        }
+
+    monkeypatch.setitem(
+        server_module.INTERNAL_LEGACY_TOOL_FALLBACKS,
+        "list_signals",
+        fake_list_signals,
+    )
+
+    result = server_module.CORE_DISPATCHER.call(
+        capability_key="signal.read.list",
+        arguments={"limit": 5, "offset": 10},
+    )
+
+    assert captured == {"limit": 5, "offset": 10}
+    assert result["status"] == "completed"
+    assert result["result"]["signals"] == []
+    assert result["result"]["offset"] == 10
+
+
 def test_signal_create_capability_runs_eligibility_preview_before_commit(
     monkeypatch: pytest.MonkeyPatch,
 ):

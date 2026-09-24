@@ -185,6 +185,7 @@ class AgomTradeProClient:
             backoff_factor=0.5,
             status_forcelist=[429, 500, 502, 503, 504],
             allowed_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+            raise_on_status=False,
         )
 
         adapter = HTTPAdapter(max_retries=retry_strategy)

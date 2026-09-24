@@ -4,6 +4,49 @@ AgomTradePro SDK 异常定义
 所有与 API 交互相关的异常类型。
 """
 
+from __future__ import annotations
+
+import re
+from typing import Any
+
+_ERROR_CODE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
+_UNSAFE_MESSAGE_PATTERN = re.compile(
+    r"(?:password|passwd|secret|token|authorization|traceback|select\s+.+\s+from|sqlalchemy)",
+    re.IGNORECASE,
+)
+
+
+def _safe_error_code(response: dict[str, Any] | None, default: str) -> str:
+    """Return a bounded public error code from an upstream JSON payload."""
+
+    if response is None:
+        return default
+    raw_code = (
+        response.get("code")
+        or response.get("error_code")
+        or response.get("block_reason_code")
+        or response.get("blocked_reason")
+    )
+    if not isinstance(raw_code, str):
+        return default
+    normalized = raw_code.strip()
+    return normalized.lower() if _ERROR_CODE_PATTERN.fullmatch(normalized) else default
+
+
+def _safe_error_message(response: dict[str, Any] | None, default: str) -> str:
+    """Return a bounded non-sensitive public error message."""
+
+    if response is None:
+        return default
+    for key in ("message", "error", "detail", "block_reason"):
+        value = response.get(key)
+        if not isinstance(value, str):
+            continue
+        normalized = value.strip()
+        if normalized and len(normalized) <= 240 and not _UNSAFE_MESSAGE_PATTERN.search(normalized):
+            return normalized
+    return default
+
 
 class AgomTradeProAPIError(Exception):
     """
@@ -16,11 +59,12 @@ class AgomTradeProAPIError(Exception):
         self,
         message: str,
         status_code: int | None = None,
-        response: dict | None = None,
+        response: dict[str, Any] | None = None,
     ) -> None:
         self.message = message
         self.status_code = status_code
         self.response = response
+        self.code = "api_error"
         super().__init__(self.message)
 
     def __str__(self) -> str:
@@ -39,7 +83,7 @@ class AuthenticationError(AgomTradeProAPIError):
     def __init__(
         self,
         message: str = "Authentication failed. Please check your API token.",
-        response: dict | None = None,
+        response: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(message, status_code=401, response=response)
 
@@ -55,7 +99,7 @@ class RateLimitError(AgomTradeProAPIError):
         self,
         message: str = "Rate limit exceeded. Please retry later.",
         retry_after: int | None = None,
-        response: dict | None = None,
+        response: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(message, status_code=429, response=response)
         self.retry_after = retry_after
@@ -71,8 +115,8 @@ class ValidationError(AgomTradeProAPIError):
     def __init__(
         self,
         message: str = "Validation failed.",
-        errors: dict | None = None,
-        response: dict | None = None,
+        errors: dict[str, Any] | None = None,
+        response: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(message, status_code=400, response=response)
         self.errors = errors or {}
@@ -88,7 +132,7 @@ class NotFoundError(AgomTradeProAPIError):
     def __init__(
         self,
         message: str = "Resource not found.",
-        response: dict | None = None,
+        response: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(message, status_code=404, response=response)
 
@@ -103,7 +147,7 @@ class ConflictError(AgomTradeProAPIError):
     def __init__(
         self,
         message: str = "Resource conflict.",
-        response: dict | None = None,
+        response: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(message, status_code=409, response=response)
 
@@ -119,7 +163,7 @@ class ServerError(AgomTradeProAPIError):
         self,
         message: str = "Internal server error.",
         status_code: int = 500,
-        response: dict | None = None,
+        response: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(message, status_code=status_code, response=response)
 
@@ -136,6 +180,7 @@ class ConnectionError(AgomTradeProAPIError):
         message: str = "Failed to connect to AgomTradePro server.",
     ) -> None:
         super().__init__(message)
+        self.code = "transport_connection_failed"
 
 
 class TimeoutError(AgomTradeProAPIError):
@@ -150,6 +195,7 @@ class TimeoutError(AgomTradeProAPIError):
         message: str = "Request timed out.",
     ) -> None:
         super().__init__(message)
+        self.code = "transport_timeout"
 
 
 class ConfigurationError(AgomTradeProAPIError):
@@ -180,7 +226,7 @@ class UnsupportedFeatureError(AgomTradeProAPIError):
         super().__init__(message, status_code=501)
 
 
-def raise_for_status(status_code: int, response: dict | None = None) -> None:
+def raise_for_status(status_code: int, response: dict[str, Any] | None = None) -> None:
     """
     根据状态码抛出对应的异常
 
@@ -200,26 +246,35 @@ def raise_for_status(status_code: int, response: dict | None = None) -> None:
     if status_code >= 200 and status_code < 300:
         return
 
-    error_detail = None
-    if response and isinstance(response, dict):
-        error_detail = response.get("detail") or response.get("error")
+    payload = response if isinstance(response, dict) else None
+    error_code = _safe_error_code(payload, f"http_{status_code}")
+    error_detail = _safe_error_message(payload, f"HTTP {status_code} error")
 
     if status_code in (401, 403):
-        raise AuthenticationError(response=response)
+        error: AgomTradeProAPIError = AuthenticationError(
+            message=error_detail,
+            response=response,
+        )
     elif status_code == 400:
-        raise ValidationError(errors=response.get("errors") if response else None, response=response)
+        error = ValidationError(
+            message=error_detail,
+            errors=response.get("errors") if response else None,
+            response=response,
+        )
     elif status_code == 404:
-        raise NotFoundError(response=response)
+        error = NotFoundError(message=error_detail, response=response)
     elif status_code == 409:
-        raise ConflictError(response=response)
+        error = ConflictError(message=error_detail, response=response)
     elif status_code == 429:
         retry_after = response.get("retry_after") if response else None
-        raise RateLimitError(retry_after=retry_after, response=response)
+        error = RateLimitError(message=error_detail, retry_after=retry_after, response=response)
     elif status_code >= 500:
-        raise ServerError(status_code=status_code, response=response)
+        error = ServerError(message=error_detail, status_code=status_code, response=response)
     else:
-        raise AgomTradeProAPIError(
-            message=error_detail or f"HTTP {status_code} error",
+        error = AgomTradeProAPIError(
+            message=error_detail,
             status_code=status_code,
             response=response,
         )
+    error.code = error_code
+    raise error

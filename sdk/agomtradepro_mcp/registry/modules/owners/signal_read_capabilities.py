@@ -8,7 +8,7 @@ MANIFESTS = [
     CapabilityManifest(
         capability_key="signal.read.list",
         title="Investment Signal List",
-        summary="Read investment signals with optional status and asset filters.",
+        summary="Read investment signals with optional status, asset, and pagination filters.",
         description=(
             "Return investment signals for review, optionally filtered by workflow status "
             "or asset code."
@@ -23,15 +23,20 @@ MANIFESTS = [
             "properties": {
                 "status": {"type": ["string", "null"]},
                 "asset_code": {"type": ["string", "null"]},
-                "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 500},
+                "offset": {"type": "integer", "minimum": 0, "maximum": 1000000},
             },
             "required": [],
+            "additionalProperties": False,
         },
         output_schema={
             "type": "object",
             "properties": {
                 "signals": {"type": "array"},
                 "total_count": {"type": "integer"},
+                "returned_count": {"type": "integer"},
+                "limit": {"type": "integer"},
+                "offset": {"type": "integer"},
             },
             "required": [],
         },

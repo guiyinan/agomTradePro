@@ -1794,7 +1794,7 @@
         },
         "partial_failure": {
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
-          "test_function": "test_provider_identity_gap_is_a_partial_business_result"
+          "test_function": "test_publication_failure_preserves_phase_and_actual_write_counts"
         },
         "complete_failure": {
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
@@ -1802,7 +1802,7 @@
         },
         "zero_output": {
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
-          "test_function": "test_empty_scope_is_not_success"
+          "test_function": "test_invalid_publication_count_never_reports_success"
         },
         "blocked": {
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",

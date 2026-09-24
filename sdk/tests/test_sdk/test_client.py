@@ -4,6 +4,9 @@ Unit tests for AgomTradePro SDK Client
 
 import hashlib
 import hmac
+import json
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from threading import Thread
 from unittest.mock import Mock, patch
 
 import pytest
@@ -13,6 +16,7 @@ from agomtradepro.config import AuthConfig, ClientConfig
 from agomtradepro.exceptions import (
     AuthenticationError,
     ConfigurationError,
+    ServerError,
     ValidationError,
 )
 from agomtradepro.transport import use_request_transport
@@ -86,6 +90,52 @@ class TestAgomTradeProClient:
         )
         assert client._headers["Authorization"] == "Token secret_token"
         assert client._headers["Content-Type"] == "application/json"
+
+    def test_retried_business_503_preserves_final_response(self):
+        """A retried 503 remains a typed business response after retry exhaustion."""
+
+        class Handler(BaseHTTPRequestHandler):
+            calls = 0
+
+            def do_GET(self) -> None:  # noqa: N802
+                Handler.calls += 1
+                payload = json.dumps(
+                    {
+                        "code": "decision_runtime_blocked",
+                        "message": "market publication is stale",
+                        "must_not_use_for_decision": True,
+                        "blocked_reason": "market_publication_stale",
+                    }
+                ).encode("utf-8")
+                self.send_response(503)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+
+            def log_message(self, _format: str, *args: object) -> None:
+                del args
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            client = AgomTradeProClient(
+                base_url=f"http://127.0.0.1:{server.server_port}",
+                api_token="test-token",
+                max_retries=1,
+            )
+            with pytest.raises(ServerError) as caught:
+                client.get("api/regime/current/")
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+
+        assert Handler.calls == 2
+        assert caught.value.status_code == 503
+        assert caught.value.response["code"] == "decision_runtime_blocked"
+        assert caught.value.response["blocked_reason"] == "market_publication_stale"
 
     def test_internal_auth_headers_include_signature(self):
         """测试内部签名认证会附带签名头"""
@@ -192,10 +242,7 @@ class TestAgomTradeProClientRequests:
     def test_get_request(self, client):
         """测试 GET 请求"""
         with patch.object(client._session, "request") as mock_request:
-            mock_request.return_value = Mock(
-                status_code=200,
-                json=lambda: {"result": "success"}
-            )
+            mock_request.return_value = Mock(status_code=200, json=lambda: {"result": "success"})
 
             result = client.get("/test/endpoint")
 
@@ -205,10 +252,7 @@ class TestAgomTradeProClientRequests:
     def test_post_request(self, client):
         """测试 POST 请求"""
         with patch.object(client._session, "request") as mock_request:
-            mock_request.return_value = Mock(
-                status_code=201,
-                json=lambda: {"id": 123}
-            )
+            mock_request.return_value = Mock(status_code=201, json=lambda: {"id": 123})
 
             result = client.post("/test/create", json={"name": "test"})
 
@@ -240,10 +284,13 @@ class TestAgomTradeProClientRequests:
 
         monkeypatch.delenv("AGOMTRADEPRO_API_TOKEN", raising=False)
         transport = Mock()
-        with use_request_transport(transport), patch.object(
-            AgomTradeProClient,
-            "_authenticate_with_session",
-        ) as authenticate:
+        with (
+            use_request_transport(transport),
+            patch.object(
+                AgomTradeProClient,
+                "_authenticate_with_session",
+            ) as authenticate,
+        ):
             AgomTradeProClient(
                 base_url="http://test.com",
                 username="tester",
@@ -256,8 +303,7 @@ class TestAgomTradeProClientRequests:
         """测试认证失败请求"""
         with patch.object(client._session, "request") as mock_request:
             mock_request.return_value = Mock(
-                status_code=401,
-                json=lambda: {"detail": "Unauthorized"}
+                status_code=401, json=lambda: {"detail": "Unauthorized"}
             )
 
             with pytest.raises(AuthenticationError):
@@ -267,8 +313,7 @@ class TestAgomTradeProClientRequests:
         """测试验证失败请求"""
         with patch.object(client._session, "request") as mock_request:
             mock_request.return_value = Mock(
-                status_code=400,
-                json=lambda: {"errors": {"field": "invalid"}}
+                status_code=400, json=lambda: {"errors": {"field": "invalid"}}
             )
 
             with pytest.raises(ValidationError):

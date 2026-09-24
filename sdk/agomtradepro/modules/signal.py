@@ -7,6 +7,7 @@ AgomTradePro SDK - Investment Signal 投资信号模块
 from datetime import datetime
 from typing import Any
 
+from ..exceptions import ValidationError
 from ..types import (
     InvestmentSignal,
     RegimeType,
@@ -49,7 +50,7 @@ class SignalModule(BaseModule):
         self,
         status: SignalStatus | None = None,
         asset_code: str | None = None,
-        limit: int = 100,
+        limit: int = 50,
         offset: int = 0,
     ) -> list[InvestmentSignal]:
         """
@@ -70,6 +71,23 @@ class SignalModule(BaseModule):
             >>> for signal in signals:
             ...     print(f"{signal.asset_code}: {signal.logic_desc}")
         """
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 500:
+            error = ValidationError(
+                message="信号列表 limit 必须是 1 到 500 之间的整数",
+                errors={"limit": ["must be an integer between 1 and 500"]},
+                response={"code": "invalid_signal_list_query"},
+            )
+            error.code = "invalid_signal_list_query"
+            raise error
+        if isinstance(offset, bool) or not isinstance(offset, int) or not 0 <= offset <= 1_000_000:
+            error = ValidationError(
+                message="信号列表 offset 必须是 0 到 1000000 之间的整数",
+                errors={"offset": ["must be an integer between 0 and 1000000"]},
+                response={"code": "invalid_signal_list_query"},
+            )
+            error.code = "invalid_signal_list_query"
+            raise error
+
         params: dict[str, Any] = {"limit": limit, "offset": offset}
 
         if status is not None:
@@ -78,8 +96,14 @@ class SignalModule(BaseModule):
             params["asset_code"] = asset_code
 
         response = self._get("", params=params)
-        results = response.get("results", response) if isinstance(response, dict) else response
-        return [self._parse_signal(item) for item in results]
+        if isinstance(response, list):
+            results = response
+        elif isinstance(response, dict):
+            candidate = response.get("results", response.get("signals", response.get("data", [])))
+            results = candidate if isinstance(candidate, list) else []
+        else:
+            results = []
+        return [self._parse_signal(item) for item in results if isinstance(item, dict)]
 
     def get(self, signal_id: int) -> InvestmentSignal:
         """
@@ -290,6 +314,7 @@ class SignalModule(BaseModule):
         Returns:
             InvestmentSignal 对象
         """
+
         def parse_datetime(dt_str: str | None) -> datetime | None:
             if dt_str is None:
                 return None
@@ -304,8 +329,7 @@ class SignalModule(BaseModule):
             status=data.get("status", "pending"),
             created_at=parse_datetime(data.get("created_at")),
             invalidation_logic=(
-                data.get("invalidation_logic")
-                or data.get("invalidation_description")
+                data.get("invalidation_logic") or data.get("invalidation_description")
             ),
             invalidation_threshold=data.get("invalidation_threshold"),
             approved_at=parse_datetime(data.get("approved_at")),

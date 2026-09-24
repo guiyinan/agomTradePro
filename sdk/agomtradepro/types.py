@@ -98,7 +98,7 @@ class InvestmentSignal:
     asset_code: str
     logic_desc: str
     status: SignalStatus
-    created_at: datetime
+    created_at: datetime | None
     invalidation_logic: str | None = None
     invalidation_threshold: float | None = None
     approved_at: datetime | None = None
@@ -219,6 +219,9 @@ class PolicyStatus:
     level_name: str | None = None
     requires_manual_approval: bool = False
     must_not_use_for_decision: bool = False
+    freshness_status: str = "unknown"
+    blocked_reason: str = ""
+    trace_id: str | None = None
 
 
 @dataclass(frozen=True)

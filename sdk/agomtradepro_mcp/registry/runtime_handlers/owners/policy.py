@@ -22,6 +22,9 @@ def _fallback_get_policy_status() -> dict[str, Any]:
         "recent_events_count": len(status.recent_events),
         "requires_manual_approval": status.requires_manual_approval,
         "must_not_use_for_decision": status.must_not_use_for_decision,
+        "freshness_status": getattr(status, "freshness_status", "unknown"),
+        "blocked_reason": getattr(status, "blocked_reason", ""),
+        "trace_id": getattr(status, "trace_id", None),
     }
 
 
@@ -420,12 +423,15 @@ def _internal_handler_policy_approve_workbench_event(
             ),
         }
 
-    return cast(dict[str, Any], _call_registered_tool(
-        "approve_workbench_event",
-        {
-            "event_id": event_id,
-        },
-    ))
+    return cast(
+        dict[str, Any],
+        _call_registered_tool(
+            "approve_workbench_event",
+            {
+                "event_id": event_id,
+            },
+        ),
+    )
 
 
 def _internal_handler_policy_reject_workbench_event(
@@ -460,13 +466,16 @@ def _internal_handler_policy_reject_workbench_event(
             ),
         }
 
-    return cast(dict[str, Any], _call_registered_tool(
-        "reject_workbench_event",
-        {
-            "event_id": event_id,
-            "reason": reason,
-        },
-    ))
+    return cast(
+        dict[str, Any],
+        _call_registered_tool(
+            "reject_workbench_event",
+            {
+                "event_id": event_id,
+                "reason": reason,
+            },
+        ),
+    )
 
 
 def _internal_handler_policy_rollback_workbench_event(
@@ -503,13 +512,16 @@ def _internal_handler_policy_rollback_workbench_event(
             ),
         }
 
-    return cast(dict[str, Any], _call_registered_tool(
-        "rollback_workbench_event",
-        {
-            "event_id": event_id,
-            "reason": reason,
-        },
-    ))
+    return cast(
+        dict[str, Any],
+        _call_registered_tool(
+            "rollback_workbench_event",
+            {
+                "event_id": event_id,
+                "reason": reason,
+            },
+        ),
+    )
 
 
 def _internal_handler_policy_override_workbench_event(
@@ -553,14 +565,17 @@ def _internal_handler_policy_override_workbench_event(
             ),
         }
 
-    return cast(dict[str, Any], _call_registered_tool(
-        "override_workbench_event",
-        {
-            "event_id": event_id,
-            "reason": reason,
-            "new_level": new_level,
-        },
-    ))
+    return cast(
+        dict[str, Any],
+        _call_registered_tool(
+            "override_workbench_event",
+            {
+                "event_id": event_id,
+                "reason": reason,
+                "new_level": new_level,
+            },
+        ),
+    )
 
 
 LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {

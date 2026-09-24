@@ -4,11 +4,12 @@ AgomTradePro MCP Tools - Investment Signal 投资信号工具
 提供投资信号相关的 MCP 工具。
 """
 
-from typing import Any
+from typing import Any, cast
 
 from mcp.server.fastmcp import FastMCP
 
 from agomtradepro import AgomTradeProClient
+from agomtradepro.types import RegimeType, SignalStatus
 
 
 def register_signal_tools(server: FastMCP) -> None:
@@ -18,7 +19,8 @@ def register_signal_tools(server: FastMCP) -> None:
     def list_signals(
         status: str | None = None,
         asset_code: str | None = None,
-        limit: int = 20,
+        limit: int = 50,
+        offset: int = 0,
     ) -> list[dict[str, Any]]:
         """
         获取投资信号列表
@@ -27,6 +29,7 @@ def register_signal_tools(server: FastMCP) -> None:
             status: 信号状态过滤（pending/approved/rejected/invalidated）
             asset_code: 资产代码过滤（如 000001.SH）
             limit: 返回数量限制
+            offset: 过滤结果后的分页偏移量
 
         Returns:
             投资信号列表
@@ -36,9 +39,10 @@ def register_signal_tools(server: FastMCP) -> None:
         """
         client = AgomTradeProClient()
         signals = client.signal.list(
-            status=status,
+            status=cast(SignalStatus | None, status),
             asset_code=asset_code,
             limit=limit,
+            offset=offset,
         )
 
         return [
@@ -47,7 +51,7 @@ def register_signal_tools(server: FastMCP) -> None:
                 "asset_code": s.asset_code,
                 "logic_desc": s.logic_desc,
                 "status": s.status,
-                "created_at": s.created_at.isoformat(),
+                "created_at": s.created_at.isoformat() if s.created_at else None,
                 "invalidation_logic": s.invalidation_logic,
                 "invalidation_threshold": s.invalidation_threshold,
             }
@@ -76,7 +80,7 @@ def register_signal_tools(server: FastMCP) -> None:
             "asset_code": signal.asset_code,
             "logic_desc": signal.logic_desc,
             "status": signal.status,
-            "created_at": signal.created_at.isoformat(),
+            "created_at": signal.created_at.isoformat() if signal.created_at else None,
             "invalidation_logic": signal.invalidation_logic,
             "invalidation_threshold": signal.invalidation_threshold,
             "approved_at": signal.approved_at.isoformat() if signal.approved_at else None,
@@ -114,7 +118,7 @@ def register_signal_tools(server: FastMCP) -> None:
         result = client.signal.check_eligibility(
             asset_code=asset_code,
             logic_desc=logic_desc,
-            target_regime=target_regime,
+            target_regime=cast(RegimeType | None, target_regime),
         )
 
         return {
@@ -163,7 +167,7 @@ def register_signal_tools(server: FastMCP) -> None:
                 logic_desc=logic_desc,
                 invalidation_logic=invalidation_logic,
                 invalidation_threshold=invalidation_threshold,
-                target_regime=target_regime,
+                target_regime=cast(RegimeType | None, target_regime),
             )
         except Exception as exc:
             return {
@@ -183,7 +187,7 @@ def register_signal_tools(server: FastMCP) -> None:
             "asset_code": signal.asset_code,
             "logic_desc": signal.logic_desc,
             "status": signal.status,
-            "created_at": signal.created_at.isoformat(),
+            "created_at": signal.created_at.isoformat() if signal.created_at else None,
         }
 
     @server.tool()
@@ -264,4 +268,3 @@ def register_signal_tools(server: FastMCP) -> None:
             "status": signal.status,
             "invalidated_at": signal.invalidated_at.isoformat() if signal.invalidated_at else None,
         }
-

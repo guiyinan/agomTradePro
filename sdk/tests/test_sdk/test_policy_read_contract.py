@@ -50,6 +50,50 @@ def test_policy_status_preserves_unclassified_manual_review_gate() -> None:
     assert status.level_name == "待分类"
     assert status.requires_manual_approval is True
     assert status.must_not_use_for_decision is True
+    assert status.freshness_status == "unknown"
+    assert status.blocked_reason == "policy_unclassified_manual_review"
+
+
+def test_policy_status_preserves_freshness_block_reason_and_trace() -> None:
+    client = _client()
+    response = {
+        "current_level": "PX",
+        "current_gear": "unclassified",
+        "level_name": "待分类",
+        "as_of_date": "2026-09-24",
+        "freshness_status": "stale",
+        "blocked_reason": "policy_source_observation_stale",
+        "trace_id": "policy-trace-42",
+        "requires_manual_approval": True,
+        "must_not_use_for_decision": True,
+        "latest_event": None,
+    }
+
+    with patch.object(client, "get", return_value=response):
+        status = client.policy.get_status()
+
+    assert status.freshness_status == "stale"
+    assert status.blocked_reason == "policy_source_observation_stale"
+    assert status.trace_id == "policy-trace-42"
+
+
+def test_policy_status_rejects_sensitive_diagnostic_fields() -> None:
+    client = _client()
+    response = {
+        "current_level": "PX",
+        "as_of_date": "2026-09-24",
+        "freshness_status": "traceback SELECT password FROM users",
+        "blocked_reason": "database password token leaked",
+        "trace_id": "token=secret",
+        "latest_event": None,
+    }
+
+    with patch.object(client, "get", return_value=response):
+        status = client.policy.get_status()
+
+    assert status.freshness_status == "unknown"
+    assert status.blocked_reason == "policy_unclassified_manual_review"
+    assert status.trace_id is None
 
 
 def test_policy_events_reads_canonical_envelope_and_applies_limit() -> None:

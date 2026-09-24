@@ -8,6 +8,7 @@ from unittest.mock import patch
 import pytest
 
 from agomtradepro import AgomTradeProClient
+from agomtradepro.exceptions import ValidationError
 
 
 class TestSignalModule:
@@ -45,12 +46,43 @@ class TestSignalModule:
             ]
         }
 
-        with patch.object(client, "_request", return_value=mock_response):
+        with patch.object(client, "_request", return_value=mock_response) as mocked:
             signals = client.signal.list(status="approved")
 
             assert len(signals) == 2
             assert signals[0].asset_code == "000001.SH"
             assert signals[0].status == "approved"
+            mocked.assert_called_once_with(
+                "GET",
+                "/api/signal/",
+                params={"limit": 50, "offset": 0, "status": "approved"},
+            )
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [("limit", 0), ("limit", 501), ("offset", -1), ("offset", 1_000_001)],
+    )
+    def test_list_signals_rejects_invalid_pagination_before_request(
+        self,
+        client,
+        field,
+        value,
+    ):
+        """分页边界在请求发出前失败，并保留稳定业务码。"""
+
+        with patch.object(client, "_request") as mocked:
+            with pytest.raises(ValidationError) as raised:
+                client.signal.list(**{field: value})
+
+        assert raised.value.code == "invalid_signal_list_query"
+        mocked.assert_not_called()
+
+    def test_list_signals_maps_empty_page_to_empty_list(self, client):
+        """API 的空数组和空结果 envelope 都映射为空 SDK 列表。"""
+
+        for response in ([], {"results": []}, {"signals": []}, {"data": []}):
+            with patch.object(client, "_request", return_value=response):
+                assert client.signal.list(limit=5, offset=10) == []
 
     def test_get_signal(self, client):
         """测试获取单个信号"""

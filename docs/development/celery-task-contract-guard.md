@@ -141,6 +141,8 @@ python scripts/check_celery_task_contracts.py \
 
 生产 200 只批次实测约 65 秒，全市场约 28 批；任务 hard/soft time limit 为 3600/3500 秒，审计授权预检至少覆盖 3900 秒。三者必须同时调整，禁止让合法全集刷新在发布前被旧 30 分钟预算终止。
 
+同日阶段诊断整改：市场发布编排结果增加 `phase`、`phase_results`、`target_trade_date` 和 `stored_count_unit=fact_row`。各阶段分别保留 requested/succeeded/failed/stored；事实同步完成而发布失败必须为 partial，并保留前序存储计数和失败阶段。`stored` 沿用 repository 已接受持久化事实数量口径（包括成功幂等 upsert），不表示新增物理行数量，也不包含独立的 valuation seed 计数；`published_members` 独立统计。公开结果只含稳定码，完整异常栈进入运维日志。
+
 证券主数据自然刷新对 AKShare 的瞬时 `OSError/RuntimeError/ValueError` 最多尝试 3 次；最终失败返回 `MARKET_UNIVERSE_REFRESH_FAILED`，任务结果和 Alpha 页面只显示稳定错误码，不回显第三方响应。空名单同样阻断，不能用旧名单伪装本次同步成功。
 
 2026-09-24 财报证据自动恢复：`data_center.refresh_financial_publications_batch` 按冻结的有效 A 股全集分批拉取财报及原始响应、披露时间证据，用 Redis 锁和可恢复游标串行续跑；单批失败或证据不足不得推进游标。只有全集完成后才重建 `equity.financial.fact/current`，禁止把中间批次发布成 current。`setup_full_market_publications` 同时配置每日财报恢复任务，并由 `init_scheduler_defaults` 纳入冷启动默认调度，避免新版本只创建行情任务而遗漏财报任务。

@@ -245,11 +245,62 @@ def test_get_task_status_returns_serialized_task(staff_client):
 
 
 @pytest.mark.django_db
+def test_task_status_projects_business_result_and_gates_raw_diagnostics(staff_client):
+    """Business evidence is public while exception text requires diagnostics access."""
+
+    now = timezone.now()
+    TaskExecutionModel.objects.create(
+        task_id="partial-publication",
+        task_name="data_center.refresh_full_market_publications",
+        status="failure",
+        args=[],
+        kwargs={},
+        started_at=now - timedelta(seconds=5),
+        finished_at=now,
+        runtime_seconds=5.0,
+        result=(
+            '{"outcome":"partial","phase":"publication",'
+            '"requested":57,"succeeded":56,"failed":1,"stored":11114,'
+            '"count_unit":"sync_operation","stored_count_unit":"fact_row",'
+            '"target_trade_date":"2026-09-24","errors":["ValueError"]}'
+        ),
+        exception="internal secret details",
+        traceback="traceback secret details",
+        retries=1,
+        priority="normal",
+    )
+
+    public_response = staff_client.get("/api/system/status/partial-publication/")
+    public_payload = public_response.json()
+    assert public_response.status_code == 200
+    assert public_payload["outcome"] == "partial"
+    assert public_payload["phase"] == "publication"
+    assert public_payload["count_unit"] == "sync_operation"
+    assert public_payload["requested"] == 57
+    assert public_payload["stored"] == 11114
+    assert public_payload["stored_count_unit"] == "fact_row"
+    assert public_payload["target_trade_date"] == "2026-09-24"
+    assert public_payload["stable_error_code"] == "ValueError"
+    assert "exception" not in public_payload
+    assert "traceback" not in public_payload
+
+    diagnostic_response = staff_client.get(
+        "/api/system/status/partial-publication/?diagnostics=true"
+    )
+    diagnostic_payload = diagnostic_response.json()
+    assert diagnostic_response.status_code == 200
+    assert diagnostic_payload["exception"] == "internal secret details"
+    assert diagnostic_payload["traceback"] == "traceback secret details"
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     "path",
     [
         "/api/system/status/task-123/",
+        "/api/system/status/task-123/?diagnostics=true",
         "/api/system/list/",
+        "/api/system/list/?diagnostics=true",
         "/api/system/statistics/?task_name=demo.task",
         "/api/system/celery/health/",
         "/api/system/dashboard/",

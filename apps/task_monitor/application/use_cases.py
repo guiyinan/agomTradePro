@@ -19,6 +19,8 @@ from apps.task_monitor.application.dtos import (
     TaskListResponse,
     TaskStatisticsResponse,
     TaskStatusResponse,
+    task_attempt_response,
+    task_status_response,
 )
 from apps.task_monitor.domain.entities import (
     ScheduledCrontabRecord,
@@ -40,6 +42,14 @@ from core.exceptions import ExternalServiceError
 
 logger = logging.getLogger(__name__)
 
+_ACTIVE_TASK_STATUSES = {TaskStatus.PENDING, TaskStatus.STARTED, TaskStatus.RETRY}
+_COMPLETED_TASK_STATUSES = {
+    TaskStatus.SUCCESS,
+    TaskStatus.FAILURE,
+    TaskStatus.TIMEOUT,
+    TaskStatus.REVOKED,
+}
+
 QUOTE_PRE_READINESS_TASK_NAME = "decision-quote-pre-readiness-refresh"
 PERSONAL_READINESS_DAILY_TASK_NAME = "personal-readiness-daily-evidence"
 AUTO_ADVISOR_WEEKLY_TASK_NAME = "dashboard-auto-advisor-weekly-report"
@@ -48,6 +58,31 @@ DEFAULT_PERSONAL_READINESS_DAILY_TIME = "16:10"
 DEFAULT_AUTO_ADVISOR_WEEKLY_TIME = "17:30"
 POST_CLOSE_MINUTES = 15 * 60 + 1
 DAILY_EVIDENCE_MINUTES = 16 * 60
+
+
+def _find_attempt_context(
+    record: TaskExecutionRecord,
+    *,
+    repository: TaskRecordRepositoryProtocol,
+    history: list[TaskExecutionRecord] | None = None,
+) -> tuple[TaskExecutionRecord | None, TaskExecutionRecord | None]:
+    """Return the newest active and completed attempts for the same task name."""
+
+    history_records = (
+        history
+        if history is not None
+        else repository.list_by_task_name(record.task_name, limit=100)
+    )
+    records = [record, *[item for item in history_records if item.task_id != record.task_id]]
+    current_attempt = next(
+        (item for item in records if item.status in _ACTIVE_TASK_STATUSES),
+        None,
+    )
+    last_completed = next(
+        (item for item in records if item.status in _COMPLETED_TASK_STATUSES),
+        None,
+    )
+    return current_attempt, last_completed
 
 
 class RecordTaskExecutionUseCase:
@@ -123,7 +158,7 @@ class RecordTaskExecutionUseCase:
                         "task_id": alert.task_id,
                         "exception": alert.exception,
                         "is_final_failure": alert.is_final_failure,
-                    }
+                    },
                 )
             except Exception as e:
                 logger.error(f"Failed to send alert via {channel.__class__.__name__}: {e}")
@@ -141,7 +176,12 @@ class GetTaskStatusUseCase:
         """
         self.repository = repository
 
-    def execute(self, task_id: str) -> TaskStatusResponse | None:
+    def execute(
+        self,
+        task_id: str,
+        *,
+        include_diagnostics: bool = False,
+    ) -> TaskStatusResponse | None:
         """
         执行获取任务状态
 
@@ -156,16 +196,19 @@ class GetTaskStatusUseCase:
         if not record:
             return None
 
-        return TaskStatusResponse(
-            task_id=record.task_id,
-            task_name=record.task_name,
-            status=record.status.value,
-            started_at=record.started_at.isoformat() if record.started_at else None,
-            finished_at=record.finished_at.isoformat() if record.finished_at else None,
-            runtime_seconds=record.runtime_seconds,
-            retries=record.retries,
-            is_success=record.status == TaskStatus.SUCCESS,
-            is_failure=record.status in [TaskStatus.FAILURE, TaskStatus.TIMEOUT],
+        current_attempt, last_completed = _find_attempt_context(
+            record,
+            repository=self.repository,
+        )
+        return task_status_response(
+            record,
+            current_attempt=(
+                task_attempt_response(current_attempt) if current_attempt is not None else None
+            ),
+            last_completed=(
+                task_attempt_response(last_completed) if last_completed is not None else None
+            ),
+            include_diagnostics=include_diagnostics,
         )
 
 
@@ -187,6 +230,7 @@ class ListTasksUseCase:
         status: str | None = None,
         limit: int = 100,
         failures_only: bool = False,
+        include_diagnostics: bool = False,
     ) -> TaskListResponse:
         """
         执行列出任务
@@ -212,20 +256,34 @@ class ListTasksUseCase:
             # 如果没有指定任务名称，返回最近的失败记录
             records = self.repository.list_recent_failures(limit=limit)
 
-        items = [
-            TaskStatusResponse(
-                task_id=r.task_id,
-                task_name=r.task_name,
-                status=r.status.value,
-                started_at=r.started_at.isoformat() if r.started_at else None,
-                finished_at=r.finished_at.isoformat() if r.finished_at else None,
-                runtime_seconds=r.runtime_seconds,
-                retries=r.retries,
-                is_success=r.status == TaskStatus.SUCCESS,
-                is_failure=r.status in [TaskStatus.FAILURE, TaskStatus.TIMEOUT],
+        items = []
+        histories: dict[str, list[TaskExecutionRecord]] = {}
+        for record in records:
+            history = histories.get(record.task_name)
+            if history is None:
+                history = self.repository.list_by_task_name(record.task_name, limit=100)
+                histories[record.task_name] = history
+            current_attempt, last_completed = _find_attempt_context(
+                record,
+                repository=self.repository,
+                history=history,
             )
-            for r in records
-        ]
+            items.append(
+                task_status_response(
+                    record,
+                    current_attempt=(
+                        task_attempt_response(current_attempt)
+                        if current_attempt is not None
+                        else None
+                    ),
+                    last_completed=(
+                        task_attempt_response(last_completed)
+                        if last_completed is not None
+                        else None
+                    ),
+                    include_diagnostics=include_diagnostics,
+                )
+            )
 
         return TaskListResponse(
             total=len(items),
@@ -269,7 +327,9 @@ class GetTaskStatisticsUseCase:
             average_runtime=stats.average_runtime,
             success_rate=stats.success_rate,
             last_execution_status=stats.last_execution_status.value,
-            last_execution_at=stats.last_execution_at.isoformat() if stats.last_execution_at else None,
+            last_execution_at=(
+                stats.last_execution_at.isoformat() if stats.last_execution_at else None
+            ),
         )
 
 
@@ -312,8 +372,7 @@ class CheckCeleryHealthUseCase:
         except Exception as e:
             logger.error(f"Celery health check failed: {e}")
             raise ExternalServiceError(
-                message="Failed to check Celery health",
-                details={"error": str(e)}
+                message="Failed to check Celery health", details={"error": str(e)}
             ) from e
 
 
@@ -409,15 +468,9 @@ class GetReadinessScheduleUseCase:
         self.scheduler_repository = scheduler_repository
 
     def execute(self) -> ReadinessScheduleResponse:
-        quote_task = self.scheduler_repository.get_crontab_task(
-            QUOTE_PRE_READINESS_TASK_NAME
-        )
-        daily_task = self.scheduler_repository.get_crontab_task(
-            PERSONAL_READINESS_DAILY_TASK_NAME
-        )
-        weekly_task = self.scheduler_repository.get_crontab_task(
-            AUTO_ADVISOR_WEEKLY_TASK_NAME
-        )
+        quote_task = self.scheduler_repository.get_crontab_task(QUOTE_PRE_READINESS_TASK_NAME)
+        daily_task = self.scheduler_repository.get_crontab_task(PERSONAL_READINESS_DAILY_TASK_NAME)
+        weekly_task = self.scheduler_repository.get_crontab_task(AUTO_ADVISOR_WEEKLY_TASK_NAME)
 
         return ReadinessScheduleResponse(
             quote_pre_refresh_time=_format_crontab_time(
@@ -513,9 +566,7 @@ def _map_scheduled_task(task: ScheduledTaskRecord) -> ScheduledTaskResponse:
         last_run_at=task.last_run_at.isoformat() if task.last_run_at else None,
         total_run_count=task.total_run_count,
         last_execution_status=task.last_execution_status,
-        last_execution_at=(
-            task.last_execution_at.isoformat() if task.last_execution_at else None
-        ),
+        last_execution_at=(task.last_execution_at.isoformat() if task.last_execution_at else None),
         last_runtime_seconds=task.last_runtime_seconds,
         recent_failure_count=task.recent_failure_count,
     )

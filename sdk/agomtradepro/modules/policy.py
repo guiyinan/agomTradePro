@@ -4,6 +4,7 @@ AgomTradePro SDK - Policy 政策事件模块
 提供政策事件管理相关的 API 操作。
 """
 
+import re
 from datetime import date, datetime
 from typing import Any
 
@@ -21,6 +22,12 @@ from ..types import (
     WorkbenchSummary,
 )
 from .base import BaseModule
+
+_UNSAFE_POLICY_TEXT_PATTERN = re.compile(
+    r"(?:password|passwd|secret|token|authorization|traceback|select\s+.+\s+from|sqlalchemy)",
+    re.IGNORECASE,
+)
+_SAFE_POLICY_CODE_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
 
 
 class PolicyModule(BaseModule):
@@ -585,16 +592,56 @@ class PolicyModule(BaseModule):
         elif obs_date is None:
             obs_date = date.today()
 
-        current_level = data.get("current_level")
-        current_gear = data.get("current_gear")
+        raw_level = data.get("current_level")
+        current_level = raw_level if raw_level in {"PX", "P0", "P1", "P2", "P3"} else None
+        raw_gear = data.get("current_gear")
+        current_gear = (
+            raw_gear if raw_gear in {"stimulus", "neutral", "tightening", "unclassified"} else None
+        )
         if current_gear is None:
             current_gear = self._level_to_gear(current_level)
-        requires_manual_approval = bool(data.get("requires_manual_approval", False))
+        requires_manual_approval = bool(
+            data.get("requires_manual_approval", False)
+            or current_level == "PX"
+            or current_gear == "unclassified"
+        )
         must_not_use_for_decision = bool(
             data.get("must_not_use_for_decision", False)
             or current_level == "PX"
             or requires_manual_approval
         )
+        level_name = data.get("level_name")
+        if (
+            not isinstance(level_name, str)
+            or not level_name.strip()
+            or len(level_name.strip()) > 128
+            or _UNSAFE_POLICY_TEXT_PATTERN.search(level_name)
+        ):
+            level_name = "待分类" if current_gear == "unclassified" else None
+        freshness_status = data.get("freshness_status", "unknown")
+        if (
+            not isinstance(freshness_status, str)
+            or not freshness_status.strip()
+            or not _SAFE_POLICY_CODE_PATTERN.fullmatch(freshness_status.strip())
+        ):
+            freshness_status = "unknown"
+        blocked_reason = data.get("blocked_reason")
+        if (
+            not isinstance(blocked_reason, str)
+            or not blocked_reason.strip()
+            or len(blocked_reason.strip()) > 240
+            or _UNSAFE_POLICY_TEXT_PATTERN.search(blocked_reason)
+        ):
+            blocked_reason = (
+                "policy_unclassified_manual_review" if must_not_use_for_decision else ""
+            )
+        trace_id = data.get("trace_id")
+        if (
+            not isinstance(trace_id, str)
+            or not trace_id.strip()
+            or not _SAFE_POLICY_CODE_PATTERN.fullmatch(trace_id.strip())
+        ):
+            trace_id = None
 
         recent_event_payloads = list(data.get("recent_events", []))
         latest_event = data.get("latest_event")
@@ -610,9 +657,12 @@ class PolicyModule(BaseModule):
             observed_at=obs_date,
             recent_events=recent_events,
             current_level=current_level,
-            level_name=data.get("level_name"),
+            level_name=level_name,
             requires_manual_approval=requires_manual_approval,
             must_not_use_for_decision=must_not_use_for_decision,
+            freshness_status=freshness_status,
+            blocked_reason=blocked_reason,
+            trace_id=trace_id,
         )
 
     def _parse_event(self, data: dict[str, Any]) -> PolicyEvent:
@@ -652,7 +702,7 @@ class PolicyModule(BaseModule):
             "P3": "stimulus",
             "PX": "unclassified",
         }
-        return mapping.get(str(level), "neutral")
+        return mapping.get(str(level), "unclassified")
 
     def _parse_workbench_summary(self, data: dict[str, Any]) -> WorkbenchSummary:
         """解析工作台概览数据"""

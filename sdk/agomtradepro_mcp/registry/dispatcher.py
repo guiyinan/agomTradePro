@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import re
 import secrets
 from collections.abc import Callable, Sequence
 from copy import deepcopy
 from typing import Any, cast
 
-from agomtradepro.exceptions import AgomTradeProAPIError
+from agomtradepro.exceptions import (
+    AgomTradeProAPIError,
+)
+from agomtradepro.exceptions import ConnectionError as SDKConnectionError
+from agomtradepro.exceptions import TimeoutError as SDKTimeoutError
 from agomtradepro_mcp.audit import AuditContext, get_audit_logger
 from agomtradepro_mcp.rbac import get_current_role, role_matches_required_roles
 
@@ -15,6 +20,11 @@ from .manifest import CapabilityManifest
 
 CAPABILITY_SEARCH_DEFAULT_RESULTS = 10
 CAPABILITY_SEARCH_MAX_RESULTS = 20
+_UNSAFE_PUBLIC_MESSAGE_PATTERN = re.compile(
+    r"(?:password|passwd|secret|token|authorization|traceback|select\s+.+\s+from|sqlalchemy)",
+    re.IGNORECASE,
+)
+_PUBLIC_CODE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
 
 # Search aliases are protocol-routing metadata, not business rules. They keep
 # Chinese user questions on the bounded discovery path without duplicating
@@ -564,27 +574,64 @@ class CapabilityDispatcher:
     ) -> dict[str, Any]:
         """Preserve bounded upstream business errors without leaking raw responses."""
 
+        if isinstance(exc, SDKTimeoutError):
+            return self._error_envelope(
+                code="transport_timeout",
+                message="上游服务请求超时，请稍后重试。",
+                capability_key=capability_key,
+                confirmation_token=confirmation_token,
+            )
+        if isinstance(exc, SDKConnectionError):
+            return self._error_envelope(
+                code="transport_connection_failed",
+                message="上游服务连接失败，请稍后重试。",
+                capability_key=capability_key,
+                confirmation_token=confirmation_token,
+            )
         if not isinstance(exc, AgomTradeProAPIError):
+            safe_message = str(exc).strip()
+            if (
+                not safe_message
+                or len(safe_message) > 240
+                or _UNSAFE_PUBLIC_MESSAGE_PATTERN.search(safe_message)
+            ):
+                safe_message = "能力执行失败，请稍后重试。"
             return self._error_envelope(
                 code=default_code,
-                message=str(exc),
+                message=safe_message,
                 capability_key=capability_key,
                 confirmation_token=confirmation_token,
             )
         response = exc.response if isinstance(exc.response, dict) else {}
-        raw_code = response.get("code") or response.get("blocked_reason")
+        exception_code = getattr(exc, "code", None)
+        if exception_code == "api_error":
+            exception_code = None
+        raw_code = (
+            response.get("code")
+            or response.get("error_code")
+            or response.get("block_reason_code")
+            or response.get("blocked_reason")
+            or exception_code
+        )
         code = str(raw_code or "").strip().lower()
-        if (
-            not code
-            or len(code) > 64
-            or any(not (character.isalnum() or character in {"_", "-"}) for character in code)
-        ):
+        if not _PUBLIC_CODE_PATTERN.fullmatch(code):
             code = default_code
-        raw_message = response.get("detail") or response.get("message")
+        raw_message = (
+            response.get("message")
+            or response.get("error")
+            or response.get("detail")
+            or response.get("block_reason")
+        )
+        candidate_message = raw_message.strip() if isinstance(raw_message, str) else ""
         message = (
-            str(raw_message).strip()
-            if code != default_code and isinstance(raw_message, str) and raw_message.strip()
-            else f"Upstream API request failed with HTTP {exc.status_code or 'unknown'}."
+            candidate_message
+            if (
+                code != default_code
+                and candidate_message
+                and len(candidate_message) <= 240
+                and not _UNSAFE_PUBLIC_MESSAGE_PATTERN.search(candidate_message)
+            )
+            else f"上游服务返回 HTTP {exc.status_code or 'unknown'}，当前请求未完成。"
         )
         payload = self._error_envelope(
             code=code,
@@ -595,11 +642,32 @@ class CapabilityDispatcher:
         error = payload["error"]
         if isinstance(error, dict):
             error["upstream_status_code"] = exc.status_code
-            blocked_reason = response.get("blocked_reason")
-            if isinstance(blocked_reason, str) and blocked_reason == code:
-                error["blocked_reason"] = blocked_reason
+            blocked_reason = response.get("block_reason") or response.get("blocked_reason")
+            if (
+                isinstance(blocked_reason, str)
+                and blocked_reason.strip()
+                and len(blocked_reason.strip()) <= 240
+                and not _UNSAFE_PUBLIC_MESSAGE_PATTERN.search(blocked_reason)
+            ):
+                error["blocked_reason"] = blocked_reason.strip()
             if isinstance(response.get("must_not_use_for_decision"), bool):
                 error["must_not_use_for_decision"] = response["must_not_use_for_decision"]
+            for key in (
+                "observed_at",
+                "source_observed_at",
+                "freshness_status",
+                "reliability",
+                "trace_id",
+                "request_id",
+            ):
+                value = response.get(key)
+                if (
+                    isinstance(value, str)
+                    and value.strip()
+                    and len(value.strip()) <= 240
+                    and not _UNSAFE_PUBLIC_MESSAGE_PATTERN.search(value)
+                ):
+                    error[key] = value.strip()
         return payload
 
     def _validate_idempotency_arguments(

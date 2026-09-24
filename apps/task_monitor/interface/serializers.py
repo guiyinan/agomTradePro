@@ -8,10 +8,46 @@ from rest_framework import serializers
 
 from apps.task_monitor.application.dtos import (
     HealthCheckResponse,
+    TaskAttemptResponse,
     TaskListResponse,
+    TaskPhaseResultResponse,
     TaskStatisticsResponse,
     TaskStatusResponse,
 )
+
+
+class TaskPhaseResultSerializer(serializers.Serializer[TaskPhaseResultResponse]):
+    """Safe counters for one persisted business phase."""
+
+    phase = serializers.CharField(read_only=True, allow_null=True)
+    requested = serializers.IntegerField(read_only=True, allow_null=True)
+    succeeded = serializers.IntegerField(read_only=True, allow_null=True)
+    failed = serializers.IntegerField(read_only=True, allow_null=True)
+    stored = serializers.IntegerField(read_only=True, allow_null=True)
+
+
+class TaskAttemptSerializer(serializers.Serializer[TaskAttemptResponse]):
+    """Safe business summary for one task attempt."""
+
+    task_id = serializers.CharField(read_only=True)
+    status = serializers.CharField(read_only=True)
+    started_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    finished_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    retries = serializers.IntegerField(read_only=True)
+    outcome = serializers.CharField(read_only=True, allow_null=True)
+    phase = serializers.CharField(read_only=True, allow_null=True)
+    count_unit = serializers.CharField(read_only=True, allow_null=True)
+    requested = serializers.IntegerField(read_only=True, allow_null=True)
+    succeeded = serializers.IntegerField(read_only=True, allow_null=True)
+    failed = serializers.IntegerField(read_only=True, allow_null=True)
+    stored = serializers.IntegerField(read_only=True, allow_null=True)
+    error_code = serializers.CharField(read_only=True, allow_null=True)
+    stable_error_code = serializers.CharField(read_only=True, allow_null=True)
+    trace_id = serializers.CharField(read_only=True, allow_null=True)
+    stored_count_unit = serializers.CharField(read_only=True, allow_null=True)
+    target_trade_date = serializers.CharField(read_only=True, allow_null=True)
+    phase_results = TaskPhaseResultSerializer(many=True, read_only=True, allow_null=True)
+    business_success = serializers.BooleanField(read_only=True, allow_null=True)
 
 
 class TaskStatusSerializer(serializers.Serializer[TaskStatusResponse]):
@@ -26,6 +62,29 @@ class TaskStatusSerializer(serializers.Serializer[TaskStatusResponse]):
     retries = serializers.IntegerField(read_only=True)
     is_success = serializers.BooleanField(read_only=True)
     is_failure = serializers.BooleanField(read_only=True)
+    outcome = serializers.CharField(read_only=True, allow_null=True)
+    phase = serializers.CharField(read_only=True, allow_null=True)
+    count_unit = serializers.CharField(read_only=True, allow_null=True)
+    requested = serializers.IntegerField(read_only=True, allow_null=True)
+    succeeded = serializers.IntegerField(read_only=True, allow_null=True)
+    failed = serializers.IntegerField(read_only=True, allow_null=True)
+    stored = serializers.IntegerField(read_only=True, allow_null=True)
+    error_code = serializers.CharField(read_only=True, allow_null=True)
+    stable_error_code = serializers.CharField(read_only=True, allow_null=True)
+    trace_id = serializers.CharField(read_only=True, allow_null=True)
+    stored_count_unit = serializers.CharField(read_only=True, allow_null=True)
+    target_trade_date = serializers.CharField(read_only=True, allow_null=True)
+    phase_results = TaskPhaseResultSerializer(many=True, read_only=True, allow_null=True)
+    business_success = serializers.BooleanField(read_only=True, allow_null=True)
+    current_attempt = TaskAttemptSerializer(read_only=True, allow_null=True)
+    last_completed = TaskAttemptSerializer(read_only=True, allow_null=True)
+
+
+class TaskStatusDiagnosticSerializer(TaskStatusSerializer):
+    """Operator-only extension carrying bounded exception diagnostics."""
+
+    exception = serializers.CharField(read_only=True, allow_null=True)
+    traceback = serializers.CharField(read_only=True, allow_null=True)
 
 
 class TaskListSerializer(serializers.Serializer[TaskListResponse]):
@@ -33,6 +92,13 @@ class TaskListSerializer(serializers.Serializer[TaskListResponse]):
 
     total = serializers.IntegerField(read_only=True)
     items = TaskStatusSerializer(many=True, read_only=True)
+
+
+class TaskDiagnosticListSerializer(serializers.Serializer[TaskListResponse]):
+    """Operator-only task list serializer with raw diagnostics."""
+
+    total = serializers.IntegerField(read_only=True)
+    items = TaskStatusDiagnosticSerializer(many=True, read_only=True)
 
 
 class HealthCheckSerializer(serializers.Serializer[HealthCheckResponse]):

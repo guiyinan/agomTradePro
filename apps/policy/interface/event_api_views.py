@@ -91,6 +91,10 @@ class PolicyStatusView(APIView):
             repo = get_current_policy_repository()
             use_case = GetPolicyStatusUseCase(event_store=repo)
             output: PolicyStatusOutput = use_case.execute(as_of_date)
+            requires_manual_approval = output.response_config.requires_manual_approval
+            must_not_use_for_decision = (
+                output.current_level is PolicyLevel.PENDING or requires_manual_approval
+            )
 
             # 序列化响应
             response_data: Payload = {
@@ -100,11 +104,20 @@ class PolicyStatusView(APIView):
                 "is_crisis_mode": output.is_crisis_mode,
                 "recommendations": output.recommendations,
                 "as_of_date": output.as_of_date.isoformat(),
+                "observed_at": output.as_of_date.isoformat(),
+                "freshness_status": "unknown",
+                "must_not_use_for_decision": must_not_use_for_decision,
+                "blocked_reason": (
+                    "policy_unclassified_manual_review"
+                    if output.current_level is PolicyLevel.PENDING
+                    else "policy_manual_approval_required" if requires_manual_approval else ""
+                ),
+                "trace_id": None,
                 # 响应配置
                 "market_action": output.response_config.market_action.value,
                 "cash_adjustment": output.response_config.cash_adjustment,
                 "signal_pause_hours": output.response_config.signal_pause_hours,
-                "requires_manual_approval": output.response_config.requires_manual_approval,
+                "requires_manual_approval": requires_manual_approval,
                 # 最新事件
                 "latest_event": None,
             }
