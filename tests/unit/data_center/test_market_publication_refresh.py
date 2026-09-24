@@ -73,6 +73,35 @@ def test_partial_market_refresh_keeps_previous_publication():
     assert published == []
 
 
+def test_provider_identity_gap_is_a_partial_business_result() -> None:
+    def reject_valuation(_codes, _day):
+        from apps.data_center.application.batch_identity import ProviderAssetIdentityError
+
+        raise ProviderAssetIdentityError("valuation provider asset identities mismatch")
+
+    ports = MarketPublicationRefreshPorts(
+        list_codes=lambda: ["000001.SZ", "000016.SZ"],
+        sync_quotes=lambda codes: len(codes),
+        sync_valuations=reject_valuation,
+        publish=lambda _: pytest.fail("incomplete valuation scope reached publication"),
+    )
+
+    result = refresh_market_publications(
+        ports=ports,
+        as_of_date=date(2026, 9, 23),
+        batch_size=2,
+    )
+
+    assert result["outcome"] == "partial"
+    assert result["success"] is False
+    assert result["stored"] == 2
+    assert result["published_members"] == 0
+    assert result["errors"] == [
+        "PROVIDER_ASSET_IDENTITY_MISMATCH",
+        "market_publication_skipped_incomplete_refresh",
+    ]
+
+
 def test_publication_evidence_failure_is_not_success():
     result, published = run(publish_error=True)
     assert result["outcome"] == "partial"

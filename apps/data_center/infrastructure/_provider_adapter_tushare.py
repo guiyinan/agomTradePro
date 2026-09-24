@@ -48,6 +48,8 @@ from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
 
+_TUSHARE_MARKET_CAP_MULTIPLIER_TO_CNY = 10_000.0
+
 
 def _deployment_region() -> str:
     """Read the explicit node-region label used by egress rules."""
@@ -176,6 +178,24 @@ def _optional_nonnegative_float(value: object) -> float | None:
     if parsed is None or parsed < 0:
         return None
     return parsed
+
+
+def _tushare_market_cap_cny(value: object) -> float | None:
+    """Convert Tushare ``total_mv``/``circ_mv`` from ten-thousand CNY to CNY."""
+
+    parsed = _optional_nonnegative_float(value)
+    return parsed * _TUSHARE_MARKET_CAP_MULTIPLIER_TO_CNY if parsed is not None else None
+
+
+def _tushare_valuation_extra(base: dict[str, Any]) -> dict[str, Any]:
+    """Publish the provider unit and explicit canonical storage conversion."""
+
+    return {
+        **base,
+        "market_cap_original_unit": "万元",
+        "market_cap_canonical_unit": "元",
+        "market_cap_multiplier_to_storage": _TUSHARE_MARKET_CAP_MULTIPLIER_TO_CNY,
+    }
 
 
 def _financial_fact_builder(
@@ -884,11 +904,11 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     pe_ttm=safe_float(record.pe),
                     pb=safe_float(record.pb),
                     ps_ttm=safe_float(record.ps),
-                    market_cap=_optional_nonnegative_float(record.total_mv),
-                    float_market_cap=_optional_nonnegative_float(record.circ_mv),
+                    market_cap=_tushare_market_cap_cny(record.total_mv),
+                    float_market_cap=_tushare_market_cap_cny(record.circ_mv),
                     dv_ratio=safe_float(record.dividend_yield),
                     source=self.provider_source(),
-                    extra=self._provider_extra(),
+                    extra=_tushare_valuation_extra(self._provider_extra()),
                 )
                 for record in batch.records
             ]
@@ -912,11 +932,11 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     pe_ttm=safe_float(_first_present(row, "pe_ttm", "pe")),
                     pb=safe_float(_first_present(row, "pb")),
                     ps_ttm=safe_float(_first_present(row, "ps_ttm", "ps")),
-                    market_cap=_optional_nonnegative_float(_first_present(row, "total_mv")),
-                    float_market_cap=_optional_nonnegative_float(_first_present(row, "circ_mv")),
+                    market_cap=_tushare_market_cap_cny(_first_present(row, "total_mv")),
+                    float_market_cap=_tushare_market_cap_cny(_first_present(row, "circ_mv")),
                     dv_ratio=safe_float(_first_present(row, "dv_ttm", "dv_ratio")),
                     source=self.provider_source(),
-                    extra=self._provider_extra(),
+                    extra=_tushare_valuation_extra(self._provider_extra()),
                 )
             )
         return facts

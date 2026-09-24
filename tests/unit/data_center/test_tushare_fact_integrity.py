@@ -257,7 +257,10 @@ def test_financial_and_valuation_adapters_drop_nonfinite_fields(monkeypatch) -> 
     assert valuations[0].pb == 1.2
     assert valuations[0].ps_ttm is None
     assert valuations[0].market_cap is None
-    assert valuations[0].float_market_cap == 5000.0
+    assert valuations[0].float_market_cap == 50_000_000.0
+    assert valuations[0].extra["market_cap_original_unit"] == "万元"
+    assert valuations[0].extra["market_cap_canonical_unit"] == "元"
+    assert valuations[0].extra["market_cap_multiplier_to_storage"] == 10_000.0
 
 
 def test_turnover_failure_log_does_not_expose_provider_exception(monkeypatch, caplog) -> None:

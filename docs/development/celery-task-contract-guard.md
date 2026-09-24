@@ -134,3 +134,5 @@ python scripts/check_celery_task_contracts.py \
 2026-09-19：`data_center.refresh_full_market_publications` 冻结有效 A 股全集，按批刷新报价与估值事实；任何批次不完整均保留原 Publication。全部事实齐备且源观测日匹配最近完成交易日后才发布报价、估值、日线全集。停牌日线保留实际日期，财报发布仍独立校验。`setup_full_market_publications` 幂等配置工作日 16:30（项目时区）的 Beat 任务，可用参数调整或禁用。审计配置/服务身份不可用时，在任何行情请求和写入前返回 `outcome=blocked`、`stored=0` 及稳定原因；不得以关闭审计、空 writer 或临时管理员身份作为恢复措施。
 
 2026-09-20 合并前维护：Alpha 的数据阻断结果和旧源评分标记由 `task_outcome_contracts` 统一生成，任务入口及原有 outcome、计数和阻断原因保持不变。
+
+2026-09-24 Tushare 全市场估值修复：`daily_basic.total_mv/circ_mv` 的原始单位为“万元”，Provider 适配器必须在进入 Domain 前转换为存储规范“元”，并在 `extra` 保留原始单位、规范单位和 `10000` 转换倍数；迁移 `data_center.0084` 同步修复既有 Tushare 估值事实。停牌等原因造成 Provider 少返回资产时，严格身份校验仍然拒绝写入该批估值，但全市场任务必须返回结构化 `partial`、保留上一版 Publication，并把 `PROVIDER_ASSET_IDENTITY_MISMATCH` 暴露给 Task Monitor/Alpha 告警，禁止以未捕获异常结束或发布不完整范围。

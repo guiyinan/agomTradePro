@@ -13,6 +13,8 @@ from apps.data_center.domain.model_market_data import (
 )
 from core.exceptions import DataFetchError
 
+from .batch_identity import ProviderAssetIdentityError
+
 
 def refresh_market_price_inputs(
     port: ModelMarketDataPort, asset_codes: list[str], target_date: date
@@ -79,7 +81,13 @@ def refresh_market_publications(
                 if count != len(batch):
                     raise DataFetchError("Market batch incomplete", code="MARKET_BATCH_INCOMPLETE")
                 succeeded += 1
-            except (DataFetchError, OSError, RuntimeError, ValueError) as exc:
+            except (
+                DataFetchError,
+                ProviderAssetIdentityError,
+                OSError,
+                RuntimeError,
+                ValueError,
+            ) as exc:
                 failed += 1
                 errors.append(getattr(exc, "code", type(exc).__name__))
     published = 0

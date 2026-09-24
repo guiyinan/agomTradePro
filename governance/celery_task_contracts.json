@@ -1763,7 +1763,7 @@
         },
         "partial_failure": {
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
-          "test_function": "test_partial_market_refresh_keeps_previous_publication"
+          "test_function": "test_provider_identity_gap_is_a_partial_business_result"
         },
         "complete_failure": {
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
