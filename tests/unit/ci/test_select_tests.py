@@ -188,6 +188,76 @@ class TestSelectTests(unittest.TestCase):
         self.assertIn("tests/unit/data_center/", tests)
         self.assertIn("tests/component/data_center/", tests)
 
+    def test_logic_profile_keeps_data_center_tests_in_mixed_ci_diff(self):
+        """CI workflow edits must not discard tests selected by an app change."""
+        changed = [
+            "apps/data_center/infrastructure/repositories.py",
+            ".github/workflows/ci-fast-feedback.yml",
+        ]
+
+        tests = select_tests_func(get_changed_modules(changed), changed, profile="logic_guardrails")
+
+        self.assertIn("tests/component/data_center/", tests)
+
+    def test_logic_profile_keeps_data_center_tests_in_mixed_shared_diff(self):
+        """Shared edits must not discard tests selected by an app change."""
+        changed = [
+            "apps/data_center/infrastructure/repositories.py",
+            "shared/numeric.py",
+        ]
+
+        tests = select_tests_func(get_changed_modules(changed), changed, profile="logic_guardrails")
+
+        self.assertIn("tests/component/data_center/", tests)
+
+    def test_logic_profile_selects_changed_component_test_itself(self):
+        """A test-only diff must execute the changed test instead of only guardrails."""
+        changed_test = "tests/component/data_center/test_repositories.py"
+
+        tests = select_tests_func(set(), [changed_test], profile="logic_guardrails")
+
+        self.assertIn(changed_test, tests)
+
+    def test_logic_profile_keeps_changed_component_test_with_ci_change(self):
+        """A CI edit must not discard a directly changed component test."""
+        changed_test = "tests/component/data_center/test_repositories.py"
+        changed = [changed_test, ".github/workflows/ci-fast-feedback.yml"]
+
+        tests = select_tests_func(get_changed_modules(changed), changed, profile="logic_guardrails")
+
+        self.assertIn(changed_test, tests)
+
+    def test_logic_profile_keeps_changed_component_test_with_shared_change(self):
+        """A shared edit must not discard a directly changed component test."""
+        changed_test = "tests/component/data_center/test_repositories.py"
+        changed = [changed_test, "shared/numeric.py"]
+
+        tests = select_tests_func(get_changed_modules(changed), changed, profile="logic_guardrails")
+
+        self.assertIn(changed_test, tests)
+
+    def test_default_profile_keeps_full_suite_for_mixed_ci_diff(self):
+        """Default CI selection remains conservative for any workflow change."""
+        changed = [
+            "apps/data_center/infrastructure/repositories.py",
+            ".github/workflows/ci-fast-feedback.yml",
+        ]
+
+        tests = select_tests_func(get_changed_modules(changed), changed)
+
+        self.assertEqual(tests, FULL_TEST_SUITES)
+
+    def test_default_profile_keeps_full_suite_for_mixed_shared_diff(self):
+        """Default selection remains conservative for any shared change."""
+        changed = [
+            "apps/data_center/infrastructure/repositories.py",
+            "shared/numeric.py",
+        ]
+
+        tests = select_tests_func(get_changed_modules(changed), changed)
+
+        self.assertEqual(tests, FULL_TEST_SUITES)
+
     def test_select_tests_with_dashboard_changes_include_api_tests(self):
         """dashboard 变更必须带上 API 测试。"""
         tests = select_tests_func({"dashboard"}, ["apps/dashboard/interface/views.py"])

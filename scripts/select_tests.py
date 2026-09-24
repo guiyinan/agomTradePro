@@ -446,6 +446,25 @@ def get_changed_modules(changed_files: list[str]) -> set[str]:
     return modules
 
 
+def get_changed_test_targets(changed_files: list[str]) -> set[str]:
+    """Return directly changed pytest files or their containing test directories."""
+    targets: set[str] = set()
+    for path in changed_files:
+        normalized = path.replace("\\", "/")
+        parts = Path(normalized).parts
+        is_repo_test = normalized.startswith("tests/")
+        is_app_test = len(parts) >= 3 and parts[0] == "apps" and parts[2] == "tests"
+        if not (is_repo_test or is_app_test):
+            continue
+        if Path(normalized).name.startswith("test_") and normalized.endswith(".py"):
+            targets.add(normalized)
+            continue
+        parent = Path(normalized).parent.as_posix()
+        if parent and parent != ".":
+            targets.add(f"{parent}/")
+    return targets
+
+
 def select_tests(
     modules: set[str],
     changed_files: list[str],
@@ -469,7 +488,8 @@ def select_tests(
         base_targets = select_tests(modules - {"sdk"}, remaining_files, profile)
         return sorted(set(base_targets) | {"sdk/tests/test_sdk/", "sdk/tests/test_mcp/"})
 
-    tests = set()
+    changed_test_targets = get_changed_test_targets(changed_files)
+    tests = set(changed_test_targets)
 
     # 始终添加核心 guardrail 测试
     tests.update(CORE_GUARDRAIL_TESTS)
@@ -499,21 +519,41 @@ def select_tests(
 
     # 如果没有检测到模块变更，运行全量测试
     if not modules:
+        if tests - set(CORE_GUARDRAIL_TESTS):
+            existing_tests = [target for target in tests if os.path.exists(target)]
+            if use_logic_guardrails_profile:
+                existing_tests = [
+                    target for target in existing_tests if _is_logic_guardrails_target(target)
+                ]
+            return sorted(existing_tests) if existing_tests else CORE_GUARDRAIL_TESTS
         if use_logic_guardrails_profile:
             return CORE_GUARDRAIL_TESTS
         return FULL_TEST_SUITES
 
     # CI 配置变更 -> 运行全量测试
-    if "ci" in modules or ".github" in str(changed_files):
-        if use_logic_guardrails_profile:
-            return CORE_GUARDRAIL_TESTS
-        return FULL_TEST_SUITES
+    if "ci" in modules:
+        if use_logic_guardrails_profile and modules != {"ci"}:
+            pass
+        elif use_logic_guardrails_profile:
+            if not changed_test_targets:
+                return CORE_GUARDRAIL_TESTS
+            existing_tests = [target for target in tests if os.path.exists(target)]
+            return sorted(existing_tests) if existing_tests else CORE_GUARDRAIL_TESTS
+        else:
+            return FULL_TEST_SUITES
 
-    # shared/ 变变更 -> 运行全量测试（影响所有模块）
+    # shared/ changes affect every application in the default profile. The fast
+    # profile keeps explicitly changed tests and any app-specific selections.
     if "shared" in modules:
-        if use_logic_guardrails_profile:
-            return CORE_GUARDRAIL_TESTS
-        return FULL_TEST_SUITES
+        if use_logic_guardrails_profile and modules != {"shared"}:
+            pass
+        elif use_logic_guardrails_profile:
+            if not changed_test_targets:
+                return CORE_GUARDRAIL_TESTS
+            existing_tests = [target for target in tests if os.path.exists(target)]
+            return sorted(existing_tests) if existing_tests else CORE_GUARDRAIL_TESTS
+        else:
+            return FULL_TEST_SUITES
 
     # core/ 变更 -> 运行 guardrail 测试
     if "core" in modules:

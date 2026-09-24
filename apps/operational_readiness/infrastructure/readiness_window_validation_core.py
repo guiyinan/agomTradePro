@@ -206,6 +206,8 @@ def _continuous_window(
             break
 
         accepted.append(record)
+        if len(accepted) >= required_days:
+            break
         current = _previous_trading_day(current, calendar)
 
     accepted.reverse()

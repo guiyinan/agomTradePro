@@ -48,10 +48,9 @@ def _resolve_trading_calendar(
     ):
         return _TradingCalendar(source="qlib", dates=tuple(qlib_calendar))
 
-    if source == "qlib":
-        raise CommandError("Qlib trading calendar is unavailable or stale for readiness evidence")
-
-    return _TradingCalendar(source="weekday_fallback", dates=None)
+    raise CommandError(
+        "Authoritative trading calendar is unavailable or stale for readiness evidence"
+    )
 
 
 def _parse_date(value: Any) -> date | None:
@@ -104,7 +103,7 @@ def _previous_trading_day(value: date, calendar: _TradingCalendar) -> date:
     if calendar.dates is not None:
         index = bisect_left(calendar.dates, value)
         if index <= 0:
-            return date.min
+            raise CommandError("Trading calendar has no previous covered session")
         return calendar.dates[index - 1]
     return _previous_weekday(value)
 
@@ -116,6 +115,7 @@ def _next_trading_day(value: date, calendar: _TradingCalendar) -> date:
             index += 1
         if index < len(calendar.dates):
             return calendar.dates[index]
+        raise CommandError("Trading calendar forward coverage is unavailable")
     return _next_weekday(value)
 
 

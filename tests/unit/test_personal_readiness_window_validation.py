@@ -325,7 +325,12 @@ def test_validate_personal_readiness_window_uses_injected_trading_calendar(tmp_p
     payload = command_module.validate_personal_readiness_window(
         output_dir=tmp_path,
         required_days=2,
-        trading_calendar={date(2026, 6, 29), date(2026, 7, 1)},
+        trading_calendar={
+            date(2026, 6, 29),
+            date(2026, 7, 1),
+            date(2026, 7, 2),
+            date(2026, 7, 3),
+        },
     )
 
     assert payload["status"] == "accepted"
@@ -369,7 +374,12 @@ def test_validate_personal_readiness_window_auto_uses_qlib_calendar(monkeypatch,
     monkeypatch.setattr(
         command_module,
         "_load_qlib_trading_calendar",
-        lambda: [date(2026, 6, 29), date(2026, 7, 1)],
+        lambda: [
+            date(2026, 6, 29),
+            date(2026, 7, 1),
+            date(2026, 7, 2),
+            date(2026, 7, 3),
+        ],
     )
 
     payload = command_module.validate_personal_readiness_window(
@@ -379,11 +389,11 @@ def test_validate_personal_readiness_window_auto_uses_qlib_calendar(monkeypatch,
 
     assert payload["status"] == "accepted"
     assert payload["calendar_source"] == "qlib"
-    assert payload["calendar_day_count"] == 2
+    assert payload["calendar_day_count"] == 4
     assert payload["accepted_dates"] == ["2026-06-29", "2026-07-01"]
 
 
-def test_validate_personal_readiness_window_next_required_falls_back_after_qlib_calendar_end(
+def test_validate_personal_readiness_window_blocks_after_qlib_calendar_end(
     monkeypatch,
     tmp_path,
 ):
@@ -394,18 +404,14 @@ def test_validate_personal_readiness_window_next_required_falls_back_after_qlib_
         lambda: [date(2026, 6, 30)],
     )
 
-    payload = command_module.validate_personal_readiness_window(
-        output_dir=tmp_path,
-        required_days=20,
-    )
-
-    assert payload["calendar_source"] == "qlib"
-    assert payload["accepted_dates"] == ["2026-06-30"]
-    assert payload["next_required_date"] == "2026-07-01"
-    assert payload["next_required_reason"] == "next_trading_day"
+    with pytest.raises(CommandError, match="forward coverage"):
+        command_module.validate_personal_readiness_window(
+            output_dir=tmp_path,
+            required_days=1,
+        )
 
 
-def test_validate_personal_readiness_window_auto_falls_back_when_qlib_calendar_stale(
+def test_validate_personal_readiness_window_blocks_before_calendar_start(
     monkeypatch,
     tmp_path,
 ):
@@ -416,15 +422,30 @@ def test_validate_personal_readiness_window_auto_falls_back_when_qlib_calendar_s
         lambda: [date(2026, 6, 30)],
     )
 
-    payload = command_module.validate_personal_readiness_window(
-        output_dir=tmp_path,
-        required_days=2,
-        expected_latest_date=date(2026, 7, 1),
+    with pytest.raises(CommandError, match="previous covered session"):
+        command_module.validate_personal_readiness_window(
+            output_dir=tmp_path,
+            required_days=2,
+        )
+
+
+def test_validate_personal_readiness_window_auto_blocks_when_qlib_calendar_stale(
+    monkeypatch,
+    tmp_path,
+):
+    _write_evidence(tmp_path, date(2026, 6, 30), status="ok")
+    monkeypatch.setattr(
+        command_module,
+        "_load_qlib_trading_calendar",
+        lambda: [date(2026, 6, 30)],
     )
 
-    assert payload["calendar_source"] == "weekday_fallback"
-    assert payload["blocking_issues"][0]["target_date"] == "2026-07-01"
-    assert payload["blocking_issues"][0]["reason"] == "evidence is missing"
+    with pytest.raises(CommandError, match="Authoritative trading calendar"):
+        command_module.validate_personal_readiness_window(
+            output_dir=tmp_path,
+            required_days=2,
+            expected_latest_date=date(2026, 7, 1),
+        )
 
 
 def test_validate_personal_readiness_window_records_blocking_issue(tmp_path):
