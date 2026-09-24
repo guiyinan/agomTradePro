@@ -40,6 +40,7 @@ from apps.account.domain.account_owner_assignment_evidence_v5 import (
     AccountOwnerAssignmentEvidenceV5,
     validate_account_owner_assignment_evidence_v5_dual_mapping_root,
     validate_account_owner_assignment_evidence_v5_root,
+    validate_account_owner_assignment_evidence_v5_successor,
 )
 from apps.account.domain.account_owner_assignment_subject_v5 import (
     AccountOwnerAssignmentSubjectV5,
@@ -147,6 +148,7 @@ class ApproveAccountOwnerAssignmentEvidenceV5Command:
     subject_id: str
     subject_version: str
     expected_subject_content_hash: str
+    expected_predecessor_content_hash: str | None = None
 
     def __post_init__(self) -> None:
         """Validate the ID/hash-only approval selectors."""
@@ -154,6 +156,11 @@ class ApproveAccountOwnerAssignmentEvidenceV5Command:
         for name in ("evidence_id", "evidence_version", "subject_id", "subject_version"):
             _token(getattr(self, name), name)
         _digest(self.expected_subject_content_hash, "expected_subject_content_hash")
+        if self.expected_predecessor_content_hash is not None:
+            _digest(
+                self.expected_predecessor_content_hash,
+                "expected_predecessor_content_hash",
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -253,15 +260,15 @@ class AccountOwnerAssignmentEvidenceV5Repository(Protocol):
         """Return the underlying mapping head at ``as_of`` without fallback."""
         ...
 
-    def append_root(
+    def append(
         self,
         record: PersistedAccountOwnerAssignmentEvidenceV5,
         *,
-        expected_account_head_hash: None,
-        expected_underlying_head_hash: None,
+        expected_account_head_hash: str | None,
+        expected_underlying_head_hash: str | None,
         recorded_at: datetime,
     ) -> PersistedAccountOwnerAssignmentEvidenceV5:
-        """Append one root only after both logical mapping heads pass CAS checks."""
+        """Append one root or successor after both mapping heads pass CAS checks."""
         ...
 
     def get_exact_by_hash(
@@ -612,6 +619,9 @@ class ApproveAccountOwnerAssignmentEvidenceV5:
                                     subject_id=evidence.subject.subject_id,
                                     subject_version=evidence.subject.subject_version,
                                     expected_subject_content_hash=evidence.subject.content_hash,
+                                    expected_predecessor_content_hash=(
+                                        evidence.supersedes_content_hash
+                                    ),
                                 ),
                                 cutoff,
                             )
@@ -638,7 +648,10 @@ class ApproveAccountOwnerAssignmentEvidenceV5:
                             command,
                             cutoff,
                         )
-                        _require_empty_heads(*_read_heads(self._repository, first.subject, cutoff))
+                        predecessor = _required_predecessor(
+                            *_read_heads(self._repository, first.subject, cutoff),
+                            command.expected_predecessor_content_hash,
+                        )
             if winner is not None:
                 return evidence
             try:
@@ -660,9 +673,14 @@ class ApproveAccountOwnerAssignmentEvidenceV5:
                             raise AccountOwnerAssignmentEvidenceV5Conflict(
                                 "Evidence V5 sources changed during approval"
                             )
-                        _require_empty_heads(
-                            *_read_heads(self._repository, final.subject, recorded_at)
+                        final_predecessor = _required_predecessor(
+                            *_read_heads(self._repository, final.subject, recorded_at),
+                            command.expected_predecessor_content_hash,
                         )
+                        if final_predecessor != predecessor:
+                            raise AccountOwnerAssignmentEvidenceV5Conflict(
+                                "Evidence V5 predecessor changed during approval"
+                            )
             except AccountOwnerAssignmentEvidenceV5Unavailable as error:
                 raise AccountOwnerAssignmentEvidenceV5Conflict(
                     "Evidence V5 sources changed during approval"
@@ -691,27 +709,40 @@ class ApproveAccountOwnerAssignmentEvidenceV5:
                 valid_until=valid_until,
                 account_claim_hash=final.subject.account_claim_hash,
                 underlying_claim_hash=final.subject.underlying_claim_hash,
+                supersedes_content_hash=(
+                    predecessor.evidence.content_hash if predecessor is not None else None
+                ),
             )
             try:
-                validate_account_owner_assignment_evidence_v5_root(evidence)
-                validate_account_owner_assignment_evidence_v5_dual_mapping_root(
-                    evidence,
-                    account_claim_hash=final.subject.account_claim_hash,
-                    underlying_claim_hash=final.subject.underlying_claim_hash,
-                )
+                if predecessor is None:
+                    validate_account_owner_assignment_evidence_v5_root(evidence)
+                    validate_account_owner_assignment_evidence_v5_dual_mapping_root(
+                        evidence,
+                        account_claim_hash=final.subject.account_claim_hash,
+                        underlying_claim_hash=final.subject.underlying_claim_hash,
+                    )
+                else:
+                    validate_account_owner_assignment_evidence_v5_successor(
+                        predecessor.evidence,
+                        evidence,
+                    )
             except (TypeError, ValueError) as error:
                 raise AccountOwnerAssignmentEvidenceV5Corruption(
-                    "Evidence V5 root is invalid"
+                    "Evidence V5 approval chain is invalid"
                 ) from error
             record = PersistedAccountOwnerAssignmentEvidenceV5(
                 evidence=evidence,
                 authority=final.participants.authority,
             )
             persisted = _record(
-                self._repository.append_root(
+                self._repository.append(
                     record,
-                    expected_account_head_hash=None,
-                    expected_underlying_head_hash=None,
+                    expected_account_head_hash=(
+                        predecessor.evidence.content_hash if predecessor is not None else None
+                    ),
+                    expected_underlying_head_hash=(
+                        predecessor.evidence.content_hash if predecessor is not None else None
+                    ),
                     recorded_at=recorded_at,
                 )
             )
@@ -859,12 +890,14 @@ def _evidence_matches(
         evidence.subject.subject_id,
         evidence.subject.subject_version,
         evidence.subject.content_hash,
+        evidence.supersedes_content_hash,
     ) == (
         command.evidence_id,
         command.evidence_version,
         command.subject_id,
         command.subject_version,
         command.expected_subject_content_hash,
+        command.expected_predecessor_content_hash,
     )
 
 
@@ -912,17 +945,24 @@ def _same_approval_inputs(first: _ApprovalInputs, final: _ApprovalInputs) -> boo
     )
 
 
-def _require_empty_heads(
+def _required_predecessor(
     account: PersistedAccountOwnerAssignmentEvidenceV5 | None,
     underlying: PersistedAccountOwnerAssignmentEvidenceV5 | None,
-) -> None:
-    """Require both logical mapping heads to be empty before a root append."""
+    expected_content_hash: str | None,
+) -> PersistedAccountOwnerAssignmentEvidenceV5 | None:
+    """Resolve one exact shared mapping head for root/successor CAS."""
 
     if account is None and underlying is None:
-        return
+        if expected_content_hash is not None:
+            raise AccountOwnerAssignmentEvidenceV5Conflict("Evidence V5 predecessor is unavailable")
+        return None
     if account is None or underlying is None or account != underlying:
         raise AccountOwnerAssignmentEvidenceV5Corruption("Evidence V5 mapping heads disagree")
-    raise AccountOwnerAssignmentEvidenceV5Conflict("Evidence V5 mapping already has a root")
+    if expected_content_hash != account.evidence.content_hash:
+        raise AccountOwnerAssignmentEvidenceV5Conflict(
+            "Evidence V5 predecessor content hash differs"
+        )
+    return account
 
 
 __all__ = [

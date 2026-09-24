@@ -9,6 +9,9 @@ from apps.audit.application.system_audit_authority_renewal import (
     RenewSystemAuditAuthority,
     SystemAuditAuthorityRenewalUnavailable,
 )
+from apps.audit.infrastructure.system_audit_authority_recovery_request import (
+    parse_system_audit_authority_recovery_request,
+)
 from apps.audit.infrastructure.system_audit_authority_renewal_request import (
     parse_system_audit_authority_renewal_request,
 )
@@ -113,6 +116,61 @@ def test_renewal_request_parser_rejects_duplicate_json_keys() -> None:
 
     with pytest.raises(ValueError):
         parse_system_audit_authority_renewal_request(duplicate.encode())
+
+
+def _recovery_request() -> dict[str, object]:
+    return {
+        "renewal": _request(),
+        "assignment_recovery": {
+            "assignment_validity_seconds": 7200,
+            "receipt_version": "v5.2",
+            "subject_id": "subject:audit:recovery",
+            "subject_version": "v5.2",
+            "evidence_version": "v5.2",
+            "authority_id": "authority:audit:recovery",
+            "authority_version": "v3.1",
+        },
+    }
+
+
+def test_recovery_request_parser_binds_successor_identities_to_renewal_input() -> None:
+    parsed = parse_system_audit_authority_recovery_request(
+        json.dumps(_recovery_request(), separators=(",", ":")).encode()
+    )
+
+    assert parsed.renewal.renewal.owner_successor.assignment_evidence_id == "evidence:audit"
+    assert parsed.assignment_validity_period.total_seconds() == 7200
+    assert parsed.receipt_version == "v5.2"
+    assert parsed.evidence_version == "v5.2"
+    assert parsed.authority_id == "authority:audit:recovery"
+
+
+@pytest.mark.parametrize(
+    "mutator",
+    [
+        lambda value: value["assignment_recovery"].update({"unexpected": "field"}),
+        lambda value: value["assignment_recovery"].update({"assignment_validity_seconds": True}),
+        lambda value: value["assignment_recovery"].update(
+            {"authority_id": " authority:audit:recovery"}
+        ),
+    ],
+)
+def test_recovery_request_parser_rejects_noncanonical_input(mutator) -> None:
+    value = _recovery_request()
+    mutator(value)
+
+    with pytest.raises(ValueError):
+        parse_system_audit_authority_recovery_request(
+            json.dumps(value, separators=(",", ":")).encode()
+        )
+
+
+def test_recovery_request_parser_rejects_duplicate_json_keys() -> None:
+    payload = json.dumps(_recovery_request(), separators=(",", ":"))
+    duplicate = payload[:-1] + ',"renewal":{}}'
+
+    with pytest.raises(ValueError):
+        parse_system_audit_authority_recovery_request(duplicate.encode())
 
 
 class _RejectingCapture:

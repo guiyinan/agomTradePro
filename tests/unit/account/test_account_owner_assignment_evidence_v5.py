@@ -137,6 +137,7 @@ def test_v5_fields_are_closed_and_versioned() -> None:
         "valid_until",
         "account_claim_hash",
         "underlying_claim_hash",
+        "supersedes_content_hash",
         "identity_hash",
         "content_hash",
         "owner",
@@ -270,8 +271,17 @@ def test_v5_dual_mapping_and_exact_type_guards() -> None:
         )
 
 
-def test_v5_final_resolver_is_historical_root_only() -> None:
+def test_v5_final_resolver_supports_one_hash_bound_successor() -> None:
     evidence = _evidence()
+    successor = replace(
+        evidence,
+        evidence_version="v5.2",
+        approved_at=evidence.approved_at + timedelta(minutes=1),
+        recorded_at=evidence.recorded_at + timedelta(minutes=1),
+        supersedes_content_hash=evidence.content_hash,
+        identity_hash="",
+        content_hash="",
+    )
     assert (
         resolve_account_owner_assignment_evidence_v5_final((), as_of=evidence.recorded_at) is None
     )
@@ -287,13 +297,23 @@ def test_v5_final_resolver_is_historical_root_only() -> None:
         )
         is evidence
     )
-    with pytest.raises(ValueError, match="successors"):
+    assert (
+        resolve_account_owner_assignment_evidence_v5_final(
+            (evidence, successor), as_of=successor.recorded_at
+        )
+        == successor
+    )
+    with pytest.raises(ValueError, match="predecessor"):
         resolve_account_owner_assignment_evidence_v5_final(
             (
                 evidence,
-                replace(evidence, evidence_version="v5.2", identity_hash="", content_hash=""),
+                replace(
+                    successor,
+                    supersedes_content_hash="0" * 64,
+                    content_hash="",
+                ),
             ),
-            as_of=evidence.recorded_at,
+            as_of=successor.recorded_at,
         )
     with pytest.raises(TypeError, match="exact tuple"):
         resolve_account_owner_assignment_evidence_v5_final(  # type: ignore[arg-type]

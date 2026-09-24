@@ -287,7 +287,7 @@ class AccountOwnerAssignmentSubjectV5Model(_AssignmentV5Model):
 
 
 class AccountOwnerAssignmentEvidenceV5Model(_AssignmentV5Model):
-    """One inactive root assignment with exact Subject V5 and approval source."""
+    """One inactive append-only approval with exact Subject V5 and actor source."""
 
     subject = models.OneToOneField(
         AccountOwnerAssignmentSubjectV5Model,
@@ -299,6 +299,13 @@ class AccountOwnerAssignmentEvidenceV5Model(_AssignmentV5Model):
         on_delete=models.PROTECT,
         related_name="assignment_approvals_v5",
     )
+    predecessor = models.OneToOneField(
+        "self",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="successor",
+    )
     evidence_id = models.CharField(max_length=192)
     evidence_version = models.CharField(max_length=192)
     assignment_state = models.CharField(max_length=32)
@@ -306,11 +313,12 @@ class AccountOwnerAssignmentEvidenceV5Model(_AssignmentV5Model):
     account_id = models.CharField(max_length=192)
     underlying_unified_account_namespace = models.CharField(max_length=192)
     underlying_unified_account_id = models.PositiveBigIntegerField()
-    account_claim_hash = models.CharField(max_length=64, unique=True)
-    underlying_claim_hash = models.CharField(max_length=64, unique=True)
+    account_claim_hash = models.CharField(max_length=64)
+    underlying_claim_hash = models.CharField(max_length=64)
     approved_at = models.DateTimeField()
     recorded_at = models.DateTimeField(db_index=True)
     approval_valid_until = models.DateTimeField()
+    supersedes_content_hash = models.CharField(max_length=64, null=True, blank=True, unique=True)
 
     class Meta(_AssignmentV5Model.Meta):
         app_label = "account"
@@ -320,11 +328,24 @@ class AccountOwnerAssignmentEvidenceV5Model(_AssignmentV5Model):
                 fields=("evidence_id", "evidence_version"), name="acct_asg_v5_ev_id_uq"
             ),
             models.UniqueConstraint(
-                fields=("account_namespace", "account_id"), name="acct_asg_v5_account_uq"
+                fields=("account_namespace", "account_id"),
+                condition=models.Q(predecessor__isnull=True),
+                name="acct_asg_v5_account_root_uq",
             ),
             models.UniqueConstraint(
                 fields=("underlying_unified_account_namespace", "underlying_unified_account_id"),
-                name="acct_asg_v5_underlying_uq",
+                condition=models.Q(predecessor__isnull=True),
+                name="acct_asg_v5_underlying_root_uq",
+            ),
+            models.UniqueConstraint(
+                fields=("account_claim_hash",),
+                condition=models.Q(predecessor__isnull=True),
+                name="acct_asg_v5_account_claim_root_uq",
+            ),
+            models.UniqueConstraint(
+                fields=("underlying_claim_hash",),
+                condition=models.Q(predecessor__isnull=True),
+                name="acct_asg_v5_under_claim_root_uq",
             ),
             models.CheckConstraint(
                 condition=models.Q(
@@ -345,6 +366,13 @@ class AccountOwnerAssignmentEvidenceV5Model(_AssignmentV5Model):
                     persisted_at=models.F("recorded_at"),
                 ),
                 name="acct_asg_v5_ev_clock_ck",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(predecessor__isnull=True, supersedes_content_hash__isnull=True)
+                    | models.Q(predecessor__isnull=False, supersedes_content_hash__isnull=False)
+                ),
+                name="acct_asg_v5_ev_link_ck",
             ),
         ]
 

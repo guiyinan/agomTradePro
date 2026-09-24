@@ -39,6 +39,9 @@ from apps.account.application.account_owner_assignment_subject_v5 import (
     AccountOwnerAssignmentSubjectV5Unavailable,
     PersistedAccountOwnerAssignmentSubjectV5,
 )
+from apps.account.domain.account_owner_assignment_evidence_v5 import (
+    resolve_account_owner_assignment_evidence_v5_final,
+)
 from apps.account.domain.account_owner_assignment_subject_v5 import AccountOwnerAssignmentSubjectV5
 from apps.account.infrastructure import account_actor_authority_raw_source_models_v3 as raw_models
 from apps.account.infrastructure.account_owner_assignment_actor_authority_source_v3_models import (
@@ -256,11 +259,11 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
     def get_account_head(
         self, *, account_namespace: str, account_id: str, as_of: datetime
     ) -> PersistedAccountOwnerAssignmentEvidenceV5 | None:
-        """Return the account root even if expired; never make an expired slot reusable."""
+        """Return the final account approval head, including an expired head."""
         _selectors(account_namespace, account_id)
         with self._getter_phase():
             cutoff = self._read_cutoff(as_of)
-            return _single(
+            return _head(
                 tuple(
                     record
                     for _, record in self._world(cutoff).evidence
@@ -280,13 +283,13 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
         underlying_unified_account_id: int,
         as_of: datetime,
     ) -> PersistedAccountOwnerAssignmentEvidenceV5 | None:
-        """Return the immutable underlying root including its expired state."""
+        """Return the final underlying approval head, including expiry."""
         _selectors(underlying_unified_account_namespace)
         if type(underlying_unified_account_id) is not int or underlying_unified_account_id <= 0:
             raise ValueError("underlying account id must be a positive integer")
         with self._getter_phase():
             cutoff = self._read_cutoff(as_of)
-            return _single(
+            return _head(
                 tuple(
                     record
                     for _, record in self._world(cutoff).evidence
@@ -310,20 +313,22 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
             )
         return cutoff
 
-    def append_root(
+    def append(
         self,
         record: PersistedAccountOwnerAssignmentEvidenceV5,
         *,
-        expected_account_head_hash: None,
-        expected_underlying_head_hash: None,
+        expected_account_head_hash: str | None,
+        expected_underlying_head_hash: str | None,
         recorded_at: datetime,
     ) -> PersistedAccountOwnerAssignmentEvidenceV5:
-        """Append a first root with an exact subject and authenticated authority envelope."""
+        """Append a root or successor with dual mapping-head CAS."""
         checked = _record(record)
         evidence = checked.evidence
         self._require_append_clock(recorded_at, evidence.recorded_at)
-        if expected_account_head_hash is not None or expected_underlying_head_hash is not None:
-            raise AccountOwnerAssignmentEvidenceV5Conflict("assignment evidence v5 is root-only")
+        if expected_account_head_hash != expected_underlying_head_hash:
+            raise AccountOwnerAssignmentEvidenceV5Conflict(
+                "assignment evidence v5 mapping selectors disagree"
+            )
         self._lock_world(evidence.policy.policy_id)
         with self.read_phase():
             world = self._world(recorded_at)
@@ -338,18 +343,72 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
                 if (value.evidence.evidence_id, value.evidence.evidence_version)
                 == (evidence.evidence_id, evidence.evidence_version)
                 or _fk(row, "subject_id") == subjects[0].pk
-                or value.evidence.account_claim_hash == evidence.account_claim_hash
-                or value.evidence.underlying_claim_hash == evidence.underlying_claim_hash
             )
             if anchors:
                 if anchors == (checked,):
                     return checked
                 raise AccountOwnerAssignmentEvidenceV5Conflict(
-                    "assignment mapping root is occupied"
+                    "assignment evidence identity is occupied"
+                )
+            account_head = _head(
+                tuple(
+                    value
+                    for _, value in world.evidence
+                    if (
+                        value.evidence.subject.binding.account_namespace_claim,
+                        value.evidence.subject.binding.account_id_claim,
+                    )
+                    == (
+                        evidence.subject.binding.account_namespace_claim,
+                        evidence.subject.binding.account_id_claim,
+                    )
+                )
+            )
+            underlying_head = _head(
+                tuple(
+                    value
+                    for _, value in world.evidence
+                    if (
+                        value.evidence.subject.binding.underlying_unified_account_namespace_claim,
+                        value.evidence.subject.binding.underlying_unified_account_id_claim,
+                    )
+                    == (
+                        evidence.subject.binding.underlying_unified_account_namespace_claim,
+                        evidence.subject.binding.underlying_unified_account_id_claim,
+                    )
+                )
+            )
+            if account_head != underlying_head:
+                raise AccountOwnerAssignmentEvidenceV5Corruption(
+                    "assignment mapping heads disagree"
+                )
+            observed_hash = account_head.evidence.content_hash if account_head is not None else None
+            if observed_hash != expected_account_head_hash:
+                raise AccountOwnerAssignmentEvidenceV5Conflict(
+                    "assignment evidence predecessor changed"
+                )
+            if evidence.supersedes_content_hash != observed_hash:
+                raise AccountOwnerAssignmentEvidenceV5Conflict(
+                    "assignment evidence predecessor selector differs"
                 )
             self._subject_parent(evidence.subject, evidence.recorded_at)
             actor_pk = self._authority_parent(checked)
-            values = _evidence_values(checked, subjects[0].pk, actor_pk)
+            predecessor_pk = None
+            if account_head is not None:
+                predecessor_rows = tuple(
+                    row for row, value in world.evidence if value == account_head
+                )
+                if len(predecessor_rows) != 1:
+                    raise AccountOwnerAssignmentEvidenceV5Corruption(
+                        "assignment evidence predecessor row is unavailable"
+                    )
+                predecessor_pk = predecessor_rows[0].pk
+            values = _evidence_values(
+                checked,
+                subjects[0].pk,
+                actor_pk,
+                predecessor_pk=predecessor_pk,
+            )
         with suspend_immutable_read_reuse():
             self._insert(AccountOwnerAssignmentEvidenceV5Model, values)
         with self.read_phase():
@@ -361,6 +420,23 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
         if restored != checked:
             raise AccountOwnerAssignmentEvidenceV5Corruption("evidence append restore differs")
         return restored
+
+    def append_root(
+        self,
+        record: PersistedAccountOwnerAssignmentEvidenceV5,
+        *,
+        expected_account_head_hash: None,
+        expected_underlying_head_hash: None,
+        recorded_at: datetime,
+    ) -> PersistedAccountOwnerAssignmentEvidenceV5:
+        """Compatibility wrapper for callers that explicitly append a root."""
+
+        return self.append(
+            record,
+            expected_account_head_hash=expected_account_head_hash,
+            expected_underlying_head_hash=expected_underlying_head_hash,
+            recorded_at=recorded_at,
+        )
 
     def _postgresql(self) -> None:
         try:
@@ -425,10 +501,6 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
                 subjects.append((row, value))
             by_pk = {row.pk: value for row, value in subjects}
             evidence = []
-            account_claims: set[str] = set()
-            underlying_claims: set[str] = set()
-            account_scopes: set[tuple[str, str]] = set()
-            underlying_scopes: set[tuple[str, int]] = set()
             for evidence_row in AccountOwnerAssignmentEvidenceV5Model._default_manager.using(
                 self._using
             ).order_by("pk"):
@@ -436,7 +508,16 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
                 subject_pk, actor_pk = _fk(evidence_row, "subject_id"), _fk(
                     evidence_row, "actor_source_id"
                 )
-                _verify(evidence_row, _evidence_values(record, subject_pk, actor_pk))
+                predecessor_pk = _optional_fk(evidence_row, "predecessor_id")
+                _verify(
+                    evidence_row,
+                    _evidence_values(
+                        record,
+                        subject_pk,
+                        actor_pk,
+                        predecessor_pk=predecessor_pk,
+                    ),
+                )
                 approved = record.evidence
                 if (
                     by_pk.get(subject_pk) != approved.subject
@@ -446,26 +527,46 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
                         "evidence durable parent substitution"
                     )
                 self._subject_parent(approved.subject, approved.recorded_at)
-                binding = approved.subject.binding
-                account_scope = (binding.account_namespace_claim, binding.account_id_claim)
-                underlying_scope = (
-                    binding.underlying_unified_account_namespace_claim,
-                    binding.underlying_unified_account_id_claim,
-                )
-                if (
-                    approved.account_claim_hash in account_claims
-                    or approved.underlying_claim_hash in underlying_claims
-                    or account_scope in account_scopes
-                    or underlying_scope in underlying_scopes
-                ):
-                    raise AccountOwnerAssignmentEvidenceV5Corruption(
-                        "assignment mapping has multiple roots"
-                    )
-                account_claims.add(approved.account_claim_hash)
-                underlying_claims.add(approved.underlying_claim_hash)
-                account_scopes.add(account_scope)
-                underlying_scopes.add(underlying_scope)
                 evidence.append((evidence_row, record))
+            records = tuple(record for _, record in evidence)
+            account_scopes = {
+                (
+                    record.evidence.subject.binding.account_namespace_claim,
+                    record.evidence.subject.binding.account_id_claim,
+                )
+                for record in records
+            }
+            underlying_scopes = {
+                (
+                    record.evidence.subject.binding.underlying_unified_account_namespace_claim,
+                    record.evidence.subject.binding.underlying_unified_account_id_claim,
+                )
+                for record in records
+            }
+            for account_scope in account_scopes:
+                _head(
+                    tuple(
+                        record
+                        for record in records
+                        if (
+                            record.evidence.subject.binding.account_namespace_claim,
+                            record.evidence.subject.binding.account_id_claim,
+                        )
+                        == account_scope
+                    )
+                )
+            for underlying_scope in underlying_scopes:
+                _head(
+                    tuple(
+                        record
+                        for record in records
+                        if (
+                            record.evidence.subject.binding.underlying_unified_account_namespace_claim,
+                            record.evidence.subject.binding.underlying_unified_account_id_claim,
+                        )
+                        == underlying_scope
+                    )
+                )
             return _World(tuple(subjects), tuple(evidence))
         except DatabaseError as error:
             raise AccountOwnerAssignmentEvidenceV5Unavailable(
@@ -665,6 +766,48 @@ def _single(values: tuple[_T, ...]) -> _T | None:
     return values[0] if values else None
 
 
+def _head(
+    records: tuple[PersistedAccountOwnerAssignmentEvidenceV5, ...],
+) -> PersistedAccountOwnerAssignmentEvidenceV5 | None:
+    """Validate one linear approval chain and return its final head."""
+
+    if not records:
+        return None
+    roots = tuple(record for record in records if record.evidence.supersedes_content_hash is None)
+    if len(roots) != 1:
+        raise AccountOwnerAssignmentEvidenceV5Corruption(
+            "assignment evidence chain root is ambiguous"
+        )
+    chain = [roots[0]]
+    remaining = {record.evidence.content_hash: record for record in records if record != roots[0]}
+    while remaining:
+        predecessor_hash = chain[-1].evidence.content_hash
+        children = tuple(
+            record
+            for record in remaining.values()
+            if record.evidence.supersedes_content_hash == predecessor_hash
+        )
+        if len(children) != 1:
+            raise AccountOwnerAssignmentEvidenceV5Corruption(
+                "assignment evidence chain is forked or disconnected"
+            )
+        child = children[0]
+        chain.append(child)
+        del remaining[child.evidence.content_hash]
+    try:
+        resolved = resolve_account_owner_assignment_evidence_v5_final(
+            tuple(record.evidence for record in chain),
+            as_of=chain[-1].evidence.recorded_at,
+        )
+    except (TypeError, ValueError) as error:
+        raise AccountOwnerAssignmentEvidenceV5Corruption(
+            "assignment evidence chain is invalid"
+        ) from error
+    if resolved != chain[-1].evidence:
+        raise AccountOwnerAssignmentEvidenceV5Corruption("assignment evidence chain head differs")
+    return chain[-1]
+
+
 def _hash(value: object) -> str:
     return hashlib.sha256(
         json.dumps(
@@ -675,6 +818,17 @@ def _hash(value: object) -> str:
 
 def _fk(row: Model, name: str) -> int:
     value = row.__dict__.get(name)
+    if type(value) is not int or value <= 0:
+        raise AccountOwnerAssignmentEvidenceV5Corruption("assignment FK is invalid")
+    return value
+
+
+def _optional_fk(row: Model, name: str) -> int | None:
+    """Return one nullable positive foreign-key identifier."""
+
+    value = row.__dict__.get(name)
+    if value is None:
+        return None
     if type(value) is not int or value <= 0:
         raise AccountOwnerAssignmentEvidenceV5Corruption("assignment FK is invalid")
     return value
@@ -756,14 +910,26 @@ def _subject_values(
 
 
 def _evidence_values(
-    record: PersistedAccountOwnerAssignmentEvidenceV5, subject_pk: int, actor_pk: int
+    record: PersistedAccountOwnerAssignmentEvidenceV5,
+    subject_pk: int,
+    actor_pk: int,
+    *,
+    predecessor_pk: int | None,
 ) -> dict[str, object]:
     value = record.evidence
     binding = value.subject.binding
     parents = {"subject_id": subject_pk, "actor_source_id": actor_pk}
+    ledger_parents = (
+        parents if predecessor_pk is None else {**parents, "predecessor_id": predecessor_pk}
+    )
     return {
-        **_base_values(record, encode_account_owner_assignment_evidence_v5_record(record), parents),
+        **_base_values(
+            record,
+            encode_account_owner_assignment_evidence_v5_record(record),
+            ledger_parents,
+        ),
         **parents,
+        "predecessor_id": predecessor_pk,
         "evidence_id": value.evidence_id,
         "evidence_version": value.evidence_version,
         "assignment_state": value.assignment_state,
@@ -776,6 +942,7 @@ def _evidence_values(
         "approved_at": value.approved_at,
         "recorded_at": value.recorded_at,
         "approval_valid_until": value.approval_valid_until,
+        "supersedes_content_hash": value.supersedes_content_hash,
         "persisted_at": value.recorded_at,
     }
 

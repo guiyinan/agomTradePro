@@ -52,6 +52,7 @@ _EVIDENCE_KEYS = {
     "activation_available",
     "must_not_execute",
 }
+_EVIDENCE_SUCCESSOR_KEYS = _EVIDENCE_KEYS | {"supersedes_content_hash"}
 _ACTOR_KEYS = {"actor_id", "user_id", "role", "kind", "is_staff"}
 
 
@@ -82,7 +83,9 @@ def decode_account_owner_assignment_evidence_v5(
     """Decode one exact Evidence v5 payload and require canonical roundtrip."""
 
     data = _mapping(payload, "evidence")
-    _keys(data, _EVIDENCE_KEYS, "evidence")
+    observed_keys = set(data)
+    if observed_keys != _EVIDENCE_KEYS and observed_keys != _EVIDENCE_SUCCESSOR_KEYS:
+        raise AccountOwnerAssignmentEvidenceV5CodecError("evidence has an invalid canonical shape")
     _fixed_boolean(data["activation_available"], False, "activation_available")
     _fixed_boolean(data["must_not_execute"], True, "must_not_execute")
     try:
@@ -100,6 +103,11 @@ def decode_account_owner_assignment_evidence_v5(
             valid_until=_clock(data["valid_until"]),
             account_claim_hash=_seal(data["account_claim_hash"]),
             underlying_claim_hash=_seal(data["underlying_claim_hash"]),
+            supersedes_content_hash=(
+                _seal(data["supersedes_content_hash"])
+                if "supersedes_content_hash" in data
+                else None
+            ),
             identity_hash=_seal(data["identity_hash"]),
             content_hash=_seal(data["content_hash"]),
             owner=_text(data["owner"]),

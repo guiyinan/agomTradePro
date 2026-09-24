@@ -127,6 +127,7 @@ class AccountOwnerAssignmentEvidenceV5:
     valid_until: datetime
     account_claim_hash: str
     underlying_claim_hash: str
+    supersedes_content_hash: str | None = None
     identity_hash: str = ""
     content_hash: str = ""
     owner: str = ACCOUNT_OWNER_ASSIGNMENT_EVIDENCE_V5_OWNER
@@ -166,6 +167,8 @@ class AccountOwnerAssignmentEvidenceV5:
                 ),
             ),
         )
+        if self.supersedes_content_hash is not None:
+            _digest(self.supersedes_content_hash, "supersedes_content_hash")
         if self.assigned_owner_user_id != claimant.user_id:
             raise ValueError("evidence v5 owner must equal the exact receipt claimant")
         _positive_integer(claimant.user_id, "claimant.user_id")
@@ -315,7 +318,7 @@ class AccountOwnerAssignmentEvidenceV5:
     def _content_payload(self) -> dict[str, object]:
         """Return every subject, participant, clock, seal, and inactive-state fact."""
 
-        return {
+        payload: dict[str, object] = {
             **self._identity_payload(),
             "subject": self.subject.to_payload(),
             "policy_identity_hash": self.policy_identity_hash,
@@ -333,6 +336,9 @@ class AccountOwnerAssignmentEvidenceV5:
             "status": self.status,
             "blocker_codes": list(self.blocker_codes),
         }
+        if self.supersedes_content_hash is not None:
+            payload["supersedes_content_hash"] = self.supersedes_content_hash
+        return payload
 
     @validation_graph_operation
     def to_payload(self) -> dict[str, object]:
@@ -356,6 +362,51 @@ def validate_account_owner_assignment_evidence_v5_root(
     if type(evidence) is not AccountOwnerAssignmentEvidenceV5:
         raise TypeError("evidence must be an exact owner-assignment evidence v5")
     evidence.__post_init__()
+    if evidence.supersedes_content_hash is not None:
+        raise ValueError("evidence v5 root predecessor must be absent")
+
+
+def validate_account_owner_assignment_evidence_v5_successor(
+    previous: AccountOwnerAssignmentEvidenceV5,
+    successor: AccountOwnerAssignmentEvidenceV5,
+) -> None:
+    """Validate an append-only approval renewal for the same owner mapping."""
+
+    if (
+        type(previous) is not AccountOwnerAssignmentEvidenceV5
+        or type(successor) is not AccountOwnerAssignmentEvidenceV5
+    ):
+        raise TypeError("evidence chain values must be exact owner-assignment evidence v5")
+    previous.__post_init__()
+    successor.__post_init__()
+    if successor.supersedes_content_hash != previous.content_hash:
+        raise ValueError("evidence v5 successor does not bind exact predecessor")
+    if successor.evidence_id != previous.evidence_id:
+        raise ValueError("evidence v5 successor changed evidence identity")
+    if successor.evidence_version == previous.evidence_version:
+        raise ValueError("evidence v5 successor version must advance")
+    if (
+        successor.assigned_owner_user_id,
+        successor.claimant,
+        successor.policy.identity_hash,
+        successor.policy.content_hash,
+        successor.subject.binding,
+        successor.account_claim_hash,
+        successor.underlying_claim_hash,
+    ) != (
+        previous.assigned_owner_user_id,
+        previous.claimant,
+        previous.policy.identity_hash,
+        previous.policy.content_hash,
+        previous.subject.binding,
+        previous.account_claim_hash,
+        previous.underlying_claim_hash,
+    ):
+        raise ValueError("evidence v5 successor changed sealed owner mapping")
+    if successor.approved_at <= previous.approved_at:
+        raise ValueError("evidence v5 successor approval clock must advance")
+    if successor.recorded_at <= previous.recorded_at:
+        raise ValueError("evidence v5 successor recording clock must advance")
 
 
 def validate_account_owner_assignment_evidence_v5_dual_mapping_root(
@@ -379,18 +430,18 @@ def validate_account_owner_assignment_evidence_v5_dual_mapping_root(
 def resolve_account_owner_assignment_evidence_v5_final(
     chain: tuple[AccountOwnerAssignmentEvidenceV5, ...], *, as_of: datetime
 ) -> AccountOwnerAssignmentEvidenceV5 | None:
-    """Return the sole historical root; v5 approval successors are unsupported."""
+    """Return the final visible approval head without expired-head fallback."""
 
     cutoff = _aware(as_of, "as_of")
     if type(chain) is not tuple:
         raise TypeError("chain must be an exact tuple")
-    if len(chain) > 1:
-        raise ValueError("evidence v5 successors are not supported")
     if not chain:
         return None
-    evidence = chain[0]
-    validate_account_owner_assignment_evidence_v5_root(evidence)
-    return evidence if evidence.is_knowable_at(cutoff) else None
+    validate_account_owner_assignment_evidence_v5_root(chain[0])
+    for previous, successor in zip(chain, chain[1:], strict=False):
+        validate_account_owner_assignment_evidence_v5_successor(previous, successor)
+    visible = tuple(evidence for evidence in chain if evidence.recorded_at <= cutoff)
+    return visible[-1] if visible else None
 
 
 __all__ = [
@@ -407,4 +458,5 @@ __all__ = [
     "resolve_account_owner_assignment_evidence_v5_final",
     "validate_account_owner_assignment_evidence_v5_dual_mapping_root",
     "validate_account_owner_assignment_evidence_v5_root",
+    "validate_account_owner_assignment_evidence_v5_successor",
 ]

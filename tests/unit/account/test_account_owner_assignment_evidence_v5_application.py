@@ -54,6 +54,9 @@ from shared.infrastructure.immutable_read_snapshot import (
 from tests.unit.account.test_account_owner_assignment_provenance_receipt_v4_application import (
     _authority,
 )
+from tests.unit.account.test_account_owner_assignment_provenance_receipt_v5 import (
+    _successor as _receipt_successor,
+)
 from tests.unit.account.test_account_owner_assignment_subject_v5 import _subject
 
 
@@ -200,18 +203,18 @@ class _Repository:
         del underlying_unified_account_namespace, underlying_unified_account_id, as_of
         return self.underlying_head
 
-    def append_root(
+    def append(
         self,
         record: PersistedAccountOwnerAssignmentEvidenceV5,
         *,
-        expected_account_head_hash: None,
-        expected_underlying_head_hash: None,
+        expected_account_head_hash: str | None,
+        expected_underlying_head_hash: str | None,
         recorded_at: datetime,
     ) -> PersistedAccountOwnerAssignmentEvidenceV5:
         """Persist one root and make it both mapping heads."""
 
-        assert expected_account_head_hash is None
-        assert expected_underlying_head_hash is None
+        assert expected_account_head_hash == record.evidence.supersedes_content_hash
+        assert expected_underlying_head_hash == record.evidence.supersedes_content_hash
         assert recorded_at == record.evidence.recorded_at
         self.append_root_calls += 1
         self.winner = self.account_head = self.underlying_head = record
@@ -363,6 +366,44 @@ def test_approve_separates_first_and_final_reads_into_fresh_phases() -> None:
         "phase-2.enter",
         "phase-2.exit",
     ]
+
+
+def test_approve_appends_hash_bound_successor_after_root_expiry() -> None:
+    """A fresh approval renews an occupied mapping without editing its root."""
+
+    subject = _subject()
+    repository = _Repository(_at(15, 14, 35), _at(15, 14, 40))
+    repository.subject = subject
+    root = _use_case(repository, subject).execute(_approve_command(subject))
+    root_record = cast(PersistedAccountOwnerAssignmentEvidenceV5, repository.winner)
+
+    receipt = _receipt_successor(subject.receipt)
+    successor_subject = _subject(
+        receipt,
+        subject_id=subject.subject_id + "-renewal",
+        subject_version="v5.2",
+        requested_at=receipt.recorded_at + timedelta(minutes=5),
+        valid_until=receipt.recorded_at + timedelta(hours=1),
+    )
+    repository.subject = successor_subject
+    repository.winner = None
+    repository.account_head = root_record
+    repository.underlying_head = root_record
+    repository.clocks = [_at(15, 16, 35), _at(15, 16, 40)]
+    command = ApproveAccountOwnerAssignmentEvidenceV5Command(
+        evidence_id=root.evidence_id,
+        evidence_version="v5.2",
+        subject_id=successor_subject.subject_id,
+        subject_version=successor_subject.subject_version,
+        expected_subject_content_hash=successor_subject.content_hash,
+        expected_predecessor_content_hash=root.content_hash,
+    )
+
+    renewed = _use_case(repository, successor_subject).execute(command)
+
+    assert renewed.supersedes_content_hash == root.content_hash
+    assert renewed.evidence_version == "v5.2"
+    assert repository.account_head == repository.underlying_head == repository.winner
 
 
 def test_approve_isolated_phase_does_not_reuse_callers_negative_subject_cache() -> None:

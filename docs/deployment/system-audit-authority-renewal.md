@@ -44,9 +44,27 @@ V5, or insufficient validity window returns a stable `blocked` result and
 rolls back the authority writes.  Existing authority rows are never extended
 or edited in place.
 
-An expired Evidence V5 mapping still requires a fresh owner approval and a
-new root issuance.  The guard prevents that state from becoming silent, but it
-does not bypass the Evidence V5 first-winner/mapping invariants.
+When Evidence V5 itself has expired, use the recovery entry point:
+
+```text
+python manage.py recover_system_audit_authority --input <recovery.json>
+python manage.py recover_system_audit_authority --input <recovery.json> --execute
+```
+
+Recovery is also dry-run by default and uses the renewal envelope plus fresh
+receipt, subject, Evidence V5, and Authority V3 identities.  It appends a new
+provenance receipt and Evidence V5 successor, issues a fresh Authority V3 root
+against that successor, and activates the runtime in the same PostgreSQL
+transaction.  Evidence roots keep their original canonical hashes; successors
+bind the exact predecessor content hash.  Repository CAS requires both account
+and underlying mappings to name the same head, so history cannot be overwritten,
+forked, or backfilled.  A failed profile activation rolls the entire recovery
+back.
+
+The periodic guard continues to use ordinary Authority V3 renewal while the
+Evidence V5 lease is current.  Operators must run recovery only after that
+assignment lease has expired; it does not weaken actor, policy, physical-row,
+profile, or source-freshness validation.
 
 After a successful execution, run the read-only Audit/Data Center preflight,
 then one bounded full-market publication.  Count the run as restored only when
