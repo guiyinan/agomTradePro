@@ -64,12 +64,31 @@ jobs:
           --ds=tests.settings_data_center_sync_identity
           --confcutdir=tests/component/data_center
           -q -o addopts='' --junitxml=publication-postgres.xml
+      - name: Exercise PostgreSQL backfill control plane
+        env:
+          DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/evid06_authority_test
+          DJANGO_SETTINGS_MODULE: core.settings.development
+          SECRET_KEY: publication-postgres-control-plane-secret-key
+          ALLOWED_HOSTS: localhost,127.0.0.1,testserver
+        run: >-
+          python -m pytest
+          tests/component/data_center/test_core_data_backfill_control_plane.py::test_postgresql_backfill_first_run_and_same_parameter_retry_are_idempotent
+          tests/component/data_center/test_core_data_backfill_control_plane.py::test_postgresql_backfill_provider_domain_failure_persists_partial_outcome
+          --ds=core.settings.development
+          --confcutdir=tests/component/data_center
+          --create-db
+          -q -o addopts='' --junitxml=backfill-control-plane-postgres.xml
       - name: Reject missing or skipped PostgreSQL evidence
         run: |
           python - <<'PY'
           from xml.etree import ElementTree
-          cases = ElementTree.parse('publication-postgres.xml').findall('.//testcase')
-          assert len(cases) >= 21, 'Expected publication PostgreSQL cases were not collected'
+          publication_cases = ElementTree.parse('publication-postgres.xml').findall('.//testcase')
+          control_plane_cases = ElementTree.parse(
+              'backfill-control-plane-postgres.xml'
+          ).findall('.//testcase')
+          assert len(publication_cases) >= 21, 'Expected publication PostgreSQL cases were not collected'
+          assert len(control_plane_cases) == 2, 'Expected backfill control-plane cases were not collected'
+          cases = [*publication_cases, *control_plane_cases]
           assert all(case.find('skipped') is None for case in cases), 'PostgreSQL cases must execute'
           assert all(case.find('failure') is None and case.find('error') is None for case in cases)
           PY
@@ -78,5 +97,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: publication-postgres-evidence
-          path: publication-postgres.xml
+          path: |
+            publication-postgres.xml
+            backfill-control-plane-postgres.xml
           if-no-files-found: error

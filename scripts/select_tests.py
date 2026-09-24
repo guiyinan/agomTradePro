@@ -275,6 +275,8 @@ MODULE_TEST_MAP: dict[str, list[str]] = {
     # Data Center
     "data_center": [
         "tests/api/test_data_center_route_cleanup.py",
+        # Realtime reads published prices through the Data Center public facade.
+        "tests/component/test_realtime_data_center_provider.py",
         "tests/integration/data_center/",
         "tests/unit/data_center/",
         "tests/critical/",

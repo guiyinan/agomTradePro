@@ -212,6 +212,23 @@ class TestSelectTests(unittest.TestCase):
         self.assertIn("tests/unit/data_center/", tests)
         self.assertIn("tests/component/data_center/", tests)
 
+    def test_data_center_production_file_changes_select_realtime_consumer_component(self):
+        """Provider-only changes must exercise the realtime Data Center consumer."""
+        production_files = [
+            "apps/data_center/application/public.py",
+            "apps/data_center/infrastructure/_provider_adapter_akshare.py",
+            "apps/data_center/application/tasks.py",
+        ]
+        for changed_file in production_files:
+            with self.subTest(changed_file=changed_file):
+                changed_files = [changed_file]
+                tests = select_tests_func(
+                    get_changed_modules(changed_files),
+                    changed_files,
+                    profile="logic_guardrails",
+                )
+                self.assertIn("tests/component/test_realtime_data_center_provider.py", tests)
+
     def test_logic_profile_keeps_data_center_tests_in_mixed_ci_diff(self):
         """CI workflow edits must not discard tests selected by an app change."""
         changed = [
