@@ -15,14 +15,27 @@ def test_full_market_schedule_is_idempotent_and_precedes_inference():
     assert row.enabled
     assert (row.crontab.hour, row.crontab.minute) == ("16", "30")
     assert row.crontab.day_of_week == "1,2,3,4,5"
-    assert json.loads(row.kwargs) == {"source": "akshare", "batch_size": 100}
+    assert json.loads(row.kwargs) == {
+        "quote_source": "tushare",
+        "valuation_source": "akshare",
+        "batch_size": 100,
+    }
     call_command("setup_full_market_publications", disable=True)
     row.refresh_from_db()
     assert not row.enabled
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("options", [{"hour": 24}, {"batch_size": 0}, {"source": "unknown"}])
+@pytest.mark.parametrize(
+    "options",
+    [
+        {"hour": 24},
+        {"batch_size": 0},
+        {"source": "unknown"},
+        {"quote_source": "unknown"},
+        {"valuation_source": "unknown"},
+    ],
+)
 def test_invalid_schedule_does_not_write(options):
     with pytest.raises(CommandError):
         call_command("setup_full_market_publications", **options)

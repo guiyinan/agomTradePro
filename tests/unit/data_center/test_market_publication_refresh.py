@@ -130,7 +130,16 @@ def test_market_refresh_rejects_invalid_input_before_io(batch_size):
         )
 
 
-@pytest.mark.parametrize("kwargs", [{"batch_size": True}, {"batch_size": 0}, {"source": "bad"}])
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"batch_size": True},
+        {"batch_size": 0},
+        {"source": "bad"},
+        {"quote_source": "bad"},
+        {"valuation_source": "bad"},
+    ],
+)
 def test_task_invalid_input_returns_failure_without_provider_access(monkeypatch, kwargs):
     from apps.data_center.application import tasks
 
@@ -455,19 +464,36 @@ def test_task_repairs_missing_price_scope_before_final_publication(monkeypatch):
     from apps.data_center.application import market_publication_refresh, public, tasks
 
     events = []
-    monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda _: 3)
+    provider_ids = {"tushare": 3, "akshare": 7}
+    monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda name: provider_ids[name])
     monkeypatch.setattr(tasks, "latest_closed_cn_market_session", lambda _: date(2026, 9, 18))
     monkeypatch.setattr(tasks, "list_active_stock_codes_for_backfill", lambda: ["000001.SZ"])
-    sync = SimpleNamespace(
-        execute=lambda *_, **kwargs: SimpleNamespace(
+    quote_provider_ids = []
+    valuation_provider_ids = []
+
+    def sync_quote(request):
+        quote_provider_ids.append(request.provider_id)
+        return SimpleNamespace(
             stored_count=1,
             stored_asset_codes=("000001.SZ",),
+        )
+
+    def sync_valuation(**kwargs):
+        valuation_provider_ids.append(kwargs["provider_id"])
+        return SimpleNamespace(
+            stored_count=1,
             succeeded_asset_codes=("000001.SZ",),
             returned_asset_codes=("000001.SZ",),
         )
+
+    monkeypatch.setattr(
+        tasks, "make_backfill_sync_quote_use_case", lambda: SimpleNamespace(execute=sync_quote)
     )
-    monkeypatch.setattr(tasks, "make_backfill_sync_quote_use_case", lambda: sync)
-    monkeypatch.setattr(tasks, "make_backfill_sync_current_valuation_batch_use_case", lambda: sync)
+    monkeypatch.setattr(
+        tasks,
+        "make_backfill_sync_current_valuation_batch_use_case",
+        lambda: SimpleNamespace(execute=sync_valuation),
+    )
     observed = datetime(2026, 9, 18, 7, tzinfo=UTC)
     datasets = [
         SimpleNamespace(
@@ -494,3 +520,7 @@ def test_task_repairs_missing_price_scope_before_final_publication(monkeypatch):
     assert events == ["refresh_prices", "publish"]
     assert result["outcome"] == "success"
     assert result["price_scope_verified"] == 1
+    assert result["quote_source"] == "tushare"
+    assert result["valuation_source"] == "akshare"
+    assert quote_provider_ids == [3]
+    assert valuation_provider_ids == [7]

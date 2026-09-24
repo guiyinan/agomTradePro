@@ -196,7 +196,10 @@ def _exact_provider_batch_count(
 
 @shared_task(name="data_center.refresh_full_market_publications", time_limit=1800, soft_time_limit=1700)  # type: ignore[misc]
 def refresh_full_market_publications_task(
-    source: str = "akshare", batch_size: int = 100
+    source: str | None = None,
+    batch_size: int = 100,
+    quote_source: str = "tushare",
+    valuation_source: str = "akshare",
 ) -> dict[str, object]:
     """Refresh all active market quotes and valuations without waiting for financial filings."""
     from .dtos import SyncQuoteRequest
@@ -207,8 +210,15 @@ def refresh_full_market_publications_task(
     )
     from .public import get_model_market_data_port
 
-    if not isinstance(source, str) or source not in {"akshare", "tushare"}:
+    allowed_sources = {"akshare", "tushare"}
+    if source is not None and (type(source) is not str or source not in allowed_sources):
         return _full_market_input_failure("unsupported_market_source")
+    if type(quote_source) is not str or quote_source not in allowed_sources:
+        return _full_market_input_failure("unsupported_quote_source")
+    if type(valuation_source) is not str or valuation_source not in allowed_sources:
+        return _full_market_input_failure("unsupported_valuation_source")
+    selected_quote_source = source or quote_source
+    selected_valuation_source = source or valuation_source
     if (
         isinstance(batch_size, bool)
         or not isinstance(batch_size, int)
@@ -224,9 +234,12 @@ def refresh_full_market_publications_task(
         return authority_failure
     if authority is None:  # pragma: no cover - narrowed by the failure branch
         raise RuntimeError("authority preflight returned no context")
-    provider_id = get_active_provider_id_by_source(source)
-    if provider_id is None:
-        return _full_market_input_failure("market_provider_unavailable")
+    quote_provider_id = get_active_provider_id_by_source(selected_quote_source)
+    valuation_provider_id = get_active_provider_id_by_source(selected_valuation_source)
+    if quote_provider_id is None:
+        return _full_market_input_failure("quote_provider_unavailable")
+    if valuation_provider_id is None:
+        return _full_market_input_failure("valuation_provider_unavailable")
     try:
         quotes = make_backfill_sync_quote_use_case()
     except SystemAuditCompositionUnavailable as exc:
@@ -270,7 +283,7 @@ def refresh_full_market_publications_task(
         if not authority_allows_next_write():
             raise ValueError("current Audit authority changed before quote batch")
         result = quotes.execute(
-            SyncQuoteRequest(provider_id, codes, require_exact_asset_codes=True)
+            SyncQuoteRequest(quote_provider_id, codes, require_exact_asset_codes=True)
         )
         return _exact_provider_batch_count(
             requested_asset_codes=codes,
@@ -282,7 +295,7 @@ def refresh_full_market_publications_task(
         if not authority_allows_next_write():
             raise ValueError("current Audit authority changed before valuation batch")
         result = valuations.execute(
-            provider_id=provider_id,
+            provider_id=valuation_provider_id,
             asset_codes=codes,
             as_of_date=day,
             require_exact_asset_codes=True,
@@ -338,7 +351,12 @@ def refresh_full_market_publications_task(
             "publication_updated": False,
             "published_members": 0,
         }
-    return {**result, **price_evidence}
+    return {
+        **result,
+        **price_evidence,
+        "quote_source": selected_quote_source,
+        "valuation_source": selected_valuation_source,
+    }
 
 
 def _full_market_input_failure(reason: str) -> dict[str, object]:

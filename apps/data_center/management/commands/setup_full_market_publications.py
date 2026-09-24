@@ -24,7 +24,9 @@ class Command(BaseCommand):
         """Expose schedule and bounded source batch options."""
         parser.add_argument("--hour", type=int, default=16)
         parser.add_argument("--minute", type=int, default=30)
-        parser.add_argument("--source", choices=("akshare", "tushare"), default="akshare")
+        parser.add_argument("--source", choices=("akshare", "tushare"), default=None)
+        parser.add_argument("--quote-source", choices=("akshare", "tushare"), default="tushare")
+        parser.add_argument("--valuation-source", choices=("akshare", "tushare"), default="akshare")
         parser.add_argument("--batch-size", type=int, default=100)
         parser.add_argument("--disable", action="store_true")
 
@@ -35,8 +37,16 @@ class Command(BaseCommand):
             if type(value) is not int or not lower <= value <= upper:
                 raise CommandError(f"Invalid {name}")
         source = options["source"]
-        if not isinstance(source, str) or source not in {"akshare", "tushare"}:
+        quote_source = options["quote_source"]
+        valuation_source = options["valuation_source"]
+        if source is not None and (type(source) is not str or source not in {"akshare", "tushare"}):
             raise CommandError("Invalid source")
+        if type(quote_source) is not str or quote_source not in {"akshare", "tushare"}:
+            raise CommandError("Invalid quote source")
+        if type(valuation_source) is not str or valuation_source not in {"akshare", "tushare"}:
+            raise CommandError("Invalid valuation source")
+        if source is not None:
+            quote_source = valuation_source = source
         if type(options["disable"]) is not bool:
             raise CommandError("Invalid disable flag")
         with transaction.atomic():
@@ -59,7 +69,13 @@ class Command(BaseCommand):
                     "one_off": False,
                     "enabled": not options["disable"],
                     "args": "[]",
-                    "kwargs": json.dumps({"source": source, "batch_size": options["batch_size"]}),
+                    "kwargs": json.dumps(
+                        {
+                            "quote_source": quote_source,
+                            "valuation_source": valuation_source,
+                            "batch_size": options["batch_size"],
+                        }
+                    ),
                     "description": "Full active market facts and canonical publication; fails closed without valid audit authority.",
                 },
             )
