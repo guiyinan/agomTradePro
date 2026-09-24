@@ -9,6 +9,8 @@ from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from apps.data_center.domain.market_time import cn_market_date_from_observation
+
 PublicationLookup = Callable[[str, str], dict[str, object] | None]
 MemberFactLookup = Callable[..., list[str] | None]
 
@@ -58,7 +60,19 @@ def published_as_of_date(publication: dict[str, object] | None) -> date | None:
     """Return the date portion of a publication knowledge boundary."""
 
     as_of = published_as_of_datetime(publication)
-    return as_of.date() if as_of is not None else None
+    if as_of is None:
+        return None
+    if publication and publication.get("dataset_key") == "equity.price.bar":
+        return cn_market_date_from_observation(as_of)
+    return as_of.date()
+
+
+def public_publication_payload(
+    publication: dict[str, object],
+) -> dict[str, object]:
+    """Remove interface-private publication state before serialization."""
+
+    return {key: value for key, value in publication.items() if not str(key).startswith("_")}
 
 
 def published_bounded_end(
@@ -92,7 +106,7 @@ def published_empty_intersection_response(
             "data": [],
             "status": "blocked",
             "publication_id": publication.get("publication_id"),
-            "publication": publication,
+            "publication": public_publication_payload(publication),
             "must_not_use_for_decision": True,
             "blocked_reason": blocked_reason,
             "freshness_status": publication.get("freshness_status", "fresh"),
@@ -143,7 +157,7 @@ def published_member_fact_pks_or_block(
             "data": [],
             "status": "blocked",
             "publication_id": publication.get("publication_id"),
-            "publication": publication,
+            "publication": public_publication_payload(publication),
             "must_not_use_for_decision": True,
             "blocked_reason": blocked_reason,
             "contract": {
@@ -251,7 +265,7 @@ def apply_published_gate(
                 "data": [],
                 "status": "blocked",
                 "publication_id": publication.get("publication_id"),
-                "publication": publication,
+                "publication": public_publication_payload(publication),
                 "must_not_use_for_decision": True,
                 "blocked_reason": blocked_reason,
                 "freshness_status": publication.get("freshness_status", "unverified"),
@@ -293,6 +307,7 @@ __all__ = [
     "apply_published_gate_with_members",
     "published_member_fact_pks_or_block",
     "publication_member_pks",
+    "public_publication_payload",
     "published_as_of_date",
     "published_as_of_datetime",
     "published_bounded_end",

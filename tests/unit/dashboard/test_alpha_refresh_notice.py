@@ -199,3 +199,20 @@ def test_market_publication_validation_failure_has_specific_safe_message() -> No
     assert notice["code"] == "market_publication_validation_failed"
     assert "发布证据未通过校验" in notice["message"]
     assert "secret" not in str(notice)
+
+
+def test_verified_publications_newer_than_failed_task_clear_notice() -> None:
+    failed = replace(
+        record("{'outcome': 'failed'}"),
+        task_name="data_center.refresh_full_market_publications",
+        finished_at=datetime(2026, 9, 24, 9, tzinfo=UTC),
+    )
+
+    notice = build_refresh_notice(
+        [failed],
+        portfolio_id=None,
+        universe_id="csi300",
+        market_recovered_at=datetime(2026, 9, 24, 10, tzinfo=UTC),
+    )
+
+    assert notice == {}

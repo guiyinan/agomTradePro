@@ -122,6 +122,16 @@ def test_list_query_rejects_invalid_or_unknown_filters(
     assert not serializer.is_valid()
 
 
+def test_list_query_accepts_sdk_pagination_and_asset_filter() -> None:
+    serializer = SignalListQuerySerializer(
+        data={"asset_code": "600000.SH", "limit": 5, "offset": 0}
+    )
+
+    assert serializer.is_valid(), serializer.errors
+    assert serializer.validated_data["asset_code"] == "600000.SH"
+    assert serializer.validated_data["offset"] == 0
+
+
 def test_read_serializer_ignores_non_string_human_description() -> None:
     serializer = InvestmentSignalSerializer()
 

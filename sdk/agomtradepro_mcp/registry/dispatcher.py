@@ -5,8 +5,9 @@ from __future__ import annotations
 import secrets
 from collections.abc import Callable, Sequence
 from copy import deepcopy
-from typing import Any
+from typing import Any, cast
 
+from agomtradepro.exceptions import AgomTradeProAPIError
 from agomtradepro_mcp.audit import AuditContext, get_audit_logger
 from agomtradepro_mcp.rbac import get_current_role, role_matches_required_roles
 
@@ -236,9 +237,9 @@ class CapabilityDispatcher:
                 try:
                     preview_result = self._execute_manifest(manifest, preview_arguments)
                 except Exception as exc:
-                    payload = self._error_envelope(
-                        code="capability_preview_failed",
-                        message=str(exc),
+                    payload = self._execution_error_envelope(
+                        exc,
+                        default_code="capability_preview_failed",
                         capability_key=capability_key,
                     )
                     self._audit_capability_event(
@@ -297,9 +298,9 @@ class CapabilityDispatcher:
         try:
             result = self._execute_manifest(manifest, safe_arguments)
         except Exception as exc:
-            payload = self._error_envelope(
-                code="capability_execution_failed",
-                message=str(exc),
+            payload = self._execution_error_envelope(
+                exc,
+                default_code="capability_execution_failed",
                 capability_key=capability_key,
             )
             self._audit_capability_event(
@@ -411,9 +412,9 @@ class CapabilityDispatcher:
         except Exception as exc:
             if record_key is not None:
                 self._idempotency_records.pop(record_key, None)
-            payload = self._error_envelope(
-                code="capability_execution_failed",
-                message=str(exc),
+            payload = self._execution_error_envelope(
+                exc,
+                default_code="capability_execution_failed",
                 capability_key=manifest.capability_key,
                 confirmation_token=confirmation_token,
             )
@@ -553,6 +554,54 @@ class CapabilityDispatcher:
             payload["required_roles"] = required_roles
         return payload
 
+    def _execution_error_envelope(
+        self,
+        exc: Exception,
+        *,
+        default_code: str,
+        capability_key: str,
+        confirmation_token: str | None = None,
+    ) -> dict[str, Any]:
+        """Preserve bounded upstream business errors without leaking raw responses."""
+
+        if not isinstance(exc, AgomTradeProAPIError):
+            return self._error_envelope(
+                code=default_code,
+                message=str(exc),
+                capability_key=capability_key,
+                confirmation_token=confirmation_token,
+            )
+        response = exc.response if isinstance(exc.response, dict) else {}
+        raw_code = response.get("code") or response.get("blocked_reason")
+        code = str(raw_code or "").strip().lower()
+        if (
+            not code
+            or len(code) > 64
+            or any(not (character.isalnum() or character in {"_", "-"}) for character in code)
+        ):
+            code = default_code
+        raw_message = response.get("detail") or response.get("message")
+        message = (
+            str(raw_message).strip()
+            if code != default_code and isinstance(raw_message, str) and raw_message.strip()
+            else f"Upstream API request failed with HTTP {exc.status_code or 'unknown'}."
+        )
+        payload = self._error_envelope(
+            code=code,
+            message=message,
+            capability_key=capability_key,
+            confirmation_token=confirmation_token,
+        )
+        error = payload["error"]
+        if isinstance(error, dict):
+            error["upstream_status_code"] = exc.status_code
+            blocked_reason = response.get("blocked_reason")
+            if isinstance(blocked_reason, str) and blocked_reason == code:
+                error["blocked_reason"] = blocked_reason
+            if isinstance(response.get("must_not_use_for_decision"), bool):
+                error["must_not_use_for_decision"] = response["must_not_use_for_decision"]
+        return payload
+
     def _validate_idempotency_arguments(
         self,
         manifest: CapabilityManifest,
@@ -618,12 +667,12 @@ class CapabilityDispatcher:
             )
 
         if record["status"] == "pending":
-            response = deepcopy(record["response"])
+            response = cast(dict[str, Any], deepcopy(record["response"]))
             response["idempotency_reused"] = True
             return response
 
         if record["status"] == "completed":
-            response = deepcopy(record["response"])
+            response = cast(dict[str, Any], deepcopy(record["response"]))
             response["status"] = "idempotent_replay"
             response["idempotency_reused"] = True
             return response

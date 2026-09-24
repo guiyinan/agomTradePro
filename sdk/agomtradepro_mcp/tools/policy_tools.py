@@ -5,11 +5,12 @@ AgomTradePro MCP Tools - Policy 政策事件工具
 """
 
 from datetime import date
-from typing import Any
+from typing import Any, cast
 
 from mcp.server.fastmcp import FastMCP
 
 from agomtradepro import AgomTradeProClient
+from agomtradepro.types import EventType, GateLevel, PolicyGear, PolicyLevel
 
 
 def register_policy_tools(server: FastMCP) -> None:
@@ -34,8 +35,12 @@ def register_policy_tools(server: FastMCP) -> None:
         status = client.policy.get_status()
         return {
             "current_gear": status.current_gear,
+            "current_level": status.current_level,
+            "level_name": status.level_name,
             "observed_at": status.observed_at.isoformat(),
             "recent_events_count": len(status.recent_events),
+            "requires_manual_approval": status.requires_manual_approval,
+            "must_not_use_for_decision": status.must_not_use_for_decision,
         }
 
     @server.tool()
@@ -111,9 +116,9 @@ def register_policy_tools(server: FastMCP) -> None:
                 parsed_date,
                 event_type,
                 description,
-                gear,
+                cast(PolicyGear, gear),
                 title=title,
-                level=level,
+                level=cast(PolicyLevel | None, level),
                 evidence_url=evidence_url,
             )
         except Exception as exc:
@@ -197,9 +202,9 @@ def register_policy_tools(server: FastMCP) -> None:
         client = AgomTradeProClient()
         result = client.policy.get_workbench_items(
             tab=tab,
-            event_type=event_type,
-            level=level,
-            gate_level=gate_level,
+            event_type=cast(EventType | None, event_type),
+            level=cast(PolicyLevel | None, level),
+            gate_level=cast(GateLevel | None, gate_level),
             search=search,
             page=page,
             page_size=page_size,

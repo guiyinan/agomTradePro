@@ -32,6 +32,26 @@ def test_policy_status_maps_canonical_level_and_latest_event() -> None:
     mocked.assert_called_once_with("/api/policy/status/", params=None)
 
 
+def test_policy_status_preserves_unclassified_manual_review_gate() -> None:
+    client = _client()
+    response = {
+        "current_level": "PX",
+        "level_name": "待分类",
+        "as_of_date": "2026-09-24",
+        "requires_manual_approval": True,
+        "latest_event": None,
+    }
+
+    with patch.object(client, "get", return_value=response):
+        status = client.policy.get_status()
+
+    assert status.current_gear == "unclassified"
+    assert status.current_level == "PX"
+    assert status.level_name == "待分类"
+    assert status.requires_manual_approval is True
+    assert status.must_not_use_for_decision is True
+
+
 def test_policy_events_reads_canonical_envelope_and_applies_limit() -> None:
     client = _client()
     response = {

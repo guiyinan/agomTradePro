@@ -23,6 +23,9 @@ def _fail_repository() -> None:
         {"direction": "BUY"},
         {"include_test": 1},
         {"search": "x" * 201},
+        {"asset_code": "x" * 33},
+        {"offset": -1},
+        {"offset": True},
     ],
 )
 def test_signal_list_rejects_invalid_filters_before_repository_access(

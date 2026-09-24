@@ -1525,6 +1525,10 @@
           "class DashboardBetaMarketTuiView(APIView):",
           "build_beta_market_summary_payload()",
           "row.get(\"must_not_use_for_decision\", True)"
+        ],
+        "apps/dashboard/application/alpha_refresh_notice.py": [
+          "market_recovered_at",
+          "get_decision_publication_gate"
         ]
       },
       "required_tests": [
@@ -1567,6 +1571,11 @@
           "case": "market_publication_block_independent_of_prediction",
           "test_file": "tests/unit/dashboard/test_alpha_refresh_notice.py",
           "test_function": "test_prediction_success_does_not_hide_independent_market_block"
+        },
+        {
+          "case": "newer_verified_publications_reconcile_old_market_failure",
+          "test_file": "tests/unit/dashboard/test_alpha_refresh_notice.py",
+          "test_function": "test_verified_publications_newer_than_failed_task_clear_notice"
         }
       ]
     },
@@ -3313,7 +3322,9 @@
         "apps/data_center/interface/publication_guards.py": [
           "def apply_published_gate_with_members(",
           "published_member_fact_pks_or_block(",
-          "canonical_publication_members_missing"
+          "canonical_publication_members_missing",
+          "def public_publication_payload(",
+          "equity.price.bar"
         ],
         "sdk/agomtradepro/modules/data_center.py": [
           "publication_key",
@@ -3332,7 +3343,9 @@
         ],
         "apps/data_center/application/query_services.py": [
           "current_publication_evidence_blocked_reason",
-          "publication_snapshot"
+          "publication_snapshot",
+          "latest_completed_session",
+          "cn_market_date_from_observation"
         ],
         "apps/data_center/publication_read_composition.py": [
           "consistent_publication_read"
@@ -3442,6 +3455,16 @@
           "case": "requested_publication_key_scope_mismatch_blocked",
           "test_file": "tests/component/data_center/test_current_publication_evidence_gate.py",
           "test_function": "test_current_gate_rejects_repository_publication_outside_requested_scope"
+        },
+        {
+          "case": "market_publication_accepts_latest_completed_session_after_hour_ttl",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_market_publication_accepts_latest_completed_session_after_hour_ttl"
+        },
+        {
+          "case": "published_price_uses_china_date_and_hides_internal_members",
+          "test_file": "tests/api/test_data_center_route_cleanup.py",
+          "test_function": "test_published_price_history_uses_china_market_date_and_hides_member_ids"
         }
       ]
     },

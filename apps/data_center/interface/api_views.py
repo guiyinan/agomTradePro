@@ -113,6 +113,7 @@ from .api_views_operations import sync_valuations as sync_valuations
 from .publication_guards import (
     apply_published_gate_with_members,
 )
+from .publication_guards import public_publication_payload as _public_publication_payload
 from .publication_guards import publication_member_pks as _publication_member_pks
 from .publication_guards import published_as_of_date as _published_as_of_date
 from .publication_guards import published_as_of_datetime as _published_as_of_datetime
@@ -599,7 +600,7 @@ def macro_series(request: Request) -> Response:
     payload = result.to_dict()
     if publication is not None:
         payload["publication_id"] = publication["publication_id"]
-        payload["publication"] = publication
+        payload["publication"] = _public_publication_payload(publication)
     return Response(payload)
 
 
@@ -676,7 +677,7 @@ def price_history(request: Request) -> Response:
     }
     if publication is not None:
         payload["publication_id"] = publication["publication_id"]
-        payload["publication"] = publication
+        payload["publication"] = _public_publication_payload(publication)
     return Response(payload)
 
 
@@ -741,7 +742,7 @@ def price_latest_quote(request: Request) -> Response:
                     "must_not_use_for_decision": True,
                     "blocked_reason": "quote_observation_after_publication_as_of",
                     "publication_id": publication["publication_id"],
-                    "publication": publication,
+                    "publication": _public_publication_payload(publication),
                 }
             )
             return Response(payload, status=status.HTTP_200_OK)
@@ -778,7 +779,7 @@ def price_latest_quote(request: Request) -> Response:
                     "must_not_use_for_decision": True,
                     "blocked_reason": "canonical_quote_missing_before_publication_as_of",
                     "publication_id": publication["publication_id"],
-                    "publication": publication,
+                    "publication": _public_publication_payload(publication),
                 },
                 status=status.HTTP_200_OK,
             )
@@ -794,7 +795,7 @@ def price_latest_quote(request: Request) -> Response:
     payload = result.to_dict()
     if publication is not None:
         payload["publication_id"] = publication["publication_id"]
-        payload["publication"] = publication
+        payload["publication"] = _public_publication_payload(publication)
     return Response(payload)
 
 
@@ -890,7 +891,7 @@ def financials(request: Request) -> Response:
     payload = {"asset_code": asset_code, "total": len(data), "data": data}
     if publication is not None:
         payload["publication_id"] = publication["publication_id"]
-        payload["publication"] = publication
+        payload["publication"] = _public_publication_payload(publication)
     return Response(payload)
 
 
@@ -942,7 +943,7 @@ def valuations(request: Request) -> Response:
     payload = {"asset_code": asset_code, "total": len(data), "data": data}
     if publication is not None:
         payload["publication_id"] = publication["publication_id"]
-        payload["publication"] = publication
+        payload["publication"] = _public_publication_payload(publication)
     return Response(payload)
 
 
@@ -988,7 +989,7 @@ def sector_constituents(request: Request) -> Response:
     }
     if publication is not None:
         payload["publication_id"] = publication["publication_id"]
-        payload["publication"] = publication
+        payload["publication"] = _public_publication_payload(publication)
     return Response(payload)
 
 
@@ -1019,7 +1020,7 @@ def news(request: Request) -> Response:
     payload: dict[str, object] = {"asset_code": asset_code, "total": len(data), "data": data}
     if publication is not None:
         payload["publication_id"] = publication["publication_id"]
-        payload["publication"] = publication
+        payload["publication"] = _public_publication_payload(publication)
     return Response(payload)
 
 
@@ -1077,5 +1078,5 @@ def capital_flows(request: Request) -> Response:
     }
     if publication is not None:
         payload["publication_id"] = publication["publication_id"]
-        payload["publication"] = publication
+        payload["publication"] = _public_publication_payload(publication)
     return Response(payload)

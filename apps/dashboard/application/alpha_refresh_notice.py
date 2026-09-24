@@ -6,6 +6,7 @@ import ast
 import json
 import logging
 from collections.abc import Sequence
+from datetime import datetime
 
 from django.db import DatabaseError
 
@@ -59,7 +60,11 @@ def _payload(value: str | None) -> dict[str, object]:
 
 
 def build_refresh_notice(
-    records: Sequence[TaskExecutionRecord], *, portfolio_id: int | None, universe_id: str
+    records: Sequence[TaskExecutionRecord],
+    *,
+    portfolio_id: int | None,
+    universe_id: str,
+    market_recovered_at: datetime | None = None,
 ) -> dict[str, str]:
     """Describe the latest relevant completed attempt without exposing raw exceptions."""
     market_seen = False
@@ -103,6 +108,14 @@ def build_refresh_notice(
             TaskStatus.TIMEOUT,
             TaskStatus.REVOKED,
         }
+        if (
+            market_refresh
+            and failed
+            and market_recovered_at is not None
+            and record.finished_at is not None
+            and market_recovered_at >= record.finished_at
+        ):
+            continue
         if not failed:
             if record.task_name == _PREDICT and outcome == "success" and result.get("stored"):
                 inference_complete = True
@@ -164,8 +177,36 @@ def get_refresh_notice(
             "level": "warning",
             "attempted_at": "",
         }
+    market_recovered_at: datetime | None = None
+    try:
+        from apps.data_center.application.public import get_decision_publication_gate
+
+        publication_times: list[datetime] = []
+        for dataset_key in (
+            "equity.quote.snapshot",
+            "equity.price.bar",
+            "equity.valuation.fact",
+        ):
+            gate = get_decision_publication_gate(dataset_key)
+            if gate is None or bool(gate.get("must_not_use_for_decision")):
+                publication_times = []
+                break
+            raw_published_at = gate.get("published_at")
+            if not isinstance(raw_published_at, str):
+                publication_times = []
+                break
+            parsed = datetime.fromisoformat(raw_published_at.replace("Z", "+00:00"))
+            if parsed.tzinfo is None or parsed.utcoffset() is None:
+                publication_times = []
+                break
+            publication_times.append(parsed)
+        if len(publication_times) == 3:
+            market_recovered_at = min(publication_times)
+    except (DatabaseError, TypeError, ValueError):
+        logger.warning("Market publication recovery diagnostics unavailable", exc_info=True)
     return build_refresh_notice(
         records,
         portfolio_id=portfolio_id,
         universe_id=universe_id,
+        market_recovered_at=market_recovered_at,
     )

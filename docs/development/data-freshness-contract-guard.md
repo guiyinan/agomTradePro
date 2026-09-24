@@ -27,9 +27,11 @@ Alpha Qlib 推理缓存必须按 `asof_date` 核对请求交易日；旧源日�
 4. **降级必须显式**：历史收盘、代理值和不完整数据必须发布明确的 freshness/source/fallback 状态。
 5. **决策输出必须失败关闭**：数据不可靠时发布 `must_not_use_for_decision=true` 和稳定的 `blocked_reason`，不得继续生成确定性建议。
 
-日频 A 股 price/valuation 的自然小时预算到期后，只允许在所有 Publication member 都精确绑定最近已收盘交易日时标记为 `latest_completed_session`；这不会改变源观测时间，也不适用于实时 quote。全市场 current Publication 必须按冻结 universe 原子发布，单标的或中间批次同步只写 fact，不得缩小既有 current member 集合。
+日频 A 股 quote/price/valuation 的自然小时预算到期后，只允许在所有 Publication member 都精确绑定最近已收盘交易日时标记为 `latest_completed_session`；quote 只在盘后、开盘前或休市日沿用最近已收盘交易日，新的交易时段一旦完成便必须重新发布。这不会改变源观测时间。全市场 current Publication 必须按冻结 universe 原子发布，单标的或中间批次同步只写 fact，不得缩小既有 current member 集合。
 
 全市场刷新任务使用 `latest_closed_cn_market_session` 选择目标日：收盘后选择当日，盘中、开盘前和周末选择上一已收盘工作日。盘中触发不得因为实时决策函数返回 `None` 而跳过上一完整交易日的恢复；Publication 仍须通过完整范围、源观测日和事实证据检查后才能发布。
+
+单股 published price 读取必须把 UTC 观测时间转换为中国市场日期后再限制 `end_date`，不得把中国收盘时刻截断为前一自然日。公开 API 只返回 Publication 的公开证据字段，以下划线开头的成员主键和内部快照状态不得序列化。Alpha 刷新提示应以更新且验证可用的 quote/price/valuation Publication 调和历史失败记录；恢复时间不晚于失败完成时间时仍保留告警。
 
 ## DATA-16 版本化证据边界
 

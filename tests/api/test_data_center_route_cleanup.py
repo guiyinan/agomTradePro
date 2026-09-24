@@ -849,6 +849,59 @@ def test_data_center_published_price_history_blocks_without_publication(
 
 
 @pytest.mark.django_db
+def test_published_price_history_uses_china_market_date_and_hides_member_ids(
+    authenticated_client,
+    monkeypatch,
+):
+    publication = {
+        "publication_id": "pub-cn-session",
+        "dataset_key": "equity.price.bar",
+        "publication_key": "current",
+        "as_of": "2026-09-23T16:00:00+00:00",
+        "must_not_use_for_decision": False,
+        "blocked_reason": "",
+    }
+    monkeypatch.setattr(
+        "apps.data_center.interface.api_views.get_current_publication",
+        lambda *_args: dict(publication),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.interface.api_views.get_current_publication_freshness_gate",
+        lambda *_args: {
+            "must_not_use_for_decision": False,
+            "freshness_status": "latest_completed_session",
+        },
+    )
+    monkeypatch.setattr(
+        "apps.data_center.interface.api_views.get_publication_member_fact_pks",
+        lambda *_args, **_kwargs: ["internal-price-pk"],
+    )
+    seen: dict[str, object] = {}
+
+    class _PriceUseCase:
+        def execute(self, request):
+            seen["end"] = request.end
+            seen["fact_pks"] = request.fact_pks
+            return []
+
+    monkeypatch.setattr(
+        "apps.data_center.interface.api_views.make_query_price_history_use_case",
+        lambda: _PriceUseCase(),
+    )
+
+    response = authenticated_client.get(
+        "/api/data-center/prices/history/?asset_code=600000.SH&mode=published"
+    )
+
+    assert response.status_code == 200
+    assert seen == {"end": date(2026, 9, 24), "fact_pks": ["internal-price-pk"]}
+    payload = response.json()
+    assert payload["publication"]["publication_id"] == "pub-cn-session"
+    assert "_member_fact_pks" not in payload["publication"]
+    assert "internal-price-pk" not in str(payload)
+
+
+@pytest.mark.django_db
 def test_data_center_published_financials_blocks_stale_publication_before_query(
     authenticated_client,
     monkeypatch,

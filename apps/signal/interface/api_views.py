@@ -96,10 +96,12 @@ class SignalViewSet(viewsets.GenericViewSet[Any]):
                 status_override if status_override is not None else data.get("status") or ""
             ),
             asset_class=data.get("asset_class") or "",
+            asset_code=data.get("asset_code") or "",
             direction=data.get("direction") or "",
             search=data.get("search") or "",
             include_test=data.get("include_test", False),
             limit=data.get("limit", 50),
+            offset=data.get("offset", 0),
         )
         return Response(InvestmentSignalSerializer(cast(Any, signals), many=True).data)
 

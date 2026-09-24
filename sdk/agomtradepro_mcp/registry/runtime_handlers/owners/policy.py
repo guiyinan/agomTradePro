@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
+from agomtradepro.types import EventType, GateLevel, PolicyGear, PolicyLevel
 from agomtradepro_mcp.registry.runtime_handlers.common import _call_registered_tool
 
 
@@ -15,8 +16,12 @@ def _fallback_get_policy_status() -> dict[str, Any]:
     status = client.policy.get_status()
     return {
         "current_gear": status.current_gear,
+        "current_level": status.current_level,
+        "level_name": status.level_name,
         "observed_at": status.observed_at.isoformat(),
         "recent_events_count": len(status.recent_events),
+        "requires_manual_approval": status.requires_manual_approval,
+        "must_not_use_for_decision": status.must_not_use_for_decision,
     }
 
 
@@ -99,9 +104,9 @@ def _fallback_get_workbench_items(
     client = AgomTradeProClient()
     result = client.policy.get_workbench_items(
         tab=tab,
-        event_type=event_type,
-        level=level,
-        gate_level=gate_level,
+        event_type=cast(EventType | None, event_type),
+        level=cast(PolicyLevel | None, level),
+        gate_level=cast(GateLevel | None, gate_level),
         search=search,
         page=page,
         page_size=page_size,
@@ -278,8 +283,8 @@ def _internal_handler_policy_create_event(
             ),
         }
 
-    gear_by_level = {
-        "PX": "neutral",
+    gear_by_level: dict[PolicyLevel, PolicyGear] = {
+        "PX": "unclassified",
         "P0": "neutral",
         "P1": "tightening",
         "P2": "stimulus",
@@ -289,8 +294,8 @@ def _internal_handler_policy_create_event(
         parsed_event_date,
         normalized_title,
         normalized_description,
-        gear_by_level[normalized_level],
-        level=normalized_level,
+        gear_by_level[cast(PolicyLevel, normalized_level)],
+        level=cast(PolicyLevel, normalized_level),
         title=normalized_title,
         evidence_url=normalized_evidence_url,
     )
@@ -415,12 +420,12 @@ def _internal_handler_policy_approve_workbench_event(
             ),
         }
 
-    return _call_registered_tool(
+    return cast(dict[str, Any], _call_registered_tool(
         "approve_workbench_event",
         {
             "event_id": event_id,
         },
-    )
+    ))
 
 
 def _internal_handler_policy_reject_workbench_event(
@@ -455,13 +460,13 @@ def _internal_handler_policy_reject_workbench_event(
             ),
         }
 
-    return _call_registered_tool(
+    return cast(dict[str, Any], _call_registered_tool(
         "reject_workbench_event",
         {
             "event_id": event_id,
             "reason": reason,
         },
-    )
+    ))
 
 
 def _internal_handler_policy_rollback_workbench_event(
@@ -498,13 +503,13 @@ def _internal_handler_policy_rollback_workbench_event(
             ),
         }
 
-    return _call_registered_tool(
+    return cast(dict[str, Any], _call_registered_tool(
         "rollback_workbench_event",
         {
             "event_id": event_id,
             "reason": reason,
         },
-    )
+    ))
 
 
 def _internal_handler_policy_override_workbench_event(
@@ -548,14 +553,14 @@ def _internal_handler_policy_override_workbench_event(
             ),
         }
 
-    return _call_registered_tool(
+    return cast(dict[str, Any], _call_registered_tool(
         "override_workbench_event",
         {
             "event_id": event_id,
             "reason": reason,
             "new_level": new_level,
         },
-    )
+    ))
 
 
 LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {

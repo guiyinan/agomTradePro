@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
+from agomtradepro.exceptions import ServerError
 from agomtradepro_mcp.registry.dispatcher import (
     CAPABILITY_SEARCH_MAX_RESULTS,
     CapabilityDispatcher,
@@ -95,3 +96,31 @@ def test_initialize_instructions_keep_context_reads_on_demand() -> None:
         "Read agomtradepro://regime/current and agomtradepro://policy/status first"
         not in instructions
     )
+
+
+def test_dispatcher_preserves_bounded_upstream_business_block() -> None:
+    registry = CapabilityRegistryLoader().build_registry()
+
+    def fail(_name: str, _arguments: dict[str, object]) -> None:
+        raise ServerError(
+            status_code=503,
+            response={
+                "code": "decision_runtime_blocked",
+                "message": "Decision runtime is blocked pending fresh evidence.",
+                "blocked_reason": "decision_runtime_blocked",
+                "must_not_use_for_decision": True,
+                "internal_members": ["must-not-leak"],
+            },
+        )
+
+    dispatcher = CapabilityDispatcher(registry=registry, legacy_tool_caller=fail)
+    result = dispatcher.call(capability_key="system.read.regime.current", arguments={})
+
+    assert result["error"] == {
+        "code": "decision_runtime_blocked",
+        "message": "Decision runtime is blocked pending fresh evidence.",
+        "upstream_status_code": 503,
+        "blocked_reason": "decision_runtime_blocked",
+        "must_not_use_for_decision": True,
+    }
+    assert "must-not-leak" not in str(result)

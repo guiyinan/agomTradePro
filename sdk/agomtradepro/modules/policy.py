@@ -585,9 +585,16 @@ class PolicyModule(BaseModule):
         elif obs_date is None:
             obs_date = date.today()
 
+        current_level = data.get("current_level")
         current_gear = data.get("current_gear")
         if current_gear is None:
-            current_gear = self._level_to_gear(data.get("current_level"))
+            current_gear = self._level_to_gear(current_level)
+        requires_manual_approval = bool(data.get("requires_manual_approval", False))
+        must_not_use_for_decision = bool(
+            data.get("must_not_use_for_decision", False)
+            or current_level == "PX"
+            or requires_manual_approval
+        )
 
         recent_event_payloads = list(data.get("recent_events", []))
         latest_event = data.get("latest_event")
@@ -602,6 +609,10 @@ class PolicyModule(BaseModule):
             current_gear=current_gear,
             observed_at=obs_date,
             recent_events=recent_events,
+            current_level=current_level,
+            level_name=data.get("level_name"),
+            requires_manual_approval=requires_manual_approval,
+            must_not_use_for_decision=must_not_use_for_decision,
         )
 
     def _parse_event(self, data: dict[str, Any]) -> PolicyEvent:
@@ -625,6 +636,7 @@ class PolicyModule(BaseModule):
     @staticmethod
     def _gear_to_level(gear: PolicyGear) -> PolicyLevel:
         mapping: dict[str, PolicyLevel] = {
+            "unclassified": "PX",
             "neutral": "P0",
             "tightening": "P1",
             "stimulus": "P2",
@@ -638,7 +650,7 @@ class PolicyModule(BaseModule):
             "P1": "tightening",
             "P2": "stimulus",
             "P3": "stimulus",
-            "PX": "neutral",
+            "PX": "unclassified",
         }
         return mapping.get(str(level), "neutral")
 

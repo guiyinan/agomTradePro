@@ -195,8 +195,8 @@ class MacroDataPoint:
 # Policy 相关类型
 # =============================================================================
 
-PolicyGear = Literal["stimulus", "neutral", "tightening"]
-PolicyLevel = Literal["P0", "P1", "P2", "P3"]
+PolicyGear = Literal["stimulus", "neutral", "tightening", "unclassified"]
+PolicyLevel = Literal["PX", "P0", "P1", "P2", "P3"]
 GateLevel = Literal["L0", "L1", "L2", "L3"]
 EventType = Literal["policy", "hotspot", "sentiment", "mixed"]
 
@@ -214,7 +214,11 @@ class PolicyStatus:
 
     current_gear: PolicyGear
     observed_at: date
-    recent_events: list = field(default_factory=list)
+    recent_events: list["PolicyEvent"] = field(default_factory=list)
+    current_level: PolicyLevel | None = None
+    level_name: str | None = None
+    requires_manual_approval: bool = False
+    must_not_use_for_decision: bool = False
 
 
 @dataclass(frozen=True)

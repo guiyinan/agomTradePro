@@ -305,6 +305,7 @@ class SignalListQuerySerializer(StrictFieldsSerializer):
         allow_null=True,
         max_length=50,
     )
+    asset_code = serializers.CharField(required=False, allow_null=True, max_length=32)
     direction = serializers.ChoiceField(
         choices=_DIRECTION_CHOICES,
         required=False,
@@ -317,6 +318,7 @@ class SignalListQuerySerializer(StrictFieldsSerializer):
     )
     include_test = serializers.BooleanField(required=False, default=False)
     limit = serializers.IntegerField(default=50, min_value=1, max_value=500)
+    offset = serializers.IntegerField(default=0, min_value=0, max_value=1_000_000)
 
     def validate_asset_class(self, value: str | None) -> str | None:
         """Validate an optional asset-class filter."""

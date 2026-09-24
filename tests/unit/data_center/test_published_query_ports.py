@@ -803,6 +803,48 @@ def test_published_gate_blocks_old_member_observation_even_when_publication_is_n
     assert result["blocked_reason"] == "canonical_publication_stale"
 
 
+def test_market_publication_accepts_latest_completed_session_after_hour_ttl(
+    monkeypatch,
+) -> None:
+    observation = datetime(2026, 9, 24, 7, 0, tzinfo=UTC)
+    publication = _publication(
+        dataset_key="equity.quote.snapshot",
+        publication_id="pub-market-close",
+        as_of=observation,
+        published_at=datetime(2026, 9, 24, 8, 0, tzinfo=UTC),
+    )
+    repository = _PublicationRepository(
+        fixed_publication=publication,
+        oldest_observed_at=observation,
+    )
+    monkeypatch.setattr(query_services, "get_canonical_publication_repository", lambda: repository)
+    monkeypatch.setattr(
+        query_services,
+        "get_dataset_contract_repository",
+        lambda: SimpleNamespace(
+            get_active=lambda *_args: SimpleNamespace(freshness_seconds=4 * 3600)
+        ),
+    )
+
+    closed_session = query_services._publication_gate(
+        "equity.quote.snapshot",
+        "current",
+        now=datetime(2026, 9, 24, 13, 0, tzinfo=UTC),
+    )
+    next_session = query_services._publication_gate(
+        "equity.quote.snapshot",
+        "current",
+        now=datetime(2026, 9, 25, 13, 0, tzinfo=UTC),
+    )
+
+    assert closed_session is not None
+    assert closed_session["must_not_use_for_decision"] is False
+    assert closed_session["freshness_status"] == "latest_completed_session"
+    assert next_session is not None
+    assert next_session["must_not_use_for_decision"] is True
+    assert next_session["blocked_reason"] == "canonical_publication_stale"
+
+
 def test_published_gate_blocks_old_publication_as_of_even_when_member_was_reindexed(
     monkeypatch,
 ) -> None:

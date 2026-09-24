@@ -407,13 +407,28 @@ def _publication_gate(
         gate["freshness_scope"] = "asset"
         gate["asset_code"] = asset_code.strip().upper()
 
-    return _publication_freshness_gate(
+    freshness_gate = _publication_freshness_gate(
         gate,
         observed_at=oldest_observed_at,
         publication_as_of=publication_as_of,
         reference=reference,
         max_age_seconds=max_age_seconds,
     )
+    if (
+        freshness_gate.get("blocked_reason") == "canonical_publication_stale"
+        and dataset_key in {"equity.quote.snapshot", "equity.price.bar"}
+        and oldest_observed_at is not None
+        and oldest_observed_at.tzinfo is not None
+        and oldest_observed_at.utcoffset() is not None
+        and cn_market_date_from_observation(oldest_observed_at)
+        == latest_completed_cn_market_session(reference)
+    ):
+        freshness_gate.update(
+            must_not_use_for_decision=False,
+            blocked_reason="",
+            freshness_status="latest_completed_session",
+        )
+    return freshness_gate
 
 
 def get_current_publication_gate(

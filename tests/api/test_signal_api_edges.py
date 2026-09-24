@@ -143,9 +143,7 @@ def test_signal_classic_page_publishes_tui_task_link(client, auth_user):
         response = client.get("/signal/manage/")
 
     assert response.status_code == 200
-    assert (
-        b"/tui/?screen=research.signals&amp;action=signal.list" in response.content
-    )
+    assert b"/tui/?screen=research.signals&amp;action=signal.list" in response.content
 
 
 @pytest.mark.django_db
@@ -384,6 +382,43 @@ def test_signal_list_can_include_uat_records_when_requested(authenticated_client
     payload = response.json()
     returned_ids = {item["id"] for item in payload}
     assert returned_ids == {uat_signal.id, prod_signal.id}
+
+
+@pytest.mark.django_db
+def test_signal_list_supports_sdk_asset_filter_and_offset(authenticated_client):
+    older = InvestmentSignalModel.objects.create(
+        asset_code="510300.SH",
+        asset_class="a_share_growth",
+        direction="LONG",
+        logic_desc="Older production signal",
+        invalidation_description="PMI < 50",
+        target_regime="Recovery",
+        status="approved",
+    )
+    newer = InvestmentSignalModel.objects.create(
+        asset_code="510300.SH",
+        asset_class="a_share_growth",
+        direction="LONG",
+        logic_desc="Newer production signal",
+        invalidation_description="PMI < 49",
+        target_regime="Recovery",
+        status="approved",
+    )
+    InvestmentSignalModel.objects.create(
+        asset_code="600000.SH",
+        asset_class="a_share_growth",
+        direction="LONG",
+        logic_desc="Other asset",
+        invalidation_description="PMI < 48",
+        target_regime="Recovery",
+        status="approved",
+    )
+
+    response = authenticated_client.get("/api/signal/?asset_code=510300.SH&limit=1&offset=1")
+
+    assert response.status_code == 200
+    assert [item["id"] for item in response.json()] == [older.id]
+    assert newer.id != older.id
 
 
 @pytest.mark.django_db

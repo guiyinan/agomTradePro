@@ -96,11 +96,13 @@ def _validated_list_filters(
     *,
     status_filter: str,
     asset_class: str,
+    asset_code: str,
     direction: str,
     search: str,
     include_test: bool,
     limit: int,
-) -> tuple[str, str, str, str, bool, int]:
+    offset: int,
+) -> tuple[str, str, str, str, str, bool, int, int]:
     """Validate signal list filters before persistence access."""
 
     normalized_status = status_filter.strip()
@@ -115,6 +117,12 @@ def _validated_list_filters(
         maximum=50,
         allow_blank=True,
     )
+    normalized_asset_code = _bounded_text(
+        asset_code,
+        field_name="asset_code",
+        maximum=32,
+        allow_blank=True,
+    ).upper()
     normalized_search = _bounded_text(
         search,
         field_name="search",
@@ -128,13 +136,17 @@ def _validated_list_filters(
         field_name="limit",
         maximum=_MAX_LIST_LIMIT,
     )
+    if isinstance(offset, bool) or not isinstance(offset, int) or not 0 <= offset <= 1_000_000:
+        raise ValueError("offset is invalid")
     return (
         normalized_status,
         normalized_asset_class,
+        normalized_asset_code,
         normalized_direction,
         normalized_search,
         include_test,
         normalized_limit,
+        offset,
     )
 
 
@@ -207,17 +219,21 @@ def build_signal_management_context(
     (
         status_filter,
         asset_class,
+        _asset_code_filter,
         direction,
         search,
         _include_test,
         _limit,
+        _offset,
     ) = _validated_list_filters(
         status_filter=status_filter,
         asset_class=asset_class,
+        asset_code="",
         direction=direction,
         search=search,
         include_test=False,
         limit=500,
+        offset=0,
     )
     repository = DjangoSignalRepository()
     signals = repository.list_signal_records(
@@ -330,28 +346,34 @@ def list_investment_signal_payloads(
     *,
     status_filter: str = "",
     asset_class: str = "",
+    asset_code: str = "",
     direction: str = "",
     search: str = "",
     include_test: bool = False,
     limit: int = 50,
+    offset: int = 0,
 ) -> list[dict[str, Any]]:
     """Return serialized investment signals for API responses."""
 
     normalized = _validated_list_filters(
         status_filter=status_filter,
         asset_class=asset_class,
+        asset_code=asset_code,
         direction=direction,
         search=search,
         include_test=include_test,
         limit=limit,
+        offset=offset,
     )
     return DjangoSignalRepository().list_signal_payloads(
         status_filter=normalized[0],
         asset_class=normalized[1],
-        direction=normalized[2],
-        search=normalized[3],
-        include_test=normalized[4],
-        limit=normalized[5],
+        asset_code=normalized[2],
+        direction=normalized[3],
+        search=normalized[4],
+        include_test=normalized[5],
+        limit=normalized[6],
+        offset=normalized[7],
     )
 
 

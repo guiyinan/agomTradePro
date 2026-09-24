@@ -216,10 +216,12 @@ class DjangoSignalRepository:
         *,
         status_filter: str = "",
         asset_class: str = "",
+        asset_code: str = "",
         direction: str = "",
         search: str = "",
         include_test: bool = False,
         limit: int = 50,
+        offset: int = 0,
     ) -> list[InvestmentSignalModel]:
         """Return signal ORM records for the management page."""
 
@@ -228,6 +230,8 @@ class DjangoSignalRepository:
             queryset = queryset.filter(status=status_filter)
         if asset_class:
             queryset = queryset.filter(asset_class=asset_class)
+        if asset_code:
+            queryset = queryset.filter(asset_code__iexact=asset_code)
         if direction:
             queryset = queryset.filter(direction=direction)
         if search:
@@ -236,7 +240,7 @@ class DjangoSignalRepository:
             )
         if not include_test:
             queryset = self._exclude_non_production_records(queryset)
-        return list(queryset.order_by("-created_at")[:limit])
+        return list(queryset.order_by("-created_at")[offset : offset + limit])
 
     def get_signal_management_metadata(self) -> dict[str, Any]:
         """Return status counts and filter options for the management page."""
@@ -267,10 +271,12 @@ class DjangoSignalRepository:
         *,
         status_filter: str = "",
         asset_class: str = "",
+        asset_code: str = "",
         direction: str = "",
         search: str = "",
         include_test: bool = False,
         limit: int = 50,
+        offset: int = 0,
     ) -> list[dict[str, Any]]:
         """Return serialized signal payloads for API responses."""
 
@@ -279,10 +285,12 @@ class DjangoSignalRepository:
             for signal in self.list_signal_records(
                 status_filter=status_filter,
                 asset_class=asset_class,
+                asset_code=asset_code,
                 direction=direction,
                 search=search,
                 include_test=include_test,
                 limit=limit,
+                offset=offset,
             )
         ]
 
