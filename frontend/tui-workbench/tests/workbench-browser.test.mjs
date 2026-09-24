@@ -164,6 +164,7 @@ test("UX navigation never restores password drafts", async () => {
         await page.locator('[data-current-location]').press('Enter');
         await page.locator('[data-dashboard-panel]').first().waitFor();
         await page.goBack();
+        await page.waitForFunction(() => document.querySelector('[data-current-location]')?.value === 'screen:test.grid');
         const secret = page.locator('form[data-action-ui-key="test.password"] [name="new_password"]');
         await secret.waitFor();
         assert.equal(await secret.inputValue(), '');
