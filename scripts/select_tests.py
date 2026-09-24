@@ -41,6 +41,11 @@ TEST_ID_MIGRATIONS = _load_test_id_migrations()
 
 # 模块到测试的映射表
 MODULE_TEST_MAP: dict[str, list[str]] = {
+    # Deployment entrypoints must exercise the wrapper and verifier contracts.
+    "deployment": [
+        "tests/unit/test_deploy_vps_verify.py",
+        "tests/unit/test_remote_build_deploy_vps.py",
+    ],
     # 核心模块 - 这些变更运行更多测试
     "core": [
         "tests/guardrails/",
@@ -447,6 +452,14 @@ def get_changed_modules(changed_files: list[str]) -> set[str]:
         # CI 配置变更
         if ".github" in parts:
             modules.add("ci")
+
+        normalized = f.replace("\\", "/")
+        if normalized in {
+            "scripts/deploy-vps.ps1",
+            "scripts/deploy_vps_verify.py",
+            "scripts/remote_build_deploy_vps.py",
+        }:
+            modules.add("deployment")
 
     return modules
 

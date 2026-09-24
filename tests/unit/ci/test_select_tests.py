@@ -142,6 +142,24 @@ class TestSelectTests(unittest.TestCase):
         modules = get_changed_modules(changed_files)
         self.assertIn("shared", modules)
 
+    def test_deployment_entrypoints_select_deployment_contracts(self):
+        """Deployment entrypoint changes must exercise wrapper and verifier contracts."""
+        required = {
+            "tests/unit/test_deploy_vps_verify.py",
+            "tests/unit/test_remote_build_deploy_vps.py",
+        }
+        for changed_file in (
+            "scripts/deploy-vps.ps1",
+            "scripts/deploy_vps_verify.py",
+            "scripts/remote_build_deploy_vps.py",
+        ):
+            with self.subTest(changed_file=changed_file):
+                changed = [changed_file]
+                modules = get_changed_modules(changed)
+                self.assertIn("deployment", modules)
+                selected = set(select_tests_func(modules, changed, "logic_guardrails"))
+                self.assertTrue(required <= selected)
+
     def test_select_tests_with_no_changes(self):
         """无变更时返回全量测试（保守策略）"""
         tests = select_tests_func(set(), [])
