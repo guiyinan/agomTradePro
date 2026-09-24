@@ -44,7 +44,9 @@ MODULE_TEST_MAP: dict[str, list[str]] = {
     # Deployment entrypoints must exercise the wrapper and verifier contracts.
     "deployment": [
         "tests/unit/test_deploy_vps_verify.py",
+        "tests/unit/test_docker_pyqlib_install.py",
         "tests/unit/test_remote_build_deploy_vps.py",
+        "tests/unit/test_vps_web_watchdog.py",
     ],
     # 核心模块 - 这些变更运行更多测试
     "core": [
@@ -457,7 +459,9 @@ def get_changed_modules(changed_files: list[str]) -> set[str]:
         if normalized in {
             "scripts/deploy-vps.ps1",
             "scripts/deploy_vps_verify.py",
+            "scripts/deploy-on-vps.sh",
             "scripts/remote_build_deploy_vps.py",
+            "scripts/verify-vps-bundle.ps1",
         }:
             modules.add("deployment")
 
