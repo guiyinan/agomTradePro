@@ -6481,57 +6481,57 @@
       "text": "\"\"\"Return True when the cache row is only the delivery channel for the latest Qlib output.\"\"\""
     },
     {
-      "line": 110,
+      "line": 163,
       "path": "apps/alpha/application/task_outcome_contracts.py",
       "text": "\"\"\"Map an authoritative refresh summary into the task outcome vocabulary.\"\"\""
     },
     {
-      "line": 990,
+      "line": 944,
       "path": "apps/alpha/application/tasks.py",
       "text": "summary = _refresh_qlib_runtime_data("
     },
     {
-      "line": 1004,
+      "line": 958,
       "path": "apps/alpha/application/tasks.py",
       "text": "summary_status = str(summary.get(\"status\") or \"failed\")"
     },
     {
-      "line": 1005,
+      "line": 959,
       "path": "apps/alpha/application/tasks.py",
       "text": "raw_count = summary.get(\"universe_count\", 1)"
     },
     {
-      "line": 1010,
+      "line": 964,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"summary\": summary,"
     },
     {
-      "line": 1090,
+      "line": 1044,
       "path": "apps/alpha/application/tasks.py",
       "text": "summary = _refresh_qlib_runtime_data_for_codes("
     },
     {
-      "line": 1105,
+      "line": 1059,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"summary\": {"
     },
     {
-      "line": 1118,
+      "line": 1072,
       "path": "apps/alpha/application/tasks.py",
       "text": "summary_status = str(summary.get(\"status\") or \"failed\")"
     },
     {
-      "line": 1119,
+      "line": 1073,
       "path": "apps/alpha/application/tasks.py",
       "text": "raw_stored_count = summary.get(\"stock_count\", 0)"
     },
     {
-      "line": 1128,
+      "line": 1082,
       "path": "apps/alpha/application/tasks.py",
       "text": "\"summary\": {"
     },
     {
-      "line": 1129,
+      "line": 1083,
       "path": "apps/alpha/application/tasks.py",
       "text": "**summary,"
     },
@@ -9836,32 +9836,32 @@
       "text": "\"\"\"Return latest persisted source snapshots.\"\"\""
     },
     {
-      "line": 396,
+      "line": 406,
       "path": "apps/data_center/application/current_fact_remediation.py",
       "text": "\"\"\"Read-only preflight for the current-fact remediation workflow.\"\"\""
     },
     {
-      "line": 452,
+      "line": 462,
       "path": "apps/data_center/application/current_fact_remediation.py",
       "text": "\"\"\"Refresh current facts and publish only after full-universe validation.\"\"\""
     },
     {
-      "line": 515,
+      "line": 525,
       "path": "apps/data_center/application/current_fact_remediation.py",
       "text": "\"\"\"Fetch, repair and publish current data while preserving fail-closed state.\"\"\""
     },
     {
-      "line": 585,
+      "line": 595,
       "path": "apps/data_center/application/current_fact_remediation.py",
       "text": "raise ValueError(\"realtime-quote provider batch incomplete at offset \" f\"{offset}\")"
     },
     {
-      "line": 591,
+      "line": 601,
       "path": "apps/data_center/application/current_fact_remediation.py",
       "text": "\"realtime-quote provider batch asset identities are incomplete \""
     },
     {
-      "line": 648,
+      "line": 658,
       "path": "apps/data_center/application/current_fact_remediation.py",
       "text": "\"\"\"Revalidate current authority at a monotonic write/provider boundary.\"\"\""
     },

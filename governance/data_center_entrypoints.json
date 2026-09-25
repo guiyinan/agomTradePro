@@ -482,8 +482,8 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/dashboard/application/alpha_refresh_notice.py:get_decision_publication_gate:line:318",
-      "locator": "line:318",
+      "id": "application_consumer:apps/dashboard/application/alpha_refresh_notice.py:get_decision_publication_gate:line:320",
+      "locator": "line:320",
       "path": "apps/dashboard/application/alpha_refresh_notice.py",
       "status": "active_public",
       "symbol": "get_decision_publication_gate",
@@ -2722,8 +2722,8 @@
     {
       "category": "celery_dispatch_edge",
       "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
-      "id": "celery_dispatch_edge:apps/alpha/application/tasks.py:delay:line:788",
-      "locator": "line:788",
+      "id": "celery_dispatch_edge:apps/alpha/application/tasks.py:delay:line:782",
+      "locator": "line:782",
       "path": "apps/alpha/application/tasks.py",
       "status": "active_public",
       "symbol": "delay",
@@ -5451,7 +5451,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=7",
+      "evidence": "governed current-data contract; source_files=8",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.quote_observation_provenance:Provider quote gateway -> QuoteSnapshot -> Realtime read",
       "locator": "Provider quote gateway -> QuoteSnapshot -> Realtime read",
       "path": "governance/current_data_contracts.json",
