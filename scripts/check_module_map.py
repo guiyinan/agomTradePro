@@ -54,9 +54,7 @@ def _validate_envelope(payload: dict[str, object]) -> list[str]:
     return problems
 
 
-def _diff_modules(
-    committed: dict[str, object], regenerated: dict[str, object]
-) -> list[str]:
+def _diff_modules(committed: dict[str, object], regenerated: dict[str, object]) -> list[str]:
     """Return a concise module/field-level diff summary between two payloads."""
 
     committed_modules = committed.get("modules", {})
@@ -118,8 +116,10 @@ def main() -> int:
             for record in (modules.values() if isinstance(modules, dict) else [])
             if isinstance(record, dict) and isinstance(record.get("depends_on"), dict)
         )
-        print(f"module map OK: {args.file} matches the source tree "
-              f"(modules={module_count} edges={edge_count})")
+        print(
+            f"module map OK: {args.file} matches the source tree "
+            f"(modules={module_count} edges={edge_count})"
+        )
         return 0
 
     print(f"module map drift detected: {args.file}")

@@ -306,7 +306,11 @@ def build_module_map() -> dict[str, object]:
             layer = _layer_of_relative(relative)
             filename = path.name
 
-            if layer == "application" and len(Path(relative).parts) == 2 and filename != "__init__.py":
+            if (
+                layer == "application"
+                and len(Path(relative).parts) == 2
+                and filename != "__init__.py"
+            ):
                 names = _scan_entrypoints(tree)
                 if names:
                     entrypoints[relative] = names
