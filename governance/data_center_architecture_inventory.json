@@ -11231,22 +11231,22 @@
       "text": "raise ValueError(\"current Audit authority changed before quote batch\")"
     },
     {
-      "line": 358,
+      "line": 351,
       "path": "apps/data_center/application/tasks.py",
       "text": "raise ValueError(\"current Audit authority changed before publication\")"
     },
     {
-      "line": 713,
+      "line": 706,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"Financial current publication rebuild failed: %s\","
     },
     {
-      "line": 835,
+      "line": 828,
       "path": "apps/data_center/application/tasks.py",
       "text": "Current domain sync DTOs expose ``stored_count`` only, so the durable"
     },
     {
-      "line": 1209,
+      "line": 1202,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Require the same current authority before advancing the checkpoint.\"\"\""
     },
@@ -25873,22 +25873,22 @@
       "text": "@shared_task(name=\"data_center.refresh_full_market_publications\", time_limit=3600, soft_time_limit=3500)  # type: ignore[misc]"
     },
     {
-      "line": 437,
+      "line": 430,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 960,
+      "line": 953,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 992,
+      "line": 985,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1074,
+      "line": 1067,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
