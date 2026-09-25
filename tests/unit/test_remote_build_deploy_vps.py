@@ -160,6 +160,7 @@ def test_prebuilt_receipt_binds_bundle_to_exact_deployment_inputs(
 ) -> None:
     image_id = "sha256:" + "a" * 64
     digest = "b" * 64
+    validator_kwargs: dict[str, object] = {}
     monkeypatch.setattr(
         remote_build_deploy_vps,
         "verify_evidence_handoff_receipt",
@@ -177,11 +178,12 @@ def test_prebuilt_receipt_binds_bundle_to_exact_deployment_inputs(
             "max_age_hours": 24.0,
         },
     )
-    monkeypatch.setattr(
-        remote_build_deploy_vps,
-        "validate_release_rehearsal",
-        lambda **_kwargs: {"outcome": "success"},
-    )
+
+    def fake_validator(**kwargs: object) -> dict[str, object]:
+        validator_kwargs.update(kwargs)
+        return {"outcome": "success"}
+
+    monkeypatch.setattr(remote_build_deploy_vps, "validate_release_rehearsal", fake_validator)
 
     remote_build_deploy_vps._validate_prebuilt_rehearsal_receipt(
         receipt_path=tmp_path / "receipt.json",
@@ -189,6 +191,18 @@ def test_prebuilt_receipt_binds_bundle_to_exact_deployment_inputs(
         image_id=image_id,
         rehearsal_sha256=digest,
     )
+
+    assert validator_kwargs == {
+        "manifest_path": tmp_path / "bundle" / "release-rehearsal-manifest.json",
+        "expected_candidate": "c" * 40,
+        "expected_target_date": "2026-09-24",
+        "expected_universe_sha256": "d" * 64,
+        "expected_provider_identities_sha256": "e" * 64,
+        "expected_candidate_image_id": image_id,
+        "expected_github_repository": "example/repo",
+        "expected_github_run_id": 123,
+        "max_age_hours": 24.0,
+    }
 
     with pytest.raises(ValueError, match="identity does not match"):
         remote_build_deploy_vps._validate_prebuilt_rehearsal_receipt(

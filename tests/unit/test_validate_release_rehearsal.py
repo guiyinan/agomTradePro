@@ -143,6 +143,27 @@ def test_github_token_is_not_forwarded_to_artifact_redirect(
     assert observed["authorization"] is None
 
 
+def test_missing_github_token_blocks_artifact_download_before_network(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Private CI artifacts must remain unavailable when no GitHub token is configured."""
+
+    def forbidden_urlopen(_request: urllib.request.Request, _timeout: int) -> object:
+        raise AssertionError("artifact download must not run without a GitHub token")
+
+    monkeypatch.setattr(validator, "_github_token", lambda: "")
+    monkeypatch.setattr(validator.urllib.request, "urlopen", forbidden_urlopen)
+
+    with pytest.raises(
+        validator.RehearsalValidationError, match="REHEARSAL_GITHUB_TOKEN_UNAVAILABLE"
+    ):
+        validator._github_request_bytes(
+            "https://api.github.com/repos/example/repo/actions/runs/1/artifacts/1/zip",
+            require_token=True,
+            limit=100,
+        )
+
+
 def _write_json(path: Path, payload: dict[str, Any]) -> str:
     path.write_text(json.dumps(payload), encoding="utf-8")
     return hashlib.sha256(path.read_bytes()).hexdigest()
