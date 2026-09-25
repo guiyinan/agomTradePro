@@ -4624,6 +4624,7 @@
         "apps/data_center/infrastructure/financial_source_policy.py",
         "apps/data_center/domain/publication_evidence.py",
         "apps/data_center/application/full_market_task_support.py",
+        "apps/data_center/application/data02_task_authority.py",
         "apps/data_center/application/tasks.py",
         "apps/data_center/management/commands/backfill_active_a_share_core_data.py",
         "apps/data_center/application/backfill_control_plane.py",
@@ -4897,9 +4898,12 @@
           "view.source_published_at > view.available_at",
           "publication evidence source_published_at is after available_at"
         ],
+        "apps/data_center/application/data02_task_authority.py": [
+          "def preflight_data02_task_authority(",
+          "def same_data02_task_authority_is_current(",
+          "data02_authority_failure(\"authority_window_too_short\")"
+        ],
         "apps/data_center/application/tasks.py": [
-          "def _preflight_data02_task_authority(",
-          "def _same_data02_task_authority_is_current(",
           "_BACKFILL_AUTHORITY_WINDOW = timedelta(seconds=3900)",
           "_BACKFILL_CURSOR_MAX_LENGTH = 500",
           "universe_hash is required when offset is nonzero",
