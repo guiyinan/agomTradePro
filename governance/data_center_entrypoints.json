@@ -30,9 +30,9 @@
       "workflow_step": 10
     },
     "by_status": {
-      "active_public": 791,
+      "active_public": 793,
       "adjacent_operational": 327,
-      "candidate-review": 4,
+      "candidate-review": 2,
       "compatibility": 137,
       "retired_blocked": 0
     },
@@ -7501,7 +7501,7 @@
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "canonical migration-graph and isolated PostgreSQL restore verification tooling",
+      "evidence": "canonical migration, isolated PostgreSQL restore, and release rehearsal verification tooling",
       "id": "operational_dispatch_edge:scripts/check_migration_graph.py:MigrationExecutor:token:MigrationExecutor",
       "locator": "token:MigrationExecutor",
       "path": "scripts/check_migration_graph.py",
@@ -7511,7 +7511,7 @@
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "canonical migration-graph and isolated PostgreSQL restore verification tooling",
+      "evidence": "canonical migration, isolated PostgreSQL restore, and release rehearsal verification tooling",
       "id": "operational_dispatch_edge:scripts/check_migration_graph.py:check_migration_graph.py:token:check_migration_graph.py",
       "locator": "token:check_migration_graph.py",
       "path": "scripts/check_migration_graph.py",
@@ -7761,7 +7761,7 @@
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "canonical migration-graph and isolated PostgreSQL restore verification tooling",
+      "evidence": "canonical migration, isolated PostgreSQL restore, and release rehearsal verification tooling",
       "id": "operational_dispatch_edge:scripts/record_data01_restore_evidence.py:pg_restore:token:pg_restore",
       "locator": "token:pg_restore",
       "path": "scripts/record_data01_restore_evidence.py",
@@ -7841,11 +7841,11 @@
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "static operational dispatch token discovery; governance review required",
+      "evidence": "canonical migration, isolated PostgreSQL restore, and release rehearsal verification tooling",
       "id": "operational_dispatch_edge:scripts/run_release_rehearsal.py:remote_build_deploy_vps.py:token:remote_build_deploy_vps.py",
       "locator": "token:remote_build_deploy_vps.py",
       "path": "scripts/run_release_rehearsal.py",
-      "status": "candidate-review",
+      "status": "active_public",
       "symbol": "remote_build_deploy_vps.py",
       "target": "scripts/remote_build_deploy_vps.py"
     },
@@ -7921,7 +7921,7 @@
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "canonical migration-graph and isolated PostgreSQL restore verification tooling",
+      "evidence": "canonical migration, isolated PostgreSQL restore, and release rehearsal verification tooling",
       "id": "operational_dispatch_edge:scripts/verify_postgres_backup_restore.py:pg_restore:token:pg_restore",
       "locator": "token:pg_restore",
       "path": "scripts/verify_postgres_backup_restore.py",
@@ -7931,7 +7931,7 @@
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "canonical migration-graph and isolated PostgreSQL restore verification tooling",
+      "evidence": "canonical migration, isolated PostgreSQL restore, and release rehearsal verification tooling",
       "id": "operational_dispatch_edge:scripts/verify_postgres_backup_restore.py:verify_postgres_backup_restore.py:token:verify_postgres_backup_restore.py",
       "locator": "token:verify_postgres_backup_restore.py",
       "path": "scripts/verify_postgres_backup_restore.py",
@@ -8081,7 +8081,7 @@
     },
     {
       "category": "operational_script",
-      "evidence": "canonical migration-graph and isolated PostgreSQL restore verification tooling",
+      "evidence": "canonical migration, isolated PostgreSQL restore, and release rehearsal verification tooling",
       "id": "operational_script:scripts/check_migration_graph.py:__main__:",
       "locator": "",
       "path": "scripts/check_migration_graph.py",
@@ -8211,7 +8211,7 @@
     },
     {
       "category": "operational_script",
-      "evidence": "canonical migration-graph and isolated PostgreSQL restore verification tooling",
+      "evidence": "canonical migration, isolated PostgreSQL restore, and release rehearsal verification tooling",
       "id": "operational_script:scripts/record_data01_restore_evidence.py:__main__:",
       "locator": "",
       "path": "scripts/record_data01_restore_evidence.py",
@@ -8251,11 +8251,11 @@
     },
     {
       "category": "operational_script",
-      "evidence": "static operational command token discovery; governance review required",
+      "evidence": "canonical migration, isolated PostgreSQL restore, and release rehearsal verification tooling",
       "id": "operational_script:scripts/run_release_rehearsal.py:__main__:",
       "locator": "",
       "path": "scripts/run_release_rehearsal.py",
-      "status": "candidate-review",
+      "status": "active_public",
       "symbol": "__main__",
       "target": "scripts/remote_build_deploy_vps.py"
     },
@@ -8291,7 +8291,7 @@
     },
     {
       "category": "operational_script",
-      "evidence": "canonical migration-graph and isolated PostgreSQL restore verification tooling",
+      "evidence": "canonical migration, isolated PostgreSQL restore, and release rehearsal verification tooling",
       "id": "operational_script:scripts/verify_postgres_backup_restore.py:__main__:",
       "locator": "",
       "path": "scripts/verify_postgres_backup_restore.py",

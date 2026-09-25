@@ -23,9 +23,10 @@
         "operational_script",
         "operational_dispatch_edge"
       ],
-      "evidence": "canonical migration-graph and isolated PostgreSQL restore verification tooling",
+      "evidence": "canonical migration, isolated PostgreSQL restore, and release rehearsal verification tooling",
       "path": [
         "scripts/check_migration_graph.py",
+        "scripts/run_release_rehearsal.py",
         "scripts/verify_postgres_backup_restore.py",
         "scripts/record_data01_restore_evidence.py"
       ],
