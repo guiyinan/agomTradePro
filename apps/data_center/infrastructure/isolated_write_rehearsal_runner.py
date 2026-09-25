@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import re
+import socket
 from dataclasses import asdict
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -34,19 +35,75 @@ from .publication_policy_repository import PublicationPolicyRepository
 from .valuation_fact_repository import ValuationFactRepository
 
 
-def _assert_isolated_database() -> None:
+def _connected_database_identity() -> tuple[str, str, int]:
+    """Read the database and server endpoint from the established PostgreSQL session."""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT current_database(), COALESCE(inet_server_addr()::text, ''), "
+            "COALESCE(inet_server_port(), 0)"
+        )
+        database_name, server_address, server_port = cursor.fetchone()
+    return str(database_name), str(server_address), int(server_port)
+
+
+def _resolved_host_addresses(host: str, port: int) -> set[str]:
+    """Resolve an expected database host into normalized network addresses."""
+    try:
+        return {str(item[4][0]) for item in socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)}
+    except socket.gaierror as exc:
+        raise DataFetchError(
+            "Expected rehearsal database host cannot be resolved",
+            code="REHEARSAL_WRITE_SCOPE_INVALID",
+        ) from exc
+
+
+def _assert_isolated_database(
+    *,
+    expected_database_name: str,
+    expected_database_host: str,
+    require_ephemeral_host: bool,
+) -> None:
     """Refuse all write rehearsal activity outside an explicitly isolated database."""
     name = str(connection.settings_dict.get("NAME") or "")
+    host = str(connection.settings_dict.get("HOST") or "")
+    port = int(connection.settings_dict.get("PORT") or 5432)
     if (
         connection.vendor != "postgresql"
         or connection.in_atomic_block
         or os.environ.get("AGOM_RELEASE_REHEARSAL_DATABASE") != "1"
         or re.fullmatch(r"agom_release_rehearsal_[a-z0-9_]+", name) is None
+        or name != expected_database_name
+        or host != expected_database_host
+        or (require_ephemeral_host and re.fullmatch(r"agom-s6-postgres-[a-z0-9-]+", host) is None)
     ):
         raise DataFetchError(
             "Write rehearsal requires an explicitly isolated PostgreSQL database",
             code="REHEARSAL_WRITE_SCOPE_INVALID",
         )
+    actual_name, server_address, server_port = _connected_database_identity()
+    if (
+        actual_name != expected_database_name
+        or server_port != port
+        or server_address not in _resolved_host_addresses(expected_database_host, port)
+    ):
+        raise DataFetchError(
+            "Connected database does not match the expected rehearsal endpoint",
+            code="REHEARSAL_WRITE_SCOPE_INVALID",
+        )
+
+
+def assert_isolated_rehearsal_database(
+    *,
+    expected_database_name: str,
+    expected_database_host: str,
+    require_ephemeral_host: bool,
+) -> None:
+    """Validate that the active connection is the disposable rehearsal database."""
+    _assert_isolated_database(
+        expected_database_name=expected_database_name,
+        expected_database_host=expected_database_host,
+        require_ephemeral_host=require_ephemeral_host,
+    )
 
 
 def _canonical_json_digest(value: object) -> str:
@@ -96,6 +153,26 @@ def _database_identity() -> str:
     )
 
 
+def preflight_isolated_write_rehearsal(
+    *,
+    candidate_sha: str,
+    source_root: Path,
+    expected_database_name: str,
+    expected_database_host: str,
+    require_ephemeral_host: bool,
+) -> tuple[str, str, str]:
+    """Bind a migrated isolated database to the exact candidate before any setup write."""
+    assert_isolated_rehearsal_database(
+        expected_database_name=expected_database_name,
+        expected_database_host=expected_database_host,
+        require_ephemeral_host=require_ephemeral_host,
+    )
+    source_attestation, candidate_image_id = verify_candidate_release_image(
+        source_root, candidate_sha
+    )
+    return source_attestation, candidate_image_id, _database_identity()
+
+
 def collect_isolated_write_rehearsal(
     *,
     candidate_sha: str,
@@ -104,11 +181,18 @@ def collect_isolated_write_rehearsal(
     provider_identities_sha256: str,
     output_dir: Path,
     source_root: Path,
+    expected_database_name: str,
+    expected_database_host: str,
 ) -> dict[str, object]:
     """Write and read a published valuation member, then roll the transaction back."""
-    _assert_isolated_database()
-    source_attestation, candidate_image_id = verify_candidate_release_image(
-        source_root, candidate_sha
+    source_attestation, candidate_image_id, database_identity_sha256 = (
+        preflight_isolated_write_rehearsal(
+            candidate_sha=candidate_sha,
+            source_root=source_root,
+            expected_database_name=expected_database_name,
+            expected_database_host=expected_database_host,
+            require_ephemeral_host=True,
+        )
     )
     if output_dir.exists():
         raise ValueError("REHEARSAL_WRITE_OUTPUT_EXISTS")
@@ -141,8 +225,6 @@ def collect_isolated_write_rehearsal(
     publication_verified = False
     written_rows = 0
     tamper_blocked = False
-    database_identity_sha256 = _database_identity()
-
     with transaction.atomic():
         contract = DatasetContractRepository().get_active("equity.valuation.fact")
         policies = PublicationPolicyRepository()

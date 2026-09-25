@@ -251,6 +251,8 @@ def _config(tmp_path: Path, *, root: Path) -> RehearsalConfig:
         provider_env_file=provider_env,
         isolated_postgres_env_file=isolated_env,
         docker_network="agomtradepro_rehearsal",
+        isolated_database_name="agom_release_rehearsal_abcdefghij",
+        isolated_database_host="agom-s6-postgres-abcdefghij",
         provider_request_limit=100,
         provider_window_seconds=60.0,
         task_deadline_seconds=900.0,
@@ -310,6 +312,10 @@ def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handof
             output_index = command.argv.index("--output-dir")
             assert command.argv[output_index + 1] == "/run/agom/stage/output"
             assert (command.artifact_dir / "output").is_dir()
+    isolated_command = next(
+        item for item in runner.commands if item.label == "isolated_postgresql_write"
+    )
+    assert "--initialize-reviewed-catalog" in isolated_command.argv
     receipt = verify_evidence_handoff_receipt(receipt_path)
     assert receipt["candidate_sha"] == CANDIDATE_SHA
     assert receipt["candidate_image_id"] == IMAGE_ID
@@ -398,6 +404,38 @@ def test_failed_container_stage_seals_directory(
         )
 
     assert calls[-1] == 0o750
+
+
+def test_failed_container_stage_preserves_one_stable_rehearsal_code(
+    tmp_path: Path,
+) -> None:
+    class StableFailureRunner(FakeRunner):
+        def run(self, command: Command) -> CommandResult:
+            return CommandResult(
+                returncode=1,
+                stderr=(
+                    "sensitive diagnostic omitted\n"
+                    "CommandError: REHEARSAL_WRITE_CATALOG_UNAVAILABLE"
+                ),
+            )
+
+    destination = tmp_path / "stage"
+    destination.mkdir()
+    gid = os.getgid() if hasattr(os, "getgid") else 1000
+
+    with pytest.raises(RehearsalBlocked) as exc_info:
+        _invoke_container_stage(
+            StableFailureRunner(),
+            argv=("candidate",),
+            root=tmp_path,
+            label="stage",
+            timeout=1,
+            env={},
+            artifact_dir=destination,
+            container_gid=gid,
+        )
+
+    assert exc_info.value.code == "REHEARSAL_WRITE_CATALOG_UNAVAILABLE"
 
 
 def test_container_stage_rejects_symlink(tmp_path: Path) -> None:

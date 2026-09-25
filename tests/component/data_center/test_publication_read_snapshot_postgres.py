@@ -25,7 +25,9 @@ from apps.data_center.application.publication_utils import (
 )
 from apps.data_center.application.query_services import query_published_valuation_facts
 from apps.data_center.infrastructure.catalog_models import (
+    DataOwnerRegistrationModel,
     DatasetContractModel,
+    DatasetProviderBindingModel,
     DatasetPublicationPolicyModel,
 )
 from apps.data_center.infrastructure.control_plane_repositories import (
@@ -93,7 +95,9 @@ def _actual_publication_pg_schema(django_db_blocker) -> Iterator[_PGProbeFactory
     wrapper = load_backend(settings["ENGINE"]).DatabaseWrapper(settings, alias="default")
     models = (
         DatasetContractModel,
+        DatasetProviderBindingModel,
         DatasetPublicationPolicyModel,
+        DataOwnerRegistrationModel,
         AssetMasterModel,
         AssetAliasModel,
         PriceBarModel,
@@ -137,7 +141,9 @@ def actual_publication_pg(_actual_publication_pg_schema) -> Iterator[_PGProbeFac
         assert wrapper.settings_dict["NAME"] == "agom_release_rehearsal_ci"
         models = (
             DatasetContractModel,
+            DatasetProviderBindingModel,
             DatasetPublicationPolicyModel,
+            DataOwnerRegistrationModel,
             AssetMasterModel,
             AssetAliasModel,
             PriceBarModel,
@@ -212,6 +218,7 @@ def test_isolated_write_rehearsal_uses_production_publication_and_rolls_back(
     from apps.data_center.infrastructure import isolated_write_rehearsal_runner as runner
 
     del actual_publication_pg
+    _allow_component_loopback_scope(monkeypatch, runner)
     source = tmp_path / "source"
     source.mkdir()
     candidate = "c" * 40
@@ -287,6 +294,8 @@ def test_isolated_write_rehearsal_uses_production_publication_and_rolls_back(
         provider_identities_sha256="b" * 64,
         output_dir=tmp_path / "evidence",
         source_root=source,
+        expected_database_name="agom_release_rehearsal_ci",
+        expected_database_host=str(connections["default"].settings_dict["HOST"]),
     )
 
     receipt = json.loads(
@@ -308,6 +317,54 @@ def test_isolated_write_rehearsal_uses_production_publication_and_rolls_back(
     assert CoverageSnapshotModel.objects.count() == 0
 
 
+def test_isolated_write_command_initializes_reviewed_catalog_and_rolls_back_business_rows(
+    actual_publication_pg,
+    monkeypatch,
+    tmp_path,
+) -> None:
+    from django.core.management import call_command
+
+    from apps.data_center.infrastructure import isolated_write_rehearsal_runner as runner
+
+    del actual_publication_pg
+    _allow_component_loopback_scope(monkeypatch, runner)
+    _allow_component_migration_snapshot(monkeypatch, runner)
+    monkeypatch.setenv("AGOM_RELEASE_REHEARSAL_DATABASE", "1")
+    monkeypatch.setattr(
+        runner,
+        "verify_candidate_release_image",
+        lambda _root, _sha: ("image_release_manifest", "sha256:" + "f" * 64),
+    )
+    output_dir = tmp_path / "initialized-evidence"
+
+    call_command(
+        "rehearse_isolated_publication_write",
+        candidate_sha="d" * 40,
+        target_trade_date=date.today() - timedelta(days=1),
+        universe_sha256="a" * 64,
+        provider_identities_sha256="b" * 64,
+        expected_database_name="agom_release_rehearsal_ci",
+        expected_database_host=str(connections["default"].settings_dict["HOST"]),
+        initialize_reviewed_catalog=True,
+        output_dir=output_dir,
+        verbosity=0,
+    )
+
+    report = json.loads((output_dir / "isolated-write-rehearsal.json").read_text(encoding="utf-8"))
+    assert report["outcome"] == "success"
+    assert report["written_rows"] == 4
+    assert report["rollback_verified"] is True
+    assert report["residual_rows"] == 0
+    assert DatasetContractModel.objects.count() > 0
+    assert DatasetProviderBindingModel.objects.count() > 0
+    assert DatasetPublicationPolicyModel.objects.count() > 0
+    assert DataOwnerRegistrationModel.objects.count() > 0
+    assert ValuationFactModel.objects.count() == 0
+    assert CanonicalPublicationModel.objects.count() == 0
+    assert PublicationMemberModel.objects.count() == 0
+    assert CoverageSnapshotModel.objects.count() == 0
+
+
 def _isolated_write_arguments(tmp_path) -> dict[str, object]:
     source = tmp_path / "candidate"
     source.mkdir()
@@ -318,7 +375,35 @@ def _isolated_write_arguments(tmp_path) -> dict[str, object]:
         "provider_identities_sha256": "b" * 64,
         "output_dir": tmp_path / "evidence",
         "source_root": source,
+        "expected_database_name": "agom_release_rehearsal_ci",
+        "expected_database_host": str(connections["default"].settings_dict["HOST"]),
     }
+
+
+def _allow_component_loopback_scope(monkeypatch, runner) -> None:
+    """Keep component coverage on its separately guarded empty loopback database."""
+    _database_name, server_address, server_port = runner._connected_database_identity()
+    monkeypatch.setitem(runner.connection.settings_dict, "PORT", str(server_port))
+
+    def assert_loopback_scope(
+        *,
+        expected_database_name: str,
+        expected_database_host: str,
+        require_ephemeral_host: bool = False,
+    ) -> None:
+        del require_ephemeral_host
+        runner._assert_isolated_database(
+            expected_database_name=expected_database_name,
+            expected_database_host=expected_database_host,
+            require_ephemeral_host=False,
+        )
+
+    monkeypatch.setattr(runner, "assert_isolated_rehearsal_database", assert_loopback_scope)
+    monkeypatch.setattr(
+        runner,
+        "_resolved_host_addresses",
+        lambda _host, _port: {server_address},
+    )
 
 
 def _isolated_write_table_counts() -> tuple[int, ...]:
@@ -347,6 +432,7 @@ def test_isolated_write_rehearsal_scope_guards_leave_real_pg_tables_unchanged(
     from core.exceptions import DataFetchError
 
     del actual_publication_pg
+    _allow_component_loopback_scope(monkeypatch, runner)
     output_dir = tmp_path / "evidence"
     real_connection = connections["default"]
     monkeypatch.setenv("AGOM_RELEASE_REHEARSAL_DATABASE", "1")
@@ -399,6 +485,7 @@ def test_isolated_write_rehearsal_rejects_real_pending_migrations_before_any_wri
     from core.exceptions import DataFetchError
 
     del actual_publication_pg
+    _allow_component_loopback_scope(monkeypatch, runner)
     monkeypatch.setenv("AGOM_RELEASE_REHEARSAL_DATABASE", "1")
     monkeypatch.setattr(
         runner,
@@ -461,6 +548,7 @@ def test_isolated_write_rehearsal_catalog_failures_are_read_only_and_leave_no_re
     from core.exceptions import DataFetchError
 
     del actual_publication_pg
+    _allow_component_loopback_scope(monkeypatch, runner)
     monkeypatch.setenv("AGOM_RELEASE_REHEARSAL_DATABASE", "1")
     monkeypatch.setattr(
         runner,

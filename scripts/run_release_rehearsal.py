@@ -32,6 +32,7 @@ COMMIT = re.compile(r"[0-9a-f]{40}")
 IMAGE_ID = re.compile(r"sha256:[0-9a-f]{64}")
 TAG = re.compile(r"[0-9]{14}")
 REPOSITORY = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
+STABLE_REHEARSAL_CODE = re.compile(r"(?<![A-Z0-9_])(REHEARSAL_[A-Z0-9_]{3,96})(?![A-Z0-9_])")
 IMAGE_NAME = "agomtradepro-web"
 STAGES = (
     "provider_probe",
@@ -113,6 +114,8 @@ class RehearsalConfig:
     provider_env_file: Path
     isolated_postgres_env_file: Path
     docker_network: str
+    isolated_database_name: str
+    isolated_database_host: str
     target_trade_date: str
     universe_sha256: str
     provider_identities_path: Path
@@ -204,10 +207,12 @@ def _invoke(
     env: Mapping[str, str] | None = None,
     artifact_dir: Path | None = None,
 ) -> CommandResult:
-    """Run one stage and stop on nonzero status without exposing stderr."""
+    """Run one stage and expose only an unambiguous stable rehearsal error code."""
     result = runner.run(Command(tuple(argv), root, env or {}, timeout, label, artifact_dir))
     if result.returncode:
-        raise RehearsalBlocked(label, "S6_STAGE_COMMAND_FAILED")
+        safe_codes = set(STABLE_REHEARSAL_CODE.findall(result.stdout + "\n" + result.stderr))
+        code = safe_codes.pop() if len(safe_codes) == 1 else "S6_STAGE_COMMAND_FAILED"
+        raise RehearsalBlocked(label, code)
     return result
 
 
@@ -340,6 +345,8 @@ def _validate_inputs(
         or not config.build_host.strip()
         or not config.build_user.strip()
         or not config.docker_network.strip()
+        or re.fullmatch(r"agom_release_rehearsal_[a-z0-9_]+", config.isolated_database_name) is None
+        or re.fullmatch(r"agom-s6-postgres-[a-z0-9-]+", config.isolated_database_host) is None
         or config.quote_provider_id <= 0
         or config.valuation_provider_id <= 0
         or config.github_run_id <= 0
@@ -692,6 +699,11 @@ def _stage_specs(
         identity.universe_sha256,
         "--provider-identities-sha256",
         identity.provider_identities_sha256,
+        "--expected-database-name",
+        config.isolated_database_name,
+        "--expected-database-host",
+        config.isolated_database_host,
+        "--initialize-reviewed-catalog",
         "--output-dir",
         "/run/agom/stage/output",
     )
@@ -1105,6 +1117,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--provider-env-file", type=Path, required=True)
     parser.add_argument("--isolated-postgres-env-file", type=Path, required=True)
     parser.add_argument("--docker-network", required=True)
+    parser.add_argument("--isolated-database-name", required=True)
+    parser.add_argument("--isolated-database-host", required=True)
     parser.add_argument("--target-trade-date", required=True)
     parser.add_argument("--universe-sha256", required=True)
     parser.add_argument("--provider-identities", type=Path, required=True)
@@ -1136,6 +1150,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         provider_env_file=args.provider_env_file.resolve(),
         isolated_postgres_env_file=args.isolated_postgres_env_file.resolve(),
         docker_network=args.docker_network,
+        isolated_database_name=args.isolated_database_name,
+        isolated_database_host=args.isolated_database_host,
         target_trade_date=args.target_trade_date,
         universe_sha256=args.universe_sha256,
         provider_identities_path=args.provider_identities.resolve(),
