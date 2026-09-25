@@ -1,0 +1,4 @@
+{
+  "schema": "release.rehearsal-policy.v1",
+  "minimum_capacity_margin_ratio": 0.15
+}

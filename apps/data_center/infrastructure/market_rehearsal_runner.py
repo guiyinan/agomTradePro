@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import os
 import re
+import subprocess
 import time
 from collections.abc import Callable
 from contextlib import nullcontext
@@ -22,8 +25,13 @@ from apps.data_center.application.market_provider_rehearsal import (
 )
 from apps.data_center.application.query_services import list_active_stock_codes_for_backfill
 from apps.data_center.composition import get_provider_registry
+from apps.data_center.domain.contracts import PublicationPolicy
 from apps.data_center.domain.entities import QuoteSnapshot, ValuationFact
-from apps.data_center.domain.protocols import CurrentValuationBatchProviderProtocol
+from apps.data_center.domain.protocols import (
+    CurrentValuationBatchProviderProtocol,
+    SessionQuoteBatchProviderProtocol,
+)
+from apps.data_center.domain.publication_policy_identity import publication_policy_content_hash
 from core.exceptions import AgomTradeProException, DataFetchError
 
 from .rehearsal_http_capture import RehearsalHttpCapture
@@ -60,6 +68,103 @@ def market_rehearsal_source_digest(root: Path) -> str:
     return rehearsal_digest(manifest)
 
 
+def verify_candidate_source(root: Path, candidate_sha: str) -> str:
+    """Bind evidence to either the image build identity or a clean exact Git checkout."""
+    identity_path = root / ".agom-build-identity.json"
+    if identity_path.is_file():
+        try:
+            payload: object = json.loads(identity_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise ValueError("REHEARSAL_CANDIDATE_SOURCE_INVALID") from exc
+        if not isinstance(payload, dict) or payload.get("source_commit") != candidate_sha:
+            raise ValueError("REHEARSAL_CANDIDATE_SOURCE_MISMATCH")
+        release_manifest_value = os.environ.get("AGOM_RELEASE_MANIFEST_PATH", "").strip()
+        runtime_image_id = os.environ.get("AGOM_CANDIDATE_IMAGE_ID", "").strip()
+        if (
+            not release_manifest_value
+            or re.fullmatch(r"sha256:[0-9a-f]{64}", runtime_image_id) is None
+        ):
+            raise ValueError("REHEARSAL_CANDIDATE_SOURCE_UNATTESTED")
+        release_manifest_path = Path(release_manifest_value)
+        if not release_manifest_path.is_absolute():
+            release_manifest_path = root / release_manifest_path
+        if release_manifest_path.is_symlink() or not release_manifest_path.is_file():
+            raise ValueError("REHEARSAL_CANDIDATE_SOURCE_UNATTESTED")
+        try:
+            release_payload: object = json.loads(release_manifest_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise ValueError("REHEARSAL_CANDIDATE_SOURCE_INVALID") from exc
+        if (
+            not isinstance(release_payload, dict)
+            or release_payload.get("source_commit") != candidate_sha
+            or release_payload.get("image_id") != runtime_image_id
+        ):
+            raise ValueError("REHEARSAL_CANDIDATE_SOURCE_MISMATCH")
+        return "image_release_manifest"
+    if not (root / ".git").exists():
+        raise ValueError("REHEARSAL_CANDIDATE_SOURCE_UNATTESTED")
+    try:
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        ).stdout.strip()
+        status = subprocess.run(
+            ["git", "status", "--porcelain=v1", "--untracked-files=all"],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        ).stdout.strip()
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise ValueError("REHEARSAL_CANDIDATE_SOURCE_UNATTESTED") from exc
+    if head != candidate_sha:
+        raise ValueError("REHEARSAL_CANDIDATE_SOURCE_MISMATCH")
+    if status:
+        raise ValueError("REHEARSAL_CANDIDATE_SOURCE_DIRTY")
+    return "clean_git_checkout"
+
+
+def verify_candidate_release_image(root: Path, candidate_sha: str) -> tuple[str, str]:
+    """Require a candidate source attestation backed by the exact runtime image digest."""
+
+    attestation = verify_candidate_source(root, candidate_sha)
+    image_id = os.environ.get("AGOM_CANDIDATE_IMAGE_ID", "").strip()
+    if (
+        attestation != "image_release_manifest"
+        or re.fullmatch(r"sha256:[0-9a-f]{64}", image_id) is None
+    ):
+        raise ValueError("REHEARSAL_CANDIDATE_IMAGE_UNATTESTED")
+    return attestation, image_id
+
+
+def canonical_publication_policy_evidence(policy: PublicationPolicy) -> dict[str, object]:
+    """Return JSON-safe canonical content, digest and identity for a publication policy."""
+
+    content: dict[str, object] = {
+        "encoding": "publication-policy-v1",
+        "dataset_key": policy.dataset.value,
+        "contract_version": policy.dataset.contract_version,
+        "schema_version": policy.dataset.schema_version,
+        "policy_version": policy.policy_version,
+        "minimum_coverage_ratio": float(policy.minimum_coverage_ratio),
+        "allow_partial": policy.allow_partial,
+        "conflict_action": policy.conflict_action,
+        "required_evidence": list(policy.required_evidence),
+        "retention_days": policy.retention_days,
+    }
+    content_hash = publication_policy_content_hash(policy)
+    return {
+        "content": content,
+        "content_sha256": content_hash,
+        "identity": policy.identity,
+    }
+
+
 def _probe(
     *,
     dataset: Literal["equity.quote.snapshot", "equity.valuation.fact"],
@@ -68,24 +173,34 @@ def _probe(
     target_date: date,
     capture: RehearsalHttpCapture,
     response_context: RehearsalResponseContext | None = None,
+    receipt_start: int | None = None,
+    receipt_end: int | None = None,
+    captured_started_at: datetime | None = None,
+    captured_finished_at: datetime | None = None,
 ) -> dict[str, object]:
-    started = datetime.now(UTC)
-    receipt_start = len(capture.receipts)
+    if (captured_started_at is None) != (captured_finished_at is None):
+        raise ValueError("captured probe clocks must be provided together")
+    started = captured_started_at or datetime.now(UTC)
+    first_receipt = len(capture.receipts) if receipt_start is None else receipt_start
     facts: list[QuoteSnapshot] | list[ValuationFact] = []
     try:
-        with (
-            capture.provider_probe(response_context)
-            if response_context is not None
-            else nullcontext()
-        ):
+        if captured_started_at is not None:
             facts = fetch()
+        else:
+            with (
+                capture.provider_probe(response_context)
+                if response_context is not None
+                else nullcontext()
+            ):
+                facts = fetch()
+        finished = captured_finished_at or datetime.now(UTC)
         result = assess_market_probe(
             dataset=dataset,
             facts=facts,
             sample=sample,
             target_date=target_date,
             started_at=started,
-            finished_at=datetime.now(UTC),
+            finished_at=finished,
         )
     except (AgomTradeProException, OSError, RuntimeError, ValueError, TypeError) as exc:
         # Provider exception text may contain transport credentials. Keep it out of artifacts.
@@ -104,11 +219,12 @@ def _probe(
             "stored": 0,
             "issues": [{"code": error_code}],
             "started_at": started.isoformat(),
-            "finished_at": datetime.now(UTC).isoformat(),
+            "finished_at": (captured_finished_at or datetime.now(UTC)).isoformat(),
             "publication_updated": False,
         }
-    receipts = capture.receipts[receipt_start:]
-    result["receipt_indexes"] = list(range(receipt_start, len(capture.receipts)))
+    last_receipt = len(capture.receipts) if receipt_end is None else receipt_end
+    receipts = capture.receipts[first_receipt:last_receipt]
+    result["receipt_indexes"] = list(range(first_receipt, last_receipt))
     if not any(
         receipt.status_code == 200 and receipt.body_bytes > 0 and not receipt.error_code
         for receipt in receipts
@@ -139,6 +255,7 @@ def run_market_provider_rehearsal(
     valuation_provider_id: int,
     candidate_sha: str,
     source_root: Path,
+    target_trade_date: date | None = None,
     sample_size: int = 50,
     max_dispatches: int = 100,
     max_seconds: float = 180.0,
@@ -178,6 +295,9 @@ def run_market_provider_rehearsal(
     if min(quote_provider_id, valuation_provider_id) <= 0:
         raise ValueError("explicit configured provider ids are required")
     started = datetime.now(UTC)
+    source_attestation, candidate_image_id = verify_candidate_release_image(
+        source_root, candidate_sha
+    )
     source_digest = market_rehearsal_source_digest(source_root)
     response_store = (
         RehearsalResponseStore(
@@ -193,9 +313,22 @@ def run_market_provider_rehearsal(
         with connection.cursor() as cursor:
             cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
             cursor.execute("SELECT set_config('statement_timeout', %s, true)", ["30000"])
-        universe = tuple(sorted(set(list_active_stock_codes_for_backfill())))
-        sample = select_rehearsal_sample(universe, sample_size)
-        target_date: date | None = None
+        registered_universe = tuple(sorted(set(list_active_stock_codes_for_backfill())))
+        universe = registered_universe
+        sample: tuple[str, ...] = ()
+        eligible_universe: tuple[str, ...] = ()
+        excluded_universe: tuple[str, ...] = ()
+        valuation_policy_identity = ""
+        valuation_minimum_coverage_ratio: float | None = None
+        valuation_policy_sha256 = ""
+        valuation_policy_snapshot: dict[str, object] | None = None
+        valuation_scope: list[ValuationFact] = []
+        valuation_scope_context: RehearsalResponseContext | None = None
+        valuation_receipt_start = 0
+        valuation_receipt_end = 0
+        valuation_call_started: datetime | None = None
+        valuation_call_finished: datetime | None = None
+        target_date: date | None = target_trade_date
         stage_error_code = ""
         probes: list[dict[str, object]] = []
         capture = (
@@ -209,17 +342,18 @@ def run_market_provider_rehearsal(
             )
         )
         with capture:
-            try:
-                target_date = latest_completed_cn_market_session(started)
-            except (
-                AgomTradeProException,
-                OSError,
-                PermissionError,
-                RuntimeError,
-                TypeError,
-                ValueError,
-            ):
-                stage_error_code = "REHEARSAL_CALENDAR_UNAVAILABLE"
+            if target_date is None:
+                try:
+                    target_date = latest_completed_cn_market_session(started)
+                except (
+                    AgomTradeProException,
+                    OSError,
+                    PermissionError,
+                    RuntimeError,
+                    TypeError,
+                    ValueError,
+                ):
+                    stage_error_code = "REHEARSAL_CALENDAR_UNAVAILABLE"
             if target_date is None:
                 stage_error_code = stage_error_code or "REHEARSAL_SESSION_UNAVAILABLE"
             elif not stage_error_code:
@@ -238,7 +372,7 @@ def run_market_provider_rehearsal(
                     stage_error_code = "REHEARSAL_PROVIDER_SETUP_FAILED"
                     quotes = None
                     valuations = None
-                if quotes is None or not isinstance(
+                if not isinstance(quotes, SessionQuoteBatchProviderProtocol) or not isinstance(
                     valuations, CurrentValuationBatchProviderProtocol
                 ):
                     stage_error_code = stage_error_code or "REHEARSAL_PROVIDER_UNAVAILABLE"
@@ -249,6 +383,78 @@ def run_market_provider_rehearsal(
                 ):
                     stage_error_code = "REHEARSAL_PROVIDER_IDENTITY_MISMATCH"
                 else:
+                    try:
+                        assert target_date is not None
+                        valuation_scope_context = (
+                            RehearsalResponseContext(
+                                candidate_sha=candidate_sha,
+                                target_trade_date=target_date.isoformat(),
+                                universe_sha256=rehearsal_digest(universe),
+                                provider_identities_sha256=identity_digest,
+                                provider_id=identities["valuation"].provider_id,
+                                provider_source=identities["valuation"].source,
+                                endpoint_id=identities["valuation"].endpoint_id,
+                                dataset="equity.valuation.fact",
+                                sample_codes=registered_universe,
+                            )
+                            if identities
+                            else None
+                        )
+                        valuation_receipt_start = len(capture.receipts)
+                        valuation_call_started = datetime.now(UTC)
+                        with (
+                            capture.provider_probe(valuation_scope_context)
+                            if valuation_scope_context is not None
+                            else nullcontext()
+                        ):
+                            valuation_scope = valuations.fetch_current_valuations(
+                                list(registered_universe), target_date
+                            )
+                        valuation_call_finished = datetime.now(UTC)
+                        valuation_receipt_end = len(capture.receipts)
+                        requested = set(registered_universe)
+                        returned = [fact.asset_code for fact in valuation_scope]
+                        eligible_universe = tuple(
+                            sorted(
+                                fact.asset_code
+                                for fact in valuation_scope
+                                if fact.val_date == target_date
+                            )
+                        )
+                        if (
+                            not eligible_universe
+                            or len(returned) != len(set(returned))
+                            or len(eligible_universe) != len(set(eligible_universe))
+                            or not set(returned).issubset(requested)
+                        ):
+                            raise ValueError("invalid valuation eligibility scope")
+                        excluded_universe = tuple(sorted(requested - set(eligible_universe)))
+                        from .publication_policy_repository import (
+                            PublicationPolicyRepository,
+                        )
+
+                        policy = PublicationPolicyRepository().get_active("equity.valuation.fact")
+                        if policy is None:
+                            raise ValueError("valuation policy unavailable")
+                        valuation_policy_identity = policy.identity
+                        valuation_minimum_coverage_ratio = policy.minimum_coverage_ratio
+                        valuation_policy_snapshot = canonical_publication_policy_evidence(policy)
+                        valuation_policy_sha256 = str(valuation_policy_snapshot["content_sha256"])
+                        if (
+                            len(eligible_universe) / len(registered_universe)
+                            < policy.minimum_coverage_ratio
+                        ):
+                            raise ValueError("valuation coverage below active policy")
+                        sample = select_rehearsal_sample(eligible_universe, sample_size)
+                    except (
+                        AgomTradeProException,
+                        OSError,
+                        PermissionError,
+                        RuntimeError,
+                        TypeError,
+                        ValueError,
+                    ):
+                        stage_error_code = "REHEARSAL_ELIGIBLE_SCOPE_UNAVAILABLE"
 
                     def response_context(
                         role: str,
@@ -270,29 +476,40 @@ def run_market_provider_rehearsal(
                             sample_codes=sample,
                         )
 
-                    probes = [
-                        _probe(
-                            dataset="equity.quote.snapshot",
-                            fetch=lambda: quotes.fetch_quote_snapshots(list(sample)),
-                            sample=sample,
-                            target_date=target_date,
-                            capture=capture,
-                            response_context=response_context("quote", "equity.quote.snapshot"),
-                        ),
-                        _probe(
-                            dataset="equity.valuation.fact",
-                            fetch=lambda: valuations.fetch_current_valuations(
-                                list(sample), target_date
+                    if not stage_error_code:
+                        sampled_valuations = [
+                            fact for fact in valuation_scope if fact.asset_code in sample
+                        ]
+                        probes = [
+                            _probe(
+                                dataset="equity.valuation.fact",
+                                fetch=lambda: sampled_valuations,
+                                sample=sample,
+                                target_date=target_date,
+                                capture=capture,
+                                response_context=valuation_scope_context,
+                                receipt_start=valuation_receipt_start,
+                                receipt_end=valuation_receipt_end,
+                                captured_started_at=valuation_call_started,
+                                captured_finished_at=valuation_call_finished,
                             ),
-                            sample=sample,
-                            target_date=target_date,
-                            capture=capture,
-                            response_context=response_context("valuation", "equity.valuation.fact"),
-                        ),
-                    ]
+                            _probe(
+                                dataset="equity.quote.snapshot",
+                                fetch=lambda: quotes.fetch_quote_snapshots_for_session(
+                                    list(sample), target_date
+                                ),
+                                sample=sample,
+                                target_date=target_date,
+                                capture=capture,
+                                response_context=response_context("quote", "equity.quote.snapshot"),
+                            ),
+                        ]
         transport = capture.to_dict()
         within_budget = time.monotonic() - capture.started <= max_seconds
     source_unchanged = source_digest == market_rehearsal_source_digest(source_root)
+    final_attestation, final_image_id = verify_candidate_release_image(source_root, candidate_sha)
+    if final_attestation != source_attestation or final_image_id != candidate_image_id:
+        raise ValueError("REHEARSAL_CANDIDATE_IMAGE_CHANGED")
     outcome = (
         "success"
         if within_budget
@@ -306,7 +523,9 @@ def run_market_provider_rehearsal(
         "schema": "market.provider-rehearsal.v1",
         "mode": "read_only_live_provider",
         "candidate_sha": candidate_sha,
+        "candidate_image_id": candidate_image_id,
         "source_tree_sha256": source_digest,
+        "candidate_source_attestation": source_attestation,
         "source_unchanged": source_unchanged,
         "outcome": outcome,
         "release_ready": False,
@@ -321,8 +540,19 @@ def run_market_provider_rehearsal(
         "target_trade_date": target_date.isoformat() if target_date is not None else None,
         "stage_error_code": stage_error_code,
         "universe_count": len(universe),
+        "registered_universe_count": len(registered_universe),
         "asset_codes": list(universe),
         "universe_sha256": rehearsal_digest(universe),
+        "eligible_asset_codes": list(eligible_universe),
+        "eligible_asset_count": len(eligible_universe),
+        "excluded_asset_codes": list(excluded_universe),
+        "excluded_asset_count": len(excluded_universe),
+        "exclusion_reason": "valuation_not_returned_for_target_session",
+        "exclusion_rule_version": "valuation-target-session-v1",
+        "valuation_policy_identity": valuation_policy_identity,
+        "valuation_policy_sha256": valuation_policy_sha256,
+        "valuation_policy_snapshot": valuation_policy_snapshot,
+        "valuation_minimum_coverage_ratio": valuation_minimum_coverage_ratio,
         "sample": list(sample),
         "sample_sha256": rehearsal_digest(sample),
         "sample_size": len(sample),

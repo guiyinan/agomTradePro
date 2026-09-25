@@ -163,7 +163,7 @@
 | R3 只读/工作台/文案 | 候选代码完成，生产待验 | 账户归属、GET 零写入、研究入口、慢请求/重试和缺失价格语义已通过本地行为验收；生产普通投资者浏览器 UAT 待验 |
 | R4 进度/诊断 | 候选代码完成，生产待验 | current attempt / last completed、phase、outcome、计数单位和安全错误投影已形成回归；生产任务结果待验 |
 | S1–S5 | 候选代码完成，远端 CI 待验 | 真实 provider 契约、不变量、时间、规模和跨消费者选测已集成；同一最终 SHA 的远端 CI 结果仍须冻结 |
-| S6 | 门禁代码完成，真实证据待采集 | 真实响应探针可选择性留存有界 body，离线重放复用正式解析器并逐响应核对 candidate/date/universe/provider、事实内容、传输与标准化时钟；部署前验证器仍要求完整容量、隔离写入和同 SHA 的 23 项 PostgreSQL JUnit。缺真实报告时明确阻断，不能把 synthetic 单测当发布证据 |
+| S6 | 实现完成，真实证据待采集 | `scripts/run_release_rehearsal.py` 已把候选镜像构建、真实响应探针、离线单位重放、完整 universe 容量、隔离 PostgreSQL 写入回滚、同 SHA CI 证据、不可变 bundle 与最终 validator 串成单一失败关闭流程；每个运行时报告绑定精确 image ID，输出被限制在 checkout 外。缺真实报告时明确阻断，不能把 synthetic 单测当发布证据 |
 | 生产联合复验 | 未完成 | 真实普通用户、四发布、自然周期和准确 runtime 门尚需验证 |
 
 本表在每个阶段完成后更新，只写实际验证结果。最终报告必须列完成项、未完成项、已验证测试与未验证风险。
@@ -172,10 +172,11 @@
 
 - 修复增量 CI 的同类漏选：Data Center 生产变更会执行 realtime consumer component；部署入口会选择 verifier、remote builder、Qlib 安装、watchdog 和发布预演验证器契约。PostgreSQL 工作流除 21 项 publication/provenance 用例外，显式运行两项 backfill control-plane 用例，并拒绝 missing、failed、error 或 skipped。
 - `deploy-vps.ps1` 的后置验证由“警告后成功”改为真实非零退出；Python verifier 缺 Paramiko 时也 fail closed。部署包装器将批准的精确 SHA 传给 remote builder，若本地 HEAD 在预验收和构建之间变化，会在读取凭据或 SSH 前终止。
-- 新增 `validate_release_rehearsal.py`。它只验证、不采集证据：四类报告必须绑定相同候选、交易日、完整 universe hash 和结构化 provider 身份；真实响应和隔离写入回执必须是可解析、身份一致的结构化记录并继续校验所引用原始 body；容量报告必须携带排序去重后的完整证券清单并重算 hash；每个数据集的样本必须等于由该 universe 确定性选出的 `min(50, universe_count)`；PostgreSQL JUnit 必须包含固定 23 项用例、无 skip/failure/error 和有效时间。候选回归同时查询 GitHub Actions 官方接口，核对同 SHA 成功 run、该 run 的未过期唯一 artifact、ZIP 的官方 SHA-256，以及 ZIP 内两份 JUnit 与本地报告的逐字节一致性；下载鉴权头不会转发给签名存储地址。
+- 新增 `validate_release_rehearsal.py`。它只验证、不采集证据：四类报告必须绑定相同候选、精确 Docker image ID、交易日、完整注册 universe hash 和结构化 provider 身份；真实响应和隔离写入回执必须是可解析、身份一致的结构化记录并继续校验所引用原始 body。探针与容量预演先用目标日估值及 active 发布策略冻结 eligible/excluded 范围，再从 eligible 范围确定性选取样本并要求行情完整；容量回执还按 PostgreSQL 全集群连接口径重算资源余量。PostgreSQL JUnit 必须包含固定 24 项用例、无 skip/failure/error 和有效时间。候选回归同时查询 GitHub Actions 官方接口，核对同 SHA 成功 run、该 run 的未过期唯一 artifact、ZIP 的官方 SHA-256，以及 ZIP 内两份 JUnit 与本地报告的逐字节一致性；下载鉴权头不会转发给签名存储地址。部署采用预构建镜像复用，预演通过后的 image ID、OCI revision 和证据 manifest 摘要在服务切换前再次核对。
 - synthetic 正常样例及反例用于证明 validator fail closed，不属于上线证据。独立攻击复验确认：无关 PostgreSQL 用例、单资产冒充全量 universe、浮点 `0.0` 冒充零残留均被拒绝。最终候选仍需采集真实响应/单位重放、完整容量、隔离写入回滚以及远端 CI JUnit 后才能部署。
 - `collect_release_regression_evidence.py` 只从 GitHub 官方 run 采集候选回归子报告和两份原始 JUnit，并在写 success 报告前由共享 validator 重新下载、逐字节复核；来源在采集前后漂移、目录已存在或任一校验失败时只保留 blocked 结果。它不会把 provider 身份关联上下文冒充 provider 验收，另外三类报告仍须独立采集。
 - provider 响应预演已补全为两阶段：在线探针只读并将每个 quote/valuation 响应正文写入独占目录，正文回执不包含 token、请求体、查询参数或请求头；离线命令按输入 SHA 重放全部留存响应，验证有效、缺失、截断、陈旧、重复、单位错误和后续事实更新七类场景。成功报告还会逐资产比较在线事实与重放事实，区分 transport received 与 normalization completed 时钟；任一未列入报告的响应、正文漂移、实时事实不一致或源树变化均阻断。
+- 新增 `run_release_rehearsal.py` 单入口：工作树必须 clean，证据输出必须位于 checkout 外；同一预构建镜像依次运行七个阶段并在每阶段复核 candidate SHA、image ID、交易日、universe 与 provider 身份。只有最终 validator 成功后才生成 `deployable=true`、issuer 为 `release_rehearsal_validator` 的 validated 交接回执；部署入口拒绝 provisional 回执，并在 SSH 前再次验证 bundle tree 摘要和整套 manifest，防止验证后替换。
 - 同类调用者复核发现带响应证据的 dataframe wrapper 曾只实现 `empty/to_dict`，历史行情与模型数据还会使用长度、列、掩码、复制、排序和合并。wrapper 现在透明代理公共 DataFrame 操作，并由行情、历史、交易日历和模型数据组合回归覆盖，避免真实直连返回在探针外退化。
 - 审计授权续期请求路径已写入 VPS Compose 的 Web/Worker 环境，并使用既有持久化 `var_data` 卷。版本替换后缺请求会明确报告 `renewal_request_not_found`；该修复只恢复续期通道，不自动制造审批材料或解除决策阻断。
 

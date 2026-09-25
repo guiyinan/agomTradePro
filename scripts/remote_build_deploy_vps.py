@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import getpass
+import importlib
 import io
 import ipaddress
 import json
@@ -23,9 +24,20 @@ import tarfile
 import tempfile
 import time
 import zipfile
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
-from typing import Any, NoReturn
+from typing import Any, NoReturn, cast
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+_rehearsal_module = importlib.import_module("scripts.run_release_rehearsal")
+RehearsalBlocked = _rehearsal_module.RehearsalBlocked
+verify_deployment_receipt = cast(
+    Callable[[Path], dict[str, object]],
+    _rehearsal_module.verify_deployment_receipt,
+)
 
 
 def _info(msg: str) -> None:
@@ -108,6 +120,47 @@ def _normalize_source_commit(value: str) -> str:
     if re.fullmatch(r"[0-9a-f]{40}", candidate) is None:
         raise ValueError("SOURCE_COMMIT must be an exact lowercase 40-hex Git commit")
     return candidate
+
+
+def _validate_prebuilt_deployment_inputs(
+    *,
+    deploy_after_build: bool,
+    release_tag: str,
+    image_id: str,
+    rehearsal_sha256: str,
+    rehearsal_receipt: str,
+) -> bool:
+    """Require exact rehearsed-image identity before any deploy-capable remote work."""
+    values_present = bool(release_tag or image_id or rehearsal_sha256 or rehearsal_receipt)
+    complete = (
+        re.fullmatch(r"[0-9]{14}", release_tag) is not None
+        and re.fullmatch(r"sha256:[0-9a-f]{64}", image_id) is not None
+        and re.fullmatch(r"[0-9a-f]{64}", rehearsal_sha256) is not None
+        and bool(rehearsal_receipt)
+    )
+    if deploy_after_build and not complete:
+        raise ValueError(
+            "Deploy-capable runs require an exact prebuilt release tag, image ID and rehearsal digest"
+        )
+    if not deploy_after_build and values_present:
+        raise ValueError("Prebuilt rehearsal identity is only valid for a deploy-capable run")
+    return complete
+
+
+def _validate_prebuilt_rehearsal_receipt(
+    *, receipt_path: Path, release_tag: str, image_id: str, rehearsal_sha256: str
+) -> None:
+    """Recheck the launcher-owned bundle graph and bind it to deployment inputs."""
+    try:
+        receipt = verify_deployment_receipt(receipt_path)
+    except (OSError, RehearsalBlocked, TypeError, ValueError) as exc:
+        raise ValueError("Release rehearsal receipt or bundle validation failed") from exc
+    if (
+        receipt.get("release_tag") != release_tag
+        or receipt.get("candidate_image_id") != image_id
+        or receipt.get("manifest_sha256") != rehearsal_sha256
+    ):
+        raise ValueError("Release rehearsal receipt identity does not match deployment inputs")
 
 
 def _latest_sqlite(project_root: Path) -> Path:
@@ -1197,6 +1250,8 @@ ENABLE_CELERY="${ENABLE_CELERY:-0}"
 SKIP_PREDEPLOY_BACKUP="${SKIP_PREDEPLOY_BACKUP:-0}"
 AUTO_ROLLBACK="${AUTO_ROLLBACK:-1}"
 PRESERVE_DATA_CENTER_CATALOG="${PRESERVE_DATA_CENTER_CATALOG:-0}"
+RELEASE_REHEARSAL_SHA256="${RELEASE_REHEARSAL_SHA256:?missing RELEASE_REHEARSAL_SHA256}"
+REHEARSAL_IMAGE_ID="${REHEARSAL_IMAGE_ID:?missing REHEARSAL_IMAGE_ID}"
 
 command -v docker >/dev/null 2>&1 || { echo "[ERROR] docker is required" >&2; exit 1; }
 if docker compose version >/dev/null 2>&1; then
@@ -1212,7 +1267,7 @@ RELEASE_DIR="$TARGET_DIR/releases/source-$RELEASE_TAG"
 [ -d "$RELEASE_DIR" ] || { echo "[ERROR] release dir not found: $RELEASE_DIR" >&2; exit 1; }
 MANIFEST_PATH="$RELEASE_DIR/.agom-release-manifest.json"
 echo "[INFO] Validating immutable release provenance"
-if ! python3 - "$MANIFEST_PATH" "$RELEASE_TAG" <<'PY'
+if ! python3 - "$MANIFEST_PATH" "$RELEASE_TAG" "$RELEASE_REHEARSAL_SHA256" "$REHEARSAL_IMAGE_ID" <<'PY'
 import json
 import re
 import stat
@@ -1223,6 +1278,8 @@ from pathlib import Path
 
 manifest_path = Path(sys.argv[1])
 release_tag = sys.argv[2]
+rehearsal_sha256 = sys.argv[3]
+rehearsal_image_id = sys.argv[4]
 if manifest_path.is_symlink() or not manifest_path.is_file():
     raise SystemExit("release manifest must be a regular file")
 if stat.S_IMODE(manifest_path.stat().st_mode) != 0o444:
@@ -1291,6 +1348,10 @@ if image_id != manifest["image_id"]:
     raise SystemExit("release image ID does not match immutable manifest")
 if image_revision != manifest["source_commit"]:
     raise SystemExit("release image OCI revision does not match immutable manifest")
+if re.fullmatch(r"[0-9a-f]{64}", rehearsal_sha256) is None:
+    raise SystemExit("release rehearsal manifest digest must be exact lowercase SHA-256")
+if rehearsal_image_id != image_id:
+    raise SystemExit("release rehearsal image ID does not match immutable image")
 PY
 then
   echo "[ERROR] release provenance validation failed before deployment mutation" >&2
@@ -2101,6 +2162,7 @@ compose ps > /tmp/agomtradepro-compose-ps.txt || true
 python3 - <<'PY'
 import json
 import os
+import re
 import subprocess
 from pathlib import Path
 release_tag = os.environ["RELEASE_TAG"]
@@ -2123,6 +2185,13 @@ if image_id != release_manifest["image_id"]:
     raise SystemExit("release image ID changed during deployment")
 if source_commit != release_manifest["source_commit"]:
     raise SystemExit("release image OCI revision changed during deployment")
+rehearsal_sha256 = os.environ.get("RELEASE_REHEARSAL_SHA256", "")
+rehearsal_image_id = os.environ.get("REHEARSAL_IMAGE_ID", "")
+if (
+    re.fullmatch(r"[0-9a-f]{64}", rehearsal_sha256) is None
+    or rehearsal_image_id != image_id
+):
+    raise SystemExit("release rehearsal identity does not match deployed image")
 report = {
     "version": release_manifest["version"],
     "release_tag": release_tag,
@@ -2140,6 +2209,8 @@ report = {
     "build_finished_at": release_manifest["build_finished_at"],
     "source_mode": release_manifest["source_mode"],
     "release_manifest": release_manifest,
+    "release_rehearsal_sha256": rehearsal_sha256,
+    "release_rehearsal_image_id": rehearsal_image_id,
     "deployed": True,
 }
 Path("/tmp/agomtradepro-deploy-report.json").write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8")
@@ -2238,6 +2309,10 @@ def main() -> int:
         default="",
         help="Exact local candidate SHA already approved by the deployment wrapper",
     )
+    ap.add_argument("--prebuilt-release-tag", default="")
+    ap.add_argument("--prebuilt-image-id", default="")
+    ap.add_argument("--release-rehearsal-sha256", default="")
+    ap.add_argument("--release-rehearsal-receipt", default="")
     args = ap.parse_args()
     if args.http_port is None:
         args.http_port = _optional_env_int("AGOM_VPS_HTTP_PORT")
@@ -2266,6 +2341,25 @@ def main() -> int:
                 "Local source commit changed after release validation: "
                 f"actual={source_commit} expected={expected_source_commit}"
             )
+    prebuilt = False
+    if args.host is not None:
+        try:
+            prebuilt = _validate_prebuilt_deployment_inputs(
+                deploy_after_build=args.deploy_after_build,
+                release_tag=args.prebuilt_release_tag,
+                image_id=args.prebuilt_image_id,
+                rehearsal_sha256=args.release_rehearsal_sha256,
+                rehearsal_receipt=args.release_rehearsal_receipt,
+            )
+            if prebuilt:
+                _validate_prebuilt_rehearsal_receipt(
+                    receipt_path=Path(args.release_rehearsal_receipt),
+                    release_tag=args.prebuilt_release_tag,
+                    image_id=args.prebuilt_image_id,
+                    rehearsal_sha256=args.release_rehearsal_sha256,
+                )
+        except ValueError as exc:
+            _die(str(exc))
     if not args.git_clone:
         try:
             worktree_status = subprocess.check_output(
@@ -2376,6 +2470,24 @@ def main() -> int:
         encryption_key = getattr(args, "encryption_key", "") or ""
 
     try:
+        prebuilt = _validate_prebuilt_deployment_inputs(
+            deploy_after_build=deploy_after_build,
+            release_tag=args.prebuilt_release_tag,
+            image_id=args.prebuilt_image_id,
+            rehearsal_sha256=args.release_rehearsal_sha256,
+            rehearsal_receipt=args.release_rehearsal_receipt,
+        )
+        if prebuilt:
+            _validate_prebuilt_rehearsal_receipt(
+                receipt_path=Path(args.release_rehearsal_receipt),
+                release_tag=args.prebuilt_release_tag,
+                image_id=args.prebuilt_image_id,
+                rehearsal_sha256=args.release_rehearsal_sha256,
+            )
+    except ValueError as exc:
+        _die(str(exc))
+
+    try:
         domain = _normalize_domain(domain)
     except ValueError as exc:
         _die(str(exc))
@@ -2387,7 +2499,7 @@ def main() -> int:
     enable_rsshub = False if args.disable_rsshub else True
     enable_celery = False if args.disable_celery else True
 
-    tag = time.strftime("%Y%m%d%H%M%S")
+    tag = args.prebuilt_release_tag if prebuilt else time.strftime("%Y%m%d%H%M%S")
     bundle_name = f"agomtradepro-source-deploy-{tag}.tar.gz"
     local_bundle = project_root / "dist" / bundle_name
     local_image_path = (
@@ -2403,7 +2515,7 @@ def main() -> int:
         "on",
     }
 
-    if not args.git_clone:
+    if not prebuilt and not args.git_clone:
         _info(f"Creating source bundle: {local_bundle}")
         local_bundle.parent.mkdir(parents=True, exist_ok=True)
         _make_source_bundle(
@@ -2413,7 +2525,7 @@ def main() -> int:
             sqlite_file=sqlite_file,
             include_wheelhouse=include_wheelhouse,
         )
-    else:
+    elif not prebuilt:
         _info("Skipping local source bundle (git-clone mode)")
         local_bundle.parent.mkdir(parents=True, exist_ok=True)
 
@@ -2427,7 +2539,69 @@ def main() -> int:
         build_report_path = None
         report_path = None
 
-        if args.git_clone:
+        if prebuilt:
+            _info(f"Reusing rehearsed image agomtradepro-web:{tag}")
+            manifest_path = posixpath.join(
+                args.target_dir, "releases", f"source-{tag}", ".agom-release-manifest.json"
+            )
+            verify_script = """
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+manifest_path, release_tag, source_commit, expected_image_id, rehearsal_sha256 = sys.argv[1:]
+manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
+image_tag = f"agomtradepro-web:{release_tag}"
+actual_image_id = subprocess.check_output(
+    ["docker", "image", "inspect", image_tag, "--format", "{{.Id}}"], text=True
+).strip()
+actual_revision = subprocess.check_output(
+    ["docker", "image", "inspect", image_tag, "--format", "{{index .Config.Labels \"org.opencontainers.image.revision\"}}"], text=True
+).strip()
+if (
+    re.fullmatch(r"[0-9a-f]{64}", rehearsal_sha256) is None
+    or manifest.get("release_tag") != release_tag
+    or manifest.get("source_commit") != source_commit
+    or manifest.get("image_tag") != image_tag
+    or manifest.get("image_id") != expected_image_id
+    or actual_image_id != expected_image_id
+    or actual_revision != source_commit
+):
+    raise SystemExit("prebuilt candidate identity mismatch")
+report = {
+    "version": 1,
+    "release_tag": release_tag,
+    "source_commit": source_commit,
+    "image_tag": image_tag,
+    "image_id": expected_image_id,
+    "release_rehearsal_sha256": rehearsal_sha256,
+    "deploy_after_build": True,
+    "source_mode": "prebuilt-rehearsed-image",
+}
+Path("/tmp/agomtradepro-build-report.json").write_text(
+    json.dumps(report, sort_keys=True, indent=2), encoding="utf-8"
+)
+print("BUILD_REPORT_PATH=/tmp/agomtradepro-build-report.json")
+"""
+            remote_cmd = " ".join(
+                [
+                    "python3",
+                    "-c",
+                    shlex.quote(verify_script),
+                    shlex.quote(manifest_path),
+                    shlex.quote(tag),
+                    shlex.quote(source_commit),
+                    shlex.quote(args.prebuilt_image_id),
+                    shlex.quote(args.release_rehearsal_sha256),
+                ]
+            )
+            code, out, err = _run(ssh, remote_cmd, timeout=min(args.timeout, 120))
+            if code != 0:
+                _warn(out.strip())
+                _die(f"Prebuilt candidate validation failed. Stderr={err.strip()}")
+        elif args.git_clone:
             _info(f"Using git-clone mode: repo={args.git_repo} branch={args.git_branch}")
             remote_build_script = _build_remote_git_clone_build_script()
             build_env = {
@@ -2569,6 +2743,8 @@ def main() -> int:
                 "AGOMTRADEPRO_API_TOKEN": sdk_api_token,
                 "AGOMTRADEPRO_USERNAME": sdk_username,
                 "AGOMTRADEPRO_PASSWORD": sdk_password,
+                "RELEASE_REHEARSAL_SHA256": args.release_rehearsal_sha256,
+                "REHEARSAL_IMAGE_ID": args.prebuilt_image_id,
             }
             deploy_exports = " ".join(
                 f"{key}={shlex.quote(value)}" for key, value in deploy_env.items()

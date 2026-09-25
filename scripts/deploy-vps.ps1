@@ -33,6 +33,9 @@ param(
     [int]$BuildTimeoutSeconds = 3600,
     [string]$GitBranch,
     [string]$ReleaseRehearsalManifest,
+    [string]$ReleaseRehearsalReceipt,
+    [string]$PrebuiltReleaseTag,
+    [string]$PrebuiltImageId,
     [string]$RehearsalTargetDate,
     [string]$RehearsalUniverseSha256,
     [string]$RehearsalProviderIdentitiesSha256,
@@ -106,9 +109,21 @@ if ($expectedCommit -notmatch '^[0-9a-f]{40}$') {
 }
 $ProjectPython = Join-Path $ProjectRoot "agomtradepro\Scripts\python.exe"
 $PythonExe = if (Test-Path $ProjectPython) { $ProjectPython } else { 'python' }
-if (-not $ReleaseRehearsalManifest -or -not $RehearsalTargetDate -or -not $RehearsalUniverseSha256 -or -not $RehearsalProviderIdentitiesSha256 -or -not $GitHubRepository -or $GitHubRunId -le 0) {
+if (-not $ReleaseRehearsalManifest -or -not $ReleaseRehearsalReceipt -or -not $RehearsalTargetDate -or -not $RehearsalUniverseSha256 -or -not $RehearsalProviderIdentitiesSha256 -or -not $GitHubRepository -or $GitHubRunId -le 0) {
     Throw-Err "Candidate-bound release rehearsal manifest, target date, universe digest, provider identity digest and GitHub Actions run are required."
 }
+if ($PrebuiltReleaseTag -notmatch '^[0-9]{14}$' -or $PrebuiltImageId -notmatch '^sha256:[0-9a-f]{64}$') {
+    Throw-Err "An exact prebuilt release tag and Docker image ID are required after candidate rehearsal."
+}
+$rehearsalManifestItem = Get-Item -LiteralPath $ReleaseRehearsalManifest -Force
+if ($rehearsalManifestItem.PSIsContainer -or $rehearsalManifestItem.LinkType) {
+    Throw-Err "Release rehearsal manifest must be a regular non-symlink file."
+}
+$rehearsalReceiptItem = Get-Item -LiteralPath $ReleaseRehearsalReceipt -Force
+if ($rehearsalReceiptItem.PSIsContainer -or $rehearsalReceiptItem.LinkType) {
+    Throw-Err "Release rehearsal handoff receipt must be a regular non-symlink file."
+}
+$rehearsalManifestHashBefore = (Get-FileHash -LiteralPath $ReleaseRehearsalManifest -Algorithm SHA256).Hash.ToLowerInvariant()
 $rehearsalValidator = Join-Path $PSScriptRoot "validate_release_rehearsal.py"
 $rehearsalArgs = @(
     $rehearsalValidator,
@@ -117,6 +132,7 @@ $rehearsalArgs = @(
     '--expected-target-date', $RehearsalTargetDate,
     '--expected-universe-sha256', $RehearsalUniverseSha256,
     '--expected-provider-identities-sha256', $RehearsalProviderIdentitiesSha256,
+    '--expected-candidate-image-id', $PrebuiltImageId,
     '--expected-github-repository', $GitHubRepository,
     '--expected-github-run-id', "$GitHubRunId",
     '--max-age-hours', "$RehearsalMaxAgeHours"
@@ -125,6 +141,10 @@ Write-Info "Validating candidate-bound release rehearsal evidence..."
 & $PythonExe @rehearsalArgs
 if ($LASTEXITCODE -ne 0) {
     Throw-Err "Release rehearsal validation failed."
+}
+$rehearsalManifestHash = (Get-FileHash -LiteralPath $ReleaseRehearsalManifest -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($rehearsalManifestHash -ne $rehearsalManifestHashBefore) {
+    Throw-Err "Release rehearsal manifest changed during validation."
 }
 
 $AllowedHosts = "$VpsHost,demo.agomtrade.pro,localhost,127.0.0.1"
@@ -182,6 +202,16 @@ if (Test-Path (Join-Path $ProjectRoot "package.json")) {
 
 $passFile = Join-Path $env:TEMP "agomtradepro_vps_pass_$([guid]::NewGuid().ToString('N').Substring(0,8)).txt"
 try {
+    Write-Info "Revalidating release rehearsal evidence immediately before VPS handoff..."
+    & $PythonExe @rehearsalArgs
+    if ($LASTEXITCODE -ne 0) {
+        Throw-Err "Final release rehearsal validation failed before VPS handoff."
+    }
+    $handoffManifestHash = (Get-FileHash -LiteralPath $ReleaseRehearsalManifest -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($handoffManifestHash -ne $rehearsalManifestHash) {
+        Throw-Err "Release rehearsal manifest changed before VPS handoff."
+    }
+
     Set-Content -Path $passFile -Value $VpsPass -NoNewline
 
     $pyArgs = @(
@@ -194,6 +224,10 @@ try {
         '--git-clone',
         '--git-branch', $GitBranch,
         '--expected-source-commit', $expectedCommit,
+        '--prebuilt-release-tag', $PrebuiltReleaseTag,
+        '--prebuilt-image-id', $PrebuiltImageId,
+        '--release-rehearsal-sha256', $rehearsalManifestHash,
+        '--release-rehearsal-receipt', $ReleaseRehearsalReceipt,
         '--allowed-hosts', $AllowedHosts,
         '--timeout', "$BuildTimeoutSeconds"
     )

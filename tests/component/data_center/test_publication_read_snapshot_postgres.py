@@ -1,10 +1,11 @@
 """Opt-in real PostgreSQL consistency, locking and rollback publication tests."""
 
+import json
 import os
 from collections.abc import Iterator, Sequence
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
-from datetime import date
+from datetime import date, timedelta
 from importlib import import_module
 from urllib.parse import unquote, urlsplit
 from uuid import UUID, uuid4
@@ -68,11 +69,11 @@ def _actual_publication_pg_schema(django_db_blocker) -> Iterator[_PGProbeFactory
     parsed = urlsplit(os.environ.get("AGOM_EVID06_POSTGRES_TEST_DATABASE_URL", ""))
     assert parsed.scheme in {"postgres", "postgresql"}
     assert parsed.hostname in {"127.0.0.1", "localhost", "::1"}
-    assert unquote(parsed.path.removeprefix("/")) == "evid06_authority_test"
+    assert unquote(parsed.path.removeprefix("/")) == "agom_release_rehearsal_ci"
     credentials = {
         "host": parsed.hostname,
         "port": parsed.port or 5432,
-        "dbname": "evid06_authority_test",
+        "dbname": "agom_release_rehearsal_ci",
         "user": unquote(parsed.username or ""),
         "password": unquote(parsed.password or ""),
         "connect_timeout": 10,
@@ -133,7 +134,7 @@ def actual_publication_pg(_actual_publication_pg_schema) -> Iterator[_PGProbeFac
     finally:
         wrapper = connections["default"]
         assert wrapper.vendor == "postgresql"
-        assert wrapper.settings_dict["NAME"] == "evid06_authority_test"
+        assert wrapper.settings_dict["NAME"] == "agom_release_rehearsal_ci"
         models = (
             DatasetContractModel,
             DatasetPublicationPolicyModel,
@@ -196,6 +197,308 @@ def test_market_rehearsal_database_enforces_read_only_on_provider_write(
     with connections["default"].cursor() as cursor:
         cursor.execute("SHOW transaction_read_only")
         assert cursor.fetchone()[0] == "off"
+
+
+def test_isolated_write_rehearsal_uses_production_publication_and_rolls_back(
+    actual_publication_pg,
+    monkeypatch,
+    tmp_path,
+) -> None:
+    from apps.data_center.infrastructure import isolated_write_rehearsal_runner as runner
+
+    del actual_publication_pg
+    source = tmp_path / "source"
+    source.mkdir()
+    candidate = "c" * 40
+    (source / ".agom-build-identity.json").write_text(
+        json.dumps({"schema_version": 1, "source_commit": candidate}) + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("AGOM_RELEASE_REHEARSAL_DATABASE", "1")
+    monkeypatch.setattr(
+        runner,
+        "verify_candidate_release_image",
+        lambda _root, _sha: ("image_release_manifest", "sha256:" + "f" * 64),
+    )
+    monkeypatch.setenv("AGOM_CANDIDATE_IMAGE_ID", "sha256:" + "f" * 64)
+    DatasetContractModel.objects.create(
+        dataset_key="equity.valuation.fact",
+        contract_version="1.0",
+        schema_version="1.0",
+        owner="data-platform",
+        frequency="daily",
+        decision_critical=True,
+        fields=[{"name": "observed_at", "type": "datetime", "nullable": False}],
+        freshness_seconds=604800,
+    )
+    DatasetPublicationPolicyModel.objects.create(
+        dataset_key="equity.valuation.fact",
+        contract_version="1.0",
+        schema_version="1.0",
+        policy_version="component-production",
+        minimum_coverage_ratio=1.0,
+        allow_partial=False,
+        conflict_action="block",
+        required_evidence=[
+            "source",
+            "observed_at",
+            "available_at",
+            "fetched_at",
+            "source_record_id",
+            "raw_payload_hash",
+            "raw_payload_scope",
+            "fact_content_hash",
+        ],
+        retention_days=30,
+    )
+
+    class MigrationExecutor:
+        loader = type(
+            "Loader",
+            (),
+            {"graph": type("Graph", (), {"leaf_nodes": lambda self: []})()},
+        )()
+
+        def __init__(self, _connection) -> None:
+            pass
+
+        def migration_plan(self, _leaves):
+            return []
+
+    class MigrationRecorder:
+        def __init__(self, _connection) -> None:
+            pass
+
+        def applied_migrations(self):
+            return {("data_center", "fixture")}
+
+    monkeypatch.setattr(runner, "MigrationExecutor", MigrationExecutor)
+    monkeypatch.setattr(runner, "MigrationRecorder", MigrationRecorder)
+
+    report = runner.collect_isolated_write_rehearsal(
+        candidate_sha=candidate,
+        target_trade_date=date.today() - timedelta(days=1),
+        universe_sha256="a" * 64,
+        provider_identities_sha256="b" * 64,
+        output_dir=tmp_path / "evidence",
+        source_root=source,
+    )
+
+    receipt = json.loads(
+        (tmp_path / "evidence" / "isolated-write-receipt.json").read_text(encoding="utf-8")
+    )
+    assert report["outcome"] == "success"
+    assert receipt["publication_verified"] is True
+    assert receipt["readback_verified"] is True
+    assert receipt["tamper_guard_verified"] is True
+    assert receipt["rollback_verified"] is True
+    assert receipt["residual_rows"] == 0
+    assert receipt["written_rows"] == 4
+    assert receipt["publication_id"] == report["publication_id"]
+    assert len(receipt["member_fact_content_hash"]) == 64
+    assert len(receipt["catalog_seed_sha256"]) == 64
+    assert ValuationFactModel.objects.count() == 0
+    assert CanonicalPublicationModel.objects.count() == 0
+    assert PublicationMemberModel.objects.count() == 0
+    assert CoverageSnapshotModel.objects.count() == 0
+
+
+def _isolated_write_arguments(tmp_path) -> dict[str, object]:
+    source = tmp_path / "candidate"
+    source.mkdir()
+    return {
+        "candidate_sha": "c" * 40,
+        "target_trade_date": date.today() - timedelta(days=1),
+        "universe_sha256": "a" * 64,
+        "provider_identities_sha256": "b" * 64,
+        "output_dir": tmp_path / "evidence",
+        "source_root": source,
+    }
+
+
+def _isolated_write_table_counts() -> tuple[int, ...]:
+    return (
+        DatasetContractModel.objects.count(),
+        DatasetPublicationPolicyModel.objects.count(),
+        ValuationFactModel.objects.count(),
+        CanonicalPublicationModel.objects.count(),
+        PublicationMemberModel.objects.count(),
+        CoverageSnapshotModel.objects.count(),
+    )
+
+
+@pytest.mark.parametrize(
+    "invalid_scope", ["non_postgresql", "wrong_database", "env_missing", "atomic"]
+)
+def test_isolated_write_rehearsal_scope_guards_leave_real_pg_tables_unchanged(
+    actual_publication_pg,
+    monkeypatch,
+    tmp_path,
+    invalid_scope: str,
+) -> None:
+    from types import SimpleNamespace
+
+    from apps.data_center.infrastructure import isolated_write_rehearsal_runner as runner
+    from core.exceptions import DataFetchError
+
+    del actual_publication_pg
+    output_dir = tmp_path / "evidence"
+    real_connection = connections["default"]
+    monkeypatch.setenv("AGOM_RELEASE_REHEARSAL_DATABASE", "1")
+    if invalid_scope == "non_postgresql":
+        monkeypatch.setattr(
+            runner,
+            "connection",
+            SimpleNamespace(
+                vendor="sqlite",
+                in_atomic_block=False,
+                settings_dict={"NAME": "agom_release_rehearsal_ci"},
+            ),
+        )
+    elif invalid_scope == "wrong_database":
+        monkeypatch.setattr(
+            runner,
+            "connection",
+            SimpleNamespace(
+                vendor="postgresql",
+                in_atomic_block=False,
+                settings_dict={"NAME": "production"},
+            ),
+        )
+    else:
+        monkeypatch.setattr(runner, "connection", real_connection)
+    if invalid_scope == "env_missing":
+        monkeypatch.delenv("AGOM_RELEASE_REHEARSAL_DATABASE", raising=False)
+
+    before = _isolated_write_table_counts()
+    arguments = _isolated_write_arguments(tmp_path)
+    if invalid_scope == "atomic":
+        with transaction.atomic():
+            with pytest.raises(DataFetchError) as exc_info:
+                runner.collect_isolated_write_rehearsal(**arguments)
+    else:
+        with pytest.raises(DataFetchError) as exc_info:
+            runner.collect_isolated_write_rehearsal(**arguments)
+
+    assert exc_info.value.code == "REHEARSAL_WRITE_SCOPE_INVALID"
+    assert _isolated_write_table_counts() == before
+    assert not output_dir.exists()
+
+
+def test_isolated_write_rehearsal_rejects_real_pending_migrations_before_any_write(
+    actual_publication_pg,
+    monkeypatch,
+    tmp_path,
+) -> None:
+    from apps.data_center.infrastructure import isolated_write_rehearsal_runner as runner
+    from core.exceptions import DataFetchError
+
+    del actual_publication_pg
+    monkeypatch.setenv("AGOM_RELEASE_REHEARSAL_DATABASE", "1")
+    monkeypatch.setattr(
+        runner,
+        "verify_candidate_release_image",
+        lambda _root, _sha: ("image_release_manifest", "sha256:" + "f" * 64),
+    )
+    before = _isolated_write_table_counts()
+    arguments = _isolated_write_arguments(tmp_path)
+
+    with pytest.raises(DataFetchError) as exc_info:
+        runner.collect_isolated_write_rehearsal(**arguments)
+
+    assert exc_info.value.code == "REHEARSAL_WRITE_MIGRATIONS_PENDING"
+    assert _isolated_write_table_counts() == before
+    assert not arguments["output_dir"].exists()
+
+
+def _allow_component_migration_snapshot(monkeypatch, runner) -> None:
+    class MigrationExecutor:
+        loader = type(
+            "Loader",
+            (),
+            {"graph": type("Graph", (), {"leaf_nodes": lambda self: []})()},
+        )()
+
+        def __init__(self, _connection) -> None:
+            pass
+
+        def migration_plan(self, _leaves):
+            return []
+
+    class MigrationRecorder:
+        def __init__(self, _connection) -> None:
+            pass
+
+        def applied_migrations(self):
+            return {("data_center", "fixture")}
+
+    monkeypatch.setattr(runner, "MigrationExecutor", MigrationExecutor)
+    monkeypatch.setattr(runner, "MigrationRecorder", MigrationRecorder)
+
+
+@pytest.mark.parametrize(
+    ("catalog_state", "expected_catalog_counts"),
+    [
+        ("both_missing", (0, 0)),
+        ("contract_missing", (0, 1)),
+        ("policy_missing", (1, 0)),
+        ("version_mismatch", (1, 1)),
+    ],
+)
+def test_isolated_write_rehearsal_catalog_failures_are_read_only_and_leave_no_residue(
+    actual_publication_pg,
+    monkeypatch,
+    tmp_path,
+    catalog_state: str,
+    expected_catalog_counts: tuple[int, int],
+) -> None:
+    from apps.data_center.infrastructure import isolated_write_rehearsal_runner as runner
+    from core.exceptions import DataFetchError
+
+    del actual_publication_pg
+    monkeypatch.setenv("AGOM_RELEASE_REHEARSAL_DATABASE", "1")
+    monkeypatch.setattr(
+        runner,
+        "verify_candidate_release_image",
+        lambda _root, _sha: ("image_release_manifest", "sha256:" + "f" * 64),
+    )
+    _allow_component_migration_snapshot(monkeypatch, runner)
+    if catalog_state in {"policy_missing", "version_mismatch"}:
+        contract_version = "1.0"
+        DatasetContractModel.objects.create(
+            dataset_key="equity.valuation.fact",
+            contract_version=contract_version,
+            schema_version="1.0",
+            owner="data-platform",
+            frequency="daily",
+            decision_critical=True,
+            fields=[{"name": "observed_at", "type": "datetime", "nullable": False}],
+            freshness_seconds=604800,
+        )
+    if catalog_state in {"contract_missing", "version_mismatch"}:
+        policy_contract_version = "2.0" if catalog_state == "version_mismatch" else "1.0"
+        DatasetPublicationPolicyModel.objects.create(
+            dataset_key="equity.valuation.fact",
+            contract_version=policy_contract_version,
+            schema_version="1.0",
+            policy_version="component-negative",
+            minimum_coverage_ratio=1.0,
+            allow_partial=False,
+            conflict_action="block",
+            required_evidence=["observed_at", "available_at", "fetched_at"],
+            retention_days=30,
+        )
+    before = _isolated_write_table_counts()
+    assert before[:2] == expected_catalog_counts
+    arguments = _isolated_write_arguments(tmp_path)
+
+    with pytest.raises(DataFetchError) as exc_info:
+        runner.collect_isolated_write_rehearsal(**arguments)
+
+    assert exc_info.value.code == "REHEARSAL_WRITE_CATALOG_UNAVAILABLE"
+    assert _isolated_write_table_counts() == before
+    assert before[2:] == (0, 0, 0, 0)
+    assert not arguments["output_dir"].exists()
 
 
 def _probe_write(probe, statement: str, params: Sequence[object]) -> None:

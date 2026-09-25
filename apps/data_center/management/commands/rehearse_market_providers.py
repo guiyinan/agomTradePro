@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +30,7 @@ class Command(BaseCommand):
         """Register explicit candidate, provider, budget and artifact inputs."""
         parser.add_argument("--source-digest", action="store_true")
         parser.add_argument("--candidate-sha")
+        parser.add_argument("--target-trade-date", type=date.fromisoformat)
         parser.add_argument("--quote-provider-id", type=int)
         parser.add_argument("--valuation-provider-id", type=int)
         parser.add_argument("--sample-size", type=int, default=50)
@@ -48,9 +50,17 @@ class Command(BaseCommand):
             return
         if any(
             options.get(name) is None
-            for name in ("candidate_sha", "quote_provider_id", "valuation_provider_id", "output")
+            for name in (
+                "candidate_sha",
+                "target_trade_date",
+                "quote_provider_id",
+                "valuation_provider_id",
+                "output",
+            )
         ):
-            raise CommandError("candidate SHA, both provider IDs and --output are required")
+            raise CommandError(
+                "candidate SHA, target trade date, both provider IDs and --output are required"
+            )
         destination: Path = options["output"]
         if destination.exists():
             raise CommandError("refusing to overwrite existing rehearsal evidence")
@@ -70,6 +80,7 @@ class Command(BaseCommand):
                 quote_provider_id=options["quote_provider_id"],
                 valuation_provider_id=options["valuation_provider_id"],
                 candidate_sha=options["candidate_sha"],
+                target_trade_date=options["target_trade_date"],
                 source_root=root,
                 sample_size=options["sample_size"],
                 max_dispatches=options["max_dispatches"],

@@ -16,6 +16,7 @@ import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
 import zipfile
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -24,6 +25,10 @@ from zoneinfo import ZoneInfo
 
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
+IMAGE_ID_PATTERN = re.compile(r"sha256:[0-9a-f]{64}")
+UUID_PATTERN = re.compile(
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+)
 REQUIRED_REPORT_SCHEMAS = {
     "real_response_unit_replay": "release.real-response-unit-replay.v1",
     "full_universe_capacity": "release.full-universe-capacity.v2",
@@ -36,6 +41,9 @@ REQUIRED_EVIDENCE_MODES = {
     "isolated_write_rehearsal": "isolated_postgresql",
     "candidate_regression_evidence": "candidate_ci",
 }
+IMAGE_BOUND_REPORTS = frozenset(
+    {"real_response_unit_replay", "full_universe_capacity", "isolated_write_rehearsal"}
+)
 REQUIRED_POSTGRESQL_TESTS = (
     "tests.component.data_center.test_core_data_backfill_control_plane::test_postgresql_backfill_first_run_and_same_parameter_retry_are_idempotent",
     "tests.component.data_center.test_core_data_backfill_control_plane::test_postgresql_backfill_provider_domain_failure_persists_partial_outcome",
@@ -52,6 +60,7 @@ REQUIRED_POSTGRESQL_TESTS = (
     "tests.component.data_center.test_publication_read_snapshot_postgres::test_postgres_refetch_retains_frozen_publication_and_excludes_parallel_writer",
     "tests.component.data_center.test_publication_read_snapshot_postgres::test_postgres_fact_refresh_honors_stricter_lock_timeout_and_rolls_back",
     "tests.component.data_center.test_publication_read_snapshot_postgres::test_postgres_revision_migration_preserves_rows_and_refuses_lossy_downgrade",
+    "tests.component.data_center.test_publication_read_snapshot_postgres::test_isolated_write_rehearsal_uses_production_publication_and_rolls_back",
     "tests.component.data_center.test_financial_fact_repository_postgres_provenance::test_postgres_financial_revision_preserves_frozen_rows_and_past_knowledge",
     "tests.component.data_center.test_financial_fact_repository_postgres_provenance::test_financial_repository_round_trip_and_replay_count_on_postgresql",
     "tests.component.data_center.test_financial_fact_repository_postgres_provenance::test_repository_float_ties_match_direct_postgresql_writer[positive_12_03125]",
@@ -87,6 +96,9 @@ REQUIRED_JUNIT_FILES = {
     "publication-postgres.xml",
     "backfill-control-plane-postgres.xml",
 }
+RELEASE_POLICY_PATH = (
+    Path(__file__).resolve().parents[1] / "governance" / "release_rehearsal_policy.json"
+)
 
 
 class RehearsalValidationError(ValueError):
@@ -97,8 +109,38 @@ class RehearsalValidationError(ValueError):
         self.code = code
 
 
+@dataclass(frozen=True)
+class _ValidatedPolicyEvidence:
+    """Canonical policy content and its recomputed decision identity."""
+
+    snapshot: dict[str, Any]
+    identity: str
+    content_sha256: str
+    minimum_coverage_ratio: float
+
+
+@dataclass(frozen=True)
+class _ValidatedCapacityEvidence:
+    """Full registered/eligible scope and policy proven by a capacity receipt."""
+
+    registered_asset_codes: tuple[str, ...]
+    eligible_asset_codes: tuple[str, ...]
+    excluded_asset_codes: tuple[str, ...]
+    exclusion_reason: str
+    exclusion_rule_version: str
+    policy: _ValidatedPolicyEvidence
+
+
 def _fail(code: str) -> NoReturn:
     raise RehearsalValidationError(code)
+
+
+def _require_candidate_attestation(payload: dict[str, Any]) -> None:
+    if payload.get("candidate_source_attestation") not in {
+        "image_release_manifest",
+        "clean_git_checkout",
+    }:
+        _fail("REHEARSAL_CANDIDATE_SOURCE_UNATTESTED")
 
 
 def _read_json(path: Path, code: str) -> dict[str, Any]:
@@ -110,6 +152,20 @@ def _read_json(path: Path, code: str) -> dict[str, Any]:
     if not raw or not isinstance(payload, dict):
         _fail(code)
     return cast(dict[str, Any], payload)
+
+
+def _minimum_capacity_margin() -> float:
+    payload = _read_json(RELEASE_POLICY_PATH, "REHEARSAL_CAPACITY_POLICY_INVALID")
+    value = payload.get("minimum_capacity_margin_ratio")
+    if (
+        payload.get("schema") != "release.rehearsal-policy.v1"
+        or isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(float(value))
+        or not 0 < float(value) < 1
+    ):
+        _fail("REHEARSAL_CAPACITY_POLICY_INVALID")
+    return float(value)
 
 
 def _sha256(path: Path) -> str:
@@ -327,10 +383,19 @@ def _resolve_artifact(base: Path, reference: object, expected_sha: object) -> Pa
         _fail("REHEARSAL_ARTIFACT_REFERENCE_INVALID")
     if not isinstance(expected_sha, str) or SHA256_PATTERN.fullmatch(expected_sha) is None:
         _fail("REHEARSAL_ARTIFACT_DIGEST_INVALID")
-    path = Path(reference)
-    if not path.is_absolute():
-        path = base / path
-    path = path.resolve()
+    relative = Path(reference)
+    if relative.is_absolute() or relative.drive or ".." in relative.parts or "\\" in reference:
+        _fail("REHEARSAL_ARTIFACT_REFERENCE_INVALID")
+    unresolved = base.resolve()
+    for part in relative.parts:
+        unresolved /= part
+        if unresolved.is_symlink():
+            _fail("REHEARSAL_ARTIFACT_REFERENCE_INVALID")
+    path = unresolved.resolve()
+    try:
+        path.relative_to(base.resolve())
+    except ValueError:
+        _fail("REHEARSAL_ARTIFACT_REFERENCE_INVALID")
     if _sha256(path) != expected_sha:
         _fail("REHEARSAL_ARTIFACT_DIGEST_MISMATCH")
     return path
@@ -341,6 +406,7 @@ def _validate_common_report(
     report: dict[str, Any],
     kind: str,
     expected_candidate: str,
+    expected_image_id: str,
     expected_date: str,
     expected_universe: str,
     expected_provider_digest: str,
@@ -353,6 +419,11 @@ def _validate_common_report(
         _fail("REHEARSAL_REPORT_KIND_MISMATCH")
     if report.get("candidate_sha") != expected_candidate:
         _fail("REHEARSAL_CANDIDATE_MISMATCH")
+    if kind in IMAGE_BOUND_REPORTS and (
+        report.get("candidate_image_id") != expected_image_id
+        or report.get("candidate_source_attestation") != "image_release_manifest"
+    ):
+        _fail("REHEARSAL_REPORT_IMAGE_MISMATCH")
     if report.get("target_trade_date") != expected_date:
         _fail("REHEARSAL_TARGET_DATE_MISMATCH")
     if report.get("universe_sha256") != expected_universe:
@@ -376,6 +447,7 @@ def _validate_receipt_identity(
     receipt: dict[str, Any],
     *,
     expected_candidate: str,
+    expected_image_id: str,
     expected_date: str,
     expected_universe: str,
     expected_provider_digest: str,
@@ -388,8 +460,110 @@ def _validate_receipt_identity(
         _fail("REHEARSAL_RECEIPT_UNIVERSE_MISMATCH")
     if receipt.get("provider_identities_sha256") != expected_provider_digest:
         _fail("REHEARSAL_RECEIPT_PROVIDER_MISMATCH")
+    if receipt.get("candidate_image_id") != expected_image_id:
+        _fail("REHEARSAL_RECEIPT_IMAGE_MISMATCH")
+    if receipt.get("candidate_source_attestation") != "image_release_manifest":
+        _fail("REHEARSAL_RECEIPT_IMAGE_MISMATCH")
     if receipt.get("outcome") != "success":
         _fail("REHEARSAL_RECEIPT_NOT_SUCCESSFUL")
+
+
+def _validated_policy_evidence(
+    value: object,
+    *,
+    error_code: str = "REHEARSAL_POLICY_EVIDENCE_INVALID",
+) -> _ValidatedPolicyEvidence:
+    """Recompute policy content hash and identity from its canonical JSON snapshot."""
+
+    if not isinstance(value, dict) or set(value) != {"content", "content_sha256", "identity"}:
+        _fail(error_code)
+    snapshot = cast(dict[str, Any], value)
+    content_value = snapshot.get("content")
+    if not isinstance(content_value, dict):
+        _fail(error_code)
+    content = cast(dict[str, Any], content_value)
+    expected_keys = {
+        "encoding",
+        "dataset_key",
+        "contract_version",
+        "schema_version",
+        "policy_version",
+        "minimum_coverage_ratio",
+        "allow_partial",
+        "conflict_action",
+        "required_evidence",
+        "retention_days",
+    }
+    ratio = content.get("minimum_coverage_ratio")
+    version = content.get("policy_version")
+    evidence = content.get("required_evidence")
+    if (
+        set(content) != expected_keys
+        or content.get("encoding") != "publication-policy-v1"
+        or content.get("dataset_key") != "equity.valuation.fact"
+        or not isinstance(content.get("contract_version"), str)
+        or not cast(str, content.get("contract_version")).strip()
+        or not isinstance(content.get("schema_version"), str)
+        or not cast(str, content.get("schema_version")).strip()
+        or not isinstance(version, str)
+        or not version
+        or len(version) > 40
+        or ":" in version
+        or any(character.isspace() for character in version)
+        or isinstance(ratio, bool)
+        or not isinstance(ratio, (int, float))
+        or not math.isfinite(float(ratio))
+        or not 0 <= float(ratio) <= 1
+        or type(content.get("allow_partial")) is not bool
+        or content.get("conflict_action") not in {"block", "quarantine", "prefer_governed_source"}
+        or not isinstance(evidence, list)
+        or not evidence
+        or any(not isinstance(item, str) or not item.strip() for item in evidence)
+        or len(evidence) != len(set(evidence))
+        or type(content.get("retention_days")) is not int
+        or cast(int, content.get("retention_days")) <= 0
+    ):
+        _fail(error_code)
+    try:
+        raw = json.dumps(
+            content,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError):
+        _fail(error_code)
+    digest = hashlib.sha256(raw).hexdigest()
+    contract_version = cast(str, content["contract_version"])
+    schema_version = cast(str, content["schema_version"])
+    identity = (
+        f"{contract_version}:{schema_version}" if version == "legacy" else f"p2:{version}:{digest}"
+    )
+    if snapshot.get("content_sha256") != digest or snapshot.get("identity") != identity:
+        _fail(error_code)
+    return _ValidatedPolicyEvidence(
+        snapshot=snapshot,
+        identity=identity,
+        content_sha256=digest,
+        minimum_coverage_ratio=float(ratio),
+    )
+
+
+def _validate_policy_fields(
+    payload: dict[str, Any],
+    evidence: _ValidatedPolicyEvidence,
+    *,
+    error_code: str,
+) -> None:
+    """Require duplicated policy summary fields to match canonical policy content."""
+
+    if (
+        payload.get("valuation_policy_identity") != evidence.identity
+        or payload.get("valuation_policy_sha256") != evidence.content_sha256
+        or payload.get("valuation_minimum_coverage_ratio") != evidence.minimum_coverage_ratio
+    ):
+        _fail(error_code)
 
 
 def _replay_number(value: object) -> float:
@@ -576,11 +750,13 @@ def _validate_real_replay(
     base: Path,
     *,
     expected_candidate: str,
+    expected_image_id: str,
     expected_date: str,
     expected_universe: str,
     expected_provider_digest: str,
-    expected_assets: tuple[str, ...],
+    capacity: _ValidatedCapacityEvidence,
 ) -> None:
+    _require_candidate_attestation(report)
     _require_true(report, "units_verified", "REHEARSAL_UNIT_REPLAY_INCOMPLETE")
     _require_true(report, "source_time_verified", "REHEARSAL_UNIT_REPLAY_INCOMPLETE")
     _require_positive_int(report, "replay_case_count", "REHEARSAL_UNIT_REPLAY_INCOMPLETE")
@@ -604,6 +780,7 @@ def _validate_real_replay(
     if set(provider_identities) != {"quote", "valuation"}:
         _fail("REHEARSAL_PROVIDER_IDENTITY_INVALID")
     claimed_response_datasets: dict[str, str] = {}
+    expected_assets = capacity.eligible_asset_codes
     ranked = sorted(expected_assets, key=lambda code: hashlib.sha256(code.encode()).hexdigest())
     groups: dict[str, str] = {}
     for code in ranked:
@@ -614,6 +791,136 @@ def _validate_real_replay(
             break
         selected.add(code)
     expected_sample = sorted(selected)
+    _validate_policy_fields(report, capacity.policy, error_code="REHEARSAL_REPLAY_POLICY_MISMATCH")
+    report_policy = _validated_policy_evidence(
+        report.get("valuation_policy_snapshot"),
+        error_code="REHEARSAL_REPLAY_POLICY_MISMATCH",
+    )
+    if report_policy != capacity.policy or report.get("candidate_image_id") != expected_image_id:
+        _fail("REHEARSAL_REPLAY_POLICY_MISMATCH")
+    if (
+        report.get("eligible_asset_codes") != list(capacity.eligible_asset_codes)
+        or report.get("eligible_asset_count") != len(capacity.eligible_asset_codes)
+        or report.get("excluded_asset_codes") != list(capacity.excluded_asset_codes)
+        or report.get("excluded_asset_count") != len(capacity.excluded_asset_codes)
+        or report.get("exclusion_reason") != capacity.exclusion_reason
+        or report.get("exclusion_rule_version") != capacity.exclusion_rule_version
+    ):
+        _fail("REHEARSAL_REPLAY_SCOPE_MISMATCH")
+    probe_reference = report.get("probe_capture")
+    if not isinstance(probe_reference, dict):
+        _fail("REHEARSAL_REPLAY_PROBE_INVALID")
+    probe_reference_payload = cast(dict[str, object], probe_reference)
+    probe_path = _resolve_artifact(
+        base,
+        probe_reference_payload.get("path"),
+        probe_reference_payload.get("sha256"),
+    )
+    if report.get("probe_sha256") != probe_reference_payload.get("sha256"):
+        _fail("REHEARSAL_REPLAY_PROBE_INVALID")
+    probe = _read_json(probe_path, "REHEARSAL_REPLAY_PROBE_INVALID")
+    registered_assets = probe.get("asset_codes")
+    if (
+        probe.get("schema") != "market.provider-rehearsal.v1"
+        or probe.get("outcome") != "success"
+        or probe.get("mode") != "read_only_live_provider"
+        or probe.get("database_read_only") is not True
+        or probe.get("candidate_sha") != expected_candidate
+        or probe.get("target_trade_date") != expected_date
+        or probe.get("universe_sha256") != expected_universe
+        or probe.get("provider_identities_sha256") != expected_provider_digest
+        or probe.get("candidate_image_id") != expected_image_id
+        or probe.get("sample") != expected_sample
+        or probe.get("provider_identities") != provider_values
+        or probe.get("eligible_asset_codes") != list(capacity.eligible_asset_codes)
+        or probe.get("eligible_asset_count") != len(capacity.eligible_asset_codes)
+        or probe.get("excluded_asset_codes") != list(capacity.excluded_asset_codes)
+        or probe.get("excluded_asset_count") != len(capacity.excluded_asset_codes)
+        or probe.get("exclusion_reason") != capacity.exclusion_reason
+        or probe.get("exclusion_rule_version") != capacity.exclusion_rule_version
+        or not isinstance(registered_assets, list)
+        or registered_assets != sorted(set(registered_assets))
+        or hashlib.sha256(
+            json.dumps(
+                registered_assets,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+            ).encode()
+        ).hexdigest()
+        != expected_universe
+    ):
+        _fail("REHEARSAL_REPLAY_PROBE_INVALID")
+    probe_policy = _validated_policy_evidence(
+        probe.get("valuation_policy_snapshot"),
+        error_code="REHEARSAL_REPLAY_PROBE_INVALID",
+    )
+    _validate_policy_fields(probe, capacity.policy, error_code="REHEARSAL_REPLAY_PROBE_INVALID")
+    if probe_policy != capacity.policy:
+        _fail("REHEARSAL_REPLAY_PROBE_INVALID")
+    if registered_assets != list(capacity.registered_asset_codes):
+        _fail("REHEARSAL_REPLAY_PROBE_INVALID")
+    probe_rows = probe.get("probes")
+    transport = probe.get("transport")
+    transport_receipts = transport.get("receipts") if isinstance(transport, dict) else None
+    if (
+        not isinstance(probe_rows, list)
+        or len(probe_rows) != 2
+        or not isinstance(transport_receipts, list)
+    ):
+        _fail("REHEARSAL_REPLAY_PROBE_INVALID")
+    captured_response_datasets: dict[str, str] = {}
+    claimed_indexes: set[int] = set()
+    for probe_row_value in cast(list[object], probe_rows):
+        if not isinstance(probe_row_value, dict):
+            _fail("REHEARSAL_REPLAY_PROBE_INVALID")
+        probe_row = cast(dict[str, object], probe_row_value)
+        dataset_value = probe_row.get("dataset")
+        indexes = probe_row.get("receipt_indexes")
+        if (
+            dataset_value not in {"equity.quote.snapshot", "equity.valuation.fact"}
+            or probe_row.get("outcome") != "success"
+            or not isinstance(indexes, list)
+            or not indexes
+        ):
+            _fail("REHEARSAL_REPLAY_PROBE_INVALID")
+        for index in cast(list[object], indexes):
+            if (
+                type(index) is not int
+                or index in claimed_indexes
+                or index < 0
+                or index >= len(transport_receipts)
+            ):
+                _fail("REHEARSAL_REPLAY_PROBE_INVALID")
+            claimed_indexes.add(index)
+            receipt_value = cast(list[object], transport_receipts)[index]
+            if not isinstance(receipt_value, dict):
+                _fail("REHEARSAL_REPLAY_PROBE_INVALID")
+            receipt_payload = cast(dict[str, object], receipt_value)
+            artifact_value = receipt_payload.get("response_artifact")
+            if not isinstance(artifact_value, dict):
+                _fail("REHEARSAL_REPLAY_PROBE_INVALID")
+            artifact_payload = cast(dict[str, object], artifact_value)
+            body_sha = artifact_payload.get("body_sha256")
+            role = "quote" if dataset_value == "equity.quote.snapshot" else "valuation"
+            provider_identity = provider_identities[role]
+            expected_context_sample = expected_sample if role == "quote" else registered_assets
+            if (
+                SHA256_PATTERN.fullmatch(str(body_sha or "")) is None
+                or artifact_payload.get("dataset") != dataset_value
+                or artifact_payload.get("candidate_sha") != expected_candidate
+                or artifact_payload.get("target_trade_date") != expected_date
+                or artifact_payload.get("universe_sha256") != expected_universe
+                or artifact_payload.get("provider_identities_sha256") != expected_provider_digest
+                or artifact_payload.get("provider_id") != provider_identity.get("provider_id")
+                or artifact_payload.get("provider_source") != provider_identity.get("source")
+                or artifact_payload.get("endpoint_id") != provider_identity.get("endpoint_id")
+                or artifact_payload.get("sample_codes") != expected_context_sample
+                or receipt_payload.get("body_sha256") != body_sha
+                or body_sha in captured_response_datasets
+            ):
+                _fail("REHEARSAL_REPLAY_PROBE_INVALID")
+            captured_response_datasets[cast(str, body_sha)] = cast(str, dataset_value)
     for artifact in cast(list[object], artifacts):
         if not isinstance(artifact, dict):
             _fail("REHEARSAL_REAL_RESPONSE_MISSING")
@@ -627,10 +934,29 @@ def _validate_real_replay(
         _validate_receipt_identity(
             receipt,
             expected_candidate=expected_candidate,
+            expected_image_id=expected_image_id,
             expected_date=expected_date,
             expected_universe=expected_universe,
             expected_provider_digest=expected_provider_digest,
         )
+        if (
+            receipt.get("eligible_asset_codes") != list(capacity.eligible_asset_codes)
+            or receipt.get("eligible_asset_count") != len(capacity.eligible_asset_codes)
+            or receipt.get("excluded_asset_codes") != list(capacity.excluded_asset_codes)
+            or receipt.get("excluded_asset_count") != len(capacity.excluded_asset_codes)
+            or receipt.get("exclusion_reason") != capacity.exclusion_reason
+            or receipt.get("exclusion_rule_version") != capacity.exclusion_rule_version
+        ):
+            _fail("REHEARSAL_REPLAY_SCOPE_MISMATCH")
+        replay_policy = _validated_policy_evidence(
+            receipt.get("valuation_policy_snapshot"),
+            error_code="REHEARSAL_REPLAY_POLICY_MISMATCH",
+        )
+        _validate_policy_fields(
+            receipt, capacity.policy, error_code="REHEARSAL_REPLAY_POLICY_MISMATCH"
+        )
+        if replay_policy != capacity.policy:
+            _fail("REHEARSAL_REPLAY_POLICY_MISMATCH")
         dataset = receipt.get("dataset")
         if dataset not in {"equity.quote.snapshot", "equity.valuation.fact"}:
             _fail("REHEARSAL_REPLAY_DATASET_INVALID")
@@ -639,7 +965,7 @@ def _validate_real_replay(
         role = "quote" if dataset_name == "equity.quote.snapshot" else "valuation"
         provider_identity = provider_identities[role]
         expected_operation = "daily" if role == "quote" else "daily_basic"
-        expected_scope = "requested_asset_history" if role == "quote" else "full_market_trade_date"
+        expected_scope = "full_market_trade_date"
         observed = _parse_datetime(
             receipt.get("source_observed_at"), "REHEARSAL_REPLAY_SOURCE_TIME_INVALID"
         )
@@ -755,6 +1081,8 @@ def _validate_real_replay(
         )
     if datasets != {"equity.quote.snapshot", "equity.valuation.fact"}:
         _fail("REHEARSAL_REPLAY_DATASET_INCOMPLETE")
+    if claimed_response_datasets != captured_response_datasets:
+        _fail("REHEARSAL_REPLAY_PROBE_MISMATCH")
     if replayed_cases != REQUIRED_REPLAY_CASES:
         _fail("REHEARSAL_REPLAY_CASES_INCOMPLETE")
 
@@ -764,10 +1092,12 @@ def _validate_capacity(
     base: Path,
     *,
     expected_candidate: str,
+    expected_image_id: str,
     expected_date: str,
     expected_universe: str,
     expected_provider_digest: str,
-) -> tuple[str, ...]:
+) -> _ValidatedCapacityEvidence:
+    _require_candidate_attestation(report)
     universe_count = _require_positive_int(
         report, "universe_count", "REHEARSAL_CAPACITY_INCOMPLETE"
     )
@@ -798,14 +1128,18 @@ def _validate_capacity(
         base, artifact_payload.get("path"), artifact_payload.get("sha256")
     )
     receipt = _read_json(receipt_path, "REHEARSAL_CAPACITY_RECEIPT_INVALID")
+    _require_candidate_attestation(receipt)
     if (
         receipt.get("schema") != "release.full-universe-capacity-receipt.v1"
         or receipt.get("measurement_source") != "candidate_runtime_instrumentation"
+        or receipt.get("measurement_scope")
+        != "production_valuation_seed_and_eligible_quote_dispatch"
     ):
         _fail("REHEARSAL_CAPACITY_RECEIPT_INVALID")
     _validate_receipt_identity(
         receipt,
         expected_candidate=expected_candidate,
+        expected_image_id=expected_image_id,
         expected_date=expected_date,
         expected_universe=expected_universe,
         expected_provider_digest=expected_provider_digest,
@@ -813,8 +1147,104 @@ def _validate_capacity(
     if (
         receipt.get("asset_codes") != asset_codes
         or receipt.get("measured_asset_count") != universe_count
+        or receipt.get("requested_asset_count") != universe_count
+        or receipt.get("registered_asset_count") != universe_count
     ):
         _fail("REHEARSAL_CAPACITY_RECEIPT_UNIVERSE_MISMATCH")
+    eligible_codes = receipt.get("eligible_asset_codes")
+    excluded_codes = receipt.get("excluded_asset_codes")
+    if (
+        not isinstance(eligible_codes, list)
+        or not isinstance(excluded_codes, list)
+        or eligible_codes != sorted(set(eligible_codes))
+        or excluded_codes != sorted(set(excluded_codes))
+        or not all(isinstance(code, str) and code for code in eligible_codes + excluded_codes)
+        or set(eligible_codes) & set(excluded_codes)
+        or sorted(eligible_codes + excluded_codes) != asset_codes
+        or receipt.get("eligible_asset_count") != len(eligible_codes)
+        or receipt.get("excluded_asset_count") != len(excluded_codes)
+        or receipt.get("exclusion_reason") != "valuation_not_returned_for_target_session"
+        or receipt.get("exclusion_rule_version") != "valuation-target-session-v1"
+        or not isinstance(receipt.get("valuation_policy_identity"), str)
+        or not str(receipt.get("valuation_policy_identity")).strip()
+        or SHA256_PATTERN.fullmatch(str(receipt.get("valuation_policy_sha256") or "")) is None
+        or not eligible_codes
+    ):
+        _fail("REHEARSAL_CAPACITY_ELIGIBLE_SCOPE_INVALID")
+    policy = _validated_policy_evidence(
+        receipt.get("valuation_policy_snapshot"),
+        error_code="REHEARSAL_CAPACITY_POLICY_INVALID",
+    )
+    report_policy = _validated_policy_evidence(
+        report.get("valuation_policy_snapshot"),
+        error_code="REHEARSAL_CAPACITY_POLICY_INVALID",
+    )
+    _validate_policy_fields(receipt, policy, error_code="REHEARSAL_CAPACITY_POLICY_INVALID")
+    _validate_policy_fields(report, policy, error_code="REHEARSAL_CAPACITY_POLICY_INVALID")
+    if report_policy != policy:
+        _fail("REHEARSAL_CAPACITY_POLICY_INVALID")
+    valuation_minimum = policy.minimum_coverage_ratio
+    valuation_ratio = _require_finite_number(
+        receipt,
+        "valuation_coverage_ratio",
+        "REHEARSAL_CAPACITY_COVERAGE_INVALID",
+        allow_zero=True,
+    )
+    derived_valuation_ratio = len(eligible_codes) / universe_count
+    if (
+        valuation_minimum > 1
+        or valuation_ratio > 1
+        or not math.isclose(valuation_ratio, derived_valuation_ratio, abs_tol=1e-12)
+        or valuation_ratio < valuation_minimum
+    ):
+        _fail("REHEARSAL_CAPACITY_COVERAGE_INVALID")
+    if (
+        report.get("eligible_asset_codes") != eligible_codes
+        or report.get("eligible_asset_count") != len(eligible_codes)
+        or report.get("excluded_asset_codes") != excluded_codes
+        or report.get("excluded_asset_count") != len(excluded_codes)
+        or report.get("exclusion_reason") != receipt.get("exclusion_reason")
+        or report.get("exclusion_rule_version") != receipt.get("exclusion_rule_version")
+    ):
+        _fail("REHEARSAL_CAPACITY_ELIGIBLE_SCOPE_INVALID")
+    coverage_expectations = {
+        "valuation_coverage": (universe_count, len(eligible_codes), excluded_codes),
+        "quote_coverage": (len(eligible_codes), len(eligible_codes), []),
+    }
+    for key, (
+        expected_requested,
+        expected_target,
+        expected_missing_codes,
+    ) in coverage_expectations.items():
+        coverage = receipt.get(key)
+        if not isinstance(coverage, dict):
+            _fail("REHEARSAL_CAPACITY_COVERAGE_INVALID")
+        coverage_payload = cast(dict[str, object], coverage)
+        requested = coverage_payload.get("requested_count")
+        returned = coverage_payload.get("returned_count")
+        target_count = coverage_payload.get("target_session_count")
+        missing_count = coverage_payload.get("missing_target_session_count")
+        missing_codes = coverage_payload.get("missing_target_session_codes")
+        if (
+            type(requested) is not int
+            or requested != expected_requested
+            or type(returned) is not int
+            or not 0 <= returned <= expected_requested
+            or type(target_count) is not int
+            or target_count != expected_target
+            or not 0 <= target_count <= returned
+            or type(missing_count) is not int
+            or missing_count != expected_requested - target_count
+            or not isinstance(missing_codes, list)
+            or missing_codes != expected_missing_codes
+            or not set(cast(list[str], missing_codes)).issubset(set(asset_codes))
+            or coverage_payload.get("extra_count") != 0
+            or coverage_payload.get("duplicate_count") != 0
+        ):
+            _fail("REHEARSAL_CAPACITY_COVERAGE_INVALID")
+        fact_count_key = "quote_fact_count" if key == "quote_coverage" else "valuation_fact_count"
+        if receipt.get(fact_count_key) != returned:
+            _fail("REHEARSAL_CAPACITY_COVERAGE_INVALID")
 
     receipt_started = _parse_datetime(
         receipt.get("started_at"), "REHEARSAL_CAPACITY_MEASUREMENT_INVALID"
@@ -860,6 +1290,17 @@ def _validate_capacity(
     database_limit = _require_positive_int(
         receipt, "database_connection_limit", "REHEARSAL_CAPACITY_MEASUREMENT_INVALID"
     )
+    if receipt.get("database_connection_scope") != "postgresql_cluster_all_databases":
+        _fail("REHEARSAL_CAPACITY_MEASUREMENT_INVALID")
+    if (
+        receipt.get("database_peak_measurement_method") != "sampled_pg_stat_activity_cluster_count"
+        or receipt.get("memory_peak_measurement_method") != "linux_proc_status_vmhwm"
+        or receipt.get("memory_limit_measurement_method") != "cgroup_effective_or_host_physical"
+    ):
+        _fail("REHEARSAL_CAPACITY_MEASUREMENT_INVALID")
+    _require_finite_number(
+        receipt, "sampling_interval_seconds", "REHEARSAL_CAPACITY_MEASUREMENT_INVALID"
+    )
     lock_wait = _require_finite_number(
         receipt,
         "max_lock_wait_seconds",
@@ -890,12 +1331,29 @@ def _validate_capacity(
         if report.get(key) is not derived:
             _fail("REHEARSAL_CAPACITY_DERIVATION_MISMATCH")
     derived_margin = min(1.0 - ratio for ratio in ratios.values())
+    governed_margin = _minimum_capacity_margin()
+    receipt_margin = _require_finite_number(
+        receipt,
+        "minimum_capacity_margin_ratio",
+        "REHEARSAL_CAPACITY_POLICY_INVALID",
+    )
+    if not math.isclose(receipt_margin, governed_margin, abs_tol=0.0) or (
+        derived_margin < governed_margin
+    ):
+        _fail("REHEARSAL_CAPACITY_MARGIN_INSUFFICIENT")
     margin = _require_finite_number(
         report, "capacity_margin_ratio", "REHEARSAL_CAPACITY_MARGIN_INVALID"
     )
     if not math.isclose(margin, derived_margin, rel_tol=1e-9, abs_tol=1e-9):
         _fail("REHEARSAL_CAPACITY_MARGIN_MISMATCH")
-    return tuple(cast(list[str], asset_codes))
+    return _ValidatedCapacityEvidence(
+        registered_asset_codes=tuple(cast(list[str], asset_codes)),
+        eligible_asset_codes=tuple(cast(list[str], eligible_codes)),
+        excluded_asset_codes=tuple(cast(list[str], excluded_codes)),
+        exclusion_reason=cast(str, receipt.get("exclusion_reason")),
+        exclusion_rule_version=cast(str, receipt.get("exclusion_rule_version")),
+        policy=policy,
+    )
 
 
 def _validate_isolated_write(
@@ -903,18 +1361,55 @@ def _validate_isolated_write(
     base: Path,
     *,
     expected_candidate: str,
+    expected_image_id: str,
     expected_date: str,
     expected_universe: str,
     expected_provider_digest: str,
 ) -> None:
+    _require_candidate_attestation(report)
     if report.get("database_scope") not in {"disposable", "isolated_staging"}:
         _fail("REHEARSAL_WRITE_SCOPE_INVALID")
-    _require_positive_int(report, "written_rows", "REHEARSAL_WRITE_NOT_EXERCISED")
+    written_rows = _require_positive_int(report, "written_rows", "REHEARSAL_WRITE_NOT_EXERCISED")
+    if written_rows != 4:
+        _fail("REHEARSAL_WRITE_COUNT_INVALID")
     _require_true(report, "publication_verified", "REHEARSAL_WRITE_INCOMPLETE")
+    _require_true(report, "readback_verified", "REHEARSAL_WRITE_INCOMPLETE")
+    _require_true(report, "tamper_guard_verified", "REHEARSAL_WRITE_INCOMPLETE")
     _require_true(report, "rollback_verified", "REHEARSAL_ROLLBACK_INCOMPLETE")
     residual = report.get("residual_rows")
     if type(residual) is not int or residual != 0:
         _fail("REHEARSAL_ROLLBACK_RESIDUAL")
+    identity_fields = (
+        "publication_id",
+        "publication_key",
+        "publication_hash",
+        "member_id",
+        "member_fact_pk",
+        "member_fact_content_hash",
+        "database_identity_sha256",
+        "catalog_seed_sha256",
+        "payload_evidence_mode",
+        "synthetic_payload_sha256",
+    )
+    if (
+        UUID_PATTERN.fullmatch(str(report.get("publication_id") or "")) is None
+        or UUID_PATTERN.fullmatch(str(report.get("member_id") or "")) is None
+        or report.get("publication_key") != "current"
+        or report.get("payload_evidence_mode") != "synthetic_isolated_writer_path"
+        or not isinstance(report.get("member_fact_pk"), str)
+        or not str(report.get("member_fact_pk")).strip()
+        or any(
+            SHA256_PATTERN.fullmatch(str(report.get(key) or "")) is None
+            for key in (
+                "publication_hash",
+                "member_fact_content_hash",
+                "database_identity_sha256",
+                "catalog_seed_sha256",
+                "synthetic_payload_sha256",
+            )
+        )
+    ):
+        _fail("REHEARSAL_WRITE_IDENTITY_INVALID")
     artifacts = report.get("write_artifacts")
     if not isinstance(artifacts, list) or not artifacts:
         _fail("REHEARSAL_WRITE_ARTIFACT_MISSING")
@@ -926,11 +1421,13 @@ def _validate_isolated_write(
             base, artifact_payload.get("path"), artifact_payload.get("sha256")
         )
         receipt = _read_json(receipt_path, "REHEARSAL_WRITE_RECEIPT_INVALID")
+        _require_candidate_attestation(receipt)
         if receipt.get("schema") != "release.isolated-write-receipt.v1":
             _fail("REHEARSAL_WRITE_RECEIPT_INVALID")
         _validate_receipt_identity(
             receipt,
             expected_candidate=expected_candidate,
+            expected_image_id=expected_image_id,
             expected_date=expected_date,
             expected_universe=expected_universe,
             expected_provider_digest=expected_provider_digest,
@@ -943,8 +1440,17 @@ def _validate_isolated_write(
             _fail("REHEARSAL_WRITE_RECEIPT_MISMATCH")
         if type(receipt_residual) is not int or receipt_residual != 0:
             _fail("REHEARSAL_ROLLBACK_RESIDUAL")
-        for key in ("publication_verified", "readback_verified", "rollback_verified"):
+        if any(receipt.get(key) != report.get(key) for key in identity_fields):
+            _fail("REHEARSAL_WRITE_RECEIPT_MISMATCH")
+        for key in (
+            "publication_verified",
+            "readback_verified",
+            "tamper_guard_verified",
+            "rollback_verified",
+        ):
             _require_true(receipt, key, "REHEARSAL_WRITE_RECEIPT_INCOMPLETE")
+            if receipt.get(key) is not report.get(key):
+                _fail("REHEARSAL_WRITE_RECEIPT_MISMATCH")
 
 
 def _validate_regression(
@@ -1051,6 +1557,7 @@ def validate_release_rehearsal(
     expected_target_date: str,
     expected_universe_sha256: str,
     expected_provider_identities_sha256: str,
+    expected_candidate_image_id: str,
     expected_github_repository: str,
     expected_github_run_id: int,
     max_age_hours: float,
@@ -1067,6 +1574,8 @@ def validate_release_rehearsal(
         _fail("REHEARSAL_EXPECTED_UNIVERSE_INVALID")
     if SHA256_PATTERN.fullmatch(expected_provider_identities_sha256) is None:
         _fail("REHEARSAL_EXPECTED_PROVIDER_INVALID")
+    if IMAGE_ID_PATTERN.fullmatch(expected_candidate_image_id) is None:
+        _fail("REHEARSAL_EXPECTED_IMAGE_INVALID")
     if (
         re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", expected_github_repository) is None
         or isinstance(expected_github_run_id, bool)
@@ -1082,6 +1591,14 @@ def validate_release_rehearsal(
     manifest = _read_json(manifest_path, "REHEARSAL_MANIFEST_INVALID")
     if manifest.get("schema") != "release.rehearsal-manifest.v1":
         _fail("REHEARSAL_MANIFEST_SCHEMA_INVALID")
+    if (
+        manifest.get("candidate_sha") != expected_candidate
+        or manifest.get("target_trade_date") != expected_target_date
+        or manifest.get("universe_sha256") != expected_universe_sha256
+        or manifest.get("provider_identities_sha256") != expected_provider_identities_sha256
+        or manifest.get("candidate_image_id") != expected_candidate_image_id
+    ):
+        _fail("REHEARSAL_MANIFEST_IDENTITY_MISMATCH")
     reports = manifest.get("reports")
     if not isinstance(reports, list) or len(reports) != len(REQUIRED_REPORT_SCHEMAS):
         _fail("REHEARSAL_REPORT_SET_INCOMPLETE")
@@ -1107,6 +1624,7 @@ def validate_release_rehearsal(
             report=report,
             kind=kind,
             expected_candidate=expected_candidate,
+            expected_image_id=expected_candidate_image_id,
             expected_date=expected_target_date,
             expected_universe=expected_universe_sha256,
             expected_provider_digest=expected_provider_identities_sha256,
@@ -1115,10 +1633,11 @@ def validate_release_rehearsal(
         )
         loaded_reports[kind] = report
         report_paths[kind] = report_path
-    expected_assets = _validate_capacity(
+    capacity = _validate_capacity(
         loaded_reports["full_universe_capacity"],
         report_paths["full_universe_capacity"].parent,
         expected_candidate=expected_candidate,
+        expected_image_id=expected_candidate_image_id,
         expected_date=expected_target_date,
         expected_universe=expected_universe_sha256,
         expected_provider_digest=expected_provider_identities_sha256,
@@ -1127,15 +1646,17 @@ def validate_release_rehearsal(
         loaded_reports["real_response_unit_replay"],
         report_paths["real_response_unit_replay"].parent,
         expected_candidate=expected_candidate,
+        expected_image_id=expected_candidate_image_id,
         expected_date=expected_target_date,
         expected_universe=expected_universe_sha256,
         expected_provider_digest=expected_provider_identities_sha256,
-        expected_assets=expected_assets,
+        capacity=capacity,
     )
     _validate_isolated_write(
         loaded_reports["isolated_write_rehearsal"],
         report_paths["isolated_write_rehearsal"].parent,
         expected_candidate=expected_candidate,
+        expected_image_id=expected_candidate_image_id,
         expected_date=expected_target_date,
         expected_universe=expected_universe_sha256,
         expected_provider_digest=expected_provider_identities_sha256,
@@ -1152,6 +1673,7 @@ def validate_release_rehearsal(
     return {
         "outcome": "success",
         "candidate_sha": expected_candidate,
+        "candidate_image_id": expected_candidate_image_id,
         "target_trade_date": expected_target_date,
         "universe_sha256": expected_universe_sha256,
         "validated_reports": sorted(REQUIRED_REPORT_SCHEMAS),
@@ -1166,6 +1688,7 @@ def main() -> int:
     parser.add_argument("--expected-target-date", required=True)
     parser.add_argument("--expected-universe-sha256", required=True)
     parser.add_argument("--expected-provider-identities-sha256", required=True)
+    parser.add_argument("--expected-candidate-image-id", required=True)
     parser.add_argument("--expected-github-repository", required=True)
     parser.add_argument("--expected-github-run-id", required=True, type=int)
     parser.add_argument("--max-age-hours", type=float, default=24.0)
@@ -1177,6 +1700,7 @@ def main() -> int:
             expected_target_date=args.expected_target_date,
             expected_universe_sha256=args.expected_universe_sha256,
             expected_provider_identities_sha256=args.expected_provider_identities_sha256,
+            expected_candidate_image_id=args.expected_candidate_image_id,
             expected_github_repository=args.expected_github_repository,
             expected_github_run_id=args.expected_github_run_id,
             max_age_hours=args.max_age_hours,

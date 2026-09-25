@@ -123,6 +123,69 @@ def test_normalize_source_commit_accepts_exact_lowercase_sha1() -> None:
 
 
 @pytest.mark.parametrize(
+    ("release_tag", "image_id", "rehearsal_sha256"),
+    [
+        ("", "", ""),
+        ("20260925010101", "sha256:" + "a" * 63, "b" * 64),
+        ("2026092501010x", "sha256:" + "a" * 64, "b" * 64),
+        ("20260925010101", "sha256:" + "a" * 64, "invalid"),
+    ],
+)
+def test_deploy_capable_remote_run_requires_complete_prebuilt_rehearsal_identity(
+    release_tag: str, image_id: str, rehearsal_sha256: str
+) -> None:
+    with pytest.raises(ValueError, match="Deploy-capable runs require"):
+        remote_build_deploy_vps._validate_prebuilt_deployment_inputs(
+            deploy_after_build=True,
+            release_tag=release_tag,
+            image_id=image_id,
+            rehearsal_sha256=rehearsal_sha256,
+            rehearsal_receipt="receipt.json",
+        )
+
+
+def test_deploy_capable_remote_run_accepts_exact_prebuilt_rehearsal_identity() -> None:
+    assert remote_build_deploy_vps._validate_prebuilt_deployment_inputs(
+        deploy_after_build=True,
+        release_tag="20260925010101",
+        image_id="sha256:" + "a" * 64,
+        rehearsal_sha256="b" * 64,
+        rehearsal_receipt="receipt.json",
+    )
+
+
+def test_prebuilt_receipt_binds_bundle_to_exact_deployment_inputs(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    image_id = "sha256:" + "a" * 64
+    digest = "b" * 64
+    monkeypatch.setattr(
+        remote_build_deploy_vps,
+        "verify_deployment_receipt",
+        lambda _path: {
+            "release_tag": "20260925010101",
+            "candidate_image_id": image_id,
+            "manifest_sha256": digest,
+        },
+    )
+
+    remote_build_deploy_vps._validate_prebuilt_rehearsal_receipt(
+        receipt_path=tmp_path / "receipt.json",
+        release_tag="20260925010101",
+        image_id=image_id,
+        rehearsal_sha256=digest,
+    )
+
+    with pytest.raises(ValueError, match="identity does not match"):
+        remote_build_deploy_vps._validate_prebuilt_rehearsal_receipt(
+            receipt_path=tmp_path / "receipt.json",
+            release_tag="20260925010102",
+            image_id=image_id,
+            rehearsal_sha256=digest,
+        )
+
+
+@pytest.mark.parametrize(
     ("builder_name", "source_mode"),
     [
         ("_build_remote_build_script", "source-upload"),
@@ -248,6 +311,8 @@ def test_remote_deploy_validates_manifest_and_image_before_any_start_or_switch()
     assert 'manifest["image_tag"] != expected_image_tag' in script
     assert 'image_id != manifest["image_id"]' in script
     assert 'image_revision != manifest["source_commit"]' in script
+    assert "rehearsal_image_id != image_id" in script
+    assert "release rehearsal manifest digest must be exact lowercase SHA-256" in script
     assert "release manifest must be read-only (0444)" in script
     assert script.index(validation) < script.index(first_start)
     assert script.index(validation) < script.index(final_start)
@@ -353,6 +418,8 @@ def test_one_click_deploy_requires_explicit_release_rehearsal_inputs() -> None:
     )
     required = (
         "$ReleaseRehearsalManifest",
+        "$PrebuiltReleaseTag",
+        "$PrebuiltImageId",
         "$RehearsalTargetDate",
         "$RehearsalUniverseSha256",
         "$RehearsalProviderIdentitiesSha256",
@@ -368,6 +435,26 @@ def test_one_click_deploy_requires_explicit_release_rehearsal_inputs() -> None:
     assert wrapper.index(validation) < wrapper.index("npm ci")
     assert wrapper.index(validation) < wrapper.index(password_creation)
     assert "Release rehearsal validation failed." in wrapper
+    assert "'--expected-candidate-image-id', $PrebuiltImageId" in wrapper
+    assert "'--prebuilt-image-id', $PrebuiltImageId" in wrapper
+    assert "'--release-rehearsal-sha256', $rehearsalManifestHash" in wrapper
+
+
+def test_remote_builder_reuses_only_the_rehearsed_prebuilt_image() -> None:
+    """Deployment must validate and reuse the exact image exercised by S6."""
+
+    source = (
+        Path(__file__).resolve().parents[2] / "scripts" / "remote_build_deploy_vps.py"
+    ).read_text(encoding="utf-8")
+
+    assert 'ap.add_argument("--prebuilt-release-tag"' in source
+    assert 'ap.add_argument("--prebuilt-image-id"' in source
+    assert 'ap.add_argument("--release-rehearsal-sha256"' in source
+    assert "Prebuilt candidate validation failed" in source
+    assert "actual_image_id != expected_image_id" in source
+    assert "actual_revision != source_commit" in source
+    assert '"REHEARSAL_IMAGE_ID": args.prebuilt_image_id' in source
+    assert '"RELEASE_REHEARSAL_SHA256": args.release_rehearsal_sha256' in source
 
 
 def test_remote_builder_rejects_candidate_drift_before_credentials() -> None:

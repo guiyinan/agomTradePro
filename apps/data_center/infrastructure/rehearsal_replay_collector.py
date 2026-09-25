@@ -6,7 +6,7 @@ import hashlib
 import json
 import math
 from collections.abc import Mapping
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal, cast
@@ -16,7 +16,10 @@ from apps.data_center.application.market_provider_rehearsal import (
     select_rehearsal_sample,
 )
 
-from .market_rehearsal_runner import market_rehearsal_source_digest
+from .market_rehearsal_runner import (
+    market_rehearsal_source_digest,
+    verify_candidate_release_image,
+)
 from .rehearsal_identity import parse_rehearsal_identities, rehearsal_identities_digest
 from .rehearsal_response_replay import (
     ReplayResponse,
@@ -28,6 +31,16 @@ from .rehearsal_response_store import RehearsalResponseContext, parse_validate_t
 
 Dataset = Literal["equity.quote.snapshot", "equity.valuation.fact"]
 DATASETS: tuple[Dataset, ...] = ("equity.quote.snapshot", "equity.valuation.fact")
+
+
+@dataclass(frozen=True)
+class _PolicyEvidence:
+    """Validated canonical publication policy bound to replay evidence."""
+
+    snapshot: dict[str, object]
+    identity: str
+    content_sha256: str
+    minimum_coverage_ratio: float
 
 
 def _object(value: object) -> dict[str, object]:
@@ -58,12 +71,84 @@ def _clock(value: str) -> datetime:
     return parsed.astimezone(UTC)
 
 
-def _strings(value: object) -> tuple[str, ...]:
-    if not isinstance(value, list) or not value:
+def _strings(value: object, *, allow_empty: bool = False) -> tuple[str, ...]:
+    if not isinstance(value, list) or (not value and not allow_empty):
         raise ValueError("REHEARSAL_REPLAY_SCOPE_INVALID")
     if any(not isinstance(item, str) or not item for item in value):
         raise ValueError("REHEARSAL_REPLAY_SCOPE_INVALID")
     return tuple(cast(list[str], value))
+
+
+def _policy_evidence(value: object) -> _PolicyEvidence:
+    """Validate canonical policy content, recompute its digest and derive its identity."""
+
+    snapshot = _object(value)
+    if set(snapshot) != {"content", "content_sha256", "identity"}:
+        raise ValueError("REHEARSAL_REPLAY_POLICY_INVALID")
+    content = _object(snapshot.get("content"))
+    expected_keys = {
+        "encoding",
+        "dataset_key",
+        "contract_version",
+        "schema_version",
+        "policy_version",
+        "minimum_coverage_ratio",
+        "allow_partial",
+        "conflict_action",
+        "required_evidence",
+        "retention_days",
+    }
+    ratio = content.get("minimum_coverage_ratio")
+    evidence = content.get("required_evidence")
+    version = content.get("policy_version")
+    contract_version = content.get("contract_version")
+    schema_version = content.get("schema_version")
+    if (
+        set(content) != expected_keys
+        or content.get("encoding") != "publication-policy-v1"
+        or content.get("dataset_key") != "equity.valuation.fact"
+        or not isinstance(contract_version, str)
+        or not contract_version.strip()
+        or not isinstance(schema_version, str)
+        or not schema_version.strip()
+        or not isinstance(version, str)
+        or not version
+        or len(version) > 40
+        or ":" in version
+        or any(character.isspace() for character in version)
+        or isinstance(ratio, bool)
+        or not isinstance(ratio, (int, float))
+        or not math.isfinite(float(ratio))
+        or not 0 <= float(ratio) <= 1
+        or type(content.get("allow_partial")) is not bool
+        or content.get("conflict_action") not in {"block", "quarantine", "prefer_governed_source"}
+        or not isinstance(evidence, list)
+        or not evidence
+        or any(not isinstance(item, str) or not item.strip() for item in evidence)
+        or len(evidence) != len(set(evidence))
+        or type(content.get("retention_days")) is not int
+        or cast(int, content.get("retention_days")) <= 0
+    ):
+        raise ValueError("REHEARSAL_REPLAY_POLICY_INVALID")
+    canonical = json.dumps(
+        content,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    digest = hashlib.sha256(canonical).hexdigest()
+    identity = (
+        f"{contract_version}:{schema_version}" if version == "legacy" else f"p2:{version}:{digest}"
+    )
+    if snapshot.get("content_sha256") != digest or snapshot.get("identity") != identity:
+        raise ValueError("REHEARSAL_REPLAY_POLICY_INVALID")
+    return _PolicyEvidence(
+        snapshot=snapshot,
+        identity=identity,
+        content_sha256=digest,
+        minimum_coverage_ratio=float(ratio),
+    )
 
 
 def _resolve_body(root: Path, relative: str) -> Path:
@@ -221,6 +306,9 @@ def collect_response_replay(
     probe = _object(json.loads(probe_bytes))
     units = _object(json.loads(unit_bytes))
     source_digest = market_rehearsal_source_digest(source_root)
+    source_attestation, candidate_image_id = verify_candidate_release_image(
+        source_root, candidate_sha
+    )
     if (
         probe.get("schema") != "market.provider-rehearsal.v1"
         or probe.get("outcome") != "success"
@@ -229,6 +317,8 @@ def collect_response_replay(
         or probe.get("response_retention_enabled") is not True
         or probe.get("source_unchanged") is not True
         or probe.get("source_tree_sha256") != source_digest
+        or probe.get("candidate_source_attestation") != source_attestation
+        or probe.get("candidate_image_id") != candidate_image_id
         or probe.get("candidate_sha") != candidate_sha
         or probe.get("target_trade_date") != target_trade_date
         or type(probe.get("stored")) is not int
@@ -245,7 +335,32 @@ def collect_response_replay(
     if universe != tuple(sorted(set(universe))) or probe.get("universe_count") != len(universe):
         raise ValueError("REHEARSAL_REPLAY_SCOPE_INVALID")
     universe_digest = rehearsal_digest(universe)
-    sample = select_rehearsal_sample(universe)
+    eligible = _strings(probe.get("eligible_asset_codes"))
+    excluded = _strings(probe.get("excluded_asset_codes"), allow_empty=True)
+    policy = _policy_evidence(probe.get("valuation_policy_snapshot"))
+    minimum_ratio = probe.get("valuation_minimum_coverage_ratio")
+    if (
+        eligible != tuple(sorted(set(eligible)))
+        or excluded != tuple(sorted(set(excluded)))
+        or set(eligible) & set(excluded)
+        or tuple(sorted((*eligible, *excluded))) != universe
+        or probe.get("eligible_asset_count") != len(eligible)
+        or probe.get("excluded_asset_count") != len(excluded)
+        or probe.get("exclusion_reason") != "valuation_not_returned_for_target_session"
+        or probe.get("exclusion_rule_version") != "valuation-target-session-v1"
+        or probe.get("valuation_policy_identity") != policy.identity
+        or probe.get("valuation_policy_sha256") != policy.content_sha256
+        or isinstance(minimum_ratio, bool)
+        or not isinstance(minimum_ratio, (int, float))
+        or float(minimum_ratio) != policy.minimum_coverage_ratio
+        or not eligible
+        or len(eligible) / len(universe) < float(minimum_ratio)
+    ):
+        raise ValueError("REHEARSAL_REPLAY_ELIGIBLE_SCOPE_INVALID")
+    sample_size = probe.get("sample_size")
+    if isinstance(sample_size, bool) or not isinstance(sample_size, int):
+        raise ValueError("REHEARSAL_REPLAY_SCOPE_INVALID")
+    sample = select_rehearsal_sample(eligible, sample_size)
     if (
         probe.get("universe_sha256") != universe_digest
         or _strings(probe.get("sample")) != sample
@@ -337,7 +452,7 @@ def collect_response_replay(
             provider_source=identity.source,
             endpoint_id=identity.endpoint_id,
             dataset=dataset,
-            sample_codes=sample,
+            sample_codes=universe if dataset == "equity.valuation.fact" else sample,
         )
         if ref.get("schema") != "release.provider-response-artifact-ref.v1" or any(
             ref.get(key) != (list(expected) if isinstance(expected, tuple) else expected)
@@ -421,12 +536,27 @@ def collect_response_replay(
         or _read(unit_contract_path, 64_000) != unit_bytes
     ):
         raise ValueError("REHEARSAL_REPLAY_SOURCE_CHANGED")
+    final_attestation, final_image_id = verify_candidate_release_image(source_root, candidate_sha)
+    if final_attestation != source_attestation or final_image_id != candidate_image_id:
+        raise ValueError("REHEARSAL_CANDIDATE_IMAGE_CHANGED")
     output_dir.mkdir(parents=True, exist_ok=False)
     common: dict[str, object] = {
         "candidate_sha": candidate_sha,
+        "candidate_image_id": candidate_image_id,
+        "candidate_source_attestation": source_attestation,
         "target_trade_date": target_trade_date,
         "universe_sha256": universe_digest,
         "provider_identities_sha256": identity_digest,
+        "eligible_asset_count": len(eligible),
+        "eligible_asset_codes": list(eligible),
+        "excluded_asset_count": len(excluded),
+        "excluded_asset_codes": list(excluded),
+        "exclusion_reason": probe.get("exclusion_reason"),
+        "exclusion_rule_version": probe.get("exclusion_rule_version"),
+        "valuation_policy_identity": policy.identity,
+        "valuation_policy_sha256": policy.content_sha256,
+        "valuation_policy_snapshot": policy.snapshot,
+        "valuation_minimum_coverage_ratio": policy.minimum_coverage_ratio,
         "outcome": "success",
     }
     receipt_refs: list[dict[str, str]] = []
@@ -434,7 +564,7 @@ def collect_response_replay(
         role = "quote" if dataset == "equity.quote.snapshot" else "valuation"
         identity = identities_by_role[role]
         operation = "daily" if role == "quote" else "daily_basic"
-        response_scope = "requested_asset_history" if role == "quote" else "full_market_trade_date"
+        response_scope = "full_market_trade_date"
         references: list[dict[str, object]] = []
         for name, body, body_hash in retained[dataset]:
             (output_dir / name).parent.mkdir(parents=True, exist_ok=True)
@@ -484,10 +614,15 @@ def collect_response_replay(
         "evidence_mode": "real_provider",
         "provider_identities": [asdict(identity) for identity in identities],
         "source_tree_sha256": source_digest,
+        "candidate_source_attestation": source_attestation,
         "started_at": started.isoformat(),
         "finished_at": finished.isoformat(),
         "replayed_at": datetime.now(UTC).isoformat(),
         "probe_sha256": expected_probe_sha256,
+        "probe_capture": {
+            "path": "probe-capture.json",
+            "sha256": expected_probe_sha256,
+        },
         "unit_contract_sha256": expected_unit_contract_sha256,
         "units_verified": True,
         "source_time_verified": True,

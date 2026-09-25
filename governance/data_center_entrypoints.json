@@ -11,32 +11,32 @@
       "compatibility_facade": 94,
       "current_data_surface": 70,
       "dynamic_import_edge": 12,
-      "management_command": 34,
+      "management_command": 36,
       "management_command_edge": 58,
       "mcp_tool": 40,
       "migration_evidence": 14,
-      "operational_dispatch_edge": 64,
-      "operational_script": 30,
-      "orchestration_entry": 9,
+      "operational_dispatch_edge": 65,
+      "operational_script": 31,
+      "orchestration_entry": 13,
       "public_port": 93,
       "rest_url": 72,
       "runbook": 7,
       "runtime_config_key": 45,
       "scheduler_writer": 18,
-      "script": 10,
+      "script": 11,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 74,
+      "test_evidence": 75,
       "workflow_step": 10
     },
     "by_status": {
-      "active_public": 785,
+      "active_public": 791,
       "adjacent_operational": 327,
-      "candidate-review": 0,
+      "candidate-review": 4,
       "compatibility": 137,
       "retired_blocked": 0
     },
-    "total": 1249
+    "total": 1259
   },
   "entries": [
     {
@@ -2782,8 +2782,8 @@
     {
       "category": "celery_dispatch_edge",
       "evidence": "statically resolved Celery task dispatch",
-      "id": "celery_dispatch_edge:apps/data_center/application/tasks.py:apply_async:line:746",
-      "locator": "line:746",
+      "id": "celery_dispatch_edge:apps/data_center/application/tasks.py:apply_async:line:751",
+      "locator": "line:751",
       "path": "apps/data_center/application/tasks.py",
       "status": "adjacent_operational",
       "symbol": "apply_async",
@@ -6092,6 +6092,26 @@
     {
       "category": "management_command",
       "evidence": "Data Center-owned Django command",
+      "id": "management_command:apps/data_center/management/commands/rehearse_full_universe_capacity.py:rehearse_full_universe_capacity:",
+      "locator": "",
+      "path": "apps/data_center/management/commands/rehearse_full_universe_capacity.py",
+      "status": "active_public",
+      "symbol": "rehearse_full_universe_capacity",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "Data Center-owned Django command",
+      "id": "management_command:apps/data_center/management/commands/rehearse_isolated_publication_write.py:rehearse_isolated_publication_write:",
+      "locator": "",
+      "path": "apps/data_center/management/commands/rehearse_isolated_publication_write.py",
+      "status": "active_public",
+      "symbol": "rehearse_isolated_publication_write",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "Data Center-owned Django command",
       "id": "management_command:apps/data_center/management/commands/rehearse_market_providers.py:rehearse_market_providers:",
       "locator": "",
       "path": "apps/data_center/management/commands/rehearse_market_providers.py",
@@ -7821,6 +7841,16 @@
     },
     {
       "category": "operational_dispatch_edge",
+      "evidence": "static operational dispatch token discovery; governance review required",
+      "id": "operational_dispatch_edge:scripts/run_release_rehearsal.py:remote_build_deploy_vps.py:token:remote_build_deploy_vps.py",
+      "locator": "token:remote_build_deploy_vps.py",
+      "path": "scripts/run_release_rehearsal.py",
+      "status": "candidate-review",
+      "symbol": "remote_build_deploy_vps.py",
+      "target": "scripts/remote_build_deploy_vps.py"
+    },
+    {
+      "category": "operational_dispatch_edge",
       "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/select_tests.py:deploy-on-vps.sh:token:deploy-on-vps.sh",
       "locator": "token:deploy-on-vps.sh",
@@ -8221,6 +8251,16 @@
     },
     {
       "category": "operational_script",
+      "evidence": "static operational command token discovery; governance review required",
+      "id": "operational_script:scripts/run_release_rehearsal.py:__main__:",
+      "locator": "",
+      "path": "scripts/run_release_rehearsal.py",
+      "status": "candidate-review",
+      "symbol": "__main__",
+      "target": "scripts/remote_build_deploy_vps.py"
+    },
+    {
+      "category": "operational_script",
       "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_script:scripts/select_tests.py:__main__:",
       "locator": "",
@@ -8342,8 +8382,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:init_macro_indicator_governance:line:1959",
-      "locator": "line:1959",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:init_macro_indicator_governance:line:2013",
+      "locator": "line:2013",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "init_macro_indicator_governance",
@@ -8352,8 +8392,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:initialize_data_center_catalog:line:1909",
-      "locator": "line:1909",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:initialize_data_center_catalog:line:1963",
+      "locator": "line:1963",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "initialize_data_center_catalog",
@@ -8362,8 +8402,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:normalize_macro_fact_units:line:1959",
-      "locator": "line:1959",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:normalize_macro_fact_units:line:2013",
+      "locator": "line:2013",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "normalize_macro_fact_units",
@@ -8372,11 +8412,51 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:verify_canonical_schema:line:1901",
-      "locator": "line:1901",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:verify_canonical_schema:line:1955",
+      "locator": "line:1955",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "verify_canonical_schema",
+      "target": ""
+    },
+    {
+      "category": "orchestration_entry",
+      "evidence": "script/workflow delegates to a governed Django command",
+      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_full_universe_capacity:line:567",
+      "locator": "line:567",
+      "path": "scripts/run_release_rehearsal.py",
+      "status": "active_public",
+      "symbol": "rehearse_full_universe_capacity",
+      "target": ""
+    },
+    {
+      "category": "orchestration_entry",
+      "evidence": "script/workflow delegates to a governed Django command",
+      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_isolated_publication_write:line:593",
+      "locator": "line:593",
+      "path": "scripts/run_release_rehearsal.py",
+      "status": "active_public",
+      "symbol": "rehearse_isolated_publication_write",
+      "target": ""
+    },
+    {
+      "category": "orchestration_entry",
+      "evidence": "script/workflow delegates to a governed Django command",
+      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_market_providers:line:525",
+      "locator": "line:525",
+      "path": "scripts/run_release_rehearsal.py",
+      "status": "active_public",
+      "symbol": "rehearse_market_providers",
+      "target": ""
+    },
+    {
+      "category": "orchestration_entry",
+      "evidence": "script/workflow delegates to a governed Django command",
+      "id": "orchestration_entry:scripts/run_release_rehearsal.py:replay_market_provider_responses:line:549",
+      "locator": "line:549",
+      "path": "scripts/run_release_rehearsal.py",
+      "status": "active_public",
+      "symbol": "replay_market_provider_responses",
       "target": ""
     },
     {
@@ -10831,6 +10911,16 @@
     },
     {
       "category": "script",
+      "evidence": "static Data Center reference; explicit owner review required",
+      "id": "script:scripts/run_release_rehearsal.py:__main__:",
+      "locator": "",
+      "path": "scripts/run_release_rehearsal.py",
+      "status": "candidate-review",
+      "symbol": "__main__",
+      "target": ""
+    },
+    {
+      "category": "script",
       "evidence": "Data Center governance/measurement tooling",
       "id": "script:scripts/verify_postgres_backup_restore.py:__main__:",
       "locator": "",
@@ -12237,6 +12327,16 @@
       "path": "tests/unit/data_center/test_financial_source_time_retention.py",
       "status": "active_public",
       "symbol": "test_financial_source_time_retention",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/unit/data_center/test_isolated_write_rehearsal_runner.py:test_isolated_write_rehearsal_runner:",
+      "locator": "",
+      "path": "tests/unit/data_center/test_isolated_write_rehearsal_runner.py",
+      "status": "candidate-review",
+      "symbol": "test_isolated_write_rehearsal_runner",
       "target": ""
     },
     {

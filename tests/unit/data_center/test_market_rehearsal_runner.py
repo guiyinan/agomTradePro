@@ -1,6 +1,7 @@
 """Rehearsal artifacts must stay source-bound, read-only and safely blocked."""
 
 import json
+import subprocess
 from contextlib import contextmanager
 from datetime import UTC, date, datetime, timedelta
 from io import StringIO
@@ -10,9 +11,11 @@ import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
-from apps.data_center.domain.entities import QuoteSnapshot
+from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
+from apps.data_center.domain.entities import QuoteSnapshot, ValuationFact
 from apps.data_center.infrastructure import market_rehearsal_runner as runner
 from apps.data_center.infrastructure.rehearsal_http_capture import RehearsalHttpCapture
+from apps.data_center.infrastructure.rehearsal_identity import RehearsalProviderIdentity
 
 
 def test_probe_without_real_response_receipt_cannot_pass() -> None:
@@ -58,6 +61,52 @@ def test_source_digest_binds_actual_files_and_rejects_missing_tree(tmp_path) -> 
     assert digest == runner.market_rehearsal_source_digest(tmp_path)
     (tmp_path / "apps/source.py").write_text("x = 2\n")
     assert digest != runner.market_rehearsal_source_digest(tmp_path)
+
+
+def test_image_candidate_requires_release_manifest_and_runtime_image(tmp_path, monkeypatch) -> None:
+    candidate = "a" * 40
+    image_id = f"sha256:{'b' * 64}"
+    (tmp_path / ".agom-build-identity.json").write_text(
+        json.dumps({"source_commit": candidate}), encoding="utf-8"
+    )
+    with pytest.raises(ValueError, match="UNATTESTED"):
+        runner.verify_candidate_source(tmp_path, candidate)
+
+    manifest = tmp_path / ".agom-release-manifest.json"
+    manifest.write_text(
+        json.dumps({"source_commit": candidate, "image_id": image_id}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("AGOM_RELEASE_MANIFEST_PATH", str(manifest))
+    monkeypatch.setenv("AGOM_CANDIDATE_IMAGE_ID", image_id)
+    assert runner.verify_candidate_source(tmp_path, candidate) == "image_release_manifest"
+
+    monkeypatch.setenv("AGOM_CANDIDATE_IMAGE_ID", f"sha256:{'c' * 64}")
+    with pytest.raises(ValueError, match="MISMATCH"):
+        runner.verify_candidate_source(tmp_path, candidate)
+
+
+def test_git_candidate_rejects_untracked_source(tmp_path) -> None:
+    for name in ("apps", "core", "shared"):
+        (tmp_path / name).mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "rehearsal@example.invalid"],
+        cwd=tmp_path,
+        check=True,
+    )
+    subprocess.run(["git", "config", "user.name", "Rehearsal"], cwd=tmp_path, check=True)
+    tracked = tmp_path / "tracked.txt"
+    tracked.write_text("tracked\n", encoding="utf-8")
+    subprocess.run(["git", "add", "tracked.txt"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "fixture"], cwd=tmp_path, check=True)
+    candidate = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=tmp_path, check=True, capture_output=True, text=True
+    ).stdout.strip()
+    (tmp_path / "apps" / "untracked.py").write_text("x = 1\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="DIRTY"):
+        runner.verify_candidate_source(tmp_path, candidate)
 
 
 def test_invalid_candidate_sha_is_rejected_before_database_or_provider(tmp_path) -> None:
@@ -116,6 +165,11 @@ def test_calendar_resolution_runs_inside_total_transport_budget(tmp_path, monkey
     monkeypatch.setattr(runner, "latest_completed_cn_market_session", resolve_calendar)
     monkeypatch.setattr(runner, "list_active_stock_codes_for_backfill", lambda: ["600000.SH"])
     monkeypatch.setattr(runner, "market_rehearsal_source_digest", lambda _root: "d" * 64)
+    monkeypatch.setattr(
+        runner,
+        "verify_candidate_release_image",
+        lambda _root, _sha: ("image_release_manifest", f"sha256:{'b' * 64}"),
+    )
     monkeypatch.setattr(runner.time, "monotonic", lambda: 1.0)
 
     report = runner.run_market_provider_rehearsal(
@@ -136,10 +190,187 @@ def test_calendar_resolution_runs_inside_total_transport_budget(tmp_path, monkey
     }
 
 
+def test_probe_uses_registered_valuation_scope_and_disjoint_eligible_quote_receipts(
+    tmp_path, monkeypatch
+) -> None:
+    target = date(2026, 9, 24)
+    registered = ("000001.SZ", "600000.SH", "600001.SH")
+    observed = datetime(2026, 9, 24, 7, tzinfo=UTC)
+    contexts = []
+
+    class Cursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def execute(self, *_args):
+            return None
+
+    @contextmanager
+    def atomic():
+        yield
+
+    class Capture:
+        active = None
+
+        def __init__(self, **_kwargs):
+            self.receipts = []
+            self.started = runner.time.monotonic()
+            self.context = None
+
+        def __enter__(self):
+            Capture.active = self
+            return self
+
+        def __exit__(self, *_args):
+            Capture.active = None
+
+        @contextmanager
+        def provider_probe(self, context):
+            previous = self.context
+            self.context = context
+            if context is not None:
+                contexts.append(context)
+            try:
+                yield
+            finally:
+                self.context = previous
+
+        def add_receipt(self, body_hash):
+            self.receipts.append(
+                SimpleNamespace(
+                    status_code=200,
+                    body_bytes=10,
+                    error_code="",
+                    body_sha256=body_hash,
+                    response_artifact={"retained": True},
+                )
+            )
+
+        def to_dict(self):
+            return {"dispatch_count": len(self.receipts), "receipts": []}
+
+    class Provider:
+        def provider_source(self):
+            return "tushare"
+
+        def fetch_current_valuations(self, asset_codes, as_of_date):
+            assert tuple(asset_codes) == registered
+            assert as_of_date == target
+            body_hash = "a" * 64
+            Capture.active.add_receipt(body_hash)
+            now = datetime.now(UTC)
+            return [
+                ValuationFact(
+                    asset_code=code,
+                    val_date=target,
+                    source="tushare",
+                    observed_at=observed,
+                    available_at=now,
+                    fetched_at=now,
+                    source_record_id=f"scope:{code}",
+                    raw_payload_hash=body_hash,
+                )
+                for code in registered[:2]
+            ]
+
+        def fetch_quote_snapshots_for_session(self, asset_codes, target_trade_date):
+            assert tuple(asset_codes) == registered[:2]
+            assert target_trade_date == target
+            Capture.active.add_receipt("b" * 64)
+            now = datetime.now(UTC)
+            return [
+                QuoteSnapshot(
+                    asset_code=code,
+                    snapshot_at=observed,
+                    current_price=10.0,
+                    source="tushare",
+                    fetched_at=now,
+                    volume=100.0,
+                    amount=1000.0,
+                )
+                for code in asset_codes
+            ]
+
+    policy = PublicationPolicy(
+        dataset=DatasetKey("equity.valuation.fact", "1.0", "1.0"),
+        minimum_coverage_ratio=0.5,
+        allow_partial=True,
+        conflict_action="block",
+        required_evidence=("source",),
+        retention_days=30,
+        policy_version="fixture",
+    )
+    from apps.data_center.infrastructure import publication_policy_repository
+
+    monkeypatch.setattr(
+        runner,
+        "connection",
+        SimpleNamespace(vendor="postgresql", in_atomic_block=False, cursor=lambda: Cursor()),
+    )
+    monkeypatch.setattr(runner.transaction, "atomic", atomic)
+    monkeypatch.setattr(runner, "RehearsalHttpCapture", Capture)
+    monkeypatch.setattr(runner, "latest_completed_cn_market_session", lambda _now: target)
+    monkeypatch.setattr(runner, "list_active_stock_codes_for_backfill", lambda: list(registered))
+    monkeypatch.setattr(
+        runner,
+        "get_provider_registry",
+        lambda: SimpleNamespace(get_by_id=lambda _provider_id: Provider()),
+    )
+    monkeypatch.setattr(runner, "market_rehearsal_source_digest", lambda _root: "d" * 64)
+    monkeypatch.setattr(
+        runner,
+        "verify_candidate_release_image",
+        lambda _root, _sha: ("image_release_manifest", f"sha256:{'b' * 64}"),
+    )
+    monkeypatch.setattr(
+        publication_policy_repository,
+        "PublicationPolicyRepository",
+        lambda: SimpleNamespace(get_active=lambda _dataset: policy),
+    )
+    identities = (
+        RehearsalProviderIdentity(
+            role="quote", provider_id=1, source="tushare", version="v1", endpoint_id="relay"
+        ),
+        RehearsalProviderIdentity(
+            role="valuation",
+            provider_id=2,
+            source="tushare",
+            version="v1",
+            endpoint_id="relay",
+        ),
+    )
+    response_root = tmp_path / "responses"
+    response_root.mkdir()
+
+    report = runner.run_market_provider_rehearsal(
+        quote_provider_id=1,
+        valuation_provider_id=2,
+        candidate_sha="c" * 40,
+        source_root=tmp_path,
+        sample_size=2,
+        response_evidence_root=response_root,
+        provider_identities=identities,
+    )
+
+    assert report["outcome"] == "success"
+    assert report["eligible_asset_codes"] == list(registered[:2])
+    assert report["excluded_asset_codes"] == [registered[2]]
+    probes = {probe["dataset"]: probe for probe in report["probes"]}
+    assert probes["equity.valuation.fact"]["receipt_indexes"] == [0]
+    assert probes["equity.quote.snapshot"]["receipt_indexes"] == [1]
+    assert contexts[0].sample_codes == registered
+    assert contexts[-1].sample_codes == registered[:2]
+
+
 def _command_args(destination):
     return [
         "--candidate-sha",
         "a" * 40,
+        "--target-trade-date",
+        "2026-09-24",
         "--quote-provider-id",
         "1",
         "--valuation-provider-id",

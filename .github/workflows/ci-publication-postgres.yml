@@ -36,16 +36,16 @@ jobs:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_DB: evid06_authority_test
+          POSTGRES_DB: agom_release_rehearsal_ci
           POSTGRES_USER: contract_test
           POSTGRES_PASSWORD: disposable_ci_only
         ports: ['5432:5432']
         options: >-
-          --health-cmd "pg_isready -U contract_test -d evid06_authority_test"
+          --health-cmd "pg_isready -U contract_test -d agom_release_rehearsal_ci"
           --health-interval 5s --health-timeout 5s --health-retries 12
     env:
       AGOM_EVID06_POSTGRES_TEST: '1'
-      AGOM_EVID06_POSTGRES_TEST_DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/evid06_authority_test
+      AGOM_EVID06_POSTGRES_TEST_DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/agom_release_rehearsal_ci
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -66,7 +66,7 @@ jobs:
           -q -o addopts='' --junitxml=publication-postgres.xml
       - name: Exercise PostgreSQL backfill control plane
         env:
-          DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/evid06_authority_test
+          DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/agom_release_rehearsal_ci
           DJANGO_SETTINGS_MODULE: core.settings.development
           SECRET_KEY: publication-postgres-control-plane-secret-key
           ALLOWED_HOSTS: localhost,127.0.0.1,testserver

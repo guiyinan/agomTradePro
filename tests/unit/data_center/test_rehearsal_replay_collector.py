@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[3]
 PREFIX = "_offline_replay_collector_test"
 DATE = "2026-09-24"
 CANDIDATE = "a" * 40
+IMAGE_ID = f"sha256:{'d' * 64}"
 SAMPLE = ("000001.SZ", "600000.SH")
 FINISHED = datetime(2026, 9, 24, 8, 0, 1, tzinfo=UTC)
 NORMALIZED = datetime(2026, 9, 24, 8, 0, 1, 1000, tzinfo=UTC)
@@ -107,6 +108,29 @@ def _contracts(modules, dataset):
     )
 
 
+def _policy_evidence():
+    content = {
+        "encoding": "publication-policy-v1",
+        "dataset_key": "equity.valuation.fact",
+        "contract_version": "1.0",
+        "schema_version": "1.0",
+        "policy_version": "fixture",
+        "minimum_coverage_ratio": 0.5,
+        "allow_partial": True,
+        "conflict_action": "block",
+        "required_evidence": ["source"],
+        "retention_days": 30,
+    }
+    content_hash = hashlib.sha256(
+        json.dumps(content, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    return {
+        "content": content,
+        "content_sha256": content_hash,
+        "identity": f"p2:fixture:{content_hash}",
+    }
+
+
 @pytest.mark.parametrize("dataset", ["equity.quote.snapshot", "equity.valuation.fact"])
 def test_actual_parser_replay_runs_seven_cases_with_superset_body(modules, dataset):
     replay = modules["rehearsal_response_replay"]
@@ -183,7 +207,7 @@ def test_quote_replay_rejects_missing_volume_and_amount_witnesses(modules):
         replay.replay_retained_dataset([response], _contracts(modules, "equity.quote.snapshot"))
 
 
-def _fixture(modules, tmp_path):
+def _fixture(modules, tmp_path, monkeypatch):
     collector = modules["rehearsal_replay_collector"]
     source = tmp_path / "source"
     source.mkdir()
@@ -192,6 +216,14 @@ def _fixture(modules, tmp_path):
         (source / name / "fixture.py").write_text("# synthetic source fixture\n")
     for name in ("pyproject.toml", "requirements-prod.txt"):
         (source / name).write_text("# synthetic manifest\n")
+    (source / ".agom-build-identity.json").write_text(
+        json.dumps({"schema_version": 1, "source_commit": CANDIDATE}) + "\n"
+    )
+    image_id = IMAGE_ID
+    manifest = source / ".agom-release-manifest.json"
+    manifest.write_text(json.dumps({"source_commit": CANDIDATE, "image_id": image_id}) + "\n")
+    monkeypatch.setenv("AGOM_RELEASE_MANIFEST_PATH", str(manifest))
+    monkeypatch.setenv("AGOM_CANDIDATE_IMAGE_ID", image_id)
     capture = tmp_path / "capture"
     capture.mkdir()
     store = modules["rehearsal_response_store"].RehearsalResponseStore(
@@ -263,6 +295,7 @@ def _fixture(modules, tmp_path):
         )
     identities = _identities(modules)
     digest = modules["rehearsal_identity"].rehearsal_identities_digest(identities)
+    policy = _policy_evidence()
     probe = {
         "schema": "market.provider-rehearsal.v1",
         "outcome": "success",
@@ -271,6 +304,8 @@ def _fixture(modules, tmp_path):
         "response_retention_enabled": True,
         "source_unchanged": True,
         "source_tree_sha256": collector.market_rehearsal_source_digest(source),
+        "candidate_source_attestation": "image_release_manifest",
+        "candidate_image_id": image_id,
         "candidate_sha": CANDIDATE,
         "target_trade_date": DATE,
         "stored": 0,
@@ -280,8 +315,19 @@ def _fixture(modules, tmp_path):
         "asset_codes": list(SAMPLE),
         "universe_count": len(SAMPLE),
         "universe_sha256": collector.rehearsal_digest(SAMPLE),
+        "eligible_asset_codes": list(SAMPLE),
+        "eligible_asset_count": len(SAMPLE),
+        "excluded_asset_codes": [],
+        "excluded_asset_count": 0,
+        "exclusion_reason": "valuation_not_returned_for_target_session",
+        "exclusion_rule_version": "valuation-target-session-v1",
+        "valuation_policy_identity": policy["identity"],
+        "valuation_policy_sha256": policy["content_sha256"],
+        "valuation_policy_snapshot": policy,
+        "valuation_minimum_coverage_ratio": 0.5,
         "sample": list(SAMPLE),
         "sample_sha256": collector.rehearsal_digest(SAMPLE),
+        "sample_size": len(SAMPLE),
         "probes": probes,
         "started_at": "2026-09-24T08:00:00+00:00",
         "finished_at": "2026-09-24T08:00:02+00:00",
@@ -314,12 +360,12 @@ def _fixture(modules, tmp_path):
 
 
 def test_collector_preserves_exact_bytes_and_passes_existing_release_receipt_validator(
-    modules, tmp_path
+    modules, tmp_path, monkeypatch
 ):
     from scripts import validate_release_rehearsal as validator
 
     collector = modules["rehearsal_replay_collector"]
-    kwargs, probe = _fixture(modules, tmp_path)
+    kwargs, probe = _fixture(modules, tmp_path, monkeypatch)
     result = collector.collect_response_replay(**kwargs)
     assert result["outcome"] == "success"
     assert result["replay_case_count"] == 14
@@ -331,10 +377,18 @@ def test_collector_preserves_exact_bytes_and_passes_existing_release_receipt_val
         result,
         kwargs["output_dir"],
         expected_candidate=CANDIDATE,
+        expected_image_id=IMAGE_ID,
         expected_date=DATE,
         expected_universe=probe["universe_sha256"],
         expected_provider_digest=probe["provider_identities_sha256"],
-        expected_assets=SAMPLE,
+        capacity=validator._ValidatedCapacityEvidence(
+            registered_asset_codes=SAMPLE,
+            eligible_asset_codes=SAMPLE,
+            excluded_asset_codes=(),
+            exclusion_reason="valuation_not_returned_for_target_session",
+            exclusion_rule_version="valuation-target-session-v1",
+            policy=validator._validated_policy_evidence(probe["valuation_policy_snapshot"]),
+        ),
     )
     quote_receipt = json.loads(
         (kwargs["output_dir"] / "quote-replay.json").read_text(encoding="utf-8")
@@ -363,9 +417,9 @@ def test_collector_preserves_exact_bytes_and_passes_existing_release_receipt_val
         "output_exists",
     ],
 )
-def test_collector_failures_never_write_success_report(modules, tmp_path, failure):
+def test_collector_failures_never_write_success_report(modules, tmp_path, monkeypatch, failure):
     collector = modules["rehearsal_replay_collector"]
-    kwargs, probe = _fixture(modules, tmp_path)
+    kwargs, probe = _fixture(modules, tmp_path, monkeypatch)
     if failure == "candidate":
         kwargs["candidate_sha"] = "c" * 40
     elif failure == "date":

@@ -26,6 +26,7 @@ def _load_module():
 
 validator = _load_module()
 CANDIDATE = "a" * 40
+IMAGE_ID = "sha256:" + "f" * 64
 ASSET_CODES = ["000001.SZ", "600000.SH", "830001.BJ"]
 UNIVERSE = hashlib.sha256(
     json.dumps(ASSET_CODES, sort_keys=True, separators=(",", ":")).encode()
@@ -52,6 +53,28 @@ PROVIDERS = [
 PROVIDER_DIGEST = hashlib.sha256(
     json.dumps(PROVIDERS, sort_keys=True, separators=(",", ":")).encode()
 ).hexdigest()
+POLICY_CONTENT = {
+    "encoding": "publication-policy-v1",
+    "dataset_key": "equity.valuation.fact",
+    "contract_version": "1.0",
+    "schema_version": "1.0",
+    "policy_version": "production",
+    "minimum_coverage_ratio": 0.95,
+    "allow_partial": False,
+    "conflict_action": "block",
+    "required_evidence": ["source"],
+    "retention_days": 30,
+}
+POLICY_SHA256 = hashlib.sha256(
+    json.dumps(
+        POLICY_CONTENT, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
+    ).encode("utf-8")
+).hexdigest()
+POLICY_EVIDENCE = {
+    "content": POLICY_CONTENT,
+    "content_sha256": POLICY_SHA256,
+    "identity": f"p2:production:{POLICY_SHA256}",
+}
 
 
 OFFICIAL_JUNIT_FILES: dict[str, bytes] = {}
@@ -134,6 +157,8 @@ def _common(kind: str, now: datetime) -> dict[str, Any]:
         "universe_sha256": UNIVERSE,
         "provider_identities": PROVIDERS,
         "outcome": "success",
+        "candidate_source_attestation": "image_release_manifest",
+        "candidate_image_id": IMAGE_ID,
         "evidence_mode": validator.REQUIRED_EVIDENCE_MODES[kind],
         "started_at": (now - timedelta(minutes=10)).isoformat(),
         "finished_at": (now - timedelta(minutes=1)).isoformat(),
@@ -179,6 +204,7 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
         },
     )
     response_artifacts: list[dict[str, str]] = []
+    capture_receipts: list[dict[str, object]] = []
     for dataset in ("equity.quote.snapshot", "equity.valuation.fact"):
         slug = dataset.replace(".", "-")
         response_path = tmp_path / f"{slug}-response.json"
@@ -263,9 +289,7 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             "provider_version": provider["version"],
             "endpoint_id": provider["endpoint_id"],
             "operation": "daily" if role == "quote" else "daily_basic",
-            "response_scope": (
-                "requested_asset_history" if role == "quote" else "full_market_trade_date"
-            ),
+            "response_scope": ("full_market_trade_date"),
         }
         receipt_path = tmp_path / f"{slug}-replay.json"
         receipt = {
@@ -274,10 +298,22 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             "target_trade_date": TARGET_DATE,
             "universe_sha256": UNIVERSE,
             "provider_identities_sha256": PROVIDER_DIGEST,
+            "candidate_image_id": IMAGE_ID,
+            "candidate_source_attestation": "image_release_manifest",
             "outcome": "success",
             "dataset": dataset,
             "source_observed_at": "2026-09-24T07:00:00+00:00",
             "sampled_assets": ASSET_CODES,
+            "eligible_asset_codes": ASSET_CODES,
+            "eligible_asset_count": len(ASSET_CODES),
+            "excluded_asset_codes": [],
+            "excluded_asset_count": 0,
+            "exclusion_reason": "valuation_not_returned_for_target_session",
+            "exclusion_rule_version": "valuation-target-session-v1",
+            "valuation_policy_identity": POLICY_EVIDENCE["identity"],
+            "valuation_policy_sha256": POLICY_SHA256,
+            "valuation_policy_snapshot": POLICY_EVIDENCE,
+            "valuation_minimum_coverage_ratio": POLICY_CONTENT["minimum_coverage_ratio"],
             "observations": [
                 {
                     "asset_code": code,
@@ -302,6 +338,61 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
         }
         receipt_digest = _write_json(receipt_path, receipt)
         response_artifacts.append({"path": receipt_path.name, "sha256": receipt_digest})
+        capture_receipts.append(
+            {
+                "body_sha256": response_digest,
+                "response_artifact": {
+                    "body_sha256": response_digest,
+                    "dataset": dataset,
+                    "candidate_sha": CANDIDATE,
+                    "target_trade_date": TARGET_DATE,
+                    "universe_sha256": UNIVERSE,
+                    "provider_identities_sha256": PROVIDER_DIGEST,
+                    "provider_id": provider["provider_id"],
+                    "provider_source": provider["source"],
+                    "endpoint_id": provider["endpoint_id"],
+                    "sample_codes": ASSET_CODES,
+                },
+            }
+        )
+    probe_path = tmp_path / "probe-capture.json"
+    probe_digest = _write_json(
+        probe_path,
+        {
+            "schema": "market.provider-rehearsal.v1",
+            "outcome": "success",
+            "mode": "read_only_live_provider",
+            "database_read_only": True,
+            "candidate_sha": CANDIDATE,
+            "candidate_image_id": IMAGE_ID,
+            "candidate_source_attestation": "image_release_manifest",
+            "target_trade_date": TARGET_DATE,
+            "universe_sha256": UNIVERSE,
+            "provider_identities_sha256": PROVIDER_DIGEST,
+            "provider_identities": PROVIDERS,
+            "asset_codes": ASSET_CODES,
+            "sample": ASSET_CODES,
+            "eligible_asset_codes": ASSET_CODES,
+            "eligible_asset_count": len(ASSET_CODES),
+            "excluded_asset_codes": [],
+            "excluded_asset_count": 0,
+            "exclusion_reason": "valuation_not_returned_for_target_session",
+            "exclusion_rule_version": "valuation-target-session-v1",
+            "valuation_policy_identity": POLICY_EVIDENCE["identity"],
+            "valuation_policy_sha256": POLICY_SHA256,
+            "valuation_policy_snapshot": POLICY_EVIDENCE,
+            "valuation_minimum_coverage_ratio": POLICY_CONTENT["minimum_coverage_ratio"],
+            "probes": [
+                {
+                    "dataset": dataset,
+                    "outcome": "success",
+                    "receipt_indexes": [index],
+                }
+                for index, dataset in enumerate(("equity.quote.snapshot", "equity.valuation.fact"))
+            ],
+            "transport": {"receipts": capture_receipts},
+        },
+    )
     replay = _common("real_response_unit_replay", now)
     replay.update(
         {
@@ -309,6 +400,18 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             "source_time_verified": True,
             "replay_case_count": 7,
             "response_artifacts": response_artifacts,
+            "probe_sha256": probe_digest,
+            "probe_capture": {"path": probe_path.name, "sha256": probe_digest},
+            "eligible_asset_codes": ASSET_CODES,
+            "eligible_asset_count": len(ASSET_CODES),
+            "excluded_asset_codes": [],
+            "excluded_asset_count": 0,
+            "exclusion_reason": "valuation_not_returned_for_target_session",
+            "exclusion_rule_version": "valuation-target-session-v1",
+            "valuation_policy_identity": POLICY_EVIDENCE["identity"],
+            "valuation_policy_sha256": POLICY_SHA256,
+            "valuation_policy_snapshot": POLICY_EVIDENCE,
+            "valuation_minimum_coverage_ratio": POLICY_CONTENT["minimum_coverage_ratio"],
         }
     )
     capacity = _common("full_universe_capacity", now)
@@ -323,8 +426,44 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             "provider_identities_sha256": PROVIDER_DIGEST,
             "outcome": "success",
             "measurement_source": "candidate_runtime_instrumentation",
+            "measurement_scope": "production_valuation_seed_and_eligible_quote_dispatch",
+            "candidate_source_attestation": "image_release_manifest",
+            "candidate_image_id": IMAGE_ID,
             "asset_codes": ASSET_CODES,
+            "requested_asset_count": len(ASSET_CODES),
+            "registered_asset_count": len(ASSET_CODES),
             "measured_asset_count": len(ASSET_CODES),
+            "eligible_asset_count": len(ASSET_CODES),
+            "eligible_asset_codes": ASSET_CODES,
+            "excluded_asset_count": 0,
+            "excluded_asset_codes": [],
+            "exclusion_reason": "valuation_not_returned_for_target_session",
+            "exclusion_rule_version": "valuation-target-session-v1",
+            "valuation_minimum_coverage_ratio": POLICY_CONTENT["minimum_coverage_ratio"],
+            "valuation_coverage_ratio": 1.0,
+            "valuation_policy_identity": POLICY_EVIDENCE["identity"],
+            "valuation_policy_sha256": POLICY_SHA256,
+            "valuation_policy_snapshot": POLICY_EVIDENCE,
+            "quote_fact_count": len(ASSET_CODES),
+            "valuation_fact_count": len(ASSET_CODES),
+            "quote_coverage": {
+                "requested_count": len(ASSET_CODES),
+                "returned_count": len(ASSET_CODES),
+                "target_session_count": len(ASSET_CODES),
+                "missing_target_session_count": 0,
+                "missing_target_session_codes": [],
+                "extra_count": 0,
+                "duplicate_count": 0,
+            },
+            "valuation_coverage": {
+                "requested_count": len(ASSET_CODES),
+                "returned_count": len(ASSET_CODES),
+                "target_session_count": len(ASSET_CODES),
+                "missing_target_session_count": 0,
+                "missing_target_session_codes": [],
+                "extra_count": 0,
+                "duplicate_count": 0,
+            },
             "started_at": (now - timedelta(minutes=8)).isoformat(),
             "finished_at": (now - timedelta(minutes=6)).isoformat(),
             "elapsed_seconds": 120.0,
@@ -335,10 +474,16 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             "task_deadline_seconds": 600.0,
             "database_peak_connections": 2,
             "database_connection_limit": 20,
+            "database_connection_scope": "postgresql_cluster_all_databases",
+            "database_peak_measurement_method": "sampled_pg_stat_activity_cluster_count",
+            "sampling_interval_seconds": 0.05,
             "max_lock_wait_seconds": 0.2,
             "lock_wait_limit_seconds": 5.0,
             "peak_memory_bytes": 268435456,
             "memory_limit_bytes": 1073741824,
+            "memory_peak_measurement_method": "linux_proc_status_vmhwm",
+            "memory_limit_measurement_method": "cgroup_effective_or_host_physical",
+            "minimum_capacity_margin_ratio": 0.15,
         },
     )
     capacity.update(
@@ -346,6 +491,16 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             "universe_count": len(ASSET_CODES),
             "measured_asset_count": len(ASSET_CODES),
             "asset_codes": ASSET_CODES,
+            "eligible_asset_codes": ASSET_CODES,
+            "eligible_asset_count": len(ASSET_CODES),
+            "excluded_asset_codes": [],
+            "excluded_asset_count": 0,
+            "exclusion_reason": "valuation_not_returned_for_target_session",
+            "exclusion_rule_version": "valuation-target-session-v1",
+            "valuation_policy_identity": POLICY_EVIDENCE["identity"],
+            "valuation_policy_sha256": POLICY_SHA256,
+            "valuation_policy_snapshot": POLICY_EVIDENCE,
+            "valuation_minimum_coverage_ratio": POLICY_CONTENT["minimum_coverage_ratio"],
             "provider_quota_within_limit": True,
             "task_deadline_within_limit": True,
             "database_budget_within_limit": True,
@@ -360,30 +515,49 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
     )
     staging = _common("isolated_write_rehearsal", now)
     write_receipt = tmp_path / "staging-write-receipt.json"
+    write_identity = {
+        "candidate_image_id": IMAGE_ID,
+        "publication_id": "123e4567-e89b-42d3-a456-426614174000",
+        "publication_key": "current",
+        "publication_hash": "1" * 64,
+        "member_id": "123e4567-e89b-42d3-b456-426614174001",
+        "member_fact_pk": "42",
+        "member_fact_content_hash": "2" * 64,
+        "database_identity_sha256": "3" * 64,
+        "catalog_seed_sha256": "4" * 64,
+        "payload_evidence_mode": "synthetic_isolated_writer_path",
+        "synthetic_payload_sha256": "5" * 64,
+    }
     _write_json(
         write_receipt,
         {
             "schema": "release.isolated-write-receipt.v1",
+            "candidate_source_attestation": "image_release_manifest",
             "candidate_sha": CANDIDATE,
             "target_trade_date": TARGET_DATE,
             "universe_sha256": UNIVERSE,
             "provider_identities_sha256": PROVIDER_DIGEST,
             "outcome": "success",
             "database_scope": "disposable",
-            "written_rows": 100,
+            "written_rows": 4,
             "publication_verified": True,
             "readback_verified": True,
+            "tamper_guard_verified": True,
             "rollback_verified": True,
             "residual_rows": 0,
+            **write_identity,
         },
     )
     staging.update(
         {
             "database_scope": "disposable",
-            "written_rows": 100,
+            "written_rows": 4,
             "publication_verified": True,
+            "readback_verified": True,
+            "tamper_guard_verified": True,
             "rollback_verified": True,
             "residual_rows": 0,
+            **write_identity,
             "write_artifacts": [
                 {
                     "path": write_receipt.name,
@@ -448,7 +622,18 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
         reports[kind] = path
         references.append({"kind": kind, "path": path.name, "sha256": digest})
     manifest = tmp_path / "manifest.json"
-    _write_json(manifest, {"schema": "release.rehearsal-manifest.v1", "reports": references})
+    _write_json(
+        manifest,
+        {
+            "schema": "release.rehearsal-manifest.v1",
+            "candidate_sha": CANDIDATE,
+            "target_trade_date": TARGET_DATE,
+            "universe_sha256": UNIVERSE,
+            "provider_identities_sha256": PROVIDER_DIGEST,
+            "candidate_image_id": IMAGE_ID,
+            "reports": references,
+        },
+    )
     return manifest, reports
 
 
@@ -459,6 +644,7 @@ def _validate(manifest: Path, now: datetime) -> dict[str, object]:
         expected_target_date=TARGET_DATE,
         expected_universe_sha256=UNIVERSE,
         expected_provider_identities_sha256=PROVIDER_DIGEST,
+        expected_candidate_image_id=IMAGE_ID,
         expected_github_repository=GITHUB_REPOSITORY,
         expected_github_run_id=GITHUB_RUN_ID,
         max_age_hours=24,
@@ -508,6 +694,19 @@ def test_validator_accepts_complete_candidate_bound_evidence(tmp_path: Path) -> 
     assert len(result["validated_reports"]) == 4
 
 
+def test_validator_rejects_absolute_bundle_artifact_reference(tmp_path: Path) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    payload["reports"][0]["path"] = str(reports[payload["reports"][0]["kind"]].resolve())
+    _write_json(manifest, payload)
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == "REHEARSAL_ARTIFACT_REFERENCE_INVALID"
+
+
 @pytest.mark.parametrize(
     ("kind", "mutation", "expected_code"),
     [
@@ -544,6 +743,21 @@ def test_validator_accepts_complete_candidate_bound_evidence(tmp_path: Path) -> 
             "REHEARSAL_CAPACITY_MARGIN_MISMATCH",
         ),
         ("isolated_write_rehearsal", {"residual_rows": 1}, "REHEARSAL_ROLLBACK_RESIDUAL"),
+        (
+            "isolated_write_rehearsal",
+            {"written_rows": 3},
+            "REHEARSAL_WRITE_COUNT_INVALID",
+        ),
+        (
+            "isolated_write_rehearsal",
+            {"written_rows": 5},
+            "REHEARSAL_WRITE_COUNT_INVALID",
+        ),
+        (
+            "isolated_write_rehearsal",
+            {"readback_verified": False},
+            "REHEARSAL_WRITE_INCOMPLETE",
+        ),
         ("isolated_write_rehearsal", {"residual_rows": 0.0}, "REHEARSAL_ROLLBACK_RESIDUAL"),
         ("isolated_write_rehearsal", {"write_artifacts": []}, "REHEARSAL_WRITE_ARTIFACT_MISSING"),
         (
@@ -574,11 +788,54 @@ def test_validator_rejects_false_green_evidence(
 
 
 @pytest.mark.parametrize(
+    ("defect", "expected_code"),
+    [
+        ("candidate", "REHEARSAL_REPLAY_PROBE_INVALID"),
+        ("duplicate_index", "REHEARSAL_REPLAY_PROBE_INVALID"),
+        ("body_hash", "REHEARSAL_REPLAY_PROBE_MISMATCH"),
+        ("provider_context", "REHEARSAL_REPLAY_PROBE_INVALID"),
+    ],
+)
+def test_validator_rejects_tampered_probe_capture(
+    tmp_path: Path, defect: str, expected_code: str
+) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    report_path = reports["real_response_unit_replay"]
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    probe_path = report_path.parent / report["probe_capture"]["path"]
+    probe = json.loads(probe_path.read_text(encoding="utf-8"))
+    if defect == "candidate":
+        probe["candidate_sha"] = "c" * 40
+    elif defect == "duplicate_index":
+        probe["probes"][1]["receipt_indexes"] = [0]
+    elif defect == "body_hash":
+        replacement = "c" * 64
+        probe["transport"]["receipts"][0]["body_sha256"] = replacement
+        probe["transport"]["receipts"][0]["response_artifact"]["body_sha256"] = replacement
+    else:
+        probe["transport"]["receipts"][0]["response_artifact"]["provider_id"] = 999
+    digest = _write_json(probe_path, probe)
+    report["probe_sha256"] = digest
+    report["probe_capture"]["sha256"] = digest
+    _replace_report(manifest, report_path, report)
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == expected_code
+
+
+@pytest.mark.parametrize(
     ("mutation", "expected_code"),
     [
         (
             {"provider_peak_requests_per_window": 101},
             "REHEARSAL_CAPACITY_LIMIT_EXCEEDED",
+        ),
+        (
+            {"provider_peak_requests_per_window": 90},
+            "REHEARSAL_CAPACITY_MARGIN_INSUFFICIENT",
         ),
         ({"elapsed_seconds": 125.0}, "REHEARSAL_CAPACITY_MEASUREMENT_INVALID"),
         ({"peak_memory_bytes": 1073741824}, "REHEARSAL_CAPACITY_LIMIT_EXCEEDED"),
@@ -586,6 +843,26 @@ def test_validator_rejects_false_green_evidence(
         ({"max_lock_wait_seconds": 5.0}, "REHEARSAL_CAPACITY_LIMIT_EXCEEDED"),
         ({"measurement_source": "self_reported"}, "REHEARSAL_CAPACITY_RECEIPT_INVALID"),
         ({"asset_codes": ASSET_CODES[:-1]}, "REHEARSAL_CAPACITY_RECEIPT_UNIVERSE_MISMATCH"),
+        ({"valuation_policy_sha256": "invalid"}, "REHEARSAL_CAPACITY_ELIGIBLE_SCOPE_INVALID"),
+        (
+            {
+                "quote_coverage": {
+                    "requested_count": len(ASSET_CODES),
+                    "returned_count": len(ASSET_CODES) - 1,
+                    "target_session_count": len(ASSET_CODES) - 1,
+                    "missing_target_session_count": 1,
+                    "missing_target_session_codes": [ASSET_CODES[-1]],
+                    "extra_count": 0,
+                    "duplicate_count": 0,
+                },
+                "quote_fact_count": len(ASSET_CODES) - 1,
+            },
+            "REHEARSAL_CAPACITY_COVERAGE_INVALID",
+        ),
+        (
+            {"valuation_coverage_ratio": 0.5},
+            "REHEARSAL_CAPACITY_COVERAGE_INVALID",
+        ),
     ],
 )
 def test_validator_recomputes_capacity_from_bound_measurement_receipt(
@@ -854,9 +1131,10 @@ def test_validator_rejects_stale_and_candidate_mismatch(tmp_path: Path) -> None:
             expected_target_date=TARGET_DATE,
             expected_universe_sha256=UNIVERSE,
             expected_provider_identities_sha256=PROVIDER_DIGEST,
+            expected_candidate_image_id=IMAGE_ID,
             expected_github_repository=GITHUB_REPOSITORY,
             expected_github_run_id=GITHUB_RUN_ID,
             max_age_hours=24,
             now=now,
         )
-    assert mismatch.value.code == "REHEARSAL_CANDIDATE_MISMATCH"
+    assert mismatch.value.code == "REHEARSAL_MANIFEST_IDENTITY_MISMATCH"

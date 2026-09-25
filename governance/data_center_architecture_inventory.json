@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 5094,
+    "current_surface_references": 5095,
     "data_write_task_decorators": 65,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -10061,7 +10061,7 @@
       "text": "\"\"\"Input DTO for fetching the latest quote snapshot.\"\"\""
     },
     {
-      "line": 752,
+      "line": 753,
       "path": "apps/data_center/application/dtos.py",
       "text": "\"\"\"Result of one current-valuation batch sync.\"\"\""
     },
@@ -11196,12 +11196,12 @@
       "text": "\"\"\"Check current filesystem pressure before another mutating batch.\"\"\""
     },
     {
-      "line": 54,
+      "line": 55,
       "path": "apps/data_center/application/sync_market_use_cases.py",
       "text": "publication_key = \"current\""
     },
     {
-      "line": 364,
+      "line": 365,
       "path": "apps/data_center/application/sync_market_use_cases.py",
       "text": "publication_key = \"current\""
     },
@@ -11231,22 +11231,22 @@
       "text": "raise ValueError(\"current Audit authority changed before quote batch\")"
     },
     {
-      "line": 353,
+      "line": 358,
       "path": "apps/data_center/application/tasks.py",
       "text": "raise ValueError(\"current Audit authority changed before publication\")"
     },
     {
-      "line": 708,
+      "line": 713,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"Financial current publication rebuild failed: %s\","
     },
     {
-      "line": 830,
+      "line": 835,
       "path": "apps/data_center/application/tasks.py",
       "text": "Current domain sync DTOs expose ``stored_count`` only, so the durable"
     },
     {
-      "line": 1204,
+      "line": 1209,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Require the same current authority before advancing the checkpoint.\"\"\""
     },
@@ -12279,6 +12279,11 @@
       "line": 94,
       "path": "apps/data_center/infrastructure/gateways/tencent_gateway.py",
       "text": "\"\"\"Fetch current PE/PB and market-cap fields in one Tencent quote request.\"\"\""
+    },
+    {
+      "line": 124,
+      "path": "apps/data_center/infrastructure/isolated_write_rehearsal_runner.py",
+      "text": "publication_key = \"current\""
     },
     {
       "line": 227,
@@ -25868,22 +25873,22 @@
       "text": "@shared_task(name=\"data_center.refresh_full_market_publications\", time_limit=3600, soft_time_limit=3500)  # type: ignore[misc]"
     },
     {
-      "line": 432,
+      "line": 437,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 955,
+      "line": 960,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 987,
+      "line": 992,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1069,
+      "line": 1074,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
