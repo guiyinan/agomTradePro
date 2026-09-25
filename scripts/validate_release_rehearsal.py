@@ -589,6 +589,21 @@ def _validate_real_replay(
         _fail("REHEARSAL_REAL_RESPONSE_MISSING")
     datasets: set[str] = set()
     replayed_cases: set[str] = set()
+    provider_values = report.get("provider_identities")
+    if not isinstance(provider_values, list):
+        _fail("REHEARSAL_PROVIDER_IDENTITY_INVALID")
+    provider_identities: dict[str, dict[str, object]] = {}
+    for provider_value in cast(list[object], provider_values):
+        if not isinstance(provider_value, dict):
+            _fail("REHEARSAL_PROVIDER_IDENTITY_INVALID")
+        identity = cast(dict[str, object], provider_value)
+        role = identity.get("role")
+        if not isinstance(role, str) or role in provider_identities:
+            _fail("REHEARSAL_PROVIDER_IDENTITY_INVALID")
+        provider_identities[role] = identity
+    if set(provider_identities) != {"quote", "valuation"}:
+        _fail("REHEARSAL_PROVIDER_IDENTITY_INVALID")
+    claimed_response_datasets: dict[str, str] = {}
     ranked = sorted(expected_assets, key=lambda code: hashlib.sha256(code.encode()).hexdigest())
     groups: dict[str, str] = {}
     for code in ranked:
@@ -621,6 +636,10 @@ def _validate_real_replay(
             _fail("REHEARSAL_REPLAY_DATASET_INVALID")
         dataset_name = cast(str, dataset)
         datasets.add(dataset_name)
+        role = "quote" if dataset_name == "equity.quote.snapshot" else "valuation"
+        provider_identity = provider_identities[role]
+        expected_operation = "daily" if role == "quote" else "daily_basic"
+        expected_scope = "requested_asset_history" if role == "quote" else "full_market_trade_date"
         observed = _parse_datetime(
             receipt.get("source_observed_at"), "REHEARSAL_REPLAY_SOURCE_TIME_INVALID"
         )
@@ -655,6 +674,31 @@ def _validate_real_replay(
             if not isinstance(response_value, dict):
                 _fail("REHEARSAL_REAL_RESPONSE_MISSING")
             response_payload = cast(dict[str, object], response_value)
+            if set(response_payload) != {
+                "path",
+                "sha256",
+                "dataset",
+                "role",
+                "provider_id",
+                "provider_source",
+                "provider_version",
+                "endpoint_id",
+                "operation",
+                "response_scope",
+            } or any(
+                response_payload.get(key) != expected
+                for key, expected in (
+                    ("dataset", dataset_name),
+                    ("role", role),
+                    ("provider_id", provider_identity.get("provider_id")),
+                    ("provider_source", provider_identity.get("source")),
+                    ("provider_version", provider_identity.get("version")),
+                    ("endpoint_id", provider_identity.get("endpoint_id")),
+                    ("operation", expected_operation),
+                    ("response_scope", expected_scope),
+                )
+            ):
+                _fail("REHEARSAL_REPLAY_RESPONSE_BINDING_INVALID")
             response_path = response_payload.get("path")
             if not isinstance(response_path, str) or response_path in response_paths:
                 _fail("REHEARSAL_REPLAY_RESPONSE_SET_INVALID")
@@ -664,6 +708,10 @@ def _validate_real_replay(
                 _fail("REHEARSAL_REPLAY_RESPONSE_SET_INVALID")
             if response_sha in response_rows_by_hash:
                 _fail("REHEARSAL_REPLAY_RESPONSE_SET_INVALID")
+            claimed_dataset = claimed_response_datasets.get(response_sha)
+            if claimed_dataset is not None and claimed_dataset != dataset_name:
+                _fail("REHEARSAL_REPLAY_RESPONSE_BINDING_INVALID")
+            claimed_response_datasets[response_sha] = dataset_name
             resolved_response = _resolve_artifact(
                 receipt_path.parent,
                 response_path,

@@ -431,12 +431,29 @@ def collect_response_replay(
     }
     receipt_refs: list[dict[str, str]] = []
     for dataset in DATASETS:
-        references: list[dict[str, str]] = []
+        role = "quote" if dataset == "equity.quote.snapshot" else "valuation"
+        identity = identities_by_role[role]
+        operation = "daily" if role == "quote" else "daily_basic"
+        response_scope = "requested_asset_history" if role == "quote" else "full_market_trade_date"
+        references: list[dict[str, object]] = []
         for name, body, body_hash in retained[dataset]:
             (output_dir / name).parent.mkdir(parents=True, exist_ok=True)
             with (output_dir / name).open("xb") as stream:
                 stream.write(body)
-            references.append({"path": name, "sha256": body_hash})
+            references.append(
+                {
+                    "path": name,
+                    "sha256": body_hash,
+                    "dataset": dataset,
+                    "role": role,
+                    "provider_id": identity.provider_id,
+                    "provider_source": identity.source,
+                    "provider_version": identity.version,
+                    "endpoint_id": identity.endpoint_id,
+                    "operation": operation,
+                    "response_scope": response_scope,
+                }
+            )
         receipt_report: dict[str, object] = {
             **common,
             **results[dataset],

@@ -251,6 +251,22 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
                     "multiplier": 10000.0,
                 },
             ]
+        role = "quote" if dataset == "equity.quote.snapshot" else "valuation"
+        provider = next(item for item in PROVIDERS if item["role"] == role)
+        response_reference = {
+            "path": response_path.name,
+            "sha256": response_digest,
+            "dataset": dataset,
+            "role": role,
+            "provider_id": provider["provider_id"],
+            "provider_source": provider["source"],
+            "provider_version": provider["version"],
+            "endpoint_id": provider["endpoint_id"],
+            "operation": "daily" if role == "quote" else "daily_basic",
+            "response_scope": (
+                "requested_asset_history" if role == "quote" else "full_market_trade_date"
+            ),
+        }
         receipt_path = tmp_path / f"{slug}-replay.json"
         receipt = {
             "schema": "release.real-provider-response-replay.v2",
@@ -275,16 +291,8 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
                 for code in ASSET_CODES
             ],
             "replay_cases": sorted(validator.REQUIRED_REPLAY_CASES),
-            "response_body": {
-                "path": response_path.name,
-                "sha256": response_digest,
-            },
-            "response_bodies": [
-                {
-                    "path": response_path.name,
-                    "sha256": response_digest,
-                }
-            ],
+            "response_body": response_reference,
+            "response_bodies": [response_reference],
             "response_set_scope": "all_retained_responses_for_dataset",
             "unit_contract_sha256": unit_contract_digest,
             "unit_contract": {
@@ -612,6 +620,7 @@ def test_validator_recomputes_capacity_from_bound_measurement_receipt(
         "body_scope_missing",
         "body_scope_duplicate",
         "body_wrong_date",
+        "response_binding_dataset",
     ],
 )
 def test_validator_recomputes_every_replayed_unit_observation(tmp_path: Path, defect: str) -> None:
@@ -679,12 +688,59 @@ def test_validator_recomputes_every_replayed_unit_observation(tmp_path: Path, de
         receipt["response_bodies"][0]["sha256"] = response_digest
         for observation in receipt["observations"]:
             observation["body_sha256"] = response_digest
+    elif defect == "response_binding_dataset":
+        expected_code = "REHEARSAL_REPLAY_RESPONSE_BINDING_INVALID"
+        receipt["response_body"]["dataset"] = "equity.valuation.fact"
+        receipt["response_bodies"][0]["dataset"] = "equity.valuation.fact"
     _write_replay_receipt(manifest, report_path, report, receipt_path, receipt)
 
     with pytest.raises(validator.RehearsalValidationError) as exc_info:
         _validate(manifest, now)
 
     assert exc_info.value.code == expected_code
+
+
+def test_validator_rejects_one_response_hash_claimed_by_both_datasets(tmp_path: Path) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    report_path = reports["real_response_unit_replay"]
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    receipt_paths = [tmp_path / artifact["path"] for artifact in report["response_artifacts"]]
+    receipts = [json.loads(path.read_text(encoding="utf-8")) for path in receipt_paths]
+    union_path = tmp_path / "union-provider-response.json"
+    union_digest = _write_json(
+        union_path,
+        {
+            "code": 0,
+            "data": {
+                "fields": [
+                    "ts_code",
+                    "trade_date",
+                    "close",
+                    "vol",
+                    "amount",
+                    "total_mv",
+                    "circ_mv",
+                ],
+                "items": [[code, "20260924", 10.0, 2.0, 3.0, 3.0, 2.0] for code in ASSET_CODES],
+            },
+        },
+    )
+    for receipt, receipt_path, artifact in zip(
+        receipts, receipt_paths, report["response_artifacts"], strict=True
+    ):
+        for reference in [receipt["response_body"], *receipt["response_bodies"]]:
+            reference["path"] = union_path.name
+            reference["sha256"] = union_digest
+        for observation in receipt["observations"]:
+            observation["body_sha256"] = union_digest
+        artifact["sha256"] = _write_json(receipt_path, receipt)
+    _replace_report(manifest, report_path, report)
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == "REHEARSAL_REPLAY_RESPONSE_BINDING_INVALID"
 
 
 def test_validator_rejects_skipped_postgresql_junit(tmp_path: Path) -> None:
@@ -771,7 +827,8 @@ def test_validator_rejects_unverified_secondary_replay_response(tmp_path: Path) 
     receipt_reference = report["response_artifacts"][0]
     receipt_path = tmp_path / receipt_reference["path"]
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-    missing = {"path": "missing-response.json", "sha256": "0" * 64}
+    missing = dict(receipt["response_bodies"][0])
+    missing.update({"path": "missing-response.json", "sha256": "0" * 64})
     receipt["response_bodies"].append(missing)
     receipt_reference["sha256"] = _write_json(receipt_path, receipt)
     _replace_report(manifest, report_path, report)
