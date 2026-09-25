@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 
@@ -43,6 +44,58 @@ def degraded_task_result(payload: dict[str, Any]) -> dict[str, Any]:
 
     return {
         **payload,
+        **task_outcome_fields("partial", requested=2, succeeded=1, failed=1, stored=1),
+    }
+
+
+def post_cache_prediction_result(
+    *,
+    universe_id: str,
+    scope_hash: str | None,
+    trade_date: str,
+    cache_created: bool,
+    stock_count: int,
+    model_artifact_hash: str,
+    source_is_stale: bool,
+    execution_metadata: Mapping[str, object],
+    workspace_metadata: Mapping[str, object],
+) -> dict[str, Any]:
+    """Report cache success separately from the downstream workspace sync stage."""
+
+    payload: dict[str, Any] = {
+        "status": "degraded" if source_is_stale else "success",
+        "universe_id": universe_id,
+        "scope_hash": scope_hash,
+        "trade_date": trade_date,
+        "cache_created": cache_created,
+        "stock_count": stock_count,
+        "model_artifact_hash": model_artifact_hash,
+        **execution_metadata,
+        **workspace_metadata,
+    }
+    if workspace_metadata.get("workspace_recommendations_status") != "failed":
+        build_result = degraded_task_result if source_is_stale else completed_task_result
+        return build_result(payload)
+    error_code = str(
+        workspace_metadata.get("workspace_recommendations_error_code")
+        or "workspace_recommendations_failed"
+    )
+    return {
+        **payload,
+        "status": "partial",
+        "phase": "workspace_recommendations",
+        "error_code": error_code,
+        "phase_results": [
+            {"phase": "alpha_cache", "requested": 1, "succeeded": 1, "failed": 0, "stored": 1},
+            {
+                "phase": "workspace_recommendations",
+                "requested": 1,
+                "succeeded": 0,
+                "failed": 1,
+                "stored": 0,
+                "error_code": error_code,
+            },
+        ],
         **task_outcome_fields("partial", requested=2, succeeded=1, failed=1, stored=1),
     }
 
@@ -128,6 +181,7 @@ __all__ = [
     "degraded_task_result",
     "daily_inference_outcome",
     "failed_task_result",
+    "post_cache_prediction_result",
     "refresh_summary_outcome",
     "scoped_work_outcome",
     "task_outcome_fields",

@@ -519,62 +519,16 @@ def qlib_predict_scores(
                 pool_scope.universe_id if pool_scope else universe_id, trade_date, pool_scope
             )
         )
-        workspace_failed = (
-            workspace_refresh_metadata.get("workspace_recommendations_status") == "failed"
-        )
-        workspace_error_code = str(
-            workspace_refresh_metadata.get("workspace_recommendations_error_code") or ""
-        )
-        if workspace_failed:
-            return {
-                "status": "partial",
-                "universe_id": universe_id,
-                "scope_hash": pool_scope.scope_hash if pool_scope else None,
-                "trade_date": intended_trade_date,
-                "cache_created": created,
-                "stock_count": len(scores_data),
-                "model_artifact_hash": active_model.artifact_hash,
-                "phase": "workspace_recommendations",
-                "error_code": workspace_error_code or "workspace_recommendations_failed",
-                "phase_results": [
-                    {
-                        "phase": "alpha_cache",
-                        "requested": 1,
-                        "succeeded": 1,
-                        "failed": 0,
-                        "stored": 1,
-                    },
-                    {
-                        "phase": "workspace_recommendations",
-                        "requested": 1,
-                        "succeeded": 0,
-                        "failed": 1,
-                        "stored": 0,
-                        "error_code": (workspace_error_code or "workspace_recommendations_failed"),
-                    },
-                ],
-                **execution_metadata,
-                **workspace_refresh_metadata,
-                **_outcomes.task_outcome_fields(
-                    "partial", requested=2, succeeded=1, failed=1, stored=1
-                ),
-            }
-        build_result = (
-            _outcomes.degraded_task_result if source_is_stale else _outcomes.completed_task_result
-        )
-
-        return build_result(
-            {
-                "status": "degraded" if source_is_stale else "success",
-                "universe_id": universe_id,
-                "scope_hash": pool_scope.scope_hash if pool_scope else None,
-                "trade_date": intended_trade_date,
-                "cache_created": created,
-                "stock_count": len(scores_data),
-                "model_artifact_hash": active_model.artifact_hash,
-                **execution_metadata,
-                **workspace_refresh_metadata,
-            }
+        return _outcomes.post_cache_prediction_result(
+            universe_id=universe_id,
+            scope_hash=pool_scope.scope_hash if pool_scope else None,
+            trade_date=intended_trade_date,
+            cache_created=created,
+            stock_count=len(scores_data),
+            model_artifact_hash=active_model.artifact_hash,
+            source_is_stale=source_is_stale,
+            execution_metadata=execution_metadata,
+            workspace_metadata=workspace_refresh_metadata,
         )
 
     except Exception as exc:
