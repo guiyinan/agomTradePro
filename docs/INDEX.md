@@ -32,6 +32,29 @@
 
 ---
 
+## 各层级 README 索引
+
+> 收录仓库入口与子系统级 README；`docs/reviews/release-*` 审核快照、`docs/archive/` 归档、`staticfiles/` 构建产物与 `.agents/` 内部说明不在此列。`apps/*` 业务模块无 README，模块结构事实见 [architecture/MODULE_MAP.md](architecture/MODULE_MAP.md)。
+
+| 层级 | README | 说明 |
+|------|--------|------|
+| 仓库根 | [README.md](../README.md) / [README_EN.md](../README_EN.md) | 项目总览与快速开始（中英双语） |
+| 部署 | [deploy/README_DEPLOY.md](../deploy/README_DEPLOY.md) | VPS 部署 Bundle 说明（`package-for-vps` 产物的部署边界） |
+| 部署/FRP | [deploy/frp/README.md](../deploy/frp/README.md) | FRP 区域出口模板（不启动容器、不改 VPS 的边界声明） |
+| SDK | [sdk/README.md](../sdk/README.md) | SDK/MCP 总览（`sdk/docs/` 已迁至 `docs/sdk/` 与 `docs/mcp/`） |
+| QMT 桥 | [qmt_agent/README.md](../qmt_agent/README.md) | Windows QMT Agent 独立执行包的构建、安装与 Token 管理 |
+| 前端 | [frontend/tui-workbench/README.md](../frontend/tui-workbench/README.md) | TUI Workbench 浏览器端源码分段 ownership 与构建方式 |
+| 监控 | [monitoring/README.md](../monitoring/README.md) | Prometheus 监控与告警配置 |
+| 测试 | [tests/README.md](../tests/README.md) | SDK & MCP 测试指南 |
+| 静态资源 | [static/css/README.md](../static/css/README.md) | 设计 Token 与组件样式库使用指南 |
+| docs/计划 | [plans/README.md](plans/README.md) | 计划与机器状态导航入口 |
+| docs/AI Native | [plans/ai-native/README.md](plans/ai-native/README.md) | AI Native 子项目索引 |
+| docs/部署证据 | [deployment/README.md](deployment/README.md) | 部署文档与保留证据的归属规则 |
+| docs/审核 | [reviews/README.md](reviews/README.md) | 历史 release 审核入口 |
+| docs/策略研究 | [business/strategy-research/strat-01/README.md](business/strategy-research/strat-01/README.md) | STRAT-01 R1–R8 业务定义包 |
+
+---
+
 ## 当前收口说明
 
 - 2026-09-03 发布阻塞执行计划第 13 节已明确为自 2026-08-30 起的时间序列；旧候选只按各自日期解释，当前状态以计划顶部、active registry 与最新检查点为准。此为文档澄清，不改变任何生产门禁。
@@ -79,6 +102,7 @@
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [MODULE_DEPENDENCIES.md](architecture/MODULE_DEPENDENCIES.md) | **模块依赖关系文档（拓扑图+改进建议）** | ✅ 2026-03-18 新增 |
+| [MODULE_MAP.md](architecture/MODULE_MAP.md) | **模块架构地图说明书（governance/module_map.json 生成投影的字段口径与 Debug 用法）** | ✅ 2026-09-25 新增 |
 | [SYSTEM_TOPOLOGY.md](architecture/SYSTEM_TOPOLOGY.md) | **系统模块拓扑图与数据流（已同步 2026-04-26 架构治理结果）** | ✅ 2026-04-26 更新 |
 | [architecture-remediation-result-2026-04-26.md](architecture/architecture-remediation-result-2026-04-26.md) | **架构整改结果（cycle=0 / audit=0 / MCP 契约未变）** | ✅ 2026-04-26 新增 |
 | [adr-0001-shared-infrastructure-boundaries.md](architecture/adr-0001-shared-infrastructure-boundaries.md) | **ADR：shared.infrastructure 边界判定** | ✅ 2026-05-02 新增 |
