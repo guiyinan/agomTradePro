@@ -278,7 +278,7 @@ def test_collects_validated_candidate_only_report_and_exact_junit_bytes(
         "full_universe_capacity",
         "isolated_write_rehearsal",
     }
-    assert len(report["required_tests"]) == 23
+    assert report["required_tests"] == list(collector_sandbox.validator.REQUIRED_POSTGRESQL_TESTS)
     assert report["github_source"]["source_snapshot_stable"] is True
     assert report["github_source"]["run"]["head_sha"] == CANDIDATE_SHA
     assert report["github_source"]["artifact"]["id"] == 777

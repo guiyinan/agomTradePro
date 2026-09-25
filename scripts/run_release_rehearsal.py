@@ -226,20 +226,31 @@ def _invoke_container_stage(
 
     if artifact_dir.is_symlink() or not artifact_dir.is_dir():
         raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_INVALID")
-    initial = artifact_dir.stat()
-    identity = (initial.st_dev, initial.st_ino)
+    directory_fd: int | None = None
     if os.name == "posix":
-        chown = cast(_Chown | None, getattr(os, "chown", None))
-        if chown is None:
-            raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_OWNERSHIP_UNAVAILABLE")
-        chown(artifact_dir, -1, container_gid)
-        artifact_dir.chmod(0o2770)
-        writable = artifact_dir.stat()
-        if writable.st_gid != container_gid or stat.S_IMODE(writable.st_mode) != 0o2770:
-            raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_OWNERSHIP_FAILED")
+        flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+        try:
+            directory_fd = os.open(artifact_dir, flags)
+            initial = os.fstat(directory_fd)
+        except OSError as exc:
+            if directory_fd is not None:
+                os.close(directory_fd)
+            raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_INVALID") from exc
     else:
-        artifact_dir.chmod(0o770)
+        initial = artifact_dir.stat()
+    identity = (initial.st_dev, initial.st_ino)
     try:
+        if os.name == "posix":
+            chown = cast(_Chown | None, getattr(os, "chown", None))
+            if chown is None:
+                raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_OWNERSHIP_UNAVAILABLE")
+            chown(artifact_dir, -1, container_gid)
+            artifact_dir.chmod(0o2770)
+            writable = artifact_dir.stat()
+            if writable.st_gid != container_gid or stat.S_IMODE(writable.st_mode) != 0o2770:
+                raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_OWNERSHIP_FAILED")
+        else:
+            artifact_dir.chmod(0o770)
         return _invoke(
             runner,
             argv=argv,
@@ -250,10 +261,20 @@ def _invoke_container_stage(
             artifact_dir=artifact_dir,
         )
     finally:
-        current = artifact_dir.lstat()
-        if artifact_dir.is_symlink() or (current.st_dev, current.st_ino) != identity:
+        changed = True
+        try:
+            current = artifact_dir.lstat()
+            changed = artifact_dir.is_symlink() or (current.st_dev, current.st_ino) != identity
+        except OSError:
+            pass
+        try:
+            if not changed:
+                artifact_dir.chmod(0o750)
+        finally:
+            if directory_fd is not None:
+                os.close(directory_fd)
+        if changed:
             raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_CHANGED")
-        artifact_dir.chmod(0o750)
 
 
 def _candidate_container_gid(runner: CommandRunner, root: Path, image_id: str) -> int:
