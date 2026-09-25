@@ -16,6 +16,14 @@ Without that server-supplied request, or when the runtime is explicitly
 `off`, the guard records a critical operational alert and returns `blocked`.
 It never extends a row in place or manufactures an approval.
 
+The VPS compose contract passes the request path to both the web process and
+the default Celery worker.  Its fail-closed default is
+`/app/var/system-audit-authority-renewal.json`, backed by the persistent
+`var_data` volume, so a code/image replacement does not silently remove the
+configured renewal channel.  A missing file still produces
+`renewal_request_not_found`; deployment must place only a reviewed,
+non-secret request envelope at that path.
+
 The supported entry point is:
 
 ```text
