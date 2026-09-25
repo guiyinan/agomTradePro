@@ -406,17 +406,32 @@ def test_failed_container_stage_seals_directory(
     assert calls[-1] == 0o750
 
 
+@pytest.mark.parametrize(
+    "stable_code",
+    [
+        "REHEARSAL_WRITE_CATALOG_UNAVAILABLE",
+        "REHEARSAL_WRITE_SCOPE_VENDOR_INVALID",
+        "REHEARSAL_WRITE_SCOPE_TRANSACTION_ACTIVE",
+        "REHEARSAL_WRITE_SCOPE_OPT_IN_MISSING",
+        "REHEARSAL_WRITE_SCOPE_DATABASE_NAME_INVALID",
+        "REHEARSAL_WRITE_SCOPE_DATABASE_NAME_MISMATCH",
+        "REHEARSAL_WRITE_SCOPE_HOST_CONFIG_MISMATCH",
+        "REHEARSAL_WRITE_SCOPE_HOST_NOT_EPHEMERAL",
+        "REHEARSAL_WRITE_SCOPE_HOST_UNRESOLVED",
+        "REHEARSAL_WRITE_SCOPE_CONNECTED_DATABASE_MISMATCH",
+        "REHEARSAL_WRITE_SCOPE_CONNECTED_PORT_MISMATCH",
+        "REHEARSAL_WRITE_SCOPE_CONNECTED_ADDRESS_MISMATCH",
+    ],
+)
 def test_failed_container_stage_preserves_one_stable_rehearsal_code(
     tmp_path: Path,
+    stable_code: str,
 ) -> None:
     class StableFailureRunner(FakeRunner):
         def run(self, command: Command) -> CommandResult:
             return CommandResult(
                 returncode=1,
-                stderr=(
-                    "sensitive diagnostic omitted\n"
-                    "CommandError: REHEARSAL_WRITE_CATALOG_UNAVAILABLE"
-                ),
+                stderr=("sensitive diagnostic omitted\n" f"CommandError: {stable_code}"),
             )
 
     destination = tmp_path / "stage"
@@ -435,7 +450,7 @@ def test_failed_container_stage_preserves_one_stable_rehearsal_code(
             container_gid=gid,
         )
 
-    assert exc_info.value.code == "REHEARSAL_WRITE_CATALOG_UNAVAILABLE"
+    assert exc_info.value.code == stable_code
 
 
 @pytest.mark.parametrize(

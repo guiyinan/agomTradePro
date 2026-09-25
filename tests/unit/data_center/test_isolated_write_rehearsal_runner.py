@@ -14,20 +14,66 @@ EXPECTED_HOST = "agom-s6-postgres-test"
 
 
 @pytest.mark.parametrize(
-    ("vendor", "name", "in_atomic_block", "enabled"),
+    ("vendor", "name", "host", "in_atomic_block", "enabled", "expected_code"),
     [
-        ("sqlite", "agom_release_rehearsal_test", False, True),
-        ("postgresql", "agomtradepro", False, True),
-        ("postgresql", "agom_release_rehearsal_test", True, True),
-        ("postgresql", "agom_release_rehearsal_test", False, False),
+        (
+            "sqlite",
+            EXPECTED_NAME,
+            EXPECTED_HOST,
+            False,
+            True,
+            "REHEARSAL_WRITE_SCOPE_VENDOR_INVALID",
+        ),
+        (
+            "postgresql",
+            EXPECTED_NAME,
+            EXPECTED_HOST,
+            True,
+            True,
+            "REHEARSAL_WRITE_SCOPE_TRANSACTION_ACTIVE",
+        ),
+        (
+            "postgresql",
+            EXPECTED_NAME,
+            EXPECTED_HOST,
+            False,
+            False,
+            "REHEARSAL_WRITE_SCOPE_OPT_IN_MISSING",
+        ),
+        (
+            "postgresql",
+            "agomtradepro",
+            EXPECTED_HOST,
+            False,
+            True,
+            "REHEARSAL_WRITE_SCOPE_DATABASE_NAME_INVALID",
+        ),
+        (
+            "postgresql",
+            "agom_release_rehearsal_other",
+            EXPECTED_HOST,
+            False,
+            True,
+            "REHEARSAL_WRITE_SCOPE_DATABASE_NAME_MISMATCH",
+        ),
+        (
+            "postgresql",
+            EXPECTED_NAME,
+            "postgres",
+            False,
+            True,
+            "REHEARSAL_WRITE_SCOPE_HOST_CONFIG_MISMATCH",
+        ),
     ],
 )
 def test_isolated_database_guard_rejects_unsafe_scope(
     monkeypatch: pytest.MonkeyPatch,
     vendor: str,
     name: str,
+    host: str,
     in_atomic_block: bool,
     enabled: bool,
+    expected_code: str,
 ) -> None:
     monkeypatch.setattr(
         runner,
@@ -35,7 +81,7 @@ def test_isolated_database_guard_rejects_unsafe_scope(
         SimpleNamespace(
             vendor=vendor,
             in_atomic_block=in_atomic_block,
-            settings_dict={"NAME": name, "HOST": EXPECTED_HOST, "PORT": "5432"},
+            settings_dict={"NAME": name, "HOST": host, "PORT": "5432"},
         ),
     )
     if enabled:
@@ -49,7 +95,54 @@ def test_isolated_database_guard_rejects_unsafe_scope(
             expected_database_host=EXPECTED_HOST,
             require_ephemeral_host=True,
         )
-    assert exc_info.value.code == "REHEARSAL_WRITE_SCOPE_INVALID"
+    assert exc_info.value.code == expected_code
+
+
+def test_isolated_database_guard_rejects_non_ephemeral_host(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        runner,
+        "connection",
+        SimpleNamespace(
+            vendor="postgresql",
+            in_atomic_block=False,
+            settings_dict={"NAME": EXPECTED_NAME, "HOST": "localhost", "PORT": "5432"},
+        ),
+    )
+    monkeypatch.setenv("AGOM_RELEASE_REHEARSAL_DATABASE", "1")
+
+    with pytest.raises(DataFetchError) as exc_info:
+        runner._assert_isolated_database(
+            expected_database_name=EXPECTED_NAME,
+            expected_database_host="localhost",
+            require_ephemeral_host=True,
+        )
+
+    assert exc_info.value.code == "REHEARSAL_WRITE_SCOPE_HOST_NOT_EPHEMERAL"
+
+
+def test_connected_database_identity_strips_postgresql_inet_netmask(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The live endpoint identity must be comparable with DNS host addresses."""
+
+    class Cursor:
+        def __enter__(self) -> "Cursor":
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            del args
+
+        def execute(self, query: str) -> None:
+            assert "host(inet_server_addr())" in query
+
+        def fetchone(self) -> tuple[str, str, int]:
+            return EXPECTED_NAME, "172.18.0.2", 5432
+
+    monkeypatch.setattr(runner, "connection", SimpleNamespace(cursor=Cursor))
+
+    assert runner._connected_database_identity() == (EXPECTED_NAME, "172.18.0.2", 5432)
 
 
 def test_isolated_database_guard_accepts_explicit_disposable_postgresql(
@@ -88,11 +181,26 @@ def test_isolated_database_guard_accepts_explicit_disposable_postgresql(
 
 
 @pytest.mark.parametrize(
-    ("actual_name", "actual_address", "actual_port"),
+    ("actual_name", "actual_address", "actual_port", "expected_code"),
     [
-        ("agom_release_rehearsal_other", "172.18.0.2", 5432),
-        (EXPECTED_NAME, "10.0.0.5", 5432),
-        (EXPECTED_NAME, "172.18.0.2", 6543),
+        (
+            "agom_release_rehearsal_other",
+            "172.18.0.2",
+            5432,
+            "REHEARSAL_WRITE_SCOPE_CONNECTED_DATABASE_MISMATCH",
+        ),
+        (
+            EXPECTED_NAME,
+            "10.0.0.5",
+            5432,
+            "REHEARSAL_WRITE_SCOPE_CONNECTED_ADDRESS_MISMATCH",
+        ),
+        (
+            EXPECTED_NAME,
+            "172.18.0.2",
+            6543,
+            "REHEARSAL_WRITE_SCOPE_CONNECTED_PORT_MISMATCH",
+        ),
     ],
 )
 def test_isolated_database_guard_rejects_connected_endpoint_mismatch(
@@ -100,6 +208,7 @@ def test_isolated_database_guard_rejects_connected_endpoint_mismatch(
     actual_name: str,
     actual_address: str,
     actual_port: int,
+    expected_code: str,
 ) -> None:
     monkeypatch.setattr(
         runner,
@@ -133,7 +242,59 @@ def test_isolated_database_guard_rejects_connected_endpoint_mismatch(
             require_ephemeral_host=True,
         )
 
-    assert exc_info.value.code == "REHEARSAL_WRITE_SCOPE_INVALID"
+    assert exc_info.value.code == expected_code
+
+
+def test_isolated_database_guard_reports_unresolvable_expected_host(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        runner,
+        "connection",
+        SimpleNamespace(
+            vendor="postgresql",
+            in_atomic_block=False,
+            settings_dict={"NAME": EXPECTED_NAME, "HOST": EXPECTED_HOST, "PORT": "5432"},
+        ),
+    )
+    monkeypatch.setenv("AGOM_RELEASE_REHEARSAL_DATABASE", "1")
+    monkeypatch.setattr(
+        runner,
+        "_connected_database_identity",
+        lambda: (EXPECTED_NAME, "172.18.0.2", 5432),
+    )
+
+    def reject_resolution(_host: str, _port: int) -> set[str]:
+        raise DataFetchError(
+            "unresolvable",
+            code="REHEARSAL_WRITE_SCOPE_HOST_UNRESOLVED",
+        )
+
+    monkeypatch.setattr(runner, "_resolved_host_addresses", reject_resolution)
+
+    with pytest.raises(DataFetchError) as exc_info:
+        runner._assert_isolated_database(
+            expected_database_name=EXPECTED_NAME,
+            expected_database_host=EXPECTED_HOST,
+            require_ephemeral_host=True,
+        )
+
+    assert exc_info.value.code == "REHEARSAL_WRITE_SCOPE_HOST_UNRESOLVED"
+
+
+def test_host_resolution_maps_socket_error_to_stable_scope_code(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def reject_resolution(*args: object, **kwargs: object) -> list[object]:
+        del args, kwargs
+        raise runner.socket.gaierror("synthetic resolution failure")
+
+    monkeypatch.setattr(runner.socket, "getaddrinfo", reject_resolution)
+
+    with pytest.raises(DataFetchError) as exc_info:
+        runner._resolved_host_addresses(EXPECTED_HOST, 5432)
+
+    assert exc_info.value.code == "REHEARSAL_WRITE_SCOPE_HOST_UNRESOLVED"
 
 
 def test_database_identity_rejects_pending_migrations(
@@ -194,7 +355,7 @@ def test_collector_requires_ephemeral_host_in_second_preflight(
 ) -> None:
     def reject_non_ephemeral(**kwargs: object) -> tuple[str, str, str]:
         assert kwargs["require_ephemeral_host"] is True
-        raise DataFetchError("unsafe", code="REHEARSAL_WRITE_SCOPE_INVALID")
+        raise DataFetchError("unsafe", code="REHEARSAL_WRITE_SCOPE_HOST_NOT_EPHEMERAL")
 
     monkeypatch.setattr(runner, "preflight_isolated_write_rehearsal", reject_non_ephemeral)
 
@@ -210,5 +371,5 @@ def test_collector_requires_ephemeral_host_in_second_preflight(
             expected_database_host="localhost",
         )
 
-    assert exc_info.value.code == "REHEARSAL_WRITE_SCOPE_INVALID"
+    assert exc_info.value.code == "REHEARSAL_WRITE_SCOPE_HOST_NOT_EPHEMERAL"
     assert not (tmp_path / "output").exists()

@@ -163,7 +163,7 @@
 | R3 只读/工作台/文案 | 候选代码完成，生产待验 | 账户归属、GET 零写入、研究入口、慢请求/重试和缺失价格语义已通过本地行为验收；生产普通投资者浏览器 UAT 待验 |
 | R4 进度/诊断 | 候选代码完成，生产待验 | current attempt / last completed、phase、outcome、计数单位和安全错误投影已形成回归；生产任务结果待验 |
 | S1–S5 | 候选代码完成，远端 CI 待验 | 真实 provider 契约、不变量、时间、规模和跨消费者选测已集成；同一最终 SHA 的远端 CI 结果仍须冻结 |
-| S6 | 第四次真实演练已阻断，隔离目录初始化编排修复待新 SHA 重跑 | 前三次分别暴露 evidence 目录权限、重复输出和估值全范围/回放样本混用。`84334bcdbf` 第四次演练的五组同 SHA CI 全绿，候选镜像 `sha256:1a3f80…bb0f0` 依次通过构建、镜像身份、真实 provider 探针、原始响应重放和 5,569 只全市场容量；隔离 PostgreSQL 写入以 `REHEARSAL_WRITE_CATALOG_UNAVAILABLE` 阻断，未部署。根因是 launcher 只迁移新隔离库，未通过标准入口同步受治理的 Data Center catalog。修复在候选/镜像、迁移状态、预期数据库名、临时容器 host、实际服务端地址和端口全部绑定后，显式运行 `initialize_data_center_catalog`，collector 再次执行同级 preflight；缺 catalog 的默认命令仍 fail closed。launcher 只透传单一受限 `REHEARSAL_*` 业务码，不暴露 stderr。必须以新 SHA 重跑五组 CI 和整套真实 S6，旧候选、镜像和探针均不得复用 |
+| S6 | 第五次真实演练已阻断，数据库端点规范化修复待新 SHA 重跑 | `3faa1e2248` 的同 SHA CI 全绿，候选镜像 `sha256:f6fe4b…` 重新通过构建、镜像身份、真实 provider 探针、原始响应重放和 5,569 只全市场容量；隔离 PostgreSQL 写入以 `REHEARSAL_WRITE_SCOPE_INVALID` 阻断，未部署。安全的一次性 PostgreSQL 诊断确认配置 name/host/port、opt-in 和实际数据库均一致，唯一差异是 PostgreSQL `inet_server_addr()::text` 返回带掩码的 `172.x.x.x/32`，而 Docker DNS 返回主机地址 `172.x.x.x`。修复改用 `host(inet_server_addr())`，并把 vendor、事务、opt-in、数据库名、host 配置、临时 host、DNS 和已连接 database/port/address 各分支拆成不含敏感值的稳定错误码。必须以新 SHA 重跑全部 CI 和整套真实 S6，旧候选、镜像、探针和证据均不得复用 |
 | 生产联合复验 | 未完成 | 真实普通用户、四发布、自然周期和准确 runtime 门尚需验证 |
 
 本表在每个阶段完成后更新，只写实际验证结果。最终报告必须列完成项、未完成项、已验证测试与未验证风险。
@@ -172,7 +172,7 @@
 
 - 修复增量 CI 的同类漏选：Data Center 生产变更会执行 realtime consumer component；部署入口会选择 verifier、remote builder、Qlib 安装、watchdog 和发布预演验证器契约。PostgreSQL 工作流除 21 项 publication/provenance 用例外，显式运行两项 backfill control-plane 用例，并拒绝 missing、failed、error 或 skipped。
 - `deploy-vps.ps1` 的后置验证由“警告后成功”改为真实非零退出；Python verifier 缺 Paramiko 时也 fail closed。部署包装器将批准的精确 SHA 传给 remote builder，若本地 HEAD 在预验收和构建之间变化，会在读取凭据或 SSH 前终止。
-- 新增 `validate_release_rehearsal.py`。它只验证、不采集证据：四类报告必须绑定相同候选、精确 Docker image ID、交易日、完整注册 universe hash 和结构化 provider 身份；真实响应和隔离写入回执必须是可解析、身份一致的结构化记录并继续校验所引用原始 body。探针与容量预演先用目标日估值及 active 发布策略冻结 eligible/excluded 范围，再从 eligible 范围确定性选取样本并要求行情完整；容量回执还按 PostgreSQL 全集群连接口径重算资源余量。PostgreSQL JUnit 必须包含固定 24 项用例、无 skip/failure/error 和有效时间。候选回归同时查询 GitHub Actions 官方接口，核对同 SHA 成功 run、该 run 的未过期唯一 artifact、ZIP 的官方 SHA-256，以及 ZIP 内两份 JUnit 与本地报告的逐字节一致性；下载鉴权头不会转发给签名存储地址。部署采用预构建镜像复用，预演通过后的 image ID、OCI revision 和证据 manifest 摘要在服务切换前再次核对。
+- 新增 `validate_release_rehearsal.py`。它只验证、不采集证据：四类报告必须绑定相同候选、精确 Docker image ID、交易日、完整注册 universe hash 和结构化 provider 身份；真实响应和隔离写入回执必须是可解析、身份一致的结构化记录并继续校验所引用原始 body。探针与容量预演先用目标日估值及 active 发布策略冻结 eligible/excluded 范围，再从 eligible 范围确定性选取样本并要求行情完整；容量回执还按 PostgreSQL 全集群连接口径重算资源余量。PostgreSQL JUnit 必须包含固定 25 项用例、无 skip/failure/error 和有效时间，其中真实 PostgreSQL endpoint 用例拒绝带 CIDR 前缀的地址。候选回归同时查询 GitHub Actions 官方接口，核对同 SHA 成功 run、该 run 的未过期唯一 artifact、ZIP 的官方 SHA-256，以及 ZIP 内两份 JUnit 与本地报告的逐字节一致性；下载鉴权头不会转发给签名存储地址。部署采用预构建镜像复用，预演通过后的 image ID、OCI revision 和证据 manifest 摘要在服务切换前再次核对。
 - synthetic 正常样例及反例用于证明 validator fail closed，不属于上线证据。独立攻击复验确认：无关 PostgreSQL 用例、单资产冒充全量 universe、浮点 `0.0` 冒充零残留均被拒绝。最终候选仍需采集真实响应/单位重放、完整容量、隔离写入回滚以及远端 CI JUnit 后才能部署。
 - `collect_release_regression_evidence.py` 只从 GitHub 官方 run 采集候选回归子报告和两份原始 JUnit，并在写 success 报告前由共享 validator 重新下载、逐字节复核；来源在采集前后漂移、目录已存在或任一校验失败时只保留 blocked 结果。它不会把 provider 身份关联上下文冒充 provider 验收，另外三类报告仍须独立采集。
 - provider 响应预演已补全为两阶段：在线探针只读并将每个 quote/valuation 响应正文写入独占目录，正文回执不包含 token、请求体、查询参数或请求头；离线命令按输入 SHA 重放全部留存响应，验证有效、缺失、截断、陈旧、重复、单位错误和后续事实更新七类场景。成功报告还会逐资产比较在线事实与重放事实，区分 transport received 与 normalization completed 时钟；任一未列入报告的响应、正文漂移、实时事实不一致或源树变化均阻断。
@@ -181,6 +181,7 @@
 - 审计授权续期请求路径已写入 VPS Compose 的 Web/Worker 环境，并使用既有持久化 `var_data` 卷。版本替换后缺请求会明确报告 `renewal_request_not_found`；该修复只恢复续期通道，不自动制造审批材料或解除决策阻断。
 - `ff4d81a0c` 首次真实 S6 在 VPS 运行：候选镜像 `sha256:c2fad4…cafdc` 构建成功且未部署，provider 探针完成运行后因 Linux evidence bind mount 不可写而无法生成 `probe.json`，launcher 返回 `provider_probe / S6_STAGE_COMMAND_FAILED`。该失败没有被改写为通过；修复同时把阶段目录从 world-writable 方案收紧为候选主组 `2770`、结束 `0750`，并补充失败恢复、symlink/inode 替换反例。新 provider 身份由实际 `request_mode/http_url/api_endpoint/provider/source/active/priority/name` 与客户端版本派生，白名单错误码可在命令证据中安全透传；动态健康指标和密钥不进入身份摘要。
 - `84334bcdbf` 第四次真实 S6 证明全范围估值响应与冻结样本回放修复有效：真实响应重放和 5,569 只容量阶段均成功。随后全新隔离 PostgreSQL 缺 runtime catalog，稳定阻断为 `REHEARSAL_WRITE_CATALOG_UNAVAILABLE`。本地一次性 PostgreSQL 16 正向组件验证从空 catalog 经标准初始化后完成 4 条生产路径写入、读回和防篡改检查，业务行回滚为 0，治理 catalog 持久保留；9 项 scope、迁移和 catalog 负向场景也通过。初始化前 preflight 同时绑定候选镜像、迁移完成状态、预期数据库名和实际服务端 endpoint，防止误写同名生产数据库。
+- `3faa1e2248` 第五次真实 S6 的前五阶段再次通过，隔离写入在任何 catalog 或业务写入前 fail closed。后续一次诊断误把临时 env 文件纳入工具输出，涉及生产数据加密 key、应用管理员口令、provider token 和一次性 PostgreSQL URL/密码；未在仓库落盘。远端临时 env、密码文件和一次性 PostgreSQL 容器已删除，候选镜像与非敏感失败证据保留用于审计。可轮换的管理员口令和 provider token 必须走凭据签发流程；生产数据加密 key 在没有重加密与回滚方案前不得直接替换。随后改用只输出布尔匹配结果的一次性诊断，确认根因是 `inet_server_addr()::text` 的 CIDR 掩码导致同一 Docker endpoint 被误判。
 
 ### 2026-09-24 首轮执行证据
 

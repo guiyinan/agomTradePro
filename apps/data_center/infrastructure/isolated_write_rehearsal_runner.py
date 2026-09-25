@@ -39,7 +39,7 @@ def _connected_database_identity() -> tuple[str, str, int]:
     """Read the database and server endpoint from the established PostgreSQL session."""
     with connection.cursor() as cursor:
         cursor.execute(
-            "SELECT current_database(), COALESCE(inet_server_addr()::text, ''), "
+            "SELECT current_database(), COALESCE(host(inet_server_addr()), ''), "
             "COALESCE(inet_server_port(), 0)"
         )
         database_name, server_address, server_port = cursor.fetchone()
@@ -53,7 +53,7 @@ def _resolved_host_addresses(host: str, port: int) -> set[str]:
     except socket.gaierror as exc:
         raise DataFetchError(
             "Expected rehearsal database host cannot be resolved",
-            code="REHEARSAL_WRITE_SCOPE_INVALID",
+            code="REHEARSAL_WRITE_SCOPE_HOST_UNRESOLVED",
         ) from exc
 
 
@@ -67,28 +67,56 @@ def _assert_isolated_database(
     name = str(connection.settings_dict.get("NAME") or "")
     host = str(connection.settings_dict.get("HOST") or "")
     port = int(connection.settings_dict.get("PORT") or 5432)
-    if (
-        connection.vendor != "postgresql"
-        or connection.in_atomic_block
-        or os.environ.get("AGOM_RELEASE_REHEARSAL_DATABASE") != "1"
-        or re.fullmatch(r"agom_release_rehearsal_[a-z0-9_]+", name) is None
-        or name != expected_database_name
-        or host != expected_database_host
-        or (require_ephemeral_host and re.fullmatch(r"agom-s6-postgres-[a-z0-9-]+", host) is None)
-    ):
+    if connection.vendor != "postgresql":
         raise DataFetchError(
-            "Write rehearsal requires an explicitly isolated PostgreSQL database",
-            code="REHEARSAL_WRITE_SCOPE_INVALID",
+            "Write rehearsal requires PostgreSQL",
+            code="REHEARSAL_WRITE_SCOPE_VENDOR_INVALID",
+        )
+    if connection.in_atomic_block:
+        raise DataFetchError(
+            "Write rehearsal cannot run inside an existing transaction",
+            code="REHEARSAL_WRITE_SCOPE_TRANSACTION_ACTIVE",
+        )
+    if os.environ.get("AGOM_RELEASE_REHEARSAL_DATABASE") != "1":
+        raise DataFetchError(
+            "Write rehearsal requires explicit disposable-database opt-in",
+            code="REHEARSAL_WRITE_SCOPE_OPT_IN_MISSING",
+        )
+    if re.fullmatch(r"agom_release_rehearsal_[a-z0-9_]+", name) is None:
+        raise DataFetchError(
+            "Configured database name is not a rehearsal database",
+            code="REHEARSAL_WRITE_SCOPE_DATABASE_NAME_INVALID",
+        )
+    if name != expected_database_name:
+        raise DataFetchError(
+            "Configured database name does not match the expected rehearsal database",
+            code="REHEARSAL_WRITE_SCOPE_DATABASE_NAME_MISMATCH",
+        )
+    if host != expected_database_host:
+        raise DataFetchError(
+            "Configured database host does not match the expected rehearsal host",
+            code="REHEARSAL_WRITE_SCOPE_HOST_CONFIG_MISMATCH",
+        )
+    if require_ephemeral_host and re.fullmatch(r"agom-s6-postgres-[a-z0-9-]+", host) is None:
+        raise DataFetchError(
+            "Configured database host is not an ephemeral S6 host",
+            code="REHEARSAL_WRITE_SCOPE_HOST_NOT_EPHEMERAL",
         )
     actual_name, server_address, server_port = _connected_database_identity()
-    if (
-        actual_name != expected_database_name
-        or server_port != port
-        or server_address not in _resolved_host_addresses(expected_database_host, port)
-    ):
+    if actual_name != expected_database_name:
         raise DataFetchError(
-            "Connected database does not match the expected rehearsal endpoint",
-            code="REHEARSAL_WRITE_SCOPE_INVALID",
+            "Connected database does not match the expected rehearsal database",
+            code="REHEARSAL_WRITE_SCOPE_CONNECTED_DATABASE_MISMATCH",
+        )
+    if server_port != port:
+        raise DataFetchError(
+            "Connected database port does not match the configured rehearsal port",
+            code="REHEARSAL_WRITE_SCOPE_CONNECTED_PORT_MISMATCH",
+        )
+    if server_address not in _resolved_host_addresses(expected_database_host, port):
+        raise DataFetchError(
+            "Connected database address does not match the expected rehearsal host",
+            code="REHEARSAL_WRITE_SCOPE_CONNECTED_ADDRESS_MISMATCH",
         )
 
 

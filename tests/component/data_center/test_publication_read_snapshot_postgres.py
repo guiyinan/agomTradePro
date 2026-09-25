@@ -1,5 +1,6 @@
 """Opt-in real PostgreSQL consistency, locking and rollback publication tests."""
 
+import ipaddress
 import json
 import os
 from collections.abc import Iterator, Sequence
@@ -165,6 +166,22 @@ def actual_publication_pg(_actual_publication_pg_schema) -> Iterator[_PGProbeFac
 def _probe_update(probe, fact_pk: str) -> None:
     probe.execute("SELECT set_config('lock_timeout', %s, true)", ["150ms"])
     probe.execute("UPDATE data_center_valuation_fact SET pe_ttm=99 WHERE id=%s", [fact_pk])
+
+
+def test_connected_database_identity_returns_real_postgres_address_without_cidr(
+    actual_publication_pg,
+) -> None:
+    """Real PostgreSQL endpoint identity must return a host address without a CIDR mask."""
+    from apps.data_center.infrastructure import isolated_write_rehearsal_runner as runner
+
+    del actual_publication_pg
+    database_name, server_address, server_port = runner._connected_database_identity()
+    configured = connections["default"].settings_dict
+
+    assert database_name == configured["NAME"]
+    assert "/" not in server_address
+    ipaddress.ip_address(server_address)
+    assert server_port == 5432
 
 
 def test_market_rehearsal_database_enforces_read_only_on_provider_write(
@@ -521,7 +538,13 @@ def test_isolated_write_rehearsal_scope_guards_leave_real_pg_tables_unchanged(
         with pytest.raises(DataFetchError) as exc_info:
             runner.collect_isolated_write_rehearsal(**arguments)
 
-    assert exc_info.value.code == "REHEARSAL_WRITE_SCOPE_INVALID"
+    expected_codes = {
+        "non_postgresql": "REHEARSAL_WRITE_SCOPE_VENDOR_INVALID",
+        "wrong_database": "REHEARSAL_WRITE_SCOPE_DATABASE_NAME_INVALID",
+        "env_missing": "REHEARSAL_WRITE_SCOPE_OPT_IN_MISSING",
+        "atomic": "REHEARSAL_WRITE_SCOPE_TRANSACTION_ACTIVE",
+    }
+    assert exc_info.value.code == expected_codes[invalid_scope]
     assert _isolated_write_table_counts() == before
     assert not output_dir.exists()
 
