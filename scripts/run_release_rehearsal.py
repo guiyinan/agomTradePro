@@ -632,7 +632,7 @@ def _stage_specs(
         "--target-trade-date",
         identity.target_trade_date,
         "--output-dir",
-        "/run/agom/stage",
+        "/run/agom/stage/output",
     )
     capacity = (
         "python",
@@ -658,7 +658,7 @@ def _stage_specs(
         "--max-dispatches",
         str(config.max_dispatches),
         "--output-dir",
-        "/run/agom/stage",
+        "/run/agom/stage/output",
     )
     isolated = (
         "python",
@@ -672,7 +672,7 @@ def _stage_specs(
         "--provider-identities-sha256",
         identity.provider_identities_sha256,
         "--output-dir",
-        "/run/agom/stage",
+        "/run/agom/stage/output",
     )
     return (
         StageSpec(
@@ -684,7 +684,7 @@ def _stage_specs(
         ),
         StageSpec(
             "response_replay",
-            "real-response-unit-replay.json",
+            "output/real-response-unit-replay.json",
             replay,
             config.provider_env_file,
             mounts=(
@@ -694,13 +694,13 @@ def _stage_specs(
         ),
         StageSpec(
             "full_universe_capacity",
-            "full-universe-capacity.json",
+            "output/full-universe-capacity.json",
             capacity,
             config.provider_env_file,
         ),
         StageSpec(
             "isolated_postgresql_write",
-            "isolated-write-rehearsal.json",
+            "output/isolated-write-rehearsal.json",
             isolated,
             config.isolated_postgres_env_file,
         ),
@@ -930,11 +930,11 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
             sys.executable,
             str(config.root / "scripts" / "build_release_rehearsal_manifest.py"),
             "--real-response-unit-replay",
-            str(replay_dir / "real-response-unit-replay.json"),
+            str(replay_dir / "output" / "real-response-unit-replay.json"),
             "--full-universe-capacity",
-            str(capacity_dir / "full-universe-capacity.json"),
+            str(capacity_dir / "output" / "full-universe-capacity.json"),
             "--isolated-write-rehearsal",
-            str(isolated_dir / "isolated-write-rehearsal.json"),
+            str(isolated_dir / "output" / "isolated-write-rehearsal.json"),
             "--candidate-regression-evidence",
             str(ci_path),
             "--output-dir",

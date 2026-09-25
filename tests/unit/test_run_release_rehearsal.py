@@ -148,9 +148,9 @@ class FakeRunner:
             image_value = f"sha256:{'d' * 64}"
         filenames = {
             "provider_probe": "probe.json",
-            "response_replay": "real-response-unit-replay.json",
-            "full_universe_capacity": "full-universe-capacity.json",
-            "isolated_postgresql_write": "isolated-write-rehearsal.json",
+            "response_replay": "output/real-response-unit-replay.json",
+            "full_universe_capacity": "output/full-universe-capacity.json",
+            "isolated_postgresql_write": "output/isolated-write-rehearsal.json",
             "github_ci_evidence": "candidate-regression-evidence.json",
         }
         kinds = {
@@ -181,9 +181,9 @@ class FakeRunner:
                 "isolated_postgresql_write": "isolated_postgresql",
                 "github_ci_evidence": "candidate_ci",
             }[command.label]
-        (command.artifact_dir / filenames[command.label]).write_text(
-            json.dumps(payload, sort_keys=True), encoding="utf-8"
-        )
+        report_path = command.artifact_dir / filenames[command.label]
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
 
     def _create_bundle(self, command: Command) -> None:
         args = command.argv
@@ -306,6 +306,10 @@ def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handof
         assert command.env["AGOM_CANDIDATE_IMAGE_ID"] == IMAGE_ID
         assert command.env["AGOM_RELEASE_MANIFEST_PATH"].endswith("candidate-release-manifest.json")
         assert IMAGE_ID in command.argv
+        if label != "provider_probe":
+            output_index = command.argv.index("--output-dir")
+            assert command.argv[output_index + 1] == "/run/agom/stage/output"
+            assert (command.artifact_dir / "output").is_dir()
     receipt = verify_evidence_handoff_receipt(receipt_path)
     assert receipt["candidate_sha"] == CANDIDATE_SHA
     assert receipt["candidate_image_id"] == IMAGE_ID
