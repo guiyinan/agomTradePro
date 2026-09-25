@@ -10,6 +10,7 @@
 - 系统版本见 `docs/VERSION.md`；文档导航见 `docs/INDEX.md`。
 - 动态治理规模的唯一真源是 `governance/governance_baseline.json`。
 - 运行与开发依赖的唯一真源是 `pyproject.toml`。禁止手工编辑 `requirements-prod.txt`、`requirements-dev.txt`；使用 `python scripts/sync_dependency_projections.py` 生成投影。
+- 模块结构地图 `governance/module_map.json` 是代码树的生成投影（同 requirements 投影模式），禁止手工编辑；变更模块结构后运行 `python scripts/build_module_map.py` 重新生成。
 
 项目基线：Python 3.11+、Django 5.x、Celery + Redis；本地可用 SQLite，正式生产使用 PostgreSQL。
 
@@ -88,6 +89,7 @@ apps/*/interface/   import apps.*.infrastructure
 | 改动类型 | 必读真源 | 必做检查 |
 | --- | --- | --- |
 | Celery 批量写入/新鲜度任务 | `docs/development/celery-task-contract-guard.md` | 更新 `governance/celery_task_contracts.json`；运行 `python scripts/check_celery_task_contracts.py` |
+| 模块结构/依赖/入口/路由变化 | `docs/architecture/MODULE_MAP.md` | 运行 `python scripts/build_module_map.py` 并通过 `python scripts/check_module_map.py` |
 | `current/latest/realtime/summary` 决策数据 | `docs/development/data-freshness-contract-guard.md` | 更新 `governance/current_data_contracts.json`；运行 `python scripts/check_current_data_contracts.py` |
 | TUI metadata/runtime/promotion | `docs/development/tui-user-facing-design-standard.md` | 同步 schema、metadata、compiler/runtime 与测试 |
 | Classic Web 模板或 Web→TUI 迁移 | `docs/plans/web-to-tui-migration-plan-2026-07-25.md` | 同步迁移矩阵/配置；运行 `python scripts/web_template_migration_inventory.py --check` |

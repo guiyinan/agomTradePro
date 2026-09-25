@@ -84,6 +84,9 @@ jobs:
             --fail-on-cycles \
             --format text
 
+      - name: Verify module map projection is current
+        run: python scripts/check_module_map.py
+
   structure-audit-report:
     runs-on: ubuntu-latest
     timeout-minutes: 10
