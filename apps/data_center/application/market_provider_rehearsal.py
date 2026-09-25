@@ -94,7 +94,13 @@ def assess_market_probe(
             "fetched_at": fetched.isoformat() if fetched else None,
         }
         if isinstance(fact, QuoteSnapshot):
-            row["current_price"] = fact.current_price
+            row.update(
+                {
+                    "current_price": fact.current_price,
+                    "volume": fact.volume,
+                    "amount": fact.amount,
+                }
+            )
         else:
             if fact.val_date != target_date:
                 failures.append("REHEARSAL_SOURCE_DATE_MISMATCH")

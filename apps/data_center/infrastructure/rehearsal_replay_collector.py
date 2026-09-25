@@ -176,8 +176,13 @@ def _verify_probe_replay_equivalence(
             ):
                 raise ValueError("REHEARSAL_REPLAY_LIVE_FACT_MISMATCH")
             if dataset == "equity.quote.snapshot":
-                if set(units) != {"close"} or not _same_number(
-                    live.get("current_price"), units["close"].get("canonical")
+                if set(units) != {"close", "vol", "amount"} or any(
+                    not _same_number(live.get(live_field), units[unit_field].get("canonical"))
+                    for live_field, unit_field in (
+                        ("current_price", "close"),
+                        ("volume", "vol"),
+                        ("amount", "amount"),
+                    )
                 ):
                     raise ValueError("REHEARSAL_REPLAY_LIVE_FACT_MISMATCH")
             elif (

@@ -2211,6 +2211,7 @@
         "apps/data_center/infrastructure/market_gateway_entities.py",
         "apps/data_center/infrastructure/gateways/tencent_gateway.py",
         "apps/data_center/infrastructure/gateways/tushare_gateway.py",
+        "apps/data_center/infrastructure/tushare_replay_parser.py",
         "apps/data_center/infrastructure/quote_snapshot_repository.py",
         "apps/realtime/infrastructure/repositories.py",
         "apps/realtime/application/price_polling_service.py",
@@ -2225,7 +2226,12 @@
           "observed_at=_parse_tencent_quote_time("
         ],
         "apps/data_center/infrastructure/gateways/tushare_gateway.py": [
-          "observed_at=observed_at"
+          "parse_tushare_daily_quote_rows("
+        ],
+        "apps/data_center/infrastructure/tushare_replay_parser.py": [
+          "observed_at=cn_market_session_close_utc(trade_date)",
+          "TUSHARE_DAILY_VOLUME_MULTIPLIER_TO_SHARES",
+          "TUSHARE_DAILY_AMOUNT_MULTIPLIER_TO_CNY"
         ],
         "apps/data_center/infrastructure/quote_snapshot_repository.py": [
           "fetched_at=m.fetched_at",
@@ -2263,6 +2269,11 @@
           "case": "configured_quote_volume_units",
           "test_file": "tests/unit/data_center/test_tencent_gateway.py",
           "test_function": "test_tencent_quote_volume_uses_configured_canonical_share_units"
+        },
+        {
+          "case": "tushare_quote_units",
+          "test_file": "tests/unit/data_center/test_tushare_replay_parser.py",
+          "test_function": "test_daily_quote_normalizes_fractional_lots_and_rejects_invalid_units"
         }
       ]
     },

@@ -15,6 +15,8 @@ from apps.data_center.infrastructure.market_gateway_entities import QuoteSnapsho
 from shared.numeric import safe_float
 
 TUSHARE_MARKET_CAP_MULTIPLIER_TO_CNY = 10_000.0
+TUSHARE_DAILY_VOLUME_MULTIPLIER_TO_SHARES = Decimal("100")
+TUSHARE_DAILY_AMOUNT_MULTIPLIER_TO_CNY = Decimal("1000")
 
 
 class ResponseEvidenceLike(Protocol):
@@ -52,6 +54,25 @@ def _safe_int(value: object) -> int | None:
     if parsed is None or parsed < 0 or not parsed.is_integer():
         return None
     return int(parsed)
+
+
+def _tushare_daily_volume_shares(value: object) -> int | None:
+    """Convert Tushare daily volume from lots (手) to canonical shares."""
+
+    parsed = _safe_decimal(value)
+    if parsed is None or parsed < 0:
+        return None
+    shares = parsed * TUSHARE_DAILY_VOLUME_MULTIPLIER_TO_SHARES
+    return int(shares) if shares == shares.to_integral_value() else None
+
+
+def _tushare_daily_amount_cny(value: object) -> Decimal | None:
+    """Convert Tushare daily turnover from thousand CNY to canonical CNY."""
+
+    parsed = _safe_decimal(value)
+    if parsed is None or parsed < 0:
+        return None
+    return parsed * TUSHARE_DAILY_AMOUNT_MULTIPLIER_TO_CNY
 
 
 def _optional_nonnegative_float(value: object) -> float | None:
@@ -163,8 +184,8 @@ def parse_tushare_daily_quote_rows(
         price=price,
         change=change,
         change_pct=change_pct,
-        volume=_safe_int(latest.get("vol")),
-        amount=_safe_decimal(latest.get("amount")),
+        volume=_tushare_daily_volume_shares(latest.get("vol")),
+        amount=_tushare_daily_amount_cny(latest.get("amount")),
         turnover_rate=safe_float(latest.get("turnover_rate")),
         high=_safe_decimal(latest.get("high")),
         low=_safe_decimal(latest.get("low")),

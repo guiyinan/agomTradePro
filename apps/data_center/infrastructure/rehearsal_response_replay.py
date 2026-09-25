@@ -129,19 +129,27 @@ def _replay_rows(
             )
             if quote is None or quote.observed_at != observed:
                 raise ValueError("REHEARSAL_REPLAY_SOURCE_TIME_MISMATCH")
-            canonical = float(quote.price)
-            contract = unit_contracts["close"]
-            verify_unit_pair(row.get("close"), canonical, contract.multiplier)
-            units.append(
-                {
-                    "field": "close",
-                    "raw": row.get("close"),
-                    "canonical": canonical,
-                    "raw_unit": contract.raw_unit,
-                    "canonical_unit": contract.canonical_unit,
-                    "multiplier": contract.multiplier,
-                }
-            )
+            for field, raw, canonical in (
+                ("close", row.get("close"), float(quote.price)),
+                ("vol", row.get("vol"), quote.volume),
+                (
+                    "amount",
+                    row.get("amount"),
+                    float(quote.amount) if quote.amount is not None else None,
+                ),
+            ):
+                contract = unit_contracts[field]
+                verify_unit_pair(raw, canonical, contract.multiplier)
+                units.append(
+                    {
+                        "field": field,
+                        "raw": raw,
+                        "canonical": canonical,
+                        "raw_unit": contract.raw_unit,
+                        "canonical_unit": contract.canonical_unit,
+                        "multiplier": contract.multiplier,
+                    }
+                )
         else:
             fact = map_tushare_daily_basic_row(
                 row,
@@ -210,7 +218,9 @@ def replay_retained_dataset(
     context = responses[0].context
     units_by_field = {contract.field: contract for contract in unit_contracts}
     required_fields = (
-        {"close"} if context.dataset == "equity.quote.snapshot" else {"total_mv", "circ_mv"}
+        {"close", "vol", "amount"}
+        if context.dataset == "equity.quote.snapshot"
+        else {"total_mv", "circ_mv"}
     )
     if len(units_by_field) != len(unit_contracts) or set(units_by_field) != required_fields:
         raise ValueError("REHEARSAL_REPLAY_UNIT_CONTRACT_MISSING")

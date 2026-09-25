@@ -67,7 +67,27 @@ def test_production_quote_path_accepts_witnessed_frame_and_replay_target(monkeyp
     assert quotes[0].price == replayed.price == 12.5
     assert quotes[0].observed_at == datetime(2026, 9, 23, 7, tzinfo=UTC)
     assert quotes[0].fetched_at == completed_at
-    assert quotes[0].volume == 200
+    assert quotes[0].volume == replayed.volume == 20_000
+    assert quotes[0].amount == replayed.amount == 2_500_000
+
+
+def test_daily_quote_normalizes_fractional_lots_and_rejects_invalid_units() -> None:
+    fetched_at = datetime(2026, 9, 23, 8, 5, tzinfo=UTC)
+    quote = parse_tushare_daily_quote_rows(
+        [{"trade_date": "20260923", "close": 12.5, "vol": "10.50", "amount": "2.25"}],
+        requested_asset_code="000001.SZ",
+        source="tushare",
+        fetched_at=fetched_at,
+    )
+    invalid = parse_tushare_daily_quote_rows(
+        [{"trade_date": "20260923", "close": 12.5, "vol": "0.001", "amount": -1}],
+        requested_asset_code="000001.SZ",
+        source="tushare",
+        fetched_at=fetched_at,
+    )
+
+    assert quote is not None and quote.volume == 1_050 and quote.amount == 2_250
+    assert invalid is not None and invalid.volume is None and invalid.amount is None
 
 
 def test_witnessed_frame_preserves_dataframe_operations_for_all_consumers() -> None:

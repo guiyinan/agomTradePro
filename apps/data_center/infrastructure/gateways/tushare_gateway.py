@@ -8,9 +8,8 @@ Tushare Gateway
 
 import logging
 from collections.abc import Iterable
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any, Protocol, cast
-from zoneinfo import ZoneInfo
 
 from apps.data_center.infrastructure.market_gateway_entities import (
     HistoricalPriceBar,
@@ -23,9 +22,9 @@ from apps.data_center.infrastructure.tushare_client import (
     TushareRelayAuthorizationError,
     create_tushare_pro_client,
 )
+from apps.data_center.infrastructure.tushare_replay_parser import _safe_decimal as _safe_decimal
+from apps.data_center.infrastructure.tushare_replay_parser import _safe_int as _safe_int
 from apps.data_center.infrastructure.tushare_replay_parser import (
-    _safe_decimal,
-    _safe_int,
     parse_tushare_daily_quote_rows,
 )
 from shared.numeric import safe_float
@@ -241,40 +240,14 @@ class TushareGateway(MarketGatewayProtocol):
                     continue
                 if "trade_date" not in df.columns:
                     continue
-                latest = df.loc[df["trade_date"].astype(str).idxmax()]
-                raw_trade_date = str(latest.get("trade_date") or "").strip()
-                observed_at = datetime.combine(
-                    datetime.strptime(raw_trade_date, "%Y%m%d").date(),
-                    time(hour=15),
-                    tzinfo=ZoneInfo("Asia/Shanghai"),
-                ).astimezone(UTC)
-                price = _safe_decimal(latest.get("close"))
-                if price is None or price <= 0:
-                    continue
-                pre_close = _safe_decimal(latest.get("pre_close"))
-                change = price - pre_close if pre_close and pre_close > 0 else None
-                change_pct = (
-                    float(change / pre_close * 100)
-                    if change is not None and pre_close is not None and pre_close > 0
-                    else None
+                quote = parse_tushare_daily_quote_rows(
+                    df.to_dict("records"),
+                    requested_asset_code=code,
+                    source="tushare",
+                    fetched_at=datetime.now(UTC),
                 )
-                results.append(
-                    QuoteSnapshot(
-                        stock_code=code,
-                        price=price,
-                        change=change,
-                        change_pct=change_pct,
-                        volume=_safe_int(latest.get("vol")),
-                        amount=_safe_decimal(latest.get("amount")),
-                        turnover_rate=safe_float(latest.get("turnover_rate")),
-                        high=_safe_decimal(latest.get("high")),
-                        low=_safe_decimal(latest.get("low")),
-                        open=_safe_decimal(latest.get("open")),
-                        pre_close=pre_close,
-                        source="tushare",
-                        observed_at=observed_at,
-                    )
-                )
+                if quote is not None:
+                    results.append(quote)
             except (RuntimeError, TypeError, ValueError, KeyError):
                 logger.warning("Tushare compatibility quote failed: %s", code)
         return results

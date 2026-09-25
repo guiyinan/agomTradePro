@@ -45,13 +45,13 @@ def modules():
 
 def _body(dataset: str, *, extra_asset: bool = True) -> bytes:
     fields = (
-        ["ts_code", "trade_date", "close", "pre_close"]
+        ["ts_code", "trade_date", "close", "pre_close", "vol", "amount"]
         if "quote" in dataset
         else ["ts_code", "trade_date", "total_mv", "circ_mv", "pe_ttm", "pb"]
     )
     rows = [
         (
-            [code, "20260924", 12.5, 12.0]
+            [code, "20260924", 12.5, 12.0, 100.5, 2_000.25]
             if "quote" in dataset
             else [code, "20260924", 300.0, 200.0, 8.0, 1.2]
         )
@@ -97,7 +97,11 @@ def _context(modules, dataset):
 def _contracts(modules, dataset):
     cls = modules["rehearsal_response_replay"].ReplayUnitContract
     return (
-        (cls("close", "元", "元", 1.0),)
+        (
+            cls("close", "元", "元", 1.0),
+            cls("vol", "手", "股", 100.0),
+            cls("amount", "千元", "元", 1000.0),
+        )
         if "quote" in dataset
         else (cls("total_mv", "万元", "元", 10000.0), cls("circ_mv", "万元", "元", 10000.0))
     )
@@ -219,7 +223,7 @@ def _fixture(modules, tmp_path):
                 "fetched_at": NORMALIZED.isoformat(),
             }
             if "quote" in dataset:
-                fact["current_price"] = 12.5
+                fact.update({"current_price": 12.5, "volume": 10_050.0, "amount": 2_000_250.0})
             else:
                 fact.update(
                     {

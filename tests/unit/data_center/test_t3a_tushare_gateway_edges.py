@@ -59,6 +59,8 @@ def test_quote_path_skips_empty_invalid_and_isolates_per_code_failures(
     )
     assert len(result) == 1
     assert result[0].change_pct == 20
+    assert result[0].volume == 10_000
+    assert result[0].amount == 200_000
 
     monkeypatch.setattr(
         tushare_gateway,
