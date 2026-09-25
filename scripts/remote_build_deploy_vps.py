@@ -185,6 +185,59 @@ def _validate_prebuilt_rehearsal_receipt(
         raise ValueError("Independent release rehearsal validation failed")
 
 
+def _build_prebuilt_verification_script() -> str:
+    """Return valid Python that verifies the rehearsed image before deployment."""
+    return """
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+manifest_path, release_tag, source_commit, expected_image_id, rehearsal_sha256 = sys.argv[1:]
+manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
+image_tag = f"agomtradepro-web:{release_tag}"
+actual_image_id = subprocess.check_output(
+    ["docker", "image", "inspect", image_tag, "--format", "{{.Id}}"], text=True
+).strip()
+actual_revision = subprocess.check_output(
+    [
+        "docker",
+        "image",
+        "inspect",
+        image_tag,
+        "--format",
+        '{{index .Config.Labels "org.opencontainers.image.revision"}}',
+    ],
+    text=True,
+).strip()
+if (
+    re.fullmatch(r"[0-9a-f]{64}", rehearsal_sha256) is None
+    or manifest.get("release_tag") != release_tag
+    or manifest.get("source_commit") != source_commit
+    or manifest.get("image_tag") != image_tag
+    or manifest.get("image_id") != expected_image_id
+    or actual_image_id != expected_image_id
+    or actual_revision != source_commit
+):
+    raise SystemExit("prebuilt candidate identity mismatch")
+report = {
+    "version": 1,
+    "release_tag": release_tag,
+    "source_commit": source_commit,
+    "image_tag": image_tag,
+    "image_id": expected_image_id,
+    "release_rehearsal_sha256": rehearsal_sha256,
+    "deploy_after_build": True,
+    "source_mode": "prebuilt-rehearsed-image",
+}
+Path("/tmp/agomtradepro-build-report.json").write_text(
+    json.dumps(report, sort_keys=True, indent=2), encoding="utf-8"
+)
+print("BUILD_REPORT_PATH=/tmp/agomtradepro-build-report.json")
+"""
+
+
 def _latest_sqlite(project_root: Path) -> Path:
     db = project_root / "db.sqlite3"
     if not db.exists():
@@ -2566,47 +2619,7 @@ def main() -> int:
             manifest_path = posixpath.join(
                 args.target_dir, "releases", f"source-{tag}", ".agom-release-manifest.json"
             )
-            verify_script = """
-import json
-import re
-import subprocess
-import sys
-from pathlib import Path
-
-manifest_path, release_tag, source_commit, expected_image_id, rehearsal_sha256 = sys.argv[1:]
-manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
-image_tag = f"agomtradepro-web:{release_tag}"
-actual_image_id = subprocess.check_output(
-    ["docker", "image", "inspect", image_tag, "--format", "{{.Id}}"], text=True
-).strip()
-actual_revision = subprocess.check_output(
-    ["docker", "image", "inspect", image_tag, "--format", "{{index .Config.Labels \"org.opencontainers.image.revision\"}}"], text=True
-).strip()
-if (
-    re.fullmatch(r"[0-9a-f]{64}", rehearsal_sha256) is None
-    or manifest.get("release_tag") != release_tag
-    or manifest.get("source_commit") != source_commit
-    or manifest.get("image_tag") != image_tag
-    or manifest.get("image_id") != expected_image_id
-    or actual_image_id != expected_image_id
-    or actual_revision != source_commit
-):
-    raise SystemExit("prebuilt candidate identity mismatch")
-report = {
-    "version": 1,
-    "release_tag": release_tag,
-    "source_commit": source_commit,
-    "image_tag": image_tag,
-    "image_id": expected_image_id,
-    "release_rehearsal_sha256": rehearsal_sha256,
-    "deploy_after_build": True,
-    "source_mode": "prebuilt-rehearsed-image",
-}
-Path("/tmp/agomtradepro-build-report.json").write_text(
-    json.dumps(report, sort_keys=True, indent=2), encoding="utf-8"
-)
-print("BUILD_REPORT_PATH=/tmp/agomtradepro-build-report.json")
-"""
+            verify_script = _build_prebuilt_verification_script()
             remote_cmd = " ".join(
                 [
                     "python3",

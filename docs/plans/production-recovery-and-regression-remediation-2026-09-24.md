@@ -163,8 +163,8 @@
 | R3 只读/工作台/文案 | 候选代码完成，生产待验 | 账户归属、GET 零写入、研究入口、慢请求/重试和缺失价格语义已通过本地行为验收；生产普通投资者浏览器 UAT 待验 |
 | R4 进度/诊断 | 候选代码完成，生产待验 | current attempt / last completed、phase、outcome、计数单位和安全错误投影已形成回归；生产任务结果待验 |
 | S1–S5 | 候选代码完成，远端 CI 待验 | 真实 provider 契约、不变量、时间、规模和跨消费者选测已集成；同一最终 SHA 的远端 CI 结果仍须冻结 |
-| S6 | 第十次真实演练已阻断，验证器报价单位合同修复待新 SHA 重跑 | `24da5c943` 的同 SHA CI 和 25 项 PostgreSQL 契约全绿；全新候选再次通过构建、镜像身份、真实 provider 探针、原始响应重放、5,569 只全市场容量、隔离 PostgreSQL 写入回滚、官方 CI 证据和不可变 bundle，最终 validator 准确透传 `REHEARSAL_REPLAY_UNIT_CONTRACT_INVALID`。真实合同使用报价单位 `CNY_per_share`、`lot→share ×100`、`thousand_CNY→CNY ×1000`，估值使用 `万元→元 ×10000`；validator fixture 仍使用旧中文报价别名 `元/手/股/千元`，与已规范化的数据合同不一致。validator 与 fixture 现改为真实 canonical 名称，转换倍率和估值单位不变。必须以新 SHA 重跑全部 CI 和整套真实 S6，旧候选、镜像、探针和证据均不得复用 |
-| 生产联合复验 | 未完成 | 真实普通用户、四发布、自然周期和准确 runtime 门尚需验证 |
+| S6 | 第十一次真实演练完整成功，部署器修复待最终 SHA 重跑 | `66615517e3` 的同 SHA CI 和 25 项 PostgreSQL 契约全绿；全新候选完整通过构建、镜像身份、真实 provider 探针、原始响应重放、5,569 只全市场容量、隔离 PostgreSQL 写入回滚、官方 CI 证据、不可变 bundle 和最终 validator。独立下载后复算 bundle tree、manifest、GitHub run 与四类报告也通过，临时凭据和隔离 PostgreSQL 已清理。首次部署在任何生产切换前因 prebuilt 校验 payload 的 Python 引号错误阻断；修复属于部署代码变更，必须以最终新 SHA 重跑全部 CI 和整套真实 S6，不能用旧候选绕过 |
+| 生产联合复验 | 部署前阻断 | prebuilt 校验 payload quoting 修复后待最终候选部署；真实普通用户、四发布、自然周期和准确 runtime 门尚需验证 |
 
 本表在每个阶段完成后更新，只写实际验证结果。最终报告必须列完成项、未完成项、已验证测试与未验证风险。
 
@@ -186,6 +186,7 @@
 - `53f506fe57` 第八次真实 S6 首次越过官方 CI 证据采集，随后在不可变 bundle 创建前 fail closed。四类输入对比确认前三类报告的候选、镜像、日期、universe 和 provider 摘要一致；CI 报告包含同一规范化 provider 身份数组却遗漏对应摘要，导致 bundler 正确拒绝。修复复用 collector 已返回的校验摘要，不放宽 bundler 或最终 validator 的身份门禁；失败运行的临时凭据和隔离 PostgreSQL 已清理。
 - `1ea5641a4b` 第九次真实 S6 成功创建完整 bundle，最终 validator 在读取真实四类报告后阻断。只读重放确认稳定码为 `REHEARSAL_PROVIDER_IDENTITY_INVALID`；真实 capacity 与 isolated 报告只有已冻结的 `provider_identities_sha256`，而 synthetic validator fixture 曾给四类报告全部添加身份数组，掩盖了生产契约差异。修复后测试 fixture 与真实生产形态一致，并覆盖四类顶层摘要必填、replay/CI 完整数组必填和摘要重算。launcher 另以严格的二字段 blocked JSON 解析 validator 稳定码，含附加诊断字段或多个错误码的输出仍降级为通用安全错误。
 - `24da5c943` 第十次真实 S6 证明身份形态与稳定码透传修复有效，最终 validator 随后在单位合同检查 fail closed。冻结 bundle 的只读复核确认报价合同与单位重放均使用系统已规范化的英文 canonical 名称和正确倍率，只有 validator 的 synthetic 常量仍保留旧中文别名。修复只统一单位名称，不改变数值倍率、原始响应、已发布事实或估值合同；失败运行的临时凭据和隔离 PostgreSQL 已清理。随后增加报价旧中文别名、报价及估值五字段任一合同倍率漂移、微小 observation 倍率漂移的 fail-closed 回归；单位倍率按已定义的整数转换系数精确匹配。聚焦 validator suite 76 项通过，Ruff、Black、isort 和增量 mypy 通过；新的候选 SHA 仍须跑完整 CI 与全新 S6。
+- `66615517e3` 第十一次真实 S6 首次完整成功，九个阶段全部完成且 `success_evidence/error_code=null`。候选镜像 `sha256:5fb0f6c…f8a3`、release tag `20260925190720`、bundle tree `d5501f57…a800` 与 GitHub run `36163499730` 绑定同一提交；本地独立 validator 重放再次成功。随后正式部署入口在 SSH 和镜像定位后、生产 mutation 前因生成的 `python -c` payload 将 Docker label 模板双引号错误嵌入双引号字符串而 `SyntaxError`。修复把 payload 收敛为有类型、有 docstring 的单一生成函数，并直接编译测试生成结果；生产服务仍保持旧版本。
 
 ### 2026-09-24 首轮执行证据
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import shutil
 import subprocess
 import sys
@@ -505,6 +506,153 @@ def test_remote_builder_reuses_only_the_rehearsed_prebuilt_image() -> None:
     assert "actual_revision != source_commit" in source
     assert '"REHEARSAL_IMAGE_ID": args.prebuilt_image_id' in source
     assert '"RELEASE_REHEARSAL_SHA256": args.release_rehearsal_sha256' in source
+
+
+def test_prebuilt_verification_script_is_valid_python() -> None:
+    """The remote python -c payload must retain the quoted Docker label template."""
+    script = remote_build_deploy_vps._build_prebuilt_verification_script()
+
+    compile(script, "<prebuilt-verification>", "exec")
+
+    assert '{{index .Config.Labels "org.opencontainers.image.revision"}}' in script
+
+
+def test_prebuilt_verification_script_executes_with_exact_docker_label_and_writes_report(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The quoted Docker template must survive execution and bind the report to S6 inputs."""
+    release_tag = "20260926010101"
+    source_commit = "c" * 40
+    image_id = "sha256:" + "a" * 64
+    rehearsal_sha256 = "b" * 64
+    manifest_path = tmp_path / ".agom-release-manifest.json"
+    report_path = tmp_path / "agomtradepro-build-report.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "release_tag": release_tag,
+                "source_commit": source_commit,
+                "image_tag": f"agomtradepro-web:{release_tag}",
+                "image_id": image_id,
+            }
+        ),
+        encoding="utf-8",
+    )
+    script = remote_build_deploy_vps._build_prebuilt_verification_script().replace(
+        'Path("/tmp/agomtradepro-build-report.json")', f"Path({str(report_path)!r})"
+    )
+    commands: list[list[str]] = []
+
+    def fake_check_output(command: list[str], *, text: bool) -> str:
+        assert text is True
+        commands.append(command)
+        if command[-1] == "{{.Id}}":
+            return image_id
+        if command[-1] == '{{index .Config.Labels "org.opencontainers.image.revision"}}':
+            return source_commit
+        raise AssertionError(f"Unexpected docker inspect format: {command[-1]}")
+
+    monkeypatch.setattr(subprocess, "check_output", fake_check_output)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "-c",
+            str(manifest_path),
+            release_tag,
+            source_commit,
+            image_id,
+            rehearsal_sha256,
+        ],
+    )
+
+    exec(compile(script, "<prebuilt-verification>", "exec"), {})
+
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert [command[-1] for command in commands] == [
+        "{{.Id}}",
+        '{{index .Config.Labels "org.opencontainers.image.revision"}}',
+    ]
+    assert report == {
+        "version": 1,
+        "release_tag": release_tag,
+        "source_commit": source_commit,
+        "image_tag": f"agomtradepro-web:{release_tag}",
+        "image_id": image_id,
+        "release_rehearsal_sha256": rehearsal_sha256,
+        "deploy_after_build": True,
+        "source_mode": "prebuilt-rehearsed-image",
+    }
+
+
+@pytest.mark.parametrize(
+    ("actual_image_id", "actual_revision", "manifest_image_id", "rehearsal_sha256"),
+    [
+        ("sha256:" + "f" * 64, "c" * 40, "sha256:" + "a" * 64, "b" * 64),
+        ("sha256:" + "a" * 64, "d" * 40, "sha256:" + "a" * 64, "b" * 64),
+        ("sha256:" + "a" * 64, "c" * 40, "sha256:" + "f" * 64, "b" * 64),
+        ("sha256:" + "a" * 64, "c" * 40, "sha256:" + "a" * 64, "invalid"),
+    ],
+)
+def test_prebuilt_verification_script_rejects_image_manifest_or_digest_drift(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    actual_image_id: str,
+    actual_revision: str,
+    manifest_image_id: str,
+    rehearsal_sha256: str,
+) -> None:
+    """The remote verifier must stop before reporting success when any bound identity drifts."""
+    release_tag = "20260926010101"
+    source_commit = "c" * 40
+    expected_image_id = "sha256:" + "a" * 64
+    manifest_path = tmp_path / ".agom-release-manifest.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "release_tag": release_tag,
+                "source_commit": source_commit,
+                "image_tag": f"agomtradepro-web:{release_tag}",
+                "image_id": manifest_image_id,
+            }
+        ),
+        encoding="utf-8",
+    )
+    commands: list[list[str]] = []
+
+    def fake_check_output(command: list[str], *, text: bool) -> str:
+        assert text is True
+        commands.append(command)
+        return actual_image_id if command[-1] == "{{.Id}}" else actual_revision
+
+    monkeypatch.setattr(subprocess, "check_output", fake_check_output)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "-c",
+            str(manifest_path),
+            release_tag,
+            source_commit,
+            expected_image_id,
+            rehearsal_sha256,
+        ],
+    )
+
+    with pytest.raises(SystemExit, match="prebuilt candidate identity mismatch"):
+        exec(
+            compile(
+                remote_build_deploy_vps._build_prebuilt_verification_script(),
+                "<prebuilt-verification>",
+                "exec",
+            ),
+            {},
+        )
+
+    assert [command[-1] for command in commands] == [
+        "{{.Id}}",
+        '{{index .Config.Labels "org.opencontainers.image.revision"}}',
+    ]
 
 
 def test_remote_builder_rejects_candidate_drift_before_credentials() -> None:

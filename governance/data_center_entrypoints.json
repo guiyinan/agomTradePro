@@ -8392,8 +8392,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:init_macro_indicator_governance:line:2042",
-      "locator": "line:2042",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:init_macro_indicator_governance:line:2095",
+      "locator": "line:2095",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "init_macro_indicator_governance",
@@ -8402,8 +8402,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:initialize_data_center_catalog:line:1992",
-      "locator": "line:1992",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:initialize_data_center_catalog:line:2045",
+      "locator": "line:2045",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "initialize_data_center_catalog",
@@ -8412,8 +8412,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:normalize_macro_fact_units:line:2042",
-      "locator": "line:2042",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:normalize_macro_fact_units:line:2095",
+      "locator": "line:2095",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "normalize_macro_fact_units",
@@ -8422,8 +8422,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:verify_canonical_schema:line:1984",
-      "locator": "line:1984",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:verify_canonical_schema:line:2037",
+      "locator": "line:2037",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "verify_canonical_schema",
