@@ -4237,8 +4237,10 @@
           "FinancialSourceTimeEvidenceVerifier"
         ],
         "application/full_market_task_support.py": [
+          "data02_authority_failure",
           "exact_provider_batch_count",
-          "full_market_input_failure"
+          "full_market_input_failure",
+          "full_market_soft_timeout_failure"
         ],
         "application/interface_services.py": [
           "fetch_latest_prices",
