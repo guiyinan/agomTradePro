@@ -751,3 +751,25 @@ decision evidence，没有进入 provider refresh 或写入。受保护监控探
 输出和哈希清单见同名 `-raw.zip`。registry v178 → v179；DATA-02、EVID-01/02、AUD-03 状态不变，
 TUI-02 继续 active。本轮只执行 SSH stdin 只读事务和无 execute 预检，没有 provider 调用、生产数据
 写入、profile 激活或 Publication 切换。
+
+## 生产 revision a6f591a418 只读重验（2026-09-25）
+
+生产已推进到 `a6f591a418`，release `20260925023307`；探针采集时仓库 HEAD 为 `ff4d81a0c`，
+最终封存时 `dev/next-development` HEAD 为 `f4de5dfa2d`，生产落后 41 个提交。公网 health、db health、ready 为 200，decision-ready 按设计为
+503，release-identity 端点为 403。A 股有效分母仍为 5,569；quote、price、valuation current
+Publication 已刷新到各 5,557 members，但仍比有效分母少 12，financial 仍只有 80。
+
+生产 profile v18 继续绑定 `release_ref=2a06333c1d92b2aca6e64a4497c6845d6e359759`。audit
+mode=`required`、outbox=`true`、authority selector 有效，temporally current actor、owner、joined heads
+仍为 1/1/1，有效期至 2026-10-01。该快照仍不等于 EVID-01/02 与 AUD-03 的精确 PostgreSQL
+并发、writer/recovery、archive-restore 和告警验收。
+
+两个未传 `--execute` 的 DATA-02 预检均超过 180 秒观察上限，没有返回结构化结果。此次验证没有观察到
+成功写入，也没有复现上一轮立即拒绝 financial decision evidence 的结果，因此把它记录为新的预检可操作性
+阻塞，不能据此推断生产 gate 已放行。受保护监控首次为 `TimeoutError`，留存重试的凭据和匿名请求均为
+401、`DENY_STOP_LINES`，TUI-02 仍不能绑定首样本或启动观察窗口。
+
+结构化证据见 [生产 revision a6f591a418 只读重验](../deployment/production-closure-revalidation-2026-09-25-a6f591a418.json)，原始探针、
+输出和哈希清单见同名 `-raw.zip`。registry v180 → v181；DATA-02、EVID-01/02、AUD-03 状态不变，
+TUI-02 与 DATA-18 继续 active。验证 harness 没有直接调用 provider 或执行生产写入；由于两个 no-execute
+子进程超时，其内部是否到达 provider/写路径未决。没有观察到 profile 激活或 Publication 切换。
