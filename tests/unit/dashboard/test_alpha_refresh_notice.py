@@ -129,6 +129,29 @@ def test_model_data_repair_errors_are_visible(code, message):
     assert message in notice["message"]
 
 
+def test_workspace_calendar_failure_is_visible_after_alpha_cache_write() -> None:
+    notice = build_refresh_notice(
+        [
+            record(
+                repr(
+                    {
+                        "outcome": "partial",
+                        "stored": 1,
+                        "workspace_recommendations_status": "failed",
+                        "workspace_recommendations_error_code": ("market_calendar_unavailable"),
+                    }
+                )
+            )
+        ],
+        portfolio_id=None,
+        universe_id="csi300",
+    )
+
+    assert notice["code"] == "market_calendar_unavailable"
+    assert "交易日历暂不可用" in notice["message"]
+    assert "未能完整完成" in notice["message"]
+
+
 def test_queue_failure_visible_without_a_persisted_task(monkeypatch):
     from apps.dashboard.application import alpha_refresh_notice
 

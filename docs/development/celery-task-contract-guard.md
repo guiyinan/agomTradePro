@@ -9,6 +9,8 @@
 
 2026-09-19 Alpha scoped 定时入口：额度耗尽、模型行情契约阻断、刷新返回 failed/blocked 或目标日覆盖不足时，父任务直接发布 blocked、零写入并停止投递子推理，避免各组合重复刷新。普通瞬时异常仍保留既有通用推理重试路径。详见 [排查记录](../reviews/vps-alpha-auto-refresh-2026-09-19.md)。
 
+2026-09-25 Alpha 推理后置工作区同步：评分缓存和账户推荐刷新是两个独立阶段。评分已写入后，交易日历不可用或推荐刷新失败不得重试整段推理；结果必须保留缓存写入成功，发布 `outcome=partial`、两阶段计数、稳定错误码和安全提示，供 Task Monitor 与 Alpha 页面展示。
+
 2026-09-09 Alpha 额度耗尽处理：Qlib builder 遇到 `token daily limit exceeded`
 立即抛出 `TUSHARE_DAILY_QUOTA_EXHAUSTED`，停止未开始的并发请求；推理任务发布
 `blocked`、`stored=0`，不重试推理或改写缓存。若其他刷新失败导致使用旧交易日，

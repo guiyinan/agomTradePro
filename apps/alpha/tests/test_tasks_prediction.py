@@ -193,7 +193,31 @@ def test_workspace_refresh_failure_does_not_fail_alpha_cache_update(monkeypatch)
     assert result["workspace_recommendations_error"] == "workspace unavailable"
 
 
+def test_workspace_calendar_failure_is_sanitized(monkeypatch):
+    from core.exceptions import DataFetchError
+
+    monkeypatch.setattr(
+        "apps.alpha.application.workspace_sync._resolve_recent_closed_trade_date",
+        Mock(
+            side_effect=DataFetchError(
+                "provider detail must stay private",
+                code="MARKET_CALENDAR_UNAVAILABLE",
+            )
+        ),
+    )
+
+    result = sync_default_workspace_after_alpha_update("csi300", date(2026, 4, 29), None)
+
+    assert result == {
+        "workspace_recommendations_status": "failed",
+        "workspace_recommendations_error_code": "market_calendar_unavailable",
+        "workspace_recommendations_error": "Exchange trading calendar is unavailable",
+    }
+
+
 def test_qlib_predict_scores_refreshes_general_runtime_data_before_prediction(monkeypatch):
+    from core.exceptions import DataFetchError
+
     captured: dict[str, object] = {}
     active_model = SimpleNamespace(artifact_hash="hash-1")
     latest_dates = iter([date(2026, 4, 24), date(2026, 4, 29)])
@@ -243,14 +267,33 @@ def test_qlib_predict_scores_refreshes_general_runtime_data_before_prediction(mo
         "apps.alpha.application.tasks._upsert_qlib_cache",
         fake_upsert,
     )
+    monkeypatch.setattr(
+        "apps.alpha.application.workspace_sync._resolve_recent_closed_trade_date",
+        Mock(
+            side_effect=DataFetchError(
+                "calendar fixture unavailable",
+                code="MARKET_CALENDAR_UNAVAILABLE",
+            )
+        ),
+    )
 
     result = qlib_predict_scores.run("csi300", "2026-04-29", 10)
 
-    assert result["status"] == "success"
     assert captured["refresh_kwargs"]["universes"] == ["csi300"]
     assert captured["prediction_kwargs"]["trade_date"] == date(2026, 4, 29)
     assert captured["cache_kwargs"]["asof_date"] == date(2026, 4, 29)
     assert result["qlib_runtime_refresh_status"] == "success"
+    assert result["status"] == "partial"
+    assert result["outcome"] == "partial"
+    assert result["requested"] == 2
+    assert result["succeeded"] == 1
+    assert result["failed"] == 1
+    assert result["stored"] == 1
+    assert result["phase"] == "workspace_recommendations"
+    assert result["error_code"] == "market_calendar_unavailable"
+    assert result["workspace_recommendations_status"] == "failed"
+    assert result["phase_results"][0]["phase"] == "alpha_cache"
+    assert result["phase_results"][1]["error_code"] == "market_calendar_unavailable"
 
 
 def test_qlib_predict_scores_refreshes_scoped_runtime_data_before_prediction(monkeypatch):

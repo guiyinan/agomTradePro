@@ -10,6 +10,7 @@ from apps.alpha.application.trade_dates import resolve_recent_closed_trade_date
 from apps.alpha.application.workspace_refresh_gateway import (
     refresh_default_workspace_recommendations,
 )
+from core.exceptions import DataFetchError
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,19 @@ def sync_default_workspace_after_alpha_update(
             "workspace_recommendations_reason": "non_default_alpha_universe",
         }
 
-    current_trade_date = _resolve_recent_closed_trade_date()
+    try:
+        current_trade_date = _resolve_recent_closed_trade_date()
+    except DataFetchError as exc:
+        logger.warning(
+            "Skipped workspace recommendation refresh because the current market session "
+            "could not be resolved: %s",
+            type(exc).__name__,
+        )
+        return {
+            "workspace_recommendations_status": "failed",
+            "workspace_recommendations_error_code": "market_calendar_unavailable",
+            "workspace_recommendations_error": "Exchange trading calendar is unavailable",
+        }
     if trade_date != current_trade_date:
         return {
             "workspace_recommendations_status": "skipped",

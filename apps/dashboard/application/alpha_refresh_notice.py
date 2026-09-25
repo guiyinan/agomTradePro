@@ -42,6 +42,7 @@ _MESSAGES = {
     "model_market_scope_incomplete": "当前模型数据尚未覆盖完整组合股票池，推理已阻断。请补齐行情并核对停牌范围后重试。",
     "model_market_invalid": "行情数据未通过完整性校验，更新已阻断。请检查数据质量后重试。",
     "model_market_source_conflict": "行情来源的价格或复权口径不一致，更新已阻断。请修复行情后重新推理。",
+    "market_calendar_unavailable": "交易日历暂不可用，Alpha 自动更新或账户推荐同步未能完整完成。评分日期仍以页面标注为准，请修复交易日历数据后重试。",
     "tushare_daily_quota_exhausted": "行情数据源的日额度已用尽，更新已阻断。额度恢复后会在后续定时任务中重试。",
     "tushare_quota_exhausted": "行情数据源额度不足，更新已阻断。请检查额度后重新推理。",
     "inference_timeout": "推理任务执行超时。请检查任务记录并重试。",
@@ -240,6 +241,7 @@ def build_refresh_notice(
             result.get("blocked_reason")
             or result.get("reason")
             or result.get("qlib_runtime_refresh_error_code")
+            or result.get("workspace_recommendations_error_code")
             or result.get("error_code")
             or result.get("stable_error_code")
             or refresh.get("error_code")
