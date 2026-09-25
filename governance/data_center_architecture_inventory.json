@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 5095,
+    "current_surface_references": 5099,
     "data_write_task_decorators": 65,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -9981,22 +9981,27 @@
       "text": "raise ValueError(\"Current publication fact resolves to multiple natural keys\")"
     },
     {
-      "line": 384,
+      "line": 365,
       "path": "apps/data_center/application/current_publication_rebuild.py",
-      "text": "\"\"\"Preview or atomically publish all configured core current datasets.\"\"\""
+      "text": "raise ValueError(\"Core current publications do not share one run identity\")"
     },
     {
       "line": 394,
       "path": "apps/data_center/application/current_publication_rebuild.py",
+      "text": "\"\"\"Preview or atomically publish all configured core current datasets.\"\"\""
+    },
+    {
+      "line": 404,
+      "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "raise ValueError(\"At least one current-publication rebuilder is required\")"
     },
     {
-      "line": 397,
+      "line": 407,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "raise ValueError(\"Current-publication rebuilders must have unique datasets\")"
     },
     {
-      "line": 428,
+      "line": 438,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "\"\"\"Publish all datasets in one transaction or leave all current rows intact.\"\"\""
     },
@@ -11206,47 +11211,47 @@
       "text": "publication_key = \"current\""
     },
     {
-      "line": 111,
+      "line": 112,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Resolve current authority and prove it covers the task's bounded runtime.\"\"\""
     },
     {
-      "line": 136,
+      "line": 137,
       "path": "apps/data_center/application/tasks.py",
       "text": "current, failure = _preflight_data02_task_authority("
     },
     {
-      "line": 141,
+      "line": 142,
       "path": "apps/data_center/application/tasks.py",
       "text": "if failure is not None or current is None:"
     },
     {
-      "line": 155,
+      "line": 156,
       "path": "apps/data_center/application/tasks.py",
       "text": "return all(getattr(current, field) == getattr(authority, field) for field in identity_fields)"
     },
     {
-      "line": 336,
+      "line": 344,
       "path": "apps/data_center/application/tasks.py",
       "text": "raise ValueError(\"current Audit authority changed before quote batch\")"
     },
     {
-      "line": 351,
+      "line": 369,
       "path": "apps/data_center/application/tasks.py",
       "text": "raise ValueError(\"current Audit authority changed before publication\")"
     },
     {
-      "line": 706,
+      "line": 761,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"Financial current publication rebuild failed: %s\","
     },
     {
-      "line": 828,
+      "line": 883,
       "path": "apps/data_center/application/tasks.py",
       "text": "Current domain sync DTOs expose ``stored_count`` only, so the durable"
     },
     {
-      "line": 1202,
+      "line": 1257,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Require the same current authority before advancing the checkpoint.\"\"\""
     },
@@ -12426,17 +12431,17 @@
       "text": "\"\"\"Return one latest knowable version per business key.\"\"\""
     },
     {
-      "line": 57,
+      "line": 59,
       "path": "apps/data_center/infrastructure/price_bar_repository.py",
       "text": "\"\"\"Return latest revisions or the exact rows pinned by a publication.\"\"\""
     },
     {
-      "line": 78,
+      "line": 80,
       "path": "apps/data_center/infrastructure/price_bar_repository.py",
       "text": "\"\"\"Return the latest source bar within the optional frozen member scope.\"\"\""
     },
     {
-      "line": 162,
+      "line": 164,
       "path": "apps/data_center/infrastructure/price_bar_repository.py",
       "text": "\"\"\"Select the latest daily unadjusted fact for every requested asset.\"\"\""
     },
@@ -12491,29 +12496,39 @@
       "text": "\"existing current publication metadata differs from expected preflight\""
     },
     {
+      "line": 45,
+      "path": "apps/data_center/infrastructure/published_fact_versions.py",
+      "text": "\"\"\"Return one current row per asset without a historical correlated scan."
+    },
+    {
       "line": 56,
       "path": "apps/data_center/infrastructure/qmt_bridge_repository.py",
       "text": "\"\"\"Persist only authorized sources; never activate a current Publication here.\"\"\""
     },
     {
-      "line": 72,
+      "line": 74,
       "path": "apps/data_center/infrastructure/quote_snapshot_repository.py",
       "text": "\"\"\"Return latest revisions or the exact rows pinned by a publication.\"\"\""
     },
     {
-      "line": 137,
+      "line": 139,
       "path": "apps/data_center/infrastructure/quote_snapshot_repository.py",
       "text": "becomes the realtime observation boundary."
     },
     {
-      "line": 168,
+      "line": 165,
       "path": "apps/data_center/infrastructure/quote_snapshot_repository.py",
       "text": "\"\"\"Return one deterministic latest source snapshot per requested asset.\"\"\""
     },
     {
-      "line": 188,
+      "line": 173,
       "path": "apps/data_center/infrastructure/quote_snapshot_repository.py",
       "text": "\"\"\"Select the latest immutable quote fact for every requested asset.\"\"\""
+    },
+    {
+      "line": 181,
+      "path": "apps/data_center/infrastructure/quote_snapshot_repository.py",
+      "text": "\"\"\"Return one exact latest-revision row per requested asset in a single query.\"\"\""
     },
     {
       "line": 119,
@@ -12736,22 +12751,22 @@
       "text": "open=_safe_decimal(latest.get(\"open\")),"
     },
     {
-      "line": 52,
+      "line": 56,
       "path": "apps/data_center/infrastructure/valuation_fact_repository.py",
       "text": "\"\"\"Return latest revisions or the exact rows pinned by a publication.\"\"\""
     },
     {
-      "line": 71,
+      "line": 75,
       "path": "apps/data_center/infrastructure/valuation_fact_repository.py",
       "text": "\"\"\"Return the newest source observation and its latest revision.\"\"\""
     },
     {
-      "line": 85,
+      "line": 89,
       "path": "apps/data_center/infrastructure/valuation_fact_repository.py",
       "text": "value = ValuationFactModel._default_manager.aggregate(latest=Max(\"val_date\"))[\"latest\"]"
     },
     {
-      "line": 187,
+      "line": 191,
       "path": "apps/data_center/infrastructure/valuation_fact_repository.py",
       "text": "\"\"\"Select the latest deterministic valuation fact for every asset.\"\"\""
     },
@@ -15056,47 +15071,47 @@
       "text": "\"\"\"Narrow report reader without mutation, current, decision, or execution ports.\"\"\""
     },
     {
-      "line": 45,
+      "line": 51,
       "path": "apps/operational_readiness/application/monitor_service.py",
       "text": "summary = _summarize_personal_readiness_payload(payload)"
     },
     {
-      "line": 47,
+      "line": 53,
       "path": "apps/operational_readiness/application/monitor_service.py",
       "text": "summary[\"raw\"] = payload"
     },
     {
-      "line": 49,
+      "line": 55,
       "path": "apps/operational_readiness/application/monitor_service.py",
       "text": "_set_cached_strict_runtime_summary(summary)"
     },
     {
-      "line": 50,
+      "line": 56,
       "path": "apps/operational_readiness/application/monitor_service.py",
       "text": "return summary"
     },
     {
-      "line": 111,
+      "line": 156,
       "path": "apps/operational_readiness/application/monitor_service.py",
       "text": "def _set_cached_strict_runtime_summary(summary: dict[str, Any]) -> None:"
     },
     {
-      "line": 115,
+      "line": 160,
       "path": "apps/operational_readiness/application/monitor_service.py",
       "text": "deepcopy(summary),"
     },
     {
-      "line": 220,
+      "line": 265,
       "path": "apps/operational_readiness/application/monitor_service.py",
       "text": "summary = {"
     },
     {
-      "line": 287,
+      "line": 332,
       "path": "apps/operational_readiness/application/monitor_service.py",
       "text": "return summary"
     },
     {
-      "line": 555,
+      "line": 600,
       "path": "apps/operational_readiness/application/monitor_service.py",
       "text": "\"\"\"Return whether cached strict-runtime data has the governed summary shape.\"\"\""
     },
@@ -25541,7 +25556,7 @@
       "text": "\"realtime-update-prices-after-close\": {"
     },
     {
-      "line": 427,
+      "line": 440,
       "path": "core/settings/celery_schedule.py",
       "text": "\"sentiment-refresh-current-index\": {"
     },
@@ -25576,92 +25591,97 @@
       "text": "include((\"apps.realtime.interface.api_urls\", \"api_realtime\"), namespace=\"api_realtime\"),"
     },
     {
-      "line": 338,
+      "line": 98,
+      "path": "core/views.py",
+      "text": "\"\"\"Summarize runtime and current-data availability without changing liveness.\"\"\""
+    },
+    {
+      "line": 372,
       "path": "core/views.py",
       "text": "logger.warning(f\"Failed to get valuation repair config summary: {e}\")"
     },
     {
-      "line": 347,
+      "line": 381,
       "path": "core/views.py",
       "text": "logger.warning(f\"Failed to get current regime: {e}\")"
     },
     {
-      "line": 358,
+      "line": 392,
       "path": "core/views.py",
       "text": "logger.warning(f\"Failed to get current policy: {e}\")"
     },
     {
-      "line": 588,
+      "line": 622,
       "path": "core/views.py",
       "text": "\"summary\": f\"待审批 {admin_counts['pending_profiles']} 人\","
     },
     {
-      "line": 594,
+      "line": 628,
       "path": "core/views.py",
       "text": "\"summary\": f\"活跃 Token {admin_counts['active_tokens']} 个\","
     },
     {
-      "line": 600,
+      "line": 634,
       "path": "core/views.py",
       "text": "\"summary\": \"系统级参数编辑页\","
     },
     {
-      "line": 611,
+      "line": 645,
       "path": "core/views.py",
       "text": "\"summary\": \"交易前、投后与日报统一入口\","
     },
     {
-      "line": 617,
+      "line": 651,
       "path": "core/views.py",
       "text": "\"summary\": \"任务观测与恢复\","
     },
     {
-      "line": 623,
+      "line": 657,
       "path": "core/views.py",
       "text": "\"summary\": \"提案审批与执行记录\","
     },
     {
-      "line": 629,
+      "line": 663,
       "path": "core/views.py",
       "text": "\"summary\": \"能力治理与接入自检\","
     },
     {
-      "line": 635,
+      "line": 669,
       "path": "core/views.py",
       "text": "\"summary\": \"配置、训练与运行记录\","
     },
     {
-      "line": 646,
+      "line": 680,
       "path": "core/views.py",
       "text": "\"summary\": \"Qlib 推理观测与手动触发\","
     },
     {
-      "line": 652,
+      "line": 686,
       "path": "core/views.py",
       "text": "\"summary\": \"Qlib runtime data 运维入口\","
     },
     {
-      "line": 658,
+      "line": 692,
       "path": "core/views.py",
       "text": "\"summary\": \"生产验收与证据闭环\","
     },
     {
-      "line": 664,
+      "line": 698,
       "path": "core/views.py",
       "text": "\"summary\": \"调度与周期任务值守\","
     },
     {
-      "line": 670,
+      "line": 704,
       "path": "core/views.py",
       "text": "\"summary\": \"排障与值守入口\","
     },
     {
-      "line": 676,
+      "line": 710,
       "path": "core/views.py",
       "text": "\"summary\": f\"草稿 {documentation_stats.draft} 篇 / 总计 {documentation_stats.total} 篇\","
     },
     {
-      "line": 682,
+      "line": 716,
       "path": "core/views.py",
       "text": "\"summary\": f\"用户总数 {admin_counts['users']}\","
     },
@@ -25868,27 +25888,27 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 158,
+      "line": 159,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(name=\"data_center.refresh_full_market_publications\", time_limit=3600, soft_time_limit=3500)  # type: ignore[misc]"
     },
     {
-      "line": 430,
+      "line": 485,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 953,
+      "line": 1008,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 985,
+      "line": 1040,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1067,
+      "line": 1122,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
