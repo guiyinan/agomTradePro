@@ -39,6 +39,7 @@ from .rehearsal_identity import (
     RehearsalProviderIdentity,
     parse_rehearsal_identities,
     rehearsal_identities_digest,
+    verify_configured_rehearsal_identities,
 )
 from .rehearsal_response_store import RehearsalResponseContext, RehearsalResponseStore
 
@@ -286,6 +287,7 @@ def run_market_provider_rehearsal(
             or identities["valuation"].provider_id != valuation_provider_id
         ):
             raise ValueError("REHEARSAL_PROVIDER_IDENTITY_MISMATCH")
+        verify_configured_rehearsal_identities(checked)
         identity_digest = rehearsal_identities_digest(checked)
     if connection.vendor != "postgresql" or connection.in_atomic_block:
         raise DataFetchError(
@@ -506,6 +508,8 @@ def run_market_provider_rehearsal(
                         ]
         transport = capture.to_dict()
         within_budget = time.monotonic() - capture.started <= max_seconds
+    if provider_identities is not None:
+        verify_configured_rehearsal_identities(checked)
     source_unchanged = source_digest == market_rehearsal_source_digest(source_root)
     final_attestation, final_image_id = verify_candidate_release_image(source_root, candidate_sha)
     if final_attestation != source_attestation or final_image_id != candidate_image_id:

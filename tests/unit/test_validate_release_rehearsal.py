@@ -826,6 +826,59 @@ def test_validator_rejects_tampered_probe_capture(
     assert exc_info.value.code == expected_code
 
 
+@pytest.mark.parametrize("defect", ["eligible_scope", "policy_snapshot"])
+def test_validator_rejects_self_consistent_probe_scope_or_policy_tamper(
+    tmp_path: Path, defect: str
+) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    report_path = reports["real_response_unit_replay"]
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    probe_path = report_path.parent / report["probe_capture"]["path"]
+    probe = json.loads(probe_path.read_text(encoding="utf-8"))
+    if defect == "eligible_scope":
+        moved = probe["eligible_asset_codes"].pop()
+        probe["excluded_asset_codes"].append(moved)
+        probe["eligible_asset_count"] = len(probe["eligible_asset_codes"])
+        probe["excluded_asset_count"] = len(probe["excluded_asset_codes"])
+    else:
+        content = probe["valuation_policy_snapshot"]["content"]
+        content["minimum_coverage_ratio"] = 0.5
+        encoded = json.dumps(content, sort_keys=True, separators=(",", ":")).encode()
+        digest = hashlib.sha256(encoded).hexdigest()
+        probe["valuation_policy_snapshot"]["content_sha256"] = digest
+        probe["valuation_policy_snapshot"]["identity"] = f"p2:production:{digest}"
+        probe["valuation_policy_sha256"] = digest
+        probe["valuation_policy_identity"] = f"p2:production:{digest}"
+        probe["valuation_minimum_coverage_ratio"] = 0.5
+    digest = _write_json(probe_path, probe)
+    report["probe_sha256"] = digest
+    report["probe_capture"]["sha256"] = digest
+    _replace_report(manifest, report_path, report)
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == "REHEARSAL_REPLAY_PROBE_INVALID"
+
+
+def test_validator_rejects_false_readback_in_bound_write_receipt(tmp_path: Path) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    report_path = reports["isolated_write_rehearsal"]
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    receipt_path = report_path.parent / report["write_artifacts"][0]["path"]
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["readback_verified"] = False
+    report["write_artifacts"][0]["sha256"] = _write_json(receipt_path, receipt)
+    _replace_report(manifest, report_path, report)
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == "REHEARSAL_WRITE_RECEIPT_INCOMPLETE"
+
+
 @pytest.mark.parametrize(
     ("mutation", "expected_code"),
     [

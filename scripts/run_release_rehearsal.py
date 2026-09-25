@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import re
+import stat
 import subprocess
 import sys
 from collections.abc import Mapping, Sequence
@@ -69,6 +70,13 @@ class CommandRunner(Protocol):
 
     def run(self, command: Command) -> CommandResult:
         """Execute a command without a shell."""
+
+
+class _Chown(Protocol):
+    """Portable callable shape for POSIX ownership changes."""
+
+    def __call__(self, path: str | bytes | os.PathLike[str], uid: int, gid: int) -> None:
+        """Change one filesystem entry's owner/group."""
 
 
 class SubprocessRunner:
@@ -201,6 +209,70 @@ def _invoke(
     if result.returncode:
         raise RehearsalBlocked(label, "S6_STAGE_COMMAND_FAILED")
     return result
+
+
+def _invoke_container_stage(
+    runner: CommandRunner,
+    *,
+    argv: Sequence[str],
+    root: Path,
+    label: str,
+    timeout: float,
+    env: Mapping[str, str],
+    artifact_dir: Path,
+    container_gid: int,
+) -> CommandResult:
+    """Grant only the candidate group write access, then seal the evidence directory."""
+
+    if artifact_dir.is_symlink() or not artifact_dir.is_dir():
+        raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_INVALID")
+    initial = artifact_dir.stat()
+    identity = (initial.st_dev, initial.st_ino)
+    if os.name == "posix":
+        chown = cast(_Chown | None, getattr(os, "chown", None))
+        if chown is None:
+            raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_OWNERSHIP_UNAVAILABLE")
+        chown(artifact_dir, -1, container_gid)
+        artifact_dir.chmod(0o2770)
+        writable = artifact_dir.stat()
+        if writable.st_gid != container_gid or stat.S_IMODE(writable.st_mode) != 0o2770:
+            raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_OWNERSHIP_FAILED")
+    else:
+        artifact_dir.chmod(0o770)
+    try:
+        return _invoke(
+            runner,
+            argv=argv,
+            root=root,
+            label=label,
+            timeout=timeout,
+            env=env,
+            artifact_dir=artifact_dir,
+        )
+    finally:
+        current = artifact_dir.lstat()
+        if artifact_dir.is_symlink() or (current.st_dev, current.st_ino) != identity:
+            raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_CHANGED")
+        artifact_dir.chmod(0o750)
+
+
+def _candidate_container_gid(runner: CommandRunner, root: Path, image_id: str) -> int:
+    """Resolve the exact candidate image's primary group without trusting its tag."""
+
+    result = _invoke(
+        runner,
+        argv=("docker", "run", "--rm", "--entrypoint", "/usr/bin/id", image_id, "-g"),
+        root=root,
+        label="docker_gid",
+        timeout=60,
+    )
+    try:
+        gid = int(result.stdout.strip())
+    except ValueError as exc:
+        raise RehearsalBlocked("docker_gid", "S6_CONTAINER_GID_INVALID") from exc
+    if gid < 0 or gid > 2_147_483_647:
+        raise RehearsalBlocked("docker_gid", "S6_CONTAINER_GID_INVALID")
+    return gid
 
 
 def _candidate_sha(runner: CommandRunner, root: Path) -> str:
@@ -724,6 +796,7 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
             provider_raw,
             unit_raw,
         )
+        container_gid = _candidate_container_gid(active, config.root, identity.candidate_image_id)
         unit_path = run_dir / "inputs" / "provider-unit-contract.json"
         provider_dir, replay_dir, capacity_dir, isolated_dir, ci_dir = (
             run_dir / name
@@ -759,7 +832,7 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
                 provider_dir,
                 spec,
             )
-            _invoke(
+            _invoke_container_stage(
                 active,
                 argv=argv,
                 root=config.root,
@@ -770,6 +843,7 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
                     "AGOM_RELEASE_MANIFEST_PATH": str(manifest_path),
                 },
                 artifact_dir=provider_dir,
+                container_gid=container_gid,
             )
             probe_path = provider_dir / spec.report_name
             probe = _report(probe_path, identity, image_bound=True)
@@ -793,7 +867,7 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
                 folder,
                 spec,
             )
-            _invoke(
+            _invoke_container_stage(
                 active,
                 argv=argv,
                 root=config.root,
@@ -804,6 +878,7 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
                     "AGOM_RELEASE_MANIFEST_PATH": str(manifest_path),
                 },
                 artifact_dir=folder,
+                container_gid=container_gid,
             )
             _report(folder / spec.report_name, identity, image_bound=True)
             completed.append(stage)

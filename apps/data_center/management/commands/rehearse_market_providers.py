@@ -15,7 +15,10 @@ from apps.data_center.infrastructure.market_rehearsal_runner import (
     market_rehearsal_source_digest,
     run_market_provider_rehearsal,
 )
-from apps.data_center.infrastructure.rehearsal_identity import load_rehearsal_identities
+from apps.data_center.infrastructure.rehearsal_identity import (
+    load_rehearsal_identities,
+    safe_rehearsal_identity_error_code,
+)
 from core.exceptions import AgomTradeProException
 
 
@@ -98,7 +101,9 @@ class Command(BaseCommand):
                 "schema": "market.provider-rehearsal.v1",
                 "outcome": "blocked",
                 "release_ready": False,
-                "error_code": "REHEARSAL_SETUP_UNAVAILABLE",
+                "error_code": safe_rehearsal_identity_error_code(
+                    exc, default="REHEARSAL_SETUP_UNAVAILABLE"
+                ),
                 "error_type": type(exc).__name__,
                 "stored": 0,
                 "publication_updated": False,

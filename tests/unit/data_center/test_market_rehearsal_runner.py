@@ -342,6 +342,13 @@ def test_probe_uses_registered_valuation_scope_and_disjoint_eligible_quote_recei
             endpoint_id="relay",
         ),
     )
+    identity_checks = []
+
+    def verify_identities(supplied):
+        identity_checks.append(supplied)
+        return supplied
+
+    monkeypatch.setattr(runner, "verify_configured_rehearsal_identities", verify_identities)
     response_root = tmp_path / "responses"
     response_root.mkdir()
 
@@ -363,6 +370,7 @@ def test_probe_uses_registered_valuation_scope_and_disjoint_eligible_quote_recei
     assert probes["equity.quote.snapshot"]["receipt_indexes"] == [1]
     assert contexts[0].sample_codes == registered
     assert contexts[-1].sample_codes == registered[:2]
+    assert identity_checks == [identities, identities]
 
 
 def _command_args(destination):
@@ -412,3 +420,23 @@ def test_command_writes_safe_blocked_artifact_and_fails_exit(tmp_path, monkeypat
     assert report["release_ready"] is False
     assert report["stored"] == 0
     assert "secret-rehearsal-test" not in destination.read_text()
+
+
+@pytest.mark.parametrize(
+    "code",
+    ["REHEARSAL_PROVIDER_IDENTITY_MISMATCH", "REHEARSAL_PROVIDER_IDENTITY_UNAVAILABLE"],
+)
+def test_command_preserves_allowlisted_identity_failure_code(
+    tmp_path, monkeypatch, code: str
+) -> None:
+    from apps.data_center.management.commands import rehearse_market_providers as command
+
+    def blocked(**_kwargs):
+        raise ValueError(code)
+
+    monkeypatch.setattr(command, "run_market_provider_rehearsal", blocked)
+    destination = tmp_path / "blocked.json"
+    with pytest.raises(CommandError, match="blocked"):
+        call_command("rehearse_market_providers", *_command_args(destination), stdout=StringIO())
+
+    assert json.loads(destination.read_text())["error_code"] == code

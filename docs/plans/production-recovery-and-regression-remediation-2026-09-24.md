@@ -163,7 +163,7 @@
 | R3 只读/工作台/文案 | 候选代码完成，生产待验 | 账户归属、GET 零写入、研究入口、慢请求/重试和缺失价格语义已通过本地行为验收；生产普通投资者浏览器 UAT 待验 |
 | R4 进度/诊断 | 候选代码完成，生产待验 | current attempt / last completed、phase、outcome、计数单位和安全错误投影已形成回归；生产任务结果待验 |
 | S1–S5 | 候选代码完成，远端 CI 待验 | 真实 provider 契约、不变量、时间、规模和跨消费者选测已集成；同一最终 SHA 的远端 CI 结果仍须冻结 |
-| S6 | 实现完成，真实证据待采集 | `scripts/run_release_rehearsal.py` 已把候选镜像构建、真实响应探针、离线单位重放、完整 universe 容量、隔离 PostgreSQL 写入回滚、同 SHA CI 证据、不可变 bundle 与最终 validator 串成单一失败关闭流程；每个运行时报告绑定精确 image ID，输出被限制在 checkout 外。缺真实报告时明确阻断，不能把 synthetic 单测当发布证据 |
+| S6 | 首次真实演练已阻断，修复候选待重跑 | `ff4d81a0c` 的首次 VPS 演练完成一次性镜像构建后，在 Linux bind mount 写入 `probe.json` 时因宿主 root 与镜像非 root 权限不匹配而失败关闭，未部署。launcher 现按候选镜像主 GID 只开放组写入，阶段结束或失败后收紧权限，并拒绝 symlink/inode 替换；provider 身份也改为从活动数据库连接配置与已安装 Tushare 版本计算，并在调用前后复核。必须以新 SHA 重跑同一整套真实证据，旧候选和旧构建报告不得复用 |
 | 生产联合复验 | 未完成 | 真实普通用户、四发布、自然周期和准确 runtime 门尚需验证 |
 
 本表在每个阶段完成后更新，只写实际验证结果。最终报告必须列完成项、未完成项、已验证测试与未验证风险。
@@ -179,6 +179,7 @@
 - 新增 `run_release_rehearsal.py` 单入口：工作树必须 clean，证据输出必须位于 checkout 外；同一预构建镜像依次运行七个阶段并在每阶段复核 candidate SHA、image ID、交易日、universe 与 provider 身份。launcher 只生成 `deployable=false` 的 evidence handoff，不冒充 validator 授权；底层部署入口在 SSH 前独立重跑 validator，重新校验 bundle tree、manifest、同 SHA CI 与全部身份，成功后才继续，防止同形 JSON 或验证后替换绕过门禁。
 - 同类调用者复核发现带响应证据的 dataframe wrapper 曾只实现 `empty/to_dict`，历史行情与模型数据还会使用长度、列、掩码、复制、排序和合并。wrapper 现在透明代理公共 DataFrame 操作，并由行情、历史、交易日历和模型数据组合回归覆盖，避免真实直连返回在探针外退化。
 - 审计授权续期请求路径已写入 VPS Compose 的 Web/Worker 环境，并使用既有持久化 `var_data` 卷。版本替换后缺请求会明确报告 `renewal_request_not_found`；该修复只恢复续期通道，不自动制造审批材料或解除决策阻断。
+- `ff4d81a0c` 首次真实 S6 在 VPS 运行：候选镜像 `sha256:c2fad4…cafdc` 构建成功且未部署，provider 探针完成运行后因 Linux evidence bind mount 不可写而无法生成 `probe.json`，launcher 返回 `provider_probe / S6_STAGE_COMMAND_FAILED`。该失败没有被改写为通过；修复同时把阶段目录从 world-writable 方案收紧为候选主组 `2770`、结束 `0750`，并补充失败恢复、symlink/inode 替换反例。新 provider 身份由实际 `request_mode/http_url/api_endpoint/provider/source/active/priority/name` 与客户端版本派生，白名单错误码可在命令证据中安全透传；动态健康指标和密钥不进入身份摘要。
 
 ### 2026-09-24 首轮执行证据
 

@@ -39,6 +39,7 @@ from .rehearsal_identity import (
     RehearsalProviderIdentity,
     parse_rehearsal_identities,
     rehearsal_identities_digest,
+    verify_configured_rehearsal_identities,
 )
 
 
@@ -303,6 +304,7 @@ def collect_full_universe_capacity(
         or by_role["valuation"].provider_id != valuation_provider_id
     ):
         raise ValueError("REHEARSAL_PROVIDER_IDENTITY_MISMATCH")
+    verify_configured_rehearsal_identities(identities)
 
     started = datetime.now(UTC)
     minimum_capacity_margin = _capacity_policy(source_root)
@@ -475,6 +477,7 @@ def collect_full_universe_capacity(
             "Measured capacity exceeded a release limit",
             code="REHEARSAL_CAPACITY_LIMIT_EXCEEDED",
         )
+    verify_configured_rehearsal_identities(identities)
     if market_rehearsal_source_digest(source_root) != source_digest:
         raise DataFetchError(
             "Candidate source changed during capacity measurement",

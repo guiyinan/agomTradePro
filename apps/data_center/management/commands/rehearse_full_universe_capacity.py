@@ -14,7 +14,10 @@ from django.db import DatabaseError
 from apps.data_center.infrastructure.full_universe_capacity_runner import (
     collect_full_universe_capacity,
 )
-from apps.data_center.infrastructure.rehearsal_identity import load_rehearsal_identities
+from apps.data_center.infrastructure.rehearsal_identity import (
+    load_rehearsal_identities,
+    safe_rehearsal_identity_error_code,
+)
 from core.exceptions import AgomTradeProException
 
 
@@ -55,7 +58,9 @@ class Command(BaseCommand):
                 max_dispatches=options["max_dispatches"],
             )
         except (AgomTradeProException, DatabaseError, OSError, ValueError) as exc:
-            code = getattr(exc, "code", "REHEARSAL_CAPACITY_COLLECTION_FAILED")
+            code = getattr(exc, "code", None) or safe_rehearsal_identity_error_code(
+                exc, default="REHEARSAL_CAPACITY_COLLECTION_FAILED"
+            )
             raise CommandError(str(code)) from exc
         self.stdout.write(
             json.dumps(

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
 from dataclasses import replace
 from pathlib import Path
 from typing import cast
@@ -19,6 +21,7 @@ from scripts.run_release_rehearsal import (
     CommandResult,
     RehearsalBlocked,
     RehearsalConfig,
+    _invoke_container_stage,
     bundle_tree_digest,
     run_release_rehearsal,
     verify_evidence_handoff_receipt,
@@ -87,6 +90,9 @@ class FakeRunner:
                     }
                 ),
             )
+        elif command.label == "docker_gid":
+            gid = os.getgid() if hasattr(os, "getgid") else 1000
+            return CommandResult(returncode=0, stdout=f"{gid}\n")
         elif command.label in {
             "provider_probe",
             "response_replay",
@@ -262,7 +268,16 @@ def _fake_checkout(tmp_path: Path) -> Path:
 
 def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handoff(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    chmod_calls: dict[str, list[int]] = {}
+    original_chmod = Path.chmod
+
+    def record_chmod(path: Path, mode: int) -> None:
+        chmod_calls.setdefault(path.name, []).append(mode)
+        original_chmod(path, mode)
+
+    monkeypatch.setattr(Path, "chmod", record_chmod)
     runner = FakeRunner()
     config = _config(tmp_path, root=_fake_checkout(tmp_path))
 
@@ -310,6 +325,14 @@ def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handof
     assert manifest["candidate_image_id"] == IMAGE_ID
     assert manifest["target_trade_date"] == TRADE_DATE
     assert manifest["universe_sha256"] == UNIVERSE_SHA256
+    for directory in (
+        "provider-probe",
+        "response-replay",
+        "full-universe-capacity",
+        "isolated-postgresql",
+    ):
+        writable_mode = 0o2770 if os.name == "posix" else 0o770
+        assert chmod_calls[directory] == [writable_mode, 0o750]
 
 
 def test_output_inside_checkout_is_rejected_before_build(tmp_path: Path) -> None:
@@ -341,6 +364,82 @@ def test_failed_provider_stage_stops_before_replay_and_never_emits_receipt(
     assert status["outcome"] == "blocked"
     assert status["current_stage"] == "provider_probe"
     assert status["error_code"] == "S6_STAGE_COMMAND_FAILED"
+
+
+def test_failed_container_stage_seals_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    destination = tmp_path / "stage"
+    destination.mkdir()
+    calls: list[int] = []
+    original_chmod = Path.chmod
+
+    def record_chmod(path: Path, mode: int) -> None:
+        calls.append(mode)
+        original_chmod(path, mode)
+
+    monkeypatch.setattr(Path, "chmod", record_chmod)
+    gid = os.getgid() if hasattr(os, "getgid") else 1000
+
+    with pytest.raises(RehearsalBlocked, match="S6_STAGE_COMMAND_FAILED"):
+        _invoke_container_stage(
+            FakeRunner(fail_label="stage"),
+            argv=("candidate",),
+            root=tmp_path,
+            label="stage",
+            timeout=1,
+            env={},
+            artifact_dir=destination,
+            container_gid=gid,
+        )
+
+    assert calls[-1] == 0o750
+
+
+def test_container_stage_rejects_symlink(tmp_path: Path) -> None:
+    target = tmp_path / "target"
+    target.mkdir()
+    link = tmp_path / "link"
+    try:
+        link.symlink_to(target, target_is_directory=True)
+    except OSError:
+        pytest.skip("directory symlinks are unavailable")
+    gid = os.getgid() if hasattr(os, "getgid") else 1000
+    with pytest.raises(RehearsalBlocked, match="S6_ARTIFACT_DIRECTORY_INVALID"):
+        _invoke_container_stage(
+            FakeRunner(),
+            argv=("candidate",),
+            root=tmp_path,
+            label="stage",
+            timeout=1,
+            env={},
+            artifact_dir=link,
+            container_gid=gid,
+        )
+
+
+def test_container_stage_rejects_inode_replacement(tmp_path: Path) -> None:
+    target = tmp_path / "target"
+    target.mkdir()
+    gid = os.getgid() if hasattr(os, "getgid") else 1000
+
+    class ReplacingRunner(FakeRunner):
+        def run(self, command: Command) -> CommandResult:
+            shutil.rmtree(target)
+            target.mkdir()
+            return CommandResult(returncode=0)
+
+    with pytest.raises(RehearsalBlocked, match="S6_ARTIFACT_DIRECTORY_CHANGED"):
+        _invoke_container_stage(
+            ReplacingRunner(),
+            argv=("candidate",),
+            root=tmp_path,
+            label="stage",
+            timeout=1,
+            env={},
+            artifact_dir=target,
+            container_gid=gid,
+        )
 
 
 def test_identity_mismatch_stops_before_later_business_stages(tmp_path: Path) -> None:

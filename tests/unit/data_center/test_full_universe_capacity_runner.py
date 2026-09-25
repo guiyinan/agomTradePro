@@ -9,6 +9,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from django.core.management import call_command
+from django.core.management.base import CommandError
 
 from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
 from apps.data_center.domain.entities import QuoteSnapshot, ValuationFact
@@ -206,6 +208,11 @@ def _prepare_capacity_scenario(
         "market_rehearsal_source_digest",
         lambda _root: next(digest_values, last_digest),
     )
+    monkeypatch.setattr(
+        runner,
+        "verify_configured_rehearsal_identities",
+        lambda supplied: supplied,
+    )
     return source_root, tmp_path / "evidence", provider_calls
 
 
@@ -249,6 +256,52 @@ def test_peak_requests_uses_sliding_window() -> None:
     ]
 
     assert runner._peak_requests(receipts, 60.0) == 2
+
+
+@pytest.mark.parametrize(
+    "code",
+    ["REHEARSAL_PROVIDER_IDENTITY_MISMATCH", "REHEARSAL_PROVIDER_IDENTITY_UNAVAILABLE"],
+)
+def test_capacity_command_preserves_allowlisted_identity_failure_code(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, code: str
+) -> None:
+    from apps.data_center.management.commands import rehearse_full_universe_capacity as command
+
+    identities = tmp_path / "identities.json"
+    identities.write_text(
+        json.dumps([_identity("quote").__dict__, _identity("valuation").__dict__]),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        command,
+        "collect_full_universe_capacity",
+        lambda **_kwargs: (_ for _ in ()).throw(ValueError(code)),
+    )
+
+    with pytest.raises(CommandError, match=code):
+        call_command(
+            "rehearse_full_universe_capacity",
+            "--candidate-sha",
+            "c" * 40,
+            "--target-trade-date",
+            "2026-09-24",
+            "--quote-provider-id",
+            "7",
+            "--valuation-provider-id",
+            "7",
+            "--provider-identities",
+            str(identities),
+            "--provider-request-limit",
+            "100",
+            "--provider-window-seconds",
+            "60",
+            "--task-deadline-seconds",
+            "3600",
+            "--lock-wait-limit-seconds",
+            "5",
+            "--output-dir",
+            str(tmp_path / "output"),
+        )
 
 
 @pytest.mark.parametrize(
@@ -426,6 +479,11 @@ def test_collector_writes_validator_compatible_measured_artifacts(
         runner,
         "verify_candidate_release_image",
         lambda _root, _sha: ("image_release_manifest", "sha256:" + "f" * 64),
+    )
+    monkeypatch.setattr(
+        runner,
+        "verify_configured_rehearsal_identities",
+        lambda supplied: supplied,
     )
 
     destination = tmp_path / "evidence"
