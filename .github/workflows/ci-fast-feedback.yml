@@ -10,6 +10,11 @@ on:
       - main
       - 'dev/**'
   workflow_dispatch:
+    inputs:
+      base_ref:
+        description: 'Optional full ancestor SHA for cumulative candidate validation'
+        required: false
+        type: string
 
 concurrency:
   group: ci-fast-feedback-${{ github.workflow }}-${{ github.ref }}
@@ -77,6 +82,8 @@ jobs:
       - name: Resolve diff refs
         id: refs
         shell: bash
+        env:
+          REQUESTED_BASE: ${{ inputs.base_ref }}
         run: |
           set -euo pipefail
 
@@ -95,8 +102,24 @@ jobs:
               fi
             fi
           else
-            BASE_REF="$(git rev-parse HEAD~1)"
             HEAD_REF="$(git rev-parse HEAD)"
+            if [[ -n "${REQUESTED_BASE}" ]]; then
+              if [[ ! "${REQUESTED_BASE}" =~ ^[0-9a-f]{40}$ ]]; then
+                echo "workflow_dispatch base_ref must be a full lowercase commit SHA" >&2
+                exit 1
+              fi
+              if ! git cat-file -e "${REQUESTED_BASE}^{commit}" 2>/dev/null; then
+                echo "workflow_dispatch base_ref is not present in repository history" >&2
+                exit 1
+              fi
+              if ! git merge-base --is-ancestor "${REQUESTED_BASE}" "${HEAD_REF}"; then
+                echo "workflow_dispatch base_ref must be an ancestor of the candidate" >&2
+                exit 1
+              fi
+              BASE_REF="${REQUESTED_BASE}"
+            else
+              BASE_REF="$(git rev-parse HEAD~1)"
+            fi
           fi
 
           echo "base-ref=${BASE_REF}" >> "$GITHUB_OUTPUT"

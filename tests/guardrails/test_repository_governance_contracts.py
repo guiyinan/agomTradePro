@@ -136,3 +136,19 @@ def test_fast_feedback_production_check_has_postgres_configuration() -> None:
 
     assert "DJANGO_SETTINGS_MODULE: core.settings.production" in production_step
     assert "DATABASE_URL: postgresql://" in production_step
+
+
+def test_fast_feedback_manual_cumulative_scope_requires_a_valid_ancestor_sha() -> None:
+    """Allow exact candidate reruns across several commits without accepting arbitrary refs."""
+
+    workflow_text = (REPO_ROOT / ".github" / "workflows" / "ci-fast-feedback.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "base_ref:" in workflow_text
+    assert "Optional full ancestor SHA for cumulative candidate validation" in workflow_text
+    assert "REQUESTED_BASE: ${{ inputs.base_ref }}" in workflow_text
+    assert 'REQUESTED_BASE="${{ inputs.base_ref }}"' not in workflow_text
+    assert '[[ ! "${REQUESTED_BASE}" =~ ^[0-9a-f]{40}$ ]]' in workflow_text
+    assert 'git cat-file -e "${REQUESTED_BASE}^{commit}"' in workflow_text
+    assert 'git merge-base --is-ancestor "${REQUESTED_BASE}" "${HEAD_REF}"' in workflow_text
