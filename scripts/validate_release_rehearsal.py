@@ -85,9 +85,9 @@ REQUIRED_REPLAY_CASES = {
 }
 REQUIRED_REPLAY_UNIT_CONTRACTS = {
     "equity.quote.snapshot": {
-        "close": ("元", "元", 1.0, False),
-        "vol": ("手", "股", 100.0, True),
-        "amount": ("千元", "元", 1000.0, True),
+        "close": ("CNY_per_share", "CNY_per_share", 1.0, False),
+        "vol": ("lot", "share", 100.0, True),
+        "amount": ("thousand_CNY", "CNY", 1000.0, True),
     },
     "equity.valuation.fact": {
         "total_mv": ("万元", "元", 10000.0, False),
@@ -653,7 +653,7 @@ def _validate_unit_contract_artifact(
                 or observed_canonical != canonical_unit
                 or isinstance(observed_multiplier, bool)
                 or not isinstance(observed_multiplier, (int, float))
-                or not math.isclose(float(observed_multiplier), multiplier, abs_tol=0.0)
+                or float(observed_multiplier) != multiplier
             ):
                 _fail("REHEARSAL_REPLAY_UNIT_CONTRACT_INVALID")
 
@@ -739,7 +739,7 @@ def _validate_unit_observations(
             if (
                 unit.get("raw_unit") != raw_unit
                 or unit.get("canonical_unit") != canonical_unit
-                or not math.isclose(observed_multiplier, multiplier, abs_tol=0.0)
+                or observed_multiplier != multiplier
                 or not math.isclose(response_raw, raw, rel_tol=1e-12, abs_tol=1e-12)
                 or (not allow_zero and (raw <= 0 or canonical <= 0))
                 or not math.isclose(

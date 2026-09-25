@@ -178,12 +178,22 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             "source_reference": "unit-test-contract",
             "datasets": {
                 "equity.quote.snapshot": [
-                    {"field": "close", "raw_unit": "元", "canonical_unit": "元", "multiplier": 1.0},
-                    {"field": "vol", "raw_unit": "手", "canonical_unit": "股", "multiplier": 100.0},
+                    {
+                        "field": "close",
+                        "raw_unit": "CNY_per_share",
+                        "canonical_unit": "CNY_per_share",
+                        "multiplier": 1.0,
+                    },
+                    {
+                        "field": "vol",
+                        "raw_unit": "lot",
+                        "canonical_unit": "share",
+                        "multiplier": 100.0,
+                    },
                     {
                         "field": "amount",
-                        "raw_unit": "千元",
-                        "canonical_unit": "元",
+                        "raw_unit": "thousand_CNY",
+                        "canonical_unit": "CNY",
                         "multiplier": 1000.0,
                     },
                 ],
@@ -238,24 +248,24 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
                     "field": "close",
                     "raw": 10.0,
                     "canonical": 10.0,
-                    "raw_unit": "元",
-                    "canonical_unit": "元",
+                    "raw_unit": "CNY_per_share",
+                    "canonical_unit": "CNY_per_share",
                     "multiplier": 1.0,
                 },
                 {
                     "field": "vol",
                     "raw": 2.0,
                     "canonical": 200.0,
-                    "raw_unit": "手",
-                    "canonical_unit": "股",
+                    "raw_unit": "lot",
+                    "canonical_unit": "share",
                     "multiplier": 100.0,
                 },
                 {
                     "field": "amount",
                     "raw": 3.0,
                     "canonical": 3000.0,
-                    "raw_unit": "千元",
-                    "canonical_unit": "元",
+                    "raw_unit": "thousand_CNY",
+                    "canonical_unit": "CNY",
                     "multiplier": 1000.0,
                 },
             ]
@@ -736,6 +746,79 @@ def test_validator_requires_full_provider_identities_for_source_evidence(
     assert exc_info.value.code == "REHEARSAL_PROVIDER_IDENTITY_INVALID"
 
 
+@pytest.mark.parametrize(
+    ("field", "raw_unit", "canonical_unit"),
+    [
+        ("close", "元", "元"),
+        ("vol", "手", "股"),
+        ("amount", "千元", "元"),
+    ],
+)
+def test_validator_rejects_legacy_chinese_quote_units_in_contract(
+    tmp_path: Path,
+    field: str,
+    raw_unit: str,
+    canonical_unit: str,
+) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    report_path = reports["real_response_unit_replay"]
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    receipt_path = tmp_path / report["response_artifacts"][0]["path"]
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    contract_path = tmp_path / receipt["unit_contract"]["path"]
+    contract = json.loads(contract_path.read_text(encoding="utf-8"))
+    quote_fields = contract["datasets"]["equity.quote.snapshot"]
+    unit = next(value for value in quote_fields if value["field"] == field)
+    unit["raw_unit"] = raw_unit
+    unit["canonical_unit"] = canonical_unit
+    contract_digest = _write_json(contract_path, contract)
+    receipt["unit_contract"]["sha256"] = contract_digest
+    receipt["unit_contract_sha256"] = contract_digest
+    _write_replay_receipt(manifest, report_path, report, receipt_path, receipt)
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == "REHEARSAL_REPLAY_UNIT_CONTRACT_INVALID"
+
+
+@pytest.mark.parametrize(
+    ("dataset", "field"),
+    [
+        ("equity.quote.snapshot", "close"),
+        ("equity.quote.snapshot", "vol"),
+        ("equity.quote.snapshot", "amount"),
+        ("equity.valuation.fact", "total_mv"),
+        ("equity.valuation.fact", "circ_mv"),
+    ],
+)
+def test_validator_rejects_any_unit_contract_multiplier_drift(
+    tmp_path: Path,
+    dataset: str,
+    field: str,
+) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    report_path = reports["real_response_unit_replay"]
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    receipt_path = tmp_path / report["response_artifacts"][0]["path"]
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    contract_path = tmp_path / receipt["unit_contract"]["path"]
+    contract = json.loads(contract_path.read_text(encoding="utf-8"))
+    unit = next(value for value in contract["datasets"][dataset] if value["field"] == field)
+    unit["multiplier"] *= 1 + 1e-10
+    contract_digest = _write_json(contract_path, contract)
+    receipt["unit_contract"]["sha256"] = contract_digest
+    receipt["unit_contract_sha256"] = contract_digest
+    _write_replay_receipt(manifest, report_path, report, receipt_path, receipt)
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == "REHEARSAL_REPLAY_UNIT_CONTRACT_INVALID"
+
+
 def test_validator_rejects_absolute_bundle_artifact_reference(tmp_path: Path) -> None:
     now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
     manifest, reports = _build_evidence(tmp_path, now)
@@ -981,6 +1064,7 @@ def test_validator_recomputes_capacity_from_bound_measurement_receipt(
         "nan_canonical",
         "infinite_raw",
         "wrong_multiplier",
+        "tiny_multiplier_drift",
         "opaque_unit",
         "duplicate_field",
         "missing_asset",
@@ -1013,6 +1097,8 @@ def test_validator_recomputes_every_replayed_unit_observation(tmp_path: Path, de
         receipt["observations"][0]["units"][1]["raw"] = float("inf")
     elif defect == "wrong_multiplier":
         receipt["observations"][0]["units"][1]["multiplier"] = 1.0
+    elif defect == "tiny_multiplier_drift":
+        receipt["observations"][0]["units"][1]["multiplier"] = 100.00000001
     elif defect == "opaque_unit":
         receipt["observations"][0]["units"][1]["raw_unit"] = "opaque"
     elif defect == "duplicate_field":
