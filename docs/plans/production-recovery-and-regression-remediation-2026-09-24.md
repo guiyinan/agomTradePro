@@ -163,7 +163,7 @@
 | R3 只读/工作台/文案 | 候选代码完成，生产待验 | 账户归属、GET 零写入、研究入口、慢请求/重试和缺失价格语义已通过本地行为验收；生产普通投资者浏览器 UAT 待验 |
 | R4 进度/诊断 | 候选代码完成，生产待验 | current attempt / last completed、phase、outcome、计数单位和安全错误投影已形成回归；生产任务结果待验 |
 | S1–S5 | 候选代码完成，远端 CI 待验 | 真实 provider 契约、不变量、时间、规模和跨消费者选测已集成；同一最终 SHA 的远端 CI 结果仍须冻结 |
-| S6 | 第二次真实演练已阻断，目录与 CI 证据契约修复待新 SHA 重跑 | `ff4d81a0c` 首次演练暴露 Linux bind mount 权限问题；`f4de5dfa2` 第二次演练已通过构建、精确镜像身份和 5,569 只生产 provider 探针，但 response replay 以 `REHEARSAL_REPLAY_OUTPUT_EXISTS` 失败关闭，未部署。根因是 launcher 把既存挂载目录传给要求独占创建输出目录的 replay/capacity/isolated 三类生产器；三段现统一写入挂载根下尚不存在的 `output` 子目录。随后 CI 还发现 regression collector 未同步 validator 新增的镜像参数，以及只比较路径 inode 会被 Linux inode 复用绕过；collector 已显式声明非镜像绑定，launcher 改为全阶段持有目录 fd。必须以新 SHA 重跑整套真实证据，旧候选和构建报告均不得复用 |
+| S6 | 第三次真实演练已阻断，估值响应关联范围与回放样本契约修复待新 SHA 重跑 | `ff4d81a0c` 首次演练暴露 Linux bind mount 权限问题；`f4de5dfa2` 第二次演练通过构建、镜像身份和 5,569 只生产 provider 探针后，以 `REHEARSAL_REPLAY_OUTPUT_EXISTS` 失败关闭。`8ddb8cb78` 第三次演练的五组同 SHA CI 全绿，候选镜像 `sha256:caf6af…cf58f`、精确镜像身份和真实 provider 探针均通过，但 response replay 以外层 `REHEARSAL_OFFLINE_REPLAY_FAILED`、内层 `REHEARSAL_REPLAY_ASSET_MISSING` 阻断，未部署。根因是估值原始响应必须关联完整 5,569 只注册范围，而 replay 错把该关联范围当作应逐项存在的回放样本，因而把政策明确排除的 12 只未返回资产当成缺失；修复继续用全市场范围校验 artifact/ref，同时只对覆盖率策略验证后冻结的 50 只样本做单位与事实回放，未放宽覆盖率或排除证据。必须以新 SHA 重跑五组 CI 和整套真实 S6，旧候选、镜像和探针均不得复用 |
 | 生产联合复验 | 未完成 | 真实普通用户、四发布、自然周期和准确 runtime 门尚需验证 |
 
 本表在每个阶段完成后更新，只写实际验证结果。最终报告必须列完成项、未完成项、已验证测试与未验证风险。

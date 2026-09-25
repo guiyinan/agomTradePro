@@ -398,6 +398,51 @@ def test_collector_preserves_exact_bytes_and_passes_existing_release_receipt_val
     assert observation["normalization_completed_at"] == NORMALIZED.isoformat()
 
 
+def test_collector_replays_eligible_sample_when_valuation_response_excludes_assets(
+    modules, tmp_path, monkeypatch
+):
+    collector = modules["rehearsal_replay_collector"]
+    kwargs, probe = _fixture(modules, tmp_path, monkeypatch)
+    excluded = "600001.SH"
+    universe = (*SAMPLE, excluded)
+    universe_sha256 = collector.rehearsal_digest(universe)
+    probe.update(
+        {
+            "asset_codes": list(universe),
+            "universe_count": len(universe),
+            "universe_sha256": universe_sha256,
+            "excluded_asset_codes": [excluded],
+            "excluded_asset_count": 1,
+        }
+    )
+    receipts = probe["transport"]["receipts"]
+    for receipt in receipts:
+        receipt["response_artifact"]["universe_sha256"] = universe_sha256
+    valuation_receipt = receipts[1]
+    valuation_ref = valuation_receipt["response_artifact"]
+    valuation_ref["sample_codes"] = list(universe)
+    valuation_body = _body("equity.valuation.fact", extra_asset=False)
+    valuation_hash = hashlib.sha256(valuation_body).hexdigest()
+    valuation_path = kwargs["probe_path"].parent / valuation_ref["path"]
+    valuation_path.write_bytes(valuation_body)
+    for record in (valuation_receipt, valuation_ref):
+        record["body_sha256"] = valuation_hash
+        record["body_bytes"] = len(valuation_body)
+    for fact in probe["probes"][1]["facts"]:
+        fact["raw_payload_hash"] = valuation_hash
+    kwargs["probe_path"].write_text(json.dumps(probe), encoding="utf-8")
+    kwargs["expected_probe_sha256"] = hashlib.sha256(kwargs["probe_path"].read_bytes()).hexdigest()
+
+    result = collector.collect_response_replay(**kwargs)
+
+    assert result["outcome"] == "success"
+    valuation_report = json.loads(
+        (kwargs["output_dir"] / "valuation-replay.json").read_text(encoding="utf-8")
+    )
+    assert valuation_report["sampled_assets"] == list(SAMPLE)
+    assert {row["asset_code"] for row in valuation_report["observations"]} == set(SAMPLE)
+
+
 @pytest.mark.parametrize(
     "failure",
     [

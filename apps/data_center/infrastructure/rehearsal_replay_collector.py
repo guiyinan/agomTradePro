@@ -6,7 +6,7 @@ import hashlib
 import json
 import math
 from collections.abc import Mapping
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal, cast
@@ -443,7 +443,7 @@ def collect_response_replay(
         if expected_indexes.get(index) != dataset:
             raise ValueError("REHEARSAL_REPLAY_RECEIPT_MISMATCH")
         identity = identities_by_role["quote" if dataset == DATASETS[0] else "valuation"]
-        context = RehearsalResponseContext(
+        artifact_context = RehearsalResponseContext(
             candidate_sha=candidate_sha,
             target_trade_date=target_trade_date,
             universe_sha256=universe_digest,
@@ -456,7 +456,7 @@ def collect_response_replay(
         )
         if ref.get("schema") != "release.provider-response-artifact-ref.v1" or any(
             ref.get(key) != (list(expected) if isinstance(expected, tuple) else expected)
-            for key, expected in asdict(context).items()
+            for key, expected in asdict(artifact_context).items()
         ):
             raise ValueError("REHEARSAL_REPLAY_CONTEXT_MISMATCH")
         if (
@@ -496,7 +496,7 @@ def collect_response_replay(
         target_compact = target_trade_date.replace("-", "")
         response_assets = {
             str(row["ts_code"])
-            for row in parse_validate_tushare_response(body, context)
+            for row in parse_validate_tushare_response(body, artifact_context)
             if row.get("ts_code") in sample and row.get("trade_date") == target_compact
         }
         normalization_clocks = {
@@ -508,9 +508,10 @@ def collect_response_replay(
         normalization_completed = next(iter(normalization_clocks))
         if not response_finished <= normalization_completed <= finished:
             raise ValueError("REHEARSAL_REPLAY_CLOCK_INVALID")
+        replay_context = replace(artifact_context, sample_codes=sample)
         grouped[dataset].append(
             ReplayResponse(
-                context,
+                replay_context,
                 body,
                 body_hash,
                 response_finished,
