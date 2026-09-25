@@ -44,8 +44,12 @@ from .core_data_backfill import (
     CoreDataBackfillServices,
     run_active_a_share_core_data_backfill_batch,
 )
+from .full_market_task_support import data02_authority_failure as _data02_authority_failure
 from .full_market_task_support import exact_provider_batch_count as _exact_provider_batch_count
 from .full_market_task_support import full_market_input_failure as _full_market_input_failure
+from .full_market_task_support import (
+    full_market_soft_timeout_failure as _full_market_soft_timeout_failure,
+)
 from .interface_services import (
     make_backfill_sync_current_valuation_batch_use_case,
     make_backfill_sync_financial_use_case,
@@ -78,29 +82,6 @@ _BACKFILL_CURSOR_MAX_LENGTH = 500
 _FINANCIAL_REFRESH_LOCK_KEY = "data_center:financial_publication_refresh:lock:v1"
 _FINANCIAL_REFRESH_PROGRESS_KEY = "data_center:financial_publication_refresh:progress:v1"
 _FINANCIAL_REFRESH_CACHE_TTL = 7 * 86400
-
-
-def _data02_authority_failure(reason: str) -> dict[str, object]:
-    """Return a stable zero-write authority denial for DATA-02 tasks."""
-
-    return {
-        "success": False,
-        "outcome": TaskBusinessOutcome.BLOCKED.value,
-        "stage": "authority",
-        "blocked_reason": reason,
-        "must_not_use_for_decision": True,
-        "requested": 0,
-        "succeeded": 0,
-        "failed": 0,
-        "stored": 0,
-        "published": 0,
-        "checkpoint": {
-            "offset": 0,
-            "next_offset": 0,
-            "total_assets": 0,
-            "complete": False,
-        },
-    }
 
 
 def _preflight_data02_task_authority(
@@ -407,32 +388,20 @@ def refresh_full_market_publications_task(
             ),
         )
     except SoftTimeLimitExceeded:
-        return {
-            "outcome": TaskBusinessOutcome.FAILED.value,
-            "success": False,
-            "requested": requested_operations,
-            "succeeded": completed_operation_count,
-            "failed": 1,
-            "stored": stored_row_count,
-            "count_unit": "sync_operation",
-            "stored_count_unit": "fact_row",
-            "target_trade_date": target_date.isoformat(),
-            "phase": current_phase,
-            "asset_count": len(tradable_codes),
-            "published_members": 0,
-            "publication_updated": False,
-            "publication_run_id": publication_run_id,
-            "error_code": "MARKET_REFRESH_SOFT_TIME_LIMIT_EXCEEDED",
-            "blocked_reason": "market_refresh_soft_time_limit_exceeded",
-            "errors": ["MARKET_REFRESH_SOFT_TIME_LIMIT_EXCEEDED"],
-            "must_not_use_for_decision": True,
-            "quote_source": selected_quote_source,
-            "valuation_source": selected_valuation_source,
-            "market_universe": universe_report,
-            "valuation_seed_stored": valuation_seed.stored_count,
-            "excluded_non_trading_count": len(excluded_non_trading_codes),
-            "excluded_non_trading_codes": excluded_non_trading_codes,
-        }
+        return _full_market_soft_timeout_failure(
+            requested_operations=requested_operations,
+            completed_operations=completed_operation_count,
+            stored_rows=stored_row_count,
+            target_trade_date=target_date.isoformat(),
+            phase=current_phase,
+            asset_count=len(tradable_codes),
+            publication_run_id=publication_run_id,
+            quote_source=selected_quote_source,
+            valuation_source=selected_valuation_source,
+            market_universe=universe_report,
+            valuation_seed_stored=valuation_seed.stored_count,
+            excluded_non_trading_codes=excluded_non_trading_codes,
+        )
     if not authority_current:
         return {
             **result,

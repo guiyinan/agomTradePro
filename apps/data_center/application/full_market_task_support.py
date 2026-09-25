@@ -2,7 +2,32 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+
+from shared.domain.task_outcomes import TaskBusinessOutcome
+
+
+def data02_authority_failure(reason: str) -> dict[str, object]:
+    """Return a stable zero-write authority denial for DATA-02 tasks."""
+
+    return {
+        "success": False,
+        "outcome": TaskBusinessOutcome.BLOCKED.value,
+        "stage": "authority",
+        "blocked_reason": reason,
+        "must_not_use_for_decision": True,
+        "requested": 0,
+        "succeeded": 0,
+        "failed": 0,
+        "stored": 0,
+        "published": 0,
+        "checkpoint": {
+            "offset": 0,
+            "next_offset": 0,
+            "total_assets": 0,
+            "complete": False,
+        },
+    }
 
 
 def exact_provider_batch_count(
@@ -55,4 +80,50 @@ def full_market_input_failure(reason: str) -> dict[str, object]:
         "failed": 0,
         "stored": 0,
         "blocked_reason": reason,
+    }
+
+
+def full_market_soft_timeout_failure(
+    *,
+    requested_operations: int,
+    completed_operations: int,
+    stored_rows: int,
+    target_trade_date: str,
+    phase: str,
+    asset_count: int,
+    publication_run_id: str,
+    quote_source: str,
+    valuation_source: str,
+    market_universe: Mapping[str, object],
+    valuation_seed_stored: int,
+    excluded_non_trading_codes: Sequence[str],
+) -> dict[str, object]:
+    """Return a durable business result when the worker reaches its soft deadline."""
+
+    excluded = tuple(excluded_non_trading_codes)
+    return {
+        "outcome": TaskBusinessOutcome.FAILED.value,
+        "success": False,
+        "requested": requested_operations,
+        "succeeded": completed_operations,
+        "failed": 1,
+        "stored": stored_rows,
+        "count_unit": "sync_operation",
+        "stored_count_unit": "fact_row",
+        "target_trade_date": target_trade_date,
+        "phase": phase,
+        "asset_count": asset_count,
+        "published_members": 0,
+        "publication_updated": False,
+        "publication_run_id": publication_run_id,
+        "error_code": "MARKET_REFRESH_SOFT_TIME_LIMIT_EXCEEDED",
+        "blocked_reason": "market_refresh_soft_time_limit_exceeded",
+        "errors": ["MARKET_REFRESH_SOFT_TIME_LIMIT_EXCEEDED"],
+        "must_not_use_for_decision": True,
+        "quote_source": quote_source,
+        "valuation_source": valuation_source,
+        "market_universe": dict(market_universe),
+        "valuation_seed_stored": valuation_seed_stored,
+        "excluded_non_trading_count": len(excluded),
+        "excluded_non_trading_codes": list(excluded),
     }
