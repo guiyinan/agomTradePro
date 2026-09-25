@@ -15,6 +15,7 @@ from apps.data_center.domain.protocols import (
     QuoteSnapshotRepositoryProtocol,
     RawAuditRepositoryProtocol,
 )
+from core.exceptions import DataFetchError
 from core.integration.data_center_audit import (
     AuditOutcome,
     DataFetchAuditObservation,
@@ -406,7 +407,20 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
         request_params: Mapping[str, object] = {"asset_codes": list(request.asset_codes)}
         started_at = self._clock.now()
         try:
-            quotes = provider.fetch_quote_snapshots(request.asset_codes)
+            if request.target_trade_date is not None:
+                from apps.data_center.domain.protocols import SessionQuoteBatchProviderProtocol
+
+                if not isinstance(provider, SessionQuoteBatchProviderProtocol):
+                    raise DataFetchError(
+                        "Provider cannot fetch an explicit quote session",
+                        code="CURRENT_QUOTE_SESSION_UNSUPPORTED",
+                    )
+                quotes = provider.fetch_quote_snapshots_for_session(
+                    request.asset_codes,
+                    request.target_trade_date,
+                )
+            else:
+                quotes = provider.fetch_quote_snapshots(request.asset_codes)
             quotes = self._normalize_fact_sources(
                 quotes,
                 source_type=config.source_type,

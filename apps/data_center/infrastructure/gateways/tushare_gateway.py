@@ -83,8 +83,15 @@ class _TushareProClientProtocol(Protocol):
     def index_daily(self, *, ts_code: str, start_date: str, end_date: str) -> _DataFrameLike:
         """Return index daily bars."""
 
-    def daily(self, *, ts_code: str, start_date: str, end_date: str) -> _DataFrameLike:
-        """Return stock daily bars."""
+    def daily(
+        self,
+        *,
+        ts_code: str = "",
+        start_date: str = "",
+        end_date: str = "",
+        trade_date: str = "",
+    ) -> _DataFrameLike:
+        """Return stock daily bars by asset history or full trading session."""
 
 
 class _CompatibilityAdapterProtocol(Protocol):
@@ -158,7 +165,12 @@ class TushareGateway(MarketGatewayProtocol):
     def supports(self, capability: DataCapability) -> bool:
         return capability in _SUPPORTED
 
-    def get_quote_snapshots(self, stock_codes: list[str]) -> list[QuoteSnapshot]:
+    def get_quote_snapshots(
+        self,
+        stock_codes: list[str],
+        *,
+        target_trade_date: date | None = None,
+    ) -> list[QuoteSnapshot]:
         """从 Tushare 获取最新日线数据作为"准实时"行情"""
         try:
             compatibility_adapter = build_tushare_stock_adapter()
@@ -168,51 +180,50 @@ class TushareGateway(MarketGatewayProtocol):
                     stock_codes,
                 )
             pro = cast(_TushareProClientProtocol, self._create_client())
-            results: list[QuoteSnapshot] = []
-
-            from django.utils import timezone
-
-            end_date = timezone.now().strftime("%Y%m%d")
-            start_date = (timezone.now() - timedelta(days=5)).strftime("%Y%m%d")
-
-            for code in stock_codes:
-                try:
-                    normalized_code = _normalize_asset_code(code)
-                    if normalized_code is None:
-                        continue
-                    df = pro.daily(
-                        ts_code=self._to_tushare_code(normalized_code),
-                        start_date=start_date,
-                        end_date=end_date,
-                    )
-                    if df is None or df.empty:
-                        continue
-
-                    rows = df.to_dict("records")
-                    response_evidence = getattr(df, "response_evidence", None)
-                    completed_at = getattr(response_evidence, "response_completed_at", None)
-                    fetched_at = (
-                        completed_at
-                        if isinstance(completed_at, datetime)
-                        and completed_at.tzinfo is not None
-                        and completed_at.utcoffset() is not None
-                        else datetime.now(UTC)
-                    )
-                    quote = parse_tushare_daily_quote_rows(
-                        rows,
-                        requested_asset_code=code,
-                        source="tushare",
-                        fetched_at=fetched_at,
-                    )
-                    if quote is not None:
-                        results.append(quote)
-                except Exception:
-                    logger.warning("Tushare 获取 %s 失败", code, exc_info=True)
+            requested = {
+                normalized: code
+                for code in stock_codes
+                if (normalized := _normalize_asset_code(code)) is not None
+            }
+            results_by_code: dict[str, QuoteSnapshot] = {}
+            session = target_trade_date or datetime.now(UTC).date()
+            trade_date = session.strftime("%Y%m%d")
+            df = pro.daily(trade_date=trade_date)
+            if df is None or df.empty:
+                return []
+            rows = df.to_dict("records")
+            response_evidence = getattr(df, "response_evidence", None)
+            completed_at = getattr(response_evidence, "response_completed_at", None)
+            fetched_at = (
+                completed_at
+                if isinstance(completed_at, datetime)
+                and completed_at.tzinfo is not None
+                and completed_at.utcoffset() is not None
+                else datetime.now(UTC)
+            )
+            for row in rows:
+                raw_code = row.get("ts_code")
+                normalized_code = (
+                    _normalize_asset_code(raw_code) if isinstance(raw_code, str) else None
+                )
+                if normalized_code is None or normalized_code not in requested:
                     continue
+                quote = parse_tushare_daily_quote_rows(
+                    [row],
+                    requested_asset_code=requested[normalized_code],
+                    source="tushare",
+                    fetched_at=fetched_at,
+                    target_date=session,
+                )
+                if quote is not None:
+                    results_by_code[normalized_code] = quote
 
+            results = [results_by_code[code] for code in requested if code in results_by_code]
             logger.info("Tushare 行情: 请求 %d 只, 成功 %d 只", len(stock_codes), len(results))
             return results
 
+        except TushareRelayAuthorizationError:
+            raise
         except Exception:
             logger.exception("Tushare gateway 批量行情失败")
             return []

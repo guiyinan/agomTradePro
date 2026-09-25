@@ -148,6 +148,17 @@ class CurrentValuationBatchProviderProtocol(Protocol):
 
 
 @runtime_checkable
+class SessionQuoteBatchProviderProtocol(Protocol):
+    """Optional provider capability for an explicit full-market trading session."""
+
+    def fetch_quote_snapshots_for_session(
+        self,
+        asset_codes: list[str],
+        target_trade_date: date,
+    ) -> list[QuoteSnapshot]: ...
+
+
+@runtime_checkable
 class ProviderRegistryProtocol(Protocol):
     """Canonical construction, lookup, routing, and health contract."""
 

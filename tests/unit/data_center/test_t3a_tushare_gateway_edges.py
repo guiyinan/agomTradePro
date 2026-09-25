@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from types import SimpleNamespace
 
 import pandas as pd
@@ -68,6 +69,69 @@ def test_quote_path_skips_empty_invalid_and_isolates_per_code_failures(
         lambda: (_ for _ in ()).throw(RuntimeError("batch failure")),
     )
     assert tushare_gateway.TushareGateway().get_quote_snapshots(["000001.SZ"]) == []
+
+
+def test_native_quote_path_uses_full_market_session_batches(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, str]] = []
+
+    class _Pro:
+        def daily(self, **kwargs: str) -> pd.DataFrame:
+            calls.append(kwargs)
+            return pd.DataFrame(
+                [
+                    {
+                        "ts_code": "000001.SZ",
+                        "trade_date": "20260924",
+                        "close": 12,
+                        "pre_close": 10,
+                        "vol": 100,
+                        "amount": 200,
+                    },
+                    {
+                        "ts_code": "600000.SH",
+                        "trade_date": "20260924",
+                        "close": 9,
+                        "pre_close": 9,
+                        "vol": 300,
+                        "amount": 400,
+                    },
+                ]
+            )
+
+    monkeypatch.setattr(tushare_gateway, "build_tushare_stock_adapter", lambda: None)
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.tushare_gateway.create_tushare_pro_client",
+        lambda **_kwargs: _Pro(),
+    )
+
+    result = tushare_gateway.TushareGateway().get_quote_snapshots(
+        ["000001.SZ", "600000.SH"], target_trade_date=date(2026, 9, 24)
+    )
+
+    assert [item.stock_code for item in result] == ["000001.SZ", "600000.SH"]
+    assert result[0].volume == 10_000
+    assert result[0].amount == 200_000
+    assert len(calls) == 1
+    assert set(calls[0]) == {"trade_date"}
+
+
+def test_native_quote_authorization_failure_is_visible(monkeypatch: pytest.MonkeyPatch) -> None:
+    class _Pro:
+        def daily(self, **_kwargs: str) -> pd.DataFrame:
+            raise tushare_gateway.TushareRelayAuthorizationError("HTTP 403")
+
+    monkeypatch.setattr(tushare_gateway, "build_tushare_stock_adapter", lambda: None)
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.tushare_gateway.create_tushare_pro_client",
+        lambda **_kwargs: _Pro(),
+    )
+
+    with pytest.raises(tushare_gateway.TushareRelayAuthorizationError, match="HTTP 403"):
+        tushare_gateway.TushareGateway().get_quote_snapshots(
+            ["000001.SZ"], target_trade_date=date(2026, 9, 24)
+        )
 
 
 def test_history_routes_etf_index_and_stock_and_skips_invalid_rows(

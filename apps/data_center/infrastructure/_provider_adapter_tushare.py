@@ -692,6 +692,22 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         ]
 
     def fetch_quote_snapshots(self, asset_codes: list[str]) -> list[QuoteSnapshot]:
+        """Resolve an authoritative completed session before reading the batch."""
+        from apps.data_center.application.market_calendar import (
+            latest_completed_cn_market_session,
+        )
+
+        target_trade_date = latest_completed_cn_market_session(datetime.now(UTC))
+        if target_trade_date is None:
+            return []
+        return self.fetch_quote_snapshots_for_session(asset_codes, target_trade_date)
+
+    def fetch_quote_snapshots_for_session(
+        self,
+        asset_codes: list[str],
+        target_trade_date: date,
+    ) -> list[QuoteSnapshot]:
+        """Fetch one exact full-market Tushare daily session and narrow it to scope."""
         from apps.data_center.infrastructure.gateways.tushare_gateway import TushareGateway
 
         gateway = TushareGateway(
@@ -700,7 +716,10 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             request_mode=self._configured_request_mode(),
             source_name=self.provider_name(),
         )
-        quotes = gateway.get_quote_snapshots(asset_codes)
+        quotes = gateway.get_quote_snapshots(
+            asset_codes,
+            target_trade_date=target_trade_date,
+        )
         results: list[QuoteSnapshot] = []
         for quote in quotes:
             current_price = safe_float(quote.price)

@@ -658,6 +658,7 @@ class SyncQuoteRequest:
     provider_id: int
     asset_codes: list[str]
     require_exact_asset_codes: bool = False
+    target_trade_date: date | None = None
 
 
 @dataclass

@@ -39,10 +39,9 @@ def test_production_quote_path_accepts_witnessed_frame_and_replay_target(monkeyp
     completed_at = datetime(2026, 9, 23, 8, 5, tzinfo=UTC)
     frame = _provider_frame(
         [
-            ["20260922", 12.0, 11.9, 100, 1_000],
-            ["20260923", 12.5, 12.0, 200, 2_500],
+            ["000001.SZ", "20260923", 12.5, 12.0, 200, 2_500],
         ],
-        ["trade_date", "close", "pre_close", "vol", "amount"],
+        ["ts_code", "trade_date", "close", "pre_close", "vol", "amount"],
         None,
         TushareResponseEvidence("a" * 64, completed_at),
     )
@@ -53,7 +52,7 @@ def test_production_quote_path_accepts_witnessed_frame_and_replay_target(monkeyp
         lambda: SimpleNamespace(daily=lambda **_kwargs: frame),
     )
 
-    quotes = gateway.get_quote_snapshots(["000001.SZ"])
+    quotes = gateway.get_quote_snapshots(["000001.SZ"], target_trade_date=date(2026, 9, 23))
     replayed = parse_tushare_daily_quote_rows(
         frame.to_dict("records"),
         requested_asset_code="000001.SZ",

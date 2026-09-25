@@ -335,7 +335,12 @@ def refresh_full_market_publications_task(
         if not authority_allows_next_write():
             raise ValueError("current Audit authority changed before quote batch")
         result = quotes.execute(
-            SyncQuoteRequest(quote_provider_id, codes, require_exact_asset_codes=True)
+            SyncQuoteRequest(
+                quote_provider_id,
+                codes,
+                require_exact_asset_codes=True,
+                target_trade_date=target_date,
+            )
         )
         return _exact_provider_batch_count(
             requested_asset_codes=codes,
