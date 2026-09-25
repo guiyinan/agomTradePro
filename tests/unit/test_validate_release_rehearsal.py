@@ -188,6 +188,35 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
         }
     )
     capacity = _common("full_universe_capacity", now)
+    capacity_receipt_path = tmp_path / "full-universe-capacity-receipt.json"
+    capacity_receipt_digest = _write_json(
+        capacity_receipt_path,
+        {
+            "schema": "release.full-universe-capacity-receipt.v1",
+            "candidate_sha": CANDIDATE,
+            "target_trade_date": TARGET_DATE,
+            "universe_sha256": UNIVERSE,
+            "provider_identities_sha256": PROVIDER_DIGEST,
+            "outcome": "success",
+            "measurement_source": "candidate_runtime_instrumentation",
+            "asset_codes": ASSET_CODES,
+            "measured_asset_count": len(ASSET_CODES),
+            "started_at": (now - timedelta(minutes=8)).isoformat(),
+            "finished_at": (now - timedelta(minutes=6)).isoformat(),
+            "elapsed_seconds": 120.0,
+            "provider_total_requests": 150,
+            "provider_peak_requests_per_window": 50,
+            "provider_request_limit_per_window": 100,
+            "provider_window_seconds": 60.0,
+            "task_deadline_seconds": 600.0,
+            "database_peak_connections": 2,
+            "database_connection_limit": 20,
+            "max_lock_wait_seconds": 0.2,
+            "lock_wait_limit_seconds": 5.0,
+            "peak_memory_bytes": 268435456,
+            "memory_limit_bytes": 1073741824,
+        },
+    )
     capacity.update(
         {
             "universe_count": len(ASSET_CODES),
@@ -197,7 +226,12 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             "task_deadline_within_limit": True,
             "database_budget_within_limit": True,
             "lock_budget_within_limit": True,
-            "capacity_margin_ratio": 0.25,
+            "memory_budget_within_limit": True,
+            "capacity_margin_ratio": 0.5,
+            "measurement_artifact": {
+                "path": capacity_receipt_path.name,
+                "sha256": capacity_receipt_digest,
+            },
         }
     )
     staging = _common("isolated_write_rehearsal", now)
@@ -317,6 +351,17 @@ def _replace_report(manifest: Path, report_path: Path, payload: dict[str, Any]) 
     _write_json(manifest, manifest_payload)
 
 
+def _replace_capacity_receipt(
+    manifest: Path, capacity_report_path: Path, mutation: dict[str, Any]
+) -> None:
+    report = json.loads(capacity_report_path.read_text(encoding="utf-8"))
+    receipt_path = capacity_report_path.parent / report["measurement_artifact"]["path"]
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt.update(mutation)
+    report["measurement_artifact"]["sha256"] = _write_json(receipt_path, receipt)
+    _replace_report(manifest, capacity_report_path, report)
+
+
 def test_validator_accepts_complete_candidate_bound_evidence(tmp_path: Path) -> None:
     now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
     manifest, _reports = _build_evidence(tmp_path, now)
@@ -348,6 +393,21 @@ def test_validator_accepts_complete_candidate_bound_evidence(tmp_path: Path) -> 
             {"universe_count": 1, "measured_asset_count": 1},
             "REHEARSAL_CAPACITY_UNIVERSE_INVALID",
         ),
+        (
+            "full_universe_capacity",
+            {"measurement_artifact": None},
+            "REHEARSAL_CAPACITY_MEASUREMENT_MISSING",
+        ),
+        (
+            "full_universe_capacity",
+            {"memory_budget_within_limit": False},
+            "REHEARSAL_CAPACITY_DERIVATION_MISMATCH",
+        ),
+        (
+            "full_universe_capacity",
+            {"capacity_margin_ratio": 0.000001},
+            "REHEARSAL_CAPACITY_MARGIN_MISMATCH",
+        ),
         ("isolated_write_rehearsal", {"residual_rows": 1}, "REHEARSAL_ROLLBACK_RESIDUAL"),
         ("isolated_write_rehearsal", {"residual_rows": 0.0}, "REHEARSAL_ROLLBACK_RESIDUAL"),
         ("isolated_write_rehearsal", {"write_artifacts": []}, "REHEARSAL_WRITE_ARTIFACT_MISSING"),
@@ -371,6 +431,34 @@ def test_validator_rejects_false_green_evidence(
     report = json.loads(reports[kind].read_text(encoding="utf-8"))
     report.update(mutation)
     _replace_report(manifest, reports[kind], report)
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == expected_code
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected_code"),
+    [
+        (
+            {"provider_peak_requests_per_window": 101},
+            "REHEARSAL_CAPACITY_LIMIT_EXCEEDED",
+        ),
+        ({"elapsed_seconds": 125.0}, "REHEARSAL_CAPACITY_MEASUREMENT_INVALID"),
+        ({"peak_memory_bytes": 1073741824}, "REHEARSAL_CAPACITY_LIMIT_EXCEEDED"),
+        ({"database_peak_connections": 20}, "REHEARSAL_CAPACITY_LIMIT_EXCEEDED"),
+        ({"max_lock_wait_seconds": 5.0}, "REHEARSAL_CAPACITY_LIMIT_EXCEEDED"),
+        ({"measurement_source": "self_reported"}, "REHEARSAL_CAPACITY_RECEIPT_INVALID"),
+        ({"asset_codes": ASSET_CODES[:-1]}, "REHEARSAL_CAPACITY_RECEIPT_UNIVERSE_MISMATCH"),
+    ],
+)
+def test_validator_recomputes_capacity_from_bound_measurement_receipt(
+    tmp_path: Path, mutation: dict[str, Any], expected_code: str
+) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    _replace_capacity_receipt(manifest, reports["full_universe_capacity"], mutation)
 
     with pytest.raises(validator.RehearsalValidationError) as exc_info:
         _validate(manifest, now)

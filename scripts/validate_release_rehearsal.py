@@ -25,7 +25,7 @@ SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
 REQUIRED_REPORT_SCHEMAS = {
     "real_response_unit_replay": "release.real-response-unit-replay.v1",
-    "full_universe_capacity": "release.full-universe-capacity.v1",
+    "full_universe_capacity": "release.full-universe-capacity.v2",
     "isolated_write_rehearsal": "release.isolated-write-rehearsal.v1",
     "candidate_regression_evidence": "release.candidate-regression-evidence.v1",
 }
@@ -237,6 +237,18 @@ def _require_positive_int(payload: dict[str, Any], key: str, code: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         _fail(code)
     return value
+
+
+def _require_finite_number(
+    payload: dict[str, Any], key: str, code: str, *, allow_zero: bool = False
+) -> float:
+    value = payload.get(key)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        _fail(code)
+    parsed = float(value)
+    if not math.isfinite(parsed) or parsed < 0 or (not allow_zero and parsed <= 0):
+        _fail(code)
+    return parsed
 
 
 def _parse_datetime(value: object, code: str) -> datetime:
@@ -467,7 +479,15 @@ def _validate_real_replay(
         _fail("REHEARSAL_REPLAY_CASES_INCOMPLETE")
 
 
-def _validate_capacity(report: dict[str, Any]) -> tuple[str, ...]:
+def _validate_capacity(
+    report: dict[str, Any],
+    base: Path,
+    *,
+    expected_candidate: str,
+    expected_date: str,
+    expected_universe: str,
+    expected_provider_digest: str,
+) -> tuple[str, ...]:
     universe_count = _require_positive_int(
         report, "universe_count", "REHEARSAL_CAPACITY_INCOMPLETE"
     )
@@ -489,21 +509,112 @@ def _validate_capacity(report: dict[str, Any]) -> tuple[str, ...]:
     ).encode()
     if hashlib.sha256(encoded_universe).hexdigest() != report.get("universe_sha256"):
         _fail("REHEARSAL_CAPACITY_UNIVERSE_MISMATCH")
-    for key in (
-        "provider_quota_within_limit",
-        "task_deadline_within_limit",
-        "database_budget_within_limit",
-        "lock_budget_within_limit",
-    ):
-        _require_true(report, key, "REHEARSAL_CAPACITY_LIMIT_EXCEEDED")
-    margin = report.get("capacity_margin_ratio")
+
+    artifact = report.get("measurement_artifact")
+    if not isinstance(artifact, dict):
+        _fail("REHEARSAL_CAPACITY_MEASUREMENT_MISSING")
+    artifact_payload = cast(dict[str, object], artifact)
+    receipt_path = _resolve_artifact(
+        base, artifact_payload.get("path"), artifact_payload.get("sha256")
+    )
+    receipt = _read_json(receipt_path, "REHEARSAL_CAPACITY_RECEIPT_INVALID")
     if (
-        isinstance(margin, bool)
-        or not isinstance(margin, (int, float))
-        or not math.isfinite(float(margin))
-        or float(margin) <= 0
+        receipt.get("schema") != "release.full-universe-capacity-receipt.v1"
+        or receipt.get("measurement_source") != "candidate_runtime_instrumentation"
     ):
-        _fail("REHEARSAL_CAPACITY_MARGIN_INVALID")
+        _fail("REHEARSAL_CAPACITY_RECEIPT_INVALID")
+    _validate_receipt_identity(
+        receipt,
+        expected_candidate=expected_candidate,
+        expected_date=expected_date,
+        expected_universe=expected_universe,
+        expected_provider_digest=expected_provider_digest,
+    )
+    if (
+        receipt.get("asset_codes") != asset_codes
+        or receipt.get("measured_asset_count") != universe_count
+    ):
+        _fail("REHEARSAL_CAPACITY_RECEIPT_UNIVERSE_MISMATCH")
+
+    receipt_started = _parse_datetime(
+        receipt.get("started_at"), "REHEARSAL_CAPACITY_MEASUREMENT_INVALID"
+    )
+    receipt_finished = _parse_datetime(
+        receipt.get("finished_at"), "REHEARSAL_CAPACITY_MEASUREMENT_INVALID"
+    )
+    report_started = _parse_datetime(report.get("started_at"), "REHEARSAL_TIME_INVALID")
+    report_finished = _parse_datetime(report.get("finished_at"), "REHEARSAL_TIME_INVALID")
+    if (
+        receipt_finished < receipt_started
+        or receipt_started < report_started - timedelta(seconds=1)
+        or receipt_finished > report_finished + timedelta(seconds=1)
+    ):
+        _fail("REHEARSAL_CAPACITY_MEASUREMENT_INVALID")
+
+    elapsed = _require_finite_number(
+        receipt, "elapsed_seconds", "REHEARSAL_CAPACITY_MEASUREMENT_INVALID"
+    )
+    measured_elapsed = (receipt_finished - receipt_started).total_seconds()
+    if not math.isclose(elapsed, measured_elapsed, rel_tol=0.01, abs_tol=0.1):
+        _fail("REHEARSAL_CAPACITY_MEASUREMENT_INVALID")
+    total_requests = _require_positive_int(
+        receipt, "provider_total_requests", "REHEARSAL_CAPACITY_MEASUREMENT_INVALID"
+    )
+    peak_requests = _require_positive_int(
+        receipt, "provider_peak_requests_per_window", "REHEARSAL_CAPACITY_MEASUREMENT_INVALID"
+    )
+    provider_limit = _require_positive_int(
+        receipt, "provider_request_limit_per_window", "REHEARSAL_CAPACITY_MEASUREMENT_INVALID"
+    )
+    _require_finite_number(
+        receipt, "provider_window_seconds", "REHEARSAL_CAPACITY_MEASUREMENT_INVALID"
+    )
+    if peak_requests > total_requests:
+        _fail("REHEARSAL_CAPACITY_MEASUREMENT_INVALID")
+    deadline = _require_finite_number(
+        receipt, "task_deadline_seconds", "REHEARSAL_CAPACITY_MEASUREMENT_INVALID"
+    )
+    database_peak = _require_positive_int(
+        receipt, "database_peak_connections", "REHEARSAL_CAPACITY_MEASUREMENT_INVALID"
+    )
+    database_limit = _require_positive_int(
+        receipt, "database_connection_limit", "REHEARSAL_CAPACITY_MEASUREMENT_INVALID"
+    )
+    lock_wait = _require_finite_number(
+        receipt,
+        "max_lock_wait_seconds",
+        "REHEARSAL_CAPACITY_MEASUREMENT_INVALID",
+        allow_zero=True,
+    )
+    lock_limit = _require_finite_number(
+        receipt, "lock_wait_limit_seconds", "REHEARSAL_CAPACITY_MEASUREMENT_INVALID"
+    )
+    peak_memory = _require_positive_int(
+        receipt, "peak_memory_bytes", "REHEARSAL_CAPACITY_MEASUREMENT_INVALID"
+    )
+    memory_limit = _require_positive_int(
+        receipt, "memory_limit_bytes", "REHEARSAL_CAPACITY_MEASUREMENT_INVALID"
+    )
+
+    ratios = {
+        "provider_quota_within_limit": peak_requests / provider_limit,
+        "task_deadline_within_limit": elapsed / deadline,
+        "database_budget_within_limit": database_peak / database_limit,
+        "lock_budget_within_limit": lock_wait / lock_limit,
+        "memory_budget_within_limit": peak_memory / memory_limit,
+    }
+    for key, ratio in ratios.items():
+        derived = ratio < 1.0
+        if not derived:
+            _fail("REHEARSAL_CAPACITY_LIMIT_EXCEEDED")
+        if report.get(key) is not derived:
+            _fail("REHEARSAL_CAPACITY_DERIVATION_MISMATCH")
+    derived_margin = min(1.0 - ratio for ratio in ratios.values())
+    margin = _require_finite_number(
+        report, "capacity_margin_ratio", "REHEARSAL_CAPACITY_MARGIN_INVALID"
+    )
+    if not math.isclose(margin, derived_margin, rel_tol=1e-9, abs_tol=1e-9):
+        _fail("REHEARSAL_CAPACITY_MARGIN_MISMATCH")
     return tuple(cast(list[str], asset_codes))
 
 
@@ -724,7 +835,14 @@ def validate_release_rehearsal(
         )
         loaded_reports[kind] = report
         report_paths[kind] = report_path
-    expected_assets = _validate_capacity(loaded_reports["full_universe_capacity"])
+    expected_assets = _validate_capacity(
+        loaded_reports["full_universe_capacity"],
+        report_paths["full_universe_capacity"].parent,
+        expected_candidate=expected_candidate,
+        expected_date=expected_target_date,
+        expected_universe=expected_universe_sha256,
+        expected_provider_digest=expected_provider_identities_sha256,
+    )
     _validate_real_replay(
         loaded_reports["real_response_unit_replay"],
         report_paths["real_response_unit_replay"].parent,
