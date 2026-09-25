@@ -276,6 +276,7 @@ def collect_candidate_regression_evidence(
             "target_trade_date": target_date,
             "universe_sha256": universe_sha256,
             "provider_identities": identities,
+            "provider_identities_sha256": provider_digest,
             "provider_identity_scope": "association_only_not_provider_validation",
             "evidence_mode": validator.REQUIRED_EVIDENCE_MODES[REPORT_KIND],
             "started_at": started_at.isoformat(),
