@@ -163,7 +163,7 @@
 | R3 只读/工作台/文案 | 候选代码完成，生产待验 | 账户归属、GET 零写入、研究入口、慢请求/重试和缺失价格语义已通过本地行为验收；生产普通投资者浏览器 UAT 待验 |
 | R4 进度/诊断 | 候选代码完成，生产待验 | current attempt / last completed、phase、outcome、计数单位和安全错误投影已形成回归；生产任务结果待验 |
 | S1–S5 | 候选代码完成，远端 CI 待验 | 真实 provider 契约、不变量、时间、规模和跨消费者选测已集成；同一最终 SHA 的远端 CI 结果仍须冻结 |
-| S6 | 第八次真实演练已阻断，CI 身份摘要契约修复待新 SHA 重跑 | `53f506fe57` 的同 SHA CI 和 25 项 PostgreSQL 契约全绿；全新候选通过构建、镜像身份、真实 provider 探针、原始响应重放、5,569 只全市场容量、隔离 PostgreSQL 写入回滚和官方 CI 证据采集，证明上一轮目录冲突已修复。bundle 阶段随后以 `REHEARSAL_BUNDLE_REPORT_MISMATCH` 阻断：collector 已校验并发布 provider 身份数组，但遗漏 bundler 要求的同数组 SHA-256 关联摘要。collector 现同时发布该摘要；provider 身份仍只作为 CI 与其他三类验收报告的关联上下文，不会被冒充为 provider 验收。必须以新 SHA 重跑全部 CI 和整套真实 S6，旧候选、镜像、探针和证据均不得复用 |
+| S6 | 第九次真实演练已阻断，最终验证器身份形态契约修复待新 SHA 重跑 | `1ea5641a4b` 的同 SHA CI 和 25 项 PostgreSQL 契约全绿；全新候选依次通过构建、镜像身份、真实 provider 探针、原始响应重放、5,569 只全市场容量、隔离 PostgreSQL 写入回滚、官方 CI 证据采集和不可变 bundle 创建。最终 validator 以 `REHEARSAL_PROVIDER_IDENTITY_INVALID` 阻断：真实 replay/CI 报告发布完整身份数组和摘要，capacity/isolated 按生产契约只发布摘要，但共享校验器此前无条件要求所有报告含数组。校验器现显式区分两种契约：四类报告都必须有冻结摘要；replay/CI 还必须有完整数组并重新计算摘要；capacity/isolated 可使用摘要，并继续由各自深层 receipt 绑定同一摘要。必须以新 SHA 重跑全部 CI 和整套真实 S6，旧候选、镜像、探针和证据均不得复用 |
 | 生产联合复验 | 未完成 | 真实普通用户、四发布、自然周期和准确 runtime 门尚需验证 |
 
 本表在每个阶段完成后更新，只写实际验证结果。最终报告必须列完成项、未完成项、已验证测试与未验证风险。
@@ -184,6 +184,7 @@
 - `3faa1e2248` 第五次真实 S6 的前五阶段再次通过，隔离写入在任何 catalog 或业务写入前 fail closed。后续一次诊断误把临时 env 文件纳入工具输出，涉及生产数据加密 key、应用管理员口令、provider token 和一次性 PostgreSQL URL/密码；未在仓库落盘。远端临时 env、密码文件和一次性 PostgreSQL 容器已删除，候选镜像与非敏感失败证据保留用于审计。可轮换的管理员口令和 provider token 必须走凭据签发流程；生产数据加密 key 在没有重加密与回滚方案前不得直接替换。随后改用只输出布尔匹配结果的一次性诊断，确认根因是 `inet_server_addr()::text` 的 CIDR 掩码导致同一 Docker endpoint 被误判。
 - `c2d5422e8a` 第六、七次真实 S6 均使用全新目录、镜像、探针和隔离 PostgreSQL，六个部署前阶段连续通过。首次 CI 证据排查还发现远端进程默认没有 GitHub token；后续操作辅助以 `0600` 临时文件只向 collector 进程注入 token，并在退出时删除，独立采集验证成功。正式 S6 仍在同一位置失败，静态复核确认实际先发根因是 launcher 预建 `github-ci-evidence`，而 collector 为防覆盖明确要求该目录不存在。目录所有权现统一归 collector；不得用手工生成的证据代替完整重跑。
 - `53f506fe57` 第八次真实 S6 首次越过官方 CI 证据采集，随后在不可变 bundle 创建前 fail closed。四类输入对比确认前三类报告的候选、镜像、日期、universe 和 provider 摘要一致；CI 报告包含同一规范化 provider 身份数组却遗漏对应摘要，导致 bundler 正确拒绝。修复复用 collector 已返回的校验摘要，不放宽 bundler 或最终 validator 的身份门禁；失败运行的临时凭据和隔离 PostgreSQL 已清理。
+- `1ea5641a4b` 第九次真实 S6 成功创建完整 bundle，最终 validator 在读取真实四类报告后阻断。只读重放确认稳定码为 `REHEARSAL_PROVIDER_IDENTITY_INVALID`；真实 capacity 与 isolated 报告只有已冻结的 `provider_identities_sha256`，而 synthetic validator fixture 曾给四类报告全部添加身份数组，掩盖了生产契约差异。修复后测试 fixture 与真实生产形态一致，并覆盖四类顶层摘要必填、replay/CI 完整数组必填和摘要重算。launcher 另以严格的二字段 blocked JSON 解析 validator 稳定码，含附加诊断字段或多个错误码的输出仍降级为通用安全错误。
 
 ### 2026-09-24 首轮执行证据
 

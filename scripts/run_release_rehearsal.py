@@ -33,6 +33,7 @@ IMAGE_ID = re.compile(r"sha256:[0-9a-f]{64}")
 TAG = re.compile(r"[0-9]{14}")
 REPOSITORY = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
 STABLE_REHEARSAL_CODE = re.compile(r"^CommandError: (REHEARSAL_[A-Z0-9_]{3,96})\s*$", re.MULTILINE)
+STABLE_REHEARSAL_CODE_VALUE = re.compile(r"REHEARSAL_[A-Z0-9_]{3,96}")
 IMAGE_NAME = "agomtradepro-web"
 STAGES = (
     "provider_probe",
@@ -210,7 +211,22 @@ def _invoke(
     """Run one stage and expose only an unambiguous stable rehearsal error code."""
     result = runner.run(Command(tuple(argv), root, env or {}, timeout, label, artifact_dir))
     if result.returncode:
-        safe_codes = set(STABLE_REHEARSAL_CODE.findall(result.stdout + "\n" + result.stderr))
+        output = result.stdout + "\n" + result.stderr
+        safe_codes = set(STABLE_REHEARSAL_CODE.findall(output))
+        for line in output.splitlines():
+            try:
+                payload: object = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(payload, dict) or set(payload) != {"outcome", "code"}:
+                continue
+            code = payload.get("code")
+            if (
+                payload.get("outcome") == "blocked"
+                and isinstance(code, str)
+                and STABLE_REHEARSAL_CODE_VALUE.fullmatch(code) is not None
+            ):
+                safe_codes.add(code)
         code = safe_codes.pop() if len(safe_codes) == 1 else "S6_STAGE_COMMAND_FAILED"
         raise RehearsalBlocked(label, code)
     return result

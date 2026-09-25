@@ -156,6 +156,7 @@ def _common(kind: str, now: datetime) -> dict[str, Any]:
         "target_trade_date": TARGET_DATE,
         "universe_sha256": UNIVERSE,
         "provider_identities": PROVIDERS,
+        "provider_identities_sha256": PROVIDER_DIGEST,
         "outcome": "success",
         "candidate_source_attestation": "image_release_manifest",
         "candidate_image_id": IMAGE_ID,
@@ -415,6 +416,7 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
         }
     )
     capacity = _common("full_universe_capacity", now)
+    capacity.pop("provider_identities")
     capacity_receipt_path = tmp_path / "full-universe-capacity-receipt.json"
     capacity_receipt_digest = _write_json(
         capacity_receipt_path,
@@ -514,6 +516,7 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
         }
     )
     staging = _common("isolated_write_rehearsal", now)
+    staging.pop("provider_identities")
     write_receipt = tmp_path / "staging-write-receipt.json"
     write_identity = {
         "candidate_image_id": IMAGE_ID,
@@ -692,6 +695,45 @@ def test_validator_accepts_complete_candidate_bound_evidence(tmp_path: Path) -> 
     assert result["outcome"] == "success"
     assert result["candidate_sha"] == CANDIDATE
     assert len(result["validated_reports"]) == 4
+
+
+@pytest.mark.parametrize("kind", validator.REQUIRED_REPORT_SCHEMAS)
+def test_validator_requires_declared_provider_digest_on_every_report(
+    tmp_path: Path,
+    kind: str,
+) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    report_path = reports[kind]
+    payload = json.loads(report_path.read_text(encoding="utf-8"))
+    payload.pop("provider_identities_sha256")
+    _replace_report(manifest, report_path, payload)
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == "REHEARSAL_PROVIDER_MISMATCH"
+
+
+@pytest.mark.parametrize(
+    "kind",
+    ("real_response_unit_replay", "candidate_regression_evidence"),
+)
+def test_validator_requires_full_provider_identities_for_source_evidence(
+    tmp_path: Path,
+    kind: str,
+) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    report_path = reports[kind]
+    payload = json.loads(report_path.read_text(encoding="utf-8"))
+    payload.pop("provider_identities")
+    _replace_report(manifest, report_path, payload)
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == "REHEARSAL_PROVIDER_IDENTITY_INVALID"
 
 
 def test_validator_rejects_absolute_bundle_artifact_reference(tmp_path: Path) -> None:

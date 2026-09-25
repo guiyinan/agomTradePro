@@ -21,6 +21,7 @@ from scripts.run_release_rehearsal import (
     CommandResult,
     RehearsalBlocked,
     RehearsalConfig,
+    _invoke,
     _invoke_container_stage,
     bundle_tree_digest,
     run_release_rehearsal,
@@ -494,6 +495,28 @@ def test_failed_container_stage_preserves_one_stable_rehearsal_code(
     assert exc_info.value.code == stable_code
 
 
+def test_failed_stage_preserves_exact_validator_json_code(tmp_path: Path) -> None:
+    stable_code = "REHEARSAL_PROVIDER_IDENTITY_INVALID"
+
+    class ValidatorFailureRunner(FakeRunner):
+        def run(self, command: Command) -> CommandResult:
+            return CommandResult(
+                returncode=1,
+                stdout=json.dumps({"outcome": "blocked", "code": stable_code}),
+            )
+
+    with pytest.raises(RehearsalBlocked) as exc_info:
+        _invoke(
+            ValidatorFailureRunner(),
+            argv=("validator",),
+            root=tmp_path,
+            label="release_validator",
+            timeout=1,
+        )
+
+    assert exc_info.value.code == stable_code
+
+
 @pytest.mark.parametrize(
     "stderr",
     [
@@ -501,6 +524,13 @@ def test_failed_container_stage_preserves_one_stable_rehearsal_code(
         (
             "CommandError: REHEARSAL_WRITE_CATALOG_UNAVAILABLE\n"
             "CommandError: REHEARSAL_WRITE_SCOPE_INVALID"
+        ),
+        json.dumps(
+            {
+                "outcome": "blocked",
+                "code": "REHEARSAL_PROVIDER_IDENTITY_INVALID",
+                "detail": "untrusted diagnostic",
+            }
         ),
     ],
 )

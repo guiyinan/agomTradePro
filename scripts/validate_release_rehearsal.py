@@ -44,6 +44,9 @@ REQUIRED_EVIDENCE_MODES = {
 IMAGE_BOUND_REPORTS = frozenset(
     {"real_response_unit_replay", "full_universe_capacity", "isolated_write_rehearsal"}
 )
+PROVIDER_IDENTITY_DIGEST_ONLY_REPORTS = frozenset(
+    {"full_universe_capacity", "isolated_write_rehearsal"}
+)
 REQUIRED_POSTGRESQL_TESTS = (
     "tests.component.data_center.test_core_data_backfill_control_plane::test_postgresql_backfill_first_run_and_same_parameter_retry_are_idempotent",
     "tests.component.data_center.test_core_data_backfill_control_plane::test_postgresql_backfill_provider_domain_failure_persists_partial_outcome",
@@ -433,8 +436,13 @@ def _validate_common_report(
         _fail("REHEARSAL_REPORT_NOT_SUCCESSFUL")
     if report.get("evidence_mode") != REQUIRED_EVIDENCE_MODES[kind]:
         _fail("REHEARSAL_EVIDENCE_MODE_INVALID")
-    provider_digest = _validate_provider_identities(report.get("provider_identities"))
-    if provider_digest != expected_provider_digest:
+    if report.get("provider_identities_sha256") != expected_provider_digest:
+        _fail("REHEARSAL_PROVIDER_MISMATCH")
+    provider_identities = report.get("provider_identities")
+    if provider_identities is None:
+        if kind not in PROVIDER_IDENTITY_DIGEST_ONLY_REPORTS:
+            _fail("REHEARSAL_PROVIDER_IDENTITY_INVALID")
+    elif _validate_provider_identities(provider_identities) != expected_provider_digest:
         _fail("REHEARSAL_PROVIDER_MISMATCH")
     started = _parse_datetime(report.get("started_at"), "REHEARSAL_TIME_INVALID")
     finished = _parse_datetime(report.get("finished_at"), "REHEARSAL_TIME_INVALID")
