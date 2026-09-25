@@ -99,9 +99,9 @@ def _contracts(modules, dataset):
     cls = modules["rehearsal_response_replay"].ReplayUnitContract
     return (
         (
-            cls("close", "元", "元", 1.0),
-            cls("vol", "手", "股", 100.0),
-            cls("amount", "千元", "元", 1000.0),
+            cls("close", "CNY_per_share", "CNY_per_share", 1.0),
+            cls("vol", "lot", "share", 100.0),
+            cls("amount", "thousand_CNY", "CNY", 1000.0),
         )
         if "quote" in dataset
         else (cls("total_mv", "万元", "元", 10000.0), cls("circ_mv", "万元", "元", 10000.0))

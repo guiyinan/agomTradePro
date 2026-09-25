@@ -44,7 +44,13 @@ from .core_data_backfill import (
     CoreDataBackfillServices,
     run_active_a_share_core_data_backfill_batch,
 )
-from .full_market_task_support import data02_authority_failure as _data02_authority_failure
+from .data02_task_authority import data02_authority_failure as _data02_authority_failure
+from .data02_task_authority import (
+    preflight_data02_task_authority as _preflight_data02_task_authority,
+)
+from .data02_task_authority import (
+    same_data02_task_authority_is_current as _same_data02_task_authority_is_current,
+)
 from .full_market_task_support import exact_provider_batch_count as _exact_provider_batch_count
 from .full_market_task_support import full_market_input_failure as _full_market_input_failure
 from .full_market_task_support import (
@@ -82,59 +88,6 @@ _BACKFILL_CURSOR_MAX_LENGTH = 500
 _FINANCIAL_REFRESH_LOCK_KEY = "data_center:financial_publication_refresh:lock:v1"
 _FINANCIAL_REFRESH_PROGRESS_KEY = "data_center:financial_publication_refresh:progress:v1"
 _FINANCIAL_REFRESH_CACHE_TTL = 7 * 86400
-
-
-def _preflight_data02_task_authority(
-    *,
-    as_of: datetime,
-    minimum_window: timedelta,
-    expected_actor: str = "",
-) -> tuple[audit_integration.SystemAuditReaderContext | None, dict[str, object] | None]:
-    """Resolve current authority and prove it covers the task's bounded runtime."""
-
-    try:
-        context = audit_integration.preflight_data_reliability_audit_runtime(
-            environment="production",
-            using="default",
-            as_of=as_of,
-        )
-    except audit_integration.SystemAuditCompositionUnavailable as exc:
-        return None, _data02_authority_failure(f"system_audit_{exc.reason_code}")
-    if expected_actor and expected_actor != context.actor_id:
-        return None, _data02_authority_failure("operator_actor_mismatch")
-    if context.authority_valid_until < as_of + minimum_window:
-        return None, _data02_authority_failure("authority_window_too_short")
-    return context, None
-
-
-def _same_data02_task_authority_is_current(
-    authority: audit_integration.SystemAuditReaderContext,
-    *,
-    as_of: datetime,
-    minimum_window: timedelta = _AUTHORITY_FINALIZATION_WINDOW,
-) -> bool:
-    """Allow an equivalent active successor while the starting grant remains valid."""
-
-    current, failure = _preflight_data02_task_authority(
-        as_of=as_of,
-        minimum_window=minimum_window,
-        expected_actor=authority.actor_id,
-    )
-    if failure is not None or current is None:
-        return False
-    if authority.authority_valid_until < as_of + minimum_window:
-        return False
-    identity_fields = (
-        "authority_source_id",
-        "actor_id",
-        "user_id",
-        "tenant_id",
-        "owner_id",
-        "is_authenticated",
-        "is_staff",
-        "role",
-    )
-    return all(getattr(current, field) == getattr(authority, field) for field in identity_fields)
 
 
 @shared_task(name="data_center.refresh_full_market_publications", time_limit=3600, soft_time_limit=3500)  # type: ignore[misc]

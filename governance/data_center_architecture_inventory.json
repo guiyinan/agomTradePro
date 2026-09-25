@@ -10051,6 +10051,26 @@
       "text": "f\"{dataset_key} Publication id does not match its canonical current identity\""
     },
     {
+      "line": 42,
+      "path": "apps/data_center/application/data02_task_authority.py",
+      "text": "\"\"\"Resolve current authority and prove it covers the task's bounded runtime.\"\"\""
+    },
+    {
+      "line": 67,
+      "path": "apps/data_center/application/data02_task_authority.py",
+      "text": "current, failure = preflight_data02_task_authority("
+    },
+    {
+      "line": 72,
+      "path": "apps/data_center/application/data02_task_authority.py",
+      "text": "if failure is not None or current is None:"
+    },
+    {
+      "line": 86,
+      "path": "apps/data_center/application/data02_task_authority.py",
+      "text": "return all(getattr(current, field) == getattr(authority, field) for field in identity_fields)"
+    },
+    {
       "line": 336,
       "path": "apps/data_center/application/data_chain_replay.py",
       "text": "latest = publication_reader.get_rollback_by_id(rollback_ids[-1])"
@@ -11211,47 +11231,27 @@
       "text": "publication_key = \"current\""
     },
     {
-      "line": 93,
-      "path": "apps/data_center/application/tasks.py",
-      "text": "\"\"\"Resolve current authority and prove it covers the task's bounded runtime.\"\"\""
-    },
-    {
-      "line": 118,
-      "path": "apps/data_center/application/tasks.py",
-      "text": "current, failure = _preflight_data02_task_authority("
-    },
-    {
-      "line": 123,
-      "path": "apps/data_center/application/tasks.py",
-      "text": "if failure is not None or current is None:"
-    },
-    {
-      "line": 137,
-      "path": "apps/data_center/application/tasks.py",
-      "text": "return all(getattr(current, field) == getattr(authority, field) for field in identity_fields)"
-    },
-    {
-      "line": 325,
+      "line": 278,
       "path": "apps/data_center/application/tasks.py",
       "text": "raise ValueError(\"current Audit authority changed before quote batch\")"
     },
     {
-      "line": 350,
+      "line": 303,
       "path": "apps/data_center/application/tasks.py",
       "text": "raise ValueError(\"current Audit authority changed before publication\")"
     },
     {
-      "line": 730,
+      "line": 683,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"Financial current publication rebuild failed: %s\","
     },
     {
-      "line": 852,
+      "line": 805,
       "path": "apps/data_center/application/tasks.py",
       "text": "Current domain sync DTOs expose ``stored_count`` only, so the durable"
     },
     {
-      "line": 1226,
+      "line": 1179,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Require the same current authority before advancing the checkpoint.\"\"\""
     },
@@ -25888,27 +25888,27 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 140,
+      "line": 93,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(name=\"data_center.refresh_full_market_publications\", time_limit=3600, soft_time_limit=3500)  # type: ignore[misc]"
     },
     {
-      "line": 454,
+      "line": 407,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 977,
+      "line": 930,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1009,
+      "line": 962,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1091,
+      "line": 1044,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },

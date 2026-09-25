@@ -7,29 +7,6 @@ from collections.abc import Mapping, Sequence
 from shared.domain.task_outcomes import TaskBusinessOutcome
 
 
-def data02_authority_failure(reason: str) -> dict[str, object]:
-    """Return a stable zero-write authority denial for DATA-02 tasks."""
-
-    return {
-        "success": False,
-        "outcome": TaskBusinessOutcome.BLOCKED.value,
-        "stage": "authority",
-        "blocked_reason": reason,
-        "must_not_use_for_decision": True,
-        "requested": 0,
-        "succeeded": 0,
-        "failed": 0,
-        "stored": 0,
-        "published": 0,
-        "checkpoint": {
-            "offset": 0,
-            "next_offset": 0,
-            "total_assets": 0,
-            "complete": False,
-        },
-    }
-
-
 def exact_provider_batch_count(
     *,
     requested_asset_codes: Sequence[str],
