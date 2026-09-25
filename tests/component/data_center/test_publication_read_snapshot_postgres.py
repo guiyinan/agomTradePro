@@ -172,15 +172,20 @@ def test_market_rehearsal_database_enforces_read_only_on_provider_write(
     from apps.data_center.infrastructure import market_rehearsal_runner as runner
 
     class Provider:
-        def fetch_quote_snapshots(self, codes):
+        def fetch_quote_snapshots_for_session(self, codes, target_trade_date):
+            pytest.fail("must abort after database-enforced read-only rejection")
+
+        def fetch_current_valuations(self, codes, as_of_date):
             with connections["default"].cursor() as cursor:
                 cursor.execute("UPDATE data_center_valuation_fact SET pe_ttm=99")
             pytest.fail("PostgreSQL must reject a business write even with no rows")
 
-        def fetch_current_valuations(self, codes, as_of_date):
-            pytest.fail("must abort after database-enforced read-only rejection")
-
     monkeypatch.setattr(runner, "market_rehearsal_source_digest", lambda root: "b" * 64)
+    monkeypatch.setattr(
+        runner,
+        "verify_candidate_release_image",
+        lambda _root, _sha: ("image_release_manifest", "sha256:" + "f" * 64),
+    )
     monkeypatch.setattr(runner, "list_active_stock_codes_for_backfill", lambda: ["000001.SZ"])
     monkeypatch.setattr(runner, "latest_completed_cn_market_session", lambda now: date(2026, 9, 24))
     monkeypatch.setattr(

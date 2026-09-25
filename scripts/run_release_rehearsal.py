@@ -688,7 +688,7 @@ def _status(
 
 
 def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | None = None) -> Path:
-    """Execute S6 in fixed order and emit a validator-owned deployment receipt."""
+    """Execute S6 in fixed order and emit a non-authorizing evidence handoff receipt."""
     active = runner or SubprocessRunner()
     completed: list[str] = []
     stage: str | None = "inputs"
@@ -945,16 +945,17 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
         _write_json(
             receipt_path,
             {
-                "schema": "release.rehearsal-deployment-receipt.v1",
-                "issuer": "release_rehearsal_validator",
-                "receipt_status": "validated",
-                "deployable": True,
-                "validated_at": datetime.now(UTC).isoformat(),
+                "schema": "release.rehearsal-evidence-handoff.v1",
+                "issuer": "release_rehearsal_launcher",
+                "receipt_status": "evidence_complete",
+                "deployable": False,
+                "evidence_completed_at": datetime.now(UTC).isoformat(),
                 "validator": str(config.root / "scripts" / "validate_release_rehearsal.py"),
                 "validator_exit_code": 0,
                 **asdict(identity),
                 "github_repository": config.github_repository,
                 "github_run_id": config.github_run_id,
+                "max_age_hours": config.max_age_hours,
                 "bundle_dir": str(bundle_dir.resolve()),
                 "bundle_tree_sha256": frozen_digest,
                 "manifest_sha256": hashlib.sha256(_read_file(final_manifest)).hexdigest(),
@@ -962,7 +963,7 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
             read_only=True,
         )
         completed.append(stage)
-        _status(status_path, "success_validated", completed, None, None)
+        _status(status_path, "success_evidence", completed, None, None)
         return receipt_path
     except RehearsalBlocked as exc:
         if status_path is not None:
@@ -974,19 +975,19 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
         raise RehearsalBlocked(stage or "unknown", "S6_INPUT_OR_ARTIFACT_INVALID") from exc
 
 
-def verify_deployment_receipt(receipt_path: Path) -> dict[str, object]:
-    """Recheck the validator-owned deployment receipt and immutable bundle graph."""
+def verify_evidence_handoff_receipt(receipt_path: Path) -> dict[str, object]:
+    """Recheck the launcher handoff; this receipt never grants deploy permission."""
     try:
         receipt = _object(json.loads(_read_file(receipt_path)), "S6_RECEIPT_INVALID")
         bundle = Path(cast(str, receipt["bundle_dir"]))
         manifest = bundle / "release-rehearsal-manifest.json"
-        validated_at = datetime.fromisoformat(cast(str, receipt["validated_at"]))
+        completed_at = datetime.fromisoformat(cast(str, receipt["evidence_completed_at"]))
         valid = (
-            receipt.get("schema") == "release.rehearsal-deployment-receipt.v1"
-            and receipt.get("issuer") == "release_rehearsal_validator"
-            and receipt.get("receipt_status") == "validated"
-            and receipt.get("deployable") is True
-            and validated_at.utcoffset() is not None
+            receipt.get("schema") == "release.rehearsal-evidence-handoff.v1"
+            and receipt.get("issuer") == "release_rehearsal_launcher"
+            and receipt.get("receipt_status") == "evidence_complete"
+            and receipt.get("deployable") is False
+            and completed_at.utcoffset() is not None
             and receipt.get("bundle_tree_sha256") == bundle_tree_digest(bundle)
             and receipt.get("manifest_sha256") == hashlib.sha256(_read_file(manifest)).hexdigest()
         )
@@ -1028,7 +1029,7 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Run S6 and print the validator-owned deployment receipt location."""
+    """Run S6 and print the non-authorizing evidence handoff location."""
     args = _parser().parse_args(argv)
     config = RehearsalConfig(
         root=args.root.resolve(),
@@ -1075,9 +1076,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(
         json.dumps(
             {
-                "outcome": "success_validated",
-                "receipt_status": "validated",
-                "deployable": True,
+                "outcome": "success_evidence",
+                "receipt_status": "evidence_complete",
+                "deployable": False,
                 "receipt": str(receipt),
             },
             sort_keys=True,

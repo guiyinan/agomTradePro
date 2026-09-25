@@ -161,12 +161,25 @@ def test_prebuilt_receipt_binds_bundle_to_exact_deployment_inputs(
     digest = "b" * 64
     monkeypatch.setattr(
         remote_build_deploy_vps,
-        "verify_deployment_receipt",
+        "verify_evidence_handoff_receipt",
         lambda _path: {
             "release_tag": "20260925010101",
             "candidate_image_id": image_id,
             "manifest_sha256": digest,
+            "bundle_dir": str(tmp_path / "bundle"),
+            "candidate_sha": "c" * 40,
+            "target_trade_date": "2026-09-24",
+            "universe_sha256": "d" * 64,
+            "provider_identities_sha256": "e" * 64,
+            "github_repository": "example/repo",
+            "github_run_id": 123,
+            "max_age_hours": 24.0,
         },
+    )
+    monkeypatch.setattr(
+        remote_build_deploy_vps,
+        "validate_release_rehearsal",
+        lambda **_kwargs: {"outcome": "success"},
     )
 
     remote_build_deploy_vps._validate_prebuilt_rehearsal_receipt(
@@ -180,6 +193,43 @@ def test_prebuilt_receipt_binds_bundle_to_exact_deployment_inputs(
         remote_build_deploy_vps._validate_prebuilt_rehearsal_receipt(
             receipt_path=tmp_path / "receipt.json",
             release_tag="20260925010102",
+            image_id=image_id,
+            rehearsal_sha256=digest,
+        )
+
+
+def test_prebuilt_receipt_cannot_bypass_independent_validator(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    image_id = "sha256:" + "a" * 64
+    digest = "b" * 64
+    monkeypatch.setattr(
+        remote_build_deploy_vps,
+        "verify_evidence_handoff_receipt",
+        lambda _path: {
+            "release_tag": "20260925010101",
+            "candidate_image_id": image_id,
+            "manifest_sha256": digest,
+            "bundle_dir": str(tmp_path / "bundle"),
+            "candidate_sha": "c" * 40,
+            "target_trade_date": "2026-09-24",
+            "universe_sha256": "d" * 64,
+            "provider_identities_sha256": "e" * 64,
+            "github_repository": "example/repo",
+            "github_run_id": 123,
+            "max_age_hours": 24.0,
+        },
+    )
+    monkeypatch.setattr(
+        remote_build_deploy_vps,
+        "validate_release_rehearsal",
+        lambda **_kwargs: (_ for _ in ()).throw(ValueError("forged evidence")),
+    )
+
+    with pytest.raises(ValueError, match="Independent release rehearsal validation failed"):
+        remote_build_deploy_vps._validate_prebuilt_rehearsal_receipt(
+            receipt_path=tmp_path / "receipt.json",
+            release_tag="20260925010101",
             image_id=image_id,
             rehearsal_sha256=digest,
         )

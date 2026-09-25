@@ -176,7 +176,7 @@
 - synthetic 正常样例及反例用于证明 validator fail closed，不属于上线证据。独立攻击复验确认：无关 PostgreSQL 用例、单资产冒充全量 universe、浮点 `0.0` 冒充零残留均被拒绝。最终候选仍需采集真实响应/单位重放、完整容量、隔离写入回滚以及远端 CI JUnit 后才能部署。
 - `collect_release_regression_evidence.py` 只从 GitHub 官方 run 采集候选回归子报告和两份原始 JUnit，并在写 success 报告前由共享 validator 重新下载、逐字节复核；来源在采集前后漂移、目录已存在或任一校验失败时只保留 blocked 结果。它不会把 provider 身份关联上下文冒充 provider 验收，另外三类报告仍须独立采集。
 - provider 响应预演已补全为两阶段：在线探针只读并将每个 quote/valuation 响应正文写入独占目录，正文回执不包含 token、请求体、查询参数或请求头；离线命令按输入 SHA 重放全部留存响应，验证有效、缺失、截断、陈旧、重复、单位错误和后续事实更新七类场景。成功报告还会逐资产比较在线事实与重放事实，区分 transport received 与 normalization completed 时钟；任一未列入报告的响应、正文漂移、实时事实不一致或源树变化均阻断。
-- 新增 `run_release_rehearsal.py` 单入口：工作树必须 clean，证据输出必须位于 checkout 外；同一预构建镜像依次运行七个阶段并在每阶段复核 candidate SHA、image ID、交易日、universe 与 provider 身份。只有最终 validator 成功后才生成 `deployable=true`、issuer 为 `release_rehearsal_validator` 的 validated 交接回执；部署入口拒绝 provisional 回执，并在 SSH 前再次验证 bundle tree 摘要和整套 manifest，防止验证后替换。
+- 新增 `run_release_rehearsal.py` 单入口：工作树必须 clean，证据输出必须位于 checkout 外；同一预构建镜像依次运行七个阶段并在每阶段复核 candidate SHA、image ID、交易日、universe 与 provider 身份。launcher 只生成 `deployable=false` 的 evidence handoff，不冒充 validator 授权；底层部署入口在 SSH 前独立重跑 validator，重新校验 bundle tree、manifest、同 SHA CI 与全部身份，成功后才继续，防止同形 JSON 或验证后替换绕过门禁。
 - 同类调用者复核发现带响应证据的 dataframe wrapper 曾只实现 `empty/to_dict`，历史行情与模型数据还会使用长度、列、掩码、复制、排序和合并。wrapper 现在透明代理公共 DataFrame 操作，并由行情、历史、交易日历和模型数据组合回归覆盖，避免真实直连返回在探针外退化。
 - 审计授权续期请求路径已写入 VPS Compose 的 Web/Worker 环境，并使用既有持久化 `var_data` 卷。版本替换后缺请求会明确报告 `renewal_request_not_found`；该修复只恢复续期通道，不自动制造审批材料或解除决策阻断。
 

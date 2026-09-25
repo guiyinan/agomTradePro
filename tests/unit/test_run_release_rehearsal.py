@@ -21,7 +21,7 @@ from scripts.run_release_rehearsal import (
     RehearsalConfig,
     bundle_tree_digest,
     run_release_rehearsal,
-    verify_deployment_receipt,
+    verify_evidence_handoff_receipt,
 )
 
 CANDIDATE_SHA = "a" * 40
@@ -260,7 +260,7 @@ def _fake_checkout(tmp_path: Path) -> Path:
     return root
 
 
-def test_rehearsal_runs_ordered_stages_on_measured_image_and_emits_validated_receipt(
+def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handoff(
     tmp_path: Path,
 ) -> None:
     runner = FakeRunner()
@@ -291,12 +291,12 @@ def test_rehearsal_runs_ordered_stages_on_measured_image_and_emits_validated_rec
         assert command.env["AGOM_CANDIDATE_IMAGE_ID"] == IMAGE_ID
         assert command.env["AGOM_RELEASE_MANIFEST_PATH"].endswith("candidate-release-manifest.json")
         assert IMAGE_ID in command.argv
-    receipt = verify_deployment_receipt(receipt_path)
+    receipt = verify_evidence_handoff_receipt(receipt_path)
     assert receipt["candidate_sha"] == CANDIDATE_SHA
     assert receipt["candidate_image_id"] == IMAGE_ID
     assert receipt["github_run_id"] == GITHUB_RUN_ID
-    assert receipt["deployable"] is True
-    assert receipt["receipt_status"] == "validated"
+    assert receipt["deployable"] is False
+    assert receipt["receipt_status"] == "evidence_complete"
     assert receipt["bundle_tree_sha256"] == bundle_tree_digest(
         Path(cast(str, receipt["bundle_dir"]))
     )
@@ -367,7 +367,7 @@ def test_dirty_worktree_fails_before_build_or_remote_command(tmp_path: Path) -> 
     assert not config.output_dir.exists()
 
 
-def test_bundle_change_during_validation_blocks_validated_handoff(
+def test_bundle_change_during_validation_blocks_evidence_handoff(
     tmp_path: Path,
 ) -> None:
     runner = FakeRunner(mutate_bundle_on_validation=True)
@@ -380,13 +380,13 @@ def test_bundle_change_during_validation_blocks_validated_handoff(
     assert not (config.output_dir / "s6-handoff-receipt.json").exists()
 
 
-def test_bundle_digest_and_validated_receipt_detect_post_validation_mutation(
+def test_bundle_digest_and_evidence_handoff_detect_post_validation_mutation(
     tmp_path: Path,
 ) -> None:
     runner = FakeRunner()
     config = _config(tmp_path, root=_fake_checkout(tmp_path))
     receipt_path = run_release_rehearsal(config, runner=runner)
-    receipt = verify_deployment_receipt(receipt_path)
+    receipt = verify_evidence_handoff_receipt(receipt_path)
     bundle_dir = Path(cast(str, receipt["bundle_dir"]))
     original_digest = bundle_tree_digest(bundle_dir)
     nested_report = bundle_dir / "real_response_unit_replay" / "real-response-unit-replay.json"
@@ -395,10 +395,10 @@ def test_bundle_digest_and_validated_receipt_detect_post_validation_mutation(
 
     assert bundle_tree_digest(bundle_dir) != original_digest
     with pytest.raises(RehearsalBlocked, match="S6_HANDOFF_RECEIPT_MISMATCH"):
-        verify_deployment_receipt(receipt_path)
+        verify_evidence_handoff_receipt(receipt_path)
 
 
-def test_provisional_non_deployable_receipt_is_rejected(tmp_path: Path) -> None:
+def test_forged_validator_owned_receipt_is_rejected(tmp_path: Path) -> None:
     runner = FakeRunner()
     config = _config(tmp_path, root=_fake_checkout(tmp_path))
     receipt_path = run_release_rehearsal(config, runner=runner)
@@ -406,13 +406,13 @@ def test_provisional_non_deployable_receipt_is_rejected(tmp_path: Path) -> None:
     receipt_path.chmod(0o644)
     receipt.update(
         {
-            "schema": "release.rehearsal-launcher-handoff.v1",
-            "issuer": "release_rehearsal_launcher",
-            "receipt_status": "provisional",
-            "deployable": False,
+            "schema": "release.rehearsal-deployment-receipt.v1",
+            "issuer": "release_rehearsal_validator",
+            "receipt_status": "validated",
+            "deployable": True,
         }
     )
     receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
 
     with pytest.raises(RehearsalBlocked, match="S6_HANDOFF_RECEIPT_MISMATCH"):
-        verify_deployment_receipt(receipt_path)
+        verify_evidence_handoff_receipt(receipt_path)

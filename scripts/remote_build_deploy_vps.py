@@ -34,9 +34,14 @@ if str(PROJECT_ROOT) not in sys.path:
 
 _rehearsal_module = importlib.import_module("scripts.run_release_rehearsal")
 RehearsalBlocked = _rehearsal_module.RehearsalBlocked
-verify_deployment_receipt = cast(
+verify_evidence_handoff_receipt = cast(
     Callable[[Path], dict[str, object]],
-    _rehearsal_module.verify_deployment_receipt,
+    _rehearsal_module.verify_evidence_handoff_receipt,
+)
+_validator_module = importlib.import_module("scripts.validate_release_rehearsal")
+validate_release_rehearsal = cast(
+    Callable[..., dict[str, object]],
+    _validator_module.validate_release_rehearsal,
 )
 
 
@@ -152,7 +157,7 @@ def _validate_prebuilt_rehearsal_receipt(
 ) -> None:
     """Recheck the launcher-owned bundle graph and bind it to deployment inputs."""
     try:
-        receipt = verify_deployment_receipt(receipt_path)
+        receipt = verify_evidence_handoff_receipt(receipt_path)
     except (OSError, RehearsalBlocked, TypeError, ValueError) as exc:
         raise ValueError("Release rehearsal receipt or bundle validation failed") from exc
     if (
@@ -161,6 +166,23 @@ def _validate_prebuilt_rehearsal_receipt(
         or receipt.get("manifest_sha256") != rehearsal_sha256
     ):
         raise ValueError("Release rehearsal receipt identity does not match deployment inputs")
+    try:
+        bundle_dir = Path(cast(str, receipt["bundle_dir"]))
+        result = validate_release_rehearsal(
+            manifest_path=bundle_dir / "release-rehearsal-manifest.json",
+            expected_candidate=cast(str, receipt["candidate_sha"]),
+            expected_target_date=cast(str, receipt["target_trade_date"]),
+            expected_universe_sha256=cast(str, receipt["universe_sha256"]),
+            expected_provider_identities_sha256=cast(str, receipt["provider_identities_sha256"]),
+            expected_candidate_image_id=image_id,
+            expected_github_repository=cast(str, receipt["github_repository"]),
+            expected_github_run_id=cast(int, receipt["github_run_id"]),
+            max_age_hours=float(cast(float, receipt["max_age_hours"])),
+        )
+    except (OSError, TypeError, ValueError, KeyError) as exc:
+        raise ValueError("Independent release rehearsal validation failed") from exc
+    if result.get("outcome") != "success":
+        raise ValueError("Independent release rehearsal validation failed")
 
 
 def _latest_sqlite(project_root: Path) -> Path:

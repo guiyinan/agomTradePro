@@ -50,7 +50,7 @@ from tests.component.data_center.test_financial_fact_repository_provenance impor
 
 _POSTGRES_FLAG = "AGOM_EVID06_POSTGRES_TEST"
 _POSTGRES_URL = "AGOM_EVID06_POSTGRES_TEST_DATABASE_URL"
-_DATABASE_NAME = "evid06_authority_test"
+_DATABASE_NAME = "agom_release_rehearsal_ci"
 _ASSET_CODE = "000001.SZ"
 _PERIOD_END = date(2026, 6, 30)
 _ANNOUNCED_AT = datetime(2026, 9, 14, 8, 0, tzinfo=UTC)
