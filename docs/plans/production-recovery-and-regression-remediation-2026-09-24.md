@@ -163,7 +163,7 @@
 | R3 只读/工作台/文案 | 候选代码完成，生产待验 | 账户归属、GET 零写入、研究入口、慢请求/重试和缺失价格语义已通过本地行为验收；生产普通投资者浏览器 UAT 待验 |
 | R4 进度/诊断 | 候选代码完成，生产待验 | current attempt / last completed、phase、outcome、计数单位和安全错误投影已形成回归；生产任务结果待验 |
 | S1–S5 | 候选代码完成，远端 CI 待验 | 真实 provider 契约、不变量、时间、规模和跨消费者选测已集成；同一最终 SHA 的远端 CI 结果仍须冻结 |
-| S6 | 第五次真实演练已阻断，数据库端点规范化修复待新 SHA 重跑 | `3faa1e2248` 的同 SHA CI 全绿，候选镜像 `sha256:f6fe4b…` 重新通过构建、镜像身份、真实 provider 探针、原始响应重放和 5,569 只全市场容量；隔离 PostgreSQL 写入以 `REHEARSAL_WRITE_SCOPE_INVALID` 阻断，未部署。安全的一次性 PostgreSQL 诊断确认配置 name/host/port、opt-in 和实际数据库均一致，唯一差异是 PostgreSQL `inet_server_addr()::text` 返回带掩码的 `172.x.x.x/32`，而 Docker DNS 返回主机地址 `172.x.x.x`。修复改用 `host(inet_server_addr())`，并把 vendor、事务、opt-in、数据库名、host 配置、临时 host、DNS 和已连接 database/port/address 各分支拆成不含敏感值的稳定错误码。必须以新 SHA 重跑全部 CI 和整套真实 S6，旧候选、镜像、探针和证据均不得复用 |
+| S6 | 第七次真实演练已阻断，CI 证据目录契约修复待新 SHA 重跑 | `c2d5422e8a` 的同 SHA CI 和 25 项 PostgreSQL 契约全绿；两次全新候选均通过构建、镜像身份、真实 provider 探针、原始响应重放、5,569 只全市场容量和隔离 PostgreSQL 写入回滚。CI 证据阶段在访问 GitHub API 前被 launcher 预先创建的输出目录阻断：collector 按独占创建契约拒绝既存目录。launcher 已改为让 collector 自行创建目录，collector 的防覆盖门禁保持不变；单元回归同时证明正常路径要求目录事先不存在，预占目录会 fail closed 且不覆盖原内容。必须以新 SHA 重跑全部 CI 和整套真实 S6，旧候选、镜像、探针和证据均不得复用 |
 | 生产联合复验 | 未完成 | 真实普通用户、四发布、自然周期和准确 runtime 门尚需验证 |
 
 本表在每个阶段完成后更新，只写实际验证结果。最终报告必须列完成项、未完成项、已验证测试与未验证风险。
@@ -182,6 +182,7 @@
 - `ff4d81a0c` 首次真实 S6 在 VPS 运行：候选镜像 `sha256:c2fad4…cafdc` 构建成功且未部署，provider 探针完成运行后因 Linux evidence bind mount 不可写而无法生成 `probe.json`，launcher 返回 `provider_probe / S6_STAGE_COMMAND_FAILED`。该失败没有被改写为通过；修复同时把阶段目录从 world-writable 方案收紧为候选主组 `2770`、结束 `0750`，并补充失败恢复、symlink/inode 替换反例。新 provider 身份由实际 `request_mode/http_url/api_endpoint/provider/source/active/priority/name` 与客户端版本派生，白名单错误码可在命令证据中安全透传；动态健康指标和密钥不进入身份摘要。
 - `84334bcdbf` 第四次真实 S6 证明全范围估值响应与冻结样本回放修复有效：真实响应重放和 5,569 只容量阶段均成功。随后全新隔离 PostgreSQL 缺 runtime catalog，稳定阻断为 `REHEARSAL_WRITE_CATALOG_UNAVAILABLE`。本地一次性 PostgreSQL 16 正向组件验证从空 catalog 经标准初始化后完成 4 条生产路径写入、读回和防篡改检查，业务行回滚为 0，治理 catalog 持久保留；9 项 scope、迁移和 catalog 负向场景也通过。初始化前 preflight 同时绑定候选镜像、迁移完成状态、预期数据库名和实际服务端 endpoint，防止误写同名生产数据库。
 - `3faa1e2248` 第五次真实 S6 的前五阶段再次通过，隔离写入在任何 catalog 或业务写入前 fail closed。后续一次诊断误把临时 env 文件纳入工具输出，涉及生产数据加密 key、应用管理员口令、provider token 和一次性 PostgreSQL URL/密码；未在仓库落盘。远端临时 env、密码文件和一次性 PostgreSQL 容器已删除，候选镜像与非敏感失败证据保留用于审计。可轮换的管理员口令和 provider token 必须走凭据签发流程；生产数据加密 key 在没有重加密与回滚方案前不得直接替换。随后改用只输出布尔匹配结果的一次性诊断，确认根因是 `inet_server_addr()::text` 的 CIDR 掩码导致同一 Docker endpoint 被误判。
+- `c2d5422e8a` 第六、七次真实 S6 均使用全新目录、镜像、探针和隔离 PostgreSQL，六个部署前阶段连续通过。首次 CI 证据排查还发现远端进程默认没有 GitHub token；后续操作辅助以 `0600` 临时文件只向 collector 进程注入 token，并在退出时删除，独立采集验证成功。正式 S6 仍在同一位置失败，静态复核确认实际先发根因是 launcher 预建 `github-ci-evidence`，而 collector 为防覆盖明确要求该目录不存在。目录所有权现统一归 collector；不得用手工生成的证据代替完整重跑。
 
 ### 2026-09-24 首轮执行证据
 

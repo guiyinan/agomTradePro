@@ -841,7 +841,7 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
                 "github-ci-evidence",
             )
         )
-        for folder in (provider_dir, replay_dir, capacity_dir, isolated_dir, ci_dir):
+        for folder in (provider_dir, replay_dir, capacity_dir, isolated_dir):
             folder.mkdir()
         completed.append(stage)
 

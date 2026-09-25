@@ -93,12 +93,21 @@ class FakeRunner:
         elif command.label == "docker_gid":
             gid = os.getgid() if hasattr(os, "getgid") else 1000
             return CommandResult(returncode=0, stdout=f"{gid}\n")
+        elif command.label == "github_ci_evidence":
+            assert command.artifact_dir is not None
+            output_dir = Path(command.argv[command.argv.index("--output-dir") + 1])
+            assert output_dir == command.artifact_dir
+            if command.artifact_dir.exists():
+                return CommandResult(
+                    returncode=2,
+                    stderr="blocked: REHEARSAL_OUTPUT_DIRECTORY_EXISTS",
+                )
+            self._create_stage_report(command)
         elif command.label in {
             "provider_probe",
             "response_replay",
             "full_universe_capacity",
             "isolated_postgresql_write",
-            "github_ci_evidence",
         }:
             self._create_stage_report(command)
         elif command.label == "bundle_build":
@@ -374,6 +383,38 @@ def test_failed_provider_stage_stops_before_replay_and_never_emits_receipt(
     assert status["outcome"] == "blocked"
     assert status["current_stage"] == "provider_probe"
     assert status["error_code"] == "S6_STAGE_COMMAND_FAILED"
+
+
+def test_preoccupied_ci_evidence_directory_fails_closed_without_overwrite(
+    tmp_path: Path,
+) -> None:
+    sentinel_contents = "operator-owned-evidence"
+
+    class PreoccupyingRunner(FakeRunner):
+        def run(self, command: Command) -> CommandResult:
+            result = super().run(command)
+            if command.label == "isolated_postgresql_write" and result.returncode == 0:
+                assert command.artifact_dir is not None
+                ci_dir = command.artifact_dir.parent / "github-ci-evidence"
+                ci_dir.mkdir()
+                (ci_dir / "sentinel.txt").write_text(
+                    sentinel_contents,
+                    encoding="utf-8",
+                )
+            return result
+
+    runner = PreoccupyingRunner()
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+
+    with pytest.raises(RehearsalBlocked, match="S6_STAGE_COMMAND_FAILED"):
+        run_release_rehearsal(config, runner=runner)
+
+    ci_dir = config.output_dir / "github-ci-evidence"
+    assert (ci_dir / "sentinel.txt").read_text(encoding="utf-8") == sentinel_contents
+    assert not (ci_dir / "candidate-regression-evidence.json").exists()
+    assert "github_ci_evidence" in runner.labels
+    assert "bundle_build" not in runner.labels
+    assert not (config.output_dir / "s6-handoff-receipt.json").exists()
 
 
 def test_failed_container_stage_seals_directory(
