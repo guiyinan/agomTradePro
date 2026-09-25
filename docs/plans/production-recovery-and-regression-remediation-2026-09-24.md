@@ -163,7 +163,7 @@
 | R3 只读/工作台/文案 | 候选代码完成，生产待验 | 账户归属、GET 零写入、研究入口、慢请求/重试和缺失价格语义已通过本地行为验收；生产普通投资者浏览器 UAT 待验 |
 | R4 进度/诊断 | 候选代码完成，生产待验 | current attempt / last completed、phase、outcome、计数单位和安全错误投影已形成回归；生产任务结果待验 |
 | S1–S5 | 候选代码完成，远端 CI 待验 | 真实 provider 契约、不变量、时间、规模和跨消费者选测已集成；同一最终 SHA 的远端 CI 结果仍须冻结 |
-| S6 | 第三次真实演练已阻断，估值响应关联范围与回放样本契约修复待新 SHA 重跑 | `ff4d81a0c` 首次演练暴露 Linux bind mount 权限问题；`f4de5dfa2` 第二次演练通过构建、镜像身份和 5,569 只生产 provider 探针后，以 `REHEARSAL_REPLAY_OUTPUT_EXISTS` 失败关闭。`8ddb8cb78` 第三次演练的五组同 SHA CI 全绿，候选镜像 `sha256:caf6af…cf58f`、精确镜像身份和真实 provider 探针均通过，但 response replay 以外层 `REHEARSAL_OFFLINE_REPLAY_FAILED`、内层 `REHEARSAL_REPLAY_ASSET_MISSING` 阻断，未部署。根因是估值原始响应必须关联完整 5,569 只注册范围，而 replay 错把该关联范围当作应逐项存在的回放样本，因而把政策明确排除的 12 只未返回资产当成缺失；修复继续用全市场范围校验 artifact/ref，同时只对覆盖率策略验证后冻结的 50 只样本做单位与事实回放，未放宽覆盖率或排除证据。必须以新 SHA 重跑五组 CI 和整套真实 S6，旧候选、镜像和探针均不得复用 |
+| S6 | 第四次真实演练已阻断，隔离目录初始化编排修复待新 SHA 重跑 | 前三次分别暴露 evidence 目录权限、重复输出和估值全范围/回放样本混用。`84334bcdbf` 第四次演练的五组同 SHA CI 全绿，候选镜像 `sha256:1a3f80…bb0f0` 依次通过构建、镜像身份、真实 provider 探针、原始响应重放和 5,569 只全市场容量；隔离 PostgreSQL 写入以 `REHEARSAL_WRITE_CATALOG_UNAVAILABLE` 阻断，未部署。根因是 launcher 只迁移新隔离库，未通过标准入口同步受治理的 Data Center catalog。修复在候选/镜像、迁移状态、预期数据库名、临时容器 host、实际服务端地址和端口全部绑定后，显式运行 `initialize_data_center_catalog`，collector 再次执行同级 preflight；缺 catalog 的默认命令仍 fail closed。launcher 只透传单一受限 `REHEARSAL_*` 业务码，不暴露 stderr。必须以新 SHA 重跑五组 CI 和整套真实 S6，旧候选、镜像和探针均不得复用 |
 | 生产联合复验 | 未完成 | 真实普通用户、四发布、自然周期和准确 runtime 门尚需验证 |
 
 本表在每个阶段完成后更新，只写实际验证结果。最终报告必须列完成项、未完成项、已验证测试与未验证风险。
@@ -180,6 +180,7 @@
 - 同类调用者复核发现带响应证据的 dataframe wrapper 曾只实现 `empty/to_dict`，历史行情与模型数据还会使用长度、列、掩码、复制、排序和合并。wrapper 现在透明代理公共 DataFrame 操作，并由行情、历史、交易日历和模型数据组合回归覆盖，避免真实直连返回在探针外退化。
 - 审计授权续期请求路径已写入 VPS Compose 的 Web/Worker 环境，并使用既有持久化 `var_data` 卷。版本替换后缺请求会明确报告 `renewal_request_not_found`；该修复只恢复续期通道，不自动制造审批材料或解除决策阻断。
 - `ff4d81a0c` 首次真实 S6 在 VPS 运行：候选镜像 `sha256:c2fad4…cafdc` 构建成功且未部署，provider 探针完成运行后因 Linux evidence bind mount 不可写而无法生成 `probe.json`，launcher 返回 `provider_probe / S6_STAGE_COMMAND_FAILED`。该失败没有被改写为通过；修复同时把阶段目录从 world-writable 方案收紧为候选主组 `2770`、结束 `0750`，并补充失败恢复、symlink/inode 替换反例。新 provider 身份由实际 `request_mode/http_url/api_endpoint/provider/source/active/priority/name` 与客户端版本派生，白名单错误码可在命令证据中安全透传；动态健康指标和密钥不进入身份摘要。
+- `84334bcdbf` 第四次真实 S6 证明全范围估值响应与冻结样本回放修复有效：真实响应重放和 5,569 只容量阶段均成功。随后全新隔离 PostgreSQL 缺 runtime catalog，稳定阻断为 `REHEARSAL_WRITE_CATALOG_UNAVAILABLE`。本地一次性 PostgreSQL 16 正向组件验证从空 catalog 经标准初始化后完成 4 条生产路径写入、读回和防篡改检查，业务行回滚为 0，治理 catalog 持久保留；9 项 scope、迁移和 catalog 负向场景也通过。初始化前 preflight 同时绑定候选镜像、迁移完成状态、预期数据库名和实际服务端 endpoint，防止误写同名生产数据库。
 
 ### 2026-09-24 首轮执行证据
 
