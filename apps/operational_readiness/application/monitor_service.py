@@ -63,7 +63,7 @@ def _calendar_coverage_blocked_summary() -> dict[str, Any]:
     message = "交易日历缺少后续覆盖，个人 readiness 验收暂不可计算；请先同步交易日历。"
     return {
         "status": "blocked",
-        "block_reason_code": reason_code,
+        "block_reason_code": "readiness_calendar_coverage_unavailable",
         "must_not_use_for_decision": True,
         "blocking_issues": [message],
         "daily_state": {

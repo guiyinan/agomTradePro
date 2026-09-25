@@ -26,6 +26,7 @@
     {"code": "provider_capability_never_succeeded", "owner": "data_center"},
     {"code": "provider_capability_recent_failure", "owner": "data_center"},
     {"code": "provider_capability_success_stale", "owner": "data_center"},
+    {"code": "readiness_calendar_coverage_unavailable", "owner": "operational_readiness"},
     {"code": "section_evidence_missing", "owner": "equity"},
     {"code": "upstream_read_failed", "owner": "equity"}
   ],
@@ -74,6 +75,11 @@
       "path": "core/health_checks.py",
       "symbol": "check_core_data_coverage",
       "pattern": "^core_data_coverage_[a-z_]+$"
+    },
+    {
+      "path": "core/views.py",
+      "symbol": "def _decision_availability",
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$"
     },
     {
       "path": "core/middleware/decision_gate.py",
